@@ -1,10 +1,10 @@
 import { defineStore } from "pinia";
-import {getDetails_api, preprocessorExists, settingDetail, systemVersion} from "@/api/system/basis";
+import {getDetails_api, preprocessorExists, settingDetail, systemVersion} from "@jetlinks-web-core/api/system/basis";
 import {
   getTagsColor,
-} from '@/api/system/calendar'
+} from '@jetlinks-web-core/api/system/calendar'
 import {LocalStore} from "@jetlinks-web/utils";
-import {langKey, isSubApp} from "@/utils/consts";
+import {langKey, isSubApp} from "@jetlinks-web-core/utils/consts";
 
 interface LayoutType {
   siderWidth: number

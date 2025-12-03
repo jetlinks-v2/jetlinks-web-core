@@ -16,9 +16,9 @@
 
 <script lang="ts" setup>
 import NotificationRecord from "./components/NotificationRecord/index.vue";
-import { getAllNotice } from "@/api/account/center";
+import { getAllNotice } from "@jetlinks-web-core/api/account/center";
 import { useRouterParams } from "@jetlinks-web/hooks";
-import { useUserStore } from "@/store/user";
+import { useUserStore } from "@jetlinks-web-core/store/user";
 import { omit } from "lodash-es";
 
 const tabs = ref<any[]>([]);

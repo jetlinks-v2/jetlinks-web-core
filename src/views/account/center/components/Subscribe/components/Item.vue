@@ -38,16 +38,16 @@
 
 <script lang="ts" setup>
 import { onlyMessage } from '@jetlinks-web/utils'
-import MCarousel from '@/components/MCarousel/index.vue'
+import MCarousel from '@jetlinks-web-core/components/MCarousel/index.vue'
 import Unsubscribe from './Unsubscribe.vue'
 import Card from './Card.vue'
 import {
   getIsBindThird,
   save_api,
-} from '@/api/account/notificationSubscription'
-import { useUserStore } from '@/store/user'
+} from '@jetlinks-web-core/api/account/notificationSubscription'
+import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useI18n } from 'vue-i18n';
-import {useSystemStore} from "@/store";
+import {useSystemStore} from "@jetlinks-web-core/store";
 
 const systemStore = useSystemStore()
 const { t: $t } = useI18n();

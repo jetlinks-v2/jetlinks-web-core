@@ -12,7 +12,7 @@
                         <img
                             :src="
                                 item.logoUrl ||
-                                getImage(bindIcon[item.provider])
+                                bindIcon[item.provider]
                             "
                             style="height: 24px; width: 24px"
                             alt=""
@@ -56,17 +56,19 @@
 
 <script setup lang="ts">
 import { BASE_API } from '@jetlinks-web/constants'
-import { getSsoBinds_api , unBind_api} from '@/api/account/center';
-import { onlyMessage  , getImage } from "@jetlinks-web/utils";
+import { getSsoBinds_api , unBind_api} from '@jetlinks-web-core/api/account/center';
+import { onlyMessage } from "@jetlinks-web/utils";
+import { DingTalk, WeixinCorp } from '@jetlinks-web-core/assets/notice'
+import { InternalStandalone, ThirdParty } from '@jetlinks-web-core/assets/apply'
 import { useI18n } from 'vue-i18n';
 
 const { t: $t } = useI18n();
 const bindList = ref<any[]>([]);
 const bindIcon = {
-    'dingtalk-ent-app': '/notice/dingtalk.png',
-    'wechat-webapp': '/notice/wechat.png',
-    'internal-standalone': '/apply/internal-standalone.png',
-    'third-party': '/apply/third-party.png',
+    'dingtalk-ent-app': DingTalk,
+    'wechat-webapp': WeixinCorp,
+    'internal-standalone': InternalStandalone,
+    'third-party': ThirdParty,
 };
 const unBind = (id: string) => {
     unBind_api(id).then((resp) => {

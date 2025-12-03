@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { trendData_api, queryFlow } from '@/api/Dashboard/index'
+import { trendData_api, queryFlow } from '@jetlinks-web-core/api/Dashboard/index'
 import Guide from './components/Guide.vue'
 import Charts from './components/Charts.vue'
 import TimeSelect from './components/TimeSelect.vue'
@@ -298,7 +298,7 @@ watch(
       }
       _style.value = style
     }
-   
+
   },
   {immediate:true}
 )

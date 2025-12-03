@@ -84,7 +84,7 @@
       :data="current.data"
       @save="onSave"
       @close="current.visible = false"
-      :title="current.data.id ? '编辑' : '新增'"
+      :title="current.data.id ? `${$t('CrudTable.index.150716-1')}` : `${$t('CrudTable.index.150716-2')}`"
       :schema="schema"
       :request="updateRequest"
       :handleRequestData="handleRequestData"
@@ -117,7 +117,7 @@ const isCheck = computed(() => {
 })
 
 const _slots = computed(() => {
-  return omit(slots, ['headerLeftRender', 'card', 'actions'])
+  return shallowReactive(omit(slots, ['headerLeftRender', 'card', 'actions']))
 })
 
 const _actions = computed(() => {

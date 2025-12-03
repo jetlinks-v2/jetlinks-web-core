@@ -32,8 +32,8 @@
 </template>
 
 <script lang="ts" setup>
-import { getIsBindThird } from '@/api/account/notificationSubscription'
-import { useUserStore } from '@/store/user'
+import { getIsBindThird } from '@jetlinks-web-core/api/account/notificationSubscription'
+import { useUserStore } from '@jetlinks-web-core/store/user'
 
 const user = useUserStore()
 const emit = defineEmits(['infoChange', 'unsubscribe', 'bindChange'])

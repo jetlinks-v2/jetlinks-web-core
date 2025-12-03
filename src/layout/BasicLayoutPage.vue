@@ -7,7 +7,7 @@
     :breadcrumb="{ routes: route.meta.breadcrumb }"
     :pure="state.pure"
     :layoutType="layoutType"
-    @backClick='routerBack'
+    @backClick='goBack'
   >
     <template #breadcrumbRender="slotProps">
       <a v-if="slotProps.route.index !== 0 && !slotProps.route.isLast" @click="() => jumpPage(slotProps)" >
@@ -33,11 +33,12 @@
 
 <script setup name="BasicLayoutPage" lang="ts">
 import { reactive, computed, watchEffect } from 'vue'
-import { useSystemStore } from '@/store/system'
-import { useMenuStore } from '@/store/menu'
+import { useSystemStore } from '@jetlinks-web-core/store/system'
+import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import { User, Notice, Language, Resource, AiChat } from './components'
 import { storeToRefs } from 'pinia'
-import {getHideHeaderRightConfig} from "@/utils";
+import { getHideHeaderRightConfig, routerFallback } from '@jetlinks-web-core/utils'
+import { isSubApp } from '../utils/consts'
 
 const router = useRouter();
 const route = useRoute();
@@ -69,8 +70,13 @@ const jumpPage = (record: any) => {
   menuStore.jumpPage(record.route.name, {})
 }
 
-const routerBack = () => {
-  router.go(-1)
+const goBack = () => {
+  if (isSubApp) {
+    const globalData = (window as any).microApp.getGlobalData() as { api: Record<string, any>}
+    globalData.api.routerFallback?.()
+  } else {
+    routerFallback()
+  }
 }
 
 const init = () => {

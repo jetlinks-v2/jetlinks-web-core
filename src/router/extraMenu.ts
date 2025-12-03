@@ -1,4 +1,4 @@
-import {modules} from '@/utils/modules'
+import {modules} from '@jetlinks-web-core/utils/modules'
 
 export const getExtraRouters = async () => {
   const extraMenu = {

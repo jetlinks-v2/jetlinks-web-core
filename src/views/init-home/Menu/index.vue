@@ -1,7 +1,7 @@
 <template>
   <div class="menu-style">
     <div class="menu-img">
-      <img :src="getImage('/init-home/menu.png')" />
+      <img :src="Menu" />
     </div>
     <div class="menu-info">
       <b>{{ $t("Menu.index.459633-0", [menusData.count]) }}</b>
@@ -11,7 +11,6 @@
 </template>
 
 <script lang="ts" setup>
-import { getImage } from "@jetlinks-web/utils";
 import {ACCESS_AI_AGENT_CODE_DATA, USER_CENTER_MENU_DATA} from "../data/baseMenu";
 import BaseMenuData, { mergeTrees, handleMenuOptions } from '../data'
 import {
@@ -19,12 +18,16 @@ import {
   systemVersion,
   queryModule,
   getSystemPermission,
-} from "@/api/initHome";
-import { OpenMicroApp } from "@/utils/consts";
+} from "@jetlinks-web-core/api/initHome";
+import { OpenMicroApp } from "@jetlinks-web-core/utils/consts";
 import { BASE_API } from '@jetlinks-web/constants'
-import { useApplication } from '@/store'
-import {saveAgentList} from "@/api/comm";
+import { useApplication } from '@jetlinks-web-core/store'
+import {saveAgentList} from "@jetlinks-web-core/api/comm";
 import {agentData} from "../data/aiData";
+import { Menu } from '@jetlinks-web-core/assets/init-home'
+import { useI18n } from 'vue-i18n';
+
+const { t: $t } = useI18n();
 
 const app = useApplication()
 /**

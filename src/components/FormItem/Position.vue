@@ -1,10 +1,10 @@
 <script setup name="PositionList">
-import {filterSelectNode} from "@/utils";
+import {filterSelectNode} from "@jetlinks-web-core/utils";
 import {useI18n} from 'vue-i18n';
 import {useRequest} from '@jetlinks-web/hooks'
-import {queryPageNoPage} from "@/api/system/positions";
+import {queryPageNoPage} from "@jetlinks-web-core/api/system/positions";
 import {map} from "lodash-es";
-import { useTabSaveSuccess } from '@/hooks'
+import { useTabSaveSuccess } from '@jetlinks-web-core/hooks'
 
 const {t: $t} = useI18n();
 const emit = defineEmits(['update:value', 'change'])

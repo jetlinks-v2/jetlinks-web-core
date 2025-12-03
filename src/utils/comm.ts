@@ -1,9 +1,9 @@
 import dayjs from "dayjs";
-import { downloadFileByUrl, getImage, LocalStore } from "@jetlinks-web/utils";
-import { getFileUrlById } from "@/api/comm";
+import { downloadFileByUrl, getImage, getToken, LocalStore } from '@jetlinks-web/utils'
+import { getFileUrlById } from "@jetlinks-web-core/api/comm";
 import { message } from "ant-design-vue";
-import { BASE_API } from '@jetlinks-web/constants'
-import { isSubApp } from '@/utils/consts'
+import { BASE_API, TOKEN_KEY } from '@jetlinks-web/constants'
+import { isSubApp } from '@jetlinks-web-core/utils/consts'
 
 export const downloadJson = (
   record: Record<string, any>,
@@ -128,3 +128,7 @@ export function getBaseApi() {
 
   return BASE_API
 }
+
+export const getUploadHeaders = () => ({
+  [TOKEN_KEY]: getToken(),
+})

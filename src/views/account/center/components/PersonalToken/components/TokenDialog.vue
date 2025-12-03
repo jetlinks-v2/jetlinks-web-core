@@ -153,8 +153,8 @@ import { CheckCircleOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import PermissionSelector from './PermissionSelector.vue'
 import Success from './Success.vue'
-import { savePersonalToken_api } from '@/api/account/center'
-import { useUserStore } from '@/store'
+import { savePersonalToken_api } from '@jetlinks-web-core/api/account/center'
+import { useUserStore } from '@jetlinks-web-core/store'
 import { randomString } from '@jetlinks-web/utils'
 
 const props = defineProps({

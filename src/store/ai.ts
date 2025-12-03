@@ -1,7 +1,7 @@
 import {defineStore} from "pinia";
-import {queryAgentList} from "@/api/comm";
-import {useAuthStore} from "@/store/auth";
-import {ACCESS_AI_AGENT_CODE, USER_CENTER_MENU_CODE} from "@/utils/consts";
+import {queryAgentList} from "@jetlinks-web-core/api/comm";
+import {useAuthStore} from "@jetlinks-web-core/store/auth";
+import {ACCESS_AI_AGENT_CODE, USER_CENTER_MENU_CODE} from "@jetlinks-web-core/utils/consts";
 
 export const useAIStore = defineStore('ai', () => {
   const showAiButton = ref(false)

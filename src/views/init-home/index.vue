@@ -63,7 +63,7 @@ import Basic from './Basic/index.vue';
 import Menu from './Menu/index.vue';
 import Role from './Role/index.vue';
 import InitData from './initData/index.vue';
-import {getInit, saveInit} from '@/api/initHome';
+import {getInit, saveInit} from '@jetlinks-web-core/api/initHome';
 import {onlyMessage} from '@jetlinks-web/utils';
 import {useI18n} from 'vue-i18n';
 
@@ -152,7 +152,7 @@ onBeforeMount(() => {
   height: 100vh;
   padding: 32px 128px 64px;
   overflow: hidden;
-  background-image: url(/images/init-home/background.png);
+  background-image: url('@jetlinks-web-core/assets/init-home/background.png');
   background-repeat: no-repeat;
   background-size: 100% 100%;
 

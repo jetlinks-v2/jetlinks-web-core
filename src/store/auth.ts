@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { isArray } from 'lodash-es'
-import { handleMenus } from '@/utils'
 
 export const useAuthStore = defineStore('auth', () => {
   const permissions = ref<Record<string, string[]>>({})

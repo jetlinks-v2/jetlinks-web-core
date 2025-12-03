@@ -134,8 +134,8 @@
 <script setup lang="ts" name='CardBox'>
 import {getHexColor} from '@jetlinks-web/components/es/BadgeStatus/color';
 import {PropType} from 'vue';
-import i18n from '@/locales';
-import {handleFuncValue} from "@/components/CrudTable/utils";
+import i18n from '@jetlinks-web-core/locales';
+import {handleFuncValue} from "@jetlinks-web-core/components/CrudTable/utils";
 
 type EmitProps = {
   // (e: 'update:modelValue', data: Record<string, any>): void;
@@ -370,7 +370,7 @@ const handleClick = () => {
         width: 15%;
         min-width: 64px;
         height: 2px;
-        background-image: url('/images/rectangle.png');
+        background-image: url('@jetlinks-web-core/assets/rectangle.png');
         background-repeat: no-repeat;
         background-size: 100% 100%;
         content: ' ';

@@ -16,7 +16,7 @@ export const getModulesMenu = () => {
 }
 
 export const registerModule = () => {
-  const modulesFiles = import.meta.glob('../../../modules/*/index.ts', {eager: true})
+  const modulesFiles = import.meta.glob('../modules/*/index.ts', {eager: true})
   Object.values(modulesFiles).forEach((item: any) => {
     item.default.register?.()
   })

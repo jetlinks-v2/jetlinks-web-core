@@ -122,11 +122,11 @@
 </template>
 
 <script setup>
-import { getTokenConfig, getTokenRedirect } from '@/api/comm'
-import { codeUrl } from '@/api/login'
+import { getTokenConfig, getTokenRedirect } from '@jetlinks-web-core/api/comm'
+import { codeUrl } from '@jetlinks-web-core/api/login'
 import { useRequest } from '@jetlinks-web/hooks'
 import { encrypt, LocalStore, onlyMessage } from '@jetlinks-web/utils'
-import { PersonalKey, PersonalUrlKey, PersonalToken, PersonalAIKey } from '@/utils/consts'
+import { PersonalKey, PersonalUrlKey, PersonalToken, PersonalAIKey } from '@jetlinks-web-core/utils/consts'
 
 const ERROR_MESSAGES = {
   MISSING_TOKEN: '缺少必要的授权参数',

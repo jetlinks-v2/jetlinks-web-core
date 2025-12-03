@@ -41,7 +41,7 @@
 </template>
 
 <script lang="ts" setup>
-import { useUserStore } from '@/store/user'
+import { useUserStore } from '@jetlinks-web-core/store/user'
 import EditInfo from '../../EditInfo/index.vue'
 import Bind from './Bind.vue'
 

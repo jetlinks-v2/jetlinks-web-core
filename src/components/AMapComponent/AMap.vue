@@ -20,7 +20,7 @@ import { CSSProperties, PropType } from 'vue';
 import { initAMapApiLoader } from '@vuemap/vue-amap';
 import '@vuemap/vue-amap/dist/style.css';
 import { getAMapUiPromise } from './utils';
-import { useSystemStore } from '@/store/system';
+import { useSystemStore } from '@jetlinks-web-core/store/system';
 
 const emit = defineEmits(['init']);
 

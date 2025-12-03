@@ -1,6 +1,6 @@
 import { randomString } from '@jetlinks-web/utils'
-import { isSubApp } from '@/utils/consts'
-import { useMenuStore } from '@/store'
+import { isSubApp } from '@jetlinks-web-core/utils/consts'
+import { useMenuStore } from '@jetlinks-web-core/store'
 
 type OptionsType = {
   onSuccess?: (value: any) => void

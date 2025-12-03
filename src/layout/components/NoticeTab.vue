@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { getList_api } from '@/api/account/notificationRecord';
+import { getList_api } from '@jetlinks-web-core/api/account/notificationRecord';
 
 const props = defineProps({
     tab: {

@@ -55,7 +55,7 @@ import { BatchActionsType } from './types';
 import { defineExpose } from 'vue';
 import { AIcon } from '@jetlinks-web/components'
 import {omit} from "lodash-es";
-import { useAuthStore } from '@/store'
+import { useAuthStore } from '@jetlinks-web-core/store'
 
 const props = defineProps({
     actions: {

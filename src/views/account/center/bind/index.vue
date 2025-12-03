@@ -139,16 +139,16 @@ import { onlyMessage, LocalStore, encrypt } from "@jetlinks-web/utils";
 import { TOKEN_KEY } from "@jetlinks-web/constants";
 import { Form } from "ant-design-vue";
 
-import { applicationInfo, bindAccount } from "@/api/system/bind";
-import { codeUrl, authLogin, userDetail, encryptionConfig } from "@/api/login";
-import { useSystemStore } from "@/store/system";
+import { applicationInfo, bindAccount } from "@jetlinks-web-core/api/system/bind";
+import { codeUrl, authLogin, userDetail, encryptionConfig } from "@jetlinks-web-core/api/login";
+import { useSystemStore } from "@jetlinks-web-core/store/system";
 import { useI18n } from "vue-i18n";
-import jetlinksLogoImg from "@/assets/bindPage/jetlinksLogo.png";
-import vectorImg from "@/assets/bindPage/Vector.png";
-import internalStandaloneImg from "@/assets/apply/internal-standalone.png";
-import wechatImg from "@/assets/bindPage/wechat-webapp.png";
-import dingtalkImg from "@/assets/bindPage/dingtalk.png";
-import thirdPartyImg from "@/assets/apply/third-party.png";
+import jetlinksLogoImg from "@jetlinks-web-core/assets/bindPage/jetlinksLogo.png";
+import vectorImg from "@jetlinks-web-core/assets/bindPage/Vector.png";
+import internalStandaloneImg from "@jetlinks-web-core/assets/apply/internal-standalone.png";
+import wechatImg from "@jetlinks-web-core/assets/bindPage/wechat-webapp.png";
+import dingtalkImg from "@jetlinks-web-core/assets/bindPage/dingtalk.png";
+import thirdPartyImg from "@jetlinks-web-core/assets/apply/third-party.png";
 
 const { t: $t } = useI18n();
 

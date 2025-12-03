@@ -98,7 +98,7 @@ import {
     updateMepsd_api,
     checkOldPassword_api,
     validateField_api,
-} from '@/api/account/center';
+} from '@jetlinks-web-core/api/account/center';
 import { onlyMessage } from "@jetlinks-web/utils";
 import { Modal } from 'ant-design-vue';
 import { useI18n } from 'vue-i18n';

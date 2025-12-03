@@ -55,9 +55,9 @@
 </template>
 
 <script setup lang="ts">
-import { getList_api } from '@/api/account/notificationRecord';
-import { useMenuStore } from '@/store/menu';
-import { useUserStore } from '@/store/user';
+import { getList_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { useMenuStore } from '@jetlinks-web-core/store/menu';
+import { useUserStore } from '@jetlinks-web-core/store/user';
 import { cloneDeep } from 'lodash-es';
 import NoticeItem from './NoticeItem.vue';
 import NoticeTab from './NoticeTab.vue';

@@ -54,9 +54,9 @@
 </template>
 
 <script lang="ts" setup>
-import { useUserStore } from '@/store/user'
+import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useI18n } from 'vue-i18n';
-import {isNoCommunity} from "@/utils";
+import {isNoCommunity} from "@jetlinks-web-core/utils";
 
 const { t: $t } = useI18n();
 const { userInfo } = useUserStore();

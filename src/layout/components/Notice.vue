@@ -18,14 +18,14 @@
 </template>
 
 <script setup lang="ts" name="Notice">
-import { getList_api , changeStatus_api } from '@/api/account/notificationRecord';
+import { getList_api , changeStatus_api } from '@jetlinks-web-core/api/account/notificationRecord';
 import { ref } from 'vue'
 import NoticeInfo from './NoticeInfo.vue';
-import { useWebSocket } from '@/hooks'
+import { useWebSocket } from '@jetlinks-web-core/hooks'
 import { notification, Button } from 'ant-design-vue';
-import { useUserStore } from '@/store/user';
-import { useMenuStore } from '@/store/menu';
-import { getAllNotice } from '@/api/account/center';
+import { useUserStore } from '@jetlinks-web-core/store/user';
+import { useMenuStore } from '@jetlinks-web-core/store/menu';
+import { getAllNotice } from '@jetlinks-web-core/api/account/center';
 import { flatten } from 'lodash-es';
 import { useI18n } from 'vue-i18n';
 

@@ -104,8 +104,8 @@
 </template>
 
 <script setup>
-import {moduleRegistry} from "@/utils/module-registry";
-import {getAgentDetailById, getAgentHistoryList, delHistory, historyData} from "@/api/comm";
+import {moduleRegistry} from "@jetlinks-web-core/utils/module-registry";
+import {getAgentDetailById, getAgentHistoryList, delHistory, historyData} from "@jetlinks-web-core/api/comm";
 import {onlyMessage} from "@jetlinks-web/utils";
 
 const props = defineProps({

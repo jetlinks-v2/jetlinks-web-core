@@ -71,8 +71,8 @@ import {
   videoDevicesNum,
   alarmNum,
   trendData_api
-} from '@/api/Dashboard/index'
-import { getImageUrl } from '@/utils/comm'
+} from '@jetlinks-web-core/api/Dashboard/index'
+import { getImageUrl } from '@jetlinks-web-core/utils/comm'
 import dayjs from 'dayjs'
 import Charts from './components/Charts.vue'
 

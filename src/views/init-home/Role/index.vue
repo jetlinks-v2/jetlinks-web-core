@@ -85,7 +85,7 @@
 
 <script lang="ts" setup>
 import RoleMenuData, { ROLEKEYS, RoleData } from '../data/RoleData';
-import { updateRoleMenu, addRole, getRoleMenu, addRoleGroup } from '@/api/initHome';
+import { updateRoleMenu, addRole, getRoleMenu, addRoleGroup } from '@jetlinks-web-core/api/initHome';
 import { randomString } from '@jetlinks-web/utils';
 import { useI18n } from 'vue-i18n';
 
@@ -330,15 +330,15 @@ defineExpose({
     }
 
     .role-item-1 {
-        background-image: url(/images/init-home/role1.png);
+        background-image: url('@jetlinks-web-core/assets/init-home/role1.png');
     }
 
     .role-item-2 {
-        background-image: url(/images/init-home/role2.png);
+        background-image: url('@jetlinks-web-core/assets/init-home/role2.png');
     }
 
     .role-item-3 {
-        background-image: url(/images/init-home/role3.png);
+        background-image: url('@jetlinks-web-core/assets/init-home/role3.png');
     }
 
     .role-item {

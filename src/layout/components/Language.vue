@@ -4,8 +4,8 @@
 
 <script setup lang="ts">
 import { LocalStore } from '@jetlinks-web/utils';
-import { useSystemStore } from '@/store'
-import { langKey, ruleEditorKey } from "@/utils/consts";
+import { useSystemStore } from '@jetlinks-web-core/store'
+import { langKey, ruleEditorKey } from "@jetlinks-web-core/utils/consts";
 
 const systemStore = useSystemStore()
 

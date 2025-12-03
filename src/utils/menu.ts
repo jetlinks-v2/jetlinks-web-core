@@ -1,6 +1,7 @@
 import type { RouteMeta } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import { USER_CENTER_MENU_CODE } from '@/utils/consts'
+import { USER_CENTER_MENU_CODE } from '@jetlinks-web-core/utils/consts'
+import router from '../router'
 
 type Buttons = Array<{ id: string }>
 
@@ -237,6 +238,19 @@ export const handleAuthMenu = (menuData: MenuItem[], cb: (code: string, buttons:
         handleAuthMenu(children, cb)
       }
     })
+  }
+}
+
+export const routerFallback = () => {
+  if (window.history.state.back && window.history.length > 1) {
+    router.go(-1)
+  } else {
+    const meta = router.currentRoute.value.meta
+    const breadcrumb = meta.breadcrumb as Array<Record<string, any>>
+    if (breadcrumb.length > 1) {
+      const item = breadcrumb[breadcrumb.length - 2]
+      router.push(item.path)
+    }
   }
 }
 

@@ -50,10 +50,10 @@
 </template>
 
 <script lang="ts" setup>
-import { getAllNotice } from "@/api/account/center";
-import { getNoticeList_api } from "@/api/account/notificationSubscription";
+import { getAllNotice } from "@jetlinks-web-core/api/account/center";
+import { getNoticeList_api } from "@jetlinks-web-core/api/account/notificationSubscription";
 import Item from "./components/Item.vue";
-import { useMenuStore } from "@/store/menu";
+import { useMenuStore } from "@jetlinks-web-core/store/menu";
 import { omit } from "lodash-es";
 
 const menuStore = useMenuStore();

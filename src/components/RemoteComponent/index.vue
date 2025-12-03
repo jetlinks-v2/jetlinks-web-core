@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { moduleRegistry } from '@/utils/module-registry'
+import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
 
 interface Props {
   /** 远程应用名称 */

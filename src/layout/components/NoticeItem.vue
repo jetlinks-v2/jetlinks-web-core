@@ -38,9 +38,9 @@
 
 <script setup lang="ts">
 import dayjs from 'dayjs';
-import { changeStatus_api } from '@/api/account/notificationRecord';
-import { useMenuStore } from '@/store/menu';
-import { useUserStore } from '@/store/user';
+import { changeStatus_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { useMenuStore } from '@jetlinks-web-core/store/menu';
+import { useUserStore } from '@jetlinks-web-core/store/user';
 import { onlyMessage } from '@jetlinks-web/utils';
 import { useI18n } from 'vue-i18n';
 

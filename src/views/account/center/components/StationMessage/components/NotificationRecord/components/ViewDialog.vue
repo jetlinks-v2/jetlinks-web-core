@@ -139,7 +139,7 @@ import dayjs from 'dayjs'
 import {
   getWorkflowNotice,
   queryLevel as queryLevel_api,
-} from '@/api/account/notificationRecord'
+} from '@jetlinks-web-core/api/account/notificationRecord'
 
 const emits = defineEmits(['update:visible'])
 const props = defineProps<{

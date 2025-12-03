@@ -24,8 +24,8 @@
 <script setup lang="ts" name="UploadCropper">
 import 'vue-cropper/dist/index.css'
 import { VueCropper } from 'vue-cropper';
-import { fileUpload } from '@/api/comm';
-import i18n from '@/locales';
+import { fileUpload } from '@jetlinks-web-core/api/comm';
+import i18n from '@jetlinks-web-core/locales';
 
 const props = defineProps({
   img: {

@@ -4,7 +4,7 @@
 
 <script lang="ts" setup>
 import { LocalStore } from '@jetlinks-web/utils'
-import { createScript } from '@/utils/document'
+import { createScript } from '@jetlinks-web-core/utils/document'
 
 const props = defineProps({
   data: {

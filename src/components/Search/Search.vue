@@ -17,7 +17,7 @@
 
 <script setup lang='ts' name='ProSearch'>
 import { PropType } from 'vue'
-import { saveSearchHistory, getSearchHistory, deleteSearchHistory } from '@/api/comm'
+import { saveSearchHistory, getSearchHistory, deleteSearchHistory } from '@jetlinks-web-core/api/comm'
 import {isObject} from "lodash-es";
 
 interface Emit {

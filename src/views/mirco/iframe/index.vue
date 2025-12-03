@@ -14,8 +14,8 @@
 </template>
 
 <script setup name="IframePage">
-import { jumpLogin } from  '@/router'
-import { useApplication, useMenuStore } from '@/store'
+import { jumpLogin } from  '@jetlinks-web-core/router'
+import { useApplication, useMenuStore } from '@jetlinks-web-core/store'
 import { nextTick } from 'vue'
 import { LayoutType } from '@jetlinks-web/components/es/ProLayout/defaultSettings'
 

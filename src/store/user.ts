@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
-import { detail } from '@/api/system/user'
-import { tabList } from "@/views/account/center/data";
-import {LocalStore} from "@jetlinks-web/utils/src/storage";
+import { detail } from '@jetlinks-web-core/api/system/user'
+import { tabList } from "@jetlinks-web-core/views/account/center/data";
+import {LocalStore} from "@jetlinks-web/utils";
 
 type UserInfo = {
   name: string

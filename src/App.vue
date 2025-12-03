@@ -17,11 +17,11 @@ import enUs from 'ant-design-vue/es/locale/en_US'
 import componentsZhCN from '@jetlinks-web/components/es/locale/zh-CN'
 import componentsEnUS from '@jetlinks-web/components/es/locale/en-US'
 import theme from '../configs/theme'
-import { useAuthStore, useSystemStore } from '@/store';
-import { ComponentsEnum, LOCAL_BASE_API, BASE_API } from '@jetlinks-web/constants'
-import {initPackages} from "@/package";
+import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
+import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
+import {initPackages} from "@jetlinks-web-core/package";
 import { setToken} from "@jetlinks-web/utils";
-import { initPersonal } from '@/utils'
+import { getBaseApi, initPersonal } from '@jetlinks-web-core/utils'
 
 const route = useRoute()
 
@@ -49,7 +49,7 @@ initPersonal()
 initPackages()
 
 if (import.meta.env.DEV) {
-  localStorage.setItem(LOCAL_BASE_API, BASE_API)
+  localStorage.setItem(LOCAL_BASE_API, getBaseApi())
 }
 
 window.addEventListener('vite:preloadError', (event) => {

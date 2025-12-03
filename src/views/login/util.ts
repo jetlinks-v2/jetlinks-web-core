@@ -1,8 +1,8 @@
-import standalone from '@/assets/apply/internal-standalone.png'
-import dingtalk from '@/assets/bindPage/dingtalk.png'
-import wechat from '@/assets/bindPage/wechat-webapp.png'
-import thirdParty from '@/assets/apply/third-party.png'
-import wechatMiniapp from '@/assets/apply/wechat-miniapp.png'
+import standalone from '@jetlinks-web-core/assets/apply/internal-standalone.png'
+import dingtalk from '@jetlinks-web-core/assets/bindPage/dingtalk.png'
+import wechat from '@jetlinks-web-core/assets/bindPage/wechat-webapp.png'
+import thirdParty from '@jetlinks-web-core/assets/apply/third-party.png'
+import wechatMiniapp from '@jetlinks-web-core/assets/apply/wechat-miniapp.png'
 
 export const rules = {
   username: [

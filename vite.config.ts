@@ -8,8 +8,6 @@ import VueSetupExtend from 'vite-plugin-vue-setup-extend'
 import monacoEditorPlugin from './configs/plugin/monaco-editor'
 import progress from 'vite-plugin-progress'
 import * as path from 'path'
-import { theme } from 'ant-design-vue/lib'
-import convertLegacyToken from 'ant-design-vue/lib/theme/convertLegacyToken'
 import {
   registerModulesAlias,
   copyFile,
@@ -17,13 +15,35 @@ import {
 } from './configs/plugin'
 import { federation, sharpOptimize } from '@jetlinks-web/vite'
 
-import customTheme from './configs/theme'
 import { antdLegacyVarsPlugin } from './configs/plugin/antd-legacy-vars-plugin'
+import { getDefine, getFederationSetting, v3Token } from './vite.setting'
+import { moduleFilterPlugin } from './configs/plugin/moduleFilterPlugin'
 
-const { defaultAlgorithm, defaultSeed } = theme
-
-const mapToken = defaultAlgorithm({ ...defaultSeed, ...customTheme })
-const v3Token = convertLegacyToken(mapToken)
+// 开发服务器插件 - 用于在开发模式下设置全局变量
+const devServerPlugin = (targetModule?: string) => {
+  return {
+    name: 'dev-server-plugin',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (targetModule && req.url?.endsWith('.html')) {
+          const originalEnd = res.end
+          res.end = function(...args) {
+            let html = ''
+            if (args[0]) {
+              html = args[0].toString()
+            }
+            // 在 </body> 前注入脚本
+            const script = `<script>window.__JETLINKS_TARGET_MODULE__='${targetModule}'</script>`
+            html = html.replace('</body>', `${script}</body>`)
+            args[0] = html
+            return originalEnd.apply(this, args)
+          }
+        }
+        next()
+      })
+    }
+  }
+}
 
 const federationSharedMap = {
   vue: ['vue'],
@@ -44,24 +64,32 @@ export default defineConfig(({ mode, command }) => {
   const env: Partial<ImportMetaEnv> = loadEnv(mode, envDir, '')
 
   const moduleNameIndex = process.argv.indexOf('--module-name')
-  const mavenName = moduleNameIndex !== -1 ? process.argv[moduleNameIndex + 1] : null
+  let mavenNames: string[] | null = null
+
+  if (moduleNameIndex !== -1) {
+    const moduleNameStr = process.argv[moduleNameIndex + 1]
+    // 支持逗号分隔的多个模块名
+    mavenNames = moduleNameStr ? moduleNameStr.split(',').map(name => name.trim()) : null
+  }
+
+  // 解析后端地址参数
+  const backendUrlIndex = process.argv.indexOf('--backend-url')
+  let backendUrl = backendUrlIndex !== -1 ? process.argv[backendUrlIndex + 1] : null
+
+  // 自动添加 http:// 前缀（如果用户未输入）
+  if (backendUrl && !backendUrl.match(/^https?:\/\//)) {
+    backendUrl = `http://${backendUrl}`
+  }
+
+  // 兼容单个模块名的场景（向后兼容）
+  // 如果是单个模块，传递模块名；如果是多个模块，传递null使用默认host配置
+  const mavenName = mavenNames && mavenNames.length === 1 ? mavenNames[0] : null
 
   const isDev = command === 'serve'
-  const envDefine = Object.entries(env).reduce((acc, [key, val]) => {
-    if (key.startsWith('VITE_')) {
-      acc[`import.meta.env.${key}`] = JSON.stringify(val)
-    }
-    return acc
-  }, {} as Record<string, string>)
+  const envDefine = getDefine(env, mode, isDev, mavenName)
 
-  envDefine['import.meta.env.BASE_URL'] = JSON.stringify('./')
-  envDefine['import.meta.env.MODE'] = JSON.stringify(mode)
-  envDefine['import.meta.env.DEV'] = String(isDev)
-  envDefine['import.meta.env.PROD'] = String(!isDev)
-  envDefine['import.meta.env.SSR'] = 'false'
-  envDefine['import.meta.env.VITE_MODULE_NAME'] = JSON.stringify(mavenName)
-
-  console.log('vite.config',path.resolve(__dirname, 'src'))
+  // 开发服务器插件配置
+  const devPlugin = isDev && mavenNames && mavenNames.length > 0 ? devServerPlugin(mavenNames.join(',')) : null
 
   return {
     envDir,
@@ -74,8 +102,8 @@ export default defineConfig(({ mode, command }) => {
     },
     define: envDefine,
     build: {
-      outDir: mavenName ? `../modules/${mavenName}/dist` : 'dist',
-      assetsDir: mavenName ? `../modules/${mavenName}/assets` : 'assets',
+      outDir: mavenName ? path.resolve(envDir, `modules/${mavenName}/dist`) : 'dist',
+      assetsDir: mavenName ? path.resolve(envDir, `modules/${mavenName}/assets`) : 'assets',
       sourcemap: false,
       cssCodeSplit: false,
       manifest: true,
@@ -92,6 +120,10 @@ export default defineConfig(({ mode, command }) => {
             }
             return `assets/[name].${new Date().getTime()}.[ext]`
           },
+          // 如果是模块构建，提取特定的CSS chunks
+          ...(mavenName && {
+            input: `../modules/${mavenName}/register.ts`
+          }),
           compact: true,
           manualChunks: mavenName ? undefined : federationSharedMap
         }
@@ -114,23 +146,14 @@ export default defineConfig(({ mode, command }) => {
         dts: 'src/auto-imports.d.ts',
         resolvers: [VueAmapResolver()]
       }),
+      moduleFilterPlugin(mavenNames),
       progress(),
       copyFile(mavenName),
       ...loadViteModulesPlugins(),
-      federation({
-        name: mavenName ? `${mavenName}` : 'host',
-        remotes: {},
-        enableDynamicRemotes: true,
-        filename: mavenName ? 'remoteEntry.js' : undefined,
-        isHost: true,
-        shared: Object.keys(federationSharedMap),
-        exposes: mavenName
-          ? {
-            [mavenName]: path.resolve(envDir, 'modules/${mavenName}/register.ts')
-          }
-          : undefined
-      }),
-      sharpOptimize()
+      federation(getFederationSetting(mavenName, envDir)),
+      sharpOptimize(),
+      // 添加开发服务器插件
+      ...(devPlugin ? [devPlugin] : [])
     ],
     server: {
       host: '0.0.0.0',
@@ -139,10 +162,8 @@ export default defineConfig(({ mode, command }) => {
       fs: { allow: [envDir] },
       proxy: {
         [env.VITE_APP_BASE_API]: {
-          target: 'http://192.168.33.57:8844',
-          // target: 'http://192.168.32.233:8601', // 王
-          // target: 'http://192.168.35.114:8844',
-          // target: 'http://192.168.33.210:8800',
+          // 优先使用命令行参数，其次使用环境变量
+          target: backendUrl || env.VITE_APP_DEV_PROXY_URL,
           ws: true,
           changeOrigin: true,
           rewrite: (path) => path.replace(new RegExp(`^${env.VITE_APP_BASE_API}`), '')
@@ -155,7 +176,7 @@ export default defineConfig(({ mode, command }) => {
           modifyVars: {
             'root-entry-name': 'variable',
             hack: `true; @import (reference) "${path.resolve('src/style/variable.less')}";`,
-            ...v3Token
+            ...v3Token()
           },
           javascriptEnabled: true
         }

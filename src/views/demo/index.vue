@@ -41,7 +41,7 @@
 
 <script setup name="Demo" lang="ts">
 import { useRouter } from 'vue-router'
-import { moduleRegistry } from '@/utils/module-registry'
+import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
 
 const router = useRouter()
 const list = ref([])

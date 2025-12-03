@@ -1,5 +1,5 @@
 import proMenu from './baseMenu';
-import {getModulesMenu} from '@/utils/modules'
+import {getModulesMenu} from '@jetlinks-web-core/utils/modules'
 /**
  * 合并菜单数据
  * @param tree1 基础菜单数据

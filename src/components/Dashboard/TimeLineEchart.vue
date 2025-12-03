@@ -50,7 +50,7 @@
 </template>
 
 <script lang="ts" setup>
-import { dashboard } from '@/api/Dashboard/index'
+import { dashboard } from '@jetlinks-web-core/api/Dashboard/index'
 import dayjs from 'dayjs'
 import {
   getTimeByType,

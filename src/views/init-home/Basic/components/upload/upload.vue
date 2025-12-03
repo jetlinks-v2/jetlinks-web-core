@@ -26,7 +26,7 @@
 import { UploadInfoType } from './typing'
 import { TOKEN_KEY } from '@jetlinks-web/constants'
 import { getToken, onlyMessage } from '@jetlinks-web/utils'
-import {FileStaticPath} from '@/api/comm'
+import {FileStaticPath} from '@jetlinks-web-core/api/comm'
 import { useI18n } from 'vue-i18n';
 
 const { t: $t } = useI18n();

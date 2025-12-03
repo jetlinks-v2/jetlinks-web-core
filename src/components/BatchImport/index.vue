@@ -70,7 +70,7 @@
 </template>
 
 <script setup name="BatchImport">
-import {FileStaticPath} from "@/api/comm";
+import {FileStaticPath} from "@jetlinks-web-core/api/comm";
 import {TOKEN_KEY} from "@jetlinks-web/constants";
 import {downloadFileByUrl, LocalStore, onlyMessage} from "@jetlinks-web/utils";
 import {useI18n} from "vue-i18n";
@@ -133,7 +133,7 @@ const submitData = (url) => {
             result.error = data.result.total
           }
         }
-        
+
         // if(data.success) {
         //   result.success = data.result.added + data.result.updated
         // } else if(!data.success && data.rowNumber !== -1) {

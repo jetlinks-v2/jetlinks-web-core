@@ -5,7 +5,7 @@ import CardBox from './CardBox/index.vue';
 import Search from './Search'
 import AMapComponent from './AMapComponent/AMap.vue'
 import PathSimplifier from './AMapComponent/PathSimplifier.vue'
-import { BasicLayoutPage, BlankLayoutPage, FullPage } from '@/layout'
+import { BasicLayoutPage, BlankLayoutPage, FullPage } from '@jetlinks-web-core/layout'
 import ProUpload from './Upload/index.vue'
 import Player from './Player/index.vue'
 import BatchDropdown from './BatchDropdown/index.vue'

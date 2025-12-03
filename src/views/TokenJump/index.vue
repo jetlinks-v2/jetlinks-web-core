@@ -10,7 +10,7 @@
       :width="500"
     >
       <div class="token-jump-body">
-        <img src="@/assets/token-error-icon.png" alt="">
+        <img src="@jetlinks-web-core/assets/token-error-icon.png" alt="">
         <span style="color: #1F2429;padding: 24px 0;">{{ msg }}</span>
         <a-button style="width: 180px" type="primary" @click="onBack">返回</a-button>
       </div>
@@ -19,7 +19,7 @@
 </template>
 
 <script setup>
-import {useMenuStore} from "@/store/menu";
+import {useMenuStore} from "@jetlinks-web-core/store/menu";
 
 const menuStory = useMenuStore();
 const route = useRoute()
@@ -41,7 +41,7 @@ const onBack = () => {
 .token-jump-page {
   height: 100vh;
   width: 100vw;
-  background: url("@/assets/token-error.jpg") no-repeat;
+  background: url("@jetlinks-web-core/assets/token-error.jpg") no-repeat;
   background-size: cover;
 }
 

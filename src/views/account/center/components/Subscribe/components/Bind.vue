@@ -49,7 +49,7 @@ import {
   getDingTalkOAuth2,
   getUserBind,
   getWechatOAuth2,
-} from '@/api/account/notificationSubscription'
+} from '@jetlinks-web-core/api/account/notificationSubscription'
 import { LocalStore } from '@jetlinks-web/utils'
 import Wechat from './Wechat.vue'
 

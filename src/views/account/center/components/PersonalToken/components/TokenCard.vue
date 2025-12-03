@@ -2,7 +2,7 @@
   <div class="token-card">
     <div class="token-card-left">
       <div class="token-icon">
-        <img src="@/assets/personal-token/img.png" alt=""/>
+        <img src="@jetlinks-web-core/assets/personal-token/img.png" alt=""/>
       </div>
       <div class="token-card-info">
         <div class="token-card-header">

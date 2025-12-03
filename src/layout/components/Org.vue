@@ -11,8 +11,8 @@
 
 <script setup name="GlobalOrgChange">
 import { storeToRefs } from 'pinia'
-import { useUserStore } from "@/store";
-import { changeToken } from '@/api/login'
+import { useUserStore } from "@jetlinks-web-core/store";
+import { changeToken } from '@jetlinks-web-core/api/login'
 import {setToken} from "@jetlinks-web/utils";
 import { wsClient } from '@jetlinks-web/core'
 

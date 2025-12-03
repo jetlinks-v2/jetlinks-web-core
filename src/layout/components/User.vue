@@ -26,9 +26,9 @@
 
 <script setup lang="ts" name="HeaderUser">
 import { computed } from "vue";
-import { jumpLogin } from '@/router'
-import { useUserStore } from '@/store/user'
-import { logout } from '@/api/login'
+import { jumpLogin } from '@jetlinks-web-core/router'
+import { useUserStore } from '@jetlinks-web-core/store/user'
+import { logout } from '@jetlinks-web-core/api/login'
 
 const props = defineProps({
   hideHeaderRight: {

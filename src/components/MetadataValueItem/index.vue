@@ -50,7 +50,7 @@ import InputMonacoEditor from './InputMonacoEditor.vue';
 import dayjs from "dayjs";
 import {TOKEN_KEY} from "@jetlinks-web/constants";
 import {LocalStore} from "@jetlinks-web/utils";
-import {FileStaticPath} from "@/api/comm";
+import {FileStaticPath} from "@jetlinks-web-core/api/comm";
 import {useI18n} from "vue-i18n";
 
 const props = defineProps({

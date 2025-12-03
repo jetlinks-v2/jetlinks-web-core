@@ -1,5 +1,5 @@
-import { useMenuStore } from '@/store/menu';
-import i18n from '@/locales';
+import { useMenuStore } from '@jetlinks-web-core/store/menu';
+import i18n from '@jetlinks-web-core/locales';
 const menuStore = useMenuStore();
 const systemNotice = [
     {

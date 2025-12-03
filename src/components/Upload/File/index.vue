@@ -53,8 +53,8 @@
 import type { UploadChangeParam, UploadProps } from 'ant-design-vue'
 import { TOKEN_KEY } from '@jetlinks-web/constants'
 import { getToken, onlyMessage } from '@jetlinks-web/utils'
-import { FileStaticPath } from '@/api/comm'
-import { getImageUrl } from '@/utils'
+import { FileStaticPath } from '@jetlinks-web-core/api/comm'
+import { getImageUrl } from '@jetlinks-web-core/utils'
 
 const props = defineProps({
   value: {

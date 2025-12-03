@@ -2,7 +2,7 @@
     <Checkbox :checked="checked" @change="change" >{{ $t('login.remember.102238-0') }}</Checkbox>
 </template>
 <script setup name="Remember" lang="ts">
-import i18n from "@/locales";
+import i18n from "@jetlinks-web-core/locales";
 import { Checkbox } from 'ant-design-vue'
 
 const emit = defineEmits(['update:value', 'update:expires'])

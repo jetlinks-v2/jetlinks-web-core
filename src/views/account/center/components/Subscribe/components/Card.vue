@@ -71,19 +71,19 @@
 </template>
 
 <script lang="ts" setup>
-import { getImage } from '@jetlinks-web/utils'
 import Detail from './Detail.vue'
-import { useUserStore } from '@/store/user'
+import { useUserStore } from '@jetlinks-web-core/store/user'
 import EditInfo from '../../EditInfo/index.vue'
 import Bind from './Bind.vue'
+import { DingTalk, Wechat, Email, Sms, Voice, InsideMail } from '@jetlinks-web-core/assets'
 
 const iconMap = new Map()
-iconMap.set('notifier-dingTalk', getImage('/notice-rule/dingtalk.png'))
-iconMap.set('notifier-weixin', getImage('/notice-rule/wechat.png'))
-iconMap.set('notifier-email', getImage('/notice-rule/email.png'))
-iconMap.set('notifier-voice', getImage('/notice-rule/voice.png'))
-iconMap.set('notifier-sms', getImage('/notice-rule/sms.png'))
-iconMap.set('inside-mail', getImage('/notice-rule/inside-mail.png'))
+iconMap.set('notifier-dingTalk', DingTalk);
+iconMap.set('notifier-weixin', Wechat);
+iconMap.set('notifier-email', Email);
+iconMap.set('notifier-voice', Voice);
+iconMap.set('notifier-sms', Sms);
+iconMap.set('inside-mail', InsideMail);
 
 const emit = defineEmits(['save', 'unsubscribe'])
 

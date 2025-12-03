@@ -4,7 +4,7 @@
 
 <script lang="ts" setup>
 import { ref, defineProps, defineOptions } from 'vue'
-import { useEcharts } from '@/hooks'
+import { useEcharts } from '@jetlinks-web-core/hooks'
 
 defineOptions({
   name: 'JEcharts'

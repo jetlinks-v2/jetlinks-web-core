@@ -1,4 +1,4 @@
-import i18n from "@/locales";
+import i18n from "@jetlinks-web-core/locales";
 export const typeOptions = [
   { label: i18n.global.t('Search.util.184827-0'), value: 'or' },
   { label: i18n.global.t('Search.util.184827-1'), value: 'and' },

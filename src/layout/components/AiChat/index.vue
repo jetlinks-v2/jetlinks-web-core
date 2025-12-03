@@ -14,7 +14,7 @@
 
 <script setup>
 import AiChatDrawer from './AiChatDrawer.vue'
-import {useAIStore} from "@/store";
+import {useAIStore} from "@jetlinks-web-core/store";
 import { storeToRefs } from 'pinia';
 
 const aiStore = useAIStore()

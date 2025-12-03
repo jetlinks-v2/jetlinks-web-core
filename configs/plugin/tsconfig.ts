@@ -18,7 +18,7 @@ function generateTsconfigPaths() {
   // tsconfig.compilerOptions.paths = tsconfig.compilerOptions.paths || {};
 
   const newPaths = {
-    '@/*': ['./src/*']
+    '@jetlinks-web-core/*': ['./src/*']
   };
 
   if (fs.existsSync(modulesDir)) {

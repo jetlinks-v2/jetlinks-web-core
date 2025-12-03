@@ -5,8 +5,8 @@
             @click="showModal"
             :src="
                 flag
-                    ? getImage('/init-home/data-enabled.png')
-                    : getImage('/init-home/data-disabled.png')
+                    ? DataEnabled
+                    : DataDisabled
             "
         />
     </div>
@@ -45,7 +45,7 @@
                                 >
                                     <img
                                         class="img-style"
-                                        :src="getImage('/init-home/mark.png')"
+                                        :src="Mark"
                                     />
                                 </a-tooltip>
                             </template>
@@ -62,7 +62,7 @@
                                 >
                                     <img
                                         class="img-style"
-                                        :src="getImage('/init-home/mark.png')"
+                                        :src="Mark"
                                     />
                                 </a-tooltip>
                             </template>
@@ -77,7 +77,7 @@
                                 <a-tooltip :title="$t('init-home.index.011072-9')">
                                     <img
                                         class="img-style"
-                                        :src="getImage('/init-home/mark.png')"
+                                        :src="Mark"
                                     />
                                 </a-tooltip>
                             </template>
@@ -97,7 +97,7 @@
                                 <a-tooltip :title="$t('init-home.index.011072-12')">
                                     <img
                                         class="img-style"
-                                        :src="getImage('/init-home/mark.png')"
+                                        :src="Mark"
                                     />
                                 </a-tooltip>
                             </template>
@@ -116,7 +116,7 @@
 </template>
 
 <script lang="ts" setup>
-import { getImage, regular, onlyMessage } from '@jetlinks-web/utils'
+import { regular, onlyMessage } from '@jetlinks-web/utils'
 import {
     saveNetwork,
     getResourcesCurrent,
@@ -127,9 +127,11 @@ import {
     saveDevice,
     changeDeploy,
     deployDevice,
-} from '@/api/initHome';
+} from '@jetlinks-web-core/api/initHome';
 import type { Rule } from 'ant-design-vue/es/form';
+import { DataEnabled, DataDisabled } from '@jetlinks-web-core/assets/init-home'
 import { useI18n } from 'vue-i18n';
+import { Mark } from '@jetlinks-web-core/assets/init-home'
 
 const { t: $t } = useI18n();
 

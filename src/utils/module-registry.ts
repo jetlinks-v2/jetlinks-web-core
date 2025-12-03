@@ -3,9 +3,9 @@
  * 用于统一管理各个子模块的 API、组件、工具函数等资源
  * 支持微前端和模块联邦
  */
-import type { GetResourceType, ModuleResource, RegisterOptions } from '@/types/module-registry.d'
+import type { GetResourceType, ModuleResource, RegisterOptions } from '@jetlinks-web-core/types/module-registry.d'
 import { dynamicRemoteManager } from '@jetlinks-web/vite/dist/dynamic-remote'
-import { isSubApp } from '@/utils/consts'
+import { isSubApp } from '@jetlinks-web-core/utils/consts'
 
 // 注册表存储所有模块的资源
 const moduleRegistryMap = new Map<string, ModuleResource>();

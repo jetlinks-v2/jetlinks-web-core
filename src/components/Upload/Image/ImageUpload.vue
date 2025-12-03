@@ -48,7 +48,7 @@ import type { CSSProperties, PropType } from "vue";
 import type { UploadChangeParam } from 'ant-design-vue';
 import CropperModal from "./CropperModal";
 import { useI18n } from "vue-i18n";
-import i18n from "@/locales";
+import i18n from "@jetlinks-web-core/locales";
 
 const { t: $t } = useI18n();
 const props = defineProps({

@@ -2,7 +2,7 @@ import {
     ACCESS_AI_AGENT_CODE,
     USER_CENTER_MENU_BUTTON_CODE,
     USER_CENTER_MENU_CODE
-} from '@/utils/consts'
+} from '@jetlinks-web-core/utils/consts'
 
 export const ACCESS_AI_AGENT_CODE_DATA = {
     id: ACCESS_AI_AGENT_CODE,

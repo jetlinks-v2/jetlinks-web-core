@@ -8,9 +8,9 @@
 </template>
 
 <script lang="ts" setup>
-import { getMe_api, getView_api, setView_api } from '@/api/account/center';
+import { getMe_api, getView_api, setView_api } from '@jetlinks-web-core/api/account/center';
 import { onlyMessage } from "@jetlinks-web/utils";
-import HomeView from '@/components/HomeView/index.vue';
+import HomeView from '@jetlinks-web-core/components/HomeView/index.vue';
 import { useI18n } from 'vue-i18n';
 
 const { t: $t } = useI18n();

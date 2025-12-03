@@ -73,18 +73,18 @@ import Detail from './components/Detail/index.vue'
 import EditInfo from './components/EditInfo/index.vue'
 import EditPassword from './components/EditPassword/index.vue'
 import PersonalToken from './components/PersonalToken/index.vue'
-import { useUserStore, useAuthStore } from '@/store'
+import { useUserStore, useAuthStore } from '@jetlinks-web-core/store'
 import UploadAvatar from './components/UploadAvatar/index.vue'
-import { updateMeInfo_api } from '@/api/account/center'
+import { updateMeInfo_api } from '@jetlinks-web-core/api/account/center'
 import { onlyMessage } from '@jetlinks-web/utils'
 import { useRouterParams } from '@jetlinks-web/hooks'
 import {
   USER_CENTER_MENU_BUTTON_CODE,
   USER_CENTER_MENU_CODE,
-} from '@/utils/consts'
+} from '@jetlinks-web-core/utils/consts'
 import RoleShow from './components/RoleShow/index.vue'
-import { tabList } from '@/views/account/center/data'
-import {isNoCommunity} from "@/utils";
+import { tabList } from '@jetlinks-web-core/views/account/center/data'
+import {isNoCommunity} from "@jetlinks-web-core/utils";
 import { useI18n } from 'vue-i18n'
 
 const imageTypes = reactive([

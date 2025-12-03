@@ -41,11 +41,11 @@
 
 <script lang="ts" setup name="JProUpload">
 import { UploadChangeParam, UploadProps } from 'ant-design-vue'
-import { FileStaticPath} from '@/api/comm'
+import { FileStaticPath} from '@jetlinks-web-core/api/comm'
 import { TOKEN_KEY } from '@jetlinks-web/constants'
 import { getBase64ByImg, LocalStore, onlyMessage } from '@jetlinks-web/utils'
 import { CSSProperties } from 'vue'
-import ImageCropper from '@/components/Upload/Cropper.vue'
+import ImageCropper from '@jetlinks-web-core/components/Upload/Cropper.vue'
 import { useI18n } from 'vue-i18n'
 
 const { t: $t } = useI18n();

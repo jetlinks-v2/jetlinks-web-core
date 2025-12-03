@@ -1,4 +1,4 @@
-import { isSubApp } from '@/utils/consts'
+import { isSubApp } from '@jetlinks-web-core/utils/consts'
 
 export const useMircoAppData = (key?: string | 'platformName') => {
   let data = ref<Record<string, any>>({

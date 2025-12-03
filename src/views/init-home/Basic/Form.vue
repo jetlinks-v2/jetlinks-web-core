@@ -141,8 +141,8 @@
 <script lang="ts" name="BasicForm" setup>
 import {reactive, ref} from 'vue'
 import {useRequest} from '@jetlinks-web/hooks';
-import {save_api} from '@/api/system/basis';
-import {useSystemStore} from '@/store/system';
+import {save_api} from '@jetlinks-web-core/api/system/basis';
+import {useSystemStore} from '@jetlinks-web-core/store/system';
 import Upload from './components/upload/upload.vue'
 import {onlyMessage} from '@jetlinks-web/utils';
 import {omit} from "lodash-es";

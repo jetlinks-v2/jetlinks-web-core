@@ -98,11 +98,11 @@
 
 <script setup lang="ts" name="NotificationRecord">
 import ViewDialog from './components/ViewDialog.vue'
-import { getList_api, changeStatus_api, changeAllStatus } from '@/api/account/notificationRecord'
+import { getList_api, changeStatus_api, changeAllStatus } from '@jetlinks-web-core/api/account/notificationRecord'
 import dayjs from 'dayjs'
-import { useUserStore } from '@/store/user'
+import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useRouterParams } from '@jetlinks-web/hooks'
-import { getTypeListNew } from '@/api/account/notificationSubscription'
+import { getTypeListNew } from '@jetlinks-web-core/api/account/notificationSubscription'
 import { onlyMessage } from '@jetlinks-web/utils'
 import { useI18n } from 'vue-i18n';
 

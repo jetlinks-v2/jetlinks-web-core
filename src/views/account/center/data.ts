@@ -1,4 +1,4 @@
-import i18n from "@/locales";
+import i18n from "@jetlinks-web-core/locales";
 
 type KeyType = 'HomeView' | 'BindThirdAccount' | 'Subscribe' | 'StationMessage' | 'PersonalToken';
 export const tabList: { key: KeyType; title: string }[] = [

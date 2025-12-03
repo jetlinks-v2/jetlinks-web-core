@@ -1,4 +1,4 @@
-import {modules} from '@/utils/modules'
+import {modules} from '@jetlinks-web-core/utils/modules'
 
 const routerModules = import.meta.glob('../views/**/index.vue')
 

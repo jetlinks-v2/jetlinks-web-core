@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { uiList } from "@/api/application";
-import { isSubApp, OpenMicroApp } from '@/utils/consts'
-import { moduleRegistry } from '@/utils/module-registry'
+import { uiList } from "@jetlinks-web-core/api/application";
+import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
+import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
 
 type ApplicationItemType = {
   id: string

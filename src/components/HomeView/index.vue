@@ -9,13 +9,22 @@
                 active: currentView === item.id,
             }"
         >
-            <img :src="getImage(`/home/home-view/${item.id}${currentView === item.id ? '-active' : ''}.png`)" alt="" />
+            <img :src="ImageMap[`${item.id}${currentView === item.id ? '-active' : ''}`]" alt="" />
         </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { getImage } from '@jetlinks-web/utils';
+import { Device, DeviceActive, Comprehensive,ComprehensiveActive, OpsActive, Ops} from '@jetlinks-web-core/assets'
+
+const ImageMap = {
+  'device': Device,
+  'device-active': DeviceActive,
+  'comprehensive': Comprehensive,
+  'comprehensive-active': ComprehensiveActive,
+  'ops': Ops,
+  'ops-active': OpsActive,
+}
 // import { useI18n } from 'vue-i18n';
 
 // const { t: $t } = useI18n();

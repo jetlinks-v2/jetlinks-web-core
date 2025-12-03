@@ -108,11 +108,11 @@
 </template>
 
 <script setup lang="ts">
-import {updateMeInfo_api} from '@/api/account/center';
+import {updateMeInfo_api} from '@jetlinks-web-core/api/account/center';
 import {onlyMessage} from "@jetlinks-web/utils";
 import {cloneDeep} from 'lodash-es';
 import {useI18n} from 'vue-i18n';
-import {isNoCommunity} from "@/utils";
+import {isNoCommunity} from "@jetlinks-web-core/utils";
 
 const {t: $t} = useI18n();
 const emits = defineEmits(['save', 'close']);

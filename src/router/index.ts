@@ -5,9 +5,9 @@ import {
 import type { RouteRecordRaw } from 'vue-router'
 import { getToken, removeToken } from '@jetlinks-web/utils'
 import { NOT_FIND_ROUTE, LOGIN_ROUTE, OAuth2, OAuthWechat, AccountCenterBind, AUTHORIZE_ROUTE } from './basic'
-import {isSubApp} from '@/utils/consts'
-import { useApplication, useUserStore, useSystemStore, useMenuStore  } from '@/store'
-import { modules } from '@/utils/modules'
+import {isSubApp} from '@jetlinks-web-core/utils/consts'
+import { useApplication, useUserStore, useSystemStore, useMenuStore  } from '@jetlinks-web-core/store'
+import { modules } from '@jetlinks-web-core/utils/modules'
 import microApp from '@micro-zoe/micro-app'
 
 let TokenFilterRoute: string[] = [OAuth2.path, AccountCenterBind.path, AUTHORIZE_ROUTE.path]

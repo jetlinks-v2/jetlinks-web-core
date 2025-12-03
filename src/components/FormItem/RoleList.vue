@@ -1,9 +1,9 @@
 <script setup>
-import {filterSelectNode} from "@/utils";
+import {filterSelectNode} from "@jetlinks-web-core/utils";
 import {useI18n} from "vue-i18n";
 import { useRequest } from '@jetlinks-web/hooks'
-import {getRoleList} from "@/api/system/user";
-import { useTabSaveSuccess } from '@/hooks'
+import {getRoleList} from "@jetlinks-web-core/api/system/user";
+import { useTabSaveSuccess } from '@jetlinks-web-core/hooks'
 
 const { t: $t } = useI18n();
 const emit = defineEmits(['update:value', 'change'])

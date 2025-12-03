@@ -26,10 +26,10 @@
 </template>
 <script setup name="Login" lang="ts">
 import { getImage, LocalStore } from "@jetlinks-web/utils";
-import { useSystemStore } from "@/store/system";
+import { useSystemStore } from "@jetlinks-web-core/store/system";
 import { storeToRefs } from "pinia";
 import Right from "./right.vue";
-import { bindInfo } from "@/api/login";
+import { bindInfo } from "@jetlinks-web-core/api/login";
 import {useI18n} from "vue-i18n";
 
 const { t: $t } = useI18n();

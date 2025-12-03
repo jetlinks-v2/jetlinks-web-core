@@ -3,7 +3,7 @@
     <div class="personal-token-header">
       <div style="display: flex; gap: 24px; align-items: center">
         <div>
-          <img src="@/assets/personal-token/add.png" alt="" />
+          <img src="@jetlinks-web-core/assets/personal-token/add.png" alt="" />
         </div>
         <div style="color: #1A1A1A">{{ $t('PersonalToken.index.061384-0') }}</div>
       </div>
@@ -53,7 +53,7 @@
 import { onlyMessage } from '@jetlinks-web/utils'
 import TokenCard from './components/TokenCard.vue'
 import TokenDialog from './components/TokenDialog.vue'
-import { getCreatedPersonalTokens_api, deletePersonalToken_api } from '@/api/account/center'
+import { getCreatedPersonalTokens_api, deletePersonalToken_api } from '@jetlinks-web-core/api/account/center'
 import { useRequest } from '@jetlinks-web/hooks'
 
 const tokenList = ref([])

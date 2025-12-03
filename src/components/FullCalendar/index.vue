@@ -77,11 +77,11 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import locale from '@fullcalendar/core/locales/zh-cn';
 import { onlyMessage } from '@jetlinks-web/utils';
 import dayjs from 'dayjs';
-import { queryEvents, saveEvents } from '@/api/system/calendar';
+import { queryEvents, saveEvents } from '@jetlinks-web-core/api/system/calendar';
 import { cloneDeep, flatten } from 'lodash-es';
 import { defineExpose } from 'vue';
 import { inject } from 'vue';
-import { useMenuStore, useSystemStore } from '@/store';
+import { useMenuStore, useSystemStore } from '@jetlinks-web-core/store';
 import { useI18n } from 'vue-i18n';
 
 const { t: $t } = useI18n();

@@ -1,13 +1,13 @@
 import {getToken, LocalStore, setToken} from "@jetlinks-web/utils";
-import { BASE_API, TOKEN_KEY_URL } from '@jetlinks-web/constants'
-import {crateAxios, wsClient} from '@jetlinks-web/core'
-import {jumpLogin} from '@/router'
+import { TOKEN_KEY_URL } from '@jetlinks-web/constants'
+import { crateAxios, router, wsClient } from '@jetlinks-web/core'
+import {jumpLogin} from '@jetlinks-web-core/router'
 import {notification} from 'ant-design-vue'
-import { isSubApp, langKey, PersonalToken, PersonalUrlKey } from '@/utils/consts'
-import Relogin from '@/views/relogin/index.vue'
-import { getPackageConfig, registerModule } from '@/utils'
+import { isSubApp, langKey, PersonalToken, PersonalUrlKey } from '@jetlinks-web-core/utils/consts'
+import Relogin from '@jetlinks-web-core/views/relogin/index.vue'
+import { getPackageConfig, registerModule, getBaseApi, routerFallback } from '@jetlinks-web-core/utils'
 import microApp from '@micro-zoe/micro-app'
-import { moduleRegistry } from '@/utils/module-registry'
+import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
 
 /**
  * 初始化package
@@ -29,7 +29,7 @@ export const initPackages = () => {
 
     const protocol = window.location.protocol.replace('http', 'ws');
     const host = document.location.host;
-    const url = `${protocol}${host}${BASE_API}/messaging/${token}?${tokenKey}=${token}`;
+    const url = `${protocol}${host}${getBaseApi()}/messaging/${token}?${tokenKey}=${token}`;
     // wsClient.setOptions({
     //     onError(message) {
     //         notification.error({
@@ -138,10 +138,12 @@ export const loadMicroApp = () => {
                 onTabSaveSuccessBack: (id: string,data?: any) => {
                     (window as any).onTabSaveSuccess(id, data)
                     setTimeout(() => window.close(), 300)
-                }
+                },
+                routerFallback: routerFallback
             }
         })
     }
 }
 
+// 支持多模块注册
 registerModule()

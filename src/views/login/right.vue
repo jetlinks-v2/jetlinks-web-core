@@ -138,16 +138,16 @@ import {
   encryptionConfig,
   getInitSet,
   login,
-} from "@/api/login";
+} from "@jetlinks-web-core/api/login";
 import { rules } from "./util";
-import {useUserStore} from "@/store";
+import {useUserStore} from "@jetlinks-web-core/store";
 import { LocalStore } from "@jetlinks-web/utils";
 import { iconMap } from "./util";
 import { Form, FormItem, Button, Divider, Popover, Input, InputPassword } from 'ant-design-vue'
 
-import defaultImg from '@/assets/apply/internal-standalone.png'
-import {initPackages} from "@/package";
-import i18n from "@/locales";
+import defaultImg from '@jetlinks-web-core/assets/apply/internal-standalone.png'
+import {initPackages} from "@jetlinks-web-core/package";
+import i18n from "@jetlinks-web-core/locales";
 
 const BASE_API_PATH = import.meta.env.VITE_APP_BASE_API
 

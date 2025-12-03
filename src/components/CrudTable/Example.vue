@@ -52,7 +52,7 @@
 
 <script setup>
 import {query, update, _delete} from '@device-manager-ui/api/instance';
-import CrudTable from '@/components/CrudTable/index.vue'
+import CrudTable from '@jetlinks-web-core/components/CrudTable/index.vue'
 import {useI18n} from "vue-i18n";
 import {device} from "@device-manager-ui/assets";
 import {queryNoPagingPost} from "@device-manager-ui/api/product";

@@ -17,7 +17,7 @@
       <div class="left">
         <div class="left-box">
           <div>
-            <img :width="280" :src="'/images/relogin.png'" />
+            <img :width="280" :src="Relogin" />
           </div>
           <div style="font-size: 16px; color: #1A1A1A">{{ $t('relogin.419974-1') }}</div>
           <div style="font-size: 12px; color: #777777;">{{ $t('relogin.419974-2') }}</div>
@@ -38,11 +38,12 @@
 </template>
 
 <script setup>
-import Right from "@/views/login/right.vue";
-import {useSystemStore} from "@/store";
+import Right from "@jetlinks-web-core/views/login/right.vue";
+import {useSystemStore} from "@jetlinks-web-core/store";
 import {storeToRefs} from "pinia";
-import {jumpLogin} from "@/router";
-import i18n from "@/locales";
+import {jumpLogin} from "@jetlinks-web-core/router";
+import i18n from "@jetlinks-web-core/locales";
+import { Relogin } from '@jetlinks-web-core/assets'
 import { Modal, Button } from 'ant-design-vue'
 
 const systemStore = useSystemStore();

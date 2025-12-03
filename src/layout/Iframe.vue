@@ -13,13 +13,14 @@
 </template>
 
 <script name="IframePage" setup>
-import {BASE_API, TOKEN_KEY} from '@jetlinks-web/constants';
+import { TOKEN_KEY} from '@jetlinks-web/constants';
 import {LocalStore, getToken} from '@jetlinks-web/utils';
-import { getAppInfo_api } from '@/api/system/apply';
-import { lowCodeUrl } from '@/api/comm'
+import { getAppInfo_api } from '@jetlinks-web-core/api/system/apply';
+import { lowCodeUrl } from '@jetlinks-web-core/api/comm'
 import FullPage from "./FullPage.vue";
 import {onUnmounted} from "vue";
-import {jumpLogin} from "@/router";
+import {jumpLogin} from "@jetlinks-web-core/router";
+import { getBaseApi } from '@jetlinks-web-core/utils'
 
 const iframeUrl = ref('');
 const route = useRoute()
@@ -64,7 +65,7 @@ const handle = async (appId, url) => {
 
     const baseUrl = result.page.baseUrl.endsWith('/') ? result.page.baseUrl.slice(0,-1) : result.page.baseUrl;
     if (result.provider === 'internal-standalone') {
-      iframeUrl.value = `${baseUrl}${BASE_API}/application/sso/${appId}/login?redirect=${menuUrl}?layout=false`;
+      iframeUrl.value = `${baseUrl}${getBaseApi()}/application/sso/${appId}/login?redirect=${menuUrl}?layout=false`;
     } else if (result.provider === 'internal-integrated') {
       const tokenUrl = `${
         baseUrl
