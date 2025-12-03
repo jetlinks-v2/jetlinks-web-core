@@ -102,7 +102,7 @@ const props = defineProps({
 const emit = defineEmits(['update:value', 'change', 'remove'])
 const fileList = ref([] as any[])
 const loading = ref(false)
-const action = computed(() => `${FileStaticPath}${props.publicAccess ? '' : '?options=publicAccess'}`)
+const action = computed(() => `${FileStaticPath()}${props.publicAccess ? '' : '?options=publicAccess'}`)
 const visible = ref(false)
 const currentPreviewIndex = ref(0)
 const previewImage = ref<any>([])

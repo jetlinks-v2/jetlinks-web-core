@@ -28,6 +28,7 @@ import { TOKEN_KEY } from '@jetlinks-web/constants'
 import { getToken, onlyMessage } from '@jetlinks-web/utils'
 import {FileStaticPath} from '@jetlinks-web-core/api/comm'
 import { useI18n } from 'vue-i18n';
+import { getUploadHeaders } from '@jetlinks-web-core/utils'
 
 const { t: $t } = useI18n();
 const emit = defineEmits(['update:imgSrc'])
@@ -117,8 +118,8 @@ const uploadInfo: UploadInfoType = {
   icoTip: [$t('upload.upload.283727-4'), $t('upload.upload.283727-5')],
   backgroundTip: [$t('upload.upload.283727-6'), $t('upload.upload.283727-7')],
   // 上传的地址
-  action: FileStaticPath,
-  headers: { [TOKEN_KEY]: getToken() },
+  action: FileStaticPath(),
+  headers: getUploadHeaders(),
   // 是否展示uplaodList
   showUploadList: false,
   // 是否支持拖拽
@@ -162,7 +163,7 @@ const uploadInfo: UploadInfoType = {
  * @returns {boolean} 如果文件为jico格式，返回 true，否则返回 false
  */
   isIcoType: (file: File) => {
-    const isico = file.type.includes("x-icon")
+    const isico = file.type === 'image/x-icon' || file.type === 'image/vnd.microsoft.icon'
     if(!isico) {
       onlyMessage($t('upload.upload.283727-11'),'error')
     }

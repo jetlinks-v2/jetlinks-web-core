@@ -13,10 +13,8 @@
     <a-upload-dragger
         v-model:fileList="value"
         name="file"
-        :action="FileStaticPath"
-        :headers="{
-            [TOKEN_KEY]: LocalStore.get(TOKEN_KEY),
-        }"
+        :action="FileStaticPath()"
+        :headers="getUploadHeaders()"
         :maxCount="1"
         :showUploadList="false"
         @change="uploadChange"
@@ -71,9 +69,9 @@
 
 <script setup name="BatchImport">
 import {FileStaticPath} from "@jetlinks-web-core/api/comm";
-import {TOKEN_KEY} from "@jetlinks-web/constants";
-import {downloadFileByUrl, LocalStore, onlyMessage} from "@jetlinks-web/utils";
+import {downloadFileByUrl, onlyMessage} from "@jetlinks-web/utils";
 import {useI18n} from "vue-i18n";
+import { getUploadHeaders } from '../../utils'
 
 const props = defineProps({
   beforeUpload: {
