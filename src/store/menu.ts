@@ -3,7 +3,7 @@ import router from '@jetlinks-web-core/router'
 import {cloneDeep} from 'lodash-es'
 import {setParamsValue} from '@jetlinks-web/hooks'
 import {onlyMessage} from '@jetlinks-web/utils'
-import { handleMenus, modules, getModulesInitPage } from '@jetlinks-web-core/utils'
+import { handleMenus, modules, getModulesInitPage, getBaseApi } from '@jetlinks-web-core/utils'
 import {getOwnMenuThree} from '@jetlinks-web-core/api/system/menu'
 import {getGlobModules} from '@jetlinks-web-core/router/globModules'
 import {getExtraRouters} from '@jetlinks-web-core/router/extraMenu'
@@ -11,7 +11,6 @@ import {USER_CENTER_ROUTE, INIT_HOME} from '@jetlinks-web-core/router/basic'
 import {useAuthStore, useApplication} from '@jetlinks-web-core/store'
 import { OWNER_KEY } from '@jetlinks-web-core/utils/consts'
 import i18n from "@jetlinks-web-core/locales";
-import {BASE_API} from "@jetlinks-web/constants";
 import type { RouteRecordRaw } from 'vue-router'
 
 type OptionsType = {
@@ -168,7 +167,7 @@ export const useMenuStore = defineStore('menu', () => {
                         }
 
                         if (url?.startsWith('/')) {
-                            url =  BASE_API + url
+                            url =  getBaseApi() + url
                         }
 
                         let isLocal = false
