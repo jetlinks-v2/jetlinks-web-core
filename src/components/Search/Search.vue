@@ -10,6 +10,7 @@
       :class='props.class'
       :style='myStyles'
       @search='searchSubmit'
+      @reset="emit('reset')"
       ref="searchRef"
     />
   </div>
@@ -22,6 +23,7 @@ import {isObject} from "lodash-es";
 
 interface Emit {
   (e: 'search', data: any): void
+  (e: 'reset'): void
 }
 
 const props = defineProps({
