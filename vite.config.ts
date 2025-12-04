@@ -103,7 +103,7 @@ export default defineConfig(({ mode, command }) => {
     define: envDefine,
     build: {
       outDir: mavenName ? path.resolve(envDir, `modules/${mavenName}/dist`) : 'dist',
-      assetsDir: mavenName ? path.resolve(envDir, `modules/${mavenName}/assets`) : 'assets',
+      assetsDir: 'assets',
       sourcemap: false,
       cssCodeSplit: false,
       manifest: true,

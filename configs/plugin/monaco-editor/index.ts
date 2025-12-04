@@ -1,5 +1,5 @@
 import { HtmlTagDescriptor, Plugin, ResolvedConfig } from 'vite';
-import { resolve, join } from 'node:path';
+import { resolve, join, isAbsolute } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { buildSync } from 'esbuild'
 
@@ -141,18 +141,16 @@ export default function monacoEditorPlugin(options: IMonacoEditorOpts): Plugin {
 
       const works = getWorks(options);
 
+      const resolvedOutDir = isAbsolute(resolvedConfig.build.outDir)
+        ? resolvedConfig.build.outDir
+        : resolve(resolvedConfig.root, resolvedConfig.build.outDir);
+      const normalizeBase = (base: string) =>
+        base && base !== './' ? base.replace(/^\//, '').replace(/\/$/, '') : '';
       const distPath = options.customDistPath
-        ? options.customDistPath(
-          resolvedConfig.root,
-          resolvedConfig.build.outDir,
-          resolvedConfig.base
-        )
-        : join(
-          resolvedConfig.root,
-          resolvedConfig.build.outDir,
-          resolvedConfig.base,
-          options.publicPath
-        );
+        ? options.customDistPath(resolvedConfig.root, resolvedConfig.build.outDir,
+          resolvedConfig.base)
+        : join(resolvedOutDir, normalizeBase(resolvedConfig.base ?? ''),
+          options.publicPath);
 
       //  console.log("distPath", distPath)
 
