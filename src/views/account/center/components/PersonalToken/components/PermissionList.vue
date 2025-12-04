@@ -58,7 +58,7 @@
 
 <script setup>
 import { handleData } from './data'
-import {exportPermission_api} from "@authentication-manager-ui/api/system/permission";
+import {exportPermission_api} from "@jetlinks-web-core/api/system/permission";
 import { useI18n } from 'vue-i18n';
 
 const { t: $t } = useI18n();
