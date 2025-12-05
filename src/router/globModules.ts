@@ -12,7 +12,6 @@ export const getAsyncRoutesMap = () => {
   return modulesMap
 }
 
-
 export const getGlobModules = async () => {
   const asyncRoutesMap = getAsyncRoutesMap()
 
@@ -25,4 +24,16 @@ export const getGlobModules = async () => {
   return {
     ...asyncRoutesMap
   }
+}
+
+export const getDefaultModules = (tokenFilterRoute?: any) => {
+  const modulesFiles = modules()
+  const _modules: any[] = []
+  Object.values(modulesFiles).forEach((item) => {
+    const modules = item.default.getDefaultRoutes?.() || []
+    const filter = item.default.getFilterRoutes?.() || []
+    _modules.push(...modules)
+    tokenFilterRoute && tokenFilterRoute.push(...filter)
+  })
+  return _modules
 }

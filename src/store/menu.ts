@@ -5,7 +5,7 @@ import {setParamsValue} from '@jetlinks-web/hooks'
 import {onlyMessage} from '@jetlinks-web/utils'
 import { handleMenus, modules, getModulesInitPage, getBaseApi } from '@jetlinks-web-core/utils'
 import {getOwnMenuThree} from '@jetlinks-web-core/api/system/menu'
-import {getGlobModules} from '@jetlinks-web-core/router/globModules'
+import { getDefaultModules, getGlobModules } from '@jetlinks-web-core/router/globModules'
 import {getExtraRouters} from '@jetlinks-web-core/router/extraMenu'
 import {USER_CENTER_ROUTE, INIT_HOME} from '@jetlinks-web-core/router/basic'
 import {useAuthStore, useApplication} from '@jetlinks-web-core/store'
@@ -111,6 +111,7 @@ export const useMenuStore = defineStore('menu', () => {
         menusMap.value.clear()
         const asyncRoutes = await getGlobModules()
         const extraMenu = await getExtraRouters()
+        const defaultRoutes = getDefaultModules()
 
         const { menuRoutes, menuMap, menus, authButtons } = handleMenus(cloneDeep(menuResult), extraMenu, asyncRoutes) // 处理路由
 
@@ -124,6 +125,11 @@ export const useMenuStore = defineStore('menu', () => {
                 redirect: menuRoutes[0].path,
             })
         }
+
+        // 添加模块默认路由映射
+        defaultRoutes?.forEach((item: any) => {
+          menuMap.set(item.name, { path: item.path!, title: item.meta?.title as string })
+        })
 
         // authStore.handlePermission(menuResult) // 处理按钮权限
         console.log('routes', menuRoutes)

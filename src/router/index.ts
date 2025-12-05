@@ -2,33 +2,16 @@ import {
   createRouter,
   createWebHashHistory,
 } from 'vue-router'
-import type { RouteRecordRaw } from 'vue-router'
 import { getToken, removeToken } from '@jetlinks-web/utils'
 import { NOT_FIND_ROUTE, LOGIN_ROUTE, OAuth2, OAuthWechat, AccountCenterBind, AUTHORIZE_ROUTE } from './basic'
 import {isSubApp} from '@jetlinks-web-core/utils/consts'
 import { useApplication, useUserStore, useSystemStore, useMenuStore  } from '@jetlinks-web-core/store'
-import { modules } from '@jetlinks-web-core/utils/modules'
 import microApp from '@micro-zoe/micro-app'
+import { getDefaultModules } from '@jetlinks-web-core/router/globModules'
 
 let TokenFilterRoute: string[] = [OAuth2.path, AccountCenterBind.path, AUTHORIZE_ROUTE.path]
 
 let FilterPath: string[] = [OAuth2.path, AUTHORIZE_ROUTE.path]
-
-
-// 获取子模块默认路由
-const getModulesRoutes = () => {
-  const modulesFiles = modules()
-  const _routes: RouteRecordRaw[] = []
-  Object.values(modulesFiles).forEach((item: any) => {
-    const routes = item.default.getDefaultRoutes?.() || []
-    const filter = item.default.getFilterRoutes?.() || []
-
-    _routes.push(...routes)
-    TokenFilterRoute.push(...filter)
-  })
-  return _routes
-}
-
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -38,7 +21,7 @@ const router = createRouter({
     OAuthWechat,
     AccountCenterBind,
     AUTHORIZE_ROUTE,
-    ...getModulesRoutes()
+    ...getDefaultModules(TokenFilterRoute)
   ],
   scrollBehavior(to, form, savedPosition) {
     return savedPosition || {top: 0}
