@@ -91,6 +91,7 @@ export default defineConfig(({ mode, command }) => {
   // 开发服务器插件配置
   const devPlugin = isDev && mavenNames && mavenNames.length > 0 ? devServerPlugin(mavenNames.join(',')) : null
 
+  console.log(env.VITE_PORT, backendUrl)
   return {
     envDir,
     base: './',
