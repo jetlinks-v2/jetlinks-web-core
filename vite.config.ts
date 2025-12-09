@@ -14,84 +14,27 @@ import {
   loadViteModulesPlugins
 } from './configs/plugin'
 import { federation, sharpOptimize } from '@jetlinks-web/vite'
-
-import { antdLegacyVarsPlugin } from './configs/plugin/antd-legacy-vars-plugin'
-import { getDefine, getFederationSetting, v3Token } from './vite.setting'
+import { antdLegacyVarsPlugin } from './configs/plugin'
+import {
+  getDefine,
+  getFederationSetting,
+  v3Token,
+  getModulesName,
+  getProxyUrl,
+  federationSharedMap
+} from './vite.setting'
 import { moduleFilterPlugin } from './configs/plugin/moduleFilterPlugin'
 
-// 开发服务器插件 - 用于在开发模式下设置全局变量
-const devServerPlugin = (targetModule?: string) => {
-  return {
-    name: 'dev-server-plugin',
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        if (targetModule && req.url?.endsWith('.html')) {
-          const originalEnd = res.end
-          res.end = function(...args) {
-            let html = ''
-            if (args[0]) {
-              html = args[0].toString()
-            }
-            // 在 </body> 前注入脚本
-            const script = `<script>window.__JETLINKS_TARGET_MODULE__='${targetModule}'</script>`
-            html = html.replace('</body>', `${script}</body>`)
-            args[0] = html
-            return originalEnd.apply(this, args)
-          }
-        }
-        next()
-      })
-    }
-  }
-}
-
-const federationSharedMap = {
-  vue: ['vue'],
-  'vue-router': ['vue-router'],
-  pinia: ['pinia'],
-  'vue-i18n': ['vue-i18n'],
-  'lodash-es': ['lodash-es'],
-  echarts: ['echarts'],
-  '@jetlinks-web/core': ['@jetlinks-web/core'],
-  '@jetlinks-web/hooks': ['@jetlinks-web/hooks'],
-  '@jetlinks-web/constants': ['@jetlinks-web/constants']
-  // '@jetlinks-web/utils': ['@jetlinks-web/utils'],
-}
-
-// https://vitejs.dev/config/
 export default defineConfig(({ mode, command }) => {
   const envDir = path.resolve(__dirname, '..')
-  const env: Partial<ImportMetaEnv> = loadEnv(mode, envDir, '')
-
-  const moduleNameIndex = process.argv.indexOf('--module-name')
-  let mavenNames: string[] | null = null
-
-  if (moduleNameIndex !== -1) {
-    const moduleNameStr = process.argv[moduleNameIndex + 1]
-    // 支持逗号分隔的多个模块名
-    mavenNames = moduleNameStr ? moduleNameStr.split(',').map(name => name.trim()) : null
-  }
-
-  // 解析后端地址参数
-  const backendUrlIndex = process.argv.indexOf('--backend-url')
-  let backendUrl = backendUrlIndex !== -1 ? process.argv[backendUrlIndex + 1] : null
-
-  // 自动添加 http:// 前缀（如果用户未输入）
-  if (backendUrl && !backendUrl.match(/^https?:\/\//)) {
-    backendUrl = `http://${backendUrl}`
-  }
-
-  // 兼容单个模块名的场景（向后兼容）
-  // 如果是单个模块，传递模块名；如果是多个模块，传递null使用默认host配置
-  const mavenName = mavenNames && mavenNames.length === 1 ? mavenNames[0] : null
-
+  const env: Partial<ImportMetaEnv> = loadEnv(mode, __dirname, '')
   const isDev = command === 'serve'
-  const envDefine = getDefine(env, mode, isDev, mavenName)
 
-  // 开发服务器插件配置
-  const devPlugin = isDev && mavenNames && mavenNames.length > 0 ? devServerPlugin(mavenNames.join(',')) : null
+  const { moduleName, moduleNames} = getModulesName()
+  const backendUrl = getProxyUrl()
 
-  console.log(env.VITE_PORT, backendUrl)
+  const envDefine = getDefine(env, mode, isDev, moduleName)
+
   return {
     envDir,
     base: './',
@@ -103,7 +46,7 @@ export default defineConfig(({ mode, command }) => {
     },
     define: envDefine,
     build: {
-      outDir: mavenName ? path.resolve(envDir, `modules/${mavenName}/dist`) : path.resolve(envDir, `dist`),
+      outDir: moduleName ? path.resolve(envDir, `modules/${moduleName}/dist`) : path.resolve(envDir, `dist`),
       assetsDir: 'assets',
       sourcemap: false,
       cssCodeSplit: false,
@@ -122,11 +65,11 @@ export default defineConfig(({ mode, command }) => {
             return `assets/[name].${new Date().getTime()}.[ext]`
           },
           // 如果是模块构建，提取特定的CSS chunks
-          ...(mavenName && {
-            input: `../modules/${mavenName}/register.ts`
+          ...(moduleName && {
+            input: `../modules/${moduleName}/register.ts`
           }),
           compact: true,
-          manualChunks: mavenName ? undefined : federationSharedMap
+          manualChunks: moduleName ? undefined : federationSharedMap
         }
       }
     },
@@ -147,20 +90,18 @@ export default defineConfig(({ mode, command }) => {
         dts: 'src/auto-imports.d.ts',
         resolvers: [VueAmapResolver()]
       }),
-      moduleFilterPlugin(mavenNames),
+      moduleFilterPlugin(moduleNames),
       progress(),
-      copyFile(mavenName),
+      copyFile(moduleName),
       ...loadViteModulesPlugins(),
-      federation(getFederationSetting(mavenName, envDir)),
-      sharpOptimize(),
-      // 添加开发服务器插件
-      ...(devPlugin ? [devPlugin] : [])
+      federation(getFederationSetting(moduleName, envDir)),
+      sharpOptimize()
     ],
     server: {
       host: '0.0.0.0',
       port: Number(env.VITE_PORT),
       cors: true,
-      fs: { allow: [envDir] },
+      fs: { allow: [ envDir] },
       proxy: {
         [env.VITE_APP_BASE_API]: {
           // 优先使用命令行参数，其次使用环境变量
@@ -184,6 +125,7 @@ export default defineConfig(({ mode, command }) => {
       }
     },
     optimizeDeps: {
+      entries: ['index.html'],
       include: ['pinia', 'vue-router', 'axios', 'lodash-es', '@vueuse/core', 'echarts', 'dayjs'],
       esbuildOptions: {
         define: envDefine

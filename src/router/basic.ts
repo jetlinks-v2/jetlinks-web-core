@@ -96,3 +96,22 @@ export const AUTHORIZE_ROUTE: RouteRecordRaw = {
     title: '授权认证'
   }
 }
+
+export const Demo: RouteRecordRaw = {
+  path: '/demo',
+  name: 'Demo',
+  redirect: "/demo/center",
+  component: () => import("@jetlinks-web-core/layout/BasicLayoutPage.vue"),
+  children: [{
+    path: '/demo/center',
+    name: 'DemoCenter',
+    meta: {
+      title: 'Demo'
+    },
+    component: () => import('@jetlinks-web-core/views/demo/ModelList.vue'),
+
+  }],
+  meta: {
+    title: 'Demo'
+  }
+}

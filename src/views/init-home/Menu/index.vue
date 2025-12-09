@@ -19,7 +19,7 @@ import {
   queryModule,
   getSystemPermission,
 } from "@jetlinks-web-core/api/initHome";
-import { OpenMicroApp } from "@jetlinks-web-core/utils/consts";
+import { OpenMicroApp, OWNER_KEY } from '@jetlinks-web-core/utils/consts'
 import { BASE_API } from '@jetlinks-web/constants'
 import { useApplication } from '@jetlinks-web-core/store'
 import {saveAgentList} from "@jetlinks-web-core/api/comm";
@@ -137,7 +137,7 @@ const dealMenu = (data: any) => {
       item?.options || {},
     );
 
-    item.owner = import.meta.env.VITE_APP_NAME
+    item.owner = OWNER_KEY
     if (item.children) {
       dealMenu(item.children);
     }
@@ -153,6 +153,7 @@ const initMenu = async () => {
     if(hasAgentPermission.value){
       USER_CENTER_MENU_DATA.buttons.push(ACCESS_AI_AGENT_CODE_DATA)
     }
+    debugger
     const res = await updateMenus([
       ...menusData.current!,
       USER_CENTER_MENU_DATA,

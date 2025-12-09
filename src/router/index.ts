@@ -3,15 +3,15 @@ import {
   createWebHashHistory,
 } from 'vue-router'
 import { getToken, removeToken } from '@jetlinks-web/utils'
-import { NOT_FIND_ROUTE, LOGIN_ROUTE, OAuth2, OAuthWechat, AccountCenterBind, AUTHORIZE_ROUTE } from './basic'
+import { NOT_FIND_ROUTE, LOGIN_ROUTE, OAuth2, OAuthWechat, AccountCenterBind, AUTHORIZE_ROUTE, Demo } from './basic'
 import {isSubApp} from '@jetlinks-web-core/utils/consts'
 import { useApplication, useUserStore, useSystemStore, useMenuStore  } from '@jetlinks-web-core/store'
 import microApp from '@micro-zoe/micro-app'
 import { getDefaultModules } from '@jetlinks-web-core/router/globModules'
 
-let TokenFilterRoute: string[] = [OAuth2.path, AccountCenterBind.path, AUTHORIZE_ROUTE.path]
+let TokenFilterRoute: string[] = [OAuth2.path, AccountCenterBind.path, AUTHORIZE_ROUTE.path, Demo.path]
 
-let FilterPath: string[] = [OAuth2.path, AUTHORIZE_ROUTE.path]
+let FilterPath: string[] = [OAuth2.path, AUTHORIZE_ROUTE.path, Demo.path]
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -21,6 +21,7 @@ const router = createRouter({
     OAuthWechat,
     AccountCenterBind,
     AUTHORIZE_ROUTE,
+    Demo,
     ...getDefaultModules(TokenFilterRoute)
   ],
   scrollBehavior(to, form, savedPosition) {
