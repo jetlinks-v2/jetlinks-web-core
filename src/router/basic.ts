@@ -108,7 +108,7 @@ export const Demo: RouteRecordRaw = {
     meta: {
       title: 'Demo'
     },
-    component: () => import('@jetlinks-web-core/views/demo/ModelList.vue'),
+    component: () => import('@jetlinks-web-core/views/demo/index.vue'),
 
   }],
   meta: {
