@@ -24,8 +24,7 @@
 
 <script setup lang="ts">
 import { UploadInfoType } from './typing'
-import { TOKEN_KEY } from '@jetlinks-web/constants'
-import { getToken, onlyMessage } from '@jetlinks-web/utils'
+import { onlyMessage } from '@jetlinks-web/utils'
 import {FileStaticPath} from '@jetlinks-web-core/api/comm'
 import { useI18n } from 'vue-i18n';
 import { getUploadHeaders } from '@jetlinks-web-core/utils'
