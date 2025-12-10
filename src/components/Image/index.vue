@@ -36,15 +36,15 @@ const props = defineProps({
 
 const isLoading = ref(false); //是否显示加载状态
 const imgRef = ref();
-let loadTimer = null //加载图片的定时器
+let loadTimer: number | undefined; //加载图片的定时器
 
 onMounted(() => {
-  nextTick(loadImage())
+  nextTick(() => loadImage())
 })
 
 onBeforeUnmount(() => {
-  if (loadTimer.value) {
-    clearTimeout(loadTimer.value);
+  if (loadTimer) {
+    clearTimeout(loadTimer);
   }
 })
 
@@ -57,7 +57,7 @@ const cleanTimer = () => {
 const startTimer = () => {
   // 设置短暂延迟后显示加载状态
   cleanTimer()
-  loadTimer = setTimeout(() => {
+  loadTimer = window.setTimeout(() => {
     if(!isLoading.value) {
       isLoading.value = true;
     }
