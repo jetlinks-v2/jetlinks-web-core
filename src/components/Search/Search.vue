@@ -10,7 +10,7 @@
       :class='props.class'
       :style='myStyles'
       @search='searchSubmit'
-      @reset="emit('reset')"
+      @reset="onReset"
       ref="searchRef"
     />
   </div>
@@ -88,6 +88,10 @@ const searchSubmit = (data: any) => {
 
 const reset = () => {
   searchRef.value?.reset?.()
+}
+
+const onReset = () => {
+  emit('reset')
 }
 
 defineExpose({ reset })

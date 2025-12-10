@@ -30,7 +30,7 @@ export const moduleFilterPlugin = (targetModules: string[] | null) => {
               return '' // 返回空样式
             } else {
               // 默认 JS/TS 返回空导出
-              return 'export default {}'
+              return 'export default { filter: true }'
             }
           }
         }
