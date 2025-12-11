@@ -94,7 +94,7 @@ const onReset = () => {
   emit('reset')
 }
 
-defineExpose({ reset })
+defineExpose({ reset, setValues: (data: Record<string, any>) => searchRef.value?.setValues(data) })
 </script>
 
 <style scoped lang='less'>
