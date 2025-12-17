@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import { useRequest } from "@jetlinks-web/hooks";
 import { getDepartmentList_api } from "@jetlinks-web-core/api/system/user";
 import { useTabSaveSuccess } from '@jetlinks-web-core/hooks'
+import { TreeSelect } from 'ant-design-vue'
 
 const { t: $t } = useI18n();
 const emit = defineEmits(["update:value", "change"]);
@@ -138,6 +139,7 @@ onMounted(() => {
         :fieldNames="{ label: 'name', value: 'id' }"
         :filterTreeNode="(v, node) => filterSelectNode(v, node, 'name')"
         :height="233"
+        :showCheckedStrategy="TreeSelect.SHOW_ALL"
         v-bind="props.extraProps"
         @change="onChange"
       >

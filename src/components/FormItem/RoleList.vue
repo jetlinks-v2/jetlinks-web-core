@@ -4,6 +4,7 @@ import {useI18n} from "vue-i18n";
 import { useRequest } from '@jetlinks-web/hooks'
 import {getRoleList} from "@jetlinks-web-core/api/system/user";
 import { useTabSaveSuccess } from '@jetlinks-web-core/hooks'
+import { TreeSelect } from 'ant-design-vue'
 
 const { t: $t } = useI18n();
 const emit = defineEmits(['update:value', 'change'])
@@ -121,6 +122,7 @@ onMounted(() => {
           :disabled="disabled"
           :filterTreeNode="(v, node) => filterSelectNode(v, node, 'name')"
           :height="233"
+          :showCheckedStrategy="TreeSelect.SHOW_ALL"
           @change="onChange"
       >
         <template #title="record">
