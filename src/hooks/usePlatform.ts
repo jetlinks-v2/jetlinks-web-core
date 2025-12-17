@@ -1,8 +1,11 @@
+import {provide, inject} from "vue";
+
+const PLATFORM_KEY = Symbol('platform')
 export const usePlatformContext = (platform = 'iot') => {
-    provide('platformName', platform)
+    provide(PLATFORM_KEY, platform)
 }
 export const usePlatform = () => {
-    return inject('platformName', 'iot')
+    return inject(PLATFORM_KEY, 'iot')
 }
 
 export const isIotPlatform = () => {
