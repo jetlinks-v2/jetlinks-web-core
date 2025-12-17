@@ -20,6 +20,7 @@ const termsParse = useTermsParse()
 const termsData = ref({
   column: undefined,
   termType: undefined,
+  type: 'and',
   value: {
     source: 'fixed',
     value: undefined

@@ -28,8 +28,8 @@ type ColumnTree = {
 }
 
 export type TermsParseConTextType = {
-  options: Array<ColumnTree>
-  map: Map<string, ColumnTree>
+  options: Ref<Array<ColumnTree>>
+  map: Ref<Map<string, ColumnTree>>
 }
 
 export type TermsValueType = Ref<{

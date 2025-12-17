@@ -26,8 +26,8 @@ const termsParse = useTermsParse()
 const valueOptionsParse = useValueOptions()
 
 const options = ref([
-  { label: $t('ListItem.FilterCondition.9667711-7'), value: 'fixed' },
-  { label: $t('ListItem.FilterCondition.9667711-8'), value: 'upper' }
+  { label: $t('ListItem.FilterCondition.9667711-7'), value: 'fixed', fieldName: 'fixed' },
+  { label: $t('ListItem.FilterCondition.9667711-8'), value: 'upper', fieldName: 'upper' }
 ])
 const source = ref(['fixed'])
 const myValue = ref()

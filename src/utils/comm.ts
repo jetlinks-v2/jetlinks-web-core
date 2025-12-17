@@ -181,7 +181,7 @@ export const transformTree = <T extends Record<string, any>, S extends T>(data: 
   const tree = data.map(item => walk(item))
 
   return {
-    tree,
+    tree: tree,
     map: nodeMap
   }
 }

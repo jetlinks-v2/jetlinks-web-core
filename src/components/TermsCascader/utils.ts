@@ -15,3 +15,9 @@ export const initValueByTermType = (termType: string) => {
 
   return undefined
 }
+
+
+export const typeOptions = [
+  { label: '并且', value: 'and'},
+  { label: '或者', value: 'or'},
+]

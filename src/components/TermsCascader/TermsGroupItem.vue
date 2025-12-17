@@ -1,9 +1,9 @@
-<script setup lang="ts" name="TermsCascaderGroup">
-import TermsGroupItem from './TermsGroupItem.vue'
+<script setup lang="ts" name="TermsGroupItem">
+import Terms from './Terms.vue'
 import { ValueProps } from './Value/utils'
 import { randomString } from '@jetlinks-web/utils'
-import { typeOptions } from './utils'
 import DropdownMenu from './DropdownMenu.vue'
+import { typeOptions } from './utils'
 
 interface TermItem {
   column?: string
@@ -110,15 +110,14 @@ watch(() => props.value, (newValue) => {
           class="term-item"
           :class="{ 'can-delete': canDelete }"
         >
-          <TermsGroupItem v-model:value="item.terms" />
-<!--          <Terms-->
-<!--            :value="item"-->
-<!--            :builtinOptions="builtinOptions"-->
-<!--            :builtinOptionsMap="builtinOptionsMap"-->
-<!--            :showValueType="showValueType"-->
-<!--            :fieldNames="fieldNames"-->
-<!--            @change="(val) => handleTermChange(index, val)"-->
-<!--          />-->
+          <Terms
+            :value="item"
+            :builtinOptions="builtinOptions"
+            :builtinOptionsMap="builtinOptionsMap"
+            :showValueType="showValueType"
+            :fieldNames="fieldNames"
+            @change="(val) => handleTermChange(index, val)"
+          />
 
           <!-- 删除按钮 -->
           <div

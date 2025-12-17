@@ -26,7 +26,7 @@ export const useTermsParseConText = (data: TermsParseConTextType) => {
 }
 
 export const useTermsParse = () => {
-  return inject<TermsParseConTextType>(TermsParseKey, { options: [], map: new Map() })
+  return inject<TermsParseConTextType>(TermsParseKey, { options: ref([]), map: ref(new Map()) })
 }
 
 export const useColumnOptionsContext = (options: Ref<Array<Record<string, any>>>) => {
