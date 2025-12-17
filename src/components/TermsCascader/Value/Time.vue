@@ -53,7 +53,7 @@ const props = defineProps({
 
 const emit = defineEmits<Emit>()
 const myFormat = props.format || ( props.type === 'time' ? 'HH:mm:ss' : 'YYYY-MM-DD HH:mm:ss')
-const myValue = ref<string|number>()
+const myValue = ref<string|number>(props.modelValue)
 
 const dropdownTimePickerRef = ref()
 const getPopupContainer = (trigger: HTMLElement) => {

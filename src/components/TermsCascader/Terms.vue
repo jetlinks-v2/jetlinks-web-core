@@ -2,11 +2,15 @@
 import ColumnSelect from './ColumnSelect.vue'
 import TermTypeSelect from './TermTypeSelect.vue'
 import ValueItem from './Value/index.vue'
-import { useTermsValueContext, useTermsParse, useValueOptionsContext } from './hooks'
+import { useTermsValueContext, useTermsParse, useValueOptionsContext, useTermsEventContext } from './hooks'
 import { doubleParamsKey, nullKeys } from './utils'
 import { ValueProps } from './Value/utils'
+import { omit } from 'lodash-es'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-const emit = defineEmits(['change'])
+const { t: $t } = useI18n()
+const emit = defineEmits(['change', 'update:value'])
 const props = defineProps({
   value: {
     type: Object,
@@ -16,6 +20,27 @@ const props = defineProps({
 })
 
 const termsParse = useTermsParse()
+const typeOptions = [
+  { label: $t('ListItem.FilterCondition.9667711-7'), value: 'fixed', fieldName: 'fixed' },
+  { label: $t('ListItem.FilterCondition.9667711-8'), value: 'upper', fieldName: 'upper' }
+]
+
+const options = computed(() => {
+  const names = props.typeOptionsNames
+  const keys = Object.keys(names)
+  if (keys.length === 0) {
+    return typeOptions
+  }
+  return typeOptions.map(item => {
+    const newNode = {
+      ...item
+    }
+    if (names[newNode.fieldName]) {
+      newNode.value = names[newNode.fieldName]
+    }
+    return newNode
+  })
+})
 
 const termsData = ref({
   column: undefined,
@@ -80,8 +105,16 @@ const cleanValueParse = () => {
   valueParse.value.map = new Map()
 }
 
+const onChange = () => {
+  emit('change', unref(valueParse.value))
+  emit('update:value', unref(valueParse.value))
+}
+
 useTermsValueContext(termsData)
 useValueOptionsContext(valueParse)
+useTermsEventContext({
+  onChange
+})
 
 watch(() => props.value, (newValue) => {
   if (newValue) {
@@ -93,23 +126,19 @@ watch(() => props.value, (newValue) => {
 
 <template>
   <a-space :size="4">
-    <ColumnSelect :options="termsParse.options.value" />
+    <ColumnSelect :options="termsParse.options.value" :valueOptions="options" />
     <TermTypeSelect />
     <template v-if="!showValue">
       <ValueItem
         :columnDetail="columnDetail"
-        :builtinOptions="builtinOptions"
-        :builtinOptionsMap="builtinOptionsMap"
-        :showValueType="showValueType"
-        :fieldNames="fieldNames"
+        :options="options"
+        v-bind="omit(props, ['value'])"
       />
       <ValueItem
         v-if="showDouble"
         :columnDetail="columnDetail"
-        :builtinOptions="builtinOptions"
-        :builtinOptionsMap="builtinOptionsMap"
-        :showValueType="showValueType"
-        :fieldNames="fieldNames"
+        :options="options"
+        v-bind="omit(props, ['value'])"
         :index="1"
       />
     </template>

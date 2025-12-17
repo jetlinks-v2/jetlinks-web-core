@@ -1,5 +1,5 @@
 <script setup name="ColumnSelect">
-import { useTermsParse, useTermsValue } from './hooks'
+import { useTermsEvent, useTermsParse, useTermsValue } from './hooks'
 import { computed } from 'vue'
 import { initValueByTermType } from './utils'
 
@@ -24,9 +24,10 @@ const props = defineProps({
 
 const defaultFieldNames = { title: 'name', key: 'column', children: 'children' };
 
-const open = ref(false)
 const termsValue = useTermsValue()
 const termsParse = useTermsParse()
+const events = useTermsEvent()
+const open = ref(false)
 const oleValueCache = ref()
 const expendsKeys = ref([])
 
@@ -57,6 +58,7 @@ const getSelectedKeys = computed({
 const setColumnData = (keys) => {
   open.value = false
   getSelectedKeys.value = keys
+  events.onChange?.()
 }
 
 // 处理选择
@@ -75,7 +77,7 @@ const handleSelectResult = (keys, oldKey) => {
     } else {
       termsValue.value.value.value = initValueByTermType(termsType)
     }
-    termsValue.value.value.source = props.valueOptions[0]?.id || 'fixed'
+    termsValue.value.value.source = props.valueOptions[0]?.value || 'fixed'
   }
 }
 

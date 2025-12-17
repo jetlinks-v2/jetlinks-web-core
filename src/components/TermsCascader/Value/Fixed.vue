@@ -53,6 +53,7 @@ watch(() => props.value, (newValue) => {
       :itemType="dataType"
       :modelValue="myValue"
       :options="options"
+      format="HH:mm:ss"
       @change="onChange"
     >
 

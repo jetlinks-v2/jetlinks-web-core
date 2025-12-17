@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import Fixed from './Fixed.vue'
 import Builtin from './BuiltInParameters.vue'
-import { useTermsParse, useTermsValue, useValueOptions } from '../hooks'
+import { useTermsEvent, useTermsParse, useTermsValue, useValueOptions } from '../hooks'
 import { complexKey } from '../utils'
 import { ValueProps } from './utils'
 import { useI18n } from 'vue-i18n'
@@ -17,18 +17,19 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  options: {
+    type: Array,
+    default: () => [],
+  },
   ...ValueProps()
 })
 
 const emit = defineEmits(['update:value', 'change'])
 const termsValue = useTermsValue()
 const termsParse = useTermsParse()
+const events = useTermsEvent()
 const valueOptionsParse = useValueOptions()
 
-const options = ref([
-  { label: $t('ListItem.FilterCondition.9667711-7'), value: 'fixed', fieldName: 'fixed' },
-  { label: $t('ListItem.FilterCondition.9667711-8'), value: 'upper', fieldName: 'upper' }
-])
 const source = ref(['fixed'])
 const myValue = ref()
 const valueOpen = ref(false)
@@ -38,7 +39,7 @@ const isComplex = computed(() => {
 })
 
 const typeLabel = computed(() => {
-  return options.value.find(item => item.value === source.value[0])?.label
+  return props.options.find(item => item.value === source.value[0])?.label
 })
 
 const showType = computed(() => {
@@ -51,6 +52,7 @@ const dataType = computed(() => {
 
 const typeChange = (e) => {
   termsValue.value.value[props.fieldNames.valueSource] = e.key
+  events.onChange?.()
 }
 
 const setValue = (value) => {
@@ -59,6 +61,7 @@ const setValue = (value) => {
   } else {
     termsValue.value.value.value = value
   }
+  events.onChange?.()
 }
 
 const handleValueChange = (value) => {
@@ -86,7 +89,6 @@ const valueLabel = computed(() => {
 
 const handleParameterSelect = (node) => {
   // valueLabel.value = node.name
-  console.log(node)
   setValue(node.column)
   valueOpen.value = false
 }
@@ -97,7 +99,8 @@ const onValueOpenChange = (v) => {
 
 watch(() => termsValue.value.value, (newValue) => {
   const fieldNames = props.fieldNames
-  const _source = newValue[fieldNames.valueSource]
+  const sourceKey = fieldNames.valueSource || 'source'
+  const _source = newValue[sourceKey]
   source.value = _source ? [_source] : ['fixed']
   myValue.value = Array.isArray(newValue.value) ? newValue.value[props.index] : newValue.value
 }, { immediate: true, deep: true })
@@ -127,14 +130,14 @@ watch(() => termsValue.value.value, (newValue) => {
       <template #overlay>
 
         <Fixed
-          v-if="source[0] === 'fixed'"
+          v-if="source[0] === options[0].value"
           :value="myValue"
           :dataType="dataType"
           :options="valueOptionsParse.options"
           @change="handleValueChange"
         />
         <Builtin
-          v-else-if="source[0] !== 'fixed'"
+          v-else-if="source[0] !== options[0].value"
           :value="myValue"
           :data="builtinOptions"
           @change="handleValueChange"

@@ -1,5 +1,5 @@
 <script setup name="TermTypeSelect">
-import { useTermsParse, useTermsValue } from './hooks'
+import { useTermsEvent, useTermsParse, useTermsValue } from './hooks'
 import { complexKey, doubleParamsKey } from '@jetlinks-web-core/components/TermsCascader/utils'
 
 const props = defineProps({
@@ -9,11 +9,7 @@ const props = defineProps({
 
 const termsValue = useTermsValue()
 const termsParseData = useTermsParse()
-
-const handleTermValue = (termType) => {
-
-}
-
+const events = useTermsEvent()
 
 const onChange = () => {
 
@@ -31,6 +27,8 @@ const onSelect = (key) => {
   } else {
     termsValue.value.value.value = undefined
   }
+
+  events.onChange?.()
 }
 
 const options = computed(() => {

@@ -5,6 +5,7 @@ const TermsContextValueKey = 'TermsContextValueKey'
 const TermsParseKey = 'TermsParseKey'
 const ColumnOptionsKey = 'ColumnOptionsKey'
 const ValueOptionsKey = 'ValueOptionsKey'
+const TermsEventKey = 'TermsEventKey'
 
 export const useTermsValueContext = (data: TermsValueType) => {
   provide(TermsContextValueKey, data)
@@ -43,4 +44,12 @@ export const useValueOptionsContext = (data) => {
 
 export const useValueOptions = () => {
   return inject(ValueOptionsKey)
+}
+
+export const useTermsEventContext = (data: Record<string, Function>) => {
+  provide(TermsEventKey, data)
+}
+
+export const useTermsEvent = () => {
+  return inject(TermsEventKey)
 }

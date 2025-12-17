@@ -15,7 +15,10 @@ export const ValueProps = () => ({
     type: Object,
     default: () => ({
       valueSource: 'source'
-
     })
+  },
+  typeOptionsNames: {
+    type: Object,
+    default: () => ({})
   }
 })
