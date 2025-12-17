@@ -26,7 +26,7 @@ import BatchImport from './BatchImport/index.vue'
 import Echarts from './Echarts'
 import RemoteComponent from './RemoteComponent/index.vue'
 import TitleValue from './TitleComponent/TitleValue.vue'
-
+import TermsCascader from './TermsCascader'
 
 export default {
     install(app: App) {
@@ -58,6 +58,7 @@ export default {
           .component('BatchImport', BatchImport)
           .component('RemoteComponent', RemoteComponent)
           .component('TitleValue', TitleValue)
+          .component('TermsCascader', TermsCascader)
 
         Object.keys(FormItemValue).forEach(key => {
             app.component(key, FormItemValue[key])

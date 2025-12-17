@@ -14,7 +14,7 @@ type OptionsType = {
 export const useTabSaveSuccess = (code: string = '', options?: OptionsType) => {
   const id = ref('tab-save-success' + randomString(8))
   const menuStore = useMenuStore()
-  let tabInstance: WindowProxy
+  const tabInstance = ref<WindowProxy | null>(null)
 
   function formatPath(str: string, obj: Record<string, string>) {
     return str.replace(/:([a-zA-Z_]\w*)/g, (_, key) => {
@@ -45,13 +45,14 @@ export const useTabSaveSuccess = (code: string = '', options?: OptionsType) => {
           globalData.api.onTabSaveSuccess(id.value, url, options)
         }
       } else {
-        tabInstance = window.open(url) as WindowProxy
-        (tabInstance as any).onTabSaveSuccess = (_sourceId: string, value: any) => {
+        tabInstance.value = window.open(url) as WindowProxy
+        ;(tabInstance.value as any).onTabSaveSuccess = (_sourceId: string, value: any) => {
           if (_sourceId === id.value) {
             options?.onSuccess?.(value)
             resolve(value)
           }
         }
+        resolve(tabInstance.value)
       }
     })
   }
