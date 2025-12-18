@@ -42,13 +42,19 @@ const generateKey = () => {
 
 // 创建默认条件项
 const createDefaultTerm = (): TermItem => ({
-  column: undefined,
   type: 'and',
-  termType: undefined,
-  value: {
-    source: 'manual',
-    value: undefined
-  },
+  terms: [
+    {
+      column: undefined,
+      type: 'and',
+      termType: undefined,
+      value: {
+        source: 'fixed',
+        value: undefined
+      },
+      key: randomString()
+    }
+  ],
   key: generateKey()
 })
 
