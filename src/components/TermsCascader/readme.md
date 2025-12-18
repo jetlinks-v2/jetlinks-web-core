@@ -16,23 +16,8 @@
 import { transformTree } from '@jetlinks-web-core/utils'
 import { useTermsParseConText } from '@jetlinks-web-core/components/TermsCascader/hooks'
 
-// 1. 准备数据源（必须使用 transformTree 处理）
-const { tree, map } = transformTree(columnsData, {
-  filedNames: {
-    title: 'name',    // 显示字段
-    key: 'id',        // 唯一键
-    children: 'children'
-  },
-  handleNode: (node) => {
-    // 自定义节点处理（可选）
-    node.fullName = `${node.parentName}.${node.name}`
-  }
-})
-
-// 2. 注入数据
-useTermsParseConText({ options: tree, map })
-
-// 3. 绑定值
+const options = ref([])
+const optionsMap = ref(new Map())
 const terms = ref({
   column: undefined,
   termType: undefined,
@@ -41,6 +26,29 @@ const terms = ref({
     value: undefined
   }
 })
+// 注入参数数据
+useTermsParseConText({ options: options, map: optionsMap });
+
+const onLoad = () => {
+  // 解析参数数据
+  const { tree, map } = transformTree(columnsData, {
+    filedNames: {
+      title: 'name',    // 显示字段
+      key: 'id',        // 唯一键
+      children: 'children'
+    },
+    handleNode: (node) => {
+      // 自定义节点处理（可选）
+      node.fullName = `${node.parentName}.${node.name}`
+    }
+  })
+
+  options.value = tree
+  optionsMap.value = map
+}
+
+onLoad()
+
 </script>
 ```
 
@@ -172,17 +180,37 @@ const columns = [
   }
 ]
 
-// transformTree 处理
-const { tree, map } = transformTree(columns, {
-  filedNames: {
-    title: 'name',
-    key: 'id',
-    children: 'children'
+const options = ref([])
+const optionsMap = ref(new Map())
+const terms = ref({
+  column: undefined,
+  termType: undefined,
+  value: {
+    source: 'fixed',
+    value: undefined
   }
 })
 
-// 注入上下文
-useTermsParseConText({ options: tree, map })
+// 注入参数数据
+useTermsParseConText({ options: options, map: optionsMap }); 
+
+const onLoad = () => {
+  // 解析参数数据
+  const { tree, map } = transformTree(columnsData, {
+    filedNames: {
+      title: 'name',    // 显示字段
+      key: 'id',        // 唯一键
+      children: 'children'
+    },
+    handleNode: (node) => {
+      // 自定义节点处理（可选）
+      node.fullName = `${node.parentName}.${node.name}`
+    }
+  })
+
+  options.value = tree
+  optionsMap.value = map
+}
 
 // 内置参数
 const builtinParams = [
@@ -191,15 +219,7 @@ const builtinParams = [
 ]
 const builtinParamsMap = new Map(builtinParams.map(i => [i.value, i]))
 
-// 绑定值
-const terms = ref({
-  column: 'id',
-  termType: 'eq',
-  value: {
-    source: 'fixed',
-    value: '123'
-  }
-})
+onLoad()
 </script>
 ```
 
