@@ -16,18 +16,19 @@ const onChange = () => {
 }
 
 const onSelect = (key) => {
+  let value = events.getValue?.()
   //  区间值，旧数据保留第一位, 如果是数组，则value不变化，否则反之
-  if (doubleParamsKey.includes(key) && !Array.isArray(termsValue.value.value.value)) { //
-    const oldValue = termsValue.value.value.value
-    termsValue.value.value.value = [oldValue, undefined]
-  } else if (Array.isArray(termsValue.value.value.value)) { // 从数组值变为单个值，获取数组第一个值
-    termsValue.value.value.value = termsValue.value.value.value[0]
+  if (doubleParamsKey.includes(key) && !Array.isArray(value)) { //
+    const oldValue = value
+    value = [oldValue, undefined]
+  } else if (Array.isArray(value)) { // 从数组值变为单个值，获取数组第一个值
+    value = value[0]
   } else if (key === complexKey) { // 满足时，设置为1，便于过校验
-    termsValue.value.value.value = 1
+    value = 1
   } else {
-    termsValue.value.value.value = undefined
+    value = undefined
   }
-
+  events.updateValue(value)
   events.onChange?.()
 }
 

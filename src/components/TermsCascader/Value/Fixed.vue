@@ -4,17 +4,18 @@ import { isObject } from 'lodash-es'
 
 const asyncComponents = {
   time: defineAsyncComponent(() => import('./Time.vue')),
+  BooleanMenu: defineAsyncComponent(() => import('./BooleanMenu.vue')),
   valueItem: ValueItem
 }
 const emit = defineEmits(['update:value', 'change'])
 
 const props = defineProps({
   dataType: {
-    type: [String, undefined],
+    type: String,
     default: undefined,
   },
   value: {
-    type: [String, Number, undefined, Object],
+    type: [String, Number, Boolean, Object],
     default: undefined,
   },
   options: {
@@ -28,6 +29,10 @@ const myValue = ref()
 const contentRef = computed(() => {
   if (['date', 'time'].includes(props.dataType)) {
     return asyncComponents.time
+  }
+
+  if ('boolean' === props.dataType) {
+    return asyncComponents.BooleanMenu
   }
 
   return asyncComponents.valueItem
@@ -56,7 +61,6 @@ watch(() => props.value, (newValue) => {
       format="HH:mm:ss"
       @change="onChange"
     >
-
     </component>
     <j-empty v-else />
   </div>

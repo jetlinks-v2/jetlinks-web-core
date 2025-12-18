@@ -45,10 +45,10 @@ const createDefaultTerm = (): TermItem => ({
   column: undefined,
   type: 'and',
   termType: undefined,
-  value: {
+  value: props.showValueType ? {
     source: 'manual',
     value: undefined
-  },
+  } : undefined,
   key: generateKey()
 })
 

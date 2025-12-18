@@ -56,12 +56,14 @@ const typeChange = (e) => {
 }
 
 const setValue = (value) => {
-  if (Array.isArray(termsValue.value.value.value)) {
-    termsValue.value.value.value[props.index] = value
+  let termValue = events.getValue()
+  if (Array.isArray(termValue)) {
+    termValue[props.index] = value
   } else {
-    termsValue.value.value.value = value
+    termValue = value
   }
-  events.onChange?.()
+  events.updateValue(termValue)
+  events.onChange()
 }
 
 const handleValueChange = (value) => {
@@ -74,7 +76,8 @@ const handleValueChange = (value) => {
 
 const valueLabel = computed(() => {
   const value = myValue.value
-  if (isComplex.value) {
+
+  if (isComplex.value) { // 满足
     return value === 1 ? '请配置条件' : '条件'
   }
 
@@ -84,7 +87,8 @@ const valueLabel = computed(() => {
   } else if (props.builtinOptions.length) {
     _label = props.builtinOptionsMap.get(value)?.label
   }
-  return _label || '参数值'
+
+  return _label ?? '参数值'
 })
 
 const handleParameterSelect = (node) => {
@@ -100,9 +104,14 @@ const onValueOpenChange = (v) => {
 watch(() => termsValue.value.value, (newValue) => {
   const fieldNames = props.fieldNames
   const sourceKey = fieldNames.valueSource || 'source'
-  const _source = newValue[sourceKey]
-  source.value = _source ? [_source] : ['fixed']
-  myValue.value = Array.isArray(newValue.value) ? newValue.value[props.index] : newValue.value
+
+  let _value = newValue
+  if (props.showValueType) {
+    const _source = newValue[sourceKey]
+    source.value = _source ? [_source] : ['fixed']
+    _value = newValue.value
+  }
+  myValue.value = Array.isArray(_value) ? _value[props.index] : _value
 }, { immediate: true, deep: true })
 </script>
 

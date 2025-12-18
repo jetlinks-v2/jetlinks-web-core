@@ -70,14 +70,16 @@ const handleSelectResult = (keys, oldKey) => {
 
   // 如果column数据类型发生变化，修改termType和value值
   if (isDataTypeChange) {
+    const value = {}
     const termsType = columnItem.termTypes[0]?.id || 'eq'
     termsValue.value.termType = termsType
     if (columnItem.dataType === 'array') {
-      termsValue.value.value.value = {}
+      value.value = {}
     } else {
-      termsValue.value.value.value = initValueByTermType(termsType)
+      value.value = initValueByTermType(termsType)
     }
-    termsValue.value.value.source = props.valueOptions[0]?.value || 'fixed'
+    value.source = props.valueOptions[0]?.value || 'fixed'
+    events.updateValue(value.value)
   }
 }
 

@@ -1,4 +1,4 @@
-<script setup lang="ts" name="Terms">
+<script setup name="Terms">
 import ColumnSelect from './ColumnSelect.vue'
 import TermTypeSelect from './TermTypeSelect.vue'
 import ValueItem from './Value/index.vue'
@@ -46,10 +46,10 @@ const termsData = ref({
   column: undefined,
   termType: undefined,
   type: 'and',
-  value: {
+  value: props.showValueType ? {
     source: 'fixed',
     value: undefined
-  }
+  } : undefined
 })
 
 const valueParse = ref({
@@ -62,7 +62,16 @@ const columnDetail = computed(() => {
   const detail = termsData.value.column ? map.get(termsData.value.column) : {}
   cleanValueParse()
 
-  if (detail?.others) {
+  if (detail && detail.dataType === 'boolean' && !('others' in detail) ) {
+    let map = new Map()
+    valueParse.value.options = [
+      { label: 'true', value: true, key: 'true' },
+      { label: 'false', value: false, key: 'false' },
+    ]
+    map.set(true, valueParse.value.options[0])
+    map.set(false, valueParse.value.options[1])
+    valueParse.value.map = map
+  } else if (detail?.others) {
     const others = detail.others
     let options = []
     let map = new Map()
@@ -110,10 +119,24 @@ const onChange = () => {
   emit('update:value', unref(valueParse.value))
 }
 
+const updateValue = (e) => {
+  if (props.showValueType) {
+    termsData.value.value.value = e
+  } else {
+    termsData.value.value = e
+  }
+}
+
+const getValue = () => {
+  return termsData.value.value
+}
+
 useTermsValueContext(termsData)
 useValueOptionsContext(valueParse)
 useTermsEventContext({
-  onChange
+  onChange,
+  updateValue,
+  getValue
 })
 
 watch(() => props.value, (newValue) => {
