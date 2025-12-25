@@ -27,6 +27,9 @@ import Echarts from './Echarts'
 import RemoteComponent from './RemoteComponent/index.vue'
 import TitleValue from './TitleComponent/TitleValue.vue'
 import TermsCascader, { TermsCascaderGroup } from './TermsCascader'
+import Editable from './Editable/index.vue'
+import FormItemEditable from './Editable/FormItemEditable.vue'
+import InputEditable from './Editable/InputEditable.vue'
 
 export default {
     install(app: App) {
@@ -46,20 +49,24 @@ export default {
             .component('ConfirmModal',ConfirmModal)
             .component('CheckButton',CheckButton)
             .component('SelectAMap', SelectAMap)
-          .component('MonacoEditor', MonacoEditor)
-          .component(TimeSelect.name, TimeSelect)
-          .component('FullCalendar', FullCalendar)
-          .component('Image', Image)
-          .component('EditDialog', EditDialog)
-          .component('CrudTable', CrudTable)
-          .component('MetadataValueItem', MetadataValueItem)
-          .component('VirtualScroll', VirtualScroll)
-          .component('TabsCard', TabsCard)
-          .component('BatchImport', BatchImport)
-          .component('RemoteComponent', RemoteComponent)
-          .component('TitleValue', TitleValue)
-          .component('TermsCascader', TermsCascader)
-          .component('TermsCascaderGroup', TermsCascaderGroup)
+            .component('MonacoEditor', MonacoEditor)
+            .component(TimeSelect.name, TimeSelect)
+            .component('FullCalendar', FullCalendar)
+            .component('Image', Image)
+            .component('EditDialog', EditDialog)
+            .component('CrudTable', CrudTable)
+            .component('MetadataValueItem', MetadataValueItem)
+            .component('VirtualScroll', VirtualScroll)
+            .component('TabsCard', TabsCard)
+            .component('BatchImport', BatchImport)
+            .component('RemoteComponent', RemoteComponent)
+            .component('TitleValue', TitleValue)
+            .component('TermsCascader', TermsCascader)
+            .component('TermsCascaderGroup', TermsCascaderGroup)
+            .component('Editable', Editable)
+            .component('FormItemEditable', FormItemEditable)
+            .component('InputEditable', InputEditable)
+
 
         Object.keys(FormItemValue).forEach(key => {
             app.component(key, FormItemValue[key])
