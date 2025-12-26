@@ -5,8 +5,9 @@ import { PersonalAIKey, PersonalKey, PersonalToken } from '@jetlinks-web-core/ut
 
 export const isNoCommunity = !(localStorage.getItem('version_code') === 'community');
 
-export const openEdgeUrl = (id: string) => {
+export const openEdgeUrl = (id: string, routePath?: string) => {
   const url = new URL(`${BASE_API}/ui/edge/cloud/default/`, window.location.origin)
+
   const hashParams = new URLSearchParams()
   hashParams.set('token', getToken())
   hashParams.set('thingId', id)
@@ -14,7 +15,8 @@ export const openEdgeUrl = (id: string) => {
   hashParams.set('terminal', 'cloud-pc')
   hashParams.set('thingType', 'device')
   hashParams.set('proxy', BASE_API)
-  url.hash = `/login?${hashParams.toString()}`
+
+  url.hash = `${routePath || '/login'}?${hashParams.toString()}`
   window.open(url.toString())
 }
 
