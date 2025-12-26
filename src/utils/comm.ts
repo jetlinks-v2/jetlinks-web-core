@@ -4,7 +4,7 @@ import { getFileUrlById } from '@jetlinks-web-core/api/comm'
 import { message } from 'ant-design-vue'
 import { BASE_API, TOKEN_KEY } from '@jetlinks-web/constants'
 import { isSubApp } from '@jetlinks-web-core/utils/consts'
-import { isFunction } from 'lodash-es'
+import { isFunction, omit } from 'lodash-es'
 
 export const downloadJson = (
   record: Record<string, any>,
@@ -172,7 +172,7 @@ export const transformTree = <T extends Record<string, any>, S extends T>(data: 
     node.__sourcePath__ = sourcePath
 
     if (key) {
-      nodeMap.set(key, node)
+      nodeMap.set(key, omit(node, ['children']))
     }
 
     return node as S
