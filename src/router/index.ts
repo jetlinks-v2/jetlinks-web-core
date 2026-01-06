@@ -96,6 +96,9 @@ router.beforeEach((to, from, next) => {
 })
 
 export const jumpLogin = () => {
+  const { path } = toValue(router.currentRoute)
+  if (TokenFilterRoute.includes(path)) return
+
   setTimeout(() => {
     removeToken()
     router.replace({
