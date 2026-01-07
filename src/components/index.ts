@@ -27,6 +27,9 @@ import Echarts from './Echarts'
 import RemoteComponent from './RemoteComponent/index.vue'
 import TitleValue from './TitleComponent/TitleValue.vue'
 import TermsCascader, { TermsCascaderGroup, TermsCascaderGroupItem } from './TermsCascader'
+import Editable from './Editable/index.vue'
+import FormItemEditable from './Editable/FormItemEditable.vue'
+import InputEditable from './Editable/InputEditable.vue'
 
 export default {
     install(app: App) {
@@ -61,7 +64,9 @@ export default {
           .component('TermsCascader', TermsCascader)
           .component('TermsCascaderGroup', TermsCascaderGroup)
           .component('TermsCascaderGroupItem', TermsCascaderGroupItem)
-
+          .component('Editable', Editable)
+          .component('FormItemEditable', FormItemEditable)
+          .component('InputEditable', InputEditable)
         Object.keys(FormItemValue).forEach(key => {
             app.component(key, FormItemValue[key])
         })
