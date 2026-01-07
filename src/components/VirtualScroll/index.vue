@@ -18,16 +18,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
 const props = defineProps({
   data: { type: Array, required: true },
   itemHeight: { type: Number, default: 50 }
 })
+const emit = defineEmits(['reachBottom'])
 
 const viewport = ref(null)
 const startIndex = ref(0)
 const offset = ref(0)
+const hasEmittedBottom = ref(false)
+const bottomThreshold = 20
 
 // 计算总高度
 const totalHeight = computed(() => props.data.length * props.itemHeight)
@@ -47,10 +50,25 @@ const visibleData = computed(() => {
 
 // 滚动事件处理
 const handleScroll = () => {
-  const scrollTop = viewport.value.scrollTop
+  const element = viewport.value
+  if (!element) return
+  const scrollTop = element.scrollTop
   startIndex.value = Math.floor(scrollTop / props.itemHeight)
   offset.value = scrollTop - (scrollTop % props.itemHeight)
+
+  const reachedBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - bottomThreshold
+  if (reachedBottom && !hasEmittedBottom.value) {
+    hasEmittedBottom.value = true
+    emit('reachBottom')
+  } else if (!reachedBottom) {
+    hasEmittedBottom.value = false
+  }
 }
+
+watch(() => props.data.length, () => {
+  // 数据列表变化时允许再次触发底部事件
+  hasEmittedBottom.value = false
+})
 
 onMounted(() => {
   // 初始化容器高度
@@ -64,6 +82,7 @@ onMounted(() => {
 .viewport {
   position: relative;
   overflow-y: auto;
+  overflow-x: hidden;
   &:not(:last-child){
     border-bottom: 1px solid #eee;
   }
