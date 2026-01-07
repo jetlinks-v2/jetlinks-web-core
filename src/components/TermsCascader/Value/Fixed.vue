@@ -1,6 +1,5 @@
 <script setup name="ValueFixed">
 import { ValueItem } from '@jetlinks-web/components'
-import { isObject } from 'lodash-es'
 
 const asyncComponents = {
   time: defineAsyncComponent(() => import('./Time.vue')),
@@ -39,9 +38,8 @@ const contentRef = computed(() => {
 })
 
 const onChange = (e) => {
-  const value = isObject(e) ? e.value : e
-  emit('update:value', value)
-  emit('change', value)
+  emit('update:value', e)
+  emit('change', e)
 }
 
 watch(() => props.value, (newValue) => {
@@ -57,6 +55,7 @@ watch(() => props.value, (newValue) => {
       :is="contentRef"
       :itemType="dataType"
       :modelValue="myValue"
+      :value="myValue"
       :options="options"
       format="HH:mm:ss"
       @change="onChange"

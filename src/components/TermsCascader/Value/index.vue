@@ -85,7 +85,7 @@ const valueLabel = computed(() => {
   if (source.value[0] === 'fixed' && valueOptionsParse.value.options.length) {
     _label = valueOptionsParse.value.map.get(value)?.label
   } else if (props.builtinOptions.length) {
-    _label = props.builtinOptionsMap.get(value)?.label
+    _label = props.builtinOptionsMap.get(value)?.label ?? value
   }
 
   return _label ?? '参数值'

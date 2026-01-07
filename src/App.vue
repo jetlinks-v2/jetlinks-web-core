@@ -3,7 +3,7 @@
     :locale="language[systemStore.language]"
     :componentsLocale="componentsLocale[systemStore.language]"
     :IconConfig="{
-      scriptUrl: '//at.alicdn.com/t/c/font_4035907_rbvn3by787s.js'
+      scriptUrl: '//at.alicdn.com/t/c/font_4035907_4hmqb1anj6.js'
     }"
     :theme="themeConfig"
   >
