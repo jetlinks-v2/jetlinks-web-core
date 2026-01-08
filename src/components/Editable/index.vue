@@ -14,8 +14,7 @@
         v-model:value="_value"
         style="width: 100%"
         v-bind="componentProps"
-        @blur="onBlur"
-        @change="onValueChange"
+        v-on="getEventHandlers()"
     />
   </div>
   <div v-else class="text" @click="isEdit = true">
@@ -58,6 +57,9 @@ const isEdit = ref(false)
 const _value = ref(props.value)
 const inputRef = ref()
 
+// 定义选择框类型
+const selectTypes = ['select', 'date', 'time', 'dateRange', 'timeRange']
+
 const __value = computed(() => {
   if (props.type === 'select') {
     return (props.componentProps?.options || []).find(item => item.value === _value.value)?.label || undefined
@@ -66,20 +68,33 @@ const __value = computed(() => {
 })
 
 const onChange = () => {
+  console.log('change')
   emit('update:value', _value.value)
   emit('change', _value.value)
 }
 
-const onBlur = () => {
+// 输入框类型的 blur 处理
+// 选择框类型的 change 处理
+const onValueChange = () => {
   isEdit.value = false
-  console.log('blur')
   if (props.value !== _value.value) {
     onChange()
   }
 }
 
-const onValueChange = () => {
-
+// 根据组件类型返回对应的事件处理器
+const getEventHandlers = () => {
+  if (selectTypes.includes(props.type)) {
+    // 选择框类型只监听 change
+    return {
+      change: onValueChange
+    }
+  } else {
+    // 输入框类型只监听 blur
+    return {
+      blur: onValueChange
+    }
+  }
 }
 
 watch(() => props.value, (newValue) => {
@@ -100,3 +115,4 @@ watch(() => props.value, (newValue) => {
   }
 }
 </style>
+
