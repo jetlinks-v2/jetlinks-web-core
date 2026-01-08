@@ -115,3 +115,31 @@ export const Demo: RouteRecordRaw = {
     title: 'Demo'
   }
 }
+
+
+export const Scene: RouteRecordRaw = {
+  path: '/scene',
+  name: 'Scene',
+  redirect: "/scene/center",
+  children: [
+    {
+      path: '/scene/center',
+      name: 'SceneCenter',
+      meta: {
+        title: '场景商城'
+      },
+      component: () => import('@jetlinks-web-core/views/scene/index.vue'),
+    },
+    {
+      path: '/scene/center/detail',
+      name: 'SceneCenterDetail',
+      meta: {
+        title: '场景商城详情'
+      },
+      component: () => import('@jetlinks-web-core/views/scene/Detail.vue'),
+    }
+  ],
+  meta: {
+    title: '场景商城'
+  }
+}
