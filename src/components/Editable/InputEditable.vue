@@ -1,8 +1,8 @@
 <template>
   <div>
-    <div v-if="!isEdit" style="display: flex; align-items: center">
+    <div v-if="!isEdit" style="display: flex; align-items: center; gap: 8px">
       <j-ellipsis>{{ _value || '--' }}</j-ellipsis>
-      <a-button type="link" @click="isEdit = true">
+      <a-button type="link" @click="isEdit = true" size="small">
         <AIcon type="EditOutlined"/>
       </a-button>
     </div>
@@ -48,3 +48,4 @@ watch(() => props.value, (newVal) => {
 <style lang="less" scoped>
 
 </style>
+
