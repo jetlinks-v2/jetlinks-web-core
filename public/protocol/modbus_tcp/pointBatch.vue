@@ -3,6 +3,7 @@
     <div style="flex: 1; min-height: 0; overflow-y: auto">
       <PointEditTable
           :columns="columns"
+          :fieldPathMap="fieldPathMap"
           v-model:dataSource="dataSource"
           ref="tableRef"
       />
@@ -62,6 +63,10 @@
 import {inject, reactive, ref, computed} from "vue";
 import {PointEditTable} from '@components'
 import {useLocales} from '@hooks'
+import { commandRequest } from 'request'
+import { handlePointConfigMetadata, SameEngine } from 'local-utils'
+import { randomString } from '@jetlinks-web/utils'
+import { cloneDeep } from 'lodash-es'
 
 const {$lang} = useLocales('modbus_tcp')
 
@@ -76,6 +81,9 @@ const formData = reactive({
   startAddress: undefined,
   endAddress: undefined,
 })
+const requestColumns = ref([])
+const requestRecord = ref({})
+const fieldPathMap = ref({})
 
 const visible = ref(false)
 const tableRef = ref()
@@ -86,8 +94,6 @@ const options = computed(() => [
   {label: $lang('MODBUS_TCP.point.20250207-26'), value: 'HoldingRegisters'},
   {label: $lang('MODBUS_TCP.point.20250207-27'), value: 'InputRegisters'}
 ])
-
-console.log($lang('MODBUS_TCP.point.20250207-24'), 'columns', options)
 
 const columns = computed(() => [
   {
@@ -103,82 +109,26 @@ const columns = computed(() => [
     ellipsis: true,
     form: {
       required: true,
-    }
-  },
-  {
-    title: '功能码',
-    dataIndex: 'function',
-    template: {
-      components: 'a-select',
-      props: {
-        allowClear: true,
-        options: options.value
-      }
     },
-    ellipsis: true,
-    form: {
-      required: true,
-      name: ['configuration', 'function']
-    }
+    fixed: 'left',
+    width: 200,
   },
+  ...requestColumns.value,
   {
-    title: '地址',
-    dataIndex: 'pointKey',
+    title: '采集频率',
+    dataIndex: 'interval',
     template: {
       components: 'a-input',
       props: {
         allowClear: true
       },
-      check: false
     },
     ellipsis: true,
     form: {
       required: true,
-    }
+    },
+    width: 200,
   },
-  // {
-  //   title: '访问类型',
-  //   dataIndex: 'accessModes',
-  //   key: 'accessModes',
-  //   template: {
-  //     components: 'a-select',
-  //     props: {
-  //       allowClear: true,
-  //       style: {
-  //         width: '100%'
-  //       }
-  //     }
-  //   },
-  //   form: {
-  //     required: true,
-  //     rules: [
-  //       {
-  //         asyncValidator: (rule, value, cb) => {
-  //           const _value = isArray(value) ? value : value.value
-  //           if (!_value?.length) {
-  //             return Promise.reject('请选择访问类型');
-  //           }
-  //           return Promise.resolve();
-  //         },
-  //       }
-  //     ]
-  //   }
-  // },
-  // {
-  //   title: '采集频率',
-  //   dataIndex: 'interval',
-  //   template: {
-  //     components: 'a-input',
-  //     props: {
-  //       allowClear: true
-  //     },
-  //     tooltip: '1111111'
-  //   },
-  //   ellipsis: true,
-  //   form: {
-  //     required: true,
-  //   }
-  // },
   {
     title: '说明',
     dataIndex: 'description',
@@ -190,94 +140,151 @@ const columns = computed(() => [
       check: false
     },
     ellipsis: true,
+    width: 220,
   },
-  // {
-  //   title: '寄存器数量',
-  //   dataIndex: 'quantity',
-  //   template: {
-  //     components: 'a-input',
-  //     props: {
-  //       allowClear: true
-  //     }
-  //   },
-  //   ellipsis: true,
-  // },
-  // {
-  //   title: '非标准协议写入配置',
-  //   dataIndex: 'writeByteConfig',
-  //   key: 'writeByteConfig',
-  //   ellipsis: true,
-  //   template: {
-  //     components: 'a-switch',
-  //     props: {
-  //       allowClear: true
-  //     }
-  //   },
-  // },
-  // {
-  //   title: '是否写入数据长度',
-  //   dataIndex: 'writeByteCount',
-  //   key: 'writeByteCount',
-  //   ellipsis: true,
-  //   template: {
-  //     components: 'a-input-number',
-  //     props: {
-  //       allowClear: true
-  //     }
-  //   },
-  // },
-  // {
-  //   title: '自定义数据区长度(byte)',
-  //   dataIndex: 'byteCount',
-  //   key: 'byteCount',
-  //   ellipsis: true,
-  //   template: {
-  //     components: 'a-input-number',
-  //     props: {
-  //       allowClear: true
-  //     }
-  //   },
-  // },
-  // {
-  //   title: '只推送变化数据',
-  //   dataIndex: 'features',
-  //   key: 'features',
-  //   ellipsis: true,
-  //   template: {
-  //     components: 'a-switch',
-  //   },
-  // },
-  // {
-  //   title: '数据类型',
-  //   dataIndex: 'dataTYpe',
-  //   key: 'dataTYpe',
-  //   ellipsis: true,
-  //   template: {
-  //     components: 'a-select',
-  //   },
-  // },
-  // {
-  //   title: '内存布局',
-  //   dataIndex: 'memoryLayout',
-  //   key: 'memoryLayout',
-  //   ellipsis: true,
-  //   template: {
-  //     components: 'a-select',
-  //   },
-  // },
+  {
+    title: '寄存器数量',
+    dataIndex: 'quantity',
+    template: {
+      components: 'a-input',
+      props: {
+        allowClear: true
+      }
+    },
+    ellipsis: true,
+    width: 220,
+  },
+  {
+    title: '非标准协议写入配置',
+    dataIndex: 'writeByteConfig',
+    key: 'writeByteConfig',
+    ellipsis: true,
+    template: {
+      components: 'a-switch',
+      props: {
+        allowClear: true
+      }
+    },
+    width: 220,
+  },
+  {
+    title: '是否写入数据长度',
+    dataIndex: 'writeByteCount',
+    key: 'writeByteCount',
+    ellipsis: true,
+    template: {
+      components: 'a-input-number',
+      props: {
+        allowClear: true
+      }
+    },
+    width: 220,
+  },
+  {
+    title: '自定义数据区长度(byte)',
+    dataIndex: 'byteCount',
+    key: 'byteCount',
+    ellipsis: true,
+    template: {
+      components: 'a-input-number',
+      props: {
+        allowClear: true
+      }
+    },
+    width: 220,
+  },
+  {
+    title: '只推送变化数据',
+    dataIndex: 'features',
+    key: 'features',
+    ellipsis: true,
+    template: {
+      components: 'a-switch',
+    },
+    width: 220,
+  },
+  {
+    title: '数据类型',
+    dataIndex: 'dataTYpe',
+    key: 'dataTYpe',
+    ellipsis: true,
+    template: {
+      components: 'a-select',
+    },
+    width: 220,
+  },
+  {
+    title: '内存布局',
+    dataIndex: 'memoryLayout',
+    key: 'memoryLayout',
+    ellipsis: true,
+    template: {
+      components: 'a-select',
+      props: {
+        style: { width: '100%' }
+      }
+    },
+    width: 220,
+  },
 ])
+
+/**
+ * 初始化同上状态
+ * @returns {{features: boolean, quantity: boolean, writeByteCount: boolean, byteCount: boolean, dataTYpe: boolean, writeByteConfig: boolean, interval: boolean, memoryLayout: boolean}}
+ */
+const handleSames = () => {
+  const defaultValue = dataSource.value.length >= 1
+  const _sames = {
+    quantity: defaultValue,
+    writeByteConfig: defaultValue,
+    writeByteCount: defaultValue,
+    byteCount: defaultValue,
+    features: defaultValue,
+    dataTYpe: defaultValue,
+    memoryLayout: defaultValue,
+    interval: defaultValue,
+  }
+
+  requestColumns.value.forEach(column => {
+    if (column.dataIndex !== 'address') {
+      _sames[column.dataIndex] = defaultValue
+    }
+  })
+
+  return _sames
+}
+
+const handleRecord = () => {
+
+  return {
+    id: randomString(),
+    name: undefined,
+    provider: collector.value.provider,
+    collectorId: collector.value.id,
+    collectorName: collector.value.name,
+    channelId: undefined,
+    channelName: undefined,
+    description: undefined,
+    interval: 3000,
+    inheritBreaker: false, // 是否继承熔断
+    circuitBreaker: undefined, // 错误处理方式
+    priority: undefined, // 优先级
+    features: [],
+    pointKey: undefined,
+    accessModes: [], // 可选值： read , write ,subscribe
+    managedConfiguration: {}, // 点位管理配置
+    configuration: cloneDeep(requestRecord.value),
+    sames: handleSames()
+  }
+}
+
 
 const onSaveData = () => {
   formRef.value.validate().then(() => {
     const arr = []
     for (let i = formData.startAddress; i <= formData.endAddress; i++) {
       arr.push({
-        configuration: {
-          function: formData.function,
-          parameter: {
-            quantity: formData.parameter.quantity
-          }
-        },
+        ...handleRecord(),
         pointKey: i
       })
     }
@@ -285,30 +292,34 @@ const onSaveData = () => {
   })
 }
 
+/**
+ * 新增单条数据
+ */
 const addOne = () => {
-  dataSource.value.push({
-    name: undefined,
-    provider: collector.value.provider || 'OPC_UA',
-    collectorId: collector.value.id,
-    collectorName: collector.value.name,
-    pointKey: undefined,
-    configuration: {
-      interval: undefined,
-      type: undefined,
-    },
-    features: [],
-    accessModes: []
-  })
+  dataSource.value.push(handleRecord())
 }
+
+const getConfigMetadata = async () => {
+  const resp = await commandRequest.pointConfigMetadata('modbus_tcp')
+  if (resp.success) {
+    const { values, columns: _columns, fieldPathMap:_fieldPathMap } = handlePointConfigMetadata(resp.result, 'configuration')
+    requestColumns.value = _columns.map(item => {
+      if (item.dataIndex === 'address') {
+        item.template.check = false
+      }
+      return item
+    })
+    requestRecord.value = values
+    fieldPathMap.value = _fieldPathMap
+  }
+}
+
+getConfigMetadata()
 
 defineExpose({
   onSave: async () => {
     const result = await tableRef.value.onSave?.()
-    console.log(result)
-    if (result) {
-      return result
-    }
-    return false
+    return result || false
   }
 })
 </script>
