@@ -165,7 +165,7 @@ const columns = computed(() => [
         allowClear: true
       }
     },
-    width: 220,
+    width: 180,
   },
   {
     title: '是否写入数据长度',
@@ -201,7 +201,7 @@ const columns = computed(() => [
     template: {
       components: 'a-switch',
     },
-    width: 220,
+    width: 160,
   },
   {
     title: '数据类型',
