@@ -24,7 +24,7 @@
       <a-form-item label="功能码" name="function" :rules="[{required: true, message: '请选择功能码'}]">
         <a-select
             v-model:value="formData.function"
-            :options="options"
+            :options="functionOptions"
             placeholder="请选择功能码"
         />
       </a-form-item>
@@ -63,10 +63,10 @@
 import {inject, reactive, ref, computed} from "vue";
 import {PointEditTable} from '@components'
 import {useLocales} from '@hooks'
-import { commandRequest } from 'request'
-import { handlePointConfigMetadata, SameEngine } from 'local-utils'
-import { randomString } from '@jetlinks-web/utils'
-import { cloneDeep } from 'lodash-es'
+import { commandRequest, queryCodecProvider, queryPointMetadata } from 'request'
+import { handlePointConfigMetadata } from 'local-utils'
+import { EventEmitter, randomString } from '@jetlinks-web/utils'
+import { cloneDeep, set, get } from 'lodash-es'
 
 const {$lang} = useLocales('modbus_tcp')
 
@@ -84,6 +84,9 @@ const formData = reactive({
 const requestColumns = ref([])
 const requestRecord = ref({})
 const fieldPathMap = ref({})
+const dataTypeOptions = ref({})
+const functionOptions = ref([])
+const optionsMap = new Map()
 
 const visible = ref(false)
 const tableRef = ref()
@@ -109,11 +112,41 @@ const columns = computed(() => [
     ellipsis: true,
     form: {
       required: true,
+      rules: [{
+        asyncValidator(rule, value) {
+          console.log(value)
+          if (!value) {
+            return Promise.reject('请输入名称')
+          }
+          return Promise.resolve()
+        }
+      }]
     },
     fixed: 'left',
     width: 200,
   },
   ...requestColumns.value,
+  {
+    title: '访问类型',
+    dataIndex: 'accessModes',
+    template: {
+      components: 'AccessModes',
+      props: {
+        allowClear: true,
+        mode: 'multiple',
+      },
+      getOptions(record, lastRecord) {
+        const result = optionsMap.get(lastRecord.id) // 上一个的值
+        optionsMap.set(record.id, result)
+        EventEmitter.emit(record.id, result)
+      }
+    },
+    ellipsis: true,
+    form: {
+      required: true,
+    },
+    width: 200,
+  },
   {
     title: '采集频率',
     dataIndex: 'interval',
@@ -143,18 +176,6 @@ const columns = computed(() => [
     width: 220,
   },
   {
-    title: '寄存器数量',
-    dataIndex: 'quantity',
-    template: {
-      components: 'a-input',
-      props: {
-        allowClear: true
-      }
-    },
-    ellipsis: true,
-    width: 220,
-  },
-  {
     title: '非标准协议写入配置',
     dataIndex: 'writeByteConfig',
     key: 'writeByteConfig',
@@ -168,48 +189,43 @@ const columns = computed(() => [
     width: 180,
   },
   {
-    title: '是否写入数据长度',
-    dataIndex: 'writeByteCount',
-    key: 'writeByteCount',
-    ellipsis: true,
-    template: {
-      components: 'a-input-number',
-      props: {
-        allowClear: true
-      }
-    },
-    width: 220,
-  },
-  {
-    title: '自定义数据区长度(byte)',
-    dataIndex: 'byteCount',
-    key: 'byteCount',
-    ellipsis: true,
-    template: {
-      components: 'a-input-number',
-      props: {
-        allowClear: true
-      }
-    },
-    width: 220,
-  },
-  {
     title: '只推送变化数据',
     dataIndex: 'features',
     key: 'features',
     ellipsis: true,
     template: {
       components: 'a-switch',
+      getValue(data) {
+        console.log(data)
+        return data.some(key => key === 'changedOnly')
+      },
+      handleChange: (value, index) => {
+        let _features = dataSource.value[index].features
+        if (value) {
+          _features = [..._features, 'changedOnly']
+        } else {
+          _features = _features.filter(key => key !== 'changedOnly')
+        }
+        return _features
+      }
     },
     width: 160,
   },
   {
     title: '数据类型',
-    dataIndex: 'dataTYpe',
-    key: 'dataTYpe',
+    dataIndex: 'dataType',
+    key: 'dataType',
     ellipsis: true,
     template: {
-      components: 'a-select',
+      components: 'AccessModes',
+      props: {
+        parseKey: 'supportCodecs'
+      },
+      getOptions(record, lastRecord) {
+        const result = optionsMap.get(lastRecord.id) // 上一个的值
+        optionsMap.set(record.id, result)
+        EventEmitter.emit(record.id, result)
+      }
     },
     width: 220,
   },
@@ -221,7 +237,49 @@ const columns = computed(() => [
     template: {
       components: 'a-select',
       props: {
-        style: { width: '100%' }
+        style: { width: '100%' },
+        options: [
+          {
+            "label": "AB",
+            "value": "AB"
+          },
+          {
+            "label": "BA",
+            "value": "BA"
+          },
+          {
+            "label": "AB_CD",
+            "value": "AB_CD"
+          },
+          {
+            "label": "CD_AB",
+            "value": "CD_AB"
+          },
+          {
+            "label": "BA_DC",
+            "value": "BA_DC"
+          },
+          {
+            "label": "DC_BA",
+            "value": "DC_BA"
+          },
+          {
+            "label": "AB_CD_EF_GH",
+            "value": "AB_CD_EF_GH"
+          },
+          {
+            "label": "GH_EF_CD_AB",
+            "value": "GH_EF_CD_AB"
+          },
+          {
+            "label": "BA_DC_FE_HG",
+            "value": "BA_DC_FE_HG"
+          },
+          {
+            "label": "HG_FE_DC_BA",
+            "value": "HG_FE_DC_BA"
+          }
+        ]
       }
     },
     width: 220,
@@ -230,40 +288,56 @@ const columns = computed(() => [
 
 /**
  * 初始化同上状态
- * @returns {{features: boolean, quantity: boolean, writeByteCount: boolean, byteCount: boolean, dataTYpe: boolean, writeByteConfig: boolean, interval: boolean, memoryLayout: boolean}}
+ * @returns {{features: boolean, quantity: boolean, writeByteCount: boolean, byteCount: boolean, dataType: boolean, writeByteConfig: boolean, interval: boolean, memoryLayout: boolean}}
  */
 const handleSames = () => {
-  const defaultValue = dataSource.value.length >= 1
   const _sames = {
-    quantity: defaultValue,
-    writeByteConfig: defaultValue,
-    writeByteCount: defaultValue,
-    byteCount: defaultValue,
-    features: defaultValue,
-    dataTYpe: defaultValue,
-    memoryLayout: defaultValue,
-    interval: defaultValue,
+    quantity: true,
+    writeByteConfig: true,
+    writeByteCount: true,
+    byteCount: true,
+    features: true,
+    dataType: true,
+    memoryLayout: true,
+    interval: true,
+    accessModes: true,
   }
 
   requestColumns.value.forEach(column => {
     if (column.dataIndex !== 'address') {
-      _sames[column.dataIndex] = defaultValue
+      _sames[column.dataIndex] = true
     }
   })
 
   return _sames
 }
 
-const handleRecord = () => {
+const handleAccessModes = (record) => {
+  queryPointMetadata(collector.value.provider, record).then(resp => {
+    if (resp.success) {
+      const result = {
+        ...resp.result,
+        accessModes: resp.result.accessModes.map(item => ({label: item.text, value: item.value})),
+        supportCodecs: (resp.result.supportCodecs || []).map(code => {
+          return dataTypeOptions.value.find(item => item.value === code)
+        }),
+      }
+      optionsMap.set(record.id, result)
+      EventEmitter.emit(record.id, result)
+    }
+  })
+}
 
-  return {
+const handleRecord = () => {
+  const sames = handleSames()
+  const record = {
     id: randomString(),
     name: undefined,
     provider: collector.value.provider,
     collectorId: collector.value.id,
     collectorName: collector.value.name,
-    channelId: undefined,
-    channelName: undefined,
+    channelId: collector.value.channelId,
+    channelName: collector.value.channelName,
     description: undefined,
     interval: 3000,
     inheritBreaker: false, // 是否继承熔断
@@ -274,10 +348,28 @@ const handleRecord = () => {
     accessModes: [], // 可选值： read , write ,subscribe
     managedConfiguration: {}, // 点位管理配置
     configuration: cloneDeep(requestRecord.value),
-    sames: handleSames()
+    sames: { ...sames }
   }
-}
+  if (dataSource.value.length >= 1) {
+    //  默认同上
+    const lastRecord = dataSource.value[dataSource.value.length - 1]
 
+    Object.keys(sames).forEach(key => {
+      const column = columns.value.find(item => item.dataIndex === key)
+      const formName = column.form?.name || key
+      set(record, formName, get(lastRecord, formName))
+    })
+
+    setTimeout(() => {
+      const result = optionsMap.get(lastRecord.id) // 上一个的值
+      optionsMap.set(record.id, result)
+      EventEmitter.emit(record.id, result)
+    }, 300)
+  } else {
+    handleAccessModes(record)
+  }
+  return record
+}
 
 const onSaveData = () => {
   formRef.value.validate().then(() => {
@@ -289,6 +381,7 @@ const onSaveData = () => {
       })
     }
     dataSource.value.push(...arr)
+    visible.value = false
   })
 }
 
@@ -306,12 +399,28 @@ const getConfigMetadata = async () => {
     requestColumns.value = _columns.map(item => {
       if (item.dataIndex === 'address') {
         item.template.check = false
+      } else if (['function', 'quantity'].includes(item.dataIndex)) {
+        if (item.dataIndex === 'function') {
+          functionOptions.value = item.template.props.options
+        }
+        item.template.handleOptions = (record) => {
+          handleAccessModes(record)
+        }
       }
       return item
     })
     requestRecord.value = values
     fieldPathMap.value = _fieldPathMap
   }
+
+  queryCodecProvider().then(res => { // 数据类型
+    if (res.success) {
+      dataTypeOptions.value = res.result.map(item => ({
+        label: item.name,
+        value: item.id,
+      }))
+    }
+  })
 }
 
 getConfigMetadata()
