@@ -160,14 +160,11 @@ const createData = async () => {
   const _id = randomString()
   const obj = {
     "task": {
-      "taskTarget": "ObjectDetection",
+      "taskTarget": "IllegalParkingDetection",
       "domain": "ComputerVision",
-      "name": "交通违章停车智能识别",
-      "description": "交通违章停车智能识别",
+      "name": "车辆违停检测任务",
       "configuration": {
-        "sources": {
-          "all": true
-        }
+        "sources": []
       },
       "handleTasks": [],
       "workPlan": {},
@@ -189,34 +186,14 @@ const createData = async () => {
             "reviewer": {
               "type": "agent",
               "config": {
-                "agentId": "ab123",
-                "agentName": "复判123"
-              }
-            }
-          }
-        }
-      },
-      {
-        "type": "saveKnowledge",
-        "id": randomString(),
-        "parentTaskId": _id,
-        "parentTaskType": "reviewHandle",
-        "handleConfig": {
-          "type": "saveKnowledge",
-          "config": {
-            "parseParam": {
-              "text": {
-                "chunkSize": 10,
-                "strategy": "fixed-size-chunking"
+                "agentId": "illegallyParkedAgent",
+                "agentName": "车辆违停检测智能体"
               }
             }
           }
         }
       }
-    ],
-    "others": {
-      "taskTargetName": "目标检测"
-    }
+    ]
   }
   const resp = await createTask(obj)
   if (resp.success) {

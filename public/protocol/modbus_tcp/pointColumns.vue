@@ -5,31 +5,25 @@ const pointColumns = inject("point-extra-columns", ref([]))
 pointColumns.value = [
   {
     title: '寄存器数量',
-    dataIndex: '11',
-    key: '11',
+    dataIndex: ['configuration', 'parameter', 'quantity'],
+    key: 'quantity',
     ellipsis: true,
-    scopedSlots: true,
-    width: 100
+    width: 100,
   },
   {
     title: '缩放因子',
-    dataIndex: '22',
-    key: '22',
+    dataIndex: ['managedConfiguration', 'converter', 'configuration', 'factor'],
+    key: 'factor',
     scopedSlots: true,
     width: 200,
   },
   {
     title: '小数保留位',
-    dataIndex: '33',
-    key: '33',
+    dataIndex: ['managedConfiguration', 'converter', 'configuration', 'scale'],
+    key: 'scale',
     scopedSlots: true,
     ellipsis: true,
-    width: 100
+    width: 100,
   },
 ]
-
 </script>
-
-<template>
-  <div>哈哈哈哈哈哈哈</div>
-</template>
