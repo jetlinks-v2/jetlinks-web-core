@@ -7,11 +7,11 @@
           <div class="logo-icon">JL</div>
           <span class="logo-text">JetLinks</span>
           <span class="logo-divider"></span>
-          <span class="logo-subtitle">场景商城</span>
+          <span class="logo-subtitle">场景广场</span>
         </a>
 
         <nav class="header-nav">
-          <a href="#" class="nav-link active">场景商城</a>
+          <a href="#" class="nav-link active">场景广场</a>
           <a href="#" class="nav-link">我的场景</a>
           <a href="#" class="nav-link">解决方案</a>
           <a href="#" class="nav-link">开发文档</a>
