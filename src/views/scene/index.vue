@@ -88,27 +88,44 @@
         </div>
       </section>
 
-      <!-- Scene Grid（静态 HTML，完全保持原样） -->
+      <!-- Scene Grid -->
       <section class="scene-grid">
-        <a @click="onClick(n)" class="scene-card" v-for="n in 9" :key="n">
+        <a @click="onClick(scene)" class="scene-card" v-for="scene in scenes" :key="scene.id">
           <div class="scene-card-cover">
-            <img src="https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=600&h=400&fit=crop"/>
-            <span class="scene-card-badge hot">热门</span>
-            <span class="scene-card-industry">示例行业</span>
+            <img :src="scene.image" :alt="scene.title"/>
+            <span v-if="scene.badge" class="scene-card-badge" :class="scene.badgeType">{{ scene.badge }}</span>
+            <span class="scene-card-industry">{{ scene.industry }}</span>
           </div>
           <div class="scene-card-content">
-            <h3 class="scene-card-title">示例场景 {{ n }}</h3>
-            <p class="scene-card-desc">这是一个示例场景描述，用于保持页面结构和样式完全一致。</p>
+            <h3 class="scene-card-title">{{ scene.title }}</h3>
+            <p class="scene-card-desc">{{ scene.description }}</p>
             <div class="scene-card-tags">
-              <span class="scene-tag iot">物联网</span>
-              <span class="scene-tag ai">AI</span>
+              <span v-for="(tag, index) in scene.tags" :key="index" class="scene-tag" :class="tag.type">{{ tag.name }}</span>
             </div>
             <div class="scene-card-footer">
               <div class="scene-card-meta">
-                <span class="scene-meta-item">👍 100</span>
-                <span class="scene-meta-item">⭐ 4.9</span>
+                <span class="scene-meta-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                  {{ scene.deployments }} 部署
+                </span>
+                <span class="scene-meta-item">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                  </svg>
+                  {{ scene.rating }}
+                </span>
               </div>
-              <button class="scene-card-action">立即创建</button>
+              <button class="scene-card-action">
+                立即创建
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </button>
             </div>
           </div>
         </a>
@@ -149,6 +166,152 @@ const capabilities = [
   {name: "机器视觉", count: "12 个场景", icon: "🤖", type: "ai"},
   {name: "AI 智能体", count: "10 个场景", icon: "🧠", type: "agent"}
 ]
+
+const scenes = [
+  {
+    id: 1,
+    title: "交通违章停车智能识别",
+    description: "基于机器视觉识别交通违章停车,通过多模态大模型进行复判,有效提升识别准确率至99.2%,降低人工复核成本。",
+    industry: "智慧交通",
+    badge: "热门",
+    badgeType: "hot",
+    image: "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=600&h=400&fit=crop",
+    tags: [
+      {name: "机器视觉", type: "vision"},
+      {name: "多模态AI", type: "ai"},
+      {name: "视频中台", type: "video"}
+    ],
+    deployments: 328,
+    rating: 4.9
+  },
+  {
+    id: 2,
+    title: "智慧路灯管控系统",
+    description: "通过物联感知技术实现路灯状态实时监测、故障自动告警、远程调光控制,降低能耗30%,节省维护成本50%。",
+    industry: "智慧城市",
+    badge: "新上线",
+    badgeType: "new",
+    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop",
+    tags: [
+      {name: "物联网平台", type: "iot"},
+      {name: "边缘计算", type: "edge"}
+    ],
+    deployments: 156,
+    rating: 4.8
+  },
+  {
+    id: 3,
+    title: "智能设备运维助手",
+    description: "基于大语言模型结合设备知识库,提供7×24小时智能问答、故障诊断、维护建议,降低运维门槛,提升响应效率。",
+    industry: "智慧工业",
+    badge: "推荐",
+    badgeType: "popular",
+    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=600&h=400&fit=crop",
+    tags: [
+      {name: "大语言模型", type: "ai"},
+      {name: "知识库", type: "ai"},
+      {name: "物联网平台", type: "iot"}
+    ],
+    deployments: 245,
+    rating: 4.9
+  },
+  {
+    id: 4,
+    title: "消防设施智能监测",
+    description: "实时采集消防设施状态数据,结合AI算法分析,实现设施健康度评估、异常预警、维保提醒等功能。",
+    industry: "智慧消防",
+    badge: null,
+    badgeType: null,
+    image: "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=600&h=400&fit=crop",
+    tags: [
+      {name: "物联网平台", type: "iot"},
+      {name: "AI分析", type: "ai"},
+      {name: "边缘计算", type: "edge"}
+    ],
+    deployments: 89,
+    rating: 4.7
+  },
+  {
+    id: 5,
+    title: "危化品仓储安全监测",
+    description: "整合温湿度、气体浓度、视频监控等多源数据,构建全方位安全防护体系,实现风险预警和应急联动。",
+    industry: "智慧化工",
+    badge: "热门",
+    badgeType: "hot",
+    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&h=400&fit=crop",
+    tags: [
+      {name: "物联网平台", type: "iot"},
+      {name: "视频中台", type: "video"},
+      {name: "机器视觉", type: "vision"}
+    ],
+    deployments: 112,
+    rating: 4.8
+  },
+  {
+    id: 6,
+    title: "智慧社区人车管理",
+    description: "融合人脸识别、车牌识别、物联感知,实现人员车辆智能通行、访客预约、异常告警等社区安全管理功能。",
+    industry: "智慧社区",
+    badge: null,
+    badgeType: null,
+    image: "https://images.unsplash.com/photo-1545259741-2ea3ebf61fa3?w=600&h=400&fit=crop",
+    tags: [
+      {name: "机器视觉", type: "vision"},
+      {name: "物联网平台", type: "iot"},
+      {name: "边缘计算", type: "edge"}
+    ],
+    deployments: 76,
+    rating: 4.6
+  },
+  {
+    id: 7,
+    title: "交通信号自适应控制",
+    description: "基于实时车流量数据和AI预测算法,动态调整信号配时方案,提升路口通行效率20%以上。",
+    industry: "智慧交通",
+    badge: "新上线",
+    badgeType: "new",
+    image: "https://images.unsplash.com/photo-1590650153855-d9e808231d41?w=600&h=400&fit=crop",
+    tags: [
+      {name: "AI分析", type: "ai"},
+      {name: "物联网平台", type: "iot"},
+      {name: "视频中台", type: "video"}
+    ],
+    deployments: 45,
+    rating: 4.7
+  },
+  {
+    id: 8,
+    title: "设备预测性维护",
+    description: "采集设备振动、温度、电流等运行参数,结合机器学习算法预测故障趋势,实现从被动维修到主动预防的转变。",
+    industry: "智慧工业",
+    badge: "推荐",
+    badgeType: "popular",
+    image: "https://images.unsplash.com/photo-1565793298595-6a879b1d9492?w=600&h=400&fit=crop",
+    tags: [
+      {name: "物联网平台", type: "iot"},
+      {name: "机器学习", type: "ai"},
+      {name: "边缘计算", type: "edge"}
+    ],
+    deployments: 198,
+    rating: 4.9
+  },
+  {
+    id: 9,
+    title: "城市环境质量监测",
+    description: "部署空气质量、噪音、扬尘等多类传感器,实现城市环境数据实时采集、可视化展示和智能预警。",
+    industry: "智慧城市",
+    badge: null,
+    badgeType: null,
+    image: "https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&h=400&fit=crop",
+    tags: [
+      {name: "物联网平台", type: "iot"},
+      {name: "AI分析", type: "ai"}
+    ],
+    deployments: 67,
+    rating: 4.5
+  }
+]
+
 const router = useRouter();
 const onClick = () => {
   router.push("/scene/center/detail");
