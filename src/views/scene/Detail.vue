@@ -8,7 +8,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="m15 18-6-6 6-6"/>
             </svg>
-            返回商城
+            返回广场
           </a>
           <a @click="onClick" class="logo">
             <div class="logo-icon">JL</div>
@@ -115,12 +115,27 @@
               基于此场景模板快速创建您的专属实例
             </p>
           </div>
-
+          <div class="preset-info">
+            <div class="preset-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+              已预置能力组件
+            </div>
+            <div class="preset-list">
+              <div class="preset-item">违停检测CV算法模型 (YOLOv8-parking)</div>
+              <div class="preset-item">车牌识别模型 (LPR-v3)</div>
+              <div class="preset-item">多模态复判智能体 (GPT-4V)</div>
+              <div class="preset-item">证据链生成规则模板</div>
+              <div class="preset-item">告警推送通知模板</div>
+            </div>
+          </div>
           <button
-            class="btn-create"
-            :class="{ 'is-creating': isCreating }"
-            :disabled="isCreating"
-            @click="handleCreateScene"
+              class="btn-create"
+              :class="{ 'is-creating': isCreating }"
+              :disabled="isCreating"
+              @click="handleCreateScene"
           >
             {{ isCreating ? '创建中' : '开始创建场景' }}
           </button>
@@ -128,6 +143,25 @@
           <button class="btn-demo">
             观看演示视频
           </button>
+        </div>
+        <div class="related-section">
+          <h3 class="related-title">相关场景推荐</h3>
+          <div class="related-list">
+            <a href="#" class="related-item">
+              <img src="https://images.unsplash.com/photo-1590650153855-d9e808231d41?w=200&h=150&fit=crop" class="related-thumb">
+              <div>
+                <div class="related-name">交通信号自适应控制</div>
+                <div class="related-meta">智慧交通 · 45次部署</div>
+              </div>
+            </a>
+            <a href="#" class="related-item">
+              <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200&h=150&fit=crop" class="related-thumb">
+              <div>
+                <div class="related-name">智慧路灯管控系统</div>
+                <div class="related-meta">智慧城市 · 156次部署</div>
+              </div>
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -640,6 +674,44 @@ watch(loginModalVisible, (newVal) => {
     line-height: 1.7;
   }
 
+  .preset-info {
+    background: @primary-bg;
+    border: 1px solid @primary-light;
+    border-radius: @radius-md;
+    padding: 18px;
+    margin-bottom: 24px;
+  }
+
+  .preset-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: @primary-dark;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .preset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .preset-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: @text-secondary;
+    line-height: 1.5;
+  }
+
+  .preset-item::before {
+    content: '✓';
+    color: @success;
+    font-weight: 700;
+  }
 
   .btn-create {
     width: 100%;
