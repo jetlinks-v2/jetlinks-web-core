@@ -16,10 +16,10 @@
             ]
           }"
           type="select"
-          @change="() => onChange(['configuration', 'type'], formData.configuration.type)"
+          @change="onTypeChange"
       />
     </a-col>
-    <a-col :span="12" v-if="formData.configuration.type === 'function'">
+    <a-col :span="12" v-if="showFunc">
       <FormItemEditable
           :label="$lang('MODBUS_TCP.point.20250207-1')"
           :name="['configuration', 'function']"
@@ -27,7 +27,7 @@
             {required: true, message: $lang('MODBUS_TCP.point.20250207-2')},
           ]"
           type="select"
-          v-model:value="formData.configuration.function"
+          v-model:value="functionCode"
           :componentProps="{
             placeholder: $lang('MODBUS_TCP.point.20250207-2'),
             options: [
@@ -51,20 +51,20 @@
                 message: $lang('MODBUS_TCP.point.20250207-4'),
               },
               {
-                validator: checkPointKey,
+                validator: checkAddress,
                 trigger: 'blur',
               },
           ]"
           type="number"
-          v-model:value="formData.configuration.parameter.address"
+          v-model:value="address"
           :componentProps="{
             placeholder: $lang('MODBUS_TCP.point.20250207-4'),
-            max: 255,
-            min: 0,
+            max: showFunc ? 255 : 49999,
+            min: showFunc ? 0 : 1,
             precision: 0,
             controls: false
           }"
-          @change="() => onChange(['configuration', 'parameter', 'address'], formData.configuration.parameter.address)"
+          @change="() =>onAddressChange"
       >
       </FormItemEditable>
     </a-col>
@@ -91,7 +91,7 @@
             precision: 0,
             controls: false
           }"
-          @change="() => onChange(['configuration', 'parameter', 'quantity'], formData.configuration.parameter.quantity)"
+          @change="() => onChange()"
       >
       </FormItemEditable>
     </a-col>
@@ -130,7 +130,7 @@
               { label: $lang('MODBUS_TCP.point.20250207-19'), value: false }
             ]
           }"
-          @change="() => onChange(['configuration', 'parameter', 'writeByteCount'], formData.configuration.parameter.writeByteCount)"
+          @change="() => onChange()"
       >
       </FormItemEditable>
     </a-col>
@@ -149,7 +149,7 @@
           :componentProps="{
             placeholder: $lang('MODBUS_TCP.point.20250207-20'),
           }"
-          @change="() => onChange(['configuration', 'parameter', 'byteCount'], formData.configuration.parameter.byteCount)"
+          @change="() => onChange()"
       >
       </FormItemEditable>
     </a-col>
@@ -164,94 +164,107 @@ const {$lang} = useLocales('modbus_tcp')
 
 const formData = inject('plugin-form', {})
 const events = inject("plugin-detail-save-events");
-
-const oldPointKey = formData.pointKey;
+const metadataEvents = inject('point-metadata-events')
 
 if (!('configuration' in formData)) {
   formData.configuration = {
+    type: 'function',
     function: undefined,
-    interval: 3000,
     parameter: {
-      quantity: 1,
+      quantity: undefined,
       writeByteCount: undefined,
       byteCount: undefined,
       address: undefined,
-    },
-    codec: {
-      provider: undefined,
-      configuration: {
-        scaleFactor: 1,
-        scale: undefined,
-      },
     },
   }
 }
 
 if (!('parameter' in formData.configuration)) {
   formData.configuration.parameter = {
-    quantity: 1,
+    quantity: undefined,
     writeByteCount: undefined,
     byteCount: undefined,
     address: undefined,
   }
 }
 
-if (!('codec' in formData.configuration)) {
-  formData.configuration.codec = {
-    provider: undefined,
-    configuration: {
-      scaleFactor: 1,
-      scale: undefined,
-    },
-  }
+if (!('type' in formData.configuration)) {
+  formData.configuration.type = 'function'
 }
 
-if (!('pointKey' in formData)) {
-  formData.pointKey = undefined
-}
-
-if (!('accessModes' in formData)) {
-  formData.accessModes = []
-}
+const functionCode = ref(formData.configuration.function)
+const address = ref(formData.configuration.parameter?.address)
 const writeByteConfig = ref(false);
 
-const showWriteByteConfig = computed(() => true
-    // formData.configuration.function === 'HoldingRegisters' && formData.accessModes.includes('write')
-)
+const showWriteByteConfig = computed(() => formData.configuration.function === 'HoldingRegisters')
+const showFunc = computed(() => formData.configuration.type === 'function')
 
-const onChange = (name, value) => {
-  const arr = [
-    {
-      name,
-      value
-    }
-  ]
-  events?.onValueChange?.(arr)
+const onChange = () => {
+  events?.onValueChange?.()
 }
 
-const functionChange = (v) => {
-  formData.accessModes = [];
-  if (!['HoldingRegisters', 'InputRegisters'].includes(formData.configuration.function)) {
-    formData.configuration.codec.provider = 'int8'
-  } else {
-    formData.configuration.codec.provider = undefined
+const onTypeChange = () => {
+  functionCode.value = undefined
+  address.value = undefined
+  formData.configuration = {
+    type: formData.configuration.type,
+    function: undefined,
+    parameter: {
+      quantity: undefined,
+      writeByteCount: undefined,
+      byteCount: undefined,
+      address: undefined,
+    },
   }
-  onChange(['configuration', 'function'], formData.configuration.function)
+  formData.managedConfiguration.byteLayout = undefined
+  formData.managedConfiguration.codec = undefined
+  formData.accessModes = undefined
+  onChange()
+}
+
+const functionChange = () => {
+  if (formData.configuration.type === 'function') {
+    formData.configuration.function = functionCode.value
+  }
+  formData.managedConfiguration.byteLayout = undefined
+  formData.managedConfiguration.codec = undefined
+  formData.accessModes = undefined
+  onChange()
 };
 
-function checkPointKey(_rule, value) {
+const onAddressChange = () => {
+  if (formData.configuration.type === 'function') {
+    formData.configuration.parameter.address = address.value
+  } else {
+    if (address.value >= 1 && address.value <= 9999) {
+      formData.configuration.function = 'Coils'
+      formData.configuration.parameter.address = address.value - 1
+    } else if (address.value >= 10001 && address.value <= 19999) {
+      formData.configuration.function = 'DiscreteInputs'
+      formData.configuration.parameter.address = address.value - 10001
+    } else if (address.value >= 30001 && address.value <= 39999) {
+      formData.configuration.function = 'InputRegisters'
+      formData.configuration.parameter.address = address.value - 30001
+    } else if (address.value >= 40001 && address.value < 49999) {
+      formData.configuration.function = 'HoldingRegisters'
+      formData.configuration.parameter.address = address.value - 40001
+    } else {
+      formData.configuration.parameter.address = address.value
+    }
+  }
+  onChange()
+}
+
+function checkAddress(_rule, value) {
   return new Promise(async (resolve, reject) => {
-    if (value || value === 0) {
-      const reg = new RegExp(/^\d+$/)
-      if (!reg.test(value)) {
-        return reject($lang('MODBUS_TCP.point.20250207-29'))
+    if (address.value != null) {
+      if (formData.configuration.type === 'plc') {
+        const flag = address.value >= 1 && address.value <= 9999 || address.value >= 10001 && address.value <= 19999 || address.value >= 30001 && address.value <= 39999 || address.value >= 40001 && address.value <= 49999
+        if (!flag) {
+          return reject('非法地址');
+        }
       }
-      if (Number(oldPointKey) === Number(value)) return resolve('');
-      // if (typeof value === 'object') return resolve('');
-      // const res = await request.get(`/data-collect/point/${collectorData.id || formData.collectorId}/_validate`, {
-      //   pointKey: value,
-      // });
-      // return res.result?.passed ? resolve('') : reject(res.result.reason);
+      return resolve('');
     } else {
       return reject($lang('MODBUS_TCP.point.20250207-4'));
     }
@@ -281,5 +294,16 @@ watch(
     },
     {deep: true, immediate: true},
 );
+
+watch(() => [formData.configuration.function, formData.configuration.parameter.address, formData.configuration.parameter.quantity], ([val1, val2, val3]) => {
+  if (val1 && val2 && val3) {
+    metadataEvents?.pointMetadataEvents?.(formData.provider, {configuration: formData.configuration})
+  } else {
+    metadataEvents?.pointMetadataEvents?.(formData.provider, false)
+  }
+}, {
+  immediate: true,
+  deep: true
+})
 </script>
 <style></style>
