@@ -126,7 +126,7 @@ const historyList = ref([])
 const messageList = ref([])
 const sessionId = ref()
 const aiChatRef = ref()
-const ApplicationListPermission = 'applicationList';
+const ApplicationListPermission = 'agentDevelopment/applicationList';
 
 const queryAgentHistoryList = (agentId) => {
   getAgentHistoryList(agentId, activeAgent.value?.clientType, activeAgent.value?.clientId).then((resp) => {
