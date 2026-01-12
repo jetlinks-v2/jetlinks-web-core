@@ -96,7 +96,7 @@
           :parameters="parameters"
           :agent-id="activeAgent.agentId"
           :historyList="messageList"
-          :sessionId="sessionId"
+          :reSessionId="sessionId"
       />
       <j-empty v-else/>
     </div>
