@@ -50,6 +50,7 @@ export default defineConfig(({ mode, command }) => {
       assetsDir: 'assets',
       sourcemap: false,
       cssCodeSplit: false,
+      emptyOutDir: true,
       manifest: true,
       chunkSizeWarningLimit: 2000,
       assetsInlineLimit: 1000,
