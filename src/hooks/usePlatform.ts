@@ -1,11 +1,11 @@
 import {provide, inject} from "vue";
+import { PlatformName } from '@jetlinks-web-core/utils/consts'
 
-const PLATFORM_KEY = Symbol('platform')
 export const usePlatformContext = (platform = 'iot') => {
-    provide(PLATFORM_KEY, platform)
+    provide(PlatformName, platform)
 }
 export const usePlatform = () => {
-    return inject(PLATFORM_KEY, 'iot')
+    return inject(PlatformName, 'iot')
 }
 
 export const isIotPlatform = () => {
