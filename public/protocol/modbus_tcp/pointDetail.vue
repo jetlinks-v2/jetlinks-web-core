@@ -296,7 +296,7 @@ watch(
 );
 
 watch(() => [formData.configuration.function, formData.configuration.parameter.address, formData.configuration.parameter.quantity], ([val1, val2, val3]) => {
-  if (val1 && val2 && val3) {
+  if (val1 != null && val2 != null && val3 != null) {
     metadataEvents?.pointMetadataEvents?.(formData.provider, {configuration: formData.configuration})
   } else {
     metadataEvents?.pointMetadataEvents?.(formData.provider, false)
