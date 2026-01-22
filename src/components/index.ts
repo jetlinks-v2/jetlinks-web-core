@@ -30,6 +30,7 @@ import TermsCascader, { TermsCascaderGroup, TermsCascaderGroupItem } from './Ter
 import Editable from './Editable/index.vue'
 import FormItemEditable from './Editable/FormItemEditable.vue'
 import InputEditable from './Editable/InputEditable.vue'
+import DesignerPreview from './DesignerPreview/index.vue'
 
 export default {
     install(app: App) {
@@ -67,6 +68,7 @@ export default {
           .component('Editable', Editable)
           .component('FormItemEditable', FormItemEditable)
           .component('InputEditable', InputEditable)
+          .component('DesignerPreview', DesignerPreview)
         Object.keys(FormItemValue).forEach(key => {
             app.component(key, FormItemValue[key])
         })
