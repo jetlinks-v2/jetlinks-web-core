@@ -89,7 +89,10 @@ import {INITIAL_STEPS, REDIRECT_TIMEOUT} from './constants'
 import SuccessIllustration from './SuccessIllustration.vue'
 import {useMenuStore} from "@jetlinks-web-core/store";
 import {randomString} from "@jetlinks-web/utils";
-import {createTask} from "@jetlinks-ai-ui/api/machine-vision/task";
+
+import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
+
+const { createTask } = moduleRegistry.getResource('jetlinks-ai-ui', 'api')
 
 const menuStore = useMenuStore();
 
