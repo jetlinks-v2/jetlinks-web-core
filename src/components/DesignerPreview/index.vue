@@ -1,11 +1,14 @@
 <template>
   <div class="ai-preview">
-    <!-- {{ data }} -->
     <Preview
       :canvas="pageInfo.canvas"
       :components="pageInfo.components"
     />
   </div>
+  <a-space style="margin-top: 6px;">
+    <a-button>预览</a-button>
+    <a-button type="primary">使用该方案创建项目</a-button>
+  </a-space>
 </template>
 
 <script setup lang="ts">
@@ -51,8 +54,19 @@ const pageInfo = ref<any>({
       grayscale: 0
     }
   },
-  components:[]
+  components: []
 })
+
+const isValidJSON = (str: string) => {
+  if (!str || typeof str !== 'string') return false
+
+  try {
+    JSON.parse(str)
+    return true
+  } catch {
+    return false
+  }
+}
 
 onMounted(() => {
   initPreview(ResourceBasicComponentsInstance)
@@ -61,7 +75,9 @@ onMounted(() => {
 watch(
   () => props.data,
   (val) => {
-    pageInfo.value = val
+    if (isValidJSON(val)) {
+      pageInfo.value = val
+    }
   },
   { deep: true, immediate: true }
 )
@@ -69,7 +85,7 @@ watch(
 
 <style lang="less" scoped>
 .ai-preview {
-  height: 216px;
-  width: 384px;
+  min-height: 216px;
+  min-width: 384px;
 }
 </style>
