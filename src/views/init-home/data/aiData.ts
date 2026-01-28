@@ -58,5 +58,17 @@ export const agentData = [
       menuName: '可视化/设计',
       type: 'chatBubbles'
     }
-  }
+  },
+  {
+    clientType: 'pagePoint',
+    clientId: 'knowledgeAISearch',
+    name: '知识库智能搜索',
+    description: '用于支持知识库管理智能搜索对话',
+    searchCode: 'knowledgeAISearch|知识库/搜索',
+    maxAgentSize: -1,
+    expands: {
+      menuName: '可视化/知识库智能搜索',
+      type: 'button'
+    }
+  },
 ]

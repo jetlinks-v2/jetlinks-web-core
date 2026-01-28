@@ -19,7 +19,7 @@
   </div>
   <div v-else class="text" @click="isEdit = true">
     <slot :value="_value">
-      {{ __value || '未设置' }}
+      {{ __value ?? '未设置' }}
     </slot>
   </div>
 </template>
@@ -62,13 +62,12 @@ const selectTypes = ['select', 'date', 'time', 'dateRange', 'timeRange']
 
 const __value = computed(() => {
   if (props.type === 'select') {
-    return (props.componentProps?.options || []).find(item => item.value === _value.value)?.label || undefined
+    return (props.componentProps?.options || []).find(item => item.value === _value.value)?.label ?? undefined
   }
-  return _value.value || undefined
+  return _value.value ?? undefined
 })
 
 const onChange = () => {
-  console.log('change')
   emit('update:value', _value.value)
   emit('change', _value.value)
 }
@@ -98,7 +97,7 @@ const getEventHandlers = () => {
 }
 
 watch(() => props.value, (newValue) => {
-  _value.value = newValue || undefined
+  _value.value = newValue ?? undefined
 }, {
   immediate: true
 })
