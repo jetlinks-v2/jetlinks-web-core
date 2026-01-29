@@ -63,6 +63,17 @@ export const AccountCenterBind: RouteRecordRaw = {
   component: () => import("@jetlinks-web-core/views/account/center/bind/index.vue"),
 }
 
+/** 身份验证结果页（邮箱/手机验证链接跳转后展示） */
+export const IdentityResultRoute: RouteRecordRaw = {
+  path: '/identity-result',
+  name: 'identity-result',
+  meta: {
+    title: '验证结果',
+    hideInMenu: true,
+  },
+  component: () => import('@jetlinks-web-core/views/account/identity-result/index.vue'),
+}
+
 export const OAuth2: RouteRecordRaw = {
   path: '/oauth',
   meta: {

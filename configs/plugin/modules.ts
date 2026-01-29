@@ -15,7 +15,10 @@ function registerModulesAlias() {
           const result = fs.readFileSync(path.resolve(rootPath, modulesBasePath, `${name}/package.json`), 'utf-8')
           const content = JSON.parse(result)
           if (content.name) {
-            modulesAlias[`@${content.name}`] = path.resolve(rootPath, 'modules', name)
+            const modulePath = path.resolve(rootPath, 'modules', name)
+            // 同时配置精确别名和通配符别名，确保子路径能正确解析
+            modulesAlias[`@${content.name}`] = modulePath
+            modulesAlias[`@${content.name}/*`] = path.resolve(modulePath, '*')
           }
         }
       } catch (error) {

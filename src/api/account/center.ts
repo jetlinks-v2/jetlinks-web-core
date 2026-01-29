@@ -58,3 +58,24 @@ export const savePersonalToken_api = (data:object) => request.post(`/personal/to
  * @param tokenId 个人令牌ID
  */
 export const deletePersonalToken_api = (tokenId: string) => request.remove(`/personal/token/me/${tokenId}`);
+
+/** 用户身份：获取支持的身份提供商（如 email、mobile） */
+export const getIdentityProviders_api = () => request.get<{ id: string; name: string }[]>(`/user/identity/providers`);
+
+/** 用户身份：获取当前用户已绑定的身份列表（邮箱、手机号等） */
+export const getSelfIdentities_api = () =>
+  request.get<{ id: string; userId: string; provider: string; identity: string; boundTime?: number; isPrimary?: boolean }[]>(`/user/identity/_me`);
+
+/** 用户身份：请求验证（如发送验证邮件/短信以绑定新邮箱或手机号） */
+export const requestIdentityValidation_api = (data: { provider: string; identity: string; params?: Record<string, unknown> }) =>
+  request.post<{ requestId: string; token: string; context?: Record<string, unknown> }>(`/user/identity/_validation`, data);
+
+/** 用户身份：确认验证（如邮箱/手机验证码确认绑定） */
+export const confirmIdentityValidation_api = (
+  provider: string,
+  data: { requestId: string; token: string; context?: Record<string, unknown>; params?: Record<string, string> }
+) => request.post(`/user/identity/${provider}/_confirm`, data);
+
+/** 用户身份：解绑已绑定身份（如解绑邮箱/手机号），对应 UserIdentityController#unbind，body 为绑定ID列表 */
+export const unbindIdentity_api = (provider: string, ids: string[]) =>
+  request.post(`/user/identity/${provider}/_unbind`, ids);
