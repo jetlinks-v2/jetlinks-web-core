@@ -45,7 +45,7 @@ export const getView_api = () => request.get(`/user/settings/view/user`);
  * 查询创建的个人令牌
  * @param data 通用查询参数
  */
-export const getCreatedPersonalTokens_api = (data:object) => request.post(`/personal/token/created/_query`, data);
+export const getCreatedPersonalTokens_api = (data:object) => request.post(`/personal/token/created/_query/no-paging`, data);
 
 /**
  * 新增/编辑个人令牌
