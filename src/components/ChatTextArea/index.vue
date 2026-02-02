@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h, computed } from 'vue';
+import { ref, h, computed, watch } from 'vue';
 import { pick, cloneDeep } from 'lodash-es';
 import { onlyMessage } from '@jetlinks-web/utils';
 import { ArrowUpOutlined } from '@ant-design/icons-vue';
@@ -77,14 +77,18 @@ interface IUploadFile {
 interface Props {
   isLoading?: boolean;
   inputHeight?: number;
-  validationRules?: string[]; // 上传文件类型
+  uploadCategories?: string[]; // 上传文件类型
   textareaPlaceholder?: string;
+  originFiles?: FileWithUid[]; // 待上传的文件
+  uploadedFiles?: FileWithUid[]; // 已上传的文件
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
   inputHeight: 148,
-  validationRules: () => ['video', 'document', 'image', 'audio'],
+  originFiles: () => [],
+  uploadedFiles: () => [],
+  uploadCategories: () => ['video', 'document', 'image', 'audio'],
   textareaPlaceholder: '请描述你的问题或拖拽文件到此处...(Enter发送，Ctrl+Enter换行)',
 });
 
@@ -132,7 +136,7 @@ const FileValidationRules: Record<string, {
 };
 
 const customUploadFileValidationRules = computed(() => {
-  return props.validationRules.length ? pick(cloneDeep(FileValidationRules), props.validationRules) : cloneDeep(FileValidationRules);
+  return props.uploadCategories.length ? pick(cloneDeep(FileValidationRules), props.uploadCategories) : cloneDeep(FileValidationRules);
 })
 
 const MAX_CONTROL = 6;
@@ -147,7 +151,6 @@ const clearAllFiles = () => {
 
 const removeFile = (index: number) => {
   uploadedFiles.value.splice(index, 1);
-  emit('update:inputHeight', areaWrapperHeight.value);
 };
 
 // 根据当前允许的文件类型生成错误消息
@@ -176,7 +179,7 @@ const handleDragLeave = (e: DragEvent) => {
   isDragOver.value = false;
 };
 
-const handleDrop = async (e: DragEvent): Promise<boolean> => {
+const handleDrop = async (e: DragEvent) => {
   if (props.isLoading) {
     return false;
   }
@@ -185,7 +188,10 @@ const handleDrop = async (e: DragEvent): Promise<boolean> => {
   isDragOver.value = false;
 
   const files = e.dataTransfer?.files as unknown as FileWithUid[];
+  await handleUploadFiles(files);
+};
 
+const handleUploadFiles = async (files: FileWithUid[]) => {
   if (!files || files.length === 0) {
     return false;
   }
@@ -249,7 +255,6 @@ const handleDrop = async (e: DragEvent): Promise<boolean> => {
 
     // 添加到上传列表
     uploadedFiles.value.push(rowFile);
-    emit('update:inputHeight', areaWrapperHeight.value);
 
     const currentFileIndex = uploadedFiles.value.findIndex(item => item.uid === file.uid);
 
@@ -314,7 +319,23 @@ const handleDrop = async (e: DragEvent): Promise<boolean> => {
   } finally {
     isUploadingFiles.value = false;
   }
-};
+}
+
+watch(() => props.originFiles, async (newFiles) => {
+  if (newFiles && newFiles.length > 0) {
+    await handleUploadFiles(newFiles);
+  }
+}, { deep: true });
+
+watch(() => props.uploadedFiles, async (newFiles) => {
+  if (newFiles && newFiles.length > 0) {
+    uploadedFiles.value = newFiles as unknown as IUploadFile[];
+  }
+}, { deep: true });
+
+watch(() => uploadedFiles.value.length, () => {
+  emit('update:inputHeight', areaWrapperHeight.value);
+}, { deep: true });
 
 const handleInput = (event: Event) => {
   inputMessage.value = (event.target as HTMLTextAreaElement)?.value;
