@@ -29,6 +29,7 @@ import { computed } from "vue";
 import { jumpLogin } from '@jetlinks-web-core/router'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { logout } from '@jetlinks-web-core/api/login'
+import { clearVerifyCache } from '@jetlinks-web-core/package'
 
 const props = defineProps({
   hideHeaderRight: {
@@ -46,6 +47,7 @@ const click = (e: { key: string }) => {
     case 'logout':
       logout().then((resp) => {
         if (resp.success) {
+          clearVerifyCache()
           jumpLogin()
         }
       })

@@ -41,7 +41,8 @@
 import Right from "@jetlinks-web-core/views/login/right.vue";
 import {useSystemStore} from "@jetlinks-web-core/store";
 import {storeToRefs} from "pinia";
-import {jumpLogin} from "@jetlinks-web-core/router";
+import { jumpLogin } from "@jetlinks-web-core/router";
+import { clearVerifyCache } from "@jetlinks-web-core/package";
 import i18n from "@jetlinks-web-core/locales";
 import { Relogin } from '@jetlinks-web-core/assets'
 import { Modal, Button } from 'ant-design-vue'
@@ -55,6 +56,7 @@ const visible = ref(false);
 let resolvePromise = null;
 const onCancel = () => {
   handleClose()
+  clearVerifyCache()
   jumpLogin()
 }
 

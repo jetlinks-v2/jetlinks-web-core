@@ -19,7 +19,8 @@ import { getAppInfo_api } from '@jetlinks-web-core/api/system/apply';
 import { lowCodeUrl } from '@jetlinks-web-core/api/comm'
 import FullPage from "./FullPage.vue";
 import {onUnmounted} from "vue";
-import {jumpLogin} from "@jetlinks-web-core/router";
+import { jumpLogin } from "@jetlinks-web-core/router";
+import { clearVerifyCache } from "@jetlinks-web-core/package";
 import { getBaseApi } from '@jetlinks-web-core/utils'
 
 const iframeUrl = ref('');
@@ -91,6 +92,7 @@ const lowCode = () => {
 
 const onMessage = (msg) => {
   if (msg?.data?.token === 'LOSE') {
+    clearVerifyCache()
     jumpLogin()
   }
 }
