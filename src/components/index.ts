@@ -32,7 +32,7 @@ import FormItemEditable from './Editable/FormItemEditable.vue'
 import InputEditable from './Editable/InputEditable.vue'
 import DesignerPreview from './DesignerPreview/index.vue'
 import IconLibrary from './IconLibrary/index.vue'
-import ChatTextArea from '@jetlinks-web-core/components/ChatTextArea/index.vue'
+import ChatTextArea from './ChatTextArea/index.vue'
 import Captcha from './Captcha'
 
 export default {
