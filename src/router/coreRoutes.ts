@@ -113,11 +113,11 @@ export const CORE_ROUTE_REGISTRY: CoreRouteConfig[] = [
     description: '微信OAuth授权'
   },
   // 以下路由不允许替换，但需要在注册表中声明以便生成过滤规则
-  {
-    key: 'NOT_FIND_ROUTE',
-    route: basicRoutes.NOT_FIND_ROUTE,
-    description: '404错误页（不可替换）'
-  }
+  // {
+  //   key: 'NOT_FIND_ROUTE',
+  //   route: basicRoutes.NOT_FIND_ROUTE,
+  //   description: '404错误页（不可替换）'
+  // }
 ]
 
 /**
@@ -140,13 +140,6 @@ export function resolveCoreRoutes(overrides: ModuleRouteOverride[] = []) {
       console.warn(
         `[Route Override] 未知的路由key "${override.key}"，已忽略。` +
         `可用keys: ${Array.from(registry.keys()).join(', ')}`
-      )
-      continue
-    }
-
-    if (override.key === 'NOT_FIND_ROUTE') {
-      console.error(
-        `[Route Override] 路由 "${override.key}" 不允许被覆盖！`
       )
       continue
     }
