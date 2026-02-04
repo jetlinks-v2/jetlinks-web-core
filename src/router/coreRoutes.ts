@@ -16,20 +16,12 @@ export function resolveCoreRoutes(overrides: ModuleRouteOverride[] = []) {
   const registry = new Map(
     Object.values(basicRoutes).map(config => [config.name, { ...config }])
   )
-
+  console.log('overrides', overrides)
   // 应用模块覆盖（按提供顺序，后者优先）
   const overrideLogs: string[] = []
   for (const override of overrides) {
-    const original = registry.get(override.name)
-    if (!original) {
-      console.warn(
-        `[Route Override] 未知的路由key "${override.name}"，已忽略。` +
-        `可用keys: ${Array.from(registry.keys()).join(', ')}`
-      )
-      continue
-    }
 
-    if (override) {
+    if (override.component) {
       registry.set(override.name, override)
       overrideLogs.push(
         `  - ${override.name}: ${override.reason || '模块自定义'}`
@@ -80,6 +72,7 @@ function extractTokenFilterPaths(routes: import('vue-router').RouteRecordRaw[]):
   }
 
   routes.forEach(traverse)
+  console.log(routes, paths)
   return paths
 }
 
