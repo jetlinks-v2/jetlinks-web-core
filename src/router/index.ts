@@ -5,7 +5,6 @@ import {
   type NavigationGuardNext
 } from 'vue-router'
 import { getToken, removeToken } from '@jetlinks-web/utils'
-import { NOT_FIND_ROUTE } from './basic'
 import { isSubApp } from '@jetlinks-web-core/utils/consts'
 import { useApplication, useUserStore, useSystemStore, useMenuStore } from '@jetlinks-web-core/store'
 import microApp from '@micro-zoe/micro-app'
@@ -26,7 +25,7 @@ const {
 // 输出调试信息
 if (import.meta.env.DEV) {
   console.log('[Router] 核心路由配置:', {
-    coreRoutes: registry.map(r => r.key),
+    coreRoutes: registry.map(r => r.name),
     tokenFilterPaths,
     menuFilterPaths
   })
@@ -139,7 +138,14 @@ const getRoutesByServer = async (
       MenuStore.menu.forEach((r) => {
         router.addRoute(r)
       })
-      router.addRoute(NOT_FIND_ROUTE)
+      router.addRoute({
+        path: "/:pathMatch(.*)*",
+        name: "error",
+        component: () => import("@jetlinks-web-core/views/Error/404.vue"),
+        meta: {
+          title: "404",
+        },
+      })
       await next({ ...to, replace: true })
     }
   } else {
@@ -164,7 +170,7 @@ router.beforeEach((to, from, next) => {
   }
 })
 
-// ============ 导出 ============
+
 export const jumpLogin = () => {
   const currentRoute = toValue(router.currentRoute)
 

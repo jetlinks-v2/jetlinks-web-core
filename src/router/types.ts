@@ -1,4 +1,4 @@
-import 'vue-router'
+import type { RouteRecordRaw } from 'vue-router'
 
 /**
  * 路由安全策略枚举
@@ -28,11 +28,7 @@ declare module 'vue-router' {
 /**
  * 核心路由配置项
  */
-export interface CoreRouteConfig {
-  /** 路由唯一标识（用于替换） */
-  key: string
-  /** 路由定义 */
-  route: import('vue-router').RouteRecordRaw
+export type CoreRouteConfig = RouteRecordRaw & {
   /** 描述（调试用） */
   description?: string
 }
@@ -40,11 +36,7 @@ export interface CoreRouteConfig {
 /**
  * 模块路由覆盖配置
  */
-export interface ModuleRouteOverride {
-  /** 要覆盖的核心路由key */
-  key: string
-  /** 新的路由定义（可选，不提供则删除该路由） */
-  route?: import('vue-router').RouteRecordRaw
-  /** 覆盖原因（调试日志） */
-  reason?: string
+export type ModuleRouteOverride = RouteRecordRaw & {
+  /** 描述（调试用） */
+  description?: string
 }

@@ -38,15 +38,6 @@ export const LOGIN_ROUTE: RouteRecordRaw = {
   },
 };
 
-export const NOT_FIND_ROUTE: RouteRecordRaw = {
-  path: "/:pathMatch(.*)",
-  name: "error",
-  component: () => import("@jetlinks-web-core/views/Error/404.vue"),
-  meta: {
-    title: "404",
-  },
-};
-
 export const EDGE_TOKEN_ROUTE: RouteRecordRaw = {
   path: '/edge/token/:id',
   meta: {
@@ -153,4 +144,15 @@ export const Scene: RouteRecordRaw = {
   meta: {
     title: '场景商城'
   }
+}
+
+
+export const RegisterRoute: RouteRecordRaw = {
+  path: '/register',
+  name: 'Register',
+  // @ts-ignore
+  component: () => import("@jetlinks-web-core/views/register/index.vue"),
+  meta: {
+    title: "注册页",
+  },
 }
