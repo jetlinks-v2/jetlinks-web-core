@@ -60,7 +60,7 @@
             >
               {{ $t("login.right.419974-6") }}
             </Button>
-            没有账号？<a-button style="padding: 4px 0" type="link" @click="onRegister">前往注册</a-button>
+            没有账号？<Button style="padding: 4px 0" type="link" @click="onRegister">前往注册</Button>
           </form-item>
         </Form>
         <Captcha v-model:open="captchaOpen" :config="config?.tianai" @success="onCaptchaSuccess"  />
