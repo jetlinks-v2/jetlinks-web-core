@@ -145,14 +145,3 @@ export const Scene: RouteRecordRaw = {
     title: '场景商城'
   }
 }
-
-
-export const RegisterRoute: RouteRecordRaw = {
-  path: '/register',
-  name: 'Register',
-  // @ts-ignore
-  component: () => import("@jetlinks-web-core/views/register/index.vue"),
-  meta: {
-    title: "注册页",
-  },
-}
