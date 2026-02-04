@@ -1,5 +1,5 @@
 <script setup name="Captcha">
-
+import { Modal, Spin } from "ant-design-vue"
 import { useCaptcha } from './useCaptha'
 
 const props = defineProps({
@@ -52,14 +52,14 @@ watch(() => props.open, () => {
 </script>
 
 <template>
-  <a-modal
+  <Modal
     title="请完成安全验证"
     v-model:open="_open"
     :footer="null"
     :width="648"
     @cancel="onCancel"
   >
-    <a-spin :spinning="loading" size="large">
+    <Spin :spinning="loading" size="large">
       <div style="height: 416px">
         <component
           v-if="captchaData && captchaData.type"
@@ -72,8 +72,8 @@ watch(() => props.open, () => {
           @error="handleError"
         />
       </div>
-    </a-spin>
-  </a-modal>
+    </Spin>
+  </Modal>
 </template>
 
 <style scoped lang="less">
