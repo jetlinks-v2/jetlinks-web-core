@@ -1,8 +1,14 @@
 <template>
-  <a-spin :spinning="loading" :delay="300">
+  <a-spin
+    :spinning="loading"
+    :delay="300"
+  >
     <div class="container">
       <div class="left">
-        <img :src="systemInfo?.front?.background || bgImage" alt="" />
+        <img
+          :src="systemInfo?.front?.background || bgImage"
+          alt=""
+        />
         <a
           v-if="basis?.showRecordNumber"
           href="https://beian.miit.gov.cn/#/Integrated/index"
@@ -25,39 +31,39 @@
   </a-spin>
 </template>
 <script setup name="Login" lang="ts">
-import { getImage, LocalStore } from "@jetlinks-web/utils";
-import { useSystemStore } from "@jetlinks-web-core/store/system";
-import { storeToRefs } from "pinia";
-import Right from "./right.vue";
-import { bindInfo } from "@jetlinks-web-core/api/login";
-import {useI18n} from "vue-i18n";
+import { getImage, LocalStore } from '@jetlinks-web/utils'
+import { useSystemStore } from '@jetlinks-web-core/store/system'
+import { storeToRefs } from 'pinia'
+import Right from './right.vue'
+import { bindInfo } from '@jetlinks-web-core/api/login'
+import { useI18n } from 'vue-i18n'
 
-const { t: $t } = useI18n();
-const systemStore = useSystemStore();
-const { systemInfo, layout } = storeToRefs(systemStore);
-const loading = ref(false);
+const { t: $t } = useI18n()
+const systemStore = useSystemStore()
+const { systemInfo, layout } = storeToRefs(systemStore)
+const loading = ref(false)
 
-const bgImage = getImage("/login/login.png");
-const bindings = ref([]);
+const bgImage = getImage('/login/login.png')
+const bindings = ref([])
 
 const basis: any = computed(() => {
-  return systemInfo.value.front || {};
-});
+  return systemInfo.value.front || {}
+})
 
 const getOpen = async () => {
-  await systemStore.queryVersion();
-  const version = LocalStore.get("version_code");
-  if (version !== "community") {
+  await systemStore.queryVersion()
+  const version = LocalStore.get('system_edition')
+  if (version !== 'community') {
     bindInfo().then((res: any) => {
       if (res.success) {
         bindings.value = res.result
       }
-    });
+    })
   }
-  await systemStore.querySingleInfo("front");
-};
+  await systemStore.querySingleInfo('front')
+}
 
-getOpen();
+getOpen()
 </script>
 
 <style scoped lang="less">
