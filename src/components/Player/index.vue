@@ -62,6 +62,7 @@ type PlayerProps = {
   onCustomButtons?: (name: any) => void;
   onEnded?: (e?: any) => void;
   onClick?: () => void;
+  onCanPlay?: () => void;
 };
 
 const props = defineProps<PlayerProps>();
@@ -125,6 +126,7 @@ const initEvent = () => {
   });
   player[fn](Events.CANPLAY, (ev) => {
     console.log($t("Player.index.345076-0"), ev);
+    props.onCanPlay?.();
     if (props.autoplay !== false) {
       play();
     }

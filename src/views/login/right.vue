@@ -60,8 +60,10 @@
             >
               {{ $t("login.right.419974-6") }}
             </Button>
+            没有账号？<Button style="padding: 4px 0" type="link" @click="onRegister">前往注册</Button>
           </form-item>
         </Form>
+        <Captcha v-model:open="captchaOpen" :config="config?.tianai" @success="onCaptchaSuccess"  />
         <div class="other" v-if="bindings.length">
           <Divider plain>
             <div class="other-text">
@@ -148,6 +150,7 @@ import { Form, FormItem, Button, Divider, Popover, Input, InputPassword } from '
 import defaultImg from '@jetlinks-web-core/assets/apply/internal-standalone.png'
 import {initPackages} from "@jetlinks-web-core/package";
 import i18n from "@jetlinks-web-core/locales";
+import Captcha from '@jetlinks-web-core/components/Captcha'
 
 const BASE_API_PATH = import.meta.env.VITE_APP_BASE_API
 
@@ -180,6 +183,8 @@ const props = defineProps({
 const emit = defineEmits(["submit", "update:loading"]);
 const moreVisible = ref(false);
 const userStore = useUserStore();
+const router = useRouter();
+const captchaOpen = ref(false)
 
 const formData = reactive({
   username: "",
@@ -189,6 +194,7 @@ const formData = reactive({
   verifyCode: undefined,
   verifyKey: undefined,
   encryptId: undefined,
+  'captcha-id': undefined
 });
 
 let timer = null;
@@ -216,7 +222,8 @@ const { data: config } = useRequest(captchaConfig, {
     if (resp.result?.enabled) {
       getCode();
     }
-    return resp.result?.enabled;
+
+    return resp.result;
   },
 });
 
@@ -272,14 +279,27 @@ const showCode = computed(() => {
   return !!url?.value?.base64;
 });
 
+const onCaptchaSuccess = (e) => {
+  captchaOpen.value = false
+  const _formData = { ...toRaw(formData) };
+  _formData['captcha-id'] = e.captchaId;
+  run(_formData);
+}
+
 const submit = (data) => {
+
   const _formData = { ...toRaw(formData) };
   if (encryption.value?.encrypt?.enabled) {
     const _encrypt = encryption.value?.encrypt;
     _formData.password = encrypt(data.password, _encrypt.publicKey);
     _formData.encryptId = _encrypt.id;
   }
-  run(_formData);
+
+  if (config.value.tianai) {
+    captchaOpen.value = true
+  } else {
+    run(_formData);
+  }
 };
 
 const handleClickOther = (item) => {
@@ -291,6 +311,10 @@ const handleClickOther = (item) => {
     }
   };
 };
+
+const onRegister = () => {
+  router.push("/register");
+}
 
 watch(
   () => loading.value,

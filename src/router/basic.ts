@@ -38,15 +38,6 @@ export const LOGIN_ROUTE: RouteRecordRaw = {
   },
 };
 
-export const NOT_FIND_ROUTE: RouteRecordRaw = {
-  path: "/:pathMatch(.*)",
-  name: "error",
-  component: () => import("@jetlinks-web-core/views/Error/404.vue"),
-  meta: {
-    title: "404",
-  },
-};
-
 export const EDGE_TOKEN_ROUTE: RouteRecordRaw = {
   path: '/edge/token/:id',
   meta: {
@@ -61,6 +52,17 @@ export const AccountCenterBind: RouteRecordRaw = {
     title: '第三方'
   },
   component: () => import("@jetlinks-web-core/views/account/center/bind/index.vue"),
+}
+
+/** 身份验证结果页（邮箱/手机验证链接跳转后展示） */
+export const IdentityResultRoute: RouteRecordRaw = {
+  path: '/identity-result',
+  name: 'identity-result',
+  meta: {
+    title: '验证结果',
+    hideInMenu: true,
+  },
+  component: () => import('@jetlinks-web-core/views/account/identity-result/index.vue'),
 }
 
 export const OAuth2: RouteRecordRaw = {

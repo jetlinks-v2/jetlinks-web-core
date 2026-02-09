@@ -103,6 +103,9 @@ export default defineConfig(({ mode, command }) => {
       port: Number(env.VITE_PORT),
       cors: true,
       fs: { allow: [ envDir] },
+      allowedHosts: [
+        'cq.local-host.cn', // 允许的自定义域名
+      ],
       proxy: {
         [env.VITE_APP_BASE_API]: {
           // 优先使用命令行参数，其次使用环境变量

@@ -1,13 +1,26 @@
-import {getToken, LocalStore, setToken} from "@jetlinks-web/utils";
+import { createApp, h } from 'vue'
+import { getToken, LocalStore, setToken } from '@jetlinks-web/utils'
 import { TOKEN_KEY_URL } from '@jetlinks-web/constants'
-import { crateAxios, router, wsClient } from '@jetlinks-web/core'
-import {jumpLogin} from '@jetlinks-web-core/router'
-import {notification} from 'ant-design-vue'
+import { crateAxios, request, wsClient } from '@jetlinks-web/core'
+import { jumpLogin } from '@jetlinks-web-core/router'
+import { notification } from 'ant-design-vue'
 import { isSubApp, langKey, PersonalToken, PersonalUrlKey } from '@jetlinks-web-core/utils/consts'
 import Relogin from '@jetlinks-web-core/views/relogin/index.vue'
+import VerifyDialog from '@jetlinks-web-core/views/verify/index.vue'
+import pinia from '@jetlinks-web-core/store'
+import i18n from '@jetlinks-web-core/locales'
+import andtv from 'ant-design-vue'
 import { getPackageConfig, registerModule, getBaseApi, routerFallback } from '@jetlinks-web-core/utils'
 import microApp from '@micro-zoe/micro-app'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
+import { useVerifyStore } from '@jetlinks-web-core/store/verify'
+import type { VerifyRequiredResult } from '@jetlinks-web-core/api/verify'
+
+/** 非一次性校验通过后缓存的 key/token，供请求头使用（避免拦截器内 pinia 未就绪） */
+let verifyHeadersCache: { key: string; token: string } | null = null
+
+/** 用于校验成功后重试原请求的 axios 实例（与拦截器使用同一实例） */
+let requestInstanceForRetry: any = null
 
 /**
  * 初始化package
@@ -47,11 +60,47 @@ export const initPackages = () => {
 };
 
 const _handleReconnect = async () => {
-    // 如何监听弹窗是否关闭
-    const modalWrapper = document.createElement('div');
-    const modalApp = createApp(Relogin).mount(modalWrapper);
-    document.body.appendChild(modalWrapper);
-    return await modalApp?.open?.();
+    const modalWrapper = document.createElement('div')
+    const modalApp = createApp(Relogin).mount(modalWrapper)
+    document.body.appendChild(modalWrapper)
+    return await modalApp?.open?.()
+}
+
+/** 当前校验弹窗 Promise，用于互斥：同一时间只允许一个弹窗，取消后不再自动弹出 */
+let currentVerifyPromise: Promise<{ key: string; token: string; disposable: boolean } | null> | null = null
+
+function openVerifyDialog(verifyResult: VerifyRequiredResult): Promise<{ key: string; token: string; disposable: boolean } | null> {
+    if (currentVerifyPromise) return currentVerifyPromise
+    currentVerifyPromise = new Promise((resolve) => {
+        const wrapper = document.createElement('div')
+        document.body.appendChild(wrapper)
+        const app = createApp({
+            render() {
+                return h(VerifyDialog, {
+                    verifyResult,
+                    onSuccess: (payload: { key: string; token: string; disposable: boolean }) => {
+                        resolve(payload)
+                        setTimeout(() => {
+                            app.unmount()
+                            wrapper.remove()
+                            currentVerifyPromise = null
+                        }, 0)
+                    },
+                    onCancel: () => {
+                        resolve(null)
+                        setTimeout(() => {
+                            app.unmount()
+                            wrapper.remove()
+                            currentVerifyPromise = null
+                        }, 0)
+                    }
+                })
+            }
+        })
+        app.use(pinia).use(i18n).use(andtv)
+        app.mount(wrapper)
+    })
+    return currentVerifyPromise
 }
 export const initAxios = () => {
     const config = getPackageConfig()
@@ -62,6 +111,7 @@ export const initAxios = () => {
           tokenExpiration: () => {
               const token = getToken();
               if(!token){
+                  clearVerifyCache()
                   jumpLogin()
               }
           },
@@ -76,13 +126,22 @@ export const initAxios = () => {
               '/application/',
               '/application/sso/_all',
               '/personal/token/',
+              '/verify/captcha/_confirm',
+              '/verify/identity/',
+              '/user/identity/_me',
           ],
-          handleError: (description, key, err) => {
+          handleError: (description, key, err: any) => {
+              const resp = err?.response
+              const data = resp?.data
+              const isVerifyRequired =
+                  resp?.status === 403 &&
+                  (data?.code === 'verify.required' || data?.message === 'error.verify.requred')
+              if (isVerifyRequired) {
+                  return
+              }
               if (!err.config?.hiddenError) {
                   notification.error({
-                      style: {
-                          zIndex: 1040
-                      },
+                      style: { zIndex: 1040 },
                       key: key as string,
                       message: '',
                       description
@@ -102,15 +161,111 @@ export const initAxios = () => {
           }
       }
 
-      if(Object.keys(config?.axiosSettings || {}).length) {
+      if (Object.keys(config?.axiosSettings || {}).length) {
           settings = {
               ...settings,
               ...config.axiosSettings
           }
       }
     crateAxios(settings)
+
+    const axiosInstance = request?.interceptors ? request : (request as any)?.default
+    if (axiosInstance) requestInstanceForRetry = axiosInstance
+    if (axiosInstance?.interceptors?.request?.use) {
+        axiosInstance.interceptors.request.use((config: any) => {
+            let cache = verifyHeadersCache
+            if (!cache) {
+                try {
+                    const raw = localStorage.getItem('jetlinks_verify_cache')
+                    if (raw) cache = JSON.parse(raw) as { key: string; token: string }
+                } catch {
+                    // ignore
+                }
+            }
+            if (cache?.key && cache?.token) {
+                config.headers = config.headers || {}
+                config.headers['x-verify-key'] = cache.key
+                config.headers['x-verify-token'] = cache.token
+            }
+            return config
+        })
+    }
+    wrapRequestWithVerifyRetry(request)
 }
 
+function is403VerifyRequired(err: any): VerifyRequiredResult | undefined {
+    const resp = err?.response
+    const data = resp?.data
+    if (resp?.status !== 403) return undefined
+    if (data?.code !== 'verify.required' && data?.message !== 'error.verify.requred') return undefined
+    if (!data?.result?.type || data?.result?.key == null) return undefined
+    return {
+        type: data.result.type,
+        key: data.result.key,
+        disposable: !!data.result.disposable
+    }
+}
+
+function handleVerifyAndRetry(err: any): Promise<any> {
+    const verifyResult = is403VerifyRequired(err)
+    if (!verifyResult) return Promise.reject(err)
+    const failedConfig = err?.config ?? err?.response?.config
+    const doRetry = (ax: any, retryConfig: any): Promise<any> => {
+        if (typeof ax === 'function') return Promise.resolve(ax(retryConfig))
+        if (ax && typeof ax.request === 'function') return Promise.resolve(ax.request(retryConfig))
+        if (ax && typeof ax === 'object' && typeof (ax as any).default?.request === 'function') return Promise.resolve((ax as any).default.request(retryConfig))
+        const method = (retryConfig.method || 'get').toLowerCase()
+        const url = retryConfig.url || retryConfig.baseURL
+        if (ax && url && typeof ax[method] === 'function') {
+            const args = method === 'get' ? [url, retryConfig] : [url, retryConfig.data ?? retryConfig.params, retryConfig]
+            return Promise.resolve(ax[method](...args))
+        }
+        return Promise.reject(new Error('no request instance'))
+    }
+    const tryRetry = (retryConfig: any): Promise<any> => {
+        const instance = requestInstanceForRetry ?? request
+        if (instance) return Promise.resolve(instance).then((ax) => doRetry(ax, retryConfig))
+        return import('@jetlinks-web/core').then((m) => doRetry(m.request, retryConfig))
+    }
+    return openVerifyDialog(verifyResult).then((payload) => {
+        if (!payload) return Promise.reject(new Error('verify_canceled'))
+        if (!failedConfig) return Promise.reject(err)
+        if (!payload.disposable) {
+            const verifyStore = useVerifyStore()
+            verifyStore.setCache(payload.key, payload.token)
+            verifyHeadersCache = { key: payload.key, token: payload.token }
+        }
+        const headers = { ...(failedConfig.headers || {}), 'x-verify-key': payload.key, 'x-verify-token': payload.token }
+        const retryConfig = { ...failedConfig, headers }
+        return tryRetry(retryConfig)
+    })
+}
+
+function wrapRequestWithVerifyRetry(req: any) {
+    if (!req || typeof req !== 'object') return
+    const methods = ['get', 'post', 'put', 'patch', 'delete', 'request']
+    const maybeRemove = typeof req.remove === 'function' ? ['remove'] : []
+    ;[...methods, ...maybeRemove].forEach((method) => {
+        const original = req[method]
+        if (typeof original !== 'function') return
+        req[method] = function (...args: any[]) {
+            return original.apply(this, args).catch((err: any) => {
+                if (is403VerifyRequired(err)) return handleVerifyAndRetry(err)
+                return Promise.reject(err)
+            })
+        }
+    })
+}
+
+/** 登出/跳转登录前清理校验缓存，避免下一用户复用上一用户的 verify key/token */
+export function clearVerifyCache() {
+    verifyHeadersCache = null
+    try {
+        useVerifyStore().clearCache()
+    } catch {
+        // ignore (store 可能未就绪)
+    }
+}
 
 export const loadMicroApp = () => {
     (window as any).microApp?.addDataListener((data: any) => {

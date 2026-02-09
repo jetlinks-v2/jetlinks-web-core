@@ -2,34 +2,52 @@ const isFilterModule = (item) => {
   return item && item.default.filter === true
 }
 
+const getSortModules = () => {
+  const modulesFiles = import.meta.glob('../../../modules/*/index.ts', {eager: true})
+  return Object.keys(modulesFiles).sort((a, b) => {
+    const itemA = modulesFiles[a].default
+    const itemB = modulesFiles[b].default
+    const priorityA = itemA?.priority || 0
+    const priorityB = itemB?.priority || 0
+    return priorityA - priorityB
+  }).map(key => ({
+    key,
+    name: key.replace('../../../modules/', '').replace('/index.ts', ''),
+    ...modulesFiles[key]
+  }))
+}
+
 export const modules = () => {
   const modulesMap = {}
-  const modulesFiles = import.meta.glob('../../../modules/*/index.ts', {eager: true})
-  Object.keys(modulesFiles).forEach((key: any) => {
-    const item = modulesFiles[key]
+  const modulesFiles = getSortModules()
+  modulesFiles.forEach((item: any) => {
     if (!isFilterModule(item)) {
-      modulesMap[key] = item
+      modulesMap[item.key] = item
     }
   })
   return modulesMap
 }
 
 export const getModulesMenu = () => {
+  const modulesDefaultFiles = getSortModules()
   const modulesFiles = import.meta.glob('../../../modules/*/baseMenu.ts', {eager: true})
   const menus: any[] = []
 
-  Object.values(modulesFiles).forEach((item: any) => {
-    if (!isFilterModule(item)) {
-      menus.push(...item.default?.())
-    }
+  modulesDefaultFiles.forEach((item: any) => {
+      const defaultName = item.name
+      const key = `../../../modules/${defaultName}/baseMenu.ts`
+      const baseMenuItem = modulesFiles[key]
+      if (baseMenuItem && !isFilterModule(baseMenuItem)) {
+        menus.push(...baseMenuItem.default?.())
+      }
   })
 
   return menus
 }
 
 export const registerModule = () => {
-  const modulesFiles = import.meta.glob('../../../modules/*/index.ts', {eager: true})
-  Object.values(modulesFiles).forEach((item: any ) => {
+  const modulesFiles = getSortModules()
+  modulesFiles.forEach((item: any ) => {
     if (!isFilterModule(item)) {
       item.default.register?.()
     }
@@ -37,9 +55,9 @@ export const registerModule = () => {
 }
 
 export const getModulesInitPage = () => {
-  const modulesFiles = import.meta.glob('../../../modules/*/index.ts', {eager: true})
+  const modulesFiles = getSortModules()
   let initPage
-  Object.values(modulesFiles).forEach((item: any) => {
+  modulesFiles.forEach((item: any) => {
     if (!isFilterModule(item)) {
       const page = item.default.initPage?.()
       if (page) {
@@ -52,9 +70,9 @@ export const getModulesInitPage = () => {
 }
 
 export const getHideHeaderRightConfig = () => {
-  const modulesFiles = import.meta.glob('../../../modules/*/index.ts', {eager: true})
+  const modulesFiles = getSortModules()
   let hideHeaderRight;
-  Object.values(modulesFiles).forEach((item: any) => {
+  modulesFiles.forEach((item: any) => {
     if (!isFilterModule(item)) {
       const config = item.default.getConfig?.()?.hideHeaderRight
       if (config) {
@@ -66,9 +84,9 @@ export const getHideHeaderRightConfig = () => {
 }
 
 export const getPackageConfig = () => {
-  const modulesFiles = import.meta.glob('../../../modules/*/index.ts', {eager: true})
+  const modulesFiles = getSortModules()
   let packageConfig
-  Object.values(modulesFiles).forEach((item: any) => {
+  modulesFiles.forEach((item: any) => {
     if (!isFilterModule(item)) {
       const config = item.default.getConfig?.()
       if (config) {

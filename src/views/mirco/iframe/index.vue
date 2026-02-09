@@ -15,6 +15,7 @@
 
 <script setup name="IframePage">
 import { jumpLogin } from  '@jetlinks-web-core/router'
+import { clearVerifyCache } from '@jetlinks-web-core/package'
 import { useApplication, useMenuStore } from '@jetlinks-web-core/store'
 import { nextTick } from 'vue'
 import { LayoutType } from '@jetlinks-web/components/es/ProLayout/defaultSettings'
@@ -37,6 +38,7 @@ const styles = reactive({
 const onMessage = (msg) => {
   if (msg?.data?.token === 'LOSE') {
     setTimeout(() => {
+      clearVerifyCache()
       jumpLogin()
     }, 10)
   }

@@ -63,16 +63,15 @@ const selectedToken = ref(null)
 const deleteVisible = ref(false)
 const tokenToDelete = ref(null)
 
-const { run,reload } = useRequest(getCreatedPersonalTokens_api, {
+const { run, reload } = useRequest(getCreatedPersonalTokens_api, {
   defaultParams: {
+    paging: false,
     sorts: [
       { name: 'createTime', order: 'desc' }
-    ],
-    pageSize: 10000,
-    pageIndex: 0
+    ]
   },
   onSuccess: (res) => {
-    tokenList.value = res.result.data || []
+    tokenList.value = res.result || []
   }
 })
 

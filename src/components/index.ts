@@ -31,6 +31,9 @@ import Editable from './Editable/index.vue'
 import FormItemEditable from './Editable/FormItemEditable.vue'
 import InputEditable from './Editable/InputEditable.vue'
 import DesignerPreview from './DesignerPreview/index.vue'
+import IconLibrary from './IconLibrary/index.vue'
+import ChatTextArea from './ChatTextArea/index.vue'
+import Captcha from './Captcha'
 
 export default {
     install(app: App) {
@@ -69,6 +72,9 @@ export default {
           .component('FormItemEditable', FormItemEditable)
           .component('InputEditable', InputEditable)
           .component('DesignerPreview', DesignerPreview)
+          .component('IconLibrary', IconLibrary)
+          .component('ChatTextArea', ChatTextArea)
+          .component('Captcha', Captcha)
         Object.keys(FormItemValue).forEach(key => {
             app.component(key, FormItemValue[key])
         })
