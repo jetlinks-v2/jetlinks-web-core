@@ -44,7 +44,7 @@ import {storeToRefs} from "pinia";
 import { jumpLogin } from "@jetlinks-web-core/router";
 import { clearVerifyCache } from "@jetlinks-web-core/package";
 import i18n from "@jetlinks-web-core/locales";
-import { Relogin } from '@jetlinks-web-core/assets'
+import Relogin from '@jetlinks-web-core/assets/relogin.png'
 import { Modal, Button } from 'ant-design-vue'
 
 const systemStore = useSystemStore();
