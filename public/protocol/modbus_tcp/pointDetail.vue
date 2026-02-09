@@ -30,12 +30,7 @@
           v-model:value="functionCode"
           :componentProps="{
             placeholder: $lang('MODBUS_TCP.point.20250207-2'),
-            options: [
-              { label: $lang('MODBUS_TCP.point.20250207-24'), value: 'Coils' },
-              { label: $lang('MODBUS_TCP.point.20250207-25'), value: 'DiscreteInputs' },
-              { label: $lang('MODBUS_TCP.point.20250207-26'), value: 'HoldingRegisters' },
-              { label: $lang('MODBUS_TCP.point.20250207-27'), value: 'InputRegisters' },
-            ]
+            options
           }"
           @change="functionChange"
       >
@@ -64,7 +59,7 @@
             precision: 0,
             controls: false
           }"
-          @change="() =>onAddressChange"
+          @change="onAddressChange"
       >
       </FormItemEditable>
     </a-col>
@@ -108,7 +103,7 @@
       <a-form-item-rest>
         <span>{{ $lang('MODBUS_TCP.point.20250207-15') }}</span>
       </a-form-item-rest>
-      <a-switch v-model:checked="writeByteConfig" style="margin-left: 20px"/>
+      <a-switch v-model:checked="writeByteConfig" style="margin-left: 20px" @change="onWriteChange"/>
     </a-form-item>
   </div>
   <a-row v-if="writeByteConfig">
@@ -117,7 +112,7 @@
           :name="['configuration', 'parameter', 'writeByteCount']"
           :rules="[
       {
-        required: true,
+        required: writeByteConfig,
         message: $lang('MODBUS_TCP.point.20250207-16')
       },
     ]" :label="$lang('MODBUS_TCP.point.20250207-17')"
@@ -139,7 +134,7 @@
           :name="['configuration', 'parameter', 'byteCount']"
           :rules="[
             {
-              required: true,
+              required: writeByteConfig,
               message: $lang('MODBUS_TCP.point.20250207-20')
             },
           ]"
@@ -158,13 +153,14 @@
 <script setup>
 import {useLocales} from '@hooks'
 import {computed, inject, ref, watch} from "vue";
-import {request} from "@jetlinks-web/core";
+import { commandRequest } from 'request'
 
 const {$lang} = useLocales('modbus_tcp')
 
 const formData = inject('plugin-form', {})
 const events = inject("plugin-detail-save-events");
 const metadataEvents = inject('point-metadata-events')
+const options = ref([])
 
 if (!('configuration' in formData)) {
   formData.configuration = {
@@ -193,7 +189,7 @@ if (!('type' in formData.configuration)) {
 }
 
 const functionCode = ref(formData.configuration.function)
-const address = ref(formData.configuration.parameter?.address)
+const address = ref()
 const writeByteConfig = ref(false);
 
 const showWriteByteConfig = computed(() => formData.configuration.function === 'HoldingRegisters')
@@ -232,6 +228,46 @@ const functionChange = () => {
   onChange()
 };
 
+function getAddressValue(configuration) {
+  const { type, function: func, parameter } = configuration
+  const paramAddress = Number(parameter.address)
+
+  // type === 'function'，直接返回
+  if (type === 'function') {
+    return paramAddress
+  }
+
+  switch (func) {
+    case 'Coils':
+      return paramAddress + 1
+
+    case 'DiscreteInputs':
+      return paramAddress + 10001
+
+    case 'InputRegisters':
+      return paramAddress + 30001
+
+    case 'HoldingRegisters':
+      return paramAddress + 40001
+
+    default:
+      // 兜底，防止未知 function
+      return paramAddress
+  }
+}
+
+const onWriteChange = () => {
+  // 为了校验,这里无法实时的校验,不知道为什么
+  setTimeout(() => {
+    if(!writeByteConfig.value) {
+      formData.configuration.parameter.writeByteCount = undefined
+      formData.configuration.parameter.byteCount = undefined
+      onChange()
+    }
+  })
+}
+
+
 const onAddressChange = () => {
   if (formData.configuration.type === 'function') {
     formData.configuration.parameter.address = address.value
@@ -255,6 +291,16 @@ const onAddressChange = () => {
   onChange()
 }
 
+const getConfigMetadata = async () => {
+  const resp = await commandRequest.pointConfigMetadata('modbus_tcp')
+  if (resp.success) {
+    resp.result.forEach(item => {
+      if (item.id === 'function') {
+        options.value = (item.valueType.elements || []).map(i => ({...i, label: i.text}))
+      }
+    })
+  }
+}
 function checkAddress(_rule, value) {
   return new Promise(async (resolve, reject) => {
     if (address.value != null) {
@@ -301,9 +347,14 @@ watch(() => [formData.configuration.function, formData.configuration.parameter.a
   } else {
     metadataEvents?.pointMetadataEvents?.(formData.provider, false)
   }
+  if(formData.configuration.parameter?.address !== null && formData.configuration.function){
+    address.value = getAddressValue(formData.configuration)
+  }
 }, {
   immediate: true,
   deep: true
 })
+
+getConfigMetadata()
 </script>
 <style></style>
