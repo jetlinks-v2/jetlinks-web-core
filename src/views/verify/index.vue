@@ -6,7 +6,7 @@
     :width="type === 'identity' ? 420 : 400"
     @cancel="onCancel"
     @ok="onSubmit"
-    :okButtonProps="{ loading: submitting }"
+    :okButtonProps="{ loading: submitting, disabled: type === 'identity' && identityListRaw.length === 0 }"
     :okText="submitText"
     :cancelText="t('verify.cancel')"
   >
@@ -37,7 +37,22 @@
 
     <!-- 身份校验 -->
     <template v-else-if="type === 'identity'">
-      <Form ref="formRef" layout="vertical" :model="identityForm" :rules="identityRules">
+      <!-- 空状态：没有身份信息 -->
+      <div v-if="identityListRaw.length === 0" class="identity-empty">
+        <div class="empty-icon">📧</div>
+        <div class="empty-text">{{ t('verify.noIdentity') }}</div>
+        <div class="empty-desc">{{ t('verify.noIdentityDesc') }}</div>
+        <Button 
+          type="primary" 
+          @click="goToBindIdentity"
+          @mousedown.stop
+          @mouseup.stop
+        >
+          {{ t('verify.goToBindIdentity') }}
+        </Button>
+      </div>
+      <!-- 有身份信息 -->
+      <Form v-else ref="formRef" layout="vertical" :model="identityForm" :rules="identityRules">
         <FormItem :label="t('verify.identityLabel')" name="identityId">
           <Select
             v-model:value="identityForm.identityId"
@@ -79,6 +94,7 @@
 
 <script setup lang="ts">
 import { nextTick } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { Modal, Form, FormItem, Input, Select, Button } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
@@ -89,10 +105,13 @@ import {
   confirmIdentityVerify,
   getSelfIdentitiesForVerify
 } from '@jetlinks-web-core/api/verify'
+import { getIdentityProviders_api } from '@jetlinks-web-core/api/account/center'
 import type { VerifyRequiredResult } from '@jetlinks-web-core/api/verify'
 import i18n from '@jetlinks-web-core/locales'
 
 const { t } = i18n.global
+const router = useRouter()
+const route = useRoute()
 
 const props = defineProps<{
   verifyResult: VerifyRequiredResult
@@ -192,8 +211,54 @@ async function loadIdentities() {
           identity: item.identity
         }))
       : []
+    
+    // 如果有身份信息，自动选择第一个（优先选择邮箱）
+    if (identityListRaw.value.length > 0) {
+      // 优先选择邮箱
+      const emailIdentity = identityListRaw.value.find(item => item.provider === 'email')
+      if (emailIdentity) {
+        identityForm.identityId = emailIdentity.id
+      } else {
+        // 如果没有邮箱，选择第一个
+        identityForm.identityId = identityListRaw.value[0].id
+      }
+    }
   } catch {
     identityListRaw.value = []
+  }
+}
+
+function goToBindIdentity() {
+  // 先关闭弹窗
+  visible.value = false
+  emit('cancel')
+  
+  // 在新窗口打开账号信息页面
+  const currentOrigin = window.location.origin
+  const targetUrl = `${currentOrigin}/#/account/center?tabKey=BindThirdAccount&anchor=email-section`
+  const newWindow = window.open(targetUrl, '_blank')
+  
+  if (newWindow) {
+    // 监听来自新窗口的消息
+    const handleMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return
+      if (e.data?.type === 'identity_bind_completed') {
+        // 收到绑定完成的消息，刷新当前页面
+        window.removeEventListener('message', handleMessage)
+        window.location.reload()
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    
+    // 备用方案：使用轮询检查新窗口是否关闭
+    const checkWindowClosed = setInterval(() => {
+      if (newWindow.closed) {
+        clearInterval(checkWindowClosed)
+        // 新窗口已关闭，刷新当前页面（无论是否完成绑定）
+        window.removeEventListener('message', handleMessage)
+        window.location.reload()
+      }
+    }, 1000)
   }
 }
 
@@ -231,6 +296,11 @@ async function sendIdentityCode() {
 }
 
 async function onSubmit() {
+  // 如果没有身份信息，不允许提交
+  if (type.value === 'identity' && identityListRaw.value.length === 0) {
+    return
+  }
+  
   try {
     await formRef.value?.validate()
   } catch {
@@ -331,5 +401,24 @@ watch(
 .captcha-loading {
   font-size: 12px;
   color: #999;
+}
+.identity-empty {
+  text-align: center;
+  padding: 24px 0;
+  .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+  .empty-text {
+    font-size: 16px;
+    font-weight: 500;
+    color: #262626;
+    margin-bottom: 8px;
+  }
+  .empty-desc {
+    font-size: 14px;
+    color: #8c8c8c;
+    margin-bottom: 24px;
+  }
 }
 </style>

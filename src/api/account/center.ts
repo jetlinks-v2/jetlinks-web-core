@@ -7,6 +7,8 @@ export const getSsoBinds_api = (): any =>request.get(`/application/sso/me/bindin
 export const updateMeInfo_api = (data:object) => request.put(`/user/detail`,data);
 // 修改登录用户密码
 export const updateMepsd_api = (data:object) => request.put(`/user/passwd`,data);
+// 重置登录用户密码（忘记密码）
+export const resetPassword_api = (data: { password: string }) => request.post(`/user/passwd/_reset`, data);
 // 第三方账号解绑
 export const unBind_api = (appId: string) => request.post(`/application/sso/${appId}/unbind/me`,[]);
 /**

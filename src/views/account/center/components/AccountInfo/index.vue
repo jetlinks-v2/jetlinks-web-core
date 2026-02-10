@@ -133,7 +133,7 @@
       </section>
 
       <!-- 邮箱 -->
-      <section class="account-info-section" v-if="identitySupported && hasEmailProvider">
+      <section id="email-section" class="account-info-section" v-if="identitySupported && hasEmailProvider">
         <h3 class="section-title">{{ $t('AccountInfo.emailSection') }}</h3>
         <p class="section-desc">{{ $t('AccountInfo.emailSectionDesc') }}</p>
         <div class="section-content">
@@ -187,7 +187,7 @@
       </section>
 
       <!-- 手机号 -->
-      <section class="account-info-section" v-if="identitySupported && hasMobileProvider">
+      <section id="phone-section" class="account-info-section" v-if="identitySupported && hasMobileProvider">
         <h3 class="section-title">{{ $t('AccountInfo.phoneSection') }}</h3>
         <p class="section-desc">{{ $t('AccountInfo.phoneSectionDesc') }}</p>
         <div class="section-content">
@@ -252,6 +252,7 @@
 </template>
 
 <script setup lang="ts">
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@jetlinks-web-core/store'
 import {
   getSelfIdentities_api,
@@ -278,6 +279,8 @@ interface IdentityItem {
 }
 
 const { t: $t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const user = useUserStore()
 const userInfo = computed(() => user.userInfo)
 const emit = defineEmits(['open-edit-password'])
@@ -506,6 +509,15 @@ async function confirmEmailBind() {
     emailConfirmState.value = null
     emailCode.value = ''
     await loadIdentities()
+    
+    // 如果是在新窗口中打开的，通知原窗口刷新
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage({ type: 'identity_bind_completed' }, window.location.origin)
+      } catch (e) {
+        console.error('通知原窗口失败:', e)
+      }
+    }
   } catch (err: any) {
     const code = err?.response?.data?.code ?? err?.code ?? ''
     const msg = err?.response?.data?.message ?? err?.message ?? ''
@@ -597,6 +609,15 @@ async function confirmPhoneBind() {
     phoneConfirmState.value = null
     phoneCode.value = ''
     await loadIdentities()
+    
+    // 如果是在新窗口中打开的，通知原窗口刷新
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage({ type: 'identity_bind_completed' }, window.location.origin)
+      } catch (e) {
+        console.error('通知原窗口失败:', e)
+      }
+    }
   } catch (err: any) {
     const code = err?.response?.data?.code ?? err?.code ?? ''
     const msg = err?.response?.data?.message ?? err?.message ?? ''
@@ -622,14 +643,46 @@ function resendPhoneCode() {
   requestPhoneValidation()
 }
 
-onMounted(() => {
-  checkIdentitySupport().then(() => {
-    if (identitySupported.value) {
-      loadProviders()
-      loadIdentities()
+// 处理锚点滚动（从 query 参数中获取）
+const scrollToAnchor = () => {
+  // 优先从 query 参数获取锚点（用于从验证页面跳转过来）
+  const anchorFromQuery = route.query?.anchor as string
+  
+  if (anchorFromQuery) {
+    setTimeout(() => {
+      const element = document.getElementById(anchorFromQuery)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        // 滚动完成后清除 query 参数，避免刷新时重复滚动
+        const newQuery = { ...route.query }
+        delete newQuery.anchor
+        router.replace({ 
+          path: route.path, 
+          query: newQuery
+        })
+      }
+    }, 300)
+  }
+}
+
+onMounted(async () => {
+  await checkIdentitySupport()
+  if (identitySupported.value) {
+    loadProviders()
+    await loadIdentities()
+  }
+  checkThirdAccount()
+  
+  // 等待DOM渲染完成后再滚动
+  await nextTick()
+  scrollToAnchor()
+  
+  // 监听路由 query 变化（用于锚点滚动）
+  watch(() => route.query?.anchor, (newAnchor) => {
+    if (newAnchor) {
+      scrollToAnchor()
     }
   })
-  checkThirdAccount()
 })
 </script>
 
