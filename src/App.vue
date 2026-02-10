@@ -22,6 +22,7 @@ import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
 import {initPackages} from "@jetlinks-web-core/package";
 import { setToken} from "@jetlinks-web/utils";
 import { getBaseApi, initPersonal } from '@jetlinks-web-core/utils'
+import { componentsRegistry } from './utils/components-registry'
 
 const route = useRoute()
 
@@ -47,6 +48,8 @@ provide(ComponentsEnum.Permission, { hasPermission })
 
 initPersonal()
 initPackages()
+
+componentsRegistry.batchRegister()
 
 if (import.meta.env.DEV) {
   localStorage.setItem(LOCAL_BASE_API, getBaseApi())
