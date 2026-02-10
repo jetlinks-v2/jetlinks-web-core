@@ -33,12 +33,7 @@
         <a-select
             style="width: 100%"
             v-model:value="functionCode"
-            :options="[
-              { label: $lang('MODBUS_TCP.point.20250207-24'), value: 'Coils' },
-              { label: $lang('MODBUS_TCP.point.20250207-25'), value: 'DiscreteInputs' },
-              { label: $lang('MODBUS_TCP.point.20250207-26'), value: 'HoldingRegisters' },
-              { label: $lang('MODBUS_TCP.point.20250207-27'), value: 'InputRegisters' },
-            ]"
+            :options="options"
             :placeholder="$lang('MODBUS_TCP.point.20250207-2')"
             allowClear
             show-search
@@ -158,6 +153,7 @@
 <script setup>
 import {computed, inject, ref, watch} from 'vue'
 import {useLocales} from '@hooks'
+import { commandRequest } from 'request'
 
 const {$lang} = useLocales('modbus_tcp')
 const formData = inject('plugin-form', {
@@ -172,6 +168,8 @@ const formData = inject('plugin-form', {
     }
   }
 })
+
+const options = ref([])
 
 const events = inject('point-metadata-events')
 
@@ -277,6 +275,17 @@ const onAddressChange = () => {
   }
 }
 
+const getConfigMetadata = async () => {
+  const resp = await commandRequest.pointConfigMetadata('modbus_tcp')
+  if (resp.success) {
+    resp.result.forEach(item => {
+      if (item.id === 'function') {
+        options.value = (item.valueType.elements || []).map(i => ({...i, label: i.text}))
+      }
+    })
+  }
+}
+
 watch(
     () => writeByteConfig.value,
     (val) => {
@@ -311,5 +320,7 @@ watch(() => [formData.configuration.function, formData.configuration.parameter.a
   immediate: true,
   deep: true
 })
+
+getConfigMetadata()
 </script>
 <style></style>

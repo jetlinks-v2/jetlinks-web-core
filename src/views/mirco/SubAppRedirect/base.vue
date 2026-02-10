@@ -1,5 +1,5 @@
 <script setup name="BaseSubApp">
-import {getToken} from "@jetlinks-web/utils";
+import { getToken } from '@jetlinks-web/utils'
 import app from '@micro-zoe/micro-app'
 import { wsClient } from '@jetlinks-web/core'
 import { useMenuStore } from '@jetlinks-web-core/store'
@@ -14,16 +14,16 @@ const menuStoreRef = storeToRefs(menuStore)
 const pageData = reactive({
   name: undefined,
   url: undefined,
-  defaultPage: '/',
+  defaultPage: '/'
 })
 
 const subContext = ref({
-  token: getToken(),
+  token: getToken()
 })
 
 const styles = computed(() => {
   return {
-    padding: loading.value ? '24px' : '0',
+    padding: loading.value ? '24px' : '0'
   }
 })
 
@@ -66,7 +66,7 @@ const initPage = () => {
   const { appName, appUrl } = route.meta
   const microPath = route.path
   subContext.value.menuResult = menuStore.menuResultCache
-  subContext.value.version = localStorage.getItem('version_code')
+  subContext.value.version = localStorage.getItem('system_edition')
 
   const searchParams = new URLSearchParams(route.fullPath.split('?')[1] || '')
   if (!searchParams.has('layout')) {
@@ -76,29 +76,51 @@ const initPage = () => {
   const _defaultPage = '#' + `${microPath}?${searchParams.toString()}`
   if (pageData.name && pageData.name === appName) {
     app.router.push({ name: pageData.name, path: _defaultPage })
-  } else if(appUrl){
+  } else if (appUrl) {
     const hasHttp = appUrl.startsWith('http')
     pageData.name = appName
     pageData.url = hasHttp ? appUrl : `${window.location.protocol}//${document.location.host}${appUrl}/index.html`
-    pageData.defaultPage =  _defaultPage
+    pageData.defaultPage = _defaultPage
   }
 }
 
-watch(() => [route.fullPath, menuStoreRef.loading.value], () => {
-  if (!menuStoreRef.loading.value) {
-    initPage()
-  }
-}, { immediate: true, deep: true })
-
+watch(
+  () => [route.fullPath, menuStoreRef.loading.value],
+  () => {
+    if (!menuStoreRef.loading.value) {
+      initPage()
+    }
+  },
+  { immediate: true, deep: true }
+)
 </script>
 
 <template>
-  <div class="micro-app-container" :style="styles">
-    <div v-if="loading" style="overflow: hidden">
-      <div class="skeleton skeleton-active" style="height: 32px; width: 190px"></div>
-      <div class="skeleton skeleton-active" style="height: 64px; width: 100%"></div>
-      <div class="skeleton-context" style="height: calc(100% - 64px); width: 100%;">
-        <div v-for="i in 8" class="skeleton-context-card skeleton-active" style="height: 186px; width: 100%;"></div>
+  <div
+    class="micro-app-container"
+    :style="styles"
+  >
+    <div
+      v-if="loading"
+      style="overflow: hidden"
+    >
+      <div
+        class="skeleton skeleton-active"
+        style="height: 32px; width: 190px"
+      ></div>
+      <div
+        class="skeleton skeleton-active"
+        style="height: 64px; width: 100%"
+      ></div>
+      <div
+        class="skeleton-context"
+        style="height: calc(100% - 64px); width: 100%"
+      >
+        <div
+          v-for="i in 8"
+          class="skeleton-context-card skeleton-active"
+          style="height: 186px; width: 100%"
+        ></div>
       </div>
     </div>
     <micro-app
@@ -109,7 +131,7 @@ watch(() => [route.fullPath, menuStoreRef.loading.value], () => {
       :key="pageData.name"
       class="micro-app-content"
       :data="subContext"
-      :baseroute="'/'+pageData.name"
+      :baseroute="'/' + pageData.name"
       @created="handleCreated"
       @beforemount="handleBeforeMount"
       @mounted="handleMounted"
@@ -127,12 +149,12 @@ watch(() => [route.fullPath, menuStoreRef.loading.value], () => {
   }
 }
 
-@keyframes css-1p3hq3p-ant-skeleton-loading{
-  0%{
-    transform:translateX(-37.5%);
+@keyframes css-1p3hq3p-ant-skeleton-loading {
+  0% {
+    transform: translateX(-37.5%);
   }
-  100%{
-    transform:translateX(37.5%);
+  100% {
+    transform: translateX(37.5%);
   }
 }
 
@@ -161,7 +183,7 @@ watch(() => [route.fullPath, menuStoreRef.loading.value], () => {
     animation-duration: 1.4s;
     animation-timing-function: ease;
     animation-iteration-count: infinite;
-    content: "";
+    content: '';
   }
 }
 </style>

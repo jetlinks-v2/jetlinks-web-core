@@ -1,10 +1,8 @@
-import { defineStore } from "pinia";
-import {getDetails_api, preprocessorExists, settingDetail, systemVersion} from "@jetlinks-web-core/api/system/basis";
-import {
-  getTagsColor,
-} from '@jetlinks-web-core/api/system/calendar'
-import {LocalStore} from "@jetlinks-web/utils";
-import {langKey, isSubApp} from "@jetlinks-web-core/utils/consts";
+import { defineStore } from 'pinia'
+import { getDetails_api, preprocessorExists, settingDetail, systemVersion } from '@jetlinks-web-core/api/system/basis'
+import { getTagsColor } from '@jetlinks-web-core/api/system/calendar'
+import { LocalStore } from '@jetlinks-web/utils'
+import { langKey, isSubApp } from '@jetlinks-web-core/utils/consts'
 
 interface LayoutType {
   siderWidth: number
@@ -20,9 +18,13 @@ export const useSystemStore = defineStore('system', () => {
   const ico = ref<string>('/favicon.ico') // 浏览器标签页logo
   const systemInfo = ref<Record<string, any>>({})
   const microApp = ref<Record<string, any>>({})
-  const calendarTagColor = new Map([['holiday','rgb(161, 180, 204)'],['weekend','rgb(149, 222, 100)'],['workday', 'rgba(105,177,255)']])
+  const calendarTagColor = new Map([
+    ['holiday', 'rgb(161, 180, 204)'],
+    ['weekend', 'rgb(149, 222, 100)'],
+    ['workday', 'rgba(105,177,255)']
+  ])
   const showThreshold = ref(true)
-  const language = ref(LocalStore.get(langKey) || 'zh');
+  const language = ref(LocalStore.get(langKey) || 'zh')
 
   const layout = reactive<LayoutType>({
     siderWidth: 208,
@@ -56,7 +58,7 @@ export const useSystemStore = defineStore('system', () => {
    */
   const changeIco = (url: string) => {
     ico.value = url
-    const icoDom: any = document.querySelector('link[rel="icon"]')!;
+    const icoDom: any = document.querySelector('link[rel="icon"]')!
     if (!icoDom) return
     icoDom.href = url
   }
@@ -68,10 +70,10 @@ export const useSystemStore = defineStore('system', () => {
   const setDocumentTitle = () => {
     const _data = systemInfo.value['front']
     if (_data) {
-      const ico: any = document.querySelector('link[rel="icon"]');
+      const ico: any = document.querySelector('link[rel="icon"]')
       if (!ico) return
-      ico.href = _data.ico;
-      document.title = _data.title || '';
+      ico.href = _data.ico
+      document.title = _data.title || ''
     }
   }
 
@@ -116,12 +118,12 @@ export const useSystemStore = defineStore('system', () => {
     }
   }
 
-  const queryTagsColor = async() => {
-    const answer:any = await getTagsColor();
+  const queryTagsColor = async () => {
+    const answer: any = await getTagsColor()
     if (answer.success) {
       Object.keys(answer.result).forEach((i) => {
-        calendarTagColor.set(i, answer.result[i]);
-      });
+        calendarTagColor.set(i, answer.result[i])
+      })
     }
   }
 
@@ -129,13 +131,14 @@ export const useSystemStore = defineStore('system', () => {
     const resp = await systemVersion()
     if (resp.success && resp.result) {
       // const isCommunity = resp.result.edition === 'community'
-      LocalStore.set('version_code', resp.result.edition)
+      LocalStore.set('system_edition', resp.result.edition)
+      LocalStore.set('system_version', resp.result.version)
     }
   }
 
   const getShowThreshold = async () => {
     const resp = await preprocessorExists()
-    if(resp.success){
+    if (resp.success) {
       showThreshold.value = resp.result
     }
   }

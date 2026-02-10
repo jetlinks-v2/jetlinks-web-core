@@ -1,42 +1,44 @@
 import type { RouteRecordRaw } from 'vue-router'
+import { RouteSecurityLevel } from './types'
 
 export const USER_CENTER_ROUTE: RouteRecordRaw = {
-  path: "/account",
-  name: "Account",
-  redirect: "/account/center",
-  component: () => import("@jetlinks-web-core/layout/BasicLayoutPage.vue"),
+  path: '/account',
+  name: 'Account',
+  redirect: '/account/center',
+  component: () => import('@jetlinks-web-core/layout/BasicLayoutPage.vue'),
   meta: {
-    title: "个人中心",
-    hideInMenu: true,
+    title: '个人中心',
+    hideInMenu: true
   },
   children: [
     {
-      path: "/account/center",
-      name: "account/center",
+      path: '/account/center',
+      name: 'account/center',
       meta: {
-        title: "基本设置",
-        icon: "",
-        hideInMenu: false,
+        title: '基本设置',
+        icon: '',
+        hideInMenu: false
       },
-      component: () => import("@jetlinks-web-core/views/account/center/index.vue"),
-    },
+      component: () => import('@jetlinks-web-core/views/account/center/index.vue')
+    }
     // {
     //   path: AccountCenterBindPath,
     //   name: "account/center/bind",
     //   component: () => import("@jetlinks-web-core/views/account/center/bind/index.vue"),
     // },
-  ],
-};
+  ]
+}
 
 export const LOGIN_ROUTE: RouteRecordRaw = {
-  path: "/login",
-  name: "Login",
+  path: '/login',
+  name: 'Login',
   // @ts-ignore
-  component: () => import("@jetlinks-web-core/views/login/index.vue"),
+  component: () => import('@jetlinks-web-core/views/login/index.vue'),
   meta: {
-    title: "登录页",
-  },
-};
+    title: '登录页',
+    security: RouteSecurityLevel.PUBLIC
+  }
+}
 
 export const EDGE_TOKEN_ROUTE: RouteRecordRaw = {
   path: '/edge/token/:id',
@@ -44,14 +46,15 @@ export const EDGE_TOKEN_ROUTE: RouteRecordRaw = {
     title: 'token失效'
   },
   component: () => import('@jetlinks-web-core/views/TokenJump/index.vue')
-};
+}
 
 export const AccountCenterBind: RouteRecordRaw = {
   path: '/account/center/bind',
   meta: {
-    title: '第三方'
+    title: '第三方',
+    security: RouteSecurityLevel.PUBLIC
   },
-  component: () => import("@jetlinks-web-core/views/account/center/bind/index.vue"),
+  component: () => import('@jetlinks-web-core/views/account/center/bind/index.vue')
 }
 
 /** 身份验证结果页（邮箱/手机验证链接跳转后展示） */
@@ -60,15 +63,16 @@ export const IdentityResultRoute: RouteRecordRaw = {
   name: 'identity-result',
   meta: {
     title: '验证结果',
-    hideInMenu: true,
+    hideInMenu: true
   },
-  component: () => import('@jetlinks-web-core/views/account/identity-result/index.vue'),
+  component: () => import('@jetlinks-web-core/views/account/identity-result/index.vue')
 }
 
 export const OAuth2: RouteRecordRaw = {
   path: '/oauth',
   meta: {
-    title: '授权页'
+    title: '授权页',
+    security: RouteSecurityLevel.PUBLIC
   },
   component: () => import('@jetlinks-web-core/views/oauth/index.vue')
 }
@@ -76,15 +80,15 @@ export const OAuth2: RouteRecordRaw = {
 export const INIT_HOME: RouteRecordRaw = {
   path: '/init-home',
   name: 'init-home',
-  component: () => import("@jetlinks-web-core/views/init-home/index.vue"),
+  component: () => import('@jetlinks-web-core/views/init-home/index.vue'),
   meta: {
-    title: "初始化",
-  },
+    title: '初始化'
+  }
 }
 
 export const OAuthWechat: RouteRecordRaw = {
   path: '/oauth/wechat',
-    meta: {
+  meta: {
     title: '微信授权页'
   },
   component: () => import('@jetlinks-web-core/views/oauth/WeChat.vue')
@@ -95,34 +99,35 @@ export const AUTHORIZE_ROUTE: RouteRecordRaw = {
   name: 'Authorize',
   component: () => import('@jetlinks-web-core/views/share/authorize/index.vue'),
   meta: {
-    title: '授权认证'
+    title: '授权认证',
+    security: RouteSecurityLevel.PUBLIC
   }
 }
 
 export const Demo: RouteRecordRaw = {
   path: '/demo',
   name: 'Demo',
-  redirect: "/demo/center",
-  component: () => import("@jetlinks-web-core/layout/BasicLayoutPage.vue"),
-  children: [{
-    path: '/demo/center',
-    name: 'DemoCenter',
-    meta: {
-      title: 'Demo'
-    },
-    component: () => import('@jetlinks-web-core/views/demo/index.vue'),
-
-  }],
+  redirect: '/demo/center',
+  component: () => import('@jetlinks-web-core/layout/BasicLayoutPage.vue'),
+  children: [
+    {
+      path: '/demo/center',
+      name: 'DemoCenter',
+      meta: {
+        title: 'Demo'
+      },
+      component: () => import('@jetlinks-web-core/views/demo/index.vue')
+    }
+  ],
   meta: {
     title: 'Demo'
   }
 }
 
-
 export const Scene: RouteRecordRaw = {
   path: '/scene',
   name: 'Scene',
-  redirect: "/scene/center",
+  redirect: '/scene/center',
   children: [
     {
       path: '/scene/center',
@@ -130,7 +135,7 @@ export const Scene: RouteRecordRaw = {
       meta: {
         title: '场景商城'
       },
-      component: () => import('@jetlinks-web-core/views/scene/index.vue'),
+      component: () => import('@jetlinks-web-core/views/scene/index.vue')
     },
     {
       path: '/scene/center/detail',
@@ -138,7 +143,7 @@ export const Scene: RouteRecordRaw = {
       meta: {
         title: '场景商城详情'
       },
-      component: () => import('@jetlinks-web-core/views/scene/Detail.vue'),
+      component: () => import('@jetlinks-web-core/views/scene/Detail.vue')
     }
   ],
   meta: {
