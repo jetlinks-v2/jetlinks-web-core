@@ -11,7 +11,7 @@
     "test": "playwright test",
     "micro": "node scripts/start-micro.js",
     "build:server": "pnpm build --mode server",
-    "build:modules": "pnpm build -- --module-name",
+    "build:modules": "pnpm build:server --",
     "dev:proxy": "vite -- --backend-url"
   },
   "dependencies": {
