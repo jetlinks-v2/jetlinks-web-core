@@ -60,7 +60,6 @@
             >
               {{ $t("login.right.419974-6") }}
             </Button>
-            没有账号？<Button style="padding: 4px 0" type="link" @click="onRegister">前往注册</Button>
           </form-item>
         </Form>
         <Captcha v-model:open="captchaOpen" :config="config?.tianai" @success="onCaptchaSuccess"  />
@@ -266,7 +265,7 @@ const { loading, run } = useRequest(login, {
   },
   onWarn: () => {
     formData.verifyCode = undefined;
-    if (config.value) {
+    if (config.value.enable && config.value.type === 'image') {
       getCode();
     }
     if (encryption.value?.encrypt?.enabled) {
@@ -311,10 +310,6 @@ const handleClickOther = (item) => {
     }
   };
 };
-
-const onRegister = () => {
-  router.push("/register");
-}
 
 watch(
   () => loading.value,
