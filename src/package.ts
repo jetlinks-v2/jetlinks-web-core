@@ -139,6 +139,18 @@ export const initAxios = () => {
               if (isVerifyRequired) {
                   return handleVerifyAndRetry(err)
               }
+              // 取消验证时不显示错误提示（检查多个可能的错误来源）
+              const errorMessage = err?.message || data?.message || description || ''
+              const errorCode = err?.code || data?.code || ''
+              if (
+                  errorMessage === 'verify_canceled' || 
+                  errorMessage?.includes('verify_canceled') ||
+                  errorCode === 'verify_canceled' ||
+                  errorCode?.includes('verify_canceled') ||
+                  String(description)?.includes('verify_canceled')
+              ) {
+                  return
+              }
               if (!err.config?.hiddenError) {
                   notification.error({
                       style: { zIndex: 1040 },
