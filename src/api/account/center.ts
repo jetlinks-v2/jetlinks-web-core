@@ -70,7 +70,7 @@ export const getSelfIdentities_api = () =>
 
 /** 用户身份：请求验证（如发送验证邮件/短信以绑定新邮箱或手机号） */
 export const requestIdentityValidation_api = (data: { provider: string; identity: string; params?: Record<string, unknown> }) =>
-  request.post<{ requestId: string; token: string; context?: Record<string, unknown> }>(`/user/identity/_validation`, data);
+  request.post<{ requestId: string; token: string; context?: Record<string, unknown>; intervalSeconds?: number }>(`/user/identity/_validation`, data);
 
 /** 用户身份：确认验证（如邮箱/手机验证码确认绑定） */
 export const confirmIdentityValidation_api = (
