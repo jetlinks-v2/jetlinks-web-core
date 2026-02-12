@@ -50,9 +50,9 @@
             placeholder="请输入结束地址"
         />
       </a-form-item>
-      <a-form-item label="寄存器数量(word)" :name="['parameter', 'quantity']"
+      <a-form-item label="寄存器数量(word)" :name="['quantity']"
                    :rules="[{required: true, message: '请输入寄存器数量'}]">
-        <a-input-number v-model:value="formData.parameter.quantity" :controls="false" :max="65535" :min="1"
+        <a-input-number v-model:value="formData.quantity" :controls="false" :max="65535" :min="1"
                         :precision="0"
                         :placeholder="$lang('MODBUS_RTU.point.20250207-7')" style="width: 100%"/>
       </a-form-item>
@@ -66,7 +66,7 @@ import {useLocales} from '@hooks'
 import { commandRequest, queryCodecProvider, queryPointMetadata } from 'request'
 import { handlePointConfigMetadata } from 'local-utils'
 import { EventEmitter, randomString } from '@jetlinks-web/utils'
-import { cloneDeep, set, get } from 'lodash-es'
+import {cloneDeep, set, get, omit} from 'lodash-es'
 
 const {$lang} = useLocales('modbus_tcp')
 
@@ -74,9 +74,7 @@ const collector = inject('point-batch-collector-data', ref({}))
 const dataSource = ref([])
 const formRef = ref()
 const formData = reactive({
-  parameter: {
-    quantity: undefined
-  },
+  quantity: undefined,
   function: undefined,
   startAddress: undefined,
   endAddress: undefined,
@@ -114,7 +112,6 @@ const columns = computed(() => [
       required: true,
       rules: [{
         asyncValidator(rule, value) {
-          console.log(value)
           if (!value) {
             return Promise.reject('请输入名称')
           }
@@ -144,6 +141,14 @@ const columns = computed(() => [
     ellipsis: true,
     form: {
       required: true,
+      rules: [{
+        asyncValidator(rule, value) {
+          if (!value?.length) {
+            return Promise.reject('请选择')
+          }
+          return Promise.resolve()
+        }
+      }]
     },
     width: 200,
   },
@@ -159,6 +164,14 @@ const columns = computed(() => [
     ellipsis: true,
     form: {
       required: true,
+      rules: [{
+        asyncValidator(rule, value) {
+          if (!value) {
+            return Promise.reject('请输入')
+          }
+          return Promise.resolve()
+        }
+      }]
     },
     width: 200,
   },
@@ -196,7 +209,6 @@ const columns = computed(() => [
     template: {
       components: 'a-switch',
       getValue(data) {
-        console.log(data)
         return data.some(key => key === 'changedOnly')
       },
       handleChange: (value, index) => {
@@ -213,8 +225,8 @@ const columns = computed(() => [
   },
   {
     title: '数据类型',
-    dataIndex: 'dataType',
-    key: 'dataType',
+    dataIndex: 'codec',
+    key: 'codec',
     ellipsis: true,
     template: {
       components: 'AccessModes',
@@ -231,8 +243,8 @@ const columns = computed(() => [
   },
   {
     title: '内存布局',
-    dataIndex: 'memoryLayout',
-    key: 'memoryLayout',
+    dataIndex: 'byteLayout',
+    key: 'byteLayout',
     ellipsis: true,
     template: {
       components: 'a-select',
@@ -308,7 +320,6 @@ const handleSames = () => {
       _sames[column.dataIndex] = true
     }
   })
-
   return _sames
 }
 
@@ -344,10 +355,9 @@ const handleRecord = () => {
     circuitBreaker: undefined, // 错误处理方式
     priority: undefined, // 优先级
     features: [],
-    pointKey: undefined,
     accessModes: [], // 可选值： read , write ,subscribe
     managedConfiguration: {}, // 点位管理配置
-    configuration: cloneDeep(requestRecord.value),
+    configuration: {}, // cloneDeep(requestRecord.value),
     sames: { ...sames }
   }
   if (dataSource.value.length >= 1) {
@@ -356,7 +366,7 @@ const handleRecord = () => {
 
     Object.keys(sames).forEach(key => {
       const column = columns.value.find(item => item.dataIndex === key)
-      const formName = column.form?.name || key
+      const formName = column?.form?.name || key
       set(record, formName, get(lastRecord, formName))
     })
 
@@ -377,7 +387,13 @@ const onSaveData = () => {
     for (let i = formData.startAddress; i <= formData.endAddress; i++) {
       arr.push({
         ...handleRecord(),
-        pointKey: i
+        configuration: {
+          function: formData.function,
+          "parameter": {
+            address: i,
+            quantity: formData.quantity
+          }
+        }
       })
     }
     dataSource.value.push(...arr)
@@ -428,7 +444,20 @@ getConfigMetadata()
 defineExpose({
   onSave: async () => {
     const result = await tableRef.value.onSave?.()
-    return result || false
+    if(result){
+      return result.map(i => {
+        return {
+          ...i,
+          managedConfiguration: {
+            ...i.managedConfiguration,
+            byteLayout: i.byteLayout,
+            codec: i.codec,
+          }
+
+        }
+      })
+    }
+    return false
   }
 })
 </script>

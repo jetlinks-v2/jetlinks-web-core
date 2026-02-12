@@ -34,6 +34,7 @@ import DesignerPreview from './DesignerPreview/index.vue'
 import IconLibrary from './IconLibrary/index.vue'
 import ChatTextArea from './ChatTextArea/index.vue'
 import Captcha from './Captcha'
+import RegistryComponent from './RegisterComponents'
 
 export default {
     install(app: App) {
@@ -75,6 +76,8 @@ export default {
           .component('IconLibrary', IconLibrary)
           .component('ChatTextArea', ChatTextArea)
           .component('Captcha', Captcha)
+          .component('RegistryComponent', RegistryComponent)
+
         Object.keys(FormItemValue).forEach(key => {
             app.component(key, FormItemValue[key])
         })
