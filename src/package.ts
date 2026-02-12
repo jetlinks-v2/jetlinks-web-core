@@ -137,7 +137,7 @@ export const initAxios = () => {
                   resp?.status === 403 &&
                   (data?.code === 'verify.required' || data?.message === 'error.verify.requred')
               if (isVerifyRequired) {
-                  return
+                  return handleVerifyAndRetry(err)
               }
               if (!err.config?.hiddenError) {
                   notification.error({
@@ -147,32 +147,8 @@ export const initAxios = () => {
                       description
                   })
               }
-          }
-      }
-
-      if (isSubApp) { // 获取基座传过来的
-          const parentData = (window as any).microApp.getGlobalData()
-          console.log('isSubApp', parentData)
-          if (parentData.axiosSettings) {
-              settings = {
-                  ...settings,
-                  ...parentData.axiosSettings
-              }
-          }
-      }
-
-      if (Object.keys(config?.axiosSettings || {}).length) {
-          settings = {
-              ...settings,
-              ...config.axiosSettings
-          }
-      }
-    crateAxios(settings)
-
-    const axiosInstance = request?.interceptors ? request : (request as any)?.default
-    if (axiosInstance) requestInstanceForRetry = axiosInstance
-    if (axiosInstance?.interceptors?.request?.use) {
-        axiosInstance.interceptors.request.use((config: any) => {
+          },
+        requestOptions(config: any) {
             let cache = verifyHeadersCache
             if (!cache) {
                 try {
@@ -188,17 +164,32 @@ export const initAxios = () => {
                 config.headers['x-verify-token'] = cache.token
             }
             return config
-        })
-    }
-    wrapRequestWithVerifyRetry(request)
+        }
+      }
+
+      if (isSubApp) { // 获取基座传过来的
+          const parentData = (window as any).microApp.getGlobalData()
+
+          if (parentData.axiosSettings) {
+              settings = {
+                  ...settings,
+                  ...parentData.axiosSettings
+              }
+          }
+      }
+
+      if (Object.keys(config?.axiosSettings || {}).length) {
+          settings = {
+              ...settings,
+              ...config.axiosSettings
+          }
+      }
+    crateAxios(settings)
 }
 
-function is403VerifyRequired(err: any): VerifyRequiredResult | undefined {
+function is403VerifyRequired(err: any): VerifyRequiredResult {
     const resp = err?.response
     const data = resp?.data
-    if (resp?.status !== 403) return undefined
-    if (data?.code !== 'verify.required' && data?.message !== 'error.verify.requred') return undefined
-    if (!data?.result?.type || data?.result?.key == null) return undefined
     return {
         type: data.result.type,
         key: data.result.key,
@@ -208,7 +199,6 @@ function is403VerifyRequired(err: any): VerifyRequiredResult | undefined {
 
 function handleVerifyAndRetry(err: any): Promise<any> {
     const verifyResult = is403VerifyRequired(err)
-    if (!verifyResult) return Promise.reject(err)
     const failedConfig = err?.config ?? err?.response?.config
     const doRetry = (ax: any, retryConfig: any): Promise<any> => {
         if (typeof ax === 'function') return Promise.resolve(ax(retryConfig))
@@ -238,22 +228,6 @@ function handleVerifyAndRetry(err: any): Promise<any> {
         const headers = { ...(failedConfig.headers || {}), 'x-verify-key': payload.key, 'x-verify-token': payload.token }
         const retryConfig = { ...failedConfig, headers }
         return tryRetry(retryConfig)
-    })
-}
-
-function wrapRequestWithVerifyRetry(req: any) {
-    if (!req || typeof req !== 'object') return
-    const methods = ['get', 'post', 'put', 'patch', 'delete', 'request']
-    const maybeRemove = typeof req.remove === 'function' ? ['remove'] : []
-    ;[...methods, ...maybeRemove].forEach((method) => {
-        const original = req[method]
-        if (typeof original !== 'function') return
-        req[method] = function (...args: any[]) {
-            return original.apply(this, args).catch((err: any) => {
-                if (is403VerifyRequired(err)) return handleVerifyAndRetry(err)
-                return Promise.reject(err)
-            })
-        }
     })
 }
 

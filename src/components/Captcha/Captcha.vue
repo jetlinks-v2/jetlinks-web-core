@@ -1,6 +1,7 @@
 <script setup name="Captcha">
 import { Modal, Spin } from "ant-design-vue"
 import { useCaptcha } from './useCaptha'
+import { onlyMessage } from '@jetlinks-web/utils'
 
 const props = defineProps({
   config: {
@@ -10,6 +11,10 @@ const props = defineProps({
   open: {
     type: Boolean,
     default: false,
+  },
+  showDialog: {
+    type: Boolean,
+    default: true,
   }
 })
 
@@ -35,6 +40,8 @@ const handleSuccess = (v) => {
 }
 
 const handleFail = (f) => {
+  refresh()
+  onlyMessage('验证失败，请重试', 'warning')
   emit('fail', f)
 }
 
@@ -57,10 +64,11 @@ watch(() => props.open, () => {
     v-model:open="_open"
     :footer="null"
     :width="648"
+    v-if="showDialog"
     @cancel="onCancel"
   >
     <Spin :spinning="loading" size="large">
-      <div style="height: 416px">
+      <div style="height: 280px">
         <component
           v-if="captchaData && captchaData.type"
           :is="components[captchaData.type]"
@@ -74,6 +82,22 @@ watch(() => props.open, () => {
       </div>
     </Spin>
   </Modal>
+  <template v-else>
+    <Spin :spinning="loading" size="large">
+      <div style="height: 280px">
+        <component
+          v-if="captchaData && captchaData.type"
+          :is="components[captchaData.type]"
+          :validate="validate"
+          :captchaData="captchaData"
+          :type="captchaData.type"
+          @success="handleSuccess"
+          @fail="handleFail"
+          @error="handleError"
+        />
+      </div>
+    </Spin>
+  </template>
 </template>
 
 <style scoped lang="less">
