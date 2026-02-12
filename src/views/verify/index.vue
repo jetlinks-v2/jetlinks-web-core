@@ -3,7 +3,7 @@
     v-model:open="visible"
     :title="title"
     :maskClosable="false"
-    :width="type === 'identity' ? 420 : 400"
+    :width="type === 'identity' ? 420 : 448"
     @cancel="onCancel"
     @ok="onSubmit"
     :okButtonProps="{ loading: submitting, disabled: type === 'identity' && identityListRaw.length === 0 }"
@@ -11,8 +11,9 @@
     :cancelText="t('verify.cancel')"
   >
     <!-- 验证码 -->
-    <template v-if="type === 'captcha'">
-      <Form ref="formRef" layout="vertical" :model="captchaForm" :rules="captchaRules">
+    <template v-if="type === 'captcha' && captchaConfig">
+
+      <Form v-if="captchaConfig.type === 'image'" ref="formRef" layout="vertical" :model="captchaForm" :rules="captchaRules">
         <FormItem :label="t('verify.captchaLabel')" name="verifyCode">
           <Input
             v-model:value="captchaForm.verifyCode"
@@ -33,6 +34,7 @@
           </Input>
         </FormItem>
       </Form>
+      <Captcha v-else :showDialog="false" :open="visible" :config="captchaConfig.tianai"  />
     </template>
 
     <!-- 身份校验 -->
@@ -119,6 +121,7 @@ import {
 import { getIdentityProviders_api } from '@jetlinks-web-core/api/account/center'
 import type { VerifyRequiredResult } from '@jetlinks-web-core/api/verify'
 import i18n from '@jetlinks-web-core/locales'
+import Captcha from '@jetlinks-web-core/components/Captcha'
 
 const { t } = i18n.global
 const router = useRouter()
@@ -164,7 +167,7 @@ const captchaForm = reactive({
   imageKey: ''
 })
 const captchaImage = ref('')
-const captchaConfig = ref<{ type?: string } | null>(null)
+const captchaConfig = ref<{ type?: string, tianai?: Record<string, string> } | null>(null)
 
 const identityForm = reactive({
   identityId: '',
@@ -207,7 +210,9 @@ async function loadCaptchaConfig() {
     const res = await getVerifyCaptchaConfig()
     const data = res?.result ?? res
     captchaConfig.value = data ?? null
-    await loadCaptchaImage()
+    if (data.type === 'image') {
+      await loadCaptchaImage()
+    }
   } catch {
     captchaConfig.value = null
   }
