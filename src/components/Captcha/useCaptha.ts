@@ -3,6 +3,7 @@ import { CaptchaConfig, CaptchaData, Track, TrackData, ValidationResponse } from
 import { request } from '@jetlinks-web/core'
 import dayjs from 'dayjs'
 import CryptoJS from "crypto-js";
+import { onlyMessage } from '@jetlinks-web/utils'
 
 export interface UseCaptchaReturn {
   captchaData: Ref<CaptchaData | null>

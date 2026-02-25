@@ -47,7 +47,7 @@ export const confirmCaptcha = (data: VerifyCaptchaRequest) =>
 
 /** 身份校验：请求验证（发送短信/邮件等） */
 export const requestIdentityVerify = (identityId: string, data: { provider: string; identity: string; params?: Record<string, unknown> }) =>
-  request.post<{ result: { requestId: string; token: string; context?: Record<string, unknown> } }>(
+  request.post<{ result: { requestId: string; token: string; context?: Record<string, unknown>; intervalSeconds?: number } }>(
     `/verify/identity/${identityId}/_request`,
     data
   )

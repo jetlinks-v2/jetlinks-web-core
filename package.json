@@ -15,6 +15,7 @@
     "dev:proxy": "vite -- --backend-url"
   },
   "dependencies": {
+    "crypto-js": "^4.2.0",
     "monaco-editor": "^0.52.2",
     "xgplayer": "^3.0.21",
     "xgplayer-flv": "^3.0.21",

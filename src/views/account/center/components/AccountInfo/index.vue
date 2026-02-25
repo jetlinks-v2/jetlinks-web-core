@@ -133,7 +133,7 @@
       </section>
 
       <!-- 邮箱 -->
-      <section class="account-info-section" v-if="identitySupported && hasEmailProvider">
+      <section id="email-section" class="account-info-section" v-if="identitySupported && hasEmailProvider">
         <h3 class="section-title">{{ $t('AccountInfo.emailSection') }}</h3>
         <p class="section-desc">{{ $t('AccountInfo.emailSectionDesc') }}</p>
         <div class="section-content">
@@ -178,7 +178,12 @@
                 <a-button type="primary" :loading="emailConfirming" @click="confirmEmailBind">
                   {{ $t('AccountInfo.confirmBind') }}
                 </a-button>
-                <a-button @click="resendEmailCode">{{ $t('AccountInfo.resendCode') }}</a-button>
+                <a-button 
+                  :disabled="emailCountdown > 0" 
+                  @click="resendEmailCode"
+                >
+                  {{ emailCountdown > 0 ? `${emailCountdown}秒后重新发送` : $t('AccountInfo.resendCode') }}
+                </a-button>
               </div>
               <div class="code-sent-hint">{{ $t('AccountInfo.codeSentTo', { email: emailConfirmState.identity }) }}</div>
             </template>
@@ -187,7 +192,7 @@
       </section>
 
       <!-- 手机号 -->
-      <section class="account-info-section" v-if="identitySupported && hasMobileProvider">
+      <section id="phone-section" class="account-info-section" v-if="identitySupported && hasMobileProvider">
         <h3 class="section-title">{{ $t('AccountInfo.phoneSection') }}</h3>
         <p class="section-desc">{{ $t('AccountInfo.phoneSectionDesc') }}</p>
         <div class="section-content">
@@ -232,7 +237,12 @@
                 <a-button type="primary" :loading="phoneConfirming" @click="confirmPhoneBind">
                   {{ $t('AccountInfo.confirmBind') }}
                 </a-button>
-                <a-button @click="resendPhoneCode">{{ $t('AccountInfo.resendCode') }}</a-button>
+                <a-button 
+                  :disabled="phoneCountdown > 0" 
+                  @click="resendPhoneCode"
+                >
+                  {{ phoneCountdown > 0 ? `${phoneCountdown}秒后重新发送` : $t('AccountInfo.resendCode') }}
+                </a-button>
               </div>
               <div class="code-sent-hint">{{ $t('AccountInfo.codeSentToPhone', { phone: phoneConfirmState.identity }) }}</div>
             </template>
@@ -252,6 +262,7 @@
 </template>
 
 <script setup lang="ts">
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@jetlinks-web-core/store'
 import {
   getSelfIdentities_api,
@@ -278,6 +289,8 @@ interface IdentityItem {
 }
 
 const { t: $t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const user = useUserStore()
 const userInfo = computed(() => user.userInfo)
 const emit = defineEmits(['open-edit-password'])
@@ -302,6 +315,8 @@ const emailConfirmState = ref<{
 } | null>(null)
 const emailCode = ref('')
 const emailConfirming = ref(false)
+const emailCountdown = ref(0)
+let emailCountdownTimer: ReturnType<typeof setInterval> | null = null
 /** 手机号验证码确认：发起验证后保存 requestId/token/context，用于确认接口 */
 const phoneConfirmState = ref<{
   requestId: string
@@ -311,6 +326,8 @@ const phoneConfirmState = ref<{
 } | null>(null)
 const phoneCode = ref('')
 const phoneConfirming = ref(false)
+const phoneCountdown = ref(0)
+let phoneCountdownTimer: ReturnType<typeof setInterval> | null = null
 // 是否存在支持的第三方账号（用于控制「第三方账号」整个区块是否展示）
 const hasThirdAccount = ref(false)
 
@@ -464,6 +481,10 @@ async function requestEmailValidation() {
     onlyMessage($t('EditInfo.index.557023-15'), 'warning')
     return
   }
+  // 如果倒计时中，不允许重新发送
+  if (emailCountdown.value > 0) {
+    return
+  }
   emailValidating.value = true
   try {
     const resp: any = await requestIdentityValidation_api({
@@ -482,10 +503,31 @@ async function requestEmailValidation() {
       }
       emailCode.value = ''
       newEmail.value = ''
+      // 启动倒计时
+      const intervalSeconds = result?.intervalSeconds ?? 60
+      startEmailCountdown(intervalSeconds)
     }
   } finally {
     emailValidating.value = false
   }
+}
+
+function startEmailCountdown(seconds: number) {
+  // 清除之前的定时器
+  if (emailCountdownTimer) {
+    clearInterval(emailCountdownTimer)
+    emailCountdownTimer = null
+  }
+  emailCountdown.value = seconds
+  emailCountdownTimer = setInterval(() => {
+    emailCountdown.value--
+    if (emailCountdown.value <= 0) {
+      if (emailCountdownTimer) {
+        clearInterval(emailCountdownTimer)
+        emailCountdownTimer = null
+      }
+    }
+  }, 1000)
 }
 
 async function confirmEmailBind() {
@@ -506,6 +548,15 @@ async function confirmEmailBind() {
     emailConfirmState.value = null
     emailCode.value = ''
     await loadIdentities()
+    
+    // 如果是在新窗口中打开的，通知原窗口刷新
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage({ type: 'identity_bind_completed' }, window.location.origin)
+      } catch (e) {
+        console.error('通知原窗口失败:', e)
+      }
+    }
   } catch (err: any) {
     const code = err?.response?.data?.code ?? err?.code ?? ''
     const msg = err?.response?.data?.message ?? err?.message ?? ''
@@ -524,6 +575,10 @@ async function confirmEmailBind() {
 }
 
 function resendEmailCode() {
+  // 如果倒计时中，不允许重新发送
+  if (emailCountdown.value > 0) {
+    return
+  }
   const email = emailConfirmState.value?.identity
   emailConfirmState.value = null
   emailCode.value = ''
@@ -555,6 +610,10 @@ async function requestPhoneValidation() {
     onlyMessage($t('EditInfo.index.557023-12'), 'warning')
     return
   }
+  // 如果倒计时中，不允许重新发送
+  if (phoneCountdown.value > 0) {
+    return
+  }
   phoneValidating.value = true
   try {
     const resp: any = await requestIdentityValidation_api({
@@ -573,10 +632,31 @@ async function requestPhoneValidation() {
       }
       phoneCode.value = ''
       newPhone.value = ''
+      // 启动倒计时
+      const intervalSeconds = result?.intervalSeconds ?? 60
+      startPhoneCountdown(intervalSeconds)
     }
   } finally {
     phoneValidating.value = false
   }
+}
+
+function startPhoneCountdown(seconds: number) {
+  // 清除之前的定时器
+  if (phoneCountdownTimer) {
+    clearInterval(phoneCountdownTimer)
+    phoneCountdownTimer = null
+  }
+  phoneCountdown.value = seconds
+  phoneCountdownTimer = setInterval(() => {
+    phoneCountdown.value--
+    if (phoneCountdown.value <= 0) {
+      if (phoneCountdownTimer) {
+        clearInterval(phoneCountdownTimer)
+        phoneCountdownTimer = null
+      }
+    }
+  }, 1000)
 }
 
 async function confirmPhoneBind() {
@@ -597,6 +677,15 @@ async function confirmPhoneBind() {
     phoneConfirmState.value = null
     phoneCode.value = ''
     await loadIdentities()
+    
+    // 如果是在新窗口中打开的，通知原窗口刷新
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage({ type: 'identity_bind_completed' }, window.location.origin)
+      } catch (e) {
+        console.error('通知原窗口失败:', e)
+      }
+    }
   } catch (err: any) {
     const code = err?.response?.data?.code ?? err?.code ?? ''
     const msg = err?.response?.data?.message ?? err?.message ?? ''
@@ -615,6 +704,10 @@ async function confirmPhoneBind() {
 }
 
 function resendPhoneCode() {
+  // 如果倒计时中，不允许重新发送
+  if (phoneCountdown.value > 0) {
+    return
+  }
   const phone = phoneConfirmState.value?.identity
   phoneConfirmState.value = null
   phoneCode.value = ''
@@ -622,14 +715,58 @@ function resendPhoneCode() {
   requestPhoneValidation()
 }
 
-onMounted(() => {
-  checkIdentitySupport().then(() => {
-    if (identitySupported.value) {
-      loadProviders()
-      loadIdentities()
+// 处理锚点滚动（从 query 参数中获取）
+const scrollToAnchor = () => {
+  // 优先从 query 参数获取锚点（用于从验证页面跳转过来）
+  const anchorFromQuery = route.query?.anchor as string
+  
+  if (anchorFromQuery) {
+    setTimeout(() => {
+      const element = document.getElementById(anchorFromQuery)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        // 滚动完成后清除 query 参数，避免刷新时重复滚动
+        const newQuery = { ...route.query }
+        delete newQuery.anchor
+        router.replace({ 
+          path: route.path, 
+          query: newQuery
+        })
+      }
+    }, 300)
+  }
+}
+
+onMounted(async () => {
+  await checkIdentitySupport()
+  if (identitySupported.value) {
+    loadProviders()
+    await loadIdentities()
+  }
+  checkThirdAccount()
+  
+  // 等待DOM渲染完成后再滚动
+  await nextTick()
+  scrollToAnchor()
+  
+  // 监听路由 query 变化（用于锚点滚动）
+  watch(() => route.query?.anchor, (newAnchor) => {
+    if (newAnchor) {
+      scrollToAnchor()
     }
   })
-  checkThirdAccount()
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (emailCountdownTimer) {
+    clearInterval(emailCountdownTimer)
+    emailCountdownTimer = null
+  }
+  if (phoneCountdownTimer) {
+    clearInterval(phoneCountdownTimer)
+    phoneCountdownTimer = null
+  }
 })
 </script>
 
