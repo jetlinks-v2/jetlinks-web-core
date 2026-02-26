@@ -6,7 +6,22 @@
           :fieldPathMap="fieldPathMap"
           v-model:dataSource="dataSource"
           ref="tableRef"
-      />
+      >
+        <template #headerCell="{ title, column }">
+          <template v-if="column.dataIndex === 'interval'">
+            采集频率
+            <a-tooltip title="仅在访问类型选择读时生效">
+              <AIcon type="QuestionCircleOutlined" style="margin-left: 2px"/>
+            </a-tooltip>
+          </template>
+          <template v-if="column.dataIndex === 'writeByteConfig'">
+            非标准协议写入配置
+            <a-tooltip title="仅在功能码为03且访问类型选择写时生效">
+              <AIcon type="QuestionCircleOutlined" style="margin-left: 2px"/>
+            </a-tooltip>
+          </template>
+        </template>
+      </PointEditTable>
     </div>
     <div style="display: flex; gap: 16px">
       <a-button type="link" @click="addOne">新增一条</a-button>
@@ -63,9 +78,9 @@
 import {inject, reactive, ref, computed} from "vue";
 import {PointEditTable} from '@components'
 import {useLocales} from '@hooks'
-import { commandRequest, queryCodecProvider, queryPointMetadata } from 'request'
-import { handlePointConfigMetadata } from 'local-utils'
-import { EventEmitter, randomString } from '@jetlinks-web/utils'
+import {commandRequest, queryCodecProvider, queryPointMetadata} from 'request'
+import {handlePointConfigMetadata} from 'local-utils'
+import {EventEmitter, randomString} from '@jetlinks-web/utils'
 import {cloneDeep, set, get, omit} from 'lodash-es'
 
 const {$lang} = useLocales('modbus_tcp')
@@ -249,7 +264,7 @@ const columns = computed(() => [
     template: {
       components: 'a-select',
       props: {
-        style: { width: '100%' },
+        style: {width: '100%'},
         options: [
           {
             "label": "AB",
@@ -358,7 +373,7 @@ const handleRecord = () => {
     accessModes: [], // 可选值： read , write ,subscribe
     managedConfiguration: {}, // 点位管理配置
     configuration: {}, // cloneDeep(requestRecord.value),
-    sames: { ...sames }
+    sames: {...sames}
   }
   if (dataSource.value.length >= 1) {
     //  默认同上
@@ -411,7 +426,11 @@ const addOne = () => {
 const getConfigMetadata = async () => {
   const resp = await commandRequest.pointConfigMetadata('modbus_tcp')
   if (resp.success) {
-    const { values, columns: _columns, fieldPathMap:_fieldPathMap } = handlePointConfigMetadata(resp.result, 'configuration')
+    const {
+      values,
+      columns: _columns,
+      fieldPathMap: _fieldPathMap
+    } = handlePointConfigMetadata(resp.result, 'configuration')
     requestColumns.value = _columns.map(item => {
       if (item.dataIndex === 'address') {
         item.template.check = false
@@ -423,6 +442,7 @@ const getConfigMetadata = async () => {
           handleAccessModes(record)
         }
       }
+      item.ellipsis = true
       return item
     })
     requestRecord.value = values
@@ -444,7 +464,7 @@ getConfigMetadata()
 defineExpose({
   onSave: async () => {
     const result = await tableRef.value.onSave?.()
-    if(result){
+    if (result) {
       return result.map(i => {
         return {
           ...i,

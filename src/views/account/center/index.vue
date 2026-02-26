@@ -1,53 +1,107 @@
 <template>
   <div class="person">
-    <div class="person-inner">
-      <div class="person-sider">
-        <a-menu
-          mode="inline"
-          :selectedKeys="[user.tabKey]"
-          @click="onMenuClick"
-        >
-          <a-menu-item
-            v-for="item in _tabList"
-            :key="item.key"
-          >
-            {{ item.title }}
-          </a-menu-item>
-        </a-menu>
-      </div>
-      <div class="person-main">
-        <div class="person-main-content">
-          <component
-            :is="tabs[user.tabKey]"
-            @open-edit-password="editPasswordVisible = true"
-          />
+    <div class="person-header">
+      <div class="person-header-item">
+        <div class="person-header-item-info">
+          <div class="person-header-item-info-left">
+            <UploadAvatar
+              :accept="
+                imageTypes && imageTypes.length ? imageTypes.toString() : ''
+              "
+              :modelValue="user.userInfo?.avatar"
+              @change="onAvatarChange"
+            />
+          </div>
+          <div class="person-header-item-info-right">
+            <div class="person-header-item-info-right-top">
+              <j-ellipsis> Hi, {{ user.userInfo?.name }} </j-ellipsis>
+            </div>
+            <div class="person-header-item-info-right-info">
+              <RoleShow :value="user.userInfo?.roleList || []" />
+              <RoleShow :value="user.userInfo?.orgList || []" />
+              <RoleShow :value="user.userInfo?.positions || []" />
+            </div>
+          </div>
+        </div>
+        <div class="person-header-item-action">
+          <a-space :size="24">
+            <a-button class="btn" @click="visible = true">{{ $t('center.index.661180-0') }} </a-button>
+            <a-button @click="editInfoVisible = true">{{ $t('center.index.661180-1') }} </a-button>
+            <a-button v-if="hasPerm" @click="editPasswordVisible = true">
+              {{ $t('center.index.661180-2') }}
+            </a-button>
+          </a-space>
         </div>
       </div>
     </div>
+      <div class="person-content">
+          <div class="person-content-item">
+              <div class="person-content-item-content">
+                  <a-tabs v-model:activeKey="user.tabKey" type="card">
+                      <a-tab-pane
+                              v-for="item in _tabList"
+                              :key="item.key"
+                              :tab="item.title"
+                      />
+                  </a-tabs>
+                  <div style="flex: 1; min-height: 0; overflow-y: auto">
+                      <component :is="tabs[user.tabKey]" />
+                  </div>
+              </div>
+          </div>
+      </div>
   </div>
-  <EditPassword
-    v-if="editPasswordVisible"
-    @close="editPasswordVisible = false"
-  />
+    <Detail v-if="visible" @close="visible = false" />
+    <EditInfo
+            v-if="editInfoVisible"
+            :data="user.userInfo"
+            @close="editInfoVisible = false"
+            @save="onSave"
+    />
+    <EditPassword
+            v-if="editPasswordVisible"
+            @close="editPasswordVisible = false"
+    />
 </template>
 
 <script setup lang="ts" name="Center">
 import HomeView from './components/HomeView/index.vue'
-import AccountInfo from './components/AccountInfo/index.vue'
+import BindThirdAccount from './components/BindThirdAccount/index.vue'
 import Subscribe from './components/Subscribe/index.vue'
 import StationMessage from './components/StationMessage/index.vue'
+import Detail from './components/Detail/index.vue'
+import EditInfo from './components/EditInfo/index.vue'
 import EditPassword from './components/EditPassword/index.vue'
 import PersonalToken from './components/PersonalToken/index.vue'
-import { useUserStore } from '@jetlinks-web-core/store'
+import { useUserStore, useAuthStore } from '@jetlinks-web-core/store'
+import UploadAvatar from './components/UploadAvatar/index.vue'
+import { updateMeInfo_api } from '@jetlinks-web-core/api/account/center'
+import { onlyMessage } from '@jetlinks-web/utils'
 import { useRouterParams } from '@jetlinks-web/hooks'
+import {
+  USER_CENTER_MENU_BUTTON_CODE,
+  USER_CENTER_MENU_CODE,
+} from '@jetlinks-web-core/utils/consts'
+import RoleShow from './components/RoleShow/index.vue'
 import { tabList } from '@jetlinks-web-core/views/account/center/data'
-import { isNoCommunity } from '@jetlinks-web-core/utils'
+import {isNoCommunity} from "@jetlinks-web-core/utils";
+import { useI18n } from 'vue-i18n'
+
+const imageTypes = reactive([
+  'image/jpeg',
+  'image/png',
+  'image/jpg',
+  'image/jfif',
+  'image/pjp',
+  'image/pjpeg',
+])
 
 const user = useUserStore()
+const { t: $t } = useI18n()
 
 const tabs = {
   HomeView,
-  BindThirdAccount: AccountInfo,
+  BindThirdAccount,
   Subscribe,
   StationMessage,
   PersonalToken
@@ -55,13 +109,13 @@ const tabs = {
 
 const router = useRouterParams()
 
+const visible = ref<boolean>(false)
+const editInfoVisible = ref<boolean>(false)
 const editPasswordVisible = ref<boolean>(false)
 
-const onMenuClick = (info: any) => {
-  if (info?.key) {
-    user.tabKey = info.key
-  }
-}
+const hasPerm = useAuthStore().hasPermission(
+  `${USER_CENTER_MENU_CODE}:${USER_CENTER_MENU_BUTTON_CODE}`,
+)
 
 const _tabList = computed(() => {
   return tabList.filter(i => (i.key !== 'BindThirdAccount' || isNoCommunity) && (!user.isApplicationUser || i.key !== 'HomeView'))
@@ -69,7 +123,28 @@ const _tabList = computed(() => {
 
 const getTabKey = () => {
   if (router.params.value?.tabKey) return
-  user.tabKey = _tabList.value[0]?.key ?? (user.isApplicationUser ? (!isNoCommunity ? 'Subscribe' : 'BindThirdAccount') : 'HomeView')
+  user.tabKey = !user.isApplicationUser ? 'HomeView' : (!isNoCommunity ? 'Subscribe' : 'BindThirdAccount')
+}
+
+const onSave = () => {
+  user.getUserInfo()
+  editInfoVisible.value = false
+}
+
+// const onPasswordSave = () => {
+//     editPasswordVisible.value = false;
+// };
+
+const onAvatarChange = (url: string) => {
+  updateMeInfo_api({
+    ...user.userInfo,
+    avatar: url,
+  }).then((resp) => {
+    if (resp.status === 200) {
+      onlyMessage($t('center.index.661180-3'), 'success')
+      user.getUserInfo()
+    }
+  })
 }
 
 watchEffect(() => {
@@ -90,37 +165,85 @@ onUnmounted(() => {
 </script>
 
 <style lang="less" scoped>
+@padding: 14%;
 .person {
-  width: 100%;
-  padding: 24px 16px;
-  box-sizing: border-box;
+  .person-header {
+    width: 100%;
+    min-height: 156px;
+    padding: 0 @padding;
+    background-color: #fff;
 
-  .person-inner {
-    max-width: 1120px;
-    margin: 0 auto;
+    .person-header-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 100%;
+      gap: 12px;
+
+      .person-header-item-info {
+        display: flex;
+        width: calc(100% - 380px);
+        padding: 16px 0;
+
+        .person-header-item-info-left {
+          margin-right: 30px;
+        }
+
+        .person-header-item-info-right {
+          display: flex;
+          flex-direction: column;
+          width: calc(100% - 126px);
+
+          .person-header-item-info-right-top {
+            display: flex;
+            font-size: 26px;
+            color: #1d2129;
+            font-weight: 500;
+            width: 100%;
+            margin-top: 10px;
+          }
+
+          .person-header-item-info-right-info {
+            width: 100%;
+          }
+        }
+      }
+
+      .person-header-item-action {
+        button {
+          background-color: #ebeef4;
+          color: #333333;
+          border: none;
+        }
+
+        .btn {
+          background-color: @primary-color;
+          color: #fff;
+        }
+      }
+    }
+  }
+
+  .person-content-item {
+    padding: 10px 20px;
+    background-color: #fff;
+    // overflow: hidden;
+    height: 100%;
+  }
+
+  .person-content {
+    width: 100%;
+    padding: 0 @padding;
+    margin-top: 15px;
+    height: calc(100vh - 251px);
+  }
+
+  .person-content-item-content {
+    height: 100%;
+    width: 100%;
+    padding: 10px 0;
     display: flex;
-    align-items: flex-start;
-    gap: 16px;
-  }
-
-  .person-sider {
-    width: 220px;
-    background-color: #fff;
-    border-radius: 8px;
-    padding: 8px 0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-  }
-
-  .person-main {
-    flex: 1;
-    max-width: 860px;
-  }
-
-  .person-main-content {
-    background-color: #fff;
-    border-radius: 8px;
-    padding: 16px 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    flex-direction: column;
   }
 }
 </style>
