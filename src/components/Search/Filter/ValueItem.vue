@@ -2,14 +2,21 @@
 import { Input, InputNumber } from 'ant-design-vue'
 import Tree from './ValueComponents/Tree.vue'
 import DatePicker from './ValueComponents/DatePicker.vue'
+import RangePicker from './ValueComponents/RangePicker.vue'
 import { useColumnItemOptions, useColumnsMap } from './hooks/useSearchEngine'
+import { isArrayTermType } from './setting'
+import { normalizeOptionTree } from './utils'
 
 const props = defineProps({
   value: {
-    type: [String, Number],
+    type: [String, Number, Array],
     default: undefined,
   },
   column: {
+    type: String,
+    default: undefined,
+  },
+  termType: {
     type: String,
     default: undefined,
   },
@@ -36,10 +43,20 @@ const options = computed(() => {
   if (!props.column) {
     return []
   }
-  const column = columnsMap[props.column]
   const data = optionsContent[props.column] || []
+  return normalizeOptionTree(data)
+})
 
-  return ['tree', 'treeSelect'].includes(column.search?.type) ? data : data.map(item => ({ ...item,name: item.label, value: item.value, id: item.id || item.value}))
+const isRangeMode = computed(() => {
+  return type.value === 'date' && isArrayTermType(props.termType)
+})
+
+const isMultipleMode = computed(() => {
+  return isArrayTermType(props.termType)
+})
+
+const showBtn = computed(() => {
+  return !['date'].includes(type.value)
 })
 
 const onSubmit = () => {
@@ -56,10 +73,13 @@ const onNumberChange = (e) => {
 
 const onValueChange = (e) => {
   myValue.value = e
+  if (!showBtn.value) {
+    onSubmit()
+  }
 }
 
-watch(() => props.value, () => {
-  myValue.value = props.value
+watch(() => props.value, (val) => {
+  myValue.value = Array.isArray(val) ? [...val] : val
 }, { immediate: true })
 </script>
 
@@ -77,7 +97,14 @@ watch(() => props.value, () => {
       v-else-if="type === 'tree' || type === 'select' || type === 'treeSelect'"
       v-bind="columnItem.search.componentProps"
       :options="options"
+      :multiple="isMultipleMode"
       v-model:value="myValue"
+      @change="onValueChange"
+    />
+    <RangePicker
+      v-else-if="isRangeMode"
+      v-model:value="myValue"
+      v-bind="columnItem.search.componentProps"
       @change="onValueChange"
     />
     <DatePicker
@@ -94,8 +121,8 @@ watch(() => props.value, () => {
       @change="onValueChange"
     />
     <a-input v-else v-model:value="myValue" style="width:100%" @change="onInputChange" />
-    <div>
-      <a-button @click="onSubmit">
+    <div v-if="showBtn" style="text-align: right;padding-right: 10px;">
+      <a-button size="small" type="primary" @click="onSubmit">
         确定
       </a-button>
     </div>

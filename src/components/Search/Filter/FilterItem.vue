@@ -3,6 +3,7 @@ import Column from './Column.vue';
 import TermType from './TermType.vue';
 import Value from './Value.vue';
 import { useEngines } from './hooks/useSearchEngine'
+import { isArrayTermType } from './setting'
 
 const props = defineProps({
   column: {
@@ -18,7 +19,7 @@ const props = defineProps({
     default: undefined,
   },
   value: {
-    type: String,
+    type: [String, Number, Array],
     default: undefined,
   },
   index: {
@@ -32,6 +33,32 @@ const typeOptions = [
   { label: '或者', value: 'or'}
 ]
 
+const convertValue = (oldTermType, newTermType, currentValue) => {
+  if (oldTermType === newTermType) {
+    return currentValue
+  }
+
+  const expectsArrayValue = isArrayTermType(newTermType)
+  const isRangeType = ['btw', 'nbtw'].includes(newTermType)
+
+  if (!expectsArrayValue) {
+    return Array.isArray(currentValue) ? currentValue[0] : currentValue
+  }
+
+  if (currentValue === undefined || currentValue === null) {
+    return undefined
+  }
+
+  if (Array.isArray(currentValue)) {
+    if (isRangeType) {
+      return [currentValue[0], currentValue[1] ?? undefined]
+    }
+    return [...currentValue]
+  }
+
+  return isRangeType ? [currentValue, undefined] : [currentValue]
+}
+
 const { updateTermValue, removeItem } = useEngines()
 const typeOptionsMap = ref({})
 
@@ -40,6 +67,8 @@ const onTypeChange = ({ key }) => {
 }
 
 const onTermTypeChange = (value) => {
+  const convertedValue = convertValue(props.termType, value, props.value)
+  updateTermValue(convertedValue, props.index, 'value')
   updateTermValue(value, props.index, 'termType')
 }
 
@@ -62,7 +91,7 @@ init()
 </script>
 
 <template>
-  <div style="display: flex; align-items: center; gap: 2px;margin-right: 4px">
+  <div class="filter-item">
     <a-dropdown trigger="click">
       <a-tag v-if="type && index !== 0" color="processing" style="margin: 0">
         {{ typeOptionsMap[type] }}
@@ -83,5 +112,10 @@ init()
 </template>
 
 <style scoped lang="less">
-
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+}
 </style>

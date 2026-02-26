@@ -59,6 +59,7 @@ watch(() => props.value, (newVal) => {
   :height="350"
   :blockNode="true"
   :fieldNames="{title: 'name', key: 'id'}"
+  style="width: auto;height: 350px;overflow: auto"
   @check="onCheck"
   @select="onSelect"
 >
