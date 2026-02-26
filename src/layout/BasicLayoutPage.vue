@@ -15,6 +15,11 @@
       </a>
       <span v-else style='cursor: default' >{{ slotProps.route.breadcrumbName }}</span>
     </template>
+    <template #leftContentRender>
+      <RegistryComponent pageCode="layout" code="layout">
+
+      </RegistryComponent>
+    </template>
 
     <template #rightContentRender>
       <div class="right-content">
@@ -94,7 +99,7 @@ init()
  */
 watchEffect(() => {
   if (router.currentRoute) {
-    const paths = route.meta.breadcrumb || []
+    const paths = route.meta.breadcrumb || route.meta.breadcrumbCache || []
     state.selectedKeys = paths.map(item => item.path)
     state.openKeys = paths.map(item => item.path)
   }

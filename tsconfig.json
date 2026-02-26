@@ -4,7 +4,8 @@
   "compilerOptions": {
     "baseUrl": "./",
       "paths": {
-        "@jetlinks-web-core/*": ["./src/*"]
+        "@jetlinks-web-core/*": ["./src/*"],
+        "@/*": ["./src/*"],
       }
   },
 }
