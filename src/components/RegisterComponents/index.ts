@@ -9,6 +9,7 @@ export default defineComponent({
   name: 'RegisterComponents',
   inheritAttrs: false,
   props: {
+    pageCode: { type: String, default: '' },
     code: { type: String, default: 'default' },
     is: { type: [Object, String], default: '' },
     activeKey: { type: [String, Number], default: '' }
@@ -18,7 +19,7 @@ export default defineComponent({
 
     const registryItems = computed(() => {
       return componentsRegistry.getRegistry(
-        `${route.name as string}:${props.code}`
+        `${props.pageCode || route.name as string}:${props.code}`
       ) ?? []
     })
 
