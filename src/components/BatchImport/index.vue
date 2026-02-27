@@ -123,7 +123,7 @@ const submitData = (url) => {
       next: data => {// 处理数据
         console.log('Received data:', data)
         if(data.success ){
-          result.success = data.result.total
+          result.success = result.success + data.result.total
         }else{
           if(data.detailFile){
             result.errMessage = data.detailFile

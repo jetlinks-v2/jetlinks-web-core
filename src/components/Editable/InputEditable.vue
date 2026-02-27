@@ -6,7 +6,14 @@
         <AIcon type="EditOutlined"/>
       </a-button>
     </div>
-    <a-input v-else v-model:value="_value" :maxLength="maxLength" @blur="onBlur" :disabled="disabled"/>
+    <a-input
+      v-else
+      ref="inputRef"
+      v-model:value="_value"
+      :maxLength="maxLength"
+      @blur="onBlur"
+      :disabled="disabled"
+    />
   </div>
 </template>
 
@@ -29,6 +36,7 @@ const emit = defineEmits(['update:value', 'change'])
 
 const _value = ref()
 const isEdit = ref(false)
+const inputRef = ref()
 
 const onBlur = () => {
   isEdit.value = false
@@ -42,6 +50,14 @@ watch(() => props.value, (newVal) => {
   _value.value = newVal
 }, {
   immediate: true
+})
+
+watch(isEdit, (newVal) => {
+  if (newVal) {
+    nextTick(() => {
+      inputRef.value?.focus()
+    })
+  }
 })
 </script>
 
