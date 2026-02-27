@@ -18,7 +18,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['success', 'fail', 'error', 'close', 'update:open'])
+const emit = defineEmits(['success', 'fail', 'error', 'close', 'imageWidth', 'update:open'])
 
 const components = {
   SLIDER: defineAsyncComponent(() => import('./Slider.vue')),
@@ -26,7 +26,7 @@ const components = {
   ROTATE: defineAsyncComponent(() => import('./Slider.vue')),
   CONCAT: defineAsyncComponent(() => import('./Concat.vue')),
 }
-const { captchaData, loading, error, generate, refresh, validate } = useCaptcha(computed(() => props.config))
+const { captchaData, loading, imageWidth, generate, refresh, validate } = useCaptcha(computed(() => props.config))
 const _open = ref(false)
 
 const onCancel = () => {
@@ -49,6 +49,10 @@ const handleError = (err) => {
   emit('error', err)
 }
 
+watch(() => imageWidth.value, () => {
+  emit('imageWidth', imageWidth.value)
+}, { immediate: true })
+
 watch(() => props.open, () => {
   _open.value = props.open
   if (props.open) {
@@ -63,12 +67,12 @@ watch(() => props.open, () => {
     title="请完成安全验证"
     v-model:open="_open"
     :footer="null"
-    :width="648"
+    :width="imageWidth + 48"
     v-if="showDialog"
     @cancel="onCancel"
   >
     <Spin :spinning="loading" size="large">
-      <div style="height: 280px">
+      <div style="min-height: 280px">
         <component
           v-if="captchaData && captchaData.type"
           :is="components[captchaData.type]"
@@ -84,7 +88,7 @@ watch(() => props.open, () => {
   </Modal>
   <template v-else>
     <Spin :spinning="loading" size="large">
-      <div style="height: 280px">
+      <div style="min-height: 280px">
         <component
           v-if="captchaData && captchaData.type"
           :is="components[captchaData.type]"

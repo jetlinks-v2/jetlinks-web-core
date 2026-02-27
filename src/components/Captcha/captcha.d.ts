@@ -36,6 +36,7 @@ export interface CaptchaData {
   backgroundImageWidth: number
   templateImageHeight: number
   templateImageWidth: number
+  imageWidthScale: number
   tip?: string
   randomX?: number
   randomY?: number

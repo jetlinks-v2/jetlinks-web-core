@@ -1,6 +1,6 @@
 <template>
   <div class="slider-captcha" ref="containerRef">
-    <div :class="{ 'image-container': true, 'rotate-box': !isSlider }" :style="{ width: `${captchaData.backgroundImageWidth * 0.6666}px`, height: `${captchaData.backgroundImageHeight * 0.6666}px` }">
+    <div :class="{ 'image-container': true, 'rotate-box': !isSlider }" :style="{ width: `${captchaData.backgroundImageWidth}px`, height: `${captchaData.backgroundImageHeight}px` }">
       <img
         ref="bgImageRef"
         :src="captchaData.backgroundImage"
@@ -64,15 +64,15 @@ const styles = computed(() => {
   if (isSlider.value) {
     return {
       left: `${moveValue.value}%`,
-      top: `${props.captchaData.randomY * 0.6666 || 0}px`,
-      width: `${props.captchaData.templateImageWidth * 0.6666}px`,
-      height: `${props.captchaData.templateImageHeight * 0.6666}px`,
+      top: `${props.captchaData.randomY || 0}px`,
+      width: `${props.captchaData.templateImageWidth}px`,
+      height: `${props.captchaData.templateImageHeight}px`,
     }
   } else if (props.type === 'ROTATE') {
     return {
       transform: `translate(-50%, -50%) rotate(${moveValue.value}deg)`,
-      width: `${props.captchaData.templateImageWidth * 0.6666}px`,
-      height: `${props.captchaData.templateImageHeight * 0.6666}px`,
+      width: `${props.captchaData.templateImageWidth}px`,
+      height: `${props.captchaData.templateImageHeight}px`,
     }
   }
 })
