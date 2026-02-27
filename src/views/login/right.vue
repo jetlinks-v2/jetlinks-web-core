@@ -40,7 +40,7 @@
               :placeholder="$t('login.right.419974-5')"
             >
               <template #addonAfter>
-                <img :src="url.base64" @click="getCode" />
+                <img :src="url.base64" @click="getVerifyCode" />
               </template>
             </Input>
           </form-item>
@@ -213,11 +213,15 @@ const { data: encryption, run: reloadEncryption } = useRequest(
   },
 );
 
+const getVerifyCode = () => {
+  if (config.value.enabled && config.value.loginWithVerify !== false && config.value.type === 'image') {
+    getCode();
+  }
+}
+
 const { data: config } = useRequest(captchaConfig, {
   onSuccess(resp) {
-    if (resp.result?.enabled) {
-      getCode();
-    }
+    getVerifyCode()
 
     return resp.result;
   },
@@ -262,9 +266,7 @@ const { loading, run } = useRequest(login, {
   },
   onWarn: () => {
     formData.verifyCode = undefined;
-    if (config.value.enable && config.value.type === 'image') {
-      getCode();
-    }
+    getVerifyCode()
     if (encryption.value?.encrypt?.enabled) {
       reloadEncryption();
     }
@@ -272,7 +274,7 @@ const { loading, run } = useRequest(login, {
 });
 
 const showCode = computed(() => {
-  return !!url?.value?.base64;
+  return !!url?.value?.base64 && config.value.enabled && config.value.loginWithVerify !== false;
 });
 
 const submit = (data) => {
