@@ -209,6 +209,14 @@ export const useMenuStore = defineStore('menu', () => {
         return menusMap.value.get(name)
     }
 
+    const init = () => {
+        menusMap.value = new Map()
+        menu.value = []
+        siderMenus.value = []
+        menuResultCache.value = []
+        loading.value = false
+    }
+
     return {
         menu,
         siderMenus,
@@ -221,6 +229,7 @@ export const useMenuStore = defineStore('menu', () => {
         routerPush,
         queryMenus,
         getMenu,
-        createRoutes
+        createRoutes,
+        init
     }
 })

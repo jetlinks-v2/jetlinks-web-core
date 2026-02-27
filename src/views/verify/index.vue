@@ -3,7 +3,7 @@
     v-model:open="visible"
     :title="title"
     :maskClosable="false"
-    :width="type === 'identity' ? 420 : 448"
+    :width="type === 'identity' ? 420 : modalWidth"
     @cancel="onCancel"
     @ok="onSubmit"
     :okButtonProps="{ loading: submitting, disabled: type === 'identity' && identityListRaw.length === 0 }"
@@ -34,7 +34,7 @@
           </Input>
         </FormItem>
       </Form>
-      <Captcha v-else :showDialog="false" :open="visible" :config="captchaConfig.tianai"  />
+      <Captcha v-else :showDialog="false" :open="visible" :config="captchaConfig.tianai" @imageWidth="v => modalWidth=v+48"  />
     </template>
 
     <!-- 身份校验 -->
@@ -151,6 +151,7 @@ const sendingCode = ref(false)
 const validationSent = ref(false)
 const validationData = ref<{ requestId: string; token: string; context?: Record<string, unknown> } | null>(null)
 const countdown = ref(0)
+const modalWidth = ref(448)
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 const identityListRaw = ref<Array<{ id: string; provider: string; identity: string }>>([])
 const identityOptions = computed(() =>

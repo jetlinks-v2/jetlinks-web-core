@@ -18,6 +18,7 @@ export function useCaptcha(config: Ref<CaptchaConfig> | CaptchaConfig): UseCaptc
   const captchaData = ref<CaptchaData | null>(null)
   const loading = ref(false)
   const error = ref<Error | null>(null)
+  const imageWidth = ref(400)
 
   const configRef = ref(config) as Ref<CaptchaConfig>
 
@@ -28,6 +29,15 @@ export function useCaptcha(config: Ref<CaptchaConfig> | CaptchaConfig): UseCaptc
     try {
       const response = await request.post(configRef.value.imageUrl)
       captchaData.value = response.data
+      if (captchaData.value) {
+        const imageWidthScale = Number((imageWidth.value / captchaData.value.backgroundImageWidth).toFixed(4))
+        const { backgroundImageWidth, backgroundImageHeight, randomY=0, templateImageWidth, templateImageHeight } = response.data
+        captchaData.value.backgroundImageWidth = imageWidthScale * backgroundImageWidth
+        captchaData.value.backgroundImageHeight = imageWidthScale * backgroundImageHeight
+        captchaData.value.randomY = imageWidthScale * randomY
+        captchaData.value.templateImageWidth = imageWidthScale * templateImageWidth
+        captchaData.value.templateImageHeight = imageWidthScale * templateImageHeight
+      }
     } catch (err) {
       error.value = err instanceof Error ? err : new Error('Failed to generate captcha')
       console.error('Generate captcha error:', err)
@@ -157,6 +167,7 @@ export function useCaptcha(config: Ref<CaptchaConfig> | CaptchaConfig): UseCaptc
     captchaData,
     loading,
     error,
+    imageWidth,
     generate,
     validate,
     refresh
