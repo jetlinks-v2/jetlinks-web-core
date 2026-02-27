@@ -62,7 +62,6 @@
             </Button>
           </form-item>
         </Form>
-        <Captcha v-model:open="captchaOpen" :config="config?.tianai" @success="onCaptchaSuccess"  />
         <div class="other" v-if="bindings.length">
           <Divider plain>
             <div class="other-text">
@@ -149,7 +148,6 @@ import { Form, FormItem, Button, Divider, Popover, Input, InputPassword } from '
 import defaultImg from '@jetlinks-web-core/assets/apply/internal-standalone.png'
 import {initPackages} from "@jetlinks-web-core/package";
 import i18n from "@jetlinks-web-core/locales";
-import Captcha from '@jetlinks-web-core/components/Captcha'
 
 const BASE_API_PATH = import.meta.env.VITE_APP_BASE_API
 
@@ -183,7 +181,6 @@ const emit = defineEmits(["submit", "update:loading"]);
 const moreVisible = ref(false);
 const userStore = useUserStore();
 const router = useRouter();
-const captchaOpen = ref(false)
 
 const formData = reactive({
   username: "",
@@ -278,13 +275,6 @@ const showCode = computed(() => {
   return !!url?.value?.base64;
 });
 
-const onCaptchaSuccess = (e) => {
-  captchaOpen.value = false
-  const _formData = { ...toRaw(formData) };
-  _formData['captcha-id'] = e.captchaId;
-  run(_formData);
-}
-
 const submit = (data) => {
 
   const _formData = { ...toRaw(formData) };
@@ -294,11 +284,7 @@ const submit = (data) => {
     _formData.encryptId = _encrypt.id;
   }
 
-  if (config.value.tianai) {
-    captchaOpen.value = true
-  } else {
-    run(_formData);
-  }
+  run(_formData);
 };
 
 const handleClickOther = (item) => {
