@@ -122,7 +122,8 @@ export function useRegistryOptions<T = any>({
  */
 export function useRegistryVNodeMerge(
   slotVNodes: () => VNode[],
-  registryItems: () => RegistryAction[]
+  registryItems: () => RegistryAction[],
+  extraProps?: () => Record<string, any>
 ) {
   return computed(() => {
     const base = flattenVNodes(slotVNodes())
@@ -137,19 +138,30 @@ export function useRegistryVNodeMerge(
         ? result.findIndex(n => n.key === item.target)
         : -1
 
+      const mode = item.mode ?? 'append'
       const vnode = h(item.component, {
-        ...(item.mode === 'replace' ? result[index].props : {}),
+        ...(mode === 'replace' && index !== -1 ? (result[index].props || {}) : {}),
+        ...(item.props || {}),
+        ...(extraProps ? extraProps() : {}),
         key: `${item.code}:${item.target ?? 'append'}`
       })
 
-      if (index === -1) {
-        result.push(vnode)
+      if (mode === 'replace' && index !== -1) {
+        result[index] = vnode
         return
       }
 
-      if (item.mode === 'replace') result[index] = vnode
-      if (item.mode === 'before') result.splice(index, 0, vnode)
-      if (item.mode === 'after') result.splice(index + 1, 0, vnode)
+      if (mode === 'before' && index !== -1) {
+        result.splice(index, 0, vnode)
+        return
+      }
+
+      if ((mode === 'after' || mode === 'append') && index !== -1) {
+        result.splice(index + 1, 0, vnode)
+        return
+      }
+
+      result.push(vnode)
     })
 
     return result

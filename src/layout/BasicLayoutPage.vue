@@ -16,7 +16,7 @@
       <span v-else style='cursor: default' >{{ slotProps.route.breadcrumbName }}</span>
     </template>
     <template #leftContentRender>
-      <RegistryComponent pageCode="layout" code="layout">
+      <RegistryComponent pageCode="layout" code="layout" @click="onClick">
 
       </RegistryComponent>
     </template>
@@ -94,6 +94,9 @@ const init = () => {
 
 init()
 
+const onClick = () => {
+  console.log('点击了')
+}
 /**
  * 处理菜单选中，展开状态
  */

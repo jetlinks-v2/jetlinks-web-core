@@ -16,6 +16,11 @@ export default defineComponent({
   },
   setup(props, { slots, attrs }) {
     const route = useRoute()
+    const listenerAttrs = computed(() =>
+      Object.fromEntries(
+        Object.entries(attrs).filter(([key]) => /^on[A-Z]/.test(key))
+      )
+    )
 
     const registryItems = computed(() => {
       return componentsRegistry.getRegistry(
@@ -26,7 +31,8 @@ export default defineComponent({
     /** vnodes 派生 */
     const mergedVNodes = useRegistryVNodeMerge(
       () => (slots.default ? slots.default() : []),
-      () => registryItems.value
+      () => registryItems.value,
+      () => listenerAttrs.value
     )
 
     const renderContent = () => {

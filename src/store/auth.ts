@@ -38,6 +38,10 @@ export const useAuthStore = defineStore('auth', () => {
     cleanPermission()
   }
 
+  const init = () => {
+    permissions.value = {}
+  }
+
   return {
     permissions,
     getPermission,
@@ -45,6 +49,7 @@ export const useAuthStore = defineStore('auth', () => {
     cleanPermission,
     handlePermission,
     hasPermission,
-    setPermissionsAll
+    setPermissionsAll,
+    init
   }
 })

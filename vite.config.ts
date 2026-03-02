@@ -41,6 +41,7 @@ export default defineConfig(({ mode, command }) => {
     resolve: {
       alias: {
         '@jetlinks-web-core': path.resolve(__dirname, 'src'),
+        '@': path.resolve(__dirname, 'src'),
         ...registerModulesAlias()
       }
     },
