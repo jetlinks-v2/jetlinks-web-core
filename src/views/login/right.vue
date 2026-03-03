@@ -215,7 +215,6 @@ const { data: encryption, run: reloadEncryption } = useRequest(
 
 const getVerifyCode = (record) => {
   const _config = config.value || record;
-  debugger
   if (_config && _config.enabled && _config.loginWithVerify === false && _config.type === 'image') {
     getCode();
   }
