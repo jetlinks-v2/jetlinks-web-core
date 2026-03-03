@@ -214,7 +214,7 @@ const { data: encryption, run: reloadEncryption } = useRequest(
 );
 
 const getVerifyCode = () => {
-  if (config.value.enabled && config.value.loginWithVerify !== false && config.value.type === 'image') {
+  if (config.value && config.value.enabled && config.value.loginWithVerify !== false && config.value.type === 'image') {
     getCode();
   }
 }
