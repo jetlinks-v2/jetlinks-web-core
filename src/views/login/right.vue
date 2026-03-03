@@ -213,15 +213,17 @@ const { data: encryption, run: reloadEncryption } = useRequest(
   },
 );
 
-const getVerifyCode = () => {
-  if (config.value.enabled && config.value.loginWithVerify !== false && config.value.type === 'image') {
+const getVerifyCode = (record) => {
+  const _config = config.value || record;
+  debugger
+  if (_config && _config.enabled && _config.loginWithVerify === false && _config.type === 'image') {
     getCode();
   }
 }
 
 const { data: config } = useRequest(captchaConfig, {
   onSuccess(resp) {
-    getVerifyCode()
+    getVerifyCode(resp.result)
 
     return resp.result;
   },
@@ -274,7 +276,7 @@ const { loading, run } = useRequest(login, {
 });
 
 const showCode = computed(() => {
-  return !!url?.value?.base64 && config.value.enabled && config.value.loginWithVerify !== false;
+  return !!url?.value?.base64 && config.value.enabled && config.value.loginWithVerify === false;
 });
 
 const submit = (data) => {
