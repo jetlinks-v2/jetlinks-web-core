@@ -22,7 +22,13 @@ export const federationSharedMap = {
   // '@jetlinks-web/utils': ['@jetlinks-web/utils'],
 }
 
-export const getDefine = (env: Partial<ImportMetaEnv>, mode: string, isDev: boolean, mavenName: string ) => {
+export const getDefine = (
+  env: Partial<ImportMetaEnv>,
+  mode: string,
+  isDev: boolean,
+  mavenName: string,
+  publicPath: string
+) => {
 
   const envDefine = Object.entries(env).reduce((acc, [key, val]) => {
     if (key.startsWith('VITE_')) {
@@ -31,7 +37,7 @@ export const getDefine = (env: Partial<ImportMetaEnv>, mode: string, isDev: bool
     return acc
   }, {} as Record<string, string>)
 
-  envDefine['import.meta.env.BASE_URL'] = JSON.stringify('./')
+  envDefine['import.meta.env.BASE_URL'] = JSON.stringify(publicPath)
   envDefine['import.meta.env.MODE'] = JSON.stringify(mode)
   envDefine['import.meta.env.DEV'] = String(isDev)
   envDefine['import.meta.env.PROD'] = String(!isDev)
