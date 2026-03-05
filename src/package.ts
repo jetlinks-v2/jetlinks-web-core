@@ -172,7 +172,7 @@ export const initAxios = () => {
                 }
             }
 
-            const tenantDomain = localStorage.getItem('X-Tenant-Domain')
+            const tenantDomain = location.pathname?.split('/')[1] || localStorage.getItem('X-Tenant-Domain')
             if (tenantDomain) {
                 config.headers = config.headers || {}
                 config.headers['X-Tenant-Domain'] = tenantDomain
