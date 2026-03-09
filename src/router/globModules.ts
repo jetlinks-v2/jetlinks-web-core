@@ -1,4 +1,4 @@
-import {modules} from '@jetlinks-web-core/utils/modules'
+import { modules } from '@jetlinks-web-core/utils/modules'
 import type { ModuleRouteOverride } from './types'
 
 const routerModules = import.meta.glob('../views/**/index.vue')
@@ -28,33 +28,29 @@ export const getGlobModules = async () => {
 }
 
 /**
- * 获取子模块的默认路由（非核心路由替换）
+ * Legacy compatibility API for collecting module route overrides.
  *
- * @deprecated tokenFilterRoute 参数已废弃，使用 meta.security 代替
+ * @deprecated Use `collectCoreRouteOverrides()` instead.
+ * `getDefaultModules()` and `tokenFilterRoute` are kept only for backward compatibility.
  */
 export const getDefaultModules = (tokenFilterRoute?: any) => {
   const modulesFiles = modules()
-  const _modules: any[] = []
-  Object.values(modulesFiles).forEach((item) => {
-    const modules = item.default.getDefaultRoutes?.() || []
-    _modules.push(...modules)
 
-    // 兼容旧的 getFilterRoutes（逐步废弃）
-    if (tokenFilterRoute) {
+  if (tokenFilterRoute) {
+    Object.values(modulesFiles).forEach((item: any) => {
       const filter = item.default.getFilterRoutes?.() || []
       tokenFilterRoute.push(...filter)
-    }
-  })
-  return _modules
+    })
+  }
+
+  return collectCoreRouteOverrides()
 }
 
 /**
- * 收集所有模块的核心路由覆盖配置
- *
- * @returns 模块覆盖配置数组（按priority排序）
+ * Collect all module core-route overrides sorted by module priority.
  */
 export function collectCoreRouteOverrides(): ModuleRouteOverride[] {
-  const modulesFiles = modules() // 已按priority排序
+  const modulesFiles = modules()
   const overrides: ModuleRouteOverride[] = []
 
   Object.values(modulesFiles).forEach((item: any) => {

@@ -1,235 +1,304 @@
-import {defineStore} from 'pinia'
-import router from '@jetlinks-web-core/router'
-import {cloneDeep} from 'lodash-es'
-import {setParamsValue} from '@jetlinks-web/hooks'
-import {onlyMessage} from '@jetlinks-web/utils'
-import { handleMenus, modules, getModulesInitPage, getBaseApi } from '@jetlinks-web-core/utils'
-import {getOwnMenuThree} from '@jetlinks-web-core/api/system/menu'
-import { getDefaultModules, getGlobModules } from '@jetlinks-web-core/router/globModules'
-import {getExtraRouters} from '@jetlinks-web-core/router/extraMenu'
-import {USER_CENTER_ROUTE, INIT_HOME} from '@jetlinks-web-core/router/basic'
-import {useAuthStore, useApplication} from '@jetlinks-web-core/store'
-import { OWNER_KEY } from '@jetlinks-web-core/utils/consts'
-import i18n from "@jetlinks-web-core/locales";
+import { defineStore } from 'pinia'
 import type { RouteRecordRaw } from 'vue-router'
+import router from '@jetlinks-web-core/router'
+import { cloneDeep } from 'lodash-es'
+import { setParamsValue } from '@jetlinks-web/hooks'
+import { onlyMessage } from '@jetlinks-web/utils'
+import { handleMenus, modules, getBaseApi } from '@jetlinks-web-core/utils'
+import { getOwnMenuThree } from '@jetlinks-web-core/api/system/menu'
+import { getGlobModules } from '@jetlinks-web-core/router/globModules'
+import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
+import { useAuthStore, useApplication } from '@jetlinks-web-core/store'
+import { OWNER_KEY } from '@jetlinks-web-core/utils/consts'
+import i18n from '@jetlinks-web-core/locales'
 
 type OptionsType = {
-    params?: Record<string, any>
-    query?: Record<string, any>
+  params?: Record<string, any>
+  query?: Record<string, any>
 }
 
 const $t = i18n.global.t
 
 const defaultOwnParams = [
-    {
+  {
+    terms: [
+      {
         terms: [
-            {
-                terms: [
-                    {
-                        column: 'owner',
-                        termType: 'eq',
-                        value: OWNER_KEY,
-                    },
-                    {
-                        column: 'owner',
-                        termType: 'isnull',
-                        value: '1',
-                        type: 'or',
-                    },
-                ],
-            },
-            {
-                terms: [
-                    {
-                        value: "%show\":false%",
-                        termType: "nlike",
-                        column: "options"
-                    }
-                ],
-                type:'and'
-            }
+          {
+            column: 'owner',
+            termType: 'eq',
+            value: OWNER_KEY,
+          },
+          {
+            column: 'owner',
+            termType: 'isnull',
+            value: '1',
+            type: 'or',
+          },
         ],
-    },
+      },
+      {
+        terms: [
+          {
+            value: '%show":false%',
+            termType: 'nlike',
+            column: 'options',
+          },
+        ],
+        type: 'and',
+      },
+    ],
+  },
 ]
 
+const transformCoreRouteToMenu = (route: RouteRecordRaw): RouteRecordRaw | null => {
+  const routeMeta = (route.meta || {}) as Record<string, any>
+  const isHideInMenu = routeMeta.hideInMenu === true || routeMeta?.options?.show === false
+  const children = (route.children || [])
+    .map(transformCoreRouteToMenu)
+    .filter(Boolean) as RouteRecordRaw[]
+
+  if (isHideInMenu) {
+    return null
+  }
+
+  if (!routeMeta.title && !children.length) {
+    return null
+  }
+
+  return {
+    ...route,
+    children: children.length ? children : undefined,
+  }
+}
+
+/**
+ * 处理侧边栏路由，生成面包屑数据
+ * @param route
+ * @param parent
+ */
+export function handleSiderBreadcrumb(route: RouteRecordRaw[], parent?: Record<string, any>): RouteRecordRaw[] {
+  return route.map(item => {
+
+    // 面包屑处理
+    const breadcrumb = []
+    if (parent?.breadcrumb) {
+      breadcrumb.push(...parent.breadcrumb)
+    }
+    breadcrumb.push({ name: item.name, breadcrumbName: item.meta.title as string, path: item.path  })
+    item.meta.breadcrumb = breadcrumb
+
+    if (item.children) {
+      item.children = handleSiderBreadcrumb(item.children, item?.meta)
+    }
+    return item
+  })
+}
+
+const getCoreRouteOverrideMenus = () => {
+  const modulesFile = modules()
+  const overrideMenuMap = new Map<string, RouteRecordRaw>()
+
+  function filterChildren(routes) {
+    return routes.filter(item => {
+
+      if (item.children) {
+        item.children = filterChildren(item.children)
+      }
+      return item.meta.hideInMenu === false
+    })
+  }
+
+  Object.values(modulesFile).forEach((item: any) => {
+    const moduleOverrides = item.default.getCoreRouteOverrides?.() || []
+    moduleOverrides.forEach((override: RouteRecordRaw) => {
+
+      if (override.meta.hideInMenu !== false ) {
+        overrideMenuMap.delete(override.name)
+        return
+      }
+      const _route = filterChildren([override])[0]
+      overrideMenuMap.set(override.name, _route)
+    })
+  })
+
+  return [...overrideMenuMap.values()]
+}
+
 export const useMenuStore = defineStore('menu', () => {
-    const menusMap = ref<Map<string, any>>(new Map())
-    const menu = ref<RouteRecordRaw[]>([])
-    const siderMenus = ref<RouteRecordRaw[]>([])
-    const menuResultCache = ref<any[]>([])
-    const loading = ref(true)
-    const authStore = useAuthStore()
-    const app = useApplication();
+  const menusMap = ref<Map<string, any>>(new Map())
+  const menu = ref<RouteRecordRaw[]>([])
+  const siderMenus = ref<RouteRecordRaw[]>([])
+  const menuResultCache = ref<any[]>([])
+  const loading = ref(true)
+  const authStore = useAuthStore()
+  const app = useApplication()
 
+  const hasRouteMenu = () => {
+    return !!menu.value.length
+  }
 
-    const hasRouteMenu = () => {
-        return !!Object.keys(menu).length
+  const hasMenu = (code: string) => {
+    return menusMap.value.has(code)
+  }
+
+  const routerPush = (
+    name: string,
+    options?: OptionsType,
+  ) => {
+    const _query = options?.query || {}
+    const _params = options?.params || {}
+
+    router.push({
+      name,
+      params: _params,
+      query: _query,
+    })
+    setParamsValue(name, _params)
+  }
+
+  const jumpPage = (
+    name: string,
+    options?: OptionsType,
+  ) => {
+    if (hasMenu(name)) {
+      routerPush(name, options)
+    } else {
+      onlyMessage($t('Home.index.010851-10'), 'warning')
+      console.warn(`没有找到对应的页面: ${name}`)
+    }
+  }
+
+  const createRoutes = async (menuResult: any[]) => {
+    menusMap.value.clear()
+    const asyncRoutes = await getGlobModules()
+    const extraMenu = await getExtraRouters()
+
+    const { menuRoutes, menuMap, menus, authButtons } = handleMenus(
+      cloneDeep(menuResult),
+      extraMenu,
+      asyncRoutes,
+    )
+    const overrideMenus = getCoreRouteOverrideMenus()
+    const overrideMenuKeys = new Set(menus.map(item => item.name))
+    const mergedMenus = [
+      ...overrideMenus.filter(item => {
+        const key = item.name
+        if (overrideMenuKeys.has(key)) return false
+        overrideMenuKeys.add(key)
+        return true
+      }),
+      ...menus,
+    ]
+    const routerRoutes = router.getRoutes()
+
+    if (menuRoutes.length) {
+      menuRoutes.push({
+        path: '/',
+        redirect: menuRoutes[0].path,
+      })
     }
 
-    const hasMenu = (code: string) => {
-        return menusMap.value.has(code)
-    }
+    routerRoutes.forEach((item: any) => {
+      if (typeof item.name !== 'string' || !item.path || !item.meta?.title) return
+      if (!menuMap.has(item.name)) {
+        menuMap.set(item.name, { path: item.path, title: item.meta.title as string })
+      }
+    })
 
-    /**
-     * 页面跳转
-     * @param name 路由name
-     * @param options {Object} 需要传递的参数
-     */
-    const jumpPage = (
-        name: string,
-        options?: OptionsType,
-    ) => {
-        if (hasMenu(name)) {
-            routerPush(name, options)
-        } else {
-            onlyMessage($t('Home.index.010851-10'), 'warning')
-            console.warn(`没有找到对应的页面: ${name}`)
-        }
-    }
+      console.log('菜单路由[routes]', menuRoutes)
+      console.log('菜单栏[siderMenus]', mergedMenus)
+    menusMap.value = menuMap
+    menu.value = menuRoutes
+    siderMenus.value = mergedMenus
+    authStore.setPermissionsAll(authButtons)
+  }
 
-    const routerPush = (
-        name: string,
-        options?: OptionsType,
-    ) => {
+  const queryMenus = async () => {
+    const resp = await getOwnMenuThree({
+      paging: false,
+      terms: defaultOwnParams,
+      sorts: [{ name: 'sortIndex', order: 'asc' }],
+    })
 
-        const _query = options?.query || {}
-        const _params = options?.params || {}
+    let menuResult = resp.result
+    menuResultCache.value = JSON.parse(JSON.stringify(resp.result))
 
-        router.push({
-            name,
-            params: _params,
-            query: _query,
-        })
-        setParamsValue(name, _params)
-    }
-    const handleMenusMapById = (item: { name: string; path: string,meta:any }) => {
-        const {name, path,meta} = item
-        menusMap.value.set(name, {path,title:meta?.title})
-    }
+    if (app.appList.length > 0) {
+      const handleMicroApp = (nodes: any[]) => {
+        if (!nodes || nodes.length === 0) return
 
-    const createRoutes = async (menuResult: any[]) => {
-        menusMap.value.clear()
-        const asyncRoutes = await getGlobModules()
-        const extraMenu = await getExtraRouters()
-        const defaultRoutes = getDefaultModules()
+        for (const node of nodes) {
+          if (node.children && node.children.length > 0) {
+            handleMicroApp(node.children)
+          }
 
-        const { menuRoutes, menuMap, menus, authButtons } = handleMenus(cloneDeep(menuResult), extraMenu, asyncRoutes) // 处理路由
+          if (node.options && node.options.appName) {
+            const appInfo = app.findAppById(node.options.appName)
 
-        const initPage = getModulesInitPage() || INIT_HOME
-
-        menuRoutes.push(USER_CENTER_ROUTE,initPage) // 添加个人中心,初始化页面
-
-        if (menuRoutes.length) {
-            menuRoutes.push({
-                path: '/',
-                redirect: menuRoutes[0].path,
-            })
-        }
-
-        // 添加模块默认路由映射
-        defaultRoutes?.forEach((item: any) => {
-          menuMap.set(item.name, { path: item.path!, title: item.meta?.title as string })
-        })
-
-        // authStore.handlePermission(menuResult) // 处理按钮权限
-        console.log('routes', menuRoutes)
-        console.log('menus', menus)
-        menusMap.value = menuMap
-        menu.value = menuRoutes
-        siderMenus.value = menus // 处理菜单
-        authStore.setPermissionsAll(authButtons)
-    }
-
-    const queryMenus = async () => {
-        const resp = await getOwnMenuThree({
-            paging: false,
-            terms: defaultOwnParams,
-            sorts: [{ name: 'sortIndex', order: 'asc' }]
-        })
-
-        let menuResult = resp.result
-        menuResultCache.value = JSON.parse(JSON.stringify(resp.result))
-
-        //  遍历树节点，处理子应用页面
-
-        if (app.appList.length > 0) {
-
-            const handleMicroApp = (nodes: any[]) => {
-                if (!nodes || nodes.length === 0) return;
-
-                for (const node of nodes) {
-                    // 处理当前节点
-                    if (node.children && node.children.length > 0) {
-                        // 处理子节点
-                        handleMicroApp(node.children);
-                    }
-
-                    if(node.options && node.options.appName) {
-                        const appInfo = app.findAppById(node.options.appName)
-
-                        let url = appInfo?.path
-                        if (url && !url.startsWith('http') && !url.startsWith('/')) {
-                            url =  '/' + url
-                        }
-
-                        if (url?.startsWith('/')) {
-                            url =  getBaseApi() + url
-                        }
-
-                        let isLocal = false
-
-                        if (import.meta.env.DEV) {
-                            const modulesFile = modules()
-                            isLocal = Object.values(modulesFile).some(v => {
-                                const localMenus = (v as any).default.getAsyncRoutesMap()
-                                return localMenus[node.code]
-                            })
-                        }
-
-                        if (!isLocal) {
-                            node.meta = {
-                                appName: node.options.appName,
-                                appUrl: url
-                            }
-                        }
-                    }
-                }
+            let url = appInfo?.path
+            if (url && !url.startsWith('http') && !url.startsWith('/')) {
+              url = '/' + url
             }
-            // 开始遍历处理
-            handleMicroApp(menuResult);
+
+            if (url?.startsWith('/')) {
+              url = getBaseApi() + url
+            }
+
+            let isLocal = false
+
+            if (import.meta.env.DEV) {
+              const modulesFile = modules()
+              isLocal = Object.values(modulesFile).some(v => {
+                const localMenus = (v as any).default.getAsyncRoutesMap()
+                return localMenus[node.code]
+              })
+            }
+
+            if (!isLocal) {
+              node.meta = {
+                appName: node.options.appName,
+                appUrl: url,
+              }
+            }
+          }
         }
+      }
 
-        if (resp.success) {
-            await createRoutes(menuResult)
-            loading.value = false
-        }
+      handleMicroApp(menuResult)
     }
 
-    const getMenu = (name: string) => {
-        return menusMap.value.get(name)
+    if (resp.success) {
+      await createRoutes(menuResult)
+      loading.value = false
     }
+  }
 
-    const init = () => {
-        menusMap.value = new Map()
-        menu.value = []
-        siderMenus.value = []
-        menuResultCache.value = []
-        loading.value = false
-    }
+  const getMenu = (name: string) => {
+    return menusMap.value.get(name)
+  }
 
-    return {
-        menu,
-        siderMenus,
-        menusMap,
-        loading,
-        menuResultCache,
-        hasRouteMenu,
-        hasMenu,
-        jumpPage,
-        routerPush,
-        queryMenus,
-        getMenu,
-        createRoutes,
-        init
-    }
+  const init = () => {
+    menusMap.value = new Map()
+    menu.value = []
+    siderMenus.value = []
+    menuResultCache.value = []
+    loading.value = false
+  }
+
+  return {
+    menu,
+    siderMenus,
+    menusMap,
+    loading,
+    menuResultCache,
+    hasRouteMenu,
+    hasMenu,
+    jumpPage,
+    routerPush,
+    queryMenus,
+    getMenu,
+    createRoutes,
+    init,
+  }
 })

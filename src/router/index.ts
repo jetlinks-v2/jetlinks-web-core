@@ -8,7 +8,7 @@ import { getToken, removeToken } from '@jetlinks-web/utils'
 import { isSubApp } from '@jetlinks-web-core/utils/consts'
 import { useApplication, useUserStore, useSystemStore, useMenuStore } from '@jetlinks-web-core/store'
 import microApp from '@micro-zoe/micro-app'
-import { getDefaultModules, collectCoreRouteOverrides } from './globModules'
+import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
 import { RouteSecurityLevel } from './types'
 import { toValue } from 'vue'
@@ -35,8 +35,7 @@ if (import.meta.env.DEV) {
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    ...coreRoutes,
-    ...getDefaultModules() // 子模块默认路由
+    ...coreRoutes
   ],
   scrollBehavior(to, from, savedPosition) {
     return savedPosition || { top: 0 }

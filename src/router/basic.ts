@@ -21,11 +21,6 @@ export const USER_CENTER_ROUTE: RouteRecordRaw = {
       },
       component: () => import('@jetlinks-web-core/views/account/center/index.vue')
     }
-    // {
-    //   path: AccountCenterBindPath,
-    //   name: "account/center/bind",
-    //   component: () => import("@jetlinks-web-core/views/account/center/bind/index.vue"),
-    // },
   ]
 }
 
@@ -123,30 +118,30 @@ export const Demo: RouteRecordRaw = {
     title: 'Demo'
   }
 }
-
-export const Scene: RouteRecordRaw = {
-  path: '/scene',
-  name: 'Scene',
-  redirect: '/scene/center',
-  children: [
-    {
-      path: '/scene/center',
-      name: 'SceneCenter',
-      meta: {
-        title: '场景商城'
-      },
-      component: () => import('@jetlinks-web-core/views/scene/index.vue')
-    },
-    {
-      path: '/scene/center/detail',
-      name: 'SceneCenterDetail',
-      meta: {
-        title: '场景商城详情'
-      },
-      component: () => import('@jetlinks-web-core/views/scene/Detail.vue')
-    }
-  ],
-  meta: {
-    title: '场景商城'
-  }
-}
+//
+// export const Scene: RouteRecordRaw = {
+//   path: '/scene',
+//   name: 'Scene',
+//   redirect: '/scene/center',
+//   children: [
+//     {
+//       path: '/scene/center',
+//       name: 'SceneCenter',
+//       meta: {
+//         title: '场景商城'
+//       },
+//       component: () => import('@jetlinks-web-core/views/scene/index.vue')
+//     },
+//     {
+//       path: '/scene/center/detail',
+//       name: 'SceneCenterDetail',
+//       meta: {
+//         title: '场景商城详情'
+//       },
+//       component: () => import('@jetlinks-web-core/views/scene/Detail.vue')
+//     }
+//   ],
+//   meta: {
+//     title: '场景商城'
+//   }
+// }
