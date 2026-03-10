@@ -246,7 +246,9 @@ const uploadInfo: UploadInfoType = {
     overflow: hidden;
     .upload-div {
       width: 160px;
+      position: relative;
       background-color: #eeeeee;
+      cursor: pointer;
         .upload-mask{
           align-items: center;
           justify-content: center;
