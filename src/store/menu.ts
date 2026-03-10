@@ -192,12 +192,11 @@ export const useMenuStore = defineStore('menu', () => {
     ]
     const routerRoutes = router.getRoutes()
 
-    if (menuRoutes.length) {
+    const redirectUrl = menuRoutes.length ? menuRoutes[0].path : '/account'
       menuRoutes.push({
         path: '/',
-        redirect: menuRoutes[0].path,
+        redirect: redirectUrl,
       })
-    }
 
     routerRoutes.forEach((item: any) => {
       if (typeof item.name !== 'string' || !item.path || !item.meta?.title) return

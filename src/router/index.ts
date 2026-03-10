@@ -13,6 +13,8 @@ import { resolveCoreRoutes } from './coreRoutes'
 import { RouteSecurityLevel } from './types'
 import { toValue } from 'vue'
 
+let isLock = false
+
 // ============ 核心路由解析 ============
 const moduleOverrides = collectCoreRouteOverrides()
 const {
@@ -129,11 +131,13 @@ const getRoutesByServer = async (
   }
 
   // 优化: 使用新的过滤检查
-  if (!MenuStore.menu.length && !shouldSkipMenuFetch(to)) {
+  if (!MenuStore.menu.length && !shouldSkipMenuFetch(to) && !isLock) {
     await MenuStore.queryMenus()
     if (!MenuStore.menu) {
+      isLock = true
       next()
     } else {
+      isLock = false
       MenuStore.menu.forEach((r) => {
         router.addRoute(r)
       })
@@ -160,11 +164,13 @@ router.beforeEach((to, from, next) => {
 
   if (token) {
     if (isLoginRoute) {
+      isLock = false
       next({ path: '/' })
     } else {
       getRoutesByServer(to, next)
     }
   } else {
+    isLock = false
     NoTokenJump(to, next, isLoginRoute)
   }
 })
