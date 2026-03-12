@@ -6,6 +6,97 @@
   "description": "jetlinks",
   "glyphs": [
     {
+      "icon_id": "37120043",
+      "name": "关机",
+      "font_class": "guanji",
+      "unicode": "e7dd",
+      "unicode_decimal": 59357
+    },
+    {
+      "icon_id": "46858129",
+      "name": "开机",
+      "font_class": "kaiji",
+      "unicode": "ee4b",
+      "unicode_decimal": 61003
+    },
+    {
+      "icon_id": "46845277",
+      "name": "部署到已有的服务",
+      "font_class": "bushudaoyiyoudefuwu",
+      "unicode": "e7da",
+      "unicode_decimal": 59354
+    },
+    {
+      "icon_id": "46845276",
+      "name": "部署为新服务",
+      "font_class": "bushuweixinfuwu",
+      "unicode": "e7db",
+      "unicode_decimal": 59355
+    },
+    {
+      "icon_id": "46787504",
+      "name": "加载中",
+      "font_class": "jiazaizhong",
+      "unicode": "e7d6",
+      "unicode_decimal": 59350
+    },
+    {
+      "icon_id": "46787503",
+      "name": "停止",
+      "font_class": "tingzhi",
+      "unicode": "e7d7",
+      "unicode_decimal": 59351
+    },
+    {
+      "icon_id": "46787501",
+      "name": "微调模型",
+      "font_class": "weitiaomoxing1",
+      "unicode": "e7d8",
+      "unicode_decimal": 59352
+    },
+    {
+      "icon_id": "46787502",
+      "name": "继续",
+      "font_class": "jixu1",
+      "unicode": "e7d9",
+      "unicode_decimal": 59353
+    },
+    {
+      "icon_id": "46771404",
+      "name": "显示筛选",
+      "font_class": "xianshishaixuan",
+      "unicode": "e7d5",
+      "unicode_decimal": 59349
+    },
+    {
+      "icon_id": "46770971",
+      "name": "继续",
+      "font_class": "jixu",
+      "unicode": "e7d4",
+      "unicode_decimal": 59348
+    },
+    {
+      "icon_id": "46770595",
+      "name": "重置",
+      "font_class": "zhongzhi",
+      "unicode": "e7d3",
+      "unicode_decimal": 59347
+    },
+    {
+      "icon_id": "46770589",
+      "name": "滚动至底部",
+      "font_class": "gundongzhidibu",
+      "unicode": "e7d1",
+      "unicode_decimal": 59345
+    },
+    {
+      "icon_id": "46770590",
+      "name": "暂停",
+      "font_class": "zanting",
+      "unicode": "e7d2",
+      "unicode_decimal": 59346
+    },
+    {
       "icon_id": "46749945",
       "name": "微调模型",
       "font_class": "weitiaomoxing",

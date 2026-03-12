@@ -1,6 +1,6 @@
 <script setup name="TermType">
-import { TermTypeOptions } from './setting'
-import { useColumnsMap, useEngines } from './hooks/useSearchEngine'
+import { getDefaultTermType, TermTypeOptions } from './setting'
+import { useColumnsMap } from './hooks/useSearchEngine'
 
 const props = defineProps({
   column: {
@@ -23,25 +23,7 @@ const onClick = ({ key }) => {
 const columnsMap = useColumnsMap()
 
 const getOptionsByType = (type, filterKeys) => {
-  let keys = ['like', 'nlike', 'eq', 'not']
-
-  switch (type) {
-    case 'select':
-    case 'treeSelect':
-      keys = ['not', 'eq', 'in', 'nin'];
-      break;
-    case 'time':
-    case 'date':
-      keys = ['gt', 'lt', 'gte', 'lte', 'btw'];
-      break;
-    case 'timeRange':
-    case 'rangePicker':
-      keys = ['btw', 'nbtw'];
-      break;
-    case 'number':
-      keys = ['eq', 'not', 'gt', 'lt', 'gte', 'lte'];
-      break;
-  }
+  let keys = getDefaultTermType(type)
 
   keys = keys.filter(key => !filterKeys.includes(key))
 
@@ -77,7 +59,7 @@ init()
       {{ optionsMap[value] }}
     </a-tag>
     <template #overlay>
-      <a-menu style="width: 120px" @click="onClick">
+      <a-menu style="width: 120px" @click.stop="onClick">
         <a-menu-item v-for="option in options" :key="option.value">
           {{ option.label }}
         </a-menu-item>

@@ -5,7 +5,7 @@ export type TermsItem = {
   column?: string
   termType?: string
   terms?: TermsItem[]
-  value?: any | TermsItem[]
+  value?: any | any[]
   type?: string
   key?: string
 }

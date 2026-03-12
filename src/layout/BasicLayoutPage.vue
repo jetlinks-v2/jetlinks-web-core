@@ -23,12 +23,14 @@
 
     <template #rightContentRender>
       <div class="right-content">
-        <template v-if="!hideHeaderRight">
-          <Language />
-          <Resource v-if="systemInfo?.['front']?.resources"/>
-          <Notice />
-        </template>
-        <User :hideHeaderRight="hideHeaderRight" />
+        <RegistryComponent pageCode="layout" code="headerRight">
+          <template v-if="!hideHeaderRight">
+            <Language />
+            <Resource v-if="systemInfo?.['front']?.resources"/>
+            <Notice />
+          </template>
+          <User :hideHeaderRight="hideHeaderRight" />
+        </RegistryComponent>
       </div>
     </template>
     <router-view />

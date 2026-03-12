@@ -1,6 +1,7 @@
-import { inject, provide, reactive,onUnmounted, type Ref, type Reactive } from 'vue'
+import { inject, provide, reactive,onUnmounted, nextTick, type Ref, type Reactive } from 'vue'
 import { SearchItem, TermsItem } from '../typing'
 import { randomString } from '@jetlinks-web/utils'
+import { getDefaultTermType, isArrayTermType } from '../setting'
 
 const columnsKey = 'columnsKey';
 const loadingKey = 'loadingKey';
@@ -57,6 +58,7 @@ export const useSearchEngine = (props: any) => {
   const columnsMap = reactive<Record<string, any>>({})
 
   const watchDisposers = new Map<string, () => void>()
+  const lastParsedQuery = ref<string | undefined>(undefined)
   const router = useRouter()
   const route = useRoute()
 
@@ -117,8 +119,8 @@ export const useSearchEngine = (props: any) => {
    */
   const toFormatUrl = () => {
     return formModel.value.map((item) => {
-      // 格式化逻辑
-      let str = `${item.column}:${item.termType}:${item.value}`
+      const value = Array.isArray(item.value) ? item.value.join('|') : (item.value ?? '')
+      let str = `${item.column}:${item.termType}:${value}`
       if (item.type) {
         str += `:${item.type}`
       }
@@ -129,25 +131,92 @@ export const useSearchEngine = (props: any) => {
   /**
    * @return 将url中的查询参数格式化为表单模型
    */
-  const urlToformMadel = () => {
-    const query = route.query
-    const search = query.q as string
+  const normalizeSearchQuery = (value: unknown): string | undefined => {
+    if (Array.isArray(value)) {
+      return value.join(' ')
+    }
+    if (typeof value === 'string') {
+      return value
+    }
+    return undefined
+  }
+
+  const urlToformMadel = (searchQuery?: string) => {
+    const search = searchQuery ?? normalizeSearchQuery(route.query.q)
     const _params: TermsItem[] = []
-    if (!search) return
+    if (!search) {
+      formModel.value = []
+      return
+    }
+
+    const parseNumberValue = (column?: string, value?: string) => {
+      if (value === undefined || value === '') return value
+      const searchType = column ? columnsMap[column]?.search?.type : undefined
+      const isNumberLikeValue = /^-?\d+(\.\d+)?$/.test(value)
+
+      if (!isNumberLikeValue) {
+        return value
+      }
+
+      if (['number', 'date', 'time', 'timeRange', 'rangePicker'].includes(searchType)) {
+        return Number(value)
+      }
+
+      return value
+    }
+
+    const parseValue = (column?: string, termType?: string, rawValue?: string) => {
+      if (!termType || !isArrayTermType(termType)) {
+        return parseNumberValue(column, rawValue)
+      }
+
+      if (!rawValue) return []
+
+      if (rawValue.includes('|')) {
+        return rawValue.split('|').map(item => item === '' ? undefined : parseNumberValue(column, item))
+      }
+
+      if (rawValue.includes(',')) {
+        return rawValue.split(',').map(item => item === '' ? undefined : parseNumberValue(column, item))
+      }
+
+      return [parseNumberValue(column, rawValue)]
+    }
 
     decodeURI(search).split(" ").forEach((item: string) => {
       const parts = item.split(":")
-      if (parts.length >= 3) {
-        const [column, termType, value, type] = parts
-        _params.push({
-          column,
-          termType,
-          value,
-          type
-        })
+      if (parts.length < 3) {
+        return
       }
+
+      const [column, termType, ...rest] = parts
+      let type: string | undefined
+      let valueParts = rest
+
+      const maybeType = rest[rest.length - 1]
+      if (maybeType && ['and', 'or'].includes(maybeType)) {
+        type = maybeType
+        valueParts = rest.slice(0, -1)
+      }
+
+      _params.push({
+        column,
+        termType,
+        value: parseValue(column, termType, valueParts.join(':')),
+        type,
+        key: randomString(10)
+      })
     })
     formModel.value = _params
+  }
+
+  const syncFormModelByRouteQuery = (searchQuery: unknown, force = false) => {
+    const normalizedQuery = normalizeSearchQuery(searchQuery)
+    if (!force && normalizedQuery === lastParsedQuery.value) {
+      return
+    }
+    lastParsedQuery.value = normalizedQuery
+    urlToformMadel(normalizedQuery)
   }
 
   const submit = () => {
@@ -183,7 +252,6 @@ export const useSearchEngine = (props: any) => {
         }
       })
     }
-
     return termsData
   }
 
@@ -191,7 +259,7 @@ export const useSearchEngine = (props: any) => {
     const column = columnsMap[columnKey]
     // 获取默认值和默认termType
     const value = column.search?.defaultValue
-    const termType = column.search?.defaultTermType || 'eq'
+    const termType = column.search?.defaultTermType || getDefaultTermType(column.search.type)[0] || 'eq'
     const item: TermsItem = {
       column: columnKey,
       termType,
@@ -238,7 +306,13 @@ export const useSearchEngine = (props: any) => {
   useColumnItemOptionsContext(optionsMap)
 
   onMounted(() => {
-    urlToformMadel()
+    nextTick(() => {
+      syncFormModelByRouteQuery(route.query.q, true)
+    })
+  })
+
+  watch(() => route.query.q, (val) => {
+    syncFormModelByRouteQuery(val)
   })
 
   onUnmounted(() => {
