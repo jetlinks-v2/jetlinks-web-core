@@ -25,7 +25,7 @@
       <div class="right-content">
         <RegistryComponent pageCode="layout" code="headerRight">
           <template v-if="!hideHeaderRight">
-            <Language />
+            <Language key="Language" />
             <Resource v-if="systemInfo?.['front']?.resources"/>
             <Notice />
           </template>

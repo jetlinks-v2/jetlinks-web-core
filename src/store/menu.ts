@@ -131,6 +131,7 @@ export const useMenuStore = defineStore('menu', () => {
   const siderMenus = ref<RouteRecordRaw[]>([])
   const menuResultCache = ref<any[]>([])
   const loading = ref(true)
+  const hasResponeMenu = ref(false)
   const authStore = useAuthStore()
   const app = useApplication()
 
@@ -269,6 +270,7 @@ export const useMenuStore = defineStore('menu', () => {
 
     if (resp.success) {
       await createRoutes(menuResult)
+      hasResponeMenu.value = !!resp.result.length
       loading.value = false
     }
   }
@@ -291,6 +293,7 @@ export const useMenuStore = defineStore('menu', () => {
     menusMap,
     loading,
     menuResultCache,
+    hasResponeMenu,
     hasRouteMenu,
     hasMenu,
     jumpPage,
