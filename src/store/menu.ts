@@ -105,6 +105,11 @@ const getCoreRouteOverrideMenus = () => {
       if (item.children) {
         item.children = filterChildren(item.children)
       }
+
+      if (item.meta?.handleHideInMenuFn) {
+        return item.meta?.handleHideInMenuFn() === false
+      }
+
       return item.meta.hideInMenu === false
     })
   }
@@ -118,7 +123,9 @@ const getCoreRouteOverrideMenus = () => {
         return
       }
       const _route = filterChildren([override])[0]
-      overrideMenuMap.set(override.name, _route)
+      if (_route) {
+        overrideMenuMap.set(override.name, _route)
+      }
     })
   })
 
@@ -269,8 +276,8 @@ export const useMenuStore = defineStore('menu', () => {
     }
 
     if (resp.success) {
-      await createRoutes(menuResult)
       hasResponeMenu.value = !!resp.result.length
+      await createRoutes(menuResult)
       loading.value = false
     }
   }

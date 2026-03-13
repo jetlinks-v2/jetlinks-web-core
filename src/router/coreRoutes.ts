@@ -22,10 +22,12 @@ export function resolveCoreRoutes(overrides: ModuleRouteOverride[] = []) {
   for (const override of overrides) {
 
     if (override.component) {
-      registry.set(override.name, override)
-      overrideLogs.push(
-        `  - ${override.name}: ${override.reason || '模块自定义'}`
-      )
+      if (override.meta?.handleHideInMenuFn?.() === false) {
+        registry.set(override.name, override)
+        overrideLogs.push(
+          `  - ${override.name}: ${override.reason || '模块自定义'}`
+        )
+      }
     } else {
       // 删除路由
       registry.delete(override.name)
