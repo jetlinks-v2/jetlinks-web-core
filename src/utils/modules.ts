@@ -74,10 +74,7 @@ export const getHideHeaderRightConfig = () => {
   let hideHeaderRight;
   modulesFiles.forEach((item: any) => {
     if (!isFilterModule(item)) {
-      const config = item.default.getConfig?.()?.hideHeaderRight
-      if (config) {
-        hideHeaderRight = config
-      }
+      hideHeaderRight = item.default.getConfig?.()?.hideHeaderRight ?? false
     }
   })
   return hideHeaderRight

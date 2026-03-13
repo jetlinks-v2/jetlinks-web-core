@@ -66,10 +66,23 @@ export function useRegistryOptions<T = any>({
     })
 
     registryItems.value.forEach(item => {
+      const target = item.target
+      if (item.mode === 'hide' && target != null) {
+        const idx = indexMap.get(target)
+        if (idx != null) {
+          result.splice(idx, 1)
+          indexMap.clear()
+          result.forEach((opt, index) => {
+            const itemKey = (opt as any).value ?? (opt as any).key
+            indexMap.set(itemKey, index)
+          })
+        }
+        return
+      }
+
       if (!item.extraOptions) return
 
       const key = item.extraOptions.value ?? item.extraOptions.key
-      const target = item.target
 
       if (item.mode === 'replace' && target != null) {
         const idx = indexMap.get(target)
@@ -132,13 +145,20 @@ export function useRegistryVNodeMerge(
     const result = [...base]
 
     registryItems().forEach(item => {
-      if (!item.component) return
-
       const index = item.target
         ? result.findIndex(n => n.key === item.target)
         : -1
 
       const mode = item.mode ?? 'append'
+
+      if (mode === 'hide') {
+        if (index !== -1) {
+          result.splice(index, 1)
+        }
+        return
+      }
+
+      if (!item.component) return
       const vnode = h(item.component, {
         ...(mode === 'replace' && index !== -1 ? (result[index].props || {}) : {}),
         ...(item.props || {}),

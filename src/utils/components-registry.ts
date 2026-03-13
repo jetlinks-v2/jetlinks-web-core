@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import { modules } from '../utils/modules'
 
-export type ActionPosition = 'replace' | 'before' | 'after' | 'append'
+export type ActionPosition = 'replace' | 'before' | 'after' | 'append' | 'hide'
 
 export interface RegistryAction {
   targetPage: string                // 目标页面, 比如; system/User
@@ -9,7 +9,7 @@ export interface RegistryAction {
   target?: string            // 目标功能（如 add）； 作用于RegistryComponent 下子组件的 key
   mode?: ActionPosition  // 执行位置 replace（替换） / before（在前面插入） / after（在后面插入） / append（追加）
   order?: number
-  component: Component
+  component?: Component
   code: string     // 组件唯一标识，作用于RegistryComponent下子组件的 key
   props?: Record<string, any>
   extraOptions?: Record<string, any>
