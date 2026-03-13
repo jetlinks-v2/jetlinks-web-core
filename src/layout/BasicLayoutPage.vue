@@ -26,10 +26,10 @@
         <RegistryComponent pageCode="layout" code="headerRight">
           <template v-if="!hideHeaderRight">
             <Language key="Language" />
-            <Resource v-if="systemInfo?.['front']?.resources"/>
-            <Notice />
+            <Resource key="resource" v-if="systemInfo?.['front']?.resources"/>
+            <Notice key="notice" />
           </template>
-          <User :hideHeaderRight="hideHeaderRight" />
+          <User key="user" :hideHeaderRight="hideHeaderRight" />
         </RegistryComponent>
       </div>
     </template>

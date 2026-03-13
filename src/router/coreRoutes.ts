@@ -1,48 +1,40 @@
-import type { CoreRouteConfig, ModuleRouteOverride } from './types'
+import type { RouteRecordRaw } from 'vue-router'
+import type { ModuleRouteOverride, RouteHideInMenuContext } from './types'
 import { RouteSecurityLevel } from './types'
 import * as basicRoutes from './basic'
 
-
 /**
- * 解析核心路由配置，应用模块覆盖
- *
- * @param overrides 模块提供的覆盖配置
- * @returns 解析后的路由列表和过滤规则
+ * Resolve core routes and apply module overrides.
  */
-export function resolveCoreRoutes(overrides: ModuleRouteOverride[] = []) {
-  // 克隆注册表防止污染原始配置
-
-
+export function resolveCoreRoutes(
+  overrides: ModuleRouteOverride[] = [],
+  context?: RouteHideInMenuContext,
+) {
   const registry = new Map(
-    Object.values(basicRoutes).map(config => [config.name, { ...config }])
+    Object.values(basicRoutes).map(config => [config.name, { ...config }]),
   )
-  console.log('overrides', overrides)
-  // 应用模块覆盖（按提供顺序，后者优先）
-  const overrideLogs: string[] = []
-  for (const override of overrides) {
 
+  const overrideLogs: string[] = []
+
+  for (const override of overrides) {
     if (override.component) {
-      if (override.meta?.handleHideInMenuFn?.() === false) {
+      if (shouldApplyOverride(override, context)) {
         registry.set(override.name, override)
-        overrideLogs.push(
-          `  - ${override.name}: ${override.reason || '模块自定义'}`
-        )
+        overrideLogs.push(`  - ${override.name}: ${override.description || 'module override'}`)
       }
-    } else {
-      // 删除路由
-      registry.delete(override.name)
-      overrideLogs.push(`  - ${override.name}: [已移除]`)
+      continue
     }
+
+    registry.delete(override.name)
+    overrideLogs.push(`  - ${override.name}: [removed]`)
   }
 
   if (overrideLogs.length > 0) {
     console.info(
-      `[Route Override] 已应用 ${overrideLogs.length} 个路由覆盖:\n` +
-      overrideLogs.join('\n')
+      `[Route Override] Applied ${overrideLogs.length} route override(s):\n${overrideLogs.join('\n')}`,
     )
   }
 
-  // 提取路由和过滤规则
   const routes = [...registry.values()]
   const tokenFilterPaths = extractTokenFilterPaths(routes)
   const menuFilterPaths = extractMenuFilterPaths(routes)
@@ -51,40 +43,55 @@ export function resolveCoreRoutes(overrides: ModuleRouteOverride[] = []) {
     routes,
     tokenFilterPaths,
     menuFilterPaths,
-    registry: [...registry.values()] // 供调试使用
+    registry: routes,
+  }
+}
+
+function shouldApplyOverride(route: ModuleRouteOverride, context?: RouteHideInMenuContext): boolean {
+  const handler = route.meta?.handleHideInMenuFn
+
+  if (typeof handler !== 'function') {
+    return true
+  }
+
+  try {
+    return handler(context) === false
+  } catch (error) {
+    console.warn(
+      `[Route Override] Skip dynamic filter for route "${String(route.name)}", fallback to apply override.`,
+      error,
+    )
+    return true
   }
 }
 
 /**
- * 提取需要跳过token验证的路径（支持动态参数）
+ * Extract paths that should skip token validation.
  */
-function extractTokenFilterPaths(routes: import('vue-router').RouteRecordRaw[]): string[] {
+function extractTokenFilterPaths(routes: RouteRecordRaw[]): string[] {
   const paths: string[] = []
 
-  function traverse(route: import('vue-router').RouteRecordRaw) {
-    const security = route.meta?.security
-    if (security === RouteSecurityLevel.PUBLIC) {
+  function traverse(route: RouteRecordRaw) {
+    if (route.meta?.security === RouteSecurityLevel.PUBLIC) {
       paths.push(route.path)
     }
 
-    // 递归处理子路由
     if (route.children) {
       route.children.forEach(traverse)
     }
   }
 
   routes.forEach(traverse)
-  console.log(routes, paths)
   return paths
 }
 
 /**
- * 提取需要跳过菜单权限检查的路径
+ * Extract paths that should skip menu permission checks.
  */
-function extractMenuFilterPaths(routes: import('vue-router').RouteRecordRaw[]): string[] {
+function extractMenuFilterPaths(routes: RouteRecordRaw[]): string[] {
   const paths: string[] = []
 
-  function traverse(route: import('vue-router').RouteRecordRaw) {
+  function traverse(route: RouteRecordRaw) {
     if (route.meta?.skipMenuFetch) {
       paths.push(route.path)
     }
