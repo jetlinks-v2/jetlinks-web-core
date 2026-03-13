@@ -31,7 +31,7 @@
       </div>
 
       <div class="textarea">
-        <textarea ref="textareaRef" wrap="hard" :value="inputMessage" @input="handleInput" @keydown="handleTextAreaKeydown" :placeholder="textareaPlaceholder" />
+        <textarea ref="textareaRef" wrap="hard" :value="inputMessage" :disabled="isInputDisabled" @input="handleInput" @keydown="handleTextAreaKeydown" :placeholder="textareaPlaceholder" />
         <div class="drag-overlay" v-if="isDragOver">
           <div class="icon">📁</div>
           <div class="text">释放文件到此处</div>
@@ -82,6 +82,7 @@ interface Props {
   uploadedFiles?: FileWithUid[]; // 已上传的文件
   isClearAll?: boolean; // 是否清空所有数据
   defaultInput?: string; // 默认输入框输入的值
+  isInputDisabled?: boolean; // 输入框是否禁止输入
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -92,6 +93,7 @@ const props = withDefaults(defineProps<Props>(), {
   uploadCategories: () => ['video', 'document', 'image', 'audio'],
   isClearAll: false,
   defaultInput: '',
+  isInputDisabled: false,
   textareaPlaceholder: '请描述你的问题或拖拽文件到此处...(Enter发送，Ctrl+Enter换行)',
 });
 
