@@ -37,6 +37,7 @@ export const LOGIN_ROUTE: RouteRecordRaw = {
 
 export const EDGE_TOKEN_ROUTE: RouteRecordRaw = {
   path: '/edge/token/:id',
+  name: 'EdgeToken',
   meta: {
     title: 'token失效'
   },
@@ -45,6 +46,7 @@ export const EDGE_TOKEN_ROUTE: RouteRecordRaw = {
 
 export const AccountCenterBind: RouteRecordRaw = {
   path: '/account/center/bind',
+  name: 'AccountCenterBind',
   meta: {
     title: '第三方',
     security: RouteSecurityLevel.PUBLIC
@@ -65,6 +67,7 @@ export const IdentityResultRoute: RouteRecordRaw = {
 
 export const OAuth2: RouteRecordRaw = {
   path: '/oauth',
+  name: 'Oauth',
   meta: {
     title: '授权页',
     security: RouteSecurityLevel.PUBLIC
@@ -83,6 +86,7 @@ export const INIT_HOME: RouteRecordRaw = {
 
 export const OAuthWechat: RouteRecordRaw = {
   path: '/oauth/wechat',
+  name: 'OAuthWechat',
   meta: {
     title: '微信授权页'
   },

@@ -21,13 +21,17 @@ import {
   v3Token,
   getModulesName,
   getProxyUrl,
+  getRuntimeAppEnv,
   federationSharedMap
 } from './vite.setting'
 import { moduleFilterPlugin } from './configs/plugin/moduleFilterPlugin'
 
 export default defineConfig(({ mode, command }) => {
   const envDir = path.resolve(__dirname, '..')
-  const env: Partial<ImportMetaEnv> = loadEnv(mode, __dirname, '')
+  const env: Partial<ImportMetaEnv> = {
+    ...loadEnv(mode, __dirname, ''),
+    ...getRuntimeAppEnv()
+  }
   const isDev = command === 'serve'
   const publicPath = (env.VITE_PUBLIC_PATH || '/').trim() || '/'
 

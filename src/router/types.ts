@@ -1,42 +1,44 @@
 import type { RouteRecordRaw } from 'vue-router'
 
-/**
- * 路由安全策略枚举
- */
+/** Route access level */
 export enum RouteSecurityLevel {
-  /** 公开路由，无需token（如登录页、OAuth回调） */
+  /** Public route, no token required. */
   PUBLIC = 'public',
-  /** 需要token，但无需菜单权限（如个人中心） */
+  /** Token required, menu permission not required. */
   AUTHENTICATED = 'authenticated',
-  /** 需要token和菜单权限（默认） */
+  /** Token and menu permission required (default). */
   AUTHORIZED = 'authorized'
 }
 
+export type RouteHideInMenuContext = {
+  hasResponeMenu?: boolean
+}
+
+export type RouteHideInMenuHandler = (context?: RouteHideInMenuContext) => boolean
+
 declare module 'vue-router' {
   interface RouteMeta {
-    /** 路由安全级别 */
+    /** Route access level */
     security?: RouteSecurityLevel
-    /** 是否跳过菜单权限检查（遗留兼容，建议使用security） */
+    /** Legacy compatibility: skip menu permission check */
     skipMenuFetch?: boolean
-    /** 页面标题 */
+    /** Page title */
     title?: string
-    /** 是否在菜单中隐藏 */
+    /** Whether hidden in menu */
     hideInMenu?: boolean
+    /** Dynamic hide condition for menu-related filtering */
+    handleHideInMenuFn?: RouteHideInMenuHandler
   }
 }
 
-/**
- * 核心路由配置项
- */
+/** Core route configuration item */
 export type CoreRouteConfig = RouteRecordRaw & {
-  /** 描述（调试用） */
+  /** Description (debug only) */
   description?: string
 }
 
-/**
- * 模块路由覆盖配置
- */
+/** Module route override configuration */
 export type ModuleRouteOverride = RouteRecordRaw & {
-  /** 描述（调试用） */
+  /** Description (debug only) */
   description?: string
 }
