@@ -7,6 +7,7 @@
       </div>
       <div class="main">
         <Form
+          ref="formRef"
           layout="vertical"
           :model="formData"
           :rules="rules"
@@ -38,6 +39,7 @@
               autocomplete="off"
               :maxlength="64"
               :placeholder="$t('login.right.419974-5')"
+              @keyup.enter="handleEnterSubmit"
             >
               <template #addonAfter>
                 <img :src="url.base64" @click="getVerifyCode" />
@@ -181,6 +183,7 @@ const emit = defineEmits(["submit", "update:loading"]);
 const moreVisible = ref(false);
 const userStore = useUserStore();
 const router = useRouter();
+const formRef = ref();
 
 const formData = reactive({
   username: "",
@@ -215,7 +218,7 @@ const { data: encryption, run: reloadEncryption } = useRequest(
 
 const getVerifyCode = (record) => {
   const _config = config.value || record;
-  if (_config && _config.enabled && _config.loginWithVerify === false && _config.type === 'image') {
+  if (_config && _config.enabled && !_config.loginWithVerify && _config.type === 'image') {
     getCode();
   }
 }
@@ -275,7 +278,7 @@ const { loading, run } = useRequest(login, {
 });
 
 const showCode = computed(() => {
-  return !!url?.value?.base64 && config.value.enabled && config.value.loginWithVerify === false;
+  return !!url?.value?.base64 && config.value.enabled && !config.value.loginWithVerify;
 });
 
 const submit = (data) => {
@@ -288,6 +291,10 @@ const submit = (data) => {
   }
 
   run(_formData);
+};
+
+const handleEnterSubmit = () => {
+  formRef.value?.submit();
 };
 
 const handleClickOther = (item) => {

@@ -47,6 +47,49 @@ export const getDefine = (
   return envDefine
 }
 
+const parseCliAppEnv = () => {
+  const cliEnv: Record<string, string> = {}
+
+  for (let i = 0; i < process.argv.length; i += 1) {
+    const arg = process.argv[i]
+    if (!arg.startsWith('--VITE_APP_')) {
+      continue
+    }
+
+    const rawArg = arg.slice(2)
+    const equalIndex = rawArg.indexOf('=')
+
+    if (equalIndex !== -1) {
+      const key = rawArg.slice(0, equalIndex)
+      const value = rawArg.slice(equalIndex + 1)
+      cliEnv[key] = value
+      continue
+    }
+
+    const nextArg = process.argv[i + 1]
+    if (typeof nextArg === 'string' && !nextArg.startsWith('--')) {
+      cliEnv[rawArg] = nextArg
+      i += 1
+    }
+  }
+
+  return cliEnv
+}
+
+export const getRuntimeAppEnv = () => {
+  const processAppEnv = Object.entries(process.env).reduce((acc, [key, value]) => {
+    if (key.startsWith('VITE_APP_') && value !== undefined) {
+      acc[key] = value
+    }
+    return acc
+  }, {} as Record<string, string>)
+
+  return {
+    ...processAppEnv,
+    ...parseCliAppEnv()
+  }
+}
+
 export const getFederationSetting = (mavenName: string, envDir: string) => {
   return {
     name: mavenName ? `${mavenName}` : 'host',

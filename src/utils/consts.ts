@@ -22,3 +22,9 @@ export const PersonalAIKey = import.meta.env.VITE_PERSONAL_TOKEN_AI_KEY
 export const PersonalToken: { value?: string, aiToken?: string} = { value: undefined, aiToken: undefined}
 
 export const PlatformName = 'platform-name'
+
+export const isCloud = import.meta.env.VITE_APP_ENVIRONMENT === 'cloud'
+
+export const isSass = import.meta.env.VITE_APP_ENVIRONMENT === 'saas'
+
+

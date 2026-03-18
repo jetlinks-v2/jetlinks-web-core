@@ -8,6 +8,7 @@ import { handleMenus, modules, getBaseApi } from '@jetlinks-web-core/utils'
 import { getOwnMenuThree } from '@jetlinks-web-core/api/system/menu'
 import { getGlobModules } from '@jetlinks-web-core/router/globModules'
 import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
+import type { RouteHideInMenuContext } from '@jetlinks-web-core/router/types'
 import { useAuthStore, useApplication } from '@jetlinks-web-core/store'
 import { OWNER_KEY } from '@jetlinks-web-core/utils/consts'
 import i18n from '@jetlinks-web-core/locales'
@@ -95,17 +96,36 @@ export function handleSiderBreadcrumb(route: RouteRecordRaw[], parent?: Record<s
   })
 }
 
-const getCoreRouteOverrideMenus = () => {
+const shouldShowOverrideRoute = (
+  route: RouteRecordRaw,
+  context?: RouteHideInMenuContext,
+): boolean => {
+  if (route.meta?.handleHideInMenuFn) {
+    try {
+      return route.meta.handleHideInMenuFn(context) === false
+    } catch (error) {
+      console.warn(
+        `[Menu Override] Skip dynamic filter for route "${String(route.name)}", fallback to static flag.`,
+        error,
+      )
+    }
+  }
+
+  return route.meta?.hideInMenu === false
+}
+
+const getCoreRouteOverrideMenus = (context?: RouteHideInMenuContext) => {
   const modulesFile = modules()
   const overrideMenuMap = new Map<string, RouteRecordRaw>()
 
-  function filterChildren(routes) {
+  function filterChildren(routes: RouteRecordRaw[]): RouteRecordRaw[] {
     return routes.filter(item => {
 
       if (item.children) {
         item.children = filterChildren(item.children)
       }
-      return item.meta.hideInMenu === false
+
+      return shouldShowOverrideRoute(item, context)
     })
   }
 
@@ -118,7 +138,9 @@ const getCoreRouteOverrideMenus = () => {
         return
       }
       const _route = filterChildren([override])[0]
-      overrideMenuMap.set(override.name, _route)
+      if (_route) {
+        overrideMenuMap.set(override.name, _route)
+      }
     })
   })
 
@@ -131,6 +153,7 @@ export const useMenuStore = defineStore('menu', () => {
   const siderMenus = ref<RouteRecordRaw[]>([])
   const menuResultCache = ref<any[]>([])
   const loading = ref(true)
+  const hasResponeMenu = ref(false)
   const authStore = useAuthStore()
   const app = useApplication()
 
@@ -179,7 +202,9 @@ export const useMenuStore = defineStore('menu', () => {
       extraMenu,
       asyncRoutes,
     )
-    const overrideMenus = getCoreRouteOverrideMenus()
+    const overrideMenus = getCoreRouteOverrideMenus({
+      hasResponeMenu: hasResponeMenu.value,
+    })
     const overrideMenuKeys = new Set(menus.map(item => item.name))
     const mergedMenus = [
       ...overrideMenus.filter(item => {
@@ -268,6 +293,7 @@ export const useMenuStore = defineStore('menu', () => {
     }
 
     if (resp.success) {
+      hasResponeMenu.value = !!resp.result.length
       await createRoutes(menuResult)
       loading.value = false
     }
@@ -291,6 +317,7 @@ export const useMenuStore = defineStore('menu', () => {
     menusMap,
     loading,
     menuResultCache,
+    hasResponeMenu,
     hasRouteMenu,
     hasMenu,
     jumpPage,
