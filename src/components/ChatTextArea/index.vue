@@ -31,7 +31,7 @@
       </div>
 
       <div class="textarea">
-        <textarea ref="textareaRef" wrap="hard" :value="inputMessage" :disabled="isInputDisabled" @input="handleInput" @keydown="handleTextAreaKeydown" :placeholder="textareaPlaceholder" />
+        <textarea ref="textareaRef" wrap="hard" :value="inputMessage" :disabled="isInputDisabled" @input="handleInput" @keydown="handleTextAreaKeydown" :placeholder="textareaEditorPlaceholder" />
         <div class="drag-overlay" v-if="isDragOver">
           <div class="icon">📁</div>
           <div class="text">释放文件到此处</div>
@@ -78,6 +78,7 @@ interface Props {
   inputHeight?: number;
   uploadCategories?: string[]; // 上传文件类型
   textareaPlaceholder?: string;
+  disabledWithValueTextareaPlaceholder?: string; // 禁止输入后有值显示
   originFiles?: FileWithUid[]; // 待上传的文件
   uploadedFiles?: FileWithUid[]; // 已上传的文件
   isClearAll?: boolean; // 是否清空所有数据
@@ -94,6 +95,7 @@ const props = withDefaults(defineProps<Props>(), {
   isClearAll: false,
   defaultInput: '',
   isInputDisabled: false,
+  disabledWithValueTextareaPlaceholder: '',
   textareaPlaceholder: '请描述你的问题或拖拽文件到此处...(Enter发送，Ctrl+Enter换行)',
 });
 
@@ -112,6 +114,14 @@ const isUploadingFiles = ref(false);
 const uploadedFiles = ref<IUploadFile[]>([]);
 
 const areaWrapperHeight = computed(() => (uploadedFiles.value.length ? 350 : 148));
+
+const textareaEditorPlaceholder = computed(() => {
+  if (props.isInputDisabled && uploadedFiles.value.length) {
+    return props.disabledWithValueTextareaPlaceholder;
+  }
+
+  return props.textareaPlaceholder;
+});
 
 const FileValidationRules: Record<
   string,
