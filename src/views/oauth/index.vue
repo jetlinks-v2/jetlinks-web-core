@@ -43,7 +43,11 @@
                         <a-input-password :placeholder='$t("login.right.419974-2")' v-model:value='formModel.password' />
                       </a-form-item>
                       <a-form-item name='verifyCode' v-if='captcha.base64' required :rules='[{ required: true, message: $t("login.right.419974-5")}]'>
-                        <a-input :placeholder='$t("login.right.419974-4")' v-model:value='formModel.verifyCode' >
+                        <a-input
+                          :placeholder='$t("login.right.419974-4")'
+                          v-model:value='formModel.verifyCode'
+                          @keyup.enter='handleEnterSubmit'
+                        >
                           <template #addonAfter>
                             <img
                               :src='captcha.base64'
@@ -226,6 +230,10 @@ const doLogin = () => {
       getCode()
     }
   })
+}
+
+const handleEnterSubmit = () => {
+  doLogin()
 }
 
 const initPage = async () => {
