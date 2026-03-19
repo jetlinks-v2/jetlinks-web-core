@@ -173,7 +173,7 @@ export const initAxios = () => {
             }
 
             const tenantDomain = location.pathname?.split('/')[1] || localStorage.getItem('X-Tenant-Domain')
-            if (tenantDomain) {
+            if (tenantDomain && !!import.meta.VITE_APP_ENVIRONMENT) {
                 config.headers = config.headers || {}
                 config.headers['X-Tenant-Domain'] = tenantDomain
             }
