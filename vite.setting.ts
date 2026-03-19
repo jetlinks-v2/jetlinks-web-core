@@ -127,14 +127,38 @@ export const getModulesName = (): { moduleNames?: string[], moduleName?: string 
 }
 
 export const getProxyUrl = () => {
-  // 解析后端地址参数
-  const backendUrlIndex = process.argv.indexOf('--backend-url')
-  let backendUrl = backendUrlIndex !== -1 ? process.argv[backendUrlIndex + 1] : null
+  let backendUrl: string | null = null
+  const backendUrlFlag = '--backend-url'
+  const inlineBackendUrl = process.argv.find((arg) => arg.startsWith(`${backendUrlFlag}=`))
+
+  if (inlineBackendUrl) {
+    backendUrl = inlineBackendUrl.slice(backendUrlFlag.length + 1)
+  } else {
+    const backendUrlIndex = process.argv.indexOf(backendUrlFlag)
+
+    if (backendUrlIndex !== -1) {
+      for (let i = backendUrlIndex + 1; i < process.argv.length; i += 1) {
+        const arg = process.argv[i]
+
+        if (!arg || arg === '--') {
+          continue
+        }
+
+        if (arg.startsWith('--')) {
+          continue
+        }
+
+        backendUrl = arg
+        break
+      }
+    }
+  }
 
   // 自动添加 http:// 前缀（如果用户未输入）
   if (backendUrl && !backendUrl.match(/^https?:\/\//)) {
     backendUrl = `http://${backendUrl}`
   }
+  console.log('backendUrl', backendUrl)
 
   return backendUrl
 }
