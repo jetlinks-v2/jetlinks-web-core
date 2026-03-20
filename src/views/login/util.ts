@@ -3,13 +3,13 @@ import dingtalk from '@jetlinks-web-core/assets/bindPage/dingtalk.png'
 import wechat from '@jetlinks-web-core/assets/bindPage/wechat-webapp.png'
 import thirdParty from '@jetlinks-web-core/assets/apply/third-party.png'
 import wechatMiniapp from '@jetlinks-web-core/assets/apply/wechat-miniapp.png'
-
+import i18n from '@jetlinks-web-core/locales';
 export const rules = {
   username: [
     {
       validator(_: any, value: string) {
         if (!value) {
-          return Promise.reject('请输入账号!')
+          return Promise.reject(i18n.global.t('login.right.419974-1'))
         }
         return Promise.resolve()
       },
@@ -20,7 +20,7 @@ export const rules = {
     {
       validator(_: any, value: string) {
         if (!value) {
-          return Promise.reject('请输入密码!')
+          return Promise.reject(i18n.global.t('login.right.419974-3'))
         }
         return Promise.resolve()
       },
@@ -31,7 +31,7 @@ export const rules = {
     {
       validator(_: any, value: string) {
         if (!value) {
-          return Promise.reject('请输入验证码!')
+          return Promise.reject(i18n.global.t('login.right.419974-5'))
         }
         return Promise.resolve()
       },
