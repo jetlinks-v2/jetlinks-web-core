@@ -4,7 +4,7 @@
     wrapClassName="relogin-modal"
     :maskClosable="false"
     :footer="null"
-    :width="!isCloud ? 1020 : 718"
+    :width="!isSass ? 1020 : 718"
     :bodyStyle="{padding: 0}"
     @cancel="onCancel"
     centered
@@ -52,13 +52,12 @@ import Relogin from '@jetlinks-web-core/assets/relogin.png'
 import { Modal, Button } from 'ant-design-vue'
 import { Language, Notice, Resource, User } from '@/layout/components'
 import RegistryComponent from '@jetlinks-web-core/components/RegisterComponents'
+import {isSass} from "@/utils/consts";
 
 const systemStore = useSystemStore();
 const { systemInfo, layout } = storeToRefs(systemStore);
 const loading = ref(false)
 const $t = i18n.global.t
-
-const isCloud = import.meta.env.VITE_APP_ENVIRONMENT === 'cloud'
 
 const visible = ref(false);
 let resolvePromise = null;
@@ -67,7 +66,6 @@ const onCancel = () => {
   clearVerifyCache()
   jumpLogin()
 }
-
 const handleClose = (result = null) => {
   visible.value = false;
   if (resolvePromise) {
