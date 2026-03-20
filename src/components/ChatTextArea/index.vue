@@ -1,7 +1,14 @@
 <template>
   <div class="upload-text-area-wrapper" :style="{ height: areaWrapperHeight + 'px' }">
-    <div class="input-area-content" dragover.prevent="handleDragOver" @dragover.prevent="handleDragOver" @dragleave.prevent="handleDragLeave" @drop.prevent="handleDrop" @mousedown.stop>
-      <div class="file-list" v-if="!isLoading && uploadedFiles.length > 0">
+    <div
+      class="input-area-content"
+      :class="{ 'only-image-mode': isOnlyImageUpload }"
+      dragover.prevent="handleDragOver"
+      @dragover.prevent="handleDragOver"
+      @dragleave.prevent="handleDragLeave"
+      @drop.prevent="handleDrop"
+      @mousedown.stop>
+      <div class="file-list" v-if="!isOnlyImageUpload && !isLoading && uploadedFiles.length > 0">
         <div class="file-list-header">
           <span>已选择文件 ({{ uploadedFiles.length }})</span>
           <button class="clear-all-btn" @click="clearAllFiles">清空全部</button>
@@ -26,6 +33,17 @@
                 <AIcon type="DeleteOutlined" />
               </a-button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="only-image-wrapper" v-if="isOnlyImageUpload && !isLoading && uploadedFiles.length > 0">
+        <div class="image-items">
+          <div class="image-item" v-for="(file, index) in uploadedFiles" :key="file.uid">
+            <img class="image" :src="file.url" :alt="file.name" />
+            <a-button class="delete-btn" type="text" size="small" @click="removeFile(index)" danger>
+              <AIcon type="DeleteOutlined" />
+            </a-button>
           </div>
         </div>
       </div>
@@ -113,7 +131,15 @@ const isDragOver = ref(false);
 const isUploadingFiles = ref(false);
 const uploadedFiles = ref<IUploadFile[]>([]);
 
-const areaWrapperHeight = computed(() => (uploadedFiles.value.length ? 350 : 148));
+const isOnlyImageUpload = computed(() => props.uploadCategories?.length === 1 && props.uploadCategories?.[0] === 'image');
+
+const areaWrapperHeight = computed(() => {
+  if (!uploadedFiles.value.length) {
+    return 148;
+  }
+
+  return isOnlyImageUpload.value ? 236 : 350;
+});
 
 const textareaEditorPlaceholder = computed(() => {
   if (props.isInputDisabled && uploadedFiles.value.length) {
@@ -450,6 +476,56 @@ onBeforeUnmount(() => registerReset?.(undefined));
     flex-direction: column;
     margin-bottom: 12px;
     box-sizing: border-box;
+
+    &.only-image-mode {
+      .only-image-wrapper {
+        border-top-left-radius: 6px;
+        border-top-right-radius: 6px;
+        box-sizing: border-box;
+        background: #f8f9fa;
+        border-bottom: 0.5px solid #d9d9d9;
+
+        .image-items {
+          display: flex;
+          gap: 12px;
+          padding: 12px 16px;
+          overflow-x: auto;
+          box-sizing: border-box;
+        }
+
+        .image-item {
+          flex-shrink: 0;
+          position: relative;
+          width: 72px;
+          height: 72px;
+          border-radius: 6px;
+          background: #e4e6e7;
+
+          .image {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 6px;
+          }
+
+          .delete-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 18px;
+            height: 18px;
+            min-width: 18px;
+            padding: 0;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.85);
+          }
+        }
+      }
+    }
 
     .file-list {
       border-top-left-radius: 6px;
