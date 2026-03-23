@@ -1,94 +1,68 @@
-<script setup name="PropertyFilter">
-import Item from './FilterItem.vue'
-import ValueItem from './ValueItem.vue'
-import { useEnginesContext, useSearchEngine } from './hooks/useSearchEngine'
+<script setup lang="ts" name="PropertyFilter">
+import type { PropType } from 'vue'
+import dayjs from 'dayjs'
+import FilterDropdownPanel from './FilterDropdownPanel.vue'
+import { useSearchEngine } from './hooks/useSearchEngine'
+import { buildIdToTitle, normalizeOptionTree } from './utils'
+import { TermTypeOptions } from './setting'
+import type { SearchItem, TermsItem } from './typing'
 
 const props = defineProps({
   target: {
     type: String,
-    default: ''
+    default: '',
   },
   columns: {
-    type: Array,
-    default: () => []
+    type: Array as PropType<SearchItem[]>,
+    default: () => [],
   },
   initParams: {
-    type: Array,
-    default: () => []
-  }
+    type: Array as PropType<TermsItem[]>,
+    default: () => [],
+  },
 })
 
-const status = ref('column')
-const open = ref(false)
-const currentColumn = ref(undefined)
 const emit = defineEmits(['search', 'update:params'])
 
-const { formModel, columnsOptions, updateTermValue, submit, addValue, removeItem } = useSearchEngine(props)
+const keyword = ref('')
+const openColumnKey = ref<string>()
 
-useEnginesContext({
-  updateTermValue,
+const {
+  formModel,
+  columnsOptions,
+  columnsMap,
+  optionsMap,
   submit,
-  removeItem
-})
+  createOptionsLoader,
+  getTermByColumn,
+  setTermByColumn,
+  removeTermByColumn,
+  clearItems,
+} = useSearchEngine(props)
 
-const onShow = () => {
-  const lastItem = formModel.value[formModel.value.length - 1]
+const typeOptions = [
+  { label: '并且', value: 'and' },
+  { label: '或者', value: 'or' },
+]
 
-  if (lastItem && (lastItem.value === undefined || lastItem.value === null)) {
-    status.value = 'value'
-  } else {
-    status.value = 'column'
-  }
+const typeOptionsMap = typeOptions.reduce<Record<string, string>>((acc, item) => {
+  acc[item.value] = item.label
+  return acc
+}, {})
 
-  open.value = true
-}
+const termTypeLabelMap = TermTypeOptions.reduce<Record<string, string>>((acc, item) => {
+  acc[item.value] = item.label
+  return acc
+}, {})
 
-const onBlankAreaClick = (e) => {
-  const target = e.target
-  const currentTarget = e.currentTarget
-
-  if (!(target instanceof HTMLElement) || !(currentTarget instanceof HTMLElement)) {
-    return
-  }
-
-  const isBlankArea = target === currentTarget
-  const isPlaceholder = target.classList.contains('property-filter-placeholder')
-
-  if (!isBlankArea && !isPlaceholder) {
-    return
-  }
-
-  onShow()
-}
-
-const openChange = (status) => {
-  open.value = status
-}
-
-const menuClick = (key) => {
-  if (status.value === 'column') {
-    addValue(key)
-    currentColumn.value = key
-    status.value = 'value'
-  }
-}
-
-const onValueChange = (e) => {
-  updateTermValue(e)
-  open.value = false
-  setTimeout(() => {
-    status.value = 'column'
-  }, 350)
-}
-
-const cloneTermValue = (value) => {
+const cloneTermValue = (value: any) => {
   return Array.isArray(value) ? [...value] : value
 }
 
 const getUIParams = () => {
   return formModel.value.map((item) => ({
     ...item,
-    value: cloneTermValue(item.value)
+    value: cloneTermValue(item.value),
   }))
 }
 
@@ -99,54 +73,245 @@ const onSearch = () => {
   emit('update:params', uiParams)
 }
 
+const onClearAll = () => {
+  clearItems()
+  keyword.value = ''
+  openColumnKey.value = undefined
+  onSearch()
+}
+
+const onKeywordSearch = () => {
+  openColumnKey.value = undefined
+}
+
+const onOpenChange = (columnKey: string, nextOpen: boolean) => {
+  openColumnKey.value = nextOpen ? columnKey : undefined
+
+  if (nextOpen) {
+    const column = columnsMap[columnKey]
+    if (column?.search?.options) {
+      createOptionsLoader(column)
+    }
+  }
+}
+
+const onApply = (payload: TermsItem) => {
+  if (!payload.column) {
+    return
+  }
+
+  setTermByColumn(payload.column, {
+    termType: payload.termType,
+    value: cloneTermValue(payload.value),
+  })
+  openColumnKey.value = undefined
+  onSearch()
+}
+
+const onReset = (columnKey: string) => {
+  removeTermByColumn(columnKey)
+  openColumnKey.value = undefined
+  onSearch()
+}
+
+const onTypeChange = (index: number, type: string) => {
+  if (!formModel.value[index]) {
+    return
+  }
+
+  formModel.value.splice(index, 1, {
+    ...formModel.value[index],
+    type,
+  })
+  onSearch()
+}
+
+const onRemove = (columnKey: string) => {
+  removeTermByColumn(columnKey)
+  if (openColumnKey.value === columnKey) {
+    openColumnKey.value = undefined
+  }
+  onSearch()
+}
+
+const normalizeText = (value: any) => {
+  if (value === undefined || value === null || value === '') {
+    return ''
+  }
+  return String(value)
+}
+
+const formatValueLabel = (term: TermsItem) => {
+  const columnKey = term.column || ''
+  const column = columnsMap[columnKey]
+  const searchType = column?.search?.type
+
+  if (!column) {
+    return normalizeText(term.value)
+  }
+
+  const rawOptions = normalizeOptionTree(optionsMap[columnKey] || [])
+  const titleMap = buildIdToTitle(rawOptions)
+  const formatSingleValue = (value: any) => {
+    if (value === undefined || value === null || value === '') {
+      return ''
+    }
+
+    if (['date', 'time', 'timeRange', 'rangePicker'].includes(searchType)) {
+      const currentValue = dayjs(value)
+      return currentValue.isValid() ? currentValue.format('YYYY-MM-DD HH:mm:ss') : normalizeText(value)
+    }
+
+    return titleMap.get(value) || titleMap.get(String(value)) || normalizeText(value)
+  }
+
+  if (Array.isArray(term.value)) {
+    const separator = ['btw', 'nbtw'].includes(term.termType || '') ? ' ~ ' : '、'
+    return term.value.map((item) => formatSingleValue(item)).filter(Boolean).join(separator)
+  }
+
+  return formatSingleValue(term.value)
+}
+
+const getFilterTermLabel = (term: TermsItem) => {
+  const column = term.column ? columnsMap[term.column] : undefined
+  if (!column) {
+    return ''
+  }
+
+  const searchType = column.search?.type
+
+  if (['select', 'tree', 'treeSelect'].includes(searchType)) {
+    return ''
+  }
+
+  return term.termType ? termTypeLabelMap[term.termType] || '' : ''
+}
+
+const filteredColumns = computed(() => {
+  const searchText = keyword.value.trim().toLowerCase()
+
+  if (!searchText) {
+    return columnsOptions.value
+  }
+
+  return columnsOptions.value.filter((item) => {
+    const text = `${item.title}${item.dataIndex}`.toLowerCase()
+    return text.includes(searchText)
+  })
+})
+
+const activeTerms = computed(() => {
+  return formModel.value.filter(item => item.column)
+})
+
+const inactiveColumns = computed(() => {
+  const activeColumnKeys = new Set(activeTerms.value.map(item => item.column))
+  return filteredColumns.value.filter(item => !activeColumnKeys.has(item.dataIndex))
+})
+
 onMounted(() => {
   formModel.value = props.initParams || []
 })
 
 defineExpose({
-  setValues: (v) => {
-    formModel.value = v || []
-  }
+  setValues: (value: TermsItem[]) => {
+    formModel.value = value || []
+  },
 })
 </script>
 
 <template>
-  <div class="property-filter" style="width: 100%;padding: 24px;background: #fff; margin-bottom: 24px">
-    <div class="property-filter-input" :class="{ 'is-active': open }">
-      <div class="property-filter-content">
-        <div class="property-filter-prefix" @click="onBlankAreaClick">
-          <Item
-            v-for="(termItem, index) in formModel"
-            v-bind="termItem"
-            :key="termItem.key"
-            :index="index"
-            @select="submit"
-          />
-          <a-dropdown :open="open" trigger="click" @openChange="openChange">
-            <div>
-              <a-tag v-if="status === 'column'" color="processing">
-                <AIcon type="PlusOutlined" />
-              </a-tag>
+  <div class="property-filter">
+    <div class="property-filter__toolbar">
+      <div class="property-filter__conditions">
+        <template v-for="(termItem, index) in activeTerms" :key="termItem.key || termItem.column">
+          <a-dropdown
+            :open="openColumnKey === termItem.column"
+            trigger="click"
+            placement="bottomLeft"
+            @openChange="(visible) => onOpenChange(termItem.column!, visible)"
+          >
+            <div class="filter-chip filter-chip--active">
+              <span class="filter-chip__label">{{ columnsMap[termItem.column!]?.title }}</span>
+              <span v-if="getFilterTermLabel(termItem)" class="filter-chip__operator">
+                {{ getFilterTermLabel(termItem) }}
+              </span>
+              <span class="filter-chip__text">{{ formatValueLabel(termItem) }}</span>
+              <a-button class="filter-chip__remove" type="link" @click.stop="onRemove(termItem.column!)">
+                <template #icon>
+                  <AIcon type="CloseOutlined" />
+                </template>
+              </a-button>
             </div>
-
             <template #overlay>
-              <a-menu v-if="status === 'column'">
-                <a-menu-item
-                  v-for="column in columnsOptions"
-                  :key="column.value"
-                  @click.stop="() => menuClick(column.value)"
-                >
-                  {{ column.label }}
-                </a-menu-item>
-              </a-menu>
-              <ValueItem :column="currentColumn" v-else @change="onValueChange"/>
+              <FilterDropdownPanel
+                :column="termItem.column"
+                :term="termItem"
+                @apply="onApply"
+                @reset="onReset"
+              />
             </template>
           </a-dropdown>
-          <span v-if="!formModel.length" class="property-filter-placeholder">请输入搜索内容</span>
-        </div>
+
+          <a-dropdown
+            v-if="index < activeTerms.length - 1"
+            trigger="click"
+            placement="bottomLeft"
+          >
+            <button class="filter-logic" type="button">
+              {{ typeOptionsMap[activeTerms[index + 1].type || 'and'] }}
+              <AIcon type="DownOutlined" />
+            </button>
+            <template #overlay>
+              <a-menu @click="({ key }) => onTypeChange(index + 1, key)">
+                <a-menu-item v-for="option in typeOptions" :key="option.value">
+                  {{ option.label }}
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </template>
+
+        <a-dropdown
+          v-for="column in inactiveColumns"
+          :key="column.dataIndex"
+          :open="openColumnKey === column.dataIndex"
+          trigger="click"
+          placement="bottomLeft"
+          @openChange="(visible) => onOpenChange(column.dataIndex, visible)"
+        >
+          <button class="filter-chip filter-chip--ghost" type="button">
+            <AIcon type="PlusOutlined" />
+            <span class="filter-chip__label">{{ column.title }}</span>
+            <AIcon type="DownOutlined" class="filter-chip__arrow" />
+          </button>
+          <template #overlay>
+            <FilterDropdownPanel
+              :column="column.dataIndex"
+              :term="getTermByColumn(column.dataIndex)"
+              @apply="onApply"
+              @reset="onReset"
+            />
+          </template>
+        </a-dropdown>
       </div>
-      <div class="property-filter-action" @click.stop="onSearch">
-        <AIcon type="SearchOutlined" />
+
+      <div class="property-filter__tools">
+        <a-input
+          v-model:value="keyword"
+          allow-clear
+          class="property-filter__search"
+          placeholder="搜索"
+          @pressEnter="onKeywordSearch"
+        >
+          <template #prefix>
+            <AIcon type="SearchOutlined" />
+          </template>
+        </a-input>
+        <button class="property-filter__clear" type="button" @click="onClearAll">
+          清除筛选条件
+        </button>
       </div>
     </div>
   </div>
@@ -154,66 +319,162 @@ defineExpose({
 
 <style scoped lang="less">
 .property-filter {
-  .property-filter-input {
-    width: 100%;
-    min-height: 32px;
-    border: 1px solid #d9d9d9;
-    border-radius: 2px;
+  width: 100%;
+  padding: 24px;
+  margin-bottom: 24px;
+  background: #fff;
+
+  &__toolbar {
     display: flex;
-    align-items: stretch;
-    background: #fff;
-    transition: all 0.2s;
-    cursor: text;
-
-    &:hover {
-      border-color: #4096ff;
-    }
-
-    &.is-active {
-      border-color: #4096ff;
-      box-shadow: 0 0 0 2px rgba(5, 145, 255, 0.1);
-    }
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 20px;
   }
 
-  .property-filter-content {
+  &__conditions {
+    display: flex;
     flex: 1;
-    min-width: 0;
-    min-height: 30px;
-    padding: 2px 6px;
-    display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    gap: 12px;
+    min-width: 0;
   }
 
-  .property-filter-prefix {
-    width: 100%;
+  &__tools {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
+    gap: 16px;
+    justify-content: flex-end;
+    margin-left: auto;
   }
 
-  .property-filter-placeholder {
-    color: rgba(0, 0, 0, 0.25);
+  &__search {
+    width: 300px;
+  }
+
+  &__clear {
+    padding: 0;
+    color: #165dff;
     font-size: 14px;
     line-height: 22px;
     white-space: nowrap;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 12px;
+  color: #1d2129;
+  font-size: 14px;
+  line-height: 20px;
+  background: #fff;
+  border: 1px solid #d9dde3;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #165dff;
   }
 
-  .property-filter-action {
-    width: 36px;
-    background: #fafafa;
-    border-left: 1px solid #d9d9d9;
-    display: flex;
+  &--active {
+    padding-left: 8px;
+  }
+
+  &--ghost {
+    border-style: dashed;
+  }
+
+  &__remove {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: rgba(0, 0, 0, 0.45);
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    color: #4e5969;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s;
+  }
 
-    &:hover {
-      color: #1677ff;
-      background: #f0f0f0;
+  &__text {
+    max-width: 240px;
+    overflow: hidden;
+    color: #165dff;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__label {
+    color: #1d2129;
+  }
+
+  &__operator {
+    color: #4e5969;
+  }
+
+  &__arrow {
+    color: #86909c;
+    font-size: 12px;
+  }
+}
+
+.filter-logic {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 12px;
+  color: #1d2129;
+  font-size: 14px;
+  line-height: 20px;
+  background: #fff;
+  border: 1px solid #d9dde3;
+  border-radius: 10px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #165dff;
+  }
+}
+
+@media (max-width: 1200px) {
+  .property-filter {
+    &__toolbar {
+      flex-direction: column;
+      align-items: stretch;
     }
+
+    &__tools {
+      justify-content: space-between;
+    }
+
+    &__search {
+      width: 100%;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .property-filter {
+    padding: 16px;
+
+    &__tools {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+
+  .filter-chip__text {
+    max-width: 180px;
   }
 }
 </style>
