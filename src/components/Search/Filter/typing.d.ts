@@ -15,11 +15,14 @@ export interface SearchItem {
   title: string
   search?: {
     type: string
+    fixed?: boolean
     rename?: string
     defaultTermType?: string
     defaultValue?: any
     first?: boolean
     termTypeOptions?: string[]
+    termOptions?: Array<{ label: string, value: string }>
+    termFilter?: string[]
     components?: VNode
     componentProps?: Record<string, any>
     options?:
