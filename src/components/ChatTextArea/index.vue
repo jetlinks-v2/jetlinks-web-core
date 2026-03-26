@@ -17,7 +17,7 @@
         <div class="progress-items">
           <div class="progress-item" v-for="(file, index) in uploadedFiles" :key="file.uid">
             <div class="file-icon">
-              <img class="icon" :src="kUtils.handleSetFileIcon(file.category)" alt="" />
+              <img class="icon" :src="handleSetFileIcon(file.category)" alt="" />
             </div>
             <div class="file-info">
               <span class="name">{{ file.name }}</span>
@@ -26,7 +26,7 @@
               </div>
             </div>
             <div class="file-size">
-              {{ file.size ? kUtils.formatFileSize(file.size || 0) : '--' }}
+              {{ file.size ? formatFileSize(file.size || 0) : '--' }}
             </div>
             <div class="file-action">
               <a-button type="text" size="small" @click="removeFile(index)" danger>
@@ -74,7 +74,9 @@ import { ref, h, computed, watch, inject, onMounted, onBeforeUnmount } from 'vue
 import { pick, cloneDeep } from 'lodash-es';
 import { onlyMessage } from '@jetlinks-web/utils';
 import { ArrowUpOutlined } from '@ant-design/icons-vue';
-import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry';
+import { handleSliceUploadFile, ConcurrencyControl } from '@jetlinks-web-core/utils';
+import { formatFileSize, handleSetFileIcon } from './utils';
+import { fileShardingUpload } from '@jetlinks-web-core/api/comm';
 
 interface FileWithUid extends File {
   uid?: string;
@@ -184,10 +186,7 @@ const customUploadFileValidationRules = computed(() => {
 });
 
 const MAX_CONTROL = 6;
-const kApis = moduleRegistry.getResource('jetlinks-knowledge-ui', 'apis');
-const kUtils = moduleRegistry.getResource('jetlinks-knowledge-ui', 'utils');
-
-const uploadController = new kUtils.ConcurrencyControl(MAX_CONTROL);
+const uploadController = new ConcurrencyControl(MAX_CONTROL);
 
 const clearAllFiles = () => {
   uploadedFiles.value = [];
@@ -309,7 +308,7 @@ const handleUploadFiles = async (files: FileWithUid[]) => {
 
     try {
       let uploadNum = 0;
-      const result = (await kUtils.handleSliceUploadFile(file)) as any[];
+      const result = (await handleSliceUploadFile(file)) as any[];
 
       const uploadPromises = result.map(chunk => {
         return uploadController.add(async () => {
@@ -317,7 +316,7 @@ const handleUploadFiles = async (files: FileWithUid[]) => {
             const fd = new FormData();
             fd.append('file', chunk.chunkFile as File, chunk.fileName);
 
-            const uploadResult = await kApis.fileUpload(`${chunk.fileHash}.${chunk.fileType}`, chunk.chunkOffset, chunk.fileSize, fd);
+            const uploadResult = await fileShardingUpload(`${chunk.fileHash}.${chunk.fileType}`, chunk.chunkOffset, chunk.fileSize, fd);
             uploadNum += 1;
 
             // 更新进度
