@@ -9,11 +9,11 @@ const columnsMapKey = 'columnsMapKey';
 const useColumnItemOptionsKey = 'useColumnItemOptionsKey';
 const enginesKey = 'enginesKey';
 
-export const useColumnsContext = (data: Ref<SearchItem[]>) => {
+export const useColumnsContext = (data: Ref<any[]>) => {
   provide(columnsKey, data)
 }
 
-export const useColumns = (): Ref<SearchItem[]> => {
+export const useColumns = (): Ref<any[]> => {
   return inject(columnsKey, ref([]))
 }
 
@@ -53,7 +53,7 @@ export const useSearchEngine = (props: any) => {
   const formModel = ref<TermsItem[]>([]) // 搜索表单数据模型
   const optionsMap = reactive<Record<string, any[]>>({}) // 缓存每一项的options，便于生成下拉选项
   const loadingMap = reactive<Record<string, boolean>>({}) // 缓存每一项的加载状态，便于生成加载中状态
-  const columnsOptions = ref<SearchItem[]>([]) // 缓存columns，便于后续操作
+  const columnsOptions = ref<(SearchItem & { label: string, value: string, sortIndex: number })[]>([]) // 缓存columns，便于后续操作
   const columnsFieldNames = ref<Record<string, any>>({}) // 缓存columns字段，便于后续操作
   const columnsMap = reactive<Record<string, any>>({})
 
@@ -93,23 +93,37 @@ export const useSearchEngine = (props: any) => {
 
   const init = (columns: SearchItem[]) => {
     // 初始化逻辑
-    const co: any[] = []
-    columns.filter(column => column.search)
-      .sort((a,b) => Number(a.search!.first ?? 0) - Number(b.search!.first ?? 0))
-      .forEach(column => {
-        co.push({
-          label: column.title,
-          value: column.dataIndex,
-        })
-
-        columnsMap[column.dataIndex] = column
-
-        columnsFieldNames.value[column.dataIndex] = column.search!.rename || column.dataIndex
-
-        if (column.search!.options) {
-          createOptionsLoader(column)
+    const co = columns
+      .map((column, index) => ({
+        ...column,
+        sortIndex: index,
+        label: column.title,
+        value: column.dataIndex,
+      }))
+      .filter(column => column.search)
+      .sort((a, b) => {
+        const fixedSort = Number(Boolean(b.search?.fixed)) - Number(Boolean(a.search?.fixed))
+        if (fixedSort !== 0) {
+          return fixedSort
         }
+
+        const firstSort = Number(Boolean(b.search?.first)) - Number(Boolean(a.search?.first))
+        if (firstSort !== 0) {
+          return firstSort
+        }
+
+        return a.sortIndex - b.sortIndex
       })
+
+    co.forEach(column => {
+      columnsMap[column.dataIndex] = column
+
+      columnsFieldNames.value[column.dataIndex] = column.search!.rename || column.dataIndex
+
+      if (column.search!.options) {
+        createOptionsLoader(column)
+      }
+    })
 
     columnsOptions.value = co
   }
@@ -256,6 +270,11 @@ export const useSearchEngine = (props: any) => {
   }
 
   const addValue = (columnKey: string) => {
+    const existsItem = formModel.value.find(item => item.column === columnKey)
+    if (existsItem) {
+      return existsItem
+    }
+
     const column = columnsMap[columnKey]
     // 获取默认值和默认termType
     const value = column.search?.defaultValue
@@ -267,7 +286,7 @@ export const useSearchEngine = (props: any) => {
       key: randomString(10)
     }
 
-    if (['select', 'tree'].includes(column.search.type)) {
+    if (['select', 'tree', 'treeSelect'].includes(column.search.type)) {
       createOptionsLoader(column)
     }
 
@@ -275,10 +294,15 @@ export const useSearchEngine = (props: any) => {
       item.type = 'and'
     }
     formModel.value.push(item)
+    return item
   }
 
   const removeItem = (index: number) => {
     formModel.value.splice(index, 1)
+
+    if (formModel.value[0]) {
+      delete formModel.value[0].type
+    }
   }
 
   const updateTermItemValue = (key: string, value: any, index: number) => {
@@ -298,6 +322,42 @@ export const useSearchEngine = (props: any) => {
       lastItem.value = value
       formModel.value.push(lastItem)
     }
+  }
+
+  const getTermByColumn = (columnKey: string) => {
+    return formModel.value.find(item => item.column === columnKey)
+  }
+
+  const setTermByColumn = (columnKey: string, data: Partial<TermsItem>) => {
+    const index = formModel.value.findIndex(item => item.column === columnKey)
+
+    if (index === -1) {
+      const newItem = addValue(columnKey)
+      const nextIndex = formModel.value.findIndex(item => item.key === newItem?.key)
+      if (nextIndex !== -1) {
+        formModel.value.splice(nextIndex, 1, {
+          ...newItem,
+          ...data,
+        })
+      }
+      return
+    }
+
+    formModel.value.splice(index, 1, {
+      ...formModel.value[index],
+      ...data,
+    })
+  }
+
+  const removeTermByColumn = (columnKey: string) => {
+    const index = formModel.value.findIndex(item => item.column === columnKey)
+    if (index !== -1) {
+      removeItem(index)
+    }
+  }
+
+  const clearItems = () => {
+    formModel.value = []
   }
 
   useColumnsContext(columnsOptions)
@@ -328,10 +388,17 @@ export const useSearchEngine = (props: any) => {
   return {
     formModel,
     columnsOptions,
+    columnsMap,
+    optionsMap,
+    loadingMap,
     submit,
     createOptionsLoader,
     addValue,
     updateTermValue,
-    removeItem
+    removeItem,
+    getTermByColumn,
+    setTermByColumn,
+    removeTermByColumn,
+    clearItems,
   }
 }
