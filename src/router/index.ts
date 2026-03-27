@@ -5,7 +5,7 @@ import {
   type NavigationGuardNext
 } from 'vue-router'
 import { getToken, removeToken } from '@jetlinks-web/utils'
-import { isSubApp } from '@jetlinks-web-core/utils/consts'
+import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
 import { useApplication, useUserStore, useSystemStore, useMenuStore } from '@jetlinks-web-core/store'
 import microApp from '@micro-zoe/micro-app'
 import { collectCoreRouteOverrides } from './globModules'
@@ -126,7 +126,7 @@ const getRoutesByServer = async (
     await SystemStore.setMircoData()
   }
 
-  if (!isSubApp && !application.appList.length) {
+  if (!isSubApp && !application.appList.length && OpenMicroApp) {
     await application.queryApplication()
   }
 
