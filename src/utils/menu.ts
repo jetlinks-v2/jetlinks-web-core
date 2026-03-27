@@ -1,6 +1,6 @@
 import type { RouteMeta } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import { USER_CENTER_MENU_CODE } from '@jetlinks-web-core/utils/consts'
+import { isSubApp, OpenMicroApp, USER_CENTER_MENU_CODE } from '@jetlinks-web-core/utils/consts'
 import router from '../router'
 
 type Buttons = Array<{ id: string }>
@@ -100,7 +100,7 @@ export const handleMenus = (menuData: MenuItem[], extraMenus: any, components: R
     }
 
     if (!record.children?.length) {
-      if (meta?.appName && meta?.appUrl) {
+      if (meta?.appName && meta?.appUrl && OpenMicroApp) {
         return () => import('../views/mirco/SubAppRedirect/base.vue')
       }
 
