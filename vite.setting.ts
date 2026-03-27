@@ -25,20 +25,42 @@ export const federationSharedMap = {
   // '@jetlinks-web/utils': ['@jetlinks-web/utils'],
 }
 
-const getRootEnvOverride = (envDir: string) => {
-  const rootEnvPath = path.resolve(envDir, '.env')
-
-  if (!fs.existsSync(rootEnvPath)) {
+const parseEnvFile = (envPath: string): Record<string, string> => {
+  if (!fs.existsSync(envPath)) {
     return {}
   }
 
-  return dotenv.parse(fs.readFileSync(rootEnvPath))
+  return dotenv.parse(fs.readFileSync(envPath))
+}
+
+const getRootEnvOverride = (envDir: string, mode: string) => {
+  const rootEnvPath = path.resolve(envDir, '.env')
+  const fallbackEnvPath = path.resolve(envDir, '.env.development')
+  const modeEnvPath = path.resolve(envDir, `.env.${mode}`)
+  const envFiles = fs.existsSync(rootEnvPath)
+    ? [rootEnvPath]
+    : [fallbackEnvPath]
+
+  if (modeEnvPath !== envFiles[envFiles.length - 1]) {
+    envFiles.push(modeEnvPath)
+  }
+
+  return envFiles.reduce<Record<string, string>>((acc, envPath) => ({
+    ...acc,
+    ...parseEnvFile(envPath)
+  }), {})
 }
 
 export const getMergedEnv = (mode: string, envDir: string) => {
+  const rootEnvOverride = getRootEnvOverride(envDir, mode)
+
+  console.log('default', loadEnv(mode, __dirname, ''))
+  console.log('env', rootEnvOverride)
+  console.log('getRuntimeAppEnv', getRuntimeAppEnv())
+
   return {
     ...loadEnv(mode, __dirname, ''),
-    ...getRootEnvOverride(envDir),
+    ...rootEnvOverride,
     ...getRuntimeAppEnv()
   } as Partial<ImportMetaEnv>
 }
