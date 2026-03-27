@@ -4,9 +4,37 @@ import { tabList } from "@jetlinks-web-core/views/account/center/data";
 import { getToken, LocalStore } from '@jetlinks-web/utils'
 import { pick } from 'lodash-es'
 
-type UserInfo = {
-  name: string
-  icon: string
+export interface UserInfo {
+  id: string;
+  username: string;
+  type: {
+    name: string;
+    id: string;
+  };
+  status: number;
+  loggedIn: boolean;
+  lastRequestTime: number;
+  name: string;
+  createTime: number;
+  roleList: unknown[];
+  orgList: unknown[];
+  parentOrgList: unknown[];
+  childrenOrgList: unknown[];
+  positions: unknown[];
+  parentPositions: unknown[];
+  tenantDisabled: boolean;
+  modifyTime: number;
+  gender: {
+    text: string;
+    value: string;
+  };
+  register: {
+    text: string;
+    value: string;
+  };
+  loginInfo: {
+    loginIpRegion: string;
+  };
 }
 
 export const useUserStore = defineStore('user', () => {
