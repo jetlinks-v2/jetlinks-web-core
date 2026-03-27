@@ -1,7 +1,10 @@
 import { theme } from 'ant-design-vue/lib'
 import customTheme from './configs/theme'
 import convertLegacyToken from 'ant-design-vue/lib/theme/convertLegacyToken'
+import fs from 'fs'
 import path from 'path'
+import { loadEnv } from 'vite'
+import dotenv from 'dotenv'
 
 export const v3Token = () => {
   const { defaultAlgorithm, defaultSeed } = theme
@@ -20,6 +23,24 @@ export const federationSharedMap = {
   '@jetlinks-web/hooks': ['@jetlinks-web/hooks'],
   '@jetlinks-web/constants': ['@jetlinks-web/constants']
   // '@jetlinks-web/utils': ['@jetlinks-web/utils'],
+}
+
+const getRootEnvOverride = (envDir: string) => {
+  const rootEnvPath = path.resolve(envDir, '.env')
+
+  if (!fs.existsSync(rootEnvPath)) {
+    return {}
+  }
+
+  return dotenv.parse(fs.readFileSync(rootEnvPath))
+}
+
+export const getMergedEnv = (mode: string, envDir: string) => {
+  return {
+    ...loadEnv(mode, __dirname, ''),
+    ...getRootEnvOverride(envDir),
+    ...getRuntimeAppEnv()
+  } as Partial<ImportMetaEnv>
 }
 
 export const getDefine = (
