@@ -217,7 +217,8 @@ export const useMenuStore = defineStore('menu', () => {
     ]
     const routerRoutes = router.getRoutes()
 
-    const redirectUrl = menuRoutes.length ? menuRoutes[0].path : '/account'
+    const defaultRedirect = import.meta.env.VITE_DEFAULT_REDIRECT_PATH || '/account'
+    const redirectUrl = menuRoutes.length ? menuRoutes[0].path : defaultRedirect
       menuRoutes.push({
         path: '/',
         redirect: redirectUrl,
