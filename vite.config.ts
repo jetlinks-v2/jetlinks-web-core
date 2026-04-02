@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import Components from 'unplugin-vue-components/vite'
@@ -21,23 +21,25 @@ import {
   v3Token,
   getModulesName,
   getProxyUrl,
-  federationSharedMap
+  federationSharedMap,
+  getMergedEnv
 } from './vite.setting'
 import { moduleFilterPlugin } from './configs/plugin/moduleFilterPlugin'
 
 export default defineConfig(({ mode, command }) => {
   const envDir = path.resolve(__dirname, '..')
-  const env: Partial<ImportMetaEnv> = loadEnv(mode, __dirname, '')
+  const env = getMergedEnv(mode, envDir)
   const isDev = command === 'serve'
+  const publicPath = (env.VITE_PUBLIC_PATH || '/').trim() || '/'
 
   const { moduleName, moduleNames} = getModulesName()
   const backendUrl = getProxyUrl()
 
-  const envDefine = getDefine(env, mode, isDev, moduleName)
+  const envDefine = getDefine(env, mode, isDev, moduleName, publicPath)
 
   return {
     envDir,
-    base: './',
+    base: publicPath,
     resolve: {
       alias: {
         '@jetlinks-web-core': path.resolve(__dirname, 'src'),

@@ -1,7 +1,10 @@
 import { theme } from 'ant-design-vue/lib'
 import customTheme from './configs/theme'
 import convertLegacyToken from 'ant-design-vue/lib/theme/convertLegacyToken'
+import fs from 'fs'
 import path from 'path'
+import { loadEnv } from 'vite'
+import dotenv from 'dotenv'
 
 export const v3Token = () => {
   const { defaultAlgorithm, defaultSeed } = theme
@@ -22,7 +25,53 @@ export const federationSharedMap = {
   // '@jetlinks-web/utils': ['@jetlinks-web/utils'],
 }
 
-export const getDefine = (env: Partial<ImportMetaEnv>, mode: string, isDev: boolean, mavenName: string ) => {
+const parseEnvFile = (envPath: string): Record<string, string> => {
+  if (!fs.existsSync(envPath)) {
+    return {}
+  }
+
+  return dotenv.parse(fs.readFileSync(envPath))
+}
+
+const getRootEnvOverride = (envDir: string, mode: string) => {
+  const rootEnvPath = path.resolve(envDir, '.env')
+  const fallbackEnvPath = path.resolve(envDir, '.env.development')
+  const modeEnvPath = path.resolve(envDir, `.env.${mode}`)
+  const envFiles = fs.existsSync(rootEnvPath)
+    ? [rootEnvPath]
+    : [fallbackEnvPath]
+
+  if (modeEnvPath !== envFiles[envFiles.length - 1]) {
+    envFiles.push(modeEnvPath)
+  }
+
+  return envFiles.reduce<Record<string, string>>((acc, envPath) => ({
+    ...acc,
+    ...parseEnvFile(envPath)
+  }), {})
+}
+
+export const getMergedEnv = (mode: string, envDir: string) => {
+  const rootEnvOverride = getRootEnvOverride(envDir, mode)
+
+  console.log('default', loadEnv(mode, __dirname, ''))
+  console.log('env', rootEnvOverride)
+  console.log('getRuntimeAppEnv', getRuntimeAppEnv())
+
+  return {
+    ...loadEnv(mode, __dirname, ''),
+    ...rootEnvOverride,
+    ...getRuntimeAppEnv()
+  } as Partial<ImportMetaEnv>
+}
+
+export const getDefine = (
+  env: Partial<ImportMetaEnv>,
+  mode: string,
+  isDev: boolean,
+  mavenName: string,
+  publicPath: string
+) => {
 
   const envDefine = Object.entries(env).reduce((acc, [key, val]) => {
     if (key.startsWith('VITE_')) {
@@ -31,7 +80,7 @@ export const getDefine = (env: Partial<ImportMetaEnv>, mode: string, isDev: bool
     return acc
   }, {} as Record<string, string>)
 
-  envDefine['import.meta.env.BASE_URL'] = JSON.stringify('./')
+  envDefine['import.meta.env.BASE_URL'] = JSON.stringify(publicPath)
   envDefine['import.meta.env.MODE'] = JSON.stringify(mode)
   envDefine['import.meta.env.DEV'] = String(isDev)
   envDefine['import.meta.env.PROD'] = String(!isDev)
@@ -39,6 +88,49 @@ export const getDefine = (env: Partial<ImportMetaEnv>, mode: string, isDev: bool
   envDefine['import.meta.env.VITE_MODULE_NAME'] = JSON.stringify(mavenName)
 
   return envDefine
+}
+
+const parseCliAppEnv = () => {
+  const cliEnv: Record<string, string> = {}
+
+  for (let i = 0; i < process.argv.length; i += 1) {
+    const arg = process.argv[i]
+    if (!arg.startsWith('--VITE_APP_')) {
+      continue
+    }
+
+    const rawArg = arg.slice(2)
+    const equalIndex = rawArg.indexOf('=')
+
+    if (equalIndex !== -1) {
+      const key = rawArg.slice(0, equalIndex)
+      const value = rawArg.slice(equalIndex + 1)
+      cliEnv[key] = value
+      continue
+    }
+
+    const nextArg = process.argv[i + 1]
+    if (typeof nextArg === 'string' && !nextArg.startsWith('--')) {
+      cliEnv[rawArg] = nextArg
+      i += 1
+    }
+  }
+
+  return cliEnv
+}
+
+export const getRuntimeAppEnv = () => {
+  const processAppEnv = Object.entries(process.env).reduce((acc, [key, value]) => {
+    if (key.startsWith('VITE_APP_') && value !== undefined) {
+      acc[key] = value
+    }
+    return acc
+  }, {} as Record<string, string>)
+
+  return {
+    ...processAppEnv,
+    ...parseCliAppEnv()
+  }
 }
 
 export const getFederationSetting = (mavenName: string, envDir: string) => {
@@ -78,14 +170,38 @@ export const getModulesName = (): { moduleNames?: string[], moduleName?: string 
 }
 
 export const getProxyUrl = () => {
-  // 解析后端地址参数
-  const backendUrlIndex = process.argv.indexOf('--backend-url')
-  let backendUrl = backendUrlIndex !== -1 ? process.argv[backendUrlIndex + 1] : null
+  let backendUrl: string | null = null
+  const backendUrlFlag = '--backend-url'
+  const inlineBackendUrl = process.argv.find((arg) => arg.startsWith(`${backendUrlFlag}=`))
+
+  if (inlineBackendUrl) {
+    backendUrl = inlineBackendUrl.slice(backendUrlFlag.length + 1)
+  } else {
+    const backendUrlIndex = process.argv.indexOf(backendUrlFlag)
+
+    if (backendUrlIndex !== -1) {
+      for (let i = backendUrlIndex + 1; i < process.argv.length; i += 1) {
+        const arg = process.argv[i]
+
+        if (!arg || arg === '--') {
+          continue
+        }
+
+        if (arg.startsWith('--')) {
+          continue
+        }
+
+        backendUrl = arg
+        break
+      }
+    }
+  }
 
   // 自动添加 http:// 前缀（如果用户未输入）
   if (backendUrl && !backendUrl.match(/^https?:\/\//)) {
     backendUrl = `http://${backendUrl}`
   }
+  console.log('backendUrl', backendUrl)
 
   return backendUrl
 }

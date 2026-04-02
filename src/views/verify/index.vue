@@ -3,7 +3,7 @@
     v-model:open="visible"
     :title="title"
     :maskClosable="false"
-    :width="type === 'identity' ? 420 : 448"
+    :width="type === 'identity' ? 420 : modalWidth"
     @cancel="onCancel"
     @ok="onSubmit"
     :okButtonProps="{ loading: submitting, disabled: type === 'identity' && identityListRaw.length === 0 }"
@@ -16,10 +16,12 @@
       <Form v-if="captchaConfig.type === 'image'" ref="formRef" layout="vertical" :model="captchaForm" :rules="captchaRules">
         <FormItem :label="t('verify.captchaLabel')" name="verifyCode">
           <Input
+            ref="captchaInputRef"
             v-model:value="captchaForm.verifyCode"
             :placeholder="t('verify.captchaPlaceholder')"
             :maxlength="64"
             autocomplete="off"
+            @keyup.enter="onSubmit"
           >
             <template #suffix>
               <span class="captcha-suffix" @click="loadCaptchaImage">
@@ -34,7 +36,7 @@
           </Input>
         </FormItem>
       </Form>
-      <Captcha v-else :showDialog="false" :open="visible" :config="captchaConfig.tianai"  />
+      <Captcha v-else :showDialog="false" :open="visible" :config="captchaConfig.tianai" @imageWidth="v => modalWidth=v+48"  />
     </template>
 
     <!-- 身份校验 -->
@@ -83,10 +85,12 @@
         </FormItem>
         <FormItem v-if="validationSent" :label="t('verify.codeLabel')" name="code">
           <Input
+            ref="identityCodeInputRef"
             v-model:value="identityForm.code"
             :placeholder="t('verify.codePlaceholder')"
             :maxlength="16"
             autocomplete="off"
+            @keyup.enter="onSubmit"
           />
           <div style="margin-top: 8px;">
             <Button 
@@ -146,11 +150,14 @@ const submitText = computed(() =>
 )
 
 const formRef = ref<FormInstance>()
+const captchaInputRef = ref()
+const identityCodeInputRef = ref()
 const submitting = ref(false)
 const sendingCode = ref(false)
 const validationSent = ref(false)
 const validationData = ref<{ requestId: string; token: string; context?: Record<string, unknown> } | null>(null)
 const countdown = ref(0)
+const modalWidth = ref(448)
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 const identityListRaw = ref<Array<{ id: string; provider: string; identity: string }>>([])
 const identityOptions = computed(() =>
@@ -321,6 +328,10 @@ async function sendIdentityCode() {
     // 启动倒计时
     const intervalSeconds = (data as any)?.intervalSeconds ?? 60
     startCountdown(intervalSeconds)
+    // 自动focus到验证码输入框
+    nextTick(() => {
+      identityCodeInputRef.value?.focus()
+    })
   } finally {
     sendingCode.value = false
   }
@@ -443,6 +454,35 @@ watch(
     }
   },
   { immediate: true }
+)
+
+// 监听visible变化，自动focus到对应输入框
+watch(
+  () => visible.value,
+  (val) => {
+    if (!val) return
+    nextTick(() => {
+      if (type.value === 'captcha' && captchaConfig.value?.type === 'image') {
+        // 图片验证码：focus到验证码输入框
+        captchaInputRef.value?.focus()
+      } else if (type.value === 'identity' && validationSent.value) {
+        // 身份验证：如果已发送验证码，focus到验证码输入框
+        identityCodeInputRef.value?.focus()
+      }
+    })
+  }
+)
+
+// 监听validationSent变化，当验证码输入框出现时自动focus
+watch(
+  () => validationSent.value,
+  (val) => {
+    if (val && visible.value && type.value === 'identity') {
+      nextTick(() => {
+        identityCodeInputRef.value?.focus()
+      })
+    }
+  }
 )
 
 // 组件卸载时清理定时器

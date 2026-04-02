@@ -121,8 +121,15 @@ type formType = {
 const emits = defineEmits(['close']);
 const router = useRouter();
 
+const props = defineProps({
+  type: {
+    type: Boolean,
+    default: false
+  }
+})
+
 // 是否为重置密码模式（忘记密码）
-const isResetMode = ref(false);
+const isResetMode = ref(props.type);
 
 const list = computed(() => {
     if (isResetMode.value) {

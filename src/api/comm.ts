@@ -7,6 +7,8 @@ export const FileStatic = '/file/upload'
 export const FileStaticPath = () => `${getBaseApi()}${FileStatic}`
 export const getFileUrlById = (id: string) => `${getBaseApi()}/file/${id}?${TOKEN_KEY_URL}=${getToken()}`
 export const fileUpload = (data: any) => request.post(FileStatic, data)
+// 分片上传
+export const fileShardingUpload = (sessionId: string, offset: number, length: number, data: any) => request.post(`/file/upload/sharding/${sessionId}?offset=${offset}&length=${length}`, data);
 
 /**
  * 保存查询记录

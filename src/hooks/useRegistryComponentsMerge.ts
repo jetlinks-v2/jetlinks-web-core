@@ -66,10 +66,23 @@ export function useRegistryOptions<T = any>({
     })
 
     registryItems.value.forEach(item => {
+      const target = item.target
+      if (item.mode === 'hide' && target != null) {
+        const idx = indexMap.get(target)
+        if (idx != null) {
+          result.splice(idx, 1)
+          indexMap.clear()
+          result.forEach((opt, index) => {
+            const itemKey = (opt as any).value ?? (opt as any).key
+            indexMap.set(itemKey, index)
+          })
+        }
+        return
+      }
+
       if (!item.extraOptions) return
 
       const key = item.extraOptions.value ?? item.extraOptions.key
-      const target = item.target
 
       if (item.mode === 'replace' && target != null) {
         const idx = indexMap.get(target)
@@ -122,7 +135,8 @@ export function useRegistryOptions<T = any>({
  */
 export function useRegistryVNodeMerge(
   slotVNodes: () => VNode[],
-  registryItems: () => RegistryAction[]
+  registryItems: () => RegistryAction[],
+  extraProps?: () => Record<string, any>
 ) {
   return computed(() => {
     const base = flattenVNodes(slotVNodes())
@@ -131,25 +145,43 @@ export function useRegistryVNodeMerge(
     const result = [...base]
 
     registryItems().forEach(item => {
-      if (!item.component) return
-
       const index = item.target
         ? result.findIndex(n => n.key === item.target)
         : -1
 
-      const vnode = h(item.component, {
-        ...(item.mode === 'replace' ? result[index].props : {}),
-        key: `${item.code}:${item.target ?? 'append'}`
-      })
+      const mode = item.mode ?? 'append'
 
-      if (index === -1) {
-        result.push(vnode)
+      if (mode === 'hide') {
+        if (index !== -1) {
+          result.splice(index, 1)
+        }
         return
       }
 
-      if (item.mode === 'replace') result[index] = vnode
-      if (item.mode === 'before') result.splice(index, 0, vnode)
-      if (item.mode === 'after') result.splice(index + 1, 0, vnode)
+      if (!item.component) return
+      const vnode = h(item.component, {
+        ...(mode === 'replace' && index !== -1 ? (result[index].props || {}) : {}),
+        ...(item.props || {}),
+        ...(extraProps ? extraProps() : {}),
+        key: `${item.code}:${item.target ?? 'append'}`
+      })
+
+      if (mode === 'replace' && index !== -1) {
+        result[index] = vnode
+        return
+      }
+
+      if (mode === 'before' && index !== -1) {
+        result.splice(index, 0, vnode)
+        return
+      }
+
+      if ((mode === 'after' || mode === 'append') && index !== -1) {
+        result.splice(index + 1, 0, vnode)
+        return
+      }
+
+      result.push(vnode)
     })
 
     return result

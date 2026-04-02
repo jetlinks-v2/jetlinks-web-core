@@ -7,6 +7,7 @@
       </div>
       <div class="main">
         <Form
+          ref="formRef"
           layout="vertical"
           :model="formData"
           :rules="rules"
@@ -38,9 +39,10 @@
               autocomplete="off"
               :maxlength="64"
               :placeholder="$t('login.right.419974-5')"
+              @keyup.enter="handleEnterSubmit"
             >
               <template #addonAfter>
-                <img :src="url.base64" @click="getCode" />
+                <img :src="url.base64" @click="getVerifyCode" />
               </template>
             </Input>
           </form-item>
@@ -62,7 +64,6 @@
             </Button>
           </form-item>
         </Form>
-        <Captcha v-model:open="captchaOpen" :config="config?.tianai" @success="onCaptchaSuccess"  />
         <div class="other" v-if="bindings.length">
           <Divider plain>
             <div class="other-text">
@@ -149,7 +150,6 @@ import { Form, FormItem, Button, Divider, Popover, Input, InputPassword } from '
 import defaultImg from '@jetlinks-web-core/assets/apply/internal-standalone.png'
 import {initPackages} from "@jetlinks-web-core/package";
 import i18n from "@jetlinks-web-core/locales";
-import Captcha from '@jetlinks-web-core/components/Captcha'
 
 const BASE_API_PATH = import.meta.env.VITE_APP_BASE_API
 
@@ -183,7 +183,7 @@ const emit = defineEmits(["submit", "update:loading"]);
 const moreVisible = ref(false);
 const userStore = useUserStore();
 const router = useRouter();
-const captchaOpen = ref(false)
+const formRef = ref();
 
 const formData = reactive({
   username: "",
@@ -216,11 +216,16 @@ const { data: encryption, run: reloadEncryption } = useRequest(
   },
 );
 
+const getVerifyCode = (record) => {
+  const _config = config.value || record;
+  if (_config && _config.enabled && !_config.loginWithVerify && _config.type === 'image') {
+    getCode();
+  }
+}
+
 const { data: config } = useRequest(captchaConfig, {
   onSuccess(resp) {
-    if (resp.result?.enabled) {
-      getCode();
-    }
+    getVerifyCode(resp.result)
 
     return resp.result;
   },
@@ -265,9 +270,7 @@ const { loading, run } = useRequest(login, {
   },
   onWarn: () => {
     formData.verifyCode = undefined;
-    if (config.value.enable && config.value.type === 'image') {
-      getCode();
-    }
+    getVerifyCode()
     if (encryption.value?.encrypt?.enabled) {
       reloadEncryption();
     }
@@ -275,15 +278,8 @@ const { loading, run } = useRequest(login, {
 });
 
 const showCode = computed(() => {
-  return !!url?.value?.base64;
+  return !!url?.value?.base64 && config.value.enabled && !config.value.loginWithVerify;
 });
-
-const onCaptchaSuccess = (e) => {
-  captchaOpen.value = false
-  const _formData = { ...toRaw(formData) };
-  _formData['captcha-id'] = e.captchaId;
-  run(_formData);
-}
 
 const submit = (data) => {
 
@@ -294,11 +290,11 @@ const submit = (data) => {
     _formData.encryptId = _encrypt.id;
   }
 
-  if (config.value.tianai) {
-    captchaOpen.value = true
-  } else {
-    run(_formData);
-  }
+  run(_formData);
+};
+
+const handleEnterSubmit = () => {
+  formRef.value?.submit();
 };
 
 const handleClickOther = (item) => {

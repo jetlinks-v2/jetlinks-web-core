@@ -5,13 +5,15 @@ import {
   type NavigationGuardNext
 } from 'vue-router'
 import { getToken, removeToken } from '@jetlinks-web/utils'
-import { isSubApp } from '@jetlinks-web-core/utils/consts'
+import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
 import { useApplication, useUserStore, useSystemStore, useMenuStore } from '@jetlinks-web-core/store'
 import microApp from '@micro-zoe/micro-app'
-import { getDefaultModules, collectCoreRouteOverrides } from './globModules'
+import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
 import { RouteSecurityLevel } from './types'
 import { toValue } from 'vue'
+
+let isLock = false
 
 // ============ 核心路由解析 ============
 const moduleOverrides = collectCoreRouteOverrides()
@@ -35,8 +37,7 @@ if (import.meta.env.DEV) {
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    ...coreRoutes,
-    ...getDefaultModules() // 子模块默认路由
+    ...coreRoutes
   ],
   scrollBehavior(to, from, savedPosition) {
     return savedPosition || { top: 0 }
@@ -125,16 +126,18 @@ const getRoutesByServer = async (
     await SystemStore.setMircoData()
   }
 
-  if (!isSubApp && !application.appList.length) {
+  if (!isSubApp && !application.appList.length && OpenMicroApp) {
     await application.queryApplication()
   }
 
   // 优化: 使用新的过滤检查
-  if (!MenuStore.menu.length && !shouldSkipMenuFetch(to)) {
+  if (!MenuStore.menu.length && !shouldSkipMenuFetch(to) && !isLock) {
     await MenuStore.queryMenus()
     if (!MenuStore.menu) {
+      isLock = true
       next()
     } else {
+      isLock = false
       MenuStore.menu.forEach((r) => {
         router.addRoute(r)
       })
@@ -161,11 +164,13 @@ router.beforeEach((to, from, next) => {
 
   if (token) {
     if (isLoginRoute) {
+      isLock = false
       next({ path: '/' })
     } else {
       getRoutesByServer(to, next)
     }
   } else {
+    isLock = false
     NoTokenJump(to, next, isLoginRoute)
   }
 })

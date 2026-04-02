@@ -21,11 +21,6 @@ export const USER_CENTER_ROUTE: RouteRecordRaw = {
       },
       component: () => import('@jetlinks-web-core/views/account/center/index.vue')
     }
-    // {
-    //   path: AccountCenterBindPath,
-    //   name: "account/center/bind",
-    //   component: () => import("@jetlinks-web-core/views/account/center/bind/index.vue"),
-    // },
   ]
 }
 
@@ -42,6 +37,7 @@ export const LOGIN_ROUTE: RouteRecordRaw = {
 
 export const EDGE_TOKEN_ROUTE: RouteRecordRaw = {
   path: '/edge/token/:id',
+  name: 'EdgeToken',
   meta: {
     title: 'token失效'
   },
@@ -50,6 +46,7 @@ export const EDGE_TOKEN_ROUTE: RouteRecordRaw = {
 
 export const AccountCenterBind: RouteRecordRaw = {
   path: '/account/center/bind',
+  name: 'AccountCenterBind',
   meta: {
     title: '第三方',
     security: RouteSecurityLevel.PUBLIC
@@ -70,6 +67,7 @@ export const IdentityResultRoute: RouteRecordRaw = {
 
 export const OAuth2: RouteRecordRaw = {
   path: '/oauth',
+  name: 'Oauth',
   meta: {
     title: '授权页',
     security: RouteSecurityLevel.PUBLIC
@@ -88,6 +86,7 @@ export const INIT_HOME: RouteRecordRaw = {
 
 export const OAuthWechat: RouteRecordRaw = {
   path: '/oauth/wechat',
+  name: 'OAuthWechat',
   meta: {
     title: '微信授权页'
   },
@@ -123,30 +122,30 @@ export const Demo: RouteRecordRaw = {
     title: 'Demo'
   }
 }
-
-export const Scene: RouteRecordRaw = {
-  path: '/scene',
-  name: 'Scene',
-  redirect: '/scene/center',
-  children: [
-    {
-      path: '/scene/center',
-      name: 'SceneCenter',
-      meta: {
-        title: '场景商城'
-      },
-      component: () => import('@jetlinks-web-core/views/scene/index.vue')
-    },
-    {
-      path: '/scene/center/detail',
-      name: 'SceneCenterDetail',
-      meta: {
-        title: '场景商城详情'
-      },
-      component: () => import('@jetlinks-web-core/views/scene/Detail.vue')
-    }
-  ],
-  meta: {
-    title: '场景商城'
-  }
-}
+//
+// export const Scene: RouteRecordRaw = {
+//   path: '/scene',
+//   name: 'Scene',
+//   redirect: '/scene/center',
+//   children: [
+//     {
+//       path: '/scene/center',
+//       name: 'SceneCenter',
+//       meta: {
+//         title: '场景商城'
+//       },
+//       component: () => import('@jetlinks-web-core/views/scene/index.vue')
+//     },
+//     {
+//       path: '/scene/center/detail',
+//       name: 'SceneCenterDetail',
+//       meta: {
+//         title: '场景商城详情'
+//       },
+//       component: () => import('@jetlinks-web-core/views/scene/Detail.vue')
+//     }
+//   ],
+//   meta: {
+//     title: '场景商城'
+//   }
+// }

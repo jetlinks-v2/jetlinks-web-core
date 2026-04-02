@@ -161,6 +161,7 @@ export const initAxios = () => {
               }
           },
         requestOptions(config: any) {
+
             let cache = verifyHeadersCache
             if (!cache) {
                 try {
@@ -170,6 +171,13 @@ export const initAxios = () => {
                     // ignore
                 }
             }
+
+            const tenantDomain = location.pathname?.split('/')[1] || localStorage.getItem('X-Tenant-Domain')
+            if (tenantDomain && !!import.meta.VITE_APP_ENVIRONMENT) {
+                config.headers = config.headers || {}
+                config.headers['X-Tenant-Domain'] = tenantDomain
+            }
+            
             if (cache?.key && cache?.token) {
                 config.headers = config.headers || {}
                 config.headers['x-verify-key'] = cache.key

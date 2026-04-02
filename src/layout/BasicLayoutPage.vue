@@ -16,19 +16,21 @@
       <span v-else style='cursor: default' >{{ slotProps.route.breadcrumbName }}</span>
     </template>
     <template #leftContentRender>
-      <RegistryComponent pageCode="layout" code="layout">
+      <RegistryComponent pageCode="layout" code="layout" @click="onClick">
 
       </RegistryComponent>
     </template>
 
     <template #rightContentRender>
       <div class="right-content">
-        <template v-if="!hideHeaderRight">
-          <Language />
-          <Resource v-if="systemInfo?.['front']?.resources"/>
-          <Notice />
-        </template>
-        <User :hideHeaderRight="hideHeaderRight" />
+        <RegistryComponent pageCode="layout" code="headerRight">
+          <template v-if="!hideHeaderRight">
+            <Language key="Language" />
+            <Resource key="resource" v-if="systemInfo?.['front']?.resources"/>
+            <Notice key="notice" />
+          </template>
+          <User key="user" :hideHeaderRight="hideHeaderRight" />
+        </RegistryComponent>
       </div>
     </template>
     <router-view />
@@ -94,6 +96,9 @@ const init = () => {
 
 init()
 
+const onClick = () => {
+  console.log('点击了')
+}
 /**
  * 处理菜单选中，展开状态
  */
@@ -116,5 +121,6 @@ watchEffect(() => {
   display: flex;
   align-items: center;
   gap: 24px;
+  height: 48px;
 }
 </style>

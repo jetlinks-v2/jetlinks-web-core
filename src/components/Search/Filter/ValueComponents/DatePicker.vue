@@ -1,7 +1,7 @@
 <script setup name="TimePicker">
 
 import { watch } from 'vue'
-import dayjs from 'dayjs'
+import { toDayjsValue, toTimestampValue } from './utils'
 
 const props = defineProps({
   value: {
@@ -17,21 +17,21 @@ const props = defineProps({
 const emit = defineEmits(['update:value', 'change'])
 
 const dropdownTimePickerRef = ref()
-const myValue = ref(props.value)
+const myValue = ref(toDayjsValue(props.value))
 
 const getPopupContainer = () => {
   return dropdownTimePickerRef.value
 }
 
 const change = (e) => {
-  const timestamp = dayjs(e).valueOf()
-  myValue.value = e
+  myValue.value = toDayjsValue(e)
+  const timestamp = toTimestampValue(e)
   emit('update:value', timestamp)
   emit('change', timestamp)
 }
 
-watch(() => props.value, () => {
-  myValue.value = props.value
+watch(() => props.value, (val) => {
+  myValue.value = toDayjsValue(val)
 }, { immediate: true })
 
 </script>
@@ -54,8 +54,29 @@ watch(() => props.value, () => {
 
 <style scoped lang="less">
 .dropdown-time-picker {
+  > div{
+    position: relative !important;
+  }
+
   .manual-time-picker {
     display: none;
+  }
+
+  :deep(.ant-picker-dropdown) {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 100%;
+    .ant-picker-panel {
+      width: 100%
+    }
+    .ant-picker-footer {
+      border-bottom: 0px;
+    }
+  }
+
+  :deep(.ant-picker-panel-container) {
+    box-shadow: unset;
   }
 }
 </style>
