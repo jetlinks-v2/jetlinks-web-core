@@ -13,7 +13,7 @@
                   <a-input
                     v-model:value="editName"
                     :placeholder="$t('AccountInfo.basicNamePlaceholder')"
-                    style="max-width: 360px"
+                    style="max-width: 780px"
                   />
                   <a-button
                     v-if="showNameSave"
@@ -35,7 +35,7 @@
                   <a-input
                     :value="userInfo?.username"
                     disabled
-                    style="max-width: 360px"
+                    style="max-width: 780px"
                   />
                 </div>
                 <div class="basic-form-desc">{{ $t('AccountInfo.usernameDesc') }}</div>
@@ -45,7 +45,7 @@
               <div class="basic-form-item">
                 <div class="basic-form-label">{{ $t('AccountInfo.password') }}</div>
                 <div class="basic-form-control">
-                  <a-input value="******" disabled style="max-width: 360px" />
+                  <a-input value="******" disabled style="max-width: 780px" />
                   <a-button type="link" size="small" class="basic-info-password-edit" @click="openPasswordDialog">
                     {{ $t('AccountInfo.editPassword') }}
                   </a-button>
@@ -772,7 +772,7 @@ onUnmounted(() => {
 
 <style lang="less" scoped>
 .account-info {
-  max-width: 800px;
+  max-width: 1120px;
   padding: 0 4px;
 }
 

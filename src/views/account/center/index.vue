@@ -96,7 +96,7 @@ onUnmounted(() => {
   box-sizing: border-box;
 
   .person-inner {
-    max-width: 1120px;
+    max-width: 1440px;
     margin: 0 auto;
     display: flex;
     align-items: flex-start;
@@ -109,11 +109,14 @@ onUnmounted(() => {
     border-radius: 8px;
     padding: 8px 0;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    position: sticky;
+    top: 48px;
+    flex-shrink: 0;
   }
 
   .person-main {
     flex: 1;
-    max-width: 860px;
+    max-width: 1180px;
   }
 
   .person-main-content {
