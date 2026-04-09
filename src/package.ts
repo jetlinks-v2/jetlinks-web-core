@@ -268,6 +268,10 @@ export const loadMicroApp = () => {
             setToken(data.token)
         }
 
+        if (data.projectId) {
+            LocalStore.set('X-Tenant-Domain', data.projectId)
+        }
+
         if (data.appId) {
             LocalStore.set('appId', data.appId)
         }
