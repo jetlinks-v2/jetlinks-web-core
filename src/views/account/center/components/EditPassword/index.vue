@@ -30,7 +30,7 @@
                     </a-step>
                 </a-steps>
             </div>
-            <div class="content">
+            <div class="content" :class="{'no-padding': props.type}">
                 <a-form :model="form" layout="vertical" ref="formRef">
                     <a-form-item
                         :label="$t('EditPassword.index.010161-4')"
@@ -309,5 +309,9 @@ const handleOk = () => {
 <style scoped lang="less">
 .content {
     padding: 30px 50px;
+
+  &.no-padding {
+    padding: 0;
+  }
 }
 </style>
