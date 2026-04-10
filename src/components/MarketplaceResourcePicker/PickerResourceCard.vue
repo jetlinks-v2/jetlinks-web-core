@@ -36,9 +36,17 @@
         v-for="(t, i) in visibleTags"
         :key="t.id || i"
         class="mp-pill"
-        :style="{ '--pill': tagPillColor(t, i) }"
+        :title="t.name"
       >
-        {{ t.name }}
+        <IconValueView
+          v-if="t.icon"
+          class="mp-pill__icon"
+          :value="t.icon"
+          :size="16"
+          :border-radius="4"
+          :fallback-text="t.name"
+        />
+        <span class="mp-pill__text">{{ t.name }}</span>
       </span>
       <a-popover
         v-if="extraTagCount > 0"
@@ -53,9 +61,17 @@
               v-for="(t, i) in hiddenTags"
               :key="t.id || `extra-${i}`"
               class="mp-pill"
-              :style="{ '--pill': tagPillColor(t, visibleTags.length + i) }"
+              :title="t.name"
             >
-              {{ t.name }}
+              <IconValueView
+                v-if="t.icon"
+                class="mp-pill__icon"
+                :value="t.icon"
+                :size="16"
+                :border-radius="4"
+                :fallback-text="t.name"
+              />
+              <span class="mp-pill__text">{{ t.name }}</span>
             </span>
           </div>
         </template>
@@ -157,7 +173,6 @@ import { computed, ref, watch } from 'vue'
 import type { CapabilityVersionOption } from './types'
 import { renderCapabilityMarkdown } from './markdownRender'
 import { IconValueView } from '@jetlinks-web-core/components/IconValue'
-import { parseTagColorFromIcon } from './tagIcon'
 
 const props = withDefaults(
   defineProps<{
@@ -272,9 +287,6 @@ const visibleTags = computed(() => tags.value.slice(0, 3))
 const hiddenTags = computed(() => tags.value.slice(3))
 const extraTagCount = computed(() => Math.max(0, tags.value.length - 3))
 
-const palette = ['#6366f1', '#0ea5e9', '#22c55e', '#f97316', '#a855f7', '#ec4899']
-const tagPillColor = (tag: any, i: number) => parseTagColorFromIcon(tag?.icon) || palette[i % palette.length]
-
 function selectVersion(v: string) {
   versionBinding.value = v
   versionDropdownOpen.value = false
@@ -295,16 +307,23 @@ function selectVersion(v: string) {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 .mp-card--picked {
   border-color: rgba(22, 119, 255, 0.55);
-  box-shadow: 0 10px 28px rgba(22, 119, 255, 0.18);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.96) inset, 0 0 0 3px rgba(22, 119, 255, 0.14),
+    0 10px 28px rgba(22, 119, 255, 0.16);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(240, 247, 255, 0.92));
 }
-.mp-card:hover {
-  transform: translateY(-2px);
+.mp-card:not(.mp-card--picked):hover {
+  transform: translateY(-1px);
   box-shadow: 0 10px 24px rgba(79, 70, 229, 0.1);
   border-color: rgba(99, 102, 241, 0.35);
+}
+.mp-card--picked:hover {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.98) inset, 0 0 0 3px rgba(22, 119, 255, 0.2),
+    0 12px 30px rgba(22, 119, 255, 0.18);
+  border-color: rgba(22, 119, 255, 0.72);
 }
 .mp-card__pick {
   position: absolute;
@@ -416,16 +435,26 @@ function selectVersion(v: string) {
 .mp-pill {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
   min-height: 22px;
+  max-width: 180px;
   box-sizing: border-box;
   font-size: 12px;
   line-height: 18px;
   padding: 2px 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--pill, #6366f1) 12%, white);
-  border: 1px solid color-mix(in srgb, var(--pill, #6366f1) 35%, white);
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   color: #0f172a;
+}
+.mp-pill__icon {
+  flex-shrink: 0;
+}
+.mp-pill__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .mp-pill--more {
   background: rgba(15, 23, 42, 0.06);

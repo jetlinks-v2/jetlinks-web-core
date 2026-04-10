@@ -87,12 +87,7 @@
         </div>
 
         <div v-if="selectedTagItems.length" class="mp-res-layout__selected">
-          <div class="mp-res-layout__selected-head">
-            <span class="mp-res-layout__selected-title">{{ mergedLabels.selectedTags }}</span>
-            <button type="button" class="mp-res-layout__selected-clear" @click="clearTagFilter">
-              {{ mergedLabels.clearSelected }}
-            </button>
-          </div>
+          <span class="mp-res-layout__selected-title">{{ mergedLabels.selectedTags }}</span>
           <div class="mp-res-layout__selected-list">
             <TagFilterChip
               v-for="tag in selectedTagItems"
@@ -102,6 +97,9 @@
               @toggle="toggleTag(tag.id)"
             />
           </div>
+          <button type="button" class="mp-res-layout__selected-clear" @click="clearTagFilter">
+            {{ mergedLabels.clearSelected }}
+          </button>
         </div>
 
         <div class="mp-res-layout__list-scroll" @scroll.passive="onListScroll">
@@ -889,22 +887,20 @@ defineExpose({
 }
 .mp-res-layout__selected {
   margin-top: -4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   padding: 10px 12px;
   border: 1px solid rgba(22, 119, 255, 0.12);
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(22, 119, 255, 0.05), rgba(22, 119, 255, 0.02));
 }
-.mp-res-layout__selected-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
 .mp-res-layout__selected-title {
   font-size: 12px;
   font-weight: 600;
   color: #0958d9;
+  flex-shrink: 0;
 }
 .mp-res-layout__selected-clear {
   border: none;
@@ -913,6 +909,8 @@ defineExpose({
   font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
   cursor: pointer;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 .mp-res-layout__selected-clear:hover {
   color: #1677ff;
@@ -921,6 +919,8 @@ defineExpose({
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 .mp-res-layout__search {
   flex: 1;
@@ -933,6 +933,9 @@ defineExpose({
   gap: 12px;
   width: 100%;
   align-items: stretch;
+  padding-top: 4px;
+  padding-bottom: 2px;
+  box-sizing: border-box;
 }
 .mp-res-layout__pager {
   display: flex;
