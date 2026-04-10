@@ -1,5 +1,5 @@
 <template>
-  <div class="upload-image-warp" >
+  <div class="upload-image-warp" @mousedown.stop>
     <div class="upload-image-border" :style="borderStyle">
       <a-upload
         list-type="picture-card"
@@ -31,14 +31,16 @@
       </div>
     </div>
   </div>
-  <CropperModal
-    v-if="cropper.visible"
-    v-bind="cropperProps"
-    :img="cropper.img"
-    :title="cropperTitle"
-    @cancel="cropper.visible = false"
-    @ok="saveImage"
-  />
+  <Teleport to="body">
+    <CropperModal
+      v-if="cropper.visible"
+      v-bind="cropperProps"
+      :img="cropper.img"
+      :title="cropperTitle"
+      @cancel="cropper.visible = false"
+      @ok="saveImage"
+    />
+  </Teleport>
 </template>
 
 <script setup lang="ts" name="ImageUpload">
@@ -98,7 +100,11 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:value'])
+const emit = defineEmits<{
+  'update:value': [v: string]
+  cropVisibleChange: [visible: boolean]
+  cropInteractBusy: [busy: boolean]
+}>()
 
 const cropper = reactive({
   visible: false,
@@ -115,14 +121,19 @@ const beforeUpload = (file: any) => {
 
   if (!inType) {
     onlyMessage($t('Image.ImageUpload.825077-2'), 'error')
+    return false
   }
 
   if (!isMaxSize) {
-    onlyMessage($t('Image.ImageUpload.825077-3', [maxSize]), 'error');
+    onlyMessage($t('Image.ImageUpload.825077-3', [maxSize]), 'error')
+    return false
   }
-  getBase64ByImg(file, base64Url => {
+
+  emit('cropInteractBusy', true)
+  getBase64ByImg(file, (base64Url) => {
     cropper.img = base64Url
     cropper.visible = true
+    emit('cropInteractBusy', false)
   })
 
   return false
@@ -154,6 +165,20 @@ watch(() => props.value, (newValue) => {
 }, {
   immediate: true
 })
+
+watch(
+  () => cropper.visible,
+  (v) => {
+    emit('cropVisibleChange', v)
+  },
+)
+
+function abortCrop() {
+  cropper.visible = false
+  cropper.img = ''
+}
+
+defineExpose({ abortCrop })
 
 </script>
 
