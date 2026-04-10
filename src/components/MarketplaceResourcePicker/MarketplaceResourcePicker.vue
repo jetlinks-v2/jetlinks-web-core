@@ -27,26 +27,46 @@
             >
               {{ mergedLabels.all }}
             </button>
-            <template v-for="(block, bIdx) in sidebarBlocks" :key="`sb-${bIdx}`">
+            <template v-for="section in sidebarSections" :key="section.id">
               <div
-                v-if="block.kind === 'classifier'"
-                class="mp-res-layout__sidebar-classifier"
-                :style="{ paddingLeft: `${10 + block.depth * 14}px` }"
+                v-if="isSectionVisible(section)"
+                class="mp-res-layout__sidebar-section"
               >
-                {{ block.name }}
-              </div>
-              <div
-                v-else
-                class="mp-res-layout__tag-row"
-                :style="{ paddingLeft: `${10 + block.depth * 14}px` }"
-              >
-                <TagFilterChip
-                  v-for="tg in block.tags"
-                  :key="tg.id"
-                  :tag="tg"
-                  :selected="isTagSelected(tg.id)"
-                  @toggle="toggleTag(tg.id)"
-                />
+                <button
+                  type="button"
+                  class="mp-res-layout__sidebar-classifier"
+                  :class="{ 'mp-res-layout__sidebar-classifier--active': sectionSelectedCount(section) > 0 }"
+                  :style="{ paddingLeft: `${10 + section.depth * 12}px` }"
+                  @click="toggleClassifier(section.id)"
+                >
+                  <span class="mp-res-layout__sidebar-classifier-name">{{ section.name }}</span>
+                  <span class="mp-res-layout__sidebar-classifier-meta">
+                    <span v-if="sectionSelectedCount(section) > 0" class="mp-res-layout__sidebar-classifier-picked">
+                      {{ sectionSelectedCount(section) }}
+                    </span>
+                    <span v-if="section.tags.length" class="mp-res-layout__sidebar-classifier-count">
+                      {{ section.tags.length }}
+                    </span>
+                    <AIcon
+                      type="DownOutlined"
+                      class="mp-res-layout__sidebar-classifier-caret"
+                      :class="{ 'mp-res-layout__sidebar-classifier-caret--open': isClassifierExpanded(section.id) }"
+                    />
+                  </span>
+                </button>
+                <div
+                  v-if="isClassifierExpanded(section.id) && section.tags.length"
+                  class="mp-res-layout__tag-row"
+                  :style="{ paddingLeft: `${10 + section.depth * 12}px` }"
+                >
+                  <TagFilterChip
+                    v-for="tg in section.tags"
+                    :key="tg.id"
+                    :tag="tg"
+                    :selected="isTagSelected(tg.id)"
+                    @toggle="toggleTag(tg.id)"
+                  />
+                </div>
               </div>
             </template>
           </div>
@@ -64,6 +84,24 @@
             @pressEnter="onSearch"
           />
           <slot name="toolbar-extra" :active-type="activeType" :keyword="keyword" />
+        </div>
+
+        <div v-if="selectedTagItems.length" class="mp-res-layout__selected">
+          <div class="mp-res-layout__selected-head">
+            <span class="mp-res-layout__selected-title">{{ mergedLabels.selectedTags }}</span>
+            <button type="button" class="mp-res-layout__selected-clear" @click="clearTagFilter">
+              {{ mergedLabels.clearSelected }}
+            </button>
+          </div>
+          <div class="mp-res-layout__selected-list">
+            <TagFilterChip
+              v-for="tag in selectedTagItems"
+              :key="tag.id"
+              :tag="tag"
+              :selected="true"
+              @toggle="toggleTag(tag.id)"
+            />
+          </div>
         </div>
 
         <div class="mp-res-layout__list-scroll" @scroll.passive="onListScroll">
@@ -147,7 +185,12 @@ import {
   defaultFetchTagClassifiers,
   pickLatestCapabilityVersion,
 } from './defaultMarketplaceClient'
-import { buildSidebarBlocks, normalizeTagClassifiersResponse } from './sidebar'
+import {
+  buildSidebarSections,
+  normalizeTagClassifiersResponse,
+  type SidebarSection,
+  type TagChipItem,
+} from './sidebar'
 import type {
   CapabilityVersionOption,
   FetchCapabilityVersions,
@@ -221,6 +264,8 @@ const emit = defineEmits<{
 const defaultLabels: Required<MarketplaceResourcePickerLabels> = {
   all: '全部',
   tags: '标签',
+  selectedTags: '已选标签',
+  clearSelected: '清空',
   searchPlaceholder: '搜索名称',
   empty: '暂无数据',
   noMore: '没有更多了',
@@ -247,7 +292,8 @@ const listLoading = ref(false)
 const loadingMore = ref(false)
 const hasMore = ref(true)
 const tagsLoading = ref(false)
-const sidebarBlocks = ref(buildSidebarBlocks([]))
+const sidebarSections = ref<SidebarSection[]>([])
+const expandedClassifierIds = ref<string[]>([])
 
 const versionOptions = ref<CapabilityVersionOption[]>([])
 const versionsLoading = ref(false)
@@ -269,14 +315,17 @@ function resolveFetchResources(): MarketplaceResourceFetcher {
 async function loadTagSidebar() {
   const ty = activeType.value
   if (!ty) {
-    sidebarBlocks.value = []
+    sidebarSections.value = []
+    expandedClassifierIds.value = []
     return
   }
   tagsLoading.value = true
   try {
     const res: any = await resolveFetchTagClassifiers()(ty)
     const roots = normalizeTagClassifiersResponse(res)
-    sidebarBlocks.value = buildSidebarBlocks(roots)
+    const sections = buildSidebarSections(roots)
+    sidebarSections.value = sections
+    expandedClassifierIds.value = defaultExpandedSections(sections)
   } finally {
     tagsLoading.value = false
   }
@@ -381,11 +430,90 @@ function isTagSelected(id: string) {
   return selectedTagIds.value.includes(id)
 }
 
+const selectedTagSet = computed(() => new Set(selectedTagIds.value))
+const sectionParentMap = computed(() => {
+  const map = new Map<string, string | undefined>()
+  for (const section of sidebarSections.value) {
+    map.set(section.id, section.parentId)
+  }
+  return map
+})
+const tagMap = computed(() => {
+  const map = new Map<string, TagChipItem>()
+  for (const section of sidebarSections.value) {
+    for (const tag of section.tags) {
+      if (!map.has(tag.id)) map.set(tag.id, tag)
+    }
+  }
+  return map
+})
+const tagOwnerMap = computed(() => {
+  const map = new Map<string, string>()
+  for (const section of sidebarSections.value) {
+    for (const tag of section.tags) {
+      if (!map.has(tag.id)) map.set(tag.id, section.id)
+    }
+  }
+  return map
+})
+const selectedTagItems = computed(() =>
+  selectedTagIds.value
+    .map((id) => tagMap.value.get(id))
+    .filter((item): item is TagChipItem => !!item),
+)
+
+function defaultExpandedSections(sections: SidebarSection[]) {
+  return sections.filter((section) => section.depth === 0).map((section) => section.id)
+}
+
+function isClassifierExpanded(id: string) {
+  return expandedClassifierIds.value.includes(id)
+}
+
+function toggleClassifier(id: string) {
+  const next = [...expandedClassifierIds.value]
+  const index = next.indexOf(id)
+  if (index >= 0) next.splice(index, 1)
+  else next.push(id)
+  expandedClassifierIds.value = next
+}
+
+function ensureClassifierExpanded(id: string) {
+  const next = new Set(expandedClassifierIds.value)
+  let current: string | undefined = id
+  while (current) {
+    next.add(current)
+    current = sectionParentMap.value.get(current)
+  }
+  expandedClassifierIds.value = [...next]
+}
+
+function isSectionVisible(section: SidebarSection) {
+  let parentId = section.parentId
+  while (parentId) {
+    if (!expandedClassifierIds.value.includes(parentId)) return false
+    parentId = sectionParentMap.value.get(parentId)
+  }
+  return true
+}
+
+function sectionSelectedCount(section: SidebarSection) {
+  let count = 0
+  for (const tag of section.tags) {
+    if (selectedTagSet.value.has(tag.id)) count += 1
+  }
+  return count
+}
+
 function toggleTag(id: string) {
   const next = [...selectedTagIds.value]
   const i = next.indexOf(id)
   if (i >= 0) next.splice(i, 1)
-  else next.push(id)
+  else {
+    next.push(id)
+    const owner = tagOwnerMap.value.get(id)
+    if (owner) ensureClassifierExpanded(owner)
+  }
   selectedTagIds.value = next
   pageIndex.value = 1
   if (props.showPagination) fetchPage()
@@ -577,16 +705,16 @@ defineExpose({
   width: 100%;
   flex-shrink: 0;
   border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 8px;
-  padding: 12px;
-  background: #fafafa;
+  border-radius: 12px;
+  padding: 10px;
+  background: linear-gradient(180deg, #fcfcfd, #f8fafc);
   align-self: stretch;
   max-height: min(40vh, 360px);
   overflow: auto;
 }
 @media (min-width: 992px) {
   .mp-res-layout__aside {
-    width: 300px;
+    width: clamp(208px, 18vw, 232px);
     align-self: flex-start;
     max-height: calc(100vh - 220px);
   }
@@ -602,25 +730,83 @@ defineExpose({
 .mp-res-layout__tag-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
-.mp-res-layout__tag-list > button + .mp-res-layout__sidebar-classifier {
-  margin-top: 8px;
+.mp-res-layout__sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .mp-res-layout__sidebar-classifier {
-  padding: 6px 10px 2px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  padding: 8px 10px;
   font-size: 12px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.45);
   line-height: 1.35;
   user-select: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.mp-res-layout__sidebar-classifier:hover {
+  border-color: rgba(22, 119, 255, 0.18);
+  background: rgba(22, 119, 255, 0.04);
+}
+.mp-res-layout__sidebar-classifier--active {
+  color: #0958d9;
+}
+.mp-res-layout__sidebar-classifier-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.mp-res-layout__sidebar-classifier-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.mp-res-layout__sidebar-classifier-count,
+.mp-res-layout__sidebar-classifier-picked {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+}
+.mp-res-layout__sidebar-classifier-count {
+  background: rgba(15, 23, 42, 0.06);
+  color: rgba(0, 0, 0, 0.45);
+}
+.mp-res-layout__sidebar-classifier-picked {
+  background: rgba(22, 119, 255, 0.12);
+  color: #0958d9;
+}
+.mp-res-layout__sidebar-classifier-caret {
+  transition: transform 0.15s ease;
+}
+.mp-res-layout__sidebar-classifier-caret--open {
+  transform: rotate(180deg);
 }
 .mp-res-layout__tag-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  margin-bottom: 4px;
 }
 .mp-res-layout__tag {
   display: block;
@@ -700,6 +886,41 @@ defineExpose({
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+.mp-res-layout__selected {
+  margin-top: -4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(22, 119, 255, 0.12);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(22, 119, 255, 0.05), rgba(22, 119, 255, 0.02));
+}
+.mp-res-layout__selected-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.mp-res-layout__selected-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0958d9;
+}
+.mp-res-layout__selected-clear {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+.mp-res-layout__selected-clear:hover {
+  color: #1677ff;
+}
+.mp-res-layout__selected-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .mp-res-layout__search {
   flex: 1;

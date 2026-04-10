@@ -19,6 +19,8 @@ export type TagClassifiersFetcher = (type: string) => Promise<any>
 export interface MarketplaceResourcePickerLabels {
   all?: string
   tags?: string
+  selectedTags?: string
+  clearSelected?: string
   searchPlaceholder?: string
   empty?: string
   /** 滚动加载到底时的提示 */
