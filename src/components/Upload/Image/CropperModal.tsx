@@ -21,10 +21,9 @@ const CropperModalProps = {
     type: Object as PropType<CSSProperties>,
     default: () => ({})
   },
-  /** false：允许拖裁剪框边缘改尺寸（配合 fixed+fixedNumber 固定比例） */
   fixedBox: {
     type: Boolean,
-    default: false
+    default: true
   },
   autoCrop: {
     type: Boolean,
@@ -55,15 +54,14 @@ const CropperModalProps = {
     type: Number,
     default: 1100
   },
-  /** 禁止滚轮缩放图片 */
+  /** 禁止滚轮缩放图片，以拖动裁剪框 / 拖动图片为主 */
   canScale: {
     type: Boolean,
     default: false
   },
-  /** false：不拖动底图，只通过拖动/缩放裁剪框选区 */
   canMove: {
     type: Boolean,
-    default: false
+    default: true
   },
   canMoveBox: {
     type: Boolean,

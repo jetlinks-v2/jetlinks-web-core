@@ -106,13 +106,17 @@ export default defineConfig(({ mode, command }) => {
       port: Number(env.VITE_PORT),
       cors: true,
       fs: { allow: [ envDir] },
+      watch: {
+          usePolling: true,
+          interval: 1000
+      },
       allowedHosts: [
-        'cq.local-host.cn', // 允许的自定义域名
+        '.local-host.cn', // 允许所有 local-host.cn 的子域名
       ],
       proxy: {
         [env.VITE_APP_BASE_API]: {
           // 优先使用命令行参数，其次使用环境变量
-          target: backendUrl || env.VITE_APP_DEV_PROXY_URL,
+          target: "http://192.168.33.33:8800",
           ws: true,
           changeOrigin: true,
           rewrite: (path) => path.replace(new RegExp(`^${env.VITE_APP_BASE_API}`), '')
