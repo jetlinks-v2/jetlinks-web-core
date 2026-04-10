@@ -1,4 +1,4 @@
-import { defineComponent } from "vue";
+import { defineComponent, ref } from "vue";
 import type { CSSProperties, PropType } from "vue";
 import { Modal } from 'ant-design-vue'
 import { VueCropper } from 'vue-cropper';
@@ -48,6 +48,36 @@ const CropperModalProps = {
   openServer: {
     type: Boolean,
     default: true
+  },
+  /** 高于 Popover(1030) 等浮层，避免裁剪弹窗被挡住 */
+  zIndex: {
+    type: Number,
+    default: 1100
+  },
+  /** 禁止滚轮缩放图片，以拖动裁剪框 / 拖动图片为主 */
+  canScale: {
+    type: Boolean,
+    default: false
+  },
+  canMove: {
+    type: Boolean,
+    default: true
+  },
+  canMoveBox: {
+    type: Boolean,
+    default: true
+  },
+  fixed: {
+    type: Boolean,
+    default: true
+  },
+  fixedNumber: {
+    type: Array as PropType<[number, number]>,
+    default: () => [1, 1] as [number, number]
+  },
+  centerBox: {
+    type: Boolean,
+    default: true
   }
 }
 
@@ -56,8 +86,6 @@ const CropperModal = defineComponent({
   props: CropperModalProps,
   emits: ['cancel', 'ok', 'change'],
   setup( props, { emit }) {
-
-    const { title, width, openServer, bodyStyle, ...cropper } = props
 
     const { loading, run } = useRequest(fileUpload, {
       immediate: false,
@@ -77,7 +105,7 @@ const CropperModal = defineComponent({
 
     const onOk = () => {
       cropperRef.value.getCropBlob( async (data: Blob) => {
-        if (openServer) {
+        if (props.openServer) {
           const formData = new FormData()
           formData.append('file', data, new Date().getTime() + '.jpg')
           imgUrl.value = data
@@ -92,12 +120,14 @@ const CropperModal = defineComponent({
     }
 
     return () => {
-      console.log('cropper', cropper, loading.value)
+      const { title, width, bodyStyle, zIndex, ...cropper } = props
       return (
         <Modal
-          visible
+          open
+          maskClosable={false}
           title={title}
           width={width}
+          zIndex={zIndex}
           confirmLoading={loading.value}
           onCancel={onCancel}
           onOk={onOk}
@@ -108,6 +138,7 @@ const CropperModal = defineComponent({
               width: '100%',
               ...(bodyStyle || {})
             }}
+            onMousedown={(e: MouseEvent) => e.stopPropagation()}
           >
             <VueCropper ref={cropperRef} {...cropper}/>
           </div>

@@ -1,17 +1,24 @@
 <template>
   <a-modal
       :title="title"
-      visible
+      :open="true"
+      :mask-closable="false"
       :width="400"
       @cancel="cancel"
       @ok="ok"
       :confirmLoading="loading"
   >
-    <div style="height: 300px; width: 100%;">
+    <div style="height: 300px; width: 100%" @mousedown.stop>
       <vue-cropper
           ref="cropper"
           :img="img"
+          :fixed="true"
+          :fixed-number="[1, 1]"
           :fixed-box="true"
+          :center-box="true"
+          :can-scale="false"
+          :can-move="true"
+          :can-move-box="true"
           :autoCrop="true"
           :auto-crop-width="200"
           :auto-crop-height="200"
@@ -45,7 +52,6 @@ const loading = ref(false)
 
 const ok = () => {
   cropper.value.getCropBlob(async (data: Blob) => {
-    console.log(data)
     let formData = new FormData()
     formData.append('file', data, new Date().getTime() + '.jpg')
 

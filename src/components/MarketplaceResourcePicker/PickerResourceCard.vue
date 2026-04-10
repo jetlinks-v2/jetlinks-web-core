@@ -1,0 +1,432 @@
+<template>
+  <div
+    class="mp-card"
+    :class="{ 'mp-card--picked': selectable && selected }"
+    @click="$emit('click')"
+  >
+    <div v-if="selectable && selected" class="mp-card__pick" aria-hidden="true">
+      <CheckOutlined />
+    </div>
+    <div class="mp-card__glow" />
+    <div class="mp-card__head">
+      <div class="mp-card__icon" aria-hidden="true">
+        <IconValueView
+          :value="record?.icon"
+          :size="48"
+          :border-radius="14"
+          :fallback-text="record?.name || record?.code"
+        />
+      </div>
+      <div class="mp-card__head-text">
+        <div class="mp-card__title-row">
+          <div class="mp-card__name-wrap">
+            <j-ellipsis class="mp-card__title">{{ record.name || '--' }}</j-ellipsis>
+          </div>
+          <div class="mp-card__state mp-card__state--inline" aria-label="state">
+            <span class="mp-card__dot" :class="enabled ? 'on' : 'off'" />
+            <span>{{ stateLabel }}</span>
+          </div>
+          <span v-if="record.code" class="mp-card__code">{{ record.code }}</span>
+        </div>
+      </div>
+    </div>
+    <p class="mp-card__desc">{{ record.description || '—' }}</p>
+    <div class="mp-card__tags">
+      <span
+        v-for="(t, i) in visibleTags"
+        :key="t.id || i"
+        class="mp-pill"
+        :style="{ '--pill': tagPillColor(t, i) }"
+      >
+        {{ t.name }}
+      </span>
+      <span v-if="extraTagCount > 0" class="mp-pill mp-pill--more">+{{ extraTagCount }}</span>
+    </div>
+    <div v-if="showVersionSelect || $slots.actions" class="mp-card__footer">
+      <div v-if="showVersionSelect" class="mp-card__footer-left" @click.stop>
+        <span class="mp-card__version-label">{{ versionLabel }}</span>
+        <a-select
+          v-model:value="versionBinding"
+          class="mp-card__version-select"
+          :options="versionOptions"
+          :loading="versionsLoading"
+          :placeholder="versionPlaceholder"
+          allow-clear
+        />
+        <p v-if="currentVersionMeta?.summary" class="mp-card__version-summary">
+          {{ currentVersionMeta.summary }}
+        </p>
+        <a-button
+          v-if="currentVersionMeta?.releaseNotes"
+          type="link"
+          size="small"
+          class="mp-card__version-notes-btn"
+          @click.stop="releaseNotesDrawerOpen = true"
+        >
+          {{ viewReleaseNotes }}
+        </a-button>
+      </div>
+      <div v-if="$slots.actions" class="mp-card__actions" @click.stop>
+        <slot name="actions" :record="record" />
+      </div>
+    </div>
+    <a-drawer
+      v-if="showVersionSelect"
+      v-model:open="releaseNotesDrawerOpen"
+      :title="releaseNotesDrawerTitle"
+      :width="560"
+      placement="right"
+      destroy-on-close
+      :z-index="1100"
+      @click.stop
+    >
+      <div class="mp-card__release-md" v-html="releaseNotesHtml" />
+    </a-drawer>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { CheckOutlined } from '@ant-design/icons-vue'
+import { computed, ref, watch } from 'vue'
+import type { CapabilityVersionOption } from './types'
+import { renderCapabilityMarkdown } from './markdownRender'
+import { IconValueView } from '../IconValue'
+import { parseTagColorFromIcon } from './tagIcon'
+
+const props = withDefaults(
+  defineProps<{
+    record: any
+    /** 是否展示选中态（资源选择场景） */
+    selectable?: boolean
+    selected?: boolean
+    /** 启用/禁用文案，默认中英文由业务传入 labels */
+    enabledLabel?: string
+    disabledLabel?: string
+    /** 选中且开启能力市场版本选择时，在底部页脚区（原时间 `--` 位置）展示 */
+    showVersionSelect?: boolean
+    version?: string | null
+    versionOptions?: CapabilityVersionOption[]
+    versionsLoading?: boolean
+    versionLabel?: string
+    versionPlaceholder?: string
+    /** 查看发布说明 */
+    viewReleaseNotes?: string
+    /** 抽屉标题前缀 */
+    releaseNotesTitle?: string
+  }>(),
+  {
+    selectable: false,
+    selected: false,
+    showVersionSelect: false,
+    versionOptions: () => [],
+    versionsLoading: false,
+    viewReleaseNotes: '查看发布说明',
+    releaseNotesTitle: '发布说明',
+  },
+)
+
+const emit = defineEmits<{
+  click: []
+  'update:version': [v: string | undefined]
+}>()
+
+const versionBinding = computed({
+  get: () => (props.version == null || props.version === '' ? undefined : String(props.version)),
+  set: (v: string | undefined) => emit('update:version', v),
+})
+
+const releaseNotesDrawerOpen = ref(false)
+
+const currentVersionMeta = computed<CapabilityVersionOption | null>(() => {
+  const v = props.version == null || props.version === '' ? undefined : String(props.version)
+  if (!v || !props.versionOptions?.length) return null
+  return props.versionOptions.find((o) => o.value === v) ?? null
+})
+
+const releaseNotesHtml = computed(() => {
+  const md = currentVersionMeta.value?.releaseNotes ?? ''
+  return md ? renderCapabilityMarkdown(md) : ''
+})
+
+const releaseNotesDrawerTitle = computed(() => {
+  const v = props.version == null || props.version === '' ? '' : String(props.version)
+  const prefix = props.releaseNotesTitle ?? '发布说明'
+  return v ? `${prefix} · ${v}` : prefix
+})
+
+watch(
+  () => props.version,
+  () => {
+    releaseNotesDrawerOpen.value = false
+  },
+)
+
+const enabled = computed(() => {
+  const st = props.record?.state
+  const v = typeof st === 'object' ? st?.value : st
+  return v === 'enabled'
+})
+
+const stateLabel = computed(() => {
+  if (enabled.value) return props.enabledLabel ?? '启用'
+  return props.disabledLabel ?? '禁用'
+})
+
+const tags = computed<any[]>(() => {
+  const t = props.record?.tags
+  return Array.isArray(t) ? t : []
+})
+
+const visibleTags = computed(() => tags.value.slice(0, 3))
+const extraTagCount = computed(() => Math.max(0, tags.value.length - 3))
+
+const palette = ['#6366f1', '#0ea5e9', '#22c55e', '#f97316', '#a855f7', '#ec4899']
+const tagPillColor = (tag: any, i: number) => parseTagColorFromIcon(tag?.icon) || palette[i % palette.length]
+</script>
+
+<style scoped lang="less">
+.mp-card {
+  position: relative;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.85));
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  cursor: pointer;
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.mp-card--picked {
+  border-color: rgba(22, 119, 255, 0.55);
+  box-shadow: 0 10px 28px rgba(22, 119, 255, 0.18);
+}
+.mp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.1);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+.mp-card__pick {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #1677ff;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.45);
+  pointer-events: none;
+}
+.mp-card__glow {
+  position: absolute;
+  inset: -40% -20% auto auto;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.35), transparent 70%);
+  pointer-events: none;
+  opacity: 0.6;
+}
+.mp-card__head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.mp-card__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+.mp-card__head-text {
+  flex: 1;
+  min-width: 0;
+}
+.mp-card__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+}
+.mp-card__name-wrap {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(280px, calc(100% - 24px));
+}
+.mp-card__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+.mp-card__code {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: rgba(0, 0, 0, 0.55);
+  flex-shrink: 0;
+}
+.mp-card__state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+.mp-card__state--inline {
+  flex-shrink: 0;
+  margin-top: 0;
+}
+.mp-card__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.mp-card__dot.on {
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+}
+.mp-card__dot.off {
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+.mp-card__desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(0, 0, 0, 0.55);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mp-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mp-pill {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pill, #6366f1) 12%, white);
+  border: 1px solid color-mix(in srgb, var(--pill, #6366f1) 35%, white);
+  color: #0f172a;
+}
+.mp-pill--more {
+  background: rgba(15, 23, 42, 0.06);
+  border-color: transparent;
+  color: rgba(0, 0, 0, 0.45);
+}
+.mp-card__version-label {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  line-height: 1.2;
+}
+.mp-card__version-select {
+  width: 100%;
+}
+.mp-card__version-summary {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(0, 0, 0, 0.55);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mp-card__version-notes-btn {
+  padding: 0;
+  height: auto;
+  align-self: flex-start;
+  font-size: 12px;
+}
+.mp-card__release-md {
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgba(0, 0, 0, 0.88);
+  word-break: break-word;
+}
+.mp-card__release-md :deep(h1),
+.mp-card__release-md :deep(h2),
+.mp-card__release-md :deep(h3) {
+  margin: 0 0 10px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+.mp-card__release-md :deep(h1) {
+  font-size: 18px;
+}
+.mp-card__release-md :deep(h2) {
+  font-size: 16px;
+}
+.mp-card__release-md :deep(h3) {
+  font-size: 15px;
+}
+.mp-card__release-md :deep(p) {
+  margin: 0 0 10px;
+}
+.mp-card__release-md :deep(ul),
+.mp-card__release-md :deep(ol) {
+  margin: 0 0 10px;
+  padding-left: 1.25em;
+}
+.mp-card__release-md :deep(li) {
+  margin-bottom: 4px;
+}
+.mp-card__release-md :deep(code) {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.06);
+  font-size: 0.9em;
+}
+.mp-card__release-md :deep(pre) {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.06);
+  overflow: auto;
+  margin: 0 0 10px;
+}
+.mp-card__release-md :deep(pre code) {
+  padding: 0;
+  background: none;
+}
+.mp-card__release-md :deep(blockquote) {
+  margin: 0 0 10px;
+  padding-left: 10px;
+  border-left: 3px solid rgba(22, 119, 255, 0.35);
+  color: rgba(0, 0, 0, 0.65);
+}
+.mp-card__footer {
+  margin-top: 2px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+.mp-card__footer-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mp-card__actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+</style>
