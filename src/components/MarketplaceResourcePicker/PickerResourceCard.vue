@@ -17,16 +17,31 @@
           :fallback-text="record?.name || record?.code"
         />
       </div>
-      <div class="mp-card__head-text">
+      <div class="mp-card__head-text" :class="{ 'mp-card__head-text--selectable': selectable }">
         <div class="mp-card__title-row">
           <div class="mp-card__name-wrap">
-            <j-ellipsis class="mp-card__title">{{ record.name || '--' }}</j-ellipsis>
+            <button
+              v-if="documentText"
+              type="button"
+              class="mp-card__title-link"
+              :title="record.name || viewDocument"
+              @click.stop="openDocumentDrawer"
+            >
+              <j-ellipsis class="mp-card__title mp-card__title--link">{{ record.name || '--' }}</j-ellipsis>
+              <span class="mp-card__title-link-affordance">
+                <FileTextOutlined />
+                <span>{{ viewDocument }}</span>
+              </span>
+            </button>
+            <j-ellipsis v-else class="mp-card__title">{{ record.name || '--' }}</j-ellipsis>
           </div>
-          <div class="mp-card__state mp-card__state--inline" aria-label="state">
+          <span v-if="record.code" class="mp-card__code">{{ record.code }}</span>
+        </div>
+        <div class="mp-card__state-row">
+          <div class="mp-card__state" aria-label="state">
             <span class="mp-card__dot" :class="enabled ? 'on' : 'off'" />
             <span>{{ stateLabel }}</span>
           </div>
-          <span v-if="record.code" class="mp-card__code">{{ record.code }}</span>
         </div>
       </div>
     </div>
@@ -112,7 +127,10 @@
                 >
                   <span class="mp-card__version-option-main">
                     <span class="mp-card__version-option-label">{{ opt.label || opt.value }}</span>
-                    <CheckOutlined v-if="String(opt.value) === currentVersionValue" class="mp-card__version-option-check" />
+                    <CheckOutlined
+                      v-if="String(opt.value) === currentVersionValue"
+                      class="mp-card__version-option-check"
+                    />
                   </span>
                   <span v-if="opt.summary" class="mp-card__version-option-summary">
                     {{ opt.summary }}
@@ -135,6 +153,23 @@
             </span>
             <LoadingOutlined v-if="versionsLoading" spin class="mp-card__version-link-loading" />
           </span>
+          <a-popover
+            v-if="currentVersionSummary"
+            trigger="hover"
+            placement="topLeft"
+            :overlay-inner-style="{ maxWidth: '320px' }"
+          >
+            <template #content>
+              <div class="mp-card__version-summary-popover">
+                <div class="mp-card__version-summary-popover-title">{{ versionSummaryLabel }}</div>
+                <div class="mp-card__version-summary-popover-text">{{ currentVersionSummary }}</div>
+              </div>
+            </template>
+            <span class="mp-card__version-summary-chip" @click.stop>
+              <InfoCircleOutlined />
+              <span class="mp-card__version-summary-chip-text">{{ currentVersionSummary }}</span>
+            </span>
+          </a-popover>
           <template v-if="currentVersionMeta?.releaseNotes">
             <span class="mp-card__version-divider">·</span>
             <a-button
@@ -164,11 +199,29 @@
     >
       <div class="mp-card__release-md" v-html="releaseNotesHtml" />
     </a-drawer>
+    <a-drawer
+      v-if="documentText"
+      v-model:open="documentDrawerOpen"
+      :title="documentDrawerTitle"
+      :width="640"
+      placement="right"
+      destroy-on-close
+      :z-index="1100"
+      @click.stop
+    >
+      <div class="mp-card__release-md" v-html="documentHtml" />
+    </a-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { CheckOutlined, DownOutlined, LoadingOutlined } from '@ant-design/icons-vue'
+import {
+  CheckOutlined,
+  DownOutlined,
+  FileTextOutlined,
+  InfoCircleOutlined,
+  LoadingOutlined,
+} from '@ant-design/icons-vue'
 import { computed, ref, watch } from 'vue'
 import type { CapabilityVersionOption } from './types'
 import { renderCapabilityMarkdown } from './markdownRender'
@@ -194,6 +247,12 @@ const props = withDefaults(
     viewReleaseNotes?: string
     /** 抽屉标题前缀 */
     releaseNotesTitle?: string
+    /** 资源文档入口 */
+    viewDocument?: string
+    /** 资源文档标题前缀 */
+    resourceDocumentTitle?: string
+    /** 当前版本摘要标题 */
+    versionSummaryLabel?: string
   }>(),
   {
     selectable: false,
@@ -203,6 +262,9 @@ const props = withDefaults(
     versionsLoading: false,
     viewReleaseNotes: '查看发布说明',
     releaseNotesTitle: '发布说明',
+    viewDocument: '查看文档',
+    resourceDocumentTitle: '资源文档',
+    versionSummaryLabel: '版本摘要',
   },
 )
 
@@ -217,6 +279,7 @@ const versionBinding = computed({
 })
 
 const releaseNotesDrawerOpen = ref(false)
+const documentDrawerOpen = ref(false)
 const versionDropdownOpen = ref(false)
 
 const currentVersionMeta = computed<CapabilityVersionOption | null>(() => {
@@ -248,10 +311,35 @@ const releaseNotesHtml = computed(() => {
   return md ? renderCapabilityMarkdown(md) : ''
 })
 
+function optionalText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim()
+}
+
+const documentText = computed(() =>
+  optionalText(
+    props.record?.document ??
+      props.record?.info?.document ??
+      props.record?.metadata?.document ??
+      props.record?.metadata?.info?.document ??
+      props.record?.capabilityPackage?.info?.document ??
+      props.record?.packageInfo?.document,
+  ),
+)
+
+const documentHtml = computed(() =>
+  documentText.value ? renderCapabilityMarkdown(documentText.value) : '',
+)
+
 const releaseNotesDrawerTitle = computed(() => {
   const v = props.version == null || props.version === '' ? '' : String(props.version)
   const prefix = props.releaseNotesTitle ?? '发布说明'
   return v ? `${prefix} · ${v}` : prefix
+})
+
+const documentDrawerTitle = computed(() => {
+  const name = optionalText(props.record?.name ?? props.record?.code)
+  const prefix = props.resourceDocumentTitle ?? '资源文档'
+  return name ? `${prefix} · ${name}` : prefix
 })
 
 watch(
@@ -286,6 +374,11 @@ const tags = computed<any[]>(() => {
 const visibleTags = computed(() => tags.value.slice(0, 3))
 const hiddenTags = computed(() => tags.value.slice(3))
 const extraTagCount = computed(() => Math.max(0, tags.value.length - 3))
+
+function openDocumentDrawer() {
+  if (!documentText.value) return
+  documentDrawerOpen.value = true
+}
 
 function selectVersion(v: string) {
   versionBinding.value = v
@@ -367,22 +460,68 @@ function selectVersion(v: string) {
 .mp-card__head-text {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mp-card__head-text--selectable {
+  padding-right: 34px;
 }
 .mp-card__title-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 8px;
-  align-items: center;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
 }
 .mp-card__name-wrap {
-  flex: 0 1 auto;
+  flex: 1;
   min-width: 0;
-  max-width: min(280px, calc(100% - 24px));
 }
 .mp-card__title {
   font-size: 16px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.88);
+}
+.mp-card__title-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.mp-card__title-link :deep(.j-ellipsis) {
+  flex: 1;
+  min-width: 0;
+}
+.mp-card__title--link {
+  color: #1677ff;
+  transition: color 0.15s ease;
+}
+.mp-card__title-link:hover .mp-card__title--link {
+  color: #0958d9;
+  text-decoration: underline;
+}
+.mp-card__title-link-affordance {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(22, 119, 255, 0.08);
+  color: #0958d9;
+  font-size: 12px;
+  line-height: 18px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.mp-card__title-link:hover .mp-card__title-link-affordance {
+  background: rgba(22, 119, 255, 0.14);
+  color: #1677ff;
 }
 .mp-card__code {
   font-size: 12px;
@@ -392,16 +531,18 @@ function selectVersion(v: string) {
   color: rgba(0, 0, 0, 0.55);
   flex-shrink: 0;
 }
+.mp-card__state-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 .mp-card__state {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
-}
-.mp-card__state--inline {
-  flex-shrink: 0;
-  margin-top: 0;
 }
 .mp-card__dot {
   width: 8px;
@@ -532,9 +673,45 @@ function selectVersion(v: string) {
   height: auto;
   font-size: 12px;
 }
+.mp-card__version-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: min(42%, 180px);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(22, 119, 255, 0.06);
+  border: 1px solid rgba(22, 119, 255, 0.1);
+  color: #0958d9;
+  cursor: help;
+  font-size: 12px;
+  line-height: 18px;
+}
+.mp-card__version-summary-chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mp-card__version-summary-popover {
+  max-width: 300px;
+}
+.mp-card__version-summary-popover-title {
+  margin-bottom: 4px;
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.mp-card__version-summary-popover-text {
+  color: rgba(0, 0, 0, 0.65);
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: break-word;
+}
 .mp-card__version-menu {
-  width: 280px;
-  max-width: min(320px, calc(100vw - 32px));
+  width: 340px;
+  max-width: min(420px, calc(100vw - 32px));
   max-height: 280px;
   overflow: auto;
   padding: 6px;

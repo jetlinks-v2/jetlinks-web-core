@@ -74,6 +74,14 @@ export function mapCapabilityInfoRow(row: any) {
   return {
     ...row,
     code: row?.code ?? row?.metadata?.code,
+    document: optionalTrim(
+      row?.document ??
+        row?.info?.document ??
+        row?.metadata?.document ??
+        row?.metadata?.info?.document ??
+        row?.capabilityPackage?.info?.document ??
+        row?.packageInfo?.document,
+    ),
     type: row?.type ?? row?.provider,
     state: row?.state ?? { value: 'enabled' },
     tags,
@@ -180,22 +188,22 @@ export const defaultFetchResources: MarketplaceResourceFetcher = async (q: Marke
   }
   const res: any = await request.post(`/marketplace/capabilities/_search`, body)
   const key = buildSearchCacheKey(q)
-  let rows: any[]
   if (cachedFullRows && cacheKey === key && q.pageIndex > 0) {
-    rows = cachedFullRows
-  } else {
-    const flat = unwrapArray(res).map(mapCapabilityInfoRow)
-    if (q.pageIndex === 0 && flat.length > q.pageSize) {
-      cachedFullRows = flat
-      cacheKey = key
-    } else if (q.pageIndex === 0) {
-      cachedFullRows = null
-      cacheKey = null
-    }
-    rows = flat
+    const start = q.pageIndex * q.pageSize
+    return { list: cachedFullRows.slice(start, start + q.pageSize) }
   }
 
-  const start = q.pageIndex * q.pageSize
-  const list = rows.slice(start, start + q.pageSize)
-  return { list }
+  const flat = unwrapArray(res).map(mapCapabilityInfoRow)
+  if (q.pageIndex === 0 && flat.length > q.pageSize) {
+    cachedFullRows = flat
+    cacheKey = key
+    return { list: flat.slice(0, q.pageSize) }
+  }
+
+  if (q.pageIndex === 0) {
+    cachedFullRows = null
+    cacheKey = null
+  }
+
+  return { list: flat }
 }

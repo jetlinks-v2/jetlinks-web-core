@@ -33,6 +33,12 @@ export interface MarketplaceResourcePickerLabels {
   viewReleaseNotes?: string
   /** 发布说明抽屉标题前缀（会拼接当前版本号） */
   releaseNotesTitle?: string
+  /** 资源文档入口文案 */
+  viewDocument?: string
+  /** 资源文档抽屉标题前缀（会拼接资源名称） */
+  resourceDocumentTitle?: string
+  /** 当前版本摘要标题 */
+  versionSummary?: string
 }
 
 export type SelectionMode = 'none' | 'single' | 'multiple'

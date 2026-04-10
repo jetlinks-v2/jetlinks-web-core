@@ -122,6 +122,9 @@
                     :version-placeholder="mergedLabels.versionPlaceholder"
                     :view-release-notes="mergedLabels.viewReleaseNotes"
                     :release-notes-title="mergedLabels.releaseNotesTitle"
+                    :view-document="mergedLabels.viewDocument"
+                    :resource-document-title="mergedLabels.resourceDocumentTitle"
+                    :version-summary-label="mergedLabels.versionSummary"
                     :on-version-change="emitVersion"
                   >
                     <PickerResourceCard
@@ -138,6 +141,9 @@
                       :version-placeholder="mergedLabels.versionPlaceholder"
                       :view-release-notes="mergedLabels.viewReleaseNotes"
                       :release-notes-title="mergedLabels.releaseNotesTitle"
+                      :view-document="mergedLabels.viewDocument"
+                      :resource-document-title="mergedLabels.resourceDocumentTitle"
+                      :version-summary-label="mergedLabels.versionSummary"
                       @update:version="emitVersion"
                       @click="onCardClick(row)"
                     />
@@ -218,6 +224,8 @@ const props = withDefaults(
      */
     fetchResources?: MarketplaceResourceFetcher
     labels?: MarketplaceResourcePickerLabels
+    /** 打开时预填的搜索关键字 */
+    defaultKeyword?: string
     selectionMode?: SelectionMode
     modelValue?: string | string[] | null
     pageSize?: number
@@ -243,6 +251,7 @@ const props = withDefaults(
     defaultType: '',
     selectionMode: 'none',
     modelValue: undefined,
+    defaultKeyword: '',
     pageSize: 12,
     pageSizeOptions: () => ['12', '24', '48'],
     showPagination: false,
@@ -272,13 +281,16 @@ const defaultLabels: Required<MarketplaceResourcePickerLabels> = {
   versionPlaceholder: '请选择版本',
   viewReleaseNotes: '查看发布说明',
   releaseNotesTitle: '发布说明',
+  viewDocument: '查看文档',
+  resourceDocumentTitle: '资源文档',
+  versionSummary: '版本摘要',
 }
 
 const mergedLabels = computed(() => ({ ...defaultLabels, ...props.labels }))
 
 const activeType = ref('')
 const selectedTagIds = ref<string[]>([])
-const keyword = ref('')
+const keyword = ref(typeof props.defaultKeyword === 'string' ? props.defaultKeyword.trim() : '')
 /** 分页模式：与 a-pagination 同步，从 1 开始 */
 const pageIndex = ref(1)
 /** 滚动加载：请求下一页时使用的 0-based 页码 */
@@ -618,6 +630,21 @@ watch(
     }
   },
   { immediate: true, deep: true },
+)
+
+watch(
+  () => props.defaultKeyword,
+  (value) => {
+    const next = typeof value === 'string' ? value.trim() : ''
+    if (keyword.value === next) return
+    keyword.value = next
+    pageIndex.value = 1
+    if (activeType.value) {
+      if (props.showPagination) fetchPage()
+      else fetchList(true)
+    }
+  },
+  { immediate: true },
 )
 
 watch(

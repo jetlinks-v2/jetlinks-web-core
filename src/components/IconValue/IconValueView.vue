@@ -16,9 +16,9 @@
     <div v-else-if="parsed.kind === 'font'" class="icon-value-view__font">
       <AIcon :type="parsed.iconType" />
     </div>
-    <a-avatar v-else :size="size" class="icon-value-view__avatar">
-      {{ solidText }}
-    </a-avatar>
+    <div v-else class="icon-value-view__fallback">
+      <span class="icon-value-view__fallback-text">{{ solidText }}</span>
+    </div>
   </div>
 </template>
 
@@ -142,16 +142,26 @@ const boxCss = computed(() => ({
   font-size: calc(var(--ivv-size, 48px) * 0.58);
   line-height: 1;
 }
-.icon-value-view__avatar {
-  width: 100% !important;
-  height: 100% !important;
-  border-radius: inherit !important;
-  line-height: 1 !important;
-  display: flex !important;
+.icon-value-view__fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
   align-items: center;
   justify-content: center;
-  font-size: calc(100% * 0.35) !important;
-  background: #f0f5ff !important;
-  color: #1d39c4 !important;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #f0f5ff, #e6f4ff);
+  color: #1d39c4;
+}
+.icon-value-view__fallback-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  padding: 0 0.08em;
+  font-size: calc(var(--ivv-size, 48px) * 0.35);
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-family: inherit;
 }
 </style>
