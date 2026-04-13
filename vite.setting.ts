@@ -1,12 +1,46 @@
 import { theme } from 'ant-design-vue/lib'
-import customTheme from './configs/theme'
 import convertLegacyToken from 'ant-design-vue/lib/theme/convertLegacyToken'
+import { build } from 'esbuild'
 import fs from 'fs'
 import path from 'path'
 import { loadEnv } from 'vite'
 import dotenv from 'dotenv'
 
-export const v3Token = () => {
+const defaultThemeConfigPath = path.resolve(__dirname, 'configs/theme/index.ts')
+
+export const getThemeConfigPath = (envDir: string) => {
+  const customThemeConfigPath = path.resolve(envDir, 'configs/theme/index.ts')
+
+  if (fs.existsSync(customThemeConfigPath)) {
+    return customThemeConfigPath
+  }
+
+  return defaultThemeConfigPath
+}
+
+export const loadThemeConfig = async (envDir: string) => {
+  const themeConfigPath = getThemeConfigPath(envDir)
+  const result = await build({
+    entryPoints: [themeConfigPath],
+    bundle: true,
+    write: false,
+    format: 'esm',
+    platform: 'node',
+    target: 'node22'
+  })
+  const code = result.outputFiles[0]?.text
+
+  if (!code) {
+    return {}
+  }
+
+  const themeModule = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)
+
+  return themeModule.default || {}
+}
+
+export const v3Token = async (envDir: string) => {
+  const customTheme = await loadThemeConfig(envDir)
   const { defaultAlgorithm, defaultSeed } = theme
   const mapToken = defaultAlgorithm({ ...defaultSeed, ...customTheme })
   return convertLegacyToken(mapToken)
