@@ -124,7 +124,7 @@ export function mergeObjectArrays(a: any[], b: any[], key = 'key') {
 export function getBaseApi() {
   if (isSubApp) {
     const global = (window as any).microApp.getGlobalData()
-    return global.api?.getBaseApi() || BASE_API
+    return global.api?.getBaseApi?.() || BASE_API
   }
 
   return BASE_API
