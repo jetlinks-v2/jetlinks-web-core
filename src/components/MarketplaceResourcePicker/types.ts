@@ -1,6 +1,8 @@
 /** 资源类型 Tab 选项 */
 export type ResourceTypeOption = { label: string; value: string }
 
+export type CapabilityUseCondition = 'free' | 'registered' | 'needPurchase'
+
 /** 列表查询参数（与能力市场资源 detail/_query 语义一致） */
 export interface MarketplaceResourceQuery {
   type: string
@@ -49,6 +51,8 @@ export type SelectionMode = 'none' | 'single' | 'multiple'
 export type CapabilityVersionOption = {
   label: string
   value: string
+  /** 当前用户是否可使用此版本 */
+  available?: boolean
   /** CapabilityVersion.summary */
   summary?: string
   /** CapabilityVersion.releaseNotes，Markdown */

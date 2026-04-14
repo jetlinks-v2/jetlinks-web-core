@@ -86,6 +86,8 @@ export function mapCapabilityInfoRow(row: any) {
   const tags = normalizeTagsFromCapabilityRow(row)
   return {
     ...row,
+    available: row?.available !== false,
+    useCondition: row?.useCondition ?? row?.metadata?.useCondition,
     code: row?.code ?? row?.metadata?.code,
     document: optionalTrim(
       row?.document ??
@@ -156,6 +158,7 @@ export function mapCapabilityVersionOptions(raw: any[]): CapabilityVersionOption
     out.push({
       label,
       value: v,
+      available: x?.available !== false,
       summary: optionalTrim(x?.summary),
       releaseNotes: optionalTrim(x?.releaseNotes),
     })
