@@ -2,26 +2,30 @@
   <div class="person">
     <div class="person-inner">
       <div class="person-sider">
-        <a-menu
-          mode="inline"
-          :selectedKeys="[user.tabKey]"
-          @click="onMenuClick"
-        >
-          <a-menu-item
-            v-for="item in _tabList"
-            :key="item.key"
+        <full-page>
+          <a-menu
+              mode="inline"
+              :selectedKeys="[user.tabKey]"
+              @click="onMenuClick"
           >
-            {{ item.title }}
-          </a-menu-item>
-        </a-menu>
+            <a-menu-item
+                v-for="item in _tabList"
+                :key="item.key"
+            >
+              {{ item.title }}
+            </a-menu-item>
+          </a-menu>
+        </full-page>
       </div>
       <div class="person-main">
-        <div class="person-main-content">
-          <component
-            :is="tabs[user.tabKey]"
-            @open-edit-password="editPasswordVisible = true"
-          />
-        </div>
+        <full-page>
+          <div class="person-main-content">
+            <component
+                :is="tabs[user.tabKey]"
+                @open-edit-password="editPasswordVisible = true"
+            />
+          </div>
+        </full-page>
       </div>
     </div>
   </div>
@@ -42,6 +46,7 @@ import { useUserStore } from '@jetlinks-web-core/store'
 import { useRouterParams } from '@jetlinks-web/hooks'
 import { tabList } from '@jetlinks-web-core/views/account/center/data'
 import { isNoCommunity } from '@jetlinks-web-core/utils'
+import FullPage from "@/layout/FullPage.vue";
 
 const user = useUserStore()
 
@@ -96,11 +101,13 @@ onUnmounted(() => {
   box-sizing: border-box;
 
   .person-inner {
-    max-width: 1120px;
-    margin: 0 auto;
+    width: 100%;
+    //margin: 0 auto;
     display: flex;
-    align-items: flex-start;
+    //align-items: flex-start;
+    justify-content: center;
     gap: 16px;
+
   }
 
   .person-sider {
@@ -113,7 +120,7 @@ onUnmounted(() => {
 
   .person-main {
     flex: 1;
-    max-width: 860px;
+    min-width: 1200px;
   }
 
   .person-main-content {
@@ -121,6 +128,7 @@ onUnmounted(() => {
     border-radius: 8px;
     padding: 16px 20px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    height: 100%;
   }
 }
 </style>
