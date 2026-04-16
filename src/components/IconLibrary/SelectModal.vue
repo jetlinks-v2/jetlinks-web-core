@@ -4,10 +4,20 @@
     title="选择图标"
     width="900px"
     centered
+    :zIndex="props.zIndex"
+    :maskStyle="{ zIndex: props.zIndex }"
+    :get-container="getModalContainer"
+    :modal-render="renderModalContent"
+    wrapClassName="icon-library-modal-wrap"
     @cancel="emits('close')"
     @ok="confirm"
   >
-    <div class="icon-selector">
+    <div
+      class="icon-selector"
+      @click.stop
+      @mousedown.stop
+      @mouseup.stop
+    >
       <!-- 搜索和主题选择 -->
       <div class="toolbar">
         <a-input-search
@@ -164,8 +174,17 @@
 </template>
 
 <script setup lang="ts">
+import { h } from 'vue'
 import { categories } from './fields'
-import { message } from 'ant-design-vue'
+
+const props = withDefaults(
+  defineProps<{
+    zIndex?: number
+  }>(),
+  {
+    zIndex: 200000,
+  },
+)
 
 const emits = defineEmits(['save', 'close'])
 
@@ -173,6 +192,23 @@ const activeCategory = ref<string>('all')
 const theme = ref<'Outlined' | 'Filled' | 'TwoTone'>('Outlined')
 const searchText = ref<string>('')
 const selected = ref<string>('')
+
+const getModalContainer = () => document.body
+
+const stopModalEvent = (e: MouseEvent) => {
+  e.stopPropagation()
+}
+
+const renderModalContent = ({ originVNode }: { originVNode: any }) =>
+  h(
+    'div',
+    {
+      onClick: stopModalEvent,
+      onMousedown: stopModalEvent,
+      onMouseup: stopModalEvent,
+    },
+    [originVNode],
+  )
 
 // 获取所有图标
 const allIcons = computed(() => {
@@ -250,6 +286,10 @@ const confirm = () => {
 </script>
 
 <style lang="less" scoped>
+:global(.icon-library-modal-wrap) {
+  z-index: 200000 !important;
+}
+
 .icon-selector {
   height: 80vh;
   .toolbar {

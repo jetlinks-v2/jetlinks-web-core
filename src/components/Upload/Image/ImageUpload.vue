@@ -1,5 +1,10 @@
 <template>
-  <div class="upload-image-warp" @mousedown.stop>
+  <div
+    class="upload-image-warp"
+    @click.stop
+    @mousedown.stop
+    @mouseup.stop
+  >
     <div class="upload-image-border" :style="borderStyle">
       <a-upload
         list-type="picture-card"
@@ -34,11 +39,12 @@
   <Teleport to="body">
     <CropperModal
       v-if="cropper.visible"
-      v-bind="cropperProps"
+      v-bind="mergedCropperProps"
       :img="cropper.img"
       :title="cropperTitle"
-      @cancel="cropper.visible = false"
+      @cancel="handleCropCancel"
       @ok="saveImage"
+      @processing-change="handleCropProcessingChange"
     />
   </Teleport>
 </template>
@@ -113,6 +119,11 @@ const cropper = reactive({
 const loading = ref(false) // 上传图片状态
 const imageUrl = ref<string | undefined >('')
 
+const mergedCropperProps = computed(() => ({
+  zIndex: 200000,
+  ...(props.cropperProps || {})
+}))
+
 const beforeUpload = (file: any) => {
   const types = (props.types || []) as Array<string>
   const inType = types.includes(file.type)
@@ -155,9 +166,12 @@ const handleChange = (info: UploadChangeParam) => {
 }
 
 const saveImage = (url: string) => {
-  cropper.visible = false
   imageUrl.value = url
   emit('update:value', url);
+  nextTick(() => {
+    cropper.visible = false
+    emit('cropInteractBusy', false)
+  })
 }
 
 watch(() => props.value, (newValue) => {
@@ -176,9 +190,19 @@ watch(
 function abortCrop() {
   cropper.visible = false
   cropper.img = ''
+  emit('cropInteractBusy', false)
 }
 
 defineExpose({ abortCrop })
+
+function handleCropCancel() {
+  cropper.visible = false
+  emit('cropInteractBusy', false)
+}
+
+function handleCropProcessingChange(busy: boolean) {
+  emit('cropInteractBusy', busy)
+}
 
 </script>
 

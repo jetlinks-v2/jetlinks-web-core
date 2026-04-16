@@ -49,10 +49,10 @@ const CropperModalProps = {
     type: Boolean,
     default: true
   },
-  /** 高于 Popover(1030) 等浮层，避免裁剪弹窗被挡住 */
+  /** 高于可视化编辑器画布/弹窗，避免裁剪弹窗被挡住 */
   zIndex: {
     type: Number,
-    default: 1100
+    default: 200000
   },
   /** 禁止滚轮缩放图片，以拖动裁剪框 / 拖动图片为主 */
   canScale: {
@@ -84,7 +84,7 @@ const CropperModalProps = {
 const CropperModal = defineComponent({
   name: 'CropperModal',
   props: CropperModalProps,
-  emits: ['cancel', 'ok', 'change'],
+  emits: ['cancel', 'ok', 'change', 'processing-change'],
   setup( props, { emit }) {
 
     const { loading, run } = useRequest(fileUpload, {
@@ -92,7 +92,12 @@ const CropperModal = defineComponent({
       onSuccess(resp) {
         if (resp.success) {
           emit('ok', resp.result.accessUrl)
+        } else {
+          emit('processing-change', false)
         }
+      },
+      onError() {
+        emit('processing-change', false)
       }
     })
 
@@ -100,10 +105,12 @@ const CropperModal = defineComponent({
     const imgUrl = ref()
 
     const onCancel = () => {
+      emit('processing-change', false)
       emit('cancel')
     }
 
     const onOk = () => {
+      emit('processing-change', true)
       cropperRef.value.getCropBlob( async (data: Blob) => {
         if (props.openServer) {
           const formData = new FormData()
@@ -119,6 +126,20 @@ const CropperModal = defineComponent({
       })
     }
 
+    const stopModalEvent = (e: MouseEvent) => {
+      e.stopPropagation()
+    }
+
+    const renderModalContent = ({ originVNode }: { originVNode: any }) => (
+      <div
+        onMousedown={stopModalEvent}
+        onMouseup={stopModalEvent}
+        onClick={stopModalEvent}
+      >
+        {originVNode}
+      </div>
+    )
+
     return () => {
       const { title, width, bodyStyle, zIndex, ...cropper } = props
       return (
@@ -128,6 +149,10 @@ const CropperModal = defineComponent({
           title={title}
           width={width}
           zIndex={zIndex}
+          maskStyle={{ zIndex }}
+          wrapClassName="image-cropper-modal-wrap"
+          getContainer={() => document.body}
+          modalRender={renderModalContent}
           confirmLoading={loading.value}
           onCancel={onCancel}
           onOk={onOk}
@@ -139,6 +164,8 @@ const CropperModal = defineComponent({
               ...(bodyStyle || {})
             }}
             onMousedown={(e: MouseEvent) => e.stopPropagation()}
+            onMouseup={(e: MouseEvent) => e.stopPropagation()}
+            onClick={(e: MouseEvent) => e.stopPropagation()}
           >
             <VueCropper ref={cropperRef} {...cropper}/>
           </div>
