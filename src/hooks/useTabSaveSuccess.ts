@@ -1,5 +1,5 @@
 import { randomString } from '@jetlinks-web/utils'
-import { isSubApp } from '@jetlinks-web-core/utils/consts'
+import {isSaaS, isSubApp} from '@jetlinks-web-core/utils/consts'
 import { useMenuStore } from '@jetlinks-web-core/store'
 
 type OptionsType = {
@@ -35,7 +35,8 @@ export const useTabSaveSuccess = (code: string = '', options?: OptionsType) => {
       }
 
       const _params = new URLSearchParams({...params, sourceId: id.value})
-      const hash = location.hash ? '/#' : ''
+      const beforeHash = isSaaS ? `/${localStorage.getItem('X-Tenant-Domain')}` : ''
+      const hash = location.hash ? `${beforeHash}/#` : ''
       const path = _options.menuParams ? formatPath(menuItem.path, _options.menuParams)  : menuItem.path
       const url = [location.origin, hash, path, '?', _params.toString()].join('')
 
