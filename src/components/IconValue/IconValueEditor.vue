@@ -46,27 +46,9 @@
           <div class="ive__library-picker">
             <IconLibrary
               :type="selectedFontType"
+              @visible-change="(v) => emit('libraryVisibleChange', v)"
               @update:type="selectLibraryFont"
             />
-          </div>
-          <a-input-search
-            v-model:value="fontQuery"
-            allow-clear
-            :placeholder="mergedTexts.searchFont"
-            @search="() => {}"
-          />
-          <div class="ive__font-grid">
-            <button
-              v-for="name in filteredFontIcons"
-              :key="name"
-              type="button"
-              class="ive__font-item"
-              :class="{ 'ive__font-item--active': isFontActive(name) }"
-              :title="name"
-              @click="selectFont(name)"
-            >
-              <AIcon :type="name" />
-            </button>
           </div>
         </div>
       </a-tab-pane>
@@ -112,7 +94,6 @@ import { useI18n } from 'vue-i18n'
 import IconLibrary from '../IconLibrary/index.vue'
 import ImageUpload from '../Upload/Image/ImageUpload.vue'
 import { DEFAULT_SAFE_COLORS, formatIconValueColor, formatIconValueFont, parseIconValue } from './iconValue'
-import { FONT_ICON_PRESET_TYPES } from './fontIconPresetList'
 import IconValueView from './IconValueView.vue'
 
 type IconValueEditorTexts = {
@@ -124,7 +105,6 @@ type IconValueEditorTexts = {
   colorPlaceholder: string
   colorBlockLabel: string
   applyColor: string
-  searchFont: string
   imageUrlPlaceholder: string
   cropTitle: string
   imageUrlHint: string
@@ -139,8 +119,6 @@ const props = withDefaults(
     roundPreview?: boolean
     /** 纯色快捷选择，默认内置安全色 */
     safeColors?: string[]
-    /** 字体图标候选 */
-    fontIconNames?: string[]
     /** 是否启用「图片裁剪 + 上传」（走项目标准 ImageUpload / fileUpload） */
     enableCropUpload?: boolean
     /** 裁剪区高度等 */
@@ -160,7 +138,6 @@ const props = withDefaults(
     previewFallback: '',
     roundPreview: false,
     safeColors: undefined,
-    fontIconNames: undefined,
     enableCropUpload: true,
     cropperBodyStyle: () => ({ height: '280px' }),
     imageCropperProps: () => ({}),
@@ -177,6 +154,7 @@ const emit = defineEmits<{
   'update:modelValue': [v: string]
   cropVisibleChange: [visible: boolean]
   cropInteractBusy: [busy: boolean]
+  libraryVisibleChange: [visible: boolean]
 }>()
 
 const imageUploadRef = ref<{ abortCrop?: () => void } | null>(null)
@@ -194,7 +172,6 @@ const defaultTexts = computed<IconValueEditorTexts>(() => ({
   colorPlaceholder: $t('components.IconValueEditor.colorPlaceholder'),
   colorBlockLabel: $t('components.IconValueEditor.colorBlockLabel'),
   applyColor: $t('components.IconValueEditor.applyColor'),
-  searchFont: $t('components.IconValueEditor.searchFont'),
   imageUrlPlaceholder: $t('components.IconValueEditor.imageUrlPlaceholder'),
   cropTitle: $t('components.IconValueEditor.cropTitle'),
   imageUrlHint: $t('components.IconValueEditor.imageUrlHint'),
@@ -204,8 +181,6 @@ const defaultTexts = computed<IconValueEditorTexts>(() => ({
 const mergedTexts = computed(() => ({ ...defaultTexts.value, ...props.texts }))
 
 const mergedSwatches = computed(() => props.safeColors ?? [...DEFAULT_SAFE_COLORS])
-
-const fontList = computed(() => props.fontIconNames ?? FONT_ICON_PRESET_TYPES)
 
 const mergedImageCardStyle = computed<CSSProperties>(() => {
   const n = props.imageCardSize ?? 120
@@ -233,7 +208,6 @@ const model = computed({
 })
 
 const activeTab = ref<'color' | 'font' | 'image'>('color')
-const fontQuery = ref('')
 const colorHex = ref('#1677ff')
 const colorText = ref('#1677ff')
 const colorLabel = ref('')
@@ -292,23 +266,8 @@ function onColorTextSyncHex() {
   if (/^#([0-9A-Fa-f]{6})$/.test(raw)) colorHex.value = raw
 }
 
-const filteredFontIcons = computed(() => {
-  const q = fontQuery.value.trim().toLowerCase()
-  if (!q) return fontList.value
-  return fontList.value.filter((n) => n.toLowerCase().includes(q))
-})
-
-function selectFont(name: string) {
-  emit('update:modelValue', formatIconValueFont(name))
-}
-
 function selectLibraryFont(name: string) {
-  selectFont(name)
-}
-
-function isFontActive(name: string) {
-  const p = parseIconValue(model.value)
-  return p.kind === 'font' && p.iconType === name
+  emit('update:modelValue', formatIconValueFont(name))
 }
 
 function applyImageUrl() {
@@ -383,41 +342,9 @@ function onCropUploadResult(url: string) {
 .ive__apply {
   margin-top: 4px;
 }
-.ive__font-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-  gap: 8px;
-  max-height: 220px;
-  overflow: auto;
-  padding: 4px 2px 8px;
-}
 .ive__library-picker {
   display: flex;
   justify-content: center;
-}
-.ive__font-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 40px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: #fafafa;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.ive__font-item:hover {
-  border-color: rgba(22, 119, 255, 0.45);
-  background: #f0f5ff;
-}
-.ive__font-item--active {
-  border-color: #1677ff;
-  background: #e6f4ff;
-  box-shadow: 0 0 0 1px rgba(22, 119, 255, 0.18);
-}
-.ive__font-item :deep(.anticon) {
-  font-size: 22px;
-  color: rgba(0, 0, 0, 0.75);
 }
 .ive__image-upload-wrap {
   display: flex;

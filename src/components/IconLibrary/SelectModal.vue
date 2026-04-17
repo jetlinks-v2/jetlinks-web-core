@@ -7,7 +7,12 @@
     @cancel="emits('close')"
     @ok="confirm"
   >
-    <div class="icon-selector">
+    <div
+      class="icon-selector"
+      @click.stop
+      @mousedown.stop
+      @mouseup.stop
+    >
       <!-- 搜索和主题选择 -->
       <div class="toolbar">
         <a-input-search

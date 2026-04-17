@@ -21,7 +21,7 @@
   <SelectModal
     v-if="visible"
     :zIndex="props.zIndex"
-    @close="visible = false"
+    @close="setVisible(false)"
     @save="onChange"
   />
 </template>
@@ -39,20 +39,25 @@ const props = defineProps({
   }
 })
 
-const emits = defineEmits(['change', 'update:type'])
+const emits = defineEmits(['change', 'update:type', 'visibleChange'])
 
 const _type = ref()
 const visible = ref(false)
 
+const setVisible = (value: boolean) => {
+  visible.value = value
+  emits('visibleChange', value)
+}
+
 const onClick = () => {
-  visible.value = true
+  setVisible(true)
 }
 
 const onChange = (val: string) => {
   _type.value = val
   emits('update:type', val)
   emits('change', val)
-  visible.value = false
+  setVisible(false)
 }
 
 watch(
