@@ -41,6 +41,8 @@ export const useUserStore = defineStore('user', () => {
   const userInfo = ref<Partial<UserInfo>>({})
   const isAdmin = ref(false)
   const isApplicationUser = ref(false)
+  const isSubAccount = computed(() => userInfo.value?.type?.id === 'subAccount')
+  const accountTypeName = computed(() => isSubAccount.value ? '子账号' : '主账号')
   const tabKey = ref(tabList?.[0]?.key || 'HomeView') // 个人中心的tabKey,
   const other = {
     tabKey: '' // 站内信的tabkey
@@ -86,6 +88,8 @@ export const useUserStore = defineStore('user', () => {
     alarmUpdateCount,
     isAdmin,
     isApplicationUser,
+    isSubAccount,
+    accountTypeName,
     getUserInfo,
     setUserInfo,
     updateAlarm,
