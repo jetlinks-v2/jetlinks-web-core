@@ -1,7 +1,9 @@
 <template>
   <div
     class="container"
-    @click="onClick"
+    @click.stop="onClick"
+    @mousedown.stop
+    @mouseup.stop
   >
     <div
       v-if="_type"
@@ -18,6 +20,7 @@
   </div>
   <SelectModal
     v-if="visible"
+    :zIndex="props.zIndex"
     @close="visible = false"
     @save="onChange"
   />
@@ -29,6 +32,10 @@ const props = defineProps({
   type: {
     type: String,
     default: ''
+  },
+  zIndex: {
+    type: Number,
+    default: 200000
   }
 })
 
