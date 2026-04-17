@@ -107,7 +107,7 @@ export default defineConfig(({ mode, command }) => {
       cors: true,
       fs: { allow: [ envDir] },
       allowedHosts: [
-        'cq.local-host.cn', // 允许的自定义域名
+        '.local-host.cn', // 允许的自定义域名
       ],
       proxy: {
         [env.VITE_APP_BASE_API]: {
