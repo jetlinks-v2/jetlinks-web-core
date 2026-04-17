@@ -105,12 +105,14 @@ function openVerifyDialog(verifyResult: VerifyRequiredResult): Promise<{ key: st
 export const initAxios = () => {
     const config = getPackageConfig()
 
+    const isCreateTokenRefresh = import.meta.env.VITE_TOKEN_REFRESH === 'true'
+
     let settings = {
           langKey: langKey,
-          isCreateTokenRefresh: true,
+          isCreateTokenRefresh: isCreateTokenRefresh,
           tokenExpiration: () => {
               const token = getToken();
-              if(!token){
+              if(!token || !isCreateTokenRefresh){
                   clearVerifyCache()
                   jumpLogin()
               }
@@ -143,7 +145,7 @@ export const initAxios = () => {
               const errorMessage = err?.message || data?.message || description || ''
               const errorCode = err?.code || data?.code || ''
               if (
-                  errorMessage === 'verify_canceled' || 
+                  errorMessage === 'verify_canceled' ||
                   errorMessage?.includes('verify_canceled') ||
                   errorCode === 'verify_canceled' ||
                   errorCode?.includes('verify_canceled') ||
@@ -177,7 +179,7 @@ export const initAxios = () => {
                 config.headers = config.headers || {}
                 config.headers['X-Tenant-Domain'] = tenantDomain
             }
-            
+
             if (cache?.key && cache?.token) {
                 config.headers = config.headers || {}
                 config.headers['x-verify-key'] = cache.key
