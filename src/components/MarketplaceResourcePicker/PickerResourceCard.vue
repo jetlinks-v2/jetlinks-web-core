@@ -24,13 +24,13 @@
               v-if="documentText"
               type="button"
               class="mp-card__title-link"
-              :title="record.name || viewDocument"
+              :title="record.name || viewDocumentText"
               @click.stop="openDocumentDrawer"
             >
               <j-ellipsis class="mp-card__title mp-card__title--link">{{ record.name || '--' }}</j-ellipsis>
               <span class="mp-card__title-link-affordance">
                 <FileTextOutlined />
-                <span>{{ viewDocument }}</span>
+                <span>{{ viewDocumentText }}</span>
               </span>
             </button>
             <j-ellipsis v-else class="mp-card__title">{{ record.name || '--' }}</j-ellipsis>
@@ -161,7 +161,7 @@
           >
             <template #content>
               <div class="mp-card__version-summary-popover">
-                <div class="mp-card__version-summary-popover-title">{{ versionSummaryLabel }}</div>
+                <div class="mp-card__version-summary-popover-title">{{ versionSummaryLabelText }}</div>
                 <div class="mp-card__version-summary-popover-text">{{ currentVersionSummary }}</div>
               </div>
             </template>
@@ -178,7 +178,7 @@
               class="mp-card__version-notes-btn"
               @click.stop="releaseNotesDrawerOpen = true"
             >
-              {{ viewReleaseNotes }}
+              {{ viewReleaseNotesText }}
             </a-button>
           </template>
         </div>
@@ -223,6 +223,7 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons-vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { CapabilityVersionOption } from './types'
 import { renderCapabilityMarkdown } from './markdownRender'
 import { IconValueView } from '@jetlinks-web-core/components/IconValue'
@@ -260,11 +261,6 @@ const props = withDefaults(
     showVersionSelect: false,
     versionOptions: () => [],
     versionsLoading: false,
-    viewReleaseNotes: '查看发布说明',
-    releaseNotesTitle: '发布说明',
-    viewDocument: '查看文档',
-    resourceDocumentTitle: '资源文档',
-    versionSummaryLabel: '版本摘要',
   },
 )
 
@@ -273,10 +269,31 @@ const emit = defineEmits<{
   'update:version': [v: string | undefined]
 }>()
 
+const { t: $t } = useI18n()
+
 const versionBinding = computed({
   get: () => (props.version == null || props.version === '' ? undefined : String(props.version)),
   set: (v: string | undefined) => emit('update:version', v),
 })
+
+const versionPlaceholderText = computed(
+  () => props.versionPlaceholder ?? $t('MarketplaceResourcePicker.versionPlaceholder'),
+)
+const viewReleaseNotesText = computed(
+  () => props.viewReleaseNotes ?? $t('MarketplaceResourcePicker.viewReleaseNotes'),
+)
+const releaseNotesTitleText = computed(
+  () => props.releaseNotesTitle ?? $t('MarketplaceResourcePicker.releaseNotesTitle'),
+)
+const viewDocumentText = computed(
+  () => props.viewDocument ?? $t('MarketplaceResourcePicker.viewDocument'),
+)
+const resourceDocumentTitleText = computed(
+  () => props.resourceDocumentTitle ?? $t('MarketplaceResourcePicker.resourceDocumentTitle'),
+)
+const versionSummaryLabelText = computed(
+  () => props.versionSummaryLabel ?? $t('MarketplaceResourcePicker.versionSummary'),
+)
 
 const releaseNotesDrawerOpen = ref(false)
 const documentDrawerOpen = ref(false)
@@ -299,11 +316,11 @@ const canOpenVersionDropdown = computed(() => (props.versionOptions?.length ?? 0
 const currentVersionText = computed(() => {
   if (currentVersionMeta.value?.label) return currentVersionMeta.value.label
   if (currentVersionValue.value) return currentVersionValue.value
-  return props.versionPlaceholder ?? '请选择版本'
+  return versionPlaceholderText.value
 })
 const versionLoadingText = computed(() => {
   if (currentVersionValue.value) return currentVersionValue.value
-  return props.versionPlaceholder ?? '请选择版本'
+  return versionPlaceholderText.value
 })
 
 const releaseNotesHtml = computed(() => {
@@ -332,13 +349,13 @@ const documentHtml = computed(() =>
 
 const releaseNotesDrawerTitle = computed(() => {
   const v = props.version == null || props.version === '' ? '' : String(props.version)
-  const prefix = props.releaseNotesTitle ?? '发布说明'
+  const prefix = releaseNotesTitleText.value
   return v ? `${prefix} · ${v}` : prefix
 })
 
 const documentDrawerTitle = computed(() => {
   const name = optionalText(props.record?.name ?? props.record?.code)
-  const prefix = props.resourceDocumentTitle ?? '资源文档'
+  const prefix = resourceDocumentTitleText.value
   return name ? `${prefix} · ${name}` : prefix
 })
 
@@ -357,8 +374,8 @@ const enabled = computed(() => {
 })
 
 const stateLabel = computed(() => {
-  if (enabled.value) return props.enabledLabel ?? '启用'
-  return props.disabledLabel ?? '禁用'
+  if (enabled.value) return props.enabledLabel ?? $t('MarketplaceResourcePicker.enabled')
+  return props.disabledLabel ?? $t('MarketplaceResourcePicker.disabled')
 })
 
 const descriptionText = computed(() => {

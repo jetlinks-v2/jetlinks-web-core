@@ -70,20 +70,23 @@ export function normalizeTagsFromCapabilityRow(row: any): TagChipItem[] {
 
 /** 将 CapabilityInfo 转为资源卡片可用的行（补充 code/state/tags 等展示字段） */
 export function mapCapabilityInfoRow(row: any) {
-  const tags = normalizeTagsFromCapabilityRow(row)
+  const source = row && typeof row === 'object' ? row : {}
+  const tags = normalizeTagsFromCapabilityRow(source)
   return {
-    ...row,
-    code: row?.code ?? row?.metadata?.code,
+    ...source,
+    available: source.available !== false,
+    useCondition: source.useCondition ?? source.metadata?.useCondition,
+    code: source.code ?? source.metadata?.code,
     document: optionalTrim(
-      row?.document ??
-        row?.info?.document ??
-        row?.metadata?.document ??
-        row?.metadata?.info?.document ??
-        row?.capabilityPackage?.info?.document ??
-        row?.packageInfo?.document,
+      source.document ??
+        source.info?.document ??
+        source.metadata?.document ??
+        source.metadata?.info?.document ??
+        source.capabilityPackage?.info?.document ??
+        source.packageInfo?.document,
     ),
-    type: row?.type ?? row?.provider,
-    state: row?.state ?? { value: 'enabled' },
+    type: source.type ?? source.provider,
+    state: source.state ?? { value: 'enabled' },
     tags,
   }
 }
@@ -116,6 +119,7 @@ export function mapCapabilityVersionOptions(raw: any[]): CapabilityVersionOption
     out.push({
       label,
       value: v,
+      available: x?.available !== false,
       summary: optionalTrim(x?.summary),
       releaseNotes: optionalTrim(x?.releaseNotes),
     })

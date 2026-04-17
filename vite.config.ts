@@ -116,7 +116,7 @@ export default defineConfig(({ mode, command }) => {
       proxy: {
         [env.VITE_APP_BASE_API]: {
           // 优先使用命令行参数，其次使用环境变量
-          target: "http://192.168.33.33:8800",
+          target: backendUrl,
           ws: true,
           changeOrigin: true,
           rewrite: (path) => path.replace(new RegExp(`^${env.VITE_APP_BASE_API}`), '')
@@ -137,7 +137,7 @@ export default defineConfig(({ mode, command }) => {
     },
     optimizeDeps: {
       entries: ['index.html'],
-      include: ['pinia', 'vue-router', 'axios', 'lodash-es', '@vueuse/core', 'echarts', 'dayjs'],
+      include: ['pinia', 'vue-router', 'axios', 'lodash-es', '@vueuse/core', 'echarts', 'dayjs', 'md-editor-v3'],
       esbuildOptions: {
         define: envDefine
       }

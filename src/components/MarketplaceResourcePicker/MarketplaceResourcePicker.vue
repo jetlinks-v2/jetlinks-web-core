@@ -181,6 +181,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import TagFilterChip from './TagFilterChip.vue'
 import PickerResourceCard from './PickerResourceCard.vue'
 import {
@@ -268,25 +269,27 @@ const emit = defineEmits<{
   'card-click': [record: any]
 }>()
 
-const defaultLabels: Required<MarketplaceResourcePickerLabels> = {
-  all: '全部',
-  tags: '标签',
-  selectedTags: '已选标签',
-  clearSelected: '清空',
-  searchPlaceholder: '搜索名称',
-  empty: '暂无数据',
-  noMore: '没有更多了',
-  noResourceTypes: '暂无资源类型',
-  version: '版本',
-  versionPlaceholder: '请选择版本',
-  viewReleaseNotes: '查看发布说明',
-  releaseNotesTitle: '发布说明',
-  viewDocument: '查看文档',
-  resourceDocumentTitle: '资源文档',
-  versionSummary: '版本摘要',
-}
+const { t: $t } = useI18n()
 
-const mergedLabels = computed(() => ({ ...defaultLabels, ...props.labels }))
+const defaultLabels = computed<Required<MarketplaceResourcePickerLabels>>(() => ({
+  all: $t('MarketplaceResourcePicker.all'),
+  tags: $t('MarketplaceResourcePicker.tags'),
+  selectedTags: $t('MarketplaceResourcePicker.selectedTags'),
+  clearSelected: $t('MarketplaceResourcePicker.clearSelected'),
+  searchPlaceholder: $t('MarketplaceResourcePicker.searchPlaceholder'),
+  empty: $t('MarketplaceResourcePicker.empty'),
+  noMore: $t('MarketplaceResourcePicker.noMore'),
+  noResourceTypes: $t('MarketplaceResourcePicker.noResourceTypes'),
+  version: $t('MarketplaceResourcePicker.version'),
+  versionPlaceholder: $t('MarketplaceResourcePicker.versionPlaceholder'),
+  viewReleaseNotes: $t('MarketplaceResourcePicker.viewReleaseNotes'),
+  releaseNotesTitle: $t('MarketplaceResourcePicker.releaseNotesTitle'),
+  viewDocument: $t('MarketplaceResourcePicker.viewDocument'),
+  resourceDocumentTitle: $t('MarketplaceResourcePicker.resourceDocumentTitle'),
+  versionSummary: $t('MarketplaceResourcePicker.versionSummary'),
+}))
+
+const mergedLabels = computed(() => ({ ...defaultLabels.value, ...props.labels }))
 
 const activeType = ref('')
 const selectedTagIds = ref<string[]>([])
