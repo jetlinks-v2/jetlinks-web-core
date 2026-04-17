@@ -16,7 +16,7 @@ import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import enUs from 'ant-design-vue/es/locale/en_US'
 import componentsZhCN from '@jetlinks-web/components/es/locale/zh-CN'
 import componentsEnUS from '@jetlinks-web/components/es/locale/en-US'
-import theme from '../configs/theme'
+import theme from '@theme-config'
 import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
 import {initPackages} from "@jetlinks-web-core/package";

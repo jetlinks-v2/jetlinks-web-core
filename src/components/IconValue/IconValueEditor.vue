@@ -35,13 +35,38 @@
             :placeholder="mergedTexts.colorBlockLabel"
             allow-clear
           />
+          <a-button type="primary" block class="ive__apply" @click="applyColorFromInputs">
+            {{ mergedTexts.applyColor }}
+          </a-button>
         </div>
       </a-tab-pane>
 
       <a-tab-pane key="font" :tab="mergedTexts.tabFont">
         <div class="ive__pane">
-          <div class="ive__font-picker">
-            <IconLibrary :type="currentFontIcon" @update:type="selectFont" />
+          <div class="ive__library-picker">
+            <IconLibrary
+              :type="selectedFontType"
+              @update:type="selectLibraryFont"
+            />
+          </div>
+          <a-input-search
+            v-model:value="fontQuery"
+            allow-clear
+            :placeholder="mergedTexts.searchFont"
+            @search="() => {}"
+          />
+          <div class="ive__font-grid">
+            <button
+              v-for="name in filteredFontIcons"
+              :key="name"
+              type="button"
+              class="ive__font-item"
+              :class="{ 'ive__font-item--active': isFontActive(name) }"
+              :title="name"
+              @click="selectFont(name)"
+            >
+              <AIcon :type="name" />
+            </button>
           </div>
         </div>
       </a-tab-pane>
@@ -83,9 +108,11 @@
 <script setup lang="ts">
 import type { CSSProperties } from 'vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import IconLibrary from '../IconLibrary/index.vue'
 import ImageUpload from '../Upload/Image/ImageUpload.vue'
 import { DEFAULT_SAFE_COLORS, formatIconValueColor, formatIconValueFont, parseIconValue } from './iconValue'
+import { FONT_ICON_PRESET_TYPES } from './fontIconPresetList'
 import IconValueView from './IconValueView.vue'
 
 type IconValueEditorTexts = {
@@ -97,6 +124,7 @@ type IconValueEditorTexts = {
   colorPlaceholder: string
   colorBlockLabel: string
   applyColor: string
+  searchFont: string
   imageUrlPlaceholder: string
   cropTitle: string
   imageUrlHint: string
@@ -143,6 +171,8 @@ const props = withDefaults(
   },
 )
 
+const { t: $t } = useI18n()
+
 const emit = defineEmits<{
   'update:modelValue': [v: string]
   cropVisibleChange: [visible: boolean]
@@ -156,23 +186,26 @@ defineExpose({
 })
 
 const defaultTexts = computed<IconValueEditorTexts>(() => ({
-  tabColor: '纯色',
-  tabFont: '图标',
-  tabImage: '图片',
-  colorSwatches: '常用色',
-  colorPicker: '选择颜色',
-  colorPlaceholder: '如 #RRGGBB 或 rgb(...)',
-  colorBlockLabel: '色块文字（可选，留空则用名称缩写）',
-  applyColor: '应用',
-  imageUrlPlaceholder: '或粘贴图片地址',
-  cropTitle: '裁剪图片',
-  imageUrlHint: '上传后自动填入地址，也可手动粘贴外链。',
-  uploadHint: '关闭裁剪上传时，请直接粘贴图片地址。',
+  tabColor: $t('components.IconValueEditor.tabColor'),
+  tabFont: $t('components.IconValueEditor.tabFont'),
+  tabImage: $t('components.IconValueEditor.tabImage'),
+  colorSwatches: $t('components.IconValueEditor.colorSwatches'),
+  colorPicker: $t('components.IconValueEditor.colorPicker'),
+  colorPlaceholder: $t('components.IconValueEditor.colorPlaceholder'),
+  colorBlockLabel: $t('components.IconValueEditor.colorBlockLabel'),
+  applyColor: $t('components.IconValueEditor.applyColor'),
+  searchFont: $t('components.IconValueEditor.searchFont'),
+  imageUrlPlaceholder: $t('components.IconValueEditor.imageUrlPlaceholder'),
+  cropTitle: $t('components.IconValueEditor.cropTitle'),
+  imageUrlHint: $t('components.IconValueEditor.imageUrlHint'),
+  uploadHint: $t('components.IconValueEditor.uploadHint'),
 }))
 
 const mergedTexts = computed(() => ({ ...defaultTexts.value, ...props.texts }))
 
 const mergedSwatches = computed(() => props.safeColors ?? [...DEFAULT_SAFE_COLORS])
+
+const fontList = computed(() => props.fontIconNames ?? FONT_ICON_PRESET_TYPES)
 
 const mergedImageCardStyle = computed<CSSProperties>(() => {
   const n = props.imageCardSize ?? 120
@@ -200,24 +233,22 @@ const model = computed({
 })
 
 const activeTab = ref<'color' | 'font' | 'image'>('color')
+const fontQuery = ref('')
 const colorHex = ref('#1677ff')
 const colorText = ref('#1677ff')
 const colorLabel = ref('')
 const imageUrl = ref('')
-const syncingColorDraft = ref(false)
-const currentFontIcon = computed(() => {
-  const parsed = parseIconValue(model.value)
-  return parsed.kind === 'font' ? parsed.iconType : ''
+const selectedFontType = computed(() => {
+  const p = parseIconValue(model.value)
+  return p.kind === 'font' ? p.iconType : ''
 })
 
 function syncFromModel(v: string) {
   const p = parseIconValue(v)
   if (p.kind === 'color') {
-    syncingColorDraft.value = true
     colorText.value = p.color
     colorHex.value = toHexOrFallback(p.color, colorHex.value)
     colorLabel.value = p.label ?? ''
-    syncingColorDraft.value = false
   } else if (p.kind === 'image') {
     imageUrl.value = p.url
   } else if (p.kind !== 'font') {
@@ -242,45 +273,42 @@ function toHexOrFallback(css: string, fb: string): string {
 function pickPreset(c: string) {
   colorHex.value = c
   colorText.value = c
+  emit('update:modelValue', formatIconValueColor(c, colorLabel.value.trim() || undefined))
 }
 
 function onNativeColorInput() {
   colorText.value = colorHex.value
+  emit('update:modelValue', formatIconValueColor(colorHex.value, colorLabel.value.trim() || undefined))
 }
 
-function emitColorDraft(raw?: string) {
-  const value = String(raw ?? colorText.value ?? colorHex.value ?? '').trim()
-  if (!value) return
-  emit('update:modelValue', formatIconValueColor(value, colorLabel.value.trim() || undefined))
+function applyColorFromInputs() {
+  const raw = String(colorText.value || colorHex.value || '').trim()
+  if (!raw) return
+  emit('update:modelValue', formatIconValueColor(raw, colorLabel.value.trim() || undefined))
 }
-
-watch(
-  colorText,
-  (value) => {
-    if (syncingColorDraft.value) return
-    const raw = String(value || '').trim()
-    if (/^#([0-9A-Fa-f]{6})$/.test(raw)) colorHex.value = raw
-    emitColorDraft(raw)
-  },
-  { flush: 'sync' },
-)
-
-watch(
-  colorLabel,
-  () => {
-    if (syncingColorDraft.value) return
-    emitColorDraft()
-  },
-  { flush: 'sync' },
-)
 
 function onColorTextSyncHex() {
   const raw = String(colorText.value || '').trim()
   if (/^#([0-9A-Fa-f]{6})$/.test(raw)) colorHex.value = raw
 }
 
+const filteredFontIcons = computed(() => {
+  const q = fontQuery.value.trim().toLowerCase()
+  if (!q) return fontList.value
+  return fontList.value.filter((n) => n.toLowerCase().includes(q))
+})
+
 function selectFont(name: string) {
   emit('update:modelValue', formatIconValueFont(name))
+}
+
+function selectLibraryFont(name: string) {
+  selectFont(name)
+}
+
+function isFontActive(name: string) {
+  const p = parseIconValue(model.value)
+  return p.kind === 'font' && p.iconType === name
 }
 
 function applyImageUrl() {
@@ -352,9 +380,44 @@ function onCropUploadResult(url: string) {
   cursor: pointer;
   background: transparent;
 }
-.ive__font-picker {
+.ive__apply {
+  margin-top: 4px;
+}
+.ive__font-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 4px 2px 8px;
+}
+.ive__library-picker {
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
+}
+.ive__font-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fafafa;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.ive__font-item:hover {
+  border-color: rgba(22, 119, 255, 0.45);
+  background: #f0f5ff;
+}
+.ive__font-item--active {
+  border-color: #1677ff;
+  background: #e6f4ff;
+  box-shadow: 0 0 0 1px rgba(22, 119, 255, 0.18);
+}
+.ive__font-item :deep(.anticon) {
+  font-size: 22px;
+  color: rgba(0, 0, 0, 0.75);
 }
 .ive__image-upload-wrap {
   display: flex;

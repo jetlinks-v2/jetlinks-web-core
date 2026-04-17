@@ -38,7 +38,7 @@
           <span v-if="record.code" class="mp-card__code">{{ record.code }}</span>
         </div>
         <div class="mp-card__state-row">
-          <div class="mp-card__state" aria-label="state">
+          <div class="mp-card__state" :aria-label="$t('components.MarketplaceResourcePicker.stateLabel')">
             <span class="mp-card__dot" :class="enabled ? 'on' : 'off'" />
             <span>{{ stateLabel }}</span>
           </div>
@@ -264,36 +264,17 @@ const props = withDefaults(
   },
 )
 
+const { t: $t } = useI18n()
+
 const emit = defineEmits<{
   click: []
   'update:version': [v: string | undefined]
 }>()
 
-const { t: $t } = useI18n()
-
 const versionBinding = computed({
   get: () => (props.version == null || props.version === '' ? undefined : String(props.version)),
   set: (v: string | undefined) => emit('update:version', v),
 })
-
-const versionPlaceholderText = computed(
-  () => props.versionPlaceholder ?? $t('MarketplaceResourcePicker.versionPlaceholder'),
-)
-const viewReleaseNotesText = computed(
-  () => props.viewReleaseNotes ?? $t('MarketplaceResourcePicker.viewReleaseNotes'),
-)
-const releaseNotesTitleText = computed(
-  () => props.releaseNotesTitle ?? $t('MarketplaceResourcePicker.releaseNotesTitle'),
-)
-const viewDocumentText = computed(
-  () => props.viewDocument ?? $t('MarketplaceResourcePicker.viewDocument'),
-)
-const resourceDocumentTitleText = computed(
-  () => props.resourceDocumentTitle ?? $t('MarketplaceResourcePicker.resourceDocumentTitle'),
-)
-const versionSummaryLabelText = computed(
-  () => props.versionSummaryLabel ?? $t('MarketplaceResourcePicker.versionSummary'),
-)
 
 const releaseNotesDrawerOpen = ref(false)
 const documentDrawerOpen = ref(false)
@@ -313,6 +294,24 @@ const currentVersionSummary = computed(() => {
 const hasVersionOptions = computed(() => (props.versionOptions?.length ?? 0) > 0)
 const hasDisplayedVersion = computed(() => !!currentVersionMeta.value?.label || !!currentVersionValue.value)
 const canOpenVersionDropdown = computed(() => (props.versionOptions?.length ?? 0) > 1 && !props.versionsLoading)
+const versionPlaceholderText = computed(() =>
+  props.versionPlaceholder ?? $t('components.MarketplaceResourcePicker.versionPlaceholder'),
+)
+const viewReleaseNotesText = computed(() =>
+  props.viewReleaseNotes ?? $t('components.MarketplaceResourcePicker.viewReleaseNotes'),
+)
+const viewDocumentText = computed(() =>
+  props.viewDocument ?? $t('components.MarketplaceResourcePicker.viewDocument'),
+)
+const releaseNotesTitleText = computed(() =>
+  props.releaseNotesTitle ?? $t('components.MarketplaceResourcePicker.releaseNotesTitle'),
+)
+const resourceDocumentTitleText = computed(() =>
+  props.resourceDocumentTitle ?? $t('components.MarketplaceResourcePicker.resourceDocumentTitle'),
+)
+const versionSummaryLabelText = computed(() =>
+  props.versionSummaryLabel ?? $t('components.MarketplaceResourcePicker.versionSummary'),
+)
 const currentVersionText = computed(() => {
   if (currentVersionMeta.value?.label) return currentVersionMeta.value.label
   if (currentVersionValue.value) return currentVersionValue.value
@@ -374,8 +373,8 @@ const enabled = computed(() => {
 })
 
 const stateLabel = computed(() => {
-  if (enabled.value) return props.enabledLabel ?? $t('MarketplaceResourcePicker.enabled')
-  return props.disabledLabel ?? $t('MarketplaceResourcePicker.disabled')
+  if (enabled.value) return props.enabledLabel ?? $t('components.MarketplaceResourcePicker.enabled')
+  return props.disabledLabel ?? $t('components.MarketplaceResourcePicker.disabled')
 })
 
 const descriptionText = computed(() => {

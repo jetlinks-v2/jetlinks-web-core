@@ -180,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TagFilterChip from './TagFilterChip.vue'
 import PickerResourceCard from './PickerResourceCard.vue'
@@ -221,7 +221,7 @@ const props = withDefaults(
     fetchTagClassifiers?: TagClassifiersFetcher
     /**
      * 不传则默认使用 MarketplaceClientController：
-     * {@code POST /marketplace/capabilities/_search}
+     * {@code POST /marketplace/capabilities/_search}（NDJSON 流）
      */
     fetchResources?: MarketplaceResourceFetcher
     labels?: MarketplaceResourcePickerLabels
@@ -262,6 +262,8 @@ const props = withDefaults(
   },
 )
 
+const { t: $t } = useI18n()
+
 const emit = defineEmits<{
   'update:modelValue': [v: string | string[] | null | undefined]
   'update:version': [v: string | undefined]
@@ -269,24 +271,22 @@ const emit = defineEmits<{
   'card-click': [record: any]
 }>()
 
-const { t: $t } = useI18n()
-
 const defaultLabels = computed<Required<MarketplaceResourcePickerLabels>>(() => ({
-  all: $t('MarketplaceResourcePicker.all'),
-  tags: $t('MarketplaceResourcePicker.tags'),
-  selectedTags: $t('MarketplaceResourcePicker.selectedTags'),
-  clearSelected: $t('MarketplaceResourcePicker.clearSelected'),
-  searchPlaceholder: $t('MarketplaceResourcePicker.searchPlaceholder'),
-  empty: $t('MarketplaceResourcePicker.empty'),
-  noMore: $t('MarketplaceResourcePicker.noMore'),
-  noResourceTypes: $t('MarketplaceResourcePicker.noResourceTypes'),
-  version: $t('MarketplaceResourcePicker.version'),
-  versionPlaceholder: $t('MarketplaceResourcePicker.versionPlaceholder'),
-  viewReleaseNotes: $t('MarketplaceResourcePicker.viewReleaseNotes'),
-  releaseNotesTitle: $t('MarketplaceResourcePicker.releaseNotesTitle'),
-  viewDocument: $t('MarketplaceResourcePicker.viewDocument'),
-  resourceDocumentTitle: $t('MarketplaceResourcePicker.resourceDocumentTitle'),
-  versionSummary: $t('MarketplaceResourcePicker.versionSummary'),
+  all: $t('components.MarketplaceResourcePicker.all'),
+  tags: $t('components.MarketplaceResourcePicker.tags'),
+  selectedTags: $t('components.MarketplaceResourcePicker.selectedTags'),
+  clearSelected: $t('components.MarketplaceResourcePicker.clearSelected'),
+  searchPlaceholder: $t('components.MarketplaceResourcePicker.searchPlaceholder'),
+  empty: $t('components.MarketplaceResourcePicker.empty'),
+  noMore: $t('components.MarketplaceResourcePicker.noMore'),
+  noResourceTypes: $t('components.MarketplaceResourcePicker.noResourceTypes'),
+  version: $t('components.MarketplaceResourcePicker.version'),
+  versionPlaceholder: $t('components.MarketplaceResourcePicker.versionPlaceholder'),
+  viewReleaseNotes: $t('components.MarketplaceResourcePicker.viewReleaseNotes'),
+  releaseNotesTitle: $t('components.MarketplaceResourcePicker.releaseNotesTitle'),
+  viewDocument: $t('components.MarketplaceResourcePicker.viewDocument'),
+  resourceDocumentTitle: $t('components.MarketplaceResourcePicker.resourceDocumentTitle'),
+  versionSummary: $t('components.MarketplaceResourcePicker.versionSummary'),
 }))
 
 const mergedLabels = computed(() => ({ ...defaultLabels.value, ...props.labels }))
@@ -310,6 +310,8 @@ const expandedClassifierIds = ref<string[]>([])
 
 const versionOptions = ref<CapabilityVersionOption[]>([])
 const versionsLoading = ref(false)
+let listLoadSeq = 0
+let tagLoadSeq = 0
 let versionLoadSeq = 0
 
 const selectedVersion = computed({
@@ -325,37 +327,56 @@ function resolveFetchResources(): MarketplaceResourceFetcher {
   return props.fetchResources ?? defaultFetchResources
 }
 
+function buildResourceQuery(pageIndexValue: number) {
+  return {
+    type: activeType.value,
+    pageIndex: pageIndexValue,
+    pageSize: pageSize.value,
+    keyword: keyword.value?.trim() ?? '',
+    selectedTagIds: [...selectedTagIds.value],
+  }
+}
+
 async function loadTagSidebar() {
   const ty = activeType.value
+  const seq = ++tagLoadSeq
   if (!ty) {
     sidebarSections.value = []
     expandedClassifierIds.value = []
+    tagsLoading.value = false
     return
   }
   tagsLoading.value = true
   try {
     const res: any = await resolveFetchTagClassifiers()(ty)
+    if (seq !== tagLoadSeq || activeType.value !== ty) return
     const roots = normalizeTagClassifiersResponse(res)
     const sections = buildSidebarSections(roots)
     sidebarSections.value = sections
     expandedClassifierIds.value = defaultExpandedSections(sections)
   } finally {
-    tagsLoading.value = false
+    if (seq === tagLoadSeq) {
+      tagsLoading.value = false
+    }
   }
 }
 
 /** 底部分页：接口不返回 total，用本页条数推断（满页则假定可能还有下一页） */
 async function fetchPage() {
-  if (!activeType.value) return
+  if (!activeType.value) {
+    records.value = []
+    total.value = 0
+    return
+  }
+
+  const seq = ++listLoadSeq
+  loadingMore.value = false
   listLoading.value = true
+
   try {
-    const { list } = await resolveFetchResources()({
-      type: activeType.value,
-      pageIndex: pageIndex.value - 1,
-      pageSize: pageSize.value,
-      keyword: keyword.value?.trim() ?? '',
-      selectedTagIds: [...selectedTagIds.value],
-    })
+    const { list } = await resolveFetchResources()(buildResourceQuery(pageIndex.value - 1))
+    if (seq !== listLoadSeq) return
+
     records.value = list
     const pi = pageIndex.value
     if (list.length < pageSize.value) {
@@ -364,16 +385,26 @@ async function fetchPage() {
       total.value = pi * pageSize.value + 1
     }
   } catch {
+    if (seq !== listLoadSeq) return
     records.value = []
     total.value = 0
   } finally {
-    listLoading.value = false
+    if (seq === listLoadSeq) {
+      listLoading.value = false
+    }
   }
 }
 
 /** 滚动加载：reset=true 重新拉第一页；分页模式请用 fetchPage */
 async function fetchList(reset = true) {
-  if (!activeType.value) return
+  if (!activeType.value) {
+    pageIndexScroll.value = 0
+    records.value = []
+    hasMore.value = false
+    listLoading.value = false
+    loadingMore.value = false
+    return
+  }
   if (props.showPagination) {
     await fetchPage()
     return
@@ -383,23 +414,21 @@ async function fetchList(reset = true) {
     pageIndexScroll.value = 0
     records.value = []
     hasMore.value = true
-  } else {
-    if (!hasMore.value || loadingMore.value || listLoading.value) return
+    loadingMore.value = false
+  } else if (!hasMore.value || loadingMore.value || listLoading.value) {
+    return
   }
 
+  const seq = ++listLoadSeq
+  const pi = pageIndexScroll.value
   const initial = reset || records.value.length === 0
   if (initial) listLoading.value = true
   else loadingMore.value = true
 
   try {
-    const pi = pageIndexScroll.value
-    const { list } = await resolveFetchResources()({
-      type: activeType.value,
-      pageIndex: pi,
-      pageSize: pageSize.value,
-      keyword: keyword.value?.trim() ?? '',
-      selectedTagIds: [...selectedTagIds.value],
-    })
+    const { list } = await resolveFetchResources()(buildResourceQuery(pi))
+    if (seq !== listLoadSeq) return
+
     if (reset) {
       records.value = list
     } else {
@@ -409,13 +438,16 @@ async function fetchList(reset = true) {
     // 本页无数据，或条数不足一页 → 已是最后一页；满页则可能还有下一页（再请求为空则结束）
     hasMore.value = list.length > 0 && list.length >= pageSize.value
   } catch {
+    if (seq !== listLoadSeq) return
     if (reset) {
       records.value = []
     }
     hasMore.value = false
   } finally {
-    listLoading.value = false
-    loadingMore.value = false
+    if (seq === listLoadSeq) {
+      listLoading.value = false
+      loadingMore.value = false
+    }
   }
 }
 
@@ -652,17 +684,33 @@ watch(
 
 watch(
   activeType,
-  (ty, oldTy) => {
-    if (!ty) return
+  async (ty, oldTy) => {
+    if (!ty) {
+      listLoadSeq += 1
+      tagLoadSeq += 1
+      versionLoadSeq += 1
+      pageIndexScroll.value = 0
+      sidebarSections.value = []
+      expandedClassifierIds.value = []
+      records.value = []
+      total.value = 0
+      hasMore.value = false
+      versionOptions.value = []
+      tagsLoading.value = false
+      listLoading.value = false
+      loadingMore.value = false
+      versionsLoading.value = false
+      return
+    }
     if (oldTy !== undefined && oldTy !== '' && ty !== oldTy) {
       selectedTagIds.value = []
       keyword.value = ''
       pageIndex.value = 1
     }
-    loadTagSidebar().then(() => {
-      if (props.showPagination) fetchPage()
-      else fetchList(true)
-    })
+    await loadTagSidebar()
+    if (ty !== activeType.value) return
+    if (props.showPagination) await fetchPage()
+    else await fetchList(true)
   },
   { immediate: true },
 )
@@ -691,6 +739,12 @@ watch(
   },
   { immediate: true },
 )
+
+onBeforeUnmount(() => {
+  listLoadSeq += 1
+  tagLoadSeq += 1
+  versionLoadSeq += 1
+})
 
 defineExpose({
   refresh: () => (props.showPagination ? fetchPage() : fetchList(true)),

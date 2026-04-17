@@ -1,33 +1,23 @@
 <template>
   <a-modal
     open
-    title="选择图标"
+    :title="$t('components.IconLibrary.title')"
     width="900px"
     centered
-    :zIndex="props.zIndex"
-    :maskStyle="{ zIndex: props.zIndex }"
-    :get-container="getModalContainer"
-    :modal-render="renderModalContent"
-    wrapClassName="icon-library-modal-wrap"
     @cancel="emits('close')"
     @ok="confirm"
   >
-    <div
-      class="icon-selector"
-      @click.stop
-      @mousedown.stop
-      @mouseup.stop
-    >
+    <div class="icon-selector">
       <!-- 搜索和主题选择 -->
       <div class="toolbar">
         <a-input-search
           v-model:value="searchText"
-          placeholder="搜索图标名称..."
+          :placeholder="$t('components.IconLibrary.searchPlaceholder')"
           style="width: 300px"
           allow-clear
         />
         <div v-if="selected">
-          <span>当前选中：</span>
+          <span>{{ $t('components.IconLibrary.currentSelected') }}</span>
           <a-tag color="blue">
             <AIcon :type="selected" />
             {{ selected }}
@@ -42,7 +32,7 @@
       >
         <a-tab-pane
           key="all"
-          tab="全部"
+          :tab="$t('components.IconLibrary.categoryAll')"
         >
           <div class="icon-grid">
             <div
@@ -58,7 +48,7 @@
         </a-tab-pane>
         <a-tab-pane
           key="direction"
-          tab="方向"
+          :tab="$t('components.IconLibrary.categoryDirection')"
         >
           <div class="icon-grid">
             <div
@@ -74,7 +64,7 @@
         </a-tab-pane>
         <a-tab-pane
           key="suggestion"
-          tab="提示"
+          :tab="$t('components.IconLibrary.categorySuggestion')"
         >
           <div class="icon-grid">
             <div
@@ -90,7 +80,7 @@
         </a-tab-pane>
         <a-tab-pane
           key="editor"
-          tab="编辑"
+          :tab="$t('components.IconLibrary.categoryEditor')"
         >
           <div class="icon-grid">
             <div
@@ -106,7 +96,7 @@
         </a-tab-pane>
         <a-tab-pane
           key="data"
-          tab="数据"
+          :tab="$t('components.IconLibrary.categoryData')"
         >
           <div class="icon-grid">
             <div
@@ -122,7 +112,7 @@
         </a-tab-pane>
         <a-tab-pane
           key="logo"
-          tab="品牌"
+          :tab="$t('components.IconLibrary.categoryLogo')"
         >
           <div class="icon-grid">
             <div
@@ -138,7 +128,7 @@
         </a-tab-pane>
         <a-tab-pane
           key="other"
-          tab="其他"
+          :tab="$t('components.IconLibrary.categoryOther')"
         >
           <div class="icon-grid">
             <div
@@ -174,17 +164,10 @@
 </template>
 
 <script setup lang="ts">
-import { h } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { categories } from './fields'
 
-const props = withDefaults(
-  defineProps<{
-    zIndex?: number
-  }>(),
-  {
-    zIndex: 200000,
-  },
-)
+const { t: $t } = useI18n()
 
 const emits = defineEmits(['save', 'close'])
 
@@ -192,23 +175,6 @@ const activeCategory = ref<string>('all')
 const theme = ref<'Outlined' | 'Filled' | 'TwoTone'>('Outlined')
 const searchText = ref<string>('')
 const selected = ref<string>('')
-
-const getModalContainer = () => document.body
-
-const stopModalEvent = (e: MouseEvent) => {
-  e.stopPropagation()
-}
-
-const renderModalContent = ({ originVNode }: { originVNode: any }) =>
-  h(
-    'div',
-    {
-      onClick: stopModalEvent,
-      onMousedown: stopModalEvent,
-      onMouseup: stopModalEvent,
-    },
-    [originVNode],
-  )
 
 // 获取所有图标
 const allIcons = computed(() => {
@@ -238,7 +204,6 @@ const getIconName = (icon: string, type?: string) => {
 
 // 选择图标
 const selectIcon = (icon: string, type?: string) => {
-  console.log('icon', icon)
   const iconName = getIconName(icon, type)
   selected.value = iconName
 
@@ -286,10 +251,6 @@ const confirm = () => {
 </script>
 
 <style lang="less" scoped>
-:global(.icon-library-modal-wrap) {
-  z-index: 200000 !important;
-}
-
 .icon-selector {
   height: 80vh;
   .toolbar {
