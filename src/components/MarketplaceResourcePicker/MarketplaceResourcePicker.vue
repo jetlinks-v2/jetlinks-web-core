@@ -181,6 +181,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import TagFilterChip from './TagFilterChip.vue'
 import PickerResourceCard from './PickerResourceCard.vue'
 import {
@@ -261,6 +262,8 @@ const props = withDefaults(
   },
 )
 
+const { t: $t } = useI18n()
+
 const emit = defineEmits<{
   'update:modelValue': [v: string | string[] | null | undefined]
   'update:version': [v: string | undefined]
@@ -268,25 +271,25 @@ const emit = defineEmits<{
   'card-click': [record: any]
 }>()
 
-const defaultLabels: Required<MarketplaceResourcePickerLabels> = {
-  all: '全部',
-  tags: '标签',
-  selectedTags: '已选标签',
-  clearSelected: '清空',
-  searchPlaceholder: '搜索名称',
-  empty: '暂无数据',
-  noMore: '没有更多了',
-  noResourceTypes: '暂无资源类型',
-  version: '版本',
-  versionPlaceholder: '请选择版本',
-  viewReleaseNotes: '查看发布说明',
-  releaseNotesTitle: '发布说明',
-  viewDocument: '查看文档',
-  resourceDocumentTitle: '资源文档',
-  versionSummary: '版本摘要',
-}
+const defaultLabels = computed<Required<MarketplaceResourcePickerLabels>>(() => ({
+  all: $t('components.MarketplaceResourcePicker.all'),
+  tags: $t('components.MarketplaceResourcePicker.tags'),
+  selectedTags: $t('components.MarketplaceResourcePicker.selectedTags'),
+  clearSelected: $t('components.MarketplaceResourcePicker.clearSelected'),
+  searchPlaceholder: $t('components.MarketplaceResourcePicker.searchPlaceholder'),
+  empty: $t('components.MarketplaceResourcePicker.empty'),
+  noMore: $t('components.MarketplaceResourcePicker.noMore'),
+  noResourceTypes: $t('components.MarketplaceResourcePicker.noResourceTypes'),
+  version: $t('components.MarketplaceResourcePicker.version'),
+  versionPlaceholder: $t('components.MarketplaceResourcePicker.versionPlaceholder'),
+  viewReleaseNotes: $t('components.MarketplaceResourcePicker.viewReleaseNotes'),
+  releaseNotesTitle: $t('components.MarketplaceResourcePicker.releaseNotesTitle'),
+  viewDocument: $t('components.MarketplaceResourcePicker.viewDocument'),
+  resourceDocumentTitle: $t('components.MarketplaceResourcePicker.resourceDocumentTitle'),
+  versionSummary: $t('components.MarketplaceResourcePicker.versionSummary'),
+}))
 
-const mergedLabels = computed(() => ({ ...defaultLabels, ...props.labels }))
+const mergedLabels = computed(() => ({ ...defaultLabels.value, ...props.labels }))
 
 const activeType = ref('')
 const selectedTagIds = ref<string[]>([])

@@ -43,6 +43,12 @@
 
       <a-tab-pane key="font" :tab="mergedTexts.tabFont">
         <div class="ive__pane">
+          <div class="ive__library-picker">
+            <IconLibrary
+              :type="selectedFontType"
+              @update:type="selectLibraryFont"
+            />
+          </div>
           <a-input-search
             v-model:value="fontQuery"
             allow-clear
@@ -102,10 +108,28 @@
 <script setup lang="ts">
 import type { CSSProperties } from 'vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import IconLibrary from '../IconLibrary/index.vue'
 import ImageUpload from '../Upload/Image/ImageUpload.vue'
 import { DEFAULT_SAFE_COLORS, formatIconValueColor, formatIconValueFont, parseIconValue } from './iconValue'
 import { FONT_ICON_PRESET_TYPES } from './fontIconPresetList'
 import IconValueView from './IconValueView.vue'
+
+type IconValueEditorTexts = {
+  tabColor: string
+  tabFont: string
+  tabImage: string
+  colorSwatches: string
+  colorPicker: string
+  colorPlaceholder: string
+  colorBlockLabel: string
+  applyColor: string
+  searchFont: string
+  imageUrlPlaceholder: string
+  cropTitle: string
+  imageUrlHint: string
+  uploadHint: string
+}
 
 const props = withDefaults(
   defineProps<{
@@ -128,7 +152,7 @@ const props = withDefaults(
     imageMimeTypes?: string[]
     imageMaxMb?: number
     imageAccept?: string
-    texts?: Partial<typeof defaultTexts>
+    texts?: Partial<IconValueEditorTexts>
   }>(),
   {
     modelValue: '',
@@ -147,6 +171,8 @@ const props = withDefaults(
   },
 )
 
+const { t: $t } = useI18n()
+
 const emit = defineEmits<{
   'update:modelValue': [v: string]
   cropVisibleChange: [visible: boolean]
@@ -159,23 +185,23 @@ defineExpose({
   abortCrop: () => imageUploadRef.value?.abortCrop?.(),
 })
 
-const defaultTexts = {
-  tabColor: '纯色',
-  tabFont: '图标',
-  tabImage: '图片',
-  colorSwatches: '常用色',
-  colorPicker: '选择颜色',
-  colorPlaceholder: '如 #RRGGBB 或 rgb(...)',
-  colorBlockLabel: '色块文字（可选，留空则用名称缩写）',
-  applyColor: '应用',
-  searchFont: '搜索图标名',
-  imageUrlPlaceholder: '或粘贴图片地址',
-  cropTitle: '裁剪图片',
-  imageUrlHint: '上传后自动填入地址，也可手动粘贴外链。',
-  uploadHint: '关闭裁剪上传时，请直接粘贴图片地址。',
-}
+const defaultTexts = computed<IconValueEditorTexts>(() => ({
+  tabColor: $t('components.IconValueEditor.tabColor'),
+  tabFont: $t('components.IconValueEditor.tabFont'),
+  tabImage: $t('components.IconValueEditor.tabImage'),
+  colorSwatches: $t('components.IconValueEditor.colorSwatches'),
+  colorPicker: $t('components.IconValueEditor.colorPicker'),
+  colorPlaceholder: $t('components.IconValueEditor.colorPlaceholder'),
+  colorBlockLabel: $t('components.IconValueEditor.colorBlockLabel'),
+  applyColor: $t('components.IconValueEditor.applyColor'),
+  searchFont: $t('components.IconValueEditor.searchFont'),
+  imageUrlPlaceholder: $t('components.IconValueEditor.imageUrlPlaceholder'),
+  cropTitle: $t('components.IconValueEditor.cropTitle'),
+  imageUrlHint: $t('components.IconValueEditor.imageUrlHint'),
+  uploadHint: $t('components.IconValueEditor.uploadHint'),
+}))
 
-const mergedTexts = computed(() => ({ ...defaultTexts, ...props.texts }))
+const mergedTexts = computed(() => ({ ...defaultTexts.value, ...props.texts }))
 
 const mergedSwatches = computed(() => props.safeColors ?? [...DEFAULT_SAFE_COLORS])
 
@@ -212,6 +238,10 @@ const colorHex = ref('#1677ff')
 const colorText = ref('#1677ff')
 const colorLabel = ref('')
 const imageUrl = ref('')
+const selectedFontType = computed(() => {
+  const p = parseIconValue(model.value)
+  return p.kind === 'font' ? p.iconType : ''
+})
 
 function syncFromModel(v: string) {
   const p = parseIconValue(v)
@@ -270,6 +300,10 @@ const filteredFontIcons = computed(() => {
 
 function selectFont(name: string) {
   emit('update:modelValue', formatIconValueFont(name))
+}
+
+function selectLibraryFont(name: string) {
+  selectFont(name)
 }
 
 function isFontActive(name: string) {
@@ -356,6 +390,10 @@ function onCropUploadResult(url: string) {
   max-height: 220px;
   overflow: auto;
   padding: 4px 2px 8px;
+}
+.ive__library-picker {
+  display: flex;
+  justify-content: center;
 }
 .ive__font-item {
   display: flex;

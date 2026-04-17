@@ -6,6 +6,7 @@
  * 搜索接口返回**当前页**能力列表（无 total 包装）。下一页无数据即最后一页。
  */
 import { createNdJson, request } from '@jetlinks-web/core'
+import i18n from '@jetlinks-web-core/locales'
 import type { TagChipItem } from './sidebar'
 import type {
   CapabilityVersionOption,
@@ -25,6 +26,18 @@ const marketplaceNdJson = createNdJson({
     }
   },
 })
+
+function getQueryFailedText() {
+  return i18n.global.t('components.MarketplaceResourcePicker.queryFailed')
+}
+
+function getQueryFailedStatusText(value: number | string) {
+  return i18n.global.t('components.MarketplaceResourcePicker.queryFailedWithStatus', [value])
+}
+
+function getQueryFailedCodeText(value: number | string) {
+  return i18n.global.t('components.MarketplaceResourcePicker.queryFailedWithCode', [value])
+}
 
 function unwrapNdJsonRows(payload: any): any[] {
   if (payload == null) return []
@@ -50,13 +63,13 @@ function unwrapNdJsonRows(payload: any): any[] {
  * - 新结构：`[{ id, name, icon? }]`（CapabilityPackage.info）
  * - 兼容：顶层 `tags` 为字符串 id 数组，或旧对象无 icon
  */
-export function normalizeTagsFromCapabilityRow(row: any): TagChipItem[] {
+export function normalizeTagsFromCapabilityRow(row: any = {}): TagChipItem[] {
   const raw =
-    row?.info?.tags ??
-    row?.metadata?.info?.tags ??
-    row?.capabilityPackage?.info?.tags ??
-    row?.packageInfo?.tags ??
-    row?.tags
+    row.info?.tags ??
+    row.metadata?.info?.tags ??
+    row.capabilityPackage?.info?.tags ??
+    row.packageInfo?.tags ??
+    row.tags
 
   if (!Array.isArray(raw) || !raw.length) return []
 
@@ -82,23 +95,23 @@ export function normalizeTagsFromCapabilityRow(row: any): TagChipItem[] {
 }
 
 /** 将 CapabilityInfo 转为资源卡片可用的行（补充 code/state/tags 等展示字段） */
-export function mapCapabilityInfoRow(row: any) {
+export function mapCapabilityInfoRow(row: any = {}) {
   const tags = normalizeTagsFromCapabilityRow(row)
   return {
     ...row,
-    available: row?.available !== false,
-    useCondition: row?.useCondition ?? row?.metadata?.useCondition,
-    code: row?.code ?? row?.metadata?.code,
+    available: row.available !== false,
+    useCondition: row.useCondition ?? row.metadata?.useCondition,
+    code: row.code ?? row.metadata?.code,
     document: optionalTrim(
-      row?.document ??
-        row?.info?.document ??
-        row?.metadata?.document ??
-        row?.metadata?.info?.document ??
-        row?.capabilityPackage?.info?.document ??
-        row?.packageInfo?.document,
+      row.document ??
+        row.info?.document ??
+        row.metadata?.document ??
+        row.metadata?.info?.document ??
+        row.capabilityPackage?.info?.document ??
+        row.packageInfo?.document,
     ),
-    type: row?.type ?? row?.provider,
-    state: row?.state ?? { value: 'enabled' },
+    type: row.type ?? row.provider,
+    state: row.state ?? { value: 'enabled' },
     tags,
   }
 }
@@ -122,7 +135,7 @@ function optionalTrim(s: unknown): string | undefined {
 
 function unwrapNdJsonError(payload: any): string | undefined {
   if (payload?.success === false) {
-    return optionalTrim(payload?.message ?? payload?.msg) ?? '资源查询失败'
+    return optionalTrim(payload?.message ?? payload?.msg) ?? getQueryFailedText()
   }
 
   if (
@@ -131,7 +144,7 @@ function unwrapNdJsonError(payload: any): string | undefined {
     payload?.result == null &&
     payload?.data == null
   ) {
-    return optionalTrim(payload?.message ?? payload?.msg) ?? `资源查询失败: ${payload.status}`
+    return optionalTrim(payload?.message ?? payload?.msg) ?? getQueryFailedStatusText(payload.status)
   }
 
   if (
@@ -141,7 +154,7 @@ function unwrapNdJsonError(payload: any): string | undefined {
     payload?.result == null &&
     payload?.data == null
   ) {
-    return optionalTrim(payload?.message ?? payload?.msg) ?? `资源查询失败: ${payload.code}`
+    return optionalTrim(payload?.message ?? payload?.msg) ?? getQueryFailedCodeText(payload.code)
   }
 
   return undefined
