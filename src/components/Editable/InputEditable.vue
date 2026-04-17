@@ -1,7 +1,11 @@
 <template>
   <div>
     <div v-if="!isEdit" style="display: flex; align-items: center; gap: 8px">
-      <j-ellipsis>{{ _value || '--' }}</j-ellipsis>
+      <j-ellipsis>
+        <span :style="textStyle">
+          {{ _value || '--' }}
+        </span>
+      </j-ellipsis>
       <a-button type="link" @click="isEdit = true" size="small">
         <AIcon type="EditOutlined"/>
       </a-button>
@@ -23,6 +27,10 @@ const props = defineProps({
   maxLength: {
     type: Number,
     default: undefined
+  },
+  textStyle: {
+    type: Object,
+    default: () => ({})
   }
 })
 const emit = defineEmits(['update:value', 'change'])

@@ -19,6 +19,7 @@ import {
   getDefine,
   getFederationSetting,
   v3Token,
+  getThemeConfigPath,
   getModulesName,
   getProxyUrl,
   federationSharedMap,
@@ -26,11 +27,13 @@ import {
 } from './vite.setting'
 import { moduleFilterPlugin } from './configs/plugin/moduleFilterPlugin'
 
-export default defineConfig(({ mode, command }) => {
+export default defineConfig(async ({ mode, command }) => {
   const envDir = path.resolve(__dirname, '..')
   const env = getMergedEnv(mode, envDir)
   const isDev = command === 'serve'
   const publicPath = (env.VITE_PUBLIC_PATH || '/').trim() || '/'
+  const themeConfigPath = getThemeConfigPath(envDir)
+  const themeV3Token = await v3Token(envDir)
 
   const { moduleName, moduleNames} = getModulesName()
   const backendUrl = getProxyUrl()
@@ -42,6 +45,7 @@ export default defineConfig(({ mode, command }) => {
     base: publicPath,
     resolve: {
       alias: {
+        '@theme-config': themeConfigPath,
         '@jetlinks-web-core': path.resolve(__dirname, 'src'),
         '@': path.resolve(__dirname, 'src'),
         ...registerModulesAlias()
@@ -111,7 +115,7 @@ export default defineConfig(({ mode, command }) => {
       //     interval: 1000
       // },
       allowedHosts: [
-        '.local-host.cn', // 允许所有 local-host.cn 的子域名
+        '.local-host.cn', // 允许的自定义域名
       ],
       proxy: {
         [env.VITE_APP_BASE_API]: {
@@ -129,7 +133,7 @@ export default defineConfig(({ mode, command }) => {
           modifyVars: {
             'root-entry-name': 'variable',
             hack: `true; @import (reference) "${path.resolve('src/style/variable.less')}";`,
-            ...v3Token()
+            ...themeV3Token
           },
           javascriptEnabled: true
         }

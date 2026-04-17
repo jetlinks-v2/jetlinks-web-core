@@ -6,7 +6,7 @@ import router from '../router'
 type Buttons = Array<{ id: string }>
 
 type MenuItem = {
-  icon: string,
+  icon: string
   name: string
   i18nName: string
   code: string
@@ -19,6 +19,7 @@ type MenuItem = {
   children?: MenuItem[]
   component?: any
   id?: string
+  describe?: string
 }
 
 type BreadcrumbType = {
@@ -28,18 +29,19 @@ type BreadcrumbType = {
 }
 
 type ParentType = {
-    code: string
-    title: string
-    breadcrumb?: BreadcrumbType[] | any[]
+  code: string
+  title: string
+  breadcrumb?: BreadcrumbType[] | any[]
 }
 
-const handleMeta = (item: MenuItem, isApp: boolean):RouteMeta  => {
+const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
   const _meta = item.options?.meta || {}
   return {
     ..._meta,
     ...(item.meta || {}),
     id: item.id,
     icon: item.icon,
+    desc: item.describe,
     title: item.i18nName || item.name,
     hideInMenu: item.options?.show === false, // 隐藏菜单
     isApp
@@ -56,7 +58,7 @@ export const handleRoute = (item: MenuItem, parent?: ParentType): Partial<RouteR
   if (parent?.breadcrumb) {
     breadcrumb.push(...parent.breadcrumb)
   }
-  breadcrumb.push({ name: item.code, breadcrumbName: meta.title as string, path: isApp ? appUrl : item.url  })
+  breadcrumb.push({ name: item.code, breadcrumbName: meta.title as string, path: isApp ? appUrl : item.url })
 
   return {
     path: isApp ? appUrl : item.url,
@@ -75,9 +77,14 @@ export const handleRoute = (item: MenuItem, parent?: ParentType): Partial<RouteR
  * @param components 扫描出来的页面
  * @param level
  */
-export const handleMenus = (menuData: MenuItem[], extraMenus: any, components: Record<string, any>, level: number = 1) => {
+export const handleMenus = (
+  menuData: MenuItem[],
+  extraMenus: any,
+  components: Record<string, any>,
+  level: number = 1
+) => {
   const filterMenuCode = [USER_CENTER_MENU_CODE]
-  const menuMap = new Map<string, { path: string, title: string }>() //
+  const menuMap = new Map<string, { path: string; title: string }>() //
   let authButtons: Record<string, any> = {}
   let menuRoutes: RouteRecordRaw[] = []
   let menus: Partial<RouteRecordRaw>[] = []
@@ -87,13 +94,13 @@ export const handleMenus = (menuData: MenuItem[], extraMenus: any, components: R
    * @param data
    */
   const filterMenuData = (data: MenuItem[] = []) => {
-    return data.filter(item => !filterMenuCode.includes(item.code))
+    return data.filter((item) => !filterMenuCode.includes(item.code))
   }
 
   const findComponent = (record: MenuItem, level: number) => {
     const isApp = !!record.appId
     const meta = handleMeta(record, isApp)
-    const myComponents = components[meta?.componentCode as string || record.code]
+    const myComponents = components[(meta?.componentCode as string) || record.code]
 
     if (record.component) {
       return record.component
@@ -129,7 +136,7 @@ export const handleMenus = (menuData: MenuItem[], extraMenus: any, components: R
 
     if (!menu) return
 
-    const routes = Array.isArray(menu) ? menu: menu.children
+    const routes = Array.isArray(menu) ? menu : menu.children
 
     return routes?.map((e: any) => {
       const meta: RouteMeta = {
@@ -159,7 +166,8 @@ export const handleMenus = (menuData: MenuItem[], extraMenus: any, components: R
       menuMap.set(item.code, { path: _route.path!, title: _route.meta?.title as string })
       _route.component = myComponent
 
-      if (level === 1 && components[item.code]) { // 1级菜单，并且是页面
+      if (level === 1 && components[item.code]) {
+        // 1级菜单，并且是页面
         // 为1级菜单添加父级路由
         _route.name = `${item.code}-parent`
         _route.path = `${item.url}/parent`
@@ -167,19 +175,27 @@ export const handleMenus = (menuData: MenuItem[], extraMenus: any, components: R
         _route.children = [item]
         _route.meta = {}
       } else {
-        const extraRoute = getExtraChildren(item) || [];
+        const extraRoute = getExtraChildren(item) || []
         if (extraRoute) {
-          const result = loop(extraRoute, level + 1, { code: item.code, title: _route.meta?.title as string, breadcrumb: _route.meta?.breadcrumb as BreadcrumbType[] })
+          const result = loop(extraRoute, level + 1, {
+            code: item.code,
+            title: _route.meta?.title as string,
+            breadcrumb: _route.meta?.breadcrumb as BreadcrumbType[]
+          })
           _routes.push(...result)
         }
         _route.children = item.children
       }
 
       if (_route.children && _route.children.length) {
-        _route.children = loop(_route.children, level + 1, { code: item.code, title: _route.meta?.title as string, breadcrumb: _route.meta?.breadcrumb as BreadcrumbType[] })
+        _route.children = loop(_route.children, level + 1, {
+          code: item.code,
+          title: _route.meta?.title as string,
+          breadcrumb: _route.meta?.breadcrumb as BreadcrumbType[]
+        })
       }
 
-      const showChildren = _route.children?.filter(item => !item.meta?.hideInMenu) || []
+      const showChildren = _route.children?.filter((item) => !item.meta?.hideInMenu) || []
 
       if (showChildren.length) {
         _route.redirect = showChildren[0].path.replace('/:page*', '')
@@ -195,16 +211,16 @@ export const handleMenus = (menuData: MenuItem[], extraMenus: any, components: R
   }
 
   function siderLoop(data: MenuItem[]) {
-    const _menu = filterMenuData(data).filter(item => item.meta?.options?.show !== false)
+    const _menu = filterMenuData(data).filter((item) => item.meta?.options?.show !== false)
 
     for (const menuItem of data) {
       if (menuItem.buttons) {
-        authButtons[menuItem.code] = menuItem.buttons.map(item => item.id)
+        authButtons[menuItem.code] = menuItem.buttons.map((item) => item.id)
       }
     }
 
     if (_menu && _menu.length) {
-      return _menu.map(item => {
+      return _menu.map((item) => {
         const _route = handleRoute(item)
         _route.children = siderLoop(item.children || [])
         return _route as RouteRecordRaw
@@ -227,11 +243,14 @@ export const handleMenus = (menuData: MenuItem[], extraMenus: any, components: R
 
 export const handleAuthMenu = (menuData: MenuItem[], cb: (code: string, buttons: Array<string>) => void) => {
   if (menuData && menuData.length) {
-    return menuData.forEach(item => {
-      const { code, buttons, children} = item
+    return menuData.forEach((item) => {
+      const { code, buttons, children } = item
 
       if (buttons) {
-        cb(code, buttons.map(a => a.id))
+        cb(
+          code,
+          buttons.map((a) => a.id)
+        )
       }
 
       if (children) {
@@ -253,4 +272,3 @@ export const routerFallback = () => {
     }
   }
 }
-

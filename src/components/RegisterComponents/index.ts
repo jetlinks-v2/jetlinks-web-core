@@ -16,9 +16,16 @@ export default defineComponent({
   },
   setup(props, { slots, attrs }) {
     const route = useRoute()
-    const listenerAttrs = computed(() =>
+    const registryAttrs = computed(() => {
+      const { ...restAttrs } = attrs
+      return {
+        ...restAttrs
+      }
+    })
+
+    const wrapperAttrs = computed(() =>
       Object.fromEntries(
-        Object.entries(attrs).filter(([key]) => /^on[A-Z]/.test(key))
+        Object.entries(attrs).filter(([key]) => key !== 'props')
       )
     )
 
@@ -32,7 +39,7 @@ export default defineComponent({
     const mergedVNodes = useRegistryVNodeMerge(
       () => (slots.default ? slots.default() : []),
       () => registryItems.value,
-      () => listenerAttrs.value
+      () => registryAttrs.value
     )
 
     const renderContent = () => {
@@ -56,7 +63,7 @@ export default defineComponent({
           ? resolveComponent(props.is)
           : props.is || Fragment
 
-      return h(wrapper as any, attrs, {
+      return h(wrapper as any, wrapperAttrs.value, {
         default: () => renderContent()
       })
     }
