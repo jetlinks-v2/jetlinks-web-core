@@ -142,9 +142,9 @@ const judgeInitSet = async () => {
   }
 };
 
-onBeforeMount(() => {
-  judgeInitSet();
-});
+// onBeforeMount(() => {
+//   judgeInitSet();
+// });
 </script>
 <style scoped lang="less">
 .page-container {
