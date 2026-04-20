@@ -38,3 +38,4 @@ java/**
 !java/build_modules.sh
 !java/module_config.properties
 !java/*/pom.xml
+package-lock.json

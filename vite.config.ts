@@ -19,6 +19,7 @@ import {
   getDefine,
   getFederationSetting,
   v3Token,
+  getThemeConfigPath,
   getModulesName,
   getProxyUrl,
   federationSharedMap,
@@ -26,11 +27,13 @@ import {
 } from './vite.setting'
 import { moduleFilterPlugin } from './configs/plugin/moduleFilterPlugin'
 
-export default defineConfig(({ mode, command }) => {
+export default defineConfig(async ({ mode, command }) => {
   const envDir = path.resolve(__dirname, '..')
   const env = getMergedEnv(mode, envDir)
   const isDev = command === 'serve'
   const publicPath = (env.VITE_PUBLIC_PATH || '/').trim() || '/'
+  const themeConfigPath = getThemeConfigPath(envDir)
+  const themeV3Token = await v3Token(envDir)
 
   const { moduleName, moduleNames} = getModulesName()
   const backendUrl = getProxyUrl()
@@ -42,6 +45,7 @@ export default defineConfig(({ mode, command }) => {
     base: publicPath,
     resolve: {
       alias: {
+        '@theme-config': themeConfigPath,
         '@jetlinks-web-core': path.resolve(__dirname, 'src'),
         '@': path.resolve(__dirname, 'src'),
         ...registerModulesAlias()
@@ -106,13 +110,17 @@ export default defineConfig(({ mode, command }) => {
       port: Number(env.VITE_PORT),
       cors: true,
       fs: { allow: [ envDir] },
+      // watch: {
+      //     usePolling: true,
+      //     interval: 1000
+      // },
       allowedHosts: [
-        'cq.local-host.cn', // 允许的自定义域名
+        '.local-host.cn', // 允许的自定义域名
       ],
       proxy: {
         [env.VITE_APP_BASE_API]: {
           // 优先使用命令行参数，其次使用环境变量
-          target: backendUrl || env.VITE_APP_DEV_PROXY_URL,
+          target: backendUrl,
           ws: true,
           changeOrigin: true,
           rewrite: (path) => path.replace(new RegExp(`^${env.VITE_APP_BASE_API}`), '')
@@ -125,7 +133,7 @@ export default defineConfig(({ mode, command }) => {
           modifyVars: {
             'root-entry-name': 'variable',
             hack: `true; @import (reference) "${path.resolve('src/style/variable.less')}";`,
-            ...v3Token()
+            ...themeV3Token
           },
           javascriptEnabled: true
         }
@@ -133,7 +141,7 @@ export default defineConfig(({ mode, command }) => {
     },
     optimizeDeps: {
       entries: ['index.html'],
-      include: ['pinia', 'vue-router', 'axios', 'lodash-es', '@vueuse/core', 'echarts', 'dayjs'],
+      include: ['pinia', 'vue-router', 'axios', 'lodash-es', '@vueuse/core', 'echarts', 'dayjs', 'md-editor-v3'],
       esbuildOptions: {
         define: envDefine
       }

@@ -4,7 +4,7 @@
     wrapClassName="relogin-modal"
     :maskClosable="false"
     :footer="null"
-    :width="!(isSass || isCloud) ? 1020 : 718"
+    :width="!isCloud ? 1020 : 718"
     :bodyStyle="{padding: 0}"
     @cancel="onCancel"
     centered
@@ -52,7 +52,7 @@ import Relogin from '@jetlinks-web-core/assets/relogin.png'
 import { Modal, Button } from 'ant-design-vue'
 import { Language, Notice, Resource, User } from '@/layout/components'
 import RegistryComponent from '@jetlinks-web-core/components/RegisterComponents'
-import {isSass, isCloud} from "@/utils/consts";
+import {isCloud} from "@/utils/consts";
 
 const systemStore = useSystemStore();
 const { systemInfo, layout } = storeToRefs(systemStore);
