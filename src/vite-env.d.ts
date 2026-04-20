@@ -8,3 +8,7 @@ declare module "*.vue" {
 declare module "@jetlinks-web/components"
 declare module "vue3-json-viewer"
 declare module "event-source-polyfill"
+declare module "@theme-config" {
+  const themeConfig: Record<string, any>
+  export default themeConfig
+}
