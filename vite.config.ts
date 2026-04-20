@@ -120,7 +120,7 @@ export default defineConfig(async ({ mode, command }) => {
       proxy: {
         [env.VITE_APP_BASE_API]: {
           // 优先使用命令行参数，其次使用环境变量
-          target: backendUrl,
+          target: backendUrl || env.VITE_APP_DEV_PROXY_URL,
           ws: true,
           changeOrigin: true,
           rewrite: (path) => path.replace(new RegExp(`^${env.VITE_APP_BASE_API}`), '')
