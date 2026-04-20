@@ -25,6 +25,6 @@ export const PlatformName = 'platform-name'
 
 export const isCloud = import.meta.env.VITE_APP_ENVIRONMENT === 'cloud'
 
-export const isSass = import.meta.env.VITE_APP_ENVIRONMENT === 'saas'
+export const isSaaS = import.meta.env.VITE_APP_ENVIRONMENT === 'saas'
 
 

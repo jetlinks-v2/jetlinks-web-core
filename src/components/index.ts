@@ -35,6 +35,7 @@ import IconLibrary from './IconLibrary/index.vue'
 import ChatTextArea from './ChatTextArea/index.vue'
 import Captcha from './Captcha'
 import RegistryComponent from './RegisterComponents'
+import { TagManagerSidebar } from './TagManagerSidebar'
 
 export default {
     install(app: App) {
@@ -77,6 +78,7 @@ export default {
           .component('ChatTextArea', ChatTextArea)
           .component('Captcha', Captcha)
           .component('RegistryComponent', RegistryComponent)
+          .component('TagManagerSidebar', TagManagerSidebar)
 
         Object.keys(FormItemValue).forEach(key => {
             app.component(key, FormItemValue[key])

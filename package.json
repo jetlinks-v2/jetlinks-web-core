@@ -16,10 +16,12 @@
   },
   "dependencies": {
     "crypto-js": "^4.2.0",
+    "marked": "^14.1.4",
     "monaco-editor": "^0.52.2",
     "xgplayer": "^3.0.21",
     "xgplayer-flv": "^3.0.21",
-    "xgplayer-hls": "^3.0.21"
+    "xgplayer-hls": "^3.0.21",
+    "md-editor-v3": "^6.4.2"
   },
   "devDependencies": {
     "vite-plugin-monaco-editor": "^1.1.0"

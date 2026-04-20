@@ -1,7 +1,9 @@
 <template>
   <div
     class="container"
-    @click="onClick"
+    @click.stop="onClick"
+    @mousedown.stop
+    @mouseup.stop
   >
     <div
       v-if="_type"
@@ -18,7 +20,8 @@
   </div>
   <SelectModal
     v-if="visible"
-    @close="visible = false"
+    :zIndex="props.zIndex"
+    @close="setVisible(false)"
     @save="onChange"
   />
 </template>
@@ -29,23 +32,32 @@ const props = defineProps({
   type: {
     type: String,
     default: ''
+  },
+  zIndex: {
+    type: Number,
+    default: 200000
   }
 })
 
-const emits = defineEmits(['change', 'update:type'])
+const emits = defineEmits(['change', 'update:type', 'visibleChange'])
 
 const _type = ref()
 const visible = ref(false)
 
+const setVisible = (value: boolean) => {
+  visible.value = value
+  emits('visibleChange', value)
+}
+
 const onClick = () => {
-  visible.value = true
+  setVisible(true)
 }
 
 const onChange = (val: string) => {
   _type.value = val
   emits('update:type', val)
   emits('change', val)
-  visible.value = false
+  setVisible(false)
 }
 
 watch(
