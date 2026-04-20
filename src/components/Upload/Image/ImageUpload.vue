@@ -1,5 +1,10 @@
 <template>
-  <div class="upload-image-warp" >
+  <div
+    class="upload-image-warp"
+    @click.stop
+    @mousedown.stop
+    @mouseup.stop
+  >
     <div class="upload-image-border" :style="borderStyle">
       <a-upload
         list-type="picture-card"
@@ -31,14 +36,17 @@
       </div>
     </div>
   </div>
-  <CropperModal
-    v-if="cropper.visible"
-    v-bind="cropperProps"
-    :img="cropper.img"
-    :title="cropperTitle"
-    @cancel="cropper.visible = false"
-    @ok="saveImage"
-  />
+  <Teleport to="body">
+    <CropperModal
+      v-if="cropper.visible"
+      v-bind="mergedCropperProps"
+      :img="cropper.img"
+      :title="cropperTitle"
+      @cancel="handleCropCancel"
+      @ok="saveImage"
+      @processing-change="handleCropProcessingChange"
+    />
+  </Teleport>
 </template>
 
 <script setup lang="ts" name="ImageUpload">
@@ -98,7 +106,11 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:value'])
+const emit = defineEmits<{
+  'update:value': [v: string]
+  cropVisibleChange: [visible: boolean]
+  cropInteractBusy: [busy: boolean]
+}>()
 
 const cropper = reactive({
   visible: false,
@@ -106,6 +118,11 @@ const cropper = reactive({
 })
 const loading = ref(false) // 上传图片状态
 const imageUrl = ref<string | undefined >('')
+
+const mergedCropperProps = computed(() => ({
+  zIndex: 200000,
+  ...(props.cropperProps || {})
+}))
 
 const beforeUpload = (file: any) => {
   const types = (props.types || []) as Array<string>
@@ -115,14 +132,19 @@ const beforeUpload = (file: any) => {
 
   if (!inType) {
     onlyMessage($t('Image.ImageUpload.825077-2'), 'error')
+    return false
   }
 
   if (!isMaxSize) {
-    onlyMessage($t('Image.ImageUpload.825077-3', [maxSize]), 'error');
+    onlyMessage($t('Image.ImageUpload.825077-3', [maxSize]), 'error')
+    return false
   }
-  getBase64ByImg(file, base64Url => {
+
+  emit('cropInteractBusy', true)
+  getBase64ByImg(file, (base64Url) => {
     cropper.img = base64Url
     cropper.visible = true
+    emit('cropInteractBusy', false)
   })
 
   return false
@@ -144,9 +166,12 @@ const handleChange = (info: UploadChangeParam) => {
 }
 
 const saveImage = (url: string) => {
-  cropper.visible = false
   imageUrl.value = url
   emit('update:value', url);
+  nextTick(() => {
+    cropper.visible = false
+    emit('cropInteractBusy', false)
+  })
 }
 
 watch(() => props.value, (newValue) => {
@@ -154,6 +179,30 @@ watch(() => props.value, (newValue) => {
 }, {
   immediate: true
 })
+
+watch(
+  () => cropper.visible,
+  (v) => {
+    emit('cropVisibleChange', v)
+  },
+)
+
+function abortCrop() {
+  cropper.visible = false
+  cropper.img = ''
+  emit('cropInteractBusy', false)
+}
+
+defineExpose({ abortCrop })
+
+function handleCropCancel() {
+  cropper.visible = false
+  emit('cropInteractBusy', false)
+}
+
+function handleCropProcessingChange(busy: boolean) {
+  emit('cropInteractBusy', busy)
+}
 
 </script>
 

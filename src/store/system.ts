@@ -3,6 +3,7 @@ import { getDetails_api, preprocessorExists, settingDetail, systemVersion } from
 import { getTagsColor } from '@jetlinks-web-core/api/system/calendar'
 import { LocalStore } from '@jetlinks-web/utils'
 import { langKey, isSubApp } from '@jetlinks-web-core/utils/consts'
+import { withModuleStoreOverride } from './module-override'
 
 interface LayoutType {
   siderWidth: number
@@ -13,7 +14,7 @@ interface LayoutType {
   layout: 'mix' | 'side' | 'top'
 }
 
-export const useSystemStore = defineStore('system', () => {
+const useSystemStoreBase = defineStore('system', () => {
   const theme = ref<string>('light') // 主题色
   const ico = ref<string>('/favicon.ico') // 浏览器标签页logo
   const systemInfo = ref<Record<string, any>>({})
@@ -164,3 +165,5 @@ export const useSystemStore = defineStore('system', () => {
     getShowThreshold
   }
 })
+
+export const useSystemStore = withModuleStoreOverride(useSystemStoreBase)
