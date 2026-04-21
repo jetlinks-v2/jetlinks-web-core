@@ -139,7 +139,9 @@ const getRoutesByServer = async (
     } else {
       isLock = false
       MenuStore.menu.forEach((r) => {
-        router.addRoute(r)
+        if (r.path.startsWith('/')) {
+          router.addRoute(r)
+        }
       })
       router.addRoute({
         path: "/:pathMatch(.*)*",

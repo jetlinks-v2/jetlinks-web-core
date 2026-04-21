@@ -37,17 +37,7 @@ const defaultOwnParams = [
             type: 'or',
           },
         ],
-      },
-      {
-        terms: [
-          {
-            value: '%show":false%',
-            termType: 'nlike',
-            column: 'options',
-          },
-        ],
-        type: 'and',
-      },
+      }
     ],
   },
 ]
@@ -276,7 +266,7 @@ export const useMenuStore = defineStore('menu', () => {
               const modulesFile = modules()
               isLocal = Object.values(modulesFile).some(v => {
                 const localMenus = (v as any).default.getAsyncRoutesMap()
-                return localMenus[node.code]
+                return localMenus?.[node.code]
               })
             }
 
