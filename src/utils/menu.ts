@@ -176,7 +176,7 @@ export const handleMenus = (
         _route.meta = {}
       } else {
         const extraRoute = getExtraChildren(item) || []
-        if (extraRoute) {
+        if (extraRoute?.length) {
           const result = loop(extraRoute, level + 1, {
             code: item.code,
             title: _route.meta?.title as string,

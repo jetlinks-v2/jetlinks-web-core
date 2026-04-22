@@ -25,6 +25,7 @@ import { getBaseApi, initPersonal } from '@jetlinks-web-core/utils'
 import { componentsRegistry } from './utils/components-registry'
 
 const route = useRoute()
+const router = useRouter()
 
 const systemStore = useSystemStore()
 
@@ -59,11 +60,72 @@ window.addEventListener('vite:preloadError', (event) => {
   console.error('资源版本不对，请清除浏览器缓存')
 })
 
-watch(() => JSON.stringify(route.query || {}), () => {
-  if (route.query.token) {
-    setToken(route.query.token as string)
+const parseHashQuery = (): Record<string, string> => {
+  const [, hashQuery = ''] = window.location.hash.split('?')
+  if (!hashQuery) return {}
+
+  const params = new URLSearchParams(hashQuery)
+  const result: Record<string, string> = {}
+  params.forEach((value, key) => {
+    result[key] = value
+  })
+
+  return result
+}
+
+const clearUrlAuthQuery = () => {
+  const routeQuery = route.query || {}
+  const shouldClearRouteQuery =
+    Object.prototype.hasOwnProperty.call(routeQuery, 'token') ||
+    Object.prototype.hasOwnProperty.call(routeQuery, 'from')
+
+  if (shouldClearRouteQuery) {
+    const nextQuery = { ...routeQuery }
+    delete nextQuery.token
+    delete nextQuery.from
+    router.replace({
+      query: nextQuery,
+      hash: route.hash
+    })
+    return
   }
 
+  if (window.location.hash.includes('?')) {
+    const [hashPath, hashQuery = ''] = window.location.hash.split('?')
+    const params = new URLSearchParams(hashQuery)
+    if (!params.has('token') && !params.has('from')) return
+
+    params.delete('token')
+    params.delete('from')
+    const nextHash = params.toString() ? `${hashPath}?${params.toString()}` : hashPath
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${window.location.search}${nextHash}`
+    )
+  }
+}
+
+watch(() => JSON.stringify(route.query || {}), () => {
+  const routeQuery = route.query || {}
+  const query = Object.keys(routeQuery).length ? routeQuery : parseHashQuery()
+
+  Object.entries(query).forEach(([key, value]) => {
+    if (value === undefined) return
+
+    const storageValue = Array.isArray(value)
+      ? value.filter((item) => item !== null).join(',')
+      : (value ?? '')
+
+    localStorage.setItem(key, String(storageValue))
+  })
+  if (query.token) {
+    setToken(query.token as string)
+  }
+
+  if (query.token || query.from) {
+    clearUrlAuthQuery()
+  }
 }, { immediate: true })
 
 </script>
