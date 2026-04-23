@@ -10,7 +10,14 @@ import VerifyDialog from '@jetlinks-web-core/views/verify/index.vue'
 import pinia from '@jetlinks-web-core/store'
 import i18n from '@jetlinks-web-core/locales'
 import andtv from 'ant-design-vue'
-import { getPackageConfig, registerModule, getBaseApi, routerFallback } from '@jetlinks-web-core/utils'
+import {
+    getPackageConfig,
+    registerModule,
+    getBaseApi,
+    routerFallback,
+    isFromCloud,
+    getFromCloudPathName
+} from '@jetlinks-web-core/utils'
 import microApp from '@micro-zoe/micro-app'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
 import { useVerifyStore } from '@jetlinks-web-core/store/verify'
@@ -185,6 +192,13 @@ export const initAxios = () => {
                 config.headers['x-verify-key'] = cache.key
                 config.headers['x-verify-token'] = cache.token
             }
+
+            const type = localStorage.getItem('terminal')
+            if (type === 'cloud-pc' && config.url) {
+                config.baseURL = getFromCloudPathName()
+                config.url = config.url.replace(/^\/+/, '') // 清理前缀斜杠
+            }
+
             return config
         }
       }

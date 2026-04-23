@@ -121,13 +121,32 @@ export function mergeObjectArrays(a: any[], b: any[], key = 'key') {
   return [...uniqueB, ...filteredA]
 }
 
+export function isFromCloud(){
+  return (['cloud', 'cloud-pc']).includes(String(localStorage.getItem('terminal')));
+}
+
+export function getFromCloudPathName(path?: string) {
+  const { pathname, origin } = window.location
+  let _url = origin + pathname
+  if ('cloud-pc' === String(localStorage.getItem('terminal'))) {
+    _url = `/edge/${localStorage.getItem('thingType')}/${localStorage.getItem('thingId')}/_`
+    if (localStorage.getItem('proxy')) {
+      _url = localStorage.getItem('proxy') + _url
+    }
+  } else if (_url.endsWith('/')) {
+    _url = `${window.location.pathname}/edge/${localStorage.getItem('thingType')}/${localStorage.getItem('thingId')}/_`
+  }
+  return path ? _url + path : _url
+}
+
+
 export function getBaseApi() {
   if (isSubApp) {
     const global = (window as any).microApp.getGlobalData()
     return global.api?.getBaseApi?.() || BASE_API
   }
 
-  return BASE_API
+  return isFromCloud() ? getFromCloudPathName() : BASE_API
 }
 
 export const getUploadHeaders = () => ({
