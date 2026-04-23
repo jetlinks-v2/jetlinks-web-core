@@ -1,12 +1,12 @@
 // 是否不是community版本
 import { getToken, randomString } from '@jetlinks-web/utils'
 import { BASE_API } from '@jetlinks-web/constants'
-import { PersonalAIKey, PersonalKey, PersonalToken } from '@jetlinks-web-core/utils/consts'
+import { PersonalAIKey, PersonalKey, PersonalToken, edgeDefaultUrl } from '@jetlinks-web-core/utils/consts'
 
 export const isNoCommunity = !(localStorage.getItem('system_edition') === 'community')
 
 export const openEdgeUrl = (id: string, routePath?: string) => {
-  const url = new URL(`${BASE_API}/ui/edge/cloud/default/`, window.location.origin)
+  const url = new URL(`${BASE_API}${edgeDefaultUrl}`, window.location.origin)
 
   const hashParams = new URLSearchParams()
   hashParams.set('token', getToken())

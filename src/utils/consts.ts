@@ -27,4 +27,4 @@ export const isCloud = import.meta.env.VITE_APP_ENVIRONMENT === 'cloud'
 
 export const isSaaS = import.meta.env.VITE_APP_ENVIRONMENT === 'saas'
 
-
+export const edgeDefaultUrl = '/ui/edge/cloud/default/'
