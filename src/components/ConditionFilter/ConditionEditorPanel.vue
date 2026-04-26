@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ValueItem from '../Search/Filter/ValueItem.vue'
 import { isArrayTermType } from '../Search/Filter/setting'
 import { useColumnItemOptions, useColumnsMap } from '../Search/Filter/hooks/useSearchEngine'
@@ -21,6 +22,7 @@ const emit = defineEmits<{
   (e: 'draft-change', value?: ConditionFilterTerm): void
 }>()
 
+const { t: $t } = useI18n()
 const columnsMap = useColumnsMap()
 const optionsMap = useColumnItemOptions()
 const draftValue = ref<any>()
@@ -140,7 +142,7 @@ watch(
 
 <template>
   <div class="condition-editor-panel" :class="{ 'condition-editor-panel--compact': hideTitle }" :style="{ width: panelWidth }">
-    <div v-if="!hideTitle" class="condition-editor-panel__title">设置 {{ title }}</div>
+    <div v-if="!hideTitle" class="condition-editor-panel__title">{{ $t('components.ConditionFilter.editor.title', { title }) }}</div>
     <div class="condition-editor-panel__body">
       <slot
         name="value"

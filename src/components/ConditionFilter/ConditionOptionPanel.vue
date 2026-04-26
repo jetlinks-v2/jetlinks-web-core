@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ConditionOptionPanelConfig } from './types'
 import {
   getOptionDescriptionByFields,
@@ -35,6 +36,7 @@ const emit = defineEmits<{
   (e: 'submit', options?: { close?: boolean; allowEmpty?: boolean }): void
 }>()
 
+const { t: $t } = useI18n()
 const keyword = ref('')
 const remoteOptions = ref<OptionItem[]>([])
 const selectedOptions = ref<OptionItem[]>([])
@@ -61,9 +63,9 @@ const queryDebounce = computed(() => {
   return Number.isFinite(debounce) && debounce >= 0 ? debounce : 260
 })
 const optionFields = computed(() => props.config?.optionFields)
-const keywordPlaceholder = computed(() => props.config?.keywordPlaceholder || '筛选条目')
-const emptyText = computed(() => props.config?.emptyText || '暂无可选项')
-const hintText = computed(() => props.config?.hintText || (props.config?.loadOptions ? '键入以查看更多' : ''))
+const keywordPlaceholder = computed(() => props.config?.keywordPlaceholder || $t('components.ConditionFilter.optionPanel.keywordPlaceholder'))
+const emptyText = computed(() => props.config?.emptyText || $t('components.ConditionFilter.optionPanel.empty'))
+const hintText = computed(() => props.config?.hintText || (props.config?.loadOptions ? $t('components.ConditionFilter.optionPanel.hint') : ''))
 
 const normalizeOptions = (items: any[] = []) => normalizeOptionItemsByFields(items || [], optionFields.value) as OptionItem[]
 
@@ -537,7 +539,7 @@ onUnmounted(() => {
         :indeterminate="checkAllStatus.indeterminate"
         @change="onToggleAll"
       >
-        全选
+        {{ $t('components.ConditionFilter.optionPanel.selectAll') }}
       </a-checkbox>
     </div>
 
@@ -574,7 +576,7 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="loadingMore" class="condition-option-panel__more">
-          正在加载更多...
+          {{ $t('components.ConditionFilter.optionPanel.loadingMore') }}
         </div>
       </div>
     </a-spin>

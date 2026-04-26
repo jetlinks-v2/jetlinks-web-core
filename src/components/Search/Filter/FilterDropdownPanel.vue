@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { getDefaultTermType, isArrayTermType, TermTypeOptions } from './setting'
 import ValueItem from './ValueItem.vue'
 import { useColumnsMap } from './hooks/useSearchEngine'
@@ -18,6 +19,7 @@ const props = defineProps({
 
 const emit = defineEmits(['apply', 'reset'])
 
+const { t: $t } = useI18n()
 const columnsMap = useColumnsMap()
 const draftTermType = ref<string>()
 const draftValue = ref<any>()
@@ -135,7 +137,7 @@ watch(
 
 <template>
   <div class="filter-dropdown-panel">
-    <div class="filter-dropdown-panel__title">按{{ title }}筛选</div>
+    <div class="filter-dropdown-panel__title">{{ $t('components.SearchFilter.dropdown.title', { title }) }}</div>
     <div class="filter-dropdown-panel__body">
       <a-select
         v-if="showTermType"
@@ -153,8 +155,8 @@ watch(
       />
     </div>
     <div class="filter-dropdown-panel__actions">
-      <a-button type="primary" block @click="onApply">应用</a-button>
-      <a-button block @click="onReset">重置</a-button>
+      <a-button type="primary" block @click="onApply">{{ $t('components.SearchFilter.dropdown.apply') }}</a-button>
+      <a-button block @click="onReset">{{ $t('components.SearchFilter.dropdown.reset') }}</a-button>
     </div>
   </div>
 </template>
