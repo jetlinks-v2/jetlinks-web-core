@@ -1,7 +1,9 @@
-import { inject, provide, reactive,onUnmounted, nextTick, type Ref, type Reactive } from 'vue'
+import { inject, provide, reactive, onUnmounted, nextTick, type Ref, type Reactive } from 'vue'
 import { SearchItem, TermsItem } from '../typing'
 import { randomString } from '@jetlinks-web/utils'
-import { getDefaultTermType, isArrayTermType } from '../setting'
+import { request } from '@jetlinks-web/core'
+import { getDefaultTermType } from '../setting'
+import { decodeConditionFilterQuery, decodeLegacySearchQuery, encodeConditionFilterQuery } from '../../../ConditionFilter/utils'
 
 const columnsKey = 'columnsKey';
 const loadingKey = 'loadingKey';
@@ -67,6 +69,29 @@ export const useSearchEngine = (props: any) => {
     const search = column.search!
     const rawOptions = search.options
 
+    if (search.dictId) {
+      if (loadingMap[key]) {
+        return
+      }
+
+      loadingMap[key] = true
+      try {
+        const resp = await request.get(`/dictionary/${search.dictId}/items`)
+        const list = resp?.result || resp?.data || []
+        optionsMap[key] = Array.isArray(list)
+          ? list.map((item: any) => ({
+              ...item,
+              label: item.text ?? item.name ?? item.label ?? item.value,
+              value: item.value ?? item.id,
+            }))
+          : []
+      } finally {
+        loadingMap[key] = false
+      }
+
+      return
+    }
+
     if (Array.isArray(rawOptions)) {
       optionsMap[key] = rawOptions
     }
@@ -120,7 +145,7 @@ export const useSearchEngine = (props: any) => {
 
       columnsFieldNames.value[column.dataIndex] = column.search!.rename || column.dataIndex
 
-      if (column.search!.options) {
+      if (column.search!.options || column.search!.dictId) {
         createOptionsLoader(column)
       }
     })
@@ -129,25 +154,11 @@ export const useSearchEngine = (props: any) => {
   }
 
   /**
-   * @return column:termType:value column:termType:value:type 格式化后的查询参数,用于url
-   */
-  const toFormatUrl = () => {
-    return formModel.value.map((item) => {
-      const value = Array.isArray(item.value) ? item.value.join('|') : (item.value ?? '')
-      let str = `${item.column}:${item.termType}:${value}`
-      if (item.type) {
-        str += `:${item.type}`
-      }
-      return str
-    }).join(' ')
-  }
-
-  /**
    * @return 将url中的查询参数格式化为表单模型
    */
   const normalizeSearchQuery = (value: unknown): string | undefined => {
     if (Array.isArray(value)) {
-      return value.join(' ')
+      return value[0]
     }
     if (typeof value === 'string') {
       return value
@@ -157,71 +168,22 @@ export const useSearchEngine = (props: any) => {
 
   const urlToformMadel = (searchQuery?: string) => {
     const search = searchQuery ?? normalizeSearchQuery(route.query.q)
-    const _params: TermsItem[] = []
     if (!search) {
       formModel.value = []
       return
     }
 
-    const parseNumberValue = (column?: string, value?: string) => {
-      if (value === undefined || value === '') return value
-      const searchType = column ? columnsMap[column]?.search?.type : undefined
-      const isNumberLikeValue = /^-?\d+(\.\d+)?$/.test(value)
+    const nextTerms = decodeConditionFilterQuery(search, props.columns)
+    formModel.value = nextTerms.length ? nextTerms : decodeLegacySearchQuery(search, props.columns)
 
-      if (!isNumberLikeValue) {
-        return value
-      }
-
-      if (['number', 'date', 'time', 'timeRange', 'rangePicker'].includes(searchType)) {
-        return Number(value)
-      }
-
-      return value
-    }
-
-    const parseValue = (column?: string, termType?: string, rawValue?: string) => {
-      if (!termType || !isArrayTermType(termType)) {
-        return parseNumberValue(column, rawValue)
-      }
-
-      if (!rawValue) return []
-
-      if (rawValue.includes('|')) {
-        return rawValue.split('|').map(item => item === '' ? undefined : parseNumberValue(column, item))
-      }
-
-      if (rawValue.includes(',')) {
-        return rawValue.split(',').map(item => item === '' ? undefined : parseNumberValue(column, item))
-      }
-
-      return [parseNumberValue(column, rawValue)]
-    }
-
-    decodeURI(search).split(" ").forEach((item: string) => {
-      const parts = item.split(":")
-      if (parts.length < 3) {
-        return
-      }
-
-      const [column, termType, ...rest] = parts
-      let type: string | undefined
-      let valueParts = rest
-
-      const maybeType = rest[rest.length - 1]
-      if (maybeType && ['and', 'or'].includes(maybeType)) {
-        type = maybeType
-        valueParts = rest.slice(0, -1)
-      }
-
-      _params.push({
-        column,
-        termType,
-        value: parseValue(column, termType, valueParts.join(':')),
-        type,
-        key: randomString(10)
+    if (!search.startsWith('v1.') && formModel.value.length) {
+      router.replace({
+        query: {
+          ...route.query,
+          q: encodeConditionFilterQuery(formModel.value, props.columns) || undefined,
+        },
       })
-    })
-    formModel.value = _params
+    }
   }
 
   const syncFormModelByRouteQuery = (searchQuery: unknown, force = false) => {
@@ -258,7 +220,7 @@ export const useSearchEngine = (props: any) => {
     })
 
     if (!isFiled) {
-      const url = encodeURI(toFormatUrl()) // 修改页面url
+      const url = encodeConditionFilterQuery(formModel.value, props.columns)
       router.replace({
         query: {
           ...route.query,
