@@ -32,6 +32,11 @@ export type ConditionTerm = {
 export interface ConditionTermOption {
   label: string
   value: string
+  readableLabel?: string
+  shortDescription?: string
+  description?: string
+  isArray?: boolean
+  isNullary?: boolean
 }
 
 export type ConditionOptionDisplayFieldResolver = string | ((item: Record<string, any>) => any)

@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import ValueItem from '../Search/Filter/ValueItem.vue'
-import { getDefaultTermType, isArrayTermType, TermTypeOptions } from '../Search/Filter/setting'
+import {
+  getConditionFilterDefaultTermType,
+  getReadableTermTypeLabel,
+  getTermTypeOption,
+  isArrayTermType,
+  isNullaryTermType,
+  normalizeTermTypeOption,
+} from '../Search/Filter/setting'
 import { useColumnsMap } from '../Search/Filter/hooks/useSearchEngine'
 import type { SearchItem } from '../Search/Filter/typing'
 import type { ConditionFilterField, ConditionFilterTerm } from './types'
 import { resolveConditionFields } from './schema'
-
-const nullaryTermTypes = new Set(['isnull', 'notnull'])
 
 const props = defineProps({
   fields: {
@@ -55,6 +60,7 @@ const currentColumn = computed(() => {
 
 const currentSearchType = computed(() => currentColumn.value?.search?.type || 'string')
 const isDirectInputMode = computed(() => currentSearchType.value === 'string')
+const needsValueInput = computed(() => !isNullaryTermType(draftTermType.value))
 const valuePlaceholder = computed(() => currentColumn.value?.search?.componentProps?.placeholder || '输入筛选值')
 
 const fieldOptions = computed(() => {
@@ -72,13 +78,27 @@ const getTermTypeOptions = (column?: ConditionFilterField) => {
   }
 
   if (search.termOptions?.length) {
-    return search.termOptions
+    return search.termOptions.map((option) => {
+      const nextOption = normalizeTermTypeOption(option)
+      return {
+        ...nextOption,
+        label: nextOption.readableLabel || nextOption.label || getReadableTermTypeLabel(nextOption.value),
+      }
+    })
   }
 
   const filterKeys = search.termFilter || []
-  const optionKeys = search.termTypeOptions || getDefaultTermType(search.type)
+  const optionKeys = search.termTypeOptions || getConditionFilterDefaultTermType(search.type)
 
-  return TermTypeOptions.filter(item => optionKeys.includes(item.value) && !filterKeys.includes(item.value))
+  return optionKeys
+    .filter(item => !filterKeys.includes(item))
+    .map((value) => {
+      const option = normalizeTermTypeOption(getTermTypeOption(value) || { label: value, value })
+      return {
+        ...option,
+        label: option.readableLabel || option.label || getReadableTermTypeLabel(option.value),
+      }
+    })
 }
 
 const termTypeOptions = computed(() => getTermTypeOptions(currentColumn.value))
@@ -97,7 +117,7 @@ const cloneValue = (value: any) => {
 }
 
 const buildInitialValue = (termType?: string, value?: any) => {
-  if (nullaryTermTypes.has(termType || '')) {
+  if (isNullaryTermType(termType)) {
     return undefined
   }
 
@@ -117,7 +137,7 @@ const convertValue = (oldTermType?: string, newTermType?: string, currentValue?:
     return buildInitialValue(newTermType, currentValue)
   }
 
-  if (nullaryTermTypes.has(newTermType)) {
+  if (isNullaryTermType(newTermType)) {
     return undefined
   }
 
@@ -172,7 +192,7 @@ const syncFromProps = () => {
     props.term?.termType ||
     search.defaultTermType ||
     getTermTypeOptions(column)[0]?.value ||
-    getDefaultTermType(search.type)[0] ||
+    getConditionFilterDefaultTermType(search.type)[0] ||
     'eq'
 
   draftTermType.value = defaultTermType
@@ -210,7 +230,7 @@ const onColumnSelect = (value?: string) => {
   const nextTermType =
     search?.defaultTermType ||
     getTermTypeOptions(column)[0]?.value ||
-    (search ? getDefaultTermType(search.type)[0] : undefined) ||
+    (search ? getConditionFilterDefaultTermType(search.type)[0] : undefined) ||
     'eq'
   const nextValue = buildInitialValue(nextTermType, search?.defaultValue)
 
@@ -263,9 +283,9 @@ watch(
 )
 
 watch(
-  () => [draftColumn.value, draftTermType.value, isDirectInputMode.value],
+  () => [draftColumn.value, draftTermType.value, isDirectInputMode.value, needsValueInput.value],
   () => {
-    if (isDirectInputMode.value) {
+    if (isDirectInputMode.value && needsValueInput.value) {
       focusValueInput()
     }
   },
@@ -274,7 +294,7 @@ watch(
 watch(
   () => draftValue.value,
   () => {
-    if (!isDirectInputMode.value && draftColumn.value && draftTermType.value) {
+    if (!isDirectInputMode.value && needsValueInput.value && draftColumn.value && draftTermType.value) {
       emitTerm()
     }
   },
@@ -306,7 +326,7 @@ watch(
       :dropdownMatchSelectWidth="false"
       @change="onTermTypeChange"
     />
-    <div class="condition-inline-composer__value">
+    <div v-if="needsValueInput" class="condition-inline-composer__value">
       <div class="condition-inline-composer__value-content">
         <slot
           name="value"
@@ -337,10 +357,10 @@ watch(
           />
         </slot>
       </div>
-      <button class="condition-inline-composer__clear" type="button" :disabled="disabled" @click="emit('cancel')">
-        <AIcon type="CloseOutlined" />
-      </button>
     </div>
+    <button class="condition-inline-composer__clear" type="button" :disabled="disabled" @click="emit('cancel')">
+      <AIcon type="CloseOutlined" />
+    </button>
   </div>
 </template>
 
