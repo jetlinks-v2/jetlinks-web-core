@@ -1,4 +1,5 @@
 <script setup name="FilterItem">
+import { useI18n } from 'vue-i18n'
 import Column from './Column.vue';
 import TermType from './TermType.vue';
 import Value from './Value.vue';
@@ -28,10 +29,12 @@ const props = defineProps({
   }
 })
 
-const typeOptions = [
-  { label: '并且', value: 'and'},
-  { label: '或者', value: 'or'}
-]
+const { t: $t } = useI18n()
+
+const typeOptions = computed(() => [
+  { label: $t('components.SearchFilter.logic.and'), value: 'and'},
+  { label: $t('components.SearchFilter.logic.or'), value: 'or'}
+])
 
 const convertValue = (oldTermType, newTermType, currentValue) => {
   if (oldTermType === newTermType) {
@@ -60,7 +63,12 @@ const convertValue = (oldTermType, newTermType, currentValue) => {
 }
 
 const { updateTermValue, removeItem } = useEngines()
-const typeOptionsMap = ref({})
+const typeOptionsMap = computed(() => {
+  return typeOptions.value.reduce((acc, item) => {
+    acc[item.value] = item.label
+    return acc
+  }, {})
+})
 
 const onTypeChange = ({ key }) => {
   updateTermValue(key, props.index, 'type')
@@ -79,14 +87,6 @@ const onValueChange = (value) => {
 const onCloseTermItem = () => {
   removeItem(props.index)
 }
-
-const init = () => {
-  typeOptions.forEach((item) => {
-    typeOptionsMap.value[item.value] = item.label
-  })
-}
-
-init()
 
 </script>
 

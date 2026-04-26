@@ -2,6 +2,7 @@
 import type { PropType } from 'vue'
 import dayjs from 'dayjs'
 import { isRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { request } from '@jetlinks-web/core'
 import { randomString } from '@jetlinks-web/utils'
 import {
@@ -64,7 +65,7 @@ const props = defineProps({
   },
   placeholder: {
     type: String,
-    default: '点击添加筛选条件',
+    default: '',
   },
   commonFields: {
     type: Array as PropType<ConditionFilterCommonField[]>,
@@ -82,20 +83,19 @@ const emit = defineEmits<{
   (e: 'change', value: ConditionFilterChangePayload): void
 }>()
 
-const logicOptions = [
-  { label: '并且', value: 'and' },
-  { label: '或者', value: 'or' },
-]
+const { t: $t } = useI18n()
 
-const logicLabelMap = logicOptions.reduce<Record<string, string>>((acc, item) => {
-  acc[item.value] = item.label
-  return acc
-}, {})
+const resolvedPlaceholder = computed(() => props.placeholder || $t('components.ConditionFilter.placeholder.add'))
 
-const logicCompactLabelMap = {
-  and: '且',
-  or: '或',
-}
+const logicOptions = computed(() => [
+  { label: $t('components.ConditionFilter.logic.and'), value: 'and' },
+  { label: $t('components.ConditionFilter.logic.or'), value: 'or' },
+])
+
+const logicCompactLabelMap = computed(() => ({
+  and: $t('components.ConditionFilter.logic.andCompact'),
+  or: $t('components.ConditionFilter.logic.orCompact'),
+}))
 
 const termsModel = ref<ConditionFilterTerm[]>([])
 const rootRef = ref<HTMLElement>()
@@ -477,7 +477,9 @@ const countGroupLeaves = (term?: ConditionFilterTerm): number => {
 
 const getGroupLabel = (term?: ConditionFilterTerm) => {
   const total = countGroupLeaves(term)
-  return total ? `条件组（${total}项）` : '条件组'
+  return total
+    ? $t('components.ConditionFilter.group.withCount', { total })
+    : $t('components.ConditionFilter.group.default')
 }
 
 const isTermTypeSelected = (term: ConditionFilterTerm, termType: string) => {
@@ -509,7 +511,7 @@ const getTermTypeTooltip = (termType?: string, column?: ConditionFilterField) =>
 }
 
 const getValuePlaceholder = (term: ConditionFilterTerm) => {
-  return getTermColumn(term)?.search?.componentProps?.placeholder || '输入筛选值'
+  return getTermColumn(term)?.search?.componentProps?.placeholder || $t('components.ConditionFilter.placeholder.value')
 }
 
 const getOptionList = (column?: ConditionFilterField) => {
@@ -651,39 +653,39 @@ const getPresetDateRangeLabel = (start: dayjs.Dayjs, end: dayjs.Dayjs) => {
   const recent30DaysStart = today.subtract(29, 'day').startOf('day')
 
   if (isExactDateRange(start, end, todayStart, todayEnd)) {
-    return '今日'
+    return $t('components.ConditionFilter.date.today')
   }
 
   if (isExactDateRange(start, end, yesterdayStart, yesterdayEnd)) {
-    return '昨日'
+    return $t('components.ConditionFilter.date.yesterday')
   }
 
   if (isExactDateRange(start, end, thisWeek.start, thisWeek.end)) {
-    return '本周'
+    return $t('components.ConditionFilter.date.thisWeek')
   }
 
   if (isExactDateRange(start, end, lastWeek.start, lastWeek.end)) {
-    return '上周'
+    return $t('components.ConditionFilter.date.lastWeek')
   }
 
   if (isExactDateRange(start, end, thisMonthStart, thisMonthEnd)) {
-    return '本月'
+    return $t('components.ConditionFilter.date.thisMonth')
   }
 
   if (isExactDateRange(start, end, lastMonthStart, lastMonthEnd)) {
-    return '上月'
+    return $t('components.ConditionFilter.date.lastMonth')
   }
 
   if (isExactDateRange(start, end, thisYearStart, thisYearEnd)) {
-    return '本年'
+    return $t('components.ConditionFilter.date.thisYear')
   }
 
   if (isExactDateRange(start, end, recent7DaysStart, todayEnd)) {
-    return '近7天'
+    return $t('components.ConditionFilter.date.last7Days')
   }
 
   if (isExactDateRange(start, end, recent30DaysStart, todayEnd)) {
-    return '近30天'
+    return $t('components.ConditionFilter.date.last30Days')
   }
 
   return undefined
@@ -706,7 +708,7 @@ const getDateRangeLabel = (column: ConditionFilterField | undefined, startValue:
 
   if (searchType === 'date') {
     if (start.isSame(end, 'day')) {
-      return `${start.format('YYYY-MM-DD')}（当天）`
+      return `${start.format('YYYY-MM-DD')}${$t('components.ConditionFilter.date.sameDaySuffix')}`
     }
 
     if (start.isSame(end, 'year')) {
@@ -1818,7 +1820,7 @@ onUnmounted(() => {
                 <input
                   class="condition-filter__text-input"
                   :value="fieldKeyword"
-                  :placeholder="getFieldLabel(term.column) || placeholder"
+                  :placeholder="getFieldLabel(term.column) || resolvedPlaceholder"
                   data-condition-focusable="true"
                   @blur="onFieldBlur"
                   @click="fieldPanelOpen = true"
@@ -2005,7 +2007,7 @@ onUnmounted(() => {
             <input
               class="condition-filter__text-input condition-filter__text-input--tail"
               :value="fieldKeyword"
-              :placeholder="placeholder"
+              :placeholder="resolvedPlaceholder"
               data-condition-focusable="true"
               @blur="onTailBlur"
               @click="onTailActivate"
@@ -2028,7 +2030,7 @@ onUnmounted(() => {
           v-else-if="disabled && !termsModel.length"
           class="condition-filter__placeholder"
         >
-          {{ placeholder }}
+          {{ resolvedPlaceholder }}
         </span>
       </div>
 

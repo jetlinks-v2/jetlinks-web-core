@@ -14,7 +14,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['change'])
-const optionsMap = ref({})
 
 const onClick = ({ key }) => {
   emit('change', key)
@@ -43,13 +42,12 @@ const options = computed(() => {
   return getOptionsByType(search.type, filterKeys)
 })
 
-const init = () => {
-  TermTypeOptions.forEach((item) => {
-    optionsMap.value[item.value] = item.label
-  })
-}
-
-init()
+const optionsMap = computed(() => {
+  return TermTypeOptions.reduce<Record<string, string>>((acc, item) => {
+    acc[item.value] = item.label
+    return acc
+  }, {})
+})
 
 </script>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts" name="PropertyFilter">
 import type { PropType } from 'vue'
 import dayjs from 'dayjs'
+import { useI18n } from 'vue-i18n'
 import FilterDropdownPanel from './FilterDropdownPanel.vue'
 import { useSearchEngine } from './hooks/useSearchEngine'
 import { buildIdToTitle, normalizeOptionTree } from './utils'
@@ -23,6 +24,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['search', 'update:params'])
+const { t: $t } = useI18n()
 
 const keyword = ref('')
 const openColumnKey = ref<string>()
@@ -40,15 +42,17 @@ const {
   clearItems,
 } = useSearchEngine(props)
 
-const typeOptions = [
-  { label: '并且', value: 'and' },
-  { label: '或者', value: 'or' },
-]
+const typeOptions = computed(() => [
+  { label: $t('components.SearchFilter.logic.and'), value: 'and' },
+  { label: $t('components.SearchFilter.logic.or'), value: 'or' },
+])
 
-const typeOptionsMap = typeOptions.reduce<Record<string, string>>((acc, item) => {
-  acc[item.value] = item.label
-  return acc
-}, {})
+const typeOptionsMap = computed<Record<string, string>>(() => {
+  return typeOptions.value.reduce<Record<string, string>>((acc, item) => {
+    acc[item.value] = item.label
+    return acc
+  }, {})
+})
 
 const termTypeLabelMap = TermTypeOptions.reduce<Record<string, string>>((acc, item) => {
   acc[item.value] = item.label
@@ -302,7 +306,7 @@ defineExpose({
           v-model:value="keyword"
           allow-clear
           class="property-filter__search"
-          placeholder="搜索"
+          :placeholder="$t('components.SearchFilter.property.searchPlaceholder')"
           @pressEnter="onKeywordSearch"
         >
           <template #prefix>
@@ -310,7 +314,7 @@ defineExpose({
           </template>
         </a-input>
         <button class="property-filter__clear" type="button" @click="onClearAll">
-          清除筛选条件
+          {{ $t('components.SearchFilter.property.clear') }}
         </button>
       </div>
     </div>

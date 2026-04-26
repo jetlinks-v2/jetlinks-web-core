@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ValueItem from '../Search/Filter/ValueItem.vue'
 import {
   getConditionFilterDefaultTermType,
@@ -29,7 +30,7 @@ const props = defineProps({
   },
   placeholder: {
     type: String,
-    default: '添加筛选条件',
+    default: '',
   },
   disabled: {
     type: Boolean,
@@ -43,6 +44,7 @@ const emit = defineEmits<{
   (e: 'columnChange', value?: string): void
 }>()
 
+const { t: $t } = useI18n()
 const columnsMap = useColumnsMap()
 const rootRef = ref()
 const draftColumn = ref<string>()
@@ -61,7 +63,8 @@ const currentColumn = computed(() => {
 const currentSearchType = computed(() => currentColumn.value?.search?.type || 'string')
 const isDirectInputMode = computed(() => currentSearchType.value === 'string')
 const needsValueInput = computed(() => !isNullaryTermType(draftTermType.value))
-const valuePlaceholder = computed(() => currentColumn.value?.search?.componentProps?.placeholder || '输入筛选值')
+const resolvedPlaceholder = computed(() => props.placeholder || $t('components.ConditionFilter.placeholder.add'))
+const valuePlaceholder = computed(() => currentColumn.value?.search?.componentProps?.placeholder || $t('components.ConditionFilter.placeholder.value'))
 
 const fieldOptions = computed(() => {
   return resolvedFields.value.map(item => ({
@@ -307,7 +310,7 @@ watch(
     <a-select
       :value="draftColumn"
       class="condition-inline-composer__field"
-      :placeholder="placeholder"
+      :placeholder="resolvedPlaceholder"
       :options="fieldOptions"
       :disabled="disabled"
       :bordered="false"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { SearchItem } from '../Search/Filter/typing'
 import type { ConditionFilterField } from './types'
 import { resolveConditionFields } from './schema'
@@ -27,6 +28,7 @@ const emit = defineEmits<{
   (e: 'select', value: string): void
 }>()
 
+const { t: $t } = useI18n()
 const keyword = ref('')
 const resolvedFields = computed(() => resolveConditionFields(props.fields, props.columns))
 
@@ -46,13 +48,13 @@ const filteredColumns = computed(() => {
 
 <template>
   <div class="condition-field-panel">
-    <div v-if="showSearch" class="condition-field-panel__title">筛选字段</div>
+    <div v-if="showSearch" class="condition-field-panel__title">{{ $t('components.ConditionFilter.fieldSelect.title') }}</div>
     <a-input
       v-if="showSearch"
       v-model:value="keyword"
       allow-clear
       class="condition-field-panel__search"
-      placeholder="搜索字段"
+      :placeholder="$t('components.ConditionFilter.fieldSelect.searchPlaceholder')"
     >
       <template #prefix>
         <AIcon type="SearchOutlined" />
@@ -71,7 +73,7 @@ const filteredColumns = computed(() => {
         <span class="condition-field-panel__key">{{ column.dataIndex }}</span>
       </button>
       <div v-if="!filteredColumns.length" class="condition-field-panel__empty">
-        暂无可选字段
+        {{ $t('components.ConditionFilter.fieldSelect.empty') }}
       </div>
     </div>
   </div>

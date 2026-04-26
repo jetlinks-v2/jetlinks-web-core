@@ -1,5 +1,6 @@
 <script setup>
 import { Input, InputNumber } from 'ant-design-vue'
+import { useI18n } from 'vue-i18n'
 import Tree from './ValueComponents/Tree.vue'
 import DatePicker from './ValueComponents/DatePicker.vue'
 import RangePicker from './ValueComponents/RangePicker.vue'
@@ -33,6 +34,7 @@ const props = defineProps({
 const optionsContent = useColumnItemOptions()
 const columnsMap = useColumnsMap()
 const myValue = ref()
+const { t: $t } = useI18n()
 
 const emit = defineEmits(['change', 'update:value'])
 
@@ -119,7 +121,7 @@ watch(myValue, (val) => {
         v-bind="columnItem.search.componentProps"
         @change="(value) => onRangeNumberChange(value, 0)"
       />
-      <span class="filter-terms-value-item__range-separator">至</span>
+      <span class="filter-terms-value-item__range-separator">{{ $t('components.SearchFilter.valueItem.rangeTo') }}</span>
       <a-input-number
         :value="Array.isArray(myValue) ? myValue[1] : undefined"
         class="filter-terms-value-item__range-input"
@@ -164,7 +166,7 @@ watch(myValue, (val) => {
     <a-input v-else v-model:value="myValue" style="width:100%" @change="onInputChange" />
     <div v-if="showBtn" style="text-align: right;padding-right: 10px;">
       <a-button size="small" type="primary" @click="onSubmit">
-        确定
+        {{ $t('components.SearchFilter.valueItem.confirm') }}
       </a-button>
     </div>
   </div>
