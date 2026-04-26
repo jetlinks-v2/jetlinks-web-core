@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import type { SearchItem } from '../Search/Filter/typing'
+import type { ConditionFilterField } from './types'
+import { resolveConditionFields } from './schema'
 
 const props = defineProps({
+  fields: {
+    type: Array as PropType<ConditionFilterField[]>,
+    default: () => [],
+  },
   columns: {
     type: Array as PropType<SearchItem[]>,
     default: () => [],
@@ -22,16 +28,17 @@ const emit = defineEmits<{
 }>()
 
 const keyword = ref('')
+const resolvedFields = computed(() => resolveConditionFields(props.fields, props.columns))
 
 const filteredColumns = computed(() => {
   const rawKeyword = props.keyword !== undefined ? props.keyword : keyword.value
   const searchText = String(rawKeyword || '').trim().toLowerCase()
 
   if (!searchText) {
-    return props.columns
+    return resolvedFields.value
   }
 
-  return props.columns.filter((item) => {
+  return resolvedFields.value.filter((item) => {
     return `${item.title}${item.dataIndex}`.toLowerCase().includes(searchText)
   })
 })

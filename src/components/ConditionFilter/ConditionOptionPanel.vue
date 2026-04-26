@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
-import type { SearchOptionPanelConfig } from '../Search/Filter/typing'
-import { normalizeOptionTree } from '../Search/Filter/utils'
+import type { ConditionOptionPanelConfig } from './types'
+import {
+  getOptionDescriptionByFields,
+  getOptionIconByFields,
+  getOptionLabelByFields,
+  normalizeOptionItemsByFields,
+} from './option-display'
 
 type OptionItem = Record<string, any> & {
   value: string | number
@@ -20,7 +25,7 @@ const props = defineProps({
     default: () => [],
   },
   config: {
-    type: Object as PropType<SearchOptionPanelConfig | undefined>,
+    type: Object as PropType<ConditionOptionPanelConfig | undefined>,
     default: undefined,
   },
 })
@@ -33,20 +38,34 @@ const emit = defineEmits<{
 const keyword = ref('')
 const remoteOptions = ref<OptionItem[]>([])
 const selectedOptions = ref<OptionItem[]>([])
+const initialSelectedValues = ref<any[]>([])
 const innerLoading = ref(false)
+const loadingMore = ref(false)
+const hasMore = ref(false)
+const pageIndex = ref(0)
 
 let searchTimer: number | undefined
 let requestVersion = 0
 let selectedRequestVersion = 0
+let scrollGate = false
 
 const multiple = computed(() => props.config?.multiple !== false)
 const showSearch = computed(() => props.config?.showSearch !== false)
 const showCheckAll = computed(() => multiple.value && props.config?.showCheckAll !== false)
+const remotePageSize = computed(() => {
+  const pageSize = Number(props.config?.pageSize)
+  return Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 12
+})
+const queryDebounce = computed(() => {
+  const debounce = Number(props.config?.queryDebounce)
+  return Number.isFinite(debounce) && debounce >= 0 ? debounce : 260
+})
+const optionFields = computed(() => props.config?.optionFields)
 const keywordPlaceholder = computed(() => props.config?.keywordPlaceholder || '筛选条目')
 const emptyText = computed(() => props.config?.emptyText || '暂无可选项')
 const hintText = computed(() => props.config?.hintText || (props.config?.loadOptions ? '键入以查看更多' : ''))
 
-const normalizeOptions = (items: any[] = []) => normalizeOptionTree(items || []) as OptionItem[]
+const normalizeOptions = (items: any[] = []) => normalizeOptionItemsByFields(items || [], optionFields.value) as OptionItem[]
 
 const mergeOptions = (...groups: OptionItem[][]) => {
   const seen = new Set<string>()
@@ -77,11 +96,130 @@ const flattenOptions = (items: OptionItem[] = [], parents: string[] = []) => {
   })
 }
 
+const mergeDisplayOptions = (baseOptions: OptionItem[] = [], extraOptions: OptionItem[] = []) => {
+  const baseKeys = new Set(baseOptions.map(item => String(item.value)))
+  const missingOptions = extraOptions.filter(item => !baseKeys.has(String(item.value)))
+  return [...baseOptions, ...missingOptions]
+}
+
+const sortOptionsBySelectedValues = (items: OptionItem[] = [], values: any[] = []) => {
+  if (!values.length) {
+    return items
+  }
+
+  const orderMap = values.reduce((map, value, index) => {
+    map.set(String(value), index)
+    return map
+  }, new Map<string, number>())
+
+  return [...items].sort((left, right) => {
+    const leftIndex = orderMap.get(String(left.value))
+    const rightIndex = orderMap.get(String(right.value))
+
+    if (leftIndex === undefined && rightIndex === undefined) {
+      return 0
+    }
+
+    if (leftIndex === undefined) {
+      return 1
+    }
+
+    if (rightIndex === undefined) {
+      return -1
+    }
+
+    return leftIndex - rightIndex
+  })
+}
+
+const prioritizeOptionsByValues = (items: OptionItem[] = [], values: any[] = []) => {
+  if (!values.length) {
+    return items
+  }
+
+  const itemMap = items.reduce((map, item) => {
+    map.set(String(item.value), item)
+    return map
+  }, new Map<string, OptionItem>())
+
+  const prioritized: OptionItem[] = []
+  const prioritizedKeys = new Set<string>()
+
+  values.forEach((value) => {
+    const key = String(value)
+    const item = itemMap.get(key)
+
+    if (!item || prioritizedKeys.has(key)) {
+      return
+    }
+
+    prioritized.push(item)
+    prioritizedKeys.add(key)
+  })
+
+  if (!prioritized.length) {
+    return items
+  }
+
+  return [
+    ...prioritized,
+    ...items.filter(item => !prioritizedKeys.has(String(item.value))),
+  ]
+}
+
+const getCurrentValueKeys = (values: any[] = []) => new Set(values.map(value => String(value)))
+
+const getLocalSelectedOptions = (values: any[] = []) => {
+  if (!values.length) {
+    return []
+  }
+
+  const selectedKeys = getCurrentValueKeys(values)
+
+  return sortOptionsBySelectedValues(
+    mergeOptions(
+      flattenOptions(normalizeOptions(selectedOptions.value)),
+      flattenOptions(normalizeOptions(remoteOptions.value)),
+      flattenOptions(normalizeOptions(props.options)),
+    ).filter(item => selectedKeys.has(String(item.value))),
+    values,
+  )
+}
+
+const currentValues = computed(() => {
+  if (Array.isArray(props.value)) {
+    return props.value
+  }
+
+  return props.value === undefined || props.value === null || props.value === '' ? [] : [props.value]
+})
+
+initialSelectedValues.value = [...currentValues.value]
+
+const getOptionDescription = (option: OptionItem) => {
+  const description = getOptionDescriptionByFields(option, optionFields.value)
+  const label = getOptionLabelByFields(option, optionFields.value)
+  return description && description !== label ? description : ''
+}
+
+const getOptionIcon = (option: OptionItem) => getOptionIconByFields(option, optionFields.value)
+
+const isImageIcon = (icon?: string) => {
+  if (!icon) {
+    return false
+  }
+
+  return /^(https?:\/\/|data:image\/|\/)/.test(icon) || /\.(png|jpe?g|gif|svg|webp)$/i.test(icon)
+}
+
 const resolvedOptions = computed(() => {
   const rawOptions = props.config?.loadOptions ? remoteOptions.value : props.options
-  return mergeOptions(
-    flattenOptions(normalizeOptions(selectedOptions.value)),
-    flattenOptions(normalizeOptions(rawOptions)),
+  return prioritizeOptionsByValues(
+    mergeDisplayOptions(
+      flattenOptions(normalizeOptions(rawOptions)),
+      flattenOptions(normalizeOptions(selectedOptions.value)),
+    ),
+    initialSelectedValues.value,
   )
 })
 
@@ -93,16 +231,10 @@ const displayOptions = computed(() => {
   }
 
   return resolvedOptions.value.filter((item) => {
-    return `${item.label ?? ''}${item.value ?? ''}`.toLowerCase().includes(searchText)
+    return `${item.label ?? ''}${item.name ?? ''}${item.description ?? ''}${item.value ?? ''}`
+      .toLowerCase()
+      .includes(searchText)
   })
-})
-
-const currentValues = computed(() => {
-  if (Array.isArray(props.value)) {
-    return props.value
-  }
-
-  return props.value === undefined || props.value === null || props.value === '' ? [] : [props.value]
 })
 
 const currentValueMap = computed(() => {
@@ -130,8 +262,17 @@ const emitSubmit = (close = true) => {
   emit('submit', { close, allowEmpty: true })
 }
 
+const shouldDelayEmptySubmit = (value: any) => {
+  return multiple.value && Array.isArray(value) && value.length === 0
+}
+
 const updateValue = (value: any, close = true) => {
   emit('update:value', value)
+
+  if (shouldDelayEmptySubmit(value)) {
+    return
+  }
+
   emitSubmit(close)
 }
 
@@ -177,32 +318,130 @@ const onToggleAll = (event: any) => {
   updateValue(Array.from(nextMap.values()), false)
 }
 
-const loadRemoteOptions = async () => {
+const clearSearchTimer = () => {
+  if (searchTimer !== undefined) {
+    window.clearTimeout(searchTimer)
+    searchTimer = undefined
+  }
+}
+
+const loadRemoteOptions = async (
+  searchText = '',
+  options: {
+    reset?: boolean
+  } = {},
+) => {
   if (!props.config?.loadOptions) {
     return
   }
 
-  const version = ++requestVersion
-  innerLoading.value = true
+  const reset = options.reset !== false
+
+  if (!reset && (innerLoading.value || loadingMore.value || !hasMore.value)) {
+    return
+  }
+
+  const currentPageIndex = reset ? 0 : pageIndex.value
+  const version = reset ? ++requestVersion : requestVersion
+
+  if (reset) {
+    pageIndex.value = 0
+    hasMore.value = true
+  }
+
+  if (reset || !remoteOptions.value.length) {
+    innerLoading.value = true
+    loadingMore.value = false
+  } else {
+    loadingMore.value = true
+  }
 
   try {
-    const list = await props.config.loadOptions(keyword.value.trim())
+    const list = await props.config.loadOptions(searchText, {
+      pageIndex: currentPageIndex,
+      pageSize: remotePageSize.value,
+    })
 
     if (version !== requestVersion) {
       return
     }
 
-    remoteOptions.value = normalizeOptions(list)
+    const normalizedList = normalizeOptions(list)
+
+    remoteOptions.value = reset
+      ? normalizedList
+      : mergeOptions(remoteOptions.value, normalizedList)
+    pageIndex.value = currentPageIndex + 1
+    hasMore.value = normalizedList.length >= remotePageSize.value
+  } catch {
+    if (version !== requestVersion) {
+      return
+    }
+
+    if (reset) {
+      remoteOptions.value = []
+    }
+    hasMore.value = false
   } finally {
     if (version === requestVersion) {
       innerLoading.value = false
+      loadingMore.value = false
     }
   }
 }
 
+const scheduleLoadRemoteOptions = () => {
+  if (!props.config?.loadOptions) {
+    return
+  }
+
+  clearSearchTimer()
+
+  const searchText = keyword.value.trim()
+  const debounce = queryDebounce.value
+
+  if (debounce <= 0) {
+    loadRemoteOptions(searchText, { reset: true })
+    return
+  }
+
+  searchTimer = window.setTimeout(() => {
+    searchTimer = undefined
+    loadRemoteOptions(searchText, { reset: true })
+  }, debounce)
+}
+
+const onListScroll = (event: Event) => {
+  if (!props.config?.loadOptions || innerLoading.value || loadingMore.value || !hasMore.value) {
+    return
+  }
+
+  const target = event.target as HTMLElement
+  const threshold = 72
+
+  if (target.scrollHeight - target.scrollTop - target.clientHeight > threshold) {
+    return
+  }
+
+  if (scrollGate) {
+    return
+  }
+
+  scrollGate = true
+
+  loadRemoteOptions(keyword.value.trim(), { reset: false }).finally(() => {
+    requestAnimationFrame(() => {
+      scrollGate = false
+    })
+  })
+}
+
 const loadSelectedRemoteOptions = async () => {
+  const localSelected = getLocalSelectedOptions(currentValues.value)
+  const version = ++selectedRequestVersion
+
   if (!props.config?.loadSelectedOptions) {
-    selectedOptions.value = []
+    selectedOptions.value = localSelected
     return
   }
 
@@ -211,17 +450,23 @@ const loadSelectedRemoteOptions = async () => {
     return
   }
 
-  const version = ++selectedRequestVersion
+  selectedOptions.value = localSelected
 
   try {
     const list = await props.config.loadSelectedOptions(currentValues.value)
     if (version !== selectedRequestVersion) {
       return
     }
-    selectedOptions.value = normalizeOptions(list)
+    selectedOptions.value = sortOptionsBySelectedValues(
+      mergeOptions(
+        flattenOptions(normalizeOptions(list)),
+        flattenOptions(normalizeOptions(localSelected)),
+      ),
+      currentValues.value,
+    )
   } catch {
     if (version === selectedRequestVersion) {
-      selectedOptions.value = []
+      selectedOptions.value = localSelected
     }
   }
 }
@@ -229,13 +474,19 @@ const loadSelectedRemoteOptions = async () => {
 watch(
   () => props.config?.loadOptions,
   (loader) => {
+    clearSearchTimer()
+    requestVersion += 1
+
     if (!loader) {
       remoteOptions.value = []
       innerLoading.value = false
+      loadingMore.value = false
+      hasMore.value = false
+      pageIndex.value = 0
       return
     }
 
-    loadRemoteOptions()
+    scheduleLoadRemoteOptions()
   },
   { immediate: true },
 )
@@ -253,19 +504,13 @@ watch(keyword, () => {
     return
   }
 
-  if (searchTimer) {
-    window.clearTimeout(searchTimer)
-  }
-
-  searchTimer = window.setTimeout(() => {
-    loadRemoteOptions()
-  }, 260)
+  scheduleLoadRemoteOptions()
 })
 
 onUnmounted(() => {
-  if (searchTimer) {
-    window.clearTimeout(searchTimer)
-  }
+  clearSearchTimer()
+  requestVersion += 1
+  selectedRequestVersion += 1
 })
 </script>
 
@@ -297,7 +542,7 @@ onUnmounted(() => {
     </div>
 
     <a-spin :spinning="innerLoading">
-      <div class="condition-option-panel__list">
+      <div class="condition-option-panel__list" @scroll.passive="onListScroll">
         <button
           v-for="option in displayOptions"
           :key="String(option.value)"
@@ -312,11 +557,24 @@ onUnmounted(() => {
             :checked="checkedValueSet.has(String(option.value))"
             :disabled="option.disabled"
           />
-          <span class="condition-option-panel__label">{{ option.label }}</span>
+          <span v-if="getOptionIcon(option)" class="condition-option-panel__icon">
+            <img v-if="isImageIcon(getOptionIcon(option))" :src="getOptionIcon(option)" alt="" />
+            <AIcon v-else :type="getOptionIcon(option)" />
+          </span>
+          <span class="condition-option-panel__content">
+            <span class="condition-option-panel__label">{{ option.label }}</span>
+            <span v-if="getOptionDescription(option)" class="condition-option-panel__description">
+              {{ getOptionDescription(option) }}
+            </span>
+          </span>
         </button>
 
         <div v-if="!displayOptions.length && !innerLoading" class="condition-option-panel__empty">
           {{ emptyText }}
+        </div>
+
+        <div v-else-if="loadingMore" class="condition-option-panel__more">
+          正在加载更多...
         </div>
       </div>
     </a-spin>
@@ -346,6 +604,7 @@ onUnmounted(() => {
   &__list {
     display: flex;
     flex-direction: column;
+    gap: 6px;
     max-height: 260px;
     overflow-y: auto;
     margin: 0 -4px;
@@ -382,15 +641,46 @@ onUnmounted(() => {
   }
 
   &__label {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
     font-size: 14px;
+    line-height: 20px;
+  }
+
+  &__content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  &__description {
+    overflow: hidden;
+    color: #86909c;
+    font-size: 12px;
+    line-height: 18px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: #4080ff;
+    flex-shrink: 0;
+
+    img {
+      width: 18px;
+      height: 18px;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+  }
+
   &__empty,
+  &__more,
   &__hint {
     padding: 4px 8px 0;
     color: #86909c;

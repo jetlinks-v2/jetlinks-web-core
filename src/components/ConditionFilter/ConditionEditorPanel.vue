@@ -3,7 +3,7 @@ import type { PropType } from 'vue'
 import ValueItem from '../Search/Filter/ValueItem.vue'
 import { isArrayTermType } from '../Search/Filter/setting'
 import { useColumnItemOptions, useColumnsMap } from '../Search/Filter/hooks/useSearchEngine'
-import type { TermsItem } from '../Search/Filter/typing'
+import type { ConditionFilterTerm } from './types'
 
 const props = defineProps({
   column: {
@@ -11,13 +11,14 @@ const props = defineProps({
     default: undefined,
   },
   term: {
-    type: Object as PropType<TermsItem | undefined>,
+    type: Object as PropType<ConditionFilterTerm | undefined>,
     default: undefined,
   },
 })
 
 const emit = defineEmits<{
-  (e: 'apply', value: TermsItem, options?: { close?: boolean; allowEmpty?: boolean }): void
+  (e: 'apply', value: ConditionFilterTerm, options?: { close?: boolean; allowEmpty?: boolean }): void
+  (e: 'draft-change', value?: ConditionFilterTerm): void
 }>()
 
 const columnsMap = useColumnsMap()
@@ -107,10 +108,31 @@ const onSubmit = (options?: { close?: boolean; allowEmpty?: boolean }) => {
   )
 }
 
+const emitDraftChange = () => {
+  if (!props.column) {
+    emit('draft-change', undefined)
+    return
+  }
+
+  emit('draft-change', {
+    column: props.column,
+    termType: termType.value,
+    value: cloneValue(draftValue.value),
+  })
+}
+
 watch(
   () => [props.column, props.term?.termType, props.term?.value],
   () => {
     initDraft()
+  },
+  { immediate: true, deep: true },
+)
+
+watch(
+  () => [props.column, termType.value, draftValue.value],
+  () => {
+    emitDraftChange()
   },
   { immediate: true, deep: true },
 )

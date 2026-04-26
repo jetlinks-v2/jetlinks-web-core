@@ -6,14 +6,23 @@ import { request } from '@jetlinks-web/core'
 import { randomString } from '@jetlinks-web/utils'
 import { getDefaultTermType, isArrayTermType, TermTypeOptions } from '../Search/Filter/setting'
 import { useColumnItemOptionsContext, useColumnsMapContext } from '../Search/Filter/hooks/useSearchEngine'
-import type { SearchItem, TermsItem } from '../Search/Filter/typing'
 import ConditionEditorPanel from './ConditionEditorPanel.vue'
 import FieldSelectPanel from './FieldSelectPanel.vue'
-import type { ConditionFilterChangePayload, ConditionFilterCommonField, ConditionFilterExpose } from './types'
+import { normalizeOptionItemsByFields, resolveOptionDisplayFields } from './option-display'
+import { resolveConditionFields } from './schema'
+import type {
+  ConditionFilterChangePayload,
+  ConditionFilterCommonField,
+  ConditionFilterExpose,
+  ConditionFilterField,
+  ConditionFilterTerm,
+} from './types'
+import type { SearchItem } from '../Search/Filter/typing'
 import {
   buildQueryFilter,
   buildWhereExpression,
   cloneTerms,
+  isConditionGroup,
   isSameTerms,
   normalizeInputTerms,
   parseWhereExpression,
@@ -29,12 +38,16 @@ const fieldBlurLock = ref(false)
 const autoSearchDelay = 260
 
 const props = defineProps({
+  fields: {
+    type: Array as PropType<ConditionFilterField[]>,
+    default: () => [],
+  },
   columns: {
     type: Array as PropType<SearchItem[]>,
     default: () => [],
   },
   modelValue: {
-    type: Array as PropType<TermsItem[]>,
+    type: Array as PropType<ConditionFilterTerm[]>,
     default: () => [],
   },
   where: {
@@ -56,7 +69,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: TermsItem[]): void
+  (e: 'update:modelValue', value: ConditionFilterTerm[]): void
   (e: 'update:where', value: string): void
   (e: 'change', value: ConditionFilterChangePayload): void
 }>()
@@ -81,7 +94,7 @@ const termTypeLabelMap = TermTypeOptions.reduce<Record<string, string>>((acc, it
   return acc
 }, {})
 
-const termsModel = ref<TermsItem[]>([])
+const termsModel = ref<ConditionFilterTerm[]>([])
 const rootRef = ref<HTMLElement>()
 
 const editorMode = ref<EditorMode>('tail')
@@ -90,18 +103,22 @@ const fieldKeyword = ref('')
 const valueKeyword = ref('')
 const fieldPanelOpen = ref(false)
 const valuePanelTermKey = ref<string>()
+const valuePanelOpenVersion = ref(0)
 
-const columnsMap = reactive<Record<string, SearchItem>>({})
+const columnsMap = reactive<Record<string, ConditionFilterField>>({})
 const optionsMap = reactive<Record<string, any[]>>({})
 const loadingMap = reactive<Record<string, boolean>>({})
+const valueDraftMap = reactive<Record<string, ConditionFilterTerm | undefined>>({})
 const watchDisposers = new Map<string, () => void>()
 let autoSearchTimer: number | undefined
 
 useColumnsMapContext(columnsMap)
 useColumnItemOptionsContext(optionsMap)
 
+const resolvedFields = computed(() => resolveConditionFields(props.fields, props.columns))
+
 const searchColumns = computed(() => {
-  return props.columns
+  return resolvedFields.value
     .map((column, index) => ({
       ...column,
       sortIndex: index,
@@ -166,14 +183,14 @@ const fieldOptions = computed(() => {
 })
 
 const payload = computed<ConditionFilterChangePayload>(() => {
-  const filter = buildQueryFilter(termsModel.value, props.columns)
+  const filter = buildQueryFilter(termsModel.value, resolvedFields.value)
   const terms = cloneTerms(filter.terms, { stripKey: true })
   return {
     terms,
     filter: {
       terms,
     },
-    where: buildWhereExpression(termsModel.value, props.columns),
+    where: buildWhereExpression(termsModel.value, resolvedFields.value),
   }
 })
 
@@ -195,7 +212,11 @@ const isNilValue = (value: any) => {
   return value === undefined || value === null || value === ''
 }
 
-const hasTermValue = (item?: TermsItem) => {
+const hasTermValue = (item?: ConditionFilterTerm) => {
+  if (isConditionGroup(item)) {
+    return Array.isArray(item.terms) && item.terms.some(child => hasTermValue(child))
+  }
+
   if (!item?.termType) {
     return false
   }
@@ -215,7 +236,7 @@ const hasTermValue = (item?: TermsItem) => {
   return !isNilValue(item.value)
 }
 
-const getTermKey = (term: TermsItem) => term.key || ''
+const getTermKey = (term: ConditionFilterTerm) => term.key || ''
 
 const getTermIndex = (termKey?: string) => {
   return termsModel.value.findIndex(item => item.key === termKey)
@@ -226,11 +247,11 @@ const getTerm = (termKey?: string) => {
   return index === -1 ? undefined : termsModel.value[index]
 }
 
-const getTermColumn = (term?: TermsItem) => {
+const getTermColumn = (term?: ConditionFilterTerm) => {
   return term?.column ? columnsMap[term.column] : undefined
 }
 
-const getTermTypeOptions = (column?: SearchItem) => {
+const getTermTypeOptions = (column?: ConditionFilterField) => {
   const search = column?.search
 
   if (!search) {
@@ -247,7 +268,7 @@ const getTermTypeOptions = (column?: SearchItem) => {
   return TermTypeOptions.filter(item => optionKeys.includes(item.value) && !filterKeys.includes(item.value))
 }
 
-const getRecommendedTermType = (column?: SearchItem) => {
+const getRecommendedTermType = (column?: ConditionFilterField) => {
   const search = column?.search
 
   if (!column || !search) {
@@ -255,6 +276,16 @@ const getRecommendedTermType = (column?: SearchItem) => {
   }
 
   const options = getTermTypeOptions(column)
+  if (typeof search.recommendTermType === 'function') {
+    return search.recommendTermType(column, { options }) || search.defaultTermType || options[0]?.value
+  }
+
+  if (typeof search.recommendTermType === 'string') {
+    return options.some(item => item.value === search.recommendTermType)
+      ? search.recommendTermType
+      : search.defaultTermType || options[0]?.value
+  }
+
   const optionValues = options.map(item => item.value)
   const searchType = search.type
   const columnKey = column.dataIndex.toLowerCase()
@@ -342,11 +373,11 @@ const convertValue = (oldTermType?: string, newTermType?: string, currentValue?:
   return isRangeType ? [currentValue, undefined] : [currentValue]
 }
 
-const isDirectTextTerm = (column?: SearchItem, termType?: string) => {
+const isDirectTextTerm = (column?: ConditionFilterField, termType?: string) => {
   return column?.search?.type === 'string' && !!termType && !nullaryTermTypes.has(termType) && !isArrayTermType(termType)
 }
 
-const isPopupValueTerm = (column?: SearchItem, termType?: string) => {
+const isPopupValueTerm = (column?: ConditionFilterField, termType?: string) => {
   return !!column?.search && !!termType && !nullaryTermTypes.has(termType) && !isDirectTextTerm(column, termType)
 }
 
@@ -355,16 +386,33 @@ const getFieldLabel = (columnKey?: string) => {
   return column?.title || column?.dataIndex || ''
 }
 
-const getTermTypeLabel = (term: TermsItem) => {
+const countGroupLeaves = (term?: ConditionFilterTerm): number => {
+  if (!term) {
+    return 0
+  }
+
+  if (!isConditionGroup(term)) {
+    return 1
+  }
+
+  return (term.terms || []).reduce((total, item) => total + countGroupLeaves(item), 0)
+}
+
+const getGroupLabel = (term?: ConditionFilterTerm) => {
+  const total = countGroupLeaves(term)
+  return total ? `条件组（${total}项）` : '条件组'
+}
+
+const getTermTypeLabel = (term: ConditionFilterTerm) => {
   const options = getTermTypeOptions(getTermColumn(term))
   return options.find(item => item.value === term.termType)?.label || termTypeLabelMap[term.termType || ''] || '--'
 }
 
-const isTermTypeSelected = (term: TermsItem, termType: string) => {
+const isTermTypeSelected = (term: ConditionFilterTerm, termType: string) => {
   return term.termType === termType
 }
 
-const isLogicTypeSelected = (term: TermsItem, value: string) => {
+const isLogicTypeSelected = (term: ConditionFilterTerm, value: string) => {
   return (term.type || 'and') === value
 }
 
@@ -389,11 +437,11 @@ const getReadableTermTypeLabel = (termType?: string) => {
   return readableMap[termType || ''] || termTypeLabelMap[termType || ''] || '--'
 }
 
-const getValuePlaceholder = (term: TermsItem) => {
+const getValuePlaceholder = (term: ConditionFilterTerm) => {
   return getTermColumn(term)?.search?.componentProps?.placeholder || '输入筛选值'
 }
 
-const getOptionList = (column?: SearchItem) => {
+const getOptionList = (column?: ConditionFilterField) => {
   const key = column?.dataIndex
   if (!key) {
     return []
@@ -404,19 +452,14 @@ const getOptionList = (column?: SearchItem) => {
   }
 
   if (Array.isArray(column?.search?.options)) {
-    return column?.search?.options || []
+    return normalizeOptionItems(column?.search?.options || [], column)
   }
 
   return []
 }
 
-const normalizeOptionItems = (items: any[] = []) => {
-  return items.map((item: any) => ({
-    ...item,
-    label: item?.label ?? item?.text ?? item?.name ?? item?.title ?? item?.value ?? item?.id,
-    value: item?.value ?? item?.id,
-  }))
-}
+const normalizeOptionItems = (items: any[] = [], column?: ConditionFilterField) =>
+  normalizeOptionItemsByFields(items, resolveOptionDisplayFields(column))
 
 const mergeOptionItems = (...groups: any[][]) => {
   const seen = new Set<string>()
@@ -431,7 +474,21 @@ const mergeOptionItems = (...groups: any[][]) => {
   })
 }
 
-const getOptionLabel = (column: SearchItem | undefined, value: any) => {
+const hasResolvedOptionValues = (column: ConditionFilterField | undefined, values: any[] = []) => {
+  const normalizedValues = values.filter(value => !isNilValue(value)).map(value => String(value))
+
+  if (!column?.dataIndex || !normalizedValues.length) {
+    return false
+  }
+
+  const optionValueSet = new Set(
+    getOptionList(column).map((item: Record<string, any>) => String(item?.value ?? item?.id)),
+  )
+
+  return normalizedValues.every(value => optionValueSet.has(value))
+}
+
+const getOptionLabel = (column: ConditionFilterField | undefined, value: any) => {
   const option = getOptionList(column).find((item: Record<string, any>) => {
     const optionValue = item?.value ?? item?.id
     return String(optionValue) === String(value)
@@ -444,9 +501,13 @@ const getOptionLabel = (column: SearchItem | undefined, value: any) => {
   return String(option.label ?? option.name ?? option.title ?? option.value ?? option.id)
 }
 
-const formatScalarValue = (column: SearchItem | undefined, value: any) => {
+const formatScalarValue = (column: ConditionFilterField | undefined, value: any, term?: ConditionFilterTerm) => {
   if (isNilValue(value)) {
     return ''
+  }
+
+  if (column?.search?.formatValuePreview && term) {
+    return column.search.formatValuePreview(value, term, column)
   }
 
   const searchType = column?.search?.type
@@ -465,7 +526,7 @@ const formatScalarValue = (column: SearchItem | undefined, value: any) => {
   return String(value)
 }
 
-const getValueLabel = (term: TermsItem) => {
+const getValueLabel = (term: ConditionFilterTerm) => {
   const column = getTermColumn(term)
 
   if (!term.termType || nullaryTermTypes.has(term.termType) || !hasTermValue(term)) {
@@ -473,12 +534,46 @@ const getValueLabel = (term: TermsItem) => {
   }
 
   if (Array.isArray(term.value)) {
-    const values = term.value.filter(item => !isNilValue(item)).map(item => formatScalarValue(column, item))
+    const values = term.value.filter(item => !isNilValue(item)).map(item => formatScalarValue(column, item, term))
     return ['btw', 'nbtw'].includes(term.termType) ? values.join(' ~ ') : values.join('、')
   }
 
-  return formatScalarValue(column, term.value)
+  return formatScalarValue(column, term.value, term)
 }
+
+const setValueDraft = (termKey: string, draft?: ConditionFilterTerm) => {
+  if (!termKey) {
+    return
+  }
+
+  if (!draft) {
+    delete valueDraftMap[termKey]
+    return
+  }
+
+  valueDraftMap[termKey] = {
+    ...draft,
+    key: termKey,
+  }
+}
+
+const getDisplayTerm = (term: ConditionFilterTerm) => {
+  const termKey = getTermKey(term)
+  const draft = termKey ? valueDraftMap[termKey] : undefined
+
+  if (!draft || valuePanelTermKey.value !== termKey) {
+    return term
+  }
+
+  return {
+    ...term,
+    ...draft,
+    key: termKey,
+  }
+}
+
+const getDisplayValueLabel = (term: ConditionFilterTerm) => getValueLabel(getDisplayTerm(term))
+const hasDisplayTermValue = (term: ConditionFilterTerm) => hasTermValue(getDisplayTerm(term))
 
 const syncColumnsContext = () => {
   watchDisposers.forEach(stop => stop())
@@ -501,7 +596,7 @@ const syncColumnsContext = () => {
   })
 }
 
-const createOptionsLoader = async (column: SearchItem | undefined, term?: TermsItem) => {
+const createOptionsLoader = async (column: ConditionFilterField | undefined, term?: ConditionFilterTerm) => {
   const key = column?.dataIndex
   const rawOptions = column?.search?.options
   const loadSelectedOptions = column?.search?.optionPanel?.loadSelectedOptions
@@ -519,7 +614,7 @@ const createOptionsLoader = async (column: SearchItem | undefined, term?: TermsI
     try {
       const resp = await request.get(`/dictionary/${column.search.dictId}/items`)
       const list = resp?.result || resp?.data || []
-      optionsMap[key] = Array.isArray(list) ? normalizeOptionItems(list) : []
+      optionsMap[key] = Array.isArray(list) ? normalizeOptionItems(list, column) : []
     } finally {
       loadingMap[key] = false
     }
@@ -532,7 +627,7 @@ const createOptionsLoader = async (column: SearchItem | undefined, term?: TermsI
   }
 
   if (Array.isArray(rawOptions)) {
-    optionsMap[key] = mergeOptionItems(rawOptions)
+    optionsMap[key] = mergeOptionItems(normalizeOptionItems(rawOptions, column))
     return
   }
 
@@ -544,7 +639,7 @@ const createOptionsLoader = async (column: SearchItem | undefined, term?: TermsI
 
     const stop = watch(
       rawOptions,
-      val => (optionsMap[key] = mergeOptionItems(optionsMap[key] || [], val || [])),
+      val => (optionsMap[key] = mergeOptionItems(optionsMap[key] || [], normalizeOptionItems(val || [], column))),
       { immediate: true },
     )
 
@@ -552,7 +647,7 @@ const createOptionsLoader = async (column: SearchItem | undefined, term?: TermsI
   } else if (typeof rawOptions === 'function' && !loadingMap[key]) {
     loadingMap[key] = true
     try {
-      optionsMap[key] = mergeOptionItems(await rawOptions())
+      optionsMap[key] = mergeOptionItems(normalizeOptionItems(await rawOptions(), column))
     } finally {
       loadingMap[key] = false
     }
@@ -560,24 +655,34 @@ const createOptionsLoader = async (column: SearchItem | undefined, term?: TermsI
 
   if (loadSelectedOptions && term && hasTermValue(term)) {
     const values = Array.isArray(term.value) ? term.value : [term.value]
+
+    if (hasResolvedOptionValues(column, values)) {
+      return
+    }
+
     const selectedItems = await loadSelectedOptions(values)
 
     if (Array.isArray(selectedItems) && selectedItems.length) {
-      optionsMap[key] = mergeOptionItems(optionsMap[key] || [], selectedItems)
+      optionsMap[key] = mergeOptionItems(optionsMap[key] || [], normalizeOptionItems(selectedItems, column))
     }
   }
 }
 
-const ensureTermOptionsLoaded = () => {
-  termsModel.value.forEach((term) => {
+const ensureTermOptionsLoaded = (terms: ConditionFilterTerm[] = termsModel.value) => {
+  terms.forEach((term) => {
+    if (isConditionGroup(term)) {
+      ensureTermOptionsLoaded(term.terms || [])
+      return
+    }
+
     createOptionsLoader(getTermColumn(term), term)
   })
 }
 
 const syncByProps = () => {
   const nextTerms = props.where?.trim()
-    ? parseWhereExpression(props.where, props.columns)
-    : normalizeInputTerms(props.modelValue, props.columns)
+    ? parseWhereExpression(props.where, resolvedFields.value)
+    : normalizeInputTerms(props.modelValue, resolvedFields.value)
 
   if (!isSameTerms(termsModel.value, nextTerms)) {
     termsModel.value = nextTerms
@@ -611,6 +716,10 @@ const isInlineEditorFocused = () => {
 }
 
 const setTailMode = (options?: { focus?: boolean; open?: boolean; keyword?: string }) => {
+  if (valuePanelTermKey.value) {
+    delete valueDraftMap[valuePanelTermKey.value]
+  }
+
   editorMode.value = 'tail'
   editingTermKey.value = undefined
   valueKeyword.value = ''
@@ -634,7 +743,7 @@ const focusTailInput = (open = true) => {
   })
 }
 
-const applyTermUpdate = (termKey: string, value: Partial<TermsItem>) => {
+const applyTermUpdate = (termKey: string, value: Partial<ConditionFilterTerm>) => {
   const index = getTermIndex(termKey)
 
   if (index === -1) {
@@ -642,7 +751,7 @@ const applyTermUpdate = (termKey: string, value: Partial<TermsItem>) => {
   }
 
   const current = termsModel.value[index]
-  const nextItem: TermsItem = {
+  const nextItem: ConditionFilterTerm = {
     ...current,
     ...value,
     key: termKey,
@@ -664,6 +773,7 @@ const applyTermUpdate = (termKey: string, value: Partial<TermsItem>) => {
   }
 
   termsModel.value.splice(index, 1, nextItem)
+  delete valueDraftMap[termKey]
 }
 
 const startFieldEdit = (termKey: string) => {
@@ -745,7 +855,7 @@ const onSelectField = (columnKey: string) => {
   let termKey = editingTermKey.value
 
   if (editorMode.value !== 'field' || !termKey) {
-    const nextTerm: TermsItem = {
+    const nextTerm: ConditionFilterTerm = {
       key: randomString(10),
       type: termsModel.value.length ? 'and' : undefined,
     }
@@ -841,6 +951,7 @@ const onRemoveTerm = (termKey: string) => {
   }
 
   termsModel.value.splice(index, 1)
+  delete valueDraftMap[termKey]
 
   if (termsModel.value[0]) {
     delete termsModel.value[0].type
@@ -883,7 +994,9 @@ const commitTextValue = (options?: { focusTail?: boolean }) => {
   setTailMode({ focus: options?.focusTail })
 }
 
-const onApplyPanelValue = (termKey: string, value: TermsItem, options?: { close?: boolean; allowEmpty?: boolean }) => {
+const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?: { close?: boolean; allowEmpty?: boolean }) => {
+  delete valueDraftMap[termKey]
+
   if (!nullaryTermTypes.has(value.termType || '') && !hasTermValue(value)) {
     onRemoveTerm(termKey)
     return
@@ -904,6 +1017,9 @@ const onApplyPanelValue = (termKey: string, value: TermsItem, options?: { close?
 
 const onClear = () => {
   termsModel.value = []
+  Object.keys(valueDraftMap).forEach((key) => {
+    delete valueDraftMap[key]
+  })
   setTailMode()
 }
 
@@ -918,15 +1034,15 @@ const exposeApi: ConditionFilterExpose = {
   }),
   getWhere: () => payload.value.where,
   setTerms: (terms = []) => {
-    termsModel.value = normalizeInputTerms(terms, props.columns)
+    termsModel.value = normalizeInputTerms(terms, resolvedFields.value)
     setTailMode()
   },
   setFilter: (filter) => {
-    termsModel.value = normalizeInputTerms(filter?.terms || [], props.columns)
+    termsModel.value = normalizeInputTerms(filter?.terms || [], resolvedFields.value)
     setTailMode()
   },
   setWhere: (where = '') => {
-    termsModel.value = parseWhereExpression(where, props.columns)
+    termsModel.value = parseWhereExpression(where, resolvedFields.value)
     setTailMode()
   },
   clear: onClear,
@@ -1199,6 +1315,7 @@ const onFieldPanelOpenChange = (visible: boolean) => {
 
 const onValuePanelOpenChange = (termKey: string, visible: boolean) => {
   if (visible) {
+    valuePanelOpenVersion.value += 1
     valuePanelTermKey.value = termKey
     fieldPanelOpen.value = false
     editorMode.value = 'tail'
@@ -1206,9 +1323,18 @@ const onValuePanelOpenChange = (termKey: string, visible: boolean) => {
     return
   }
 
+  const draft = valueDraftMap[termKey]
+
+  if (draft && !nullaryTermTypes.has(draft.termType || '') && !hasTermValue(draft)) {
+    onApplyPanelValue(termKey, draft, { close: true, allowEmpty: true })
+    return
+  }
+
   if (valuePanelTermKey.value === termKey) {
     valuePanelTermKey.value = undefined
   }
+
+  delete valueDraftMap[termKey]
 }
 
 const onClearTermValue = (termKey: string) => {
@@ -1309,6 +1435,26 @@ onUnmounted(() => {
           </a-dropdown>
 
           <div class="condition-filter__term-main">
+            <template v-if="isConditionGroup(term)">
+              <button
+                class="condition-filter__chip condition-filter__chip--group"
+                type="button"
+                :disabled="disabled"
+                data-condition-focusable="true"
+                @click.stop
+                @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'value')"
+              >
+                <span class="condition-filter__chip-text">{{ getGroupLabel(term) }}</span>
+                <span
+                  class="condition-filter__chip-close"
+                  @click.stop="onClearTermValue(getTermKey(term))"
+                >
+                  <AIcon type="CloseOutlined" />
+                </span>
+              </button>
+            </template>
+
+            <template v-else>
             <a-dropdown
               v-if="editorMode === 'field' && editingTermKey === getTermKey(term)"
               :open="fieldPanelOpen"
@@ -1331,7 +1477,7 @@ onUnmounted(() => {
               </div>
               <template #overlay>
                 <FieldSelectPanel
-                  :columns="fieldOptions"
+                  :fields="fieldOptions"
                   :keyword="fieldKeyword"
                   :showSearch="false"
                   @select="onSelectField"
@@ -1414,7 +1560,7 @@ onUnmounted(() => {
               >
                 <button
                   class="condition-filter__chip condition-filter__chip--value"
-                  :class="{ 'condition-filter__chip--placeholder': !getValueLabel(term) }"
+                  :class="{ 'condition-filter__chip--placeholder': !getDisplayValueLabel(term) }"
                   type="button"
                   :disabled="disabled"
                   data-condition-focusable="true"
@@ -1422,10 +1568,10 @@ onUnmounted(() => {
                   @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'value')"
                 >
                   <span class="condition-filter__chip-text">
-                    {{ getValueLabel(term) || getValuePlaceholder(term) }}
+                    {{ getDisplayValueLabel(term) || getValuePlaceholder(term) }}
                   </span>
                   <span
-                    v-if="hasTermValue(term)"
+                    v-if="hasDisplayTermValue(term)"
                     class="condition-filter__chip-close"
                     @click.stop="onClearTermValue(getTermKey(term))"
                   >
@@ -1434,8 +1580,10 @@ onUnmounted(() => {
                 </button>
                 <template #overlay>
                   <ConditionEditorPanel
+                    :key="`${getTermKey(term)}:${valuePanelOpenVersion}`"
                     :column="term.column"
                     :term="term"
+                    @draft-change="(value) => setValueDraft(getTermKey(term), value)"
                     @apply="(value, options) => onApplyPanelValue(getTermKey(term), value, options)"
                   >
                     <template v-if="slots['value-editor']" #value="slotProps">
@@ -1448,7 +1596,7 @@ onUnmounted(() => {
               <button
                 v-else
                 class="condition-filter__chip condition-filter__chip--value"
-                :class="{ 'condition-filter__chip--placeholder': !getValueLabel(term) }"
+                :class="{ 'condition-filter__chip--placeholder': !getDisplayValueLabel(term) }"
                 type="button"
                 :disabled="disabled"
                 data-condition-focusable="true"
@@ -1456,16 +1604,17 @@ onUnmounted(() => {
                 @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'value')"
               >
                 <span class="condition-filter__chip-text">
-                  {{ getValueLabel(term) || getValuePlaceholder(term) }}
+                  {{ getDisplayValueLabel(term) || getValuePlaceholder(term) }}
                 </span>
                 <span
-                  v-if="hasTermValue(term)"
+                  v-if="hasDisplayTermValue(term)"
                   class="condition-filter__chip-close"
                   @click.stop="onClearTermValue(getTermKey(term))"
                 >
                   <AIcon type="CloseOutlined" />
                 </span>
               </button>
+            </template>
             </template>
           </div>
         </div>
@@ -1495,7 +1644,7 @@ onUnmounted(() => {
           </div>
           <template #overlay>
             <FieldSelectPanel
-              :columns="fieldOptions"
+              :fields="fieldOptions"
               :keyword="fieldKeyword"
               :showSearch="false"
               @select="onSelectField"
@@ -1637,6 +1786,11 @@ onUnmounted(() => {
   &__editor--field {
     color: #0f4c81;
     background: #edf5ff;
+  }
+
+  &__chip--group {
+    color: #6941c6;
+    background: #f4f3ff;
   }
 
   &__chip--operator {
