@@ -1,0 +1,554 @@
+<script setup lang="ts">
+import type { PropType } from 'vue'
+import ValueItem from '../Search/Filter/ValueItem.vue'
+import { getDefaultTermType, isArrayTermType, TermTypeOptions } from '../Search/Filter/setting'
+import { useColumnsMap } from '../Search/Filter/hooks/useSearchEngine'
+import type { SearchItem, TermsItem } from '../Search/Filter/typing'
+
+const nullaryTermTypes = new Set(['isnull', 'notnull'])
+
+const props = defineProps({
+  columns: {
+    type: Array as PropType<SearchItem[]>,
+    default: () => [],
+  },
+  term: {
+    type: Object as PropType<TermsItem | undefined>,
+    default: undefined,
+  },
+  placeholder: {
+    type: String,
+    default: '添加筛选条件',
+  },
+  disabled: {
+    type: Boolean,
+    default: false,
+  },
+})
+
+const emit = defineEmits<{
+  (e: 'submit', value: TermsItem): void
+  (e: 'cancel'): void
+  (e: 'columnChange', value?: string): void
+}>()
+
+const columnsMap = useColumnsMap()
+const rootRef = ref()
+const draftColumn = ref<string>()
+const draftTermType = ref<string>()
+const draftValue = ref<any>()
+
+const currentColumn = computed(() => {
+  if (!draftColumn.value) {
+    return undefined
+  }
+
+  return columnsMap[draftColumn.value]
+})
+
+const currentSearchType = computed(() => currentColumn.value?.search?.type || 'string')
+const isDirectInputMode = computed(() => currentSearchType.value === 'string')
+const valuePlaceholder = computed(() => currentColumn.value?.search?.componentProps?.placeholder || '输入筛选值')
+
+const fieldOptions = computed(() => {
+  return props.columns.map(item => ({
+    label: item.title,
+    value: item.dataIndex,
+  }))
+})
+
+const getTermTypeOptions = (column?: SearchItem) => {
+  const search = column?.search
+
+  if (!search) {
+    return []
+  }
+
+  if (search.termOptions?.length) {
+    return search.termOptions
+  }
+
+  const filterKeys = search.termFilter || []
+  const optionKeys = search.termTypeOptions || getDefaultTermType(search.type)
+
+  return TermTypeOptions.filter(item => optionKeys.includes(item.value) && !filterKeys.includes(item.value))
+}
+
+const termTypeOptions = computed(() => getTermTypeOptions(currentColumn.value))
+const showTermType = computed(() => termTypeOptions.value.length > 1)
+
+const cloneValue = (value: any) => {
+  if (Array.isArray(value)) {
+    return [...value]
+  }
+
+  if (value && typeof value === 'object') {
+    return { ...value }
+  }
+
+  return value
+}
+
+const buildInitialValue = (termType?: string, value?: any) => {
+  if (nullaryTermTypes.has(termType || '')) {
+    return undefined
+  }
+
+  if (value !== undefined) {
+    return cloneValue(value)
+  }
+
+  if (isArrayTermType(termType || '')) {
+    return ['btw', 'nbtw'].includes(termType || '') ? [undefined, undefined] : []
+  }
+
+  return undefined
+}
+
+const convertValue = (oldTermType?: string, newTermType?: string, currentValue?: any) => {
+  if (!newTermType || oldTermType === newTermType) {
+    return buildInitialValue(newTermType, currentValue)
+  }
+
+  if (nullaryTermTypes.has(newTermType)) {
+    return undefined
+  }
+
+  const expectsArrayValue = isArrayTermType(newTermType)
+  const isRangeType = ['btw', 'nbtw'].includes(newTermType)
+
+  if (!expectsArrayValue) {
+    return Array.isArray(currentValue) ? currentValue[0] : cloneValue(currentValue)
+  }
+
+  if (currentValue === undefined || currentValue === null || currentValue === '') {
+    return isRangeType ? [undefined, undefined] : []
+  }
+
+  if (Array.isArray(currentValue)) {
+    if (isRangeType) {
+      return [currentValue[0], currentValue[1] ?? undefined]
+    }
+
+    return [...currentValue]
+  }
+
+  return isRangeType ? [currentValue, undefined] : [currentValue]
+}
+
+const emitTerm = (payload?: Partial<TermsItem>) => {
+  const nextTerm: TermsItem = {
+    column: payload?.column ?? draftColumn.value,
+    termType: payload?.termType ?? draftTermType.value,
+    value: cloneValue(payload?.value ?? draftValue.value),
+    key: props.term?.key,
+    type: props.term?.type,
+  }
+
+  emit('submit', nextTerm)
+}
+
+const syncFromProps = () => {
+  const columnKey = props.term?.column
+  const column = columnKey ? columnsMap[columnKey] : undefined
+  const search = column?.search
+
+  draftColumn.value = columnKey
+
+  if (!search) {
+    draftTermType.value = props.term?.termType
+    draftValue.value = cloneValue(props.term?.value)
+    return
+  }
+
+  const defaultTermType =
+    props.term?.termType ||
+    search.defaultTermType ||
+    getTermTypeOptions(column)[0]?.value ||
+    getDefaultTermType(search.type)[0] ||
+    'eq'
+
+  draftTermType.value = defaultTermType
+  draftValue.value = buildInitialValue(defaultTermType, props.term?.value ?? search.defaultValue)
+}
+
+const filterFieldOption = (input: string, option: Record<string, any>) => {
+  const text = `${option.label || ''}${option.value || ''}`.toLowerCase()
+  return text.includes(String(input || '').trim().toLowerCase())
+}
+
+const setDraftValue = (value: any) => {
+  draftValue.value = cloneValue(value)
+}
+
+const onDirectInput = (event: Event) => {
+  setDraftValue((event.target as HTMLInputElement)?.value)
+}
+
+const onColumnSelect = (value?: string) => {
+  if (!value) {
+    draftColumn.value = undefined
+    draftTermType.value = undefined
+    draftValue.value = undefined
+    emitTerm({
+      column: undefined,
+      termType: undefined,
+      value: undefined,
+    })
+    return
+  }
+
+  const column = columnsMap[value]
+  const search = column?.search
+  const nextTermType =
+    search?.defaultTermType ||
+    getTermTypeOptions(column)[0]?.value ||
+    (search ? getDefaultTermType(search.type)[0] : undefined) ||
+    'eq'
+  const nextValue = buildInitialValue(nextTermType, search?.defaultValue)
+
+  draftColumn.value = value
+  draftTermType.value = nextTermType
+  draftValue.value = nextValue
+
+  emitTerm({
+    column: value,
+    termType: nextTermType,
+    value: nextValue,
+  })
+}
+
+const onTermTypeChange = (value: string) => {
+  const nextValue = convertValue(draftTermType.value, value, draftValue.value)
+  draftTermType.value = value
+  draftValue.value = nextValue
+
+  emitTerm({
+    termType: value,
+    value: nextValue,
+  })
+}
+
+const onApply = () => {
+  emitTerm()
+}
+
+const focusValueInput = () => {
+  nextTick(() => {
+    const el = rootRef.value?.querySelector?.('.condition-inline-composer__value input')
+    el?.focus?.()
+  })
+}
+
+watch(
+  () => draftColumn.value,
+  (value) => {
+    emit('columnChange', value)
+  },
+)
+
+watch(
+  () => [props.term?.column, props.term?.termType, props.term?.value],
+  () => {
+    syncFromProps()
+  },
+  { immediate: true, deep: true },
+)
+
+watch(
+  () => [draftColumn.value, draftTermType.value, isDirectInputMode.value],
+  () => {
+    if (isDirectInputMode.value) {
+      focusValueInput()
+    }
+  },
+)
+
+watch(
+  () => draftValue.value,
+  () => {
+    if (!isDirectInputMode.value && draftColumn.value && draftTermType.value) {
+      emitTerm()
+    }
+  },
+  { deep: true },
+)
+</script>
+
+<template>
+  <div ref="rootRef" class="condition-inline-composer" :class="{ 'condition-inline-composer--direct': isDirectInputMode }">
+    <a-select
+      :value="draftColumn"
+      class="condition-inline-composer__field"
+      :placeholder="placeholder"
+      :options="fieldOptions"
+      :disabled="disabled"
+      :bordered="false"
+      show-search
+      :filter-option="filterFieldOption"
+      :dropdownMatchSelectWidth="false"
+      @change="onColumnSelect"
+    />
+    <a-select
+      v-if="showTermType"
+      :value="draftTermType"
+      class="condition-inline-composer__term"
+      :options="termTypeOptions"
+      :disabled="disabled"
+      :bordered="false"
+      :dropdownMatchSelectWidth="false"
+      @change="onTermTypeChange"
+    />
+    <div class="condition-inline-composer__value">
+      <div class="condition-inline-composer__value-content">
+        <slot
+          name="value"
+          :field="currentColumn"
+          :term="term"
+          :column="draftColumn"
+          :termType="draftTermType"
+          :value="draftValue"
+          :setValue="setDraftValue"
+          :submit="onApply"
+        >
+          <a-input
+            v-if="isDirectInputMode"
+            :value="draftValue"
+            :placeholder="valuePlaceholder"
+            :bordered="false"
+            @input="onDirectInput"
+            @pressEnter="onApply"
+          />
+          <ValueItem
+            v-else
+            :value="draftValue"
+            :column="draftColumn"
+            :termType="draftTermType"
+            :show-action="false"
+            embedded
+            @update:value="setDraftValue"
+          />
+        </slot>
+      </div>
+      <button class="condition-inline-composer__clear" type="button" :disabled="disabled" @click="emit('cancel')">
+        <AIcon type="CloseOutlined" />
+      </button>
+    </div>
+  </div>
+</template>
+
+<style scoped lang="less">
+.condition-inline-composer {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-height: 30px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  gap: 4px;
+
+  &__field,
+  &__term {
+    min-width: 0;
+    flex: 0 0 auto;
+    max-width: 180px;
+  }
+
+  &__value {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 1 auto;
+    min-width: 60px;
+    max-width: 240px;
+    background: #eef4ff;
+    border: 1px solid #d6e4ff;
+    border-radius: 6px;
+  }
+
+  &__value-content {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 0;
+    padding: 0 8px;
+  }
+
+  &__clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    margin-right: 3px;
+    color: #8ea0b8;
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.2s ease;
+
+    &:hover:not(:disabled) {
+      color: #5b6b82;
+      background: rgba(91, 107, 130, 0.08);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+  }
+
+  :deep(.ant-select) {
+    display: flex;
+    align-items: stretch;
+  }
+
+  :deep(.ant-select-selector) {
+    height: 30px !important;
+    padding: 0 10px !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+  }
+
+  :deep(.ant-select-selection-item),
+  :deep(.ant-select-selection-placeholder) {
+    display: flex;
+    align-items: center;
+    height: 30px;
+    font-size: 14px;
+  }
+
+  :deep(.ant-select-selection-placeholder) {
+    color: #9aa4b2;
+  }
+
+  &__field {
+    :deep(.ant-select-selector) {
+      padding-inline-end: 28px !important;
+      background: #eef4ff !important;
+      border: 1px solid #d6e4ff !important;
+    }
+
+    :deep(.ant-select-selection-item) {
+      color: #355d9a;
+      font-weight: 500;
+    }
+
+    :deep(.ant-select-arrow) {
+      color: #355d9a;
+      right: 10px;
+    }
+  }
+
+  &__term {
+    :deep(.ant-select-selector) {
+      height: 30px !important;
+      padding: 0 22px 0 10px !important;
+      background: #eef4ff !important;
+      border: 1px solid #d6e4ff !important;
+    }
+
+    :deep(.ant-select-selection-item) {
+      color: #6b7280;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    :deep(.ant-select-arrow) {
+      color: #6b7280;
+      right: 8px;
+      transform: scale(0.9);
+    }
+  }
+
+  &__value {
+    :deep(.filter-terms-value-item) {
+      width: 100%;
+      padding: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    :deep(.ant-input),
+    :deep(.ant-input-affix-wrapper),
+    :deep(.ant-input-number),
+    :deep(.ant-select-selector),
+    :deep(.ant-picker) {
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+
+    :deep(.ant-input) {
+      height: 30px;
+      padding: 0;
+      color: #24292f;
+      font-size: 14px;
+    }
+
+    :deep(.ant-input::placeholder) {
+      color: #a1a9b3;
+    }
+
+    :deep(.ant-input:focus),
+    :deep(.ant-input-focused),
+    :deep(.ant-input-affix-wrapper-focused) {
+      box-shadow: none;
+    }
+
+    :deep(.ant-input-number) {
+      width: 100%;
+    }
+
+    :deep(.ant-select-selector),
+    :deep(.ant-picker) {
+      background: transparent !important;
+    }
+
+    :deep(.ant-select-selection-item),
+    :deep(.ant-picker-input input) {
+      color: #24292f;
+      font-size: 14px;
+    }
+  }
+
+  &--direct {
+    .condition-inline-composer__value {
+      background: transparent;
+    }
+
+    .condition-inline-composer__value-content {
+      padding-right: 0;
+    }
+
+    :deep(.ant-input),
+    :deep(.ant-input:hover),
+    :deep(.ant-input:focus) {
+      background: transparent !important;
+      border-color: transparent !important;
+      box-shadow: none !important;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .condition-inline-composer {
+    gap: 6px;
+
+    &__field,
+    &__term,
+    &__value {
+      min-width: 0;
+      max-width: none;
+    }
+
+    &__field {
+      max-width: 150px;
+    }
+  }
+}
+</style>

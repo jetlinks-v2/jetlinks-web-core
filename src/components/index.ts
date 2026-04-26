@@ -36,6 +36,7 @@ import ChatTextArea from './ChatTextArea/index.vue'
 import Captcha from './Captcha'
 import RegistryComponent from './RegisterComponents'
 import { TagManagerSidebar } from './TagManagerSidebar'
+import ConditionFilter from './ConditionFilter'
 
 export default {
     install(app: App) {
@@ -79,6 +80,7 @@ export default {
           .component('Captcha', Captcha)
           .component('RegistryComponent', RegistryComponent)
           .component('TagManagerSidebar', TagManagerSidebar)
+          .component('ConditionFilter', ConditionFilter)
 
         Object.keys(FormItemValue).forEach(key => {
             app.component(key, FormItemValue[key])

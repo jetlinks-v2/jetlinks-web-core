@@ -1,4 +1,4 @@
-import type { VNode } from 'vue'
+import type { Ref, VNode } from 'vue'
 
 
 export type TermsItem = {
@@ -10,11 +10,25 @@ export type TermsItem = {
   key?: string
 }
 
+export interface SearchOptionPanelConfig {
+  multiple?: boolean
+  width?: number
+  hideTitle?: boolean
+  showSearch?: boolean
+  showCheckAll?: boolean
+  keywordPlaceholder?: string
+  emptyText?: string
+  hintText?: string
+  loadOptions?: (keyword?: string) => Promise<any[]>
+  loadSelectedOptions?: (values?: any[]) => Promise<any[]>
+}
+
 export interface SearchItem {
   dataIndex: string
   title: string
   search?: {
     type: string
+    dictId?: string
     fixed?: boolean
     rename?: string
     defaultTermType?: string
@@ -25,6 +39,7 @@ export interface SearchItem {
     termFilter?: string[]
     components?: VNode
     componentProps?: Record<string, any>
+    optionPanel?: SearchOptionPanelConfig
     options?:
       | any[]
       | Ref<any[]>
