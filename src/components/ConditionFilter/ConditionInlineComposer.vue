@@ -3,17 +3,23 @@ import type { PropType } from 'vue'
 import ValueItem from '../Search/Filter/ValueItem.vue'
 import { getDefaultTermType, isArrayTermType, TermTypeOptions } from '../Search/Filter/setting'
 import { useColumnsMap } from '../Search/Filter/hooks/useSearchEngine'
-import type { SearchItem, TermsItem } from '../Search/Filter/typing'
+import type { SearchItem } from '../Search/Filter/typing'
+import type { ConditionFilterField, ConditionFilterTerm } from './types'
+import { resolveConditionFields } from './schema'
 
 const nullaryTermTypes = new Set(['isnull', 'notnull'])
 
 const props = defineProps({
+  fields: {
+    type: Array as PropType<ConditionFilterField[]>,
+    default: () => [],
+  },
   columns: {
     type: Array as PropType<SearchItem[]>,
     default: () => [],
   },
   term: {
-    type: Object as PropType<TermsItem | undefined>,
+    type: Object as PropType<ConditionFilterTerm | undefined>,
     default: undefined,
   },
   placeholder: {
@@ -27,7 +33,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits<{
-  (e: 'submit', value: TermsItem): void
+  (e: 'submit', value: ConditionFilterTerm): void
   (e: 'cancel'): void
   (e: 'columnChange', value?: string): void
 }>()
@@ -37,6 +43,7 @@ const rootRef = ref()
 const draftColumn = ref<string>()
 const draftTermType = ref<string>()
 const draftValue = ref<any>()
+const resolvedFields = computed(() => resolveConditionFields(props.fields, props.columns))
 
 const currentColumn = computed(() => {
   if (!draftColumn.value) {
@@ -51,13 +58,13 @@ const isDirectInputMode = computed(() => currentSearchType.value === 'string')
 const valuePlaceholder = computed(() => currentColumn.value?.search?.componentProps?.placeholder || '输入筛选值')
 
 const fieldOptions = computed(() => {
-  return props.columns.map(item => ({
+  return resolvedFields.value.map(item => ({
     label: item.title,
     value: item.dataIndex,
   }))
 })
 
-const getTermTypeOptions = (column?: SearchItem) => {
+const getTermTypeOptions = (column?: ConditionFilterField) => {
   const search = column?.search
 
   if (!search) {
@@ -136,8 +143,8 @@ const convertValue = (oldTermType?: string, newTermType?: string, currentValue?:
   return isRangeType ? [currentValue, undefined] : [currentValue]
 }
 
-const emitTerm = (payload?: Partial<TermsItem>) => {
-  const nextTerm: TermsItem = {
+const emitTerm = (payload?: Partial<ConditionFilterTerm>) => {
+  const nextTerm: ConditionFilterTerm = {
     column: payload?.column ?? draftColumn.value,
     termType: payload?.termType ?? draftTermType.value,
     value: cloneValue(payload?.value ?? draftValue.value),

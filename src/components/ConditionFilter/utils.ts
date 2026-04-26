@@ -1,6 +1,6 @@
 import { randomString } from '@jetlinks-web/utils'
-import type { SearchItem, TermsItem } from '../Search/Filter/typing'
 import { isArrayTermType } from '../Search/Filter/setting'
+import type { ConditionFieldSchema, ConditionFilterRouteVersion, ConditionTerm } from './types'
 
 type Token = {
   value: string
@@ -54,17 +54,33 @@ const normalizeLogicType = (type: string | undefined, index: number) => {
   return logicTypes.has(normalized) ? normalized : 'and'
 }
 
-const toComparableTerms = (terms: TermsItem[] = []) => {
+export const isConditionGroup = (item: ConditionTerm | undefined): item is ConditionTerm & { terms: ConditionTerm[] } => {
+  return Array.isArray(item?.terms)
+}
+
+export const isConditionClause = (
+  item: ConditionTerm | undefined,
+): item is ConditionTerm & Required<Pick<ConditionTerm, 'column' | 'termType'>> => {
+  return !isConditionGroup(item) && !!item?.column && !!item?.termType
+}
+
+const toComparableTerms = (terms: ConditionTerm[] = []) => {
   return terms.map((item, index) => ({
-    column: item.column,
-    termType: item.termType,
-    value: cloneValue(item.value),
+    ...(isConditionGroup(item)
+      ? {
+          terms: toComparableTerms(item.terms || []),
+        }
+      : {
+          column: item.column,
+          termType: item.termType,
+          value: cloneValue(item.value),
+        }),
     type: normalizeLogicType(item.type, index),
   }))
 }
 
-const getColumnsMeta = (columns: SearchItem[] = []) => {
-  const columnsMap: Record<string, SearchItem> = {}
+const getColumnsMeta = (columns: ConditionFieldSchema[] = []) => {
+  const columnsMap: Record<string, ConditionFieldSchema> = {}
   const aliasMap = new Map<string, string>()
 
   columns
@@ -92,7 +108,7 @@ const resolveColumnKey = (column: string | undefined, aliasMap: Map<string, stri
   return aliasMap.get(column) || aliasMap.get(String(column).trim()) || undefined
 }
 
-const ensureTermKey = (item: TermsItem) => {
+const ensureTermKey = (item: ConditionTerm) => {
   return item.key || randomString(10)
 }
 
@@ -104,7 +120,11 @@ const hasArrayValue = (value: any) => {
   return Array.isArray(value) && value.some(item => !isNullishValue(item))
 }
 
-const hasTermValue = (item: TermsItem) => {
+const hasTermValue = (item: ConditionTerm) => {
+  if (isConditionGroup(item)) {
+    return Array.isArray(item.terms) && item.terms.some(child => hasTermValue(child))
+  }
+
   if (nullaryTermTypes.has(item.termType || '')) {
     return true
   }
@@ -185,7 +205,11 @@ const normalizeRouteQueryValue = (value: unknown) => {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-const formatTermToWhere = (item: TermsItem) => {
+const formatTermToWhere = (item: ConditionTerm) => {
+  if (isConditionGroup(item)) {
+    return ''
+  }
+
   if (!item.column || !item.termType) {
     return ''
   }
@@ -310,7 +334,7 @@ const tokenizeWhere = (where: string): Token[] => {
 
 const getTokenValue = (token?: Token) => token?.value?.toLowerCase()
 
-const parseScalarValue = (token: Token | undefined, column: SearchItem | undefined) => {
+const parseScalarValue = (token: Token | undefined, column: ConditionFieldSchema | undefined) => {
   if (!token) {
     return undefined
   }
@@ -328,8 +352,8 @@ const parseScalarValue = (token: Token | undefined, column: SearchItem | undefin
   return rawValue
 }
 
-const createInternalTerm = (item: TermsItem, index: number) => {
-  const term: TermsItem = {
+const createInternalTerm = (item: ConditionTerm, index: number) => {
+  const term: ConditionTerm = {
     column: item.column,
     termType: item.termType,
     value: cloneValue(item.value),
@@ -344,17 +368,31 @@ const createInternalTerm = (item: TermsItem, index: number) => {
   return term
 }
 
-export const cloneTerms = (terms: TermsItem[] = [], options?: { stripKey?: boolean }) => {
-  return terms.map((item, index) => {
-    const cloned: TermsItem = {
-      column: item.column,
-      termType: item.termType,
-      value: cloneValue(item.value),
-    }
+const createInternalGroup = (item: ConditionTerm, index: number) => {
+  const nextGroup: ConditionTerm = {
+    terms: cloneTerms(item.terms || []),
+    key: ensureTermKey(item),
+  }
 
-    if (item.terms) {
-      cloned.terms = cloneTerms(item.terms, options)
-    }
+  const logicType = normalizeLogicType(item.type, index)
+  if (logicType) {
+    nextGroup.type = logicType
+  }
+
+  return nextGroup
+}
+
+export const cloneTerms = (terms: ConditionTerm[] = [], options?: { stripKey?: boolean }) => {
+  return terms.map((item, index) => {
+    const cloned: ConditionTerm = isConditionGroup(item)
+      ? {
+          terms: cloneTerms(item.terms || [], options),
+        }
+      : {
+          column: item.column,
+          termType: item.termType,
+          value: cloneValue(item.value),
+        }
 
     const logicType = normalizeLogicType(item.type, index)
     if (logicType) {
@@ -369,15 +407,31 @@ export const cloneTerms = (terms: TermsItem[] = [], options?: { stripKey?: boole
   })
 }
 
-export const isSameTerms = (source: TermsItem[] = [], target: TermsItem[] = []) => {
+export const isSameTerms = (source: ConditionTerm[] = [], target: ConditionTerm[] = []) => {
   return JSON.stringify(toComparableTerms(source)) === JSON.stringify(toComparableTerms(target))
 }
 
-export const normalizeInputTerms = (terms: TermsItem[] = [], columns: SearchItem[] = []) => {
+export const normalizeInputTerms = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
   const { aliasMap } = getColumnsMeta(columns)
 
   return terms
     .map((item, index) => {
+      if (isConditionGroup(item)) {
+        const normalizedTerms = normalizeInputTerms(item.terms || [], columns)
+
+        if (!normalizedTerms.length) {
+          return undefined
+        }
+
+        return createInternalGroup(
+          {
+            ...item,
+            terms: normalizedTerms,
+          },
+          index,
+        )
+      }
+
       const columnKey = resolveColumnKey(item.column, aliasMap)
 
       if (!columnKey) {
@@ -392,13 +446,17 @@ export const normalizeInputTerms = (terms: TermsItem[] = [], columns: SearchItem
         index,
       )
     })
-    .filter(Boolean) as TermsItem[]
+    .filter(Boolean) as ConditionTerm[]
 }
 
-const toCompactRouteTerms = (terms: TermsItem[] = [], columns: SearchItem[] = []) => {
+const hasConditionGroups = (terms: ConditionTerm[] = []) => {
+  return terms.some(item => isConditionGroup(item) || hasConditionGroups(item.terms || []))
+}
+
+const toCompactRouteTerms = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
   return normalizeInputTerms(terms, columns)
     .filter((item) => {
-      return !!item?.column && !!item?.termType && hasTermValue(item)
+      return !isConditionGroup(item) && !!item?.column && !!item?.termType && hasTermValue(item)
     })
     .map((item, index) => {
       const next: [string, string, any, string?] = [
@@ -416,8 +474,58 @@ const toCompactRouteTerms = (terms: TermsItem[] = [], columns: SearchItem[] = []
     })
 }
 
-export const encodeConditionFilterQuery = (terms: TermsItem[] = [], columns: SearchItem[] = []) => {
-  const compactTerms = toCompactRouteTerms(terms, columns)
+const toCompactRouteNodes = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
+  return normalizeInputTerms(terms, columns)
+    .filter(item => hasTermValue(item))
+    .map((item, index) => {
+      if (isConditionGroup(item)) {
+        const next: Record<string, any> = {
+          g: toCompactRouteNodes(item.terms || [], columns),
+        }
+
+        const logicType = normalizeLogicType(item.type, index)
+        if (logicType) {
+          next.t = logicType
+        }
+
+        return next
+      }
+
+      const next: [string, string, any, string?] = [
+        String(item.column),
+        String(item.termType),
+        cloneValue(item.value),
+      ]
+
+      const logicType = normalizeLogicType(item.type, index)
+      if (logicType) {
+        next.push(logicType)
+      }
+
+      return next
+    })
+}
+
+export const encodeConditionFilterQuery = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
+  const version = resolveConditionFilterRouteVersion(terms, columns)
+
+  if (!version) {
+    return ''
+  }
+
+  const normalizedTerms = normalizeInputTerms(terms, columns)
+
+  if (version === 'v2') {
+    const compactNodes = toCompactRouteNodes(normalizedTerms, columns)
+
+    if (!compactNodes.length) {
+      return ''
+    }
+
+    return `v2.${toBase64Url(JSON.stringify({ t: compactNodes }))}`
+  }
+
+  const compactTerms = toCompactRouteTerms(normalizedTerms, columns)
 
   if (!compactTerms.length) {
     return ''
@@ -426,7 +534,20 @@ export const encodeConditionFilterQuery = (terms: TermsItem[] = [], columns: Sea
   return `v1.${toBase64Url(JSON.stringify({ t: compactTerms }))}`
 }
 
-export const decodeConditionFilterQuery = (value: unknown, columns: SearchItem[] = []) => {
+export function resolveConditionFilterRouteVersion(
+  terms: ConditionTerm[] = [],
+  columns: ConditionFieldSchema[] = [],
+): ConditionFilterRouteVersion | undefined {
+  const normalizedTerms = normalizeInputTerms(terms, columns)
+
+  if (!normalizedTerms.length) {
+    return undefined
+  }
+
+  return hasConditionGroups(normalizedTerms) ? 'v2' : 'v1'
+}
+
+export const decodeConditionFilterQuery = (value: unknown, columns: ConditionFieldSchema[] = []) => {
   const rawValue = normalizeRouteQueryValue(value)
 
   if (!rawValue) {
@@ -435,9 +556,43 @@ export const decodeConditionFilterQuery = (value: unknown, columns: SearchItem[]
 
   try {
     const content = rawValue.startsWith('v1.') ? rawValue.slice(3) : rawValue
-    const decoded = content.startsWith('{') ? content : fromBase64Url(content)
+    const version = rawValue.startsWith('v2.') ? 'v2' : rawValue.startsWith('v1.') ? 'v1' : undefined
+    const normalizedContent = version === 'v2' ? rawValue.slice(3) : content
+    const decoded = normalizedContent.startsWith('{') ? normalizedContent : fromBase64Url(normalizedContent)
     const payload = JSON.parse(decoded)
     const terms = Array.isArray(payload?.t) ? payload.t : Array.isArray(payload) ? payload : []
+
+    if (version === 'v2' || terms.some((item: any) => item && typeof item === 'object' && Array.isArray(item.g))) {
+      const decodeNodes = (items: any[] = []): ConditionTerm[] => {
+        return items
+          .map((item, index) => {
+            if (item && typeof item === 'object' && Array.isArray(item.g)) {
+              const groupTerms = decodeNodes(item.g)
+
+              if (!groupTerms.length) {
+                return undefined
+              }
+
+              return {
+                terms: groupTerms,
+                type: normalizeLogicType(item.t, index),
+                key: randomString(10),
+              }
+            }
+
+            return {
+              column: item?.[0],
+              termType: item?.[1],
+              value: cloneValue(item?.[2]),
+              type: item?.[3],
+              key: randomString(10),
+            }
+          })
+          .filter(Boolean) as ConditionTerm[]
+      }
+
+      return normalizeInputTerms(decodeNodes(terms), columns)
+    }
 
     return normalizeInputTerms(
       terms.map((item: any) => ({
@@ -454,7 +609,7 @@ export const decodeConditionFilterQuery = (value: unknown, columns: SearchItem[]
   }
 }
 
-const parseLegacyScalarValue = (column: string | undefined, value: string | undefined, columnsMap: Record<string, SearchItem>) => {
+const parseLegacyScalarValue = (column: string | undefined, value: string | undefined, columnsMap: Record<string, ConditionFieldSchema>) => {
   if (value === undefined || value === '') {
     return value
   }
@@ -473,7 +628,7 @@ const parseLegacyArrayValue = (
   column: string | undefined,
   termType: string | undefined,
   rawValue: string | undefined,
-  columnsMap: Record<string, SearchItem>,
+  columnsMap: Record<string, ConditionFieldSchema>,
 ) => {
   if (!termType || !rawValue) {
     return []
@@ -488,7 +643,7 @@ const parseLegacyArrayValue = (
   return values.map(item => (item === '' ? undefined : parseLegacyScalarValue(column, item, columnsMap)))
 }
 
-export const decodeLegacySearchQuery = (value: unknown, columns: SearchItem[] = []) => {
+export const decodeLegacySearchQuery = (value: unknown, columns: ConditionFieldSchema[] = []) => {
   const rawValue = normalizeRouteQueryValue(value)
 
   if (!rawValue) {
@@ -496,7 +651,7 @@ export const decodeLegacySearchQuery = (value: unknown, columns: SearchItem[] = 
   }
 
   const { columnsMap } = getColumnsMeta(columns)
-  const terms: TermsItem[] = []
+  const terms: ConditionTerm[] = []
 
   decodeURI(rawValue).split(' ').forEach((item) => {
     const parts = item.split(':')
@@ -531,13 +686,32 @@ export const decodeLegacySearchQuery = (value: unknown, columns: SearchItem[] = 
   return normalizeInputTerms(terms, columns)
 }
 
-export const buildOutputTerms = (terms: TermsItem[] = [], columns: SearchItem[] = []) => {
+export const buildOutputTerms = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
   const { columnsMap } = getColumnsMeta(columns)
   const normalizedTerms = normalizeInputTerms(terms, columns)
 
   return normalizedTerms.map((item, index) => {
+    if (isConditionGroup(item)) {
+      const children = buildOutputTerms(item.terms || [], columns)
+
+      if (!children.length) {
+        return undefined
+      }
+
+      const nextGroup: ConditionTerm = {
+        terms: children,
+      }
+
+      const logicType = normalizeLogicType(item.type, index)
+      if (logicType) {
+        nextGroup.type = logicType
+      }
+
+      return nextGroup
+    }
+
     const column = item.column ? columnsMap[item.column] : undefined
-    let nextItem: TermsItem = {
+    let nextItem: ConditionTerm = {
       column: item.column,
       termType: item.termType,
       value: cloneValue(item.value),
@@ -561,7 +735,8 @@ export const buildOutputTerms = (terms: TermsItem[] = [], columns: SearchItem[] 
         cloneTerms(normalizedTerms),
       )
 
-      return cloneTerms([handled], { stripKey: true })[0]
+      const normalizedHandled = normalizeInputTerms([handled], columns)[0]
+      return normalizedHandled ? cloneTerms([normalizedHandled], { stripKey: true })[0] : undefined
     }
 
     if (column.search.handleValue) {
@@ -574,38 +749,56 @@ export const buildOutputTerms = (terms: TermsItem[] = [], columns: SearchItem[] 
 
     return nextItem
   }).filter((item) => {
+    if (!item) {
+      return false
+    }
+
+    if (isConditionGroup(item)) {
+      return hasTermValue(item)
+    }
+
     return !!item?.column && !!item?.termType && hasTermValue(item)
   })
 }
 
-export const buildQueryFilter = (terms: TermsItem[] = [], columns: SearchItem[] = []) => {
+export const buildQueryFilter = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
   return {
     terms: buildOutputTerms(terms, columns),
   }
 }
 
-export const buildWhereExpression = (terms: TermsItem[] = [], columns: SearchItem[] = []) => {
+export const buildWhereExpression = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
   const outputTerms = buildOutputTerms(terms, columns)
-  const segments: string[] = []
 
-  outputTerms.forEach((item) => {
-    const segment = formatTermToWhere(item)
+  const buildSegments = (items: ConditionTerm[] = []) => {
+    const segments: string[] = []
 
-    if (!segment) {
-      return
-    }
+    items.forEach((item) => {
+      const segment = isConditionGroup(item)
+        ? (() => {
+            const content = buildSegments(item.terms || [])
+            return content ? `(${content})` : ''
+          })()
+        : formatTermToWhere(item)
 
-    if (segments.length > 0) {
-      segments.push(normalizeLogicType(item.type, 1) || 'and')
-    }
+      if (!segment) {
+        return
+      }
 
-    segments.push(segment)
-  })
+      if (segments.length > 0) {
+        segments.push(normalizeLogicType(item.type, 1) || 'and')
+      }
 
-  return segments.join(' ')
+      segments.push(segment)
+    })
+
+    return segments.join(' ')
+  }
+
+  return buildSegments(outputTerms)
 }
 
-export const parseWhereExpression = (where: string | undefined, columns: SearchItem[] = []) => {
+export const parseWhereExpression = (where: string | undefined, columns: ConditionFieldSchema[] = []) => {
   const content = String(where || '').trim()
 
   if (!content) {
@@ -614,9 +807,7 @@ export const parseWhereExpression = (where: string | undefined, columns: SearchI
 
   const tokens = tokenizeWhere(content)
   const { aliasMap, columnsMap } = getColumnsMeta(columns)
-  const terms: TermsItem[] = []
   let cursor = 0
-  let nextType: string | undefined
 
   const consume = () => {
     const token = tokens[cursor]
@@ -660,7 +851,7 @@ export const parseWhereExpression = (where: string | undefined, columns: SearchI
     return consume()?.value?.toLowerCase()
   }
 
-  const parseArrayValue = (column: SearchItem | undefined) => {
+  const parseArrayValue = (column: ConditionFieldSchema | undefined) => {
     const start = peek()?.value
 
     if (start !== '(' && start !== '[') {
@@ -693,51 +884,81 @@ export const parseWhereExpression = (where: string | undefined, columns: SearchI
     return values
   }
 
-  while (cursor < tokens.length) {
-    const columnToken = consume()
-    const columnKey = resolveColumnKey(columnToken?.value, aliasMap)
+  const parseTerms = (stopToken?: string) => {
+    const terms: ConditionTerm[] = []
+    let nextType: string | undefined
 
-    if (!columnKey) {
-      break
-    }
+    while (cursor < tokens.length) {
+      const current = peek()
 
-    const column = columnsMap[columnKey]
-    const operator = parseOperator()
-    const termType = operator ? operatorTermTypeMap[operator] : undefined
-
-    if (!termType) {
-      break
-    }
-
-    let value: any
-
-    if (nullaryTermTypes.has(termType)) {
-      value = undefined
-    } else if (['in', 'nin'].includes(termType)) {
-      value = parseArrayValue(column)
-    } else if (['btw', 'nbtw'].includes(termType)) {
-      const startValue = parseScalarValue(consume(), column)
-
-      if (getTokenValue(peek()) === 'and') {
-        cursor += 1
+      if (!current) {
+        break
       }
 
-      const endValue = parseScalarValue(consume(), column)
-      value = [startValue, endValue]
-    } else {
-      value = parseScalarValue(consume(), column)
+      if (stopToken && current.value === stopToken) {
+        break
+      }
+
+      if (current.value === '(') {
+        cursor += 1
+        const groupTerms = parseTerms(')')
+
+        if (peek()?.value === ')') {
+          cursor += 1
+        }
+
+        if (groupTerms.length) {
+          terms.push(createInternalGroup({ terms: groupTerms, type: nextType }, terms.length))
+        }
+      } else {
+        const columnToken = consume()
+        const columnKey = resolveColumnKey(columnToken?.value, aliasMap)
+
+        if (!columnKey) {
+          break
+        }
+
+        const column = columnsMap[columnKey]
+        const operator = parseOperator()
+        const termType = operator ? operatorTermTypeMap[operator] : undefined
+
+        if (!termType) {
+          break
+        }
+
+        let value: any
+
+        if (nullaryTermTypes.has(termType)) {
+          value = undefined
+        } else if (['in', 'nin'].includes(termType)) {
+          value = parseArrayValue(column)
+        } else if (['btw', 'nbtw'].includes(termType)) {
+          const startValue = parseScalarValue(consume(), column)
+
+          if (getTokenValue(peek()) === 'and') {
+            cursor += 1
+          }
+
+          const endValue = parseScalarValue(consume(), column)
+          value = [startValue, endValue]
+        } else {
+          value = parseScalarValue(consume(), column)
+        }
+
+        terms.push(createInternalTerm({ column: columnKey, termType, value, type: nextType }, terms.length))
+      }
+
+      const logicType = getTokenValue(peek())
+      if (logicType && logicTypes.has(logicType)) {
+        nextType = logicType
+        cursor += 1
+      } else {
+        nextType = undefined
+      }
     }
 
-    terms.push(createInternalTerm({ column: columnKey, termType, value, type: nextType }, terms.length))
-
-    const logicType = getTokenValue(peek())
-    if (logicType && logicTypes.has(logicType)) {
-      nextType = logicType
-      cursor += 1
-    } else {
-      nextType = undefined
-    }
+    return terms
   }
 
-  return terms
+  return parseTerms()
 }

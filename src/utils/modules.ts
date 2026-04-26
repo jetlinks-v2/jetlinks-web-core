@@ -1,5 +1,23 @@
 const isFilterModule = (item) => {
-  return item && item.default.filter === true
+  return !item?.default || item.default.filter === true
+}
+
+const resolveBaseMenus = (baseMenuItem) => {
+  const menuExport = baseMenuItem?.default
+  if (!menuExport) {
+    return []
+  }
+
+  if (typeof menuExport === 'function') {
+    const menus = menuExport()
+    return Array.isArray(menus) ? menus : menus ? [menus] : []
+  }
+
+  if (Array.isArray(menuExport)) {
+    return menuExport
+  }
+
+  return [menuExport]
 }
 
 const getSortModules = () => {
@@ -38,7 +56,7 @@ export const getModulesMenu = () => {
       const key = `../../../modules/${defaultName}/baseMenu.ts`
       const baseMenuItem = modulesFiles[key]
       if (baseMenuItem && !isFilterModule(baseMenuItem)) {
-        menus.push(...baseMenuItem.default?.())
+        menus.push(...resolveBaseMenus(baseMenuItem))
       }
   })
 
