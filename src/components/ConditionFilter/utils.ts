@@ -453,6 +453,21 @@ const hasConditionGroups = (terms: ConditionTerm[] = []) => {
   return terms.some(item => isConditionGroup(item) || hasConditionGroups(item.terms || []))
 }
 
+const normalizeOutputTermValue = (term: ConditionTerm) => {
+  if (isConditionGroup(term)) {
+    return term
+  }
+
+  if (nullaryTermTypes.has(term.termType || '')) {
+    return {
+      ...term,
+      value: 1,
+    }
+  }
+
+  return term
+}
+
 const toCompactRouteTerms = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
   return normalizeInputTerms(terms, columns)
     .filter((item) => {
@@ -736,7 +751,9 @@ export const buildOutputTerms = (terms: ConditionTerm[] = [], columns: Condition
       )
 
       const normalizedHandled = normalizeInputTerms([handled], columns)[0]
-      return normalizedHandled ? cloneTerms([normalizedHandled], { stripKey: true })[0] : undefined
+      return normalizedHandled
+        ? normalizeOutputTermValue(cloneTerms([normalizedHandled], { stripKey: true })[0] as ConditionTerm)
+        : undefined
     }
 
     if (column.search.handleValue) {
@@ -747,7 +764,7 @@ export const buildOutputTerms = (terms: ConditionTerm[] = [], columns: Condition
       nextItem.column = column.search.rename
     }
 
-    return nextItem
+    return normalizeOutputTermValue(nextItem)
   }).filter((item) => {
     if (!item) {
       return false

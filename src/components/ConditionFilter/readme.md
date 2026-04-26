@@ -9,6 +9,7 @@
 - 单输入框内展示多个条件 Token
 - 点击后先选字段，再根据字段类型选择操作符和值
 - 条件类型由调用方通过字段 `search.termOptions` / `search.termTypeOptions` 指定
+- 未显式指定 `termTypeOptions` 时，组件会按字段类型自动补齐常用条件（如字符串的包含/等于/为空）
 - 值输入支持调用方通过 `value-editor` 插槽完全接管
 - 输出 `QueryParamEntity` 可直接使用的 `terms` 结构
 - 同时输出线性 `where` 表达式
@@ -92,6 +93,15 @@ const onFilterChange = ({ filter, where }) => {
   </template>
 </ConditionFilter>
 ```
+
+## 默认条件策略
+
+- `string`：`包含`、`不包含`、`为`、`不为`、`为空`、`不为空`
+- `number`：`为`、`不为`、`大于`、`大于等于`、`小于`、`小于等于`、`为空`、`不为空`
+- `select/tree/treeSelect`：`属于`、`不属于`、`为`、`不为`、`为空`、`不为空`
+- `date/time`：`处于范围`、`大于等于`、`小于等于`、`为`、`为空`、`不为空`
+
+操作符下拉会显示一行用途说明，选中后的操作符 Token 支持悬浮查看完整解释。
 
 ## 分组 AST
 

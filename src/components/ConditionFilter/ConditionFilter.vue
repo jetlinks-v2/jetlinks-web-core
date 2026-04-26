@@ -4,7 +4,16 @@ import dayjs from 'dayjs'
 import { isRef } from 'vue'
 import { request } from '@jetlinks-web/core'
 import { randomString } from '@jetlinks-web/utils'
-import { getDefaultTermType, isArrayTermType, TermTypeOptions } from '../Search/Filter/setting'
+import {
+  getConditionFilterDefaultTermType,
+  getReadableTermTypeLabel,
+  getTermTypeDescription,
+  getTermTypeOption,
+  getTermTypeShortDescription,
+  isArrayTermType,
+  isNullaryTermType,
+  normalizeTermTypeOption,
+} from '../Search/Filter/setting'
 import { useColumnItemOptionsContext, useColumnsMapContext } from '../Search/Filter/hooks/useSearchEngine'
 import ConditionEditorPanel from './ConditionEditorPanel.vue'
 import FieldSelectPanel from './FieldSelectPanel.vue'
@@ -33,7 +42,6 @@ const slots = useSlots()
 type TokenKind = 'logic' | 'field' | 'operator' | 'value'
 type EditorMode = 'tail' | 'field' | 'value'
 
-const nullaryTermTypes = new Set(['isnull', 'notnull'])
 const fieldBlurLock = ref(false)
 const autoSearchDelay = 260
 
@@ -89,11 +97,6 @@ const logicCompactLabelMap = {
   or: '或',
 }
 
-const termTypeLabelMap = TermTypeOptions.reduce<Record<string, string>>((acc, item) => {
-  acc[item.value] = item.label
-  return acc
-}, {})
-
 const termsModel = ref<ConditionFilterTerm[]>([])
 const rootRef = ref<HTMLElement>()
 
@@ -102,6 +105,8 @@ const editingTermKey = ref<string>()
 const fieldKeyword = ref('')
 const valueKeyword = ref('')
 const fieldPanelOpen = ref(false)
+const nextTailFocusOpenState = ref<boolean>()
+const operatorPanelTermKey = ref<string>()
 const valuePanelTermKey = ref<string>()
 const valuePanelOpenVersion = ref(0)
 
@@ -111,6 +116,7 @@ const loadingMap = reactive<Record<string, boolean>>({})
 const valueDraftMap = reactive<Record<string, ConditionFilterTerm | undefined>>({})
 const watchDisposers = new Map<string, () => void>()
 let autoSearchTimer: number | undefined
+let keepEmptyValueOnBlur = false
 
 useColumnsMapContext(columnsMap)
 useColumnItemOptionsContext(optionsMap)
@@ -221,7 +227,7 @@ const hasTermValue = (item?: ConditionFilterTerm) => {
     return false
   }
 
-  if (nullaryTermTypes.has(item.termType)) {
+  if (isNullaryTermType(item.termType)) {
     return true
   }
 
@@ -259,13 +265,15 @@ const getTermTypeOptions = (column?: ConditionFilterField) => {
   }
 
   if (search.termOptions?.length) {
-    return search.termOptions
+    return search.termOptions.map(option => normalizeTermTypeOption(option))
   }
 
   const filterKeys = search.termFilter || []
-  const optionKeys = search.termTypeOptions || getDefaultTermType(search.type)
+  const optionKeys = search.termTypeOptions || getConditionFilterDefaultTermType(search.type)
 
-  return TermTypeOptions.filter(item => optionKeys.includes(item.value) && !filterKeys.includes(item.value))
+  return optionKeys
+    .filter(item => !filterKeys.includes(item))
+    .map((value) => normalizeTermTypeOption(getTermTypeOption(value) || { label: value, value }))
 }
 
 const getRecommendedTermType = (column?: ConditionFilterField) => {
@@ -327,7 +335,7 @@ const getRecommendedTermType = (column?: ConditionFilterField) => {
 }
 
 const buildInitialValue = (termType?: string, value?: any) => {
-  if (nullaryTermTypes.has(termType || '')) {
+  if (isNullaryTermType(termType)) {
     return undefined
   }
 
@@ -342,12 +350,81 @@ const buildInitialValue = (termType?: string, value?: any) => {
   return undefined
 }
 
+const getFieldValueKind = (column?: ConditionFilterField, termType?: string) => {
+  if (!column?.search || !termType) {
+    return 'unknown'
+  }
+
+  if (isNullaryTermType(termType)) {
+    return 'nullary'
+  }
+
+  const searchType = column.search.type
+  const isArray = isArrayTermType(termType)
+
+  if (searchType === 'string' && !isArray) {
+    return 'text'
+  }
+
+  if (searchType === 'number') {
+    return isArray ? 'number-range' : 'number'
+  }
+
+  if (['select', 'tree', 'treeSelect'].includes(searchType)) {
+    return isArray ? 'options-multiple' : 'options-single'
+  }
+
+  if (['date', 'time', 'timeRange', 'rangePicker'].includes(searchType)) {
+    return isArray ? 'date-range' : 'date'
+  }
+
+  if (searchType === 'component') {
+    return 'component'
+  }
+
+  return `${searchType}:${isArray ? 'array' : 'single'}`
+}
+
+const shouldKeepTermTypeOnFieldSwitch = (
+  term: ConditionFilterTerm | undefined,
+  nextColumn: ConditionFilterField | undefined,
+) => {
+  const currentColumn = getTermColumn(term)
+
+  if (!term?.termType || !currentColumn?.search?.type || !nextColumn?.search?.type) {
+    return false
+  }
+
+  return currentColumn.search.type === nextColumn.search.type
+}
+
+const canReuseFieldValueOnSwitch = (
+  term: ConditionFilterTerm | undefined,
+  nextColumn: ConditionFilterField | undefined,
+  nextTermType?: string,
+) => {
+  const currentColumn = getTermColumn(term)
+
+  if (!term?.termType || !nextColumn?.search || !nextTermType || !hasTermValue(term)) {
+    return false
+  }
+
+  const currentKind = getFieldValueKind(currentColumn, term.termType)
+  const nextKind = getFieldValueKind(nextColumn, nextTermType)
+
+  if (['unknown', 'nullary', 'component'].includes(currentKind) || ['unknown', 'nullary', 'component'].includes(nextKind)) {
+    return false
+  }
+
+  return currentKind === nextKind
+}
+
 const convertValue = (oldTermType?: string, newTermType?: string, currentValue?: any) => {
   if (!newTermType || oldTermType === newTermType) {
     return buildInitialValue(newTermType, currentValue)
   }
 
-  if (nullaryTermTypes.has(newTermType)) {
+  if (isNullaryTermType(newTermType)) {
     return undefined
   }
 
@@ -374,11 +451,11 @@ const convertValue = (oldTermType?: string, newTermType?: string, currentValue?:
 }
 
 const isDirectTextTerm = (column?: ConditionFilterField, termType?: string) => {
-  return column?.search?.type === 'string' && !!termType && !nullaryTermTypes.has(termType) && !isArrayTermType(termType)
+  return column?.search?.type === 'string' && !!termType && !isNullaryTermType(termType) && !isArrayTermType(termType)
 }
 
 const isPopupValueTerm = (column?: ConditionFilterField, termType?: string) => {
-  return !!column?.search && !!termType && !nullaryTermTypes.has(termType) && !isDirectTextTerm(column, termType)
+  return !!column?.search && !!termType && !isNullaryTermType(termType) && !isDirectTextTerm(column, termType)
 }
 
 const getFieldLabel = (columnKey?: string) => {
@@ -403,11 +480,6 @@ const getGroupLabel = (term?: ConditionFilterTerm) => {
   return total ? `条件组（${total}项）` : '条件组'
 }
 
-const getTermTypeLabel = (term: ConditionFilterTerm) => {
-  const options = getTermTypeOptions(getTermColumn(term))
-  return options.find(item => item.value === term.termType)?.label || termTypeLabelMap[term.termType || ''] || '--'
-}
-
 const isTermTypeSelected = (term: ConditionFilterTerm, termType: string) => {
   return term.termType === termType
 }
@@ -416,25 +488,24 @@ const isLogicTypeSelected = (term: ConditionFilterTerm, value: string) => {
   return (term.type || 'and') === value
 }
 
-const getReadableTermTypeLabel = (termType?: string) => {
-  const readableMap: Record<string, string> = {
-    eq: '为',
-    not: '不为',
-    like: '包含',
-    nlike: '不包含',
-    gt: '大于',
-    gte: '大于等于',
-    lt: '小于',
-    lte: '小于等于',
-    in: '属于',
-    nin: '不属于',
-    btw: '处于范围',
-    nbtw: '不在范围',
-    isnull: '为空',
-    notnull: '不为空',
-  }
+const getResolvedTermTypeOption = (termType?: string, column?: ConditionFilterField) => {
+  const option = getTermTypeOptions(column).find(item => item.value === termType)
+  return option || getTermTypeOption(termType)
+}
 
-  return readableMap[termType || ''] || termTypeLabelMap[termType || ''] || '--'
+const getTermTypeReadableText = (termType?: string, column?: ConditionFilterField) => {
+  const option = getResolvedTermTypeOption(termType, column)
+  return option?.readableLabel || option?.label || getReadableTermTypeLabel(termType)
+}
+
+const getTermTypeShortText = (termType?: string, column?: ConditionFilterField) => {
+  const option = getResolvedTermTypeOption(termType, column)
+  return option?.shortDescription || getTermTypeShortDescription(termType)
+}
+
+const getTermTypeTooltip = (termType?: string, column?: ConditionFilterField) => {
+  const option = getResolvedTermTypeOption(termType, column)
+  return option?.description || getTermTypeDescription(termType)
 }
 
 const getValuePlaceholder = (term: ConditionFilterTerm) => {
@@ -501,6 +572,161 @@ const getOptionLabel = (column: ConditionFilterField | undefined, value: any) =>
   return String(option.label ?? option.name ?? option.title ?? option.value ?? option.id)
 }
 
+const getDateDisplayFormat = (searchType?: string) => {
+  if (searchType === 'time') {
+    return 'HH:mm:ss'
+  }
+
+  if (searchType === 'date') {
+    return 'YYYY-MM-DD'
+  }
+
+  return 'YYYY-MM-DD HH:mm'
+}
+
+const getDateTooltipFormat = (searchType?: string) => {
+  if (searchType === 'time') {
+    return 'HH:mm:ss'
+  }
+
+  if (searchType === 'date') {
+    return 'YYYY-MM-DD HH:mm:ss'
+  }
+
+  return 'YYYY-MM-DD HH:mm'
+}
+
+const formatDateValue = (column: ConditionFilterField | undefined, value: any) => {
+  const searchType = column?.search?.type
+  const dateValue = dayjs(value)
+
+  if (!dateValue.isValid()) {
+    return String(value)
+  }
+
+  return dateValue.format(getDateDisplayFormat(searchType))
+}
+
+const formatDateTooltipValue = (column: ConditionFilterField | undefined, value: any) => {
+  const searchType = column?.search?.type
+  const dateValue = dayjs(value)
+
+  if (!dateValue.isValid()) {
+    return String(value)
+  }
+
+  return dateValue.format(getDateTooltipFormat(searchType))
+}
+
+const getWeekRange = (value = dayjs()) => {
+  const current = value.startOf('day')
+  const weekDay = current.day()
+  const diff = weekDay === 0 ? 6 : weekDay - 1
+  const start = current.subtract(diff, 'day').startOf('day')
+  const end = start.add(6, 'day').endOf('day')
+  return { start, end }
+}
+
+const isExactDateRange = (start: dayjs.Dayjs, end: dayjs.Dayjs, expectedStart: dayjs.Dayjs, expectedEnd: dayjs.Dayjs) => {
+  return start.valueOf() === expectedStart.valueOf() && end.valueOf() === expectedEnd.valueOf()
+}
+
+const getPresetDateRangeLabel = (start: dayjs.Dayjs, end: dayjs.Dayjs) => {
+  const today = dayjs()
+  const todayStart = today.startOf('day')
+  const todayEnd = today.endOf('day')
+  const yesterday = today.subtract(1, 'day')
+  const yesterdayStart = yesterday.startOf('day')
+  const yesterdayEnd = yesterday.endOf('day')
+  const thisWeek = getWeekRange(today)
+  const lastWeek = getWeekRange(today.subtract(7, 'day'))
+  const thisMonthStart = today.startOf('month')
+  const thisMonthEnd = today.endOf('month')
+  const lastMonth = today.subtract(1, 'month')
+  const lastMonthStart = lastMonth.startOf('month')
+  const lastMonthEnd = lastMonth.endOf('month')
+  const thisYearStart = today.startOf('year')
+  const thisYearEnd = today.endOf('year')
+  const recent7DaysStart = today.subtract(6, 'day').startOf('day')
+  const recent30DaysStart = today.subtract(29, 'day').startOf('day')
+
+  if (isExactDateRange(start, end, todayStart, todayEnd)) {
+    return '今日'
+  }
+
+  if (isExactDateRange(start, end, yesterdayStart, yesterdayEnd)) {
+    return '昨日'
+  }
+
+  if (isExactDateRange(start, end, thisWeek.start, thisWeek.end)) {
+    return '本周'
+  }
+
+  if (isExactDateRange(start, end, lastWeek.start, lastWeek.end)) {
+    return '上周'
+  }
+
+  if (isExactDateRange(start, end, thisMonthStart, thisMonthEnd)) {
+    return '本月'
+  }
+
+  if (isExactDateRange(start, end, lastMonthStart, lastMonthEnd)) {
+    return '上月'
+  }
+
+  if (isExactDateRange(start, end, thisYearStart, thisYearEnd)) {
+    return '本年'
+  }
+
+  if (isExactDateRange(start, end, recent7DaysStart, todayEnd)) {
+    return '近7天'
+  }
+
+  if (isExactDateRange(start, end, recent30DaysStart, todayEnd)) {
+    return '近30天'
+  }
+
+  return undefined
+}
+
+const getDateRangeLabel = (column: ConditionFilterField | undefined, startValue: any, endValue: any) => {
+  const searchType = column?.search?.type
+  const start = dayjs(startValue)
+  const end = dayjs(endValue)
+
+  if (!start.isValid() || !end.isValid()) {
+    return undefined
+  }
+
+  const preset = getPresetDateRangeLabel(start, end)
+
+  if (preset) {
+    return preset
+  }
+
+  if (searchType === 'date') {
+    if (start.isSame(end, 'day')) {
+      return `${start.format('YYYY-MM-DD')}（当天）`
+    }
+
+    if (start.isSame(end, 'year')) {
+      return `${start.format('MM-DD')} ~ ${end.format('MM-DD')}`
+    }
+
+    return `${start.format('YYYY-MM-DD')} ~ ${end.format('YYYY-MM-DD')}`
+  }
+
+  if (start.isSame(end, 'day')) {
+    return `${start.format('MM-DD HH:mm')} ~ ${end.format('HH:mm')}`
+  }
+
+  if (start.isSame(end, 'year')) {
+    return `${start.format('MM-DD HH:mm')} ~ ${end.format('MM-DD HH:mm')}`
+  }
+
+  return `${start.format('YYYY-MM-DD HH:mm')} ~ ${end.format('YYYY-MM-DD HH:mm')}`
+}
+
 const formatScalarValue = (column: ConditionFilterField | undefined, value: any, term?: ConditionFilterTerm) => {
   if (isNilValue(value)) {
     return ''
@@ -517,10 +743,7 @@ const formatScalarValue = (column: ConditionFilterField | undefined, value: any,
   }
 
   if (['date', 'time', 'timeRange', 'rangePicker'].includes(searchType || '')) {
-    const dateValue = dayjs(value)
-    if (dateValue.isValid()) {
-      return dateValue.format('YYYY-MM-DD HH:mm:ss')
-    }
+    return formatDateValue(column, value)
   }
 
   return String(value)
@@ -529,16 +752,53 @@ const formatScalarValue = (column: ConditionFilterField | undefined, value: any,
 const getValueLabel = (term: ConditionFilterTerm) => {
   const column = getTermColumn(term)
 
-  if (!term.termType || nullaryTermTypes.has(term.termType) || !hasTermValue(term)) {
+  if (!term.termType || isNullaryTermType(term.termType) || !hasTermValue(term)) {
     return ''
   }
 
   if (Array.isArray(term.value)) {
+    if (['btw', 'nbtw'].includes(term.termType) && ['date', 'time', 'timeRange', 'rangePicker'].includes(column?.search?.type || '')) {
+      const [start, end] = term.value.filter(item => !isNilValue(item))
+
+      if (!isNilValue(start) && !isNilValue(end)) {
+        const label = getDateRangeLabel(column, start, end)
+
+        if (label) {
+          return label
+        }
+      }
+    }
+
     const values = term.value.filter(item => !isNilValue(item)).map(item => formatScalarValue(column, item, term))
     return ['btw', 'nbtw'].includes(term.termType) ? values.join(' ~ ') : values.join('、')
   }
 
   return formatScalarValue(column, term.value, term)
+}
+
+const getValueTooltip = (term: ConditionFilterTerm) => {
+  const displayTerm = getDisplayTerm(term)
+  const column = getTermColumn(displayTerm)
+
+  if (!displayTerm.termType || isNullaryTermType(displayTerm.termType) || !hasTermValue(displayTerm)) {
+    return ''
+  }
+
+  if (Array.isArray(displayTerm.value)) {
+    const values = displayTerm.value
+      .filter(item => !isNilValue(item))
+      .map((item) => ['date', 'time', 'timeRange', 'rangePicker'].includes(column?.search?.type || '')
+        ? formatDateTooltipValue(column, item)
+        : formatScalarValue(column, item, displayTerm))
+
+    return ['btw', 'nbtw'].includes(displayTerm.termType) ? values.join(' ~ ') : values.join('、')
+  }
+
+  if (['date', 'time', 'timeRange', 'rangePicker'].includes(column?.search?.type || '')) {
+    return formatDateTooltipValue(column, displayTerm.value)
+  }
+
+  return formatScalarValue(column, displayTerm.value, displayTerm)
 }
 
 const setValueDraft = (termKey: string, draft?: ConditionFilterTerm) => {
@@ -574,6 +834,7 @@ const getDisplayTerm = (term: ConditionFilterTerm) => {
 
 const getDisplayValueLabel = (term: ConditionFilterTerm) => getValueLabel(getDisplayTerm(term))
 const hasDisplayTermValue = (term: ConditionFilterTerm) => hasTermValue(getDisplayTerm(term))
+const fieldPanelVisible = computed(() => fieldPanelOpen.value && !valuePanelTermKey.value && !operatorPanelTermKey.value)
 
 const syncColumnsContext = () => {
   watchDisposers.forEach(stop => stop())
@@ -725,11 +986,16 @@ const setTailMode = (options?: { focus?: boolean; open?: boolean; keyword?: stri
   valueKeyword.value = ''
   fieldKeyword.value = options?.keyword ?? ''
   fieldPanelOpen.value = options?.open ?? false
+  operatorPanelTermKey.value = undefined
   valuePanelTermKey.value = undefined
 
   if (options?.focus) {
+    nextTailFocusOpenState.value = options?.open ?? false
     focusEditorInput()
+    return
   }
+
+  nextTailFocusOpenState.value = undefined
 }
 
 const focusTailInput = (open = true) => {
@@ -786,6 +1052,7 @@ const startFieldEdit = (termKey: string) => {
   fieldKeyword.value = ''
   valueKeyword.value = ''
   fieldPanelOpen.value = true
+  operatorPanelTermKey.value = undefined
   valuePanelTermKey.value = undefined
   focusEditorInput()
 }
@@ -805,9 +1072,26 @@ const startValueEdit = (termKey: string, initialValue?: string) => {
   editorMode.value = 'value'
   editingTermKey.value = termKey
   fieldPanelOpen.value = false
+  operatorPanelTermKey.value = undefined
   valuePanelTermKey.value = undefined
   valueKeyword.value = initialValue ?? (isNilValue(term.value) ? '' : String(term.value))
   focusEditorInput()
+}
+
+const activatePopupValueTerm = (termKey: string) => {
+  nextTailFocusOpenState.value = false
+  editorMode.value = 'tail'
+  editingTermKey.value = undefined
+  fieldKeyword.value = ''
+  fieldPanelOpen.value = false
+  operatorPanelTermKey.value = undefined
+  valuePanelTermKey.value = termKey
+
+  nextTick(() => {
+    if (valuePanelTermKey.value === termKey) {
+      fieldPanelOpen.value = false
+    }
+  })
 }
 
 const applyFieldSelection = (termKey: string, columnKey: string) => {
@@ -820,11 +1104,23 @@ const applyFieldSelection = (termKey: string, columnKey: string) => {
 
   const termOptions = getTermTypeOptions(column)
   const nextTermType =
-    (term.termType && termOptions.some(item => item.value === term.termType) && term.termType) ||
+    (shouldKeepTermTypeOnFieldSwitch(term, column) &&
+      term.termType &&
+      termOptions.some(item => item.value === term.termType) &&
+      term.termType) ||
     getRecommendedTermType(column) ||
     'eq'
 
-  const nextValue = buildInitialValue(nextTermType, column.search.defaultValue)
+  const nextValue = canReuseFieldValueOnSwitch(term, column, nextTermType)
+    ? convertValue(term.termType, nextTermType, term.value)
+    : buildInitialValue(nextTermType, column.search.defaultValue)
+
+  const nextTerm = {
+    ...term,
+    column: columnKey,
+    termType: nextTermType,
+    value: nextValue,
+  }
 
   applyTermUpdate(termKey, {
     column: columnKey,
@@ -832,11 +1128,11 @@ const applyFieldSelection = (termKey: string, columnKey: string) => {
     value: nextValue,
   })
 
-  createOptionsLoader(column)
+  createOptionsLoader(column, nextTerm)
   fieldKeyword.value = ''
   fieldPanelOpen.value = false
 
-  if (nullaryTermTypes.has(nextTermType)) {
+  if (isNullaryTermType(nextTermType)) {
     setTailMode({ focus: true })
     return
   }
@@ -846,9 +1142,7 @@ const applyFieldSelection = (termKey: string, columnKey: string) => {
     return
   }
 
-  editorMode.value = 'tail'
-  editingTermKey.value = undefined
-  valuePanelTermKey.value = termKey
+  activatePopupValueTerm(termKey)
 }
 
 const onSelectField = (columnKey: string) => {
@@ -916,12 +1210,13 @@ const onTermTypeChange = (termKey: string, nextTermType: string) => {
   }
 
   const nextValue = convertValue(term.termType, nextTermType, term.value)
+  operatorPanelTermKey.value = undefined
   applyTermUpdate(termKey, {
     termType: nextTermType,
     value: nextValue,
   })
 
-  if (nullaryTermTypes.has(nextTermType)) {
+  if (isNullaryTermType(nextTermType)) {
     setTailMode({ focus: true })
     return
   }
@@ -933,14 +1228,14 @@ const onTermTypeChange = (termKey: string, nextTermType: string) => {
       value: nextValue,
     })) {
       startValueEdit(termKey, '')
+      return
     }
+
+    setTailMode({ focus: true })
     return
   }
 
-  valuePanelTermKey.value = termKey
-  editorMode.value = 'tail'
-  editingTermKey.value = undefined
-  fieldPanelOpen.value = false
+  activatePopupValueTerm(termKey)
 }
 
 const onRemoveTerm = (termKey: string) => {
@@ -972,7 +1267,7 @@ const removeTailToken = () => {
   onRemoveTerm(lastTerm.key)
 }
 
-const commitTextValue = (options?: { focusTail?: boolean }) => {
+const commitTextValue = (options?: { focusTail?: boolean; allowEmpty?: boolean }) => {
   const termKey = editingTermKey.value
   const term = getTerm(termKey)
 
@@ -983,6 +1278,15 @@ const commitTextValue = (options?: { focusTail?: boolean }) => {
   const nextValue = valueKeyword.value
 
   if (!nextValue) {
+    if (options?.allowEmpty) {
+      applyTermUpdate(termKey, {
+        value: undefined,
+      })
+
+      setTailMode({ focus: options?.focusTail })
+      return
+    }
+
     onRemoveTerm(termKey)
     return
   }
@@ -997,7 +1301,25 @@ const commitTextValue = (options?: { focusTail?: boolean }) => {
 const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?: { close?: boolean; allowEmpty?: boolean }) => {
   delete valueDraftMap[termKey]
 
-  if (!nullaryTermTypes.has(value.termType || '') && !hasTermValue(value)) {
+  if (!isNullaryTermType(value.termType) && !hasTermValue(value)) {
+    if (options?.allowEmpty) {
+      applyTermUpdate(termKey, {
+        termType: value.termType,
+        value: cloneValue(value.value),
+      })
+
+      if (options?.close === false) {
+        valuePanelTermKey.value = termKey
+        fieldPanelOpen.value = false
+        editorMode.value = 'tail'
+        editingTermKey.value = undefined
+        return
+      }
+
+      setTailMode({ focus: true })
+      return
+    }
+
     onRemoveTerm(termKey)
     return
   }
@@ -1100,10 +1422,7 @@ const onTokenActivate = (termKey: string, kind: TokenKind, target?: EventTarget 
     const column = getTermColumn(term)
 
     if (isPopupValueTerm(column, term.termType)) {
-      valuePanelTermKey.value = termKey
-      fieldPanelOpen.value = false
-      editorMode.value = 'tail'
-      editingTermKey.value = undefined
+      activatePopupValueTerm(termKey)
       return
     }
 
@@ -1159,7 +1478,8 @@ const onTailFocus = () => {
   editorMode.value = 'tail'
   editingTermKey.value = undefined
   valuePanelTermKey.value = undefined
-  fieldPanelOpen.value = true
+  fieldPanelOpen.value = nextTailFocusOpenState.value ?? true
+  nextTailFocusOpenState.value = undefined
 }
 
 const onTailActivate = () => {
@@ -1265,12 +1585,23 @@ const onValueInput = (event: Event) => {
   valueKeyword.value = (event.target as HTMLInputElement)?.value || ''
 }
 
-const onValueBlur = () => {
+const onOperatorChipMouseDown = () => {
+  if (editorMode.value === 'value') {
+    keepEmptyValueOnBlur = true
+  }
+}
+
+const onValueBlur = (event: FocusEvent) => {
   if (editorMode.value !== 'value') {
+    keepEmptyValueOnBlur = false
     return
   }
 
-  commitTextValue()
+  const nextTarget = event.relatedTarget as HTMLElement | null
+  const allowEmpty = keepEmptyValueOnBlur || !!nextTarget?.closest?.('.condition-filter__chip--operator')
+  keepEmptyValueOnBlur = false
+
+  commitTextValue({ allowEmpty })
 }
 
 const onValueKeydown = (event: KeyboardEvent) => {
@@ -1302,30 +1633,51 @@ const onValueKeydown = (event: KeyboardEvent) => {
 }
 
 const onFieldPanelOpenChange = (visible: boolean) => {
+  if (visible && valuePanelTermKey.value) {
+    fieldPanelOpen.value = false
+    return
+  }
+
   if (!visible && (fieldBlurLock.value || isInlineEditorFocused())) {
     return
   }
 
   fieldPanelOpen.value = visible
 
+  if (visible) {
+    operatorPanelTermKey.value = undefined
+  }
+
   if (!visible && editorMode.value === 'field') {
     setTailMode()
+  }
+}
+
+const onOperatorPanelOpenChange = (termKey: string, visible: boolean) => {
+  if (visible) {
+    operatorPanelTermKey.value = termKey
+    fieldPanelOpen.value = false
+    valuePanelTermKey.value = undefined
+    editorMode.value = 'tail'
+    editingTermKey.value = undefined
+    return
+  }
+
+  if (operatorPanelTermKey.value === termKey) {
+    operatorPanelTermKey.value = undefined
   }
 }
 
 const onValuePanelOpenChange = (termKey: string, visible: boolean) => {
   if (visible) {
     valuePanelOpenVersion.value += 1
-    valuePanelTermKey.value = termKey
-    fieldPanelOpen.value = false
-    editorMode.value = 'tail'
-    editingTermKey.value = undefined
+    activatePopupValueTerm(termKey)
     return
   }
 
   const draft = valueDraftMap[termKey]
 
-  if (draft && !nullaryTermTypes.has(draft.termType || '') && !hasTermValue(draft)) {
+  if (draft && !isNullaryTermType(draft.termType) && !hasTermValue(draft)) {
     onApplyPanelValue(termKey, draft, { close: true, allowEmpty: true })
     return
   }
@@ -1457,7 +1809,7 @@ onUnmounted(() => {
             <template v-else>
             <a-dropdown
               v-if="editorMode === 'field' && editingTermKey === getTermKey(term)"
-              :open="fieldPanelOpen"
+              :open="fieldPanelVisible"
               trigger="click"
               placement="bottomLeft"
               @openChange="onFieldPanelOpenChange"
@@ -1498,43 +1850,60 @@ onUnmounted(() => {
             </button>
 
             <a-dropdown
+              :open="operatorPanelTermKey === getTermKey(term)"
               trigger="click"
               placement="bottomLeft"
+              @openChange="(visible) => onOperatorPanelOpenChange(getTermKey(term), visible)"
             >
-              <button
-                class="condition-filter__chip condition-filter__chip--operator"
-                type="button"
-                :disabled="disabled"
-                data-condition-focusable="true"
-                @click.stop
-                @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'operator')"
-              >
-                <span class="condition-filter__chip-text">{{ getReadableTermTypeLabel(term.termType) }}</span>
-                <span
-                  v-if="nullaryTermTypes.has(term.termType || '')"
-                  class="condition-filter__chip-close"
-                  @click.stop="onClearTermValue(getTermKey(term))"
+              <a-tooltip :title="getTermTypeTooltip(term.termType, getTermColumn(term)) || undefined">
+                <button
+                  class="condition-filter__chip condition-filter__chip--operator"
+                  type="button"
+                  :disabled="disabled"
+                  data-condition-focusable="true"
+                  @mousedown="onOperatorChipMouseDown"
+                  @click.stop
+                  @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'operator')"
                 >
-                  <AIcon type="CloseOutlined" />
-                </span>
-              </button>
+                  <span class="condition-filter__chip-text">{{ getTermTypeReadableText(term.termType, getTermColumn(term)) }}</span>
+                  <span
+                    v-if="isNullaryTermType(term.termType)"
+                    class="condition-filter__chip-close"
+                    @click.stop="onClearTermValue(getTermKey(term))"
+                  >
+                    <AIcon type="CloseOutlined" />
+                  </span>
+                </button>
+              </a-tooltip>
               <template #overlay>
                 <div class="condition-filter__dropdown-panel" @mousedown.prevent>
-                  <button
+                  <a-tooltip
                     v-for="option in getTermTypeOptions(getTermColumn(term))"
                     :key="option.value"
-                    class="condition-filter__dropdown-option condition-filter__chip condition-filter__chip--operator"
-                    :class="{ 'condition-filter__dropdown-option--active': isTermTypeSelected(term, option.value) }"
-                    type="button"
-                    @click.stop="onTermTypeChange(getTermKey(term), option.value)"
+                    :title="getTermTypeTooltip(option.value, getTermColumn(term)) || undefined"
+                    placement="right"
                   >
-                    <span class="condition-filter__chip-text">{{ getReadableTermTypeLabel(option.value) }}</span>
-                  </button>
+                    <button
+                      class="condition-filter__dropdown-option condition-filter__chip condition-filter__chip--operator"
+                      :class="{ 'condition-filter__dropdown-option--active': isTermTypeSelected(term, option.value) }"
+                      type="button"
+                      @click.stop="onTermTypeChange(getTermKey(term), option.value)"
+                    >
+                      <span class="condition-filter__dropdown-option-content">
+                        <span class="condition-filter__dropdown-option-title">
+                          {{ getTermTypeReadableText(option.value, getTermColumn(term)) }}
+                        </span>
+                        <span v-if="getTermTypeShortText(option.value, getTermColumn(term))" class="condition-filter__dropdown-option-desc">
+                          {{ getTermTypeShortText(option.value, getTermColumn(term)) }}
+                        </span>
+                      </span>
+                    </button>
+                  </a-tooltip>
                 </div>
               </template>
             </a-dropdown>
 
-            <template v-if="!nullaryTermTypes.has(term.termType || '')">
+            <template v-if="!isNullaryTermType(term.termType)">
               <div
                 v-if="editorMode === 'value' && editingTermKey === getTermKey(term)"
                 class="condition-filter__editor condition-filter__editor--value"
@@ -1558,26 +1927,28 @@ onUnmounted(() => {
                 placement="bottomLeft"
                 @openChange="(visible) => onValuePanelOpenChange(getTermKey(term), visible)"
               >
-                <button
-                  class="condition-filter__chip condition-filter__chip--value"
-                  :class="{ 'condition-filter__chip--placeholder': !getDisplayValueLabel(term) }"
-                  type="button"
-                  :disabled="disabled"
-                  data-condition-focusable="true"
-                  @click.stop="valuePanelTermKey = getTermKey(term)"
-                  @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'value')"
-                >
-                  <span class="condition-filter__chip-text">
-                    {{ getDisplayValueLabel(term) || getValuePlaceholder(term) }}
-                  </span>
-                  <span
-                    v-if="hasDisplayTermValue(term)"
-                    class="condition-filter__chip-close"
-                    @click.stop="onClearTermValue(getTermKey(term))"
+                <a-tooltip :title="getValueTooltip(term) || undefined">
+                  <button
+                    class="condition-filter__chip condition-filter__chip--value"
+                    :class="{ 'condition-filter__chip--placeholder': !getDisplayValueLabel(term) }"
+                    type="button"
+                    :disabled="disabled"
+                    data-condition-focusable="true"
+                    @click.stop="valuePanelTermKey = getTermKey(term)"
+                    @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'value')"
                   >
-                    <AIcon type="CloseOutlined" />
-                  </span>
-                </button>
+                    <span class="condition-filter__chip-text">
+                      {{ getDisplayValueLabel(term) || getValuePlaceholder(term) }}
+                    </span>
+                    <span
+                      v-if="hasDisplayTermValue(term)"
+                      class="condition-filter__chip-close"
+                      @click.stop="onClearTermValue(getTermKey(term))"
+                    >
+                      <AIcon type="CloseOutlined" />
+                    </span>
+                  </button>
+                </a-tooltip>
                 <template #overlay>
                   <ConditionEditorPanel
                     :key="`${getTermKey(term)}:${valuePanelOpenVersion}`"
@@ -1593,27 +1964,28 @@ onUnmounted(() => {
                 </template>
               </a-dropdown>
 
-              <button
-                v-else
-                class="condition-filter__chip condition-filter__chip--value"
-                :class="{ 'condition-filter__chip--placeholder': !getDisplayValueLabel(term) }"
-                type="button"
-                :disabled="disabled"
-                data-condition-focusable="true"
-                @click.stop="startValueEdit(getTermKey(term))"
-                @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'value')"
-              >
-                <span class="condition-filter__chip-text">
-                  {{ getDisplayValueLabel(term) || getValuePlaceholder(term) }}
-                </span>
-                <span
-                  v-if="hasDisplayTermValue(term)"
-                  class="condition-filter__chip-close"
-                  @click.stop="onClearTermValue(getTermKey(term))"
+              <a-tooltip v-else :title="getValueTooltip(term) || undefined">
+                <button
+                  class="condition-filter__chip condition-filter__chip--value"
+                  :class="{ 'condition-filter__chip--placeholder': !getDisplayValueLabel(term) }"
+                  type="button"
+                  :disabled="disabled"
+                  data-condition-focusable="true"
+                  @click.stop="startValueEdit(getTermKey(term))"
+                  @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'value')"
                 >
-                  <AIcon type="CloseOutlined" />
-                </span>
-              </button>
+                  <span class="condition-filter__chip-text">
+                    {{ getDisplayValueLabel(term) || getValuePlaceholder(term) }}
+                  </span>
+                  <span
+                    v-if="hasDisplayTermValue(term)"
+                    class="condition-filter__chip-close"
+                    @click.stop="onClearTermValue(getTermKey(term))"
+                  >
+                    <AIcon type="CloseOutlined" />
+                  </span>
+                </button>
+              </a-tooltip>
             </template>
             </template>
           </div>
@@ -1621,7 +1993,7 @@ onUnmounted(() => {
 
         <a-dropdown
           v-if="!disabled && editorMode === 'tail'"
-          :open="fieldPanelOpen"
+          :open="fieldPanelVisible"
           trigger="click"
           placement="bottomLeft"
           @openChange="onFieldPanelOpenChange"
@@ -1669,6 +2041,7 @@ onUnmounted(() => {
         >
           <AIcon type="CloseCircleOutlined" />
         </button>
+        <span class="condition-filter__action-divider" aria-hidden="true" />
         <button
           class="condition-filter__action condition-filter__action--search"
           type="button"
@@ -1896,11 +2269,10 @@ onUnmounted(() => {
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
-    gap: 0;
+    gap: 6px;
     align-self: stretch;
     margin-left: 8px;
-    border-left: 1px solid #e4e7ec;
-    padding-left: 8px;
+    padding-left: 2px;
   }
 
   &__action {
@@ -1927,6 +2299,12 @@ onUnmounted(() => {
     }
   }
 
+  &__action-divider {
+    width: 1px;
+    height: 16px;
+    background: #e4e7ec;
+  }
+
   &__action--search {
     color: #1677ff;
   }
@@ -1946,6 +2324,34 @@ onUnmounted(() => {
   &__dropdown-option {
     max-width: 100%;
     justify-content: flex-start;
+    align-items: flex-start;
+    height: auto;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  &__dropdown-option-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  &__dropdown-option-title {
+    color: #344054;
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  &__dropdown-option-desc {
+    max-width: 220px;
+    color: #98a2b3;
+    font-size: 11px;
+    line-height: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &__dropdown-option--active {
