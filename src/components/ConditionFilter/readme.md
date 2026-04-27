@@ -133,10 +133,24 @@ const terms: ConditionFilterExpression = [
 ]
 ```
 
-- 平铺条件仍输出为 `v1`
-- 出现分组时路由自动升级为 `v2`
-- `decodeConditionFilterQuery` 同时兼容 `v1` / `v2`
+- 当前默认使用更紧凑的 `v3`
+- `decodeConditionFilterQuery` 同时兼容 `v1` / `v2` / `v3`
 - 可通过 `resolveConditionFilterRouteVersion(terms, fields)` 判断当前会落哪一版编码
+
+### 路由别名
+
+可通过 `search.routeAlias` 为字段指定更短的路由别名，以进一步压缩 `q` 参数：
+
+```ts
+{
+  title: '名称',
+  dataIndex: 'name',
+  search: {
+    type: 'string',
+    routeAlias: 'n',
+  },
+}
+```
 
 ## 选项展示回调
 

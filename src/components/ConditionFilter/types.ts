@@ -49,7 +49,7 @@ export interface ConditionOptionDisplayFields {
   icon?: ConditionOptionDisplayFieldResolver
 }
 
-export type ConditionFilterRouteVersion = 'v1' | 'v2'
+export type ConditionFilterRouteVersion = 'v1' | 'v2' | 'v3'
 
 export type ConditionFilterRouteTermTuple = [string, string, any, string?]
 
@@ -94,6 +94,7 @@ export interface ConditionFieldSearchConfig {
   dictId?: string
   fixed?: boolean
   rename?: string
+  routeAlias?: string
   defaultTermType?: string
   defaultValue?: any
   first?: boolean
