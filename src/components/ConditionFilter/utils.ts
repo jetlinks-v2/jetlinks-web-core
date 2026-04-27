@@ -562,6 +562,17 @@ const normalizeOutputTermValue = (term: ConditionTerm) => {
   return term
 }
 
+const applyOutputColumnRename = (term: ConditionTerm, column?: ConditionFieldSchema) => {
+  if (isConditionGroup(term) || !column?.search?.rename) {
+    return term
+  }
+
+  return {
+    ...term,
+    column: column.search.rename,
+  }
+}
+
 const toCompactRouteTerms = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
   return normalizeInputTerms(terms, columns)
     .filter((item) => {
@@ -951,20 +962,24 @@ export const buildOutputTerms = (terms: ConditionTerm[] = [], columns: Condition
       )
 
       const normalizedHandled = normalizeInputTerms([handled], columns)[0]
-      return normalizedHandled
-        ? normalizeOutputTermValue(cloneTerms([normalizedHandled], { stripKey: true })[0] as ConditionTerm)
+
+      if (!normalizedHandled) {
+        return undefined
+      }
+
+      const normalizedHandledTerm = cloneTerms([normalizedHandled], { stripKey: true })[0] as ConditionTerm
+      const normalizedHandledColumn = !isConditionGroup(normalizedHandledTerm) && normalizedHandledTerm.column
+        ? columnsMap[normalizedHandledTerm.column]
         : undefined
+
+      return normalizeOutputTermValue(applyOutputColumnRename(normalizedHandledTerm, normalizedHandledColumn))
     }
 
     if (column.search.handleValue) {
       nextItem.value = column.search.handleValue(cloneValue(item.value))
     }
 
-    if (column.search.rename) {
-      nextItem.column = column.search.rename
-    }
-
-    return normalizeOutputTermValue(nextItem)
+    return normalizeOutputTermValue(applyOutputColumnRename(nextItem, column))
   }).filter((item) => {
     if (!item) {
       return false
