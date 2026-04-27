@@ -56,8 +56,14 @@ if (import.meta.env.DEV) {
   localStorage.setItem(LOCAL_BASE_API, getBaseApi())
 }
 
-window.addEventListener('vite:preloadError', (event) => {
-  console.error('资源版本不对，请清除浏览器缓存')
+window.addEventListener('vite:preloadError', (event: Event) => {
+  const error = (event as Event & { payload?: unknown }).payload
+  const message = error instanceof Error ? error.message : String(error || '')
+  const isResourceLoadError = /Failed to fetch dynamically imported module|Importing a module script failed|Unable to preload CSS|Loading CSS chunk/i.test(message)
+
+  if (isResourceLoadError) {
+    console.error('资源版本不对，请清除浏览器缓存')
+  }
 })
 
 const parseHashQuery = (): Record<string, string> => {
