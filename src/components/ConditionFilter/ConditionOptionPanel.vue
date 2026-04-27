@@ -21,6 +21,10 @@ const props = defineProps({
     type: [String, Number, Array] as PropType<any>,
     default: undefined,
   },
+  keyword: {
+    type: String,
+    default: '',
+  },
   options: {
     type: Array as PropType<any[]>,
     default: () => [],
@@ -37,7 +41,8 @@ const emit = defineEmits<{
 }>()
 
 const { t: $t } = useI18n()
-const keyword = ref('')
+const rootRef = ref<HTMLElement>()
+const keyword = ref(String(props.keyword || ''))
 const remoteOptions = ref<OptionItem[]>([])
 const selectedOptions = ref<OptionItem[]>([])
 const initialSelectedValues = ref<any[]>([])
@@ -50,6 +55,7 @@ let searchTimer: number | undefined
 let requestVersion = 0
 let selectedRequestVersion = 0
 let scrollGate = false
+let focusTimer: number | undefined
 
 const multiple = computed(() => props.config?.multiple !== false)
 const showSearch = computed(() => props.config?.showSearch !== false)
@@ -323,6 +329,38 @@ const clearSearchTimer = () => {
   }
 }
 
+const clearFocusTimer = () => {
+  if (focusTimer !== undefined) {
+    window.clearTimeout(focusTimer)
+    focusTimer = undefined
+  }
+}
+
+const getSearchInput = () => {
+  return rootRef.value?.querySelector<HTMLInputElement>('.condition-option-panel__search .ant-input')
+}
+
+const focusSearchInput = () => {
+  if (!showSearch.value) {
+    return
+  }
+
+  clearFocusTimer()
+
+  nextTick(() => {
+    getSearchInput()?.focus?.()
+
+    requestAnimationFrame(() => {
+      getSearchInput()?.focus?.()
+    })
+
+    focusTimer = window.setTimeout(() => {
+      focusTimer = undefined
+      getSearchInput()?.focus?.()
+    }, 48)
+  })
+}
+
 const loadRemoteOptions = async (
   searchText = '',
   options: {
@@ -490,6 +528,20 @@ watch(
 )
 
 watch(
+  () => props.keyword,
+  (value) => {
+    const nextKeyword = String(value || '')
+
+    if (keyword.value !== nextKeyword) {
+      keyword.value = nextKeyword
+    }
+
+    focusSearchInput()
+  },
+  { immediate: true },
+)
+
+watch(
   () => [props.config?.loadSelectedOptions, currentValues.value],
   () => {
     loadSelectedRemoteOptions()
@@ -507,13 +559,18 @@ watch(keyword, () => {
 
 onUnmounted(() => {
   clearSearchTimer()
+  clearFocusTimer()
   requestVersion += 1
   selectedRequestVersion += 1
+})
+
+onMounted(() => {
+  focusSearchInput()
 })
 </script>
 
 <template>
-  <div class="condition-option-panel">
+  <div ref="rootRef" class="condition-option-panel">
     <div v-if="showSearch" class="condition-option-panel__search">
       <a-input
         v-model:value="keyword"

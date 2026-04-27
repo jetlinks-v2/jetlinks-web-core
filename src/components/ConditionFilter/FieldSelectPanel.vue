@@ -39,6 +39,10 @@ const listRef = ref<HTMLElement>()
 const resolvedFields = computed(() => resolveConditionFields(props.fields, props.columns))
 
 const filteredColumns = computed(() => {
+  if (props.keyword !== undefined) {
+    return resolvedFields.value
+  }
+
   const rawKeyword = props.keyword !== undefined ? props.keyword : keyword.value
   const searchText = String(rawKeyword || '').trim().toLowerCase()
 
@@ -94,7 +98,12 @@ watch(filteredColumns, syncActiveIntoView)
         @mouseenter="emit('hover', column.dataIndex)"
         @click="emit('select', column.dataIndex)"
       >
-        <span class="condition-field-panel__label">{{ column.title }}</span>
+        <span class="condition-field-panel__content">
+          <span class="condition-field-panel__label">{{ column.title }}</span>
+          <span v-if="column.description" class="condition-field-panel__description">
+            {{ column.description }}
+          </span>
+        </span>
         <span class="condition-field-panel__key">{{ column.dataIndex }}</span>
       </button>
       <div v-if="!filteredColumns.length" class="condition-field-panel__empty">
@@ -137,6 +146,7 @@ watch(filteredColumns, syncActiveIntoView)
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
     width: 100%;
     padding: 6px 8px;
     text-align: left;
@@ -168,6 +178,22 @@ watch(filteredColumns, syncActiveIntoView)
     color: #24292f;
     font-size: 12px;
     line-height: 18px;
+  }
+
+  &__content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__description {
+    overflow: hidden;
+    color: #6e7781;
+    font-size: 11px;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &__key {
