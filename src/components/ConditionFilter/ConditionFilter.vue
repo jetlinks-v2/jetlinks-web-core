@@ -1593,6 +1593,16 @@ const onOperatorChipMouseDown = () => {
   }
 }
 
+const shouldKeepEmptyTermOnValueBlur = (nextTarget: HTMLElement | null) => {
+  if (!nextTarget) {
+    return false
+  }
+
+  return !!nextTarget.closest?.(
+    '.condition-filter__chip--operator, .condition-filter__chip--field, .condition-filter__chip--logic',
+  )
+}
+
 const onValueBlur = (event: FocusEvent) => {
   if (editorMode.value !== 'value') {
     keepEmptyValueOnBlur = false
@@ -1600,7 +1610,7 @@ const onValueBlur = (event: FocusEvent) => {
   }
 
   const nextTarget = event.relatedTarget as HTMLElement | null
-  const allowEmpty = keepEmptyValueOnBlur || !!nextTarget?.closest?.('.condition-filter__chip--operator')
+  const allowEmpty = keepEmptyValueOnBlur || shouldKeepEmptyTermOnValueBlur(nextTarget)
   keepEmptyValueOnBlur = false
 
   commitTextValue({ allowEmpty })
