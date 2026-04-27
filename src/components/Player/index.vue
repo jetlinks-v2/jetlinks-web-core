@@ -4,6 +4,11 @@
     <div ref="playerElement" v-if="protocol !== 'rtc'">
       <span v-if="!props.url"> No Video </span>
     </div>
+    <canvas
+      v-if="protocol !== 'rtc'"
+      ref="snapshotCanvas"
+      class="snapshot-overlay"
+    />
     <div v-else ref="playerContentElement" class="rtc-video-content">
       <video ref="playerElement" :style="playerStyles" />
       <div class="rtc-tool">
@@ -70,6 +75,7 @@ const isHevcSupport = ref<boolean>(true);
 
 const playerElement = ref<HTMLVideoElement>();
 const playerContentElement = ref<HTMLVideoElement>();
+const snapshotCanvas = ref<HTMLCanvasElement>();
 const playerStyles = ref({});
 const rtcData = reactive({
   playStatus: "pause",
@@ -78,6 +84,10 @@ const rtcData = reactive({
 const { toggle, isFullscreen } = useFullscreen(playerContentElement);
 
 let player: any = null;
+let isRecovering = false;
+let recoveryCount = 0;
+let stabilityTimer: ReturnType<typeof setTimeout> | null = null;
+const MAX_RECOVERY = 3;
 
 /**
  * 播放
@@ -107,6 +117,37 @@ const destroy = () => {
   }
 };
 
+/**
+ * 将当前视频帧截取到 canvas 上（用于错误恢复时保持画面）
+ */
+const captureSnapshot = () => {
+  const canvas = snapshotCanvas.value;
+  if (!canvas) return;
+  const video = player?.video || playerElement.value?.querySelector?.("video");
+  if (!video || !video.videoWidth || !video.videoHeight) return;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  try {
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  } catch {
+    // 跨域或其他问题时忽略
+  }
+};
+
+const showSnapshot = () => {
+  const canvas = snapshotCanvas.value;
+  if (canvas) canvas.style.display = "block";
+  if (playerElement.value) playerElement.value.style.visibility = "hidden";
+};
+
+const hideSnapshot = () => {
+  const canvas = snapshotCanvas.value;
+  if (canvas) canvas.style.display = "none";
+  if (playerElement.value) playerElement.value.style.visibility = "";
+};
+
 const initEvent = () => {
   const fn = player.on ? "on" : "addEventListener";
 
@@ -123,10 +164,21 @@ const initEvent = () => {
   });
   player[fn](Events.TIME_UPDATE, (ev) => {
     props.onTimeUpdate?.(ev);
+    if (props.live) {
+      captureSnapshot();
+    }
   });
   player[fn](Events.CANPLAY, (ev) => {
     console.log($t("Player.index.345076-0"), ev);
     props.onCanPlay?.();
+    if (isRecovering) {
+      isRecovering = false;
+      hideSnapshot();
+    }
+    if (stabilityTimer) clearTimeout(stabilityTimer);
+    stabilityTimer = setTimeout(() => {
+      recoveryCount = 0;
+    }, 10000);
     if (props.autoplay !== false) {
       play();
     }
@@ -138,21 +190,35 @@ const initEvent = () => {
   });
 
   player[fn](Events.ERROR, (ev) => {
-    console.log("[media error] > ", ev);
+    console.warn("[Player] stream error (suppressed):", ev);
     isHevcSupport.value = Player.isHevcSupported();
     if (!isHevcSupport.value) {
       playerElement.value.querySelector(".xgplayer-error-text").innerHTML = $t(
         "Player.index.345076-1",
       );
       playerElement.value.querySelector(".xgplayer-error-tips").innerHTML = "";
+      props.onError?.(ev);
+      return;
     }
 
-    if (props.live && isHevcSupport.value) {
+    if (props.live) {
+      if (isRecovering) return;
+      if (recoveryCount >= MAX_RECOVERY) {
+        captureSnapshot();
+        showSnapshot();
+        props.onError?.(ev);
+        return;
+      }
+      captureSnapshot();
+      showSnapshot();
+      isRecovering = true;
+      recoveryCount++;
       setTimeout(() => {
         init();
-      }, 5000);
+      }, 2000);
+    } else {
+      props.onError?.(ev);
     }
-    props.onError?.(ev);
   });
 };
 
@@ -175,7 +241,7 @@ const init = () => {
         height: "100%",
         hasStart: false,
         playbackRate: false,
-        ignores: ["progress", "volume", "time", "replay", "cssfullscreen"],
+        ignores: ["progress", "volume", "time", "replay", "cssfullscreen", ...(props.live ? ["error"] : [])],
         closeVideoClick: true,
         closeVideoDblclick: true,
         closeVideoTouch: true,
@@ -228,7 +294,21 @@ defineExpose({
   justify-content: center;
   align-items: center;
   color: #fff;
+  position: relative;
 }
+
+.snapshot-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  display: none;
+  object-fit: contain;
+  pointer-events: none;
+}
+
 
 .rtc-video-content,
 .rtc-video-content video {

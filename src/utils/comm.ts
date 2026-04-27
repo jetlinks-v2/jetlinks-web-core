@@ -3,7 +3,7 @@ import { downloadFileByUrl, getImage, getToken, LocalStore } from '@jetlinks-web
 import { getFileUrlById } from '@jetlinks-web-core/api/comm'
 import { message } from 'ant-design-vue'
 import { BASE_API, TOKEN_KEY } from '@jetlinks-web/constants'
-import { isSubApp } from '@jetlinks-web-core/utils/consts'
+import { isSubApp, edgeDefaultUrl } from '@jetlinks-web-core/utils/consts'
 import { isFunction, omit } from 'lodash-es'
 
 export const downloadJson = (
@@ -122,7 +122,7 @@ export function mergeObjectArrays(a: any[], b: any[], key = 'key') {
 }
 
 export function isFromCloud(){
-  return (['cloud', 'cloud-pc']).includes(String(localStorage.getItem('terminal')));
+  return (['cloud', 'cloud-pc']).includes(String(localStorage.getItem('terminal'))) && window.location.href.includes(edgeDefaultUrl);
 }
 
 export function getFromCloudPathName(path?: string) {
@@ -143,7 +143,7 @@ export function getFromCloudPathName(path?: string) {
 export function getBaseApi() {
   if (isSubApp) {
     const global = (window as any).microApp.getGlobalData()
-    return global.api?.getBaseApi() || BASE_API
+    return global.api?.getBaseApi?.() || BASE_API
   }
 
   return isFromCloud() ? getFromCloudPathName() : BASE_API
