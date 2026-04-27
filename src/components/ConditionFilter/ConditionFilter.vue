@@ -104,6 +104,7 @@ const editorMode = ref<EditorMode>('tail')
 const editingTermKey = ref<string>()
 const fieldKeyword = ref('')
 const valueKeyword = ref('')
+const fieldPanelActiveIndex = ref(-1)
 const fieldPanelOpen = ref(false)
 const nextTailFocusOpenState = ref<boolean>()
 const operatorPanelTermKey = ref<string>()
@@ -188,6 +189,14 @@ const fieldOptions = computed(() => {
   })
 })
 
+const activeFieldOption = computed(() => {
+  if (fieldPanelActiveIndex.value < 0) {
+    return undefined
+  }
+
+  return fieldOptions.value[fieldPanelActiveIndex.value]
+})
+
 const payload = computed<ConditionFilterChangePayload>(() => {
   const filter = buildQueryFilter(termsModel.value, resolvedFields.value)
   const terms = cloneTerms(filter.terms, { stripKey: true })
@@ -246,6 +255,12 @@ const getTermKey = (term: ConditionFilterTerm) => term.key || ''
 
 const getTermIndex = (termKey?: string) => {
   return termsModel.value.findIndex(item => item.key === termKey)
+}
+
+const getNextTermKey = (termKey?: string) => {
+  const index = getTermIndex(termKey)
+
+  return index >= 0 ? termsModel.value[index + 1]?.key : undefined
 }
 
 const getTerm = (termKey?: string) => {
@@ -987,6 +1002,7 @@ const setTailMode = (options?: { focus?: boolean; open?: boolean; keyword?: stri
   editingTermKey.value = undefined
   valueKeyword.value = ''
   fieldKeyword.value = options?.keyword ?? ''
+  fieldPanelActiveIndex.value = 0
   fieldPanelOpen.value = options?.open ?? false
   operatorPanelTermKey.value = undefined
   valuePanelTermKey.value = undefined
@@ -1009,6 +1025,33 @@ const focusTailInput = (open = true) => {
     focus: true,
     open,
   })
+}
+
+const focusTermFieldChip = (termKey?: string) => {
+  if (!termKey) {
+    return
+  }
+
+  nextTick(() => {
+    const termElement = Array.from(
+      rootRef.value?.querySelectorAll<HTMLElement>('.condition-filter__term') || [],
+    ).find(item => item.dataset.termKey === termKey)
+
+    termElement
+      ?.querySelector<HTMLElement>('[data-condition-focusable="true"][data-token-kind="field"]')
+      ?.focus?.()
+  })
+}
+
+const focusNextCondition = (termKey?: string) => {
+  const nextTermKey = getNextTermKey(termKey)
+
+  if (nextTermKey) {
+    focusTermFieldChip(nextTermKey)
+    return
+  }
+
+  focusTailInput(false)
 }
 
 const applyTermUpdate = (termKey: string, value: Partial<ConditionFilterTerm>) => {
@@ -1052,6 +1095,7 @@ const startFieldEdit = (termKey: string) => {
   editorMode.value = 'field'
   editingTermKey.value = termKey
   fieldKeyword.value = ''
+  fieldPanelActiveIndex.value = 0
   valueKeyword.value = ''
   fieldPanelOpen.value = true
   operatorPanelTermKey.value = undefined
@@ -1132,6 +1176,7 @@ const applyFieldSelection = (termKey: string, columnKey: string) => {
 
   createOptionsLoader(column, nextTerm)
   fieldKeyword.value = ''
+  fieldPanelActiveIndex.value = 0
   fieldPanelOpen.value = false
 
   if (isNullaryTermType(nextTermType)) {
@@ -1240,7 +1285,7 @@ const onTermTypeChange = (termKey: string, nextTermType: string) => {
   activatePopupValueTerm(termKey)
 }
 
-const onRemoveTerm = (termKey: string) => {
+const onRemoveTerm = (termKey: string, options?: { focusTail?: boolean }) => {
   const index = getTermIndex(termKey)
 
   if (index === -1) {
@@ -1255,7 +1300,7 @@ const onRemoveTerm = (termKey: string) => {
   }
 
   if (editingTermKey.value === termKey || valuePanelTermKey.value === termKey) {
-    setTailMode({ focus: true })
+    setTailMode({ focus: options?.focusTail !== false })
   }
 }
 
@@ -1269,7 +1314,7 @@ const removeTailToken = () => {
   onRemoveTerm(lastTerm.key)
 }
 
-const commitTextValue = (options?: { focusTail?: boolean; allowEmpty?: boolean }) => {
+const commitTextValue = (options?: { focusTail?: boolean; allowEmpty?: boolean; focusNext?: boolean }) => {
   const termKey = editingTermKey.value
   const term = getTerm(termKey)
 
@@ -1278,6 +1323,7 @@ const commitTextValue = (options?: { focusTail?: boolean; allowEmpty?: boolean }
   }
 
   const nextValue = valueKeyword.value
+  const shouldFocusNext = options?.focusNext
 
   if (!nextValue) {
     if (options?.allowEmpty) {
@@ -1285,11 +1331,21 @@ const commitTextValue = (options?: { focusTail?: boolean; allowEmpty?: boolean }
         value: undefined,
       })
 
-      setTailMode({ focus: options?.focusTail })
+      setTailMode({ focus: !shouldFocusNext && options?.focusTail })
+
+      if (shouldFocusNext) {
+        focusNextCondition(termKey)
+      }
       return
     }
 
-    onRemoveTerm(termKey)
+    onRemoveTerm(termKey, {
+      focusTail: !shouldFocusNext,
+    })
+
+    if (shouldFocusNext) {
+      focusNextCondition(termKey)
+    }
     return
   }
 
@@ -1297,7 +1353,11 @@ const commitTextValue = (options?: { focusTail?: boolean; allowEmpty?: boolean }
     value: nextValue,
   })
 
-  setTailMode({ focus: options?.focusTail })
+  setTailMode({ focus: !shouldFocusNext && options?.focusTail })
+
+  if (shouldFocusNext) {
+    focusNextCondition(termKey)
+  }
 }
 
 const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?: { close?: boolean; allowEmpty?: boolean }) => {
@@ -1376,6 +1436,39 @@ const getFocusableElements = () => {
   return Array.from(
     rootRef.value?.querySelectorAll<HTMLElement>('[data-condition-focusable="true"]') || [],
   ).filter(item => !item.hasAttribute('disabled'))
+}
+
+const resetFieldPanelActiveIndex = () => {
+  fieldPanelActiveIndex.value = fieldOptions.value.length ? 0 : -1
+}
+
+const moveFieldPanelActiveIndex = (offset: number) => {
+  if (!fieldOptions.value.length) {
+    fieldPanelActiveIndex.value = -1
+    return
+  }
+
+  const currentIndex = fieldPanelActiveIndex.value < 0 ? 0 : fieldPanelActiveIndex.value
+  fieldPanelActiveIndex.value = Math.min(
+    fieldOptions.value.length - 1,
+    Math.max(0, currentIndex + offset),
+  )
+}
+
+const selectActiveFieldOption = () => {
+  const option = activeFieldOption.value || fieldOptions.value[0]
+
+  if (option) {
+    onSelectField(option.dataIndex)
+  }
+}
+
+const onFieldOptionHover = (columnKey: string) => {
+  const index = fieldOptions.value.findIndex(item => item.dataIndex === columnKey)
+
+  if (index >= 0) {
+    fieldPanelActiveIndex.value = index
+  }
 }
 
 const focusSibling = (current: EventTarget | null, offset: number) => {
@@ -1480,6 +1573,7 @@ const onTailFocus = () => {
   editorMode.value = 'tail'
   editingTermKey.value = undefined
   valuePanelTermKey.value = undefined
+  resetFieldPanelActiveIndex()
   fieldPanelOpen.value = nextTailFocusOpenState.value ?? true
   nextTailFocusOpenState.value = undefined
 }
@@ -1489,6 +1583,7 @@ const onTailActivate = () => {
     return
   }
 
+  resetFieldPanelActiveIndex()
   fieldPanelOpen.value = true
 }
 
@@ -1506,16 +1601,31 @@ const onTailBlur = () => {
 
 const onTailInput = (event: Event) => {
   fieldKeyword.value = (event.target as HTMLInputElement)?.value || ''
+  resetFieldPanelActiveIndex()
   fieldPanelOpen.value = true
 }
 
 const onTailKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    if (!fieldOptions.value.length) {
+      return
+    }
+
+    event.preventDefault()
+    fieldPanelOpen.value = true
+    if (!fieldPanelVisible.value || fieldPanelActiveIndex.value < 0) {
+      resetFieldPanelActiveIndex()
+      return
+    }
+
+    moveFieldPanelActiveIndex(event.key === 'ArrowDown' ? 1 : -1)
+    return
+  }
+
   if (event.key === 'Enter') {
     event.preventDefault()
 
-    if (fieldOptions.value[0]) {
-      onSelectField(fieldOptions.value[0].dataIndex)
-    }
+    selectActiveFieldOption()
     return
   }
 
@@ -1543,6 +1653,7 @@ const onTailKeydown = (event: KeyboardEvent) => {
 
 const onFieldInput = (event: Event) => {
   fieldKeyword.value = (event.target as HTMLInputElement)?.value || ''
+  resetFieldPanelActiveIndex()
   fieldPanelOpen.value = true
 }
 
@@ -1553,12 +1664,26 @@ const onFieldBlur = () => {
 }
 
 const onFieldKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    if (!fieldOptions.value.length) {
+      return
+    }
+
+    event.preventDefault()
+    fieldPanelOpen.value = true
+    if (!fieldPanelVisible.value || fieldPanelActiveIndex.value < 0) {
+      resetFieldPanelActiveIndex()
+      return
+    }
+
+    moveFieldPanelActiveIndex(event.key === 'ArrowDown' ? 1 : -1)
+    return
+  }
+
   if (event.key === 'Enter') {
     event.preventDefault()
 
-    if (fieldOptions.value[0]) {
-      onSelectField(fieldOptions.value[0].dataIndex)
-    }
+    selectActiveFieldOption()
     return
   }
 
@@ -1617,6 +1742,12 @@ const onValueBlur = (event: FocusEvent) => {
 }
 
 const onValueKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Tab' && !event.shiftKey) {
+    event.preventDefault()
+    commitTextValue({ focusNext: true })
+    return
+  }
+
   if (event.key === 'Enter') {
     event.preventDefault()
     commitTextValue({ focusTail: true })
@@ -1657,6 +1788,7 @@ const onFieldPanelOpenChange = (visible: boolean) => {
   fieldPanelOpen.value = visible
 
   if (visible) {
+    resetFieldPanelActiveIndex()
     operatorPanelTermKey.value = undefined
   }
 
@@ -1763,6 +1895,7 @@ onUnmounted(() => {
           :key="getTermKey(term) || `${term.column}-${index}`"
           class="condition-filter__term"
           :class="{ 'condition-filter__term--or': index && (term.type || 'and') === 'or' }"
+          :data-term-key="getTermKey(term)"
         >
           <a-dropdown
             v-if="index"
@@ -1842,8 +1975,10 @@ onUnmounted(() => {
               <template #overlay>
                 <FieldSelectPanel
                   :fields="fieldOptions"
+                  :active-key="activeFieldOption?.dataIndex"
                   :keyword="fieldKeyword"
                   :showSearch="false"
+                  @hover="onFieldOptionHover"
                   @select="onSelectField"
                 />
               </template>
@@ -1855,6 +1990,7 @@ onUnmounted(() => {
               type="button"
               :disabled="disabled"
               data-condition-focusable="true"
+              data-token-kind="field"
               @click.stop="startFieldEdit(getTermKey(term))"
               @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'field')"
             >
@@ -2029,8 +2165,10 @@ onUnmounted(() => {
           <template #overlay>
             <FieldSelectPanel
               :fields="fieldOptions"
+              :active-key="activeFieldOption?.dataIndex"
               :keyword="fieldKeyword"
               :showSearch="false"
+              @hover="onFieldOptionHover"
               @select="onSelectField"
             />
           </template>

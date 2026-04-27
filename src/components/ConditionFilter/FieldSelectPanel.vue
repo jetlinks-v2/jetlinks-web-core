@@ -10,6 +10,10 @@ const props = defineProps({
     type: Array as PropType<ConditionFilterField[]>,
     default: () => [],
   },
+  activeKey: {
+    type: String,
+    default: undefined,
+  },
   columns: {
     type: Array as PropType<SearchItem[]>,
     default: () => [],
@@ -26,10 +30,12 @@ const props = defineProps({
 
 const emit = defineEmits<{
   (e: 'select', value: string): void
+  (e: 'hover', value: string): void
 }>()
 
 const { t: $t } = useI18n()
 const keyword = ref('')
+const listRef = ref<HTMLElement>()
 const resolvedFields = computed(() => resolveConditionFields(props.fields, props.columns))
 
 const filteredColumns = computed(() => {
@@ -44,6 +50,22 @@ const filteredColumns = computed(() => {
     return `${item.title}${item.dataIndex}`.toLowerCase().includes(searchText)
   })
 })
+
+const syncActiveIntoView = () => {
+  if (!props.activeKey) {
+    return
+  }
+
+  nextTick(() => {
+    const activeItem = listRef.value?.querySelector<HTMLElement>(`[data-field-key="${props.activeKey}"]`)
+    activeItem?.scrollIntoView?.({
+      block: 'nearest',
+    })
+  })
+}
+
+watch(() => props.activeKey, syncActiveIntoView)
+watch(filteredColumns, syncActiveIntoView)
 </script>
 
 <template>
@@ -60,13 +82,16 @@ const filteredColumns = computed(() => {
         <AIcon type="SearchOutlined" />
       </template>
     </a-input>
-    <div class="condition-field-panel__list">
+    <div ref="listRef" class="condition-field-panel__list">
       <button
         v-for="column in filteredColumns"
         :key="column.dataIndex"
         class="condition-field-panel__item"
+        :class="{ 'condition-field-panel__item--active': activeKey === column.dataIndex }"
+        :data-field-key="column.dataIndex"
         type="button"
         @mousedown.prevent
+        @mouseenter="emit('hover', column.dataIndex)"
         @click="emit('select', column.dataIndex)"
       >
         <span class="condition-field-panel__label">{{ column.title }}</span>
@@ -123,6 +148,19 @@ const filteredColumns = computed(() => {
 
     &:hover {
       background: #f6f8fa;
+    }
+  }
+
+  &__item--active {
+    background: #f0f7ff;
+
+    .condition-field-panel__label {
+      color: #0969da;
+      font-weight: 600;
+    }
+
+    .condition-field-panel__key {
+      color: #6e7781;
     }
   }
 
