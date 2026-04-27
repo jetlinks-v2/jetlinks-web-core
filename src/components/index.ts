@@ -37,6 +37,7 @@ import Captcha from './Captcha'
 import RegistryComponent from './RegisterComponents'
 import { TagManagerSidebar } from './TagManagerSidebar'
 import ConditionFilter from './ConditionFilter'
+import QuickFilterSidebar from './QuickFilterSidebar'
 
 export default {
     install(app: App) {
@@ -81,6 +82,7 @@ export default {
           .component('RegistryComponent', RegistryComponent)
           .component('TagManagerSidebar', TagManagerSidebar)
           .component('ConditionFilter', ConditionFilter)
+          .component('QuickFilterSidebar', QuickFilterSidebar)
 
         Object.keys(FormItemValue).forEach(key => {
             app.component(key, FormItemValue[key])
