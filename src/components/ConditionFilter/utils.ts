@@ -33,6 +33,66 @@ const operatorTermTypeMap = Object.entries(termTypeOperatorMap).reduce<Record<st
   return acc
 }, {})
 
+const routeTermTypeSequence = [
+  'eq',
+  'not',
+  'like',
+  'nlike',
+  'gt',
+  'gte',
+  'lt',
+  'lte',
+  'in',
+  'nin',
+  'btw',
+  'nbtw',
+  'isnull',
+  'notnull',
+]
+
+const termTypeRouteCodeMap = routeTermTypeSequence.reduce<Record<string, number>>((acc, item, index) => {
+  acc[item] = index
+  return acc
+}, {})
+
+const routeCodeTermTypeMap = routeTermTypeSequence.reduce<Record<number, string>>((acc, item, index) => {
+  acc[index] = item
+  return acc
+}, {})
+
+const routeAliasChars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+const hashString = (value = '') => {
+  let hash = 2166136261
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return hash >>> 0
+}
+
+const toBase62 = (value: number) => {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0'
+  }
+
+  let result = ''
+  let current = Math.floor(value)
+
+  while (current > 0) {
+    result = routeAliasChars[current % routeAliasChars.length] + result
+    current = Math.floor(current / routeAliasChars.length)
+  }
+
+  return result || '0'
+}
+
+const createRouteFieldAlias = (columnKey = '') => {
+  return toBase62(hashString(columnKey)).padStart(4, '0').slice(-4)
+}
+
 const cloneValue = (value: any): any => {
   if (Array.isArray(value)) {
     return value.map(item => cloneValue(item))
@@ -97,6 +157,40 @@ const getColumnsMeta = (columns: ConditionFieldSchema[] = []) => {
   return {
     columnsMap,
     aliasMap,
+  }
+}
+
+const getRouteFieldAliasMeta = (columns: ConditionFieldSchema[] = []) => {
+  const aliasToColumn = new Map<string, string>()
+  const columnToAlias = new Map<string, string>()
+
+  columns
+    .filter(item => item.search)
+    .forEach((item) => {
+      const columnKey = item.dataIndex
+      const userAlias = String(item.search?.routeAlias || '').trim()
+      let routeAlias = userAlias || createRouteFieldAlias(columnKey)
+
+      aliasToColumn.set(columnKey, columnKey)
+
+      if (item.search?.rename) {
+        aliasToColumn.set(item.search.rename, columnKey)
+      }
+
+      if (aliasToColumn.has(routeAlias) && aliasToColumn.get(routeAlias) !== columnKey) {
+        const fallbackAlias = `${routeAlias}${toBase62(hashString(`route:${columnKey}`)).slice(-2)}`
+        routeAlias = (!aliasToColumn.has(fallbackAlias) || aliasToColumn.get(fallbackAlias) === columnKey)
+          ? fallbackAlias
+          : columnKey
+      }
+
+      aliasToColumn.set(routeAlias, columnKey)
+      columnToAlias.set(columnKey, routeAlias)
+    })
+
+  return {
+    aliasToColumn,
+    columnToAlias,
   }
 }
 
@@ -521,6 +615,47 @@ const toCompactRouteNodes = (terms: ConditionTerm[] = [], columns: ConditionFiel
     })
 }
 
+const toCompactRouteV3Nodes = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
+  const { columnToAlias } = getRouteFieldAliasMeta(columns)
+
+  const encodeNodes = (items: ConditionTerm[] = []) => {
+    return items
+      .filter(item => hasTermValue(item))
+      .map((item, index) => {
+        const logicType = normalizeLogicType(item.type, index)
+        const logicCode = logicType === 'or' ? 1 : undefined
+
+        if (isConditionGroup(item)) {
+          const next: Record<string, any> = {
+            g: encodeNodes(item.terms || []),
+          }
+
+          if (logicCode) {
+            next.t = logicCode
+          }
+
+          return next
+        }
+
+        const columnKey = String(item.column || '')
+        const routeAlias = columnToAlias.get(columnKey) || columnKey
+        const termCode = termTypeRouteCodeMap[String(item.termType || '')]
+
+        if (nullaryTermTypes.has(String(item.termType || ''))) {
+          return logicCode === undefined
+            ? [routeAlias, termCode ?? item.termType]
+            : [routeAlias, termCode ?? item.termType, logicCode]
+        }
+
+        return logicCode === undefined
+          ? [routeAlias, termCode ?? item.termType, cloneValue(item.value)]
+          : [routeAlias, termCode ?? item.termType, cloneValue(item.value), logicCode]
+      })
+  }
+
+  return encodeNodes(normalizeInputTerms(terms, columns))
+}
+
 export const encodeConditionFilterQuery = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
   const version = resolveConditionFilterRouteVersion(terms, columns)
 
@@ -529,6 +664,16 @@ export const encodeConditionFilterQuery = (terms: ConditionTerm[] = [], columns:
   }
 
   const normalizedTerms = normalizeInputTerms(terms, columns)
+
+  if (version === 'v3') {
+    const compactNodes = toCompactRouteV3Nodes(normalizedTerms, columns)
+
+    if (!compactNodes.length) {
+      return ''
+    }
+
+    return `v3.${toBase64Url(JSON.stringify(compactNodes))}`
+  }
 
   if (version === 'v2') {
     const compactNodes = toCompactRouteNodes(normalizedTerms, columns)
@@ -559,7 +704,7 @@ export function resolveConditionFilterRouteVersion(
     return undefined
   }
 
-  return hasConditionGroups(normalizedTerms) ? 'v2' : 'v1'
+  return 'v3'
 }
 
 export const decodeConditionFilterQuery = (value: unknown, columns: ConditionFieldSchema[] = []) => {
@@ -570,12 +715,67 @@ export const decodeConditionFilterQuery = (value: unknown, columns: ConditionFie
   }
 
   try {
-    const content = rawValue.startsWith('v1.') ? rawValue.slice(3) : rawValue
-    const version = rawValue.startsWith('v2.') ? 'v2' : rawValue.startsWith('v1.') ? 'v1' : undefined
-    const normalizedContent = version === 'v2' ? rawValue.slice(3) : content
-    const decoded = normalizedContent.startsWith('{') ? normalizedContent : fromBase64Url(normalizedContent)
+    const version = rawValue.startsWith('v3.')
+      ? 'v3'
+      : rawValue.startsWith('v2.')
+        ? 'v2'
+        : rawValue.startsWith('v1.')
+          ? 'v1'
+          : undefined
+    const content = version ? rawValue.slice(3) : rawValue
+    const decoded = content.startsWith('{') || content.startsWith('[') ? content : fromBase64Url(content)
     const payload = JSON.parse(decoded)
     const terms = Array.isArray(payload?.t) ? payload.t : Array.isArray(payload) ? payload : []
+
+    if (version === 'v3') {
+      const { aliasToColumn } = getRouteFieldAliasMeta(columns)
+
+      const decodeNodes = (items: any[] = []): ConditionTerm[] => {
+        return items
+          .map((item, index) => {
+            if (item && typeof item === 'object' && Array.isArray(item.g)) {
+              const groupTerms = decodeNodes(item.g)
+
+              if (!groupTerms.length) {
+                return undefined
+              }
+
+              return {
+                terms: groupTerms,
+                type: item.t === 1 ? 'or' : normalizeLogicType(undefined, index),
+                key: randomString(10),
+              }
+            }
+
+            const routeAlias = String(item?.[0] ?? '')
+            const columnKey = aliasToColumn.get(routeAlias) || routeAlias
+            const rawTermCode = item?.[1]
+            const numericTermCode = Number(rawTermCode)
+            const termType = Number.isInteger(numericTermCode) && routeCodeTermTypeMap[numericTermCode]
+              ? routeCodeTermTypeMap[numericTermCode]
+              : String(rawTermCode || '')
+
+            if (!columnKey || !termType) {
+              return undefined
+            }
+
+            const isNullary = nullaryTermTypes.has(termType)
+            const value = isNullary ? undefined : cloneValue(item?.[2])
+            const logicFlag = isNullary ? item?.[2] : item?.[3]
+
+            return {
+              column: columnKey,
+              termType,
+              value,
+              type: logicFlag === 1 ? 'or' : normalizeLogicType(undefined, index),
+              key: randomString(10),
+            }
+          })
+          .filter(Boolean) as ConditionTerm[]
+      }
+
+      return normalizeInputTerms(decodeNodes(terms), columns)
+    }
 
     if (version === 'v2' || terms.some((item: any) => item && typeof item === 'object' && Array.isArray(item.g))) {
       const decodeNodes = (items: any[] = []): ConditionTerm[] => {
