@@ -215,10 +215,15 @@ const isImageIcon = (icon?: string) => {
 }
 
 const resolvedOptions = computed(() => {
-  const rawOptions = props.config?.loadOptions ? remoteOptions.value : props.options
+  const localOptions = flattenOptions(normalizeOptions(props.options))
+  const remoteDisplayOptions = flattenOptions(normalizeOptions(remoteOptions.value))
+  const baseOptions = props.config?.loadOptions
+    ? mergeDisplayOptions(remoteDisplayOptions, localOptions)
+    : localOptions
+
   return prioritizeOptionsByValues(
     mergeDisplayOptions(
-      flattenOptions(normalizeOptions(rawOptions)),
+      baseOptions,
       flattenOptions(normalizeOptions(selectedOptions.value)),
     ),
     initialSelectedValues.value,
@@ -264,17 +269,8 @@ const emitSubmit = (close = true) => {
   emit('submit', { close, allowEmpty: true })
 }
 
-const shouldDelayEmptySubmit = (value: any) => {
-  return multiple.value && Array.isArray(value) && value.length === 0
-}
-
 const updateValue = (value: any, close = true) => {
   emit('update:value', value)
-
-  if (shouldDelayEmptySubmit(value)) {
-    return
-  }
-
   emitSubmit(close)
 }
 
