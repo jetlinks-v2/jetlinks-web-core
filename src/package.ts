@@ -193,8 +193,7 @@ export const initAxios = () => {
                 config.headers['x-verify-token'] = cache.token
             }
 
-            const type = localStorage.getItem('terminal')
-            if (type === 'cloud-pc' && config.url) {
+            if (isFromCloud() && config.url) {
                 config.baseURL = getFromCloudPathName()
                 config.url = config.url.replace(/^\/+/, '') // 清理前缀斜杠
             }
