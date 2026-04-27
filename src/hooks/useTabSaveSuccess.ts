@@ -35,8 +35,10 @@ export const useTabSaveSuccess = (code: string = '', options?: OptionsType) => {
       }
 
       const _params = new URLSearchParams({...params, sourceId: id.value})
-      const beforeHash = isSaaS ? `/${localStorage.getItem('X-Tenant-Domain')}` : ''
-      const hash = location.hash ? `${beforeHash}/#` : ''
+      const domain = localStorage.getItem('X-Tenant-Domain') || ''
+      const domainPath = domain ? `/${domain}` : ''
+      const beforeHash = isSaaS ? `${domainPath}/#` : ''
+      const hash = location.hash ? `${beforeHash}` : ''
       const path = _options.menuParams ? formatPath(menuItem.path, _options.menuParams)  : menuItem.path
       const url = [location.origin, hash, path, '?', _params.toString()].join('')
 
