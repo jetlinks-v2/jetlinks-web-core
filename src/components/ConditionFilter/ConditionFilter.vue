@@ -116,6 +116,7 @@ const optionsMap = reactive<Record<string, any[]>>({})
 const loadingMap = reactive<Record<string, boolean>>({})
 const valueDraftMap = reactive<Record<string, ConditionFilterTerm | undefined>>({})
 const watchDisposers = new Map<string, () => void>()
+const pendingEmptyRemovalKeys = new Set<string>()
 let autoSearchTimer: number | undefined
 let keepEmptyValueOnBlur = false
 
@@ -1294,6 +1295,7 @@ const onRemoveTerm = (termKey: string, options?: { focusTail?: boolean }) => {
 
   termsModel.value.splice(index, 1)
   delete valueDraftMap[termKey]
+  pendingEmptyRemovalKeys.delete(termKey)
 
   if (termsModel.value[0]) {
     delete termsModel.value[0].type
@@ -1361,10 +1363,17 @@ const commitTextValue = (options?: { focusTail?: boolean; allowEmpty?: boolean; 
 }
 
 const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?: { close?: boolean; allowEmpty?: boolean }) => {
+  const currentTerm = getTerm(termKey)
   delete valueDraftMap[termKey]
 
   if (!isNullaryTermType(value.termType) && !hasTermValue(value)) {
     if (options?.allowEmpty) {
+      if (options?.close === false && currentTerm && hasTermValue(currentTerm)) {
+        pendingEmptyRemovalKeys.add(termKey)
+      } else {
+        pendingEmptyRemovalKeys.delete(termKey)
+      }
+
       applyTermUpdate(termKey, {
         termType: value.termType,
         value: cloneValue(value.value),
@@ -1386,6 +1395,7 @@ const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?
     return
   }
 
+  pendingEmptyRemovalKeys.delete(termKey)
   applyTermUpdate(termKey, value)
 
   if (options?.close === false) {
@@ -1820,8 +1830,20 @@ const onValuePanelOpenChange = (termKey: string, visible: boolean) => {
   }
 
   const draft = valueDraftMap[termKey]
+  const currentTerm = getTerm(termKey)
+
+  if (pendingEmptyRemovalKeys.has(termKey) && currentTerm && !hasTermValue(currentTerm)) {
+    pendingEmptyRemovalKeys.delete(termKey)
+    onRemoveTerm(termKey)
+    return
+  }
 
   if (draft && !isNullaryTermType(draft.termType) && !hasTermValue(draft)) {
+    if (currentTerm && hasTermValue(currentTerm)) {
+      onRemoveTerm(termKey)
+      return
+    }
+
     onApplyPanelValue(termKey, draft, { close: true, allowEmpty: true })
     return
   }
