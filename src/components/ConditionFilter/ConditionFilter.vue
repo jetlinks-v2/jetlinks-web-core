@@ -42,6 +42,13 @@ const slots = useSlots()
 
 type TokenKind = 'logic' | 'field' | 'operator' | 'value'
 type EditorMode = 'tail' | 'field' | 'value'
+type FieldQuickSuggestion = {
+  score: number
+  termType?: string
+  value?: any
+  description?: string
+  panelKeyword?: string
+}
 
 const fieldBlurLock = ref(false)
 const autoSearchDelay = 260
@@ -115,6 +122,7 @@ const columnsMap = reactive<Record<string, ConditionFilterField>>({})
 const optionsMap = reactive<Record<string, any[]>>({})
 const loadingMap = reactive<Record<string, boolean>>({})
 const valueDraftMap = reactive<Record<string, ConditionFilterTerm | undefined>>({})
+const valuePanelKeywordMap = reactive<Record<string, string | undefined>>({})
 const watchDisposers = new Map<string, () => void>()
 const pendingEmptyRemovalKeys = new Set<string>()
 let autoSearchTimer: number | undefined
@@ -178,16 +186,306 @@ const orderedSearchColumns = computed(() => {
   })
 })
 
+const normalizeQuickKeyword = (value?: string) => String(value || '').trim()
+const previewQuickKeyword = (value?: string, maxLength = 20) => {
+  const text = normalizeQuickKeyword(value)
+
+  if (text.length <= maxLength) {
+    return text
+  }
+
+  return `${text.slice(0, maxLength)}…`
+}
+
+const getNormalizedFieldTokens = (column: ConditionFilterField) => {
+  return [
+    String(column.title || '').trim().toLowerCase(),
+    String(column.dataIndex || '').trim().toLowerCase(),
+  ].filter(Boolean)
+}
+
+const isExactFieldMatch = (column: ConditionFilterField, rawKeyword: string) => {
+  const keyword = normalizeQuickKeyword(rawKeyword).toLowerCase()
+
+  if (!keyword) {
+    return false
+  }
+
+  return getNormalizedFieldTokens(column).some(item => item === keyword)
+}
+
+const identifierFieldPattern = /(^|[\s_-])(id|sn|no|code|key|deviceid|serialnumber)([\s_-]|$)/
+const textFieldPattern = /(name|title|desc|remark|content|detail|model|category|location|assignee|creator|project)/
+
+const resolveQuickDateRangeValue = (rawKeyword: string) => {
+  const keyword = normalizeQuickKeyword(rawKeyword)
+
+  if (!keyword) {
+    return undefined
+  }
+
+  const lowerKeyword = keyword.toLowerCase()
+  const now = dayjs()
+  const shortcutRanges: Record<string, [number, number]> = {
+    today: [now.startOf('day').valueOf(), now.endOf('day').valueOf()],
+    [$t('components.ConditionFilter.date.today').toLowerCase()]: [now.startOf('day').valueOf(), now.endOf('day').valueOf()],
+    yesterday: [now.subtract(1, 'day').startOf('day').valueOf(), now.subtract(1, 'day').endOf('day').valueOf()],
+    [$t('components.ConditionFilter.date.yesterday').toLowerCase()]: [now.subtract(1, 'day').startOf('day').valueOf(), now.subtract(1, 'day').endOf('day').valueOf()],
+    thisweek: [now.startOf('week').valueOf(), now.endOf('week').valueOf()],
+    [$t('components.ConditionFilter.date.thisWeek').toLowerCase()]: [now.startOf('week').valueOf(), now.endOf('week').valueOf()],
+    last7days: [now.subtract(6, 'day').startOf('day').valueOf(), now.endOf('day').valueOf()],
+    [$t('components.ConditionFilter.date.last7Days').toLowerCase()]: [now.subtract(6, 'day').startOf('day').valueOf(), now.endOf('day').valueOf()],
+    thismonth: [now.startOf('month').valueOf(), now.endOf('month').valueOf()],
+    [$t('components.ConditionFilter.date.thisMonth').toLowerCase()]: [now.startOf('month').valueOf(), now.endOf('month').valueOf()],
+  }
+
+  if (shortcutRanges[lowerKeyword]) {
+    return shortcutRanges[lowerKeyword]
+  }
+
+  const rangeParts = keyword
+    .split(/\s*(?:~|～|至|—|–|,|，)\s*/)
+    .map(item => item.trim())
+    .filter(Boolean)
+
+  if (rangeParts.length === 2) {
+    const startDate = dayjs(rangeParts[0])
+    const endDate = dayjs(rangeParts[1])
+
+    if (startDate.isValid() && endDate.isValid()) {
+      return [startDate.startOf('day').valueOf(), endDate.endOf('day').valueOf()]
+    }
+  }
+
+  const isTimestampKeyword = /^\d{13}$/.test(keyword)
+  const isDateLikeKeyword = /^\d{4}[-/]\d{1,2}(?:[-/]\d{1,2})?(?:\s+\d{1,2}:\d{1,2}(?::\d{1,2})?)?$/.test(keyword)
+
+  if (!isTimestampKeyword && !isDateLikeKeyword) {
+    return undefined
+  }
+
+  const singleDate = isTimestampKeyword ? dayjs(Number(keyword)) : dayjs(keyword)
+
+  if (singleDate.isValid()) {
+    return [singleDate.startOf('day').valueOf(), singleDate.endOf('day').valueOf()]
+  }
+
+  return undefined
+}
+
+const resolveQuickSelectValue = (
+  column: ConditionFilterField | undefined,
+  rawKeyword: string,
+  termType?: string,
+) => {
+  const keyword = normalizeQuickKeyword(rawKeyword).toLowerCase()
+
+  if (!column || !keyword) {
+    return undefined
+  }
+
+  const matched = getOptionList(column).filter((item: Record<string, any>) => {
+    const label = String(item?.label ?? item?.name ?? item?.title ?? item?.value ?? item?.id ?? '').toLowerCase()
+    const value = String(item?.value ?? item?.id ?? '').toLowerCase()
+    return label.includes(keyword) || value.includes(keyword)
+  })
+
+  if (!matched.length) {
+    return undefined
+  }
+
+  const exactMatched = matched.filter((item: Record<string, any>) => {
+    const label = String(item?.label ?? item?.name ?? item?.title ?? item?.value ?? item?.id ?? '').toLowerCase()
+    const value = String(item?.value ?? item?.id ?? '').toLowerCase()
+    return label === keyword || value === keyword
+  })
+
+  const target = exactMatched.length === 1
+    ? exactMatched[0]
+    : matched.length === 1
+      ? matched[0]
+      : undefined
+
+  if (!target) {
+    return undefined
+  }
+
+  const targetValue = target?.value ?? target?.id
+
+  return isArrayTermType(termType || '') ? [targetValue] : targetValue
+}
+
+const buildQuickSuggestionDescription = (
+  column: ConditionFilterField,
+  termType: string,
+  rawKeyword: string,
+) => {
+  const readableLabel = getTermTypeReadableText(termType, column)
+  const keywordPreview = previewQuickKeyword(rawKeyword)
+
+  return keywordPreview ? `${readableLabel} ${keywordPreview}` : readableLabel
+}
+
+const getFieldQuickSuggestion = (
+  column: ConditionFilterField,
+  rawKeyword: string,
+): FieldQuickSuggestion | undefined => {
+  const search = column.search
+  const keyword = normalizeQuickKeyword(rawKeyword)
+
+  if (!search || !keyword) {
+    return undefined
+  }
+
+  const optionValues = getTermTypeOptions(column).map(item => item.value)
+  const fallbackTermType = search.defaultTermType || optionValues[0] || 'eq'
+  const recommendedTermType = getRecommendedTermType(column) || fallbackTermType
+  const fieldText = `${column.dataIndex || ''} ${column.title || ''}`.toLowerCase()
+  const keywordLower = keyword.toLowerCase()
+  const keywordMatchedByField = fieldText.includes(keywordLower)
+  const keywordLooksNumeric = /^-?\d+(\.\d+)?$/.test(keyword)
+
+  if (['select', 'treeSelect', 'tree'].includes(search.type)) {
+    const matchedValue = resolveQuickSelectValue(column, keyword, recommendedTermType)
+
+    if (matchedValue !== undefined) {
+      return {
+        score: 680,
+        termType: recommendedTermType,
+        value: matchedValue,
+        description: buildQuickSuggestionDescription(column, recommendedTermType, keyword),
+      }
+    }
+
+    if (keywordMatchedByField) {
+      return {
+        score: 120,
+        termType: recommendedTermType,
+      }
+    }
+
+    return undefined
+  }
+
+  if (['date', 'time', 'timeRange', 'rangePicker'].includes(search.type)) {
+    const rangeValue = resolveQuickDateRangeValue(keyword)
+
+    if (rangeValue) {
+      const termType = optionValues.includes('btw') ? 'btw' : recommendedTermType
+
+      return {
+        score: 660,
+        termType,
+        value: rangeValue,
+        description: buildQuickSuggestionDescription(column, termType, keyword),
+      }
+    }
+
+    return keywordMatchedByField
+      ? {
+          score: 180,
+          termType: recommendedTermType,
+          description: buildQuickSuggestionDescription(column, recommendedTermType, keyword),
+        }
+      : undefined
+  }
+
+  if (search.type === 'number') {
+    if (!keywordLooksNumeric) {
+      return keywordMatchedByField
+        ? {
+            score: 180,
+            termType: recommendedTermType,
+            description: buildQuickSuggestionDescription(column, recommendedTermType, keyword),
+          }
+        : undefined
+    }
+
+    const termType = optionValues.includes('eq') ? 'eq' : recommendedTermType
+
+    return {
+      score: identifierFieldPattern.test(fieldText) ? 640 : 600,
+      termType,
+      value: Number(keyword),
+      description: buildQuickSuggestionDescription(column, termType, keyword),
+    }
+  }
+
+  if (search.type === 'string') {
+    if (keywordMatchedByField) {
+      return undefined
+    }
+
+    if (keyword.length < 2) {
+      return undefined
+    }
+
+    const termType = identifierFieldPattern.test(fieldText) && optionValues.includes('eq')
+      ? 'eq'
+      : recommendedTermType
+
+    return {
+      score: identifierFieldPattern.test(fieldText)
+        ? 560
+        : textFieldPattern.test(fieldText)
+          ? 520
+          : 460,
+      termType,
+      value: keyword,
+      description: buildQuickSuggestionDescription(column, termType, keyword),
+    }
+  }
+
+  return keywordMatchedByField
+    ? {
+        score: 150,
+        termType: recommendedTermType,
+        description: buildQuickSuggestionDescription(column, recommendedTermType, keyword),
+      }
+    : undefined
+}
+
 const fieldOptions = computed(() => {
-  const keyword = fieldKeyword.value.trim().toLowerCase()
+  const keyword = normalizeQuickKeyword(fieldKeyword.value)
 
   if (!keyword) {
     return orderedSearchColumns.value
   }
 
-  return orderedSearchColumns.value.filter((item) => {
-    return `${item.title || ''}${item.dataIndex || ''}`.toLowerCase().includes(keyword)
-  })
+  const normalizedKeyword = keyword.toLowerCase()
+
+  return orderedSearchColumns.value
+    .map((item) => {
+      const exactFieldMatched = isExactFieldMatch(item, keyword)
+      const fieldMatched = `${item.title || ''}${item.dataIndex || ''}`.toLowerCase().includes(normalizedKeyword)
+      const rawQuickSuggestion = exactFieldMatched ? undefined : getFieldQuickSuggestion(item, keyword)
+      const preferFieldOnly = fieldMatched
+        && typeof rawQuickSuggestion?.value === 'string'
+        && normalizeQuickKeyword(rawQuickSuggestion.value) === keyword
+      const quickSuggestion = preferFieldOnly ? undefined : rawQuickSuggestion
+
+      if (!fieldMatched && !quickSuggestion) {
+        return undefined
+      }
+
+      return {
+        ...item,
+        description: quickSuggestion?.description || item.description,
+        quickSuggestion,
+        matchScore: (exactFieldMatched ? 3000 : fieldMatched ? 1000 : 0) + (quickSuggestion?.score || 0),
+      }
+    })
+    .filter(Boolean)
+    .sort((left: any, right: any) => {
+      const scoreSort = Number(right?.matchScore || 0) - Number(left?.matchScore || 0)
+
+      if (scoreSort !== 0) {
+        return scoreSort
+      }
+
+      return Number(left?.sortIndex || 0) - Number(right?.sortIndex || 0)
+    })
+    .slice(0, 12) as ConditionFilterField[]
 })
 
 const activeFieldOption = computed(() => {
@@ -835,6 +1133,29 @@ const setValueDraft = (termKey: string, draft?: ConditionFilterTerm) => {
   }
 }
 
+const setValuePanelKeyword = (termKey: string, keyword?: string) => {
+  if (!termKey) {
+    return
+  }
+
+  const nextKeyword = normalizeQuickKeyword(keyword)
+
+  if (!nextKeyword) {
+    delete valuePanelKeywordMap[termKey]
+    return
+  }
+
+  valuePanelKeywordMap[termKey] = nextKeyword
+}
+
+const getValuePanelKeyword = (termKey?: string) => {
+  if (!termKey) {
+    return ''
+  }
+
+  return valuePanelKeywordMap[termKey] || ''
+}
+
 const getDisplayTerm = (term: ConditionFilterTerm) => {
   const termKey = getTermKey(term)
   const draft = termKey ? valueDraftMap[termKey] : undefined
@@ -1144,6 +1465,10 @@ const activatePopupValueTerm = (termKey: string) => {
 const applyFieldSelection = (termKey: string, columnKey: string) => {
   const term = getTerm(termKey)
   const column = columnsMap[columnKey]
+  const selectedFieldOption = fieldOptions.value.find(item => item.dataIndex === columnKey) as
+    | (ConditionFilterField & { quickSuggestion?: FieldQuickSuggestion })
+    | undefined
+  const quickSuggestion = selectedFieldOption?.quickSuggestion
 
   if (!term || !column?.search) {
     return
@@ -1151,6 +1476,7 @@ const applyFieldSelection = (termKey: string, columnKey: string) => {
 
   const termOptions = getTermTypeOptions(column)
   const nextTermType =
+    (quickSuggestion?.termType && termOptions.some(item => item.value === quickSuggestion.termType) && quickSuggestion.termType) ||
     (shouldKeepTermTypeOnFieldSwitch(term, column) &&
       term.termType &&
       termOptions.some(item => item.value === term.termType) &&
@@ -1158,9 +1484,11 @@ const applyFieldSelection = (termKey: string, columnKey: string) => {
     getRecommendedTermType(column) ||
     'eq'
 
-  const nextValue = canReuseFieldValueOnSwitch(term, column, nextTermType)
-    ? convertValue(term.termType, nextTermType, term.value)
-    : buildInitialValue(nextTermType, column.search.defaultValue)
+  const nextValue = quickSuggestion?.value !== undefined
+    ? cloneValue(quickSuggestion.value)
+    : canReuseFieldValueOnSwitch(term, column, nextTermType)
+      ? convertValue(term.termType, nextTermType, term.value)
+      : buildInitialValue(nextTermType, column.search.defaultValue)
 
   const nextTerm = {
     ...term,
@@ -1179,14 +1507,21 @@ const applyFieldSelection = (termKey: string, columnKey: string) => {
   fieldKeyword.value = ''
   fieldPanelActiveIndex.value = 0
   fieldPanelOpen.value = false
+  setValuePanelKeyword(termKey, quickSuggestion?.panelKeyword)
 
   if (isNullaryTermType(nextTermType)) {
     setTailMode({ focus: true })
     return
   }
 
+  if (hasTermValue(nextTerm)) {
+    delete valuePanelKeywordMap[termKey]
+    setTailMode({ focus: true })
+    return
+  }
+
   if (isDirectTextTerm(column, nextTermType)) {
-    startValueEdit(termKey, isNilValue(nextValue) ? '' : String(nextValue))
+    startValueEdit(termKey, quickSuggestion?.panelKeyword || (isNilValue(nextValue) ? '' : String(nextValue)))
     return
   }
 
@@ -1295,6 +1630,7 @@ const onRemoveTerm = (termKey: string, options?: { focusTail?: boolean }) => {
 
   termsModel.value.splice(index, 1)
   delete valueDraftMap[termKey]
+  delete valuePanelKeywordMap[termKey]
   pendingEmptyRemovalKeys.delete(termKey)
 
   if (termsModel.value[0]) {
@@ -1365,6 +1701,7 @@ const commitTextValue = (options?: { focusTail?: boolean; allowEmpty?: boolean; 
 const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?: { close?: boolean; allowEmpty?: boolean }) => {
   const currentTerm = getTerm(termKey)
   delete valueDraftMap[termKey]
+  delete valuePanelKeywordMap[termKey]
 
   if (!isNullaryTermType(value.termType) && !hasTermValue(value)) {
     if (options?.allowEmpty) {
@@ -1413,6 +1750,9 @@ const onClear = () => {
   termsModel.value = []
   Object.keys(valueDraftMap).forEach((key) => {
     delete valueDraftMap[key]
+  })
+  Object.keys(valuePanelKeywordMap).forEach((key) => {
+    delete valuePanelKeywordMap[key]
   })
   setTailMode()
 }
@@ -1853,6 +2193,7 @@ const onValuePanelOpenChange = (termKey: string, visible: boolean) => {
   }
 
   delete valueDraftMap[termKey]
+  delete valuePanelKeywordMap[termKey]
 }
 
 const onClearTermValue = (termKey: string) => {
@@ -1983,6 +2324,7 @@ onUnmounted(() => {
             >
               <div class="condition-filter__editor condition-filter__editor--field" @click.stop>
                 <input
+                  :key="`field:${getTermKey(term)}`"
                   class="condition-filter__text-input"
                   :value="fieldKeyword"
                   :placeholder="getFieldLabel(term.column) || resolvedPlaceholder"
@@ -2080,6 +2422,7 @@ onUnmounted(() => {
                 @click.stop
               >
                 <input
+                  :key="`value:${getTermKey(term)}`"
                   class="condition-filter__text-input"
                   :value="valueKeyword"
                   :placeholder="getValuePlaceholder(term)"
@@ -2111,7 +2454,7 @@ onUnmounted(() => {
                       {{ getDisplayValueLabel(term) || getValuePlaceholder(term) }}
                     </span>
                     <span
-                      v-if="hasDisplayTermValue(term)"
+                      v-if="!disabled"
                       class="condition-filter__chip-close"
                       @click.stop="onClearTermValue(getTermKey(term))"
                     >
@@ -2128,7 +2471,13 @@ onUnmounted(() => {
                     @apply="(value, options) => onApplyPanelValue(getTermKey(term), value, options)"
                   >
                     <template v-if="slots['value-editor']" #value="slotProps">
-                      <slot name="value-editor" v-bind="slotProps" />
+                      <slot
+                        name="value-editor"
+                        v-bind="{
+                          ...slotProps,
+                          panelKeyword: getValuePanelKeyword(getTermKey(term)),
+                        }"
+                      />
                     </template>
                   </ConditionEditorPanel>
                 </template>
@@ -2148,7 +2497,7 @@ onUnmounted(() => {
                     {{ getDisplayValueLabel(term) || getValuePlaceholder(term) }}
                   </span>
                   <span
-                    v-if="hasDisplayTermValue(term)"
+                    v-if="!disabled"
                     class="condition-filter__chip-close"
                     @click.stop="onClearTermValue(getTermKey(term))"
                   >
@@ -2173,6 +2522,7 @@ onUnmounted(() => {
               <AIcon type="PlusOutlined" />
             </span>
             <input
+              key="tail"
               class="condition-filter__text-input condition-filter__text-input--tail"
               :value="fieldKeyword"
               :placeholder="resolvedPlaceholder"
