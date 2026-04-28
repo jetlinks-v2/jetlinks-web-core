@@ -25,6 +25,7 @@ import type {
   ConditionFilterCommonField,
   ConditionFilterExpose,
   ConditionFilterField,
+  ConditionFieldQuickSuggestion,
   ConditionFilterTerm,
 } from './types'
 import type { SearchItem } from '../Search/Filter/typing'
@@ -42,13 +43,7 @@ const slots = useSlots()
 
 type TokenKind = 'logic' | 'field' | 'operator' | 'value'
 type EditorMode = 'tail' | 'field' | 'value'
-type FieldQuickSuggestion = {
-  score: number
-  termType?: string
-  value?: any
-  description?: string
-  panelKeyword?: string
-}
+type FieldQuickSuggestion = ConditionFieldQuickSuggestion
 
 const fieldBlurLock = ref(false)
 const autoSearchDelay = 260
@@ -198,10 +193,19 @@ const previewQuickKeyword = (value?: string, maxLength = 20) => {
 }
 
 const getNormalizedFieldTokens = (column: ConditionFilterField) => {
+  const matchTokens = Array.isArray(column.search?.matchTokens)
+    ? column.search?.matchTokens || []
+    : []
+
   return [
     String(column.title || '').trim().toLowerCase(),
     String(column.dataIndex || '').trim().toLowerCase(),
+    ...matchTokens.map(item => String(item || '').trim().toLowerCase()),
   ].filter(Boolean)
+}
+
+const getFieldSearchText = (column: ConditionFilterField) => {
+  return getNormalizedFieldTokens(column).join(' ')
 }
 
 const isExactFieldMatch = (column: ConditionFilterField, rawKeyword: string) => {
@@ -338,9 +342,17 @@ const getFieldQuickSuggestion = (
   }
 
   const optionValues = getTermTypeOptions(column).map(item => item.value)
+  const customSuggestion = search.resolveQuickSuggestion?.(keyword, column, {
+    options: getTermTypeOptions(column),
+  })
+
+  if (customSuggestion) {
+    return customSuggestion
+  }
+
   const fallbackTermType = search.defaultTermType || optionValues[0] || 'eq'
   const recommendedTermType = getRecommendedTermType(column) || fallbackTermType
-  const fieldText = `${column.dataIndex || ''} ${column.title || ''}`.toLowerCase()
+  const fieldText = getFieldSearchText(column)
   const keywordLower = keyword.toLowerCase()
   const keywordMatchedByField = fieldText.includes(keywordLower)
   const keywordLooksNumeric = /^-?\d+(\.\d+)?$/.test(keyword)
@@ -457,8 +469,8 @@ const fieldOptions = computed(() => {
   return orderedSearchColumns.value
     .map((item) => {
       const exactFieldMatched = isExactFieldMatch(item, keyword)
-      const fieldMatched = `${item.title || ''}${item.dataIndex || ''}`.toLowerCase().includes(normalizedKeyword)
-      const rawQuickSuggestion = exactFieldMatched ? undefined : getFieldQuickSuggestion(item, keyword)
+      const fieldMatched = getFieldSearchText(item).includes(normalizedKeyword)
+      const rawQuickSuggestion = getFieldQuickSuggestion(item, keyword)
       const preferFieldOnly = fieldMatched
         && typeof rawQuickSuggestion?.value === 'string'
         && normalizeQuickKeyword(rawQuickSuggestion.value) === keyword
@@ -1072,6 +1084,10 @@ const getValueLabel = (term: ConditionFilterTerm) => {
     return ''
   }
 
+  if (column?.search?.formatValuePreview) {
+    return column.search.formatValuePreview(term.value, term, column)
+  }
+
   if (Array.isArray(term.value)) {
     if (['btw', 'nbtw'].includes(term.termType) && ['date', 'time', 'timeRange', 'rangePicker'].includes(column?.search?.type || '')) {
       const [start, end] = term.value.filter(item => !isNilValue(item))
@@ -1098,6 +1114,14 @@ const getValueTooltip = (term: ConditionFilterTerm) => {
 
   if (!displayTerm.termType || isNullaryTermType(displayTerm.termType) || !hasTermValue(displayTerm)) {
     return ''
+  }
+
+  if (column?.search?.formatValueTooltip) {
+    return column.search.formatValueTooltip(displayTerm.value, displayTerm, column)
+  }
+
+  if (column?.search?.formatValuePreview) {
+    return column.search.formatValuePreview(displayTerm.value, displayTerm, column)
   }
 
   if (Array.isArray(displayTerm.value)) {
