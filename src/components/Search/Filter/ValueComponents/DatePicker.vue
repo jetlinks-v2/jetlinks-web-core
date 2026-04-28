@@ -1,9 +1,8 @@
 <script setup lang="ts" name="TimePicker">
 import type { PropType } from 'vue'
-import dayjs from 'dayjs'
 import { computed, ref, useAttrs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { toDayjsValue, toTimestampValue } from './utils'
+import { getDateShortcutOptions, getDateShortcutRange, toDayjsValue, toTimestampValue, type ConditionDateShortcutKey } from './utils'
 
 defineOptions({
   inheritAttrs: false,
@@ -59,51 +58,8 @@ const shortcutOptions = computed(() => {
     return []
   }
 
-  return [
-    { key: 'today', label: $t('components.ConditionFilter.date.today') },
-    { key: 'yesterday', label: $t('components.ConditionFilter.date.yesterday') },
-    { key: 'thisWeek', label: $t('components.ConditionFilter.date.thisWeek') },
-    { key: 'lastWeek', label: $t('components.ConditionFilter.date.lastWeek') },
-    { key: 'last7Days', label: $t('components.ConditionFilter.date.last7Days') },
-    { key: 'thisMonth', label: $t('components.ConditionFilter.date.thisMonth') },
-    { key: 'lastMonth', label: $t('components.ConditionFilter.date.lastMonth') },
-    { key: 'last30Days', label: $t('components.ConditionFilter.date.last30Days') },
-    { key: 'thisYear', label: $t('components.ConditionFilter.date.thisYear') },
-  ]
+  return getDateShortcutOptions($t)
 })
-
-const getShortcutRange = (key: string) => {
-  const now = dayjs()
-
-  switch (key) {
-    case 'today':
-      return [now.startOf('day'), now.endOf('day')]
-    case 'yesterday': {
-      const target = now.subtract(1, 'day')
-      return [target.startOf('day'), target.endOf('day')]
-    }
-    case 'thisWeek':
-      return [now.startOf('week'), now.endOf('week')]
-    case 'lastWeek': {
-      const target = now.subtract(1, 'week')
-      return [target.startOf('week'), target.endOf('week')]
-    }
-    case 'last7Days':
-      return [now.subtract(6, 'day').startOf('day'), now.endOf('day')]
-    case 'thisMonth':
-      return [now.startOf('month'), now.endOf('month')]
-    case 'lastMonth': {
-      const target = now.subtract(1, 'month')
-      return [target.startOf('month'), target.endOf('month')]
-    }
-    case 'last30Days':
-      return [now.subtract(29, 'day').startOf('day'), now.endOf('day')]
-    case 'thisYear':
-      return [now.startOf('year'), now.endOf('year')]
-    default:
-      return [now.startOf('day'), now.endOf('day')]
-  }
-}
 
 const change = (e) => {
   myValue.value = toDayjsValue(e)
@@ -112,8 +68,8 @@ const change = (e) => {
   emit('change', timestamp)
 }
 
-const onShortcutSelect = (key: string) => {
-  const [start, end] = getShortcutRange(key)
+const onShortcutSelect = (key: ConditionDateShortcutKey) => {
+  const [start, end] = getDateShortcutRange(key)
   change(props.shortcutMode === 'end' ? end : start)
 }
 

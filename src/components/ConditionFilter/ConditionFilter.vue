@@ -314,7 +314,7 @@ const resolveQuickSelectValue = (
     return undefined
   }
 
-  const targetValue = target?.value ?? target?.id
+  const targetValue = target.value ?? target.id
 
   return isArrayTermType(termType || '') ? [targetValue] : targetValue
 }
