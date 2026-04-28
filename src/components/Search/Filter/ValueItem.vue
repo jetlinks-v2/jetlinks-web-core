@@ -65,6 +65,26 @@ const isDateMode = computed(() => {
   return ['date', 'time'].includes(type.value) && !isArrayTermType(props.termType)
 })
 
+const dateShortcutMode = computed(() => {
+  if (!['date', 'time', 'timeRange', 'rangePicker'].includes(type.value)) {
+    return undefined
+  }
+
+  if (isRangeMode.value && ['btw', 'nbtw'].includes(props.termType || '')) {
+    return 'range'
+  }
+
+  if (isDateMode.value && props.termType === 'gte') {
+    return 'start'
+  }
+
+  if (isDateMode.value && props.termType === 'lte') {
+    return 'end'
+  }
+
+  return undefined
+})
+
 const isMultipleMode = computed(() => {
   return isArrayTermType(props.termType)
 })
@@ -147,12 +167,15 @@ watch(myValue, (val) => {
     <RangePicker
       v-else-if="isRangeMode"
       v-model:value="myValue"
+      :shortcut-mode="dateShortcutMode === 'range' ? 'range' : undefined"
       v-bind="columnItem.search.componentProps"
       @change="onValueChange"
     />
     <DatePicker
       v-else-if="isDateMode"
       v-model:value="myValue"
+      :picker-type="type"
+      :shortcut-mode="dateShortcutMode"
       v-bind="columnItem.search.componentProps"
       @change="onValueChange"
     />
