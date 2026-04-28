@@ -49,6 +49,14 @@ export interface ConditionOptionDisplayFields {
   icon?: ConditionOptionDisplayFieldResolver
 }
 
+export interface ConditionFieldQuickSuggestion {
+  score: number
+  termType?: string
+  value?: any
+  description?: string
+  panelKeyword?: string
+}
+
 export type ConditionFilterRouteVersion = 'v1' | 'v2' | 'v3'
 
 export type ConditionFilterRouteTermTuple = [string, string, any, string?]
@@ -95,6 +103,7 @@ export interface ConditionFieldSearchConfig {
   fixed?: boolean
   rename?: string
   routeAlias?: string
+  matchTokens?: string[]
   defaultTermType?: string
   defaultValue?: any
   first?: boolean
@@ -105,6 +114,16 @@ export interface ConditionFieldSearchConfig {
   componentProps?: Record<string, any>
   optionPanel?: ConditionOptionPanelConfig
   options?: any[] | Ref<any[]> | (() => Promise<any[]>)
+  nestedFields?: ConditionFieldSchema[]
+  nestedPlaceholder?: string
+  formatValueTooltip?: (value: any, term: ConditionTerm, field: ConditionFieldSchema) => string
+  resolveQuickSuggestion?: (
+    keyword: string,
+    field: ConditionFieldSchema,
+    context: {
+      options: ConditionTermOption[]
+    },
+  ) => ConditionFieldQuickSuggestion | undefined
   handleValue?: (value: any) => any
   handleParamsItem?: (record: Record<string, any>, params: ConditionTerm[]) => ConditionTerm
   recommendTermType?: string | ((field: ConditionFieldSchema, context: { options: ConditionTermOption[] }) => string | undefined)

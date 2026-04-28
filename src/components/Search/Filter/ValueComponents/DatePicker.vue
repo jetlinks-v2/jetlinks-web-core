@@ -1,7 +1,12 @@
-<script setup name="TimePicker">
+<script setup lang="ts" name="TimePicker">
+import type { PropType } from 'vue'
+import { computed, ref, useAttrs, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { getDateShortcutOptions, getDateShortcutRange, toDayjsValue, toTimestampValue, type ConditionDateShortcutKey } from './utils'
 
-import { watch } from 'vue'
-import { toDayjsValue, toTimestampValue } from './utils'
+defineOptions({
+  inheritAttrs: false,
+})
 
 const props = defineProps({
   value: {
@@ -10,24 +15,62 @@ const props = defineProps({
   },
   format: {
     type: String,
-    default: 'HH:mm:ss',
+    default: undefined,
   },
+  pickerType: {
+    type: String,
+    default: 'date',
+  },
+  shortcutMode: {
+    type: String as PropType<'start' | 'end' | undefined>,
+    default: undefined,
+  }
 });
 
 const emit = defineEmits(['update:value', 'change'])
+const attrs = useAttrs()
+const { t: $t } = useI18n()
 
-const dropdownTimePickerRef = ref()
 const myValue = ref(toDayjsValue(props.value))
 
-const getPopupContainer = () => {
-  return dropdownTimePickerRef.value
-}
+const pickerAttrs = computed(() => {
+  const next = {
+    ...attrs,
+  } as Record<string, any>
+
+  if (next.showTime === undefined && next['show-time'] === undefined) {
+    next.showTime = true
+  }
+
+  if (next.format === undefined && props.format) {
+    next.format = props.format
+  }
+
+  if (next.format === undefined) {
+    next.format = props.pickerType === 'time' ? 'HH:mm:ss' : 'YYYY-MM-DD HH:mm:ss'
+  }
+
+  return next
+})
+
+const shortcutOptions = computed(() => {
+  if (!props.shortcutMode) {
+    return []
+  }
+
+  return getDateShortcutOptions($t)
+})
 
 const change = (e) => {
   myValue.value = toDayjsValue(e)
   const timestamp = toTimestampValue(e)
   emit('update:value', timestamp)
   emit('change', timestamp)
+}
+
+const onShortcutSelect = (key: ConditionDateShortcutKey) => {
+  const [start, end] = getDateShortcutRange(key)
+  change(props.shortcutMode === 'end' ? end : start)
 }
 
 watch(() => props.value, (val) => {
@@ -37,46 +80,61 @@ watch(() => props.value, (val) => {
 </script>
 
 <template>
-<div class="dropdown-time-picker" ref="dropdownTimePickerRef">
+<div class="dropdown-time-picker">
   <a-date-picker
     :value="myValue"
-    :format="props.format"
-    :open="true"
-    :get-popup-container="getPopupContainer"
-    showTime
-    class='manual-time-picker'
-    popupClassName='manual-time-picker-popup'
+    class="dropdown-time-picker__input"
+    v-bind="pickerAttrs"
     @change='change'
     @ok='change'
   />
+  <div v-if="shortcutOptions.length" class="dropdown-time-picker__shortcuts">
+    <button
+      v-for="item in shortcutOptions"
+      :key="item.key"
+      class="dropdown-time-picker__shortcut"
+      type="button"
+      @mousedown.prevent
+      @click="onShortcutSelect(item.key)"
+    >
+      {{ item.label }}
+    </button>
+  </div>
 </div>
 </template>
 
 <style scoped lang="less">
 .dropdown-time-picker {
-  > div{
-    position: relative !important;
-  }
+  width: 100%;
 
-  .manual-time-picker {
-    display: none;
-  }
-
-  :deep(.ant-picker-dropdown) {
-    position: relative;
-    top: 0;
-    left: 0;
+  &__input {
     width: 100%;
-    .ant-picker-panel {
-      width: 100%
-    }
-    .ant-picker-footer {
-      border-bottom: 0px;
-    }
   }
 
-  :deep(.ant-picker-panel-container) {
-    box-shadow: unset;
+  &__shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  &__shortcut {
+    height: 24px;
+    padding: 0 10px;
+    color: #475467;
+    font-size: 12px;
+    line-height: 22px;
+    background: #f8fafc;
+    border: 1px solid #d0d5dd;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      color: #1677ff;
+      background: #eff6ff;
+      border-color: #91caff;
+    }
   }
 }
 </style>
