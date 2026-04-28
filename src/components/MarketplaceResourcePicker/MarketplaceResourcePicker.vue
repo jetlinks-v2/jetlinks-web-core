@@ -4,17 +4,34 @@
     :class="{ 'mp-res-layout--fixed': !!panelHeight }"
     :style="panelHeight ? { height: panelHeight } : undefined"
   >
-    <div v-if="showTypeTabs" class="mp-res-layout__types">
-      <a-tabs v-model:activeKey="activeType" type="line" class="mp-res-layout__tabs">
-        <a-tab-pane v-for="ty in typeOptions" :key="ty.value" :tab="ty.label" />
+    <div
+      v-if="showTypeTabs"
+      class="mp-res-layout__types"
+    >
+      <a-tabs
+        v-model:activeKey="activeType"
+        type="line"
+        class="mp-res-layout__tabs"
+      >
+        <a-tab-pane
+          v-for="ty in typeOptions"
+          :key="ty.value"
+          :tab="ty.label"
+        />
       </a-tabs>
     </div>
 
-    <div v-if="!typeOptions.length" class="mp-res-layout__empty">
+    <div
+      v-if="!typeOptions.length"
+      class="mp-res-layout__empty"
+    >
       <a-empty :description="mergedLabels.noResourceTypes" />
     </div>
 
-    <div v-else class="mp-res-layout__body">
+    <div
+      v-else
+      class="mp-res-layout__body"
+    >
       <aside class="mp-res-layout__aside">
         <div class="mp-res-layout__aside-title">{{ mergedLabels.tags }}</div>
         <a-spin :spinning="tagsLoading">
@@ -27,7 +44,10 @@
             >
               {{ mergedLabels.all }}
             </button>
-            <template v-for="section in sidebarSections" :key="section.id">
+            <template
+              v-for="section in sidebarSections"
+              :key="section.id"
+            >
               <div
                 v-if="isSectionVisible(section)"
                 class="mp-res-layout__sidebar-section"
@@ -41,10 +61,16 @@
                 >
                   <span class="mp-res-layout__sidebar-classifier-name">{{ section.name }}</span>
                   <span class="mp-res-layout__sidebar-classifier-meta">
-                    <span v-if="sectionSelectedCount(section) > 0" class="mp-res-layout__sidebar-classifier-picked">
+                    <span
+                      v-if="sectionSelectedCount(section) > 0"
+                      class="mp-res-layout__sidebar-classifier-picked"
+                    >
                       {{ sectionSelectedCount(section) }}
                     </span>
-                    <span v-if="section.tags.length" class="mp-res-layout__sidebar-classifier-count">
+                    <span
+                      v-if="section.tags.length"
+                      class="mp-res-layout__sidebar-classifier-count"
+                    >
                       {{ section.tags.length }}
                     </span>
                     <AIcon
@@ -83,10 +109,17 @@
             @search="onSearch"
             @pressEnter="onSearch"
           />
-          <slot name="toolbar-extra" :active-type="activeType" :keyword="keyword" />
+          <slot
+            name="toolbar-extra"
+            :active-type="activeType"
+            :keyword="keyword"
+          />
         </div>
 
-        <div v-if="selectedTagItems.length" class="mp-res-layout__selected">
+        <div
+          v-if="selectedTagItems.length"
+          class="mp-res-layout__selected"
+        >
           <span class="mp-res-layout__selected-title">{{ mergedLabels.selectedTags }}</span>
           <div class="mp-res-layout__selected-list">
             <TagFilterChip
@@ -97,17 +130,30 @@
               @toggle="toggleTag(tag.id)"
             />
           </div>
-          <button type="button" class="mp-res-layout__selected-clear" @click="clearTagFilter">
+          <button
+            type="button"
+            class="mp-res-layout__selected-clear"
+            @click="clearTagFilter"
+          >
             {{ mergedLabels.clearSelected }}
           </button>
         </div>
 
-        <div class="mp-res-layout__list-scroll" @scroll.passive="onListScroll">
+        <div
+          class="mp-res-layout__list-scroll"
+          @scroll.passive="onListScroll"
+        >
           <a-spin :spinning="listLoading">
-            <a-empty v-if="!records.length && !listLoading" :description="mergedLabels.empty" />
+            <a-empty
+              v-if="!records.length && !listLoading"
+              :description="mergedLabels.empty"
+            />
             <template v-else>
               <div class="mp-res-layout__grid">
-                <template v-for="row in records" :key="row.id">
+                <template
+                  v-for="row in records"
+                  :key="row.id"
+                >
                   <slot
                     name="card"
                     :record="row"
@@ -150,7 +196,10 @@
                   </slot>
                 </template>
               </div>
-              <div v-if="loadingMore" class="mp-res-layout__load-hint">
+              <div
+                v-if="loadingMore"
+                class="mp-res-layout__load-hint"
+              >
                 <a-spin size="small" />
               </div>
               <div
@@ -163,7 +212,10 @@
           </a-spin>
         </div>
 
-        <div v-if="showPagination && total > pageSize" class="mp-res-layout__pager">
+        <div
+          v-if="showPagination && total > pageSize"
+          class="mp-res-layout__pager"
+        >
           <a-pagination
             v-model:current="pageIndex"
             :total="total"
@@ -188,14 +240,9 @@ import {
   defaultFetchCapabilityVersions,
   defaultFetchResources,
   defaultFetchTagClassifiers,
-  pickLatestCapabilityVersion,
+  pickLatestCapabilityVersion
 } from './defaultMarketplaceClient'
-import {
-  buildSidebarSections,
-  normalizeTagClassifiersResponse,
-  type SidebarSection,
-  type TagChipItem,
-} from './sidebar'
+import { buildSidebarSections, normalizeTagClassifiersResponse, type SidebarSection, type TagChipItem } from './sidebar'
 import type {
   CapabilityVersionOption,
   FetchCapabilityVersions,
@@ -203,7 +250,7 @@ import type {
   MarketplaceResourcePickerLabels,
   ResourceTypeOption,
   SelectionMode,
-  TagClassifiersFetcher,
+  TagClassifiersFetcher
 } from './types'
 
 const props = withDefaults(
@@ -258,8 +305,8 @@ const props = withDefaults(
     showPagination: false,
     enableVersionSelect: false,
     version: undefined,
-    panelHeight: undefined,
-  },
+    panelHeight: undefined
+  }
 )
 
 const { t: $t } = useI18n()
@@ -286,7 +333,7 @@ const defaultLabels = computed<Required<MarketplaceResourcePickerLabels>>(() => 
   releaseNotesTitle: $t('components.MarketplaceResourcePicker.releaseNotesTitle'),
   viewDocument: $t('components.MarketplaceResourcePicker.viewDocument'),
   resourceDocumentTitle: $t('components.MarketplaceResourcePicker.resourceDocumentTitle'),
-  versionSummary: $t('components.MarketplaceResourcePicker.versionSummary'),
+  versionSummary: $t('components.MarketplaceResourcePicker.versionSummary')
 }))
 
 const mergedLabels = computed(() => ({ ...defaultLabels.value, ...props.labels }))
@@ -316,7 +363,7 @@ let versionLoadSeq = 0
 
 const selectedVersion = computed({
   get: () => (props.version == null || props.version === '' ? undefined : String(props.version)),
-  set: (v: string | undefined) => emit('update:version', v),
+  set: (v: string | undefined) => emit('update:version', v)
 })
 
 function resolveFetchTagClassifiers(): TagClassifiersFetcher {
@@ -333,7 +380,7 @@ function buildResourceQuery(pageIndexValue: number) {
     pageIndex: pageIndexValue,
     pageSize: pageSize.value,
     keyword: keyword.value?.trim() ?? '',
-    selectedTagIds: [...selectedTagIds.value],
+    selectedTagIds: [...selectedTagIds.value]
   }
 }
 
@@ -502,9 +549,7 @@ const tagOwnerMap = computed(() => {
   return map
 })
 const selectedTagItems = computed(() =>
-  selectedTagIds.value
-    .map((id) => tagMap.value.get(id))
-    .filter((item): item is TagChipItem => !!item),
+  selectedTagIds.value.map((id) => tagMap.value.get(id)).filter((item): item is TagChipItem => !!item)
 )
 
 function defaultExpandedSections(sections: SidebarSection[]) {
@@ -664,7 +709,7 @@ watch(
       activeType.value = tabs[0].value
     }
   },
-  { immediate: true, deep: true },
+  { immediate: true, deep: true }
 )
 
 watch(
@@ -679,7 +724,7 @@ watch(
       else fetchList(true)
     }
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 watch(
@@ -712,14 +757,14 @@ watch(
     if (props.showPagination) await fetchPage()
     else await fetchList(true)
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 watch(
   () => props.pageSize,
   (v) => {
     if (v != null && v > 0) pageSize.value = v
-  },
+  }
 )
 
 watch(
@@ -737,7 +782,7 @@ watch(
     }
     await loadVersionsForCapability(id)
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 onBeforeUnmount(() => {
@@ -747,7 +792,7 @@ onBeforeUnmount(() => {
 })
 
 defineExpose({
-  refresh: () => (props.showPagination ? fetchPage() : fetchList(true)),
+  refresh: () => (props.showPagination ? fetchPage() : fetchList(true))
 })
 </script>
 
@@ -835,7 +880,9 @@ defineExpose({
   line-height: 1.35;
   user-select: none;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 .mp-res-layout__sidebar-classifier:hover {
   border-color: rgba(22, 119, 255, 0.18);
@@ -901,7 +948,11 @@ defineExpose({
   font-size: 13px;
   color: rgba(0, 0, 0, 0.75);
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 .mp-res-layout__tag:hover {
   border-color: rgba(22, 119, 255, 0.25);
@@ -912,7 +963,9 @@ defineExpose({
 .mp-res-layout__tag--active {
   border-color: #0958d9;
   background: linear-gradient(180deg, rgba(22, 119, 255, 0.08), rgba(22, 119, 255, 0.04));
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.96) inset, 0 0 0 3px rgba(22, 119, 255, 0.14);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.96) inset,
+    0 0 0 3px rgba(22, 119, 255, 0.14);
   color: #0958d9;
   font-weight: 500;
 }
@@ -1013,7 +1066,7 @@ defineExpose({
 }
 .mp-res-layout__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: 12px;
   width: 100%;
   align-items: stretch;
