@@ -4,12 +4,19 @@
     :class="{ 'mp-card--picked': selectable && selected }"
     @click="$emit('click')"
   >
-    <div v-if="selectable && selected" class="mp-card__pick" aria-hidden="true">
+    <div
+      v-if="selectable && selected"
+      class="mp-card__pick"
+      aria-hidden="true"
+    >
       <CheckOutlined />
     </div>
     <div class="mp-card__glow" />
     <div class="mp-card__head">
-      <div class="mp-card__icon" aria-hidden="true">
+      <div
+        class="mp-card__icon"
+        aria-hidden="true"
+      >
         <IconValueView
           :value="record?.icon"
           :size="48"
@@ -17,7 +24,10 @@
           :fallback-text="record?.name || record?.code"
         />
       </div>
-      <div class="mp-card__head-text" :class="{ 'mp-card__head-text--selectable': selectable }">
+      <div
+        class="mp-card__head-text"
+        :class="{ 'mp-card__head-text--selectable': selectable }"
+      >
         <div class="mp-card__title-row">
           <div class="mp-card__name-wrap">
             <button
@@ -33,19 +43,40 @@
                 <span>{{ viewDocumentText }}</span>
               </span>
             </button>
-            <j-ellipsis v-else class="mp-card__title">{{ record.name || '--' }}</j-ellipsis>
+            <j-ellipsis
+              v-else
+              class="mp-card__title"
+            >
+              {{ record.name || '--' }}
+            </j-ellipsis>
           </div>
-          <span v-if="record.code" class="mp-card__code">{{ record.code }}</span>
+          <span
+            v-if="record.code"
+            class="mp-card__code"
+          >
+            {{ record.code }}
+          </span>
         </div>
         <div class="mp-card__state-row">
-          <div class="mp-card__state" :aria-label="$t('components.MarketplaceResourcePicker.stateLabel')">
-            <span class="mp-card__dot" :class="enabled ? 'on' : 'off'" />
+          <div
+            class="mp-card__state"
+            :aria-label="$t('components.MarketplaceResourcePicker.stateLabel')"
+          >
+            <span
+              class="mp-card__dot"
+              :class="enabled ? 'on' : 'off'"
+            />
             <span>{{ stateLabel }}</span>
           </div>
         </div>
       </div>
     </div>
-    <p v-if="descriptionText" class="mp-card__desc">{{ descriptionText }}</p>
+    <p
+      v-if="descriptionText"
+      class="mp-card__desc"
+    >
+      {{ descriptionText }}
+    </p>
     <div class="mp-card__tags">
       <span
         v-for="(t, i) in visibleTags"
@@ -90,11 +121,23 @@
             </span>
           </div>
         </template>
-        <span class="mp-pill mp-pill--more" @click.stop>+{{ extraTagCount }}</span>
+        <span
+          class="mp-pill mp-pill--more"
+          @click.stop
+        >
+          +{{ extraTagCount }}
+        </span>
       </a-popover>
     </div>
-    <div v-if="showVersionSelect || $slots.actions" class="mp-card__footer">
-      <div v-if="showVersionSelect" class="mp-card__footer-left" @click.stop>
+    <div
+      v-if="showVersionSelect || $slots.actions"
+      class="mp-card__footer"
+    >
+      <div
+        v-if="showVersionSelect"
+        class="mp-card__footer-left"
+        @click.stop
+      >
         <div class="mp-card__version-line">
           <span class="mp-card__version-label">{{ versionLabel }}</span>
           <a-dropdown
@@ -116,7 +159,10 @@
               />
             </button>
             <template #overlay>
-              <div class="mp-card__version-menu" @click.stop>
+              <div
+                class="mp-card__version-menu"
+                @click.stop
+              >
                 <button
                   v-for="opt in versionOptions"
                   :key="opt.value"
@@ -132,7 +178,10 @@
                       class="mp-card__version-option-check"
                     />
                   </span>
-                  <span v-if="opt.summary" class="mp-card__version-option-summary">
+                  <span
+                    v-if="opt.summary"
+                    class="mp-card__version-option-summary"
+                  >
                     {{ opt.summary }}
                   </span>
                 </button>
@@ -144,14 +193,18 @@
             class="mp-card__version-link"
             :class="{
               'mp-card__version-link--static': hasVersionOptions || hasDisplayedVersion,
-              'mp-card__version-link--placeholder': !hasVersionOptions && !hasDisplayedVersion,
+              'mp-card__version-link--placeholder': !hasVersionOptions && !hasDisplayedVersion
             }"
             :title="currentVersionSummary || undefined"
           >
             <span class="mp-card__version-link-text">
               {{ versionsLoading ? versionLoadingText : currentVersionText }}
             </span>
-            <LoadingOutlined v-if="versionsLoading" spin class="mp-card__version-link-loading" />
+            <LoadingOutlined
+              v-if="versionsLoading"
+              spin
+              class="mp-card__version-link-loading"
+            />
           </span>
           <a-popover
             v-if="currentVersionSummary"
@@ -165,7 +218,10 @@
                 <div class="mp-card__version-summary-popover-text">{{ currentVersionSummary }}</div>
               </div>
             </template>
-            <span class="mp-card__version-summary-chip" @click.stop>
+            <span
+              class="mp-card__version-summary-chip"
+              @click.stop
+            >
               <InfoCircleOutlined />
               <span class="mp-card__version-summary-chip-text">{{ currentVersionSummary }}</span>
             </span>
@@ -183,8 +239,15 @@
           </template>
         </div>
       </div>
-      <div v-if="$slots.actions" class="mp-card__actions" @click.stop>
-        <slot name="actions" :record="record" />
+      <div
+        v-if="$slots.actions"
+        class="mp-card__actions"
+        @click.stop
+      >
+        <slot
+          name="actions"
+          :record="record"
+        />
       </div>
     </div>
     <a-drawer
@@ -197,7 +260,10 @@
       :z-index="1100"
       @click.stop
     >
-      <div class="mp-card__release-md" v-html="releaseNotesHtml" />
+      <div
+        class="mp-card__release-md"
+        v-html="releaseNotesHtml"
+      />
     </a-drawer>
     <a-drawer
       v-if="documentText"
@@ -209,7 +275,10 @@
       :z-index="1100"
       @click.stop
     >
-      <div class="mp-card__release-md" v-html="documentHtml" />
+      <div
+        class="mp-card__release-md"
+        v-html="documentHtml"
+      />
     </a-drawer>
   </div>
 </template>
@@ -220,7 +289,7 @@ import {
   DownOutlined,
   FileTextOutlined,
   InfoCircleOutlined,
-  LoadingOutlined,
+  LoadingOutlined
 } from '@ant-design/icons-vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -260,8 +329,8 @@ const props = withDefaults(
     selected: false,
     showVersionSelect: false,
     versionOptions: () => [],
-    versionsLoading: false,
-  },
+    versionsLoading: false
+  }
 )
 
 const { t: $t } = useI18n()
@@ -273,7 +342,7 @@ const emit = defineEmits<{
 
 const versionBinding = computed({
   get: () => (props.version == null || props.version === '' ? undefined : String(props.version)),
-  set: (v: string | undefined) => emit('update:version', v),
+  set: (v: string | undefined) => emit('update:version', v)
 })
 
 const releaseNotesDrawerOpen = ref(false)
@@ -294,23 +363,21 @@ const currentVersionSummary = computed(() => {
 const hasVersionOptions = computed(() => (props.versionOptions?.length ?? 0) > 0)
 const hasDisplayedVersion = computed(() => !!currentVersionMeta.value?.label || !!currentVersionValue.value)
 const canOpenVersionDropdown = computed(() => (props.versionOptions?.length ?? 0) > 1 && !props.versionsLoading)
-const versionPlaceholderText = computed(() =>
-  props.versionPlaceholder ?? $t('components.MarketplaceResourcePicker.versionPlaceholder'),
+const versionPlaceholderText = computed(
+  () => props.versionPlaceholder ?? $t('components.MarketplaceResourcePicker.versionPlaceholder')
 )
-const viewReleaseNotesText = computed(() =>
-  props.viewReleaseNotes ?? $t('components.MarketplaceResourcePicker.viewReleaseNotes'),
+const viewReleaseNotesText = computed(
+  () => props.viewReleaseNotes ?? $t('components.MarketplaceResourcePicker.viewReleaseNotes')
 )
-const viewDocumentText = computed(() =>
-  props.viewDocument ?? $t('components.MarketplaceResourcePicker.viewDocument'),
+const viewDocumentText = computed(() => props.viewDocument ?? $t('components.MarketplaceResourcePicker.viewDocument'))
+const releaseNotesTitleText = computed(
+  () => props.releaseNotesTitle ?? $t('components.MarketplaceResourcePicker.releaseNotesTitle')
 )
-const releaseNotesTitleText = computed(() =>
-  props.releaseNotesTitle ?? $t('components.MarketplaceResourcePicker.releaseNotesTitle'),
+const resourceDocumentTitleText = computed(
+  () => props.resourceDocumentTitle ?? $t('components.MarketplaceResourcePicker.resourceDocumentTitle')
 )
-const resourceDocumentTitleText = computed(() =>
-  props.resourceDocumentTitle ?? $t('components.MarketplaceResourcePicker.resourceDocumentTitle'),
-)
-const versionSummaryLabelText = computed(() =>
-  props.versionSummaryLabel ?? $t('components.MarketplaceResourcePicker.versionSummary'),
+const versionSummaryLabelText = computed(
+  () => props.versionSummaryLabel ?? $t('components.MarketplaceResourcePicker.versionSummary')
 )
 const currentVersionText = computed(() => {
   if (currentVersionMeta.value?.label) return currentVersionMeta.value.label
@@ -338,13 +405,11 @@ const documentText = computed(() =>
       props.record?.metadata?.document ??
       props.record?.metadata?.info?.document ??
       props.record?.capabilityPackage?.info?.document ??
-      props.record?.packageInfo?.document,
-  ),
+      props.record?.packageInfo?.document
+  )
 )
 
-const documentHtml = computed(() =>
-  documentText.value ? renderCapabilityMarkdown(documentText.value) : '',
-)
+const documentHtml = computed(() => (documentText.value ? renderCapabilityMarkdown(documentText.value) : ''))
 
 const releaseNotesDrawerTitle = computed(() => {
   const v = props.version == null || props.version === '' ? '' : String(props.version)
@@ -363,7 +428,7 @@ watch(
   () => {
     releaseNotesDrawerOpen.value = false
     versionDropdownOpen.value = false
-  },
+  }
 )
 
 const enabled = computed(() => {
@@ -416,11 +481,17 @@ function selectVersion(v: string) {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 .mp-card--picked {
   border-color: rgba(22, 119, 255, 0.55);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.96) inset, 0 0 0 3px rgba(22, 119, 255, 0.14),
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.96) inset,
+    0 0 0 3px rgba(22, 119, 255, 0.14),
     0 10px 28px rgba(22, 119, 255, 0.16);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(240, 247, 255, 0.92));
 }
@@ -430,7 +501,9 @@ function selectVersion(v: string) {
   border-color: rgba(99, 102, 241, 0.35);
 }
 .mp-card--picked:hover {
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.98) inset, 0 0 0 3px rgba(22, 119, 255, 0.2),
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.98) inset,
+    0 0 0 3px rgba(22, 119, 255, 0.2),
     0 12px 30px rgba(22, 119, 255, 0.18);
   border-color: rgba(22, 119, 255, 0.72);
 }
@@ -533,7 +606,9 @@ function selectVersion(v: string) {
   color: #0958d9;
   font-size: 12px;
   line-height: 18px;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 .mp-card__title-link:hover .mp-card__title-link-affordance {
   background: rgba(22, 119, 255, 0.14);
@@ -746,7 +821,9 @@ function selectVersion(v: string) {
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 .mp-card__version-option:hover {
   border-color: rgba(22, 119, 255, 0.18);

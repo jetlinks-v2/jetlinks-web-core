@@ -47,16 +47,23 @@ defineEmits<{ toggle: [] }>()
   line-height: 1.35;
   max-width: 100%;
   box-sizing: border-box;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
   outline: none;
 }
 .mp-res-layout__tag-chip:focus-visible {
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.96) inset, 0 0 0 3px rgba(22, 119, 255, 0.28);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.96) inset,
+    0 0 0 3px rgba(22, 119, 255, 0.28);
 }
 .mp-res-layout__tag-chip--selected {
   z-index: 1;
   border-color: #0958d9;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.96) inset, 0 0 0 3px rgba(22, 119, 255, 0.2),
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.96) inset,
+    0 0 0 3px rgba(22, 119, 255, 0.2),
     0 8px 18px rgba(22, 119, 255, 0.12);
   transform: translateY(-1px);
 }
