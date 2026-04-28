@@ -224,7 +224,7 @@ const resolvedOptions = computed(() => {
   const localOptions = flattenOptions(normalizeOptions(props.options))
   const remoteDisplayOptions = flattenOptions(normalizeOptions(remoteOptions.value))
   const baseOptions = props.config?.loadOptions
-    ? mergeDisplayOptions(remoteDisplayOptions, localOptions)
+    ? remoteDisplayOptions
     : localOptions
 
   return prioritizeOptionsByValues(
