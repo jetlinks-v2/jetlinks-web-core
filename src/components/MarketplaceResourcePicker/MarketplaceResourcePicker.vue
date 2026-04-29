@@ -802,6 +802,7 @@ defineExpose({
   flex-direction: column;
   gap: 0;
   min-height: 0;
+  height: 100%;
 }
 .mp-res-layout__types {
   flex-shrink: 0;
@@ -821,29 +822,26 @@ defineExpose({
   margin-top: 16px;
   min-height: 0;
   align-items: stretch;
+  flex: 1;
+  overflow-y: auto;
 }
 @media (min-width: 992px) {
   .mp-res-layout__body {
     flex-direction: row;
-    align-items: flex-start;
+    align-items: stretch;
   }
 }
 .mp-res-layout__aside {
   width: 100%;
   flex-shrink: 0;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 12px;
   padding: 10px;
-  background: linear-gradient(180deg, #fcfcfd, #f8fafc);
+  background: transparent;
   align-self: stretch;
-  max-height: min(40vh, 360px);
-  overflow: auto;
 }
 @media (min-width: 992px) {
   .mp-res-layout__aside {
     width: clamp(208px, 18vw, 232px);
-    align-self: flex-start;
-    max-height: calc(100vh - 220px);
+    align-self: stretch;
   }
 }
 .mp-res-layout__aside-title {
@@ -976,6 +974,10 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 16px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .mp-res-layout--fixed {
   min-height: 0;
@@ -995,12 +997,14 @@ defineExpose({
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .mp-res-layout__list-scroll {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  max-height: calc(100vh - 220px);
 }
 .mp-res-layout--fixed .mp-res-layout__list-scroll {
   max-height: none;
