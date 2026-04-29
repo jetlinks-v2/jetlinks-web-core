@@ -50,7 +50,7 @@ export const initPackages = () => {
     const protocol = window.location.protocol.replace('http', 'ws');
     const host = document.location.host;
     const filterHost = host.endsWith('/') ? host.substring(0, host.length - 1) : host;
-    const url = `${protocol}${filterHost}${getBaseApi()}/messaging/${token}?${tokenKey}=${token}`;
+    let url = `${protocol}${filterHost}${getBaseApi()}/messaging/${token}?${tokenKey}=${token}`;
     // wsClient.setOptions({
     //     onError(message) {
     //         notification.error({
@@ -62,6 +62,9 @@ export const initPackages = () => {
     //         });
     //     }
     // })
+    if (isFromCloud()) {
+        url = `${getBaseApi()}/_ws/messaging?${TOKEN_KEY_URL}=${token}`;
+    }
     wsClient.initWebSocket(url);
     wsClient.connect()
 };
