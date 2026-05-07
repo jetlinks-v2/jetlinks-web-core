@@ -1,9 +1,27 @@
 <template>
   <div class="j-md-editor">
+    <div v-if="hasAddonToolbar" class="j-md-editor__addon-toolbar">
+      <div v-if="sectionTemplates.length" class="j-md-editor__section-bar">
+        <span class="j-md-editor__bar-label">插入</span>
+        <button
+          v-for="tpl in sectionTemplates"
+          :key="tpl.key"
+          class="j-md-editor__section-btn"
+          type="button"
+          :disabled="isDisabled"
+          @click="insertSection(tpl)"
+        >
+          + {{ tpl.label }}
+        </button>
+      </div>
+      <span v-if="domainHint" class="j-md-editor__domain-hint">{{ domainHint }}</span>
+      <slot name="toolbar-actions" />
+    </div>
+
     <div
       class="j-md-editor__surface"
       :class="{
-        'is-disabled': disabled,
+        'is-disabled': isDisabled,
         'is-dragover': dragActive,
       }"
       @dragenter.prevent="handleDragEnter"
@@ -13,10 +31,10 @@
     >
       <input ref="fileInputRef" type="file" multiple class="j-md-editor__file-input" tabindex="-1" aria-hidden="true" style="display: none" @change="handleFileInputChange" />
 
-      <a-empty v-if="disabled && !text.trim()" :description="mergedTexts.emptyDescription" class="j-md-editor__empty" />
+      <a-empty v-if="isDisabled && !text.trim()" :description="mergedTexts.emptyDescription" class="j-md-editor__empty" />
 
       <MdPreview
-        v-else-if="disabled"
+        v-else-if="isDisabled"
         :id="previewId"
         class="j-md-editor__preview-only"
         :model-value="text"
@@ -56,13 +74,13 @@
         </template>
       </MdEditor>
 
-      <div v-if="dragActive && !disabled" class="j-md-editor__drop-mask">
+      <div v-if="dragActive && !isDisabled" class="j-md-editor__drop-mask">
         <div class="j-md-editor__drop-title">{{ mergedTexts.dropTitle }}</div>
         <div class="j-md-editor__drop-subtitle">{{ mergedTexts.dropSubtitle }}</div>
       </div>
     </div>
 
-    <div v-if="!disabled" class="j-md-editor__hint-row">
+    <div v-if="!isDisabled" class="j-md-editor__hint-row">
       <span class="j-md-editor__hint">
         {{ uploading ? mergedTexts.uploading : mergedTexts.uploadHint }}
       </span>
@@ -84,7 +102,7 @@ import {
   type UploadImgCallBack,
 } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useSlots, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 export interface MarkdownEditorTexts {
@@ -96,6 +114,12 @@ export interface MarkdownEditorTexts {
   dropSubtitle: string
   uploadFailed: string
   uploadNoUrl: string
+}
+
+export interface SectionTemplate {
+  key: string
+  label: string
+  template: string
 }
 
 let editorSeed = 0
@@ -153,6 +177,9 @@ const props = withDefaults(
     toolbars?: ToolbarNames[]
     texts?: Partial<MarkdownEditorTexts>
     showUploadFileToolbar?: boolean
+    readonly?: boolean
+    sectionTemplates?: SectionTemplate[]
+    domainHint?: string
   }>(),
   {
     modelValue: '',
@@ -168,6 +195,9 @@ const props = withDefaults(
     toolbars: undefined,
     texts: undefined,
     showUploadFileToolbar: true,
+    readonly: false,
+    sectionTemplates: () => [],
+    domainHint: '',
   },
 )
 
@@ -176,6 +206,7 @@ const emit = defineEmits<{
 }>()
 
 const { locale } = useI18n()
+const slots = useSlots()
 
 const text = ref(props.modelValue ?? '')
 const editorRef = ref<ExposeParam>()
@@ -194,6 +225,10 @@ const editorLanguage = computed(() => {
   return current.startsWith('zh') ? 'zh-CN' : 'en-US'
 })
 
+const isDisabled = computed(() => props.disabled || props.readonly)
+const sectionTemplates = computed(() => props.sectionTemplates ?? [])
+const domainHint = computed(() => props.domainHint?.trim() ?? '')
+const hasAddonToolbar = computed(() => !!sectionTemplates.value.length || !!domainHint.value || !!slots['toolbar-actions'])
 const editorHeight = computed(() => `${Math.max((props.rows ?? 12) * 24 + 120, 360)}px`)
 const mergedToolbars = computed(() => props.toolbars?.length ? props.toolbars : defaultToolbars)
 const mergedTexts = computed<MarkdownEditorTexts>(() => ({
@@ -221,7 +256,7 @@ watch(text, (value) => {
 })
 
 function openFilePicker() {
-  if (props.disabled || uploading.value) return
+  if (isDisabled.value || uploading.value) return
   fileInputRef.value?.click()
 }
 
@@ -267,6 +302,23 @@ function insertUploadedSnippets(snippets: string[]) {
   }
 
   text.value = text.value?.trim() ? `${text.value}\n${content}` : content
+}
+
+function insertSection(template: SectionTemplate) {
+  if (isDisabled.value) return
+  const cursorOffset = template.template.indexOf('${cursor}')
+  const targetValue = template.template.replace('${cursor}', '')
+
+  if (editorRef.value?.insert) {
+    editorRef.value.insert(() => ({
+      targetValue,
+      select: false,
+      deviationStart: cursorOffset >= 0 ? cursorOffset - targetValue.length : 0,
+    }))
+    return
+  }
+
+  text.value = text.value?.trim() ? `${text.value}\n${targetValue}` : targetValue
 }
 
 function resolveUploadUrl(result: Record<string, any>) {
@@ -356,13 +408,13 @@ function resetDragState() {
 }
 
 function handleDragEnter(event: DragEvent) {
-  if (props.disabled || !hasTransferFiles(event.dataTransfer)) return
+  if (isDisabled.value || !hasTransferFiles(event.dataTransfer)) return
   dragDepth.value += 1
   dragActive.value = true
 }
 
 function handleDragOver(event: DragEvent) {
-  if (props.disabled || !hasTransferFiles(event.dataTransfer)) return
+  if (isDisabled.value || !hasTransferFiles(event.dataTransfer)) return
   dragActive.value = true
   if (event.dataTransfer) {
     event.dataTransfer.dropEffect = 'copy'
@@ -370,7 +422,7 @@ function handleDragOver(event: DragEvent) {
 }
 
 function handleDragLeave(event: DragEvent) {
-  if (props.disabled || !hasTransferFiles(event.dataTransfer)) return
+  if (isDisabled.value || !hasTransferFiles(event.dataTransfer)) return
   dragDepth.value = Math.max(0, dragDepth.value - 1)
   if (!dragDepth.value) {
     dragActive.value = false
@@ -378,7 +430,7 @@ function handleDragLeave(event: DragEvent) {
 }
 
 async function handleDrop(event: DragEvent) {
-  if (props.disabled) return
+  if (isDisabled.value) return
   event.stopPropagation()
   const files = Array.from(event.dataTransfer?.files ?? [])
   resetDragState()
@@ -392,6 +444,50 @@ async function handleDrop(event: DragEvent) {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.j-md-editor__addon-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.j-md-editor__section-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.j-md-editor__bar-label,
+.j-md-editor__domain-hint {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+.j-md-editor__section-btn {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  background: #fff;
+  color: rgba(0, 0, 0, 0.65);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.j-md-editor__section-btn:hover:not(:disabled) {
+  border-color: #1677ff;
+  color: #1677ff;
+}
+
+.j-md-editor__section-btn:disabled {
+  cursor: not-allowed;
+  color: rgba(0, 0, 0, 0.25);
+  background: #fafafa;
 }
 
 .j-md-editor__surface {

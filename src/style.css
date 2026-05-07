@@ -52,6 +52,56 @@
   --jet-theme-shadow-secondary: 0 2px 8px rgba(0, 0, 0, 0.06);
   --jet-theme-font-family: AliRegular, sans-serif;
   --jet-theme-stroke-width: 1px;
+
+  --canvas: var(--jet-theme-bg-layout);
+  --bg: var(--jet-theme-bg-container);
+  --bg-elev: var(--jet-theme-bg-elevated);
+  --bg-sunken: var(--jet-theme-primary-soft);
+  --bg-hover: var(--jet-theme-border-secondary);
+  --line: var(--jet-theme-border);
+  --line-strong: var(--jet-theme-border-secondary);
+  --ink-1: var(--jet-theme-text);
+  --ink-2: var(--jet-theme-text-secondary);
+  --ink-3: color-mix(in srgb, var(--jet-theme-text-secondary) 75%, transparent);
+  --ink-4: color-mix(in srgb, var(--jet-theme-text-secondary) 52%, transparent);
+  --accent: var(--jet-theme-primary);
+  --accent-ink: #FFFFFF;
+  --accent-soft: var(--jet-theme-primary-soft);
+  --ok: var(--jet-theme-success);
+  --ok-bg: color-mix(in srgb, var(--jet-theme-success) 12%, var(--jet-theme-bg-container));
+  --warn: var(--jet-theme-warning);
+  --warn-bg: color-mix(in srgb, var(--jet-theme-warning) 14%, var(--jet-theme-bg-container));
+  --err: var(--jet-theme-error);
+  --err-bg: color-mix(in srgb, var(--jet-theme-error) 12%, var(--jet-theme-bg-container));
+  --info: var(--jet-theme-primary);
+  --info-bg: var(--jet-theme-primary-soft);
+  --font-sans: var(--jet-theme-font-family);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --fs-10: 10px;
+  --fs-10-5: 10.5px;
+  --fs-11: 11px;
+  --fs-11-5: 11.5px;
+  --fs-12: 12px;
+  --fs-12-5: 12.5px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --r-1: var(--jet-theme-radius-sm);
+  --r-2: var(--jet-theme-radius);
+  --r-3: var(--jet-theme-radius-lg);
+  --shadow-1: var(--jet-theme-shadow-secondary);
+  --shadow-pop: var(--jet-theme-shadow);
+  --shadow-lifted: var(--jet-theme-shadow);
+  --shadow-sticky-top: 0 -4px 12px rgba(0, 0, 0, 0.04);
+  --ambient-hero: linear-gradient(135deg, var(--jet-theme-primary-soft), var(--jet-theme-bg-elevated));
+  --ambient-cool: linear-gradient(135deg, var(--jet-theme-primary-soft), var(--jet-theme-bg-container));
+  --ambient-warm: linear-gradient(135deg, var(--jet-theme-bg-container), var(--jet-theme-primary-soft));
+  --code-dark-bg: #0F172A;
+  --code-dark-fg-1: #E2E8F0;
+  --code-dark-fg-2: #CBD5E1;
+  --code-dark-fg-3: #94A3B8;
+  --code-dark-line: rgb(255 255 255 / 0.06);
+  --code-dark-hover: rgb(255 255 255 / 0.08);
 }
 
 @font-face {
