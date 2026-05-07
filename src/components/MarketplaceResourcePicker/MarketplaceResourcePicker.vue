@@ -796,7 +796,7 @@ defineExpose({
 })
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .mp-res-layout {
   display: flex;
   flex-direction: column;
@@ -878,9 +878,7 @@ defineExpose({
   line-height: 1.35;
   user-select: none;
   cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 .mp-res-layout__sidebar-classifier:hover {
   border-color: rgba(22, 119, 255, 0.18);
@@ -946,11 +944,7 @@ defineExpose({
   font-size: 13px;
   color: rgba(0, 0, 0, 0.75);
   cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 .mp-res-layout__tag:hover {
   border-color: rgba(22, 119, 255, 0.25);
@@ -961,9 +955,7 @@ defineExpose({
 .mp-res-layout__tag--active {
   border-color: #0958d9;
   background: linear-gradient(180deg, rgba(22, 119, 255, 0.08), rgba(22, 119, 255, 0.04));
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.96) inset,
-    0 0 0 3px rgba(22, 119, 255, 0.14);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.96) inset, 0 0 0 3px rgba(22, 119, 255, 0.14);
   color: #0958d9;
   font-weight: 500;
 }

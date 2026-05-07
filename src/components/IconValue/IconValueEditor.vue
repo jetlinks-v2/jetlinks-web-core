@@ -281,7 +281,7 @@ function onCropUploadResult(url: string) {
 }
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .ive {
   display: flex;
   flex-direction: column;

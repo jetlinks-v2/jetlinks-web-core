@@ -905,7 +905,7 @@ watch(
 )
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .top-card {
   width: 100%;
   display: flex;
@@ -915,53 +915,53 @@ watch(
   background-color: #fff;
   border: 1px solid #e0e4e8;
   border-radius: 2px;
-  .top-card-content {
-    display: flex;
-    flex-direction: row;
-    flex-grow: 1;
-    justify-content: space-between;
-    .content-left {
-      height: 100%;
-      width: 50%;
-      &-title {
-        color: rgba(0, 0, 0, 0.64);
-      }
-      &-value {
-        padding: 12px 0;
-        color: #323130;
-        font-weight: 700;
-        font-size: 36px;
-      }
-    }
-    .content-right {
-      width: 0;
-      display: flex;
-      flex-grow: 1;
-      align-items: flex-end;
-      justify-content: flex-end;
-      img {
-        width: 92px;
-      }
-    }
-    .content-right-echart {
-      display: flex;
-      flex-grow: 1;
-      align-items: flex-end;
-      justify-content: flex-end;
-    }
-  }
-  .top-card-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-top: 16px;
-    border-top: 1px solid #f0f0f0;
-    min-height: 40px;
-    .footer-item-value {
-      color: #323130;
-      font-weight: 700;
-      font-size: 16px;
-    }
-  }
+}
+.top-card .top-card-content {
+  display: flex;
+  flex-direction: row;
+  flex-grow: 1;
+  justify-content: space-between;
+}
+.top-card .top-card-content .content-left {
+  height: 100%;
+  width: 50%;
+}
+.top-card .top-card-content .content-left-title {
+  color: rgba(0, 0, 0, 0.64);
+}
+.top-card .top-card-content .content-left-value {
+  padding: 12px 0;
+  color: #323130;
+  font-weight: 700;
+  font-size: 36px;
+}
+.top-card .top-card-content .content-right {
+  width: 0;
+  display: flex;
+  flex-grow: 1;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+.top-card .top-card-content .content-right img {
+  width: 92px;
+}
+.top-card .top-card-content .content-right-echart {
+  display: flex;
+  flex-grow: 1;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+.top-card .top-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  min-height: 40px;
+}
+.top-card .top-card-footer .footer-item-value {
+  color: #323130;
+  font-weight: 700;
+  font-size: 16px;
 }
 </style>

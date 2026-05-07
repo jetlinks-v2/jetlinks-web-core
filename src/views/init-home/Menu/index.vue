@@ -153,7 +153,6 @@ const initMenu = async () => {
     if(hasAgentPermission.value){
       USER_CENTER_MENU_DATA.buttons.push(ACCESS_AI_AGENT_CODE_DATA)
     }
-    debugger
     const res = await updateMenus([
       ...menusData.current!,
       USER_CENTER_MENU_DATA,

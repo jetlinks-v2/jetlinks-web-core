@@ -20,30 +20,28 @@ const props = defineProps({
 });
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .title {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    margin-bottom: 16px;
-
-    .title-content {
-        position: relative;
-        padding-left: 10px;
-        color: rgba(0, 0, 0, 0.8);
-        font-weight: 600;
-        line-height: 1;
-
-        &::before {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background-color: #1890ff;
-            border-radius: 0 3px 3px 0;
-            content: ' ';
-        }
-    }
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 16px;
+}
+.title .title-content {
+  position: relative;
+  padding-left: 10px;
+  color: rgba(0, 0, 0, 0.8);
+  font-weight: 600;
+  line-height: 1;
+}
+.title .title-content::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background-color: #1890ff;
+  border-radius: 0 3px 3px 0;
+  content: ' ';
 }
 </style>

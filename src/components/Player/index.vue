@@ -257,6 +257,16 @@ const init = () => {
   }
 };
 
+const playToggle = () => {
+  if (player) {
+    if (rtcData.playStatus === Events.PAUSE) {
+      play()
+    } else {
+      pause()
+    }
+  }
+}
+
 watch(
   () => props.url,
   () => {
@@ -279,7 +289,7 @@ defineExpose({
   paused,
 });
 </script>
-<style lang="less" scoped>
+<style scoped>
 :deep(.live-player-stretch-btn) {
   display: none;
 }
@@ -318,10 +328,10 @@ defineExpose({
 
 .rtc-video-content {
   position: relative;
+}
 
-  video::-webkit-media-controls-enclosure {
-    display: none;
-  }
+.rtc-video-content video::-webkit-media-controls-enclosure {
+  display: none;
 }
 
 .rtc-tool {
@@ -345,8 +355,9 @@ defineExpose({
   padding: 4px 12px 0;
   align-items: center;
 
-  .right {
-    margin-left: auto;
-  }
+}
+
+.rtc-tool .right {
+  margin-left: auto;
 }
 </style>

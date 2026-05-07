@@ -367,7 +367,7 @@ watch(
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .condition-inline-composer {
   display: inline-flex;
   align-items: center;
@@ -377,208 +377,170 @@ watch(
   max-width: 100%;
   overflow: hidden;
   gap: 4px;
-
-  &__field,
-  &__term {
-    min-width: 0;
-    flex: 0 0 auto;
-    max-width: 180px;
-  }
-
-  &__value {
-    display: inline-flex;
-    align-items: center;
-    flex: 0 1 auto;
-    min-width: 60px;
-    max-width: 240px;
-    background: #eef4ff;
-    border: 1px solid #d6e4ff;
-    border-radius: 6px;
-  }
-
-  &__value-content {
-    display: flex;
-    flex: 1;
-    align-items: center;
-    min-width: 0;
-    padding: 0 8px;
-  }
-
-  &__clear {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    width: 24px;
-    height: 24px;
-    margin-right: 3px;
-    color: #8ea0b8;
-    background: transparent;
-    border: 0;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: color 0.2s ease, background-color 0.2s ease;
-
-    &:hover:not(:disabled) {
-      color: #5b6b82;
-      background: rgba(91, 107, 130, 0.08);
-    }
-
-    &:disabled {
-      cursor: not-allowed;
-      opacity: 0.45;
-    }
-  }
-
-  :deep(.ant-select) {
-    display: flex;
-    align-items: stretch;
-  }
-
-  :deep(.ant-select-selector) {
-    height: 30px !important;
-    padding: 0 10px !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 6px !important;
-    box-shadow: none !important;
-  }
-
-  :deep(.ant-select-selection-item),
-  :deep(.ant-select-selection-placeholder) {
-    display: flex;
-    align-items: center;
-    height: 30px;
-    font-size: 14px;
-  }
-
-  :deep(.ant-select-selection-placeholder) {
-    color: #9aa4b2;
-  }
-
-  &__field {
-    :deep(.ant-select-selector) {
-      padding-inline-end: 28px !important;
-      background: #eef4ff !important;
-      border: 1px solid #d6e4ff !important;
-    }
-
-    :deep(.ant-select-selection-item) {
-      color: #355d9a;
-      font-weight: 500;
-    }
-
-    :deep(.ant-select-arrow) {
-      color: #355d9a;
-      right: 10px;
-    }
-  }
-
-  &__term {
-    :deep(.ant-select-selector) {
-      height: 30px !important;
-      padding: 0 22px 0 10px !important;
-      background: #eef4ff !important;
-      border: 1px solid #d6e4ff !important;
-    }
-
-    :deep(.ant-select-selection-item) {
-      color: #6b7280;
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    :deep(.ant-select-arrow) {
-      color: #6b7280;
-      right: 8px;
-      transform: scale(0.9);
-    }
-  }
-
-  &__value {
-    :deep(.filter-terms-value-item) {
-      width: 100%;
-      padding: 0;
-      background: transparent;
-      box-shadow: none;
-    }
-
-    :deep(.ant-input),
-    :deep(.ant-input-affix-wrapper),
-    :deep(.ant-input-number),
-    :deep(.ant-select-selector),
-    :deep(.ant-picker) {
-      background: transparent;
-      border: 0;
-      box-shadow: none;
-    }
-
-    :deep(.ant-input) {
-      height: 30px;
-      padding: 0;
-      color: #24292f;
-      font-size: 14px;
-    }
-
-    :deep(.ant-input::placeholder) {
-      color: #a1a9b3;
-    }
-
-    :deep(.ant-input:focus),
-    :deep(.ant-input-focused),
-    :deep(.ant-input-affix-wrapper-focused) {
-      box-shadow: none;
-    }
-
-    :deep(.ant-input-number) {
-      width: 100%;
-    }
-
-    :deep(.ant-select-selector),
-    :deep(.ant-picker) {
-      background: transparent !important;
-    }
-
-    :deep(.ant-select-selection-item),
-    :deep(.ant-picker-input input) {
-      color: #24292f;
-      font-size: 14px;
-    }
-  }
-
-  &--direct {
-    .condition-inline-composer__value {
-      background: transparent;
-    }
-
-    .condition-inline-composer__value-content {
-      padding-right: 0;
-    }
-
-    :deep(.ant-input),
-    :deep(.ant-input:hover),
-    :deep(.ant-input:focus) {
-      background: transparent !important;
-      border-color: transparent !important;
-      box-shadow: none !important;
-    }
-  }
 }
-
+.condition-inline-composer__field,
+.condition-inline-composer__term {
+  min-width: 0;
+  flex: 0 0 auto;
+  max-width: 180px;
+}
+.condition-inline-composer__value {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 60px;
+  max-width: 240px;
+  background: #eef4ff;
+  border: 1px solid #d6e4ff;
+  border-radius: 6px;
+}
+.condition-inline-composer__value-content {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  padding: 0 8px;
+}
+.condition-inline-composer__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin-right: 3px;
+  color: #8ea0b8;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+.condition-inline-composer__clear:hover:not(:disabled) {
+  color: #5b6b82;
+  background: rgba(91, 107, 130, 0.08);
+}
+.condition-inline-composer__clear:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.condition-inline-composer :deep(.ant-select) {
+  display: flex;
+  align-items: stretch;
+}
+.condition-inline-composer :deep(.ant-select-selector) {
+  height: 30px !important;
+  padding: 0 10px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+.condition-inline-composer :deep(.ant-select-selection-item),
+.condition-inline-composer :deep(.ant-select-selection-placeholder) {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  font-size: 14px;
+}
+.condition-inline-composer :deep(.ant-select-selection-placeholder) {
+  color: #9aa4b2;
+}
+.condition-inline-composer__field :deep(.ant-select-selector) {
+  padding-inline-end: 28px !important;
+  background: #eef4ff !important;
+  border: 1px solid #d6e4ff !important;
+}
+.condition-inline-composer__field :deep(.ant-select-selection-item) {
+  color: #355d9a;
+  font-weight: 500;
+}
+.condition-inline-composer__field :deep(.ant-select-arrow) {
+  color: #355d9a;
+  right: 10px;
+}
+.condition-inline-composer__term :deep(.ant-select-selector) {
+  height: 30px !important;
+  padding: 0 22px 0 10px !important;
+  background: #eef4ff !important;
+  border: 1px solid #d6e4ff !important;
+}
+.condition-inline-composer__term :deep(.ant-select-selection-item) {
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+}
+.condition-inline-composer__term :deep(.ant-select-arrow) {
+  color: #6b7280;
+  right: 8px;
+  transform: scale(0.9);
+}
+.condition-inline-composer__value :deep(.filter-terms-value-item) {
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.condition-inline-composer__value :deep(.ant-input),
+.condition-inline-composer__value :deep(.ant-input-affix-wrapper),
+.condition-inline-composer__value :deep(.ant-input-number),
+.condition-inline-composer__value :deep(.ant-select-selector),
+.condition-inline-composer__value :deep(.ant-picker) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.condition-inline-composer__value :deep(.ant-input) {
+  height: 30px;
+  padding: 0;
+  color: #24292f;
+  font-size: 14px;
+}
+.condition-inline-composer__value :deep(.ant-input::placeholder) {
+  color: #a1a9b3;
+}
+.condition-inline-composer__value :deep(.ant-input:focus),
+.condition-inline-composer__value :deep(.ant-input-focused),
+.condition-inline-composer__value :deep(.ant-input-affix-wrapper-focused) {
+  box-shadow: none;
+}
+.condition-inline-composer__value :deep(.ant-input-number) {
+  width: 100%;
+}
+.condition-inline-composer__value :deep(.ant-select-selector),
+.condition-inline-composer__value :deep(.ant-picker) {
+  background: transparent !important;
+}
+.condition-inline-composer__value :deep(.ant-select-selection-item),
+.condition-inline-composer__value :deep(.ant-picker-input input) {
+  color: #24292f;
+  font-size: 14px;
+}
+.condition-inline-composer--direct .condition-inline-composer__value {
+  background: transparent;
+}
+.condition-inline-composer--direct .condition-inline-composer__value-content {
+  padding-right: 0;
+}
+.condition-inline-composer--direct :deep(.ant-input),
+.condition-inline-composer--direct :deep(.ant-input:hover),
+.condition-inline-composer--direct :deep(.ant-input:focus) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
 @media (max-width: 768px) {
   .condition-inline-composer {
     gap: 6px;
-
-    &__field,
-    &__term,
-    &__value {
-      min-width: 0;
-      max-width: none;
-    }
-
-    &__field {
-      max-width: 150px;
-    }
+  }
+  .condition-inline-composer__field,
+  .condition-inline-composer__term,
+  .condition-inline-composer__value {
+    min-width: 0;
+    max-width: none;
+  }
+  .condition-inline-composer__field {
+    max-width: 150px;
   }
 }
 </style>

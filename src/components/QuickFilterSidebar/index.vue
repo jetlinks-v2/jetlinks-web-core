@@ -440,7 +440,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .quick-filter-sidebar {
   display: flex;
   flex-direction: column;
@@ -453,25 +453,21 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   border: 1px solid #f0f0f0;
   border-radius: 8px;
 }
-
 .quick-filter-sidebar__section {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
 .quick-filter-sidebar__section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-
-  &--static {
-    align-items: flex-start;
-  }
 }
-
+.quick-filter-sidebar__section-header--static {
+  align-items: flex-start;
+}
 .quick-filter-sidebar__section-title {
   display: inline-flex;
   gap: 6px;
@@ -485,52 +481,43 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   background: transparent;
   border: 0;
   cursor: pointer;
-
-  &:disabled {
-    cursor: default;
-  }
 }
-
+.quick-filter-sidebar__section-title:disabled {
+  cursor: default;
+}
 .quick-filter-sidebar__caret {
   color: rgba(0, 0, 0, 0.35);
   font-size: 12px;
   transform: rotate(-90deg);
   transition: transform 0.2s ease;
-
-  &--open {
-    transform: rotate(0);
-  }
 }
-
+.quick-filter-sidebar__caret--open {
+  transform: rotate(0);
+}
 .quick-filter-sidebar__header-action {
   padding: 0;
   font-size: 12px;
   line-height: 20px;
 }
-
 .quick-filter-sidebar__header-actions {
   display: inline-flex;
   gap: 4px;
   align-items: center;
 }
-
 .quick-filter-sidebar__items {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-
 .quick-filter-sidebar__row {
   display: flex;
   gap: 4px;
   align-items: center;
   border-radius: 6px;
-
-  &--active {
-    background: #eff6ff;
-  }
 }
-
+.quick-filter-sidebar__row--active {
+  background: #eff6ff;
+}
 .quick-filter-sidebar__item {
   display: flex;
   gap: 8px;
@@ -548,51 +535,43 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-
-  &:hover {
-    color: rgba(0, 0, 0, 0.88);
-    background: #f6f8fa;
-  }
-
-  &:disabled {
-    color: rgba(0, 0, 0, 0.3);
-    cursor: not-allowed;
-  }
-
-  &--active {
-    color: #1677ff;
-    font-weight: 600;
-    background: #eff6ff;
-  }
 }
-
+.quick-filter-sidebar__item:hover {
+  color: rgba(0, 0, 0, 0.88);
+  background: #f6f8fa;
+}
+.quick-filter-sidebar__item:disabled {
+  color: rgba(0, 0, 0, 0.3);
+  cursor: not-allowed;
+}
+.quick-filter-sidebar__item--active {
+  color: #1677ff;
+  font-weight: 600;
+  background: #eff6ff;
+}
 .quick-filter-sidebar__item-content {
   display: flex;
   gap: 8px;
   align-items: center;
   min-width: 0;
 }
-
 .quick-filter-sidebar__item-icon {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   color: rgba(0, 0, 0, 0.45);
 }
-
 .quick-filter-sidebar__item-main {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-width: 0;
 }
-
 .quick-filter-sidebar__item-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .quick-filter-sidebar__item-description {
   overflow: hidden;
   color: rgba(0, 0, 0, 0.4);
@@ -602,20 +581,17 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .quick-filter-sidebar__item-meta {
   flex-shrink: 0;
   color: rgba(0, 0, 0, 0.4);
   font-size: 12px;
   line-height: 18px;
 }
-
 .quick-filter-sidebar__item-actions {
   display: inline-flex;
   gap: 4px;
   align-items: center;
 }
-
 .quick-filter-sidebar__item-action-btn {
   display: inline-flex;
   align-items: center;
@@ -628,23 +604,19 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-
-  &:hover {
-    color: #ff4d4f;
-    background: rgba(255, 77, 79, 0.08);
-  }
-
-  &:disabled {
-    color: rgba(0, 0, 0, 0.2);
-    cursor: not-allowed;
-    background: transparent;
-  }
 }
-
+.quick-filter-sidebar__item-action-btn:hover {
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.08);
+}
+.quick-filter-sidebar__item-action-btn:disabled {
+  color: rgba(0, 0, 0, 0.2);
+  cursor: not-allowed;
+  background: transparent;
+}
 .quick-filter-sidebar__item-action-btn--danger {
   color: #ff4d4f;
 }
-
 .quick-filter-sidebar__empty {
   padding: 4px 10px;
   color: rgba(0, 0, 0, 0.4);

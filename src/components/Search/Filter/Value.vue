@@ -115,7 +115,7 @@ watch([() => props.value, options], ([newValue]) => {
   </a-dropdown>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .filter-value-tag {
   max-width: 300px;
 }

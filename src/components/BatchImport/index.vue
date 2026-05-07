@@ -198,7 +198,7 @@ const downTemplate = async (type) => {
 };
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .alert {
   padding: 6px 12px;
   border: 1px solid #CCCCCC;
@@ -208,20 +208,19 @@ const downTemplate = async (type) => {
   display: flex;
   align-items: center;
 }
-
 .draggable-box {
   margin: 46px 0;
   display: flex;
   flex-direction: column;
   color: #666666;
   align-items: center;
-  .icon {
-    font-size: 30px;
-    color: @primary-color;
-  }
 }
-
-.result, .file-download {
+.draggable-box .icon {
+  font-size: 30px;
+  color: var(--jet-theme-primary, #1677ff);
+}
+.result,
+.file-download {
   margin-top: 16px;
 }
 </style>

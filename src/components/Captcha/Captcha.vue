@@ -104,6 +104,6 @@ watch(() => props.open, () => {
   </template>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 
 </style>

@@ -164,21 +164,18 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .position-list-warp {
   width: 100%;
   display: flex;
   gap: 8px;
-  .tag-blue {
-    background: #e6f7ff;
-    border-color: #91d5ff;
-    color: #096dd9;
-  }
-
-  :deep(.ant-select-selection-overflow-item){
-    & > span {
-      width: 100%;
-    }
-  }
+}
+.position-list-warp .tag-blue {
+  background: #e6f7ff;
+  border-color: #91d5ff;
+  color: #096dd9;
+}
+.position-list-warp :deep(.ant-select-selection-overflow-item) > span {
+  width: 100%;
 }
 </style>

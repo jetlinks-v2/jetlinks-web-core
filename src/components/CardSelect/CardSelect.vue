@@ -208,75 +208,58 @@ watch(
 );
 </script>
 
-<style lang="less" scoped>
-@card-border: #e6e6e6;
-.j-card-panel {
-  .j-card-item {
-    border: 1px solid @card-border;
-    border-radius: 4px;
-    cursor: pointer;
-    color: @black;
-    display: flex;
-    width: 100%;
-    gap: 12px;
-
-    .j-card-title-warp {
-      flex: 1 1 auto;
-      max-width: 100%;
-
-      .title {
-        word-break: keep-all;
-        width: 100%;
-      }
-    }
-
-    &.vertical {
-      flex-direction: column-reverse;
-      padding: 22px 4px;
-      align-items: center;
-
-      .j-card-image {
-        margin-bottom: 4px;
-      }
-    }
-
-    &.horizontal {
-      padding: 20px;
-    }
-
-    .sub-title {
-      color: rgba(0, 0, 0, 0.24);
-    }
-
-    &.right {
-      flex-direction: row-reverse;
-    }
-  }
-
-  &.no-column {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-
-    .j-card-item {
-      min-width: 36px;
-      width: unset;
-
-      &.vertical {
-        padding: 14px 16px;
-      }
-    }
-  }
-
-  .active {
-    border: 1px solid var(--ant-primary-color) !important;
-  }
-
-  .disabled {
-    cursor: not-allowed;
-    opacity: 0.75;
-  }
+<style scoped>
+.j-card-panel .j-card-item {
+  border: 1px solid var(--jet-theme-border-secondary, #e6e6e6);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--jet-theme-text, #000);
+  display: flex;
+  width: 100%;
+  gap: 12px;
 }
-
-
+.j-card-panel .j-card-item .j-card-title-warp {
+  flex: 1 1 auto;
+  max-width: 100%;
+}
+.j-card-panel .j-card-item .j-card-title-warp .title {
+  word-break: keep-all;
+  width: 100%;
+}
+.j-card-panel .j-card-item.vertical {
+  flex-direction: column-reverse;
+  padding: 22px 4px;
+  align-items: center;
+}
+.j-card-panel .j-card-item.vertical .j-card-image {
+  margin-bottom: 4px;
+}
+.j-card-panel .j-card-item.horizontal {
+  padding: 20px;
+}
+.j-card-panel .j-card-item .sub-title {
+  color: rgba(0, 0, 0, 0.24);
+}
+.j-card-panel .j-card-item.right {
+  flex-direction: row-reverse;
+}
+.j-card-panel.no-column {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.j-card-panel.no-column .j-card-item {
+  min-width: 36px;
+  width: unset;
+}
+.j-card-panel.no-column .j-card-item.vertical {
+  padding: 14px 16px;
+}
+.j-card-panel .active {
+  border: 1px solid var(--jet-theme-primary, #1677ff) !important;
+}
+.j-card-panel .disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+}
 </style>

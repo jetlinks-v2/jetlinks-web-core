@@ -60,7 +60,7 @@ watch(
 )
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .chart {
   width: 100%;
   height: 100%;

@@ -136,43 +136,38 @@ watch(
 
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .j-check-button {
   display: grid;
   gap: 12px 8px;
   width: 100%;
-
-  .j-check-button-item {
-    flex: 1;
-    min-width: 0;
-    padding: 8px;
-    border-radius: 20px;
-    background-color: #F8F9FA;
-    transition: all 0.3s;
-    color: #333;
-    text-align: center;
-    cursor: pointer;
-    border: 1px solid #F8F9FA;
-
-    &:hover {
-      background-color: #F1F7FF;
-      color: @primary-color;
-      opacity: 0.85;
-    }
-
-    &.selected {
-      background-color: #F1F7FF;
-      border-color: @primary-color;
-      color: @primary-color;
-    }
-
-    &.disabled {
-      cursor: not-allowed;
-      color: #00000040;
-      background-color: #e6e6e6;
-      opacity: 1
-    }
-  }
 }
-
+.j-check-button .j-check-button-item {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 20px;
+  background-color: #F8F9FA;
+  transition: all 0.3s;
+  color: #333;
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid #F8F9FA;
+}
+.j-check-button .j-check-button-item:hover {
+  background-color: #F1F7FF;
+  color: var(--jet-theme-primary, #1677ff);
+  opacity: 0.85;
+}
+.j-check-button .j-check-button-item.selected {
+  background-color: #F1F7FF;
+  border-color: var(--jet-theme-primary, #1677ff);
+  color: var(--jet-theme-primary, #1677ff);
+}
+.j-check-button .j-check-button-item.disabled {
+  cursor: not-allowed;
+  color: #00000040;
+  background-color: #e6e6e6;
+  opacity: 1;
+}
 </style>

@@ -104,14 +104,13 @@ watch(() => props.value, (newValue) => {
 
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .text {
   cursor: pointer;
   padding: 5px 8px;
-
-  &:hover {
-    background-color: #f5f6f8;
-  }
+}
+.text:hover {
+  background-color: #f5f6f8;
 }
 </style>
 

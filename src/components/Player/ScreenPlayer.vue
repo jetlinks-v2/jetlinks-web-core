@@ -457,18 +457,97 @@ defineExpose({
 });
 </script>
 
-<style lang="less" scoped>
-@import './index.less';
+<style scoped>
+.live-player-warp {
+  display: flex;
+  height: 100%;
+}
+.live-player-warp .live-player-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.live-player-warp .live-player-content .player-screen-tool {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.live-player-warp .live-player-content .player-screen-tool .ant-radio-button-wrapper {
+  height: auto;
+  padding: 4px 20px;
+}
+.live-player-warp .live-player-content .player-body {
+  flex: 1;
+}
+.live-player-warp .live-player-content .player-body .player-screen {
+  position: relative;
+  display: grid;
+  box-sizing: border-box;
+  height: 100%;
+}
+.live-player-warp .live-player-content .player-body .player-screen.screen-1 {
+  grid-template-columns: 1fr;
+}
+.live-player-warp .live-player-content .player-body .player-screen.screen-4 {
+  grid-template-rows: 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
+}
+.live-player-warp .live-player-content .player-body .player-screen.screen-9 {
+  grid-template-rows: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.live-player-warp .live-player-content .player-body .player-screen.screen-4,
+.live-player-warp .live-player-content .player-body .player-screen.screen-9 {
+  grid-gap: 12px;
+}
+.live-player-warp .live-player-content .player-body .player-screen .active {
+  position: relative;
+}
+.live-player-warp .live-player-content .player-body .player-screen .active::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  z-index: 99;
+  border: 2px solid red;
+  pointer-events: none;
+}
+.live-player-warp .live-player-content .player-body .player-screen .full-screen {
+  border: 1px solid #fff;
+}
+.live-player-warp .live-player-content .player-body .player-screen .player-screen-item {
+  position: relative;
+}
+.live-player-warp .live-player-content .player-body .player-screen .player-screen-item .media-btn-refresh {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  padding: 2px 4px;
+  font-size: 12px;
+  background-color: #f0f0f0;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.live-player-warp .live-player-content .player-body .player-screen .player-screen-item .media-btn-refresh:hover {
+  background-color: #d9d9d9;
+}
+.live-player-warp .live-player-content .player-body .player-screen .player-screen-item .media-btn-refresh:active {
+  background-color: #bfbfbf;
+}
 :deep(.live-player-stretch-btn) {
-    display: none;
+  display: none;
 }
 :deep(.vjs-icon-spinner) {
-    display: none;
+  display: none;
 }
 .refreshBtn {
-    opacity: 0;
+  opacity: 0;
 }
 .refreshBtn:hover {
-    opacity: 1;
+  opacity: 1;
 }
 </style>

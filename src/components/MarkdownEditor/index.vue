@@ -387,7 +387,7 @@ async function handleDrop(event: DragEvent) {
 }
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .j-md-editor {
   display: flex;
   flex-direction: column;

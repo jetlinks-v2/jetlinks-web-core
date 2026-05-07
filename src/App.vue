@@ -14,6 +14,7 @@
 import { ConfigProvider } from '@jetlinks-web/components'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import enUs from 'ant-design-vue/es/locale/en_US'
+import { theme as antdTheme } from 'ant-design-vue'
 import componentsZhCN from '@jetlinks-web/components/es/locale/zh-CN'
 import componentsEnUS from '@jetlinks-web/components/es/locale/en-US'
 import theme from '@theme-config'
@@ -23,6 +24,7 @@ import {initPackages} from "@jetlinks-web-core/package";
 import { setToken} from "@jetlinks-web/utils";
 import { getBaseApi, initPersonal } from '@jetlinks-web-core/utils'
 import { componentsRegistry } from './utils/components-registry'
+import { applyThemeStyle } from '@jetlinks-web-core/utils/theme-style'
 
 const route = useRoute()
 const router = useRouter()
@@ -41,9 +43,24 @@ const componentsLocale = {
 // 为公共hooks提供权限校验方法
 const { hasPermission } = useAuthStore();
 
-const themeConfig = {
-  token: theme
-}
+const themeConfig = computed(() => ({
+  algorithm: systemStore.themeStyle === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+  token: {
+    ...theme,
+    ...systemStore.themeStyleToken,
+    colorPrimary: systemStore.themeColor,
+    colorLink: systemStore.themeColor
+  }
+}))
+
+watch(
+  themeConfig,
+  (config) => {
+    applyThemeStyle(systemStore.themeStyle, systemStore.themeColor)
+    ConfigProvider.config?.({ theme: config })
+  },
+  { immediate: true, deep: true }
+)
 
 provide(ComponentsEnum.Permission, { hasPermission })
 

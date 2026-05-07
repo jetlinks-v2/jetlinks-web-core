@@ -255,88 +255,76 @@ const confirm = () => {
 }
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .icon-selector {
   height: 80vh;
-  .toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #f0f0f0;
-  }
-
-  .category-tabs {
-    :deep(.ant-tabs-content) {
-      height: 450px;
-      overflow-y: auto;
-    }
-  }
-
-  .icon-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 12px;
-    padding: 8px 0;
-
-    .icon-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 16px 8px;
-      border: 2px solid #f0f0f0;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.3s;
-
-      .anticon {
-        font-size: 32px;
-        margin-bottom: 8px;
-      }
-
-      .icon-name {
-        font-size: 12px;
-        color: #666;
-        text-align: center;
-        word-break: break-word;
-        line-height: 1.2;
-      }
-
-      &:hover {
-        border-color: #415ed1;
-        background-color: #f5f7ff;
-      }
-
-      &.active {
-        color: #415ed1;
-        border-color: #415ed1;
-        background-color: #f5f7ff;
-
-        .icon-name {
-          color: #415ed1;
-          font-weight: 500;
-        }
-      }
-    }
-  }
-
-  .selected-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid #f0f0f0;
-
-    .ant-tag {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 14px;
-      padding: 4px 12px;
-    }
-  }
+}
+.icon-selector .toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.icon-selector .category-tabs :deep(.ant-tabs-content) {
+  height: 450px;
+  overflow-y: auto;
+}
+.icon-selector .icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+  padding: 8px 0;
+}
+.icon-selector .icon-grid .icon-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 8px;
+  border: 2px solid #f0f0f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.icon-selector .icon-grid .icon-item .anticon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+.icon-selector .icon-grid .icon-item .icon-name {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  word-break: break-word;
+  line-height: 1.2;
+}
+.icon-selector .icon-grid .icon-item:hover {
+  border-color: #415ed1;
+  background-color: #f5f7ff;
+}
+.icon-selector .icon-grid .icon-item.active {
+  color: #415ed1;
+  border-color: #415ed1;
+  background-color: #f5f7ff;
+}
+.icon-selector .icon-grid .icon-item.active .icon-name {
+  color: #415ed1;
+  font-weight: 500;
+}
+.icon-selector .selected-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+.icon-selector .selected-info .ant-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  padding: 4px 12px;
 }
 </style>

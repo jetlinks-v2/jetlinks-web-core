@@ -467,7 +467,7 @@ function selectVersion(v: string) {
 }
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .mp-card {
   position: relative;
   border-radius: 12px;

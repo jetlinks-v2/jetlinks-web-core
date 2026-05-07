@@ -105,7 +105,7 @@ const boxCss = computed(() => ({
 }))
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .icon-value-view {
   position: relative;
   flex-shrink: 0;

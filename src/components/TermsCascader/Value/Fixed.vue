@@ -65,7 +65,7 @@ watch(() => props.value, (newValue) => {
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .terms--value--fixed {
   padding: 8px;
   min-width: 200px;

@@ -161,7 +161,7 @@ watch(
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .filter-dropdown-panel {
   width: 280px;
   padding: 16px;
@@ -169,30 +169,26 @@ watch(
   border: 1px solid #e5e6eb;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(31, 35, 41, 0.12);
-
-  &__title {
-    margin-bottom: 12px;
-    color: #1d2129;
-    font-size: 18px;
-    font-weight: 600;
-    line-height: 26px;
-  }
-
-  &__body {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  &__select {
-    width: 100%;
-  }
-
-  &__actions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 16px;
-  }
+}
+.filter-dropdown-panel__title {
+  margin-bottom: 12px;
+  color: #1d2129;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+}
+.filter-dropdown-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.filter-dropdown-panel__select {
+  width: 100%;
+}
+.filter-dropdown-panel__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
 }
 </style>
