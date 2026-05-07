@@ -31,7 +31,7 @@ const props = defineProps<{
 defineEmits<{ toggle: [] }>()
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .mp-res-layout__tag-chip {
   position: relative;
   display: inline-flex;

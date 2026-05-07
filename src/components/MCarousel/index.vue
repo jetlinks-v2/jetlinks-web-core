@@ -56,31 +56,27 @@ const onLeft = () => {
 };
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .box {
-    display: flex;
-    align-items: center;
-    margin: 8px 0;
-    .box-item {
-        margin: 0 12px;
-        max-width: 60px;
-    }
-
-    .box-btn {
-        .box-item-action {
-            width: 12px;
-            background-color: #F7F8FA;
-            padding: 15px 0;
-            text-align: center;
-            font-size: 12px;
-            color: #666666;
-            cursor: pointer;
-
-            &:hover {
-                background-color: #EFF2FE;
-                color: @primary-color;
-            }
-        }
-    }
+  display: flex;
+  align-items: center;
+  margin: 8px 0;
+}
+.box .box-item {
+  margin: 0 12px;
+  max-width: 60px;
+}
+.box .box-btn .box-item-action {
+  width: 12px;
+  background-color: #F7F8FA;
+  padding: 15px 0;
+  text-align: center;
+  font-size: 12px;
+  color: #666666;
+  cursor: pointer;
+}
+.box .box-btn .box-item-action:hover {
+  background-color: #EFF2FE;
+  color: var(--jet-theme-primary, #1677ff);
 }
 </style>

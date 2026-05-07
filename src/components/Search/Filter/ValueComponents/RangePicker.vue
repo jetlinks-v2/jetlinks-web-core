@@ -101,38 +101,34 @@ watch(() => props.value, (val) => {
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .dropdown-range-picker {
   width: 100%;
-
-  &__input {
-    width: 100%;
-  }
-
-  &__shortcuts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-  }
-
-  &__shortcut {
-    height: 24px;
-    padding: 0 10px;
-    color: #475467;
-    font-size: 12px;
-    line-height: 22px;
-    background: #f8fafc;
-    border: 1px solid #d0d5dd;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-
-    &:hover {
-      color: #1677ff;
-      background: #eff6ff;
-      border-color: #91caff;
-    }
-  }
+}
+.dropdown-range-picker__input {
+  width: 100%;
+}
+.dropdown-range-picker__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.dropdown-range-picker__shortcut {
+  height: 24px;
+  padding: 0 10px;
+  color: #475467;
+  font-size: 12px;
+  line-height: 22px;
+  background: #f8fafc;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.dropdown-range-picker__shortcut:hover {
+  color: #1677ff;
+  background: #eff6ff;
+  border-color: #91caff;
 }
 </style>

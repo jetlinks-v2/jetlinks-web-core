@@ -113,7 +113,7 @@ watch(filteredColumns, syncActiveIntoView)
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .condition-field-panel {
   width: 220px;
   padding: 4px;
@@ -121,92 +121,79 @@ watch(filteredColumns, syncActiveIntoView)
   border: 1px solid #d0d7de;
   border-radius: 8px;
   box-shadow: 0 8px 20px rgba(31, 35, 41, 0.12);
-
-  &__title {
-    padding: 4px 8px 2px;
-    color: #24292f;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 18px;
-  }
-
-  &__search {
-    margin-bottom: 6px;
-  }
-
-  &__list {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    max-height: 320px;
-    overflow-y: auto;
-  }
-
-  &__item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    width: 100%;
-    padding: 6px 8px;
-    text-align: left;
-    background: transparent;
-    border: 0;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &:hover {
-      background: #f6f8fa;
-    }
-  }
-
-  &__item--active {
-    background: #f0f7ff;
-
-    .condition-field-panel__label {
-      color: #0969da;
-      font-weight: 600;
-    }
-
-    .condition-field-panel__key {
-      color: #6e7781;
-    }
-  }
-
-  &__label {
-    color: #24292f;
-    font-size: 12px;
-    line-height: 18px;
-  }
-
-  &__content {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  &__description {
-    overflow: hidden;
-    color: #6e7781;
-    font-size: 11px;
-    line-height: 16px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &__key {
-    color: #8c959f;
-    font-size: 10px;
-    line-height: 16px;
-  }
-
-  &__empty {
-    padding: 20px 0;
-    color: #86909c;
-    font-size: 12px;
-    text-align: center;
-  }
+}
+.condition-field-panel__title {
+  padding: 4px 8px 2px;
+  color: #24292f;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.condition-field-panel__search {
+  margin-bottom: 6px;
+}
+.condition-field-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.condition-field-panel__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.condition-field-panel__item:hover {
+  background: #f6f8fa;
+}
+.condition-field-panel__item--active {
+  background: #f0f7ff;
+}
+.condition-field-panel__item--active .condition-field-panel__label {
+  color: #0969da;
+  font-weight: 600;
+}
+.condition-field-panel__item--active .condition-field-panel__key {
+  color: #6e7781;
+}
+.condition-field-panel__label {
+  color: #24292f;
+  font-size: 12px;
+  line-height: 18px;
+}
+.condition-field-panel__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.condition-field-panel__description {
+  overflow: hidden;
+  color: #6e7781;
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.condition-field-panel__key {
+  color: #8c959f;
+  font-size: 10px;
+  line-height: 16px;
+}
+.condition-field-panel__empty {
+  padding: 20px 0;
+  color: #86909c;
+  font-size: 12px;
+  text-align: center;
 }
 </style>

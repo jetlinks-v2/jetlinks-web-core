@@ -96,7 +96,7 @@ defineExpose({
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 
 .track {
   position: relative;

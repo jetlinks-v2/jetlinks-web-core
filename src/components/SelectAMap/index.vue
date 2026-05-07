@@ -119,7 +119,7 @@ const selectPoi = (e: any) => {
 
 </script>
 
-<style lang="less">
+<style>
 .amap-sug-result {
   z-index: 1050;
 }

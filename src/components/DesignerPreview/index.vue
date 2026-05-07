@@ -83,7 +83,7 @@ watch(
 )
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .ai-preview {
   min-height: 216px;
   min-width: 384px;

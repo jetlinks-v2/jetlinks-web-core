@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
+import tailwindcss from '@tailwindcss/vite'
 import Components from 'unplugin-vue-components/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import { VueAmapResolver } from '@vuemap/unplugin-resolver'
@@ -14,12 +15,11 @@ import {
   loadViteModulesPlugins
 } from './configs/plugin'
 import { federation, sharpOptimize } from '@jetlinks-web/vite'
-import { antdLegacyVarsPlugin } from './configs/plugin'
 import {
   getDefine,
   getFederationSetting,
-  v3Token,
   getThemeConfigPath,
+  v3Token,
   getModulesName,
   getProxyUrl,
   federationSharedMap,
@@ -82,13 +82,13 @@ export default defineConfig(async ({ mode, command }) => {
       }
     },
     plugins: [
+      tailwindcss(),
       vue(),
       vueJsx(),
       VueSetupExtend(),
       monacoEditorPlugin({
         languageWorkers: ['editorWorkerService', 'json', 'typescript']
       }),
-      antdLegacyVarsPlugin(),
       Components({
         resolvers: [VueAmapResolver()],
         directoryAsNamespace: true
@@ -132,7 +132,15 @@ export default defineConfig(async ({ mode, command }) => {
         less: {
           modifyVars: {
             'root-entry-name': 'variable',
-            hack: `true; @import (reference) "${path.resolve('src/style/variable.less')}";`,
+            'font-gray-900': '#1f2429',
+            'font-gray-600': '#646c73',
+            'font-gray-500': '#8d9399',
+            'font-gray-400': '#c3c7cb',
+            'font-gray-300': '#e4e6e7',
+            'font-gray-200': '#eff0f1',
+            'font-gray-50': '#f8f9fa',
+            'font-gray-0': '#ffffff',
+            'border-base-color': '#d9d9d9',
             ...themeV3Token
           },
           javascriptEnabled: true

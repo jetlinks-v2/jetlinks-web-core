@@ -140,9 +140,36 @@ watch(() => termsValue.value.column, (newValue, oldValue) => {
 </a-dropdown>
 </template>
 
-<style scoped lang="less">
-@import './style/comm.less';
-
+<style scoped>
+.border-box {
+  border-radius: 8px;
+}
+.border-box :deep(.ant-select-selector) {
+  border-radius: 8px;
+  border: 1px solid rgba(0, 164, 254, 0.3);
+  color: #00a4fe;
+  background-color: rgba(154, 219, 255, 0.3);
+}
+.border-box :deep(.ant-select-selector) .ant-select-selection-placeholder {
+  color: #00a4fe;
+  padding-inline-end: 0;
+}
+.border-box.terms-type :deep(.ant-select-selector) {
+  color: #13C2C2;
+  background: rgba(135, 232, 222, 0.3);
+  border-color: rgba(54, 207, 201, 0.4);
+}
+.border-box.terms-type :deep(.ant-select-selector) .ant-select-selection-placeholder {
+  color: #13C2C2;
+}
+.border-box.terms-value {
+  color: #692ca7;
+  border: 1px solid rgba(188, 125, 238, 0.5);
+  background-color: rgba(188, 125, 238, 0.1);
+}
+.border-box :deep(.ant-select-selection-item) {
+  padding-inline-end: 0;
+}
 .column-select-popup {
   max-width: 220px;
   height: 32px;
@@ -153,47 +180,36 @@ watch(() => termsValue.value.column, (newValue, oldValue) => {
   display: flex;
   align-items: center;
   cursor: pointer;
-
-  &:hover {
-    border-color: rgba(0, 164, 254, 0.5);
-    background-color: rgba(154, 219, 255, 0.4);
-  }
-
-  &:focus {
-    border-color: #00a4fe;
-    outline: none;
-  }
-
-  span {
-    flex: 1;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 }
-
+.column-select-popup:hover {
+  border-color: rgba(0, 164, 254, 0.5);
+  background-color: rgba(154, 219, 255, 0.4);
+}
+.column-select-popup:focus {
+  border-color: #00a4fe;
+  outline: none;
+}
+.column-select-popup span {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .column-tree-dropdown {
   padding: 8px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   background-color: #fff;
   min-width: 400px;
-
-  :deep(.ant-tree) {
-    .ant-tree-node-content-wrapper {
-      border-radius: 4px;
-
-      &:hover {
-        background-color: rgba(154, 219, 255, 0.2);
-      }
-    }
-
-    .ant-tree-node-selected {
-      .ant-tree-node-content-wrapper {
-        background-color: rgba(0, 164, 254, 0.3);
-      }
-    }
-  }
+}
+.column-tree-dropdown :deep(.ant-tree) .ant-tree-node-content-wrapper {
+  border-radius: 4px;
+}
+.column-tree-dropdown :deep(.ant-tree) .ant-tree-node-content-wrapper:hover {
+  background-color: rgba(154, 219, 255, 0.2);
+}
+.column-tree-dropdown :deep(.ant-tree) .ant-tree-node-selected .ant-tree-node-content-wrapper {
+  background-color: rgba(0, 164, 254, 0.3);
 }
 </style>

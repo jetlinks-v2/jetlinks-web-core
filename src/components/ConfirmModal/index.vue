@@ -69,7 +69,7 @@ const showConfirm = () => {
     });
 };
 </script>
-<style lang="less" scoped>
+<style scoped>
 .modalContent {
     text-align: center;
 }

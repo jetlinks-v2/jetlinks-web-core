@@ -111,7 +111,7 @@ const onCloseTermItem = () => {
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .filter-item {
   display: flex;
   align-items: center;

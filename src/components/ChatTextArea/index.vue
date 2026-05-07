@@ -455,7 +455,7 @@ onMounted(() => registerReset?.(handleInitReset));
 onBeforeUnmount(() => registerReset?.(undefined));
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .upload-text-area-wrapper {
   display: flex;
   flex-direction: column;
@@ -467,226 +467,198 @@ onBeforeUnmount(() => registerReset?.(undefined));
   background: #ffffff;
   box-sizing: border-box;
   border: 0.5px solid #d9d9d9;
-
-  .input-area-content {
-    flex: 1;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 12px;
-    box-sizing: border-box;
-
-    &.only-image-mode {
-      .only-image-wrapper {
-        border-top-left-radius: 6px;
-        border-top-right-radius: 6px;
-        box-sizing: border-box;
-        background: #f8f9fa;
-        border-bottom: 0.5px solid #d9d9d9;
-
-        .image-items {
-          display: flex;
-          gap: 12px;
-          padding: 12px 16px;
-          overflow-x: auto;
-          box-sizing: border-box;
-        }
-
-        .image-item {
-          flex-shrink: 0;
-          position: relative;
-          width: 72px;
-          height: 72px;
-          border-radius: 6px;
-          background: #e4e6e7;
-
-          .image {
-            display: block;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 6px;
-          }
-
-          .delete-btn {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            width: 18px;
-            height: 18px;
-            min-width: 18px;
-            padding: 0;
-            border-radius: 9px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 255, 255, 0.85);
-          }
-        }
-      }
-    }
-
-    .file-list {
-      border-top-left-radius: 6px;
-      border-top-right-radius: 6px;
-      box-sizing: border-box;
-      border-bottom: 0.5px solid #d9d9d9;
-      overflow: hidden;
-      background: #f8f9fa;
-
-      .file-list-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 16px;
-        background: #e9ecef;
-        border-bottom: 1px solid #e0e0e0;
-        font-size: 14px;
-        font-weight: 500;
-        color: #495057;
-      }
-
-      .clear-all-btn {
-        padding: 4px 12px;
-        background: #dc3545;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-size: 12px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-      }
-
-      .clear-all-btn:hover {
-        background: #c82333;
-      }
-
-      .progress-items {
-        width: 100%;
-        max-height: 150px;
-        overflow-y: auto;
-
-        .progress-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 12px;
-          padding: 12px 16px;
-          border-bottom: 1px solid #e0e0e0;
-          box-sizing: border-box;
-          transition: background-color 0.3s ease;
-
-          .file-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 40px;
-            height: 40px;
-            margin-right: 16px;
-            border-radius: 6px;
-            background: #e4e6e7;
-
-            .icon {
-              width: 20px;
-              height: 20px;
-            }
-          }
-
-          .file-info {
-            flex: 1;
-
-            .name {
-              margin-bottom: 8px;
-              font-size: 15px;
-              line-height: 22px;
-              color: #1f2429;
-            }
-          }
-
-          .file-size {
-            width: 90px;
-            margin-left: 24px;
-            font-size: 14px;
-            line-height: 22px;
-            text-align: left;
-            color: rgba(0, 0, 0, 0.45);
-          }
-
-          .file-action {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            border-radius: 16px;
-            background: #ffeded;
-            cursor: pointer;
-          }
-        }
-
-        .progress-item:last-child {
-          border-bottom: none;
-        }
-      }
-    }
-
-    .textarea {
-      position: relative;
-      flex: 1;
-      flex-shrink: 0;
-      min-height: 0;
-      width: 100%;
-
-      .drag-overlay {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 2px;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        z-index: 10;
-        border-radius: 2px;
-        pointer-events: none;
-        background: rgba(102, 126, 234, 0.1);
-
-        .text {
-          font-size: 16px;
-          color: #667eea;
-        }
-
-        .icon {
-          margin-top: -6px;
-          font-size: 20px;
-        }
-      }
-
-      textarea {
-        width: 100%;
-        height: 100%;
-        font-size: 14px;
-        line-height: 22px;
-        border: none;
-        outline: none;
-        resize: none;
-        box-sizing: border-box;
-      }
-
-      textarea:disabled {
-        cursor: not-allowed;
-        background: #f5f5f5;
-      }
-    }
-  }
-
-  .button-area {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    height: 32px;
-  }
+}
+.upload-text-area-wrapper .input-area-content {
+  flex: 1;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+.upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  box-sizing: border-box;
+  background: #f8f9fa;
+  border-bottom: 0.5px solid #d9d9d9;
+}
+.upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-items {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+.upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-item {
+  flex-shrink: 0;
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 6px;
+  background: #e4e6e7;
+}
+.upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-item .image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-item .delete-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  padding: 0;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+}
+.upload-text-area-wrapper .input-area-content .file-list {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  box-sizing: border-box;
+  border-bottom: 0.5px solid #d9d9d9;
+  overflow: hidden;
+  background: #f8f9fa;
+}
+.upload-text-area-wrapper .input-area-content .file-list .file-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #e9ecef;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+.upload-text-area-wrapper .input-area-content .file-list .clear-all-btn {
+  padding: 4px 12px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+.upload-text-area-wrapper .input-area-content .file-list .clear-all-btn:hover {
+  background: #c82333;
+}
+.upload-text-area-wrapper .input-area-content .file-list .progress-items {
+  width: 100%;
+  max-height: 150px;
+  overflow-y: auto;
+}
+.upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  box-sizing: border-box;
+  transition: background-color 0.3s ease;
+}
+.upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-right: 16px;
+  border-radius: 6px;
+  background: #e4e6e7;
+}
+.upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-icon .icon {
+  width: 20px;
+  height: 20px;
+}
+.upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-info {
+  flex: 1;
+}
+.upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-info .name {
+  margin-bottom: 8px;
+  font-size: 15px;
+  line-height: 22px;
+  color: #1f2429;
+}
+.upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-size {
+  width: 90px;
+  margin-left: 24px;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  color: rgba(0, 0, 0, 0.45);
+}
+.upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background: #ffeded;
+  cursor: pointer;
+}
+.upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item:last-child {
+  border-bottom: none;
+}
+.upload-text-area-wrapper .input-area-content .textarea {
+  position: relative;
+  flex: 1;
+  flex-shrink: 0;
+  min-height: 0;
+  width: 100%;
+}
+.upload-text-area-wrapper .input-area-content .textarea .drag-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  border-radius: 2px;
+  pointer-events: none;
+  background: rgba(102, 126, 234, 0.1);
+}
+.upload-text-area-wrapper .input-area-content .textarea .drag-overlay .text {
+  font-size: 16px;
+  color: #667eea;
+}
+.upload-text-area-wrapper .input-area-content .textarea .drag-overlay .icon {
+  margin-top: -6px;
+  font-size: 20px;
+}
+.upload-text-area-wrapper .input-area-content .textarea textarea {
+  width: 100%;
+  height: 100%;
+  font-size: 14px;
+  line-height: 22px;
+  border: none;
+  outline: none;
+  resize: none;
+  box-sizing: border-box;
+}
+.upload-text-area-wrapper .input-area-content .textarea textarea:disabled {
+  cursor: not-allowed;
+  background: #f5f5f5;
+}
+.upload-text-area-wrapper .button-area {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 32px;
 }
 </style>

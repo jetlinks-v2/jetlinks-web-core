@@ -6,6 +6,6 @@
 
 </template>
 
-<style scoped lang="less">
+<style scoped>
 
 </style>

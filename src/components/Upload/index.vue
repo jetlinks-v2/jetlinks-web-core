@@ -179,95 +179,74 @@ const saveImage = (url: string) => {
 }
 </script>
 
-<style lang="less" scoped>
-@border: 1px dashed @border-color-base;
-@mask-color: rgba(#000, 0.35);
-@with: 150px;
-@height: 150px;
-
-.flex-center() {
-    align-items: center;
-    justify-content: center;
-}
-
+<style scoped>
 .upload-image-warp {
-    display: flex;
-    justify-content: flex-start;
-
-    .upload-image-border {
-        position: relative;
-        width: @with;
-        height: @height;
-        overflow: hidden;
-        //border-radius: 50%;
-        // border: @border;
-        transition: all 0.3s;
-
-        &:hover {
-            border-color: @primary-color-hover;
-        }
-
-        :deep(.ant-upload-picture-card-wrapper) {
-            width: 100%;
-            height: 100%;
-        }
-        :deep(.ant-upload) {
-            width: 100%;
-            height: 100%;
-        }
-
-        .upload-image-content {
-            .flex-center();
-
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(#000, 0.06);
-            cursor: pointer;
-            padding: 8px;
-
-            .upload-image-mask {
-                .flex-center();
-
-                position: absolute;
-                top: 0;
-                left: 0;
-                display: none;
-                width: 100%;
-                height: 100%;
-                color: #fff;
-                font-size: 16px;
-                background-color: @mask-color;
-            }
-
-            .upload-image {
-                width: 100%;
-                height: 100%;
-                //border-radius: 50%;
-                background-repeat: no-repeat;
-                background-position: center;
-                background-size: cover;
-            }
-
-            &:hover .upload-image-mask {
-                display: flex;
-            }
-        }
-    }
-
-    .upload-loading-mask {
-        .flex-center();
-
-        position: absolute;
-        top: 0;
-        left: 0;
-        display: flex;
-        width: 100%;
-        height: 100%;
-        color: #fff;
-        background-color: @mask-color;
-    }
+  display: flex;
+  justify-content: flex-start;
+}
+.upload-image-warp .upload-image-border {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+.upload-image-warp .upload-image-border:hover {
+  border-color: var(--jet-theme-primary-hover, #4096ff);
+}
+.upload-image-warp .upload-image-border :deep(.ant-upload-picture-card-wrapper) {
+  width: 100%;
+  height: 100%;
+}
+.upload-image-warp .upload-image-border :deep(.ant-upload) {
+  width: 100%;
+  height: 100%;
+}
+.upload-image-warp .upload-image-border .upload-image-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  padding: 8px;
+}
+.upload-image-warp .upload-image-border .upload-image-content .upload-image-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: none;
+  width: 100%;
+  height: 100%;
+  color: #fff;
+  font-size: 16px;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.35);
+}
+.upload-image-warp .upload-image-border .upload-image-content .upload-image {
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+.upload-image-warp .upload-image-border .upload-image-content:hover .upload-image-mask {
+  display: flex;
+}
+.upload-image-warp .upload-loading-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.35);
 }
 </style>

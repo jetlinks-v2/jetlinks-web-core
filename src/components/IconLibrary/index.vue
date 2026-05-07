@@ -69,7 +69,7 @@ watch(
 )
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .container {
   width: 70px;
   height: 70px;
@@ -80,20 +80,17 @@ watch(
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s;
-
-  &:hover {
-    border-color: #415ed1;
-    background-color: #f5f7ff;
-  }
-
-  .icon-display {
-    font-size: 32px;
-    color: #415ed1;
-  }
-
-  .no-icon {
-    color: #00000077;
-    font-size: 22px;
-  }
+}
+.container:hover {
+  border-color: #415ed1;
+  background-color: #f5f7ff;
+}
+.container .icon-display {
+  font-size: 32px;
+  color: #415ed1;
+}
+.container .no-icon {
+  color: #00000077;
+  font-size: 22px;
 }
 </style>

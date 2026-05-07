@@ -229,23 +229,22 @@ onMounted(() => {
 defineExpose({ refreshManual })
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .dash-board {
   display: flex;
   flex-direction: column;
   height: 100%;
   padding: 24px;
   background-color: #fff;
-  // box-shadow: 0px 2.73036px 5.46071px rgba(31, 89, 245, 0.2);
   border-radius: 2px;
 }
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  h3 {
-    width: 200px;
-    margin-top: 8px;
-  }
+}
+.header h3 {
+  width: 200px;
+  margin-top: 8px;
 }
 </style>

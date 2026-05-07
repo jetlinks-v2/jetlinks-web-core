@@ -80,7 +80,7 @@ const onExpand = (keys: string[]) => {
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .built-in-parameters {
   min-width: 420px;
   max-width: 90vw;
@@ -88,120 +88,90 @@ const onExpand = (keys: string[]) => {
   border-radius: 4px;
   padding: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-
-  :deep(.ant-tabs) {
-    .ant-tabs-nav {
-      margin-bottom: 12px;
-
-      .ant-tabs-tab {
-        padding: 8px 16px;
-        font-size: 14px;
-
-        &.ant-tabs-tab-active {
-          .ant-tabs-tab-btn {
-            color: #1890ff;
-            font-weight: 500;
-          }
-        }
-      }
-    }
-
-    .ant-tabs-content-holder {
-      overflow: hidden;
-    }
-  }
-
-  .manual-input {
-    padding: 8px 0;
-
-    :deep(.ant-input) {
-      border-radius: 4px;
-
-      &:focus,
-      &:hover {
-        border-color: #1890ff;
-      }
-    }
-  }
-
-  .parameter-tree {
-    min-height: 200px;
-    max-height: 400px;
-    overflow: hidden;
-
-    :deep(.ant-tree) {
-      background: transparent;
-
-      .ant-tree-treenode {
-        padding: 2px 0;
-
-        &:hover {
-          .ant-tree-node-content-wrapper {
-            background-color: rgba(0, 164, 254, 0.08);
-          }
-        }
-      }
-
-      .ant-tree-node-content-wrapper {
-        border-radius: 4px;
-        transition: all 0.2s;
-        padding: 4px 8px;
-
-        &:hover {
-          background-color: rgba(0, 164, 254, 0.1);
-        }
-
-        &.ant-tree-node-selected {
-          background-color: rgba(0, 164, 254, 0.2);
-
-          .tree-node-title {
-            .node-name {
-              color: #1890ff;
-              font-weight: 500;
-            }
-          }
-        }
-      }
-
-      .tree-node-title {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
-        width: 100%;
-
-        .node-name {
-          font-size: 14px;
-          font-weight: 400;
-          color: rgba(0, 0, 0, 0.85);
-          line-height: 1.5;
-        }
-
-        .node-desc {
-          font-size: 12px;
-          color: rgba(0, 0, 0, 0.45);
-          line-height: 1.4;
-        }
-      }
-
-      .ant-tree-switcher {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .ant-tree-indent-unit {
-        width: 20px;
-      }
-    }
-
-    :deep(.ant-empty) {
-      padding: 40px 0;
-
-      .ant-empty-description {
-        color: rgba(0, 0, 0, 0.45);
-      }
-    }
-  }
+}
+.built-in-parameters :deep(.ant-tabs) .ant-tabs-nav {
+  margin-bottom: 12px;
+}
+.built-in-parameters :deep(.ant-tabs) .ant-tabs-nav .ant-tabs-tab {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+.built-in-parameters :deep(.ant-tabs) .ant-tabs-nav .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #1890ff;
+  font-weight: 500;
+}
+.built-in-parameters :deep(.ant-tabs) .ant-tabs-content-holder {
+  overflow: hidden;
+}
+.built-in-parameters .manual-input {
+  padding: 8px 0;
+}
+.built-in-parameters .manual-input :deep(.ant-input) {
+  border-radius: 4px;
+}
+.built-in-parameters .manual-input :deep(.ant-input):focus,
+.built-in-parameters .manual-input :deep(.ant-input):hover {
+  border-color: #1890ff;
+}
+.built-in-parameters .parameter-tree {
+  min-height: 200px;
+  max-height: 400px;
+  overflow: hidden;
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) {
+  background: transparent;
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-treenode {
+  padding: 2px 0;
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-treenode:hover .ant-tree-node-content-wrapper {
+  background-color: rgba(0, 164, 254, 0.08);
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-node-content-wrapper {
+  border-radius: 4px;
+  transition: all 0.2s;
+  padding: 4px 8px;
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-node-content-wrapper:hover {
+  background-color: rgba(0, 164, 254, 0.1);
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-node-content-wrapper.ant-tree-node-selected {
+  background-color: rgba(0, 164, 254, 0.2);
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-node-content-wrapper.ant-tree-node-selected .tree-node-title .node-name {
+  color: #1890ff;
+  font-weight: 500;
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) .tree-node-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) .tree-node-title .node-name {
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.85);
+  line-height: 1.5;
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) .tree-node-title .node-desc {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  line-height: 1.4;
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-indent-unit {
+  width: 20px;
+}
+.built-in-parameters .parameter-tree :deep(.ant-empty) {
+  padding: 40px 0;
+}
+.built-in-parameters .parameter-tree :deep(.ant-empty) .ant-empty-description {
+  color: rgba(0, 0, 0, 0.45);
 }
 </style>

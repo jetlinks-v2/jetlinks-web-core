@@ -67,6 +67,6 @@ watch(() => props.value, (newVal) => {
 </a-tree>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 
 </style>

@@ -157,39 +157,63 @@ watch(() => termsValue.value.value, (newValue) => {
   </div>
 </template>
 
-<style scoped lang="less">
-@import '../style/comm.less';
+<style scoped>
+.border-box {
+  border-radius: 8px;
+}
+.border-box :deep(.ant-select-selector) {
+  border-radius: 8px;
+  border: 1px solid rgba(0, 164, 254, 0.3);
+  color: #00a4fe;
+  background-color: rgba(154, 219, 255, 0.3);
+}
+.border-box :deep(.ant-select-selector) .ant-select-selection-placeholder {
+  color: #00a4fe;
+  padding-inline-end: 0;
+}
+.border-box.terms-type :deep(.ant-select-selector) {
+  color: #13C2C2;
+  background: rgba(135, 232, 222, 0.3);
+  border-color: rgba(54, 207, 201, 0.4);
+}
+.border-box.terms-type :deep(.ant-select-selector) .ant-select-selection-placeholder {
+  color: #13C2C2;
+}
+.border-box.terms-value {
+  color: #692ca7;
+  border: 1px solid rgba(188, 125, 238, 0.5);
+  background-color: rgba(188, 125, 238, 0.1);
+}
+.border-box :deep(.ant-select-selection-item) {
+  padding-inline-end: 0;
+}
 .terms-cascader-value {
   min-width: 160px;
   display: flex;
-
-  .terms-value--type {
-    padding: 4px 0;
-    border-top-left-radius: 8px;
-    border-bottom-left-radius: 8px;
-    text-align: center;
-    width: 80px;
-    cursor: default;
-    border-right: 1px solid rgba(188, 125, 238, 0.5);
-  }
-
-  .terms-value--value {
-    flex: 1 auto;
-    min-width: 0;
-    padding: 4px 0;
-    height: 100%;
-    text-align: center;
-    cursor: default;
-  }
-
-  &.only-fixed {
-    min-width: 80px;
-  }
-
-  .terms-value--dropdown {
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
+}
+.terms-cascader-value .terms-value--type {
+  padding: 4px 0;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+  text-align: center;
+  width: 80px;
+  cursor: default;
+  border-right: 1px solid rgba(188, 125, 238, 0.5);
+}
+.terms-cascader-value .terms-value--value {
+  flex: 1 auto;
+  min-width: 0;
+  padding: 4px 0;
+  height: 100%;
+  text-align: center;
+  cursor: default;
+}
+.terms-cascader-value.only-fixed {
+  min-width: 80px;
+}
+.terms-cascader-value .terms-value--dropdown {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 </style>

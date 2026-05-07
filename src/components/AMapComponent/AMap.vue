@@ -87,4 +87,4 @@ defineExpose({
 })
 </script>
 
-<style lang="less" scoped></style>
+<style scoped></style>

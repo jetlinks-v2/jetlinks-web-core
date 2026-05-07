@@ -55,6 +55,34 @@ const options = computed(() => {
   </a-select>
 </template>
 
-<style scoped lang="less">
-@import "./style/comm.less";
+<style scoped>
+.border-box {
+  border-radius: 8px;
+}
+.border-box :deep(.ant-select-selector) {
+  border-radius: 8px;
+  border: 1px solid rgba(0, 164, 254, 0.3);
+  color: #00a4fe;
+  background-color: rgba(154, 219, 255, 0.3);
+}
+.border-box :deep(.ant-select-selector) .ant-select-selection-placeholder {
+  color: #00a4fe;
+  padding-inline-end: 0;
+}
+.border-box.terms-type :deep(.ant-select-selector) {
+  color: #13C2C2;
+  background: rgba(135, 232, 222, 0.3);
+  border-color: rgba(54, 207, 201, 0.4);
+}
+.border-box.terms-type :deep(.ant-select-selector) .ant-select-selection-placeholder {
+  color: #13C2C2;
+}
+.border-box.terms-value {
+  color: #692ca7;
+  border: 1px solid rgba(188, 125, 238, 0.5);
+  background-color: rgba(188, 125, 238, 0.1);
+}
+.border-box :deep(.ant-select-selection-item) {
+  padding-inline-end: 0;
+}
 </style>

@@ -195,31 +195,27 @@ watch(myValue, (val) => {
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .filter-terms-value-item {
   padding: 6px;
   background-color: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-
-  &--embedded {
-    padding: 0;
-    box-shadow: none;
-  }
-
-  &__range {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    gap: 8px;
-  }
-
-  &__range-input {
-    width: 100%;
-  }
-
-  &__range-separator {
-    color: rgba(0, 0, 0, 0.45);
-    font-size: 13px;
-  }
+}
+.filter-terms-value-item--embedded {
+  padding: 0;
+  box-shadow: none;
+}
+.filter-terms-value-item__range {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.filter-terms-value-item__range-input {
+  width: 100%;
+}
+.filter-terms-value-item__range-separator {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 13px;
 }
 </style>

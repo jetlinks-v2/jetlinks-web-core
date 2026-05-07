@@ -50,23 +50,21 @@ watch(() => props.value, () => {
 
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .radio-button {
   display: grid;
   gap: 16px;
-
-  .radio-button-item {
-    padding: 6px 12px;
-    text-align: center;
-    height: 100%;
-    border-radius: 2px;
-    background-color: #f5f5f5;
-    cursor: pointer;
-
-    &.active {
-      color: #fff;
-      background-color: @primary-color;
-    }
-  }
+}
+.radio-button .radio-button-item {
+  padding: 6px 12px;
+  text-align: center;
+  height: 100%;
+  border-radius: 2px;
+  background-color: #f5f5f5;
+  cursor: pointer;
+}
+.radio-button .radio-button-item.active {
+  color: #fff;
+  background-color: var(--jet-theme-primary, #1677ff);
 }
 </style>

@@ -4,6 +4,15 @@ import { getTagsColor } from '@jetlinks-web-core/api/system/calendar'
 import { LocalStore } from '@jetlinks-web/utils'
 import { langKey, isSubApp } from '@jetlinks-web-core/utils/consts'
 import { withModuleStoreOverride } from './module-override'
+import { applyThemeColor, getInitialThemeColor, persistThemeColor } from '@jetlinks-web-core/utils/theme-color'
+import {
+  applyThemeStyle,
+  getInitialThemeStyleConfig,
+  getThemeStylePrimaryColor,
+  normalizeThemeStyle,
+  persistThemeStyle,
+  type ThemeStyleKey
+} from '@jetlinks-web-core/utils/theme-style'
 
 interface LayoutType {
   siderWidth: number
@@ -15,7 +24,12 @@ interface LayoutType {
 }
 
 const useSystemStoreBase = defineStore('system', () => {
+  const initialThemeStyle = getInitialThemeStyleConfig()
   const theme = ref<string>('light') // 主题色
+  const themeStyle = ref<ThemeStyleKey>(initialThemeStyle.style)
+  const themeStyleToken = ref(initialThemeStyle.token)
+  const themeColor = ref<string>(applyThemeColor(getInitialThemeColor() || initialThemeStyle.color))
+  applyThemeStyle(themeStyle.value, themeColor.value)
   const ico = ref<string>('/favicon.ico') // 浏览器标签页logo
   const systemInfo = ref<Record<string, any>>({})
   const microApp = ref<Record<string, any>>({})
@@ -42,6 +56,21 @@ const useSystemStoreBase = defineStore('system', () => {
    */
   const changeTheme = (type: string) => {
     theme.value = type
+  }
+
+  const changeThemeColor = (color: string) => {
+    themeColor.value = persistThemeColor(color)
+    const result = applyThemeStyle(themeStyle.value, themeColor.value)
+    themeStyleToken.value = result.token
+  }
+
+  const changeThemeStyle = (style: string, color?: string) => {
+    const themeStyleValue = normalizeThemeStyle(style)
+    const result = persistThemeStyle(themeStyleValue, color || getThemeStylePrimaryColor(themeStyleValue) || themeColor.value)
+    theme.value = themeStyleValue === 'dark' ? 'dark' : 'light'
+    themeStyle.value = result.style
+    themeStyleToken.value = result.token
+    themeColor.value = result.color
   }
 
   /**
@@ -79,9 +108,11 @@ const useSystemStoreBase = defineStore('system', () => {
   }
 
   const handleFront = (_value: any) => {
+    if (!_value) return
     layout.title = _value.title
     layout.logo = _value.logo
-    theme.value = _value.headerTheme
+    const frontThemeStyle = normalizeThemeStyle(_value.headerTheme)
+    changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle))
     changeIco(_value.ico)
     setDocumentTitle()
     changeTitle(_value.title)
@@ -147,6 +178,9 @@ const useSystemStoreBase = defineStore('system', () => {
   return {
     systemInfo,
     theme,
+    themeStyle,
+    themeStyleToken,
+    themeColor,
     ico,
     layout,
     calendarTagColor,
@@ -154,6 +188,8 @@ const useSystemStoreBase = defineStore('system', () => {
     language,
     microApp,
     changeTheme,
+    changeThemeStyle,
+    changeThemeColor,
     changeLayout,
     changeIco,
     changeTitle,

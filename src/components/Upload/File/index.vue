@@ -208,7 +208,7 @@ watch(
 )
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .ant-upload-select-picture-card i {
   font-size: 32px;
   color: #999;

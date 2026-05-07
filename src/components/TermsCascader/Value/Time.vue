@@ -76,35 +76,29 @@ onMounted(() => {
 
 </script>
 
-<style lang='less'>
-.dropdown-time-picker {
-  >div{
-    position: relative !important;
-  }
-
-  .manual-time-picker{
-    display: none;
-  }
-
-  .ant-picker-dropdown {
-    position: relative;
-    top: 0;
-    left: 0;
-    width: 100%;
-    .ant-picker-panel {
-      width: 100%
-    }
-    .ant-picker-footer {
-      border-bottom: 0px;
-    }
-  }
-
-  .ant-picker-panel-container {
-    box-shadow: unset;
-  }
+<style>
+.dropdown-time-picker > div {
+  position: relative !important;
 }
-
-.wrapper{
+.dropdown-time-picker .manual-time-picker {
+  display: none;
+}
+.dropdown-time-picker .ant-picker-dropdown {
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+.dropdown-time-picker .ant-picker-dropdown .ant-picker-panel {
+  width: 100%;
+}
+.dropdown-time-picker .ant-picker-dropdown .ant-picker-footer {
+  border-bottom: 0px;
+}
+.dropdown-time-picker .ant-picker-panel-container {
+  box-shadow: unset;
+}
+.wrapper {
   display: none;
 }
 </style>

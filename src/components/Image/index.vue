@@ -97,14 +97,13 @@ const loadImage = () => {
 }
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .image-container {
   position: relative;
   display: inline-block;
-
-  img {
-    width: 100%;
-    height: 100%;
-  }
+}
+.image-container img {
+  width: 100%;
+  height: 100%;
 }
 </style>

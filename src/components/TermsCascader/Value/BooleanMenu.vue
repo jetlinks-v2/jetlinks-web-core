@@ -39,6 +39,6 @@ watch(() => props.modelValue, (newValue) => {
   </a-menu>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 
 </style>

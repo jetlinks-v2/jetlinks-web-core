@@ -97,10 +97,8 @@ const onReset = () => {
 defineExpose({ reset, setValues: (data: Record<string, any>) => searchRef.value?.setValues(data) })
 </script>
 
-<style scoped lang='less'>
-  .no-margin {
-    :deep(.JSearch-warp) {
-      margin: 0;
-    }
-  }
+<style scoped>
+.no-margin :deep(.JSearch-warp) {
+  margin: 0;
+}
 </style>
