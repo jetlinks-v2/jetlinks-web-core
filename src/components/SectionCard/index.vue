@@ -1,0 +1,107 @@
+<template>
+  <section :id="id" class="section">
+    <header class="section-head">
+      <div class="left">
+        <div class="section-title">
+          <span class="ic" :style="{ background: iconBg, color: iconColor }">
+            <AIcon :type="icon" />
+          </span>
+          <slot name="title">{{ title }}</slot>
+        </div>
+        <div class="section-sub">
+          <slot name="sub">{{ sub }}</slot>
+        </div>
+      </div>
+      <div v-if="$slots.actions" class="right">
+        <slot name="actions" />
+      </div>
+    </header>
+    <slot />
+  </section>
+</template>
+
+<script setup lang="ts">
+/**
+ * SectionCard —— 白底大卡 + 顶部 header(icon + title + sub + actions) + 内容 slot
+ *
+ * 使用场景：
+ *   - Agent 详情页 7 段（身份 / 提示词 / 入参 / 能力 / 运行时 / 响应 / 项目追加）
+ *   - ChartPanel 外壳 adapter
+ *   - 任何"白底卡 + 统一 header + 分组内容"的面板
+ *
+ * icon + title + sub 在左侧 / 右上角可选 #actions slot / #default slot 为内容
+ */
+withDefaults(
+  defineProps<{
+    id?: string
+    title?: string
+    sub?: string
+    icon: string
+    iconBg?: string
+    iconColor?: string
+  }>(),
+  {
+    iconBg: 'var(--accent-soft)',
+    iconColor: 'var(--accent)',
+  }
+)
+</script>
+
+<style scoped>
+.section {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  padding: 22px 26px;
+  margin-bottom: 14px;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.left { flex: 1; min-width: 0; }
+
+.section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-15);
+  font-weight: 600;
+  color: var(--ink-1);
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
+.ic {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.ic :deep(svg) { width: 12px; height: 12px; }
+
+.section-sub {
+  font-size: var(--fs-12);
+  color: var(--ink-3);
+  line-height: 1.7;
+}
+.section-sub :deep(code) {
+  font-family: ui-monospace, monospace;
+  font-size: var(--fs-11);
+  background: var(--bg-sunken);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--ink-2);
+}
+
+.right { flex-shrink: 0; }
+</style>
