@@ -188,8 +188,8 @@ defineExpose({ refreshManual })
   display: flex;
   height: 150px;
   padding: 16px;
-  background-color: #fff;
-  border: 1px solid #e0e4e8;
+  background-color: var(--bg);
+  border: 1px solid var(--line-strong);
   border-radius: 2px;
 }
 .echarts-item .echarts-item-left {
@@ -202,7 +202,7 @@ defineExpose({ refreshManual })
 }
 .echarts-item .echarts-item-title {
   margin-bottom: 8px;
-  color: rgba(0, 0, 0, 0.6);
+  color: color-mix(in srgb, var(--ink-1) 60%, transparent);
   font-size: 16px;
 }
 .echarts-item .echarts-item-value {
@@ -229,7 +229,7 @@ defineExpose({ refreshManual })
   left: 0;
   width: 4px;
   height: 12px;
-  background-color: #ff595e;
+  background-color: var(--err);
   transform: translateY(-50%);
   content: ' ';
 }

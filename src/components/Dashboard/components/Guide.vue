@@ -37,19 +37,19 @@ const props = defineProps<guideProps>();
   left: 0;
   width: 8px;
   height: 8px;
-  background-color: var(--jet-theme-primary, #1677ff);
-  border: 1px solid #b4c0da;
+  background-color: var(--jet-theme-primary, var(--accent));
+  border: 1px solid var(--accent);
   transform: translateY(-50%);
   content: ' ';
 }
 .home-title .extra-text {
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 400;
 }
 .home-title .home-title-english {
   position: absolute;
   top: 30px;
-  color: rgba(0, 0, 0, 0.3);
-  font-size: 12px;
+  color: var(--ink-4);
+  font-size: var(--fs-12);
 }
 </style>

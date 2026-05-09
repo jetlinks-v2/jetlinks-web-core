@@ -110,7 +110,7 @@ watch(() => props.value, (newValue) => {
   padding: 5px 8px;
 }
 .text:hover {
-  background-color: #f5f6f8;
+  background-color: var(--bg-hover);
 }
 </style>
 

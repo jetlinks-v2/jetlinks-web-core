@@ -302,8 +302,8 @@ function onCropUploadResult(url: string) {
   gap: 10px;
 }
 .ive__swatches-title {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  font-size: var(--fs-12);
+  color: var(--ink-4);
 }
 .ive__swatches {
   display: flex;
@@ -314,8 +314,8 @@ function onCropUploadResult(url: string) {
 .ive__swatch {
   width: 26px;
   height: 26px;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: var(--r-2);
+  border: 1px solid color-mix(in srgb, var(--ink-1) 12%, transparent);
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
@@ -326,16 +326,16 @@ function onCropUploadResult(url: string) {
   gap: 10px;
 }
 .ive__label {
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.65);
+  font-size: var(--fs-13);
+  color: var(--ink-2);
   white-space: nowrap;
 }
 .ive__native-color {
   width: 44px;
   height: 28px;
   padding: 0;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--ink-1) 15%, transparent);
+  border-radius: var(--r-1);
   cursor: pointer;
   background: transparent;
 }
@@ -352,8 +352,8 @@ function onCropUploadResult(url: string) {
 }
 .ive__hint {
   margin: 0;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  font-size: var(--fs-12);
+  color: var(--ink-4);
   line-height: 1.5;
 }
 </style>

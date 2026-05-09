@@ -55,7 +55,7 @@ function shouldApplyOverride(route: ModuleRouteOverride, context?: RouteHideInMe
   }
 
   try {
-    return handler(context) === false
+    return handler(context) !== true
   } catch (error) {
     console.warn(
       `[Route Override] Skip dynamic filter for route "${String(route.name)}", fallback to apply override.`,

@@ -464,49 +464,49 @@ async function handleDrop(event: DragEvent) {
 
 .j-md-editor__bar-label,
 .j-md-editor__domain-hint {
-  color: rgba(0, 0, 0, 0.45);
-  font-size: 12px;
+  color: var(--ink-4);
+  font-size: var(--fs-12);
 }
 
 .j-md-editor__section-btn {
   height: 26px;
   padding: 0 10px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 4px;
-  background: #fff;
-  color: rgba(0, 0, 0, 0.65);
-  font-size: 12px;
+  border: 1px solid color-mix(in srgb, var(--ink-1) 8%, transparent);
+  border-radius: var(--r-1);
+  background: var(--bg);
+  color: var(--ink-2);
+  font-size: var(--fs-12);
   cursor: pointer;
 }
 
 .j-md-editor__section-btn:hover:not(:disabled) {
-  border-color: #1677ff;
-  color: #1677ff;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .j-md-editor__section-btn:disabled {
   cursor: not-allowed;
-  color: rgba(0, 0, 0, 0.25);
-  background: #fafafa;
+  color: color-mix(in srgb, var(--ink-1) 25%, transparent);
+  background: var(--bg-elev);
 }
 
 .j-md-editor__surface {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid color-mix(in srgb, var(--ink-1) 8%, transparent);
   border-radius: 12px;
-  background: #fff;
+  background: var(--bg);
   transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .j-md-editor__surface.is-dragover {
-  border-color: #1677ff;
-  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.12);
-  background: #f7fbff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--bg);
 }
 
 .j-md-editor__surface.is-disabled {
-  background: #fafafa;
+  background: var(--bg-elev);
 }
 
 .j-md-editor__surface :deep(.md-editor) {
@@ -514,7 +514,7 @@ async function handleDrop(event: DragEvent) {
 }
 
 .j-md-editor__surface :deep(.md-editor-toolbar) {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid color-mix(in srgb, var(--ink-1) 6%, transparent);
 }
 
 .j-md-editor__surface :deep(.md-editor-toolbar-wrapper) {
@@ -523,7 +523,7 @@ async function handleDrop(event: DragEvent) {
 
 .j-md-editor__surface :deep(.md-editor-input-wrapper),
 .j-md-editor__surface :deep(.md-editor-preview-wrapper) {
-  font-size: 13px;
+  font-size: var(--fs-13);
 }
 
 .j-md-editor__surface :deep(.md-editor-input) {
@@ -556,21 +556,21 @@ async function handleDrop(event: DragEvent) {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border: 1px dashed rgba(22, 119, 255, 0.42);
-  background: rgba(22, 119, 255, 0.08);
-  color: #0958d9;
+  border: 1px dashed color-mix(in srgb, var(--accent) 42%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--jet-theme-primary-active);
   text-align: center;
   pointer-events: none;
 }
 
 .j-md-editor__drop-title {
-  font-size: 15px;
+  font-size: var(--fs-15);
   font-weight: 600;
 }
 
 .j-md-editor__drop-subtitle {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.65);
+  font-size: var(--fs-12);
+  color: var(--ink-2);
 }
 
 .j-md-editor__hint-row {
@@ -579,14 +579,14 @@ async function handleDrop(event: DragEvent) {
 }
 
 .j-md-editor__hint {
-  color: rgba(0, 0, 0, 0.45);
-  font-size: 12px;
+  color: var(--ink-4);
+  font-size: var(--fs-12);
 }
 
 .j-md-editor__error {
   margin: 0;
-  color: #cf1322;
-  font-size: 12px;
+  color: var(--err);
+  font-size: var(--fs-12);
 }
 
 .j-md-editor__toolbar-icon {

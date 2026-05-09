@@ -449,9 +449,9 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   height: 100%;
   padding: 12px;
   overflow: auto;
-  background: #fff;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-3);
 }
 .quick-filter-sidebar__section {
   display: flex;
@@ -474,8 +474,8 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   align-items: center;
   min-width: 0;
   padding: 0;
-  color: rgba(0, 0, 0, 0.88);
-  font-size: 13px;
+  color: var(--ink-1);
+  font-size: var(--fs-13);
   font-weight: 600;
   line-height: 22px;
   background: transparent;
@@ -486,8 +486,8 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   cursor: default;
 }
 .quick-filter-sidebar__caret {
-  color: rgba(0, 0, 0, 0.35);
-  font-size: 12px;
+  color: var(--ink-4);
+  font-size: var(--fs-12);
   transform: rotate(-90deg);
   transition: transform 0.2s ease;
 }
@@ -496,7 +496,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 }
 .quick-filter-sidebar__header-action {
   padding: 0;
-  font-size: 12px;
+  font-size: var(--fs-12);
   line-height: 20px;
 }
 .quick-filter-sidebar__header-actions {
@@ -513,10 +513,10 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   display: flex;
   gap: 4px;
   align-items: center;
-  border-radius: 6px;
+  border-radius: var(--r-2);
 }
 .quick-filter-sidebar__row--active {
-  background: #eff6ff;
+  background: var(--accent-soft);
 }
 .quick-filter-sidebar__item {
   display: flex;
@@ -527,27 +527,27 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   min-width: 0;
   min-height: 30px;
   padding: 0 10px;
-  color: rgba(0, 0, 0, 0.65);
-  font-size: 13px;
+  color: var(--ink-2);
+  font-size: var(--fs-13);
   text-align: left;
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--r-2);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .quick-filter-sidebar__item:hover {
-  color: rgba(0, 0, 0, 0.88);
-  background: #f6f8fa;
+  color: var(--ink-1);
+  background: var(--bg-hover);
 }
 .quick-filter-sidebar__item:disabled {
-  color: rgba(0, 0, 0, 0.3);
+  color: var(--ink-4);
   cursor: not-allowed;
 }
 .quick-filter-sidebar__item--active {
-  color: #1677ff;
+  color: var(--accent);
   font-weight: 600;
-  background: #eff6ff;
+  background: var(--accent-soft);
 }
 .quick-filter-sidebar__item-content {
   display: flex;
@@ -559,7 +559,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--ink-4);
 }
 .quick-filter-sidebar__item-main {
   display: flex;
@@ -574,8 +574,8 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 }
 .quick-filter-sidebar__item-description {
   overflow: hidden;
-  color: rgba(0, 0, 0, 0.4);
-  font-size: 12px;
+  color: color-mix(in srgb, var(--ink-1) 40%, transparent);
+  font-size: var(--fs-12);
   font-weight: 400;
   line-height: 18px;
   text-overflow: ellipsis;
@@ -583,8 +583,8 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 }
 .quick-filter-sidebar__item-meta {
   flex-shrink: 0;
-  color: rgba(0, 0, 0, 0.4);
-  font-size: 12px;
+  color: color-mix(in srgb, var(--ink-1) 40%, transparent);
+  font-size: var(--fs-12);
   line-height: 18px;
 }
 .quick-filter-sidebar__item-actions {
@@ -598,29 +598,29 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   justify-content: center;
   width: 28px;
   height: 28px;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--ink-4);
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--r-2);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .quick-filter-sidebar__item-action-btn:hover {
-  color: #ff4d4f;
-  background: rgba(255, 77, 79, 0.08);
+  color: var(--err);
+  background: color-mix(in srgb, var(--err) 8%, transparent);
 }
 .quick-filter-sidebar__item-action-btn:disabled {
-  color: rgba(0, 0, 0, 0.2);
+  color: color-mix(in srgb, var(--ink-1) 20%, transparent);
   cursor: not-allowed;
   background: transparent;
 }
 .quick-filter-sidebar__item-action-btn--danger {
-  color: #ff4d4f;
+  color: var(--err);
 }
 .quick-filter-sidebar__empty {
   padding: 4px 10px;
-  color: rgba(0, 0, 0, 0.4);
-  font-size: 12px;
+  color: color-mix(in srgb, var(--ink-1) 40%, transparent);
+  font-size: var(--fs-12);
   line-height: 20px;
 }
 </style>

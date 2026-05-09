@@ -110,7 +110,7 @@ const boxCss = computed(() => ({
   position: relative;
   flex-shrink: 0;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.04);
+  background: color-mix(in srgb, var(--ink-1) 4%, transparent);
   box-sizing: border-box;
 }
 .icon-value-view__img {
@@ -134,8 +134,8 @@ const boxCss = computed(() => ({
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #eef2ff, #e0f2fe);
-  color: #312e81;
+  background: linear-gradient(135deg, var(--accent-soft), var(--info-bg));
+  color: var(--jet-theme-primary-active);
 }
 /* 与色块文字一致：按容器边长比例，避免继承父级过小字号导致图标几乎看不见 */
 .icon-value-view__font :deep(.anticon) {
@@ -149,8 +149,8 @@ const boxCss = computed(() => ({
   align-items: center;
   justify-content: center;
   border-radius: inherit;
-  background: linear-gradient(135deg, #f0f5ff, #e6f4ff);
-  color: #1d39c4;
+  background: var(--accent-soft);
+  color: var(--jet-theme-primary-active);
 }
 .icon-value-view__fallback-text {
   display: inline-flex;

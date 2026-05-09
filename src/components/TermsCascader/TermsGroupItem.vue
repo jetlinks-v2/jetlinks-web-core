@@ -141,8 +141,8 @@ watch(() => props.value, (newValue) => {
 }
 .terms-group-container .term-group-border {
   padding: 6px 12px;
-  border: 1px dashed #e0e0e0;
-  border-radius: 6px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-2);
 }
 .terms-group-container .term-delete-btn {
   position: absolute;
@@ -150,8 +150,8 @@ watch(() => props.value, (newValue) => {
   right: -10px;
   width: 20px;
   height: 20px;
-  background: #f1f1f1;
-  color: #999;
+  background: var(--bg-hover);
+  color: var(--ink-4);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -164,7 +164,7 @@ watch(() => props.value, (newValue) => {
   z-index: 10;
 }
 .terms-group-container .term-delete-btn:hover {
-  background: #f3f3f3;
+  background: var(--bg-hover);
 }
 .terms-group-container .term-add-btn {
   display: flex;
@@ -173,16 +173,16 @@ watch(() => props.value, (newValue) => {
   min-width: 24px;
   width: 24px;
   height: 24px;
-  color: rgba(0, 0, 0, 0.3);
-  background-color: #fff;
-  border: 1px dashed rgba(0, 0, 0, 0.3);
+  color: var(--ink-4);
+  background-color: var(--bg);
+  border: 1px dashed var(--ink-4);
   border-radius: 50%;
   cursor: pointer;
 }
 .terms-group-container .term-add-btn:hover {
-  border-color: #1890ff;
-  color: #1890ff;
-  background: #e6f7ff;
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--info-bg);
 }
 .terms-group-container .term-add-btn::before {
   content: "+";
@@ -193,8 +193,8 @@ watch(() => props.value, (newValue) => {
 }
 .terms-group-container .connect-text {
   padding: 4px 8px;
-  border: 1px solid #d9d9d9;
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
   cursor: pointer;
   flex-shrink: 0;
   user-select: none;
@@ -215,14 +215,14 @@ watch(() => props.value, (newValue) => {
   height: 6px;
 }
 .terms-group-container .terms-scroll-area::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink-1) 10%, transparent);
+  border-radius: var(--r-1);
 }
 .terms-group-container .terms-scroll-area::-webkit-scrollbar-track {
   background: transparent;
 }
 .terms-group-container .terms-scroll-area:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--ink-1) 20%, transparent);
 }
 .terms-group-container .term-item {
   position: relative;
@@ -233,8 +233,8 @@ watch(() => props.value, (newValue) => {
   cursor: default;
 }
 .terms-group-container .term-item.can-delete:hover {
-  border-color: #d1d5db;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-color: var(--line);
+  box-shadow: var(--shadow-1);
 }
 .terms-group-container .term-item.can-delete:hover > .term-delete-btn {
   opacity: 1;

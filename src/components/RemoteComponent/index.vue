@@ -83,10 +83,10 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  color: #666;
+  color: var(--ink-3);
 }
 .remote-component-wrapper .loading-state .default-loading span {
-  font-size: 14px;
+  font-size: var(--fs-14);
 }
 .remote-component-wrapper .error-state {
   padding: 20px;

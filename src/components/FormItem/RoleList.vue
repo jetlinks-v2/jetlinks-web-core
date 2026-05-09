@@ -167,9 +167,9 @@ onMounted(() => {
   gap: 8px;
 }
 .role-list-warp .tag-blue {
-  background: #e6f7ff;
-  border-color: #91d5ff;
-  color: #096dd9;
+  background: var(--info-bg);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--bg));
+  color: var(--accent);
 }
 .role-list-warp :deep(.ant-select-selection-overflow-item) > span {
   width: 100%;

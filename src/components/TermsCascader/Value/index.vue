@@ -121,7 +121,7 @@ watch(() => termsValue.value.value, (newValue) => {
       <div class="terms-value--type">
         <a-space :size="2">
           <span>{{ typeLabel }}</span>
-          <AIcon style="font-size: 12px" type="DownOutlined" />
+          <AIcon style="font-size: var(--fs-12)" type="DownOutlined" />
         </a-space>
       </div>
       <template #overlay>
@@ -159,30 +159,30 @@ watch(() => termsValue.value.value, (newValue) => {
 
 <style scoped>
 .border-box {
-  border-radius: 8px;
+  border-radius: var(--r-3);
 }
 .border-box :deep(.ant-select-selector) {
-  border-radius: 8px;
-  border: 1px solid rgba(0, 164, 254, 0.3);
-  color: #00a4fe;
-  background-color: rgba(154, 219, 255, 0.3);
+  border-radius: var(--r-3);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--info);
+  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 .border-box :deep(.ant-select-selector) .ant-select-selection-placeholder {
-  color: #00a4fe;
+  color: var(--info);
   padding-inline-end: 0;
 }
 .border-box.terms-type :deep(.ant-select-selector) {
-  color: #13C2C2;
-  background: rgba(135, 232, 222, 0.3);
-  border-color: rgba(54, 207, 201, 0.4);
+  color: var(--info);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .border-box.terms-type :deep(.ant-select-selector) .ant-select-selection-placeholder {
-  color: #13C2C2;
+  color: var(--info);
 }
 .border-box.terms-value {
-  color: #692ca7;
-  border: 1px solid rgba(188, 125, 238, 0.5);
-  background-color: rgba(188, 125, 238, 0.1);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .border-box :deep(.ant-select-selection-item) {
   padding-inline-end: 0;
@@ -198,7 +198,7 @@ watch(() => termsValue.value.value, (newValue) => {
   text-align: center;
   width: 80px;
   cursor: default;
-  border-right: 1px solid rgba(188, 125, 238, 0.5);
+  border-right: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
 }
 .terms-cascader-value .terms-value--value {
   flex: 1 auto;
@@ -212,8 +212,8 @@ watch(() => termsValue.value.value, (newValue) => {
   min-width: 80px;
 }
 .terms-cascader-value .terms-value--dropdown {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background-color: var(--bg);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-1);
 }
 </style>

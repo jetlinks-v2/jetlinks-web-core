@@ -210,10 +210,10 @@ watch(
 
 <style scoped>
 .j-card-panel .j-card-item {
-  border: 1px solid var(--jet-theme-border-secondary, #e6e6e6);
-  border-radius: 4px;
+  border: 1px solid var(--jet-theme-border-secondary, var(--line-strong));
+  border-radius: var(--r-1);
   cursor: pointer;
-  color: var(--jet-theme-text, #000);
+  color: var(--jet-theme-text, var(--ink-1));
   display: flex;
   width: 100%;
   gap: 12px;
@@ -238,7 +238,7 @@ watch(
   padding: 20px;
 }
 .j-card-panel .j-card-item .sub-title {
-  color: rgba(0, 0, 0, 0.24);
+  color: color-mix(in srgb, var(--ink-1) 24%, transparent);
 }
 .j-card-panel .j-card-item.right {
   flex-direction: row-reverse;
@@ -256,7 +256,7 @@ watch(
   padding: 14px 16px;
 }
 .j-card-panel .active {
-  border: 1px solid var(--jet-theme-primary, #1677ff) !important;
+  border: 1px solid var(--jet-theme-primary, var(--accent)) !important;
 }
 .j-card-panel .disabled {
   cursor: not-allowed;

@@ -463,10 +463,10 @@ onBeforeUnmount(() => registerReset?.(undefined));
   position: relative;
   width: 100%;
   padding: 12px;
-  border-radius: 6px;
-  background: #ffffff;
+  border-radius: var(--r-2);
+  background: var(--bg);
   box-sizing: border-box;
-  border: 0.5px solid #d9d9d9;
+  border: 0.5px solid var(--line);
 }
 .upload-text-area-wrapper .input-area-content {
   flex: 1;
@@ -480,8 +480,8 @@ onBeforeUnmount(() => registerReset?.(undefined));
   border-top-left-radius: 6px;
   border-top-right-radius: 6px;
   box-sizing: border-box;
-  background: #f8f9fa;
-  border-bottom: 0.5px solid #d9d9d9;
+  background: var(--bg-hover);
+  border-bottom: 0.5px solid var(--line);
 }
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-items {
   display: flex;
@@ -495,15 +495,15 @@ onBeforeUnmount(() => registerReset?.(undefined));
   position: relative;
   width: 72px;
   height: 72px;
-  border-radius: 6px;
-  background: #e4e6e7;
+  border-radius: var(--r-2);
+  background: var(--line-strong);
 }
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-item .image {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: var(--r-2);
 }
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-item .delete-btn {
   position: absolute;
@@ -517,39 +517,39 @@ onBeforeUnmount(() => registerReset?.(undefined));
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.85);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
 }
 .upload-text-area-wrapper .input-area-content .file-list {
   border-top-left-radius: 6px;
   border-top-right-radius: 6px;
   box-sizing: border-box;
-  border-bottom: 0.5px solid #d9d9d9;
+  border-bottom: 0.5px solid var(--line);
   overflow: hidden;
-  background: #f8f9fa;
+  background: var(--bg-hover);
 }
 .upload-text-area-wrapper .input-area-content .file-list .file-list-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: #e9ecef;
-  border-bottom: 1px solid #e0e0e0;
-  font-size: 14px;
+  background: var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  font-size: var(--fs-14);
   font-weight: 500;
-  color: #495057;
+  color: var(--ink-2);
 }
 .upload-text-area-wrapper .input-area-content .file-list .clear-all-btn {
   padding: 4px 12px;
-  background: #dc3545;
-  color: white;
+  background: var(--err);
+  color: var(--accent-ink);
   border: none;
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: var(--r-2);
+  font-size: var(--fs-12);
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
 .upload-text-area-wrapper .input-area-content .file-list .clear-all-btn:hover {
-  background: #c82333;
+  background: var(--err);
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items {
   width: 100%;
@@ -562,7 +562,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   justify-content: space-between;
   margin-bottom: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--line-strong);
   box-sizing: border-box;
   transition: background-color 0.3s ease;
 }
@@ -573,8 +573,8 @@ onBeforeUnmount(() => registerReset?.(undefined));
   width: 40px;
   height: 40px;
   margin-right: 16px;
-  border-radius: 6px;
-  background: #e4e6e7;
+  border-radius: var(--r-2);
+  background: var(--line-strong);
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-icon .icon {
   width: 20px;
@@ -585,17 +585,17 @@ onBeforeUnmount(() => registerReset?.(undefined));
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-info .name {
   margin-bottom: 8px;
-  font-size: 15px;
+  font-size: var(--fs-15);
   line-height: 22px;
-  color: #1f2429;
+  color: var(--ink-1);
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-size {
   width: 90px;
   margin-left: 24px;
-  font-size: 14px;
+  font-size: var(--fs-14);
   line-height: 22px;
   text-align: left;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--ink-4);
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-action {
   display: flex;
@@ -604,7 +604,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   width: 32px;
   height: 32px;
   border-radius: 16px;
-  background: #ffeded;
+  background: var(--accent-soft);
   cursor: pointer;
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item:last-child {
@@ -630,11 +630,11 @@ onBeforeUnmount(() => registerReset?.(undefined));
   z-index: 10;
   border-radius: 2px;
   pointer-events: none;
-  background: rgba(102, 126, 234, 0.1);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .upload-text-area-wrapper .input-area-content .textarea .drag-overlay .text {
   font-size: 16px;
-  color: #667eea;
+  color: var(--accent);
 }
 .upload-text-area-wrapper .input-area-content .textarea .drag-overlay .icon {
   margin-top: -6px;
@@ -643,7 +643,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
 .upload-text-area-wrapper .input-area-content .textarea textarea {
   width: 100%;
   height: 100%;
-  font-size: 14px;
+  font-size: var(--fs-14);
   line-height: 22px;
   border: none;
   outline: none;
@@ -652,7 +652,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
 }
 .upload-text-area-wrapper .input-area-content .textarea textarea:disabled {
   cursor: not-allowed;
-  background: #f5f5f5;
+  background: var(--canvas);
 }
 .upload-text-area-wrapper .button-area {
   display: flex;

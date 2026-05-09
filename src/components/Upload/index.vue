@@ -192,7 +192,7 @@ const saveImage = (url: string) => {
   transition: all 0.3s;
 }
 .upload-image-warp .upload-image-border:hover {
-  border-color: var(--jet-theme-primary-hover, #4096ff);
+  border-color: var(--jet-theme-primary-hover);
 }
 .upload-image-warp .upload-image-border :deep(.ant-upload-picture-card-wrapper) {
   width: 100%;
@@ -210,7 +210,7 @@ const saveImage = (url: string) => {
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.06);
+  background-color: color-mix(in srgb, var(--ink-1) 6%, transparent);
   cursor: pointer;
   padding: 8px;
 }
@@ -221,11 +221,11 @@ const saveImage = (url: string) => {
   display: none;
   width: 100%;
   height: 100%;
-  color: #fff;
+  color: var(--accent-ink);
   font-size: 16px;
   align-items: center;
   justify-content: center;
-  background-color: rgba(0, 0, 0, 0.35);
+  background-color: var(--ink-4);
 }
 .upload-image-warp .upload-image-border .upload-image-content .upload-image {
   width: 100%;
@@ -246,7 +246,7 @@ const saveImage = (url: string) => {
   justify-content: center;
   width: 100%;
   height: 100%;
-  color: #fff;
-  background-color: rgba(0, 0, 0, 0.35);
+  color: var(--accent-ink);
+  background-color: var(--ink-4);
 }
 </style>

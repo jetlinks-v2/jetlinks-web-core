@@ -96,7 +96,7 @@ function getSlotText(): string {
   align-items: center;
   gap: 4px;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-1);
   font-size: var(--fs-11);
   transition: all 0.15s;
 }

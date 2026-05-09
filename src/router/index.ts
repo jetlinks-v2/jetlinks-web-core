@@ -5,15 +5,12 @@ import {
   type NavigationGuardNext
 } from 'vue-router'
 import { getToken, removeToken } from '@jetlinks-web/utils'
-import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
-import { useApplication, useUserStore, useSystemStore, useMenuStore } from '@jetlinks-web-core/store'
 import microApp from '@micro-zoe/micro-app'
 import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
 import { RouteSecurityLevel } from './types'
 import { toValue } from 'vue'
-
-let isLock = false
+import { bootstrapSession, ensureMenuRoutes, resetRouteStartupState } from './startup'
 
 // ============ 核心路由解析 ============
 const moduleOverrides = collectCoreRouteOverrides()
@@ -113,47 +110,18 @@ const getRoutesByServer = async (
   to: RouteLocationNormalized,
   next: NavigationGuardNext
 ) => {
-  const UserInfoStore = useUserStore()
-  const SystemStore = useSystemStore()
-  const MenuStore = useMenuStore()
-  const application = useApplication()
+  try {
+    await bootstrapSession()
 
-  if (!Object.keys(UserInfoStore.userInfo).length) {
-    await UserInfoStore.getUserInfo()
-    await SystemStore.queryVersion()
-    await SystemStore.getShowThreshold()
-    await SystemStore.queryInfo()
-    await SystemStore.setMircoData()
-  }
-
-  if (!isSubApp && !application.appList.length && OpenMicroApp) {
-    await application.queryApplication()
-  }
-
-  // 优化: 使用新的过滤检查
-  if (!MenuStore.menu.length && !shouldSkipMenuFetch(to) && !isLock) {
-    await MenuStore.queryMenus()
-    if (!MenuStore.menu) {
-      isLock = true
-      next()
-    } else {
-      isLock = false
-      MenuStore.menu.forEach((r) => {
-        if (r.path.startsWith('/')) {
-          router.addRoute(r)
-        }
-      })
-      router.addRoute({
-        path: "/:pathMatch(.*)*",
-        name: "error",
-        component: () => import("@jetlinks-web-core/views/Error/404.vue"),
-        meta: {
-          title: "404",
-        },
-      })
-      await next({ ...to, replace: true })
+    const hasAddedMenuRoutes = await ensureMenuRoutes(router, shouldSkipMenuFetch(to))
+    if (hasAddedMenuRoutes) {
+      next({ ...to, replace: true })
+      return
     }
-  } else {
+
+    next()
+  } catch (error) {
+    console.error('[Router] 获取服务端路由失败:', error)
     next()
   }
 }
@@ -166,13 +134,13 @@ router.beforeEach((to, from, next) => {
 
   if (token) {
     if (isLoginRoute) {
-      isLock = false
+      resetRouteStartupState()
       next({ path: '/' })
     } else {
       getRoutesByServer(to, next)
     }
   } else {
-    isLock = false
+    resetRouteStartupState()
     NoTokenJump(to, next, isLoginRoute)
   }
 })

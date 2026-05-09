@@ -70,8 +70,8 @@ watch(() => props.value, (newValue) => {
   padding: 8px;
   min-width: 200px;
   min-height: 40px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background-color: var(--bg);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-1);
 }
 </style>

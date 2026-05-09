@@ -326,7 +326,7 @@ defineExpose({
   width: 100%;
   padding: 24px;
   margin-bottom: 24px;
-  background: #fff;
+  background: var(--bg);
 }
 .property-filter__toolbar {
   display: flex;
@@ -355,8 +355,8 @@ defineExpose({
 }
 .property-filter__clear {
   padding: 0;
-  color: #165dff;
-  font-size: 14px;
+  color: var(--accent);
+  font-size: var(--fs-14);
   line-height: 22px;
   white-space: nowrap;
   background: transparent;
@@ -369,16 +369,16 @@ defineExpose({
   gap: 8px;
   min-height: 36px;
   padding: 6px 12px;
-  color: #1d2129;
-  font-size: 14px;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
   line-height: 20px;
-  background: #fff;
-  border: 1px solid #d9dde3;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .filter-chip:hover {
-  border-color: #165dff;
+  border-color: var(--accent);
 }
 .filter-chip--active {
   padding-left: 8px;
@@ -393,28 +393,28 @@ defineExpose({
   width: 18px;
   height: 18px;
   padding: 0;
-  color: #4e5969;
+  color: var(--ink-2);
   background: transparent;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--r-1);
   cursor: pointer;
 }
 .filter-chip__text {
   max-width: 240px;
   overflow: hidden;
-  color: #165dff;
+  color: var(--accent);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .filter-chip__label {
-  color: #1d2129;
+  color: var(--ink-1);
 }
 .filter-chip__operator {
-  color: #4e5969;
+  color: var(--ink-2);
 }
 .filter-chip__arrow {
-  color: #86909c;
-  font-size: 12px;
+  color: var(--ink-3);
+  font-size: var(--fs-12);
 }
 .filter-logic {
   display: inline-flex;
@@ -422,16 +422,16 @@ defineExpose({
   gap: 6px;
   min-height: 36px;
   padding: 7px 12px;
-  color: #1d2129;
-  font-size: 14px;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
   line-height: 20px;
-  background: #fff;
-  border: 1px solid #d9dde3;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
   border-radius: 10px;
   cursor: pointer;
 }
 .filter-logic:hover {
-  border-color: #165dff;
+  border-color: var(--accent);
 }
 @media (max-width: 1200px) {
   .property-filter__toolbar {

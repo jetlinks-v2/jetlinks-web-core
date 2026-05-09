@@ -516,7 +516,7 @@ defineExpose({
   pointer-events: none;
 }
 .live-player-warp .live-player-content .player-body .player-screen .full-screen {
-  border: 1px solid #fff;
+  border: 1px solid var(--bg);
 }
 .live-player-warp .live-player-content .player-body .player-screen .player-screen-item {
   position: relative;
@@ -527,16 +527,16 @@ defineExpose({
   right: 4px;
   z-index: 2;
   padding: 2px 4px;
-  font-size: 12px;
-  background-color: #f0f0f0;
+  font-size: var(--fs-12);
+  background-color: var(--line-strong);
   border-radius: 2px;
   cursor: pointer;
 }
 .live-player-warp .live-player-content .player-body .player-screen .player-screen-item .media-btn-refresh:hover {
-  background-color: #d9d9d9;
+  background-color: var(--line);
 }
 .live-player-warp .live-player-content .player-body .player-screen .player-screen-item .media-btn-refresh:active {
-  background-color: #bfbfbf;
+  background-color: var(--ink-4);
 }
 :deep(.live-player-stretch-btn) {
   display: none;

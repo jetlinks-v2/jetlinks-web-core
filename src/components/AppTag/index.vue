@@ -13,7 +13,7 @@ defineProps<{ name?: string }>()
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--r-2);
   background: var(--accent-soft);
   color: var(--accent);
   font-size: var(--fs-11);

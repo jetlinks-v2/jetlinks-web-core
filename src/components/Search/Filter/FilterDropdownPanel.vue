@@ -165,14 +165,14 @@ watch(
 .filter-dropdown-panel {
   width: 280px;
   padding: 16px;
-  background: #fff;
-  border: 1px solid #e5e6eb;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(31, 35, 41, 0.12);
+  box-shadow: var(--shadow-1);
 }
 .filter-dropdown-panel__title {
   margin-bottom: 12px;
-  color: #1d2129;
+  color: var(--ink-1);
   font-size: 18px;
   font-weight: 600;
   line-height: 26px;

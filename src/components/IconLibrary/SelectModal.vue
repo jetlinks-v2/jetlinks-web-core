@@ -265,7 +265,7 @@ const confirm = () => {
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--line-strong);
 }
 .icon-selector .category-tabs :deep(.ant-tabs-content) {
   height: 450px;
@@ -283,8 +283,8 @@ const confirm = () => {
   align-items: center;
   justify-content: center;
   padding: 16px 8px;
-  border: 2px solid #f0f0f0;
-  border-radius: 6px;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--r-2);
   cursor: pointer;
   transition: all 0.3s;
 }
@@ -293,23 +293,23 @@ const confirm = () => {
   margin-bottom: 8px;
 }
 .icon-selector .icon-grid .icon-item .icon-name {
-  font-size: 12px;
-  color: #666;
+  font-size: var(--fs-12);
+  color: var(--ink-3);
   text-align: center;
   word-break: break-word;
   line-height: 1.2;
 }
 .icon-selector .icon-grid .icon-item:hover {
-  border-color: #415ed1;
-  background-color: #f5f7ff;
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
 }
 .icon-selector .icon-grid .icon-item.active {
-  color: #415ed1;
-  border-color: #415ed1;
-  background-color: #f5f7ff;
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
 }
 .icon-selector .icon-grid .icon-item.active .icon-name {
-  color: #415ed1;
+  color: var(--accent);
   font-weight: 500;
 }
 .icon-selector .selected-info {
@@ -318,13 +318,13 @@ const confirm = () => {
   gap: 8px;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--line-strong);
 }
 .icon-selector .selected-info .ant-tag {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 14px;
+  font-size: var(--fs-14);
   padding: 4px 12px;
 }
 </style>
