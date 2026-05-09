@@ -34,7 +34,14 @@ export interface ThemeStyleToken {
   boxShadowSecondary?: string
   fontFamily?: string
   wireframe?: boolean
+  layout?: ThemeLayoutToken
   cssVars?: Record<string, string>
+}
+
+export interface ThemeLayoutToken {
+  menuVariant?: 'classic' | 'compact-search'
+  showMenuSearch?: boolean
+  siderWidth?: number
 }
 
 export type ThemeStyleKey = keyof typeof themeStyleTokens
@@ -62,8 +69,19 @@ export const getThemeStyleToken = (style?: unknown) => {
 }
 
 export const getThemeStylePrimaryColor = (style?: unknown) => {
-  console.log(style)
   return normalizeThemeColor(getThemeStyleToken(style).colorPrimary)
+}
+
+const defaultThemeCssVars: Record<string, string> = {
+  '--layout-menu-bg': 'var(--jet-theme-bg-container)',
+  '--layout-menu-padding': '6px 0',
+  '--layout-menu-item-height': '40px',
+  '--layout-menu-item-radius': '0',
+  '--layout-menu-item-active-bg': 'transparent',
+  '--layout-menu-item-active-color': 'var(--jet-theme-primary)',
+  '--layout-menu-item-active-line': 'var(--jet-theme-primary)',
+  '--layout-menu-search-bg': 'var(--jet-theme-bg-container)',
+  '--layout-menu-search-border': 'var(--jet-theme-border-secondary)'
 }
 
 const getInitialThemeStyle = () => {
@@ -111,6 +129,10 @@ export const applyThemeStyle = (style?: unknown, color?: string) => {
     rootStyle.setProperty('--jet-theme-shadow', token.boxShadow || 'none')
     rootStyle.setProperty('--jet-theme-shadow-secondary', token.boxShadowSecondary || 'none')
     rootStyle.setProperty('--jet-theme-font-family', token.fontFamily || 'AliRegular, sans-serif')
+
+    Object.entries(defaultThemeCssVars).forEach(([name, value]) => {
+      rootStyle.setProperty(name, value)
+    })
 
     Object.entries(token.cssVars || {}).forEach(([name, value]) => {
       rootStyle.setProperty(name, value)

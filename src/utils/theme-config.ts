@@ -1,6 +1,6 @@
 import { DEFAULT_THEME_COLOR, normalizeThemeColor } from '@/utils/theme-color'
 import theme from '@theme-config'
-import { ThemeStyleToken } from '@/utils/theme-style'
+import type { ThemeStyleToken } from '@/utils/theme-style'
 
 export const styleTokens = {
   'light': {
@@ -139,6 +139,11 @@ export const styleTokens = {
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04)',
     boxShadowSecondary: '0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02)',
     fontFamily: 'HarmonyOS Sans SC, Inter, AliRegular, sans-serif',
+    layout: {
+      menuVariant: 'compact-search',
+      showMenuSearch: true,
+      siderWidth: 224
+    },
     cssVars: {
       '--canvas': '#F6F7F9',
       '--bg': '#FFFFFF',
@@ -189,9 +194,9 @@ export const styleTokens = {
       '--info': '#3E5A78',
       '--info-bg': '#E9EDF2',
       '--info-line': '#D8E0E9',
-      '--font-sans': 'HarmonyOS Sans SC, Inter, -apple-system, BlinkMacSystemFont, PingFang SC, Microsoft YaHei, Segoe UI, sans-serif',
-      '--font-cjk': 'HarmonyOS Sans SC, PingFang SC, Microsoft YaHei, sans-serif',
-      '--font-mono': 'Geist Mono, JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace',
+      '--font-sans': 'AliRegular',
+      '--font-cjk': 'AliRegular',
+      '--font-mono': 'AliRegular',
       '--lh-tight': '1.15',
       '--lh-snug': '1.35',
       '--lh-normal': '1.5',
@@ -320,7 +325,16 @@ export const styleTokens = {
       '--topbar-h': '48px',
       '--sidebar-w': '236px',
       '--row-h': '36px',
-      '--pad-y': '8px'
+      '--pad-y': '8px',
+      '--layout-menu-bg': '#FFFFFF',
+      '--layout-menu-padding': '8px 10px',
+      '--layout-menu-item-height': '32px',
+      '--layout-menu-item-radius': '6px',
+      '--layout-menu-item-active-bg': '#F1F2F4',
+      '--layout-menu-item-active-color': '#1D1F24',
+      '--layout-menu-item-active-line': 'var(--jet-theme-primary)',
+      '--layout-menu-search-bg': '#F6F7F9',
+      '--layout-menu-search-border': '#E6E7EB'
     }
   }
 } satisfies Record<string, ThemeStyleToken>
