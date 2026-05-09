@@ -390,9 +390,9 @@ watch(
   flex: 0 1 auto;
   min-width: 60px;
   max-width: 240px;
-  background: #eef4ff;
-  border: 1px solid #d6e4ff;
-  border-radius: 6px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-soft);
+  border-radius: var(--r-2);
 }
 .condition-inline-composer__value-content {
   display: flex;
@@ -409,7 +409,7 @@ watch(
   width: 24px;
   height: 24px;
   margin-right: 3px;
-  color: #8ea0b8;
+  color: var(--ink-3);
   background: transparent;
   border: 0;
   border-radius: 999px;
@@ -417,8 +417,8 @@ watch(
   transition: color 0.2s ease, background-color 0.2s ease;
 }
 .condition-inline-composer__clear:hover:not(:disabled) {
-  color: #5b6b82;
-  background: rgba(91, 107, 130, 0.08);
+  color: var(--ink-3);
+  background: color-mix(in srgb, var(--ink-2) 8%, transparent);
 }
 .condition-inline-composer__clear:disabled {
   cursor: not-allowed;
@@ -433,7 +433,7 @@ watch(
   padding: 0 10px !important;
   background: transparent !important;
   border: 0 !important;
-  border-radius: 6px !important;
+  border-radius: var(--r-2) !important;
   box-shadow: none !important;
 }
 .condition-inline-composer :deep(.ant-select-selection-item),
@@ -441,37 +441,37 @@ watch(
   display: flex;
   align-items: center;
   height: 30px;
-  font-size: 14px;
+  font-size: var(--fs-14);
 }
 .condition-inline-composer :deep(.ant-select-selection-placeholder) {
-  color: #9aa4b2;
+  color: var(--ink-4);
 }
 .condition-inline-composer__field :deep(.ant-select-selector) {
   padding-inline-end: 28px !important;
-  background: #eef4ff !important;
-  border: 1px solid #d6e4ff !important;
+  background: var(--accent-soft) !important;
+  border: 1px solid var(--accent-soft) !important;
 }
 .condition-inline-composer__field :deep(.ant-select-selection-item) {
-  color: #355d9a;
+  color: var(--accent);
   font-weight: 500;
 }
 .condition-inline-composer__field :deep(.ant-select-arrow) {
-  color: #355d9a;
+  color: var(--accent);
   right: 10px;
 }
 .condition-inline-composer__term :deep(.ant-select-selector) {
   height: 30px !important;
   padding: 0 22px 0 10px !important;
-  background: #eef4ff !important;
-  border: 1px solid #d6e4ff !important;
+  background: var(--accent-soft) !important;
+  border: 1px solid var(--accent-soft) !important;
 }
 .condition-inline-composer__term :deep(.ant-select-selection-item) {
-  color: #6b7280;
-  font-size: 14px;
+  color: var(--ink-2);
+  font-size: var(--fs-14);
   font-weight: 500;
 }
 .condition-inline-composer__term :deep(.ant-select-arrow) {
-  color: #6b7280;
+  color: var(--ink-2);
   right: 8px;
   transform: scale(0.9);
 }
@@ -493,11 +493,11 @@ watch(
 .condition-inline-composer__value :deep(.ant-input) {
   height: 30px;
   padding: 0;
-  color: #24292f;
-  font-size: 14px;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
 }
 .condition-inline-composer__value :deep(.ant-input::placeholder) {
-  color: #a1a9b3;
+  color: var(--ink-4);
 }
 .condition-inline-composer__value :deep(.ant-input:focus),
 .condition-inline-composer__value :deep(.ant-input-focused),
@@ -513,8 +513,8 @@ watch(
 }
 .condition-inline-composer__value :deep(.ant-select-selection-item),
 .condition-inline-composer__value :deep(.ant-picker-input input) {
-  color: #24292f;
-  font-size: 14px;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
 }
 .condition-inline-composer--direct .condition-inline-composer__value {
   background: transparent;

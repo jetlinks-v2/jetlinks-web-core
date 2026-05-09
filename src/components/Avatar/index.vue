@@ -1,15 +1,22 @@
 <template>
-  <span class="av" :class="{ more: isMore }">
-    <slot>{{ label }}</slot>
+  <span
+    class="av"
+    :class="{ more: isMore }"
+    :title="label"
+  >
+    <slot>{{ initial }}</slot>
   </span>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+
 /**
  * 单个协作者头像。label 是 "+1" 或数字时自动切 more 样式（灰底无色 chip）。
  */
 const props = defineProps<{ label?: string }>()
 const isMore = computed(() => !!props.label?.startsWith('+'))
+const initial = computed(() => props.label?.trim().slice(0, 1) || '用')
 </script>
 
 <style scoped>
@@ -17,8 +24,8 @@ const isMore = computed(() => !!props.label?.startsWith('+'))
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #60a5fa, #a78bfa);
-  color: var(--bg);
+  background: var(--accent);
+  color: var(--accent-ink);
   font-size: var(--fs-11);
   font-weight: 600;
   display: inline-flex;

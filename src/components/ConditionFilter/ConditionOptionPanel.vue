@@ -647,7 +647,7 @@ onMounted(() => {
   gap: 8px;
 }
 .condition-option-panel__search :deep(.ant-input-affix-wrapper) {
-  border-radius: 8px;
+  border-radius: var(--r-3);
 }
 .condition-option-panel__toolbar {
   padding: 0 2px;
@@ -667,27 +667,27 @@ onMounted(() => {
   width: 100%;
   min-height: 38px;
   padding: 8px 12px;
-  color: #1f2329;
+  color: var(--ink-1);
   text-align: left;
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--r-3);
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
 .condition-option-panel__item:hover:not(:disabled) {
-  background: #f2f6ff;
+  background: var(--accent-soft);
 }
 .condition-option-panel__item:disabled {
   cursor: not-allowed;
   opacity: 0.56;
 }
 .condition-option-panel__item--checked {
-  background: #edf5ff;
-  box-shadow: inset 0 0 0 1px #91caff;
+  background: var(--info-bg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, var(--bg));
 }
 .condition-option-panel__label {
-  font-size: 14px;
+  font-size: var(--fs-14);
   line-height: 20px;
 }
 .condition-option-panel__content {
@@ -699,8 +699,8 @@ onMounted(() => {
 }
 .condition-option-panel__description {
   overflow: hidden;
-  color: #86909c;
-  font-size: 12px;
+  color: var(--ink-3);
+  font-size: var(--fs-12);
   line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -711,7 +711,7 @@ onMounted(() => {
   justify-content: center;
   width: 18px;
   height: 18px;
-  color: #4080ff;
+  color: var(--accent);
   flex-shrink: 0;
 }
 .condition-option-panel__icon img {
@@ -724,8 +724,8 @@ onMounted(() => {
 .condition-option-panel__more,
 .condition-option-panel__hint {
   padding: 4px 8px 0;
-  color: #86909c;
-  font-size: 12px;
+  color: var(--ink-3);
+  font-size: var(--fs-12);
   line-height: 18px;
 }
 .condition-option-panel__hint {

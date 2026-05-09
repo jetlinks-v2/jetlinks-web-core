@@ -166,7 +166,7 @@ function onFormSubmit(e: Event) {
   height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
+  border-radius: var(--r-3);
   color: var(--ink-3);
   flex-shrink: 0;
 }

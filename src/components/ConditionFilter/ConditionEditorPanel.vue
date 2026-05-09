@@ -169,18 +169,18 @@ watch(
 <style scoped>
 .condition-editor-panel {
   padding: 12px;
-  background: #fff;
-  border: 1px solid #e5e6eb;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
   border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(31, 35, 41, 0.12);
+  box-shadow: var(--shadow-1);
 }
 .condition-editor-panel--compact {
   padding: 8px;
 }
 .condition-editor-panel__title {
   margin-bottom: 10px;
-  color: #1d2129;
-  font-size: 14px;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
   font-weight: 600;
   line-height: 22px;
 }

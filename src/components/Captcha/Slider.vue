@@ -127,8 +127,8 @@ const reset = () => {
   position: relative;
   width: 100%;
   overflow: hidden;
-  border-radius: 4px;
-  background: #f0f0f0;
+  border-radius: var(--r-1);
+  background: var(--line-strong);
 
   &.rotate-box {
     display: flex;
@@ -164,7 +164,7 @@ const reset = () => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: var(--fs-14);
   z-index: 3;
   animation: slideUp 0.3s;
 }
@@ -175,12 +175,12 @@ const reset = () => {
 }
 
 .result.success {
-  background: rgba(103, 194, 58, 0.9);
-  color: white;
+  background: color-mix(in srgb, var(--ok) 90%, transparent);
+  color: var(--accent-ink);
 }
 
 .result.fail {
-  background: rgba(245, 108, 108, 0.9);
-  color: white;
+  background: color-mix(in srgb, var(--err) 90%, transparent);
+  color: var(--accent-ink);
 }
 </style>

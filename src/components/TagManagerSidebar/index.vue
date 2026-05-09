@@ -1051,11 +1051,11 @@ defineExpose({
   gap: 6px;
   height: 28px;
   padding: 0 10px;
-  border: 1px solid rgba(22, 119, 255, 0.2);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
   border-radius: 999px;
-  background: rgba(22, 119, 255, 0.08);
-  color: #0958d9;
-  font-size: 12px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--jet-theme-primary-active);
+  font-size: var(--fs-12);
   cursor: pointer;
 }
 .tag-manager-sidebar__selected-trigger-count {
@@ -1066,9 +1066,9 @@ defineExpose({
   height: 18px;
   padding: 0 4px;
   border-radius: 999px;
-  background: #1677ff;
-  color: #fff;
-  font-size: 12px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--fs-12);
 }
 .tag-manager-sidebar__group-list {
   display: flex;
@@ -1086,8 +1086,8 @@ defineExpose({
 }
 .tag-manager-sidebar__group--drag-over {
   border-radius: 12px;
-  background: rgba(22, 119, 255, 0.04);
-  box-shadow: inset 0 0 0 1px rgba(22, 119, 255, 0.2);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 .tag-manager-sidebar__group-header {
   display: flex;
@@ -1103,7 +1103,7 @@ defineExpose({
 }
 .tag-manager-sidebar__group-name {
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--ink-1);
 }
 .tag-manager-sidebar__group-icon,
 .tag-manager-sidebar__tag-icon {
@@ -1115,7 +1115,7 @@ defineExpose({
   justify-content: center;
   width: 18px;
   height: 18px;
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--ink-4);
   cursor: grab;
 }
 .tag-manager-sidebar__drag-handle:active {
@@ -1125,18 +1125,18 @@ defineExpose({
   margin-right: -2px;
 }
 .tag-manager-sidebar__group-count {
-  color: rgba(0, 0, 0, 0.45);
-  font-size: 12px;
+  color: var(--ink-4);
+  font-size: var(--fs-12);
 }
 .tag-manager-sidebar__group-line {
   flex: 1;
   height: 1px;
-  background: rgba(5, 5, 5, 0.08);
+  background: color-mix(in srgb, var(--ink-1) 8%, transparent);
 }
 .tag-manager-sidebar__group-content {
   padding-left: 12px;
   margin-left: 4px;
-  border-left: 2px solid rgba(22, 119, 255, 0.12);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .tag-manager-sidebar__tag-list {
   display: flex;
@@ -1148,24 +1148,24 @@ defineExpose({
   align-items: center;
   gap: 6px;
   padding: 5px 10px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--ink-1) 8%, transparent);
+  border-radius: var(--r-3);
+  background: var(--bg);
   cursor: pointer;
   transition: all 0.2s;
 }
 .tag-manager-sidebar__tag-chip--selected,
 .tag-manager-sidebar__tag-chip--active {
-  color: #0958d9;
-  border-color: #1677ff;
-  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.08);
+  color: var(--jet-theme-primary-active);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .tag-manager-sidebar__tag-chip--dragging {
   opacity: 0.6;
 }
 .tag-manager-sidebar__tag-chip--drag-over {
-  border-color: #1677ff;
-  background: rgba(22, 119, 255, 0.06);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 .tag-manager-sidebar__tag-chip--editable {
   padding-right: 6px;
@@ -1177,21 +1177,21 @@ defineExpose({
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--ink-4);
   transition: all 0.2s;
 }
 .tag-manager-sidebar__tag-action:hover {
-  color: #ff4d4f;
-  background: rgba(255, 77, 79, 0.08);
+  color: var(--err);
+  background: color-mix(in srgb, var(--err) 8%, transparent);
 }
 .tag-manager-sidebar__tag-chip--add {
   border-style: dashed;
-  color: rgba(0, 0, 0, 0.65);
+  color: var(--ink-2);
 }
 .tag-manager-sidebar__tag-chip--add:disabled {
   cursor: not-allowed;
-  color: rgba(0, 0, 0, 0.25);
-  background: rgba(0, 0, 0, 0.02);
+  color: color-mix(in srgb, var(--ink-1) 25%, transparent);
+  background: color-mix(in srgb, var(--ink-1) 2%, transparent);
 }
 .tag-manager-sidebar__add-bar {
   width: 100%;
@@ -1201,24 +1201,24 @@ defineExpose({
   gap: 6px;
   margin-top: 8px;
   padding: 10px 12px;
-  border: 1px dashed rgba(22, 119, 255, 0.5);
+  border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
   border-radius: 10px;
-  background: rgba(22, 119, 255, 0.03);
-  color: #1677ff;
-  font-size: 13px;
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
+  color: var(--accent);
+  font-size: var(--fs-13);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
 .tag-manager-sidebar__add-bar:hover {
-  background: rgba(22, 119, 255, 0.08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .tag-manager-sidebar__group-empty,
 .tag-manager-sidebar__empty-hint {
   padding: 16px;
   border-radius: 12px;
   text-align: center;
-  color: rgba(0, 0, 0, 0.45);
-  background: rgba(0, 0, 0, 0.02);
+  color: var(--ink-4);
+  background: color-mix(in srgb, var(--ink-1) 2%, transparent);
 }
 </style>

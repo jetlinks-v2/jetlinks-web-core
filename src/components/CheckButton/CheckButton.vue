@@ -147,27 +147,27 @@ watch(
   min-width: 0;
   padding: 8px;
   border-radius: 20px;
-  background-color: #F8F9FA;
+  background-color: var(--bg-hover);
   transition: all 0.3s;
-  color: #333;
+  color: var(--ink-1);
   text-align: center;
   cursor: pointer;
-  border: 1px solid #F8F9FA;
+  border: 1px solid var(--bg-hover);
 }
 .j-check-button .j-check-button-item:hover {
-  background-color: #F1F7FF;
-  color: var(--jet-theme-primary, #1677ff);
+  background-color: var(--accent-soft);
+  color: var(--jet-theme-primary, var(--accent));
   opacity: 0.85;
 }
 .j-check-button .j-check-button-item.selected {
-  background-color: #F1F7FF;
-  border-color: var(--jet-theme-primary, #1677ff);
-  color: var(--jet-theme-primary, #1677ff);
+  background-color: var(--accent-soft);
+  border-color: var(--jet-theme-primary, var(--accent));
+  color: var(--jet-theme-primary, var(--accent));
 }
 .j-check-button .j-check-button-item.disabled {
   cursor: not-allowed;
-  color: #00000040;
-  background-color: #e6e6e6;
+  color: color-mix(in srgb, var(--ink-1) 25%, transparent);
+  background-color: var(--line-strong);
   opacity: 1;
 }
 </style>

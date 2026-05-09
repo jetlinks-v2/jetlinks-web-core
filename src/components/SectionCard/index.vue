@@ -82,7 +82,7 @@ withDefaults(
 .ic {
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: var(--r-2);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -99,7 +99,7 @@ withDefaults(
   font-size: var(--fs-11);
   background: var(--bg-sunken);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--r-1);
   color: var(--ink-2);
 }
 

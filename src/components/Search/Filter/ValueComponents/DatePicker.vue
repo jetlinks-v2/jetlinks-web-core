@@ -119,18 +119,18 @@ watch(() => props.value, (val) => {
 .dropdown-time-picker__shortcut {
   height: 24px;
   padding: 0 10px;
-  color: #475467;
-  font-size: 12px;
+  color: var(--ink-2);
+  font-size: var(--fs-12);
   line-height: 22px;
-  background: #f8fafc;
-  border: 1px solid #d0d5dd;
+  background: var(--bg-hover);
+  border: 1px solid var(--line);
   border-radius: 999px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 .dropdown-time-picker__shortcut:hover {
-  color: #1677ff;
-  background: #eff6ff;
-  border-color: #91caff;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--bg));
 }
 </style>

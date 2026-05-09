@@ -232,7 +232,7 @@ function renderMessage(raw: string): string {
   box-shadow: var(--shadow-pop);
 }
 .jlc-modal .ant-modal-mask {
-  background: rgb(15 23 42 / 0.42);
+  background: color-mix(in srgb, var(--ink-2) 42%, transparent);
   backdrop-filter: blur(2px);
 }
 </style>

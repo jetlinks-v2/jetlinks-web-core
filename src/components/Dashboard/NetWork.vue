@@ -250,7 +250,7 @@ defineExpose({ refreshManual })
   flex-direction: column;
   height: 100%;
   padding: 24px;
-  background-color: #fff;
+  background-color: var(--bg);
   border-radius: 2px;
 }
 .header {

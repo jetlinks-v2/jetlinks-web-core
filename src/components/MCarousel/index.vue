@@ -68,15 +68,15 @@ const onLeft = () => {
 }
 .box .box-btn .box-item-action {
   width: 12px;
-  background-color: #F7F8FA;
+  background-color: var(--bg-hover);
   padding: 15px 0;
   text-align: center;
-  font-size: 12px;
-  color: #666666;
+  font-size: var(--fs-12);
+  color: var(--ink-3);
   cursor: pointer;
 }
 .box .box-btn .box-item-action:hover {
-  background-color: #EFF2FE;
-  color: var(--jet-theme-primary, #1677ff);
+  background-color: var(--accent-soft);
+  color: var(--jet-theme-primary, var(--accent));
 }
 </style>
