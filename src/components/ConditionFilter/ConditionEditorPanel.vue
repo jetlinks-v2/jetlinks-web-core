@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ConditionOptionPanel from './ConditionOptionPanel.vue'
 import ValueItem from '../Search/Filter/ValueItem.vue'
 import { isArrayTermType } from '../Search/Filter/setting'
 import { useColumnItemOptions, useColumnsMap } from '../Search/Filter/hooks/useSearchEngine'
@@ -14,6 +15,10 @@ const props = defineProps({
   term: {
     type: Object as PropType<ConditionFilterTerm | undefined>,
     default: undefined,
+  },
+  keyword: {
+    type: String,
+    default: '',
   },
 })
 
@@ -54,6 +59,12 @@ const optionPanelConfig = computed(() => currentColumn.value?.search?.optionPane
 const isOptionPanelMode = computed(() => ['select', 'tree', 'treeSelect'].includes(currentColumn.value?.search?.type || '') || !!optionPanelConfig.value?.loadOptions)
 const hideTitle = computed(() => optionPanelConfig.value?.hideTitle ?? isOptionPanelMode.value)
 const panelWidth = computed(() => `${optionPanelConfig.value?.width || (isOptionPanelMode.value ? 320 : 280)}px`)
+const optionPanelValue = computed(() => cloneValue(draftValue.value))
+const optionPanelOptions = computed(() => currentColumn.value?.search?.options || [])
+const resolvedOptionPanelConfig = computed(() => ({
+  ...optionPanelConfig.value,
+  multiple: isArrayTermType(termType.value || ''),
+}))
 
 const cloneValue = (value: any) => {
   return Array.isArray(value) ? [...value] : value
@@ -154,7 +165,17 @@ watch(
         :setValue="setDraftValue"
         :submit="onSubmit"
       >
+        <ConditionOptionPanel
+          v-if="isOptionPanelMode"
+          :value="optionPanelValue"
+          :keyword="keyword"
+          :options="optionPanelOptions"
+          :config="resolvedOptionPanelConfig"
+          @update:value="setDraftValue"
+          @submit="onSubmit"
+        />
         <ValueItem
+          v-else
           v-model:value="draftValue"
           :column="column"
           :termType="termType"
@@ -166,27 +187,30 @@ watch(
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="less">
 .condition-editor-panel {
   padding: 12px;
-  background: var(--bg);
-  border: 1px solid var(--line-strong);
+  background: #fff;
+  border: 1px solid #e5e6eb;
   border-radius: 10px;
-  box-shadow: var(--shadow-1);
-}
-.condition-editor-panel--compact {
-  padding: 8px;
-}
-.condition-editor-panel__title {
-  margin-bottom: 10px;
-  color: var(--ink-1);
-  font-size: var(--fs-14);
-  font-weight: 600;
-  line-height: 22px;
-}
-.condition-editor-panel__body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  box-shadow: 0 8px 20px rgba(31, 35, 41, 0.12);
+
+  &--compact {
+    padding: 8px;
+  }
+
+  &__title {
+    margin-bottom: 10px;
+    color: #1d2129;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 22px;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
 }
 </style>
