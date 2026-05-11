@@ -143,7 +143,6 @@
 
 <script lang="ts" name="BasicForm" setup>
 import {reactive, ref} from 'vue'
-import {useRequest} from '@jetlinks-web/hooks';
 import {save_api} from '@jetlinks-web-core/api/system/basis';
 import {useSystemStore} from '@jetlinks-web-core/store/system';
 import Upload from './components/upload/upload.vue'
@@ -242,17 +241,6 @@ onMounted(() => {
   getDetails()
 })
 
-// 保存请求
-const {run} = useRequest(save_api, {
-  immediate: false,
-  onSuccess(res) {
-    if (res.success) {
-      onlyMessage($t('Basis.Form.436809-23'), 'success')
-      getDetails()
-    }
-  }
-})
-
 // 提交表单
 const submit = () => {
   return new Promise((resolve, reject) => {
@@ -282,11 +270,15 @@ const submit = () => {
           },
         },
       ]
-      run(params).then(resp => {
+      save_api(params).then(resp => {
         if (resp.success) {
+          onlyMessage($t('Basis.Form.436809-23'), 'success')
+          getDetails()
           applyHeaderTheme(formData.headerTheme)
+          resolve(true)
+        } else {
+          reject(false)
         }
-        resolve(true)
       }).catch(() => {
         reject(false)
       })
