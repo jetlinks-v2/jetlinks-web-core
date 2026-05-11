@@ -121,7 +121,7 @@ watch(() => termsValue.value.value, (newValue) => {
       <div class="terms-value--type">
         <a-space :size="2">
           <span>{{ typeLabel }}</span>
-          <AIcon style="font-size: 12px" type="DownOutlined" />
+          <AIcon style="font-size: var(--fs-12)" type="DownOutlined" />
         </a-space>
       </div>
       <template #overlay>
@@ -157,39 +157,63 @@ watch(() => termsValue.value.value, (newValue) => {
   </div>
 </template>
 
-<style scoped lang="less">
-@import '../style/comm.less';
+<style scoped>
+.border-box {
+  border-radius: var(--r-3);
+}
+.border-box :deep(.ant-select-selector) {
+  border-radius: var(--r-3);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--info);
+  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.border-box :deep(.ant-select-selector) .ant-select-selection-placeholder {
+  color: var(--info);
+  padding-inline-end: 0;
+}
+.border-box.terms-type :deep(.ant-select-selector) {
+  color: var(--info);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.border-box.terms-type :deep(.ant-select-selector) .ant-select-selection-placeholder {
+  color: var(--info);
+}
+.border-box.terms-value {
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.border-box :deep(.ant-select-selection-item) {
+  padding-inline-end: 0;
+}
 .terms-cascader-value {
   min-width: 160px;
   display: flex;
-
-  .terms-value--type {
-    padding: 4px 0;
-    border-top-left-radius: 8px;
-    border-bottom-left-radius: 8px;
-    text-align: center;
-    width: 80px;
-    cursor: default;
-    border-right: 1px solid rgba(188, 125, 238, 0.5);
-  }
-
-  .terms-value--value {
-    flex: 1 auto;
-    min-width: 0;
-    padding: 4px 0;
-    height: 100%;
-    text-align: center;
-    cursor: default;
-  }
-
-  &.only-fixed {
-    min-width: 80px;
-  }
-
-  .terms-value--dropdown {
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
+}
+.terms-cascader-value .terms-value--type {
+  padding: 4px 0;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+  text-align: center;
+  width: 80px;
+  cursor: default;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.terms-cascader-value .terms-value--value {
+  flex: 1 auto;
+  min-width: 0;
+  padding: 4px 0;
+  height: 100%;
+  text-align: center;
+  cursor: default;
+}
+.terms-cascader-value.only-fixed {
+  min-width: 80px;
+}
+.terms-cascader-value .terms-value--dropdown {
+  background-color: var(--bg);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-1);
 }
 </style>

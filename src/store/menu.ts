@@ -42,14 +42,36 @@ const defaultOwnParams = [
   },
 ]
 
-const transformCoreRouteToMenu = (route: RouteRecordRaw): RouteRecordRaw | null => {
+const shouldShowOverrideRoute = (
+  route: RouteRecordRaw,
+  context?: RouteHideInMenuContext,
+): boolean => {
   const routeMeta = (route.meta || {}) as Record<string, any>
-  const isHideInMenu = routeMeta.hideInMenu === true || routeMeta?.options?.show === false
+
+  if (typeof routeMeta.handleHideInMenuFn === 'function') {
+    try {
+      return routeMeta.handleHideInMenuFn(context) !== true
+    } catch (error) {
+      console.warn(
+        `[Menu Override] Skip dynamic filter for route "${String(route.name)}", fallback to static flag.`,
+        error,
+      )
+    }
+  }
+
+  return routeMeta.hideInMenu !== true && routeMeta?.options?.show !== false
+}
+
+const transformCoreRouteToMenu = (
+  route: RouteRecordRaw,
+  context?: RouteHideInMenuContext,
+): RouteRecordRaw | null => {
+  const routeMeta = (route.meta || {}) as Record<string, any>
   const children = (route.children || [])
-    .map(transformCoreRouteToMenu)
+    .map(item => transformCoreRouteToMenu(item, context))
     .filter(Boolean) as RouteRecordRaw[]
 
-  if (isHideInMenu) {
+  if (!shouldShowOverrideRoute(route, context)) {
     return null
   }
 
@@ -86,51 +108,20 @@ export function handleSiderBreadcrumb(route: RouteRecordRaw[], parent?: Record<s
   })
 }
 
-const shouldShowOverrideRoute = (
-  route: RouteRecordRaw,
-  context?: RouteHideInMenuContext,
-): boolean => {
-  if (route.meta?.handleHideInMenuFn) {
-    try {
-      return route.meta.handleHideInMenuFn(context) === false
-    } catch (error) {
-      console.warn(
-        `[Menu Override] Skip dynamic filter for route "${String(route.name)}", fallback to static flag.`,
-        error,
-      )
-    }
-  }
-
-  return route.meta?.hideInMenu === false
-}
-
 const getCoreRouteOverrideMenus = (context?: RouteHideInMenuContext) => {
   const modulesFile = modules()
   const overrideMenuMap = new Map<string, RouteRecordRaw>()
-
-  function filterChildren(routes: RouteRecordRaw[]): RouteRecordRaw[] {
-    return routes.filter(item => {
-
-      if (item.children) {
-        item.children = filterChildren(item.children)
-      }
-
-      return shouldShowOverrideRoute(item, context)
-    })
-  }
 
   Object.values(modulesFile).forEach((item: any) => {
     const moduleOverrides = item.default.getCoreRouteOverrides?.() || []
     moduleOverrides.forEach((override: RouteRecordRaw) => {
 
-      if (override.meta.hideInMenu !== false ) {
+      const _route = transformCoreRouteToMenu(override, context)
+      if (!_route) {
         overrideMenuMap.delete(override.name)
         return
       }
-      const _route = filterChildren([override])[0]
-      if (_route) {
-        overrideMenuMap.set(override.name, _route)
-      }
+      overrideMenuMap.set(override.name, _route)
     })
   })
 

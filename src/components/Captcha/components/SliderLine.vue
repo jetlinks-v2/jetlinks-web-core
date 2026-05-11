@@ -96,14 +96,14 @@ defineExpose({
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 
 .track {
   position: relative;
   height: 40px;
-  background: #f7f9fa;
-  border: 1px solid #e4e7eb;
-  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -114,14 +114,14 @@ defineExpose({
   left: 0;
   top: 0;
   height: 100%;
-  background: #0298f8;
+  background: var(--info);
   opacity: 0.2;
-  border-radius: 4px 0 0 4px;
+  border-radius: var(--r-1) 0 0 var(--r-1);
 }
 
 .track-tip {
-  font-size: 14px;
-  color: #999;
+  font-size: var(--fs-14);
+  color: var(--ink-4);
   user-select: none;
   pointer-events: none;
 }
@@ -130,22 +130,22 @@ defineExpose({
   position: absolute;
   width: 36px;
   height: 36px;
-  background: white;
-  border: 1px solid #e4e7eb;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
   cursor: grab;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-1);
   transition: background 0.2s;
   z-index: 2;
 }
 
 .slider-btn:hover,
 .slider-btn.active {
-  background: #0298f8;
-  border-color: #0298f8;
-  color: white;
+  background: var(--info);
+  border-color: var(--info);
+  color: var(--accent-ink);
   cursor: grabbing;
 }
 </style>

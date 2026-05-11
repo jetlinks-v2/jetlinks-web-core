@@ -7,6 +7,7 @@
     :breadcrumb="{ routes: route.meta.breadcrumb }"
     :pure="state.pure"
     :layoutType="layoutType"
+    :menuExtraRender="showMenuSearch ? undefined : false"
     @backClick='goBack'
   >
     <template #breadcrumbRender="slotProps">
@@ -14,6 +15,9 @@
         {{ slotProps.route.breadcrumbName }}
       </a>
       <span v-else style='cursor: default' >{{ slotProps.route.breadcrumbName }}</span>
+    </template>
+    <template #menuExtraRender>
+      <LayoutMenuSearch />
     </template>
     <template #leftContentRender>
       <RegistryComponent pageCode="layout" code="layout" @click="onClick">
@@ -42,7 +46,7 @@
 import { reactive, computed, watchEffect } from 'vue'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
-import { User, Notice, Language, Resource, AiChat } from './components'
+import { User, Notice, Language, Resource, AiChat, LayoutMenuSearch } from './components'
 import { storeToRefs } from 'pinia'
 import { getHideHeaderRightConfig, routerFallback } from '@jetlinks-web-core/utils'
 import { isSubApp } from '../utils/consts'
@@ -54,14 +58,7 @@ const menuStore = useMenuStore()
 const layoutType = ref('list')
 const hideHeaderRight = getHideHeaderRightConfig()
 
-const { theme, layout, language, systemInfo } = storeToRefs(systemStore)
-
-const config = computed(() => ({
-  ...layout.value,
-  theme: theme.value,
-  menuData: menuStore.siderMenus,
-  splitMenus: layout.value.layout === 'mix'
-}))
+const { theme, layout, language, systemInfo, themeStyleToken } = storeToRefs(systemStore)
 
 const state = reactive({
   pure: false,
@@ -69,6 +66,21 @@ const state = reactive({
   openKeys: [],
   selectedKeys: [],
 });
+
+const themeLayout = computed(() => themeStyleToken.value.layout)
+const menuVariant = computed(() => themeLayout.value?.menuVariant || 'classic')
+const showMenuSearch = computed(() => !!themeLayout.value?.showMenuSearch && !state.collapsed)
+
+const config = computed(() => ({
+  ...layout.value,
+  siderWidth: themeLayout.value?.siderWidth ?? layout.value.siderWidth,
+  theme: theme.value,
+  menuData: menuStore.siderMenus,
+  splitMenus: layout.value.layout === 'mix',
+  classNames: {
+    [`jet-layout-menu-${menuVariant.value}`]: true
+  }
+}))
 
 /**
  * 路由跳转

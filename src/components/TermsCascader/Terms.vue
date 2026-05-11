@@ -168,6 +168,6 @@ watch(() => props.value, (newValue) => {
   </a-space>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 
 </style>

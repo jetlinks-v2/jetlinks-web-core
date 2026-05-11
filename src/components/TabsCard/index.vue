@@ -41,24 +41,22 @@ const onClick = (key) => {
 }
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .tab-select {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
-
 .tab-select-item {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: #F8F9FA;
-  border-radius: 6px;
+  background: var(--bg-hover);
+  border-radius: var(--r-2);
   padding: 12px 24px;
   cursor: pointer;
-
-  &.active {
-    border: 1px solid #1677FF;
-  }
+}
+.tab-select-item.active {
+  border: 1px solid var(--accent);
 }
 </style>

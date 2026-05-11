@@ -114,14 +114,14 @@
                 } : null"
                 @click="(e) => item.onClick?.(value, e)"
                 type="link"
-                style="padding: 0 5px"
+                style="padding: 0;width: 100%"
                 :danger="item.key === 'delete'"
                 :hasPermission="item.hasPermission"
             >
               <AIcon type="DeleteOutlined" v-if="item.key === 'delete'"/>
               <template v-else>
                 <AIcon :type="handleFuncValue(item.icon, value)"/>
-                <span>{{ handleFuncValue(item?.text, value) }}</span>
+                <span>{{ handleFuncValue(item?.text, value) }} 1111</span>
               </template>
             </j-permission-button>
           </slot>
@@ -216,325 +216,265 @@ const handleClick = () => {
 };
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .card {
   width: 100%;
-  background-color: #fff;
-
-  .checked-icon {
-    position: absolute;
-    right: -22px;
-    bottom: -22px;
-    z-index: 2;
-    width: 44px;
-    height: 44px;
-    color: #fff;
-    background-color: @primary-color;
-    transform: rotate(-45deg);
-
-    > div {
-      position: relative;
-      height: 100%;
-      transform: rotate(45deg);
-
-      > span {
-        position: absolute;
-        top: 6px;
-        left: 6px;
-        font-size: 12px;
-      }
-    }
-  }
-
-  .card-warp {
-    position: relative;
-    border: 1px solid #e6e6e6;
-    overflow: hidden;
-    cursor: pointer;
-
-    &:hover {
-      box-shadow: 0 0 24px rgba(#000, 0.1);
-
-      .card-mask {
-        visibility: visible;
-      }
-    }
-
-    &.disabled {
-      filter: grayscale(100%);
-      cursor: not-allowed;
-    }
-
-    &.active {
-      position: relative;
-      border: 1px solid @primary-color;
-    }
-
-    .card-type {
-      position: absolute;
-      top: 0;
-      left: -15px;
-      height: 32px;
-      padding: 0 30px;
-      color: rgba(0, 0, 0, 0.65);
-      line-height: 32px;
-      background-color: rgba(0, 0, 0, 0.06);
-      transform: skewX(-45deg);
-
-      .card-type-text {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transform: skewX(45deg);
-      }
-    }
-
-    .card-content {
-      position: relative;
-      padding: 30px 12px 30px 30px;
-      overflow: hidden;
-
-      .card-item-avatar {
-        margin-right: 16px;
-        display: flex;
-        align-items: center;
-      }
-
-      .card-item-body {
-        display: flex;
-        flex-direction: column;
-        flex-grow: 1;
-        width: 0;
-
-        .ant-row {
-          margin-top: 18px;
-        }
-      }
-
-      .card-state {
-        position: absolute;
-        top: 30px;
-        right: -12px;
-        display: flex;
-        justify-content: center;
-        padding: 0 20px 0 20px;
-        background-color: rgba(#5995f5, 0.15);
-        transform: skewX(45deg);
-
-        &.success {
-          background-color: @success-color-deprecated-bg;
-        }
-
-        &.warning {
-          background-color: rgba(#ff9000, 0.1);
-        }
-
-        &.error {
-          background-color: rgba(#e50012, 0.1);
-        }
-
-        .card-state-content {
-          transform: skewX(-45deg);
-        }
-      }
-
-      :deep(.card-item-content-title) {
-        cursor: pointer;
-        font-size: 16px;
-        font-weight: 700;
-        color: @primary-color;
-        width: calc(100% - 100px);
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-
-      :deep(.card-item-heard-name) {
-        font-weight: 700;
-        font-size: 16px;
-        margin-bottom: 12px;
-      }
-
-      :deep(.card-item-content-text) {
-        color: rgba(0, 0, 0, 0.7);
-        font-size: 12px;
-      }
-    }
-
-    .card-content-top-line {
-      &::before {
-        position: absolute;
-        top: 0;
-        left: 30px + 10px;
-        display: block;
-        width: 15%;
-        min-width: 64px;
-        height: 2px;
-        background-image: url('@jetlinks-web-core/assets/rectangle.png');
-        background-repeat: no-repeat;
-        background-size: 100% 100%;
-        content: ' ';
-      }
-    }
-
-    .card-content-bg1 {
-      position: absolute;
-      right: -5%;
-      height: 100%;
-      width: 44.65%;
-      top: 0;
-      background: linear-gradient(188.4deg,
-      rgba(229, 0, 18, 0.03) 22.94%,
-      rgba(229, 0, 18, 0) 94.62%);
-      transform: skewX(-15deg);
-    }
-
-    .card-content-bg2 {
-      position: absolute;
-      right: -5%;
-      height: 100%;
-      width: calc(44.65% + 34px);
-      top: 0;
-      background: linear-gradient(188.4deg,
-      rgba(229, 0, 18, 0.03) 22.94%,
-      rgba(229, 0, 18, 0) 94.62%);
-      transform: skewX(-15deg);
-    }
-
-    .card-mask {
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 2;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      color: #fff;
-      background-color: rgba(#000, 0.5);
-      visibility: hidden;
-      cursor: pointer;
-      transition: all 0.3s;
-
-      .mask-content {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-        padding: 0 !important;
-      }
-    }
-  }
-
-  &.item-active {
-    position: relative;
-    color: @primary-color;
-
-    .checked-icon {
-      display: block;
-    }
-
-    .card-warp {
-      border: 1px solid @primary-color;
-    }
-  }
-
-  .card-tools {
-    display: flex;
-    margin-top: 8px;
-
-    .card-button {
-      display: flex;
-      flex-grow: 1;
-
-      & > :deep(span, button) {
-        width: 100%;
-        border-radius: 0;
-      }
-
-      :deep(button) {
-        width: 100%;
-        border-radius: 0;
-        background: #f6f6f6;
-        border: 1px solid #e6e6e6;
-        color: @primary-color;
-
-        &:hover {
-          background-color: @primary-color-hover;
-          border-color: @primary-color-hover;
-
-          span {
-            color: #fff !important;
-          }
-        }
-
-        &:active {
-          background-color: @primary-color-active;
-          border-color: @primary-color-active;
-
-          span {
-            color: #fff !important;
-          }
-        }
-      }
-
-      &:not(:last-child) {
-        margin-right: 8px;
-      }
-
-      &.delete {
-        flex-basis: 60px;
-        flex-grow: 0;
-
-        :deep(button) {
-          background: @error-color-deprecated-bg;
-          border: 1px solid @error-color-outline;
-
-          span {
-            color: @error-color !important;
-          }
-
-          &:hover {
-            background-color: @error-color-hover;
-
-            span {
-              color: #fff !important;
-            }
-          }
-
-          &:active {
-            background-color: @error-color-active;
-
-            span {
-              color: #fff !important;
-            }
-          }
-        }
-      }
-
-      :deep(button[disabled]) {
-        background: @disabled-bg;
-        border-color: @disabled-color;
-
-        span {
-          color: @disabled-color !important;
-        }
-
-        &:hover {
-          background-color: @disabled-active-bg;
-        }
-
-        &:active {
-          background-color: @disabled-active-bg;
-        }
-      }
-
-      // :deep(.ant-tooltip-disabled-compatible-wrapper) {
-      //     width: 100%;
-      // }
-    }
-  }
+  background-color: var(--bg);
+}
+.card .checked-icon {
+  position: absolute;
+  right: -22px;
+  bottom: -22px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  color: var(--accent-ink);
+  background-color: var(--jet-theme-primary, var(--accent));
+  transform: rotate(-45deg);
+}
+.card .checked-icon > div {
+  position: relative;
+  height: 100%;
+  transform: rotate(45deg);
+}
+.card .checked-icon > div > span {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font-size: var(--fs-12);
+}
+.card .card-warp {
+  position: relative;
+  border: 1px solid var(--line-strong);
+  overflow: hidden;
+  cursor: pointer;
+}
+.card .card-warp:hover {
+  box-shadow: var(--shadow-1);
+}
+.card .card-warp:hover .card-mask {
+  visibility: visible;
+}
+.card .card-warp.disabled {
+  filter: grayscale(100%);
+  cursor: not-allowed;
+}
+.card .card-warp.active {
+  position: relative;
+  border: 1px solid var(--jet-theme-primary, var(--accent));
+}
+.card .card-warp .card-type {
+  position: absolute;
+  top: 0;
+  left: -15px;
+  height: 32px;
+  padding: 0 30px;
+  color: var(--ink-2);
+  line-height: 32px;
+  background-color: color-mix(in srgb, var(--ink-1) 6%, transparent);
+  transform: skewX(-45deg);
+}
+.card .card-warp .card-type .card-type-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: skewX(45deg);
+}
+.card .card-warp .card-content {
+  position: relative;
+  padding: 30px 12px 30px 30px;
+  overflow: hidden;
+}
+.card .card-warp .card-content .card-item-avatar {
+  margin-right: 16px;
+  display: flex;
+  align-items: center;
+}
+.card .card-warp .card-content .card-item-body {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  width: 0;
+}
+.card .card-warp .card-content .card-item-body .ant-row {
+  margin-top: 18px;
+}
+.card .card-warp .card-content .card-state {
+  position: absolute;
+  top: 30px;
+  right: -12px;
+  display: flex;
+  justify-content: center;
+  padding: 0 20px 0 20px;
+  background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+  transform: skewX(45deg);
+}
+.card .card-warp .card-content .card-state.success {
+  background-color: color-mix(in srgb, var(--jet-theme-success, var(--ok)) 12%, transparent);
+}
+.card .card-warp .card-content .card-state.warning {
+  background-color: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+.card .card-warp .card-content .card-state.error {
+  background-color: color-mix(in srgb, var(--err) 10%, transparent);
+}
+.card .card-warp .card-content .card-state .card-state-content {
+  transform: skewX(-45deg);
+}
+.card .card-warp .card-content :deep(.card-item-content-title) {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--jet-theme-primary, var(--accent));
+  width: calc(100% - 100px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.card .card-warp .card-content :deep(.card-item-heard-name) {
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+.card .card-warp .card-content :deep(.card-item-content-text) {
+  color: var(--ink-2);
+  font-size: var(--fs-12);
+}
+.card .card-warp .card-content-top-line::before {
+  position: absolute;
+  top: 0;
+  left: 40px;
+  display: block;
+  width: 15%;
+  min-width: 64px;
+  height: 2px;
+  background-image: url('@jetlinks-web-core/assets/rectangle.png');
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  content: ' ';
+}
+.card .card-warp .card-content-bg1 {
+  position: absolute;
+  right: -5%;
+  height: 100%;
+  width: 44.65%;
+  top: 0;
+  background: linear-gradient(188.4deg, color-mix(in srgb, var(--err) 3%, transparent) 22.94%, transparent 94.62%);
+  transform: skewX(-15deg);
+}
+.card .card-warp .card-content-bg2 {
+  position: absolute;
+  right: -5%;
+  height: 100%;
+  width: calc(44.65% + 34px);
+  top: 0;
+  background: linear-gradient(188.4deg, color-mix(in srgb, var(--err) 3%, transparent) 22.94%, transparent 94.62%);
+  transform: skewX(-15deg);
+}
+.card .card-warp .card-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--accent-ink);
+  background-color: color-mix(in srgb, var(--ink-1) 50%, transparent);
+  visibility: hidden;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.card .card-warp .card-mask .mask-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0 !important;
+}
+.card.item-active {
+  position: relative;
+  color: var(--jet-theme-primary, var(--accent));
+}
+.card.item-active .checked-icon {
+  display: block;
+}
+.card.item-active .card-warp {
+  border: 1px solid var(--jet-theme-primary, var(--accent));
+}
+.card .card-tools {
+  display: flex;
+  margin-top: 8px;
+}
+.card .card-tools .card-button {
+  display: flex;
+  flex-grow: 1;
+}
+.card .card-tools .card-button > :deep(span, button) {
+  width: 100%;
+  border-radius: 0;
+}
+.card .card-tools .card-button :deep(button) {
+  width: 100%;
+  border-radius: 0;
+  background: var(--bg-hover);
+  border: 1px solid var(--line-strong);
+  color: var(--jet-theme-primary, var(--accent));
+}
+.card .card-tools .card-button :deep(button):hover {
+  background-color: var(--jet-theme-primary-hover);
+  border-color: var(--jet-theme-primary-hover);
+}
+.card .card-tools .card-button :deep(button):hover span {
+  color: var(--accent-ink) !important;
+}
+.card .card-tools .card-button :deep(button):active {
+  background-color: var(--jet-theme-primary-active);
+  border-color: var(--jet-theme-primary-active);
+}
+.card .card-tools .card-button :deep(button):active span {
+  color: var(--accent-ink) !important;
+}
+.card .card-tools .card-button:not(:last-child) {
+  margin-right: 8px;
+}
+.card .card-tools .card-button.delete {
+  flex-basis: 60px;
+  flex-grow: 0;
+}
+.card .card-tools .card-button.delete :deep(button) {
+  background: color-mix(in srgb, var(--jet-theme-error, var(--err)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--jet-theme-error, var(--err)) 35%, transparent);
+}
+.card .card-tools .card-button.delete :deep(button) span {
+  color: var(--jet-theme-error, var(--err)) !important;
+}
+.card .card-tools .card-button.delete :deep(button):hover {
+  background-color: color-mix(in srgb, var(--jet-theme-error, var(--err)) 82%, var(--bg));
+}
+.card .card-tools .card-button.delete :deep(button):hover span {
+  color: var(--accent-ink) !important;
+}
+.card .card-tools .card-button.delete :deep(button):active {
+  background-color: color-mix(in srgb, var(--jet-theme-error, var(--err)) 88%, var(--ink-1));
+}
+.card .card-tools .card-button.delete :deep(button):active span {
+  color: var(--accent-ink) !important;
+}
+.card .card-tools .card-button :deep(button[disabled]) {
+  background: color-mix(in srgb, var(--jet-theme-text, var(--ink-1)) 4%, var(--jet-theme-bg-container, var(--bg)));
+  border-color: var(--jet-theme-border, var(--ink-4));
+}
+.card .card-tools .card-button :deep(button[disabled]) span {
+  color: var(--jet-theme-text-secondary, var(--ink-4)) !important;
+}
+.card .card-tools .card-button :deep(button[disabled]):hover {
+  background-color: color-mix(in srgb, var(--jet-theme-text, var(--ink-1)) 8%, var(--jet-theme-bg-container, var(--bg)));
+}
+.card .card-tools .card-button :deep(button[disabled]):active {
+  background-color: color-mix(in srgb, var(--jet-theme-text, var(--ink-1)) 8%, var(--jet-theme-bg-container, var(--bg)));
 }
 </style>

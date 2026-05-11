@@ -71,39 +71,36 @@ onMounted(async () => {
 
 </script>
 
-<style scoped lang="less">
-.remote-component-wrapper {
-  .loading-state {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 40px;
-
-    .default-loading {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      color: #666;
-
-      span {
-        font-size: 14px;
-      }
-    }
-  }
-
-  .error-state {
-    padding: 20px;
-  }
-
-  .empty-state {
-    padding: 40px;
-    text-align: center;
-  }
+<style scoped>
+.remote-component-wrapper .loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
 }
-
+.remote-component-wrapper .loading-state .default-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink-3);
+}
+.remote-component-wrapper .loading-state .default-loading span {
+  font-size: var(--fs-14);
+}
+.remote-component-wrapper .error-state {
+  padding: 20px;
+}
+.remote-component-wrapper .empty-state {
+  padding: 40px;
+  text-align: center;
+}
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>

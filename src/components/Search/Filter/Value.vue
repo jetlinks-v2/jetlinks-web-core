@@ -106,7 +106,7 @@ watch([() => props.value, options], ([newValue]) => {
     <a-tag color="processing" style="margin: 0" class="filter-value-tag">
       <a-space>
         <span class="filter-value-text">{{ currentValue }}</span>
-        <AIcon type="CloseOutlined" style="font-size: 12px" @click="onClose"/>
+        <AIcon type="CloseOutlined" style="font-size: var(--fs-12)" @click="onClose"/>
       </a-space>
     </a-tag>
     <template #overlay>
@@ -115,7 +115,7 @@ watch([() => props.value, options], ([newValue]) => {
   </a-dropdown>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .filter-value-tag {
   max-width: 300px;
 }

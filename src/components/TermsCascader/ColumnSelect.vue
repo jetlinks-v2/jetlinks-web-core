@@ -140,60 +140,76 @@ watch(() => termsValue.value.column, (newValue, oldValue) => {
 </a-dropdown>
 </template>
 
-<style scoped lang="less">
-@import './style/comm.less';
-
+<style scoped>
+.border-box {
+  border-radius: var(--r-3);
+}
+.border-box :deep(.ant-select-selector) {
+  border-radius: var(--r-3);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--info);
+  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.border-box :deep(.ant-select-selector) .ant-select-selection-placeholder {
+  color: var(--info);
+  padding-inline-end: 0;
+}
+.border-box.terms-type :deep(.ant-select-selector) {
+  color: var(--info);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.border-box.terms-type :deep(.ant-select-selector) .ant-select-selection-placeholder {
+  color: var(--info);
+}
+.border-box.terms-value {
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.border-box :deep(.ant-select-selection-item) {
+  padding-inline-end: 0;
+}
 .column-select-popup {
   max-width: 220px;
   height: 32px;
   padding: 4px 11px;
-  border: 1px solid rgba(0, 164, 254, 0.3);
-  color: #00a4fe;
-  background-color: rgba(154, 219, 255, 0.3);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--info);
+  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
   display: flex;
   align-items: center;
   cursor: pointer;
-
-  &:hover {
-    border-color: rgba(0, 164, 254, 0.5);
-    background-color: rgba(154, 219, 255, 0.4);
-  }
-
-  &:focus {
-    border-color: #00a4fe;
-    outline: none;
-  }
-
-  span {
-    flex: 1;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 }
-
+.column-select-popup:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.column-select-popup:focus {
+  border-color: var(--info);
+  outline: none;
+}
+.column-select-popup span {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .column-tree-dropdown {
   padding: 8px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  background-color: #fff;
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-1);
+  background-color: var(--bg);
   min-width: 400px;
-
-  :deep(.ant-tree) {
-    .ant-tree-node-content-wrapper {
-      border-radius: 4px;
-
-      &:hover {
-        background-color: rgba(154, 219, 255, 0.2);
-      }
-    }
-
-    .ant-tree-node-selected {
-      .ant-tree-node-content-wrapper {
-        background-color: rgba(0, 164, 254, 0.3);
-      }
-    }
-  }
+}
+.column-tree-dropdown :deep(.ant-tree) .ant-tree-node-content-wrapper {
+  border-radius: var(--r-1);
+}
+.column-tree-dropdown :deep(.ant-tree) .ant-tree-node-content-wrapper:hover {
+  background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.column-tree-dropdown :deep(.ant-tree) .ant-tree-node-selected .ant-tree-node-content-wrapper {
+  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 </style>

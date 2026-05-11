@@ -305,12 +305,11 @@ watch(
 
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .message-card,
 .device-position {
-  // margin-top: 24px;
   padding: 24px;
-  background-color: rgb(134, 188, 231);
+  background-color: var(--info);
   height: 100%;
   width: 100%;
 }

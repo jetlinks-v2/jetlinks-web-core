@@ -140,6 +140,110 @@ watch(() => props.value, (newValue) => {
   </div>
 </template>
 
-<style scoped lang="less">
-@import './style/group.less';
+<style scoped>
+.terms-group-container {
+  width: 100%;
+  position: relative;
+}
+.terms-group-container .term-group-border {
+  padding: 6px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-2);
+}
+.terms-group-container .term-delete-btn {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 20px;
+  height: 20px;
+  background: var(--bg-hover);
+  color: var(--ink-4);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+.terms-group-container .term-delete-btn:hover {
+  background: var(--bg-hover);
+}
+.terms-group-container .term-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  width: 24px;
+  height: 24px;
+  color: var(--ink-4);
+  background-color: var(--bg);
+  border: 1px dashed var(--ink-4);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.terms-group-container .term-add-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--info-bg);
+}
+.terms-group-container .term-add-btn::before {
+  content: "+";
+  font-size: 20px;
+  line-height: 1;
+  margin-top: -5px;
+  margin-left: -1px;
+}
+.terms-group-container .connect-text {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+  margin: 0 2px;
+}
+.terms-group-container .term-item-box {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+.terms-group-container .terms-scroll-area {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 12px 0;
+}
+.terms-group-container .terms-scroll-area::-webkit-scrollbar {
+  height: 6px;
+}
+.terms-group-container .terms-scroll-area::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ink-1) 10%, transparent);
+  border-radius: var(--r-1);
+}
+.terms-group-container .terms-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.terms-group-container .terms-scroll-area:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ink-1) 20%, transparent);
+}
+.terms-group-container .term-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  cursor: default;
+}
+.terms-group-container .term-item.can-delete:hover {
+  border-color: var(--line);
+  box-shadow: var(--shadow-1);
+}
+.terms-group-container .term-item.can-delete:hover > .term-delete-btn {
+  opacity: 1;
+  transform: scale(1);
+}
 </style>

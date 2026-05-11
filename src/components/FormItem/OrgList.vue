@@ -203,22 +203,18 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .org-list-warp {
   width: 100%;
   display: flex;
   gap: 8px;
-
-  .tag-blue {
-    background: #e6f7ff;
-    border-color: #91d5ff;
-    color: #096dd9;
-  }
-
-  :deep(.ant-select-selection-overflow-item){
-    & > span {
-      width: 100%;
-    }
-  }
+}
+.org-list-warp .tag-blue {
+  background: var(--info-bg);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--bg));
+  color: var(--accent);
+}
+.org-list-warp :deep(.ant-select-selection-overflow-item) > span {
+  width: 100%;
 }
 </style>

@@ -28,6 +28,6 @@ const onChange = (e) => {
 // })
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 
 </style>

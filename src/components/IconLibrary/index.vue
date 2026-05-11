@@ -69,31 +69,28 @@ watch(
 )
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .container {
   width: 70px;
   height: 70px;
-  border: 1px dashed #d9d9d9;
+  border: 1px dashed var(--line);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--r-2);
   cursor: pointer;
   transition: all 0.3s;
-
-  &:hover {
-    border-color: #415ed1;
-    background-color: #f5f7ff;
-  }
-
-  .icon-display {
-    font-size: 32px;
-    color: #415ed1;
-  }
-
-  .no-icon {
-    color: #00000077;
-    font-size: 22px;
-  }
+}
+.container:hover {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+}
+.container .icon-display {
+  font-size: 32px;
+  color: var(--accent);
+}
+.container .no-icon {
+  color: color-mix(in srgb, var(--ink-1) 47%, transparent);
+  font-size: 22px;
 }
 </style>

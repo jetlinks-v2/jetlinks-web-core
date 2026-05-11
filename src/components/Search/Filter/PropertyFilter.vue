@@ -321,162 +321,138 @@ defineExpose({
   </div>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 .property-filter {
   width: 100%;
   padding: 24px;
   margin-bottom: 24px;
-  background: #fff;
-
-  &__toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 20px;
-  }
-
-  &__conditions {
-    display: flex;
-    flex: 1;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-  }
-
-  &__tools {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 16px;
-    justify-content: flex-end;
-    margin-left: auto;
-  }
-
-  &__search {
-    width: 300px;
-  }
-
-  &__clear {
-    padding: 0;
-    color: #165dff;
-    font-size: 14px;
-    line-height: 22px;
-    white-space: nowrap;
-    background: transparent;
-    border: 0;
-    cursor: pointer;
-  }
+  background: var(--bg);
 }
-
+.property-filter__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+}
+.property-filter__conditions {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.property-filter__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+.property-filter__search {
+  width: 300px;
+}
+.property-filter__clear {
+  padding: 0;
+  color: var(--accent);
+  font-size: var(--fs-14);
+  line-height: 22px;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
 .filter-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   min-height: 36px;
   padding: 6px 12px;
-  color: #1d2129;
-  font-size: 14px;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
   line-height: 20px;
-  background: #fff;
-  border: 1px solid #d9dde3;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
   cursor: pointer;
   transition: all 0.2s ease;
-
-  &:hover {
-    border-color: #165dff;
-  }
-
-  &--active {
-    padding-left: 8px;
-  }
-
-  &--ghost {
-    border-style: dashed;
-  }
-
-  &__remove {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    padding: 0;
-    color: #4e5969;
-    background: transparent;
-    border: 0;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  &__text {
-    max-width: 240px;
-    overflow: hidden;
-    color: #165dff;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &__label {
-    color: #1d2129;
-  }
-
-  &__operator {
-    color: #4e5969;
-  }
-
-  &__arrow {
-    color: #86909c;
-    font-size: 12px;
-  }
 }
-
+.filter-chip:hover {
+  border-color: var(--accent);
+}
+.filter-chip--active {
+  padding-left: 8px;
+}
+.filter-chip--ghost {
+  border-style: dashed;
+}
+.filter-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: var(--ink-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-1);
+  cursor: pointer;
+}
+.filter-chip__text {
+  max-width: 240px;
+  overflow: hidden;
+  color: var(--accent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filter-chip__label {
+  color: var(--ink-1);
+}
+.filter-chip__operator {
+  color: var(--ink-2);
+}
+.filter-chip__arrow {
+  color: var(--ink-3);
+  font-size: var(--fs-12);
+}
 .filter-logic {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: 36px;
   padding: 7px 12px;
-  color: #1d2129;
-  font-size: 14px;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
   line-height: 20px;
-  background: #fff;
-  border: 1px solid #d9dde3;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
   border-radius: 10px;
   cursor: pointer;
-
-  &:hover {
-    border-color: #165dff;
-  }
 }
-
+.filter-logic:hover {
+  border-color: var(--accent);
+}
 @media (max-width: 1200px) {
-  .property-filter {
-    &__toolbar {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    &__tools {
-      justify-content: space-between;
-    }
-
-    &__search {
-      width: 100%;
-    }
+  .property-filter__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .property-filter__tools {
+    justify-content: space-between;
+  }
+  .property-filter__search {
+    width: 100%;
   }
 }
-
 @media (max-width: 768px) {
   .property-filter {
     padding: 16px;
-
-    &__tools {
-      flex-direction: column;
-      align-items: stretch;
-    }
   }
-
+  .property-filter__tools {
+    flex-direction: column;
+    align-items: stretch;
+  }
   .filter-chip__text {
     max-width: 180px;
   }

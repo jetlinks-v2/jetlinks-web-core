@@ -37,23 +37,20 @@ defineProps({
 })
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .title-value {
   display: flex;
-  gap: .5rem;
-
-  .title {
-    color: @font-gray-500;
-    white-space: nowrap;
-
-    .icon {
-      color: @primary-color;
-    }
-  }
-
-  .value {
-    flex: 1 1 0;
-    color: @font-gray-600;
-  }
+  gap: 0.5rem;
+}
+.title-value .title {
+  color: var(--jet-theme-text-secondary, var(--ink-3));
+  white-space: nowrap;
+}
+.title-value .title .icon {
+  color: var(--jet-theme-primary, var(--accent));
+}
+.title-value .value {
+  flex: 1 1 0;
+  color: var(--jet-theme-text, var(--ink-3));
 }
 </style>

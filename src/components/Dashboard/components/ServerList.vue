@@ -52,28 +52,23 @@ watch(() => JSON.stringify(props.value), () => {
 
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .server-list-warp {
- padding: 0 12px;
- margin-top: 12px;
-
- .server-list-items {
-   display: flex;
-   gap: 24px;
-
-   .server-item {
-     cursor: pointer;
-     :deep(.ant-badge-status-text) {
-       color: #a3a3a3;
-       transition: color .3s;
-     }
-
-     &.active {
-       :deep(.ant-badge-status-text) {
-         color: #000;
-       }
-     }
-   }
- }
+  padding: 0 12px;
+  margin-top: 12px;
+}
+.server-list-warp .server-list-items {
+  display: flex;
+  gap: 24px;
+}
+.server-list-warp .server-list-items .server-item {
+  cursor: pointer;
+}
+.server-list-warp .server-list-items .server-item :deep(.ant-badge-status-text) {
+  color: var(--ink-4);
+  transition: color 0.3s;
+}
+.server-list-warp .server-list-items .server-item.active :deep(.ant-badge-status-text) {
+  color: var(--ink-1);
 }
 </style>

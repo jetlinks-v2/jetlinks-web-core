@@ -69,6 +69,6 @@ type Emits = {
 const emit = defineEmits<Emits>();
 </script>
 
-<style lang="less" scoped>
-@import './mediaTool.less';
+<style scoped>
+@import './mediaTool.css';
 </style>

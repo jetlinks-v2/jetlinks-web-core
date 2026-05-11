@@ -796,7 +796,7 @@ defineExpose({
 })
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .mp-res-layout {
   display: flex;
   flex-direction: column;
@@ -807,7 +807,7 @@ defineExpose({
 .mp-res-layout__types {
   flex-shrink: 0;
   margin-bottom: 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid color-mix(in srgb, var(--ink-1) 6%, transparent);
 }
 .mp-res-layout__tabs :deep(.ant-tabs-nav) {
   margin-bottom: 0;
@@ -845,9 +845,9 @@ defineExpose({
   }
 }
 .mp-res-layout__aside-title {
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--ink-4);
   text-transform: uppercase;
   letter-spacing: 0.02em;
   margin-bottom: 10px;
@@ -869,25 +869,23 @@ defineExpose({
   justify-content: space-between;
   gap: 8px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--r-3);
   background: transparent;
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--ink-4);
   line-height: 1.35;
   user-select: none;
   cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 .mp-res-layout__sidebar-classifier:hover {
-  border-color: rgba(22, 119, 255, 0.18);
-  background: rgba(22, 119, 255, 0.04);
+  border-color: color-mix(in srgb, var(--accent) 18%, transparent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
 }
 .mp-res-layout__sidebar-classifier--active {
-  color: #0958d9;
+  color: var(--jet-theme-primary-active);
 }
 .mp-res-layout__sidebar-classifier-name {
   flex: 1;
@@ -912,16 +910,16 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--fs-11);
   line-height: 1;
 }
 .mp-res-layout__sidebar-classifier-count {
-  background: rgba(15, 23, 42, 0.06);
-  color: rgba(0, 0, 0, 0.45);
+  background: color-mix(in srgb, var(--ink-2) 6%, transparent);
+  color: var(--ink-4);
 }
 .mp-res-layout__sidebar-classifier-picked {
-  background: rgba(22, 119, 255, 0.12);
-  color: #0958d9;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--jet-theme-primary-active);
 }
 .mp-res-layout__sidebar-classifier-caret {
   transition: transform 0.15s ease;
@@ -941,30 +939,24 @@ defineExpose({
   text-align: left;
   padding: 8px 10px;
   border: 1px solid transparent;
-  border-radius: 6px;
-  background: #fff;
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.75);
+  border-radius: var(--r-2);
+  background: var(--bg);
+  font-size: var(--fs-13);
+  color: var(--ink-2);
   cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 .mp-res-layout__tag:hover {
-  border-color: rgba(22, 119, 255, 0.25);
-  color: #1677ff;
-  box-shadow: 0 4px 12px rgba(22, 119, 255, 0.08);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--accent);
+  box-shadow: var(--shadow-1);
   transform: translateY(-1px);
 }
 .mp-res-layout__tag--active {
-  border-color: #0958d9;
-  background: linear-gradient(180deg, rgba(22, 119, 255, 0.08), rgba(22, 119, 255, 0.04));
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.96) inset,
-    0 0 0 3px rgba(22, 119, 255, 0.14);
-  color: #0958d9;
+  border-color: var(--jet-theme-primary-active);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 96%, transparent) inset, 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--jet-theme-primary-active);
   font-weight: 500;
 }
 .mp-res-layout__main {
@@ -974,10 +966,10 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #fff;
+  background: var(--bg);
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-1);
 }
 .mp-res-layout--fixed {
   min-height: 0;
@@ -997,10 +989,10 @@ defineExpose({
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: #fff;
+  background: var(--bg);
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-1);
 }
 .mp-res-layout__list-scroll {
   flex: 1;
@@ -1016,8 +1008,8 @@ defineExpose({
 }
 .mp-res-layout__list-end {
   text-align: center;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.35);
+  font-size: var(--fs-12);
+  color: var(--ink-4);
   padding: 4px 0 8px;
 }
 .mp-res-layout__toolbar {
@@ -1033,28 +1025,28 @@ defineExpose({
   gap: 8px;
   flex-wrap: wrap;
   padding: 10px 12px;
-  border: 1px solid rgba(22, 119, 255, 0.12);
+  border: 1px solid color-mix(in srgb, var(--accent) 12%, transparent);
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(22, 119, 255, 0.05), rgba(22, 119, 255, 0.02));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), color-mix(in srgb, var(--accent) 2%, transparent));
 }
 .mp-res-layout__selected-title {
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 600;
-  color: #0958d9;
+  color: var(--jet-theme-primary-active);
   flex-shrink: 0;
 }
 .mp-res-layout__selected-clear {
   border: none;
   background: transparent;
   padding: 0;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.45);
+  font-size: var(--fs-12);
+  color: var(--ink-4);
   cursor: pointer;
   margin-left: auto;
   flex-shrink: 0;
 }
 .mp-res-layout__selected-clear:hover {
-  color: #1677ff;
+  color: var(--accent);
 }
 .mp-res-layout__selected-list {
   display: flex;

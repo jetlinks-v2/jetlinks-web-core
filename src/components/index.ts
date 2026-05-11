@@ -1,4 +1,4 @@
-import type { App } from 'vue'
+import type { App, Component, Plugin } from 'vue'
 import TitleComponent from './TitleComponent/index.vue'
 import ImageUpload from "./Upload/Image/ImageUpload.vue";
 import CardBox from './CardBox/index.vue';
@@ -38,6 +38,20 @@ import RegistryComponent from './RegisterComponents'
 import { TagManagerSidebar } from './TagManagerSidebar'
 import ConditionFilter from './ConditionFilter'
 import QuickFilterSidebar from './QuickFilterSidebar'
+import Avatar from './Avatar/index.vue'
+import AppTag from './AppTag/index.vue'
+import AmbientCard from './AmbientCard/index.vue'
+import ChipGroup from './ChipGroup/index.vue'
+import CodeBlock from './CodeBlock/index.vue'
+import EntityCard from './EntityCard/index.vue'
+import JlConfirmDialog from './JlConfirmDialog/index.vue'
+import JlDrawerShell from './JlDrawerShell/index.vue'
+import KvGrid from './KvGrid/index.vue'
+import MetaChip from './MetaChip/index.vue'
+import OutputSchemaEditor from './OutputSchemaEditor/index.vue'
+import ResponsiveGrid from './ResponsiveGrid/index.vue'
+import SectionCard from './SectionCard/index.vue'
+import StickyActionBar from './StickyActionBar/index.vue'
 
 export default {
     install(app: App) {
@@ -58,7 +72,7 @@ export default {
             .component('CheckButton',CheckButton)
             .component('SelectAMap', SelectAMap)
           .component('MonacoEditor', MonacoEditor)
-          .component(TimeSelect.name, TimeSelect)
+          .component(TimeSelect.name || 'TimeSelect', TimeSelect)
           .component('FullCalendar', FullCalendar)
           .component('Image', Image)
           .component('EditDialog', EditDialog)
@@ -83,11 +97,25 @@ export default {
           .component('TagManagerSidebar', TagManagerSidebar)
           .component('ConditionFilter', ConditionFilter)
           .component('QuickFilterSidebar', QuickFilterSidebar)
+          .component('Avatar', Avatar)
+          .component('AppTag', AppTag)
+          .component('AmbientCard', AmbientCard)
+          .component('ChipGroup', ChipGroup)
+          .component('CodeBlock', CodeBlock)
+          .component('EntityCard', EntityCard)
+          .component('JlConfirmDialog', JlConfirmDialog)
+          .component('JlDrawerShell', JlDrawerShell)
+          .component('KvGrid', KvGrid)
+          .component('MetaChip', MetaChip)
+          .component('OutputSchemaEditor', OutputSchemaEditor)
+          .component('ResponsiveGrid', ResponsiveGrid)
+          .component('SectionCard', SectionCard)
+          .component('StickyActionBar', StickyActionBar)
 
-        Object.keys(FormItemValue).forEach(key => {
-            app.component(key, FormItemValue[key])
+        Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
+            app.component(key, component)
         })
 
-        app.use(Echarts)
+        app.use(Echarts as unknown as Plugin)
     }
 }

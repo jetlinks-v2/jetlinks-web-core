@@ -15,8 +15,11 @@
           />
         </a-form-item>
         <a-form-item :label="$t('Basis.Form.436809-2')" name="headerTheme">
-          <a-select v-model:value="formData.headerTheme" :options="headerThemeAreas">
-          </a-select>
+          <a-select
+            v-model:value="formData.headerTheme"
+            :options="headerThemeAreas"
+            @change="changeHeaderTheme"
+          />
         </a-form-item>
         <!-- 高德地图API Key输入框 <AIcon type="QuestionCircleOutlined" /> -->
 
@@ -140,13 +143,14 @@
 
 <script lang="ts" name="BasicForm" setup>
 import {reactive, ref} from 'vue'
-import {useRequest} from '@jetlinks-web/hooks';
 import {save_api} from '@jetlinks-web-core/api/system/basis';
 import {useSystemStore} from '@jetlinks-web-core/store/system';
 import Upload from './components/upload/upload.vue'
 import {onlyMessage} from '@jetlinks-web/utils';
 import {omit} from "lodash-es";
 import { useI18n } from 'vue-i18n';
+import { type ThemeStyleKey } from '@jetlinks-web-core/utils';
+import { useHeaderTheme } from '@jetlinks-web-core/hooks';
 
 const { t: $t } = useI18n();
 const props = defineProps({
@@ -157,10 +161,16 @@ const props = defineProps({
 })
 
 const system = useSystemStore()
+const {
+  headerThemeAreas,
+  normalizeHeaderTheme,
+  applyHeaderTheme,
+  createHeaderThemeChange
+} = useHeaderTheme()
 // 表单数据
 const formData = reactive({
   title: "",  // 系统名称
-  headerTheme: "light",  // 主题色
+  headerTheme: "light" as ThemeStyleKey, // 界面风格
   apiKey: "",  // 高德API Key
   webKey: "", // 高德web key
   secretKey: "", // 高德web key
@@ -204,21 +214,16 @@ const formRules = {
   ]
 }
 
-// 主题色下拉框选项
-const headerThemeAreas = ref([
-  {label: $t('Basis.Form.436809-21'), value: 'light'},
-  {label: $t('Basis.Form.436809-22'), value: 'dark'}
-])
+const changeHeaderTheme = createHeaderThemeChange(formData)
 
 
 // 修改系统信息
 const getDetails = async () => {
   await system.queryInfo()
   const configInfo = system.systemInfo;
-
   Object.assign(formData, {
     title: configInfo.front?.title,
-    headerTheme: configInfo.front?.headerTheme || 'light',
+    headerTheme: normalizeHeaderTheme(configInfo.front?.headerTheme),
     logo: configInfo.front?.logo || '/logo.png',
     ico: configInfo.front?.ico || '/favicon.ico',
     showRecordNumber: configInfo.front?.showRecordNumber || false,
@@ -234,17 +239,6 @@ const getDetails = async () => {
 // 回显数据
 onMounted(() => {
   getDetails()
-})
-
-// 保存请求
-const {run} = useRequest(save_api, {
-  immediate: false,
-  onSuccess(res) {
-    if (res.success) {
-      onlyMessage($t('Basis.Form.436809-23'), 'success')
-      getDetails()
-    }
-  }
 })
 
 // 提交表单
@@ -276,8 +270,15 @@ const submit = () => {
           },
         },
       ]
-      run(params).then(resp => {
-        resolve(true)
+      save_api(params).then(resp => {
+        if (resp.success) {
+          onlyMessage($t('Basis.Form.436809-23'), 'success')
+          getDetails()
+          applyHeaderTheme(formData.headerTheme)
+          resolve(true)
+        } else {
+          reject(false)
+        }
       }).catch(() => {
         reject(false)
       })
@@ -294,28 +295,28 @@ defineExpose({
 
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .form-container {
   display: flex;
   overflow-y: auto;
+}
 
-  .form-left {
-    height: inherit;
-    width: 50%;
-  }
+.form-left {
+  height: inherit;
+  width: 50%;
+}
 
-  .form-right {
-    padding-left: 12px;
-    width: 50%;
+.form-right {
+  padding-left: 12px;
+  width: 50%;
+}
 
-    .form-right-bgImage {
-      width: 100%;
+.form-right-bgImage {
+  width: 100%;
+}
 
-      .bgImage-div {
-        width: 550px;
-        height: 400px;
-      }
-    }
-  }
+.bgImage-div {
+  width: 550px;
+  height: 400px;
 }
 </style>

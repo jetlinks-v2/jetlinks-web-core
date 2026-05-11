@@ -257,6 +257,16 @@ const init = () => {
   }
 };
 
+const playToggle = () => {
+  if (player) {
+    if (rtcData.playStatus === Events.PAUSE) {
+      play()
+    } else {
+      pause()
+    }
+  }
+}
+
 watch(
   () => props.url,
   () => {
@@ -279,7 +289,7 @@ defineExpose({
   paused,
 });
 </script>
-<style lang="less" scoped>
+<style scoped>
 :deep(.live-player-stretch-btn) {
   display: none;
 }
@@ -289,11 +299,11 @@ defineExpose({
 .media-player-container {
   width: 100%;
   height: 100%;
-  background-color: #000;
+  background-color: var(--ink-1);
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #fff;
+  color: var(--accent-ink);
   position: relative;
 }
 
@@ -318,10 +328,10 @@ defineExpose({
 
 .rtc-video-content {
   position: relative;
+}
 
-  video::-webkit-media-controls-enclosure {
-    display: none;
-  }
+.rtc-video-content video::-webkit-media-controls-enclosure {
+  display: none;
 }
 
 .rtc-tool {
@@ -333,9 +343,9 @@ defineExpose({
   background-image: linear-gradient(
     180deg,
     transparent,
-    rgba(0, 0, 0, 0.37),
-    rgba(0, 0, 0, 0.75),
-    rgba(0, 0, 0, 0.75)
+    color-mix(in srgb, var(--ink-1) 37%, transparent),
+    var(--ink-2),
+    var(--ink-2)
   );
   transition:
     opacity 0.5s ease,
@@ -345,8 +355,9 @@ defineExpose({
   padding: 4px 12px 0;
   align-items: center;
 
-  .right {
-    margin-left: auto;
-  }
+}
+
+.rtc-tool .right {
+  margin-left: auto;
 }
 </style>

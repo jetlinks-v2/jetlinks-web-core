@@ -589,70 +589,70 @@ setTimeout(() => {
   });
 }, 300);
 </script>
-<style lang="less" scoped>
+<style scoped>
 :deep(.fc-header-toolbar) {
-  background-color: #edebeb;
+  background-color: var(--line-strong);
 }
 .calendarContainer {
   position: relative;
   padding: 44px 24px 0;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--line);
   border-radius: 12px;
-  .compareTip {
-    position: absolute;
-    right: 20%;
-    top: 27px;
-    transform: translateX(40%);
-  }
-  .skip {
-    position: absolute;
-    right: 0;
-    top: 27px;
-  }
-  .compareSave {
-    position: absolute;
-    right: 10px;
-    top: 22px;
-  }
-  .calenderButton {
-    position: absolute;
-    top: 22px;
-  }
-  .event {
-    position: relative;
-    height: 32px;
-    padding: 6px;
-    color: #1a1a1a;
-    display: flex;
-
-    .closeBtn {
-      position: absolute;
-      right: 0;
-      top: 0;
-      color: #777777;
-      display: none;
-      font-size: 16px;
-    }
-  }
-  .event:hover {
-    .closeBtn {
-      display: inline-block;
-    }
-  }
-  .decoration {
-    width: 4px;
-    height: 16px;
-    border-radius: 2px;
-    margin: 2px 4px;
-    display: inline-block;
-  }
-  .event-title {
-    white-space: nowrap; /* 不换行 */
-    overflow: hidden; /* 超出部分隐藏 */
-    text-overflow: ellipsis; /* 显示省略号 */
-    width: calc(100% - 30px);
-    font-size: 14px;
-  }
+}
+.calendarContainer .compareTip {
+  position: absolute;
+  right: 20%;
+  top: 27px;
+  transform: translateX(40%);
+}
+.calendarContainer .skip {
+  position: absolute;
+  right: 0;
+  top: 27px;
+}
+.calendarContainer .compareSave {
+  position: absolute;
+  right: 10px;
+  top: 22px;
+}
+.calendarContainer .calenderButton {
+  position: absolute;
+  top: 22px;
+}
+.calendarContainer .event {
+  position: relative;
+  height: 32px;
+  padding: 6px;
+  color: var(--ink-1);
+  display: flex;
+}
+.calendarContainer .event .closeBtn {
+  position: absolute;
+  right: 0;
+  top: 0;
+  color: var(--ink-3);
+  display: none;
+  font-size: 16px;
+}
+.calendarContainer .event:hover .closeBtn {
+  display: inline-block;
+}
+.calendarContainer .decoration {
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  margin: 2px 4px;
+  display: inline-block;
+}
+.calendarContainer .event-title {
+  white-space: nowrap;
+  /* 不换行 */
+  overflow: hidden;
+  /* 超出部分隐藏 */
+  text-overflow: ellipsis;
+  /* 显示省略号 */
+  width: calc(100% - 30px);
+  font-size: var(--fs-14);
 }
 :deep(.fc-highlight) {
   background-color: transparent;
@@ -661,102 +661,104 @@ setTimeout(() => {
   position: fixed;
   z-index: 99999;
   padding: 5px 10px;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: var(--ink-2);
   border-radius: 5px;
-  color: white;
+  color: var(--accent-ink);
 }
 :deep(.fc-theme-standard th) {
   border: none;
 }
 :deep(.fc-theme-standard td) {
   border: none;
-  border-top: 1px solid #cccccc;
+  border-top: 1px solid var(--line);
 }
 :deep(.fc-theme-standard .fc-scrollgrid) {
   border: none;
 }
-:deep(.fc) {
-  .fc-col-header-cell-cushion {
-    color: #777777;
-  }
-  th {
-    text-align: right;
-    color: #777777;
-  }
-  table {
-    border-collapse: separate;
-    border-spacing: 5px 0;
-  }
-  .fc-daygrid-day.fc-day-today {
-    background-color: transparent;
-    .fc-daygrid-day-number {
-      background-color: #1677ff;
-      color: white;
-      border-radius: 50%;
-      width: 30px;
-      text-align: center;
-    }
-  }
-  .fc-event {
-    border: none !important;
-  }
-  .fc-daygrid-event-harness {
-    margin: 0 4px;
-    margin-top: 4px !important;
-    border-radius: 6px;
-  }
-  .fc-daygrid-day-frame {
-    height: 155px;
-    .fc-daygrid-day-events {
-      max-height: 120px;
-      overflow-y: auto;
-      &::-webkit-scrollbar-thumb {
-        background-color: #d0d0d0; /* 滚动条拖动部分颜色 */
-        border-radius: 4px; /* 滚动条拖动部分圆角 */
-      }
-    }
-  }
-  .fc-scroller {
-    &::-webkit-scrollbar {
-      width: 5px; /* 滚动条宽度 */
-      background-color: #fff; /* 滚动条背景色 */
-    }
-    &::-webkit-scrollbar-thumb {
-      background-color: #d0d0d0; /* 滚动条拖动部分颜色 */
-      border-radius: 4px; /* 滚动条拖动部分圆角 */
-    }
-  }
+:deep(.fc) .fc-col-header-cell-cushion {
+  color: var(--ink-3);
+}
+:deep(.fc) th {
+  text-align: right;
+  color: var(--ink-3);
+}
+:deep(.fc) table {
+  border-collapse: separate;
+  border-spacing: 5px 0;
+}
+:deep(.fc) .fc-daygrid-day.fc-day-today {
+  background-color: transparent;
+}
+:deep(.fc) .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+  background-color: var(--accent);
+  color: var(--accent-ink);
+  border-radius: 50%;
+  width: 30px;
+  text-align: center;
+}
+:deep(.fc) .fc-event {
+  border: none !important;
+}
+:deep(.fc) .fc-daygrid-event-harness {
+  margin: 0 4px;
+  margin-top: 4px !important;
+  border-radius: var(--r-2);
+}
+:deep(.fc) .fc-daygrid-day-frame {
+  height: 155px;
+}
+:deep(.fc) .fc-daygrid-day-frame .fc-daygrid-day-events {
+  max-height: 120px;
+  overflow-y: auto;
+}
+:deep(.fc) .fc-daygrid-day-frame .fc-daygrid-day-events::-webkit-scrollbar-thumb {
+  background-color: var(--line);
+  /* 滚动条拖动部分颜色 */
+  border-radius: var(--r-1);
+  /* 滚动条拖动部分圆角 */
+}
+:deep(.fc) .fc-scroller::-webkit-scrollbar {
+  width: 5px;
+  /* 滚动条宽度 */
+  background-color: var(--bg);
+  /* 滚动条背景色 */
+}
+:deep(.fc) .fc-scroller::-webkit-scrollbar-thumb {
+  background-color: var(--line);
+  /* 滚动条拖动部分颜色 */
+  border-radius: var(--r-1);
+  /* 滚动条拖动部分圆角 */
 }
 :deep(.fc-scrollgrid-section-body > td) {
   border: none !important;
 }
 :deep(.fc-daygrid-day-number) {
-  color: #1a1a1a;
+  color: var(--ink-1);
   font-weight: 600;
 }
 </style>
 <style>
 .calendarContainer {
   .fc-event {
-    background: #edf5ff !important;
+    background: var(--info-bg) !important;
   }
   .fc-daygrid-day-events {
     &::-webkit-scrollbar {
       width: 5px; /* 滚动条宽度 */
-      background-color: #fff; /* 滚动条背景色 */
+      background-color: var(--bg); /* 滚动条背景色 */
     }
   }
 }
 
 .selectedDate {
-  background-color: #edf5ff !important;
+  background-color: var(--info-bg) !important;
   .fc-event {
-    background: #fff !important;
+    background: var(--bg) !important;
   }
   .fc-daygrid-day-events {
     &::-webkit-scrollbar {
       width: 5px; /* 滚动条宽度 */
-      background-color: #edf5ff; /* 滚动条背景色 */
+      background-color: var(--info-bg); /* 滚动条背景色 */
     }
   }
 }

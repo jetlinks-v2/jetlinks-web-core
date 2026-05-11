@@ -183,60 +183,54 @@ onMounted(() => {
 defineExpose({ refreshManual })
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .echarts-item {
   display: flex;
   height: 150px;
   padding: 16px;
-  background-color: #fff;
-  // box-shadow: 0px 2.73036px 5.46071px rgba(31, 89, 245, 0.2);
-  border: 1px solid #e0e4e8;
+  background-color: var(--bg);
+  border: 1px solid var(--line-strong);
   border-radius: 2px;
-  .echarts-item-left {
-    display: flex;
-    flex-direction: column;
-    width: 45%;
-  }
-
-  .echarts-item-right {
-    width: 55%;
-  }
-
-  .echarts-item-title {
-    margin-bottom: 8px;
-    color: rgba(#000, 0.6);
-    font-size: 16px;
-  }
-
-  .echarts-item-value {
-    font-weight: bold;
-    font-size: 36px;
-    width: 100%;
-    overflow: hidden;
-    white-space: nowrap;
-    text-align: left;
-    text-overflow: ellipsis;
-  }
-
-  .echarts-item-bottom {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-    justify-content: center;
-    height: 0;
-    padding-left: 12px;
-
-    &::before {
-      position: absolute;
-      top: 50%;
-      left: 0;
-      width: 4px;
-      height: 12px;
-      background-color: #ff595e;
-      transform: translateY(-50%);
-      content: ' ';
-    }
-  }
+}
+.echarts-item .echarts-item-left {
+  display: flex;
+  flex-direction: column;
+  width: 45%;
+}
+.echarts-item .echarts-item-right {
+  width: 55%;
+}
+.echarts-item .echarts-item-title {
+  margin-bottom: 8px;
+  color: color-mix(in srgb, var(--ink-1) 60%, transparent);
+  font-size: 16px;
+}
+.echarts-item .echarts-item-value {
+  font-weight: bold;
+  font-size: 36px;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+.echarts-item .echarts-item-bottom {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  justify-content: center;
+  height: 0;
+  padding-left: 12px;
+}
+.echarts-item .echarts-item-bottom::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 4px;
+  height: 12px;
+  background-color: var(--err);
+  transform: translateY(-50%);
+  content: ' ';
 }
 </style>

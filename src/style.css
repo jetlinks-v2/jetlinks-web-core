@@ -1,3 +1,109 @@
+@layer theme, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source("../../");
+
+@theme inline {
+  --font-ali: AliRegular, sans-serif;
+  --color-jet-primary: var(--jet-theme-primary);
+  --color-jet-primary-hover: var(--jet-theme-primary-hover);
+  --color-jet-primary-active: var(--jet-theme-primary-active);
+  --color-jet-primary-soft: var(--jet-theme-primary-soft);
+  --color-jet-bg-base: var(--jet-theme-bg-base);
+  --color-jet-bg-layout: var(--jet-theme-bg-layout);
+  --color-jet-bg-container: var(--jet-theme-bg-container);
+  --color-jet-bg-elevated: var(--jet-theme-bg-elevated);
+  --color-jet-text: var(--jet-theme-text);
+  --color-jet-text-secondary: var(--jet-theme-text-secondary);
+  --color-jet-border: var(--jet-theme-border);
+  --color-jet-border-secondary: var(--jet-theme-border-secondary);
+  --radius-jet: var(--jet-theme-radius);
+  --radius-jet-lg: var(--jet-theme-radius-lg);
+  --radius-jet-sm: var(--jet-theme-radius-sm);
+  --shadow-jet: var(--jet-theme-shadow);
+  --shadow-jet-secondary: var(--jet-theme-shadow-secondary);
+  --color-jet-gray-0: #ffffff;
+  --color-jet-gray-50: #f8f9fa;
+  --color-jet-gray-200: #eff0f1;
+  --color-jet-gray-300: #e4e6e7;
+  --color-jet-gray-400: #c3c7cb;
+  --color-jet-gray-500: #8d9399;
+  --color-jet-gray-600: #646c73;
+  --color-jet-gray-900: #1f2429;
+}
+
+:root {
+  --jet-theme-primary: #1677FF;
+  --jet-theme-primary-hover: #4096FF;
+  --jet-theme-primary-active: #0958D9;
+  --jet-theme-primary-soft: #E6F4FF;
+  --jet-theme-bg-base: #FFFFFF;
+  --jet-theme-bg-layout: #F5F5F5;
+  --jet-theme-bg-container: #FFFFFF;
+  --jet-theme-bg-elevated: #FFFFFF;
+  --jet-theme-text: rgba(0, 0, 0, 0.88);
+  --jet-theme-text-secondary: rgba(0, 0, 0, 0.65);
+  --jet-theme-border: #D9D9D9;
+  --jet-theme-border-secondary: #F0F0F0;
+  --jet-theme-radius: 6px;
+  --jet-theme-radius-lg: 8px;
+  --jet-theme-radius-sm: 4px;
+  --jet-theme-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08);
+  --jet-theme-shadow-secondary: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --jet-theme-font-family: AliRegular, sans-serif;
+  --jet-theme-stroke-width: 1px;
+
+  --canvas: var(--jet-theme-bg-layout);
+  --bg: var(--jet-theme-bg-container);
+  --bg-elev: var(--jet-theme-bg-elevated);
+  --bg-sunken: var(--jet-theme-primary-soft);
+  --bg-hover: var(--jet-theme-border-secondary);
+  --line: var(--jet-theme-border);
+  --line-strong: var(--jet-theme-border-secondary);
+  --ink-1: var(--jet-theme-text);
+  --ink-2: var(--jet-theme-text-secondary);
+  --ink-3: color-mix(in srgb, var(--jet-theme-text-secondary) 75%, transparent);
+  --ink-4: color-mix(in srgb, var(--jet-theme-text-secondary) 52%, transparent);
+  --accent: var(--jet-theme-primary);
+  --accent-ink: #FFFFFF;
+  --accent-soft: var(--jet-theme-primary-soft);
+  --ok: var(--jet-theme-success);
+  --ok-bg: color-mix(in srgb, var(--jet-theme-success) 12%, var(--jet-theme-bg-container));
+  --warn: var(--jet-theme-warning);
+  --warn-bg: color-mix(in srgb, var(--jet-theme-warning) 14%, var(--jet-theme-bg-container));
+  --err: var(--jet-theme-error);
+  --err-bg: color-mix(in srgb, var(--jet-theme-error) 12%, var(--jet-theme-bg-container));
+  --info: var(--jet-theme-primary);
+  --info-bg: var(--jet-theme-primary-soft);
+  --font-sans: var(--jet-theme-font-family);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --fs-10: 10px;
+  --fs-10-5: 10.5px;
+  --fs-11: 11px;
+  --fs-11-5: 11.5px;
+  --fs-12: 12px;
+  --fs-12-5: 12.5px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --r-1: var(--jet-theme-radius-sm);
+  --r-2: var(--jet-theme-radius);
+  --r-3: var(--jet-theme-radius-lg);
+  --shadow-1: var(--jet-theme-shadow-secondary);
+  --shadow-pop: var(--jet-theme-shadow);
+  --shadow-lifted: var(--jet-theme-shadow);
+  --shadow-sticky-top: 0 -4px 12px rgba(0, 0, 0, 0.04);
+  --ambient-hero: linear-gradient(135deg, var(--jet-theme-primary-soft), var(--jet-theme-bg-elevated));
+  --ambient-cool: linear-gradient(135deg, var(--jet-theme-primary-soft), var(--jet-theme-bg-container));
+  --ambient-warm: linear-gradient(135deg, var(--jet-theme-bg-container), var(--jet-theme-primary-soft));
+  --code-dark-bg: #0F172A;
+  --code-dark-fg-1: #E2E8F0;
+  --code-dark-fg-2: #CBD5E1;
+  --code-dark-fg-3: #94A3B8;
+  --code-dark-line: rgb(255 255 255 / 0.06);
+  --code-dark-hover: rgb(255 255 255 / 0.08);
+}
+
 @font-face {
   font-family: AliRegular;
   src: url("/fonts/AlibabaPuHuiTi-2-55-Regular.woff2") format("woff2"),
@@ -5,7 +111,9 @@
 }
 
 body {
-  font-family: 'AliRegular' !important;
+  background: var(--jet-theme-bg-layout);
+  color: var(--jet-theme-text);
+  font-family: var(--jet-theme-font-family) !important;
 }
 
 *, :after, :before {

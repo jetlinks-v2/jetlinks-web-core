@@ -136,43 +136,38 @@ watch(
 
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .j-check-button {
   display: grid;
   gap: 12px 8px;
   width: 100%;
-
-  .j-check-button-item {
-    flex: 1;
-    min-width: 0;
-    padding: 8px;
-    border-radius: 20px;
-    background-color: #F8F9FA;
-    transition: all 0.3s;
-    color: #333;
-    text-align: center;
-    cursor: pointer;
-    border: 1px solid #F8F9FA;
-
-    &:hover {
-      background-color: #F1F7FF;
-      color: @primary-color;
-      opacity: 0.85;
-    }
-
-    &.selected {
-      background-color: #F1F7FF;
-      border-color: @primary-color;
-      color: @primary-color;
-    }
-
-    &.disabled {
-      cursor: not-allowed;
-      color: #00000040;
-      background-color: #e6e6e6;
-      opacity: 1
-    }
-  }
 }
-
+.j-check-button .j-check-button-item {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 20px;
+  background-color: var(--bg-hover);
+  transition: all 0.3s;
+  color: var(--ink-1);
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid var(--bg-hover);
+}
+.j-check-button .j-check-button-item:hover {
+  background-color: var(--accent-soft);
+  color: var(--jet-theme-primary, var(--accent));
+  opacity: 0.85;
+}
+.j-check-button .j-check-button-item.selected {
+  background-color: var(--accent-soft);
+  border-color: var(--jet-theme-primary, var(--accent));
+  color: var(--jet-theme-primary, var(--accent));
+}
+.j-check-button .j-check-button-item.disabled {
+  cursor: not-allowed;
+  color: color-mix(in srgb, var(--ink-1) 25%, transparent);
+  background-color: var(--line-strong);
+  opacity: 1;
+}
 </style>

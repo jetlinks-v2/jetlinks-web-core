@@ -64,28 +64,24 @@ watchEffect(() => {
 })
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .view-content {
-    display: flex;
-    justify-content: space-between;
-    .select-item {
-        cursor: pointer;
-        width: 30%;
-        border-radius: 14px;
-        color: #333333;
-        overflow: hidden;
-
-        img {
-            width: 100%;
-            height: 100%;
-            background-size: cover;
-        }
-
-        &:hover {
-            box-shadow: 0px 3px 6px -4px rgba(0, 0, 0, 0.12),
-                0px 6px 16px 0px rgba(0, 0, 0, 0.08),
-                0px 9px 16px 8px rgba(0, 0, 0, 0.1);
-        }
-    }
+  display: flex;
+  justify-content: space-between;
+}
+.view-content .select-item {
+  cursor: pointer;
+  width: 30%;
+  border-radius: 14px;
+  color: var(--ink-1);
+  overflow: hidden;
+}
+.view-content .select-item img {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+}
+.view-content .select-item:hover {
+  box-shadow: var(--shadow-1);
 }
 </style>

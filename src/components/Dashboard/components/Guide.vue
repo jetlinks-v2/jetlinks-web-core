@@ -20,39 +20,36 @@ interface guideProps {
 const props = defineProps<guideProps>();
 </script>
 
-<style scoped lang="less">
+<style scoped>
 .home-title {
- position: relative;
- z-index: 2;
- display: flex;
- justify-content: space-between;
- margin-bottom: 12px;
- padding-left: 18px;
- font-weight: 700;
- font-size: 18px;
-
- &::after {
-     position: absolute;
-     top: 50%;
-     left: 0;
-     width: 8px;
-     height: 8px;
-     background-color: @primary-color;
-     border: 1px solid #b4c0da;
-     transform: translateY(-50%);
-     content: ' ';
- }
-
- .extra-text {
-     font-size: 14px;
-     font-weight: 400;
- }
-
- .home-title-english {
-     position: absolute;
-     top: 30px;
-     color: rgba(0, 0, 0, 0.3);
-     font-size: 12px;
- }
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-left: 18px;
+  font-weight: 700;
+  font-size: 18px;
+}
+.home-title::after {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  background-color: var(--jet-theme-primary, var(--accent));
+  border: 1px solid var(--accent);
+  transform: translateY(-50%);
+  content: ' ';
+}
+.home-title .extra-text {
+  font-size: var(--fs-14);
+  font-weight: 400;
+}
+.home-title .home-title-english {
+  position: absolute;
+  top: 30px;
+  color: var(--ink-4);
+  font-size: var(--fs-12);
 }
 </style>

@@ -24,6 +24,6 @@ const label = computed(() => {
   </a-tag>
 </template>
 
-<style scoped lang="less">
+<style scoped>
 
 </style>

@@ -3,7 +3,7 @@ import type { UploadChangeParam, UploadProps } from 'ant-design-vue';
 /**基本信息表单 */
 export interface formState  {
   title: string; // 系统名称
-  headerTheme: string; // 主题色
+  headerTheme: string; // 界面风格
   showRecordNumber: boolean; //是否显示备案号
   recordNumber: string; //备案号
   basePath: string; // 系统后台访问的URL

@@ -3,7 +3,7 @@
     <slot name="alert">
       <div class="alert" v-if="message">
         <div>
-          <AIcon type="InfoCircleFilled" style="color: #2F54EB; margin-right: 10px;"/>
+          <AIcon type="InfoCircleFilled" style="color: var(--accent); margin-right: 10px;"/>
         </div>
         <span v-html="message"></span>
       </div>
@@ -34,12 +34,12 @@
         {{ $t('BatchImport.index.250528-5') }}
       </div>
       <div v-else>
-        <AIcon style="color: #08e21e; margin-right: 10px;font-size: 16px;" type="CheckCircleOutlined"/>
+        <AIcon style="color: var(--ok); margin-right: 10px;font-size: 16px;" type="CheckCircleOutlined"/>
         {{ $t('BatchImport.index.250528-6') }}
       </div>
       <div>{{ $t('BatchImport.index.250528-7') }}{{ result.success }}</div>
       <div>
-        {{ $t('BatchImport.index.250528-8') }}<span style="color: #ff595e">{{ result.error }}</span>
+        {{ $t('BatchImport.index.250528-8') }}<span style="color: var(--err)">{{ result.error }}</span>
         <a
             v-if="result.errMessage && result.error > 0"
             style="margin-left: 20px"
@@ -198,30 +198,29 @@ const downTemplate = async (type) => {
 };
 </script>
 
-<style lang="less" scoped>
+<style scoped>
 .alert {
   padding: 6px 12px;
-  border: 1px solid #CCCCCC;
-  border-radius: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
   margin-bottom: 16px;
-  background-color: #F5F5F5;
+  background-color: var(--canvas);
   display: flex;
   align-items: center;
 }
-
 .draggable-box {
   margin: 46px 0;
   display: flex;
   flex-direction: column;
-  color: #666666;
+  color: var(--ink-3);
   align-items: center;
-  .icon {
-    font-size: 30px;
-    color: @primary-color;
-  }
 }
-
-.result, .file-download {
+.draggable-box .icon {
+  font-size: 30px;
+  color: var(--jet-theme-primary, var(--accent));
+}
+.result,
+.file-download {
   margin-top: 16px;
 }
 </style>
