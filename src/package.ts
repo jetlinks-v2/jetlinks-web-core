@@ -1,6 +1,6 @@
 import { createApp, h } from 'vue'
 import { getToken, LocalStore, setToken } from '@jetlinks-web/utils'
-import { TOKEN_KEY_URL } from '@jetlinks-web/constants'
+import {TOKEN_KEY, TOKEN_KEY_URL} from '@jetlinks-web/constants'
 import { crateAxios, request, wsClient } from '@jetlinks-web/core'
 import { jumpLogin } from '@jetlinks-web-core/router'
 import { notification } from 'ant-design-vue'
@@ -28,6 +28,27 @@ let verifyHeadersCache: { key: string; token: string } | null = null
 
 /** 用于校验成功后重试原请求的 axios 实例（与拦截器使用同一实例） */
 let requestInstanceForRetry: any = null
+
+const getProjectIdFromLocation = () => {
+    const hashSegments = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean)
+    if (hashSegments[0] === 'project' && hashSegments[1]) {
+        return hashSegments[1]
+    }
+
+    const pathSegments = location.pathname.split('/').filter(Boolean)
+    if (pathSegments[0] === 'project' && pathSegments[1]) {
+        return pathSegments[1]
+    }
+
+    return pathSegments[0] || ''
+}
+
+const getProjectIdFromRequest = (config: any) => {
+    return config?.headers?.['X-Tenant-Domain']
+        || config?.headers?.['X-Project-Id']
+        || config?.projectId
+        || getProjectIdFromLocation()
+}
 
 /**
  * 初始化package
@@ -184,10 +205,16 @@ export const initAxios = () => {
                 }
             }
 
-            const tenantDomain = location.pathname?.split('/')[1] || localStorage.getItem('X-Tenant-Domain')
-            if (tenantDomain && !!import.meta.VITE_APP_ENVIRONMENT) {
+            const projectId = getProjectIdFromRequest(config)
+
+            if (projectId) {
                 config.headers = config.headers || {}
-                config.headers['X-Tenant-Domain'] = tenantDomain
+                config.headers['X-Tenant-Domain'] = projectId
+                config.headers[TOKEN_KEY] = localStorage.getItem(`${TOKEN_KEY}_${projectId}`)
+                const projectApi = localStorage.getItem(`X-Tenant-Api_${projectId}`) || localStorage.getItem('X-Tenant-Api')
+                if (projectApi) {
+                    config.baseURL = projectApi
+                }
             }
 
             if (cache?.key && cache?.token) {
