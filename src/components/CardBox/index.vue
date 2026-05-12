@@ -121,7 +121,7 @@
               <AIcon type="DeleteOutlined" v-if="item.key === 'delete'"/>
               <template v-else>
                 <AIcon :type="handleFuncValue(item.icon, value)"/>
-                <span>{{ handleFuncValue(item?.text, value) }} 1111</span>
+                <span>{{ handleFuncValue(item?.text, value) }}</span>
               </template>
             </j-permission-button>
           </slot>
