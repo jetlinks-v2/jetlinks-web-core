@@ -123,3 +123,10 @@ body {
 body {
   margin: 0
 }
+
+@layer utilities {
+  .container {
+    /* 你的自定义样式 */
+    max-width: 100%;
+  }
+}
