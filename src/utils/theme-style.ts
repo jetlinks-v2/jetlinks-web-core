@@ -72,6 +72,41 @@ export const getThemeStylePrimaryColor = (style?: unknown) => {
   return normalizeThemeColor(getThemeStyleToken(style).colorPrimary)
 }
 
+const ANTD_TOKEN_KEYS = new Set([
+  'colorPrimary',
+  'colorInfo',
+  'colorSuccess',
+  'colorWarning',
+  'colorError',
+  'colorBgBase',
+  'colorBgLayout',
+  'colorBgContainer',
+  'colorBgElevated',
+  'colorTextBase',
+  'colorText',
+  'colorTextSecondary',
+  'colorBorder',
+  'colorBorderSecondary',
+  'borderRadius',
+  'borderRadiusLG',
+  'borderRadiusSM',
+  'boxShadow',
+  'boxShadowSecondary',
+  'fontFamily',
+  'wireframe'
+])
+
+export const pickAntdToken = (token: ThemeStyleToken): Record<string, unknown> => {
+  const result: Record<string, unknown> = {}
+  for (const key of ANTD_TOKEN_KEYS) {
+    const val = (token as Record<string, unknown>)[key]
+    if (val !== undefined) {
+      result[key] = val
+    }
+  }
+  return result
+}
+
 const defaultThemeCssVars: Record<string, string> = {
   '--layout-menu-bg': 'var(--jet-theme-bg-container)',
   '--layout-menu-padding': '6px 0',

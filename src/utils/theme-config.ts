@@ -331,7 +331,7 @@ export const styleTokens = {
       '--layout-menu-item-height': '32px',
       '--layout-menu-item-radius': '6px',
       '--layout-menu-item-active-bg': '#F1F2F4',
-      '--layout-menu-item-active-color': '#1D1F24',
+      '--layout-menu-item-active-color': 'var(--jet-theme-primary)',
       '--layout-menu-item-active-line': 'var(--jet-theme-primary)',
       '--layout-menu-search-bg': '#F6F7F9',
       '--layout-menu-search-border': '#E6E7EB'
