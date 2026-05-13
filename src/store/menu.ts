@@ -128,6 +128,22 @@ const getCoreRouteOverrideMenus = (context?: RouteHideInMenuContext) => {
   return [...overrideMenuMap.values()]
 }
 
+const sortMenusBySortIndex = <T extends { meta?: Record<string, any> }>(menus: T[]): T[] => {
+  return [...menus]
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => {
+      const leftSortIndex = Number(left.item.meta?.sortIndex ?? 0)
+      const rightSortIndex = Number(right.item.meta?.sortIndex ?? 0)
+
+      if (leftSortIndex === rightSortIndex) {
+        return left.index - right.index
+      }
+
+      return leftSortIndex - rightSortIndex
+    })
+    .map(({ item }) => item)
+}
+
 export const useMenuStore = defineStore('menu', () => {
   const menusMap = ref<Map<string, any>>(new Map())
   const menu = ref<RouteRecordRaw[]>([])
@@ -186,16 +202,32 @@ export const useMenuStore = defineStore('menu', () => {
     const overrideMenus = getCoreRouteOverrideMenus({
       hasResponeMenu: hasResponeMenu.value,
     })
-    const overrideMenuKeys = new Set(menus.map(item => item.name))
-    const mergedMenus = [
+    const overrideMenuMap = new Map(overrideMenus.map(item => [item.name, item]))
+    const menusWithOverrideMeta = menus.map(item => {
+      const overrideMenu = overrideMenuMap.get(item.name)
+
+      if (overrideMenu?.meta?.sortIndex === undefined) {
+        return item
+      }
+
+      return {
+        ...item,
+        meta: {
+          ...item.meta,
+          sortIndex: overrideMenu.meta.sortIndex,
+        },
+      }
+    })
+    const overrideMenuKeys = new Set(menusWithOverrideMeta.map(item => item.name))
+    const mergedMenus = sortMenusBySortIndex([
       ...overrideMenus.filter(item => {
         const key = item.name
         if (overrideMenuKeys.has(key)) return false
         overrideMenuKeys.add(key)
         return true
       }),
-      ...menus,
-    ]
+      ...menusWithOverrideMeta,
+    ])
     const routerRoutes = router.getRoutes()
 
     const defaultRedirect = import.meta.env.VITE_DEFAULT_REDIRECT_PATH || '/account'

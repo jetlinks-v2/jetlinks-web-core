@@ -24,6 +24,8 @@ declare module 'vue-router' {
     skipMenuFetch?: boolean
     /** Page title */
     title?: string
+    /** Menu sort order */
+    sortIndex?: number
     /** Whether hidden in menu */
     hideInMenu?: boolean
     /** Dynamic hide condition for menu-related filtering. Return true to hide. */

@@ -11,6 +11,7 @@ type MenuItem = {
   i18nName: string
   code: string
   url: string
+  sortIndex?: number
   appId?: string
   isShow?: boolean
   buttons?: Buttons
@@ -44,6 +45,7 @@ const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
     icon: item.icon,
     desc: item.i18nDescribe || item.describe,
     title: item.i18nName || item.name,
+    sortIndex: item.sortIndex,
     hideInMenu: item.options?.show === false, // 隐藏菜单
     isApp
   }
