@@ -178,8 +178,8 @@ const read = (type: '_read' | '_unread') => {
 
         .btn {
             border: none;
-            background-color: #F1F4FF;
-            color: @primary-color;
+            background-color: var(--jet-theme-primary-soft, #E6F4FF);
+            color: var(--jet-theme-primary, #1677FF);
             padding: 0;
         }
     }

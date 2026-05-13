@@ -55,7 +55,7 @@ export default defineConfig(async ({ mode, command }) => {
     build: {
       outDir: moduleName ? path.resolve(envDir, `modules/${moduleName}/dist`) : path.resolve(envDir, `dist`),
       assetsDir: 'assets',
-      sourcemap: false,
+      sourcemap: true,
       cssCodeSplit: false,
       emptyOutDir: true,
       manifest: true,

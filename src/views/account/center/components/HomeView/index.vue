@@ -67,8 +67,8 @@ onMounted(() => {
         margin-top: 68px;
 
         button {
-            background-color: @primary-2;
-            color: @primary-color-hover;
+            background-color: var(--jet-theme-primary-soft, #E6F4FF);
+            color: var(--jet-theme-primary-hover, #4096FF);
         }
     }
 }

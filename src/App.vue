@@ -24,7 +24,7 @@ import {initPackages} from "@jetlinks-web-core/package";
 import { setToken} from "@jetlinks-web/utils";
 import { getBaseApi, initPersonal } from '@jetlinks-web-core/utils'
 import { componentsRegistry } from './utils/components-registry'
-import { applyThemeStyle } from '@jetlinks-web-core/utils/theme-style'
+import { applyThemeStyle, pickAntdToken } from '@jetlinks-web-core/utils/theme-style'
 
 const route = useRoute()
 const router = useRouter()
@@ -47,7 +47,7 @@ const themeConfig = computed(() => ({
   algorithm: systemStore.themeStyle === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
   token: {
     ...theme,
-    ...systemStore.themeStyleToken,
+    ...pickAntdToken(systemStore.themeStyleToken),
     colorPrimary: systemStore.themeColor,
     colorLink: systemStore.themeColor
   }

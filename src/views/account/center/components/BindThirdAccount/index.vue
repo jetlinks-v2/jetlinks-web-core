@@ -137,7 +137,7 @@ onMounted(() => {
         .content-item-right {
             :deep(button) {
                 &:hover {
-                    background-color: @primary-color;
+                    background-color: var(--jet-theme-primary, #1677FF);
                     color: #fff;
                 }
             }

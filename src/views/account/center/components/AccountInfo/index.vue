@@ -967,7 +967,7 @@ onUnmounted(() => {
       color: #86909c;
       padding: 0 4px;
       &:hover {
-        color: @primary-color;
+        color: var(--jet-theme-primary, #1677FF);
       }
     }
   }

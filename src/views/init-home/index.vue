@@ -173,7 +173,7 @@ const judgeInitSet = async () => {
         left: 0;
         width: 4px;
         height: 100%;
-        background-color: @primary-color;
+        background-color: var(--jet-theme-primary, #1677FF);
         border-radius: 0 3px 3px 0;
         content: '';
       }
@@ -366,8 +366,8 @@ const judgeInitSet = async () => {
         .btn-style {
           margin-top: 20px;
           color: #fff;
-          border-color: @primary-color;
-          background: @primary-color;
+          border-color: var(--jet-theme-primary, #1677FF);
+          background: var(--jet-theme-primary, #1677FF);
         }
       }
     }

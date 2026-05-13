@@ -68,7 +68,6 @@ export const styleTokens = {
     borderRadiusSM: 3,
     boxShadow: '0 3px 6px rgba(0, 0, 0, 0.16)',
     boxShadowSecondary: '0 1px 3px rgba(0, 0, 0, 0.12)',
-    fontFamily: 'Roboto, AliRegular, sans-serif'
   },
   cartoon: {
     label: '卡通风格',
@@ -138,7 +137,6 @@ export const styleTokens = {
     borderRadiusSM: 4,
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04)',
     boxShadowSecondary: '0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02)',
-    fontFamily: 'HarmonyOS Sans SC, Inter, AliRegular, sans-serif',
     layout: {
       menuVariant: 'compact-search',
       showMenuSearch: true,
