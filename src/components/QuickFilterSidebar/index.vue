@@ -444,7 +444,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 .quick-filter-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
   width: 232px;
   height: 100%;
   padding: var(--space-3);

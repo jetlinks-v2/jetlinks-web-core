@@ -938,7 +938,7 @@ onUnmounted(() => {
   }
 
   .identity-item {
-    padding: 10px 12px;
+    padding: var(--space-2) var(--space-3);
     background: #f7f8fa;
     border-radius: var(--r-2);
     margin-bottom: var(--space-2);
@@ -953,12 +953,12 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: var(--space-3) var(--space-4);
 
     .identity-item-left {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: var(--space-2);
     }
     .verified-tag {
       margin: 0;

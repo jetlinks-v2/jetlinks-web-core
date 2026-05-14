@@ -486,7 +486,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-items {
   display: flex;
   gap: var(--space-3);
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   overflow-x: auto;
   box-sizing: border-box;
 }
@@ -531,7 +531,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   background: var(--line-strong);
   border-bottom: 1px solid var(--line-strong);
   font-size: var(--fs-14);
@@ -561,7 +561,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-3);
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--line-strong);
   box-sizing: border-box;
   transition: background-color 0.3s ease;

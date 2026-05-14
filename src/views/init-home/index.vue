@@ -240,7 +240,7 @@ const judgeInitSet = async () => {
               width: 160px;
               height: 150px;
               padding: var(--space-2);
-              background-color: rgba(0, 0, 0, 0.06);
+              background-color: var(--jet-theme-border-secondary);
               cursor: pointer;
 
               .loading-logo {
@@ -279,7 +279,7 @@ const judgeInitSet = async () => {
                 height: 100%;
                 color: #fff;
                 font-size: var(--fs-16);
-                background-color: rgba(0, 0, 0, 0.35);
+                background-color: var(--jet-theme-text-disabled);
               }
 
               &:hover .upload-image-mask {
@@ -315,7 +315,7 @@ const judgeInitSet = async () => {
               width: 570px;
               height: 415px;
               padding: var(--space-2);
-              background-color: rgba(0, 0, 0, 0.06);
+              background-color: var(--jet-theme-border-secondary);
               cursor: pointer;
 
               .loading-back {
@@ -341,7 +341,7 @@ const judgeInitSet = async () => {
                 height: 100%;
                 color: #fff;
                 font-size: var(--fs-16);
-                background-color: rgba(0, 0, 0, 0.35);
+                background-color: var(--jet-theme-text-disabled);
               }
 
               &:hover .upload-image-mask {

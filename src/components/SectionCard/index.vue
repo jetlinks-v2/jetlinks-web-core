@@ -60,7 +60,7 @@ withDefaults(
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: var(--space-4);
   margin-bottom: var(--space-4);
   padding-bottom: 14px;
   border-bottom: 1px solid var(--line);

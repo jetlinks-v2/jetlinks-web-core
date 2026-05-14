@@ -241,7 +241,7 @@ onMounted(() => {
         }
 
         .menu-header {
-          padding: 12px 16px;
+          padding: var(--space-3) var(--space-4);
           background: #fafafa;
           cursor: pointer;
 

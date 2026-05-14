@@ -900,7 +900,7 @@ function selectVersion(v: string) {
   font-size: 0.9em;
 }
 .mp-card__release-md :deep(pre) {
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--r-3);
   background: color-mix(in srgb, var(--ink-2) 6%, transparent);
   overflow: auto;

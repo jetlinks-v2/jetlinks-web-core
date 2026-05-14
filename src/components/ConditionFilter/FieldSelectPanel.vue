@@ -123,7 +123,7 @@ watch(filteredColumns, syncActiveIntoView)
   box-shadow: var(--shadow-1);
 }
 .condition-field-panel__title {
-  padding: 4px 8px 2px;
+  padding: var(--space-1) var(--space-2) 2px;
   color: var(--ink-1);
   font-size: var(--fs-12);
   font-weight: 600;
@@ -143,7 +143,7 @@ watch(filteredColumns, syncActiveIntoView)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--space-2);
   width: 100%;
   padding: 6px 8px;
   text-align: left;

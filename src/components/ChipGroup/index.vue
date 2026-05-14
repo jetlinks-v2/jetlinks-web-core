@@ -71,7 +71,7 @@ function onClick(key: string) {
 }
 
 .style-wrapped {
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--r-2);
