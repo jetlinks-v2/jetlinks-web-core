@@ -1,0 +1,169 @@
+<template>
+  <a-tooltip :title="$t('components.HeaderThemeSwitch.title')">
+    <a-popover
+      v-model:open="open"
+      placement="bottomRight"
+      trigger="click"
+      overlay-class-name="header-theme-switch-overlay"
+    >
+      <a-button
+        class="header-theme-switch"
+        type="text"
+        :aria-label="$t('components.HeaderThemeSwitch.title')"
+      >
+        <template #icon>
+          <AIcon type="SkinOutlined" />
+        </template>
+      </a-button>
+      <template #content>
+        <div class="header-theme-switch-menu">
+          <button
+            v-for="item in themeOptions"
+            :key="item.value"
+            class="header-theme-switch-menu__item"
+            :class="{ 'header-theme-switch-menu__item--active': themeMode === item.value }"
+            type="button"
+            :disabled="saving"
+            @click="setThemeMode(item.value)"
+          >
+            <AIcon :type="item.icon" />
+            <span class="header-theme-switch-menu__text">
+              <span>{{ item.label }}</span>
+            </span>
+            <AIcon
+              v-if="themeMode === item.value"
+              type="CheckOutlined"
+              class="header-theme-switch-menu__check"
+            />
+          </button>
+        </div>
+      </template>
+    </a-popover>
+  </a-tooltip>
+</template>
+
+<script setup lang="ts" name="HeaderThemeSwitch">
+import { storeToRefs } from 'pinia'
+import { useHeaderTheme } from '@jetlinks-web-core/hooks'
+import { useSystemStore } from '@jetlinks-web-core/store/system'
+import type { ThemeStyleKey } from '@jetlinks-web-core/utils'
+
+type ThemeMode = ThemeStyleKey
+
+const systemStore = useSystemStore()
+const { themeStyle } = storeToRefs(systemStore)
+const { headerThemeAreas, applyHeaderTheme } = useHeaderTheme()
+
+const open = ref(false)
+const saving = ref(false)
+const themeMode = ref<ThemeMode>(themeStyle.value)
+
+const themeIconMap: Partial<Record<ThemeMode, string>> = {
+  light: 'SunOutlined',
+  dark: 'MoonOutlined'
+}
+
+const themeOptions = computed(() => headerThemeAreas.map(item => ({
+  ...item,
+  value: item.value as ThemeMode,
+  icon: themeIconMap[item.value as ThemeMode] || 'SkinOutlined'
+})))
+
+const setThemeMode = (mode: ThemeMode) => {
+  if (saving.value || mode === themeMode.value) {
+    open.value = false
+    return
+  }
+
+  saving.value = true
+  try {
+    themeMode.value = applyHeaderTheme(mode)
+    open.value = false
+  } finally {
+    saving.value = false
+  }
+}
+
+watch(themeStyle, (value) => {
+  themeMode.value = value
+})
+</script>
+
+<style scoped lang="less">
+.header-theme-switch {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--jet-theme-text-secondary);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  padding: 0 8px;
+  transition: background 0.16s ease, color 0.16s ease;
+
+  &:hover {
+    background: var(--jet-theme-border-secondary);
+    color: var(--jet-theme-text);
+  }
+
+  &__arrow {
+    font-size: 10px;
+  }
+}
+
+.header-theme-switch-menu {
+  width: 176px;
+  padding: var(--space-1);
+
+  &__item {
+    width: 100%;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: var(--r-2);
+    background: transparent;
+    color: var(--jet-theme-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.16s ease;
+
+    &:hover,
+    &--active {
+      background: var(--jet-theme-border-secondary);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+  }
+
+  &__text {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  &__check {
+    color: var(--jet-theme-primary);
+  }
+}
+</style>
+
+<style lang="less">
+.header-theme-switch-overlay {
+  .ant-popover-inner {
+    padding: var(--space-1);
+    border-radius: var(--r-3);
+  }
+}
+</style>
