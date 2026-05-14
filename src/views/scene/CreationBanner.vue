@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="creation-banner">
     <div class="banner-card">
       <!-- Header -->
@@ -291,7 +291,7 @@ function onClose() {
 
   .header-left {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     align-items: center;
   }
 
@@ -308,7 +308,7 @@ function onClose() {
     color: @blue;
     background: @blue-light;
     padding: 2px 6px;
-    border-radius: 6px;
+    border-radius: var(--r-2);
   }
 
   .cancel-btn {
@@ -330,7 +330,7 @@ function onClose() {
 .steps {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .step {
@@ -390,7 +390,7 @@ function onClose() {
 
 .progress-bar {
   height: 2px;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   background: @gray-50;
   border-radius: 2px;
   overflow: hidden;
@@ -415,10 +415,10 @@ function onClose() {
   text-align: center;
 
   .success-title {
-    font-size: 12px;
+    font-size: var(--fs-12);
     font-weight: 600;
     color: @gray-800;
-    margin-top: 4px;
+    margin-top: var(--space-1);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -426,7 +426,7 @@ function onClose() {
 
   .success-actions {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     margin-top: 10px;
   }
 
@@ -437,7 +437,7 @@ function onClose() {
     font-size: 10px;
     font-weight: 700;
     padding: 6px;
-    border-radius: 8px;
+    border-radius: var(--r-3);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -451,7 +451,7 @@ function onClose() {
     .countdown {
       background: rgba(255, 255, 255, 0.2);
       padding: 0 4px;
-      border-radius: 4px;
+      border-radius: var(--r-1);
     }
   }
 
@@ -468,5 +468,4 @@ function onClose() {
       color: @gray-600;
     }
   }
-}
-</style>
+}</style>

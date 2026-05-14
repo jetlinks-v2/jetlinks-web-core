@@ -1,4 +1,4 @@
-<script setup lang="ts" name="PropertyFilter">
+﻿<script setup lang="ts" name="PropertyFilter">
 import type { PropType } from 'vue'
 import dayjs from 'dayjs'
 import { useI18n } from 'vue-i18n'
@@ -324,29 +324,29 @@ defineExpose({
 <style scoped>
 .property-filter {
   width: 100%;
-  padding: 24px;
-  margin-bottom: 24px;
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
   background: var(--bg);
 }
 .property-filter__toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 20px;
+  gap: var(--space-5);
 }
 .property-filter__conditions {
   display: flex;
   flex: 1;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   min-width: 0;
 }
 .property-filter__tools {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   justify-content: flex-end;
   margin-left: auto;
 }
@@ -366,7 +366,7 @@ defineExpose({
 .filter-chip {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 36px;
   padding: 6px 12px;
   color: var(--ink-1);
@@ -381,7 +381,7 @@ defineExpose({
   border-color: var(--accent);
 }
 .filter-chip--active {
-  padding-left: 8px;
+  padding-left: var(--space-2);
 }
 .filter-chip--ghost {
   border-style: dashed;
@@ -447,7 +447,7 @@ defineExpose({
 }
 @media (max-width: 768px) {
   .property-filter {
-    padding: 16px;
+    padding: var(--space-4);
   }
   .property-filter__tools {
     flex-direction: column;
@@ -456,5 +456,4 @@ defineExpose({
   .filter-chip__text {
     max-width: 180px;
   }
-}
-</style>
+}</style>

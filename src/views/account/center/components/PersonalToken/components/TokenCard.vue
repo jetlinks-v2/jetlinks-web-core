@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="token-card">
     <div class="token-card-left">
       <div class="token-icon">
@@ -151,23 +151,23 @@ const formatDate = (dateStr) => {
 <style lang="less" scoped>
 .token-card {
   border: 1px solid #E6E6E6;
-  padding: 16px;
+  padding: var(--space-4);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 24px;
+  gap: var(--space-6);
 
   &-left {
     flex: 1;
     min-width: 0;
     display: flex;
-    gap: 16px;
+    gap: var(--space-4);
     align-items: center;
 
     .token-icon {
       width: 48px;
       height: 48px;
-      border-radius: 6px;
+      border-radius: var(--r-2);
       background: #f6f9ff;
       display: flex;
       font-size: 20px;
@@ -183,11 +183,11 @@ const formatDate = (dateStr) => {
 
       .token-card-header {
         display: flex;
-        gap: 16px;
-        margin-bottom: 16px;
+        gap: var(--space-4);
+        margin-bottom: var(--space-4);
 
         .token-name {
-          font-size: 16px;
+          font-size: var(--fs-16);
           font-weight: 500;
         }
       }
@@ -196,16 +196,16 @@ const formatDate = (dateStr) => {
     .token-card-content {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 16px;
+      gap: var(--space-4);
 
       .token-field {
         .field-label {
           color: #777777;
-          margin-bottom: 8px;
+          margin-bottom: var(--space-2);
         }
 
         .field-value {
-          color: #1A1A1A;
+          color: var(--ink-1);
         }
       }
     }
@@ -214,8 +214,7 @@ const formatDate = (dateStr) => {
 
 .token-card-actions {
   .ant-btn {
-    background-color: #F0F0F0 !important;
+    background-color: var(--line-strong) !important;
     border: none;
   }
-}
-</style>
+}</style>

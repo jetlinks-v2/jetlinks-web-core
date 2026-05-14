@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ValueItem from '../Search/Filter/ValueItem.vue'
@@ -376,7 +376,7 @@ watch(
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .condition-inline-composer__field,
 .condition-inline-composer__term {
@@ -542,5 +542,4 @@ watch(
   .condition-inline-composer__field {
     max-width: 150px;
   }
-}
-</style>
+}</style>

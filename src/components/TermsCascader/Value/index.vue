@@ -1,4 +1,4 @@
-<script setup name="TermsCascaderValue">
+﻿<script setup name="TermsCascaderValue">
 import { ref, computed, watch } from 'vue'
 import Fixed from './Fixed.vue'
 import Builtin from './BuiltInParameters.vue'
@@ -193,8 +193,8 @@ watch(() => termsValue.value.value, (newValue) => {
 }
 .terms-cascader-value .terms-value--type {
   padding: 4px 0;
-  border-top-left-radius: 8px;
-  border-bottom-left-radius: 8px;
+  border-top-left-radius: var(--r-3);
+  border-bottom-left-radius: var(--r-3);
   text-align: center;
   width: 80px;
   cursor: default;
@@ -215,5 +215,4 @@ watch(() => termsValue.value.value, (newValue) => {
   background-color: var(--bg);
   border-radius: var(--r-3);
   box-shadow: var(--shadow-1);
-}
-</style>
+}</style>

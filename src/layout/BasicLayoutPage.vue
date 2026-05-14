@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <j-pro-layout
     v-bind="config"
     v-model:openKeys="state.openKeys"
@@ -129,10 +129,9 @@ watchEffect(() => {
 
 <style scoped>
 .right-content {
-  margin-right: 24px;
+  margin-right: var(--space-6);
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: var(--space-6);
   height: 48px;
-}
-</style>
+}</style>

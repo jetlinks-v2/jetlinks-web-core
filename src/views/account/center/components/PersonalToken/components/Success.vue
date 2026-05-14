@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-modal
       :open="true"
       title="新增令牌"
@@ -110,7 +110,7 @@ const handleClose = () => {
   padding: 40px 24px 24px;
 
   .illustration {
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
     height: 120px;
     display: flex;
     align-items: center;
@@ -166,26 +166,23 @@ const handleClose = () => {
   }
 
   .success-title {
-    font-size: 18px;
+    font-size: var(--fs-18);
     font-weight: 500;
     color: #262626;
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
   }
 
   .token-section {
-    margin-bottom: 20px;
+    margin-bottom: var(--space-5);
 
     .token-display {
       display: flex;
-      gap: 8px;
+      gap: var(--space-2);
       align-items: stretch;
 
       .token-input {
-        flex: 1;
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-
-        :deep(.ant-input) {
-          background-color: #f8f9fa;
+        flex: 1; :deep(.ant-input) {
+          background-color: var(--color-jet-gray-50);
           border: 1px solid #e9ecef;
           padding: 8px 12px;
           font-size: 13px;
@@ -198,7 +195,7 @@ const handleClose = () => {
         padding: 0 16px;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: var(--space-1);
         background: #1890ff;
         border-color: #1890ff;
 
@@ -213,13 +210,13 @@ const handleClose = () => {
   .warning-section {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 32px;
+    gap: var(--space-2);
+    margin-bottom: var(--space-8);
     text-align: left;
 
     .warning-icon {
       color: #faad14;
-      font-size: 16px;
+      font-size: var(--fs-16);
       margin-top: 2px;
       flex-shrink: 0;
     }
@@ -236,7 +233,7 @@ const handleClose = () => {
 
     .ant-btn {
       min-width: 72px;
-      border-radius: 4px;
+      border-radius: var(--r-1);
     }
   }
 }
@@ -244,11 +241,11 @@ const handleClose = () => {
 // 自定义modal样式
 :deep(.ant-modal) {
   .ant-modal-header {
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--line-strong);
     padding: 16px 24px;
 
     .ant-modal-title {
-      font-size: 16px;
+      font-size: var(--fs-16);
       font-weight: 500;
     }
   }
@@ -261,5 +258,4 @@ const handleClose = () => {
     top: 16px;
     right: 16px;
   }
-}
-</style>
+}</style>

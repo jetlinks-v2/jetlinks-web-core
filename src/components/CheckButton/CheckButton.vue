@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div :class="['j-check-button', props.class]" :style="styles">
     <div
       v-for="item in _options"
@@ -145,7 +145,7 @@ watch(
 .j-check-button .j-check-button-item {
   flex: 1;
   min-width: 0;
-  padding: 8px;
+  padding: var(--space-2);
   border-radius: 20px;
   background-color: var(--bg-hover);
   transition: all 0.3s;
@@ -169,5 +169,4 @@ watch(
   color: color-mix(in srgb, var(--ink-1) 25%, transparent);
   background-color: var(--line-strong);
   opacity: 1;
-}
-</style>
+}</style>

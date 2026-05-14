@@ -70,5 +70,4 @@ const userName = computed(() => {
   .name {
     padding: 0 12px;
   }
-}
-</style>
+}</style>

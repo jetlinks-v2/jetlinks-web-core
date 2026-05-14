@@ -16,8 +16,7 @@ defineProps<{ name?: string }>()
   border-radius: var(--r-2);
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   font-weight: 500;
   line-height: 1.6;
-}
-</style>
+}</style>

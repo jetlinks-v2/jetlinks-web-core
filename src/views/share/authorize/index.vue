@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="authorize-wrapper">
     <div
       v-if="isLoading && !isExpired"
@@ -320,7 +320,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   background: #f5f5f5;
-  padding: 20px;
+  padding: var(--space-5);
 }
 
 .loading-container {
@@ -335,7 +335,7 @@ onMounted(() => {
 }
 
 .loading-text {
-  margin-top: 16px;
+  margin-top: var(--space-4);
   color: #666;
 }
 
@@ -347,9 +347,9 @@ onMounted(() => {
 }
 
 .status-card {
-  background: white;
-  border-radius: 8px;
-  padding: 40px;
+  background: var(--bg);
+  border-radius: var(--r-3);
+  padding: var(--space-10);
   text-align: center;
   max-width: 400px;
   width: 100%;
@@ -362,24 +362,24 @@ onMounted(() => {
 
 .status-icon {
   font-size: 48px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .status-title {
   font-size: 20px;
   font-weight: 500;
   color: #333;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .status-description {
   color: #666;
   line-height: 1.5;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .status-footer {
-  margin-top: 24px;
+  margin-top: var(--space-6);
 }
 
 .auth-container {
@@ -390,9 +390,9 @@ onMounted(() => {
 }
 
 .auth-card {
-  background: white;
-  border-radius: 8px;
-  padding: 40px;
+  background: var(--bg);
+  border-radius: var(--r-3);
+  padding: var(--space-10);
   max-width: 400px;
   width: 100%;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -400,7 +400,7 @@ onMounted(() => {
 
 .auth-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: var(--space-8);
 }
 
 .auth-logo {
@@ -410,10 +410,10 @@ onMounted(() => {
   width: 60px;
   height: 60px;
   background: #1890ff;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  font-size: 24px;
-  color: white;
+  border-radius: var(--r-3);
+  margin-bottom: var(--space-4);
+  font-size: var(--fs-24);
+  color: var(--accent-ink);
 }
 
 .auth-title {
@@ -437,7 +437,7 @@ onMounted(() => {
 
 .verify-code-image {
   height: 32px;
-  border-radius: 4px;
+  border-radius: var(--r-1);
 }
 
 .verify-code-placeholder {
@@ -447,7 +447,7 @@ onMounted(() => {
   width: 80px;
   height: 32px;
   background: #f5f5f5;
-  border-radius: 4px;
+  border-radius: var(--r-1);
   color: #999;
 }
 
@@ -456,7 +456,7 @@ onMounted(() => {
 }
 
 .form-actions {
-  margin-top: 24px;
+  margin-top: var(--space-6);
   margin-bottom: 0;
 }
 
@@ -464,7 +464,7 @@ onMounted(() => {
   .auth-card,
   .status-card,
   .loading-card {
-    padding: 24px;
+    padding: var(--space-6);
   }
 
   .auth-logo {
@@ -475,11 +475,10 @@ onMounted(() => {
 
   .auth-title,
   .status-title {
-    font-size: 18px;
+    font-size: var(--fs-18);
   }
 
   .status-icon {
     font-size: 40px;
   }
-}
-</style>
+}</style>

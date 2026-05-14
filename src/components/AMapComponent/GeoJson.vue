@@ -86,6 +86,4 @@ watch(() => JSON.stringify(props.geo), () =>{
 
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

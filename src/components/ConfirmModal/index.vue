@@ -72,5 +72,4 @@ const showConfirm = () => {
 <style scoped>
 .modalContent {
     text-align: center;
-}
-</style>
+}</style>

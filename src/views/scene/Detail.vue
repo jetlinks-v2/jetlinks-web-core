@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="scene-center-detail">
     <!-- Header -->
     <header class="header">
@@ -303,7 +303,7 @@ watch(loginModalVisible, (newVal) => {
   .header-left {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--space-4);
   }
 
   .back-btn {
@@ -314,7 +314,7 @@ watch(loginModalVisible, (newVal) => {
     border-radius: @radius-sm;
     color: @text-secondary;
     text-decoration: none;
-    font-size: 14px;
+    font-size: var(--fs-14);
     transition: all 0.2s;
   }
 
@@ -326,7 +326,7 @@ watch(loginModalVisible, (newVal) => {
   .logo {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
     text-decoration: none;
     color: @text-primary;
   }
@@ -339,20 +339,20 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--accent-ink);
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--fs-14);
   }
 
   .logo-text {
     font-weight: 600;
-    font-size: 18px;
+    font-size: var(--fs-18);
   }
 
   .user-menu {
     display: none;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
     cursor: pointer;
   }
 
@@ -368,22 +368,22 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 14px;
+    color: var(--accent-ink);
+    font-size: var(--fs-14);
     font-weight: 500;
   }
 
   .user-name {
-    font-size: 14px;
+    font-size: var(--fs-14);
   }
 
   .main-layout {
     max-width: 1440px;
     margin: 0 auto;
-    padding: 32px;
+    padding: var(--space-8);
     display: grid;
     grid-template-columns: 1fr 400px;
-    gap: 32px;
+    gap: var(--space-8);
   }
 
   .scene-header {
@@ -425,13 +425,13 @@ watch(loginModalVisible, (newVal) => {
 
   .scene-badges {
     display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
   }
 
   .scene-badge {
     padding: 5px 12px;
-    border-radius: 4px;
+    border-radius: var(--r-1);
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -440,7 +440,7 @@ watch(loginModalVisible, (newVal) => {
 
   .scene-badge.hot {
     background: linear-gradient(135deg, #ff4d4f, #ff7a45);
-    color: white;
+    color: var(--accent-ink);
   }
 
   .scene-badge.industry {
@@ -451,7 +451,7 @@ watch(loginModalVisible, (newVal) => {
   .scene-title {
     font-size: 32px;
     font-weight: 700;
-    color: white;
+    color: var(--accent-ink);
     margin-bottom: 10px;
   }
 
@@ -467,15 +467,15 @@ watch(loginModalVisible, (newVal) => {
   .scene-meta-row {
     display: flex;
     align-items: center;
-    gap: 28px;
-    margin-bottom: 20px;
+    gap: var(--space-7);
+    margin-bottom: var(--space-5);
   }
 
   .scene-meta-item {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
   }
 
@@ -492,13 +492,13 @@ watch(loginModalVisible, (newVal) => {
   .scene-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .scene-tag {
     padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 12px;
+    border-radius: var(--r-2);
+    font-size: var(--fs-12);
     font-weight: 500;
     background: @gray-100;
     color: @gray-600;
@@ -533,14 +533,14 @@ watch(loginModalVisible, (newVal) => {
     background: @card-bg;
     border-radius: @radius-lg;
     border: 1px solid @border-color;
-    padding: 28px;
-    margin-top: 24px;
+    padding: var(--space-7);
+    margin-top: var(--space-6);
   }
 
   .section-title {
-    font-size: 18px;
+    font-size: var(--fs-18);
     font-weight: 600;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -555,24 +555,24 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .section-text {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
     line-height: 1.9;
   }
 
   .section-text + .section-text {
-    margin-top: 12px;
+    margin-top: var(--space-3);
   }
 
   .features-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    margin-top: 8px;
+    gap: var(--space-4);
+    margin-top: var(--space-2);
   }
 
   .feature-card {
-    padding: 20px;
+    padding: var(--space-5);
     background: @gray-100;
     border-radius: @radius-md;
     border: 1px solid @border-color;
@@ -591,10 +591,10 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: var(--fs-22);
     margin-bottom: 14px;
-    background: white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    background: var(--bg);
+    box-shadow: var(--shadow-1);
   }
 
   .feature-title {
@@ -612,8 +612,8 @@ watch(loginModalVisible, (newVal) => {
   .values-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-top: 16px;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
   }
 
   .value-card {
@@ -627,49 +627,47 @@ watch(loginModalVisible, (newVal) => {
   .value-number {
     font-size: 36px;
     font-weight: 700;
-    color: @primary;
-    font-family: 'JetBrains Mono', monospace;
-    line-height: 1;
+    color: @primary; line-height: 1;
   }
 
   .value-unit {
-    font-size: 16px;
+    font-size: var(--fs-16);
     color: @primary;
   }
 
   .value-label {
     font-size: 13px;
     color: @text-secondary;
-    margin-top: 8px;
+    margin-top: var(--space-2);
   }
 
   .sidebar {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: var(--space-6);
   }
 
   .create-card {
     background: @card-bg;
     border-radius: @radius-lg;
     border: 1px solid @border-color;
-    padding: 28px;
+    padding: var(--space-7);
     position: sticky;
     top: 96px;
   }
 
   .create-card-header {
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
   }
 
   .create-card-title {
     font-size: 20px;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
   }
 
   .create-card-desc {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
     line-height: 1.7;
   }
@@ -679,7 +677,7 @@ watch(loginModalVisible, (newVal) => {
     border: 1px solid @primary-light;
     border-radius: @radius-md;
     padding: 18px;
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
   }
 
   .preset-title {
@@ -689,7 +687,7 @@ watch(loginModalVisible, (newVal) => {
     margin-bottom: 14px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .preset-list {
@@ -717,10 +715,10 @@ watch(loginModalVisible, (newVal) => {
     width: 100%;
     padding: 16px 24px;
     background: linear-gradient(135deg, @primary, @primary-dark);
-    color: white;
+    color: var(--accent-ink);
     border: none;
     border-radius: @radius-md;
-    font-size: 16px;
+    font-size: var(--fs-16);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
@@ -756,14 +754,14 @@ watch(loginModalVisible, (newVal) => {
     color: @text-primary;
     border: 1px solid @border-color;
     border-radius: @radius-md;
-    font-size: 14px;
+    font-size: var(--fs-14);
     font-weight: 500;
     cursor: pointer;
-    margin-top: 12px;
+    margin-top: var(--space-3);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .btn-demo:hover {
@@ -774,25 +772,25 @@ watch(loginModalVisible, (newVal) => {
     background: @card-bg;
     border-radius: @radius-lg;
     border: 1px solid @border-color;
-    padding: 24px;
+    padding: var(--space-6);
   }
 
   .related-title {
-    font-size: 16px;
+    font-size: var(--fs-16);
     font-weight: 600;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
 
   .related-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .related-item {
     display: flex;
     gap: 14px;
-    padding: 12px;
+    padding: var(--space-3);
     background: @gray-100;
     border-radius: @radius-md;
     text-decoration: none;
@@ -807,18 +805,18 @@ watch(loginModalVisible, (newVal) => {
   .related-thumb {
     width: 72px;
     height: 54px;
-    border-radius: 6px;
+    border-radius: var(--r-2);
     object-fit: cover;
   }
 
   .related-name {
-    font-size: 14px;
+    font-size: var(--fs-14);
     font-weight: 500;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-1);
   }
 
   .related-meta {
-    font-size: 12px;
+    font-size: var(--fs-12);
     color: @text-secondary;
   }
 
@@ -843,7 +841,7 @@ watch(loginModalVisible, (newVal) => {
 
   .footer-links {
     display: flex;
-    gap: 24px;
+    gap: var(--space-6);
   }
 
   .footer-link {
@@ -853,7 +851,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .footer-link:hover {
-    color: white;
+    color: var(--accent-ink);
   }
 
   .modal-overlay.active .modal {
@@ -869,7 +867,7 @@ watch(loginModalVisible, (newVal) => {
     border: none;
     background: none;
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: var(--r-2);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -895,36 +893,36 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--accent-ink);
     font-weight: 700;
     font-size: 20px;
     margin: 0 auto 16px;
   }
 
   .modal-title {
-    font-size: 22px;
+    font-size: var(--fs-22);
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
   }
 
   .modal-subtitle {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
   }
 
   .modal-body {
-    padding: 24px;
+    padding: var(--space-6);
   }
 
   .form-group {
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
 
   .form-label {
     display: block;
     font-size: 13px;
     font-weight: 500;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
   }
 
   .form-input {
@@ -932,7 +930,7 @@ watch(loginModalVisible, (newVal) => {
     padding: 12px 14px;
     border: 1px solid @border-color;
     border-radius: @radius-sm;
-    font-size: 14px;
+    font-size: var(--fs-14);
     transition: all 0.2s;
   }
 
@@ -946,13 +944,13 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: var(--space-5);
   }
 
   .form-checkbox {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     font-size: 13px;
     color: @text-secondary;
     cursor: pointer;
@@ -974,7 +972,7 @@ watch(loginModalVisible, (newVal) => {
     width: 100%;
     padding: 14px;
     background: linear-gradient(135deg, @primary, @primary-dark);
-    color: white;
+    color: var(--accent-ink);
     border: none;
     border-radius: @radius-md;
     font-size: 15px;
@@ -1007,16 +1005,15 @@ watch(loginModalVisible, (newVal) => {
 
   @media (max-width: 768px) {
     .main-layout {
-      padding: 16px;
+      padding: var(--space-4);
     }
 
     .scene-title {
-      font-size: 24px;
+      font-size: var(--fs-24);
     }
 
     .features-grid, .values-grid {
       grid-template-columns: 1fr;
     }
   }
-}
-</style>
+}</style>

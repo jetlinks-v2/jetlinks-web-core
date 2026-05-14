@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-modal
     visible
     :title="$t('components.ViewDialog.411617-0')"
@@ -217,11 +217,10 @@ onMounted(() => {
   .label {
     width: 100%;
     color: rgba(0, 0, 0, 0.6);
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
   }
 
   .value {
     color: #333333;
   }
-}
-</style>
+}</style>

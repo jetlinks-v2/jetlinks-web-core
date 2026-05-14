@@ -1,4 +1,4 @@
-<!-- 第三方账户绑定 -->
+﻿<!-- 第三方账户绑定 -->
 <template>
   <div class="page-container">
     <div class="content-bind">
@@ -377,15 +377,13 @@ onMounted(() => {
     min-height: 510px;
     background: #fff;
     border-radius: 22px;
-    padding: 40px;
+    padding: var(--space-10);
 
     .title {
       margin-bottom: 30px;
       color: #333333;
       font-weight: 400;
-      font-size: 22px;
-      font-family: "PingFang SC";
-      font-style: normal;
+      font-size: var(--fs-22); font-style: normal;
       line-height: 25px;
       text-align: center;
     }
@@ -405,7 +403,7 @@ onMounted(() => {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: var(--space-2);
         width: 317px;
 
         &-item {
@@ -435,7 +433,7 @@ onMounted(() => {
       .logo {
         display: flex;
         align-items: center;
-        gap: 20px;
+        gap: var(--space-5);
 
         img {
           width: 50px;
@@ -451,14 +449,11 @@ onMounted(() => {
       .desc {
         margin-top: 30px;
         margin-bottom: 30px;
-        font-size: 14px;
-        font-family: "PingFang SC";
-        font-style: normal;
+        font-size: var(--fs-14); font-style: normal;
         line-height: 14px;
         opacity: 0.75;
         mix-blend-mode: normal;
       }
     }
   }
-}
-</style>
+}</style>

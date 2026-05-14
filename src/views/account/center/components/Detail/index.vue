@@ -88,5 +88,4 @@ const pos = computed(() => {
 
 .subTitle {
     color: rgba(0, 0, 0, 0.6);
-}
-</style>
+}</style>

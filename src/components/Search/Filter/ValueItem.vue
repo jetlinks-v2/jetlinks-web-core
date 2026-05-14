@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { Input, InputNumber } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import Tree from './ValueComponents/Tree.vue'
@@ -209,13 +209,12 @@ watch(myValue, (val) => {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .filter-terms-value-item__range-input {
   width: 100%;
 }
 .filter-terms-value-item__range-separator {
   color: var(--ink-4);
-  font-size: var(--fs-13);
-}
-</style>
+  font-size: var(--fs-14);
+}</style>

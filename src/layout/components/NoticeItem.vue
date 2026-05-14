@@ -116,7 +116,7 @@ const read = (type: '_read' | '_unread') => {
 .list-items {
     width: 312px;
     overflow: hidden;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--line-strong);
     margin: 0 24px;
     box-sizing: content-box;
 
@@ -130,7 +130,7 @@ const read = (type: '_read' | '_unread') => {
     display: flex;
     width: 432px;
     transition: all 0.3s;
-    gap: 24px;
+    gap: var(--space-6);
 
     .list-item-left {
         padding: 12px 0;
@@ -147,7 +147,7 @@ const read = (type: '_read' | '_unread') => {
 
                 div {
                     color: rgba(0, 0, 0, 0.85);
-                    font-size: 14px;
+                    font-size: var(--fs-14);
                     font-weight: bold;
                     margin-right: 10px;
                     max-width: calc(100% - 40px);
@@ -162,7 +162,7 @@ const read = (type: '_read' | '_unread') => {
                 }
             }
             .time {
-                font-size: 12px;
+                font-size: var(--fs-12);
                 color: rgba(0, 0, 0, 0.45);
                 width: 120px;
             }
@@ -178,10 +178,9 @@ const read = (type: '_read' | '_unread') => {
 
         .btn {
             border: none;
-            background-color: var(--jet-theme-primary-soft, #E6F4FF);
-            color: var(--jet-theme-primary, #1677FF);
+            background-color: var(--jet-theme-primary-soft);
+            color: var(--jet-theme-primary);
             padding: 0;
         }
     }
-}
-</style>
+}</style>

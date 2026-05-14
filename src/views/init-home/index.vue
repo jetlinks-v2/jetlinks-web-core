@@ -1,4 +1,4 @@
-<!-- 系统初始化 -->
+﻿<!-- 系统初始化 -->
 <template>
   <div class="page-container">
     <div class="container-text">
@@ -158,7 +158,7 @@ const judgeInitSet = async () => {
 
   .container-text {
     font-weight: 700;
-    font-size: 16px;
+    font-size: var(--fs-16);
 
     .container-title {
       position: relative;
@@ -173,7 +173,7 @@ const judgeInitSet = async () => {
         left: 0;
         width: 4px;
         height: 100%;
-        background-color: var(--jet-theme-primary, #1677FF);
+        background-color: var(--jet-theme-primary);
         border-radius: 0 3px 3px 0;
         content: '';
       }
@@ -183,7 +183,7 @@ const judgeInitSet = async () => {
   .container-box {
     width: 100%;
     height: 100%;
-    padding: 24px;
+    padding: var(--space-6);
     background: #fff;
 
     .container-main {
@@ -202,9 +202,9 @@ const judgeInitSet = async () => {
 
         .sub-title {
           margin-top: 2px;
-          margin-left: 8px;
+          margin-left: var(--space-2);
           color: #666;
-          font-size: 12px;
+          font-size: var(--fs-12);
           opacity: 0.85;
         }
 
@@ -221,7 +221,7 @@ const judgeInitSet = async () => {
           .upload-image-border-logo {
             position: relative;
             overflow: hidden;
-            border: 1px dashed #d9d9d9;
+            border: 1px dashed var(--line);
             transition: all 0.3s;
             width: 160px;
             height: 150px;
@@ -239,7 +239,7 @@ const judgeInitSet = async () => {
               flex-direction: column;
               width: 160px;
               height: 150px;
-              padding: 8px;
+              padding: var(--space-2);
               background-color: rgba(0, 0, 0, 0.06);
               cursor: pointer;
 
@@ -278,7 +278,7 @@ const judgeInitSet = async () => {
                 width: 100%;
                 height: 100%;
                 color: #fff;
-                font-size: 16px;
+                font-size: var(--fs-16);
                 background-color: rgba(0, 0, 0, 0.35);
               }
 
@@ -296,7 +296,7 @@ const judgeInitSet = async () => {
           .upload-image-border-back {
             position: relative;
             overflow: hidden;
-            border: 1px dashed #d9d9d9;
+            border: 1px dashed var(--line);
             transition: all 0.3s;
             width: 570px;
             height: 415px;
@@ -314,7 +314,7 @@ const judgeInitSet = async () => {
               flex-direction: column;
               width: 570px;
               height: 415px;
-              padding: 8px;
+              padding: var(--space-2);
               background-color: rgba(0, 0, 0, 0.06);
               cursor: pointer;
 
@@ -340,7 +340,7 @@ const judgeInitSet = async () => {
                 width: 100%;
                 height: 100%;
                 color: #fff;
-                font-size: 16px;
+                font-size: var(--fs-16);
                 background-color: rgba(0, 0, 0, 0.35);
               }
 
@@ -353,7 +353,7 @@ const judgeInitSet = async () => {
 
         .upload-tips {
           color: rgba(0, 0, 0, 0.45);
-          font-size: 14px;
+          font-size: var(--fs-14);
           line-height: 1.5715;
         }
 
@@ -364,10 +364,10 @@ const judgeInitSet = async () => {
         //     }
         // }
         .btn-style {
-          margin-top: 20px;
+          margin-top: var(--space-5);
           color: #fff;
-          border-color: var(--jet-theme-primary, #1677FF);
-          background: var(--jet-theme-primary, #1677FF);
+          border-color: var(--jet-theme-primary);
+          background: var(--jet-theme-primary);
         }
       }
     }
@@ -381,14 +381,13 @@ const judgeInitSet = async () => {
 
   ::-webkit-scrollbar-track {
     background: #f2f2f2;
-    border-radius: 8px;
+    border-radius: var(--r-3);
   }
 
   /* 滚动条滑块 */
 
   ::-webkit-scrollbar-thumb {
     background: #cecece;
-    border-radius: 8px;
+    border-radius: var(--r-3);
   }
-}
-</style>
+}</style>

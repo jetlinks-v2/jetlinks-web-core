@@ -89,6 +89,4 @@ const schema = [
 ]
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

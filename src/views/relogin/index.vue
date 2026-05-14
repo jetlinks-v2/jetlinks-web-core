@@ -99,8 +99,7 @@ defineExpose({ open })
       right: 0;
     }
   }
-}
-</style>
+}</style>
 
 <style lang="less" scoped>
 .relogin {
@@ -121,13 +120,12 @@ defineExpose({ open })
     flex-direction: column;
     text-align: center;
     justify-content: center;
-    gap: 16px;
+    gap: var(--space-4);
   }
 }
 
 .right {
-  padding: 24px;
+  padding: var(--space-6);
   flex: 1;
   min-width: 0;
-}
-</style>
+}</style>

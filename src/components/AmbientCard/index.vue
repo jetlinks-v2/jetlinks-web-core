@@ -53,5 +53,4 @@ withDefaults(
 .v-flat {
   background: var(--bg);
   box-shadow: var(--shadow-1);
-}
-</style>
+}</style>

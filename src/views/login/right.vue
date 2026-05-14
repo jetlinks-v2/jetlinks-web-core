@@ -325,11 +325,11 @@ watch(
       text-align: center;
 
       .desc {
-        margin-top: 24px;
-        margin-bottom: 40px;
+        margin-top: var(--space-6);
+        margin-bottom: var(--space-10);
         color: #000000b3;
         font-weight: 600;
-        font-size: 22px;
+        font-size: var(--fs-22);
         text-align: center;
       }
     }
@@ -343,11 +343,11 @@ watch(
   }
 }
 .other {
-  margin-top: 20px;
+  margin-top: var(--space-5);
 
   .other-text {
     color: #807676d9;
-    font-size: 12px;
+    font-size: var(--fs-12);
   }
 
   .other-button {
@@ -355,13 +355,13 @@ watch(
     bottom: 10px;
     text-align: center;
     display: flex;
-    gap: 24px;
+    gap: var(--space-6);
     justify-content: center;
     flex-wrap: wrap;
 
     .other-button-item {
       cursor: pointer;
-      padding: 4px;
+      padding: var(--space-1);
     }
   }
 
@@ -389,7 +389,6 @@ watch(
     width: 62px;
     text-align: center;
     margin-bottom: 10px;
-    margin-left: 12px;
+    margin-left: var(--space-3);
   }
-}
-</style>
+}</style>

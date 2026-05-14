@@ -1,4 +1,4 @@
-<script setup lang="ts" name="RangePicker">
+﻿<script setup lang="ts" name="RangePicker">
 import { computed, useAttrs, watch, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getDateShortcutOptions, getDateShortcutRange, toDayjsRangeValue, toTimestampRangeValue, type ConditionDateShortcutKey } from './utils'
@@ -112,7 +112,7 @@ watch(() => props.value, (val) => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 .dropdown-range-picker__shortcut {
   height: 24px;
@@ -130,5 +130,4 @@ watch(() => props.value, (val) => {
   color: var(--accent);
   background: var(--accent-soft);
   border-color: color-mix(in srgb, var(--accent) 35%, var(--bg));
-}
-</style>
+}</style>

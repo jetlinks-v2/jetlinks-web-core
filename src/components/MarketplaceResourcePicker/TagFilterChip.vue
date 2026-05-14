@@ -41,7 +41,7 @@ defineEmits<{ toggle: [] }>()
   border-radius: var(--r-2);
   border: 1px solid color-mix(in srgb, var(--ink-1) 10%, transparent);
   background: var(--bg);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   color: var(--ink-1);
   cursor: pointer;
   line-height: 1.35;
@@ -73,5 +73,4 @@ defineEmits<{ toggle: [] }>()
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
-}
-</style>
+}</style>

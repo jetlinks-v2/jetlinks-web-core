@@ -70,5 +70,4 @@ const emit = defineEmits<Emits>();
 </script>
 
 <style scoped>
-@import './mediaTool.css';
-</style>
+@import './mediaTool.css';</style>

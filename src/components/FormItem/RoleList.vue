@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import {filterSelectNode} from "@jetlinks-web-core/utils";
 import {useI18n} from "vue-i18n";
 import { useRequest } from '@jetlinks-web/hooks'
@@ -164,7 +164,7 @@ onMounted(() => {
 .role-list-warp {
   width: 100%;
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .role-list-warp .tag-blue {
   background: var(--info-bg);
@@ -178,5 +178,4 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-</style>
+}</style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
 
  <div class="server-list-warp">
    <j-scrollbar>
@@ -55,11 +55,11 @@ watch(() => JSON.stringify(props.value), () => {
 <style scoped>
 .server-list-warp {
   padding: 0 12px;
-  margin-top: 12px;
+  margin-top: var(--space-3);
 }
 .server-list-warp .server-list-items {
   display: flex;
-  gap: 24px;
+  gap: var(--space-6);
 }
 .server-list-warp .server-list-items .server-item {
   cursor: pointer;
@@ -70,5 +70,4 @@ watch(() => JSON.stringify(props.value), () => {
 }
 .server-list-warp .server-list-items .server-item.active :deep(.ant-badge-status-text) {
   color: var(--ink-1);
-}
-</style>
+}</style>

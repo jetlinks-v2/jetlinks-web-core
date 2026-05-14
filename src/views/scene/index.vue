@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="scene-center">
     <!-- Header -->
     <header class="header">
@@ -376,7 +376,7 @@ const onClick = () => {
   .logo {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
     text-decoration: none;
     color: @text-primary;
   }
@@ -389,14 +389,14 @@ const onClick = () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--accent-ink);
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--fs-14);
   }
 
   .logo-text {
     font-weight: 600;
-    font-size: 18px;
+    font-size: var(--fs-18);
   }
 
   .logo-divider {
@@ -407,18 +407,18 @@ const onClick = () => {
   }
 
   .logo-subtitle {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
   }
 
   .header-nav {
     display: flex;
     align-items: center;
-    gap: 32px;
+    gap: var(--space-8);
   }
 
   .nav-link {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
     text-decoration: none;
     transition: color 0.2s;
@@ -431,7 +431,7 @@ const onClick = () => {
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--space-4);
   }
 
   .search-box {
@@ -441,7 +441,7 @@ const onClick = () => {
     border: 1px solid @border-color;
     border-radius: @radius-md;
     padding: 8px 16px;
-    gap: 8px;
+    gap: var(--space-2);
     width: 280px;
     transition: all 0.2s;
   }
@@ -455,7 +455,7 @@ const onClick = () => {
     border: none;
     background: none;
     outline: none;
-    font-size: 14px;
+    font-size: var(--fs-14);
     flex: 1;
     color: @text-primary;
   }
@@ -476,8 +476,8 @@ const onClick = () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 14px;
+    color: var(--accent-ink);
+    font-size: var(--fs-14);
     font-weight: 500;
     cursor: pointer;
   }
@@ -487,7 +487,7 @@ const onClick = () => {
   .main-content {
     max-width: 1440px;
     margin: 0 auto;
-    padding: 32px;
+    padding: var(--space-8);
   }
 
   /* Hero Section */
@@ -495,8 +495,8 @@ const onClick = () => {
   .hero {
     background: linear-gradient(135deg, @dark 0%, @dark-secondary 100%);
     border-radius: @radius-xl;
-    padding: 48px;
-    margin-bottom: 40px;
+    padding: var(--space-12);
+    margin-bottom: var(--space-10);
     position: relative;
     overflow: hidden;
   }
@@ -534,11 +534,11 @@ const onClick = () => {
     background: rgba(24, 144, 255, 0.15);
     border: 1px solid rgba(24, 144, 255, 0.3);
     color: @primary-light;
-    font-size: 12px;
+    font-size: var(--fs-12);
     font-weight: 500;
     padding: 6px 12px;
     border-radius: 20px;
-    margin-bottom: 20px;
+    margin-bottom: var(--space-5);
   }
 
   .hero-badge::before {
@@ -562,21 +562,21 @@ const onClick = () => {
   .hero h1 {
     font-size: 36px;
     font-weight: 700;
-    color: white;
-    margin-bottom: 16px;
+    color: var(--accent-ink);
+    margin-bottom: var(--space-4);
     line-height: 1.3;
   }
 
   .hero p {
-    font-size: 16px;
+    font-size: var(--fs-16);
     color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 28px;
+    margin-bottom: var(--space-7);
     line-height: 1.8;
   }
 
   .hero-stats {
     display: flex;
-    gap: 40px;
+    gap: var(--space-10);
   }
 
   .hero-stat {
@@ -586,33 +586,31 @@ const onClick = () => {
   .hero-stat-value {
     font-size: 28px;
     font-weight: 700;
-    color: white;
-    font-family: 'JetBrains Mono', monospace;
-  }
+    color: var(--accent-ink); }
 
   .hero-stat-label {
     font-size: 13px;
     color: rgba(255, 255, 255, 0.5);
-    margin-top: 4px;
+    margin-top: var(--space-1);
   }
 
   /* Filter Section */
 
   .filter-section {
-    margin-bottom: 32px;
+    margin-bottom: var(--space-8);
   }
 
   .filter-tabs {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     flex-wrap: wrap;
   }
 
   .filter-tab {
     padding: 10px 20px;
     border-radius: @radius-md;
-    font-size: 14px;
+    font-size: var(--fs-14);
     font-weight: 500;
     color: @text-secondary;
     background: @card-bg;
@@ -632,11 +630,11 @@ const onClick = () => {
   .filter-tab.active {
     background: @primary;
     border-color: @primary;
-    color: white;
+    color: var(--accent-ink);
   }
 
   .filter-tab .count {
-    font-size: 12px;
+    font-size: var(--fs-12);
     padding: 2px 8px;
     border-radius: 10px;
     background: rgba(0, 0, 0, 0.1);
@@ -651,7 +649,7 @@ const onClick = () => {
   .scene-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 24px;
+    gap: var(--space-6);
   }
 
   .scene-card {
@@ -705,7 +703,7 @@ const onClick = () => {
     left: 12px;
     z-index: 2;
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: var(--r-1);
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -714,17 +712,17 @@ const onClick = () => {
 
   .scene-card-badge.hot {
     background: linear-gradient(135deg, #ff4d4f, #ff7a45);
-    color: white;
+    color: var(--accent-ink);
   }
 
   .scene-card-badge.new {
     background: linear-gradient(135deg, @primary, @secondary);
-    color: white;
+    color: var(--accent-ink);
   }
 
   .scene-card-badge.popular {
     background: linear-gradient(135deg, @accent, #b37feb);
-    color: white;
+    color: var(--accent-ink);
   }
 
   .scene-card-industry {
@@ -733,7 +731,7 @@ const onClick = () => {
     right: 12px;
     z-index: 2;
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: var(--r-1);
     font-size: 11px;
     font-weight: 500;
     background: rgba(255, 255, 255, 0.95);
@@ -741,24 +739,24 @@ const onClick = () => {
   }
 
   .scene-card-content {
-    padding: 20px;
+    padding: var(--space-5);
   }
 
   .scene-card-title {
     font-size: 17px;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
     color: @text-primary;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .scene-card-desc {
     font-size: 13px;
     color: @text-secondary;
     line-height: 1.7;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -769,12 +767,12 @@ const onClick = () => {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
 
   .scene-tag {
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: var(--r-1);
     font-size: 11px;
     font-weight: 500;
     background: @gray-100;
@@ -816,21 +814,21 @@ const onClick = () => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-top: 16px;
+    padding-top: var(--space-4);
     border-top: 1px solid @border-color;
   }
 
   .scene-card-meta {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--space-4);
   }
 
   .scene-meta-item {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 12px;
+    gap: var(--space-1);
+    font-size: var(--fs-12);
     color: @text-secondary;
   }
 
@@ -845,7 +843,7 @@ const onClick = () => {
     font-size: 13px;
     font-weight: 500;
     background: @primary;
-    color: white;
+    color: var(--accent-ink);
     border: none;
     cursor: pointer;
     transition: all 0.2s;
@@ -864,7 +862,7 @@ const onClick = () => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
   }
 
   .section-title {
@@ -874,12 +872,12 @@ const onClick = () => {
   }
 
   .view-all {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @primary;
     text-decoration: none;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
   }
 
   .view-all:hover {
@@ -892,21 +890,21 @@ const onClick = () => {
     background: @card-bg;
     border-radius: @radius-lg;
     border: 1px solid @border-color;
-    padding: 24px;
-    margin-bottom: 32px;
+    padding: var(--space-6);
+    margin-bottom: var(--space-8);
   }
 
   .capability-title {
-    font-size: 14px;
+    font-size: var(--fs-14);
     font-weight: 500;
     color: @text-secondary;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
 
   .capability-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .capability-item {
@@ -933,7 +931,7 @@ const onClick = () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: var(--fs-18);
   }
 
   .capability-icon.iot {
@@ -965,13 +963,13 @@ const onClick = () => {
   }
 
   .capability-name {
-    font-size: 14px;
+    font-size: var(--fs-14);
     font-weight: 500;
     color: @text-primary;
   }
 
   .capability-count {
-    font-size: 12px;
+    font-size: var(--fs-12);
     color: @text-secondary;
   }
 
@@ -998,7 +996,7 @@ const onClick = () => {
 
   .footer-links {
     display: flex;
-    gap: 24px;
+    gap: var(--space-6);
   }
 
   .footer-link {
@@ -1009,7 +1007,7 @@ const onClick = () => {
   }
 
   .footer-link:hover {
-    color: white;
+    color: var(--accent-ink);
   }
 
   /* Responsive */
@@ -1027,7 +1025,7 @@ const onClick = () => {
     }
 
     .main-content {
-      padding: 16px;
+      padding: var(--space-4);
     }
 
     .hero {
@@ -1039,7 +1037,7 @@ const onClick = () => {
     }
 
     .hero-stats {
-      gap: 24px;
+      gap: var(--space-6);
     }
 
     .scene-grid {
@@ -1048,7 +1046,7 @@ const onClick = () => {
 
     .filter-tabs {
       overflow-x: auto;
-      padding-bottom: 8px;
+      padding-bottom: var(--space-2);
     }
   }
 
@@ -1104,5 +1102,4 @@ const onClick = () => {
   .scene-card:nth-child(9) {
     animation-delay: 0.5s;
   }
-}
-</style>
+}</style>

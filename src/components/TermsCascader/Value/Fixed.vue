@@ -1,4 +1,4 @@
-<script setup name="ValueFixed">
+﻿<script setup name="ValueFixed">
 import { ValueItem } from '@jetlinks-web/components'
 
 const asyncComponents = {
@@ -67,11 +67,10 @@ watch(() => props.value, (newValue) => {
 
 <style scoped>
 .terms--value--fixed {
-  padding: 8px;
+  padding: var(--space-2);
   min-width: 200px;
   min-height: 40px;
   background-color: var(--bg);
   border-radius: var(--r-3);
   box-shadow: var(--shadow-1);
-}
-</style>
+}</style>

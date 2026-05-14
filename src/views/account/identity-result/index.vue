@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="identity-result-page">
     <div class="identity-result-card">
       <div v-if="isSuccess" class="result-icon success">
@@ -53,7 +53,7 @@ function goCenter() {
 
 .identity-result-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: var(--r-3);
   padding: 48px 56px;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -62,7 +62,7 @@ function goCenter() {
 
 .result-icon {
   font-size: 64px;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 
   &.success {
     color: #52c41a;
@@ -77,17 +77,16 @@ function goCenter() {
   font-size: 20px;
   font-weight: 600;
   color: #1d2129;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .result-message {
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: #86909c;
-  margin-bottom: 32px;
+  margin-bottom: var(--space-8);
   word-break: break-word;
 }
 
 .result-btn {
   min-width: 120px;
-}
-</style>
+}</style>

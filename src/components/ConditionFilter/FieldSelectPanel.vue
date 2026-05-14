@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SearchItem } from '../Search/Filter/typing'
@@ -116,7 +116,7 @@ watch(filteredColumns, syncActiveIntoView)
 <style scoped>
 .condition-field-panel {
   width: 220px;
-  padding: 4px;
+  padding: var(--space-1);
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--r-3);
@@ -180,14 +180,14 @@ watch(filteredColumns, syncActiveIntoView)
 .condition-field-panel__description {
   overflow: hidden;
   color: var(--ink-2);
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .condition-field-panel__key {
   color: var(--ink-4);
-  font-size: var(--fs-10);
+  font-size: var(--fs-12);
   line-height: 16px;
 }
 .condition-field-panel__empty {
@@ -195,5 +195,4 @@ watch(filteredColumns, syncActiveIntoView)
   color: var(--ink-3);
   font-size: var(--fs-12);
   text-align: center;
-}
-</style>
+}</style>

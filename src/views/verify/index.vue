@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Modal
     v-model:open="visible"
     :title="title"
@@ -46,8 +46,8 @@
         <div class="empty-icon">📧</div>
         <div class="empty-text">{{ t('verify.noIdentity') }}</div>
         <div class="empty-desc">{{ t('verify.noIdentityDesc') }}</div>
-        <Button 
-          type="primary" 
+        <Button
+          type="primary"
           @click="goToBindIdentity"
           @mousedown.stop
           @mouseup.stop
@@ -93,9 +93,9 @@
             @keyup.enter="onSubmit"
           />
           <div style="margin-top: 8px;">
-            <Button 
-              type="link" 
-              :disabled="countdown > 0" 
+            <Button
+              type="link"
+              :disabled="countdown > 0"
               :loading="sendingCode"
               @click="resendIdentityCode"
               style="padding: 0;"
@@ -236,7 +236,7 @@ async function loadIdentities() {
           identity: item.identity
         }))
       : []
-    
+
     // 如果有身份信息，自动选择第一个（优先选择邮箱）
     if (identityListRaw.value.length > 0) {
       // 优先选择邮箱
@@ -257,12 +257,12 @@ function goToBindIdentity() {
   // 先关闭弹窗
   visible.value = false
   emit('cancel')
-  
+
   // 在新窗口打开账号信息页面
   const currentOrigin = window.location.origin
   const targetUrl = `${currentOrigin}/#/account/center?tabKey=BindThirdAccount&anchor=email-section`
   const newWindow = window.open(targetUrl, '_blank')
-  
+
   if (newWindow) {
     // 监听来自新窗口的消息
     const handleMessage = (e: MessageEvent) => {
@@ -274,7 +274,7 @@ function goToBindIdentity() {
       }
     }
     window.addEventListener('message', handleMessage)
-    
+
     // 备用方案：使用轮询检查新窗口是否关闭
     const checkWindowClosed = setInterval(() => {
       if (newWindow.closed) {
@@ -368,7 +368,7 @@ async function onSubmit() {
   if (type.value === 'identity' && identityListRaw.value.length === 0) {
     return
   }
-  
+
   try {
     await formRef.value?.validate()
   } catch {
@@ -500,8 +500,8 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   height: 32px;
-  padding-left: 8px;
-  border-left: 1px solid #d9d9d9;
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--line);
 }
 .captcha-img {
   height: 32px;
@@ -510,7 +510,7 @@ onUnmounted(() => {
   display: block;
 }
 .captcha-loading {
-  font-size: 12px;
+  font-size: var(--fs-12);
   color: #999;
 }
 .identity-empty {
@@ -518,18 +518,17 @@ onUnmounted(() => {
   padding: 24px 0;
   .empty-icon {
     font-size: 48px;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
   .empty-text {
-    font-size: 16px;
+    font-size: var(--fs-16);
     font-weight: 500;
     color: #262626;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
   }
   .empty-desc {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: #8c8c8c;
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
   }
-}
-</style>
+}</style>

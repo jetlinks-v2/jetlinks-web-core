@@ -39,6 +39,4 @@ watch(() => props.modelValue, (newValue) => {
   </a-menu>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

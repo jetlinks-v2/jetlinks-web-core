@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="j-md-editor">
     <div v-if="hasAddonToolbar" class="j-md-editor__addon-toolbar">
       <div v-if="sectionTemplates.length" class="j-md-editor__section-bar">
@@ -443,14 +443,14 @@ async function handleDrop(event: DragEvent) {
 .j-md-editor {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .j-md-editor__addon-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 32px;
 }
 
@@ -523,16 +523,12 @@ async function handleDrop(event: DragEvent) {
 
 .j-md-editor__surface :deep(.md-editor-input-wrapper),
 .j-md-editor__surface :deep(.md-editor-preview-wrapper) {
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
 }
 
-.j-md-editor__surface :deep(.md-editor-input) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-}
+.j-md-editor__surface :deep(.md-editor-input) { }
 
-.j-md-editor__surface :deep(.md-editor-preview) {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
+.j-md-editor__surface :deep(.md-editor-preview) { }
 
 .j-md-editor__surface :deep(.md-editor-footer) {
   display: none;
@@ -540,7 +536,7 @@ async function handleDrop(event: DragEvent) {
 
 .j-md-editor__preview-only {
   min-height: 220px;
-  padding: 16px;
+  padding: var(--space-4);
 }
 
 .j-md-editor__empty {
@@ -593,7 +589,6 @@ async function handleDrop(event: DragEvent) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-}
-</style>
+  font-size: var(--fs-16);
+}</style>
 

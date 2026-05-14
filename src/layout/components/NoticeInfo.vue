@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="notice-info-container">
         <a-tabs
             v-model:activeKey="activeKey"
@@ -173,7 +173,7 @@ onMounted(async () => {
 .notice-info-container {
     width: 336px;
     background-color: #fff;
-    border-radius: 4px;
+    border-radius: var(--r-1);
     box-shadow: 0 6px 16px -8px rgb(0 0 0 / 8%), 0 9px 28px 0 rgb(0 0 0 / 5%),
         0 12px 48px 16px rgb(0 0 0 / 3%);
 
@@ -211,5 +211,4 @@ onMounted(async () => {
             align-items: center;
         }
     }
-}
-</style>
+}</style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="notice-container" ref="noticeRef">
     <a-dropdown
       v-model:open="visible"
@@ -212,7 +212,7 @@ onMounted(() => {
             padding: 0 6px;
             color: #fff;
             font-weight: normal;
-            font-size: 12px;
+            font-size: var(--fs-12);
             line-height: 20px;
             white-space: nowrap;
             text-align: center;
@@ -220,5 +220,4 @@ onMounted(() => {
             border-radius: 10px;
         }
     }
-}
-</style>
+}</style>

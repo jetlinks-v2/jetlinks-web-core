@@ -100,5 +100,4 @@ onMounted(() => {
 }
 .wrapper {
   display: none;
-}
-</style>
+}</style>

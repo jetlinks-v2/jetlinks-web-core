@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <aside class="quick-filter-sidebar">
     <div
       v-for="section in sections"
@@ -447,7 +447,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   gap: 10px;
   width: 232px;
   height: 100%;
-  padding: 12px;
+  padding: var(--space-3);
   overflow: auto;
   background: var(--bg);
   border: 1px solid var(--line-strong);
@@ -456,13 +456,13 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 .quick-filter-sidebar__section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .quick-filter-sidebar__section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
 }
 .quick-filter-sidebar__section-header--static {
@@ -475,7 +475,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   min-width: 0;
   padding: 0;
   color: var(--ink-1);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   font-weight: 600;
   line-height: 22px;
   background: transparent;
@@ -501,17 +501,17 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 }
 .quick-filter-sidebar__header-actions {
   display: inline-flex;
-  gap: 4px;
+  gap: var(--space-1);
   align-items: center;
 }
 .quick-filter-sidebar__items {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .quick-filter-sidebar__row {
   display: flex;
-  gap: 4px;
+  gap: var(--space-1);
   align-items: center;
   border-radius: var(--r-2);
 }
@@ -520,7 +520,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 }
 .quick-filter-sidebar__item {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
   justify-content: space-between;
   flex: 1;
@@ -528,7 +528,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   min-height: 30px;
   padding: 0 10px;
   color: var(--ink-2);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   text-align: left;
   background: transparent;
   border: 0;
@@ -551,7 +551,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 }
 .quick-filter-sidebar__item-content {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: center;
   min-width: 0;
 }
@@ -589,7 +589,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 }
 .quick-filter-sidebar__item-actions {
   display: inline-flex;
-  gap: 4px;
+  gap: var(--space-1);
   align-items: center;
 }
 .quick-filter-sidebar__item-action-btn {
@@ -622,5 +622,4 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   color: color-mix(in srgb, var(--ink-1) 40%, transparent);
   font-size: var(--fs-12);
   line-height: 20px;
-}
-</style>
+}</style>

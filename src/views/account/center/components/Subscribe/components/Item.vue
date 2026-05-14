@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="child-item">
     <div class="child-item-left">
       <div style="color: #333333">
@@ -158,18 +158,18 @@ const onSave = (dt: any) => {
   align-items: center;
   height: 68px;
   background: linear-gradient(270deg, #ffffff 0%, #f1f6ff 99%);
-  border-radius: 4px;
+  border-radius: var(--r-1);
   border: 1px solid #ebeef3;
   margin-bottom: 10px;
 
   .child-item-left {
     display: flex;
     align-items: center;
-    margin-left: 24px;
+    margin-left: var(--space-6);
 
     div {
       display: flex;
-      margin-right: 8px;
+      margin-right: var(--space-2);
       flex-direction: column;
       justify-content: center;
       align-items: center;
@@ -182,7 +182,6 @@ const onSave = (dt: any) => {
 
   .child-item-right {
     display: flex;
-    margin-right: 16px;
+    margin-right: var(--space-4);
   }
-}
-</style>
+}</style>

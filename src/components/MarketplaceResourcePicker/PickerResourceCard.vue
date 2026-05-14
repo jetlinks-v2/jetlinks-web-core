@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     class="mp-card"
     :class="{ 'mp-card--picked': selectable && selected }"
@@ -480,7 +480,7 @@ function selectVersion(v: string) {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
@@ -533,7 +533,7 @@ function selectVersion(v: string) {
 }
 .mp-card__head {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   align-items: flex-start;
 }
 .mp-card__icon {
@@ -557,7 +557,7 @@ function selectVersion(v: string) {
 .mp-card__title-row {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 .mp-card__name-wrap {
@@ -565,14 +565,14 @@ function selectVersion(v: string) {
   min-width: 0;
 }
 .mp-card__title {
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 600;
   color: var(--ink-1);
 }
 .mp-card__title-link {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
   max-width: 100%;
   padding: 0;
@@ -596,7 +596,7 @@ function selectVersion(v: string) {
 .mp-card__title-link-affordance {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   flex-shrink: 0;
   padding: 2px 8px;
   border-radius: 999px;
@@ -623,7 +623,7 @@ function selectVersion(v: string) {
 .mp-card__state-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 .mp-card__state {
@@ -648,7 +648,7 @@ function selectVersion(v: string) {
 }
 .mp-card__desc {
   margin: 0;
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   line-height: 1.45;
   color: var(--ink-3);
   display: -webkit-box;
@@ -715,14 +715,14 @@ function selectVersion(v: string) {
 .mp-card__version-link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   max-width: min(100%, 240px);
   padding: 0;
   border: none;
   background: transparent;
   color: var(--accent);
   cursor: pointer;
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   line-height: 1.4;
 }
 .mp-card__version-link:hover {
@@ -765,7 +765,7 @@ function selectVersion(v: string) {
 .mp-card__version-summary-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   max-width: min(42%, 180px);
   padding: 1px 7px;
   border-radius: 999px;
@@ -786,9 +786,9 @@ function selectVersion(v: string) {
   max-width: 300px;
 }
 .mp-card__version-summary-popover-title {
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
   color: var(--ink-1);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   line-height: 1.4;
   font-weight: 600;
 }
@@ -812,7 +812,7 @@ function selectVersion(v: string) {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 8px 10px;
   border: 1px solid transparent;
   border-radius: var(--r-3);
@@ -835,12 +835,12 @@ function selectVersion(v: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .mp-card__version-option-label {
   flex: 1;
   min-width: 0;
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   line-height: 1.4;
   color: var(--ink-1);
   overflow: hidden;
@@ -849,7 +849,7 @@ function selectVersion(v: string) {
 }
 .mp-card__version-option-check {
   color: var(--accent);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
 }
 .mp-card__version-option-summary {
   font-size: var(--fs-12);
@@ -874,10 +874,10 @@ function selectVersion(v: string) {
   color: var(--ink-1);
 }
 .mp-card__release-md :deep(h1) {
-  font-size: 18px;
+  font-size: var(--fs-18);
 }
 .mp-card__release-md :deep(h2) {
-  font-size: 16px;
+  font-size: var(--fs-16);
 }
 .mp-card__release-md :deep(h3) {
   font-size: var(--fs-15);
@@ -891,7 +891,7 @@ function selectVersion(v: string) {
   padding-left: 1.25em;
 }
 .mp-card__release-md :deep(li) {
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 .mp-card__release-md :deep(code) {
   padding: 1px 6px;
@@ -921,7 +921,7 @@ function selectVersion(v: string) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding-top: 6px;
   border-top: 1px solid color-mix(in srgb, var(--ink-2) 6%, transparent);
 }
@@ -932,7 +932,6 @@ function selectVersion(v: string) {
 .mp-card__actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   margin-left: auto;
-}
-</style>
+}</style>
