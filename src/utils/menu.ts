@@ -36,15 +36,18 @@ type ParentType = {
 }
 
 const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
-  const _meta = item.options?.meta || {}
+  const _meta = {
+    ...(item.options?.meta || {}),
+    ...(item.meta || {})
+  } as RouteMeta & { options?: Record<string, any>; routeName?: string }
+
   return {
     ..._meta,
-    ...(item.meta || {}),
     id: item.id,
     icon: item.icon,
     desc: item.i18nDescribe || item.describe,
     title: item.i18nName || item.name,
-    hideInMenu: item.options?.show === false, // 隐藏菜单
+    hideInMenu: _meta.hideInMenu === true || _meta.options?.show === false || item.options?.show === false, // 隐藏菜单
     isApp
   }
 }
@@ -63,7 +66,7 @@ export const handleRoute = (item: MenuItem, parent?: ParentType): Partial<RouteR
 
   return {
     path: isApp ? appUrl : item.url,
-    name: isApp ? appUrl : item.options?.routeName || item.code,
+    name: isApp ? appUrl : (meta as Record<string, any>)?.routeName || item.options?.routeName || item.code,
     meta: {
       ...meta,
       breadcrumb
@@ -141,14 +144,20 @@ export const handleMenus = (
 
     return routes?.map((e: any) => {
       const meta: RouteMeta = {
+        ...(e.options?.meta || {}),
+        ...(e.meta || {}),
         title: e.i18nName || e.name,
-        hideInMenu: true
+        hideInMenu: true,
+        options: {
+          ...(e.options?.meta?.options || {}),
+          ...(e.meta?.options || {}),
+          show: false
+        }
       }
       return {
         ...e,
         code: `${item.code}/${e.code}`,
         url: `${item.url}${e.url}`,
-        options: { show: false },
         meta
       }
     })
@@ -202,7 +211,9 @@ export const handleMenus = (
         _route.redirect = showChildren[0].path.replace('/:page*', '')
       }
 
-      if (item.meta?.appName && item.meta?.appUrl) {
+      const itemMeta = handleMeta(item, !!item.appId)
+
+      if (itemMeta?.appName && itemMeta?.appUrl) {
         _route.path = `${item.url}/:page*`
       }
 
@@ -212,8 +223,7 @@ export const handleMenus = (
   }
 
   function siderLoop(data: MenuItem[]) {
-    const _menu = filterMenuData(data).filter((item) => item.meta?.options?.show !== false)
-
+    const _menu = filterMenuData(data).filter((item) => !handleMeta(item, !!item.appId).hideInMenu)
     for (const menuItem of data) {
       if (menuItem.buttons) {
         authButtons[menuItem.code] = menuItem.buttons.map((item) => item.id)
