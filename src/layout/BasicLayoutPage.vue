@@ -19,6 +19,12 @@
     <template #menuExtraRender>
       <LayoutMenuSearch />
     </template>
+    <template #linksRender>
+      <LayoutSidebarUser
+        :collapsed="state.collapsed"
+        @toggleCollapse="state.collapsed = !state.collapsed"
+      />
+    </template>
     <template #leftContentRender>
       <RegistryComponent pageCode="layout" code="layout" @click="onClick">
 
@@ -33,7 +39,7 @@
             <Resource key="resource" v-if="systemInfo?.['front']?.resources"/>
             <Notice key="notice" />
           </template>
-          <User key="user" :hideHeaderRight="hideHeaderRight" />
+          <HeaderThemeSwitch key="theme" />
         </RegistryComponent>
       </div>
     </template>
@@ -46,7 +52,15 @@
 import { reactive, computed, watchEffect } from 'vue'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
-import { User, Notice, Language, Resource, AiChat, LayoutMenuSearch } from './components'
+import {
+  Notice,
+  Language,
+  Resource,
+  AiChat,
+  LayoutMenuSearch,
+  LayoutSidebarUser,
+  HeaderThemeSwitch
+} from './components'
 import { storeToRefs } from 'pinia'
 import { getHideHeaderRightConfig, routerFallback } from '@jetlinks-web-core/utils'
 import { isSubApp } from '../utils/consts'
