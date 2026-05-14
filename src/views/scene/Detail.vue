@@ -310,7 +310,7 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 12px;
+    padding: var(--space-2) var(--space-3);
     border-radius: @radius-sm;
     color: @text-secondary;
     text-decoration: none;
@@ -461,7 +461,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .scene-info {
-    padding: 24px 28px;
+    padding: var(--space-6) var(--space-7);
   }
 
   .scene-meta-row {
@@ -543,7 +543,7 @@ watch(loginModalVisible, (newVal) => {
     margin-bottom: var(--space-4);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-2);
   }
 
   .section-title::before {
@@ -693,13 +693,13 @@ watch(loginModalVisible, (newVal) => {
   .preset-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-2);
   }
 
   .preset-item {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: var(--space-2);
     font-size: 13px;
     color: @text-secondary;
     line-height: 1.5;
@@ -725,7 +725,7 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: var(--space-2);
   }
 
   .btn-create:hover {
@@ -789,7 +789,7 @@ watch(loginModalVisible, (newVal) => {
 
   .related-item {
     display: flex;
-    gap: 14px;
+    gap: var(--space-4);
     padding: var(--space-3);
     background: @gray-100;
     border-radius: @radius-md;

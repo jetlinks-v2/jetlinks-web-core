@@ -1024,7 +1024,7 @@ defineExpose({
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid color-mix(in srgb, var(--accent) 12%, transparent);
   border-radius: 12px;
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), color-mix(in srgb, var(--accent) 2%, transparent));

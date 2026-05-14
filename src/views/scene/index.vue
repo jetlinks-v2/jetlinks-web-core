@@ -910,8 +910,8 @@ const onClick = () => {
   .capability-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
     background: @gray-100;
     border-radius: @radius-md;
     border: 1px solid @border-color;

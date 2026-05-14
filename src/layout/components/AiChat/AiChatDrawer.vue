@@ -299,11 +299,11 @@ onMounted(() => {
     }
 
     .current {
-      color: #52C41A;
+      color: var(--ok);
     }
 
     .delete {
-      color: #FF4D4F;
+      color: var(--err);
       display: none;
     }
 

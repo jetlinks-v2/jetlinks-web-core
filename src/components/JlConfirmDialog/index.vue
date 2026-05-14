@@ -120,7 +120,7 @@ function renderMessage(raw: string): string {
 .jlc-body {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: var(--space-4);
   padding: 22px 24px 18px;
 }
 .jlc-icon {

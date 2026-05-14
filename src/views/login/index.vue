@@ -87,7 +87,7 @@ getOpen()
       position: absolute;
       top: 96%;
       left: 35%;
-      color: rgba(0, 0, 0, 0.35);
+      color: var(--jet-theme-text-disabled);
       font-size: var(--fs-14);
     }
   }

@@ -515,7 +515,7 @@ onUnmounted(() => {
 }
 .identity-empty {
   text-align: center;
-  padding: 24px 0;
+  padding: var(--space-6) 0;
   .empty-icon {
     font-size: 48px;
     margin-bottom: var(--space-4);

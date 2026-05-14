@@ -146,7 +146,7 @@ const read = (type: '_read' | '_unread') => {
                 width: calc(100% - 120px);
 
                 div {
-                    color: rgba(0, 0, 0, 0.85);
+                    color: var(--jet-theme-text-title);
                     font-size: var(--fs-14);
                     font-weight: bold;
                     margin-right: 10px;
@@ -163,7 +163,7 @@ const read = (type: '_read' | '_unread') => {
             }
             .time {
                 font-size: var(--fs-12);
-                color: rgba(0, 0, 0, 0.45);
+                color: var(--jet-theme-text-disabled);
                 width: 120px;
             }
         }
