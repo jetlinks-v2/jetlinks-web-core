@@ -7,7 +7,7 @@
       <div class="token-card-info">
         <div class="token-card-header">
           <div class="token-name">{{ token.name }}</div>
-          <div class="status-tag" :style="{color: getStatusConfig(token).color}">
+          <div :class="['status-tag', getStatusConfig(token).className]">
             {{ getStatusConfig(token).text }}
           </div>
         </div>
@@ -100,14 +100,14 @@ const emit = defineEmits(['view', 'edit', 'delete'])
 const getStatusConfig = (token) => {
   if (token.status === 'disabled') {
     return {
-      color: 'red',
+      className: 'status-tag--error',
       text: $t('PersonalToken.TokenCard.515931-10'),
       icon: 'StopOutlined'
     }
   }
   if (token.expires === -1) {
     return {
-      color: 'green',
+      className: 'status-tag--success',
       text: $t('PersonalToken.TokenCard.515931-4'),
       icon: 'CheckCircleOutlined'
     }
@@ -118,7 +118,7 @@ const getStatusConfig = (token) => {
 
   if (expireTime.isBefore(now)) {
     return {
-      color: 'red',
+      className: 'status-tag--error',
       text: $t('PersonalToken.TokenCard.515931-15'),
       icon: 'ExclamationCircleOutlined'
     }
@@ -129,14 +129,14 @@ const getStatusConfig = (token) => {
 
   if (diffDays >= 1) {
     return {
-      color: '#777777',
+      className: 'status-tag--secondary',
       text: $t('PersonalToken.TokenCard.515931-13', [diffDays]),
       icon: 'ClockCircleOutlined'
     }
   } else {
     const _diffHours = diffHours > 1 ? diffHours.toFixed(0) : diffHours.toFixed(2)
     return {
-      color: '#1677FF',
+      className: 'status-tag--primary',
       text: $t('PersonalToken.TokenCard.515931-14', [_diffHours]),
       icon: 'ClockCircleOutlined'
     }
@@ -150,7 +150,7 @@ const formatDate = (dateStr) => {
 
 <style lang="less" scoped>
 .token-card {
-  border: 1px solid #E6E6E6;
+  border: 1px solid var(--jet-theme-border-secondary);
   padding: var(--space-4);
   display: flex;
   justify-content: space-between;
@@ -168,12 +168,12 @@ const formatDate = (dateStr) => {
       width: 48px;
       height: 48px;
       border-radius: var(--r-2);
-      background: #f6f9ff;
+      background: var(--jet-theme-primary-soft);
       display: flex;
       font-size: 20px;
       align-items: center;
       justify-content: center;
-      color: #1890ff;
+      color: var(--jet-theme-primary);
       flex-shrink: 0;
     }
 
@@ -200,7 +200,7 @@ const formatDate = (dateStr) => {
 
       .token-field {
         .field-label {
-          color: #777777;
+          color: var(--jet-theme-text-secondary);
           margin-bottom: var(--space-2);
         }
 
@@ -209,6 +209,24 @@ const formatDate = (dateStr) => {
         }
       }
     }
+  }
+}
+
+.status-tag {
+  &--primary {
+    color: var(--jet-theme-primary);
+  }
+
+  &--success {
+    color: var(--jet-theme-success);
+  }
+
+  &--error {
+    color: var(--jet-theme-error);
+  }
+
+  &--secondary {
+    color: var(--jet-theme-text-secondary);
   }
 }
 

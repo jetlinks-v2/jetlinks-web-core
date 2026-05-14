@@ -127,7 +127,7 @@ const handleClose = () => {
         top: 20px;
         left: 30px;
         font-size: 48px;
-        color: #6366f1;
+        color: var(--jet-theme-primary);
         z-index: 2;
       }
 
@@ -136,7 +136,7 @@ const handleClose = () => {
         bottom: 20px;
         right: 20px;
         font-size: 36px;
-        color: #f97316;
+        color: var(--jet-theme-warning);
         z-index: 1;
       }
 
@@ -149,7 +149,7 @@ const handleClose = () => {
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background-color: #e5e7eb;
+        background-color: var(--jet-theme-border-secondary);
       }
 
       &::after {
@@ -160,7 +160,7 @@ const handleClose = () => {
         width: 4px;
         height: 4px;
         border-radius: 50%;
-        background-color: #6366f1;
+        background-color: var(--jet-theme-primary);
       }
     }
   }
@@ -168,7 +168,7 @@ const handleClose = () => {
   .success-title {
     font-size: var(--fs-18);
     font-weight: 500;
-    color: #262626;
+    color: var(--jet-theme-text-title);
     margin-bottom: var(--space-6);
   }
 
@@ -183,10 +183,10 @@ const handleClose = () => {
       .token-input {
         flex: 1; :deep(.ant-input) {
           background-color: var(--color-jet-gray-50);
-          border: 1px solid #e9ecef;
+          border: 1px solid var(--jet-theme-border-secondary);
           padding: 8px 12px;
           font-size: 13px;
-          color: #495057;
+          color: var(--jet-theme-text);
         }
       }
 
@@ -196,12 +196,12 @@ const handleClose = () => {
         display: flex;
         align-items: center;
         gap: var(--space-1);
-        background: #1890ff;
-        border-color: #1890ff;
+        background: var(--jet-theme-primary);
+        border-color: var(--jet-theme-primary);
 
         &:hover {
-          background: #40a9ff;
-          border-color: #40a9ff;
+          background: var(--jet-theme-primary-hover);
+          border-color: var(--jet-theme-primary-hover);
         }
       }
     }
@@ -215,14 +215,14 @@ const handleClose = () => {
     text-align: left;
 
     .warning-icon {
-      color: #faad14;
+      color: var(--jet-theme-warning);
       font-size: var(--fs-16);
       margin-top: 2px;
       flex-shrink: 0;
     }
 
     .warning-text {
-      color: #666;
+      color: var(--jet-theme-text-secondary);
       font-size: 13px;
       line-height: 1.5;
     }
