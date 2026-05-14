@@ -96,6 +96,4 @@ const render = () => {
   </component>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

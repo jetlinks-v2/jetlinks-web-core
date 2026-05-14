@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <j-scrollbar :height="`calc(100% - 51px)`">
     <a-spin :spinning="loading">
       <div style="padding: 0 10px">
@@ -112,7 +112,7 @@ onMounted(() => {
 .alert {
   padding-left: 10px;
   color: #999999;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .content-collapse {
@@ -122,7 +122,7 @@ onMounted(() => {
 
     .ant-collapse-item {
       border: 1px solid #ebeef3;
-      margin-bottom: 24px;
+      margin-bottom: var(--space-6);
     }
 
     .ant-collapse-header {
@@ -138,5 +138,4 @@ onMounted(() => {
       padding: 0;
     }
   }
-}
-</style>
+}</style>

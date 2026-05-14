@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     class="upload-image-warp"
     @click.stop
@@ -242,7 +242,7 @@ function handleCropProcessingChange(busy: boolean) {
   height: 100%;
   background-color: color-mix(in srgb, var(--ink-1) 6%, transparent);
   cursor: pointer;
-  padding: 8px;
+  padding: var(--space-2);
 }
 .upload-image-warp .upload-image-border .upload-image-content .upload-image-mask {
   position: absolute;
@@ -252,7 +252,7 @@ function handleCropProcessingChange(busy: boolean) {
   width: 100%;
   height: 100%;
   color: var(--accent-ink);
-  font-size: 16px;
+  font-size: var(--fs-16);
   align-items: center;
   justify-content: center;
   background-color: color-mix(in srgb, var(--ink-1) 25%, transparent);
@@ -278,5 +278,4 @@ function handleCropProcessingChange(busy: boolean) {
   height: 100%;
   color: var(--accent-ink);
   background-color: color-mix(in srgb, var(--ink-1) 25%, transparent);
-}
-</style>
+}</style>

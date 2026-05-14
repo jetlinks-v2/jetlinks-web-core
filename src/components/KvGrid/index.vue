@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <dl :class="['kv-grid', layoutClass, cellLayoutClass]" :style="layoutStyle">
     <div v-for="entry in items" :key="entry.label" class="kv-cell">
       <dt>{{ entry.label }}</dt>
@@ -75,34 +75,32 @@ const layoutStyle = computed(() => ({
   min-width: 0;
 }
 .cell-stack .kv-cell dt {
-  font-size: var(--fs-10-5);
+  font-size: var(--fs-12);
   color: var(--ink-4);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 .cell-stack .kv-cell dd {
   margin: 0;
-  font-size: var(--fs-12-5);
+  font-size: var(--fs-12);
   color: var(--ink-1);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
-.cell-stack .kv-cell dd.mono {
-  font-family: ui-monospace, monospace;
-  font-size: var(--fs-11-5);
+.cell-stack .kv-cell dd.mono { font-size: var(--fs-12);
 }
 
 .cell-inline .kv-cell {
   display: grid;
   grid-template-columns: var(--kv-label-w) minmax(0, 1fr);
-  gap: 8px;
+  gap: var(--space-2);
   align-items: baseline;
-  font-size: var(--fs-12-5);
+  font-size: var(--fs-12);
   line-height: 1.65;
 }
 
 .cell-inline .kv-cell dt {
   color: var(--ink-4);
-  font-size: var(--fs-11-5);
+  font-size: var(--fs-12);
   font-weight: 500;
 }
 
@@ -112,9 +110,7 @@ const layoutStyle = computed(() => ({
   overflow-wrap: anywhere;
 }
 
-.cell-inline .kv-cell dd.mono {
-  font-family: var(--font-mono);
-  font-size: var(--fs-12);
+.cell-inline .kv-cell dd.mono { font-size: var(--fs-12);
   color: var(--ink-2);
 }
 
@@ -126,5 +122,4 @@ const layoutStyle = computed(() => ({
 .cols-stacked .kv-cell:last-child {
   padding-bottom: 0;
   border-bottom: 0;
-}
-</style>
+}</style>

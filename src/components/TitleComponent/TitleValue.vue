@@ -52,5 +52,4 @@ defineProps({
 .title-value .value {
   flex: 1 1 0;
   color: var(--jet-theme-text, var(--ink-3));
-}
-</style>
+}</style>

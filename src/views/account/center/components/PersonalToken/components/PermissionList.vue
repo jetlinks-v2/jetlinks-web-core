@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="permission-choose-container">
     <div class="detail-controls">
       <a-input-search
@@ -257,7 +257,6 @@ watch(
   .detail-controls {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
-}
-</style>
+}</style>

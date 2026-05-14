@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ConditionOptionPanelConfig } from './types'
@@ -644,7 +644,7 @@ onMounted(() => {
 .condition-option-panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .condition-option-panel__search :deep(.ant-input-affix-wrapper) {
   border-radius: var(--r-3);
@@ -730,5 +730,4 @@ onMounted(() => {
 }
 .condition-option-panel__hint {
   padding-top: 0;
-}
-</style>
+}</style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="upload-text-area-wrapper" :style="{ height: areaWrapperHeight + 'px' }">
     <div
       class="input-area-content"
@@ -462,7 +462,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   flex-shrink: 0;
   position: relative;
   width: 100%;
-  padding: 12px;
+  padding: var(--space-3);
   border-radius: var(--r-2);
   background: var(--bg);
   box-sizing: border-box;
@@ -473,19 +473,19 @@ onBeforeUnmount(() => registerReset?.(undefined));
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   box-sizing: border-box;
 }
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper {
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
+  border-top-left-radius: var(--r-2);
+  border-top-right-radius: var(--r-2);
   box-sizing: border-box;
   background: var(--bg-hover);
   border-bottom: 0.5px solid var(--line);
 }
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-items {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 12px 16px;
   overflow-x: auto;
   box-sizing: border-box;
@@ -520,8 +520,8 @@ onBeforeUnmount(() => registerReset?.(undefined));
   background: color-mix(in srgb, var(--bg) 85%, transparent);
 }
 .upload-text-area-wrapper .input-area-content .file-list {
-  border-top-left-radius: 6px;
-  border-top-right-radius: 6px;
+  border-top-left-radius: var(--r-2);
+  border-top-right-radius: var(--r-2);
   box-sizing: border-box;
   border-bottom: 0.5px solid var(--line);
   overflow: hidden;
@@ -560,7 +560,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   padding: 12px 16px;
   border-bottom: 1px solid var(--line-strong);
   box-sizing: border-box;
@@ -572,7 +572,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   justify-content: center;
   width: 40px;
   height: 40px;
-  margin-right: 16px;
+  margin-right: var(--space-4);
   border-radius: var(--r-2);
   background: var(--line-strong);
 }
@@ -584,14 +584,14 @@ onBeforeUnmount(() => registerReset?.(undefined));
   flex: 1;
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-info .name {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   font-size: var(--fs-15);
   line-height: 22px;
   color: var(--ink-1);
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-size {
   width: 90px;
-  margin-left: 24px;
+  margin-left: var(--space-6);
   font-size: var(--fs-14);
   line-height: 22px;
   text-align: left;
@@ -633,7 +633,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .upload-text-area-wrapper .input-area-content .textarea .drag-overlay .text {
-  font-size: 16px;
+  font-size: var(--fs-16);
   color: var(--accent);
 }
 .upload-text-area-wrapper .input-area-content .textarea .drag-overlay .icon {
@@ -660,5 +660,4 @@ onBeforeUnmount(() => registerReset?.(undefined));
   justify-content: space-between;
   width: 100%;
   height: 32px;
-}
-</style>
+}</style>

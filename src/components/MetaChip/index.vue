@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <span class="meta-chip" :class="toneClass">
     <slot name="prefix" />
     <slot>
@@ -27,7 +27,7 @@ const toneClass = computed(() => `t-${props.tone ?? 'default'}`)
 .meta-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 3px 10px;
   border-radius: 999px;
   background: var(--bg-sunken);
@@ -61,5 +61,4 @@ const toneClass = computed(() => `t-${props.tone ?? 'default'}`)
 .t-info {
   background: var(--info-bg);
   color: var(--info);
-}
-</style>
+}</style>

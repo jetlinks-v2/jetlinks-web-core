@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-modal
     open
     :title="$t('components.IconLibrary.title')"
@@ -263,8 +263,8 @@ const confirm = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--line-strong);
 }
 .icon-selector .category-tabs :deep(.ant-tabs-content) {
@@ -274,7 +274,7 @@ const confirm = () => {
 .icon-selector .icon-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
   padding: 8px 0;
 }
 .icon-selector .icon-grid .icon-item {
@@ -290,7 +290,7 @@ const confirm = () => {
 }
 .icon-selector .icon-grid .icon-item .anticon {
   font-size: 32px;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 .icon-selector .icon-grid .icon-item .icon-name {
   font-size: var(--fs-12);
@@ -315,16 +315,15 @@ const confirm = () => {
 .icon-selector .selected-info {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 16px;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
   border-top: 1px solid var(--line-strong);
 }
 .icon-selector .selected-info .ant-tag {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: var(--fs-14);
   padding: 4px 12px;
-}
-</style>
+}</style>

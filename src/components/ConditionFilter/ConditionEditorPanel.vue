@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ConditionOptionPanel from './ConditionOptionPanel.vue'
@@ -189,20 +189,20 @@ watch(
 
 <style scoped lang="less">
 .condition-editor-panel {
-  padding: 12px;
+  padding: var(--space-3);
   background: #fff;
   border: 1px solid #e5e6eb;
   border-radius: 10px;
   box-shadow: 0 8px 20px rgba(31, 35, 41, 0.12);
 
   &--compact {
-    padding: 8px;
+    padding: var(--space-2);
   }
 
   &__title {
     margin-bottom: 10px;
     color: #1d2129;
-    font-size: 14px;
+    font-size: var(--fs-14);
     font-weight: 600;
     line-height: 22px;
   }
@@ -212,5 +212,4 @@ watch(
     flex-direction: column;
     gap: 10px;
   }
-}
-</style>
+}</style>

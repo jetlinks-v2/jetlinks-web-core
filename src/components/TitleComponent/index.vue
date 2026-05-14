@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="title" :style="style">
         <div class="title-content">{{ data }}</div>
         <slot name="extra"></slot>
@@ -25,7 +25,7 @@ const props = defineProps({
   display: flex;
   align-items: center;
   width: 100%;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 .title .title-content {
   position: relative;
@@ -43,5 +43,4 @@ const props = defineProps({
   background-color: var(--accent);
   border-radius: 0 var(--r-1) var(--r-1) 0;
   content: ' ';
-}
-</style>
+}</style>

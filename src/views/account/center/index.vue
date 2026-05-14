@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="person">
     <div class="person-inner">
       <div class="person-sider">
@@ -106,14 +106,14 @@ onUnmounted(() => {
     display: flex;
     //align-items: flex-start;
     justify-content: center;
-    gap: 16px;
+    gap: var(--space-4);
 
   }
 
   .person-sider {
     width: 220px;
     background-color: #fff;
-    border-radius: 8px;
+    border-radius: var(--r-3);
     padding: 8px 0;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   }
@@ -125,10 +125,9 @@ onUnmounted(() => {
 
   .person-main-content {
     background-color: #fff;
-    border-radius: 8px;
+    border-radius: var(--r-3);
     padding: 16px 20px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     height: 100%;
   }
-}
-</style>
+}</style>

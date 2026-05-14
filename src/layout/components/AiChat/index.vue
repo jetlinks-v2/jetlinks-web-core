@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     v-if="showAiButton"
     class="ai-float-btn-wrapper"
@@ -95,7 +95,7 @@ const onOpen = () => {
 .ai-float-btn {
   width: 52px;
   height: 52px;
-  font-size: 24px;
+  font-size: var(--fs-24);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -111,7 +111,7 @@ const onOpen = () => {
 
 .ai-sparkle {
   position: absolute;
-  color: #1677ff;
+  color: var(--jet-theme-primary);
   font-size: 10px;
   opacity: 0;
   z-index: 1;
@@ -176,5 +176,4 @@ const onOpen = () => {
     opacity: 1;
     transform: scale(1);
   }
-}
-</style>
+}</style>

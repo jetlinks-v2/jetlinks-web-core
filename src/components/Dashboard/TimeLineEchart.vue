@@ -1,4 +1,4 @@
-<!-- 可交互时间轴图表 -->
+﻿<!-- 可交互时间轴图表 -->
 <template>
   <!-- <a-spin :spinning="loading"> -->
   <div
@@ -234,7 +234,7 @@ defineExpose({ refreshManual })
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 24px;
+  padding: var(--space-6);
   background-color: var(--bg);
   border-radius: 2px;
 }
@@ -245,6 +245,5 @@ defineExpose({ refreshManual })
 }
 .header h3 {
   width: 200px;
-  margin-top: 8px;
-}
-</style>
+  margin-top: var(--space-2);
+}</style>

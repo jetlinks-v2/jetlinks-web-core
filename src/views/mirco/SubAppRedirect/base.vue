@@ -159,7 +159,7 @@ watch(
 }
 
 .skeleton {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .skeleton-context {
@@ -185,5 +185,4 @@ watch(
     animation-iteration-count: infinite;
     content: '';
   }
-}
-</style>
+}</style>

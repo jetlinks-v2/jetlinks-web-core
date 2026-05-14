@@ -61,6 +61,4 @@ watch(() => props.modelValue, (val) => {
 })
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

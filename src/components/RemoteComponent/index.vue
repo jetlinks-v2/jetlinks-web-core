@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="remote-component-wrapper">
     <!-- 加载中状态 -->
     <div v-if="loading" class="loading-state">
@@ -76,23 +76,23 @@ onMounted(async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px;
+  padding: var(--space-10);
 }
 .remote-component-wrapper .loading-state .default-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   color: var(--ink-3);
 }
 .remote-component-wrapper .loading-state .default-loading span {
   font-size: var(--fs-14);
 }
 .remote-component-wrapper .error-state {
-  padding: 20px;
+  padding: var(--space-5);
 }
 .remote-component-wrapper .empty-state {
-  padding: 40px;
+  padding: var(--space-10);
   text-align: center;
 }
 @keyframes spin {
@@ -102,5 +102,4 @@ onMounted(async () => {
   100% {
     transform: rotate(360deg);
   }
-}
-</style>
+}</style>

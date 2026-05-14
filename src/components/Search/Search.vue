@@ -100,5 +100,4 @@ defineExpose({ reset, setValues: (data: Record<string, any>) => searchRef.value?
 <style scoped>
 .no-margin :deep(.JSearch-warp) {
   margin: 0;
-}
-</style>
+}</style>

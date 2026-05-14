@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     class="container"
     @click.stop="onClick"
@@ -91,6 +91,5 @@ watch(
 }
 .container .no-icon {
   color: color-mix(in srgb, var(--ink-1) 47%, transparent);
-  font-size: 22px;
-}
-</style>
+  font-size: var(--fs-22);
+}</style>

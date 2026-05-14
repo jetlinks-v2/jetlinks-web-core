@@ -78,5 +78,4 @@ const onLeft = () => {
 .box .box-btn .box-item-action:hover {
   background-color: var(--accent-soft);
   color: var(--jet-theme-primary, var(--accent));
-}
-</style>
+}</style>

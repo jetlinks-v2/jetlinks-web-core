@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section :id="id" class="section">
     <header class="section-head">
       <div class="left">
@@ -61,7 +61,7 @@ withDefaults(
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
   padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
 }
@@ -71,12 +71,12 @@ withDefaults(
 .section-title {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: var(--fs-15);
   font-weight: 600;
   color: var(--ink-1);
   line-height: 1.3;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 
 .ic {
@@ -94,14 +94,11 @@ withDefaults(
   color: var(--ink-3);
   line-height: 1.7;
 }
-.section-sub :deep(code) {
-  font-family: ui-monospace, monospace;
-  font-size: var(--fs-11);
+.section-sub :deep(code) { font-size: var(--fs-12);
   background: var(--bg-sunken);
   padding: 1px 5px;
   border-radius: var(--r-1);
   color: var(--ink-2);
 }
 
-.right { flex-shrink: 0; }
-</style>
+.right { flex-shrink: 0; }</style>

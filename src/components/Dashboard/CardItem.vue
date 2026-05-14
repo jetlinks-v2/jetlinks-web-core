@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     class="top-card"
     :style="{ backgroundColor: data.componentProps.background }"
@@ -911,7 +911,7 @@ watch(
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 24px;
+  padding: var(--space-6);
   background-color: var(--bg);
   border: 1px solid var(--line-strong);
   border-radius: 2px;
@@ -955,13 +955,12 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 16px;
+  padding-top: var(--space-4);
   border-top: 1px solid var(--line-strong);
   min-height: 40px;
 }
 .top-card .top-card-footer .footer-item-value {
   color: var(--ink-1);
   font-weight: 700;
-  font-size: 16px;
-}
-</style>
+  font-size: var(--fs-16);
+}</style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-modal
     :open="open"
     :title="null"
@@ -151,7 +151,7 @@ function renderMessage(raw: string): string {
 .jlc-text {
   flex: 1;
   min-width: 0;
-  padding-top: 4px;
+  padding-top: var(--space-1);
 }
 .jlc-title {
   margin: 0 0 6px;
@@ -162,7 +162,7 @@ function renderMessage(raw: string): string {
 }
 .jlc-msg {
   margin: 0;
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   line-height: 1.6;
   color: var(--ink-2);
   word-break: break-word;
@@ -172,7 +172,7 @@ function renderMessage(raw: string): string {
 .jlc-foot {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 12px 20px 16px;
   background: transparent;
 }
@@ -182,7 +182,7 @@ function renderMessage(raw: string): string {
   height: 34px;
   padding: 0 18px;
   border-radius: var(--r-1);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   font-weight: 500;
   display: inline-flex;
   align-items: center;
@@ -220,8 +220,7 @@ function renderMessage(raw: string): string {
 }
 .jlc-btn-confirm.tone-danger:hover {
   filter: brightness(0.95);
-}
-</style>
+}</style>
 
 <!-- AntDV a-modal 内容区无 padding，让我们的 .jlc 全权接管 -->
 <style>
@@ -234,5 +233,4 @@ function renderMessage(raw: string): string {
 .jlc-modal .ant-modal-mask {
   background: color-mix(in srgb, var(--ink-2) 42%, transparent);
   backdrop-filter: blur(2px);
-}
-</style>
+}</style>

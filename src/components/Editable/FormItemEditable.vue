@@ -48,6 +48,4 @@ const onChange = (val) => {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

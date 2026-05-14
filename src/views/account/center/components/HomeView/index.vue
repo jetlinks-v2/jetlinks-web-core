@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="choose-view">
         <HomeView v-model:value="currentView" />
         <div class="btn">
@@ -67,9 +67,8 @@ onMounted(() => {
         margin-top: 68px;
 
         button {
-            background-color: var(--jet-theme-primary-soft, #E6F4FF);
-            color: var(--jet-theme-primary-hover, #4096FF);
+            background-color: var(--jet-theme-primary-soft);
+            color: var(--jet-theme-primary-hover);
         }
     }
-}
-</style>
+}</style>

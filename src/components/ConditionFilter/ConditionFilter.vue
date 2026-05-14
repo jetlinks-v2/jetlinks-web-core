@@ -1,4 +1,4 @@
-<script setup lang="ts" name="ConditionFilter">
+﻿<script setup lang="ts" name="ConditionFilter">
 import type { PropType } from 'vue'
 import dayjs from 'dayjs'
 import { isRef } from 'vue'
@@ -2613,7 +2613,7 @@ onUnmounted(() => {
     padding: 5px 10px;
     background: #fff;
     border: 1px solid #d0d7de;
-    border-radius: 8px;
+    border-radius: var(--r-3);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
     &:hover {
@@ -2638,7 +2638,7 @@ onUnmounted(() => {
   &__term {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     flex: 0 1 auto;
     min-width: 0;
     max-width: 100%;
@@ -2647,7 +2647,7 @@ onUnmounted(() => {
   &__term-main {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     min-width: 0;
     max-width: 100%;
   }
@@ -2656,16 +2656,16 @@ onUnmounted(() => {
   &__editor {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     min-width: 0;
     max-width: min(100%, 260px);
     height: 26px;
     padding: 0 8px;
     color: #1f2329;
-    font-size: 12px;
+    font-size: var(--fs-12);
     line-height: 24px;
     border: 1px solid transparent;
-    border-radius: 6px;
+    border-radius: var(--r-2);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
   }
 
@@ -2782,7 +2782,7 @@ onUnmounted(() => {
     width: 18px;
     height: 18px;
     color: #8a94a6;
-    font-size: 12px;
+    font-size: var(--fs-12);
     flex: 0 0 auto;
   }
 
@@ -2791,7 +2791,7 @@ onUnmounted(() => {
     min-width: 56px;
     padding: 0;
     color: #1f2329;
-    font-size: 12px;
+    font-size: var(--fs-12);
     line-height: 24px;
     background: transparent;
     border: 0;
@@ -2808,7 +2808,7 @@ onUnmounted(() => {
 
   &__placeholder {
     color: #98a2b3;
-    font-size: 12px;
+    font-size: var(--fs-12);
     line-height: 24px;
   }
 
@@ -2818,7 +2818,7 @@ onUnmounted(() => {
     flex: 0 0 auto;
     gap: 6px;
     align-self: stretch;
-    margin-left: 8px;
+    margin-left: var(--space-2);
     padding-left: 2px;
   }
 
@@ -2831,7 +2831,7 @@ onUnmounted(() => {
     color: #667085;
     background: transparent;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--r-2);
     cursor: pointer;
     transition: background-color 0.15s ease, color 0.15s ease;
 
@@ -2853,7 +2853,7 @@ onUnmounted(() => {
   }
 
   &__action--search {
-    color: #1677ff;
+    color: var(--jet-theme-primary);
   }
 
   &__dropdown-panel {
@@ -2861,7 +2861,7 @@ onUnmounted(() => {
     flex-direction: column;
     gap: 6px;
     min-width: 120px;
-    padding: 8px;
+    padding: var(--space-2);
     background: #fff;
     border: 1px solid #e4e7ec;
     border-radius: 10px;
@@ -2887,7 +2887,7 @@ onUnmounted(() => {
 
   &__dropdown-option-title {
     color: #344054;
-    font-size: 12px;
+    font-size: var(--fs-12);
     line-height: 18px;
   }
 
@@ -2925,5 +2925,4 @@ onUnmounted(() => {
       max-width: 100%;
     }
   }
-}
-</style>
+}</style>

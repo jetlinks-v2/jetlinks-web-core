@@ -161,7 +161,4 @@ const boxCss = computed(() => ({
   font-size: calc(var(--ivv-size, 48px) * 0.35);
   line-height: 1;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  font-family: inherit;
-}
-</style>
+  letter-spacing: 0.02em; }</style>

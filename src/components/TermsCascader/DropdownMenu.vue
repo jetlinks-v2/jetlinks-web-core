@@ -54,6 +54,4 @@ watch(() => props.value, (newValue) => {
   </a-dropdown>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

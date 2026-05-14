@@ -1,4 +1,4 @@
-<template>
+﻿<template>
  <div class="home-title">
      <div v-if="title">{{ title }}</div>
      <div v-else>
@@ -26,10 +26,10 @@ const props = defineProps<guideProps>();
   z-index: 2;
   display: flex;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   padding-left: 18px;
   font-weight: 700;
-  font-size: 18px;
+  font-size: var(--fs-18);
 }
 .home-title::after {
   position: absolute;
@@ -51,5 +51,4 @@ const props = defineProps<guideProps>();
   top: 30px;
   color: var(--ink-4);
   font-size: var(--fs-12);
-}
-</style>
+}</style>

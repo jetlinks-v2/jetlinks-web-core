@@ -1,4 +1,4 @@
-<script setup name="OrgList">
+﻿<script setup name="OrgList">
 import { filterSelectNode } from "@jetlinks-web-core/utils";
 import { useI18n } from "vue-i18n";
 import { useRequest } from "@jetlinks-web/hooks";
@@ -207,7 +207,7 @@ onMounted(() => {
 .org-list-warp {
   width: 100%;
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .org-list-warp .tag-blue {
   background: var(--info-bg);
@@ -216,5 +216,4 @@ onMounted(() => {
 }
 .org-list-warp :deep(.ant-select-selection-overflow-item) > span {
   width: 100%;
-}
-</style>
+}</style>

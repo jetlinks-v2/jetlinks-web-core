@@ -61,6 +61,4 @@ const mapClick = async (e: any) => {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

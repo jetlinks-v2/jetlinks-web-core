@@ -238,10 +238,10 @@ const handleForgotPassword = () => {
 };
 
 const handleOk = () => {
-    const validateFields = isResetMode.value 
-        ? ['newPassword', 'confirmPassword'] 
+    const validateFields = isResetMode.value
+        ? ['newPassword', 'confirmPassword']
         : ['oldPassword', 'newPassword', 'confirmPassword'];
-    
+
     formRef.value?.validate(validateFields).then(() => {
         loading.value = true;
         if (isResetMode.value) {
@@ -313,5 +313,4 @@ const handleOk = () => {
   &.no-padding {
     padding: 0;
   }
-}
-</style>
+}</style>

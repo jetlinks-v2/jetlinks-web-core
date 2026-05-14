@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-card class="tag-manager-sidebar" :bordered="false">
     <template #title>
       <div class="tag-manager-sidebar__title">
@@ -1012,7 +1012,7 @@ defineExpose({
   display: flex;
   flex-direction: column;
   height: calc(100% - 57px);
-  padding: 20px;
+  padding: var(--space-5);
   overflow: hidden;
 }
 .tag-manager-sidebar :deep(.ant-spin-nested-loading),
@@ -1023,7 +1023,7 @@ defineExpose({
   flex: 1;
 }
 .tag-manager-sidebar :deep(.ant-spin-container) {
-  gap: 16px;
+  gap: var(--space-4);
   overflow-y: auto;
 }
 .tag-manager-sidebar__title {
@@ -1034,7 +1034,7 @@ defineExpose({
 .tag-manager-sidebar__header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .tag-manager-sidebar__selected-summary {
   display: flex;
@@ -1073,7 +1073,7 @@ defineExpose({
 .tag-manager-sidebar__group-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 .tag-manager-sidebar__group {
   display: flex;
@@ -1092,12 +1092,12 @@ defineExpose({
 .tag-manager-sidebar__group-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .tag-manager-sidebar__group-title {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
   flex-shrink: 0;
 }
@@ -1134,14 +1134,14 @@ defineExpose({
   background: color-mix(in srgb, var(--ink-1) 8%, transparent);
 }
 .tag-manager-sidebar__group-content {
-  padding-left: 12px;
-  margin-left: 4px;
+  padding-left: var(--space-3);
+  margin-left: var(--space-1);
   border-left: 2px solid color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .tag-manager-sidebar__tag-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .tag-manager-sidebar__tag-chip {
   display: inline-flex;
@@ -1199,13 +1199,13 @@ defineExpose({
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: var(--space-2);
   padding: 10px 12px;
   border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
   border-radius: 10px;
   background: color-mix(in srgb, var(--accent) 3%, transparent);
   color: var(--accent);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -1215,10 +1215,9 @@ defineExpose({
 }
 .tag-manager-sidebar__group-empty,
 .tag-manager-sidebar__empty-hint {
-  padding: 16px;
+  padding: var(--space-4);
   border-radius: 12px;
   text-align: center;
   color: var(--ink-4);
   background: color-mix(in srgb, var(--ink-1) 2%, transparent);
-}
-</style>
+}</style>

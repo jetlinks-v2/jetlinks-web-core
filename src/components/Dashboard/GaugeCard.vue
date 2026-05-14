@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- 仪表盘 -->
   <div
     class="echarts-item"
@@ -187,7 +187,7 @@ defineExpose({ refreshManual })
 .echarts-item {
   display: flex;
   height: 150px;
-  padding: 16px;
+  padding: var(--space-4);
   background-color: var(--bg);
   border: 1px solid var(--line-strong);
   border-radius: 2px;
@@ -201,9 +201,9 @@ defineExpose({ refreshManual })
   width: 55%;
 }
 .echarts-item .echarts-item-title {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   color: color-mix(in srgb, var(--ink-1) 60%, transparent);
-  font-size: 16px;
+  font-size: var(--fs-16);
 }
 .echarts-item .echarts-item-value {
   font-weight: bold;
@@ -221,7 +221,7 @@ defineExpose({ refreshManual })
   flex-grow: 1;
   justify-content: center;
   height: 0;
-  padding-left: 12px;
+  padding-left: var(--space-3);
 }
 .echarts-item .echarts-item-bottom::before {
   position: absolute;
@@ -232,5 +232,4 @@ defineExpose({ refreshManual })
   background-color: var(--err);
   transform: translateY(-50%);
   content: ' ';
-}
-</style>
+}</style>

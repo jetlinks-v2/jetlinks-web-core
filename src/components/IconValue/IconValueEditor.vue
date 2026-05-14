@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="ive">
     <div class="ive__preview">
       <IconValueView
@@ -285,7 +285,7 @@ function onCropUploadResult(url: string) {
 .ive {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   min-width: 0;
 }
 .ive__preview {
@@ -294,7 +294,7 @@ function onCropUploadResult(url: string) {
   padding: 8px 0;
 }
 .ive__tabs :deep(.ant-tabs-nav) {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 .ive__pane {
   display: flex;
@@ -308,8 +308,8 @@ function onCropUploadResult(url: string) {
 .ive__swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
 }
 .ive__swatch {
   width: 26px;
@@ -326,7 +326,7 @@ function onCropUploadResult(url: string) {
   gap: 10px;
 }
 .ive__label {
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   color: var(--ink-2);
   white-space: nowrap;
 }
@@ -340,7 +340,7 @@ function onCropUploadResult(url: string) {
   background: transparent;
 }
 .ive__apply {
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 .ive__library-picker {
   display: flex;
@@ -355,5 +355,4 @@ function onCropUploadResult(url: string) {
   font-size: var(--fs-12);
   color: var(--ink-4);
   line-height: 1.5;
-}
-</style>
+}</style>

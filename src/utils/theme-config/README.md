@@ -24,8 +24,8 @@ newTheme: {
   colorBgContainer: '#FFFFFF',
   colorBgElevated: '#FFFFFF',
   colorTextBase: '#000000',
-  colorText: 'rgba(0, 0, 0, 0.88)',
-  colorTextSecondary: 'rgba(0, 0, 0, 0.65)',
+  colorText: '#1A1A1A',
+  colorTextSecondary: '#6B7280',
   colorBorder: '#D9D9D9',
   colorBorderSecondary: '#F0F0F0',
   borderRadius: 6,
@@ -77,6 +77,29 @@ cssVars: {
 ```
 
 `applyThemeStyle()` writes default values for these variables before applying the active theme. This prevents variables from one theme leaking into another when users switch themes.
+
+## Typography And Spacing Tokens
+
+Text color tokens follow the product typography rules:
+
+| Usage | Token | Value |
+| --- | --- | --- |
+| 标题以及主要文本 | `--jet-theme-text-title`, `--jet-theme-text`, `--ink-1` | `#1A1A1A` |
+| 次要文字 / 文本描述 | `--jet-theme-text-secondary`, `--jet-theme-text-description`, `--ink-2` | `#6B7280` |
+| 辅助文字 / 禁用 | `--jet-theme-text-disabled`, `--ink-3`, `--ink-4` | `#9CA3AF` |
+
+Font size tokens keep `12px` as the minimum. Prefer semantic aliases in page code:
+
+| Usage | Token | Value |
+| --- | --- | --- |
+| 特殊强调标题 | `--fs-display`, `--fs-h1` | `24px` |
+| 板块内容标题 | `--fs-h2` | `22px` |
+| 特殊标题 / 自定义标题 | `--fs-h3` | `18px` |
+| 文案标题 / 弹窗标题 | `--fs-h4` | `16px` |
+| 主要内容文字 / 按钮文字 / 导航文字 | `--fs-body` | `14px` |
+| 提示文字 / 标签文字 / 次要文字 | `--fs-meta`, `--fs-label`, `--fs-tiny` | `12px` |
+
+Spacing tokens use a 4px scale. Prefer `--space-*` instead of ad hoc pixel values, and keep newly added spacing values as multiples of 4.
 
 ## Consistency Contract
 
