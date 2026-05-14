@@ -320,35 +320,35 @@ const onClick = () => {
 
 <style scoped lang="less">
 // Less 变量定义
-@primary: #1890ff;
-@primary-dark: #0d6efd;
-@primary-light: #69c0ff;
-@primary-bg: #e6f4ff;
-@secondary: #00d9ff;
-@accent: #722ed1;
-@success: #52c41a;
-@warning: #faad14;
-@error: #ff4d4f;
-@dark: #0a1628;
-@dark-secondary: #111d32;
-@gray-100: #f8fafc;
-@gray-200: #e2e8f0;
-@gray-300: #cbd5e1;
-@gray-400: #94a3b8;
-@gray-500: #64748b;
-@gray-600: #475569;
-@text-primary: #1e293b;
-@text-secondary: #64748b;
-@card-bg: #ffffff;
-@border-color: #e2e8f0;
-@shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-@shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-@shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-@shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-@radius-sm: 6px;
-@radius-md: 10px;
-@radius-lg: 16px;
-@radius-xl: 24px;
+@primary: var(--jet-theme-primary);
+@primary-dark: var(--jet-theme-primary-active);
+@primary-light: var(--jet-theme-primary-hover);
+@primary-bg: var(--jet-theme-primary-soft);
+@secondary: var(--jet-theme-primary-hover);
+@accent: var(--jet-theme-primary-active);
+@success: var(--jet-theme-success);
+@warning: var(--jet-theme-warning);
+@error: var(--jet-theme-error);
+@dark: var(--code-dark-bg);
+@dark-secondary: color-mix(in srgb, var(--code-dark-bg) 88%, var(--jet-theme-primary-active));
+@gray-100: var(--jet-theme-bg-layout);
+@gray-200: var(--jet-theme-border-secondary);
+@gray-300: var(--jet-theme-border);
+@gray-400: var(--jet-theme-text-disabled);
+@gray-500: var(--jet-theme-text-secondary);
+@gray-600: var(--jet-theme-text-secondary);
+@text-primary: var(--jet-theme-text-title);
+@text-secondary: var(--jet-theme-text-secondary);
+@card-bg: var(--jet-theme-bg-container);
+@border-color: var(--jet-theme-border-secondary);
+@shadow-sm: var(--shadow-1);
+@shadow-md: var(--shadow-1);
+@shadow-lg: var(--shadow-pop);
+@shadow-xl: var(--shadow-lifted);
+@radius-sm: var(--r-2);
+@radius-md: var(--r-3);
+@radius-lg: var(--r-3);
+@radius-xl: var(--r-3);
 
 .scene-center {
 
@@ -508,7 +508,7 @@ const onClick = () => {
     right: 0;
     width: 60%;
     height: 100%;
-    background: radial-gradient(ellipse at top right, rgba(24, 144, 255, 0.15) 0%, transparent 70%);
+    background: radial-gradient(ellipse at top right, color-mix(in srgb, var(--jet-theme-primary) 15%, transparent) 0%, transparent 70%);
   }
 
   .hero::after {
@@ -518,7 +518,7 @@ const onClick = () => {
     left: 50%;
     width: 40%;
     height: 50%;
-    background: radial-gradient(ellipse at bottom, rgba(0, 217, 255, 0.1) 0%, transparent 70%);
+    background: radial-gradient(ellipse at bottom, color-mix(in srgb, var(--jet-theme-primary-hover) 10%, transparent) 0%, transparent 70%);
   }
 
   .hero-content {
@@ -531,8 +531,8 @@ const onClick = () => {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(24, 144, 255, 0.15);
-    border: 1px solid rgba(24, 144, 255, 0.3);
+    background: color-mix(in srgb, var(--jet-theme-primary) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
     color: @primary-light;
     font-size: var(--fs-12);
     font-weight: 500;
@@ -569,7 +569,7 @@ const onClick = () => {
 
   .hero p {
     font-size: var(--fs-16);
-    color: rgba(255, 255, 255, 0.7);
+    color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     margin-bottom: var(--space-7);
     line-height: 1.8;
   }
@@ -590,7 +590,7 @@ const onClick = () => {
 
   .hero-stat-label {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.5);
+    color: color-mix(in srgb, var(--accent-ink) 50%, transparent);
     margin-top: var(--space-1);
   }
 
@@ -637,11 +637,11 @@ const onClick = () => {
     font-size: var(--fs-12);
     padding: 2px 8px;
     border-radius: 10px;
-    background: rgba(0, 0, 0, 0.1);
+    background: color-mix(in srgb, var(--code-dark-bg) 10%, transparent);
   }
 
   .filter-tab.active .count {
-    background: rgba(255, 255, 255, 0.2);
+    background: color-mix(in srgb, var(--accent-ink) 20%, transparent);
   }
 
   /* Scene Grid */
@@ -694,7 +694,7 @@ const onClick = () => {
     left: 0;
     right: 0;
     height: 60%;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+    background: linear-gradient(to top, color-mix(in srgb, var(--code-dark-bg) 60%, transparent), transparent);
   }
 
   .scene-card-badge {
@@ -711,7 +711,7 @@ const onClick = () => {
   }
 
   .scene-card-badge.hot {
-    background: linear-gradient(135deg, #ff4d4f, #ff7a45);
+    background: linear-gradient(135deg, var(--jet-theme-error), color-mix(in srgb, var(--jet-theme-warning) 72%, var(--jet-theme-error)));
     color: var(--accent-ink);
   }
 
@@ -721,7 +721,7 @@ const onClick = () => {
   }
 
   .scene-card-badge.popular {
-    background: linear-gradient(135deg, @accent, #b37feb);
+    background: linear-gradient(135deg, @accent, color-mix(in srgb, var(--jet-theme-primary-active) 35%, var(--jet-theme-bg-container)));
     color: var(--accent-ink);
   }
 
@@ -734,7 +734,7 @@ const onClick = () => {
     border-radius: var(--r-1);
     font-size: 11px;
     font-weight: 500;
-    background: rgba(255, 255, 255, 0.95);
+    background: color-mix(in srgb, var(--jet-theme-bg-container) 95%, transparent);
     color: @text-primary;
   }
 
@@ -781,33 +781,33 @@ const onClick = () => {
   }
 
   .scene-tag.vision {
-    background: #fff0f6;
-    color: #c41d7f;
-    border-color: #ffadd2;
+    background: var(--err-bg);
+    color: var(--jet-theme-error);
+    border-color: color-mix(in srgb, var(--jet-theme-error) 28%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.ai {
-    background: #f0f5ff;
-    color: #2f54eb;
-    border-color: #adc6ff;
+    background: var(--jet-theme-primary-soft);
+    color: var(--jet-theme-primary-active);
+    border-color: color-mix(in srgb, var(--jet-theme-primary) 28%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.iot {
-    background: #e6fffb;
-    color: #08979c;
-    border-color: #87e8de;
+    background: color-mix(in srgb, var(--jet-theme-primary-hover) 12%, var(--jet-theme-bg-container));
+    color: var(--jet-theme-primary-hover);
+    border-color: color-mix(in srgb, var(--jet-theme-primary-hover) 28%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.video {
-    background: #fff7e6;
-    color: #d46b08;
-    border-color: #ffd591;
+    background: var(--warn-bg);
+    color: var(--jet-theme-warning);
+    border-color: color-mix(in srgb, var(--jet-theme-warning) 32%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.edge {
-    background: #f6ffed;
-    color: #389e0d;
-    border-color: #b7eb8f;
+    background: var(--ok-bg);
+    color: var(--jet-theme-success);
+    border-color: color-mix(in srgb, var(--jet-theme-success) 32%, var(--jet-theme-bg-container));
   }
 
   .scene-card-footer {
@@ -935,27 +935,27 @@ const onClick = () => {
   }
 
   .capability-icon.iot {
-    background: linear-gradient(135deg, #e6fffb, #87e8de);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--jet-theme-primary-hover) 12%, var(--jet-theme-bg-container)), color-mix(in srgb, var(--jet-theme-primary-hover) 34%, var(--jet-theme-bg-container)));
   }
 
   .capability-icon.visual {
-    background: linear-gradient(135deg, #fff7e6, #ffd591);
+    background: linear-gradient(135deg, var(--warn-bg), color-mix(in srgb, var(--jet-theme-warning) 32%, var(--jet-theme-bg-container)));
   }
 
   .capability-icon.video {
-    background: linear-gradient(135deg, #f0f5ff, #adc6ff);
+    background: linear-gradient(135deg, var(--jet-theme-primary-soft), color-mix(in srgb, var(--jet-theme-primary) 28%, var(--jet-theme-bg-container)));
   }
 
   .capability-icon.edge {
-    background: linear-gradient(135deg, #f6ffed, #b7eb8f);
+    background: linear-gradient(135deg, var(--ok-bg), color-mix(in srgb, var(--jet-theme-success) 32%, var(--jet-theme-bg-container)));
   }
 
   .capability-icon.ai {
-    background: linear-gradient(135deg, #fff0f6, #ffadd2);
+    background: linear-gradient(135deg, var(--err-bg), color-mix(in srgb, var(--jet-theme-error) 28%, var(--jet-theme-bg-container)));
   }
 
   .capability-icon.agent {
-    background: linear-gradient(135deg, #f9f0ff, #d3adf7);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--jet-theme-primary-active) 8%, var(--jet-theme-bg-container)), color-mix(in srgb, var(--jet-theme-primary-active) 28%, var(--jet-theme-bg-container)));
   }
 
   .capability-info {
@@ -977,7 +977,7 @@ const onClick = () => {
 
   .footer {
     background: @dark;
-    color: rgba(255, 255, 255, 0.7);
+    color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     padding: 40px 32px;
     margin-top: 60px;
   }
@@ -1001,7 +1001,7 @@ const onClick = () => {
 
   .footer-link {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
+    color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     text-decoration: none;
     transition: color 0.2s;
   }

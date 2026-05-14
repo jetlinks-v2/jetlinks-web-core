@@ -319,7 +319,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: var(--jet-theme-bg-layout);
   padding: var(--space-5);
 }
 
@@ -336,7 +336,7 @@ onMounted(() => {
 
 .loading-text {
   margin-top: var(--space-4);
-  color: #666;
+  color: var(--jet-theme-text-secondary);
 }
 
 .status-container {
@@ -353,11 +353,11 @@ onMounted(() => {
   text-align: center;
   max-width: 400px;
   width: 100%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-1);
 }
 
 .status-card.error .status-icon {
-  color: #ff4d4f;
+  color: var(--jet-theme-error);
 }
 
 .status-icon {
@@ -368,12 +368,12 @@ onMounted(() => {
 .status-title {
   font-size: 20px;
   font-weight: 500;
-  color: #333;
+  color: var(--jet-theme-text-title);
   margin-bottom: var(--space-3);
 }
 
 .status-description {
-  color: #666;
+  color: var(--jet-theme-text-secondary);
   line-height: 1.5;
   margin-bottom: var(--space-6);
 }
@@ -395,7 +395,7 @@ onMounted(() => {
   padding: var(--space-10);
   max-width: 400px;
   width: 100%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-1);
 }
 
 .auth-header {
@@ -409,7 +409,7 @@ onMounted(() => {
   justify-content: center;
   width: 60px;
   height: 60px;
-  background: #1890ff;
+  background: var(--jet-theme-primary);
   border-radius: var(--r-3);
   margin-bottom: var(--space-4);
   font-size: var(--fs-24);
@@ -419,7 +419,7 @@ onMounted(() => {
 .auth-title {
   font-size: 20px;
   font-weight: 500;
-  color: #333;
+  color: var(--jet-theme-text-title);
 }
 
 .auth-form {
@@ -446,13 +446,13 @@ onMounted(() => {
   justify-content: center;
   width: 80px;
   height: 32px;
-  background: #f5f5f5;
+  background: var(--jet-theme-bg-layout);
   border-radius: var(--r-1);
-  color: #999;
+  color: var(--jet-theme-text-secondary);
 }
 
 .verify-code-placeholder:hover {
-  background: #e8e8e8;
+  background: var(--jet-theme-border-secondary);
 }
 
 .form-actions {

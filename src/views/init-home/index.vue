@@ -163,7 +163,7 @@ const judgeInitSet = async () => {
     .container-title {
       position: relative;
       padding-left: 10px;
-      color: rgba(0, 0, 0, 0.8);
+      color: var(--jet-theme-text-title);
       font-weight: 600;
       line-height: 1;
 
@@ -227,7 +227,7 @@ const judgeInitSet = async () => {
             height: 150px;
 
             &:hover {
-              border: 1px dashed #1890ff;
+              border: 1px dashed var(--jet-theme-primary);
               display: flex;
             }
 
@@ -302,7 +302,7 @@ const judgeInitSet = async () => {
             height: 415px;
 
             &:hover {
-              border: 1px dashed #1890ff;
+              border: 1px dashed var(--jet-theme-primary);
               display: flex;
             }
 
@@ -352,7 +352,7 @@ const judgeInitSet = async () => {
         }
 
         .upload-tips {
-          color: rgba(0, 0, 0, 0.45);
+          color: var(--jet-theme-text-secondary);
           font-size: var(--fs-14);
           line-height: 1.5715;
         }

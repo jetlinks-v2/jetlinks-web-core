@@ -10,7 +10,7 @@
     centered
   >
     <template #closeIcon>
-      <Button danger type="link" @click="onCancel" style="font-size: 18px">
+      <Button class="relogin-close" danger type="link" @click="onCancel">
         <svg focusable="false" class="" data-icon="export" width="1em" height="1em" fill="currentColor" aria-hidden="true" viewBox="64 64 896 896"><path d="M888.3 757.4h-53.8c-4.2 0-7.7 3.5-7.7 7.7v61.8H197.1V197.1h629.8v61.8c0 4.2 3.5 7.7 7.7 7.7h53.8c4.2 0 7.7-3.4 7.7-7.7V158.7c0-17-13.7-30.7-30.7-30.7H158.7c-17 0-30.7 13.7-30.7 30.7v706.6c0 17 13.7 30.7 30.7 30.7h706.6c17 0 30.7-13.7 30.7-30.7V765.1c0-4.3-3.5-7.7-7.7-7.7zm18.6-251.7L765 393.7c-5.3-4.2-13-.4-13 6.3v76H438c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h314v76c0 6.7 7.8 10.5 13 6.3l141.9-112a8 8 0 000-12.6z"></path></svg>
       </Button>
     </template>
@@ -22,8 +22,8 @@
             <div>
               <img :width="280" :src="Relogin" />
             </div>
-            <div style="font-size: 16px; color: #1A1A1A">{{ $t('relogin.419974-1') }}</div>
-            <div style="font-size: 12px; color: #777777;">{{ $t('relogin.419974-2') }}</div>
+            <div class="left-title">{{ $t('relogin.419974-1') }}</div>
+            <div class="left-desc">{{ $t('relogin.419974-2') }}</div>
           </div>
         </div>
         <div class="right">
@@ -89,6 +89,10 @@ defineExpose({ open })
 
 <style lang="less">
 .relogin-modal {
+  .relogin-close {
+    font-size: var(--fs-h3);
+  }
+
   .ant-modal-content {
     padding: 0;
 
@@ -110,7 +114,7 @@ defineExpose({ open })
 
 .left {
   height: 100%;
-  background-color: #F1F7FF;
+  background-color: var(--jet-theme-primary-soft);
   display: flex;
   justify-content: center;
   width: 466px;
@@ -121,6 +125,16 @@ defineExpose({ open })
     text-align: center;
     justify-content: center;
     gap: var(--space-4);
+  }
+
+  .left-title {
+    font-size: var(--fs-h4);
+    color: var(--jet-theme-text-title);
+  }
+
+  .left-desc {
+    font-size: var(--fs-meta);
+    color: var(--jet-theme-text-secondary);
   }
 }
 

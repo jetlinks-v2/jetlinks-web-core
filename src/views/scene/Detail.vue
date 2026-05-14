@@ -255,27 +255,27 @@ watch(loginModalVisible, (newVal) => {
 
 <style lang="less">
 // Less 变量定义
-@primary: #1890ff;
-@primary-dark: #0d6efd;
-@primary-light: #69c0ff;
-@primary-bg: #e6f4ff;
-@secondary: #00d9ff;
-@accent: #722ed1;
-@success: #52c41a;
-@warning: #faad14;
-@error: #ff4d4f;
-@dark: #0a1628;
-@dark-secondary: #111d32;
-@gray-100: #f8fafc;
-@gray-200: #e2e8f0;
-@gray-300: #cbd5e1;
-@gray-400: #94a3b8;
-@gray-500: #64748b;
-@gray-600: #475569;
-@text-primary: #1e293b;
-@text-secondary: #64748b;
-@card-bg: #ffffff;
-@border-color: #e2e8f0;
+@primary: var(--jet-theme-primary);
+@primary-dark: var(--jet-theme-primary-active);
+@primary-light: var(--jet-theme-primary-hover);
+@primary-bg: var(--jet-theme-primary-soft);
+@secondary: var(--jet-theme-primary-hover);
+@accent: var(--jet-theme-primary-active);
+@success: var(--jet-theme-success);
+@warning: var(--jet-theme-warning);
+@error: var(--jet-theme-error);
+@dark: var(--code-dark-bg);
+@dark-secondary: color-mix(in srgb, var(--code-dark-bg) 88%, var(--jet-theme-primary-active));
+@gray-100: var(--jet-theme-bg-layout);
+@gray-200: var(--jet-theme-border-secondary);
+@gray-300: var(--jet-theme-border);
+@gray-400: var(--jet-theme-text-disabled);
+@gray-500: var(--jet-theme-text-secondary);
+@gray-600: var(--jet-theme-text-secondary);
+@text-primary: var(--jet-theme-text-title);
+@text-secondary: var(--jet-theme-text-secondary);
+@card-bg: var(--jet-theme-bg-container);
+@border-color: var(--jet-theme-border-secondary);
 @radius-sm: 6px;
 @radius-md: 10px;
 @radius-lg: 16px;
@@ -412,7 +412,7 @@ watch(loginModalVisible, (newVal) => {
     left: 0;
     right: 0;
     height: 60%;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+    background: linear-gradient(to top, color-mix(in srgb, var(--code-dark-bg) 80%, transparent), transparent);
   }
 
   .scene-cover-content {
@@ -439,12 +439,12 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .scene-badge.hot {
-    background: linear-gradient(135deg, #ff4d4f, #ff7a45);
+    background: linear-gradient(135deg, var(--jet-theme-error), color-mix(in srgb, var(--jet-theme-warning) 72%, var(--jet-theme-error)));
     color: var(--accent-ink);
   }
 
   .scene-badge.industry {
-    background: rgba(255, 255, 255, 0.95);
+    background: color-mix(in srgb, var(--jet-theme-bg-container) 95%, transparent);
     color: @text-primary;
   }
 
@@ -457,7 +457,7 @@ watch(loginModalVisible, (newVal) => {
 
   .scene-subtitle {
     font-size: 15px;
-    color: rgba(255, 255, 255, 0.8);
+    color: color-mix(in srgb, var(--accent-ink) 80%, transparent);
   }
 
   .scene-info {
@@ -506,27 +506,27 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .scene-tag.vision {
-    background: #fff0f6;
-    color: #c41d7f;
-    border-color: #ffadd2;
+    background: var(--err-bg);
+    color: var(--jet-theme-error);
+    border-color: color-mix(in srgb, var(--jet-theme-error) 28%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.ai {
-    background: #f0f5ff;
-    color: #2f54eb;
-    border-color: #adc6ff;
+    background: var(--jet-theme-primary-soft);
+    color: var(--jet-theme-primary-active);
+    border-color: color-mix(in srgb, var(--jet-theme-primary) 28%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.video {
-    background: #fff7e6;
-    color: #d46b08;
-    border-color: #ffd591;
+    background: var(--warn-bg);
+    color: var(--jet-theme-warning);
+    border-color: color-mix(in srgb, var(--jet-theme-warning) 32%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.edge {
-    background: #f6ffed;
-    color: #389e0d;
-    border-color: #b7eb8f;
+    background: var(--ok-bg);
+    color: var(--jet-theme-success);
+    border-color: color-mix(in srgb, var(--jet-theme-success) 32%, var(--jet-theme-bg-container));
   }
 
   .content-section {
@@ -619,7 +619,7 @@ watch(loginModalVisible, (newVal) => {
   .value-card {
     text-align: center;
     padding: 24px 16px;
-    background: linear-gradient(135deg, @primary-bg, white);
+    background: linear-gradient(135deg, @primary-bg, var(--jet-theme-bg-container));
     border-radius: @radius-md;
     border: 1px solid @primary-light;
   }
@@ -730,7 +730,7 @@ watch(loginModalVisible, (newVal) => {
 
   .btn-create:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(24, 144, 255, 0.35);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--jet-theme-primary) 35%, transparent);
   }
 
   .btn-create:disabled,
@@ -822,7 +822,7 @@ watch(loginModalVisible, (newVal) => {
 
   .footer {
     background: @dark;
-    color: rgba(255, 255, 255, 0.7);
+    color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     padding: 40px 32px;
     margin-top: 60px;
   }
@@ -846,7 +846,7 @@ watch(loginModalVisible, (newVal) => {
 
   .footer-link {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
+    color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     text-decoration: none;
   }
 

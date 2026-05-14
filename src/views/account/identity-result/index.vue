@@ -48,15 +48,15 @@ function goCenter() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
+  background: var(--jet-theme-bg-layout);
 }
 
 .identity-result-card {
-  background: #fff;
+  background: var(--jet-theme-bg-container);
   border-radius: var(--r-3);
-  padding: 48px 56px;
+  padding: var(--space-12) calc(var(--space-12) + var(--space-2));
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-1);
   min-width: 360px;
 }
 
@@ -65,24 +65,24 @@ function goCenter() {
   margin-bottom: var(--space-6);
 
   &.success {
-    color: #52c41a;
+    color: var(--jet-theme-success);
   }
 
   &.error {
-    color: #ff4d4f;
+    color: var(--jet-theme-error);
   }
 }
 
 .result-title {
   font-size: 20px;
   font-weight: 600;
-  color: #1d2129;
+  color: var(--jet-theme-text-title);
   margin-bottom: var(--space-3);
 }
 
 .result-message {
   font-size: var(--fs-14);
-  color: #86909c;
+  color: var(--jet-theme-text-secondary);
   margin-bottom: var(--space-8);
   word-break: break-word;
 }

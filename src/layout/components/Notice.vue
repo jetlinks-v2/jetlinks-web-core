@@ -6,7 +6,7 @@
       :getPopupContainer="getPopupContainer"
     >
       <a-badge :count="total" :offset="[3, -3]">
-        <AIcon type="BellOutlined" style="font-size: 16px" />
+        <AIcon class="notice-icon" type="BellOutlined" />
       </a-badge>
       <template #overlay>
         <div>
@@ -197,6 +197,10 @@ onMounted(() => {
 
 <style scoped lang="less">
 .notice-container {
+    .notice-icon {
+        font-size: var(--fs-h4);
+    }
+
     .icon-content {
         height: 48px;
         display: flex;
@@ -210,13 +214,13 @@ onMounted(() => {
             min-width: 20px;
             height: 20px;
             padding: 0 6px;
-            color: #fff;
+            color: var(--accent-ink);
             font-weight: normal;
             font-size: var(--fs-12);
             line-height: 20px;
             white-space: nowrap;
             text-align: center;
-            background: #ff4d4f;
+            background: var(--jet-theme-error);
             border-radius: 10px;
         }
     }
