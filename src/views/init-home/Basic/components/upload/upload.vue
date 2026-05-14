@@ -259,7 +259,7 @@ const uploadInfo: UploadInfoType = {
           height: 160px;
           color: var(--accent-ink);
           font-size: var(--fs-16);
-          background-color: rgba(0, 0, 0, 0.35);
+          background-color: var(--jet-theme-text-disabled);
           display: none;
       }
       &:hover .upload-mask {
@@ -272,7 +272,7 @@ const uploadInfo: UploadInfoType = {
       }
     }
     .uploadTip {
-      color: rgba(0, 0, 0, 0.45);
+      color: var(--jet-theme-text-disabled);
       font-size: var(--fs-14);
       line-height: 1.5715;
     }

@@ -1078,7 +1078,7 @@ defineExpose({
 .tag-manager-sidebar__group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
   transition: all 0.2s;
 }
 .tag-manager-sidebar__group--dragging {
@@ -1200,7 +1200,7 @@ defineExpose({
   justify-content: center;
   gap: 6px;
   margin-top: var(--space-2);
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
   border-radius: 10px;
   background: color-mix(in srgb, var(--accent) 3%, transparent);

@@ -192,7 +192,7 @@ watch(() => props.value, (newValue) => {
   margin-left: -1px;
 }
 .terms-group-container .connect-text {
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--line);
   border-radius: var(--r-3);
   cursor: pointer;

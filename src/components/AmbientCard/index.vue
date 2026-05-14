@@ -38,7 +38,7 @@ withDefaults(
   box-shadow: var(--shadow-lifted);
 }
 .ambient-card.padded {
-  padding: 24px 28px;
+  padding: var(--space-6) var(--space-7);
 }
 
 .v-hero {

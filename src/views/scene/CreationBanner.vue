@@ -335,7 +335,7 @@ function onClose() {
 
 .step {
   display: flex;
-  gap: 10px;
+  gap: var(--space-2);
   opacity: 0.3;
   transition: opacity 0.3s;
 

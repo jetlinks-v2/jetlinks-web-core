@@ -185,7 +185,7 @@ onMounted(async () => {
     .no-data {
         width: 100%;
         padding: 73px 0 88px;
-        color: rgba(0, 0, 0, 0.45);
+        color: var(--jet-theme-text-disabled);
         text-align: center;
 
         img {

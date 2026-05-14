@@ -188,6 +188,6 @@ watch(
 .filter-dropdown-panel__actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
   margin-top: var(--space-4);
 }</style>

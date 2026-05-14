@@ -75,8 +75,8 @@ function getSlotText(): string {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   font-size: var(--fs-12);
   border-bottom: 1px solid var(--line);
 }
@@ -147,9 +147,9 @@ function getSlotText(): string {
   overflow-x: auto;
 }
 .cb-body.inline {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   white-space: nowrap;
 }</style>

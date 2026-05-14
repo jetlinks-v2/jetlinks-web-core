@@ -49,7 +49,7 @@ const positionClass = computed(() => `sab-${props.position}`)
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-4);
   background: var(--bg);
   border-top: 1px solid var(--line);
   z-index: 5;
