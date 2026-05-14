@@ -184,7 +184,7 @@ const handleClose = () => {
         flex: 1; :deep(.ant-input) {
           background-color: var(--color-jet-gray-50);
           border: 1px solid var(--jet-theme-border-secondary);
-          padding: var(--space-2) var(--space-3);
+          padding: 8px 12px;
           font-size: 13px;
           color: var(--jet-theme-text);
         }
