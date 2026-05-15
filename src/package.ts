@@ -17,7 +17,9 @@ import {
     routerFallback,
     isFromCloud,
     getFromCloudPathName,
-    getProjectIdFromLocation
+    getProjectIdFromLocation,
+    getProjectStorage,
+    isProjectStorageEnabled,
 } from '@jetlinks-web-core/utils'
 import microApp from '@micro-zoe/micro-app'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
@@ -35,6 +37,26 @@ const getProjectIdFromRequest = (config: any) => {
         || config?.headers?.['X-Project-Id']
         || config?.projectId
         || getProjectIdFromLocation()
+}
+
+const getProjectContext = (config: any) => {
+    if (isProjectStorageEnabled()) {
+        const urlProjectId = getProjectIdFromLocation()
+        if (urlProjectId) {
+            return {
+                projectId: urlProjectId,
+                storage: getProjectStorage(urlProjectId),
+                strictStorage: true
+            }
+        }
+    }
+
+    const projectId = getProjectIdFromRequest(config)
+    return {
+        projectId,
+        storage: getProjectStorage(projectId),
+        strictStorage: false
+    }
 }
 
 /**
@@ -192,13 +214,18 @@ export const initAxios = () => {
                 }
             }
 
-            const projectId = getProjectIdFromRequest(config)
+            const { projectId, storage: projectStorage, strictStorage } = getProjectContext(config)
 
             if (projectId) {
                 config.headers = config.headers || {}
-                config.headers['X-Tenant-Domain'] = projectId
-                config.headers[TOKEN_KEY] = localStorage.getItem(`${TOKEN_KEY}_${projectId}`)
-                const projectApi = localStorage.getItem(`X-Tenant-Api_${projectId}`) || localStorage.getItem('X-Tenant-Api')
+                config.headers['X-Tenant-Domain'] = projectStorage?.domain || projectId
+
+                const projectToken = projectStorage?.token || (strictStorage ? undefined : localStorage.getItem(`${TOKEN_KEY}_${projectId}`))
+                if (projectToken) {
+                    config.headers[TOKEN_KEY] = projectToken
+                }
+
+                const projectApi = projectStorage?.apiUrl || (strictStorage ? undefined : localStorage.getItem(`X-Tenant-Api_${projectId}`) || localStorage.getItem('X-Tenant-Api'))
                 if (projectApi) {
                     config.baseURL = projectApi
                 }
