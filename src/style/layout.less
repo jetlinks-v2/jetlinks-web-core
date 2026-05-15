@@ -229,7 +229,7 @@
         }
 
         &:hover {
-          background: var(--jet-theme-border-secondary);
+          background: var(--layout-menu-item-hover-bg, var(--jet-theme-border-secondary));
           color: var(--jet-theme-text);
         }
       }
@@ -252,7 +252,7 @@
           position: absolute;
           top: 6px;
           bottom: 6px;
-          left: -10px;
+          left: 0;
           width: 2px;
           border-radius: 2px;
           background: var(--layout-menu-item-active-line, var(--jet-theme-primary));

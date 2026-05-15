@@ -12,6 +12,7 @@ import { RouteSecurityLevel } from './types'
 import { toValue } from 'vue'
 import { bootstrapSession, ensureMenuRoutes, resetRouteStartupState } from './startup'
 import { redirectLegacyProjectHash, isProjectRuntime } from '@jetlinks-web-core/utils/project-runtime'
+import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 
 // ============ 核心路由解析 ============
 const moduleOverrides = collectCoreRouteOverrides()
@@ -129,7 +130,11 @@ const getRoutesByServer = async (
 
 // ============ 全局守卫 ============
 router.beforeEach((to, from, next) => {
+  const routeLoading = useRouteLoadingStore()
+  routeLoading.start()
+
   if (redirectLegacyProjectHash()) {
+    routeLoading.finish()
     return
   }
 
@@ -155,6 +160,14 @@ router.beforeEach((to, from, next) => {
     resetRouteStartupState()
     NoTokenJump(to, next, isLoginRoute)
   }
+})
+
+router.afterEach(() => {
+  useRouteLoadingStore().finish()
+})
+
+router.onError(() => {
+  useRouteLoadingStore().reset()
 })
 
 

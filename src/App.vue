@@ -7,11 +7,12 @@
     }"
     :theme="themeConfig"
   >
-    <router-view/>
+    <PageRouteView />
   </ConfigProvider>
 </template>
 <script setup lang="ts">
 import { ConfigProvider } from '@jetlinks-web/components'
+import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import enUs from 'ant-design-vue/es/locale/en_US'
 import { theme as antdTheme } from 'ant-design-vue'

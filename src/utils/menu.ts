@@ -35,6 +35,12 @@ type ParentType = {
   breadcrumb?: BreadcrumbType[] | any[]
 }
 
+type MenuMapValue = {
+  path: string
+  title: string
+  routeName?: string
+}
+
 const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
   const _meta = {
     ...(item.options?.meta || {}),
@@ -74,6 +80,16 @@ export const handleRoute = (item: MenuItem, parent?: ParentType): Partial<RouteR
   }
 }
 
+const getMenuAliasCodes = (item: MenuItem, meta: RouteMeta) => {
+  return [
+    item.code,
+    (meta as Record<string, any>)?.componentCode,
+    item.options?.componentCode,
+    (meta as Record<string, any>)?.routeName,
+    item.options?.routeName
+  ].filter(Boolean) as string[]
+}
+
 /**
  *
  * @param menuData 服务端菜单数据
@@ -88,7 +104,7 @@ export const handleMenus = (
   level: number = 1
 ) => {
   const filterMenuCode = [USER_CENTER_MENU_CODE]
-  const menuMap = new Map<string, { path: string; title: string }>() //
+  const menuMap = new Map<string, MenuMapValue>() //
   let authButtons: Record<string, any> = {}
   let menuRoutes: RouteRecordRaw[] = []
   let menus: Partial<RouteRecordRaw>[] = []
@@ -173,7 +189,14 @@ export const handleMenus = (
       const _route = handleRoute(item, parent)
       const myComponent = findComponent(item, level)
 
-      menuMap.set(item.code, { path: _route.path!, title: _route.meta?.title as string })
+      const menuInfo = {
+        path: _route.path!,
+        title: _route.meta?.title as string,
+        routeName: _route.name as string
+      }
+      getMenuAliasCodes(item, _route.meta as RouteMeta).forEach(code => {
+        menuMap.set(code, menuInfo)
+      })
       _route.component = myComponent
 
       if (level === 1 && components[item.code]) {
