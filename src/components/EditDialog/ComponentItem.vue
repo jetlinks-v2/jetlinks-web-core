@@ -92,6 +92,4 @@ watch(() => props.componentProps, (val) => {
 })
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

@@ -53,7 +53,5 @@ watch(() => props.value, (newVal) => {
 })
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>
 

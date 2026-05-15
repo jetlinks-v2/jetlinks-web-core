@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="token-card">
     <div class="token-card-left">
       <div class="token-icon">
@@ -7,7 +7,7 @@
       <div class="token-card-info">
         <div class="token-card-header">
           <div class="token-name">{{ token.name }}</div>
-          <div class="status-tag" :style="{color: getStatusConfig(token).color}">
+          <div :class="['status-tag', getStatusConfig(token).className]">
             {{ getStatusConfig(token).text }}
           </div>
         </div>
@@ -100,14 +100,14 @@ const emit = defineEmits(['view', 'edit', 'delete'])
 const getStatusConfig = (token) => {
   if (token.status === 'disabled') {
     return {
-      color: 'red',
+      className: 'status-tag--error',
       text: $t('PersonalToken.TokenCard.515931-10'),
       icon: 'StopOutlined'
     }
   }
   if (token.expires === -1) {
     return {
-      color: 'green',
+      className: 'status-tag--success',
       text: $t('PersonalToken.TokenCard.515931-4'),
       icon: 'CheckCircleOutlined'
     }
@@ -118,7 +118,7 @@ const getStatusConfig = (token) => {
 
   if (expireTime.isBefore(now)) {
     return {
-      color: 'red',
+      className: 'status-tag--error',
       text: $t('PersonalToken.TokenCard.515931-15'),
       icon: 'ExclamationCircleOutlined'
     }
@@ -129,14 +129,14 @@ const getStatusConfig = (token) => {
 
   if (diffDays >= 1) {
     return {
-      color: '#777777',
+      className: 'status-tag--secondary',
       text: $t('PersonalToken.TokenCard.515931-13', [diffDays]),
       icon: 'ClockCircleOutlined'
     }
   } else {
     const _diffHours = diffHours > 1 ? diffHours.toFixed(0) : diffHours.toFixed(2)
     return {
-      color: '#1677FF',
+      className: 'status-tag--primary',
       text: $t('PersonalToken.TokenCard.515931-14', [_diffHours]),
       icon: 'ClockCircleOutlined'
     }
@@ -150,30 +150,30 @@ const formatDate = (dateStr) => {
 
 <style lang="less" scoped>
 .token-card {
-  border: 1px solid #E6E6E6;
-  padding: 16px;
+  border: 1px solid var(--jet-theme-border-secondary);
+  padding: var(--space-4);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 24px;
+  gap: var(--space-6);
 
   &-left {
     flex: 1;
     min-width: 0;
     display: flex;
-    gap: 16px;
+    gap: var(--space-4);
     align-items: center;
 
     .token-icon {
       width: 48px;
       height: 48px;
-      border-radius: 6px;
-      background: #f6f9ff;
+      border-radius: var(--r-2);
+      background: var(--jet-theme-primary-soft);
       display: flex;
       font-size: 20px;
       align-items: center;
       justify-content: center;
-      color: #1890ff;
+      color: var(--jet-theme-primary);
       flex-shrink: 0;
     }
 
@@ -183,11 +183,11 @@ const formatDate = (dateStr) => {
 
       .token-card-header {
         display: flex;
-        gap: 16px;
-        margin-bottom: 16px;
+        gap: var(--space-4);
+        margin-bottom: var(--space-4);
 
         .token-name {
-          font-size: 16px;
+          font-size: var(--fs-16);
           font-weight: 500;
         }
       }
@@ -196,26 +196,43 @@ const formatDate = (dateStr) => {
     .token-card-content {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 16px;
+      gap: var(--space-4);
 
       .token-field {
         .field-label {
-          color: #777777;
-          margin-bottom: 8px;
+          color: var(--jet-theme-text-secondary);
+          margin-bottom: var(--space-2);
         }
 
         .field-value {
-          color: #1A1A1A;
+          color: var(--ink-1);
         }
       }
     }
   }
 }
 
-.token-card-actions {
-  .ant-btn {
-    background-color: #F0F0F0 !important;
-    border: none;
+.status-tag {
+  &--primary {
+    color: var(--jet-theme-primary);
+  }
+
+  &--success {
+    color: var(--jet-theme-success);
+  }
+
+  &--error {
+    color: var(--jet-theme-error);
+  }
+
+  &--secondary {
+    color: var(--jet-theme-text-secondary);
   }
 }
-</style>
+
+.token-card-actions {
+  .ant-btn {
+    background-color: var(--line-strong) !important;
+    border: none;
+  }
+}</style>

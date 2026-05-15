@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="code-block" :class="variant">
     <header v-if="$slots.label || label || copyable" class="cb-head">
       <div class="cb-label">
@@ -75,9 +75,9 @@ function getSlotText(): string {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
-  font-size: var(--fs-11-5);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-12);
   border-bottom: 1px solid var(--line);
 }
 
@@ -94,10 +94,10 @@ function getSlotText(): string {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 3px 8px;
   border-radius: var(--r-1);
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   transition: all 0.15s;
 }
 .cb-copy :deep(svg) { width: 12px; height: 12px; }
@@ -140,19 +140,16 @@ function getSlotText(): string {
 
 .cb-body {
   margin: 0;
-  padding: 12px 14px;
-  font-family: ui-monospace, 'JetBrains Mono', monospace;
-  font-size: var(--fs-11-5);
+  padding: 12px 14px; font-size: var(--fs-12);
   line-height: 1.75;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-x: auto;
 }
 .cb-body.inline {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   white-space: nowrap;
-}
-</style>
+}</style>

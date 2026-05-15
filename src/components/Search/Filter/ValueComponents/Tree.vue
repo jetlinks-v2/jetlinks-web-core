@@ -67,6 +67,4 @@ watch(() => props.value, (newVal) => {
 </a-tree>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="init-home-role">
         <div class="built_in_group">
             <div>{{ $t('Role.index.263636-0') }}</div>
@@ -292,7 +292,7 @@ defineExpose({
 
             .group_item {
                 width: 100px;
-                margin-right: 20px;
+                margin-right: var(--space-5);
 
                 .button {
                     display: block;
@@ -308,7 +308,7 @@ defineExpose({
                     position: relative;
 
                     .closeIcon {
-                        font-size: 12px;
+                        font-size: var(--fs-12);
                         position: absolute;
                         top: 10px;
                         right: 4px;
@@ -325,8 +325,8 @@ defineExpose({
     .init-home-role-content {
         display: flex;
         grid-gap: 24px;
-        gap: 24px;
-        margin-top: 40px;
+        gap: var(--space-6);
+        margin-top: var(--space-10);
     }
 
     .role-item-1 {
@@ -347,7 +347,7 @@ defineExpose({
         flex-direction: column;
         justify-content: space-between;
         margin-bottom: 30px;
-        padding: 24px;
+        padding: var(--space-6);
         background-repeat: no-repeat;
         background-position: 50%;
         background-size: 370px;
@@ -359,7 +359,7 @@ defineExpose({
             .role-title {
                 flex: 1 1 auto;
                 font-weight: 700;
-                font-size: 16px;
+                font-size: var(--fs-16);
                 text-align: center;
             }
         }
@@ -367,7 +367,7 @@ defineExpose({
         .role-item-content {
             width: 250px;
             height: 260px;
-            margin-top: 24px;
+            margin-top: var(--space-6);
         }
 
         .role-item-footer {
@@ -376,7 +376,7 @@ defineExpose({
             left: 0;
             width: 100%;
             color: #999;
-            font-size: 12px;
+            font-size: var(--fs-12);
             text-align: center;
         }
     }

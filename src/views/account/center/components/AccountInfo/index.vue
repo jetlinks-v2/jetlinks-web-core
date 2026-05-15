@@ -178,8 +178,8 @@
                 <a-button type="primary" :loading="emailConfirming" @click="confirmEmailBind">
                   {{ $t('AccountInfo.confirmBind') }}
                 </a-button>
-                <a-button 
-                  :disabled="emailCountdown > 0" 
+                <a-button
+                  :disabled="emailCountdown > 0"
                   @click="resendEmailCode"
                 >
                   {{ emailCountdown > 0 ? `${emailCountdown}秒后重新发送` : $t('AccountInfo.resendCode') }}
@@ -237,8 +237,8 @@
                 <a-button type="primary" :loading="phoneConfirming" @click="confirmPhoneBind">
                   {{ $t('AccountInfo.confirmBind') }}
                 </a-button>
-                <a-button 
-                  :disabled="phoneCountdown > 0" 
+                <a-button
+                  :disabled="phoneCountdown > 0"
                   @click="resendPhoneCode"
                 >
                   {{ phoneCountdown > 0 ? `${phoneCountdown}秒后重新发送` : $t('AccountInfo.resendCode') }}
@@ -548,7 +548,7 @@ async function confirmEmailBind() {
     emailConfirmState.value = null
     emailCode.value = ''
     await loadIdentities()
-    
+
     // 如果是在新窗口中打开的，通知原窗口刷新
     if (window.opener && !window.opener.closed) {
       try {
@@ -677,7 +677,7 @@ async function confirmPhoneBind() {
     phoneConfirmState.value = null
     phoneCode.value = ''
     await loadIdentities()
-    
+
     // 如果是在新窗口中打开的，通知原窗口刷新
     if (window.opener && !window.opener.closed) {
       try {
@@ -719,7 +719,7 @@ function resendPhoneCode() {
 const scrollToAnchor = () => {
   // 优先从 query 参数获取锚点（用于从验证页面跳转过来）
   const anchorFromQuery = route.query?.anchor as string
-  
+
   if (anchorFromQuery) {
     setTimeout(() => {
       const element = document.getElementById(anchorFromQuery)
@@ -728,8 +728,8 @@ const scrollToAnchor = () => {
         // 滚动完成后清除 query 参数，避免刷新时重复滚动
         const newQuery = { ...route.query }
         delete newQuery.anchor
-        router.replace({ 
-          path: route.path, 
+        router.replace({
+          path: route.path,
           query: newQuery
         })
       }
@@ -744,11 +744,11 @@ onMounted(async () => {
     await loadIdentities()
   }
   checkThirdAccount()
-  
+
   // 等待DOM渲染完成后再滚动
   await nextTick()
   scrollToAnchor()
-  
+
   // 监听路由 query 变化（用于锚点滚动）
   watch(() => route.query?.anchor, (newAnchor) => {
     if (newAnchor) {
@@ -780,7 +780,7 @@ onUnmounted(() => {
   .basic-layout {
     display: flex;
     justify-content: space-between;
-    gap: 32px;
+    gap: var(--space-8);
   }
 
   .basic-layout-left {
@@ -793,7 +793,7 @@ onUnmounted(() => {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .basic-form {
@@ -801,7 +801,7 @@ onUnmounted(() => {
   }
 
   .basic-form-item {
-    margin-bottom: 20px;
+    margin-bottom: var(--space-5);
   }
 
   .basic-form-label {
@@ -814,12 +814,12 @@ onUnmounted(() => {
   .basic-form-control {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .basic-form-desc {
-    margin-top: 4px;
-    font-size: 12px;
+    margin-top: var(--space-1);
+    font-size: var(--fs-12);
     color: #86909c;
   }
 
@@ -834,17 +834,17 @@ onUnmounted(() => {
   }
 
   .avatar-desc {
-    font-size: 12px;
+    font-size: var(--fs-12);
     color: #86909c;
   }
 
   .basic-form-meta {
-    margin-top: 8px;
-    border-top: 1px solid #f0f0f0;
-    padding-top: 12px;
+    margin-top: var(--space-2);
+    border-top: 1px solid var(--line-strong);
+    padding-top: var(--space-3);
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    column-gap: 24px;
+    column-gap: var(--space-6);
     row-gap: 0;
   }
 
@@ -854,23 +854,23 @@ onUnmounted(() => {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    row-gap: 4px;
+    row-gap: var(--space-1);
   }
 
   .basic-form-meta-label {
     color: #86909c;
-    font-size: 12px;
+    font-size: var(--fs-12);
   }
 
   .basic-form-meta-value {
     width: 100%;
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: var(--space-1);
   }
 
   .basic-form-meta-empty {
-    font-size: 12px;
+    font-size: var(--fs-12);
     color: #c9cdd4;
   }
 
@@ -894,14 +894,14 @@ onUnmounted(() => {
 }
 
 .account-info-section {
-  margin-bottom: 32px;
+  margin-bottom: var(--space-8);
 
   .section-title {
-    font-size: 16px;
+    font-size: var(--fs-16);
     font-weight: 600;
     color: #1d2129;
     margin: 0 0 8px 0;
-    padding-bottom: 8px;
+    padding-bottom: var(--space-2);
     border-bottom: 1px solid #e5e6eb;
   }
 
@@ -925,10 +925,10 @@ onUnmounted(() => {
         display: block;
         font-size: 13px;
         color: #86909c;
-        margin-bottom: 4px;
+        margin-bottom: var(--space-1);
       }
       .value {
-        font-size: 14px;
+        font-size: var(--fs-14);
         color: #1d2129;
       }
       .muted {
@@ -938,13 +938,13 @@ onUnmounted(() => {
   }
 
   .identity-item {
-    padding: 10px 12px;
+    padding: var(--space-2) var(--space-3);
     background: #f7f8fa;
-    border-radius: 6px;
-    margin-bottom: 8px;
+    border-radius: var(--r-2);
+    margin-bottom: var(--space-2);
 
     .identity-value {
-      font-size: 14px;
+      font-size: var(--fs-14);
       color: #1d2129;
     }
   }
@@ -953,12 +953,12 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: var(--space-3) var(--space-4);
 
     .identity-item-left {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: var(--space-2);
     }
     .verified-tag {
       margin: 0;
@@ -967,7 +967,7 @@ onUnmounted(() => {
       color: #86909c;
       padding: 0 4px;
       &:hover {
-        color: @primary-color;
+        color: var(--jet-theme-primary);
       }
     }
   }
@@ -975,30 +975,29 @@ onUnmounted(() => {
   .empty-hint {
     font-size: 13px;
     color: #86909c;
-    margin-bottom: 12px;
+    margin-bottom: var(--space-3);
   }
 
   .add-row {
-    margin-top: 12px;
+    margin-top: var(--space-3);
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .code-sent-hint {
     margin-top: 6px;
-    font-size: 12px;
+    font-size: var(--fs-12);
     color: #c9cdd4;
     line-height: 1.4;
   }
 
   .email-code-row {
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
   }
   .email-code-desc {
     font-size: 13px;
     color: #4e5969;
   }
-}
-</style>
+}</style>

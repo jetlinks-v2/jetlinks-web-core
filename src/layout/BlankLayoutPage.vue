@@ -5,6 +5,4 @@
 <script setup name="BlankLayoutPage" lang="ts">
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

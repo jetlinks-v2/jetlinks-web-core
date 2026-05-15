@@ -83,5 +83,4 @@ watchEffect(() => {
 }
 .view-content .select-item:hover {
   box-shadow: var(--shadow-1);
-}
-</style>
+}</style>

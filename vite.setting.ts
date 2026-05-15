@@ -88,10 +88,6 @@ const getRootEnvOverride = (envDir: string, mode: string) => {
 export const getMergedEnv = (mode: string, envDir: string) => {
   const rootEnvOverride = getRootEnvOverride(envDir, mode)
 
-  console.log('default', loadEnv(mode, __dirname, ''))
-  console.log('env', rootEnvOverride)
-  console.log('getRuntimeAppEnv', getRuntimeAppEnv())
-
   return {
     ...loadEnv(mode, __dirname, ''),
     ...rootEnvOverride,

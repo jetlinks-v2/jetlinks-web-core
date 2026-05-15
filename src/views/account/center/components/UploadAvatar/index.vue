@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="upload-image-warp">
     <div class="upload-image-border" :style="borderStyle">
       <a-upload
@@ -211,7 +211,7 @@ const saveImage = (url: string) => {
         height: 100%;
         color: #fff;
         border-radius: 50%;
-        font-size: 16px;
+        font-size: var(--fs-16);
         background-color: @mask-color;
       }
 
@@ -241,5 +241,4 @@ const saveImage = (url: string) => {
     color: #fff;
     background-color: @mask-color;
   }
-}
-</style>
+}</style>

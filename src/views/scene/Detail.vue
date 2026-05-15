@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="scene-center-detail">
     <!-- Header -->
     <header class="header">
@@ -255,27 +255,27 @@ watch(loginModalVisible, (newVal) => {
 
 <style lang="less">
 // Less 变量定义
-@primary: #1890ff;
-@primary-dark: #0d6efd;
-@primary-light: #69c0ff;
-@primary-bg: #e6f4ff;
-@secondary: #00d9ff;
-@accent: #722ed1;
-@success: #52c41a;
-@warning: #faad14;
-@error: #ff4d4f;
-@dark: #0a1628;
-@dark-secondary: #111d32;
-@gray-100: #f8fafc;
-@gray-200: #e2e8f0;
-@gray-300: #cbd5e1;
-@gray-400: #94a3b8;
-@gray-500: #64748b;
-@gray-600: #475569;
-@text-primary: #1e293b;
-@text-secondary: #64748b;
-@card-bg: #ffffff;
-@border-color: #e2e8f0;
+@primary: var(--jet-theme-primary);
+@primary-dark: var(--jet-theme-primary-active);
+@primary-light: var(--jet-theme-primary-hover);
+@primary-bg: var(--jet-theme-primary-soft);
+@secondary: var(--jet-theme-primary-hover);
+@accent: var(--jet-theme-primary-active);
+@success: var(--jet-theme-success);
+@warning: var(--jet-theme-warning);
+@error: var(--jet-theme-error);
+@dark: var(--code-dark-bg);
+@dark-secondary: color-mix(in srgb, var(--code-dark-bg) 88%, var(--jet-theme-primary-active));
+@gray-100: var(--jet-theme-bg-layout);
+@gray-200: var(--jet-theme-border-secondary);
+@gray-300: var(--jet-theme-border);
+@gray-400: var(--jet-theme-text-disabled);
+@gray-500: var(--jet-theme-text-secondary);
+@gray-600: var(--jet-theme-text-secondary);
+@text-primary: var(--jet-theme-text-title);
+@text-secondary: var(--jet-theme-text-secondary);
+@card-bg: var(--jet-theme-bg-container);
+@border-color: var(--jet-theme-border-secondary);
 @radius-sm: 6px;
 @radius-md: 10px;
 @radius-lg: 16px;
@@ -303,18 +303,18 @@ watch(loginModalVisible, (newVal) => {
   .header-left {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--space-4);
   }
 
   .back-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 12px;
+    padding: var(--space-2) var(--space-3);
     border-radius: @radius-sm;
     color: @text-secondary;
     text-decoration: none;
-    font-size: 14px;
+    font-size: var(--fs-14);
     transition: all 0.2s;
   }
 
@@ -326,7 +326,7 @@ watch(loginModalVisible, (newVal) => {
   .logo {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
     text-decoration: none;
     color: @text-primary;
   }
@@ -339,20 +339,20 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--accent-ink);
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--fs-14);
   }
 
   .logo-text {
     font-weight: 600;
-    font-size: 18px;
+    font-size: var(--fs-18);
   }
 
   .user-menu {
     display: none;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
     cursor: pointer;
   }
 
@@ -368,22 +368,22 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 14px;
+    color: var(--accent-ink);
+    font-size: var(--fs-14);
     font-weight: 500;
   }
 
   .user-name {
-    font-size: 14px;
+    font-size: var(--fs-14);
   }
 
   .main-layout {
     max-width: 1440px;
     margin: 0 auto;
-    padding: 32px;
+    padding: var(--space-8);
     display: grid;
     grid-template-columns: 1fr 400px;
-    gap: 32px;
+    gap: var(--space-8);
   }
 
   .scene-header {
@@ -412,7 +412,7 @@ watch(loginModalVisible, (newVal) => {
     left: 0;
     right: 0;
     height: 60%;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+    background: linear-gradient(to top, color-mix(in srgb, var(--code-dark-bg) 80%, transparent), transparent);
   }
 
   .scene-cover-content {
@@ -425,13 +425,13 @@ watch(loginModalVisible, (newVal) => {
 
   .scene-badges {
     display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
   }
 
   .scene-badge {
     padding: 5px 12px;
-    border-radius: 4px;
+    border-radius: var(--r-1);
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -439,43 +439,43 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .scene-badge.hot {
-    background: linear-gradient(135deg, #ff4d4f, #ff7a45);
-    color: white;
+    background: linear-gradient(135deg, var(--jet-theme-error), color-mix(in srgb, var(--jet-theme-warning) 72%, var(--jet-theme-error)));
+    color: var(--accent-ink);
   }
 
   .scene-badge.industry {
-    background: rgba(255, 255, 255, 0.95);
+    background: color-mix(in srgb, var(--jet-theme-bg-container) 95%, transparent);
     color: @text-primary;
   }
 
   .scene-title {
     font-size: 32px;
     font-weight: 700;
-    color: white;
+    color: var(--accent-ink);
     margin-bottom: 10px;
   }
 
   .scene-subtitle {
     font-size: 15px;
-    color: rgba(255, 255, 255, 0.8);
+    color: color-mix(in srgb, var(--accent-ink) 80%, transparent);
   }
 
   .scene-info {
-    padding: 24px 28px;
+    padding: var(--space-6) var(--space-7);
   }
 
   .scene-meta-row {
     display: flex;
     align-items: center;
-    gap: 28px;
-    margin-bottom: 20px;
+    gap: var(--space-7);
+    margin-bottom: var(--space-5);
   }
 
   .scene-meta-item {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
   }
 
@@ -492,13 +492,13 @@ watch(loginModalVisible, (newVal) => {
   .scene-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .scene-tag {
     padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 12px;
+    border-radius: var(--r-2);
+    font-size: var(--fs-12);
     font-weight: 500;
     background: @gray-100;
     color: @gray-600;
@@ -506,44 +506,44 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .scene-tag.vision {
-    background: #fff0f6;
-    color: #c41d7f;
-    border-color: #ffadd2;
+    background: var(--err-bg);
+    color: var(--jet-theme-error);
+    border-color: color-mix(in srgb, var(--jet-theme-error) 28%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.ai {
-    background: #f0f5ff;
-    color: #2f54eb;
-    border-color: #adc6ff;
+    background: var(--jet-theme-primary-soft);
+    color: var(--jet-theme-primary-active);
+    border-color: color-mix(in srgb, var(--jet-theme-primary) 28%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.video {
-    background: #fff7e6;
-    color: #d46b08;
-    border-color: #ffd591;
+    background: var(--warn-bg);
+    color: var(--jet-theme-warning);
+    border-color: color-mix(in srgb, var(--jet-theme-warning) 32%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.edge {
-    background: #f6ffed;
-    color: #389e0d;
-    border-color: #b7eb8f;
+    background: var(--ok-bg);
+    color: var(--jet-theme-success);
+    border-color: color-mix(in srgb, var(--jet-theme-success) 32%, var(--jet-theme-bg-container));
   }
 
   .content-section {
     background: @card-bg;
     border-radius: @radius-lg;
     border: 1px solid @border-color;
-    padding: 28px;
-    margin-top: 24px;
+    padding: var(--space-7);
+    margin-top: var(--space-6);
   }
 
   .section-title {
-    font-size: 18px;
+    font-size: var(--fs-18);
     font-weight: 600;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-2);
   }
 
   .section-title::before {
@@ -555,24 +555,24 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .section-text {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
     line-height: 1.9;
   }
 
   .section-text + .section-text {
-    margin-top: 12px;
+    margin-top: var(--space-3);
   }
 
   .features-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    margin-top: 8px;
+    gap: var(--space-4);
+    margin-top: var(--space-2);
   }
 
   .feature-card {
-    padding: 20px;
+    padding: var(--space-5);
     background: @gray-100;
     border-radius: @radius-md;
     border: 1px solid @border-color;
@@ -591,10 +591,10 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: var(--fs-22);
     margin-bottom: 14px;
-    background: white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    background: var(--bg);
+    box-shadow: var(--shadow-1);
   }
 
   .feature-title {
@@ -612,14 +612,14 @@ watch(loginModalVisible, (newVal) => {
   .values-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-top: 16px;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
   }
 
   .value-card {
     text-align: center;
     padding: 24px 16px;
-    background: linear-gradient(135deg, @primary-bg, white);
+    background: linear-gradient(135deg, @primary-bg, var(--jet-theme-bg-container));
     border-radius: @radius-md;
     border: 1px solid @primary-light;
   }
@@ -627,49 +627,47 @@ watch(loginModalVisible, (newVal) => {
   .value-number {
     font-size: 36px;
     font-weight: 700;
-    color: @primary;
-    font-family: 'JetBrains Mono', monospace;
-    line-height: 1;
+    color: @primary; line-height: 1;
   }
 
   .value-unit {
-    font-size: 16px;
+    font-size: var(--fs-16);
     color: @primary;
   }
 
   .value-label {
     font-size: 13px;
     color: @text-secondary;
-    margin-top: 8px;
+    margin-top: var(--space-2);
   }
 
   .sidebar {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: var(--space-6);
   }
 
   .create-card {
     background: @card-bg;
     border-radius: @radius-lg;
     border: 1px solid @border-color;
-    padding: 28px;
+    padding: var(--space-7);
     position: sticky;
     top: 96px;
   }
 
   .create-card-header {
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
   }
 
   .create-card-title {
     font-size: 20px;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
   }
 
   .create-card-desc {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
     line-height: 1.7;
   }
@@ -679,7 +677,7 @@ watch(loginModalVisible, (newVal) => {
     border: 1px solid @primary-light;
     border-radius: @radius-md;
     padding: 18px;
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
   }
 
   .preset-title {
@@ -689,19 +687,19 @@ watch(loginModalVisible, (newVal) => {
     margin-bottom: 14px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .preset-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--space-2);
   }
 
   .preset-item {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: var(--space-2);
     font-size: 13px;
     color: @text-secondary;
     line-height: 1.5;
@@ -717,22 +715,22 @@ watch(loginModalVisible, (newVal) => {
     width: 100%;
     padding: 16px 24px;
     background: linear-gradient(135deg, @primary, @primary-dark);
-    color: white;
+    color: var(--accent-ink);
     border: none;
     border-radius: @radius-md;
-    font-size: 16px;
+    font-size: var(--fs-16);
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: var(--space-2);
   }
 
   .btn-create:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(24, 144, 255, 0.35);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--jet-theme-primary) 35%, transparent);
   }
 
   .btn-create:disabled,
@@ -756,14 +754,14 @@ watch(loginModalVisible, (newVal) => {
     color: @text-primary;
     border: 1px solid @border-color;
     border-radius: @radius-md;
-    font-size: 14px;
+    font-size: var(--fs-14);
     font-weight: 500;
     cursor: pointer;
-    margin-top: 12px;
+    margin-top: var(--space-3);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .btn-demo:hover {
@@ -774,25 +772,25 @@ watch(loginModalVisible, (newVal) => {
     background: @card-bg;
     border-radius: @radius-lg;
     border: 1px solid @border-color;
-    padding: 24px;
+    padding: var(--space-6);
   }
 
   .related-title {
-    font-size: 16px;
+    font-size: var(--fs-16);
     font-weight: 600;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
 
   .related-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .related-item {
     display: flex;
-    gap: 14px;
-    padding: 12px;
+    gap: var(--space-4);
+    padding: var(--space-3);
     background: @gray-100;
     border-radius: @radius-md;
     text-decoration: none;
@@ -807,24 +805,24 @@ watch(loginModalVisible, (newVal) => {
   .related-thumb {
     width: 72px;
     height: 54px;
-    border-radius: 6px;
+    border-radius: var(--r-2);
     object-fit: cover;
   }
 
   .related-name {
-    font-size: 14px;
+    font-size: var(--fs-14);
     font-weight: 500;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-1);
   }
 
   .related-meta {
-    font-size: 12px;
+    font-size: var(--fs-12);
     color: @text-secondary;
   }
 
   .footer {
     background: @dark;
-    color: rgba(255, 255, 255, 0.7);
+    color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     padding: 40px 32px;
     margin-top: 60px;
   }
@@ -843,17 +841,17 @@ watch(loginModalVisible, (newVal) => {
 
   .footer-links {
     display: flex;
-    gap: 24px;
+    gap: var(--space-6);
   }
 
   .footer-link {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
+    color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     text-decoration: none;
   }
 
   .footer-link:hover {
-    color: white;
+    color: var(--accent-ink);
   }
 
   .modal-overlay.active .modal {
@@ -869,7 +867,7 @@ watch(loginModalVisible, (newVal) => {
     border: none;
     background: none;
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: var(--r-2);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -895,36 +893,36 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--accent-ink);
     font-weight: 700;
     font-size: 20px;
     margin: 0 auto 16px;
   }
 
   .modal-title {
-    font-size: 22px;
+    font-size: var(--fs-22);
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
   }
 
   .modal-subtitle {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
   }
 
   .modal-body {
-    padding: 24px;
+    padding: var(--space-6);
   }
 
   .form-group {
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
 
   .form-label {
     display: block;
     font-size: 13px;
     font-weight: 500;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
   }
 
   .form-input {
@@ -932,7 +930,7 @@ watch(loginModalVisible, (newVal) => {
     padding: 12px 14px;
     border: 1px solid @border-color;
     border-radius: @radius-sm;
-    font-size: 14px;
+    font-size: var(--fs-14);
     transition: all 0.2s;
   }
 
@@ -946,13 +944,13 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: var(--space-5);
   }
 
   .form-checkbox {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     font-size: 13px;
     color: @text-secondary;
     cursor: pointer;
@@ -974,7 +972,7 @@ watch(loginModalVisible, (newVal) => {
     width: 100%;
     padding: 14px;
     background: linear-gradient(135deg, @primary, @primary-dark);
-    color: white;
+    color: var(--accent-ink);
     border: none;
     border-radius: @radius-md;
     font-size: 15px;
@@ -1007,16 +1005,15 @@ watch(loginModalVisible, (newVal) => {
 
   @media (max-width: 768px) {
     .main-layout {
-      padding: 16px;
+      padding: var(--space-4);
     }
 
     .scene-title {
-      font-size: 24px;
+      font-size: var(--fs-24);
     }
 
     .features-grid, .values-grid {
       grid-template-columns: 1fr;
     }
   }
-}
-</style>
+}</style>

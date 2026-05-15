@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-spin :spinning="loading">
     <div
       class="dash-board"
@@ -249,7 +249,7 @@ defineExpose({ refreshManual })
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 24px;
+  padding: var(--space-6);
   background-color: var(--bg);
   border-radius: 2px;
 }
@@ -260,11 +260,10 @@ defineExpose({ refreshManual })
 }
 .header .left h3 {
   width: 200px;
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 .left,
 .right {
   display: flex;
   align-items: center;
-}
-</style>
+}</style>

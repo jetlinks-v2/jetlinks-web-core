@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-modal
       :open="true"
       title="新增令牌"
@@ -110,7 +110,7 @@ const handleClose = () => {
   padding: 40px 24px 24px;
 
   .illustration {
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
     height: 120px;
     display: flex;
     align-items: center;
@@ -127,7 +127,7 @@ const handleClose = () => {
         top: 20px;
         left: 30px;
         font-size: 48px;
-        color: #6366f1;
+        color: var(--jet-theme-primary);
         z-index: 2;
       }
 
@@ -136,7 +136,7 @@ const handleClose = () => {
         bottom: 20px;
         right: 20px;
         font-size: 36px;
-        color: #f97316;
+        color: var(--jet-theme-warning);
         z-index: 1;
       }
 
@@ -149,7 +149,7 @@ const handleClose = () => {
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background-color: #e5e7eb;
+        background-color: var(--jet-theme-border-secondary);
       }
 
       &::after {
@@ -160,36 +160,33 @@ const handleClose = () => {
         width: 4px;
         height: 4px;
         border-radius: 50%;
-        background-color: #6366f1;
+        background-color: var(--jet-theme-primary);
       }
     }
   }
 
   .success-title {
-    font-size: 18px;
+    font-size: var(--fs-18);
     font-weight: 500;
-    color: #262626;
-    margin-bottom: 24px;
+    color: var(--jet-theme-text-title);
+    margin-bottom: var(--space-6);
   }
 
   .token-section {
-    margin-bottom: 20px;
+    margin-bottom: var(--space-5);
 
     .token-display {
       display: flex;
-      gap: 8px;
+      gap: var(--space-2);
       align-items: stretch;
 
       .token-input {
-        flex: 1;
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-
-        :deep(.ant-input) {
-          background-color: #f8f9fa;
-          border: 1px solid #e9ecef;
+        flex: 1; :deep(.ant-input) {
+          background-color: var(--color-jet-gray-50);
+          border: 1px solid var(--jet-theme-border-secondary);
           padding: 8px 12px;
           font-size: 13px;
-          color: #495057;
+          color: var(--jet-theme-text);
         }
       }
 
@@ -198,13 +195,13 @@ const handleClose = () => {
         padding: 0 16px;
         display: flex;
         align-items: center;
-        gap: 4px;
-        background: #1890ff;
-        border-color: #1890ff;
+        gap: var(--space-1);
+        background: var(--jet-theme-primary);
+        border-color: var(--jet-theme-primary);
 
         &:hover {
-          background: #40a9ff;
-          border-color: #40a9ff;
+          background: var(--jet-theme-primary-hover);
+          border-color: var(--jet-theme-primary-hover);
         }
       }
     }
@@ -213,19 +210,19 @@ const handleClose = () => {
   .warning-section {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 32px;
+    gap: var(--space-2);
+    margin-bottom: var(--space-8);
     text-align: left;
 
     .warning-icon {
-      color: #faad14;
-      font-size: 16px;
+      color: var(--jet-theme-warning);
+      font-size: var(--fs-16);
       margin-top: 2px;
       flex-shrink: 0;
     }
 
     .warning-text {
-      color: #666;
+      color: var(--jet-theme-text-secondary);
       font-size: 13px;
       line-height: 1.5;
     }
@@ -236,7 +233,7 @@ const handleClose = () => {
 
     .ant-btn {
       min-width: 72px;
-      border-radius: 4px;
+      border-radius: var(--r-1);
     }
   }
 }
@@ -244,11 +241,11 @@ const handleClose = () => {
 // 自定义modal样式
 :deep(.ant-modal) {
   .ant-modal-header {
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--line-strong);
     padding: 16px 24px;
 
     .ant-modal-title {
-      font-size: 16px;
+      font-size: var(--fs-16);
       font-weight: 500;
     }
   }
@@ -261,5 +258,4 @@ const handleClose = () => {
     top: 16px;
     right: 16px;
   }
-}
-</style>
+}</style>

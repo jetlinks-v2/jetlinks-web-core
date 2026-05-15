@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="menu-style">
     <div class="menu-img">
       <img :src="Menu" />
@@ -203,7 +203,6 @@ defineExpose({
   display: flex;
   align-items: center;
   .menu-img {
-    margin-right: 16px;
+    margin-right: var(--space-4);
   }
-}
-</style>
+}</style>

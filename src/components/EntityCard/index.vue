@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="entity-card" :class="{ interactive }">
     <div class="ec-top">
       <div v-if="$slots.icon" class="ec-icon">
@@ -63,6 +63,7 @@ withDefaults(
 .entity-card {
   display: flex;
   flex-direction: column;
+  height: 100%;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--r-3);
@@ -83,7 +84,7 @@ withDefaults(
 .ec-top {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 14px 16px;
 }
 .ec-icon { flex-shrink: 0; }
@@ -96,14 +97,14 @@ withDefaults(
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   font-weight: 600;
   color: var(--ink-1);
   flex-wrap: wrap;
 }
 .ec-badges {
   display: inline-flex;
-  gap: 4px;
+  gap: var(--space-1);
   align-items: center;
   flex-wrap: wrap;
 }
@@ -112,22 +113,23 @@ withDefaults(
   align-items: center;
   gap: 6px;
   color: var(--ink-3);
-  font-size: var(--fs-11);
-  margin-top: 4px;
+  font-size: var(--fs-12);
+  margin-top: var(--space-1);
   flex-wrap: wrap;
 }
 
 .ec-action { flex-shrink: 0; }
 
 .ec-body {
+  flex: 1;
   padding: 0 16px 14px;
 }
 .ec-footer {
+  margin-top: auto;
   padding: 10px 16px;
   background: var(--bg-sunken);
   border-top: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-</style>
+}</style>

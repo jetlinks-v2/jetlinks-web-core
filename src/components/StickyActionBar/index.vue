@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="sticky-action-bar" :class="positionClass">
     <div v-if="hint || $slots.hint" class="sab-hint">
       <slot name="hint">{{ hint }}</slot>
@@ -48,8 +48,8 @@ const positionClass = computed(() => `sab-${props.position}`)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   background: var(--bg);
   border-top: 1px solid var(--line);
   z-index: 5;
@@ -71,14 +71,13 @@ const positionClass = computed(() => `sab-${props.position}`)
 .sab-hint {
   flex: 1;
   min-width: 0;
-  font-size: var(--fs-11-5);
+  font-size: var(--fs-12);
   color: var(--ink-4);
   line-height: 1.5;
 }
 .sab-actions {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-shrink: 0;
-}
-</style>
+}</style>

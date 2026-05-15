@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class='oauth-warp'>
     <a-spin :spinning='spinning'>
             <div class='oauth' v-if='!spinning'>
@@ -315,7 +315,7 @@ initPage()
       display: flex;
       width: 200px;
       margin-right: 10%;
-      font-size: 14px;
+      font-size: var(--fs-14);
 
       .oauth-header-right-text {
         color: rgb(0 0 0 / 70%);
@@ -353,7 +353,7 @@ initPage()
       height: 150px;
       .oauth-content-content-text {
         margin: 15px 15px;
-        font-size: 16px;
+        font-size: var(--fs-16);
         line-height: 22px;
       }
 
@@ -370,13 +370,11 @@ initPage()
       display: flex;
       justify-content: center;
       width: 100%;
-      gap: 24px;
+      gap: var(--space-6);
     }
     .oauth-content-login {
       width: 100%;
       padding: 0 24px;
     }
   }
-}
-
-</style>
+}</style>

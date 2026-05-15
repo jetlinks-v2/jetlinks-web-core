@@ -84,5 +84,4 @@ const options = computed(() => {
 }
 .border-box :deep(.ant-select-selection-item) {
   padding-inline-end: 0;
-}
-</style>
+}</style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="permission-selector">
     <!-- 初始化权限选择 -->
     <div v-if="!showDetailSelection" class="permission-init">
@@ -172,12 +172,12 @@ onMounted(() => {
     .init-options {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
+      gap: var(--space-3);
 
       .init-option {
-        background-color: #f0f0f0;
-        border-radius: 6px;
-        padding: 16px;
+        background-color: var(--line-strong);
+        border-radius: var(--r-2);
+        padding: var(--space-4);
         cursor: pointer;
         transition: all 0.3s;
 
@@ -196,7 +196,7 @@ onMounted(() => {
 
         .option-desc {
           color: #a6a6a6;
-          font-size: 12px;
+          font-size: var(--fs-12);
         }
       }
     }
@@ -208,12 +208,12 @@ onMounted(() => {
 
   .permission-detail {
     .detail-header {
-      margin-bottom: 16px;
+      margin-bottom: var(--space-4);
 
       .detail-controls {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: var(--space-3);
         flex-wrap: wrap;
 
         .search-input {
@@ -230,29 +230,29 @@ onMounted(() => {
     .permission-tree {
       max-height: 400px;
       overflow-y: auto;
-      border: 1px solid #f0f0f0;
-      border-radius: 6px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-2);
 
       .menu-item {
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid var(--line-strong);
 
         &:last-child {
           border-bottom: none;
         }
 
         .menu-header {
-          padding: 12px 16px;
+          padding: var(--space-3) var(--space-4);
           background: #fafafa;
           cursor: pointer;
 
           &:hover {
-            background: #f0f0f0;
+            background: var(--line-strong);
           }
 
           .menu-title {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: var(--space-2);
 
             .menu-name {
               font-weight: 500;
@@ -270,10 +270,10 @@ onMounted(() => {
         }
 
         .menu-actions {
-          padding: 16px;
+          padding: var(--space-4);
           display: flex;
           flex-wrap: wrap;
-          gap: 12px;
+          gap: var(--space-3);
 
           .action-checkbox {
             min-width: 80px;
@@ -282,5 +282,4 @@ onMounted(() => {
       }
     }
   }
-}
-</style>
+}</style>

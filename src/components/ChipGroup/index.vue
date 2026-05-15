@@ -71,7 +71,7 @@ function onClick(key: string) {
 }
 
 .style-wrapped {
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--r-2);
@@ -107,7 +107,7 @@ function onClick(key: string) {
 }
 .chip .count {
   color: var(--ink-4);
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   margin-left: 2px;
 }
 
@@ -137,5 +137,4 @@ function onClick(key: string) {
 .chip.active.s-self,
 .chip.active.s-market {
   color: var(--accent);
-}
-</style>
+}</style>

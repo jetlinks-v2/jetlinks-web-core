@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-drawer
     :open="open"
     :width="drawerWidth"
@@ -127,7 +127,7 @@ function onFormSubmit(e: Event) {
 .drawer-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 15px 16px;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
@@ -157,7 +157,7 @@ function onFormSubmit(e: Event) {
 .head-copy p {
   margin: 4px 0 0;
   color: var(--ink-4);
-  font-size: var(--fs-11-5);
+  font-size: var(--fs-12);
 }
 .close {
   all: unset;
@@ -181,8 +181,8 @@ function onFormSubmit(e: Event) {
 .drawer-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px;
+  gap: var(--space-3);
+  padding: var(--space-3);
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -191,10 +191,9 @@ function onFormSubmit(e: Event) {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 12px 14px;
   background: var(--bg);
   border-top: 1px solid var(--line);
   flex-shrink: 0;
-}
-</style>
+}</style>

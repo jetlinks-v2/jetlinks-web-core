@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-modal
     :open="visible"
     :title="dialogTitle"
@@ -401,18 +401,18 @@ provide('mode', props.mode)
   }
 
   .form-left {
-    padding-right: 12px;
+    padding-right: var(--space-3);
     width: 45%;
-    border-right: 1px solid #f0f0f0;
+    border-right: 1px solid var(--line-strong);
   }
 
   .form-right {
-    padding-left: 12px;
+    padding-left: var(--space-3);
   }
 }
 
 .form-section {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 
   &:last-child {
     margin-bottom: 0;
@@ -420,11 +420,11 @@ provide('mode', props.mode)
 
   .section-title {
     margin: 0 0 16px 0;
-    font-size: 16px;
+    font-size: var(--fs-16);
     font-weight: 500;
     color: #262626;
-    border-bottom: 1px solid #f0f0f0;
-    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line-strong);
+    padding-bottom: var(--space-2);
   }
 }
 
@@ -441,25 +441,25 @@ provide('mode', props.mode)
 
   .result-content {
     .result-icon {
-      margin-bottom: 16px;
+      margin-bottom: var(--space-4);
     }
 
     h3 {
       font-size: 20px;
-      margin-bottom: 8px;
+      margin-bottom: var(--space-2);
     }
 
     .result-desc {
       color: #666;
-      margin-bottom: 32px;
+      margin-bottom: var(--space-8);
     }
 
     .token-display {
-      margin-bottom: 32px;
+      margin-bottom: var(--space-8);
       text-align: left;
 
       .token-label {
-        margin-bottom: 8px;
+        margin-bottom: var(--space-2);
         font-weight: 500;
       }
 
@@ -468,7 +468,7 @@ provide('mode', props.mode)
           cursor: pointer;
 
           &:hover {
-            background: #f0f0f0;
+            background: var(--line-strong);
           }
         }
       }
@@ -478,5 +478,4 @@ provide('mode', props.mode)
       text-align: center;
     }
   }
-}
-</style>
+}</style>

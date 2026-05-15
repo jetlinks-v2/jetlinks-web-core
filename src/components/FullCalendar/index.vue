@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="calendarContainer" v-if="showCalendar">
     <div class="calenderButton">
       <a-space>
@@ -632,7 +632,7 @@ setTimeout(() => {
   top: 0;
   color: var(--ink-3);
   display: none;
-  font-size: 16px;
+  font-size: var(--fs-16);
 }
 .calendarContainer .event:hover .closeBtn {
   display: inline-block;
@@ -735,8 +735,7 @@ setTimeout(() => {
 :deep(.fc-daygrid-day-number) {
   color: var(--ink-1);
   font-weight: 600;
-}
-</style>
+}</style>
 <style>
 .calendarContainer {
   .fc-event {
@@ -761,5 +760,4 @@ setTimeout(() => {
       background-color: var(--info-bg); /* 滚动条背景色 */
     }
   }
-}
-</style>
+}</style>

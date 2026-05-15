@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="scene-center">
     <!-- Header -->
     <header class="header">
@@ -320,35 +320,35 @@ const onClick = () => {
 
 <style scoped lang="less">
 // Less 变量定义
-@primary: #1890ff;
-@primary-dark: #0d6efd;
-@primary-light: #69c0ff;
-@primary-bg: #e6f4ff;
-@secondary: #00d9ff;
-@accent: #722ed1;
-@success: #52c41a;
-@warning: #faad14;
-@error: #ff4d4f;
-@dark: #0a1628;
-@dark-secondary: #111d32;
-@gray-100: #f8fafc;
-@gray-200: #e2e8f0;
-@gray-300: #cbd5e1;
-@gray-400: #94a3b8;
-@gray-500: #64748b;
-@gray-600: #475569;
-@text-primary: #1e293b;
-@text-secondary: #64748b;
-@card-bg: #ffffff;
-@border-color: #e2e8f0;
-@shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-@shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-@shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-@shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-@radius-sm: 6px;
-@radius-md: 10px;
-@radius-lg: 16px;
-@radius-xl: 24px;
+@primary: var(--jet-theme-primary);
+@primary-dark: var(--jet-theme-primary-active);
+@primary-light: var(--jet-theme-primary-hover);
+@primary-bg: var(--jet-theme-primary-soft);
+@secondary: var(--jet-theme-primary-hover);
+@accent: var(--jet-theme-primary-active);
+@success: var(--jet-theme-success);
+@warning: var(--jet-theme-warning);
+@error: var(--jet-theme-error);
+@dark: var(--code-dark-bg);
+@dark-secondary: color-mix(in srgb, var(--code-dark-bg) 88%, var(--jet-theme-primary-active));
+@gray-100: var(--jet-theme-bg-layout);
+@gray-200: var(--jet-theme-border-secondary);
+@gray-300: var(--jet-theme-border);
+@gray-400: var(--jet-theme-text-disabled);
+@gray-500: var(--jet-theme-text-secondary);
+@gray-600: var(--jet-theme-text-secondary);
+@text-primary: var(--jet-theme-text-title);
+@text-secondary: var(--jet-theme-text-secondary);
+@card-bg: var(--jet-theme-bg-container);
+@border-color: var(--jet-theme-border-secondary);
+@shadow-sm: var(--shadow-1);
+@shadow-md: var(--shadow-1);
+@shadow-lg: var(--shadow-pop);
+@shadow-xl: var(--shadow-lifted);
+@radius-sm: var(--r-2);
+@radius-md: var(--r-3);
+@radius-lg: var(--r-3);
+@radius-xl: var(--r-3);
 
 .scene-center {
 
@@ -376,7 +376,7 @@ const onClick = () => {
   .logo {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
     text-decoration: none;
     color: @text-primary;
   }
@@ -389,14 +389,14 @@ const onClick = () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: var(--accent-ink);
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--fs-14);
   }
 
   .logo-text {
     font-weight: 600;
-    font-size: 18px;
+    font-size: var(--fs-18);
   }
 
   .logo-divider {
@@ -407,18 +407,18 @@ const onClick = () => {
   }
 
   .logo-subtitle {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
   }
 
   .header-nav {
     display: flex;
     align-items: center;
-    gap: 32px;
+    gap: var(--space-8);
   }
 
   .nav-link {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @text-secondary;
     text-decoration: none;
     transition: color 0.2s;
@@ -431,7 +431,7 @@ const onClick = () => {
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--space-4);
   }
 
   .search-box {
@@ -441,7 +441,7 @@ const onClick = () => {
     border: 1px solid @border-color;
     border-radius: @radius-md;
     padding: 8px 16px;
-    gap: 8px;
+    gap: var(--space-2);
     width: 280px;
     transition: all 0.2s;
   }
@@ -455,7 +455,7 @@ const onClick = () => {
     border: none;
     background: none;
     outline: none;
-    font-size: 14px;
+    font-size: var(--fs-14);
     flex: 1;
     color: @text-primary;
   }
@@ -476,8 +476,8 @@ const onClick = () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-size: 14px;
+    color: var(--accent-ink);
+    font-size: var(--fs-14);
     font-weight: 500;
     cursor: pointer;
   }
@@ -487,7 +487,7 @@ const onClick = () => {
   .main-content {
     max-width: 1440px;
     margin: 0 auto;
-    padding: 32px;
+    padding: var(--space-8);
   }
 
   /* Hero Section */
@@ -495,8 +495,8 @@ const onClick = () => {
   .hero {
     background: linear-gradient(135deg, @dark 0%, @dark-secondary 100%);
     border-radius: @radius-xl;
-    padding: 48px;
-    margin-bottom: 40px;
+    padding: var(--space-12);
+    margin-bottom: var(--space-10);
     position: relative;
     overflow: hidden;
   }
@@ -508,7 +508,7 @@ const onClick = () => {
     right: 0;
     width: 60%;
     height: 100%;
-    background: radial-gradient(ellipse at top right, rgba(24, 144, 255, 0.15) 0%, transparent 70%);
+    background: radial-gradient(ellipse at top right, color-mix(in srgb, var(--jet-theme-primary) 15%, transparent) 0%, transparent 70%);
   }
 
   .hero::after {
@@ -518,7 +518,7 @@ const onClick = () => {
     left: 50%;
     width: 40%;
     height: 50%;
-    background: radial-gradient(ellipse at bottom, rgba(0, 217, 255, 0.1) 0%, transparent 70%);
+    background: radial-gradient(ellipse at bottom, color-mix(in srgb, var(--jet-theme-primary-hover) 10%, transparent) 0%, transparent 70%);
   }
 
   .hero-content {
@@ -531,14 +531,14 @@ const onClick = () => {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(24, 144, 255, 0.15);
-    border: 1px solid rgba(24, 144, 255, 0.3);
+    background: color-mix(in srgb, var(--jet-theme-primary) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
     color: @primary-light;
-    font-size: 12px;
+    font-size: var(--fs-12);
     font-weight: 500;
     padding: 6px 12px;
     border-radius: 20px;
-    margin-bottom: 20px;
+    margin-bottom: var(--space-5);
   }
 
   .hero-badge::before {
@@ -562,21 +562,21 @@ const onClick = () => {
   .hero h1 {
     font-size: 36px;
     font-weight: 700;
-    color: white;
-    margin-bottom: 16px;
+    color: var(--accent-ink);
+    margin-bottom: var(--space-4);
     line-height: 1.3;
   }
 
   .hero p {
-    font-size: 16px;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 28px;
+    font-size: var(--fs-16);
+    color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
+    margin-bottom: var(--space-7);
     line-height: 1.8;
   }
 
   .hero-stats {
     display: flex;
-    gap: 40px;
+    gap: var(--space-10);
   }
 
   .hero-stat {
@@ -586,33 +586,31 @@ const onClick = () => {
   .hero-stat-value {
     font-size: 28px;
     font-weight: 700;
-    color: white;
-    font-family: 'JetBrains Mono', monospace;
-  }
+    color: var(--accent-ink); }
 
   .hero-stat-label {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.5);
-    margin-top: 4px;
+    color: color-mix(in srgb, var(--accent-ink) 50%, transparent);
+    margin-top: var(--space-1);
   }
 
   /* Filter Section */
 
   .filter-section {
-    margin-bottom: 32px;
+    margin-bottom: var(--space-8);
   }
 
   .filter-tabs {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     flex-wrap: wrap;
   }
 
   .filter-tab {
     padding: 10px 20px;
     border-radius: @radius-md;
-    font-size: 14px;
+    font-size: var(--fs-14);
     font-weight: 500;
     color: @text-secondary;
     background: @card-bg;
@@ -632,18 +630,18 @@ const onClick = () => {
   .filter-tab.active {
     background: @primary;
     border-color: @primary;
-    color: white;
+    color: var(--accent-ink);
   }
 
   .filter-tab .count {
-    font-size: 12px;
+    font-size: var(--fs-12);
     padding: 2px 8px;
     border-radius: 10px;
-    background: rgba(0, 0, 0, 0.1);
+    background: color-mix(in srgb, var(--code-dark-bg) 10%, transparent);
   }
 
   .filter-tab.active .count {
-    background: rgba(255, 255, 255, 0.2);
+    background: color-mix(in srgb, var(--accent-ink) 20%, transparent);
   }
 
   /* Scene Grid */
@@ -651,7 +649,7 @@ const onClick = () => {
   .scene-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 24px;
+    gap: var(--space-6);
   }
 
   .scene-card {
@@ -696,7 +694,7 @@ const onClick = () => {
     left: 0;
     right: 0;
     height: 60%;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+    background: linear-gradient(to top, color-mix(in srgb, var(--code-dark-bg) 60%, transparent), transparent);
   }
 
   .scene-card-badge {
@@ -705,7 +703,7 @@ const onClick = () => {
     left: 12px;
     z-index: 2;
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: var(--r-1);
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -713,18 +711,18 @@ const onClick = () => {
   }
 
   .scene-card-badge.hot {
-    background: linear-gradient(135deg, #ff4d4f, #ff7a45);
-    color: white;
+    background: linear-gradient(135deg, var(--jet-theme-error), color-mix(in srgb, var(--jet-theme-warning) 72%, var(--jet-theme-error)));
+    color: var(--accent-ink);
   }
 
   .scene-card-badge.new {
     background: linear-gradient(135deg, @primary, @secondary);
-    color: white;
+    color: var(--accent-ink);
   }
 
   .scene-card-badge.popular {
-    background: linear-gradient(135deg, @accent, #b37feb);
-    color: white;
+    background: linear-gradient(135deg, @accent, color-mix(in srgb, var(--jet-theme-primary-active) 35%, var(--jet-theme-bg-container)));
+    color: var(--accent-ink);
   }
 
   .scene-card-industry {
@@ -733,32 +731,32 @@ const onClick = () => {
     right: 12px;
     z-index: 2;
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: var(--r-1);
     font-size: 11px;
     font-weight: 500;
-    background: rgba(255, 255, 255, 0.95);
+    background: color-mix(in srgb, var(--jet-theme-bg-container) 95%, transparent);
     color: @text-primary;
   }
 
   .scene-card-content {
-    padding: 20px;
+    padding: var(--space-5);
   }
 
   .scene-card-title {
     font-size: 17px;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
     color: @text-primary;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   .scene-card-desc {
     font-size: 13px;
     color: @text-secondary;
     line-height: 1.7;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -769,12 +767,12 @@ const onClick = () => {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
 
   .scene-tag {
     padding: 4px 10px;
-    border-radius: 4px;
+    border-radius: var(--r-1);
     font-size: 11px;
     font-weight: 500;
     background: @gray-100;
@@ -783,54 +781,54 @@ const onClick = () => {
   }
 
   .scene-tag.vision {
-    background: #fff0f6;
-    color: #c41d7f;
-    border-color: #ffadd2;
+    background: var(--err-bg);
+    color: var(--jet-theme-error);
+    border-color: color-mix(in srgb, var(--jet-theme-error) 28%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.ai {
-    background: #f0f5ff;
-    color: #2f54eb;
-    border-color: #adc6ff;
+    background: var(--jet-theme-primary-soft);
+    color: var(--jet-theme-primary-active);
+    border-color: color-mix(in srgb, var(--jet-theme-primary) 28%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.iot {
-    background: #e6fffb;
-    color: #08979c;
-    border-color: #87e8de;
+    background: color-mix(in srgb, var(--jet-theme-primary-hover) 12%, var(--jet-theme-bg-container));
+    color: var(--jet-theme-primary-hover);
+    border-color: color-mix(in srgb, var(--jet-theme-primary-hover) 28%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.video {
-    background: #fff7e6;
-    color: #d46b08;
-    border-color: #ffd591;
+    background: var(--warn-bg);
+    color: var(--jet-theme-warning);
+    border-color: color-mix(in srgb, var(--jet-theme-warning) 32%, var(--jet-theme-bg-container));
   }
 
   .scene-tag.edge {
-    background: #f6ffed;
-    color: #389e0d;
-    border-color: #b7eb8f;
+    background: var(--ok-bg);
+    color: var(--jet-theme-success);
+    border-color: color-mix(in srgb, var(--jet-theme-success) 32%, var(--jet-theme-bg-container));
   }
 
   .scene-card-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-top: 16px;
+    padding-top: var(--space-4);
     border-top: 1px solid @border-color;
   }
 
   .scene-card-meta {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--space-4);
   }
 
   .scene-meta-item {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 12px;
+    gap: var(--space-1);
+    font-size: var(--fs-12);
     color: @text-secondary;
   }
 
@@ -845,7 +843,7 @@ const onClick = () => {
     font-size: 13px;
     font-weight: 500;
     background: @primary;
-    color: white;
+    color: var(--accent-ink);
     border: none;
     cursor: pointer;
     transition: all 0.2s;
@@ -864,7 +862,7 @@ const onClick = () => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
   }
 
   .section-title {
@@ -874,12 +872,12 @@ const onClick = () => {
   }
 
   .view-all {
-    font-size: 14px;
+    font-size: var(--fs-14);
     color: @primary;
     text-decoration: none;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
   }
 
   .view-all:hover {
@@ -892,28 +890,28 @@ const onClick = () => {
     background: @card-bg;
     border-radius: @radius-lg;
     border: 1px solid @border-color;
-    padding: 24px;
-    margin-bottom: 32px;
+    padding: var(--space-6);
+    margin-bottom: var(--space-8);
   }
 
   .capability-title {
-    font-size: 14px;
+    font-size: var(--fs-14);
     font-weight: 500;
     color: @text-secondary;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
 
   .capability-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .capability-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
     background: @gray-100;
     border-radius: @radius-md;
     border: 1px solid @border-color;
@@ -933,31 +931,31 @@ const onClick = () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: var(--fs-18);
   }
 
   .capability-icon.iot {
-    background: linear-gradient(135deg, #e6fffb, #87e8de);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--jet-theme-primary-hover) 12%, var(--jet-theme-bg-container)), color-mix(in srgb, var(--jet-theme-primary-hover) 34%, var(--jet-theme-bg-container)));
   }
 
   .capability-icon.visual {
-    background: linear-gradient(135deg, #fff7e6, #ffd591);
+    background: linear-gradient(135deg, var(--warn-bg), color-mix(in srgb, var(--jet-theme-warning) 32%, var(--jet-theme-bg-container)));
   }
 
   .capability-icon.video {
-    background: linear-gradient(135deg, #f0f5ff, #adc6ff);
+    background: linear-gradient(135deg, var(--jet-theme-primary-soft), color-mix(in srgb, var(--jet-theme-primary) 28%, var(--jet-theme-bg-container)));
   }
 
   .capability-icon.edge {
-    background: linear-gradient(135deg, #f6ffed, #b7eb8f);
+    background: linear-gradient(135deg, var(--ok-bg), color-mix(in srgb, var(--jet-theme-success) 32%, var(--jet-theme-bg-container)));
   }
 
   .capability-icon.ai {
-    background: linear-gradient(135deg, #fff0f6, #ffadd2);
+    background: linear-gradient(135deg, var(--err-bg), color-mix(in srgb, var(--jet-theme-error) 28%, var(--jet-theme-bg-container)));
   }
 
   .capability-icon.agent {
-    background: linear-gradient(135deg, #f9f0ff, #d3adf7);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--jet-theme-primary-active) 8%, var(--jet-theme-bg-container)), color-mix(in srgb, var(--jet-theme-primary-active) 28%, var(--jet-theme-bg-container)));
   }
 
   .capability-info {
@@ -965,13 +963,13 @@ const onClick = () => {
   }
 
   .capability-name {
-    font-size: 14px;
+    font-size: var(--fs-14);
     font-weight: 500;
     color: @text-primary;
   }
 
   .capability-count {
-    font-size: 12px;
+    font-size: var(--fs-12);
     color: @text-secondary;
   }
 
@@ -979,7 +977,7 @@ const onClick = () => {
 
   .footer {
     background: @dark;
-    color: rgba(255, 255, 255, 0.7);
+    color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     padding: 40px 32px;
     margin-top: 60px;
   }
@@ -998,18 +996,18 @@ const onClick = () => {
 
   .footer-links {
     display: flex;
-    gap: 24px;
+    gap: var(--space-6);
   }
 
   .footer-link {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.7);
+    color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     text-decoration: none;
     transition: color 0.2s;
   }
 
   .footer-link:hover {
-    color: white;
+    color: var(--accent-ink);
   }
 
   /* Responsive */
@@ -1027,7 +1025,7 @@ const onClick = () => {
     }
 
     .main-content {
-      padding: 16px;
+      padding: var(--space-4);
     }
 
     .hero {
@@ -1039,7 +1037,7 @@ const onClick = () => {
     }
 
     .hero-stats {
-      gap: 24px;
+      gap: var(--space-6);
     }
 
     .scene-grid {
@@ -1048,7 +1046,7 @@ const onClick = () => {
 
     .filter-tabs {
       overflow-x: auto;
-      padding-bottom: 8px;
+      padding-bottom: var(--space-2);
     }
   }
 
@@ -1104,5 +1102,4 @@ const onClick = () => {
   .scene-card:nth-child(9) {
     animation-delay: 0.5s;
   }
-}
-</style>
+}</style>

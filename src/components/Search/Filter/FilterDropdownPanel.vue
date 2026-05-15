@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getDefaultTermType, isArrayTermType, TermTypeOptions } from './setting'
@@ -164,23 +164,23 @@ watch(
 <style scoped>
 .filter-dropdown-panel {
   width: 280px;
-  padding: 16px;
+  padding: var(--space-4);
   background: var(--bg);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   box-shadow: var(--shadow-1);
 }
 .filter-dropdown-panel__title {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   color: var(--ink-1);
-  font-size: 18px;
+  font-size: var(--fs-18);
   font-weight: 600;
   line-height: 26px;
 }
 .filter-dropdown-panel__body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .filter-dropdown-panel__select {
   width: 100%;
@@ -188,7 +188,6 @@ watch(
 .filter-dropdown-panel__actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 16px;
-}
-</style>
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}</style>

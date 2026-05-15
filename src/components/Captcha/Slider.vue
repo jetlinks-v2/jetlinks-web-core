@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="slider-captcha" ref="containerRef">
     <div :class="{ 'image-container': true, 'rotate-box': !isSlider }" :style="{ width: `${captchaData.backgroundImageWidth}px`, height: `${captchaData.backgroundImageHeight}px` }">
       <img
@@ -163,7 +163,7 @@ const reset = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: var(--fs-14);
   z-index: 3;
   animation: slideUp 0.3s;
@@ -182,5 +182,4 @@ const reset = () => {
 .result.fail {
   background: color-mix(in srgb, var(--err) 90%, transparent);
   color: var(--accent-ink);
-}
-</style>
+}</style>

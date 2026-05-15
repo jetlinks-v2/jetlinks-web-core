@@ -73,5 +73,4 @@ const gridStyle = computed(() => {
 /* §8.2 硬规则：grid item 必须 min-width:0 */
 .rg > :deep(*) {
   min-width: 0;
-}
-</style>
+}</style>

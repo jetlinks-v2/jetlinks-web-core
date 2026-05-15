@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="personal-token">
     <div class="personal-token-header">
       <div style="display: flex; gap: 24px; align-items: center">
@@ -152,10 +152,10 @@ const handleDialogOk = async (data) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: var(--space-6);
     background-color: #F7F8FA;
-    padding: 12px;
-    border-radius: 6px;
+    padding: var(--space-3);
+    border-radius: var(--r-2);
   }
 }
 
@@ -169,8 +169,7 @@ const handleDialogOk = async (data) => {
 .token-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
   flex: 1;
   overflow-y: auto;
-}
-</style>
+}</style>

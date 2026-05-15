@@ -128,5 +128,4 @@ watch(() => route.fullPath, () => {
 <style scoped>
 .iframe-content {
   width: 100%;
-}
-</style>
+}</style>

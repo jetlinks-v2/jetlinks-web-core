@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-modal open :title="$t('BatchImport.index.250528-1')" :width="width" :mask-closable="false" @cancel="emits('close')">
     <slot name="alert">
       <div class="alert" v-if="message">
@@ -203,7 +203,7 @@ const downTemplate = async (type) => {
   padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: var(--r-1);
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
   background-color: var(--canvas);
   display: flex;
   align-items: center;
@@ -221,6 +221,5 @@ const downTemplate = async (type) => {
 }
 .result,
 .file-download {
-  margin-top: 16px;
-}
-</style>
+  margin-top: var(--space-4);
+}</style>

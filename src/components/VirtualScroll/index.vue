@@ -139,5 +139,4 @@ onBeforeUnmount(() => {
 .list-item {
   box-sizing: border-box;
   width: 100%;
-}
-</style>
+}</style>

@@ -68,6 +68,4 @@ onMounted(() => {
   &.scroll {
     overflow-y: auto;
   }
-}
-
-</style>
+}</style>

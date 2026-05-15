@@ -87,5 +87,4 @@ watch(
 .ai-preview {
   min-height: 216px;
   min-width: 384px;
-}
-</style>
+}</style>

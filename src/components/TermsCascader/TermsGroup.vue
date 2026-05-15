@@ -1,4 +1,4 @@
-<script setup lang="ts" name="TermsCascaderGroup">
+﻿<script setup lang="ts" name="TermsCascaderGroup">
 import TermsGroupItem from './TermsGroupItem.vue'
 import { ValueProps } from './Value/utils'
 import { randomString } from '@jetlinks-web/utils'
@@ -162,7 +162,7 @@ watch(() => props.value, (newValue) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: var(--fs-16);
   cursor: pointer;
   opacity: 0;
   transform: scale(0.5);
@@ -198,7 +198,7 @@ watch(() => props.value, (newValue) => {
   margin-left: -1px;
 }
 .terms-group-container .connect-text {
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--line);
   border-radius: var(--r-3);
   cursor: pointer;
@@ -210,7 +210,7 @@ watch(() => props.value, (newValue) => {
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .terms-group-container .terms-scroll-area {
   overflow-x: auto;
@@ -245,5 +245,4 @@ watch(() => props.value, (newValue) => {
 .terms-group-container .term-item.can-delete:hover > .term-delete-btn {
   opacity: 1;
   transform: scale(1);
-}
-</style>
+}</style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-drawer
       :open="true"
       @close="emits('close')"
@@ -273,10 +273,10 @@ onMounted(() => {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    font-size: 14px;
+    font-size: var(--fs-14);
     line-height: 22px;
     padding: 5px 12px;
-    border-radius: 4px;
+    border-radius: var(--r-1);
     color: rgba(0, 0, 0, 0.88);
     box-sizing: border-box;
     cursor: pointer;
@@ -284,7 +284,7 @@ onMounted(() => {
     .description {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--space-2);
       flex: 1;
       min-width: 0;
 
@@ -295,15 +295,15 @@ onMounted(() => {
 
     .icon {
       position: relative;
-      font-size: 16px;
+      font-size: var(--fs-16);
     }
 
     .current {
-      color: #52C41A;
+      color: var(--ok);
     }
 
     .delete {
-      color: #FF4D4F;
+      color: var(--err);
       display: none;
     }
 
@@ -325,5 +325,4 @@ onMounted(() => {
     width: 100%;
     height: 100%;
   }
-}
-</style>
+}</style>

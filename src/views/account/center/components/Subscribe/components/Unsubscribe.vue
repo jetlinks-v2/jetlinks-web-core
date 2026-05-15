@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-modal
     :maskClosable="false"
     :width="'384px'"
@@ -100,7 +100,7 @@ const onBindSave = (cur: any) => {
 .tip {
   width: 100%;
   margin: 30px 0;
-  font-size: 16px;
+  font-size: var(--fs-16);
   color: #333333;
 }
 
@@ -114,5 +114,4 @@ const onBindSave = (cur: any) => {
 .btn {
   display: flex;
   justify-content: flex-end;
-}
-</style>
+}</style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="card a-table-card-box">
     <div
         class="card-warp"
@@ -286,7 +286,7 @@ const handleClick = () => {
   overflow: hidden;
 }
 .card .card-warp .card-content .card-item-avatar {
-  margin-right: 16px;
+  margin-right: var(--space-4);
   display: flex;
   align-items: center;
 }
@@ -323,7 +323,7 @@ const handleClick = () => {
 }
 .card .card-warp .card-content :deep(.card-item-content-title) {
   cursor: pointer;
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 700;
   color: var(--jet-theme-primary, var(--accent));
   width: calc(100% - 100px);
@@ -333,8 +333,8 @@ const handleClick = () => {
 }
 .card .card-warp .card-content :deep(.card-item-heard-name) {
   font-weight: 700;
-  font-size: 16px;
-  margin-bottom: 12px;
+  font-size: var(--fs-16);
+  margin-bottom: var(--space-3);
 }
 .card .card-warp .card-content :deep(.card-item-content-text) {
   color: var(--ink-2);
@@ -407,7 +407,7 @@ const handleClick = () => {
 }
 .card .card-tools {
   display: flex;
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 .card .card-tools .card-button {
   display: flex;
@@ -439,7 +439,7 @@ const handleClick = () => {
   color: var(--accent-ink) !important;
 }
 .card .card-tools .card-button:not(:last-child) {
-  margin-right: 8px;
+  margin-right: var(--space-2);
 }
 .card .card-tools .card-button.delete {
   flex-basis: 60px;
@@ -476,5 +476,4 @@ const handleClick = () => {
 }
 .card .card-tools .card-button :deep(button[disabled]):active {
   background-color: color-mix(in srgb, var(--jet-theme-text, var(--ink-1)) 8%, var(--jet-theme-bg-container, var(--bg)));
-}
-</style>
+}</style>

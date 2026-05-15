@@ -1,4 +1,4 @@
-<script setup lang="ts" name="TimePicker">
+﻿<script setup lang="ts" name="TimePicker">
 import type { PropType } from 'vue'
 import { computed, ref, useAttrs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -114,7 +114,7 @@ watch(() => props.value, (val) => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 .dropdown-time-picker__shortcut {
   height: 24px;
@@ -132,5 +132,4 @@ watch(() => props.value, (val) => {
   color: var(--accent);
   background: var(--accent-soft);
   border-color: color-mix(in srgb, var(--accent) 35%, var(--bg));
-}
-</style>
+}</style>

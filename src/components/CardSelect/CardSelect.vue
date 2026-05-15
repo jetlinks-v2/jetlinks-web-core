@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div :class="{ 'j-card-panel': true, 'no-column': noColumn }">
         <a-row v-if="!noColumn" :gutter="[16, 16]">
             <a-col
@@ -216,7 +216,7 @@ watch(
   color: var(--jet-theme-text, var(--ink-1));
   display: flex;
   width: 100%;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .j-card-panel .j-card-item .j-card-title-warp {
   flex: 1 1 auto;
@@ -232,10 +232,10 @@ watch(
   align-items: center;
 }
 .j-card-panel .j-card-item.vertical .j-card-image {
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 .j-card-panel .j-card-item.horizontal {
-  padding: 20px;
+  padding: var(--space-5);
 }
 .j-card-panel .j-card-item .sub-title {
   color: color-mix(in srgb, var(--ink-1) 24%, transparent);
@@ -246,7 +246,7 @@ watch(
 .j-card-panel.no-column {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: var(--space-4);
 }
 .j-card-panel.no-column .j-card-item {
   min-width: 36px;
@@ -261,5 +261,4 @@ watch(
 .j-card-panel .disabled {
   cursor: not-allowed;
   opacity: 0.75;
-}
-</style>
+}</style>

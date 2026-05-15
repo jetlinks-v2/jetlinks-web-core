@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div style="width: 300px">
     <template v-if="getType === 'notifier-dingTalk'">
       <div class="tip">
@@ -96,7 +96,6 @@ onMounted(() => {
 
 .btn {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   justify-content: flex-end;
-}
-</style>
+}</style>

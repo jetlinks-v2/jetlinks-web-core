@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-form
     ref="formRef"
     :model="formData"
@@ -307,7 +307,7 @@ defineExpose({
 }
 
 .form-right {
-  padding-left: 12px;
+  padding-left: var(--space-3);
   width: 50%;
 }
 
@@ -318,5 +318,4 @@ defineExpose({
 .bgImage-div {
   width: 550px;
   height: 400px;
-}
-</style>
+}</style>

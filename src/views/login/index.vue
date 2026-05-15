@@ -87,8 +87,8 @@ getOpen()
       position: absolute;
       top: 96%;
       left: 35%;
-      color: rgba(0, 0, 0, 0.35);
-      font-size: 14px;
+      color: var(--jet-theme-text-disabled);
+      font-size: var(--fs-14);
     }
   }
 
@@ -100,5 +100,4 @@ getOpen()
     flex-direction: column;
     justify-content: space-between;
   }
-}
-</style>
+}</style>

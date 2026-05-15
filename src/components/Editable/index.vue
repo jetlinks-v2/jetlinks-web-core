@@ -111,6 +111,5 @@ watch(() => props.value, (newValue) => {
 }
 .text:hover {
   background-color: var(--bg-hover);
-}
-</style>
+}</style>
 

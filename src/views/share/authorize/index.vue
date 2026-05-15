@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="authorize-wrapper">
     <div
       v-if="isLoading && !isExpired"
@@ -319,8 +319,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
-  padding: 20px;
+  background: var(--jet-theme-bg-layout);
+  padding: var(--space-5);
 }
 
 .loading-container {
@@ -335,8 +335,8 @@ onMounted(() => {
 }
 
 .loading-text {
-  margin-top: 16px;
-  color: #666;
+  margin-top: var(--space-4);
+  color: var(--jet-theme-text-secondary);
 }
 
 .status-container {
@@ -347,39 +347,39 @@ onMounted(() => {
 }
 
 .status-card {
-  background: white;
-  border-radius: 8px;
-  padding: 40px;
+  background: var(--bg);
+  border-radius: var(--r-3);
+  padding: var(--space-10);
   text-align: center;
   max-width: 400px;
   width: 100%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-1);
 }
 
 .status-card.error .status-icon {
-  color: #ff4d4f;
+  color: var(--jet-theme-error);
 }
 
 .status-icon {
   font-size: 48px;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .status-title {
   font-size: 20px;
   font-weight: 500;
-  color: #333;
-  margin-bottom: 12px;
+  color: var(--jet-theme-text-title);
+  margin-bottom: var(--space-3);
 }
 
 .status-description {
-  color: #666;
+  color: var(--jet-theme-text-secondary);
   line-height: 1.5;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .status-footer {
-  margin-top: 24px;
+  margin-top: var(--space-6);
 }
 
 .auth-container {
@@ -390,17 +390,17 @@ onMounted(() => {
 }
 
 .auth-card {
-  background: white;
-  border-radius: 8px;
-  padding: 40px;
+  background: var(--bg);
+  border-radius: var(--r-3);
+  padding: var(--space-10);
   max-width: 400px;
   width: 100%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-1);
 }
 
 .auth-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: var(--space-8);
 }
 
 .auth-logo {
@@ -409,17 +409,17 @@ onMounted(() => {
   justify-content: center;
   width: 60px;
   height: 60px;
-  background: #1890ff;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  font-size: 24px;
-  color: white;
+  background: var(--jet-theme-primary);
+  border-radius: var(--r-3);
+  margin-bottom: var(--space-4);
+  font-size: var(--fs-24);
+  color: var(--accent-ink);
 }
 
 .auth-title {
   font-size: 20px;
   font-weight: 500;
-  color: #333;
+  color: var(--jet-theme-text-title);
 }
 
 .auth-form {
@@ -437,7 +437,7 @@ onMounted(() => {
 
 .verify-code-image {
   height: 32px;
-  border-radius: 4px;
+  border-radius: var(--r-1);
 }
 
 .verify-code-placeholder {
@@ -446,17 +446,17 @@ onMounted(() => {
   justify-content: center;
   width: 80px;
   height: 32px;
-  background: #f5f5f5;
-  border-radius: 4px;
-  color: #999;
+  background: var(--jet-theme-bg-layout);
+  border-radius: var(--r-1);
+  color: var(--jet-theme-text-secondary);
 }
 
 .verify-code-placeholder:hover {
-  background: #e8e8e8;
+  background: var(--jet-theme-border-secondary);
 }
 
 .form-actions {
-  margin-top: 24px;
+  margin-top: var(--space-6);
   margin-bottom: 0;
 }
 
@@ -464,7 +464,7 @@ onMounted(() => {
   .auth-card,
   .status-card,
   .loading-card {
-    padding: 24px;
+    padding: var(--space-6);
   }
 
   .auth-logo {
@@ -475,11 +475,10 @@ onMounted(() => {
 
   .auth-title,
   .status-title {
-    font-size: 18px;
+    font-size: var(--fs-18);
   }
 
   .status-icon {
     font-size: 40px;
   }
-}
-</style>
+}</style>

@@ -127,5 +127,4 @@ watch([() => props.value, options], ([newValue]) => {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
-}
-</style>
+}</style>

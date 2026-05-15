@@ -1,4 +1,4 @@
-<script setup name="FilterItem">
+﻿<script setup name="FilterItem">
 import { useI18n } from 'vue-i18n'
 import Column from './Column.vue';
 import TermType from './TermType.vue';
@@ -116,6 +116,5 @@ const onCloseTermItem = () => {
   display: flex;
   align-items: center;
   gap: 2px;
-  margin-right: 4px;
-}
-</style>
+  margin-right: var(--space-1);
+}</style>

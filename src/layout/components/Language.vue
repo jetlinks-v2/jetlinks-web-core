@@ -27,6 +27,4 @@ const handleChangeLanguage = async () => {
 }
 </script>
 
-<style scoped lang="less">
-
-</style>
+<style scoped lang="less"></style>

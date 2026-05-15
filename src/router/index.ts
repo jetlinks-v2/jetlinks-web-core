@@ -11,6 +11,7 @@ import { resolveCoreRoutes } from './coreRoutes'
 import { RouteSecurityLevel } from './types'
 import { toValue } from 'vue'
 import { bootstrapSession, ensureMenuRoutes, resetRouteStartupState } from './startup'
+import { redirectLegacyProjectHash, isProjectRuntime } from '@jetlinks-web-core/utils/project-runtime'
 
 // ============ 核心路由解析 ============
 const moduleOverrides = collectCoreRouteOverrides()
@@ -128,6 +129,10 @@ const getRoutesByServer = async (
 
 // ============ 全局守卫 ============
 router.beforeEach((to, from, next) => {
+  if (redirectLegacyProjectHash()) {
+    return
+  }
+
   const token = getToken()
   // 优化: 使用路由名称判断（更可靠）
   const isLoginRoute = to.name === 'Login'
@@ -136,6 +141,13 @@ router.beforeEach((to, from, next) => {
     if (isLoginRoute) {
       resetRouteStartupState()
       next({ path: '/' })
+    } else if (isProjectRuntime()) {
+      bootstrapSession()
+        .then(() => next())
+        .catch(error => {
+          console.error('[Router] 初始化项目端会话失败:', error)
+          next()
+        })
     } else {
       getRoutesByServer(to, next)
     }

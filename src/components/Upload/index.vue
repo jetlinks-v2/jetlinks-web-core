@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="upload-image-warp">
         <div class="upload-image-border" :style="borderStyle">
             <a-upload
@@ -212,7 +212,7 @@ const saveImage = (url: string) => {
   height: 100%;
   background-color: color-mix(in srgb, var(--ink-1) 6%, transparent);
   cursor: pointer;
-  padding: 8px;
+  padding: var(--space-2);
 }
 .upload-image-warp .upload-image-border .upload-image-content .upload-image-mask {
   position: absolute;
@@ -222,7 +222,7 @@ const saveImage = (url: string) => {
   width: 100%;
   height: 100%;
   color: var(--accent-ink);
-  font-size: 16px;
+  font-size: var(--fs-16);
   align-items: center;
   justify-content: center;
   background-color: var(--ink-4);
@@ -248,5 +248,4 @@ const saveImage = (url: string) => {
   height: 100%;
   color: var(--accent-ink);
   background-color: var(--ink-4);
-}
-</style>
+}</style>

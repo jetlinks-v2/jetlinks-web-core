@@ -48,6 +48,4 @@ const orgChange = async (key, option) => {
 }
 </script>
 
-<style lang="less" scoped>
-
-</style>
+<style lang="less" scoped></style>

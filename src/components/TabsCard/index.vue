@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="tab-select">
     <div
         class="tab-select-item"
@@ -45,12 +45,12 @@ const onClick = (key) => {
 .tab-select {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: var(--space-4);
 }
 .tab-select-item {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-4);
   background: var(--bg-hover);
   border-radius: var(--r-2);
   padding: 12px 24px;
@@ -58,5 +58,4 @@ const onClick = (key) => {
 }
 .tab-select-item.active {
   border: 1px solid var(--accent);
-}
-</style>
+}</style>

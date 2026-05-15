@@ -67,6 +67,4 @@ const optionsMap = computed(() => {
   </a-dropdown>
 </template>
 
-<style scoped>
-
-</style>
+<style scoped></style>

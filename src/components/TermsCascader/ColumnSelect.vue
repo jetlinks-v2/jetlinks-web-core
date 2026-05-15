@@ -1,4 +1,4 @@
-<script setup name="ColumnSelect">
+﻿<script setup name="ColumnSelect">
 import { useTermsEvent, useTermsParse, useTermsValue } from './hooks'
 import { computed } from 'vue'
 import { initValueByTermType } from './utils'
@@ -197,7 +197,7 @@ watch(() => termsValue.value.column, (newValue, oldValue) => {
   white-space: nowrap;
 }
 .column-tree-dropdown {
-  padding: 8px;
+  padding: var(--space-2);
   border-radius: var(--r-3);
   box-shadow: var(--shadow-1);
   background-color: var(--bg);
@@ -211,5 +211,4 @@ watch(() => termsValue.value.column, (newValue, oldValue) => {
 }
 .column-tree-dropdown :deep(.ant-tree) .ant-tree-node-selected .ant-tree-node-content-wrapper {
   background-color: color-mix(in srgb, var(--accent) 30%, transparent);
-}
-</style>
+}</style>

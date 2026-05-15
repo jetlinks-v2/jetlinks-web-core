@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="upload-file-container">
     <a-upload
       v-model:file-list="fileList"
@@ -215,7 +215,6 @@ watch(
 }
 
 .ant-upload-select-picture-card .ant-upload-text {
-  margin-top: 8px;
+  margin-top: var(--space-2);
   color: var(--ink-3);
-}
-</style>
+}</style>

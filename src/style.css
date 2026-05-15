@@ -9,12 +9,18 @@
   --color-jet-primary-hover: var(--jet-theme-primary-hover);
   --color-jet-primary-active: var(--jet-theme-primary-active);
   --color-jet-primary-soft: var(--jet-theme-primary-soft);
+  --color-jet-success: var(--jet-theme-success);
+  --color-jet-warning: var(--jet-theme-warning);
+  --color-jet-error: var(--jet-theme-error);
   --color-jet-bg-base: var(--jet-theme-bg-base);
   --color-jet-bg-layout: var(--jet-theme-bg-layout);
   --color-jet-bg-container: var(--jet-theme-bg-container);
   --color-jet-bg-elevated: var(--jet-theme-bg-elevated);
+  --color-jet-text-title: var(--jet-theme-text-title);
   --color-jet-text: var(--jet-theme-text);
   --color-jet-text-secondary: var(--jet-theme-text-secondary);
+  --color-jet-text-description: var(--jet-theme-text-description);
+  --color-jet-text-disabled: var(--jet-theme-text-disabled);
   --color-jet-border: var(--jet-theme-border);
   --color-jet-border-secondary: var(--jet-theme-border-secondary);
   --radius-jet: var(--jet-theme-radius);
@@ -37,12 +43,18 @@
   --jet-theme-primary-hover: #4096FF;
   --jet-theme-primary-active: #0958D9;
   --jet-theme-primary-soft: #E6F4FF;
+  --jet-theme-success: #52C41A;
+  --jet-theme-warning: #FAAD14;
+  --jet-theme-error: #FF4D4F;
   --jet-theme-bg-base: #FFFFFF;
   --jet-theme-bg-layout: #F5F5F5;
   --jet-theme-bg-container: #FFFFFF;
   --jet-theme-bg-elevated: #FFFFFF;
-  --jet-theme-text: rgba(0, 0, 0, 0.88);
-  --jet-theme-text-secondary: rgba(0, 0, 0, 0.65);
+  --jet-theme-text-title: #1A1A1A;
+  --jet-theme-text: #1A1A1A;
+  --jet-theme-text-secondary: #6B7280;
+  --jet-theme-text-description: #6B7280;
+  --jet-theme-text-disabled: #9CA3AF;
   --jet-theme-border: #D9D9D9;
   --jet-theme-border-secondary: #F0F0F0;
   --jet-theme-radius: 6px;
@@ -62,8 +74,8 @@
   --line-strong: var(--jet-theme-border-secondary);
   --ink-1: var(--jet-theme-text);
   --ink-2: var(--jet-theme-text-secondary);
-  --ink-3: color-mix(in srgb, var(--jet-theme-text-secondary) 75%, transparent);
-  --ink-4: color-mix(in srgb, var(--jet-theme-text-secondary) 52%, transparent);
+  --ink-3: var(--jet-theme-text-disabled);
+  --ink-4: var(--jet-theme-text-disabled);
   --accent: var(--jet-theme-primary);
   --accent-ink: #FFFFFF;
   --accent-soft: var(--jet-theme-primary-soft);
@@ -76,16 +88,45 @@
   --info: var(--jet-theme-primary);
   --info-bg: var(--jet-theme-primary-soft);
   --font-sans: var(--jet-theme-font-family);
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --fs-10: 10px;
-  --fs-10-5: 10.5px;
-  --fs-11: 11px;
-  --fs-11-5: 11.5px;
+  --font-mono: AliRegular, sans-serif;
   --fs-12: 12px;
-  --fs-12-5: 12.5px;
-  --fs-13: 13px;
   --fs-14: 14px;
-  --fs-15: 15px;
+  --fs-15: 16px;
+  --fs-16: 16px;
+  --fs-17: 18px;
+  --fs-18: 18px;
+  --fs-19: 18px;
+  --fs-20: 22px;
+  --fs-22: 22px;
+  --fs-24: 24px;
+  --fs-26: 24px;
+  --fs-28: 24px;
+  --fs-tiny: var(--fs-12);
+  --fs-pill: var(--fs-12);
+  --fs-meta: var(--fs-12);
+  --fs-body: var(--fs-14);
+  --fs-label: var(--fs-12);
+  --fs-h4: var(--fs-16);
+  --fs-h3: var(--fs-18);
+  --fs-h2: var(--fs-22);
+  --fs-h1: var(--fs-24);
+  --fs-display: var(--fs-24);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-11: 44px;
+  --space-12: 48px;
+  --space-13: 52px;
+  --space-section: 64px;
+  --space-page: 96px;
+  --space-gutter: 24px;
   --r-1: var(--jet-theme-radius-sm);
   --r-2: var(--jet-theme-radius);
   --r-3: var(--jet-theme-radius-lg);
@@ -122,4 +163,11 @@ body {
 
 body {
   margin: 0
+}
+
+@layer utilities {
+  .container {
+    /* 你的自定义样式 */
+    max-width: 100%;
+  }
 }

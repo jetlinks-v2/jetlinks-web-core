@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div
     class="mp-res-layout"
     :class="{ 'mp-res-layout--fixed': !!panelHeight }"
@@ -818,8 +818,8 @@ defineExpose({
 .mp-res-layout__body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  margin-top: 16px;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
   min-height: 0;
   align-items: stretch;
   flex: 1;
@@ -867,7 +867,7 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   border: 1px solid transparent;
   border-radius: var(--r-3);
   background: transparent;
@@ -910,7 +910,7 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   line-height: 1;
 }
 .mp-res-layout__sidebar-classifier-count {
@@ -941,7 +941,7 @@ defineExpose({
   border: 1px solid transparent;
   border-radius: var(--r-2);
   background: var(--bg);
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   color: var(--ink-2);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
@@ -965,10 +965,10 @@ defineExpose({
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
   background: var(--bg);
   border-radius: 12px;
-  padding: 16px;
+  padding: var(--space-4);
   box-shadow: var(--shadow-1);
 }
 .mp-res-layout--fixed {
@@ -991,7 +991,7 @@ defineExpose({
   overflow: hidden;
   background: var(--bg);
   border-radius: 12px;
-  padding: 16px;
+  padding: var(--space-4);
   box-shadow: var(--shadow-1);
 }
 .mp-res-layout__list-scroll {
@@ -1015,16 +1015,16 @@ defineExpose({
 .mp-res-layout__toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 .mp-res-layout__selected {
   margin-top: -4px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid color-mix(in srgb, var(--accent) 12%, transparent);
   border-radius: 12px;
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), color-mix(in srgb, var(--accent) 2%, transparent));
@@ -1051,7 +1051,7 @@ defineExpose({
 .mp-res-layout__selected-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   flex: 1;
   min-width: 0;
 }
@@ -1063,17 +1063,16 @@ defineExpose({
 .mp-res-layout__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
-  gap: 12px;
+  gap: var(--space-3);
   width: 100%;
   align-items: stretch;
-  padding-top: 4px;
+  padding-top: var(--space-1);
   padding-bottom: 2px;
   box-sizing: border-box;
 }
 .mp-res-layout__pager {
   display: flex;
   justify-content: flex-end;
-  padding-top: 8px;
+  padding-top: var(--space-2);
   flex-shrink: 0;
-}
-</style>
+}</style>

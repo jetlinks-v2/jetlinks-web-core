@@ -214,14 +214,14 @@ function inputValue(event: Event): string {
 
 .editor-head h3 {
   margin: 0;
-  font-size: var(--fs-13);
+  font-size: var(--fs-14);
   font-weight: 500;
   color: var(--ink-1);
 }
 
 .editor-head p {
   margin: 0.25rem 0 0;
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   color: var(--ink-3);
 }
 
@@ -231,7 +231,7 @@ function inputValue(event: Event): string {
   border-radius: var(--r-1);
   background: var(--bg);
   color: var(--ink-2);
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -273,10 +273,8 @@ function inputValue(event: Event): string {
 }
 
 .field-row--head {
-  font-size: var(--fs-10);
-  color: var(--ink-4);
-  font-family: var(--font-mono);
-}
+  font-size: var(--fs-12);
+  color: var(--ink-4); }
 
 .cell-input {
   min-width: 0;
@@ -285,7 +283,7 @@ function inputValue(event: Event): string {
   border-radius: var(--r-1);
   background: var(--bg);
   color: var(--ink-1);
-  font-size: var(--fs-11);
+  font-size: var(--fs-12);
   padding: 0.25rem 0.5rem;
   outline: none;
 }
@@ -304,13 +302,10 @@ function inputValue(event: Event): string {
   background: var(--bg-elev);
 }
 
-.cell-input--mono {
-  font-family: var(--font-mono);
-}
+.cell-input--mono { }
 
 .range-cell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.25rem;
-}
-</style>
+}</style>

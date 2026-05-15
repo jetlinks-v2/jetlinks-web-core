@@ -12,6 +12,8 @@ import type { RouteHideInMenuContext } from '@jetlinks-web-core/router/types'
 import { useAuthStore, useApplication } from '@jetlinks-web-core/store'
 import { OWNER_KEY } from '@jetlinks-web-core/utils/consts'
 import i18n from '@jetlinks-web-core/locales'
+import { useProjectRouter } from '@/hooks'
+import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 
 type OptionsType = {
   params?: Record<string, any>
@@ -128,6 +130,22 @@ const getCoreRouteOverrideMenus = (context?: RouteHideInMenuContext) => {
   return [...overrideMenuMap.values()]
 }
 
+const hasRegisteredRoute = (route: RouteRecordRaw) => {
+  if (route.name) {
+    return router.hasRoute(route.name)
+  }
+
+  return router.getRoutes().some(item => item.path === route.path)
+}
+
+const registerMenuRoute = (route: RouteRecordRaw) => {
+  if (!route.path?.startsWith('/') || hasRegisteredRoute(route)) {
+    return
+  }
+
+  router.addRoute(route)
+}
+
 export const useMenuStore = defineStore('menu', () => {
   const menusMap = ref<Map<string, any>>(new Map())
   const menu = ref<RouteRecordRaw[]>([])
@@ -152,13 +170,23 @@ export const useMenuStore = defineStore('menu', () => {
   ) => {
     const _query = options?.query || {}
     const _params = options?.params || {}
+    setParamsValue(name, _params)
+      if (getProjectIdFromLocation()) {
+          const { push } = useProjectRouter()
+          push({
+              name,
+              params: _params,
+              query: _query,
+          })
+          return
+      }
 
     router.push({
       name,
       params: _params,
       query: _query,
     })
-    setParamsValue(name, _params)
+
   }
 
   const jumpPage = (
@@ -212,8 +240,8 @@ export const useMenuStore = defineStore('menu', () => {
       }
     })
 
-      console.log('菜单路由[routes]', menuRoutes)
-      console.log('菜单栏[siderMenus]', mergedMenus)
+    menuRoutes.forEach(registerMenuRoute)
+
     menusMap.value = menuMap
     menu.value = menuRoutes
     siderMenus.value = mergedMenus

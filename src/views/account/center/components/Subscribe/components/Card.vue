@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="box-item">
     <div class="box-item-img">
       <a-popover
@@ -167,7 +167,6 @@ const onCheckChange = (dt: any) => {
     width: 100%;
     text-align: center;
     color: #666666;
-    font-size: 12px;
+    font-size: var(--fs-12);
   }
-}
-</style>
+}</style>

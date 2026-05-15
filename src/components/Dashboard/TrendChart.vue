@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- 设备消息、点位数据量Echarts -->
   <div
     class="message-card"
@@ -308,7 +308,7 @@ watch(
 <style scoped>
 .message-card,
 .device-position {
-  padding: 24px;
+  padding: var(--space-6);
   background-color: var(--info);
   height: 100%;
   width: 100%;
@@ -321,5 +321,4 @@ watch(
   width: 100%;
   min-height: 500px;
   height: 100%;
-}
-</style>
+}</style>

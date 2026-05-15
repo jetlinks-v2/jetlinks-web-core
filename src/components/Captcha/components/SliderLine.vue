@@ -147,5 +147,4 @@ defineExpose({
   border-color: var(--info);
   color: var(--accent-ink);
   cursor: grabbing;
-}
-</style>
+}</style>

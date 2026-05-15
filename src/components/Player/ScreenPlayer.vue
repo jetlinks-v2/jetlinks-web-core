@@ -1,4 +1,4 @@
-<!-- 分屏组件 -->
+﻿<!-- 分屏组件 -->
 <template>
     <div class="live-player-warp">
         <div class="live-player-content">
@@ -471,7 +471,7 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 .live-player-warp .live-player-content .player-screen-tool .ant-radio-button-wrapper {
   height: auto;
@@ -549,5 +549,4 @@ defineExpose({
 }
 .refreshBtn:hover {
   opacity: 1;
-}
-</style>
+}</style>

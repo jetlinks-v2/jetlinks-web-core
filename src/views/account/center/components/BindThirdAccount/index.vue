@@ -118,18 +118,18 @@ onMounted(() => {
         width: 100%;
         .content-item {
             width: 100%;
-            margin-bottom: 16px;
+            margin-bottom: var(--space-4);
             padding: 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             height: 60px;
-            border-radius: 6px;
+            border-radius: var(--r-2);
             background: #f7f8fa;
 
             .content-item-left {
                 display: flex;
-                gap: 24px;
+                gap: var(--space-6);
                 align-items: center;
             }
         }
@@ -137,12 +137,11 @@ onMounted(() => {
         .content-item-right {
             :deep(button) {
                 &:hover {
-                    background-color: @primary-color;
+                    background-color: var(--jet-theme-primary);
                     color: #fff;
                 }
             }
 
         }
     }
-}
-</style>
+}</style>

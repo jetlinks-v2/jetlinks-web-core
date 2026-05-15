@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed } from 'vue'
 
 // 参数节点接口定义
@@ -86,11 +86,11 @@ const onExpand = (keys: string[]) => {
   max-width: 90vw;
   background: var(--bg);
   border-radius: var(--r-1);
-  padding: 12px;
+  padding: var(--space-3);
   box-shadow: var(--shadow-1);
 }
 .built-in-parameters :deep(.ant-tabs) .ant-tabs-nav {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .built-in-parameters :deep(.ant-tabs) .ant-tabs-nav .ant-tabs-tab {
   padding: 8px 16px;
@@ -130,7 +130,7 @@ const onExpand = (keys: string[]) => {
 .built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-node-content-wrapper {
   border-radius: var(--r-1);
   transition: all 0.2s;
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-node-content-wrapper:hover {
   background-color: color-mix(in srgb, var(--accent) 10%, transparent);
@@ -173,5 +173,4 @@ const onExpand = (keys: string[]) => {
 }
 .built-in-parameters .parameter-tree :deep(.ant-empty) .ant-empty-description {
   color: var(--ink-4);
-}
-</style>
+}</style>

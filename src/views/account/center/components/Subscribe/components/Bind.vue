@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <a-modal
     :maskClosable="false"
     :width="'900px'"
@@ -187,7 +187,7 @@ watch(
   width: 100%;
   margin: 80px 0;
   text-align: center;
-  font-size: 14px;
+  font-size: var(--fs-14);
   color: #7f7f7f;
 }
 
@@ -200,5 +200,4 @@ watch(
   .code-item {
     border: none;
   }
-}
-</style>
+}</style>

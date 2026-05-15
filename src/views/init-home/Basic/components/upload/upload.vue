@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="upload">
     <a-upload @change="change"
             :drag="uploadInfo.drag"
@@ -257,9 +257,9 @@ const uploadInfo: UploadInfoType = {
           left: 0;
           width: inherit;
           height: 160px;
-          color: white;
-          font-size: 16px;
-          background-color: rgba(0, 0, 0, 0.35);
+          color: var(--accent-ink);
+          font-size: var(--fs-16);
+          background-color: var(--jet-theme-text-disabled);
           display: none;
       }
       &:hover .upload-mask {
@@ -272,9 +272,8 @@ const uploadInfo: UploadInfoType = {
       }
     }
     .uploadTip {
-      color: rgba(0, 0, 0, 0.45);
-      font-size: 14px;
+      color: var(--jet-theme-text-disabled);
+      font-size: var(--fs-14);
       line-height: 1.5715;
     }
-}
-</style>
+}</style>

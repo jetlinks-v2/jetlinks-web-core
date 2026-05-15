@@ -11,7 +11,7 @@
     >
       <div class="token-jump-body">
         <img src="@jetlinks-web-core/assets/token-error-icon.png" alt="">
-        <span style="color: #1F2429;padding: 24px 0;">{{ msg }}</span>
+        <span style="color: #1F2429;padding: var(--space-6) 0;">{{ msg }}</span>
         <a-button style="width: 180px" type="primary" @click="onBack">返回</a-button>
       </div>
     </a-modal>
@@ -51,5 +51,4 @@ const onBack = () => {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-}
-</style>
+}</style>

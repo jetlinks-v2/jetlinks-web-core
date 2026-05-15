@@ -9,7 +9,7 @@
 
 .ant-pro-basicLayout {
   .ant-pro-top-nav-header-main {
-    gap: 16px;
+    gap: var(--space-4);
   }
 
   .ant-pro-top-nav-header {
@@ -102,22 +102,22 @@
       .ant-menu-submenu-selected {
         .ant-menu-submenu-title {
           span {
-            color:  @primary-color !important;
+            color: var(--jet-theme-primary) !important;
           }
 
           i {
             &::after {
-              background-color: @primary-color !important;
+              background-color: var(--jet-theme-primary) !important;
             }
 
             &::before {
-              background-color: @primary-color !important;
+              background-color: var(--jet-theme-primary) !important;
             }
           }
         }
         .ant-menu-item-selected {
           span {
-            color: @primary-color !important;
+            color: var(--jet-theme-primary) !important;
           }
         }
       }
@@ -125,7 +125,7 @@
       .ant-menu-item-selected {
         background-color: transparent !important;
         span {
-          color: @primary-color !important;
+          color: var(--jet-theme-primary) !important;
         }
       }
     }
@@ -139,7 +139,7 @@
 
   .ant-page-header.has-breadcrumb {
     background: transparent;
-    padding-top: 20px;
+    padding-top: var(--space-5);
     padding-bottom: 0;
 
     &:has(.ant-page-header-heading), &:has(.ant-page-header-content), &:has(.ant-page-header-footer) {
@@ -148,7 +148,7 @@
   }
 
   .ant-pro-page-container-children-content {
-    margin-top: 16px;
+    margin-top: var(--space-4);
   }
 
   .ant-pro-sider-menu {
@@ -179,7 +179,7 @@
         height: 28px;
         background: transparent;
         color: var(--jet-theme-text);
-        font-size: 12px;
+        font-size: var(--fs-12);
       }
 
       .ant-input-prefix,
@@ -197,9 +197,7 @@
         color: var(--jet-theme-text-secondary);
         font-size: 11px;
         line-height: 18px;
-        text-align: center;
-        font-family: var(--jet-theme-font-family);
-      }
+        text-align: center; }
     }
 
     .ant-pro-sider-menu {
@@ -221,7 +219,7 @@
         width: 100%;
         height: var(--layout-menu-item-height, 32px);
         margin: 2px 0;
-        border-radius: var(--layout-menu-item-radius, 6px);
+        border-radius: var(--layout-menu-item-radius, var(--r-2));
         line-height: var(--layout-menu-item-height, 32px);
         color: var(--jet-theme-text);
 

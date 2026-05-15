@@ -1,4 +1,4 @@
-<script setup name="PositionList">
+﻿<script setup name="PositionList">
 import {filterSelectNode} from "@jetlinks-web-core/utils";
 import {useI18n} from 'vue-i18n';
 import {useRequest} from '@jetlinks-web/hooks'
@@ -168,7 +168,7 @@ onMounted(() => {
 .position-list-warp {
   width: 100%;
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .position-list-warp .tag-blue {
   background: var(--info-bg);
@@ -177,5 +177,4 @@ onMounted(() => {
 }
 .position-list-warp :deep(.ant-select-selection-overflow-item) > span {
   width: 100%;
-}
-</style>
+}</style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="radio-button" :style="styles">
     <div v-for="item in options" @click="onClick(item)"  class="radio-button-item" :class="{'active': myValue === item.value }">
       {{ item.label }}
@@ -53,7 +53,7 @@ watch(() => props.value, () => {
 <style scoped>
 .radio-button {
   display: grid;
-  gap: 16px;
+  gap: var(--space-4);
 }
 .radio-button .radio-button-item {
   padding: 6px 12px;
@@ -66,5 +66,4 @@ watch(() => props.value, () => {
 .radio-button .radio-button-item.active {
   color: var(--accent-ink);
   background-color: var(--jet-theme-primary, var(--accent));
-}
-</style>
+}</style>

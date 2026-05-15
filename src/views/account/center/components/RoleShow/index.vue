@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <ResizeObserver @resize="onResize">
         <div class="tag-box" ref="box">
             <div v-for="(item, i) in value" :key="item.id" ref="tags">
@@ -68,7 +68,7 @@ const onResize = ({ width }: { width: number }) => {
     .tag {
         background-color: #f7f8fa;
         border-radius: 32px;
-        margin-right: 8px;
+        margin-right: var(--space-2);
         padding: 0 14px;
         color: #333333;
         white-space: nowrap;
@@ -79,10 +79,9 @@ const onResize = ({ width }: { width: number }) => {
         white-space: nowrap;
         background-color: #f7f8fa;
         border-radius: 32px;
-        margin-right: 8px;
+        margin-right: var(--space-2);
         padding: 0 14px;
         color: #333333;
         text-align: center;
     }
-}
-</style>
+}</style>
