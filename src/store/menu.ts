@@ -193,8 +193,10 @@ export const useMenuStore = defineStore('menu', () => {
     name: string,
     options?: OptionsType,
   ) => {
-    if (hasMenu(name)) {
-      routerPush(name, options)
+    const menuItem = menusMap.value.get(name)
+
+    if (menuItem) {
+      routerPush(menuItem.routeName || name, options)
     } else {
       onlyMessage($t('Home.index.010851-10'), 'warning')
       console.warn(`没有找到对应的页面: ${name}`)
@@ -236,7 +238,7 @@ export const useMenuStore = defineStore('menu', () => {
     routerRoutes.forEach((item: any) => {
       if (typeof item.name !== 'string' || !item.path || !item.meta?.title) return
       if (!menuMap.has(item.name)) {
-        menuMap.set(item.name, { path: item.path, title: item.meta.title as string })
+        menuMap.set(item.name, { path: item.path, title: item.meta.title as string, routeName: item.name })
       }
     })
 
