@@ -43,7 +43,7 @@
         </RegistryComponent>
       </div>
     </template>
-    <router-view />
+    <PageRouteView />
   </j-pro-layout>
   <AiChat />
 </template>
@@ -64,6 +64,7 @@ import {
 import { storeToRefs } from 'pinia'
 import { getHideHeaderRightConfig, routerFallback } from '@jetlinks-web-core/utils'
 import { isSubApp } from '../utils/consts'
+import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 
 const router = useRouter();
 const route = useRoute();

@@ -52,6 +52,8 @@ import OutputSchemaEditor from './OutputSchemaEditor/index.vue'
 import ResponsiveGrid from './ResponsiveGrid/index.vue'
 import SectionCard from './SectionCard/index.vue'
 import StickyActionBar from './StickyActionBar/index.vue'
+import PageRouteSkeleton from './PageRouteSkeleton/index.vue'
+import PageRouteView from './PageRouteView/index.vue'
 
 export default {
     install(app: App) {
@@ -111,6 +113,8 @@ export default {
           .component('ResponsiveGrid', ResponsiveGrid)
           .component('SectionCard', SectionCard)
           .component('StickyActionBar', StickyActionBar)
+          .component('PageRouteSkeleton', PageRouteSkeleton)
+          .component('PageRouteView', PageRouteView)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
