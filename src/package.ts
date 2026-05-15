@@ -16,7 +16,8 @@ import {
     getBaseApi,
     routerFallback,
     isFromCloud,
-    getFromCloudPathName
+    getFromCloudPathName,
+    getProjectIdFromLocation
 } from '@jetlinks-web-core/utils'
 import microApp from '@micro-zoe/micro-app'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
@@ -28,20 +29,6 @@ let verifyHeadersCache: { key: string; token: string } | null = null
 
 /** 用于校验成功后重试原请求的 axios 实例（与拦截器使用同一实例） */
 let requestInstanceForRetry: any = null
-
-export const getProjectIdFromLocation = () => {
-    const hashSegments = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean)
-    if (hashSegments[0] === 'project' && hashSegments[1]) {
-        return hashSegments[1]
-    }
-
-    const pathSegments = location.pathname.split('/').filter(Boolean)
-    if (pathSegments[0] === 'project' && pathSegments[1]) {
-        return pathSegments[1]
-    }
-
-    return pathSegments[0] || ''
-}
 
 const getProjectIdFromRequest = (config: any) => {
     return config?.headers?.['X-Tenant-Domain']
