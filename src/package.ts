@@ -29,7 +29,7 @@ let verifyHeadersCache: { key: string; token: string } | null = null
 /** 用于校验成功后重试原请求的 axios 实例（与拦截器使用同一实例） */
 let requestInstanceForRetry: any = null
 
-const getProjectIdFromLocation = () => {
+export const getProjectIdFromLocation = () => {
     const hashSegments = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean)
     if (hashSegments[0] === 'project' && hashSegments[1]) {
         return hashSegments[1]
