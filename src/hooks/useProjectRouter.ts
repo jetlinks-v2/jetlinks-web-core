@@ -6,6 +6,11 @@ import {
   type RouteLocationNormalizedLoaded,
   type RouteLocationRaw,
 } from 'vue-router'
+import {
+  createProjectRuntimeHref,
+  getProjectIdFromLocation,
+  normalizeProjectRuntimePath,
+} from '@jetlinks-web-core/utils/project-runtime'
 
 const PROJECT_STORAGE_KEY = 'X-Tenant-Domain'
 const PROJECT_PATH_RE = /\/project\/([^/?#]+)/
@@ -48,6 +53,7 @@ export const resolveProjectId = (
   projectId?: string,
 ) => {
   return normalizeProjectId(projectId)
+    || getProjectIdFromLocation()
     || normalizeProjectId(route?.params?.projectId)
     || getProjectIdFromPath(route?.path)
     || getProjectIdFromPath(route?.fullPath)
@@ -63,22 +69,14 @@ export const resolveProjectPath = (path = '', projectId?: string) => {
   const targetPath = path.trim()
 
   if (!targetPath || targetPath === '/') {
-    return `/project/${projectId}`
+    return '/'
   }
 
   if (/^(https?:)?\/\//.test(targetPath)) {
     return targetPath
   }
 
-  if (targetPath.startsWith('/project/:projectId')) {
-    return targetPath.replace('/project/:projectId', `/project/${projectId}`)
-  }
-
-  if (targetPath.startsWith('/project/')) {
-    return targetPath
-  }
-
-  return `/project/${projectId}/${targetPath.replace(/^\/+/, '')}`
+  return normalizeProjectRuntimePath(targetPath)
 }
 
 const pickQuery = (
@@ -153,6 +151,7 @@ export const useProjectRouter = () => {
     projectId,
     resolveRoute,
     resolveProjectPath: (path?: string, id?: string) => resolveProjectPath(path, id || projectId.value),
+    createProjectHref: (path?: string, id?: string) => createProjectRuntimeHref(id || projectId.value || '', path),
     push,
     replace,
   }

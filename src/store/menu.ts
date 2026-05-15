@@ -13,7 +13,7 @@ import { useAuthStore, useApplication } from '@jetlinks-web-core/store'
 import { OWNER_KEY } from '@jetlinks-web-core/utils/consts'
 import i18n from '@jetlinks-web-core/locales'
 import { useProjectRouter } from '@/hooks'
-import { getProjectIdFromLocation } from '@/package'
+import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 
 type OptionsType = {
   params?: Record<string, any>
