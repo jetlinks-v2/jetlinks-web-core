@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="ive">
     <div class="ive__preview">
-      <IconValueView
+      <JlIconValueView
         :value="model"
         :size="previewSize"
         :fallback-text="previewFallback"
