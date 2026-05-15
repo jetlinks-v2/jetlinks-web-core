@@ -139,7 +139,7 @@ export const styleTokens = {
     boxShadowSecondary: '0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02)',
     layout: {
       menuVariant: 'compact-search',
-      showMenuSearch: true,
+      showMenuSearch: false,
       siderWidth: 224
     },
     cssVars: {
@@ -317,12 +317,13 @@ export const styleTokens = {
       '--row-h': '36px',
       '--pad-y': '8px',
       '--layout-menu-bg': '#FFFFFF',
-      '--layout-menu-padding': '8px 12px',
+      '--layout-menu-padding': '8px 8px',
       '--layout-menu-item-height': '32px',
       '--layout-menu-item-radius': '6px',
       '--layout-menu-item-active-bg': '#F1F2F4',
-      '--layout-menu-item-active-color': 'var(--jet-theme-primary)',
+      '--layout-menu-item-active-color': 'var(--jet-theme-text)',
       '--layout-menu-item-active-line': 'var(--jet-theme-primary)',
+      '--layout-menu-item-hover-bg': '#F6F7F9',
       '--layout-menu-search-bg': '#F6F7F9',
       '--layout-menu-search-border': '#E6E7EB'
     }
