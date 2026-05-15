@@ -1,6 +1,7 @@
 import { randomString } from '@jetlinks-web/utils'
 import {isSaaS, isSubApp} from '@jetlinks-web-core/utils/consts'
 import { useMenuStore } from '@jetlinks-web-core/store'
+import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 
 type OptionsType = {
   onSuccess?: (value: any) => void
@@ -35,7 +36,7 @@ export const useTabSaveSuccess = (code: string = '', options?: OptionsType) => {
       }
 
       const _params = new URLSearchParams({...params, sourceId: id.value})
-      const domain = localStorage.getItem('X-Tenant-Domain') || ''
+      const domain = getProjectIdFromLocation() || localStorage.getItem('X-Tenant-Domain') || ''
       const domainPath = domain ? `/${domain}` : ''
       const beforeHash = isSaaS ? `${domainPath}` : ''
       const hash = location.hash ? `${beforeHash}/#` : ''

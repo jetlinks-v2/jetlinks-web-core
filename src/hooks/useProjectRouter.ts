@@ -11,6 +11,7 @@ import {
   getProjectIdFromLocation,
   normalizeProjectRuntimePath,
 } from '@jetlinks-web-core/utils/project-runtime'
+import { isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storage'
 
 const PROJECT_STORAGE_KEY = 'X-Tenant-Domain'
 const PROJECT_PATH_RE = /\/project\/([^/?#]+)/
@@ -41,6 +42,10 @@ const getProjectIdFromPath = (path?: string) => {
 }
 
 const getProjectIdFromStorage = () => {
+  if (isProjectStorageEnabled()) {
+    return undefined
+  }
+
   if (typeof localStorage === 'undefined') {
     return undefined
   }
