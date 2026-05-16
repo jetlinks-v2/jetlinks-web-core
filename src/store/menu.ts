@@ -22,27 +22,13 @@ type OptionsType = {
 
 const $t = i18n.global.t
 
-const defaultOwnParams = [
-  {
-    terms: [
-      {
-        terms: [
-          {
-            column: 'owner',
-            termType: 'eq',
-            value: OWNER_KEY,
-          },
-          {
-            column: 'owner',
-            termType: 'isnull',
-            value: '1',
-            type: 'or',
-          },
-        ],
-      }
-    ],
-  },
-]
+const defaultOwnParams: any[] = []
+
+const filterRuntimeOwnerMenus = (menus: any[] = []) => {
+  return menus.filter((item) => {
+    return item.owner === OWNER_KEY || item.owner == null
+  })
+}
 
 const shouldShowOverrideRoute = (
   route: RouteRecordRaw,
@@ -306,9 +292,17 @@ export const useMenuStore = defineStore('menu', () => {
 
     if (resp.success) {
       hasResponeMenu.value = !!resp.result.length
-      await createRoutes(menuResult)
+      await createRoutes(filterRuntimeOwnerMenus(menuResult))
       loading.value = false
     }
+  }
+
+  const hasOwnerMenu = (owner: string) => {
+    return menuResultCache.value.some((item) => item.owner === owner)
+  }
+
+  const getOwnerMenu = (owner: string) => {
+    return menuResultCache.value.find((item) => item.owner === owner)
   }
 
   const getMenu = (name: string) => {
@@ -332,6 +326,8 @@ export const useMenuStore = defineStore('menu', () => {
     hasResponeMenu,
     hasRouteMenu,
     hasMenu,
+    hasOwnerMenu,
+    getOwnerMenu,
     jumpPage,
     routerPush,
     queryMenus,
