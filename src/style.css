@@ -76,6 +76,7 @@
   --ink-2: var(--jet-theme-text-secondary);
   --ink-3: var(--jet-theme-text-disabled);
   --ink-4: var(--jet-theme-text-disabled);
+  --ink-5: #b4b7bf;
   --accent: var(--jet-theme-primary);
   --accent-ink: #FFFFFF;
   --accent-soft: var(--jet-theme-primary-soft);
