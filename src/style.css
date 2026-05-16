@@ -148,14 +148,14 @@
 
 @font-face {
   font-family: AliRegular;
-  src: url("/fonts/AlibabaPuHuiTi-2-55-Regular.woff2") format("woff2"),
-  url("/fonts/AlibabaPuHuiTi-2-55-Regular.woff") format("woff");
+  src: url("./assets/AlibabaPuHuiTi-2-55-Regular.woff2") format("woff2"),
+  url("./assets/AlibabaPuHuiTi-2-55-Regular.woff") format("woff");
 }
 
 body {
   background: var(--jet-theme-bg-layout);
   color: var(--jet-theme-text);
-  font-family: var(--jet-theme-font-family) !important;
+    font-family: AliRegular;
 }
 
 *, :after, :before {
@@ -163,7 +163,8 @@ body {
 }
 
 body {
-  margin: 0
+  margin: 0;
+    font-family: AliRegular;
 }
 
 @layer utilities {

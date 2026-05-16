@@ -185,7 +185,6 @@ const defaultThemeCssVars: ThemeStyleCssVars = {
   '--info': 'var(--jet-theme-primary)',
   '--info-bg': 'color-mix(in srgb, var(--jet-theme-primary) 10%, var(--jet-theme-bg-container))',
   '--info-line': 'color-mix(in srgb, var(--jet-theme-primary) 22%, var(--jet-theme-bg-container))',
-  '--font-sans': 'var(--jet-theme-font-family)',
   '--font-cjk': 'var(--jet-theme-font-family)',
   '--font-mono': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
   '--lh-tight': '1.15',
