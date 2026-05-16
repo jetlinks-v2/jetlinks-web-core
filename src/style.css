@@ -155,16 +155,12 @@
 body {
   background: var(--jet-theme-bg-layout);
   color: var(--jet-theme-text);
-    font-family: AliRegular;
+  margin: 0;
+  font-family: var(--jet-theme-font-family) !important;
 }
 
 *, :after, :before {
   box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-    font-family: AliRegular;
 }
 
 @layer utilities {
