@@ -32,30 +32,19 @@ let verifyHeadersCache: { key: string; token: string } | null = null
 /** 用于校验成功后重试原请求的 axios 实例（与拦截器使用同一实例） */
 let requestInstanceForRetry: any = null
 
-const getProjectIdFromRequest = (config: any) => {
-    return config?.headers?.['X-Tenant-Domain']
-        || config?.headers?.['X-Project-Id']
-        || config?.projectId
-        || getProjectIdFromLocation()
-}
-
-const getProjectContext = (config: any) => {
-    if (isProjectStorageEnabled()) {
-        const urlProjectId = getProjectIdFromLocation()
-        if (urlProjectId) {
-            return {
-                projectId: urlProjectId,
-                storage: getProjectStorage(urlProjectId),
-                strictStorage: true
-            }
-        }
+const getProjectContext = () => {
+    if (!isProjectStorageEnabled()) {
+        return undefined
     }
 
-    const projectId = getProjectIdFromRequest(config)
+    const projectId = getProjectIdFromLocation()
+    if (!projectId) {
+        return undefined
+    }
+
     return {
         projectId,
-        storage: getProjectStorage(projectId),
-        strictStorage: false
+        storage: getProjectStorage(projectId)
     }
 }
 
@@ -214,20 +203,18 @@ export const initAxios = () => {
                 }
             }
 
-            const { projectId, storage: projectStorage, strictStorage } = getProjectContext(config)
+            const projectContext = getProjectContext()
 
-            if (projectId) {
-                config.headers = config.headers || {}
-                config.headers['X-Tenant-Domain'] = projectStorage?.domain || projectId
+            if (projectContext) {
+                const { storage: projectStorage } = projectContext
 
-                const projectToken = projectStorage?.token || (strictStorage ? undefined : localStorage.getItem(`${TOKEN_KEY}_${projectId}`))
-                if (projectToken) {
-                    config.headers[TOKEN_KEY] = projectToken
+                if (projectStorage?.token) {
+                    config.headers = config.headers || {}
+                    config.headers[TOKEN_KEY] = projectStorage.token
                 }
 
-                const projectApi = projectStorage?.apiUrl || (strictStorage ? undefined : localStorage.getItem(`X-Tenant-Api_${projectId}`) || localStorage.getItem('X-Tenant-Api'))
-                if (projectApi) {
-                    config.baseURL = projectApi
+                if (projectStorage?.apiUrl) {
+                    config.baseURL = projectStorage.apiUrl
                 }
             }
 
@@ -325,10 +312,6 @@ export const loadMicroApp = () => {
 
         if (data.token) {
             setToken(data.token)
-        }
-
-        if (data.projectId) {
-            LocalStore.set('X-Tenant-Domain', data.projectId)
         }
 
         if (data.appId) {

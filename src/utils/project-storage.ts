@@ -47,10 +47,7 @@ export const setProjectStorage = (projectCode: string, value: ProjectStorageInfo
     return
   }
 
-  localStorage.setItem(getProjectStorageKey(code), JSON.stringify({
-    ...value,
-    domain: value.domain || code,
-  }))
+  localStorage.setItem(getProjectStorageKey(code), JSON.stringify(value))
 }
 
 export const removeProjectStorage = (projectCode: string) => {
