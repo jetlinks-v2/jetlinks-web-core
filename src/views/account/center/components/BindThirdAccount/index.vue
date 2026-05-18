@@ -1,5 +1,5 @@
 <template>
-    <j-scrollbar :height="`calc(100% - 51px)`">
+    <j-scrollbar :height="`calc(100% - 3.1875rem)`">
         <div class="box">
         <div class="content">
             <template v-if="bindList.length">
@@ -14,10 +14,10 @@
                                 item.logoUrl ||
                                 bindIcon[item.provider]
                             "
-                            style="height: 24px; width: 24px"
+                            style="height: 1.5rem; width: 1.5rem"
                             alt=""
                         />
-                        <j-ellipsis style="max-width: 200px; color: #333; margin: 0 8px 0 6px">{{
+                        <j-ellipsis style="max-width: 12.5rem; color: #333; margin: 0 0.5rem 0 0.375rem">{{
                             item?.name
                         }}</j-ellipsis>
                         <div>
@@ -46,7 +46,7 @@
                     </div>
                 </div>
             </template>
-          <div v-else style="margin: 200px 0">
+          <div v-else style="margin: 12.5rem 0">
             <j-empty />
           </div>
         </div>
@@ -119,11 +119,11 @@ onMounted(() => {
         .content-item {
             width: 100%;
             margin-bottom: var(--space-4);
-            padding: 15px;
+            padding: 0.9375rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            height: 60px;
+            height: 3.75rem;
             border-radius: var(--r-2);
             background: #f7f8fa;
 

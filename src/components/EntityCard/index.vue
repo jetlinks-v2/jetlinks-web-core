@@ -78,14 +78,14 @@ withDefaults(
 .entity-card.interactive:hover {
   border-color: var(--line-strong);
   box-shadow: var(--shadow-lifted);
-  transform: translateY(-2px);
+  transform: translateY(-0.125rem);
 }
 
 .ec-top {
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: 14px 16px;
+  padding: 0.875rem 1rem;
 }
 .ec-icon { flex-shrink: 0; }
 
@@ -96,7 +96,7 @@ withDefaults(
 .ec-title {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
   font-size: var(--fs-14);
   font-weight: 600;
   color: var(--ink-1);
@@ -111,7 +111,7 @@ withDefaults(
 .ec-subtitle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
   color: var(--ink-3);
   font-size: var(--fs-12);
   margin-top: var(--space-1);
@@ -122,11 +122,11 @@ withDefaults(
 
 .ec-body {
   flex: 1;
-  padding: 0 16px 14px;
+  padding: 0 1rem 0.875rem;
 }
 .ec-footer {
   margin-top: auto;
-  padding: 10px 16px;
+  padding: 0.625rem 1rem;
   background: var(--bg-sunken);
   border-top: 1px solid var(--line);
   display: flex;

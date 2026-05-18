@@ -351,13 +351,13 @@ defineExpose({
   margin-left: auto;
 }
 .property-filter__search {
-  width: 300px;
+  width: 18.75rem;
 }
 .property-filter__clear {
   padding: 0;
   color: var(--accent);
   font-size: var(--fs-14);
-  line-height: 22px;
+  line-height: 1.375rem;
   white-space: nowrap;
   background: transparent;
   border: 0;
@@ -367,11 +367,11 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 36px;
-  padding: 6px 12px;
+  min-height: 2.25rem;
+  padding: 0.375rem 0.75rem;
   color: var(--ink-1);
   font-size: var(--fs-14);
-  line-height: 20px;
+  line-height: 1.25rem;
   background: var(--bg);
   border: 1px solid var(--line-strong);
   cursor: pointer;
@@ -390,8 +390,8 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 1.125rem;
+  height: 1.125rem;
   padding: 0;
   color: var(--ink-2);
   background: transparent;
@@ -400,7 +400,7 @@ defineExpose({
   cursor: pointer;
 }
 .filter-chip__text {
-  max-width: 240px;
+  max-width: 15rem;
   overflow: hidden;
   color: var(--accent);
   text-overflow: ellipsis;
@@ -419,21 +419,21 @@ defineExpose({
 .filter-logic {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 7px 12px;
+  gap: 0.375rem;
+  min-height: 2.25rem;
+  padding: 0.4375rem 0.75rem;
   color: var(--ink-1);
   font-size: var(--fs-14);
-  line-height: 20px;
+  line-height: 1.25rem;
   background: var(--bg);
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: 0.625rem;
   cursor: pointer;
 }
 .filter-logic:hover {
   border-color: var(--accent);
 }
-@media (max-width: 1200px) {
+@media (max-width: 75rem) {
   .property-filter__toolbar {
     flex-direction: column;
     align-items: stretch;
@@ -445,7 +445,7 @@ defineExpose({
     width: 100%;
   }
 }
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .property-filter {
     padding: var(--space-4);
   }
@@ -454,6 +454,6 @@ defineExpose({
     align-items: stretch;
   }
   .filter-chip__text {
-    max-width: 180px;
+    max-width: 11.25rem;
   }
 }</style>

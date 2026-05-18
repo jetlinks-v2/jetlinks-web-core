@@ -13,7 +13,7 @@
         >
           <img
             :src="iconMap.get(current?.channelProvider)"
-            style="width: 32px"
+            style="width: 2rem"
           />
         </div>
         <template #content>
@@ -49,7 +49,7 @@
       </a-popover>
     </div>
     <div class="box-item-text">
-      <j-ellipsis style="width: 50px">
+      <j-ellipsis style="width: 3.125rem">
 <!--        {{ current?.name }}-->
         {{ current?.i18nName || current.name }}
       </j-ellipsis>
@@ -143,9 +143,9 @@ const onCheckChange = (dt: any) => {
 
 <style lang="less" scoped>
 .box-item {
-  // margin: 0 5px;
+  // margin: 0 0.3125rem;
   .box-item-img {
-    width: 50px;
+    width: 3.125rem;
     display: flex;
     justify-content: center;
     align-items: center;

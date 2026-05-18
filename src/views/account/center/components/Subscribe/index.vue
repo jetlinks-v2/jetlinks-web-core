@@ -1,7 +1,7 @@
 ﻿<template>
-  <j-scrollbar :height="`calc(100% - 51px)`">
+  <j-scrollbar :height="`calc(100% - 3.1875rem)`">
     <a-spin :spinning="loading">
-      <div style="padding: 0 10px">
+      <div style="padding: 0 0.625rem">
         <div class="alert">
           <AIcon type="InfoCircleOutlined" />
           {{ $t("Subscribe.index.994011-0") }}
@@ -42,7 +42,7 @@
               </a-collapse-panel>
             </a-collapse>
           </template>
-          <j-empty style="margin: 200px 0" v-else />
+          <j-empty style="margin: 12.5rem 0" v-else />
         </div>
       </div>
     </a-spin>
@@ -110,7 +110,7 @@ onMounted(() => {
 
 <style lang="less" scoped>
 .alert {
-  padding-left: 10px;
+  padding-left: 0.625rem;
   color: #999999;
   margin-bottom: var(--space-4);
 }
@@ -127,11 +127,11 @@ onMounted(() => {
 
     .ant-collapse-header {
       background-color: #f7f8fa;
-      height: 42px;
+      height: 2.625rem;
     }
 
     .ant-collapse-content {
-      padding: 17px 21px 7px 21px;
+      padding: 1.0625rem 1.3125rem 0.4375rem 1.3125rem;
     }
 
     .ant-collapse-content-box {

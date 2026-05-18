@@ -24,11 +24,11 @@
     >
         <div class="data-content">
             <p class="data-p-style">
-                <ExclamationCircleOutlined style="margin: 0 0 0 5px" />
+                <ExclamationCircleOutlined style="margin: 0 0 0 0.3125rem" />
                 {{ $t('init-home.index.011072-3') }}
             </p>
         </div>
-        <div style="margin-top: 20px">
+        <div style="margin-top: 1.25rem">
             <a-form
                 layout="vertical"
                 :model="modalForm"
@@ -340,13 +340,13 @@ defineExpose({
 </script>
 <style lang="less" scoped>
 .init-data-img {
-    width: 300px;
+    width: 18.75rem;
 }
 .modal-style {
     .data-content {
         background: rgb(236, 237, 238);
         .data-p-style {
-            padding: 10px;
+            padding: 0.625rem;
         }
     }
 }</style>

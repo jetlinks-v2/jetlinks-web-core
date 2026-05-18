@@ -6,7 +6,7 @@
     >
       <div class="header">
         <div class="left">
-          <h3 style="width: 80px">{{ configData.title }}</h3>
+          <h3 style="width: 5rem">{{ configData.title }}</h3>
           <a-radio-group
             button-style="solid"
             v-model:value="data.type"
@@ -21,7 +21,7 @@
           <a-radio-group
             default-value="a"
             button-style="solid"
-            style="margin-right: 10px"
+            style="margin-right: 0.625rem"
             v-model:value="data.time.type"
           >
             <a-radio-button value="hour">最近1小时</a-radio-button>
@@ -42,10 +42,10 @@
       <div>
         <j-empty
           v-if="isEmpty"
-          style="height: 250px; margin-top: 100px"
+          style="height: 15.625rem; margin-top: 6.25rem"
         />
         <template v-else>
-          <div style="height: 300px">
+          <div style="height: 18.75rem">
             <Echarts :options="echartsOptions" />
           </div>
 
@@ -201,9 +201,9 @@ const echartsOptions = computed(() => {
       }
     },
     grid: {
-      left: '70px',
+      left: '4.375rem',
       right: data.value.time.type === 'week' ? 50 : 10,
-      bottom: '24px',
+      bottom: '1.5rem',
       top: 24
     },
     tooltip: {
@@ -251,7 +251,7 @@ defineExpose({ refreshManual })
   height: 100%;
   padding: var(--space-6);
   background-color: var(--bg);
-  border-radius: 2px;
+  border-radius: 0.125rem;
 }
 .header {
   display: flex;
@@ -259,7 +259,7 @@ defineExpose({ refreshManual })
   align-items: center;
 }
 .header .left h3 {
-  width: 200px;
+  width: 12.5rem;
   margin-top: var(--space-2);
 }
 .left,

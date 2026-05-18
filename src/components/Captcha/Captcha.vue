@@ -72,7 +72,7 @@ watch(() => props.open, () => {
     @cancel="onCancel"
   >
     <Spin :spinning="loading" size="large">
-      <div style="min-height: 280px">
+      <div style="min-height: 17.5rem">
         <component
           v-if="captchaData && captchaData.type"
           :is="components[captchaData.type]"
@@ -88,7 +88,7 @@ watch(() => props.open, () => {
   </Modal>
   <template v-else>
     <Spin :spinning="loading" size="large">
-      <div style="min-height: 280px">
+      <div style="min-height: 17.5rem">
         <component
           v-if="captchaData && captchaData.type"
           :is="components[captchaData.type]"

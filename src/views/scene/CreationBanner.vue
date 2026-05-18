@@ -255,8 +255,8 @@ function onClose() {
 
 .creation-banner {
   position: fixed;
-  top: 24px;
-  right: 24px;
+  top: 1.5rem;
+  right: 1.5rem;
   z-index: 101;
   animation: fadeInSlide 0.3s ease-out;
 }
@@ -264,7 +264,7 @@ function onClose() {
 @keyframes fadeInSlide {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-0.5rem);
   }
   to {
     opacity: 1;
@@ -273,17 +273,17 @@ function onClose() {
 }
 
 .banner-card {
-  width: 256px;
+  width: 16rem;
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  border-radius: 0.75rem;
+  box-shadow: 0 0.625rem 1.5625rem rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.04);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(0.5rem);
   overflow: hidden;
 }
 
 .header {
-  padding: 10px 16px;
+  padding: 0.625rem 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -296,18 +296,18 @@ function onClose() {
   }
 
   .title {
-    font-size: 10px;
+    font-size: var(--fs-12);
     font-weight: 700;
     color: @gray-400;
     letter-spacing: 0.08em;
   }
 
   .progress {
-    font-size: 10px;
+    font-size: var(--fs-12);
     font-weight: 500;
     color: @blue;
     background: @blue-light;
-    padding: 2px 6px;
+    padding: 0.125rem 0.375rem;
     border-radius: var(--r-2);
   }
 
@@ -324,7 +324,7 @@ function onClose() {
 }
 
 .content {
-  padding: 14px 16px;
+  padding: 0.875rem 1rem;
 }
 
 .steps {
@@ -345,14 +345,14 @@ function onClose() {
 }
 
 .icon {
-  width: 14px;
+  width: 0.875rem;
   display: flex;
   justify-content: center;
   align-items: center;
 
   .dot {
-    width: 6px;
-    height: 6px;
+    width: 0.375rem;
+    height: 0.375rem;
     border-radius: 50%;
     background: @gray-200;
 
@@ -362,14 +362,14 @@ function onClose() {
   }
 
   .loading {
-    width: 14px;
-    height: 14px;
+    width: 0.875rem;
+    height: 0.875rem;
     color: @blue;
   }
 
   .completed {
-    width: 14px;
-    height: 14px;
+    width: 0.875rem;
+    height: 0.875rem;
     color: @green;
   }
 }
@@ -378,7 +378,7 @@ function onClose() {
   flex: 1;
 
   span {
-    font-size: 11px;
+    font-size: var(--fs-12);
     color: @gray-600;
   }
 
@@ -389,10 +389,10 @@ function onClose() {
 }
 
 .progress-bar {
-  height: 2px;
+  height: 0.125rem;
   margin-top: var(--space-1);
   background: @gray-50;
-  border-radius: 2px;
+  border-radius: 0.125rem;
   overflow: hidden;
 
   .progress-inner {
@@ -427,21 +427,21 @@ function onClose() {
   .success-actions {
     display: flex;
     gap: var(--space-2);
-    margin-top: 10px;
+    margin-top: 0.625rem;
   }
 
   .primary-btn {
     flex: 2;
     background: @blue;
     color: #fff;
-    font-size: 10px;
+    font-size: var(--fs-12);
     font-weight: 700;
-    padding: 6px;
+    padding: 0.375rem;
     border-radius: var(--r-3);
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
     cursor: pointer;
 
     &:hover {
@@ -450,7 +450,7 @@ function onClose() {
 
     .countdown {
       background: rgba(255, 255, 255, 0.2);
-      padding: 0 4px;
+      padding: 0 0.25rem;
       border-radius: var(--r-1);
     }
   }
@@ -459,7 +459,7 @@ function onClose() {
     flex: 1;
     background: none;
     border: none;
-    font-size: 10px;
+    font-size: var(--fs-12);
     font-weight: 700;
     color: @gray-400;
     cursor: pointer;

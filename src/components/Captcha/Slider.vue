@@ -159,7 +159,7 @@ const reset = () => {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 32px;
+  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1,6 +1,6 @@
 <template>
   <a-select
-    style="width: 180px"
+    style="width: 11.25rem"
     :value="value"
     v-if="options.length"
     :options="options"

@@ -37,7 +37,7 @@
 <style scoped lang="less">
 .page-route-skeleton {
   width: 100%;
-  min-height: min(560px, calc(100vh - 120px));
+  min-height: min(35rem, calc(100vh - 7.5rem));
   padding: var(--space-5);
   background: var(--jet-theme-bg-layout, #f5f5f5);
 }
@@ -46,7 +46,7 @@
 .page-route-skeleton__filter,
 .page-route-skeleton__toolbar,
 .page-route-skeleton__content {
-  border-radius: var(--r-3, 8px);
+  border-radius: var(--r-3, 0.5rem);
   background: var(--jet-theme-bg-container, #fff);
   box-shadow: var(--shadow-1, 0 1px 0 rgba(0, 0, 0, 0.03));
 }
@@ -55,13 +55,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
+  height: 4rem;
   padding: 0 var(--space-4);
 }
 
 .page-route-skeleton__filter {
   display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  grid-template-columns: repeat(3, minmax(7.5rem, 1fr));
   gap: var(--space-3);
   margin-top: var(--space-4);
   padding: var(--space-4);
@@ -81,10 +81,10 @@
 
 .page-route-skeleton__row {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr 80px;
+  grid-template-columns: 1.4fr 1fr 1fr 5rem;
   gap: var(--space-4);
   align-items: center;
-  min-height: 44px;
+  min-height: 2.75rem;
   border-bottom: var(--jet-theme-stroke-width, 1px) solid var(--jet-theme-border-secondary, #f0f0f0);
 
   &:last-child {
@@ -96,8 +96,8 @@
   position: relative;
   display: inline-block;
   overflow: hidden;
-  height: 14px;
-  border-radius: var(--r-1, 4px);
+  height: 0.875rem;
+  border-radius: var(--r-1, 0.25rem);
   background: color-mix(in srgb, var(--jet-theme-text, #1a1a1a) 7%, var(--jet-theme-bg-container, #fff));
 
   &::after {
@@ -115,27 +115,27 @@
 }
 
 .page-route-skeleton__title {
-  width: 180px;
-  height: 20px;
+  width: 11.25rem;
+  height: 1.25rem;
 }
 
 .page-route-skeleton__action {
-  width: 96px;
-  height: 32px;
+  width: 6rem;
+  height: 2rem;
 }
 
 .page-route-skeleton__field {
   width: 100%;
-  height: 32px;
+  height: 2rem;
 }
 
 .page-route-skeleton__button {
-  width: 88px;
-  height: 28px;
+  width: 5.5rem;
+  height: 1.75rem;
 }
 
 .page-route-skeleton__button--short {
-  width: 64px;
+  width: 4rem;
 }
 
 .page-route-skeleton__cell {
@@ -152,7 +152,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .page-route-skeleton {
     padding: var(--space-3);
   }

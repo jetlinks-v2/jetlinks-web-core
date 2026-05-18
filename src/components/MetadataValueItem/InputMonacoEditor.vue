@@ -10,7 +10,7 @@
     <monaco-editor
         v-model:modelValue="_value"
         theme="vs"
-        style="height: 300px"
+        style="height: 18.75rem"
     />
   </a-modal>
 </template>

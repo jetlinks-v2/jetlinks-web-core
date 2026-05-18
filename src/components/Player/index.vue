@@ -350,9 +350,9 @@ defineExpose({
   transition:
     opacity 0.5s ease,
     visibility 0.5s ease;
-  height: 48px;
-  font-size: 20px;
-  padding: 4px 12px 0;
+  height: 3rem;
+  font-size: var(--fs-20);
+  padding: 0.25rem 0.75rem 0;
   align-items: center;
 
 }

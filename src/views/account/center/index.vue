@@ -97,7 +97,7 @@ onUnmounted(() => {
 <style lang="less" scoped>
 .person {
   width: 100%;
-  padding: 24px 16px;
+  padding: 1.5rem 1rem;
   box-sizing: border-box;
 
   .person-inner {
@@ -111,23 +111,23 @@ onUnmounted(() => {
   }
 
   .person-sider {
-    width: 220px;
+    width: 13.75rem;
     background-color: #fff;
     border-radius: var(--r-3);
-    padding: 8px 0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    padding: 0.5rem 0;
+    box-shadow: 0 1px 0.1875rem rgba(0, 0, 0, 0.06);
   }
 
   .person-main {
     flex: 1;
-    min-width: 1200px;
+    min-width: 75rem;
   }
 
   .person-main-content {
     background-color: #fff;
     border-radius: var(--r-3);
-    padding: 16px 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    padding: 1rem 1.25rem;
+    box-shadow: 0 1px 0.1875rem rgba(0, 0, 0, 0.06);
     height: 100%;
   }
 }</style>

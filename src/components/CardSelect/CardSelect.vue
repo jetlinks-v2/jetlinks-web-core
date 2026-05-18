@@ -228,7 +228,7 @@ watch(
 }
 .j-card-panel .j-card-item.vertical {
   flex-direction: column-reverse;
-  padding: 22px 4px;
+  padding: 1.375rem 0.25rem;
   align-items: center;
 }
 .j-card-panel .j-card-item.vertical .j-card-image {
@@ -249,11 +249,11 @@ watch(
   gap: var(--space-4);
 }
 .j-card-panel.no-column .j-card-item {
-  min-width: 36px;
+  min-width: 2.25rem;
   width: unset;
 }
 .j-card-panel.no-column .j-card-item.vertical {
-  padding: 14px 16px;
+  padding: 0.875rem 1rem;
 }
 .j-card-panel .active {
   border: 1px solid var(--jet-theme-primary, var(--accent)) !important;

@@ -360,14 +360,14 @@ const onClick = () => {
     position: sticky;
     top: 0;
     z-index: 100;
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(0.75rem);
   }
 
   .header-inner {
-    max-width: 1440px;
+    max-width: 90rem;
     margin: 0 auto;
-    padding: 0 32px;
-    height: 64px;
+    padding: 0 2rem;
+    height: 4rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -382,8 +382,8 @@ const onClick = () => {
   }
 
   .logo-icon {
-    width: 36px;
-    height: 36px;
+    width: 2.25rem;
+    height: 2.25rem;
     background: linear-gradient(135deg, @primary 0%, @secondary 100%);
     border-radius: @radius-sm;
     display: flex;
@@ -400,10 +400,10 @@ const onClick = () => {
   }
 
   .logo-divider {
-    width: 1px;
-    height: 20px;
+    width: 0.0625rem;
+    height: 1.25rem;
     background: @gray-300;
-    margin: 0 8px;
+    margin: 0 0.5rem;
   }
 
   .logo-subtitle {
@@ -440,15 +440,15 @@ const onClick = () => {
     background: @gray-100;
     border: 1px solid @border-color;
     border-radius: @radius-md;
-    padding: 8px 16px;
+    padding: 0.5rem 1rem;
     gap: var(--space-2);
-    width: 280px;
+    width: 17.5rem;
     transition: all 0.2s;
   }
 
   .search-box:focus-within {
     border-color: @primary;
-    box-shadow: 0 0 0 3px @primary-bg;
+    box-shadow: 0 0 0 0.1875rem @primary-bg;
   }
 
   .search-box input {
@@ -469,8 +469,8 @@ const onClick = () => {
   }
 
   .user-avatar {
-    width: 36px;
-    height: 36px;
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 50%;
     background: linear-gradient(135deg, @primary 0%, @accent 100%);
     display: flex;
@@ -485,7 +485,7 @@ const onClick = () => {
   /* Main Content */
 
   .main-content {
-    max-width: 1440px;
+    max-width: 90rem;
     margin: 0 auto;
     padding: var(--space-8);
   }
@@ -524,27 +524,27 @@ const onClick = () => {
   .hero-content {
     position: relative;
     z-index: 1;
-    max-width: 600px;
+    max-width: 37.5rem;
   }
 
   .hero-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
     background: color-mix(in srgb, var(--jet-theme-primary) 15%, transparent);
     border: 1px solid color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
     color: @primary-light;
     font-size: var(--fs-12);
     font-weight: 500;
-    padding: 6px 12px;
-    border-radius: 20px;
+    padding: 0.375rem 0.75rem;
+    border-radius: 1.25rem;
     margin-bottom: var(--space-5);
   }
 
   .hero-badge::before {
     content: '';
-    width: 6px;
-    height: 6px;
+    width: 0.375rem;
+    height: 0.375rem;
     background: @primary-light;
     border-radius: 50%;
     animation: pulse 2s infinite;
@@ -560,7 +560,7 @@ const onClick = () => {
   }
 
   .hero h1 {
-    font-size: 36px;
+    font-size: var(--fs-36);
     font-weight: 700;
     color: var(--accent-ink);
     margin-bottom: var(--space-4);
@@ -584,12 +584,12 @@ const onClick = () => {
   }
 
   .hero-stat-value {
-    font-size: 28px;
+    font-size: var(--fs-28);
     font-weight: 700;
     color: var(--accent-ink); }
 
   .hero-stat-label {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: color-mix(in srgb, var(--accent-ink) 50%, transparent);
     margin-top: var(--space-1);
   }
@@ -608,7 +608,7 @@ const onClick = () => {
   }
 
   .filter-tab {
-    padding: 10px 20px;
+    padding: 0.625rem 1.25rem;
     border-radius: @radius-md;
     font-size: var(--fs-14);
     font-weight: 500;
@@ -619,7 +619,7 @@ const onClick = () => {
     transition: all 0.2s;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
   }
 
   .filter-tab:hover {
@@ -635,8 +635,8 @@ const onClick = () => {
 
   .filter-tab .count {
     font-size: var(--fs-12);
-    padding: 2px 8px;
-    border-radius: 10px;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.625rem;
     background: color-mix(in srgb, var(--code-dark-bg) 10%, transparent);
   }
 
@@ -648,7 +648,7 @@ const onClick = () => {
 
   .scene-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(21.25rem, 1fr));
     gap: var(--space-6);
   }
 
@@ -665,13 +665,13 @@ const onClick = () => {
   }
 
   .scene-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-0.25rem);
     box-shadow: @shadow-xl;
     border-color: @primary-light;
   }
 
   .scene-card-cover {
-    height: 180px;
+    height: 11.25rem;
     position: relative;
     overflow: hidden;
   }
@@ -699,15 +699,15 @@ const onClick = () => {
 
   .scene-card-badge {
     position: absolute;
-    top: 12px;
-    left: 12px;
+    top: 0.75rem;
+    left: 0.75rem;
     z-index: 2;
-    padding: 4px 10px;
+    padding: 0.25rem 0.625rem;
     border-radius: var(--r-1);
-    font-size: 11px;
+    font-size: var(--fs-12);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.03125rem;
   }
 
   .scene-card-badge.hot {
@@ -727,12 +727,12 @@ const onClick = () => {
 
   .scene-card-industry {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 0.75rem;
+    right: 0.75rem;
     z-index: 2;
-    padding: 4px 10px;
+    padding: 0.25rem 0.625rem;
     border-radius: var(--r-1);
-    font-size: 11px;
+    font-size: var(--fs-12);
     font-weight: 500;
     background: color-mix(in srgb, var(--jet-theme-bg-container) 95%, transparent);
     color: @text-primary;
@@ -743,7 +743,7 @@ const onClick = () => {
   }
 
   .scene-card-title {
-    font-size: 17px;
+    font-size: var(--fs-17);
     font-weight: 600;
     margin-bottom: var(--space-2);
     color: @text-primary;
@@ -753,7 +753,7 @@ const onClick = () => {
   }
 
   .scene-card-desc {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: @text-secondary;
     line-height: 1.7;
     margin-bottom: var(--space-4);
@@ -766,14 +766,14 @@ const onClick = () => {
   .scene-card-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 0.375rem;
     margin-bottom: var(--space-4);
   }
 
   .scene-tag {
-    padding: 4px 10px;
+    padding: 0.25rem 0.625rem;
     border-radius: var(--r-1);
-    font-size: 11px;
+    font-size: var(--fs-12);
     font-weight: 500;
     background: @gray-100;
     color: @gray-600;
@@ -833,14 +833,14 @@ const onClick = () => {
   }
 
   .scene-meta-item svg {
-    width: 14px;
-    height: 14px;
+    width: 0.875rem;
+    height: 0.875rem;
   }
 
   .scene-card-action {
-    padding: 8px 16px;
+    padding: 0.5rem 1rem;
     border-radius: @radius-sm;
-    font-size: 13px;
+    font-size: var(--fs-13);
     font-weight: 500;
     background: @primary;
     color: var(--accent-ink);
@@ -849,7 +849,7 @@ const onClick = () => {
     transition: all 0.2s;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
   }
 
   .scene-card-action:hover {
@@ -866,7 +866,7 @@ const onClick = () => {
   }
 
   .section-title {
-    font-size: 20px;
+    font-size: var(--fs-20);
     font-weight: 600;
     color: @text-primary;
   }
@@ -903,7 +903,7 @@ const onClick = () => {
 
   .capability-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
     gap: var(--space-3);
   }
 
@@ -925,8 +925,8 @@ const onClick = () => {
   }
 
   .capability-icon {
-    width: 36px;
-    height: 36px;
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: @radius-sm;
     display: flex;
     align-items: center;
@@ -978,12 +978,12 @@ const onClick = () => {
   .footer {
     background: @dark;
     color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
-    padding: 40px 32px;
-    margin-top: 60px;
+    padding: 2.5rem 2rem;
+    margin-top: 3.75rem;
   }
 
   .footer-inner {
-    max-width: 1440px;
+    max-width: 90rem;
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
@@ -991,7 +991,7 @@ const onClick = () => {
   }
 
   .footer-text {
-    font-size: 13px;
+    font-size: var(--fs-13);
   }
 
   .footer-links {
@@ -1000,7 +1000,7 @@ const onClick = () => {
   }
 
   .footer-link {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     text-decoration: none;
     transition: color 0.2s;
@@ -1011,9 +1011,9 @@ const onClick = () => {
   }
 
   /* Responsive */
-  @media (max-width: 768px) {
+  @media (max-width: 48rem) {
     .header-inner {
-      padding: 0 16px;
+      padding: 0 1rem;
     }
 
     .header-nav {
@@ -1021,7 +1021,7 @@ const onClick = () => {
     }
 
     .search-box {
-      width: 200px;
+      width: 12.5rem;
     }
 
     .main-content {
@@ -1029,11 +1029,11 @@ const onClick = () => {
     }
 
     .hero {
-      padding: 32px 24px;
+      padding: 2rem 1.5rem;
     }
 
     .hero h1 {
-      font-size: 28px;
+      font-size: var(--fs-28);
     }
 
     .hero-stats {
@@ -1054,7 +1054,7 @@ const onClick = () => {
   @keyframes fadeInUp {
     from {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(1.25rem);
     }
     to {
       opacity: 1;

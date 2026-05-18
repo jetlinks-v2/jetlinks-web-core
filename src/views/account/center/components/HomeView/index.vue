@@ -64,7 +64,7 @@ onMounted(() => {
     .btn {
         display: flex;
         justify-content: flex-end;
-        margin-top: 68px;
+        margin-top: 4.25rem;
 
         button {
             background-color: var(--jet-theme-primary-soft);

@@ -192,19 +192,19 @@ watch(
   padding: var(--space-3);
   background: #fff;
   border: 1px solid #e5e6eb;
-  border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(31, 35, 41, 0.12);
+  border-radius: 0.625rem;
+  box-shadow: 0 0.5rem 1.25rem rgba(31, 35, 41, 0.12);
 
   &--compact {
     padding: var(--space-2);
   }
 
   &__title {
-    margin-bottom: 10px;
+    margin-bottom: 0.625rem;
     color: #1d2129;
     font-size: var(--fs-14);
     font-weight: 600;
-    line-height: 22px;
+    line-height: 1.375rem;
   }
 
   &__body {

@@ -72,7 +72,7 @@ watchEffect(() => {
 .view-content .select-item {
   cursor: pointer;
   width: 30%;
-  border-radius: 14px;
+  border-radius: 0.875rem;
   color: var(--ink-1);
   overflow: hidden;
 }

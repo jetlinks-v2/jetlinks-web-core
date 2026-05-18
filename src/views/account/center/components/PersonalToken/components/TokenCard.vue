@@ -165,12 +165,12 @@ const formatDate = (dateStr) => {
     align-items: center;
 
     .token-icon {
-      width: 48px;
-      height: 48px;
+      width: 3rem;
+      height: 3rem;
       border-radius: var(--r-2);
       background: var(--jet-theme-primary-soft);
       display: flex;
-      font-size: 20px;
+      font-size: var(--fs-20);
       align-items: center;
       justify-content: center;
       color: var(--jet-theme-primary);

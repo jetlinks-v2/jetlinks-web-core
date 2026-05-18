@@ -28,8 +28,8 @@ const toneClass = computed(() => `t-${props.tone ?? 'default'}`)
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 3px 10px;
-  border-radius: 999px;
+  padding: 0.1875rem 0.625rem;
+  border-radius: 62.4375rem;
   background: var(--bg-sunken);
   color: var(--ink-3);
   font-size: var(--fs-12);

@@ -53,7 +53,7 @@ const onClick = (key) => {
   gap: var(--space-4);
   background: var(--bg-hover);
   border-radius: var(--r-2);
-  padding: 12px 24px;
+  padding: 0.75rem 1.5rem;
   cursor: pointer;
 }
 .tab-select-item.active {

@@ -21,7 +21,7 @@
                         <AIcon
                             type="LoadingOutlined"
                             v-if="loading"
-                            style="font-size: 20px"
+                            style="font-size: var(--fs-20)"
                         />
                         <template v-else-if="bgImage">
                             <div
@@ -33,14 +33,14 @@
                         <AIcon
                             v-else
                             type="PlusOutlined"
-                            style="font-size: 20px"
+                            style="font-size: var(--fs-20)"
                         />
                     </template>
                 </div>
             </a-upload>
             <div class="upload-loading-mask" v-if="props.disabled"></div>
             <div class="upload-loading-mask" v-if="imageUrl && loading">
-                <AIcon type="LoadingOutlined" style="font-size: 20px" />
+                <AIcon type="LoadingOutlined" style="font-size: var(--fs-20)" />
             </div>
         </div>
     </div>
@@ -186,8 +186,8 @@ const saveImage = (url: string) => {
 }
 .upload-image-warp .upload-image-border {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: 9.375rem;
+  height: 9.375rem;
   overflow: hidden;
   transition: all 0.3s;
 }

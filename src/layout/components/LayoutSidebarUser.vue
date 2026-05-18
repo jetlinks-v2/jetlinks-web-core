@@ -124,20 +124,20 @@ const handleLogout = async () => {
 <style scoped lang="less">
 .layout-sidebar-user {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
+  grid-template-columns: minmax(0, 1fr) 1.75rem;
   align-items: center;
   gap: var(--space-1);
-  padding: 8px 10px;
+  padding: 0.5rem 0.625rem;
   border-top: 1px solid var(--jet-theme-border-secondary);
   background: var(--layout-menu-bg, var(--jet-theme-bg-container));
 
   &__card {
     min-width: 0;
-    height: 42px;
+    height: 2.625rem;
     display: flex;
     align-items: center;
-    gap: 9px;
-    padding: 6px 8px;
+    gap: 0.5625rem;
+    padding: 0.375rem 0.5rem;
     border: 0;
     border-radius: var(--r-2);
     background: transparent;
@@ -156,7 +156,7 @@ const handleLogout = async () => {
     flex: none;
     background: var(--brand-mark-bg, var(--jet-theme-text));
     color: var(--brand-mark-ink, var(--jet-theme-bg-container));
-    font-size: 13px;
+    font-size: var(--fs-13);
     font-weight: 600;
   }
 
@@ -165,7 +165,7 @@ const handleLogout = async () => {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0.125rem;
   }
 
   &__name,
@@ -176,31 +176,31 @@ const handleLogout = async () => {
   }
 
   &__name {
-    font-size: 13px;
-    line-height: 18px;
+    font-size: var(--fs-13);
+    line-height: 1.125rem;
     font-weight: 600;
   }
 
   &__account {
     color: var(--jet-theme-text-secondary);
     font-size: var(--fs-12);
-    line-height: 16px;
+    line-height: 1rem;
   }
 
   &__arrow {
     color: var(--jet-theme-text-secondary);
-    font-size: 11px;
+    font-size: var(--fs-12);
   }
 
   &__collapse {
-    width: 28px;
-    height: 28px;
+    width: 1.75rem;
+    height: 1.75rem;
     color: var(--jet-theme-text-secondary);
     font-size: var(--fs-12);
   }
 
   &__menu {
-    width: 192px;
+    width: 12rem;
     padding: var(--space-1);
     background: var(--chrome-elev, var(--jet-theme-bg-container));
     border: 1px solid var(--chrome-line, var(--jet-theme-border));
@@ -210,11 +210,11 @@ const handleLogout = async () => {
 
   &__menu-item {
     width: 100%;
-    height: 34px;
+    height: 2.125rem;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 0 12px;
+    gap: 0.625rem;
+    padding: 0 0.75rem;
     border: 0;
     border-radius: var(--r-2);
     background: transparent;
@@ -239,18 +239,18 @@ const handleLogout = async () => {
   }
 
   &__divider {
-    height: 1px;
-    margin: 4px 0;
+    height: 0.0625rem;
+    margin: 0.25rem 0;
     background: var(--jet-theme-border-secondary);
   }
 
   &--collapsed {
     grid-template-columns: 1fr;
-    padding: 8px 6px;
+    padding: 0.5rem 0.375rem;
 
     .layout-sidebar-user__card {
       justify-content: center;
-      padding: 6px;
+      padding: 0.375rem;
     }
 
     .layout-sidebar-user__collapse {

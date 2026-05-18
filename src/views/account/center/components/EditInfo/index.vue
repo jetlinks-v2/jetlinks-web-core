@@ -3,7 +3,7 @@
       visible
       :title="$t('EditInfo.index.557023-0')"
       @ok="handleOk"
-      width="770px"
+      :width="770"
       @cancel="emits('close')"
       :confirmLoading="loading"
       :zIndex="1100"

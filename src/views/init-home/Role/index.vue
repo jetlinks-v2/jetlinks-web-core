@@ -282,7 +282,7 @@ defineExpose({
 <style lang="less" scoped>
 .init-home-role {
     .built_in_group {
-        margin-bottom: 10px;
+        margin-bottom: 0.625rem;
         position: relative;
 
         .group {
@@ -291,7 +291,7 @@ defineExpose({
             z-index: 999;
 
             .group_item {
-                width: 100px;
+                width: 6.25rem;
                 margin-right: var(--space-5);
 
                 .button {
@@ -299,19 +299,19 @@ defineExpose({
                 }
 
                 .group_name {
-                    border: .2px solid rgb(217, 217, 217);
+                    border: 0.0125rem solid rgb(217, 217, 217);
                     text-align: center;
-                    height: 32px;
-                    line-height: 32px;
-                    border-radius: 2px;
-                    padding: 0 10px;
+                    height: 2rem;
+                    line-height: 2rem;
+                    border-radius: 0.125rem;
+                    padding: 0 0.625rem;
                     position: relative;
 
                     .closeIcon {
                         font-size: var(--fs-12);
                         position: absolute;
-                        top: 10px;
-                        right: 4px;
+                        top: 0.625rem;
+                        right: 0.25rem;
                     }
                 }
 
@@ -324,7 +324,7 @@ defineExpose({
 
     .init-home-role-content {
         display: flex;
-        grid-gap: 24px;
+        grid-gap: 1.5rem;
         gap: var(--space-6);
         margin-top: var(--space-10);
     }
@@ -346,11 +346,11 @@ defineExpose({
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        margin-bottom: 30px;
+        margin-bottom: 1.875rem;
         padding: var(--space-6);
         background-repeat: no-repeat;
         background-position: 50%;
-        background-size: 370px;
+        background-size: 23.125rem;
         border: 1px solid #f5f5f5;
 
         .role-item-title {
@@ -365,14 +365,14 @@ defineExpose({
         }
 
         .role-item-content {
-            width: 250px;
-            height: 260px;
+            width: 15.625rem;
+            height: 16.25rem;
             margin-top: var(--space-6);
         }
 
         .role-item-footer {
             position: absolute;
-            bottom: -30px;
+            bottom: -1.875rem;
             left: 0;
             width: 100%;
             color: #999;

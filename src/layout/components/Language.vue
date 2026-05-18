@@ -1,5 +1,5 @@
 <template>
-  <a-select style="width: 100px;" v-model:value="systemStore.language" :options="options" @change="handleChangeLanguage" />
+  <a-select style="width: 6.25rem;" v-model:value="systemStore.language" :options="options" @change="handleChangeLanguage" />
 </template>
 
 <script setup lang="ts">

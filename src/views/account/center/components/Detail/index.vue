@@ -1,9 +1,9 @@
 <template>
     <a-modal visible @cancel="emit('close')" :closable="false">
-        <div style="padding: 30px;">
-            <div style="display: flex; padding-bottom: 24px; margin-bottom: 24px; border-bottom: 1px solid #E4E7F6">
+        <div style="padding: 1.875rem;">
+            <div style="display: flex; padding-bottom: 1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid #E4E7F6">
                 <a-avatar :size="100" :src="userInfo.avatar"></a-avatar>
-                <div style="margin-left: 24px;  max-width: 280px;" >
+                <div style="margin-left: 1.5rem;  max-width: 17.5rem;" >
                     <div class="name"><j-ellipsis>{{ userInfo.name }}</j-ellipsis></div>
                     <div class="subTitle"><j-ellipsis>{{ $t('Detail.index.153077-0') }} {{ userInfo?.username }}</j-ellipsis></div>
                     <!-- <div class="subTitle">账号ID: {{ userInfo?.id }}</div> -->
@@ -13,7 +13,7 @@
                 :column="1"
                 :labelStyle="{
                     color: 'rgba(0, 0, 0, 0.6)',
-                    maxWidth: '120px',
+                    maxWidth: '7.5rem',
                     whiteSpace: 'nowrap'
                 }"
                 :contentStyle="{
@@ -82,8 +82,8 @@ const pos = computed(() => {
 .name {
     color: #1D2129;
     font-weight: 500;
-    font-size: 26px;
-    margin: 15px 0 10px 0;
+    font-size: var(--fs-26);
+    margin: 0.9375rem 0 0.625rem 0;
 }
 
 .subTitle {

@@ -2,7 +2,7 @@
     <a-modal
         visible
         :title="$t('EditPassword.index.010161-0')"
-        width="615px"
+        :width="615"
         :bodyStyle="{
             padding: 0,
         }"
@@ -10,7 +10,7 @@
         @cancel="emits('close')"
     >
         <div>
-            <div v-if="!isResetMode" style="background-color: #f8f9fc; padding: 24px">
+            <div v-if="!isResetMode" style="background-color: #f8f9fc; padding: 1.5rem">
                 <a-steps
                     :current="current"
                     size="small"
@@ -308,7 +308,7 @@ const handleOk = () => {
 
 <style scoped lang="less">
 .content {
-    padding: 30px 50px;
+    padding: 1.875rem 3.125rem;
 
   &.no-padding {
     padding: 0;

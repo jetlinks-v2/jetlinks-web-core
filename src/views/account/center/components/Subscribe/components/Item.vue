@@ -7,7 +7,7 @@
       <div class="child-item-left-auth" v-if="data?.description">
         <a-tooltip :title="data.description">
           <AIcon
-            style="font-size: 16px; color: rgba(0, 0, 0, 0.3)"
+            style="font-size: var(--fs-16); color: rgba(0, 0, 0, 0.3)"
             type="ExclamationCircleOutlined"
           />
         </a-tooltip>
@@ -156,11 +156,11 @@ const onSave = (dt: any) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 68px;
+  height: 4.25rem;
   background: linear-gradient(270deg, #ffffff 0%, #f1f6ff 99%);
   border-radius: var(--r-1);
   border: 1px solid #ebeef3;
-  margin-bottom: 10px;
+  margin-bottom: 0.625rem;
 
   .child-item-left {
     display: flex;

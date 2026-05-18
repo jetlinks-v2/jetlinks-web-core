@@ -1,7 +1,7 @@
-﻿<template>
+<template>
   <a-modal
     :maskClosable="false"
-    :width="'384px'"
+    :width="384"
     visible
     @cancel="emit('close')"
     :footer="null"
@@ -99,7 +99,7 @@ const onBindSave = (cur: any) => {
 <style lang="less" scoped>
 .tip {
   width: 100%;
-  margin: 30px 0;
+  margin: 1.875rem 0;
   font-size: var(--fs-16);
   color: #333333;
 }
@@ -107,7 +107,7 @@ const onBindSave = (cur: any) => {
 .code {
   width: 100%;
   display: flex;
-  margin-top: 30px;
+  margin-top: 1.875rem;
   justify-content: center;
 }
 

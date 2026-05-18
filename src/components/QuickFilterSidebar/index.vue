@@ -445,7 +445,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  width: 232px;
+  width: 14.5rem;
   height: 100%;
   padding: var(--space-3);
   overflow: auto;
@@ -470,14 +470,14 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 }
 .quick-filter-sidebar__section-title {
   display: inline-flex;
-  gap: 6px;
+  gap: 0.375rem;
   align-items: center;
   min-width: 0;
   padding: 0;
   color: var(--ink-1);
   font-size: var(--fs-14);
   font-weight: 600;
-  line-height: 22px;
+  line-height: 1.375rem;
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -497,7 +497,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 .quick-filter-sidebar__header-action {
   padding: 0;
   font-size: var(--fs-12);
-  line-height: 20px;
+  line-height: 1.25rem;
 }
 .quick-filter-sidebar__header-actions {
   display: inline-flex;
@@ -525,8 +525,8 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   justify-content: space-between;
   flex: 1;
   min-width: 0;
-  min-height: 30px;
-  padding: 0 10px;
+  min-height: 1.875rem;
+  padding: 0 0.625rem;
   color: var(--ink-2);
   font-size: var(--fs-14);
   text-align: left;
@@ -577,7 +577,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   color: color-mix(in srgb, var(--ink-1) 40%, transparent);
   font-size: var(--fs-12);
   font-weight: 400;
-  line-height: 18px;
+  line-height: 1.125rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -585,7 +585,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   flex-shrink: 0;
   color: color-mix(in srgb, var(--ink-1) 40%, transparent);
   font-size: var(--fs-12);
-  line-height: 18px;
+  line-height: 1.125rem;
 }
 .quick-filter-sidebar__item-actions {
   display: inline-flex;
@@ -596,8 +596,8 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 1.75rem;
+  height: 1.75rem;
   color: var(--ink-4);
   background: transparent;
   border: 0;
@@ -618,8 +618,8 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   color: var(--err);
 }
 .quick-filter-sidebar__empty {
-  padding: 4px 10px;
+  padding: 0.25rem 0.625rem;
   color: color-mix(in srgb, var(--ink-1) 40%, transparent);
   font-size: var(--fs-12);
-  line-height: 20px;
+  line-height: 1.25rem;
 }</style>

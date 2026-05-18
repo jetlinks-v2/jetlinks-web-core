@@ -60,16 +60,16 @@ const onLeft = () => {
 .box {
   display: flex;
   align-items: center;
-  margin: 8px 0;
+  margin: 0.5rem 0;
 }
 .box .box-item {
-  margin: 0 12px;
-  max-width: 60px;
+  margin: 0 0.75rem;
+  max-width: 3.75rem;
 }
 .box .box-btn .box-item-action {
-  width: 12px;
+  width: 0.75rem;
   background-color: var(--bg-hover);
-  padding: 15px 0;
+  padding: 0.9375rem 0;
   text-align: center;
   font-size: var(--fs-12);
   color: var(--ink-3);

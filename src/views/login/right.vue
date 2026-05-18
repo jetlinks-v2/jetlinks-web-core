@@ -78,7 +78,7 @@
               @click="handleClickOther(item)"
             >
               <img
-                style="width: 32px; height: 32px"
+                style="width: 2rem; height: 2rem"
                 :alt="item.name"
                 :src="item.logoUrl || iconMap.get(item.provider) || defaultImg"
               />
@@ -101,7 +101,7 @@
                       @click="handleClickOther(item)"
                     >
                       <img
-                        style="width: 32px; height: 32px"
+                        style="width: 2rem; height: 2rem"
                         :alt="item.name"
                         :src="
                           item.logoUrl ||
@@ -109,7 +109,7 @@
                           defaultImg
                         "
                       />
-                      <j-ellipsis style="width: calc(100%); margin: 5px auto">
+                      <j-ellipsis style="width: calc(100%); margin: 0.3125rem auto">
                         {{ item.name }}
                       </j-ellipsis>
                     </div>
@@ -120,7 +120,7 @@
                 <AIcon
                   class="moreIcon"
                   type="MoreOutlined"
-                  style="font-size: 20px"
+                  style="font-size: var(--fs-20)"
                 ></AIcon>
               </div>
             </Popover>
@@ -316,7 +316,7 @@ watch(
 </script>
 <style lang="less" scoped>
 .content {
-  padding: 0 70px;
+  padding: 0 4.375rem;
 
   .top {
     //padding-top: 30%;
@@ -337,7 +337,7 @@ watch(
 
   .logo {
     display: block;
-    height: 44px;
+    height: 2.75rem;
     margin: 0 auto;
     vertical-align: top;
   }
@@ -352,7 +352,7 @@ watch(
 
   .other-button {
     position: relative;
-    bottom: 10px;
+    bottom: 0.625rem;
     text-align: center;
     display: flex;
     gap: var(--space-6);
@@ -383,12 +383,12 @@ watch(
   flex-wrap: wrap;
   cursor: pointer;
   overflow: auto;
-  width: 300px;
+  width: 18.75rem;
 
   .more-button-item {
-    width: 62px;
+    width: 3.875rem;
     text-align: center;
-    margin-bottom: 10px;
+    margin-bottom: 0.625rem;
     margin-left: var(--space-3);
   }
 }</style>

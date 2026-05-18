@@ -28,7 +28,7 @@
                 </j-ellipsis>
             </div>
             <div class="list-item-right">
-                <a-button style="margin-bottom: 5px;" class="btn" @click.stop="detail">{{ $t('components.NoticeItem.265390-2') }}</a-button>
+                <a-button style="margin-bottom: 0.3125rem;" class="btn" @click.stop="detail">{{ $t('components.NoticeItem.265390-2') }}</a-button>
                 <a-button class="btn" v-if="state === 'unread'" @click.stop="read('_read')">{{ $t('components.NoticeItem.265390-3') }}</a-button>
                 <a-button class="btn" v-else @click.stop="read('_unread')">{{ $t('components.NoticeItem.265390-4') }}</a-button>
             </div>
@@ -114,10 +114,10 @@ const read = (type: '_read' | '_unread') => {
 
 <style lang="less" scoped>
 .list-items {
-    width: 312px;
+    width: 19.5rem;
     overflow: hidden;
     border-bottom: 1px solid var(--line-strong);
-    margin: 0 24px;
+    margin: 0 1.5rem;
     box-sizing: content-box;
 
     // &:hover {
@@ -128,14 +128,14 @@ const read = (type: '_read' | '_unread') => {
     list-style: none;
     cursor: pointer;
     display: flex;
-    width: 432px;
+    width: 27rem;
     transition: all 0.3s;
     gap: var(--space-6);
 
     .list-item-left {
-        padding: 12px 0;
-        width: 312px;
-        // height: 100px;
+        padding: 0.75rem 0;
+        width: 19.5rem;
+        // height: 6.25rem;
         .header {
             display: flex;
             align-items: center;
@@ -143,35 +143,35 @@ const read = (type: '_read' | '_unread') => {
             .title {
                 display: flex;
                 align-items: center;
-                width: calc(100% - 120px);
+                width: calc(100% - 7.5rem);
 
                 div {
                     color: var(--jet-theme-text-title);
                     font-size: var(--fs-14);
                     font-weight: bold;
-                    margin-right: 10px;
-                    max-width: calc(100% - 40px);
+                    margin-right: 0.625rem;
+                    max-width: calc(100% - 2.5rem);
                     white-space: nowrap;
                     text-overflow: ellipsis;
                     overflow: hidden;
                 }
                 span {
                     color: red;
-                    font-size: 13px;
-                    width: 30px;
+                    font-size: var(--fs-13);
+                    width: 1.875rem;
                 }
             }
             .time {
                 font-size: var(--fs-12);
                 color: var(--jet-theme-text-disabled);
-                width: 120px;
+                width: 7.5rem;
             }
         }
     }
 
     .list-item-right {
-        width: 120px;
-        padding: 5px 12px 5px 0;
+        width: 7.5rem;
+        padding: 0.3125rem 0.75rem 0.3125rem 0;
         display: flex;
         flex-direction: column;
         justify-content: center;

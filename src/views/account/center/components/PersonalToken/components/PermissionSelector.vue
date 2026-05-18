@@ -165,7 +165,7 @@ onMounted(() => {
 .permission-selector {
 
   .permission-init {
-    padding: 0 16px;
+    padding: 0 1rem;
     .init-description {
       color: #a6a6a6;
     }
@@ -186,12 +186,12 @@ onMounted(() => {
         }
 
         .option-icon {
-          font-size: 28px;
+          font-size: var(--fs-28);
           color: #a6a6a6;
         }
 
         .option-header {
-          margin: 6px 0;
+          margin: 0.375rem 0;
         }
 
         .option-desc {
@@ -217,18 +217,18 @@ onMounted(() => {
         flex-wrap: wrap;
 
         .search-input {
-          width: 200px;
+          width: 12.5rem;
         }
 
         .selection-info {
-          font-size: 13px;
+          font-size: var(--fs-13);
           color: #666;
         }
       }
     }
 
     .permission-tree {
-      max-height: 400px;
+      max-height: 25rem;
       overflow-y: auto;
       border: 1px solid var(--line-strong);
       border-radius: var(--r-2);
@@ -276,7 +276,7 @@ onMounted(() => {
           gap: var(--space-3);
 
           .action-checkbox {
-            min-width: 80px;
+            min-width: 5rem;
           }
         }
       }

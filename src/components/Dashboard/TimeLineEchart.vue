@@ -11,7 +11,7 @@
         <!-- <a-radio-group
               default-value="a"
               button-style="solid"
-              style="margin-right: 10px"
+              style="margin-right: 0.625rem"
               v-model:value="data.type"
             >
               <a-radio-button value="hour">最近1小时</a-radio-button>
@@ -30,10 +30,10 @@
     <div>
       <j-empty
         v-if="isEmpty"
-        style="height: 200px; margin-top: 100px"
+        style="height: 12.5rem; margin-top: 6.25rem"
       />
       <template v-else>
-        <div style="height: 300px">
+        <div style="height: 18.75rem">
           <Echarts :options="echartsOptions" />
         </div>
 
@@ -115,8 +115,8 @@ const echartsOptions = computed(() => {
       type: 'value'
     },
     grid: {
-      left: '50px',
-      right: '50px'
+      left: '3.125rem',
+      right: '3.125rem'
     },
     dataZoom: [
       {
@@ -236,7 +236,7 @@ defineExpose({ refreshManual })
   height: 100%;
   padding: var(--space-6);
   background-color: var(--bg);
-  border-radius: 2px;
+  border-radius: 0.125rem;
 }
 .header {
   display: flex;
@@ -244,6 +244,6 @@ defineExpose({ refreshManual })
   align-items: center;
 }
 .header h3 {
-  width: 200px;
+  width: 12.5rem;
   margin-top: var(--space-2);
 }</style>

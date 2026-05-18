@@ -1,5 +1,5 @@
 ﻿<template>
-  <div style="width: 300px">
+  <div style="width: 18.75rem">
     <template v-if="getType === 'notifier-dingTalk'">
       <div class="tip">
         <j-ellipsis :lineClamp="2">{{ $t('components.Detail.044328-0') }}{{ info }}</j-ellipsis>
@@ -91,7 +91,7 @@ onMounted(() => {
 <style lang="less" scoped>
 .tip {
   width: 100%;
-  margin: 20px 0;
+  margin: 1.25rem 0;
 }
 
 .btn {

@@ -132,7 +132,7 @@ watch(myValue, (val) => {
 </script>
 
 <template>
-  <div class="filter-terms-value-item" :class="{ 'filter-terms-value-item--embedded': embedded }" style="min-width: 120px">
+  <div class="filter-terms-value-item" :class="{ 'filter-terms-value-item--embedded': embedded }" style="min-width: 7.5rem">
 
     <div v-if="isNumberRangeMode" class="filter-terms-value-item__range">
       <a-input-number
@@ -187,7 +187,7 @@ watch(myValue, (val) => {
       @change="onValueChange"
     />
     <a-input v-else v-model:value="myValue" style="width:100%" @change="onInputChange" />
-    <div v-if="showBtn" style="text-align: right;padding-right: 10px;">
+    <div v-if="showBtn" style="text-align: right;padding-right: 0.625rem;">
       <a-button size="small" type="primary" @click="onSubmit">
         {{ $t('components.SearchFilter.valueItem.confirm') }}
       </a-button>
@@ -197,7 +197,7 @@ watch(myValue, (val) => {
 
 <style scoped>
 .filter-terms-value-item {
-  padding: 6px;
+  padding: 0.375rem;
   background-color: var(--bg);
   box-shadow: var(--shadow-1);
 }

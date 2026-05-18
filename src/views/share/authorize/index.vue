@@ -351,7 +351,7 @@ onMounted(() => {
   border-radius: var(--r-3);
   padding: var(--space-10);
   text-align: center;
-  max-width: 400px;
+  max-width: 25rem;
   width: 100%;
   box-shadow: var(--shadow-1);
 }
@@ -361,12 +361,12 @@ onMounted(() => {
 }
 
 .status-icon {
-  font-size: 48px;
+  font-size: var(--fs-48);
   margin-bottom: var(--space-4);
 }
 
 .status-title {
-  font-size: 20px;
+  font-size: var(--fs-20);
   font-weight: 500;
   color: var(--jet-theme-text-title);
   margin-bottom: var(--space-3);
@@ -393,7 +393,7 @@ onMounted(() => {
   background: var(--bg);
   border-radius: var(--r-3);
   padding: var(--space-10);
-  max-width: 400px;
+  max-width: 25rem;
   width: 100%;
   box-shadow: var(--shadow-1);
 }
@@ -407,8 +407,8 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 60px;
-  height: 60px;
+  width: 3.75rem;
+  height: 3.75rem;
   background: var(--jet-theme-primary);
   border-radius: var(--r-3);
   margin-bottom: var(--space-4);
@@ -417,7 +417,7 @@ onMounted(() => {
 }
 
 .auth-title {
-  font-size: 20px;
+  font-size: var(--fs-20);
   font-weight: 500;
   color: var(--jet-theme-text-title);
 }
@@ -431,12 +431,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 32px;
-  min-width: 80px;
+  height: 2rem;
+  min-width: 5rem;
 }
 
 .verify-code-image {
-  height: 32px;
+  height: 2rem;
   border-radius: var(--r-1);
 }
 
@@ -444,8 +444,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  height: 32px;
+  width: 5rem;
+  height: 2rem;
   background: var(--jet-theme-bg-layout);
   border-radius: var(--r-1);
   color: var(--jet-theme-text-secondary);
@@ -460,7 +460,7 @@ onMounted(() => {
   margin-bottom: 0;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 40rem) {
   .auth-card,
   .status-card,
   .loading-card {
@@ -468,9 +468,9 @@ onMounted(() => {
   }
 
   .auth-logo {
-    width: 48px;
-    height: 48px;
-    font-size: 20px;
+    width: 3rem;
+    height: 3rem;
+    font-size: var(--fs-20);
   }
 
   .auth-title,
@@ -479,6 +479,6 @@ onMounted(() => {
   }
 
   .status-icon {
-    font-size: 40px;
+    font-size: var(--fs-40);
   }
 }</style>

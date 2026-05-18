@@ -25,8 +25,8 @@
  *   max       每列最大宽度。指定后 grid track 上限收紧,children 不会被拉到
  *             超过此值；剩余空间由 justify-content 处理(默认 start 靠左)。
  *             用于"数据少时不让单卡过宽"的场景(如工作台应用模板 cols=3 时
- *             避免每卡 440px 失真)。仅在 cols 模式下生效。
- *   gap       栅格间隔（默认 12px）
+ *             避免每卡 27.5rem 失真)。仅在 cols 模式下生效。
+ *   gap       栅格间隔（默认 0.75rem）
  *   fill      'auto-fill'（默认，不撑开）| 'auto-fit'（老行为，单项拉满）;
  *             cols 指定时该 prop 被忽略。
  */
@@ -53,9 +53,9 @@ const gridStyle = computed(() => {
     }
   }
   if (props.min === undefined) {
-    // 防御:cols 和 min 都没传时,保持原有 200px 默认值
+    // 防御:cols 和 min 都没传时,保持原有 12.5rem 默认值
     return {
-      gridTemplateColumns: `repeat(${props.fill}, minmax(200px, 1fr))`,
+      gridTemplateColumns: `repeat(${props.fill}, minmax(12.5rem, 1fr))`,
       gap: toCss(props.gap),
     }
   }

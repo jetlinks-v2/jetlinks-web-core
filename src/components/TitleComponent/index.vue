@@ -29,7 +29,7 @@ const props = defineProps({
 }
 .title .title-content {
   position: relative;
-  padding-left: 10px;
+  padding-left: 0.625rem;
   color: color-mix(in srgb, var(--ink-1) 80%, transparent);
   font-weight: 600;
   line-height: 1;
@@ -38,7 +38,7 @@ const props = defineProps({
   position: absolute;
   top: 0;
   left: 0;
-  width: 4px;
+  width: 0.25rem;
   height: 100%;
   background-color: var(--accent);
   border-radius: 0 var(--r-1) var(--r-1) 0;

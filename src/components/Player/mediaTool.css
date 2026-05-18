@@ -1,18 +1,18 @@
 .live-player-tools {
   display: flex;
-  flex-basis: 250px;
+  flex-basis: 15.625rem;
   flex-direction: column;
   justify-content: center;
   margin-left: var(--space-6);
-  padding: 0 12px;
+  padding: 0 0.75rem;
 }
 .live-player-tools .direction {
   position: relative;
   display: grid;
-  grid-gap: 2px;
+  grid-gap: 0.125rem;
   grid-template-rows: 1fr 1fr;
   grid-template-columns: 1fr 1fr;
-  margin-bottom: 30px;
+  margin-bottom: 1.875rem;
   overflow: hidden;
   border-radius: 50%;
   transform: rotateZ(45deg);
@@ -23,7 +23,7 @@
   align-items: center;
   justify-content: center;
   padding-bottom: 100%;
-  font-size: 36px;
+  font-size: var(--fs-36);
   background-color: color-mix(in srgb, var(--ink-1) 10%, transparent);
   transition: background-color 0.3s;
 }
@@ -64,11 +64,11 @@
 }
 .live-player-tools .zoom {
   display: grid;
-  grid-gap: 2px;
+  grid-gap: 0.125rem;
   grid-template-columns: 1fr 1fr;
 }
 .live-player-tools .zoom .zoom-item {
-  padding: 8px 0;
+  padding: 0.5rem 0;
   font-size: var(--fs-24);
   text-align: center;
   background-color: color-mix(in srgb, var(--ink-1) 10%, transparent);
@@ -90,9 +90,9 @@
   border-top-right-radius: var(--r-1);
   border-bottom-right-radius: var(--r-1);
 }
-@media screen and (min-width: 1300px) {
+@media screen and (min-width: 81.25rem) {
   .live-player-tools {
-    flex-basis: 150px;
+    flex-basis: 9.375rem;
     margin-left: var(--space-4);
   }
   .live-player-tools .direction .direction-item {

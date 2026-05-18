@@ -57,7 +57,7 @@ const optionsMap = computed(() => {
       {{ optionsMap[value] }}
     </a-tag>
     <template #overlay>
-      <a-menu style="width: 120px" @click.stop="onClick">
+      <a-menu style="width: 7.5rem" @click.stop="onClick">
         <a-menu-item v-for="option in options" :key="option.value">
           {{ option.label }}
         </a-menu-item>

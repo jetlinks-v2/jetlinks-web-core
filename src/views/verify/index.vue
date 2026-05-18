@@ -92,7 +92,7 @@
             autocomplete="off"
             @keyup.enter="onSubmit"
           />
-          <div style="margin-top: 8px;">
+          <div style="margin-top: 0.5rem;">
             <Button
               type="link"
               :disabled="countdown > 0"
@@ -499,13 +499,13 @@ onUnmounted(() => {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  height: 32px;
+  height: 2rem;
   padding-left: var(--space-2);
   border-left: 1px solid var(--line);
 }
 .captcha-img {
-  height: 32px;
-  width: 130px;
+  height: 2rem;
+  width: 8.125rem;
   object-fit: contain;
   display: block;
 }
@@ -517,7 +517,7 @@ onUnmounted(() => {
   text-align: center;
   padding: var(--space-6) 0;
   .empty-icon {
-    font-size: 48px;
+    font-size: var(--fs-48);
     margin-bottom: var(--space-4);
   }
   .empty-text {

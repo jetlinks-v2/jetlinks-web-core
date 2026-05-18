@@ -650,22 +650,22 @@ onMounted(() => {
   border-radius: var(--r-3);
 }
 .condition-option-panel__toolbar {
-  padding: 0 2px;
+  padding: 0 0.125rem;
 }
 .condition-option-panel__list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 260px;
+  gap: 0.375rem;
+  max-height: 16.25rem;
   overflow-y: auto;
-  margin: 0 -4px;
+  margin: 0 -0.25rem;
 }
 .condition-option-panel__item {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  min-height: 38px;
+  min-height: 2.375rem;
   padding: var(--space-2) var(--space-3);
   color: var(--ink-1);
   text-align: left;
@@ -688,20 +688,20 @@ onMounted(() => {
 }
 .condition-option-panel__label {
   font-size: var(--fs-14);
-  line-height: 20px;
+  line-height: 1.25rem;
 }
 .condition-option-panel__content {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-width: 0;
-  gap: 2px;
+  gap: 0.125rem;
 }
 .condition-option-panel__description {
   overflow: hidden;
   color: var(--ink-3);
   font-size: var(--fs-12);
-  line-height: 18px;
+  line-height: 1.125rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -709,14 +709,14 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 1.125rem;
+  height: 1.125rem;
   color: var(--accent);
   flex-shrink: 0;
 }
 .condition-option-panel__icon img {
-  width: 18px;
-  height: 18px;
+  width: 1.125rem;
+  height: 1.125rem;
   object-fit: cover;
   border-radius: 50%;
 }
@@ -726,7 +726,7 @@ onMounted(() => {
   padding: var(--space-1) var(--space-2) 0;
   color: var(--ink-3);
   font-size: var(--fs-12);
-  line-height: 18px;
+  line-height: 1.125rem;
 }
 .condition-option-panel__hint {
   padding-top: 0;

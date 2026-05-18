@@ -128,22 +128,22 @@ function onFormSubmit(e: Event) {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 15px 16px;
+  padding: 0.9375rem 1rem;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
 .head-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 2.625rem;
+  height: 2.625rem;
+  border-radius: 0.75rem;
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 .head-icon :deep(svg) {
-  width: 20px;
-  height: 20px;
+  width: 1.25rem;
+  height: 1.25rem;
 }
 .head-copy {
   min-width: 0;
@@ -155,15 +155,15 @@ function onFormSubmit(e: Event) {
   font-size: var(--fs-14);
 }
 .head-copy p {
-  margin: 4px 0 0;
+  margin: 0.25rem 0 0;
   color: var(--ink-4);
   font-size: var(--fs-12);
 }
 .close {
   all: unset;
   cursor: pointer;
-  width: 30px;
-  height: 30px;
+  width: 1.875rem;
+  height: 1.875rem;
   display: grid;
   place-items: center;
   border-radius: var(--r-3);
@@ -175,8 +175,8 @@ function onFormSubmit(e: Event) {
   color: var(--ink-1);
 }
 .close :deep(svg) {
-  width: 16px;
-  height: 16px;
+  width: 1rem;
+  height: 1rem;
 }
 .drawer-body {
   display: flex;
@@ -192,7 +192,7 @@ function onFormSubmit(e: Event) {
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
-  padding: 12px 14px;
+  padding: 0.75rem 0.875rem;
   background: var(--bg);
   border-top: 1px solid var(--line);
   flex-shrink: 0;

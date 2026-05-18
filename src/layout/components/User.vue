@@ -12,11 +12,11 @@
     <template #overlay>
       <a-menu @click="click">
         <a-menu-item key="userCenter" v-if="!hideHeaderRight">
-          <AIcon type="UserOutlined" style="margin-right: 8px;" />
+          <AIcon type="UserOutlined" style="margin-right: 0.5rem;" />
           <span>{{ $t('components.User.635192-0') }}</span>
         </a-menu-item>
         <a-menu-item key="logout">
-          <AIcon type="LogoutOutlined" style="margin-right: 8px;" />
+          <AIcon type="LogoutOutlined" style="margin-right: 0.5rem;" />
           <span>{{ $t('components.User.635192-1') }}</span>
         </a-menu-item>
       </a-menu>
@@ -68,6 +68,6 @@ const userName = computed(() => {
   cursor: pointer;
 
   .name {
-    padding: 0 12px;
+    padding: 0 0.75rem;
   }
 }</style>

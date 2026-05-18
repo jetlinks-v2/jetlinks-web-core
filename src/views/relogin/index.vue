@@ -97,8 +97,8 @@ defineExpose({ open })
     padding: 0;
 
     .ant-modal-close {
-      width: 56px;
-      height: 56px;
+      width: 3.5rem;
+      height: 3.5rem;
       top: 0;
       right: 0;
     }
@@ -108,7 +108,7 @@ defineExpose({ open })
 <style lang="less" scoped>
 .relogin {
   display: flex;
-  height: 650px;
+  height: 40.625rem;
   align-items: center;
 }
 
@@ -117,7 +117,7 @@ defineExpose({ open })
   background-color: var(--jet-theme-primary-soft);
   display: flex;
   justify-content: center;
-  width: 466px;
+  width: 29.125rem;
 
   .left-box {
     display: flex;

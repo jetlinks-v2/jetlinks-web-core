@@ -58,13 +58,3 @@ export const removeProjectStorage = (projectCode: string) => {
 
   localStorage.removeItem(getProjectStorageKey(code))
 }
-
-export const clearProjectStorage = () => {
-  if (typeof localStorage === 'undefined') {
-    return
-  }
-
-  Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
-    .filter((key): key is string => !!key && key.startsWith(PROJECT_STORAGE_PREFIX))
-    .forEach(key => localStorage.removeItem(key))
-}

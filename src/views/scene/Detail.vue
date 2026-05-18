@@ -276,10 +276,10 @@ watch(loginModalVisible, (newVal) => {
 @text-secondary: var(--jet-theme-text-secondary);
 @card-bg: var(--jet-theme-bg-container);
 @border-color: var(--jet-theme-border-secondary);
-@radius-sm: 6px;
-@radius-md: 10px;
-@radius-lg: 16px;
-@radius-xl: 24px;
+@radius-sm: 0.375rem;
+@radius-md: 0.625rem;
+@radius-lg: 1rem;
+@radius-xl: 1.5rem;
 
 .scene-center-detail {
   .header {
@@ -291,10 +291,10 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .header-inner {
-    max-width: 1440px;
+    max-width: 90rem;
     margin: 0 auto;
-    padding: 0 32px;
-    height: 64px;
+    padding: 0 2rem;
+    height: 4rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -309,7 +309,7 @@ watch(loginModalVisible, (newVal) => {
   .back-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
     padding: var(--space-2) var(--space-3);
     border-radius: @radius-sm;
     color: @text-secondary;
@@ -332,8 +332,8 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .logo-icon {
-    width: 36px;
-    height: 36px;
+    width: 2.25rem;
+    height: 2.25rem;
     background: linear-gradient(135deg, @primary, @secondary);
     border-radius: @radius-sm;
     display: flex;
@@ -361,8 +361,8 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .user-avatar {
-    width: 36px;
-    height: 36px;
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 50%;
     background: linear-gradient(135deg, @primary, @accent);
     display: flex;
@@ -378,11 +378,11 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .main-layout {
-    max-width: 1440px;
+    max-width: 90rem;
     margin: 0 auto;
     padding: var(--space-8);
     display: grid;
-    grid-template-columns: 1fr 400px;
+    grid-template-columns: 1fr 25rem;
     gap: var(--space-8);
   }
 
@@ -394,7 +394,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .scene-cover {
-    height: 300px;
+    height: 18.75rem;
     position: relative;
     overflow: hidden;
   }
@@ -417,9 +417,9 @@ watch(loginModalVisible, (newVal) => {
 
   .scene-cover-content {
     position: absolute;
-    bottom: 28px;
-    left: 28px;
-    right: 28px;
+    bottom: 1.75rem;
+    left: 1.75rem;
+    right: 1.75rem;
     z-index: 2;
   }
 
@@ -430,12 +430,12 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .scene-badge {
-    padding: 5px 12px;
+    padding: 0.3125rem 0.75rem;
     border-radius: var(--r-1);
-    font-size: 11px;
+    font-size: var(--fs-12);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.03125rem;
   }
 
   .scene-badge.hot {
@@ -449,14 +449,14 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .scene-title {
-    font-size: 32px;
+    font-size: var(--fs-32);
     font-weight: 700;
     color: var(--accent-ink);
-    margin-bottom: 10px;
+    margin-bottom: 0.625rem;
   }
 
   .scene-subtitle {
-    font-size: 15px;
+    font-size: var(--fs-15);
     color: color-mix(in srgb, var(--accent-ink) 80%, transparent);
   }
 
@@ -474,14 +474,14 @@ watch(loginModalVisible, (newVal) => {
   .scene-meta-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.375rem;
     font-size: var(--fs-14);
     color: @text-secondary;
   }
 
   .scene-meta-item svg {
-    width: 16px;
-    height: 16px;
+    width: 1rem;
+    height: 1rem;
   }
 
   .scene-meta-item strong {
@@ -496,7 +496,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .scene-tag {
-    padding: 6px 14px;
+    padding: 0.375rem 0.875rem;
     border-radius: var(--r-2);
     font-size: var(--fs-12);
     font-weight: 500;
@@ -548,10 +548,10 @@ watch(loginModalVisible, (newVal) => {
 
   .section-title::before {
     content: '';
-    width: 4px;
-    height: 18px;
+    width: 0.25rem;
+    height: 1.125rem;
     background: linear-gradient(180deg, @primary, @secondary);
-    border-radius: 2px;
+    border-radius: 0.125rem;
   }
 
   .section-text {
@@ -585,26 +585,26 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .feature-icon {
-    width: 44px;
-    height: 44px;
+    width: 2.75rem;
+    height: 2.75rem;
     border-radius: @radius-sm;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: var(--fs-22);
-    margin-bottom: 14px;
+    margin-bottom: 0.875rem;
     background: var(--bg);
     box-shadow: var(--shadow-1);
   }
 
   .feature-title {
-    font-size: 15px;
+    font-size: var(--fs-15);
     font-weight: 600;
-    margin-bottom: 6px;
+    margin-bottom: 0.375rem;
   }
 
   .feature-desc {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: @text-secondary;
     line-height: 1.6;
   }
@@ -618,14 +618,14 @@ watch(loginModalVisible, (newVal) => {
 
   .value-card {
     text-align: center;
-    padding: 24px 16px;
+    padding: 1.5rem 1rem;
     background: linear-gradient(135deg, @primary-bg, var(--jet-theme-bg-container));
     border-radius: @radius-md;
     border: 1px solid @primary-light;
   }
 
   .value-number {
-    font-size: 36px;
+    font-size: var(--fs-36);
     font-weight: 700;
     color: @primary; line-height: 1;
   }
@@ -636,7 +636,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .value-label {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: @text-secondary;
     margin-top: var(--space-2);
   }
@@ -653,7 +653,7 @@ watch(loginModalVisible, (newVal) => {
     border: 1px solid @border-color;
     padding: var(--space-7);
     position: sticky;
-    top: 96px;
+    top: 6rem;
   }
 
   .create-card-header {
@@ -661,7 +661,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .create-card-title {
-    font-size: 20px;
+    font-size: var(--fs-20);
     font-weight: 600;
     margin-bottom: var(--space-2);
   }
@@ -676,15 +676,15 @@ watch(loginModalVisible, (newVal) => {
     background: @primary-bg;
     border: 1px solid @primary-light;
     border-radius: @radius-md;
-    padding: 18px;
+    padding: 1.125rem;
     margin-bottom: var(--space-6);
   }
 
   .preset-title {
-    font-size: 13px;
+    font-size: var(--fs-13);
     font-weight: 600;
     color: @primary-dark;
-    margin-bottom: 14px;
+    margin-bottom: 0.875rem;
     display: flex;
     align-items: center;
     gap: var(--space-2);
@@ -700,7 +700,7 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: flex-start;
     gap: var(--space-2);
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: @text-secondary;
     line-height: 1.5;
   }
@@ -713,7 +713,7 @@ watch(loginModalVisible, (newVal) => {
 
   .btn-create {
     width: 100%;
-    padding: 16px 24px;
+    padding: 1rem 1.5rem;
     background: linear-gradient(135deg, @primary, @primary-dark);
     color: var(--accent-ink);
     border: none;
@@ -729,8 +729,8 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .btn-create:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px color-mix(in srgb, var(--jet-theme-primary) 35%, transparent);
+    transform: translateY(-0.125rem);
+    box-shadow: 0 0.5rem 1.25rem color-mix(in srgb, var(--jet-theme-primary) 35%, transparent);
   }
 
   .btn-create:disabled,
@@ -749,7 +749,7 @@ watch(loginModalVisible, (newVal) => {
 
   .btn-demo {
     width: 100%;
-    padding: 14px 24px;
+    padding: 0.875rem 1.5rem;
     background: @card-bg;
     color: @text-primary;
     border: 1px solid @border-color;
@@ -803,8 +803,8 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .related-thumb {
-    width: 72px;
-    height: 54px;
+    width: 4.5rem;
+    height: 3.375rem;
     border-radius: var(--r-2);
     object-fit: cover;
   }
@@ -823,12 +823,12 @@ watch(loginModalVisible, (newVal) => {
   .footer {
     background: @dark;
     color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
-    padding: 40px 32px;
-    margin-top: 60px;
+    padding: 2.5rem 2rem;
+    margin-top: 3.75rem;
   }
 
   .footer-inner {
-    max-width: 1440px;
+    max-width: 90rem;
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
@@ -836,7 +836,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .footer-text {
-    font-size: 13px;
+    font-size: var(--fs-13);
   }
 
   .footer-links {
@@ -845,7 +845,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .footer-link {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     text-decoration: none;
   }
@@ -860,10 +860,10 @@ watch(loginModalVisible, (newVal) => {
 
   .modal-close {
     position: absolute;
-    top: 16px;
-    right: 16px;
-    width: 32px;
-    height: 32px;
+    top: 1rem;
+    right: 1rem;
+    width: 2rem;
+    height: 2rem;
     border: none;
     background: none;
     cursor: pointer;
@@ -881,13 +881,13 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .modal-header {
-    padding: 28px 24px 0;
+    padding: 1.75rem 1.5rem 0;
     text-align: center;
   }
 
   .modal-logo {
-    width: 52px;
-    height: 52px;
+    width: 3.25rem;
+    height: 3.25rem;
     background: linear-gradient(135deg, @primary, @secondary);
     border-radius: @radius-md;
     display: flex;
@@ -895,8 +895,8 @@ watch(loginModalVisible, (newVal) => {
     justify-content: center;
     color: var(--accent-ink);
     font-weight: 700;
-    font-size: 20px;
-    margin: 0 auto 16px;
+    font-size: var(--fs-20);
+    margin: 0 auto 1rem;
   }
 
   .modal-title {
@@ -920,14 +920,14 @@ watch(loginModalVisible, (newVal) => {
 
   .form-label {
     display: block;
-    font-size: 13px;
+    font-size: var(--fs-13);
     font-weight: 500;
     margin-bottom: var(--space-2);
   }
 
   .form-input {
     width: 100%;
-    padding: 12px 14px;
+    padding: 0.75rem 0.875rem;
     border: 1px solid @border-color;
     border-radius: @radius-sm;
     font-size: var(--fs-14);
@@ -937,7 +937,7 @@ watch(loginModalVisible, (newVal) => {
   .form-input:focus {
     outline: none;
     border-color: @primary;
-    box-shadow: 0 0 0 3px @primary-bg;
+    box-shadow: 0 0 0 0.1875rem @primary-bg;
   }
 
   .form-row {
@@ -951,39 +951,39 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: @text-secondary;
     cursor: pointer;
   }
 
   .form-checkbox input {
-    width: 16px;
-    height: 16px;
+    width: 1rem;
+    height: 1rem;
     accent-color: @primary;
   }
 
   .form-link {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: @primary;
     text-decoration: none;
   }
 
   .btn-submit {
     width: 100%;
-    padding: 14px;
+    padding: 0.875rem;
     background: linear-gradient(135deg, @primary, @primary-dark);
     color: var(--accent-ink);
     border: none;
     border-radius: @radius-md;
-    font-size: 15px;
+    font-size: var(--fs-15);
     font-weight: 600;
     cursor: pointer;
   }
 
   .modal-footer {
-    padding: 16px 24px 24px;
+    padding: 1rem 1.5rem 1.5rem;
     text-align: center;
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: @text-secondary;
   }
 
@@ -993,7 +993,7 @@ watch(loginModalVisible, (newVal) => {
     font-weight: 500;
   }
 
-  @media (max-width: 1024px) {
+  @media (max-width: 64rem) {
     .main-layout {
       grid-template-columns: 1fr;
     }
@@ -1003,7 +1003,7 @@ watch(loginModalVisible, (newVal) => {
     }
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 48rem) {
     .main-layout {
       padding: var(--space-4);
     }

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="mp-card"
     :class="{ 'mp-card--picked': selectable && selected }"
@@ -98,7 +98,7 @@
         v-if="extraTagCount > 0"
         trigger="click"
         placement="bottomLeft"
-        :overlay-inner-style="{ padding: '8px', maxWidth: '320px' }"
+        :overlay-inner-style="{ padding: '0.5rem', maxWidth: '20rem' }"
         destroy-tooltip-on-hide
       >
         <template #content>
@@ -210,7 +210,7 @@
             v-if="currentVersionSummary"
             trigger="hover"
             placement="topLeft"
-            :overlay-inner-style="{ maxWidth: '320px' }"
+            :overlay-inner-style="{ maxWidth: '20rem' }"
           >
             <template #content>
               <div class="mp-card__version-summary-popover">
@@ -470,8 +470,8 @@ function selectVersion(v: string) {
 <style scoped>
 .mp-card {
   position: relative;
-  border-radius: 12px;
-  padding: 12px 14px;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.875rem;
   background: linear-gradient(145deg, color-mix(in srgb, var(--bg) 92%, transparent), color-mix(in srgb, var(--bg) 85%, transparent));
   border: 1px solid color-mix(in srgb, var(--ink-2) 6%, transparent);
   box-shadow: var(--shadow-1);
@@ -490,28 +490,28 @@ function selectVersion(v: string) {
 .mp-card--picked {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 96%, transparent) inset,
-    0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent),
-    0 10px 28px color-mix(in srgb, var(--accent) 16%, transparent);
+    0 0 0 0.1875rem color-mix(in srgb, var(--accent) 14%, transparent),
+    0 0.625rem 1.75rem color-mix(in srgb, var(--accent) 16%, transparent);
   background: linear-gradient(145deg, color-mix(in srgb, var(--bg) 98%, transparent), color-mix(in srgb, var(--bg-hover) 92%, transparent));
 }
 .mp-card:not(.mp-card--picked):hover {
-  transform: translateY(-1px);
+  transform: translateY(-0.0625rem);
   box-shadow: var(--shadow-1);
   border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 .mp-card--picked:hover {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 98%, transparent) inset,
-    0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent),
-    0 12px 30px color-mix(in srgb, var(--accent) 18%, transparent);
+    0 0 0 0.1875rem color-mix(in srgb, var(--accent) 20%, transparent),
+    0 0.75rem 1.875rem color-mix(in srgb, var(--accent) 18%, transparent);
   border-color: color-mix(in srgb, var(--accent) 72%, transparent);
 }
 .mp-card__pick {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 0.625rem;
+  right: 0.625rem;
   z-index: 2;
-  width: 26px;
-  height: 26px;
+  width: 1.625rem;
+  height: 1.625rem;
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
@@ -525,8 +525,8 @@ function selectVersion(v: string) {
 .mp-card__glow {
   position: absolute;
   inset: -40% -20% auto auto;
-  width: 220px;
-  height: 220px;
+  width: 13.75rem;
+  height: 13.75rem;
   background: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 35%, transparent), transparent 70%);
   pointer-events: none;
   opacity: 0.6;
@@ -537,9 +537,9 @@ function selectVersion(v: string) {
   align-items: flex-start;
 }
 .mp-card__icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.875rem;
   overflow: hidden;
   flex-shrink: 0;
   border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
@@ -549,10 +549,10 @@ function selectVersion(v: string) {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.375rem;
 }
 .mp-card__head-text--selectable {
-  padding-right: 34px;
+  padding-right: 2.125rem;
 }
 .mp-card__title-row {
   display: flex;
@@ -598,12 +598,12 @@ function selectVersion(v: string) {
   align-items: center;
   gap: var(--space-1);
   flex-shrink: 0;
-  padding: 2px 8px;
-  border-radius: 999px;
+  padding: 0.125rem 0.5rem;
+  border-radius: 62.4375rem;
   background: color-mix(in srgb, var(--accent) 8%, transparent);
   color: var(--jet-theme-primary-active);
   font-size: var(--fs-12);
-  line-height: 18px;
+  line-height: 1.125rem;
   transition:
     background 0.15s ease,
     color 0.15s ease;
@@ -614,8 +614,8 @@ function selectVersion(v: string) {
 }
 .mp-card__code {
   font-size: var(--fs-12);
-  padding: 2px 8px;
-  border-radius: 999px;
+  padding: 0.125rem 0.5rem;
+  border-radius: 62.4375rem;
   background: color-mix(in srgb, var(--ink-2) 6%, transparent);
   color: var(--ink-3);
   flex-shrink: 0;
@@ -629,22 +629,22 @@ function selectVersion(v: string) {
 .mp-card__state {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
   font-size: var(--fs-12);
   color: var(--ink-4);
 }
 .mp-card__dot {
-  width: 8px;
-  height: 8px;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 50%;
 }
 .mp-card__dot.on {
   background: var(--ok);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 15%, transparent);
+  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--ok) 15%, transparent);
 }
 .mp-card__dot.off {
   background: var(--err);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--err) 12%, transparent);
+  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--err) 12%, transparent);
 }
 .mp-card__desc {
   margin: 0;
@@ -660,19 +660,19 @@ function selectVersion(v: string) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
 }
 .mp-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 22px;
-  max-width: 180px;
+  gap: 0.375rem;
+  min-height: 1.375rem;
+  max-width: 11.25rem;
   box-sizing: border-box;
   font-size: var(--fs-12);
-  line-height: 18px;
-  padding: 2px 10px;
-  border-radius: 999px;
+  line-height: 1.125rem;
+  padding: 0.125rem 0.625rem;
+  border-radius: 62.4375rem;
   background: color-mix(in srgb, var(--ink-2) 4%, transparent);
   border: 1px solid color-mix(in srgb, var(--ink-2) 8%, transparent);
   color: var(--ink-1);
@@ -696,8 +696,8 @@ function selectVersion(v: string) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  max-width: 304px;
+  gap: 0.375rem;
+  max-width: 19rem;
 }
 .mp-card__version-label {
   font-size: var(--fs-12);
@@ -709,14 +709,14 @@ function selectVersion(v: string) {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 8px;
+  gap: 0.25rem 0.5rem;
   min-width: 0;
 }
 .mp-card__version-link {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  max-width: min(100%, 240px);
+  max-width: min(100%, 15rem);
   padding: 0;
   border: none;
   background: transparent;
@@ -766,15 +766,15 @@ function selectVersion(v: string) {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  max-width: min(42%, 180px);
-  padding: 1px 7px;
-  border-radius: 999px;
+  max-width: min(42%, 11.25rem);
+  padding: 0.0625rem 0.4375rem;
+  border-radius: 62.4375rem;
   background: color-mix(in srgb, var(--accent) 6%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--jet-theme-primary-active);
   cursor: help;
   font-size: var(--fs-12);
-  line-height: 18px;
+  line-height: 1.125rem;
 }
 .mp-card__version-summary-chip-text {
   min-width: 0;
@@ -783,7 +783,7 @@ function selectVersion(v: string) {
   white-space: nowrap;
 }
 .mp-card__version-summary-popover {
-  max-width: 300px;
+  max-width: 18.75rem;
 }
 .mp-card__version-summary-popover-title {
   margin-bottom: var(--space-1);
@@ -799,12 +799,12 @@ function selectVersion(v: string) {
   word-break: break-word;
 }
 .mp-card__version-menu {
-  width: 340px;
-  max-width: min(420px, calc(100vw - 32px));
-  max-height: 280px;
+  width: 21.25rem;
+  max-width: min(26.25rem, calc(100vw - 2rem));
+  max-height: 17.5rem;
   overflow: auto;
-  padding: 6px;
-  border-radius: 12px;
+  padding: 0.375rem;
+  border-radius: 0.75rem;
   background: var(--bg);
   box-shadow: var(--shadow-1);
 }
@@ -813,7 +813,7 @@ function selectVersion(v: string) {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: 8px 10px;
+  padding: 0.5rem 0.625rem;
   border: 1px solid transparent;
   border-radius: var(--r-3);
   background: transparent;
@@ -869,7 +869,7 @@ function selectVersion(v: string) {
 .mp-card__release-md :deep(h1),
 .mp-card__release-md :deep(h2),
 .mp-card__release-md :deep(h3) {
-  margin: 0 0 10px;
+  margin: 0 0 0.625rem;
   font-weight: 600;
   color: var(--ink-1);
 }
@@ -883,18 +883,18 @@ function selectVersion(v: string) {
   font-size: var(--fs-15);
 }
 .mp-card__release-md :deep(p) {
-  margin: 0 0 10px;
+  margin: 0 0 0.625rem;
 }
 .mp-card__release-md :deep(ul),
 .mp-card__release-md :deep(ol) {
-  margin: 0 0 10px;
+  margin: 0 0 0.625rem;
   padding-left: 1.25em;
 }
 .mp-card__release-md :deep(li) {
   margin-bottom: var(--space-1);
 }
 .mp-card__release-md :deep(code) {
-  padding: 1px 6px;
+  padding: 0.0625rem 0.375rem;
   border-radius: var(--r-1);
   background: color-mix(in srgb, var(--ink-2) 6%, transparent);
   font-size: 0.9em;
@@ -904,25 +904,25 @@ function selectVersion(v: string) {
   border-radius: var(--r-3);
   background: color-mix(in srgb, var(--ink-2) 6%, transparent);
   overflow: auto;
-  margin: 0 0 10px;
+  margin: 0 0 0.625rem;
 }
 .mp-card__release-md :deep(pre code) {
   padding: 0;
   background: none;
 }
 .mp-card__release-md :deep(blockquote) {
-  margin: 0 0 10px;
-  padding-left: 10px;
-  border-left: 3px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  margin: 0 0 0.625rem;
+  padding-left: 0.625rem;
+  border-left: 0.1875rem solid color-mix(in srgb, var(--accent) 35%, transparent);
   color: var(--ink-2);
 }
 .mp-card__footer {
-  margin-top: 2px;
+  margin-top: 0.125rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
-  padding-top: 6px;
+  padding-top: 0.375rem;
   border-top: 1px solid color-mix(in srgb, var(--ink-2) 6%, transparent);
 }
 .mp-card__footer-left {

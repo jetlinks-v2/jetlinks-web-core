@@ -100,7 +100,7 @@ defineExpose({
 
 .track {
   position: relative;
-  height: 40px;
+  height: 2.5rem;
   background: var(--bg);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-1);
@@ -128,8 +128,8 @@ defineExpose({
 
 .slider-btn {
   position: absolute;
-  width: 36px;
-  height: 36px;
+  width: 2.25rem;
+  height: 2.25rem;
   background: var(--bg);
   border: 1px solid var(--line-strong);
   cursor: grab;

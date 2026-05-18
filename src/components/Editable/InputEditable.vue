@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div v-if="!isEdit" style="display: flex; align-items: center; gap: 8px">
+    <div v-if="!isEdit" style="display: flex; align-items: center; gap: 0.5rem">
       <j-ellipsis>
         <span :style="textStyle">
           {{ _value || '--' }}

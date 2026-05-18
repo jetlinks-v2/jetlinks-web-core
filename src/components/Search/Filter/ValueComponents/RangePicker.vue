@@ -111,18 +111,18 @@ watch(() => props.value, (val) => {
 .dropdown-range-picker__shortcuts {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 0.375rem;
   margin-top: var(--space-2);
 }
 .dropdown-range-picker__shortcut {
-  height: 24px;
-  padding: 0 10px;
+  height: 1.5rem;
+  padding: 0 0.625rem;
   color: var(--ink-2);
   font-size: var(--fs-12);
-  line-height: 22px;
+  line-height: 1.375rem;
   background: var(--bg-hover);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 62.4375rem;
   cursor: pointer;
   transition: all 0.15s ease;
 }

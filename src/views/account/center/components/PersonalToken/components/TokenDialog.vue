@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <a-modal
     :open="visible"
     :title="dialogTitle"
@@ -392,7 +392,7 @@ provide('mode', props.mode)
 <style lang="less" scoped>
 .form-layout {
   display: flex;
-  // gap: 24px;
+  // gap: 1.5rem;
   width: 100%;
 
 
@@ -419,7 +419,7 @@ provide('mode', props.mode)
   }
 
   .section-title {
-    margin: 0 0 16px 0;
+    margin: 0 0 1rem 0;
     font-size: var(--fs-16);
     font-weight: 500;
     color: #262626;
@@ -437,7 +437,7 @@ provide('mode', props.mode)
 
 .result-page {
   text-align: center;
-  padding: 40px 20px;
+  padding: 2.5rem 1.25rem;
 
   .result-content {
     .result-icon {
@@ -445,7 +445,7 @@ provide('mode', props.mode)
     }
 
     h3 {
-      font-size: 20px;
+      font-size: var(--fs-20);
       margin-bottom: var(--space-2);
     }
 
