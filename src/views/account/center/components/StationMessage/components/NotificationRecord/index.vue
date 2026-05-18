@@ -4,7 +4,7 @@
       :columns="columns"
       :target="type"
       style="padding: 0"
-      @search="(e) => (queryParams = e)"
+      @search="onSearch"
     />
     <j-pro-table
       ref="tableRef"
@@ -108,6 +108,9 @@ import { useI18n } from 'vue-i18n';
 
 const { t: $t } = useI18n();
 const user = useUserStore()
+interface ProviderItem {
+  provider: string;
+}
 
 const props = defineProps({
   type: {
@@ -115,13 +118,13 @@ const props = defineProps({
     default: '',
   },
   children: {
-    type: Array,
+    type: Array as PropType<ProviderItem[]>,
     default: () => ([])
   }
 })
 
 const getType = computed(() => {
-  return props.children.map(item => item.provider)
+  return props.children.map((item) => item.provider)
   // if (props.type === 'system-business') {
   //   return ['device-transparent-codec']
   // } else if (props.type === 'system-monitor') {
@@ -238,6 +241,9 @@ const defaultParams = {
   ],
 }
 const queryParams = ref({})
+const onSearch = (params: Record<string, any>) => {
+  queryParams.value = params
+}
 
 const tableRef = ref()
 
@@ -269,6 +275,7 @@ watch(() => user.messageInfo?.id, (val) => {
 })
 
 const onAllRead = async () => {
+    if (!getType.value.length) return;
     const resp = await changeAllStatus('_read', getType.value);
     if (resp.status === 200) {
         onlyMessage($t('NotificationRecord.index.803553-11'));
@@ -278,9 +285,14 @@ const onAllRead = async () => {
 };
 
 const readPage = async () => {
-  const resp = await changeStatus_api('_read', [
-    ...tableRef.value?.dataSource.map(item => item.id)
-  ]);
+  const unreadIds = (tableRef.value?.dataSource || [])
+    .filter((item: any) => item.state?.value === 'unread')
+    .map((item: any) => item.id);
+  if (!unreadIds.length) {
+    onlyMessage($t('NotificationRecord.index.803553-11'));
+    return;
+  }
+  const resp = await changeStatus_api('_read', unreadIds);
   if (resp.status === 200) {
     onlyMessage($t('NotificationRecord.index.803553-11'));
     refresh();

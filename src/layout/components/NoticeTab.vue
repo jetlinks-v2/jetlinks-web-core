@@ -23,8 +23,14 @@ const props = defineProps({
 
 const total = ref<number>(0);
 
-const getData = (type: string[]) => {
+const getData = (type: string[] = []) => {
+    if (!type.length) {
+        total.value = 0;
+        return;
+    }
     const params = {
+        pageIndex: 0,
+        pageSize: 1,
         sorts: [
             {
                 name: 'notifyTime',
@@ -33,6 +39,7 @@ const getData = (type: string[]) => {
         ],
         terms: [
             {
+                type: 'and',
                 terms: [
                     {
                         type: 'and',
@@ -51,7 +58,7 @@ const getData = (type: string[]) => {
         ],
     };
     getList_api(params).then((resp: any) => {
-        total.value = resp.result.total;
+        total.value = resp.result?.total || 0;
     });
 };
 

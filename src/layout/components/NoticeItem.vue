@@ -96,13 +96,11 @@ const detail = () => {
 };
 
 const read = (type: '_read' | '_unread') => {
+    if (!props.data?.id) return;
     changeStatus_api(type, [props.data.id]).then((resp: any) => {
         if (resp.status === 200) {
-            if(type === '_read') {
-                userInfo.alarmUpdateCount -= 1;
-            } else {
-                userInfo.alarmUpdateCount += 1;
-            }
+            // 未读数量以后端有效状态为准，避免 read marker 与本地加减计数漂移。
+            userInfo.updateAlarm();
             num.value = 0;
             state.value = type === '_read' ? 'read' : 'unread'
             onlyMessage($t('components.NoticeItem.265390-5'));

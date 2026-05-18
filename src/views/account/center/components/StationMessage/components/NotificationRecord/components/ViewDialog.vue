@@ -202,7 +202,7 @@ onMounted(() => {
         },
       ],
     }
-    getWorkflowNotice(params).then((res) => {
+    getWorkflowNotice(params).then((res: any) => {
       workFlowData.value = {
         topicProvider: props?.data?.topicProvider,
         ...res?.result?.[0],

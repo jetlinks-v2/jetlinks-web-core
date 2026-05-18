@@ -2,8 +2,8 @@ import { request } from '@jetlinks-web/core'
 
 // 获取记录列表
 export const getList_api = (data: any): any => request.post(`/notifications/_query`, data)
-// 获取未读记录列表
-// export const getListByUnRead_api = (data: any): any => request.post(`/notifications/_query`, data)
+// 获取有效未读记录列表，后端会合并 read marker 与显式未读状态。
+export const getUnreadNoPagingList_api = (data: any): any => request.post(`/notifications/_query/unread/no-paging`, data)
 // 修改记录状态
 export const changeStatus_api = (type: '_read' | '_unread', data: string[]): any => request.post(`/notifications/${type}`, data)
 
@@ -19,4 +19,3 @@ export const getDetail = (id: string): any => request.get(`/alarm/record/${id}`)
  * 查询等级
  */
 export const queryLevel = () => request.get('/alarm/config/default/level');
-

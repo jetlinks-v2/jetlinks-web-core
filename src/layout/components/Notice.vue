@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts" name="Notice">
-import { getList_api , changeStatus_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { getList_api, changeStatus_api } from '@jetlinks-web-core/api/account/notificationRecord';
 import { ref } from 'vue'
 import NoticeInfo from './NoticeInfo.vue';
 import { useWebSocket } from '@jetlinks-web-core/hooks'
@@ -44,8 +44,8 @@ const getPopupContainer = () => {
 
 const { send } = useWebSocket({
   onMessage(data) {
+    if (!data?.payload?.id) return;
     // 消息处理
-    console.log(data)
     total.value += 1;
     notification.open({
                 message: data?.payload?.topicName,
@@ -96,7 +96,9 @@ const { send } = useWebSocket({
 
 
 const read = (type: string, data: any) => {
-    changeStatus_api('_read', [data.payload.id]).then((resp: any) => {
+    const id = data?.payload?.id;
+    if (!id) return;
+    changeStatus_api('_read', [id]).then((resp: any) => {
         if (resp.status !== 200) return;
         // notification.close(data.payload.id);
         getList();
@@ -113,17 +115,29 @@ const read = (type: string, data: any) => {
 
 // 查询未读数量
 const getList = () => {
-    if(tabs.value.length <= 0) return;
+    const topicProviders = flatten(tabs.value.map((i: any) => i?.type)).filter(Boolean);
+    if (topicProviders.length <= 0) {
+        total.value = 0;
+        return;
+    }
     loading.value = true;
-      const params = {
-      paging:false,
+    const params = {
+        pageIndex: 0,
+        pageSize: 1,
         sorts: [{
           name: 'notifyTime',
           order: 'desc'
         }],
         terms: [
             {
+                type: 'and',
                 terms: [
+                    {
+                        type: 'and',
+                        value: topicProviders,
+                        termType: 'in',
+                        column: 'topicProvider',
+                    },
                     {
                         type: 'and',
                         value: 'unread',
@@ -132,21 +146,11 @@ const getList = () => {
                     },
                 ],
             },
-            {
-                terms: [
-                    {
-                        type: 'and',
-                        value: flatten(tabs.value.map((i: any) => i?.type)),
-                        termType: 'in',
-                        column: 'topicProvider',
-                    },
-                ],
-            },
         ],
     };
     getList_api(params)
         .then((resp: any) => {
-            total.value = resp.result.total;
+            total.value = resp.result?.total || 0;
         })
         .finally(() => (loading.value = false));
 };

@@ -26,7 +26,7 @@
                                 />
                             </template>
                             <div
-                                v-if="list.length < 12"
+                                v-if="list.length >= total"
                                 style="
                                     color: #666666;
                                     text-align: center;
@@ -66,9 +66,13 @@ import { useI18n } from 'vue-i18n';
 const { t: $t } = useI18n();
 const emits = defineEmits(['action']);
 
-type DataType = 'alarm' | 'system-monitor' | 'system-business' | 'workflow-notification';
+interface NoticeTabItem {
+    key: string;
+    tab: string;
+    type: string[];
+}
 
-const refreshObj = ref({
+const refreshObj = ref<Record<string, boolean>>({
     'alarm': true,
     'system-monitor': true,
     'system-business': true,
@@ -77,7 +81,7 @@ const refreshObj = ref({
 
 const props = defineProps({
     tabs: {
-        type: Array,
+        type: Array as PropType<NoticeTabItem[]>,
         default: () => []
     }
 })
@@ -85,29 +89,36 @@ const props = defineProps({
 const loading = ref(false);
 const total = ref(0);
 const list = ref<any[]>([]);
-const activeKey = ref<DataType>(props.tabs?.[0]?.key || 'alarm');
+const activeKey = ref<string>(props.tabs?.[0]?.key || 'alarm');
 const menuStory = useMenuStore();
 const route = useRoute();
 
-const type = ref();
+const type = ref<string[]>([]);
 const userInfo = useUserStore();
 
-const getData = (type: string[]) => {
+const getData = (providers: string[] = []) => {
+    if (!providers.length) {
+        total.value = 0;
+        list.value = [];
+        return;
+    }
     loading.value = true;
     const params = {
+        pageIndex: 0,
+        pageSize: 12,
         sorts: [
             {
                 name: 'notifyTime',
                 order: 'desc',
             },
         ],
-        pageSize: 12,
         terms: [
             {
+                type: 'and',
                 terms: [
                     {
-                        type: 'or',
-                        value: type,
+                        type: 'and',
+                        value: providers,
                         termType: 'in',
                         column: 'topicProvider',
                     },
@@ -123,14 +134,15 @@ const getData = (type: string[]) => {
     };
     getList_api(params)
         .then((resp: any) => {
-            total.value = resp.result.total;
+            total.value = resp.result?.total || 0;
             list.value = resp.result?.data || [];
         })
         .finally(() => (loading.value = false));
 };
 
-const onChange = (_key: string) => {
-    type.value = props.tabs.find((item: any) => item.key === _key)?.type || [];
+const onChange = (_key: string | number) => {
+    activeKey.value = String(_key);
+    type.value = props.tabs.find((item) => item.key === activeKey.value)?.type || [];
     getData(type.value);
 };
 
@@ -142,7 +154,7 @@ const onRefresh = (id: string) => {
         ...refreshObj.value,
         [id]: !flag,
     };
-    getData(type.value)
+    getData(type.value.length ? type.value : props.tabs.find((item) => item.key === activeKey.value)?.type || [])
 };
 
 const onMore = (key: string) => {
