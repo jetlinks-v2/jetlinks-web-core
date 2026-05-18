@@ -76,6 +76,7 @@
   --ink-2: var(--jet-theme-text-secondary);
   --ink-3: var(--jet-theme-text-disabled);
   --ink-4: var(--jet-theme-text-disabled);
+  --ink-5: #b4b7bf;
   --accent: var(--jet-theme-primary);
   --accent-ink: #FFFFFF;
   --accent-soft: var(--jet-theme-primary-soft);
@@ -147,22 +148,19 @@
 
 @font-face {
   font-family: AliRegular;
-  src: url("/fonts/AlibabaPuHuiTi-2-55-Regular.woff2") format("woff2"),
-  url("/fonts/AlibabaPuHuiTi-2-55-Regular.woff") format("woff");
+  src: url("./assets/AlibabaPuHuiTi-2-55-Regular.woff2") format("woff2"),
+  url("./assets/AlibabaPuHuiTi-2-55-Regular.woff") format("woff");
 }
 
 body {
   background: var(--jet-theme-bg-layout);
   color: var(--jet-theme-text);
+  margin: 0;
   font-family: var(--jet-theme-font-family) !important;
 }
 
 *, :after, :before {
   box-sizing: border-box;
-}
-
-body {
-  margin: 0
 }
 
 @layer utilities {

@@ -25,7 +25,7 @@ interface LayoutType {
 
 const useSystemStoreBase = defineStore('system', () => {
   const initialThemeStyle = getInitialThemeStyleConfig()
-  const theme = ref<string>('light') // 主题色
+  const theme = ref<string>('ai') // 主题色
   const themeStyle = ref<ThemeStyleKey>(initialThemeStyle.style)
   const themeStyleToken = ref(initialThemeStyle.token)
   const themeColor = ref<string>(applyThemeColor(getInitialThemeColor() || initialThemeStyle.color))
