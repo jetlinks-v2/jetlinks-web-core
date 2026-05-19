@@ -5,6 +5,12 @@ export const DEFAULT_THEME_COLOR = '#1677FF'
 
 const hexColorReg = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
 
+export interface ThemeColorStateOptions {
+  hover?: string
+  active?: string
+  soft?: string
+}
+
 const expandHexColor = (color: string) => {
   const normalized = color.trim()
   if (!hexColorReg.test(normalized)) return ''
@@ -58,15 +64,30 @@ export const getInitialThemeColor = () => {
   return getDefaultThemeColor()
 }
 
-export const applyThemeColor = (color?: string) => {
+export const applyThemeColor = (color?: string, stateColors: ThemeColorStateOptions = {}) => {
   const themeColor = normalizeThemeColor(color) || getDefaultThemeColor()
+  const themeColorHover = normalizeThemeColor(stateColors.hover) || mixColor(themeColor, '#FFFFFF', 0.18)
+  const themeColorActive = normalizeThemeColor(stateColors.active) || mixColor(themeColor, '#000000', 0.12)
+  const themeColorSoft = normalizeThemeColor(stateColors.soft) || mixColor(themeColor, '#FFFFFF', 0.92)
 
   if (typeof document !== 'undefined') {
     const rootStyle = document.documentElement.style
     rootStyle.setProperty('--jet-theme-primary', themeColor)
-    rootStyle.setProperty('--jet-theme-primary-hover', mixColor(themeColor, '#FFFFFF', 0.18))
-    rootStyle.setProperty('--jet-theme-primary-active', mixColor(themeColor, '#000000', 0.12))
-    rootStyle.setProperty('--jet-theme-primary-soft', mixColor(themeColor, '#FFFFFF', 0.92))
+    rootStyle.setProperty('--jet-theme-primary-hover', themeColorHover)
+    rootStyle.setProperty('--jet-theme-primary-active', themeColorActive)
+    rootStyle.setProperty('--jet-theme-primary-soft', themeColorSoft)
+    rootStyle.setProperty('--primary-color', themeColor)
+    rootStyle.setProperty('--primary-color-hover', themeColorHover)
+    rootStyle.setProperty('--primary-color-active', themeColorActive)
+    rootStyle.setProperty('--ant-primary-color', themeColor)
+    rootStyle.setProperty('--ant-primary-color-hover', themeColorHover)
+    rootStyle.setProperty('--ant-primary-color-active', themeColorActive)
+    rootStyle.setProperty('--ant-color-primary', themeColor)
+    rootStyle.setProperty('--ant-color-primary-hover', themeColorHover)
+    rootStyle.setProperty('--ant-color-primary-active', themeColorActive)
+    rootStyle.setProperty('--ant-color-link', themeColor)
+    rootStyle.setProperty('--ant-color-link-hover', themeColorHover)
+    rootStyle.setProperty('--ant-color-link-active', themeColorActive)
   }
 
   return themeColor

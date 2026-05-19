@@ -36,6 +36,16 @@ const REQUIRED_ANTD_TOKEN_KEYS = [
 
 const OPTIONAL_ANTD_TOKEN_KEYS = [
   'fontFamily',
+  'colorPrimaryBgHover',
+  'colorPrimaryBorderHover',
+  'colorPrimaryHover',
+  'colorPrimaryActive',
+  'colorPrimaryTextHover',
+  'colorPrimaryText',
+  'colorPrimaryTextActive',
+  'colorLink',
+  'colorLinkHover',
+  'colorLinkActive',
   'wireframe'
 ] as const satisfies readonly (keyof AliasToken)[]
 
@@ -51,6 +61,11 @@ export type ThemeStyleCssVarName =
   | `--jet-theme-${string}`
   | `--layout-${string}`
   | `--chrome-${string}`
+  | `--brand-${string}`
+  | `--accent-${string}`
+  | `--macaron-${string}`
+  | `--gap-${string}`
+  | `--padding-${string}`
   | `--ind-${string}`
   | `--cp-${string}`
   | `--cap-${string}`
@@ -68,15 +83,24 @@ export type ThemeStyleCssVarName =
   | '--bg-elev'
   | '--bg-sunken'
   | '--bg-hover'
+  | '--bg-2'
   | '--line'
+  | '--line-2'
   | '--line-strong'
   | '--ink-1'
   | '--ink-2'
   | '--ink-3'
   | '--ink-4'
+  | '--ink-5'
   | '--accent'
   | '--accent-ink'
   | '--accent-soft'
+  | '--danger'
+  | '--danger-bg'
+  | '--warning'
+  | '--warning-bg'
+  | '--success'
+  | '--success-bg'
   | '--ok'
   | '--ok-bg'
   | '--ok-line'
@@ -135,6 +159,71 @@ export const getThemeStyleToken = (style?: unknown) => {
 
 export const getThemeStylePrimaryColor = (style?: unknown) => {
   return normalizeThemeColor(getThemeStyleToken(style).colorPrimary)
+}
+
+export const getThemeStyleInitialColor = (style?: unknown, color?: string) => {
+  const themeStyle = normalizeThemeStyle(style)
+  const token = getThemeStyleToken(themeStyle)
+  const tokenColor = getThemeStylePrimaryColor(themeStyle)
+  const hasFixedPrimaryStates = Boolean(
+    token.colorPrimaryHover ||
+    token.colorPrimaryActive ||
+    token.colorLinkHover ||
+    token.colorLinkActive
+  )
+
+  return hasFixedPrimaryStates
+    ? tokenColor
+    : normalizeThemeColor(color) || tokenColor
+}
+
+export const getThemeStylePrimaryStateColors = (style?: unknown, color?: string) => {
+  const token = getThemeStyleToken(style)
+  const primaryColor = normalizeThemeColor(color) || normalizeThemeColor(token.colorPrimary)
+  const primaryHover = normalizeThemeColor(token.colorPrimaryHover)
+  const primaryActive = normalizeThemeColor(token.colorPrimaryActive)
+  const primarySoft = normalizeThemeColor(token.cssVars?.['--jet-theme-primary-soft'])
+    || normalizeThemeColor(token.cssVars?.['--accent-soft'])
+  const result: Partial<AliasToken> = {
+    colorPrimary: primaryColor,
+    colorLink: normalizeThemeColor(token.colorLink) || primaryColor
+  }
+
+  if (primarySoft || token.colorPrimaryBgHover) {
+    result.colorPrimaryBgHover = normalizeThemeColor(token.colorPrimaryBgHover) || primarySoft
+  }
+
+  if (primaryHover || token.colorPrimaryBorderHover) {
+    result.colorPrimaryBorderHover = normalizeThemeColor(token.colorPrimaryBorderHover) || primaryHover
+  }
+
+  if (primaryHover) {
+    result.colorPrimaryHover = primaryHover
+    result.colorPrimaryTextHover = normalizeThemeColor(token.colorPrimaryTextHover) || primaryHover
+  } else if (token.colorPrimaryTextHover) {
+    result.colorPrimaryTextHover = normalizeThemeColor(token.colorPrimaryTextHover)
+  }
+
+  if (primaryActive) {
+    result.colorPrimaryActive = primaryActive
+    result.colorPrimaryTextActive = normalizeThemeColor(token.colorPrimaryTextActive) || primaryActive
+  } else if (token.colorPrimaryTextActive) {
+    result.colorPrimaryTextActive = normalizeThemeColor(token.colorPrimaryTextActive)
+  }
+
+  if (token.colorPrimaryText) {
+    result.colorPrimaryText = normalizeThemeColor(token.colorPrimaryText)
+  }
+
+  if (token.colorLinkHover || primaryHover) {
+    result.colorLinkHover = normalizeThemeColor(token.colorLinkHover) || primaryHover
+  }
+
+  if (token.colorLinkActive || primaryActive) {
+    result.colorLinkActive = normalizeThemeColor(token.colorLinkActive) || primaryActive
+  }
+
+  return result
 }
 
 const antdTokenKeySet = new Set<keyof AliasToken>(ANTD_TOKEN_KEYS)
@@ -345,7 +434,11 @@ export const getInitialThemeStyleConfig = () => {
 export const applyThemeStyle = (style?: unknown, color?: string) => {
   const themeStyle = normalizeThemeStyle(style)
   const token = getThemeStyleToken(themeStyle)
-  const themeColor = applyThemeColor(color || token.colorPrimary)
+  const primaryColor = normalizeThemeColor(color) || normalizeThemeColor(token.colorPrimary)
+  let themeColor = ''
+  const primaryStateColors = getThemeStylePrimaryStateColors(themeStyle, primaryColor)
+  const primarySoft = normalizeThemeColor(token.cssVars?.['--jet-theme-primary-soft'])
+    || normalizeThemeColor(token.cssVars?.['--accent-soft'])
 
   if (typeof document !== 'undefined') {
     const root = document.documentElement
@@ -381,8 +474,20 @@ export const applyThemeStyle = (style?: unknown, color?: string) => {
       }
     })
 
+    themeColor = applyThemeColor(primaryColor, {
+      hover: primaryStateColors.colorPrimaryHover,
+      active: primaryStateColors.colorPrimaryActive,
+      soft: primarySoft
+    })
+
     Object.entries(token.cssVars || {}).forEach(([name, value]) => {
       rootStyle.setProperty(name, value)
+    })
+  } else {
+    themeColor = applyThemeColor(primaryColor, {
+      hover: primaryStateColors.colorPrimaryHover,
+      active: primaryStateColors.colorPrimaryActive,
+      soft: primarySoft
     })
   }
 

@@ -55,6 +55,11 @@ html {
 }
 
 :root {
+    --jet-theme-primary-1: #e6f4ff;
+    --jet-theme-primary-2: #bae0ff;
+    --jet-theme-primary-3: #91caff;
+    --jet-theme-primary-4: #69b1ff;
+    --jet-theme-primary-5: #4096ff;
   --jet-theme-primary: #1677FF;
   --jet-theme-primary-hover: #4096FF;
   --jet-theme-primary-active: #0958D9;
@@ -195,10 +200,6 @@ body {
 
 :where(input, textarea, select, button, .ant-input, .ant-btn, .ant-select, .ant-picker) {
     font-family: var(--font-sans);
-}
-
-:where(button,label,a) {
-    font-size: var(--fs-14);
 }
 
 *, :after, :before {

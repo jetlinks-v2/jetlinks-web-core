@@ -8,6 +8,7 @@ import { applyThemeColor, getInitialThemeColor, persistThemeColor } from '@jetli
 import {
   applyThemeStyle,
   getInitialThemeStyleConfig,
+  getThemeStyleInitialColor,
   getThemeStylePrimaryColor,
   normalizeThemeStyle,
   persistThemeStyle,
@@ -28,7 +29,7 @@ const useSystemStoreBase = defineStore('system', () => {
   const theme = ref<string>('ai') // 主题色
   const themeStyle = ref<ThemeStyleKey>(initialThemeStyle.style)
   const themeStyleToken = ref(initialThemeStyle.token)
-  const themeColor = ref<string>(applyThemeColor(getInitialThemeColor() || initialThemeStyle.color))
+  const themeColor = ref<string>(applyThemeColor(getThemeStyleInitialColor(themeStyle.value, getInitialThemeColor())))
   applyThemeStyle(themeStyle.value, themeColor.value)
   const ico = ref<string>('/favicon.ico') // 浏览器标签页logo
   const systemInfo = ref<Record<string, any>>({})

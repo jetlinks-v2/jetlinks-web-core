@@ -98,8 +98,8 @@ const radius = computed(() => {
 })
 
 const boxCss = computed(() => ({
-  width: `${props.size}px`,
-  height: `${props.size}px`,
+  width: `100%`,
+  height: `100%`,
   borderRadius: `${radius.value}px`,
   '--ivv-size': `${props.size}px`,
 }))

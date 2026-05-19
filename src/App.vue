@@ -25,7 +25,11 @@ import {initPackages} from "@jetlinks-web-core/package";
 import { setToken} from "@jetlinks-web/utils";
 import { getBaseApi, initPersonal } from '@jetlinks-web-core/utils'
 import { componentsRegistry } from './utils/components-registry'
-import { applyThemeStyle, pickAntdToken } from '@jetlinks-web-core/utils/theme-style'
+import {
+  applyThemeStyle,
+  getThemeStylePrimaryStateColors,
+  pickAntdToken
+} from '@jetlinks-web-core/utils/theme-style'
 import { useResponsiveAntdToken } from '@jetlinks-web-core/hooks'
 
 const route = useRoute()
@@ -58,8 +62,7 @@ const themeConfig = computed(() => ({
     ...theme,
     ...pickAntdToken(systemStore.themeStyleToken),
     ...responsiveAntdToken.token.value,
-    colorPrimary: systemStore.themeColor,
-    colorLink: systemStore.themeColor
+    ...getThemeStylePrimaryStateColors(systemStore.themeStyle, systemStore.themeColor)
   }
 }))
 
