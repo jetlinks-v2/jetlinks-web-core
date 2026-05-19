@@ -146,16 +146,16 @@ watch(() => props.value, (newValue) => {
   position: relative;
 }
 .terms-group-container .term-group-border {
-  padding: 6px 12px;
+  padding: 0.375rem 0.75rem;
   border: 1px dashed var(--line-strong);
   border-radius: var(--r-2);
 }
 .terms-group-container .term-delete-btn {
   position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 20px;
-  height: 20px;
+  top: -0.625rem;
+  right: -0.625rem;
+  width: 1.25rem;
+  height: 1.25rem;
   background: var(--bg-hover);
   color: var(--ink-4);
   border-radius: 50%;
@@ -176,9 +176,9 @@ watch(() => props.value, (newValue) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  width: 24px;
-  height: 24px;
+  min-width: 1.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
   color: var(--ink-4);
   background-color: var(--bg);
   border: 1px dashed var(--ink-4);
@@ -192,10 +192,10 @@ watch(() => props.value, (newValue) => {
 }
 .terms-group-container .term-add-btn::before {
   content: "+";
-  font-size: 20px;
+  font-size: var(--fs-20);
   line-height: 1;
-  margin-top: -5px;
-  margin-left: -1px;
+  margin-top: -0.3125rem;
+  margin-left: -0.0625rem;
 }
 .terms-group-container .connect-text {
   padding: var(--space-1) var(--space-2);
@@ -204,7 +204,7 @@ watch(() => props.value, (newValue) => {
   cursor: pointer;
   flex-shrink: 0;
   user-select: none;
-  margin: 0 2px;
+  margin: 0 0.125rem;
 }
 .terms-group-container .term-item-box {
   display: flex;
@@ -215,10 +215,10 @@ watch(() => props.value, (newValue) => {
 .terms-group-container .terms-scroll-area {
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 12px 0;
+  padding: 0.75rem 0;
 }
 .terms-group-container .terms-scroll-area::-webkit-scrollbar {
-  height: 6px;
+  height: 0.375rem;
 }
 .terms-group-container .terms-scroll-area::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--ink-1) 10%, transparent);

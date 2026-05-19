@@ -25,7 +25,7 @@
       >
         <img
           :src="getImageUrl(imgUrl || '')"
-          :style="{ width: ['collectPoints', 'collectorNum', 'channels'].includes(data.type) ? '120px' : '' }"
+          :style="{ width: ['collectPoints', 'collectorNum', 'channels'].includes(data.type) ? '7.5rem' : '' }"
         />
       </div>
       <div
@@ -914,7 +914,7 @@ watch(
   padding: var(--space-6);
   background-color: var(--bg);
   border: 1px solid var(--line-strong);
-  border-radius: 2px;
+  border-radius: 0.125rem;
 }
 .top-card .top-card-content {
   display: flex;
@@ -930,10 +930,10 @@ watch(
   color: color-mix(in srgb, var(--ink-1) 64%, transparent);
 }
 .top-card .top-card-content .content-left-value {
-  padding: 12px 0;
+  padding: 0.75rem 0;
   color: var(--ink-1);
   font-weight: 700;
-  font-size: 36px;
+  font-size: var(--fs-36);
 }
 .top-card .top-card-content .content-right {
   width: 0;
@@ -943,7 +943,7 @@ watch(
   justify-content: flex-end;
 }
 .top-card .top-card-content .content-right img {
-  width: 92px;
+  width: 5.75rem;
 }
 .top-card .top-card-content .content-right-echart {
   display: flex;
@@ -957,7 +957,7 @@ watch(
   justify-content: space-between;
   padding-top: var(--space-4);
   border-top: 1px solid var(--line-strong);
-  min-height: 40px;
+  min-height: 2.5rem;
 }
 .top-card .top-card-footer .footer-item-value {
   color: var(--ink-1);

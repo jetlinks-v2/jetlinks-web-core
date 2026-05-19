@@ -51,7 +51,7 @@
                                         type="primary"
                                         @click="saveHistory"
                                         :loading="loading"
-                                        style="width: 100%; margin-top: 16px"
+                                        style="width: 100%; margin-top: 1rem"
                                     >
                                         {{ $t('Player.ScreenPlayer.521467-8') }}
                                     </a-button>
@@ -401,8 +401,8 @@ const screenChange = (index: number) => {
     screen.value = index;
 
     // if (screen.value === 4) {
-    //     screenWidth.value = '350px';
-    //     screenHeight.value = '2000px';
+    //     screenWidth.value = '21.875rem';
+    //     screenHeight.value = '125rem';
     // }
 };
 
@@ -475,7 +475,7 @@ defineExpose({
 }
 .live-player-warp .live-player-content .player-screen-tool .ant-radio-button-wrapper {
   height: auto;
-  padding: 4px 20px;
+  padding: 0.25rem 1.25rem;
 }
 .live-player-warp .live-player-content .player-body {
   flex: 1;
@@ -499,7 +499,7 @@ defineExpose({
 }
 .live-player-warp .live-player-content .player-body .player-screen.screen-4,
 .live-player-warp .live-player-content .player-body .player-screen.screen-9 {
-  grid-gap: 12px;
+  grid-gap: 0.75rem;
 }
 .live-player-warp .live-player-content .player-body .player-screen .active {
   position: relative;
@@ -512,7 +512,7 @@ defineExpose({
   top: 0;
   left: 0;
   z-index: 99;
-  border: 2px solid red;
+  border: 0.125rem solid red;
   pointer-events: none;
 }
 .live-player-warp .live-player-content .player-body .player-screen .full-screen {
@@ -523,13 +523,13 @@ defineExpose({
 }
 .live-player-warp .live-player-content .player-body .player-screen .player-screen-item .media-btn-refresh {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 0.25rem;
+  right: 0.25rem;
   z-index: 2;
-  padding: 2px 4px;
+  padding: 0.125rem 0.25rem;
   font-size: var(--fs-12);
   background-color: var(--line-strong);
-  border-radius: 2px;
+  border-radius: 0.125rem;
   cursor: pointer;
 }
 .live-player-warp .live-player-content .player-body .player-screen .player-screen-item .media-btn-refresh:hover {

@@ -13,7 +13,7 @@
                   <a-input
                     v-model:value="editName"
                     :placeholder="$t('AccountInfo.basicNamePlaceholder')"
-                    style="max-width: 360px"
+                    style="max-width: 22.5rem"
                   />
                   <a-button
                     v-if="showNameSave"
@@ -35,7 +35,7 @@
                   <a-input
                     :value="userInfo?.username"
                     disabled
-                    style="max-width: 360px"
+                    style="max-width: 22.5rem"
                   />
                 </div>
                 <div class="basic-form-desc">{{ $t('AccountInfo.usernameDesc') }}</div>
@@ -45,7 +45,7 @@
               <div class="basic-form-item">
                 <div class="basic-form-label">{{ $t('AccountInfo.password') }}</div>
                 <div class="basic-form-control">
-                  <a-input value="******" disabled style="max-width: 360px" />
+                  <a-input value="******" disabled style="max-width: 22.5rem" />
                   <a-button type="link" size="small" class="basic-info-password-edit" @click="openPasswordDialog">
                     {{ $t('AccountInfo.editPassword') }}
                   </a-button>
@@ -159,7 +159,7 @@
               <a-input
                 v-model:value="newEmail"
                 :placeholder="$t('AccountInfo.pleaseEnterEmail')"
-                style="width: 240px; margin-right: 8px"
+                style="width: 15rem; margin-right: 0.5rem"
                 allow-clear
               />
               <a-button type="primary" :loading="emailValidating" @click="requestEmailValidation">
@@ -171,7 +171,7 @@
                 <a-input
                   v-model:value="emailCode"
                   :placeholder="$t('AccountInfo.enterCode')"
-                  style="width: 160px; margin-right: 8px"
+                  style="width: 10rem; margin-right: 0.5rem"
                   allow-clear
                   maxlength="8"
                 />
@@ -218,7 +218,7 @@
               <a-input
                 v-model:value="newPhone"
                 :placeholder="$t('AccountInfo.pleaseEnterPhone')"
-                style="width: 240px; margin-right: 8px"
+                style="width: 15rem; margin-right: 0.5rem"
                 allow-clear
               />
               <a-button type="primary" :loading="phoneValidating" @click="requestPhoneValidation">
@@ -230,7 +230,7 @@
                 <a-input
                   v-model:value="phoneCode"
                   :placeholder="$t('AccountInfo.enterCode')"
-                  style="width: 160px; margin-right: 8px"
+                  style="width: 10rem; margin-right: 0.5rem"
                   allow-clear
                   maxlength="8"
                 />
@@ -772,8 +772,8 @@ onUnmounted(() => {
 
 <style lang="less" scoped>
 .account-info {
-  max-width: 800px;
-  padding: 0 4px;
+  max-width: 50rem;
+  padding: 0 0.25rem;
 }
 
 .basic-info-section {
@@ -789,7 +789,7 @@ onUnmounted(() => {
   }
 
   .basic-layout-right {
-    width: 220px;
+    width: 13.75rem;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -797,7 +797,7 @@ onUnmounted(() => {
   }
 
   .basic-form {
-    padding: 4px 4px 0;
+    padding: 0.25rem 0.25rem 0;
   }
 
   .basic-form-item {
@@ -805,10 +805,10 @@ onUnmounted(() => {
   }
 
   .basic-form-label {
-    font-size: 13px;
+    font-size: var(--fs-13);
     font-weight: 500;
     color: #1d2129;
-    margin-bottom: 6px;
+    margin-bottom: 0.375rem;
   }
 
   .basic-form-control {
@@ -824,11 +824,11 @@ onUnmounted(() => {
   }
 
   .basic-info-password-edit {
-    padding: 0 4px;
+    padding: 0 0.25rem;
   }
 
   .avatar-label {
-    font-size: 13px;
+    font-size: var(--fs-13);
     font-weight: 500;
     color: #1d2129;
   }
@@ -849,7 +849,7 @@ onUnmounted(() => {
   }
 
   .basic-form-meta-item {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: #4e5969;
     display: flex;
     flex-direction: column;
@@ -877,17 +877,17 @@ onUnmounted(() => {
   .org-summary {
     cursor: pointer;
     white-space: nowrap;
-    max-width: 260px;
+    max-width: 16.25rem;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .org-popover-content {
-    max-width: 320px;
+    max-width: 20rem;
   }
 
   .org-popover-item {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: #4e5969;
     line-height: 1.5;
   }
@@ -900,15 +900,15 @@ onUnmounted(() => {
     font-size: var(--fs-16);
     font-weight: 600;
     color: #1d2129;
-    margin: 0 0 8px 0;
+    margin: 0 0 0.5rem 0;
     padding-bottom: var(--space-2);
     border-bottom: 1px solid #e5e6eb;
   }
 
   .section-desc {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: #86909c;
-    margin: 0 0 12px 0;
+    margin: 0 0 0.75rem 0;
   }
 
   .section-content {
@@ -917,13 +917,13 @@ onUnmounted(() => {
 
   .basic-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 16px 24px;
+    grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+    gap: 1rem 1.5rem;
 
     .basic-item {
       .label {
         display: block;
-        font-size: 13px;
+        font-size: var(--fs-13);
         color: #86909c;
         margin-bottom: var(--space-1);
       }
@@ -965,7 +965,7 @@ onUnmounted(() => {
     }
     .identity-item-unbind {
       color: #86909c;
-      padding: 0 4px;
+      padding: 0 0.25rem;
       &:hover {
         color: var(--jet-theme-primary);
       }
@@ -973,7 +973,7 @@ onUnmounted(() => {
   }
 
   .empty-hint {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: #86909c;
     margin-bottom: var(--space-3);
   }
@@ -987,7 +987,7 @@ onUnmounted(() => {
   }
 
   .code-sent-hint {
-    margin-top: 6px;
+    margin-top: 0.375rem;
     font-size: var(--fs-12);
     color: #c9cdd4;
     line-height: 1.4;
@@ -997,7 +997,7 @@ onUnmounted(() => {
     margin-bottom: var(--space-2);
   }
   .email-code-desc {
-    font-size: 13px;
+    font-size: var(--fs-13);
     color: #4e5969;
   }
 }</style>

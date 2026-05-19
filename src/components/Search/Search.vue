@@ -52,8 +52,8 @@ const props = defineProps({
   style: {
     type: [String, Object],
     default: () => ({
-      paddingTop: '18px',
-      paddingBottom: '18px',
+      paddingTop: '1.125rem',
+      paddingBottom: '1.125rem',
     })
   }
 })
@@ -71,8 +71,8 @@ const classNames = computed(() => {
 const myStyles = computed(() => {
   if (isObject(props.style)) {
     return {
-      paddingTop: '18px',
-      paddingBottom: '18px',
+      paddingTop: '1.125rem',
+      paddingBottom: '1.125rem',
       ...props.style
     }
   }

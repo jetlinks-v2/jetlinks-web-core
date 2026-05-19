@@ -210,7 +210,7 @@ watch(
 
 <style scoped>
 .ant-upload-select-picture-card i {
-  font-size: 32px;
+  font-size: var(--fs-32);
   color: var(--ink-4);
 }
 

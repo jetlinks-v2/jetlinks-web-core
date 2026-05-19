@@ -17,14 +17,14 @@
             <img :src="imageUrl" height="100%" class="upload-image" />
           </template>
           <template v-else>
-            <AIcon type="UserOutlined" style="font-size: 20px" />
+            <AIcon type="UserOutlined" style="font-size: var(--fs-20)" />
           </template>
           <div class="upload-image-mask">{{ $t('UploadAvatar.index.820744-0') }}</div>
         </div>
       </a-upload>
       <div class="upload-loading-mask" v-if="props.disabled"></div>
       <div class="upload-loading-mask" v-if="imageUrl && loading">
-        <AIcon type="LoadingOutlined" style="font-size: 20px" />
+        <AIcon type="LoadingOutlined" style="font-size: var(--fs-20)" />
       </div>
     </div>
   </div>
@@ -152,8 +152,8 @@ const saveImage = (url: string) => {
 <style lang="less" scoped>
 @border: 1px dashed @border-color-base;
 @mask-color: rgba(#000, 0.35);
-@with: 96px;
-@height: 96px;
+@with: 6rem;
+@height: 6rem;
 
 .flex-center() {
   align-items: center;
@@ -198,7 +198,7 @@ const saveImage = (url: string) => {
       height: 100%;
       background-color: rgba(#000, 0.06);
       cursor: pointer;
-      // padding: 8px;
+      // padding: 0.5rem;
 
       .upload-image-mask {
         .flex-center();

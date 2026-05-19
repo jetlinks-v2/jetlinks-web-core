@@ -6,7 +6,7 @@
       @ok="onSave"
       :title="title"
   >
-    <div style="max-height: 500px; overflow-y: auto">
+    <div style="max-height: 31.25rem; overflow-y: auto">
       <Form ref="formRef" v-bind="omit(props, 'title')">
         <template v-for="(_, key) in slots" :key="key" #[key]="slotProps">
           <slot :name="key" v-bind="slotProps"></slot>

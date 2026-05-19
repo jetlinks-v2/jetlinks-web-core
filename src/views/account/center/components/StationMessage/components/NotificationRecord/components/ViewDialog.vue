@@ -1,8 +1,8 @@
-﻿<template>
+<template>
   <a-modal
     visible
     :title="$t('components.ViewDialog.411617-0')"
-    width="754px"
+    :width="754"
     @cancel="emits('update:visible', false)"
     class="view-dialog-container"
   >
@@ -15,8 +15,8 @@
     >
       <div>
         <div class="label">{{ $t('components.ViewDialog.411617-1') }}</div>
-        <div style="padding: 10px; background-color: #fafafa">
-          <j-scrollbar height="200px">
+        <div style="padding: 0.625rem; background-color: #fafafa">
+          <j-scrollbar height="12.5rem">
             <JsonViewer :value="data" />
           </j-scrollbar>
         </div>
@@ -41,7 +41,7 @@
         }"
         :labelStyle="{
           color: 'rgba(0, 0, 0, 0.6)',
-          width: '72px',
+          width: '4.5rem',
         }"
       >
         <a-descriptions-item :label="$t('components.ViewDialog.411617-2')">
@@ -82,7 +82,7 @@
         }"
         :labelStyle="{
           color: 'rgba(0, 0, 0, 0.6)',
-          width: '72px',
+          width: '4.5rem',
         }"
       >
         <template v-if="data?.topicProvider === 'alarm-device'">
@@ -114,8 +114,8 @@
       </a-descriptions>
       <div>
         <div class="label">{{ $t('components.ViewDialog.411617-14') }}</div>
-        <div style="padding: 10px; background-color: #fafafa">
-          <j-scrollbar height="200px">
+        <div style="padding: 0.625rem; background-color: #fafafa">
+          <j-scrollbar height="12.5rem">
             <JsonViewer
               style="background-color: #fafafa"
               :value="JSON.parse(_data?.alarmInfo || '{}')"

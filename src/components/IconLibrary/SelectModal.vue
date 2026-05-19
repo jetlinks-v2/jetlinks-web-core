@@ -1,8 +1,8 @@
-﻿<template>
+<template>
   <a-modal
     open
     :title="$t('components.IconLibrary.title')"
-    width="900px"
+    :width="900"
     centered
     @cancel="emits('close')"
     @ok="confirm"
@@ -18,7 +18,7 @@
         <a-input-search
           v-model:value="searchText"
           :placeholder="$t('components.IconLibrary.searchPlaceholder')"
-          style="width: 300px"
+          style="width: 18.75rem"
           allow-clear
         />
         <div v-if="selected">
@@ -268,28 +268,28 @@ const confirm = () => {
   border-bottom: 1px solid var(--line-strong);
 }
 .icon-selector .category-tabs :deep(.ant-tabs-content) {
-  height: 450px;
+  height: 28.125rem;
   overflow-y: auto;
 }
 .icon-selector .icon-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(6.25rem, 1fr));
   gap: var(--space-3);
-  padding: 8px 0;
+  padding: 0.5rem 0;
 }
 .icon-selector .icon-grid .icon-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 16px 8px;
-  border: 2px solid var(--line-strong);
+  padding: 1rem 0.5rem;
+  border: 0.125rem solid var(--line-strong);
   border-radius: var(--r-2);
   cursor: pointer;
   transition: all 0.3s;
 }
 .icon-selector .icon-grid .icon-item .anticon {
-  font-size: 32px;
+  font-size: var(--fs-32);
   margin-bottom: var(--space-2);
 }
 .icon-selector .icon-grid .icon-item .icon-name {
@@ -325,5 +325,5 @@ const confirm = () => {
   align-items: center;
   gap: var(--space-1);
   font-size: var(--fs-14);
-  padding: 4px 12px;
+  padding: 0.25rem 0.75rem;
 }</style>

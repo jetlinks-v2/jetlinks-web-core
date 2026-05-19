@@ -54,7 +54,7 @@ watch(() => JSON.stringify(props.value), () => {
 
 <style scoped>
 .server-list-warp {
-  padding: 0 12px;
+  padding: 0 0.75rem;
   margin-top: var(--space-3);
 }
 .server-list-warp .server-list-items {

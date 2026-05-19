@@ -1,5 +1,5 @@
 <template>
-  <div style="display: flex; flex-direction: column; gap: 16px; height: 100%">
+  <div style="display: flex; flex-direction: column; gap: 1rem; height: 100%">
     <div style="flex: 1; min-height: 0; overflow-y: auto">
       <PointEditTable
           :columns="columns"
@@ -11,19 +11,19 @@
           <template v-if="column.dataIndex === 'interval'">
             采集频率
             <a-tooltip title="仅在访问类型选择读时生效">
-              <AIcon type="QuestionCircleOutlined" style="margin-left: 2px"/>
+              <AIcon type="QuestionCircleOutlined" style="margin-left: 0.125rem"/>
             </a-tooltip>
           </template>
           <template v-if="column.dataIndex === 'writeByteConfig'">
             非标准协议写入配置
             <a-tooltip title="仅在功能码为03且访问类型选择写时生效">
-              <AIcon type="QuestionCircleOutlined" style="margin-left: 2px"/>
+              <AIcon type="QuestionCircleOutlined" style="margin-left: 0.125rem"/>
             </a-tooltip>
           </template>
         </template>
       </PointEditTable>
     </div>
-    <div style="display: flex; gap: 16px">
+    <div style="display: flex; gap: 1rem">
       <a-button type="link" @click="addOne">新增一条</a-button>
       <a-button type="link" @click="visible = true">新增多条</a-button>
     </div>
@@ -33,7 +33,7 @@
         message="快速生成多行数据, 生成行数 = (结束地址 − 起始地址 + 1) ÷ 寄存器数量，无法整除的剩余寄存器将被忽略"
         type="info"
         show-icon
-        style="margin-bottom: 16px"
+        style="margin-bottom: 1rem"
     />
     <a-form :model="formData" layout="vertical" ref="formRef">
       <a-form-item label="功能码" name="function" :rules="[{required: true, message: '请选择功能码'}]">

@@ -66,7 +66,7 @@
                 } : null"
                 @click="(e) => i.onClick?.(slotProps, e)"
                 type="link"
-                style="padding: 0 5px"
+                style="padding: 0 0.3125rem"
                 :danger="i.key === 'delete'"
                 :hasPermission="i.hasPermission"
             >

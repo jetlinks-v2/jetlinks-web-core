@@ -139,7 +139,7 @@ const props = withDefaults(
     roundPreview: false,
     safeColors: undefined,
     enableCropUpload: true,
-    cropperBodyStyle: () => ({ height: '280px' }),
+    cropperBodyStyle: () => ({ height: '17.5rem' }),
     imageCropperProps: () => ({}),
     imageCardSize: 120,
     imageMimeTypes: () => ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as string[],
@@ -291,7 +291,7 @@ function onCropUploadResult(url: string) {
 .ive__preview {
   display: flex;
   justify-content: center;
-  padding: 8px 0;
+  padding: 0.5rem 0;
 }
 .ive__tabs :deep(.ant-tabs-nav) {
   margin-bottom: var(--space-2);
@@ -312,8 +312,8 @@ function onCropUploadResult(url: string) {
   margin-bottom: var(--space-1);
 }
 .ive__swatch {
-  width: 26px;
-  height: 26px;
+  width: 1.625rem;
+  height: 1.625rem;
   border-radius: var(--r-2);
   border: 1px solid color-mix(in srgb, var(--ink-1) 12%, transparent);
   cursor: pointer;
@@ -331,8 +331,8 @@ function onCropUploadResult(url: string) {
   white-space: nowrap;
 }
 .ive__native-color {
-  width: 44px;
-  height: 28px;
+  width: 2.75rem;
+  height: 1.75rem;
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--ink-1) 15%, transparent);
   border-radius: var(--r-1);

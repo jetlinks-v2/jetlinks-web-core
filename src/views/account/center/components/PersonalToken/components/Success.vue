@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <a-modal
       :open="true"
       title="新增令牌"
@@ -107,11 +107,11 @@ const handleClose = () => {
 <style lang="less" scoped>
 .success-container {
   text-align: center;
-  padding: 40px 24px 24px;
+  padding: 2.5rem 1.5rem 1.5rem;
 
   .illustration {
     margin-bottom: var(--space-6);
-    height: 120px;
+    height: 7.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -119,23 +119,23 @@ const handleClose = () => {
 
     .success-illustration {
       position: relative;
-      width: 120px;
-      height: 120px;
+      width: 7.5rem;
+      height: 7.5rem;
 
       .lock-icon {
         position: absolute;
-        top: 20px;
-        left: 30px;
-        font-size: 48px;
+        top: 1.25rem;
+        left: 1.875rem;
+        font-size: var(--fs-48);
         color: var(--jet-theme-primary);
         z-index: 2;
       }
 
       .hand-icon {
         position: absolute;
-        bottom: 20px;
-        right: 20px;
-        font-size: 36px;
+        bottom: 1.25rem;
+        right: 1.25rem;
+        font-size: var(--fs-36);
         color: var(--jet-theme-warning);
         z-index: 1;
       }
@@ -144,10 +144,10 @@ const handleClose = () => {
       &::before {
         content: '';
         position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 6px;
-        height: 6px;
+        top: 0.625rem;
+        right: 0.625rem;
+        width: 0.375rem;
+        height: 0.375rem;
         border-radius: 50%;
         background-color: var(--jet-theme-border-secondary);
       }
@@ -155,10 +155,10 @@ const handleClose = () => {
       &::after {
         content: '';
         position: absolute;
-        bottom: 40px;
-        left: 10px;
-        width: 4px;
-        height: 4px;
+        bottom: 2.5rem;
+        left: 0.625rem;
+        width: 0.25rem;
+        height: 0.25rem;
         border-radius: 50%;
         background-color: var(--jet-theme-primary);
       }
@@ -184,15 +184,15 @@ const handleClose = () => {
         flex: 1; :deep(.ant-input) {
           background-color: var(--color-jet-gray-50);
           border: 1px solid var(--jet-theme-border-secondary);
-          padding: 8px 12px;
-          font-size: 13px;
+          padding: 0.5rem 0.75rem;
+          font-size: var(--fs-13);
           color: var(--jet-theme-text);
         }
       }
 
       .copy-button {
         flex-shrink: 0;
-        padding: 0 16px;
+        padding: 0 1rem;
         display: flex;
         align-items: center;
         gap: var(--space-1);
@@ -217,13 +217,13 @@ const handleClose = () => {
     .warning-icon {
       color: var(--jet-theme-warning);
       font-size: var(--fs-16);
-      margin-top: 2px;
+      margin-top: 0.125rem;
       flex-shrink: 0;
     }
 
     .warning-text {
       color: var(--jet-theme-text-secondary);
-      font-size: 13px;
+      font-size: var(--fs-13);
       line-height: 1.5;
     }
   }
@@ -232,7 +232,7 @@ const handleClose = () => {
     text-align: right;
 
     .ant-btn {
-      min-width: 72px;
+      min-width: 4.5rem;
       border-radius: var(--r-1);
     }
   }
@@ -242,7 +242,7 @@ const handleClose = () => {
 :deep(.ant-modal) {
   .ant-modal-header {
     border-bottom: 1px solid var(--line-strong);
-    padding: 16px 24px;
+    padding: 1rem 1.5rem;
 
     .ant-modal-title {
       font-size: var(--fs-16);
@@ -255,7 +255,7 @@ const handleClose = () => {
   }
 
   .ant-modal-close {
-    top: 16px;
-    right: 16px;
+    top: 1rem;
+    right: 1rem;
   }
 }</style>

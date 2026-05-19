@@ -1,14 +1,14 @@
-﻿<template>
+<template>
   <a-modal
     :maskClosable="false"
-    :width="'900px'"
+    :width="900"
     visible
     @cancel="emit('close')"
     :zIndex="1100"
   >
     <template v-if="getType === 'notifier-weixin'">
       <a-spin :spinning="loading">
-        <div class="code" style="height: 450px">
+        <div class="code" style="height: 28.125rem">
           <!-- <iframe
                         id="notifier_iframe"
                         class="code-item"
@@ -23,7 +23,7 @@
     </template>
     <template v-else-if="getType === 'notifier-dingTalk'">
       <a-spin :spinning="loading">
-        <div class="code" style="height: 600px">
+        <div class="code" style="height: 37.5rem">
           <iframe
             id="notifier_iframe"
             class="code-item"
@@ -185,7 +185,7 @@ watch(
 <style lang="less" scoped>
 .tip {
   width: 100%;
-  margin: 80px 0;
+  margin: 5rem 0;
   text-align: center;
   font-size: var(--fs-14);
   color: #7f7f7f;
@@ -194,7 +194,7 @@ watch(
 .code {
   width: 100%;
   display: flex;
-  margin-top: 30px;
+  margin-top: 1.875rem;
   justify-content: center;
 
   .code-item {

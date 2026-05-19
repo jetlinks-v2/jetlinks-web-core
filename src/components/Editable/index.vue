@@ -107,7 +107,7 @@ watch(() => props.value, (newValue) => {
 <style scoped>
 .text {
   cursor: pointer;
-  padding: 5px 8px;
+  padding: 0.3125rem 0.5rem;
 }
 .text:hover {
   background-color: var(--bg-hover);

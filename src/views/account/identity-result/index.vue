@@ -57,11 +57,11 @@ function goCenter() {
   padding: var(--space-12) calc(var(--space-12) + var(--space-2));
   text-align: center;
   box-shadow: var(--shadow-1);
-  min-width: 360px;
+  min-width: 22.5rem;
 }
 
 .result-icon {
-  font-size: 64px;
+  font-size: var(--fs-64);
   margin-bottom: var(--space-6);
 
   &.success {
@@ -74,7 +74,7 @@ function goCenter() {
 }
 
 .result-title {
-  font-size: 20px;
+  font-size: var(--fs-20);
   font-weight: 600;
   color: var(--jet-theme-text-title);
   margin-bottom: var(--space-3);
@@ -88,5 +88,5 @@ function goCenter() {
 }
 
 .result-btn {
-  min-width: 120px;
+  min-width: 7.5rem;
 }</style>

@@ -3,7 +3,7 @@
     <slot name="alert">
       <div class="alert" v-if="message">
         <div>
-          <AIcon type="InfoCircleFilled" style="color: var(--accent); margin-right: 10px;"/>
+          <AIcon type="InfoCircleFilled" style="color: var(--accent); margin-right: 0.625rem;"/>
         </div>
         <span v-html="message"></span>
       </div>
@@ -24,17 +24,17 @@
     >
       <div class="draggable-box">
         <AIcon class="icon" type="PlusCircleFilled"/>
-        <span style="margin: 16px 0 8px 0">{{ $t('BatchImport.index.250528-3') }}</span>
+        <span style="margin: 1rem 0 0.5rem 0">{{ $t('BatchImport.index.250528-3') }}</span>
         <span>{{ $t('BatchImport.index.250528-4') }}</span>
       </div>
     </a-upload-dragger>
     <div class="result" v-if="loading">
       <div v-if="result.loading">
-        <a-spin size="small" style="margin-right: 10px"/>
+        <a-spin size="small" style="margin-right: 0.625rem"/>
         {{ $t('BatchImport.index.250528-5') }}
       </div>
       <div v-else>
-        <AIcon style="color: var(--ok); margin-right: 10px;font-size: 16px;" type="CheckCircleOutlined"/>
+        <AIcon style="color: var(--ok); margin-right: 0.625rem;font-size: var(--fs-16);" type="CheckCircleOutlined"/>
         {{ $t('BatchImport.index.250528-6') }}
       </div>
       <div>{{ $t('BatchImport.index.250528-7') }}{{ result.success }}</div>
@@ -42,7 +42,7 @@
         {{ $t('BatchImport.index.250528-8') }}<span style="color: var(--err)">{{ result.error }}</span>
         <a
             v-if="result.errMessage && result.error > 0"
-            style="margin-left: 20px"
+            style="margin-left: 1.25rem"
             @click="downError"
         >
           {{ $t('BatchImport.index.250528-9') }}
@@ -200,7 +200,7 @@ const downTemplate = async (type) => {
 
 <style scoped>
 .alert {
-  padding: 6px 12px;
+  padding: 0.375rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: var(--r-1);
   margin-bottom: var(--space-4);
@@ -209,14 +209,14 @@ const downTemplate = async (type) => {
   align-items: center;
 }
 .draggable-box {
-  margin: 46px 0;
+  margin: 2.875rem 0;
   display: flex;
   flex-direction: column;
   color: var(--ink-3);
   align-items: center;
 }
 .draggable-box .icon {
-  font-size: 30px;
+  font-size: var(--fs-30);
   color: var(--jet-theme-primary, var(--accent));
 }
 .result,

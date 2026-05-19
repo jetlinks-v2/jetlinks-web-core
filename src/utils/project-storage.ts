@@ -43,14 +43,12 @@ export const getProjectStorage = (projectCode?: string): ProjectStorageInfo | un
 
 export const setProjectStorage = (projectCode: string, value: ProjectStorageInfo) => {
   const code = normalizeProjectCode(projectCode)
+
   if (!code || typeof localStorage === 'undefined') {
     return
   }
 
-  localStorage.setItem(getProjectStorageKey(code), JSON.stringify({
-    ...value,
-    domain: value.domain || code,
-  }))
+  localStorage.setItem(getProjectStorageKey(code), JSON.stringify(value))
 }
 
 export const removeProjectStorage = (projectCode: string) => {
@@ -60,14 +58,4 @@ export const removeProjectStorage = (projectCode: string) => {
   }
 
   localStorage.removeItem(getProjectStorageKey(code))
-}
-
-export const clearProjectStorage = () => {
-  if (typeof localStorage === 'undefined') {
-    return
-  }
-
-  Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
-    .filter((key): key is string => !!key && key.startsWith(PROJECT_STORAGE_PREFIX))
-    .forEach(key => localStorage.removeItem(key))
 }

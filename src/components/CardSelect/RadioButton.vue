@@ -56,10 +56,10 @@ watch(() => props.value, () => {
   gap: var(--space-4);
 }
 .radio-button .radio-button-item {
-  padding: 6px 12px;
+  padding: 0.375rem 0.75rem;
   text-align: center;
   height: 100%;
-  border-radius: 2px;
+  border-radius: 0.125rem;
   background-color: var(--canvas);
   cursor: pointer;
 }

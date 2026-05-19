@@ -11,13 +11,13 @@
             ok-text="确认"
             cancel-text="取消"
             v-model:open="modalVis"
-            width="700px"
+            :width="700"
             @cancel="modalVis = false"
             @ok="handleModalSubmit"
             destroyOnClose
             :zIndex="1031"
         >
-            <div style="width: 100%; height: 400px">
+            <div style="width: 100%; height: 25rem">
               <AMapComponent
                   style="height: 100%"
                   :center="center"

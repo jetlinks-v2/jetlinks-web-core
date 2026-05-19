@@ -86,7 +86,7 @@ function getSlotText(): string {
   min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
 }
 
 .cb-copy {
@@ -95,12 +95,12 @@ function getSlotText(): string {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 3px 8px;
+  padding: 0.1875rem 0.5rem;
   border-radius: var(--r-1);
   font-size: var(--fs-12);
   transition: all 0.15s;
 }
-.cb-copy :deep(svg) { width: 12px; height: 12px; }
+.cb-copy :deep(svg) { width: 0.75rem; height: 0.75rem; }
 
 /* dark 变体 */
 .dark .cb-head {
@@ -140,7 +140,7 @@ function getSlotText(): string {
 
 .cb-body {
   margin: 0;
-  padding: 12px 14px; font-size: var(--fs-12);
+  padding: 0.75rem 0.875rem; font-size: var(--fs-12);
   line-height: 1.75;
   white-space: pre-wrap;
   word-break: break-word;

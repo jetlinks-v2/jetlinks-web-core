@@ -65,6 +65,7 @@ import { storeToRefs } from 'pinia'
 import { getHideHeaderRightConfig, routerFallback } from '@jetlinks-web-core/utils'
 import { isSubApp } from '../utils/consts'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
+import { useResponsiveLayoutDimensions } from '@jetlinks-web-core/hooks'
 
 const router = useRouter();
 const route = useRoute();
@@ -85,10 +86,10 @@ const state = reactive({
 const themeLayout = computed(() => themeStyleToken.value.layout)
 const menuVariant = computed(() => themeLayout.value?.menuVariant || 'classic')
 const showMenuSearch = computed(() => !!themeLayout.value?.showMenuSearch && !state.collapsed)
+const { layoutConfig } = useResponsiveLayoutDimensions(layout, themeLayout)
 
 const config = computed(() => ({
-  ...layout.value,
-  siderWidth: themeLayout.value?.siderWidth ?? layout.value.siderWidth,
+  ...layoutConfig.value,
   theme: theme.value,
   menuData: menuStore.siderMenus,
   splitMenus: layout.value.layout === 'mix',
@@ -148,5 +149,5 @@ watchEffect(() => {
   display: flex;
   align-items: center;
   gap: var(--space-6);
-  height: 48px;
+  height: 3rem;
 }</style>

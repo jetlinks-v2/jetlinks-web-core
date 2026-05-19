@@ -44,11 +44,11 @@ const props = defineProps({
   },
   height: {
     type: String,
-    default: '160px'
+    default: '10rem'
   },
   width: {
     type: String,
-    default: '160px'
+    default: '10rem'
   }
 })
 
@@ -245,7 +245,7 @@ const uploadInfo: UploadInfoType = {
     width: inherit;
     overflow: hidden;
     .upload-div {
-      width: 160px;
+      width: 10rem;
       position: relative;
       background-color: #eeeeee;
       cursor: pointer;
@@ -256,7 +256,7 @@ const uploadInfo: UploadInfoType = {
           top: 0;
           left: 0;
           width: inherit;
-          height: 160px;
+          height: 10rem;
           color: var(--accent-ink);
           font-size: var(--fs-16);
           background-color: var(--jet-theme-text-disabled);
@@ -267,7 +267,7 @@ const uploadInfo: UploadInfoType = {
       }
       #upload-img {
           width: 100%;
-          height: 160px;
+          height: 10rem;
           object-fit: cover;
       }
     }

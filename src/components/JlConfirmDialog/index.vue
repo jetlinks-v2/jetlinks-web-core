@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <a-modal
     :open="open"
     :title="null"
@@ -121,19 +121,19 @@ function renderMessage(raw: string): string {
   display: flex;
   align-items: flex-start;
   gap: var(--space-4);
-  padding: 22px 24px 18px;
+  padding: 1.375rem 1.5rem 1.125rem;
 }
 .jlc-icon {
-  width: 38px;
-  height: 38px;
+  width: 2.375rem;
+  height: 2.375rem;
   border-radius: 50%;
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 .jlc-icon :deep(svg) {
-  width: 20px;
-  height: 20px;
+  width: 1.25rem;
+  height: 1.25rem;
 }
 .jlc-icon.tone-info {
   background: var(--accent-soft);
@@ -154,7 +154,7 @@ function renderMessage(raw: string): string {
   padding-top: var(--space-1);
 }
 .jlc-title {
-  margin: 0 0 6px;
+  margin: 0 0 0.375rem;
   font-size: var(--fs-15);
   font-weight: 600;
   color: var(--ink-1);
@@ -173,14 +173,14 @@ function renderMessage(raw: string): string {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
-  padding: 12px 20px 16px;
+  padding: 0.75rem 1.25rem 1rem;
   background: transparent;
 }
 .jlc-btn {
   all: unset;
   cursor: pointer;
-  height: 34px;
-  padding: 0 18px;
+  height: 2.125rem;
+  padding: 0 1.125rem;
   border-radius: var(--r-1);
   font-size: var(--fs-14);
   font-weight: 500;
@@ -232,5 +232,5 @@ function renderMessage(raw: string): string {
 }
 .jlc-modal .ant-modal-mask {
   background: color-mix(in srgb, var(--ink-2) 42%, transparent);
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(0.125rem);
 }</style>

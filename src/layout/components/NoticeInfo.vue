@@ -30,7 +30,7 @@
                                 style="
                                     color: #666666;
                                     text-align: center;
-                                    padding: 8px;
+                                    padding: 0.5rem;
                                 "
                             >
                                 {{ $t('components.NoticeInfo.811677-0') }}
@@ -171,11 +171,11 @@ onMounted(async () => {
 
 <style lang="less" scoped>
 .notice-info-container {
-    width: 336px;
+    width: 21rem;
     background-color: #fff;
     border-radius: var(--r-1);
-    box-shadow: 0 6px 16px -8px rgb(0 0 0 / 8%), 0 9px 28px 0 rgb(0 0 0 / 5%),
-        0 12px 48px 16px rgb(0 0 0 / 3%);
+    box-shadow: 0 0.375rem 1rem -0.5rem rgb(0 0 0 / 8%), 0 0.5625rem 1.75rem 0 rgb(0 0 0 / 5%),
+        0 0.75rem 3rem 1rem rgb(0 0 0 / 3%);
 
     :deep(.ant-tabs-nav-wrap) {
         display: flex;
@@ -184,18 +184,18 @@ onMounted(async () => {
 
     .no-data {
         width: 100%;
-        padding: 73px 0 88px;
+        padding: 4.5625rem 0 5.5rem;
         color: var(--jet-theme-text-disabled);
         text-align: center;
 
         img {
-            height: 76px;
+            height: 4.75rem;
         }
     }
 
     .content {
         .list {
-            max-height: 450px;
+            max-height: 28.125rem;
             overflow: auto;
             padding: 0;
             margin: 0;
@@ -206,7 +206,7 @@ onMounted(async () => {
         }
         .btns {
             display: flex;
-            height: 46px;
+            height: 2.875rem;
             justify-content: center;
             align-items: center;
         }

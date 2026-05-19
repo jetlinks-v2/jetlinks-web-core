@@ -139,14 +139,14 @@ watch(
 <style scoped>
 .j-check-button {
   display: grid;
-  gap: 12px 8px;
+  gap: 0.75rem 0.5rem;
   width: 100%;
 }
 .j-check-button .j-check-button-item {
   flex: 1;
   min-width: 0;
   padding: var(--space-2);
-  border-radius: 20px;
+  border-radius: 1.25rem;
   background-color: var(--bg-hover);
   transition: all 0.3s;
   color: var(--ink-1);

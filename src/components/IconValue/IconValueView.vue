@@ -126,7 +126,7 @@ const boxCss = computed(() => ({
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: calc(var(--ivv-size, 48px) * 0.33);
+  font-size: calc(var(--ivv-size, var(--fs-48)) * 0.33);
 }
 .icon-value-view__font {
   width: 100%;
@@ -139,7 +139,7 @@ const boxCss = computed(() => ({
 }
 /* 与色块文字一致：按容器边长比例，避免继承父级过小字号导致图标几乎看不见 */
 .icon-value-view__font :deep(.anticon) {
-  font-size: calc(var(--ivv-size, 48px) * 0.58);
+  font-size: calc(var(--ivv-size, var(--fs-48)) * 0.58);
   line-height: 1;
 }
 .icon-value-view__fallback {
@@ -158,7 +158,7 @@ const boxCss = computed(() => ({
   justify-content: center;
   max-width: 100%;
   padding: 0 0.08em;
-  font-size: calc(var(--ivv-size, 48px) * 0.35);
+  font-size: calc(var(--ivv-size, var(--fs-48)) * 0.35);
   line-height: 1;
   font-weight: 700;
   letter-spacing: 0.02em; }</style>

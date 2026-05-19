@@ -2609,8 +2609,8 @@ onUnmounted(() => {
     display: flex;
     align-items: flex-start;
     width: 100%;
-    min-height: 38px;
-    padding: 5px 10px;
+    min-height: 2.375rem;
+    padding: 0.3125rem 0.625rem;
     background: #fff;
     border: 1px solid #d0d7de;
     border-radius: var(--r-3);
@@ -2622,7 +2622,7 @@ onUnmounted(() => {
 
     &:focus-within {
       border-color: #91caff;
-      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.08);
+      box-shadow: 0 0 0 0.125rem rgba(22, 119, 255, 0.08);
     }
   }
 
@@ -2631,7 +2631,7 @@ onUnmounted(() => {
     flex: 1 1 auto;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px 4px;
+    gap: 0.375rem 0.25rem;
     min-width: 0;
   }
 
@@ -2658,12 +2658,12 @@ onUnmounted(() => {
     align-items: center;
     gap: var(--space-1);
     min-width: 0;
-    max-width: min(100%, 260px);
-    height: 26px;
-    padding: 0 8px;
+    max-width: min(100%, 16.25rem);
+    height: 1.625rem;
+    padding: 0 0.5rem;
     color: #1f2329;
     font-size: var(--fs-12);
-    line-height: 24px;
+    line-height: 1.5rem;
     border: 1px solid transparent;
     border-radius: var(--r-2);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
@@ -2681,16 +2681,16 @@ onUnmounted(() => {
     &:focus-visible {
       border-color: #91caff;
       outline: none;
-      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.08);
+      box-shadow: 0 0 0 0.125rem rgba(22, 119, 255, 0.08);
     }
   }
 
   &__chip--logic {
-    height: 22px;
-    padding: 0 7px;
+    height: 1.375rem;
+    padding: 0 0.4375rem;
     color: #667085;
-    font-size: 11px;
-    line-height: 20px;
+    font-size: var(--fs-12);
+    line-height: 1.25rem;
     background: #fff;
     border-color: #d0d5dd;
   }
@@ -2745,8 +2745,8 @@ onUnmounted(() => {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 14px;
-    height: 14px;
+    width: 0.875rem;
+    height: 0.875rem;
     color: #8a94a6;
     border-radius: 50%;
     transition: background-color 0.15s ease, color 0.15s ease;
@@ -2758,29 +2758,29 @@ onUnmounted(() => {
   }
 
   &__editor {
-    padding-right: 6px;
+    padding-right: 0.375rem;
 
     &:focus-within {
       border-color: #91caff;
-      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.08);
+      box-shadow: 0 0 0 0.125rem rgba(22, 119, 255, 0.08);
     }
   }
 
   &__tail {
     display: inline-flex;
-    flex: 1 1 120px;
-    min-width: 120px;
+    flex: 1 1 7.5rem;
+    min-width: 7.5rem;
     align-items: center;
-    min-height: 26px;
-    gap: 6px;
+    min-height: 1.625rem;
+    gap: 0.375rem;
   }
 
   &__tail-prefix {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
+    width: 1.125rem;
+    height: 1.125rem;
     color: #8a94a6;
     font-size: var(--fs-12);
     flex: 0 0 auto;
@@ -2788,11 +2788,11 @@ onUnmounted(() => {
 
   &__text-input {
     width: 100%;
-    min-width: 56px;
+    min-width: 3.5rem;
     padding: 0;
     color: #1f2329;
     font-size: var(--fs-12);
-    line-height: 24px;
+    line-height: 1.5rem;
     background: transparent;
     border: 0;
     outline: none;
@@ -2803,31 +2803,31 @@ onUnmounted(() => {
   }
 
   &__text-input--tail {
-    min-width: 120px;
+    min-width: 7.5rem;
   }
 
   &__placeholder {
     color: #98a2b3;
     font-size: var(--fs-12);
-    line-height: 24px;
+    line-height: 1.5rem;
   }
 
   &__actions {
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
-    gap: 6px;
+    gap: 0.375rem;
     align-self: stretch;
     margin-left: var(--space-2);
-    padding-left: 2px;
+    padding-left: 0.125rem;
   }
 
   &__action {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: 1.5rem;
+    height: 1.5rem;
     color: #667085;
     background: transparent;
     border: 0;
@@ -2847,8 +2847,8 @@ onUnmounted(() => {
   }
 
   &__action-divider {
-    width: 1px;
-    height: 16px;
+    width: 0.0625rem;
+    height: 1rem;
     background: #e4e7ec;
   }
 
@@ -2859,13 +2859,13 @@ onUnmounted(() => {
   &__dropdown-panel {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-width: 120px;
+    gap: 0.375rem;
+    min-width: 7.5rem;
     padding: var(--space-2);
     background: #fff;
     border: 1px solid #e4e7ec;
-    border-radius: 10px;
-    box-shadow: 0 8px 20px rgba(31, 35, 41, 0.12);
+    border-radius: 0.625rem;
+    box-shadow: 0 0.5rem 1.25rem rgba(31, 35, 41, 0.12);
   }
 
   &__dropdown-option {
@@ -2873,8 +2873,8 @@ onUnmounted(() => {
     justify-content: flex-start;
     align-items: flex-start;
     height: auto;
-    padding-top: 6px;
-    padding-bottom: 6px;
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
   }
 
   &__dropdown-option-content {
@@ -2882,20 +2882,20 @@ onUnmounted(() => {
     flex-direction: column;
     align-items: flex-start;
     min-width: 0;
-    gap: 2px;
+    gap: 0.125rem;
   }
 
   &__dropdown-option-title {
     color: #344054;
     font-size: var(--fs-12);
-    line-height: 18px;
+    line-height: 1.125rem;
   }
 
   &__dropdown-option-desc {
-    max-width: 220px;
+    max-width: 13.75rem;
     color: #98a2b3;
-    font-size: 11px;
-    line-height: 16px;
+    font-size: var(--fs-12);
+    line-height: 1rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2903,7 +2903,7 @@ onUnmounted(() => {
 
   &__dropdown-option--active {
     border-color: #91caff;
-    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.08);
+    box-shadow: 0 0 0 0.125rem rgba(22, 119, 255, 0.08);
   }
 
   &--disabled {
@@ -2914,10 +2914,10 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .condition-filter {
     &__shell {
-      padding: 6px 8px;
+      padding: 0.375rem 0.5rem;
     }
 
     &__chip,

@@ -132,7 +132,7 @@ watch(() => termsValue.value.value, (newValue) => {
     </a-dropdown>
     <a-dropdown :trigger="['click']" :open="valueOpen"  @openChange="onValueOpenChange">
       <div class="terms-value--value">
-        <j-ellipsis style="max-width: 220px">
+        <j-ellipsis style="max-width: 13.75rem">
           {{valueLabel}}
         </j-ellipsis>
       </div>
@@ -188,28 +188,28 @@ watch(() => termsValue.value.value, (newValue) => {
   padding-inline-end: 0;
 }
 .terms-cascader-value {
-  min-width: 160px;
+  min-width: 10rem;
   display: flex;
 }
 .terms-cascader-value .terms-value--type {
-  padding: 4px 0;
+  padding: 0.25rem 0;
   border-top-left-radius: var(--r-3);
   border-bottom-left-radius: var(--r-3);
   text-align: center;
-  width: 80px;
+  width: 5rem;
   cursor: default;
   border-right: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
 }
 .terms-cascader-value .terms-value--value {
   flex: 1 auto;
   min-width: 0;
-  padding: 4px 0;
+  padding: 0.25rem 0;
   height: 100%;
   text-align: center;
   cursor: default;
 }
 .terms-cascader-value.only-fixed {
-  min-width: 80px;
+  min-width: 5rem;
 }
 .terms-cascader-value .terms-value--dropdown {
   background-color: var(--bg);

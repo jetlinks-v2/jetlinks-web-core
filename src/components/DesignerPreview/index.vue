@@ -5,7 +5,7 @@
       :components="pageInfo.components"
     />
   </div>
-  <a-space style="margin-top: 6px;">
+  <a-space style="margin-top: 0.375rem;">
     <a-button>预览</a-button>
     <a-button type="primary">使用该方案创建项目</a-button>
   </a-space>
@@ -85,6 +85,6 @@ watch(
 
 <style scoped>
 .ai-preview {
-  min-height: 216px;
-  min-width: 384px;
+  min-height: 13.5rem;
+  min-width: 24rem;
 }</style>

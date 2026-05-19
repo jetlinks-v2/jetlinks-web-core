@@ -372,7 +372,7 @@ watch(
   display: inline-flex;
   align-items: center;
   flex: 0 1 auto;
-  min-height: 30px;
+  min-height: 1.875rem;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -382,14 +382,14 @@ watch(
 .condition-inline-composer__term {
   min-width: 0;
   flex: 0 0 auto;
-  max-width: 180px;
+  max-width: 11.25rem;
 }
 .condition-inline-composer__value {
   display: inline-flex;
   align-items: center;
   flex: 0 1 auto;
-  min-width: 60px;
-  max-width: 240px;
+  min-width: 3.75rem;
+  max-width: 15rem;
   background: var(--accent-soft);
   border: 1px solid var(--accent-soft);
   border-radius: var(--r-2);
@@ -399,20 +399,20 @@ watch(
   flex: 1;
   align-items: center;
   min-width: 0;
-  padding: 0 8px;
+  padding: 0 0.5rem;
 }
 .condition-inline-composer__clear {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
-  margin-right: 3px;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.1875rem;
   color: var(--ink-3);
   background: transparent;
   border: 0;
-  border-radius: 999px;
+  border-radius: 62.4375rem;
   cursor: pointer;
   transition: color 0.2s ease, background-color 0.2s ease;
 }
@@ -429,8 +429,8 @@ watch(
   align-items: stretch;
 }
 .condition-inline-composer :deep(.ant-select-selector) {
-  height: 30px !important;
-  padding: 0 10px !important;
+  height: 1.875rem !important;
+  padding: 0 0.625rem !important;
   background: transparent !important;
   border: 0 !important;
   border-radius: var(--r-2) !important;
@@ -440,14 +440,14 @@ watch(
 .condition-inline-composer :deep(.ant-select-selection-placeholder) {
   display: flex;
   align-items: center;
-  height: 30px;
+  height: 1.875rem;
   font-size: var(--fs-14);
 }
 .condition-inline-composer :deep(.ant-select-selection-placeholder) {
   color: var(--ink-4);
 }
 .condition-inline-composer__field :deep(.ant-select-selector) {
-  padding-inline-end: 28px !important;
+  padding-inline-end: 1.75rem !important;
   background: var(--accent-soft) !important;
   border: 1px solid var(--accent-soft) !important;
 }
@@ -457,11 +457,11 @@ watch(
 }
 .condition-inline-composer__field :deep(.ant-select-arrow) {
   color: var(--accent);
-  right: 10px;
+  right: 0.625rem;
 }
 .condition-inline-composer__term :deep(.ant-select-selector) {
-  height: 30px !important;
-  padding: 0 22px 0 10px !important;
+  height: 1.875rem !important;
+  padding: 0 1.375rem 0 0.625rem !important;
   background: var(--accent-soft) !important;
   border: 1px solid var(--accent-soft) !important;
 }
@@ -472,7 +472,7 @@ watch(
 }
 .condition-inline-composer__term :deep(.ant-select-arrow) {
   color: var(--ink-2);
-  right: 8px;
+  right: 0.5rem;
   transform: scale(0.9);
 }
 .condition-inline-composer__value :deep(.filter-terms-value-item) {
@@ -491,7 +491,7 @@ watch(
   box-shadow: none;
 }
 .condition-inline-composer__value :deep(.ant-input) {
-  height: 30px;
+  height: 1.875rem;
   padding: 0;
   color: var(--ink-1);
   font-size: var(--fs-14);
@@ -529,9 +529,9 @@ watch(
   border-color: transparent !important;
   box-shadow: none !important;
 }
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .condition-inline-composer {
-    gap: 6px;
+    gap: 0.375rem;
   }
   .condition-inline-composer__field,
   .condition-inline-composer__term,
@@ -540,6 +540,6 @@ watch(
     max-width: none;
   }
   .condition-inline-composer__field {
-    max-width: 150px;
+    max-width: 9.375rem;
   }
 }</style>

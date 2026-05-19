@@ -91,15 +91,15 @@ watch(themeStyle, (value) => {
 
 <style scoped lang="less">
 .header-theme-switch {
-  height: 28px;
+  height: 1.75rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 0.25rem;
   color: var(--jet-theme-text-secondary);
   border-radius: var(--r-2);
   cursor: pointer;
-  padding: 0 8px;
+  padding: 0 0.5rem;
   transition: background 0.16s ease, color 0.16s ease;
 
   &:hover {
@@ -108,21 +108,21 @@ watch(themeStyle, (value) => {
   }
 
   &__arrow {
-    font-size: 10px;
+    font-size: var(--fs-12);
   }
 }
 
 .header-theme-switch-menu {
-  width: 176px;
+  width: 11rem;
   padding: var(--space-1);
 
   &__item {
     width: 100%;
-    min-height: 34px;
+    min-height: 2.125rem;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 7px 8px;
+    gap: 0.625rem;
+    padding: 0.4375rem 0.5rem;
     border: 0;
     border-radius: var(--r-2);
     background: transparent;
@@ -148,9 +148,9 @@ watch(themeStyle, (value) => {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    line-height: 20px;
+    gap: 0.375rem;
+    font-size: var(--fs-13);
+    line-height: 1.25rem;
   }
 
   &__check {

@@ -97,7 +97,7 @@ const onCloseTermItem = () => {
         {{ typeOptionsMap[type] }}
       </a-tag>
       <template #overlay>
-        <a-menu style="width: 120px" @click="onTypeChange">
+        <a-menu style="width: 7.5rem" @click="onTypeChange">
           <a-menu-item v-for="option in typeOptions" :key="option.value">
             {{ option.label }}
           </a-menu-item>
@@ -115,6 +115,6 @@ const onCloseTermItem = () => {
 .filter-item {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0.125rem;
   margin-right: var(--space-1);
 }</style>

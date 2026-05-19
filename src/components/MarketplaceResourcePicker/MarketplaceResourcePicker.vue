@@ -813,7 +813,7 @@ defineExpose({
   margin-bottom: 0;
 }
 .mp-res-layout__empty {
-  padding: 48px 0;
+  padding: 3rem 0;
 }
 .mp-res-layout__body {
   display: flex;
@@ -825,7 +825,7 @@ defineExpose({
   flex: 1;
   overflow-y: auto;
 }
-@media (min-width: 992px) {
+@media (min-width: 62rem) {
   .mp-res-layout__body {
     flex-direction: row;
     align-items: stretch;
@@ -834,13 +834,13 @@ defineExpose({
 .mp-res-layout__aside {
   width: 100%;
   flex-shrink: 0;
-  padding: 10px;
+  padding: 0.625rem;
   background: transparent;
   align-self: stretch;
 }
-@media (min-width: 992px) {
+@media (min-width: 62rem) {
   .mp-res-layout__aside {
-    width: clamp(208px, 18vw, 232px);
+    width: clamp(13rem, 18vw, 14.5rem);
     align-self: stretch;
   }
 }
@@ -850,17 +850,17 @@ defineExpose({
   color: var(--ink-4);
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  margin-bottom: 10px;
+  margin-bottom: 0.625rem;
 }
 .mp-res-layout__tag-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.375rem;
 }
 .mp-res-layout__sidebar-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.375rem;
 }
 .mp-res-layout__sidebar-classifier {
   width: 100%;
@@ -871,7 +871,7 @@ defineExpose({
   border: 1px solid transparent;
   border-radius: var(--r-3);
   background: transparent;
-  padding: 8px 10px;
+  padding: 0.5rem 0.625rem;
   font-size: var(--fs-12);
   font-weight: 600;
   color: var(--ink-4);
@@ -898,15 +898,15 @@ defineExpose({
 .mp-res-layout__sidebar-classifier-meta {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
   flex-shrink: 0;
 }
 .mp-res-layout__sidebar-classifier-count,
 .mp-res-layout__sidebar-classifier-picked {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.3125rem;
+  border-radius: 62.4375rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -930,14 +930,14 @@ defineExpose({
 .mp-res-layout__tag-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 0.375rem;
   align-items: center;
 }
 .mp-res-layout__tag {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 8px 10px;
+  padding: 0.5rem 0.625rem;
   border: 1px solid transparent;
   border-radius: var(--r-2);
   background: var(--bg);
@@ -950,12 +950,12 @@ defineExpose({
   border-color: color-mix(in srgb, var(--accent) 25%, transparent);
   color: var(--accent);
   box-shadow: var(--shadow-1);
-  transform: translateY(-1px);
+  transform: translateY(-0.0625rem);
 }
 .mp-res-layout__tag--active {
   border-color: var(--jet-theme-primary-active);
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 96%, transparent) inset, 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 96%, transparent) inset, 0 0 0 0.1875rem color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--jet-theme-primary-active);
   font-weight: 500;
 }
@@ -967,7 +967,7 @@ defineExpose({
   flex-direction: column;
   gap: var(--space-4);
   background: var(--bg);
-  border-radius: 12px;
+  border-radius: 0.75rem;
   padding: var(--space-4);
   box-shadow: var(--shadow-1);
 }
@@ -990,7 +990,7 @@ defineExpose({
   min-height: 0;
   overflow: hidden;
   background: var(--bg);
-  border-radius: 12px;
+  border-radius: 0.75rem;
   padding: var(--space-4);
   box-shadow: var(--shadow-1);
 }
@@ -1004,13 +1004,13 @@ defineExpose({
 .mp-res-layout__load-hint {
   display: flex;
   justify-content: center;
-  padding: 12px 0 4px;
+  padding: 0.75rem 0 0.25rem;
 }
 .mp-res-layout__list-end {
   text-align: center;
   font-size: var(--fs-12);
   color: var(--ink-4);
-  padding: 4px 0 8px;
+  padding: 0.25rem 0 0.5rem;
 }
 .mp-res-layout__toolbar {
   display: flex;
@@ -1019,14 +1019,14 @@ defineExpose({
   flex-wrap: wrap;
 }
 .mp-res-layout__selected {
-  margin-top: -4px;
+  margin-top: -0.25rem;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
   padding: var(--space-2) var(--space-3);
   border: 1px solid color-mix(in srgb, var(--accent) 12%, transparent);
-  border-radius: 12px;
+  border-radius: 0.75rem;
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), color-mix(in srgb, var(--accent) 2%, transparent));
 }
 .mp-res-layout__selected-title {
@@ -1057,17 +1057,17 @@ defineExpose({
 }
 .mp-res-layout__search {
   flex: 1;
-  min-width: 200px;
-  max-width: 400px;
+  min-width: 12.5rem;
+  max-width: 25rem;
 }
 .mp-res-layout__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
   gap: var(--space-3);
   width: 100%;
   align-items: stretch;
   padding-top: var(--space-1);
-  padding-bottom: 2px;
+  padding-bottom: 0.125rem;
   box-sizing: border-box;
 }
 .mp-res-layout__pager {

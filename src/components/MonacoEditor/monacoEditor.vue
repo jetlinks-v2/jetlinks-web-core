@@ -241,6 +241,6 @@ defineExpose({
 </script>
 <style scoped>
 .j-monaco-editor {
-  min-height: 50px;
+  min-height: 3.125rem;
   height: 100%;
 }</style>

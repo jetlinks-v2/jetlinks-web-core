@@ -117,12 +117,12 @@ watch([() => props.value, options], ([newValue]) => {
 
 <style scoped>
 .filter-value-tag {
-  max-width: 300px;
+  max-width: 18.75rem;
 }
 
 .filter-value-text {
   display: inline-block;
-  max-width: 260px;
+  max-width: 16.25rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

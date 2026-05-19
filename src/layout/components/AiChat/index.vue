@@ -63,11 +63,11 @@ const onOpen = () => {
 <style lang="less" scoped>
 .ai-float-btn-wrapper {
   position: fixed;
-  bottom: 22px;
-  right: 22px;
+  bottom: 1.375rem;
+  right: 1.375rem;
   z-index: 999;
-  width: 70px;
-  height: 70px;
+  width: 4.375rem;
+  height: 4.375rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,7 +76,7 @@ const onOpen = () => {
   &:hover {
     .ai-float-btn {
       transform: scale(1.1);
-      box-shadow: 0 0 30px rgba(22, 119, 255, 0.6);
+      box-shadow: 0 0 1.875rem rgba(22, 119, 255, 0.6);
     }
     .ai-icon {
       animation: icon-wiggle 0.5s ease-in-out;
@@ -93,8 +93,8 @@ const onOpen = () => {
 }
 
 .ai-float-btn {
-  width: 52px;
-  height: 52px;
+  width: 3.25rem;
+  height: 3.25rem;
   font-size: var(--fs-24);
   display: flex;
   align-items: center;
@@ -102,7 +102,7 @@ const onOpen = () => {
   position: relative;
   z-index: 10;
   transition: all 0.3s ease;
-  box-shadow: 0 0 20px rgba(22, 119, 255, 0.35);
+  box-shadow: 0 0 1.25rem rgba(22, 119, 255, 0.35);
 }
 
 .ai-icon {
@@ -112,30 +112,30 @@ const onOpen = () => {
 .ai-sparkle {
   position: absolute;
   color: var(--jet-theme-primary);
-  font-size: 10px;
+  font-size: var(--fs-12);
   opacity: 0;
   z-index: 1;
-  text-shadow: 0 0 4px #1677ff;
+  text-shadow: 0 0 0.25rem #1677ff;
   pointer-events: none;
 }
 
 .ai-sparkle-1 {
-  top: 6px;
-  right: 8px;
+  top: 0.375rem;
+  right: 0.5rem;
   animation: sparkle-blink 2s ease-in-out infinite;
 }
 
 .ai-sparkle-2 {
-  bottom: 10px;
-  left: 6px;
-  font-size: 8px;
+  bottom: 0.625rem;
+  left: 0.375rem;
+  font-size: var(--fs-12);
   animation: sparkle-blink 2.5s ease-in-out infinite 0.8s;
 }
 
 .ai-sparkle-3 {
-  top: 14px;
-  left: 10px;
-  font-size: 6px;
+  top: 0.875rem;
+  left: 0.625rem;
+  font-size: var(--fs-12);
   animation: sparkle-blink 3s ease-in-out infinite 1.5s;
 }
 
@@ -158,7 +158,7 @@ const onOpen = () => {
   }
   50% {
     transform: scale(1.15);
-    filter: drop-shadow(0 0 8px rgba(22, 119, 255, 0.8));
+    filter: drop-shadow(0 0 0.5rem rgba(22, 119, 255, 0.8));
   }
   100% {
     transform: scale(1);

@@ -52,8 +52,8 @@ withDefaults(
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--r-3);
-  padding: 22px 26px;
-  margin-bottom: 14px;
+  padding: 1.375rem 1.625rem;
+  margin-bottom: 0.875rem;
 }
 
 .section-head {
@@ -62,7 +62,7 @@ withDefaults(
   justify-content: space-between;
   gap: var(--space-4);
   margin-bottom: var(--space-4);
-  padding-bottom: 14px;
+  padding-bottom: 0.875rem;
   border-bottom: 1px solid var(--line);
 }
 
@@ -80,14 +80,14 @@ withDefaults(
 }
 
 .ic {
-  width: 24px;
-  height: 24px;
+  width: 1.5rem;
+  height: 1.5rem;
   border-radius: var(--r-2);
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
-.ic :deep(svg) { width: 12px; height: 12px; }
+.ic :deep(svg) { width: 0.75rem; height: 0.75rem; }
 
 .section-sub {
   font-size: var(--fs-12);
@@ -96,7 +96,7 @@ withDefaults(
 }
 .section-sub :deep(code) { font-size: var(--fs-12);
   background: var(--bg-sunken);
-  padding: 1px 5px;
+  padding: 0.0625rem 0.3125rem;
   border-radius: var(--r-1);
   color: var(--ink-2);
 }

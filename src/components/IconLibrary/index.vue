@@ -71,8 +71,8 @@ watch(
 
 <style scoped>
 .container {
-  width: 70px;
-  height: 70px;
+  width: 4.375rem;
+  height: 4.375rem;
   border: 1px dashed var(--line);
   display: flex;
   align-items: center;
@@ -86,7 +86,7 @@ watch(
   background-color: var(--accent-soft);
 }
 .container .icon-display {
-  font-size: 32px;
+  font-size: var(--fs-32);
   color: var(--accent);
 }
 .container .no-icon {

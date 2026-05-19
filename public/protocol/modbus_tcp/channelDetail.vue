@@ -22,7 +22,7 @@
         <template #label>
           {{ $lang('MODBUS_TCP.channel.20250207-1') }}
           <a-tooltip :title="$lang('MODBUS_TCP.channel.20250207-2')">
-            <AIcon type="QuestionCircleOutlined" style="margin-left: 2px"/>
+            <AIcon type="QuestionCircleOutlined" style="margin-left: 0.125rem"/>
           </a-tooltip>
         </template>
       </FormItemEditable>

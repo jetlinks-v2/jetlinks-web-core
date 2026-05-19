@@ -11,9 +11,7 @@ import {
   getProjectIdFromLocation,
   normalizeProjectRuntimePath,
 } from '@jetlinks-web-core/utils/project-runtime'
-import { isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storage'
 
-const PROJECT_STORAGE_KEY = 'X-Tenant-Domain'
 const PROJECT_PATH_RE = /\/project\/([^/?#]+)/
 
 type QueryPreserveOptions = boolean | string[]
@@ -41,18 +39,6 @@ const getProjectIdFromPath = (path?: string) => {
   return normalizeProjectId(path?.match(PROJECT_PATH_RE)?.[1])
 }
 
-const getProjectIdFromStorage = () => {
-  if (isProjectStorageEnabled()) {
-    return undefined
-  }
-
-  if (typeof localStorage === 'undefined') {
-    return undefined
-  }
-
-  return normalizeProjectId(localStorage.getItem(PROJECT_STORAGE_KEY))
-}
-
 export const resolveProjectId = (
   route?: Pick<RouteLocationNormalizedLoaded, 'params' | 'query' | 'path' | 'fullPath'>,
   projectId?: string,
@@ -63,7 +49,6 @@ export const resolveProjectId = (
     || getProjectIdFromPath(route?.path)
     || getProjectIdFromPath(route?.fullPath)
     || normalizeProjectId(route?.query?.projectId)
-    || getProjectIdFromStorage()
 }
 
 export const resolveProjectPath = (path = '', projectId?: string) => {

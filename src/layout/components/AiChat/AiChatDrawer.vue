@@ -1,18 +1,18 @@
-﻿<template>
+<template>
   <a-drawer
       :open="true"
       @close="emits('close')"
       placement="right"
-      width="520"
+      :width="520"
       :maskClosable="false"
       destroy-on-close
       style="background: linear-gradient(180deg, #E3EEFF 0%, #F9FAFB 100%)"
   >
     <template #title>
-      <div style="display: flex; align-items: center; gap: 12px">
+      <div style="display: flex; align-items: center; gap: 0.75rem">
         <j-ellipsis>{{ activeAgent.others?.client?.name || 'AI助手' }}</j-ellipsis>
         <template v-if="agentList.length > 1">
-          <j-ellipsis style="width: 100px">{{ activeAgent.agentName || activeAgent.agentId }}</j-ellipsis>
+          <j-ellipsis style="width: 6.25rem">{{ activeAgent.agentName || activeAgent.agentId }}</j-ellipsis>
           <a-dropdown>
             <div @click.prevent>
               <AIcon type="DownOutlined"/>
@@ -67,9 +67,9 @@
         </a-popover>
       </a-space>
     </template>
-<!--    <div style="display: flex; align-items: center; gap: 12px">-->
+<!--    <div style="display: flex; align-items: center; gap: 0.75rem">-->
 <!--      <template v-if="agentList.length > 1">-->
-<!--        <j-ellipsis style="width: 100px">{{ activeAgent.agentName || activeAgent.agentId }}</j-ellipsis>-->
+<!--        <j-ellipsis style="width: 6.25rem">{{ activeAgent.agentName || activeAgent.agentId }}</j-ellipsis>-->
 <!--        <a-dropdown>-->
 <!--          <div @click.prevent>-->
 <!--            <AIcon type="DownOutlined"/>-->
@@ -264,8 +264,8 @@ onMounted(() => {
 }
 
 .history-wrapper {
-  width: 240px;
-  max-height: 168px;
+  width: 15rem;
+  max-height: 10.5rem;
   overflow-y: auto;
 
   .item {
@@ -274,8 +274,8 @@ onMounted(() => {
     justify-content: space-between;
     width: 100%;
     font-size: var(--fs-14);
-    line-height: 22px;
-    padding: 5px 12px;
+    line-height: 1.375rem;
+    padding: 0.3125rem 0.75rem;
     border-radius: var(--r-1);
     color: rgba(0, 0, 0, 0.88);
     box-sizing: border-box;

@@ -150,7 +150,7 @@ const judgeInitSet = async () => {
 .page-container {
   width: 100%;
   height: 100vh;
-  padding: 32px 128px 64px;
+  padding: 2rem 8rem 4rem;
   overflow: hidden;
   background-image: url('@jetlinks-web-core/assets/init-home/background.png');
   background-repeat: no-repeat;
@@ -162,7 +162,7 @@ const judgeInitSet = async () => {
 
     .container-title {
       position: relative;
-      padding-left: 10px;
+      padding-left: 0.625rem;
       color: var(--jet-theme-text-title);
       font-weight: 600;
       line-height: 1;
@@ -171,10 +171,10 @@ const judgeInitSet = async () => {
         position: absolute;
         top: 0;
         left: 0;
-        width: 4px;
+        width: 0.25rem;
         height: 100%;
         background-color: var(--jet-theme-primary);
-        border-radius: 0 3px 3px 0;
+        border-radius: 0 0.1875rem 0.1875rem 0;
         content: '';
       }
     }
@@ -194,14 +194,14 @@ const judgeInitSet = async () => {
       overflow-y: auto;
 
       .container-right {
-        width: calc(100% - 70px);
+        width: calc(100% - 4.375rem);
 
         .title {
-          font-size: 15px;
+          font-size: var(--fs-15);
         }
 
         .sub-title {
-          margin-top: 2px;
+          margin-top: 0.125rem;
           margin-left: var(--space-2);
           color: #666;
           font-size: var(--fs-12);
@@ -209,9 +209,9 @@ const judgeInitSet = async () => {
         }
 
         .img-style {
-          width: 16px;
-          height: 16px;
-          margin-left: 5px;
+          width: 1rem;
+          height: 1rem;
+          margin-left: 0.3125rem;
         }
 
         .upload-image-warp-logo {
@@ -223,8 +223,8 @@ const judgeInitSet = async () => {
             overflow: hidden;
             border: 1px dashed var(--line);
             transition: all 0.3s;
-            width: 160px;
-            height: 150px;
+            width: 10rem;
+            height: 9.375rem;
 
             &:hover {
               border: 1px dashed var(--jet-theme-primary);
@@ -237,8 +237,8 @@ const judgeInitSet = async () => {
               position: relative;
               display: flex;
               flex-direction: column;
-              width: 160px;
-              height: 150px;
+              width: 10rem;
+              height: 9.375rem;
               padding: var(--space-2);
               background-color: var(--jet-theme-border-secondary);
               cursor: pointer;
@@ -298,8 +298,8 @@ const judgeInitSet = async () => {
             overflow: hidden;
             border: 1px dashed var(--line);
             transition: all 0.3s;
-            width: 570px;
-            height: 415px;
+            width: 35.625rem;
+            height: 25.9375rem;
 
             &:hover {
               border: 1px dashed var(--jet-theme-primary);
@@ -312,8 +312,8 @@ const judgeInitSet = async () => {
               position: relative;
               display: flex;
               flex-direction: column;
-              width: 570px;
-              height: 415px;
+              width: 35.625rem;
+              height: 25.9375rem;
               padding: var(--space-2);
               background-color: var(--jet-theme-border-secondary);
               cursor: pointer;
@@ -359,8 +359,8 @@ const judgeInitSet = async () => {
 
         // .uplod-style {
         //     :deep(.ant-upload.ant-upload-select-picture-card) {
-        //         width: 180px;
-        //         height: 180px;
+        //         width: 11.25rem;
+        //         height: 11.25rem;
         //     }
         // }
         .btn-style {
@@ -374,7 +374,7 @@ const judgeInitSet = async () => {
   }
 
   ::-webkit-scrollbar {
-    width: 12px;
+    width: 0.75rem;
   }
 
   /* 滚动槽 */

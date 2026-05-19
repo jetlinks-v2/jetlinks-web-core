@@ -42,7 +42,7 @@ const styles = computed(() => {
   } else {
     _style = {
       minHeight: MinHeight.value,
-      margin: props.margin || '0 0 24px 0'
+      margin: props.margin || '0 0 1.5rem 0'
     }
   }
 

@@ -12,7 +12,7 @@
             查询
           </a-button>
 
-          <a-select style="width: 200px" :options="list" />
+          <a-select style="width: 12.5rem" :options="list" />
 
         <permission-button
           type="primary"
@@ -24,7 +24,7 @@
             button
           </template>
         </permission-button>
-          <div style="padding: 12px;background-color: #fff;margin-top: 16px">
+          <div style="padding: 0.75rem;background-color: #fff;margin-top: 1rem">
             <component v-if="_component" :is="_component" data="12312321"> 12312</component>
             <RemoteComponent
               remoteName="authentication-manager-ui"

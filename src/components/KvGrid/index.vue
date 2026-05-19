@@ -48,7 +48,7 @@ const props = withDefaults(
     gap?: number
     labelWidth?: string
   }>(),
-  { items: () => [], cols: 2, cellLayout: 'stack', gap: 10, labelWidth: '76px' },
+  { items: () => [], cols: 2, cellLayout: 'stack', gap: 10, labelWidth: '4.75rem' },
 )
 
 const layoutClass = computed(() => `cols-${props.cols}`)
@@ -116,7 +116,7 @@ const layoutStyle = computed(() => ({
 
 /* stacked 模式下 cell 间分隔线（详情段视觉） */
 .cols-stacked .kv-cell {
-  padding-bottom: var(--kv-stacked-gap, 8px);
+  padding-bottom: var(--kv-stacked-gap, 0.5rem);
   border-bottom: 1px dashed var(--line);
 }
 .cols-stacked .kv-cell:last-child {

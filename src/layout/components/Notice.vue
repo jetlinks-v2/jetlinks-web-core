@@ -202,7 +202,7 @@ onMounted(() => {
     }
 
     .icon-content {
-        height: 48px;
+        height: 3rem;
         display: flex;
         align-items: center;
         position: relative;
@@ -210,18 +210,18 @@ onMounted(() => {
         .unread {
             position: absolute;
             top: 0;
-            right: -12px;
-            min-width: 20px;
-            height: 20px;
-            padding: 0 6px;
+            right: -0.75rem;
+            min-width: 1.25rem;
+            height: 1.25rem;
+            padding: 0 0.375rem;
             color: var(--accent-ink);
             font-weight: normal;
             font-size: var(--fs-12);
-            line-height: 20px;
+            line-height: 1.25rem;
             white-space: nowrap;
             text-align: center;
             background: var(--jet-theme-error);
-            border-radius: 10px;
+            border-radius: 0.625rem;
         }
     }
 }</style>

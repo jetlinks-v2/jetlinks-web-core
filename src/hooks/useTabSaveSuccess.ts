@@ -36,7 +36,7 @@ export const useTabSaveSuccess = (code: string = '', options?: OptionsType) => {
       }
 
       const _params = new URLSearchParams({...params, sourceId: id.value})
-      const domain = getProjectIdFromLocation() || localStorage.getItem('X-Tenant-Domain') || ''
+      const domain = getProjectIdFromLocation()
       const domainPath = domain ? `/${domain}` : ''
       const beforeHash = isSaaS ? `${domainPath}` : ''
       const hash = location.hash ? `${beforeHash}/#` : ''

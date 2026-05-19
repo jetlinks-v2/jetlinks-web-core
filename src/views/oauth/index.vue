@@ -292,7 +292,7 @@ initPage()
 
 <style scoped lang='less'>
 .oauth-warp {
-  height: 500px;
+  height: 31.25rem;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -303,8 +303,8 @@ initPage()
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 60px;
-    font-size: 26px;
+    height: 3.75rem;
+    font-size: var(--fs-26);
     background-color: #fff;
 
     .oauth-header-left {
@@ -313,7 +313,7 @@ initPage()
 
     .oauth-header-right {
       display: flex;
-      width: 200px;
+      width: 12.5rem;
       margin-right: 10%;
       font-size: var(--fs-14);
 
@@ -322,7 +322,7 @@ initPage()
       }
 
       // .oauth-header-right-connect {
-      //     padding: 0 10px;
+      //     padding: 0 0.625rem;
       // }
     }
   }
@@ -332,16 +332,16 @@ initPage()
     flex-direction: column;
     align-items: center;
     justify-content: space-evenly;
-    width: 370px;
-    height: 380px;
+    width: 23.125rem;
+    height: 23.75rem;
     margin: 0 auto;
     margin-top: 5%;
     background: #fff;
-    box-shadow: 0 5px 5px #d4d4d4;
+    box-shadow: 0 0.3125rem 0.3125rem #d4d4d4;
 
     .oauth-content-header {
-      width: 60px;
-      height: 60px;
+      width: 3.75rem;
+      height: 3.75rem;
 
       img {
         width: 100%;
@@ -350,18 +350,18 @@ initPage()
     }
 
     .oauth-content-content {
-      height: 150px;
+      height: 9.375rem;
       .oauth-content-content-text {
-        margin: 15px 15px;
+        margin: 0.9375rem 0.9375rem;
         font-size: var(--fs-16);
-        line-height: 22px;
+        line-height: 1.375rem;
       }
 
       ul {
         color: #00000085;
         list-style: inherit;
         li {
-          padding-top: 10px;
+          padding-top: 0.625rem;
         }
       }
     }
@@ -374,7 +374,7 @@ initPage()
     }
     .oauth-content-login {
       width: 100%;
-      padding: 0 24px;
+      padding: 0 1.5rem;
     }
   }
 }</style>

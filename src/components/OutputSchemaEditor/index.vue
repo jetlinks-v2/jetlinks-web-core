@@ -199,7 +199,7 @@ function inputValue(event: Event): string {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  border: 0.5px solid var(--line);
+  border: 0.03125rem solid var(--line);
   border-radius: var(--r-2);
   background: var(--bg);
   padding: 0.75rem;
@@ -227,7 +227,7 @@ function inputValue(event: Event): string {
 
 .add-btn,
 .delete-btn {
-  border: 0.5px solid var(--line);
+  border: 0.03125rem solid var(--line);
   border-radius: var(--r-1);
   background: var(--bg);
   color: var(--ink-2);
@@ -279,7 +279,7 @@ function inputValue(event: Event): string {
 .cell-input {
   min-width: 0;
   width: 100%;
-  border: 0.5px solid var(--line);
+  border: 0.03125rem solid var(--line);
   border-radius: var(--r-1);
   background: var(--bg);
   color: var(--ink-1);

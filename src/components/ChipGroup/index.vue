@@ -26,7 +26,7 @@
  * ChipGroup —— "label + 横向 chip 按钮 + 选中高亮"的通用骨架
  *
  * 两种视觉 style：
- *   wrapped  带 1px border + 白底容器（FormBar / SrcBar / studio-cats）
+ *   wrapped  带 0.0625rem border + 白底容器（FormBar / SrcBar / studio-cats）
  *   inline   无容器（ProjectToolbar.pj-tabs / hero-meta 风格）
  *
  * options[].variantClass：可选，调用方可传入 'f-event' / 's-official' 等 class
@@ -66,7 +66,7 @@ function onClick(key: string) {
 .chip-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
   flex-wrap: wrap;
 }
 
@@ -80,7 +80,7 @@ function onClick(key: string) {
 .label {
   color: var(--ink-3);
   font-size: var(--fs-12);
-  margin-right: 2px;
+  margin-right: 0.125rem;
 }
 
 .chip {
@@ -88,9 +88,9 @@ function onClick(key: string) {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: 999px;
+  gap: 0.3125rem;
+  padding: 0.1875rem 0.625rem;
+  border-radius: 62.4375rem;
   font-size: var(--fs-12);
   color: var(--ink-2);
   transition: all 0.15s;
@@ -100,15 +100,15 @@ function onClick(key: string) {
 }
 
 .chip .dot {
-  width: 6px;
-  height: 6px;
+  width: 0.375rem;
+  height: 0.375rem;
   border-radius: 50%;
   flex-shrink: 0;
 }
 .chip .count {
   color: var(--ink-4);
   font-size: var(--fs-12);
-  margin-left: 2px;
+  margin-left: 0.125rem;
 }
 
 /* 激活态 —— 主色填充 */

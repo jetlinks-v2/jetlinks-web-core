@@ -60,16 +60,16 @@ const onResize = ({ width }: { width: number }) => {
 
 <style lang="less" scoped>
 .tag-box {
-    margin-top: 15px;
+    margin-top: 0.9375rem;
     display: flex;
     width: 100%;
     overflow: hidden;
 
     .tag {
         background-color: #f7f8fa;
-        border-radius: 32px;
+        border-radius: 2rem;
         margin-right: var(--space-2);
-        padding: 0 14px;
+        padding: 0 0.875rem;
         color: #333333;
         white-space: nowrap;
     }
@@ -78,9 +78,9 @@ const onResize = ({ width }: { width: number }) => {
         text-overflow: ellipsis;
         white-space: nowrap;
         background-color: #f7f8fa;
-        border-radius: 32px;
+        border-radius: 2rem;
         margin-right: var(--space-2);
-        padding: 0 14px;
+        padding: 0 0.875rem;
         color: #333333;
         text-align: center;
     }

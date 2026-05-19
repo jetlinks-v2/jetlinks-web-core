@@ -18,7 +18,7 @@
     <a-range-picker
       format="YYYY-MM-DD HH:mm:ss"
       valueFormat="YYYY-MM-DD HH:mm:ss"
-      style="margin-left: 12px"
+      style="margin-left: 0.75rem"
       :show-time="{ format: 'HH:mm:ss' }"
       @change="rangeChange"
       v-model:value="rangeVal"

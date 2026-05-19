@@ -109,7 +109,7 @@
           <a-form-item-rest>
             <span>{{ $lang('MODBUS_TCP.point.20250207-15') }}</span>
           </a-form-item-rest>
-          <a-switch v-model:checked="writeByteConfig" style="margin-left: 20px"/>
+          <a-switch v-model:checked="writeByteConfig" style="margin-left: 1.25rem"/>
         </a-form-item>
       </a-col>
       <template v-if="writeByteConfig">

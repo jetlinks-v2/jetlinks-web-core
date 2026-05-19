@@ -25,14 +25,14 @@
             <AIcon
               v-else
               type="PlusOutlined"
-              style="font-size: 20px"
+              style="font-size: var(--fs-20)"
             />
           </slot>
         </div>
       </a-upload>
       <div class="upload-loading-mask" v-if="disabled"></div>
       <div class="upload-loading-mask" v-if="imageUrl && loading">
-        <AIcon type="LoadingOutlined" style="font-size: 20px" />
+        <AIcon type="LoadingOutlined" style="font-size: var(--fs-20)" />
       </div>
     </div>
   </div>

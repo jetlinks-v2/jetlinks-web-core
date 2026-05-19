@@ -23,7 +23,7 @@ const subContext = ref({
 
 const styles = computed(() => {
   return {
-    padding: loading.value ? '24px' : '0'
+    padding: loading.value ? '1.5rem' : '0'
   }
 })
 
@@ -106,20 +106,20 @@ watch(
     >
       <div
         class="skeleton skeleton-active"
-        style="height: 32px; width: 190px"
+        style="height: 2rem; width: 11.875rem"
       ></div>
       <div
         class="skeleton skeleton-active"
-        style="height: 64px; width: 100%"
+        style="height: 4rem; width: 100%"
       ></div>
       <div
         class="skeleton-context"
-        style="height: calc(100% - 64px); width: 100%"
+        style="height: calc(100% - 4rem); width: 100%"
       >
         <div
           v-for="i in 8"
           class="skeleton-context-card skeleton-active"
-          style="height: 186px; width: 100%"
+          style="height: 11.625rem; width: 100%"
         ></div>
       </div>
     </div>
@@ -165,7 +165,7 @@ watch(
 .skeleton-context {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-gap: 24px;
+  grid-gap: 1.5rem;
 }
 
 .skeleton-active {

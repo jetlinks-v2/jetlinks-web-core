@@ -377,7 +377,7 @@ const calendarOptions = {
   unselectAuto: false,
   locale: locale,
   droppable: true,
-  height: props.preview ? '600px' : '620px',
+  height: props.preview ? '37.5rem' : '38.75rem',
   // select: handleSelect, //原生拖拽多选日期逻辑
   eventReceive: handleEventAdd,
   datesSet: handleViewDidMount,
@@ -595,34 +595,34 @@ setTimeout(() => {
 }
 .calendarContainer {
   position: relative;
-  padding: 44px 24px 0;
+  padding: 2.75rem 1.5rem 0;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 0.75rem;
 }
 .calendarContainer .compareTip {
   position: absolute;
   right: 20%;
-  top: 27px;
+  top: 1.6875rem;
   transform: translateX(40%);
 }
 .calendarContainer .skip {
   position: absolute;
   right: 0;
-  top: 27px;
+  top: 1.6875rem;
 }
 .calendarContainer .compareSave {
   position: absolute;
-  right: 10px;
-  top: 22px;
+  right: 0.625rem;
+  top: 1.375rem;
 }
 .calendarContainer .calenderButton {
   position: absolute;
-  top: 22px;
+  top: 1.375rem;
 }
 .calendarContainer .event {
   position: relative;
-  height: 32px;
-  padding: 6px;
+  height: 2rem;
+  padding: 0.375rem;
   color: var(--ink-1);
   display: flex;
 }
@@ -638,10 +638,10 @@ setTimeout(() => {
   display: inline-block;
 }
 .calendarContainer .decoration {
-  width: 4px;
-  height: 16px;
-  border-radius: 2px;
-  margin: 2px 4px;
+  width: 0.25rem;
+  height: 1rem;
+  border-radius: 0.125rem;
+  margin: 0.125rem 0.25rem;
   display: inline-block;
 }
 .calendarContainer .event-title {
@@ -651,7 +651,7 @@ setTimeout(() => {
   /* 超出部分隐藏 */
   text-overflow: ellipsis;
   /* 显示省略号 */
-  width: calc(100% - 30px);
+  width: calc(100% - 1.875rem);
   font-size: var(--fs-14);
 }
 :deep(.fc-highlight) {
@@ -660,9 +660,9 @@ setTimeout(() => {
 .tips {
   position: fixed;
   z-index: 99999;
-  padding: 5px 10px;
+  padding: 0.3125rem 0.625rem;
   background-color: var(--ink-2);
-  border-radius: 5px;
+  border-radius: 0.3125rem;
   color: var(--accent-ink);
 }
 :deep(.fc-theme-standard th) {
@@ -684,7 +684,7 @@ setTimeout(() => {
 }
 :deep(.fc) table {
   border-collapse: separate;
-  border-spacing: 5px 0;
+  border-spacing: 0.3125rem 0;
 }
 :deep(.fc) .fc-daygrid-day.fc-day-today {
   background-color: transparent;
@@ -693,22 +693,22 @@ setTimeout(() => {
   background-color: var(--accent);
   color: var(--accent-ink);
   border-radius: 50%;
-  width: 30px;
+  width: 1.875rem;
   text-align: center;
 }
 :deep(.fc) .fc-event {
   border: none !important;
 }
 :deep(.fc) .fc-daygrid-event-harness {
-  margin: 0 4px;
-  margin-top: 4px !important;
+  margin: 0 0.25rem;
+  margin-top: 0.25rem !important;
   border-radius: var(--r-2);
 }
 :deep(.fc) .fc-daygrid-day-frame {
-  height: 155px;
+  height: 9.6875rem;
 }
 :deep(.fc) .fc-daygrid-day-frame .fc-daygrid-day-events {
-  max-height: 120px;
+  max-height: 7.5rem;
   overflow-y: auto;
 }
 :deep(.fc) .fc-daygrid-day-frame .fc-daygrid-day-events::-webkit-scrollbar-thumb {
@@ -718,7 +718,7 @@ setTimeout(() => {
   /* 滚动条拖动部分圆角 */
 }
 :deep(.fc) .fc-scroller::-webkit-scrollbar {
-  width: 5px;
+  width: 0.3125rem;
   /* 滚动条宽度 */
   background-color: var(--bg);
   /* 滚动条背景色 */
@@ -743,7 +743,7 @@ setTimeout(() => {
   }
   .fc-daygrid-day-events {
     &::-webkit-scrollbar {
-      width: 5px; /* 滚动条宽度 */
+      width: 0.3125rem; /* 滚动条宽度 */
       background-color: var(--bg); /* 滚动条背景色 */
     }
   }
@@ -756,7 +756,7 @@ setTimeout(() => {
   }
   .fc-daygrid-day-events {
     &::-webkit-scrollbar {
-      width: 5px; /* 滚动条宽度 */
+      width: 0.3125rem; /* 滚动条宽度 */
       background-color: var(--info-bg); /* 滚动条背景色 */
     }
   }

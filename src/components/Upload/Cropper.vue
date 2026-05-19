@@ -8,7 +8,7 @@
       @ok="ok"
       :confirmLoading="loading"
   >
-    <div style="height: 300px; width: 100%" @mousedown.stop>
+    <div style="height: 18.75rem; width: 100%" @mousedown.stop>
       <vue-cropper
           ref="cropper"
           :img="img"

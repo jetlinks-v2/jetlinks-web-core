@@ -68,8 +68,8 @@ watch(() => props.value, (newValue) => {
 <style scoped>
 .terms--value--fixed {
   padding: var(--space-2);
-  min-width: 200px;
-  min-height: 40px;
+  min-width: 12.5rem;
+  min-height: 2.5rem;
   background-color: var(--bg);
   border-radius: var(--r-3);
   box-shadow: var(--shadow-1);

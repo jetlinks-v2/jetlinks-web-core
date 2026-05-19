@@ -466,7 +466,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   border-radius: var(--r-2);
   background: var(--bg);
   box-sizing: border-box;
-  border: 0.5px solid var(--line);
+  border: 0.03125rem solid var(--line);
 }
 .upload-text-area-wrapper .input-area-content {
   flex: 1;
@@ -481,7 +481,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   border-top-right-radius: var(--r-2);
   box-sizing: border-box;
   background: var(--bg-hover);
-  border-bottom: 0.5px solid var(--line);
+  border-bottom: 0.03125rem solid var(--line);
 }
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-items {
   display: flex;
@@ -493,8 +493,8 @@ onBeforeUnmount(() => registerReset?.(undefined));
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-item {
   flex-shrink: 0;
   position: relative;
-  width: 72px;
-  height: 72px;
+  width: 4.5rem;
+  height: 4.5rem;
   border-radius: var(--r-2);
   background: var(--line-strong);
 }
@@ -507,13 +507,13 @@ onBeforeUnmount(() => registerReset?.(undefined));
 }
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-item .delete-btn {
   position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
+  top: -0.5rem;
+  right: -0.5rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  min-width: 1.125rem;
   padding: 0;
-  border-radius: 9px;
+  border-radius: 0.5625rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -523,7 +523,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   border-top-left-radius: var(--r-2);
   border-top-right-radius: var(--r-2);
   box-sizing: border-box;
-  border-bottom: 0.5px solid var(--line);
+  border-bottom: 0.03125rem solid var(--line);
   overflow: hidden;
   background: var(--bg-hover);
 }
@@ -539,7 +539,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   color: var(--ink-2);
 }
 .upload-text-area-wrapper .input-area-content .file-list .clear-all-btn {
-  padding: 4px 12px;
+  padding: 0.25rem 0.75rem;
   background: var(--err);
   color: var(--accent-ink);
   border: none;
@@ -553,7 +553,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items {
   width: 100%;
-  max-height: 150px;
+  max-height: 9.375rem;
   overflow-y: auto;
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item {
@@ -570,15 +570,15 @@ onBeforeUnmount(() => registerReset?.(undefined));
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 2.5rem;
+  height: 2.5rem;
   margin-right: var(--space-4);
   border-radius: var(--r-2);
   background: var(--line-strong);
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-icon .icon {
-  width: 20px;
-  height: 20px;
+  width: 1.25rem;
+  height: 1.25rem;
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-info {
   flex: 1;
@@ -586,14 +586,14 @@ onBeforeUnmount(() => registerReset?.(undefined));
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-info .name {
   margin-bottom: var(--space-2);
   font-size: var(--fs-15);
-  line-height: 22px;
+  line-height: 1.375rem;
   color: var(--ink-1);
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-size {
-  width: 90px;
+  width: 5.625rem;
   margin-left: var(--space-6);
   font-size: var(--fs-14);
-  line-height: 22px;
+  line-height: 1.375rem;
   text-align: left;
   color: var(--ink-4);
 }
@@ -601,9 +601,9 @@ onBeforeUnmount(() => registerReset?.(undefined));
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 16px;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 1rem;
   background: var(--accent-soft);
   cursor: pointer;
 }
@@ -621,14 +621,14 @@ onBeforeUnmount(() => registerReset?.(undefined));
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 0.125rem;
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 10;
-  border-radius: 2px;
+  border-radius: 0.125rem;
   pointer-events: none;
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
@@ -637,14 +637,14 @@ onBeforeUnmount(() => registerReset?.(undefined));
   color: var(--accent);
 }
 .upload-text-area-wrapper .input-area-content .textarea .drag-overlay .icon {
-  margin-top: -6px;
-  font-size: 20px;
+  margin-top: -0.375rem;
+  font-size: var(--fs-20);
 }
 .upload-text-area-wrapper .input-area-content .textarea textarea {
   width: 100%;
   height: 100%;
   font-size: var(--fs-14);
-  line-height: 22px;
+  line-height: 1.375rem;
   border: none;
   outline: none;
   resize: none;
@@ -659,5 +659,5 @@ onBeforeUnmount(() => registerReset?.(undefined));
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  height: 32px;
+  height: 2rem;
 }</style>

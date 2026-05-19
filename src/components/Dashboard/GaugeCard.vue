@@ -17,7 +17,7 @@
     <div class="echarts-item-right">
       <div
         ref="chartRef"
-        style="width: 100%; height: 100px"
+        style="width: 100%; height: 6.25rem"
       ></div>
     </div> -->
   </div>
@@ -186,11 +186,11 @@ defineExpose({ refreshManual })
 <style scoped>
 .echarts-item {
   display: flex;
-  height: 150px;
+  height: 9.375rem;
   padding: var(--space-4);
   background-color: var(--bg);
   border: 1px solid var(--line-strong);
-  border-radius: 2px;
+  border-radius: 0.125rem;
 }
 .echarts-item .echarts-item-left {
   display: flex;
@@ -207,7 +207,7 @@ defineExpose({ refreshManual })
 }
 .echarts-item .echarts-item-value {
   font-weight: bold;
-  font-size: 36px;
+  font-size: var(--fs-36);
   width: 100%;
   overflow: hidden;
   white-space: nowrap;
@@ -227,8 +227,8 @@ defineExpose({ refreshManual })
   position: absolute;
   top: 50%;
   left: 0;
-  width: 4px;
-  height: 12px;
+  width: 0.25rem;
+  height: 0.75rem;
   background-color: var(--err);
   transform: translateY(-50%);
   content: ' ';

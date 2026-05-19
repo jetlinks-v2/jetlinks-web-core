@@ -12,7 +12,7 @@ defineProps<{ name?: string }>()
 .app-tag {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 0.125rem 0.5rem;
   border-radius: var(--r-2);
   background: var(--accent-soft);
   color: var(--accent);

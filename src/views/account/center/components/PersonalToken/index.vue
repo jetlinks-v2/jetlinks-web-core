@@ -1,7 +1,7 @@
 ﻿<template>
   <div class="personal-token">
     <div class="personal-token-header">
-      <div style="display: flex; gap: 24px; align-items: center">
+      <div style="display: flex; gap: 1.5rem; align-items: center">
         <div>
           <img src="@jetlinks-web-core/assets/personal-token/add.png" alt="" />
         </div>

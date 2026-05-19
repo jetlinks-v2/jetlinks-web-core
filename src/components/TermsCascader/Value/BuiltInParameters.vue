@@ -82,7 +82,7 @@ const onExpand = (keys: string[]) => {
 
 <style scoped>
 .built-in-parameters {
-  min-width: 420px;
+  min-width: 26.25rem;
   max-width: 90vw;
   background: var(--bg);
   border-radius: var(--r-1);
@@ -93,7 +93,7 @@ const onExpand = (keys: string[]) => {
   margin-bottom: var(--space-3);
 }
 .built-in-parameters :deep(.ant-tabs) .ant-tabs-nav .ant-tabs-tab {
-  padding: 8px 16px;
+  padding: 0.5rem 1rem;
   font-size: var(--fs-14);
 }
 .built-in-parameters :deep(.ant-tabs) .ant-tabs-nav .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
@@ -104,7 +104,7 @@ const onExpand = (keys: string[]) => {
   overflow: hidden;
 }
 .built-in-parameters .manual-input {
-  padding: 8px 0;
+  padding: 0.5rem 0;
 }
 .built-in-parameters .manual-input :deep(.ant-input) {
   border-radius: var(--r-1);
@@ -114,15 +114,15 @@ const onExpand = (keys: string[]) => {
   border-color: var(--accent);
 }
 .built-in-parameters .parameter-tree {
-  min-height: 200px;
-  max-height: 400px;
+  min-height: 12.5rem;
+  max-height: 25rem;
   overflow: hidden;
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) {
   background: transparent;
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-treenode {
-  padding: 2px 0;
+  padding: 0.125rem 0;
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-treenode:hover .ant-tree-node-content-wrapper {
   background-color: color-mix(in srgb, var(--accent) 8%, transparent);
@@ -146,7 +146,7 @@ const onExpand = (keys: string[]) => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: 0.125rem;
   width: 100%;
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .tree-node-title .node-name {
@@ -166,10 +166,10 @@ const onExpand = (keys: string[]) => {
   justify-content: center;
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-indent-unit {
-  width: 20px;
+  width: 1.25rem;
 }
 .built-in-parameters .parameter-tree :deep(.ant-empty) {
-  padding: 40px 0;
+  padding: 2.5rem 0;
 }
 .built-in-parameters .parameter-tree :deep(.ant-empty) .ant-empty-description {
   color: var(--ink-4);

@@ -171,9 +171,9 @@ watch(() => termsValue.value.column, (newValue, oldValue) => {
   padding-inline-end: 0;
 }
 .column-select-popup {
-  max-width: 220px;
-  height: 32px;
-  padding: 4px 11px;
+  max-width: 13.75rem;
+  height: 2rem;
+  padding: 0.25rem 0.6875rem;
   border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   color: var(--info);
   background-color: color-mix(in srgb, var(--accent) 30%, transparent);
@@ -201,7 +201,7 @@ watch(() => termsValue.value.column, (newValue, oldValue) => {
   border-radius: var(--r-3);
   box-shadow: var(--shadow-1);
   background-color: var(--bg);
-  min-width: 400px;
+  min-width: 25rem;
 }
 .column-tree-dropdown :deep(.ant-tree) .ant-tree-node-content-wrapper {
   border-radius: var(--r-1);

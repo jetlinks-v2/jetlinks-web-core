@@ -93,7 +93,7 @@ onMounted(() => {
   width: 100%;
 }
 .dropdown-time-picker .ant-picker-dropdown .ant-picker-footer {
-  border-bottom: 0px;
+  border-bottom: 0;
 }
 .dropdown-time-picker .ant-picker-panel-container {
   box-shadow: unset;

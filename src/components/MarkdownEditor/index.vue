@@ -451,13 +451,13 @@ async function handleDrop(event: DragEvent) {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  min-height: 32px;
+  min-height: 2rem;
 }
 
 .j-md-editor__section-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
   min-width: 0;
   flex-wrap: wrap;
 }
@@ -469,8 +469,8 @@ async function handleDrop(event: DragEvent) {
 }
 
 .j-md-editor__section-btn {
-  height: 26px;
-  padding: 0 10px;
+  height: 1.625rem;
+  padding: 0 0.625rem;
   border: 1px solid color-mix(in srgb, var(--ink-1) 8%, transparent);
   border-radius: var(--r-1);
   background: var(--bg);
@@ -494,14 +494,14 @@ async function handleDrop(event: DragEvent) {
   position: relative;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--ink-1) 8%, transparent);
-  border-radius: 12px;
+  border-radius: 0.75rem;
   background: var(--bg);
   transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .j-md-editor__surface.is-dragover {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--accent) 12%, transparent);
   background: var(--bg);
 }
 
@@ -518,7 +518,7 @@ async function handleDrop(event: DragEvent) {
 }
 
 .j-md-editor__surface :deep(.md-editor-toolbar-wrapper) {
-  padding-inline: 8px;
+  padding-inline: 0.5rem;
 }
 
 .j-md-editor__surface :deep(.md-editor-input-wrapper),
@@ -535,12 +535,12 @@ async function handleDrop(event: DragEvent) {
 }
 
 .j-md-editor__preview-only {
-  min-height: 220px;
+  min-height: 13.75rem;
   padding: var(--space-4);
 }
 
 .j-md-editor__empty {
-  padding: 40px 0;
+  padding: 2.5rem 0;
 }
 
 .j-md-editor__drop-mask {
@@ -551,7 +551,7 @@ async function handleDrop(event: DragEvent) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 0.375rem;
   border: 1px dashed color-mix(in srgb, var(--accent) 42%, transparent);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
   color: var(--jet-theme-primary-active);

@@ -13,7 +13,7 @@
       <div
           class="card-content"
           :class="{'card-content-top-line': !slots.type}"
-          :style="{ paddingTop: slots.type ? '40px' : '30px' }"
+          :style="{ paddingTop: slots.type ? '2.5rem' : '1.875rem' }"
       >
         <div
             class="card-content-bg1"
@@ -42,7 +42,7 @@
           <!-- 内容 -->
           <div class="card-item-body">
             <slot name="content">
-              <j-ellipsis style="width: calc(100% - 100px);">
+              <j-ellipsis style="width: calc(100% - 6.25rem);">
                 <span class="card-item-heard-name">
                   {{ value.name }}
                 </span>
@@ -223,11 +223,11 @@ const handleClick = () => {
 }
 .card .checked-icon {
   position: absolute;
-  right: -22px;
-  bottom: -22px;
+  right: -1.375rem;
+  bottom: -1.375rem;
   z-index: 2;
-  width: 44px;
-  height: 44px;
+  width: 2.75rem;
+  height: 2.75rem;
   color: var(--accent-ink);
   background-color: var(--jet-theme-primary, var(--accent));
   transform: rotate(-45deg);
@@ -239,8 +239,8 @@ const handleClick = () => {
 }
 .card .checked-icon > div > span {
   position: absolute;
-  top: 6px;
-  left: 6px;
+  top: 0.375rem;
+  left: 0.375rem;
   font-size: var(--fs-12);
 }
 .card .card-warp {
@@ -266,11 +266,11 @@ const handleClick = () => {
 .card .card-warp .card-type {
   position: absolute;
   top: 0;
-  left: -15px;
-  height: 32px;
-  padding: 0 30px;
+  left: -0.9375rem;
+  height: 2rem;
+  padding: 0 1.875rem;
   color: var(--ink-2);
-  line-height: 32px;
+  line-height: 2rem;
   background-color: color-mix(in srgb, var(--ink-1) 6%, transparent);
   transform: skewX(-45deg);
 }
@@ -282,7 +282,7 @@ const handleClick = () => {
 }
 .card .card-warp .card-content {
   position: relative;
-  padding: 30px 12px 30px 30px;
+  padding: 1.875rem 0.75rem 1.875rem 1.875rem;
   overflow: hidden;
 }
 .card .card-warp .card-content .card-item-avatar {
@@ -297,15 +297,15 @@ const handleClick = () => {
   width: 0;
 }
 .card .card-warp .card-content .card-item-body .ant-row {
-  margin-top: 18px;
+  margin-top: 1.125rem;
 }
 .card .card-warp .card-content .card-state {
   position: absolute;
-  top: 30px;
-  right: -12px;
+  top: 1.875rem;
+  right: -0.75rem;
   display: flex;
   justify-content: center;
-  padding: 0 20px 0 20px;
+  padding: 0 1.25rem 0 1.25rem;
   background-color: color-mix(in srgb, var(--accent) 15%, transparent);
   transform: skewX(45deg);
 }
@@ -326,7 +326,7 @@ const handleClick = () => {
   font-size: var(--fs-16);
   font-weight: 700;
   color: var(--jet-theme-primary, var(--accent));
-  width: calc(100% - 100px);
+  width: calc(100% - 6.25rem);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -343,11 +343,11 @@ const handleClick = () => {
 .card .card-warp .card-content-top-line::before {
   position: absolute;
   top: 0;
-  left: 40px;
+  left: 2.5rem;
   display: block;
   width: 15%;
-  min-width: 64px;
-  height: 2px;
+  min-width: 4rem;
+  height: 0.125rem;
   background-image: url('@jetlinks-web-core/assets/rectangle.png');
   background-repeat: no-repeat;
   background-size: 100% 100%;
@@ -366,7 +366,7 @@ const handleClick = () => {
   position: absolute;
   right: -5%;
   height: 100%;
-  width: calc(44.65% + 34px);
+  width: calc(44.65% + 2.125rem);
   top: 0;
   background: linear-gradient(188.4deg, color-mix(in srgb, var(--err) 3%, transparent) 22.94%, transparent 94.62%);
   transform: skewX(-15deg);
@@ -442,7 +442,7 @@ const handleClick = () => {
   margin-right: var(--space-2);
 }
 .card .card-tools .card-button.delete {
-  flex-basis: 60px;
+  flex-basis: 3.75rem;
   flex-grow: 0;
 }
 .card .card-tools .card-button.delete :deep(button) {

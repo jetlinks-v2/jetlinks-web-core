@@ -2,7 +2,7 @@
   <div>
     <EditDialog :title="_data.a ? '编辑' : '新增'" :schema="schema" :data="_data" :request="update">
       <template #f="{value, update}">
-        <a-input-number :value="value" @change="(val) => update(val)" style="width: 300px" />
+        <a-input-number :value="value" @change="(val) => update(val)" style="width: 18.75rem" />
       </template>
     </EditDialog>
   </div>

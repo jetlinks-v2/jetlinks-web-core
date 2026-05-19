@@ -115,7 +115,7 @@ watch(filteredColumns, syncActiveIntoView)
 
 <style scoped>
 .condition-field-panel {
-  width: 220px;
+  width: 13.75rem;
   padding: var(--space-1);
   background: var(--bg);
   border: 1px solid var(--line);
@@ -123,20 +123,20 @@ watch(filteredColumns, syncActiveIntoView)
   box-shadow: var(--shadow-1);
 }
 .condition-field-panel__title {
-  padding: var(--space-1) var(--space-2) 2px;
+  padding: var(--space-1) var(--space-2) 0.125rem;
   color: var(--ink-1);
   font-size: var(--fs-12);
   font-weight: 600;
-  line-height: 18px;
+  line-height: 1.125rem;
 }
 .condition-field-panel__search {
-  margin-bottom: 6px;
+  margin-bottom: 0.375rem;
 }
 .condition-field-panel__list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  max-height: 320px;
+  gap: 0.125rem;
+  max-height: 20rem;
   overflow-y: auto;
 }
 .condition-field-panel__item {
@@ -145,7 +145,7 @@ watch(filteredColumns, syncActiveIntoView)
   justify-content: space-between;
   gap: var(--space-2);
   width: 100%;
-  padding: 6px 8px;
+  padding: 0.375rem 0.5rem;
   text-align: left;
   background: transparent;
   border: 0;
@@ -169,7 +169,7 @@ watch(filteredColumns, syncActiveIntoView)
 .condition-field-panel__label {
   color: var(--ink-1);
   font-size: var(--fs-12);
-  line-height: 18px;
+  line-height: 1.125rem;
 }
 .condition-field-panel__content {
   display: flex;
@@ -181,17 +181,17 @@ watch(filteredColumns, syncActiveIntoView)
   overflow: hidden;
   color: var(--ink-2);
   font-size: var(--fs-12);
-  line-height: 16px;
+  line-height: 1rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .condition-field-panel__key {
   color: var(--ink-4);
   font-size: var(--fs-12);
-  line-height: 16px;
+  line-height: 1rem;
 }
 .condition-field-panel__empty {
-  padding: 20px 0;
+  padding: 1.25rem 0;
   color: var(--ink-3);
   font-size: var(--fs-12);
   text-align: center;

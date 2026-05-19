@@ -87,8 +87,8 @@ const setChartOption = (x: Array<any>, y: Array<number>, maxY: number, name: str
     grid: {
       top: '2%',
       bottom: '5%',
-      left: maxY < 900000 ? '60px' : yLen * 7.5 + Math.floor(yLen / 3) * 1.2 + 10 + 'px',
-      right: '50px'
+      left: maxY < 900000 ? '3.75rem' : yLen * 7.5 + Math.floor(yLen / 3) * 1.2 + 10 + 'px',
+      right: '3.125rem'
     },
     series: [
       {
@@ -319,6 +319,6 @@ watch(
 }
 .amap-box {
   width: 100%;
-  min-height: 500px;
+  min-height: 31.25rem;
   height: 100%;
 }</style>

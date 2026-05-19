@@ -10,7 +10,7 @@
             <a-avatar
               :size="86"
               :src="user?.avatar || jetlinksLogoImg"
-              style="margin-bottom: 16px"
+              style="margin-bottom: 1rem"
             />
             <div class="info-body-item">
               <span>{{ $t("bind.index.350992-1") }}</span>
@@ -33,7 +33,7 @@
                 internalStandaloneImg
               "
               shape="square"
-              style="margin-bottom: 16px"
+              style="margin-bottom: 1rem"
             />
             <div class="info-body-item">
               <span>{{ $t("bind.index.350992-1") }}</span>
@@ -373,18 +373,18 @@ onMounted(() => {
 
   .content-bind {
     box-sizing: border-box;
-    width: 928px;
-    min-height: 510px;
+    width: 58rem;
+    min-height: 31.875rem;
     background: #fff;
-    border-radius: 22px;
+    border-radius: 1.375rem;
     padding: var(--space-10);
 
     .title {
-      margin-bottom: 30px;
+      margin-bottom: 1.875rem;
       color: #333333;
       font-weight: 400;
       font-size: var(--fs-22); font-style: normal;
-      line-height: 25px;
+      line-height: 1.5625rem;
       text-align: center;
     }
 
@@ -393,10 +393,10 @@ onMounted(() => {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 86px 0;
+      padding: 5.375rem 0;
 
       img {
-        width: 69px;
+        width: 4.3125rem;
       }
 
       &-body {
@@ -404,7 +404,7 @@ onMounted(() => {
         flex-direction: column;
         align-items: center;
         gap: var(--space-2);
-        width: 317px;
+        width: 19.8125rem;
 
         &-item {
           display: flex;
@@ -421,7 +421,7 @@ onMounted(() => {
     .btn {
       display: flex;
       justify-content: center;
-      margin-top: 30px;
+      margin-top: 1.875rem;
     }
 
     // 未登录
@@ -436,21 +436,21 @@ onMounted(() => {
         gap: var(--space-5);
 
         img {
-          width: 50px;
-          height: 50px;
+          width: 3.125rem;
+          height: 3.125rem;
         }
 
         .arrow {
-          width: 15px;
-          height: 15px;
+          width: 0.9375rem;
+          height: 0.9375rem;
         }
       }
 
       .desc {
-        margin-top: 30px;
-        margin-bottom: 30px;
+        margin-top: 1.875rem;
+        margin-bottom: 1.875rem;
         font-size: var(--fs-14); font-style: normal;
-        line-height: 14px;
+        line-height: 0.875rem;
         opacity: 0.75;
         mix-blend-mode: normal;
       }

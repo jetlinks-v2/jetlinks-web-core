@@ -1003,15 +1003,15 @@ defineExpose({
 <style scoped>
 .tag-manager-sidebar {
   height: 100%;
-  border-radius: 16px;
+  border-radius: 1rem;
 }
 .tag-manager-sidebar :deep(.ant-card-head) {
-  min-height: 56px;
+  min-height: 3.5rem;
 }
 .tag-manager-sidebar :deep(.ant-card-body) {
   display: flex;
   flex-direction: column;
-  height: calc(100% - 57px);
+  height: calc(100% - 3.5625rem);
   padding: var(--space-5);
   overflow: hidden;
 }
@@ -1039,7 +1039,7 @@ defineExpose({
 .tag-manager-sidebar__selected-summary {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
   min-width: 0;
 }
 .tag-manager-sidebar__selected-summary :deep(.ant-btn) {
@@ -1048,11 +1048,11 @@ defineExpose({
 .tag-manager-sidebar__selected-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 10px;
+  gap: 0.375rem;
+  height: 1.75rem;
+  padding: 0 0.625rem;
   border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
-  border-radius: 999px;
+  border-radius: 62.4375rem;
   background: color-mix(in srgb, var(--accent) 8%, transparent);
   color: var(--jet-theme-primary-active);
   font-size: var(--fs-12);
@@ -1062,10 +1062,10 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border-radius: 999px;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
+  border-radius: 62.4375rem;
   background: var(--accent);
   color: var(--accent-ink);
   font-size: var(--fs-12);
@@ -1085,7 +1085,7 @@ defineExpose({
   opacity: 0.6;
 }
 .tag-manager-sidebar__group--drag-over {
-  border-radius: 12px;
+  border-radius: 0.75rem;
   background: color-mix(in srgb, var(--accent) 4%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
 }
@@ -1113,8 +1113,8 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 1.125rem;
+  height: 1.125rem;
   color: var(--ink-4);
   cursor: grab;
 }
@@ -1122,7 +1122,7 @@ defineExpose({
   cursor: grabbing;
 }
 .tag-manager-sidebar__drag-handle--tag {
-  margin-right: -2px;
+  margin-right: -0.125rem;
 }
 .tag-manager-sidebar__group-count {
   color: var(--ink-4);
@@ -1130,13 +1130,13 @@ defineExpose({
 }
 .tag-manager-sidebar__group-line {
   flex: 1;
-  height: 1px;
+  height: 0.0625rem;
   background: color-mix(in srgb, var(--ink-1) 8%, transparent);
 }
 .tag-manager-sidebar__group-content {
   padding-left: var(--space-3);
   margin-left: var(--space-1);
-  border-left: 2px solid color-mix(in srgb, var(--accent) 12%, transparent);
+  border-left: 0.125rem solid color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .tag-manager-sidebar__tag-list {
   display: flex;
@@ -1146,8 +1146,8 @@ defineExpose({
 .tag-manager-sidebar__tag-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.625rem;
   border: 1px solid color-mix(in srgb, var(--ink-1) 8%, transparent);
   border-radius: var(--r-3);
   background: var(--bg);
@@ -1158,7 +1158,7 @@ defineExpose({
 .tag-manager-sidebar__tag-chip--active {
   color: var(--jet-theme-primary-active);
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: 0 0 0 0.125rem color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .tag-manager-sidebar__tag-chip--dragging {
   opacity: 0.6;
@@ -1168,14 +1168,14 @@ defineExpose({
   background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 .tag-manager-sidebar__tag-chip--editable {
-  padding-right: 6px;
+  padding-right: 0.375rem;
 }
 .tag-manager-sidebar__tag-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 1.125rem;
+  height: 1.125rem;
   border-radius: 50%;
   color: var(--ink-4);
   transition: all 0.2s;
@@ -1198,11 +1198,11 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 0.375rem;
   margin-top: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
-  border-radius: 10px;
+  border-radius: 0.625rem;
   background: color-mix(in srgb, var(--accent) 3%, transparent);
   color: var(--accent);
   font-size: var(--fs-14);
@@ -1216,7 +1216,7 @@ defineExpose({
 .tag-manager-sidebar__group-empty,
 .tag-manager-sidebar__empty-hint {
   padding: var(--space-4);
-  border-radius: 12px;
+  border-radius: 0.75rem;
   text-align: center;
   color: var(--ink-4);
   background: color-mix(in srgb, var(--ink-1) 2%, transparent);

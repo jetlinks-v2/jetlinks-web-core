@@ -5,3 +5,4 @@ export * from './usePlatform';
 export * from './useRegistryComponentsMerge';
 export * from './useHeaderTheme';
 export * from './useProjectRouter';
+export * from './useResponsiveLayoutDimensions';

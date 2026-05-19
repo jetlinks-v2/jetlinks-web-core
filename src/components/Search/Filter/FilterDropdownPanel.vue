@@ -163,11 +163,11 @@ watch(
 
 <style scoped>
 .filter-dropdown-panel {
-  width: 280px;
+  width: 17.5rem;
   padding: var(--space-4);
   background: var(--bg);
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: 0.75rem;
   box-shadow: var(--shadow-1);
 }
 .filter-dropdown-panel__title {
@@ -175,7 +175,7 @@ watch(
   color: var(--ink-1);
   font-size: var(--fs-18);
   font-weight: 600;
-  line-height: 26px;
+  line-height: 1.625rem;
 }
 .filter-dropdown-panel__body {
   display: flex;

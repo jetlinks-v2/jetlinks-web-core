@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="permission-choose-container">
     <div class="detail-controls">
       <a-input-search
@@ -6,7 +6,7 @@
           allowClear
           :placeholder="$t('PersonalToken.PermissionList.061384-2')"
           @search="onSearch"
-          style="width: 200px"
+          style="width: 12.5rem"
       />
       <a-button v-if="!disabled && mode === 'add'" @click="resetToInit" type="text">{{ $t('PersonalToken.PermissionList.061384-3') }}</a-button>
     </div>

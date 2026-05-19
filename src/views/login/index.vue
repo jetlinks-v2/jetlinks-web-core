@@ -93,7 +93,7 @@ getOpen()
   }
 
   .right {
-    min-width: 400px;
+    min-width: 25rem;
     width: 27%;
     display: flex;
     padding-top: 10%;

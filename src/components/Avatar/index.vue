@@ -21,8 +21,8 @@ const initial = computed(() => props.label?.trim().slice(0, 1) || '用')
 
 <style scoped>
 .av {
-  width: 22px;
-  height: 22px;
+  width: 1.375rem;
+  height: 1.375rem;
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
@@ -31,8 +31,8 @@ const initial = computed(() => props.label?.trim().slice(0, 1) || '用')
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--bg);
-  margin-left: -6px;
+  border: 0.125rem solid var(--bg);
+  margin-left: -0.375rem;
 }
 .av:first-child {
   margin-left: 0;

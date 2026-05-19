@@ -65,9 +65,9 @@ Set only the variables that differ from the defaults.
 ```ts
 cssVars: {
   '--layout-menu-bg': '#FFFFFF',
-  '--layout-menu-padding': '8px 10px',
-  '--layout-menu-item-height': '32px',
-  '--layout-menu-item-radius': '6px',
+  '--layout-menu-padding': '0.5rem 0.625rem',
+  '--layout-menu-item-height': '2rem',
+  '--layout-menu-item-radius': '0.375rem',
   '--layout-menu-item-active-bg': '#F1F2F4',
   '--layout-menu-item-active-color': '#1D1F24',
   '--layout-menu-item-active-line': 'var(--jet-theme-primary)',
@@ -88,18 +88,18 @@ Text color tokens follow the product typography rules:
 | 次要文字 / 文本描述 | `--jet-theme-text-secondary`, `--jet-theme-text-description`, `--ink-2` | `#6B7280` |
 | 辅助文字 / 禁用 | `--jet-theme-text-disabled`, `--ink-3`, `--ink-4` | `#9CA3AF` |
 
-Font size tokens keep `12px` as the minimum. Prefer semantic aliases in page code:
+Font size tokens keep `0.75rem` (12px) as the minimum. Prefer semantic aliases in page code:
 
 | Usage | Token | Value |
 | --- | --- | --- |
-| 特殊强调标题 | `--fs-display`, `--fs-h1` | `24px` |
-| 板块内容标题 | `--fs-h2` | `22px` |
-| 特殊标题 / 自定义标题 | `--fs-h3` | `18px` |
-| 文案标题 / 弹窗标题 | `--fs-h4` | `16px` |
-| 主要内容文字 / 按钮文字 / 导航文字 | `--fs-body` | `14px` |
-| 提示文字 / 标签文字 / 次要文字 | `--fs-meta`, `--fs-label`, `--fs-tiny` | `12px` |
+| 特殊强调标题 | `--fs-display`, `--fs-h1` | `1.5rem` |
+| 板块内容标题 | `--fs-h2` | `1.375rem` |
+| 特殊标题 / 自定义标题 | `--fs-h3` | `1.125rem` |
+| 文案标题 / 弹窗标题 | `--fs-h4` | `1rem` |
+| 主要内容文字 / 按钮文字 / 导航文字 | `--fs-body` | `0.875rem` |
+| 提示文字 / 标签文字 / 次要文字 | `--fs-meta`, `--fs-label`, `--fs-tiny` | `0.75rem` |
 
-Spacing tokens use a 4px scale. Prefer `--space-*` instead of ad hoc pixel values, and keep newly added spacing values as multiples of 4.
+Spacing tokens use a 0.25rem (4px) scale. Prefer `--space-*` instead of ad hoc pixel values, and keep newly added spacing values as multiples of 4.
 
 ## Consistency Contract
 
