@@ -69,6 +69,7 @@ export const styleTokens = {
     boxShadow: '0 0.25rem 0.75rem rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04)',
     boxShadowSecondary: '0 1px 0.125rem rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02)',
     fontFamily: 'var(--font-sans)',
+      fontSize: 'var(--fs-14)',
     layout: {
       menuVariant: 'compact-search',
       showMenuSearch: false,

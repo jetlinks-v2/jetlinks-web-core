@@ -27,8 +27,8 @@ const screenProfiles: LayoutScreenProfile[] = [
     name: '4k',
     minCssWidth: 3200,
     minPhysicalWidth: 3800,
-    headerHeight: 64,
-    siderWidth: 272,
+    headerHeight: 80,
+    siderWidth: 320,
     collapsedWidth: 64
   },
   {
