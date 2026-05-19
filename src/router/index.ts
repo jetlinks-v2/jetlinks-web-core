@@ -139,6 +139,7 @@ router.beforeEach((to, from, next) => {
   }
 
   const token = getToken()
+
   // 优化: 使用路由名称判断（更可靠）
   const isLoginRoute = to.name === 'Login'
 

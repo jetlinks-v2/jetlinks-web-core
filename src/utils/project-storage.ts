@@ -43,6 +43,7 @@ export const getProjectStorage = (projectCode?: string): ProjectStorageInfo | un
 
 export const setProjectStorage = (projectCode: string, value: ProjectStorageInfo) => {
   const code = normalizeProjectCode(projectCode)
+
   if (!code || typeof localStorage === 'undefined') {
     return
   }

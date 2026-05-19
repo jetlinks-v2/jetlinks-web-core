@@ -197,6 +197,10 @@ body {
     font-family: var(--font-sans);
 }
 
+:where(button,label,a) {
+    font-size: var(--fs-14);
+}
+
 *, :after, :before {
   box-sizing: border-box;
 }

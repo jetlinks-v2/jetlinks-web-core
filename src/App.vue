@@ -7,7 +7,7 @@
     }"
     :theme="themeConfig"
   >
-    <PageRouteView />
+    <PageRouteView :skeleton-variant="routeSkeletonVariant" />
   </ConfigProvider>
 </template>
 <script setup lang="ts">
@@ -31,6 +31,12 @@ const route = useRoute()
 const router = useRouter()
 
 const systemStore = useSystemStore()
+
+type RouteSkeletonVariant = 'content' | 'layout'
+
+const routeSkeletonVariant = computed<RouteSkeletonVariant>(() => (
+  route.query?.layout === 'false' ? 'content' : 'layout'
+))
 
 const language = {
     en: enUs,
