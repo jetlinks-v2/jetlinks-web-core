@@ -9,9 +9,9 @@
             <a-tab-pane v-for="item in tabs" :key="item.key">
                 <template #tab>
                     <NoticeTab
-                        :refresh="refreshObj[item.key]"
                         :tab="item?.tab"
-                        :type="item.type"
+                        :count="tabCountMap[item.key]?.count"
+                        :overflow="tabCountMap[item.key]?.overflow"
                     />
                 </template>
                 <a-spin :spinning="loading">
@@ -22,11 +22,11 @@
                                     :data="i"
                                     :type="item.key"
                                     @action="emits('action')"
-                                    @refresh="onRefresh(item.key)"
+                                    @refresh="onRefresh"
                                 />
                             </template>
                             <div
-                                v-if="list.length >= total"
+                                v-if="list.length < DROPDOWN_PAGE_SIZE"
                                 style="
                                     color: #666666;
                                     text-align: center;
@@ -55,29 +55,23 @@
 </template>
 
 <script setup lang="ts">
-import { getList_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { getUnreadNoPagingList_api, getUnreadSummary_api } from '@jetlinks-web-core/api/account/notificationRecord';
 import { useMenuStore } from '@jetlinks-web-core/store/menu';
 import { useUserStore } from '@jetlinks-web-core/store/user';
-import { cloneDeep } from 'lodash-es';
 import NoticeItem from './NoticeItem.vue';
 import NoticeTab from './NoticeTab.vue';
 import { useI18n } from 'vue-i18n';
+import {
+    BADGE_OVERFLOW_COUNT,
+    type CappedUnreadCount,
+    createTabCountMap,
+    createUnreadQueryParams,
+    type NoticeTabItem,
+} from './noticeUtils';
 
 const { t: $t } = useI18n();
 const emits = defineEmits(['action']);
-
-interface NoticeTabItem {
-    key: string;
-    tab: string;
-    type: string[];
-}
-
-const refreshObj = ref<Record<string, boolean>>({
-    'alarm': true,
-    'system-monitor': true,
-    'system-business': true,
-    'workflow-notification': true
-});
+const DROPDOWN_PAGE_SIZE = 12;
 
 const props = defineProps({
     tabs: {
@@ -87,57 +81,49 @@ const props = defineProps({
 })
 
 const loading = ref(false);
-const total = ref(0);
 const list = ref<any[]>([]);
 const activeKey = ref<string>(props.tabs?.[0]?.key || 'alarm');
+const tabCountMap = ref<Record<string, CappedUnreadCount>>({});
 const menuStory = useMenuStore();
 const route = useRoute();
 
 const type = ref<string[]>([]);
 const userInfo = useUserStore();
+let listRequestId = 0;
 
 const getData = (providers: string[] = []) => {
     if (!providers.length) {
-        total.value = 0;
         list.value = [];
         return;
     }
     loading.value = true;
-    const params = {
-        pageIndex: 0,
-        pageSize: 12,
-        sorts: [
-            {
-                name: 'notifyTime',
-                order: 'desc',
-            },
-        ],
-        terms: [
-            {
-                type: 'and',
-                terms: [
-                    {
-                        type: 'and',
-                        value: providers,
-                        termType: 'in',
-                        column: 'topicProvider',
-                    },
-                    {
-                        type: 'and',
-                        value: 'unread',
-                        termType: 'eq',
-                        column: 'state',
-                    },
-                ],
-            },
-        ],
-    };
-    getList_api(params)
+    const currentRequestId = ++listRequestId;
+    const params = createUnreadQueryParams(providers, DROPDOWN_PAGE_SIZE);
+    getUnreadNoPagingList_api(params)
         .then((resp: any) => {
-            total.value = resp.result?.total || 0;
-            list.value = resp.result?.data || [];
+            // 只接收最新 Tab 的响应，避免快速切换时旧请求覆盖当前列表。
+            if (currentRequestId === listRequestId) {
+                list.value = Array.isArray(resp.result) ? resp.result : (resp.result?.data || []);
+            }
         })
-        .finally(() => (loading.value = false));
+        .finally(() => {
+            if (currentRequestId === listRequestId) {
+                loading.value = false;
+            }
+        });
+};
+
+const refreshSummary = () => {
+    const providers = props.tabs.reduce<string[]>((result, item) => {
+        return result.concat(item.type || []);
+    }, []);
+    if (!providers.length) {
+        tabCountMap.value = {};
+        return;
+    }
+    getUnreadSummary_api(createUnreadQueryParams(providers, BADGE_OVERFLOW_COUNT)).then((resp: any) => {
+        tabCountMap.value = createTabCountMap(props.tabs, resp.result);
+    });
 };
 
 const onChange = (_key: string | number) => {
@@ -148,12 +134,8 @@ const onChange = (_key: string | number) => {
 
 
 
-const onRefresh = (id: string) => {
-    const flag = cloneDeep(refreshObj.value[id]);
-    refreshObj.value = {
-        ...refreshObj.value,
-        [id]: !flag,
-    };
+const onRefresh = () => {
+    refreshSummary();
     getData(type.value.length ? type.value : props.tabs.find((item) => item.key === activeKey.value)?.type || [])
 };
 
@@ -177,6 +159,7 @@ const onMore = (key: string) => {
 };
 
 onMounted(async () => {
+    refreshSummary();
     onChange(props.tabs?.[0]?.key || "alarm");
 });
 </script>

@@ -5,7 +5,7 @@
       :trigger="['click']"
       :getPopupContainer="getPopupContainer"
     >
-      <a-badge :count="total" :offset="[3, -3]">
+      <a-badge :count="total" :overflow-count="BADGE_OVERFLOW_COUNT" :offset="[3, -3]">
         <AIcon class="notice-icon" type="BellOutlined" />
       </a-badge>
       <template #overlay>
@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts" name="Notice">
-import { getList_api, changeStatus_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { changeStatus_api, getUnreadCount_api } from '@jetlinks-web-core/api/account/notificationRecord';
 import { ref } from 'vue'
 import NoticeInfo from './NoticeInfo.vue';
 import { useWebSocket } from '@jetlinks-web-core/hooks'
@@ -28,6 +28,12 @@ import { useMenuStore } from '@jetlinks-web-core/store/menu';
 import { getAllNotice } from '@jetlinks-web-core/api/account/center';
 import { flatten } from 'lodash-es';
 import { useI18n } from 'vue-i18n';
+import {
+    BADGE_OVERFLOW_COUNT,
+    BADGE_OVERFLOW_VALUE,
+    createUnreadQueryParams,
+    toBadgeCount,
+} from './noticeUtils';
 
 const { t: $t } = useI18n();
 const updateCount = computed(() => useUserStore().alarmUpdateCount);
@@ -46,7 +52,7 @@ const { send } = useWebSocket({
   onMessage(data) {
     if (!data?.payload?.id) return;
     // 消息处理
-    total.value += 1;
+    total.value = Math.min(total.value + 1, BADGE_OVERFLOW_VALUE);
     notification.open({
                 message: data?.payload?.topicName,
                 description: () =>
@@ -121,36 +127,10 @@ const getList = () => {
         return;
     }
     loading.value = true;
-    const params = {
-        pageIndex: 0,
-        pageSize: 1,
-        sorts: [{
-          name: 'notifyTime',
-          order: 'desc'
-        }],
-        terms: [
-            {
-                type: 'and',
-                terms: [
-                    {
-                        type: 'and',
-                        value: topicProviders,
-                        termType: 'in',
-                        column: 'topicProvider',
-                    },
-                    {
-                        type: 'and',
-                        value: 'unread',
-                        termType: 'eq',
-                        column: 'state',
-                    },
-                ],
-            },
-        ],
-    };
-    getList_api(params)
+    const params = createUnreadQueryParams(topicProviders, BADGE_OVERFLOW_COUNT);
+    getUnreadCount_api(params)
         .then((resp: any) => {
-            total.value = resp.result?.total || 0;
+            total.value = toBadgeCount(resp.result);
         })
         .finally(() => (loading.value = false));
 };
