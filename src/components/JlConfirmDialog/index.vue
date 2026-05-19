@@ -111,8 +111,8 @@ function renderMessage(raw: string): string {
 .jlc {
   display: flex;
   flex-direction: column;
-  background: var(--bg-elev);
-  border-radius: var(--r-3);
+  background: var(--jet-theme-bg-container);
+  border-radius: var(--jet-theme-radius-lg);
   overflow: hidden;
 }
 
@@ -136,16 +136,16 @@ function renderMessage(raw: string): string {
   height: 1.25rem;
 }
 .jlc-icon.tone-info {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--jet-theme-primary-soft);
+  color: var(--jet-theme-primary);
 }
 .jlc-icon.tone-warn {
   background: var(--warn-bg);
-  color: var(--warn);
+  color: var(--jet-theme-warning);
 }
 .jlc-icon.tone-danger {
   background: var(--err-bg);
-  color: var(--err);
+  color: var(--jet-theme-error);
 }
 
 .jlc-text {
@@ -155,16 +155,16 @@ function renderMessage(raw: string): string {
 }
 .jlc-title {
   margin: 0 0 0.375rem;
-  font-size: var(--fs-15);
+  font-size: var(--fs-16);
   font-weight: 600;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   line-height: 1.4;
 }
 .jlc-msg {
   margin: 0;
   font-size: var(--fs-14);
   line-height: 1.6;
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
   word-break: break-word;
 }
 
@@ -181,7 +181,7 @@ function renderMessage(raw: string): string {
   cursor: pointer;
   height: 2.125rem;
   padding: 0 1.125rem;
-  border-radius: var(--r-1);
+  border-radius: var(--jet-theme-radius-sm);
   font-size: var(--fs-14);
   font-weight: 500;
   display: inline-flex;
@@ -191,32 +191,32 @@ function renderMessage(raw: string): string {
 }
 
 .jlc-btn-cancel {
-  background: var(--bg-elev);
-  color: var(--ink-2);
-  border: 1px solid var(--line);
+  background: var(--jet-theme-bg-container);
+  color: var(--jet-theme-text-secondary);
+  border: 0.0625rem solid var(--jet-theme-border);
 }
 .jlc-btn-cancel:hover {
-  border-color: var(--line-strong);
-  color: var(--ink-1);
+  border-color: var(--jet-theme-border-secondary);
+  color: var(--jet-theme-text);
 }
 
 .jlc-btn-confirm {
-  color: var(--bg);
+  color: var(--jet-theme-bg-container);
 }
 .jlc-btn-confirm.tone-info {
-  background: var(--accent);
+  background: var(--jet-theme-primary);
 }
 .jlc-btn-confirm.tone-info:hover {
-  background: var(--ink-1);
+  background: var(--jet-theme-text);
 }
 .jlc-btn-confirm.tone-warn {
-  background: var(--warn);
+  background: var(--jet-theme-warning);
 }
 .jlc-btn-confirm.tone-warn:hover {
   filter: brightness(0.95);
 }
 .jlc-btn-confirm.tone-danger {
-  background: var(--err);
+  background: var(--jet-theme-error);
 }
 .jlc-btn-confirm.tone-danger:hover {
   filter: brightness(0.95);
@@ -226,11 +226,11 @@ function renderMessage(raw: string): string {
 <style>
 .jlc-modal .ant-modal-content {
   padding: 0 !important;
-  border-radius: var(--r-3);
+  border-radius: var(--jet-theme-radius-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-pop);
+  box-shadow: var(--jet-theme-shadow);
 }
 .jlc-modal .ant-modal-mask {
-  background: color-mix(in srgb, var(--ink-2) 42%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-text-secondary) 42%, transparent);
   backdrop-filter: blur(0.125rem);
 }</style>

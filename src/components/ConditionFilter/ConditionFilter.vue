@@ -2612,8 +2612,8 @@ onUnmounted(() => {
     min-height: 2.375rem;
     padding: 0.3125rem 0.625rem;
     background: #fff;
-    border: 1px solid #d0d7de;
-    border-radius: var(--r-3);
+    border: 0.0625rem solid #d0d7de;
+    border-radius: var(--jet-theme-radius-lg);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
     &:hover {
@@ -2664,8 +2664,8 @@ onUnmounted(() => {
     color: #1f2329;
     font-size: var(--fs-12);
     line-height: 1.5rem;
-    border: 1px solid transparent;
-    border-radius: var(--r-2);
+    border: 0.0625rem solid transparent;
+    border-radius: var(--jet-theme-radius);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
   }
 
@@ -2831,7 +2831,7 @@ onUnmounted(() => {
     color: #667085;
     background: transparent;
     border: 0;
-    border-radius: var(--r-2);
+    border-radius: var(--jet-theme-radius);
     cursor: pointer;
     transition: background-color 0.15s ease, color 0.15s ease;
 
@@ -2863,7 +2863,7 @@ onUnmounted(() => {
     min-width: 7.5rem;
     padding: var(--space-2);
     background: #fff;
-    border: 1px solid #e4e7ec;
+    border: 0.0625rem solid #e4e7ec;
     border-radius: 0.625rem;
     box-shadow: 0 0.5rem 1.25rem rgba(31, 35, 41, 0.12);
   }

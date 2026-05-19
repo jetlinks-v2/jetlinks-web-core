@@ -70,7 +70,7 @@ watch(() => props.value, (newValue) => {
   padding: var(--space-2);
   min-width: 12.5rem;
   min-height: 2.5rem;
-  background-color: var(--bg);
-  border-radius: var(--r-3);
-  box-shadow: var(--shadow-1);
+  background-color: var(--jet-theme-bg-container);
+  border-radius: var(--jet-theme-radius-lg);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }</style>

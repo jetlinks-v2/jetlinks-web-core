@@ -183,9 +183,9 @@ const handleClose = () => {
       .token-input {
         flex: 1; :deep(.ant-input) {
           background-color: var(--color-jet-gray-50);
-          border: 1px solid var(--jet-theme-border-secondary);
+          border: 0.0625rem solid var(--jet-theme-border-secondary);
           padding: 0.5rem 0.75rem;
-          font-size: var(--fs-13);
+          font-size: var(--fs-14);
           color: var(--jet-theme-text);
         }
       }
@@ -223,7 +223,7 @@ const handleClose = () => {
 
     .warning-text {
       color: var(--jet-theme-text-secondary);
-      font-size: var(--fs-13);
+      font-size: var(--fs-14);
       line-height: 1.5;
     }
   }
@@ -233,7 +233,7 @@ const handleClose = () => {
 
     .ant-btn {
       min-width: 4.5rem;
-      border-radius: var(--r-1);
+      border-radius: var(--jet-theme-radius-sm);
     }
   }
 }
@@ -241,7 +241,7 @@ const handleClose = () => {
 // 自定义modal样式
 :deep(.ant-modal) {
   .ant-modal-header {
-    border-bottom: 1px solid var(--line-strong);
+    border-bottom: 0.0625rem solid var(--jet-theme-border-secondary);
     padding: 1rem 1.5rem;
 
     .ant-modal-title {

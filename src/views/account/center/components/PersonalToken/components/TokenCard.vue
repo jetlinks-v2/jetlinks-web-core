@@ -150,7 +150,7 @@ const formatDate = (dateStr) => {
 
 <style lang="less" scoped>
 .token-card {
-  border: 1px solid var(--jet-theme-border-secondary);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
   padding: var(--space-4);
   display: flex;
   justify-content: space-between;
@@ -167,7 +167,7 @@ const formatDate = (dateStr) => {
     .token-icon {
       width: 3rem;
       height: 3rem;
-      border-radius: var(--r-2);
+      border-radius: var(--jet-theme-radius);
       background: var(--jet-theme-primary-soft);
       display: flex;
       font-size: var(--fs-20);
@@ -205,7 +205,7 @@ const formatDate = (dateStr) => {
         }
 
         .field-value {
-          color: var(--ink-1);
+          color: var(--jet-theme-text);
         }
       }
     }
@@ -232,7 +232,7 @@ const formatDate = (dateStr) => {
 
 .token-card-actions {
   .ant-btn {
-    background-color: var(--line-strong) !important;
+    background-color: var(--jet-theme-border-secondary) !important;
     border: none;
   }
 }</style>

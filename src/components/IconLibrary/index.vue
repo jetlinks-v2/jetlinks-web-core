@@ -73,23 +73,23 @@ watch(
 .container {
   width: 4.375rem;
   height: 4.375rem;
-  border: 1px dashed var(--line);
+  border: 0.0625rem dashed var(--jet-theme-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--r-2);
+  border-radius: var(--jet-theme-radius);
   cursor: pointer;
   transition: all 0.3s;
 }
 .container:hover {
-  border-color: var(--accent);
-  background-color: var(--accent-soft);
+  border-color: var(--jet-theme-primary);
+  background-color: var(--jet-theme-primary-soft);
 }
 .container .icon-display {
   font-size: var(--fs-32);
-  color: var(--accent);
+  color: var(--jet-theme-primary);
 }
 .container .no-icon {
-  color: color-mix(in srgb, var(--ink-1) 47%, transparent);
+  color: color-mix(in srgb, var(--jet-theme-text) 47%, transparent);
   font-size: var(--fs-22);
 }</style>

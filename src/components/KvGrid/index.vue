@@ -76,13 +76,13 @@ const layoutStyle = computed(() => ({
 }
 .cell-stack .kv-cell dt {
   font-size: var(--fs-12);
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   margin-bottom: var(--space-1);
 }
 .cell-stack .kv-cell dd {
   margin: 0;
   font-size: var(--fs-12);
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
@@ -99,25 +99,25 @@ const layoutStyle = computed(() => ({
 }
 
 .cell-inline .kv-cell dt {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
   font-weight: 500;
 }
 
 .cell-inline .kv-cell dd {
   margin: 0;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   overflow-wrap: anywhere;
 }
 
 .cell-inline .kv-cell dd.mono { font-size: var(--fs-12);
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
 }
 
 /* stacked 模式下 cell 间分隔线（详情段视觉） */
 .cols-stacked .kv-cell {
   padding-bottom: var(--kv-stacked-gap, 0.5rem);
-  border-bottom: 1px dashed var(--line);
+  border-bottom: 0.0625rem dashed var(--jet-theme-border);
 }
 .cols-stacked .kv-cell:last-child {
   padding-bottom: 0;

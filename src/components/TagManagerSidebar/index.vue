@@ -1051,9 +1051,9 @@ defineExpose({
   gap: 0.375rem;
   height: 1.75rem;
   padding: 0 0.625rem;
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-primary) 20%, transparent);
   border-radius: 62.4375rem;
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-primary) 8%, transparent);
   color: var(--jet-theme-primary-active);
   font-size: var(--fs-12);
   cursor: pointer;
@@ -1066,7 +1066,7 @@ defineExpose({
   height: 1.125rem;
   padding: 0 0.25rem;
   border-radius: 62.4375rem;
-  background: var(--accent);
+  background: var(--jet-theme-primary);
   color: var(--accent-ink);
   font-size: var(--fs-12);
 }
@@ -1086,8 +1086,8 @@ defineExpose({
 }
 .tag-manager-sidebar__group--drag-over {
   border-radius: 0.75rem;
-  background: color-mix(in srgb, var(--accent) 4%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-primary) 4%, transparent);
+  box-shadow: inset 0 0 0 0.0625rem color-mix(in srgb, var(--jet-theme-primary) 20%, transparent);
 }
 .tag-manager-sidebar__group-header {
   display: flex;
@@ -1103,7 +1103,7 @@ defineExpose({
 }
 .tag-manager-sidebar__group-name {
   font-weight: 600;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
 }
 .tag-manager-sidebar__group-icon,
 .tag-manager-sidebar__tag-icon {
@@ -1115,7 +1115,7 @@ defineExpose({
   justify-content: center;
   width: 1.125rem;
   height: 1.125rem;
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   cursor: grab;
 }
 .tag-manager-sidebar__drag-handle:active {
@@ -1125,18 +1125,18 @@ defineExpose({
   margin-right: -0.125rem;
 }
 .tag-manager-sidebar__group-count {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
 }
 .tag-manager-sidebar__group-line {
   flex: 1;
   height: 0.0625rem;
-  background: color-mix(in srgb, var(--ink-1) 8%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-text) 8%, transparent);
 }
 .tag-manager-sidebar__group-content {
   padding-left: var(--space-3);
   margin-left: var(--space-1);
-  border-left: 0.125rem solid color-mix(in srgb, var(--accent) 12%, transparent);
+  border-left: 0.125rem solid color-mix(in srgb, var(--jet-theme-primary) 12%, transparent);
 }
 .tag-manager-sidebar__tag-list {
   display: flex;
@@ -1148,24 +1148,24 @@ defineExpose({
   align-items: center;
   gap: 0.375rem;
   padding: 0.3125rem 0.625rem;
-  border: 1px solid color-mix(in srgb, var(--ink-1) 8%, transparent);
-  border-radius: var(--r-3);
-  background: var(--bg);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-text) 8%, transparent);
+  border-radius: var(--jet-theme-radius-lg);
+  background: var(--jet-theme-bg-container);
   cursor: pointer;
   transition: all 0.2s;
 }
 .tag-manager-sidebar__tag-chip--selected,
 .tag-manager-sidebar__tag-chip--active {
   color: var(--jet-theme-primary-active);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 0.125rem color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: var(--jet-theme-primary);
+  box-shadow: 0 0 0 0.125rem color-mix(in srgb, var(--jet-theme-primary) 8%, transparent);
 }
 .tag-manager-sidebar__tag-chip--dragging {
   opacity: 0.6;
 }
 .tag-manager-sidebar__tag-chip--drag-over {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-color: var(--jet-theme-primary);
+  background: color-mix(in srgb, var(--jet-theme-primary) 6%, transparent);
 }
 .tag-manager-sidebar__tag-chip--editable {
   padding-right: 0.375rem;
@@ -1177,21 +1177,21 @@ defineExpose({
   width: 1.125rem;
   height: 1.125rem;
   border-radius: 50%;
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   transition: all 0.2s;
 }
 .tag-manager-sidebar__tag-action:hover {
-  color: var(--err);
-  background: color-mix(in srgb, var(--err) 8%, transparent);
+  color: var(--jet-theme-error);
+  background: color-mix(in srgb, var(--jet-theme-error) 8%, transparent);
 }
 .tag-manager-sidebar__tag-chip--add {
   border-style: dashed;
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
 }
 .tag-manager-sidebar__tag-chip--add:disabled {
   cursor: not-allowed;
-  color: color-mix(in srgb, var(--ink-1) 25%, transparent);
-  background: color-mix(in srgb, var(--ink-1) 2%, transparent);
+  color: color-mix(in srgb, var(--jet-theme-text) 25%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-text) 2%, transparent);
 }
 .tag-manager-sidebar__add-bar {
   width: 100%;
@@ -1201,23 +1201,23 @@ defineExpose({
   gap: 0.375rem;
   margin-top: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
+  border: 0.0625rem dashed color-mix(in srgb, var(--jet-theme-primary) 50%, transparent);
   border-radius: 0.625rem;
-  background: color-mix(in srgb, var(--accent) 3%, transparent);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--jet-theme-primary) 3%, transparent);
+  color: var(--jet-theme-primary);
   font-size: var(--fs-14);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
 .tag-manager-sidebar__add-bar:hover {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-primary) 8%, transparent);
 }
 .tag-manager-sidebar__group-empty,
 .tag-manager-sidebar__empty-hint {
   padding: var(--space-4);
   border-radius: 0.75rem;
   text-align: center;
-  color: var(--ink-4);
-  background: color-mix(in srgb, var(--ink-1) 2%, transparent);
+  color: var(--jet-theme-text-disabled);
+  background: color-mix(in srgb, var(--jet-theme-text) 2%, transparent);
 }</style>

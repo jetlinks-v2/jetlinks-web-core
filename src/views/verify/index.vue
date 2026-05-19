@@ -501,7 +501,7 @@ onUnmounted(() => {
   align-items: center;
   height: 2rem;
   padding-left: var(--space-2);
-  border-left: 1px solid var(--line);
+  border-left: 0.0625rem solid var(--jet-theme-border);
 }
 .captcha-img {
   height: 2rem;

@@ -60,10 +60,10 @@ watch(() => props.value, () => {
   text-align: center;
   height: 100%;
   border-radius: 0.125rem;
-  background-color: var(--canvas);
+  background-color: var(--jet-theme-bg-layout);
   cursor: pointer;
 }
 .radio-button .radio-button-item.active {
   color: var(--accent-ink);
-  background-color: var(--jet-theme-primary, var(--accent));
+  background-color: var(--jet-theme-primary, var(--jet-theme-primary));
 }</style>

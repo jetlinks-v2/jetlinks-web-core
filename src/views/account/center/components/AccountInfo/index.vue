@@ -805,7 +805,7 @@ onUnmounted(() => {
   }
 
   .basic-form-label {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     font-weight: 500;
     color: #1d2129;
     margin-bottom: 0.375rem;
@@ -828,7 +828,7 @@ onUnmounted(() => {
   }
 
   .avatar-label {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     font-weight: 500;
     color: #1d2129;
   }
@@ -840,7 +840,7 @@ onUnmounted(() => {
 
   .basic-form-meta {
     margin-top: var(--space-2);
-    border-top: 1px solid var(--line-strong);
+    border-top: 0.0625rem solid var(--jet-theme-border-secondary);
     padding-top: var(--space-3);
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -849,7 +849,7 @@ onUnmounted(() => {
   }
 
   .basic-form-meta-item {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: #4e5969;
     display: flex;
     flex-direction: column;
@@ -887,7 +887,7 @@ onUnmounted(() => {
   }
 
   .org-popover-item {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: #4e5969;
     line-height: 1.5;
   }
@@ -902,11 +902,11 @@ onUnmounted(() => {
     color: #1d2129;
     margin: 0 0 0.5rem 0;
     padding-bottom: var(--space-2);
-    border-bottom: 1px solid #e5e6eb;
+    border-bottom: 0.0625rem solid #e5e6eb;
   }
 
   .section-desc {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: #86909c;
     margin: 0 0 0.75rem 0;
   }
@@ -923,7 +923,7 @@ onUnmounted(() => {
     .basic-item {
       .label {
         display: block;
-        font-size: var(--fs-13);
+        font-size: var(--fs-14);
         color: #86909c;
         margin-bottom: var(--space-1);
       }
@@ -940,7 +940,7 @@ onUnmounted(() => {
   .identity-item {
     padding: var(--space-2) var(--space-3);
     background: #f7f8fa;
-    border-radius: var(--r-2);
+    border-radius: var(--jet-theme-radius);
     margin-bottom: var(--space-2);
 
     .identity-value {
@@ -973,7 +973,7 @@ onUnmounted(() => {
   }
 
   .empty-hint {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: #86909c;
     margin-bottom: var(--space-3);
   }
@@ -997,7 +997,7 @@ onUnmounted(() => {
     margin-bottom: var(--space-2);
   }
   .email-code-desc {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: #4e5969;
   }
 }</style>

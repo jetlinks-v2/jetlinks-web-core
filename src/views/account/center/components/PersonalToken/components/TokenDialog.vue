@@ -403,7 +403,7 @@ provide('mode', props.mode)
   .form-left {
     padding-right: var(--space-3);
     width: 45%;
-    border-right: 1px solid var(--line-strong);
+    border-right: 0.0625rem solid var(--jet-theme-border-secondary);
   }
 
   .form-right {
@@ -423,7 +423,7 @@ provide('mode', props.mode)
     font-size: var(--fs-16);
     font-weight: 500;
     color: #262626;
-    border-bottom: 1px solid var(--line-strong);
+    border-bottom: 0.0625rem solid var(--jet-theme-border-secondary);
     padding-bottom: var(--space-2);
   }
 }
@@ -468,7 +468,7 @@ provide('mode', props.mode)
           cursor: pointer;
 
           &:hover {
-            background: var(--line-strong);
+            background: var(--jet-theme-border-secondary);
           }
         }
       }

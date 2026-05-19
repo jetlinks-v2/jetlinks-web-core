@@ -3,7 +3,7 @@
     <slot name="alert">
       <div class="alert" v-if="message">
         <div>
-          <AIcon type="InfoCircleFilled" style="color: var(--accent); margin-right: 0.625rem;"/>
+          <AIcon type="InfoCircleFilled" style="color: var(--jet-theme-primary); margin-right: 0.625rem;"/>
         </div>
         <span v-html="message"></span>
       </div>
@@ -34,12 +34,12 @@
         {{ $t('BatchImport.index.250528-5') }}
       </div>
       <div v-else>
-        <AIcon style="color: var(--ok); margin-right: 0.625rem;font-size: var(--fs-16);" type="CheckCircleOutlined"/>
+        <AIcon style="color: var(--jet-theme-success); margin-right: 0.625rem;font-size: var(--fs-16);" type="CheckCircleOutlined"/>
         {{ $t('BatchImport.index.250528-6') }}
       </div>
       <div>{{ $t('BatchImport.index.250528-7') }}{{ result.success }}</div>
       <div>
-        {{ $t('BatchImport.index.250528-8') }}<span style="color: var(--err)">{{ result.error }}</span>
+        {{ $t('BatchImport.index.250528-8') }}<span style="color: var(--jet-theme-error)">{{ result.error }}</span>
         <a
             v-if="result.errMessage && result.error > 0"
             style="margin-left: 1.25rem"
@@ -201,10 +201,10 @@ const downTemplate = async (type) => {
 <style scoped>
 .alert {
   padding: 0.375rem 0.75rem;
-  border: 1px solid var(--line);
-  border-radius: var(--r-1);
+  border: 0.0625rem solid var(--jet-theme-border);
+  border-radius: var(--jet-theme-radius-sm);
   margin-bottom: var(--space-4);
-  background-color: var(--canvas);
+  background-color: var(--jet-theme-bg-layout);
   display: flex;
   align-items: center;
 }
@@ -212,12 +212,12 @@ const downTemplate = async (type) => {
   margin: 2.875rem 0;
   display: flex;
   flex-direction: column;
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
   align-items: center;
 }
 .draggable-box .icon {
   font-size: var(--fs-30);
-  color: var(--jet-theme-primary, var(--accent));
+  color: var(--jet-theme-primary, var(--jet-theme-primary));
 }
 .result,
 .file-download {

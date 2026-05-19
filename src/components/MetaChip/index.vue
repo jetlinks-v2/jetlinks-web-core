@@ -30,35 +30,35 @@ const toneClass = computed(() => `t-${props.tone ?? 'default'}`)
   gap: var(--space-1);
   padding: 0.1875rem 0.625rem;
   border-radius: 62.4375rem;
-  background: var(--bg-sunken);
-  color: var(--ink-3);
+  background: var(--jet-theme-primary-soft);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
   line-height: 1.5;
 }
 .meta-chip .value,
 .meta-chip :deep(b) {
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-weight: 600;
 }
 
 .t-warn {
   background: var(--warn-bg);
-  color: var(--warn);
+  color: var(--jet-theme-warning);
 }
 .t-warn .value,
 .t-warn :deep(b) {
-  color: var(--warn);
+  color: var(--jet-theme-warning);
 }
 
 .t-ok {
   background: var(--ok-bg);
-  color: var(--ok);
+  color: var(--jet-theme-success);
 }
 .t-danger {
   background: var(--err-bg);
-  color: var(--err);
+  color: var(--jet-theme-error);
 }
 .t-info {
-  background: var(--info-bg);
-  color: var(--info);
+  background: var(--jet-theme-primary-soft);
+  color: var(--jet-theme-primary);
 }</style>

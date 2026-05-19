@@ -19,7 +19,7 @@
  *
  * variant:
  *   dark    深色背景（var(--code-dark-bg) 板岩 + var(--code-dark-fg-1) 文字）—— 用于 JSON 示例 / API 端点展示
- *   light   浅色背景（var(--bg-sunken)）—— 用于 schema / 记忆字段 / 纯配置展示
+ *   light   浅色背景（var(--jet-theme-primary-soft)）—— 用于 schema / 记忆字段 / 纯配置展示
  *
  * copyable: 右上角 "复制" 按钮（点击后 1.5s 反馈）
  *
@@ -66,9 +66,9 @@ function getSlotText(): string {
 
 <style scoped>
 .code-block {
-  border-radius: var(--r-2);
+  border-radius: var(--jet-theme-radius);
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 0.0625rem solid var(--jet-theme-border);
 }
 
 .cb-head {
@@ -78,7 +78,7 @@ function getSlotText(): string {
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   font-size: var(--fs-12);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0.0625rem solid var(--jet-theme-border);
 }
 
 .cb-label {
@@ -96,7 +96,7 @@ function getSlotText(): string {
   align-items: center;
   gap: var(--space-1);
   padding: 0.1875rem 0.5rem;
-  border-radius: var(--r-1);
+  border-radius: var(--jet-theme-radius-sm);
   font-size: var(--fs-12);
   transition: all 0.15s;
 }
@@ -113,7 +113,7 @@ function getSlotText(): string {
 }
 .dark .cb-copy:hover {
   background: var(--code-dark-hover);
-  color: var(--bg);
+  color: var(--jet-theme-bg-container);
 }
 .dark .cb-body {
   background: var(--code-dark-bg);
@@ -122,20 +122,20 @@ function getSlotText(): string {
 
 /* light 变体 */
 .light .cb-head {
-  background: var(--bg-sunken);
-  color: var(--ink-2);
+  background: var(--jet-theme-primary-soft);
+  color: var(--jet-theme-text-secondary);
   font-weight: 500;
 }
 .light .cb-copy {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
 }
 .light .cb-copy:hover {
-  background: var(--bg);
-  color: var(--accent);
+  background: var(--jet-theme-bg-container);
+  color: var(--jet-theme-primary);
 }
 .light .cb-body {
-  background: var(--bg);
-  color: var(--ink-2);
+  background: var(--jet-theme-bg-container);
+  color: var(--jet-theme-text-secondary);
 }
 
 .cb-body {

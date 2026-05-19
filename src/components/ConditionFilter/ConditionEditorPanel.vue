@@ -191,7 +191,7 @@ watch(
 .condition-editor-panel {
   padding: var(--space-3);
   background: #fff;
-  border: 1px solid #e5e6eb;
+  border: 0.0625rem solid #e5e6eb;
   border-radius: 0.625rem;
   box-shadow: 0 0.5rem 1.25rem rgba(31, 35, 41, 0.12);
 

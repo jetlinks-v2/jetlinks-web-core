@@ -265,7 +265,7 @@ const confirm = () => {
   align-items: center;
   margin-bottom: var(--space-4);
   padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--line-strong);
+  border-bottom: 0.0625rem solid var(--jet-theme-border-secondary);
 }
 .icon-selector .category-tabs :deep(.ant-tabs-content) {
   height: 28.125rem;
@@ -283,8 +283,8 @@ const confirm = () => {
   align-items: center;
   justify-content: center;
   padding: 1rem 0.5rem;
-  border: 0.125rem solid var(--line-strong);
-  border-radius: var(--r-2);
+  border: 0.125rem solid var(--jet-theme-border-secondary);
+  border-radius: var(--jet-theme-radius);
   cursor: pointer;
   transition: all 0.3s;
 }
@@ -294,22 +294,22 @@ const confirm = () => {
 }
 .icon-selector .icon-grid .icon-item .icon-name {
   font-size: var(--fs-12);
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
   text-align: center;
   word-break: break-word;
   line-height: 1.2;
 }
 .icon-selector .icon-grid .icon-item:hover {
-  border-color: var(--accent);
-  background-color: var(--accent-soft);
+  border-color: var(--jet-theme-primary);
+  background-color: var(--jet-theme-primary-soft);
 }
 .icon-selector .icon-grid .icon-item.active {
-  color: var(--accent);
-  border-color: var(--accent);
-  background-color: var(--accent-soft);
+  color: var(--jet-theme-primary);
+  border-color: var(--jet-theme-primary);
+  background-color: var(--jet-theme-primary-soft);
 }
 .icon-selector .icon-grid .icon-item.active .icon-name {
-  color: var(--accent);
+  color: var(--jet-theme-primary);
   font-weight: 500;
 }
 .icon-selector .selected-info {
@@ -318,7 +318,7 @@ const confirm = () => {
   gap: var(--space-2);
   margin-top: var(--space-4);
   padding-top: var(--space-4);
-  border-top: 1px solid var(--line-strong);
+  border-top: 0.0625rem solid var(--jet-theme-border-secondary);
 }
 .icon-selector .selected-info .ant-tag {
   display: flex;

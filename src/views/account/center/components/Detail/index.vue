@@ -1,7 +1,7 @@
 <template>
     <a-modal visible @cancel="emit('close')" :closable="false">
         <div style="padding: 1.875rem;">
-            <div style="display: flex; padding-bottom: 1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid #E4E7F6">
+            <div style="display: flex; padding-bottom: 1.5rem; margin-bottom: 1.5rem; border-bottom: 0.0625rem solid #E4E7F6">
                 <a-avatar :size="100" :src="userInfo.avatar"></a-avatar>
                 <div style="margin-left: 1.5rem;  max-width: 17.5rem;" >
                     <div class="name"><j-ellipsis>{{ userInfo.name }}</j-ellipsis></div>

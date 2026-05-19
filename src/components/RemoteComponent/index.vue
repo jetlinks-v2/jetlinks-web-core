@@ -83,7 +83,7 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   gap: var(--space-3);
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
 }
 .remote-component-wrapper .loading-state .default-loading span {
   font-size: var(--fs-14);

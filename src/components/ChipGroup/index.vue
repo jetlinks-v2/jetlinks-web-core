@@ -72,13 +72,13 @@ function onClick(key: string) {
 
 .style-wrapped {
   padding: var(--space-2) var(--space-3);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-2);
+  background: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--jet-theme-border);
+  border-radius: var(--jet-theme-radius);
 }
 
 .label {
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
   margin-right: 0.125rem;
 }
@@ -92,11 +92,11 @@ function onClick(key: string) {
   padding: 0.1875rem 0.625rem;
   border-radius: 62.4375rem;
   font-size: var(--fs-12);
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
   transition: all 0.15s;
 }
 .chip.interactive:hover {
-  background: var(--bg-sunken);
+  background: var(--jet-theme-primary-soft);
 }
 
 .chip .dot {
@@ -106,27 +106,27 @@ function onClick(key: string) {
   flex-shrink: 0;
 }
 .chip .count {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
   margin-left: 0.125rem;
 }
 
 /* 激活态 —— 主色填充 */
 .chip.active {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--jet-theme-primary-soft);
+  color: var(--jet-theme-primary);
   font-weight: 500;
 }
-.chip.active .count { color: var(--accent); }
+.chip.active .count { color: var(--jet-theme-primary); }
 
 /* variantClass 色彩（非激活态也保持自己的色，全走 token） */
-.chip.f-event    { color: var(--ink-1); }
-.chip.f-patrol   { color: var(--ink-1); }
-.chip.f-behavior { color: var(--ink-1); }
-.chip.f-skill    { color: var(--ok); }
-.chip.s-official { color: var(--ink-1); }
-.chip.s-self     { color: var(--ink-1); }
-.chip.s-market   { color: var(--ink-1); }
+.chip.f-event    { color: var(--jet-theme-text); }
+.chip.f-patrol   { color: var(--jet-theme-text); }
+.chip.f-behavior { color: var(--jet-theme-text); }
+.chip.f-skill    { color: var(--jet-theme-success); }
+.chip.s-official { color: var(--jet-theme-text); }
+.chip.s-self     { color: var(--jet-theme-text); }
+.chip.s-market   { color: var(--jet-theme-text); }
 
 /* 激活态覆盖，不让 variant 色盖过主色 */
 .chip.active.f-event,
@@ -136,5 +136,5 @@ function onClick(key: string) {
 .chip.active.s-official,
 .chip.active.s-self,
 .chip.active.s-market {
-  color: var(--accent);
+  color: var(--jet-theme-primary);
 }</style>

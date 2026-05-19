@@ -65,9 +65,9 @@ watch(() => JSON.stringify(props.value), () => {
   cursor: pointer;
 }
 .server-list-warp .server-list-items .server-item :deep(.ant-badge-status-text) {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   transition: color 0.3s;
 }
 .server-list-warp .server-list-items .server-item.active :deep(.ant-badge-status-text) {
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
 }</style>

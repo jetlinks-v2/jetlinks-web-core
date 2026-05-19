@@ -33,9 +33,9 @@ withDefaults(
 
 <style scoped>
 .ambient-card {
-  border: 1px solid var(--line);
-  border-radius: var(--r-3);
-  box-shadow: var(--shadow-lifted);
+  border: 0.0625rem solid var(--jet-theme-border);
+  border-radius: var(--jet-theme-radius-lg);
+  box-shadow: var(--jet-theme-shadow);
 }
 .ambient-card.padded {
   padding: var(--space-6) var(--space-7);
@@ -51,6 +51,6 @@ withDefaults(
   background: var(--ambient-warm);
 }
 .v-flat {
-  background: var(--bg);
-  box-shadow: var(--shadow-1);
+  background: var(--jet-theme-bg-container);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }</style>

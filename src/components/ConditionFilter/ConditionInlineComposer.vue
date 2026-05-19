@@ -390,9 +390,9 @@ watch(
   flex: 0 1 auto;
   min-width: 3.75rem;
   max-width: 15rem;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-soft);
-  border-radius: var(--r-2);
+  background: var(--jet-theme-primary-soft);
+  border: 0.0625rem solid var(--jet-theme-primary-soft);
+  border-radius: var(--jet-theme-radius);
 }
 .condition-inline-composer__value-content {
   display: flex;
@@ -409,7 +409,7 @@ watch(
   width: 1.5rem;
   height: 1.5rem;
   margin-right: 0.1875rem;
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
   background: transparent;
   border: 0;
   border-radius: 62.4375rem;
@@ -417,8 +417,8 @@ watch(
   transition: color 0.2s ease, background-color 0.2s ease;
 }
 .condition-inline-composer__clear:hover:not(:disabled) {
-  color: var(--ink-3);
-  background: color-mix(in srgb, var(--ink-2) 8%, transparent);
+  color: var(--jet-theme-text-disabled);
+  background: color-mix(in srgb, var(--jet-theme-text-secondary) 8%, transparent);
 }
 .condition-inline-composer__clear:disabled {
   cursor: not-allowed;
@@ -433,7 +433,7 @@ watch(
   padding: 0 0.625rem !important;
   background: transparent !important;
   border: 0 !important;
-  border-radius: var(--r-2) !important;
+  border-radius: var(--jet-theme-radius) !important;
   box-shadow: none !important;
 }
 .condition-inline-composer :deep(.ant-select-selection-item),
@@ -444,34 +444,34 @@ watch(
   font-size: var(--fs-14);
 }
 .condition-inline-composer :deep(.ant-select-selection-placeholder) {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
 }
 .condition-inline-composer__field :deep(.ant-select-selector) {
   padding-inline-end: 1.75rem !important;
-  background: var(--accent-soft) !important;
-  border: 1px solid var(--accent-soft) !important;
+  background: var(--jet-theme-primary-soft) !important;
+  border: 0.0625rem solid var(--jet-theme-primary-soft) !important;
 }
 .condition-inline-composer__field :deep(.ant-select-selection-item) {
-  color: var(--accent);
+  color: var(--jet-theme-primary);
   font-weight: 500;
 }
 .condition-inline-composer__field :deep(.ant-select-arrow) {
-  color: var(--accent);
+  color: var(--jet-theme-primary);
   right: 0.625rem;
 }
 .condition-inline-composer__term :deep(.ant-select-selector) {
   height: 1.875rem !important;
   padding: 0 1.375rem 0 0.625rem !important;
-  background: var(--accent-soft) !important;
-  border: 1px solid var(--accent-soft) !important;
+  background: var(--jet-theme-primary-soft) !important;
+  border: 0.0625rem solid var(--jet-theme-primary-soft) !important;
 }
 .condition-inline-composer__term :deep(.ant-select-selection-item) {
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
   font-size: var(--fs-14);
   font-weight: 500;
 }
 .condition-inline-composer__term :deep(.ant-select-arrow) {
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
   right: 0.5rem;
   transform: scale(0.9);
 }
@@ -493,11 +493,11 @@ watch(
 .condition-inline-composer__value :deep(.ant-input) {
   height: 1.875rem;
   padding: 0;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-size: var(--fs-14);
 }
 .condition-inline-composer__value :deep(.ant-input::placeholder) {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
 }
 .condition-inline-composer__value :deep(.ant-input:focus),
 .condition-inline-composer__value :deep(.ant-input-focused),
@@ -513,7 +513,7 @@ watch(
 }
 .condition-inline-composer__value :deep(.ant-select-selection-item),
 .condition-inline-composer__value :deep(.ant-picker-input input) {
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-size: var(--fs-14);
 }
 .condition-inline-composer--direct .condition-inline-composer__value {

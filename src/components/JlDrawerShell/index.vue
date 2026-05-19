@@ -3,7 +3,7 @@
     :open="open"
     :width="drawerWidth"
     placement="right"
-    :body-style="{ padding: 0, background: 'var(--bg)' }"
+    :body-style="{ padding: 0, background: 'var(--jet-theme-bg-container)' }"
     :header-style="{ display: 'none' }"
     @update:open="$emit('update:open', $event)"
   >
@@ -108,8 +108,8 @@ onBeforeUnmount(() => {
 })
 
 const iconColorStyle = computed(() => ({
-  background: props.iconBg ?? 'var(--accent-soft)',
-  color: props.iconColor ?? 'var(--accent)',
+  background: props.iconBg ?? 'var(--jet-theme-primary-soft)',
+  color: props.iconColor ?? 'var(--jet-theme-primary)',
 }))
 
 function onFormSubmit(e: Event) {
@@ -129,8 +129,8 @@ function onFormSubmit(e: Event) {
   align-items: center;
   gap: var(--space-3);
   padding: 0.9375rem 1rem;
-  background: var(--bg);
-  border-bottom: 1px solid var(--line);
+  background: var(--jet-theme-bg-container);
+  border-bottom: 0.0625rem solid var(--jet-theme-border);
   flex-shrink: 0;
 }
 .head-icon {
@@ -151,12 +151,12 @@ function onFormSubmit(e: Event) {
 }
 .head-copy b {
   display: block;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-size: var(--fs-14);
 }
 .head-copy p {
   margin: 0.25rem 0 0;
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
 }
 .close {
@@ -166,13 +166,13 @@ function onFormSubmit(e: Event) {
   height: 1.875rem;
   display: grid;
   place-items: center;
-  border-radius: var(--r-3);
-  color: var(--ink-3);
+  border-radius: var(--jet-theme-radius-lg);
+  color: var(--jet-theme-text-disabled);
   flex-shrink: 0;
 }
 .close:hover {
-  background: var(--bg-sunken);
-  color: var(--ink-1);
+  background: var(--jet-theme-primary-soft);
+  color: var(--jet-theme-text);
 }
 .close :deep(svg) {
   width: 1rem;
@@ -193,7 +193,7 @@ function onFormSubmit(e: Event) {
   justify-content: flex-end;
   gap: var(--space-2);
   padding: 0.75rem 0.875rem;
-  background: var(--bg);
-  border-top: 1px solid var(--line);
+  background: var(--jet-theme-bg-container);
+  border-top: 0.0625rem solid var(--jet-theme-border);
   flex-shrink: 0;
 }</style>

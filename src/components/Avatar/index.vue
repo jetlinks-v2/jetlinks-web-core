@@ -24,21 +24,21 @@ const initial = computed(() => props.label?.trim().slice(0, 1) || '用')
   width: 1.375rem;
   height: 1.375rem;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--jet-theme-primary);
   color: var(--accent-ink);
   font-size: var(--fs-12);
   font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 0.125rem solid var(--bg);
+  border: 0.125rem solid var(--jet-theme-bg-container);
   margin-left: -0.375rem;
 }
 .av:first-child {
   margin-left: 0;
 }
 .av.more {
-  background: var(--bg-sunken);
-  color: var(--ink-3);
+  background: var(--jet-theme-primary-soft);
+  color: var(--jet-theme-text-disabled);
   font-weight: 500;
 }</style>

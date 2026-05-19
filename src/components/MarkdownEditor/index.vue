@@ -464,49 +464,49 @@ async function handleDrop(event: DragEvent) {
 
 .j-md-editor__bar-label,
 .j-md-editor__domain-hint {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
 }
 
 .j-md-editor__section-btn {
   height: 1.625rem;
   padding: 0 0.625rem;
-  border: 1px solid color-mix(in srgb, var(--ink-1) 8%, transparent);
-  border-radius: var(--r-1);
-  background: var(--bg);
-  color: var(--ink-2);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-text) 8%, transparent);
+  border-radius: var(--jet-theme-radius-sm);
+  background: var(--jet-theme-bg-container);
+  color: var(--jet-theme-text-secondary);
   font-size: var(--fs-12);
   cursor: pointer;
 }
 
 .j-md-editor__section-btn:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--jet-theme-primary);
+  color: var(--jet-theme-primary);
 }
 
 .j-md-editor__section-btn:disabled {
   cursor: not-allowed;
-  color: color-mix(in srgb, var(--ink-1) 25%, transparent);
-  background: var(--bg-elev);
+  color: color-mix(in srgb, var(--jet-theme-text) 25%, transparent);
+  background: var(--jet-theme-bg-container);
 }
 
 .j-md-editor__surface {
   position: relative;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--ink-1) 8%, transparent);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-text) 8%, transparent);
   border-radius: 0.75rem;
-  background: var(--bg);
+  background: var(--jet-theme-bg-container);
   transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .j-md-editor__surface.is-dragover {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--accent) 12%, transparent);
-  background: var(--bg);
+  border-color: var(--jet-theme-primary);
+  box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--jet-theme-primary) 12%, transparent);
+  background: var(--jet-theme-bg-container);
 }
 
 .j-md-editor__surface.is-disabled {
-  background: var(--bg-elev);
+  background: var(--jet-theme-bg-container);
 }
 
 .j-md-editor__surface :deep(.md-editor) {
@@ -514,7 +514,7 @@ async function handleDrop(event: DragEvent) {
 }
 
 .j-md-editor__surface :deep(.md-editor-toolbar) {
-  border-bottom: 1px solid color-mix(in srgb, var(--ink-1) 6%, transparent);
+  border-bottom: 0.0625rem solid color-mix(in srgb, var(--jet-theme-text) 6%, transparent);
 }
 
 .j-md-editor__surface :deep(.md-editor-toolbar-wrapper) {
@@ -552,21 +552,21 @@ async function handleDrop(event: DragEvent) {
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
-  border: 1px dashed color-mix(in srgb, var(--accent) 42%, transparent);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 0.0625rem dashed color-mix(in srgb, var(--jet-theme-primary) 42%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-primary) 8%, transparent);
   color: var(--jet-theme-primary-active);
   text-align: center;
   pointer-events: none;
 }
 
 .j-md-editor__drop-title {
-  font-size: var(--fs-15);
+  font-size: var(--fs-16);
   font-weight: 600;
 }
 
 .j-md-editor__drop-subtitle {
   font-size: var(--fs-12);
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
 }
 
 .j-md-editor__hint-row {
@@ -575,13 +575,13 @@ async function handleDrop(event: DragEvent) {
 }
 
 .j-md-editor__hint {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
 }
 
 .j-md-editor__error {
   margin: 0;
-  color: var(--err);
+  color: var(--jet-theme-error);
   font-size: var(--fs-12);
 }
 

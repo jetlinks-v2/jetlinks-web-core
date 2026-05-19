@@ -84,10 +84,10 @@ const onExpand = (keys: string[]) => {
 .built-in-parameters {
   min-width: 26.25rem;
   max-width: 90vw;
-  background: var(--bg);
-  border-radius: var(--r-1);
+  background: var(--jet-theme-bg-container);
+  border-radius: var(--jet-theme-radius-sm);
   padding: var(--space-3);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }
 .built-in-parameters :deep(.ant-tabs) .ant-tabs-nav {
   margin-bottom: var(--space-3);
@@ -97,7 +97,7 @@ const onExpand = (keys: string[]) => {
   font-size: var(--fs-14);
 }
 .built-in-parameters :deep(.ant-tabs) .ant-tabs-nav .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
-  color: var(--accent);
+  color: var(--jet-theme-primary);
   font-weight: 500;
 }
 .built-in-parameters :deep(.ant-tabs) .ant-tabs-content-holder {
@@ -107,11 +107,11 @@ const onExpand = (keys: string[]) => {
   padding: 0.5rem 0;
 }
 .built-in-parameters .manual-input :deep(.ant-input) {
-  border-radius: var(--r-1);
+  border-radius: var(--jet-theme-radius-sm);
 }
 .built-in-parameters .manual-input :deep(.ant-input):focus,
 .built-in-parameters .manual-input :deep(.ant-input):hover {
-  border-color: var(--accent);
+  border-color: var(--jet-theme-primary);
 }
 .built-in-parameters .parameter-tree {
   min-height: 12.5rem;
@@ -125,21 +125,21 @@ const onExpand = (keys: string[]) => {
   padding: 0.125rem 0;
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-treenode:hover .ant-tree-node-content-wrapper {
-  background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 8%, transparent);
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-node-content-wrapper {
-  border-radius: var(--r-1);
+  border-radius: var(--jet-theme-radius-sm);
   transition: all 0.2s;
   padding: var(--space-1) var(--space-2);
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-node-content-wrapper:hover {
-  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 10%, transparent);
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-node-content-wrapper.ant-tree-node-selected {
-  background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 20%, transparent);
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-node-content-wrapper.ant-tree-node-selected .tree-node-title .node-name {
-  color: var(--accent);
+  color: var(--jet-theme-primary);
   font-weight: 500;
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .tree-node-title {
@@ -152,12 +152,12 @@ const onExpand = (keys: string[]) => {
 .built-in-parameters .parameter-tree :deep(.ant-tree) .tree-node-title .node-name {
   font-size: var(--fs-14);
   font-weight: 400;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   line-height: 1.5;
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .tree-node-title .node-desc {
   font-size: var(--fs-12);
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   line-height: 1.4;
 }
 .built-in-parameters .parameter-tree :deep(.ant-tree) .ant-tree-switcher {
@@ -172,5 +172,5 @@ const onExpand = (keys: string[]) => {
   padding: 2.5rem 0;
 }
 .built-in-parameters .parameter-tree :deep(.ant-empty) .ant-empty-description {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
 }</style>

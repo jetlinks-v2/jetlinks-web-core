@@ -158,8 +158,8 @@ const onSave = (dt: any) => {
   align-items: center;
   height: 4.25rem;
   background: linear-gradient(270deg, #ffffff 0%, #f1f6ff 99%);
-  border-radius: var(--r-1);
-  border: 1px solid #ebeef3;
+  border-radius: var(--jet-theme-radius-sm);
+  border: 0.0625rem solid #ebeef3;
   margin-bottom: 0.625rem;
 
   .child-item-left {

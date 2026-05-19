@@ -175,8 +175,8 @@ onMounted(() => {
       gap: var(--space-3);
 
       .init-option {
-        background-color: var(--line-strong);
-        border-radius: var(--r-2);
+        background-color: var(--jet-theme-border-secondary);
+        border-radius: var(--jet-theme-radius);
         padding: var(--space-4);
         cursor: pointer;
         transition: all 0.3s;
@@ -221,7 +221,7 @@ onMounted(() => {
         }
 
         .selection-info {
-          font-size: var(--fs-13);
+          font-size: var(--fs-14);
           color: #666;
         }
       }
@@ -230,11 +230,11 @@ onMounted(() => {
     .permission-tree {
       max-height: 25rem;
       overflow-y: auto;
-      border: 1px solid var(--line-strong);
-      border-radius: var(--r-2);
+      border: 0.0625rem solid var(--jet-theme-border-secondary);
+      border-radius: var(--jet-theme-radius);
 
       .menu-item {
-        border-bottom: 1px solid var(--line-strong);
+        border-bottom: 0.0625rem solid var(--jet-theme-border-secondary);
 
         &:last-child {
           border-bottom: none;
@@ -246,7 +246,7 @@ onMounted(() => {
           cursor: pointer;
 
           &:hover {
-            background: var(--line-strong);
+            background: var(--jet-theme-border-secondary);
           }
 
           .menu-title {

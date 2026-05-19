@@ -647,7 +647,7 @@ onMounted(() => {
   gap: var(--space-2);
 }
 .condition-option-panel__search :deep(.ant-input-affix-wrapper) {
-  border-radius: var(--r-3);
+  border-radius: var(--jet-theme-radius-lg);
 }
 .condition-option-panel__toolbar {
   padding: 0 0.125rem;
@@ -667,24 +667,24 @@ onMounted(() => {
   width: 100%;
   min-height: 2.375rem;
   padding: var(--space-2) var(--space-3);
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   text-align: left;
   background: transparent;
   border: 0;
-  border-radius: var(--r-3);
+  border-radius: var(--jet-theme-radius-lg);
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
 .condition-option-panel__item:hover:not(:disabled) {
-  background: var(--accent-soft);
+  background: var(--jet-theme-primary-soft);
 }
 .condition-option-panel__item:disabled {
   cursor: not-allowed;
   opacity: 0.56;
 }
 .condition-option-panel__item--checked {
-  background: var(--info-bg);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, var(--bg));
+  background: var(--jet-theme-primary-soft);
+  box-shadow: inset 0 0 0 0.0625rem color-mix(in srgb, var(--jet-theme-primary) 35%, var(--jet-theme-bg-container));
 }
 .condition-option-panel__label {
   font-size: var(--fs-14);
@@ -699,7 +699,7 @@ onMounted(() => {
 }
 .condition-option-panel__description {
   overflow: hidden;
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
   line-height: 1.125rem;
   text-overflow: ellipsis;
@@ -711,7 +711,7 @@ onMounted(() => {
   justify-content: center;
   width: 1.125rem;
   height: 1.125rem;
-  color: var(--accent);
+  color: var(--jet-theme-primary);
   flex-shrink: 0;
 }
 .condition-option-panel__icon img {
@@ -724,7 +724,7 @@ onMounted(() => {
 .condition-option-panel__more,
 .condition-option-panel__hint {
   padding: var(--space-1) var(--space-2) 0;
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
   line-height: 1.125rem;
 }

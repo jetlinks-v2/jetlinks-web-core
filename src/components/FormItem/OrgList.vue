@@ -210,9 +210,9 @@ onMounted(() => {
   gap: var(--space-2);
 }
 .org-list-warp .tag-blue {
-  background: var(--info-bg);
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--bg));
-  color: var(--accent);
+  background: var(--jet-theme-primary-soft);
+  border-color: color-mix(in srgb, var(--jet-theme-primary) 30%, var(--jet-theme-bg-container));
+  color: var(--jet-theme-primary);
 }
 .org-list-warp :deep(.ant-select-selection-overflow-item) > span {
   width: 100%;

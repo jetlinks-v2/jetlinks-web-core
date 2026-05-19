@@ -299,7 +299,7 @@ defineExpose({
 .media-player-container {
   width: 100%;
   height: 100%;
-  background-color: var(--ink-1);
+  background-color: var(--jet-theme-text);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -343,9 +343,9 @@ defineExpose({
   background-image: linear-gradient(
     180deg,
     transparent,
-    color-mix(in srgb, var(--ink-1) 37%, transparent),
-    var(--ink-2),
-    var(--ink-2)
+    color-mix(in srgb, var(--jet-theme-text) 37%, transparent),
+    var(--jet-theme-text-secondary),
+    var(--jet-theme-text-secondary)
   );
   transition:
     opacity 0.5s ease,

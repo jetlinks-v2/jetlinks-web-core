@@ -97,7 +97,7 @@ watch(themeStyle, (value) => {
   justify-content: center;
   gap: 0.25rem;
   color: var(--jet-theme-text-secondary);
-  border-radius: var(--r-2);
+  border-radius: var(--jet-theme-radius);
   cursor: pointer;
   padding: 0 0.5rem;
   transition: background 0.16s ease, color 0.16s ease;
@@ -124,7 +124,7 @@ watch(themeStyle, (value) => {
     gap: 0.625rem;
     padding: 0.4375rem 0.5rem;
     border: 0;
-    border-radius: var(--r-2);
+    border-radius: var(--jet-theme-radius);
     background: transparent;
     color: var(--jet-theme-text);
     font: inherit;
@@ -149,7 +149,7 @@ watch(themeStyle, (value) => {
     display: flex;
     align-items: center;
     gap: 0.375rem;
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     line-height: 1.25rem;
   }
 
@@ -163,7 +163,7 @@ watch(themeStyle, (value) => {
 .header-theme-switch-overlay {
   .ant-popover-inner {
     padding: var(--space-1);
-    border-radius: var(--r-3);
+    border-radius: var(--jet-theme-radius-lg);
   }
 }
 </style>

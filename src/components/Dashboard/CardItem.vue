@@ -912,8 +912,8 @@ watch(
   flex-direction: column;
   height: 100%;
   padding: var(--space-6);
-  background-color: var(--bg);
-  border: 1px solid var(--line-strong);
+  background-color: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
   border-radius: 0.125rem;
 }
 .top-card .top-card-content {
@@ -927,11 +927,11 @@ watch(
   width: 50%;
 }
 .top-card .top-card-content .content-left-title {
-  color: color-mix(in srgb, var(--ink-1) 64%, transparent);
+  color: color-mix(in srgb, var(--jet-theme-text) 64%, transparent);
 }
 .top-card .top-card-content .content-left-value {
   padding: 0.75rem 0;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-weight: 700;
   font-size: var(--fs-36);
 }
@@ -956,11 +956,11 @@ watch(
   align-items: center;
   justify-content: space-between;
   padding-top: var(--space-4);
-  border-top: 1px solid var(--line-strong);
+  border-top: 0.0625rem solid var(--jet-theme-border-secondary);
   min-height: 2.5rem;
 }
 .top-card .top-card-footer .footer-item-value {
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-weight: 700;
   font-size: var(--fs-16);
 }</style>

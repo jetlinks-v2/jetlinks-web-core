@@ -341,14 +341,14 @@ const onClick = () => {
 @text-secondary: var(--jet-theme-text-secondary);
 @card-bg: var(--jet-theme-bg-container);
 @border-color: var(--jet-theme-border-secondary);
-@shadow-sm: var(--shadow-1);
-@shadow-md: var(--shadow-1);
-@shadow-lg: var(--shadow-pop);
-@shadow-xl: var(--shadow-lifted);
-@radius-sm: var(--r-2);
-@radius-md: var(--r-3);
-@radius-lg: var(--r-3);
-@radius-xl: var(--r-3);
+@shadow-sm: var(--jet-theme-shadow-secondary);
+@shadow-md: var(--jet-theme-shadow-secondary);
+@shadow-lg: var(--jet-theme-shadow);
+@shadow-xl: var(--jet-theme-shadow);
+@radius-sm: var(--jet-theme-radius);
+@radius-md: var(--jet-theme-radius-lg);
+@radius-lg: var(--jet-theme-radius-lg);
+@radius-xl: var(--jet-theme-radius-lg);
 
 .scene-center {
 
@@ -356,7 +356,7 @@ const onClick = () => {
 
   .header {
     background: @card-bg;
-    border-bottom: 1px solid @border-color;
+    border-bottom: 0.0625rem solid @border-color;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -438,7 +438,7 @@ const onClick = () => {
     display: flex;
     align-items: center;
     background: @gray-100;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     border-radius: @radius-md;
     padding: 0.5rem 1rem;
     gap: var(--space-2);
@@ -532,7 +532,7 @@ const onClick = () => {
     align-items: center;
     gap: 0.375rem;
     background: color-mix(in srgb, var(--jet-theme-primary) 15%, transparent);
-    border: 1px solid color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
+    border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
     color: @primary-light;
     font-size: var(--fs-12);
     font-weight: 500;
@@ -589,7 +589,7 @@ const onClick = () => {
     color: var(--accent-ink); }
 
   .hero-stat-label {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: color-mix(in srgb, var(--accent-ink) 50%, transparent);
     margin-top: var(--space-1);
   }
@@ -614,7 +614,7 @@ const onClick = () => {
     font-weight: 500;
     color: @text-secondary;
     background: @card-bg;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
@@ -655,7 +655,7 @@ const onClick = () => {
   .scene-card {
     background: @card-bg;
     border-radius: @radius-lg;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     overflow: hidden;
     transition: all 0.3s ease;
     cursor: pointer;
@@ -703,7 +703,7 @@ const onClick = () => {
     left: 0.75rem;
     z-index: 2;
     padding: 0.25rem 0.625rem;
-    border-radius: var(--r-1);
+    border-radius: var(--jet-theme-radius-sm);
     font-size: var(--fs-12);
     font-weight: 600;
     text-transform: uppercase;
@@ -731,7 +731,7 @@ const onClick = () => {
     right: 0.75rem;
     z-index: 2;
     padding: 0.25rem 0.625rem;
-    border-radius: var(--r-1);
+    border-radius: var(--jet-theme-radius-sm);
     font-size: var(--fs-12);
     font-weight: 500;
     background: color-mix(in srgb, var(--jet-theme-bg-container) 95%, transparent);
@@ -743,7 +743,7 @@ const onClick = () => {
   }
 
   .scene-card-title {
-    font-size: var(--fs-17);
+    font-size: var(--fs-18);
     font-weight: 600;
     margin-bottom: var(--space-2);
     color: @text-primary;
@@ -753,7 +753,7 @@ const onClick = () => {
   }
 
   .scene-card-desc {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: @text-secondary;
     line-height: 1.7;
     margin-bottom: var(--space-4);
@@ -772,12 +772,12 @@ const onClick = () => {
 
   .scene-tag {
     padding: 0.25rem 0.625rem;
-    border-radius: var(--r-1);
+    border-radius: var(--jet-theme-radius-sm);
     font-size: var(--fs-12);
     font-weight: 500;
     background: @gray-100;
     color: @gray-600;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
   }
 
   .scene-tag.vision {
@@ -815,7 +815,7 @@ const onClick = () => {
     align-items: center;
     justify-content: space-between;
     padding-top: var(--space-4);
-    border-top: 1px solid @border-color;
+    border-top: 0.0625rem solid @border-color;
   }
 
   .scene-card-meta {
@@ -840,7 +840,7 @@ const onClick = () => {
   .scene-card-action {
     padding: 0.5rem 1rem;
     border-radius: @radius-sm;
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     font-weight: 500;
     background: @primary;
     color: var(--accent-ink);
@@ -889,7 +889,7 @@ const onClick = () => {
   .capability-section {
     background: @card-bg;
     border-radius: @radius-lg;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     padding: var(--space-6);
     margin-bottom: var(--space-8);
   }
@@ -914,7 +914,7 @@ const onClick = () => {
     padding: var(--space-3) var(--space-4);
     background: @gray-100;
     border-radius: @radius-md;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     transition: all 0.2s;
     cursor: pointer;
   }
@@ -991,7 +991,7 @@ const onClick = () => {
   }
 
   .footer-text {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
   }
 
   .footer-links {
@@ -1000,7 +1000,7 @@ const onClick = () => {
   }
 
   .footer-link {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     text-decoration: none;
     transition: color 0.2s;

@@ -30,7 +30,7 @@ const props = defineProps({
 .title .title-content {
   position: relative;
   padding-left: 0.625rem;
-  color: color-mix(in srgb, var(--ink-1) 80%, transparent);
+  color: color-mix(in srgb, var(--jet-theme-text) 80%, transparent);
   font-weight: 600;
   line-height: 1;
 }
@@ -40,7 +40,7 @@ const props = defineProps({
   left: 0;
   width: 0.25rem;
   height: 100%;
-  background-color: var(--accent);
-  border-radius: 0 var(--r-1) var(--r-1) 0;
+  background-color: var(--jet-theme-primary);
+  border-radius: 0 var(--jet-theme-radius-sm) var(--jet-theme-radius-sm) 0;
   content: ' ';
 }</style>

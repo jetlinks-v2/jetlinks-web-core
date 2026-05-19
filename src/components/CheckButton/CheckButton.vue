@@ -147,26 +147,26 @@ watch(
   min-width: 0;
   padding: var(--space-2);
   border-radius: 1.25rem;
-  background-color: var(--bg-hover);
+  background-color: var(--jet-theme-border-secondary);
   transition: all 0.3s;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   text-align: center;
   cursor: pointer;
-  border: 1px solid var(--bg-hover);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
 }
 .j-check-button .j-check-button-item:hover {
-  background-color: var(--accent-soft);
-  color: var(--jet-theme-primary, var(--accent));
+  background-color: var(--jet-theme-primary-soft);
+  color: var(--jet-theme-primary, var(--jet-theme-primary));
   opacity: 0.85;
 }
 .j-check-button .j-check-button-item.selected {
-  background-color: var(--accent-soft);
-  border-color: var(--jet-theme-primary, var(--accent));
-  color: var(--jet-theme-primary, var(--accent));
+  background-color: var(--jet-theme-primary-soft);
+  border-color: var(--jet-theme-primary, var(--jet-theme-primary));
+  color: var(--jet-theme-primary, var(--jet-theme-primary));
 }
 .j-check-button .j-check-button-item.disabled {
   cursor: not-allowed;
-  color: color-mix(in srgb, var(--ink-1) 25%, transparent);
-  background-color: var(--line-strong);
+  color: color-mix(in srgb, var(--jet-theme-text) 25%, transparent);
+  background-color: var(--jet-theme-border-secondary);
   opacity: 1;
 }</style>

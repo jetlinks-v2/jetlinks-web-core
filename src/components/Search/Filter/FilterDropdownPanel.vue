@@ -165,14 +165,14 @@ watch(
 .filter-dropdown-panel {
   width: 17.5rem;
   padding: var(--space-4);
-  background: var(--bg);
-  border: 1px solid var(--line-strong);
+  background: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
   border-radius: 0.75rem;
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }
 .filter-dropdown-panel__title {
   margin-bottom: var(--space-3);
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-size: var(--fs-18);
   font-weight: 600;
   line-height: 1.625rem;

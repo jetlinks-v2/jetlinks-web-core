@@ -807,7 +807,7 @@ defineExpose({
 .mp-res-layout__types {
   flex-shrink: 0;
   margin-bottom: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--ink-1) 6%, transparent);
+  border-bottom: 0.0625rem solid color-mix(in srgb, var(--jet-theme-text) 6%, transparent);
 }
 .mp-res-layout__tabs :deep(.ant-tabs-nav) {
   margin-bottom: 0;
@@ -847,7 +847,7 @@ defineExpose({
 .mp-res-layout__aside-title {
   font-size: var(--fs-12);
   font-weight: 600;
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   text-transform: uppercase;
   letter-spacing: 0.02em;
   margin-bottom: 0.625rem;
@@ -868,21 +868,21 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  border: 1px solid transparent;
-  border-radius: var(--r-3);
+  border: 0.0625rem solid transparent;
+  border-radius: var(--jet-theme-radius-lg);
   background: transparent;
   padding: 0.5rem 0.625rem;
   font-size: var(--fs-12);
   font-weight: 600;
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   line-height: 1.35;
   user-select: none;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 .mp-res-layout__sidebar-classifier:hover {
-  border-color: color-mix(in srgb, var(--accent) 18%, transparent);
-  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  border-color: color-mix(in srgb, var(--jet-theme-primary) 18%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-primary) 4%, transparent);
 }
 .mp-res-layout__sidebar-classifier--active {
   color: var(--jet-theme-primary-active);
@@ -914,11 +914,11 @@ defineExpose({
   line-height: 1;
 }
 .mp-res-layout__sidebar-classifier-count {
-  background: color-mix(in srgb, var(--ink-2) 6%, transparent);
-  color: var(--ink-4);
+  background: color-mix(in srgb, var(--jet-theme-text-secondary) 6%, transparent);
+  color: var(--jet-theme-text-disabled);
 }
 .mp-res-layout__sidebar-classifier-picked {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-primary) 12%, transparent);
   color: var(--jet-theme-primary-active);
 }
 .mp-res-layout__sidebar-classifier-caret {
@@ -938,24 +938,24 @@ defineExpose({
   width: 100%;
   text-align: left;
   padding: 0.5rem 0.625rem;
-  border: 1px solid transparent;
-  border-radius: var(--r-2);
-  background: var(--bg);
+  border: 0.0625rem solid transparent;
+  border-radius: var(--jet-theme-radius);
+  background: var(--jet-theme-bg-container);
   font-size: var(--fs-14);
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 .mp-res-layout__tag:hover {
-  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
-  color: var(--accent);
-  box-shadow: var(--shadow-1);
+  border-color: color-mix(in srgb, var(--jet-theme-primary) 25%, transparent);
+  color: var(--jet-theme-primary);
+  box-shadow: var(--jet-theme-shadow-secondary);
   transform: translateY(-0.0625rem);
 }
 .mp-res-layout__tag--active {
   border-color: var(--jet-theme-primary-active);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent), color-mix(in srgb, var(--accent) 4%, transparent));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 96%, transparent) inset, 0 0 0 0.1875rem color-mix(in srgb, var(--accent) 14%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--jet-theme-primary) 8%, transparent), color-mix(in srgb, var(--jet-theme-primary) 4%, transparent));
+  box-shadow: 0 0 0 0.0625rem color-mix(in srgb, var(--jet-theme-bg-container) 96%, transparent) inset, 0 0 0 0.1875rem color-mix(in srgb, var(--jet-theme-primary) 14%, transparent);
   color: var(--jet-theme-primary-active);
   font-weight: 500;
 }
@@ -966,10 +966,10 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  background: var(--bg);
+  background: var(--jet-theme-bg-container);
   border-radius: 0.75rem;
   padding: var(--space-4);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }
 .mp-res-layout--fixed {
   min-height: 0;
@@ -989,10 +989,10 @@ defineExpose({
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: var(--bg);
+  background: var(--jet-theme-bg-container);
   border-radius: 0.75rem;
   padding: var(--space-4);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }
 .mp-res-layout__list-scroll {
   flex: 1;
@@ -1009,7 +1009,7 @@ defineExpose({
 .mp-res-layout__list-end {
   text-align: center;
   font-size: var(--fs-12);
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   padding: 0.25rem 0 0.5rem;
 }
 .mp-res-layout__toolbar {
@@ -1025,9 +1025,9 @@ defineExpose({
   gap: var(--space-2);
   flex-wrap: wrap;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-primary) 12%, transparent);
   border-radius: 0.75rem;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, transparent), color-mix(in srgb, var(--accent) 2%, transparent));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--jet-theme-primary) 5%, transparent), color-mix(in srgb, var(--jet-theme-primary) 2%, transparent));
 }
 .mp-res-layout__selected-title {
   font-size: var(--fs-12);
@@ -1040,13 +1040,13 @@ defineExpose({
   background: transparent;
   padding: 0;
   font-size: var(--fs-12);
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   cursor: pointer;
   margin-left: auto;
   flex-shrink: 0;
 }
 .mp-res-layout__selected-clear:hover {
-  color: var(--accent);
+  color: var(--jet-theme-primary);
 }
 .mp-res-layout__selected-list {
   display: flex;

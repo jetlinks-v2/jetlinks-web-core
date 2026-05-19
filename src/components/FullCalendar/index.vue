@@ -591,12 +591,12 @@ setTimeout(() => {
 </script>
 <style scoped>
 :deep(.fc-header-toolbar) {
-  background-color: var(--line-strong);
+  background-color: var(--jet-theme-border-secondary);
 }
 .calendarContainer {
   position: relative;
   padding: 2.75rem 1.5rem 0;
-  border: 1px solid var(--line);
+  border: 0.0625rem solid var(--jet-theme-border);
   border-radius: 0.75rem;
 }
 .calendarContainer .compareTip {
@@ -623,14 +623,14 @@ setTimeout(() => {
   position: relative;
   height: 2rem;
   padding: 0.375rem;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   display: flex;
 }
 .calendarContainer .event .closeBtn {
   position: absolute;
   right: 0;
   top: 0;
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
   display: none;
   font-size: var(--fs-16);
 }
@@ -661,7 +661,7 @@ setTimeout(() => {
   position: fixed;
   z-index: 99999;
   padding: 0.3125rem 0.625rem;
-  background-color: var(--ink-2);
+  background-color: var(--jet-theme-text-secondary);
   border-radius: 0.3125rem;
   color: var(--accent-ink);
 }
@@ -670,17 +670,17 @@ setTimeout(() => {
 }
 :deep(.fc-theme-standard td) {
   border: none;
-  border-top: 1px solid var(--line);
+  border-top: 0.0625rem solid var(--jet-theme-border);
 }
 :deep(.fc-theme-standard .fc-scrollgrid) {
   border: none;
 }
 :deep(.fc) .fc-col-header-cell-cushion {
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
 }
 :deep(.fc) th {
   text-align: right;
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
 }
 :deep(.fc) table {
   border-collapse: separate;
@@ -690,7 +690,7 @@ setTimeout(() => {
   background-color: transparent;
 }
 :deep(.fc) .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
-  background-color: var(--accent);
+  background-color: var(--jet-theme-primary);
   color: var(--accent-ink);
   border-radius: 50%;
   width: 1.875rem;
@@ -702,7 +702,7 @@ setTimeout(() => {
 :deep(.fc) .fc-daygrid-event-harness {
   margin: 0 0.25rem;
   margin-top: 0.25rem !important;
-  border-radius: var(--r-2);
+  border-radius: var(--jet-theme-radius);
 }
 :deep(.fc) .fc-daygrid-day-frame {
   height: 9.6875rem;
@@ -712,52 +712,52 @@ setTimeout(() => {
   overflow-y: auto;
 }
 :deep(.fc) .fc-daygrid-day-frame .fc-daygrid-day-events::-webkit-scrollbar-thumb {
-  background-color: var(--line);
+  background-color: var(--jet-theme-border);
   /* 滚动条拖动部分颜色 */
-  border-radius: var(--r-1);
+  border-radius: var(--jet-theme-radius-sm);
   /* 滚动条拖动部分圆角 */
 }
 :deep(.fc) .fc-scroller::-webkit-scrollbar {
   width: 0.3125rem;
   /* 滚动条宽度 */
-  background-color: var(--bg);
+  background-color: var(--jet-theme-bg-container);
   /* 滚动条背景色 */
 }
 :deep(.fc) .fc-scroller::-webkit-scrollbar-thumb {
-  background-color: var(--line);
+  background-color: var(--jet-theme-border);
   /* 滚动条拖动部分颜色 */
-  border-radius: var(--r-1);
+  border-radius: var(--jet-theme-radius-sm);
   /* 滚动条拖动部分圆角 */
 }
 :deep(.fc-scrollgrid-section-body > td) {
   border: none !important;
 }
 :deep(.fc-daygrid-day-number) {
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-weight: 600;
 }</style>
 <style>
 .calendarContainer {
   .fc-event {
-    background: var(--info-bg) !important;
+    background: var(--jet-theme-primary-soft) !important;
   }
   .fc-daygrid-day-events {
     &::-webkit-scrollbar {
       width: 0.3125rem; /* 滚动条宽度 */
-      background-color: var(--bg); /* 滚动条背景色 */
+      background-color: var(--jet-theme-bg-container); /* 滚动条背景色 */
     }
   }
 }
 
 .selectedDate {
-  background-color: var(--info-bg) !important;
+  background-color: var(--jet-theme-primary-soft) !important;
   .fc-event {
-    background: var(--bg) !important;
+    background: var(--jet-theme-bg-container) !important;
   }
   .fc-daygrid-day-events {
     &::-webkit-scrollbar {
       width: 0.3125rem; /* 滚动条宽度 */
-      background-color: var(--info-bg); /* 滚动条背景色 */
+      background-color: var(--jet-theme-primary-soft); /* 滚动条背景色 */
     }
   }
 }</style>

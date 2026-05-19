@@ -159,7 +159,7 @@ const CropperModal = defineComponent({
         >
           <div
             style={{
-              height: '300px',
+              height: '18.75rem',
               width: '100%',
               ...(bodyStyle || {})
             }}

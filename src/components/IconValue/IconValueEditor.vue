@@ -303,7 +303,7 @@ function onCropUploadResult(url: string) {
 }
 .ive__swatches-title {
   font-size: var(--fs-12);
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
 }
 .ive__swatches {
   display: flex;
@@ -314,8 +314,8 @@ function onCropUploadResult(url: string) {
 .ive__swatch {
   width: 1.625rem;
   height: 1.625rem;
-  border-radius: var(--r-2);
-  border: 1px solid color-mix(in srgb, var(--ink-1) 12%, transparent);
+  border-radius: var(--jet-theme-radius);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-text) 12%, transparent);
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
@@ -327,15 +327,15 @@ function onCropUploadResult(url: string) {
 }
 .ive__label {
   font-size: var(--fs-14);
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
   white-space: nowrap;
 }
 .ive__native-color {
   width: 2.75rem;
   height: 1.75rem;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--ink-1) 15%, transparent);
-  border-radius: var(--r-1);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-text) 15%, transparent);
+  border-radius: var(--jet-theme-radius-sm);
   cursor: pointer;
   background: transparent;
 }
@@ -353,6 +353,6 @@ function onCropUploadResult(url: string) {
 .ive__hint {
   margin: 0;
   font-size: var(--fs-12);
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   line-height: 1.5;
 }</style>

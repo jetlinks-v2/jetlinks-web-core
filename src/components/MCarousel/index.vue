@@ -68,14 +68,14 @@ const onLeft = () => {
 }
 .box .box-btn .box-item-action {
   width: 0.75rem;
-  background-color: var(--bg-hover);
+  background-color: var(--jet-theme-border-secondary);
   padding: 0.9375rem 0;
   text-align: center;
   font-size: var(--fs-12);
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
   cursor: pointer;
 }
 .box .box-btn .box-item-action:hover {
-  background-color: var(--accent-soft);
-  color: var(--jet-theme-primary, var(--accent));
+  background-color: var(--jet-theme-primary-soft);
+  color: var(--jet-theme-primary, var(--jet-theme-primary));
 }</style>

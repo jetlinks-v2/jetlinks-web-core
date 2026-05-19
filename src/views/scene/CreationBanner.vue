@@ -277,7 +277,7 @@ function onClose() {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 0.75rem;
   box-shadow: 0 0.625rem 1.5625rem rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 0.0625rem solid rgba(0, 0, 0, 0.04);
   backdrop-filter: blur(0.5rem);
   overflow: hidden;
 }
@@ -287,7 +287,7 @@ function onClose() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid @gray-50;
+  border-bottom: 0.0625rem solid @gray-50;
 
   .header-left {
     display: flex;
@@ -308,7 +308,7 @@ function onClose() {
     color: @blue;
     background: @blue-light;
     padding: 0.125rem 0.375rem;
-    border-radius: var(--r-2);
+    border-radius: var(--jet-theme-radius);
   }
 
   .cancel-btn {
@@ -437,7 +437,7 @@ function onClose() {
     font-size: var(--fs-12);
     font-weight: 700;
     padding: 0.375rem;
-    border-radius: var(--r-3);
+    border-radius: var(--jet-theme-radius-lg);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -451,7 +451,7 @@ function onClose() {
     .countdown {
       background: rgba(255, 255, 255, 0.2);
       padding: 0 0.25rem;
-      border-radius: var(--r-1);
+      border-radius: var(--jet-theme-radius-sm);
     }
   }
 

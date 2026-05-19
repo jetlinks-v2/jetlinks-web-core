@@ -142,30 +142,30 @@ watch(() => termsValue.value.column, (newValue, oldValue) => {
 
 <style scoped>
 .border-box {
-  border-radius: var(--r-3);
+  border-radius: var(--jet-theme-radius-lg);
 }
 .border-box :deep(.ant-select-selector) {
-  border-radius: var(--r-3);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  color: var(--info);
-  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--jet-theme-radius-lg);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
+  color: var(--jet-theme-primary);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
 }
 .border-box :deep(.ant-select-selector) .ant-select-selection-placeholder {
-  color: var(--info);
+  color: var(--jet-theme-primary);
   padding-inline-end: 0;
 }
 .border-box.terms-type :deep(.ant-select-selector) {
-  color: var(--info);
-  background: color-mix(in srgb, var(--accent) 30%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--jet-theme-primary);
+  background: color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
+  border-color: color-mix(in srgb, var(--jet-theme-primary) 40%, transparent);
 }
 .border-box.terms-type :deep(.ant-select-selector) .ant-select-selection-placeholder {
-  color: var(--info);
+  color: var(--jet-theme-primary);
 }
 .border-box.terms-value {
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
-  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--jet-theme-primary);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-primary) 50%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 10%, transparent);
 }
 .border-box :deep(.ant-select-selection-item) {
   padding-inline-end: 0;
@@ -174,19 +174,19 @@ watch(() => termsValue.value.column, (newValue, oldValue) => {
   max-width: 13.75rem;
   height: 2rem;
   padding: 0.25rem 0.6875rem;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  color: var(--info);
-  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
+  color: var(--jet-theme-primary);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
   display: flex;
   align-items: center;
   cursor: pointer;
 }
 .column-select-popup:hover {
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  background-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  border-color: color-mix(in srgb, var(--jet-theme-primary) 50%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 40%, transparent);
 }
 .column-select-popup:focus {
-  border-color: var(--info);
+  border-color: var(--jet-theme-primary);
   outline: none;
 }
 .column-select-popup span {
@@ -198,17 +198,17 @@ watch(() => termsValue.value.column, (newValue, oldValue) => {
 }
 .column-tree-dropdown {
   padding: var(--space-2);
-  border-radius: var(--r-3);
-  box-shadow: var(--shadow-1);
-  background-color: var(--bg);
+  border-radius: var(--jet-theme-radius-lg);
+  box-shadow: var(--jet-theme-shadow-secondary);
+  background-color: var(--jet-theme-bg-container);
   min-width: 25rem;
 }
 .column-tree-dropdown :deep(.ant-tree) .ant-tree-node-content-wrapper {
-  border-radius: var(--r-1);
+  border-radius: var(--jet-theme-radius-sm);
 }
 .column-tree-dropdown :deep(.ant-tree) .ant-tree-node-content-wrapper:hover {
-  background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 20%, transparent);
 }
 .column-tree-dropdown :deep(.ant-tree) .ant-tree-node-selected .ant-tree-node-content-wrapper {
-  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
 }</style>

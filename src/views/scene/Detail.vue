@@ -284,7 +284,7 @@ watch(loginModalVisible, (newVal) => {
 .scene-center-detail {
   .header {
     background: @card-bg;
-    border-bottom: 1px solid @border-color;
+    border-bottom: 0.0625rem solid @border-color;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -389,7 +389,7 @@ watch(loginModalVisible, (newVal) => {
   .scene-header {
     background: @card-bg;
     border-radius: @radius-lg;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     overflow: hidden;
   }
 
@@ -431,7 +431,7 @@ watch(loginModalVisible, (newVal) => {
 
   .scene-badge {
     padding: 0.3125rem 0.75rem;
-    border-radius: var(--r-1);
+    border-radius: var(--jet-theme-radius-sm);
     font-size: var(--fs-12);
     font-weight: 600;
     text-transform: uppercase;
@@ -456,7 +456,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .scene-subtitle {
-    font-size: var(--fs-15);
+    font-size: var(--fs-16);
     color: color-mix(in srgb, var(--accent-ink) 80%, transparent);
   }
 
@@ -497,12 +497,12 @@ watch(loginModalVisible, (newVal) => {
 
   .scene-tag {
     padding: 0.375rem 0.875rem;
-    border-radius: var(--r-2);
+    border-radius: var(--jet-theme-radius);
     font-size: var(--fs-12);
     font-weight: 500;
     background: @gray-100;
     color: @gray-600;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
   }
 
   .scene-tag.vision {
@@ -532,7 +532,7 @@ watch(loginModalVisible, (newVal) => {
   .content-section {
     background: @card-bg;
     border-radius: @radius-lg;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     padding: var(--space-7);
     margin-top: var(--space-6);
   }
@@ -575,7 +575,7 @@ watch(loginModalVisible, (newVal) => {
     padding: var(--space-5);
     background: @gray-100;
     border-radius: @radius-md;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     transition: all 0.2s;
   }
 
@@ -593,18 +593,18 @@ watch(loginModalVisible, (newVal) => {
     justify-content: center;
     font-size: var(--fs-22);
     margin-bottom: 0.875rem;
-    background: var(--bg);
-    box-shadow: var(--shadow-1);
+    background: var(--jet-theme-bg-container);
+    box-shadow: var(--jet-theme-shadow-secondary);
   }
 
   .feature-title {
-    font-size: var(--fs-15);
+    font-size: var(--fs-16);
     font-weight: 600;
     margin-bottom: 0.375rem;
   }
 
   .feature-desc {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: @text-secondary;
     line-height: 1.6;
   }
@@ -621,7 +621,7 @@ watch(loginModalVisible, (newVal) => {
     padding: 1.5rem 1rem;
     background: linear-gradient(135deg, @primary-bg, var(--jet-theme-bg-container));
     border-radius: @radius-md;
-    border: 1px solid @primary-light;
+    border: 0.0625rem solid @primary-light;
   }
 
   .value-number {
@@ -636,7 +636,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .value-label {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: @text-secondary;
     margin-top: var(--space-2);
   }
@@ -650,7 +650,7 @@ watch(loginModalVisible, (newVal) => {
   .create-card {
     background: @card-bg;
     border-radius: @radius-lg;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     padding: var(--space-7);
     position: sticky;
     top: 6rem;
@@ -674,14 +674,14 @@ watch(loginModalVisible, (newVal) => {
 
   .preset-info {
     background: @primary-bg;
-    border: 1px solid @primary-light;
+    border: 0.0625rem solid @primary-light;
     border-radius: @radius-md;
     padding: 1.125rem;
     margin-bottom: var(--space-6);
   }
 
   .preset-title {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     font-weight: 600;
     color: @primary-dark;
     margin-bottom: 0.875rem;
@@ -700,7 +700,7 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: flex-start;
     gap: var(--space-2);
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: @text-secondary;
     line-height: 1.5;
   }
@@ -752,7 +752,7 @@ watch(loginModalVisible, (newVal) => {
     padding: 0.875rem 1.5rem;
     background: @card-bg;
     color: @text-primary;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     border-radius: @radius-md;
     font-size: var(--fs-14);
     font-weight: 500;
@@ -771,7 +771,7 @@ watch(loginModalVisible, (newVal) => {
   .related-section {
     background: @card-bg;
     border-radius: @radius-lg;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     padding: var(--space-6);
   }
 
@@ -805,7 +805,7 @@ watch(loginModalVisible, (newVal) => {
   .related-thumb {
     width: 4.5rem;
     height: 3.375rem;
-    border-radius: var(--r-2);
+    border-radius: var(--jet-theme-radius);
     object-fit: cover;
   }
 
@@ -836,7 +836,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .footer-text {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
   }
 
   .footer-links {
@@ -845,7 +845,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .footer-link {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: color-mix(in srgb, var(--accent-ink) 70%, transparent);
     text-decoration: none;
   }
@@ -867,7 +867,7 @@ watch(loginModalVisible, (newVal) => {
     border: none;
     background: none;
     cursor: pointer;
-    border-radius: var(--r-2);
+    border-radius: var(--jet-theme-radius);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -920,7 +920,7 @@ watch(loginModalVisible, (newVal) => {
 
   .form-label {
     display: block;
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     font-weight: 500;
     margin-bottom: var(--space-2);
   }
@@ -928,7 +928,7 @@ watch(loginModalVisible, (newVal) => {
   .form-input {
     width: 100%;
     padding: 0.75rem 0.875rem;
-    border: 1px solid @border-color;
+    border: 0.0625rem solid @border-color;
     border-radius: @radius-sm;
     font-size: var(--fs-14);
     transition: all 0.2s;
@@ -951,7 +951,7 @@ watch(loginModalVisible, (newVal) => {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: @text-secondary;
     cursor: pointer;
   }
@@ -963,7 +963,7 @@ watch(loginModalVisible, (newVal) => {
   }
 
   .form-link {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: @primary;
     text-decoration: none;
   }
@@ -975,7 +975,7 @@ watch(loginModalVisible, (newVal) => {
     color: var(--accent-ink);
     border: none;
     border-radius: @radius-md;
-    font-size: var(--fs-15);
+    font-size: var(--fs-16);
     font-weight: 600;
     cursor: pointer;
   }
@@ -983,7 +983,7 @@ watch(loginModalVisible, (newVal) => {
   .modal-footer {
     padding: 1rem 1.5rem 1.5rem;
     text-align: center;
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     color: @text-secondary;
   }
 

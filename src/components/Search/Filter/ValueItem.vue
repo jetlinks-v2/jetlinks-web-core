@@ -198,8 +198,8 @@ watch(myValue, (val) => {
 <style scoped>
 .filter-terms-value-item {
   padding: 0.375rem;
-  background-color: var(--bg);
-  box-shadow: var(--shadow-1);
+  background-color: var(--jet-theme-bg-container);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }
 .filter-terms-value-item--embedded {
   padding: 0;
@@ -215,6 +215,6 @@ watch(myValue, (val) => {
   width: 100%;
 }
 .filter-terms-value-item__range-separator {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-14);
 }</style>

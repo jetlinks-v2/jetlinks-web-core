@@ -235,7 +235,7 @@ defineExpose({ refreshManual })
   flex-direction: column;
   height: 100%;
   padding: var(--space-6);
-  background-color: var(--bg);
+  background-color: var(--jet-theme-bg-container);
   border-radius: 0.125rem;
 }
 .header {

@@ -43,13 +43,13 @@ defineProps({
   gap: 0.5rem;
 }
 .title-value .title {
-  color: var(--jet-theme-text-secondary, var(--ink-3));
+  color: var(--jet-theme-text-secondary, var(--jet-theme-text-disabled));
   white-space: nowrap;
 }
 .title-value .title .icon {
-  color: var(--jet-theme-primary, var(--accent));
+  color: var(--jet-theme-primary, var(--jet-theme-primary));
 }
 .title-value .value {
   flex: 1 1 0;
-  color: var(--jet-theme-text, var(--ink-3));
+  color: var(--jet-theme-text, var(--jet-theme-text-disabled));
 }</style>

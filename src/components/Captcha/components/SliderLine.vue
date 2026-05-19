@@ -101,9 +101,9 @@ defineExpose({
 .track {
   position: relative;
   height: 2.5rem;
-  background: var(--bg);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-1);
+  background: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
+  border-radius: var(--jet-theme-radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -114,14 +114,14 @@ defineExpose({
   left: 0;
   top: 0;
   height: 100%;
-  background: var(--info);
+  background: var(--jet-theme-primary);
   opacity: 0.2;
-  border-radius: var(--r-1) 0 0 var(--r-1);
+  border-radius: var(--jet-theme-radius-sm) 0 0 var(--jet-theme-radius-sm);
 }
 
 .track-tip {
   font-size: var(--fs-14);
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   user-select: none;
   pointer-events: none;
 }
@@ -130,21 +130,21 @@ defineExpose({
   position: absolute;
   width: 2.25rem;
   height: 2.25rem;
-  background: var(--bg);
-  border: 1px solid var(--line-strong);
+  background: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
   cursor: grab;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--jet-theme-shadow-secondary);
   transition: background 0.2s;
   z-index: 2;
 }
 
 .slider-btn:hover,
 .slider-btn.active {
-  background: var(--info);
-  border-color: var(--info);
+  background: var(--jet-theme-primary);
+  border-color: var(--jet-theme-primary);
   color: var(--accent-ink);
   cursor: grabbing;
 }</style>

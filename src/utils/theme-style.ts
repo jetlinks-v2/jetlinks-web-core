@@ -63,31 +63,13 @@ export type ThemeStyleCssVarName =
   | `--font-${string}`
   | `--lh-${string}`
   | `--r-${string}`
-  | '--canvas'
-  | '--bg'
-  | '--bg-elev'
-  | '--bg-sunken'
-  | '--bg-hover'
-  | '--line'
-  | '--line-strong'
-  | '--ink-1'
-  | '--ink-2'
-  | '--ink-3'
-  | '--ink-4'
-  | '--accent'
   | '--accent-ink'
-  | '--accent-soft'
-  | '--ok'
   | '--ok-bg'
   | '--ok-line'
-  | '--warn'
   | '--warn-bg'
   | '--warn-line'
-  | '--err'
   | '--err-bg'
   | '--err-line'
-  | '--info'
-  | '--info-bg'
   | '--info-line'
   | '--topbar-h'
   | '--sidebar-w'
@@ -155,56 +137,32 @@ export const isAntdThemeTokenKey = (key: string): key is keyof AliasToken => {
 }
 
 const defaultThemeCssVars: ThemeStyleCssVars = {
-  '--canvas': 'var(--jet-theme-bg-layout)',
-  '--bg': 'var(--jet-theme-bg-container)',
-  '--bg-elev': 'var(--jet-theme-bg-elevated)',
-  '--bg-sunken': 'color-mix(in srgb, var(--jet-theme-text) 4%, var(--jet-theme-bg-container))',
-  '--bg-hover': 'color-mix(in srgb, var(--jet-theme-text) 6%, var(--jet-theme-bg-container))',
-  '--line': 'var(--jet-theme-border-secondary)',
-  '--line-strong': 'color-mix(in srgb, var(--jet-theme-border) 72%, var(--jet-theme-text) 8%)',
   '--jet-theme-text-title': 'var(--jet-theme-text)',
   '--jet-theme-text-description': 'var(--jet-theme-text-secondary)',
   '--jet-theme-text-disabled': '#9CA3AF',
-  '--ink-1': 'var(--jet-theme-text)',
-  '--ink-2': 'var(--jet-theme-text-secondary)',
-  '--ink-3': 'var(--jet-theme-text-disabled)',
-  '--ink-4': 'var(--jet-theme-text-disabled)',
-  '--accent': 'var(--jet-theme-primary)',
   '--accent-ink': '#FFFFFF',
-  '--accent-soft': 'var(--jet-theme-primary-soft)',
-  '--jet-theme-stroke-width': '1px',
-  '--ok': 'var(--jet-theme-success)',
+  '--jet-theme-stroke-width': '0.0625rem',
   '--ok-bg': 'color-mix(in srgb, var(--jet-theme-success) 12%, var(--jet-theme-bg-container))',
   '--ok-line': 'color-mix(in srgb, var(--jet-theme-success) 24%, var(--jet-theme-bg-container))',
-  '--warn': 'var(--jet-theme-warning)',
   '--warn-bg': 'color-mix(in srgb, var(--jet-theme-warning) 14%, var(--jet-theme-bg-container))',
   '--warn-line': 'color-mix(in srgb, var(--jet-theme-warning) 26%, var(--jet-theme-bg-container))',
-  '--err': 'var(--jet-theme-error)',
   '--err-bg': 'color-mix(in srgb, var(--jet-theme-error) 12%, var(--jet-theme-bg-container))',
   '--err-line': 'color-mix(in srgb, var(--jet-theme-error) 24%, var(--jet-theme-bg-container))',
-  '--info': 'var(--jet-theme-primary)',
-  '--info-bg': 'color-mix(in srgb, var(--jet-theme-primary) 10%, var(--jet-theme-bg-container))',
   '--info-line': 'color-mix(in srgb, var(--jet-theme-primary) 22%, var(--jet-theme-bg-container))',
   '--font-cjk': 'var(--jet-theme-font-family)',
-  '--font-mono': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
   '--lh-tight': '1.15',
   '--lh-snug': '1.35',
   '--lh-normal': '1.5',
   '--lh-relaxed': '1.65',
   '--lh-loose': '1.8',
+  '--fs-10': '0.625rem',
   '--fs-12': '0.75rem',
-  '--fs-13': '0.8125rem',
   '--fs-14': '0.875rem',
-  '--fs-15': '0.9375rem',
   '--fs-16': '1rem',
-  '--fs-17': '1.0625rem',
   '--fs-18': '1.125rem',
-  '--fs-19': '1.1875rem',
   '--fs-20': '1.25rem',
-  '--fs-21': '1.3125rem',
   '--fs-22': '1.375rem',
   '--fs-24': '1.5rem',
-  '--fs-25': '1.5625rem',
   '--fs-26': '1.625rem',
   '--fs-28': '1.75rem',
   '--fs-30': '1.875rem',
@@ -213,14 +171,11 @@ const defaultThemeCssVars: ThemeStyleCssVars = {
   '--fs-36': '2.25rem',
   '--fs-40': '2.5rem',
   '--fs-42': '2.625rem',
-  '--fs-44': '2.75rem',
   '--fs-46': '2.875rem',
   '--fs-48': '3rem',
   '--fs-54': '3.375rem',
   '--fs-56': '3.5rem',
-  '--fs-60': '3.75rem',
   '--fs-64': '4rem',
-  '--fs-90': '5.625rem',
   '--fs-100': '6.25rem',
   '--fs-tiny': 'var(--fs-12)',
   '--fs-pill': 'var(--fs-12)',
@@ -248,21 +203,15 @@ const defaultThemeCssVars: ThemeStyleCssVars = {
   '--space-section': '4rem',
   '--space-page': '6rem',
   '--space-gutter': 'clamp(1.25rem, 2.2vw, 3rem)',
-  '--r-1': '0.25rem',
-  '--r-2': '0.375rem',
-  '--r-3': '0.5rem',
   '--r-4': '0.625rem',
-  '--shadow-1': '0 1px 0 rgba(0, 0, 0, 0.03)',
   '--shadow-2': 'var(--jet-theme-shadow-secondary)',
-  '--shadow-pop': 'var(--jet-theme-shadow)',
   '--shadow-hover': '0 0.125rem 0.5rem rgba(0, 0, 0, 0.06)',
-  '--shadow-lifted': '0 0.375rem 1.25rem rgba(0, 0, 0, 0.06)',
-  '--ring-focus': '0 0 0 0.1875rem var(--accent-soft)',
-  '--ring-active': '0 0 0 0.125rem var(--accent-soft)',
+  '--ring-focus': '0 0 0 0.1875rem var(--jet-theme-primary-soft)',
+  '--ring-active': '0 0 0 0.125rem var(--jet-theme-primary-soft)',
   '--ring-ok': '0 0 0 0.1875rem var(--ok-bg)',
   '--ring-warn': '0 0 0 0.1875rem var(--warn-bg)',
   '--ring-err': '0 0 0 0.1875rem var(--err-bg)',
-  '--ring-info': '0 0 0 0.1875rem var(--info-bg)',
+  '--ring-info': '0 0 0 0.1875rem var(--jet-theme-primary-soft)',
   '--shadow-sticky-top': '0 -0.25rem 0.75rem rgba(0, 0, 0, 0.04)',
   '--shadow-fab': '0 0.375rem 1rem rgba(0, 0, 0, 0.12), 0 0.125rem 0.375rem rgba(0, 0, 0, 0.08)',
   '--z-dev-tools': '9999',
@@ -279,29 +228,29 @@ const defaultThemeCssVars: ThemeStyleCssVars = {
   '--layout-menu-item-active-line': 'var(--jet-theme-primary)',
   '--layout-menu-search-bg': 'var(--jet-theme-bg-container)',
   '--layout-menu-search-border': 'var(--jet-theme-border-secondary)',
-  '--chrome-bg': 'var(--bg)',
-  '--chrome-elev': 'var(--bg-elev)',
-  '--chrome-sunken': 'var(--bg-sunken)',
-  '--chrome-hover': 'var(--bg-hover)',
-  '--chrome-line': 'var(--line)',
-  '--chrome-line-strong': 'var(--line-strong)',
-  '--chrome-ink-1': 'var(--ink-1)',
-  '--chrome-ink-2': 'var(--ink-2)',
-  '--chrome-ink-3': 'var(--ink-3)',
-  '--chrome-ink-4': 'var(--ink-4)',
+  '--chrome-bg': 'var(--jet-theme-bg-container)',
+  '--chrome-elev': 'var(--jet-theme-bg-container)',
+  '--chrome-sunken': 'var(--jet-theme-primary-soft)',
+  '--chrome-hover': 'var(--jet-theme-border-secondary)',
+  '--chrome-line': 'var(--jet-theme-border)',
+  '--chrome-line-strong': 'var(--jet-theme-border-secondary)',
+  '--chrome-ink-1': 'var(--jet-theme-text)',
+  '--chrome-ink-2': 'var(--jet-theme-text-secondary)',
+  '--chrome-ink-3': 'var(--jet-theme-text-disabled)',
+  '--chrome-ink-4': 'var(--jet-theme-text-disabled)',
   '--chrome-active-bg': 'transparent',
   '--chrome-active-ink': 'var(--chrome-ink-1)',
-  '--chrome-active-line': 'var(--accent)',
+  '--chrome-active-line': 'var(--jet-theme-primary)',
   '--chrome-nav-font-size': 'var(--fs-14)',
   '--chrome-nav-font-weight': '400',
   '--chrome-active-font-weight': '500',
   '--chrome-brand-font-weight': '600',
   '--chrome-label-font-weight': '600',
-  '--chrome-control-radius': 'var(--r-2)',
-  '--chrome-popover-radius': 'var(--r-3)',
-  '--ind-general': 'var(--ink-2)',
-  '--ind-general-banner': 'var(--bg-sunken)',
-  '--ind-general-mark': 'var(--bg-sunken)',
+  '--chrome-control-radius': 'var(--jet-theme-radius)',
+  '--chrome-popover-radius': 'var(--jet-theme-radius-lg)',
+  '--ind-general': 'var(--jet-theme-text-secondary)',
+  '--ind-general-banner': 'var(--jet-theme-primary-soft)',
+  '--ind-general-mark': 'var(--jet-theme-primary-soft)',
   '--ambient-hero': 'linear-gradient(135deg, #eef4ff, #f5f3ff, #fdf2f8)',
   '--ambient-cool': 'linear-gradient(135deg, #eef4ff, #f5f3ff)',
   '--ambient-warm': 'linear-gradient(135deg, #f5f3ff, #fdf2f8)',

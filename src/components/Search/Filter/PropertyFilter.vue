@@ -326,7 +326,7 @@ defineExpose({
   width: 100%;
   padding: var(--space-6);
   margin-bottom: var(--space-6);
-  background: var(--bg);
+  background: var(--jet-theme-bg-container);
 }
 .property-filter__toolbar {
   display: flex;
@@ -355,7 +355,7 @@ defineExpose({
 }
 .property-filter__clear {
   padding: 0;
-  color: var(--accent);
+  color: var(--jet-theme-primary);
   font-size: var(--fs-14);
   line-height: 1.375rem;
   white-space: nowrap;
@@ -369,16 +369,16 @@ defineExpose({
   gap: var(--space-2);
   min-height: 2.25rem;
   padding: 0.375rem 0.75rem;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-size: var(--fs-14);
   line-height: 1.25rem;
-  background: var(--bg);
-  border: 1px solid var(--line-strong);
+  background: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .filter-chip:hover {
-  border-color: var(--accent);
+  border-color: var(--jet-theme-primary);
 }
 .filter-chip--active {
   padding-left: var(--space-2);
@@ -393,27 +393,27 @@ defineExpose({
   width: 1.125rem;
   height: 1.125rem;
   padding: 0;
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
   background: transparent;
   border: 0;
-  border-radius: var(--r-1);
+  border-radius: var(--jet-theme-radius-sm);
   cursor: pointer;
 }
 .filter-chip__text {
   max-width: 15rem;
   overflow: hidden;
-  color: var(--accent);
+  color: var(--jet-theme-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .filter-chip__label {
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
 }
 .filter-chip__operator {
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
 }
 .filter-chip__arrow {
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
 }
 .filter-logic {
@@ -422,16 +422,16 @@ defineExpose({
   gap: 0.375rem;
   min-height: 2.25rem;
   padding: 0.4375rem 0.75rem;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-size: var(--fs-14);
   line-height: 1.25rem;
-  background: var(--bg);
-  border: 1px solid var(--line-strong);
+  background: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
   border-radius: 0.625rem;
   cursor: pointer;
 }
 .filter-logic:hover {
-  border-color: var(--accent);
+  border-color: var(--jet-theme-primary);
 }
 @media (max-width: 75rem) {
   .property-filter__toolbar {

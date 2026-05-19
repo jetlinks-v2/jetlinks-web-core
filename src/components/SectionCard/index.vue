@@ -41,17 +41,17 @@ withDefaults(
     iconColor?: string
   }>(),
   {
-    iconBg: 'var(--accent-soft)',
-    iconColor: 'var(--accent)',
+    iconBg: 'var(--jet-theme-primary-soft)',
+    iconColor: 'var(--jet-theme-primary)',
   }
 )
 </script>
 
 <style scoped>
 .section {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-3);
+  background: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--jet-theme-border);
+  border-radius: var(--jet-theme-radius-lg);
   padding: 1.375rem 1.625rem;
   margin-bottom: 0.875rem;
 }
@@ -63,7 +63,7 @@ withDefaults(
   gap: var(--space-4);
   margin-bottom: var(--space-4);
   padding-bottom: 0.875rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 0.0625rem solid var(--jet-theme-border);
 }
 
 .left { flex: 1; min-width: 0; }
@@ -72,9 +72,9 @@ withDefaults(
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--fs-15);
+  font-size: var(--fs-16);
   font-weight: 600;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   line-height: 1.3;
   margin-bottom: var(--space-1);
 }
@@ -82,7 +82,7 @@ withDefaults(
 .ic {
   width: 1.5rem;
   height: 1.5rem;
-  border-radius: var(--r-2);
+  border-radius: var(--jet-theme-radius);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -91,14 +91,14 @@ withDefaults(
 
 .section-sub {
   font-size: var(--fs-12);
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
   line-height: 1.7;
 }
 .section-sub :deep(code) { font-size: var(--fs-12);
-  background: var(--bg-sunken);
+  background: var(--jet-theme-primary-soft);
   padding: 0.0625rem 0.3125rem;
-  border-radius: var(--r-1);
-  color: var(--ink-2);
+  border-radius: var(--jet-theme-radius-sm);
+  color: var(--jet-theme-text-secondary);
 }
 
 .right { flex-shrink: 0; }</style>

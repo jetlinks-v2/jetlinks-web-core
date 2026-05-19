@@ -219,7 +219,7 @@ const handleClick = () => {
 <style scoped>
 .card {
   width: 100%;
-  background-color: var(--bg);
+  background-color: var(--jet-theme-bg-container);
 }
 .card .checked-icon {
   position: absolute;
@@ -229,7 +229,7 @@ const handleClick = () => {
   width: 2.75rem;
   height: 2.75rem;
   color: var(--accent-ink);
-  background-color: var(--jet-theme-primary, var(--accent));
+  background-color: var(--jet-theme-primary, var(--jet-theme-primary));
   transform: rotate(-45deg);
 }
 .card .checked-icon > div {
@@ -245,12 +245,12 @@ const handleClick = () => {
 }
 .card .card-warp {
   position: relative;
-  border: 1px solid var(--line-strong);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
   overflow: hidden;
   cursor: pointer;
 }
 .card .card-warp:hover {
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }
 .card .card-warp:hover .card-mask {
   visibility: visible;
@@ -261,7 +261,7 @@ const handleClick = () => {
 }
 .card .card-warp.active {
   position: relative;
-  border: 1px solid var(--jet-theme-primary, var(--accent));
+  border: 0.0625rem solid var(--jet-theme-primary, var(--jet-theme-primary));
 }
 .card .card-warp .card-type {
   position: absolute;
@@ -269,9 +269,9 @@ const handleClick = () => {
   left: -0.9375rem;
   height: 2rem;
   padding: 0 1.875rem;
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
   line-height: 2rem;
-  background-color: color-mix(in srgb, var(--ink-1) 6%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-text) 6%, transparent);
   transform: skewX(-45deg);
 }
 .card .card-warp .card-type .card-type-text {
@@ -306,17 +306,17 @@ const handleClick = () => {
   display: flex;
   justify-content: center;
   padding: 0 1.25rem 0 1.25rem;
-  background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 15%, transparent);
   transform: skewX(45deg);
 }
 .card .card-warp .card-content .card-state.success {
-  background-color: color-mix(in srgb, var(--jet-theme-success, var(--ok)) 12%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-success, var(--jet-theme-success)) 12%, transparent);
 }
 .card .card-warp .card-content .card-state.warning {
-  background-color: color-mix(in srgb, var(--warn) 10%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-warning) 10%, transparent);
 }
 .card .card-warp .card-content .card-state.error {
-  background-color: color-mix(in srgb, var(--err) 10%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-error) 10%, transparent);
 }
 .card .card-warp .card-content .card-state .card-state-content {
   transform: skewX(-45deg);
@@ -325,7 +325,7 @@ const handleClick = () => {
   cursor: pointer;
   font-size: var(--fs-16);
   font-weight: 700;
-  color: var(--jet-theme-primary, var(--accent));
+  color: var(--jet-theme-primary, var(--jet-theme-primary));
   width: calc(100% - 6.25rem);
   overflow: hidden;
   white-space: nowrap;
@@ -337,7 +337,7 @@ const handleClick = () => {
   margin-bottom: var(--space-3);
 }
 .card .card-warp .card-content :deep(.card-item-content-text) {
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
   font-size: var(--fs-12);
 }
 .card .card-warp .card-content-top-line::before {
@@ -359,7 +359,7 @@ const handleClick = () => {
   height: 100%;
   width: 44.65%;
   top: 0;
-  background: linear-gradient(188.4deg, color-mix(in srgb, var(--err) 3%, transparent) 22.94%, transparent 94.62%);
+  background: linear-gradient(188.4deg, color-mix(in srgb, var(--jet-theme-error) 3%, transparent) 22.94%, transparent 94.62%);
   transform: skewX(-15deg);
 }
 .card .card-warp .card-content-bg2 {
@@ -368,7 +368,7 @@ const handleClick = () => {
   height: 100%;
   width: calc(44.65% + 2.125rem);
   top: 0;
-  background: linear-gradient(188.4deg, color-mix(in srgb, var(--err) 3%, transparent) 22.94%, transparent 94.62%);
+  background: linear-gradient(188.4deg, color-mix(in srgb, var(--jet-theme-error) 3%, transparent) 22.94%, transparent 94.62%);
   transform: skewX(-15deg);
 }
 .card .card-warp .card-mask {
@@ -382,7 +382,7 @@ const handleClick = () => {
   width: 100%;
   height: 100%;
   color: var(--accent-ink);
-  background-color: color-mix(in srgb, var(--ink-1) 50%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-text) 50%, transparent);
   visibility: hidden;
   cursor: pointer;
   transition: all 0.3s;
@@ -397,13 +397,13 @@ const handleClick = () => {
 }
 .card.item-active {
   position: relative;
-  color: var(--jet-theme-primary, var(--accent));
+  color: var(--jet-theme-primary, var(--jet-theme-primary));
 }
 .card.item-active .checked-icon {
   display: block;
 }
 .card.item-active .card-warp {
-  border: 1px solid var(--jet-theme-primary, var(--accent));
+  border: 0.0625rem solid var(--jet-theme-primary, var(--jet-theme-primary));
 }
 .card .card-tools {
   display: flex;
@@ -420,9 +420,9 @@ const handleClick = () => {
 .card .card-tools .card-button :deep(button) {
   width: 100%;
   border-radius: 0;
-  background: var(--bg-hover);
-  border: 1px solid var(--line-strong);
-  color: var(--jet-theme-primary, var(--accent));
+  background: var(--jet-theme-border-secondary);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
+  color: var(--jet-theme-primary, var(--jet-theme-primary));
 }
 .card .card-tools .card-button :deep(button):hover {
   background-color: var(--jet-theme-primary-hover);
@@ -446,34 +446,34 @@ const handleClick = () => {
   flex-grow: 0;
 }
 .card .card-tools .card-button.delete :deep(button) {
-  background: color-mix(in srgb, var(--jet-theme-error, var(--err)) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--jet-theme-error, var(--err)) 35%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-error, var(--jet-theme-error)) 10%, transparent);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-error, var(--jet-theme-error)) 35%, transparent);
 }
 .card .card-tools .card-button.delete :deep(button) span {
-  color: var(--jet-theme-error, var(--err)) !important;
+  color: var(--jet-theme-error, var(--jet-theme-error)) !important;
 }
 .card .card-tools .card-button.delete :deep(button):hover {
-  background-color: color-mix(in srgb, var(--jet-theme-error, var(--err)) 82%, var(--bg));
+  background-color: color-mix(in srgb, var(--jet-theme-error, var(--jet-theme-error)) 82%, var(--jet-theme-bg-container));
 }
 .card .card-tools .card-button.delete :deep(button):hover span {
   color: var(--accent-ink) !important;
 }
 .card .card-tools .card-button.delete :deep(button):active {
-  background-color: color-mix(in srgb, var(--jet-theme-error, var(--err)) 88%, var(--ink-1));
+  background-color: color-mix(in srgb, var(--jet-theme-error, var(--jet-theme-error)) 88%, var(--jet-theme-text));
 }
 .card .card-tools .card-button.delete :deep(button):active span {
   color: var(--accent-ink) !important;
 }
 .card .card-tools .card-button :deep(button[disabled]) {
-  background: color-mix(in srgb, var(--jet-theme-text, var(--ink-1)) 4%, var(--jet-theme-bg-container, var(--bg)));
-  border-color: var(--jet-theme-border, var(--ink-4));
+  background: color-mix(in srgb, var(--jet-theme-text, var(--jet-theme-text)) 4%, var(--jet-theme-bg-container, var(--jet-theme-bg-container)));
+  border-color: var(--jet-theme-border, var(--jet-theme-text-disabled));
 }
 .card .card-tools .card-button :deep(button[disabled]) span {
-  color: var(--jet-theme-text-secondary, var(--ink-4)) !important;
+  color: var(--jet-theme-text-secondary, var(--jet-theme-text-disabled)) !important;
 }
 .card .card-tools .card-button :deep(button[disabled]):hover {
-  background-color: color-mix(in srgb, var(--jet-theme-text, var(--ink-1)) 8%, var(--jet-theme-bg-container, var(--bg)));
+  background-color: color-mix(in srgb, var(--jet-theme-text, var(--jet-theme-text)) 8%, var(--jet-theme-bg-container, var(--jet-theme-bg-container)));
 }
 .card .card-tools .card-button :deep(button[disabled]):active {
-  background-color: color-mix(in srgb, var(--jet-theme-text, var(--ink-1)) 8%, var(--jet-theme-bg-container, var(--bg)));
+  background-color: color-mix(in srgb, var(--jet-theme-text, var(--jet-theme-text)) 8%, var(--jet-theme-bg-container, var(--jet-theme-bg-container)));
 }</style>

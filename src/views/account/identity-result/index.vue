@@ -53,10 +53,10 @@ function goCenter() {
 
 .identity-result-card {
   background: var(--jet-theme-bg-container);
-  border-radius: var(--r-3);
+  border-radius: var(--jet-theme-radius-lg);
   padding: var(--space-12) calc(var(--space-12) + var(--space-2));
   text-align: center;
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--jet-theme-shadow-secondary);
   min-width: 22.5rem;
 }
 

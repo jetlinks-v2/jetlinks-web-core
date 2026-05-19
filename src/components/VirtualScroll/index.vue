@@ -125,7 +125,7 @@ onBeforeUnmount(() => {
   position: relative;
   overflow-y: auto;
   &:not(:last-child){
-    border-bottom: 1px solid var(--bg-hover);
+    border-bottom: 0.0625rem solid var(--jet-theme-border-secondary);
   }
 }
 .phantom {

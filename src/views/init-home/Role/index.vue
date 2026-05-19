@@ -351,7 +351,7 @@ defineExpose({
         background-repeat: no-repeat;
         background-position: 50%;
         background-size: 23.125rem;
-        border: 1px solid #f5f5f5;
+        border: 0.0625rem solid #f5f5f5;
 
         .role-item-title {
             display: flex;

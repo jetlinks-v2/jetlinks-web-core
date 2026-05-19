@@ -347,13 +347,13 @@ onMounted(() => {
 }
 
 .status-card {
-  background: var(--bg);
-  border-radius: var(--r-3);
+  background: var(--jet-theme-bg-container);
+  border-radius: var(--jet-theme-radius-lg);
   padding: var(--space-10);
   text-align: center;
   max-width: 25rem;
   width: 100%;
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }
 
 .status-card.error .status-icon {
@@ -390,12 +390,12 @@ onMounted(() => {
 }
 
 .auth-card {
-  background: var(--bg);
-  border-radius: var(--r-3);
+  background: var(--jet-theme-bg-container);
+  border-radius: var(--jet-theme-radius-lg);
   padding: var(--space-10);
   max-width: 25rem;
   width: 100%;
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }
 
 .auth-header {
@@ -410,7 +410,7 @@ onMounted(() => {
   width: 3.75rem;
   height: 3.75rem;
   background: var(--jet-theme-primary);
-  border-radius: var(--r-3);
+  border-radius: var(--jet-theme-radius-lg);
   margin-bottom: var(--space-4);
   font-size: var(--fs-24);
   color: var(--accent-ink);
@@ -437,7 +437,7 @@ onMounted(() => {
 
 .verify-code-image {
   height: 2rem;
-  border-radius: var(--r-1);
+  border-radius: var(--jet-theme-radius-sm);
 }
 
 .verify-code-placeholder {
@@ -447,7 +447,7 @@ onMounted(() => {
   width: 5rem;
   height: 2rem;
   background: var(--jet-theme-bg-layout);
-  border-radius: var(--r-1);
+  border-radius: var(--jet-theme-radius-sm);
   color: var(--jet-theme-text-secondary);
 }
 

@@ -116,7 +116,7 @@ const read = (type: '_read' | '_unread') => {
 .list-items {
     width: 19.5rem;
     overflow: hidden;
-    border-bottom: 1px solid var(--line-strong);
+    border-bottom: 0.0625rem solid var(--jet-theme-border-secondary);
     margin: 0 1.5rem;
     box-sizing: content-box;
 
@@ -157,7 +157,7 @@ const read = (type: '_read' | '_unread') => {
                 }
                 span {
                     color: red;
-                    font-size: var(--fs-13);
+                    font-size: var(--fs-14);
                     width: 1.875rem;
                 }
             }

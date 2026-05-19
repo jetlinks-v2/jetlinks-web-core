@@ -141,8 +141,8 @@ watch(() => props.value, (newValue) => {
 }
 .terms-group-container .term-group-border {
   padding: 0.375rem 0.75rem;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--r-2);
+  border: 0.0625rem dashed var(--jet-theme-border-secondary);
+  border-radius: var(--jet-theme-radius);
 }
 .terms-group-container .term-delete-btn {
   position: absolute;
@@ -150,8 +150,8 @@ watch(() => props.value, (newValue) => {
   right: -0.625rem;
   width: 1.25rem;
   height: 1.25rem;
-  background: var(--bg-hover);
-  color: var(--ink-4);
+  background: var(--jet-theme-border-secondary);
+  color: var(--jet-theme-text-disabled);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -164,7 +164,7 @@ watch(() => props.value, (newValue) => {
   z-index: 10;
 }
 .terms-group-container .term-delete-btn:hover {
-  background: var(--bg-hover);
+  background: var(--jet-theme-border-secondary);
 }
 .terms-group-container .term-add-btn {
   display: flex;
@@ -173,16 +173,16 @@ watch(() => props.value, (newValue) => {
   min-width: 1.5rem;
   width: 1.5rem;
   height: 1.5rem;
-  color: var(--ink-4);
-  background-color: var(--bg);
-  border: 1px dashed var(--ink-4);
+  color: var(--jet-theme-text-disabled);
+  background-color: var(--jet-theme-bg-container);
+  border: 0.0625rem dashed var(--jet-theme-text-disabled);
   border-radius: 50%;
   cursor: pointer;
 }
 .terms-group-container .term-add-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--info-bg);
+  border-color: var(--jet-theme-primary);
+  color: var(--jet-theme-primary);
+  background: var(--jet-theme-primary-soft);
 }
 .terms-group-container .term-add-btn::before {
   content: "+";
@@ -193,8 +193,8 @@ watch(() => props.value, (newValue) => {
 }
 .terms-group-container .connect-text {
   padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-3);
+  border: 0.0625rem solid var(--jet-theme-border);
+  border-radius: var(--jet-theme-radius-lg);
   cursor: pointer;
   flex-shrink: 0;
   user-select: none;
@@ -215,14 +215,14 @@ watch(() => props.value, (newValue) => {
   height: 0.375rem;
 }
 .terms-group-container .terms-scroll-area::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--ink-1) 10%, transparent);
-  border-radius: var(--r-1);
+  background: color-mix(in srgb, var(--jet-theme-text) 10%, transparent);
+  border-radius: var(--jet-theme-radius-sm);
 }
 .terms-group-container .terms-scroll-area::-webkit-scrollbar-track {
   background: transparent;
 }
 .terms-group-container .terms-scroll-area:hover::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--ink-1) 20%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-text) 20%, transparent);
 }
 .terms-group-container .term-item {
   position: relative;
@@ -233,8 +233,8 @@ watch(() => props.value, (newValue) => {
   cursor: default;
 }
 .terms-group-container .term-item.can-delete:hover {
-  border-color: var(--line);
-  box-shadow: var(--shadow-1);
+  border-color: var(--jet-theme-border);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }
 .terms-group-container .term-item.can-delete:hover > .term-delete-btn {
   opacity: 1;

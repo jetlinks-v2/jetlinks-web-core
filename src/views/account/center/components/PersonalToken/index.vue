@@ -155,7 +155,7 @@ const handleDialogOk = async (data) => {
     margin-bottom: var(--space-6);
     background-color: #F7F8FA;
     padding: var(--space-3);
-    border-radius: var(--r-2);
+    border-radius: var(--jet-theme-radius);
   }
 }
 

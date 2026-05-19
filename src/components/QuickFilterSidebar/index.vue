@@ -449,9 +449,9 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   height: 100%;
   padding: var(--space-3);
   overflow: auto;
-  background: var(--bg);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-3);
+  background: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
+  border-radius: var(--jet-theme-radius-lg);
 }
 .quick-filter-sidebar__section {
   display: flex;
@@ -474,7 +474,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   align-items: center;
   min-width: 0;
   padding: 0;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   font-size: var(--fs-14);
   font-weight: 600;
   line-height: 1.375rem;
@@ -486,7 +486,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   cursor: default;
 }
 .quick-filter-sidebar__caret {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
   transform: rotate(-90deg);
   transition: transform 0.2s ease;
@@ -513,10 +513,10 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   display: flex;
   gap: var(--space-1);
   align-items: center;
-  border-radius: var(--r-2);
+  border-radius: var(--jet-theme-radius);
 }
 .quick-filter-sidebar__row--active {
-  background: var(--accent-soft);
+  background: var(--jet-theme-primary-soft);
 }
 .quick-filter-sidebar__item {
   display: flex;
@@ -527,27 +527,27 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   min-width: 0;
   min-height: 1.875rem;
   padding: 0 0.625rem;
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
   font-size: var(--fs-14);
   text-align: left;
   background: transparent;
   border: 0;
-  border-radius: var(--r-2);
+  border-radius: var(--jet-theme-radius);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .quick-filter-sidebar__item:hover {
-  color: var(--ink-1);
-  background: var(--bg-hover);
+  color: var(--jet-theme-text);
+  background: var(--jet-theme-border-secondary);
 }
 .quick-filter-sidebar__item:disabled {
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   cursor: not-allowed;
 }
 .quick-filter-sidebar__item--active {
-  color: var(--accent);
+  color: var(--jet-theme-primary);
   font-weight: 600;
-  background: var(--accent-soft);
+  background: var(--jet-theme-primary-soft);
 }
 .quick-filter-sidebar__item-content {
   display: flex;
@@ -559,7 +559,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
 }
 .quick-filter-sidebar__item-main {
   display: flex;
@@ -574,7 +574,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 }
 .quick-filter-sidebar__item-description {
   overflow: hidden;
-  color: color-mix(in srgb, var(--ink-1) 40%, transparent);
+  color: color-mix(in srgb, var(--jet-theme-text) 40%, transparent);
   font-size: var(--fs-12);
   font-weight: 400;
   line-height: 1.125rem;
@@ -583,7 +583,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
 }
 .quick-filter-sidebar__item-meta {
   flex-shrink: 0;
-  color: color-mix(in srgb, var(--ink-1) 40%, transparent);
+  color: color-mix(in srgb, var(--jet-theme-text) 40%, transparent);
   font-size: var(--fs-12);
   line-height: 1.125rem;
 }
@@ -598,28 +598,28 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   justify-content: center;
   width: 1.75rem;
   height: 1.75rem;
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   background: transparent;
   border: 0;
-  border-radius: var(--r-2);
+  border-radius: var(--jet-theme-radius);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .quick-filter-sidebar__item-action-btn:hover {
-  color: var(--err);
-  background: color-mix(in srgb, var(--err) 8%, transparent);
+  color: var(--jet-theme-error);
+  background: color-mix(in srgb, var(--jet-theme-error) 8%, transparent);
 }
 .quick-filter-sidebar__item-action-btn:disabled {
-  color: color-mix(in srgb, var(--ink-1) 20%, transparent);
+  color: color-mix(in srgb, var(--jet-theme-text) 20%, transparent);
   cursor: not-allowed;
   background: transparent;
 }
 .quick-filter-sidebar__item-action-btn--danger {
-  color: var(--err);
+  color: var(--jet-theme-error);
 }
 .quick-filter-sidebar__empty {
   padding: 0.25rem 0.625rem;
-  color: color-mix(in srgb, var(--ink-1) 40%, transparent);
+  color: color-mix(in srgb, var(--jet-theme-text) 40%, transparent);
   font-size: var(--fs-12);
   line-height: 1.25rem;
 }</style>

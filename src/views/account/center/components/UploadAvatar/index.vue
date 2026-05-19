@@ -150,7 +150,7 @@ const saveImage = (url: string) => {
 </script>
 
 <style lang="less" scoped>
-@border: 1px dashed @border-color-base;
+@border: 0.0625rem dashed @border-color-base;
 @mask-color: rgba(#000, 0.35);
 @with: 6rem;
 @height: 6rem;

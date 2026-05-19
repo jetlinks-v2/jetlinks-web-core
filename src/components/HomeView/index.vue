@@ -73,7 +73,7 @@ watchEffect(() => {
   cursor: pointer;
   width: 30%;
   border-radius: 0.875rem;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   overflow: hidden;
 }
 .view-content .select-item img {
@@ -82,5 +82,5 @@ watchEffect(() => {
   background-size: cover;
 }
 .view-content .select-item:hover {
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }</style>

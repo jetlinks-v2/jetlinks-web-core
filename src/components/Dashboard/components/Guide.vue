@@ -37,8 +37,8 @@ const props = defineProps<guideProps>();
   left: 0;
   width: 0.5rem;
   height: 0.5rem;
-  background-color: var(--jet-theme-primary, var(--accent));
-  border: 1px solid var(--accent);
+  background-color: var(--jet-theme-primary, var(--jet-theme-primary));
+  border: 0.0625rem solid var(--jet-theme-primary);
   transform: translateY(-50%);
   content: ' ';
 }
@@ -49,6 +49,6 @@ const props = defineProps<guideProps>();
 .home-title .home-title-english {
   position: absolute;
   top: 1.875rem;
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
 }</style>

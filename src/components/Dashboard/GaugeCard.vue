@@ -188,8 +188,8 @@ defineExpose({ refreshManual })
   display: flex;
   height: 9.375rem;
   padding: var(--space-4);
-  background-color: var(--bg);
-  border: 1px solid var(--line-strong);
+  background-color: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--jet-theme-border-secondary);
   border-radius: 0.125rem;
 }
 .echarts-item .echarts-item-left {
@@ -202,7 +202,7 @@ defineExpose({ refreshManual })
 }
 .echarts-item .echarts-item-title {
   margin-bottom: var(--space-2);
-  color: color-mix(in srgb, var(--ink-1) 60%, transparent);
+  color: color-mix(in srgb, var(--jet-theme-text) 60%, transparent);
   font-size: var(--fs-16);
 }
 .echarts-item .echarts-item-value {
@@ -229,7 +229,7 @@ defineExpose({ refreshManual })
   left: 0;
   width: 0.25rem;
   height: 0.75rem;
-  background-color: var(--err);
+  background-color: var(--jet-theme-error);
   transform: translateY(-50%);
   content: ' ';
 }</style>

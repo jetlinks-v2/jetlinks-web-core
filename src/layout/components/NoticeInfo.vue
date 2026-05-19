@@ -173,7 +173,7 @@ onMounted(async () => {
 .notice-info-container {
     width: 21rem;
     background-color: #fff;
-    border-radius: var(--r-1);
+    border-radius: var(--jet-theme-radius-sm);
     box-shadow: 0 0.375rem 1rem -0.5rem rgb(0 0 0 / 8%), 0 0.5625rem 1.75rem 0 rgb(0 0 0 / 5%),
         0 0.75rem 3rem 1rem rgb(0 0 0 / 3%);
 

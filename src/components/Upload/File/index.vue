@@ -211,10 +211,10 @@ watch(
 <style scoped>
 .ant-upload-select-picture-card i {
   font-size: var(--fs-32);
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
 }
 
 .ant-upload-select-picture-card .ant-upload-text {
   margin-top: var(--space-2);
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
 }</style>

@@ -64,10 +64,10 @@ withDefaults(
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-3);
-  color: var(--ink-1);
+  background: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--jet-theme-border);
+  border-radius: var(--jet-theme-radius-lg);
+  color: var(--jet-theme-text);
   overflow: hidden;
   min-width: 0;
   transition: all 0.15s ease;
@@ -76,8 +76,8 @@ withDefaults(
   cursor: pointer;
 }
 .entity-card.interactive:hover {
-  border-color: var(--line-strong);
-  box-shadow: var(--shadow-lifted);
+  border-color: var(--jet-theme-border-secondary);
+  box-shadow: var(--jet-theme-shadow);
   transform: translateY(-0.125rem);
 }
 
@@ -99,7 +99,7 @@ withDefaults(
   gap: 0.375rem;
   font-size: var(--fs-14);
   font-weight: 600;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
   flex-wrap: wrap;
 }
 .ec-badges {
@@ -112,7 +112,7 @@ withDefaults(
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
   font-size: var(--fs-12);
   margin-top: var(--space-1);
   flex-wrap: wrap;
@@ -127,8 +127,8 @@ withDefaults(
 .ec-footer {
   margin-top: auto;
   padding: 0.625rem 1rem;
-  background: var(--bg-sunken);
-  border-top: 1px solid var(--line);
+  background: var(--jet-theme-primary-soft);
+  border-top: 0.0625rem solid var(--jet-theme-border);
   display: flex;
   align-items: center;
   justify-content: space-between;

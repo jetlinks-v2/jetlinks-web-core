@@ -110,7 +110,7 @@ const boxCss = computed(() => ({
   position: relative;
   flex-shrink: 0;
   overflow: hidden;
-  background: color-mix(in srgb, var(--ink-1) 4%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-text) 4%, transparent);
   box-sizing: border-box;
 }
 .icon-value-view__img {
@@ -134,7 +134,7 @@ const boxCss = computed(() => ({
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--accent-soft), var(--info-bg));
+  background: linear-gradient(135deg, var(--jet-theme-primary-soft), var(--jet-theme-primary-soft));
   color: var(--jet-theme-primary-active);
 }
 /* 与色块文字一致：按容器边长比例，避免继承父级过小字号导致图标几乎看不见 */
@@ -149,7 +149,7 @@ const boxCss = computed(() => ({
   align-items: center;
   justify-content: center;
   border-radius: inherit;
-  background: var(--accent-soft);
+  background: var(--jet-theme-primary-soft);
   color: var(--jet-theme-primary-active);
 }
 .icon-value-view__fallback-text {

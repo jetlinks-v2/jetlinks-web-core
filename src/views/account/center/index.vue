@@ -113,9 +113,9 @@ onUnmounted(() => {
   .person-sider {
     width: 13.75rem;
     background-color: #fff;
-    border-radius: var(--r-3);
+    border-radius: var(--jet-theme-radius-lg);
     padding: 0.5rem 0;
-    box-shadow: 0 1px 0.1875rem rgba(0, 0, 0, 0.06);
+    box-shadow: 0 0.0625rem 0.1875rem rgba(0, 0, 0, 0.06);
   }
 
   .person-main {
@@ -125,9 +125,9 @@ onUnmounted(() => {
 
   .person-main-content {
     background-color: #fff;
-    border-radius: var(--r-3);
+    border-radius: var(--jet-theme-radius-lg);
     padding: 1rem 1.25rem;
-    box-shadow: 0 1px 0.1875rem rgba(0, 0, 0, 0.06);
+    box-shadow: 0 0.0625rem 0.1875rem rgba(0, 0, 0, 0.06);
     height: 100%;
   }
 }</style>

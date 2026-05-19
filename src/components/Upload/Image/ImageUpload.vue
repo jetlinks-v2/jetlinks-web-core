@@ -219,7 +219,7 @@ function handleCropProcessingChange(busy: boolean) {
   height: 100%;
   overflow: hidden;
   transition: all 0.3s;
-  border: 1px dashed var(--jet-theme-primary, var(--accent));
+  border: 0.0625rem dashed var(--jet-theme-primary, var(--jet-theme-primary));
 }
 .upload-image-warp .upload-image-border:hover {
   border-color: var(--jet-theme-primary-hover);
@@ -240,7 +240,7 @@ function handleCropProcessingChange(busy: boolean) {
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background-color: color-mix(in srgb, var(--ink-1) 6%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-text) 6%, transparent);
   cursor: pointer;
   padding: var(--space-2);
 }
@@ -255,7 +255,7 @@ function handleCropProcessingChange(busy: boolean) {
   font-size: var(--fs-16);
   align-items: center;
   justify-content: center;
-  background-color: color-mix(in srgb, var(--ink-1) 25%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-text) 25%, transparent);
 }
 .upload-image-warp .upload-image-border .upload-image-content .upload-image {
   width: 100%;
@@ -277,5 +277,5 @@ function handleCropProcessingChange(busy: boolean) {
   width: 100%;
   height: 100%;
   color: var(--accent-ink);
-  background-color: color-mix(in srgb, var(--ink-1) 25%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-text) 25%, transparent);
 }</style>

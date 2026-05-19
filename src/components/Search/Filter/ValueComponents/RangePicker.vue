@@ -117,17 +117,17 @@ watch(() => props.value, (val) => {
 .dropdown-range-picker__shortcut {
   height: 1.5rem;
   padding: 0 0.625rem;
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
   font-size: var(--fs-12);
   line-height: 1.375rem;
-  background: var(--bg-hover);
-  border: 1px solid var(--line);
+  background: var(--jet-theme-border-secondary);
+  border: 0.0625rem solid var(--jet-theme-border);
   border-radius: 62.4375rem;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 .dropdown-range-picker__shortcut:hover {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--bg));
+  color: var(--jet-theme-primary);
+  background: var(--jet-theme-primary-soft);
+  border-color: color-mix(in srgb, var(--jet-theme-primary) 35%, var(--jet-theme-bg-container));
 }</style>

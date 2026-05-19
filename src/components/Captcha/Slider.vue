@@ -127,8 +127,8 @@ const reset = () => {
   position: relative;
   width: 100%;
   overflow: hidden;
-  border-radius: var(--r-1);
-  background: var(--line-strong);
+  border-radius: var(--jet-theme-radius-sm);
+  background: var(--jet-theme-border-secondary);
 
   &.rotate-box {
     display: flex;
@@ -175,11 +175,11 @@ const reset = () => {
 }
 
 .result.success {
-  background: color-mix(in srgb, var(--ok) 90%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-success) 90%, transparent);
   color: var(--accent-ink);
 }
 
 .result.fail {
-  background: color-mix(in srgb, var(--err) 90%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-error) 90%, transparent);
   color: var(--accent-ink);
 }</style>

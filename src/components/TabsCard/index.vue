@@ -51,11 +51,11 @@ const onClick = (key) => {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  background: var(--bg-hover);
-  border-radius: var(--r-2);
+  background: var(--jet-theme-border-secondary);
+  border-radius: var(--jet-theme-radius);
   padding: 0.75rem 1.5rem;
   cursor: pointer;
 }
 .tab-select-item.active {
-  border: 1px solid var(--accent);
+  border: 0.0625rem solid var(--jet-theme-primary);
 }</style>

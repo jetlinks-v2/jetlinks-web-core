@@ -128,7 +128,7 @@ const handleLogout = async () => {
   align-items: center;
   gap: var(--space-1);
   padding: 0.5rem 0.625rem;
-  border-top: 1px solid var(--jet-theme-border-secondary);
+  border-top: 0.0625rem solid var(--jet-theme-border-secondary);
   background: var(--layout-menu-bg, var(--jet-theme-bg-container));
 
   &__card {
@@ -139,7 +139,7 @@ const handleLogout = async () => {
     gap: 0.5625rem;
     padding: 0.375rem 0.5rem;
     border: 0;
-    border-radius: var(--r-2);
+    border-radius: var(--jet-theme-radius);
     background: transparent;
     color: var(--jet-theme-text);
     text-align: left;
@@ -156,7 +156,7 @@ const handleLogout = async () => {
     flex: none;
     background: var(--brand-mark-bg, var(--jet-theme-text));
     color: var(--brand-mark-ink, var(--jet-theme-bg-container));
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     font-weight: 600;
   }
 
@@ -176,7 +176,7 @@ const handleLogout = async () => {
   }
 
   &__name {
-    font-size: var(--fs-13);
+    font-size: var(--fs-14);
     line-height: 1.125rem;
     font-weight: 600;
   }
@@ -203,9 +203,9 @@ const handleLogout = async () => {
     width: 12rem;
     padding: var(--space-1);
     background: var(--chrome-elev, var(--jet-theme-bg-container));
-    border: 1px solid var(--chrome-line, var(--jet-theme-border));
-    border-radius: var(--chrome-popover-radius, var(--r-3));
-    box-shadow: var(--shadow-pop);
+    border: 0.0625rem solid var(--chrome-line, var(--jet-theme-border));
+    border-radius: var(--chrome-popover-radius, var(--jet-theme-radius-lg));
+    box-shadow: var(--jet-theme-shadow);
   }
 
   &__menu-item {
@@ -216,7 +216,7 @@ const handleLogout = async () => {
     gap: 0.625rem;
     padding: 0 0.75rem;
     border: 0;
-    border-radius: var(--r-2);
+    border-radius: var(--jet-theme-radius);
     background: transparent;
     color: var(--jet-theme-text);
     font-size: var(--fs-14);

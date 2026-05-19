@@ -210,7 +210,7 @@ const saveImage = (url: string) => {
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background-color: color-mix(in srgb, var(--ink-1) 6%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-text) 6%, transparent);
   cursor: pointer;
   padding: var(--space-2);
 }
@@ -225,7 +225,7 @@ const saveImage = (url: string) => {
   font-size: var(--fs-16);
   align-items: center;
   justify-content: center;
-  background-color: var(--ink-4);
+  background-color: var(--jet-theme-text-disabled);
 }
 .upload-image-warp .upload-image-border .upload-image-content .upload-image {
   width: 100%;
@@ -247,5 +247,5 @@ const saveImage = (url: string) => {
   width: 100%;
   height: 100%;
   color: var(--accent-ink);
-  background-color: var(--ink-4);
+  background-color: var(--jet-theme-text-disabled);
 }</style>

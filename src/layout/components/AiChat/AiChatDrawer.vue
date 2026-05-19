@@ -276,7 +276,7 @@ onMounted(() => {
     font-size: var(--fs-14);
     line-height: 1.375rem;
     padding: 0.3125rem 0.75rem;
-    border-radius: var(--r-1);
+    border-radius: var(--jet-theme-radius-sm);
     color: rgba(0, 0, 0, 0.88);
     box-sizing: border-box;
     cursor: pointer;
@@ -299,11 +299,11 @@ onMounted(() => {
     }
 
     .current {
-      color: var(--ok);
+      color: var(--jet-theme-success);
     }
 
     .delete {
-      color: var(--err);
+      color: var(--jet-theme-error);
       display: none;
     }
 

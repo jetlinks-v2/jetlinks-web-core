@@ -159,30 +159,30 @@ watch(() => termsValue.value.value, (newValue) => {
 
 <style scoped>
 .border-box {
-  border-radius: var(--r-3);
+  border-radius: var(--jet-theme-radius-lg);
 }
 .border-box :deep(.ant-select-selector) {
-  border-radius: var(--r-3);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  color: var(--info);
-  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--jet-theme-radius-lg);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
+  color: var(--jet-theme-primary);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
 }
 .border-box :deep(.ant-select-selector) .ant-select-selection-placeholder {
-  color: var(--info);
+  color: var(--jet-theme-primary);
   padding-inline-end: 0;
 }
 .border-box.terms-type :deep(.ant-select-selector) {
-  color: var(--info);
-  background: color-mix(in srgb, var(--accent) 30%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--jet-theme-primary);
+  background: color-mix(in srgb, var(--jet-theme-primary) 30%, transparent);
+  border-color: color-mix(in srgb, var(--jet-theme-primary) 40%, transparent);
 }
 .border-box.terms-type :deep(.ant-select-selector) .ant-select-selection-placeholder {
-  color: var(--info);
+  color: var(--jet-theme-primary);
 }
 .border-box.terms-value {
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
-  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--jet-theme-primary);
+  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-primary) 50%, transparent);
+  background-color: color-mix(in srgb, var(--jet-theme-primary) 10%, transparent);
 }
 .border-box :deep(.ant-select-selection-item) {
   padding-inline-end: 0;
@@ -193,12 +193,12 @@ watch(() => termsValue.value.value, (newValue) => {
 }
 .terms-cascader-value .terms-value--type {
   padding: 0.25rem 0;
-  border-top-left-radius: var(--r-3);
-  border-bottom-left-radius: var(--r-3);
+  border-top-left-radius: var(--jet-theme-radius-lg);
+  border-bottom-left-radius: var(--jet-theme-radius-lg);
   text-align: center;
   width: 5rem;
   cursor: default;
-  border-right: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  border-right: 0.0625rem solid color-mix(in srgb, var(--jet-theme-primary) 50%, transparent);
 }
 .terms-cascader-value .terms-value--value {
   flex: 1 auto;
@@ -212,7 +212,7 @@ watch(() => termsValue.value.value, (newValue) => {
   min-width: 5rem;
 }
 .terms-cascader-value .terms-value--dropdown {
-  background-color: var(--bg);
-  border-radius: var(--r-3);
-  box-shadow: var(--shadow-1);
+  background-color: var(--jet-theme-bg-container);
+  border-radius: var(--jet-theme-radius-lg);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }</style>

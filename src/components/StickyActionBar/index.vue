@@ -50,8 +50,8 @@ const positionClass = computed(() => `sab-${props.position}`)
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  background: var(--bg);
-  border-top: 1px solid var(--line);
+  background: var(--jet-theme-bg-container);
+  border-top: 0.0625rem solid var(--jet-theme-border);
   z-index: 5;
 }
 .sab-bottom {
@@ -72,7 +72,7 @@ const positionClass = computed(() => `sab-${props.position}`)
   flex: 1;
   min-width: 0;
   font-size: var(--fs-12);
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
   line-height: 1.5;
 }
 .sab-actions {

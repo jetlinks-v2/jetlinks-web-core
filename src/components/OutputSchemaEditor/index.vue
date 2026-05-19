@@ -199,9 +199,9 @@ function inputValue(event: Event): string {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  border: 0.03125rem solid var(--line);
-  border-radius: var(--r-2);
-  background: var(--bg);
+  border: 0.03125rem solid var(--jet-theme-border);
+  border-radius: var(--jet-theme-radius);
+  background: var(--jet-theme-bg-container);
   padding: 0.75rem;
 }
 
@@ -216,21 +216,21 @@ function inputValue(event: Event): string {
   margin: 0;
   font-size: var(--fs-14);
   font-weight: 500;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
 }
 
 .editor-head p {
   margin: 0.25rem 0 0;
   font-size: var(--fs-12);
-  color: var(--ink-3);
+  color: var(--jet-theme-text-disabled);
 }
 
 .add-btn,
 .delete-btn {
-  border: 0.03125rem solid var(--line);
-  border-radius: var(--r-1);
-  background: var(--bg);
-  color: var(--ink-2);
+  border: 0.03125rem solid var(--jet-theme-border);
+  border-radius: var(--jet-theme-radius-sm);
+  background: var(--jet-theme-bg-container);
+  color: var(--jet-theme-text-secondary);
   font-size: var(--fs-12);
   cursor: pointer;
   white-space: nowrap;
@@ -246,15 +246,15 @@ function inputValue(event: Event): string {
 
 .add-btn:hover:not(:disabled),
 .delete-btn:hover:not(:disabled) {
-  border-color: var(--line-strong);
-  color: var(--ink-1);
+  border-color: var(--jet-theme-border-secondary);
+  color: var(--jet-theme-text);
 }
 
 .add-btn:disabled,
 .delete-btn:disabled {
   cursor: not-allowed;
-  color: var(--ink-4);
-  border-color: var(--line);
+  color: var(--jet-theme-text-disabled);
+  border-color: var(--jet-theme-border);
 }
 
 .field-table {
@@ -274,32 +274,32 @@ function inputValue(event: Event): string {
 
 .field-row--head {
   font-size: var(--fs-12);
-  color: var(--ink-4); }
+  color: var(--jet-theme-text-disabled); }
 
 .cell-input {
   min-width: 0;
   width: 100%;
-  border: 0.03125rem solid var(--line);
-  border-radius: var(--r-1);
-  background: var(--bg);
-  color: var(--ink-1);
+  border: 0.03125rem solid var(--jet-theme-border);
+  border-radius: var(--jet-theme-radius-sm);
+  background: var(--jet-theme-bg-container);
+  color: var(--jet-theme-text);
   font-size: var(--fs-12);
   padding: 0.25rem 0.5rem;
   outline: none;
 }
 
 .cell-input:focus {
-  border-color: var(--line-strong);
+  border-color: var(--jet-theme-border-secondary);
 }
 
 .cell-input:disabled {
-  color: var(--ink-4);
-  background: var(--bg-elev);
+  color: var(--jet-theme-text-disabled);
+  background: var(--jet-theme-bg-container);
 }
 
 .cell-input[readonly] {
-  color: var(--ink-2);
-  background: var(--bg-elev);
+  color: var(--jet-theme-text-secondary);
+  background: var(--jet-theme-bg-container);
 }
 
 .cell-input--mono { }

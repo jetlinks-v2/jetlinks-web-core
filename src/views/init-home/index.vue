@@ -197,7 +197,7 @@ const judgeInitSet = async () => {
         width: calc(100% - 4.375rem);
 
         .title {
-          font-size: var(--fs-15);
+          font-size: var(--fs-16);
         }
 
         .sub-title {
@@ -221,13 +221,13 @@ const judgeInitSet = async () => {
           .upload-image-border-logo {
             position: relative;
             overflow: hidden;
-            border: 1px dashed var(--line);
+            border: 0.0625rem dashed var(--jet-theme-border);
             transition: all 0.3s;
             width: 10rem;
             height: 9.375rem;
 
             &:hover {
-              border: 1px dashed var(--jet-theme-primary);
+              border: 0.0625rem dashed var(--jet-theme-primary);
               display: flex;
             }
 
@@ -296,13 +296,13 @@ const judgeInitSet = async () => {
           .upload-image-border-back {
             position: relative;
             overflow: hidden;
-            border: 1px dashed var(--line);
+            border: 0.0625rem dashed var(--jet-theme-border);
             transition: all 0.3s;
             width: 35.625rem;
             height: 25.9375rem;
 
             &:hover {
-              border: 1px dashed var(--jet-theme-primary);
+              border: 0.0625rem dashed var(--jet-theme-primary);
               display: flex;
             }
 
@@ -381,13 +381,13 @@ const judgeInitSet = async () => {
 
   ::-webkit-scrollbar-track {
     background: #f2f2f2;
-    border-radius: var(--r-3);
+    border-radius: var(--jet-theme-radius-lg);
   }
 
   /* 滚动条滑块 */
 
   ::-webkit-scrollbar-thumb {
     background: #cecece;
-    border-radius: var(--r-3);
+    border-radius: var(--jet-theme-radius-lg);
   }
 }</style>

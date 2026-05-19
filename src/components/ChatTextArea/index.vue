@@ -463,10 +463,10 @@ onBeforeUnmount(() => registerReset?.(undefined));
   position: relative;
   width: 100%;
   padding: var(--space-3);
-  border-radius: var(--r-2);
-  background: var(--bg);
+  border-radius: var(--jet-theme-radius);
+  background: var(--jet-theme-bg-container);
   box-sizing: border-box;
-  border: 0.03125rem solid var(--line);
+  border: 0.03125rem solid var(--jet-theme-border);
 }
 .upload-text-area-wrapper .input-area-content {
   flex: 1;
@@ -477,11 +477,11 @@ onBeforeUnmount(() => registerReset?.(undefined));
   box-sizing: border-box;
 }
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper {
-  border-top-left-radius: var(--r-2);
-  border-top-right-radius: var(--r-2);
+  border-top-left-radius: var(--jet-theme-radius);
+  border-top-right-radius: var(--jet-theme-radius);
   box-sizing: border-box;
-  background: var(--bg-hover);
-  border-bottom: 0.03125rem solid var(--line);
+  background: var(--jet-theme-border-secondary);
+  border-bottom: 0.03125rem solid var(--jet-theme-border);
 }
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-items {
   display: flex;
@@ -495,15 +495,15 @@ onBeforeUnmount(() => registerReset?.(undefined));
   position: relative;
   width: 4.5rem;
   height: 4.5rem;
-  border-radius: var(--r-2);
-  background: var(--line-strong);
+  border-radius: var(--jet-theme-radius);
+  background: var(--jet-theme-border-secondary);
 }
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-item .image {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: var(--r-2);
+  border-radius: var(--jet-theme-radius);
 }
 .upload-text-area-wrapper .input-area-content.only-image-mode .only-image-wrapper .image-item .delete-btn {
   position: absolute;
@@ -517,39 +517,39 @@ onBeforeUnmount(() => registerReset?.(undefined));
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-bg-container) 85%, transparent);
 }
 .upload-text-area-wrapper .input-area-content .file-list {
-  border-top-left-radius: var(--r-2);
-  border-top-right-radius: var(--r-2);
+  border-top-left-radius: var(--jet-theme-radius);
+  border-top-right-radius: var(--jet-theme-radius);
   box-sizing: border-box;
-  border-bottom: 0.03125rem solid var(--line);
+  border-bottom: 0.03125rem solid var(--jet-theme-border);
   overflow: hidden;
-  background: var(--bg-hover);
+  background: var(--jet-theme-border-secondary);
 }
 .upload-text-area-wrapper .input-area-content .file-list .file-list-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: var(--space-3) var(--space-4);
-  background: var(--line-strong);
-  border-bottom: 1px solid var(--line-strong);
+  background: var(--jet-theme-border-secondary);
+  border-bottom: 0.0625rem solid var(--jet-theme-border-secondary);
   font-size: var(--fs-14);
   font-weight: 500;
-  color: var(--ink-2);
+  color: var(--jet-theme-text-secondary);
 }
 .upload-text-area-wrapper .input-area-content .file-list .clear-all-btn {
   padding: 0.25rem 0.75rem;
-  background: var(--err);
+  background: var(--jet-theme-error);
   color: var(--accent-ink);
   border: none;
-  border-radius: var(--r-2);
+  border-radius: var(--jet-theme-radius);
   font-size: var(--fs-12);
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
 .upload-text-area-wrapper .input-area-content .file-list .clear-all-btn:hover {
-  background: var(--err);
+  background: var(--jet-theme-error);
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items {
   width: 100%;
@@ -562,7 +562,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   justify-content: space-between;
   margin-bottom: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--line-strong);
+  border-bottom: 0.0625rem solid var(--jet-theme-border-secondary);
   box-sizing: border-box;
   transition: background-color 0.3s ease;
 }
@@ -573,8 +573,8 @@ onBeforeUnmount(() => registerReset?.(undefined));
   width: 2.5rem;
   height: 2.5rem;
   margin-right: var(--space-4);
-  border-radius: var(--r-2);
-  background: var(--line-strong);
+  border-radius: var(--jet-theme-radius);
+  background: var(--jet-theme-border-secondary);
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-icon .icon {
   width: 1.25rem;
@@ -585,9 +585,9 @@ onBeforeUnmount(() => registerReset?.(undefined));
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-info .name {
   margin-bottom: var(--space-2);
-  font-size: var(--fs-15);
+  font-size: var(--fs-16);
   line-height: 1.375rem;
-  color: var(--ink-1);
+  color: var(--jet-theme-text);
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-size {
   width: 5.625rem;
@@ -595,7 +595,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   font-size: var(--fs-14);
   line-height: 1.375rem;
   text-align: left;
-  color: var(--ink-4);
+  color: var(--jet-theme-text-disabled);
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item .file-action {
   display: flex;
@@ -604,7 +604,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
   width: 2rem;
   height: 2rem;
   border-radius: 1rem;
-  background: var(--accent-soft);
+  background: var(--jet-theme-primary-soft);
   cursor: pointer;
 }
 .upload-text-area-wrapper .input-area-content .file-list .progress-items .progress-item:last-child {
@@ -630,11 +630,11 @@ onBeforeUnmount(() => registerReset?.(undefined));
   z-index: 10;
   border-radius: 0.125rem;
   pointer-events: none;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: color-mix(in srgb, var(--jet-theme-primary) 10%, transparent);
 }
 .upload-text-area-wrapper .input-area-content .textarea .drag-overlay .text {
   font-size: var(--fs-16);
-  color: var(--accent);
+  color: var(--jet-theme-primary);
 }
 .upload-text-area-wrapper .input-area-content .textarea .drag-overlay .icon {
   margin-top: -0.375rem;
@@ -652,7 +652,7 @@ onBeforeUnmount(() => registerReset?.(undefined));
 }
 .upload-text-area-wrapper .input-area-content .textarea textarea:disabled {
   cursor: not-allowed;
-  background: var(--canvas);
+  background: var(--jet-theme-bg-layout);
 }
 .upload-text-area-wrapper .button-area {
   display: flex;

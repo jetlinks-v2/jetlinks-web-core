@@ -124,7 +124,7 @@ onMounted(() => {
             justify-content: space-between;
             align-items: center;
             height: 3.75rem;
-            border-radius: var(--r-2);
+            border-radius: var(--jet-theme-radius);
             background: #f7f8fa;
 
             .content-item-left {

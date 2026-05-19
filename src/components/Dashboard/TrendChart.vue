@@ -309,7 +309,7 @@ watch(
 .message-card,
 .device-position {
   padding: var(--space-6);
-  background-color: var(--info);
+  background-color: var(--jet-theme-primary);
   height: 100%;
   width: 100%;
 }

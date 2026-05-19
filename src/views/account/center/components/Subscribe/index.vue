@@ -121,7 +121,7 @@ onMounted(() => {
     background-color: #fff;
 
     .ant-collapse-item {
-      border: 1px solid #ebeef3;
+      border: 0.0625rem solid #ebeef3;
       margin-bottom: var(--space-6);
     }
 
