@@ -190,10 +190,10 @@ watch(
 <style scoped lang="less">
 .condition-editor-panel {
   padding: var(--space-3);
-  background: #fff;
-  border: 1px solid #e5e6eb;
-  border-radius: 0.625rem;
-  box-shadow: 0 0.5rem 1.25rem rgba(31, 35, 41, 0.12);
+  background: var(--color-jet-bg-elevated);
+  border: 1px solid var(--color-jet-border-secondary);
+  border-radius: var(--radius-jet-lg);
+  box-shadow: var(--jet-theme-shadow);
 
   &--compact {
     padding: var(--space-2);
@@ -201,7 +201,7 @@ watch(
 
   &__title {
     margin-bottom: 0.625rem;
-    color: #1d2129;
+    color: var(--color-jet-text-title);
     font-size: var(--fs-14);
     font-weight: 600;
     line-height: 1.375rem;

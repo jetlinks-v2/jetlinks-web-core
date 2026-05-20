@@ -117,14 +117,14 @@ watch(filteredColumns, syncActiveIntoView)
 .condition-field-panel {
   width: 13.75rem;
   padding: var(--space-1);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--r-3);
-  box-shadow: var(--shadow-1);
+  background: var(--color-jet-bg-elevated);
+  border: 1px solid var(--color-jet-border);
+  border-radius: var(--radius-jet-lg);
+  box-shadow: var(--jet-theme-shadow-secondary);
 }
 .condition-field-panel__title {
   padding: var(--space-1) var(--space-2) 0.125rem;
-  color: var(--ink-1);
+  color: var(--color-jet-text);
   font-size: var(--fs-12);
   font-weight: 600;
   line-height: 1.125rem;
@@ -149,25 +149,25 @@ watch(filteredColumns, syncActiveIntoView)
   text-align: left;
   background: transparent;
   border: 0;
-  border-radius: var(--r-2);
+  border-radius: var(--radius-jet);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .condition-field-panel__item:hover {
-  background: var(--bg-hover);
+  background: var(--color-jet-border-secondary);
 }
 .condition-field-panel__item--active {
-  background: var(--accent-soft);
+  background: var(--color-jet-primary-soft);
 }
 .condition-field-panel__item--active .condition-field-panel__label {
-  color: var(--accent);
+  color: var(--color-jet-primary);
   font-weight: 600;
 }
 .condition-field-panel__item--active .condition-field-panel__key {
-  color: var(--ink-2);
+  color: var(--color-jet-text-secondary);
 }
 .condition-field-panel__label {
-  color: var(--ink-1);
+  color: var(--color-jet-text);
   font-size: var(--fs-12);
   line-height: 1.125rem;
 }
@@ -179,20 +179,20 @@ watch(filteredColumns, syncActiveIntoView)
 }
 .condition-field-panel__description {
   overflow: hidden;
-  color: var(--ink-2);
+  color: var(--color-jet-text-secondary);
   font-size: var(--fs-12);
   line-height: 1rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .condition-field-panel__key {
-  color: var(--ink-4);
+  color: var(--color-jet-text-disabled);
   font-size: var(--fs-12);
   line-height: 1rem;
 }
 .condition-field-panel__empty {
   padding: 1.25rem 0;
-  color: var(--ink-3);
+  color: var(--color-jet-text-disabled);
   font-size: var(--fs-12);
   text-align: center;
 }</style>
