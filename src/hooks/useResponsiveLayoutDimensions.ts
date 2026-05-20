@@ -16,7 +16,6 @@ export interface LayoutThemeModel {
 type LayoutScreenProfile = {
   name: '1k' | '2k' | '4k'
   minCssWidth: number
-  minPhysicalWidth: number
   headerHeight: number
   siderWidth: number
   collapsedWidth: number
@@ -26,7 +25,6 @@ const screenProfiles: LayoutScreenProfile[] = [
   {
     name: '4k',
     minCssWidth: 3200,
-    minPhysicalWidth: 3800,
     headerHeight: 80,
     siderWidth: 320,
     collapsedWidth: 64
@@ -34,7 +32,6 @@ const screenProfiles: LayoutScreenProfile[] = [
   {
     name: '2k',
     minCssWidth: 2560,
-    minPhysicalWidth: 2500,
     headerHeight: 56,
     siderWidth: 240,
     collapsedWidth: 56
@@ -42,7 +39,6 @@ const screenProfiles: LayoutScreenProfile[] = [
   {
     name: '1k',
     minCssWidth: 0,
-    minPhysicalWidth: 0,
     headerHeight: 48,
     siderWidth: 208,
     collapsedWidth: 48
@@ -52,18 +48,12 @@ const screenProfiles: LayoutScreenProfile[] = [
 const resolveViewport = () => {
   if (typeof window === 'undefined') {
     return {
-      width: 0,
-      physicalWidth: 0
+      width: 0
     }
   }
 
-  const devicePixelRatio = window.devicePixelRatio || 1
-  const cssWidth = Math.max(window.innerWidth, window.screen?.width || 0)
-
   return {
-    width: window.innerWidth,
-    // Windows 缩放下 4K 屏常会被折算成 2560 CSS px，乘 DPR 后再判断物理档位。
-    physicalWidth: Math.round(cssWidth * devicePixelRatio)
+    width: window.innerWidth
   }
 }
 
@@ -101,9 +91,9 @@ export const useResponsiveLayoutDimensions = (
   const layoutConfig = computed(() => {
     const baseLayout = layout.value
     const baseSiderWidth = themeLayout?.value?.siderWidth ?? baseLayout.siderWidth
-    const { width, physicalWidth } = viewport.value
+    const { width } = viewport.value
     const profile = screenProfiles.find(item => (
-      width >= item.minCssWidth || physicalWidth >= item.minPhysicalWidth
+      width >= item.minCssWidth
     )) || screenProfiles[screenProfiles.length - 1]
 
     return {

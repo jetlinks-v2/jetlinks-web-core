@@ -32,7 +32,8 @@ newTheme: {
   borderRadiusLG: 8,
   borderRadiusSM: 4,
   boxShadow: '0 6px 16px 0 rgba(0, 0, 0, 0.08)',
-  boxShadowSecondary: '0 2px 8px rgba(0, 0, 0, 0.06)'
+  boxShadowSecondary: '0 2px 8px rgba(0, 0, 0, 0.06)',
+  fontFamily: 'AliRegular, sans-serif'
 }
 ```
 
@@ -70,7 +71,7 @@ cssVars: {
   '--layout-menu-item-radius': '0.375rem',
   '--layout-menu-item-active-bg': '#F1F2F4',
   '--layout-menu-item-active-color': '#1D1F24',
-  '--layout-menu-item-active-line': 'var(--jet-theme-primary)',
+  '--layout-menu-item-active-line': 'var(--primary-color)',
   '--layout-menu-search-bg': '#F6F7F9',
   '--layout-menu-search-border': '#E6E7EB'
 }
@@ -84,9 +85,11 @@ Text color tokens follow the product typography rules:
 
 | Usage | Token | Value |
 | --- | --- | --- |
-| 标题以及主要文本 | `--jet-theme-text-title`, `--jet-theme-text`, `--ink-1` | `#1A1A1A` |
-| 次要文字 / 文本描述 | `--jet-theme-text-secondary`, `--jet-theme-text-description`, `--ink-2` | `#6B7280` |
-| 辅助文字 / 禁用 | `--jet-theme-text-disabled`, `--ink-3`, `--ink-4` | `#9CA3AF` |
+| 标题以及主要文本 | `--text-color` | `#1A1A1A` |
+| 次要文字 / 文本描述 | `--text-color-secondary` | `#6B7280` |
+| 辅助文字 / 禁用 | `--text-color-disabled` | `#9CA3AF` |
+
+Legacy text tokens such as `--jet-theme-text`, `--jet-theme-text-title`, `--jet-theme-text-secondary`, `--jet-theme-text-description`, `--jet-theme-text-disabled`, and `--ink-*` remain as compatibility aliases during migration.
 
 Font size tokens keep `0.75rem` (12px) as the minimum. Prefer semantic aliases in page code:
 
@@ -97,24 +100,30 @@ Font size tokens keep `0.75rem` (12px) as the minimum. Prefer semantic aliases i
 | 特殊标题 / 自定义标题 | `--fs-h3` | `1.125rem` |
 | 文案标题 / 弹窗标题 | `--fs-h4` | `1rem` |
 | 主要内容文字 / 按钮文字 / 导航文字 | `--fs-body` | `0.875rem` |
-| 提示文字 / 标签文字 / 次要文字 | `--fs-meta`, `--fs-label`, `--fs-tiny` | `0.75rem` |
+| 小号正文 / 紧凑说明 | `--fs-sm` | `0.8125rem` |
+| 提示文字 / 标签文字 / 次要文字 | `--fs-caption`, `--fs-meta`, `--fs-label`, `--fs-tiny` | `0.75rem` |
+| 兼容标题别名 | `--fs-title`, `--fs-title-4` | `1.125rem`, `1rem` |
 
 Spacing tokens use a 0.25rem (4px) scale. Prefer `--space-*` instead of ad hoc pixel values, and keep newly added spacing values as multiples of 4.
 
 ## Responsive Ant Design Vue Tokens
 
 Ant Design Vue component sizes are scaled by `src/hooks/useResponsiveAntdToken.ts` before they are passed to `ConfigProvider` in `src/App.vue`.
-The hook only affects Ant Design Vue theme tokens; it does not change `html` font size or JetLinks `--fs-*` / `--space-*` CSS variables.
+The hook only affects Ant Design Vue theme tokens; `html` font size is controlled by the media queries in `src/style.css`, and JetLinks page styles should consume `--fs-*` / `--space-*` rem variables.
 
 Default screen profiles are:
 
-| Profile | Scale | Primary tokens |
-| --- | --- | --- |
-| 1K | `1` | Ant Design Vue defaults |
-| 2K | `1.5` | `fontSize`, `sizeUnit`, `controlHeight`, radius tokens |
-| 4K | `2` | same as 2K, with `lineWidth` raised to `2` |
+| Profile | CSS viewport | html font size | AntDV scale |
+| --- | --- | --- | --- |
+| 1K | `< 2048px` | `16px` | `1` |
+| 2K | `>= 2048px` | `22px` | `1.33` |
+| 4K | `>= 3840px` | `32px` | `2` |
 
-Update the profile constants in `useResponsiveAntdToken.ts` when the 1K / 2K / 4K scale needs to change.
+HiDPI / DPR must not trigger Ant Design Vue component scaling. For example, a MacBook Retina Chrome viewport at `1440x900` stays in the 1K profile even when `devicePixelRatio` is `2`; only the browser CSS viewport crossing `2048px` or `3840px` changes the profile.
+
+The responsive token currently overrides `fontFamily`, `sizeUnit`, `controlHeight`, `borderRadius`, `borderRadiusSM`, `borderRadiusLG`, and `lineWidth`. `fontSize` is intentionally kept at the Ant Design Vue base value because typography is already enlarged by the root `rem` media queries; multiplying the AntDV font token would double-scale text such as Tabs labels. Font family is passed to Ant Design Vue as `var(--jet-theme-font-family)`, while theme style tokens should store the concrete font stack such as `AliRegular, sans-serif`.
+
+Update `src/style.css`, `src/hooks/useResponsiveAntdToken.ts`, and this README together when the 1K / 2K / 4K scale needs to change.
 
 ## Consistency Contract
 
@@ -133,6 +142,7 @@ Allowed `cssVars` names are constrained by `ThemeStyleCssVarName`. Prefer existi
 - `--jet-theme-*` for JetLinks public theme variables.
 - `--layout-*` for shell menu layout.
 - `--chrome-*`, `--canvas`, `--bg`, `--line`, `--ink-*`, `--accent*` for existing design primitives.
+- `--primary-color*` and `--text-color*` for the preferred theme and typography token names.
 - `--space-*`, `--fs-*`, `--r-*`, `--shadow-*`, `--ring-*` for shared primitive scales.
 
 ## Less Variable Migration
@@ -141,16 +151,16 @@ Runtime theme styles must not depend on Less compile-time theme variables. Use t
 
 | Legacy Less variable | Runtime variable |
 | --- | --- |
-| `@primary-color` | `var(--jet-theme-primary, #1677FF)` |
+| `@primary-color` | `var(--primary-color, #1677FF)` |
 | `@primary-color-hover` | `var(--jet-theme-primary-hover, #4096FF)` |
-| `@primary-color-active` | `var(--jet-theme-primary-active, #0958D9)` |
-| `@primary-2` or weak primary backgrounds | `var(--jet-theme-primary-soft, #E6F4FF)` |
+| `@primary-color-active` | `var(--primary-color-active, #0958D9)` |
+| `@primary-2` or weak primary backgrounds | `var(--primary-color-1, #E6F4FF)` |
 
 For old Ant Design CSS variables, prefer JetLinks first and keep Ant Design as a fallback:
 
 ```css
-color: var(--jet-theme-primary, var(--ant-color-primary, #1677FF));
-background: var(--info-bg, var(--ant-color-info-bg, #E6F4FF));
+color: var(--primary-color, var(--ant-color-primary, #1677FF));
+background: var(--primary-color-1, var(--ant-color-info-bg, #E6F4FF));
 ```
 
 ## Rules

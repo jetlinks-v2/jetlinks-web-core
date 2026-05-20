@@ -9,6 +9,8 @@ export interface ThemeColorStateOptions {
   hover?: string
   active?: string
   soft?: string
+  scale1?: string
+  scale2?: string
 }
 
 const expandHexColor = (color: string) => {
@@ -69,16 +71,22 @@ export const applyThemeColor = (color?: string, stateColors: ThemeColorStateOpti
   const themeColorHover = normalizeThemeColor(stateColors.hover) || mixColor(themeColor, '#FFFFFF', 0.18)
   const themeColorActive = normalizeThemeColor(stateColors.active) || mixColor(themeColor, '#000000', 0.12)
   const themeColorSoft = normalizeThemeColor(stateColors.soft) || mixColor(themeColor, '#FFFFFF', 0.92)
+  const themeColorScale1 = normalizeThemeColor(stateColors.scale1) || themeColorSoft
+  const themeColorScale2 = normalizeThemeColor(stateColors.scale2) || mixColor(themeColor, '#FFFFFF', 0.72)
 
   if (typeof document !== 'undefined') {
     const rootStyle = document.documentElement.style
-    rootStyle.setProperty('--jet-theme-primary', themeColor)
-    rootStyle.setProperty('--jet-theme-primary-hover', themeColorHover)
-    rootStyle.setProperty('--jet-theme-primary-active', themeColorActive)
-    rootStyle.setProperty('--jet-theme-primary-soft', themeColorSoft)
     rootStyle.setProperty('--primary-color', themeColor)
+    rootStyle.setProperty('--primary-color-1', themeColorScale1)
+    rootStyle.setProperty('--primary-color-2', themeColorScale2)
     rootStyle.setProperty('--primary-color-hover', themeColorHover)
     rootStyle.setProperty('--primary-color-active', themeColorActive)
+    rootStyle.setProperty('--jet-theme-primary', themeColor)
+    rootStyle.setProperty('--jet-theme-primary-1', themeColorScale1)
+    rootStyle.setProperty('--jet-theme-primary-2', themeColorScale2)
+    rootStyle.setProperty('--jet-theme-primary-hover', themeColorHover)
+    rootStyle.setProperty('--jet-theme-primary-active', themeColorActive)
+    rootStyle.setProperty('--jet-theme-primary-soft', themeColorScale1)
     rootStyle.setProperty('--ant-primary-color', themeColor)
     rootStyle.setProperty('--ant-primary-color-hover', themeColorHover)
     rootStyle.setProperty('--ant-primary-color-active', themeColorActive)

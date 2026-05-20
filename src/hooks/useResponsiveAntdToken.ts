@@ -11,19 +11,17 @@ export type ResponsiveAntdTokenScreenProfileName = '1k' | '2k' | '4k'
 export interface ResponsiveAntdTokenScaleProfile {
   name: ResponsiveAntdTokenScreenProfileName
   minCssWidth: number
-  minPhysicalWidth: number
   scale: number
 }
 
 interface ResponsiveViewport {
   width: number
-  physicalWidth: number
 }
 
-const RESPONSIVE_TOKEN_SCALE_PROFILES: ResponsiveAntdTokenScaleProfile[] = [
-  { name: '4k', minCssWidth: 3200, minPhysicalWidth: 3800, scale: 2 },
-  { name: '2k', minCssWidth: 2560, minPhysicalWidth: 2500, scale: 1.33 },
-  { name: '1k', minCssWidth: 0, minPhysicalWidth: 0, scale: 1 }
+export const RESPONSIVE_TOKEN_SCALE_PROFILES: ResponsiveAntdTokenScaleProfile[] = [
+  { name: '4k', minCssWidth: 3840, scale: 2 },
+  { name: '2k', minCssWidth: 2048, scale: 1.33 },
+  { name: '1k', minCssWidth: 0, scale: 1 }
 ]
 
 const DEFAULT_ANTD_TOKEN = {
@@ -44,24 +42,18 @@ const RESPONSIVE_LINE_WIDTH_PROFILES: Record<ResponsiveAntdTokenScreenProfileNam
 const resolveViewport = (): ResponsiveViewport => {
   if (typeof window === 'undefined') {
     return {
-      width: 0,
-      physicalWidth: 0
+      width: 0
     }
   }
 
-  const devicePixelRatio = window.devicePixelRatio || 1
-  const cssWidth = Math.max(window.innerWidth, window.screen?.width || 0)
-
   return {
-    width: window.innerWidth,
-    // Windows 缩放下 4K 屏常会被折算成 2560 CSS px，乘 DPR 后再判断物理档位。
-    physicalWidth: Math.round(cssWidth * devicePixelRatio)
+    width: window.innerWidth
   }
 }
 
 const getScreenProfile = (viewport: ResponsiveViewport) => {
   return RESPONSIVE_TOKEN_SCALE_PROFILES.find(item => (
-    viewport.width >= item.minCssWidth || viewport.physicalWidth >= item.minPhysicalWidth
+    viewport.width >= item.minCssWidth
   )) || RESPONSIVE_TOKEN_SCALE_PROFILES[RESPONSIVE_TOKEN_SCALE_PROFILES.length - 1]
 }
 
@@ -118,7 +110,9 @@ export const useResponsiveAntdToken = (
     }
 
     return {
-      fontSize: scaleNumber(baseToken.fontSize, currentScale),
+      fontFamily: 'var(--jet-theme-font-family)',
+      // Typography grows through the root rem size; scaling AntDV fontSize here would double-scale text.
+      fontSize: baseToken.fontSize,
       sizeUnit: scaleNumber(baseToken.sizeUnit, currentScale),
       controlHeight: scaleNumber(baseToken.controlHeight, currentScale),
       borderRadius: scaleNumber(baseToken.borderRadius, currentScale),

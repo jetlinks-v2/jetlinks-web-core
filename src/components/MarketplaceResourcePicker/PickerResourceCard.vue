@@ -897,7 +897,7 @@ function selectVersion(v: string) {
   padding: 0.0625rem 0.375rem;
   border-radius: var(--r-1);
   background: color-mix(in srgb, var(--ink-2) 6%, transparent);
-  font-size: 0.9em;
+  font-size: var(--fs-13);
 }
 .mp-card__release-md :deep(pre) {
   padding: var(--space-2) var(--space-3);

@@ -66,7 +66,7 @@ withDefaults(
   height: 100%;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: var(--r-3);
+  border-radius: 10px;
   color: var(--ink-1);
   overflow: hidden;
   min-width: 0;

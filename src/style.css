@@ -44,26 +44,33 @@ html {
 
 @media (min-width: 2048px) {
   html {
-    font-size: 20px;
+    font-size: 22px;
   }
 }
 
 @media (min-width: 3840px) {
   html {
-    font-size: 28px;
+    font-size: 32px;
   }
 }
 
 :root {
-    --jet-theme-primary-1: #e6f4ff;
-    --jet-theme-primary-2: #bae0ff;
-    --jet-theme-primary-3: #91caff;
-    --jet-theme-primary-4: #69b1ff;
-    --jet-theme-primary-5: #4096ff;
-  --jet-theme-primary: #1677FF;
+  --primary-color: #1677FF;
+  --primary-color-1: #E6F4FF;
+  --primary-color-2: #BAE0FF;
+  --primary-color-active: #0958D9;
+  --text-color: #1A1A1A;
+  --text-color-secondary: #6B7280;
+  --text-color-disabled: #9CA3AF;
+  --jet-theme-primary-1: var(--primary-color-1);
+  --jet-theme-primary-2: var(--primary-color-2);
+  --jet-theme-primary-3: #91caff;
+  --jet-theme-primary-4: #69b1ff;
+  --jet-theme-primary-5: #4096ff;
+  --jet-theme-primary: var(--primary-color);
   --jet-theme-primary-hover: #4096FF;
-  --jet-theme-primary-active: #0958D9;
-  --jet-theme-primary-soft: #E6F4FF;
+  --jet-theme-primary-active: var(--primary-color-active);
+  --jet-theme-primary-soft: var(--primary-color-1);
   --jet-theme-success: #52C41A;
   --jet-theme-warning: #FAAD14;
   --jet-theme-error: #FF4D4F;
@@ -71,16 +78,16 @@ html {
   --jet-theme-bg-layout: #F5F5F5;
   --jet-theme-bg-container: #FFFFFF;
   --jet-theme-bg-elevated: #FFFFFF;
-  --jet-theme-text-title: #1A1A1A;
-  --jet-theme-text: #1A1A1A;
-  --jet-theme-text-secondary: #6B7280;
-  --jet-theme-text-description: #6B7280;
-  --jet-theme-text-disabled: #9CA3AF;
+  --jet-theme-text-title: var(--text-color);
+  --jet-theme-text: var(--text-color);
+  --jet-theme-text-secondary: var(--text-color-secondary);
+  --jet-theme-text-description: var(--text-color-secondary);
+  --jet-theme-text-disabled: var(--text-color-disabled);
   --jet-theme-border: #D9D9D9;
   --jet-theme-border-secondary: #F0F0F0;
-  --jet-theme-radius: 0.375rem;
-  --jet-theme-radius-lg: 0.5rem;
-  --jet-theme-radius-sm: 0.25rem;
+  --jet-theme-radius: 6px;
+  --jet-theme-radius-lg: 8px;
+  --jet-theme-radius-sm: 4px;
   --jet-theme-shadow: 0 0.375rem 1rem 0 rgba(0, 0, 0, 0.08);
   --jet-theme-shadow-secondary: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.06);
   --jet-theme-font-family: AliRegular, sans-serif;
@@ -89,28 +96,28 @@ html {
   --canvas: var(--jet-theme-bg-layout);
   --bg: var(--jet-theme-bg-container);
   --bg-elev: var(--jet-theme-bg-elevated);
-  --bg-sunken: var(--jet-theme-primary-soft);
+  --bg-sunken: var(--primary-color-1);
   --bg-hover: var(--jet-theme-border-secondary);
   --line: var(--jet-theme-border);
   --line-strong: var(--jet-theme-border-secondary);
-  --ink-1: var(--jet-theme-text);
-  --ink-2: var(--jet-theme-text-secondary);
-  --ink-3: var(--jet-theme-text-disabled);
-  --ink-4: var(--jet-theme-text-disabled);
+  --ink-1: var(--text-color);
+  --ink-2: var(--text-color-secondary);
+  --ink-3: var(--text-color-disabled);
+  --ink-4: var(--text-color-disabled);
   --ink-5: #b4b7bf;
-  --accent: var(--jet-theme-primary);
+  --accent: var(--primary-color);
   --accent-ink: #FFFFFF;
-  --accent-soft: var(--jet-theme-primary-soft);
+  --accent-soft: var(--primary-color-1);
   --ok: var(--jet-theme-success);
   --ok-bg: color-mix(in srgb, var(--jet-theme-success) 12%, var(--jet-theme-bg-container));
   --warn: var(--jet-theme-warning);
   --warn-bg: color-mix(in srgb, var(--jet-theme-warning) 14%, var(--jet-theme-bg-container));
   --err: var(--jet-theme-error);
   --err-bg: color-mix(in srgb, var(--jet-theme-error) 12%, var(--jet-theme-bg-container));
-  --info: var(--jet-theme-primary);
-  --info-bg: var(--jet-theme-primary-soft);
-  --font-sans: AliRegular, sans-serif;
-  --font-mono: AliRegular, sans-serif;
+  --info: var(--primary-color);
+  --info-bg: var(--primary-color-1);
+  --font-sans: var(--jet-theme-font-family);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --fs-12: 0.75rem;
   --fs-13: 0.8125rem;
   --fs-14: 0.875rem;
@@ -130,6 +137,7 @@ html {
   --fs-32: 2rem;
   --fs-34: 2.125rem;
   --fs-36: 2.25rem;
+  --fs-38: 2.375rem;
   --fs-40: 2.5rem;
   --fs-42: 2.625rem;
   --fs-44: 2.75rem;
@@ -144,8 +152,12 @@ html {
   --fs-tiny: var(--fs-12);
   --fs-pill: var(--fs-12);
   --fs-meta: var(--fs-12);
+  --fs-caption: var(--fs-12);
+  --fs-sm: var(--fs-13);
   --fs-body: var(--fs-14);
   --fs-label: var(--fs-12);
+  --fs-title-4: var(--fs-16);
+  --fs-title: var(--fs-18);
   --fs-h4: var(--fs-16);
   --fs-h3: var(--fs-18);
   --fs-h2: var(--fs-22);
@@ -174,9 +186,9 @@ html {
   --shadow-pop: var(--jet-theme-shadow);
   --shadow-lifted: var(--jet-theme-shadow);
   --shadow-sticky-top: 0 -0.25rem 0.75rem rgba(0, 0, 0, 0.04);
-  --ambient-hero: linear-gradient(135deg, var(--jet-theme-primary-soft), var(--jet-theme-bg-elevated));
-  --ambient-cool: linear-gradient(135deg, var(--jet-theme-primary-soft), var(--jet-theme-bg-container));
-  --ambient-warm: linear-gradient(135deg, var(--jet-theme-bg-container), var(--jet-theme-primary-soft));
+  --ambient-hero: linear-gradient(135deg, var(--primary-color-1), var(--jet-theme-bg-elevated));
+  --ambient-cool: linear-gradient(135deg, var(--primary-color-1), var(--jet-theme-bg-container));
+  --ambient-warm: linear-gradient(135deg, var(--jet-theme-bg-container), var(--primary-color-1));
   --code-dark-bg: #0F172A;
   --code-dark-fg-1: #E2E8F0;
   --code-dark-fg-2: #CBD5E1;
@@ -193,13 +205,13 @@ html {
 
 body {
   background: var(--jet-theme-bg-layout);
-  color: var(--jet-theme-text);
+  color: var(--text-color);
   margin: 0;
-  font-family: var(--font-sans) !important;
+  font-family: var(--jet-theme-font-family, var(--font-sans)) !important;
 }
 
 :where(input, textarea, select, button, .ant-input, .ant-btn, .ant-select, .ant-picker) {
-    font-family: var(--font-sans);
+    font-family: var(--jet-theme-font-family, var(--font-sans));
 }
 
 *, :after, :before {
