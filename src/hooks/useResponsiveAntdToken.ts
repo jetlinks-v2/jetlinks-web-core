@@ -104,9 +104,9 @@ export const useResponsiveAntdToken = (
     const currentScale = scale.value
     const baseToken = {
       ...DEFAULT_ANTD_TOKEN,
-      borderRadius: systemStore.themeStyleToken.borderRadius || DEFAULT_ANTD_TOKEN.borderRadius,
-      borderRadiusSM: systemStore.themeStyleToken.borderRadiusSM || DEFAULT_ANTD_TOKEN.borderRadiusSM,
-      borderRadiusLG: systemStore.themeStyleToken.borderRadiusLG || DEFAULT_ANTD_TOKEN.borderRadiusLG
+      // borderRadius: systemStore.themeStyleToken.borderRadius || DEFAULT_ANTD_TOKEN.borderRadius,
+      // borderRadiusSM: systemStore.themeStyleToken.borderRadiusSM || DEFAULT_ANTD_TOKEN.borderRadiusSM,
+      // borderRadiusLG: systemStore.themeStyleToken.borderRadiusLG || DEFAULT_ANTD_TOKEN.borderRadiusLG
     }
 
     return {
@@ -115,9 +115,9 @@ export const useResponsiveAntdToken = (
       fontSize: baseToken.fontSize,
       sizeUnit: scaleNumber(baseToken.sizeUnit, currentScale),
       controlHeight: scaleNumber(baseToken.controlHeight, currentScale),
-      borderRadius: scaleNumber(baseToken.borderRadius, currentScale),
-      borderRadiusSM: scaleNumber(baseToken.borderRadiusSM, currentScale),
-      borderRadiusLG: scaleNumber(baseToken.borderRadiusLG, currentScale),
+      // borderRadius: scaleNumber(baseToken.borderRadius, currentScale),
+      // borderRadiusSM: scaleNumber(baseToken.borderRadiusSM, currentScale),
+      // borderRadiusLG: scaleNumber(baseToken.borderRadiusLG, currentScale),
       lineWidth: lineWidth.value
     }
   })
