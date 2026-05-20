@@ -101,6 +101,21 @@ Font size tokens keep `0.75rem` (12px) as the minimum. Prefer semantic aliases i
 
 Spacing tokens use a 0.25rem (4px) scale. Prefer `--space-*` instead of ad hoc pixel values, and keep newly added spacing values as multiples of 4.
 
+## Responsive Ant Design Vue Tokens
+
+Ant Design Vue component sizes are scaled by `src/hooks/useResponsiveAntdToken.ts` before they are passed to `ConfigProvider` in `src/App.vue`.
+The hook only affects Ant Design Vue theme tokens; it does not change `html` font size or JetLinks `--fs-*` / `--space-*` CSS variables.
+
+Default screen profiles are:
+
+| Profile | Scale | Primary tokens |
+| --- | --- | --- |
+| 1K | `1` | Ant Design Vue defaults |
+| 2K | `1.5` | `fontSize`, `sizeUnit`, `controlHeight`, radius tokens |
+| 4K | `2` | same as 2K, with `lineWidth` raised to `2` |
+
+Update the profile constants in `useResponsiveAntdToken.ts` when the 1K / 2K / 4K scale needs to change.
+
 ## Consistency Contract
 
 `ThemeStyleToken` separates three responsibilities:
