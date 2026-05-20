@@ -117,14 +117,14 @@ watch(filteredColumns, syncActiveIntoView)
 .condition-field-panel {
   width: 13.75rem;
   padding: var(--space-1);
-  background: var(--jet-theme-bg-container);
-  border: 0.0625rem solid var(--jet-theme-border);
-  border-radius: var(--jet-theme-radius-lg);
+  background: var(--color-jet-bg-elevated);
+  border: 1px solid var(--color-jet-border);
+  border-radius: var(--radius-jet-lg);
   box-shadow: var(--jet-theme-shadow-secondary);
 }
 .condition-field-panel__title {
   padding: var(--space-1) var(--space-2) 0.125rem;
-  color: var(--jet-theme-text);
+  color: var(--color-jet-text);
   font-size: var(--fs-12);
   font-weight: 600;
   line-height: 1.125rem;
@@ -149,25 +149,25 @@ watch(filteredColumns, syncActiveIntoView)
   text-align: left;
   background: transparent;
   border: 0;
-  border-radius: var(--jet-theme-radius);
+  border-radius: var(--radius-jet);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 .condition-field-panel__item:hover {
-  background: var(--jet-theme-border-secondary);
+  background: var(--color-jet-border-secondary);
 }
 .condition-field-panel__item--active {
-  background: var(--jet-theme-primary-soft);
+  background: var(--color-jet-primary-soft);
 }
 .condition-field-panel__item--active .condition-field-panel__label {
-  color: var(--jet-theme-primary);
+  color: var(--color-jet-primary);
   font-weight: 600;
 }
 .condition-field-panel__item--active .condition-field-panel__key {
-  color: var(--jet-theme-text-secondary);
+  color: var(--color-jet-text-secondary);
 }
 .condition-field-panel__label {
-  color: var(--jet-theme-text);
+  color: var(--color-jet-text);
   font-size: var(--fs-12);
   line-height: 1.125rem;
 }
@@ -179,20 +179,20 @@ watch(filteredColumns, syncActiveIntoView)
 }
 .condition-field-panel__description {
   overflow: hidden;
-  color: var(--jet-theme-text-secondary);
+  color: var(--color-jet-text-secondary);
   font-size: var(--fs-12);
   line-height: 1rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .condition-field-panel__key {
-  color: var(--jet-theme-text-disabled);
+  color: var(--color-jet-text-disabled);
   font-size: var(--fs-12);
   line-height: 1rem;
 }
 .condition-field-panel__empty {
   padding: 1.25rem 0;
-  color: var(--jet-theme-text-disabled);
+  color: var(--color-jet-text-disabled);
   font-size: var(--fs-12);
   text-align: center;
 }</style>
