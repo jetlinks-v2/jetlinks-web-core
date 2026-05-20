@@ -78,6 +78,13 @@ export type ThemeStyleCssVarName =
   | `--font-${string}`
   | `--lh-${string}`
   | `--r-${string}`
+  | '--primary-color'
+  | '--primary-color-1'
+  | '--primary-color-2'
+  | '--primary-color-active'
+  | '--text-color'
+  | '--text-color-secondary'
+  | '--text-color-disabled'
   | '--canvas'
   | '--bg'
   | '--bg-elev'
@@ -182,7 +189,8 @@ export const getThemeStylePrimaryStateColors = (style?: unknown, color?: string)
   const primaryColor = normalizeThemeColor(color) || normalizeThemeColor(token.colorPrimary)
   const primaryHover = normalizeThemeColor(token.colorPrimaryHover)
   const primaryActive = normalizeThemeColor(token.colorPrimaryActive)
-  const primarySoft = normalizeThemeColor(token.cssVars?.['--jet-theme-primary-soft'])
+  const primarySoft = normalizeThemeColor(token.cssVars?.['--primary-color-1'])
+    || normalizeThemeColor(token.cssVars?.['--jet-theme-primary-soft'])
     || normalizeThemeColor(token.cssVars?.['--accent-soft'])
   const result: Partial<AliasToken> = {
     colorPrimary: primaryColor,
@@ -244,23 +252,30 @@ export const isAntdThemeTokenKey = (key: string): key is keyof AliasToken => {
 }
 
 const defaultThemeCssVars: ThemeStyleCssVars = {
+  '--primary-color': 'var(--jet-theme-primary)',
+  '--primary-color-1': 'var(--jet-theme-primary-soft)',
+  '--primary-color-2': 'var(--jet-theme-primary-2)',
+  '--primary-color-active': 'var(--jet-theme-primary-active)',
+  '--text-color': 'var(--jet-theme-text)',
+  '--text-color-secondary': 'var(--jet-theme-text-secondary)',
+  '--text-color-disabled': 'var(--jet-theme-text-disabled)',
   '--canvas': 'var(--jet-theme-bg-layout)',
   '--bg': 'var(--jet-theme-bg-container)',
   '--bg-elev': 'var(--jet-theme-bg-elevated)',
-  '--bg-sunken': 'color-mix(in srgb, var(--jet-theme-text) 4%, var(--jet-theme-bg-container))',
-  '--bg-hover': 'color-mix(in srgb, var(--jet-theme-text) 6%, var(--jet-theme-bg-container))',
+  '--bg-sunken': 'color-mix(in srgb, var(--text-color) 4%, var(--jet-theme-bg-container))',
+  '--bg-hover': 'color-mix(in srgb, var(--text-color) 6%, var(--jet-theme-bg-container))',
   '--line': 'var(--jet-theme-border-secondary)',
-  '--line-strong': 'color-mix(in srgb, var(--jet-theme-border) 72%, var(--jet-theme-text) 8%)',
-  '--jet-theme-text-title': 'var(--jet-theme-text)',
-  '--jet-theme-text-description': 'var(--jet-theme-text-secondary)',
-  '--jet-theme-text-disabled': '#9CA3AF',
-  '--ink-1': 'var(--jet-theme-text)',
-  '--ink-2': 'var(--jet-theme-text-secondary)',
-  '--ink-3': 'var(--jet-theme-text-disabled)',
-  '--ink-4': 'var(--jet-theme-text-disabled)',
-  '--accent': 'var(--jet-theme-primary)',
+  '--line-strong': 'color-mix(in srgb, var(--jet-theme-border) 72%, var(--text-color) 8%)',
+  '--jet-theme-text-title': 'var(--text-color)',
+  '--jet-theme-text-description': 'var(--text-color-secondary)',
+  '--jet-theme-text-disabled': 'var(--text-color-disabled)',
+  '--ink-1': 'var(--text-color)',
+  '--ink-2': 'var(--text-color-secondary)',
+  '--ink-3': 'var(--text-color-disabled)',
+  '--ink-4': 'var(--text-color-disabled)',
+  '--accent': 'var(--primary-color)',
   '--accent-ink': '#FFFFFF',
-  '--accent-soft': 'var(--jet-theme-primary-soft)',
+  '--accent-soft': 'var(--primary-color-1)',
   '--jet-theme-stroke-width': '1px',
   '--ok': 'var(--jet-theme-success)',
   '--ok-bg': 'color-mix(in srgb, var(--jet-theme-success) 12%, var(--jet-theme-bg-container))',
@@ -271,9 +286,10 @@ const defaultThemeCssVars: ThemeStyleCssVars = {
   '--err': 'var(--jet-theme-error)',
   '--err-bg': 'color-mix(in srgb, var(--jet-theme-error) 12%, var(--jet-theme-bg-container))',
   '--err-line': 'color-mix(in srgb, var(--jet-theme-error) 24%, var(--jet-theme-bg-container))',
-  '--info': 'var(--jet-theme-primary)',
-  '--info-bg': 'color-mix(in srgb, var(--jet-theme-primary) 10%, var(--jet-theme-bg-container))',
-  '--info-line': 'color-mix(in srgb, var(--jet-theme-primary) 22%, var(--jet-theme-bg-container))',
+  '--info': 'var(--primary-color)',
+  '--info-bg': 'var(--primary-color-1)',
+  '--info-line': 'color-mix(in srgb, var(--primary-color) 22%, var(--jet-theme-bg-container))',
+  '--font-sans': 'var(--jet-theme-font-family)',
   '--font-cjk': 'var(--jet-theme-font-family)',
   '--font-mono': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
   '--lh-tight': '1.15',
@@ -300,6 +316,7 @@ const defaultThemeCssVars: ThemeStyleCssVars = {
   '--fs-32': '2rem',
   '--fs-34': '2.125rem',
   '--fs-36': '2.25rem',
+  '--fs-38': '2.375rem',
   '--fs-40': '2.5rem',
   '--fs-42': '2.625rem',
   '--fs-44': '2.75rem',
@@ -314,8 +331,12 @@ const defaultThemeCssVars: ThemeStyleCssVars = {
   '--fs-tiny': 'var(--fs-12)',
   '--fs-pill': 'var(--fs-12)',
   '--fs-meta': 'var(--fs-12)',
+  '--fs-caption': 'var(--fs-12)',
+  '--fs-sm': 'var(--fs-13)',
   '--fs-body': 'var(--fs-14)',
   '--fs-label': 'var(--fs-12)',
+  '--fs-title-4': 'var(--fs-16)',
+  '--fs-title': 'var(--fs-18)',
   '--fs-h4': 'var(--fs-16)',
   '--fs-h3': 'var(--fs-18)',
   '--fs-h2': 'var(--fs-22)',
@@ -364,8 +385,8 @@ const defaultThemeCssVars: ThemeStyleCssVars = {
   '--layout-menu-item-height': '2.5rem',
   '--layout-menu-item-radius': '0',
   '--layout-menu-item-active-bg': 'transparent',
-  '--layout-menu-item-active-color': 'var(--jet-theme-primary)',
-  '--layout-menu-item-active-line': 'var(--jet-theme-primary)',
+  '--layout-menu-item-active-color': 'var(--primary-color)',
+  '--layout-menu-item-active-line': 'var(--primary-color)',
   '--layout-menu-search-bg': 'var(--jet-theme-bg-container)',
   '--layout-menu-search-border': 'var(--jet-theme-border-secondary)',
   '--chrome-bg': 'var(--bg)',
@@ -437,8 +458,17 @@ export const applyThemeStyle = (style?: unknown, color?: string) => {
   const primaryColor = normalizeThemeColor(color) || normalizeThemeColor(token.colorPrimary)
   let themeColor = ''
   const primaryStateColors = getThemeStylePrimaryStateColors(themeStyle, primaryColor)
-  const primarySoft = normalizeThemeColor(token.cssVars?.['--jet-theme-primary-soft'])
+  const primaryScale1 = normalizeThemeColor(token.cssVars?.['--primary-color-1'])
+    || normalizeThemeColor(token.cssVars?.['--jet-theme-primary-soft'])
     || normalizeThemeColor(token.cssVars?.['--accent-soft'])
+  const primaryScale2 = normalizeThemeColor(token.cssVars?.['--primary-color-2'])
+    || normalizeThemeColor(token.cssVars?.['--jet-theme-primary-2'])
+  const textColor = token.colorText
+  const textColorSecondary = token.colorTextSecondary
+  const textColorDisabled = token.cssVars?.['--text-color-disabled']
+    || token.cssVars?.['--jet-theme-text-disabled']
+    || token.colorTextSecondary
+    || '#9CA3AF'
 
   if (typeof document !== 'undefined') {
     const root = document.documentElement
@@ -451,16 +481,11 @@ export const applyThemeStyle = (style?: unknown, color?: string) => {
     rootStyle.setProperty('--jet-theme-success', token.colorSuccess || '#52C41A')
     rootStyle.setProperty('--jet-theme-warning', token.colorWarning || '#FAAD14')
     rootStyle.setProperty('--jet-theme-error', token.colorError || '#FF4D4F')
-    rootStyle.setProperty('--jet-theme-text-title', token.colorText)
-    rootStyle.setProperty('--jet-theme-text', token.colorText)
-    rootStyle.setProperty('--jet-theme-text-secondary', token.colorTextSecondary)
-    rootStyle.setProperty('--jet-theme-text-description', token.colorTextSecondary)
-    rootStyle.setProperty('--jet-theme-text-disabled', token.cssVars?.['--jet-theme-text-disabled'] || defaultThemeCssVars['--jet-theme-text-disabled'] || token.colorTextSecondary)
     rootStyle.setProperty('--jet-theme-border', token.colorBorder)
     rootStyle.setProperty('--jet-theme-border-secondary', token.colorBorderSecondary)
-    rootStyle.setProperty('--jet-theme-radius', pxToRem(token.borderRadius))
-    rootStyle.setProperty('--jet-theme-radius-lg', pxToRem(token.borderRadiusLG || token.borderRadius))
-    rootStyle.setProperty('--jet-theme-radius-sm', pxToRem(token.borderRadiusSM || token.borderRadius))
+    // rootStyle.setProperty('--jet-theme-radius', pxToRem(token.borderRadius))
+    // rootStyle.setProperty('--jet-theme-radius-lg', pxToRem(token.borderRadiusLG || token.borderRadius))
+    // rootStyle.setProperty('--jet-theme-radius-sm', pxToRem(token.borderRadiusSM || token.borderRadius))
     rootStyle.setProperty('--jet-theme-shadow', token.boxShadow || 'none')
     rootStyle.setProperty('--jet-theme-shadow-secondary', token.boxShadowSecondary || 'none')
     rootStyle.setProperty('--jet-theme-font-family', token.fontFamily || 'AliRegular, sans-serif')
@@ -474,10 +499,21 @@ export const applyThemeStyle = (style?: unknown, color?: string) => {
       }
     })
 
+    rootStyle.setProperty('--text-color', textColor)
+    rootStyle.setProperty('--text-color-secondary', textColorSecondary)
+    rootStyle.setProperty('--text-color-disabled', textColorDisabled)
+    rootStyle.setProperty('--jet-theme-text-title', 'var(--text-color)')
+    rootStyle.setProperty('--jet-theme-text', 'var(--text-color)')
+    rootStyle.setProperty('--jet-theme-text-secondary', 'var(--text-color-secondary)')
+    rootStyle.setProperty('--jet-theme-text-description', 'var(--text-color-secondary)')
+    rootStyle.setProperty('--jet-theme-text-disabled', 'var(--text-color-disabled)')
+
     themeColor = applyThemeColor(primaryColor, {
       hover: primaryStateColors.colorPrimaryHover,
       active: primaryStateColors.colorPrimaryActive,
-      soft: primarySoft
+      soft: primaryScale1,
+      scale1: primaryScale1,
+      scale2: primaryScale2
     })
 
     Object.entries(token.cssVars || {}).forEach(([name, value]) => {
@@ -487,7 +523,9 @@ export const applyThemeStyle = (style?: unknown, color?: string) => {
     themeColor = applyThemeColor(primaryColor, {
       hover: primaryStateColors.colorPrimaryHover,
       active: primaryStateColors.colorPrimaryActive,
-      soft: primarySoft
+      soft: primaryScale1,
+      scale1: primaryScale1,
+      scale2: primaryScale2
     })
   }
 

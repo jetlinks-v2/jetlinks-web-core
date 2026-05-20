@@ -472,9 +472,9 @@ function selectVersion(v: string) {
   position: relative;
   border-radius: 0.75rem;
   padding: 0.75rem 0.875rem;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--jet-theme-bg-container) 92%, transparent), color-mix(in srgb, var(--jet-theme-bg-container) 85%, transparent));
-  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-text-secondary) 6%, transparent);
-  box-shadow: var(--jet-theme-shadow-secondary);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--bg) 92%, transparent), color-mix(in srgb, var(--bg) 85%, transparent));
+  border: 1px solid color-mix(in srgb, var(--ink-2) 6%, transparent);
+  box-shadow: var(--shadow-1);
   cursor: pointer;
   overflow: hidden;
   min-height: 0;
@@ -488,22 +488,22 @@ function selectVersion(v: string) {
     background 0.2s ease;
 }
 .mp-card--picked {
-  border-color: color-mix(in srgb, var(--jet-theme-primary) 55%, transparent);
-  box-shadow: 0 0 0 0.0625rem color-mix(in srgb, var(--jet-theme-bg-container) 96%, transparent) inset,
-    0 0 0 0.1875rem color-mix(in srgb, var(--jet-theme-primary) 14%, transparent),
-    0 0.625rem 1.75rem color-mix(in srgb, var(--jet-theme-primary) 16%, transparent);
-  background: linear-gradient(145deg, color-mix(in srgb, var(--jet-theme-bg-container) 98%, transparent), color-mix(in srgb, var(--jet-theme-border-secondary) 92%, transparent));
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 96%, transparent) inset,
+    0 0 0 0.1875rem color-mix(in srgb, var(--accent) 14%, transparent),
+    0 0.625rem 1.75rem color-mix(in srgb, var(--accent) 16%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--bg) 98%, transparent), color-mix(in srgb, var(--bg-hover) 92%, transparent));
 }
 .mp-card:not(.mp-card--picked):hover {
   transform: translateY(-0.0625rem);
-  box-shadow: var(--jet-theme-shadow-secondary);
-  border-color: color-mix(in srgb, var(--jet-theme-primary) 35%, transparent);
+  box-shadow: var(--shadow-1);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 .mp-card--picked:hover {
-  box-shadow: 0 0 0 0.0625rem color-mix(in srgb, var(--jet-theme-bg-container) 98%, transparent) inset,
-    0 0 0 0.1875rem color-mix(in srgb, var(--jet-theme-primary) 20%, transparent),
-    0 0.75rem 1.875rem color-mix(in srgb, var(--jet-theme-primary) 18%, transparent);
-  border-color: color-mix(in srgb, var(--jet-theme-primary) 72%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 98%, transparent) inset,
+    0 0 0 0.1875rem color-mix(in srgb, var(--accent) 20%, transparent),
+    0 0.75rem 1.875rem color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 72%, transparent);
 }
 .mp-card__pick {
   position: absolute;
@@ -513,13 +513,13 @@ function selectVersion(v: string) {
   width: 1.625rem;
   height: 1.625rem;
   border-radius: 50%;
-  background: var(--jet-theme-primary);
+  background: var(--accent);
   color: var(--accent-ink);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: var(--fs-14);
-  box-shadow: var(--jet-theme-shadow-secondary);
+  box-shadow: var(--shadow-1);
   pointer-events: none;
 }
 .mp-card__glow {
@@ -527,7 +527,7 @@ function selectVersion(v: string) {
   inset: -40% -20% auto auto;
   width: 13.75rem;
   height: 13.75rem;
-  background: radial-gradient(circle at center, color-mix(in srgb, var(--jet-theme-primary) 35%, transparent), transparent 70%);
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 35%, transparent), transparent 70%);
   pointer-events: none;
   opacity: 0.6;
 }
@@ -542,7 +542,7 @@ function selectVersion(v: string) {
   border-radius: 0.875rem;
   overflow: hidden;
   flex-shrink: 0;
-  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-primary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
 }
 .mp-card__head-text {
   flex: 1;
@@ -567,7 +567,7 @@ function selectVersion(v: string) {
 .mp-card__title {
   font-size: var(--fs-16);
   font-weight: 600;
-  color: var(--jet-theme-text);
+  color: var(--ink-1);
 }
 .mp-card__title-link {
   display: flex;
@@ -586,7 +586,7 @@ function selectVersion(v: string) {
   min-width: 0;
 }
 .mp-card__title--link {
-  color: var(--jet-theme-primary);
+  color: var(--accent);
   transition: color 0.15s ease;
 }
 .mp-card__title-link:hover .mp-card__title--link {
@@ -600,7 +600,7 @@ function selectVersion(v: string) {
   flex-shrink: 0;
   padding: 0.125rem 0.5rem;
   border-radius: 62.4375rem;
-  background: color-mix(in srgb, var(--jet-theme-primary) 8%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   color: var(--jet-theme-primary-active);
   font-size: var(--fs-12);
   line-height: 1.125rem;
@@ -609,15 +609,15 @@ function selectVersion(v: string) {
     color 0.15s ease;
 }
 .mp-card__title-link:hover .mp-card__title-link-affordance {
-  background: color-mix(in srgb, var(--jet-theme-primary) 14%, transparent);
-  color: var(--jet-theme-primary);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
 }
 .mp-card__code {
   font-size: var(--fs-12);
   padding: 0.125rem 0.5rem;
   border-radius: 62.4375rem;
-  background: color-mix(in srgb, var(--jet-theme-text-secondary) 6%, transparent);
-  color: var(--jet-theme-text-disabled);
+  background: color-mix(in srgb, var(--ink-2) 6%, transparent);
+  color: var(--ink-3);
   flex-shrink: 0;
 }
 .mp-card__state-row {
@@ -631,7 +631,7 @@ function selectVersion(v: string) {
   align-items: center;
   gap: 0.375rem;
   font-size: var(--fs-12);
-  color: var(--jet-theme-text-disabled);
+  color: var(--ink-4);
 }
 .mp-card__dot {
   width: 0.5rem;
@@ -639,18 +639,18 @@ function selectVersion(v: string) {
   border-radius: 50%;
 }
 .mp-card__dot.on {
-  background: var(--jet-theme-success);
-  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--jet-theme-success) 15%, transparent);
+  background: var(--ok);
+  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--ok) 15%, transparent);
 }
 .mp-card__dot.off {
-  background: var(--jet-theme-error);
-  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--jet-theme-error) 12%, transparent);
+  background: var(--err);
+  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--err) 12%, transparent);
 }
 .mp-card__desc {
   margin: 0;
   font-size: var(--fs-14);
   line-height: 1.45;
-  color: var(--jet-theme-text-disabled);
+  color: var(--ink-3);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -673,9 +673,9 @@ function selectVersion(v: string) {
   line-height: 1.125rem;
   padding: 0.125rem 0.625rem;
   border-radius: 62.4375rem;
-  background: color-mix(in srgb, var(--jet-theme-text-secondary) 4%, transparent);
-  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-text-secondary) 8%, transparent);
-  color: var(--jet-theme-text);
+  background: color-mix(in srgb, var(--ink-2) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink-2) 8%, transparent);
+  color: var(--ink-1);
 }
 .mp-pill__icon {
   flex-shrink: 0;
@@ -687,9 +687,9 @@ function selectVersion(v: string) {
   white-space: nowrap;
 }
 .mp-pill--more {
-  background: color-mix(in srgb, var(--jet-theme-text-secondary) 6%, transparent);
+  background: color-mix(in srgb, var(--ink-2) 6%, transparent);
   border-color: transparent;
-  color: var(--jet-theme-text-disabled);
+  color: var(--ink-4);
   cursor: pointer;
 }
 .mp-card__tags-popover {
@@ -701,7 +701,7 @@ function selectVersion(v: string) {
 }
 .mp-card__version-label {
   font-size: var(--fs-12);
-  color: var(--jet-theme-text-disabled);
+  color: var(--ink-4);
   line-height: 1.2;
   flex-shrink: 0;
 }
@@ -720,7 +720,7 @@ function selectVersion(v: string) {
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--jet-theme-primary);
+  color: var(--accent);
   cursor: pointer;
   font-size: var(--fs-14);
   line-height: 1.4;
@@ -729,11 +729,11 @@ function selectVersion(v: string) {
   color: var(--jet-theme-primary-active);
 }
 .mp-card__version-link--static {
-  color: var(--jet-theme-text);
+  color: var(--ink-1);
   cursor: default;
 }
 .mp-card__version-link--placeholder {
-  color: var(--jet-theme-text-disabled);
+  color: var(--ink-4);
   cursor: default;
 }
 .mp-card__version-link-text {
@@ -755,7 +755,7 @@ function selectVersion(v: string) {
   transform: rotate(180deg);
 }
 .mp-card__version-divider {
-  color: var(--jet-theme-text-disabled);
+  color: var(--ink-4);
 }
 .mp-card__version-notes-btn {
   padding: 0;
@@ -769,8 +769,8 @@ function selectVersion(v: string) {
   max-width: min(42%, 11.25rem);
   padding: 0.0625rem 0.4375rem;
   border-radius: 62.4375rem;
-  background: color-mix(in srgb, var(--jet-theme-primary) 6%, transparent);
-  border: 0.0625rem solid color-mix(in srgb, var(--jet-theme-primary) 10%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--jet-theme-primary-active);
   cursor: help;
   font-size: var(--fs-12);
@@ -787,13 +787,13 @@ function selectVersion(v: string) {
 }
 .mp-card__version-summary-popover-title {
   margin-bottom: var(--space-1);
-  color: var(--jet-theme-text);
+  color: var(--ink-1);
   font-size: var(--fs-14);
   line-height: 1.4;
   font-weight: 600;
 }
 .mp-card__version-summary-popover-text {
-  color: var(--jet-theme-text-secondary);
+  color: var(--ink-2);
   font-size: var(--fs-12);
   line-height: 1.6;
   word-break: break-word;
@@ -805,8 +805,8 @@ function selectVersion(v: string) {
   overflow: auto;
   padding: 0.375rem;
   border-radius: 0.75rem;
-  background: var(--jet-theme-bg-container);
-  box-shadow: var(--jet-theme-shadow-secondary);
+  background: var(--bg);
+  box-shadow: var(--shadow-1);
 }
 .mp-card__version-option {
   width: 100%;
@@ -814,8 +814,8 @@ function selectVersion(v: string) {
   flex-direction: column;
   gap: var(--space-1);
   padding: 0.5rem 0.625rem;
-  border: 0.0625rem solid transparent;
-  border-radius: var(--jet-theme-radius-lg);
+  border: 1px solid transparent;
+  border-radius: var(--r-3);
   background: transparent;
   cursor: pointer;
   text-align: left;
@@ -824,12 +824,12 @@ function selectVersion(v: string) {
     background 0.15s ease;
 }
 .mp-card__version-option:hover {
-  border-color: color-mix(in srgb, var(--jet-theme-primary) 18%, transparent);
-  background: color-mix(in srgb, var(--jet-theme-primary) 5%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 18%, transparent);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
 .mp-card__version-option--active {
-  border-color: color-mix(in srgb, var(--jet-theme-primary) 32%, transparent);
-  background: color-mix(in srgb, var(--jet-theme-primary) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .mp-card__version-option-main {
   display: flex;
@@ -842,19 +842,19 @@ function selectVersion(v: string) {
   min-width: 0;
   font-size: var(--fs-14);
   line-height: 1.4;
-  color: var(--jet-theme-text);
+  color: var(--ink-1);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .mp-card__version-option-check {
-  color: var(--jet-theme-primary);
+  color: var(--accent);
   font-size: var(--fs-14);
 }
 .mp-card__version-option-summary {
   font-size: var(--fs-12);
   line-height: 1.45;
-  color: var(--jet-theme-text-disabled);
+  color: var(--ink-3);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -863,7 +863,7 @@ function selectVersion(v: string) {
 .mp-card__release-md {
   font-size: var(--fs-14);
   line-height: 1.65;
-  color: var(--jet-theme-text);
+  color: var(--ink-1);
   word-break: break-word;
 }
 .mp-card__release-md :deep(h1),
@@ -871,7 +871,7 @@ function selectVersion(v: string) {
 .mp-card__release-md :deep(h3) {
   margin: 0 0 0.625rem;
   font-weight: 600;
-  color: var(--jet-theme-text);
+  color: var(--ink-1);
 }
 .mp-card__release-md :deep(h1) {
   font-size: var(--fs-18);
@@ -880,7 +880,7 @@ function selectVersion(v: string) {
   font-size: var(--fs-16);
 }
 .mp-card__release-md :deep(h3) {
-  font-size: var(--fs-16);
+  font-size: var(--fs-15);
 }
 .mp-card__release-md :deep(p) {
   margin: 0 0 0.625rem;
@@ -895,14 +895,14 @@ function selectVersion(v: string) {
 }
 .mp-card__release-md :deep(code) {
   padding: 0.0625rem 0.375rem;
-  border-radius: var(--jet-theme-radius-sm);
-  background: color-mix(in srgb, var(--jet-theme-text-secondary) 6%, transparent);
-  font-size: 0.9em;
+  border-radius: var(--r-1);
+  background: color-mix(in srgb, var(--ink-2) 6%, transparent);
+  font-size: var(--fs-13);
 }
 .mp-card__release-md :deep(pre) {
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--jet-theme-radius-lg);
-  background: color-mix(in srgb, var(--jet-theme-text-secondary) 6%, transparent);
+  border-radius: var(--r-3);
+  background: color-mix(in srgb, var(--ink-2) 6%, transparent);
   overflow: auto;
   margin: 0 0 0.625rem;
 }
@@ -913,8 +913,8 @@ function selectVersion(v: string) {
 .mp-card__release-md :deep(blockquote) {
   margin: 0 0 0.625rem;
   padding-left: 0.625rem;
-  border-left: 0.1875rem solid color-mix(in srgb, var(--jet-theme-primary) 35%, transparent);
-  color: var(--jet-theme-text-secondary);
+  border-left: 0.1875rem solid color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--ink-2);
 }
 .mp-card__footer {
   margin-top: 0.125rem;
@@ -923,7 +923,7 @@ function selectVersion(v: string) {
   align-items: center;
   gap: var(--space-2);
   padding-top: 0.375rem;
-  border-top: 0.0625rem solid color-mix(in srgb, var(--jet-theme-text-secondary) 6%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--ink-2) 6%, transparent);
 }
 .mp-card__footer-left {
   flex: 1;
