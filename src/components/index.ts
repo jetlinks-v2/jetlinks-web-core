@@ -54,6 +54,7 @@ import SectionCard from './SectionCard/index.vue'
 import StickyActionBar from './StickyActionBar/index.vue'
 import PageRouteSkeleton from './PageRouteSkeleton/index.vue'
 import PageRouteView from './PageRouteView/index.vue'
+import EqualHeightColumns from './EqualHeightColumns/index.vue'
 
 export default {
     install(app: App) {
@@ -115,6 +116,7 @@ export default {
           .component('StickyActionBar', StickyActionBar)
           .component('PageRouteSkeleton', PageRouteSkeleton)
           .component('PageRouteView', PageRouteView)
+          .component('EqualHeightColumns', EqualHeightColumns)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
