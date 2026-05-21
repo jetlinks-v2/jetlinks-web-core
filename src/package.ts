@@ -203,7 +203,7 @@ export const initAxios = () => {
                 }
             }
 
-            const projectContext = getProjectContext()
+            const projectContext = config.projectContext === false ? undefined : getProjectContext()
 
             if (projectContext) {
                 const { storage: projectStorage } = projectContext
@@ -216,6 +216,8 @@ export const initAxios = () => {
                 if (projectStorage?.apiUrl) {
                     config.baseURL = projectStorage.apiUrl
                 }
+            } else {
+                config.headers[TOKEN_KEY] = localStorage.getItem(TOKEN_KEY)
             }
 
             if (cache?.key && cache?.token) {
