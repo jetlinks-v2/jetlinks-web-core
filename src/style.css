@@ -50,7 +50,7 @@ html {
 
 @media (min-width: 3840px) {
   html {
-    font-size: 32px;
+    font-size: 28px;
   }
 }
 
@@ -85,9 +85,9 @@ html {
   --jet-theme-text-disabled: var(--text-color-disabled);
   --jet-theme-border: #D9D9D9;
   --jet-theme-border-secondary: #F0F0F0;
-  --jet-theme-radius: 6px;
-  --jet-theme-radius-lg: 8px;
-  --jet-theme-radius-sm: 4px;
+  --jet-theme-radius: 12px;
+  --jet-theme-radius-lg: 14px;
+  --jet-theme-radius-sm: 10px;
   --jet-theme-shadow: 0 0.375rem 1rem 0 rgba(0, 0, 0, 0.08);
   --jet-theme-shadow-secondary: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.06);
   --jet-theme-font-family: AliRegular, sans-serif;

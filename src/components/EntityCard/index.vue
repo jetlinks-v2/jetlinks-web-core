@@ -71,6 +71,7 @@ withDefaults(
   overflow: hidden;
   min-width: 0;
   transition: all 0.15s ease;
+    padding: 1rem;
 }
 .entity-card.interactive {
   cursor: pointer;
@@ -85,7 +86,8 @@ withDefaults(
   display: flex;
   align-items: flex-start;
   gap: var(--space-3);
-  padding: 0.875rem 1rem;
+  padding-bottom
+  : 0.875rem;
 }
 .ec-icon { flex-shrink: 0; }
 
@@ -122,12 +124,13 @@ withDefaults(
 
 .ec-body {
   flex: 1;
-  padding: 0 1rem 0.875rem;
+  padding-bottom: 0.875rem;
+    border-top: 1px dashed var(--line);
 }
 .ec-footer {
   margin-top: auto;
-  padding: 0.625rem 1rem;
-  background: var(--bg-sunken);
+  padding-top: 0.625rem;
+  //background: var(--bg-sunken);
   border-top: 1px solid var(--line);
   display: flex;
   align-items: center;
