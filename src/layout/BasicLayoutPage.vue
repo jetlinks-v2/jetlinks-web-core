@@ -76,7 +76,16 @@ const hideHeaderRight = getHideHeaderRightConfig()
 
 const { theme, layout, language, systemInfo, themeStyleToken } = storeToRefs(systemStore)
 
-const state = reactive({
+type LayoutBreadcrumb = {
+  path: string
+}
+
+const state = reactive<{
+  pure: boolean
+  collapsed: boolean
+  openKeys: string[]
+  selectedKeys: string[]
+}>({
   pure: false,
   collapsed: false, // default value
   openKeys: [],
@@ -132,9 +141,12 @@ const onClick = () => {
  */
 watchEffect(() => {
   if (router.currentRoute) {
-    const paths = route.meta.breadcrumb || route.meta.breadcrumbCache || []
-    state.selectedKeys = paths.map(item => item.path)
-    state.openKeys = paths.map(item => item.path)
+    const meta = route.meta as Record<string, unknown>
+    const paths = (meta.breadcrumb || meta.breadcrumbCache || []) as LayoutBreadcrumb[]
+    const current = paths[paths.length - 1]
+    // Ant Design Vue expects openKeys to contain submenu keys only; including the leaf route can break submenu context during route updates.
+    state.selectedKeys = current ? [current.path] : []
+    state.openKeys = paths.slice(0, -1).map(item => item.path)
   }
   if (route.query?.layout === 'false') {
     state.pure = true
