@@ -382,7 +382,7 @@ const defaultThemeCssVars: ThemeStyleCssVars = {
   '--pad-y': '0.5rem',
   '--layout-menu-bg': 'var(--jet-theme-bg-container)',
   '--layout-menu-padding': '0.5rem 0',
-  '--layout-menu-item-height': '2.5rem',
+  '--layout-menu-item-height': '2rem',
   '--layout-menu-item-radius': '0',
   '--layout-menu-item-active-bg': 'transparent',
   '--layout-menu-item-active-color': 'var(--primary-color)',

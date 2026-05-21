@@ -1,11 +1,358 @@
 import { DEFAULT_THEME_COLOR, normalizeThemeColor } from '@/utils/theme-color'
 import theme from '@theme-config'
-import type { ThemeStyleToken } from '@/utils/theme-style'
+import type { ThemeStyleCssVars, ThemeStyleToken } from '@/utils/theme-style'
+
+const lightPrimaryColor = normalizeThemeColor(theme.colorPrimary) || DEFAULT_THEME_COLOR
+
+type ThemeCssVarPalette = Record<
+  | 'primary'
+  | 'primarySoft'
+  | 'primarySoftAlt'
+  | 'primaryActive'
+  | 'primary1'
+  | 'primary2'
+  | 'primary3'
+  | 'primary4'
+  | 'primary5'
+  | 'brand50'
+  | 'brand100'
+  | 'brand200'
+  | 'brand300'
+  | 'brand400'
+  | 'brand500'
+  | 'brand600'
+  | 'brand700'
+  | 'brand800'
+  | 'brand900'
+  | 'primaryHover'
+  | 'accentCyan'
+  | 'accentBlue'
+  | 'accentPink'
+  | 'accentMagenta'
+  | 'macaronOrangeBg'
+  | 'macaronOrangeText'
+  | 'macaronOrangeAvatar'
+  | 'macaronBlueBg'
+  | 'macaronBlueText'
+  | 'macaronBlueAvatar'
+  | 'macaronGreenBg'
+  | 'macaronGreenText'
+  | 'macaronGreenAvatar'
+  | 'macaronPurpleBg'
+  | 'macaronPurpleText'
+  | 'macaronPurpleAvatar'
+  | 'macaronPinkBg'
+  | 'macaronPinkText'
+  | 'macaronPinkAvatar'
+  | 'macaronYellowBg'
+  | 'macaronYellowText'
+  | 'macaronYellowAvatar'
+  | 'canvas'
+  | 'bg'
+  | 'bgElev'
+  | 'bgSunken'
+  | 'bgHover'
+  | 'bg2'
+  | 'line'
+  | 'line2'
+  | 'lineStrong'
+  | 'text'
+  | 'textSecondary'
+  | 'textDisabled'
+  | 'ink5'
+  | 'accentInk'
+  | 'danger'
+  | 'dangerBg'
+  | 'warning'
+  | 'warningBg'
+  | 'success'
+  | 'successBg'
+  | 'okLine'
+  | 'warnLine'
+  | 'errLine'
+  | 'info'
+  | 'infoBg'
+  | 'infoLine'
+  | 'radius1'
+  | 'radius2'
+  | 'radius3'
+  | 'radius4'
+  | 'shadow1'
+  | 'shadow2'
+  | 'shadowPop'
+  | 'shadowHover'
+  | 'shadowLifted'
+  | 'ringFocus'
+  | 'ringActive'
+  | 'ringOk'
+  | 'ringWarn'
+  | 'ringErr'
+  | 'ringInfo'
+  | 'chromeBg'
+  | 'chromeElev'
+  | 'chromeSunken'
+  | 'chromeHover'
+  | 'chromeLine'
+  | 'chromeLineStrong'
+  | 'chromeInk1'
+  | 'chromeInk2'
+  | 'chromeInk3'
+  | 'chromeInk4'
+  | 'chromeActiveBg'
+  | 'chromeActiveInk'
+  | 'chromeActiveLine'
+  | 'chromeControlRadius'
+  | 'chromePopoverRadius'
+  | 'brandMarkBg'
+  | 'brandMarkInk'
+  | 'ambientHero'
+  | 'ambientCool'
+  | 'ambientWarm'
+  | 'layoutMenuBg'
+  | 'layoutMenuPadding'
+  | 'layoutMenuItemRadius'
+  | 'layoutMenuItemActiveBg'
+  | 'layoutMenuItemActiveColor'
+  | 'layoutMenuItemActiveLine'
+  | 'layoutMenuItemHoverBg'
+  | 'layoutMenuSearchBg'
+  | 'layoutMenuSearchBorder',
+  string
+>
+
+const createThemeCssVars = (palette: ThemeCssVarPalette): ThemeStyleCssVars => ({
+  '--primary-color': palette.primary,
+  '--primary-color-1': palette.primarySoft,
+  '--primary-color-2': palette.primarySoftAlt,
+  '--primary-color-active': palette.primaryActive,
+  '--jet-theme-primary-1': palette.primary1,
+  '--jet-theme-primary-2': 'var(--primary-color-2)',
+  '--jet-theme-primary-3': palette.primary3,
+  '--jet-theme-primary-4': palette.primary4,
+  '--jet-theme-primary-5': palette.primary5,
+  '--brand-50': palette.brand50,
+  '--brand-100': palette.brand100,
+  '--brand-200': palette.brand200,
+  '--brand-300': palette.brand300,
+  '--brand-400': palette.brand400,
+  '--brand-500': palette.brand500,
+  '--brand-600': palette.brand600,
+  '--brand-700': palette.brand700,
+  '--brand-800': palette.brand800,
+  '--brand-900': palette.brand900,
+  '--jet-theme-primary': 'var(--primary-color)',
+  '--jet-theme-primary-hover': palette.primaryHover,
+  '--jet-theme-primary-active': 'var(--primary-color-active)',
+  '--jet-theme-primary-soft': 'var(--primary-color-1)',
+  '--accent-cyan': palette.accentCyan,
+  '--accent-blue': palette.accentBlue,
+  '--accent-pink': palette.accentPink,
+  '--accent-magenta': palette.accentMagenta,
+  '--macaron-orange-bg': palette.macaronOrangeBg,
+  '--macaron-orange-text': palette.macaronOrangeText,
+  '--macaron-orange-avatar': palette.macaronOrangeAvatar,
+  '--macaron-blue-bg': palette.macaronBlueBg,
+  '--macaron-blue-text': palette.macaronBlueText,
+  '--macaron-blue-avatar': palette.macaronBlueAvatar,
+  '--macaron-green-bg': palette.macaronGreenBg,
+  '--macaron-green-text': palette.macaronGreenText,
+  '--macaron-green-avatar': palette.macaronGreenAvatar,
+  '--macaron-purple-bg': palette.macaronPurpleBg,
+  '--macaron-purple-text': palette.macaronPurpleText,
+  '--macaron-purple-avatar': palette.macaronPurpleAvatar,
+  '--macaron-pink-bg': palette.macaronPinkBg,
+  '--macaron-pink-text': palette.macaronPinkText,
+  '--macaron-pink-avatar': palette.macaronPinkAvatar,
+  '--macaron-yellow-bg': palette.macaronYellowBg,
+  '--macaron-yellow-text': palette.macaronYellowText,
+  '--macaron-yellow-avatar': palette.macaronYellowAvatar,
+  '--canvas': palette.canvas,
+  '--bg': palette.bg,
+  '--bg-elev': palette.bgElev,
+  '--bg-sunken': palette.bgSunken,
+  '--bg-hover': palette.bgHover,
+  '--bg-2': palette.bg2,
+  '--line': palette.line,
+  '--line-2': palette.line2,
+  '--line-strong': palette.lineStrong,
+  '--text-color': palette.text,
+  '--text-color-secondary': palette.textSecondary,
+  '--text-color-disabled': palette.textDisabled,
+  '--jet-theme-text-title': 'var(--text-color)',
+  '--jet-theme-text': 'var(--text-color)',
+  '--jet-theme-text-secondary': 'var(--text-color-secondary)',
+  '--jet-theme-text-description': 'var(--text-color-secondary)',
+  '--jet-theme-text-disabled': 'var(--text-color-disabled)',
+  '--ink-1': 'var(--text-color)',
+  '--ink-2': 'var(--text-color-secondary)',
+  '--ink-3': 'var(--text-color-disabled)',
+  '--ink-4': 'var(--text-color-disabled)',
+  '--ink-5': palette.ink5,
+  '--accent': 'var(--primary-color)',
+  '--accent-ink': palette.accentInk,
+  '--accent-soft': 'var(--primary-color-1)',
+  '--danger': palette.danger,
+  '--danger-bg': palette.dangerBg,
+  '--warning': palette.warning,
+  '--warning-bg': palette.warningBg,
+  '--success': palette.success,
+  '--success-bg': palette.successBg,
+  '--ok': palette.success,
+  '--ok-bg': palette.successBg,
+  '--ok-line': palette.okLine,
+  '--warn': palette.warning,
+  '--warn-bg': palette.warningBg,
+  '--warn-line': palette.warnLine,
+  '--err': palette.danger,
+  '--err-bg': palette.dangerBg,
+  '--err-line': palette.errLine,
+  '--info': palette.info,
+  '--info-bg': palette.infoBg,
+  '--info-line': palette.infoLine,
+  '--font-sans': 'var(--jet-theme-font-family)',
+  '--font-cjk': 'var(--jet-theme-font-family)',
+  '--font-mono': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+  '--lh-tight': '1.2',
+  '--lh-snug': '1.3',
+  '--lh-normal': '1.55',
+  '--lh-relaxed': '1.65',
+  '--lh-loose': '1.8',
+  '--fs-12': '0.75rem',
+  '--fs-13': '0.8125rem',
+  '--fs-14': '0.875rem',
+  '--fs-15': '0.9375rem',
+  '--fs-16': '1rem',
+  '--fs-17': '1.0625rem',
+  '--fs-18': '1.125rem',
+  '--fs-19': '1.1875rem',
+  '--fs-20': '1.25rem',
+  '--fs-21': '1.3125rem',
+  '--fs-22': '1.375rem',
+  '--fs-24': '1.5rem',
+  '--fs-25': '1.5625rem',
+  '--fs-26': '1.625rem',
+  '--fs-28': '1.75rem',
+  '--fs-30': '1.875rem',
+  '--fs-32': '2rem',
+  '--fs-34': '2.125rem',
+  '--fs-36': '2.25rem',
+  '--fs-38': '2.375rem',
+  '--fs-40': '2.5rem',
+  '--fs-42': '2.625rem',
+  '--fs-44': '2.75rem',
+  '--fs-46': '2.875rem',
+  '--fs-48': '3rem',
+  '--fs-54': '3.375rem',
+  '--fs-56': '3.5rem',
+  '--fs-60': '3.75rem',
+  '--fs-64': '4rem',
+  '--fs-90': '5.625rem',
+  '--fs-100': '6.25rem',
+  '--fs-tiny': 'var(--fs-12)',
+  '--fs-pill': 'var(--fs-12)',
+  '--fs-meta': 'var(--fs-12)',
+  '--fs-caption': 'var(--fs-12)',
+  '--fs-sm': 'var(--fs-13)',
+  '--fs-body': 'var(--fs-14)',
+  '--fs-label': 'var(--fs-12)',
+  '--fs-title-4': 'var(--fs-16)',
+  '--fs-title': 'var(--fs-18)',
+  '--fs-h4': 'var(--fs-16)',
+  '--fs-h3': 'var(--fs-18)',
+  '--fs-h2': 'var(--fs-22)',
+  '--fs-h1': 'var(--fs-24)',
+  '--fs-display': 'var(--fs-24)',
+  '--space-0': '0.25rem',
+  '--space-1': '0.25rem',
+  '--space-2': '0.5rem',
+  '--space-3': '0.75rem',
+  '--space-4': '1rem',
+  '--space-5': '1.25rem',
+  '--space-6': '1.5rem',
+  '--space-7': '1.75rem',
+  '--space-8': '2rem',
+  '--space-9': '2.25rem',
+  '--space-10': '2.5rem',
+  '--space-11': '2.75rem',
+  '--space-12': '3rem',
+  '--space-13': '3.25rem',
+  '--space-card': '1.5rem',
+  '--space-card-lg': '2rem',
+  '--space-section': '4rem',
+  '--space-page': '6rem',
+  '--space-gutter': 'clamp(1.25rem, 2.2vw, 3rem)',
+  '--gap-card': '1.5rem',
+  '--gap-section': '1.5rem',
+  '--gap-rail': '1.5rem',
+  '--padding-page-x': '2rem',
+  '--padding-card': '1.5rem',
+  '--padding-card-lg': '2rem',
+  '--r-1': palette.radius1,
+  '--r-2': palette.radius2,
+  '--r-3': palette.radius3,
+  '--r-4': palette.radius4,
+  '--shadow-1': palette.shadow1,
+  '--shadow-2': palette.shadow2,
+  '--shadow-pop': palette.shadowPop,
+  '--shadow-hover': palette.shadowHover,
+  '--shadow-lifted': palette.shadowLifted,
+  '--ring-focus': palette.ringFocus,
+  '--ring-active': palette.ringActive,
+  '--ring-ok': palette.ringOk,
+  '--ring-warn': palette.ringWarn,
+  '--ring-err': palette.ringErr,
+  '--ring-info': palette.ringInfo,
+  '--chrome-bg': palette.chromeBg,
+  '--chrome-elev': palette.chromeElev,
+  '--chrome-sunken': palette.chromeSunken,
+  '--chrome-hover': palette.chromeHover,
+  '--chrome-line': palette.chromeLine,
+  '--chrome-line-strong': palette.chromeLineStrong,
+  '--chrome-ink-1': palette.chromeInk1,
+  '--chrome-ink-2': palette.chromeInk2,
+  '--chrome-ink-3': palette.chromeInk3,
+  '--chrome-ink-4': palette.chromeInk4,
+  '--chrome-active-bg': palette.chromeActiveBg,
+  '--chrome-active-ink': palette.chromeActiveInk,
+  '--chrome-active-line': palette.chromeActiveLine,
+  '--chrome-nav-font-size': '0.875rem',
+  '--chrome-nav-font-weight': '400',
+  '--chrome-active-font-weight': '600',
+  '--chrome-brand-font-weight': '600',
+  '--chrome-label-font-weight': '600',
+  '--chrome-control-radius': palette.chromeControlRadius,
+  '--chrome-popover-radius': palette.chromePopoverRadius,
+  '--brand-mark-bg': palette.brandMarkBg,
+  '--brand-mark-ink': palette.brandMarkInk,
+  '--ambient-hero': palette.ambientHero,
+  '--ambient-cool': palette.ambientCool,
+  '--ambient-warm': palette.ambientWarm,
+  '--code-dark-bg': '#0F172A',
+  '--code-dark-fg-1': '#E2E8F0',
+  '--code-dark-fg-2': '#CBD5E1',
+  '--code-dark-fg-3': '#94A3B8',
+  '--code-dark-line': 'rgb(255 255 255 / 0.06)',
+  '--code-dark-hover': 'rgb(255 255 255 / 0.08)',
+  '--topbar-h': '3rem',
+  '--sidebar-w': '14rem',
+  '--row-h': '2.25rem',
+  '--pad-y': '0.5rem',
+  '--layout-menu-bg': palette.layoutMenuBg,
+  '--layout-menu-padding': palette.layoutMenuPadding,
+  '--layout-menu-item-height': '2rem',
+  '--layout-menu-item-radius': palette.layoutMenuItemRadius,
+  '--layout-menu-item-active-bg': palette.layoutMenuItemActiveBg,
+  '--layout-menu-item-active-color': palette.layoutMenuItemActiveColor,
+  '--layout-menu-item-active-line': palette.layoutMenuItemActiveLine,
+  '--layout-menu-item-hover-bg': palette.layoutMenuItemHoverBg,
+  '--layout-menu-search-bg': palette.layoutMenuSearchBg,
+  '--layout-menu-search-border': palette.layoutMenuSearchBorder
+})
 
 export const styleTokens = {
   'light': {
     label: '白色',
-    colorPrimary: normalizeThemeColor(theme.colorPrimary) || DEFAULT_THEME_COLOR,
+    colorPrimary: lightPrimaryColor,
     colorInfo: '#1677FF',
     colorSuccess: '#52C41A',
     colorWarning: '#FAAD14',
@@ -24,7 +371,121 @@ export const styleTokens = {
     borderRadiusSM: 4,
     boxShadow: '0 0.375rem 1rem 0 rgba(0, 0, 0, 0.08)',
     boxShadowSecondary: '0 0.125rem 0.5rem rgba(0, 0, 0, 0.06)',
-    fontFamily: 'AliRegular, sans-serif'
+    fontFamily: 'AliRegular, sans-serif',
+    cssVars: createThemeCssVars({
+      primary: lightPrimaryColor,
+      primarySoft: '#E6F4FF',
+      primarySoftAlt: '#BAE0FF',
+      primaryActive: '#0958D9',
+      primary1: '#E6F4FF',
+      primary2: '#BAE0FF',
+      primary3: '#91CAFF',
+      primary4: '#69B1FF',
+      primary5: '#4096FF',
+      brand50: '#E6F4FF',
+      brand100: '#BAE0FF',
+      brand200: '#91CAFF',
+      brand300: '#69B1FF',
+      brand400: '#4096FF',
+      brand500: lightPrimaryColor,
+      brand600: '#0958D9',
+      brand700: '#003EB3',
+      brand800: '#002C8C',
+      brand900: '#001D66',
+      primaryHover: '#4096FF',
+      accentCyan: '#5CDBD3',
+      accentBlue: '#4096FF',
+      accentPink: '#FF85C0',
+      accentMagenta: '#EB2F96',
+      macaronOrangeBg: '#FFF7E6',
+      macaronOrangeText: '#D46B08',
+      macaronOrangeAvatar: '#FFD591',
+      macaronBlueBg: '#E6F4FF',
+      macaronBlueText: '#0958D9',
+      macaronBlueAvatar: '#91CAFF',
+      macaronGreenBg: '#F6FFED',
+      macaronGreenText: '#389E0D',
+      macaronGreenAvatar: '#B7EB8F',
+      macaronPurpleBg: '#F9F0FF',
+      macaronPurpleText: '#722ED1',
+      macaronPurpleAvatar: '#D3ADF7',
+      macaronPinkBg: '#FFF0F6',
+      macaronPinkText: '#C41D7F',
+      macaronPinkAvatar: '#FFADD2',
+      macaronYellowBg: '#FFFBE6',
+      macaronYellowText: '#D48806',
+      macaronYellowAvatar: '#FFE58F',
+      canvas: '#F5F5F5',
+      bg: '#FFFFFF',
+      bgElev: '#FFFFFF',
+      bgSunken: '#F5F5F5',
+      bgHover: '#F0F0F0',
+      bg2: '#FAFAFA',
+      line: '#F0F0F0',
+      line2: '#F5F5F5',
+      lineStrong: '#D9D9D9',
+      text: '#1A1A1A',
+      textSecondary: '#6B7280',
+      textDisabled: '#9CA3AF',
+      ink5: '#D1D5DB',
+      accentInk: '#FFFFFF',
+      danger: '#FF4D4F',
+      dangerBg: '#FFF2F0',
+      warning: '#FAAD14',
+      warningBg: '#FFFBE6',
+      success: '#52C41A',
+      successBg: '#F6FFED',
+      okLine: '#B7EB8F',
+      warnLine: '#FFE58F',
+      errLine: '#FFCCC7',
+      info: '#1677FF',
+      infoBg: '#E6F4FF',
+      infoLine: '#BAE0FF',
+      radius1: '0.25rem',
+      radius2: '0.375rem',
+      radius3: '0.5rem',
+      radius4: '999px',
+      shadow1: '0 1px 0 rgba(0, 0, 0, 0.03)',
+      shadow2: '0 0.125rem 0.5rem rgba(0, 0, 0, 0.06)',
+      shadowPop: '0 0.375rem 1rem rgba(0, 0, 0, 0.08)',
+      shadowHover: '0 0.125rem 0.5rem rgba(0, 0, 0, 0.06)',
+      shadowLifted: '0 0.375rem 1.25rem rgba(0, 0, 0, 0.06)',
+      ringFocus: '0 0 0 0.1875rem #E6F4FF',
+      ringActive: '0 0 0 0.125rem #E6F4FF',
+      ringOk: '0 0 0 0.1875rem #F6FFED',
+      ringWarn: '0 0 0 0.1875rem #FFFBE6',
+      ringErr: '0 0 0 0.1875rem #FFF2F0',
+      ringInfo: '0 0 0 0.1875rem #E6F4FF',
+      chromeBg: '#FFFFFF',
+      chromeElev: '#FFFFFF',
+      chromeSunken: '#F5F5F5',
+      chromeHover: '#F0F0F0',
+      chromeLine: '#F0F0F0',
+      chromeLineStrong: '#D9D9D9',
+      chromeInk1: '#1A1A1A',
+      chromeInk2: '#6B7280',
+      chromeInk3: '#9CA3AF',
+      chromeInk4: '#9CA3AF',
+      chromeActiveBg: 'transparent',
+      chromeActiveInk: lightPrimaryColor,
+      chromeActiveLine: lightPrimaryColor,
+      chromeControlRadius: '6px',
+      chromePopoverRadius: '8px',
+      brandMarkBg: '#1A1A1A',
+      brandMarkInk: '#FFFFFF',
+      ambientHero: 'linear-gradient(135deg, #E6F4FF, #F9F0FF, #FFF0F6)',
+      ambientCool: 'linear-gradient(135deg, #E6F4FF, #F0F5FF)',
+      ambientWarm: 'linear-gradient(135deg, #F9F0FF, #FFF0F6)',
+      layoutMenuBg: '#FFFFFF',
+      layoutMenuPadding: '0.5rem 0',
+      layoutMenuItemRadius: '0',
+      layoutMenuItemActiveBg: 'transparent',
+      layoutMenuItemActiveColor: lightPrimaryColor,
+      layoutMenuItemActiveLine: lightPrimaryColor,
+      layoutMenuItemHoverBg: '#F5F5F5',
+      layoutMenuSearchBg: '#FFFFFF',
+      layoutMenuSearchBorder: '#F0F0F0'
+    })
   },
   dark: {
     label: '黑色',
@@ -47,7 +508,121 @@ export const styleTokens = {
     borderRadiusSM: 4,
     boxShadow: '0 0.5rem 1.5rem rgba(0, 0, 0, 0.45)',
     boxShadowSecondary: '0 0.125rem 0.5rem rgba(0, 0, 0, 0.35)',
-    fontFamily: 'AliRegular, sans-serif'
+    fontFamily: 'AliRegular, sans-serif',
+    cssVars: createThemeCssVars({
+      primary: '#69B1FF',
+      primarySoft: '#111D2C',
+      primarySoftAlt: '#15325B',
+      primaryActive: '#4096FF',
+      primary1: '#111D2C',
+      primary2: '#15325B',
+      primary3: '#15417E',
+      primary4: '#1554AD',
+      primary5: '#1668DC',
+      brand50: '#111D2C',
+      brand100: '#15325B',
+      brand200: '#15417E',
+      brand300: '#1554AD',
+      brand400: '#1668DC',
+      brand500: '#69B1FF',
+      brand600: '#4096FF',
+      brand700: '#1677FF',
+      brand800: '#0958D9',
+      brand900: '#003EB3',
+      primaryHover: '#91CAFF',
+      accentCyan: '#36CFC9',
+      accentBlue: '#69B1FF',
+      accentPink: '#FF85C0',
+      accentMagenta: '#EB2F96',
+      macaronOrangeBg: '#2B1D11',
+      macaronOrangeText: '#FFD591',
+      macaronOrangeAvatar: '#D46B08',
+      macaronBlueBg: '#111D2C',
+      macaronBlueText: '#91CAFF',
+      macaronBlueAvatar: '#1668DC',
+      macaronGreenBg: '#162312',
+      macaronGreenText: '#95DE64',
+      macaronGreenAvatar: '#389E0D',
+      macaronPurpleBg: '#1F1A2E',
+      macaronPurpleText: '#D3ADF7',
+      macaronPurpleAvatar: '#722ED1',
+      macaronPinkBg: '#2A1325',
+      macaronPinkText: '#FFADD2',
+      macaronPinkAvatar: '#C41D7F',
+      macaronYellowBg: '#2B2611',
+      macaronYellowText: '#FFE58F',
+      macaronYellowAvatar: '#D48806',
+      canvas: '#000000',
+      bg: '#1F1F1F',
+      bgElev: '#262626',
+      bgSunken: '#141414',
+      bgHover: '#2A2A2A',
+      bg2: '#141414',
+      line: '#303030',
+      line2: '#262626',
+      lineStrong: '#424242',
+      text: 'rgba(255, 255, 255, 0.88)',
+      textSecondary: 'rgba(255, 255, 255, 0.65)',
+      textDisabled: 'rgba(255, 255, 255, 0.35)',
+      ink5: '#595959',
+      accentInk: '#141414',
+      danger: '#DC4446',
+      dangerBg: '#2A1215',
+      warning: '#D89614',
+      warningBg: '#2B2111',
+      success: '#49AA19',
+      successBg: '#162312',
+      okLine: '#274916',
+      warnLine: '#594214',
+      errLine: '#58181C',
+      info: '#69B1FF',
+      infoBg: '#111D2C',
+      infoLine: '#15325B',
+      radius1: '0.25rem',
+      radius2: '0.375rem',
+      radius3: '0.5rem',
+      radius4: '999px',
+      shadow1: '0 1px 0 rgba(0, 0, 0, 0.24)',
+      shadow2: '0 0.125rem 0.5rem rgba(0, 0, 0, 0.35)',
+      shadowPop: '0 0.5rem 1.5rem rgba(0, 0, 0, 0.45)',
+      shadowHover: '0 0.25rem 0.75rem rgba(0, 0, 0, 0.4)',
+      shadowLifted: '0 0.5rem 1.5rem rgba(0, 0, 0, 0.45)',
+      ringFocus: '0 0 0 0.1875rem #111D2C',
+      ringActive: '0 0 0 0.125rem #15325B',
+      ringOk: '0 0 0 0.1875rem #162312',
+      ringWarn: '0 0 0 0.1875rem #2B2111',
+      ringErr: '0 0 0 0.1875rem #2A1215',
+      ringInfo: '0 0 0 0.1875rem #111D2C',
+      chromeBg: '#1F1F1F',
+      chromeElev: '#262626',
+      chromeSunken: '#141414',
+      chromeHover: '#2A2A2A',
+      chromeLine: '#303030',
+      chromeLineStrong: '#424242',
+      chromeInk1: 'rgba(255, 255, 255, 0.88)',
+      chromeInk2: 'rgba(255, 255, 255, 0.65)',
+      chromeInk3: 'rgba(255, 255, 255, 0.45)',
+      chromeInk4: 'rgba(255, 255, 255, 0.35)',
+      chromeActiveBg: 'transparent',
+      chromeActiveInk: '#69B1FF',
+      chromeActiveLine: '#69B1FF',
+      chromeControlRadius: '6px',
+      chromePopoverRadius: '8px',
+      brandMarkBg: 'rgba(255, 255, 255, 0.88)',
+      brandMarkInk: '#141414',
+      ambientHero: 'linear-gradient(135deg, #111D2C, #1F1A2E, #2A1325)',
+      ambientCool: 'linear-gradient(135deg, #111D2C, #141414)',
+      ambientWarm: 'linear-gradient(135deg, #1F1A2E, #2A1325)',
+      layoutMenuBg: '#1F1F1F',
+      layoutMenuPadding: '0.5rem 0',
+      layoutMenuItemRadius: '0',
+      layoutMenuItemActiveBg: 'transparent',
+      layoutMenuItemActiveColor: '#69B1FF',
+      layoutMenuItemActiveLine: '#69B1FF',
+      layoutMenuItemHoverBg: '#2A2A2A',
+      layoutMenuSearchBg: '#1F1F1F',
+      layoutMenuSearchBorder: '#303030'
+    })
   },
   // ai: {
   //   label: 'AI风格',
@@ -537,7 +1112,7 @@ export const styleTokens = {
       '--pad-y': '0.5rem',
       '--layout-menu-bg': '#FFFFFF',
       '--layout-menu-padding': '0.5rem 0.5rem',
-      '--layout-menu-item-height': '2.25rem',
+      '--layout-menu-item-height': '2rem',
       '--layout-menu-item-radius': '6px',
       '--layout-menu-item-active-bg': '#ECE7FF',
       '--layout-menu-item-active-color': '#6E4BFF',
