@@ -26,6 +26,10 @@ const props = defineProps({
   margin: {
     type: String,
     default: undefined
+  },
+  transparentBackground: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -46,6 +50,12 @@ const styles = computed(() => {
     }
   }
 
+  if(props.transparentBackground){
+    _style.background = 'transparent'
+  } else {
+    _style.background = '#fff'
+  }
+
   return _style
 })
 
@@ -63,9 +73,8 @@ onMounted(() => {
 
 <style scoped lang="less">
 .full-page-warp {
-  background: #fff;
-
   &.scroll {
     overflow-y: auto;
   }
-}</style>
+}
+</style>
