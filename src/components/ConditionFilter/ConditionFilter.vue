@@ -2609,11 +2609,11 @@ onUnmounted(() => {
     display: flex;
     align-items: flex-start;
     width: 100%;
-    min-height: 2.175rem;
+    min-height: 2.1rem;
     padding: 0.175rem 0.625rem;
     background: var(--color-jet-bg-container);
     border: 1px solid var(--color-jet-border);
-    border-radius: var(--radius-jet-lg);
+    border-radius: var(--radius-jet);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
     &:hover {
