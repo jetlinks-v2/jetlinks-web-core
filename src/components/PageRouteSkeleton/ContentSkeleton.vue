@@ -58,7 +58,6 @@
         :key="row"
         class="page-route-skeleton__timeline-row"
       >
-        <span class="page-route-skeleton__dot"></span>
         <div class="page-route-skeleton__timeline-info">
           <span class="page-route-skeleton__block page-route-skeleton__timeline-title"></span>
           <span class="page-route-skeleton__block page-route-skeleton__timeline-desc"></span>

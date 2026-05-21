@@ -115,9 +115,9 @@ export const useResponsiveAntdToken = (
       fontSize: baseToken.fontSize,
       sizeUnit: scaleNumber(baseToken.sizeUnit, currentScale),
       controlHeight: scaleNumber(baseToken.controlHeight, currentScale),
-      // borderRadius: scaleNumber(baseToken.borderRadius, currentScale),
-      // borderRadiusSM: scaleNumber(baseToken.borderRadiusSM, currentScale),
-      // borderRadiusLG: scaleNumber(baseToken.borderRadiusLG, currentScale),
+      borderRadius: scaleNumber(baseToken.borderRadius, currentScale),
+      borderRadiusSM: scaleNumber(baseToken.borderRadiusSM, currentScale),
+      borderRadiusLG: scaleNumber(baseToken.borderRadiusLG, currentScale),
       lineWidth: lineWidth.value
     }
   })

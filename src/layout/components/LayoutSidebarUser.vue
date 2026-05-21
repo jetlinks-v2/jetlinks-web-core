@@ -154,7 +154,7 @@ const handleLogout = async () => {
 
   &__avatar {
     flex: none;
-    background: var(--brand-mark-bg, var(--jet-theme-text));
+      background: var(--chrome-active-line, var(--jet-theme-text));
     color: var(--brand-mark-ink, var(--jet-theme-bg-container));
     font-size: var(--fs-13);
     font-weight: 600;
@@ -182,9 +182,8 @@ const handleLogout = async () => {
   }
 
   &__account {
-    color: var(--jet-theme-text-secondary);
+    color: var(--jet-theme-text-disabled);
     font-size: var(--fs-12);
-    line-height: 1rem;
   }
 
   &__arrow {

@@ -349,6 +349,19 @@ const createThemeCssVars = (palette: ThemeCssVarPalette): ThemeStyleCssVars => (
   '--layout-menu-search-border': palette.layoutMenuSearchBorder
 })
 
+const sharedLayout = {
+  menuVariant: 'compact-search',
+  showMenuSearch: false,
+  siderWidth: 224
+} satisfies ThemeStyleToken['layout']
+
+const sharedLayoutCssVars = {
+  '--sidebar-w': '14rem',
+  '--layout-menu-padding': '0.5rem 0.5rem',
+  '--layout-menu-item-height': '2rem',
+  '--layout-menu-item-radius': '6px'
+} satisfies ThemeStyleCssVars
+
 export const styleTokens = {
   'light': {
     label: '白色',
@@ -372,7 +385,9 @@ export const styleTokens = {
     boxShadow: '0 0.375rem 1rem 0 rgba(0, 0, 0, 0.08)',
     boxShadowSecondary: '0 0.125rem 0.5rem rgba(0, 0, 0, 0.06)',
     fontFamily: 'AliRegular, sans-serif',
-    cssVars: createThemeCssVars({
+    layout: sharedLayout,
+    cssVars: {
+      ...createThemeCssVars({
       primary: lightPrimaryColor,
       primarySoft: '#E6F4FF',
       primarySoftAlt: '#BAE0FF',
@@ -485,7 +500,9 @@ export const styleTokens = {
       layoutMenuItemHoverBg: '#F5F5F5',
       layoutMenuSearchBg: '#FFFFFF',
       layoutMenuSearchBorder: '#F0F0F0'
-    })
+      }),
+      ...sharedLayoutCssVars
+    }
   },
   dark: {
     label: '黑色',
@@ -509,7 +526,9 @@ export const styleTokens = {
     boxShadow: '0 0.5rem 1.5rem rgba(0, 0, 0, 0.45)',
     boxShadowSecondary: '0 0.125rem 0.5rem rgba(0, 0, 0, 0.35)',
     fontFamily: 'AliRegular, sans-serif',
-    cssVars: createThemeCssVars({
+    layout: sharedLayout,
+    cssVars: {
+      ...createThemeCssVars({
       primary: '#69B1FF',
       primarySoft: '#111D2C',
       primarySoftAlt: '#15325B',
@@ -622,7 +641,9 @@ export const styleTokens = {
       layoutMenuItemHoverBg: '#2A2A2A',
       layoutMenuSearchBg: '#1F1F1F',
       layoutMenuSearchBorder: '#303030'
-    })
+      }),
+      ...sharedLayoutCssVars
+    }
   },
   // ai: {
   //   label: 'AI风格',
@@ -888,11 +909,7 @@ export const styleTokens = {
     boxShadow: '0 0.25rem 1rem rgba(20, 22, 30, 0.06)',
     boxShadowSecondary: '0 1px 0.125rem rgba(20, 22, 30, 0.04)',
     fontFamily: 'AliRegular, sans-serif',
-    layout: {
-      menuVariant: 'compact-search',
-      showMenuSearch: false,
-      siderWidth: 224
-    },
+    layout: sharedLayout,
     cssVars: {
       '--primary-color': '#6E4BFF',
       '--primary-color-1': '#ECE7FF',
@@ -1107,19 +1124,16 @@ export const styleTokens = {
       '--code-dark-line': 'rgb(255 255 255 / 0.06)',
       '--code-dark-hover': 'rgb(255 255 255 / 0.08)',
       '--topbar-h': '3rem',
-      '--sidebar-w': '14rem',
       '--row-h': '2.25rem',
       '--pad-y': '0.5rem',
       '--layout-menu-bg': '#FFFFFF',
-      '--layout-menu-padding': '0.5rem 0.5rem',
-      '--layout-menu-item-height': '2rem',
-      '--layout-menu-item-radius': '6px',
       '--layout-menu-item-active-bg': '#ECE7FF',
       '--layout-menu-item-active-color': '#6E4BFF',
       '--layout-menu-item-active-line': '#6E4BFF',
       '--layout-menu-item-hover-bg': '#F6F4FF',
       '--layout-menu-search-bg': '#FAFBFC',
-      '--layout-menu-search-border': '#EBEDF0'
+      '--layout-menu-search-border': '#EBEDF0',
+      ...sharedLayoutCssVars
     }
   }
 } satisfies Record<string, ThemeStyleToken>

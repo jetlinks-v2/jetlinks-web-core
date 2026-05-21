@@ -65,7 +65,7 @@ withDefaults(
   flex-direction: column;
   height: 100%;
   background: var(--bg);
-  border: 1px solid var(--line);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   border-radius: 10px;
   color: var(--ink-1);
   overflow: hidden;

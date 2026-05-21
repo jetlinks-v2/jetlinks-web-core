@@ -26,7 +26,6 @@
             :disabled="saving"
             @click="setThemeMode(item.value)"
           >
-            <AIcon :type="item.icon" />
             <span class="header-theme-switch-menu__text">
               <span>{{ item.label }}</span>
             </span>
@@ -113,7 +112,7 @@ watch(themeStyle, (value) => {
 }
 
 .header-theme-switch-menu {
-  width: 11rem;
+  width: 120px;
   padding: var(--space-1);
 
   &__item {
@@ -131,6 +130,10 @@ watch(themeStyle, (value) => {
     text-align: left;
     cursor: pointer;
     transition: background 0.16s ease;
+
+      &:not(:last-child) {
+          margin-bottom: var(--space-1);
+      }
 
     &:hover,
     &--active {

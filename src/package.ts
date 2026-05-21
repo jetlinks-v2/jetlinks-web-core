@@ -1,7 +1,7 @@
 import { createApp, h } from 'vue'
 import { getToken, LocalStore, setToken } from '@jetlinks-web/utils'
 import {TOKEN_KEY, TOKEN_KEY_URL} from '@jetlinks-web/constants'
-import { crateAxios, request, wsClient } from '@jetlinks-web/core'
+import { crateAxios, request, wsClient, ndJson } from '@jetlinks-web/core'
 import { jumpLogin } from '@jetlinks-web-core/router'
 import { notification } from 'ant-design-vue'
 import { isSubApp, langKey, PersonalToken, PersonalUrlKey } from '@jetlinks-web-core/utils/consts'
@@ -251,6 +251,9 @@ export const initAxios = () => {
           }
       }
     crateAxios(settings)
+    ndJson.create({
+
+    })
 }
 
 function is403VerifyRequired(err: any): VerifyRequiredResult {
