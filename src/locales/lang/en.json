@@ -802,6 +802,7 @@
   "components.IconLibrary.categoryData": "Data",
   "components.IconLibrary.categoryLogo": "Logo",
   "components.IconLibrary.categoryOther": "Other",
+  "components.CloudEmpty.description": "No data",
   "components.MarketplaceResourcePicker.all": "All",
   "components.MarketplaceResourcePicker.tags": "Tags",
   "components.MarketplaceResourcePicker.selectedTags": "Selected tags",

@@ -807,6 +807,7 @@
   "components.IconLibrary.categoryData": "数据",
   "components.IconLibrary.categoryLogo": "品牌",
   "components.IconLibrary.categoryOther": "其他",
+  "components.CloudEmpty.description": "暂无数据",
   "components.MarketplaceResourcePicker.all": "全部",
   "components.MarketplaceResourcePicker.tags": "标签",
   "components.MarketplaceResourcePicker.selectedTags": "已选标签",

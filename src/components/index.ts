@@ -11,6 +11,7 @@ import Player from './Player/index.vue'
 import BatchDropdown from './BatchDropdown/index.vue'
 import ConfirmModal from './ConfirmModal/index.vue'
 import CheckButton from './CheckButton/CheckButton.vue'
+import CloudEmpty from './CloudEmpty/index.vue'
 import SelectAMap from './SelectAMap/index.vue'
 import MonacoEditor from './MonacoEditor/monacoEditor.vue'
 import FormItemValue from './FormItem'
@@ -73,6 +74,7 @@ export default {
             .component('BatchDropdown', BatchDropdown)
             .component('ConfirmModal',ConfirmModal)
             .component('CheckButton',CheckButton)
+            .component('CloudEmpty', CloudEmpty)
             .component('SelectAMap', SelectAMap)
           .component('MonacoEditor', MonacoEditor)
           .component(TimeSelect.name || 'TimeSelect', TimeSelect)
