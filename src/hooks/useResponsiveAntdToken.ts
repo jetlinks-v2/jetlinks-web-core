@@ -19,8 +19,8 @@ interface ResponsiveViewport {
 }
 
 export const RESPONSIVE_TOKEN_SCALE_PROFILES: ResponsiveAntdTokenScaleProfile[] = [
-  { name: '4k', minCssWidth: 3840, scale: 2 },
-  { name: '2k', minCssWidth: 2048, scale: 1.25 },
+  { name: '4k', minCssWidth: 3840, scale: 1.75 },
+  { name: '2k', minCssWidth: 2048, scale: 1.125 },
   { name: '1k', minCssWidth: 0, scale: 1 }
 ]
 
@@ -36,7 +36,7 @@ const DEFAULT_ANTD_TOKEN = {
 const RESPONSIVE_LINE_WIDTH_PROFILES: Record<ResponsiveAntdTokenScreenProfileName, number> = {
   '1k': 1,
   '2k': 1,
-  '4k': 2
+  '4k': 1.75
 }
 
 const resolveViewport = (): ResponsiveViewport => {
