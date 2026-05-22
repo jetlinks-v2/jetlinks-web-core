@@ -119,7 +119,7 @@ html {
   --info: var(--primary-color);
   --info-bg: var(--primary-color-1);
   --font-sans: var(--jet-theme-font-family);
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-mono: var(--jet-theme-font-family);
   --fs-12: 0.75rem;
   --fs-13: 0.8125rem;
   --fs-14: 0.875rem;

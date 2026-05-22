@@ -661,6 +661,7 @@
   "components.User.635192-0": "个人中心",
   "components.User.635192-1": "退出登录",
   "components.HeaderThemeSwitch.title": "换肤",
+  "components.HeaderThemeSwitch.saveFailed": "皮肤保存失败",
   "components.LayoutSidebarUser.ticket": "工单",
   "components.LayoutSidebarUser.expense": "费用",
   "components.LayoutSidebarUser.platform": "平台管理",

@@ -42,6 +42,8 @@ export const getMe_api = () => request.get<{ user: any, [key : string]: any }>(`
 export const setView_api = (data:object) => request.patch(`/user/settings/view/user`, data);
 // 当前登录用户选择的页面
 export const getView_api = () => request.get(`/user/settings/view/user`);
+// 保存登录用户界面风格
+export const saveThemeStyle_api = (data: { name: string; content: string }) => request.patch(`/user/settings/theme/style`, data);
 
 /**
  * 查询创建的个人令牌

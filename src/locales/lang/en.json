@@ -656,6 +656,7 @@
   "components.User.635192-0": "Personal Center",
   "components.User.635192-1": "Log Out",
   "components.HeaderThemeSwitch.title": "Theme",
+  "components.HeaderThemeSwitch.saveFailed": "Failed to save theme",
   "components.LayoutSidebarUser.ticket": "Tickets",
   "components.LayoutSidebarUser.expense": "Expenses",
   "components.LayoutSidebarUser.platform": "Platform Management",

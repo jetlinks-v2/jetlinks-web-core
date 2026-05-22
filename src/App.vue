@@ -2,9 +2,7 @@
   <ConfigProvider
     :locale="language[systemStore.language]"
     :componentsLocale="componentsLocale[systemStore.language]"
-    :IconConfig="{
-      scriptUrl: '/icons/iconfont.js'
-    }"
+    :IconConfig="iconConfig"
     :theme="themeConfig"
   >
     <PageRouteView :skeleton-variant="routeSkeletonVariant" />
@@ -23,7 +21,7 @@ import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
 import {initPackages} from "@jetlinks-web-core/package";
 import { setToken} from "@jetlinks-web/utils";
-import { getBaseApi, initPersonal } from '@jetlinks-web-core/utils'
+import { getBaseApi, getPackageConfig, initPersonal } from '@jetlinks-web-core/utils'
 import { componentsRegistry } from './utils/components-registry'
 import {
   applyThemeStyle,
@@ -38,6 +36,14 @@ const router = useRouter()
 const systemStore = useSystemStore()
 
 type RouteSkeletonVariant = 'content' | 'layout'
+type AppPackageConfig = {
+  iconConfig?: {
+    scriptUrl?: string
+  }
+}
+
+const DEFAULT_ICON_SCRIPT_URL = '/icons/iconfont.js'
+const packageConfig = getPackageConfig() as AppPackageConfig | undefined
 
 const routeSkeletonVariant = computed<RouteSkeletonVariant>(() => (
   route.query?.layout === 'false' ? 'content' : 'layout'
@@ -64,6 +70,10 @@ const themeConfig = computed(() => ({
     ...responsiveAntdToken.token.value,
     ...getThemeStylePrimaryStateColors(systemStore.themeStyle, systemStore.themeColor)
   }
+}))
+
+const iconConfig = computed(() => ({
+  scriptUrl: packageConfig?.iconConfig?.scriptUrl || DEFAULT_ICON_SCRIPT_URL
 }))
 
 watch(

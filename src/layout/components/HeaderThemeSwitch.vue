@@ -45,13 +45,17 @@
 import { storeToRefs } from 'pinia'
 import { useHeaderTheme } from '@jetlinks-web-core/hooks'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
+import { saveThemeStyle_api } from '@jetlinks-web-core/api/account/center'
 import type { ThemeStyleKey } from '@jetlinks-web-core/utils'
+import { onlyMessage } from '@jetlinks-web/utils'
+import { useI18n } from 'vue-i18n'
 
 type ThemeMode = ThemeStyleKey
 
 const systemStore = useSystemStore()
 const { themeStyle } = storeToRefs(systemStore)
 const { headerThemeAreas, applyHeaderTheme } = useHeaderTheme()
+const { t: $t } = useI18n()
 
 const open = ref(false)
 const saving = ref(false)
@@ -68,16 +72,26 @@ const themeOptions = computed(() => headerThemeAreas.map(item => ({
   icon: themeIconMap[item.value as ThemeMode] || 'SkinOutlined'
 })))
 
-const setThemeMode = (mode: ThemeMode) => {
+const setThemeMode = async (mode: ThemeMode) => {
   if (saving.value || mode === themeMode.value) {
     open.value = false
     return
   }
 
+  const previousThemeMode = themeMode.value
   saving.value = true
   try {
     themeMode.value = applyHeaderTheme(mode)
+    const resp = await saveThemeStyle_api({
+      name: 'style',
+      content: mode
+    })
+    if (resp?.success === false) {
+      throw new Error('save theme style failed')
+    }
     open.value = false
+  } catch {
+    themeMode.value = applyHeaderTheme(previousThemeMode)
   } finally {
     saving.value = false
   }
