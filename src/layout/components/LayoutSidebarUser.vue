@@ -5,8 +5,9 @@
       placement="topLeft"
       trigger="click"
       overlay-class-name="layout-sidebar-user-overlay"
+      getPopupContainer=''
     >
-      <button class="layout-sidebar-user__card" type="button" :aria-expanded="open ? 'true' : 'false'">
+      <a-button class="layout-sidebar-user__card" :aria-expanded="open ? 'true' : 'false'">
         <a-avatar :size="26" :src="avatar" class="layout-sidebar-user__avatar">
           <template #icon>
             <span>{{ avatarText }}</span>
@@ -17,20 +18,19 @@
           <span class="layout-sidebar-user__account">{{ account }}</span>
         </span>
         <AIcon v-if="!collapsed" type="UpOutlined" class="layout-sidebar-user__arrow" />
-      </button>
+      </a-button>
 
       <template #overlay>
         <div class="layout-sidebar-user__menu">
-          <button
+          <a-button
             v-for="item in menuItems"
             :key="item.key"
             class="layout-sidebar-user__menu-item"
-            type="button"
             @click="jumpMenu(item)"
           >
             <AIcon :type="item.icon" />
             <span>{{ item.label }}</span>
-          </button>
+          </a-button>
           <RegistryComponent pageCode="layout" code="sidebarUserMenu" @click="open = false" />
           <a-button class="layout-sidebar-user__menu-item" type="text" block @click="goAccountCenter">
             <template #icon>
