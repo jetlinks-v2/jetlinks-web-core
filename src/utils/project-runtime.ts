@@ -1,23 +1,3 @@
-const PROJECT_RESERVED_PATHS = new Set([
-  'api',
-  'assets',
-  'static',
-  'public',
-  'dist',
-  'login',
-  'console',
-  'application',
-  'developer',
-  'account',
-  'docs',
-  'oauth',
-  'share',
-  'identity-result',
-  'init-home',
-  'edge',
-  'weixin',
-])
-
 const normalizeSegment = (value: unknown) => {
   if (typeof value !== 'string') return ''
   return decodeURIComponent(value).trim()
@@ -31,13 +11,7 @@ const normalizeHashPath = (path = '') => {
 
 export const getProjectIdFromPathname = (pathname = window.location.pathname) => {
   const [first] = pathname.split('/').filter(Boolean)
-  const projectId = normalizeSegment(first)
-
-  if (!projectId || PROJECT_RESERVED_PATHS.has(projectId)) {
-    return ''
-  }
-
-  return projectId
+  return normalizeSegment(first)
 }
 
 export const getProjectIdFromLocation = () => getProjectIdFromPathname()

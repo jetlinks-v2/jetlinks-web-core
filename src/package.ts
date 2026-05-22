@@ -211,6 +211,7 @@ export const initAxios = () => {
                 if (projectStorage?.token) {
                     config.headers = config.headers || {}
                     config.headers[TOKEN_KEY] = projectStorage.token
+                    config.headers['X-Tenant-Domain'] = projectStorage.domain
                 }
 
                 if (projectStorage?.apiUrl) {
@@ -218,6 +219,9 @@ export const initAxios = () => {
                 }
             } else {
                 config.headers[TOKEN_KEY] = localStorage.getItem(TOKEN_KEY)
+                if ('X-Tenant-Domain' in config.headers) {
+                    delete config.headers['X-Tenant-Domain']
+                }
             }
 
             if (cache?.key && cache?.token) {
