@@ -10,7 +10,7 @@
         <NotificationRecord :type="item.provider" :children="item.children" />
       </a-tab-pane>
     </a-tabs>
-    <div v-else style="margin: 12.5rem 0"><j-empty  /></div>
+    <div v-else style="margin: 12.5rem 0"><CloudEmpty  /></div>
   </div>
 </template>
 

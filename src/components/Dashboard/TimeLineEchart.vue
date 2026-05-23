@@ -1,4 +1,4 @@
-﻿<!-- 可交互时间轴图表 -->
+<!-- 可交互时间轴图表 -->
 <template>
   <!-- <a-spin :spinning="loading"> -->
   <div
@@ -28,7 +28,7 @@
       </div>
     </div>
     <div>
-      <j-empty
+      <CloudEmpty
         v-if="isEmpty"
         style="height: 12.5rem; margin-top: 6.25rem"
       />

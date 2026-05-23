@@ -8,9 +8,8 @@
                 :show-upload-list="false"
                 :before-upload="beforeUpload"
                 @change="handleChange"
-                :action="FileStaticPath()"
-                :headers="getUploadHeaders()"
                 v-bind="props"
+                :custom-request="uploadByRequest"
             >
                 <div class="upload-image-content" :style="props.style">
                     <template v-if="imageUrl">
@@ -54,12 +53,11 @@
 
 <script lang="ts" setup name='JProUpload'>
 import { UploadChangeParam, UploadProps } from 'ant-design-vue';
-import { FileStaticPath } from '@jetlinks-web-core/api/comm';
 import {getBase64ByImg, onlyMessage} from '@jetlinks-web/utils';
 import { CSSProperties } from 'vue';
 import ImageCropper from './Cropper.vue';
 import { useI18n } from 'vue-i18n';
-import { getUploadHeaders } from '@jetlinks-web-core/utils'
+import { uploadByRequest } from './utils'
 
 const { t: $t } = useI18n();
 type Emits = {
@@ -120,7 +118,6 @@ const cropperVisible = ref(false)
 watch(
     () => props.modelValue,
     (newValue) => {
-        console.log(newValue);
         imageUrl.value = newValue;
     },
     {

@@ -13,7 +13,7 @@
         :accept="accept"
         :show-upload-list="false"
         :beforeUpload="beforeUpload"
-        :headers="{ [TOKEN_KEY]: getToken() }"
+        :custom-request="uploadByRequest"
         @change="handleChange"
       >
         <div class="upload-image-content" :style="style">
@@ -50,13 +50,13 @@
 </template>
 
 <script setup lang="ts" name="ImageUpload">
-import { getToken, onlyMessage, getBase64ByImg } from "@jetlinks-web/utils";
-import { TOKEN_KEY } from '@jetlinks-web/constants'
+import { onlyMessage, getBase64ByImg } from "@jetlinks-web/utils";
 import type { CSSProperties, PropType } from "vue";
 import type { UploadChangeParam } from 'ant-design-vue';
 import CropperModal from "./CropperModal";
 import { useI18n } from "vue-i18n";
 import i18n from "@jetlinks-web-core/locales";
+import { uploadByRequest } from '../utils'
 
 const { t: $t } = useI18n();
 const props = defineProps({

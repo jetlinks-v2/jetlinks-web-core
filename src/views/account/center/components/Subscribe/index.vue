@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <j-scrollbar :height="`calc(100% - 3.1875rem)`">
     <a-spin :spinning="loading">
       <div style="padding: 0 0.625rem">
@@ -42,7 +42,7 @@
               </a-collapse-panel>
             </a-collapse>
           </template>
-          <j-empty style="margin: 12.5rem 0" v-else />
+          <CloudEmpty style="margin: 12.5rem 0" v-else />
         </div>
       </div>
     </a-spin>

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="personal-token">
     <div class="personal-token-header">
       <div style="display: flex; gap: 1.5rem; align-items: center">
@@ -14,7 +14,7 @@
 
     <div v-if="tokenList.length === 0" class="empty-state">
       <div class="empty-content">
-        <j-empty />
+        <CloudEmpty />
       </div>
     </div>
 

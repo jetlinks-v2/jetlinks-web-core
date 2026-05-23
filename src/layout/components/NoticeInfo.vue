@@ -1,4 +1,4 @@
-﻿<template>
+<template>
     <div class="notice-info-container">
         <a-tabs
             v-model:activeKey="activeKey"
@@ -37,7 +37,7 @@
                             </div>
                         </div>
                         <div class="no-data" v-else>
-                            <j-empty />
+                            <CloudEmpty />
                         </div>
                         <div class="btns">
                             <a-button type="link" @click="onMore(item.key)"
@@ -49,7 +49,7 @@
             </a-tab-pane>
         </a-tabs>
         <div class="no-data" v-else>
-            <j-empty />
+            <CloudEmpty />
         </div>
     </div>
 </template>

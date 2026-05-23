@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <a-card class="tag-manager-sidebar" :bordered="false">
     <template #title>
       <div class="tag-manager-sidebar__title">
@@ -183,9 +183,8 @@
           </div>
         </section>
       </div>
-      <a-empty
+      <CloudEmpty
         v-else
-        :image="false"
         :description="mergedTexts.emptyTagCategory"
       />
 

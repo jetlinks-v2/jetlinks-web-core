@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="remote-component-wrapper">
     <!-- 加载中状态 -->
     <div v-if="loading" class="loading-state">
@@ -25,7 +25,7 @@
     <!-- 空状态 -->
     <div v-else class="empty-state">
       <slot name="empty">
-        <a-empty description="远程组件未找到" />
+        <CloudEmpty description="远程组件未找到" />
       </slot>
     </div>
   </div>

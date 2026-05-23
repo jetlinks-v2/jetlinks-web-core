@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <a-spin :spinning="loading">
     <div
       class="dash-board"
@@ -40,7 +40,7 @@
         </div>
       </div>
       <div>
-        <j-empty
+        <CloudEmpty
           v-if="isEmpty"
           style="height: 15.625rem; margin-top: 6.25rem"
         />

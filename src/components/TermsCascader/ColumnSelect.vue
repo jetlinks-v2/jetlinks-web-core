@@ -1,4 +1,4 @@
-﻿<script setup name="ColumnSelect">
+<script setup name="ColumnSelect">
 import { useTermsEvent, useTermsParse, useTermsValue } from './hooks'
 import { computed } from 'vue'
 import { initValueByTermType } from './utils'
@@ -134,7 +134,7 @@ watch(() => termsValue.value.column, (newValue, oldValue) => {
           </a-space>
         </template>
       </a-tree>
-      <j-empty v-else />
+      <CloudEmpty v-else />
     </div>
   </template>
 </a-dropdown>

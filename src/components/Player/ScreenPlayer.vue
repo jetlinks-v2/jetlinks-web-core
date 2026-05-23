@@ -1,4 +1,4 @@
-﻿<!-- 分屏组件 -->
+<!-- 分屏组件 -->
 <template>
     <div class="live-player-warp">
         <div class="live-player-content">
@@ -64,7 +64,7 @@
                                 {{ $t('Player.ScreenPlayer.521467-8') }}
                                 <template #overlay>
                                     <a-menu>
-                                        <a-empty
+                                        <CloudEmpty
                                             v-if="!historyList.length"
                                             :description="$t('Player.ScreenPlayer.521467-9')"
                                         />

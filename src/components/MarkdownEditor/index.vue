@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="j-md-editor">
     <div v-if="hasAddonToolbar" class="j-md-editor__addon-toolbar">
       <div v-if="sectionTemplates.length" class="j-md-editor__section-bar">
@@ -31,7 +31,7 @@
     >
       <input ref="fileInputRef" type="file" multiple class="j-md-editor__file-input" tabindex="-1" aria-hidden="true" style="display: none" @change="handleFileInputChange" />
 
-      <a-empty v-if="isDisabled && !text.trim()" :description="mergedTexts.emptyDescription" class="j-md-editor__empty" />
+      <CloudEmpty v-if="isDisabled && !text.trim()" :description="mergedTexts.emptyDescription" class="j-md-editor__empty" />
 
       <MdPreview
         v-else-if="isDisabled"

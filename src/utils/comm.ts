@@ -5,6 +5,11 @@ import { message } from 'ant-design-vue'
 import { BASE_API, TOKEN_KEY } from '@jetlinks-web/constants'
 import { isSubApp, edgeDefaultUrl } from '@jetlinks-web-core/utils/consts'
 import { isFunction, omit } from 'lodash-es'
+import { getProjectIdFromLocation } from './project-runtime'
+import { getProjectStorage, isProjectStorageEnabled } from './project-storage'
+
+const TENANT_DOMAIN_KEY = 'X-Tenant-Domain'
+const VERIFY_CACHE_KEY = 'jetlinks_verify_cache'
 
 export const downloadJson = (
   record: Record<string, any>,
@@ -149,9 +154,51 @@ export function getBaseApi() {
   return isFromCloud() ? getFromCloudPathName() : BASE_API
 }
 
-export const getUploadHeaders = () => ({
-  [TOKEN_KEY]: getToken()
-})
+const getVerifyHeaders = () => {
+  if (typeof localStorage === 'undefined') {
+    return {}
+  }
+
+  try {
+    const raw = localStorage.getItem(VERIFY_CACHE_KEY)
+    if (!raw) {
+      return {}
+    }
+
+    const cache = JSON.parse(raw) as { key?: unknown; token?: unknown }
+    const key = typeof cache.key === 'string' ? cache.key : ''
+    const token = typeof cache.token === 'string' ? cache.token : ''
+
+    return key && token
+      ? {
+          'x-verify-key': key,
+          'x-verify-token': token
+        }
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+export const getUploadHeaders = () => {
+  const headers: Record<string, string> = {}
+  const projectId = isProjectStorageEnabled() ? getProjectIdFromLocation() : ''
+  const projectStorage = projectId ? getProjectStorage(projectId) : undefined
+  const token = projectStorage?.token || getToken()
+
+  if (token) {
+    headers[TOKEN_KEY] = token
+  }
+
+  if (projectStorage?.domain) {
+    headers[TENANT_DOMAIN_KEY] = projectStorage.domain
+  }
+
+  return {
+    ...headers,
+    ...getVerifyHeaders()
+  }
+}
 
 interface TransformTreeType<S>{
   filedNames?: {

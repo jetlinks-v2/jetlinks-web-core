@@ -47,7 +47,7 @@
                 </div>
             </template>
           <div v-else style="margin: 12.5rem 0">
-            <j-empty />
+            <CloudEmpty />
           </div>
         </div>
         </div>

@@ -59,7 +59,7 @@
               </div>
 
               <div v-else class="empty">
-                <j-empty/>
+                <CloudEmpty/>
               </div>
             </div>
           </template>
@@ -98,7 +98,7 @@
           :historyList="messageList"
           :reSessionId="sessionId"
       />
-      <j-empty v-else/>
+      <CloudEmpty v-else/>
     </div>
   </a-drawer>
 </template>

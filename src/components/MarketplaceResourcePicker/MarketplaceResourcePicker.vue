@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="mp-res-layout"
     :class="{ 'mp-res-layout--fixed': !!panelHeight }"
@@ -25,7 +25,7 @@
       v-if="!typeOptions.length"
       class="mp-res-layout__empty"
     >
-      <a-empty :description="mergedLabels.noResourceTypes" />
+      <CloudEmpty :description="mergedLabels.noResourceTypes" />
     </div>
 
     <div
@@ -144,7 +144,7 @@
           @scroll.passive="onListScroll"
         >
           <a-spin :spinning="listLoading">
-            <a-empty
+            <CloudEmpty
               v-if="!records.length && !listLoading"
               :description="mergedLabels.empty"
             />

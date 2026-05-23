@@ -11,7 +11,7 @@
             </template>
             <template v-else><slot></slot></template>
         </el-amap>
-        <j-empty v-else :description="$t('AMapComponent.AMap.059194-0')" style="padding: 20%" />
+        <CloudEmpty v-else :description="$t('AMapComponent.AMap.059194-0')" style="padding: 20%" />
     </div>
 </template>
 

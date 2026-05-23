@@ -4,9 +4,8 @@
       v-model:file-list="fileList"
       name="file"
       :accept="accept"
-      :action="action"
       :maxCount="maxCount"
-      :headers="{ [TOKEN_KEY]: getToken() }"
+      :custom-request="uploadCustomRequest"
       @change="handleChange"
       @remove="handleRemove"
       :listType="listType"
@@ -51,10 +50,9 @@
 
 <script setup lang="ts">
 import type { UploadChangeParam, UploadProps } from 'ant-design-vue'
-import { TOKEN_KEY } from '@jetlinks-web/constants'
-import { getToken, onlyMessage } from '@jetlinks-web/utils'
-import { FileStaticPath } from '@jetlinks-web-core/api/comm'
+import { onlyMessage } from '@jetlinks-web/utils'
 import { getImageUrl } from '@jetlinks-web-core/utils'
+import { createFileUploadCustomRequest } from '../utils'
 
 const props = defineProps({
   value: {
@@ -102,7 +100,8 @@ const props = defineProps({
 const emit = defineEmits(['update:value', 'change', 'remove'])
 const fileList = ref([] as any[])
 const loading = ref(false)
-const action = computed(() => `${FileStaticPath()}${props.publicAccess ? '' : '?options=publicAccess'}`)
+const uploadCustomRequest: UploadProps['customRequest'] = (options) =>
+  createFileUploadCustomRequest(props.publicAccess)(options)
 const visible = ref(false)
 const currentPreviewIndex = ref(0)
 const previewImage = ref<any>([])

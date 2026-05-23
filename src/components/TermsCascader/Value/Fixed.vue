@@ -1,4 +1,4 @@
-﻿<script setup name="ValueFixed">
+<script setup name="ValueFixed">
 import { ValueItem } from '@jetlinks-web/components'
 
 const asyncComponents = {
@@ -61,7 +61,7 @@ watch(() => props.value, (newValue) => {
       @change="onChange"
     >
     </component>
-    <j-empty v-else />
+    <CloudEmpty v-else />
   </div>
 </template>
 

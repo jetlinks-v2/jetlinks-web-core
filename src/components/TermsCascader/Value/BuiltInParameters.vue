@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 
 // 参数节点接口定义
@@ -76,7 +76,7 @@ const onExpand = (keys: string[]) => {
         </div>
       </template>
     </a-tree>
-    <j-empty v-else/>
+    <CloudEmpty v-else/>
   </div>
 </template>
 
