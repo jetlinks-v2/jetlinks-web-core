@@ -66,7 +66,7 @@ withDefaults(
   height: 100%;
   background: var(--bg);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-  border-radius: 10px;
+  border-radius: var(--jet-theme-radius-sm);
   color: var(--ink-1);
   overflow: hidden;
   min-width: 0;

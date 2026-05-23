@@ -127,14 +127,42 @@ init()
 const onClick = () => {
   console.log('点击了')
 }
+
+const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
+  const menuPaths = paths.map(item => item.path).filter(Boolean)
+  const leafPath = menuPaths.at(-1)
+  const openKeys = leafPath ? menuPaths.slice(0, -1) : menuPaths
+
+  if (!leafPath) {
+    return {
+      selectedKeys: [],
+      openKeys
+    }
+  }
+
+  if (layout.value.layout === 'mix') {
+    const rootPath = menuPaths[0]
+    return {
+      selectedKeys: rootPath && rootPath !== leafPath ? [rootPath, leafPath] : [leafPath],
+      openKeys
+    }
+  }
+
+  return {
+    selectedKeys: [leafPath],
+    openKeys
+  }
+}
+
 /**
  * 处理菜单选中，展开状态
  */
 watchEffect(() => {
   if (router.currentRoute) {
     const paths = route.meta.breadcrumb || route.meta.breadcrumbCache || []
-    state.selectedKeys = paths.map(item => item.path)
-    state.openKeys = paths.map(item => item.path)
+    const { selectedKeys, openKeys } = resolveMenuKeys(paths)
+    state.selectedKeys = selectedKeys
+    state.openKeys = openKeys
   }
   if (route.query?.layout === 'false') {
     state.pure = true

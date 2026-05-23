@@ -20,7 +20,7 @@ interface ResponsiveViewport {
 
 export const RESPONSIVE_TOKEN_SCALE_PROFILES: ResponsiveAntdTokenScaleProfile[] = [
   { name: '4k', minCssWidth: 3840, scale: 1.75 },
-  { name: '2k', minCssWidth: 2048, scale: 1.125 },
+  { name: '2k', minCssWidth: 2048, scale: 1.15 },
   { name: '1k', minCssWidth: 0, scale: 1 }
 ]
 
