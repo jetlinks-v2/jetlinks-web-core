@@ -127,8 +127,10 @@ const submitData = (url) => {
         }else{
           if(data.detailFile){
             result.errMessage = data.detailFile
-          }else{
+          }else if(data.result?.total){
             result.error = data.result.total
+          } else {
+            result.error++
           }
         }
 

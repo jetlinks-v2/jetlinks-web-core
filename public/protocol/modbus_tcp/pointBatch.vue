@@ -328,6 +328,8 @@ const handleSames = () => {
     memoryLayout: true,
     interval: true,
     accessModes: true,
+    codec: true,
+    byteLayout: true
   }
 
   requestColumns.value.forEach(column => {
@@ -354,7 +356,7 @@ const handleAccessModes = (record) => {
   })
 }
 
-const handleRecord = () => {
+const handleRecord = (data = {}) => {
   const sames = handleSames()
   const record = {
     id: randomString(),
@@ -372,7 +374,7 @@ const handleRecord = () => {
     features: [],
     accessModes: [], // 可选值： read , write ,subscribe
     managedConfiguration: {}, // 点位管理配置
-    configuration: {}, // cloneDeep(requestRecord.value),
+    configuration: data.configuration, // cloneDeep(requestRecord.value),
     sames: {...sames}
   }
   if (dataSource.value.length >= 1) {
@@ -401,14 +403,13 @@ const onSaveData = () => {
     const arr = []
     for (let i = formData.startAddress; i <= formData.endAddress; i++) {
       arr.push({
-        ...handleRecord(),
-        configuration: {
+        ...handleRecord({configuration: {
           function: formData.function,
           "parameter": {
             address: i,
             quantity: formData.quantity
           }
-        }
+        }}),     
       })
     }
     dataSource.value.push(...arr)

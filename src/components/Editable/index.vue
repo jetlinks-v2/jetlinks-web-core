@@ -10,6 +10,7 @@
 <template>
   <div v-if="isEdit" ref="inputRef">
     <component
+        ref="componentRef"
         :is="componentObj[type]"
         v-model:value="_value"
         style="width: 100%"
@@ -17,7 +18,7 @@
         v-on="getEventHandlers()"
     />
   </div>
-  <div v-else class="text" @click="isEdit = true">
+  <div v-else :class="['text', { disabled }]" @click="enterEdit">
     <slot :value="_value">
       {{ __value ?? '未设置' }}
     </slot>
@@ -56,9 +57,12 @@ const componentObj = {
 const isEdit = ref(false)
 const _value = ref(props.value)
 const inputRef = ref()
+const componentRef = ref()
 
 // 定义选择框类型
 const selectTypes = ['select', 'date', 'time', 'dateRange', 'timeRange']
+
+const disabled = computed(() => !!props.componentProps?.disabled)
 
 const __value = computed(() => {
   if (props.type === 'select') {
@@ -72,8 +76,25 @@ const onChange = () => {
   emit('change', _value.value)
 }
 
-// 输入框类型的 blur 处理
-// 选择框类型的 change 处理
+const focusInput = () => {
+  const component = componentRef.value
+  if (component?.focus) {
+    component.focus()
+    return
+  }
+  inputRef.value?.querySelector?.('input, textarea, [tabindex]:not([tabindex="-1"])')?.focus?.()
+}
+
+const enterEdit = async () => {
+  if (disabled.value) {
+    isEdit.value = false
+    return
+  }
+  isEdit.value = true
+  await nextTick()
+  focusInput()
+}
+
 const onValueChange = () => {
   isEdit.value = false
   if (props.value !== _value.value) {
@@ -81,15 +102,19 @@ const onValueChange = () => {
   }
 }
 
+const onBlur = () => {
+  isEdit.value = false
+}
+
 // 根据组件类型返回对应的事件处理器
 const getEventHandlers = () => {
   if (selectTypes.includes(props.type)) {
-    // 选择框类型只监听 change
+    // 选择框类型 change 时提交，未变更时 blur 也需要退出编辑态
     return {
-      change: onValueChange
+      change: onValueChange,
+      blur: onBlur
     }
   } else {
-    // 输入框类型只监听 blur
     return {
       blur: onValueChange
     }
@@ -102,14 +127,30 @@ watch(() => props.value, (newValue) => {
   immediate: true
 })
 
+watch(disabled, (value) => {
+  if (value) {
+    isEdit.value = false
+  }
+})
+
 </script>
 
-<style scoped>
+<style lang="less" scoped>
 .text {
   cursor: pointer;
-  padding: 0.3125rem 0.5rem;
-}
-.text:hover {
-  background-color: var(--bg-hover);
-}</style>
+  padding: 5px 8px;
 
+  &:hover {
+    background-color: #f5f6f8;
+  }
+
+  &.disabled {
+    cursor: not-allowed;
+    color: rgba(0, 0, 0, 0.25);
+
+    &:hover {
+      background-color: transparent;
+    }
+  }
+}
+</style>
