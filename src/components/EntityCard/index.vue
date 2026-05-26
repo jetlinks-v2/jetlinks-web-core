@@ -99,7 +99,7 @@ withDefaults(
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  font-size: var(--fs-14);
+  font-size: var(--fs-16);
   font-weight: 600;
   color: var(--ink-1);
   flex-wrap: wrap;
