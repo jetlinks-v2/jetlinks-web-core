@@ -5,7 +5,7 @@ import CardBox from './CardBox/index.vue';
 import Search from './Search'
 import AMapComponent from './AMapComponent/AMap.vue'
 import PathSimplifier from './AMapComponent/PathSimplifier.vue'
-import { BasicLayoutPage, BlankLayoutPage, FullPage } from '@jetlinks-web-core/layout'
+import { FullPage } from '@jetlinks-web-core/layout'
 import ProUpload from './Upload/index.vue'
 import Player from './Player/index.vue'
 import BatchDropdown from './BatchDropdown/index.vue'
@@ -64,8 +64,6 @@ export default {
             .component('ImageUpload', ImageUpload)
             .component('CardBox', CardBox)
             .component('ProSearch', Search)
-            .component('BasicLayoutPage', BasicLayoutPage)
-            .component('BlankLayoutPage', BlankLayoutPage)
             .component('FullPage', FullPage)
             .component('AMapComponent', AMapComponent)
             .component('PathSimplifier', PathSimplifier)

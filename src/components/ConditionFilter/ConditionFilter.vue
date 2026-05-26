@@ -2665,7 +2665,7 @@ onUnmounted(() => {
     font-size: var(--fs-12);
     line-height: 1.5rem;
     border: 1px solid transparent;
-    border-radius: var(--radius-jet);
+    border-radius: var(--jet-theme-button-r);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
   }
 
