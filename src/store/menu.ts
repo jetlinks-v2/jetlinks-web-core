@@ -124,8 +124,36 @@ const hasRegisteredRoute = (route: RouteRecordRaw) => {
   return router.getRoutes().some(item => item.path === route.path)
 }
 
+const registerMissingChildren = (
+  parentName: NonNullable<RouteRecordRaw['name']>,
+  children: RouteRecordRaw[] = [],
+) => {
+  children.forEach(child => {
+    if (!child.path?.startsWith('/')) {
+      return
+    }
+
+    if (hasRegisteredRoute(child)) {
+      if (child.name && child.children?.length) {
+        registerMissingChildren(child.name, child.children)
+      }
+      return
+    }
+
+    router.addRoute(parentName, child)
+  })
+}
+
 const registerMenuRoute = (route: RouteRecordRaw) => {
-  if (!route.path?.startsWith('/') || hasRegisteredRoute(route)) {
+  if (!route.path?.startsWith('/')) {
+    return
+  }
+
+  if (hasRegisteredRoute(route)) {
+    if (route.name && route.children?.length) {
+      // 菜单同步后父路由可能已存在，只补齐新增子路由，避免“菜单有了但路由未注册”。
+      registerMissingChildren(route.name, route.children)
+    }
     return
   }
 

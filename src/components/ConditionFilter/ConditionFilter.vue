@@ -112,6 +112,7 @@ const nextTailFocusOpenState = ref<boolean>()
 const operatorPanelTermKey = ref<string>()
 const valuePanelTermKey = ref<string>()
 const valuePanelOpenVersion = ref(0)
+const keepValuePanelOpenAfterSubmit = ref(false)
 
 const columnsMap = reactive<Record<string, ConditionFilterField>>({})
 const optionsMap = reactive<Record<string, any[]>>({})
@@ -561,6 +562,24 @@ const hasTermValue = (item?: ConditionFilterTerm) => {
 
   return !isNilValue(item.value)
 }
+
+const hasIncompleteTerm = (item?: ConditionFilterTerm): boolean => {
+  if (!item) {
+    return false
+  }
+
+  if (isConditionGroup(item)) {
+    return Array.isArray(item.terms) && item.terms.some(child => hasIncompleteTerm(child))
+  }
+
+  if (!item.column || !item.termType) {
+    return true
+  }
+
+  return !isNullaryTermType(item.termType) && !hasTermValue(item)
+}
+
+const hasPendingIncompleteTerms = computed(() => termsModel.value.some(item => hasIncompleteTerm(item)))
 
 const getTermKey = (term: ConditionFilterTerm) => term.key || ''
 
@@ -1589,6 +1608,10 @@ const triggerSearch = () => {
     autoSearchTimer = undefined
   }
 
+  if (hasPendingIncompleteTerms.value) {
+    return
+  }
+
   emit('change', {
     terms: cloneTerms(payload.value.terms, { stripKey: true }),
     filter: {
@@ -1601,6 +1624,11 @@ const triggerSearch = () => {
 const scheduleAutoSearch = () => {
   if (autoSearchTimer) {
     window.clearTimeout(autoSearchTimer)
+    autoSearchTimer = undefined
+  }
+
+  if (hasPendingIncompleteTerms.value) {
+    return
   }
 
   autoSearchTimer = window.setTimeout(() => {
@@ -1745,6 +1773,12 @@ const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?
         fieldPanelOpen.value = false
         editorMode.value = 'tail'
         editingTermKey.value = undefined
+        keepValuePanelOpenAfterSubmit.value = true
+        requestAnimationFrame(() => {
+          if (valuePanelTermKey.value === termKey) {
+            keepValuePanelOpenAfterSubmit.value = false
+          }
+        })
         return
       }
 
@@ -1764,6 +1798,12 @@ const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?
     fieldPanelOpen.value = false
     editorMode.value = 'tail'
     editingTermKey.value = undefined
+    keepValuePanelOpenAfterSubmit.value = true
+    requestAnimationFrame(() => {
+      if (valuePanelTermKey.value === termKey) {
+        keepValuePanelOpenAfterSubmit.value = false
+      }
+    })
     return
   }
 
@@ -2188,8 +2228,16 @@ const onOperatorPanelOpenChange = (termKey: string, visible: boolean) => {
 
 const onValuePanelOpenChange = (termKey: string, visible: boolean) => {
   if (visible) {
+    keepValuePanelOpenAfterSubmit.value = false
     valuePanelOpenVersion.value += 1
     activatePopupValueTerm(termKey)
+    return
+  }
+
+  if (keepValuePanelOpenAfterSubmit.value && valuePanelTermKey.value === termKey) {
+    fieldPanelOpen.value = false
+    editorMode.value = 'tail'
+    editingTermKey.value = undefined
     return
   }
 

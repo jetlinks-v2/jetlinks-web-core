@@ -30,12 +30,47 @@ const hasRegisteredRoute = (router: Router, route: RouteRecordRaw) => {
   return router.getRoutes().some(item => item.path === route.path)
 }
 
+const registerMissingChildren = (
+  router: Router,
+  parentName: NonNullable<RouteRecordRaw['name']>,
+  children: RouteRecordRaw[] = [],
+) => {
+  let added = false
+
+  children.forEach(child => {
+    if (!child.path?.startsWith('/')) {
+      return
+    }
+
+    if (hasRegisteredRoute(router, child)) {
+      if (child.name && child.children?.length) {
+        added = registerMissingChildren(router, child.name, child.children) || added
+      }
+      return
+    }
+
+    router.addRoute(parentName, child)
+    added = true
+  })
+
+  return added
+}
+
 const addMenuRoute = (router: Router, route: RouteRecordRaw) => {
-  if (!route.path.startsWith('/') || hasRegisteredRoute(router, route)) {
-    return
+  if (!route.path.startsWith('/')) {
+    return false
+  }
+
+  if (hasRegisteredRoute(router, route)) {
+    if (route.name && route.children?.length) {
+      // 菜单动态更新时父路由已注册，仍需要把新增子路由挂回去。
+      return registerMissingChildren(router, route.name, route.children)
+    }
+    return false
   }
 
   router.addRoute(route)
+  return true
 }
 
 const addFallbackRoute = (router: Router) => {
@@ -59,8 +94,20 @@ export const ensureMenuRoutes = async (
 ): Promise<boolean> => {
   const menuStore = useMenuStore()
 
-  if (menuStore.menu.length || shouldSkipMenuFetch) {
+  if (shouldSkipMenuFetch) {
     return false
+  }
+
+  if (menuStore.menu.length) {
+    const hasAddedRoutes = menuStore.menu
+      .map(route => addMenuRoute(router, route))
+      .some(Boolean)
+
+    if (hasAddedRoutes) {
+      addFallbackRoute(router)
+    }
+
+    return hasAddedRoutes
   }
 
   if (menuRoutePromise) {
