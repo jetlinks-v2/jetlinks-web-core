@@ -5,7 +5,7 @@
       :trigger="['click']"
       :getPopupContainer="getPopupContainer"
     >
-      <a-badge :count="total" :offset="[3, -3]">
+      <a-badge :count="total" :overflow-count="BADGE_OVERFLOW_COUNT" :offset="[3, -3]">
         <AIcon class="notice-icon" type="BellOutlined" />
       </a-badge>
       <template #overlay>
@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts" name="Notice">
-import { getList_api , changeStatus_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { changeStatus_api, getUnreadCount_api } from '@jetlinks-web-core/api/account/notificationRecord';
 import { ref } from 'vue'
 import NoticeInfo from './NoticeInfo.vue';
 import { useWebSocket } from '@jetlinks-web-core/hooks'
@@ -28,6 +28,12 @@ import { useMenuStore } from '@jetlinks-web-core/store/menu';
 import { getAllNotice } from '@jetlinks-web-core/api/account/center';
 import { flatten } from 'lodash-es';
 import { useI18n } from 'vue-i18n';
+import {
+    BADGE_OVERFLOW_COUNT,
+    BADGE_OVERFLOW_VALUE,
+    createUnreadQueryParams,
+    toBadgeCount,
+} from './noticeUtils';
 
 const { t: $t } = useI18n();
 const updateCount = computed(() => useUserStore().alarmUpdateCount);
@@ -44,9 +50,9 @@ const getPopupContainer = () => {
 
 const { send } = useWebSocket({
   onMessage(data) {
+    if (!data?.payload?.id) return;
     // 消息处理
-    console.log(data)
-    total.value += 1;
+    total.value = Math.min(total.value + 1, BADGE_OVERFLOW_VALUE);
     notification.open({
                 message: data?.payload?.topicName,
                 description: () =>
@@ -96,7 +102,9 @@ const { send } = useWebSocket({
 
 
 const read = (type: string, data: any) => {
-    changeStatus_api('_read', [data.payload.id]).then((resp: any) => {
+    const id = data?.payload?.id;
+    if (!id) return;
+    changeStatus_api('_read', [id]).then((resp: any) => {
         if (resp.status !== 200) return;
         // notification.close(data.payload.id);
         getList();
@@ -113,40 +121,16 @@ const read = (type: string, data: any) => {
 
 // 查询未读数量
 const getList = () => {
-    if(tabs.value.length <= 0) return;
+    const topicProviders = flatten(tabs.value.map((i: any) => i?.type)).filter(Boolean);
+    if (topicProviders.length <= 0) {
+        total.value = 0;
+        return;
+    }
     loading.value = true;
-      const params = {
-      paging:false,
-        sorts: [{
-          name: 'notifyTime',
-          order: 'desc'
-        }],
-        terms: [
-            {
-                terms: [
-                    {
-                        type: 'and',
-                        value: 'unread',
-                        termType: 'eq',
-                        column: 'state',
-                    },
-                ],
-            },
-            {
-                terms: [
-                    {
-                        type: 'and',
-                        value: flatten(tabs.value.map((i: any) => i?.type)),
-                        termType: 'in',
-                        column: 'topicProvider',
-                    },
-                ],
-            },
-        ],
-    };
-    getList_api(params)
+    const params = createUnreadQueryParams(topicProviders, BADGE_OVERFLOW_COUNT);
+    getUnreadCount_api(params)
         .then((resp: any) => {
-            total.value = resp.result.total;
+            total.value = toBadgeCount(resp.result);
         })
         .finally(() => (loading.value = false));
 };

@@ -47,6 +47,7 @@ export const useUserStore = defineStore('user', () => {
   const other = {
     tabKey: '' // 站内信的tabkey
   }
+  const messageInfo = ref<Record<string, any>>({})
   const alarmUpdateCount = ref(0)
   /**
    * 设置用户信息
@@ -78,12 +79,14 @@ export const useUserStore = defineStore('user', () => {
     isAdmin.value = false
     isApplicationUser.value = false
     tabKey.value = tabList?.[0]?.key || 'HomeView'
+    messageInfo.value = {}
     alarmUpdateCount.value = 0
   }
 
   return {
     tabKey,
     other,
+    messageInfo,
     userInfo,
     alarmUpdateCount,
     isAdmin,
@@ -96,4 +99,3 @@ export const useUserStore = defineStore('user', () => {
     init
   }
 })
-
