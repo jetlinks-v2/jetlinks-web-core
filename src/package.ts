@@ -75,7 +75,9 @@ export const initPackages = () => {
     const projectContext = getProjectContext()
     if (projectContext) {
         const { storage: projectStorage } = projectContext
-        url = `${projectStorage.apiUrl}/messaging/${projectStorage.token}?${tokenKey}=${projectStorage.token}&X-Tenant-Domain=${projectStorage.domain}`;
+        if (projectStorage) {
+            url = `${projectStorage.apiUrl}/messaging/${projectStorage.token}?${tokenKey}=${projectStorage.token}&X-Tenant-Domain=${projectStorage.domain}`;
+        }
     }
     // wsClient.setOptions({
     //     onError(message) {
