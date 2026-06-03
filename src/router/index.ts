@@ -10,7 +10,7 @@ import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
 import { RouteSecurityLevel } from './types'
 import { toValue } from 'vue'
-import { bootstrapSession, ensureMenuRoutes, resetRouteStartupState } from './startup'
+import { bootstrapSession, ensureMenuRoutes, resetRouteStartupState, resetSessionStores } from './startup'
 import { redirectLegacyProjectHash, isProjectRuntime } from '@jetlinks-web-core/utils/project-runtime'
 import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 
@@ -179,6 +179,7 @@ export const jumpLogin = () => {
   if (isPublicRoute(currentRoute)) return
 
   setTimeout(() => {
+    resetSessionStores()
     removeToken()
     const loginRoute = coreRoutes.find(r => r.name === 'Login')
     router.replace({

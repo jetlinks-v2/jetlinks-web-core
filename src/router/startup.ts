@@ -1,5 +1,5 @@
 import type { RouteRecordRaw, Router } from 'vue-router'
-import { useApplication, useMenuStore, useSystemStore, useUserStore } from '@jetlinks-web-core/store'
+import { useApplication, useAuthStore, useMenuStore, useSystemStore, useUserStore } from '@jetlinks-web-core/store'
 import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
 
 let menuRoutePromise: Promise<boolean> | undefined
@@ -89,4 +89,13 @@ export const ensureMenuRoutes = async (
 
 export const resetRouteStartupState = () => {
   menuRoutePromise = undefined
+}
+
+export const resetSessionStores = () => {
+  // 退出或换账号后必须清空会话级缓存，否则 bootstrapSession 会误判用户态已加载。
+  resetRouteStartupState()
+  useUserStore().init()
+  useMenuStore().init()
+  useAuthStore().init()
+  useApplication().init()
 }

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { detail } from '@jetlinks-web-core/api/system/user'
 import { tabList } from "@jetlinks-web-core/views/account/center/data";
-import { getToken, LocalStore } from '@jetlinks-web/utils'
+import { LocalStore } from '@jetlinks-web/utils'
 import { pick } from 'lodash-es'
 
 export interface UserInfo {
@@ -76,11 +76,15 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const init = () => {
+    userInfo.value = {}
     isAdmin.value = false
     isApplicationUser.value = false
     tabKey.value = tabList?.[0]?.key || 'HomeView'
+    other.tabKey = ''
     messageInfo.value = {}
     alarmUpdateCount.value = 0
+    LocalStore.remove('userId')
+    LocalStore.remove('user_info')
   }
 
   return {
