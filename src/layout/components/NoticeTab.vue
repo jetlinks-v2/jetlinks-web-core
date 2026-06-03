@@ -1,68 +1,29 @@
 <template>
-    <a-badge :count="total" :offset="[3, -3]">
+    <a-badge :count="badgeCount" :overflow-count="BADGE_OVERFLOW_COUNT" :offset="[3, -3]">
         {{ tab }}
     </a-badge>
 </template>
 
 <script setup lang="ts">
-import { getList_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import {
+    BADGE_OVERFLOW_COUNT,
+    BADGE_OVERFLOW_VALUE,
+} from './noticeUtils';
 
 const props = defineProps({
     tab: {
         type: String,
         default: '',
     },
-    type: {
-        type: Array as PropType<string[]>,
-        default: () => [],
+    count: {
+        type: Number,
+        default: 0,
     },
-    refresh: {
-        type: Boolean
-    }
+    overflow: {
+        type: Boolean,
+        default: false,
+    },
 });
 
-const total = ref<number>(0);
-
-const getData = (type: string[]) => {
-    const params = {
-        sorts: [
-            {
-                name: 'notifyTime',
-                order: 'desc',
-            },
-        ],
-        terms: [
-            {
-                terms: [
-                    {
-                        type: 'and',
-                        value: type,
-                        termType: 'in',
-                        column: 'topicProvider',
-                    },
-                    {
-                        type: 'and',
-                        value: 'unread',
-                        termType: 'eq',
-                        column: 'state',
-                    },
-                ],
-            },
-        ],
-    };
-    getList_api(params).then((resp: any) => {
-        total.value = resp.result.total;
-    });
-};
-
-watch(
-    () => props.refresh,
-    () => {
-        getData(props.type);
-    },
-    {
-        immediate: true,
-        deep: true
-    }
-);
+const badgeCount = computed(() => props.overflow ? BADGE_OVERFLOW_VALUE : props.count);
 </script>
