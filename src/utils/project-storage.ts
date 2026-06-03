@@ -4,6 +4,7 @@ export interface ProjectStorageInfo {
   token?: string
   name?: string
   runtime?: string
+  id?: string
 }
 
 export const PROJECT_STORAGE_PREFIX = 'project_'
