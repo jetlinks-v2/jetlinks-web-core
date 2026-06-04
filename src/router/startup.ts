@@ -1,4 +1,4 @@
-import type { RouteRecordRaw, Router } from 'vue-router'
+import type { Router } from 'vue-router'
 import { useApplication, useAuthStore, useMenuStore, useSystemStore, useUserStore } from '@jetlinks-web-core/store'
 import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
 
@@ -22,22 +22,6 @@ export const bootstrapSession = async () => {
   }
 }
 
-const hasRegisteredRoute = (router: Router, route: RouteRecordRaw) => {
-  if (route.name) {
-    return router.hasRoute(route.name)
-  }
-
-  return router.getRoutes().some(item => item.path === route.path)
-}
-
-const addMenuRoute = (router: Router, route: RouteRecordRaw) => {
-  if (!route.path.startsWith('/') || hasRegisteredRoute(router, route)) {
-    return
-  }
-
-  router.addRoute(route)
-}
-
 const addFallbackRoute = (router: Router) => {
   if (router.hasRoute('error')) {
     return
@@ -59,7 +43,7 @@ export const ensureMenuRoutes = async (
 ): Promise<boolean> => {
   const menuStore = useMenuStore()
 
-  if (menuStore.menu.length || shouldSkipMenuFetch) {
+  if (shouldSkipMenuFetch || menuStore.initialized) {
     return false
   }
 
@@ -70,14 +54,11 @@ export const ensureMenuRoutes = async (
   menuRoutePromise = (async () => {
     await menuStore.queryMenus()
 
-    if (!menuStore.menu.length) {
-      return false
+    if (menuStore.initialized) {
+      addFallbackRoute(router)
     }
 
-    menuStore.menu.forEach(route => addMenuRoute(router, route))
-    addFallbackRoute(router)
-
-    return true
+    return menuStore.hasRouteMenu()
   })()
 
   try {
