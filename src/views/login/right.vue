@@ -150,6 +150,7 @@ import { Form, FormItem, Button, Divider, Popover, Input, InputPassword } from '
 import defaultImg from '@jetlinks-web-core/assets/apply/internal-standalone.png'
 import {initPackages} from "@jetlinks-web-core/package";
 import i18n from "@jetlinks-web-core/locales";
+import { resetSessionStores } from '@jetlinks-web-core/router/startup'
 
 const BASE_API_PATH = import.meta.env.VITE_APP_BASE_API
 
@@ -254,6 +255,8 @@ const { loading, run } = useRequest(login, {
           emit('submit')
           return
         } else {
+          // 重登录换账号时必须清掉上一账号的会话态，否则 bootstrapSession 会跳过用户信息请求。
+          resetSessionStores()
           onlyMessage($t("login.right.419974-8"))
         }
       }

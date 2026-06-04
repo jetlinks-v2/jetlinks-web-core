@@ -9,7 +9,6 @@ import { getGlobModules } from '@jetlinks-web-core/router/globModules'
 import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
 import type { RouteHideInMenuContext } from '@jetlinks-web-core/router/types'
 import { useApplication } from '@jetlinks-web-core/store'
-import { OWNER_KEY } from '@jetlinks-web-core/utils/consts'
 import i18n from '@jetlinks-web-core/locales'
 import { useProjectRouter } from '@/hooks'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
@@ -23,12 +22,6 @@ type OptionsType = {
 const $t = i18n.global.t
 
 const defaultOwnParams: any[] = []
-
-const filterRuntimeOwnerMenus = (menus: any[] = []) => {
-  return menus.filter((item) => {
-    return item.owner === OWNER_KEY || item.owner == null
-  })
-}
 
 const shouldShowOverrideRoute = (
   route: RouteRecordRaw,
@@ -199,8 +192,8 @@ export const useMenuStore = defineStore('menu', () => {
       sorts: [{ name: 'sortIndex', order: 'asc' }],
     })
 
-    let menuResult = resp.result
-    runtime.menuResultCache.value = JSON.parse(JSON.stringify(resp.result))
+    const menuResult = Array.isArray(resp.result) ? resp.result : []
+    runtime.menuResultCache.value = JSON.parse(JSON.stringify(menuResult))
 
     if (app.appList.length > 0) {
       const handleMicroApp = (nodes: any[]) => {
@@ -247,8 +240,8 @@ export const useMenuStore = defineStore('menu', () => {
     }
 
     if (resp.success) {
-      runtime.hasResponeMenu.value = !!resp.result.length
-      await runtime.createRoutes(filterRuntimeOwnerMenus(menuResult))
+      runtime.hasResponeMenu.value = !!menuResult.length
+      await runtime.createRoutes(menuResult)
       runtime.loading.value = false
     }
   }
@@ -280,6 +273,7 @@ export const useMenuStore = defineStore('menu', () => {
     siderMenus: runtime.siderMenus,
     menusMap: runtime.menusMap,
     loading: runtime.loading,
+    initialized: runtime.initialized,
     menuResultCache: runtime.menuResultCache,
     hasResponeMenu: runtime.hasResponeMenu,
     hasRouteMenu: runtime.hasRouteMenu,

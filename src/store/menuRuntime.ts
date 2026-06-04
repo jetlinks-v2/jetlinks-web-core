@@ -47,10 +47,11 @@ export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
   const menuResultCache = ref<any[]>([])
   const loading = ref(true)
   const hasResponeMenu = ref(false)
+  const initialized = ref(false)
   const authStore = useAuthStore()
 
   const hasRouteMenu = () => {
-    return !!menu.value.length
+    return menu.value.some(route => route.path !== '/')
   }
 
   const hasMenu = (code: string) => {
@@ -106,6 +107,7 @@ export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
     menu.value = context.menuRoutes
     siderMenus.value = context.menus
     authStore.setPermissionsAll(context.authButtons)
+    initialized.value = true
 
     return context
   }
@@ -116,6 +118,7 @@ export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
     siderMenus.value = []
     menuResultCache.value = []
     hasResponeMenu.value = false
+    initialized.value = false
     loading.value = false
   }
 
@@ -126,6 +129,7 @@ export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
     menuResultCache,
     loading,
     hasResponeMenu,
+    initialized,
     hasRouteMenu,
     hasMenu,
     getMenu,

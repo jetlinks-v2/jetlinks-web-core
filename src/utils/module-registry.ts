@@ -103,8 +103,6 @@ export class ModuleRegistry {
       registerTime: Date.now(),
       source: this.detectSource(resource)
     });
-
-    console.log(`模块 ${moduleId} 注册成功`);
   }
 
   /**
@@ -140,8 +138,6 @@ export class ModuleRegistry {
     };
 
     this.registry.set(moduleId, updatedModule);
-
-    console.log(`模块 ${moduleId} 的 ${String(resourceType)} 资源注册成功`);
   }
 
   /**

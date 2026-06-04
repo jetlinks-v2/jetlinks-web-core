@@ -59,9 +59,15 @@ export const useApplication = defineStore('application', () => {
    */
   const findAppById = (appId: string) => appList.value.find((item: any) => item.id === appId)
 
+  const init = () => {
+    appList.value = []
+    lock = false
+  }
+
   return {
     appList,
     queryApplication,
     findAppById,
+    init,
   }
 })
