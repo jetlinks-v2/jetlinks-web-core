@@ -13,6 +13,7 @@ import i18n from '@jetlinks-web-core/locales'
 import { useProjectRouter } from '@/hooks'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 import { createMenuStoreRuntime } from './menuRuntime'
+import {OWNER_KEY} from "@/utils/consts";
 
 type OptionsType = {
   params?: Record<string, any>
@@ -21,7 +22,23 @@ type OptionsType = {
 
 const $t = i18n.global.t
 
-const defaultOwnParams: any[] = []
+const defaultOwnParams: any[] = [
+  {
+    terms: [
+      {
+        column: 'owner',
+        termType: 'eq',
+        value: OWNER_KEY,
+      },
+      {
+        column: 'owner',
+        termType: 'isnull',
+        value: '1',
+        type: 'or',
+      },
+    ],
+  }
+]
 
 const shouldShowOverrideRoute = (
   route: RouteRecordRaw,
