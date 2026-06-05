@@ -32,29 +32,29 @@ export interface IdentityVerifyRequest {
 /** 获取验证码配置（与登录一致，走 CaptchaController） */
 export const getVerifyCaptchaConfig = () =>
   request.get<{ result: { enabled: boolean; type: string; types?: string[]; [key: string]: unknown } }>(
-    '/authorize/captcha/config'
+    '/authorize/captcha/config', {}, { projectContext: false }
   )
 
 /** 获取验证码图片（与登录一致） */
 export const getVerifyCaptchaImage = (params?: { width?: number; height?: number }) =>
   request.get<{ result: { base64: string; key: string } }>(
-    `/authorize/captcha/image?width=${params?.width ?? 130}&height=${params?.height ?? 40}`
+    `/authorize/captcha/image?width=${params?.width ?? 130}&height=${params?.height ?? 40}`, {}, { projectContext: false }
   )
 
 /** 验证码确认（VerifyController） */
 export const confirmCaptcha = (data: VerifyCaptchaRequest) =>
-  request.post<{ result: VerifyResultResponse }>('/verify/captcha/_confirm', data)
+  request.post<{ result: VerifyResultResponse }>('/verify/captcha/_confirm', data, { projectContext: false })
 
 /** 身份校验：请求验证（发送短信/邮件等） */
 export const requestIdentityVerify = (identityId: string, data: { provider: string; identity: string; params?: Record<string, unknown> }) =>
   request.post<{ result: { requestId: string; token: string; context?: Record<string, unknown>; intervalSeconds?: number } }>(
     `/verify/identity/${identityId}/_request`,
-    data
+    data, { projectContext: false }
   )
 
 /** 身份校验：确认 */
 export const confirmIdentityVerify = (data: IdentityVerifyRequest) =>
-  request.post<{ result: VerifyResultResponse }>('/verify/identity/_confirm', data)
+  request.post<{ result: VerifyResultResponse }>('/verify/identity/_confirm', data, { projectContext: false })
 
 /** 获取当前用户已绑定的身份列表（用于身份校验选择） */
 export const getSelfIdentitiesForVerify = () =>

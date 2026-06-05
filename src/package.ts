@@ -213,7 +213,6 @@ export const initAxios = () => {
             }
 
             const projectContext = config.projectContext === false ? undefined : getProjectContext()
-
             if (projectContext) {
                 const { storage: projectStorage } = projectContext
 

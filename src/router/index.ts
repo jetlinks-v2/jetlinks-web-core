@@ -182,9 +182,15 @@ export const jumpLogin = () => {
     resetSessionStores()
     removeToken()
     const loginRoute = coreRoutes.find(r => r.name === 'Login')
-    router.replace({
-      path: loginRoute?.path || '/login',
-    })
+    // router.replace({
+    //   path: loginRoute?.path || '/login',
+    // })
+      const loginPath = loginRoute?.path || '/login'
+      const { origin, pathname, hash} = window.location
+      const hashPath = !!hash ? '#' : ''
+      if (currentRoute.path !== loginPath) {
+        window.location.href = `${origin}${pathname}${hashPath}${loginPath}?redirect=${currentRoute.path}`
+      }
   })
 }
 
