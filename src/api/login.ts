@@ -27,7 +27,7 @@ export const encryptionConfig = () => request.get(`/authorize/login/configs`)
  * 登录加密信息
  * @returns
  */
-export const captchaConfig = () => request.get(`/authorize/captcha/config`)
+export const captchaConfig = () => request.get(`/authorize/captcha/config`, {},{ projectContext: false })
 
 
 /**
