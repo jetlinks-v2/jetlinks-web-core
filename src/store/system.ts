@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
 import { getDetails_api, preprocessorExists, settingDetail, systemVersion } from '@jetlinks-web-core/api/system/basis'
 import { getTagsColor } from '@jetlinks-web-core/api/system/calendar'
-import { LocalStore } from '@jetlinks-web/utils'
+import { getToken, LocalStore } from '@jetlinks-web/utils'
 import { langKey, isSubApp } from '@jetlinks-web-core/utils/consts'
 import { withModuleStoreOverride } from './module-override'
+import { getThemeStyle_api } from '@jetlinks-web-core/api/account/center'
 import { applyThemeColor, getInitialThemeColor, persistThemeColor } from '@jetlinks-web-core/utils/theme-color'
 import {
   applyThemeStyle,
@@ -41,6 +42,7 @@ const useSystemStoreBase = defineStore('system', () => {
   ])
   const showThreshold = ref(true)
   const language = ref(LocalStore.get(langKey) || 'zh')
+  const sessionInitializedUserKey = ref('')
 
   const layout = reactive<LayoutType>({
     siderWidth: 208,
@@ -74,12 +76,25 @@ const useSystemStoreBase = defineStore('system', () => {
     themeColor.value = result.color
   }
 
+  const getUserThemeStyle = async () => {
+    if (!getToken()) return undefined
+
+    try {
+      const resp = await getThemeStyle_api()
+      return resp?.success === false
+        ? undefined
+        : normalizeThemeStyle(resp?.result?.content)
+    } catch {
+      return undefined
+    }
+  }
+
   /**
    * 修改其它配置项
    * @param code
    * @param value
    */
-  const changeLayout = (code: string, value: string | number) => {
+  const changeLayout = <K extends keyof LayoutType>(code: K, value: LayoutType[K]) => {
     layout[code] = value
   }
 
@@ -108,11 +123,12 @@ const useSystemStoreBase = defineStore('system', () => {
     }
   }
 
-  const handleFront = (_value: any) => {
+  const handleFront = (_value: any, userThemeStyle?: ThemeStyleKey) => {
     if (!_value) return
     layout.title = _value.title
     layout.logo = _value.logo
-    const frontThemeStyle = normalizeThemeStyle(_value.headerTheme)
+    const frontThemeStyle = userThemeStyle || normalizeThemeStyle(_value.headerTheme)
+    // localStorage 只负责接口返回前的首屏主题；登录后用户设置优先，系统设置兜底。
     changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle))
     changeIco(_value.ico)
     setDocumentTitle()
@@ -121,13 +137,14 @@ const useSystemStoreBase = defineStore('system', () => {
 
   const queryInfo = async () => {
     const _keys = ['front', 'amap', 'paths']
+    const userThemeStyle = await getUserThemeStyle()
     const resp = await getDetails_api(_keys)
     if (resp.success) {
       _keys.forEach((key: string) => {
         const _value = resp.result.find((item: any) => item.scope === key)?.properties
         systemInfo.value[key] = _value ?? {}
         if (key === 'front') {
-          handleFront(_value)
+          handleFront(_value, userThemeStyle)
         }
       })
     }
@@ -135,12 +152,13 @@ const useSystemStoreBase = defineStore('system', () => {
 
   const querySingleInfo = async (__keys: string) => {
     if (!__keys) return
+    const userThemeStyle = __keys === 'front' ? await getUserThemeStyle() : undefined
     const resp = await settingDetail(__keys)
     if (resp.success) {
       const _value = resp.result
       systemInfo.value[__keys] = _value ?? {}
       if (__keys === 'front') {
-        handleFront(_value)
+        handleFront(_value, userThemeStyle)
       }
     }
   }
@@ -176,6 +194,18 @@ const useSystemStoreBase = defineStore('system', () => {
     }
   }
 
+  const isSessionInitializedFor = (userKey?: string) => {
+    return !!userKey && sessionInitializedUserKey.value === userKey
+  }
+
+  const markSessionInitialized = (userKey?: string) => {
+    sessionInitializedUserKey.value = userKey || ''
+  }
+
+  const resetSessionInitialization = () => {
+    sessionInitializedUserKey.value = ''
+  }
+
   return {
     systemInfo,
     theme,
@@ -199,7 +229,10 @@ const useSystemStoreBase = defineStore('system', () => {
     setMircoData,
     queryTagsColor,
     queryVersion,
-    getShowThreshold
+    getShowThreshold,
+    isSessionInitializedFor,
+    markSessionInitialized,
+    resetSessionInitialization
   }
 })
 

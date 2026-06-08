@@ -11,10 +11,16 @@ export const bootstrapSession = async () => {
 
   if (!Object.keys(userStore.userInfo).length) {
     await userStore.getUserInfo()
+  }
+
+  const userKey = userStore.userInfo.id || userStore.userInfo.username
+
+  if (!systemStore.isSessionInitializedFor(userKey)) {
     await systemStore.queryVersion()
     await systemStore.getShowThreshold()
     await systemStore.queryInfo()
     await systemStore.setMircoData()
+    systemStore.markSessionInitialized(userKey)
   }
 
   if (!isSubApp && !applicationStore.appList.length && OpenMicroApp) {
@@ -75,6 +81,7 @@ export const resetRouteStartupState = () => {
 export const resetSessionStores = () => {
   // 退出或换账号后必须清空会话级缓存，否则 bootstrapSession 会误判用户态已加载。
   resetRouteStartupState()
+  useSystemStore().resetSessionInitialization()
   useUserStore().init()
   useMenuStore().init()
   useAuthStore().init()
