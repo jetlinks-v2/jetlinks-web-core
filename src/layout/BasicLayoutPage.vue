@@ -161,9 +161,9 @@ const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
 watchEffect(() => {
   if (router.currentRoute) {
     const paths = route.meta.breadcrumb || route.meta.breadcrumbCache || []
-    const { selectedKeys, openKeys } = resolveMenuKeys(paths)
-    state.selectedKeys = selectedKeys
-    state.openKeys = openKeys
+    // const { selectedKeys, openKeys } = resolveMenuKeys(paths)
+    state.selectedKeys = paths.map(item => item.path)
+    state.openKeys = paths.map(item => item.path)
   }
   if (route.query?.layout === 'false') {
     state.pure = true
