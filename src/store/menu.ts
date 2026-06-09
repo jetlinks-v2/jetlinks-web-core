@@ -184,12 +184,14 @@ export const useMenuStore = defineStore('menu', () => {
       ]
       const routerRoutes = router.getRoutes()
 
-      const defaultRedirect = import.meta.env.VITE_DEFAULT_REDIRECT_PATH || '/account'
-      const redirectUrl = context.menuRoutes.length ? context.menuRoutes[0].path : defaultRedirect
-      context.menuRoutes.push({
-        path: '/',
-        redirect: redirectUrl,
-      })
+      if (!router.hasRoute('saas-tenant-root')) {
+        const defaultRedirect = import.meta.env.VITE_DEFAULT_REDIRECT_PATH || '/account'
+        const redirectUrl = context.menuRoutes.length ? context.menuRoutes[0].path : defaultRedirect
+        context.menuRoutes.push({
+          path: '/',
+          redirect: redirectUrl,
+        })
+      }
 
       routerRoutes.forEach((item: any) => {
         if (typeof item.name !== 'string' || !item.path || !item.meta?.title) return
