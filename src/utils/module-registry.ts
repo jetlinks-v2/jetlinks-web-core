@@ -3,13 +3,17 @@
  * 用于统一管理各个子模块的 API、组件、工具函数等资源
  * 支持微前端和模块联邦
  */
-import type { GetResourceType, ModuleResource, RegisterOptions } from '@jetlinks-web-core/types/module-registry.d'
+import type { GetResourceType, ModuleResource, ModuleResourceType, RegisterOptions } from '@jetlinks-web-core/types/module'
 import { dynamicRemoteManager } from '@jetlinks-web/vite/dist/dynamic-remote'
 import { isSubApp } from '@jetlinks-web-core/utils/consts'
 
 // 注册表存储所有模块的资源
 const moduleRegistryMap = new Map<string, ModuleResource>();
 const remoteFileName = 'remoteEntry'
+
+const toResourceRecord = (resource: ModuleResource[ModuleResourceType]): Record<string, unknown> => {
+  return typeof resource === 'object' && resource !== null ? resource : {}
+}
 
 // 模块状态枚举
 export enum ModuleStatus {
@@ -112,9 +116,9 @@ export class ModuleRegistry {
    * @param resources 资源对象
    * @param options 注册选项
    */
-  public registerResource<T = any>(
+  public registerResource<T = unknown>(
     moduleId: string,
-    resourceType: keyof ModuleResource,
+    resourceType: ModuleResourceType,
     resources: Record<string, T>,
     options: RegisterOptions = {}
   ): void {
@@ -123,7 +127,7 @@ export class ModuleRegistry {
     }
 
     const existingModule = this.registry.get(moduleId) || ({ moduleId } as ModuleResource);
-    const existingResources = existingModule[resourceType] || {};
+    const existingResources = toResourceRecord(existingModule[resourceType]);
 
     const { override = false } = options;
 
@@ -155,7 +159,7 @@ export class ModuleRegistry {
    * @param resourceType 资源类型
    * @returns 资源对象或undefined
    */
-  public getResource<T extends keyof Omit<ModuleResource, 'moduleId'>>(
+  public getResource<T extends ModuleResourceType>(
     moduleId: string,
     resourceType: T
   ): GetResourceType<T> {
@@ -172,12 +176,12 @@ export class ModuleRegistry {
    * @param resourceName 资源名称
    * @returns 具体资源或undefined
    */
-  public getResourceItem<T = any>(
+  public getResourceItem<T = unknown>(
     moduleId: string,
-    resourceType: keyof ModuleResource,
+    resourceType: ModuleResourceType,
     resourceName: string
   ): T | undefined {
-    const resources = this.getResource<T>(moduleId, resourceType);
+    const resources = this.getResource(moduleId, resourceType) as Record<string, T>;
     return resources?.[resourceName];
   }
 
@@ -196,7 +200,7 @@ export class ModuleRegistry {
    * @param resourceType 资源类型
    * @returns boolean
    */
-  public hasResource(moduleId: string, resourceType: keyof ModuleResource): boolean {
+  public hasResource(moduleId: string, resourceType: ModuleResourceType): boolean {
     const module = this.registry.get(moduleId);
     return !!(module && module[resourceType]);
   }
@@ -210,7 +214,7 @@ export class ModuleRegistry {
    */
   public hasResourceItem(
     moduleId: string,
-    resourceType: keyof ModuleResource,
+    resourceType: ModuleResourceType,
     resourceName: string
   ): boolean {
     const resources = this.getResource(moduleId, resourceType);
@@ -237,7 +241,7 @@ export class ModuleRegistry {
    * @param resourceType 资源类型
    * @returns boolean
    */
-  public unregisterResource(moduleId: string, resourceType: keyof ModuleResource): boolean {
+  public unregisterResource(moduleId: string, resourceType: ModuleResourceType): boolean {
     const module = this.registry.get(moduleId);
     if (module && module[resourceType]) {
       delete module[resourceType];
@@ -309,7 +313,7 @@ export class ModuleRegistry {
    * @returns 包含该资源的模块ID数组
    */
   public searchModules(
-    resourceType: keyof ModuleResource,
+    resourceType: ModuleResourceType,
     resourceName?: string
   ): string[] {
     const matchingModules: string[] = [];

@@ -1,8 +1,20 @@
-const isFilterModule = (item) => {
+import type { BaseMenuExport, MenuItem, ModuleExport, ResolvedModuleExport } from '@jetlinks-web-core/types/module'
+
+type ModuleGlobMap = Record<string, ModuleExport>
+type FilterableModuleExport = {
+  default?: {
+    filter?: boolean
+  }
+}
+type BaseMenuModule = {
+  default?: BaseMenuExport
+}
+
+const isFilterModule = (item?: FilterableModuleExport) => {
   return !item?.default || item.default.filter === true
 }
 
-const resolveBaseMenus = (baseMenuItem) => {
+const resolveBaseMenus = (baseMenuItem?: BaseMenuModule): MenuItem[] => {
   const menuExport = baseMenuItem?.default
   if (!menuExport) {
     return []
@@ -20,8 +32,8 @@ const resolveBaseMenus = (baseMenuItem) => {
   return [menuExport]
 }
 
-const getSortModules = () => {
-  const modulesFiles = import.meta.glob('../../../modules/*/index.ts', {eager: true})
+const getSortModules = (): ResolvedModuleExport[] => {
+  const modulesFiles = import.meta.glob('../../../modules/*/index.ts', {eager: true}) as ModuleGlobMap
   return Object.keys(modulesFiles).sort((a, b) => {
     const itemA = modulesFiles[a].default
     const itemB = modulesFiles[b].default
@@ -32,13 +44,13 @@ const getSortModules = () => {
     key,
     name: key.replace('../../../modules/', '').replace('/index.ts', ''),
     ...modulesFiles[key]
-  }))
+  })).filter((item): item is ResolvedModuleExport => !!item.default)
 }
 
 export const modules = () => {
-  const modulesMap = {}
+  const modulesMap: Record<string, ResolvedModuleExport> = {}
   const modulesFiles = getSortModules()
-  modulesFiles.forEach((item: any) => {
+  modulesFiles.forEach((item) => {
     if (!isFilterModule(item)) {
       modulesMap[item.key] = item
     }
@@ -48,14 +60,14 @@ export const modules = () => {
 
 export const getModulesMenu = () => {
   const modulesDefaultFiles = getSortModules()
-  const modulesFiles = import.meta.glob('../../../modules/*/baseMenu.ts', {eager: true})
-  const menus: any[] = []
+  const modulesFiles = import.meta.glob('../../../modules/*/baseMenu.ts', {eager: true}) as Record<string, BaseMenuModule>
+  const menus: MenuItem[] = []
 
-  modulesDefaultFiles.forEach((item: any) => {
+  modulesDefaultFiles.forEach((item) => {
       const defaultName = item.name
       const key = `../../../modules/${defaultName}/baseMenu.ts`
       const baseMenuItem = modulesFiles[key]
-      if (baseMenuItem && !isFilterModule(baseMenuItem)) {
+      if (baseMenuItem?.default) {
         menus.push(...resolveBaseMenus(baseMenuItem))
       }
   })
@@ -65,7 +77,7 @@ export const getModulesMenu = () => {
 
 export const registerModule = () => {
   const modulesFiles = getSortModules()
-  modulesFiles.forEach((item: any ) => {
+  modulesFiles.forEach((item) => {
     if (!isFilterModule(item)) {
       item.default.register?.()
     }
@@ -74,8 +86,8 @@ export const registerModule = () => {
 
 export const getModulesInitPage = () => {
   const modulesFiles = getSortModules()
-  let initPage
-  modulesFiles.forEach((item: any) => {
+  let initPage: unknown
+  modulesFiles.forEach((item) => {
     if (!isFilterModule(item)) {
       const page = item.default.initPage?.()
       if (page) {
@@ -89,8 +101,8 @@ export const getModulesInitPage = () => {
 
 export const getHideHeaderRightConfig = () => {
   const modulesFiles = getSortModules()
-  let hideHeaderRight;
-  modulesFiles.forEach((item: any) => {
+  let hideHeaderRight = false;
+  modulesFiles.forEach((item) => {
     if (!isFilterModule(item)) {
       hideHeaderRight = item.default.getConfig?.()?.hideHeaderRight ?? false
     }
@@ -100,8 +112,8 @@ export const getHideHeaderRightConfig = () => {
 
 export const getPackageConfig = () => {
   const modulesFiles = getSortModules()
-  let packageConfig
-  modulesFiles.forEach((item: any) => {
+  let packageConfig: unknown
+  modulesFiles.forEach((item) => {
     if (!isFilterModule(item)) {
       const config = item.default.getConfig?.()
       if (config) {
