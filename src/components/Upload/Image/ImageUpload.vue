@@ -19,7 +19,7 @@
         <div class="upload-image-content" :style="style">
           <slot name="content" :imageUrl="imageUrl" :loading="loading">
             <template v-if="imageUrl">
-              <img :src="imageUrl" width="100%" class="upload-image" />
+              <img :src="imageUrl" width="100%" class="upload-image" draggable="false" @dragstart.prevent />
               <div class="upload-image-mask">{{ $t('Image.ImageUpload.825077-0') }}</div>
             </template>
             <AIcon
