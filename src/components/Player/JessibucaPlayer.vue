@@ -117,13 +117,22 @@ defineExpose({
 .jmp__container :deep(.jessibuca-video-box),
 .jmp__container :deep(.jessibuca-play-big),
 .jmp__container :deep(.jessibuca-poster),
-.jmp__container :deep(canvas),
 .jmp__container :deep(video) {
   display: block;
   width: 100% !important;
   height: 100% !important;
   max-width: none !important;
   max-height: none !important;
+}
+
+.jmp__container :deep(canvas) {
+  /* Jessibuca's wasm canvas path already centers/scales with transform. */
+  display: block;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+  transform-origin: center center;
 }
 
 .jmp__container :deep(.xgplayer) {
