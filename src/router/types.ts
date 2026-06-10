@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router'
+import type { ModuleRouteOverride } from '@jetlinks-web-core/types/module'
 
 /** Route access level */
 export enum RouteSecurityLevel {
@@ -37,8 +38,23 @@ export type CoreRouteConfig = RouteRecordRaw & {
   description?: string
 }
 
-/** Module route override configuration */
-export type ModuleRouteOverride = RouteRecordRaw & {
-  /** Description (debug only) */
-  description?: string
-}
+export type { ModuleRouteOverride }
+
+export type {
+  ActionPosition,
+  BaseMenuExport,
+  GetResourceType,
+  MenuButton,
+  MenuItem,
+  ModuleAsyncRoutesMap,
+  ModuleConfig,
+  ModuleDefinition,
+  ModuleExport,
+  ModuleResource,
+  ModuleResourceRecord,
+  ModuleResourceType,
+  RegisterOptions,
+  RegistryAction,
+  RegistryActionComponent,
+  ResolvedModuleExport,
+} from '@jetlinks-web-core/types/module'
