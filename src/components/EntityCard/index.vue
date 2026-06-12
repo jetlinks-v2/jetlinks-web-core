@@ -115,7 +115,7 @@ withDefaults(
   align-items: center;
   gap: 0.375rem;
   color: var(--ink-3);
-  font-size: var(--fs-12);
+  font-size: var(--fs-14);
   margin-top: var(--space-1);
   flex-wrap: wrap;
 }

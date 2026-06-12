@@ -2662,7 +2662,7 @@ onUnmounted(() => {
     height: 1.625rem;
     padding: 0 0.5rem;
     color: var(--color-jet-text);
-    font-size: var(--fs-12);
+    font-size: var(--fs-14);
     line-height: 1.5rem;
     border: 1px solid transparent;
     border-radius: var(--jet-theme-button-r);
@@ -2689,7 +2689,7 @@ onUnmounted(() => {
     height: 1.375rem;
     padding: 0 0.4375rem;
     color: var(--color-jet-text-secondary);
-    font-size: var(--fs-12);
+    font-size: var(--fs-14);
     line-height: 1.25rem;
     background: var(--color-jet-bg-container);
     border-color: var(--color-jet-border);
@@ -2782,7 +2782,7 @@ onUnmounted(() => {
     width: 1.125rem;
     height: 1.125rem;
     color: var(--color-jet-text-disabled);
-    font-size: var(--fs-12);
+    font-size: var(--fs-14);
     flex: 0 0 auto;
   }
 
@@ -2791,7 +2791,7 @@ onUnmounted(() => {
     min-width: 3.5rem;
     padding: 0;
     color: var(--color-jet-text);
-    font-size: var(--fs-12);
+    font-size: var(--fs-14);
     line-height: 1.5rem;
     background: transparent;
     border: 0;
@@ -2808,7 +2808,7 @@ onUnmounted(() => {
 
   &__placeholder {
     color: var(--color-jet-text-disabled);
-    font-size: var(--fs-12);
+    font-size: var(--fs-14);
     line-height: 1.5rem;
   }
 
@@ -2887,14 +2887,14 @@ onUnmounted(() => {
 
   &__dropdown-option-title {
     color: var(--color-jet-text-secondary);
-    font-size: var(--fs-12);
+    font-size: var(--fs-14);
     line-height: 1.125rem;
   }
 
   &__dropdown-option-desc {
     max-width: 13.75rem;
     color: var(--color-jet-text-disabled);
-    font-size: var(--fs-12);
+    font-size: var(--fs-14);
     line-height: 1rem;
     overflow: hidden;
     text-overflow: ellipsis;
