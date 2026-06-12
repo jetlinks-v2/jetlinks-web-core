@@ -54,6 +54,7 @@ import { buildMenuTreeData, collectExpandedKeys, getLocaleKeys, type MenuFilter,
 
 const props = defineProps<{
   filterMenu?: MenuFilter
+  queryProtocol?: boolean
 }>()
 
 const { t: $t, locale } = useI18n();
@@ -98,7 +99,7 @@ const getProvidersFn = async () => {
  * 获取当前系统权限信息
  */
 const getSystemPermissionData = async ( BaseMenu: MenuItem[] ) => {
-  const hasProtocol = await getProvidersFn();
+  const hasProtocol = props.queryProtocol === false ? true : await getProvidersFn();
   const resp = await getSystemPermission();
   if (resp.success) {
     const _permission = resp.result.map((item: any) => JSON.parse(item).id)

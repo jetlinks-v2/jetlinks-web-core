@@ -59,7 +59,7 @@ const optionPanelConfig = computed(() => currentColumn.value?.search?.optionPane
 const isOptionPanelMode = computed(() => ['select', 'tree', 'treeSelect'].includes(currentColumn.value?.search?.type || '') || !!optionPanelConfig.value?.loadOptions)
 const hideTitle = computed(() => optionPanelConfig.value?.hideTitle ?? isOptionPanelMode.value)
 const panelWidth = computed(() => `${optionPanelConfig.value?.width || (isOptionPanelMode.value ? 320 : 280)}px`)
-const optionPanelValue = computed(() => cloneValue(draftValue.value))
+const optionPanelValue = computed(() => draftValue.value)
 const optionPanelOptions = computed(() => currentColumn.value?.search?.options || [])
 const resolvedOptionPanelConfig = computed(() => ({
   ...optionPanelConfig.value,
@@ -101,8 +101,20 @@ const canApply = computed(() => {
   return draftValue.value !== undefined && draftValue.value !== null && draftValue.value !== ''
 })
 
+const shouldCloseOnValueUpdate = computed(() =>
+  ['date', 'time', 'timeRange', 'rangePicker'].includes(currentColumn.value?.search?.type || ''),
+)
+
 const setDraftValue = (value: any) => {
   draftValue.value = cloneValue(value)
+}
+
+const onValueItemUpdate = (value: any) => {
+  setDraftValue(value)
+
+  if (canApply.value) {
+    onSubmit({ close: shouldCloseOnValueUpdate.value })
+  }
 }
 
 const onSubmit = (options?: { close?: boolean; allowEmpty?: boolean }) => {
@@ -121,31 +133,10 @@ const onSubmit = (options?: { close?: boolean; allowEmpty?: boolean }) => {
   )
 }
 
-const emitDraftChange = () => {
-  if (!props.column) {
-    emit('draft-change', undefined)
-    return
-  }
-
-  emit('draft-change', {
-    column: props.column,
-    termType: termType.value,
-    value: cloneValue(draftValue.value),
-  })
-}
-
 watch(
   () => [props.column, props.term?.termType, props.term?.value],
   () => {
     initDraft()
-  },
-  { immediate: true, deep: true },
-)
-
-watch(
-  () => [props.column, termType.value, draftValue.value],
-  () => {
-    emitDraftChange()
   },
   { immediate: true, deep: true },
 )
@@ -176,11 +167,12 @@ watch(
         />
         <ValueItem
           v-else
-          v-model:value="draftValue"
+          :value="draftValue"
           :column="column"
           :termType="termType"
           :show-action="false"
           embedded
+          @update:value="onValueItemUpdate"
         />
       </slot>
     </div>

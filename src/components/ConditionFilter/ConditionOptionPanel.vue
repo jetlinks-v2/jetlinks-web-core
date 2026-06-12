@@ -201,6 +201,7 @@ const currentValues = computed(() => {
 
   return props.value === undefined || props.value === null || props.value === '' ? [] : [props.value]
 })
+const currentValuesSignature = computed(() => JSON.stringify(currentValues.value))
 
 initialSelectedValues.value = [...currentValues.value]
 
@@ -542,11 +543,11 @@ watch(
 )
 
 watch(
-  () => [props.config?.loadSelectedOptions, currentValues.value],
+  () => [props.config?.loadSelectedOptions, currentValuesSignature.value],
   () => {
     loadSelectedRemoteOptions()
   },
-  { immediate: true, deep: true },
+  { immediate: true },
 )
 
 watch(keyword, () => {
