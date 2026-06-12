@@ -115,6 +115,22 @@ const onRangeNumberChange = (value, index) => {
   myValue.value = values
 }
 
+const cloneValue = (value) => {
+  return Array.isArray(value) ? [...value] : value
+}
+
+const isSameValue = (source, target) => {
+  if (Array.isArray(source) || Array.isArray(target)) {
+    if (!Array.isArray(source) || !Array.isArray(target) || source.length !== target.length) {
+      return false
+    }
+
+    return source.every((item, index) => Object.is(item, target[index]))
+  }
+
+  return Object.is(source, target)
+}
+
 const onValueChange = (e) => {
   myValue.value = e
   if (!showBtn.value) {
@@ -123,11 +139,17 @@ const onValueChange = (e) => {
 }
 
 watch(() => props.value, (val) => {
-  myValue.value = Array.isArray(val) ? [...val] : val
+  const nextValue = cloneValue(val)
+
+  if (!isSameValue(myValue.value, nextValue)) {
+    myValue.value = nextValue
+  }
 }, { immediate: true })
 
 watch(myValue, (val) => {
-  emit('update:value', Array.isArray(val) ? [...val] : val)
+  if (!isSameValue(val, props.value)) {
+    emit('update:value', cloneValue(val))
+  }
 }, { deep: true })
 </script>
 
