@@ -60,6 +60,7 @@ export default defineConfig(async ({ mode, command }) => {
       cssCodeSplit: false,
       emptyOutDir: true,
       manifest: true,
+        reportCompressedSize: false,
       chunkSizeWarningLimit: 2000,
       assetsInlineLimit: 1000,
       rollupOptions: {
@@ -101,11 +102,11 @@ export default defineConfig(async ({ mode, command }) => {
       }),
       buildTimePlugin(),
       moduleFilterPlugin(moduleNames),
-      progress(),
+      // progress(),
       copyFile(moduleName),
       ...loadViteModulesPlugins(),
       federation(getFederationSetting(moduleName, envDir)),
-      sharpOptimize()
+      // sharpOptimize()
     ],
     server: {
       host: '0.0.0.0',
