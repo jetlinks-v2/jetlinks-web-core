@@ -37,6 +37,30 @@ export const agentData = [
   },
   {
     clientType: 'pagePoint',
+    clientId: 'productDetailChat',
+    name: '产品详情页AI对话助手',
+    description: '用于产品相关ai对话支持',
+    searchCode: 'productDetailChat|物联网/设备管理/产品/产品详情',
+    maxAgentSize: 1,
+    expands: {
+      menuName: '物联网/设备管理/产品/产品详情',
+      type: 'chatBubbles'
+    },
+    metadata: {
+      params: [
+        {
+          valueType: {
+            type: 'string'
+          },
+          id: 'productId',
+          name: '产品id',
+          description: '当前产品id'
+        }
+      ]
+    }
+  },
+  {
+    clientType: 'pagePoint',
     clientId: 'viewBigScreen',
     name: '可视化大屏助手',
     description: '用于支持可视化大屏ai对话',

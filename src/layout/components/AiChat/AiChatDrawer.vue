@@ -89,10 +89,7 @@
           v-if="_component && activeAgent.agentId"
           :is="_component"
           ref="aiChatRef"
-          :initExpands="{
-            clientId: activeAgent.clientId,
-            clientType: activeAgent.clientType
-          }"
+          :initExpands="initExpands"
           :parameters="parameters"
           :agent-id="activeAgent.agentId"
           :historyList="messageList"
@@ -128,8 +125,37 @@ const sessionId = ref()
 const aiChatRef = ref()
 const ApplicationListPermission = 'agentDevelopment/applicationList';
 
+const subject = computed(() => {
+  const type = String(props.parameters?.subjectType || '').trim();
+  const id = String(props.parameters?.subjectId || '').trim();
+  if (!type || !id) {
+    return undefined;
+  }
+  return {
+    type,
+    id,
+  };
+});
+
+const initExpands = computed(() => {
+  const base = {
+    clientId: activeAgent.value?.clientId,
+    clientType: activeAgent.value?.clientType,
+  };
+  if (!subject.value) {
+    return base;
+  }
+  return {
+    ...base,
+    subjectType: subject.value.type,
+    subjectId: subject.value.id,
+    subject: subject.value,
+    scope: [subject.value],
+  };
+});
+
 const queryAgentHistoryList = (agentId) => {
-  getAgentHistoryList(agentId, activeAgent.value?.clientType, activeAgent.value?.clientId).then((resp) => {
+  getAgentHistoryList(agentId, activeAgent.value?.clientType, activeAgent.value?.clientId, props.parameters).then((resp) => {
     if (resp.success) {
       historyList.value = resp.result || []
     }
