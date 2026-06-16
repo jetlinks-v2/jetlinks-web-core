@@ -1,9 +1,13 @@
 <template>
-  <JessibucaPlayer ref="playerRef" v-bind="props" />
+  <component :is="playerComponent" ref="playerRef" v-bind="props" />
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
+import LegacyPlayer from './LegacyPlayer.vue';
 import JessibucaPlayer from './JessibucaPlayer.vue';
+import { shouldUseJessibuca } from './legacyPlayerUtils';
 import { mediaPlayerProps } from './types';
 
 defineOptions({
@@ -11,8 +15,11 @@ defineOptions({
 });
 
 const props = defineProps(mediaPlayerProps);
-
-const playerRef = ref<InstanceType<typeof JessibucaPlayer>>();
+const playerRef = ref<InstanceType<typeof JessibucaPlayer> | InstanceType<typeof LegacyPlayer>>();
+// Shared Player keeps FLV on Jessibuca, while the rest stays on the legacy path for compatibility.
+const playerComponent = computed(() =>
+  shouldUseJessibuca(props.url, props.protocol) ? JessibucaPlayer : LegacyPlayer,
+);
 
 defineExpose({
   play: () => playerRef.value?.play?.(),
