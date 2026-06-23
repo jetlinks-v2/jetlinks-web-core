@@ -84,6 +84,17 @@ export const INIT_HOME: RouteRecordRaw = {
   }
 }
 
+export const FORBIDDEN_ROUTE: RouteRecordRaw = {
+  path: '/403',
+  name: 'Forbidden',
+  component: () => import('@jetlinks-web-core/views/Error/403.vue'),
+  meta: {
+    title: '403',
+    hideInMenu: true,
+    skipMenuFetch: true
+  }
+}
+
 export const OAuthWechat: RouteRecordRaw = {
   path: '/oauth/wechat',
   name: 'OAuthWechat',

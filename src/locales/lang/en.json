@@ -390,6 +390,8 @@
   "data.RoleData.950813-35": "Remote Access",
   "Menu.index.459633-0": "System initialized with {0} menus",
   "Menu.index.459633-2": "The initialized menus can be maintained and managed on the 'Menu Management' page.",
+  "Menu.index.459633-3": "Scanned menus",
+  "Menu.index.459633-4": "No menus available for initialization",
   "login.remember.102238-0": "Remember me",
   "login.index.102238-0": "keep on record: ",
   "login.right.419974-0": "Account",

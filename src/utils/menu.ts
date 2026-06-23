@@ -2,26 +2,7 @@ import type { RouteMeta } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { isSubApp, OpenMicroApp, USER_CENTER_MENU_CODE } from '@jetlinks-web-core/utils/consts'
 import router from '../router'
-
-type Buttons = Array<{ id: string }>
-
-type MenuItem = {
-  icon: string
-  name: string
-  i18nName: string
-  code: string
-  url: string
-  appId?: string
-  isShow?: boolean
-  buttons?: Buttons
-  options?: Record<string, any>
-  meta?: RouteMeta
-  children?: MenuItem[]
-  component?: any
-  id?: string
-  describe?: string
-  i18nDescribe?: string
-}
+import type { MenuButton, MenuItem } from '@jetlinks-web-core/types/module'
 
 type BreadcrumbType = {
   name: string
@@ -39,6 +20,10 @@ type MenuMapValue = {
   path: string
   title: string
   routeName?: string
+}
+
+type MenuRouteDraft = Omit<Partial<RouteRecordRaw>, 'children'> & {
+  children?: MenuItem[] | RouteRecordRaw[]
 }
 
 const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
@@ -186,7 +171,7 @@ export const handleMenus = (
     for (let i = _menu.length; i > 0; i--) {
       const item = _menu[i - 1]
 
-      const _route = handleRoute(item, parent)
+      const _route: MenuRouteDraft = handleRoute(item, parent)
       const myComponent = findComponent(item, level)
 
       const menuInfo = {
@@ -221,14 +206,15 @@ export const handleMenus = (
       }
 
       if (_route.children && _route.children.length) {
-        _route.children = loop(_route.children, level + 1, {
+        _route.children = loop(_route.children as MenuItem[], level + 1, {
           code: item.code,
           title: _route.meta?.title as string,
           breadcrumb: _route.meta?.breadcrumb as BreadcrumbType[]
         })
       }
 
-      const showChildren = _route.children?.filter((item) => !item.meta?.hideInMenu) || []
+      const routeChildren = (_route.children || []) as RouteRecordRaw[]
+      const showChildren = routeChildren.filter((item) => !item.meta?.hideInMenu)
 
       if (showChildren.length) {
         _route.redirect = showChildren[0].path.replace('/:page*', '')
@@ -275,7 +261,7 @@ export const handleMenus = (
   }
 }
 
-export const handleAuthMenu = (menuData: MenuItem[], cb: (code: string, buttons: Array<string>) => void) => {
+export const handleAuthMenu = (menuData: MenuItem[], cb: (code: string, buttons: Array<MenuButton['id']>) => void) => {
   if (menuData && menuData.length) {
     return menuData.forEach((item) => {
       const { code, buttons, children } = item

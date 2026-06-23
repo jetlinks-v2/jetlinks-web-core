@@ -12,7 +12,8 @@ import * as path from 'path'
 import {
   registerModulesAlias,
   copyFile,
-  loadViteModulesPlugins
+  loadViteModulesPlugins,
+  buildTimePlugin
 } from './configs/plugin'
 import { federation, sharpOptimize } from '@jetlinks-web/vite'
 import {
@@ -55,10 +56,11 @@ export default defineConfig(async ({ mode, command }) => {
     build: {
       outDir: moduleName ? path.resolve(envDir, `modules/${moduleName}/dist`) : path.resolve(envDir, `dist`),
       assetsDir: 'assets',
-      sourcemap: true,
+      sourcemap: false,
       cssCodeSplit: false,
       emptyOutDir: true,
       manifest: true,
+        reportCompressedSize: false,
       chunkSizeWarningLimit: 2000,
       assetsInlineLimit: 1000,
       rollupOptions: {
@@ -98,12 +100,13 @@ export default defineConfig(async ({ mode, command }) => {
         dts: 'src/auto-imports.d.ts',
         resolvers: [VueAmapResolver()]
       }),
+      buildTimePlugin(),
       moduleFilterPlugin(moduleNames),
-      progress(),
+      // progress(),
       copyFile(moduleName),
       ...loadViteModulesPlugins(),
       federation(getFederationSetting(moduleName, envDir)),
-      sharpOptimize()
+      // sharpOptimize()
     ],
     server: {
       host: '0.0.0.0',

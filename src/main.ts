@@ -12,7 +12,6 @@ import andtv from 'ant-design-vue'
 import '@jetlinks-web-core/style.css'
 
 import 'vue3-json-viewer/dist/index.css'
-import 'xgplayer/dist/index.min.css'
 import '@jetlinks-web-core/style/global.less'
 import 'dayjs/locale/zh-cn'
 import microApp from '@micro-zoe/micro-app'

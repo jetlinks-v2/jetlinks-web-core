@@ -70,6 +70,15 @@ export const initPackages = () => {
     const host = document.location.host;
     const filterHost = host.endsWith('/') ? host.substring(0, host.length - 1) : host;
     let url = `${protocol}${filterHost}${getBaseApi()}/messaging/${token}?${tokenKey}=${token}`;
+
+
+    const projectContext = getProjectContext()
+    if (projectContext) {
+        const { storage: projectStorage } = projectContext
+        if (projectStorage) {
+            url = `${projectStorage.apiUrl}/messaging/${projectStorage.token}?${tokenKey}=${projectStorage.token}&X-Tenant-Domain=${projectStorage.domain}`;
+        }
+    }
     // wsClient.setOptions({
     //     onError(message) {
     //         notification.error({
@@ -204,7 +213,6 @@ export const initAxios = () => {
             }
 
             const projectContext = config.projectContext === false ? undefined : getProjectContext()
-
             if (projectContext) {
                 const { storage: projectStorage } = projectContext
 

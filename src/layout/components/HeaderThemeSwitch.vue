@@ -47,7 +47,6 @@ import { useHeaderTheme } from '@jetlinks-web-core/hooks'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { saveThemeStyle_api } from '@jetlinks-web-core/api/account/center'
 import type { ThemeStyleKey } from '@jetlinks-web-core/utils'
-import { onlyMessage } from '@jetlinks-web/utils'
 import { useI18n } from 'vue-i18n'
 
 type ThemeMode = ThemeStyleKey

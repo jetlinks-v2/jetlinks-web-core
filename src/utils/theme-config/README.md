@@ -3,6 +3,12 @@
 This directory documents how to add a theme style for the JetLinks shell.
 The runtime entry is still `src/utils/theme-config.ts`.
 
+## Theme Persistence
+
+Header theme switching is a user preference. The selected style is saved to `localStorage` with key `jetlinks-theme-style` for fast first paint, and to the user setting `PATCH /user/settings/theme/style` with payload `{ name: 'style', content: '<theme>' }` for cross-session persistence.
+
+Theme initialization first applies the localStorage value for fast first paint. After an authenticated user setting can be read, `GET /user/settings/theme/style` wins and is written back to localStorage; when the user setting is absent, system `front.headerTheme` remains the fallback before the default `light` style.
+
 ## Add a Theme
 
 1. Add a new item to `styleTokens` in `src/utils/theme-config.ts`.

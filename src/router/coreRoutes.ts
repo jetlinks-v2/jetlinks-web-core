@@ -29,12 +29,6 @@ export function resolveCoreRoutes(
     overrideLogs.push(`  - ${override.name}: [removed]`)
   }
 
-  if (overrideLogs.length > 0) {
-    console.info(
-      `[Route Override] Applied ${overrideLogs.length} route override(s):\n${overrideLogs.join('\n')}`,
-    )
-  }
-
   const routes = [...registry.values()]
   const tokenFilterPaths = extractTokenFilterPaths(routes)
   const menuFilterPaths = extractMenuFilterPaths(routes)

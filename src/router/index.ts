@@ -10,9 +10,19 @@ import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
 import { RouteSecurityLevel } from './types'
 import { toValue } from 'vue'
-import { bootstrapSession, ensureMenuRoutes, resetRouteStartupState } from './startup'
-import { redirectLegacyProjectHash, isProjectRuntime } from '@jetlinks-web-core/utils/project-runtime'
+import { bootstrapSession, ensureMenuRoutes, resetRouteStartupState, resetSessionStores } from './startup'
+import {
+  createProjectRuntimeHref,
+  getProjectCodeFromLocation,
+  redirectLegacyProjectHash,
+  isProjectRuntime
+} from '@jetlinks-web-core/utils/project-runtime'
 import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
+import { useUserStore } from '@jetlinks-web-core/store/user'
+
+const FORBIDDEN_PATH = '/403'
+const PROJECT_PERSON_CENTER_PATH = '/person-center'
+const PROJECT_TENANT_ROUTE_PREFIXES = ['/console', '/account']
 
 // ============ 核心路由解析 ============
 const moduleOverrides = collectCoreRouteOverrides()
@@ -88,6 +98,43 @@ function shouldSkipMenuFetch(to: RouteLocationNormalized): boolean {
   return to.matched.some(record => record.meta.skipMenuFetch === true)
 }
 
+const isForbiddenRoute = (to: RouteLocationNormalized) => to.path === FORBIDDEN_PATH
+
+const isProjectTenantSemanticRoute = (to: RouteLocationNormalized) => {
+  return PROJECT_TENANT_ROUTE_PREFIXES.some(prefix => (
+    to.path === prefix || to.path.startsWith(`${prefix}/`)
+  ))
+}
+
+const getSubAccountRedirect = (to: RouteLocationNormalized) => {
+  const userStore = useUserStore()
+
+  if (!userStore.isSubAccount) {
+    return
+  }
+
+  if (isProjectRuntime()) {
+    if (!isProjectTenantSemanticRoute(to)) {
+      return
+    }
+
+    // 子账号在项目域名下误入租户端语义路由时，回到项目端个人中心。
+    const projectCode = getProjectCodeFromLocation()
+    window.location.href = createProjectRuntimeHref(projectCode, PROJECT_PERSON_CENTER_PATH)
+    return false
+  }
+
+  if (isForbiddenRoute(to) || isPublicRoute(to)) {
+    return
+  }
+
+  // 租户端 URL 没有项目 code，不能猜测项目上下文；阻断到无权限页。
+  return {
+    path: FORBIDDEN_PATH,
+    replace: true
+  }
+}
+
 /**
  * 无Token时的跳转逻辑
  */
@@ -113,8 +160,6 @@ const getRoutesByServer = async (
   next: NavigationGuardNext
 ) => {
   try {
-    await bootstrapSession()
-
     const hasAddedMenuRoutes = await ensureMenuRoutes(router, shouldSkipMenuFetch(to))
     if (hasAddedMenuRoutes) {
       next({ ...to, replace: true })
@@ -147,15 +192,30 @@ router.beforeEach((to, from, next) => {
     if (isLoginRoute) {
       resetRouteStartupState()
       next({ path: '/' })
-    } else if (isProjectRuntime()) {
+    } else {
       bootstrapSession()
-        .then(() => next())
+        .then(() => {
+          const subAccountRedirect = getSubAccountRedirect(to)
+          if (subAccountRedirect === false) {
+            routeLoading.finish()
+            return
+          }
+          if (subAccountRedirect) {
+            next(subAccountRedirect)
+            return
+          }
+
+          if (isProjectRuntime()) {
+            next()
+            return
+          }
+
+          getRoutesByServer(to, next)
+        })
         .catch(error => {
-          console.error('[Router] 初始化项目端会话失败:', error)
+          console.error('[Router] 初始化会话失败:', error)
           next()
         })
-    } else {
-      getRoutesByServer(to, next)
     }
   } else {
     resetRouteStartupState()
@@ -179,11 +239,18 @@ export const jumpLogin = () => {
   if (isPublicRoute(currentRoute)) return
 
   setTimeout(() => {
+    resetSessionStores()
     removeToken()
     const loginRoute = coreRoutes.find(r => r.name === 'Login')
-    router.replace({
-      path: loginRoute?.path || '/login',
-    })
+    // router.replace({
+    //   path: loginRoute?.path || '/login',
+    // })
+      const loginPath = loginRoute?.path || '/login'
+      const { origin, pathname, hash} = window.location
+      const hashPath = !!hash ? '#' : ''
+      if (currentRoute.path !== loginPath) {
+        window.location.href = `${origin}${pathname}${hashPath}${loginPath}?redirect=${currentRoute.path}`
+      }
   })
 }
 

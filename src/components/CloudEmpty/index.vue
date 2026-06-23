@@ -5,7 +5,7 @@
     :style="style"
   >
     <a-empty
-      :description="description || defaultDescription"
+      :description="$slots.description ? undefined : description || defaultDescription"
       :image="emptyImage"
       :image-style="mergedImageStyle"
     >

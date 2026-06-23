@@ -1,19 +1,19 @@
 import { defineStore } from 'pinia'
 import type { RouteRecordRaw } from 'vue-router'
 import router from '@jetlinks-web-core/router'
-import { cloneDeep } from 'lodash-es'
 import { setParamsValue } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
-import { handleMenus, modules, getBaseApi } from '@jetlinks-web-core/utils'
+import { modules, getBaseApi } from '@jetlinks-web-core/utils'
 import { getOwnMenuThree } from '@jetlinks-web-core/api/system/menu'
 import { getGlobModules } from '@jetlinks-web-core/router/globModules'
 import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
 import type { RouteHideInMenuContext } from '@jetlinks-web-core/router/types'
-import { useAuthStore, useApplication } from '@jetlinks-web-core/store'
-import { OWNER_KEY } from '@jetlinks-web-core/utils/consts'
+import { useApplication } from '@jetlinks-web-core/store'
 import i18n from '@jetlinks-web-core/locales'
 import { useProjectRouter } from '@/hooks'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
+import { createMenuStoreRuntime } from './menuRuntime'
+import {OWNER_KEY} from "@/utils/consts";
 
 type OptionsType = {
   params?: Record<string, any>
@@ -22,13 +22,23 @@ type OptionsType = {
 
 const $t = i18n.global.t
 
-const defaultOwnParams: any[] = []
-
-const filterRuntimeOwnerMenus = (menus: any[] = []) => {
-  return menus.filter((item) => {
-    return item.owner === OWNER_KEY || item.owner == null
-  })
-}
+const defaultOwnParams: any[] = [
+  {
+    terms: [
+      {
+        column: 'owner',
+        termType: 'eq',
+        value: OWNER_KEY,
+      },
+      {
+        column: 'owner',
+        termType: 'isnull',
+        value: '1',
+        type: 'or',
+      },
+    ],
+  }
+]
 
 const shouldShowOverrideRoute = (
   route: RouteRecordRaw,
@@ -133,108 +143,66 @@ const registerMenuRoute = (route: RouteRecordRaw) => {
 }
 
 export const useMenuStore = defineStore('menu', () => {
-  const menusMap = ref<Map<string, any>>(new Map())
-  const menu = ref<RouteRecordRaw[]>([])
-  const siderMenus = ref<RouteRecordRaw[]>([])
-  const menuResultCache = ref<any[]>([])
-  const loading = ref(true)
-  const hasResponeMenu = ref(false)
-  const authStore = useAuthStore()
   const app = useApplication()
-
-  const hasRouteMenu = () => {
-    return !!menu.value.length
-  }
-
-  const hasMenu = (code: string) => {
-    return menusMap.value.has(code)
-  }
-
-  const routerPush = (
-    name: string,
-    options?: OptionsType,
-  ) => {
-    const _query = options?.query || {}
-    const _params = options?.params || {}
-    setParamsValue(name, _params)
+  const runtime = createMenuStoreRuntime({
+    getAsyncRoutes: getGlobModules,
+    resolveExtraMenus: () => getExtraRouters(),
+    registerRoute: registerMenuRoute,
+    routerPush: (name, options?: OptionsType) => {
+      const _query = options?.query || {}
+      const _params = options?.params || {}
+      setParamsValue(name, _params)
       if (getProjectIdFromLocation()) {
-          const { push } = useProjectRouter()
-          push({
-              name,
-              params: _params,
-              query: _query,
-          })
-          return
+        const { push } = useProjectRouter()
+        push({
+          name,
+          params: _params,
+          query: _query,
+        })
+        return
       }
 
-    router.push({
-      name,
-      params: _params,
-      query: _query,
-    })
+      router.push({
+        name,
+        params: _params,
+        query: _query,
+      })
+    },
+    afterHandleMenus: (context) => {
+      const overrideMenus = getCoreRouteOverrideMenus({
+        hasResponeMenu: runtime.hasResponeMenu.value,
+      })
+      const overrideMenuKeys = new Set(context.menus.map(item => item.name))
+      const mergedMenus = [
+        ...overrideMenus.filter(item => {
+          const key = item.name
+          if (overrideMenuKeys.has(key)) return false
+          overrideMenuKeys.add(key)
+          return true
+        }),
+        ...context.menus,
+      ]
+      const routerRoutes = router.getRoutes()
 
-  }
+      if (!router.hasRoute('saas-tenant-root')) {
+        const defaultRedirect = import.meta.env.VITE_DEFAULT_REDIRECT_PATH || '/account'
+        const redirectUrl = context.menuRoutes.length ? context.menuRoutes[0].path : defaultRedirect
+        context.menuRoutes.push({
+          path: '/',
+          redirect: redirectUrl,
+        })
+      }
 
-  const jumpPage = (
-    name: string,
-    options?: OptionsType,
-  ) => {
-    const menuItem = menusMap.value.get(name)
-
-    if (menuItem) {
-      routerPush(menuItem.routeName || name, options)
-    } else {
-      onlyMessage($t('Home.index.010851-10'), 'warning')
-      console.warn(`没有找到对应的页面: ${name}`)
-    }
-  }
-
-  const createRoutes = async (menuResult: any[]) => {
-    menusMap.value.clear()
-    const asyncRoutes = await getGlobModules()
-    const extraMenu = await getExtraRouters()
-
-    const { menuRoutes, menuMap, menus, authButtons } = handleMenus(
-      cloneDeep(menuResult),
-      extraMenu,
-      asyncRoutes,
-    )
-    const overrideMenus = getCoreRouteOverrideMenus({
-      hasResponeMenu: hasResponeMenu.value,
-    })
-    const overrideMenuKeys = new Set(menus.map(item => item.name))
-    const mergedMenus = [
-      ...overrideMenus.filter(item => {
-        const key = item.name
-        if (overrideMenuKeys.has(key)) return false
-        overrideMenuKeys.add(key)
-        return true
-      }),
-      ...menus,
-    ]
-    const routerRoutes = router.getRoutes()
-
-    const defaultRedirect = import.meta.env.VITE_DEFAULT_REDIRECT_PATH || '/account'
-    const redirectUrl = menuRoutes.length ? menuRoutes[0].path : defaultRedirect
-      menuRoutes.push({
-        path: '/',
-        redirect: redirectUrl,
+      routerRoutes.forEach((item: any) => {
+        if (typeof item.name !== 'string' || !item.path || !item.meta?.title) return
+        if (!context.menuMap.has(item.name)) {
+          context.menuMap.set(item.name, { path: item.path, title: item.meta.title as string, routeName: item.name })
+        }
       })
 
-    routerRoutes.forEach((item: any) => {
-      if (typeof item.name !== 'string' || !item.path || !item.meta?.title) return
-      if (!menuMap.has(item.name)) {
-        menuMap.set(item.name, { path: item.path, title: item.meta.title as string, routeName: item.name })
-      }
-    })
-
-    menuRoutes.forEach(registerMenuRoute)
-
-    menusMap.value = menuMap
-    menu.value = menuRoutes
-    siderMenus.value = mergedMenus
-    authStore.setPermissionsAll(authButtons)
-  }
+      context.menus = mergedMenus as RouteRecordRaw[]
+    },
+  })
 
   const queryMenus = async () => {
     const resp = await getOwnMenuThree({
@@ -243,8 +211,8 @@ export const useMenuStore = defineStore('menu', () => {
       sorts: [{ name: 'sortIndex', order: 'asc' }],
     })
 
-    let menuResult = resp.result
-    menuResultCache.value = JSON.parse(JSON.stringify(resp.result))
+    const menuResult = Array.isArray(resp.result) ? resp.result : []
+    runtime.menuResultCache.value = JSON.parse(JSON.stringify(menuResult))
 
     if (app.appList.length > 0) {
       const handleMicroApp = (nodes: any[]) => {
@@ -291,48 +259,51 @@ export const useMenuStore = defineStore('menu', () => {
     }
 
     if (resp.success) {
-      hasResponeMenu.value = !!resp.result.length
-      await createRoutes(filterRuntimeOwnerMenus(menuResult))
-      loading.value = false
+      runtime.hasResponeMenu.value = !!menuResult.length
+      await runtime.createRoutes(menuResult)
+      runtime.loading.value = false
     }
   }
 
   const hasOwnerMenu = (owner: string) => {
-    return menuResultCache.value.some((item) => item.owner === owner)
+    return runtime.menuResultCache.value.some((item) => item.owner === owner)
   }
 
   const getOwnerMenu = (owner: string) => {
-    return menuResultCache.value.find((item) => item.owner === owner)
+    return runtime.menuResultCache.value.find((item) => item.owner === owner)
   }
 
-  const getMenu = (name: string) => {
-    return menusMap.value.get(name)
-  }
+  const jumpPage = (
+    name: string,
+    options?: OptionsType,
+  ) => {
+    const menuItem = runtime.getMenu(name)
 
-  const init = () => {
-    menusMap.value = new Map()
-    menu.value = []
-    siderMenus.value = []
-    menuResultCache.value = []
-    loading.value = false
+    if (menuItem) {
+      runtime.routerPush(menuItem.routeName || name, options)
+    } else {
+      onlyMessage($t('Home.index.010851-10'), 'warning')
+      console.warn(`没有找到对应的页面: ${name}`)
+    }
   }
 
   return {
-    menu,
-    siderMenus,
-    menusMap,
-    loading,
-    menuResultCache,
-    hasResponeMenu,
-    hasRouteMenu,
-    hasMenu,
+    menu: runtime.menu,
+    siderMenus: runtime.siderMenus,
+    menusMap: runtime.menusMap,
+    loading: runtime.loading,
+    initialized: runtime.initialized,
+    menuResultCache: runtime.menuResultCache,
+    hasResponeMenu: runtime.hasResponeMenu,
+    hasRouteMenu: runtime.hasRouteMenu,
+    hasMenu: runtime.hasMenu,
     hasOwnerMenu,
     getOwnerMenu,
     jumpPage,
-    routerPush,
+    routerPush: runtime.routerPush,
     queryMenus,
-    getMenu,
-    createRoutes,
-    init,
+    getMenu: runtime.getMenu,
+    createRoutes: runtime.createRoutes,
+    init: runtime.init,
   }
 })

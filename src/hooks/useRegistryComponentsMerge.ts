@@ -1,4 +1,4 @@
-import { computed, h, Fragment, type VNode } from 'vue'
+import { computed, h, Fragment, watch, type Ref, type VNode } from 'vue'
 import { cloneDeep, isEqual } from 'lodash-es'
 import { useRoute } from 'vue-router'
 import { componentsRegistry } from '@jetlinks-web-core/utils/components-registry'
@@ -59,7 +59,7 @@ export function useRegistryOptions<T = any>({
     const indexMap = new Map<any, number>()
 
 
-    base.forEach((opt, idx) => {
+    base.forEach((opt: T, idx: number) => {
       const key = (opt as any).value ?? (opt as any).key
       indexMap.set(key, idx)
       result.push(opt)
@@ -87,14 +87,14 @@ export function useRegistryOptions<T = any>({
       if (item.mode === 'replace' && target != null) {
         const idx = indexMap.get(target)
         if (idx != null) {
-          result[idx] = item.extraOptions
+          result[idx] = item.extraOptions as T
           indexMap.set(key, idx)
           return
         }
       }
 
       if (!indexMap.has(key)) {
-        result.push(item.extraOptions)
+        result.push(item.extraOptions as T)
         indexMap.set(key, result.length - 1)
       }
     })

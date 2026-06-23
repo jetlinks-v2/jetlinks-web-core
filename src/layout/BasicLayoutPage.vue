@@ -39,7 +39,8 @@
             <Resource key="resource" v-if="systemInfo?.['front']?.resources"/>
             <Notice key="notice" />
           </template>
-          <HeaderThemeSwitch key="theme" />
+<!--          <HeaderThemeSwitch key="theme" />-->
+          <User key="user" :hideHeaderRight="hideHeaderRight" />
         </RegistryComponent>
       </div>
     </template>
@@ -59,11 +60,11 @@ import {
   AiChat,
   LayoutMenuSearch,
   LayoutSidebarUser,
-  HeaderThemeSwitch
+  User
 } from './components'
 import { storeToRefs } from 'pinia'
 import { getHideHeaderRightConfig, routerFallback } from '@jetlinks-web-core/utils'
-import { isSubApp } from '../utils/consts'
+import { isSubApp } from '@/utils/consts'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { useResponsiveLayoutDimensions } from '@jetlinks-web-core/hooks'
 
@@ -160,9 +161,9 @@ const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
 watchEffect(() => {
   if (router.currentRoute) {
     const paths = route.meta.breadcrumb || route.meta.breadcrumbCache || []
-    const { selectedKeys, openKeys } = resolveMenuKeys(paths)
-    state.selectedKeys = selectedKeys
-    state.openKeys = openKeys
+    // const { selectedKeys, openKeys } = resolveMenuKeys(paths)
+    state.selectedKeys = paths.map(item => item.path)
+    state.openKeys = paths.map(item => item.path)
   }
   if (route.query?.layout === 'false') {
     state.pure = true

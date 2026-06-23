@@ -126,15 +126,15 @@ const CropperModal = defineComponent({
       })
     }
 
-    const stopModalEvent = (e: MouseEvent) => {
+    const stopPointerStartEvent = (e: MouseEvent) => {
       e.stopPropagation()
     }
 
+    // vue-cropper clears drag state from window mouseup; do not stop release events here.
     const renderModalContent = ({ originVNode }: { originVNode: any }) => (
       <div
-        onMousedown={stopModalEvent}
-        onMouseup={stopModalEvent}
-        onClick={stopModalEvent}
+        onMousedown={stopPointerStartEvent}
+        onClick={stopPointerStartEvent}
       >
         {originVNode}
       </div>
@@ -163,9 +163,8 @@ const CropperModal = defineComponent({
               width: '100%',
               ...(bodyStyle || {})
             }}
-            onMousedown={(e: MouseEvent) => e.stopPropagation()}
-            onMouseup={(e: MouseEvent) => e.stopPropagation()}
-            onClick={(e: MouseEvent) => e.stopPropagation()}
+            onMousedown={stopPointerStartEvent}
+            onClick={stopPointerStartEvent}
           >
             <VueCropper ref={cropperRef} {...cropper}/>
           </div>

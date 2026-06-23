@@ -1,12 +1,36 @@
 ﻿<template>
-  <div class="menu-style">
-    <div class="menu-img">
-      <img :src="Menu" />
+  <div class="menu-panel">
+    <div class="menu-style">
+      <div class="menu-img">
+        <img :src="Menu" />
+      </div>
+      <div class="menu-info">
+        <b>{{ $t("Menu.index.459633-0", [menusData.count]) }}</b>
+        <div>{{ $t("Menu.index.459633-2") }}</div>
+      </div>
     </div>
-    <div class="menu-info">
-      <b>{{ $t("Menu.index.459633-0", [menusData.count]) }}</b>
-      <div>{{ $t("Menu.index.459633-2") }}</div>
+
+    <div v-if="menuTreeData.length" class="menu-tree-panel">
+      <div class="menu-tree-panel__header">
+        {{ $t("Menu.index.459633-3") }}
+      </div>
+      <a-tree
+        v-model:expandedKeys="expandedKeys"
+        :tree-data="menuTreeData"
+        :selectedKeys="[]"
+        :show-line="{ showLeafIcon: false }"
+        blockNode
+      >
+        <template #title="{ title }">
+          <span class="menu-tree-node-title">{{ title }}</span>
+        </template>
+      </a-tree>
     </div>
+    <CloudEmpty
+      v-else
+      class="menu-tree-empty"
+      :description="$t('Menu.index.459633-4')"
+    />
   </div>
 </template>
 
@@ -26,8 +50,14 @@ import {saveAgentList} from "@jetlinks-web-core/api/comm";
 import {agentData} from "../data/aiData";
 import { Menu } from '@jetlinks-web-core/assets/init-home'
 import { useI18n } from 'vue-i18n';
+import { buildMenuTreeData, collectExpandedKeys, getLocaleKeys, type MenuFilter, type MenuItem } from './utils'
 
-const { t: $t } = useI18n();
+const props = defineProps<{
+  filterMenu?: MenuFilter
+  queryProtocol?: boolean
+}>()
+
+const { t: $t, locale } = useI18n();
 
 const app = useApplication()
 /**
@@ -35,9 +65,13 @@ const app = useApplication()
  */
 const menusData = reactive({
   count: 0,
-  current: [],
+  current: [] as MenuItem[],
 });
 const hasAgentPermission = ref(false)
+const expandedKeys = ref<string[]>([])
+
+const localeKeys = computed(() => getLocaleKeys(String(locale.value || '')))
+const menuTreeData = computed(() => buildMenuTreeData(menusData.current, localeKeys.value))
 
 /**
  * 查询支持的协议
@@ -64,18 +98,20 @@ const getProvidersFn = async () => {
 /**
  * 获取当前系统权限信息
  */
-const getSystemPermissionData = async ( BaseMenu: any[] ) => {
-  const hasProtocol = await getProvidersFn();
+const getSystemPermissionData = async ( BaseMenu: MenuItem[] ) => {
+  const hasProtocol = props.queryProtocol === false ? true : await getProvidersFn();
   const resp = await getSystemPermission();
   if (resp.success) {
     const _permission = resp.result.map((item: any) => JSON.parse(item).id)
-    const newTree = filterMenu(_permission,
+    const permissionTree = filterMenuByPermission(_permission,
       BaseMenu,
       hasProtocol,
     );
+    const newTree = props.filterMenu ? await props.filterMenu(permissionTree) : permissionTree
     const _count = menuCount(newTree);
     menusData.current = newTree;
     menusData.count = _count;
+    expandedKeys.value = collectExpandedKeys(buildMenuTreeData(newTree, localeKeys.value))
     hasAgentPermission.value = _permission.includes('ai-agent-deploy')
   }
 };
@@ -83,27 +119,27 @@ const getSystemPermissionData = async ( BaseMenu: any[] ) => {
 /**
  * 过滤菜单
  */
-const filterMenu = (
+const filterMenuByPermission = (
   permissions: string[],
-  menus: any[],
+  menus: MenuItem[],
   hasProtocol: boolean,
-) => {
+): MenuItem[] => {
   return menus.filter((item) => {
     let isShow = false;
     if (item.showPage && item.showPage.length) {
-      isShow = item.showPage.some((pItem: any) => {
+      isShow = item.showPage.some((pItem) => {
         return permissions.includes(pItem);
       });
     }
     if (item.buttons?.length) {
-      item.buttons = item.buttons.filter((bItem: Record<string, any>) => {
-        return bItem.permissions.some((permission: any) => {
+      item.buttons = item.buttons.filter((bItem) => {
+        return bItem.permissions?.some((permission) => {
           return permissions.includes(permission.permission)
         })
       })
     }
     if (item.children) {
-      item.children = filterMenu(permissions, item.children, hasProtocol);
+      item.children = filterMenuByPermission(permissions, item.children, hasProtocol);
     }
     if (!hasProtocol && item.options?.hasProtocol) {
       return false;
@@ -115,7 +151,7 @@ const filterMenu = (
 /**
  * 计算菜单数量
  */
-const menuCount = (menus: any[]) => {
+const menuCount = (menus: MenuItem[]) => {
   return menus.reduce((pre, next) => {
     let _count = 1;
 
@@ -128,8 +164,8 @@ const menuCount = (menus: any[]) => {
 /**
  * 添加options show用于控制菜单是否显示函数
  */
-const dealMenu = (data: any) => {
-  data.forEach((item: any) => {
+const dealMenu = (data: MenuItem[]) => {
+  data.forEach((item) => {
     item.options = Object.assign(
       {
         show: true,
@@ -199,10 +235,42 @@ defineExpose({
 });
 </script>
 <style lang="less" scoped>
+.menu-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
 .menu-style {
   display: flex;
   align-items: center;
   .menu-img {
     margin-right: var(--space-4);
   }
-}</style>
+}
+
+.menu-tree-panel {
+  max-height: 22.5rem;
+  overflow: auto;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-1);
+}
+
+.menu-tree-panel__header {
+  margin-bottom: var(--space-2);
+  color: var(--ink-1);
+  font-weight: 500;
+  font-size: var(--fs-14);
+}
+
+.menu-tree-node-title {
+  color: var(--ink-1);
+  cursor: default;
+}
+
+.menu-tree-empty {
+  padding: var(--space-6) 0;
+}
+</style>
