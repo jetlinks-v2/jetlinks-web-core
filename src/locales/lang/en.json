@@ -666,6 +666,7 @@
   "components.LayoutSidebarUser.logout": "Log Out",
   "components.LayoutSidebarUser.expand": "Expand Menu",
   "components.LayoutSidebarUser.collapse": "Collapse Menu",
+  "components.LayoutSidebarUser.scopeLabel": "Current View",
   "auth.index.559799-0": "Authorized login",
   "auth.index.559799-1": "You are authorizing login, {0} will be granted the following permissions:",
   "auth.index.559799-2": "Associate {0} account",

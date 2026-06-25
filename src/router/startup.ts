@@ -20,6 +20,8 @@ export const bootstrapSession = async () => {
     await systemStore.getShowThreshold()
     await systemStore.queryInfo()
     await systemStore.setMircoData()
+    await systemStore.queryOrganizationTree()
+    await systemStore.initOrganizationPlatformSetting((userStore.userInfo?.orgList || []) as any[])
     systemStore.markSessionInitialized(userKey)
   }
 

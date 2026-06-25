@@ -44,7 +44,7 @@
         </RegistryComponent>
       </div>
     </template>
-    <PageRouteView />
+    <PageRouteView :key="routeViewKey" />
   </j-pro-layout>
   <AiChat />
 </template>
@@ -75,7 +75,7 @@ const menuStore = useMenuStore()
 const layoutType = ref('list')
 const hideHeaderRight = getHideHeaderRightConfig()
 
-const { theme, layout, language, systemInfo, themeStyleToken } = storeToRefs(systemStore)
+const { theme, layout, language, systemInfo, themeStyleToken, currentParkId } = storeToRefs(systemStore)
 
 const state = reactive({
   pure: false,
@@ -98,6 +98,8 @@ const config = computed(() => ({
     [`jet-layout-menu-${menuVariant.value}`]: true
   }
 }))
+
+const routeViewKey = computed(() => `${String(route.fullPath || '')}::${String(currentParkId.value || '')}`)
 
 /**
  * 路由跳转

@@ -671,6 +671,7 @@
   "components.LayoutSidebarUser.logout": "退出登录",
   "components.LayoutSidebarUser.expand": "展开菜单",
   "components.LayoutSidebarUser.collapse": "收起菜单",
+  "components.LayoutSidebarUser.scopeLabel": "当前视角",
   "auth.index.559799-0": "授权登录",
   "auth.index.559799-1": "您正在授权登录, {0} 将获得以下权限:",
   "auth.index.559799-2": "关联{0}账号",

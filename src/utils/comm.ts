@@ -10,6 +10,8 @@ import { getProjectStorage, isProjectStorageEnabled } from './project-storage'
 
 const TENANT_DOMAIN_KEY = 'X-Tenant-Domain'
 const VERIFY_CACHE_KEY = 'jetlinks_verify_cache'
+const PARK_ID_HEADER_KEY = 'X-Park-Id'
+const PARK_CONTEXT_STORAGE_KEY = 'smart_park_current_park'
 
 export const downloadJson = (
   record: Record<string, any>,
@@ -192,6 +194,11 @@ export const getUploadHeaders = () => {
 
   if (projectStorage?.domain) {
     headers[TENANT_DOMAIN_KEY] = projectStorage.domain
+  }
+
+  const currentParkId = LocalStore.get(PARK_CONTEXT_STORAGE_KEY)
+  if (currentParkId) {
+    headers[PARK_ID_HEADER_KEY] = currentParkId
   }
 
   return {

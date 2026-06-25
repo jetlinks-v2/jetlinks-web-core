@@ -126,6 +126,9 @@ const filterMenuByPermission = (
 ): MenuItem[] => {
   return menus.filter((item) => {
     let isShow = false;
+    const routeName = String(item.options?.routeName || '')
+    const isConfigRoot = routeName === 'smart-park-config'
+    const isConfigMenu = routeName.startsWith('smart-park-config/')
     if (item.showPage && item.showPage.length) {
       isShow = item.showPage.some((pItem) => {
         return permissions.includes(pItem);
@@ -143,6 +146,9 @@ const filterMenuByPermission = (
     }
     if (!hasProtocol && item.options?.hasProtocol) {
       return false;
+    }
+    if (isConfigRoot || isConfigMenu) {
+      return true;
     }
     return isShow || !!item.children?.length;
   });

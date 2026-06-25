@@ -1,55 +1,47 @@
 <template>
   <div class="layout-sidebar-user" :class="{ 'layout-sidebar-user--collapsed': collapsed }">
-    <a-dropdown
-      v-model:open="open"
-      placement="topLeft"
-      trigger="click"
-      overlay-class-name="layout-sidebar-user-overlay"
-      getPopupContainer=''
+    <div v-if="!collapsed" class="layout-sidebar-user__scope">
+      <div class="layout-sidebar-user__scope-label">{{ $t('components.LayoutSidebarUser.scopeLabel') }}</div>
+      <a-dropdown
+        v-if="hasParkOptions"
+        v-model:open="scopeOpen"
+        placement="topLeft"
+        trigger="click"
+        overlay-class-name="layout-sidebar-scope-overlay"
+      >
+        <button class="layout-sidebar-user__scope-card" type="button">
+          <span class="layout-sidebar-user__scope-path">{{ scopePathText }}</span>
+          <AIcon type="DownOutlined" class="layout-sidebar-user__scope-arrow" />
+        </button>
+
+        <template #overlay>
+          <div class="layout-sidebar-user__scope-menu">
+            <button
+              v-for="item in parkOptions"
+              :key="item.key"
+              class="layout-sidebar-user__scope-option"
+              :class="{ 'layout-sidebar-user__scope-option--active': item.active }"
+              type="button"
+              @click="handleParkChange(item.raw)"
+            >
+              <div class="layout-sidebar-user__scope-option-title">{{ item.label }}</div>
+              <div class="layout-sidebar-user__scope-option-subtitle">{{ item.description }}</div>
+            </button>
+          </div>
+        </template>
+      </a-dropdown>
+
+      <div v-else class="layout-sidebar-user__scope-empty">{{ scopePathText }}</div>
+
+      <div v-if="scopeDescription" class="layout-sidebar-user__scope-desc">{{ scopeDescription }}</div>
+    </div>
+
+    <a-button
+      class="layout-sidebar-user__collapse"
+      type="text"
+      :aria-label="$t(collapsed ? 'components.LayoutSidebarUser.expand' : 'components.LayoutSidebarUser.collapse')"
+      @click="emit('toggleCollapse')"
     >
-      <a-button class="layout-sidebar-user__card" :aria-expanded="open ? 'true' : 'false'">
-        <a-avatar :size="26" :src="avatar" class="layout-sidebar-user__avatar">
-          <template #icon>
-            <span>{{ avatarText }}</span>
-          </template>
-        </a-avatar>
-        <span v-if="!collapsed" class="layout-sidebar-user__meta">
-          <span class="layout-sidebar-user__name">{{ displayName }}</span>
-          <span class="layout-sidebar-user__account">{{ account }}</span>
-        </span>
-        <AIcon v-if="!collapsed" type="UpOutlined" class="layout-sidebar-user__arrow" />
-      </a-button>
-
-      <template #overlay>
-        <div class="layout-sidebar-user__menu">
-          <a-button
-            v-for="item in menuItems"
-            :key="item.key"
-            class="layout-sidebar-user__menu-item"
-            @click="jumpMenu(item)"
-          >
-            <AIcon :type="item.icon" />
-            <span>{{ item.label }}</span>
-          </a-button>
-          <RegistryComponent pageCode="layout" code="sidebarUserMenu" @click="open = false" />
-          <a-button class="layout-sidebar-user__menu-item" type="text" block @click="goAccountCenter">
-            <template #icon>
-              <AIcon type="SettingOutlined" />
-            </template>
-            {{ $t('components.LayoutSidebarUser.settings') }}
-          </a-button>
-          <div class="layout-sidebar-user__divider" />
-          <a-button class="layout-sidebar-user__menu-item layout-sidebar-user__menu-item--muted" type="text" block :loading="logoutLoading" @click="handleLogout">
-            <template #icon>
-              <AIcon type="LogoutOutlined" />
-            </template>
-            {{ $t('components.LayoutSidebarUser.logout') }}
-          </a-button>
-        </div>
-      </template>
-    </a-dropdown>
-
-    <a-button class="layout-sidebar-user__collapse" type="text" :aria-label="$t(collapsed ? 'components.LayoutSidebarUser.expand' : 'components.LayoutSidebarUser.collapse')" @click="emit('toggleCollapse')">
       <template #icon>
         <AIcon :type="collapsed ? 'MenuUnfoldOutlined' : 'MenuFoldOutlined'" />
       </template>
@@ -58,66 +50,53 @@
 </template>
 
 <script setup lang="ts" name="LayoutSidebarUser">
-import { logout } from '@jetlinks-web-core/api/login'
-import { clearVerifyCache } from '@jetlinks-web-core/package'
-import { jumpLogin } from '@jetlinks-web-core/router'
-import { useUserStore } from '@jetlinks-web-core/store/user'
+import { useSystemStore } from '@jetlinks-web-core/store/system'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
 defineProps({
   collapsed: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 })
 
 const emit = defineEmits<{
   (e: 'toggleCollapse'): void
 }>()
 
-const router = useRouter()
 const { t: $t } = useI18n()
-const userStore = useUserStore()
-const open = ref(false)
-const logoutLoading = ref(false)
+const systemStore = useSystemStore()
+const { currentTopOrgSetting, currentParkId, currentParkInfo, organizationPlatformState } = storeToRefs(systemStore)
+const scopeOpen = ref(false)
 
-const displayName = computed(() => userStore.userInfo?.name || userStore.userInfo?.username || '-')
-const account = computed(() => {
-  const info = userStore.userInfo as Record<string, any>
-  return info.email || info.username || ''
-})
-const avatar = computed(() => (userStore.userInfo as Record<string, any>)?.avatar || '')
-const avatarText = computed(() => displayName.value.trim().slice(0, 1) || '用')
-const menuItems = computed(() => [
-  { key: 'ticket', label: $t('components.LayoutSidebarUser.ticket'), path: '/support/center', icon: 'ContainerOutlined' },
-  { key: 'expense', label: $t('components.LayoutSidebarUser.expense'), icon: 'CreditCardOutlined' },
-  { key: 'platform', label: $t('components.LayoutSidebarUser.platform'), icon: 'SafetyOutlined' }
-])
-
-const jumpMenu = (item: { path?: string }) => {
-  open.value = false
-  if (!item.path) return
-  router.push(item.path)
-}
-
-const goAccountCenter = () => {
-  open.value = false
-  router.push('/account/center')
-}
-
-const handleLogout = async () => {
-  if (logoutLoading.value) return
-  logoutLoading.value = true
-  try {
-    const resp = await logout()
-    if (resp.success) {
-      open.value = false
-      clearVerifyCache()
-      jumpLogin()
-    }
-  } finally {
-    logoutLoading.value = false
+const currentOrgName = computed(() => String(currentTopOrgSetting.value?.orgName || ''))
+const currentParkName = computed(() => String(currentParkInfo.value?.name || currentTopOrgSetting.value?.defaultParkName || ''))
+const scopePathText = computed(() => {
+  if (currentOrgName.value && currentParkName.value) {
+    return `${currentOrgName.value} / ${currentParkName.value}`
   }
+  return currentOrgName.value || currentParkName.value || '--'
+})
+const scopeDescription = computed(() => String(currentTopOrgSetting.value?.companyName || ''))
+const parkOptions = computed(() =>
+  (organizationPlatformState.value.currentParks || []).map((item) => ({
+    key: String(item.id || ''),
+    label: item.name || '--',
+    description: currentOrgName.value || item.orgName || '',
+    active: String(item.id || '') === String(currentParkId.value || ''),
+    raw: item,
+  })),
+)
+const hasParkOptions = computed(() => parkOptions.value.length > 0)
+
+const handleParkChange = async (park: Record<string, any>) => {
+  scopeOpen.value = false
+  const parkOrgId = String(park?.orgId || '')
+  if (parkOrgId && parkOrgId !== String(systemStore.currentTopOrgId || '')) {
+    await systemStore.loadTopOrgSetting(parkOrgId)
+  }
+  systemStore.setCurrentPark(park)
 }
 </script>
 
@@ -131,75 +110,69 @@ const handleLogout = async () => {
   border-top: 1px solid var(--jet-theme-border-secondary);
   background: var(--layout-menu-bg, var(--jet-theme-bg-container));
 
-  &__card {
-    min-width: 0;
-    height: 2.625rem;
+  &__scope {
+    grid-column: 1 / -1;
+    padding: 0.25rem 0 0.375rem;
+  }
+
+  &__scope-label {
+    margin-bottom: 0.5rem;
+    color: var(--jet-theme-text-description);
+    font-size: var(--fs-12);
+    line-height: 1.125rem;
+  }
+
+  &__scope-card,
+  &__scope-empty {
+    width: 100%;
+    min-height: 2.25rem;
     display: flex;
     align-items: center;
-    gap: 0.5625rem;
-    padding: 0.375rem 0.5rem;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
     border: 0;
-    border-radius: var(--r-2);
-    background: transparent;
-    color: var(--jet-theme-text);
-    text-align: left;
+    border-radius: 0.625rem;
+    background: color-mix(in srgb, var(--jet-theme-primary) 10%, #f3f7ff);
+    color: var(--jet-theme-primary);
+    font-size: var(--fs-14);
+    line-height: 1.25rem;
+  }
+
+  &__scope-card {
     cursor: pointer;
-    transition: background 0.16s ease;
-
-    &:hover,
-    &[aria-expanded='true'] {
-      background: var(--layout-menu-item-active-bg, var(--jet-theme-border-secondary));
-    }
   }
 
-  &__avatar {
-    flex: none;
-      background: var(--chrome-active-line, var(--jet-theme-text));
-    color: var(--brand-mark-ink, var(--jet-theme-bg-container));
-    font-size: var(--fs-13);
-    font-weight: 600;
-  }
-
-  &__meta {
-    min-width: 0;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-  }
-
-  &__name,
-  &__account {
+  &__scope-path {
+    max-width: calc(100% - 1rem);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  &__name {
-    font-size: var(--fs-13);
-    line-height: 1.125rem;
     font-weight: 600;
   }
 
-  &__account {
-    color: var(--jet-theme-text-disabled);
+  &__scope-arrow {
+    color: currentColor;
     font-size: var(--fs-12);
   }
 
-  &__arrow {
+  &__scope-desc {
+    margin-top: 0.5rem;
     color: var(--jet-theme-text-secondary);
     font-size: var(--fs-12);
+    line-height: 1.125rem;
   }
 
   &__collapse {
+    grid-column: 2;
+    justify-self: end;
     width: 1.75rem;
     height: 1.75rem;
     color: var(--jet-theme-text-secondary);
     font-size: var(--fs-12);
   }
 
-  &__menu {
-    width: 12rem;
+  &__scope-menu {
     padding: var(--space-1);
     background: var(--chrome-elev, var(--jet-theme-bg-container));
     border: 1px solid var(--chrome-line, var(--jet-theme-border));
@@ -207,50 +180,45 @@ const handleLogout = async () => {
     box-shadow: var(--shadow-pop);
   }
 
-  &__menu-item {
+  &__scope-menu {
+    width: 14.5rem;
+  }
+
+  &__scope-option {
     width: 100%;
-    height: 2.125rem;
     display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    padding: 0 0.75rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+    padding: 0.625rem 0.75rem;
     border: 0;
     border-radius: var(--r-2);
     background: transparent;
-    color: var(--jet-theme-text);
-    font-size: var(--fs-14);
     text-align: left;
     cursor: pointer;
 
-    &:hover {
-      background: var(--layout-menu-item-active-bg, var(--jet-theme-border-secondary));
+    &:hover,
+    &--active {
+      background: color-mix(in srgb, var(--jet-theme-primary) 10%, #f3f7ff);
     }
-
-    :deep(.ant-btn-icon),
-    > .anticon {
-      color: var(--jet-theme-text-secondary);
-    }
-
-    &--muted {
-      color: var(--jet-theme-text-secondary);
-    }
-
   }
 
-  &__divider {
-    height: 0.0625rem;
-    margin: 0.25rem 0;
-    background: var(--jet-theme-border-secondary);
+  &__scope-option-title {
+    color: var(--jet-theme-text);
+    font-size: var(--fs-13);
+    line-height: 1.25rem;
+    font-weight: 600;
+  }
+
+  &__scope-option-subtitle {
+    color: var(--jet-theme-text-secondary);
+    font-size: var(--fs-12);
+    line-height: 1.125rem;
   }
 
   &--collapsed {
     grid-template-columns: 1fr;
     padding: 0.5rem 0.375rem;
-
-    .layout-sidebar-user__card {
-      justify-content: center;
-      padding: 0.375rem;
-    }
 
     .layout-sidebar-user__collapse {
       margin-top: var(--space-1);
@@ -261,21 +229,10 @@ const handleLogout = async () => {
 </style>
 
 <style lang="less">
-.layout-sidebar-user-overlay {
+.layout-sidebar-user-overlay,
+.layout-sidebar-scope-overlay {
   .ant-dropdown-menu {
     padding: 0;
-  }
-
-  .ant-btn {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    text-align: left;
-  }
-
-  .ant-btn > span:not(.ant-btn-icon) {
-    padding-right: var(--space-1);
-    text-align: left;
   }
 }
 </style>

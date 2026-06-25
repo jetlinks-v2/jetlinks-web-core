@@ -24,6 +24,7 @@ import {
 import microApp from '@micro-zoe/micro-app'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
 import { useVerifyStore } from '@jetlinks-web-core/store/verify'
+import { useSystemStore } from '@jetlinks-web-core/store/system'
 import type { VerifyRequiredResult } from '@jetlinks-web-core/api/verify'
 
 /** 非一次性校验通过后缓存的 key/token，供请求头使用（避免拦截器内 pinia 未就绪） */
@@ -201,6 +202,7 @@ export const initAxios = () => {
               }
           },
         requestOptions(config: any) {
+            config.headers = config.headers || {}
 
             let cache = verifyHeadersCache
             if (!cache) {
@@ -230,6 +232,21 @@ export const initAxios = () => {
                 if ('X-Tenant-Domain' in config.headers) {
                     delete config.headers['X-Tenant-Domain']
                 }
+            }
+
+            try {
+                const systemStore = useSystemStore()
+                const parkId = String(systemStore.currentParkId || '')
+                config.headers = config.headers || {}
+                if ('X-Park-Id' in config.headers) {
+                    if (!config.headers['X-Park-Id']) {
+                        delete config.headers['X-Park-Id']
+                    }
+                } else if (parkId) {
+                    config.headers['X-Park-Id'] = parkId
+                }
+            } catch {
+                // ignore store unavailable during very early bootstrap
             }
 
             if (cache?.key && cache?.token) {
