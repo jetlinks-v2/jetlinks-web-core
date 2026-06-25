@@ -26,11 +26,15 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import { onlyMessage } from '@jetlinks-web/utils'
-import { queryModelFormatTags, type ModelFormatTag } from '@jetlinks-web-core/api/modelConfig'
 
 interface FormatOption {
   label: string
   value: string
+}
+
+interface ModelFormatTag {
+  id: string
+  name?: string
 }
 
 const props = defineProps({
@@ -49,6 +53,14 @@ const props = defineProps({
   confirmLoading: {
     type: Boolean,
     default: false
+  },
+  loading: {
+    type: Boolean,
+    default: false
+  },
+  formatTags: {
+    type: Array as PropType<ModelFormatTag[]>,
+    default: () => []
   }
 })
 
@@ -57,13 +69,11 @@ const emit = defineEmits<{
   (e: 'confirm', value: string): void
 }>()
 
-const loading = ref(false)
 const selectedFormat = ref<string>()
-const formatTags = ref<ModelFormatTag[]>([])
 
 const availableOptions = computed<FormatOption[]>(() => {
   const existing = new Set(props.existingFormats)
-  return formatTags.value
+  return props.formatTags
     .filter(item => item?.id && !existing.has(item.id))
     .map(item => ({
       label: item.name ? `${item.name} (${item.id})` : item.id,
@@ -74,19 +84,8 @@ const availableOptions = computed<FormatOption[]>(() => {
 watch(() => props.open, (open) => {
   if (open) {
     selectedFormat.value = undefined
-    loadFormatTags()
   }
 })
-
-async function loadFormatTags() {
-  loading.value = true
-  try {
-    const resp = await queryModelFormatTags()
-    formatTags.value = Array.isArray(resp?.result) ? resp.result : []
-  } finally {
-    loading.value = false
-  }
-}
 
 function filterOption(input: string, option?: FormatOption) {
   return String(option?.label || '').toLowerCase().includes(input.toLowerCase())

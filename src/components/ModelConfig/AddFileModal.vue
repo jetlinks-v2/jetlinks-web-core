@@ -8,27 +8,34 @@
     @cancel="emit('update:open', false)"
   >
     <a-form layout="vertical">
-      <a-form-item :label="locale.fileOwner" required>
+      <a-form-item required>
+        <template #label>
+          <span>{{ locale.fileOwner }}</span>
+          <span class="add-file-modal__label-desc">{{ ownerDescription }}</span>
+        </template>
         <a-radio-group v-model:value="fileOwner">
           <a-radio-button value="shared">{{ locale.sharedFile }}</a-radio-button>
-          <a-radio-button value="format">{{ locale.currentFormatFile }}</a-radio-button>
+          <a-radio-button value="format">{{ selectedFormatName || locale.currentFormatFile }}</a-radio-button>
         </a-radio-group>
       </a-form-item>
-      <a-form-item :label="locale.fileName" required>
-        <a-input
-          v-model:value="form.name"
-          :placeholder="locale.pleaseEnterFileName"
-        />
-      </a-form-item>
-      <a-form-item :label="locale.createType" required>
+      <a-form-item required>
+        <template #label>
+          <span>{{ locale.createType }}</span>
+          <span class="add-file-modal__label-desc">{{ createTypeDescription }}</span>
+        </template>
         <a-radio-group v-model:value="form.createType">
           <a-radio-button value="upload">{{ locale.uploadCreate }}</a-radio-button>
+          <a-radio-button value="extract">{{ locale.extractCreate }}</a-radio-button>
           <a-radio-button value="empty">{{ locale.emptyCreate }}</a-radio-button>
         </a-radio-group>
+      </a-form-item>
+      <a-form-item
+        v-if="form.createType === 'upload' || form.createType === 'extract'"
+        :label="locale.selectFile"
+        required
+      >
         <a-upload
-          v-if="form.createType === 'upload'"
           v-model:file-list="uploadFiles"
-          class="add-file-modal__upload"
           :max-count="1"
           :before-upload="beforeUpload"
           @remove="removeFile"
@@ -39,6 +46,48 @@
           </a-button>
         </a-upload>
       </a-form-item>
+      <a-form-item :label="locale.fileName" required>
+        <a-input
+          v-model:value="form.name"
+          :placeholder="locale.pleaseEnterFileName"
+          :addon-after="modelFileNameSuffix || undefined"
+        />
+      </a-form-item>
+      <a-form-item :label="locale.filePath">
+        <a-input
+          v-model:value="form.path"
+          :placeholder="locale.rootDirectory"
+        />
+      </a-form-item>
+      <a-row
+        v-if="isModelFilePath"
+        :gutter="16"
+      >
+        <a-col :span="12">
+          <a-form-item
+            :label="locale.modelBusiness"
+            required
+          >
+            <a-auto-complete
+              v-model:value="modelBusiness"
+              :options="modelBusinessOptions"
+              :placeholder="locale.modelBusinessPlaceholder"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item
+            :label="locale.modelFileFormat"
+            required
+          >
+            <a-auto-complete
+              v-model:value="modelFileFormat"
+              :options="modelFileFormatOptions"
+              :placeholder="locale.modelFileFormatPlaceholder"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
     </a-form>
   </a-modal>
 </template>
@@ -51,7 +100,7 @@ interface AddFilePayload {
   name: string
   path?: string
   format?: string[]
-  createType: 'upload' | 'empty'
+  createType: 'upload' | 'extract' | 'empty'
   file?: File
 }
 
@@ -63,6 +112,14 @@ const props = defineProps({
   selectedFormat: {
     type: String,
     default: undefined
+  },
+  selectedFormatName: {
+    type: String,
+    default: ''
+  },
+  editableExtensions: {
+    type: Array as PropType<string[]>,
+    default: () => []
   },
   selectedOwner: {
     type: String,
@@ -86,16 +143,33 @@ const form = reactive<AddFilePayload>({
   format: []
 })
 const uploadFiles = ref<any[]>([])
-const fileOwner = ref<'shared' | 'format'>('format')
+const fileOwner = ref<'shared' | 'format'>('shared')
+const modelBusiness = ref('')
+const modelFileFormat = ref('')
+
+const modelBusinessOptions = computed(() => [
+  { label: props.locale.modelBusinessOptionYolo, value: 'yolo' },
+  { label: props.locale.modelBusinessOptionYoloPose, value: 'yolo_pose' },
+  { label: props.locale.modelBusinessOptionRetinaface, value: 'retinaface' },
+  { label: props.locale.modelBusinessOptionArcface, value: 'arcface' }
+])
+
+const modelFileFormatOptions = [
+  { value: 'onnx' },
+  { value: 'plan' },
+  { value: 'bmodel' }
+]
 
 watch(() => props.open, (open) => {
   if (open) {
     form.name = ''
     form.path = props.selectedOwner
-    fileOwner.value = props.selectedFormat ? 'format' : 'shared'
+    fileOwner.value = 'shared'
     form.createType = 'upload'
     form.format = []
     form.file = undefined
+    modelBusiness.value = ''
+    modelFileFormat.value = ''
     uploadFiles.value = []
   }
 })
@@ -119,22 +193,83 @@ const removeFile = () => {
   form.file = undefined
 }
 
+const isEditableFileName = (name: string) => {
+  const ext = name.split('.').pop()?.toLowerCase()
+  return !!ext && props.editableExtensions.includes(ext)
+}
+
+const isArchiveFileName = (name: string) => {
+  const ext = name.split('.').pop()?.toLowerCase()
+  return ext === 'zip' || ext === 'tar'
+}
+
+const normalizeFilePath = (path?: string) => {
+  return path?.trim().replace(/^\/+|\/+$/g, '') || ''
+}
+
+const normalizeModelFileFormat = (format: string) => {
+  const value = format.trim()
+  return value && !value.startsWith('.') ? `.${value}` : value
+}
+
+const isModelFilePath = computed(() => normalizeFilePath(form.path) === 'models')
+
+const modelFileNameSuffix = computed(() => {
+  if (!isModelFilePath.value) return ''
+  const business = modelBusiness.value.trim()
+  const fileFormat = normalizeModelFileFormat(modelFileFormat.value)
+  return [business, fileFormat].filter(Boolean).map(item => item.startsWith('.') ? item : `.${item}`).join('')
+})
+
+const resolvedFileName = computed(() => {
+  return `${form.name}${modelFileNameSuffix.value}`
+})
+
+const ownerDescription = computed(() => {
+  return fileOwner.value === 'format' ? props.locale.formatFileOwnerDescription : props.locale.sharedFileOwnerDescription
+})
+
+const createTypeDescription = computed(() => {
+  const descriptionMap: Record<AddFilePayload['createType'], string> = {
+    upload: props.locale.uploadCreateDescription,
+    extract: props.locale.extractCreateDescription,
+    empty: props.locale.emptyCreateDescription
+  }
+  return descriptionMap[form.createType]
+})
+
 const confirm = () => {
   if (!form.name) {
     onlyMessage(props.locale.pleaseEnterFileName, 'warning')
+    return
+  }
+  if (form.createType === 'empty' && !isEditableFileName(form.name)) {
+    onlyMessage(props.locale.pleaseEnterEditableFileName, 'warning')
+    return
+  }
+  if (form.createType === 'extract' && !isArchiveFileName(form.name)) {
+    onlyMessage(props.locale.pleaseEnterArchiveFileName, 'warning')
+    return
+  }
+  if (isModelFilePath.value && !modelBusiness.value.trim()) {
+    onlyMessage(props.locale.pleaseEnterModelBusiness, 'warning')
+    return
+  }
+  if (isModelFilePath.value && !modelFileFormat.value.trim()) {
+    onlyMessage(props.locale.pleaseEnterModelFileFormat, 'warning')
     return
   }
   if (fileOwner.value === 'format' && !props.selectedFormat) {
     onlyMessage(props.locale.selectFileOwner, 'warning')
     return
   }
-  if (form.createType === 'upload' && !form.file) {
+  if ((form.createType === 'upload' || form.createType === 'extract') && !form.file) {
     onlyMessage(props.locale.pleaseSelectFile, 'warning')
     return
   }
   emit('confirm', {
-    name: form.name,
-    path: form.path,
+    name: resolvedFileName.value,
+    path: form.path?.trim() || undefined,
     format: fileOwner.value === 'format' && props.selectedFormat ? [props.selectedFormat] : [],
     createType: form.createType,
     file: form.file
@@ -144,8 +279,10 @@ const confirm = () => {
 </script>
 
 <style scoped lang="less">
-.add-file-modal__upload {
-  display: block;
-  margin-top: var(--space-3);
+.add-file-modal__label-desc {
+  margin-left: 8px;
+  color: var(--ink-4);
+  font-size: var(--fs-12);
+  font-weight: 400;
 }
 </style>
