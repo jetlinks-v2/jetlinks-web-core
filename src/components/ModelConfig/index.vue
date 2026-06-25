@@ -31,13 +31,13 @@
           <AIcon type="SettingOutlined" />
           {{ text.modelConfig }}
         </a-button>
-        <a-button block @click="openAddFile('')">
+        <a-button v-if="showAddFile" block @click="openAddFile('')">
           <AIcon type="PlusOutlined" />
           {{ text.addFile }}
         </a-button>
       </div>
 
-      <a-spin :spinning="fileLoading">
+      <a-spin :spinning="filesLoading">
         <a-tree
           v-if="treeData.length"
           v-model:selectedKeys="selectedKeys"
@@ -48,10 +48,10 @@
           block-node
           @select="onTreeSelect"
         >
-          <template #title="{ title, isFile, path }">
+          <template #title="{ title, isFile, path, shared }">
             <span class="model-config__tree-node">
               <span class="model-config__tree-node-main">
-                <AIcon :type="isFile ? 'FileOutlined' : 'FolderOutlined'" />
+                <AIcon :type="getTreeNodeIcon(isFile, shared)" />
                 <span>{{ title }}</span>
               </span>
               <a-button
@@ -120,7 +120,7 @@
       <div v-if="activeType === 'model'" class="model-config__config-tabs">
         <a-tabs v-model:activeKey="configTab" @change="refreshEditorValue">
           <a-tab-pane key="definition" :tab="text.modelParams" />
-          <a-tab-pane key="manifest" :tab="text.basicInfo" />
+          <a-tab-pane v-if="showManifest" key="manifest" :tab="text.basicInfo" />
         </a-tabs>
       </div>
 
@@ -197,7 +197,9 @@
     <AddFileModal
       v-model:open="addFileVisible"
       :selected-format="selectedFormat"
+      :selected-format-name="selectedFormatLabel"
       :selected-owner="selectedOwner"
+      :editable-extensions="editableExtensions"
       :locale="text"
       @confirm="addFile"
     />
@@ -206,6 +208,8 @@
       :existing-formats="existingFormatIds"
       :locale="text"
       :confirm-loading="addFormatSaving"
+      :loading="formatLoading"
+      :format-tags="availableFormats"
       @confirm="saveFormat"
     />
   </div>
@@ -217,8 +221,6 @@ import { onlyMessage } from '@jetlinks-web/utils'
 import MonacoEditor from '../MonacoEditor/monacoEditor.vue'
 import SectionCard from '../SectionCard/index.vue'
 import KvGrid from '../KvGrid/index.vue'
-import { fileUpload } from '@jetlinks-web-core/api/comm'
-import { queryModelFiles, saveModelFile, saveModelFormats, type ModelFile } from '@jetlinks-web-core/api/modelConfig'
 import AddFileModal from './AddFileModal.vue'
 import AddFormatModal from './AddFormatModal.vue'
 
@@ -233,6 +235,7 @@ interface TreeNode {
   key: string
   path?: string
   isFile?: boolean
+  shared?: boolean
   file?: ModelFile
   children?: TreeNode[]
 }
@@ -244,8 +247,78 @@ interface AddFilePayload {
   name: string
   path?: string
   format?: string[]
-  createType: 'upload' | 'empty'
+  createType: 'upload' | 'extract' | 'empty'
   file?: File
+}
+
+interface ModelFile {
+  id: string
+  modelId?: string
+  modelVersion?: number
+  name: string
+  path?: string
+  fileKey?: string
+  url?: string
+  internalUrl?: string
+  size?: number
+  md5?: string
+  sha256?: string
+  format?: string[]
+  content?: string
+  local?: boolean
+}
+
+interface ModelConfigSavePayload {
+  definition: Record<string, unknown>
+  manifest: Record<string, unknown>
+  formats: string[][]
+}
+
+interface DonePayload<T = void> {
+  done?: (success?: boolean, result?: T) => void
+}
+
+interface LoadFilesPayload {
+  modelId: string
+  version: string | number
+  format: string
+}
+
+interface SaveConfigPayload extends DonePayload {
+  type: 'definition' | 'manifest'
+  value: string
+  config: ModelConfigSavePayload
+}
+
+interface AddFormatPayload extends DonePayload {
+  format: string
+  config: ModelConfigSavePayload
+}
+
+interface SaveFilePayload extends DonePayload {
+  format: string
+  file: {
+    id?: string
+    name: string
+    path?: string
+    format?: string[]
+    content: string
+  }
+}
+
+interface AddFileEventPayload extends DonePayload {
+  format: string
+  file: AddFilePayload
+}
+
+interface ReplaceFilePayload extends DonePayload {
+  format: string
+  target: ModelFile
+  file: AddFilePayload
+}
+
+interface PreviewFilePayload extends DonePayload<string> {
+  file: ModelFile
 }
 
 const defaultLocale: LocaleText = {
@@ -277,29 +350,50 @@ const defaultLocale: LocaleText = {
   copySuccess: '文件路径已复制',
   filePath: '文件路径',
   fileName: '文件名称',
+  modelBusiness: '模型业务',
+  modelBusinessPlaceholder: '请选择或输入模型业务',
+  modelBusinessOptionYolo: 'yolo(yolo)',
+  modelBusinessOptionYoloPose: 'yolo姿势(yolo_pose)',
+  modelBusinessOptionRetinaface: '人脸识别(retinaface)',
+  modelBusinessOptionArcface: '人脸向量(arcface)',
+  modelFileFormat: '模型格式',
+  modelFileFormatPlaceholder: '请选择或输入模型格式',
   fileFormat: '支持架构',
   fileMd5: 'MD5',
   fileSha256: 'SHA256',
-  fileScore: '评分',
   fileKey: '文件标识',
   sharedFile: '共享文件',
+  sharedFileOwnerDescription: '保存为共享文件，可被多个架构复用',
+  formatFileOwnerDescription: '仅归属于当前架构',
   saveSuccess: '已更新编辑内容',
   fileSaveSuccess: '文件已保存',
   confirm: '确定',
   cancel: '取消',
   pleaseEnterFileName: '请输入文件名称',
+  pleaseEnterModelBusiness: '请输入模型业务',
+  pleaseEnterModelFileFormat: '请输入模型格式',
+  pleaseEnterEditableFileName: '不支持创建该后缀的空白文件',
   selectFile: '选择文件',
   pleaseSelectFile: '请选择文件',
   fileOwner: '文件归属',
   selectFileOwner: '请选择文件归属',
   createType: '创建方式',
   uploadCreate: '上传文件',
+  extractCreate: '待解压文件',
   emptyCreate: '空白文件',
+  uploadCreateDescription: '上传文件到对应路径',
+  extractCreateDescription: '上传压缩包，使用时解压到对应路径',
+  emptyCreateDescription: '创建可在线编辑的文本文件',
+  pleaseEnterArchiveFileName: '请上传 zip 或 tar 格式压缩包',
   rootDirectory: '根目录',
   currentFormatFile: '当前架构文件',
   addFormat: '新增架构',
   format: '架构',
-  addFormatSuccess: '已新增架构'
+  addFormatSuccess: '已新增架构',
+  invalidJson: 'JSON 格式错误',
+  modelFiles: '模型文件',
+  codeFiles: '代码文件',
+  skillFiles: '技能文件'
 }
 
 const props = defineProps({
@@ -314,14 +408,42 @@ const props = defineProps({
   locale: {
     type: Object as PropType<Partial<LocaleText>>,
     default: () => ({})
+  },
+  files: {
+    type: Array as PropType<ModelFile[]>,
+    default: () => []
+  },
+  filesLoading: {
+    type: Boolean,
+    default: false
+  },
+  availableFormats: {
+    type: Array as PropType<FormatDetail[]>,
+    default: () => []
+  },
+  formatLoading: {
+    type: Boolean,
+    default: false
+  },
+  showAddFile: {
+    type: Boolean,
+    default: true
+  },
+  showManifest: {
+    type: Boolean,
+    default: true
   }
 })
 
 const emit = defineEmits<{
-  (e: 'save-config', payload: { type: 'definition' | 'manifest' | 'file'; value: string; file?: ModelFile }): void
-  (e: 'add-file', payload: AddFilePayload): void
+  (e: 'load-files', payload: LoadFilesPayload): void
+  (e: 'save-config', payload: SaveConfigPayload): void
+  (e: 'add-file', payload: AddFileEventPayload): void
+  (e: 'add-format', payload: AddFormatPayload): void
   (e: 'format-added', format: string): void
-  (e: 'replace-file', file: ModelFile): void
+  (e: 'save-file', payload: SaveFilePayload): void
+  (e: 'replace-file', payload: ReplaceFilePayload): void
+  (e: 'preview-file', payload: PreviewFilePayload): void
   (e: 'delete-file', file: ModelFile): void
 }>()
 
@@ -329,7 +451,6 @@ const text = computed(() => ({ ...defaultLocale, ...props.locale }))
 const selectedFormat = ref<string>()
 const selectedKeys = ref<string[]>([])
 const files = ref<ModelFile[]>([])
-const fileLoading = ref(false)
 const activeType = ref<'model' | 'file'>('model')
 const selectedFile = ref<ModelFile>()
 const configTab = ref<'definition' | 'manifest'>('definition')
@@ -385,6 +506,10 @@ const existingFormatIds = computed(() => {
 
 const modelId = computed(() => props.model?.id)
 const modelVersion = computed(() => props.model?.version || props.model?.modelVersion || props.model?.latestVersion || props.model?.versionNo || 1)
+const selectedFormatLabel = computed(() => {
+  const option = formatOptions.value.find(item => item.value === selectedFormat.value)
+  return option?.label || selectedFormat.value || ''
+})
 
 const activeTitle = computed(() => {
   return activeType.value === 'model'
@@ -433,15 +558,13 @@ const previewResultDescription = computed(() => {
 const propertyItems = computed(() => {
   const file = selectedFile.value
   if (!file) return []
-  const filePath = file.path ? `${file.path}/${file.name}` : file.name
   return [
     { label: text.value.fileName, value: file.name || '--' },
-    { label: text.value.filePath, value: filePath || '--', mono: true },
+    { label: text.value.filePath, value: file.path || '', mono: true },
     { label: text.value.fileFormat, value: file.format?.length ? file.format.join(', ') : text.value.sharedFile },
     { label: text.value.fileKey, value: file.fileKey || '--', mono: true },
     { label: text.value.fileMd5, value: file.md5 || '--', mono: true },
-    { label: text.value.fileSha256, value: file.sha256 || '--', mono: true },
-    { label: text.value.fileScore, value: file.score ?? '--' }
+    { label: text.value.fileSha256, value: file.sha256 || '--', mono: true }
   ]
 })
 
@@ -455,8 +578,8 @@ watch(() => props.formatDetails, (formatDetails) => {
   localFormatDetails.value = cloneFormatDetails(formatDetails)
 }, { deep: true, immediate: true })
 
-watch([modelId, selectedFormat], () => {
-  loadFiles()
+watch([modelId, modelVersion, selectedFormat], () => {
+  requestFiles()
 }, { immediate: true })
 
 watch(() => props.model, () => {
@@ -471,34 +594,54 @@ watch(configTab, () => {
   }
 })
 
-async function loadFiles() {
+watch(() => props.showManifest, (showManifest) => {
+  if (!showManifest && configTab.value === 'manifest') {
+    configTab.value = 'definition'
+  }
+}, { immediate: true })
+
+watch(() => props.files, (nextFiles) => {
+  files.value = Array.isArray(nextFiles) ? [...nextFiles] : []
+  if (activeType.value === 'file') {
+    const nextFile = files.value.find(item => item.id === selectedFile.value?.id)
+    if (nextFile) {
+      selectedFile.value = nextFile
+    } else {
+      selectModelConfig()
+    }
+  }
+}, { deep: true, immediate: true })
+
+function requestFiles() {
   if (!modelId.value || !selectedFormat.value) {
     files.value = []
     return
   }
-  fileLoading.value = true
-  try {
-    const resp = await queryModelFiles(modelId.value, {
-      version: modelVersion.value,
-      format: selectedFormat.value
-    })
-    files.value = Array.isArray(resp?.result) ? resp.result : []
-    if (activeType.value === 'file') {
-      const nextFile = files.value.find(item => item.id === selectedFile.value?.id)
-      if (nextFile) {
-        selectFile(nextFile)
-      } else {
-        selectModelConfig()
-      }
-    }
-  } finally {
-    fileLoading.value = false
-  }
+  emit('load-files', {
+    modelId: modelId.value,
+    version: modelVersion.value,
+    format: selectedFormat.value
+  })
 }
 
 function buildTree(source: ModelFile[]): TreeNode[] {
-  const roots: TreeNode[] = []
+  const fixedFolders = [
+    { path: 'models', title: text.value.modelFiles },
+    { path: 'python', title: text.value.codeFiles },
+    { path: 'skill', title: text.value.skillFiles }
+  ]
+  const roots: TreeNode[] = fixedFolders.map(folder => ({
+    title: formatRootFolderTitle(folder.title, folder.path),
+    key: `folder:${folder.path}`,
+    path: folder.path,
+    children: []
+  }))
   const folderMap = new Map<string, TreeNode>()
+  roots.forEach(node => {
+    if (node.path) {
+      folderMap.set(node.path, node)
+    }
+  })
   source.forEach(file => {
     const segments = file.path?.split('/').filter(Boolean) || []
     let current = roots
@@ -521,10 +664,20 @@ function buildTree(source: ModelFile[]): TreeNode[] {
       title: file.name,
       key: file.id || `${file.path || ''}/${file.name}`,
       isFile: true,
+      shared: !file.format?.length,
       file
     })
   })
   return roots
+}
+
+function getTreeNodeIcon(isFile?: boolean, shared?: boolean) {
+  if (!isFile) return 'FolderOutlined'
+  return shared ? 'FileOutlined' : 'FileProtectOutlined'
+}
+
+function formatRootFolderTitle(title: string, path: string) {
+  return title && title !== path ? `${title}(${path})` : path
 }
 
 function onTreeSelect(_: string[], info: { node?: TreeNode }) {
@@ -544,17 +697,100 @@ function openAddFormat() {
 
 async function saveFormat(format: string) {
   if (!modelId.value) return
+  const config = buildSaveFormatPayload(format)
   addFormatSaving.value = true
-  try {
-    await saveModelFormats(modelId.value, buildSaveFormatPayload(format))
-    addLocalFormat(format)
-    selectedFormat.value = format
-    addFormatVisible.value = false
-    onlyMessage(text.value.addFormatSuccess)
-    emit('format-added', format)
-  } finally {
-    addFormatSaving.value = false
+  emit('add-format', {
+    format,
+    config,
+    done: (success = true) => {
+      if (success) {
+        addLocalFormat(format)
+        selectedFormat.value = format
+        addFormatVisible.value = false
+        onlyMessage(text.value.addFormatSuccess)
+        emit('format-added', format)
+      }
+      addFormatSaving.value = false
+    }
+  })
+}
+
+function completeSaving(success: boolean) {
+  if (success) {
+    editing.value = false
+    draftValue.value = editorValue.value
+    onlyMessage(text.value.saveSuccess)
   }
+  fileSaving.value = false
+}
+
+function parseEditorJson() {
+  const value = editorValue.value.trim()
+  if (!value) return {}
+  try {
+    return JSON.parse(value)
+  } catch {
+    onlyMessage(text.value.invalidJson, 'error')
+    return undefined
+  }
+}
+
+function buildSaveConfigPayload(type: 'definition' | 'manifest') {
+  const value = parseEditorJson()
+  if (value === undefined) return undefined
+  return {
+    definition: type === 'definition' ? value : props.model?.definition || {},
+    manifest: type === 'manifest' ? value : props.model?.manifest || {},
+    formats: buildCurrentFormats()
+  }
+}
+
+function buildCurrentFormats() {
+  const formats = normalizeFormats(props.model?.formats)
+  if (!formats.length) {
+    formats.push(...normalizeFormats(props.model?.formatDetails))
+  }
+  return formats
+}
+
+function completeFileSaving(success: boolean) {
+  if (success) {
+    editing.value = false
+    draftValue.value = editorValue.value
+    onlyMessage(text.value.fileSaveSuccess)
+    requestFiles()
+  }
+  fileSaving.value = false
+}
+
+function completeFileCreate(success: boolean) {
+  if (success) {
+    addFileVisible.value = false
+    onlyMessage(text.value.fileSaveSuccess)
+    requestFiles()
+  }
+  fileSaving.value = false
+}
+
+function completeFileReplace(success: boolean) {
+  if (success) {
+    filePreviewLoaded.value = false
+    editorValue.value = ''
+    draftValue.value = ''
+    onlyMessage(text.value.fileSaveSuccess)
+    requestFiles()
+  }
+  fileSaving.value = false
+}
+
+function completePreview(success: boolean, content = '') {
+  if (success) {
+    editorValue.value = content
+    draftValue.value = editorValue.value
+    filePreviewLoaded.value = true
+    editing.value = false
+  }
+  contentLoading.value = false
 }
 
 function buildSaveFormatPayload(format: string) {
@@ -614,19 +850,9 @@ function selectFile(file: ModelFile) {
   selectedFile.value = file
   selectedKeys.value = [file.id || `${file.path || ''}/${file.name}`]
   editing.value = false
-  filePreviewLoaded.value = false
-  editorValue.value = ''
+  filePreviewLoaded.value = !!file.local
+  editorValue.value = file.local ? file.content || '' : ''
   draftValue.value = editorValue.value
-}
-
-async function loadFileContent(file: ModelFile) {
-  if (!file.url) return ''
-  try {
-    const resp = await fetch(file.url)
-    return await resp.text()
-  } catch {
-    return ''
-  }
 }
 
 function refreshEditorValue() {
@@ -664,96 +890,79 @@ async function saveEdit() {
     await saveTextFile()
     return
   }
+  const config = buildSaveConfigPayload(configTab.value)
+  if (!config) return
+  fileSaving.value = true
   emit('save-config', {
-    type: activeType.value === 'model' ? configTab.value : 'file',
+    type: configTab.value,
     value: editorValue.value,
-    file: selectedFile.value
+    config,
+    done: completeSaving
   })
-  editing.value = false
-  draftValue.value = editorValue.value
-  onlyMessage(text.value.saveSuccess)
 }
 
 async function saveTextFile() {
   if (!modelId.value || !selectedFormat.value || !selectedFile.value) return
   fileSaving.value = true
-  try {
-    await saveModelFile(modelId.value, selectedFormat.value, {
-      id: selectedFile.value.id,
+  emit('save-file', {
+    format: selectedFormat.value,
+    file: {
+      id: selectedFile.value.local ? undefined : selectedFile.value.id,
       name: selectedFile.value.name,
       path: selectedFile.value.path,
+      format: selectedFile.value.local ? selectedFile.value.format || [] : undefined,
       content: editorValue.value
-    })
-    editing.value = false
-    draftValue.value = editorValue.value
-    onlyMessage(text.value.fileSaveSuccess)
-    await loadFiles()
-  } finally {
-    fileSaving.value = false
-  }
+    },
+    done: completeFileSaving
+  })
 }
 
 async function addFile(payload: AddFilePayload) {
   if (!modelId.value || !selectedFormat.value) return
-  fileSaving.value = true
-  try {
-    await saveModelFile(modelId.value, selectedFormat.value, await buildFileSavePayload(payload))
-    addFileVisible.value = false
-    onlyMessage(text.value.fileSaveSuccess)
-    await loadFiles()
-  } finally {
-    fileSaving.value = false
+  if (payload.createType === 'empty') {
+    addLocalEmptyFile(payload)
+    return
   }
+  fileSaving.value = true
+  emit('add-file', {
+    format: selectedFormat.value,
+    file: payload,
+    done: completeFileCreate
+  })
+}
+
+function addLocalEmptyFile(payload: AddFilePayload) {
+  const file: ModelFile = {
+    id: `local:${Date.now()}:${payload.path || ''}/${payload.name}`,
+    name: payload.name,
+    path: payload.path,
+    format: payload.format,
+    content: '',
+    local: true
+  }
+  files.value = [...files.value, file]
+  addFileVisible.value = false
+  selectFile(file)
+  filePreviewLoaded.value = true
+  editing.value = true
 }
 
 async function replaceFile(file: File) {
   if (!modelId.value || !selectedFormat.value || !selectedFile.value) return false
   fileSaving.value = true
-  try {
-    await saveModelFile(modelId.value, selectedFormat.value, await buildFileSavePayload({
+  emit('replace-file', {
+    format: selectedFormat.value,
+    target: selectedFile.value,
+    file: {
       id: selectedFile.value.id,
       name: selectedFile.value.name,
       path: selectedFile.value.path,
       createType: 'upload',
       file
-    } as AddFilePayload))
-    filePreviewLoaded.value = false
-    editorValue.value = ''
-    draftValue.value = ''
-    onlyMessage(text.value.fileSaveSuccess)
-    await loadFiles()
-  } finally {
-    fileSaving.value = false
-  }
+    },
+    done: completeFileReplace
+  })
   return false
-}
-
-async function buildFileSavePayload(payload: AddFilePayload) {
-  const data: Record<string, any> = {
-    id: payload.id,
-    name: payload.name,
-    path: payload.path
-  }
-  if (payload.createType === 'upload' && payload.file) {
-    const uploadResult = await uploadModelFile(payload.file)
-    return {
-      ...data,
-      url: uploadResult.accessUrl,
-      md5: uploadResult.md5,
-      sha256: uploadResult.sha256
-    }
-  }
-  return {
-    ...data,
-    content: ''
-  }
-}
-
-async function uploadModelFile(file: File) {
-  const formData = new FormData()
-  formData.append('file', file, file.name)
-  const resp = await fileUpload(formData)
-  return resp?.result || {}
 }
 
 function toggleProperty() {
@@ -778,14 +987,10 @@ async function previewFile() {
     return
   }
   contentLoading.value = true
-  try {
-    editorValue.value = await loadFileContent(selectedFile.value)
-    draftValue.value = editorValue.value
-    filePreviewLoaded.value = true
-    editing.value = false
-  } finally {
-    contentLoading.value = false
-  }
+  emit('preview-file', {
+    file: selectedFile.value,
+    done: completePreview
+  })
 }
 </script>
 
