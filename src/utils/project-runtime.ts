@@ -1,3 +1,5 @@
+import { isFromCloud } from "@/utils/comm";
+
 const normalizeSegment = (value: unknown) => {
   if (typeof value !== 'string') return ''
   return decodeURIComponent(value).trim()
@@ -20,7 +22,7 @@ export const getProjectCodeFromLocation = () => getProjectCodeFromPathname()
 
 export const getProjectIdFromLocation = getProjectCodeFromLocation
 
-export const isProjectRuntime = () => !!getProjectCodeFromLocation()
+export const isProjectRuntime = () => !isFromCloud() && !!getProjectCodeFromLocation()
 
 export const normalizeProjectRuntimePath = (path = '') => {
   const nextPath = normalizeHashPath(path)

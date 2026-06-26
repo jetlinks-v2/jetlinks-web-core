@@ -1,0 +1,1154 @@
+<template>
+  <div class="model-config">
+    <aside class="model-config__sider">
+      <div class="model-config__sider-head">
+        <span class="model-config__title">{{ text.fileDirectory }}</span>
+        <div class="model-config__format-actions">
+          <a-select
+            v-model:value="selectedFormat"
+            class="model-config__format"
+            :options="formatOptions"
+            :placeholder="text.selectFormat"
+            size="small"
+            allow-clear
+          />
+          <a-button
+            size="small"
+            :title="text.addFormat"
+            @click="openAddFormat"
+          >
+            <AIcon type="PlusOutlined" />
+          </a-button>
+        </div>
+      </div>
+
+      <div class="model-config__actions">
+        <a-button
+          block
+          :type="activeType === 'model' ? 'primary' : 'default'"
+          @click="selectModelConfig"
+        >
+          <AIcon type="SettingOutlined" />
+          {{ text.modelConfig }}
+        </a-button>
+        <a-button v-if="showAddFile" block @click="openAddFile('')">
+          <AIcon type="PlusOutlined" />
+          {{ text.addFile }}
+        </a-button>
+      </div>
+
+      <a-spin :spinning="filesLoading">
+        <a-tree
+          v-if="treeData.length"
+          v-model:selectedKeys="selectedKeys"
+          class="model-config__tree"
+          :tree-data="treeData"
+          :field-names="{ title: 'title', key: 'key', children: 'children' }"
+          default-expand-all
+          block-node
+          @select="onTreeSelect"
+        >
+          <template #title="{ title, isFile, path, shared }">
+            <span class="model-config__tree-node">
+              <span class="model-config__tree-node-main">
+                <AIcon :type="getTreeNodeIcon(isFile, shared)" />
+                <span>{{ title }}</span>
+              </span>
+              <a-button
+                v-if="!isFile"
+                type="link"
+                size="small"
+                class="model-config__tree-add"
+                @click.stop="openAddFile(path)"
+              >
+                <AIcon type="PlusOutlined" />
+              </a-button>
+            </span>
+          </template>
+        </a-tree>
+        <a-empty
+          v-else
+          class="model-config__empty"
+          :description="text.noFiles"
+        />
+      </a-spin>
+    </aside>
+
+    <main class="model-config__main">
+      <header class="model-config__content-head">
+        <div class="model-config__content-title">
+          <AIcon :type="activeType === 'model' ? 'SettingOutlined' : 'FileTextOutlined'" />
+          <span>{{ activeTitle }}</span>
+        </div>
+        <a-space>
+          <template v-if="activeType === 'model'">
+            <a-button v-if="!editing" @click="startEdit">
+              <AIcon type="EditOutlined" />
+              {{ text.edit }}
+            </a-button>
+            <template v-else>
+              <a-button @click="cancelEdit">{{ text.exitEdit }}</a-button>
+              <a-button type="primary" :loading="fileSaving" @click="saveEdit">{{ text.save }}</a-button>
+            </template>
+          </template>
+          <template v-else-if="selectedFile">
+            <a-button v-if="canEditFile && filePreviewLoaded && !editing" @click="startEdit">
+              <AIcon type="EditOutlined" />
+              {{ text.edit }}
+            </a-button>
+            <template v-if="editing">
+              <a-button @click="cancelEdit">{{ text.exitEdit }}</a-button>
+              <a-button type="primary" :loading="fileSaving" @click="saveEdit">{{ text.save }}</a-button>
+            </template>
+            <a-popconfirm
+              :title="text.confirmDelete"
+              @confirm="emit('delete-file', selectedFile)"
+            >
+              <a-button danger>
+                <AIcon type="DeleteOutlined" />
+                {{ text.delete }}
+              </a-button>
+            </a-popconfirm>
+            <a-button @click="toggleProperty">
+              <AIcon :type="propertyVisible ? 'DoubleRightOutlined' : 'ProfileOutlined'" />
+              {{ propertyVisible ? text.collapseProperty : text.viewProperty }}
+            </a-button>
+          </template>
+        </a-space>
+      </header>
+
+      <div v-if="activeType === 'model'" class="model-config__config-tabs">
+        <a-tabs v-model:activeKey="configTab" @change="refreshEditorValue">
+          <a-tab-pane key="definition" :tab="text.modelParams" />
+          <a-tab-pane v-if="showManifest" key="manifest" :tab="text.basicInfo" />
+        </a-tabs>
+      </div>
+
+      <section class="model-config__editor-wrap">
+        <MonacoEditor
+          v-if="showEditor"
+          ref="editorRef"
+          v-model:modelValue="editorValue"
+          :key="editorKey"
+          class="model-config__editor"
+          theme="vs"
+          :language="editorLanguage"
+          :read-only="!editing"
+          :blur-format="editorLanguage === 'json'"
+          :options="{ minimap: { enabled: false }, wordWrap: 'on' }"
+        />
+
+        <div v-else class="model-config__preview">
+          <a-result
+            :title="previewResultTitle"
+            :sub-title="previewResultDescription"
+          >
+            <template #extra>
+              <a-space v-if="selectedFile">
+                <a-button
+                  v-if="canEditFile && selectedFile.url"
+                  type="primary"
+                  :loading="contentLoading"
+                  @click="previewFile"
+                >
+                  <AIcon type="EyeOutlined" />
+                  {{ text.preview }}
+                </a-button>
+                <a-upload
+                  v-else-if="!canEditFile"
+                  :show-upload-list="false"
+                  :before-upload="replaceFile"
+                >
+                  <a-button :loading="fileSaving">
+                    <AIcon type="UploadOutlined" />
+                    {{ text.replaceFile }}
+                  </a-button>
+                </a-upload>
+              </a-space>
+            </template>
+          </a-result>
+        </div>
+      </section>
+    </main>
+
+    <aside v-if="propertyVisible && selectedFile" class="model-config__property">
+      <SectionCard
+        icon="ProfileOutlined"
+        :title="text.fileProperty"
+      >
+        <template #actions>
+          <a-button
+            type="link"
+            size="small"
+            @click="copyPath"
+          >
+            <AIcon type="CopyOutlined" />
+            {{ text.copyPath }}
+          </a-button>
+        </template>
+        <KvGrid
+          cols="stacked"
+          cell-layout="inline"
+          :items="propertyItems"
+        />
+      </SectionCard>
+    </aside>
+
+    <AddFileModal
+      v-model:open="addFileVisible"
+      :selected-format="selectedFormat"
+      :selected-format-name="selectedFormatLabel"
+      :selected-owner="selectedOwner"
+      :editable-extensions="editableExtensions"
+      :locale="text"
+      @confirm="addFile"
+    />
+    <AddFormatModal
+      v-model:open="addFormatVisible"
+      :existing-formats="existingFormatIds"
+      :locale="text"
+      :confirm-loading="addFormatSaving"
+      :loading="formatLoading"
+      :format-tags="availableFormats"
+      @confirm="saveFormat"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import type { PropType } from 'vue'
+import { onlyMessage } from '@jetlinks-web/utils'
+import MonacoEditor from '../MonacoEditor/monacoEditor.vue'
+import SectionCard from '../SectionCard/index.vue'
+import KvGrid from '../KvGrid/index.vue'
+import AddFileModal from './AddFileModal.vue'
+import AddFormatModal from './AddFormatModal.vue'
+
+interface FormatDetail {
+  id: string
+  name?: string
+  local?: boolean
+}
+
+interface TreeNode {
+  title: string
+  key: string
+  path?: string
+  isFile?: boolean
+  shared?: boolean
+  file?: ModelFile
+  children?: TreeNode[]
+}
+
+type LocaleText = Record<string, string>
+
+interface AddFilePayload {
+  id?: string
+  name: string
+  path?: string
+  format?: string[]
+  createType: 'upload' | 'extract' | 'empty'
+  file?: File
+}
+
+interface ModelFile {
+  id: string
+  modelId?: string
+  modelVersion?: number
+  name: string
+  path?: string
+  fileKey?: string
+  url?: string
+  internalUrl?: string
+  size?: number
+  md5?: string
+  sha256?: string
+  format?: string[]
+  content?: string
+  local?: boolean
+}
+
+interface ModelConfigSavePayload {
+  definition: Record<string, unknown>
+  manifest: Record<string, unknown>
+  formats: string[][]
+}
+
+interface DonePayload<T = void> {
+  done?: (success?: boolean, result?: T) => void
+}
+
+interface LoadFilesPayload {
+  modelId: string
+  version: string | number
+  format: string
+}
+
+interface SaveConfigPayload extends DonePayload {
+  type: 'definition' | 'manifest'
+  value: string
+  config: ModelConfigSavePayload
+}
+
+interface AddFormatPayload extends DonePayload {
+  format: string
+  config: ModelConfigSavePayload
+}
+
+interface SaveFilePayload extends DonePayload {
+  format: string
+  file: {
+    id?: string
+    name: string
+    path?: string
+    format?: string[]
+    content: string
+  }
+}
+
+interface AddFileEventPayload extends DonePayload {
+  format: string
+  file: AddFilePayload
+}
+
+interface ReplaceFilePayload extends DonePayload {
+  format: string
+  target: ModelFile
+  file: AddFilePayload
+}
+
+interface PreviewFilePayload extends DonePayload<string> {
+  file: ModelFile
+}
+
+const defaultLocale: LocaleText = {
+  fileDirectory: '文件目录',
+  selectFormat: '请选择架构',
+  modelConfig: '模型配置',
+  addFile: '新增文件',
+  noFiles: '暂无模型文件，先选择架构后上传文件',
+  edit: '编辑',
+  exitEdit: '退出编辑',
+  save: '保存',
+  delete: '删除',
+  confirmDelete: '确认删除该文件？',
+  viewProperty: '查看属性',
+  collapseProperty: '收起属性',
+  modelParams: '模型参数',
+  basicInfo: '基础信息',
+  previewTitle: '文件暂不支持在线编辑',
+  previewDescription: '当前文件类型不支持在线编辑，可以上传文件替换。',
+  editablePreviewTitle: '查看文件预览',
+  editablePreviewDescription: '预览后可编辑文件内容。',
+  fileUrlMissing: '文件预览地址未返回，请稍后重试。',
+  noFileSelected: '请选择文件',
+  selectFileFirst: '从左侧目录选择文件后查看内容或属性。',
+  preview: '预览',
+  replaceFile: '上传替换文件',
+  fileProperty: '文件属性',
+  copyPath: '复制路径',
+  copySuccess: '文件路径已复制',
+  filePath: '文件路径',
+  fileName: '文件名称',
+  modelBusiness: '模型业务',
+  modelBusinessPlaceholder: '请选择或输入模型业务',
+  modelBusinessOptionYolo: 'yolo(yolo)',
+  modelBusinessOptionYoloPose: 'yolo姿势(yolo_pose)',
+  modelBusinessOptionRetinaface: '人脸识别(retinaface)',
+  modelBusinessOptionArcface: '人脸向量(arcface)',
+  modelFileFormat: '模型格式',
+  modelFileFormatPlaceholder: '请选择或输入模型格式',
+  fileFormat: '支持架构',
+  fileMd5: 'MD5',
+  fileSha256: 'SHA256',
+  fileKey: '文件标识',
+  sharedFile: '共享文件',
+  sharedFileOwnerDescription: '保存为共享文件，可被多个架构复用',
+  formatFileOwnerDescription: '仅归属于当前架构',
+  saveSuccess: '已更新编辑内容',
+  fileSaveSuccess: '文件已保存',
+  confirm: '确定',
+  cancel: '取消',
+  pleaseEnterFileName: '请输入文件名称',
+  pleaseEnterModelBusiness: '请输入模型业务',
+  pleaseEnterModelFileFormat: '请输入模型格式',
+  pleaseEnterEditableFileName: '不支持创建该后缀的空白文件',
+  selectFile: '选择文件',
+  pleaseSelectFile: '请选择文件',
+  fileOwner: '文件归属',
+  selectFileOwner: '请选择文件归属',
+  createType: '创建方式',
+  uploadCreate: '上传文件',
+  extractCreate: '待解压文件',
+  emptyCreate: '空白文件',
+  uploadCreateDescription: '上传文件到对应路径',
+  extractCreateDescription: '上传压缩包，使用时解压到对应路径',
+  emptyCreateDescription: '创建可在线编辑的文本文件',
+  pleaseEnterArchiveFileName: '请上传 zip 或 tar 格式压缩包',
+  rootDirectory: '根目录',
+  currentFormatFile: '当前架构文件',
+  addFormat: '新增架构',
+  format: '架构',
+  addFormatSuccess: '已新增架构',
+  invalidJson: 'JSON 格式错误',
+  modelFiles: '模型文件',
+  codeFiles: '代码文件',
+  skillFiles: '技能文件'
+}
+
+const props = defineProps({
+  model: {
+    type: Object as PropType<Record<string, any>>,
+    required: true
+  },
+  formatDetails: {
+    type: Array as PropType<FormatDetail[][]>,
+    default: () => []
+  },
+  locale: {
+    type: Object as PropType<Partial<LocaleText>>,
+    default: () => ({})
+  },
+  files: {
+    type: Array as PropType<ModelFile[]>,
+    default: () => []
+  },
+  filesLoading: {
+    type: Boolean,
+    default: false
+  },
+  availableFormats: {
+    type: Array as PropType<FormatDetail[]>,
+    default: () => []
+  },
+  formatLoading: {
+    type: Boolean,
+    default: false
+  },
+  showAddFile: {
+    type: Boolean,
+    default: true
+  },
+  showManifest: {
+    type: Boolean,
+    default: true
+  }
+})
+
+const emit = defineEmits<{
+  (e: 'load-files', payload: LoadFilesPayload): void
+  (e: 'save-config', payload: SaveConfigPayload): void
+  (e: 'add-file', payload: AddFileEventPayload): void
+  (e: 'add-format', payload: AddFormatPayload): void
+  (e: 'format-added', format: string): void
+  (e: 'save-file', payload: SaveFilePayload): void
+  (e: 'replace-file', payload: ReplaceFilePayload): void
+  (e: 'preview-file', payload: PreviewFilePayload): void
+  (e: 'delete-file', file: ModelFile): void
+}>()
+
+const text = computed(() => ({ ...defaultLocale, ...props.locale }))
+const selectedFormat = ref<string>()
+const selectedKeys = ref<string[]>([])
+const files = ref<ModelFile[]>([])
+const activeType = ref<'model' | 'file'>('model')
+const selectedFile = ref<ModelFile>()
+const configTab = ref<'definition' | 'manifest'>('definition')
+const editing = ref(false)
+const editorValue = ref('')
+const draftValue = ref('')
+const propertyVisible = ref(false)
+const addFileVisible = ref(false)
+const addFormatVisible = ref(false)
+const addFormatSaving = ref(false)
+const filePreviewLoaded = ref(false)
+const contentLoading = ref(false)
+const fileSaving = ref(false)
+const selectedOwner = ref('')
+const localFormatDetails = ref<FormatDetail[][]>([])
+const editorRef = ref<{ layout?: () => void }>()
+
+const editableExtensions = [
+  'py',
+  'pyi',
+  'txt',
+  'md',
+  'json',
+  'yaml',
+  'yml',
+  'toml',
+  'ini',
+  'cfg',
+  'conf',
+  'env',
+  'properties',
+  'xml'
+]
+
+const formatOptions = computed(() => {
+  return localFormatDetails.value
+    .flat()
+    .filter(item => item?.id)
+    .map(item => ({
+      label: item.local ? `${item.name || item.id} (${item.id})` : item.name || item.id,
+      value: item.id
+    }))
+})
+
+const existingFormatIds = computed(() => {
+  const formatIds = localFormatDetails.value
+    .flat()
+    .map(item => item?.id)
+    .filter(Boolean) as string[]
+  const modelFormatIds = normalizeFormats(props.model?.formats).flat()
+  return Array.from(new Set([...modelFormatIds, ...formatIds]))
+})
+
+const modelId = computed(() => props.model?.id)
+const modelVersion = computed(() => props.model?.version || props.model?.modelVersion || props.model?.latestVersion || props.model?.versionNo || 1)
+const selectedFormatLabel = computed(() => {
+  const option = formatOptions.value.find(item => item.value === selectedFormat.value)
+  return option?.label || selectedFormat.value || ''
+})
+
+const activeTitle = computed(() => {
+  return activeType.value === 'model'
+    ? text.value.modelConfig
+    : `${selectedFile.value?.path ? `${selectedFile.value.path}/` : ''}${selectedFile.value?.name || ''}`
+})
+
+const canEditFile = computed(() => {
+  if (!selectedFile.value?.name) return false
+  const ext = selectedFile.value.name.split('.').pop()?.toLowerCase()
+  return !!ext && editableExtensions.includes(ext)
+})
+
+const showEditor = computed(() => activeType.value === 'model' || (canEditFile.value && filePreviewLoaded.value))
+
+const editorLanguage = computed(() => {
+  if (activeType.value === 'model') return 'json'
+  const ext = selectedFile.value?.name?.split('.').pop()?.toLowerCase()
+  const languageMap: Record<string, string> = {
+    py: 'python',
+    pyi: 'python',
+    md: 'markdown',
+    json: 'json',
+    yaml: 'yaml',
+    yml: 'yaml',
+    xml: 'xml'
+  }
+  return languageMap[ext || ''] || 'plaintext'
+})
+
+const editorKey = computed(() => `${activeType.value}-${configTab.value}-${selectedFile.value?.id || selectedFile.value?.url || 'model'}-${editing.value}`)
+
+const treeData = computed<TreeNode[]>(() => buildTree(files.value))
+
+const previewResultTitle = computed(() => {
+  if (!selectedFile.value) return text.value.noFileSelected
+  return canEditFile.value ? text.value.editablePreviewTitle : text.value.previewTitle
+})
+
+const previewResultDescription = computed(() => {
+  if (!selectedFile.value) return text.value.selectFileFirst
+  if (canEditFile.value && !selectedFile.value.url) return text.value.fileUrlMissing
+  return canEditFile.value ? text.value.editablePreviewDescription : text.value.previewDescription
+})
+
+const propertyItems = computed(() => {
+  const file = selectedFile.value
+  if (!file) return []
+  return [
+    { label: text.value.fileName, value: file.name || '--' },
+    { label: text.value.filePath, value: file.path || '', mono: true },
+    { label: text.value.fileFormat, value: file.format?.length ? file.format.join(', ') : text.value.sharedFile },
+    { label: text.value.fileKey, value: file.fileKey || '--', mono: true },
+    { label: text.value.fileMd5, value: file.md5 || '--', mono: true },
+    { label: text.value.fileSha256, value: file.sha256 || '--', mono: true }
+  ]
+})
+
+watch(formatOptions, (options) => {
+  if (!selectedFormat.value && options.length) {
+    selectedFormat.value = options[0].value as string
+  }
+}, { immediate: true })
+
+watch(() => props.formatDetails, (formatDetails) => {
+  localFormatDetails.value = cloneFormatDetails(formatDetails)
+}, { deep: true, immediate: true })
+
+watch([modelId, modelVersion, selectedFormat], () => {
+  requestFiles()
+}, { immediate: true })
+
+watch(() => props.model, () => {
+  if (activeType.value === 'model' && !editing.value) {
+    refreshEditorValue()
+  }
+}, { deep: true, immediate: true })
+
+watch(configTab, () => {
+  if (!editing.value) {
+    refreshEditorValue()
+  }
+})
+
+watch(() => props.showManifest, (showManifest) => {
+  if (!showManifest && configTab.value === 'manifest') {
+    configTab.value = 'definition'
+  }
+}, { immediate: true })
+
+watch(() => props.files, (nextFiles) => {
+  files.value = Array.isArray(nextFiles) ? [...nextFiles] : []
+  if (activeType.value === 'file') {
+    const nextFile = files.value.find(item => item.id === selectedFile.value?.id)
+    if (nextFile) {
+      selectedFile.value = nextFile
+    } else {
+      selectModelConfig()
+    }
+  }
+}, { deep: true, immediate: true })
+
+function requestFiles() {
+  if (!modelId.value || !selectedFormat.value) {
+    files.value = []
+    return
+  }
+  emit('load-files', {
+    modelId: modelId.value,
+    version: modelVersion.value,
+    format: selectedFormat.value
+  })
+}
+
+function buildTree(source: ModelFile[]): TreeNode[] {
+  const fixedFolders = [
+    { path: 'models', title: text.value.modelFiles },
+    { path: 'python', title: text.value.codeFiles },
+    { path: 'skill', title: text.value.skillFiles }
+  ]
+  const roots: TreeNode[] = fixedFolders.map(folder => ({
+    title: formatRootFolderTitle(folder.title, folder.path),
+    key: `folder:${folder.path}`,
+    path: folder.path,
+    children: []
+  }))
+  const folderMap = new Map<string, TreeNode>()
+  roots.forEach(node => {
+    if (node.path) {
+      folderMap.set(node.path, node)
+    }
+  })
+  source.forEach(file => {
+    const segments = file.path?.split('/').filter(Boolean) || []
+    let current = roots
+    let pathKey = ''
+    segments.forEach(segment => {
+      pathKey = pathKey ? `${pathKey}/${segment}` : segment
+      if (!folderMap.has(pathKey)) {
+        const node: TreeNode = {
+          title: segment,
+          key: `folder:${pathKey}`,
+          path: pathKey,
+          children: []
+        }
+        folderMap.set(pathKey, node)
+        current.push(node)
+      }
+      current = folderMap.get(pathKey)!.children!
+    })
+    current.push({
+      title: file.name,
+      key: file.id || `${file.path || ''}/${file.name}`,
+      isFile: true,
+      shared: !file.format?.length,
+      file
+    })
+  })
+  return roots
+}
+
+function getTreeNodeIcon(isFile?: boolean, shared?: boolean) {
+  if (!isFile) return 'FolderOutlined'
+  return shared ? 'FileOutlined' : 'FileProtectOutlined'
+}
+
+function formatRootFolderTitle(title: string, path: string) {
+  return title && title !== path ? `${title}(${path})` : path
+}
+
+function onTreeSelect(_: string[], info: { node?: TreeNode }) {
+  if (info.node?.isFile && info.node.file) {
+    selectFile(info.node.file)
+  }
+}
+
+function openAddFile(path = '') {
+  selectedOwner.value = path
+  addFileVisible.value = true
+}
+
+function openAddFormat() {
+  addFormatVisible.value = true
+}
+
+async function saveFormat(format: string) {
+  if (!modelId.value) return
+  const config = buildSaveFormatPayload(format)
+  addFormatSaving.value = true
+  emit('add-format', {
+    format,
+    config,
+    done: (success = true) => {
+      if (success) {
+        addLocalFormat(format)
+        selectedFormat.value = format
+        addFormatVisible.value = false
+        onlyMessage(text.value.addFormatSuccess)
+        emit('format-added', format)
+      }
+      addFormatSaving.value = false
+    }
+  })
+}
+
+function completeSaving(success: boolean) {
+  if (success) {
+    editing.value = false
+    draftValue.value = editorValue.value
+    onlyMessage(text.value.saveSuccess)
+  }
+  fileSaving.value = false
+}
+
+function parseEditorJson() {
+  const value = editorValue.value.trim()
+  if (!value) return {}
+  try {
+    return JSON.parse(value)
+  } catch {
+    onlyMessage(text.value.invalidJson, 'error')
+    return undefined
+  }
+}
+
+function buildSaveConfigPayload(type: 'definition' | 'manifest') {
+  const value = parseEditorJson()
+  if (value === undefined) return undefined
+  return {
+    definition: type === 'definition' ? value : props.model?.definition || {},
+    manifest: type === 'manifest' ? value : props.model?.manifest || {},
+    formats: buildCurrentFormats()
+  }
+}
+
+function buildCurrentFormats() {
+  const formats = normalizeFormats(props.model?.formats)
+  if (!formats.length) {
+    formats.push(...normalizeFormats(props.model?.formatDetails))
+  }
+  return formats
+}
+
+function completeFileSaving(success: boolean) {
+  if (success) {
+    editing.value = false
+    draftValue.value = editorValue.value
+    onlyMessage(text.value.fileSaveSuccess)
+    requestFiles()
+  }
+  fileSaving.value = false
+}
+
+function completeFileCreate(success: boolean) {
+  if (success) {
+    addFileVisible.value = false
+    onlyMessage(text.value.fileSaveSuccess)
+    requestFiles()
+  }
+  fileSaving.value = false
+}
+
+function completeFileReplace(success: boolean) {
+  if (success) {
+    filePreviewLoaded.value = false
+    editorValue.value = ''
+    draftValue.value = ''
+    onlyMessage(text.value.fileSaveSuccess)
+    requestFiles()
+  }
+  fileSaving.value = false
+}
+
+function completePreview(success: boolean, content = '') {
+  if (success) {
+    editorValue.value = content
+    draftValue.value = editorValue.value
+    filePreviewLoaded.value = true
+    editing.value = false
+  }
+  contentLoading.value = false
+}
+
+function buildSaveFormatPayload(format: string) {
+  // 新增架构只扩展支持架构列表，模型参数和基础信息必须沿用当前详情，避免保存时清空已有配置。
+  const formats = normalizeFormats(props.model?.formats)
+  if (!formats.length) {
+    formats.push(...normalizeFormats(props.model?.formatDetails))
+  }
+  if (!formats.some(item => item.includes(format))) {
+    formats.push([format])
+  }
+  return {
+    definition: props.model?.definition || {},
+    manifest: props.model?.manifest || {},
+    formats
+  }
+}
+
+function normalizeFormats(source: unknown): string[][] {
+  if (!Array.isArray(source)) return []
+  return source
+    .map(item => {
+      if (Array.isArray(item)) {
+        return item
+          .map(format => typeof format === 'string' ? format : format?.id)
+          .filter(Boolean)
+      }
+      return [typeof item === 'string' ? item : item?.id].filter(Boolean)
+    })
+    .filter(item => item.length)
+}
+
+function addLocalFormat(format: string) {
+  if (localFormatDetails.value.flat().some(item => item?.id === format)) return
+  localFormatDetails.value = [
+    ...localFormatDetails.value,
+    [{ id: format, name: format }]
+  ]
+}
+
+function cloneFormatDetails(formatDetails: FormatDetail[][]) {
+  return (formatDetails || []).map(group => group.map(item => ({ ...item })))
+}
+
+function selectModelConfig() {
+  activeType.value = 'model'
+  selectedFile.value = undefined
+  selectedKeys.value = []
+  propertyVisible.value = false
+  editing.value = false
+  filePreviewLoaded.value = false
+  refreshEditorValue()
+}
+
+function selectFile(file: ModelFile) {
+  activeType.value = 'file'
+  selectedFile.value = file
+  selectedKeys.value = [file.id || `${file.path || ''}/${file.name}`]
+  editing.value = false
+  filePreviewLoaded.value = !!file.local
+  editorValue.value = file.local ? file.content || '' : ''
+  draftValue.value = editorValue.value
+}
+
+function refreshEditorValue() {
+  const source = configTab.value === 'definition' ? props.model?.definition : props.model?.manifest
+  editorValue.value = stringifyValue(source)
+  draftValue.value = editorValue.value
+}
+
+function stringifyValue(value: unknown) {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (value === undefined || value === null) {
+    return ''
+  }
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+function startEdit() {
+  draftValue.value = editorValue.value
+  editing.value = true
+}
+
+function cancelEdit() {
+  editorValue.value = draftValue.value
+  editing.value = false
+}
+
+async function saveEdit() {
+  if (activeType.value === 'file') {
+    await saveTextFile()
+    return
+  }
+  const config = buildSaveConfigPayload(configTab.value)
+  if (!config) return
+  fileSaving.value = true
+  emit('save-config', {
+    type: configTab.value,
+    value: editorValue.value,
+    config,
+    done: completeSaving
+  })
+}
+
+async function saveTextFile() {
+  if (!modelId.value || !selectedFormat.value || !selectedFile.value) return
+  fileSaving.value = true
+  emit('save-file', {
+    format: selectedFormat.value,
+    file: {
+      id: selectedFile.value.local ? undefined : selectedFile.value.id,
+      name: selectedFile.value.name,
+      path: selectedFile.value.path,
+      format: selectedFile.value.local ? selectedFile.value.format || [] : undefined,
+      content: editorValue.value
+    },
+    done: completeFileSaving
+  })
+}
+
+async function addFile(payload: AddFilePayload) {
+  if (!modelId.value || !selectedFormat.value) return
+  if (payload.createType === 'empty') {
+    addLocalEmptyFile(payload)
+    return
+  }
+  fileSaving.value = true
+  emit('add-file', {
+    format: selectedFormat.value,
+    file: payload,
+    done: completeFileCreate
+  })
+}
+
+function addLocalEmptyFile(payload: AddFilePayload) {
+  const file: ModelFile = {
+    id: `local:${Date.now()}:${payload.path || ''}/${payload.name}`,
+    name: payload.name,
+    path: payload.path,
+    format: payload.format,
+    content: '',
+    local: true
+  }
+  files.value = [...files.value, file]
+  addFileVisible.value = false
+  selectFile(file)
+  filePreviewLoaded.value = true
+  editing.value = true
+}
+
+async function replaceFile(file: File) {
+  if (!modelId.value || !selectedFormat.value || !selectedFile.value) return false
+  fileSaving.value = true
+  emit('replace-file', {
+    format: selectedFormat.value,
+    target: selectedFile.value,
+    file: {
+      id: selectedFile.value.id,
+      name: selectedFile.value.name,
+      path: selectedFile.value.path,
+      createType: 'upload',
+      file
+    },
+    done: completeFileReplace
+  })
+  return false
+}
+
+function toggleProperty() {
+  propertyVisible.value = !propertyVisible.value
+  nextTick(() => {
+    editorRef.value?.layout?.()
+  })
+}
+
+async function copyPath() {
+  const file = selectedFile.value
+  if (!file || typeof navigator === 'undefined') return
+  const filePath = file.path ? `${file.path}/${file.name}` : file.name
+  await navigator.clipboard?.writeText(filePath)
+  onlyMessage(text.value.copySuccess)
+}
+
+async function previewFile() {
+  if (!selectedFile.value?.url) return
+  if (!canEditFile.value) {
+    window.open(selectedFile.value.url, '_blank')
+    return
+  }
+  contentLoading.value = true
+  emit('preview-file', {
+    file: selectedFile.value,
+    done: completePreview
+  })
+}
+</script>
+
+<style scoped lang="less">
+.model-config {
+  display: grid;
+  grid-template-columns: 17.5rem minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.model-config__sider,
+.model-config__property {
+  min-height: 0;
+  background: var(--bg);
+  border-right: 1px solid var(--line);
+  padding: var(--space-4);
+  overflow: auto;
+}
+
+.model-config__property {
+  width: 20rem;
+  min-width: 0;
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+
+.model-config__sider-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.model-config__title {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.model-config__format {
+  min-width: 9.5rem;
+}
+
+.model-config__format-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.model-config__actions {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.model-config__tree {
+  background: transparent;
+}
+
+.model-config__tree-node,
+.model-config__content-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.model-config__tree-node {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.model-config__tree-node-main {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.model-config__tree-add {
+  opacity: 0;
+}
+
+.model-config__tree-node:hover .model-config__tree-add {
+  opacity: 1;
+}
+
+.model-config__empty {
+  margin-top: 3rem;
+}
+
+.model-config__main {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  background: var(--bg);
+}
+
+.model-config__content-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.model-config__content-title {
+  font-weight: 600;
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
+}
+
+.model-config__config-tabs {
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.model-config__editor-wrap {
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-4);
+}
+
+.model-config__editor {
+  height: 100%;
+  min-height: 22rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  overflow: hidden;
+}
+
+.model-config__preview {
+  height: 100%;
+  min-height: 22rem;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-2);
+  background: var(--bg-sunken);
+}
+
+@media (max-width: 1100px) {
+  .model-config {
+    grid-template-columns: 14rem minmax(0, 1fr);
+  }
+
+  .model-config__property {
+    grid-column: 1 / -1;
+    width: auto;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+</style>

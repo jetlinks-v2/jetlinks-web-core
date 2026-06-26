@@ -3,7 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import router from '@jetlinks-web-core/router'
 import { setParamsValue } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
-import { modules, getBaseApi } from '@jetlinks-web-core/utils'
+import {modules, getBaseApi, isFromCloud} from '@jetlinks-web-core/utils'
 import { getOwnMenuThree } from '@jetlinks-web-core/api/system/menu'
 import { getGlobModules } from '@jetlinks-web-core/router/globModules'
 import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
@@ -152,7 +152,7 @@ export const useMenuStore = defineStore('menu', () => {
       const _query = options?.query || {}
       const _params = options?.params || {}
       setParamsValue(name, _params)
-      if (getProjectIdFromLocation()) {
+      if (getProjectIdFromLocation() && !isFromCloud()) {
         const { push } = useProjectRouter()
         push({
           name,
