@@ -92,6 +92,13 @@
             </template>
           </template>
           <template v-else-if="selectedFile">
+            <a-button
+              :disabled="!selectedFile.url"
+              @click="downloadSelectedFile"
+            >
+              <AIcon type="DownloadOutlined" />
+              {{ text.downloadFile }}
+            </a-button>
             <a-button v-if="canEditFile && filePreviewLoaded && !editing" @click="startEdit">
               <AIcon type="EditOutlined" />
               {{ text.edit }}
@@ -344,6 +351,7 @@ const defaultLocale: LocaleText = {
   noFileSelected: '请选择文件',
   selectFileFirst: '从左侧目录选择文件后查看内容或属性。',
   preview: '预览',
+  downloadFile: '下载文件',
   replaceFile: '上传替换文件',
   fileProperty: '文件属性',
   copyPath: '复制路径',
@@ -910,7 +918,7 @@ async function saveTextFile() {
       id: selectedFile.value.local ? undefined : selectedFile.value.id,
       name: selectedFile.value.name,
       path: selectedFile.value.path,
-      format: selectedFile.value.local ? selectedFile.value.format || [] : undefined,
+      format: selectedFile.value.format || [],
       content: editorValue.value
     },
     done: completeFileSaving
@@ -957,6 +965,7 @@ async function replaceFile(file: File) {
       id: selectedFile.value.id,
       name: selectedFile.value.name,
       path: selectedFile.value.path,
+      format: selectedFile.value.format || [],
       createType: 'upload',
       file
     },
@@ -978,6 +987,17 @@ async function copyPath() {
   const filePath = file.path ? `${file.path}/${file.name}` : file.name
   await navigator.clipboard?.writeText(filePath)
   onlyMessage(text.value.copySuccess)
+}
+
+function downloadSelectedFile() {
+  const file = selectedFile.value
+  if (!file?.url || typeof document === 'undefined') return
+  const link = document.createElement('a')
+  link.href = file.url
+  link.download = file.name || 'model-file'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
 }
 
 async function previewFile() {
