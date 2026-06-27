@@ -17,21 +17,27 @@ export const useAIStore = defineStore('ai', () => {
   const hideAiButton = () => {
     showAiButton.value = false
   }
+
+  const resetAgentState = () => {
+    showAiButton.value = false
+    showAiDrawer.value = false
+    agentList.value = []
+    parameters.value = {}
+  }
+
   // 关闭窗口/显示窗口
   const setDrawer = (bool: boolean) => {
     showAiDrawer.value = bool
   }
   // 查询智能体列表
-  const queryAgent = async (clientId: string, _parameters: any) => {
-    console.log(_parameters, '_parameters')
+  const queryAgent = async (clientId: string, _parameters: Record<string, any> = {}) => {
+    resetAgentState()
     if (isPermission) {
       const resp = await queryAgentList('pagePoint', clientId)
-      if (resp.success && resp.result) {
+      if (resp.success && Array.isArray(resp.result) && resp.result.length) {
         agentList.value = resp.result
-        if (agentList.value.length > 0) {
-          showAiButton.value = true
-          parameters.value = _parameters
-        }
+        showAiButton.value = true
+        parameters.value = _parameters
       }
     }
   }

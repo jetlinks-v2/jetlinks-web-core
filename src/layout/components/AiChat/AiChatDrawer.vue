@@ -1,25 +1,27 @@
 <template>
   <a-drawer
-      :open="true"
-      @close="emits('close')"
-      placement="right"
-      :width="520"
-      :maskClosable="false"
-      destroy-on-close
-      style="background: linear-gradient(180deg, #E3EEFF 0%, #F9FAFB 100%)"
+    :open="true"
+    placement="right"
+    :width="760"
+    :mask-closable="false"
+    destroy-on-close
+    :body-style="{ padding: 0, overflow: 'hidden' }"
+    @close="emits('close')"
   >
     <template #title>
-      <div style="display: flex; align-items: center; gap: 0.75rem">
-        <j-ellipsis>{{ activeAgent.others?.client?.name || 'AI助手' }}</j-ellipsis>
-        <template v-if="agentList.length > 1">
-          <j-ellipsis style="width: 6.25rem">{{ activeAgent.agentName || activeAgent.agentId }}</j-ellipsis>
+      <div class="ai-chat-drawer__title">
+        <j-ellipsis>{{ activeClientName }}</j-ellipsis>
+        <template v-if="availableAgents.length > 1">
+          <j-ellipsis class="ai-chat-drawer__agent-name">
+            {{ activeAgentName }}
+          </j-ellipsis>
           <a-dropdown>
-            <div @click.prevent>
-              <AIcon type="DownOutlined"/>
+            <div class="ai-chat-drawer__agent-switch" @click.prevent>
+              <AIcon type="DownOutlined" />
             </div>
             <template #overlay>
-              <a-menu @click="onClick">
-                <a-menu-item v-for="item in agentList" :key="item.agentId">
+              <a-menu @click="handleAgentClick">
+                <a-menu-item v-for="item in availableAgents" :key="item.agentId">
                   {{ item?.agentName || item.agentId }}
                 </a-menu-item>
               </a-menu>
@@ -28,301 +30,119 @@
         </template>
       </div>
     </template>
-    <template #extra>
-      <a-space>
-        <a-tooltip title="开始新对话">
-          <a-button @click="_handleReStartChat" size="small" type="text">
-            <AIcon type="PlusOutlined"/>
-          </a-button>
-        </a-tooltip>
-        <a-popover placement="bottomRight">
-          <template #content>
-            <div class="history-wrapper">
-              <div
-                  :class="['item', item.id === sessionId && 'active']"
-                  v-if="historyList.length"
-                  v-for="(item) in historyList"
-                  :key="item.id"
-              >
-                <div class="description">
-                  <div class="name" @click="getHistoryData(item.id)">
-                    <j-ellipsis>{{ item.name }}</j-ellipsis>
-                  </div>
-                </div>
 
-                <j-permission-button @click.stop :popConfirm="{
-                    title: '是否确认删除该会话历史？',
-                    onConfirm: () => handleDelHistory(item.id)
-                  }" type="link" :hasPermission="`${ApplicationListPermission}:delete`">
-                  <AIcon class="delete icon" type="DeleteOutlined"/>
-                </j-permission-button>
-              </div>
-
-              <div v-else class="empty">
-                <CloudEmpty/>
-              </div>
-            </div>
-          </template>
-          <AIcon class="icon" type="HistoryOutlined"/>
-        </a-popover>
-      </a-space>
-    </template>
-<!--    <div style="display: flex; align-items: center; gap: 0.75rem">-->
-<!--      <template v-if="agentList.length > 1">-->
-<!--        <j-ellipsis style="width: 6.25rem">{{ activeAgent.agentName || activeAgent.agentId }}</j-ellipsis>-->
-<!--        <a-dropdown>-->
-<!--          <div @click.prevent>-->
-<!--            <AIcon type="DownOutlined"/>-->
-<!--          </div>-->
-<!--          <template #overlay>-->
-<!--            <a-menu @click="onClick">-->
-<!--              <a-menu-item v-for="item in agentList" :key="item.agentId">-->
-<!--                {{ item?.agentName || item.agentId }}-->
-<!--              </a-menu-item>-->
-<!--            </a-menu>-->
-<!--          </template>-->
-<!--        </a-dropdown>-->
-<!--      </template>-->
-<!--    </div>-->
     <div class="ai-iframe-container">
       <component
-          v-if="_component && activeAgent.agentId"
-          :is="_component"
-          ref="aiChatRef"
-          :initExpands="{
-            clientId: activeAgent.clientId,
-            clientType: activeAgent.clientType
-          }"
-          :parameters="parameters"
-          :agent-id="activeAgent.agentId"
-          :historyList="messageList"
-          :reSessionId="sessionId"
+        v-if="conversationComponent && activeAgent.agentId && activeAgent.clientType"
+        :is="conversationComponent"
+        :key="conversationKey"
+        :agent-id="activeAgent.agentId"
+        :agent-name="activeAgentName"
+        :client-type="activeAgent.clientType || ''"
+        :client-id="activeAgent.clientId || ''"
+        :parameters="conversationParameters"
+        :init-expands="conversationExpands"
+        :subject-type="conversationSubject?.type || ''"
+        :subject-id="conversationSubject?.id || ''"
       />
-      <CloudEmpty v-else/>
+      <CloudEmpty v-else class="ai-chat-drawer__empty" />
     </div>
   </a-drawer>
 </template>
 
-<script setup>
-import {moduleRegistry} from "@jetlinks-web-core/utils/module-registry";
-import {getAgentDetailById, getAgentHistoryList, delHistory, historyData} from "@jetlinks-web-core/api/comm";
-import {onlyMessage} from "@jetlinks-web/utils";
+<script setup lang="ts">
+import { computed, markRaw, onMounted, ref, shallowRef, watch, type PropType } from 'vue';
+import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry';
+import { buildAgentSubjectPayload, normalizeAgentSubject } from './subject';
+
+interface AgentDeployRecord {
+  agentId?: string;
+  agentName?: string;
+  clientId?: string;
+  clientType?: string;
+  others?: {
+    client?: {
+      name?: string;
+    };
+  };
+  [key: string]: any;
+}
 
 const props = defineProps({
   agentList: {
-    type: Array,
-    default: []
+    type: Array as PropType<AgentDeployRecord[]>,
+    default: () => [],
   },
   parameters: {
-    type: Object,
-    default: () => ({})
+    type: Object as PropType<Record<string, any>>,
+    default: () => ({}),
+  },
+});
+
+const emits = defineEmits<{
+  (e: 'close'): void;
+}>();
+
+const activeAgent = ref<AgentDeployRecord>({});
+const conversationComponent = shallowRef<any>();
+
+const availableAgents = computed(() => props.agentList || []);
+const conversationSubject = computed(() => normalizeAgentSubject(props.parameters || {}));
+
+// 页面功能点传入的 subject 需要同时进入会话参数和 expands，确保首条消息建会话与历史过滤口径一致。
+const conversationParameters = computed(() => ({
+  ...(props.parameters || {}),
+  ...buildAgentSubjectPayload(conversationSubject.value),
+}));
+
+const conversationExpands = computed(() => ({
+  clientId: activeAgent.value?.clientId,
+  clientType: activeAgent.value?.clientType,
+  ...buildAgentSubjectPayload(conversationSubject.value),
+}));
+
+const activeClientName = computed(() => activeAgent.value?.others?.client?.name || 'AI助手');
+const activeAgentName = computed(() => activeAgent.value?.agentName || activeAgent.value?.agentId || '--');
+
+const conversationKey = computed(() => [
+  activeAgent.value?.agentId || '',
+  activeAgent.value?.clientType || '',
+  activeAgent.value?.clientId || '',
+  conversationSubject.value?.type || '',
+  conversationSubject.value?.id || '',
+].join('|'));
+
+const syncActiveAgent = (nextList: AgentDeployRecord[] = []) => {
+  if (!nextList.length) {
+    activeAgent.value = {};
+    return;
   }
-})
-const emits = defineEmits(['close'])
-const activeAgent = ref({})
-const _component = ref()
-const aiChatStore = ref()
-const historyList = ref([])
-const messageList = ref([])
-const sessionId = ref()
-const aiChatRef = ref()
-const ApplicationListPermission = 'agentDevelopment/applicationList';
 
-const queryAgentHistoryList = (agentId) => {
-  getAgentHistoryList(agentId, activeAgent.value?.clientType, activeAgent.value?.clientId).then((resp) => {
-    if (resp.success) {
-      historyList.value = resp.result || []
-    }
-  })
-}
+  const current = nextList.find((item) => item.agentId === activeAgent.value?.agentId);
+  activeAgent.value = current || nextList[0];
+};
 
-const getAgentDetail = (agentId) => {
-  if (agentId && aiChatStore.value) {
-    getAgentDetailById(agentId).then((res) => {
-      if (res.status === 200) {
-        aiChatStore.value.setAgentDetailData(agentId, res.result, new Date().getTime());
-        queryAgentHistoryList(agentId)
-      }
-    });
-  }
-}
-
-const getHistoryData = (_sessionId) => {
-  sessionId.value = _sessionId;
-  messageList.value = []
-
-  const params = {
-    'terms': [],
-    'paging': false,
-    'sorts': [{ name: 'timestamp', order: "asc" }]
-  }
-  historyData(_sessionId, params).then((res) => {
-    if (res.status === 200) {
-      let result = [];
-
-      if (Array.isArray(res.result) && res.result.length > 0) {
-        let content = '';
-
-        res.result.forEach(item => {
-          const session = JSON.parse(item.data);
-
-          if (session.params.messageType === 'text') {
-            result.push({
-              id: Date.now().toString(),
-              role: 'user',
-              content: session?.params?.content,
-              timestamp: new Date(),
-            })
-          } else if (session.type === 'session.response_start') {
-            content = '';
-          } else if (session.type === 'session.response_chunk') {
-            const piece = session?.params?.chunk?.content ?? '';
-            if (typeof piece === 'string') {
-              content += piece;
-            } else if (Array.isArray(piece)) {
-              content += piece.join('');
-            }
-          } else if (session.type === 'session.response_end') {
-            if (content.length > 0) {
-              result.push({
-                id: Date.now().toString(),
-                role: 'ai',
-                content: content,
-                timestamp: new Date(),
-              });
-            }
-
-            content = '';
-          }
-        })
-      }
-
-      messageList.value = result;
-
-      if (aiChatRef.value) {
-        aiChatRef.value.handleReStartChat(messageList.value);
-      }
-    }
-  })
-}
-
-const onClick = (e) => {
-  const item = props.agentList.find((item) => item.agentId === e.key)
+const handleAgentClick = (event: { key: string }) => {
+  const item = availableAgents.value.find((agent) => agent.agentId === event.key);
   if (item) {
-    activeAgent.value = item
-    getAgentDetail(item?.agentId)
+    activeAgent.value = item;
   }
-}
+};
 
-const _handleReStartChat = () => {
-  if (aiChatRef.value) {
-    sessionId.value = '';
-    messageList.value = [];
-    aiChatRef.value.handleReStartChat([]);
-    queryAgentHistoryList(activeAgent.value?.agentId)
-  }
-}
-
-const handleDelHistory = (id) => {
-  delHistory(id).then((res) => {
-    if (res.success) {
-      if(sessionId.value) {
-        _handleReStartChat();
-      } else {
-        queryAgentHistoryList(activeAgent.value?.agentId)
-      }
-      onlyMessage('操作成功!')
-    }
-  })
-}
-
-watch(() => [props.agentList, aiChatStore.value], () => {
-  if (props.agentList.length > 0) {
-    activeAgent.value = props.agentList[0]
-    getAgentDetail(activeAgent.value?.agentId)
-  }
-}, {
-  immediate: true
-})
+watch(
+  () => props.agentList,
+  (nextList) => syncActiveAgent(nextList || []),
+  { immediate: true },
+);
 
 onMounted(() => {
-  _component.value = moduleRegistry.getResourceItem('jetlinks-ai-agent-ui', 'components', 'AIChat');
-  const useAiChatStore = moduleRegistry.getResourceItem('jetlinks-ai-agent-ui', 'stores', 'useAiChatStore')
-  if (useAiChatStore) {
-    aiChatStore.value = useAiChatStore()
-  }
-})
+  const component = moduleRegistry.getResourceItem(
+    'jetlinks-ai-agent-ui',
+    'components',
+    'AgentAccessConversation',
+  );
+  conversationComponent.value = component ? markRaw(component) : undefined;
+});
 </script>
 
-<style lang="less" scoped>
-.ai-iframe-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-
-}
-
-.history-wrapper {
-  width: 15rem;
-  max-height: 10.5rem;
-  overflow-y: auto;
-
-  .item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    font-size: var(--fs-14);
-    line-height: 1.375rem;
-    padding: 0.3125rem 0.75rem;
-    border-radius: var(--r-1);
-    color: rgba(0, 0, 0, 0.88);
-    box-sizing: border-box;
-    cursor: pointer;
-
-    .description {
-      display: flex;
-      align-items: center;
-      gap: var(--space-2);
-      flex: 1;
-      min-width: 0;
-
-      .name {
-        width: 100%;
-      }
-    }
-
-    .icon {
-      position: relative;
-      font-size: var(--fs-16);
-    }
-
-    .current {
-      color: var(--ok);
-    }
-
-    .delete {
-      color: var(--err);
-      display: none;
-    }
-
-    &:hover {
-      .delete {
-        display: block;
-      }
-    }
-  }
-
-  .active {
-    background: #F5F5F5;
-  }
-
-  .empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-  }
-}</style>
+<style src="./AiChatDrawer.less" lang="less" scoped />
