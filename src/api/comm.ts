@@ -52,6 +52,9 @@ export const getTokenConfig = (tokenId: string) => request.get(`/personal/token/
 export const getTokenRedirect = (tokenId: string, data: any) =>
     request.post(`/personal/token/${tokenId}/_redirect`, data)
 
+export const AI_AGENT_MANAGER_SERVICE_ID = 'aiAgentService:agentManager'
+export const existsAiAgentSupport = () => request.get<boolean>(`/command-supports/service/${AI_AGENT_MANAGER_SERVICE_ID}/exists`)
+
 // 查询当前部署智能体
 export const queryAgentList = (clientType: string, clientId: string) => request.get(`/ai/agent/deploy/${clientType}/${clientId}`)
 export const saveAgentList = (data: any) => request.post(`/ai/agent/deploy/client/pagePoint/_save`, data)
