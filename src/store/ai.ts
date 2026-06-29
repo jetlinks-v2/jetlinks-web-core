@@ -1,7 +1,5 @@
 import {defineStore} from "pinia";
 import {existsAiAgentSupport, queryAgentList} from "@jetlinks-web-core/api/comm";
-import {useAuthStore} from "@jetlinks-web-core/store/auth";
-import {ACCESS_AI_AGENT_CODE, USER_CENTER_MENU_CODE} from "@jetlinks-web-core/utils/consts";
 
 export const useAIStore = defineStore('ai', () => {
   const showAiButton = ref(false)
@@ -11,10 +9,6 @@ export const useAIStore = defineStore('ai', () => {
   const aiAgentSupported = ref<boolean | undefined>(undefined)
   let supportPromise: Promise<boolean> | undefined
   let queryVersion = 0
-
-  const isPermission = useAuthStore().hasPermission(
-      `${USER_CENTER_MENU_CODE}:${ACCESS_AI_AGENT_CODE}`,
-  );
 
   // 隐藏按钮
   const hideAiButton = () => {
@@ -81,9 +75,6 @@ export const useAIStore = defineStore('ai', () => {
     const currentVersion = queryVersion + 1
     queryVersion = currentVersion
     resetAgentState()
-    if (!isPermission) {
-      return
-    }
 
     const supported = await ensureAiAgentSupport()
     if (!supported || currentVersion !== queryVersion) {

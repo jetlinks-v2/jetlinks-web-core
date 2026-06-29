@@ -1,4 +1,5 @@
 import { withAiClientToolSilentRequest } from '@jetlinks-web-core/utils';
+import { aiClientToolRegistry } from './clientToolRegistry';
 
 export interface AiClientToolValueType {
   type: string;
@@ -49,6 +50,8 @@ export interface AiClientToolResultGuardOptions {
 export interface AiClientToolRuntimeOptions<TContext = Record<string, any>> {
   toolsName?: string;
   toolsDescription?: string;
+  registeredToolScopes?: string | string[];
+  extraTools?: AiClientToolDefinition<TContext>[] | (() => AiClientToolDefinition<TContext>[]);
   includeHelpTool?: boolean;
   helpToolId?: string;
   getContext?: () => TContext;
@@ -125,6 +128,26 @@ const createToolHelp = <TContext>(tool: AiClientToolDefinition<TContext>) => {
 export const defineAiClientTools = <TContext = Record<string, any>>(
   tools: AiClientToolDefinition<TContext>[],
 ) => tools;
+
+const mergeToolDefinitions = <TContext = Record<string, any>>(
+  tools: AiClientToolDefinition<TContext>[],
+) => {
+  const result: AiClientToolDefinition<TContext>[] = [];
+  const indexMap = new Map<string, number>();
+  tools.forEach((tool) => {
+    if (!tool?.id) {
+      return;
+    }
+    const index = indexMap.get(tool.id);
+    if (index === undefined) {
+      indexMap.set(tool.id, result.length);
+      result.push(tool);
+    } else {
+      result[index] = tool;
+    }
+  });
+  return result;
+};
 
 const safeJsonStringify = (value: unknown) => {
   const seen = new WeakSet<object>();
@@ -324,9 +347,15 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
   options: AiClientToolRuntimeOptions<TContext> = {},
 ): AiClientToolRuntime => {
   const helpToolId = options.helpToolId || DEFAULT_HELP_TOOL_ID;
+  const resolvedExtraTools = typeof options.extraTools === 'function'
+    ? options.extraTools()
+    : (options.extraTools || []);
+  const extraTools = Array.isArray(resolvedExtraTools) ? resolvedExtraTools : [];
+  const registeredTools = aiClientToolRegistry.getTools<TContext>(options.registeredToolScopes);
+  const sourceTools = mergeToolDefinitions([...tools, ...extraTools, ...registeredTools]);
   const toolMap = new Map<string, AiClientToolDefinition<TContext>>();
 
-  tools.forEach((tool) => {
+  sourceTools.forEach((tool) => {
     toolMap.set(tool.id, tool);
     if (tool.name) {
       toolMap.set(tool.name, tool);
@@ -341,7 +370,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
     return createToolHelp(tool);
   };
 
-  const getAllToolHelp = () => tools.map(createToolHelp).join('\n\n');
+  const getAllToolHelp = () => sourceTools.map(createToolHelp).join('\n\n');
 
   const helpTool: AiClientToolDefinition<TContext> = {
     id: helpToolId,
@@ -374,7 +403,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
     }
   }
 
-  const runtimeTools = options.includeHelpTool === false ? tools : [...tools, helpTool];
+  const runtimeTools = options.includeHelpTool === false ? sourceTools : [...sourceTools, helpTool];
   const runtimeToolMap = new Map<string, AiClientToolDefinition<TContext>>();
   runtimeTools.forEach((tool) => {
     runtimeToolMap.set(tool.id, tool);
