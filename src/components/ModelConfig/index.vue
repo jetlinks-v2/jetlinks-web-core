@@ -358,12 +358,16 @@ const defaultLocale: LocaleText = {
   copySuccess: '文件路径已复制',
   filePath: '文件路径',
   fileName: '文件名称',
-  modelBusiness: '模型业务',
-  modelBusinessPlaceholder: '请选择或输入模型业务',
+  businessType: '业务类型', businessTypePlaceholder: '请选择或输入业务类型',
+  businessTypeOptionObjectDetection: '目标检测(object_detection)', businessTypeOptionPoseDetection: '人体姿态检测(pose_detection)',
+  businessTypeOptionFaceEmbedding: '人脸特征(face_embedding)', businessTypeOptionOcrText: 'OCR 文本识别(ocr_text)',
+  modelBusiness: '算法模型',
+  modelBusinessPlaceholder: '请选择或输入算法模型',
   modelBusinessOptionYolo: 'yolo(yolo)',
   modelBusinessOptionYoloPose: 'yolo姿势(yolo_pose)',
   modelBusinessOptionRetinaface: '人脸识别(retinaface)',
-  modelBusinessOptionArcface: '人脸向量(arcface)',
+  modelBusinessOptionResnet50: '人脸向量(resnet50)',
+  modelBusinessOptionDeim: 'deim(deim)',
   modelFileFormat: '模型格式',
   modelFileFormatPlaceholder: '请选择或输入模型格式',
   fileFormat: '支持架构',
@@ -378,7 +382,7 @@ const defaultLocale: LocaleText = {
   confirm: '确定',
   cancel: '取消',
   pleaseEnterFileName: '请输入文件名称',
-  pleaseEnterModelBusiness: '请输入模型业务',
+  pleaseEnterBusinessType: '请输入业务类型', pleaseEnterModelBusiness: '请输入算法模型',
   pleaseEnterModelFileFormat: '请输入模型格式',
   pleaseEnterEditableFileName: '不支持创建该后缀的空白文件',
   selectFile: '选择文件',
@@ -490,7 +494,8 @@ const editableExtensions = [
   'conf',
   'env',
   'properties',
-  'xml'
+  'xml',
+  'proto'
 ]
 
 const formatOptions = computed(() => {
@@ -543,7 +548,8 @@ const editorLanguage = computed(() => {
     json: 'json',
     yaml: 'yaml',
     yml: 'yaml',
-    xml: 'xml'
+    xml: 'xml',
+    proto: 'protobuf'
   }
   return languageMap[ext || ''] || 'plaintext'
 })

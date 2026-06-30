@@ -1,12 +1,5 @@
 <template>
-  <a-modal
-    :open="open"
-    :title="locale.addFile"
-    :ok-text="locale.confirm"
-    :cancel-text="locale.cancel"
-    @ok="confirm"
-    @cancel="emit('update:open', false)"
-  >
+  <a-modal :open="open" :title="locale.addFile" :width="720" :ok-text="locale.confirm" :cancel-text="locale.cancel" @ok="confirm" @cancel="emit('update:open', false)">
     <a-form layout="vertical">
       <a-form-item required>
         <template #label>
@@ -29,11 +22,7 @@
           <a-radio-button value="empty">{{ locale.emptyCreate }}</a-radio-button>
         </a-radio-group>
       </a-form-item>
-      <a-form-item
-        v-if="form.createType === 'upload' || form.createType === 'extract'"
-        :label="locale.selectFile"
-        required
-      >
+      <a-form-item v-if="form.createType === 'upload' || form.createType === 'extract'" :label="locale.selectFile" required>
         <a-upload
           v-model:file-list="uploadFiles"
           :max-count="1"
@@ -59,27 +48,27 @@
           :placeholder="locale.rootDirectory"
         />
       </a-form-item>
-      <a-row
-        v-if="isModelFilePath"
-        :gutter="16"
-      >
-        <a-col :span="12">
-          <a-form-item
-            :label="locale.modelBusiness"
-            required
-          >
+      <a-row v-if="isModelFilePath" :gutter="16">
+        <a-col :span="8">
+          <a-form-item :label="locale.businessType" required>
             <a-auto-complete
-              v-model:value="modelBusiness"
-              :options="modelBusinessOptions"
+              v-model:value="businessType"
+              :options="businessTypeOptions"
+              :placeholder="locale.businessTypePlaceholder"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item :label="locale.modelBusiness" required>
+            <a-auto-complete
+              v-model:value="algorithmModel"
+              :options="algorithmModelOptions"
               :placeholder="locale.modelBusinessPlaceholder"
             />
           </a-form-item>
         </a-col>
-        <a-col :span="12">
-          <a-form-item
-            :label="locale.modelFileFormat"
-            required
-          >
+        <a-col :span="8">
+          <a-form-item :label="locale.modelFileFormat" required>
             <a-auto-complete
               v-model:value="modelFileFormat"
               :options="modelFileFormatOptions"
@@ -144,20 +133,30 @@ const form = reactive<AddFilePayload>({
 })
 const uploadFiles = ref<any[]>([])
 const fileOwner = ref<'shared' | 'format'>('shared')
-const modelBusiness = ref('')
+const businessType = ref('')
+const algorithmModel = ref('')
 const modelFileFormat = ref('')
 
-const modelBusinessOptions = computed(() => [
+const businessTypeOptions = computed(() => [
+  { label: props.locale.businessTypeOptionObjectDetection, value: 'object_detection' }, { label: props.locale.businessTypeOptionPoseDetection, value: 'pose_detection' },
+  { label: props.locale.businessTypeOptionFaceEmbedding, value: 'face_embedding' }, { label: props.locale.businessTypeOptionOcrText, value: 'ocr_text' }
+])
+
+const algorithmModelOptions = computed(() => [
   { label: props.locale.modelBusinessOptionYolo, value: 'yolo' },
   { label: props.locale.modelBusinessOptionYoloPose, value: 'yolo_pose' },
   { label: props.locale.modelBusinessOptionRetinaface, value: 'retinaface' },
-  { label: props.locale.modelBusinessOptionArcface, value: 'arcface' }
+  { label: props.locale.modelBusinessOptionResnet50, value: 'resnet50' },
+  { label: props.locale.modelBusinessOptionDeim, value: 'deim' }
 ])
 
 const modelFileFormatOptions = [
-  { value: 'onnx' },
   { value: 'plan' },
-  { value: 'bmodel' }
+  { value: 'onnx' },
+  { value: 'bin' },
+  { value: 'rknn' },
+  { value: 'bmodel' },
+  { value: 'om' }
 ]
 
 watch(() => props.open, (open) => {
@@ -168,7 +167,8 @@ watch(() => props.open, (open) => {
     form.createType = 'upload'
     form.format = []
     form.file = undefined
-    modelBusiness.value = ''
+    businessType.value = ''
+    algorithmModel.value = ''
     modelFileFormat.value = ''
     uploadFiles.value = []
   }
@@ -216,9 +216,11 @@ const isModelFilePath = computed(() => normalizeFilePath(form.path) === 'models'
 
 const modelFileNameSuffix = computed(() => {
   if (!isModelFilePath.value) return ''
-  const business = modelBusiness.value.trim()
+  // 模型文件保存时要求业务类型、算法模型、模型格式三段后缀进入真实文件名。
+  const business = businessType.value.trim()
+  const algorithm = algorithmModel.value.trim()
   const fileFormat = normalizeModelFileFormat(modelFileFormat.value)
-  return [business, fileFormat].filter(Boolean).map(item => item.startsWith('.') ? item : `.${item}`).join('')
+  return [business, algorithm, fileFormat].filter(Boolean).map(item => item.startsWith('.') ? item : `.${item}`).join('')
 })
 
 const resolvedFileName = computed(() => {
@@ -251,7 +253,11 @@ const confirm = () => {
     onlyMessage(props.locale.pleaseEnterArchiveFileName, 'warning')
     return
   }
-  if (isModelFilePath.value && !modelBusiness.value.trim()) {
+  if (isModelFilePath.value && !businessType.value.trim()) {
+    onlyMessage(props.locale.pleaseEnterBusinessType, 'warning')
+    return
+  }
+  if (isModelFilePath.value && !algorithmModel.value.trim()) {
     onlyMessage(props.locale.pleaseEnterModelBusiness, 'warning')
     return
   }
