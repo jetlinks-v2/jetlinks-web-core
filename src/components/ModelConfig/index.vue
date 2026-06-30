@@ -366,7 +366,7 @@ const defaultLocale: LocaleText = {
   modelBusinessOptionYolo: 'yolo(yolo)',
   modelBusinessOptionYoloPose: 'yolo姿势(yolo_pose)',
   modelBusinessOptionRetinaface: '人脸识别(retinaface)',
-  modelBusinessOptionArcface: '人脸向量(arcface)',
+  modelBusinessOptionResnet50: '人脸向量(resnet50)',
   modelBusinessOptionDeim: 'deim(deim)',
   modelFileFormat: '模型格式',
   modelFileFormatPlaceholder: '请选择或输入模型格式',

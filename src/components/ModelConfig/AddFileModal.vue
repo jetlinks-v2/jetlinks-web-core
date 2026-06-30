@@ -146,7 +146,7 @@ const algorithmModelOptions = computed(() => [
   { label: props.locale.modelBusinessOptionYolo, value: 'yolo' },
   { label: props.locale.modelBusinessOptionYoloPose, value: 'yolo_pose' },
   { label: props.locale.modelBusinessOptionRetinaface, value: 'retinaface' },
-  { label: props.locale.modelBusinessOptionArcface, value: 'arcface' },
+  { label: props.locale.modelBusinessOptionResnet50, value: 'resnet50' },
   { label: props.locale.modelBusinessOptionDeim, value: 'deim' }
 ])
 
