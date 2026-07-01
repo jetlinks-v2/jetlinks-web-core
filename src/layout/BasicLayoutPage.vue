@@ -19,12 +19,12 @@
     <template #menuExtraRender>
       <LayoutMenuSearch />
     </template>
-    <template #linksRender>
-      <LayoutSidebarUser
-        :collapsed="state.collapsed"
-        @toggleCollapse="state.collapsed = !state.collapsed"
-      />
-    </template>
+<!--    <template #linksRender>-->
+<!--      <LayoutSidebarUser-->
+<!--        :collapsed="state.collapsed"-->
+<!--        @toggleCollapse="state.collapsed = !state.collapsed"-->
+<!--      />-->
+<!--    </template>-->
     <template #leftContentRender>
       <RegistryComponent pageCode="layout" code="layout" @click="onClick">
 
