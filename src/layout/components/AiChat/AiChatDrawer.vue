@@ -2,6 +2,7 @@
   <Teleport to="body">
     <section
       ref="panelRef"
+      v-show="open"
       class="ai-chat-bubble-panel"
       :class="{
         'ai-chat-bubble-panel--ready': isPositionReady,
@@ -11,6 +12,7 @@
       :style="panelStyle"
       role="dialog"
       aria-modal="false"
+      :aria-hidden="!open"
     >
       <div class="ai-chat-bubble-panel__content" @pointerdown="handlePanelDragStart">
         <div class="ai-iframe-container">
@@ -30,6 +32,7 @@
             :client-tools="conversationClientTools"
             :client-tools-name="conversationClientToolsName"
             :client-tools-description="conversationClientToolsDescription"
+            :markdown-link-handler="conversationMarkdownLinkHandler"
             :system-prompt="conversationSystemPrompt"
           >
             <template #header-extra>
@@ -108,6 +111,7 @@ interface AgentDeployRecord {
 }
 
 type AiChatClientToolHandler = (payload: AiClientToolCall) => Promise<any> | any;
+type AiChatMarkdownLinkHandler = (payload: Record<string, any>) => boolean | void;
 const CLOSE_TRANSIENT_OVERLAYS_EVENT = 'ai-chat-close-transient-overlays';
 const PANEL_TRANSIENT_OVERLAY_SELECTOR = [
   '.agent-access-history-popover',
@@ -141,6 +145,10 @@ const props = defineProps({
   initialPanelSize: {
     type: Object as PropType<{ width: number; height: number } | undefined>,
     default: undefined,
+  },
+  open: {
+    type: Boolean,
+    default: true,
   },
 });
 
@@ -186,6 +194,8 @@ const conversationBaseParameters = computed(() => {
     clientToolHandler,
     clientToolsName,
     clientToolsDescription,
+    markdownLinkHandler,
+    onMarkdownLinkClick,
     systemPrompt,
     agentSystemPrompt,
     sceneSystemPrompt,
@@ -217,6 +227,10 @@ const conversationClientToolHandler = computed<AiChatClientToolHandler | undefin
 ));
 const conversationClientToolsName = computed(() => String(props.parameters?.clientToolsName || ''));
 const conversationClientToolsDescription = computed(() => String(props.parameters?.clientToolsDescription || ''));
+const conversationMarkdownLinkHandler = computed<AiChatMarkdownLinkHandler | undefined>(() => {
+  const handler = props.parameters?.markdownLinkHandler || props.parameters?.onMarkdownLinkClick;
+  return typeof handler === 'function' ? handler : undefined;
+});
 const conversationSystemPrompt = computed(() => String(
   props.parameters?.systemPrompt
   || props.parameters?.agentSystemPrompt
@@ -235,6 +249,9 @@ const conversationKey = computed(() => [
 ].join('|'));
 
 const handleKeydown = (event: KeyboardEvent) => {
+  if (!props.open) {
+    return;
+  }
   if (event.defaultPrevented) {
     return;
   }
@@ -288,11 +305,20 @@ watch(
 watch(
   () => props.anchorRect,
   () => {
-    if (isPositionReady.value && !isDragging.value && !isResizing.value && !props.anchorDragging) {
+    if (props.open && isPositionReady.value && !isDragging.value && !isResizing.value && !props.anchorDragging) {
       void initPanelPosition();
     }
   },
   { deep: true },
+);
+
+watch(
+  () => props.open,
+  (value) => {
+    if (value) {
+      void initPanelPosition();
+    }
+  },
 );
 
 defineExpose({

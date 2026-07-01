@@ -34,7 +34,8 @@
     @close="onClose"
     @anchor-drag="handlePanelAnchorDrag"
     @panel-size-change="handlePanelSizeChange"
-    v-if="showAiDrawer"
+    v-if="drawerMounted && showAiButton"
+    :open="showAiDrawer"
     :agentList="agentList"
     :parameters="parameters"
     :anchorRect="bubbleAnchorRect"
@@ -44,7 +45,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import AiChatDrawer from './AiChatDrawer.vue'
 import { useAIStore } from '@jetlinks-web-core/store'
 import { storeToRefs } from 'pinia'
@@ -56,6 +57,7 @@ const aiStore = useAIStore()
 const { showAiDrawer, showAiButton, agentList, parameters } = storeToRefs(aiStore)
 const drawerRef = ref()
 const manualPanelSize = ref()
+const drawerMounted = ref(false)
 const {
   bubbleRef,
   bubbleStyle,
@@ -98,4 +100,16 @@ const handlePanelAnchorDrag = (delta) => {
 const handlePanelSizeChange = (size) => {
   manualPanelSize.value = size
 }
+
+watch(showAiDrawer, (value) => {
+  if (value) {
+    drawerMounted.value = true
+  }
+}, { immediate: true })
+
+watch(showAiButton, (value) => {
+  if (!value) {
+    drawerMounted.value = false
+  }
+})
 </script>

@@ -20,7 +20,35 @@ export interface AiClientToolCall {
   toolName: string;
   arguments?: Record<string, any>;
   sessionFiles?: Record<string, any>;
+  requestConfirmation?: (
+    request: AiClientToolConfirmationRequest,
+  ) => Promise<AiClientToolConfirmationResponse | void> | AiClientToolConfirmationResponse | void;
   raw?: Record<string, any>;
+}
+
+export interface AiClientToolConfirmationRequest {
+  id: string;
+  toolId: string;
+  toolName: string;
+  title: string;
+  content: string;
+  okText: string;
+  cancelText: string;
+  arguments: Record<string, any>;
+}
+
+export interface AiClientToolConfirmationResponse {
+  approved?: boolean;
+  optionId?: string;
+  arguments?: Record<string, any>;
+}
+
+export interface AiClientToolConfirmOptions<TContext = Record<string, any>> {
+  title?: string | ((args: Record<string, any>, context: TContext, call: AiClientToolCall) => string);
+  content?: string | ((args: Record<string, any>, context: TContext, call: AiClientToolCall) => string);
+  okText?: string;
+  cancelText?: string;
+  when?: (args: Record<string, any>, context: TContext, call: AiClientToolCall) => boolean;
 }
 
 export interface AiClientToolDefinition<TContext = Record<string, any>> {
@@ -30,6 +58,7 @@ export interface AiClientToolDefinition<TContext = Record<string, any>> {
   help?: string | ((tool: AiClientToolDefinition<TContext>) => string);
   inputs?: AiClientToolInput[];
   output?: AiClientToolValueType | Record<string, any>;
+  confirm?: boolean | AiClientToolConfirmOptions<TContext>;
   execute: (
     args: Record<string, any>,
     context: TContext,
@@ -96,6 +125,7 @@ const normalizeTool = <TContext>(tool: AiClientToolDefinition<TContext>) => ({
   description: tool.description,
   inputs: (tool.inputs || []).map(normalizeInput),
   output: tool.output || { type: 'object' },
+  ...(tool.confirm ? { requiresConfirmation: true } : {}),
 });
 
 const createToolHelp = <TContext>(tool: AiClientToolDefinition<TContext>) => {
@@ -207,6 +237,66 @@ const normalizeClientToolExecutionError = (error: any, toolName: string) => ({
     type: error?.response?.data?.errorType || error?.response?.data?.type,
   },
 });
+
+const resolveConfirmText = <TContext>(
+  value: AiClientToolConfirmOptions<TContext>['title'] | AiClientToolConfirmOptions<TContext>['content'],
+  args: Record<string, any>,
+  context: TContext,
+  call: AiClientToolCall,
+) => (typeof value === 'function' ? value(args, context, call) : value);
+
+const createClientToolConfirmationError = () => {
+  const error = new Error('client tool execution cancelled by user');
+  (error as any).code = 'CLIENT_TOOL_CONFIRM_CANCELLED';
+  return error;
+};
+
+const createClientToolConfirmationHandlerMissingError = () => {
+  const error = new Error('client tool confirmation handler unavailable');
+  (error as any).code = 'CLIENT_TOOL_CONFIRM_HANDLER_UNAVAILABLE';
+  return error;
+};
+
+const requestAiClientToolConfirmation = async <TContext>(
+  tool: AiClientToolDefinition<TContext>,
+  args: Record<string, any>,
+  context: TContext,
+  call: AiClientToolCall,
+): Promise<Record<string, any> | undefined> => {
+  if (!tool.confirm) {
+    return undefined;
+  }
+
+  const options: AiClientToolConfirmOptions<TContext> = tool.confirm === true ? {} : tool.confirm;
+  if (options.when && !options.when(args, context, call)) {
+    return undefined;
+  }
+  const title = resolveConfirmText(options.title, args, context, call)
+    || `确认执行 ${tool.name || tool.id}`;
+  const content = resolveConfirmText(options.content, args, context, call)
+    || '该操作会调用当前页面能力，请确认后继续。';
+
+  if (!call.requestConfirmation) {
+    throw createClientToolConfirmationHandlerMissingError();
+  }
+
+  const response = await call.requestConfirmation({
+    id: call.id,
+    toolId: tool.id,
+    toolName: tool.name || tool.id,
+    title,
+    content,
+    okText: options.okText || '确认',
+    cancelText: options.cancelText || '取消',
+    arguments: args,
+  });
+
+  if (response?.approved === false) {
+    throw createClientToolConfirmationError();
+  }
+
+  return response?.arguments;
+};
 
 const truncateString = (value: string, maxLength: number) => (
   value.length > maxLength
@@ -420,7 +510,17 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
     const context = options.getContext?.() || ({} as TContext);
     let result: unknown;
     try {
-      result = await withAiClientToolSilentRequest(() => tool.execute(call.arguments || {}, context, call));
+      const args = call.arguments || {};
+      const confirmedArgs = await requestAiClientToolConfirmation(tool, args, context, call);
+      const executionArgs = confirmedArgs || args;
+      result = await withAiClientToolSilentRequest(() => tool.execute(
+        executionArgs,
+        context,
+        {
+          ...call,
+          arguments: executionArgs,
+        },
+      ));
     } catch (error) {
       // API failures inside a page tool are still tool results; keep the chat session alive and
       // let the agent explain the failed business call instead of surfacing a global connection error.
