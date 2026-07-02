@@ -10,12 +10,11 @@
   >
     <a-form layout="vertical">
       <a-form-item :label="locale.format" required>
-        <a-select
+        <a-auto-complete
           v-model:value="selectedFormat"
           :loading="loading"
           :options="availableOptions"
           :placeholder="locale.selectFormat"
-          show-search
           :filter-option="filterOption"
         />
       </a-form-item>
