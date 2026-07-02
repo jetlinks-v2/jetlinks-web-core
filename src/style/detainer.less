@@ -60,8 +60,99 @@
   padding: 1rem !important;
 }
 
-.ant-table .ant-table-cell {
-  padding: 12px !important;
+.ant-table-wrapper {
+  .ant-table {
+    color: #43546a;
+    background: #fff;
+  }
+
+  .ant-table-container table {
+    border-spacing: 0 !important;
+  }
+
+  .ant-table-header,
+  .ant-table-body {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .ant-table-body {
+    position: relative;
+  }
+
+  .ant-table-thead > tr > th {
+    padding: 0.75rem 1rem !important;
+    color: #1f2d3d;
+    font-weight: 600;
+    background: #e9eff8 !important;
+    border-bottom: 1px solid #dbe4f0 !important;
+  }
+
+  .ant-table-thead > tr > th::before {
+    background-color: #d7e0ec !important;
+  }
+
+  .ant-table-tbody > tr > td {
+    padding: 0.75rem 1rem !important;
+    border-bottom: 1px solid #e6edf5 !important;
+  }
+
+  .ant-table-tbody > tr.ant-table-measure-row,
+  .ant-table-tbody > tr.ant-table-measure-row > td,
+  .ant-table-tbody > tr.ant-table-measure-row > td > * {
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .ant-table-tbody > tr.ant-table-measure-row {
+    visibility: collapse !important;
+  }
+
+  .ant-table-tbody > tr:nth-child(even) > td {
+    background: #f5f7fb;
+  }
+
+  .ant-table-tbody > tr:hover > td {
+    background: #eef5ff !important;
+  }
+
+  .ant-table-cell-fix-left,
+  .ant-table-cell-fix-right {
+    z-index: 3;
+    background: #fff !important;
+  }
+
+  .ant-table-thead .ant-table-cell-fix-left,
+  .ant-table-thead .ant-table-cell-fix-right {
+    z-index: 4;
+    background: #e9eff8 !important;
+  }
+
+  .ant-table-cell-fix-right.ant-table-cell-scrollbar {
+    background: #fff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .ant-table-cell-fix-right.ant-table-cell-scrollbar::before,
+  .ant-table-cell-fix-right.ant-table-cell-scrollbar::after {
+    display: none !important;
+  }
+
+  .ant-table-tbody > tr:nth-child(even) > .ant-table-cell-fix-left,
+  .ant-table-tbody > tr:nth-child(even) > .ant-table-cell-fix-right {
+    background: #f5f7fb !important;
+  }
+
+  .ant-table-tbody > tr:hover > .ant-table-cell-fix-left,
+  .ant-table-tbody > tr:hover > .ant-table-cell-fix-right {
+    background: #eef5ff !important;
+  }
+
 }
-
-
