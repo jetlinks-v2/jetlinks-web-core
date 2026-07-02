@@ -2,10 +2,10 @@
   .ant-layout-header {
     height: 52px !important;
     line-height: 52px !important;
-    background: linear-gradient(90deg, #2C72DA 0%, #00CDEC 100%) !important;
-    background-image: url('/layout/top.png'), linear-gradient(90deg, #2C72DA 0%, #00CDEC 100%) !important;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-color-3) 100%) !important;
+    background-image: url('/layout/top.png'), linear-gradient(90deg, var(--primary-color) 0%, var(--primary-color-3) 100%) !important;
     background-repeat: no-repeat, no-repeat !important;
-    background-position: right center, center !important;
+    background-position: right 4rem center, center !important;
     background-size: 19rem auto, cover !important;
 
     .ant-pro-top-nav-header {
@@ -13,7 +13,7 @@
     }
   }
   .ant-layout {
-    background-color: #F1F5FF;
+    background-color: #EEF1F5;
   }
 
   .ant-pro-top-nav-header {
@@ -53,13 +53,12 @@
     padding-top: 68px !important;
   }
 
-
   .ant-layout-sider-children {
-    background: linear-gradient(180deg, #FFF 0%, #DCEFFF 100%) !important;
-    background-image: url('/layout/sider.png'), linear-gradient(180deg, #FFF 0%, #DCEFFF 100%) !important;
+    background: linear-gradient(180deg, #FFF 0%, var(--primary-color-3) 100%) !important;
+    background-image: url('/layout/sider.png'), linear-gradient(180deg, #FFF 0%, var(--primary-color-3) 100%) !important;
     background-repeat: no-repeat, no-repeat !important;
-    background-position: left bottom, center !important;
-    background-size: 10.125rem auto, cover !important;
+    background-position: center bottom 0.5rem, center !important;
+    background-size: calc(100% - 1rem) auto, cover !important;
     border-radius: .5rem;
 
     .ant-menu-item a, .ant-menu-submenu-title {
