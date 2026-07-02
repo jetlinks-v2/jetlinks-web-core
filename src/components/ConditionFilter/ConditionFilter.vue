@@ -77,6 +77,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  autoSearch: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const emit = defineEmits<{
@@ -1599,6 +1603,10 @@ const triggerSearch = () => {
 }
 
 const scheduleAutoSearch = () => {
+  if (!props.autoSearch) {
+    return
+  }
+
   if (autoSearchTimer) {
     window.clearTimeout(autoSearchTimer)
   }
