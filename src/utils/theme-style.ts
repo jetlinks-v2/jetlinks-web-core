@@ -455,7 +455,10 @@ export const getInitialThemeStyleConfig = () => {
 export const applyThemeStyle = (style?: unknown, color?: string) => {
   const themeStyle = normalizeThemeStyle(style)
   const token = getThemeStyleToken(themeStyle)
-  const primaryColor = normalizeThemeColor(color) || normalizeThemeColor(token.colorPrimary)
+  const tokenPrimaryColor = normalizeThemeColor(token.colorPrimary)
+  const customPrimaryColor = normalizeThemeColor(color)
+  const primaryColor = customPrimaryColor || tokenPrimaryColor
+  const useCustomPrimaryColor = Boolean(customPrimaryColor && customPrimaryColor !== tokenPrimaryColor)
   let themeColor = ''
   const primaryStateColors = getThemeStylePrimaryStateColors(themeStyle, primaryColor)
   const primaryScale1 = normalizeThemeColor(token.cssVars?.['--primary-color-1'])
@@ -463,6 +466,9 @@ export const applyThemeStyle = (style?: unknown, color?: string) => {
     || normalizeThemeColor(token.cssVars?.['--accent-soft'])
   const primaryScale2 = normalizeThemeColor(token.cssVars?.['--primary-color-2'])
     || normalizeThemeColor(token.cssVars?.['--jet-theme-primary-2'])
+  const primaryScale3 = normalizeThemeColor(token.cssVars?.['--jet-theme-primary-3'])
+  const primaryScale4 = normalizeThemeColor(token.cssVars?.['--jet-theme-primary-4'])
+  const primaryScale5 = normalizeThemeColor(token.cssVars?.['--jet-theme-primary-5'])
   const textColor = token.colorText
   const textColorSecondary = token.colorTextSecondary
   const textColorDisabled = token.cssVars?.['--text-color-disabled']
@@ -508,25 +514,36 @@ export const applyThemeStyle = (style?: unknown, color?: string) => {
     rootStyle.setProperty('--jet-theme-text-description', 'var(--text-color-secondary)')
     rootStyle.setProperty('--jet-theme-text-disabled', 'var(--text-color-disabled)')
 
-    themeColor = applyThemeColor(primaryColor, {
-      hover: primaryStateColors.colorPrimaryHover,
-      active: primaryStateColors.colorPrimaryActive,
-      soft: primaryScale1,
-      scale1: primaryScale1,
-      scale2: primaryScale2
-    })
-
     Object.entries(token.cssVars || {}).forEach(([name, value]) => {
       rootStyle.setProperty(name, value)
     })
+
+    // 接口返回自定义主题色时，运行时主色色阶要覆盖静态主题模板里的默认色阶。
+    themeColor = applyThemeColor(primaryColor, useCustomPrimaryColor
+      ? {}
+      : {
+          hover: primaryStateColors.colorPrimaryHover,
+          active: primaryStateColors.colorPrimaryActive,
+          soft: primaryScale1,
+          scale1: primaryScale1,
+          scale2: primaryScale2,
+          scale3: primaryScale3,
+          scale4: primaryScale4,
+          scale5: primaryScale5
+        })
   } else {
-    themeColor = applyThemeColor(primaryColor, {
-      hover: primaryStateColors.colorPrimaryHover,
-      active: primaryStateColors.colorPrimaryActive,
-      soft: primaryScale1,
-      scale1: primaryScale1,
-      scale2: primaryScale2
-    })
+    themeColor = applyThemeColor(primaryColor, useCustomPrimaryColor
+      ? {}
+      : {
+          hover: primaryStateColors.colorPrimaryHover,
+          active: primaryStateColors.colorPrimaryActive,
+          soft: primaryScale1,
+          scale1: primaryScale1,
+          scale2: primaryScale2,
+          scale3: primaryScale3,
+          scale4: primaryScale4,
+          scale5: primaryScale5
+        })
   }
 
   return {

@@ -11,6 +11,9 @@ export interface ThemeColorStateOptions {
   soft?: string
   scale1?: string
   scale2?: string
+  scale3?: string
+  scale4?: string
+  scale5?: string
 }
 
 const expandHexColor = (color: string) => {
@@ -73,17 +76,26 @@ export const applyThemeColor = (color?: string, stateColors: ThemeColorStateOpti
   const themeColorSoft = normalizeThemeColor(stateColors.soft) || mixColor(themeColor, '#FFFFFF', 0.92)
   const themeColorScale1 = normalizeThemeColor(stateColors.scale1) || themeColorSoft
   const themeColorScale2 = normalizeThemeColor(stateColors.scale2) || mixColor(themeColor, '#FFFFFF', 0.72)
+  const themeColorScale3 = normalizeThemeColor(stateColors.scale3) || mixColor(themeColor, '#FFFFFF', 0.56)
+  const themeColorScale4 = normalizeThemeColor(stateColors.scale4) || mixColor(themeColor, '#FFFFFF', 0.38)
+  const themeColorScale5 = normalizeThemeColor(stateColors.scale5) || themeColorHover
 
   if (typeof document !== 'undefined') {
     const rootStyle = document.documentElement.style
     rootStyle.setProperty('--primary-color', themeColor)
     rootStyle.setProperty('--primary-color-1', themeColorScale1)
     rootStyle.setProperty('--primary-color-2', themeColorScale2)
+    rootStyle.setProperty('--primary-color-3', themeColorScale3)
+    rootStyle.setProperty('--primary-color-4', themeColorScale4)
+    rootStyle.setProperty('--primary-color-5', themeColorScale5)
     rootStyle.setProperty('--primary-color-hover', themeColorHover)
     rootStyle.setProperty('--primary-color-active', themeColorActive)
     rootStyle.setProperty('--jet-theme-primary', themeColor)
     rootStyle.setProperty('--jet-theme-primary-1', themeColorScale1)
     rootStyle.setProperty('--jet-theme-primary-2', themeColorScale2)
+    rootStyle.setProperty('--jet-theme-primary-3', themeColorScale3)
+    rootStyle.setProperty('--jet-theme-primary-4', themeColorScale4)
+    rootStyle.setProperty('--jet-theme-primary-5', themeColorScale5)
     rootStyle.setProperty('--jet-theme-primary-hover', themeColorHover)
     rootStyle.setProperty('--jet-theme-primary-active', themeColorActive)
     rootStyle.setProperty('--jet-theme-primary-soft', themeColorScale1)

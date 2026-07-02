@@ -5,7 +5,7 @@ import { getToken, LocalStore } from '@jetlinks-web/utils'
 import { langKey, isSubApp } from '@jetlinks-web-core/utils/consts'
 import { withModuleStoreOverride } from './module-override'
 import { getThemeStyle_api } from '@jetlinks-web-core/api/account/center'
-import { applyThemeColor, getInitialThemeColor, persistThemeColor } from '@jetlinks-web-core/utils/theme-color'
+import { applyThemeColor, getInitialThemeColor, normalizeThemeColor, persistThemeColor } from '@jetlinks-web-core/utils/theme-color'
 import {
   applyThemeStyle,
   getInitialThemeStyleConfig,
@@ -128,8 +128,11 @@ const useSystemStoreBase = defineStore('system', () => {
     layout.title = _value.title
     layout.logo = _value.logo
     const frontThemeStyle = userThemeStyle || normalizeThemeStyle(_value.headerTheme)
-    // localStorage 只负责接口返回前的首屏主题；登录后用户设置优先，系统设置兜底。
-    changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle))
+    const frontThemeColor = normalizeThemeColor(_value.themeColor)
+      || normalizeThemeColor(themeColor.value)
+      || getThemeStylePrimaryColor(frontThemeStyle)
+    // 登录后仍保留平台配置的主色，避免菜单切换触发 front 配置刷新时回退到默认主题色。
+    changeThemeStyle(frontThemeStyle, frontThemeColor)
     changeIco(_value.ico)
     setDocumentTitle()
     changeTitle(_value.title)
