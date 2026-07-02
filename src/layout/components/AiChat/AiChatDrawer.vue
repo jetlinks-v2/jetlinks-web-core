@@ -32,8 +32,13 @@
             :client-tools="conversationClientTools"
             :client-tools-name="conversationClientToolsName"
             :client-tools-description="conversationClientToolsDescription"
+            :workflow-guides="conversationWorkflowGuides"
             :markdown-link-handler="conversationMarkdownLinkHandler"
             :system-prompt="conversationSystemPrompt"
+            :opening-statement="conversationOpeningStatement"
+            :welcome-text="conversationWelcomeText"
+            :prompt-examples="conversationPromptExamples"
+            :suggested-prompts="conversationSuggestedPrompts"
           >
             <template #header-extra>
               <a-dropdown
@@ -199,6 +204,10 @@ const conversationBaseParameters = computed(() => {
     systemPrompt,
     agentSystemPrompt,
     sceneSystemPrompt,
+    openingStatement,
+    welcomeText,
+    promptExamples,
+    suggestedPrompts,
     ...rest
   } = props.parameters || {};
   return rest;
@@ -227,6 +236,9 @@ const conversationClientToolHandler = computed<AiChatClientToolHandler | undefin
 ));
 const conversationClientToolsName = computed(() => String(props.parameters?.clientToolsName || ''));
 const conversationClientToolsDescription = computed(() => String(props.parameters?.clientToolsDescription || ''));
+const conversationWorkflowGuides = computed(() => (
+  Array.isArray(props.parameters?.workflowGuides) ? props.parameters.workflowGuides : []
+));
 const conversationMarkdownLinkHandler = computed<AiChatMarkdownLinkHandler | undefined>(() => {
   const handler = props.parameters?.markdownLinkHandler || props.parameters?.onMarkdownLinkClick;
   return typeof handler === 'function' ? handler : undefined;
@@ -237,6 +249,18 @@ const conversationSystemPrompt = computed(() => String(
   || props.parameters?.sceneSystemPrompt
   || '',
 ));
+const conversationOpeningStatement = computed(() => String(
+  props.parameters?.openingStatement || '',
+).trim());
+const conversationWelcomeText = computed(() => String(props.parameters?.welcomeText || '').trim());
+const conversationPromptExamples = computed(() => {
+  const source = props.parameters?.promptExamples;
+  return Array.isArray(source) ? source : [];
+});
+const conversationSuggestedPrompts = computed(() => {
+  const source = props.parameters?.suggestedPrompts;
+  return Array.isArray(source) ? source : [];
+});
 
 const conversationKey = computed(() => [
   activeAgent.value?.agentId || '',
@@ -245,6 +269,7 @@ const conversationKey = computed(() => [
   conversationSubject.value?.type || '',
   conversationSubject.value?.id || '',
   conversationClientToolsName.value,
+  JSON.stringify(conversationWorkflowGuides.value || []),
   conversationSystemPrompt.value,
 ].join('|'));
 
