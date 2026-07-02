@@ -2,17 +2,25 @@
   .ant-layout-header {
     height: 52px !important;
     line-height: 52px !important;
+    background: linear-gradient(90deg, #2C72DA 0%, #00CDEC 100%) !important;
+    background-image: url('/layout/top.png'), linear-gradient(90deg, #2C72DA 0%, #00CDEC 100%) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-position: right center, center !important;
+    background-size: 19rem auto, cover !important;
 
     .ant-pro-top-nav-header {
       box-shadow: none;
     }
-
   }
   .ant-layout {
     background-color: #F1F5FF;
   }
 
   .ant-pro-top-nav-header {
+
+    &.light, &.dark {
+      background-color: transparent !important;
+    }
 
     .ant-pro-top-nav-header-logo {
       img {
@@ -21,7 +29,20 @@
 
       h1 {
         font-size: var(--fs-16);
+        color: #fff !important;
       }
+    }
+
+    .ant-pro-menu-item {
+      color: #fff !important;
+    }
+
+    .notice-container .ant-badge .notice-icon, .user-info {
+      color: #fff !important;
+    }
+
+    .ant-menu-light.ant-menu-horizontal >.ant-menu-item-selected::after {
+      border-bottom-color: #fff !important;
     }
   }
 
@@ -32,10 +53,30 @@
     padding-top: 68px !important;
   }
 
-  
+
   .ant-layout-sider-children {
-    background-color: #fff !important;
+    background: linear-gradient(180deg, #FFF 0%, #DCEFFF 100%) !important;
+    background-image: url('/layout/sider.png'), linear-gradient(180deg, #FFF 0%, #DCEFFF 100%) !important;
+    background-repeat: no-repeat, no-repeat !important;
+    background-position: left bottom, center !important;
+    background-size: 10.125rem auto, cover !important;
     border-radius: .5rem;
+
+    .ant-menu-item a, .ant-menu-submenu-title {
+      color: #4E5969;
+
+      &.router-link-active {
+        color: var(--primary-color);
+      }
+    }
+
+    .ant-menu-submenu-selected .ant-menu-submenu-title {
+      color: var(--primary-color);
+    }
+
+    .ant-menu-item-selected::before {
+      display: none !important;
+    }
   }
 
   .ant-page-header.has-breadcrumb {
