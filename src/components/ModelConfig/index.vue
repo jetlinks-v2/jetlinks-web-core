@@ -107,15 +107,10 @@
               <a-button @click="cancelEdit">{{ text.exitEdit }}</a-button>
               <a-button type="primary" :loading="fileSaving" @click="saveEdit">{{ text.save }}</a-button>
             </template>
-            <a-popconfirm
-              :title="text.confirmDelete"
-              @confirm="emit('delete-file', selectedFile)"
-            >
-              <a-button danger>
-                <AIcon type="DeleteOutlined" />
-                {{ text.delete }}
-              </a-button>
-            </a-popconfirm>
+            <a-button danger @click="openDeleteFileConfirm">
+              <AIcon type="DeleteOutlined" />
+              {{ text.delete }}
+            </a-button>
             <a-button @click="toggleProperty">
               <AIcon :type="propertyVisible ? 'DoubleRightOutlined' : 'ProfileOutlined'" />
               {{ propertyVisible ? text.collapseProperty : text.viewProperty }}
@@ -224,6 +219,7 @@
 
 <script setup lang="ts">
 import type { PropType } from 'vue'
+import { Modal } from 'ant-design-vue'
 import { onlyMessage } from '@jetlinks-web/utils'
 import MonacoEditor from '../MonacoEditor/monacoEditor.vue'
 import SectionCard from '../SectionCard/index.vue'
@@ -261,7 +257,6 @@ interface AddFilePayload {
 interface ModelFile {
   id: string
   modelId?: string
-  modelVersion?: number
   name: string
   path?: string
   fileKey?: string
@@ -287,7 +282,6 @@ interface DonePayload<T = void> {
 
 interface LoadFilesPayload {
   modelId: string
-  version: string | number
   format: string
 }
 
@@ -339,6 +333,9 @@ const defaultLocale: LocaleText = {
   save: '保存',
   delete: '删除',
   confirmDelete: '确认删除该文件？',
+  confirmDeleteDescription: '删除后无法恢复，请确认是否继续。',
+  confirmDeleteShared: '确认删除共享文件？',
+  confirmDeleteSharedDescription: '该文件未绑定单一架构，删除后会在多个架构中同时删除，请谨慎操作。',
   viewProperty: '查看属性',
   collapseProperty: '收起属性',
   modelParams: '模型参数',
@@ -518,7 +515,6 @@ const existingFormatIds = computed(() => {
 })
 
 const modelId = computed(() => props.model?.id)
-const modelVersion = computed(() => props.model?.version || props.model?.modelVersion || props.model?.latestVersion || props.model?.versionNo || 1)
 const selectedFormatLabel = computed(() => {
   const option = formatOptions.value.find(item => item.value === selectedFormat.value)
   return option?.label || selectedFormat.value || ''
@@ -592,7 +588,7 @@ watch(() => props.formatDetails, (formatDetails) => {
   localFormatDetails.value = cloneFormatDetails(formatDetails)
 }, { deep: true, immediate: true })
 
-watch([modelId, modelVersion, selectedFormat], () => {
+watch([modelId, selectedFormat], () => {
   requestFiles()
 }, { immediate: true })
 
@@ -633,7 +629,6 @@ function requestFiles() {
   }
   emit('load-files', {
     modelId: modelId.value,
-    version: modelVersion.value,
     format: selectedFormat.value
   })
 }
@@ -1004,6 +999,25 @@ function downloadSelectedFile() {
   document.body.appendChild(link)
   link.click()
   link.remove()
+}
+
+function openDeleteFileConfirm() {
+  const file = selectedFile.value
+  if (!file) return
+  const sharedFile = isSharedModelFile(file)
+  Modal.confirm({
+    title: sharedFile ? text.value.confirmDeleteShared : text.value.confirmDelete,
+    content: sharedFile ? text.value.confirmDeleteSharedDescription : text.value.confirmDeleteDescription,
+    okText: text.value.confirm,
+    cancelText: text.value.cancel,
+    okType: 'danger',
+    onOk: () => emit('delete-file', file)
+  })
+}
+
+function isSharedModelFile(file: ModelFile) {
+  // format 为空代表共享文件，删除影响所有复用该文件的架构。
+  return !file.format?.length
 }
 
 async function previewFile() {
