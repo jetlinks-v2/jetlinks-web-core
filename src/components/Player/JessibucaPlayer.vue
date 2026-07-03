@@ -17,12 +17,20 @@
     />
     <div v-else ref="containerRef" class="jmp__container" />
     <div v-if="!hasSource" class="jmp__empty">No Video</div>
+    <AiOverlayCanvas
+      :root="rootRef"
+      :video="nativeVideoRef"
+      :videoInfo="aiOverlayVideoInfo"
+      :snapshot="aiOverlaySnapshot"
+      :options="props.aiOverlay"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
+import AiOverlayCanvas from './aiOverlay/AiOverlayCanvas.vue';
 import { mediaPlayerProps } from './types';
 import { useJessibucaPlayer } from './useJessibucaPlayer';
 
@@ -54,6 +62,8 @@ const {
   getDuration,
   screenshot,
   getPlayer,
+  aiOverlaySnapshot,
+  aiOverlayVideoInfo,
 } = useJessibucaPlayer(props, rootRef, containerRef, nativeVideoRef);
 
 defineExpose({
