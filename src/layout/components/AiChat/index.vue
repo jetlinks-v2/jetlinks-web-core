@@ -3,30 +3,55 @@
     ref="bubbleRef"
     v-if="showAiButton"
     class="ai-float-btn-wrapper"
-    :class="{
-      'ai-float-btn-wrapper--active': showAiDrawer,
-      'ai-float-btn-wrapper--ready': isBubbleReady,
-      'ai-float-btn-wrapper--dragging': isBubbleDragging,
-      [`ai-float-btn-wrapper--dock-${bubbleDockSide}`]: bubbleDockSide !== 'free',
-    }"
+    :class="[
+      bubbleConfig.className,
+      {
+        'ai-float-btn-wrapper--active': showAiDrawer,
+        'ai-float-btn-wrapper--ready': isBubbleReady,
+        'ai-float-btn-wrapper--dragging': isBubbleDragging,
+        [`ai-float-btn-wrapper--dock-${bubbleDockSide}`]: bubbleDockSide !== 'free',
+      },
+    ]"
     :style="bubbleStyle"
     @pointerdown="handleBubbleDragStart"
     @click="handleBubbleClick"
   >
     <span class="ai-float-btn__halo" />
-    <button
-      type="button"
-      :aria-label="$t('components.AiChat.open')"
-      class="ai-float-btn"
+    <a-badge
+      class="ai-float-btn__badge"
+      :count="bubbleUnreadCount"
+      :overflow-count="99"
     >
-      <span class="ai-float-btn__core">
-        <span class="ai-float-btn__robot" aria-hidden="true">
-          <RobotOutlined class="ai-float-btn__robot-icon" />
-          <span class="ai-float-btn__robot-scan" />
+      <button
+        type="button"
+        :aria-label="bubbleAriaLabel"
+        :title="bubbleAriaLabel"
+        class="ai-float-btn"
+      >
+        <span class="ai-float-btn__core">
+          <span class="ai-float-btn__robot" aria-hidden="true">
+            <AIcon
+              v-if="bubbleConfig.icon"
+              :type="bubbleConfig.icon"
+              class="ai-float-btn__robot-icon"
+            />
+            <RobotOutlined v-else class="ai-float-btn__robot-icon" />
+            <span
+              v-if="bubbleConfig.iconBadge"
+              class="ai-float-btn__robot-badge"
+              aria-hidden="true"
+            >
+              <AIcon
+                :type="bubbleConfig.iconBadge"
+                class="ai-float-btn__robot-badge-icon"
+              />
+            </span>
+            <span class="ai-float-btn__robot-scan" />
+          </span>
         </span>
-      </span>
-      <span class="ai-float-btn__status" />
-    </button>
+        <span class="ai-float-btn__status" />
+      </button>
+    </a-badge>
   </div>
   <!-- 全局浮动对话框 -->
   <AiChatDrawer
@@ -41,11 +66,12 @@
     :anchorRect="bubbleAnchorRect"
     :anchorDragging="isBubbleDragging"
     :initialPanelSize="manualPanelSize"
+    @background-message="handleBackgroundMessage"
   />
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AiChatDrawer from './AiChatDrawer.vue'
 import { useAIStore } from '@jetlinks-web-core/store'
@@ -56,10 +82,18 @@ import './AiChatLauncher.less'
 
 const { t: $t } = useI18n()
 const aiStore = useAIStore()
-const { showAiDrawer, showAiButton, agentList, parameters } = storeToRefs(aiStore)
+const {
+  showAiDrawer,
+  showAiButton,
+  agentList,
+  parameters,
+  bubbleConfig,
+  bubbleUnreadCount,
+} = storeToRefs(aiStore)
 const drawerRef = ref()
 const manualPanelSize = ref()
 const drawerMounted = ref(false)
+const bubbleAriaLabel = computed(() => bubbleConfig.value.tooltip || $t('components.AiChat.open'))
 const {
   bubbleRef,
   bubbleStyle,
@@ -103,9 +137,14 @@ const handlePanelSizeChange = (size) => {
   manualPanelSize.value = size
 }
 
+const handleBackgroundMessage = () => {
+  aiStore.incrementBubbleUnread()
+}
+
 watch(showAiDrawer, (value) => {
   if (value) {
     drawerMounted.value = true
+    aiStore.clearBubbleUnread()
   }
 }, { immediate: true })
 

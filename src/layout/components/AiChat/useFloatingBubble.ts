@@ -14,6 +14,7 @@ type FloatingBubbleOptions = {
 };
 
 const DEFAULT_MARGIN = 10;
+const DEFAULT_BOTTOM_RESERVED = 96;
 const SAFE_MARGIN = 10;
 const DOCK_THRESHOLD = 14;
 const MOVE_THRESHOLD = 3;
@@ -81,7 +82,8 @@ export const useFloatingBubble = (options: FloatingBubbleOptions = {}) => {
 
     bubblePosition.value = clampBubblePosition({
       x: window.innerWidth - width - DEFAULT_MARGIN,
-      y: window.innerHeight - height - DEFAULT_MARGIN,
+      // 默认右下角需要避开列表分页和底部操作条；拖拽时仍允许用户放回底部。
+      y: window.innerHeight - height - DEFAULT_BOTTOM_RESERVED,
     });
     isBubbleReady.value = true;
   };

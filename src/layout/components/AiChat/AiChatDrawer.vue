@@ -21,7 +21,7 @@
             :is="conversationComponent"
             :key="conversationKey"
             :agent-id="activeAgent.agentId"
-            :agent-name="activeAgentName"
+            :agent-name="conversationTitle"
             :client-type="activeAgent.clientType || ''"
             :client-id="activeAgent.clientId || ''"
             :parameters="conversationParameters"
@@ -39,6 +39,8 @@
             :welcome-text="conversationWelcomeText"
             :prompt-examples="conversationPromptExamples"
             :suggested-prompts="conversationSuggestedPrompts"
+            :visible="open"
+            @background-message="handleBackgroundMessage"
           >
             <template #header-extra>
               <a-dropdown
@@ -162,6 +164,7 @@ const emits = defineEmits<{
   (e: 'close'): void;
   (e: 'anchor-drag', delta: { x: number; y: number }): void;
   (e: 'panel-size-change', size: { width: number; height: number }): void;
+  (e: 'background-message', payload: any): void;
 }>();
 
 const { t: $t } = useI18n();
@@ -195,6 +198,7 @@ const {
 
 const availableAgents = computed(() => props.agentList || []);
 const conversationSubject = computed(() => normalizeAgentSubject(props.parameters || {}));
+const normalizeDisplayText = (value: unknown) => String(value || '').trim();
 const conversationBaseParameters = computed(() => {
   const {
     clientTools,
@@ -210,6 +214,9 @@ const conversationBaseParameters = computed(() => {
     welcomeText,
     promptExamples,
     suggestedPrompts,
+    conversationTitle,
+    headerTitle,
+    clientTitle,
     ...rest
   } = props.parameters || {};
   return rest;
@@ -227,7 +234,17 @@ const conversationExpands = computed(() => ({
   ...buildAgentSubjectPayload(conversationSubject.value),
 }));
 
-const activeAgentName = computed(() => activeAgent.value?.agentName || activeAgent.value?.agentId || '--');
+const conversationTitle = computed(() => (
+  normalizeDisplayText(props.parameters?.conversationTitle)
+  || normalizeDisplayText(props.parameters?.headerTitle)
+  || normalizeDisplayText(props.parameters?.clientTitle)
+  || normalizeDisplayText(activeAgent.value?.others?.client?.name)
+  || normalizeDisplayText(activeAgent.value?.clientName)
+  || normalizeDisplayText(activeAgent.value?.clientId)
+  || normalizeDisplayText(activeAgent.value?.agentName)
+  || normalizeDisplayText(activeAgent.value?.agentId)
+  || '--'
+));
 const conversationClientTools = computed(() => (
   Array.isArray(props.parameters?.clientTools) ? props.parameters.clientTools : []
 ));
@@ -321,6 +338,10 @@ const handleAgentClick = (event: { key: unknown }) => {
   if (item) {
     activeAgent.value = item;
   }
+};
+
+const handleBackgroundMessage = (payload: any) => {
+  emits('background-message', payload);
 };
 
 watch(

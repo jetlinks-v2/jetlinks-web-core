@@ -11,6 +11,11 @@ export const agentData = [
     expands: {
       menuName: i18n.global.t('data.aiData.iotHome.menuName'),
       type: 'chatBubbles'
+    },
+    metadata: {
+      menuCode: 'home',
+      routeName: 'home',
+      path: '/iot/home'
     }
   },
   {
@@ -25,6 +30,9 @@ export const agentData = [
       type: 'chatBubbles'
     },
     metadata: {
+      menuCode: 'device/Instance',
+      routeName: 'device/Instance',
+      path: '/iot/device/Instance',
       params: [
         {
           valueType: {
@@ -49,6 +57,9 @@ export const agentData = [
       type: 'chatBubbles'
     },
     metadata: {
+      menuCode: 'device/Product',
+      routeName: 'device/Product',
+      path: '/iot/device/Product',
       params: [
         {
           valueType: {
@@ -71,6 +82,10 @@ export const agentData = [
     expands: {
       menuName: i18n.global.t('data.aiData.viewBigScreen.menuName'),
       type: 'chatBubbles'
+    },
+    metadata: {
+      menuCode: 'view/bigscreen',
+      path: '/view/bigscreen'
     }
   },
   {
@@ -83,6 +98,10 @@ export const agentData = [
     expands: {
       menuName: i18n.global.t('data.aiData.viewDesigner.menuName'),
       type: 'chatBubbles'
+    },
+    metadata: {
+      menuCode: 'view/bigscreen',
+      path: '/view/bigscreen'
     }
   },
   {
@@ -95,6 +114,10 @@ export const agentData = [
     expands: {
       menuName: i18n.global.t('data.aiData.knowledgeAISearch.menuName'),
       type: 'button'
+    },
+    metadata: {
+      menuCode: 'knowledgeManagement/intelligentSearch',
+      path: '/agent/knowledgeManagement/intelligentSearch'
     }
   },
 ]

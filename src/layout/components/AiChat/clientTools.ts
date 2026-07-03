@@ -127,6 +127,8 @@ const normalizeTool = <TContext>(tool: AiClientToolDefinition<TContext>) => ({
   inputs: (tool.inputs || []).map(normalizeInput),
   output: tool.output || { type: 'object' },
   ...(tool.confirm ? { requiresConfirmation: true } : {}),
+  ...(tool.annotations ? { annotations: tool.annotations } : {}),
+  ...(tool._meta ? { _meta: tool._meta } : {}),
 });
 
 const createToolHelp = <TContext>(tool: AiClientToolDefinition<TContext>) => {
