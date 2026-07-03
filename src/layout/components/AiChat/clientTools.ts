@@ -1,4 +1,5 @@
 import { withAiClientToolSilentRequest } from '@jetlinks-web-core/utils';
+import i18n from '@jetlinks-web-core/locales';
 import { aiClientToolRegistry } from './clientToolRegistry';
 
 export interface AiClientToolValueType {
@@ -144,11 +145,12 @@ const createToolHelp = <TContext>(tool: AiClientToolDefinition<TContext>) => {
 
   const inputs = tool.inputs || [];
   if (inputs.length) {
-    lines.push('', '### 参数');
+    lines.push('', `### ${i18n.global.t('components.AiChat.toolHelp.parameters')}`);
     inputs.forEach((input) => {
-      const required = input.required ? '，必填' : '';
+      const required = input.required ? i18n.global.t('components.AiChat.toolHelp.requiredSuffix') : '';
       const valueType = normalizeValueType(input.valueType);
-      lines.push(`- ${input.id}: ${input.description || input.name || ''}（${valueType.type}${required}）`);
+      const typeLabel = i18n.global.t('components.AiChat.toolHelp.inputType', [valueType.type, required]);
+      lines.push(`- ${input.id}: ${input.description || input.name || ''}${typeLabel}`);
     });
   }
 
@@ -272,9 +274,9 @@ const requestAiClientToolConfirmation = async <TContext>(
     return undefined;
   }
   const title = resolveConfirmText(options.title, args, context, call)
-    || `确认执行 ${tool.name || tool.id}`;
+    || i18n.global.t('components.AiChat.confirm.title', [tool.name || tool.id]);
   const content = resolveConfirmText(options.content, args, context, call)
-    || '该操作会调用当前页面能力，请确认后继续。';
+    || i18n.global.t('components.AiChat.confirm.content');
 
   if (!call.requestConfirmation) {
     throw createClientToolConfirmationHandlerMissingError();
@@ -286,8 +288,8 @@ const requestAiClientToolConfirmation = async <TContext>(
     toolName: tool.name || tool.id,
     title,
     content,
-    okText: options.okText || '确认',
-    cancelText: options.cancelText || '取消',
+    okText: options.okText || i18n.global.t('verify.confirm'),
+    cancelText: options.cancelText || i18n.global.t('verify.cancel'),
     arguments: args,
   });
 
@@ -455,7 +457,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
   const getToolHelp = (toolName: string) => {
     const tool = toolMap.get(toolName);
     if (!tool) {
-      return `未找到工具：${toolName}`;
+      return i18n.global.t('components.AiChat.toolHelp.notFound', [toolName]);
     }
     return createToolHelp(tool);
   };
@@ -465,13 +467,13 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
   const helpTool: AiClientToolDefinition<TContext> = {
     id: helpToolId,
     name: helpToolId,
-    description: '获取当前页面已暴露给智能体的前端工具说明。可传 toolName 获取单个工具 help。',
-    help: '获取工具说明。传入 toolName 返回单个工具说明；不传返回当前页面全部业务工具说明。',
+    description: i18n.global.t('components.AiChat.toolHelp.description'),
+    help: i18n.global.t('components.AiChat.toolHelp.help'),
     inputs: [
       {
         id: 'toolName',
         name: 'toolName',
-        description: '工具 ID；为空时返回全部工具说明。',
+        description: i18n.global.t('components.AiChat.toolHelp.toolNameDescription'),
         required: false,
         valueType: 'string',
       },
@@ -532,7 +534,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
   return {
     clientTools: runtimeTools.map(normalizeTool),
     clientToolsName: options.toolsName || 'frontend-client-tools',
-    clientToolsDescription: options.toolsDescription || '当前前端页面提供的智能体工具。',
+    clientToolsDescription: options.toolsDescription || i18n.global.t('components.AiChat.clientToolsDescription'),
     handleClientToolCall,
     getToolHelp,
     getAllToolHelp,

@@ -16,7 +16,7 @@
     <span class="ai-float-btn__halo" />
     <button
       type="button"
-      aria-label="智能体对话"
+      :aria-label="$t('components.AiChat.open')"
       class="ai-float-btn"
     >
       <span class="ai-float-btn__core">
@@ -46,6 +46,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AiChatDrawer from './AiChatDrawer.vue'
 import { useAIStore } from '@jetlinks-web-core/store'
 import { storeToRefs } from 'pinia'
@@ -53,6 +54,7 @@ import { useFloatingBubble } from './useFloatingBubble'
 import { RobotOutlined } from '@ant-design/icons-vue'
 import './AiChatLauncher.less'
 
+const { t: $t } = useI18n()
 const aiStore = useAIStore()
 const { showAiDrawer, showAiButton, agentList, parameters } = storeToRefs(aiStore)
 const drawerRef = ref()

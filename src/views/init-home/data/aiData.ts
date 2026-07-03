@@ -1,25 +1,27 @@
+import i18n from "@jetlinks-web-core/locales";
+
 export const agentData = [
   {
     clientType: 'pagePoint',
     clientId: 'iotHome',
-    name: '首页AI助手',
-    description: '用于支持首页的ai对话',
-    searchCode: 'iotHome|物联网/首页',
+    name: i18n.global.t('data.aiData.iotHome.name'),
+    description: i18n.global.t('data.aiData.iotHome.description'),
+    searchCode: i18n.global.t('data.aiData.iotHome.searchCode'),
     maxAgentSize: 1,
     expands: {
-      menuName: '物联网/首页',
+      menuName: i18n.global.t('data.aiData.iotHome.menuName'),
       type: 'chatBubbles'
     }
   },
   {
     clientType: 'pagePoint',
     clientId: 'deviceDetailChat',
-    name: '设备详情页AI对话助手',
-    description: '用于设备相关ai对话支持',
-    searchCode: 'deviceDetailChat|物联网/设备管理/设备/设备详情',
+    name: i18n.global.t('data.aiData.deviceDetailChat.name'),
+    description: i18n.global.t('data.aiData.deviceDetailChat.description'),
+    searchCode: i18n.global.t('data.aiData.deviceDetailChat.searchCode'),
     maxAgentSize: 1,
     expands: {
-      menuName: '物联网/设备管理/设备/设备详情',
+      menuName: i18n.global.t('data.aiData.deviceDetailChat.menuName'),
       type: 'chatBubbles'
     },
     metadata: {
@@ -29,8 +31,8 @@ export const agentData = [
             type: 'string'
           },
           id: 'deviceId',
-          name: '设备id',
-          description: '当前设备id'
+          name: i18n.global.t('data.aiData.deviceDetailChat.params.deviceId.name'),
+          description: i18n.global.t('data.aiData.deviceDetailChat.params.deviceId.description')
         }
       ]
     }
@@ -38,12 +40,12 @@ export const agentData = [
   {
     clientType: 'pagePoint',
     clientId: 'productDetailChat',
-    name: '产品详情页AI对话助手',
-    description: '用于产品相关ai对话支持',
-    searchCode: 'productDetailChat|物联网/设备管理/产品/产品详情',
+    name: i18n.global.t('data.aiData.productDetailChat.name'),
+    description: i18n.global.t('data.aiData.productDetailChat.description'),
+    searchCode: i18n.global.t('data.aiData.productDetailChat.searchCode'),
     maxAgentSize: 1,
     expands: {
-      menuName: '物联网/设备管理/产品/产品详情',
+      menuName: i18n.global.t('data.aiData.productDetailChat.menuName'),
       type: 'chatBubbles'
     },
     metadata: {
@@ -53,8 +55,8 @@ export const agentData = [
             type: 'string'
           },
           id: 'productId',
-          name: '产品id',
-          description: '当前产品id'
+          name: i18n.global.t('data.aiData.productDetailChat.params.productId.name'),
+          description: i18n.global.t('data.aiData.productDetailChat.params.productId.description')
         }
       ]
     }
@@ -62,36 +64,36 @@ export const agentData = [
   {
     clientType: 'pagePoint',
     clientId: 'viewBigScreen',
-    name: '可视化大屏助手',
-    description: '用于支持可视化大屏ai对话',
-    searchCode: 'viewBigScreen|可视化/大屏',
+    name: i18n.global.t('data.aiData.viewBigScreen.name'),
+    description: i18n.global.t('data.aiData.viewBigScreen.description'),
+    searchCode: i18n.global.t('data.aiData.viewBigScreen.searchCode'),
     maxAgentSize: 1,
     expands: {
-      menuName: '可视化/大屏',
+      menuName: i18n.global.t('data.aiData.viewBigScreen.menuName'),
       type: 'chatBubbles'
     }
   },
   {
     clientType: 'pagePoint',
     clientId: 'viewDesigner',
-    name: '可视化设计器助手',
-    description: '用于支持可视化设计器ai对话',
-    searchCode: 'viewDesigner|可视化/设计',
+    name: i18n.global.t('data.aiData.viewDesigner.name'),
+    description: i18n.global.t('data.aiData.viewDesigner.description'),
+    searchCode: i18n.global.t('data.aiData.viewDesigner.searchCode'),
     maxAgentSize: 1,
     expands: {
-      menuName: '可视化/设计',
+      menuName: i18n.global.t('data.aiData.viewDesigner.menuName'),
       type: 'chatBubbles'
     }
   },
   {
     clientType: 'pagePoint',
     clientId: 'knowledgeAISearch',
-    name: '知识库智能搜索',
-    description: '用于支持知识库管理智能搜索对话',
-    searchCode: 'knowledgeAISearch|知识库/搜索',
+    name: i18n.global.t('data.aiData.knowledgeAISearch.name'),
+    description: i18n.global.t('data.aiData.knowledgeAISearch.description'),
+    searchCode: i18n.global.t('data.aiData.knowledgeAISearch.searchCode'),
     maxAgentSize: -1,
     expands: {
-      menuName: '可视化/知识库智能搜索',
+      menuName: i18n.global.t('data.aiData.knowledgeAISearch.menuName'),
       type: 'button'
     }
   },
