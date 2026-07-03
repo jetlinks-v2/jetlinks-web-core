@@ -47,8 +47,8 @@
                 :trigger="['click']"
               >
                 <button
-                  aria-label="切换智能体"
-                  title="切换智能体"
+                  :aria-label="$t('components.AiChat.switchAgent')"
+                  :title="$t('components.AiChat.switchAgent')"
                   class="ai-chat-bubble-panel__icon-action"
                   type="button"
                   @click.prevent
@@ -65,8 +65,8 @@
                 </template>
               </a-dropdown>
               <button
-                aria-label="收起对话"
-                title="收起对话"
+                :aria-label="$t('components.AiChat.collapse')"
+                :title="$t('components.AiChat.collapse')"
                 class="ai-chat-bubble-panel__icon-action"
                 type="button"
                 @click="emits('close')"
@@ -97,6 +97,7 @@
 
 <script setup lang="ts">
 import { computed, markRaw, onBeforeUnmount, onMounted, ref, shallowRef, watch, type PropType } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry';
 import { buildAgentSubjectPayload, normalizeAgentSubject } from './subject';
 import type { AiClientToolCall } from './clientTools';
@@ -163,6 +164,7 @@ const emits = defineEmits<{
   (e: 'panel-size-change', size: { width: number; height: number }): void;
 }>();
 
+const { t: $t } = useI18n();
 const activeAgent = ref<AgentDeployRecord>({});
 const conversationComponent = shallowRef<any>();
 const {
