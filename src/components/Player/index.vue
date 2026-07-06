@@ -3,8 +3,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watchEffect } from 'vue';
 
+import { createAiOverlayDebugLogger } from './aiOverlay/debug';
 import LegacyPlayer from './LegacyPlayer.vue';
 import JessibucaPlayer from './JessibucaPlayer.vue';
 import { shouldUseJessibuca } from './legacyPlayerUtils';
@@ -20,6 +21,22 @@ const playerRef = ref<InstanceType<typeof JessibucaPlayer> | InstanceType<typeof
 const playerComponent = computed(() =>
   shouldUseJessibuca(props.url, props.protocol) ? JessibucaPlayer : LegacyPlayer,
 );
+const playerComponentName = computed(() =>
+  shouldUseJessibuca(props.url, props.protocol) ? 'JessibucaPlayer' : 'LegacyPlayer',
+);
+
+watchEffect(() => {
+  createAiOverlayDebugLogger(
+    typeof props.aiOverlay === 'object' ? props.aiOverlay.debug : false,
+    Boolean(props.aiOverlay),
+  ).trace('LivePlayer entry resolved', {
+    componentName: playerComponentName.value,
+    protocol: props.protocol,
+    url: props.url,
+    hasAiOverlay: Boolean(props.aiOverlay),
+    aiOverlayType: typeof props.aiOverlay,
+  });
+});
 
 defineExpose({
   play: () => playerRef.value?.play?.(),

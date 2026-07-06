@@ -35,6 +35,9 @@ export const legacyPlayerOptions = {
   mp4: {},
   m3u8: {
     plugins: [HlsPlugin],
+    hls: {
+      seiInTime: true,
+    },
   },
   rtc: {},
 };

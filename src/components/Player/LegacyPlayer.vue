@@ -1,7 +1,23 @@
 <template>
   <div ref="rootRef" :class="['jmp', props.className]" @click="props.onClick?.()">
     <video
-      v-if="isRtc"
+      v-if="isMp4Mse"
+      ref="mp4MseVideoRef"
+      class="jmp__native-video"
+      :muted="muted"
+      :crossorigin="props.crossOriginVideo ? 'anonymous' : undefined"
+      playsinline
+      webkit-playsinline
+      preload="auto"
+      @canplay="props.onCanPlay?.()"
+      @play="props.onPlay?.()"
+      @pause="props.onPause?.()"
+      @ended="props.onEnded?.()"
+      @timeupdate="handleNativeTimeUpdate"
+      @error="handleMp4MseError"
+    />
+    <video
+      v-else-if="isRtc"
       ref="rtcVideoRef"
       class="jmp__native-video"
       :muted="muted"
@@ -19,6 +35,12 @@
     <div v-else ref="playerHostRef" class="jmp__container">
       <div v-if="!props.url" class="jmp__empty">No Video</div>
     </div>
+    <AiOverlayCanvas
+      :root="rootRef"
+      :video="resolveVideoElement()"
+      :snapshot="aiOverlaySnapshot"
+      :options="props.aiOverlay"
+    />
   </div>
 </template>
 
@@ -26,6 +48,11 @@
 import Player, { Events } from 'xgplayer';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
+import AiOverlayCanvas from './aiOverlay/AiOverlayCanvas.vue';
+import { createAiOverlayDebugLogger } from './aiOverlay/debug';
+import { useAiOverlay } from './aiOverlay/useAiOverlay';
+import { createMp4SamePipelineSource } from './aiOverlay/mp4OverlaySource';
+import { createXgplayerSeiSource } from './aiOverlay/xgplayerSource';
 import { captureVideoFrame } from './playerSnapshot';
 import { createLegacyRtcController } from './legacyRtc';
 import {
@@ -44,6 +71,10 @@ const props = defineProps(mediaPlayerProps);
 const rootRef = ref<HTMLElement | null>(null);
 const playerHostRef = ref<HTMLElement | null>(null);
 const rtcVideoRef = ref<HTMLVideoElement | null>(null);
+const mp4MseVideoRef = ref<HTMLVideoElement | null>(null);
+const isMp4Mse = computed(
+  () => protocol.value === 'mp4' && Boolean(props.aiOverlay),
+);
 const muted = computed(() => props.muted ?? false);
 const protocol = computed(() =>
   inferLegacyPlayerProtocol(
@@ -52,6 +83,11 @@ const protocol = computed(() =>
   ),
 );
 const isRtc = computed(() => protocol.value === 'rtc');
+const aiOverlayLogger = () =>
+  createAiOverlayDebugLogger(
+    typeof props.aiOverlay === 'object' ? props.aiOverlay.debug : false,
+    Boolean(props.aiOverlay),
+  );
 
 let xgPlayer: any = null;
 let playbackSyncToken = 0;
@@ -71,6 +107,7 @@ const clearReconnectTimer = () => {
 };
 
 const resolveVideoElement = () => {
+  if (isMp4Mse.value) return mp4MseVideoRef.value;
   return (
     rtcVideoRef.value ||
     xgPlayer?.video ||
@@ -78,6 +115,38 @@ const resolveVideoElement = () => {
     playerHostRef.value?.querySelector?.('video') ||
     null
   );
+};
+
+const {
+  snapshot: aiOverlaySnapshot,
+  startOverlay,
+  stopOverlay,
+} = useAiOverlay(props, (emitPayload, options) => {
+  aiOverlayLogger().trace('LegacyPlayer overlay source factory', {
+    protocol: protocol.value,
+    url: props.url,
+    enabled: options.enabled,
+  });
+  if (!options.enabled || typeof props.url !== 'string') return undefined;
+  if (protocol.value === 'mp4') {
+    return createMp4SamePipelineSource({
+      url: props.url,
+      getVideoElement: () => mp4MseVideoRef.value,
+      emitPayload,
+      debug: options.debug,
+      autoplay: props.autoplay ?? true,
+      muted: muted.value,
+    });
+  }
+  if (protocol.value === 'm3u8') {
+    return createXgplayerSeiSource(xgPlayer, emitPayload, options);
+  }
+  return undefined;
+});
+
+const handleMp4MseError = (event: Event) => {
+  // Don't reconnect for MSE — the stream lifecycle is managed by the overlay source.
+  props.onError?.(event);
 };
 
 const handleNativeTimeUpdate = (event: Event) => {
@@ -106,6 +175,7 @@ const destroyXgPlayer = () => {
 };
 
 const destroyPlayer = () => {
+  stopOverlay();
   clearReconnectTimer();
   rtcController.stop();
   destroyXgPlayer();
@@ -127,6 +197,12 @@ const bindXgPlayerEvents = () => {
 
 const createXgPlayer = () => {
   if (!playerHostRef.value || typeof props.url !== 'string' || !props.url) return;
+  aiOverlayLogger().trace('LegacyPlayer creating xgplayer', {
+    protocol: protocol.value,
+    url: props.url,
+    live: props.live,
+    hasAiOverlay: Boolean(props.aiOverlay),
+  });
   xgPlayer = new Player({
     el: playerHostRef.value,
     url: props.url,
@@ -152,6 +228,7 @@ const createXgPlayer = () => {
     ...legacyPlayerOptions[protocol.value],
   });
   bindXgPlayerEvents();
+  startOverlay();
 };
 
 const syncPlayback = async () => {
@@ -163,6 +240,11 @@ const syncPlayback = async () => {
   if (token !== playbackSyncToken) return;
 
   if (!isRtc.value) {
+    if (isMp4Mse.value) {
+      // MP4 + MSE: overlay source handles both playback and SEI parsing
+      startOverlay();
+      return;
+    }
     createXgPlayer();
     return;
   }
