@@ -226,6 +226,7 @@ const createXgPlayer = () => {
     closePlayVideoFocus: true,
     controls: { mode: 'bottom' },
     ...legacyPlayerOptions[protocol.value],
+    ...(props.options || {})
   });
   bindXgPlayerEvents();
   startOverlay();

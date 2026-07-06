@@ -124,6 +124,10 @@ export const mediaPlayerProps = {
     type: Function as PropType<(payload: AiOverlayPayload) => void>,
     default: undefined,
   },
+  options: {
+    type: Object as PropType<Record<string, any>>,
+    default: undefined,
+  }
 } as const;
 
 export type MediaPlayerProps = Readonly<ExtractPropTypes<typeof mediaPlayerProps>>;
