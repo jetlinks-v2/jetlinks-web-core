@@ -67,6 +67,7 @@ import { getHideHeaderRightConfig, routerFallback } from '@jetlinks-web-core/uti
 import { isSubApp } from '@/utils/consts'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { useResponsiveLayoutDimensions } from '@jetlinks-web-core/hooks'
+import { useGlobalHomeAgent } from '@jetlinks-web-core/layout/components/AiChat/useGlobalHomeAgent'
 
 const router = useRouter();
 const route = useRoute();
@@ -88,6 +89,7 @@ const themeLayout = computed(() => themeStyleToken.value.layout)
 const menuVariant = computed(() => themeLayout.value?.menuVariant || 'classic')
 const showMenuSearch = computed(() => !!themeLayout.value?.showMenuSearch && !state.collapsed)
 const { layoutConfig } = useResponsiveLayoutDimensions(layout, themeLayout)
+useGlobalHomeAgent(route)
 
 const config = computed(() => ({
   ...layoutConfig.value,

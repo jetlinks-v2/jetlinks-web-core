@@ -107,15 +107,10 @@
               <a-button @click="cancelEdit">{{ text.exitEdit }}</a-button>
               <a-button type="primary" :loading="fileSaving" @click="saveEdit">{{ text.save }}</a-button>
             </template>
-            <a-popconfirm
-              :title="text.confirmDelete"
-              @confirm="emit('delete-file', selectedFile)"
-            >
-              <a-button danger>
-                <AIcon type="DeleteOutlined" />
-                {{ text.delete }}
-              </a-button>
-            </a-popconfirm>
+            <a-button danger @click="openDeleteFileConfirm">
+              <AIcon type="DeleteOutlined" />
+              {{ text.delete }}
+            </a-button>
             <a-button @click="toggleProperty">
               <AIcon :type="propertyVisible ? 'DoubleRightOutlined' : 'ProfileOutlined'" />
               {{ propertyVisible ? text.collapseProperty : text.viewProperty }}
@@ -224,6 +219,7 @@
 
 <script setup lang="ts">
 import type { PropType } from 'vue'
+import { Modal } from 'ant-design-vue'
 import { onlyMessage } from '@jetlinks-web/utils'
 import MonacoEditor from '../MonacoEditor/monacoEditor.vue'
 import SectionCard from '../SectionCard/index.vue'
@@ -261,7 +257,6 @@ interface AddFilePayload {
 interface ModelFile {
   id: string
   modelId?: string
-  modelVersion?: number
   name: string
   path?: string
   fileKey?: string
@@ -287,7 +282,6 @@ interface DonePayload<T = void> {
 
 interface LoadFilesPayload {
   modelId: string
-  version: string | number
   format: string
 }
 
@@ -339,6 +333,9 @@ const defaultLocale: LocaleText = {
   save: '保存',
   delete: '删除',
   confirmDelete: '确认删除该文件？',
+  confirmDeleteDescription: '删除后无法恢复，请确认是否继续。',
+  confirmDeleteShared: '确认删除共享文件？',
+  confirmDeleteSharedDescription: '该文件未绑定单一架构，删除后会在多个架构中同时删除，请谨慎操作。',
   viewProperty: '查看属性',
   collapseProperty: '收起属性',
   modelParams: '模型参数',
@@ -358,12 +355,16 @@ const defaultLocale: LocaleText = {
   copySuccess: '文件路径已复制',
   filePath: '文件路径',
   fileName: '文件名称',
-  modelBusiness: '模型业务',
-  modelBusinessPlaceholder: '请选择或输入模型业务',
+  businessType: '业务类型', businessTypePlaceholder: '请选择或输入业务类型',
+  businessTypeOptionObjectDetection: '目标检测(object_detection)', businessTypeOptionPoseDetection: '人体姿态检测(pose_detection)',
+  businessTypeOptionFaceEmbedding: '人脸特征(face_embedding)', businessTypeOptionOcrText: 'OCR 文本识别(ocr_text)',
+  modelBusiness: '算法模型',
+  modelBusinessPlaceholder: '请选择或输入算法模型',
   modelBusinessOptionYolo: 'yolo(yolo)',
   modelBusinessOptionYoloPose: 'yolo姿势(yolo_pose)',
   modelBusinessOptionRetinaface: '人脸识别(retinaface)',
-  modelBusinessOptionArcface: '人脸向量(arcface)',
+  modelBusinessOptionResnet50: '人脸向量(resnet50)',
+  modelBusinessOptionDeim: 'deim(deim)',
   modelFileFormat: '模型格式',
   modelFileFormatPlaceholder: '请选择或输入模型格式',
   fileFormat: '支持架构',
@@ -378,7 +379,7 @@ const defaultLocale: LocaleText = {
   confirm: '确定',
   cancel: '取消',
   pleaseEnterFileName: '请输入文件名称',
-  pleaseEnterModelBusiness: '请输入模型业务',
+  pleaseEnterBusinessType: '请输入业务类型', pleaseEnterModelBusiness: '请输入算法模型',
   pleaseEnterModelFileFormat: '请输入模型格式',
   pleaseEnterEditableFileName: '不支持创建该后缀的空白文件',
   selectFile: '选择文件',
@@ -490,7 +491,8 @@ const editableExtensions = [
   'conf',
   'env',
   'properties',
-  'xml'
+  'xml',
+  'proto'
 ]
 
 const formatOptions = computed(() => {
@@ -513,7 +515,6 @@ const existingFormatIds = computed(() => {
 })
 
 const modelId = computed(() => props.model?.id)
-const modelVersion = computed(() => props.model?.version || props.model?.modelVersion || props.model?.latestVersion || props.model?.versionNo || 1)
 const selectedFormatLabel = computed(() => {
   const option = formatOptions.value.find(item => item.value === selectedFormat.value)
   return option?.label || selectedFormat.value || ''
@@ -543,7 +544,8 @@ const editorLanguage = computed(() => {
     json: 'json',
     yaml: 'yaml',
     yml: 'yaml',
-    xml: 'xml'
+    xml: 'xml',
+    proto: 'protobuf'
   }
   return languageMap[ext || ''] || 'plaintext'
 })
@@ -586,7 +588,7 @@ watch(() => props.formatDetails, (formatDetails) => {
   localFormatDetails.value = cloneFormatDetails(formatDetails)
 }, { deep: true, immediate: true })
 
-watch([modelId, modelVersion, selectedFormat], () => {
+watch([modelId, selectedFormat], () => {
   requestFiles()
 }, { immediate: true })
 
@@ -627,7 +629,6 @@ function requestFiles() {
   }
   emit('load-files', {
     modelId: modelId.value,
-    version: modelVersion.value,
     format: selectedFormat.value
   })
 }
@@ -998,6 +999,25 @@ function downloadSelectedFile() {
   document.body.appendChild(link)
   link.click()
   link.remove()
+}
+
+function openDeleteFileConfirm() {
+  const file = selectedFile.value
+  if (!file) return
+  const sharedFile = isSharedModelFile(file)
+  Modal.confirm({
+    title: sharedFile ? text.value.confirmDeleteShared : text.value.confirmDelete,
+    content: sharedFile ? text.value.confirmDeleteSharedDescription : text.value.confirmDeleteDescription,
+    okText: text.value.confirm,
+    cancelText: text.value.cancel,
+    okType: 'danger',
+    onOk: () => emit('delete-file', file)
+  })
+}
+
+function isSharedModelFile(file: ModelFile) {
+  // format 为空代表共享文件，删除影响所有复用该文件的架构。
+  return !file.format?.length
 }
 
 async function previewFile() {

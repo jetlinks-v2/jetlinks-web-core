@@ -20,6 +20,7 @@ import {
     getProjectIdFromLocation,
     getProjectStorage,
     isProjectStorageEnabled,
+    isAiClientToolSilentRequest,
 } from '@jetlinks-web-core/utils'
 import microApp from '@micro-zoe/micro-app'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
@@ -191,7 +192,8 @@ export const initAxios = () => {
               ) {
                   return
               }
-              if (!err.config?.hiddenError) {
+              const requestConfig = err?.config || resp?.config
+              if (!requestConfig?.hiddenError) {
                   notification.error({
                       style: { zIndex: 1040 },
                       key: key as string,
@@ -201,6 +203,9 @@ export const initAxios = () => {
               }
           },
         requestOptions(config: any) {
+            if (isAiClientToolSilentRequest()) {
+                config.hiddenError = true
+            }
 
             let cache = verifyHeadersCache
             if (!cache) {
