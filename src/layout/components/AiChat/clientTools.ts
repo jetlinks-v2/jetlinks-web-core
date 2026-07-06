@@ -49,17 +49,35 @@ export interface AiClientToolConfirmOptions<TContext = Record<string, any>> {
   content?: string | ((args: Record<string, any>, context: TContext, call: AiClientToolCall) => string);
   okText?: string;
   cancelText?: string;
+  localConfirmation?: boolean;
   when?: (args: Record<string, any>, context: TContext, call: AiClientToolCall) => boolean;
+}
+
+export interface AiClientToolRisk {
+  needsApproval?: boolean;
+  readOnly?: boolean;
+  parallelSafe?: boolean;
+  deleteThreshold?: number;
+  [key: string]: any;
 }
 
 export interface AiClientToolDefinition<TContext = Record<string, any>> {
   id: string;
   name?: string;
+  displayName?: string;
+  title?: string;
+  label?: string;
+  progressText?: string;
+  progressDescription?: string;
   description?: string;
   help?: string | ((tool: AiClientToolDefinition<TContext>) => string);
   inputs?: AiClientToolInput[];
   output?: AiClientToolValueType | Record<string, any>;
   confirm?: boolean | AiClientToolConfirmOptions<TContext>;
+  annotations?: Record<string, any>;
+  risk?: AiClientToolRisk;
+  expands?: Record<string, any>;
+  _meta?: Record<string, any>;
   execute: (
     args: Record<string, any>,
     context: TContext,
@@ -86,6 +104,7 @@ export interface AiClientToolRuntimeOptions<TContext = Record<string, any>> {
   helpToolId?: string;
   getContext?: () => TContext;
   resultGuard?: AiClientToolResultGuardOptions | false;
+  riskDefaults?: AiClientToolRisk;
 }
 
 export interface AiClientToolRuntime {
@@ -120,16 +139,92 @@ const normalizeInput = (input: AiClientToolInput) => ({
   valueType: normalizeValueType(input.valueType),
 });
 
-const normalizeTool = <TContext>(tool: AiClientToolDefinition<TContext>) => ({
-  id: tool.id,
-  name: tool.name || tool.id,
-  description: tool.description,
-  inputs: (tool.inputs || []).map(normalizeInput),
-  output: tool.output || { type: 'object' },
-  ...(tool.confirm ? { requiresConfirmation: true } : {}),
-  ...(tool.annotations ? { annotations: tool.annotations } : {}),
-  ...(tool._meta ? { _meta: tool._meta } : {}),
-});
+const RISK_KEYS = ['needsApproval', 'readOnly', 'parallelSafe', 'deleteThreshold'] as const;
+
+const isRecord = (value: unknown): value is Record<string, any> => (
+  !!value && typeof value === 'object' && !Array.isArray(value)
+);
+
+const pickRisk = (risk?: AiClientToolRisk): Record<string, any> => {
+  if (!isRecord(risk)) {
+    return {};
+  }
+  const result: Record<string, any> = {};
+  RISK_KEYS.forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(risk, key)) {
+      result[key] = risk[key];
+    }
+  });
+  return result;
+};
+
+const riskFromAnnotations = (annotations?: Record<string, any>) => {
+  const result: Record<string, any> = {};
+  if (annotations?.destructiveHint === true || annotations?.readOnlyHint === false) {
+    result.readOnly = false;
+    result.parallelSafe = false;
+  }
+  if (annotations?.destructiveHint === true) {
+    result.needsApproval = true;
+  }
+  if (annotations?.readOnlyHint === true) {
+    result.readOnly = true;
+    result.parallelSafe = true;
+    result.needsApproval = false;
+  }
+  return result;
+};
+
+const resolveToolExpands = <TContext>(
+  tool: AiClientToolDefinition<TContext>,
+  options: AiClientToolRuntimeOptions<TContext>,
+) => {
+  const explicitExpands = isRecord(tool.expands) ? tool.expands : {};
+  const toolRisk = pickRisk(tool.risk);
+  const confirmationRisk = tool.confirm ? { needsApproval: true, parallelSafe: false } : {};
+  const resolved = {
+    ...pickRisk(options.riskDefaults),
+    ...riskFromAnnotations(tool.annotations),
+    ...confirmationRisk,
+    ...toolRisk,
+    ...explicitExpands,
+  };
+
+  // Confirmation/destructive declarations are safety boundaries; do not let defaults make them parallel.
+  if (tool.confirm) {
+    resolved.needsApproval = true;
+    resolved.parallelSafe = false;
+  } else if (tool.annotations?.destructiveHint === true
+    || resolved.readOnly === false
+    || resolved.needsApproval === true) {
+    resolved.parallelSafe = false;
+  }
+
+  return Object.keys(resolved).length ? resolved : undefined;
+};
+
+const normalizeTool = <TContext>(
+  tool: AiClientToolDefinition<TContext>,
+  options: AiClientToolRuntimeOptions<TContext>,
+) => {
+  const expands = resolveToolExpands(tool, options);
+  return {
+    id: tool.id,
+    name: tool.name || tool.id,
+    ...(tool.displayName ? { displayName: tool.displayName } : {}),
+    ...(tool.title ? { title: tool.title } : {}),
+    ...(tool.label ? { label: tool.label } : {}),
+    ...(tool.progressText ? { progressText: tool.progressText } : {}),
+    ...(tool.progressDescription ? { progressDescription: tool.progressDescription } : {}),
+    description: tool.description,
+    inputs: (tool.inputs || []).map(normalizeInput),
+    output: tool.output || { type: 'object' },
+    ...(tool.confirm ? { requiresConfirmation: true } : {}),
+    ...(tool.annotations ? { annotations: tool.annotations } : {}),
+    ...(expands ? { expands } : {}),
+    ...(tool._meta ? { _meta: tool._meta } : {}),
+  };
+};
 
 const createToolHelp = <TContext>(tool: AiClientToolDefinition<TContext>) => {
   if (typeof tool.help === 'function') {
@@ -272,6 +367,9 @@ const requestAiClientToolConfirmation = async <TContext>(
   }
 
   const options: AiClientToolConfirmOptions<TContext> = tool.confirm === true ? {} : tool.confirm;
+  if (options.localConfirmation === false) {
+    return undefined;
+  }
   if (options.when && !options.when(args, context, call)) {
     return undefined;
   }
@@ -534,7 +632,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
   };
 
   return {
-    clientTools: runtimeTools.map(normalizeTool),
+    clientTools: runtimeTools.map((tool) => normalizeTool(tool, options)),
     clientToolsName: options.toolsName || 'frontend-client-tools',
     clientToolsDescription: options.toolsDescription || i18n.global.t('components.AiChat.clientToolsDescription'),
     handleClientToolCall,

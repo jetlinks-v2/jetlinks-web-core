@@ -688,6 +688,8 @@ const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapabilityCo
   {
     id: 'home_agent_get_context',
     name: 'home_agent_get_context',
+    displayName: i18n.global.t('components.AiChat.homeAgent.tools.context.displayName'),
+    progressText: i18n.global.t('components.AiChat.homeAgent.tools.context.progressText'),
     description: i18n.global.t('components.AiChat.homeAgent.tools.context.description'),
     inputs: [],
     output: { type: 'object' },
@@ -704,6 +706,8 @@ const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapabilityCo
   {
     id: 'home_agent_search_capabilities',
     name: 'home_agent_search_capabilities',
+    displayName: i18n.global.t('components.AiChat.homeAgent.tools.search.displayName'),
+    progressText: i18n.global.t('components.AiChat.homeAgent.tools.search.progressText'),
     description: i18n.global.t('components.AiChat.homeAgent.tools.search.description'),
     inputs: [
       {
@@ -752,6 +756,8 @@ const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapabilityCo
   {
     id: 'home_agent_open_menu',
     name: 'home_agent_open_menu',
+    displayName: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.displayName'),
+    progressText: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.progressText'),
     description: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.description'),
     confirm: {
       title: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.confirmTitle'),
@@ -1056,6 +1062,11 @@ export const createHomeAgentRuntime = (
         maxJsonLength: 64 * 1024,
         maxArrayLength: 30,
         maxObjectKeys: 64,
+      },
+      riskDefaults: {
+        readOnly: true,
+        parallelSafe: true,
+        needsApproval: false,
       },
     },
   );

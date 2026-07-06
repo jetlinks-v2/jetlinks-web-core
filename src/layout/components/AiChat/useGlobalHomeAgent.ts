@@ -17,6 +17,7 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
   const menuStore = useMenuStore();
   let syncing = false;
   let syncTimer: number | undefined;
+  let preparedRouteClientId = '';
 
   const buildRuntime = () => createHomeAgentRuntime({
     currentView: () => String(route.name || route.path || ''),
@@ -30,6 +31,43 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     || (aiStore.showAiButton && !isHomeAgentActive())
   );
 
+  const getRoutePageAgentClientId = () => {
+    const meta = (route.meta || {}) as Record<string, any>;
+    const config = meta.pageAgent || meta.aiAgent || {};
+    return String(
+      meta.pageAgentClientId
+      || meta.aiAgentClientId
+      || config.clientId
+      || '',
+    ).trim();
+  };
+
+  const releasePreparedRouteAgent = () => {
+    if (!preparedRouteClientId) return;
+    aiStore.releaseAgentConversation(preparedRouteClientId);
+    preparedRouteClientId = '';
+  };
+
+  const prepareRouteAgent = () => {
+    const clientId = getRoutePageAgentClientId();
+    if (!clientId || clientId === HOME_AGENT_CLIENT_ID) {
+      releasePreparedRouteAgent();
+      return false;
+    }
+    if (preparedRouteClientId && preparedRouteClientId !== clientId) {
+      releasePreparedRouteAgent();
+    }
+    if (aiStore.pendingClientId === clientId || aiStore.activeClientId === clientId) {
+      preparedRouteClientId = clientId;
+      return true;
+    }
+    if (preparedRouteClientId !== clientId) {
+      aiStore.prepareAgentConversation(clientId);
+      preparedRouteClientId = clientId;
+    }
+    return true;
+  };
+
   const refreshParameters = () => {
     if (!aiStore.agentList.length || !isHomeAgentActive()) return;
 
@@ -41,6 +79,7 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
   };
 
   const sync = async () => {
+    if (prepareRouteAgent()) return;
     if (syncing || hasOtherAgentActivity()) return;
 
     syncing = true;
@@ -84,6 +123,7 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     if (syncTimer) {
       window.clearTimeout(syncTimer);
     }
+    releasePreparedRouteAgent();
     window.removeEventListener(HOME_AGENT_CAPABILITY_CHANGE_EVENT, handleCapabilityChange);
   });
 };

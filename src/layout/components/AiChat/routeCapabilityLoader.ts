@@ -172,6 +172,8 @@ export const createHomeAgentCapabilityLoaderTool = (
 ): AiClientToolDefinition<HomeAgentCapabilityContext> => ({
   id: 'home_agent_load_route_capabilities',
   name: 'home_agent_load_route_capabilities',
+  displayName: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.displayName'),
+  progressText: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.progressText'),
   description: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.description'),
   inputs: [
     {

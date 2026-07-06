@@ -47,6 +47,41 @@ export const agentData = [
   },
   {
     clientType: 'pagePoint',
+    clientId: 'ruleEditorChat',
+    name: i18n.global.t('data.aiData.ruleEditorChat.name'),
+    description: i18n.global.t('data.aiData.ruleEditorChat.description'),
+    searchCode: i18n.global.t('data.aiData.ruleEditorChat.searchCode'),
+    maxAgentSize: 1,
+    expands: {
+      menuName: i18n.global.t('data.aiData.ruleEditorChat.menuName'),
+      type: 'chatBubbles'
+    },
+    metadata: {
+      menuCode: 'rule-engine/Instance',
+      routeName: 'rule-engine/Instance',
+      path: '/iot/rule-engine/Instance',
+      params: [
+        {
+          valueType: {
+            type: 'string'
+          },
+          id: 'ruleId',
+          name: i18n.global.t('data.aiData.ruleEditorChat.params.ruleId.name'),
+          description: i18n.global.t('data.aiData.ruleEditorChat.params.ruleId.description')
+        },
+        {
+          valueType: {
+            type: 'string'
+          },
+          id: 'ruleName',
+          name: i18n.global.t('data.aiData.ruleEditorChat.params.ruleName.name'),
+          description: i18n.global.t('data.aiData.ruleEditorChat.params.ruleName.description')
+        }
+      ]
+    }
+  },
+  {
+    clientType: 'pagePoint',
     clientId: 'productDetailChat',
     name: i18n.global.t('data.aiData.productDetailChat.name'),
     description: i18n.global.t('data.aiData.productDetailChat.description'),
