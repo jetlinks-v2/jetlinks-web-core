@@ -25,10 +25,14 @@
       </div>
 
       <div class="smart-park-global-actions">
-        <a-select
+        <a-tree-select
           v-model:value="selectedPark"
           class="smart-park-park-select"
-          :options="parkOptions"
+          :tree-data="parkOptions"
+          :loading="loadingParks"
+          tree-default-expand-all
+          show-search
+          :tree-node-filter-prop="'title'"
         />
         <RegistryComponent pageCode="layout" code="headerRight">
           <template v-if="!hideHeaderRight">
@@ -117,9 +121,10 @@
 </template>
 
 <script setup name="SmartParkLayoutPage" lang="ts">
-import { computed, defineComponent, h, reactive, ref, resolveComponent, type PropType, watchEffect } from 'vue'
+import { computed, defineComponent, h, onMounted, reactive, ref, resolveComponent, type PropType, watchEffect } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { storeToRefs } from 'pinia'
+import { request } from '@jetlinks-web/core'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import { Notice, AiChat, User } from './components'
@@ -145,6 +150,24 @@ type BreadcrumbRoute = {
   path?: string
   index: number
   isLast: boolean
+}
+
+type BasicConfigTreeNode = {
+  id?: string
+  key?: string
+  name?: string
+  type?: string
+  orgId?: string
+  parkId?: string
+  children?: BasicConfigTreeNode[]
+}
+
+type ParkTreeSelectNode = {
+  title: string
+  value: string
+  key: string
+  selectable?: boolean
+  children?: ParkTreeSelectNode[]
 }
 
 const EMPTY_MENU_NODES: MenuNode[] = []
@@ -182,8 +205,10 @@ const systemStore = useSystemStore()
 const menuStore = useMenuStore()
 const hideHeaderRight = getHideHeaderRightConfig()
 
-const { layout, systemInfo } = storeToRefs(systemStore)
+const { layout } = storeToRefs(systemStore)
 const selectedPark = ref('all')
+const loadingParks = ref(false)
+const currentUserParkTree = ref<BasicConfigTreeNode[]>([])
 
 const state = reactive({
   pure: false,
@@ -194,20 +219,70 @@ const routeSelectedKeys = computed(() => {
   return paths.flatMap(item => [item.path, item.name]).filter(Boolean).map(String)
 })
 
-const parkOptions = computed(() => {
-  const frontConfig = systemInfo.value?.front || {}
-  const source = [frontConfig.parks, frontConfig.parkList, systemInfo.value?.parks, systemInfo.value?.parkList]
-    .find(Array.isArray) as Array<Record<string, any>> | undefined
+const unwrapResult = <T,>(response: { result?: T } | T): T => {
+  if (response && typeof response === 'object' && 'result' in response) {
+    return (response as { result?: T }).result as T
+  }
+  return response as T
+}
 
-  if (!source?.length) {
-    return [{ label: '全部园区', value: 'all' }]
+const toParkTreeSelectNode = (node: BasicConfigTreeNode): ParkTreeSelectNode | undefined => {
+  if (node.type === 'park') {
+    const value = String(node.parkId || node.id || node.key || '')
+    if (!value) return undefined
+    return {
+      title: String(node.name || value),
+      value,
+      key: String(node.key || `park:${value}`),
+    }
   }
 
-  return source.map((item, index) => ({
-    label: String(item.name || item.title || item.label || `园区 ${index + 1}`),
-    value: String(item.id || item.code || item.value || index),
-  }))
-})
+  if (node.type !== 'org') {
+    return undefined
+  }
+
+  const children = (node.children || [])
+    .map(toParkTreeSelectNode)
+    .filter(Boolean) as ParkTreeSelectNode[]
+  if (!children.length) {
+    return undefined
+  }
+  const value = String(node.id || node.orgId || node.key || node.name || '')
+  return {
+    title: String(node.name || value),
+    value: `org:${value}`,
+    key: String(node.key || `org:${value}`),
+    selectable: false,
+    children,
+  }
+}
+
+const currentUserParkOptions = computed<ParkTreeSelectNode[]>(() => (
+  currentUserParkTree.value
+    .map(toParkTreeSelectNode)
+    .filter(Boolean) as ParkTreeSelectNode[]
+))
+
+const parkOptions = computed<ParkTreeSelectNode[]>(() => [
+  { title: '全部园区', value: 'all', key: 'all' },
+  ...currentUserParkOptions.value,
+])
+
+const loadCurrentUserParkTree = async () => {
+  loadingParks.value = true
+  try {
+    const response = await request.get('/park/basic/config/tree/current')
+    currentUserParkTree.value = unwrapResult<BasicConfigTreeNode[]>(response) || []
+  } catch {
+    currentUserParkTree.value = []
+  } finally {
+    loadingParks.value = false
+  }
+}
+
+const includesParkOptionValue = (options: ParkTreeSelectNode[], value: string): boolean => (
+  options.some(item => item.value === value || includesParkOptionValue(item.children || [], value))
+)
 
 const normalizeMenuNode = (item: RouteRecordRaw): MenuNode | undefined => {
   const meta = (item.meta || {}) as Record<string, any>
@@ -362,10 +437,12 @@ const handleRootClick = (node: MenuNode) => {
 
 watchEffect(() => {
   state.pure = route.query?.layout === 'false'
-  if (!parkOptions.value.some(item => item.value === selectedPark.value)) {
+  if (!includesParkOptionValue(parkOptions.value, selectedPark.value)) {
     selectedPark.value = parkOptions.value[0]?.value || 'all'
   }
 })
+
+onMounted(loadCurrentUserParkTree)
 </script>
 
 <style scoped>
