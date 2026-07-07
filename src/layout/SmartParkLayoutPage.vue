@@ -561,7 +561,7 @@ watchEffect(() => {
 .smart-park-sidebar__domain {
   height: 100%;
   display: grid;
-  grid-template-columns: 4.75rem minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 1rem;
 }
 
@@ -575,7 +575,7 @@ watchEffect(() => {
   align-content: start;
   gap: 12px;
   padding-right: 0.75rem;
-  overflow: auto;
+  overflow-y: auto;
   border-right: 1px solid var(--jet-theme-border-secondary);
 }
 
@@ -597,6 +597,7 @@ watchEffect(() => {
   display: grid;
   place-items: center;
   gap: 8px;
+  width: 58px;
   border-radius: var(--jet-theme-button-r);
 }
 
