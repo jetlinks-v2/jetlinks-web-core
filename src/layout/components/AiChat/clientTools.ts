@@ -50,6 +50,7 @@ export interface AiClientToolConfirmOptions<TContext = Record<string, any>> {
   okText?: string;
   cancelText?: string;
   localConfirmation?: boolean;
+  risk?: AiClientToolRisk;
   when?: (args: Record<string, any>, context: TContext, call: AiClientToolCall) => boolean;
 }
 
@@ -84,6 +85,34 @@ export interface AiClientToolDefinition<TContext = Record<string, any>> {
     call: AiClientToolCall,
   ) => Promise<any> | any;
   [key: string]: any;
+}
+
+export type AiClientToolConfirmRuleMatcher<TTool> =
+  | string
+  | string[]
+  | ((tool: TTool, type: string) => boolean);
+
+export type AiClientToolConfirmRuleText<TContext, TTool> =
+  | string
+  | ((args: Record<string, any>, context: TContext, call: AiClientToolCall, tool: TTool) => string);
+
+export interface AiClientToolConfirmRule<TTool, TContext = Record<string, any>> {
+  match?: AiClientToolConfirmRuleMatcher<TTool>;
+  title?: AiClientToolConfirmRuleText<TContext, TTool>;
+  content?: AiClientToolConfirmRuleText<TContext, TTool>;
+  okText?: string;
+  cancelText?: string;
+  localConfirmation?: boolean;
+  risk?: AiClientToolRisk;
+  when?: (args: Record<string, any>, context: TContext, call: AiClientToolCall, tool: TTool) => boolean;
+}
+
+export interface AiClientToolConfirmResolverOptions<TTool, TContext = Record<string, any>> {
+  shouldConfirm?: (tool: TTool) => boolean;
+  getType?: (tool: TTool) => string | undefined;
+  getId?: (tool: TTool) => string | undefined;
+  rules?: AiClientToolConfirmRule<TTool, TContext>[];
+  defaultRule?: AiClientToolConfirmRule<TTool, TContext> | false;
 }
 
 export interface AiClientToolResultGuardOptions {
@@ -158,6 +187,12 @@ const pickRisk = (risk?: AiClientToolRisk): Record<string, any> => {
   return result;
 };
 
+const pickConfirmRisk = <TContext>(confirm?: AiClientToolDefinition<TContext>['confirm']) => (
+  confirm && confirm !== true && isRecord(confirm.risk)
+    ? pickRisk(confirm.risk)
+    : {}
+);
+
 const riskFromAnnotations = (annotations?: Record<string, any>) => {
   const result: Record<string, any> = {};
   if (annotations?.destructiveHint === true || annotations?.readOnlyHint === false) {
@@ -181,18 +216,21 @@ const resolveToolExpands = <TContext>(
 ) => {
   const explicitExpands = isRecord(tool.expands) ? tool.expands : {};
   const toolRisk = pickRisk(tool.risk);
-  const confirmationRisk = tool.confirm ? { needsApproval: true, parallelSafe: false } : {};
+  const clientConfirmation = !!tool.confirm;
+  const confirmationRisk = clientConfirmation ? { needsApproval: false, parallelSafe: false } : {};
   const resolved = {
     ...pickRisk(options.riskDefaults),
     ...riskFromAnnotations(tool.annotations),
     ...confirmationRisk,
+    ...pickConfirmRisk(tool.confirm),
     ...toolRisk,
     ...explicitExpands,
   };
 
-  // Confirmation/destructive declarations are safety boundaries; do not let defaults make them parallel.
-  if (tool.confirm) {
-    resolved.needsApproval = true;
+  // Client tools are confirmed by the shared frontend component. The backend sees them as
+  // non-HITL tools so it never renders a generic confirmation without page context.
+  if (clientConfirmation) {
+    resolved.needsApproval = false;
     resolved.parallelSafe = false;
   } else if (tool.annotations?.destructiveHint === true
     || resolved.readOnly === false
@@ -219,7 +257,6 @@ const normalizeTool = <TContext>(
     description: tool.description,
     inputs: (tool.inputs || []).map(normalizeInput),
     output: tool.output || { type: 'object' },
-    ...(tool.confirm ? { requiresConfirmation: true } : {}),
     ...(tool.annotations ? { annotations: tool.annotations } : {}),
     ...(expands ? { expands } : {}),
     ...(tool._meta ? { _meta: tool._meta } : {}),
@@ -257,6 +294,93 @@ const createToolHelp = <TContext>(tool: AiClientToolDefinition<TContext>) => {
 export const defineAiClientTools = <TContext = Record<string, any>>(
   tools: AiClientToolDefinition<TContext>[],
 ) => tools;
+
+const normalizeConfirmRuleText = <TTool, TContext>(
+  value: AiClientToolConfirmRuleText<TContext, TTool> | undefined,
+  tool: TTool,
+) => {
+  if (typeof value !== 'function') {
+    return value;
+  }
+  return (
+    args: Record<string, any>,
+    context: TContext,
+    call: AiClientToolCall,
+  ) => value(args, context, call, tool);
+};
+
+const normalizeConfirmRuleWhen = <TTool, TContext>(
+  value: AiClientToolConfirmRule<TTool, TContext>['when'],
+  tool: TTool,
+) => {
+  if (!value) {
+    return undefined;
+  }
+  return (
+    args: Record<string, any>,
+    context: TContext,
+    call: AiClientToolCall,
+  ) => value(args, context, call, tool);
+};
+
+const confirmRuleToOptions = <TTool, TContext>(
+  rule: AiClientToolConfirmRule<TTool, TContext>,
+  tool: TTool,
+): AiClientToolConfirmOptions<TContext> => ({
+  title: normalizeConfirmRuleText(rule.title, tool),
+  content: normalizeConfirmRuleText(rule.content, tool),
+  okText: rule.okText,
+  cancelText: rule.cancelText,
+  localConfirmation: rule.localConfirmation,
+  risk: rule.risk,
+  when: normalizeConfirmRuleWhen(rule.when, tool),
+});
+
+const matchConfirmRule = <TTool>(
+  rule: AiClientToolConfirmRule<TTool>,
+  tool: TTool,
+  type: string,
+  id: string,
+) => {
+  const matcher = rule.match;
+  if (!matcher) {
+    return true;
+  }
+  if (typeof matcher === 'function') {
+    return matcher(tool, type);
+  }
+  const candidates = Array.isArray(matcher) ? matcher : [matcher];
+  return candidates.some((candidate) => candidate === type || candidate === id);
+};
+
+/**
+ * Creates a reusable mapper from page-level tool metadata to AiChat confirmation options.
+ *
+ * Business modules keep their action labels and argument formatting in local rule config, while
+ * AiChat owns the shared confirmation contract, risk metadata and local-confirmation switch.
+ */
+export const createAiClientToolConfirmResolver = <
+  TTool extends Record<string, any>,
+  TContext = Record<string, any>,
+>(
+  options: AiClientToolConfirmResolverOptions<TTool, TContext>,
+) => (tool: TTool): AiClientToolConfirmOptions<TContext> | false => {
+  if (options.shouldConfirm && !options.shouldConfirm(tool)) {
+    return false;
+  }
+
+  const id = String(options.getId?.(tool) || tool.id || tool.name || '').trim();
+  const type = String(options.getType?.(tool) || id).trim();
+  const rules = options.rules || [];
+  const matched = rules.find((rule) => matchConfirmRule(rule, tool, type, id));
+  if (matched) {
+    return confirmRuleToOptions(matched, tool);
+  }
+  if (options.defaultRule === false || !options.defaultRule) {
+    return false;
+  }
+  return confirmRuleToOptions(options.defaultRule, tool);
+};
 
 const mergeToolDefinitions = <TContext = Record<string, any>>(
   tools: AiClientToolDefinition<TContext>[],
@@ -325,17 +449,36 @@ const normalizeResultGuardOptions = (
   };
 };
 
-const normalizeClientToolExecutionError = (error: any, toolName: string) => ({
+const createClientToolConfirmationRejectedResult = (
+  toolName: string,
+  response?: AiClientToolConfirmationResponse,
+) => ({
   ok: false,
   toolName,
-  error: {
-    name: error?.name,
-    message: error?.message || String(error),
-    status: error?.status || error?.response?.status,
-    code: error?.code || error?.response?.data?.code,
-    type: error?.response?.data?.errorType || error?.response?.data?.type,
-  },
+  status: 'rejected',
+  rejected: true,
+  cancelledByUser: true,
+  retryable: false,
+  reason: 'user_rejected_confirmation',
+  optionId: response?.optionId,
+  message: '用户已取消或拒绝本次工具调用。本次操作不得继续执行，也不要自动重试；只有用户再次明确要求时，才可以重新发起确认。',
 });
+
+const normalizeClientToolExecutionError = (error: any, toolName: string) => (
+  error?.code === 'CLIENT_TOOL_CONFIRM_CANCELLED'
+    ? createClientToolConfirmationRejectedResult(toolName)
+    : {
+        ok: false,
+        toolName,
+        error: {
+          name: error?.name,
+          message: error?.message || String(error),
+          status: error?.status || error?.response?.status,
+          code: error?.code || error?.response?.data?.code,
+          type: error?.response?.data?.errorType || error?.response?.data?.type,
+        },
+      }
+);
 
 const resolveConfirmText = <TContext>(
   value: AiClientToolConfirmOptions<TContext>['title'] | AiClientToolConfirmOptions<TContext>['content'],
@@ -344,11 +487,9 @@ const resolveConfirmText = <TContext>(
   call: AiClientToolCall,
 ) => (typeof value === 'function' ? value(args, context, call) : value);
 
-const createClientToolConfirmationError = () => {
-  const error = new Error('client tool execution cancelled by user');
-  (error as any).code = 'CLIENT_TOOL_CONFIRM_CANCELLED';
-  return error;
-};
+const resolveToolDisplayName = <TContext>(tool: AiClientToolDefinition<TContext>) => (
+  String(tool.displayName || tool.title || tool.label || tool.name || tool.id || '').trim()
+);
 
 const createClientToolConfirmationHandlerMissingError = () => {
   const error = new Error('client tool confirmation handler unavailable');
@@ -361,22 +502,18 @@ const requestAiClientToolConfirmation = async <TContext>(
   args: Record<string, any>,
   context: TContext,
   call: AiClientToolCall,
-): Promise<Record<string, any> | undefined> => {
+): Promise<AiClientToolConfirmationResponse | undefined> => {
   if (!tool.confirm) {
     return undefined;
   }
 
   const options: AiClientToolConfirmOptions<TContext> = tool.confirm === true ? {} : tool.confirm;
-  if (options.localConfirmation === false) {
-    return undefined;
-  }
   if (options.when && !options.when(args, context, call)) {
     return undefined;
   }
   const title = resolveConfirmText(options.title, args, context, call)
-    || i18n.global.t('components.AiChat.confirm.title', [tool.name || tool.id]);
-  const content = resolveConfirmText(options.content, args, context, call)
-    || i18n.global.t('components.AiChat.confirm.content');
+    || resolveToolDisplayName(tool);
+  const content = resolveConfirmText(options.content, args, context, call) || '';
 
   if (!call.requestConfirmation) {
     throw createClientToolConfirmationHandlerMissingError();
@@ -394,10 +531,10 @@ const requestAiClientToolConfirmation = async <TContext>(
   });
 
   if (response?.approved === false) {
-    throw createClientToolConfirmationError();
+    return response;
   }
 
-  return response?.arguments;
+  return response;
 };
 
 const truncateString = (value: string, maxLength: number) => (
@@ -613,16 +750,20 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
     let result: unknown;
     try {
       const args = call.arguments || {};
-      const confirmedArgs = await requestAiClientToolConfirmation(tool, args, context, call);
-      const executionArgs = confirmedArgs || args;
-      result = await withAiClientToolSilentRequest(() => tool.execute(
-        executionArgs,
-        context,
-        {
-          ...call,
-          arguments: executionArgs,
-        },
-      ));
+      const confirmation = await requestAiClientToolConfirmation(tool, args, context, call);
+      if (confirmation?.approved === false) {
+        result = createClientToolConfirmationRejectedResult(tool.id, confirmation);
+      } else {
+        const executionArgs = confirmation?.arguments || args;
+        result = await withAiClientToolSilentRequest(() => tool.execute(
+          executionArgs,
+          context,
+          {
+            ...call,
+            arguments: executionArgs,
+          },
+        ));
+      }
     } catch (error) {
       // API failures inside a page tool are still tool results; keep the chat session alive and
       // let the agent explain the failed business call instead of surfacing a global connection error.

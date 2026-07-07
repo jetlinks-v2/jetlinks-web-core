@@ -6,6 +6,7 @@ import {
   createHomeAgentRuntime,
   HOME_AGENT_CAPABILITY_CHANGE_EVENT,
   HOME_AGENT_CLIENT_ID,
+  type HomeAgentConversationMessageContext,
 } from './homeAgentCapabilities';
 import {
   createHomeAgentCapabilityLoaderTool,
@@ -18,10 +19,44 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
   let syncing = false;
   let syncTimer: number | undefined;
   let preparedRouteClientId = '';
+  let latestUserMessage: HomeAgentConversationMessageContext | undefined;
+
+  const normalizeMessageText = (value: unknown) => String(value || '').trim();
+
+  const resolveMessageContent = (message: Record<string, any>) => normalizeMessageText(
+    message.content
+    || message.text
+    || message.payload?.content
+    || message.payload?.text
+    || message.payload?.message,
+  );
+
+  const recordConversationMessage = (message: HomeAgentConversationMessageContext & Record<string, any>) => {
+    const localUserMessage = message?.type === 'user'
+      && (
+        message?.headers?.origin === 'client'
+        || normalizeMessageText(message.id).startsWith('local-user:')
+      );
+    if (!localUserMessage) {
+      return;
+    }
+    const content = resolveMessageContent(message);
+    if (!content) {
+      return;
+    }
+    latestUserMessage = {
+      id: normalizeMessageText(message.id) || undefined,
+      type: 'user',
+      content,
+      createdAt: Number(message.createdAt) || Date.now(),
+    };
+  };
 
   const buildRuntime = () => createHomeAgentRuntime({
     currentView: () => String(route.name || route.path || ''),
     extraTools: () => [createHomeAgentCapabilityLoaderTool(refreshParameters)],
+    getLatestUserMessage: () => latestUserMessage,
+    onConversationMessage: recordConversationMessage,
   });
 
   const isHomeAgentActive = () => aiStore.parameters?.subjectId === HOME_AGENT_CLIENT_ID;

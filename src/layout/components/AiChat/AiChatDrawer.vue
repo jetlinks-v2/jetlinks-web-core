@@ -17,6 +17,7 @@
       <div class="ai-chat-bubble-panel__content" @pointerdown="handlePanelDragStart">
         <div class="ai-iframe-container">
           <component
+            ref="conversationRef"
             v-if="conversationComponent && activeAgent.agentId && activeAgent.clientType"
             :is="conversationComponent"
             :key="conversationKey"
@@ -39,7 +40,10 @@
             :welcome-text="conversationWelcomeText"
             :prompt-examples="conversationPromptExamples"
             :suggested-prompts="conversationSuggestedPrompts"
+            :prefill-input-key="conversationHandoffPrompt?.id || ''"
+            :prefill-input-value="conversationHandoffPrompt?.value || ''"
             :visible="open"
+            @message="handleConversationMessage"
             @background-message="handleBackgroundMessage"
           >
             <template #header-extra>
@@ -98,12 +102,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, markRaw, onBeforeUnmount, onMounted, ref, shallowRef, watch, type PropType } from 'vue';
+import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry';
 import { buildAgentSubjectPayload, normalizeAgentSubject } from './subject';
 import type { AiClientToolCall } from './clientTools';
 import { useFloatingPanel } from './useFloatingPanel';
+import {
+  buildAiAgentHandoffKey,
+  clearAiAgentHandoff,
+  readAiAgentHandoff,
+  resolveAiAgentHandoffTarget,
+  type AiAgentHandoffRecord,
+} from './agentHandoff';
 
 interface AgentDeployRecord {
   agentId?: string;
@@ -138,6 +150,10 @@ const props = defineProps({
     type: Array as PropType<AgentDeployRecord[]>,
     default: () => [],
   },
+  activeClientId: {
+    type: String,
+    default: '',
+  },
   parameters: {
     type: Object as PropType<Record<string, any>>,
     default: () => ({}),
@@ -168,8 +184,17 @@ const emits = defineEmits<{
 }>();
 
 const { t: $t } = useI18n();
+const route = useRoute();
 const activeAgent = ref<AgentDeployRecord>({});
 const conversationComponent = shallowRef<any>();
+const conversationRef = ref<any>();
+const activeHandoffRecord = ref<AiAgentHandoffRecord>();
+const consumedHandoffId = ref('');
+const appliedHandoffPromptId = ref('');
+let handoffPrefillTimer: ReturnType<typeof window.setTimeout> | undefined;
+let handoffPrefillCheckTimers: ReturnType<typeof window.setTimeout>[] = [];
+let handoffPrefillRetryCount = 0;
+const MAX_HANDOFF_PREFILL_RETRY = 20;
 const {
   panelRef,
   panelStyle,
@@ -218,6 +243,7 @@ const conversationBaseParameters = computed(() => {
     conversationTitle,
     headerTitle,
     clientTitle,
+    onConversationMessage,
     ...rest
   } = props.parameters || {};
   return rest;
@@ -226,6 +252,7 @@ const conversationBaseParameters = computed(() => {
 // 页面功能点传入的 subject 需要同时进入会话参数和 expands，确保首条消息建会话与历史过滤口径一致。
 const conversationParameters = computed(() => ({
   ...conversationBaseParameters.value,
+  ...(conversationHandoffContext.value ? { handoffContext: conversationHandoffContext.value } : {}),
   ...buildAgentSubjectPayload(conversationSubject.value),
 }));
 
@@ -273,14 +300,122 @@ const conversationOpeningStatement = computed(() => String(
   props.parameters?.openingStatement || '',
 ).trim());
 const conversationWelcomeText = computed(() => String(props.parameters?.welcomeText || '').trim());
+const handoffTarget = computed(() => resolveAiAgentHandoffTarget({
+  clientId: props.activeClientId || activeAgent.value?.clientId || props.parameters?.clientId,
+  subjectType: conversationSubject.value?.type || props.parameters?.subjectType,
+  subjectId: conversationSubject.value?.id || props.parameters?.subjectId,
+  routeName: props.parameters?.routeName,
+  menuCode: props.parameters?.menuCode,
+  path: props.parameters?.path,
+}, route));
+const handoffTargetKey = computed(() => buildAiAgentHandoffKey(handoffTarget.value));
+const syncHandoffRecord = () => {
+  const record = readAiAgentHandoff(handoffTarget.value, { includeOpened: true });
+  if (record) {
+    activeHandoffRecord.value = record;
+  }
+};
+const truncateHandoffPrompt = (value: string) => {
+  const text = normalizeDisplayText(value);
+  return text.length > 36 ? `${text.slice(0, 36)}...` : text;
+};
+const visibleHandoffRecord = computed(() => {
+  const record = activeHandoffRecord.value;
+  return record && record.id !== consumedHandoffId.value ? record : undefined;
+});
+const conversationHandoffContext = computed(() => {
+  const record = activeHandoffRecord.value;
+  if (!record) return undefined;
+  return {
+    prompt: record.prompt,
+    label: record.label,
+    source: record.source,
+    target: record.target,
+    context: record.context,
+    createdAt: record.createdAt,
+  };
+});
+const conversationHandoffPrompt = computed(() => {
+  const record = visibleHandoffRecord.value;
+  if (!record?.prompt) return undefined;
+  return {
+    id: record.id,
+    label: normalizeDisplayText(record.label)
+      || $t('components.AiChat.agentHandoff.continue', [truncateHandoffPrompt(record.prompt)]),
+    value: record.prompt,
+  };
+});
 const conversationPromptExamples = computed(() => {
   const source = props.parameters?.promptExamples;
-  return Array.isArray(source) ? source : [];
+  const prompts = Array.isArray(source) ? [...source] : [];
+  const handoffPrompt = conversationHandoffPrompt.value;
+  if (!handoffPrompt) {
+    return prompts;
+  }
+  const handoffValue = normalizeDisplayText(handoffPrompt.value);
+  return [
+    handoffPrompt,
+    ...prompts.filter((item: any) => {
+      const value = typeof item === 'string'
+        ? normalizeDisplayText(item)
+        : normalizeDisplayText(item?.value || item?.text || item?.label || item?.prompt);
+      return value && value !== handoffValue;
+    }),
+  ];
 });
 const conversationSuggestedPrompts = computed(() => {
   const source = props.parameters?.suggestedPrompts;
   return Array.isArray(source) ? source : [];
 });
+
+const clearHandoffPrefillCheckTimers = () => {
+  handoffPrefillCheckTimers.forEach((timer) => window.clearTimeout(timer));
+  handoffPrefillCheckTimers = [];
+};
+
+const scheduleHandoffPrefillStabilityCheck = (handoffId: string) => {
+  clearHandoffPrefillCheckTimers();
+  handoffPrefillCheckTimers = [240, 800, 1600, 3200, 6400].map((delay) => window.setTimeout(() => {
+    if (!props.open || appliedHandoffPromptId.value !== handoffId) {
+      return;
+    }
+    const state = conversationRef.value?.getConversationState?.();
+    if (state && !state.hasDraftInput) {
+      appliedHandoffPromptId.value = '';
+      prefillHandoffPrompt();
+    }
+  }, delay));
+};
+
+const prefillHandoffPrompt = () => {
+  const handoffPrompt = conversationHandoffPrompt.value;
+  if (!props.open || !handoffPrompt?.value || appliedHandoffPromptId.value === handoffPrompt.id) {
+    handoffPrefillRetryCount = 0;
+    return;
+  }
+  void nextTick(() => {
+    if (!conversationRef.value?.prefillInput || appliedHandoffPromptId.value === handoffPrompt.id) {
+      if (!handoffPrefillTimer && handoffPrefillRetryCount < MAX_HANDOFF_PREFILL_RETRY) {
+        handoffPrefillRetryCount += 1;
+        handoffPrefillTimer = window.setTimeout(() => {
+          handoffPrefillTimer = undefined;
+          prefillHandoffPrompt();
+        }, 120);
+      }
+      return;
+    }
+    if (handoffPrefillTimer) {
+      window.clearTimeout(handoffPrefillTimer);
+      handoffPrefillTimer = undefined;
+    }
+    handoffPrefillRetryCount = 0;
+    appliedHandoffPromptId.value = handoffPrompt.id;
+    conversationRef.value.prefillInput(handoffPrompt.value);
+    // Session initialization can reset the composer after the child exposes its API.
+    // Re-apply only while the draft is still empty, so user edits are never overwritten.
+    scheduleHandoffPrefillStabilityCheck(handoffPrompt.id);
+  });
+};
 
 const conversationKey = computed(() => [
   activeAgent.value?.agentId || '',
@@ -331,7 +466,9 @@ const syncActiveAgent = (nextList: AgentDeployRecord[] = []) => {
   }
 
   const current = nextList.find((item) => item.agentId === activeAgent.value?.agentId);
-  activeAgent.value = current || nextList[0];
+  const clientAgent = nextList.find((item) => item.clientId === props.activeClientId);
+  // The global store may load multiple page-point agents; handoff must select the active page client.
+  activeAgent.value = clientAgent || current || nextList[0];
 };
 
 const handleAgentClick = (event: { key: unknown }) => {
@@ -345,9 +482,39 @@ const handleBackgroundMessage = (payload: any) => {
   emits('background-message', payload);
 };
 
+const isLocalUserMessage = (message: any) => (
+  message?.type === 'user'
+  && (
+    message?.headers?.origin === 'client'
+    || String(message?.id || '').startsWith('local-user:')
+  )
+);
+
+const handleConversationMessage = (message: any) => {
+  if (typeof props.parameters?.onConversationMessage === 'function') {
+    // Page runtimes can keep transient business context from the user's latest message
+    // without leaking handler functions into the session init payload.
+    try {
+      props.parameters.onConversationMessage(message);
+    } catch {
+      // Message context is best-effort; chat delivery and handoff cleanup must continue.
+    }
+  }
+  const record = visibleHandoffRecord.value;
+  if (!isLocalUserMessage(message) || !record) {
+    return;
+  }
+  // A handoff is a one-shot continuation hint; once the user sends a message,
+  // clear the stored copy so reopening the page will not prefill it again.
+  consumedHandoffId.value = record.id;
+  appliedHandoffPromptId.value = '';
+  clearHandoffPrefillCheckTimers();
+  clearAiAgentHandoff(handoffTarget.value);
+};
+
 watch(
-  () => props.agentList,
-  (nextList) => syncActiveAgent(nextList || []),
+  () => [props.agentList, props.activeClientId],
+  ([nextList]) => syncActiveAgent((nextList as AgentDeployRecord[]) || []),
   { immediate: true },
 );
 
@@ -366,8 +533,34 @@ watch(
   (value) => {
     if (value) {
       void initPanelPosition();
+      prefillHandoffPrompt();
     }
   },
+);
+
+watch(
+  () => [
+    props.open,
+    !!conversationComponent.value,
+    !!conversationRef.value?.prefillInput,
+    activeAgent.value?.agentId,
+    conversationHandoffPrompt.value?.id,
+    conversationHandoffPrompt.value?.value,
+    conversationKey.value,
+  ],
+  prefillHandoffPrompt,
+  { immediate: true },
+);
+
+watch(
+  () => handoffTargetKey.value,
+  () => {
+    activeHandoffRecord.value = undefined;
+    consumedHandoffId.value = '';
+    appliedHandoffPromptId.value = '';
+    syncHandoffRecord();
+  },
+  { immediate: true },
 );
 
 defineExpose({
@@ -387,6 +580,12 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  if (handoffPrefillTimer) {
+    window.clearTimeout(handoffPrefillTimer);
+    handoffPrefillTimer = undefined;
+  }
+  clearHandoffPrefillCheckTimers();
+  handoffPrefillRetryCount = 0;
   cleanupFloatingPanel();
   window.removeEventListener('resize', handleWindowResize);
   window.removeEventListener('keydown', handleKeydown);

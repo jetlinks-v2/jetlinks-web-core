@@ -62,6 +62,7 @@
     v-if="drawerMounted && showAiButton"
     :open="showAiDrawer"
     :agentList="agentList"
+    :active-client-id="activeClientId"
     :parameters="parameters"
     :anchorRect="bubbleAnchorRect"
     :anchorDragging="isBubbleDragging"
@@ -73,14 +74,21 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import AiChatDrawer from './AiChatDrawer.vue'
 import { useAIStore } from '@jetlinks-web-core/store'
 import { storeToRefs } from 'pinia'
 import { useFloatingBubble } from './useFloatingBubble'
 import { RobotOutlined } from '@ant-design/icons-vue'
+import {
+  hasPendingAiAgentHandoff,
+  markAiAgentHandoffOpened,
+  resolveAiAgentHandoffTarget,
+} from './agentHandoff'
 import './AiChatLauncher.less'
 
 const { t: $t } = useI18n()
+const route = useRoute()
 const aiStore = useAIStore()
 const {
   showAiDrawer,
@@ -89,6 +97,8 @@ const {
   parameters,
   bubbleConfig,
   bubbleUnreadCount,
+  activeClientId,
+  pendingClientId,
 } = storeToRefs(aiStore)
 const drawerRef = ref()
 const manualPanelSize = ref()
@@ -153,4 +163,45 @@ watch(showAiButton, (value) => {
     drawerMounted.value = false
   }
 })
+
+const pendingHandoffTarget = computed(() => resolveAiAgentHandoffTarget({
+  clientId: activeClientId.value || parameters.value?.clientId,
+  subjectType: parameters.value?.subjectType,
+  subjectId: parameters.value?.subjectId,
+  routeName: parameters.value?.routeName,
+  menuCode: parameters.value?.menuCode,
+  path: parameters.value?.path,
+}, route))
+
+const hasStableTargetAgent = computed(() => (
+  showAiButton.value
+  && !pendingClientId.value
+  && agentList.value.length > 0
+))
+
+watch(
+  () => [
+    showAiButton.value,
+    activeClientId.value,
+    pendingClientId.value,
+    agentList.value.length,
+    parameters.value?.subjectType,
+    parameters.value?.subjectId,
+    parameters.value?.routeName,
+    parameters.value?.menuCode,
+    parameters.value?.path,
+    route.name,
+    route.path,
+    route.fullPath,
+  ],
+  () => {
+    const target = pendingHandoffTarget.value
+    if (!hasStableTargetAgent.value || !hasPendingAiAgentHandoff(target)) {
+      return
+    }
+    aiStore.setDrawer(true)
+    markAiAgentHandoffOpened(target)
+  },
+  { immediate: true },
+)
 </script>
