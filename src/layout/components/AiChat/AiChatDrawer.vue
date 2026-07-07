@@ -214,6 +214,7 @@ const conversationBaseParameters = computed(() => {
     welcomeText,
     promptExamples,
     suggestedPrompts,
+    workflowGuides,
     conversationTitle,
     headerTitle,
     clientTitle,
