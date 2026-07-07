@@ -105,10 +105,16 @@ export const handleMenus = (
   const findComponent = (record: MenuItem, level: number) => {
     const isApp = !!record.appId
     const meta = handleMeta(record, isApp)
-    const myComponents = components[(meta?.componentCode as string) || record.code]
+    const componentCode = (meta?.componentCode as string) || record.options?.componentCode || record.code
+    const myComponents = components[componentCode]
 
     if (record.component) {
       return record.component
+    }
+
+    if (myComponents) {
+      // 后端菜单会用 appName 标记模块归属；只要 componentCode 能命中本地页面，就优先渲染本地组件。
+      return () => myComponents()
     }
 
     if (!record.children?.length) {
@@ -121,12 +127,8 @@ export const handleMenus = (
       }
     }
 
-    if (myComponents) {
-      return () => myComponents()
-    }
-
     if (level === 1) {
-      return () => import('../layout/BasicLayoutPage.vue')
+      return () => import('../layout/SmartParkLayoutPage.vue')
     }
 
     if (level === 2) {
@@ -189,7 +191,7 @@ export const handleMenus = (
         // 为1级菜单添加父级路由
         _route.name = `${item.code}-parent`
         _route.path = `${item.url}/parent`
-        _route.component = () => import('../layout/BasicLayoutPage.vue')
+        _route.component = () => import('../layout/SmartParkLayoutPage.vue')
         _route.children = [item]
         _route.meta = {}
       } else {

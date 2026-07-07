@@ -5,7 +5,7 @@ export const USER_CENTER_ROUTE: RouteRecordRaw = {
   path: '/account',
   name: 'Account',
   redirect: '/account/center',
-  component: () => import('@jetlinks-web-core/layout/BasicLayoutPage.vue'),
+  component: () => import('@jetlinks-web-core/layout/SmartParkLayoutPage.vue'),
   meta: {
     title: '个人中心',
     hideInMenu: true
@@ -118,7 +118,7 @@ export const Demo: RouteRecordRaw = {
   path: '/demo',
   name: 'Demo',
   redirect: '/demo/center',
-  component: () => import('@jetlinks-web-core/layout/BasicLayoutPage.vue'),
+  component: () => import('@jetlinks-web-core/layout/SmartParkLayoutPage.vue'),
   children: [
     {
       path: '/demo/center',
