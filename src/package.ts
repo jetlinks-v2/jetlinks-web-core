@@ -49,6 +49,9 @@ const getProjectContext = () => {
     }
 }
 
+// 云端边缘代理 baseApi 以 /_ 结尾，WebSocket 分支会自行拼接 _ws。
+const getCloudWsBaseApi = () => getBaseApi().replace(/\/_$/, '')
+
 /**
  * 初始化package
  */
@@ -92,7 +95,7 @@ export const initPackages = () => {
     //     }
     // })
     if (isFromCloud()) {
-        url = `${getBaseApi()}/_ws/messaging?${TOKEN_KEY_URL}=${token}`;
+        url = `${getCloudWsBaseApi()}/_ws/messaging?${TOKEN_KEY_URL}=${token}`;
     }
     wsClient.initWebSocket(url);
     wsClient.connect()
