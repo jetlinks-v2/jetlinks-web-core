@@ -573,7 +573,7 @@ watchEffect(() => {
   min-width: 0;
   display: grid;
   align-content: start;
-  gap: 1rem;
+  gap: 12px;
   padding-right: 0.75rem;
   overflow: auto;
   border-right: 1px solid var(--jet-theme-border-secondary);
@@ -592,17 +592,18 @@ watchEffect(() => {
 }
 
 .smart-park-sidebar__primary {
-  min-height: 3.625rem;
-  padding: 1rem;
+  //min-height: 3.625rem;
+  padding: 12px;
   display: grid;
   place-items: center;
-  gap: 1rem;
+  gap: 8px;
   border-radius: var(--jet-theme-button-r);
 }
 
 .smart-park-sidebar__primary b {
   max-width: 100%;
   overflow: hidden;
+  text-align: center;
   white-space: normal;
   word-break: break-word;
   font-size: var(--fs-meta);
