@@ -18,6 +18,15 @@ type MaybeArray<T> = T | T[] | undefined | null;
 
 export type HomeAgentCapabilityKind = 'menu' | 'feature' | 'agent' | 'tool' | 'guide';
 
+export interface HomeAgentContinuationMetadata {
+  targetName?: string;
+  targetClientId?: string;
+  targetMenuCode?: string;
+  toolId?: string;
+  promptPolicy?: string;
+  blockingFacts?: string[];
+}
+
 export interface HomeAgentMenuEntry {
   code: string;
   name: string;
@@ -44,6 +53,7 @@ export interface HomeAgentCapability {
   metadata?: Record<string, any> & {
     currentRoute?: boolean;
     promptExamples?: string[];
+    continuation?: HomeAgentContinuationMetadata;
   };
 }
 
@@ -558,6 +568,26 @@ const filterCapabilities = (
   });
 };
 
+const compactContinuation = (value: unknown) => {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const blockingFacts = Array.isArray(value.blockingFacts)
+    ? value.blockingFacts.map(normalizeText).filter(Boolean)
+    : [];
+  const continuation = {
+    targetName: normalizeText(value.targetName) || undefined,
+    promptPolicy: normalizeText(value.promptPolicy) || undefined,
+    blockingFacts: blockingFacts.length ? blockingFacts : undefined,
+  };
+
+  // Provider-side fields such as tool ids, client ids and menu codes are execution
+  // hints. Do not expose them through capability search results where the model may
+  // echo them to the user.
+  return Object.values(continuation).some(Boolean) ? continuation : undefined;
+};
+
 const compactCapability = (item: HomeAgentCapability) => ({
   id: item.id,
   kind: item.kind,
@@ -575,7 +605,12 @@ const compactCapability = (item: HomeAgentCapability) => ({
     : undefined,
   clientId: item.clientId,
   clientType: item.clientType,
+  continuation: compactContinuation(item.metadata?.continuation),
 });
+
+const hasContinuationCapabilities = (context: HomeAgentCapabilityContext) => (
+  context.capabilities.some((item) => isPlainRecord(item.metadata?.continuation))
+);
 
 const isCurrentMenu = (menu: HomeAgentMenuEntry, context: HomeAgentCapabilityContext) => {
   const route = context.currentRoute;
@@ -982,6 +1017,9 @@ const buildHomeAgentSystemPrompt = (
     i18n.global.t('components.AiChat.homeAgent.prompt.navigation'),
     i18n.global.t('components.AiChat.homeAgent.prompt.menuLinks'),
     i18n.global.t('components.AiChat.homeAgent.prompt.boundary'),
+    hasContinuationCapabilities(context)
+      ? i18n.global.t('components.AiChat.homeAgent.prompt.continuation')
+      : '',
     topMenus
       ? i18n.global.t('components.AiChat.homeAgent.prompt.visibleMenus', [topMenus])
       : i18n.global.t('components.AiChat.homeAgent.prompt.noMenus'),

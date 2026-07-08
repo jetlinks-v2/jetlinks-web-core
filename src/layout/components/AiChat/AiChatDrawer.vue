@@ -31,9 +31,13 @@
             :subject-id="conversationSubject?.id || ''"
             :client-tool-handler="conversationClientToolHandler"
             :client-tools="conversationClientTools"
+            :client-tools-version="conversationClientToolsVersion"
             :client-tools-name="conversationClientToolsName"
             :client-tools-description="conversationClientToolsDescription"
             :workflow-guides="conversationWorkflowGuides"
+            :reference-providers="conversationReferenceProviders"
+            :composer-add-actions="conversationComposerAddActions"
+            :session-files-enabled="conversationSessionFilesEnabled"
             :markdown-link-handler="conversationMarkdownLinkHandler"
             :system-prompt="conversationSystemPrompt"
             :opening-statement="conversationOpeningStatement"
@@ -227,6 +231,7 @@ const normalizeDisplayText = (value: unknown) => String(value || '').trim();
 const conversationBaseParameters = computed(() => {
   const {
     clientTools,
+    clientToolsVersion,
     clientToolHandler,
     clientToolsName,
     clientToolsDescription,
@@ -240,6 +245,9 @@ const conversationBaseParameters = computed(() => {
     promptExamples,
     suggestedPrompts,
     workflowGuides,
+    referenceProviders,
+    composerAddActions,
+    sessionFilesEnabled,
     conversationTitle,
     headerTitle,
     clientTitle,
@@ -276,6 +284,7 @@ const conversationTitle = computed(() => (
 const conversationClientTools = computed(() => (
   Array.isArray(props.parameters?.clientTools) ? props.parameters.clientTools : []
 ));
+const conversationClientToolsVersion = computed(() => props.parameters?.clientToolsVersion);
 const conversationClientToolHandler = computed<AiChatClientToolHandler | undefined>(() => (
   typeof props.parameters?.clientToolHandler === 'function'
     ? props.parameters.clientToolHandler
@@ -286,6 +295,13 @@ const conversationClientToolsDescription = computed(() => String(props.parameter
 const conversationWorkflowGuides = computed(() => (
   Array.isArray(props.parameters?.workflowGuides) ? props.parameters.workflowGuides : []
 ));
+const conversationReferenceProviders = computed(() => (
+  Array.isArray(props.parameters?.referenceProviders) ? props.parameters.referenceProviders : []
+));
+const conversationComposerAddActions = computed(() => (
+  Array.isArray(props.parameters?.composerAddActions) ? props.parameters.composerAddActions : []
+));
+const conversationSessionFilesEnabled = computed(() => props.parameters?.sessionFilesEnabled !== false);
 const conversationMarkdownLinkHandler = computed<AiChatMarkdownLinkHandler | undefined>(() => {
   const handler = props.parameters?.markdownLinkHandler || props.parameters?.onMarkdownLinkClick;
   return typeof handler === 'function' ? handler : undefined;
