@@ -133,6 +133,30 @@ export const Demo: RouteRecordRaw = {
     title: 'Demo'
   }
 }
+
+export const PARK_SWITCH_REDIRECT_ROUTE: RouteRecordRaw = {
+  path: '/park-switch',
+  name: 'ParkSwitch',
+  redirect: '/park-switch/redirect',
+  component: () => import('@jetlinks-web-core/layout/SmartParkLayoutPage.vue'),
+  meta: {
+    title: '园区切换中转',
+    hideInMenu: true,
+    skipMenuFetch: true
+  },
+  children: [
+    {
+      path: '/park-switch/redirect',
+      name: 'ParkSwitchRedirect',
+      meta: {
+        title: '园区切换中转',
+        hideInMenu: true,
+        skipMenuFetch: true
+      },
+      component: () => import('@jetlinks-web-core/views/common/ParkSwitchRedirect.vue')
+    }
+  ]
+}
 //
 // export const Scene: RouteRecordRaw = {
 //   path: '/scene',

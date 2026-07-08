@@ -30,6 +30,7 @@
           class="smart-park-park-select"
           :tree-data="parkOptions"
           :loading="loadingParks"
+          :allow-clear="false"
           tree-default-expand-all
           show-search
           :tree-node-filter-prop="'title'"
@@ -67,46 +68,21 @@
             </div>
           </div>
 
-          <div class="smart-park-sidebar__secondary">
-            <template v-for="item in secondaryMenuItems" :key="item.key">
-              <a-button
-                v-if="!item.children.length"
-                type="text"
-                class="smart-park-sidebar__item"
-                :class="{ 'smart-park-sidebar__item--active': isMenuNodeActive(item) }"
-                :title="item.title"
-                @click="handleMenuClick(item)"
-              >
-                <MenuIcon :item="item" class="smart-park-sidebar__item-icon" />
-                <span>{{ item.title }}</span>
-              </a-button>
-
-              <div v-else class="smart-park-sidebar__group">
-                <a-button
-                  type="text"
-                  class="smart-park-sidebar__item smart-park-sidebar__item--group"
-                  :class="{ 'smart-park-sidebar__item--active': isOwnMenuNodeActive(item) }"
-                  :title="item.title"
-                  @click="handleMenuClick(item)"
-                >
-                  <MenuIcon :item="item" class="smart-park-sidebar__item-icon" />
-                  <span>{{ item.title }}</span>
-                </a-button>
-                <a-button
-                  v-for="child in item.children"
-                  :key="child.key"
-                  type="text"
-                  class="smart-park-sidebar__item smart-park-sidebar__item--sub"
-                  :class="{ 'smart-park-sidebar__item--active': isMenuNodeActive(child) }"
-                  :title="child.title"
-                  @click="handleMenuClick(child)"
-                >
-                  <span class="smart-park-sidebar__sub-dot" />
-                  <span>{{ child.title }}</span>
-                </a-button>
-              </div>
-            </template>
-          </div>
+          <a-menu
+            class="smart-park-sidebar__secondary"
+            mode="inline"
+            :selectedKeys="state.selectedKeys"
+            :openKeys="state.openKeys"
+            :style="{ borderInlineEnd: '0', background: 'transparent', color: 'var(--jet-theme-text)' }"
+            @click="handleSecondaryMenuClick"
+            @openChange="handleSecondaryOpenChange"
+          >
+            <SmartParkSidebarMenu
+              :nodes="secondaryMenuItems"
+              :title-click="handleMenuClick"
+              :is-active="isOwnMenuNodeActive"
+            />
+          </a-menu>
         </div>
       </nav>
     </aside>
@@ -117,18 +93,21 @@
       </section>
     </main>
   </div>
-  <AiChat />
 </template>
 
 <script setup name="SmartParkLayoutPage" lang="ts">
-import { computed, defineComponent, h, onMounted, reactive, ref, resolveComponent, type PropType, watchEffect } from 'vue'
+import { computed, defineComponent, h, onMounted, reactive, ref, resolveComponent, type PropType, watch, watchEffect } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
+import type { MenuProps } from 'ant-design-vue'
 import { storeToRefs } from 'pinia'
+import { LocalStore } from '@jetlinks-web/utils'
 import { request } from '@jetlinks-web/core'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
-import { Notice, AiChat, User } from './components'
+import { useUserStore } from '@jetlinks-web-core/store'
+import { Notice, User } from './components'
 import { getHideHeaderRightConfig } from '@jetlinks-web-core/utils'
+import { PARK_STORAGE_KEY } from '@jetlinks-web-core/utils/consts'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { LayoutType } from '@jetlinks-web/components/es/ProLayout/defaultSettings'
 import { defaultRouteContext, provideRouteContext } from '@jetlinks-web/components/es/ProLayout/RouteContext'
@@ -166,6 +145,7 @@ type ParkTreeSelectNode = {
   title: string
   value: string
   key: string
+  disabled?: boolean
   selectable?: boolean
   children?: ParkTreeSelectNode[]
 }
@@ -199,19 +179,72 @@ const MenuIcon = defineComponent({
   },
 })
 
+// 侧栏菜单显式渲染 title slot，避免不同 Ant Design Vue 版本对 items.label 的渲染差异导致菜单名丢失。
+const SmartParkSidebarMenu = defineComponent({
+  name: 'SmartParkSidebarMenu',
+  props: {
+    nodes: {
+      type: Array as PropType<MenuNode[]>,
+      required: true,
+    },
+    titleClick: {
+      type: Function as PropType<(node: MenuNode) => void>,
+      required: true,
+    },
+    isActive: {
+      type: Function as PropType<(node: MenuNode) => boolean>,
+      required: true,
+    },
+  },
+  setup(props) {
+    const AMenuItem = resolveComponent('AMenuItem')
+    const ASubMenu = resolveComponent('ASubMenu')
+
+    const renderLabel = (node: MenuNode) => h('span', {
+      class: ['smart-park-sidebar__menu-label', {
+        'smart-park-sidebar__menu-label--active': props.isActive(node),
+      }],
+    }, [
+      h(MenuIcon, { item: node, class: 'smart-park-sidebar__item-icon', style: { marginRight: '6px' } },),
+      h('span', { class: 'smart-park-sidebar__item-title' }, node.title),
+    ])
+
+    const renderNodes = (nodes: MenuNode[]): ReturnType<typeof h>[] => nodes.map((node) => {
+      if (node.children.length) {
+        return h(ASubMenu, {
+          key: node.key,
+          onTitleClick: () => props.titleClick(node),
+        }, {
+          title: () => renderLabel(node),
+          default: () => renderNodes(node.children),
+        })
+      }
+
+      return h(AMenuItem, { key: node.key }, {
+        default: () => renderLabel(node),
+      })
+    })
+
+    return () => renderNodes(props.nodes)
+  },
+})
+
 const router = useRouter()
 const route = useRoute()
 const systemStore = useSystemStore()
 const menuStore = useMenuStore()
+const userStore = useUserStore()
 const hideHeaderRight = getHideHeaderRightConfig()
 
 const { layout } = storeToRefs(systemStore)
-const selectedPark = ref('all')
+const selectedPark = ref(String(LocalStore.get(PARK_STORAGE_KEY) || ''))
 const loadingParks = ref(false)
 const currentUserParkTree = ref<BasicConfigTreeNode[]>([])
 
 const state = reactive({
   pure: false,
+  openKeys: [] as string[],
+  selectedKeys: [] as string[],
 })
 
 const routeSelectedKeys = computed(() => {
@@ -233,7 +266,7 @@ const toParkTreeSelectNode = (node: BasicConfigTreeNode): ParkTreeSelectNode | u
     return {
       title: String(node.name || value),
       value,
-      key: String(node.key || `park:${value}`),
+      key: value,
     }
   }
 
@@ -251,7 +284,8 @@ const toParkTreeSelectNode = (node: BasicConfigTreeNode): ParkTreeSelectNode | u
   return {
     title: String(node.name || value),
     value: `org:${value}`,
-    key: String(node.key || `org:${value}`),
+    key: `org:${value}`,
+    disabled: true,
     selectable: false,
     children,
   }
@@ -264,7 +298,7 @@ const currentUserParkOptions = computed<ParkTreeSelectNode[]>(() => (
 ))
 
 const parkOptions = computed<ParkTreeSelectNode[]>(() => [
-  { title: '全部园区', value: 'all', key: 'all' },
+  ...(userStore.isAdmin ? [{ title: '全部园区', value: 'all', key: 'all' }] : []),
   ...currentUserParkOptions.value,
 ])
 
@@ -280,9 +314,29 @@ const loadCurrentUserParkTree = async () => {
   }
 }
 
+const isSelectableParkOption = (node: ParkTreeSelectNode): boolean => node.selectable !== false
+
 const includesParkOptionValue = (options: ParkTreeSelectNode[], value: string): boolean => (
-  options.some(item => item.value === value || includesParkOptionValue(item.children || [], value))
+  options.some(item => (
+    (isSelectableParkOption(item) && item.value === value)
+      || includesParkOptionValue(item.children || [], value)
+  ))
 )
+
+const findFirstSelectableParkValue = (options: ParkTreeSelectNode[]): string | undefined => {
+  for (const item of options) {
+    if (isSelectableParkOption(item)) {
+      return item.value
+    }
+
+    const childValue = findFirstSelectableParkValue(item.children || [])
+    if (childValue) {
+      return childValue
+    }
+  }
+
+  return undefined
+}
 
 const normalizeMenuNode = (item: RouteRecordRaw): MenuNode | undefined => {
   const meta = (item.meta || {}) as Record<string, any>
@@ -408,6 +462,18 @@ const secondaryMenuItems = computed(() => {
   const section = activeSection.value
   return section?.children.length ? section.children : (section ? [section] : [])
 })
+const secondaryMenuNodeMap = computed(() => {
+  const map = new Map<string, MenuNode>()
+  const collect = (nodes: MenuNode[]) => {
+    nodes.forEach((item) => {
+      map.set(item.key, item)
+      collect(item.children)
+    })
+  }
+
+  collect(secondaryMenuItems.value)
+  return map
+})
 
 const findFirstNavigableNode = (node: MenuNode): MenuNode => {
   if (!node.children.length) return node
@@ -435,12 +501,64 @@ const handleRootClick = (node: MenuNode) => {
   handleMenuClick(findFirstNavigableNode(node))
 }
 
+const handleSecondaryMenuClick: MenuProps['onClick'] = ({ key }) => {
+  const node = secondaryMenuNodeMap.value.get(String(key))
+  if (node) {
+    handleMenuClick(node)
+  }
+}
+
+const handleSecondaryOpenChange: MenuProps['onOpenChange'] = (openKeys) => {
+  state.openKeys = openKeys.map(String)
+}
+
+const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
+  // a-menu 的 key 与 normalizeMenuNode 一致，优先取 path，再回退 name，避免 selectedKeys 命中不到菜单节点。
+  const menuKeys = paths.map(item => item.path || item.name).filter(Boolean).map(String)
+  const leafKey = menuKeys.at(-1)
+  const openKeys = leafKey ? menuKeys.slice(0, -1) : menuKeys
+
+  if (!leafKey) {
+    return {
+      selectedKeys: [] as string[],
+      openKeys,
+    }
+  }
+
+  return {
+    selectedKeys: [leafKey],
+    openKeys,
+  }
+}
+
 watchEffect(() => {
   state.pure = route.query?.layout === 'false'
   if (!includesParkOptionValue(parkOptions.value, selectedPark.value)) {
-    selectedPark.value = parkOptions.value[0]?.value || 'all'
+    selectedPark.value = findFirstSelectableParkValue(parkOptions.value) || ''
+  }
+  const paths = (route.meta.breadcrumb || route.meta.breadcrumbCache || []) as Array<{ path?: string; name?: string }>
+  const resolved = resolveMenuKeys(paths)
+  state.selectedKeys = resolved.selectedKeys
+  state.openKeys = resolved.openKeys
+})
+
+watchEffect(() => {
+  if (selectedPark.value) {
+    LocalStore.set(PARK_STORAGE_KEY, selectedPark.value)
   }
 })
+
+watch(selectedPark, (value, oldValue) => {
+  if (value !== oldValue && route.name !== 'ParkSwitchRedirect') {
+    router.replace({
+      name: 'ParkSwitchRedirect',
+      query: {
+        redirect: route.fullPath,
+        _parkSwitch: String(Date.now()),
+      },
+    })
+  }
+}, { flush: 'post' })
 
 onMounted(loadCurrentUserParkTree)
 </script>
@@ -450,7 +568,7 @@ onMounted(loadCurrentUserParkTree)
   min-height: 100vh;
   display: grid;
   grid-template-rows: 3rem minmax(0, 1fr);
-  grid-template-columns: 18.25rem minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   background:
     radial-gradient(circle at top left, color-mix(in srgb, var(--jet-theme-primary) 7%, transparent), transparent 22%),
     linear-gradient(180deg, var(--jet-theme-bg-base) 0%, var(--jet-theme-bg-layout) 32%, var(--jet-theme-bg-layout) 100%);
@@ -461,8 +579,9 @@ onMounted(loadCurrentUserParkTree)
   top: 3rem;
   grid-row: 2;
   grid-column: 1;
+  width: max-content;
   height: calc(100vh - 3rem);
-  padding: 0.75rem;
+  //padding: 0.5rem 0;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -488,12 +607,12 @@ onMounted(loadCurrentUserParkTree)
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 1rem;
+  gap: 2rem;
   position: sticky;
   top: 0;
   z-index: 20;
-  background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-color-3) 100%);
-  background-image: url('/layout/top.png'), linear-gradient(90deg, var(--primary-color) 0%, var(--primary-color-3) 100%);
+  background: linear-gradient(90deg, #2C72DA 0%, #00CDEC 100%);
+  background-image: url('/layout/top.png'), linear-gradient(90deg, #2C72DA 0%, #00CDEC 100%);
   background-repeat: no-repeat, no-repeat;
   background-position: right 4rem center, center;
   background-size: 19rem auto, cover;
@@ -509,7 +628,7 @@ onMounted(loadCurrentUserParkTree)
   flex: 0 1 auto;
   align-items: stretch;
   justify-content: flex-start;
-  gap: 1rem;
+  gap: 1.25rem;
   overflow: auto hidden;
 }
 
@@ -537,44 +656,42 @@ onMounted(loadCurrentUserParkTree)
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: rgba(255, 255, 255, 0.82);
+  color: #fff;
   background: transparent;
   position: relative;
   box-shadow: none;
+  color: #fff;
 }
 
 .smart-park-product-tab:hover,
-.smart-park-product-tab--active {
-  color: #fff;
+.smart-park-product-tab:focus,
+.smart-park-product-tab:active {
+  color: rgba(255, 255, 255, 0.82);
   background: transparent;
 }
 
-.smart-park-product-tab--active {
-  font-weight: 700;
-}
-
-.smart-park-product-tab--active::after {
-  content: "";
+.smart-park-product-tab::after {
+  content: '';
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
-  height: 0.1875rem;
-  border-radius: 999px 999px 0 0;
+  bottom: 0.5rem;
+  height: 0.125rem;
+  border-radius: 999px;
   background: #fff;
-  animation: smartParkTabSlide 0.22s ease-out;
+  opacity: 0;
+  transform: scaleX(0.6);
+  transform-origin: center;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
-@keyframes smartParkTabSlide {
-  from {
-    transform: scaleX(0.35);
-    opacity: 0.35;
-  }
+.smart-park-product-tab--active {
+  color: #fff;
+}
 
-  to {
-    transform: scaleX(1);
-    opacity: 1;
-  }
+.smart-park-product-tab--active::after {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 .smart-park-sidebar__brand {
@@ -622,42 +739,54 @@ onMounted(loadCurrentUserParkTree)
 .smart-park-sidebar__brand-text strong {
   color: #fff;
   font-size: var(--fs-h4);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .smart-park-sidebar__brand-text span {
-  color: var(--jet-theme-text-secondary);
+  color: #fff;
   font-size: var(--fs-meta);
 }
 
 .smart-park-sidebar__nav {
   min-height: 0;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #FFF 0%, #DCEFFF 100%);
+  background-image: url('/layout/sider.png'), linear-gradient(180deg, #FFF 0%, #DCEFFF 100%);
+  background-repeat: no-repeat, no-repeat;
+  background-position: center bottom 0.5rem, center;
+  background-size: calc(100% - 1rem) auto, cover;
+  overflow: hidden;
 }
 
 .smart-park-sidebar__domain {
-  height: 100%;
+  min-height: 0;
+  flex: 1;
+  width: fit-content;
+  max-width: 100%;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 1rem;
+  grid-template-columns: auto auto;
+  //gap: 1rem;
 }
 
 .smart-park-sidebar__domain--simple {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: auto;
 }
 
 .smart-park-sidebar__primary-rail {
   min-width: 0;
   display: grid;
   align-content: start;
-  gap: 12px;
-  padding-right: 0.75rem;
+  gap: 8px;
+  //padding-right: 0.75rem;
   overflow-y: auto;
   border-right: 1px solid var(--jet-theme-border-secondary);
 }
 
 .smart-park-sidebar__primary,
-.smart-park-sidebar__item {
+.smart-park-sidebar__secondary :deep(.ant-menu-item),
+.smart-park-sidebar__secondary :deep(.ant-menu-submenu-title) {
   box-sizing: border-box;
   width: 100%;
   border: 0;
@@ -669,12 +798,12 @@ onMounted(loadCurrentUserParkTree)
 }
 
 .smart-park-sidebar__primary {
-  //min-height: 3.625rem;
-  padding: 12px;
+  /* min-height: 3.625rem; */
+  padding: 8px;
   display: grid;
   place-items: center;
   gap: 8px;
-  width: 58px;
+  width: 50px;
   border-radius: var(--jet-theme-button-r);
 }
 
@@ -691,71 +820,15 @@ onMounted(loadCurrentUserParkTree)
 .smart-park-sidebar__primary:hover,
 .smart-park-sidebar__primary--active {
   color: var(--jet-theme-primary);
-  background: var(--jet-theme-primary-soft);
+  background: transparent;
 }
 
 .smart-park-sidebar__secondary {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: 1rem;
-  padding-right: 1rem;
+  width: 11.25rem;
+  min-width: 11.25rem;
+  padding-right: 0.75rem;
   overflow-x: hidden;
   overflow-y: auto;
-}
-
-.smart-park-sidebar__group {
-  min-width: 0;
-  display: grid;
-  gap: 1rem;
-}
-
-.smart-park-sidebar__item {
-  position: relative;
-  min-width: 0;
-  min-height: 2.5rem;
-  padding: 0 1rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  border: 1px solid transparent;
-  border-radius: var(--jet-theme-button-r-sm);
-  text-align: left;
-}
-
-.smart-park-sidebar__item span:last-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.smart-park-sidebar__item:hover {
-  color: var(--jet-theme-text);
-  background: var(--jet-theme-border-secondary);
-}
-
-.smart-park-sidebar__item--active {
-  color: var(--jet-theme-primary);
-  background: var(--jet-theme-primary-soft);
-  border-color: color-mix(in srgb, var(--jet-theme-primary) 18%, transparent);
-  font-weight: 600;
-}
-
-.smart-park-sidebar__item--group {
-  margin-top: 1rem;
-  color: var(--jet-theme-text);
-  font-weight: 700;
-}
-
-.smart-park-sidebar__group:first-child .smart-park-sidebar__item--group {
-  margin-top: 0;
-}
-
-.smart-park-sidebar__item--sub {
-  min-height: 2.25rem;
-  padding-left: calc(1rem + 1.375rem);
-  color: var(--jet-theme-text-secondary);
 }
 
 .smart-park-sidebar__icon {
@@ -764,8 +837,28 @@ onMounted(loadCurrentUserParkTree)
   flex: 0 0 1.125rem;
   display: inline-grid;
   place-items: center;
+  color: currentColor;
   font-size: var(--fs-body);
   line-height: 1;
+}
+
+.smart-park-sidebar__menu-label {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.smart-park-sidebar__item-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smart-park-sidebar__menu-label--active {
+  color: var(--jet-theme-primary);
+  //font-weight: 600;
 }
 
 .smart-park-sidebar__primary-icon {
@@ -774,17 +867,47 @@ onMounted(loadCurrentUserParkTree)
   font-size: var(--fs-h4);
 }
 
-.smart-park-sidebar__sub-dot {
-  width: 0.375rem;
-  height: 0.375rem;
-  flex: 0 0 0.375rem;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.4;
+.smart-park-sidebar__secondary :deep(.ant-menu-item-selected),
+.smart-park-sidebar__secondary :deep(.ant-menu-submenu-selected > .ant-menu-submenu-title) {
+  background: transparent !important;
+  color: var(--jet-theme-primary) !important;
+  //font-weight: 600;
+}
+
+.smart-park-sidebar__secondary :deep(.ant-menu-item:hover),
+.smart-park-sidebar__secondary :deep(.ant-menu-submenu-title:hover) {
+  background: transparent !important;
+  color: var(--jet-theme-primary) !important;
+}
+
+.smart-park-sidebar__secondary :deep(.ant-menu-item-selected::after),
+.smart-park-sidebar__secondary :deep(.ant-menu-submenu-selected > .ant-menu-submenu-title::after) {
+  display: none !important;
+}
+
+.smart-park-sidebar__secondary :deep(.ant-menu-title-content) {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.smart-park-sidebar__menu-label :deep(.smart-park-sidebar__icon) {
+  margin-inline-end: 0.125rem;
+}
+
+.smart-park-sidebar__secondary :deep(.smart-park-sidebar__icon),
+.smart-park-sidebar__secondary :deep(.smart-park-sidebar__icon .anticon) {
+  color: currentColor !important;
+}
+
+.smart-park-sidebar__secondary :deep(.ant-menu-item-selected .smart-park-sidebar__icon),
+.smart-park-sidebar__secondary :deep(.ant-menu-submenu-selected > .ant-menu-submenu-title .smart-park-sidebar__icon) {
+  color: currentColor !important;
 }
 
 .smart-park-sidebar__primary:focus-visible,
-.smart-park-sidebar__item:focus-visible,
+.smart-park-sidebar__secondary :deep(.ant-menu-item:focus-visible),
+.smart-park-sidebar__secondary :deep(.ant-menu-submenu-title:focus-visible),
 .smart-park-product-tab:focus-visible {
   outline: 0;
   box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--jet-theme-primary) 18%, transparent);

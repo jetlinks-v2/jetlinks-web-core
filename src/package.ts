@@ -20,7 +20,9 @@ import {
     getProjectIdFromLocation,
     getProjectStorage,
     isProjectStorageEnabled,
+    getSelectedParkHeaderValue,
 } from '@jetlinks-web-core/utils'
+import { PARK_HEADER_KEY } from '@jetlinks-web-core/utils/consts'
 import microApp from '@micro-zoe/micro-app'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
 import { useVerifyStore } from '@jetlinks-web-core/store/verify'
@@ -201,6 +203,7 @@ export const initAxios = () => {
               }
           },
         requestOptions(config: any) {
+            config.headers = config.headers || {}
 
             let cache = verifyHeadersCache
             if (!cache) {
@@ -217,7 +220,6 @@ export const initAxios = () => {
                 const { storage: projectStorage } = projectContext
 
                 if (projectStorage?.token) {
-                    config.headers = config.headers || {}
                     config.headers[TOKEN_KEY] = projectStorage.token
                     config.headers['X-Tenant-Domain'] = projectStorage.domain
                 }
@@ -232,8 +234,14 @@ export const initAxios = () => {
                 }
             }
 
+            const parkId = getSelectedParkHeaderValue()
+            if (parkId) {
+                config.headers[PARK_HEADER_KEY] = parkId
+            } else if (PARK_HEADER_KEY in config.headers) {
+                delete config.headers[PARK_HEADER_KEY]
+            }
+
             if (cache?.key && cache?.token) {
-                config.headers = config.headers || {}
                 config.headers['x-verify-key'] = cache.key
                 config.headers['x-verify-token'] = cache.token
             }

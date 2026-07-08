@@ -3,13 +3,18 @@ import { downloadFileByUrl, getImage, getToken, LocalStore } from '@jetlinks-web
 import { getFileUrlById } from '@jetlinks-web-core/api/comm'
 import { message } from 'ant-design-vue'
 import { BASE_API, TOKEN_KEY } from '@jetlinks-web/constants'
-import { isSubApp, edgeDefaultUrl } from '@jetlinks-web-core/utils/consts'
+import { isSubApp, edgeDefaultUrl, PARK_HEADER_KEY, PARK_STORAGE_KEY } from '@jetlinks-web-core/utils/consts'
 import { isFunction, omit } from 'lodash-es'
 import { getProjectIdFromLocation } from './project-runtime'
 import { getProjectStorage, isProjectStorageEnabled } from './project-storage'
 
 const TENANT_DOMAIN_KEY = 'X-Tenant-Domain'
 const VERIFY_CACHE_KEY = 'jetlinks_verify_cache'
+
+export const getSelectedParkHeaderValue = (): string | undefined => {
+  const value = String(LocalStore.get(PARK_STORAGE_KEY) || '').trim()
+  return value && value !== 'all' ? value : undefined
+}
 
 export const downloadJson = (
   record: Record<string, any>,
@@ -185,6 +190,7 @@ export const getUploadHeaders = () => {
   const projectId = isProjectStorageEnabled() ? getProjectIdFromLocation() : ''
   const projectStorage = projectId ? getProjectStorage(projectId) : undefined
   const token = projectStorage?.token || getToken()
+  const parkId = getSelectedParkHeaderValue()
 
   if (token) {
     headers[TOKEN_KEY] = token
@@ -192,6 +198,10 @@ export const getUploadHeaders = () => {
 
   if (projectStorage?.domain) {
     headers[TENANT_DOMAIN_KEY] = projectStorage.domain
+  }
+
+  if (parkId) {
+    headers[PARK_HEADER_KEY] = parkId
   }
 
   return {

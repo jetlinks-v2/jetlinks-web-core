@@ -53,6 +53,7 @@ import OutputSchemaEditor from './OutputSchemaEditor/index.vue'
 import ResponsiveGrid from './ResponsiveGrid/index.vue'
 import SectionCard from './SectionCard/index.vue'
 import StickyActionBar from './StickyActionBar/index.vue'
+import SimpleTabs from './SimpleTabs/index.vue'
 import PageRouteSkeleton from './PageRouteSkeleton/index.vue'
 import PageRouteView from './PageRouteView/index.vue'
 import EqualHeightColumns from './EqualHeightColumns/index.vue'
@@ -115,6 +116,7 @@ export default {
           .component('ResponsiveGrid', ResponsiveGrid)
           .component('SectionCard', SectionCard)
           .component('StickyActionBar', StickyActionBar)
+          .component('SimpleTabs', SimpleTabs)
           .component('PageRouteSkeleton', PageRouteSkeleton)
           .component('PageRouteView', PageRouteView)
           .component('EqualHeightColumns', EqualHeightColumns)
