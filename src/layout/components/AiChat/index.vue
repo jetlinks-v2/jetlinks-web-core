@@ -82,7 +82,7 @@ import { useFloatingBubble } from './useFloatingBubble'
 import { RobotOutlined } from '@ant-design/icons-vue'
 import {
   hasPendingAiAgentHandoff,
-  markAiAgentHandoffOpened,
+  resolveAiAgentConversationHandoffKey,
   resolveAiAgentHandoffTarget,
 } from './agentHandoff'
 import './AiChatLauncher.less'
@@ -151,6 +151,18 @@ const handleBackgroundMessage = () => {
   aiStore.incrementBubbleUnread()
 }
 
+const normalizeScopeText = (value) => String(value || '').trim()
+const pendingHandoffKey = computed(() => normalizeScopeText(parameters.value?.handoffKey))
+
+const pendingScopeKey = computed(() => normalizeScopeText(
+  parameters.value?.scopeKey
+  || parameters.value?.scopeId
+  || parameters.value?.projectId
+  || parameters.value?.draftId
+  || parameters.value?.editorId
+  || parameters.value?.id,
+))
+
 watch(showAiDrawer, (value) => {
   if (value) {
     drawerMounted.value = true
@@ -164,14 +176,23 @@ watch(showAiButton, (value) => {
   }
 })
 
-const pendingHandoffTarget = computed(() => resolveAiAgentHandoffTarget({
-  clientId: activeClientId.value || parameters.value?.clientId,
-  subjectType: parameters.value?.subjectType,
-  subjectId: parameters.value?.subjectId,
-  routeName: parameters.value?.routeName,
-  menuCode: parameters.value?.menuCode,
-  path: parameters.value?.path,
-}, route))
+const pendingHandoffTarget = computed(() => {
+  const target = resolveAiAgentHandoffTarget({
+    handoffKey: pendingHandoffKey.value,
+    clientId: activeClientId.value || parameters.value?.clientId,
+    subjectType: parameters.value?.subjectType,
+    subjectId: parameters.value?.subjectId,
+    scopeType: parameters.value?.scopeType || parameters.value?.projectType,
+    scopeKey: pendingScopeKey.value,
+    routeName: parameters.value?.routeName,
+    menuCode: parameters.value?.menuCode,
+    path: parameters.value?.path,
+  }, route)
+  return {
+    ...target,
+    handoffKey: resolveAiAgentConversationHandoffKey(target),
+  }
+})
 
 const hasStableTargetAgent = computed(() => (
   showAiButton.value
@@ -185,14 +206,21 @@ watch(
     activeClientId.value,
     pendingClientId.value,
     agentList.value.length,
+    parameters.value?.handoffKey,
     parameters.value?.subjectType,
     parameters.value?.subjectId,
+    parameters.value?.scopeType,
+    parameters.value?.scopeKey,
+    parameters.value?.scopeId,
+    parameters.value?.projectId,
+    parameters.value?.draftId,
+    parameters.value?.editorId,
+    parameters.value?.id,
     parameters.value?.routeName,
     parameters.value?.menuCode,
     parameters.value?.path,
     route.name,
     route.path,
-    route.fullPath,
   ],
   () => {
     const target = pendingHandoffTarget.value
@@ -200,7 +228,6 @@ watch(
       return
     }
     aiStore.setDrawer(true)
-    markAiAgentHandoffOpened(target)
   },
   { immediate: true },
 )

@@ -27,6 +27,20 @@ export interface HomeAgentContinuationMetadata {
   blockingFacts?: string[];
 }
 
+export interface HomeAgentContinuationReceiptOptions {
+  targetName?: unknown;
+  targetClientId?: unknown;
+  targetMenuCode?: unknown;
+  routeName?: unknown;
+  path?: unknown;
+  subjectType?: unknown;
+  subjectId?: unknown;
+  subjectName?: unknown;
+  businessObject?: unknown;
+  navigation?: unknown;
+  contextPrepared?: boolean;
+}
+
 export interface HomeAgentMenuEntry {
   code: string;
   name: string;
@@ -197,6 +211,41 @@ const clampLimit = (value: unknown, defaultValue = DEFAULT_LIMIT) => {
 const isPlainRecord = (value: unknown): value is Record<string, any> => (
   !!value && typeof value === 'object' && !Array.isArray(value)
 );
+
+const compactDefined = (value: Record<string, any>) => (
+  Object.fromEntries(Object.entries(value).filter(([, item]) => {
+    if (Array.isArray(item)) return item.length > 0;
+    return item !== undefined && item !== null && item !== '';
+  }))
+);
+
+export const createHomeAgentContinuationReceipt = (options: HomeAgentContinuationReceiptOptions) => {
+  const subjectType = normalizeText(options.subjectType);
+  const subjectId = normalizeText(options.subjectId);
+  const subjectName = normalizeText(options.subjectName);
+  const subject = subjectType && subjectId
+    ? compactDefined({
+        type: subjectType,
+        id: subjectId,
+        name: subjectName,
+        subjectType,
+        subjectId,
+        subjectName,
+      })
+    : undefined;
+
+  return compactDefined({
+    contextPrepared: options.contextPrepared !== false,
+    targetName: normalizeText(options.targetName) || undefined,
+    targetClientId: normalizeText(options.targetClientId) || undefined,
+    targetMenuCode: normalizeText(options.targetMenuCode) || undefined,
+    routeName: normalizeText(options.routeName) || undefined,
+    path: normalizeText(options.path) || undefined,
+    subject,
+    businessObject: isPlainRecord(options.businessObject) ? compactDefined(options.businessObject) : undefined,
+    navigation: isPlainRecord(options.navigation) ? compactDefined(options.navigation) : undefined,
+  });
+};
 
 const parseObjectParam = (value: string | null) => {
   const text = normalizeText(value);

@@ -1,7 +1,11 @@
 export interface AiAgentHandoffTarget {
+  handoffKey?: unknown;
   clientId?: unknown;
   subjectType?: unknown;
   subjectId?: unknown;
+  subjectName?: unknown;
+  scopeType?: unknown;
+  scopeKey?: unknown;
   routeName?: unknown;
   menuCode?: unknown;
   path?: unknown;
@@ -12,7 +16,6 @@ export interface AiAgentHandoffPayload extends AiAgentHandoffTarget {
   label?: unknown;
   context?: unknown;
   source?: unknown;
-  ttlMs?: number;
 }
 
 export interface AiAgentHandoffRouteSource {
@@ -25,9 +28,13 @@ export interface AiAgentHandoffRouteSource {
 export interface AiAgentHandoffRecord {
   id: string;
   target: {
+    handoffKey?: string;
     clientId?: string;
     subjectType?: string;
     subjectId?: string;
+    subjectName?: string;
+    scopeType?: string;
+    scopeKey?: string;
     routeName?: string;
     menuCode?: string;
     path?: string;
@@ -38,11 +45,12 @@ export interface AiAgentHandoffRecord {
   source?: string;
   createdAt: number;
   expiresAt: number;
-  openedAt?: number;
 }
 
 const HANDOFF_PREFIX = 'jetlinks:ai-agent-handoff:';
-const DEFAULT_TTL_MS = 10 * 60 * 1000;
+const HANDOFF_POINTER_PREFIX = 'jetlinks:ai-agent-handoff-pointer:';
+const CONVERSATION_KEY_PREFIX = 'jetlinks:ai-agent-conversation-key:';
+const DEFAULT_TTL_MS = 30 * 60 * 1000;
 const MAX_CONTEXT_CHARS = 6000;
 
 const normalizeText = (value: unknown) => String(value || '').trim();
@@ -60,9 +68,13 @@ const createHandoffId = () => {
 };
 
 const normalizeTarget = (target: AiAgentHandoffTarget) => ({
+  handoffKey: normalizeText(target.handoffKey),
   clientId: normalizeText(target.clientId),
   subjectType: normalizeText(target.subjectType),
   subjectId: normalizeText(target.subjectId),
+  subjectName: normalizeText(target.subjectName),
+  scopeType: normalizeText(target.scopeType),
+  scopeKey: normalizeText(target.scopeKey),
   routeName: normalizeText(target.routeName),
   menuCode: normalizeText(target.menuCode),
   path: normalizeText(target.path),
@@ -93,8 +105,8 @@ const normalizeContext = (value: unknown): Record<string, any> | undefined => {
 /**
  * Normalizes the page identity used by handoff producers and AiChat consumers.
  *
- * Subject identity is still the strongest match; route/menu/path are fallbacks for
- * pages that expose an agent without a concrete business object subject.
+ * Producers write a random handoffKey and consumers use subject-like fields only
+ * to find that key from the current tab pointer.
  */
 export const resolveAiAgentHandoffTarget = (
   target: AiAgentHandoffTarget,
@@ -120,28 +132,26 @@ export const resolveAiAgentHandoffTarget = (
 
 export const buildAiAgentHandoffKey = (target: AiAgentHandoffTarget) => {
   const normalized = normalizeTarget(target);
-  const { clientId, subjectType, subjectId, routeName, menuCode, path } = normalized;
-  const parts: string[] = [];
+  const { handoffKey } = normalized;
+  return handoffKey ? `${HANDOFF_PREFIX}${handoffKey}` : '';
+};
 
+const buildAiAgentTargetIdentity = (target: AiAgentHandoffTarget) => {
+  const normalized = normalizeTarget(target);
+  const { clientId, subjectType, subjectId } = normalized;
+  const parts: string[] = [];
   if (clientId && subjectType && subjectId) {
     parts.push('client', clientId, 'subject', subjectType, subjectId);
   } else if (subjectType && subjectId) {
     parts.push('subject', subjectType, subjectId);
-  } else if (clientId && routeName) {
-    parts.push('client', clientId, 'route', routeName);
-  } else if (routeName) {
-    parts.push('route', routeName);
-  } else if (clientId && menuCode) {
-    parts.push('client', clientId, 'menu', menuCode);
-  } else if (menuCode) {
-    parts.push('menu', menuCode);
-  } else if (clientId && path) {
-    parts.push('client', clientId, 'path', path);
-  } else if (path) {
-    parts.push('path', path);
   }
 
-  return parts.length ? `${HANDOFF_PREFIX}${parts.map(encodePart).join(':')}` : '';
+  return parts.length ? parts.map(encodePart).join(':') : '';
+};
+
+const getHandoffPointerKey = (target: AiAgentHandoffTarget) => {
+  const identity = buildAiAgentTargetIdentity(target);
+  return identity ? `${HANDOFF_POINTER_PREFIX}${identity}` : '';
 };
 
 const getStorage = () => {
@@ -150,6 +160,87 @@ const getStorage = () => {
     return window.localStorage;
   } catch {
     return undefined;
+  }
+};
+
+const getSessionStorage = () => {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return undefined;
+  }
+};
+
+const readHandoffPointer = (target: AiAgentHandoffTarget) => {
+  const sessionStorage = getSessionStorage();
+  const pointerKey = getHandoffPointerKey(target);
+  if (!sessionStorage || !pointerKey) return '';
+  return normalizeText(sessionStorage.getItem(pointerKey));
+};
+
+const writeHandoffPointer = (target: AiAgentHandoffTarget, handoffKey: string) => {
+  const sessionStorage = getSessionStorage();
+  const pointerKey = getHandoffPointerKey(target);
+  if (!sessionStorage || !pointerKey || !handoffKey) return;
+  try {
+    sessionStorage.setItem(pointerKey, handoffKey);
+  } catch {
+    // Handoff still works through the explicit key; the pointer only helps same-tab navigation.
+  }
+};
+
+const clearHandoffPointer = (target: AiAgentHandoffTarget, handoffKey?: string) => {
+  const sessionStorage = getSessionStorage();
+  const pointerKey = getHandoffPointerKey(target);
+  if (!sessionStorage || !pointerKey) return;
+  try {
+    const current = normalizeText(sessionStorage.getItem(pointerKey));
+    if (!handoffKey || current === handoffKey) {
+      sessionStorage.removeItem(pointerKey);
+    }
+  } catch {
+    // Ignore storage failures; stale pointers are cleaned up when the handoff record is missing.
+  }
+};
+
+const resolveHandoffStorageTarget = (target: AiAgentHandoffTarget) => {
+  const normalized = normalizeTarget(target);
+  if (normalized.handoffKey) {
+    return normalized;
+  }
+  const handoffKey = readHandoffPointer(normalized);
+  return handoffKey ? { ...normalized, handoffKey } : normalized;
+};
+
+export const resolveAiAgentConversationHandoffKey = (target: AiAgentHandoffTarget) => {
+  const normalized = normalizeTarget(target);
+  if (normalized.handoffKey) {
+    return normalized.handoffKey;
+  }
+
+  const pendingHandoffKey = readHandoffPointer(normalized);
+  if (pendingHandoffKey) {
+    return pendingHandoffKey;
+  }
+
+  const sessionStorage = getSessionStorage();
+  const identity = buildAiAgentTargetIdentity(normalized);
+  if (!sessionStorage || !identity) {
+    return createHandoffId();
+  }
+
+  const storageKey = `${CONVERSATION_KEY_PREFIX}${identity}`;
+  try {
+    const existing = normalizeText(sessionStorage.getItem(storageKey));
+    if (existing) {
+      return existing;
+    }
+    const next = createHandoffId();
+    sessionStorage.setItem(storageKey, next);
+    return next;
+  } catch {
+    return createHandoffId();
   }
 };
 
@@ -180,18 +271,20 @@ export const saveAiAgentHandoff = (payload: AiAgentHandoffPayload) => {
   const prompt = normalizeText(payload.prompt).slice(0, 1000);
   if (!prompt) return false;
 
-  const key = buildAiAgentHandoffKey(payload);
+  const normalizedPayload = normalizeTarget(payload);
+  const handoffKey = normalizedPayload.handoffKey || createHandoffId();
+  const target = {
+    ...normalizedPayload,
+    handoffKey,
+  };
+  const key = buildAiAgentHandoffKey(target);
   const storage = getStorage();
   if (!key || !storage) return false;
 
   const now = Date.now();
-  const ttlMs = Number.isFinite(payload.ttlMs) && Number(payload.ttlMs) > 0
-    ? Number(payload.ttlMs)
-    : DEFAULT_TTL_MS;
-  const target = normalizeTarget(payload);
-
   try {
     cleanupAiAgentHandoffs();
+    writeHandoffPointer(normalizedPayload, handoffKey);
     storage.setItem(key, JSON.stringify({
       id: createHandoffId(),
       target: Object.fromEntries(
@@ -202,7 +295,7 @@ export const saveAiAgentHandoff = (payload: AiAgentHandoffPayload) => {
       context: normalizeContext(payload.context),
       source: normalizeText(payload.source) || undefined,
       createdAt: now,
-      expiresAt: now + ttlMs,
+      expiresAt: now + DEFAULT_TTL_MS,
     }));
     return true;
   } catch {
@@ -210,11 +303,9 @@ export const saveAiAgentHandoff = (payload: AiAgentHandoffPayload) => {
   }
 };
 
-export const readAiAgentHandoff = (
-  target: AiAgentHandoffTarget,
-  options: { includeOpened?: boolean } = {},
-) => {
-  const key = buildAiAgentHandoffKey(target);
+export const readAiAgentHandoff = (target: AiAgentHandoffTarget) => {
+  const storageTarget = resolveHandoffStorageTarget(target);
+  const key = buildAiAgentHandoffKey(storageTarget);
   const storage = getStorage();
   if (!key || !storage) return undefined;
 
@@ -225,48 +316,30 @@ export const readAiAgentHandoff = (
     }
     if (record.expiresAt <= Date.now()) {
       storage.removeItem(key);
-      return undefined;
-    }
-    if (record.openedAt && options.includeOpened === false) {
+      clearHandoffPointer(storageTarget, storageTarget.handoffKey);
       return undefined;
     }
     return record;
   } catch {
     storage.removeItem(key);
+    clearHandoffPointer(storageTarget, storageTarget.handoffKey);
     return undefined;
   }
 };
 
 export const hasPendingAiAgentHandoff = (target: AiAgentHandoffTarget) => (
-  !!readAiAgentHandoff(target, { includeOpened: false })
+  !!readAiAgentHandoff(target)
 );
 
-export const markAiAgentHandoffOpened = (target: AiAgentHandoffTarget) => {
-  const key = buildAiAgentHandoffKey(target);
-  const storage = getStorage();
-  if (!key || !storage) return false;
-
-  const record = readAiAgentHandoff(target, { includeOpened: false });
-  if (!record) return false;
-
-  try {
-    storage.setItem(key, JSON.stringify({
-      ...record,
-      openedAt: Date.now(),
-    }));
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 export const clearAiAgentHandoff = (target: AiAgentHandoffTarget) => {
-  const key = buildAiAgentHandoffKey(target);
+  const storageTarget = resolveHandoffStorageTarget(target);
+  const key = buildAiAgentHandoffKey(storageTarget);
   const storage = getStorage();
   if (!key || !storage) return false;
 
   try {
     storage.removeItem(key);
+    clearHandoffPointer(storageTarget, storageTarget.handoffKey);
     return true;
   } catch {
     return false;

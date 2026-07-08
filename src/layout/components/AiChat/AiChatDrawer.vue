@@ -117,6 +117,7 @@ import {
   buildAiAgentHandoffKey,
   clearAiAgentHandoff,
   readAiAgentHandoff,
+  resolveAiAgentConversationHandoffKey,
   resolveAiAgentHandoffTarget,
   type AiAgentHandoffRecord,
 } from './agentHandoff';
@@ -316,17 +317,35 @@ const conversationOpeningStatement = computed(() => String(
   props.parameters?.openingStatement || '',
 ).trim());
 const conversationWelcomeText = computed(() => String(props.parameters?.welcomeText || '').trim());
-const handoffTarget = computed(() => resolveAiAgentHandoffTarget({
-  clientId: props.activeClientId || activeAgent.value?.clientId || props.parameters?.clientId,
-  subjectType: conversationSubject.value?.type || props.parameters?.subjectType,
-  subjectId: conversationSubject.value?.id || props.parameters?.subjectId,
-  routeName: props.parameters?.routeName,
-  menuCode: props.parameters?.menuCode,
-  path: props.parameters?.path,
-}, route));
+const conversationHandoffKey = computed(() => normalizeDisplayText(props.parameters?.handoffKey));
+const conversationScopeKey = computed(() => normalizeDisplayText(
+  props.parameters?.scopeKey
+  || props.parameters?.scopeId
+  || props.parameters?.projectId
+  || props.parameters?.draftId
+  || props.parameters?.editorId
+  || props.parameters?.id,
+));
+const handoffTarget = computed(() => {
+  const target = resolveAiAgentHandoffTarget({
+    handoffKey: conversationHandoffKey.value,
+    clientId: props.activeClientId || activeAgent.value?.clientId || props.parameters?.clientId,
+    subjectType: conversationSubject.value?.type || props.parameters?.subjectType,
+    subjectId: conversationSubject.value?.id || props.parameters?.subjectId,
+    scopeType: props.parameters?.scopeType || props.parameters?.projectType,
+    scopeKey: conversationScopeKey.value,
+    routeName: props.parameters?.routeName,
+    menuCode: props.parameters?.menuCode,
+    path: props.parameters?.path,
+  }, route);
+  return {
+    ...target,
+    handoffKey: resolveAiAgentConversationHandoffKey(target),
+  };
+});
 const handoffTargetKey = computed(() => buildAiAgentHandoffKey(handoffTarget.value));
 const syncHandoffRecord = () => {
-  const record = readAiAgentHandoff(handoffTarget.value, { includeOpened: true });
+  const record = readAiAgentHandoff(handoffTarget.value);
   if (record) {
     activeHandoffRecord.value = record;
   }
@@ -342,11 +361,13 @@ const visibleHandoffRecord = computed(() => {
 const conversationHandoffContext = computed(() => {
   const record = activeHandoffRecord.value;
   if (!record) return undefined;
+  const target = { ...(record.target || {}) };
+  delete target.handoffKey;
   return {
     prompt: record.prompt,
     label: record.label,
     source: record.source,
-    target: record.target,
+    target,
     context: record.context,
     createdAt: record.createdAt,
   };
@@ -383,6 +404,10 @@ const conversationSuggestedPrompts = computed(() => {
   const source = props.parameters?.suggestedPrompts;
   return Array.isArray(source) ? source : [];
 });
+const conversationIdentityKey = computed(() => (
+  handoffTarget.value.handoffKey
+  || handoffTargetKey.value
+));
 
 const clearHandoffPrefillCheckTimers = () => {
   handoffPrefillCheckTimers.forEach((timer) => window.clearTimeout(timer));
@@ -439,6 +464,7 @@ const conversationKey = computed(() => [
   activeAgent.value?.clientId || '',
   conversationSubject.value?.type || '',
   conversationSubject.value?.id || '',
+  conversationIdentityKey.value,
   conversationClientToolsName.value,
   JSON.stringify(conversationWorkflowGuides.value || []),
   conversationSystemPrompt.value,
