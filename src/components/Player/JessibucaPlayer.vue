@@ -145,20 +145,13 @@ defineExpose({
   transform-origin: center center;
 }
 
-.jmp__container :deep(.xgplayer) {
-  width: 100%;
-  height: 100%;
-}
-
 .jmp__container :deep(video) {
   object-fit: contain;
 }
 
 .jmp__container :deep(.jessibuca-controls),
 .jmp__container :deep(.jessibuca-control),
-.jmp__container :deep(.jessibuca-operate),
-.jmp__container :deep(.xgplayer-controls),
-.jmp__container :deep(.xgplayer-start) {
+.jmp__container :deep(.jessibuca-operate) {
   display: none !important;
 }
 </style>
