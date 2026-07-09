@@ -199,11 +199,15 @@ export function useJessibucaPlayer(
     jessibucaPlayer.on('videoInfo', (info: any) => {
       const width = Number(info?.width ?? info?.w ?? info?.videoWidth ?? 0);
       const height = Number(info?.height ?? info?.h ?? info?.videoHeight ?? 0);
-      aiOverlayVideoInfo.value = {
+      const videoInfo = {
         width: Number.isFinite(width) && width > 0 ? width : 0,
         height: Number.isFinite(height) && height > 0 ? height : 0,
         codec: info?.codec || info?.codecName,
       };
+      aiOverlayVideoInfo.value = videoInfo;
+      if (videoInfo.width > 0 && videoInfo.height > 0) {
+        props.onVideoInfo?.(videoInfo);
+      }
       resizePlayer(true);
     });
     jessibucaPlayer.on('timeUpdate', (payload) => {

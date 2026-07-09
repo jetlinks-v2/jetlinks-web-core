@@ -67,6 +67,39 @@ export const useAIStore = defineStore('ai', () => {
     }
   }
 
+  const prepareAgentConversation = (
+    clientId: string,
+    _parameters: Record<string, any> = {},
+  ) => {
+    const nextClientId = String(clientId || '')
+    if (!nextClientId) return
+
+    queryVersion += 1
+    pendingClientId.value = nextClientId
+    if (activeClientId.value !== nextClientId) {
+      activeClientId.value = ''
+      showAiButton.value = false
+      showAiDrawer.value = false
+      agentList.value = []
+      clearBubbleUnread()
+    }
+    parameters.value = _parameters || {}
+    setBubbleConfig(parameters.value)
+  }
+
+  const releaseAgentConversation = (clientId: string) => {
+    const nextClientId = String(clientId || '')
+    if (!nextClientId) return
+
+    if (pendingClientId.value === nextClientId) {
+      queryVersion += 1
+      pendingClientId.value = ''
+    }
+    if (activeClientId.value === nextClientId) {
+      hideAiButton()
+    }
+  }
+
   const openAgentConversation = (
     list: any[] = [],
     _parameters: Record<string, any> = {},
@@ -166,6 +199,8 @@ export const useAIStore = defineStore('ai', () => {
     queryAgent,
     setDrawer,
     openAgentConversation,
+    prepareAgentConversation,
+    releaseAgentConversation,
     clearBubbleUnread,
     incrementBubbleUnread,
   }
