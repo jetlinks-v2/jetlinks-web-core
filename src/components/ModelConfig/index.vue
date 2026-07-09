@@ -1183,7 +1183,7 @@ async function previewFile() {
 .model-config__resize {
   position: relative;
   min-width: 0;
-  background: var(--bg-sunken);
+  background: transparent;
   cursor: col-resize;
   touch-action: none;
 }
@@ -1197,13 +1197,14 @@ async function previewFile() {
   width: 1px;
   background: var(--line);
   transform: translateX(-50%);
-  transition: background-color 0.2s;
+  opacity: 0.65;
+  transition: background-color 0.2s, opacity 0.2s;
 }
 
 .model-config__resize:hover::before,
 .model-config__resize:focus-visible::before,
 .model-config--resizing .model-config__resize::before {
-  width: 2px;
+  opacity: 1;
   background: var(--primary-color);
 }
 
