@@ -1,5 +1,5 @@
 import type { ExtractPropTypes, PropType } from 'vue';
-import type { AiOverlayOptions, AiOverlayPayload } from './aiOverlay/types';
+import type { AiOverlayOptions, AiOverlayPayload, AiOverlayVideoInfo } from './aiOverlay/types';
 
 export type MediaPlayerProtocol = 'mp4' | 'flv' | 'm3u8' | 'rtc' | string;
 
@@ -122,6 +122,10 @@ export const mediaPlayerProps = {
   },
   onAiOverlay: {
     type: Function as PropType<(payload: AiOverlayPayload) => void>,
+    default: undefined,
+  },
+  onVideoInfo: {
+    type: Function as PropType<(info: AiOverlayVideoInfo) => void>,
     default: undefined,
   },
   options: {
