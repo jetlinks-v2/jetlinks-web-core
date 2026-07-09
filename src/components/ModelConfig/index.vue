@@ -1159,7 +1159,7 @@ async function previewFile() {
 <style scoped lang="less">
 .model-config {
   display: grid;
-  grid-template-columns: var(--model-config-sider-width, 17.5rem) 0.5rem minmax(0, 1fr) auto;
+  grid-template-columns: var(--model-config-sider-width, 17.5rem) 1px minmax(0, 1fr) auto;
   height: 100%;
   min-height: 0;
   background: var(--bg-sunken);
