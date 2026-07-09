@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import Player, { Events } from 'xgplayer';
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import AiOverlayCanvas from './aiOverlay/AiOverlayCanvas.vue';
 import { createAiOverlayDebugLogger } from './aiOverlay/debug';
@@ -61,6 +61,7 @@ import {
   legacyPlayerOptions,
 } from './legacyPlayerUtils';
 import { mediaPlayerProps } from './types';
+import 'xgplayer/dist/index.min.css'
 
 defineOptions({
   name: 'LegacyPlayer',
@@ -91,7 +92,8 @@ const aiOverlayLogger = () =>
 
 let xgPlayer: any = null;
 let playbackSyncToken = 0;
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let disposed = false;
+let reconnectTimer: number | null = null;
 
 const rtcController = createLegacyRtcController({
   getVideoElement: () => rtcVideoRef.value,
@@ -195,8 +197,8 @@ const bindXgPlayerEvents = () => {
   });
 };
 
-const createXgPlayer = () => {
-  if (!playerHostRef.value || typeof props.url !== 'string' || !props.url) return;
+const createXgPlayer = (host: HTMLElement) => {
+  if (typeof props.url !== 'string' || !props.url) return;
   aiOverlayLogger().trace('LegacyPlayer creating xgplayer', {
     protocol: protocol.value,
     url: props.url,
@@ -204,7 +206,7 @@ const createXgPlayer = () => {
     hasAiOverlay: Boolean(props.aiOverlay),
   });
   xgPlayer = new Player({
-    el: playerHostRef.value,
+    el: host,
     url: props.url,
     isLive: props.live,
     width: '100%',
@@ -238,7 +240,8 @@ const syncPlayback = async () => {
   if (!props.url) return;
 
   await nextTick();
-  if (token !== playbackSyncToken) return;
+  // A pending sync may resume after unmount or after Vue swaps the host branch.
+  if (disposed || token !== playbackSyncToken) return;
 
   if (!isRtc.value) {
     if (isMp4Mse.value) {
@@ -246,7 +249,9 @@ const syncPlayback = async () => {
       startOverlay();
       return;
     }
-    createXgPlayer();
+    const host = playerHostRef.value;
+    if (!host || disposed || token !== playbackSyncToken) return;
+    createXgPlayer(host);
     return;
   }
 
@@ -297,12 +302,25 @@ const getCurrentTime = () => resolveVideoElement()?.currentTime ?? 0;
 const getDuration = () => resolveVideoElement()?.duration ?? 0;
 
 watch(
-  () => [props.url, props.protocol, props.live, props.updateTime] as const,
+  () =>
+    [
+      props.url,
+      props.protocol,
+      props.live,
+      props.updateTime,
+      Boolean(props.aiOverlay),
+    ] as const,
   () => {
     void syncPlayback();
   },
-  { immediate: true },
 );
+
+// Initial sync must wait until the host <div> is mounted. An immediate watcher
+// would fire during setup(), before playerHostRef is assigned, so on a hard
+// refresh (url present synchronously) createXgPlayer would silently bail out.
+onMounted(() => {
+  void syncPlayback();
+});
 
 watch(
   () => [props.muted, props.volume] as const,
@@ -318,6 +336,8 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  disposed = true;
+  playbackSyncToken += 1;
   destroyPlayer();
 });
 
@@ -389,11 +409,5 @@ defineExpose({
 
 .jmp__container :deep(video) {
   object-fit: contain;
-}
-
-.jmp__container :deep(.xgplayer-controls),
-.jmp__container :deep(.xgplayer-start),
-.jmp__container :deep(.vjs-icon-spinner) {
-  display: none !important;
 }
 </style>
