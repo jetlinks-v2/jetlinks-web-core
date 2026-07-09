@@ -1,16 +1,31 @@
 <template>
   <a-modal :open="open" :title="locale.addFile" :width="720" :ok-text="locale.confirm" :cancel-text="locale.cancel" @ok="confirm" @cancel="emit('update:open', false)">
     <a-form layout="vertical">
-      <a-form-item required>
-        <template #label>
-          <span>{{ locale.fileOwner }}</span>
-          <span class="add-file-modal__label-desc">{{ ownerDescription }}</span>
-        </template>
-        <a-radio-group v-model:value="fileOwner">
-          <a-radio-button value="shared">{{ locale.sharedFile }}</a-radio-button>
-          <a-radio-button value="format">{{ selectedFormatName || locale.currentFormatFile }}</a-radio-button>
-        </a-radio-group>
-      </a-form-item>
+      <a-row :gutter="16">
+        <a-col :span="10">
+          <a-form-item :label="locale.filePath">
+            <a-input
+              v-model:value="form.path"
+              :placeholder="locale.rootDirectory"
+              :disabled="pathReadonly"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="14">
+          <a-form-item required>
+            <template #label>
+              <span>{{ locale.fileOwner }}</span>
+              <span class="add-file-modal__label-desc">{{ ownerDescription }}</span>
+            </template>
+            <a-select
+              v-model:value="selectedOwnerFormat"
+              :options="ownerOptions"
+              :placeholder="locale.selectFileOwner"
+              allow-clear
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
       <a-form-item required>
         <template #label>
           <span>{{ locale.createType }}</span>
@@ -40,12 +55,6 @@
           v-model:value="form.name"
           :placeholder="locale.pleaseEnterFileName"
           :addon-after="modelFileNameSuffix || undefined"
-        />
-      </a-form-item>
-      <a-form-item :label="locale.filePath">
-        <a-input
-          v-model:value="form.path"
-          :placeholder="locale.rootDirectory"
         />
       </a-form-item>
       <a-row v-if="isModelFilePath" :gutter="16">
@@ -84,7 +93,7 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import { onlyMessage } from '@jetlinks-web/utils'
-
+import { buildFileOwnerOptions, isModelFilePath as checkModelFilePath, SHARED_OWNER_VALUE, type FileOwnerFormatOption } from './fileOwnerOptions'
 interface AddFilePayload {
   name: string
   path?: string
@@ -98,13 +107,9 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  selectedFormat: {
-    type: String,
-    default: undefined
-  },
-  selectedFormatName: {
-    type: String,
-    default: ''
+  availableFormats: {
+    type: Array as PropType<FileOwnerFormatOption[]>,
+    default: () => []
   },
   editableExtensions: {
     type: Array as PropType<string[]>,
@@ -132,7 +137,7 @@ const form = reactive<AddFilePayload>({
   format: []
 })
 const uploadFiles = ref<any[]>([])
-const fileOwner = ref<'shared' | 'format'>('shared')
+const selectedOwnerFormat = ref<string>()
 const businessType = ref('')
 const algorithmModel = ref('')
 const modelFileFormat = ref('')
@@ -143,36 +148,12 @@ const businessTypeOptions = computed(() => [
 ])
 
 const algorithmModelOptions = computed(() => [
-  { label: props.locale.modelBusinessOptionYolo, value: 'yolo' },
-  { label: props.locale.modelBusinessOptionYoloPose, value: 'yolo_pose' },
-  { label: props.locale.modelBusinessOptionRetinaface, value: 'retinaface' },
-  { label: props.locale.modelBusinessOptionResnet50, value: 'resnet50' },
+  { label: props.locale.modelBusinessOptionYolo, value: 'yolo' }, { label: props.locale.modelBusinessOptionYoloPose, value: 'yolo_pose' },
+  { label: props.locale.modelBusinessOptionRetinaface, value: 'retinaface' }, { label: props.locale.modelBusinessOptionResnet50, value: 'resnet50' },
   { label: props.locale.modelBusinessOptionDeim, value: 'deim' }
 ])
 
-const modelFileFormatOptions = [
-  { value: 'plan' },
-  { value: 'onnx' },
-  { value: 'bin' },
-  { value: 'rknn' },
-  { value: 'bmodel' },
-  { value: 'om' }
-]
-
-watch(() => props.open, (open) => {
-  if (open) {
-    form.name = ''
-    form.path = props.selectedOwner
-    fileOwner.value = 'shared'
-    form.createType = 'upload'
-    form.format = []
-    form.file = undefined
-    businessType.value = ''
-    algorithmModel.value = ''
-    modelFileFormat.value = ''
-    uploadFiles.value = []
-  }
-})
+const modelFileFormatOptions = ['plan', 'onnx', 'bin', 'rknn', 'bmodel', 'om'].map(value => ({ value }))
 
 watch(() => form.createType, (createType) => {
   if (createType === 'empty') {
@@ -189,9 +170,7 @@ const beforeUpload = (file: File) => {
   return false
 }
 
-const removeFile = () => {
-  form.file = undefined
-}
+const removeFile = () => { form.file = undefined }
 
 const isEditableFileName = (name: string) => {
   const ext = name.split('.').pop()?.toLowerCase()
@@ -203,16 +182,40 @@ const isArchiveFileName = (name: string) => {
   return ext === 'zip' || ext === 'tar'
 }
 
-const normalizeFilePath = (path?: string) => {
-  return path?.trim().replace(/^\/+|\/+$/g, '') || ''
-}
-
 const normalizeModelFileFormat = (format: string) => {
   const value = format.trim()
   return value && !value.startsWith('.') ? `.${value}` : value
 }
 
-const isModelFilePath = computed(() => normalizeFilePath(form.path) === 'models')
+const isModelFilePath = computed(() => checkModelFilePath(form.path))
+const pathReadonly = computed(() => checkModelFilePath(props.selectedOwner))
+const ownerOptions = computed(() => buildFileOwnerOptions(props.availableFormats, props.locale, isModelFilePath.value))
+
+watch(() => props.open, (open) => {
+  if (open) {
+    form.name = ''
+    form.path = props.selectedOwner
+    selectedOwnerFormat.value = isModelFilePath.value ? undefined : SHARED_OWNER_VALUE
+    form.createType = 'upload'
+    form.format = []
+    form.file = undefined
+    businessType.value = ''
+    algorithmModel.value = ''
+    modelFileFormat.value = ''
+    uploadFiles.value = []
+  }
+})
+
+watch(isModelFilePath, (modelFilePath) => {
+  if (!props.open) return
+  if (modelFilePath && selectedOwnerFormat.value === SHARED_OWNER_VALUE) {
+    selectedOwnerFormat.value = undefined
+    return
+  }
+  if (!modelFilePath && !selectedOwnerFormat.value) {
+    selectedOwnerFormat.value = SHARED_OWNER_VALUE
+  }
+})
 
 const modelFileNameSuffix = computed(() => {
   if (!isModelFilePath.value) return ''
@@ -228,7 +231,10 @@ const resolvedFileName = computed(() => {
 })
 
 const ownerDescription = computed(() => {
-  return fileOwner.value === 'format' ? props.locale.formatFileOwnerDescription : props.locale.sharedFileOwnerDescription
+  if (!selectedOwnerFormat.value) return props.locale.selectFileOwner
+  return selectedOwnerFormat.value === SHARED_OWNER_VALUE
+    ? props.locale.sharedFileOwnerDescription
+    : props.locale.formatFileOwnerDescription
 })
 
 const createTypeDescription = computed(() => {
@@ -265,7 +271,7 @@ const confirm = () => {
     onlyMessage(props.locale.pleaseEnterModelFileFormat, 'warning')
     return
   }
-  if (fileOwner.value === 'format' && !props.selectedFormat) {
+  if (!selectedOwnerFormat.value) {
     onlyMessage(props.locale.selectFileOwner, 'warning')
     return
   }
@@ -276,7 +282,7 @@ const confirm = () => {
   emit('confirm', {
     name: resolvedFileName.value,
     path: form.path?.trim() || undefined,
-    format: fileOwner.value === 'format' && props.selectedFormat ? [props.selectedFormat] : [],
+    format: selectedOwnerFormat.value === SHARED_OWNER_VALUE ? [] : [selectedOwnerFormat.value],
     createType: form.createType,
     file: form.file
   })
