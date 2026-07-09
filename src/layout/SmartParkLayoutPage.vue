@@ -249,7 +249,7 @@ const state = reactive({
 
 const routeSelectedKeys = computed(() => {
   const paths = (route.meta.breadcrumb || route.meta.breadcrumbCache || []) as Array<{ name?: string; path?: string }>
-  return paths.flatMap(item => [item.path, item.name]).filter(Boolean).map(String)
+  return paths.map(item => item.path).filter(Boolean).map(String)
 })
 
 const unwrapResult = <T,>(response: { result?: T } | T): T => {
@@ -375,6 +375,12 @@ const isMenuNodeActive = (node: MenuNode): boolean => {
 }
 
 const findActiveNode = (nodes: MenuNode[]) => {
+  if (route.path.startsWith('/config/')) {
+    const configNode = nodes.find(item => item.path === '/config')
+    if (configNode) {
+      return configNode
+    }
+  }
   return nodes.find(item => isMenuNodeActive(item))
 }
 
