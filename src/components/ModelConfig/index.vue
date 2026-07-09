@@ -40,11 +40,22 @@
           block-node
           @select="onTreeSelect"
         >
-          <template #title="{ title, isFile, path, shared }">
+          <template #title="{ title, isFile, path, shared, file }">
             <span class="model-config__tree-node">
               <span class="model-config__tree-node-main">
-                <AIcon :type="getTreeNodeIcon(isFile, shared)" />
-                <span>{{ title }}</span>
+                <AIcon :type="getTreeNodeIcon(isFile, shared, file)" />
+                <span class="model-config__tree-node-title">{{ title }}</span>
+                <span v-if="isFile" class="model-config__tree-tags">
+                  <a-tooltip
+                    v-for="tag in getFileTreeTags(file)"
+                    :key="tag.key"
+                    :title="tag.title"
+                  >
+                    <span :class="['model-config__tree-tag', `model-config__tree-tag--${tag.type}`]">
+                      {{ tag.label }}
+                    </span>
+                  </a-tooltip>
+                </span>
               </span>
               <a-button
                 v-if="!isFile"
@@ -249,6 +260,7 @@ interface ModelFile {
   format?: string[]
   content?: string
   local?: boolean
+  extract?: boolean
 }
 
 interface ModelConfigSavePayload {
@@ -354,6 +366,7 @@ const defaultLocale: LocaleText = {
   fileKey: '文件标识',
   sharedFile: '共享文件',
   sharedFormat: '共享架构',
+  extractFile: '待解压',
   sharedFileOwnerDescription: '保存为共享文件，可被多个架构复用',
   formatFileOwnerDescription: '仅归属于当前架构',
   saveSuccess: '已更新编辑内容',
@@ -654,9 +667,34 @@ function buildTree(source: ModelFile[]): TreeNode[] {
   return roots
 }
 
-function getTreeNodeIcon(isFile?: boolean, shared?: boolean) {
+function getTreeNodeIcon(isFile?: boolean, shared?: boolean, file?: ModelFile) {
   if (!isFile) return 'FolderOutlined'
+  if (file?.extract) return 'FileZipOutlined'
   return shared ? 'FileOutlined' : 'FileProtectOutlined'
+}
+
+function getFileTreeTags(file?: ModelFile) {
+  if (!file) return []
+  const tags: Array<{ key: string; label: string; title: string; type: 'extract' | 'format' }> = []
+  if (file.extract) {
+    tags.push({
+      key: 'extract',
+      label: text.value.extractFile,
+      title: text.value.extractFile,
+      type: 'extract'
+    })
+  }
+  const formats = file.format?.filter(Boolean) || []
+  if (formats.length) {
+    const formatLabel = formats.join(',')
+    tags.push({
+      key: 'format',
+      label: formatLabel,
+      title: formatLabel,
+      type: 'format'
+    })
+  }
+  return tags
 }
 
 function formatRootFolderTitle(title: string, path: string) {
@@ -1029,6 +1067,18 @@ async function previewFile() {
   background: transparent;
 }
 
+.model-config__tree :deep(.ant-tree-treenode),
+.model-config__tree :deep(.ant-tree-node-content-wrapper),
+.model-config__tree :deep(.ant-tree-title) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.model-config__tree :deep(.ant-tree-title) {
+  display: inline-flex;
+  width: 100%;
+}
+
 .model-config__tree-node,
 .model-config__content-title {
   display: inline-flex;
@@ -1046,7 +1096,55 @@ async function previewFile() {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  flex: 1;
   min-width: 0;
+  overflow: hidden;
+}
+
+.model-config__tree-node-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.model-config__tree-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  max-width: 8.75rem;
+  overflow: hidden;
+}
+
+.model-config__tree-tag {
+  display: inline-block;
+  width: 4.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  border-radius: var(--r-1);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  background: var(--bg-sunken);
+  font-size: var(--fs-12);
+  line-height: 1.25rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-config__tree-tag--extract {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 32%, var(--line));
+  background: color-mix(in srgb, var(--warning) 8%, var(--bg));
+}
+
+.model-config__tree-tag--format {
+  color: var(--primary-color);
+  border-color: color-mix(in srgb, var(--primary-color) 32%, var(--line));
+  background: color-mix(in srgb, var(--primary-color) 8%, var(--bg));
 }
 
 .model-config__tree-add {
