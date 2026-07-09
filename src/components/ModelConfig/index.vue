@@ -503,6 +503,13 @@ const formatOptions = computed(() => {
   ]
 })
 
+const formatNameMap = computed(() => props.availableFormats.reduce<Map<string, string>>((map, item) => {
+  if (item?.id) {
+    map.set(item.id, item.name || item.id)
+  }
+  return map
+}, new Map()))
+
 const modelId = computed(() => props.model?.id)
 
 const activeTitle = computed(() => {
@@ -686,7 +693,7 @@ function getFileTreeTags(file?: ModelFile) {
   }
   const formats = file.format?.filter(Boolean) || []
   if (formats.length) {
-    const formatLabel = formats.join(',')
+    const formatLabel = formats.map(format => formatNameMap.value.get(format) || format).join(',')
     tags.push({
       key: 'format',
       label: formatLabel,
