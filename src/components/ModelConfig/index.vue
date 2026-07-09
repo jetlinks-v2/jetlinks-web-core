@@ -1,5 +1,9 @@
 <template>
-  <div class="model-config">
+  <div
+    class="model-config"
+    :class="{ 'model-config--resizing': resizingSider }"
+    :style="modelConfigStyle"
+  >
     <aside class="model-config__sider">
       <div class="model-config__sider-head">
         <span class="model-config__title">{{ text.fileDirectory }}</span>
@@ -77,7 +81,26 @@
       </a-spin>
     </aside>
 
-    <main class="model-config__main">
+    <div
+      class="model-config__resize"
+      role="separator"
+      tabindex="0"
+      aria-orientation="vertical"
+      :aria-label="text.resizeFileDirectory"
+      :aria-valuemin="SIDER_WIDTH_MIN"
+      :aria-valuemax="SIDER_WIDTH_MAX"
+      :aria-valuenow="siderWidth"
+      @pointerdown="startResizeSider"
+      @keydown.left.prevent="resizeSiderByKeyboard(-16)"
+      @keydown.right.prevent="resizeSiderByKeyboard(16)"
+      @keydown.home.prevent="setSiderWidth(SIDER_WIDTH_MIN)"
+      @keydown.end.prevent="setSiderWidth(SIDER_WIDTH_MAX)"
+    />
+
+    <main
+      class="model-config__main"
+      :class="{ 'model-config__main--with-tabs': activeType === 'model' }"
+    >
       <header class="model-config__content-head">
         <div class="model-config__content-title">
           <AIcon :type="activeType === 'model' ? 'SettingOutlined' : 'FileTextOutlined'" />
@@ -398,7 +421,8 @@ const defaultLocale: LocaleText = {
   allFormats: '全部',
   modelFiles: '模型文件',
   codeFiles: '代码文件',
-  skillFiles: '技能文件'
+  skillFiles: '技能文件',
+  resizeFileDirectory: '调整文件目录宽度'
 }
 
 const props = defineProps({
@@ -470,6 +494,18 @@ const fileSaving = ref(false)
 const selectedOwner = ref('')
 const localFormatDetails = ref<FormatDetail[][]>([])
 const editorRef = ref<{ layout?: () => void }>()
+const resizingSider = ref(false)
+const siderWidth = ref(280)
+
+const SIDER_WIDTH_STORAGE_KEY = 'jetlinks:model-config:sider-width'
+const SIDER_WIDTH_DEFAULT = 280
+const SIDER_WIDTH_MIN = 220
+const SIDER_WIDTH_MAX = 520
+const SIDER_RESIZE_BREAKPOINT = 1100
+
+let siderResizeStartX = 0
+let siderResizeStartWidth = SIDER_WIDTH_DEFAULT
+let editorLayoutFrame = 0
 
 const editableExtensions = [
   'py',
@@ -502,6 +538,10 @@ const formatOptions = computed(() => {
     ...options
   ]
 })
+
+const modelConfigStyle = computed(() => ({
+  '--model-config-sider-width': `${siderWidth.value}px`
+}))
 
 const formatNameMap = computed(() => props.availableFormats.reduce<Map<string, string>>((map, item) => {
   if (item?.id) {
@@ -615,6 +655,17 @@ watch(() => props.files, (nextFiles) => {
     }
   }
 }, { deep: true, immediate: true })
+
+onMounted(() => {
+  restoreSiderWidth()
+})
+
+onBeforeUnmount(() => {
+  stopResizeSider()
+  if (editorLayoutFrame && typeof cancelAnimationFrame !== 'undefined') {
+    cancelAnimationFrame(editorLayoutFrame)
+  }
+})
 
 function requestFiles() {
   if (!modelId.value) {
@@ -956,9 +1007,7 @@ async function replaceFile(file: File) {
 
 function toggleProperty() {
   propertyVisible.value = !propertyVisible.value
-  nextTick(() => {
-    editorRef.value?.layout?.()
-  })
+  layoutEditor()
 }
 
 async function copyPath() {
@@ -999,6 +1048,95 @@ function isSharedModelFile(file: ModelFile) {
   return !file.format?.length
 }
 
+function restoreSiderWidth() {
+  if (typeof window === 'undefined') return
+  let cached = Number.NaN
+  try {
+    cached = Number(window.localStorage?.getItem(SIDER_WIDTH_STORAGE_KEY))
+  } catch {
+    cached = Number.NaN
+  }
+  if (Number.isFinite(cached)) {
+    siderWidth.value = clampSiderWidth(cached)
+  }
+}
+
+function startResizeSider(event: PointerEvent) {
+  if (!isSiderResizable()) return
+  event.preventDefault()
+  resizingSider.value = true
+  siderResizeStartX = event.clientX
+  siderResizeStartWidth = siderWidth.value
+  if (event.currentTarget instanceof HTMLElement) {
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+  window.addEventListener('pointermove', resizeSider)
+  window.addEventListener('pointerup', stopResizeSider)
+  window.addEventListener('pointercancel', stopResizeSider)
+}
+
+function resizeSider(event: PointerEvent) {
+  if (!resizingSider.value) return
+  setSiderWidth(siderResizeStartWidth + event.clientX - siderResizeStartX, false)
+}
+
+function stopResizeSider() {
+  const shouldPersist = resizingSider.value
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('pointermove', resizeSider)
+    window.removeEventListener('pointerup', stopResizeSider)
+    window.removeEventListener('pointercancel', stopResizeSider)
+  }
+  resizingSider.value = false
+  if (shouldPersist) {
+    persistSiderWidth()
+  }
+}
+
+function resizeSiderByKeyboard(offset: number) {
+  if (!isSiderResizable()) return
+  setSiderWidth(siderWidth.value + offset)
+}
+
+function setSiderWidth(width: number, persist = true) {
+  siderWidth.value = clampSiderWidth(width)
+  if (persist) {
+    persistSiderWidth()
+  }
+  layoutEditor()
+}
+
+function persistSiderWidth() {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage?.setItem(SIDER_WIDTH_STORAGE_KEY, String(siderWidth.value))
+  } catch {
+    // localStorage 可能被浏览器策略禁用，失败时仅不记忆宽度。
+  }
+}
+
+function clampSiderWidth(width: number) {
+  return Math.min(SIDER_WIDTH_MAX, Math.max(SIDER_WIDTH_MIN, Math.round(width)))
+}
+
+function isSiderResizable() {
+  return typeof window !== 'undefined' && window.innerWidth > SIDER_RESIZE_BREAKPOINT
+}
+
+function layoutEditor() {
+  if (typeof requestAnimationFrame === 'undefined') {
+    editorRef.value?.layout?.()
+    return
+  }
+  if (editorLayoutFrame) {
+    cancelAnimationFrame(editorLayoutFrame)
+  }
+  editorLayoutFrame = requestAnimationFrame(() => {
+    editorRef.value?.layout?.()
+    editorLayoutFrame = 0
+  })
+}
+
 async function previewFile() {
   if (!selectedFile.value?.url) return
   if (!canEditFile.value) {
@@ -1016,11 +1154,16 @@ async function previewFile() {
 <style scoped lang="less">
 .model-config {
   display: grid;
-  grid-template-columns: 17.5rem minmax(0, 1fr) auto;
+  grid-template-columns: var(--model-config-sider-width, 17.5rem) 0.5rem minmax(0, 1fr) auto;
   height: 100%;
   min-height: 0;
   background: var(--bg-sunken);
   overflow: hidden;
+}
+
+.model-config--resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .model-config__sider,
@@ -1029,7 +1172,34 @@ async function previewFile() {
   background: var(--bg);
   border-right: 1px solid var(--line);
   padding: var(--space-4);
-  overflow: auto;
+  overflow: hidden auto;
+}
+
+.model-config__resize {
+  position: relative;
+  min-width: 0;
+  background: var(--bg-sunken);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.model-config__resize::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--line);
+  transform: translateX(-50%);
+  transition: background-color 0.2s;
+}
+
+.model-config__resize:hover::before,
+.model-config__resize:focus-visible::before,
+.model-config--resizing .model-config__resize::before {
+  width: 2px;
+  background: var(--primary-color);
 }
 
 .model-config__property {
@@ -1170,8 +1340,12 @@ async function previewFile() {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   background: var(--bg);
+}
+
+.model-config__main--with-tabs {
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .model-config__content-head {
@@ -1197,12 +1371,13 @@ async function previewFile() {
 .model-config__editor-wrap {
   min-width: 0;
   min-height: 0;
+  display: grid;
   padding: var(--space-4);
 }
 
 .model-config__editor {
   height: 100%;
-  min-height: 22rem;
+  min-height: 0;
   border: 1px solid var(--line);
   border-radius: var(--r-2);
   overflow: hidden;
@@ -1210,7 +1385,7 @@ async function previewFile() {
 
 .model-config__preview {
   height: 100%;
-  min-height: 22rem;
+  min-height: 0;
   display: grid;
   place-items: center;
   border: 1px dashed var(--line);
@@ -1221,6 +1396,10 @@ async function previewFile() {
 @media (max-width: 1100px) {
   .model-config {
     grid-template-columns: 14rem minmax(0, 1fr);
+  }
+
+  .model-config__resize {
+    display: none;
   }
 
   .model-config__property {
