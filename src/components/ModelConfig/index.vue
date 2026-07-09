@@ -15,6 +15,13 @@
             :placeholder="text.selectFormat"
             size="small"
           />
+          <a-button
+            size="small"
+            :title="text.addFormat"
+            @click="openAddFormat"
+          >
+            <AIcon type="PlusOutlined" />
+          </a-button>
         </div>
       </div>
 
@@ -230,6 +237,15 @@
       :locale="text"
       @confirm="addFile"
     />
+    <AddFormatModal
+      v-model:open="addFormatVisible"
+      :existing-formats="existingFormatIds"
+      :locale="text"
+      :confirm-loading="addFormatSaving"
+      :loading="formatLoading"
+      :format-tags="availableFormats"
+      @confirm="saveFormat"
+    />
   </div>
 </template>
 
@@ -241,6 +257,7 @@ import MonacoEditor from '../MonacoEditor/monacoEditor.vue'
 import SectionCard from '../SectionCard/index.vue'
 import KvGrid from '../KvGrid/index.vue'
 import AddFileModal from './AddFileModal.vue'
+import AddFormatModal from './AddFormatModal.vue'
 
 interface FormatDetail {
   id: string
@@ -488,6 +505,8 @@ const editorValue = ref('')
 const draftValue = ref('')
 const propertyVisible = ref(false)
 const addFileVisible = ref(false)
+const addFormatVisible = ref(false)
+const addFormatSaving = ref(false)
 const filePreviewLoaded = ref(false)
 const contentLoading = ref(false)
 const fileSaving = ref(false)
@@ -542,6 +561,15 @@ const formatOptions = computed(() => {
 const modelConfigStyle = computed(() => ({
   '--model-config-sider-width': `${siderWidth.value}px`
 }))
+
+const existingFormatIds = computed(() => {
+  const formatIds = localFormatDetails.value
+    .flat()
+    .map(item => item?.id)
+    .filter(Boolean) as string[]
+  const modelFormatIds = normalizeFormats(props.model?.formats).flat()
+  return Array.from(new Set([...modelFormatIds, ...formatIds]))
+})
 
 const formatNameMap = computed(() => props.availableFormats.reduce<Map<string, string>>((map, item) => {
   if (item?.id) {
@@ -773,6 +801,30 @@ function openAddFile(path = '') {
   addFileVisible.value = true
 }
 
+function openAddFormat() {
+  addFormatVisible.value = true
+}
+
+async function saveFormat(format: string) {
+  if (!modelId.value) return
+  const config = buildSaveFormatPayload(format)
+  addFormatSaving.value = true
+  emit('add-format', {
+    format,
+    config,
+    done: (success = true) => {
+      if (success) {
+        addLocalFormat(format)
+        selectedFormat.value = format
+        addFormatVisible.value = false
+        onlyMessage(text.value.addFormatSuccess)
+        emit('format-added', format)
+      }
+      addFormatSaving.value = false
+    }
+  })
+}
+
 function completeSaving(success: boolean) {
   if (success) {
     editing.value = false
@@ -892,6 +944,14 @@ function normalizeFormats(source: unknown): string[][] {
       return [typeof item === 'string' ? item : item?.id].filter(Boolean)
     })
     .filter(item => item.length)
+}
+
+function addLocalFormat(format: string) {
+  if (localFormatDetails.value.flat().some(item => item?.id === format)) return
+  localFormatDetails.value = [
+    ...localFormatDetails.value,
+    [{ id: format, name: format }]
+  ]
 }
 
 function cloneFormatDetails(formatDetails: FormatDetail[][]) {
