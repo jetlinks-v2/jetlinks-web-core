@@ -939,7 +939,8 @@ async function saveEdit() {
 
 async function saveTextFile() {
   const currentFormat = selectedFormat.value || selectedFile.value?.format?.[0] || ''
-  if (!modelId.value || !currentFormat || !selectedFile.value) return
+  // Shared files can be saved without a format owner; parent handlers receive format="".
+  if (!modelId.value || !selectedFile.value) return
   fileSaving.value = true
   emit('save-file', {
     format: currentFormat,
@@ -992,7 +993,7 @@ function addLocalEmptyFile(payload: AddFilePayload) {
 
 async function replaceFile(file: File) {
   const currentFormat = selectedFormat.value || selectedFile.value?.format?.[0] || ''
-  if (!modelId.value || !currentFormat || !selectedFile.value) return false
+  if (!modelId.value || !selectedFile.value) return false
   fileSaving.value = true
   emit('replace-file', {
     format: currentFormat,
