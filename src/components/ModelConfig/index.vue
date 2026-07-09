@@ -650,6 +650,9 @@ watch(() => props.files, (nextFiles) => {
     const nextFile = files.value.find(item => item.id === selectedFile.value?.id)
     if (nextFile) {
       selectedFile.value = nextFile
+      if (!editing.value && getInlineFileContent(nextFile) !== undefined) {
+        applyFileContent(nextFile)
+      }
     } else {
       selectModelConfig()
     }
@@ -848,6 +851,35 @@ function completePreview(success: boolean, content = '') {
   contentLoading.value = false
 }
 
+function getInlineFileContent(file: ModelFile) {
+  // 只有后端明确返回 content 字段时才跳过远程预览；未返回 content 的文件仍走原有 url 预览流程。
+  if (typeof file.content === 'string') return file.content
+  return file.local ? '' : undefined
+}
+
+function applyFileContent(file: ModelFile) {
+  const content = getInlineFileContent(file)
+  filePreviewLoaded.value = content !== undefined
+  editorValue.value = content ?? ''
+  draftValue.value = editorValue.value
+}
+
+function buildSaveFormatPayload(format: string) {
+  // 新增架构只扩展支持架构列表，模型参数和基础信息必须沿用当前详情，避免保存时清空已有配置。
+  const formats = normalizeFormats(props.model?.formats)
+  if (!formats.length) {
+    formats.push(...normalizeFormats(props.model?.formatDetails))
+  }
+  if (!formats.some(item => item.includes(format))) {
+    formats.push([format])
+  }
+  return {
+    definition: props.model?.definition || {},
+    manifest: props.model?.manifest || {},
+    formats
+  }
+}
+
 function normalizeFormats(source: unknown): string[][] {
   if (!Array.isArray(source)) return []
   return source
@@ -881,9 +913,7 @@ function selectFile(file: ModelFile) {
   selectedFile.value = file
   selectedKeys.value = [file.id || `${file.path || ''}/${file.name}`]
   editing.value = false
-  filePreviewLoaded.value = !!file.local
-  editorValue.value = file.local ? file.content || '' : ''
-  draftValue.value = editorValue.value
+  applyFileContent(file)
 }
 
 function refreshEditorValue() {

@@ -18,6 +18,29 @@ type MaybeArray<T> = T | T[] | undefined | null;
 
 export type HomeAgentCapabilityKind = 'menu' | 'feature' | 'agent' | 'tool' | 'guide';
 
+export interface HomeAgentContinuationMetadata {
+  targetName?: string;
+  targetClientId?: string;
+  targetMenuCode?: string;
+  toolId?: string;
+  promptPolicy?: string;
+  blockingFacts?: string[];
+}
+
+export interface HomeAgentContinuationReceiptOptions {
+  targetName?: unknown;
+  targetClientId?: unknown;
+  targetMenuCode?: unknown;
+  routeName?: unknown;
+  path?: unknown;
+  subjectType?: unknown;
+  subjectId?: unknown;
+  subjectName?: unknown;
+  businessObject?: unknown;
+  navigation?: unknown;
+  contextPrepared?: boolean;
+}
+
 export interface HomeAgentMenuEntry {
   code: string;
   name: string;
@@ -44,6 +67,7 @@ export interface HomeAgentCapability {
   metadata?: Record<string, any> & {
     currentRoute?: boolean;
     promptExamples?: string[];
+    continuation?: HomeAgentContinuationMetadata;
   };
 }
 
@@ -58,6 +82,8 @@ export interface HomeAgentRuntimeOptions {
   openingStatement?: string;
   promptExamples?: string[];
   systemPromptLines?: string[];
+  getLatestUserMessage?: () => HomeAgentConversationMessageContext | undefined;
+  onConversationMessage?: (message: HomeAgentConversationMessageContext & Record<string, any>) => void;
 }
 
 /**
@@ -98,6 +124,7 @@ export interface HomeAgentCapabilityContext {
     title?: string;
   };
   currentView?: string;
+  latestUserMessage?: HomeAgentConversationMessageContext;
   menus: HomeAgentMenuEntry[];
   capabilities: HomeAgentCapability[];
   findMenu: (value: string) => HomeAgentMenuEntry | undefined;
@@ -111,9 +138,17 @@ export interface HomeAgentCapabilityContext {
   ) => boolean;
 }
 
+export interface HomeAgentConversationMessageContext {
+  id?: string;
+  type?: string;
+  content?: string;
+  createdAt?: number;
+}
+
 interface HomeAgentRouteLink {
   routeName: string;
   menuCode?: string;
+  path?: string;
   params?: Record<string, any>;
   query?: Record<string, any>;
 }
@@ -177,6 +212,41 @@ const isPlainRecord = (value: unknown): value is Record<string, any> => (
   !!value && typeof value === 'object' && !Array.isArray(value)
 );
 
+const compactDefined = (value: Record<string, any>) => (
+  Object.fromEntries(Object.entries(value).filter(([, item]) => {
+    if (Array.isArray(item)) return item.length > 0;
+    return item !== undefined && item !== null && item !== '';
+  }))
+);
+
+export const createHomeAgentContinuationReceipt = (options: HomeAgentContinuationReceiptOptions) => {
+  const subjectType = normalizeText(options.subjectType);
+  const subjectId = normalizeText(options.subjectId);
+  const subjectName = normalizeText(options.subjectName);
+  const subject = subjectType && subjectId
+    ? compactDefined({
+        type: subjectType,
+        id: subjectId,
+        name: subjectName,
+        subjectType,
+        subjectId,
+        subjectName,
+      })
+    : undefined;
+
+  return compactDefined({
+    contextPrepared: options.contextPrepared !== false,
+    targetName: normalizeText(options.targetName) || undefined,
+    targetClientId: normalizeText(options.targetClientId) || undefined,
+    targetMenuCode: normalizeText(options.targetMenuCode) || undefined,
+    routeName: normalizeText(options.routeName) || undefined,
+    path: normalizeText(options.path) || undefined,
+    subject,
+    businessObject: isPlainRecord(options.businessObject) ? compactDefined(options.businessObject) : undefined,
+    navigation: isPlainRecord(options.navigation) ? compactDefined(options.navigation) : undefined,
+  });
+};
+
 const parseObjectParam = (value: string | null) => {
   const text = normalizeText(value);
   if (!text) return {};
@@ -186,6 +256,32 @@ const parseObjectParam = (value: string | null) => {
   } catch {
     return {};
   }
+};
+
+const normalizeSameOriginHashLink = (href: string) => {
+  const raw = normalizeText(href);
+  if (!raw || raw.startsWith('#')) {
+    return raw;
+  }
+
+  if (typeof window === 'undefined') {
+    return raw;
+  }
+
+  try {
+    const url = new URL(raw, window.location.href);
+    return url.origin === window.location.origin && url.hash ? url.hash : raw;
+  } catch {
+    return raw;
+  }
+};
+
+const isHashRoutePathLink = (href: string) => /^#!?\//.test(normalizeText(href));
+
+const resolveHashRoutePath = (href: string) => {
+  const raw = normalizeText(href);
+  if (!isHashRoutePathLink(raw)) return '';
+  return raw.replace(/^#!/, '#').slice(1);
 };
 
 const normalizeRouteTitle = (route?: RouteLocationNormalizedLoaded | RouteRecordRaw | Record<string, any>) => {
@@ -433,9 +529,11 @@ const createRouteNavigator = () => (
 const createBaseContext = (options?: HomeAgentRuntimeOptions): HomeAgentCapabilityContext => {
   const menus = collectVisibleMenus();
   const findMenu = createFindMenu(menus);
+  const latestUserMessage = options?.getLatestUserMessage?.();
   const context: HomeAgentCapabilityContext = {
     currentRoute: buildCurrentRouteSummary(),
     currentView: resolveCurrentView(options) || undefined,
+    ...(latestUserMessage?.content ? { latestUserMessage } : {}),
     menus,
     capabilities: [],
     findMenu,
@@ -452,6 +550,35 @@ const createBaseContext = (options?: HomeAgentRuntimeOptions): HomeAgentCapabili
   ]), context);
 
   return context;
+};
+
+const findPathPermissionAnchor = (
+  path: string,
+  context: HomeAgentCapabilityContext,
+) => {
+  const routePath = normalizeText(path).split('?')[0];
+  if (!routePath) return undefined;
+
+  return context.menus.find((menu) => {
+    const menuPath = normalizeText(menu.path);
+    return menuPath && (routePath === menuPath || routePath.startsWith(`${menuPath}/`));
+  });
+};
+
+const findRoutePermissionAnchor = (
+  routeLink: HomeAgentRouteLink,
+  context: HomeAgentCapabilityContext,
+) => {
+  if (routeLink.menuCode) {
+    return context.findMenu(routeLink.menuCode);
+  }
+  if (routeLink.routeName) {
+    return context.findMenu(routeLink.routeName);
+  }
+  if (routeLink.path) {
+    return findPathPermissionAnchor(routeLink.path, context);
+  }
+  return undefined;
 };
 
 const includesKeyword = (values: unknown[], keyword: string) => {
@@ -490,6 +617,26 @@ const filterCapabilities = (
   });
 };
 
+const compactContinuation = (value: unknown) => {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const blockingFacts = Array.isArray(value.blockingFacts)
+    ? value.blockingFacts.map(normalizeText).filter(Boolean)
+    : [];
+  const continuation = {
+    targetName: normalizeText(value.targetName) || undefined,
+    promptPolicy: normalizeText(value.promptPolicy) || undefined,
+    blockingFacts: blockingFacts.length ? blockingFacts : undefined,
+  };
+
+  // Provider-side fields such as tool ids, client ids and menu codes are execution
+  // hints. Do not expose them through capability search results where the model may
+  // echo them to the user.
+  return Object.values(continuation).some(Boolean) ? continuation : undefined;
+};
+
 const compactCapability = (item: HomeAgentCapability) => ({
   id: item.id,
   kind: item.kind,
@@ -507,7 +654,12 @@ const compactCapability = (item: HomeAgentCapability) => ({
     : undefined,
   clientId: item.clientId,
   clientType: item.clientType,
+  continuation: compactContinuation(item.metadata?.continuation),
 });
+
+const hasContinuationCapabilities = (context: HomeAgentCapabilityContext) => (
+  context.capabilities.some((item) => isPlainRecord(item.metadata?.continuation))
+);
 
 const isCurrentMenu = (menu: HomeAgentMenuEntry, context: HomeAgentCapabilityContext) => {
   const route = context.currentRoute;
@@ -579,26 +731,6 @@ const selectPromptMenu = (context: HomeAgentCapabilityContext) => {
     .sort((a, b) => scorePromptMenu(b, currentMenu) - scorePromptMenu(a, currentMenu))[0];
 };
 
-const hashText = (value: string) => Array.from(value)
-  .reduce((hash, char) => ((hash * 31) + char.charCodeAt(0)) >>> 0, 0);
-
-const rotateBySeed = <T>(items: T[], seed: string) => {
-  if (items.length <= 1) return items;
-  const start = hashText(seed) % items.length;
-  return [...items.slice(start), ...items.slice(0, start)];
-};
-
-const getPromptRotationSeed = (context: HomeAgentCapabilityContext) => {
-  const now = new Date();
-  const hourSlot = [
-    now.getFullYear(),
-    now.getMonth() + 1,
-    now.getDate(),
-    now.getHours(),
-  ].join('-');
-  return `${context.currentRoute.path || context.currentRoute.name || 'home'}:${hourSlot}`;
-};
-
 const isCapabilityForCurrentRoute = (
   capability: HomeAgentCapability,
   context: HomeAgentCapabilityContext,
@@ -626,37 +758,69 @@ const buildCapabilityExample = (capability: HomeAgentCapability) => (
   i18n.global.t('components.AiChat.homeAgent.promptExamples.capability', [capability.name])
 );
 
+const getCapabilityPromptExamples = (capability: HomeAgentCapability) => {
+  const prompts = toArray(capability.metadata?.promptExamples);
+  return prompts.length ? prompts : [buildCapabilityExample(capability)];
+};
+
+const interleavePromptGroups = (groups: string[][]) => {
+  const normalizedGroups = groups
+    .map((group) => uniqueStrings(group))
+    .filter((group) => group.length);
+  if (!normalizedGroups.length) {
+    return [];
+  }
+
+  const maxLength = Math.max(...normalizedGroups.map((group) => group.length));
+  const result: string[] = [];
+  for (let index = 0; index < maxLength; index += 1) {
+    normalizedGroups.forEach((group) => {
+      if (group[index]) {
+        result.push(group[index]);
+      }
+    });
+  }
+  return uniqueStrings(result);
+};
+
+const isPromptCapability = (capability: HomeAgentCapability) => (
+  !!capability.kind && capability.kind !== 'menu'
+);
+
 const buildCurrentRouteCapabilityPromptExamples = (context: HomeAgentCapabilityContext) => {
   const capabilities = context.capabilities
     .filter((item) => isCapabilityForCurrentRoute(item, context));
-  return capabilities.flatMap((capability) => {
-    const prompts = toArray(capability.metadata?.promptExamples);
-    return prompts.length ? prompts : [buildCapabilityExample(capability)];
-  });
+  return interleavePromptGroups(capabilities.map(getCapabilityPromptExamples));
 };
 
 const buildHomeRoutePromptExamples = (context: HomeAgentCapabilityContext) => {
-  const seed = getPromptRotationSeed(context);
-  const menuExamples = rotateBySeed(
-    context.menus.filter((menu) => !isLikelyContainerMenu(menu)),
-    seed,
-  )
+  const currentMenu = getCurrentMenu(context);
+  const capabilityExamples = interleavePromptGroups(
+    context.capabilities
+      .filter(isPromptCapability)
+      .filter((capability) => toArray(capability.metadata?.promptExamples).length)
+      .map(getCapabilityPromptExamples),
+  );
+  const menuExamples = context.menus
+    .filter((menu) => !isLikelyContainerMenu(menu))
+    .sort((a, b) => scorePromptMenu(b, currentMenu) - scorePromptMenu(a, currentMenu))
     .slice(0, 3)
-    .map((menu) => i18n.global.t('components.AiChat.homeAgent.promptExamples.openMenu', [menu.title]));
-  const capabilityExamples = rotateBySeed(
-    context.capabilities.filter((item) => item.kind && !['menu'].includes(item.kind)),
-    seed,
-  )
-    .slice(0, 3)
-    .map(buildCapabilityExample);
+    .map((menu) => i18n.global.t('components.AiChat.homeAgent.promptExamples.openMenu', [
+      menu.title,
+    ]));
   const agentCount = context.capabilities.filter((item) => item.kind === 'agent').length;
-  return rotateBySeed([
-    i18n.global.t('components.AiChat.homeAgent.promptExamples.whatCanDo'),
+
+  return uniqueStrings([
     ...capabilityExamples,
-    ...menuExamples,
-    ...(agentCount > 0 ? [i18n.global.t('components.AiChat.homeAgent.promptExamples.listAgents')] : []),
+    ...(context.findMenu('device/Instance')
+      ? [i18n.global.t('components.AiChat.homeAgent.promptExamples.openDevice')]
+      : []),
+    ...(agentCount > 0 && !capabilityExamples.length
+      ? [i18n.global.t('components.AiChat.homeAgent.promptExamples.listAgents')]
+      : []),
+    ...(!capabilityExamples.length ? menuExamples : []),
     i18n.global.t('components.AiChat.homeAgent.promptExamples.findMenu'),
-  ], seed);
+  ]);
 };
 
 const buildCapabilityPromptExamples = (context: HomeAgentCapabilityContext) => {
@@ -672,7 +836,6 @@ const buildCapabilityPromptExamples = (context: HomeAgentCapabilityContext) => {
   const menu = selectPromptMenu(context);
   const agentCount = context.capabilities.filter((item) => item.kind === 'agent').length;
 
-  examples.push(i18n.global.t('components.AiChat.homeAgent.promptExamples.whatCanDo'));
   if (menu) {
     examples.push(i18n.global.t('components.AiChat.homeAgent.promptExamples.openMenu', [menu.title]));
   }
@@ -688,6 +851,8 @@ const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapabilityCo
   {
     id: 'home_agent_get_context',
     name: 'home_agent_get_context',
+    displayName: i18n.global.t('components.AiChat.homeAgent.tools.context.displayName'),
+    progressText: i18n.global.t('components.AiChat.homeAgent.tools.context.progressText'),
     description: i18n.global.t('components.AiChat.homeAgent.tools.context.description'),
     inputs: [],
     output: { type: 'object' },
@@ -704,6 +869,8 @@ const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapabilityCo
   {
     id: 'home_agent_search_capabilities',
     name: 'home_agent_search_capabilities',
+    displayName: i18n.global.t('components.AiChat.homeAgent.tools.search.displayName'),
+    progressText: i18n.global.t('components.AiChat.homeAgent.tools.search.progressText'),
     description: i18n.global.t('components.AiChat.homeAgent.tools.search.description'),
     inputs: [
       {
@@ -752,6 +919,8 @@ const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapabilityCo
   {
     id: 'home_agent_open_menu',
     name: 'home_agent_open_menu',
+    displayName: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.displayName'),
+    progressText: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.progressText'),
     description: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.description'),
     confirm: {
       title: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.confirmTitle'),
@@ -897,6 +1066,9 @@ const buildHomeAgentSystemPrompt = (
     i18n.global.t('components.AiChat.homeAgent.prompt.navigation'),
     i18n.global.t('components.AiChat.homeAgent.prompt.menuLinks'),
     i18n.global.t('components.AiChat.homeAgent.prompt.boundary'),
+    hasContinuationCapabilities(context)
+      ? i18n.global.t('components.AiChat.homeAgent.prompt.continuation')
+      : '',
     topMenus
       ? i18n.global.t('components.AiChat.homeAgent.prompt.visibleMenus', [topMenus])
       : i18n.global.t('components.AiChat.homeAgent.prompt.noMenus'),
@@ -926,7 +1098,7 @@ const buildHomeAgentPromptExamples = (
 ]).slice(0, PROMPT_EXAMPLE_LIMIT);
 
 export const resolveHomeAgentMenuLink = (href: string) => {
-  const raw = normalizeText(href);
+  const raw = normalizeSameOriginHashLink(href);
   if (!raw) return '';
 
   if (raw.startsWith('#')) {
@@ -948,8 +1120,16 @@ export const resolveHomeAgentMenuLink = (href: string) => {
 };
 
 export const resolveHomeAgentRouteLink = (href: string): HomeAgentRouteLink | undefined => {
-  const raw = normalizeText(href);
+  const raw = normalizeSameOriginHashLink(href);
   if (!raw) return undefined;
+
+  const routePath = resolveHashRoutePath(raw);
+  if (routePath) {
+    return {
+      routeName: '',
+      path: routePath,
+    };
+  }
 
   if (raw.startsWith('#')) {
     const params = new URLSearchParams(raw.slice(1));
@@ -1001,15 +1181,25 @@ export const isHomeAgentMenuLink = (href: string) => !!resolveHomeAgentMenuLink(
 
 export const createHomeAgentMarkdownLinkHandler = (
   options: HomeAgentRuntimeOptions = {},
-) => (payload: { href: string; event: MouseEvent }) => {
+) => (payload: { href: string; event: MouseEvent; defaultOpen?: () => void }) => {
   const routeLink = resolveHomeAgentRouteLink(payload.href);
-  if (routeLink?.routeName) {
+  if (routeLink?.routeName || routeLink?.path) {
     const context = createHomeAgentContext(options);
-    payload.event.preventDefault();
-    const permissionAnchor = routeLink.menuCode
-      ? context.findMenu(routeLink.menuCode)
-      : context.findMenu(routeLink.routeName);
+    const permissionAnchor = findRoutePermissionAnchor(routeLink, context);
     if (!permissionAnchor) {
+      if (routeLink.path) {
+        return false;
+      }
+      payload.event.preventDefault();
+      return true;
+    }
+    payload.event.preventDefault();
+    if (typeof payload.defaultOpen === 'function') {
+      payload.defaultOpen();
+      return true;
+    }
+    if (routeLink.path) {
+      void router.push(routeLink.path);
       return true;
     }
     return context.navigateToRoute(routeLink.routeName, {
@@ -1057,6 +1247,11 @@ export const createHomeAgentRuntime = (
         maxArrayLength: 30,
         maxObjectKeys: 64,
       },
+      riskDefaults: {
+        readOnly: true,
+        parallelSafe: true,
+        needsApproval: false,
+      },
     },
   );
 
@@ -1076,6 +1271,7 @@ export const createHomeAgentRuntime = (
       clientToolsDescription: runtime.clientToolsDescription,
       workflowGuides: buildProviderWorkflowGuides(context),
       markdownLinkHandler: createHomeAgentMarkdownLinkHandler(options),
+      ...(options.onConversationMessage ? { onConversationMessage: options.onConversationMessage } : {}),
       systemPrompt: buildHomeAgentSystemPrompt(context, options),
       openingStatement: options.openingStatement || i18n.global.t('components.AiChat.homeAgent.opening'),
       promptExamples: buildHomeAgentPromptExamples(context, options),

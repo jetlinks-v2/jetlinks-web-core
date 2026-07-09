@@ -61,8 +61,9 @@
         <a-col :span="8">
           <a-form-item :label="locale.businessType" required>
             <a-auto-complete
-              v-model:value="businessType"
+              v-model:value="businessTypeInput"
               :options="businessTypeOptions"
+              :filter-option="filterModelFileOption"
               :placeholder="locale.businessTypePlaceholder"
             />
           </a-form-item>
@@ -70,8 +71,9 @@
         <a-col :span="8">
           <a-form-item :label="locale.modelBusiness" required>
             <a-auto-complete
-              v-model:value="algorithmModel"
+              v-model:value="algorithmModelInput"
               :options="algorithmModelOptions"
+              :filter-option="filterModelFileOption"
               :placeholder="locale.modelBusinessPlaceholder"
             />
           </a-form-item>
@@ -79,8 +81,9 @@
         <a-col :span="8">
           <a-form-item :label="locale.modelFileFormat" required>
             <a-auto-complete
-              v-model:value="modelFileFormat"
+              v-model:value="modelFileFormatInput"
               :options="modelFileFormatOptions"
+              :filter-option="filterModelFileOption"
               :placeholder="locale.modelFileFormatPlaceholder"
             />
           </a-form-item>
@@ -100,6 +103,12 @@ interface AddFilePayload {
   format?: string[]
   createType: 'upload' | 'extract' | 'empty'
   file?: File
+}
+
+interface ModelFileOption {
+  label: string
+  value: string
+  rawValue: string
 }
 
 const props = defineProps({
@@ -138,22 +147,52 @@ const form = reactive<AddFilePayload>({
 })
 const uploadFiles = ref<any[]>([])
 const selectedOwnerFormat = ref<string>()
-const businessType = ref('')
-const algorithmModel = ref('')
-const modelFileFormat = ref('')
+const businessTypeInput = ref('')
+const algorithmModelInput = ref('')
+const modelFileFormatInput = ref('')
 
-const businessTypeOptions = computed(() => [
-  { label: props.locale.businessTypeOptionObjectDetection, value: 'object_detection' }, { label: props.locale.businessTypeOptionPoseDetection, value: 'pose_detection' },
-  { label: props.locale.businessTypeOptionFaceEmbedding, value: 'face_embedding' }, { label: props.locale.businessTypeOptionOcrText, value: 'ocr_text' }
+function createModelFileOption(label: string, rawValue: string): ModelFileOption {
+  const displayLabel = label || rawValue
+  return {
+    label: displayLabel,
+    value: displayLabel,
+    rawValue
+  }
+}
+
+function resolveModelFileOptionValue(input: string, options: ModelFileOption[]) {
+  const value = input.trim()
+  const option = options.find(item => item.value === value || item.label === value || item.rawValue === value || value.endsWith(`(${item.rawValue})`))
+  return option?.rawValue || value
+}
+
+function filterModelFileOption(input: string, option?: ModelFileOption) {
+  const keyword = input.toLowerCase()
+  return [option?.label, option?.rawValue].some(item => item?.toLowerCase().includes(keyword))
+}
+
+const businessTypeOptions = computed<ModelFileOption[]>(() => [
+  createModelFileOption(props.locale.businessTypeOptionObjectDetection, 'object_detection'),
+  createModelFileOption(props.locale.businessTypeOptionPoseDetection, 'pose_detection'),
+  createModelFileOption(props.locale.businessTypeOptionFaceEmbedding, 'face_embedding'),
+  createModelFileOption(props.locale.businessTypeOptionOcrText, 'ocr_text')
 ])
 
-const algorithmModelOptions = computed(() => [
-  { label: props.locale.modelBusinessOptionYolo, value: 'yolo' }, { label: props.locale.modelBusinessOptionYoloPose, value: 'yolo_pose' },
-  { label: props.locale.modelBusinessOptionRetinaface, value: 'retinaface' }, { label: props.locale.modelBusinessOptionResnet50, value: 'resnet50' },
-  { label: props.locale.modelBusinessOptionDeim, value: 'deim' }
+const algorithmModelOptions = computed<ModelFileOption[]>(() => [
+  createModelFileOption(props.locale.modelBusinessOptionYolo, 'yolo'),
+  createModelFileOption(props.locale.modelBusinessOptionYoloPose, 'yolo_pose'),
+  createModelFileOption(props.locale.modelBusinessOptionRetinaface, 'retinaface'),
+  createModelFileOption(props.locale.modelBusinessOptionResnet50, 'resnet50'),
+  createModelFileOption(props.locale.modelBusinessOptionDeim, 'deim')
 ])
 
-const modelFileFormatOptions = ['plan', 'onnx', 'bin', 'rknn', 'bmodel', 'om'].map(value => ({ value }))
+const modelFileFormatOptions: ModelFileOption[] = ['plan', 'onnx', 'bin', 'rknn', 'bmodel', 'om']
+  .map(value => createModelFileOption(`.${value}`, value))
+
+// AutoComplete 选中后显示 label，真实文件名后缀仍使用 rawValue。
+const businessType = computed(() => resolveModelFileOptionValue(businessTypeInput.value, businessTypeOptions.value))
+const algorithmModel = computed(() => resolveModelFileOptionValue(algorithmModelInput.value, algorithmModelOptions.value))
+const modelFileFormat = computed(() => resolveModelFileOptionValue(modelFileFormatInput.value, modelFileFormatOptions))
 
 watch(() => form.createType, (createType) => {
   if (createType === 'empty') {
@@ -199,9 +238,9 @@ watch(() => props.open, (open) => {
     form.createType = 'upload'
     form.format = []
     form.file = undefined
-    businessType.value = ''
-    algorithmModel.value = ''
-    modelFileFormat.value = ''
+    businessTypeInput.value = ''
+    algorithmModelInput.value = ''
+    modelFileFormatInput.value = ''
     uploadFiles.value = []
   }
 })
