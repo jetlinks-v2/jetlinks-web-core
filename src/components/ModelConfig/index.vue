@@ -10,7 +10,6 @@
             :options="formatOptions"
             :placeholder="text.selectFormat"
             size="small"
-            allow-clear
           />
         </div>
       </div>
@@ -383,6 +382,7 @@ const defaultLocale: LocaleText = {
   format: '架构',
   addFormatSuccess: '已新增架构',
   invalidJson: 'JSON 格式错误',
+  allFormats: '全部',
   modelFiles: '模型文件',
   codeFiles: '代码文件',
   skillFiles: '技能文件'
@@ -440,7 +440,7 @@ const emit = defineEmits<{
 }>()
 
 const text = computed(() => ({ ...defaultLocale, ...props.locale }))
-const selectedFormat = ref<string>()
+const selectedFormat = ref('')
 const selectedKeys = ref<string[]>([])
 const files = ref<ModelFile[]>([])
 const activeType = ref<'model' | 'file'>('model')
@@ -477,13 +477,17 @@ const editableExtensions = [
 ]
 
 const formatOptions = computed(() => {
-  return localFormatDetails.value
+  const options = localFormatDetails.value
     .flat()
     .filter(item => item?.id)
     .map(item => ({
       label: item.local ? `${item.name || item.id} (${item.id})` : item.name || item.id,
       value: item.id
     }))
+  return [
+    { label: text.value.allFormats, value: '' },
+    ...options
+  ]
 })
 
 const modelId = computed(() => props.model?.id)
@@ -548,12 +552,9 @@ const propertyItems = computed(() => {
 
 watch(formatOptions, (options) => {
   const values = options.map(item => item.value)
-  if (selectedFormat.value && !values.includes(selectedFormat.value)) {
-    selectedFormat.value = options[0]?.value as string | undefined
+  if (!values.includes(selectedFormat.value)) {
+    selectedFormat.value = options[0]?.value as string || ''
     return
-  }
-  if (!selectedFormat.value && options.length) {
-    selectedFormat.value = options[0].value as string
   }
 }, { immediate: true })
 
@@ -596,7 +597,7 @@ watch(() => props.files, (nextFiles) => {
 }, { deep: true, immediate: true })
 
 function requestFiles() {
-  if (!modelId.value || !selectedFormat.value) {
+  if (!modelId.value) {
     files.value = []
     return
   }
@@ -713,10 +714,6 @@ function buildCurrentFormats() {
 
 function completeFileSaving(success: boolean) {
   if (success) {
-    const targetFormat = selectedFile.value?.format?.[0]
-    if (targetFormat) {
-      selectedFormat.value = targetFormat
-    }
     editing.value = false
     draftValue.value = editorValue.value
     onlyMessage(text.value.fileSaveSuccess)
@@ -868,7 +865,7 @@ async function addFile(payload: AddFilePayload) {
     format: selectedFormat.value || payload.format?.[0] || '',
     file: payload,
     done: (success = true) => {
-      if (success && targetFormat) {
+      if (success && targetFormat && selectedFormat.value) {
         selectedFormat.value = targetFormat
       }
       completeFileCreate(success)
