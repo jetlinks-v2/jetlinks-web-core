@@ -748,6 +748,17 @@ function hasFileTreeTags(file?: ModelFile) {
 
 function getFileTreeTags(file?: ModelFile) {
   if (!file) return []
+  const formats = file.format?.filter(Boolean) || []
+  const formatLabel = formats.map(format => formatNameMap.value.get(format) || format).join(',')
+  if (file.extract && formatLabel) {
+    return [{
+      key: 'extract-format',
+      label: text.value.extractFile + ' · ' + formatLabel,
+      title: text.value.extractFile + ' / ' + formatLabel,
+      type: 'extract' as const
+    }]
+  }
+
   const tags: Array<{ key: string; label: string; title: string; type: 'extract' | 'format' }> = []
   if (file.extract) {
     tags.push({
@@ -757,9 +768,7 @@ function getFileTreeTags(file?: ModelFile) {
       type: 'extract'
     })
   }
-  const formats = file.format?.filter(Boolean) || []
-  if (formats.length) {
-    const formatLabel = formats.map(format => formatNameMap.value.get(format) || format).join(',')
+  if (formatLabel) {
     tags.push({
       key: 'format',
       label: formatLabel,
