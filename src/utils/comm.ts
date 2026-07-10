@@ -11,10 +11,12 @@ import { getProjectStorage, isProjectStorageEnabled } from './project-storage'
 const TENANT_DOMAIN_KEY = 'X-Tenant-Domain'
 const VERIFY_CACHE_KEY = 'jetlinks_verify_cache'
 
-export const getSelectedParkHeaderValue = (): string | undefined => {
+export const getSelectedParkId = (): string | undefined => {
   const value = String(LocalStore.get(PARK_STORAGE_KEY) || '').trim()
   return value && value !== 'all' ? value : undefined
 }
+
+export const getSelectedParkHeaderValue = (): string | undefined => getSelectedParkId()
 
 export const downloadJson = (
   record: Record<string, any>,
