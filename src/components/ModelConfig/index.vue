@@ -15,13 +15,6 @@
             :placeholder="text.selectFormat"
             size="small"
           />
-          <a-button
-            size="small"
-            :title="text.addFormat"
-            @click="openAddFormat"
-          >
-            <AIcon type="PlusOutlined" />
-          </a-button>
         </div>
       </div>
 
@@ -237,15 +230,6 @@
       :locale="text"
       @confirm="addFile"
     />
-    <AddFormatModal
-      v-model:open="addFormatVisible"
-      :existing-formats="existingFormatIds"
-      :locale="text"
-      :confirm-loading="addFormatSaving"
-      :loading="formatLoading"
-      :format-tags="availableFormats"
-      @confirm="saveFormat"
-    />
   </div>
 </template>
 
@@ -257,7 +241,6 @@ import MonacoEditor from '../MonacoEditor/monacoEditor.vue'
 import SectionCard from '../SectionCard/index.vue'
 import KvGrid from '../KvGrid/index.vue'
 import AddFileModal from './AddFileModal.vue'
-import AddFormatModal from './AddFormatModal.vue'
 
 interface FormatDetail {
   id: string
@@ -321,11 +304,6 @@ interface LoadFilesPayload {
 interface SaveConfigPayload extends DonePayload {
   type: 'definition' | 'manifest'
   value: string
-  config: ModelConfigSavePayload
-}
-
-interface AddFormatPayload extends DonePayload {
-  format: string
   config: ModelConfigSavePayload
 }
 
@@ -431,9 +409,7 @@ const defaultLocale: LocaleText = {
   pleaseEnterArchiveFileName: '请上传 zip 或 tar 格式压缩包',
   rootDirectory: '根目录',
   currentFormatFile: '当前架构文件',
-  addFormat: '新增架构',
   format: '架构',
-  addFormatSuccess: '已新增架构',
   invalidJson: 'JSON 格式错误',
   allFormats: '全部',
   modelFiles: '模型文件',
@@ -485,8 +461,6 @@ const emit = defineEmits<{
   (e: 'load-files', payload: LoadFilesPayload): void
   (e: 'save-config', payload: SaveConfigPayload): void
   (e: 'add-file', payload: AddFileEventPayload): void
-  (e: 'add-format', payload: AddFormatPayload): void
-  (e: 'format-added', format: string): void
   (e: 'save-file', payload: SaveFilePayload): void
   (e: 'replace-file', payload: ReplaceFilePayload): void
   (e: 'preview-file', payload: PreviewFilePayload): void
@@ -505,8 +479,6 @@ const editorValue = ref('')
 const draftValue = ref('')
 const propertyVisible = ref(false)
 const addFileVisible = ref(false)
-const addFormatVisible = ref(false)
-const addFormatSaving = ref(false)
 const filePreviewLoaded = ref(false)
 const contentLoading = ref(false)
 const fileSaving = ref(false)
@@ -561,15 +533,6 @@ const formatOptions = computed(() => {
 const modelConfigStyle = computed(() => ({
   '--model-config-sider-width': `${siderWidth.value}px`
 }))
-
-const existingFormatIds = computed(() => {
-  const formatIds = localFormatDetails.value
-    .flat()
-    .map(item => item?.id)
-    .filter(Boolean) as string[]
-  const modelFormatIds = normalizeFormats(props.model?.formats).flat()
-  return Array.from(new Set([...modelFormatIds, ...formatIds]))
-})
 
 const formatNameMap = computed(() => props.availableFormats.reduce<Map<string, string>>((map, item) => {
   if (item?.id) {
@@ -801,30 +764,6 @@ function openAddFile(path = '') {
   addFileVisible.value = true
 }
 
-function openAddFormat() {
-  addFormatVisible.value = true
-}
-
-async function saveFormat(format: string) {
-  if (!modelId.value) return
-  const config = buildSaveFormatPayload(format)
-  addFormatSaving.value = true
-  emit('add-format', {
-    format,
-    config,
-    done: (success = true) => {
-      if (success) {
-        addLocalFormat(format)
-        selectedFormat.value = format
-        addFormatVisible.value = false
-        onlyMessage(text.value.addFormatSuccess)
-        emit('format-added', format)
-      }
-      addFormatSaving.value = false
-    }
-  })
-}
-
 function completeSaving(success: boolean) {
   if (success) {
     editing.value = false
@@ -916,22 +855,6 @@ function applyFileContent(file: ModelFile) {
   draftValue.value = editorValue.value
 }
 
-function buildSaveFormatPayload(format: string) {
-  // 新增架构只扩展支持架构列表，模型参数和基础信息必须沿用当前详情，避免保存时清空已有配置。
-  const formats = normalizeFormats(props.model?.formats)
-  if (!formats.length) {
-    formats.push(...normalizeFormats(props.model?.formatDetails))
-  }
-  if (!formats.some(item => item.includes(format))) {
-    formats.push([format])
-  }
-  return {
-    definition: props.model?.definition || {},
-    manifest: props.model?.manifest || {},
-    formats
-  }
-}
-
 function normalizeFormats(source: unknown): string[][] {
   if (!Array.isArray(source)) return []
   return source
@@ -944,14 +867,6 @@ function normalizeFormats(source: unknown): string[][] {
       return [typeof item === 'string' ? item : item?.id].filter(Boolean)
     })
     .filter(item => item.length)
-}
-
-function addLocalFormat(format: string) {
-  if (localFormatDetails.value.flat().some(item => item?.id === format)) return
-  localFormatDetails.value = [
-    ...localFormatDetails.value,
-    [{ id: format, name: format }]
-  ]
 }
 
 function cloneFormatDetails(formatDetails: FormatDetail[][]) {
@@ -1024,7 +939,8 @@ async function saveEdit() {
 
 async function saveTextFile() {
   const currentFormat = selectedFormat.value || selectedFile.value?.format?.[0] || ''
-  if (!modelId.value || !currentFormat || !selectedFile.value) return
+  // Shared files can be saved without a format owner; parent handlers receive format="".
+  if (!modelId.value || !selectedFile.value) return
   fileSaving.value = true
   emit('save-file', {
     format: currentFormat,
@@ -1077,7 +993,7 @@ function addLocalEmptyFile(payload: AddFilePayload) {
 
 async function replaceFile(file: File) {
   const currentFormat = selectedFormat.value || selectedFile.value?.format?.[0] || ''
-  if (!modelId.value || !currentFormat || !selectedFile.value) return false
+  if (!modelId.value || !selectedFile.value) return false
   fileSaving.value = true
   emit('replace-file', {
     format: currentFormat,
@@ -1244,7 +1160,7 @@ async function previewFile() {
 <style scoped lang="less">
 .model-config {
   display: grid;
-  grid-template-columns: var(--model-config-sider-width, 17.5rem) 0.5rem minmax(0, 1fr) auto;
+  grid-template-columns: var(--model-config-sider-width, 17.5rem) 1px minmax(0, 1fr) auto;
   height: 100%;
   min-height: 0;
   background: var(--bg-sunken);
@@ -1268,7 +1184,7 @@ async function previewFile() {
 .model-config__resize {
   position: relative;
   min-width: 0;
-  background: var(--bg-sunken);
+  background: transparent;
   cursor: col-resize;
   touch-action: none;
 }
@@ -1282,13 +1198,14 @@ async function previewFile() {
   width: 1px;
   background: var(--line);
   transform: translateX(-50%);
-  transition: background-color 0.2s;
+  opacity: 0.65;
+  transition: background-color 0.2s, opacity 0.2s;
 }
 
 .model-config__resize:hover::before,
 .model-config__resize:focus-visible::before,
 .model-config--resizing .model-config__resize::before {
-  width: 2px;
+  opacity: 1;
   background: var(--primary-color);
 }
 
