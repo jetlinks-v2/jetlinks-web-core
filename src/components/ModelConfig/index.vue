@@ -1392,15 +1392,20 @@ async function previewFile() {
 
 :global(.model-config__tree-file-tooltip .ant-tooltip-inner),
 :global(.model-config__tree-tag-tooltip .ant-tooltip-inner) {
-  max-width: none;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
 }
 
 :global(.model-config__tree-file-tooltip-content) {
   display: block;
+  width: max-content;
+  max-width: calc(100vw - 3rem);
 }
 
 :global(.model-config__tree-file-tooltip-path) {
   display: block;
+  width: max-content;
+  max-width: calc(100vw - 3rem);
   color: rgba(255, 255, 255, 0.72);
   white-space: nowrap;
 }
@@ -1412,6 +1417,8 @@ async function previewFile() {
 :global(.model-config__tree-file-tooltip-name),
 :global(.model-config__tree-tag-tooltip .ant-tooltip-inner) {
   display: block;
+  width: max-content;
+  max-width: calc(100vw - 3rem);
   white-space: nowrap;
 }
 
