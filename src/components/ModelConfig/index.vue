@@ -66,14 +66,15 @@
                 <span v-else class="model-config__tree-node-title">{{ title }}</span>
               </span>
               <span v-if="hasFileTreeTags(file)" class="model-config__tree-tags">
-                <span
+                <a-tooltip
                   v-for="tag in getFileTreeTags(file)"
                   :key="tag.key"
-                  :class="['model-config__tree-tag', `model-config__tree-tag--${tag.type}`]"
                   :title="tag.title"
                 >
-                  {{ tag.label }}
-                </span>
+                  <span :class="['model-config__tree-tag', `model-config__tree-tag--${tag.type}`]">
+                    {{ tag.label }}
+                  </span>
+                </a-tooltip>
               </span>
               <a-button
                 v-if="!isFile"
@@ -1381,6 +1382,11 @@ async function previewFile() {
   min-width: 0;
   overflow: hidden;
   justify-content: flex-end;
+}
+
+.model-config__tree-tags :deep(.ant-tooltip-open) {
+  min-width: 0;
+  max-width: 100%;
 }
 
 :global(.model-config__tree-file-tooltip .ant-tooltip-inner) {
