@@ -267,6 +267,7 @@ interface AddFilePayload {
   format?: string[]
   createType: 'upload' | 'extract' | 'empty'
   file?: File
+  done?: (success?: boolean) => void
 }
 
 interface ModelFile {
@@ -956,23 +957,33 @@ async function saveTextFile() {
 }
 
 async function addFile(payload: AddFilePayload) {
-  if (!modelId.value) return
+  if (!modelId.value) {
+    payload.done?.(false)
+    return
+  }
   if (payload.createType === 'empty') {
     addLocalEmptyFile(payload)
+    payload.done?.(true)
     return
   }
   const targetFormat = payload.format?.[0]
   fileSaving.value = true
   emit('add-file', {
     format: selectedFormat.value || payload.format?.[0] || '',
-    file: payload,
+    file: normalizeAddFilePayload(payload),
     done: (success = true) => {
       if (success && targetFormat && selectedFormat.value) {
         selectedFormat.value = targetFormat
       }
       completeFileCreate(success)
+      payload.done?.(success)
     }
   })
+}
+
+function normalizeAddFilePayload(payload: AddFilePayload): AddFilePayload {
+  const { done, ...file } = payload
+  return file
 }
 
 function addLocalEmptyFile(payload: AddFilePayload) {
