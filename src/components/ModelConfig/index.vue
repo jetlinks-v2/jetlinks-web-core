@@ -70,6 +70,7 @@
                   v-for="tag in getFileTreeTags(file)"
                   :key="tag.key"
                   :title="tag.title"
+                  overlay-class-name="model-config__tree-tag-tooltip"
                 >
                   <span :class="['model-config__tree-tag', `model-config__tree-tag--${tag.type}`]">
                     {{ tag.label }}
@@ -1389,32 +1390,29 @@ async function previewFile() {
   max-width: 100%;
 }
 
-:global(.model-config__tree-file-tooltip .ant-tooltip-inner) {
-  max-width: 36rem;
+:global(.model-config__tree-file-tooltip .ant-tooltip-inner),
+:global(.model-config__tree-tag-tooltip .ant-tooltip-inner) {
+  max-width: none;
 }
 
 :global(.model-config__tree-file-tooltip-content) {
   display: block;
-  max-width: 32rem;
 }
 
 :global(.model-config__tree-file-tooltip-path) {
   display: block;
   color: rgba(255, 255, 255, 0.72);
-  overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 :global(.model-config__tree-file-tooltip-path)::after {
   content: "/";
 }
 
-:global(.model-config__tree-file-tooltip-name) {
+:global(.model-config__tree-file-tooltip-name),
+:global(.model-config__tree-tag-tooltip .ant-tooltip-inner) {
   display: block;
-  overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .model-config__tree-tag {
