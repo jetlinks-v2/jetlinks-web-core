@@ -1388,15 +1388,16 @@ async function previewFile() {
 }
 
 :global(.model-config__tree-file-tooltip-content) {
-  display: grid;
-  gap: 0.125rem;
+  display: block;
+  max-width: 32rem;
 }
 
 :global(.model-config__tree-file-tooltip-path) {
+  display: block;
   color: rgba(255, 255, 255, 0.72);
-  white-space: normal;
-  word-break: normal;
-  overflow-wrap: break-word;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 :global(.model-config__tree-file-tooltip-path)::after {
@@ -1404,9 +1405,10 @@ async function previewFile() {
 }
 
 :global(.model-config__tree-file-tooltip-name) {
-  white-space: normal;
-  word-break: normal;
-  overflow-wrap: break-word;
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .model-config__tree-tag {
