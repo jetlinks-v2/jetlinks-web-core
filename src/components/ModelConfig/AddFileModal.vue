@@ -1,6 +1,18 @@
 <template>
-  <a-modal :open="open" :title="locale.addFile" :width="720" :ok-text="locale.confirm" :cancel-text="locale.cancel" @ok="confirm" @cancel="emit('update:open', false)">
-    <a-form layout="vertical">
+  <a-modal
+    :open="open"
+    :title="locale.addFile"
+    :width="720"
+    :ok-text="locale.confirm"
+    :cancel-text="locale.cancel"
+    :confirm-loading="confirming"
+    :cancel-button-props="{ disabled: confirming }"
+    :mask-closable="!confirming"
+    :keyboard="!confirming"
+    @ok="confirm"
+    @cancel="cancel"
+  >
+    <a-form layout="vertical" :disabled="confirming">
       <a-row :gutter="16">
         <a-col :span="10">
           <a-form-item :label="locale.filePath">
@@ -61,6 +73,7 @@
         <a-col :span="8">
           <a-form-item :label="locale.businessType" required>
             <a-auto-complete
+              :key="`business-${autocompleteResetKey}`"
               v-model:value="businessTypeInput"
               :options="businessTypeOptions"
               :filter-option="filterModelFileOption"
@@ -71,6 +84,7 @@
         <a-col :span="8">
           <a-form-item :label="locale.modelBusiness" required>
             <a-auto-complete
+              :key="`algorithm-${autocompleteResetKey}`"
               v-model:value="algorithmModelInput"
               :options="algorithmModelOptions"
               :filter-option="filterModelFileOption"
@@ -81,6 +95,7 @@
         <a-col :span="8">
           <a-form-item :label="locale.modelFileFormat" required>
             <a-auto-complete
+              :key="`format-${autocompleteResetKey}`"
               v-model:value="modelFileFormatInput"
               :options="modelFileFormatOptions"
               :filter-option="filterModelFileOption"
@@ -103,6 +118,7 @@ interface AddFilePayload {
   format?: string[]
   createType: 'upload' | 'extract' | 'empty'
   file?: File
+  done?: (success?: boolean) => void
 }
 
 interface ModelFileOption {
@@ -150,6 +166,8 @@ const selectedOwnerFormat = ref<string>()
 const businessTypeInput = ref('')
 const algorithmModelInput = ref('')
 const modelFileFormatInput = ref('')
+const confirming = ref(false)
+const autocompleteResetKey = ref(0)
 
 function createModelFileOption(label: string, rawValue: string): ModelFileOption {
   const displayLabel = label || rawValue
@@ -232,6 +250,8 @@ const ownerOptions = computed(() => buildFileOwnerOptions(props.availableFormats
 
 watch(() => props.open, (open) => {
   if (open) {
+    autocompleteResetKey.value += 1
+    confirming.value = false
     form.name = ''
     form.path = props.selectedOwner
     selectedOwnerFormat.value = isModelFilePath.value ? undefined : SHARED_OWNER_VALUE
@@ -285,7 +305,13 @@ const createTypeDescription = computed(() => {
   return descriptionMap[form.createType]
 })
 
+const cancel = () => {
+  if (confirming.value) return
+  emit('update:open', false)
+}
+
 const confirm = () => {
+  if (confirming.value) return
   if (!form.name) {
     onlyMessage(props.locale.pleaseEnterFileName, 'warning')
     return
@@ -318,14 +344,20 @@ const confirm = () => {
     onlyMessage(props.locale.pleaseSelectFile, 'warning')
     return
   }
+  confirming.value = true
   emit('confirm', {
     name: resolvedFileName.value,
     path: form.path?.trim() || undefined,
     format: selectedOwnerFormat.value === SHARED_OWNER_VALUE ? [] : [selectedOwnerFormat.value],
     createType: form.createType,
-    file: form.file
+    file: form.file,
+    done: (success = true) => {
+      confirming.value = false
+      if (success) {
+        emit('update:open', false)
+      }
+    }
   })
-  emit('update:open', false)
 }
 </script>
 

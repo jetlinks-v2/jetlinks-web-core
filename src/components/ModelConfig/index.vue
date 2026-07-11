@@ -45,21 +45,37 @@
           @select="onTreeSelect"
         >
           <template #title="{ title, isFile, path, shared, file }">
-            <span class="model-config__tree-node">
+            <span
+              class="model-config__tree-node"
+              :class="{ 'model-config__tree-node--tagged': hasFileTreeTags(file) }"
+            >
               <span class="model-config__tree-node-main">
                 <AIcon :type="getTreeNodeIcon(isFile, shared, file)" />
-                <span class="model-config__tree-node-title">{{ title }}</span>
-                <span v-if="isFile" class="model-config__tree-tags">
-                  <a-tooltip
-                    v-for="tag in getFileTreeTags(file)"
-                    :key="tag.key"
-                    :title="tag.title"
-                  >
-                    <span :class="['model-config__tree-tag', `model-config__tree-tag--${tag.type}`]">
-                      {{ tag.label }}
+                <a-tooltip
+                  v-if="isFile"
+                  overlay-class-name="model-config__tree-file-tooltip"
+                >
+                  <template #title>
+                    <span class="model-config__tree-file-tooltip-content">
+                      <span v-if="file?.path" class="model-config__tree-file-tooltip-path">{{ file.path }}</span>
+                      <span class="model-config__tree-file-tooltip-name">{{ file?.name || title }}</span>
                     </span>
-                  </a-tooltip>
-                </span>
+                  </template>
+                  <span class="model-config__tree-node-title">{{ title }}</span>
+                </a-tooltip>
+                <span v-else class="model-config__tree-node-title">{{ title }}</span>
+              </span>
+              <span v-if="hasFileTreeTags(file)" class="model-config__tree-tags">
+                <a-tooltip
+                  v-for="tag in getFileTreeTags(file)"
+                  :key="tag.key"
+                  :title="tag.title"
+                  overlay-class-name="model-config__tree-tag-tooltip"
+                >
+                  <span :class="['model-config__tree-tag', `model-config__tree-tag--${tag.type}`]">
+                    {{ tag.label }}
+                  </span>
+                </a-tooltip>
               </span>
               <a-button
                 v-if="!isFile"
@@ -267,6 +283,7 @@ interface AddFilePayload {
   format?: string[]
   createType: 'upload' | 'extract' | 'empty'
   file?: File
+  done?: (success?: boolean) => void
 }
 
 interface ModelFile {
@@ -725,8 +742,23 @@ function getTreeNodeIcon(isFile?: boolean, shared?: boolean, file?: ModelFile) {
   return shared ? 'FileOutlined' : 'FileProtectOutlined'
 }
 
+function hasFileTreeTags(file?: ModelFile) {
+  return !!file && (file.extract || !!file.format?.filter(Boolean).length)
+}
+
 function getFileTreeTags(file?: ModelFile) {
   if (!file) return []
+  const formats = file.format?.filter(Boolean) || []
+  const formatLabel = formats.map(format => formatNameMap.value.get(format) || format).join(',')
+  if (file.extract && formatLabel) {
+    return [{
+      key: 'extract-format',
+      label: text.value.extractFile + ' · ' + formatLabel,
+      title: text.value.extractFile + ' / ' + formatLabel,
+      type: 'extract' as const
+    }]
+  }
+
   const tags: Array<{ key: string; label: string; title: string; type: 'extract' | 'format' }> = []
   if (file.extract) {
     tags.push({
@@ -736,9 +768,7 @@ function getFileTreeTags(file?: ModelFile) {
       type: 'extract'
     })
   }
-  const formats = file.format?.filter(Boolean) || []
-  if (formats.length) {
-    const formatLabel = formats.map(format => formatNameMap.value.get(format) || format).join(',')
+  if (formatLabel) {
     tags.push({
       key: 'format',
       label: formatLabel,
@@ -956,23 +986,33 @@ async function saveTextFile() {
 }
 
 async function addFile(payload: AddFilePayload) {
-  if (!modelId.value) return
+  if (!modelId.value) {
+    payload.done?.(false)
+    return
+  }
   if (payload.createType === 'empty') {
     addLocalEmptyFile(payload)
+    payload.done?.(true)
     return
   }
   const targetFormat = payload.format?.[0]
   fileSaving.value = true
   emit('add-file', {
     format: selectedFormat.value || payload.format?.[0] || '',
-    file: payload,
+    file: normalizeAddFilePayload(payload),
     done: (success = true) => {
       if (success && targetFormat && selectedFormat.value) {
         selectedFormat.value = targetFormat
       }
       completeFileCreate(success)
+      payload.done?.(success)
     }
   })
+}
+
+function normalizeAddFilePayload(payload: AddFilePayload): AddFilePayload {
+  const { done, ...file } = payload
+  return file
 }
 
 function addLocalEmptyFile(payload: AddFilePayload) {
@@ -1248,9 +1288,22 @@ async function previewFile() {
 }
 
 .model-config__tree {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
   background: transparent;
 }
 
+.model-config__sider :deep(.ant-spin-nested-loading),
+.model-config__sider :deep(.ant-spin-container) {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.model-config__tree :deep(.ant-tree-list),
+.model-config__tree :deep(.ant-tree-list-holder),
+.model-config__tree :deep(.ant-tree-list-holder-inner),
 .model-config__tree :deep(.ant-tree-treenode),
 .model-config__tree :deep(.ant-tree-node-content-wrapper),
 .model-config__tree :deep(.ant-tree-title) {
@@ -1258,12 +1311,35 @@ async function previewFile() {
   max-width: 100%;
 }
 
-.model-config__tree :deep(.ant-tree-title) {
-  display: inline-flex;
+.model-config__tree :deep(.ant-tree-list-holder-inner) {
+  display: block;
   width: 100%;
+  overflow: hidden;
 }
 
-.model-config__tree-node,
+.model-config__tree :deep(.ant-tree-treenode) {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+}
+
+.model-config__tree :deep(.ant-tree-switcher),
+.model-config__tree :deep(.ant-tree-indent) {
+  flex-shrink: 0;
+}
+
+.model-config__tree :deep(.ant-tree-node-content-wrapper) {
+  flex: 1 1 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.model-config__tree :deep(.ant-tree-title) {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
 .model-config__content-title {
   display: inline-flex;
   align-items: center;
@@ -1272,39 +1348,93 @@ async function previewFile() {
 }
 
 .model-config__tree-node {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   width: 100%;
-  justify-content: space-between;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .model-config__tree-node-main {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
 }
 
+.model-config__tree-node-main :deep(.ant-tooltip-open),
 .model-config__tree-node-title {
-  flex: 1;
+  display: block;
+  flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
+.model-config__tree-node--tagged {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.625rem;
+}
+
+.model-config__tree-node--tagged .model-config__tree-node-main {
+  width: 100%;
+}
+
 .model-config__tree-tags {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  flex-shrink: 0;
-  max-width: 8.75rem;
+  width: 5.625rem;
+  min-width: 0;
   overflow: hidden;
+  justify-content: flex-end;
+}
+
+.model-config__tree-tags :deep(.ant-tooltip-open) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+:global(.model-config__tree-file-tooltip .ant-tooltip-inner),
+:global(.model-config__tree-tag-tooltip .ant-tooltip-inner) {
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+}
+
+:global(.model-config__tree-file-tooltip-content) {
+  display: block;
+  width: max-content;
+  max-width: calc(100vw - 3rem);
+}
+
+:global(.model-config__tree-file-tooltip-path) {
+  display: block;
+  width: max-content;
+  max-width: calc(100vw - 3rem);
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+}
+
+:global(.model-config__tree-file-tooltip-path)::after {
+  content: "/";
+}
+
+:global(.model-config__tree-file-tooltip-name),
+:global(.model-config__tree-tag-tooltip .ant-tooltip-inner) {
+  display: block;
+  width: max-content;
+  max-width: calc(100vw - 3rem);
+  white-space: nowrap;
 }
 
 .model-config__tree-tag {
   display: inline-block;
-  width: 4.25rem;
+  max-width: 100%;
+  min-width: 0;
   height: 1.25rem;
   padding: 0 0.375rem;
   border-radius: var(--r-1);
