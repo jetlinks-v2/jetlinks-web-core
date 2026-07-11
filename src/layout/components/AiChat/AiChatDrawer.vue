@@ -196,8 +196,8 @@ const conversationRef = ref<any>();
 const activeHandoffRecord = ref<AiAgentHandoffRecord>();
 const consumedHandoffId = ref('');
 const appliedHandoffPromptId = ref('');
-let handoffPrefillTimer: ReturnType<typeof window.setTimeout> | undefined;
-let handoffPrefillCheckTimers: ReturnType<typeof window.setTimeout>[] = [];
+let handoffPrefillTimer: number | undefined;
+let handoffPrefillCheckTimers: number[] = [];
 let handoffPrefillRetryCount = 0;
 const MAX_HANDOFF_PREFILL_RETRY = 20;
 const {
@@ -329,7 +329,10 @@ const conversationScopeKey = computed(() => normalizeDisplayText(
 const handoffTarget = computed(() => {
   const target = resolveAiAgentHandoffTarget({
     handoffKey: conversationHandoffKey.value,
-    clientId: props.activeClientId || activeAgent.value?.clientId || props.parameters?.clientId,
+    clientId: props.parameters?.sessionClientId
+      || props.activeClientId
+      || activeAgent.value?.clientId
+      || props.parameters?.clientId,
     subjectType: conversationSubject.value?.type || props.parameters?.subjectType,
     subjectId: conversationSubject.value?.id || props.parameters?.subjectId,
     scopeType: props.parameters?.scopeType || props.parameters?.projectType,

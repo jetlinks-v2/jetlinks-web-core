@@ -3,6 +3,31 @@ import i18n from "@jetlinks-web-core/locales";
 export const agentData = [
   {
     clientType: 'pagePoint',
+    clientId: 'projectAiSearchHub',
+    name: i18n.global.t('data.aiData.projectAiSearchHub.name'),
+    description: i18n.global.t('data.aiData.projectAiSearchHub.description'),
+    searchCode: i18n.global.t('data.aiData.projectAiSearchHub.searchCode'),
+    maxAgentSize: 1,
+    expands: {
+      menuName: i18n.global.t('data.aiData.projectAiSearchHub.menuName'),
+      type: 'chatBubbles'
+    },
+    metadata: {
+      menuCode: 'ai-search-hub',
+      routeName: 'ai-search-hub',
+      path: '/ai-search-hub',
+      params: [
+        {
+          valueType: { type: 'string' },
+          id: 'projectId',
+          name: i18n.global.t('data.aiData.projectAiSearchHub.params.projectId.name'),
+          description: i18n.global.t('data.aiData.projectAiSearchHub.params.projectId.description')
+        }
+      ]
+    }
+  },
+  {
+    clientType: 'pagePoint',
     clientId: 'iotHome',
     name: i18n.global.t('data.aiData.iotHome.name'),
     description: i18n.global.t('data.aiData.iotHome.description'),
