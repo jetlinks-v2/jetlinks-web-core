@@ -3,7 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import router from '@jetlinks-web-core/router'
 import { setParamsValue } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
-import {modules, getBaseApi, isFromCloud} from '@jetlinks-web-core/utils'
+import {modules, getBaseApi, isFromCloud, getModulesMenu} from '@jetlinks-web-core/utils'
 import { getOwnMenuThree } from '@jetlinks-web-core/api/system/menu'
 import { getGlobModules } from '@jetlinks-web-core/router/globModules'
 import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
@@ -39,6 +39,50 @@ const defaultOwnParams: any[] = [
     ],
   }
 ]
+
+const collectMenuMap = (nodes: any[] = [], map = new Map<string, any>()) => {
+  nodes.forEach((node) => {
+    if (node.code) {
+      map.set(node.code, node)
+    }
+
+    if (node.children?.length) {
+      collectMenuMap(node.children, map)
+    }
+  })
+
+  return map
+}
+
+const mergeLocalMenuNode = (localNode: any, remoteNode: any): any => {
+  const remoteChildren = Array.isArray(remoteNode.children) ? remoteNode.children : []
+  const localChildren = Array.isArray(localNode.children) ? localNode.children : []
+  const remoteChildMap = new Map(remoteChildren.map((item: any) => [item.code, item]))
+  const mergedChildCodes = new Set<string>()
+
+  // 后端菜单是权限结果，本地菜单只补齐路由层级和 componentCode，避免旧菜单结构绕过本地布局。
+  const children = localChildren.map((localChild: any) => {
+    mergedChildCodes.add(localChild.code)
+    const remoteChild = remoteChildMap.get(localChild.code)
+    return remoteChild ? mergeLocalMenuNode(localChild, remoteChild) : { ...localChild }
+  })
+
+  remoteChildren.forEach((remoteChild: any) => {
+    if (!mergedChildCodes.has(remoteChild.code)) {
+      children.push(remoteChild)
+    }
+  })
+
+  return {
+    ...localNode,
+    ...remoteNode,
+    options: {
+      ...(localNode.options || {}),
+      ...(remoteNode.options || {}),
+    },
+    children,
+  }
+}
 
 const shouldShowOverrideRoute = (
   route: RouteRecordRaw,
@@ -213,8 +257,26 @@ export const useMenuStore = defineStore('menu', () => {
 
     const menuResult = Array.isArray(resp.result) ? resp.result : []
     runtime.menuResultCache.value = JSON.parse(JSON.stringify(menuResult))
+    const localMenuMap = collectMenuMap(getModulesMenu())
+    const normalizedMenuResult = menuResult.map((node) => {
+      const localNode = localMenuMap.get(node.code)
+      return localNode ? mergeLocalMenuNode(localNode, node) : node
+    })
 
     if (app.appList.length > 0) {
+      const localMenuCodes = new Set<string>()
+      const collectLocalMenuCodes = (nodes: any[] = []) => {
+        nodes.forEach((node) => {
+          if (node.code) {
+            localMenuCodes.add(node.code)
+          }
+          if (node.children?.length) {
+            collectLocalMenuCodes(node.children)
+          }
+        })
+      }
+      collectLocalMenuCodes(getModulesMenu())
+
       const handleMicroApp = (nodes: any[]) => {
         if (!nodes || nodes.length === 0) return
 
@@ -237,12 +299,16 @@ export const useMenuStore = defineStore('menu', () => {
 
             let isLocal = false
 
+            if (localMenuCodes.has(node.code)) {
+              isLocal = true
+            }
+
             if (import.meta.env.DEV) {
               const modulesFile = modules()
               isLocal = Object.values(modulesFile).some(v => {
                 const localMenus = (v as any).default.getAsyncRoutesMap()
                 return localMenus?.[node.code]
-              })
+              }) || isLocal
             }
 
             if (!isLocal) {
@@ -255,12 +321,12 @@ export const useMenuStore = defineStore('menu', () => {
         }
       }
 
-      handleMicroApp(menuResult)
+      handleMicroApp(normalizedMenuResult)
     }
 
     if (resp.success) {
-      runtime.hasResponeMenu.value = !!menuResult.length
-      await runtime.createRoutes(menuResult)
+      runtime.hasResponeMenu.value = !!normalizedMenuResult.length
+      await runtime.createRoutes(normalizedMenuResult)
       runtime.loading.value = false
     }
   }

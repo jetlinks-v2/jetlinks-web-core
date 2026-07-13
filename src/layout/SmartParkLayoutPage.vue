@@ -26,6 +26,7 @@
 
       <div class="smart-park-global-actions">
         <a-tree-select
+          v-if="!userStore.isAdmin"
           v-model:value="selectedPark"
           class="smart-park-park-select"
           :tree-data="parkOptions"
@@ -539,6 +540,10 @@ const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
 
 watchEffect(() => {
   state.pure = route.query?.layout === 'false'
+  // 平台管理员不展示园区切换，统一按全部园区访问，避免沿用历史缓存的单园区范围。
+  if (userStore.isAdmin && selectedPark.value !== 'all') {
+    selectedPark.value = 'all'
+  }
   if (!includesParkOptionValue(parkOptions.value, selectedPark.value)) {
     selectedPark.value = findFirstSelectableParkValue(parkOptions.value) || ''
   }
