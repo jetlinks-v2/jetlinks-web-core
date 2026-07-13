@@ -57,20 +57,12 @@ const collectMenuMap = (nodes: any[] = [], map = new Map<string, any>()) => {
 const mergeLocalMenuNode = (localNode: any, remoteNode: any): any => {
   const remoteChildren = Array.isArray(remoteNode.children) ? remoteNode.children : []
   const localChildren = Array.isArray(localNode.children) ? localNode.children : []
-  const remoteChildMap = new Map(remoteChildren.map((item: any) => [item.code, item]))
-  const mergedChildCodes = new Set<string>()
+  const localChildMap = new Map(localChildren.map((item: any) => [item.code, item]))
 
   // 后端菜单是权限结果，本地菜单只补齐路由层级和 componentCode，避免旧菜单结构绕过本地布局。
-  const children = localChildren.map((localChild: any) => {
-    mergedChildCodes.add(localChild.code)
-    const remoteChild = remoteChildMap.get(localChild.code)
-    return remoteChild ? mergeLocalMenuNode(localChild, remoteChild) : { ...localChild }
-  })
-
-  remoteChildren.forEach((remoteChild: any) => {
-    if (!mergedChildCodes.has(remoteChild.code)) {
-      children.push(remoteChild)
-    }
+  const children = remoteChildren.map((remoteChild: any) => {
+    const localChild = localChildMap.get(remoteChild.code)
+    return localChild ? mergeLocalMenuNode(localChild, remoteChild) : remoteChild
   })
 
   return {
