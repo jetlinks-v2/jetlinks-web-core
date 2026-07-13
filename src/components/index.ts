@@ -57,6 +57,7 @@ import PageRouteSkeleton from './PageRouteSkeleton/index.vue'
 import PageRouteView from './PageRouteView/index.vue'
 import EqualHeightColumns from './EqualHeightColumns/index.vue'
 import ModelConfig from './ModelConfig/index.vue'
+import MenuAssetPermissionEditor from './MenuAssetPermissionEditor/index.vue'
 
 export default {
     install(app: App) {
@@ -119,6 +120,7 @@ export default {
           .component('PageRouteView', PageRouteView)
           .component('EqualHeightColumns', EqualHeightColumns)
           .component('ModelConfig', ModelConfig)
+          .component('MenuAssetPermissionEditor', MenuAssetPermissionEditor)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
@@ -127,3 +129,5 @@ export default {
         app.use(Echarts as unknown as Plugin)
     }
 }
+
+export { MenuAssetPermissionEditor }
