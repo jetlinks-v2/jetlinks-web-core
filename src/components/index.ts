@@ -58,6 +58,7 @@ import PageRouteSkeleton from './PageRouteSkeleton/index.vue'
 import PageRouteView from './PageRouteView/index.vue'
 import EqualHeightColumns from './EqualHeightColumns/index.vue'
 import ModelConfig from './ModelConfig/index.vue'
+import ParkTreeSelect from './ParkTreeSelect/index.vue'
 
 export default {
     install(app: App) {
@@ -121,6 +122,7 @@ export default {
           .component('PageRouteView', PageRouteView)
           .component('EqualHeightColumns', EqualHeightColumns)
           .component('ModelConfig', ModelConfig)
+          .component('ParkTreeSelect', ParkTreeSelect)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
