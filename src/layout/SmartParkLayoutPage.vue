@@ -305,7 +305,7 @@ const parkOptions = computed<ParkTreeSelectNode[]>(() => [
 const loadCurrentUserParkTree = async () => {
   loadingParks.value = true
   try {
-    const response = await request.get('/park/basic/config/tree/current')
+    const response = await request.get('/user/park/tree/current')
     currentUserParkTree.value = unwrapResult<BasicConfigTreeNode[]>(response) || []
   } catch {
     currentUserParkTree.value = []
