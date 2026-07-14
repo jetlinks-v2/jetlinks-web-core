@@ -70,9 +70,75 @@ export interface GeneralAgentConversationBridge {
   dispose?: () => void;
 }
 
+/**
+ * Declares a Markdown fenced-block renderer owned by a general-agent capability.
+ *
+ * The fence info string is matched against `type`. Returning `undefined` from
+ * `decode` rejects the block so the conversation falls back to a normal code block.
+ */
+export interface GeneralAgentMarkdownBlockRenderer {
+  type: string;
+  renderer: Component;
+  decode?: (content: string) => unknown | undefined;
+}
+
+export interface GeneralAgentResolvedMarkdownBlock {
+  type: string;
+  renderer: Component;
+  value: unknown;
+}
+
+/**
+ * Extracts closed fenced blocks for one capability-owned type.
+ *
+ * This helper only locates the Markdown envelope. The owning capability still
+ * defines and validates the block body through its decoder.
+ */
+export const findGeneralAgentMarkdownBlockContents = (
+  source: string,
+  type: string,
+) => {
+  const normalizedType = normalizeText(type).toLowerCase();
+  if (!normalizedType || typeof source !== 'string') return [];
+
+  const lines = source.replace(/\r\n?/g, '\n').split('\n');
+  const contents: string[] = [];
+  const openingPattern = /^[ \t]{0,3}((?:`{3,})|(?:~{3,}))[ \t]*([^ \t`~]+)?[^\n]*$/;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const opening = lines[index]?.match(openingPattern);
+    if (!opening) continue;
+
+    const fence = opening[1] || '';
+    const fenceMarker = fence[0];
+    const blockType = normalizeText(opening[2]).toLowerCase();
+    let closingIndex = -1;
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const closing = lines[cursor]?.trim() || '';
+      if (
+        closing.length >= fence.length
+        && Array.from(closing).every(marker => marker === fenceMarker)
+      ) {
+        closingIndex = cursor;
+        break;
+      }
+    }
+
+    // Streaming tails are intentionally ignored until the closing fence arrives.
+    if (closingIndex < 0) break;
+    if (blockType === normalizedType) {
+      contents.push(lines.slice(index + 1, closingIndex).join('\n'));
+    }
+    index = closingIndex;
+  }
+
+  return contents;
+};
+
 export interface GeneralAgentConversationExtension {
   displayAdapter?: GeneralAgentConversationDisplayAdapter;
   suppressedMessageRenderer?: Component;
+  markdownBlockRenderers?: GeneralAgentMarkdownBlockRenderer[];
   createBridge?: (
     context: GeneralAgentConversationBridgeContext,
   ) => GeneralAgentConversationBridge;
@@ -137,7 +203,39 @@ class GeneralAgentExtensionRegistry {
   getConversationExtensions(scopes: string | string[] = 'general') {
     return this.getExtensions(scopes).filter(extension => !!extension.conversation);
   }
+
+  /**
+   * Resolves a fenced block through the currently loaded capability Extensions.
+   * Decoder failures are treated as an unsupported block and never break Markdown rendering.
+   */
+  resolveMarkdownBlock(
+    type: string,
+    content: string,
+    scopes: string | string[] = 'general',
+  ): GeneralAgentResolvedMarkdownBlock | undefined {
+    const normalizedType = normalizeText(type).toLowerCase();
+    if (!normalizedType) return undefined;
+
+    for (const extension of this.getConversationExtensions(scopes)) {
+      const renderers = extension.conversation?.markdownBlockRenderers || [];
+      for (const candidate of renderers) {
+        if (normalizeText(candidate.type).toLowerCase() !== normalizedType) continue;
+        try {
+          const value = candidate.decode ? candidate.decode(content) : content;
+          if (value !== undefined) {
+            return {
+              type: normalizedType,
+              renderer: candidate.renderer,
+              value,
+            };
+          }
+        } catch {
+          // Invalid capability payloads remain visible as ordinary source blocks.
+        }
+      }
+    }
+    return undefined;
+  }
 }
 
 export const generalAgentExtensionRegistry = new GeneralAgentExtensionRegistry();
-
