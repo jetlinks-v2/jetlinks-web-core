@@ -87,6 +87,9 @@ const rightStyle = paneStyle
 
 .equal-height-columns__pane {
   min-width: 0;
+  min-height: 0;
   height: 100%;
+  /* 约束子项高度，让左侧筛选等面板能内部滚动 */
+  overflow: hidden;
 }
 </style>
