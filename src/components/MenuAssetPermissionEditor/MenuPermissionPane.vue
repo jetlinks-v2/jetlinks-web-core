@@ -26,18 +26,18 @@
           </div>
           <div v-else-if="column.key === 'action'" class="action-header">
             <span>{{ $t('components.MenuAssetPermissionEditor.operationPermission') }}</span>
-            <div class="action-batch-control">
-              <span>{{ $t('components.MenuAssetPermissionEditor.batchSetting') }}</span>
-              <a-select
-                mode="multiple"
-                allow-clear
-                :value="context.buttonBatchValues.value"
-                :options="activeActionOptions"
-                :max-tag-count="1"
-                :placeholder="$t('components.MenuAssetPermissionEditor.selectOperationPermission')"
-                @change="applyButtonBatch"
-              />
-            </div>
+<!--            <div class="action-batch-control">-->
+<!--              <span>{{ $t('components.MenuAssetPermissionEditor.batchSetting') }}</span>-->
+<!--              <a-select-->
+<!--                mode="multiple"-->
+<!--                allow-clear-->
+<!--                :value="context.buttonBatchValues.value"-->
+<!--                :options="activeActionOptions"-->
+<!--                :max-tag-count="1"-->
+<!--                :placeholder="$t('components.MenuAssetPermissionEditor.selectOperationPermission')"-->
+<!--                @change="applyButtonBatch"-->
+<!--              />-->
+<!--            </div>-->
           </div>
           <span v-else>{{ column.title }}</span>
         </template>
