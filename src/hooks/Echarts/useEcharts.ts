@@ -1,5 +1,5 @@
 import echarts from "./library"
-import { Ref, onMounted, onUnmounted, unref } from 'vue'
+import { Ref, onMounted, onUnmounted, unref, watch } from 'vue'
 import { debounce } from 'lodash-es'
 
 export const useEcharts = (el: Ref<HTMLDivElement | undefined>, props: any = {}) => {
