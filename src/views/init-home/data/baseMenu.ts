@@ -44,6 +44,10 @@ export const USER_CENTER_MENU_DATA = {
             permission: 'system_config',
             actions: ['query'],
         },
+        {
+            permission: 'smart-park-access-door-person',
+            actions: ['query-face', 'query', 'save', 'sync', 'query-picture-url'],
+        },
     ],
     buttons: [
         {
