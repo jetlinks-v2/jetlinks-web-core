@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type { RouteRecordRaw } from 'vue-router'
+import cloneDeep from 'lodash-es/cloneDeep'
 import router from '@jetlinks-web-core/router'
 import { setParamsValue } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
@@ -52,6 +53,54 @@ const collectMenuMap = (nodes: any[] = [], map = new Map<string, any>()) => {
   })
 
   return map
+}
+
+const rebuildMenuTree = (localNodes: any[] = [], remoteMap = new Map<string, any>(), used = new Set<string>()) => {
+  const result: any[] = []
+
+  localNodes.forEach((localNode) => {
+    if (!localNode?.code) {
+      return
+    }
+
+    const remoteNode = remoteMap.get(localNode.code)
+    if (remoteNode?.code) {
+      used.add(remoteNode.code)
+    }
+
+    const mergedChildren = rebuildMenuTree(localNode.children || [], remoteMap, used)
+    const localChildCodes = new Set((localNode.children || []).map((item: any) => item?.code).filter(Boolean))
+    const remoteChildren = Array.isArray(remoteNode?.children) ? remoteNode.children : []
+    const remoteExtras = remoteChildren.filter((item: any) => {
+      if (!item?.code) return false
+      return !localChildCodes.has(item.code) && !used.has(item.code)
+    })
+
+    remoteExtras.forEach((item: any) => {
+      if (item?.code) {
+        used.add(item.code)
+      }
+    })
+
+    if (!remoteNode && !mergedChildren.length && !remoteExtras.length) {
+      if (String(localNode.code || '').startsWith('config')) {
+        result.push(cloneDeep(localNode))
+      }
+      return
+    }
+
+    const mergedNode = remoteNode
+      ? mergeLocalMenuNode(localNode, remoteNode)
+      : cloneDeep(localNode)
+
+    if (mergedChildren.length || remoteExtras.length) {
+      mergedNode.children = [...mergedChildren, ...remoteExtras]
+    }
+
+    result.push(mergedNode)
+  })
+
+  return result
 }
 
 const mergeLocalMenuNode = (localNode: any, remoteNode: any): any => {
@@ -249,11 +298,15 @@ export const useMenuStore = defineStore('menu', () => {
 
     const menuResult = Array.isArray(resp.result) ? resp.result : []
     runtime.menuResultCache.value = JSON.parse(JSON.stringify(menuResult))
-    const localMenuMap = collectMenuMap(getModulesMenu())
-    const normalizedMenuResult = menuResult.map((node) => {
-      const localNode = localMenuMap.get(node.code)
-      return localNode ? mergeLocalMenuNode(localNode, node) : node
-    })
+    const localMenus = getModulesMenu()
+    const remoteMenuMap = collectMenuMap(menuResult)
+    const normalizedMenuResult = rebuildMenuTree(localMenus, remoteMenuMap)
+    const normalizedMenuMap = collectMenuMap(normalizedMenuResult)
+
+    const mergedMenuResult = [
+      ...normalizedMenuResult,
+      ...menuResult.filter((node) => !node?.code || !normalizedMenuMap.has(node.code)),
+    ]
 
     if (app.appList.length > 0) {
       const localMenuCodes = new Set<string>()
@@ -313,12 +366,12 @@ export const useMenuStore = defineStore('menu', () => {
         }
       }
 
-      handleMicroApp(normalizedMenuResult)
+      handleMicroApp(mergedMenuResult)
     }
 
     if (resp.success) {
-      runtime.hasResponeMenu.value = !!normalizedMenuResult.length
-      await runtime.createRoutes(normalizedMenuResult)
+      runtime.hasResponeMenu.value = !!mergedMenuResult.length
+      await runtime.createRoutes(mergedMenuResult)
       runtime.loading.value = false
     }
   }

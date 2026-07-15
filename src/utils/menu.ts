@@ -106,7 +106,18 @@ export const handleMenus = (
     const isApp = !!record.appId
     const meta = handleMeta(record, isApp)
     const componentCode = (meta?.componentCode as string) || record.options?.componentCode || record.code
-    const myComponents = components[componentCode]
+    const componentCandidates = [
+      componentCode,
+      record.code,
+      record.options?.componentCode,
+      (record.options?.routeName || '').replace('smart-park-', '').replace(/^\//, ''),
+      (meta as Record<string, any>)?.routeName,
+      String(record.code || '').replace(/^config\/system\//, 'system/'),
+      String(record.code || '').replace(/^config\//, ''),
+      String(componentCode || '').replace(/^config\/system\//, 'system/'),
+      String(componentCode || '').replace(/^config\//, ''),
+    ].filter(Boolean)
+    const myComponents = componentCandidates.map((key) => components[key as string]).find(Boolean)
 
     if (record.component) {
       return record.component

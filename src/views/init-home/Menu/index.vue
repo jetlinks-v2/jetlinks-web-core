@@ -125,6 +125,10 @@ const filterMenuByPermission = (
   hasProtocol: boolean,
 ): MenuItem[] => {
   return menus.filter((item) => {
+    const code = String(item.code || '')
+    if (code === 'system' || code.startsWith('system/')) {
+      return false
+    }
     let isShow = false;
     if (item.showPage && item.showPage.length) {
       isShow = item.showPage.some((pItem) => {
@@ -143,6 +147,10 @@ const filterMenuByPermission = (
     }
     if (!hasProtocol && item.options?.hasProtocol) {
       return false;
+    }
+    // 配置管理是初始化页的核心入口，必须保留，避免被权限过滤误伤。
+    if (code.startsWith('config')) {
+      return true;
     }
     return isShow || !!item.children?.length;
   });
