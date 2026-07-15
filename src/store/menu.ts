@@ -93,6 +93,28 @@ const mergeLocalMenus = (menus: any[] = []) => {
   return Array.from(map.values())
 }
 
+const mergeMenuOrderByRemote = (remoteMenus: any[] = [], normalizedMenus: any[] = []) => {
+  const normalizedMap = new Map<string, any>()
+  normalizedMenus.forEach((item) => {
+    if (item?.code) {
+      normalizedMap.set(item.code, item)
+    }
+  })
+
+  const remoteCodes = new Set<string>()
+  const mergedMenus = remoteMenus.map((item) => {
+    const code = String(item?.code || '')
+    if (code) {
+      remoteCodes.add(code)
+    }
+    return (code && normalizedMap.get(code)) || item
+  })
+
+  const localOnlyMenus = normalizedMenus.filter((item) => !item?.code || !remoteCodes.has(item.code))
+
+  return [...mergedMenus, ...localOnlyMenus]
+}
+
 const rebuildMenuTree = (localNodes: any[] = [], remoteMap = new Map<string, any>(), used = new Set<string>()) => {
   const result: any[] = []
 
@@ -341,10 +363,13 @@ export const useMenuStore = defineStore('menu', () => {
     const normalizedMenuResult = rebuildMenuTree(localMenus, remoteMenuMap)
     const normalizedMenuMap = collectMenuMap(normalizedMenuResult)
 
-    const mergedMenuResult = [
-      ...normalizedMenuResult,
-      ...menuResult.filter((node) => !node?.code || !normalizedMenuMap.has(node.code)),
-    ]
+    const mergedMenuResult = mergeMenuOrderByRemote(
+      menuResult,
+      [
+        ...normalizedMenuResult,
+        ...menuResult.filter((node) => !node?.code || !normalizedMenuMap.has(node.code)),
+      ],
+    )
 
     if (app.appList.length > 0) {
       const localMenuCodes = new Set<string>()
