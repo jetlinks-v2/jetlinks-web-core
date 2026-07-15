@@ -139,15 +139,10 @@ export const createHomeAgentMarkdownLinkHandler = (
     const context = createHomeAgentContext(options)
     const permissionAnchor = findHomeAgentRoutePermissionAnchor(routeLink, context)
     if (!permissionAnchor) {
-      if (routeLink.path) return false
       payload.event.preventDefault()
       return true
     }
     payload.event.preventDefault()
-    if (typeof payload.defaultOpen === 'function') {
-      payload.defaultOpen()
-      return true
-    }
     if (routeLink.path) {
       void router.push(routeLink.path)
       return true

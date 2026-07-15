@@ -15,6 +15,8 @@ export interface DomainAgentNavigation {
   label: string
   path: string
   menuCode: string
+  link?: string
+  markdownLink?: string
   subject?: {
     type: string
     id: string
@@ -183,10 +185,40 @@ export const domainAgentResultValueType = (
     }),
     domainAgentProperty('navigation', {
       type: 'array',
-      elementType: { type: 'object' },
+      elementType: {
+        type: 'object',
+        properties: [
+          domainAgentProperty('kind', domainAgentEnumValueType(['menu', 'detail', 'workspace', 'handoff']), true),
+          domainAgentProperty('label', { type: 'string' }, true),
+          domainAgentProperty('path', { type: 'string' }, true),
+          domainAgentProperty('menuCode', { type: 'string' }, true),
+          domainAgentProperty('link', { type: 'string' }),
+          domainAgentProperty('markdownLink', { type: 'string' }),
+          domainAgentProperty('requiresConfirmation', { type: 'boolean' }),
+        ],
+      },
     }),
   ],
 })
+
+/** Creates a controlled menu receipt that models can quote without guessing routes. */
+export const createDomainAgentMenuNavigation = (input: {
+  label: string
+  menuCode: string
+  path?: string
+  requiresConfirmation?: boolean
+}): DomainAgentNavigation => {
+  const link = `#menu=${encodeURIComponent(input.menuCode)}`
+  return {
+    kind: 'menu',
+    label: input.label,
+    path: input.path || '',
+    menuCode: input.menuCode,
+    link,
+    markdownLink: `[${input.label}](${link})`,
+    requiresConfirmation: input.requiresConfirmation,
+  }
+}
 
 const PRESET_DURATION: Record<'24h' | '7d' | '30d', number> = {
   '24h': 24 * 60 * 60 * 1000,
