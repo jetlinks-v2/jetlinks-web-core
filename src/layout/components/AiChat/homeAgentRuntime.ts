@@ -4,6 +4,7 @@ import { createHomeAgentBaseTools } from './homeAgentBaseTools'
 import {
   buildHomeAgentCapabilityPromptExamples,
   hasHomeAgentContinuationCapabilities,
+  interleavePromptGroups,
 } from './homeAgentCatalog'
 import type {
   HomeAgentCapabilityContext,
@@ -43,7 +44,9 @@ const buildProviderWorkflowGuides = (
 const buildProviderPromptExamples = (
   context: HomeAgentCapabilityContext,
   options: HomeAgentRuntimeOptions,
-) => getProviders(options).flatMap(provider => toArray(provider.getPromptExamples?.(context)))
+) => interleavePromptGroups(
+  getProviders(options).map(provider => toArray(provider.getPromptExamples?.(context))),
+)
 
 const buildProviderSystemPromptLines = (
   context: HomeAgentCapabilityContext,
@@ -84,14 +87,14 @@ const buildHomeAgentToolsDescription = (
   ]),
 ].join('\n')
 
-const buildHomeAgentPromptExamples = (
+const buildHomeAgentPromptExampleCandidates = (
   context: HomeAgentCapabilityContext,
   options: HomeAgentRuntimeOptions,
 ) => uniqueStrings([
   ...(options.promptExamples || []),
   ...buildProviderPromptExamples(context, options),
   ...buildHomeAgentCapabilityPromptExamples(context),
-]).slice(0, HOME_AGENT_PROMPT_EXAMPLE_LIMIT)
+])
 
 export const createHomeAgentRuntime = (
   options: HomeAgentRuntimeOptions = {},
@@ -130,10 +133,12 @@ export const createHomeAgentRuntime = (
     || i18n.global.t('components.AiChat.homeAgent.subjectName')
   const conversationTitle = resolveOptionText(options.conversationTitle)
     || i18n.global.t('components.AiChat.homeAgent.conversationTitle')
+  const promptExamples = buildHomeAgentPromptExampleCandidates(context, options)
 
   return {
     ...runtime,
     getContext,
+    promptExamples,
     parameters: {
       subjectType,
       subjectId,
@@ -150,7 +155,7 @@ export const createHomeAgentRuntime = (
       ...(options.onConversationMessage ? { onConversationMessage: options.onConversationMessage } : {}),
       systemPrompt: buildHomeAgentSystemPrompt(context, options),
       openingStatement: options.openingStatement || i18n.global.t('components.AiChat.homeAgent.opening'),
-      promptExamples: buildHomeAgentPromptExamples(context, options),
+      promptExamples: promptExamples.slice(0, HOME_AGENT_PROMPT_EXAMPLE_LIMIT),
     },
   }
 }
