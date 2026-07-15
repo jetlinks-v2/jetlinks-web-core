@@ -1,4 +1,9 @@
-import { readonly, ref, type Component } from 'vue';
+import {
+  readonly,
+  ref,
+  type Component,
+  type InjectionKey,
+} from 'vue';
 import {
   homeAgentCapabilityRegistry,
 } from './homeAgentRegistry';
@@ -87,6 +92,26 @@ export interface GeneralAgentResolvedMarkdownBlock {
   renderer: Component;
   value: unknown;
 }
+
+export interface GeneralAgentMarkdownTextResourceOptions {
+  maxBytes?: number;
+}
+
+/**
+ * Resolves a capability-owned text resource through the active conversation boundary.
+ *
+ * Renderers receive only an opaque URI and never need the session id, HTTP endpoint or
+ * authorization details used by the host conversation.
+ */
+export type GeneralAgentMarkdownTextResourceResolver = (
+  uri: string,
+  options?: GeneralAgentMarkdownTextResourceOptions,
+) => Promise<string | undefined>;
+
+export const GENERAL_AGENT_MARKDOWN_TEXT_RESOURCE_RESOLVER_KEY:
+  InjectionKey<GeneralAgentMarkdownTextResourceResolver> = Symbol(
+    'generalAgentMarkdownTextResourceResolver',
+  );
 
 /**
  * Extracts closed fenced blocks for one capability-owned type.

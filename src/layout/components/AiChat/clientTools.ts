@@ -461,7 +461,7 @@ const createClientToolConfirmationRejectedResult = (
   retryable: false,
   reason: 'user_rejected_confirmation',
   optionId: response?.optionId,
-  message: '用户已取消或拒绝本次工具调用。本次操作不得继续执行，也不要自动重试；只有用户再次明确要求时，才可以重新发起确认。',
+  message: i18n.global.t('components.AiChat.confirm.rejected'),
 });
 
 const normalizeClientToolExecutionError = (error: any, toolName: string) => (

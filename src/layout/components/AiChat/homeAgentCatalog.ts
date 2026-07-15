@@ -55,25 +55,27 @@ const compactContinuation = (value: unknown) => {
   return Object.values(continuation).some(Boolean) ? continuation : undefined
 }
 
-export const compactHomeAgentCapability = (item: HomeAgentCapability) => ({
-  id: item.id,
-  kind: item.kind,
-  name: item.name,
-  description: item.description,
-  category: item.category,
-  menuCode: item.menuCode,
-  routeName: item.routeName,
-  path: item.path,
-  link: item.kind === 'menu' && (item.menuCode || item.routeName)
-    ? `#menu=${encodeURIComponent(String(item.menuCode || item.routeName))}`
-    : undefined,
-  markdownLink: item.kind === 'menu' && (item.menuCode || item.routeName)
-    ? `[${item.name}](#menu=${encodeURIComponent(String(item.menuCode || item.routeName))})`
-    : undefined,
-  clientId: item.clientId,
-  clientType: item.clientType,
-  continuation: compactContinuation(item.metadata?.continuation),
-})
+export const compactHomeAgentCapability = (item: HomeAgentCapability) => {
+  const menuAnchor = item.menuCode || item.routeName
+  const link = menuAnchor
+    ? `#menu=${encodeURIComponent(String(menuAnchor))}`
+    : undefined
+  return {
+    id: item.id,
+    kind: item.kind,
+    name: item.name,
+    description: item.description,
+    category: item.category,
+    menuCode: item.menuCode,
+    routeName: item.routeName,
+    path: item.path,
+    link,
+    markdownLink: link ? `[${item.name}](${link})` : undefined,
+    clientId: item.clientId,
+    clientType: item.clientType,
+    continuation: compactContinuation(item.metadata?.continuation),
+  }
+}
 
 export const hasHomeAgentContinuationCapabilities = (context: HomeAgentCapabilityContext) => (
   context.capabilities.some(item => isPlainRecord(item.metadata?.continuation))
@@ -154,7 +156,7 @@ const getCapabilityPromptExamples = (capability: HomeAgentCapability) => {
     : [i18n.global.t('components.AiChat.homeAgent.promptExamples.capability', [capability.name])]
 }
 
-const interleavePromptGroups = (groups: string[][]) => {
+export const interleavePromptGroups = (groups: string[][]) => {
   const normalizedGroups = groups.map(uniqueStrings).filter(group => group.length)
   if (!normalizedGroups.length) return []
   const result: string[] = []
