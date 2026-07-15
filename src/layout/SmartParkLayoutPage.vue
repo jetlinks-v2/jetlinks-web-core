@@ -20,7 +20,8 @@
           :title="item.title"
           @click="handleRootClick(item)"
         >
-          {{ item.title }}
+          <MenuIcon :item="item" class="smart-park-product-tab__icon" />
+          <span class="smart-park-product-tab__title">{{ item.title }}</span>
         </a-button>
       </div>
 
@@ -662,6 +663,9 @@ onMounted(loadCurrentUserParkTree)
 
 .smart-park-product-tab {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
   justify-content: flex-start;
   height: 3rem;
   padding: 0;
@@ -672,6 +676,20 @@ onMounted(loadCurrentUserParkTree)
   position: relative;
   box-shadow: none;
   color: #fff;
+}
+
+.smart-park-product-tab__icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 1rem;
+  font-size: var(--fs-body);
+}
+
+.smart-park-product-tab__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .smart-park-product-tab:hover,
