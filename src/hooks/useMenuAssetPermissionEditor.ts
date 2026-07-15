@@ -382,7 +382,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     assetDefinitions.clear()
     assetNames.clear()
     ;(input.assetTypes || []).forEach(type => assetNames.set(String(type.id), String(type.name || type.id)))
-    const authoritative = input.grantableAssets !== undefined
+    const hasGrantableScope = input.grantableAssets !== undefined
     const grantableMap = new Map<string, GrantableAssetType>()
     ;(input.grantableAssets || []).forEach(asset => grantableMap.set(String(asset.assetType), asset))
 
@@ -395,10 +395,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
             assetType,
             name: grantable?.name,
             menuName: String(menu.i18nName || menu.name || ''),
-            accesses: new Map((grantable?.accesses || []).map(access => [String(access.supportId), {
-              ...access,
-              supportId: String(access.supportId),
-            }])),
+            accesses: new Map(),
           })
         }
         const definition = assetDefinitions.get(assetType)!
@@ -408,15 +405,30 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
           const supportId = supportIdOf(access)
           if (!supportId) return
           const existing = definition.accesses.get(supportId)
-          if (!authoritative || existing) {
-            definition.accesses.set(supportId, {
-              ...access,
-              ...existing,
-              supportId,
-              name: existing?.name || supportNameOf(access),
-            })
-          }
+          const grantable = grantableMap
+            .get(assetType)
+            ?.accesses
+            .find(item => String(item.supportId) === supportId)
+          // detail 返回完整候选集；grantable 只决定当前赋权人能否选择，不能把候选及其名称从回显中删除。
+          definition.accesses.set(supportId, {
+            ...existing,
+            ...access,
+            ...grantable,
+            supportId,
+            name: grantable?.name || existing?.name || supportNameOf(access),
+            disabled: hasGrantableScope
+              ? !grantable || grantable.disabled === true
+              : access.disabled === true,
+          })
         })
+
+        // 兼容尚未在 detail 中铺开候选项的旧后端，仅在该资产没有菜单候选时回退到 grantable。
+        if (!definition.accesses.size) {
+          ;(grantableMap.get(assetType)?.accesses || []).forEach(access => {
+            const supportId = String(access.supportId)
+            definition.accesses.set(supportId, { ...access, supportId })
+          })
+        }
       })
     })
 
@@ -473,13 +485,17 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   }
 
   const getSnapshot = () => {
-    const menus = flatMenus.value.map(source => {
+    const menus = selectedMenus().map(source => {
       const menu = cloneDeep(source)
       menu.granted = !!source.granted
       menu.buttons = buttonsOf(source).map(button => ({ ...cloneDeep(button), granted: !!button.granted }))
       delete menu.children
       delete menu.actions
-      delete menu.assetAccesses
+      // 后端仍会校验已授权菜单的菜单级资产权限，独立策略提交期间需同步最小兼容字段。
+      menu.assetAccesses = getMenuPermissionAssetTypes(source).flatMap(assetType => {
+        const supportId = assetDrafts.get(assetType)
+        return supportId ? [{ assetType, supportId, granted: true }] : []
+      })
       delete menu.dataAccesses
       delete menu._granted
       delete menu.indeterminate
