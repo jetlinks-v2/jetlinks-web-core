@@ -9,16 +9,43 @@ import { omit } from 'lodash-es'
  */
 export const mergeTrees = (tree1: any[], tree2: any[]) => {
   const map = new Map();
+  const aliasMap = new Map<string, string>();
+
+  const getNodeKeys = (node: any) => {
+    return [
+      node?.code,
+      node?.id,
+      node?.options?.routeName,
+      node?.url,
+    ].filter(Boolean);
+  };
+
+  const resolvePrimaryKey = (node: any) => {
+    const keys = getNodeKeys(node);
+    for (const key of keys) {
+      const matched = aliasMap.get(String(key));
+      if (matched) {
+        return matched;
+      }
+    }
+    return String(keys[0] || '');
+  };
 
   function addToMap(nodes: any[]) {
     for (const node of nodes) {
-      if (!map.has(node.code)) {
-        map.set(node.code, { ...node, children: [] });
-      } else {
-        const oldValue = map.get(node.code);
-        map.set(node.code, { ...oldValue, ...omit(node, ['children']) });
+      const primaryKey = resolvePrimaryKey(node);
+      if (!primaryKey) {
+        continue;
       }
-      const existing = map.get(node.code);
+
+      if (!map.has(primaryKey)) {
+        map.set(primaryKey, { ...node, children: [] });
+      } else {
+        const oldValue = map.get(primaryKey);
+        map.set(primaryKey, { ...oldValue, ...omit(node, ['children']) });
+      }
+      getNodeKeys(node).forEach((key) => aliasMap.set(String(key), primaryKey));
+      const existing = map.get(primaryKey);
 
       existing.children = mergeTrees(existing.children || [], node.children || []);
     }

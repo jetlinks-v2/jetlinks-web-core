@@ -55,6 +55,44 @@ const collectMenuMap = (nodes: any[] = [], map = new Map<string, any>()) => {
   return map
 }
 
+const mergeLocalMenus = (menus: any[] = []) => {
+  const map = new Map<string, any>()
+
+  const mergeNodes = (source: any, target?: any) => {
+    const current = target ? { ...target, ...source } : { ...source }
+    const childMap = new Map<string, any>()
+
+    ;(target?.children || []).forEach((item: any) => {
+      if (item?.code) {
+        childMap.set(item.code, cloneDeep(item))
+      }
+    })
+
+    ;(source?.children || []).forEach((item: any) => {
+      if (!item?.code) {
+        return
+      }
+
+      const existing = childMap.get(item.code)
+      childMap.set(item.code, mergeNodes(item, existing))
+    })
+
+    current.children = Array.from(childMap.values())
+    return current
+  }
+
+  menus.forEach((item) => {
+    if (!item?.code) {
+      return
+    }
+
+    const existing = map.get(item.code)
+    map.set(item.code, mergeNodes(item, existing))
+  })
+
+  return Array.from(map.values())
+}
+
 const rebuildMenuTree = (localNodes: any[] = [], remoteMap = new Map<string, any>(), used = new Set<string>()) => {
   const result: any[] = []
 
@@ -298,7 +336,7 @@ export const useMenuStore = defineStore('menu', () => {
 
     const menuResult = Array.isArray(resp.result) ? resp.result : []
     runtime.menuResultCache.value = JSON.parse(JSON.stringify(menuResult))
-    const localMenus = getModulesMenu()
+    const localMenus = mergeLocalMenus(getModulesMenu())
     const remoteMenuMap = collectMenuMap(menuResult)
     const normalizedMenuResult = rebuildMenuTree(localMenus, remoteMenuMap)
     const normalizedMenuMap = collectMenuMap(normalizedMenuResult)
