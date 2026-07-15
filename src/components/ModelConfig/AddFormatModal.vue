@@ -10,12 +10,11 @@
   >
     <a-form layout="vertical">
       <a-form-item :label="locale.format" required>
-        <a-select
+        <a-auto-complete
           v-model:value="selectedFormat"
           :loading="loading"
           :options="availableOptions"
           :placeholder="locale.selectFormat"
-          show-search
           :filter-option="filterOption"
         />
       </a-form-item>
@@ -92,10 +91,15 @@ function filterOption(input: string, option?: FormatOption) {
 }
 
 function confirm() {
-  if (!selectedFormat.value) {
+  const value = selectedFormat.value?.trim()
+  if (!value) {
     onlyMessage(props.locale.selectFormat, 'warning')
     return
   }
-  emit('confirm', selectedFormat.value)
+  if (props.existingFormats.includes(value)) {
+    onlyMessage(props.locale.selectFormat, 'warning')
+    return
+  }
+  emit('confirm', value)
 }
 </script>

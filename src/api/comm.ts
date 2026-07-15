@@ -52,12 +52,38 @@ export const getTokenConfig = (tokenId: string) => request.get(`/personal/token/
 export const getTokenRedirect = (tokenId: string, data: any) =>
     request.post(`/personal/token/${tokenId}/_redirect`, data)
 
+export const AI_AGENT_MANAGER_SERVICE_ID = 'aiAgentService:agentManager'
+export const existsAiAgentSupport = () => request.get<boolean>(`/command-supports/service/${AI_AGENT_MANAGER_SERVICE_ID}/exists`)
+
 // 查询当前部署智能体
 export const queryAgentList = (clientType: string, clientId: string) => request.get(`/ai/agent/deploy/${clientType}/${clientId}`)
 export const saveAgentList = (data: any) => request.post(`/ai/agent/deploy/client/pagePoint/_save`, data)
 export const getAgentDetailById = (agentId: string) => request.get(`/ai/agent/deploy/${agentId}/_detail`)
-export const getAgentHistoryList = (agentId: string, clientType: string, clientId: string) => request.get(`/ai/agent/deploy/${agentId}/session/_query?clientType=${clientType}&clientId=${clientId}`)
+export interface AgentSessionSubjectQuery {
+  subjectType?: string;
+  subjectId?: string;
+}
+
+export const getAgentHistoryList = (
+  agentId: string,
+  clientType: string,
+  clientId: string,
+  subject?: AgentSessionSubjectQuery,
+) => {
+  const params = new URLSearchParams();
+  params.set('clientType', clientType || '');
+  params.set('clientId', clientId || '');
+
+  if (subject?.subjectType) {
+    params.set('subjectType', subject.subjectType);
+  }
+
+  if (subject?.subjectId) {
+    params.set('subjectId', subject.subjectId);
+  }
+
+  return request.get(`/ai/agent/deploy/${agentId}/session/_query?${params.toString()}`);
+}
 export const delHistory = (sessionId: string) => request.remove(`/ai/agent/deploy/session/${sessionId}/_delete`)
 
 export const historyData = (id: string, data: any) => request.post(`/ai/agent/deploy/session/${id}/history/_query/no-paging`, Object.assign({ 'paging': false }, data));
-

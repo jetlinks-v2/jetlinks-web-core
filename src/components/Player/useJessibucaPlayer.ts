@@ -1,4 +1,4 @@
-import { computed, nextTick, watch, type Ref } from 'vue';
+import { computed, nextTick, ref, watch, type Ref } from 'vue';
 
 import {
   createJessibucaConfig,
@@ -8,8 +8,12 @@ import {
   normalizePlaybackUrl,
   type JessibucaCtor,
 } from './jessibuca';
+import { createAiOverlayDebugLogger } from './aiOverlay/debug';
+import { createJessibucaInlineFlvSeiSource } from './aiOverlay/jessibucaInlineFlvSource';
+import { useAiOverlay } from './aiOverlay/useAiOverlay';
 import { captureVideoFrame } from './playerSnapshot';
 import type { MediaPlayerProps } from './types';
+import type { AiOverlayVideoInfo } from './aiOverlay/types';
 import { useJessibucaLifecycle } from './useJessibucaLifecycle';
 
 export function useJessibucaPlayer(
@@ -23,6 +27,10 @@ export function useJessibucaPlayer(
   let resizeObserver: ResizeObserver | null = null;
   let resizeFrame = 0;
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+  const aiOverlayVideoInfo = ref<AiOverlayVideoInfo | null>(null);
+  const clearAiOverlayVideoInfo = () => {
+    aiOverlayVideoInfo.value = null;
+  };
 
   const normalizedUrl = computed(() =>
     typeof props.url === 'string' ? normalizePlaybackUrl(props.url) : '',
@@ -41,6 +49,30 @@ export function useJessibucaPlayer(
       url: normalizedUrl.value,
     }),
   );
+  const {
+    snapshot: aiOverlaySnapshot,
+    startOverlay,
+    stopOverlay,
+    syncVideoTimestamp,
+  } = useAiOverlay(props, (emitPayload, options) => {
+    const logger = createAiOverlayDebugLogger(options.debug, options.enabled);
+    logger.trace('Jessibuca overlay source factory', {
+      enabled: options.enabled,
+      protocol: props.protocol,
+      url: normalizedUrl.value,
+      hasPlayer: Boolean(jessibucaPlayer),
+    });
+    if (!options.enabled || !normalizedUrl.value) return undefined;
+    if (!isJessibucaFlvOverlayUrl(normalizedUrl.value, props.protocol)) {
+      logger.trace('Jessibuca overlay source skipped: not FLV overlay URL');
+      return undefined;
+    }
+    return createJessibucaInlineFlvSeiSource({
+      getPlayer: () => jessibucaPlayer,
+      emitPayload,
+      debug: options.debug,
+    });
+  });
 
   const resizePlayer = (withDelay = false) => {
     if (typeof window === 'undefined') return;
@@ -87,6 +119,8 @@ export function useJessibucaPlayer(
     try {
       await jessibucaPlayer.destroy();
     } finally {
+      stopOverlay();
+      clearAiOverlayVideoInfo();
       jessibucaPlayer = null;
       jessibucaConfigKey = '';
       props.onDestroy?.();
@@ -94,6 +128,7 @@ export function useJessibucaPlayer(
   };
 
   const clearNativeSource = () => {
+    clearAiOverlayVideoInfo();
     const native = nativeVideoRef.value;
     if (!native) return;
     native.pause();
@@ -124,6 +159,16 @@ export function useJessibucaPlayer(
 
   const createJessibuca = async () => {
     if (!containerRef.value) return;
+    const logger = createAiOverlayDebugLogger(
+      typeof props.aiOverlay === 'object' ? props.aiOverlay.debug : false,
+      Boolean(props.aiOverlay),
+    );
+    logger.trace('Jessibuca create requested', {
+      protocol: props.protocol,
+      url: normalizedUrl.value,
+      playerMode: playerMode.value,
+      hasAiOverlay: Boolean(props.aiOverlay),
+    });
     const nextConfigKey = configKey.value;
     if (jessibucaPlayer) {
       if (jessibucaConfigKey === nextConfigKey) {
@@ -151,7 +196,20 @@ export function useJessibucaPlayer(
     });
     jessibucaPlayer.on('pause', () => props.onPause?.());
     jessibucaPlayer.on('error', (error) => props.onError?.(error));
-    jessibucaPlayer.on('videoInfo', () => resizePlayer(true));
+    jessibucaPlayer.on('videoInfo', (info: any) => {
+      const width = Number(info?.width ?? info?.w ?? info?.videoWidth ?? 0);
+      const height = Number(info?.height ?? info?.h ?? info?.videoHeight ?? 0);
+      const videoInfo = {
+        width: Number.isFinite(width) && width > 0 ? width : 0,
+        height: Number.isFinite(height) && height > 0 ? height : 0,
+        codec: info?.codec || info?.codecName,
+      };
+      aiOverlayVideoInfo.value = videoInfo;
+      if (videoInfo.width > 0 && videoInfo.height > 0) {
+        props.onVideoInfo?.(videoInfo);
+      }
+      resizePlayer(true);
+    });
     jessibucaPlayer.on('timeUpdate', (payload) => {
       props.onTimeUpdate?.({ currentTime: payload });
     });
@@ -212,6 +270,7 @@ export function useJessibucaPlayer(
       await jessibucaPlayer.play(normalizedUrl.value);
       await nextTick();
       resizePlayer(true);
+      startOverlay();
     } catch (error) {
       props.onError?.(error);
     }
@@ -223,12 +282,16 @@ export function useJessibucaPlayer(
     if (playerMode.value === 'native') return nativeVideoRef.value?.play();
     if (jessibucaPlayer && normalizedUrl.value) {
       applyJessibucaMuted();
-      return jessibucaPlayer.play(normalizedUrl.value);
+      const result = await jessibucaPlayer.play(normalizedUrl.value);
+      startOverlay();
+      return result;
     }
   };
 
   const pause = () => {
+    clearAiOverlayVideoInfo();
     if (playerMode.value === 'native') return nativeVideoRef.value?.pause();
+    stopOverlay();
     void jessibucaPlayer?.pause();
   };
 
@@ -286,6 +349,8 @@ export function useJessibucaPlayer(
     play,
     pause,
     paused,
+    aiOverlaySnapshot,
+    aiOverlayVideoInfo,
     setPlaybackRate,
     getCurrentTime,
     getDuration,
@@ -295,4 +360,8 @@ export function useJessibucaPlayer(
       jessibuca: jessibucaPlayer,
     }),
   };
+}
+
+function isJessibucaFlvOverlayUrl(url: string, protocol?: string) {
+  return protocol === 'flv' || /\.flv(?:$|[?#])/i.test(url);
 }

@@ -1,5 +1,9 @@
 <template>
-  <div class="model-config">
+  <div
+    class="model-config"
+    :class="{ 'model-config--resizing': resizingSider }"
+    :style="modelConfigStyle"
+  >
     <aside class="model-config__sider">
       <div class="model-config__sider-head">
         <span class="model-config__title">{{ text.fileDirectory }}</span>
@@ -10,15 +14,7 @@
             :options="formatOptions"
             :placeholder="text.selectFormat"
             size="small"
-            allow-clear
           />
-          <a-button
-            size="small"
-            :title="text.addFormat"
-            @click="openAddFormat"
-          >
-            <AIcon type="PlusOutlined" />
-          </a-button>
         </div>
       </div>
 
@@ -48,11 +44,38 @@
           block-node
           @select="onTreeSelect"
         >
-          <template #title="{ title, isFile, path, shared }">
-            <span class="model-config__tree-node">
+          <template #title="{ title, isFile, path, shared, file }">
+            <span
+              class="model-config__tree-node"
+              :class="{ 'model-config__tree-node--tagged': hasFileTreeTags(file) }"
+            >
               <span class="model-config__tree-node-main">
-                <AIcon :type="getTreeNodeIcon(isFile, shared)" />
-                <span>{{ title }}</span>
+                <AIcon :type="getTreeNodeIcon(isFile, shared, file)" />
+                <a-tooltip
+                  v-if="isFile"
+                  overlay-class-name="model-config__tree-file-tooltip"
+                >
+                  <template #title>
+                    <span class="model-config__tree-file-tooltip-content">
+                      <span v-if="file?.path" class="model-config__tree-file-tooltip-path">{{ file.path }}</span>
+                      <span class="model-config__tree-file-tooltip-name">{{ file?.name || title }}</span>
+                    </span>
+                  </template>
+                  <span class="model-config__tree-node-title">{{ title }}</span>
+                </a-tooltip>
+                <span v-else class="model-config__tree-node-title">{{ title }}</span>
+              </span>
+              <span v-if="hasFileTreeTags(file)" class="model-config__tree-tags">
+                <a-tooltip
+                  v-for="tag in getFileTreeTags(file)"
+                  :key="tag.key"
+                  :title="tag.title"
+                  overlay-class-name="model-config__tree-tag-tooltip"
+                >
+                  <span :class="['model-config__tree-tag', `model-config__tree-tag--${tag.type}`]">
+                    {{ tag.label }}
+                  </span>
+                </a-tooltip>
               </span>
               <a-button
                 v-if="!isFile"
@@ -74,7 +97,26 @@
       </a-spin>
     </aside>
 
-    <main class="model-config__main">
+    <div
+      class="model-config__resize"
+      role="separator"
+      tabindex="0"
+      aria-orientation="vertical"
+      :aria-label="text.resizeFileDirectory"
+      :aria-valuemin="SIDER_WIDTH_MIN"
+      :aria-valuemax="SIDER_WIDTH_MAX"
+      :aria-valuenow="siderWidth"
+      @pointerdown="startResizeSider"
+      @keydown.left.prevent="resizeSiderByKeyboard(-16)"
+      @keydown.right.prevent="resizeSiderByKeyboard(16)"
+      @keydown.home.prevent="setSiderWidth(SIDER_WIDTH_MIN)"
+      @keydown.end.prevent="setSiderWidth(SIDER_WIDTH_MAX)"
+    />
+
+    <main
+      class="model-config__main"
+      :class="{ 'model-config__main--with-tabs': activeType === 'model' }"
+    >
       <header class="model-config__content-head">
         <div class="model-config__content-title">
           <AIcon :type="activeType === 'model' ? 'SettingOutlined' : 'FileTextOutlined'" />
@@ -107,15 +149,10 @@
               <a-button @click="cancelEdit">{{ text.exitEdit }}</a-button>
               <a-button type="primary" :loading="fileSaving" @click="saveEdit">{{ text.save }}</a-button>
             </template>
-            <a-popconfirm
-              :title="text.confirmDelete"
-              @confirm="emit('delete-file', selectedFile)"
-            >
-              <a-button danger>
-                <AIcon type="DeleteOutlined" />
-                {{ text.delete }}
-              </a-button>
-            </a-popconfirm>
+            <a-button danger @click="openDeleteFileConfirm">
+              <AIcon type="DeleteOutlined" />
+              {{ text.delete }}
+            </a-button>
             <a-button @click="toggleProperty">
               <AIcon :type="propertyVisible ? 'DoubleRightOutlined' : 'ProfileOutlined'" />
               {{ propertyVisible ? text.collapseProperty : text.viewProperty }}
@@ -203,33 +240,23 @@
 
     <AddFileModal
       v-model:open="addFileVisible"
-      :selected-format="selectedFormat"
-      :selected-format-name="selectedFormatLabel"
+      :available-formats="availableFormats"
       :selected-owner="selectedOwner"
       :editable-extensions="editableExtensions"
       :locale="text"
       @confirm="addFile"
-    />
-    <AddFormatModal
-      v-model:open="addFormatVisible"
-      :existing-formats="existingFormatIds"
-      :locale="text"
-      :confirm-loading="addFormatSaving"
-      :loading="formatLoading"
-      :format-tags="availableFormats"
-      @confirm="saveFormat"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import type { PropType } from 'vue'
+import { Modal } from 'ant-design-vue'
 import { onlyMessage } from '@jetlinks-web/utils'
 import MonacoEditor from '../MonacoEditor/monacoEditor.vue'
 import SectionCard from '../SectionCard/index.vue'
 import KvGrid from '../KvGrid/index.vue'
 import AddFileModal from './AddFileModal.vue'
-import AddFormatModal from './AddFormatModal.vue'
 
 interface FormatDetail {
   id: string
@@ -256,12 +283,12 @@ interface AddFilePayload {
   format?: string[]
   createType: 'upload' | 'extract' | 'empty'
   file?: File
+  done?: (success?: boolean) => void
 }
 
 interface ModelFile {
   id: string
   modelId?: string
-  modelVersion?: number
   name: string
   path?: string
   fileKey?: string
@@ -273,6 +300,7 @@ interface ModelFile {
   format?: string[]
   content?: string
   local?: boolean
+  extract?: boolean
 }
 
 interface ModelConfigSavePayload {
@@ -287,18 +315,12 @@ interface DonePayload<T = void> {
 
 interface LoadFilesPayload {
   modelId: string
-  version: string | number
   format: string
 }
 
 interface SaveConfigPayload extends DonePayload {
   type: 'definition' | 'manifest'
   value: string
-  config: ModelConfigSavePayload
-}
-
-interface AddFormatPayload extends DonePayload {
-  format: string
   config: ModelConfigSavePayload
 }
 
@@ -339,6 +361,9 @@ const defaultLocale: LocaleText = {
   save: '保存',
   delete: '删除',
   confirmDelete: '确认删除该文件？',
+  confirmDeleteDescription: '删除后无法恢复，请确认是否继续。',
+  confirmDeleteShared: '确认删除共享文件？',
+  confirmDeleteSharedDescription: '该文件未绑定单一架构，删除后会在多个架构中同时删除，请谨慎操作。',
   viewProperty: '查看属性',
   collapseProperty: '收起属性',
   modelParams: '模型参数',
@@ -358,12 +383,16 @@ const defaultLocale: LocaleText = {
   copySuccess: '文件路径已复制',
   filePath: '文件路径',
   fileName: '文件名称',
-  modelBusiness: '模型业务',
-  modelBusinessPlaceholder: '请选择或输入模型业务',
+  businessType: '业务类型', businessTypePlaceholder: '请选择或输入业务类型',
+  businessTypeOptionObjectDetection: '目标检测(object_detection)', businessTypeOptionPoseDetection: '人体姿态检测(pose_detection)',
+  businessTypeOptionFaceEmbedding: '人脸特征(face_embedding)', businessTypeOptionOcrText: 'OCR 文本识别(ocr_text)',
+  modelBusiness: '算法模型',
+  modelBusinessPlaceholder: '请选择或输入算法模型',
   modelBusinessOptionYolo: 'yolo(yolo)',
   modelBusinessOptionYoloPose: 'yolo姿势(yolo_pose)',
   modelBusinessOptionRetinaface: '人脸识别(retinaface)',
-  modelBusinessOptionArcface: '人脸向量(arcface)',
+  modelBusinessOptionResnet50: '人脸向量(resnet50)',
+  modelBusinessOptionDeim: 'deim(deim)',
   modelFileFormat: '模型格式',
   modelFileFormatPlaceholder: '请选择或输入模型格式',
   fileFormat: '支持架构',
@@ -371,6 +400,8 @@ const defaultLocale: LocaleText = {
   fileSha256: 'SHA256',
   fileKey: '文件标识',
   sharedFile: '共享文件',
+  sharedFormat: '共享架构',
+  extractFile: '待解压',
   sharedFileOwnerDescription: '保存为共享文件，可被多个架构复用',
   formatFileOwnerDescription: '仅归属于当前架构',
   saveSuccess: '已更新编辑内容',
@@ -378,7 +409,7 @@ const defaultLocale: LocaleText = {
   confirm: '确定',
   cancel: '取消',
   pleaseEnterFileName: '请输入文件名称',
-  pleaseEnterModelBusiness: '请输入模型业务',
+  pleaseEnterBusinessType: '请输入业务类型', pleaseEnterModelBusiness: '请输入算法模型',
   pleaseEnterModelFileFormat: '请输入模型格式',
   pleaseEnterEditableFileName: '不支持创建该后缀的空白文件',
   selectFile: '选择文件',
@@ -395,13 +426,13 @@ const defaultLocale: LocaleText = {
   pleaseEnterArchiveFileName: '请上传 zip 或 tar 格式压缩包',
   rootDirectory: '根目录',
   currentFormatFile: '当前架构文件',
-  addFormat: '新增架构',
   format: '架构',
-  addFormatSuccess: '已新增架构',
   invalidJson: 'JSON 格式错误',
+  allFormats: '全部',
   modelFiles: '模型文件',
   codeFiles: '代码文件',
-  skillFiles: '技能文件'
+  skillFiles: '技能文件',
+  resizeFileDirectory: '调整文件目录宽度'
 }
 
 const props = defineProps({
@@ -447,8 +478,6 @@ const emit = defineEmits<{
   (e: 'load-files', payload: LoadFilesPayload): void
   (e: 'save-config', payload: SaveConfigPayload): void
   (e: 'add-file', payload: AddFileEventPayload): void
-  (e: 'add-format', payload: AddFormatPayload): void
-  (e: 'format-added', format: string): void
   (e: 'save-file', payload: SaveFilePayload): void
   (e: 'replace-file', payload: ReplaceFilePayload): void
   (e: 'preview-file', payload: PreviewFilePayload): void
@@ -456,7 +485,7 @@ const emit = defineEmits<{
 }>()
 
 const text = computed(() => ({ ...defaultLocale, ...props.locale }))
-const selectedFormat = ref<string>()
+const selectedFormat = ref('')
 const selectedKeys = ref<string[]>([])
 const files = ref<ModelFile[]>([])
 const activeType = ref<'model' | 'file'>('model')
@@ -467,14 +496,24 @@ const editorValue = ref('')
 const draftValue = ref('')
 const propertyVisible = ref(false)
 const addFileVisible = ref(false)
-const addFormatVisible = ref(false)
-const addFormatSaving = ref(false)
 const filePreviewLoaded = ref(false)
 const contentLoading = ref(false)
 const fileSaving = ref(false)
 const selectedOwner = ref('')
 const localFormatDetails = ref<FormatDetail[][]>([])
 const editorRef = ref<{ layout?: () => void }>()
+const resizingSider = ref(false)
+const siderWidth = ref(280)
+
+const SIDER_WIDTH_STORAGE_KEY = 'jetlinks:model-config:sider-width'
+const SIDER_WIDTH_DEFAULT = 280
+const SIDER_WIDTH_MIN = 220
+const SIDER_WIDTH_MAX = 520
+const SIDER_RESIZE_BREAKPOINT = 1100
+
+let siderResizeStartX = 0
+let siderResizeStartWidth = SIDER_WIDTH_DEFAULT
+let editorLayoutFrame = 0
 
 const editableExtensions = [
   'py',
@@ -490,34 +529,36 @@ const editableExtensions = [
   'conf',
   'env',
   'properties',
-  'xml'
+  'xml',
+  'proto'
 ]
 
 const formatOptions = computed(() => {
-  return localFormatDetails.value
+  const options = localFormatDetails.value
     .flat()
     .filter(item => item?.id)
     .map(item => ({
       label: item.local ? `${item.name || item.id} (${item.id})` : item.name || item.id,
       value: item.id
     }))
+  return [
+    { label: text.value.allFormats, value: '' },
+    ...options
+  ]
 })
 
-const existingFormatIds = computed(() => {
-  const formatIds = localFormatDetails.value
-    .flat()
-    .map(item => item?.id)
-    .filter(Boolean) as string[]
-  const modelFormatIds = normalizeFormats(props.model?.formats).flat()
-  return Array.from(new Set([...modelFormatIds, ...formatIds]))
-})
+const modelConfigStyle = computed(() => ({
+  '--model-config-sider-width': `${siderWidth.value}px`
+}))
+
+const formatNameMap = computed(() => props.availableFormats.reduce<Map<string, string>>((map, item) => {
+  if (item?.id) {
+    map.set(item.id, item.name || item.id)
+  }
+  return map
+}, new Map()))
 
 const modelId = computed(() => props.model?.id)
-const modelVersion = computed(() => props.model?.version || props.model?.modelVersion || props.model?.latestVersion || props.model?.versionNo || 1)
-const selectedFormatLabel = computed(() => {
-  const option = formatOptions.value.find(item => item.value === selectedFormat.value)
-  return option?.label || selectedFormat.value || ''
-})
 
 const activeTitle = computed(() => {
   return activeType.value === 'model'
@@ -543,7 +584,8 @@ const editorLanguage = computed(() => {
     json: 'json',
     yaml: 'yaml',
     yml: 'yaml',
-    xml: 'xml'
+    xml: 'xml',
+    proto: 'protobuf'
   }
   return languageMap[ext || ''] || 'plaintext'
 })
@@ -577,8 +619,10 @@ const propertyItems = computed(() => {
 })
 
 watch(formatOptions, (options) => {
-  if (!selectedFormat.value && options.length) {
-    selectedFormat.value = options[0].value as string
+  const values = options.map(item => item.value)
+  if (!values.includes(selectedFormat.value)) {
+    selectedFormat.value = options[0]?.value as string || ''
+    return
   }
 }, { immediate: true })
 
@@ -586,7 +630,7 @@ watch(() => props.formatDetails, (formatDetails) => {
   localFormatDetails.value = cloneFormatDetails(formatDetails)
 }, { deep: true, immediate: true })
 
-watch([modelId, modelVersion, selectedFormat], () => {
+watch([modelId, selectedFormat], () => {
   requestFiles()
 }, { immediate: true })
 
@@ -614,20 +658,33 @@ watch(() => props.files, (nextFiles) => {
     const nextFile = files.value.find(item => item.id === selectedFile.value?.id)
     if (nextFile) {
       selectedFile.value = nextFile
+      if (!editing.value && getInlineFileContent(nextFile) !== undefined) {
+        applyFileContent(nextFile)
+      }
     } else {
       selectModelConfig()
     }
   }
 }, { deep: true, immediate: true })
 
+onMounted(() => {
+  restoreSiderWidth()
+})
+
+onBeforeUnmount(() => {
+  stopResizeSider()
+  if (editorLayoutFrame && typeof cancelAnimationFrame !== 'undefined') {
+    cancelAnimationFrame(editorLayoutFrame)
+  }
+})
+
 function requestFiles() {
-  if (!modelId.value || !selectedFormat.value) {
+  if (!modelId.value) {
     files.value = []
     return
   }
   emit('load-files', {
     modelId: modelId.value,
-    version: modelVersion.value,
     format: selectedFormat.value
   })
 }
@@ -679,9 +736,47 @@ function buildTree(source: ModelFile[]): TreeNode[] {
   return roots
 }
 
-function getTreeNodeIcon(isFile?: boolean, shared?: boolean) {
+function getTreeNodeIcon(isFile?: boolean, shared?: boolean, file?: ModelFile) {
   if (!isFile) return 'FolderOutlined'
+  if (file?.extract) return 'FileZipOutlined'
   return shared ? 'FileOutlined' : 'FileProtectOutlined'
+}
+
+function hasFileTreeTags(file?: ModelFile) {
+  return !!file && (file.extract || !!file.format?.filter(Boolean).length)
+}
+
+function getFileTreeTags(file?: ModelFile) {
+  if (!file) return []
+  const formats = file.format?.filter(Boolean) || []
+  const formatLabel = formats.map(format => formatNameMap.value.get(format) || format).join(',')
+  if (file.extract && formatLabel) {
+    return [{
+      key: 'extract-format',
+      label: text.value.extractFile + ' · ' + formatLabel,
+      title: text.value.extractFile + ' / ' + formatLabel,
+      type: 'extract' as const
+    }]
+  }
+
+  const tags: Array<{ key: string; label: string; title: string; type: 'extract' | 'format' }> = []
+  if (file.extract) {
+    tags.push({
+      key: 'extract',
+      label: text.value.extractFile,
+      title: text.value.extractFile,
+      type: 'extract'
+    })
+  }
+  if (formatLabel) {
+    tags.push({
+      key: 'format',
+      label: formatLabel,
+      title: formatLabel,
+      type: 'format'
+    })
+  }
+  return tags
 }
 
 function formatRootFolderTitle(title: string, path: string) {
@@ -697,30 +792,6 @@ function onTreeSelect(_: string[], info: { node?: TreeNode }) {
 function openAddFile(path = '') {
   selectedOwner.value = path
   addFileVisible.value = true
-}
-
-function openAddFormat() {
-  addFormatVisible.value = true
-}
-
-async function saveFormat(format: string) {
-  if (!modelId.value) return
-  const config = buildSaveFormatPayload(format)
-  addFormatSaving.value = true
-  emit('add-format', {
-    format,
-    config,
-    done: (success = true) => {
-      if (success) {
-        addLocalFormat(format)
-        selectedFormat.value = format
-        addFormatVisible.value = false
-        onlyMessage(text.value.addFormatSuccess)
-        emit('format-added', format)
-      }
-      addFormatSaving.value = false
-    }
-  })
 }
 
 function completeSaving(success: boolean) {
@@ -801,20 +872,17 @@ function completePreview(success: boolean, content = '') {
   contentLoading.value = false
 }
 
-function buildSaveFormatPayload(format: string) {
-  // 新增架构只扩展支持架构列表，模型参数和基础信息必须沿用当前详情，避免保存时清空已有配置。
-  const formats = normalizeFormats(props.model?.formats)
-  if (!formats.length) {
-    formats.push(...normalizeFormats(props.model?.formatDetails))
-  }
-  if (!formats.some(item => item.includes(format))) {
-    formats.push([format])
-  }
-  return {
-    definition: props.model?.definition || {},
-    manifest: props.model?.manifest || {},
-    formats
-  }
+function getInlineFileContent(file: ModelFile) {
+  // 只有后端明确返回 content 字段时才跳过远程预览；未返回 content 的文件仍走原有 url 预览流程。
+  if (typeof file.content === 'string') return file.content
+  return file.local ? '' : undefined
+}
+
+function applyFileContent(file: ModelFile) {
+  const content = getInlineFileContent(file)
+  filePreviewLoaded.value = content !== undefined
+  editorValue.value = content ?? ''
+  draftValue.value = editorValue.value
 }
 
 function normalizeFormats(source: unknown): string[][] {
@@ -829,14 +897,6 @@ function normalizeFormats(source: unknown): string[][] {
       return [typeof item === 'string' ? item : item?.id].filter(Boolean)
     })
     .filter(item => item.length)
-}
-
-function addLocalFormat(format: string) {
-  if (localFormatDetails.value.flat().some(item => item?.id === format)) return
-  localFormatDetails.value = [
-    ...localFormatDetails.value,
-    [{ id: format, name: format }]
-  ]
 }
 
 function cloneFormatDetails(formatDetails: FormatDetail[][]) {
@@ -858,9 +918,7 @@ function selectFile(file: ModelFile) {
   selectedFile.value = file
   selectedKeys.value = [file.id || `${file.path || ''}/${file.name}`]
   editing.value = false
-  filePreviewLoaded.value = !!file.local
-  editorValue.value = file.local ? file.content || '' : ''
-  draftValue.value = editorValue.value
+  applyFileContent(file)
 }
 
 function refreshEditorValue() {
@@ -910,10 +968,12 @@ async function saveEdit() {
 }
 
 async function saveTextFile() {
-  if (!modelId.value || !selectedFormat.value || !selectedFile.value) return
+  const currentFormat = selectedFormat.value || selectedFile.value?.format?.[0] || ''
+  // Shared files can be saved without a format owner; parent handlers receive format="".
+  if (!modelId.value || !selectedFile.value) return
   fileSaving.value = true
   emit('save-file', {
-    format: selectedFormat.value,
+    format: currentFormat,
     file: {
       id: selectedFile.value.local ? undefined : selectedFile.value.id,
       name: selectedFile.value.name,
@@ -926,17 +986,33 @@ async function saveTextFile() {
 }
 
 async function addFile(payload: AddFilePayload) {
-  if (!modelId.value || !selectedFormat.value) return
-  if (payload.createType === 'empty') {
-    addLocalEmptyFile(payload)
+  if (!modelId.value) {
+    payload.done?.(false)
     return
   }
+  if (payload.createType === 'empty') {
+    addLocalEmptyFile(payload)
+    payload.done?.(true)
+    return
+  }
+  const targetFormat = payload.format?.[0]
   fileSaving.value = true
   emit('add-file', {
-    format: selectedFormat.value,
-    file: payload,
-    done: completeFileCreate
+    format: selectedFormat.value || payload.format?.[0] || '',
+    file: normalizeAddFilePayload(payload),
+    done: (success = true) => {
+      if (success && targetFormat && selectedFormat.value) {
+        selectedFormat.value = targetFormat
+      }
+      completeFileCreate(success)
+      payload.done?.(success)
+    }
   })
+}
+
+function normalizeAddFilePayload(payload: AddFilePayload): AddFilePayload {
+  const { done, ...file } = payload
+  return file
 }
 
 function addLocalEmptyFile(payload: AddFilePayload) {
@@ -956,10 +1032,11 @@ function addLocalEmptyFile(payload: AddFilePayload) {
 }
 
 async function replaceFile(file: File) {
-  if (!modelId.value || !selectedFormat.value || !selectedFile.value) return false
+  const currentFormat = selectedFormat.value || selectedFile.value?.format?.[0] || ''
+  if (!modelId.value || !selectedFile.value) return false
   fileSaving.value = true
   emit('replace-file', {
-    format: selectedFormat.value,
+    format: currentFormat,
     target: selectedFile.value,
     file: {
       id: selectedFile.value.id,
@@ -976,9 +1053,7 @@ async function replaceFile(file: File) {
 
 function toggleProperty() {
   propertyVisible.value = !propertyVisible.value
-  nextTick(() => {
-    editorRef.value?.layout?.()
-  })
+  layoutEditor()
 }
 
 async function copyPath() {
@@ -1000,6 +1075,114 @@ function downloadSelectedFile() {
   link.remove()
 }
 
+function openDeleteFileConfirm() {
+  const file = selectedFile.value
+  if (!file) return
+  const sharedFile = isSharedModelFile(file)
+  Modal.confirm({
+    title: sharedFile ? text.value.confirmDeleteShared : text.value.confirmDelete,
+    content: sharedFile ? text.value.confirmDeleteSharedDescription : text.value.confirmDeleteDescription,
+    okText: text.value.confirm,
+    cancelText: text.value.cancel,
+    okType: 'danger',
+    onOk: () => emit('delete-file', file)
+  })
+}
+
+function isSharedModelFile(file: ModelFile) {
+  // format 为空代表共享文件，删除影响所有复用该文件的架构。
+  return !file.format?.length
+}
+
+function restoreSiderWidth() {
+  if (typeof window === 'undefined') return
+  let cached = Number.NaN
+  try {
+    cached = Number(window.localStorage?.getItem(SIDER_WIDTH_STORAGE_KEY))
+  } catch {
+    cached = Number.NaN
+  }
+  if (Number.isFinite(cached)) {
+    siderWidth.value = clampSiderWidth(cached)
+  }
+}
+
+function startResizeSider(event: PointerEvent) {
+  if (!isSiderResizable()) return
+  event.preventDefault()
+  resizingSider.value = true
+  siderResizeStartX = event.clientX
+  siderResizeStartWidth = siderWidth.value
+  if (event.currentTarget instanceof HTMLElement) {
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+  window.addEventListener('pointermove', resizeSider)
+  window.addEventListener('pointerup', stopResizeSider)
+  window.addEventListener('pointercancel', stopResizeSider)
+}
+
+function resizeSider(event: PointerEvent) {
+  if (!resizingSider.value) return
+  setSiderWidth(siderResizeStartWidth + event.clientX - siderResizeStartX, false)
+}
+
+function stopResizeSider() {
+  const shouldPersist = resizingSider.value
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('pointermove', resizeSider)
+    window.removeEventListener('pointerup', stopResizeSider)
+    window.removeEventListener('pointercancel', stopResizeSider)
+  }
+  resizingSider.value = false
+  if (shouldPersist) {
+    persistSiderWidth()
+  }
+}
+
+function resizeSiderByKeyboard(offset: number) {
+  if (!isSiderResizable()) return
+  setSiderWidth(siderWidth.value + offset)
+}
+
+function setSiderWidth(width: number, persist = true) {
+  siderWidth.value = clampSiderWidth(width)
+  if (persist) {
+    persistSiderWidth()
+  }
+  layoutEditor()
+}
+
+function persistSiderWidth() {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage?.setItem(SIDER_WIDTH_STORAGE_KEY, String(siderWidth.value))
+  } catch {
+    // localStorage 可能被浏览器策略禁用，失败时仅不记忆宽度。
+  }
+}
+
+function clampSiderWidth(width: number) {
+  return Math.min(SIDER_WIDTH_MAX, Math.max(SIDER_WIDTH_MIN, Math.round(width)))
+}
+
+function isSiderResizable() {
+  return typeof window !== 'undefined' && window.innerWidth > SIDER_RESIZE_BREAKPOINT
+}
+
+function layoutEditor() {
+  if (typeof requestAnimationFrame === 'undefined') {
+    editorRef.value?.layout?.()
+    return
+  }
+  if (editorLayoutFrame) {
+    cancelAnimationFrame(editorLayoutFrame)
+  }
+  editorLayoutFrame = requestAnimationFrame(() => {
+    editorRef.value?.layout?.()
+    editorLayoutFrame = 0
+  })
+}
+
 async function previewFile() {
   if (!selectedFile.value?.url) return
   if (!canEditFile.value) {
@@ -1017,11 +1200,16 @@ async function previewFile() {
 <style scoped lang="less">
 .model-config {
   display: grid;
-  grid-template-columns: 17.5rem minmax(0, 1fr) auto;
+  grid-template-columns: var(--model-config-sider-width, 17.5rem) 1px minmax(0, 1fr) auto;
   height: 100%;
   min-height: 0;
   background: var(--bg-sunken);
   overflow: hidden;
+}
+
+.model-config--resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .model-config__sider,
@@ -1030,7 +1218,35 @@ async function previewFile() {
   background: var(--bg);
   border-right: 1px solid var(--line);
   padding: var(--space-4);
-  overflow: auto;
+  overflow: hidden auto;
+}
+
+.model-config__resize {
+  position: relative;
+  min-width: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.model-config__resize::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--line);
+  transform: translateX(-50%);
+  opacity: 0.65;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.model-config__resize:hover::before,
+.model-config__resize:focus-visible::before,
+.model-config--resizing .model-config__resize::before {
+  opacity: 1;
+  background: var(--primary-color);
 }
 
 .model-config__property {
@@ -1072,10 +1288,58 @@ async function previewFile() {
 }
 
 .model-config__tree {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
   background: transparent;
 }
 
-.model-config__tree-node,
+.model-config__sider :deep(.ant-spin-nested-loading),
+.model-config__sider :deep(.ant-spin-container) {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.model-config__tree :deep(.ant-tree-list),
+.model-config__tree :deep(.ant-tree-list-holder),
+.model-config__tree :deep(.ant-tree-list-holder-inner),
+.model-config__tree :deep(.ant-tree-treenode),
+.model-config__tree :deep(.ant-tree-node-content-wrapper),
+.model-config__tree :deep(.ant-tree-title) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.model-config__tree :deep(.ant-tree-list-holder-inner) {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
+.model-config__tree :deep(.ant-tree-treenode) {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+}
+
+.model-config__tree :deep(.ant-tree-switcher),
+.model-config__tree :deep(.ant-tree-indent) {
+  flex-shrink: 0;
+}
+
+.model-config__tree :deep(.ant-tree-node-content-wrapper) {
+  flex: 1 1 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.model-config__tree :deep(.ant-tree-title) {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
 .model-config__content-title {
   display: inline-flex;
   align-items: center;
@@ -1084,15 +1348,117 @@ async function previewFile() {
 }
 
 .model-config__tree-node {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   width: 100%;
-  justify-content: space-between;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .model-config__tree-node-main {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
+}
+
+.model-config__tree-node-main :deep(.ant-tooltip-open),
+.model-config__tree-node-title {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.model-config__tree-node--tagged {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.625rem;
+}
+
+.model-config__tree-node--tagged .model-config__tree-node-main {
+  width: 100%;
+}
+
+.model-config__tree-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 5.625rem;
+  min-width: 0;
+  overflow: hidden;
+  justify-content: flex-end;
+}
+
+.model-config__tree-tags :deep(.ant-tooltip-open) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+:global(.model-config__tree-file-tooltip .ant-tooltip-inner),
+:global(.model-config__tree-tag-tooltip .ant-tooltip-inner) {
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+}
+
+:global(.model-config__tree-file-tooltip-content) {
+  display: block;
+  width: max-content;
+  max-width: calc(100vw - 3rem);
+}
+
+:global(.model-config__tree-file-tooltip-path) {
+  display: block;
+  width: max-content;
+  max-width: calc(100vw - 3rem);
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+}
+
+:global(.model-config__tree-file-tooltip-path)::after {
+  content: "/";
+}
+
+:global(.model-config__tree-file-tooltip-name),
+:global(.model-config__tree-tag-tooltip .ant-tooltip-inner) {
+  display: block;
+  width: max-content;
+  max-width: calc(100vw - 3rem);
+  white-space: nowrap;
+}
+
+.model-config__tree-tag {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  border-radius: var(--r-1);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  background: var(--bg-sunken);
+  font-size: var(--fs-12);
+  line-height: 1.25rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-config__tree-tag--extract {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 32%, var(--line));
+  background: color-mix(in srgb, var(--warning) 8%, var(--bg));
+}
+
+.model-config__tree-tag--format {
+  color: var(--primary-color);
+  border-color: color-mix(in srgb, var(--primary-color) 32%, var(--line));
+  background: color-mix(in srgb, var(--primary-color) 8%, var(--bg));
 }
 
 .model-config__tree-add {
@@ -1111,8 +1477,12 @@ async function previewFile() {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   background: var(--bg);
+}
+
+.model-config__main--with-tabs {
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .model-config__content-head {
@@ -1138,12 +1508,13 @@ async function previewFile() {
 .model-config__editor-wrap {
   min-width: 0;
   min-height: 0;
+  display: grid;
   padding: var(--space-4);
 }
 
 .model-config__editor {
   height: 100%;
-  min-height: 22rem;
+  min-height: 0;
   border: 1px solid var(--line);
   border-radius: var(--r-2);
   overflow: hidden;
@@ -1151,7 +1522,7 @@ async function previewFile() {
 
 .model-config__preview {
   height: 100%;
-  min-height: 22rem;
+  min-height: 0;
   display: grid;
   place-items: center;
   border: 1px dashed var(--line);
@@ -1162,6 +1533,10 @@ async function previewFile() {
 @media (max-width: 1100px) {
   .model-config {
     grid-template-columns: 14rem minmax(0, 1fr);
+  }
+
+  .model-config__resize {
+    display: none;
   }
 
   .model-config__property {

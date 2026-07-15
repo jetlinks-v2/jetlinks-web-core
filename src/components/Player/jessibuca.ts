@@ -2,6 +2,13 @@ export type JessibucaCtor = typeof Jessibuca;
 export type JessibucaPlayOptions = {
   headers?: Record<string, string>;
 };
+export type JessibucaInternalDemux = {
+  dispatch?: (chunk: ArrayBuffer | Uint8Array) => unknown;
+};
+export type JessibucaInternalPlayer = {
+  demux?: JessibucaInternalDemux | null;
+  videoTimestamp?: number;
+};
 export type JessibucaOperateButtons = {
   fullscreen?: boolean;
   screenshot?: boolean;
@@ -49,6 +56,7 @@ declare global {
 
 export declare class Jessibuca {
   constructor(config: JessibucaConfig);
+  player?: JessibucaInternalPlayer | null;
   play(url?: string, options?: JessibucaPlayOptions): Promise<void>;
   pause(): Promise<void>;
   destroy(): Promise<void> | void;
