@@ -24,7 +24,7 @@
             :agent-id="activeAgent.agentId"
             :agent-name="conversationTitle"
             :client-type="activeAgent.clientType || ''"
-            :client-id="activeAgent.clientId || ''"
+            :client-id="conversationClientId"
             :parameters="conversationParameters"
             :init-expands="conversationExpands"
             :subject-type="conversationSubject?.type || ''"
@@ -229,6 +229,10 @@ const {
 const availableAgents = computed(() => props.agentList || []);
 const conversationSubject = computed(() => normalizeAgentSubject(props.parameters || {}));
 const normalizeDisplayText = (value: unknown) => String(value || '').trim();
+const conversationClientId = computed(() => (
+  normalizeDisplayText(props.parameters?.sessionClientId)
+  || normalizeDisplayText(activeAgent.value?.clientId)
+));
 const conversationBaseParameters = computed(() => {
   const {
     clientTools,
@@ -249,6 +253,7 @@ const conversationBaseParameters = computed(() => {
     referenceProviders,
     composerAddActions,
     sessionFilesEnabled,
+    sessionClientId,
     conversationTitle,
     headerTitle,
     clientTitle,
@@ -266,7 +271,7 @@ const conversationParameters = computed(() => ({
 }));
 
 const conversationExpands = computed(() => ({
-  clientId: activeAgent.value?.clientId,
+  clientId: conversationClientId.value,
   clientType: activeAgent.value?.clientType,
   ...buildAgentSubjectPayload(conversationSubject.value),
 }));
@@ -464,7 +469,7 @@ const prefillHandoffPrompt = () => {
 const conversationKey = computed(() => [
   activeAgent.value?.agentId || '',
   activeAgent.value?.clientType || '',
-  activeAgent.value?.clientId || '',
+  conversationClientId.value,
   conversationSubject.value?.type || '',
   conversationSubject.value?.id || '',
   conversationIdentityKey.value,

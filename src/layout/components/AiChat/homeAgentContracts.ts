@@ -170,4 +170,6 @@ export interface HomeAgentCapabilityProvider {
 export interface HomeAgentRuntime extends AiClientToolRuntime {
   parameters: Record<string, any>
   getContext: () => HomeAgentCapabilityContext
+  /** Complete authorized pool for hosts that need stable recommendation rotation. */
+  promptExamples: string[]
 }

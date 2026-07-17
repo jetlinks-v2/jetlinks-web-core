@@ -59,12 +59,15 @@ const encodePart = (value: string) => encodeURIComponent(value);
 
 const createHandoffId = () => {
   try {
-    const id = globalThis.crypto?.randomUUID?.();
+    const crypto = globalThis.crypto;
+    const id = crypto?.randomUUID?.();
     if (id) return id;
+    if (!crypto?.getRandomValues) return '';
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
   } catch {
-    // Fall back below for older browsers or restricted contexts.
+    return '';
   }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
 const normalizeTarget = (target: AiAgentHandoffTarget) => ({
@@ -145,7 +148,6 @@ const buildAiAgentTargetIdentity = (target: AiAgentHandoffTarget) => {
   } else if (subjectType && subjectId) {
     parts.push('subject', subjectType, subjectId);
   }
-
   return parts.length ? parts.map(encodePart).join(':') : '';
 };
 
