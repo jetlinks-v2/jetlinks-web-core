@@ -29,10 +29,13 @@
               <span>{{ locale.fileOwner }}</span>
               <span class="add-file-modal__label-desc">{{ ownerDescription }}</span>
             </template>
-            <a-select
-              v-model:value="selectedOwnerFormat"
+            <a-auto-complete
+              :key="`owner-${autocompleteResetKey}`"
+              v-model:value="selectedOwnerInput"
               :options="ownerOptions"
               :placeholder="locale.selectFileOwner"
+              :filter-option="filterFileOwnerOption"
+              :disabled="form.createType === 'custom'"
               allow-clear
             />
           </a-form-item>
@@ -47,8 +50,17 @@
           <a-radio-button value="upload">{{ locale.uploadCreate }}</a-radio-button>
           <a-radio-button value="extract">{{ locale.extractCreate }}</a-radio-button>
           <a-radio-button value="empty">{{ locale.emptyCreate }}</a-radio-button>
+          <a-radio-button v-if="showCustomCreate" value="custom">
+            <slot name="custom-create-option" />
+          </a-radio-button>
         </a-radio-group>
       </a-form-item>
+      <slot
+        v-if="form.createType === 'custom'"
+        name="custom-create-content"
+        :set-file-name="setFileName"
+        :set-file-owner="setFileOwner"
+      />
       <a-form-item v-if="form.createType === 'upload' || form.createType === 'extract'" :label="locale.selectFile" required>
         <a-upload
           v-model:file-list="uploadFiles"
@@ -116,7 +128,7 @@ interface AddFilePayload {
   name: string
   path?: string
   format?: string[]
-  createType: 'upload' | 'extract' | 'empty'
+  createType: 'upload' | 'extract' | 'empty' | 'custom'
   file?: File
   done?: (success?: boolean) => void
 }
@@ -143,6 +155,10 @@ const props = defineProps({
   selectedOwner: {
     type: String,
     default: ''
+  },
+  showCustomCreate: {
+    type: Boolean,
+    default: false
   },
   locale: {
     type: Object as PropType<Record<string, string>>,
@@ -189,6 +205,14 @@ function filterModelFileOption(input: string, option?: ModelFileOption) {
   return [option?.label, option?.rawValue].some(item => item?.toLowerCase().includes(keyword))
 }
 
+function filterFileOwnerOption(input: string, option?: { label?: string; value?: string }) {
+  const selectedOption = ownerOptions.value.find(item => item.value === selectedOwnerFormat.value)
+  // 已选架构只用于回显，不能继续作为搜索词把下拉收窄为单个选项。
+  if (selectedOption && (input === selectedOption.label || input === selectedOption.value)) return true
+  const keyword = input.toLowerCase()
+  return [option?.label, option?.value].some(item => item?.toLowerCase().includes(keyword))
+}
+
 const businessTypeOptions = computed<ModelFileOption[]>(() => [
   createModelFileOption(props.locale.businessTypeOptionObjectDetection, 'object_detection'),
   createModelFileOption(props.locale.businessTypeOptionPoseDetection, 'pose_detection'),
@@ -213,11 +237,23 @@ const algorithmModel = computed(() => resolveModelFileOptionValue(algorithmModel
 const modelFileFormat = computed(() => resolveModelFileOptionValue(modelFileFormatInput.value, modelFileFormatOptions))
 
 watch(() => form.createType, (createType) => {
-  if (createType === 'empty') {
+  if (createType !== 'upload' && createType !== 'extract') {
     form.file = undefined
     uploadFiles.value = []
   }
+  if (createType === 'custom') {
+    selectedOwnerFormat.value = undefined
+  }
 })
+
+// 业务调用方通过插槽扩展创建方式，公共弹窗只提供文件名和文件归属回填能力。
+const setFileName = (name: string) => {
+  form.name = name
+}
+
+const setFileOwner = (owner?: string) => {
+  selectedOwnerFormat.value = owner || undefined
+}
 
 const beforeUpload = (file: File) => {
   form.file = file
@@ -247,6 +283,16 @@ const normalizeModelFileFormat = (format: string) => {
 const isModelFilePath = computed(() => checkModelFilePath(form.path))
 const pathReadonly = computed(() => checkModelFilePath(props.selectedOwner))
 const ownerOptions = computed(() => buildFileOwnerOptions(props.availableFormats, props.locale, isModelFilePath.value))
+
+// AutoComplete 展示选项文案，提交状态始终保留文件归属的原始值。
+const selectedOwnerInput = computed<string | undefined>({
+  get: () => ownerOptions.value
+    .find(option => option.value === selectedOwnerFormat.value)?.label || selectedOwnerFormat.value,
+  set: (value) => {
+    const option = ownerOptions.value.find(item => item.value === value || item.label === value)
+    selectedOwnerFormat.value = option?.value || value || undefined
+  }
+})
 
 watch(() => props.open, (open) => {
   if (open) {
@@ -290,6 +336,7 @@ const resolvedFileName = computed(() => {
 })
 
 const ownerDescription = computed(() => {
+  if (form.createType === 'custom') return ''
   if (!selectedOwnerFormat.value) return props.locale.selectFileOwner
   return selectedOwnerFormat.value === SHARED_OWNER_VALUE
     ? props.locale.sharedFileOwnerDescription
@@ -300,7 +347,8 @@ const createTypeDescription = computed(() => {
   const descriptionMap: Record<AddFilePayload['createType'], string> = {
     upload: props.locale.uploadCreateDescription,
     extract: props.locale.extractCreateDescription,
-    empty: props.locale.emptyCreateDescription
+    empty: props.locale.emptyCreateDescription,
+    custom: ''
   }
   return descriptionMap[form.createType]
 })
