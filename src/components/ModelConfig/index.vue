@@ -239,13 +239,22 @@
     </aside>
 
     <AddFileModal
-      v-model:open="addFileVisible"
+      :open="addFileVisible"
       :available-formats="availableFormats"
       :selected-owner="selectedOwner"
       :editable-extensions="editableExtensions"
       :locale="text"
+      :show-custom-create="!!$slots['add-file-custom-create-option']"
+      @update:open="handleAddFileVisibleChange"
       @confirm="addFile"
-    />
+    >
+      <template #custom-create-option>
+        <slot name="add-file-custom-create-option" />
+      </template>
+      <template #custom-create-content="slotProps">
+        <slot name="add-file-custom-create-content" v-bind="slotProps" />
+      </template>
+    </AddFileModal>
   </div>
 </template>
 
@@ -281,7 +290,7 @@ interface AddFilePayload {
   name: string
   path?: string
   format?: string[]
-  createType: 'upload' | 'extract' | 'empty'
+  createType: 'upload' | 'extract' | 'empty' | 'custom'
   file?: File
   done?: (success?: boolean) => void
 }
@@ -478,6 +487,7 @@ const emit = defineEmits<{
   (e: 'load-files', payload: LoadFilesPayload): void
   (e: 'save-config', payload: SaveConfigPayload): void
   (e: 'add-file', payload: AddFileEventPayload): void
+  (e: 'add-file-close'): void
   (e: 'save-file', payload: SaveFilePayload): void
   (e: 'replace-file', payload: ReplaceFilePayload): void
   (e: 'preview-file', payload: PreviewFilePayload): void
@@ -794,6 +804,13 @@ function openAddFile(path = '') {
   addFileVisible.value = true
 }
 
+function handleAddFileVisibleChange(visible: boolean) {
+  const shouldNotifyClose = addFileVisible.value && !visible
+  addFileVisible.value = visible
+  // 统一收口取消、关闭和保存成功路径，确保消费方只清理一次新增文件会话状态。
+  if (shouldNotifyClose) emit('add-file-close')
+}
+
 function completeSaving(success: boolean) {
   if (success) {
     editing.value = false
@@ -844,7 +861,7 @@ function completeFileSaving(success: boolean) {
 
 function completeFileCreate(success: boolean) {
   if (success) {
-    addFileVisible.value = false
+    handleAddFileVisibleChange(false)
     onlyMessage(text.value.fileSaveSuccess)
     requestFiles()
   }
@@ -1025,7 +1042,7 @@ function addLocalEmptyFile(payload: AddFilePayload) {
     local: true
   }
   files.value = [...files.value, file]
-  addFileVisible.value = false
+  handleAddFileVisibleChange(false)
   selectFile(file)
   filePreviewLoaded.value = true
   editing.value = true
