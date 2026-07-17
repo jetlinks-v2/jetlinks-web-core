@@ -3,10 +3,11 @@
     <a-dropdown
       v-model:open="visible"
       :trigger="['click']"
-      :getPopupContainer="getPopupContainer"
+      :placement="props.placement"
+      :getPopupContainer="resolvePopupContainer"
     >
       <a-badge :count="total" :overflow-count="BADGE_OVERFLOW_COUNT" :offset="[3, -3]">
-        <AIcon class="notice-icon" type="BellOutlined" />
+        <AIcon class="notice-icon" :type="props.icon" />
       </a-badge>
       <template #overlay>
         <div>
@@ -19,7 +20,7 @@
 
 <script setup lang="ts" name="Notice">
 import { changeStatus_api, getUnreadCount_api } from '@jetlinks-web-core/api/account/notificationRecord';
-import { ref } from 'vue'
+import { ref, type PropType } from 'vue'
 import NoticeInfo from './NoticeInfo.vue';
 import { useWebSocket } from '@jetlinks-web-core/hooks'
 import { notification, Button } from 'ant-design-vue';
@@ -32,8 +33,29 @@ import {
     BADGE_OVERFLOW_COUNT,
     BADGE_OVERFLOW_VALUE,
     createUnreadQueryParams,
+    type NoticeTabItem,
     toBadgeCount,
 } from './noticeUtils';
+
+type NoticePlacement = 'top' | 'bottom' | 'topLeft' | 'topRight' | 'topCenter'
+  | 'bottomLeft' | 'bottomRight' | 'bottomCenter'
+type NoticePopupContainer = (triggerNode: HTMLElement) => HTMLElement
+
+// 保留原 Header 默认行为，同时允许侧栏按所在位置调整图标、弹层方向与挂载容器。
+const props = defineProps({
+  icon: {
+    type: String,
+    default: 'BellOutlined'
+  },
+  placement: {
+    type: String as PropType<NoticePlacement>,
+    default: 'bottomLeft'
+  },
+  getPopupContainer: {
+    type: Function as PropType<NoticePopupContainer>,
+    default: undefined
+  }
+})
 
 const { t: $t } = useI18n();
 const updateCount = computed(() => useUserStore().alarmUpdateCount);
@@ -42,10 +64,10 @@ const menuStory = useMenuStore();
 const visible = ref(false)
 const total = ref(0)
 const loading = ref(false)
-const noticeRef = ref(null)
+const noticeRef = ref<HTMLElement | null>(null)
 
-const getPopupContainer = () => {
-  return noticeRef.value || document.body
+const resolvePopupContainer = (triggerNode: HTMLElement) => {
+  return props.getPopupContainer?.(triggerNode) || noticeRef.value || document.body
 }
 
 const { send } = useWebSocket({
@@ -144,14 +166,15 @@ const handleRead = () => {
 
 
 
-const tabs = ref<any>([]);
+const tabs = ref<NoticeTabItem[]>([]);
 
 const queryTypeList = async () => {
     const resp: any = await getAllNotice();
     if (resp.status === 200) {
-      const typeMap = new Map()
+      const typeMap = new Map<string, NoticeTabItem>()
         resp.result.forEach((i: any) => {
-            if (!typeMap.has(i.type.id)) {
+            const currentTab = typeMap.get(i.type.id)
+            if (!currentTab) {
                 typeMap.set(i.type.id, {
                     key: i.type.id,
                     tab: i.type.name,
@@ -160,7 +183,7 @@ const queryTypeList = async () => {
                     ]
                 })
             } else {
-                typeMap.get(i.type.id).type.push(i.provider)
+                currentTab.type.push(i.provider)
             }
         })
         tabs.value = [...typeMap.values()]
