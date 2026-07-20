@@ -1,4 +1,16 @@
 import i18n from '@jetlinks-web-core/locales'
+import {
+  createAiClientToolFailureResult,
+  withAiClientToolEvidence,
+  type AiClientToolEvidence,
+  type AiClientToolClaim,
+  type AiClientToolOutputBinding,
+} from './clientToolResult'
+
+export {
+  searchDomainAgentItems,
+  type DomainAgentSearchResult,
+} from './domainAgentSearch'
 
 export type DomainAgentStatus = 'ok' | 'empty' | 'partial' | 'forbidden' | 'unavailable'
 
@@ -26,6 +38,8 @@ export interface DomainAgentNavigation {
 }
 
 export interface DomainAgentToolResult<T> {
+  success: boolean
+  complete: boolean
   status: DomainAgentStatus
   domain: DomainAgentName
   scope: {
@@ -41,6 +55,8 @@ export interface DomainAgentToolResult<T> {
   nextPage?: number
   warnings?: string[]
   navigation?: DomainAgentNavigation[]
+  evidence?: AiClientToolEvidence
+  outputBindings?: AiClientToolOutputBinding[]
 }
 
 export interface ResolveDomainAgentTimeRangeOptions {
@@ -51,6 +67,10 @@ export interface ResolveDomainAgentTimeRangeOptions {
 
 export class DomainAgentInputError extends Error {
   readonly code: string
+  readonly failureDisposition = 'request' as const
+  readonly recoveryAction = 'repair' as const
+  readonly retryable = true
+  readonly repair = { maxAttempts: 1 }
 
   constructor(code: string, message: string) {
     super(message)
@@ -77,7 +97,7 @@ interface DomainAgentPropertyMetadata {
   }
 }
 
-export const DOMAIN_AGENT_TIME_PRESETS = ['today', '24h', '7d', '30d'] as const
+export const DOMAIN_AGENT_TIME_PRESETS = ['today', '24h', '7d', '30d', 'custom'] as const
 
 export const resolveDomainAgentMessage = (
   key: string,
@@ -94,6 +114,19 @@ export const createDomainAgentInputError = (
   messageKey: string,
   params?: DomainAgentMessageParams,
 ) => new DomainAgentInputError(code, resolveDomainAgentMessage(messageKey, params))
+
+export const createDomainAgentClaim = (
+  id: string,
+  label: string,
+  value: string | number | boolean,
+  format?: string,
+): AiClientToolClaim => ({
+  id,
+  label,
+  value,
+  ...(format ? { format } : {}),
+  visibility: 'user',
+})
 
 export const domainAgentEnumValueType = <T extends string>(values: readonly T[]): DomainAgentValueType => ({
   type: 'enum',
@@ -145,6 +178,8 @@ export const domainAgentResultValueType = (
 ): DomainAgentValueType => ({
   type: 'object',
   properties: [
+    domainAgentProperty('success', { type: 'boolean' }, true),
+    domainAgentProperty('complete', { type: 'boolean' }, true),
     domainAgentProperty('status', domainAgentEnumValueType([
       'ok',
       'empty',
@@ -198,6 +233,11 @@ export const domainAgentResultValueType = (
         ],
       },
     }),
+    domainAgentProperty('evidence', { type: 'object' }),
+    domainAgentProperty('outputBindings', {
+      type: 'array',
+      elementType: { type: 'object' },
+    }),
   ],
 })
 
@@ -228,9 +268,15 @@ const PRESET_DURATION: Record<'24h' | '7d' | '30d', number> = {
 
 const parseTimestamp = (value: unknown) => {
   if (value === undefined || value === null || value === '') return undefined
-  const timestamp = typeof value === 'number' ? value : new Date(String(value)).getTime()
+  const text = String(value).trim()
+  const numeric = typeof value === 'number' || /^-?\d+(?:\.\d+)?$/.test(text)
+    ? Number(value)
+    : undefined
+  const timestamp = Number.isFinite(numeric) ? Number(numeric) : new Date(text).getTime()
   return Number.isFinite(timestamp) ? timestamp : undefined
 }
+
+const hasTimeValue = (value: unknown) => value !== undefined && value !== null && value !== ''
 
 const startOfToday = (timestamp: number) => {
   const date = new Date(timestamp)
@@ -244,24 +290,45 @@ export const resolveDomainAgentTimeRange = (
 ): DomainAgentTimeRange => {
   const now = Number.isFinite(options.now) ? Number(options.now) : Date.now()
   const maxDuration = Math.max(1, options.maxDays ?? 90) * 24 * 60 * 60 * 1000
-  const preset = String(input.timeRange || input.preset || options.defaultPreset || '24h').trim()
-  const customStart = parseTimestamp(input.startTime ?? input.start)
-  const customEnd = parseTimestamp(input.endTime ?? input.end)
+  const presetValue = input.timeRange ?? input.preset ?? options.defaultPreset
+  const preset = String(presetValue ?? '').trim()
+  const startValue = input.startTime ?? input.start
+  const endValue = input.endTime ?? input.end
+  const startProvided = hasTimeValue(startValue)
+  const endProvided = hasTimeValue(endValue)
+  const customStart = parseTimestamp(startValue)
+  const customEnd = parseTimestamp(endValue)
 
   let start: number
   let end: number
   let label: string
 
-  if (customStart !== undefined || customEnd !== undefined) {
-    if (customStart === undefined || customEnd === undefined) {
+  if (startProvided || endProvided) {
+    if (!startProvided || !endProvided) {
       throw createDomainAgentInputError(
         'TIME_RANGE_INCOMPLETE',
         'components.AiChat.domainAgent.errors.timeRangeIncomplete',
       )
     }
+    if (customStart === undefined || customEnd === undefined) {
+      throw createDomainAgentInputError(
+        'TIME_RANGE_INVALID_VALUE',
+        'components.AiChat.domainAgent.errors.timeRangeInvalidValue',
+      )
+    }
     start = customStart
     end = customEnd
     label = 'custom'
+  } else if (preset === 'custom') {
+    throw createDomainAgentInputError(
+      'TIME_RANGE_INCOMPLETE',
+      'components.AiChat.domainAgent.errors.timeRangeIncomplete',
+    )
+  } else if (!preset) {
+    throw createDomainAgentInputError(
+      'TIME_RANGE_REQUIRED',
+      'components.AiChat.domainAgent.errors.timeRangeRequired',
+    )
   } else if (preset === 'today') {
     start = startOfToday(now)
     end = now
@@ -355,24 +422,69 @@ export const resolveDomainAgentStringList = (
 }
 
 export const createDomainAgentToolResult = <T>(
-  input: Omit<DomainAgentToolResult<T>, 'status' | 'truncated' | 'scope'> & {
+  input: Omit<DomainAgentToolResult<T>,
+    'success' | 'complete' | 'status' | 'truncated' | 'scope' | 'evidence' | 'outputBindings'> & {
     status?: DomainAgentStatus
     truncated?: boolean
     scopeName?: string
+    evidenceCoverage?: string
+    supportsAbsenceClaim?: boolean
+    /** Machine-verifiable fields; never inferred from the user-facing summary. */
+    facts?: Record<string, unknown>
+    /** Explicit scalar facts safe for canonical user-visible fallback. */
+    claims?: AiClientToolClaim[]
+    outputBindings?: AiClientToolOutputBinding[]
   },
 ): DomainAgentToolResult<T> => {
   const {
     scopeName,
     status,
     truncated,
+    evidenceCoverage,
+    supportsAbsenceClaim,
+    facts,
+    claims,
+    outputBindings,
     ...result
   } = input
-  return {
+  const resolvedStatus = status ?? (Array.isArray(input.data) && input.data.length === 0 ? 'empty' : 'ok')
+  const returnedCount = Array.isArray(input.data) ? input.data.length : undefined
+  const incompletePage = input.nextPage !== undefined
+    || (Number.isFinite(input.total) && returnedCount !== undefined && Number(input.total) > returnedCount)
+  const complete = resolvedStatus !== 'partial' && !truncated && !incompletePage
+  const base = {
     ...result,
-    status: status ?? (Array.isArray(input.data) && input.data.length === 0 ? 'empty' : 'ok'),
+    status: resolvedStatus,
     scope: { type: 'project', ...(scopeName ? { name: scopeName } : {}) },
     truncated: truncated ?? false,
   }
+  if (resolvedStatus === 'forbidden' || resolvedStatus === 'unavailable') {
+    return {
+      ...base,
+      ...createAiClientToolFailureResult({
+        code: String(input.summary?.errorCode || `domain.${resolvedStatus}`),
+        message: String(input.warnings?.[0] || resolvedStatus),
+        failureDisposition: resolvedStatus === 'forbidden' ? 'permission/user' : 'dependency',
+        recoveryAction: resolvedStatus === 'forbidden' ? 'terminal' : 'retry',
+        retryable: resolvedStatus === 'unavailable',
+      }),
+      complete: false,
+    } as DomainAgentToolResult<T>
+  }
+  return withAiClientToolEvidence(base, {
+    requestedRange: input.timeRange,
+    recordCount: Number.isFinite(input.total) ? Number(input.total) : returnedCount,
+    returnedCount,
+    complete,
+    truncated: !complete,
+    resultStatus: resolvedStatus,
+    evidenceCoverage: evidenceCoverage || 'filtered-query',
+    supportsAbsenceClaim: supportsAbsenceClaim === true,
+    facts,
+    claims,
+    warnings: input.warnings,
+    outputBindings,
+  }) as DomainAgentToolResult<T>
 }
 
 const toRecord = (value: unknown): Record<string, unknown> => (

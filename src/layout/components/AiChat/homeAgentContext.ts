@@ -133,7 +133,10 @@ const mergeCapabilities = (items: HomeAgentCapability[]) => {
       result[index] = { ...result[index], ...capability }
     }
   })
-  return result.sort((a, b) => (a.order || 0) - (b.order || 0))
+  return result.sort((a, b) => (
+    (a.order || 0) - (b.order || 0)
+    || a.id.localeCompare(b.id)
+  ))
 }
 
 const getCapabilityMenuAnchors = (capability: HomeAgentCapability) => uniqueStrings([

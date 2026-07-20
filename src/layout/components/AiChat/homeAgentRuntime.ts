@@ -62,6 +62,7 @@ const buildHomeAgentSystemPrompt = (
     i18n.global.t('components.AiChat.homeAgent.prompt.role'),
     i18n.global.t('components.AiChat.homeAgent.prompt.discovery'),
     i18n.global.t('components.AiChat.homeAgent.prompt.dynamicLoading'),
+    i18n.global.t('components.AiChat.homeAgent.prompt.execution'),
     i18n.global.t('components.AiChat.homeAgent.prompt.navigation'),
     i18n.global.t('components.AiChat.homeAgent.prompt.menuLinks'),
     i18n.global.t('components.AiChat.homeAgent.prompt.boundary'),

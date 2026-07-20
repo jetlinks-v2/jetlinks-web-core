@@ -54,7 +54,10 @@ class AiClientToolRegistry {
 
     return records
       .slice()
-      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .sort((a, b) => (
+        (a.order || 0) - (b.order || 0)
+        || a.tool.id.localeCompare(b.tool.id)
+      ))
       .map((record) => record.tool as AiClientToolDefinition<TContext>);
   }
 }

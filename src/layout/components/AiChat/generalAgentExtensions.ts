@@ -84,8 +84,82 @@ export interface GeneralAgentConversationBridge {
 export interface GeneralAgentMarkdownBlockRenderer {
   type: string;
   renderer: Component;
+  /** Side-effect-free placeholder rendered while the assistant response is still streaming. */
+  skeleton?: Component;
   decode?: (content: string) => unknown | undefined;
+  presentation?: GeneralAgentMarkdownBlockPresentation;
 }
+
+export type GeneralAgentMarkdownBlockContentType = 'json' | 'text';
+
+export type GeneralAgentMarkdownBlockDisplayMode = 'preview' | 'source';
+
+export type GeneralAgentMarkdownBlockDeliveryPolicy = 'explicit' | 'preferred' | 'required';
+
+/**
+ * Declares how a trusted conversation client can present one fenced block.
+ *
+ * The metadata is converted into a bounded model hint during session initialization. It is
+ * presentation-only and must never be treated as authorization or a resource access grant.
+ */
+export interface GeneralAgentMarkdownBlockPresentation {
+  contentType: GeneralAgentMarkdownBlockContentType;
+  /** Canonical source media type consumed directly by the client renderer. */
+  mediaType?: string;
+  supportsSessionFile?: boolean;
+  maxInlineBytes?: number;
+  defaultMode?: GeneralAgentMarkdownBlockDisplayMode;
+  /** Default delivery purpose; currently used to distinguish chat previews from reusable artifacts. */
+  purpose?: 'conversation-preview';
+  /** Generic tool result shapes that this renderer can present without a derived media artifact. */
+  preferredInputShapes?: string[];
+  /** Whether compatible result shapes are explicit-only, preferred, or required in the terminal response. */
+  deliveryPolicy?: GeneralAgentMarkdownBlockDeliveryPolicy;
+}
+
+export interface GeneralAgentMarkdownPresentationCapability
+  extends GeneralAgentMarkdownBlockPresentation {
+  type: string;
+}
+
+const PRESENTATION_TYPE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,31}$/;
+const PRESENTATION_INPUT_SHAPE_PATTERN = /^[a-z0-9][a-z0-9._-]{0,95}(?:\.\*)?$/;
+
+/**
+ * Normalizes renderer metadata before it crosses the conversation boundary.
+ *
+ * Presentation metadata is descriptive only. Bounding it here prevents an extension from turning
+ * arbitrary runtime data into a server-side routing, authorization, or prompt channel.
+ */
+export const normalizeGeneralAgentMarkdownPresentationCapability = (
+  capability: GeneralAgentMarkdownPresentationCapability,
+): GeneralAgentMarkdownPresentationCapability | undefined => {
+  const type = normalizeText(capability?.type).toLowerCase();
+  const contentType = normalizeText(capability?.contentType).toLowerCase();
+  if (!PRESENTATION_TYPE_PATTERN.test(type) || !['json', 'text'].includes(contentType)) {
+    return undefined;
+  }
+  const mediaType = normalizeText(capability.mediaType).toLowerCase().slice(0, 160);
+  const preferredInputShapes = Array.from(new Set(
+    (capability.preferredInputShapes || [])
+      .map(value => normalizeText(value).toLowerCase())
+      .filter(value => PRESENTATION_INPUT_SHAPE_PATTERN.test(value)),
+  )).slice(0, 16);
+  const deliveryPolicy = ['preferred', 'required'].includes(capability.deliveryPolicy || '')
+    ? capability.deliveryPolicy as GeneralAgentMarkdownBlockDeliveryPolicy
+    : 'explicit';
+  return {
+    type,
+    contentType: contentType as GeneralAgentMarkdownBlockContentType,
+    ...(mediaType ? { mediaType } : {}),
+    supportsSessionFile: capability.supportsSessionFile === true,
+    maxInlineBytes: Math.max(0, Math.min(Number(capability.maxInlineBytes) || 0, 1024 * 1024)),
+    defaultMode: capability.defaultMode === 'source' ? 'source' : 'preview',
+    purpose: 'conversation-preview',
+    ...(preferredInputShapes.length ? { preferredInputShapes } : {}),
+    deliveryPolicy,
+  };
+};
 
 export interface GeneralAgentResolvedMarkdownBlock {
   type: string;
@@ -222,11 +296,39 @@ class GeneralAgentExtensionRegistry {
       .filter(([key]) => prefixes.some(prefix => key.startsWith(prefix)))
       .map(([, items]) => items[items.length - 1]?.extension)
       .filter((item): item is GeneralAgentExtension => !!item)
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
+      .sort((a, b) => (
+        (a.order || 0) - (b.order || 0)
+        || normalizeText(a.id).localeCompare(normalizeText(b.id))
+      ));
   }
 
   getConversationExtensions(scopes: string | string[] = 'general') {
     return this.getExtensions(scopes).filter(extension => !!extension.conversation);
+  }
+
+  /**
+   * Returns the fenced-block presentation contract actually installed in the current client.
+   * Duplicate block types follow the same extension ordering as renderer resolution.
+   */
+  getMarkdownPresentationCapabilities(
+    scopes: string | string[] = 'general',
+  ): GeneralAgentMarkdownPresentationCapability[] {
+    const capabilities: GeneralAgentMarkdownPresentationCapability[] = [];
+    const seen = new Set<string>();
+    for (const extension of this.getConversationExtensions(scopes)) {
+      for (const renderer of extension.conversation?.markdownBlockRenderers || []) {
+        const type = normalizeText(renderer.type).toLowerCase();
+        if (!type || seen.has(type) || !renderer.presentation) continue;
+        const capability = normalizeGeneralAgentMarkdownPresentationCapability({
+          type,
+          ...renderer.presentation,
+        });
+        if (!capability) continue;
+        seen.add(type);
+        capabilities.push(capability);
+      }
+    }
+    return capabilities;
   }
 
   /**

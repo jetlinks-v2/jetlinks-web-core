@@ -1,11 +1,40 @@
 import i18n from '@jetlinks-web-core/locales'
-import { defineAiClientTools } from './clientTools'
+import {
+  defineAiClientToolResultBindings,
+  defineAiClientToolRouting,
+  defineAiClientTools,
+} from './clientTools'
 import type { HomeAgentCapabilityContext } from './homeAgentContracts'
 import {
   compactHomeAgentCapability,
   filterHomeAgentCapabilities,
 } from './homeAgentCatalog'
 import { clampLimit, isPlainRecord, uniqueStrings } from './homeAgentShared'
+
+const HOME_AGENT_CONTEXT_ROUTING = defineAiClientToolRouting('discovery', {
+  capabilities: ['session.context.read'],
+  produces: ['session-context'],
+  outputShapes: ['session.context'],
+  evidencePolicy: 'none',
+  exposure: 'eager',
+  cost: 'low',
+})
+
+const HOME_AGENT_CAPABILITY_SEARCH_ROUTING = defineAiClientToolRouting('discovery', {
+  capabilities: ['client-capability.search'],
+  accepts: ['natural-language-query'],
+  produces: ['client-capability-candidates'],
+  outputShapes: ['capability.candidates'],
+  evidencePolicy: 'none',
+})
+
+const HOME_AGENT_OPEN_MENU_ROUTING = defineAiClientToolRouting('navigation', {
+  capabilities: ['navigation.menu.open'],
+  accepts: ['menu-code'],
+  produces: ['navigation-receipt'],
+  outputShapes: ['navigation.receipt'],
+  exposure: 'auto',
+})
 
 export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapabilityContext>([
   {
@@ -14,9 +43,15 @@ export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapab
     displayName: i18n.global.t('components.AiChat.homeAgent.tools.context.displayName'),
     progressText: i18n.global.t('components.AiChat.homeAgent.tools.context.progressText'),
     description: i18n.global.t('components.AiChat.homeAgent.tools.context.description'),
+    routing: HOME_AGENT_CONTEXT_ROUTING,
     inputs: [],
     output: { type: 'object' },
     annotations: { readOnlyHint: true },
+    _meta: {
+      resultBindings: defineAiClientToolResultBindings(HOME_AGENT_CONTEXT_ROUTING, {
+        'session-context': '$',
+      }),
+    },
     execute: (_args, context) => ({
       currentRoute: context.currentRoute,
       currentView: context.currentView,
@@ -32,6 +67,7 @@ export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapab
     displayName: i18n.global.t('components.AiChat.homeAgent.tools.search.displayName'),
     progressText: i18n.global.t('components.AiChat.homeAgent.tools.search.progressText'),
     description: i18n.global.t('components.AiChat.homeAgent.tools.search.description'),
+    routing: HOME_AGENT_CAPABILITY_SEARCH_ROUTING,
     inputs: [
       {
         id: 'keyword',
@@ -64,6 +100,11 @@ export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapab
     ],
     output: { type: 'object' },
     annotations: { readOnlyHint: true },
+    _meta: {
+      resultBindings: defineAiClientToolResultBindings(HOME_AGENT_CAPABILITY_SEARCH_ROUTING, {
+        'client-capability-candidates': '$.items',
+      }),
+    },
     execute: (args, context) => {
       const matches = filterHomeAgentCapabilities(context.capabilities, args)
       const limit = clampLimit(args.limit)
@@ -82,6 +123,7 @@ export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapab
     displayName: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.displayName'),
     progressText: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.progressText'),
     description: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.description'),
+    routing: HOME_AGENT_OPEN_MENU_ROUTING,
     confirm: {
       title: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.confirmTitle'),
       content: (args, context) => {
@@ -118,6 +160,11 @@ export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapab
     ],
     output: { type: 'object' },
     annotations: { readOnlyHint: false, idempotentHint: true },
+    _meta: {
+      resultBindings: defineAiClientToolResultBindings(HOME_AGENT_OPEN_MENU_ROUTING, {
+        'navigation-receipt': '$',
+      }),
+    },
     execute: (args, context) => {
       const menuCode = String(args.menuCode || args.routeName || '')
       const menu = context.findMenu(menuCode)

@@ -1,26 +1,18 @@
-import { isFromCloud } from "@/utils/comm";
+import { getProjectCodeFromLocation } from './project-path'
+import { isFromCloud } from './request-context'
 
-const normalizeSegment = (value: unknown) => {
-  if (typeof value !== 'string') return ''
-  return decodeURIComponent(value).trim()
-}
+export {
+  getProjectCodeFromLocation,
+  getProjectCodeFromPathname,
+  getProjectIdFromLocation,
+  getProjectIdFromPathname,
+} from './project-path'
 
 const normalizeHashPath = (path = '') => {
   const [pathname = '', search = ''] = path.split('?')
   const normalizedPath = `/${pathname.replace(/^\/+/, '')}`.replace(/\/+/g, '/')
   return `${normalizedPath}${search ? `?${search}` : ''}`
 }
-
-export const getProjectCodeFromPathname = (pathname = window.location.pathname) => {
-  const [first] = pathname.split('/').filter(Boolean)
-  return normalizeSegment(first)
-}
-
-export const getProjectIdFromPathname = getProjectCodeFromPathname
-
-export const getProjectCodeFromLocation = () => getProjectCodeFromPathname()
-
-export const getProjectIdFromLocation = getProjectCodeFromLocation
 
 export const isProjectRuntime = () => !isFromCloud() && !!getProjectCodeFromLocation()
 
@@ -36,7 +28,7 @@ export const normalizeProjectRuntimePath = (path = '') => {
 }
 
 export const createProjectRuntimeHref = (projectCode: string, path = '/') => {
-  const normalizedProjectCode = normalizeSegment(projectCode)
+  const normalizedProjectCode = decodeURIComponent(String(projectCode || '')).trim()
   const hashPath = normalizeProjectRuntimePath(path)
 
   if (!normalizedProjectCode) {

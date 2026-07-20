@@ -1,11 +1,15 @@
 import i18n from '@jetlinks-web-core/locales';
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry';
-import {
-  homeAgentCapabilityRegistry,
-  type HomeAgentCapabilityContext,
-  type HomeAgentCapabilityProvider,
-} from './homeAgentCapabilities';
+import { homeAgentCapabilityRegistry } from './homeAgentRegistry';
+import type {
+  HomeAgentCapabilityContext,
+  HomeAgentCapabilityProvider,
+} from './homeAgentContracts';
 import type { AiClientToolDefinition } from './clientTools';
+import {
+  defineAiClientToolResultBindings,
+  defineAiClientToolRouting,
+} from './clientTools';
 import {
   generalAgentExtensionRegistry,
   type GeneralAgentExtension,
@@ -213,6 +217,14 @@ const unloadCapabilityProviders = (scope: ProviderScope) => {
 export const unloadHomeAgentCapabilityProviders = () => unloadCapabilityProviders('home');
 export const unloadGeneralAgentExtensions = () => unloadCapabilityProviders('general');
 
+const CAPABILITY_LOADER_ROUTING = defineAiClientToolRouting('discovery', {
+  capabilities: ['client-capability.load'],
+  accepts: ['session-context'],
+  produces: ['client-tool-catalog'],
+  outputShapes: ['tool.catalog'],
+  evidencePolicy: 'none',
+});
+
 const createCapabilityLoaderTool = (
   toolId: string,
   loadProviders: typeof loadHomeAgentCapabilityProviders,
@@ -223,6 +235,7 @@ const createCapabilityLoaderTool = (
   displayName: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.displayName'),
   progressText: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.progressText'),
   description: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.description'),
+  routing: CAPABILITY_LOADER_ROUTING,
   inputs: [
     {
       id: 'menuCode',
@@ -255,6 +268,11 @@ const createCapabilityLoaderTool = (
   ],
   output: { type: 'object' },
   annotations: { readOnlyHint: true },
+  _meta: {
+    resultBindings: defineAiClientToolResultBindings(CAPABILITY_LOADER_ROUTING, {
+      'client-tool-catalog': '$',
+    }),
+  },
   execute: async (args, context) => {
     const result = await loadProviders({
       menuCode: args.menuCode,

@@ -1,15 +1,17 @@
 import dayjs from 'dayjs'
-import { downloadFileByUrl, getImage, getToken, LocalStore } from '@jetlinks-web/utils'
+import { downloadFileByUrl, getImage, LocalStore } from '@jetlinks-web/utils'
 import { getFileUrlById } from '@jetlinks-web-core/api/comm'
 import { message } from 'ant-design-vue'
-import { BASE_API, TOKEN_KEY } from '@jetlinks-web/constants'
-import { isSubApp, edgeDefaultUrl } from '@jetlinks-web-core/utils/consts'
 import { isFunction, omit } from 'lodash-es'
-import { getProjectIdFromLocation } from './project-runtime'
-import { getProjectStorage, isProjectStorageEnabled } from './project-storage'
 
-const TENANT_DOMAIN_KEY = 'X-Tenant-Domain'
-const VERIFY_CACHE_KEY = 'jetlinks_verify_cache'
+export {
+  getBaseApi,
+  getFromCloudPathName,
+  getRequestBaseApi,
+  getRequestHeaders,
+  getUploadHeaders,
+  isFromCloud,
+} from './request-context'
 
 export const downloadJson = (
   record: Record<string, any>,
@@ -124,80 +126,6 @@ export function mergeObjectArrays(a: any[], b: any[], key = 'key') {
   const uniqueB = b.filter(bItem => !a.some(aItem => aItem[key] === bItem[key]))
 
   return [...uniqueB, ...filteredA]
-}
-
-export function isFromCloud(){
-  return (['cloud', 'cloud-pc']).includes(String(localStorage.getItem('terminal'))) && window.location.href.includes(edgeDefaultUrl);
-}
-
-export function getFromCloudPathName(path?: string) {
-  const { pathname, origin } = window.location
-  let _url = origin + pathname
-  if ('cloud-pc' === String(localStorage.getItem('terminal'))) {
-    _url = `/edge/${localStorage.getItem('thingType')}/${localStorage.getItem('thingId')}/_`
-    if (localStorage.getItem('proxy')) {
-      _url = localStorage.getItem('proxy') + _url
-    }
-  } else if (_url.endsWith('/')) {
-    _url = `${window.location.pathname}/edge/${localStorage.getItem('thingType')}/${localStorage.getItem('thingId')}/_`
-  }
-  return path ? _url + path : _url
-}
-
-
-export function getBaseApi() {
-  if (isSubApp) {
-    const global = (window as any).microApp.getGlobalData()
-    return global.api?.getBaseApi?.() || BASE_API
-  }
-
-  return isFromCloud() ? getFromCloudPathName() : BASE_API
-}
-
-const getVerifyHeaders = () => {
-  if (typeof localStorage === 'undefined') {
-    return {}
-  }
-
-  try {
-    const raw = localStorage.getItem(VERIFY_CACHE_KEY)
-    if (!raw) {
-      return {}
-    }
-
-    const cache = JSON.parse(raw) as { key?: unknown; token?: unknown }
-    const key = typeof cache.key === 'string' ? cache.key : ''
-    const token = typeof cache.token === 'string' ? cache.token : ''
-
-    return key && token
-      ? {
-          'x-verify-key': key,
-          'x-verify-token': token
-        }
-      : {}
-  } catch {
-    return {}
-  }
-}
-
-export const getUploadHeaders = () => {
-  const headers: Record<string, string> = {}
-  const projectId = isProjectStorageEnabled() ? getProjectIdFromLocation() : ''
-  const projectStorage = projectId ? getProjectStorage(projectId) : undefined
-  const token = projectStorage?.token || getToken()
-
-  if (token) {
-    headers[TOKEN_KEY] = token
-  }
-
-  if (projectStorage?.domain) {
-    headers[TENANT_DOMAIN_KEY] = projectStorage.domain
-  }
-
-  return {
-    ...headers,
-    ...getVerifyHeaders()
-  }
 }
 
 interface TransformTreeType<S>{

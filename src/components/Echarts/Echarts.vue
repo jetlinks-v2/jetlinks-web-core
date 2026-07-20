@@ -3,8 +3,8 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, defineProps, defineOptions } from 'vue'
-import { useEcharts } from '@jetlinks-web-core/hooks'
+import { ref, defineProps, defineOptions, defineExpose } from 'vue'
+import { useEcharts, type EchartsRenderErrorStage } from '@jetlinks-web-core/hooks'
 
 defineOptions({
   name: 'JEcharts'
@@ -20,9 +20,16 @@ const props = defineProps({
     default: () => [],
   }
 })
+const emit = defineEmits<{
+  (event: 'error', error: unknown, stage: EchartsRenderErrorStage): void
+}>()
 
 const echartsDom = ref<HTMLDivElement>()
-useEcharts(echartsDom, props)
+const { getDataURL } = useEcharts(echartsDom, props, {
+  onError: (error, stage) => emit('error', error, stage),
+})
+
+defineExpose({ getDataURL })
 
 </script>
 
