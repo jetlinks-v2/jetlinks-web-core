@@ -95,6 +95,14 @@ The registry stores cross-module resources by module id. It also exposes remote 
 
 Public contract typing for this registry is handled by the separate module-contract task. Until that is complete, keep docs aligned with the actual `module-registry.ts` API and do not invent resource keys.
 
+## Data Capability Registry
+
+The proposed neutral contract for module-owned data sources, side-effecting operations, structured value bindings, subscription lifecycle, composition, and legacy visualization-command compatibility is documented in:
+
+- `jetlinks-web-core/docs/数据能力注册中心设计.md`
+
+The design keeps discovery in `DataCapabilityRegistry`, read/query/stream execution in `DataSourceRunner`, and side-effecting execution in `OperationRunner`. It is a design contract pending confirmation and implementation; the current production path continues to use the existing visualization command APIs and persisted `bindCommands`.
+
 ## Component Registration And Extension Points
 
 Global component registration:
