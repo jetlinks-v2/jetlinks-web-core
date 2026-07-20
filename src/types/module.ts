@@ -3,7 +3,7 @@ import type { RouteMeta, RouteRecordRaw } from 'vue-router'
 
 export type ModuleResourceRecord<T = unknown> = Record<string, T>
 
-export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes'
+export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders'
 export type ModuleResourceType = KnownModuleResourceType | (string & {})
 
 export interface ModuleResource {
@@ -14,6 +14,7 @@ export interface ModuleResource {
   stores?: ModuleResourceRecord
   utils?: ModuleResourceRecord
   routes?: ModuleResourceRecord
+  dataCapabilityProviders?: ModuleResourceRecord
   [resourceType: string]: ModuleResourceRecord | string | undefined
 }
 

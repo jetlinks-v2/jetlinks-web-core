@@ -114,6 +114,18 @@ export const AUTHORIZE_ROUTE: RouteRecordRaw = {
   }
 }
 
+
+export const DATA_CAPABILITY_LAB_ROUTE: RouteRecordRaw = {
+  path: '/data-capability/lab',
+  name: 'DataCapabilityLab',
+  component: () => import('@jetlinks-web-core/views/data-capability/lab/index.vue'),
+  meta: {
+    title: '数据能力测试',
+    hideInMenu: true,
+    skipMenuFetch: true
+  }
+}
+
 export const Demo: RouteRecordRaw = {
   path: '/demo',
   name: 'Demo',
