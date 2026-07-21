@@ -139,7 +139,7 @@ export const handleMenus = (
     }
 
     if (level === 1) {
-      return () => import('../layout/SmartParkLayoutPage.vue')
+      return () => import('../layout/BasicLayoutPage.vue')
     }
 
     if (level === 2) {
@@ -202,7 +202,7 @@ export const handleMenus = (
         // 为1级菜单添加父级路由
         _route.name = `${item.code}-parent`
         _route.path = `${item.url}/parent`
-        _route.component = () => import('../layout/SmartParkLayoutPage.vue')
+        _route.component = () => import('../layout/BasicLayoutPage.vue')
         _route.children = [item]
         _route.meta = {}
       } else {

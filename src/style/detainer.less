@@ -1,22 +1,16 @@
 .ant-pro-basicLayout {
-  .ant-layout-header {
-    height: 52px !important;
-    line-height: 52px !important;
-    background: linear-gradient(90deg, #2C72DA 0%, #00CDEC 100%) !important;
-    background-image: url('/layout/top.png'), linear-gradient(90deg, #2C72DA 0%, #00CDEC 100%) !important;
-    background-repeat: no-repeat, no-repeat !important;
-    background-position: right 4rem center, center !important;
-    background-size: 19rem auto, cover !important;
+  background: url('/layout/bg.png') center / cover no-repeat;
 
-    .ant-pro-top-nav-header {
-      box-shadow: none;
-    }
+  .ant-layout-header {
+    background: transparent;
   }
+
   .ant-layout {
-    background-color: #EEF1F5;
+    background: transparent;
   }
 
   .ant-pro-top-nav-header {
+    box-shadow: none;
 
     &.light, &.dark {
       background-color: transparent !important;
@@ -29,20 +23,20 @@
 
       h1 {
         font-size: var(--fs-16);
-        color: #fff !important;
+        color: #1D2129 !important;
       }
     }
 
+    .ant-menu-item {
+      padding: 0 20px !important;
+    }
+
     .ant-pro-menu-item {
-      color: #fff !important;
+      color: #1D2129;
     }
 
-    .notice-container .ant-badge .notice-icon, .user-info {
-      color: #fff !important;
-    }
-
-    .ant-menu-light.ant-menu-horizontal >.ant-menu-item-selected::after {
-      border-bottom-color: #fff !important;
+    .router-link-active {
+      color: @primary-color;
     }
   }
 
@@ -50,15 +44,11 @@
     background: transparent !important;
     box-shadow: none !important;
     padding: 1rem !important;
-    padding-top: 68px !important;
+    padding-top: 52px !important;
   }
 
   .ant-layout-sider-children {
-    background: linear-gradient(180deg, #FFF 0%, var(--primary-color-3) 100%) !important;
-    background-image: url('/layout/sider.png'), linear-gradient(180deg, #FFF 0%, var(--primary-color-3) 100%) !important;
-    background-repeat: no-repeat, no-repeat !important;
-    background-position: center bottom 0.5rem, center !important;
-    background-size: calc(100% - 1rem) auto, cover !important;
+    background: url('/layout/sider.png') center / cover no-repeat !important;
     border-radius: .5rem;
 
     .ant-menu-item a, .ant-menu-submenu-title {
@@ -83,7 +73,7 @@
   }
 
   .ant-page-header.has-breadcrumb {
-    padding-top: 1rem !important;
+    padding-top: .25rem !important;
   }
 
   .ant-page-header {

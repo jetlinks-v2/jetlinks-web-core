@@ -1,226 +1,149 @@
 <template>
   <div class="content">
     <div class="top">
-      <div class="header">
-        <img alt="logo" class="logo" :src="logo || logoImage" />
-        <p class="desc">{{ title }}</p>
-      </div>
-      <div class="main">
-        <Form
-          ref="formRef"
-          layout="vertical"
-          :model="formData"
-          :rules="rules"
-          @finish="submit"
+      请登录账号
+    </div>
+    <div class="main">
+      <Form
+        ref="formRef"
+        layout="vertical"
+        :model="formData"
+        :rules="rules"
+        @finish="submit"
+      >
+        <FormItem :label="$t('login.right.419974-0')" name="username">
+          <Input
+            v-model:value="formData.username"
+            :placeholder="$t('login.right.419974-1')"
+            :maxlength="64"
+            autocomplete="off"
+          />
+        </FormItem>
+        <FormItem :label="$t('login.right.419974-2')" name="password">
+          <InputPassword
+            v-model:value="formData.password"
+            :placeholder="$t('login.right.419974-3')"
+            :maxlength="64"
+            autocomplete="off"
+          />
+        </FormItem>
+        <FormItem
+          v-if="showCode"
+          :label="$t('login.right.419974-4')"
+          name="verifyCode"
         >
-          <form-item :label="$t('login.right.419974-0')" name="username">
-            <Input
-              v-model:value="formData.username"
-              :placeholder="$t('login.right.419974-1')"
-              :maxlength="64"
-              autocomplete="off"
-            />
-          </form-item>
-          <form-item :label="$t('login.right.419974-2')" name="password">
-            <input-password
-              v-model:value="formData.password"
-              :placeholder="$t('login.right.419974-3')"
-              :maxlength="64"
-              autocomplete="off"
-            />
-          </form-item>
-          <form-item
-            v-if="showCode"
-            :label="$t('login.right.419974-4')"
-            name="verifyCode"
+          <Input
+            v-model:value="formData.verifyCode"
+            autocomplete="off"
+            :maxlength="64"
+            :placeholder="$t('login.right.419974-5')"
+            @keyup.enter="handleEnterSubmit"
           >
-            <Input
-              v-model:value="formData.verifyCode"
-              autocomplete="off"
-              :maxlength="64"
-              :placeholder="$t('login.right.419974-5')"
-              @keyup.enter="handleEnterSubmit"
-            >
-              <template #addonAfter>
-                <img :src="url.base64" @click="getVerifyCode" />
-              </template>
-            </Input>
-          </form-item>
-          <form-item>
-            <Remember
-              v-model:value="formData.remember"
-              v-model:expires="formData.expires"
-            />
-          </form-item>
-          <form-item>
-            <Button
-              :loading="loading"
-              type="primary"
-              html-type="submit"
-              class="login-form-button"
-              block
-            >
-              {{ $t("login.right.419974-6") }}
-            </Button>
-          </form-item>
-        </Form>
-        <div class="other" v-if="bindings.length">
-          <Divider plain>
-            <div class="other-text">
-              {{ $t("login.right.419974-7") }}
-            </div>
-          </Divider>
-          <div class="other-button">
-            <div
-              class="other-button-item"
-              v-for="(item, index) in bindings.slice(0, 4)"
-              :key="index"
-              @click="handleClickOther(item)"
-            >
-              <img
-                style="width: 2rem; height: 2rem"
-                :alt="item.name"
-                :src="item.logoUrl || iconMap.get(item.provider) || defaultImg"
-              />
-            </div>
-            <Popover
-              trigger="click"
-              v-model:open="moreVisible"
-              placement="bottomRight"
-            >
-              <template #content>
-                <j-scrollbar :max-height="120">
-                  <div class="more-button">
-                    <div
-                      class="more-button-item"
-                      v-for="(item, index) in bindings.slice(
-                        4,
-                        bindings.length - 1,
-                      )"
-                      :key="index"
-                      @click="handleClickOther(item)"
-                    >
-                      <img
-                        style="width: 2rem; height: 2rem"
-                        :alt="item.name"
-                        :src="
-                          item.logoUrl ||
-                          iconMap.get(item.provider) ||
-                          defaultImg
-                        "
-                      />
-                      <j-ellipsis style="width: calc(100%); margin: 0.3125rem auto">
-                        {{ item.name }}
-                      </j-ellipsis>
-                    </div>
-                  </div>
-                </j-scrollbar>
-              </template>
-              <div v-if="bindings.length > 4" class="more">
-                <AIcon
-                  class="moreIcon"
-                  type="MoreOutlined"
-                  style="font-size: var(--fs-20)"
-                ></AIcon>
-              </div>
-            </Popover>
-          </div>
-        </div>
-      </div>
+            <template #addonAfter>
+              <img :src="url.base64" @click="getVerifyCode" />
+            </template>
+          </Input>
+        </FormItem>
+        <FormItem>
+          <Remember
+            v-model:value="formData.remember"
+            v-model:expires="formData.expires"
+          />
+        </FormItem>
+        <FormItem>
+          <Button
+            :loading="loading"
+            type="primary"
+            html-type="submit"
+            class="login-form-button"
+            block
+            size="large"
+          >
+            {{ $t('login.right.419974-6') }}
+          </Button>
+        </FormItem>
+      </Form>
     </div>
   </div>
 </template>
 <script setup name="LoginRight">
-import Remember from "./remember.vue";
-import {encrypt, getImage, onlyMessage, setToken} from "@jetlinks-web/utils";
-import { useRequest } from "@jetlinks-web/hooks";
+import Remember from './remember.vue'
+import { encrypt, getImage, onlyMessage, setToken } from '@jetlinks-web/utils'
+import { useRequest } from '@jetlinks-web/hooks'
 import {
   captchaConfig,
   codeUrl,
   encryptionConfig,
   getInitSet,
-  login,
-} from "@jetlinks-web-core/api/login";
-import { rules } from "./util";
-import {useUserStore} from "@jetlinks-web-core/store";
-import { LocalStore } from "@jetlinks-web/utils";
-import { iconMap } from "./util";
+  login
+} from '@jetlinks-web-core/api/login'
+import { rules } from './util'
+import { useUserStore } from '@jetlinks-web-core/store'
+import { LocalStore } from '@jetlinks-web/utils'
+import { iconMap } from './util'
 import { Form, FormItem, Button, Divider, Popover, Input, InputPassword } from 'ant-design-vue'
 
 import defaultImg from '@jetlinks-web-core/assets/apply/internal-standalone.png'
-import {initPackages} from "@jetlinks-web-core/package";
-import i18n from "@jetlinks-web-core/locales";
+import { initPackages } from '@jetlinks-web-core/package'
+import i18n from '@jetlinks-web-core/locales'
 import { resetSessionStores } from '@jetlinks-web-core/router/startup'
 
 const BASE_API_PATH = import.meta.env.VITE_APP_BASE_API
 
-const logoImage = getImage("/login/logo.png");
 const $t = i18n.global.t
 
 const props = defineProps({
   loading: {
     type: Boolean,
-    default: false,
-  },
-  logo: {
-    type: String,
-    default: "",
-  },
-  title: {
-    type: String,
-    default: "",
-  },
-  bindings: {
-    type: Array,
-    default: () => [],
+    default: false
   },
   type: {
     type: String,
     default: 'login' // 'login' 'relogin'
   }
-});
+})
 
-const emit = defineEmits(["submit", "update:loading"]);
-const moreVisible = ref(false);
-const userStore = useUserStore();
-const router = useRouter();
-const formRef = ref();
+const emit = defineEmits(['submit', 'update:loading'])
+const moreVisible = ref(false)
+const userStore = useUserStore()
+const router = useRouter()
+const formRef = ref()
 
 const formData = reactive({
-  username: "",
-  password: "",
+  username: '',
+  password: '',
   expires: 3600000,
   remember: false,
   verifyCode: undefined,
   verifyKey: undefined,
   encryptId: undefined,
   'captcha-id': undefined
-});
+})
 
-let timer = null;
+let timer = null
 const { data: encryption, run: reloadEncryption } = useRequest(
   encryptionConfig,
   {
     onSuccess() {
       if (timer) {
-        window.clearTimeout(timer);
-        timer = null;
+        window.clearTimeout(timer)
+        timer = null
       }
 
       timer = setTimeout(
         () => {
-          reloadEncryption();
+          reloadEncryption()
         },
-        3 * 60 * 1000,
-      );
-    },
-  },
-);
+        3 * 60 * 1000
+      )
+    }
+  }
+)
 
 const getVerifyCode = (record) => {
-  const _config = config.value || record;
+  const _config = config.value || record
   if (_config && _config.enabled && !_config.loginWithVerify && _config.type === 'image') {
-    getCode();
+    getCode()
   }
 }
 
@@ -228,170 +151,131 @@ const { data: config } = useRequest(captchaConfig, {
   onSuccess(resp) {
     getVerifyCode(resp.result)
 
-    return resp.result;
-  },
-});
+    return resp.result
+  }
+})
 
 const { data: url, run: getCode } = useRequest(codeUrl, {
   immediate: false,
   onSuccess(resp) {
     if (config.value && resp.result?.key) {
-      formData.verifyKey = resp.result?.key;
+      formData.verifyKey = resp.result?.key
     }
-  },
-});
+  }
+})
 
 const { loading, run } = useRequest(login, {
   immediate: false,
   async onSuccess(res) {
     if (res.success) {
-      setToken(res.result.token);
+      setToken(res.result.token)
       // 登录成功后，直接关闭模态弹窗，停留在当前页面//若使用另外账号登录,直接跳转默认首页
       const flag = LocalStore.get('userId') === res.result.userId
-      if(props.type === 'relogin'){
+      if (props.type === 'relogin') {
         // 处理websocket
         initPackages()
-        if(flag){
+        if (flag) {
           emit('submit')
           return
         } else {
           // 重登录换账号时必须清掉上一账号的会话态，否则 bootstrapSession 会跳过用户信息请求。
           resetSessionStores()
-          onlyMessage($t("login.right.419974-8"))
+          onlyMessage($t('login.right.419974-8'))
         }
       }
-      await userStore.getUserInfo();
+      await userStore.getUserInfo()
       if (userStore.isAdmin) {
-        const initResp = await getInitSet();
+        const initResp = await getInitSet()
         if (initResp.success && !initResp.result?.length) {
-          window.location.href = "/#/init-home";
-          return;
+          window.location.href = '/#/init-home'
+          return
         }
       }
-      window.location.href = "/";
+      window.location.href = '/'
     }
   },
   onWarn: () => {
-    formData.verifyCode = undefined;
+    formData.verifyCode = undefined
     getVerifyCode()
     if (encryption.value?.encrypt?.enabled) {
-      reloadEncryption();
+      reloadEncryption()
     }
-  },
-});
+  }
+})
 
 const showCode = computed(() => {
-  return !!url?.value?.base64 && config.value.enabled && !config.value.loginWithVerify;
-});
+  return !!url?.value?.base64 && config.value.enabled && !config.value.loginWithVerify
+})
 
 const submit = (data) => {
 
-  const _formData = { ...toRaw(formData) };
+  const _formData = { ...toRaw(formData) }
   if (encryption.value?.encrypt?.enabled) {
-    const _encrypt = encryption.value?.encrypt;
-    _formData.password = encrypt(data.password, _encrypt.publicKey);
-    _formData.encryptId = _encrypt.id;
+    const _encrypt = encryption.value?.encrypt
+    _formData.password = encrypt(data.password, _encrypt.publicKey)
+    _formData.encryptId = _encrypt.id
   }
 
-  run(_formData);
-};
+  run(_formData)
+}
 
 const handleEnterSubmit = () => {
-  formRef.value?.submit();
-};
-
-const handleClickOther = (item) => {
-  LocalStore.set("onLogin", "no");
-  window.open(`${BASE_API_PATH}/application/sso/${item.id}/login`);
-  window.onstorage = (e) => {
-    if (e.newValue) {
-      window.location.href = "/";
-    }
-  };
-};
+  formRef.value?.submit()
+}
 
 watch(
   () => loading.value,
   () => {
-    emit("update:loading", loading.value);
-  },
-);
+    emit('update:loading', loading.value)
+  }
+)
 </script>
 <style lang="less" scoped>
 .content {
-  padding: 0 4.375rem;
+  padding: 3rem;
 
   .top {
-    //padding-top: 30%;
+    color: #1F2021;
+    font-size: 24px;
+    font-weight: 500;
+    text-align: center;
+    margin-bottom: 40px;
+  }
 
-    .header {
-      text-align: center;
+  .main {
+    :deep(.ant-form-item) {
+      margin-bottom: 24px !important;
 
-      .desc {
-        margin-top: var(--space-6);
-        margin-bottom: var(--space-10);
-        color: #000000b3;
-        font-weight: 600;
-        font-size: var(--fs-22);
-        text-align: center;
+      .ant-form-item-label {
+        label {
+          color: #1D2129;
+          font-size: 16px;
+        }
+      }
+
+      .ant-form-item-control-input {
+        .ant-input, .ant-input-affix-wrapper {
+          border-radius: 6px;
+          border: 1px solid #DDE0E8;
+          background: #FFF;
+          padding: 8px 16px;
+          font-size: 1rem;
+        }
+
+        .ant-input-password {
+          .ant-input {
+            padding: 0;
+            border: none;
+          }
+        }
+      }
+
+      .ant-checkbox-wrapper {
+        span {
+          color: #4E5969;
+        }
       }
     }
   }
-
-  .logo {
-    display: block;
-    height: 2.75rem;
-    margin: 0 auto;
-    vertical-align: top;
-  }
 }
-.other {
-  margin-top: var(--space-5);
-
-  .other-text {
-    color: #807676d9;
-    font-size: var(--fs-12);
-  }
-
-  .other-button {
-    position: relative;
-    bottom: 0.625rem;
-    text-align: center;
-    display: flex;
-    gap: var(--space-6);
-    justify-content: center;
-    flex-wrap: wrap;
-
-    .other-button-item {
-      cursor: pointer;
-      padding: var(--space-1);
-    }
-  }
-
-  .more {
-    cursor: pointer;
-
-    .moreIcon {
-      transform: translateY(50%);
-    }
-  }
-  .more {
-    text-align: center;
-    cursor: pointer;
-  }
-}
-
-.more-button {
-  display: flex;
-  flex-wrap: wrap;
-  cursor: pointer;
-  overflow: auto;
-  width: 18.75rem;
-
-  .more-button-item {
-    width: 3.875rem;
-    text-align: center;
-    margin-bottom: 0.625rem;
-    margin-left: var(--space-3);
-  }
-}</style>
+</style>

@@ -4,6 +4,15 @@
     :delay="300"
   >
     <div class="container">
+      <div class="header">
+        <img alt="logo" class="logo" :src="systemInfo?.front?.logo || logoImage" />
+        <div>
+          <div class="title">{{ layout?.title }}</div>
+          <div class="desc">
+            Detana Smart Campus Management Platform
+          </div>
+        </div>
+      </div>
       <div class="left">
         <img
           :src="systemInfo?.front?.background || bgImage"
@@ -20,12 +29,7 @@
         </a>
       </div>
       <div class="right">
-        <Right
-          :logo="systemInfo?.front?.logo"
-          :title="layout?.title"
-          :bindings="bindings"
-          v-model:loading="loading"
-        />
+        <Right v-model:loading="loading" />
       </div>
     </div>
   </a-spin>
@@ -43,8 +47,10 @@ const systemStore = useSystemStore()
 const { systemInfo, layout } = storeToRefs(systemStore)
 const loading = ref(false)
 
+const logoImage = getImage('/login/logo.png')
 const bgImage = getImage('/login/login.png')
-const bindings = ref([])
+
+// const bindings = ref([])
 
 const basis: any = computed(() => {
   return systemInfo.value.front || {}
@@ -53,13 +59,13 @@ const basis: any = computed(() => {
 const getOpen = async () => {
   await systemStore.queryVersion()
   const version = LocalStore.get('system_edition')
-  if (version !== 'community') {
-    bindInfo().then((res: any) => {
-      if (res.success) {
-        bindings.value = res.result
-      }
-    })
-  }
+  // if (version !== 'community') {
+  //   bindInfo().then((res: any) => {
+  //     if (res.success) {
+  //       bindings.value = res.result
+  //     }
+  //   })
+  // }
   await systemStore.querySingleInfo('front')
 }
 
@@ -71,18 +77,44 @@ getOpen()
   display: flex;
   height: 100vh;
   background-color: #fff;
-  > div {
-    height: 100%;
+
+  .header {
+    position: absolute;
+    display: flex;
+    left: 24px;
+    top: 24px;
+    gap: 6px;
+    align-items: center;
+
+    img {
+      width: 40px;
+      height: 40px;
+    }
+
+    .title {
+      color: #111B27;
+      font-size: 24px;
+      font-weight: 500;
+    }
+
+    .desc {
+      color: #5B7697;
+      font-size: 13px;
+      font-weight: 500;
+    }
   }
 
   .left {
-    flex: 1;
+    width: 100%;
+    height: 100%;
+
     img {
       height: 100%;
       width: 100%;
       object-fit: cover;
       display: block;
     }
+
     .records {
       position: absolute;
       top: 96%;
@@ -93,11 +125,14 @@ getOpen()
   }
 
   .right {
-    min-width: 25rem;
-    width: 27%;
-    display: flex;
-    padding-top: 10%;
-    flex-direction: column;
-    justify-content: space-between;
+    position: absolute;
+    right: 72px;
+    border-radius: 16px;
+    border: 2px solid #FFF;
+    background: rgba(255, 255, 255, 0.60);
+    backdrop-filter: blur(7px);
+    width: 397px;
+    //height: 474px;
+    top: calc((100% - 474px) / 2);
   }
 }</style>

@@ -5,7 +5,7 @@ export const USER_CENTER_ROUTE: RouteRecordRaw = {
   path: '/account',
   name: 'Account',
   redirect: '/account/center',
-  component: () => import('@jetlinks-web-core/layout/SmartParkLayoutPage.vue'),
+  component: () => import('@jetlinks-web-core/layout/BasicLayoutPage.vue'),
   meta: {
     title: '个人中心',
     hideInMenu: true
@@ -118,7 +118,7 @@ export const Demo: RouteRecordRaw = {
   path: '/demo',
   name: 'Demo',
   redirect: '/demo/center',
-  component: () => import('@jetlinks-web-core/layout/SmartParkLayoutPage.vue'),
+  component: () => import('@jetlinks-web-core/layout/BasicLayoutPage.vue'),
   children: [
     {
       path: '/demo/center',
@@ -138,7 +138,7 @@ export const PARK_SWITCH_REDIRECT_ROUTE: RouteRecordRaw = {
   path: '/park-switch',
   name: 'ParkSwitch',
   redirect: '/park-switch/redirect',
-  component: () => import('@jetlinks-web-core/layout/SmartParkLayoutPage.vue'),
+  component: () => import('@jetlinks-web-core/layout/BasicLayoutPage.vue'),
   meta: {
     title: '园区切换中转',
     hideInMenu: true,
