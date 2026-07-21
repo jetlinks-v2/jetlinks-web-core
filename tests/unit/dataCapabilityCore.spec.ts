@@ -560,6 +560,29 @@ await assert.rejects(() => queryCancel, (error: any) => error?.code === 'runtime
 assert.equal(queryCancelTeardown, 1)
 assert.equal(queryCancelDispose, 1)
 
+const disposeErrorRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+disposeErrorRegistry.sources.register({
+  ...source,
+  id: 'test.source.dispose-error',
+  create: () => ({
+    query: () => new Observable(() => () => undefined) as any,
+    dispose() { throw new Error('dispose failed') },
+  }),
+})
+const originalWarn = console.warn
+const disposeWarnings: unknown[] = []
+console.warn = (...args: unknown[]) => { disposeWarnings.push(args) }
+try {
+  const disposeErrorRuntime = disposeErrorRegistry.createRuntime({ runtimeId: 'dispose-error' })
+  const disposeErrorQuery = disposeErrorRuntime.query({ version: 1, source: { capabilityId: 'test.source.dispose-error', version: 1 } })
+  await wait()
+  await disposeErrorRuntime.dispose()
+  await assert.rejects(() => disposeErrorQuery, (error: any) => error?.code === 'runtime.disposed')
+} finally {
+  console.warn = originalWarn
+}
+assert.equal(disposeWarnings.length, 1)
+
 const queryLateCreateRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let releaseQueryLateCreate!: () => void
 const queryLateCreateReady = new Promise<void>(resolve => { releaseQueryLateCreate = resolve })
