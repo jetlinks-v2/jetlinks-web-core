@@ -397,7 +397,7 @@ const ghostCatalog = ghostRegistry.resolveCatalog({})
 await wait()
 unregisterGhost()
 releaseGhost()
-await assert.rejects(() => ghostCatalog, (error: any) => error?.code === 'provider.unregistered')
+assert.equal((await ghostCatalog).sources.length, 0)
 assert.equal((await ghostRegistry.resolveCatalog({})).sources.length, 0)
 
 const operationUnregisterRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
@@ -540,6 +540,214 @@ connectingRegistry.createRuntime({ runtimeId: 'connecting' }).connect({
 }).events$.subscribe(event => connectingEvents.push(event))
 await wait()
 assert.equal(connectingEvents.some(event => event.type === 'status' && event.status === 'connecting'), true)
+
+const queryCancelRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let queryCancelTeardown = 0
+let queryCancelDispose = 0
+queryCancelRegistry.sources.register({
+  ...source,
+  id: 'test.source.query-cancel',
+  create: () => ({
+    query: () => new Observable(() => () => { queryCancelTeardown += 1 }) as any,
+    dispose() { queryCancelDispose += 1 },
+  }),
+})
+const queryCancelRuntime = queryCancelRegistry.createRuntime({ runtimeId: 'query-cancel' })
+const queryCancel = queryCancelRuntime.query({ version: 1, source: { capabilityId: 'test.source.query-cancel', version: 1 } })
+await wait()
+await queryCancelRuntime.dispose()
+await assert.rejects(() => queryCancel, (error: any) => error?.code === 'runtime.disposed')
+assert.equal(queryCancelTeardown, 1)
+assert.equal(queryCancelDispose, 1)
+
+const preAbortRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let preAbortCreateCount = 0
+preAbortRegistry.sources.register({
+  ...source,
+  id: 'test.source.pre-abort',
+  create: () => {
+    preAbortCreateCount += 1
+    return { query: () => of({ data: 'aborted' }) as any }
+  },
+})
+const preAbort = new AbortController()
+preAbort.abort()
+await assert.rejects(
+  () => preAbortRegistry.createRuntime({ runtimeId: 'pre-abort' }).query({
+    version: 1,
+    source: { capabilityId: 'test.source.pre-abort', version: 1 },
+  }, { signal: preAbort.signal }),
+  (error: any) => error?.code === 'runtime.aborted',
+)
+assert.equal(preAbortCreateCount, 0)
+
+const providerGapRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseProviderAvailability!: () => void
+const providerAvailabilityReady = new Promise<void>(resolve => { releaseProviderAvailability = resolve })
+let providerGapCreateCount = 0
+const unregisterProviderGap = providerGapRegistry.registerProvider({
+  id: 'provider-gap',
+  owner: { moduleId: 'test-ui', providerId: 'provider-gap' },
+  load: () => ({
+    sources: [{
+      ...source,
+      id: 'test.source.provider-gap',
+      owner: { moduleId: 'test-ui', providerId: 'provider-gap' },
+      availability: async (_context, phase) => {
+        if (phase === 'execute') await providerAvailabilityReady
+        return available
+      },
+      create: () => {
+        providerGapCreateCount += 1
+        return { query: () => of({ data: 'gap' }) as any }
+      },
+    }],
+  }),
+})
+await providerGapRegistry.resolveCatalog({})
+const providerGapQuery = providerGapRegistry.createRuntime({ runtimeId: 'provider-gap' }).query({
+  version: 1,
+  source: { capabilityId: 'test.source.provider-gap', version: 1 },
+})
+await wait()
+unregisterProviderGap()
+releaseProviderAvailability()
+await assert.rejects(() => providerGapQuery, (error: any) => error?.code === 'provider.unregistered')
+assert.equal(providerGapCreateCount, 0)
+
+const executeGapRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseExecuteAvailability!: () => void
+const executeAvailabilityReady = new Promise<void>(resolve => { releaseExecuteAvailability = resolve })
+let executeGapDispose = 0
+let executeGapDispatched = 0
+const unregisterExecuteGap = executeGapRegistry.registerProvider({
+  id: 'execute-gap',
+  owner: { moduleId: 'test-ui', providerId: 'execute-gap' },
+  load: () => ({
+    operations: [{
+      ...operation,
+      id: 'test.operation.execute-gap',
+      owner: { moduleId: 'test-ui', providerId: 'execute-gap' },
+      availability: async (_context, phase) => {
+        if (phase === 'execute') await executeAvailabilityReady
+        return available
+      },
+      create: () => ({
+        execute: () => {
+          executeGapDispatched += 1
+          return of({ type: 'completed' })
+        },
+        dispose() { executeGapDispose += 1 },
+      }),
+    }],
+  }),
+})
+await executeGapRegistry.resolveCatalog({})
+const executeGapRuntime = executeGapRegistry.createRuntime({ runtimeId: 'execute-gap' })
+const executeGapPrepared = await executeGapRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.execute-gap', version: 1 },
+})
+const executeGapErrors: unknown[] = []
+executeGapRuntime.executeOperation(executeGapPrepared).events$.subscribe({ error: error => executeGapErrors.push(error) })
+await wait()
+unregisterExecuteGap()
+releaseExecuteAvailability()
+await wait()
+assert.equal(executeGapDispatched, 0)
+assert.equal(executeGapDispose, 1)
+assert.equal((executeGapErrors[0] as any)?.code, 'capability.unavailable')
+await executeGapRuntime.dispose()
+
+const versionRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+versionRegistry.sources.register({ ...source, id: 'test.source.version', version: 2 })
+versionRegistry.operations.register({ ...operation, id: 'test.operation.version', version: 2 })
+await assert.rejects(
+  () => versionRegistry.createRuntime({ runtimeId: 'version-source' }).query({
+    version: 1,
+    source: { capabilityId: 'test.source.version', version: 1 },
+  }),
+  (error: any) => error?.code === 'capability.version_mismatch',
+)
+await assert.rejects(
+  () => versionRegistry.createRuntime({ runtimeId: 'version-operation' }).prepareOperation({
+    version: 1,
+    operation: { capabilityId: 'test.operation.version', version: 1 },
+  }),
+  (error: any) => error?.code === 'capability.version_mismatch',
+)
+
+const directRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let directDispose = 0
+const unregisterDirect = directRegistry.sources.register({
+  ...source,
+  id: 'test.source.direct-unregister',
+  modes: ['stream'],
+  create: () => ({
+    query: () => new Observable(() => () => undefined),
+    dispose() { directDispose += 1 },
+  }),
+})
+const directEvents: DataConnectionEvent[] = []
+const directRuntime = directRegistry.createRuntime({ runtimeId: 'direct-unregister' })
+directRuntime.connect({
+  consumerId: 'direct-unregister',
+  binding: { version: 1, source: { capabilityId: 'test.source.direct-unregister', version: 1 } },
+}).events$.subscribe(event => directEvents.push(event))
+await wait()
+unregisterDirect()
+await wait()
+assert.equal(directEvents.some(event => event.type === 'status' && event.status === 'unavailable'), true)
+assert.equal(directDispose, 1)
+await directRuntime.dispose()
+
+const directOverrideRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+const directBase = { ...source, id: 'test.source.direct-override', name: 'Direct Base' }
+const directOverride = { ...source, id: 'test.source.direct-override', name: 'Direct Override' }
+directOverrideRegistry.sources.register(directBase)
+const unregisterDirectOverride = directOverrideRegistry.sources.register(directOverride, { override: true })
+assert.equal(directOverrideRegistry.sources.get('test.source.direct-override')?.name, 'Direct Override')
+unregisterDirectOverride()
+assert.equal(directOverrideRegistry.sources.get('test.source.direct-override')?.name, 'Direct Base')
+
+const connectLateRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseConnectCreate!: () => void
+const connectCreateReady = new Promise<void>(resolve => { releaseConnectCreate = resolve })
+let connectLateDispose = 0
+connectLateRegistry.sources.register({
+  ...source,
+  id: 'test.source.connect-late-dispose',
+  modes: ['stream'],
+  create: async () => {
+    await connectCreateReady
+    return {
+      query: () => new Observable(() => () => undefined),
+      dispose() { connectLateDispose += 1 },
+    }
+  },
+})
+const connectLateConnection = connectLateRegistry.createRuntime({ runtimeId: 'connect-late-dispose' }).connect({
+  consumerId: 'connect-late-dispose',
+  binding: { version: 1, source: { capabilityId: 'test.source.connect-late-dispose', version: 1 } },
+})
+await wait()
+connectLateConnection.unsubscribe()
+releaseConnectCreate()
+await wait()
+assert.equal(connectLateDispose, 1)
+
+const providerFailureRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+providerFailureRegistry.registerProvider({
+  id: 'failed-provider',
+  owner: { moduleId: 'test-ui', providerId: 'failed-provider' },
+  load: () => { throw new Error('provider failed') },
+})
+providerFailureRegistry.registerProvider({
+  id: 'healthy-provider',
+  owner: { moduleId: 'test-ui', providerId: 'healthy-provider' },
+  load: () => ({ sources: [{ ...source, id: 'test.source.healthy-provider' }] }),
+})
+assert.equal((await providerFailureRegistry.resolveCatalog({})).sources.length, 1)
 
 await assert.rejects(
   () => registry.createRuntime({ runtimeId: 'plan-test' }).query({

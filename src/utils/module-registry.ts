@@ -40,6 +40,7 @@ export class ModuleRegistry {
   private static instance: ModuleRegistry;
   private registry = moduleRegistryMap;
   private metadata = new Map<string, ModuleMetadata>();
+  private listeners = new Set<() => void>();
 
   private constructor() {
 
@@ -107,6 +108,7 @@ export class ModuleRegistry {
       registerTime: Date.now(),
       source: this.detectSource(resource)
     });
+    this.emitChange();
   }
 
   /**
@@ -142,6 +144,7 @@ export class ModuleRegistry {
     };
 
     this.registry.set(moduleId, updatedModule);
+    this.emitChange();
   }
 
   /**
@@ -230,6 +233,7 @@ export class ModuleRegistry {
     if (this.registry.has(moduleId)) {
       this.registry.delete(moduleId);
       console.log(`模块 ${moduleId} 已移除`);
+      this.emitChange();
       return true;
     }
     return false;
@@ -247,6 +251,7 @@ export class ModuleRegistry {
       delete module[resourceType];
       this.registry.set(moduleId, module);
       console.log(`模块 ${moduleId} 的 ${String(resourceType)} 资源已移除`);
+      this.emitChange();
       return true;
     }
     return false;
@@ -274,6 +279,16 @@ export class ModuleRegistry {
   public clear(): void {
     this.registry.clear();
     console.log('所有模块已清空');
+    this.emitChange();
+  }
+
+  /**
+   * 订阅模块资源变化。
+   * 用于 dataCapabilityProviders 等运行时资源在模块注册、替换、卸载时实时对账。
+   */
+  public onChange(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
   /**
@@ -388,6 +403,11 @@ export class ModuleRegistry {
     });
 
     console.log(`模块 ${moduleId} 已卸载`);
+    this.emitChange();
+  }
+
+  private emitChange(): void {
+    this.listeners.forEach(listener => listener());
   }
 
   /**
