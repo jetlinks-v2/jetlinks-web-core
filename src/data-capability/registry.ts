@@ -49,6 +49,12 @@ type ProviderRegistration = {
   scope: string
 }
 
+type PreparedOperationEntry = {
+  definition: OperationDefinition
+  operation: Awaited<ReturnType<OperationDefinition['create']>>
+  prepared: PreparedOperation
+}
+
 type SharedConnection = {
   events$: ReplaySubject<DataConnectionEvent>
   refCount: number
@@ -130,7 +136,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
 
   private readonly listeners = new Set<() => void>()
   private readonly providerUnregisters = new Map<string, Array<() => void>>()
-  private readonly loadedProviders = new Set<string>()
+  private readonly loadedProviders = new Map<string, string>()
   private readonly registeredProviders = new Map<string, ProviderRegistration>()
 
   registerProvider(provider: DataCapabilityProvider, options: CapabilityRegisterOptions = {}): () => void {
@@ -170,12 +176,14 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     })
 
     for (const item of loaders) {
-      if (this.loadedProviders.has(item.key)) continue
+      // Provider.load may depend on tenant/user/project; cache by runtime isolation instead of provider id only.
+      const isolationKey = getProviderIsolationKey(context)
+      if (this.loadedProviders.get(item.key) === isolationKey) continue
       try {
         const loaded = await item.loader()
         const provider = 'default' in loaded ? loaded.default : loaded
         await this.loadProvider(item.key, provider, context, `provider:${item.key}`)
-        this.loadedProviders.add(item.key)
+        this.loadedProviders.set(item.key, isolationKey)
       } catch (error) {
         console.warn(`[DataCapability] provider loader failed: ${item.key}`, error)
       }
@@ -200,9 +208,10 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
 
   private async loadRegisteredProviders(context: CapabilityContext): Promise<void> {
     for (const [token, registration] of this.registeredProviders.entries()) {
-      if (this.loadedProviders.has(token)) continue
+      const isolationKey = getProviderIsolationKey(context)
+      if (this.loadedProviders.get(token) === isolationKey) continue
       await this.loadProvider(token, registration.provider, context, registration.scope)
-      this.loadedProviders.add(token)
+      this.loadedProviders.set(token, isolationKey)
     }
   }
 
@@ -271,13 +280,82 @@ async function resolveAvailability(
   return definition.availability(context, phase)
 }
 
+// Runtime entry points must re-check execute availability before creating Provider instances.
+async function assertExecutable(
+  definition: CapabilityDefinitionBase,
+  context: CapabilityContext,
+): Promise<void> {
+  const availability = await resolveAvailability(definition, context, 'execute')
+  if (!availability.executable) {
+    throw createCapabilityError('capability.unavailable', availability.reason || 'Capability is unavailable', {
+      capabilityId: definition.id,
+      retryable: availability.retryable,
+    })
+  }
+}
+
+function getProviderIsolationKey(context: CapabilityContext): string {
+  const runtime = context as RuntimeCreateContext
+  return runtime.isolationKey || stableStringify({
+    scopeId: context.scopeId,
+    tenantId: context.tenantId,
+    userId: context.userId,
+    projectId: context.projectId,
+    pageId: context.pageId,
+    routeName: context.routeName,
+    menuCode: context.menuCode,
+  })
+}
+
+function resolveLimit(...values: Array<number | undefined>): number | undefined {
+  const candidates = values.filter((value): value is number => (
+    typeof value === 'number' && Number.isInteger(value) && value > 0
+  ))
+  if (!candidates.length) return undefined
+  return Math.min(...candidates)
+}
+
+function limitDataSourceResult<T>(result: DataSourceResult<T>, limit?: number): DataSourceResult<T> {
+  if (!limit) return result
+  const data = limitData(result.data, limit) as T
+  const next: DataSourceResult<T> = { ...result, data }
+  if (Array.isArray(data)) {
+    next.pageSize = typeof result.pageSize === 'number' ? Math.min(result.pageSize, limit) : data.length
+  }
+  return next
+}
+
+function limitData(data: unknown, limit?: number): unknown {
+  if (!limit || !Array.isArray(data)) return data
+  return data.slice(0, limit)
+}
+
+// Keep execute tied to the prepare-time snapshot; caller-owned objects may be mutated after confirmation.
+function freezePreparedOperation(prepared: PreparedOperation): PreparedOperation {
+  return deepFreeze(cloneCapabilityValue(prepared))
+}
+
+function cloneCapabilityValue<T>(value: T): T {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(value)
+  }
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+function deepFreeze<T>(value: T): T {
+  if (!value || typeof value !== 'object') return value
+  Object.freeze(value)
+  Object.values(value as Record<string, unknown>).forEach(item => deepFreeze(item))
+  return value
+}
+
 class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   private disposed = false
   private readonly bindingResolver: BindingResolver
   private readonly parameters: Record<string, unknown>
   private readonly contexts = new Map<string, unknown>()
   private readonly disposers: Array<() => void> = []
-  private readonly preparedOperations = new Map<string, { definition: OperationDefinition; operation: Awaited<ReturnType<OperationDefinition['create']>> }>()
+  private readonly preparedOperations = new Map<string, PreparedOperationEntry>()
   private readonly operationExecutions = new Map<string, OperationExecution>()
   private readonly sharedConnections = new Map<string, SharedConnection>()
 
@@ -312,21 +390,29 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         const definition = this.requireSource(binding.source.capabilityId)
         const signal = request.options?.signal
         const runtimeContext = this.toRuntimeContext(signal)
+        await assertExecutable(definition, runtimeContext)
+        if (stopped || signal?.aborted) return
         const query = await this.resolveRecord(binding.query, signal)
+        if (stopped || signal?.aborted) return
         const resolvedRequest = normalizeDataSourceRequest(definition, {
           capabilityId: binding.source.capabilityId,
           version: binding.source.version,
           config: binding.source.config,
           query,
           signal,
+          limit: resolveLimit(request.options?.limit, definition.defaults?.limit),
+          timeout: request.options?.timeout || definition.defaults?.timeout,
         }, runtimeContext)
-        sharedKey = getExecutionKey(definition, resolvedRequest, runtimeContext, binding)
+        sharedKey = getExecutionKey(resolvedRequest, binding)
+        if (stopped || signal?.aborted) return
         const shared = this.sharedConnections.get(sharedKey)
         if (shared && !shared.disposed) {
           forwardShared(shared)
           return
         }
+        if (stopped || signal?.aborted) return
         const created = await this.createSharedConnection(definition, resolvedRequest, binding, sharedKey)
+        if (stopped || signal?.aborted) return
         forwardShared(created)
       } catch (error) {
         if (!stopped) {
@@ -339,9 +425,15 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     const unsubscribe = () => {
       if (stopped) return
       stopped = true
+      request.options?.signal?.removeEventListener('abort', unsubscribe)
       sharedSubscription?.unsubscribe()
       events$.complete()
       if (sharedKey) this.releaseSharedConnection(sharedKey)
+    }
+    if (request.options?.signal?.aborted) {
+      unsubscribe()
+    } else {
+      request.options?.signal?.addEventListener('abort', unsubscribe, { once: true })
     }
     this.disposers.push(unsubscribe)
 
@@ -352,6 +444,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     const definition = this.requireSource(binding.source.capabilityId)
     const signal = options.signal
     const runtimeContext = this.toRuntimeContext(signal)
+    await assertExecutable(definition, runtimeContext)
     const query = await this.resolveRecord(binding.query, signal)
     const resolvedRequest = normalizeDataSourceRequest(definition, {
       capabilityId: binding.source.capabilityId,
@@ -359,14 +452,16 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       config: binding.source.config,
       query,
       signal,
+      limit: resolveLimit(options.limit, definition.defaults?.limit),
+      timeout: options.timeout || definition.defaults?.timeout,
     }, runtimeContext)
     const dataSource = await definition.create(resolvedRequest.config, this.runtimeContext)
     try {
       const result = await firstValueFrom(
         dataSource.query<T>(resolvedRequest, runtimeContext)
-          .pipe(options.timeout ? rxTimeout({ first: options.timeout }) : source => source),
+          .pipe(resolvedRequest.timeout ? rxTimeout({ first: resolvedRequest.timeout }) : source => source),
       )
-      return { ...result, data: applyOutputMapping(result.data, binding.mapping) as T }
+      return limitDataSourceResult({ ...result, data: applyOutputMapping(result.data, binding.mapping) as T }, resolvedRequest.limit)
     } finally {
       await dataSource.dispose?.()
     }
@@ -375,7 +470,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   async preview<T = unknown>(request: CapabilityPreviewRequest): Promise<CapabilityPreviewResult<T>> {
     const result = await this.query<T>(request.binding, { timeout: request.timeout, limit: request.limit })
     return {
-      data: result.data,
+      data: limitData(result.data, request.limit) as T,
       outputSchema: result.outputSchema,
       diagnostics: result.diagnostics,
     }
@@ -395,8 +490,9 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
           request,
           policy,
         }
-    this.preparedOperations.set(prepared.id, { definition, operation })
-    return { ...prepared, policy: mergeOperationPolicy(policy, prepared.policy) }
+    const canonicalPrepared = freezePreparedOperation({ ...prepared, policy: mergeOperationPolicy(policy, prepared.policy) })
+    this.preparedOperations.set(canonicalPrepared.id, { definition, operation, prepared: canonicalPrepared })
+    return cloneCapabilityValue(canonicalPrepared)
   }
 
   executeOperation(prepared: PreparedOperation): OperationExecution {
@@ -426,7 +522,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
             retryable: availability.retryable,
           })
         }
-        const subscription = cached.operation.execute(prepared, this.toRuntimeContext()).subscribe({
+        const subscription = cached.operation.execute(cached.prepared, this.toRuntimeContext()).subscribe({
           next: event => events$.next(event),
           error: error => events$.error(error),
           complete: () => events$.complete(),
@@ -465,7 +561,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   ): Promise<SharedConnection> {
     const abortController = new AbortController()
     const shared: SharedConnection = {
-      events$: new ReplaySubject<DataConnectionEvent>(100),
+      events$: new ReplaySubject<DataConnectionEvent>(1),
       refCount: 0,
       abortController,
       disposed: false,
@@ -474,19 +570,24 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
 
     try {
       const runtimeContext = this.toRuntimeContext(abortController.signal)
+      await assertExecutable(definition, runtimeContext)
       const dataSource = await definition.create(request.config, this.runtimeContext)
       if (shared.disposed) {
         await dataSource.dispose?.()
         return shared
       }
       shared.dataSource = dataSource
+      let emittedData = false
+      shared.events$.next({ type: 'status', status: 'connected' })
       shared.subscription = dataSource.query<T>({ ...request, signal: abortController.signal }, runtimeContext)
+        .pipe(request.timeout ? rxTimeout({ first: request.timeout }) : source => source)
         .subscribe({
           next: (result) => {
+            emittedData = true
             const mapped = applyOutputMapping(result.data, binding.mapping)
             shared.events$.next({
               type: 'data',
-              result: { ...result, data: mapped as T },
+              result: limitDataSourceResult({ ...result, data: mapped as T }, request.limit),
             })
           },
           error: (error) => {
@@ -495,12 +596,13 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
             this.disposeSharedConnection(key)
           },
           complete: () => {
-            shared.events$.next({ type: 'status', status: 'completed' })
+            if (!emittedData) {
+              shared.events$.next({ type: 'status', status: 'completed' })
+            }
             shared.events$.complete()
             this.disposeSharedConnection(key)
           },
         })
-      shared.events$.next({ type: 'status', status: 'connected' })
     } catch (error) {
       shared.events$.next({ type: 'status', status: 'failed', error: toCapabilityError(error, binding.source.capabilityId) })
       shared.events$.complete()
@@ -566,15 +668,13 @@ function normalizeDataSourceRequest(
   return definition.optimizer?.normalize?.(request, context) || request
 }
 
+// Until merge/split is implemented, only fully identical normalized requests can share upstream.
 function getExecutionKey(
-  definition: DataSourceDefinition,
   request: ResolvedDataSourceRequest,
-  context: RuntimeContext,
   binding: PersistedDataBinding,
 ): string {
-  const providerKey = definition.optimizer?.getGroupKey?.(request, context)
-  if (providerKey) return `${definition.id}:${providerKey}`
-  return stableStringify({ source: request, mapping: binding.mapping, plan: binding.plan })
+  const { signal: _signal, ...stableRequest } = request
+  return stableStringify({ source: stableRequest, mapping: binding.mapping, plan: binding.plan })
 }
 
 function mergeOperationPolicy(
@@ -588,17 +688,42 @@ function mergeOperationPolicy(
     confirmation: maxByOrder(base.confirmation, override.confirmation, CONFIRMATION_ORDER),
     cancellation: minByOrder(base.cancellation, override.cancellation, CANCELLATION_ORDER),
     retry: minByOrder(base.retry, override.retry, RETRY_ORDER),
-    batch: base.batch || override.batch,
+    batch: mergeBatchPolicy(base.batch, override.batch),
     audit: base.audit || override.audit,
   }
 }
 
+
+function mergeBatchPolicy(base: boolean | undefined, override: boolean | undefined): boolean | undefined {
+  assertOptionalBoolean('batch', override)
+  if (override === undefined) return base
+  return Boolean(base && override)
+}
+
+function assertOptionalBoolean(name: string, value: unknown): asserts value is boolean | undefined {
+  if (value !== undefined && typeof value !== 'boolean') {
+    throw createCapabilityError('operation.policy_invalid', `Operation policy ${name} must be boolean`, {
+      details: { name, value },
+    })
+  }
+}
+
+function assertPolicyValue<T extends string>(name: string, value: T | undefined, order: T[]): void {
+  if (value !== undefined && !order.includes(value)) {
+    throw createCapabilityError('operation.policy_invalid', `Operation policy ${name} is invalid`, {
+      details: { name, value },
+    })
+  }
+}
+
 function maxByOrder<T extends string>(base: T, override: T | undefined, order: T[]): T {
+  assertPolicyValue('enum', override, order)
   if (!override) return base
   return order.indexOf(override) > order.indexOf(base) ? override : base
 }
 
 function minByOrder<T extends string>(base: T, override: T | undefined, order: T[]): T {
+  assertPolicyValue('enum', override, order)
   if (!override) return base
   return order.indexOf(override) < order.indexOf(base) ? override : base
 }

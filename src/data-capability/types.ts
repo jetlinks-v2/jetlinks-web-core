@@ -162,6 +162,8 @@ export interface DataSourceRequest {
   config?: unknown
   query?: Record<string, unknown>
   signal?: AbortSignal
+  limit?: number
+  timeout?: number
 }
 
 export interface DataSourceResult<T = unknown> {
