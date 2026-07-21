@@ -303,7 +303,7 @@ const lateEvents: DataConnectionEvent[] = []
 replayRuntime.connect({ consumerId: 'late', binding: replayBinding }).events$.subscribe(event => lateEvents.push(event))
 await wait()
 assert.equal(lateEvents.filter(event => event.type === 'data').length, 1)
-assert.equal((lateEvents.find(event => event.type === 'status') as any).status, 'connected')
+assert.equal(lateEvents.some(event => event.type === 'status' && event.status === 'connected'), true)
 assert.deepEqual((lateEvents.find(event => event.type === 'data') as any).result.data, [3])
 await replayRuntime.dispose()
 
@@ -360,6 +360,186 @@ assert.equal(providerAbortCount, 1)
 assert.equal(upstreamDisposeCount, 1)
 assert.equal(providerDisposeCount, 1)
 await unregisterRuntime.dispose()
+
+const singleFlightRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let singleFlightLoadCount = 0
+let releaseSingleFlight!: () => void
+const singleFlightReady = new Promise<void>(resolve => { releaseSingleFlight = resolve })
+singleFlightRegistry.registerProvider({
+  id: 'single-flight-provider',
+  owner: { moduleId: 'test-ui', providerId: 'single-flight-provider' },
+  async load() {
+    singleFlightLoadCount += 1
+    await singleFlightReady
+    return { sources: [{ ...source, id: 'test.source.single-flight' }] }
+  },
+})
+const singleFlightA = singleFlightRegistry.resolveCatalog({})
+const singleFlightB = singleFlightRegistry.resolveCatalog({})
+await wait()
+assert.equal(singleFlightLoadCount, 1)
+releaseSingleFlight()
+assert.equal((await singleFlightA).sources.length, 1)
+assert.equal((await singleFlightB).sources.length, 1)
+
+const ghostRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseGhost!: () => void
+const ghostReady = new Promise<void>(resolve => { releaseGhost = resolve })
+const unregisterGhost = ghostRegistry.registerProvider({
+  id: 'ghost-provider',
+  owner: { moduleId: 'test-ui', providerId: 'ghost-provider' },
+  async load() {
+    await ghostReady
+    return { sources: [{ ...source, id: 'test.source.ghost' }] }
+  },
+})
+const ghostCatalog = ghostRegistry.resolveCatalog({})
+await wait()
+unregisterGhost()
+releaseGhost()
+await assert.rejects(() => ghostCatalog, (error: any) => error?.code === 'provider.unregistered')
+assert.equal((await ghostRegistry.resolveCatalog({})).sources.length, 0)
+
+const operationUnregisterRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let unregisteredOperationDisposeCount = 0
+const unregisterOperationProvider = operationUnregisterRegistry.registerProvider({
+  id: 'operation-unregister-provider',
+  owner: { moduleId: 'test-ui', providerId: 'operation-unregister-provider' },
+  load: () => ({
+    operations: [{
+      ...operation,
+      id: 'test.operation.unregister',
+      owner: { moduleId: 'test-ui', providerId: 'operation-unregister-provider' },
+      create: () => ({
+        execute: () => of({ type: 'completed' }),
+        dispose() { unregisteredOperationDisposeCount += 1 },
+      }),
+    }],
+  }),
+})
+await operationUnregisterRegistry.resolveCatalog({})
+const operationUnregisterRuntime = operationUnregisterRegistry.createRuntime({ runtimeId: 'operation-unregister' })
+const unregisterPrepared = await operationUnregisterRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.unregister', version: 1 },
+})
+unregisterOperationProvider()
+assert.throws(
+  () => operationUnregisterRuntime.executeOperation(unregisterPrepared),
+  (error: any) => error?.code === 'operation.not_prepared',
+)
+assert.equal(unregisteredOperationDisposeCount, 1)
+await operationUnregisterRuntime.dispose()
+
+const sameIdRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let disposeA = 0
+let disposeB = 0
+const unregisterSameA = sameIdRegistry.registerProvider({
+  id: 'same-a',
+  owner: { moduleId: 'test-ui', providerId: 'same-a' },
+  load: () => ({
+    sources: [{
+      ...source,
+      id: 'test.source.same-id',
+      owner: { moduleId: 'test-ui', providerId: 'same-a' },
+      modes: ['stream'],
+      create: () => ({ query: () => new Observable(() => () => undefined), dispose() { disposeA += 1 } }),
+    }],
+  }),
+})
+sameIdRegistry.registerProvider({
+  id: 'same-b',
+  owner: { moduleId: 'test-ui', providerId: 'same-b' },
+  load: () => ({
+    sources: [{
+      ...source,
+      id: 'test.source.same-id',
+      owner: { moduleId: 'test-ui', providerId: 'same-b' },
+      modes: ['stream'],
+      create: () => ({ query: () => new Observable(() => () => undefined), dispose() { disposeB += 1 } }),
+    }],
+  }),
+})
+await sameIdRegistry.resolveCatalog({})
+const sameRuntime = sameIdRegistry.createRuntime({ runtimeId: 'same-id' })
+const sameEvents: DataConnectionEvent[] = []
+sameRuntime.connect({
+  consumerId: 'same-id',
+  binding: { version: 1, source: { capabilityId: 'test.source.same-id', version: 1 } },
+}).events$.subscribe(event => sameEvents.push(event))
+await wait()
+unregisterSameA()
+await wait()
+assert.equal(sameEvents.some(event => event.type === 'status' && event.status === 'unavailable'), false)
+assert.equal(disposeA, 0)
+assert.equal(disposeB, 0)
+await sameRuntime.dispose()
+assert.equal(disposeB, 1)
+
+const pendingAvailabilityRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseAvailability!: () => void
+const availabilityReady = new Promise<void>(resolve => { releaseAvailability = resolve })
+let pendingCreateCount = 0
+pendingAvailabilityRegistry.sources.register({
+  ...source,
+  id: 'test.source.pending-availability',
+  availability: async () => {
+    await availabilityReady
+    return available
+  },
+  create: () => {
+    pendingCreateCount += 1
+    return { query: () => of({ data: 'late' }) as any }
+  },
+})
+const pendingRuntime = pendingAvailabilityRegistry.createRuntime({ runtimeId: 'pending' })
+const pendingQuery = pendingRuntime.query({ version: 1, source: { capabilityId: 'test.source.pending-availability', version: 1 } })
+await wait()
+await pendingRuntime.dispose()
+releaseAvailability()
+await assert.rejects(() => pendingQuery, (error: any) => error?.code === 'runtime.disposed')
+assert.equal(pendingCreateCount, 0)
+
+const pendingPrepareRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseOperationCreate!: () => void
+const operationCreateReady = new Promise<void>(resolve => { releaseOperationCreate = resolve })
+let pendingOperationDisposeCount = 0
+pendingPrepareRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.pending-create',
+  create: async () => {
+    await operationCreateReady
+    return {
+      execute: () => of({ type: 'completed' }),
+      dispose() { pendingOperationDisposeCount += 1 },
+    }
+  },
+})
+const pendingPrepareRuntime = pendingPrepareRegistry.createRuntime({ runtimeId: 'pending-prepare' })
+const pendingPrepare = pendingPrepareRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.pending-create', version: 1 },
+})
+await wait()
+await pendingPrepareRuntime.dispose()
+releaseOperationCreate()
+await assert.rejects(() => pendingPrepare, (error: any) => error?.code === 'runtime.disposed')
+assert.equal(pendingOperationDisposeCount, 1)
+
+const connectingRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+connectingRegistry.sources.register({
+  ...source,
+  id: 'test.source.connecting-visible',
+  modes: ['stream'],
+  create: () => ({ query: () => new Observable(() => () => undefined) }),
+})
+const connectingEvents: DataConnectionEvent[] = []
+connectingRegistry.createRuntime({ runtimeId: 'connecting' }).connect({
+  consumerId: 'connecting',
+  binding: { version: 1, source: { capabilityId: 'test.source.connecting-visible', version: 1 } },
+}).events$.subscribe(event => connectingEvents.push(event))
+await wait()
+assert.equal(connectingEvents.some(event => event.type === 'status' && event.status === 'connecting'), true)
 
 await assert.rejects(
   () => registry.createRuntime({ runtimeId: 'plan-test' }).query({

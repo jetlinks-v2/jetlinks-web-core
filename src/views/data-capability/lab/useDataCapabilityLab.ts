@@ -43,7 +43,10 @@ export function useDataCapabilityLab() {
   const componentLoading = ref(false)
   const componentError = ref<string>()
 
-  const canExecutePreparedOperation = computed(() => !!preparedOperation.value)
+  const canExecutePreparedOperation = computed(() => {
+    const risk = preparedOperation.value?.policy.risk
+    return !!preparedOperation.value && risk !== 'high' && risk !== 'critical'
+  })
 
   const capabilityItems = computed(() => {
     const rows: LabCapabilityItem[] = []
@@ -160,6 +163,10 @@ export function useDataCapabilityLab() {
 
   const executeOperation = () => {
     if (!preparedOperation.value) return
+    if (!canExecutePreparedOperation.value) {
+      message.warning('测试页不允许执行高风险或关键风险操作')
+      return
+    }
     Modal.confirm({
       title: '确认执行操作？',
       content: `将执行 ${preparedOperation.value.capabilityId}，请确认该操作允许在测试环境执行。`,
