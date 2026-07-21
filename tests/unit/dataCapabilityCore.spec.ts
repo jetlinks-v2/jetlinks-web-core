@@ -710,6 +710,64 @@ assert.equal(directOverrideRegistry.sources.get('test.source.direct-override')?.
 unregisterDirectOverride()
 assert.equal(directOverrideRegistry.sources.get('test.source.direct-override')?.name, 'Direct Base')
 
+const directStackRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+const directStackA = { ...source, id: 'test.source.direct-stack', name: 'Direct Stack A' }
+const directStackB = { ...source, id: 'test.source.direct-stack', name: 'Direct Stack B' }
+const directStackC = { ...source, id: 'test.source.direct-stack', name: 'Direct Stack C' }
+directStackRegistry.sources.register(directStackA)
+const unregisterDirectStackB = directStackRegistry.sources.register(directStackB, { override: true })
+directStackRegistry.sources.register(directStackC, { override: true })
+unregisterDirectStackB()
+assert.equal(directStackRegistry.sources.get('test.source.direct-stack')?.name, 'Direct Stack C')
+directStackRegistry.sources.clear()
+assert.equal(directStackRegistry.sources.get('test.source.direct-stack'), undefined)
+
+const providerQueryRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let providerQueryDispose = 0
+let providerQueryTeardown = 0
+const unregisterProviderQuery = providerQueryRegistry.registerProvider({
+  id: 'query-pending-provider',
+  owner: { moduleId: 'test-ui', providerId: 'query-pending-provider' },
+  load: () => ({
+    sources: [{
+      ...source,
+      id: 'test.source.provider-query-pending',
+      owner: { moduleId: 'test-ui', providerId: 'query-pending-provider' },
+      create: () => ({
+        query: () => new Observable(() => () => { providerQueryTeardown += 1 }) as any,
+        dispose() { providerQueryDispose += 1 },
+      }),
+    }],
+  }),
+})
+await providerQueryRegistry.resolveCatalog({})
+const providerQuery = providerQueryRegistry.createRuntime({ runtimeId: 'provider-query-pending' }).query({
+  version: 1,
+  source: { capabilityId: 'test.source.provider-query-pending', version: 1 },
+})
+await wait()
+unregisterProviderQuery()
+await assert.rejects(() => providerQuery, (error: any) => error?.code === 'capability.unavailable')
+assert.equal(providerQueryTeardown, 1)
+assert.equal(providerQueryDispose, 1)
+
+const catalogRaceRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseCatalogAvailability!: () => void
+const catalogAvailabilityReady = new Promise<void>(resolve => { releaseCatalogAvailability = resolve })
+const unregisterCatalogRace = catalogRaceRegistry.sources.register({
+  ...source,
+  id: 'test.source.catalog-race',
+  availability: async () => {
+    await catalogAvailabilityReady
+    return available
+  },
+})
+const catalogRace = catalogRaceRegistry.resolveCatalog({})
+await wait()
+unregisterCatalogRace()
+releaseCatalogAvailability()
+assert.equal((await catalogRace).sources.length, 0)
+
 const connectLateRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let releaseConnectCreate!: () => void
 const connectCreateReady = new Promise<void>(resolve => { releaseConnectCreate = resolve })
@@ -735,6 +793,40 @@ connectLateConnection.unsubscribe()
 releaseConnectCreate()
 await wait()
 assert.equal(connectLateDispose, 1)
+
+const connectProviderDisposeRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseProviderConnectCreate!: () => void
+const providerConnectCreateReady = new Promise<void>(resolve => { releaseProviderConnectCreate = resolve })
+let providerConnectDispose = 0
+const unregisterConnectProviderDispose = connectProviderDisposeRegistry.registerProvider({
+  id: 'connect-provider-dispose-once',
+  owner: { moduleId: 'test-ui', providerId: 'connect-provider-dispose-once' },
+  load: () => ({
+    sources: [{
+      ...source,
+      id: 'test.source.connect-provider-dispose-once',
+      modes: ['stream'],
+      owner: { moduleId: 'test-ui', providerId: 'connect-provider-dispose-once' },
+      create: async () => {
+        await providerConnectCreateReady
+        return {
+          query: () => new Observable(() => () => undefined),
+          dispose() { providerConnectDispose += 1 },
+        }
+      },
+    }],
+  }),
+})
+await connectProviderDisposeRegistry.resolveCatalog({})
+connectProviderDisposeRegistry.createRuntime({ runtimeId: 'connect-provider-dispose-once' }).connect({
+  consumerId: 'connect-provider-dispose-once',
+  binding: { version: 1, source: { capabilityId: 'test.source.connect-provider-dispose-once', version: 1 } },
+})
+await wait()
+unregisterConnectProviderDispose()
+releaseProviderConnectCreate()
+await wait()
+assert.equal(providerConnectDispose, 1)
 
 const providerFailureRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 providerFailureRegistry.registerProvider({

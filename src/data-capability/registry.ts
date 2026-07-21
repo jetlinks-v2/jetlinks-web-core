@@ -52,6 +52,7 @@ type RegisteredDefinition<T> = {
 type ProviderRegistrationStamp = {
   token: string
   generation: number
+  registrationId: string
 }
 
 type ProviderEntry = {
@@ -83,6 +84,8 @@ type OperationExecutionEntry = {
 
 type QueryResource = {
   abortController: AbortController
+  capabilityId: string
+  registration?: ProviderRegistrationStamp
   dataSource?: DataSource
   subscription?: Subscription
   cancel?: (error: unknown) => void
@@ -123,44 +126,29 @@ class ScopedCapabilityRegistry<T extends CapabilityDefinitionBase> implements Ca
 
   constructor(
     private readonly notify: () => void,
-    private readonly onRegister?: (definition: T, scope: string) => ProviderRegistrationStamp | undefined,
-    private readonly onUnregister?: (definition: T, stamp?: ProviderRegistrationStamp) => void,
+    private readonly onEffectiveRegister?: (definition: T, scope: string) => ProviderRegistrationStamp | undefined,
+    private readonly onEffectiveUnregister?: (definition: T, stamp?: ProviderRegistrationStamp) => void,
   ) {}
 
   register(definition: T, options: CapabilityRegisterOptions = {}): () => void {
     const scope = options.scope || 'global'
-    const exists = this.definitions.get(definition.id) || []
-    if (!options.override && exists.some(item => item.scope === scope)) {
+    const entries = this.definitions.get(definition.id) || []
+    if (!options.override && entries.some(item => item.active && item.scope === scope)) {
       throw new Error(`Capability ${definition.id} already registered in scope ${scope}`)
     }
-    const removed = options.override ? exists.filter(item => item.scope === scope) : []
-    removed.forEach((item) => {
-      if (item.mounted) this.onUnregister?.(item.definition, item.stamp)
-      item.mounted = false
-    })
-    const next = options.override
-      ? exists.filter(item => item.scope !== scope)
-      : exists
-    const stamp = this.onRegister?.(definition, scope)
-    const entry: RegisteredDefinition<T> = { definition, scope, stamp, active: true, mounted: true }
-    next.push(entry)
-    this.definitions.set(definition.id, next)
+
+    const entry: RegisteredDefinition<T> = { definition, scope, active: true, mounted: false }
+    entries.push(entry)
+    this.definitions.set(definition.id, entries)
+    this.recompute(definition.id)
     this.notify()
 
     return () => {
-      const current = this.definitions.get(definition.id) || []
       if (!entry.active) return
       entry.active = false
-      if (entry.mounted) this.onUnregister?.(definition, entry.stamp)
-      entry.mounted = false
-      const rest = current.filter(item => item !== entry)
-      if (removed.length) {
-        removed.filter(item => item.active).forEach((item) => {
-          item.stamp = this.onRegister?.(item.definition, item.scope)
-          item.mounted = true
-          rest.push(item)
-        })
-      }
+      this.recompute(definition.id)
+      const current = this.definitions.get(definition.id) || []
+      const rest = current.filter(item => item.active)
       if (rest.length) {
         this.definitions.set(definition.id, rest)
       } else {
@@ -171,39 +159,54 @@ class ScopedCapabilityRegistry<T extends CapabilityDefinitionBase> implements Ca
   }
 
   get(id: string): T | undefined {
-    return this.definitions.get(id)?.at(-1)?.definition
+    return this.getEffectiveEntry(id)?.definition
   }
 
   list(): T[] {
-    return Array.from(this.definitions.values()).map(items => items[items.length - 1].definition)
+    return Array.from(this.definitions.keys())
+      .map(id => this.getEffectiveEntry(id)?.definition)
+      .filter((definition): definition is T => !!definition)
   }
 
   clear(scope?: string): void {
-    if (!scope) {
-      this.definitions.forEach(items => items.forEach((item) => {
-        item.active = false
-        if (item.mounted) this.onUnregister?.(item.definition, item.stamp)
-        item.mounted = false
-      }))
-      this.definitions.clear()
-      this.notify()
-      return
-    }
-    for (const [id, items] of this.definitions.entries()) {
-      const removed = items.filter(item => item.scope === scope)
-      removed.forEach((item) => {
-        item.active = false
-        if (item.mounted) this.onUnregister?.(item.definition, item.stamp)
-        item.mounted = false
+    const ids = [...this.definitions.keys()]
+    ids.forEach((id) => {
+      const entries = this.definitions.get(id) || []
+      entries.forEach((item) => {
+        if (!scope || item.scope === scope) item.active = false
       })
-      const rest = items.filter(item => item.scope !== scope)
+      this.recompute(id)
+      const rest = entries.filter(item => item.active)
       if (rest.length) {
         this.definitions.set(id, rest)
       } else {
         this.definitions.delete(id)
       }
-    }
+    })
     this.notify()
+  }
+
+  private getEffectiveEntry(id: string): RegisteredDefinition<T> | undefined {
+    const entries = this.definitions.get(id) || []
+    for (let i = entries.length - 1; i >= 0; i -= 1) {
+      if (entries[i].active) return entries[i]
+    }
+    return undefined
+  }
+
+  private recompute(id: string): void {
+    const entries = this.definitions.get(id) || []
+    const previous = entries.find(item => item.mounted)
+    const next = this.getEffectiveEntry(id)
+    if (previous === next) return
+    if (previous) {
+      previous.mounted = false
+      this.onEffectiveUnregister?.(previous.definition, previous.stamp)
+    }
+    if (next) {
+      next.stamp = this.onEffectiveRegister?.(next.definition, next.scope)
+      next.mounted = true
+    }
   }
 }
 
@@ -212,27 +215,27 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   readonly sources = new ScopedCapabilityRegistry<DataSourceDefinition>(
     () => this.emitChange(),
     (definition, scope) => this.registerDirectDefinition('sources', definition, scope),
-    (definition, stamp) => this.unregisterDirectDefinition(definition, stamp),
+    (definition, stamp) => this.unregisterDefinition('sources', definition, stamp),
   )
   readonly operations = new ScopedCapabilityRegistry<OperationDefinition>(
     () => this.emitChange(),
     (definition, scope) => this.registerDirectDefinition('operations', definition, scope),
-    (definition, stamp) => this.unregisterDirectDefinition(definition, stamp),
+    (definition, stamp) => this.unregisterDefinition('operations', definition, stamp),
   )
   readonly contexts = new ScopedCapabilityRegistry<ContextValueDefinition>(
     () => this.emitChange(),
     (definition, scope) => this.registerDirectDefinition('contexts', definition, scope),
-    (definition, stamp) => this.unregisterDirectDefinition(definition, stamp),
+    (definition, stamp) => this.unregisterDefinition('contexts', definition, stamp),
   )
   readonly valueEditors = new ScopedCapabilityRegistry<ValueEditorDefinition>(
     () => this.emitChange(),
     (definition, scope) => this.registerDirectDefinition('valueEditors', definition, scope),
-    (definition, stamp) => this.unregisterDirectDefinition(definition, stamp),
+    (definition, stamp) => this.unregisterDefinition('valueEditors', definition, stamp),
   )
   readonly optionSources = new ScopedCapabilityRegistry<OptionSourceDefinition>(
     () => this.emitChange(),
     (definition, scope) => this.registerDirectDefinition('optionSources', definition, scope),
-    (definition, stamp) => this.unregisterDirectDefinition(definition, stamp),
+    (definition, stamp) => this.unregisterDefinition('optionSources', definition, stamp),
   )
 
   private readonly listeners = new Set<() => void>()
@@ -242,8 +245,11 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   private readonly moduleProviderTokens = new Set<string>()
   private readonly definitionOwners = new WeakMap<CapabilityDefinitionBase, ProviderRegistrationStamp>()
   private readonly runtimes = new Set<DefaultDataCapabilityRuntime>()
+  private readonly activeRegistrations = new Set<string>()
+  private readonly moduleProviderGenerations = new Map<string, number>()
   private moduleRegistryUnsubscribe?: () => void
   private moduleRegistryRefreshing?: Promise<void>
+  private moduleRegistryRefreshDirty = false
 
   registerProvider(provider: DataCapabilityProvider, options: CapabilityRegisterOptions = {}): () => void {
     const token = `manual:${provider.id}:${options.scope || 'default'}:${providerRegistrationSequence++}`
@@ -304,7 +310,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
           loader: item.loader,
           scope: `provider:${item.key}`,
           registered: true,
-          generation: 0,
+          generation: this.nextModuleProviderGeneration(item.key),
           loaded: false,
           module: true,
           override: true,
@@ -319,7 +325,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
             loader: item.loader,
             scope: `provider:${item.key}`,
             registered: true,
-            generation: 0,
+            generation: this.nextModuleProviderGeneration(item.key),
             loaded: false,
             module: true,
             override: true,
@@ -339,13 +345,26 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   }
 
   private async refreshModuleProviders(): Promise<void> {
-    if (this.moduleRegistryRefreshing) return this.moduleRegistryRefreshing
-    this.moduleRegistryRefreshing = this.loadModuleProviders({})
-      .finally(() => {
-        this.moduleRegistryRefreshing = undefined
-        this.emitChange()
-      })
+    if (this.moduleRegistryRefreshing) {
+      this.moduleRegistryRefreshDirty = true
+      return this.moduleRegistryRefreshing
+    }
+    this.moduleRegistryRefreshing = (async () => {
+      do {
+        this.moduleRegistryRefreshDirty = false
+        await this.loadModuleProviders({})
+      } while (this.moduleRegistryRefreshDirty)
+    })().finally(() => {
+      this.moduleRegistryRefreshing = undefined
+      this.emitChange()
+    })
     return this.moduleRegistryRefreshing
+  }
+
+  private nextModuleProviderGeneration(token: string): number {
+    const next = (this.moduleProviderGenerations.get(token) || 0) + 1
+    this.moduleProviderGenerations.set(token, next)
+    return next
   }
 
   async resolveCatalog(context: CapabilityContext, query?: CapabilityQuery): Promise<ResolvedCapabilityCatalog> {
@@ -464,7 +483,11 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     result: DataCapabilityProviderLoadedResult | undefined,
     unregisters: Array<() => void>,
   ) {
-    const stamp: ProviderRegistrationStamp = { token: entry.token, generation: entry.generation }
+    const stamp: ProviderRegistrationStamp = {
+      token: entry.token,
+      generation: entry.generation,
+      registrationId: `${entry.token}:${entry.generation}:${providerRegistrationSequence++}`,
+    }
     const ids: ProviderDefinitionIds = {
       stamp,
       sources: new Set(),
@@ -507,11 +530,34 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     definition: T,
     scope: string,
   ): ProviderRegistrationStamp | undefined {
-    const existed = this.definitionOwners.get(definition)
-    if (existed) return existed
-    const token = `direct:${kind}:${definition.id}:${scope}:${providerRegistrationSequence++}`
-    const stamp: ProviderRegistrationStamp = { token, generation: 0 }
-    const ids: ProviderDefinitionIds = {
+    let stamp = this.definitionOwners.get(definition)
+    if (!stamp) {
+      const token = `direct:${kind}:${definition.id}:${scope}:${providerRegistrationSequence++}`
+      stamp = {
+        token,
+        generation: 0,
+        registrationId: `${token}:0`,
+      }
+      const ids: ProviderDefinitionIds = {
+        stamp,
+        sources: new Set(),
+        operations: new Set(),
+        contexts: new Set(),
+        valueEditors: new Set(),
+        optionSources: new Set(),
+      }
+      ids[kind].add(definition.id)
+      this.definitionOwners.set(definition, stamp)
+      this.providerDefinitionIds.set(token, ids)
+    }
+    this.activeRegistrations.add(this.getActiveRegistrationKey(stamp, definition.id))
+    return stamp
+  }
+
+  private unregisterDefinition(kind: ProviderDefinitionKind, definition: CapabilityDefinitionBase, stamp?: ProviderRegistrationStamp): void {
+    if (!stamp) return
+    this.activeRegistrations.delete(this.getActiveRegistrationKey(stamp, definition.id))
+    const affected: ProviderDefinitionIds = {
       stamp,
       sources: new Set(),
       operations: new Set(),
@@ -519,26 +565,18 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
       valueEditors: new Set(),
       optionSources: new Set(),
     }
-    ids[kind].add(definition.id)
-    this.definitionOwners.set(definition, stamp)
-    this.providerDefinitionIds.set(token, ids)
-    return stamp
+    affected[kind].add(definition.id)
+    this.runtimes.forEach(runtime => runtime.disposeProviderCapabilities(affected))
   }
 
-  private unregisterDirectDefinition(definition: CapabilityDefinitionBase, stamp?: ProviderRegistrationStamp): void {
-    if (!stamp?.token.startsWith('direct:')) return
-    const affected = this.providerDefinitionIds.get(stamp.token)
-    this.providerDefinitionIds.delete(stamp.token)
-    this.definitionOwners.delete(definition)
-    if (affected) {
-      this.runtimes.forEach(runtime => runtime.disposeProviderCapabilities(affected))
-    }
-  }
-
-  isRegistrationActive(stamp: ProviderRegistrationStamp | undefined): boolean {
+  isRegistrationActive(stamp: ProviderRegistrationStamp | undefined, capabilityId?: string): boolean {
     if (!stamp) return true
-    const affected = this.providerDefinitionIds.get(stamp.token)
-    return !!affected && affected.stamp.generation === stamp.generation
+    if (capabilityId) return this.activeRegistrations.has(this.getActiveRegistrationKey(stamp, capabilityId))
+    return [...this.activeRegistrations].some(key => key.startsWith(`${stamp.registrationId}:`))
+  }
+
+  private getActiveRegistrationKey(stamp: ProviderRegistrationStamp, capabilityId: string): string {
+    return `${stamp.registrationId}:${capabilityId}`
   }
 
   getDefinitionRegistration(definition: CapabilityDefinitionBase): ProviderRegistrationStamp | undefined {
@@ -556,6 +594,8 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     for (const definition of definitions) {
       if (!matchesCapabilityQuery(definition, query) || (extra && !extra(definition))) continue
       const availability = await resolveAvailability(definition, context, 'discover')
+      const registration = this.definitionOwners.get(definition)
+      if (registration && !this.isRegistrationActive(registration, definition.id)) continue
       if (!query?.includeUnavailable && !availability.discoverable) continue
       result.push({ definition, availability })
     }
@@ -748,7 +788,11 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     const registration = this.registry.getDefinitionRegistration(definition)
     this.assertRegistrationActive(registration, definition.id)
     const externalSignal = options.signal
-    const queryResource: QueryResource = { abortController: new AbortController() }
+    const queryResource: QueryResource = {
+      abortController: new AbortController(),
+      capabilityId: definition.id,
+      registration,
+    }
     const abortByExternal = () => {
       queryResource.abortController.abort()
       queryResource.cancel?.(createCapabilityError('runtime.aborted', 'Runtime query has been aborted', {
@@ -980,6 +1024,17 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
 
   disposeProviderCapabilities(affected: ProviderDefinitionIds): void {
     if (this.disposed) return
+    this.queryResources.forEach((resource) => {
+      if (!affected.sources.has(resource.capabilityId) || !sameRegistration(resource.registration, affected.stamp)) return
+      resource.cancel?.(createCapabilityError('capability.unavailable', 'Capability provider has been unregistered', {
+        capabilityId: resource.capabilityId,
+        retryable: true,
+      }))
+      const dataSource = resource.dataSource
+      resource.dataSource = undefined
+      void dataSource?.dispose?.()
+      this.queryResources.delete(resource)
+    })
     for (const [key, shared] of [...this.sharedConnections.entries()]) {
       if (affected.sources.has(shared.capabilityId) && sameRegistration(shared.registration, affected.stamp)) {
         this.disposeSharedConnection(key, createCapabilityError('capability.unavailable', 'Capability provider has been unregistered', {
@@ -1032,8 +1087,9 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       this.assertRegistrationActive(registration, definition.id)
       const dataSource = await definition.create(request.config, this.runtimeContext)
       createdDataSource = dataSource
-      if (shared.disposed || this.disposed || !this.registry.isRegistrationActive(registration)) {
+      if (shared.disposed || this.disposed || !this.registry.isRegistrationActive(registration, definition.id)) {
         await dataSource.dispose?.()
+        createdDataSource = undefined
         this.assertActive()
         this.assertRegistrationActive(registration, definition.id)
         return shared
@@ -1117,7 +1173,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   }
 
   private assertRegistrationActive(registration: ProviderRegistrationStamp | undefined, capabilityId?: string): void {
-    if (!this.registry.isRegistrationActive(registration)) {
+    if (!this.registry.isRegistrationActive(registration, capabilityId)) {
       throw createCapabilityError('provider.unregistered', 'Provider has been unregistered', {
         capabilityId,
         retryable: true,
@@ -1223,7 +1279,7 @@ function sameRegistration(
   left: ProviderRegistrationStamp | undefined,
   right: ProviderRegistrationStamp | undefined,
 ): boolean {
-  return !!left && !!right && left.token === right.token && left.generation === right.generation
+  return !!left && !!right && left.registrationId === right.registrationId
 }
 
 function assertPlanSupported(binding: PersistedDataBinding): void {
