@@ -1,4 +1,4 @@
-import { Observable, Subject, firstValueFrom, of, timeout as rxTimeout } from 'rxjs'
+import { ReplaySubject, Subject, Subscription, firstValueFrom, timeout as rxTimeout } from 'rxjs'
 import type {
   CapabilityAvailability,
   CapabilityDefinitionBase,
@@ -13,10 +13,13 @@ import type {
   DataConnection,
   DataConnectionEvent,
   DataConnectionRequest,
+  DataSource,
   DataSourceDefinition,
   DataSourceResult,
   OperationDefinition,
+  OperationEvent,
   OperationExecution,
+  OperationPolicy,
   PersistedDataBinding,
   PersistedOperationBinding,
   PreparedOperation,
@@ -30,6 +33,8 @@ import type {
   ContextValueDefinition,
   ValueEditorDefinition,
   OptionSourceDefinition,
+  ResolvedDataSourceRequest,
+  RuntimeContext,
 } from './types'
 import { BindingResolver } from './binding'
 import { AVAILABLE_CAPABILITY, applyOutputMapping, createCapabilityError, matchesCapabilityQuery } from './utils'
@@ -38,6 +43,26 @@ type RegisteredDefinition<T> = {
   definition: T
   scope: string
 }
+
+type ProviderRegistration = {
+  provider: DataCapabilityProvider
+  scope: string
+}
+
+type SharedConnection = {
+  events$: ReplaySubject<DataConnectionEvent>
+  refCount: number
+  abortController: AbortController
+  subscription?: Subscription
+  dataSource?: DataSource
+  disposed: boolean
+}
+
+const RISK_ORDER: OperationPolicy['risk'][] = ['low', 'medium', 'high', 'critical']
+const CONFIRMATION_ORDER: OperationPolicy['confirmation'][] = ['none', 'destructive', 'provider', 'always']
+const RETRY_ORDER: OperationPolicy['retry'][] = ['never', 'idempotent-only', 'provider']
+const CANCELLATION_ORDER: OperationPolicy['cancellation'][] = ['unsupported', 'before-dispatch', 'best-effort', 'compensatable']
+let providerRegistrationSequence = 0
 
 class ScopedCapabilityRegistry<T extends CapabilityDefinitionBase> implements CapabilityRegistry<T> {
   private readonly definitions = new Map<string, RegisteredDefinition<T>[]>()
@@ -106,20 +131,23 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   private readonly listeners = new Set<() => void>()
   private readonly providerUnregisters = new Map<string, Array<() => void>>()
   private readonly loadedProviders = new Set<string>()
-  private readonly registeredProviders = new Map<string, DataCapabilityProvider>()
+  private readonly registeredProviders = new Map<string, ProviderRegistration>()
 
   registerProvider(provider: DataCapabilityProvider, options: CapabilityRegisterOptions = {}): () => void {
-    const key = `manual:${options.scope || provider.id}`
-    this.registeredProviders.set(key, provider)
-    this.loadedProviders.delete(key)
+    const token = `manual:${provider.id}:${options.scope || 'default'}:${providerRegistrationSequence++}`
+    this.registeredProviders.set(token, {
+      provider,
+      scope: options.scope || `provider:${token}`,
+    })
+    this.loadedProviders.delete(token)
     this.emitChange()
 
     return () => {
-      this.registeredProviders.delete(key)
-      this.loadedProviders.delete(key)
-      const unregisters = this.providerUnregisters.get(provider.id) || []
+      this.registeredProviders.delete(token)
+      this.loadedProviders.delete(token)
+      const unregisters = this.providerUnregisters.get(token) || []
       unregisters.splice(0).forEach(unregister => unregister())
-      this.providerUnregisters.delete(provider.id)
+      this.providerUnregisters.delete(token)
       void provider.dispose?.()
       this.emitChange()
     }
@@ -146,7 +174,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
       try {
         const loaded = await item.loader()
         const provider = 'default' in loaded ? loaded.default : loaded
-        await this.loadProvider(provider, context)
+        await this.loadProvider(item.key, provider, context, `provider:${item.key}`)
         this.loadedProviders.add(item.key)
       } catch (error) {
         console.warn(`[DataCapability] provider loader failed: ${item.key}`, error)
@@ -171,10 +199,10 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   }
 
   private async loadRegisteredProviders(context: CapabilityContext): Promise<void> {
-    for (const [key, provider] of this.registeredProviders.entries()) {
-      if (this.loadedProviders.has(key)) continue
-      await this.loadProvider(provider, context)
-      this.loadedProviders.add(key)
+    for (const [token, registration] of this.registeredProviders.entries()) {
+      if (this.loadedProviders.has(token)) continue
+      await this.loadProvider(token, registration.provider, context, registration.scope)
+      this.loadedProviders.add(token)
     }
   }
 
@@ -187,12 +215,18 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     return new DefaultDataCapabilityRuntime(this, context)
   }
 
-  private async loadProvider(provider: DataCapabilityProvider, context: CapabilityContext): Promise<void> {
+  private async loadProvider(
+    token: string,
+    provider: DataCapabilityProvider,
+    context: CapabilityContext,
+    scope: string,
+  ): Promise<void> {
+    const oldUnregisters = this.providerUnregisters.get(token) || []
+    oldUnregisters.splice(0).forEach(unregister => unregister())
     const result = await provider.load?.(context)
     const unregisters: Array<() => void> = []
-    const scope = `provider:${provider.id}`
     this.registerLoadedDefinitions(result, scope, unregisters)
-    this.providerUnregisters.set(provider.id, unregisters)
+    this.providerUnregisters.set(token, unregisters)
   }
 
   private registerLoadedDefinitions(
@@ -216,7 +250,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     const result: Array<ResolvedCapability<T>> = []
     for (const definition of definitions) {
       if (!matchesCapabilityQuery(definition, query) || (extra && !extra(definition))) continue
-      const availability = await resolveAvailability(definition, context)
+      const availability = await resolveAvailability(definition, context, 'discover')
       if (!query?.includeUnavailable && !availability.discoverable) continue
       result.push({ definition, availability })
     }
@@ -231,9 +265,10 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
 async function resolveAvailability(
   definition: CapabilityDefinitionBase,
   context: CapabilityContext,
+  phase?: 'discover' | 'configure' | 'execute',
 ): Promise<CapabilityAvailability> {
   if (!definition.availability) return AVAILABLE_CAPABILITY
-  return definition.availability(context)
+  return definition.availability(context, phase)
 }
 
 class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
@@ -243,6 +278,8 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   private readonly contexts = new Map<string, unknown>()
   private readonly disposers: Array<() => void> = []
   private readonly preparedOperations = new Map<string, { definition: OperationDefinition; operation: Awaited<ReturnType<OperationDefinition['create']>> }>()
+  private readonly operationExecutions = new Map<string, OperationExecution>()
+  private readonly sharedConnections = new Map<string, SharedConnection>()
 
   constructor(
     private readonly registry: DefaultDataCapabilityRegistry,
@@ -256,44 +293,41 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     const id = request.id || `${request.consumerId}:${Date.now()}`
     const events$ = new Subject<DataConnectionEvent<T>>()
     let stopped = false
-    let abortController: AbortController | undefined
+    let sharedKey: string | undefined
+    let sharedSubscription: Subscription | undefined
+
+    const forwardShared = (shared: SharedConnection) => {
+      shared.refCount += 1
+      sharedSubscription = shared.events$.subscribe({
+        next: event => events$.next(event as DataConnectionEvent<T>),
+        error: error => events$.error(error),
+        complete: () => events$.complete(),
+      })
+    }
 
     void (async () => {
       events$.next({ type: 'status', status: 'connecting' })
       try {
-        abortController = new AbortController()
         const binding = request.binding
         const definition = this.requireSource(binding.source.capabilityId)
-        const query = await this.resolveRecord(binding.query, request.options?.signal || abortController.signal)
-        const dataSource = await definition.create(binding.source.config, this.runtimeContext)
-        const subscription = dataSource.query<T>({
+        const signal = request.options?.signal
+        const runtimeContext = this.toRuntimeContext(signal)
+        const query = await this.resolveRecord(binding.query, signal)
+        const resolvedRequest = normalizeDataSourceRequest(definition, {
+          capabilityId: binding.source.capabilityId,
+          version: binding.source.version,
           config: binding.source.config,
           query,
-          signal: request.options?.signal || abortController.signal,
-        }, this.toRuntimeContext(request.options?.signal || abortController.signal))
-          .subscribe({
-            next: (result) => {
-              const mapped = applyOutputMapping(result.data, binding.mapping)
-              events$.next({
-                type: 'data',
-                result: { ...result, data: mapped as T },
-              })
-            },
-            error: (error) => {
-              events$.next({ type: 'status', status: 'failed', error: toCapabilityError(error, binding.source.capabilityId) })
-              events$.complete()
-            },
-            complete: () => {
-              events$.next({ type: 'status', status: 'completed' })
-              events$.complete()
-            },
-          })
-
-        events$.next({ type: 'status', status: 'connected' })
-        this.disposers.push(() => {
-          subscription.unsubscribe()
-          void dataSource.dispose?.()
-        })
+          signal,
+        }, runtimeContext)
+        sharedKey = getExecutionKey(definition, resolvedRequest, runtimeContext, binding)
+        const shared = this.sharedConnections.get(sharedKey)
+        if (shared && !shared.disposed) {
+          forwardShared(shared)
+          return
+        }
+        const created = await this.createSharedConnection(definition, resolvedRequest, binding, sharedKey)
+        forwardShared(created)
       } catch (error) {
         if (!stopped) {
           events$.next({ type: 'status', status: 'failed', error: toCapabilityError(error, request.binding.source.capabilityId) })
@@ -305,8 +339,9 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     const unsubscribe = () => {
       if (stopped) return
       stopped = true
-      abortController?.abort()
+      sharedSubscription?.unsubscribe()
       events$.complete()
+      if (sharedKey) this.releaseSharedConnection(sharedKey)
     }
     this.disposers.push(unsubscribe)
 
@@ -316,14 +351,25 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   async query<T = unknown>(binding: PersistedDataBinding, options: RuntimeQueryOptions = {}): Promise<DataSourceResult<T>> {
     const definition = this.requireSource(binding.source.capabilityId)
     const signal = options.signal
-    const dataSource = await definition.create(binding.source.config, this.runtimeContext)
+    const runtimeContext = this.toRuntimeContext(signal)
     const query = await this.resolveRecord(binding.query, signal)
-    const result = await firstValueFrom(
-      dataSource.query<T>({ config: binding.source.config, query, signal }, this.toRuntimeContext(signal))
-        .pipe(options.timeout ? rxTimeout({ first: options.timeout }) : source => source),
-    )
-    await dataSource.dispose?.()
-    return { ...result, data: applyOutputMapping(result.data, binding.mapping) as T }
+    const resolvedRequest = normalizeDataSourceRequest(definition, {
+      capabilityId: binding.source.capabilityId,
+      version: binding.source.version,
+      config: binding.source.config,
+      query,
+      signal,
+    }, runtimeContext)
+    const dataSource = await definition.create(resolvedRequest.config, this.runtimeContext)
+    try {
+      const result = await firstValueFrom(
+        dataSource.query<T>(resolvedRequest, runtimeContext)
+          .pipe(options.timeout ? rxTimeout({ first: options.timeout }) : source => source),
+      )
+      return { ...result, data: applyOutputMapping(result.data, binding.mapping) as T }
+    } finally {
+      await dataSource.dispose?.()
+    }
   }
 
   async preview<T = unknown>(request: CapabilityPreviewRequest): Promise<CapabilityPreviewResult<T>> {
@@ -339,7 +385,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     const definition = this.requireOperation(binding.operation.capabilityId)
     const operation = await definition.create(binding.operation.config, this.runtimeContext)
     const input = await this.resolveRecord(binding.input)
-    const policy = { ...definition.policy, ...binding.policyOverride }
+    const policy = mergeOperationPolicy(definition.policy, binding.policyOverride)
     const request = { config: binding.operation.config, input }
     const prepared = operation.prepare
       ? await operation.prepare(request, this.toRuntimeContext())
@@ -350,20 +396,48 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
           policy,
         }
     this.preparedOperations.set(prepared.id, { definition, operation })
-    return { ...prepared, policy }
+    return { ...prepared, policy: mergeOperationPolicy(policy, prepared.policy) }
   }
 
   executeOperation(prepared: PreparedOperation): OperationExecution {
+    const existed = this.operationExecutions.get(prepared.id)
+    if (existed) return existed
+
     const cached = this.preparedOperations.get(prepared.id)
     if (!cached) {
       throw createCapabilityError('operation.not_prepared', 'Operation has not been prepared', {
         capabilityId: prepared.capabilityId,
       })
     }
-    return {
+
+    const events$ = new ReplaySubject<OperationEvent>(100)
+    const execution: OperationExecution = {
       id: prepared.id,
-      events$: cached.operation.execute(prepared, this.toRuntimeContext()),
+      events$: events$.asObservable(),
     }
+    this.operationExecutions.set(prepared.id, execution)
+
+    void (async () => {
+      try {
+        const availability = await resolveAvailability(cached.definition, this.toRuntimeContext(), 'execute')
+        if (!availability.executable) {
+          throw createCapabilityError('operation.unavailable', availability.reason || 'Operation is unavailable', {
+            capabilityId: prepared.capabilityId,
+            retryable: availability.retryable,
+          })
+        }
+        const subscription = cached.operation.execute(prepared, this.toRuntimeContext()).subscribe({
+          next: event => events$.next(event),
+          error: error => events$.error(error),
+          complete: () => events$.complete(),
+        })
+        this.disposers.push(() => subscription.unsubscribe())
+      } catch (error) {
+        events$.error(error)
+      }
+    })()
+
+    return execution
   }
 
   updateParameters(values: Record<string, unknown>): void {
@@ -378,6 +452,80 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     if (this.disposed) return
     this.disposed = true
     this.disposers.splice(0).forEach(disposer => disposer())
+    for (const key of [...this.sharedConnections.keys()]) {
+      this.disposeSharedConnection(key)
+    }
+  }
+
+  private async createSharedConnection<T>(
+    definition: DataSourceDefinition,
+    request: ResolvedDataSourceRequest,
+    binding: PersistedDataBinding,
+    key: string,
+  ): Promise<SharedConnection> {
+    const abortController = new AbortController()
+    const shared: SharedConnection = {
+      events$: new ReplaySubject<DataConnectionEvent>(100),
+      refCount: 0,
+      abortController,
+      disposed: false,
+    }
+    this.sharedConnections.set(key, shared)
+
+    try {
+      const runtimeContext = this.toRuntimeContext(abortController.signal)
+      const dataSource = await definition.create(request.config, this.runtimeContext)
+      if (shared.disposed) {
+        await dataSource.dispose?.()
+        return shared
+      }
+      shared.dataSource = dataSource
+      shared.subscription = dataSource.query<T>({ ...request, signal: abortController.signal }, runtimeContext)
+        .subscribe({
+          next: (result) => {
+            const mapped = applyOutputMapping(result.data, binding.mapping)
+            shared.events$.next({
+              type: 'data',
+              result: { ...result, data: mapped as T },
+            })
+          },
+          error: (error) => {
+            shared.events$.next({ type: 'status', status: 'failed', error: toCapabilityError(error, binding.source.capabilityId) })
+            shared.events$.complete()
+            this.disposeSharedConnection(key)
+          },
+          complete: () => {
+            shared.events$.next({ type: 'status', status: 'completed' })
+            shared.events$.complete()
+            this.disposeSharedConnection(key)
+          },
+        })
+      shared.events$.next({ type: 'status', status: 'connected' })
+    } catch (error) {
+      shared.events$.next({ type: 'status', status: 'failed', error: toCapabilityError(error, binding.source.capabilityId) })
+      shared.events$.complete()
+      this.disposeSharedConnection(key)
+    }
+    return shared
+  }
+
+  private releaseSharedConnection(key: string): void {
+    const shared = this.sharedConnections.get(key)
+    if (!shared) return
+    shared.refCount -= 1
+    if (shared.refCount <= 0) {
+      this.disposeSharedConnection(key)
+    }
+  }
+
+  private disposeSharedConnection(key: string): void {
+    const shared = this.sharedConnections.get(key)
+    if (!shared || shared.disposed) return
+    shared.disposed = true
+    shared.abortController.abort()
+    shared.subscription?.unsubscribe()
+    void shared.dataSource?.dispose?.()
+    this.sharedConnections.delete(key)
   }
 
   private async resolveRecord(values: PersistedDataBinding['query'], signal?: AbortSignal) {
@@ -388,6 +536,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     return {
       ...this.runtimeContext,
       parameters: this.parameters,
+      contexts: Object.fromEntries(this.contexts),
       signal,
     }
   }
@@ -407,6 +556,64 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     }
     return definition
   }
+}
+
+function normalizeDataSourceRequest(
+  definition: DataSourceDefinition,
+  request: ResolvedDataSourceRequest,
+  context: RuntimeContext,
+): ResolvedDataSourceRequest {
+  return definition.optimizer?.normalize?.(request, context) || request
+}
+
+function getExecutionKey(
+  definition: DataSourceDefinition,
+  request: ResolvedDataSourceRequest,
+  context: RuntimeContext,
+  binding: PersistedDataBinding,
+): string {
+  const providerKey = definition.optimizer?.getGroupKey?.(request, context)
+  if (providerKey) return `${definition.id}:${providerKey}`
+  return stableStringify({ source: request, mapping: binding.mapping, plan: binding.plan })
+}
+
+function mergeOperationPolicy(
+  base: OperationPolicy,
+  override?: Partial<OperationPolicy>,
+): OperationPolicy {
+  if (!override) return { ...base }
+  return {
+    ...base,
+    risk: maxByOrder(base.risk, override.risk, RISK_ORDER),
+    confirmation: maxByOrder(base.confirmation, override.confirmation, CONFIRMATION_ORDER),
+    cancellation: minByOrder(base.cancellation, override.cancellation, CANCELLATION_ORDER),
+    retry: minByOrder(base.retry, override.retry, RETRY_ORDER),
+    batch: base.batch || override.batch,
+    audit: base.audit || override.audit,
+  }
+}
+
+function maxByOrder<T extends string>(base: T, override: T | undefined, order: T[]): T {
+  if (!override) return base
+  return order.indexOf(override) > order.indexOf(base) ? override : base
+}
+
+function minByOrder<T extends string>(base: T, override: T | undefined, order: T[]): T {
+  if (!override) return base
+  return order.indexOf(override) < order.indexOf(base) ? override : base
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`
+  }
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value)
 }
 
 function toCapabilityError(error: unknown, capabilityId?: string) {

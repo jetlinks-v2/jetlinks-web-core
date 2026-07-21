@@ -4,10 +4,9 @@ import type {
   CapabilityRegistry,
   ContextValueDefinition,
   DataPath,
-  SimpleValueBinding,
   ValueBinding,
 } from './types'
-import { getByPath, isValueBinding } from './utils'
+import { createCapabilityError, getByPath, isValueBinding } from './utils'
 
 export class BindingResolver {
   constructor(
@@ -39,7 +38,7 @@ export class BindingResolver {
       case 'output':
         return getByPath(context.outputs?.[value.nodeId], value.path)
       case 'expression':
-        return this.resolveExpression(value.inputs, context)
+        return this.resolveExpression(value)
       default:
         return undefined
     }
@@ -53,13 +52,12 @@ export class BindingResolver {
     return getByPath(value, binding.path)
   }
 
-  private async resolveExpression(inputs: Record<string, SimpleValueBinding>, context: BindingRuntimeContext) {
-    const values: Record<string, unknown> = {}
-    for (const [key, input] of Object.entries(inputs)) {
-      values[key] = await this.resolve(input, context)
-    }
-    // CEL 执行首期暂缓。这里返回显式输入快照，避免把表达式字符串当成可执行脚本。
-    return values
+  private resolveExpression(binding: Extract<ValueBinding, { kind: 'expression' }>) {
+    throw createCapabilityError('expression.unsupported', 'Expression binding is not supported yet', {
+      details: {
+        language: binding.language,
+      },
+    })
   }
 }
 

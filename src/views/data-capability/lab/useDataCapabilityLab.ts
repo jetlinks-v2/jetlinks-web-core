@@ -43,6 +43,11 @@ export function useDataCapabilityLab() {
   const componentLoading = ref(false)
   const componentError = ref<string>()
 
+  const canExecutePreparedOperation = computed(() => {
+    const risk = preparedOperation.value?.policy.risk
+    return !!preparedOperation.value && risk !== 'high' && risk !== 'critical'
+  })
+
   const capabilityItems = computed(() => {
     const rows: LabCapabilityItem[] = []
     const append = (kind: CapabilityKind, items: any[] = []) => {
@@ -86,7 +91,6 @@ export function useDataCapabilityLab() {
     events: events.value,
     mode: 'lab',
   }))
-
   const loadCatalog = async () => {
     loading.value = true
     try {
@@ -95,12 +99,10 @@ export function useDataCapabilityLab() {
       loading.value = false
     }
   }
-
   const buildQuery = (): CapabilityQuery => ({
     ...query,
     kinds: selectedKind.value ? [selectedKind.value] : undefined,
   })
-
   const selectCapability = (item: LabCapabilityItem) => {
     stopConnection()
     selectedCapability.value = item
@@ -130,15 +132,12 @@ export function useDataCapabilityLab() {
       componentLoading.value = false
     }
   }
-
   const runPreview = async () => {
     result.value = await getRuntime().preview({ binding: buildDataBinding(), timeout: 5000, limit: 20 })
   }
-
   const runQuery = async () => {
     result.value = await getRuntime().query(buildDataBinding(), { timeout: 5000, limit: 20 })
   }
-
   const runConnect = () => {
     stopConnection()
     connection.value = getRuntime().connect({
@@ -151,14 +150,12 @@ export function useDataCapabilityLab() {
       if (event.type === 'data') result.value = event.result
     })
   }
-
   const runOptionSource = async () => {
     const capability = selectedCapability.value
     if (!capability || capability.kind !== 'option-source') return
     const source = dataCapabilityRegistry.optionSources.get(capability.id)
     result.value = await source?.query({ query: parseJson(draftQuery.value) as Record<string, unknown> }, context)
   }
-
   const prepareOperation = async () => {
     preparedOperation.value = await getRuntime().prepareOperation(buildOperationBinding())
     result.value = preparedOperation.value
@@ -166,19 +163,27 @@ export function useDataCapabilityLab() {
 
   const executeOperation = () => {
     if (!preparedOperation.value) return
+    if (!canExecutePreparedOperation.value) {
+      message.warning('测试页不允许执行高风险或关键风险操作')
+      return
+    }
     Modal.confirm({
       title: '确认执行操作？',
       content: `将执行 ${preparedOperation.value.capabilityId}，请确认该操作允许在测试环境执行。`,
       onOk() {
         const execution = getRuntime().executeOperation(preparedOperation.value!)
-        execution.events$.subscribe(event => {
-          events.value = [...events.value, event]
-          if (event.type === 'result') result.value = event.result
+        execution.events$.subscribe({
+          next(event) {
+            events.value = [...events.value, event]
+            if (event.type === 'result') result.value = event.result
+          },
+          error(error) {
+            message.error(error instanceof Error ? error.message : String(error))
+          },
         })
       },
     })
   }
-
   const buildDataBinding = (): PersistedDataBinding => {
     const capability = requireSelected('data-source')
     return {
@@ -191,7 +196,6 @@ export function useDataCapabilityLab() {
       query: parseJson(draftQuery.value) as PersistedDataBinding['query'],
     }
   }
-
   const buildOperationBinding = (): PersistedOperationBinding => {
     const capability = requireSelected('operation')
     return {
@@ -204,26 +208,22 @@ export function useDataCapabilityLab() {
       input: parseJson(draftInput.value) as PersistedOperationBinding['input'],
     }
   }
-
   const requireSelected = (kind: CapabilityKind) => {
     if (!selectedCapability.value || selectedCapability.value.kind !== kind) {
       throw new Error(`请选择 ${kind} 能力`)
     }
     return selectedCapability.value
   }
-
   const getRuntime = () => {
     if (!runtime.value) {
       runtime.value = dataCapabilityRegistry.createRuntime({ ...context, runtimeId: 'data-capability-lab' })
     }
     return runtime.value
   }
-
   const stopConnection = () => {
     connection.value?.unsubscribe()
     connection.value = undefined
   }
-
   const parseJson = (value: string): unknown => {
     try {
       return value ? JSON.parse(value) : undefined
@@ -232,7 +232,6 @@ export function useDataCapabilityLab() {
       throw error
     }
   }
-
   const safeParseJson = (value: string): unknown => {
     try {
       return value ? JSON.parse(value) : undefined
@@ -268,6 +267,7 @@ export function useDataCapabilityLab() {
     selectedCapability,
     connection,
     preparedOperation,
+    canExecutePreparedOperation,
     loading,
     activeTab,
     draftConfig,

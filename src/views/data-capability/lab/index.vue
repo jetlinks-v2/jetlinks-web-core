@@ -125,7 +125,7 @@
           <a-button :disabled="selectedCapability?.kind !== 'operation'" @click="prepareOperation">
             Prepare Operation
           </a-button>
-          <a-button danger :disabled="!preparedOperation" @click="executeOperation">
+          <a-button danger :disabled="!canExecutePreparedOperation" @click="executeOperation">
             Execute Prepared
           </a-button>
         </a-space>
@@ -158,6 +158,7 @@ const {
   selectedCapability,
   connection,
   preparedOperation,
+  canExecutePreparedOperation,
   loading,
   activeTab,
   draftConfig,

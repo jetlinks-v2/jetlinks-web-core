@@ -329,6 +329,7 @@ export interface ContextValueDefinition extends CapabilityDefinitionBase {
 
 export interface BindingRuntimeContext extends RuntimeContext {
   outputs?: Record<string, unknown>
+  contexts?: Record<string, unknown>
 }
 
 export interface ValueEditorDefinition extends CapabilityDefinitionBase {
