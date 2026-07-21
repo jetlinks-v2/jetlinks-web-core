@@ -23,7 +23,7 @@ export interface LabCapabilityItem {
 }
 
 export function useDataCapabilityLab() {
-  const context = reactive({ scopeId: 'data-capability-lab' })
+  const context = reactive({ parameters: {}, attributes: {} })
   const query = reactive<CapabilityQuery>({ includeUnavailable: true })
   const selectedKind = ref<CapabilityKind>()
   const catalog = ref<ResolvedCapabilityCatalog>()
@@ -43,10 +43,7 @@ export function useDataCapabilityLab() {
   const componentLoading = ref(false)
   const componentError = ref<string>()
 
-  const canExecutePreparedOperation = computed(() => {
-    const risk = preparedOperation.value?.policy.risk
-    return !!preparedOperation.value && risk !== 'high' && risk !== 'critical'
-  })
+  const canExecutePreparedOperation = computed(() => !!preparedOperation.value)
 
   const capabilityItems = computed(() => {
     const rows: LabCapabilityItem[] = []
@@ -163,15 +160,14 @@ export function useDataCapabilityLab() {
 
   const executeOperation = () => {
     if (!preparedOperation.value) return
-    if (!canExecutePreparedOperation.value) {
-      message.warning('测试页不允许执行高风险或关键风险操作')
-      return
-    }
     Modal.confirm({
       title: '确认执行操作？',
       content: `将执行 ${preparedOperation.value.capabilityId}，请确认该操作允许在测试环境执行。`,
       onOk() {
-        const execution = getRuntime().executeOperation(preparedOperation.value!)
+        const operation = preparedOperation.value!.policy.confirmation === 'none'
+          ? preparedOperation.value!
+          : getRuntime().confirmOperation(preparedOperation.value!.id, { method: 'ui', reason: 'data-capability-lab' })
+        const execution = getRuntime().executeOperation(operation)
         execution.events$.subscribe({
           next(event) {
             events.value = [...events.value, event]

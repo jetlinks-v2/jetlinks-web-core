@@ -11,11 +11,6 @@
       <a-form layout="vertical" class="query-form">
         <a-row :gutter="12">
           <a-col :span="6">
-            <a-form-item label="scopeId">
-              <a-input v-model:value="context.scopeId" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="6">
             <a-form-item label="关键字">
               <a-input v-model:value="query.keyword" allow-clear />
             </a-form-item>

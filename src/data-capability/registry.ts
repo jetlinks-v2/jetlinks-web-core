@@ -10,6 +10,8 @@ import type {
   DataCapabilityProviderLoadedResult,
   DataCapabilityRegistry,
   DataCapabilityRuntime,
+  ConfirmedOperation,
+  OperationConfirmationProof,
   DataConnection,
   DataConnectionEvent,
   DataConnectionRequest,
@@ -55,13 +57,29 @@ type PreparedOperationEntry = {
   prepared: PreparedOperation
 }
 
+type OperationExecutionEntry = {
+  execution: OperationExecution
+  subscription?: Subscription
+}
+
 type SharedConnection = {
-  events$: ReplaySubject<DataConnectionEvent>
+  events$: Subject<DataConnectionEvent>
   refCount: number
   abortController: AbortController
   subscription?: Subscription
   dataSource?: DataSource
   disposed: boolean
+  capabilityId: string
+  lastStatus?: DataConnectionEvent
+  lastData?: DataConnectionEvent
+}
+
+type ProviderDefinitionIds = {
+  sources: Set<string>
+  operations: Set<string>
+  contexts: Set<string>
+  valueEditors: Set<string>
+  optionSources: Set<string>
 }
 
 const RISK_ORDER: OperationPolicy['risk'][] = ['low', 'medium', 'high', 'critical']
@@ -136,8 +154,10 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
 
   private readonly listeners = new Set<() => void>()
   private readonly providerUnregisters = new Map<string, Array<() => void>>()
-  private readonly loadedProviders = new Map<string, string>()
+  private readonly providerDefinitionIds = new Map<string, ProviderDefinitionIds>()
+  private readonly loadedProviders = new Set<string>()
   private readonly registeredProviders = new Map<string, ProviderRegistration>()
+  private readonly runtimes = new Set<DefaultDataCapabilityRuntime>()
 
   registerProvider(provider: DataCapabilityProvider, options: CapabilityRegisterOptions = {}): () => void {
     const token = `manual:${provider.id}:${options.scope || 'default'}:${providerRegistrationSequence++}`
@@ -150,16 +170,13 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
 
     return () => {
       this.registeredProviders.delete(token)
-      this.loadedProviders.delete(token)
-      const unregisters = this.providerUnregisters.get(token) || []
-      unregisters.splice(0).forEach(unregister => unregister())
-      this.providerUnregisters.delete(token)
+      this.unregisterProviderToken(token)
       void provider.dispose?.()
       this.emitChange()
     }
   }
 
-  async loadModuleProviders(context: CapabilityContext): Promise<void> {
+  async loadModuleProviders(_context: CapabilityContext = {}): Promise<void> {
     if (this.options.loadModuleProviders === false) return
     const { moduleRegistry } = await import('@jetlinks-web-core/utils/module-registry')
     const modules = moduleRegistry.getAllModules()
@@ -176,14 +193,12 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     })
 
     for (const item of loaders) {
-      // Provider.load may depend on tenant/user/project; cache by runtime isolation instead of provider id only.
-      const isolationKey = getProviderIsolationKey(context)
-      if (this.loadedProviders.get(item.key) === isolationKey) continue
+      if (this.loadedProviders.has(item.key)) continue
       try {
         const loaded = await item.loader()
         const provider = 'default' in loaded ? loaded.default : loaded
-        await this.loadProvider(item.key, provider, context, `provider:${item.key}`)
-        this.loadedProviders.set(item.key, isolationKey)
+        await this.loadProvider(item.key, provider, `provider:${item.key}`)
+        this.loadedProviders.add(item.key)
       } catch (error) {
         console.warn(`[DataCapability] provider loader failed: ${item.key}`, error)
       }
@@ -206,12 +221,11 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     }
   }
 
-  private async loadRegisteredProviders(context: CapabilityContext): Promise<void> {
+  private async loadRegisteredProviders(_context: CapabilityContext): Promise<void> {
     for (const [token, registration] of this.registeredProviders.entries()) {
-      const isolationKey = getProviderIsolationKey(context)
-      if (this.loadedProviders.get(token) === isolationKey) continue
-      await this.loadProvider(token, registration.provider, context, registration.scope)
-      this.loadedProviders.set(token, isolationKey)
+      if (this.loadedProviders.has(token)) continue
+      await this.loadProvider(token, registration.provider, registration.scope)
+      this.loadedProviders.add(token)
     }
   }
 
@@ -221,33 +235,69 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   }
 
   createRuntime(context: RuntimeCreateContext): DataCapabilityRuntime {
-    return new DefaultDataCapabilityRuntime(this, context)
+    const runtime = new DefaultDataCapabilityRuntime(this, context, () => this.runtimes.delete(runtime))
+    this.runtimes.add(runtime)
+    return runtime
   }
 
   private async loadProvider(
     token: string,
     provider: DataCapabilityProvider,
-    context: CapabilityContext,
     scope: string,
   ): Promise<void> {
-    const oldUnregisters = this.providerUnregisters.get(token) || []
-    oldUnregisters.splice(0).forEach(unregister => unregister())
-    const result = await provider.load?.(context)
+    this.unregisterProviderToken(token)
+    const result = await provider.load?.()
     const unregisters: Array<() => void> = []
-    this.registerLoadedDefinitions(result, scope, unregisters)
+    this.registerLoadedDefinitions(token, result, scope, unregisters)
     this.providerUnregisters.set(token, unregisters)
   }
 
+  private unregisterProviderToken(token: string): void {
+    this.loadedProviders.delete(token)
+    const affected = this.providerDefinitionIds.get(token)
+    const unregisters = this.providerUnregisters.get(token) || []
+    unregisters.splice(0).forEach(unregister => unregister())
+    this.providerUnregisters.delete(token)
+    this.providerDefinitionIds.delete(token)
+    if (affected) {
+      this.runtimes.forEach(runtime => runtime.disposeProviderCapabilities(affected))
+    }
+  }
+
   private registerLoadedDefinitions(
+    token: string,
     result: DataCapabilityProviderLoadedResult | undefined,
     scope: string,
     unregisters: Array<() => void>,
   ) {
-    result?.sources?.forEach(definition => unregisters.push(this.sources.register(definition, { scope, override: true })))
-    result?.operations?.forEach(definition => unregisters.push(this.operations.register(definition, { scope, override: true })))
-    result?.contexts?.forEach(definition => unregisters.push(this.contexts.register(definition, { scope, override: true })))
-    result?.valueEditors?.forEach(definition => unregisters.push(this.valueEditors.register(definition, { scope, override: true })))
-    result?.optionSources?.forEach(definition => unregisters.push(this.optionSources.register(definition, { scope, override: true })))
+    const ids: ProviderDefinitionIds = {
+      sources: new Set(),
+      operations: new Set(),
+      contexts: new Set(),
+      valueEditors: new Set(),
+      optionSources: new Set(),
+    }
+    result?.sources?.forEach((definition) => {
+      ids.sources.add(definition.id)
+      unregisters.push(this.sources.register(definition, { scope, override: true }))
+    })
+    result?.operations?.forEach((definition) => {
+      ids.operations.add(definition.id)
+      unregisters.push(this.operations.register(definition, { scope, override: true }))
+    })
+    result?.contexts?.forEach((definition) => {
+      ids.contexts.add(definition.id)
+      unregisters.push(this.contexts.register(definition, { scope, override: true }))
+    })
+    result?.valueEditors?.forEach((definition) => {
+      ids.valueEditors.add(definition.id)
+      unregisters.push(this.valueEditors.register(definition, { scope, override: true }))
+    })
+    result?.optionSources?.forEach((definition) => {
+      ids.optionSources.add(definition.id)
+      unregisters.push(this.optionSources.register(definition, { scope, override: true }))
+    })
+    this.providerDefinitionIds.set(token, ids)
   }
 
   private async resolveDefinitions<T extends CapabilityDefinitionBase>(
@@ -292,19 +342,6 @@ async function assertExecutable(
       retryable: availability.retryable,
     })
   }
-}
-
-function getProviderIsolationKey(context: CapabilityContext): string {
-  const runtime = context as RuntimeCreateContext
-  return runtime.isolationKey || stableStringify({
-    scopeId: context.scopeId,
-    tenantId: context.tenantId,
-    userId: context.userId,
-    projectId: context.projectId,
-    pageId: context.pageId,
-    routeName: context.routeName,
-    menuCode: context.menuCode,
-  })
 }
 
 function resolveLimit(...values: Array<number | undefined>): number | undefined {
@@ -356,18 +393,22 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   private readonly contexts = new Map<string, unknown>()
   private readonly disposers: Array<() => void> = []
   private readonly preparedOperations = new Map<string, PreparedOperationEntry>()
-  private readonly operationExecutions = new Map<string, OperationExecution>()
+  private readonly confirmedOperations = new Map<string, ConfirmedOperation>()
+  private readonly operationExecutions = new Map<string, OperationExecutionEntry>()
   private readonly sharedConnections = new Map<string, SharedConnection>()
 
   constructor(
     private readonly registry: DefaultDataCapabilityRegistry,
     private readonly runtimeContext: RuntimeCreateContext,
+    private readonly onDispose: () => void,
   ) {
     this.parameters = { ...(runtimeContext.parameters || {}) }
     this.bindingResolver = new BindingResolver(registry.contexts)
   }
 
   connect<T = unknown>(request: DataConnectionRequest): DataConnection<T> {
+    this.assertActive()
+    assertPlanSupported(request.binding)
     const id = request.id || `${request.consumerId}:${Date.now()}`
     const events$ = new Subject<DataConnectionEvent<T>>()
     let stopped = false
@@ -376,6 +417,13 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
 
     const forwardShared = (shared: SharedConnection) => {
       shared.refCount += 1
+      if (shared.lastStatus?.type === 'status' && shared.lastStatus.status === 'completed') {
+        shared.lastData && events$.next(shared.lastData as DataConnectionEvent<T>)
+        events$.next(shared.lastStatus as DataConnectionEvent<T>)
+      } else {
+        shared.lastStatus && events$.next(shared.lastStatus as DataConnectionEvent<T>)
+        shared.lastData && events$.next(shared.lastData as DataConnectionEvent<T>)
+      }
       sharedSubscription = shared.events$.subscribe({
         next: event => events$.next(event as DataConnectionEvent<T>),
         error: error => events$.error(error),
@@ -441,6 +489,8 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   }
 
   async query<T = unknown>(binding: PersistedDataBinding, options: RuntimeQueryOptions = {}): Promise<DataSourceResult<T>> {
+    this.assertActive()
+    assertPlanSupported(binding)
     const definition = this.requireSource(binding.source.capabilityId)
     const signal = options.signal
     const runtimeContext = this.toRuntimeContext(signal)
@@ -468,6 +518,8 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   }
 
   async preview<T = unknown>(request: CapabilityPreviewRequest): Promise<CapabilityPreviewResult<T>> {
+    this.assertActive()
+    assertPlanSupported(request.binding)
     const result = await this.query<T>(request.binding, { timeout: request.timeout, limit: request.limit })
     return {
       data: limitData(result.data, request.limit) as T,
@@ -477,6 +529,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   }
 
   async prepareOperation(binding: PersistedOperationBinding): Promise<PreparedOperation> {
+    this.assertActive()
     const definition = this.requireOperation(binding.operation.capabilityId)
     const operation = await definition.create(binding.operation.config, this.runtimeContext)
     const input = await this.resolveRecord(binding.input)
@@ -495,30 +548,53 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     return cloneCapabilityValue(canonicalPrepared)
   }
 
-  executeOperation(prepared: PreparedOperation): OperationExecution {
-    const existed = this.operationExecutions.get(prepared.id)
-    if (existed) return existed
+  confirmOperation(preparedId: string, proof: OperationConfirmationProof): ConfirmedOperation {
+    this.assertActive()
+    const cached = this.preparedOperations.get(preparedId)
+    if (!cached) {
+      throw createCapabilityError('operation.not_prepared', 'Operation has not been prepared')
+    }
+    const confirmed = deepFreeze({
+      id: `${preparedId}:confirmed:${Date.now()}`,
+      preparedId,
+      capabilityId: cached.prepared.capabilityId,
+      proof: {
+        ...proof,
+        confirmedAt: proof.confirmedAt || Date.now(),
+      },
+    })
+    this.confirmedOperations.set(confirmed.id, confirmed)
+    return cloneCapabilityValue(confirmed)
+  }
 
-    const cached = this.preparedOperations.get(prepared.id)
+  executeOperation(operation: ConfirmedOperation | PreparedOperation): OperationExecution {
+    this.assertActive()
+    const confirmed = this.resolveConfirmedOperation(operation)
+    const existed = this.operationExecutions.get(confirmed.preparedId)
+    if (existed) return existed.execution
+
+    const cached = this.preparedOperations.get(confirmed.preparedId)
     if (!cached) {
       throw createCapabilityError('operation.not_prepared', 'Operation has not been prepared', {
-        capabilityId: prepared.capabilityId,
+        capabilityId: confirmed.capabilityId,
       })
     }
 
     const events$ = new ReplaySubject<OperationEvent>(100)
     const execution: OperationExecution = {
-      id: prepared.id,
+      id: confirmed.preparedId,
       events$: events$.asObservable(),
     }
-    this.operationExecutions.set(prepared.id, execution)
+    const entry: OperationExecutionEntry = { execution }
+    this.operationExecutions.set(confirmed.preparedId, entry)
 
     void (async () => {
       try {
+        this.assertActive()
         const availability = await resolveAvailability(cached.definition, this.toRuntimeContext(), 'execute')
         if (!availability.executable) {
           throw createCapabilityError('operation.unavailable', availability.reason || 'Operation is unavailable', {
-            capabilityId: prepared.capabilityId,
+            capabilityId: confirmed.capabilityId,
             retryable: availability.retryable,
           })
         }
@@ -527,7 +603,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
           error: error => events$.error(error),
           complete: () => events$.complete(),
         })
-        this.disposers.push(() => subscription.unsubscribe())
+        entry.subscription = subscription
       } catch (error) {
         events$.error(error)
       }
@@ -536,20 +612,72 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     return execution
   }
 
+  private resolveConfirmedOperation(operation: ConfirmedOperation | PreparedOperation): ConfirmedOperation {
+    if ('preparedId' in operation) {
+      const cached = this.confirmedOperations.get(operation.id)
+      if (!cached || cached.preparedId !== operation.preparedId) {
+        throw createCapabilityError('operation.confirmation_invalid', 'Operation confirmation is invalid', {
+          capabilityId: operation.capabilityId,
+        })
+      }
+      return cached
+    }
+    const cached = this.preparedOperations.get(operation.id)
+    if (!cached) {
+      throw createCapabilityError('operation.not_prepared', 'Operation has not been prepared', {
+        capabilityId: operation.capabilityId,
+      })
+    }
+    if (cached.prepared.policy.confirmation !== 'none') {
+      throw createCapabilityError('operation.confirmation_required', 'Operation confirmation is required', {
+        capabilityId: cached.prepared.capabilityId,
+      })
+    }
+    return {
+      id: `${operation.id}:implicit`,
+      preparedId: operation.id,
+      capabilityId: operation.capabilityId,
+      proof: { method: 'policy', confirmedAt: Date.now() },
+    }
+  }
+
   updateParameters(values: Record<string, unknown>): void {
+    this.assertActive()
     Object.assign(this.parameters, values)
   }
 
   updateContext(providerId: string, instanceId: string, value: unknown): void {
+    this.assertActive()
     this.contexts.set(`${providerId}:${instanceId}`, value)
   }
 
   async dispose(): Promise<void> {
     if (this.disposed) return
     this.disposed = true
+    this.onDispose()
     this.disposers.splice(0).forEach(disposer => disposer())
     for (const key of [...this.sharedConnections.keys()]) {
       this.disposeSharedConnection(key)
+    }
+    this.operationExecutions.forEach(entry => entry.subscription?.unsubscribe())
+    this.operationExecutions.clear()
+    for (const entry of this.preparedOperations.values()) {
+      await entry.operation.dispose?.()
+    }
+    this.preparedOperations.clear()
+    this.confirmedOperations.clear()
+    this.contexts.clear()
+  }
+
+  disposeProviderCapabilities(affected: ProviderDefinitionIds): void {
+    if (this.disposed) return
+    for (const [key, shared] of [...this.sharedConnections.entries()]) {
+      if (affected.sources.has(shared.capabilityId)) {
+        this.disposeSharedConnection(key, createCapabilityError('capability.unavailable', 'Capability provider has been unregistered', {
+          capabilityId: shared.capabilityId,
+          retryable: true,
+        }))
+      }
     }
   }
 
@@ -561,10 +689,11 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   ): Promise<SharedConnection> {
     const abortController = new AbortController()
     const shared: SharedConnection = {
-      events$: new ReplaySubject<DataConnectionEvent>(1),
+      events$: new Subject<DataConnectionEvent>(),
       refCount: 0,
       abortController,
       disposed: false,
+      capabilityId: definition.id,
     }
     this.sharedConnections.set(key, shared)
 
@@ -577,34 +706,30 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         return shared
       }
       shared.dataSource = dataSource
-      let emittedData = false
-      shared.events$.next({ type: 'status', status: 'connected' })
+      this.emitSharedConnection(shared, { type: 'status', status: 'connected' })
       shared.subscription = dataSource.query<T>({ ...request, signal: abortController.signal }, runtimeContext)
         .pipe(request.timeout ? rxTimeout({ first: request.timeout }) : source => source)
         .subscribe({
           next: (result) => {
-            emittedData = true
             const mapped = applyOutputMapping(result.data, binding.mapping)
-            shared.events$.next({
+            this.emitSharedConnection(shared, {
               type: 'data',
               result: limitDataSourceResult({ ...result, data: mapped as T }, request.limit),
             })
           },
           error: (error) => {
-            shared.events$.next({ type: 'status', status: 'failed', error: toCapabilityError(error, binding.source.capabilityId) })
+            this.emitSharedConnection(shared, { type: 'status', status: 'failed', error: toCapabilityError(error, binding.source.capabilityId) })
             shared.events$.complete()
             this.disposeSharedConnection(key)
           },
           complete: () => {
-            if (!emittedData) {
-              shared.events$.next({ type: 'status', status: 'completed' })
-            }
+            this.emitSharedConnection(shared, { type: 'status', status: 'completed' })
             shared.events$.complete()
             this.disposeSharedConnection(key)
           },
         })
     } catch (error) {
-      shared.events$.next({ type: 'status', status: 'failed', error: toCapabilityError(error, binding.source.capabilityId) })
+      this.emitSharedConnection(shared, { type: 'status', status: 'failed', error: toCapabilityError(error, binding.source.capabilityId) })
       shared.events$.complete()
       this.disposeSharedConnection(key)
     }
@@ -620,14 +745,33 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     }
   }
 
-  private disposeSharedConnection(key: string): void {
+  private emitSharedConnection(shared: SharedConnection, event: DataConnectionEvent): void {
+    if (event.type === 'status') {
+      shared.lastStatus = event
+    } else if (event.type === 'data') {
+      shared.lastData = event
+    }
+    shared.events$.next(event)
+  }
+
+  private disposeSharedConnection(key: string, unavailable?: ReturnType<typeof createCapabilityError>): void {
     const shared = this.sharedConnections.get(key)
     if (!shared || shared.disposed) return
     shared.disposed = true
+    if (unavailable) {
+      this.emitSharedConnection(shared, { type: 'status', status: 'unavailable', error: unavailable })
+    }
     shared.abortController.abort()
     shared.subscription?.unsubscribe()
     void shared.dataSource?.dispose?.()
+    shared.events$.complete()
     this.sharedConnections.delete(key)
+  }
+
+  private assertActive(): void {
+    if (this.disposed) {
+      throw createCapabilityError('runtime.disposed', 'Runtime has been disposed')
+    }
   }
 
   private async resolveRecord(values: PersistedDataBinding['query'], signal?: AbortSignal) {
@@ -675,6 +819,15 @@ function getExecutionKey(
 ): string {
   const { signal: _signal, ...stableRequest } = request
   return stableStringify({ source: stableRequest, mapping: binding.mapping, plan: binding.plan })
+}
+
+
+function assertPlanSupported(binding: PersistedDataBinding): void {
+  if (binding.plan?.nodes?.length) {
+    throw createCapabilityError('data_source.plan.unsupported', 'Data source plan is not supported yet', {
+      capabilityId: binding.source.capabilityId,
+    })
+  }
 }
 
 function mergeOperationPolicy(

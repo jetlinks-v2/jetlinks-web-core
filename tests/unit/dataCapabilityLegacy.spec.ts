@@ -6,7 +6,7 @@ import {
   type CapabilityContext,
 } from '../../src/data-capability'
 
-const context: CapabilityContext = { scopeId: 'unit-test', tenantId: 'tenant-a' }
+const context: CapabilityContext = {}
 let listContext: CapabilityContext | undefined
 
 const provider = createLegacyCommandProvider({
@@ -53,8 +53,8 @@ const provider = createLegacyCommandProvider({
   },
 })
 
-const loaded = await provider.load?.(context)
-assert.equal(listContext?.tenantId, 'tenant-a')
+const loaded = await provider.load?.()
+assert.deepEqual(listContext, {})
 assert.equal(loaded?.sources?.length, 2)
 assert.equal(loaded?.operations?.length, 1)
 assert.equal(loaded?.sources?.[0].id, 'legacy.command.datasource.device-service.query-properties')

@@ -61,12 +61,12 @@ const operation: OperationDefinition = {
 registry.sources.register(source)
 registry.operations.register(operation)
 
-const catalog = await registry.resolveCatalog({ scopeId: 'unit-test' })
+const catalog = await registry.resolveCatalog({})
 assert.equal(catalog.sources.length, 1)
 assert.equal(catalog.operations.length, 1)
 assert.equal(catalog.sources[0].availability.executable, true)
 
-const runtime = registry.createRuntime({ scopeId: 'unit-test', runtimeId: 'unit-test', parameters: { deviceId: 'd1' } })
+const runtime = registry.createRuntime({ runtimeId: 'unit-test', parameters: { deviceId: 'd1' } })
 const queryResult = await runtime.query({
   version: 1,
   source: { capabilityId: source.id, version: 1, config: { fixed: true } },
@@ -82,30 +82,37 @@ const prepared = await runtime.prepareOperation({
 assert.equal(prepared.capabilityId, operation.id)
 assert.deepEqual(prepared.request.input, { value: 42 })
 await runtime.dispose()
+await assert.rejects(
+  () => runtime.query({ version: 1, source: { capabilityId: source.id, version: 1 } }),
+  (error: any) => error?.code === 'runtime.disposed',
+)
 
 const providerRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let loadCount = 0
+let loadArgCount = -1
 providerRegistry.registerProvider({
-  id: 'tenant-aware-provider',
-  owner: { moduleId: 'test-ui', providerId: 'tenant-aware-provider' },
-  load(context) {
+  id: 'neutral-provider',
+  owner: { moduleId: 'test-ui', providerId: 'neutral-provider' },
+  load(...args: any[]) {
     loadCount += 1
+    loadArgCount = args.length
     return {
       sources: [{
-        id: 'tenant-aware-source',
+        id: 'neutral-source',
         kind: 'data-source',
         version: 1,
-        name: `Tenant ${context.tenantId}`,
-        owner: { moduleId: 'test-ui', providerId: 'tenant-aware-provider' },
+        name: 'Neutral Source',
+        owner: { moduleId: 'test-ui', providerId: 'neutral-provider' },
         modes: ['snapshot'],
-        create: () => ({ query: () => of({ data: context.tenantId }) as any }),
+        create: () => ({ query: () => of({ data: 'neutral' }) as any }),
       }],
     }
   },
 })
-assert.equal((await providerRegistry.resolveCatalog({ scopeId: 'unit-test', tenantId: 'a' })).sources[0].definition.name, 'Tenant a')
-assert.equal((await providerRegistry.resolveCatalog({ scopeId: 'unit-test', tenantId: 'b' })).sources[0].definition.name, 'Tenant b')
-assert.equal(loadCount, 2)
+assert.equal((await providerRegistry.resolveCatalog({ parameters: { feature: 'a' } })).sources[0].definition.name, 'Neutral Source')
+assert.equal((await providerRegistry.resolveCatalog({ parameters: { feature: 'b' } })).sources[0].definition.name, 'Neutral Source')
+assert.equal(loadCount, 1)
+assert.equal(loadArgCount, 0)
 
 const unavailableRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let unavailableCreateCount = 0
@@ -119,7 +126,7 @@ unavailableRegistry.sources.register({
   },
 })
 await assert.rejects(
-  () => unavailableRegistry.createRuntime({ scopeId: 'unit-test', runtimeId: 'unavailable' }).query({
+  () => unavailableRegistry.createRuntime({ runtimeId: 'unavailable' }).query({
     version: 1,
     source: { capabilityId: 'test.source.unavailable', version: 1 },
   }),
@@ -143,7 +150,7 @@ abortRegistry.sources.register({
     dispose() { disposeCount += 1 },
   }),
 })
-const abortRuntime = abortRegistry.createRuntime({ scopeId: 'unit-test', runtimeId: 'abort' })
+const abortRuntime = abortRegistry.createRuntime({ runtimeId: 'abort' })
 const abortController = new AbortController()
 const abortConnection = abortRuntime.connect({
   consumerId: 'abort-consumer',
@@ -160,6 +167,7 @@ assert.equal(disposeCount, 1)
 await abortRuntime.dispose()
 
 let executedInput: unknown
+let operationDisposeCount = 0
 const canonicalRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 canonicalRegistry.operations.register({
   ...operation,
@@ -169,9 +177,10 @@ canonicalRegistry.operations.register({
       executedInput = prepared.request.input
       return of({ type: 'completed' })
     },
+    dispose() { operationDisposeCount += 1 },
   }),
 })
-const canonicalRuntime = canonicalRegistry.createRuntime({ scopeId: 'unit-test', runtimeId: 'canonical' })
+const canonicalRuntime = canonicalRegistry.createRuntime({ runtimeId: 'canonical' })
 const canonicalPrepared = await canonicalRuntime.prepareOperation({
   version: 1,
   operation: { capabilityId: 'test.operation.canonical', version: 1 },
@@ -181,6 +190,27 @@ canonicalPrepared.request.input = { value: 2 }
 await firstValueFrom(canonicalRuntime.executeOperation(canonicalPrepared).events$)
 assert.deepEqual(executedInput, { value: 1 })
 await canonicalRuntime.dispose()
+assert.equal(operationDisposeCount, 1)
+
+const confirmRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+confirmRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.confirm',
+  policy: { ...basePolicy, risk: 'high', confirmation: 'always' },
+})
+const confirmRuntime = confirmRegistry.createRuntime({ runtimeId: 'confirm' })
+const needConfirm = await confirmRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.confirm', version: 1 },
+})
+assert.equal(needConfirm.policy.confirmation, 'always')
+assert.throws(
+  () => confirmRuntime.executeOperation(needConfirm),
+  (error: any) => error?.code === 'operation.confirmation_required',
+)
+const confirmed = confirmRuntime.confirmOperation(needConfirm.id, { method: 'ui', reason: 'unit-test' })
+await firstValueFrom(confirmRuntime.executeOperation(confirmed).events$)
+await confirmRuntime.dispose()
 
 const groupRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let groupQueryCount = 0
@@ -195,7 +225,7 @@ groupRegistry.sources.register({
     },
   }),
 })
-const groupRuntime = groupRegistry.createRuntime({ scopeId: 'unit-test', runtimeId: 'group' })
+const groupRuntime = groupRegistry.createRuntime({ runtimeId: 'group' })
 const temperatureEvents: DataConnectionEvent[] = []
 const humidityEvents: DataConnectionEvent[] = []
 groupRuntime.connect({
@@ -218,7 +248,7 @@ policyRegistry.operations.register({
   id: 'test.operation.policy',
   policy: { ...basePolicy, batch: false },
 })
-const policyRuntime = policyRegistry.createRuntime({ scopeId: 'unit-test', runtimeId: 'policy' })
+const policyRuntime = policyRegistry.createRuntime({ runtimeId: 'policy' })
 const policyPrepared = await policyRuntime.prepareOperation({
   version: 1,
   operation: { capabilityId: 'test.operation.policy', version: 1 },
@@ -247,7 +277,7 @@ previewRegistry.sources.register({
     },
   }),
 })
-const preview = await previewRegistry.createRuntime({ scopeId: 'unit-test', runtimeId: 'preview' }).preview({
+const preview = await previewRegistry.createRuntime({ runtimeId: 'preview' }).preview({
   binding: { version: 1, source: { capabilityId: 'test.source.preview-limit', version: 1 } },
   limit: 1,
 })
@@ -262,7 +292,7 @@ replayRegistry.sources.register({
   modes: ['stream'],
   create: () => ({ query: () => upstream as any }),
 })
-const replayRuntime = replayRegistry.createRuntime({ scopeId: 'unit-test', runtimeId: 'replay' })
+const replayRuntime = replayRegistry.createRuntime({ runtimeId: 'replay' })
 const replayBinding = { version: 1, source: { capabilityId: 'test.source.replay', version: 1 } }
 replayRuntime.connect({ consumerId: 'first', binding: replayBinding }).events$.subscribe(() => undefined)
 await wait()
@@ -273,11 +303,75 @@ const lateEvents: DataConnectionEvent[] = []
 replayRuntime.connect({ consumerId: 'late', binding: replayBinding }).events$.subscribe(event => lateEvents.push(event))
 await wait()
 assert.equal(lateEvents.filter(event => event.type === 'data').length, 1)
+assert.equal((lateEvents.find(event => event.type === 'status') as any).status, 'connected')
 assert.deepEqual((lateEvents.find(event => event.type === 'data') as any).result.data, [3])
 await replayRuntime.dispose()
 
+const finiteRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+finiteRegistry.sources.register({
+  ...source,
+  id: 'test.source.finite',
+  create: () => ({ query: () => of({ data: [1] }) as any }),
+})
+const finiteEvents: DataConnectionEvent[] = []
+finiteRegistry.createRuntime({ runtimeId: 'finite' }).connect({
+  consumerId: 'finite',
+  binding: { version: 1, source: { capabilityId: 'test.source.finite', version: 1 } },
+}).events$.subscribe(event => finiteEvents.push(event))
+await wait()
+assert.equal(finiteEvents.some(event => event.type === 'data'), true)
+assert.equal(finiteEvents.some(event => event.type === 'status' && event.status === 'completed'), true)
+
+const unregisterRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let providerDisposeCount = 0
+let upstreamDisposeCount = 0
+let providerAbortCount = 0
+const unregisterProvider = unregisterRegistry.registerProvider({
+  id: 'unregister-provider',
+  owner: { moduleId: 'test-ui', providerId: 'unregister-provider' },
+  load: () => ({
+    sources: [{
+      ...source,
+      id: 'test.source.unregister',
+      modes: ['stream'],
+      owner: { moduleId: 'test-ui', providerId: 'unregister-provider' },
+      create: () => ({
+        query(request) {
+          request.signal?.addEventListener('abort', () => { providerAbortCount += 1 }, { once: true })
+          return new Observable(() => () => { upstreamDisposeCount += 1 })
+        },
+        dispose() { providerDisposeCount += 1 },
+      }),
+    }],
+  }),
+})
+await unregisterRegistry.resolveCatalog({})
+const unregisterRuntime = unregisterRegistry.createRuntime({ runtimeId: 'unregister' })
+const unregisterEvents: DataConnectionEvent[] = []
+unregisterRuntime.connect({
+  consumerId: 'unregister',
+  binding: { version: 1, source: { capabilityId: 'test.source.unregister', version: 1 } },
+}).events$.subscribe(event => unregisterEvents.push(event))
+await wait()
+unregisterProvider()
+await wait()
+assert.equal(unregisterEvents.some(event => event.type === 'status' && event.status === 'unavailable'), true)
+assert.equal(providerAbortCount, 1)
+assert.equal(upstreamDisposeCount, 1)
+assert.equal(providerDisposeCount, 1)
+await unregisterRuntime.dispose()
+
+await assert.rejects(
+  () => registry.createRuntime({ runtimeId: 'plan-test' }).query({
+    version: 1,
+    source: { capabilityId: source.id, version: 1 },
+    plan: { version: 1, nodes: [{ id: 'node1', source: { capabilityId: source.id, version: 1 } }] },
+  }),
+  (error: any) => error?.code === 'data_source.plan.unsupported',
+)
+
 await assert.rejects(async () => {
-  await registry.createRuntime({ scopeId: 'unit-test', runtimeId: 'expression-test' }).prepareOperation({
+  await registry.createRuntime({ runtimeId: 'expression-test' }).prepareOperation({
     version: 1,
     operation: { capabilityId: operation.id, version: 1 },
     input: {

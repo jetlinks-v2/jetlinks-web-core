@@ -72,15 +72,16 @@ export function createLegacyCommandProvider(options: LegacyCommandProviderOption
       moduleId: options.moduleId,
       providerId: options.providerId,
     },
-    async load(context) {
-      const catalog = await options.listCommands(context)
+    async load() {
+      const providerContext: CapabilityContext = {}
+      const catalog = await options.listCommands(providerContext)
       const sources: DataSourceDefinition[] = []
       const operations: OperationDefinition[] = []
 
       for (const command of catalog.commands) {
         const metadata = {
           ...(command.metadata || {}),
-          ...(options.getMetadata ? await options.getMetadata(command, context) : {}),
+          ...(options.getMetadata ? await options.getMetadata(command, providerContext) : {}),
         }
         if (command.forQuery || command.type === 'query') {
           sources.push(toDataSourceDefinition(options, command, metadata))

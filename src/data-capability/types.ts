@@ -27,25 +27,12 @@ export interface CapabilityAvailability {
 }
 
 export interface CapabilityContext {
-  scopeId: string
-  tenantId?: string
-  userId?: string
-  projectId?: string
-  pageId?: string
-  routeName?: string
-  menuCode?: string
-  subject?: {
-    type?: string
-    id?: string
-    name?: string
-  }
   parameters?: Record<string, unknown>
   attributes?: Record<string, unknown>
 }
 
 export interface RuntimeCreateContext extends CapabilityContext {
   runtimeId: string
-  isolationKey?: string
 }
 
 export type CapabilityAvailabilityResolver = (
@@ -261,6 +248,22 @@ export interface PreparedOperation {
   summary?: string
   impacts?: unknown[]
   diagnostics?: Record<string, unknown>
+}
+
+export interface OperationConfirmationProof {
+  confirmedAt?: number
+  actor?: string
+  method?: 'ui' | 'policy' | 'provider' | 'external'
+  token?: string
+  reason?: string
+  metadata?: Record<string, unknown>
+}
+
+export interface ConfirmedOperation {
+  id: string
+  preparedId: string
+  capabilityId: string
+  proof: OperationConfirmationProof
 }
 
 export type OperationEvent =
@@ -522,7 +525,7 @@ export interface DataCapabilityProvider {
   id: string
   owner: CapabilityOwner
   order?: number
-  load?(context: CapabilityContext): Promise<DataCapabilityProviderLoadedResult> | DataCapabilityProviderLoadedResult
+  load?(): Promise<DataCapabilityProviderLoadedResult> | DataCapabilityProviderLoadedResult
   dispose?(): void | Promise<void>
 }
 
@@ -548,7 +551,8 @@ export interface DataCapabilityRuntime {
   query<T = unknown>(binding: PersistedDataBinding, options?: RuntimeQueryOptions): Promise<DataSourceResult<T>>
   preview<T = unknown>(request: CapabilityPreviewRequest): Promise<CapabilityPreviewResult<T>>
   prepareOperation(binding: PersistedOperationBinding): Promise<PreparedOperation>
-  executeOperation(prepared: PreparedOperation): OperationExecution
+  confirmOperation(preparedId: string, proof: OperationConfirmationProof): ConfirmedOperation
+  executeOperation(operation: ConfirmedOperation | PreparedOperation): OperationExecution
   updateParameters(values: Record<string, unknown>): void
   updateContext(providerId: string, instanceId: string, value: unknown): void
   dispose(): Promise<void>
@@ -561,7 +565,7 @@ export interface DataCapabilityRegistry {
   readonly valueEditors: CapabilityRegistry<ValueEditorDefinition>
   readonly optionSources: CapabilityRegistry<OptionSourceDefinition>
   registerProvider(provider: DataCapabilityProvider, options?: CapabilityRegisterOptions): () => void
-  loadModuleProviders(context: CapabilityContext): Promise<void>
+  loadModuleProviders(context?: CapabilityContext): Promise<void>
   resolveCatalog(context: CapabilityContext, query?: CapabilityQuery): Promise<ResolvedCapabilityCatalog>
   onChange(listener: () => void): () => void
   createRuntime(context: RuntimeCreateContext): DataCapabilityRuntime
