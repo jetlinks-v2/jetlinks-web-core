@@ -88,6 +88,9 @@ type QueryResource = {
   registration?: ProviderRegistrationStamp
   dataSource?: DataSource
   subscription?: Subscription
+  cancelPromise: Promise<never>
+  cancelHandlers: Set<(error: unknown) => void>
+  settled?: boolean
   cancel?: (error: unknown) => void
 }
 
@@ -371,15 +374,15 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     await this.loadRegisteredProviders(context)
     await this.loadModuleProviders(context)
     return {
-      sources: await this.resolveDefinitions(this.sources.list(), context, query, definition => (
+      sources: await this.resolveDefinitions('sources', this.sources.list(), context, query, definition => (
         !query?.sourceModes?.length || query.sourceModes.some(mode => definition.modes.includes(mode))
       )),
-      operations: await this.resolveDefinitions(this.operations.list(), context, query, definition => (
+      operations: await this.resolveDefinitions('operations', this.operations.list(), context, query, definition => (
         !query?.operationActions?.length || query.operationActions.includes(definition.action)
       )),
-      contexts: await this.resolveDefinitions(this.contexts.list(), context, query),
-      valueEditors: await this.resolveDefinitions(this.valueEditors.list(), context, query),
-      optionSources: await this.resolveDefinitions(this.optionSources.list(), context, query),
+      contexts: await this.resolveDefinitions('contexts', this.contexts.list(), context, query),
+      valueEditors: await this.resolveDefinitions('valueEditors', this.valueEditors.list(), context, query),
+      optionSources: await this.resolveDefinitions('optionSources', this.optionSources.list(), context, query),
     }
   }
 
@@ -496,32 +499,45 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
       valueEditors: new Set(),
       optionSources: new Set(),
     }
-    result?.sources?.forEach((definition) => {
-      ids.sources.add(definition.id)
-      this.definitionOwners.set(definition, stamp)
-      unregisters.push(this.sources.register(definition, { scope: entry.scope, override: entry.override }))
-    })
-    result?.operations?.forEach((definition) => {
-      ids.operations.add(definition.id)
-      this.definitionOwners.set(definition, stamp)
-      unregisters.push(this.operations.register(definition, { scope: entry.scope, override: entry.override }))
-    })
-    result?.contexts?.forEach((definition) => {
-      ids.contexts.add(definition.id)
-      this.definitionOwners.set(definition, stamp)
-      unregisters.push(this.contexts.register(definition, { scope: entry.scope, override: entry.override }))
-    })
-    result?.valueEditors?.forEach((definition) => {
-      ids.valueEditors.add(definition.id)
-      this.definitionOwners.set(definition, stamp)
-      unregisters.push(this.valueEditors.register(definition, { scope: entry.scope, override: entry.override }))
-    })
-    result?.optionSources?.forEach((definition) => {
-      ids.optionSources.add(definition.id)
-      this.definitionOwners.set(definition, stamp)
-      unregisters.push(this.optionSources.register(definition, { scope: entry.scope, override: entry.override }))
-    })
-    this.providerDefinitionIds.set(entry.token, ids)
+    const ownedDefinitions: CapabilityDefinitionBase[] = []
+    try {
+      result?.sources?.forEach((definition) => {
+        ids.sources.add(definition.id)
+        this.definitionOwners.set(definition, stamp)
+        ownedDefinitions.push(definition)
+        unregisters.push(this.sources.register(definition, { scope: entry.scope, override: entry.override }))
+      })
+      result?.operations?.forEach((definition) => {
+        ids.operations.add(definition.id)
+        this.definitionOwners.set(definition, stamp)
+        ownedDefinitions.push(definition)
+        unregisters.push(this.operations.register(definition, { scope: entry.scope, override: entry.override }))
+      })
+      result?.contexts?.forEach((definition) => {
+        ids.contexts.add(definition.id)
+        this.definitionOwners.set(definition, stamp)
+        ownedDefinitions.push(definition)
+        unregisters.push(this.contexts.register(definition, { scope: entry.scope, override: entry.override }))
+      })
+      result?.valueEditors?.forEach((definition) => {
+        ids.valueEditors.add(definition.id)
+        this.definitionOwners.set(definition, stamp)
+        ownedDefinitions.push(definition)
+        unregisters.push(this.valueEditors.register(definition, { scope: entry.scope, override: entry.override }))
+      })
+      result?.optionSources?.forEach((definition) => {
+        ids.optionSources.add(definition.id)
+        this.definitionOwners.set(definition, stamp)
+        ownedDefinitions.push(definition)
+        unregisters.push(this.optionSources.register(definition, { scope: entry.scope, override: entry.override }))
+      })
+      this.providerDefinitionIds.set(entry.token, ids)
+    } catch (error) {
+      unregisters.splice(0).reverse().forEach(unregister => unregister())
+      ownedDefinitions.forEach(definition => this.definitionOwners.delete(definition))
+      this.providerDefinitionIds.delete(entry.token)
+      throw error
+    }
   }
 
 
@@ -530,14 +546,16 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     definition: T,
     scope: string,
   ): ProviderRegistrationStamp | undefined {
-    let stamp = this.definitionOwners.get(definition)
-    if (!stamp) {
-      const token = `direct:${kind}:${definition.id}:${scope}:${providerRegistrationSequence++}`
-      stamp = {
-        token,
-        generation: 0,
-        registrationId: `${token}:0`,
-      }
+    const existed = this.definitionOwners.get(definition)
+    const token = existed?.token || `direct:${kind}:${definition.id}:${scope}:${providerRegistrationSequence++}`
+    const stamp: ProviderRegistrationStamp = existed && !existed.token.startsWith('direct:')
+      ? existed
+      : {
+          token,
+          generation: existed?.generation || 0,
+          registrationId: `${token}:${providerRegistrationSequence++}`,
+        }
+    if (!existed) {
       const ids: ProviderDefinitionIds = {
         stamp,
         sources: new Set(),
@@ -547,16 +565,19 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
         optionSources: new Set(),
       }
       ids[kind].add(definition.id)
-      this.definitionOwners.set(definition, stamp)
       this.providerDefinitionIds.set(token, ids)
+    } else {
+      const ids = this.providerDefinitionIds.get(token)
+      if (ids) ids.stamp = stamp
     }
-    this.activeRegistrations.add(this.getActiveRegistrationKey(stamp, definition.id))
+    this.definitionOwners.set(definition, stamp)
+    this.activeRegistrations.add(this.getActiveRegistrationKey(stamp, kind, definition.id))
     return stamp
   }
 
   private unregisterDefinition(kind: ProviderDefinitionKind, definition: CapabilityDefinitionBase, stamp?: ProviderRegistrationStamp): void {
     if (!stamp) return
-    this.activeRegistrations.delete(this.getActiveRegistrationKey(stamp, definition.id))
+    this.activeRegistrations.delete(this.getActiveRegistrationKey(stamp, kind, definition.id))
     const affected: ProviderDefinitionIds = {
       stamp,
       sources: new Set(),
@@ -569,14 +590,14 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     this.runtimes.forEach(runtime => runtime.disposeProviderCapabilities(affected))
   }
 
-  isRegistrationActive(stamp: ProviderRegistrationStamp | undefined, capabilityId?: string): boolean {
+  isRegistrationActive(stamp: ProviderRegistrationStamp | undefined, kind?: ProviderDefinitionKind, capabilityId?: string): boolean {
     if (!stamp) return true
-    if (capabilityId) return this.activeRegistrations.has(this.getActiveRegistrationKey(stamp, capabilityId))
+    if (kind && capabilityId) return this.activeRegistrations.has(this.getActiveRegistrationKey(stamp, kind, capabilityId))
     return [...this.activeRegistrations].some(key => key.startsWith(`${stamp.registrationId}:`))
   }
 
-  private getActiveRegistrationKey(stamp: ProviderRegistrationStamp, capabilityId: string): string {
-    return `${stamp.registrationId}:${capabilityId}`
+  private getActiveRegistrationKey(stamp: ProviderRegistrationStamp, kind: ProviderDefinitionKind, capabilityId: string): string {
+    return `${stamp.registrationId}:${kind}:${capabilityId}`
   }
 
   getDefinitionRegistration(definition: CapabilityDefinitionBase): ProviderRegistrationStamp | undefined {
@@ -585,6 +606,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   }
 
   private async resolveDefinitions<T extends CapabilityDefinitionBase>(
+    kind: ProviderDefinitionKind,
     definitions: T[],
     context: CapabilityContext,
     query?: CapabilityQuery,
@@ -595,7 +617,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
       if (!matchesCapabilityQuery(definition, query) || (extra && !extra(definition))) continue
       const availability = await resolveAvailability(definition, context, 'discover')
       const registration = this.definitionOwners.get(definition)
-      if (registration && !this.isRegistrationActive(registration, definition.id)) continue
+      if (registration && !this.isRegistrationActive(registration, kind, definition.id)) continue
       if (!query?.includeUnavailable && !availability.discoverable) continue
       result.push({ definition, availability })
     }
@@ -724,16 +746,16 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         const binding = request.binding
         const definition = this.requireSource(binding.source)
         const registration = this.registry.getDefinitionRegistration(definition)
-        this.assertRegistrationActive(registration, definition.id)
+        this.assertRegistrationActive(registration, 'sources', definition.id)
         const signal = request.options?.signal
         const runtimeContext = this.toRuntimeContext(signal)
         await assertExecutable(definition, runtimeContext)
         this.assertActive()
-        this.assertRegistrationActive(registration, definition.id)
+        this.assertRegistrationActive(registration, 'sources', definition.id)
         if (stopped || signal?.aborted) return
         const query = await this.resolveRecord(binding.query, signal)
         this.assertActive()
-        this.assertRegistrationActive(registration, definition.id)
+        this.assertRegistrationActive(registration, 'sources', definition.id)
         if (stopped || signal?.aborted) return
         const resolvedRequest = normalizeDataSourceRequest(definition, {
           capabilityId: binding.source.capabilityId,
@@ -786,15 +808,26 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     assertPlanSupported(binding)
     const definition = this.requireSource(binding.source)
     const registration = this.registry.getDefinitionRegistration(definition)
-    this.assertRegistrationActive(registration, definition.id)
+    this.assertRegistrationActive(registration, 'sources', definition.id)
     const externalSignal = options.signal
+    const cancelHandlers = new Set<(error: unknown) => void>()
     const queryResource: QueryResource = {
       abortController: new AbortController(),
       capabilityId: definition.id,
       registration,
+      cancelHandlers,
+      cancelPromise: new Promise<never>((_, reject) => {
+        cancelHandlers.add(reject)
+      }),
+    }
+    queryResource.cancel = (error: unknown) => {
+      if (queryResource.settled || queryResource.abortController.signal.aborted) return
+      queryResource.abortController.abort()
+      queryResource.subscription?.unsubscribe()
+      queryResource.cancelHandlers.forEach(handler => handler(error))
+      queryResource.cancelHandlers.clear()
     }
     const abortByExternal = () => {
-      queryResource.abortController.abort()
       queryResource.cancel?.(createCapabilityError('runtime.aborted', 'Runtime query has been aborted', {
         capabilityId: binding.source.capabilityId,
       }))
@@ -804,14 +837,14 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     this.queryResources.add(queryResource)
     const runtimeContext = this.toRuntimeContext(queryResource.abortController.signal)
     try {
-      await assertExecutable(definition, runtimeContext)
+      await raceQueryCancel(assertExecutable(definition, runtimeContext), queryResource)
       this.assertActive()
       this.assertQueryNotAborted(queryResource, definition.id)
-      this.assertRegistrationActive(registration, definition.id)
-      const query = await this.resolveRecord(binding.query, queryResource.abortController.signal)
+      this.assertRegistrationActive(registration, 'sources', definition.id)
+      const query = await raceQueryCancel(this.resolveRecord(binding.query, queryResource.abortController.signal), queryResource)
       this.assertActive()
       this.assertQueryNotAborted(queryResource, definition.id)
-      this.assertRegistrationActive(registration, definition.id)
+      this.assertRegistrationActive(registration, 'sources', definition.id)
       const resolvedRequest = normalizeDataSourceRequest(definition, {
         capabilityId: binding.source.capabilityId,
         version: binding.source.version,
@@ -821,19 +854,20 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         limit: resolveLimit(options.limit, definition.defaults?.limit),
         timeout: options.timeout || definition.defaults?.timeout,
       }, runtimeContext)
-      const dataSource = await definition.create(resolvedRequest.config, this.runtimeContext)
+      const dataSource = await raceQueryCancel(Promise.resolve(definition.create(resolvedRequest.config, this.runtimeContext)), queryResource)
       queryResource.dataSource = dataSource
       this.assertActive()
       this.assertQueryNotAborted(queryResource, definition.id)
-      this.assertRegistrationActive(registration, definition.id)
-      const result = await firstDataSourceResult<T>(
+      this.assertRegistrationActive(registration, 'sources', definition.id)
+      const result = await raceQueryCancel(firstDataSourceResult<T>(
         dataSource.query<T>(resolvedRequest, runtimeContext)
           .pipe(resolvedRequest.timeout ? rxTimeout({ first: resolvedRequest.timeout }) : source => source),
         queryResource,
-      )
+      ), queryResource)
       this.assertActive()
       this.assertQueryNotAborted(queryResource, definition.id)
-      this.assertRegistrationActive(registration, definition.id)
+      this.assertRegistrationActive(registration, 'sources', definition.id)
+      queryResource.settled = true
       return limitDataSourceResult({ ...result, data: applyOutputMapping(result.data, binding.mapping) as T }, resolvedRequest.limit)
     } finally {
       externalSignal?.removeEventListener('abort', abortByExternal)
@@ -860,14 +894,14 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     this.assertActive()
     const definition = this.requireOperation(binding.operation)
     const registration = this.registry.getDefinitionRegistration(definition)
-    this.assertRegistrationActive(registration, definition.id)
+    this.assertRegistrationActive(registration, 'operations', definition.id)
     const operation = await definition.create(binding.operation.config, this.runtimeContext)
     try {
       this.assertActive()
-      this.assertRegistrationActive(registration, definition.id)
+      this.assertRegistrationActive(registration, 'operations', definition.id)
       const input = await this.resolveRecord(binding.input)
       this.assertActive()
-      this.assertRegistrationActive(registration, definition.id)
+      this.assertRegistrationActive(registration, 'operations', definition.id)
       const policy = mergeOperationPolicy(definition.policy, binding.policyOverride)
       const request = { config: binding.operation.config, input }
       const prepared = operation.prepare
@@ -879,7 +913,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
             policy,
           }
       this.assertActive()
-      this.assertRegistrationActive(registration, definition.id)
+      this.assertRegistrationActive(registration, 'operations', definition.id)
       const canonicalPrepared = freezePreparedOperation({ ...prepared, policy: mergeOperationPolicy(policy, prepared.policy) })
       this.preparedOperations.set(canonicalPrepared.id, { definition, registration, operation, prepared: canonicalPrepared })
       return cloneCapabilityValue(canonicalPrepared)
@@ -934,7 +968,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         this.assertActive()
         const availability = await resolveAvailability(cached.definition, this.toRuntimeContext(), 'execute')
         this.assertActive()
-        this.assertRegistrationActive(cached.registration, cached.definition.id)
+        this.assertRegistrationActive(cached.registration, 'operations', cached.definition.id)
         if (!availability.executable) {
           throw createCapabilityError('operation.unavailable', availability.reason || 'Operation is unavailable', {
             capabilityId: confirmed.capabilityId,
@@ -942,7 +976,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
           })
         }
         this.assertActive()
-        this.assertRegistrationActive(cached.registration, cached.definition.id)
+        this.assertRegistrationActive(cached.registration, 'operations', cached.definition.id)
         entry.dispatched = true
         const subscription = cached.operation.execute(cached.prepared, this.toRuntimeContext()).subscribe({
           next: event => events$.next(event),
@@ -1084,14 +1118,14 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       const runtimeContext = this.toRuntimeContext(abortController.signal)
       await assertExecutable(definition, runtimeContext)
       this.assertActive()
-      this.assertRegistrationActive(registration, definition.id)
+      this.assertRegistrationActive(registration, 'sources', definition.id)
       const dataSource = await definition.create(request.config, this.runtimeContext)
       createdDataSource = dataSource
-      if (shared.disposed || this.disposed || !this.registry.isRegistrationActive(registration, definition.id)) {
+      if (shared.disposed || this.disposed || !this.registry.isRegistrationActive(registration, 'sources', definition.id)) {
         await dataSource.dispose?.()
         createdDataSource = undefined
         this.assertActive()
-        this.assertRegistrationActive(registration, definition.id)
+        this.assertRegistrationActive(registration, 'sources', definition.id)
         return shared
       }
       shared.dataSource = dataSource
@@ -1172,8 +1206,8 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     }
   }
 
-  private assertRegistrationActive(registration: ProviderRegistrationStamp | undefined, capabilityId?: string): void {
-    if (!this.registry.isRegistrationActive(registration, capabilityId)) {
+  private assertRegistrationActive(registration: ProviderRegistrationStamp | undefined, kind: ProviderDefinitionKind, capabilityId?: string): void {
+    if (!this.registry.isRegistrationActive(registration, kind, capabilityId)) {
       throw createCapabilityError('provider.unregistered', 'Provider has been unregistered', {
         capabilityId,
         retryable: true,
@@ -1238,29 +1272,33 @@ function firstDataSourceResult<T>(source: ReturnType<DataSource['query']>, resou
   return new Promise((resolve, reject) => {
     let settled = false
     let subscription: Subscription | undefined
-    const cancel = (error: unknown) => {
+    const settleReject = (error: unknown) => {
       if (settled) return
       settled = true
-      resource.abortController.abort()
-      subscription?.unsubscribe()
+      resource.cancelHandlers.delete(settleReject)
       reject(error)
     }
-    resource.cancel = cancel
+    resource.cancelHandlers.add(settleReject)
     subscription = source.subscribe({
       next: (result) => {
         if (settled) return
         settled = true
+        resource.cancelHandlers.delete(settleReject)
         resolve(result as DataSourceResult<T>)
         queueMicrotask(() => subscription?.unsubscribe())
       },
-      error: (error) => cancel(error),
-      complete: () => cancel(createCapabilityError('data_source.empty', 'Data source completed without data')),
+      error: (error) => settleReject(error),
+      complete: () => settleReject(createCapabilityError('data_source.empty', 'Data source completed without data')),
     })
     resource.subscription = subscription
     if (resource.abortController.signal.aborted) {
-      cancel(createCapabilityError('runtime.aborted', 'Runtime query has been aborted'))
+      settleReject(createCapabilityError('runtime.aborted', 'Runtime query has been aborted'))
     }
   })
+}
+
+function raceQueryCancel<T>(promise: Promise<T>, resource: QueryResource): Promise<T> {
+  return Promise.race([promise, resource.cancelPromise])
 }
 
 function assertCapabilityVersion(definition: CapabilityDefinitionBase, version: number): void {

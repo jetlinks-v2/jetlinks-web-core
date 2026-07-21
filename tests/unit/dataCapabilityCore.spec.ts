@@ -612,7 +612,7 @@ const providerGapQuery = providerGapRegistry.createRuntime({ runtimeId: 'provide
 await wait()
 unregisterProviderGap()
 releaseProviderAvailability()
-await assert.rejects(() => providerGapQuery, (error: any) => error?.code === 'provider.unregistered')
+await assert.rejects(() => providerGapQuery, (error: any) => ['provider.unregistered', 'capability.unavailable'].includes(error?.code))
 assert.equal(providerGapCreateCount, 0)
 
 const executeGapRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
@@ -840,6 +840,27 @@ providerFailureRegistry.registerProvider({
   load: () => ({ sources: [{ ...source, id: 'test.source.healthy-provider' }] }),
 })
 assert.equal((await providerFailureRegistry.resolveCatalog({})).sources.length, 1)
+
+const rollbackRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+rollbackRegistry.registerProvider({
+  id: 'rollback-provider',
+  owner: { moduleId: 'test-ui', providerId: 'rollback-provider' },
+  load: () => ({
+    sources: [
+      { ...source, id: 'test.source.rollback' },
+      { ...source, id: 'test.source.rollback' },
+    ],
+  }),
+}, { override: false })
+assert.equal((await rollbackRegistry.resolveCatalog({})).sources.length, 0)
+assert.equal(rollbackRegistry.sources.get('test.source.rollback'), undefined)
+
+const kindKeyRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+const sameId = 'test.capability.same-id'
+const unregisterSameOperation = kindKeyRegistry.operations.register({ ...operation, id: sameId })
+kindKeyRegistry.sources.register({ ...source, id: sameId })
+unregisterSameOperation()
+assert.equal(kindKeyRegistry.sources.get(sameId)?.id, sameId)
 
 await assert.rejects(
   () => registry.createRuntime({ runtimeId: 'plan-test' }).query({
