@@ -79,6 +79,7 @@ type OperationExecutionEntry = {
   execution: OperationExecution
   events$: ReplaySubject<OperationEvent>
   dispatched: boolean
+  cancelled?: boolean
   subscription?: Subscription
 }
 
@@ -548,13 +549,11 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   ): ProviderRegistrationStamp | undefined {
     const existed = this.definitionOwners.get(definition)
     const token = existed?.token || `direct:${kind}:${definition.id}:${scope}:${providerRegistrationSequence++}`
-    const stamp: ProviderRegistrationStamp = existed && !existed.token.startsWith('direct:')
-      ? existed
-      : {
-          token,
-          generation: existed?.generation || 0,
-          registrationId: `${token}:${providerRegistrationSequence++}`,
-        }
+    const stamp: ProviderRegistrationStamp = {
+      token,
+      generation: existed?.generation || 0,
+      registrationId: `${token}:${providerRegistrationSequence++}`,
+    }
     if (!existed) {
       const ids: ProviderDefinitionIds = {
         stamp,
@@ -615,9 +614,10 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     const result: Array<ResolvedCapability<T>> = []
     for (const definition of definitions) {
       if (!matchesCapabilityQuery(definition, query) || (extra && !extra(definition))) continue
-      const availability = await resolveAvailability(definition, context, 'discover')
       const registration = this.definitionOwners.get(definition)
-      if (registration && !this.isRegistrationActive(registration, kind, definition.id)) continue
+      const availability = await resolveAvailability(definition, context, 'discover')
+      const latestRegistration = this.definitionOwners.get(definition)
+      if (registration && (!sameRegistration(registration, latestRegistration) || !this.isRegistrationActive(registration, kind, definition.id))) continue
       if (!query?.includeUnavailable && !availability.discoverable) continue
       result.push({ definition, availability })
     }
@@ -854,7 +854,15 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         limit: resolveLimit(options.limit, definition.defaults?.limit),
         timeout: options.timeout || definition.defaults?.timeout,
       }, runtimeContext)
-      const dataSource = await raceQueryCancel(Promise.resolve(definition.create(resolvedRequest.config, this.runtimeContext)), queryResource)
+      let dataSourceAssigned = false
+      const createPromise = Promise.resolve(definition.create(resolvedRequest.config, this.runtimeContext))
+      createPromise.then((lateDataSource) => {
+        if (!dataSourceAssigned && queryResource.abortController.signal.aborted) {
+          void lateDataSource.dispose?.()
+        }
+      }).catch(() => undefined)
+      const dataSource = await raceQueryCancel(createPromise, queryResource)
+      dataSourceAssigned = true
       queryResource.dataSource = dataSource
       this.assertActive()
       this.assertQueryNotAborted(queryResource, definition.id)
@@ -968,6 +976,8 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         this.assertActive()
         const availability = await resolveAvailability(cached.definition, this.toRuntimeContext(), 'execute')
         this.assertActive()
+        if (this.operationExecutions.get(confirmed.preparedId) !== entry || entry.cancelled) return
+        if (this.preparedOperations.get(confirmed.preparedId) !== cached) return
         this.assertRegistrationActive(cached.registration, 'operations', cached.definition.id)
         if (!availability.executable) {
           throw createCapabilityError('operation.unavailable', availability.reason || 'Operation is unavailable', {
@@ -976,6 +986,8 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
           })
         }
         this.assertActive()
+        if (this.operationExecutions.get(confirmed.preparedId) !== entry || entry.cancelled) return
+        if (this.preparedOperations.get(confirmed.preparedId) !== cached) return
         this.assertRegistrationActive(cached.registration, 'operations', cached.definition.id)
         entry.dispatched = true
         const subscription = cached.operation.execute(cached.prepared, this.toRuntimeContext()).subscribe({
@@ -1046,7 +1058,10 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     for (const key of [...this.sharedConnections.keys()]) {
       this.disposeSharedConnection(key)
     }
-    this.operationExecutions.forEach(entry => entry.subscription?.unsubscribe())
+    this.operationExecutions.forEach((entry) => {
+      entry.cancelled = true
+      entry.subscription?.unsubscribe()
+    })
     this.operationExecutions.clear()
     for (const entry of this.preparedOperations.values()) {
       await entry.operation.dispose?.()
@@ -1085,6 +1100,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         capabilityId: entry.definition.id,
         retryable: true,
       }))
+      if (execution) execution.cancelled = true
       execution?.subscription?.unsubscribe()
       this.operationExecutions.delete(preparedId)
       void entry.operation.dispose?.()

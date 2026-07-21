@@ -560,6 +560,33 @@ await assert.rejects(() => queryCancel, (error: any) => error?.code === 'runtime
 assert.equal(queryCancelTeardown, 1)
 assert.equal(queryCancelDispose, 1)
 
+const queryLateCreateRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseQueryLateCreate!: () => void
+const queryLateCreateReady = new Promise<void>(resolve => { releaseQueryLateCreate = resolve })
+let queryLateCreateDispose = 0
+queryLateCreateRegistry.sources.register({
+  ...source,
+  id: 'test.source.query-late-create',
+  create: async () => {
+    await queryLateCreateReady
+    return {
+      query: () => of({ data: 'late' }) as any,
+      dispose() { queryLateCreateDispose += 1 },
+    }
+  },
+})
+const queryLateCreateRuntime = queryLateCreateRegistry.createRuntime({ runtimeId: 'query-late-create' })
+const queryLateCreate = queryLateCreateRuntime.query({
+  version: 1,
+  source: { capabilityId: 'test.source.query-late-create', version: 1 },
+})
+await wait()
+await queryLateCreateRuntime.dispose()
+await assert.rejects(() => queryLateCreate, (error: any) => error?.code === 'runtime.disposed')
+releaseQueryLateCreate()
+await wait()
+assert.equal(queryLateCreateDispose, 1)
+
 const preAbortRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let preAbortCreateCount = 0
 preAbortRegistry.sources.register({
@@ -658,6 +685,48 @@ assert.equal(executeGapDispatched, 0)
 assert.equal(executeGapDispose, 1)
 assert.equal((executeGapErrors[0] as any)?.code, 'capability.unavailable')
 await executeGapRuntime.dispose()
+
+const operationRemountRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseOperationRemount!: () => void
+const operationRemountReady = new Promise<void>(resolve => { releaseOperationRemount = resolve })
+let operationRemountDispatched = 0
+let operationRemountDisposed = 0
+operationRemountRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.remount',
+  availability: async (_context, phase) => {
+    if (phase === 'execute') await operationRemountReady
+    return available
+  },
+  create: () => ({
+    execute: () => {
+      operationRemountDispatched += 1
+      return of({ type: 'completed' })
+    },
+    dispose() { operationRemountDisposed += 1 },
+  }),
+})
+const operationRemountRuntime = operationRemountRegistry.createRuntime({ runtimeId: 'operation-remount' })
+const operationRemountPrepared = await operationRemountRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.remount', version: 1 },
+})
+const operationRemountErrors: unknown[] = []
+operationRemountRuntime.executeOperation(operationRemountPrepared).events$.subscribe({ error: error => operationRemountErrors.push(error) })
+await wait()
+const unregisterOperationRemountOverride = operationRemountRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.remount',
+  create: () => ({ execute: () => of({ type: 'completed' }) }),
+}, { override: true })
+await wait()
+unregisterOperationRemountOverride()
+releaseOperationRemount()
+await wait()
+assert.equal(operationRemountDispatched, 0)
+assert.equal(operationRemountDisposed, 1)
+assert.equal((operationRemountErrors[0] as any)?.code, 'capability.unavailable')
+await operationRemountRuntime.dispose()
 
 const versionRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 versionRegistry.sources.register({ ...source, id: 'test.source.version', version: 2 })
