@@ -7,6 +7,7 @@ import {
   type DataConnectionEvent,
   type DataSourceDefinition,
   type OperationDefinition,
+  type OperationEvent,
   type PreparedOperation,
 } from '../../src/data-capability'
 
@@ -196,6 +197,94 @@ await firstValueFrom(canonicalRuntime.executeOperation(canonicalPrepared).events
 assert.deepEqual(executedInput, { value: 1 })
 await canonicalRuntime.dispose()
 assert.equal(operationDisposeCount, 1)
+
+const unsupportedCancelRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+const unsupportedCancelEvents = new Subject<OperationEvent>()
+const unsupportedCancelReceived: string[] = []
+unsupportedCancelRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.cancel-unsupported',
+  policy: { ...basePolicy, cancellation: 'unsupported' },
+  create: () => ({ execute: () => unsupportedCancelEvents }),
+})
+const unsupportedCancelRuntime = unsupportedCancelRegistry.createRuntime({ runtimeId: 'cancel-unsupported' })
+const unsupportedCancelPrepared = await unsupportedCancelRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.cancel-unsupported', version: 1 },
+})
+const unsupportedCancelExecution = unsupportedCancelRuntime.executeOperation(unsupportedCancelPrepared)
+unsupportedCancelExecution.events$.subscribe(event => unsupportedCancelReceived.push(event.type))
+assert.equal(unsupportedCancelExecution.cancel, undefined)
+await wait()
+unsupportedCancelEvents.next({ type: 'result', result: 'device-command-result' })
+unsupportedCancelEvents.next({ type: 'completed' })
+unsupportedCancelEvents.complete()
+await wait()
+assert.deepEqual(unsupportedCancelReceived, ['result', 'completed'])
+await unsupportedCancelRuntime.dispose()
+
+let releaseBeforeDispatchAvailability!: () => void
+const beforeDispatchAvailabilityReady = new Promise<void>(resolve => { releaseBeforeDispatchAvailability = resolve })
+let beforeDispatchExecuteCount = 0
+const beforeDispatchRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+beforeDispatchRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.cancel-before-dispatch',
+  availability: async (_context, phase) => {
+    if (phase === 'execute') await beforeDispatchAvailabilityReady
+    return available
+  },
+  create: () => ({
+    execute: () => {
+      beforeDispatchExecuteCount += 1
+      return of({ type: 'completed' })
+    },
+  }),
+})
+const beforeDispatchRuntime = beforeDispatchRegistry.createRuntime({ runtimeId: 'cancel-before-dispatch' })
+const beforeDispatchPrepared = await beforeDispatchRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.cancel-before-dispatch', version: 1 },
+})
+const beforeDispatchExecution = beforeDispatchRuntime.executeOperation(beforeDispatchPrepared)
+const beforeDispatchEvents: string[] = []
+beforeDispatchExecution.events$.subscribe(event => beforeDispatchEvents.push(event.type))
+assert.equal(typeof beforeDispatchExecution.cancel, 'function')
+beforeDispatchExecution.cancel!()
+releaseBeforeDispatchAvailability()
+await wait()
+assert.equal(beforeDispatchExecuteCount, 0)
+assert.deepEqual(beforeDispatchEvents, ['cancelled'])
+await beforeDispatchRuntime.dispose()
+
+const dispatchedCancelRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+const dispatchedCancelEvents = new Subject<OperationEvent>()
+const dispatchedCancelReceived: string[] = []
+dispatchedCancelRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.cancel-after-dispatch',
+  create: () => ({ execute: () => dispatchedCancelEvents }),
+})
+const dispatchedCancelRuntime = dispatchedCancelRegistry.createRuntime({ runtimeId: 'cancel-after-dispatch' })
+const dispatchedCancelPrepared = await dispatchedCancelRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.cancel-after-dispatch', version: 1 },
+})
+const dispatchedCancelExecution = dispatchedCancelRuntime.executeOperation(dispatchedCancelPrepared)
+const capturedBeforeDispatchCancel = dispatchedCancelExecution.cancel!
+dispatchedCancelExecution.events$.subscribe(event => dispatchedCancelReceived.push(event.type))
+await wait()
+assert.equal(dispatchedCancelExecution.cancel, undefined)
+assert.throws(
+  () => capturedBeforeDispatchCancel(),
+  (error: any) => error?.code === 'operation.cancellation_unsupported',
+)
+dispatchedCancelEvents.next({ type: 'result', result: 'dispatched-result' })
+dispatchedCancelEvents.next({ type: 'completed' })
+dispatchedCancelEvents.complete()
+await wait()
+assert.deepEqual(dispatchedCancelReceived, ['result', 'completed'])
+await dispatchedCancelRuntime.dispose()
 
 const confirmRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 confirmRegistry.operations.register({
@@ -726,6 +815,54 @@ await firstValueFrom(preparedSweepRuntime.executeOperation(preparedSweepHandles[
 await wait()
 assert.equal(preparedSweepDispose, 6)
 await preparedSweepRuntime.dispose()
+
+const activeSweepRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+const activeSweepEvents = new Subject<OperationEvent>()
+const activeSweepDisposed = new Set<number>()
+let activeSweepInstance = 0
+activeSweepRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.active-sweep',
+  policy: { ...basePolicy, cancellation: 'unsupported' },
+  create: () => {
+    const instance = activeSweepInstance++
+    return {
+      execute: () => instance === 0 ? activeSweepEvents : of({ type: 'completed' }),
+      dispose: () => { activeSweepDisposed.add(instance) },
+    }
+  },
+})
+const activeSweepRuntime = activeSweepRegistry.createRuntime({ runtimeId: 'active-sweep' })
+const activeSweepPrepared = await activeSweepRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.active-sweep', version: 1 },
+})
+const activeSweepExecution = activeSweepRuntime.executeOperation(activeSweepPrepared)
+const activeSweepReceived: string[] = []
+activeSweepExecution.events$.subscribe(event => activeSweepReceived.push(event.type))
+await wait()
+const actualDateNow = Date.now
+const activeSweepStartedAt = actualDateNow()
+Date.now = () => activeSweepStartedAt + 6 * 60 * 1000
+try {
+  for (let index = 0; index < 105; index += 1) {
+    await activeSweepRuntime.prepareOperation({
+      version: 1,
+      operation: { capabilityId: 'test.operation.active-sweep', version: 1 },
+      input: { index: { kind: 'literal', value: index } },
+    })
+  }
+} finally {
+  Date.now = actualDateNow
+}
+assert.equal(activeSweepDisposed.has(0), false)
+activeSweepEvents.next({ type: 'result', result: 'long-running-result' })
+activeSweepEvents.next({ type: 'completed' })
+activeSweepEvents.complete()
+await wait()
+assert.deepEqual(activeSweepReceived, ['result', 'completed'])
+assert.equal(activeSweepDisposed.has(0), true)
+await activeSweepRuntime.dispose()
 
 const operationContextRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let operationCreateRuntimeSignalSeen = false

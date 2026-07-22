@@ -278,11 +278,13 @@ export type OperationEvent =
   | { type: 'progress'; progress: number; message?: string }
   | { type: 'result'; result: unknown }
   | { type: 'warning'; error: CapabilityError }
+  | { type: 'cancelled'; phase: 'before-dispatch' }
   | { type: 'completed' }
 
 export interface OperationExecution {
   id: string
   events$: Observable<OperationEvent>
+  /** Present only while Runtime can honor cancellation without dispatching the side effect. */
   cancel?(): void
 }
 

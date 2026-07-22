@@ -305,13 +305,18 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
 
   async loadModuleProviders(context: CapabilityContext = {}): Promise<void> {
     if (this.options.loadModuleProviders === false) return
-    return this.requestModuleProviderReconcile(context)
+    return this.requestModuleProviderReconcile(context, false)
   }
 
-  private async requestModuleProviderReconcile(context: CapabilityContext = {}): Promise<void> {
+  private async requestModuleProviderReconcile(
+    context: CapabilityContext = {},
+    snapshotChanged = false,
+  ): Promise<void> {
     if (this.options.loadModuleProviders === false) return
     await this.ensureModuleRegistrySubscription()
-    this.moduleProviderReconcileDirty = true
+    // Catalog readers only ensure that the current snapshot has been reconciled. Only a
+    // moduleRegistry change invalidates an in-flight snapshot and requires another round.
+    if (snapshotChanged) this.moduleProviderReconcileDirty = true
     if (this.moduleProviderReconcilePromise) return this.moduleProviderReconcilePromise
     this.moduleProviderReconcilePromise = this.runModuleProviderReconcileLoop(context)
       .finally(() => {
@@ -326,7 +331,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     const { moduleRegistry } = await import('@jetlinks-web-core/utils/module-registry')
     if (this.moduleRegistryUnsubscribe) return
     this.moduleRegistryUnsubscribe = moduleRegistry.onChange(() => {
-      this.requestModuleProviderReconcile({}).catch((error) => {
+      this.requestModuleProviderReconcile({}, true).catch((error) => {
         console.warn('[DataCapability] module provider refresh failed', error)
       })
     })
@@ -394,10 +399,6 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
         console.warn(`[DataCapability] provider loader failed: ${item.key}`, error)
       }
     }
-  }
-
-  private async refreshModuleProviders(): Promise<void> {
-    return this.requestModuleProviderReconcile({})
   }
 
   private nextModuleProviderGeneration(token: string): number {
@@ -1103,7 +1104,21 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       events$: events$.asObservable(),
     }
     const entry: OperationExecutionEntry = { execution, events$, dispatched: false }
-    execution.cancel = () => this.cleanupOperationExecution(confirmed.preparedId, entry, true)
+    if (cached.prepared.policy.cancellation === 'before-dispatch') {
+      execution.cancel = () => {
+        if (this.operationExecutions.get(confirmed.preparedId) !== entry || entry.cancelled) return
+        if (entry.dispatched) {
+          throw createCapabilityError(
+            'operation.cancellation_unsupported',
+            'Operation can only be cancelled before dispatch',
+            { capabilityId: confirmed.capabilityId },
+          )
+        }
+        events$.next({ type: 'cancelled', phase: 'before-dispatch' })
+        events$.complete()
+        this.cleanupOperationExecution(confirmed.preparedId, entry, true)
+      }
+    }
     this.operationExecutions.set(confirmed.preparedId, entry)
 
     void (async () => {
@@ -1125,6 +1140,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         if (this.preparedOperations.get(confirmed.preparedId) !== cached) return
         this.assertRegistrationActive(cached.registration, 'operations', cached.definition.id)
         entry.dispatched = true
+        delete execution.cancel
         const subscription = cached.operation.execute(cached.providerPrepared, this.toOperationContext()).subscribe({
           next: (event) => {
             events$.next(event)
@@ -1176,13 +1192,17 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   private sweepPreparedOperations(): void {
     const now = Date.now()
     const expired = [...this.preparedOperations.entries()]
-      .filter(([, entry]) => now - entry.lastUsedAt > DEFAULT_PREPARED_OPERATION_TTL)
+      .filter(([preparedId, entry]) => (
+        !this.operationExecutions.has(preparedId)
+        && now - entry.lastUsedAt > DEFAULT_PREPARED_OPERATION_TTL
+      ))
       .map(([preparedId]) => preparedId)
     expired.forEach(preparedId => this.releasePreparedOperation(preparedId))
 
     const overflow = this.preparedOperations.size - DEFAULT_MAX_PREPARED_OPERATIONS
     if (overflow > 0) {
       [...this.preparedOperations.entries()]
+        .filter(([preparedId]) => !this.operationExecutions.has(preparedId))
         .sort((left, right) => left[1].lastUsedAt - right[1].lastUsedAt)
         .slice(0, overflow)
         .forEach(([preparedId]) => this.releasePreparedOperation(preparedId))
