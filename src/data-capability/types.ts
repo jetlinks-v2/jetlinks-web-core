@@ -220,6 +220,15 @@ export interface OperationPolicy {
   audit?: boolean
 }
 
+export interface OperationPolicyOverride {
+  risk?: OperationPolicy['risk']
+  confirmation?: OperationPolicy['confirmation']
+  cancellation?: OperationPolicy['cancellation']
+  retry?: OperationPolicy['retry']
+  batch?: boolean
+  audit?: boolean
+}
+
 export interface OperationDefinition extends CapabilityDefinitionBase {
   kind: 'operation'
   action: OperationAction
@@ -463,7 +472,7 @@ export interface PersistedOperationBinding {
   version: number
   operation: PersistedCapabilityRef
   input?: Record<string, ValueBinding | unknown>
-  policyOverride?: Partial<OperationPolicy>
+  policyOverride?: OperationPolicyOverride
 }
 
 export interface RuntimeQueryOptions {

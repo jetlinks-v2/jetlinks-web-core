@@ -413,20 +413,59 @@ const policyRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: 
 policyRegistry.operations.register({
   ...operation,
   id: 'test.operation.policy',
-  policy: { ...basePolicy, batch: false },
+  policy: {
+    ...basePolicy,
+    risk: 'medium',
+    confirmation: 'destructive',
+    cancellation: 'best-effort',
+    retry: 'provider',
+    batch: true,
+    audit: false,
+  },
 })
 const policyRuntime = policyRegistry.createRuntime({ runtimeId: 'policy' })
 const policyPrepared = await policyRuntime.prepareOperation({
   version: 1,
   operation: { capabilityId: 'test.operation.policy', version: 1 },
-  policyOverride: { batch: true },
+  policyOverride: {
+    risk: 'low',
+    confirmation: 'none',
+    cancellation: 'compensatable',
+    retry: 'idempotent-only',
+    batch: false,
+    audit: true,
+    concurrency: 'queue',
+    idempotency: 'none',
+  } as any,
 })
+assert.equal(policyPrepared.policy.risk, 'medium')
+assert.equal(policyPrepared.policy.confirmation, 'destructive')
+assert.equal(policyPrepared.policy.cancellation, 'best-effort')
+assert.equal(policyPrepared.policy.retry, 'idempotent-only')
 assert.equal(policyPrepared.policy.batch, false)
+assert.equal(policyPrepared.policy.audit, true)
+assert.equal(policyPrepared.policy.concurrency, 'parallel')
+assert.equal(policyPrepared.policy.idempotency, 'natural')
+const noEscalationPolicy = await policyRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.policy', version: 1 },
+  policyOverride: { batch: true, audit: false },
+})
+assert.equal(noEscalationPolicy.policy.batch, true)
+assert.equal(noEscalationPolicy.policy.audit, false)
 await assert.rejects(
   () => policyRuntime.prepareOperation({
     version: 1,
     operation: { capabilityId: 'test.operation.policy', version: 1 },
     policyOverride: { batch: 'yes' } as any,
+  }),
+  (error: any) => error?.code === 'operation.policy_invalid',
+)
+await assert.rejects(
+  () => policyRuntime.prepareOperation({
+    version: 1,
+    operation: { capabilityId: 'test.operation.policy', version: 1 },
+    policyOverride: { audit: 'yes' } as any,
   }),
   (error: any) => error?.code === 'operation.policy_invalid',
 )

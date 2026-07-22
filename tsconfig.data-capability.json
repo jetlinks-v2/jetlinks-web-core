@@ -9,7 +9,9 @@
     "src/utils/module-registry.ts",
     "src/env.d.ts",
     "tests/unit/dataCapabilityCore.spec.ts",
+    "tests/unit/dataCapabilitySchema.spec.ts",
     "tests/unit/dataCapabilityLegacy.spec.ts",
-    "tests/unit/dataCapabilityModuleRegistry.spec.ts"
+    "tests/unit/dataCapabilityModuleRegistry.spec.ts",
+    "tests/types/dataCapabilityTypes.ts"
   ]
 }

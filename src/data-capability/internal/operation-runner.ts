@@ -8,10 +8,12 @@ import type {
   OperationEvent,
   OperationExecution,
   OperationPolicy,
+  OperationPolicyOverride,
   PersistedOperationBinding,
   PreparedOperation,
 } from '../types'
 import { createCapabilityError } from '../utils'
+import { capabilitySchemaValidator } from '../validation'
 import { resolveAvailability } from './availability'
 import type {
   CapabilityMountStamp,
@@ -146,6 +148,23 @@ export class OperationRunner {
       const registration = this.registry.getDefinitionRegistration(definition)
       prepareResource.registration = registration
       this.assertRegistrationActive(registration, 'operations', definition.id)
+      capabilitySchemaValidator.assert(definition.configSchema, binding.operation.config, {
+        phase: 'config',
+        capabilityId: definition.id,
+      })
+      const input = await racePrepareCancel(
+        this.resolveRecord(binding.input, prepareResource.abortController.signal),
+        prepareResource,
+      )
+      this.assertActive()
+      this.assertPrepareNotAborted(prepareResource, definition.id)
+      this.assertRegistrationActive(registration, 'operations', definition.id)
+      capabilitySchemaValidator.assert(definition.inputSchema, input, {
+        phase: 'input',
+        capabilityId: definition.id,
+      })
+      const policy = mergeOperationPolicy(definition.policy, binding.policyOverride)
+      const request = { config: binding.operation.config, input }
       const createPromise = Promise.resolve(definition.create(binding.operation.config, this.toOperationCreateContext(prepareResource.abortController.signal)))
       createPromise.then((lateOperation) => {
         if (!operationAssigned && prepareResource.abortController.signal.aborted) {
@@ -158,12 +177,6 @@ export class OperationRunner {
       this.assertActive()
       this.assertPrepareNotAborted(prepareResource, definition.id)
       this.assertRegistrationActive(registration, 'operations', definition.id)
-      const input = await racePrepareCancel(this.resolveRecord(binding.input, prepareResource.abortController.signal), prepareResource)
-      this.assertActive()
-      this.assertPrepareNotAborted(prepareResource, definition.id)
-      this.assertRegistrationActive(registration, 'operations', definition.id)
-      const policy = mergeOperationPolicy(definition.policy, binding.policyOverride)
-      const request = { config: binding.operation.config, input }
       const hasProviderPrepare = !!operation.prepare
       const prepared: PreparedOperation = hasProviderPrepare
         ? await racePrepareCancel(operation.prepare!(request, this.toOperationContext(prepareResource.abortController.signal)), prepareResource)
@@ -490,25 +503,29 @@ function racePrepareCancel<T>(promise: Promise<T>, resource: PendingPrepareResou
 
 function mergeOperationPolicy(
   base: OperationPolicy,
-  override?: Partial<OperationPolicy>,
+  override?: OperationPolicyOverride,
 ): OperationPolicy {
   if (!override) return { ...base }
   return {
     ...base,
-    risk: maxByOrder(base.risk, override.risk, RISK_ORDER),
-    confirmation: maxByOrder(base.confirmation, override.confirmation, CONFIRMATION_ORDER),
-    cancellation: minByOrder(base.cancellation, override.cancellation, CANCELLATION_ORDER),
-    retry: minByOrder(base.retry, override.retry, RETRY_ORDER),
+    risk: maxByOrder('risk', base.risk, override.risk, RISK_ORDER),
+    confirmation: maxByOrder('confirmation', base.confirmation, override.confirmation, CONFIRMATION_ORDER),
+    cancellation: minByOrder('cancellation', base.cancellation, override.cancellation, CANCELLATION_ORDER),
+    retry: minByOrder('retry', base.retry, override.retry, RETRY_ORDER),
     batch: mergeBatchPolicy(base.batch, override.batch),
-    audit: base.audit || override.audit,
+    audit: mergeAuditPolicy(base.audit, override.audit),
   }
 }
 
 
 function mergeBatchPolicy(base: boolean | undefined, override: boolean | undefined): boolean | undefined {
   assertOptionalBoolean('batch', override)
-  if (override === undefined) return base
-  return Boolean(base && override)
+  return override === false ? false : base
+}
+
+function mergeAuditPolicy(base: boolean | undefined, override: boolean | undefined): boolean | undefined {
+  assertOptionalBoolean('audit', override)
+  return override === true ? true : base
 }
 
 function assertOptionalBoolean(name: string, value: unknown): asserts value is boolean | undefined {
@@ -527,14 +544,14 @@ function assertPolicyValue<T extends string>(name: string, value: T | undefined,
   }
 }
 
-function maxByOrder<T extends string>(base: T, override: T | undefined, order: T[]): T {
-  assertPolicyValue('enum', override, order)
+function maxByOrder<T extends string>(name: string, base: T, override: T | undefined, order: T[]): T {
+  assertPolicyValue(name, override, order)
   if (!override) return base
   return order.indexOf(override) > order.indexOf(base) ? override : base
 }
 
-function minByOrder<T extends string>(base: T, override: T | undefined, order: T[]): T {
-  assertPolicyValue('enum', override, order)
+function minByOrder<T extends string>(name: string, base: T, override: T | undefined, order: T[]): T {
+  assertPolicyValue(name, override, order)
   if (!override) return base
   return order.indexOf(override) < order.indexOf(base) ? override : base
 }

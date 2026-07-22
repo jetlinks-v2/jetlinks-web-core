@@ -1,5 +1,6 @@
 import { ReplaySubject, Subject, type Subscription, timeout as rxTimeout } from 'rxjs'
 import type {
+  CapabilitySchema,
   CapabilityPreviewRequest,
   CapabilityPreviewResult,
   DataConnection,
@@ -15,6 +16,7 @@ import type {
   RuntimeQueryOptions,
 } from '../types'
 import { applyOutputMapping, createCapabilityError } from '../utils'
+import { capabilitySchemaValidator } from '../validation'
 import { assertExecutable } from './availability'
 import type {
   CapabilityMountStamp,
@@ -54,6 +56,12 @@ interface SharedConnection {
   registration?: CapabilityMountStamp
   lastStatus?: DataConnectionEvent
   lastData?: DataConnectionEvent
+}
+
+interface QueryRunResult<T> {
+  result: DataSourceResult<T>
+  outputSchema?: CapabilitySchema
+  warnings?: CapabilityPreviewResult['warnings']
 }
 
 export interface SourceRunnerHost {
@@ -163,6 +171,10 @@ export class DataSourceRunner {
         const definition = this.requireSource(binding.source)
         const registration = this.registry.getDefinitionRegistration(definition)
         this.assertRegistrationActive(registration, 'sources', definition.id)
+        capabilitySchemaValidator.assert(definition.configSchema, binding.source.config, {
+          phase: 'config',
+          capabilityId: definition.id,
+        })
         const runtimeContext = this.toRuntimeContext(signal)
         await assertExecutable(definition, runtimeContext)
         this.assertActive()
@@ -172,6 +184,10 @@ export class DataSourceRunner {
         this.assertActive()
         this.assertRegistrationActive(registration, 'sources', definition.id)
         if (stopped || signal?.aborted) return
+        capabilitySchemaValidator.assert(definition.querySchema, query, {
+          phase: 'query',
+          capabilityId: definition.id,
+        })
         const resolvedRequest = normalizeDataSourceRequest(definition, {
           capabilityId: binding.source.capabilityId,
           version: binding.source.version,
@@ -225,6 +241,14 @@ export class DataSourceRunner {
   }
 
   async query<T = unknown>(binding: PersistedDataBinding, options: RuntimeQueryOptions = {}): Promise<DataSourceResult<T>> {
+    return (await this.runQuery<T>(binding, options, false)).result
+  }
+
+  private async runQuery<T>(
+    binding: PersistedDataBinding,
+    options: RuntimeQueryOptions,
+    validateOutput: boolean,
+  ): Promise<QueryRunResult<T>> {
     this.assertActive()
     assertPlanSupported(binding)
     const capabilityId = binding.source.capabilityId
@@ -262,6 +286,10 @@ export class DataSourceRunner {
       const registration = this.registry.getDefinitionRegistration(definition)
       queryResource.registration = registration
       this.assertRegistrationActive(registration, 'sources', definition.id)
+      capabilitySchemaValidator.assert(definition.configSchema, binding.source.config, {
+        phase: 'config',
+        capabilityId: definition.id,
+      })
       await raceQueryCancel(assertExecutable(definition, runtimeContext), queryResource)
       this.assertActive()
       this.assertQueryNotAborted(queryResource, definition.id)
@@ -270,6 +298,10 @@ export class DataSourceRunner {
       this.assertActive()
       this.assertQueryNotAborted(queryResource, definition.id)
       this.assertRegistrationActive(registration, 'sources', definition.id)
+      capabilitySchemaValidator.assert(definition.querySchema, query, {
+        phase: 'query',
+        capabilityId: definition.id,
+      })
       const resolvedRequest = normalizeDataSourceRequest(definition, {
         capabilityId: binding.source.capabilityId,
         version: binding.source.version,
@@ -301,7 +333,20 @@ export class DataSourceRunner {
       this.assertQueryNotAborted(queryResource, definition.id)
       this.assertRegistrationActive(registration, 'sources', definition.id)
       queryResource.settled = true
-      return limitDataSourceResult({ ...result, data: applyOutputMapping(result.data, binding.mapping) as T }, resolvedRequest.limit)
+      const outputSchema = result.outputSchema || definition.outputSchema
+      const warnings = validateOutput
+        ? capabilitySchemaValidator
+            .validate(outputSchema, result.data, 'output')
+            .map(issue => capabilitySchemaValidator.toError(issue, definition.id))
+        : undefined
+      return {
+        result: limitDataSourceResult({
+          ...result,
+          data: applyOutputMapping(result.data, binding.mapping) as T,
+        }, resolvedRequest.limit),
+        outputSchema,
+        warnings: warnings?.length ? warnings : undefined,
+      }
     } finally {
       externalSignal?.removeEventListener('abort', abortByExternal)
       this.queryResources.delete(queryResource)
@@ -315,10 +360,15 @@ export class DataSourceRunner {
   async preview<T = unknown>(request: CapabilityPreviewRequest): Promise<CapabilityPreviewResult<T>> {
     this.assertActive()
     assertPlanSupported(request.binding)
-    const result = await this.query<T>(request.binding, { timeout: request.timeout, limit: request.limit })
+    const { result, outputSchema, warnings } = await this.runQuery<T>(
+      request.binding,
+      { timeout: request.timeout, limit: request.limit },
+      true,
+    )
     return {
       data: limitData(result.data, request.limit) as T,
-      outputSchema: result.outputSchema,
+      outputSchema,
+      warnings,
       diagnostics: result.diagnostics,
     }
   }

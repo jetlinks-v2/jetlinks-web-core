@@ -9,6 +9,7 @@ import { build } from 'esbuild'
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const entries = [
   'tests/unit/dataCapabilityCore.spec.ts',
+  'tests/unit/dataCapabilitySchema.spec.ts',
   'tests/unit/dataCapabilityLegacy.spec.ts',
   'tests/unit/dataCapabilityModuleRegistry.spec.ts',
 ]
