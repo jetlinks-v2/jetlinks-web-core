@@ -86,6 +86,8 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   private moduleProviderReconcilePromise?: Promise<void>
   private moduleProviderReconcileDirty = false
   private moduleProviderReconcileVersion = 0
+  private readinessDirty = false
+  private readinessPromise?: Promise<void>
 
   registerProvider(provider: DataCapabilityProvider, options: CapabilityRegisterOptions = {}): () => void {
     const token = `manual:${provider.id}:${options.scope || 'default'}:${providerRegistrationSequence++}`
@@ -100,6 +102,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
       override: options.override ?? true,
     }
     this.providerEntries.set(token, entry)
+    this.readinessDirty = true
     this.emitChange()
 
     return () => {
@@ -111,6 +114,34 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   async loadModuleProviders(context: CapabilityContext = {}): Promise<void> {
     if (this.options.loadModuleProviders === false) return
     return this.requestModuleProviderReconcile(context, false)
+  }
+
+  async ensureReady(context: CapabilityContext = {}): Promise<void> {
+    // Readiness is Registry-owned and shared by all consumers. Individual Runtime cancellation
+    // races this promise locally instead of aborting Provider loading for other consumers.
+    do {
+      let readiness = this.readinessPromise
+      if (!readiness) {
+        readiness = this.runReadinessLoop(context)
+        this.readinessPromise = readiness
+        try {
+          await readiness
+        } finally {
+          if (this.readinessPromise === readiness) this.readinessPromise = undefined
+        }
+      } else {
+        await readiness
+      }
+    } while (this.readinessDirty)
+  }
+
+  private async runReadinessLoop(context: CapabilityContext): Promise<void> {
+    do {
+      this.readinessDirty = false
+      // The latest module snapshot must be mounted before manual Providers are loaded.
+      await this.loadModuleProviders(context)
+      await this.loadRegisteredProviders(context)
+    } while (this.readinessDirty)
   }
 
   private async requestModuleProviderReconcile(
@@ -136,6 +167,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     const { moduleRegistry } = await import('@jetlinks-web-core/utils/module-registry')
     if (this.moduleRegistryUnsubscribe) return
     this.moduleRegistryUnsubscribe = moduleRegistry.onChange(() => {
+      this.readinessDirty = true
       this.requestModuleProviderReconcile({}, true).catch((error) => {
         console.warn('[DataCapability] module provider refresh failed', error)
       })
@@ -213,8 +245,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   }
 
   async resolveCatalog(context: CapabilityContext, query?: CapabilityQuery): Promise<ResolvedCapabilityCatalog> {
-    await this.loadRegisteredProviders(context)
-    await this.loadModuleProviders(context)
+    await this.ensureReady(context)
     return {
       sources: await this.resolveDefinitions('sources', this.sources.list(), context, query, definition => (
         !query?.sourceModes?.length || query.sourceModes.some(mode => definition.modes.includes(mode))
@@ -321,6 +352,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     entry.generation += 1
     entry.loadPromise = undefined
     this.providerEntries.delete(token)
+    this.readinessDirty = true
     this.moduleProviderTokens.delete(token)
     const unregisters = this.providerUnregisters.get(token) || []
     unregisters.splice(0).forEach(unregister => unregister())

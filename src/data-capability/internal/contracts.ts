@@ -1,5 +1,6 @@
 import type {
   CapabilityDefinitionBase,
+  CapabilityContext,
   CapabilityRegistry,
   ContextValueDefinition,
   DataSourceDefinition,
@@ -32,6 +33,7 @@ export interface RuntimeRegistryAccess {
   readonly sources: CapabilityRegistry<DataSourceDefinition>
   readonly operations: CapabilityRegistry<OperationDefinition>
   readonly contexts: CapabilityRegistry<ContextValueDefinition>
+  ensureReady(context?: CapabilityContext): Promise<void>
   getDefinitionRegistration(definition: CapabilityDefinitionBase): CapabilityMountStamp | undefined
   isMountActive(
     mount: CapabilityMountStamp | undefined,

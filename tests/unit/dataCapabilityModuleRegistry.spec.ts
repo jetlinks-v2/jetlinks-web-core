@@ -56,8 +56,13 @@ try {
     },
   })
 
-  const firstCatalog = registry.resolveCatalog({})
+  const directRuntime = registry.createRuntime({ runtimeId: 'module-direct-readiness' })
+  const directQuery = directRuntime.query<string>({
+    version: 1,
+    source: { capabilityId: 'test.source.module-v1', version: 1 },
+  })
   await wait()
+  const firstCatalog = registry.resolveCatalog({})
   const concurrentCatalog = registry.resolveCatalog({})
   await wait()
   assert.equal(slowLoaderCount, 1)
@@ -66,6 +71,8 @@ try {
     (await Promise.all([firstCatalog, concurrentCatalog])).map(catalog => catalog.sources.map(source => source.definition.id)),
     [['test.source.module-v1'], ['test.source.module-v1']],
   )
+  assert.equal((await directQuery).data, 'test.source.module-v1')
+  await directRuntime.dispose()
   assert.equal(slowLoaderCount, 1)
   assert.deepEqual(disposedProviders, [])
 

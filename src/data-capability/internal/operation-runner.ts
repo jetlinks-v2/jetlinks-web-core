@@ -61,6 +61,7 @@ interface PendingPrepareResource {
 export interface OperationRunnerHost {
   readonly registry: RuntimeRegistryAccess
   readonly disposed: boolean
+  ensureReady(signal?: AbortSignal): Promise<void>
   assertActive(): void
   assertRegistrationActive(
     registration: CapabilityMountStamp | undefined,
@@ -133,13 +134,18 @@ export class OperationRunner {
   }
   async prepareOperation(binding: PersistedOperationBinding): Promise<PreparedOperation> {
     this.assertActive()
-    const definition = this.requireOperation(binding.operation)
-    const registration = this.registry.getDefinitionRegistration(definition)
-    this.assertRegistrationActive(registration, 'operations', definition.id)
-    const prepareResource = this.createPendingPrepareResource(definition.id, registration)
+    const capabilityId = binding.operation.capabilityId
+    const prepareResource = this.createPendingPrepareResource(capabilityId)
     this.pendingPrepareResources.add(prepareResource)
     let operationAssigned = false
     try {
+      await racePrepareCancel(this.runtime.ensureReady(prepareResource.abortController.signal), prepareResource)
+      this.assertActive()
+      this.assertPrepareNotAborted(prepareResource, capabilityId)
+      const definition = this.requireOperation(binding.operation)
+      const registration = this.registry.getDefinitionRegistration(definition)
+      prepareResource.registration = registration
+      this.assertRegistrationActive(registration, 'operations', definition.id)
       const createPromise = Promise.resolve(definition.create(binding.operation.config, this.toOperationCreateContext(prepareResource.abortController.signal)))
       createPromise.then((lateOperation) => {
         if (!operationAssigned && prepareResource.abortController.signal.aborted) {
@@ -199,11 +205,11 @@ export class OperationRunner {
       prepareResource.settled = true
       return cloneCapabilityValue(canonicalPrepared)
     } catch (error) {
-      await safeDisposeAsync(prepareResource.operation, `operation:${definition.id}:prepare-failed`)
+      await safeDisposeAsync(prepareResource.operation, `operation:${capabilityId}:prepare-failed`)
       throw error
     } finally {
       this.pendingPrepareResources.delete(prepareResource)
-      prepareResource.cancel?.(createCapabilityError('runtime.disposed', 'Runtime prepare has been disposed', { capabilityId: definition.id }))
+      prepareResource.cancel?.(createCapabilityError('runtime.disposed', 'Runtime prepare has been disposed', { capabilityId }))
     }
   }
 

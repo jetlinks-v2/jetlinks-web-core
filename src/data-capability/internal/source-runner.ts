@@ -59,6 +59,7 @@ interface SharedConnection {
 export interface SourceRunnerHost {
   readonly registry: RuntimeRegistryAccess
   readonly disposed: boolean
+  ensureReady(signal?: AbortSignal): Promise<void>
   assertActive(): void
   assertRegistrationActive(
     registration: CapabilityMountStamp | undefined,
@@ -155,10 +156,13 @@ export class DataSourceRunner {
       events$.next({ type: 'status', status: 'connecting' })
       try {
         const binding = request.binding
+        const signal = request.options?.signal
+        await this.runtime.ensureReady(signal)
+        this.assertActive()
+        if (stopped || signal?.aborted) return
         const definition = this.requireSource(binding.source)
         const registration = this.registry.getDefinitionRegistration(definition)
         this.assertRegistrationActive(registration, 'sources', definition.id)
-        const signal = request.options?.signal
         const runtimeContext = this.toRuntimeContext(signal)
         await assertExecutable(definition, runtimeContext)
         this.assertActive()
@@ -223,15 +227,12 @@ export class DataSourceRunner {
   async query<T = unknown>(binding: PersistedDataBinding, options: RuntimeQueryOptions = {}): Promise<DataSourceResult<T>> {
     this.assertActive()
     assertPlanSupported(binding)
-    const definition = this.requireSource(binding.source)
-    const registration = this.registry.getDefinitionRegistration(definition)
-    this.assertRegistrationActive(registration, 'sources', definition.id)
+    const capabilityId = binding.source.capabilityId
     const externalSignal = options.signal
     const cancelHandlers = new Set<(error: unknown) => void>()
     const queryResource: QueryResource = {
       abortController: new AbortController(),
-      capabilityId: definition.id,
-      registration,
+      capabilityId,
       cancelHandlers,
       cancelPromise: new Promise<never>((_, reject) => {
         cancelHandlers.add(reject)
@@ -240,7 +241,7 @@ export class DataSourceRunner {
     queryResource.cancel = (error: unknown) => {
       if (queryResource.settled || queryResource.abortController.signal.aborted) return
       queryResource.abortController.abort()
-      safeUnsubscribe(queryResource.subscription, `query:${definition.id}`)
+      safeUnsubscribe(queryResource.subscription, `query:${capabilityId}`)
       queryResource.cancelHandlers.forEach(handler => handler(error))
       queryResource.cancelHandlers.clear()
     }
@@ -254,6 +255,13 @@ export class DataSourceRunner {
     this.queryResources.add(queryResource)
     const runtimeContext = this.toRuntimeContext(queryResource.abortController.signal)
     try {
+      await raceQueryCancel(this.runtime.ensureReady(queryResource.abortController.signal), queryResource)
+      this.assertActive()
+      this.assertQueryNotAborted(queryResource, capabilityId)
+      const definition = this.requireSource(binding.source)
+      const registration = this.registry.getDefinitionRegistration(definition)
+      queryResource.registration = registration
+      this.assertRegistrationActive(registration, 'sources', definition.id)
       await raceQueryCancel(assertExecutable(definition, runtimeContext), queryResource)
       this.assertActive()
       this.assertQueryNotAborted(queryResource, definition.id)
@@ -297,10 +305,10 @@ export class DataSourceRunner {
     } finally {
       externalSignal?.removeEventListener('abort', abortByExternal)
       this.queryResources.delete(queryResource)
-      queryResource.cancel?.(createCapabilityError('runtime.disposed', 'Runtime query has been disposed', { capabilityId: binding.source.capabilityId }))
+      queryResource.cancel?.(createCapabilityError('runtime.disposed', 'Runtime query has been disposed', { capabilityId }))
       const dataSource = queryResource.dataSource
       queryResource.dataSource = undefined
-      await safeDisposeAsync(dataSource, `query:${definition.id}`)
+      await safeDisposeAsync(dataSource, `query:${capabilityId}`)
     }
   }
 

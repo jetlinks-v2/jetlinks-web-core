@@ -120,6 +120,79 @@ assert.equal((await providerRegistry.resolveCatalog({ parameters: { feature: 'b'
 assert.equal(loadCount, 1)
 assert.equal(loadArgCount, 0)
 
+const readinessRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let readinessLoadCount = 0
+let releaseReadinessLoader!: () => void
+const readinessLoaderReady = new Promise<void>(resolve => { releaseReadinessLoader = resolve })
+readinessRegistry.registerProvider({
+  id: 'readiness-provider',
+  owner: { moduleId: 'test-ui', providerId: 'readiness-provider' },
+  async load() {
+    readinessLoadCount += 1
+    await readinessLoaderReady
+    return {
+      sources: [{
+        ...source,
+        id: 'test.source.readiness',
+        owner: { moduleId: 'test-ui', providerId: 'readiness-provider' },
+      }],
+      operations: [{
+        ...operation,
+        id: 'test.operation.readiness',
+        owner: { moduleId: 'test-ui', providerId: 'readiness-provider' },
+      }],
+    }
+  },
+})
+const readinessRuntime = readinessRegistry.createRuntime({ runtimeId: 'readiness' })
+const readinessConnectionEvents: DataConnectionEvent[] = []
+const readinessConnection = readinessRuntime.connect({
+  consumerId: 'readiness-connect',
+  binding: { version: 1, source: { capabilityId: 'test.source.readiness', version: 1 } },
+})
+readinessConnection.events$.subscribe(event => readinessConnectionEvents.push(event))
+const readinessQueries = [
+  readinessRuntime.query({ version: 1, source: { capabilityId: 'test.source.readiness', version: 1 } }),
+  readinessRuntime.query({ version: 1, source: { capabilityId: 'test.source.readiness', version: 1 } }),
+]
+const readinessPrepare = readinessRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.readiness', version: 1 },
+})
+await wait()
+assert.equal(readinessLoadCount, 1)
+assert.deepEqual(readinessConnectionEvents, [{ type: 'status', status: 'connecting' }])
+releaseReadinessLoader()
+assert.deepEqual((await Promise.all(readinessQueries)).map(result => result.data), [
+  { config: undefined, query: undefined },
+  { config: undefined, query: undefined },
+])
+assert.equal((await readinessPrepare).capabilityId, 'test.operation.readiness')
+await wait()
+assert.equal(readinessConnectionEvents.some(event => event.type === 'data'), true)
+readinessConnection.unsubscribe()
+await readinessRuntime.dispose()
+
+const cancelledReadinessRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+cancelledReadinessRegistry.registerProvider({
+  id: 'cancelled-readiness-provider',
+  owner: { moduleId: 'test-ui', providerId: 'cancelled-readiness-provider' },
+  load: () => new Promise(() => undefined),
+})
+const cancelledReadinessRuntime = cancelledReadinessRegistry.createRuntime({ runtimeId: 'cancelled-readiness' })
+const cancelledReadinessQuery = cancelledReadinessRuntime.query({
+  version: 1,
+  source: { capabilityId: 'test.source.cancelled-readiness', version: 1 },
+})
+const cancelledReadinessPrepare = cancelledReadinessRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.cancelled-readiness', version: 1 },
+})
+await wait()
+await cancelledReadinessRuntime.dispose()
+assert.equal(await promiseOutcome(cancelledReadinessQuery), 'runtime.disposed')
+assert.equal(await promiseOutcome(cancelledReadinessPrepare), 'runtime.disposed')
+
 const unavailableRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let unavailableCreateCount = 0
 unavailableRegistry.sources.register({
@@ -487,12 +560,19 @@ const unregisterGhost = ghostRegistry.registerProvider({
     return { sources: [{ ...source, id: 'test.source.ghost' }] }
   },
 })
+const ghostRuntime = ghostRegistry.createRuntime({ runtimeId: 'ghost-readiness' })
+const ghostQueryOutcome = promiseOutcome(ghostRuntime.query({
+  version: 1,
+  source: { capabilityId: 'test.source.ghost', version: 1 },
+}), 1000)
 const ghostCatalog = ghostRegistry.resolveCatalog({})
 await wait()
 unregisterGhost()
 releaseGhost()
 assert.equal((await ghostCatalog).sources.length, 0)
+assert.equal(await ghostQueryOutcome, 'source.not_found')
 assert.equal((await ghostRegistry.resolveCatalog({})).sources.length, 0)
+await ghostRuntime.dispose()
 
 const operationUnregisterRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let unregisteredOperationDisposeCount = 0
@@ -1446,7 +1526,12 @@ providerFailureRegistry.registerProvider({
   owner: { moduleId: 'test-ui', providerId: 'healthy-provider' },
   load: () => ({ sources: [{ ...source, id: 'test.source.healthy-provider' }] }),
 })
-assert.equal((await providerFailureRegistry.resolveCatalog({})).sources.length, 1)
+const providerFailureRuntime = providerFailureRegistry.createRuntime({ runtimeId: 'provider-failure' })
+assert.deepEqual((await providerFailureRuntime.query({
+  version: 1,
+  source: { capabilityId: 'test.source.healthy-provider', version: 1 },
+})).data, { config: undefined, query: undefined })
+await providerFailureRuntime.dispose()
 
 const rollbackRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 rollbackRegistry.registerProvider({

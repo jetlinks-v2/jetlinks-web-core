@@ -54,6 +54,10 @@ export class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     return this.disposedState
   }
 
+  ensureReady(signal?: AbortSignal): Promise<void> {
+    return this.registry.ensureReady(this.toRuntimeContext(signal))
+  }
+
   connect<T = unknown>(request: DataConnectionRequest): DataConnection<T> {
     return this.sourceRunner.connect<T>(request)
   }
