@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "moduleResolution": "Bundler",
+    "types": ["node", "vite/client"]
+  },
+  "include": [
+    "src/data-capability/**/*.ts",
+    "src/utils/module-registry.ts",
+    "src/env.d.ts",
+    "tests/unit/dataCapabilityCore.spec.ts",
+    "tests/unit/dataCapabilityLegacy.spec.ts",
+    "tests/unit/dataCapabilityModuleRegistry.spec.ts"
+  ]
+}
