@@ -81,7 +81,7 @@ export interface GeneralAgentConversationBridge {
  * The fence info string is matched against `type`. Returning `undefined` from
  * `decode` rejects the block so the conversation falls back to a normal code block.
  */
-export interface GeneralAgentMarkdownBlockRenderer {
+export interface GeneralAgentPresentationRenderer {
   type: string;
   renderer: Component;
   /** Side-effect-free placeholder rendered while the assistant response is still streaming. */
@@ -89,6 +89,9 @@ export interface GeneralAgentMarkdownBlockRenderer {
   decode?: (content: string) => unknown | undefined;
   presentation?: GeneralAgentMarkdownBlockPresentation;
 }
+
+/** @deprecated Markdown is only one compatibility envelope for a presentation renderer. */
+export interface GeneralAgentMarkdownBlockRenderer extends GeneralAgentPresentationRenderer {}
 
 export type GeneralAgentMarkdownBlockContentType = 'json' | 'text';
 
@@ -161,11 +164,14 @@ export const normalizeGeneralAgentMarkdownPresentationCapability = (
   };
 };
 
-export interface GeneralAgentResolvedMarkdownBlock {
+export interface GeneralAgentResolvedPresentationBlock {
   type: string;
   renderer: Component;
   value: unknown;
 }
+
+/** @deprecated Use the neutral presentation block contract. */
+export type GeneralAgentResolvedMarkdownBlock = GeneralAgentResolvedPresentationBlock;
 
 export interface GeneralAgentMarkdownTextResourceOptions {
   maxBytes?: number;
@@ -237,6 +243,8 @@ export const findGeneralAgentMarkdownBlockContents = (
 export interface GeneralAgentConversationExtension {
   displayAdapter?: GeneralAgentConversationDisplayAdapter;
   suppressedMessageRenderer?: Component;
+  presentationRenderers?: GeneralAgentPresentationRenderer[];
+  /** Compatibility renderers discovered from closed Markdown fences. */
   markdownBlockRenderers?: GeneralAgentMarkdownBlockRenderer[];
   createBridge?: (
     context: GeneralAgentConversationBridgeContext,
@@ -306,29 +314,78 @@ class GeneralAgentExtensionRegistry {
     return this.getExtensions(scopes).filter(extension => !!extension.conversation);
   }
 
-  /**
-   * Returns the fenced-block presentation contract actually installed in the current client.
-   * Duplicate block types follow the same extension ordering as renderer resolution.
-   */
-  getMarkdownPresentationCapabilities(
+  getPresentationRenderers(scopes: string | string[] = 'general') {
+    const renderers: GeneralAgentPresentationRenderer[] = [];
+    const seen = new Set<string>();
+    for (const extension of this.getConversationExtensions(scopes)) {
+      for (const renderer of [
+        ...(extension.conversation?.presentationRenderers || []),
+        ...(extension.conversation?.markdownBlockRenderers || []),
+      ]) {
+        const type = normalizeText(renderer.type).toLowerCase();
+        if (!type || seen.has(type)) continue;
+        seen.add(type);
+        renderers.push(renderer);
+      }
+    }
+    return renderers;
+  }
+
+  /** Returns the neutral presentation contract actually installed in the current client. */
+  getPresentationCapabilities(
     scopes: string | string[] = 'general',
   ): GeneralAgentMarkdownPresentationCapability[] {
     const capabilities: GeneralAgentMarkdownPresentationCapability[] = [];
     const seen = new Set<string>();
-    for (const extension of this.getConversationExtensions(scopes)) {
-      for (const renderer of extension.conversation?.markdownBlockRenderers || []) {
-        const type = normalizeText(renderer.type).toLowerCase();
-        if (!type || seen.has(type) || !renderer.presentation) continue;
-        const capability = normalizeGeneralAgentMarkdownPresentationCapability({
-          type,
-          ...renderer.presentation,
-        });
-        if (!capability) continue;
-        seen.add(type);
-        capabilities.push(capability);
-      }
+    for (const renderer of this.getPresentationRenderers(scopes)) {
+      const type = normalizeText(renderer.type).toLowerCase();
+      if (!type || seen.has(type) || !renderer.presentation) continue;
+      const capability = normalizeGeneralAgentMarkdownPresentationCapability({
+        type,
+        ...renderer.presentation,
+      });
+      if (!capability) continue;
+      seen.add(type);
+      capabilities.push(capability);
     }
     return capabilities;
+  }
+
+  /** @deprecated Use {@link getPresentationCapabilities}. */
+  getMarkdownPresentationCapabilities(
+    scopes: string | string[] = 'general',
+  ): GeneralAgentMarkdownPresentationCapability[] {
+    return this.getPresentationCapabilities(scopes);
+  }
+
+  /**
+   * Resolves a typed assistant presentation through the installed renderer registry.
+   * Decoder failures are isolated to the block and never break the conversation timeline.
+   */
+  resolvePresentationBlock(
+    type: string,
+    content: string,
+    scopes: string | string[] = 'general',
+  ): GeneralAgentResolvedPresentationBlock | undefined {
+    const normalizedType = normalizeText(type).toLowerCase();
+    if (!normalizedType) return undefined;
+
+    for (const candidate of this.getPresentationRenderers(scopes)) {
+      if (normalizeText(candidate.type).toLowerCase() !== normalizedType) continue;
+      try {
+        const value = candidate.decode ? candidate.decode(content) : content;
+        if (value !== undefined) {
+          return {
+            type: normalizedType,
+            renderer: candidate.renderer,
+            value,
+          };
+        }
+      } catch {
+        // Invalid capability payloads remain isolated to their presentation block.
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -340,28 +397,7 @@ class GeneralAgentExtensionRegistry {
     content: string,
     scopes: string | string[] = 'general',
   ): GeneralAgentResolvedMarkdownBlock | undefined {
-    const normalizedType = normalizeText(type).toLowerCase();
-    if (!normalizedType) return undefined;
-
-    for (const extension of this.getConversationExtensions(scopes)) {
-      const renderers = extension.conversation?.markdownBlockRenderers || [];
-      for (const candidate of renderers) {
-        if (normalizeText(candidate.type).toLowerCase() !== normalizedType) continue;
-        try {
-          const value = candidate.decode ? candidate.decode(content) : content;
-          if (value !== undefined) {
-            return {
-              type: normalizedType,
-              renderer: candidate.renderer,
-              value,
-            };
-          }
-        } catch {
-          // Invalid capability payloads remain visible as ordinary source blocks.
-        }
-      }
-    }
-    return undefined;
+    return this.resolvePresentationBlock(type, content, scopes);
   }
 }
 
