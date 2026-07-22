@@ -138,11 +138,14 @@ export interface OperationUiDefinition {
 }
 
 export interface RuntimeContext extends RuntimeCreateContext {
+  contexts?: Record<string, unknown>
   signal?: AbortSignal
 }
 
 export interface DataSourceCreateContext extends CapabilityContext {
   runtime?: RuntimeContext
+  /** @deprecated read cancellation from runtime.signal; kept for legacy providers. */
+  signal?: AbortSignal
 }
 
 export interface DataSourceRequest {
@@ -230,9 +233,13 @@ export interface OperationDefinition extends CapabilityDefinitionBase {
 
 export interface OperationCreateContext extends CapabilityContext {
   runtime?: RuntimeContext
+  /** @deprecated read cancellation from runtime.signal; kept for legacy providers. */
+  signal?: AbortSignal
 }
 
-export interface OperationContext extends RuntimeContext {}
+export interface OperationContext extends RuntimeContext {
+  runtime?: RuntimeContext
+}
 
 export interface OperationRequest {
   config?: unknown

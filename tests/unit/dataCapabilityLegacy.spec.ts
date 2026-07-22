@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { firstValueFrom, Observable } from 'rxjs'
 
 import {
+  DefaultDataCapabilityRegistry,
   createLegacyCommandProvider,
   type CapabilityContext,
 } from '../../src/data-capability'
@@ -70,3 +71,50 @@ const streamSource = loaded!.sources![1]
 const streamRuntime = await streamSource.create({}, context)
 const streamResult = await firstValueFrom(streamRuntime.query({ query: { id: 'd1' } }, { ...context, runtimeId: 'unit-test' }))
 assert.equal((streamResult.data as any).value, 1)
+
+
+const registry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+const legacyInputs: unknown[] = []
+const legacyProvider = createLegacyCommandProvider({
+  providerId: 'unit.legacy-runtime',
+  moduleId: 'unit-ui',
+  async listCommands() {
+    return {
+      commands: [{
+        serviceId: 'device-service',
+        commandId: 'restart',
+        commandName: '重启',
+        forAction: true,
+        metadata: { risk: 'low' },
+      }],
+    }
+  },
+  async execute(_command, input, executeContext: any) {
+    legacyInputs.push(input)
+    assert.equal(!!executeContext.runtime, true)
+    return input
+  },
+})
+registry.registerProvider(legacyProvider)
+await registry.resolveCatalog({})
+const runtime = registry.createRuntime({ runtimeId: 'legacy-runtime' })
+const [firstPrepared, secondPrepared] = await Promise.all([
+  runtime.prepareOperation({
+    version: 1,
+    operation: { capabilityId: 'legacy.command.operation.device-service.restart', version: 1 },
+    input: { value: { kind: 'literal', value: 'legacy-first' } },
+  }),
+  runtime.prepareOperation({
+    version: 1,
+    operation: { capabilityId: 'legacy.command.operation.device-service.restart', version: 1 },
+    input: { value: { kind: 'literal', value: 'legacy-second' } },
+  }),
+])
+assert.notEqual(firstPrepared.id, secondPrepared.id)
+assert.equal((firstPrepared.diagnostics as any).providerPreparedId, 'legacy.command.operation.device-service.restart')
+const firstConfirmed = runtime.confirmOperation(firstPrepared.id, { method: 'ui' })
+const secondConfirmed = runtime.confirmOperation(secondPrepared.id, { method: 'ui' })
+await firstValueFrom(runtime.executeOperation(firstConfirmed).events$)
+await firstValueFrom(runtime.executeOperation(secondConfirmed).events$)
+assert.deepEqual(legacyInputs, [{ value: 'legacy-first' }, { value: 'legacy-second' }])
+await runtime.dispose()

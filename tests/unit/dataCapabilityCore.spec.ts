@@ -566,6 +566,36 @@ await neverPrepareRuntime.dispose()
 assert.equal(await promiseOutcome(neverPrepare), 'runtime.disposed')
 assert.equal(neverPrepareDispose, 1)
 
+const providerPendingPrepareRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let providerPendingPrepareDispose = 0
+const unregisterProviderPendingPrepare = providerPendingPrepareRegistry.registerProvider({
+  id: 'pending-prepare-provider',
+  owner: { moduleId: 'test-ui', providerId: 'pending-prepare-provider' },
+  load: () => ({
+    operations: [{
+      ...operation,
+      id: 'test.operation.provider-pending-prepare',
+      owner: { moduleId: 'test-ui', providerId: 'pending-prepare-provider' },
+      create: () => ({
+        prepare: () => new Promise<any>(() => undefined),
+        execute: () => of({ type: 'completed' }) as any,
+        dispose() { providerPendingPrepareDispose += 1 },
+      }),
+    }],
+  }),
+})
+await providerPendingPrepareRegistry.resolveCatalog({})
+const providerPendingPrepareRuntime = providerPendingPrepareRegistry.createRuntime({ runtimeId: 'provider-pending-prepare' })
+const providerPendingPrepare = providerPendingPrepareRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.provider-pending-prepare', version: 1 },
+})
+await wait()
+unregisterProviderPendingPrepare()
+assert.equal(await promiseOutcome(providerPendingPrepare), 'capability.unavailable')
+assert.equal(providerPendingPrepareDispose, 1)
+await providerPendingPrepareRuntime.dispose()
+
 const concurrentPrepareRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 const originalDateNow = Date.now
 let executedInputs: unknown[] = []
@@ -601,6 +631,79 @@ try {
 } finally {
   Date.now = originalDateNow
 }
+
+const providerPreparedIdRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+const providerPreparedInputs: unknown[] = []
+providerPreparedIdRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.provider-same-prepared-id',
+  create: () => ({
+    prepare: async request => ({
+      id: 'provider-fixed-id',
+      capabilityId: 'test.operation.provider-same-prepared-id',
+      request,
+      policy: basePolicy,
+    }),
+    execute(prepared) {
+      providerPreparedInputs.push(prepared.request.input)
+      return of({ type: 'result', result: prepared.request.input }, { type: 'completed' }) as any
+    },
+  }),
+})
+const providerPreparedRuntime = providerPreparedIdRegistry.createRuntime({ runtimeId: 'provider-same-prepared-id' })
+const [providerPreparedFirst, providerPreparedSecond] = await Promise.all([
+  providerPreparedRuntime.prepareOperation({
+    version: 1,
+    operation: { capabilityId: 'test.operation.provider-same-prepared-id', version: 1 },
+    input: { value: { kind: 'literal', value: 'provider-first' } },
+  }),
+  providerPreparedRuntime.prepareOperation({
+    version: 1,
+    operation: { capabilityId: 'test.operation.provider-same-prepared-id', version: 1 },
+    input: { value: { kind: 'literal', value: 'provider-second' } },
+  }),
+])
+assert.notEqual(providerPreparedFirst.id, providerPreparedSecond.id)
+assert.equal((providerPreparedFirst.diagnostics as any).providerPreparedId, 'provider-fixed-id')
+await firstValueFrom(providerPreparedRuntime.executeOperation(providerPreparedFirst).events$)
+await firstValueFrom(providerPreparedRuntime.executeOperation(providerPreparedSecond).events$)
+assert.deepEqual(providerPreparedInputs, [{ value: 'provider-first' }, { value: 'provider-second' }])
+await providerPreparedRuntime.dispose()
+
+const operationContextRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let operationCreateRuntimeSignalSeen = false
+let operationCreateFlatSignalSeen = false
+let operationPrepareRuntimeSignalSeen = false
+let operationExecuteRuntimeSignalSeen = false
+operationContextRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.context-signal',
+  create: (_config, context: any) => {
+    operationCreateRuntimeSignalSeen = !!context.runtime?.signal
+    operationCreateFlatSignalSeen = !!context.signal
+    return {
+      prepare: async (_request, prepareContext: any) => {
+        operationPrepareRuntimeSignalSeen = !!prepareContext.runtime?.signal
+        return { id: 'operation-context-provider-id', capabilityId: 'test.operation.context-signal', request: _request, policy: basePolicy }
+      },
+      execute(_prepared, executeContext: any) {
+        operationExecuteRuntimeSignalSeen = !!executeContext.runtime
+        return of({ type: 'completed' }) as any
+      },
+    }
+  },
+})
+const operationContextRuntime = operationContextRegistry.createRuntime({ runtimeId: 'operation-context-signal' })
+const operationContextPrepared = await operationContextRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.context-signal', version: 1 },
+})
+await firstValueFrom(operationContextRuntime.executeOperation(operationContextPrepared).events$)
+assert.equal(operationCreateRuntimeSignalSeen, true)
+assert.equal(operationCreateFlatSignalSeen, true)
+assert.equal(operationPrepareRuntimeSignalSeen, true)
+assert.equal(operationExecuteRuntimeSignalSeen, true)
+await operationContextRuntime.dispose()
 
 const connectingRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 connectingRegistry.sources.register({
@@ -685,6 +788,29 @@ await assert.rejects(() => queryLateCreate, (error: any) => error?.code === 'run
 releaseQueryLateCreate()
 await wait()
 assert.equal(queryLateCreateDispose, 1)
+
+const createContextRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let dataSourceRuntimeSignalSeen = false
+let dataSourceFlatSignalSeen = false
+let dataSourceRuntimeAbortCount = 0
+createContextRegistry.sources.register({
+  ...source,
+  id: 'test.source.create-context-signal',
+  create: (_config, context: any) => {
+    dataSourceRuntimeSignalSeen = !!context.runtime?.signal
+    dataSourceFlatSignalSeen = !!context.signal
+    context.runtime?.signal?.addEventListener('abort', () => { dataSourceRuntimeAbortCount += 1 }, { once: true })
+    return { query: () => new Observable(() => () => undefined) as any }
+  },
+})
+const createContextRuntime = createContextRegistry.createRuntime({ runtimeId: 'create-context-signal' })
+const createContextQuery = createContextRuntime.query({ version: 1, source: { capabilityId: 'test.source.create-context-signal', version: 1 } })
+await wait()
+await createContextRuntime.dispose()
+await assert.rejects(() => createContextQuery, (error: any) => error?.code === 'runtime.disposed')
+assert.equal(dataSourceRuntimeSignalSeen, true)
+assert.equal(dataSourceFlatSignalSeen, true)
+assert.equal(dataSourceRuntimeAbortCount, 1)
 
 const preAbortRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let preAbortCreateCount = 0
@@ -1038,6 +1164,82 @@ assert.equal(sharedCancelDispose, 0)
 secondSharedConnection.unsubscribe()
 assert.equal(sharedCancelDispose, 1)
 await sharedCancelRuntime.dispose()
+
+const sharedReverseCancelRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseSharedReverseCreate!: () => void
+const sharedReverseCreateReady = new Promise<void>(resolve => { releaseSharedReverseCreate = resolve })
+let sharedReverseCreateCount = 0
+let sharedReverseDispose = 0
+sharedReverseCancelRegistry.sources.register({
+  ...source,
+  id: 'test.source.shared-reverse-cancel',
+  modes: ['stream'],
+  create: async () => {
+    sharedReverseCreateCount += 1
+    await sharedReverseCreateReady
+    return {
+      query: () => new Observable((subscriber) => {
+        subscriber.next({ data: 'reverse-shared' })
+        return () => undefined
+      }) as any,
+      dispose() { sharedReverseDispose += 1 },
+    }
+  },
+})
+const sharedReverseRuntime = sharedReverseCancelRegistry.createRuntime({ runtimeId: 'shared-reverse-cancel' })
+const firstSharedReverseEvents: DataConnectionEvent[] = []
+const firstSharedReverse = sharedReverseRuntime.connect({
+  consumerId: 'shared-reverse-first',
+  binding: { version: 1, source: { capabilityId: 'test.source.shared-reverse-cancel', version: 1 } },
+})
+firstSharedReverse.events$.subscribe(event => firstSharedReverseEvents.push(event))
+const secondSharedReverse = sharedReverseRuntime.connect({
+  consumerId: 'shared-reverse-second',
+  binding: { version: 1, source: { capabilityId: 'test.source.shared-reverse-cancel', version: 1 } },
+})
+await wait()
+secondSharedReverse.unsubscribe()
+releaseSharedReverseCreate()
+await wait()
+assert.equal(sharedReverseCreateCount, 1)
+assert.equal(firstSharedReverseEvents.some(event => event.type === 'data'), true)
+assert.equal(sharedReverseDispose, 0)
+firstSharedReverse.unsubscribe()
+assert.equal(sharedReverseDispose, 1)
+await sharedReverseRuntime.dispose()
+
+const sharedAllCancelRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseSharedAllCreate!: () => void
+const sharedAllCreateReady = new Promise<void>(resolve => { releaseSharedAllCreate = resolve })
+let sharedAllDispose = 0
+sharedAllCancelRegistry.sources.register({
+  ...source,
+  id: 'test.source.shared-all-cancel',
+  modes: ['stream'],
+  create: async () => {
+    await sharedAllCreateReady
+    return {
+      query: () => new Observable(() => () => undefined) as any,
+      dispose() { sharedAllDispose += 1 },
+    }
+  },
+})
+const sharedAllRuntime = sharedAllCancelRegistry.createRuntime({ runtimeId: 'shared-all-cancel' })
+const firstSharedAll = sharedAllRuntime.connect({
+  consumerId: 'shared-all-first',
+  binding: { version: 1, source: { capabilityId: 'test.source.shared-all-cancel', version: 1 } },
+})
+const secondSharedAll = sharedAllRuntime.connect({
+  consumerId: 'shared-all-second',
+  binding: { version: 1, source: { capabilityId: 'test.source.shared-all-cancel', version: 1 } },
+})
+await wait()
+firstSharedAll.unsubscribe()
+secondSharedAll.unsubscribe()
+releaseSharedAllCreate()
+await wait()
+assert.equal(sharedAllDispose, 1)
+await sharedAllRuntime.dispose()
 
 const providerFailureRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 providerFailureRegistry.registerProvider({

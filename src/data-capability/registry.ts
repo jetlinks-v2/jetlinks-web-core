@@ -78,6 +78,7 @@ type PreparedOperationEntry = {
   registration?: CapabilityMountStamp
   operation: Awaited<ReturnType<OperationDefinition['create']>>
   prepared: PreparedOperation
+  providerPreparedId?: string
 }
 
 type OperationExecutionEntry = {
@@ -117,6 +118,7 @@ type ProviderDefinitionKind = 'sources' | 'operations' | 'contexts' | 'valueEdit
 type SharedConnection = {
   events$: Subject<DataConnectionEvent>
   refCount: number
+  consumers: Set<string>
   abortController: AbortController
   subscription?: Subscription
   dataSource?: DataSource
@@ -739,12 +741,16 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     let sharedKey: string | undefined
     let sharedSubscription: Subscription | undefined
     let joinedShared = false
+    let forwardedShared = false
+    const leaseId = nextRuntimeResourceId(`connection:${request.consumerId}:lease`)
 
     const forwardShared = (shared: SharedConnection) => {
-      if (joinedShared) return
-      if (!shared.disposed) {
+      if (forwardedShared) return
+      forwardedShared = true
+      if (!shared.disposed && !joinedShared) {
         joinedShared = true
-        shared.refCount += 1
+        shared.consumers.add(leaseId)
+        shared.refCount = shared.consumers.size
       }
       if (shared.lastStatus?.type === 'status' && shared.lastStatus.status === 'completed') {
         shared.lastData && events$.next(shared.lastData as DataConnectionEvent<T>)
@@ -798,9 +804,11 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
           return
         }
         if (stopped || signal?.aborted) return
-        const created = await this.createSharedConnection(definition, registration, resolvedRequest, binding, sharedKey)
+        const createSharedPromise = this.createSharedConnection(definition, registration, resolvedRequest, binding, sharedKey, leaseId)
+        joinedShared = true
+        const created = await createSharedPromise
         if (stopped || signal?.aborted) {
-          if (created.refCount <= 0) this.disposeSharedConnection(sharedKey)
+          this.releaseSharedConnection(sharedKey, leaseId)
           return
         }
         forwardShared(created)
@@ -818,7 +826,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       request.options?.signal?.removeEventListener('abort', unsubscribe)
       safeUnsubscribe(sharedSubscription, `connection:${id}:shared`)
       events$.complete()
-      if (sharedKey && joinedShared) this.releaseSharedConnection(sharedKey)
+      if (sharedKey && joinedShared) this.releaseSharedConnection(sharedKey, leaseId)
     }
     if (request.options?.signal?.aborted) {
       unsubscribe()
@@ -882,7 +890,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         timeout: options.timeout || definition.defaults?.timeout,
       }, runtimeContext)
       let dataSourceAssigned = false
-      const createPromise = Promise.resolve(definition.create(resolvedRequest.config, this.runtimeContext))
+      const createPromise = Promise.resolve(definition.create(resolvedRequest.config, this.toDataSourceCreateContext(queryResource.abortController.signal)))
       createPromise.then((lateDataSource) => {
         if (!dataSourceAssigned && queryResource.abortController.signal.aborted) {
           safeDispose(lateDataSource, `query:${definition.id}:late`)
@@ -934,8 +942,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     this.pendingPrepareResources.add(prepareResource)
     let operationAssigned = false
     try {
-      const runtimeContext = this.toRuntimeContext(prepareResource.abortController.signal)
-      const createPromise = Promise.resolve(definition.create(binding.operation.config, runtimeContext))
+      const createPromise = Promise.resolve(definition.create(binding.operation.config, this.toOperationCreateContext(prepareResource.abortController.signal)))
       createPromise.then((lateOperation) => {
         if (!operationAssigned && prepareResource.abortController.signal.aborted) {
           safeDispose(lateOperation, `operation:${definition.id}:late-create`)
@@ -953,8 +960,8 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       this.assertRegistrationActive(registration, 'operations', definition.id)
       const policy = mergeOperationPolicy(definition.policy, binding.policyOverride)
       const request = { config: binding.operation.config, input }
-      const prepared = operation.prepare
-        ? await racePrepareCancel(operation.prepare(request, runtimeContext), prepareResource)
+      const prepared: PreparedOperation = operation.prepare
+        ? await racePrepareCancel(operation.prepare(request, this.toOperationContext(prepareResource.abortController.signal)), prepareResource)
         : {
             id: nextRuntimeResourceId(`operation:${definition.id}:prepared`),
             capabilityId: definition.id,
@@ -964,9 +971,20 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       this.assertActive()
       this.assertPrepareNotAborted(prepareResource, definition.id)
       this.assertRegistrationActive(registration, 'operations', definition.id)
-      const canonicalPrepared = freezePreparedOperation({ ...prepared, policy: mergeOperationPolicy(policy, prepared.policy) })
+      const providerPreparedId = prepared.id
+      const runtimePreparedId = nextRuntimeResourceId(`operation:${definition.id}:prepared`)
+      const canonicalPrepared = freezePreparedOperation({
+        ...prepared,
+        id: runtimePreparedId,
+        capabilityId: definition.id,
+        policy: mergeOperationPolicy(policy, prepared.policy),
+        diagnostics: {
+          ...(prepared.diagnostics || {}),
+          providerPreparedId,
+        },
+      })
       prepareResource.preparedId = canonicalPrepared.id
-      this.preparedOperations.set(canonicalPrepared.id, { definition, registration, operation, prepared: canonicalPrepared })
+      this.preparedOperations.set(canonicalPrepared.id, { definition, registration, operation, prepared: canonicalPrepared, providerPreparedId })
       prepareResource.settled = true
       return cloneCapabilityValue(canonicalPrepared)
     } catch (error) {
@@ -1063,7 +1081,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         if (this.preparedOperations.get(confirmed.preparedId) !== cached) return
         this.assertRegistrationActive(cached.registration, 'operations', cached.definition.id)
         entry.dispatched = true
-        const subscription = cached.operation.execute(cached.prepared, this.toRuntimeContext()).subscribe({
+        const subscription = cached.operation.execute(cached.prepared, this.toOperationContext()).subscribe({
           next: event => events$.next(event),
           error: error => events$.error(error),
           complete: () => events$.complete(),
@@ -1202,11 +1220,13 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     request: ResolvedDataSourceRequest,
     binding: PersistedDataBinding,
     key: string,
+    initialConsumerId: string,
   ): Promise<SharedConnection> {
     const abortController = new AbortController()
     const shared: SharedConnection = {
       events$: new Subject<DataConnectionEvent>(),
-      refCount: 0,
+      refCount: 1,
+      consumers: new Set([initialConsumerId]),
       abortController,
       disposed: false,
       capabilityId: definition.id,
@@ -1220,7 +1240,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       await assertExecutable(definition, runtimeContext)
       this.assertActive()
       this.assertRegistrationActive(registration, 'sources', definition.id)
-      const dataSource = await definition.create(request.config, this.runtimeContext)
+      const dataSource = await definition.create(request.config, this.toDataSourceCreateContext(abortController.signal))
       createdDataSource = dataSource
       if (shared.disposed || this.disposed || !this.registry.isMountActive(registration, 'sources', definition.id)) {
         await safeDisposeAsync(dataSource, `connection:${definition.id}:late`)
@@ -1261,10 +1281,11 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     return shared
   }
 
-  private releaseSharedConnection(key: string): void {
+  private releaseSharedConnection(key: string, consumerId: string): void {
     const shared = this.sharedConnections.get(key)
     if (!shared) return
-    shared.refCount -= 1
+    shared.consumers.delete(consumerId)
+    shared.refCount = shared.consumers.size
     if (shared.refCount <= 0) {
       this.disposeSharedConnection(key)
     }
@@ -1326,12 +1347,42 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     return this.bindingResolver.resolveRecord(values, this.toRuntimeContext(signal))
   }
 
-  private toRuntimeContext(signal?: AbortSignal) {
+  private toRuntimeContext(signal?: AbortSignal): RuntimeContext {
     return {
       ...this.runtimeContext,
       parameters: this.parameters,
       contexts: Object.fromEntries(this.contexts),
       signal,
+    }
+  }
+
+  private toDataSourceCreateContext(signal?: AbortSignal) {
+    const runtime = this.toRuntimeContext(signal)
+    return {
+      parameters: runtime.parameters,
+      attributes: runtime.attributes,
+      contexts: runtime.contexts,
+      runtime,
+      signal,
+    }
+  }
+
+  private toOperationCreateContext(signal?: AbortSignal) {
+    const runtime = this.toRuntimeContext(signal)
+    return {
+      parameters: runtime.parameters,
+      attributes: runtime.attributes,
+      contexts: runtime.contexts,
+      runtime,
+      signal,
+    }
+  }
+
+  private toOperationContext(signal?: AbortSignal) {
+    const runtime = this.toRuntimeContext(signal)
+    return {
+      ...runtime,
+      runtime,
     }
   }
 
