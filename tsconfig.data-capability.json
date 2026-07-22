@@ -6,12 +6,16 @@
   },
   "include": [
     "src/data-capability/**/*.ts",
+    "src/views/data-capability/lab/**/*.ts",
+    "src/views/data-capability/lab/**/*.vue",
     "src/utils/module-registry.ts",
     "src/env.d.ts",
     "tests/unit/dataCapabilityCore.spec.ts",
     "tests/unit/dataCapabilitySchema.spec.ts",
     "tests/unit/dataCapabilityLegacy.spec.ts",
     "tests/unit/dataCapabilityModuleRegistry.spec.ts",
+    "tests/unit/dataCapabilityOutput.spec.ts",
+    "tests/unit/dataCapabilityOptionSource.spec.ts",
     "tests/types/dataCapabilityTypes.ts"
   ]
 }

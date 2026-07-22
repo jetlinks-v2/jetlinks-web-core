@@ -27,3 +27,16 @@ export async function assertExecutable(
     })
   }
 }
+
+export async function assertConfigurable(
+  definition: CapabilityDefinitionBase,
+  context: CapabilityContext,
+): Promise<void> {
+  const availability = await resolveAvailability(definition, context, 'configure')
+  if (!availability.configurable) {
+    throw createCapabilityError('capability.unavailable', availability.reason || 'Capability is not configurable', {
+      capabilityId: definition.id,
+      retryable: availability.retryable,
+    })
+  }
+}

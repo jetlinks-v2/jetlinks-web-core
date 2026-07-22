@@ -12,6 +12,8 @@ const entries = [
   'tests/unit/dataCapabilitySchema.spec.ts',
   'tests/unit/dataCapabilityLegacy.spec.ts',
   'tests/unit/dataCapabilityModuleRegistry.spec.ts',
+  'tests/unit/dataCapabilityOutput.spec.ts',
+  'tests/unit/dataCapabilityOptionSource.spec.ts',
 ]
 
 const runNode = file => new Promise((resolvePromise, reject) => {

@@ -1,27 +1,14 @@
-import { computed, markRaw, onBeforeUnmount, reactive, ref, shallowRef, type Component } from 'vue'
-import { message, Modal } from 'ant-design-vue'
+import { computed, markRaw, reactive, ref, shallowRef, type Component } from 'vue'
 import {
   dataCapabilityRegistry,
   type CapabilityKind,
   type CapabilityQuery,
-  type DataCapabilityRuntime,
-  type DataConnection,
   type LazyComponentDefinition,
-  type PersistedDataBinding,
-  type PersistedOperationBinding,
-  type PreparedOperation,
   type ResolvedCapabilityCatalog,
 } from '@jetlinks-web-core/data-capability'
 import { useLabEventBuffer } from './useLabEventBuffer'
-
-export interface LabCapabilityItem {
-  id: string
-  kind: CapabilityKind
-  name: string
-  owner: { moduleId: string; providerId: string }
-  availability: { executable: boolean }
-  definition: Record<string, unknown>
-}
+import { useLabRuntimeActions } from './useLabRuntimeActions'
+import type { LabCapabilityItem } from './types'
 
 export function useDataCapabilityLab() {
   const context = reactive({ parameters: {}, attributes: {} })
@@ -29,9 +16,6 @@ export function useDataCapabilityLab() {
   const selectedKind = ref<CapabilityKind>()
   const catalog = ref<ResolvedCapabilityCatalog>()
   const selectedCapability = ref<LabCapabilityItem>()
-  const runtime = ref<DataCapabilityRuntime>()
-  const connection = ref<DataConnection>()
-  const preparedOperation = ref<PreparedOperation>()
   const loading = ref(false)
   const activeTab = ref('definition')
   const draftConfig = ref('{}')
@@ -44,9 +28,14 @@ export function useDataCapabilityLab() {
   const componentLoading = ref(false)
   const componentError = ref<string>()
 
-  const canExecutePreparedOperation = computed(() => {
-    const risk = preparedOperation.value?.policy.risk
-    return !!preparedOperation.value && risk !== 'high' && risk !== 'critical'
+  const runtimeActions = useLabRuntimeActions({
+    context,
+    selectedCapability,
+    draftConfig,
+    draftQuery,
+    draftInput,
+    result,
+    appendEvent: appendLabEvent,
   })
 
   const capabilityItems = computed(() => {
@@ -105,9 +94,9 @@ export function useDataCapabilityLab() {
     kinds: selectedKind.value ? [selectedKind.value] : undefined,
   })
   const selectCapability = (item: LabCapabilityItem) => {
-    stopConnection()
+    runtimeActions.stopConnection()
     selectedCapability.value = item
-    preparedOperation.value = undefined
+    runtimeActions.preparedOperation.value = undefined
     result.value = undefined
     resetEvents()
     void refreshComponentPreview()
@@ -133,109 +122,6 @@ export function useDataCapabilityLab() {
       componentLoading.value = false
     }
   }
-  const runPreview = async () => {
-    result.value = await getRuntime().preview({ binding: buildDataBinding(), timeout: 5000, limit: 20 })
-  }
-  const runQuery = async () => {
-    result.value = await getRuntime().query(buildDataBinding(), { timeout: 5000, limit: 20 })
-  }
-  const runConnect = () => {
-    stopConnection()
-    connection.value = getRuntime().connect({
-      consumerId: 'data-capability-lab',
-      binding: buildDataBinding(),
-      options: { timeout: 5000, limit: 20 },
-    })
-    connection.value.events$.subscribe(event => {
-      appendLabEvent(event)
-      if (event.type === 'data') result.value = event.result
-    })
-  }
-  const runOptionSource = async () => {
-    const capability = selectedCapability.value
-    if (!capability || capability.kind !== 'option-source') return
-    const source = dataCapabilityRegistry.optionSources.get(capability.id)
-    result.value = await source?.query({ query: parseJson(draftQuery.value) as Record<string, unknown> }, context)
-  }
-  const prepareOperation = async () => {
-    preparedOperation.value = await getRuntime().prepareOperation(buildOperationBinding())
-    result.value = preparedOperation.value
-  }
-
-  const executeOperation = () => {
-    if (!preparedOperation.value) return
-    if (!canExecutePreparedOperation.value) {
-      message.warning('测试页不允许执行高风险或关键风险操作')
-      return
-    }
-    Modal.confirm({
-      title: '确认执行操作？',
-      content: `将执行 ${preparedOperation.value.capabilityId}，请确认该操作允许在测试环境执行。`,
-      onOk() {
-        const operation = preparedOperation.value!.policy.confirmation === 'none'
-          ? preparedOperation.value!
-          : getRuntime().confirmOperation(preparedOperation.value!.id, { method: 'ui', reason: 'data-capability-lab' })
-        const execution = getRuntime().executeOperation(operation)
-        execution.events$.subscribe({
-          next(event) {
-            appendLabEvent(event)
-            if (event.type === 'result') result.value = event.result
-          },
-          error(error) {
-            message.error(error instanceof Error ? error.message : String(error))
-          },
-        })
-      },
-    })
-  }
-  const buildDataBinding = (): PersistedDataBinding => {
-    const capability = requireSelected('data-source')
-    return {
-      version: 1,
-      source: {
-        capabilityId: capability.id,
-        version: Number(capability.definition.version || 1),
-        config: parseJson(draftConfig.value),
-      },
-      query: parseJson(draftQuery.value) as PersistedDataBinding['query'],
-    }
-  }
-  const buildOperationBinding = (): PersistedOperationBinding => {
-    const capability = requireSelected('operation')
-    return {
-      version: 1,
-      operation: {
-        capabilityId: capability.id,
-        version: Number(capability.definition.version || 1),
-        config: parseJson(draftConfig.value),
-      },
-      input: parseJson(draftInput.value) as PersistedOperationBinding['input'],
-    }
-  }
-  const requireSelected = (kind: CapabilityKind) => {
-    if (!selectedCapability.value || selectedCapability.value.kind !== kind) {
-      throw new Error(`请选择 ${kind} 能力`)
-    }
-    return selectedCapability.value
-  }
-  const getRuntime = () => {
-    if (!runtime.value) {
-      runtime.value = dataCapabilityRegistry.createRuntime({ ...context, runtimeId: 'data-capability-lab' })
-    }
-    return runtime.value
-  }
-  const stopConnection = () => {
-    connection.value?.unsubscribe()
-    connection.value = undefined
-  }
-  const parseJson = (value: string): unknown => {
-    try {
-      return value ? JSON.parse(value) : undefined
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : 'JSON 格式错误')
-      throw error
-    }
-  }
   const safeParseJson = (value: string): unknown => {
     try {
       return value ? JSON.parse(value) : undefined
@@ -257,19 +143,14 @@ export function useDataCapabilityLab() {
     }
     return undefined
   }
-  onBeforeUnmount(() => {
-    stopConnection()
-    void runtime.value?.dispose()
-  })
-
   return {
     context,
     query,
     selectedKind,
     selectedCapability,
-    connection,
-    preparedOperation,
-    canExecutePreparedOperation,
+    connection: runtimeActions.connection,
+    preparedOperation: runtimeActions.preparedOperation,
+    canExecutePreparedOperation: runtimeActions.canExecutePreparedOperation,
     loading,
     activeTab,
     draftConfig,
@@ -287,12 +168,12 @@ export function useDataCapabilityLab() {
     loadCatalog,
     selectCapability,
     refreshComponentPreview,
-    runPreview,
-    runQuery,
-    runConnect,
-    runOptionSource,
-    prepareOperation,
-    executeOperation,
-    stopConnection,
+    runPreview: runtimeActions.runPreview,
+    runQuery: runtimeActions.runQuery,
+    runConnect: runtimeActions.runConnect,
+    runOptionSource: runtimeActions.runOptionSource,
+    prepareOperation: runtimeActions.prepareOperation,
+    executeOperation: runtimeActions.executeOperation,
+    stopConnection: runtimeActions.stopConnection,
   }
 }

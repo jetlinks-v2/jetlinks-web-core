@@ -5,6 +5,7 @@ import type {
   ContextValueDefinition,
   DataSourceDefinition,
   OperationDefinition,
+  OptionSourceDefinition,
 } from '../types'
 
 export type ProviderDefinitionKind = 'sources' | 'operations' | 'contexts' | 'valueEditors' | 'optionSources'
@@ -33,6 +34,7 @@ export interface RuntimeRegistryAccess {
   readonly sources: CapabilityRegistry<DataSourceDefinition>
   readonly operations: CapabilityRegistry<OperationDefinition>
   readonly contexts: CapabilityRegistry<ContextValueDefinition>
+  readonly optionSources: CapabilityRegistry<OptionSourceDefinition>
   ensureReady(context?: CapabilityContext): Promise<void>
   getDefinitionRegistration(definition: CapabilityDefinitionBase): CapabilityMountStamp | undefined
   isMountActive(

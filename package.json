@@ -10,7 +10,7 @@
     "clean": "pnpm rimraf node_modules && pnpm rimraf dist && pnpm rimraf .turbo",
     "test": "playwright test",
     "test:data-capability": "node scripts/test-data-capability.mjs",
-    "typecheck:data-capability": "tsc -p tsconfig.data-capability.json --noEmit",
+    "typecheck:data-capability": "vue-tsc -p tsconfig.data-capability.json --noEmit",
     "micro": "node scripts/start-micro.js",
     "build:server": "pnpm build --mode server",
     "build:modules": "pnpm build -- --module-name",

@@ -240,14 +240,19 @@ export class DataSourceRunner {
     return { id, events$: events$.asObservable(), unsubscribe }
   }
 
-  async query<T = unknown>(binding: PersistedDataBinding, options: RuntimeQueryOptions = {}): Promise<DataSourceResult<T>> {
-    return (await this.runQuery<T>(binding, options, false)).result
+  async query<T = unknown>(
+    binding: PersistedDataBinding,
+    options: RuntimeQueryOptions = {},
+    expectedRegistration?: CapabilityMountStamp,
+  ): Promise<DataSourceResult<T>> {
+    return (await this.runQuery<T>(binding, options, false, expectedRegistration)).result
   }
 
   private async runQuery<T>(
     binding: PersistedDataBinding,
     options: RuntimeQueryOptions,
     validateOutput: boolean,
+    expectedRegistration?: CapabilityMountStamp,
   ): Promise<QueryRunResult<T>> {
     this.assertActive()
     assertPlanSupported(binding)
@@ -284,6 +289,13 @@ export class DataSourceRunner {
       this.assertQueryNotAborted(queryResource, capabilityId)
       const definition = this.requireSource(binding.source)
       const registration = this.registry.getDefinitionRegistration(definition)
+      // OptionSource configure and DataSource execute must never cross an effective mount replacement.
+      if (expectedRegistration && !sameMount(expectedRegistration, registration)) {
+        throw createCapabilityError('provider.unregistered', 'Capability provider has been replaced', {
+          capabilityId: definition.id,
+          retryable: true,
+        })
+      }
       queryResource.registration = registration
       this.assertRegistrationActive(registration, 'sources', definition.id)
       capabilitySchemaValidator.assert(definition.configSchema, binding.source.config, {

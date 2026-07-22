@@ -337,6 +337,21 @@ export interface OutputBinding {
   path?: DataPath
 }
 
+/** Identifies either a node's default output or one named output port. */
+export interface RuntimeOutputRef {
+  nodeId: string
+  port?: string
+}
+
+/**
+ * Runtime-only output snapshot used while resolving ValueBinding.
+ * Property presence is significant: an own property with value undefined is still a registered output.
+ */
+export interface RuntimeOutputSnapshot {
+  readonly default?: unknown
+  readonly ports?: Readonly<Record<string, unknown>>
+}
+
 export interface ExpressionBinding {
   kind: 'expression'
   language: 'cel'
@@ -351,7 +366,7 @@ export interface ContextValueDefinition extends CapabilityDefinitionBase {
 }
 
 export interface BindingRuntimeContext extends RuntimeContext {
-  outputs?: Record<string, unknown>
+  outputs?: Readonly<Record<string, RuntimeOutputSnapshot>>
   contexts?: Record<string, unknown>
 }
 
@@ -364,8 +379,13 @@ export interface ValueEditorDefinition extends CapabilityDefinitionBase {
 export interface OptionSourceDefinition extends CapabilityDefinitionBase {
   kind: 'option-source'
   querySchema?: CapabilitySchema
+  /** Validates each normalized CapabilityOption returned by this Provider. */
   optionSchema?: CapabilitySchema
-  query(request: OptionSourceRequest, context: CapabilityContext): Promise<OptionSourceResult>
+  /**
+   * Resolves configuration options without side effects.
+   * Implementations should observe request.signal or context.signal and return serializable option data.
+   */
+  query(request: OptionSourceRequest, context: RuntimeContext): OptionSourceResult | Promise<OptionSourceResult>
 }
 
 export interface OptionSourceRequest {
@@ -373,6 +393,15 @@ export interface OptionSourceRequest {
   keyword?: string
   pageIndex?: number
   pageSize?: number
+  signal?: AbortSignal
+}
+
+/** Per-call search, pagination and cancellation values supplied by a configuration UI. */
+export interface RuntimeOptionRequest {
+  keyword?: string
+  pageIndex?: number
+  pageSize?: number
+  signal?: AbortSignal
 }
 
 export interface OptionSourceResult {
@@ -381,17 +410,34 @@ export interface OptionSourceResult {
   diagnostics?: Record<string, unknown>
 }
 
-export interface OptionSourceRef {
-  type: 'static' | 'data-source' | 'provider'
-  capabilityId?: string
-  options?: CapabilityOption[]
-  query?: Record<string, ValueBinding | unknown>
-  labelPath?: DataPath
-  valuePath?: DataPath
-  childrenPath?: DataPath
-  keywordParam?: string
-  pagination?: boolean
+/** Minimal stable reference used when a capability has no persisted configuration. */
+export interface VersionedCapabilityRef {
+  capabilityId: string
+  version: number
 }
+
+export type OptionSourceRef =
+  | {
+      type: 'static'
+      options: CapabilityOption[]
+    }
+  | {
+      type: 'data-source'
+      capability: PersistedCapabilityRef
+      query?: Record<string, ValueBinding | unknown>
+      labelPath?: DataPath
+      valuePath?: DataPath
+      childrenPath?: DataPath
+      keywordParam?: string
+      pagination?: boolean
+    }
+  | {
+      type: 'provider'
+      capability: VersionedCapabilityRef
+      query?: Record<string, ValueBinding | unknown>
+      keywordParam?: string
+      pagination?: boolean
+    }
 
 export interface CapabilityOption {
   label: string
@@ -568,11 +614,17 @@ export interface DataCapabilityRuntime {
   connect<T = unknown>(request: DataConnectionRequest): DataConnection<T>
   query<T = unknown>(binding: PersistedDataBinding, options?: RuntimeQueryOptions): Promise<DataSourceResult<T>>
   preview<T = unknown>(request: CapabilityPreviewRequest): Promise<CapabilityPreviewResult<T>>
+  /** Resolves static or dynamic configuration options through Runtime lifecycle guards. */
+  resolveOptions(ref: OptionSourceRef, request?: RuntimeOptionRequest): Promise<OptionSourceResult>
   prepareOperation(binding: PersistedOperationBinding): Promise<PreparedOperation>
   confirmOperation(preparedId: string, proof: OperationConfirmationProof): ConfirmedOperation
   executeOperation(operation: ConfirmedOperation | PreparedOperation): OperationExecution
   updateParameters(values: Record<string, unknown>): void
   updateContext(providerId: string, instanceId: string, value: unknown): void
+  /** Registers the latest default or named-port output for subsequent binding resolution. */
+  updateOutput(ref: RuntimeOutputRef, value: unknown): void
+  /** Removes one default or named-port output without reconnecting existing data connections. */
+  removeOutput(ref: RuntimeOutputRef): void
   dispose(): Promise<void>
 }
 
