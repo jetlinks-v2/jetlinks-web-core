@@ -1,7 +1,7 @@
 import { request } from '@jetlinks-web/core'
 
 // 更新全部菜单
-export const updateMenus = (data: any) => request.patch(`/menu/iot/_all`, data)
+export const updateMenus = (data: any) => request.patch(`/menu/smart-park/_all`, data)
 
 
 // 记录初始化

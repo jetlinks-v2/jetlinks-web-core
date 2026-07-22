@@ -15,6 +15,7 @@ export type MenuItem = {
   code?: string
   name?: string
   i18nName?: string
+  sortIndex?: number | string
   i18nMessages?: MenuI18nMessages
   showPage?: string[]
   buttons?: MenuButton[]

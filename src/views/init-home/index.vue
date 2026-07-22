@@ -36,13 +36,13 @@
                 </template>
                 <Role ref="roleRef"></Role>
               </a-collapse-panel>
-              <a-collapse-panel key="initData" forceRender>
-                <template #header>
-                  <span class="title">{{ $t('init-home.index.011072-23') }}</span>
-                  <span class="sub-title">{{ $t('init-home.index.011072-24') }}</span>
-                </template>
-                <InitData ref="initDataRef"/>
-              </a-collapse-panel>
+<!--              <a-collapse-panel key="initData" forceRender>-->
+<!--                <template #header>-->
+<!--                  <span class="title">{{ $t('init-home.index.011072-23') }}</span>-->
+<!--                  <span class="sub-title">{{ $t('init-home.index.011072-24') }}</span>-->
+<!--                </template>-->
+<!--                <InitData ref="initDataRef"/>-->
+<!--              </a-collapse-panel>-->
             </a-collapse>
           </a-spin>
           <a-button
@@ -62,7 +62,7 @@
 import Basic from './Basic/index.vue';
 import Menu from './Menu/index.vue';
 import Role from './Role/index.vue';
-import InitData from './initData/index.vue';
+// import InitData from './initData/index.vue';
 import {getInit, saveInit} from '@jetlinks-web-core/api/initHome';
 import {onlyMessage} from '@jetlinks-web/utils';
 import {useI18n} from 'vue-i18n';
@@ -70,7 +70,7 @@ import {useI18n} from 'vue-i18n';
 const {t: $t} = useI18n();
 const basicRef = ref();
 const roleRef = ref();
-const initDataRef = ref();
+// const initDataRef = ref();
 const menuRef = ref();
 const loading = ref(false);
 /**
@@ -114,11 +114,11 @@ const submitData = async () => {
     loading.value = false;
     return;
   }
-  const initDataRes = await initDataRef.value.save();
-  if (!initDataRes) {
-    loading.value = false;
-    return;
-  }
+  // const initDataRes = await initDataRef.value.save();
+  // if (!initDataRes) {
+  //   loading.value = false;
+  //   return;
+  // }
   // const initDataRes = await Promise.all(initDataRef.value.map((item: any) => item?.save?.()))
   // if (!initDataRes?.every(i => i)) {
   //   loading.value = false;

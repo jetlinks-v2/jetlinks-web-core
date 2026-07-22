@@ -73,6 +73,25 @@ const expandedKeys = ref<string[]>([])
 const localeKeys = computed(() => getLocaleKeys(String(locale.value || '')))
 const menuTreeData = computed(() => buildMenuTreeData(menusData.current, localeKeys.value))
 
+const getMenuSortIndex = (item: MenuItem) => {
+  const sortIndex = Number(item.sortIndex)
+  return Number.isFinite(sortIndex) ? sortIndex : Number.MAX_SAFE_INTEGER
+}
+
+const sortMenusBySortIndex = (menus: MenuItem[] = []): MenuItem[] => {
+  return menus
+    .map((item, index) => ({
+      ...item,
+      children: item.children?.length ? sortMenusBySortIndex(item.children) : item.children,
+      __index: index,
+    }))
+    .sort((prev, next) => {
+      const sortDiff = getMenuSortIndex(prev) - getMenuSortIndex(next)
+      return sortDiff || prev.__index - next.__index
+    })
+    .map(({ __index, ...item }) => item)
+}
+
 /**
  * 查询支持的协议
  */
@@ -108,10 +127,11 @@ const getSystemPermissionData = async ( BaseMenu: MenuItem[] ) => {
       hasProtocol,
     );
     const newTree = props.filterMenu ? await props.filterMenu(permissionTree) : permissionTree
-    const _count = menuCount(newTree);
-    menusData.current = newTree;
+    const sortedTree = sortMenusBySortIndex(newTree)
+    const _count = menuCount(sortedTree);
+    menusData.current = sortedTree;
     menusData.count = _count;
-    expandedKeys.value = collectExpandedKeys(buildMenuTreeData(newTree, localeKeys.value))
+    expandedKeys.value = collectExpandedKeys(buildMenuTreeData(sortedTree, localeKeys.value))
     hasAgentPermission.value = _permission.includes('ai-agent-deploy')
   }
 };
