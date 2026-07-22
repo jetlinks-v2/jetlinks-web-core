@@ -12,6 +12,7 @@ import {
   type PreparedOperation,
   type ResolvedCapabilityCatalog,
 } from '@jetlinks-web-core/data-capability'
+import { useLabEventBuffer } from './useLabEventBuffer'
 
 export interface LabCapabilityItem {
   id: string
@@ -36,7 +37,7 @@ export function useDataCapabilityLab() {
   const draftConfig = ref('{}')
   const draftQuery = ref('{}')
   const draftInput = ref('{}')
-  const events = ref<unknown[]>([])
+  const { events, eventStats, appendLabEvent, resetEvents } = useLabEventBuffer()
   const result = ref<unknown>()
   const componentPreview = shallowRef<Component>()
   const componentExtraProps = ref<Record<string, unknown>>({})
@@ -108,7 +109,7 @@ export function useDataCapabilityLab() {
     selectedCapability.value = item
     preparedOperation.value = undefined
     result.value = undefined
-    events.value = []
+    resetEvents()
     void refreshComponentPreview()
   }
 
@@ -146,7 +147,7 @@ export function useDataCapabilityLab() {
       options: { timeout: 5000, limit: 20 },
     })
     connection.value.events$.subscribe(event => {
-      events.value = [...events.value, event]
+      appendLabEvent(event)
       if (event.type === 'data') result.value = event.result
     })
   }
@@ -177,7 +178,7 @@ export function useDataCapabilityLab() {
         const execution = getRuntime().executeOperation(operation)
         execution.events$.subscribe({
           next(event) {
-            events.value = [...events.value, event]
+            appendLabEvent(event)
             if (event.type === 'result') result.value = event.result
           },
           error(error) {
@@ -242,7 +243,6 @@ export function useDataCapabilityLab() {
       return undefined
     }
   }
-
   const resolvePreviewComponent = (
     capability?: LabCapabilityItem,
   ): LazyComponentDefinition | undefined => {
@@ -257,7 +257,6 @@ export function useDataCapabilityLab() {
     }
     return undefined
   }
-
   onBeforeUnmount(() => {
     stopConnection()
     void runtime.value?.dispose()
@@ -277,6 +276,7 @@ export function useDataCapabilityLab() {
     draftQuery,
     draftInput,
     events,
+    eventStats,
     result,
     componentPreview,
     componentPreviewProps,

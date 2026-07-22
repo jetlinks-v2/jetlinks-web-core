@@ -7,6 +7,7 @@ import {
   type DataConnectionEvent,
   type DataSourceDefinition,
   type OperationDefinition,
+  type PreparedOperation,
 } from '../../src/data-capability'
 
 const available: CapabilityAvailability = {
@@ -634,6 +635,7 @@ try {
 
 const providerPreparedIdRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 const providerPreparedInputs: unknown[] = []
+const providerPreparedExecuteIds: string[] = []
 providerPreparedIdRegistry.operations.register({
   ...operation,
   id: 'test.operation.provider-same-prepared-id',
@@ -645,6 +647,7 @@ providerPreparedIdRegistry.operations.register({
       policy: basePolicy,
     }),
     execute(prepared) {
+      providerPreparedExecuteIds.push(prepared.id)
       providerPreparedInputs.push(prepared.request.input)
       return of({ type: 'result', result: prepared.request.input }, { type: 'completed' }) as any
     },
@@ -667,8 +670,39 @@ assert.notEqual(providerPreparedFirst.id, providerPreparedSecond.id)
 assert.equal((providerPreparedFirst.diagnostics as any).providerPreparedId, 'provider-fixed-id')
 await firstValueFrom(providerPreparedRuntime.executeOperation(providerPreparedFirst).events$)
 await firstValueFrom(providerPreparedRuntime.executeOperation(providerPreparedSecond).events$)
+await wait()
 assert.deepEqual(providerPreparedInputs, [{ value: 'provider-first' }, { value: 'provider-second' }])
+assert.deepEqual(providerPreparedExecuteIds, ['provider-fixed-id', 'provider-fixed-id'])
+assert.throws(() => providerPreparedRuntime.confirmOperation(providerPreparedFirst.id, { method: 'ui' }), (error: any) => error?.code === 'operation.not_prepared')
 await providerPreparedRuntime.dispose()
+
+const preparedSweepRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let preparedSweepDispose = 0
+preparedSweepRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.prepared-sweep',
+  create: () => ({
+    execute(prepared) {
+      return of({ type: 'result', result: prepared.request.input }, { type: 'completed' }) as any
+    },
+    dispose() { preparedSweepDispose += 1 },
+  }),
+})
+const preparedSweepRuntime = preparedSweepRegistry.createRuntime({ runtimeId: 'prepared-sweep' })
+const preparedSweepHandles: PreparedOperation[] = []
+for (let index = 0; index < 105; index += 1) {
+  preparedSweepHandles.push(await preparedSweepRuntime.prepareOperation({
+    version: 1,
+    operation: { capabilityId: 'test.operation.prepared-sweep', version: 1 },
+    input: { index: { kind: 'literal', value: index } },
+  }))
+}
+assert.equal(preparedSweepDispose, 5)
+assert.throws(() => preparedSweepRuntime.confirmOperation(preparedSweepHandles[0].id, { method: 'ui' }), (error: any) => error?.code === 'operation.not_prepared')
+await firstValueFrom(preparedSweepRuntime.executeOperation(preparedSweepHandles[104]).events$)
+await wait()
+assert.equal(preparedSweepDispose, 6)
+await preparedSweepRuntime.dispose()
 
 const operationContextRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let operationCreateRuntimeSignalSeen = false

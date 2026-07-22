@@ -130,6 +130,11 @@
     <a-card title="事件与结果" :bordered="false" class="result-card">
       <a-tabs>
         <a-tab-pane key="events" tab="Events">
+          <a-alert
+            type="info"
+            show-icon
+            :message="`已接收 ${eventStats.received} 条事件，保留最近 ${events.length}/${eventStats.limit} 条，已裁剪 ${eventStats.dropped} 条。`"
+          />
           <pre>{{ formatJson(events) }}</pre>
         </a-tab-pane>
         <a-tab-pane key="result" tab="Result">
@@ -160,6 +165,7 @@ const {
   draftQuery,
   draftInput,
   events,
+  eventStats,
   result,
   componentPreview,
   componentPreviewProps,

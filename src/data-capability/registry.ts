@@ -71,6 +71,7 @@ type ProviderEntry = {
   loader?: DataCapabilityProviderLoader
   loadPromise?: Promise<void>
   override: boolean
+  reconcileVersion?: number
 }
 
 type PreparedOperationEntry = {
@@ -78,7 +79,10 @@ type PreparedOperationEntry = {
   registration?: CapabilityMountStamp
   operation: Awaited<ReturnType<OperationDefinition['create']>>
   prepared: PreparedOperation
+  providerPrepared: PreparedOperation
   providerPreparedId?: string
+  createdAt: number
+  lastUsedAt: number
 }
 
 type OperationExecutionEntry = {
@@ -142,6 +146,8 @@ const RISK_ORDER: OperationPolicy['risk'][] = ['low', 'medium', 'high', 'critica
 const CONFIRMATION_ORDER: OperationPolicy['confirmation'][] = ['none', 'destructive', 'provider', 'always']
 const RETRY_ORDER: OperationPolicy['retry'][] = ['never', 'idempotent-only', 'provider']
 const CANCELLATION_ORDER: OperationPolicy['cancellation'][] = ['unsupported', 'before-dispatch', 'best-effort', 'compensatable']
+const DEFAULT_PREPARED_OPERATION_TTL = 5 * 60 * 1000
+const DEFAULT_MAX_PREPARED_OPERATIONS = 100
 let providerRegistrationSequence = 0
 let runtimeResourceSequence = 0
 
@@ -272,8 +278,9 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   private readonly activeMounts = new Set<string>()
   private readonly moduleProviderGenerations = new Map<string, number>()
   private moduleRegistryUnsubscribe?: () => void
-  private moduleRegistryRefreshing?: Promise<void>
-  private moduleRegistryRefreshDirty = false
+  private moduleProviderReconcilePromise?: Promise<void>
+  private moduleProviderReconcileDirty = false
+  private moduleProviderReconcileVersion = 0
 
   registerProvider(provider: DataCapabilityProvider, options: CapabilityRegisterOptions = {}): () => void {
     const token = `manual:${provider.id}:${options.scope || 'default'}:${providerRegistrationSequence++}`
@@ -296,17 +303,49 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     }
   }
 
-  async loadModuleProviders(_context: CapabilityContext = {}): Promise<void> {
+  async loadModuleProviders(context: CapabilityContext = {}): Promise<void> {
     if (this.options.loadModuleProviders === false) return
-    const { moduleRegistry } = await import('@jetlinks-web-core/utils/module-registry')
-    if (!this.moduleRegistryUnsubscribe) {
-      this.moduleRegistryUnsubscribe = moduleRegistry.onChange(() => {
-        this.refreshModuleProviders().catch((error) => {
-          console.warn('[DataCapability] module provider refresh failed', error)
-        })
+    return this.requestModuleProviderReconcile(context)
+  }
+
+  private async requestModuleProviderReconcile(context: CapabilityContext = {}): Promise<void> {
+    if (this.options.loadModuleProviders === false) return
+    await this.ensureModuleRegistrySubscription()
+    this.moduleProviderReconcileDirty = true
+    if (this.moduleProviderReconcilePromise) return this.moduleProviderReconcilePromise
+    this.moduleProviderReconcilePromise = this.runModuleProviderReconcileLoop(context)
+      .finally(() => {
+        this.moduleProviderReconcilePromise = undefined
+        this.emitChange()
       })
-    }
-    const modules = moduleRegistry.getAllModules()
+    return this.moduleProviderReconcilePromise
+  }
+
+  private async ensureModuleRegistrySubscription(): Promise<void> {
+    if (this.moduleRegistryUnsubscribe) return
+    const { moduleRegistry } = await import('@jetlinks-web-core/utils/module-registry')
+    if (this.moduleRegistryUnsubscribe) return
+    this.moduleRegistryUnsubscribe = moduleRegistry.onChange(() => {
+      this.requestModuleProviderReconcile({}).catch((error) => {
+        console.warn('[DataCapability] module provider refresh failed', error)
+      })
+    })
+  }
+
+  private async runModuleProviderReconcileLoop(context: CapabilityContext): Promise<void> {
+    const { moduleRegistry } = await import('@jetlinks-web-core/utils/module-registry')
+    do {
+      this.moduleProviderReconcileDirty = false
+      const reconcileVersion = ++this.moduleProviderReconcileVersion
+      await this.reconcileModuleProviderSnapshot(moduleRegistry.getAllModules(), context, reconcileVersion)
+    } while (this.moduleProviderReconcileDirty)
+  }
+
+  private async reconcileModuleProviderSnapshot(
+    modules: Map<string, { dataCapabilityProviders?: unknown }>,
+    _context: CapabilityContext,
+    reconcileVersion: number,
+  ): Promise<void> {
     const loaders: Array<{ key: string; loader: DataCapabilityProviderLoader }> = []
     modules.forEach((resource, moduleId) => {
       const providers = resource.dataCapabilityProviders
@@ -328,7 +367,8 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
 
     for (const item of loaders) {
       let entry = this.providerEntries.get(item.key)
-      if (!entry) {
+      if (!entry || entry.loader !== item.loader) {
+        if (entry) this.disposeProviderEntry(item.key, true)
         entry = {
           token: item.key,
           loader: item.loader,
@@ -338,30 +378,18 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
           loaded: false,
           module: true,
           override: true,
+          reconcileVersion,
         }
         this.providerEntries.set(item.key, entry)
         this.moduleProviderTokens.add(item.key)
       } else {
-        if (entry.loader !== item.loader) {
-          this.disposeProviderEntry(item.key, true)
-          entry = {
-            token: item.key,
-            loader: item.loader,
-            scope: `provider:${item.key}`,
-            registered: true,
-            generation: this.nextModuleProviderGeneration(item.key),
-            loaded: false,
-            module: true,
-            override: true,
-          }
-          this.providerEntries.set(item.key, entry)
-          this.moduleProviderTokens.add(item.key)
-        } else {
-          entry.registered = true
-        }
+        entry.registered = true
+        entry.reconcileVersion = reconcileVersion
       }
       try {
-        await this.ensureProviderLoaded(entry)
+        await this.ensureProviderLoaded(entry, () => (
+          this.moduleProviderReconcileDirty || entry?.reconcileVersion !== this.moduleProviderReconcileVersion
+        ))
       } catch (error) {
         console.warn(`[DataCapability] provider loader failed: ${item.key}`, error)
       }
@@ -369,20 +397,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   }
 
   private async refreshModuleProviders(): Promise<void> {
-    if (this.moduleRegistryRefreshing) {
-      this.moduleRegistryRefreshDirty = true
-      return this.moduleRegistryRefreshing
-    }
-    this.moduleRegistryRefreshing = (async () => {
-      do {
-        this.moduleRegistryRefreshDirty = false
-        await this.loadModuleProviders({})
-      } while (this.moduleRegistryRefreshDirty)
-    })().finally(() => {
-      this.moduleRegistryRefreshing = undefined
-      this.emitChange()
-    })
-    return this.moduleRegistryRefreshing
+    return this.requestModuleProviderReconcile({})
   }
 
   private nextModuleProviderGeneration(token: string): number {
@@ -429,7 +444,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     return runtime
   }
 
-  private async ensureProviderLoaded(entry: ProviderEntry): Promise<void> {
+  private async ensureProviderLoaded(entry: ProviderEntry, isStale?: () => boolean): Promise<void> {
     if (!entry.registered || entry.loaded) return
     if (entry.loadPromise) return entry.loadPromise
     const generation = entry.generation
@@ -448,7 +463,19 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
           if (providerCreatedAfterUnregister) await safeDisposeAsync(provider, `provider:${entry.token}:late`)
           this.assertProviderEntryCurrent(entry, generation)
         }
+        if (isStale?.()) {
+          this.disposeProviderEntry(entry.token, true)
+          throw createCapabilityError('provider.unregistered', 'Provider snapshot is stale', {
+            details: { token: entry.token },
+          })
+        }
         const result = await provider.load?.()
+        if (isStale?.()) {
+          this.disposeProviderEntry(entry.token, true)
+          throw createCapabilityError('provider.unregistered', 'Provider snapshot is stale', {
+            details: { token: entry.token },
+          })
+        }
         this.assertProviderEntryCurrent(entry, generation)
         const unregisters: Array<() => void> = []
         this.registerLoadedDefinitions(entry, result, unregisters)
@@ -715,7 +742,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   private readonly bindingResolver: BindingResolver
   private readonly parameters: Record<string, unknown>
   private readonly contexts = new Map<string, unknown>()
-  private readonly disposers: Array<() => void> = []
+  private readonly disposers = new Set<() => void>()
   private readonly preparedOperations = new Map<string, PreparedOperationEntry>()
   private readonly confirmedOperations = new Map<string, ConfirmedOperation>()
   private readonly operationExecutions = new Map<string, OperationExecutionEntry>()
@@ -827,13 +854,14 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       safeUnsubscribe(sharedSubscription, `connection:${id}:shared`)
       events$.complete()
       if (sharedKey && joinedShared) this.releaseSharedConnection(sharedKey, leaseId)
+      this.disposers.delete(unsubscribe)
     }
     if (request.options?.signal?.aborted) {
       unsubscribe()
     } else {
       request.options?.signal?.addEventListener('abort', unsubscribe, { once: true })
     }
-    this.disposers.push(unsubscribe)
+    this.disposers.add(unsubscribe)
 
     return { id, events$: events$.asObservable(), unsubscribe }
   }
@@ -984,7 +1012,19 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         },
       })
       prepareResource.preparedId = canonicalPrepared.id
-      this.preparedOperations.set(canonicalPrepared.id, { definition, registration, operation, prepared: canonicalPrepared, providerPreparedId })
+      this.sweepPreparedOperations()
+      const preparedAt = Date.now()
+      this.preparedOperations.set(canonicalPrepared.id, {
+        definition,
+        registration,
+        operation,
+        prepared: canonicalPrepared,
+        providerPrepared: freezePreparedOperation(prepared),
+        providerPreparedId,
+        createdAt: preparedAt,
+        lastUsedAt: preparedAt,
+      })
+      this.sweepPreparedOperations()
       prepareResource.settled = true
       return cloneCapabilityValue(canonicalPrepared)
     } catch (error) {
@@ -1028,6 +1068,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     if (!cached) {
       throw createCapabilityError('operation.not_prepared', 'Operation has not been prepared')
     }
+    cached.lastUsedAt = Date.now()
     const confirmed = deepFreeze({
       id: nextRuntimeResourceId(`${preparedId}:confirmed`),
       preparedId,
@@ -1053,6 +1094,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         capabilityId: confirmed.capabilityId,
       })
     }
+    cached.lastUsedAt = Date.now()
 
     const events$ = new ReplaySubject<OperationEvent>(100)
     const execution: OperationExecution = {
@@ -1060,6 +1102,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       events$: events$.asObservable(),
     }
     const entry: OperationExecutionEntry = { execution, events$, dispatched: false }
+    execution.cancel = () => this.cleanupOperationExecution(confirmed.preparedId, entry, true)
     this.operationExecutions.set(confirmed.preparedId, entry)
 
     void (async () => {
@@ -1081,18 +1124,66 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         if (this.preparedOperations.get(confirmed.preparedId) !== cached) return
         this.assertRegistrationActive(cached.registration, 'operations', cached.definition.id)
         entry.dispatched = true
-        const subscription = cached.operation.execute(cached.prepared, this.toOperationContext()).subscribe({
-          next: event => events$.next(event),
-          error: error => events$.error(error),
-          complete: () => events$.complete(),
+        const subscription = cached.operation.execute(cached.providerPrepared, this.toOperationContext()).subscribe({
+          next: (event) => {
+            events$.next(event)
+            if (event.type === 'completed') {
+              events$.complete()
+              this.cleanupOperationExecution(confirmed.preparedId, entry, true)
+            }
+          },
+          error: (error) => {
+            events$.error(error)
+            this.cleanupOperationExecution(confirmed.preparedId, entry, true)
+          },
+          complete: () => {
+            events$.complete()
+            this.cleanupOperationExecution(confirmed.preparedId, entry, true)
+          },
         })
         entry.subscription = subscription
       } catch (error) {
         events$.error(error)
+        this.cleanupOperationExecution(confirmed.preparedId, entry, true)
       }
     })()
 
     return execution
+  }
+
+  private cleanupOperationExecution(preparedId: string, entry: OperationExecutionEntry, releasePrepared: boolean): void {
+    if (this.operationExecutions.get(preparedId) === entry) {
+      this.operationExecutions.delete(preparedId)
+    }
+    entry.cancelled = true
+    safeUnsubscribe(entry.subscription, `operation:${preparedId}`)
+    if (releasePrepared) this.releasePreparedOperation(preparedId)
+  }
+
+  private releasePreparedOperation(preparedId: string): void {
+    const entry = this.preparedOperations.get(preparedId)
+    if (!entry) return
+    safeDispose(entry.operation, `operation:${entry.definition.id}`)
+    this.preparedOperations.delete(preparedId)
+    for (const [confirmedId, confirmed] of [...this.confirmedOperations.entries()]) {
+      if (confirmed.preparedId === preparedId) this.confirmedOperations.delete(confirmedId)
+    }
+  }
+
+  private sweepPreparedOperations(): void {
+    const now = Date.now()
+    const expired = [...this.preparedOperations.entries()]
+      .filter(([, entry]) => now - entry.lastUsedAt > DEFAULT_PREPARED_OPERATION_TTL)
+      .map(([preparedId]) => preparedId)
+    expired.forEach(preparedId => this.releasePreparedOperation(preparedId))
+
+    const overflow = this.preparedOperations.size - DEFAULT_MAX_PREPARED_OPERATIONS
+    if (overflow > 0) {
+      [...this.preparedOperations.entries()]
+        .sort((left, right) => left[1].lastUsedAt - right[1].lastUsedAt)
+        .slice(0, overflow)
+        .forEach(([preparedId]) => this.releasePreparedOperation(preparedId))
+    }
   }
 
   private resolveConfirmedOperation(operation: ConfirmedOperation | PreparedOperation): ConfirmedOperation {
@@ -1111,6 +1202,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         capabilityId: operation.capabilityId,
       })
     }
+    cached.lastUsedAt = Date.now()
     if (cached.prepared.policy.confirmation !== 'none') {
       throw createCapabilityError('operation.confirmation_required', 'Operation confirmation is required', {
         capabilityId: cached.prepared.capabilityId,
@@ -1138,7 +1230,8 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     if (this.disposed) return
     this.disposed = true
     this.onDispose()
-    this.disposers.splice(0).forEach(disposer => disposer())
+    this.disposers.forEach(disposer => disposer())
+    this.disposers.clear()
     this.queryResources.forEach((resource) => {
       resource.cancel?.(createCapabilityError('runtime.disposed', 'Runtime has been disposed'))
       const dataSource = resource.dataSource
@@ -1206,11 +1299,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       if (execution) execution.cancelled = true
       safeUnsubscribe(execution?.subscription, `operation:${preparedId}`)
       this.operationExecutions.delete(preparedId)
-      safeDispose(entry.operation, `operation:${entry.definition.id}`)
-      this.preparedOperations.delete(preparedId)
-      for (const [confirmedId, confirmed] of [...this.confirmedOperations.entries()]) {
-        if (confirmed.preparedId === preparedId) this.confirmedOperations.delete(confirmedId)
-      }
+      this.releasePreparedOperation(preparedId)
     }
   }
 

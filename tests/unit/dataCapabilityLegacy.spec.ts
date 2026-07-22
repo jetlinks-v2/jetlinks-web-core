@@ -75,6 +75,7 @@ assert.equal((streamResult.data as any).value, 1)
 
 const registry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 const legacyInputs: unknown[] = []
+const legacyRuntimeContextSeen: boolean[] = []
 const legacyProvider = createLegacyCommandProvider({
   providerId: 'unit.legacy-runtime',
   moduleId: 'unit-ui',
@@ -91,7 +92,7 @@ const legacyProvider = createLegacyCommandProvider({
   },
   async execute(_command, input, executeContext: any) {
     legacyInputs.push(input)
-    assert.equal(!!executeContext.runtime, true)
+    legacyRuntimeContextSeen.push(!!executeContext.runtime)
     return input
   },
 })
@@ -117,4 +118,5 @@ const secondConfirmed = runtime.confirmOperation(secondPrepared.id, { method: 'u
 await firstValueFrom(runtime.executeOperation(firstConfirmed).events$)
 await firstValueFrom(runtime.executeOperation(secondConfirmed).events$)
 assert.deepEqual(legacyInputs, [{ value: 'legacy-first' }, { value: 'legacy-second' }])
+assert.deepEqual(legacyRuntimeContextSeen, [true, true])
 await runtime.dispose()
