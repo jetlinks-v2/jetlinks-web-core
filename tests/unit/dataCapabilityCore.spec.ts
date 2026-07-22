@@ -16,6 +16,10 @@ const available: CapabilityAvailability = {
 }
 
 const wait = () => new Promise(resolve => setTimeout(resolve, 0))
+const promiseOutcome = <T>(promise: Promise<T>, timeout = 20) => Promise.race([
+  promise.then(() => 'resolved', (error: any) => error?.code || error?.message || 'rejected'),
+  new Promise<string>(resolve => setTimeout(() => resolve('timeout'), timeout)),
+])
 
 const basePolicy: OperationDefinition['policy'] = {
   risk: 'low',
@@ -526,6 +530,78 @@ releaseOperationCreate()
 await assert.rejects(() => pendingPrepare, (error: any) => error?.code === 'runtime.disposed')
 assert.equal(pendingOperationDisposeCount, 1)
 
+const neverCreateRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+neverCreateRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.never-create',
+  create: () => new Promise<any>(() => undefined),
+})
+const neverCreateRuntime = neverCreateRegistry.createRuntime({ runtimeId: 'never-create' })
+const neverCreatePrepare = neverCreateRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.never-create', version: 1 },
+})
+await wait()
+await neverCreateRuntime.dispose()
+assert.equal(await promiseOutcome(neverCreatePrepare), 'runtime.disposed')
+
+const neverPrepareRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let neverPrepareDispose = 0
+neverPrepareRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.never-prepare',
+  create: () => ({
+    prepare: () => new Promise<any>(() => undefined),
+    execute: () => of({ type: 'completed' }) as any,
+    dispose() { neverPrepareDispose += 1 },
+  }),
+})
+const neverPrepareRuntime = neverPrepareRegistry.createRuntime({ runtimeId: 'never-prepare' })
+const neverPrepare = neverPrepareRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.never-prepare', version: 1 },
+})
+await wait()
+await neverPrepareRuntime.dispose()
+assert.equal(await promiseOutcome(neverPrepare), 'runtime.disposed')
+assert.equal(neverPrepareDispose, 1)
+
+const concurrentPrepareRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+const originalDateNow = Date.now
+let executedInputs: unknown[] = []
+concurrentPrepareRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.concurrent-prepare',
+  create: () => ({
+    execute(prepared) {
+      executedInputs.push(prepared.request.input)
+      return of({ type: 'result', result: prepared.request.input }, { type: 'completed' }) as any
+    },
+  }),
+})
+Date.now = () => 123456
+try {
+  const concurrentPrepareRuntime = concurrentPrepareRegistry.createRuntime({ runtimeId: 'concurrent-prepare' })
+  const [firstPrepared, secondPrepared] = await Promise.all([
+    concurrentPrepareRuntime.prepareOperation({
+      version: 1,
+      operation: { capabilityId: 'test.operation.concurrent-prepare', version: 1 },
+      input: { value: { kind: 'literal', value: 'first' } },
+    }),
+    concurrentPrepareRuntime.prepareOperation({
+      version: 1,
+      operation: { capabilityId: 'test.operation.concurrent-prepare', version: 1 },
+      input: { value: { kind: 'literal', value: 'second' } },
+    }),
+  ])
+  assert.notEqual(firstPrepared.id, secondPrepared.id)
+  await firstValueFrom(concurrentPrepareRuntime.executeOperation(firstPrepared).events$)
+  assert.deepEqual(executedInputs[0], { value: 'first' })
+  await concurrentPrepareRuntime.dispose()
+} finally {
+  Date.now = originalDateNow
+}
+
 const connectingRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 connectingRegistry.sources.register({
   ...source,
@@ -919,6 +995,49 @@ unregisterConnectProviderDispose()
 releaseProviderConnectCreate()
 await wait()
 assert.equal(providerConnectDispose, 1)
+
+const sharedCancelRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let releaseSharedCreate!: () => void
+const sharedCreateReady = new Promise<void>(resolve => { releaseSharedCreate = resolve })
+let sharedCancelCreateCount = 0
+let sharedCancelDispose = 0
+sharedCancelRegistry.sources.register({
+  ...source,
+  id: 'test.source.shared-cancel',
+  modes: ['stream'],
+  create: async () => {
+    sharedCancelCreateCount += 1
+    await sharedCreateReady
+    return {
+      query: () => new Observable((subscriber) => {
+        subscriber.next({ data: 'shared' })
+        return () => undefined
+      }) as any,
+      dispose() { sharedCancelDispose += 1 },
+    }
+  },
+})
+const sharedCancelRuntime = sharedCancelRegistry.createRuntime({ runtimeId: 'shared-cancel' })
+const firstSharedConnection = sharedCancelRuntime.connect({
+  consumerId: 'shared-cancel-first',
+  binding: { version: 1, source: { capabilityId: 'test.source.shared-cancel', version: 1 } },
+})
+const secondSharedEvents: DataConnectionEvent[] = []
+const secondSharedConnection = sharedCancelRuntime.connect({
+  consumerId: 'shared-cancel-second',
+  binding: { version: 1, source: { capabilityId: 'test.source.shared-cancel', version: 1 } },
+})
+secondSharedConnection.events$.subscribe(event => secondSharedEvents.push(event))
+await wait()
+firstSharedConnection.unsubscribe()
+releaseSharedCreate()
+await wait()
+assert.equal(sharedCancelCreateCount, 1)
+assert.equal(secondSharedEvents.some(event => event.type === 'data'), true)
+assert.equal(sharedCancelDispose, 0)
+secondSharedConnection.unsubscribe()
+assert.equal(sharedCancelDispose, 1)
+await sharedCancelRuntime.dispose()
 
 const providerFailureRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 providerFailureRegistry.registerProvider({

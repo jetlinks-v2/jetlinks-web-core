@@ -100,6 +100,18 @@ type QueryResource = {
   cancel?: (error: unknown) => void
 }
 
+type PendingPrepareResource = {
+  abortController: AbortController
+  capabilityId: string
+  registration?: CapabilityMountStamp
+  operation?: Awaited<ReturnType<OperationDefinition['create']>>
+  preparedId?: string
+  cancelPromise: Promise<never>
+  cancelHandlers: Set<(error: unknown) => void>
+  settled?: boolean
+  cancel?: (error: unknown) => void
+}
+
 type ProviderDefinitionKind = 'sources' | 'operations' | 'contexts' | 'valueEditors' | 'optionSources'
 
 type SharedConnection = {
@@ -129,6 +141,7 @@ const CONFIRMATION_ORDER: OperationPolicy['confirmation'][] = ['none', 'destruct
 const RETRY_ORDER: OperationPolicy['retry'][] = ['never', 'idempotent-only', 'provider']
 const CANCELLATION_ORDER: OperationPolicy['cancellation'][] = ['unsupported', 'before-dispatch', 'best-effort', 'compensatable']
 let providerRegistrationSequence = 0
+let runtimeResourceSequence = 0
 
 class ScopedCapabilityRegistry<T extends CapabilityDefinitionBase> implements CapabilityRegistry<T> {
   private readonly definitions = new Map<string, RegisteredDefinition<T>[]>()
@@ -706,6 +719,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   private readonly operationExecutions = new Map<string, OperationExecutionEntry>()
   private readonly sharedConnections = new Map<string, SharedConnection>()
   private readonly queryResources = new Set<QueryResource>()
+  private readonly pendingPrepareResources = new Set<PendingPrepareResource>()
 
   constructor(
     private readonly registry: DefaultDataCapabilityRegistry,
@@ -719,20 +733,29 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   connect<T = unknown>(request: DataConnectionRequest): DataConnection<T> {
     this.assertActive()
     assertPlanSupported(request.binding)
-    const id = request.id || `${request.consumerId}:${Date.now()}`
+    const id = request.id || nextRuntimeResourceId(`connection:${request.consumerId}`)
     const events$ = new ReplaySubject<DataConnectionEvent<T>>(1)
     let stopped = false
     let sharedKey: string | undefined
     let sharedSubscription: Subscription | undefined
+    let joinedShared = false
 
     const forwardShared = (shared: SharedConnection) => {
-      shared.refCount += 1
+      if (joinedShared) return
+      if (!shared.disposed) {
+        joinedShared = true
+        shared.refCount += 1
+      }
       if (shared.lastStatus?.type === 'status' && shared.lastStatus.status === 'completed') {
         shared.lastData && events$.next(shared.lastData as DataConnectionEvent<T>)
         events$.next(shared.lastStatus as DataConnectionEvent<T>)
       } else {
         shared.lastStatus && events$.next(shared.lastStatus as DataConnectionEvent<T>)
         shared.lastData && events$.next(shared.lastData as DataConnectionEvent<T>)
+      }
+      if (shared.disposed) {
+        events$.complete()
+        return
       }
       sharedSubscription = shared.events$.subscribe({
         next: event => events$.next(event as DataConnectionEvent<T>),
@@ -776,7 +799,10 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         }
         if (stopped || signal?.aborted) return
         const created = await this.createSharedConnection(definition, registration, resolvedRequest, binding, sharedKey)
-        if (stopped || signal?.aborted) return
+        if (stopped || signal?.aborted) {
+          if (created.refCount <= 0) this.disposeSharedConnection(sharedKey)
+          return
+        }
         forwardShared(created)
       } catch (error) {
         if (!stopped) {
@@ -792,7 +818,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       request.options?.signal?.removeEventListener('abort', unsubscribe)
       safeUnsubscribe(sharedSubscription, `connection:${id}:shared`)
       events$.complete()
-      if (sharedKey) this.releaseSharedConnection(sharedKey)
+      if (sharedKey && joinedShared) this.releaseSharedConnection(sharedKey)
     }
     if (request.options?.signal?.aborted) {
       unsubscribe()
@@ -904,32 +930,78 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     const definition = this.requireOperation(binding.operation)
     const registration = this.registry.getDefinitionRegistration(definition)
     this.assertRegistrationActive(registration, 'operations', definition.id)
-    const operation = await definition.create(binding.operation.config, this.runtimeContext)
+    const prepareResource = this.createPendingPrepareResource(definition.id, registration)
+    this.pendingPrepareResources.add(prepareResource)
+    let operationAssigned = false
     try {
+      const runtimeContext = this.toRuntimeContext(prepareResource.abortController.signal)
+      const createPromise = Promise.resolve(definition.create(binding.operation.config, runtimeContext))
+      createPromise.then((lateOperation) => {
+        if (!operationAssigned && prepareResource.abortController.signal.aborted) {
+          safeDispose(lateOperation, `operation:${definition.id}:late-create`)
+        }
+      }).catch(() => undefined)
+      const operation = await racePrepareCancel(createPromise, prepareResource)
+      operationAssigned = true
+      prepareResource.operation = operation
       this.assertActive()
+      this.assertPrepareNotAborted(prepareResource, definition.id)
       this.assertRegistrationActive(registration, 'operations', definition.id)
-      const input = await this.resolveRecord(binding.input)
+      const input = await racePrepareCancel(this.resolveRecord(binding.input, prepareResource.abortController.signal), prepareResource)
       this.assertActive()
+      this.assertPrepareNotAborted(prepareResource, definition.id)
       this.assertRegistrationActive(registration, 'operations', definition.id)
       const policy = mergeOperationPolicy(definition.policy, binding.policyOverride)
       const request = { config: binding.operation.config, input }
       const prepared = operation.prepare
-        ? await operation.prepare(request, this.toRuntimeContext())
+        ? await racePrepareCancel(operation.prepare(request, runtimeContext), prepareResource)
         : {
-            id: `${definition.id}:${Date.now()}`,
+            id: nextRuntimeResourceId(`operation:${definition.id}:prepared`),
             capabilityId: definition.id,
             request,
             policy,
           }
       this.assertActive()
+      this.assertPrepareNotAborted(prepareResource, definition.id)
       this.assertRegistrationActive(registration, 'operations', definition.id)
       const canonicalPrepared = freezePreparedOperation({ ...prepared, policy: mergeOperationPolicy(policy, prepared.policy) })
+      prepareResource.preparedId = canonicalPrepared.id
       this.preparedOperations.set(canonicalPrepared.id, { definition, registration, operation, prepared: canonicalPrepared })
+      prepareResource.settled = true
       return cloneCapabilityValue(canonicalPrepared)
     } catch (error) {
-      await safeDisposeAsync(operation, `operation:${definition.id}:prepare-failed`)
+      await safeDisposeAsync(prepareResource.operation, `operation:${definition.id}:prepare-failed`)
       throw error
+    } finally {
+      this.pendingPrepareResources.delete(prepareResource)
+      prepareResource.cancel?.(createCapabilityError('runtime.disposed', 'Runtime prepare has been disposed', { capabilityId: definition.id }))
     }
+  }
+
+  private createPendingPrepareResource(
+    capabilityId: string,
+    registration?: CapabilityMountStamp,
+  ): PendingPrepareResource {
+    const cancelHandlers = new Set<(error: unknown) => void>()
+    const resource: PendingPrepareResource = {
+      abortController: new AbortController(),
+      capabilityId,
+      registration,
+      cancelHandlers,
+      cancelPromise: new Promise<never>((_, reject) => {
+        cancelHandlers.add(reject)
+      }),
+    }
+    resource.cancel = (error: unknown) => {
+      if (resource.settled || resource.abortController.signal.aborted) return
+      resource.abortController.abort()
+      const operation = resource.operation
+      resource.operation = undefined
+      safeDispose(operation, `operation:${capabilityId}:pending`)
+      resource.cancelHandlers.forEach(handler => handler(error))
+      resource.cancelHandlers.clear()
+    }
+    return resource
   }
 
   confirmOperation(preparedId: string, proof: OperationConfirmationProof): ConfirmedOperation {
@@ -939,7 +1011,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       throw createCapabilityError('operation.not_prepared', 'Operation has not been prepared')
     }
     const confirmed = deepFreeze({
-      id: `${preparedId}:confirmed:${Date.now()}`,
+      id: nextRuntimeResourceId(`${preparedId}:confirmed`),
       preparedId,
       capabilityId: cached.prepared.capabilityId,
       proof: {
@@ -1056,6 +1128,10 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       safeDispose(dataSource, `query:${resource.capabilityId}`)
     })
     this.queryResources.clear()
+    this.pendingPrepareResources.forEach((resource) => {
+      resource.cancel?.(createCapabilityError('runtime.disposed', 'Runtime has been disposed'))
+    })
+    this.pendingPrepareResources.clear()
     for (const key of [...this.sharedConnections.keys()]) {
       this.disposeSharedConnection(key)
     }
@@ -1093,6 +1169,14 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         }))
       }
     }
+    this.pendingPrepareResources.forEach((resource) => {
+      if (!affected.operations.has(resource.capabilityId) || !sameMount(resource.registration, affected.mount)) return
+      resource.cancel?.(createCapabilityError('capability.unavailable', 'Capability provider has been unregistered', {
+        capabilityId: resource.capabilityId,
+        retryable: true,
+      }))
+      this.pendingPrepareResources.delete(resource)
+    })
     for (const [preparedId, entry] of [...this.preparedOperations.entries()]) {
       if (!affected.operations.has(entry.definition.id) || !sameMount(entry.registration, affected.mount)) continue
       const execution = this.operationExecutions.get(preparedId)
@@ -1223,6 +1307,12 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     }
   }
 
+  private assertPrepareNotAborted(resource: PendingPrepareResource, capabilityId?: string): void {
+    if (resource.abortController.signal.aborted) {
+      throw createCapabilityError('runtime.aborted', 'Runtime prepare has been aborted', { capabilityId })
+    }
+  }
+
   private assertRegistrationActive(registration: CapabilityMountStamp | undefined, kind: ProviderDefinitionKind, capabilityId?: string): void {
     if (!this.registry.isMountActive(registration, kind, capabilityId)) {
       throw createCapabilityError('provider.unregistered', 'Provider has been unregistered', {
@@ -1316,6 +1406,15 @@ function firstDataSourceResult<T>(source: ReturnType<DataSource['query']>, resou
 
 function raceQueryCancel<T>(promise: Promise<T>, resource: QueryResource): Promise<T> {
   return Promise.race([promise, resource.cancelPromise])
+}
+
+function racePrepareCancel<T>(promise: Promise<T>, resource: PendingPrepareResource): Promise<T> {
+  return Promise.race([promise, resource.cancelPromise])
+}
+
+function nextRuntimeResourceId(prefix: string): string {
+  runtimeResourceSequence += 1
+  return `${prefix}:${Date.now()}:${runtimeResourceSequence}`
 }
 
 function assertCapabilityVersion(definition: CapabilityDefinitionBase, version: number): void {
