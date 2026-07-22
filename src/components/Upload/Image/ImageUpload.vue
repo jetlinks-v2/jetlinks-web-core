@@ -232,6 +232,9 @@ function handleCropProcessingChange(busy: boolean) {
   width: 100%;
   height: 100%;
 }
+.upload-image-warp .upload-image-border :deep(.ant-upload):hover{
+	border-color: transparent !important;
+}
 .upload-image-warp .upload-image-border .upload-image-content {
   position: relative;
   display: flex;
