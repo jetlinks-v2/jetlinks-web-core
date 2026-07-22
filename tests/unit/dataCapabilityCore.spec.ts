@@ -633,6 +633,29 @@ try {
   Date.now = originalDateNow
 }
 
+const defaultPreparedIdRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let defaultExecutePreparedId: string | undefined
+defaultPreparedIdRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.default-prepared-runtime-id',
+  create: () => ({
+    execute(prepared) {
+      defaultExecutePreparedId = prepared.id
+      return of({ type: 'completed' }) as any
+    },
+  }),
+})
+const defaultPreparedIdRuntime = defaultPreparedIdRegistry.createRuntime({ runtimeId: 'default-prepared-runtime-id' })
+const defaultPrepared = await defaultPreparedIdRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.default-prepared-runtime-id', version: 1 },
+})
+assert.equal((defaultPrepared.diagnostics as any)?.providerPreparedId, undefined)
+await firstValueFrom(defaultPreparedIdRuntime.executeOperation(defaultPrepared).events$)
+await wait()
+assert.equal(defaultExecutePreparedId, defaultPrepared.id)
+await defaultPreparedIdRuntime.dispose()
+
 const providerPreparedIdRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 const providerPreparedInputs: unknown[] = []
 const providerPreparedExecuteIds: string[] = []

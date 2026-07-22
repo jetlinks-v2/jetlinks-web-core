@@ -988,8 +988,9 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       this.assertRegistrationActive(registration, 'operations', definition.id)
       const policy = mergeOperationPolicy(definition.policy, binding.policyOverride)
       const request = { config: binding.operation.config, input }
-      const prepared: PreparedOperation = operation.prepare
-        ? await racePrepareCancel(operation.prepare(request, this.toOperationContext(prepareResource.abortController.signal)), prepareResource)
+      const hasProviderPrepare = !!operation.prepare
+      const prepared: PreparedOperation = hasProviderPrepare
+        ? await racePrepareCancel(operation.prepare!(request, this.toOperationContext(prepareResource.abortController.signal)), prepareResource)
         : {
             id: nextRuntimeResourceId(`operation:${definition.id}:prepared`),
             capabilityId: definition.id,
@@ -999,7 +1000,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
       this.assertActive()
       this.assertPrepareNotAborted(prepareResource, definition.id)
       this.assertRegistrationActive(registration, 'operations', definition.id)
-      const providerPreparedId = prepared.id
+      const providerPreparedId = hasProviderPrepare ? prepared.id : undefined
       const runtimePreparedId = nextRuntimeResourceId(`operation:${definition.id}:prepared`)
       const canonicalPrepared = freezePreparedOperation({
         ...prepared,
@@ -1008,7 +1009,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         policy: mergeOperationPolicy(policy, prepared.policy),
         diagnostics: {
           ...(prepared.diagnostics || {}),
-          providerPreparedId,
+          ...(providerPreparedId ? { providerPreparedId } : {}),
         },
       })
       prepareResource.preparedId = canonicalPrepared.id
@@ -1019,7 +1020,7 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
         registration,
         operation,
         prepared: canonicalPrepared,
-        providerPrepared: freezePreparedOperation(prepared),
+        providerPrepared: hasProviderPrepare ? freezePreparedOperation(prepared) : canonicalPrepared,
         providerPreparedId,
         createdAt: preparedAt,
         lastUsedAt: preparedAt,
@@ -1129,7 +1130,9 @@ class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
             events$.next(event)
             if (event.type === 'completed') {
               events$.complete()
-              this.cleanupOperationExecution(confirmed.preparedId, entry, true)
+              // Provider may emit the semantic completed event synchronously before subscribe() returns.
+              // Defer cleanup one microtask so the upstream Subscription is captured and can be released.
+              queueMicrotask(() => this.cleanupOperationExecution(confirmed.preparedId, entry, true))
             }
           },
           error: (error) => {
