@@ -15,6 +15,7 @@ import type {
 import { createCapabilityError } from '../utils'
 import { capabilitySchemaValidator } from '../validation'
 import { resolveAvailability } from './availability'
+import { CancellationResource } from './cancellation-resource'
 import type {
   CapabilityMountStamp,
   ProviderDefinitionIds,
@@ -48,16 +49,11 @@ interface OperationExecutionEntry {
   subscription?: Subscription
 }
 
-interface PendingPrepareResource {
-  abortController: AbortController
+type PendingPrepareResource = CancellationResource & {
   capabilityId: string
   registration?: CapabilityMountStamp
   operation?: Awaited<ReturnType<OperationDefinition['create']>>
   preparedId?: string
-  cancelPromise: Promise<never>
-  cancelHandlers: Set<(error: unknown) => void>
-  settled?: boolean
-  cancel?: (error: unknown) => void
 }
 
 export interface OperationRunnerHost {
@@ -222,7 +218,7 @@ export class OperationRunner {
       throw error
     } finally {
       this.pendingPrepareResources.delete(prepareResource)
-      prepareResource.cancel?.(createCapabilityError('runtime.disposed', 'Runtime prepare has been disposed', { capabilityId }))
+      prepareResource.cancel(createCapabilityError('runtime.disposed', 'Runtime prepare has been disposed', { capabilityId }))
     }
   }
 
@@ -230,25 +226,15 @@ export class OperationRunner {
     capabilityId: string,
     registration?: CapabilityMountStamp,
   ): PendingPrepareResource {
-    const cancelHandlers = new Set<(error: unknown) => void>()
-    const resource: PendingPrepareResource = {
-      abortController: new AbortController(),
-      capabilityId,
-      registration,
-      cancelHandlers,
-      cancelPromise: new Promise<never>((_, reject) => {
-        cancelHandlers.add(reject)
-      }),
-    }
-    resource.cancel = (error: unknown) => {
-      if (resource.settled || resource.abortController.signal.aborted) return
-      resource.abortController.abort()
+    let resource!: PendingPrepareResource
+    resource = Object.assign(new CancellationResource(() => {
       const operation = resource.operation
       resource.operation = undefined
       safeDispose(operation, `operation:${capabilityId}:pending`)
-      resource.cancelHandlers.forEach(handler => handler(error))
-      resource.cancelHandlers.clear()
-    }
+    }), {
+      capabilityId,
+      registration,
+    })
     return resource
   }
 
@@ -430,12 +416,14 @@ export class OperationRunner {
 
   async dispose(): Promise<void> {
     this.pendingPrepareResources.forEach((resource) => {
-      resource.cancel?.(createCapabilityError('runtime.disposed', 'Runtime has been disposed'))
+      resource.cancel(createCapabilityError('runtime.disposed', 'Runtime has been disposed'))
     })
     this.pendingPrepareResources.clear()
     this.operationExecutions.forEach((entry) => {
       entry.cancelled = true
       safeUnsubscribe(entry.subscription, `operation:${entry.execution.id}`)
+      // Runtime teardown ends observation without fabricating a business-level completed event.
+      entry.events$.complete()
     })
     this.operationExecutions.clear()
     for (const entry of this.preparedOperations.values()) {
@@ -449,7 +437,7 @@ export class OperationRunner {
     if (this.disposed) return
     this.pendingPrepareResources.forEach((resource) => {
       if (!affected.operations.has(resource.capabilityId) || !sameMount(resource.registration, affected.mount)) return
-      resource.cancel?.(createCapabilityError('capability.unavailable', 'Capability provider has been unregistered', {
+      resource.cancel(createCapabilityError('capability.unavailable', 'Capability provider has been unregistered', {
         capabilityId: resource.capabilityId,
         retryable: true,
       }))

@@ -590,6 +590,7 @@ export interface DataCapabilityProvider {
   owner: CapabilityOwner
   order?: number
   load?(): Promise<DataCapabilityProviderLoadedResult> | DataCapabilityProviderLoadedResult
+  /** Must be idempotent because unregister may be followed by one serialized late-load cleanup pass. */
   dispose?(): void | Promise<void>
 }
 

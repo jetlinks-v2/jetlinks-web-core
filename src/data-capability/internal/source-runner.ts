@@ -18,6 +18,7 @@ import type {
 import { applyOutputMapping, createCapabilityError } from '../utils'
 import { capabilitySchemaValidator } from '../validation'
 import { assertExecutable } from './availability'
+import { CancellationResource } from './cancellation-resource'
 import type {
   CapabilityMountStamp,
   ProviderDefinitionIds,
@@ -32,16 +33,11 @@ import {
   safeUnsubscribe,
 } from './resource-lifecycle'
 
-interface QueryResource {
-  abortController: AbortController
+type QueryResource = CancellationResource & {
   capabilityId: string
   registration?: CapabilityMountStamp
   dataSource?: DataSource
   subscription?: Subscription
-  cancelPromise: Promise<never>
-  cancelHandlers: Set<(error: unknown) => void>
-  settled?: boolean
-  cancel?: (error: unknown) => void
 }
 
 interface SharedConnection {
@@ -258,24 +254,14 @@ export class DataSourceRunner {
     assertPlanSupported(binding)
     const capabilityId = binding.source.capabilityId
     const externalSignal = options.signal
-    const cancelHandlers = new Set<(error: unknown) => void>()
-    const queryResource: QueryResource = {
-      abortController: new AbortController(),
-      capabilityId,
-      cancelHandlers,
-      cancelPromise: new Promise<never>((_, reject) => {
-        cancelHandlers.add(reject)
-      }),
-    }
-    queryResource.cancel = (error: unknown) => {
-      if (queryResource.settled || queryResource.abortController.signal.aborted) return
-      queryResource.abortController.abort()
+    let queryResource!: QueryResource
+    queryResource = Object.assign(new CancellationResource(() => {
       safeUnsubscribe(queryResource.subscription, `query:${capabilityId}`)
-      queryResource.cancelHandlers.forEach(handler => handler(error))
-      queryResource.cancelHandlers.clear()
-    }
+    }), {
+      capabilityId,
+    })
     const abortByExternal = () => {
-      queryResource.cancel?.(createCapabilityError('runtime.aborted', 'Runtime query has been aborted', {
+      queryResource.cancel(createCapabilityError('runtime.aborted', 'Runtime query has been aborted', {
         capabilityId: binding.source.capabilityId,
       }))
     }
@@ -362,7 +348,7 @@ export class DataSourceRunner {
     } finally {
       externalSignal?.removeEventListener('abort', abortByExternal)
       this.queryResources.delete(queryResource)
-      queryResource.cancel?.(createCapabilityError('runtime.disposed', 'Runtime query has been disposed', { capabilityId }))
+      queryResource.cancel(createCapabilityError('runtime.disposed', 'Runtime query has been disposed', { capabilityId }))
       const dataSource = queryResource.dataSource
       queryResource.dataSource = undefined
       await safeDisposeAsync(dataSource, `query:${capabilityId}`)
@@ -491,7 +477,7 @@ export class DataSourceRunner {
     this.disposers.forEach(disposer => disposer())
     this.disposers.clear()
     this.queryResources.forEach((resource) => {
-      resource.cancel?.(createCapabilityError('runtime.disposed', 'Runtime has been disposed'))
+      resource.cancel(createCapabilityError('runtime.disposed', 'Runtime has been disposed'))
       const dataSource = resource.dataSource
       resource.dataSource = undefined
       safeDispose(dataSource, `query:${resource.capabilityId}`)
@@ -506,7 +492,7 @@ export class DataSourceRunner {
     if (this.disposed) return
     this.queryResources.forEach((resource) => {
       if (!affected.sources.has(resource.capabilityId) || !sameMount(resource.registration, affected.mount)) return
-      resource.cancel?.(createCapabilityError('capability.unavailable', 'Capability provider has been unregistered', {
+      resource.cancel(createCapabilityError('capability.unavailable', 'Capability provider has been unregistered', {
         capabilityId: resource.capabilityId,
         retryable: true,
       }))
@@ -584,15 +570,15 @@ function firstDataSourceResult<T>(source: ReturnType<DataSource['query']>, resou
     const settleReject = (error: unknown) => {
       if (settled) return
       settled = true
-      resource.cancelHandlers.delete(settleReject)
+      removeCancelHandler()
       reject(error)
     }
-    resource.cancelHandlers.add(settleReject)
+    const removeCancelHandler = resource.addCancelHandler(settleReject)
     subscription = source.subscribe({
       next: (result) => {
         if (settled) return
         settled = true
-        resource.cancelHandlers.delete(settleReject)
+        removeCancelHandler()
         resolve(result as DataSourceResult<T>)
         queueMicrotask(() => safeUnsubscribe(subscription, `query:${resource.capabilityId}:first-result`))
       },

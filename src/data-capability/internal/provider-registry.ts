@@ -25,7 +25,7 @@ import type {
   ProviderDefinitionKind,
 } from './contracts'
 import { sameMount } from './contracts'
-import { safeDispose, safeDisposeAsync } from './resource-lifecycle'
+import { safeDisposeAsync } from './resource-lifecycle'
 import { DefaultDataCapabilityRuntime } from './runtime'
 import { ScopedCapabilityRegistry } from './scoped-registry'
 
@@ -39,6 +39,7 @@ interface ProviderEntry {
   provider?: DataCapabilityProvider
   loader?: DataCapabilityProviderLoader
   loadPromise?: Promise<void>
+  disposePromise?: Promise<void>
   override: boolean
   reconcileVersion?: number
 }
@@ -297,7 +298,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
         }
         if (!provider) return
         if (!this.isProviderEntryCurrent(entry, generation)) {
-          if (providerCreatedAfterUnregister) await safeDisposeAsync(provider, `provider:${entry.token}:late`)
+          if (providerCreatedAfterUnregister) await this.disposeProvider(entry, `provider:${entry.token}:late`)
           this.assertProviderEntryCurrent(entry, generation)
         }
         if (isStale?.()) {
@@ -306,12 +307,28 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
             details: { token: entry.token },
           })
         }
-        const result = await provider.load?.()
+        let result: DataCapabilityProviderLoadedResult | undefined
+        try {
+          result = await provider.load?.()
+        } catch (error) {
+          if (!this.isProviderEntryCurrent(entry, generation)) {
+            await this.disposeProvider(entry, `provider:${entry.token}:late-load`)
+          }
+          throw error
+        }
         if (isStale?.()) {
-          this.disposeProviderEntry(entry.token, true)
+          if (this.providerEntries.get(entry.token) === entry) {
+            this.disposeProviderEntry(entry.token, true)
+          } else {
+            await this.disposeProvider(entry, `provider:${entry.token}:late-load`)
+          }
           throw createCapabilityError('provider.unregistered', 'Provider snapshot is stale', {
             details: { token: entry.token },
           })
+        }
+        if (!this.isProviderEntryCurrent(entry, generation)) {
+          // unregister() may have disposed the Provider before load() created its final resources.
+          await this.disposeProvider(entry, `provider:${entry.token}:late-load`)
         }
         this.assertProviderEntryCurrent(entry, generation)
         const unregisters: Array<() => void> = []
@@ -359,8 +376,16 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     this.providerUnregisters.delete(token)
     this.providerDefinitionIds.delete(token)
     if (disposeProvider) {
-      safeDispose(entry.provider, `provider:${token}`)
+      void this.disposeProvider(entry, `provider:${token}`)
     }
+  }
+
+  private disposeProvider(entry: ProviderEntry, label: string): Promise<void> {
+    const dispose = () => safeDisposeAsync(entry.provider, label)
+    // A late load pass must run after an in-flight unregister disposal, never concurrently with it.
+    const current = entry.disposePromise ? entry.disposePromise.then(dispose) : dispose()
+    entry.disposePromise = current
+    return current
   }
 
   private registerLoadedDefinitions(

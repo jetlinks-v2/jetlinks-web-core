@@ -296,6 +296,24 @@ await wait()
 assert.deepEqual(unsupportedCancelReceived, ['result', 'completed'])
 await unsupportedCancelRuntime.dispose()
 
+const runtimeDisposeExecutionRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+const runtimeDisposeExecutionEvents = new Subject<OperationEvent>()
+runtimeDisposeExecutionRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.runtime-dispose-events',
+  create: () => ({ execute: () => runtimeDisposeExecutionEvents }),
+})
+const runtimeDisposeExecutionRuntime = runtimeDisposeExecutionRegistry.createRuntime({ runtimeId: 'runtime-dispose-events' })
+const runtimeDisposeExecutionPrepared = await runtimeDisposeExecutionRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.runtime-dispose-events', version: 1 },
+})
+const runtimeDisposeExecution = runtimeDisposeExecutionRuntime.executeOperation(runtimeDisposeExecutionPrepared)
+const runtimeDisposeExecutionSubscription = runtimeDisposeExecution.events$.subscribe(() => undefined)
+await wait()
+await runtimeDisposeExecutionRuntime.dispose()
+assert.equal(runtimeDisposeExecutionSubscription.closed, true)
+
 let releaseBeforeDispatchAvailability!: () => void
 const beforeDispatchAvailabilityReady = new Promise<void>(resolve => { releaseBeforeDispatchAvailability = resolve })
 let beforeDispatchExecuteCount = 0
@@ -613,6 +631,35 @@ assert.equal(await ghostQueryOutcome, 'source.not_found')
 assert.equal((await ghostRegistry.resolveCatalog({})).sources.length, 0)
 await ghostRuntime.dispose()
 
+const lateLoadDisposeRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let lateLoadStarted = false
+let releaseLateLoad!: () => void
+const lateLoadReady = new Promise<void>(resolve => { releaseLateLoad = resolve })
+let lateLoadDisposeCount = 0
+let lateLoadResourceActive = false
+const unregisterLateLoad = lateLoadDisposeRegistry.registerProvider({
+  id: 'late-load-dispose-provider',
+  owner: { moduleId: 'test-ui', providerId: 'late-load-dispose-provider' },
+  async load() {
+    lateLoadStarted = true
+    await lateLoadReady
+    lateLoadResourceActive = true
+    return { sources: [{ ...source, id: 'test.source.late-load-dispose' }] }
+  },
+  dispose() {
+    lateLoadDisposeCount += 1
+    lateLoadResourceActive = false
+  },
+})
+const lateLoadCatalog = lateLoadDisposeRegistry.resolveCatalog({})
+while (!lateLoadStarted) await wait()
+unregisterLateLoad()
+assert.equal(lateLoadDisposeCount, 1)
+releaseLateLoad()
+assert.equal((await lateLoadCatalog).sources.length, 0)
+assert.equal(lateLoadDisposeCount, 2)
+assert.equal(lateLoadResourceActive, false)
+
 const operationUnregisterRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let unregisteredOperationDisposeCount = 0
 const unregisterOperationProvider = operationUnregisterRegistry.registerProvider({
@@ -774,6 +821,52 @@ await wait()
 await neverPrepareRuntime.dispose()
 assert.equal(await promiseOutcome(neverPrepare), 'runtime.disposed')
 assert.equal(neverPrepareDispose, 1)
+
+const abortAwareQueryRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let abortAwareQueryStarted = false
+abortAwareQueryRegistry.sources.register({
+  ...source,
+  id: 'test.source.abort-error-precedence',
+  create: (_config, context) => new Promise<never>((_resolve, reject) => {
+    abortAwareQueryStarted = true
+    context.signal?.addEventListener('abort', () => reject(new Error('provider query aborted')), { once: true })
+  }),
+})
+const abortAwareQueryRuntime = abortAwareQueryRegistry.createRuntime({ runtimeId: 'abort-error-precedence' })
+const abortAwareQueryController = new AbortController()
+const abortAwareQuery = abortAwareQueryRuntime.query({
+  version: 1,
+  source: { capabilityId: 'test.source.abort-error-precedence', version: 1 },
+}, { signal: abortAwareQueryController.signal })
+while (!abortAwareQueryStarted) await wait()
+abortAwareQueryController.abort()
+await assert.rejects(() => abortAwareQuery, (error: any) => error?.code === 'runtime.aborted')
+await abortAwareQueryRuntime.dispose()
+
+const abortAwarePrepareRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let abortAwarePrepareStarted = false
+let abortAwarePrepareDisposeCount = 0
+abortAwarePrepareRegistry.operations.register({
+  ...operation,
+  id: 'test.operation.abort-error-precedence',
+  create: () => ({
+    prepare: (_request, context) => new Promise<never>((_resolve, reject) => {
+      abortAwarePrepareStarted = true
+      context.signal?.addEventListener('abort', () => reject(new Error('provider prepare aborted')), { once: true })
+    }),
+    execute: () => of({ type: 'completed' }),
+    dispose() { abortAwarePrepareDisposeCount += 1 },
+  }),
+})
+const abortAwarePrepareRuntime = abortAwarePrepareRegistry.createRuntime({ runtimeId: 'prepare-error-precedence' })
+const abortAwarePrepare = abortAwarePrepareRuntime.prepareOperation({
+  version: 1,
+  operation: { capabilityId: 'test.operation.abort-error-precedence', version: 1 },
+})
+while (!abortAwarePrepareStarted) await wait()
+await abortAwarePrepareRuntime.dispose()
+await assert.rejects(() => abortAwarePrepare, (error: any) => error?.code === 'runtime.disposed')
+assert.equal(abortAwarePrepareDisposeCount, 1)
 
 const providerPendingPrepareRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let providerPendingPrepareDispose = 0

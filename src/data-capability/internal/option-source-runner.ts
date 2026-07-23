@@ -11,6 +11,7 @@ import type {
 import { createCapabilityError } from '../utils'
 import { capabilitySchemaValidator } from '../validation'
 import { assertConfigurable } from './availability'
+import { CancellationResource } from './cancellation-resource'
 import type {
   CapabilityMountStamp,
   ProviderDefinitionIds,
@@ -28,15 +29,10 @@ import {
 } from './option-source-values'
 import type { DataSourceRunner } from './source-runner'
 
-interface OptionRequestResource {
-  abortController: AbortController
+type OptionRequestResource = CancellationResource & {
   capabilityId: string
   kind: Extract<ProviderDefinitionKind, 'sources' | 'optionSources'>
   registration?: CapabilityMountStamp
-  cancelPromise: Promise<never>
-  settled: boolean
-  cancelled: boolean
-  cancel(error: unknown): void
 }
 
 export interface OptionSourceRunnerHost {
@@ -207,25 +203,10 @@ function createOptionRequestResource(
   capabilityId: string,
   kind: OptionRequestResource['kind'],
 ): OptionRequestResource {
-  let rejectCancel: (error: unknown) => void = () => undefined
-  const resource: OptionRequestResource = {
-    abortController: new AbortController(),
+  return Object.assign(new CancellationResource(), {
     capabilityId,
     kind,
-    cancelPromise: new Promise<never>((_, reject) => {
-      rejectCancel = reject
-    }),
-    settled: false,
-    cancelled: false,
-    cancel(error: unknown) {
-      if (resource.settled || resource.cancelled) return
-      resource.cancelled = true
-      // Settle the public task first so a nested DataSource abort cannot replace the intended reason.
-      rejectCancel(error)
-      resource.abortController.abort()
-    },
-  }
-  return resource
+  })
 }
 
 function raceOptionCancel<T>(promise: Promise<T>, resource: OptionRequestResource): Promise<T> {
