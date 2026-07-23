@@ -166,7 +166,6 @@ const CropperModal = defineComponent({
             onMousedown={stopPointerStartEvent}
             onClick={stopPointerStartEvent}
           >
-            {JSON.stringify(props.canScale)}
             <VueCropper ref={cropperRef} {...cropper}/>
           </div>
         </Modal>
