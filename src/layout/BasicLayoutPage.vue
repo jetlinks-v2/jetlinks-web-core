@@ -33,6 +33,17 @@
 
     <template #rightContentRender>
       <div class="right-content">
+        <a-tree-select
+          v-if="!userStore.isAdmin"
+          v-model:value="selectedPark"
+          class="basic-layout-park-select"
+          :tree-data="parkOptions"
+          :loading="loadingParks"
+          :allow-clear="false"
+          tree-default-expand-all
+          show-search
+          :tree-node-filter-prop="'title'"
+        />
         <RegistryComponent pageCode="layout" code="headerRight">
           <template v-if="!hideHeaderRight">
 <!--            <Language key="Language" />-->
@@ -70,9 +81,12 @@
 </template>
 
 <script setup name="BasicLayoutPage" lang="ts">
-import { reactive, computed, watchEffect } from 'vue'
+import { reactive, computed, watch, watchEffect, onMounted } from 'vue'
+import { LocalStore } from '@jetlinks-web/utils'
+import { request } from '@jetlinks-web/core'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
+import { useUserStore } from '@jetlinks-web-core/store'
 import {
   Notice,
   Language,
@@ -88,15 +102,39 @@ import { isSubApp } from '@/utils/consts'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { useResponsiveLayoutDimensions } from '@jetlinks-web-core/hooks'
 import { useGlobalHomeAgent } from '@jetlinks-web-core/layout/components/AiChat/useGlobalHomeAgent'
+import { PARK_STORAGE_KEY } from '@jetlinks-web-core/utils/consts'
+
+type BasicConfigTreeNode = {
+  id?: string
+  key?: string
+  name?: string
+  type?: string
+  orgId?: string
+  parkId?: string
+  children?: BasicConfigTreeNode[]
+}
+
+type ParkTreeSelectNode = {
+  title: string
+  value: string
+  key: string
+  disabled?: boolean
+  selectable?: boolean
+  children?: ParkTreeSelectNode[]
+}
 
 const router = useRouter();
 const route = useRoute();
 const systemStore = useSystemStore()
 const menuStore = useMenuStore()
+const userStore = useUserStore()
 const layoutType = ref('list')
 const hideHeaderRight = getHideHeaderRightConfig()
 
 const { theme, layout, language, systemInfo, themeStyleToken } = storeToRefs(systemStore)
+const selectedPark = ref(String(LocalStore.get(PARK_STORAGE_KEY) || ''))
+const loadingParks = ref(false)
+const currentUserParkTree = ref<BasicConfigTreeNode[]>([])
 
 const state = reactive({
   pure: false,
@@ -158,6 +196,92 @@ const onClick = () => {
   console.log('点击了')
 }
 
+const unwrapResult = <T,>(response: { result?: T } | T): T => {
+  if (response && typeof response === 'object' && 'result' in response) {
+    return (response as { result?: T }).result as T
+  }
+  return response as T
+}
+
+const toParkTreeSelectNode = (node: BasicConfigTreeNode): ParkTreeSelectNode | undefined => {
+  if (node.type === 'park') {
+    const value = String(node.parkId || node.id || node.key || '')
+    if (!value) return undefined
+    return {
+      title: String(node.name || value),
+      value,
+      key: value,
+    }
+  }
+
+  if (node.type !== 'org') {
+    return undefined
+  }
+
+  const children = (node.children || [])
+    .map(toParkTreeSelectNode)
+    .filter(Boolean) as ParkTreeSelectNode[]
+  if (!children.length) {
+    return undefined
+  }
+  const value = String(node.id || node.orgId || node.key || node.name || '')
+  return {
+    title: String(node.name || value),
+    value: `org:${value}`,
+    key: `org:${value}`,
+    disabled: true,
+    selectable: false,
+    children,
+  }
+}
+
+const currentUserParkOptions = computed<ParkTreeSelectNode[]>(() => (
+  currentUserParkTree.value
+    .map(toParkTreeSelectNode)
+    .filter(Boolean) as ParkTreeSelectNode[]
+))
+
+const parkOptions = computed<ParkTreeSelectNode[]>(() => [
+  ...(userStore.isAdmin ? [{ title: '全部园区', value: 'all', key: 'all' }] : []),
+  ...currentUserParkOptions.value,
+])
+
+const loadCurrentUserParkTree = async () => {
+  loadingParks.value = true
+  try {
+    const response = await request.get('/user/park/tree/current')
+    currentUserParkTree.value = unwrapResult<BasicConfigTreeNode[]>(response) || []
+  } catch {
+    currentUserParkTree.value = []
+  } finally {
+    loadingParks.value = false
+  }
+}
+
+const isSelectableParkOption = (node: ParkTreeSelectNode): boolean => node.selectable !== false
+
+const includesParkOptionValue = (options: ParkTreeSelectNode[], value: string): boolean => (
+  options.some(item => (
+    (isSelectableParkOption(item) && item.value === value)
+      || includesParkOptionValue(item.children || [], value)
+  ))
+)
+
+const findFirstSelectableParkValue = (options: ParkTreeSelectNode[]): string | undefined => {
+  for (const item of options) {
+    if (isSelectableParkOption(item)) {
+      return item.value
+    }
+
+    const childValue = findFirstSelectableParkValue(item.children || [])
+    if (childValue) {
+      return childValue
+    }
+  }
+
+  return undefined
+}
+
 const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
   const menuPaths = paths.map(item => item.path).filter(Boolean)
   const leafPath = menuPaths.at(-1)
@@ -197,7 +321,34 @@ watchEffect(() => {
   if (route.query?.layout === 'false') {
     state.pure = true
   }
+  // 平台管理员不展示园区切换，统一按全部园区访问，避免沿用历史缓存的单园区范围。
+  if (userStore.isAdmin && selectedPark.value !== 'all') {
+    selectedPark.value = 'all'
+  }
+  if (!includesParkOptionValue(parkOptions.value, selectedPark.value)) {
+    selectedPark.value = findFirstSelectableParkValue(parkOptions.value) || ''
+  }
 })
+
+watchEffect(() => {
+  if (selectedPark.value) {
+    LocalStore.set(PARK_STORAGE_KEY, selectedPark.value)
+  }
+})
+
+watch(selectedPark, (value, oldValue) => {
+  if (value !== oldValue && route.name !== 'ParkSwitchRedirect') {
+    router.replace({
+      name: 'ParkSwitchRedirect',
+      query: {
+        redirect: route.fullPath,
+        _parkSwitch: String(Date.now()),
+      },
+    })
+  }
+}, { flush: 'post' })
+
+onMounted(loadCurrentUserParkTree)
 
 </script>
 
@@ -210,6 +361,10 @@ watchEffect(() => {
   align-items: center;
   gap: var(--space-6);
   height: 3rem;
+}
+
+.basic-layout-park-select {
+  width: 10rem;
 }
 
 .application-center-button {
