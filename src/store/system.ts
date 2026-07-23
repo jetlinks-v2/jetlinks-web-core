@@ -47,7 +47,7 @@ const useSystemStoreBase = defineStore('system', () => {
   const layout = reactive<LayoutType>({
     siderWidth: 208,
     headerHeight: 48,
-    collapsedWidth: 48,
+    collapsedWidth: 88,
     title: '物联网平台', // 浏览器标签页title和系统名称
     logo: '/images/login/logo.png',
     layout: 'mix'
