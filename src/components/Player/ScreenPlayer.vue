@@ -15,87 +15,89 @@
                     <a-radio-button :value="0">{{ $t('Player.ScreenPlayer.521467-3') }}</a-radio-button>
                 </a-radio-group>
                 <div class="screen-tool-save">
-                    <a-space>
-                        <a-tooltip :title="$t('Player.ScreenPlayer.521467-4')">
-                            <AIcon type="QuestionCircleOutlined" />
-                        </a-tooltip>
-                        <a-popover
-                            v-model:open="visible"
-                            trigger="click"
-                            :title="$t('Player.ScreenPlayer.521467-5')"
-                        >
-                            <template #content>
-                                <a-form
-                                    ref="formRef"
-                                    :model="formData"
-                                    layout="vertical"
-                                >
-                                    <a-form-item
-                                        name="name"
-                                        :rules="[
-                                            {
-                                                required: true,
-                                                message: $t('Player.ScreenPlayer.521467-6'),
-                                            },
-                                            {
-                                                max: 64,
-                                                message: $t('Player.ScreenPlayer.521467-7'),
-                                            },
-                                        ]"
-                                    >
-                                        <a-textarea
-                                            v-model:value="formData.name"
-                                        />
-                                    </a-form-item>
-                                    <a-button
-                                        type="primary"
-                                        @click="saveHistory"
-                                        :loading="loading"
-                                        style="width: 100%; margin-top: 1rem"
-                                    >
-                                        {{ $t('Player.ScreenPlayer.521467-8') }}
-                                    </a-button>
-                                </a-form>
-                            </template>
-                            <a-dropdown-button
-                                type="primary"
-                                @click="visible = true"
+                    <slot name="toolbar">
+                        <a-space>
+                            <a-tooltip :title="$t('Player.ScreenPlayer.521467-4')">
+                                <AIcon type="QuestionCircleOutlined" />
+                            </a-tooltip>
+                            <a-popover
+                                v-model:open="visible"
+                                trigger="click"
+                                :title="$t('Player.ScreenPlayer.521467-5')"
                             >
-                                {{ $t('Player.ScreenPlayer.521467-8') }}
-                                <template #overlay>
-                                    <a-menu>
-                                        <CloudEmpty
-                                            v-if="!historyList.length"
-                                            :description="$t('Player.ScreenPlayer.521467-9')"
-                                        />
-                                        <a-menu-item
-                                            v-for="(item, index) in historyList"
-                                            :key="`his${index}`"
-                                            @click="handleHistory(item)"
+                                <template #content>
+                                    <a-form
+                                        ref="formRef"
+                                        :model="formData"
+                                        layout="vertical"
+                                    >
+                                        <a-form-item
+                                            name="name"
+                                            :rules="[
+                                                {
+                                                    required: true,
+                                                    message: $t('Player.ScreenPlayer.521467-6'),
+                                                },
+                                                {
+                                                    max: 64,
+                                                    message: $t('Player.ScreenPlayer.521467-7'),
+                                                },
+                                            ]"
                                         >
-                                            <a-space>
-                                                <span>{{ item.name }}</span>
-                                                <j-permission-button
-                                                    type="text"
-                                                    :popConfirm="{
-                                                    title: $t('Player.ScreenPlayer.521467-10'),
-                                                    onConfirm: (e: any) => {
-                                                        e?.stopPropagation();
-                                                        deleteHistory(item.key);
-                                                    }
-                                                }"
-                                                >
-                                                    <AIcon
-                                                        type="DeleteOutlined"
-                                                    />
-                                                </j-permission-button>
-                                            </a-space>
-                                        </a-menu-item>
-                                    </a-menu>
+                                            <a-textarea
+                                                v-model:value="formData.name"
+                                            />
+                                        </a-form-item>
+                                        <a-button
+                                            type="primary"
+                                            @click="saveHistory"
+                                            :loading="loading"
+                                            style="width: 100%; margin-top: 1rem"
+                                        >
+                                            {{ $t('Player.ScreenPlayer.521467-8') }}
+                                        </a-button>
+                                    </a-form>
                                 </template>
-                            </a-dropdown-button>
-                        </a-popover>
-                    </a-space>
+                                <a-dropdown-button
+                                    type="primary"
+                                    @click="visible = true"
+                                >
+                                    {{ $t('Player.ScreenPlayer.521467-8') }}
+                                    <template #overlay>
+                                        <a-menu>
+                                            <CloudEmpty
+                                                v-if="!historyList.length"
+                                                :description="$t('Player.ScreenPlayer.521467-9')"
+                                            />
+                                            <a-menu-item
+                                                v-for="(item, index) in historyList"
+                                                :key="`his${index}`"
+                                                @click="handleHistory(item)"
+                                            >
+                                                <a-space>
+                                                    <span>{{ item.name }}</span>
+                                                    <j-permission-button
+                                                        type="text"
+                                                        :popConfirm="{
+                                                        title: $t('Player.ScreenPlayer.521467-10'),
+                                                        onConfirm: (e: any) => {
+                                                            e?.stopPropagation();
+                                                            deleteHistory(item.key);
+                                                        }
+                                                    }"
+                                                    >
+                                                        <AIcon
+                                                            type="DeleteOutlined"
+                                                        />
+                                                    </j-permission-button>
+                                                </a-space>
+                                            </a-menu-item>
+                                        </a-menu>
+                                    </template>
+                                </a-dropdown-button>
+                            </a-popover>
+                        </a-space>
+                    </slot>
                 </div>
             </div>
             <!-- 播放器 -->
@@ -178,6 +180,7 @@ interface ScreenProps {
      */
     onMouseUp?: (deviceId: string, channelId: string, type: string) => void;
     showScreen?: boolean;
+    historyEnabled?: boolean;
 }
 
 const props = defineProps<ScreenProps>();
@@ -288,7 +291,7 @@ const handleHistory = (item: any) => {
                 return {
                     ...oldPlayer,
                     id: deviceId,
-                    channelId: deviceId,
+                    channelId,
                     url: deviceId
                         ? props.historyHandle!(deviceId, channelId)
                         : '',
@@ -316,7 +319,7 @@ const getHistory = async () => {
  */
 const deleteHistory =  (id: string) => {
     const response =  deleteSearchHistory(DEFAULT_SAVE_CODE, id);
-    response.then((res)=>{
+    response.then((res: { success?: boolean })=>{
         if(res.success){
             getHistory();
             visible.value = false;
@@ -446,7 +449,7 @@ watch(
 );
 
 watchEffect(() => {
-    if (props.showScreen !== false) {
+    if (props.showScreen !== false && props.historyEnabled !== false) {
         getHistory();
     }
     mediaInit();
