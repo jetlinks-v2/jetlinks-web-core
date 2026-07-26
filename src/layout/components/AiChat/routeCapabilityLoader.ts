@@ -7,8 +7,7 @@ import type {
 } from './homeAgentContracts';
 import type { AiClientToolDefinition } from './clientTools';
 import {
-  defineAiClientToolResultBindings,
-  defineAiClientToolRouting,
+  defineAiClientToolContract,
 } from './clientTools';
 import {
   generalAgentExtensionRegistry,
@@ -217,12 +216,19 @@ const unloadCapabilityProviders = (scope: ProviderScope) => {
 export const unloadHomeAgentCapabilityProviders = () => unloadCapabilityProviders('home');
 export const unloadGeneralAgentExtensions = () => unloadCapabilityProviders('general');
 
-const CAPABILITY_LOADER_ROUTING = defineAiClientToolRouting('discovery', {
-  capabilities: ['client-capability.load'],
-  accepts: ['session-context'],
-  produces: ['client-tool-catalog'],
-  outputShapes: ['tool.catalog'],
-  evidencePolicy: 'none',
+const CAPABILITY_LOADER_CONTRACT = defineAiClientToolContract({
+  routingKind: 'discovery',
+  routing: {
+    capabilities: ['client-capability.load'],
+    accepts: ['session-context'],
+    evidencePolicy: 'none',
+  },
+  outputs: [{
+    kind: 'lookup',
+    name: 'client-tool-catalog',
+    shape: 'tool.catalog',
+    path: '$',
+  }],
 });
 
 const createCapabilityLoaderTool = (
@@ -235,7 +241,7 @@ const createCapabilityLoaderTool = (
   displayName: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.displayName'),
   progressText: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.progressText'),
   description: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.description'),
-  routing: CAPABILITY_LOADER_ROUTING,
+  ...CAPABILITY_LOADER_CONTRACT,
   inputs: [
     {
       id: 'menuCode',
@@ -268,11 +274,6 @@ const createCapabilityLoaderTool = (
   ],
   output: { type: 'object' },
   annotations: { readOnlyHint: true },
-  _meta: {
-    resultBindings: defineAiClientToolResultBindings(CAPABILITY_LOADER_ROUTING, {
-      'client-tool-catalog': '$',
-    }),
-  },
   execute: async (args, context) => {
     const result = await loadProviders({
       menuCode: args.menuCode,

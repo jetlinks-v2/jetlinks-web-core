@@ -8,11 +8,14 @@ import {
   withAiClientToolEvidence,
   type AiClientToolArtifactReference,
   type AiClientToolClaim,
-  type AiClientToolFieldSemanticRole,
   type AiClientToolOutputBinding,
   type AiClientToolOutputField,
 } from './clientToolResult'
 import { resolveAiClientToolBindingPath } from './clientToolBindingPath'
+import {
+  collectAiClientToolSemanticFields,
+  createAiClientToolRecordFactCollector,
+} from './clientToolRecordFacts'
 
 const RECORD_STREAM_KIND = 'ai-client-tool-record-stream/v1'
 const NDJSON_MIME_TYPE = 'application/x-ndjson'
@@ -142,171 +145,6 @@ const isRecord = (value: unknown): value is JsonRecord => (
   !!value && typeof value === 'object' && !Array.isArray(value)
 )
 
-type SemanticRole = AiClientToolFieldSemanticRole
-
-interface SemanticField {
-  path: string
-  role: SemanticRole
-}
-
-interface TimestampProfile {
-  role: 'timestamp'
-  count: number
-  invalidCount: number
-  min?: number
-  max?: number
-}
-
-interface NumberProfile {
-  role: 'number' | 'longitude' | 'latitude'
-  count: number
-  invalidCount: number
-  min?: number
-  max?: number
-}
-
-interface CategoryProfile {
-  role: 'category' | 'identifier'
-  count: number
-  nullCount: number
-  values: Set<string>
-  valuesTruncated: boolean
-}
-
-type MutableFieldProfile = TimestampProfile | NumberProfile | CategoryProfile
-
-const isCategoryProfile = (profile: MutableFieldProfile): profile is CategoryProfile => (
-  profile.role === 'category' || profile.role === 'identifier'
-)
-
-const MAX_SEMANTIC_FIELDS = 32
-const MAX_CATEGORY_VALUES = 20
-
-const normalizeSemanticRole = (value: unknown): SemanticRole | undefined => {
-  const role = String(value || '').trim().toLowerCase()
-  return [
-    'timestamp', 'number', 'category', 'longitude', 'latitude', 'identifier',
-  ].includes(role) ? role as SemanticRole : undefined
-}
-
-const collectSemanticFields = (
-  schema: JsonRecord,
-  prefix = '',
-  result: SemanticField[] = [],
-): SemanticField[] => {
-  if (result.length >= MAX_SEMANTIC_FIELDS) return result
-  const properties = isRecord(schema.properties) ? schema.properties : {}
-  Object.entries(properties).some(([name, value]) => {
-    if (result.length >= MAX_SEMANTIC_FIELDS || !isRecord(value)) return result.length >= MAX_SEMANTIC_FIELDS
-    const path = prefix ? `${prefix}.${name}` : name
-    const role = normalizeSemanticRole(value['x-ai-role'] ?? value.semanticRole)
-      || (value.format === 'date-time' ? 'timestamp' : undefined)
-    if (role) result.push({ path, role })
-    if (value.type === 'object' || isRecord(value.properties)) collectSemanticFields(value, path, result)
-    return result.length >= MAX_SEMANTIC_FIELDS
-  })
-  return result
-}
-
-const valueAtPath = (row: unknown, path: string) => {
-  let current = row
-  for (const segment of path.split('.')) {
-    if (!isRecord(current) || !Object.prototype.hasOwnProperty.call(current, segment)) return undefined
-    current = current[segment]
-  }
-  return current
-}
-
-const timestampValue = (value: unknown) => {
-  if (value instanceof Date) return value.getTime()
-  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
-  if (typeof value !== 'string' || !value.trim()) return undefined
-  const parsed = new Date(value).getTime()
-  return Number.isFinite(parsed) ? parsed : undefined
-}
-
-const numericValue = (value: unknown) => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
-  if (typeof value !== 'string' || !value.trim()) return undefined
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : undefined
-}
-
-const createFieldProfile = (role: SemanticRole): MutableFieldProfile => {
-  if (role === 'category' || role === 'identifier') {
-    return { role, count: 0, nullCount: 0, values: new Set(), valuesTruncated: false }
-  }
-  return { role, count: 0, invalidCount: 0 }
-}
-
-/** Collects bounded typed facts only from schema-declared semantic roles. */
-const createRecordFactCollector = (schema: JsonRecord) => {
-  const fields = collectSemanticFields(schema)
-  const profiles = new Map(fields.map(field => [field.path, createFieldProfile(field.role)]))
-
-  const accept = (row: unknown) => {
-    fields.forEach((field) => {
-      const profile = profiles.get(field.path)!
-      const value = valueAtPath(row, field.path)
-      if (isCategoryProfile(profile)) {
-        profile.count += 1
-        if (value === null || value === undefined || value === '') {
-          profile.nullCount += 1
-          return
-        }
-        if (profile.values.size < MAX_CATEGORY_VALUES) profile.values.add(String(value))
-        else if (!profile.values.has(String(value))) profile.valuesTruncated = true
-        return
-      }
-      const normalized = profile.role === 'timestamp' ? timestampValue(value) : numericValue(value)
-      if (normalized === undefined) {
-        profile.invalidCount += 1
-        return
-      }
-      profile.count += 1
-      profile.min = profile.min === undefined ? normalized : Math.min(profile.min, normalized)
-      profile.max = profile.max === undefined ? normalized : Math.max(profile.max, normalized)
-    })
-  }
-
-  const snapshot = () => {
-    const fieldFacts: JsonRecord = {}
-    let observedStart: number | undefined
-    let observedEnd: number | undefined
-    profiles.forEach((profile, path) => {
-      if (isCategoryProfile(profile)) {
-        fieldFacts[path] = {
-          role: profile.role,
-          count: profile.count,
-          nullCount: profile.nullCount,
-          values: Array.from(profile.values),
-          valuesTruncated: profile.valuesTruncated,
-        }
-        return
-      }
-      fieldFacts[path] = {
-        role: profile.role,
-        count: profile.count,
-        invalidCount: profile.invalidCount,
-        ...(profile.min === undefined ? {} : { min: profile.min }),
-        ...(profile.max === undefined ? {} : { max: profile.max }),
-      }
-      if (profile.role === 'timestamp' && profile.min !== undefined && profile.max !== undefined) {
-        observedStart = observedStart === undefined ? profile.min : Math.min(observedStart, profile.min)
-        observedEnd = observedEnd === undefined ? profile.max : Math.max(observedEnd, profile.max)
-      }
-    })
-    return {
-      observedRange: observedStart === undefined || observedEnd === undefined
-        ? undefined
-        : { start: observedStart, end: observedEnd },
-      facts: Object.keys(fieldFacts).length ? { fields: fieldFacts } : undefined,
-    }
-  }
-
-  return { accept, snapshot }
-}
-
 const clampInteger = (value: unknown, min: number, max: number, fallback: number) => {
   const number = Number(value)
   return Number.isFinite(number)
@@ -408,6 +246,18 @@ export const createAiClientToolRecordStream = <T>(
   ...options,
 })
 
+/** Adapts an already bounded producer result to the same backpressure-aware delivery lifecycle. */
+export const createAiClientToolArrayRecordSource = <T>(
+  records: readonly T[],
+): AiClientToolRecordSource<T> => ({
+  consume: async (consumer, context) => {
+    for (const record of records) {
+      if (context.signal.aborted) throw createAbortError()
+      await consumer(record)
+    }
+  },
+})
+
 const materializeRecordStream = async <T>(
   stream: AiClientToolRecordStream<T>,
   options: DeliverAiClientToolResultOptions,
@@ -430,7 +280,7 @@ const materializeRecordStream = async <T>(
   )
   const retainedSampleLimit = Math.max(previewLimit, fallbackSampleLimit)
   const encoder = new TextEncoder()
-  const factCollector = createRecordFactCollector(stream.schema)
+  const factCollector = createAiClientToolRecordFactCollector(stream.schema)
   const retainedSamples: T[] = []
   let pendingLines: string[] = []
   let pendingBytes = 0
@@ -613,23 +463,50 @@ const mergeDeliveryResult = <T>(
     : []
   const bindingName = binding.name
   const outputShape = binding.shape
-  const bindingFields = collectSemanticFields(stream.schema).map(field => ({
+  const bindingFields = collectAiClientToolSemanticFields(stream.schema).map(field => ({
     name: field.path,
     semanticRole: field.role,
+    ...(field.label ? { label: field.label } : {}),
+    ...(field.format ? { format: field.format } : {}),
+    ...(field.measure ? { measure: field.measure } : {}),
+    ...(field.unit ? { unit: field.unit } : {}),
+    ...(field.aggregation ? { aggregation: field.aggregation } : {}),
   }))
   const outputBindings: AiClientToolOutputBinding[] = data.producedFile && data.fileRef
     ? [{
         name: bindingName,
         ref: data.fileRef,
-        ...(data.path ? { path: data.path } : {}),
         shape: outputShape,
         mediaType: data.mimeType,
         recordCount: data.count,
         complete: data.complete,
         truncated: data.truncated,
+        ...(stream.timeRange ? { requestedRange: stream.timeRange } : {}),
+        ...(data.observedRange ? { observedRange: data.observedRange } : {}),
+        coverage: {
+          complete: data.complete,
+          truncated: data.truncated,
+          returned: data.count,
+        },
         ...(bindingFields.length ? { fields: bindingFields } : {}),
       }]
-    : []
+    : [{
+        name: bindingName,
+        path: '$.data.sample',
+        shape: outputShape,
+        mediaType: 'application/json',
+        recordCount: data.sample.length,
+        complete: data.complete,
+        truncated: data.truncated,
+        ...(stream.timeRange ? { requestedRange: stream.timeRange } : {}),
+        ...(data.observedRange ? { observedRange: data.observedRange } : {}),
+        coverage: {
+          complete: data.complete,
+          truncated: data.truncated,
+          returned: data.sample.length,
+        },
+        ...(bindingFields.length ? { fields: bindingFields } : {}),
+      }]
   const status = data.truncated
     ? 'partial'
     : data.count === 0
@@ -668,7 +545,7 @@ const mergeDeliveryResult = <T>(
       ? declaredEvidence.observedRange
       : undefined),
     recordCount: data.count,
-    returnedCount: data.count,
+    returnedCount: data.producedFile ? data.count : data.sample.length,
     complete: data.complete,
     truncated: data.truncated,
     limitReason: data.limitReason,

@@ -16,10 +16,9 @@ import type {
 } from './clientToolResult';
 import {
   AI_CLIENT_TOOL_ROUTING_EXPAND_KEY,
-  defineAiClientToolRouting,
   normalizeAiClientToolRoutingMetadata,
-  validateAiClientToolResultBindings,
 } from './clientToolRouting';
+import { defineAiClientToolContract } from './clientToolContract';
 import type {
   AiClientToolRoutingDataAccessMode,
   AiClientToolRoutingResultDelivery,
@@ -51,15 +50,63 @@ export {
   toAiClientToolSessionDefinitions,
 } from './clientToolRouting';
 export {
+  AI_CLIENT_TOOL_CONTRACT_VERSION,
+  AI_CLIENT_TOOL_CONTRACT_META_KEY,
+  AI_CLIENT_TOOL_OUTPUT_KINDS,
+  defineAiClientToolContract,
+  createAiClientToolContractOutputBinding,
+  withAiClientToolContractEvidence,
+  isAiClientToolContractMetadata,
+} from './clientToolContract';
+export type {
+  AiClientToolOutputKind,
+  AiClientToolOutputContract,
+  AiClientToolLookupOutput,
+  AiClientToolRecordSetOutput,
+  AiClientToolAggregateSeriesOutput,
+  AiClientToolScalarMetricOutput,
+  AiClientToolStateEventsOutput,
+  AiClientToolArtifactOutput,
+  AiClientToolContractDefinition,
+  AiClientToolContractMetadata,
+  AiClientToolContractFragment,
+  AiClientToolContractOutputState,
+  AiClientToolContractEvidenceOptions,
+} from './clientToolContract';
+export {
+  AI_CLIENT_TOOL_CATALOG_REPORT_VERSION,
+  createAiClientToolCatalogReport,
+} from './clientToolCatalog';
+export type {
+  AiClientToolCatalogContractStatus,
+  AiClientToolCatalogToolReport,
+  AiClientToolCatalogReport,
+} from './clientToolCatalog';
+export {
   AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
   createAiClientToolFailureResult,
   withAiClientToolEvidence,
 } from './clientToolResult';
+export {
+  createAiClientToolArrayRecordSource,
+  createAiClientToolRecordStream,
+  createAiClientToolResultPath,
+} from './clientToolResultDelivery';
+export type {
+  AiClientToolRecordConsumerContext,
+  AiClientToolRecordDeliveryData,
+  AiClientToolRecordDeliveryLimits,
+  AiClientToolRecordLimitReason,
+  AiClientToolRecordSource,
+  AiClientToolRecordStream,
+  AiClientToolRecordStreamOptions,
+} from './clientToolResultDelivery';
 export type {
   AiClientToolArtifactReference,
   AiClientToolClaim,
   AiClientToolEvidence,
   AiClientToolEvidenceOptions,
+  AiClientToolMetricDescriptor,
   AiClientToolFailureDisposition,
   AiClientToolRecoveryAction,
   AiClientToolFieldSemanticRole,
@@ -975,19 +1022,26 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
 
   const getAllToolHelp = () => sourceTools.map(createToolHelp).join('\n\n');
 
-  const helpToolRouting = defineAiClientToolRouting('discovery', {
-    capabilities: ['client-tool.help.read'],
-    accepts: ['tool-id'],
-    produces: ['client-tool-help'],
-    outputShapes: ['tool.help'],
-    evidencePolicy: 'none',
+  const helpToolContract = defineAiClientToolContract({
+    routingKind: 'discovery',
+    routing: {
+      capabilities: ['client-tool.help.read'],
+      accepts: ['tool-id'],
+      evidencePolicy: 'none',
+    },
+    outputs: [{
+      kind: 'lookup',
+      name: 'client-tool-help',
+      shape: 'tool.help',
+      path: '$.help',
+    }],
   });
   const helpTool: AiClientToolDefinition<TContext> = {
     id: helpToolId,
     name: helpToolId,
     description: i18n.global.t('components.AiChat.toolHelp.description'),
     help: i18n.global.t('components.AiChat.toolHelp.help'),
-    routing: helpToolRouting,
+    ...helpToolContract,
     inputs: [
       {
         id: 'toolName',
@@ -998,11 +1052,6 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
       },
     ],
     output: { type: 'object' },
-    _meta: {
-      resultBindings: defineAiClientToolResultBindings(helpToolRouting, {
-        'client-tool-help': '$.help',
-      }),
-    },
     execute: (args = {}) => {
       const toolName = String(args.toolName || '').trim();
       return {

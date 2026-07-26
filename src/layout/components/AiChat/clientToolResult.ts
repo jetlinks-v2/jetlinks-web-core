@@ -9,7 +9,10 @@ export type AiClientToolFieldSemanticRole =
   | 'category'
   | 'longitude'
   | 'latitude'
+  | 'geo_point'
   | 'identifier'
+  | 'state'
+  | 'duration'
 
 export interface AiClientToolOutputField {
   name: string
@@ -18,6 +21,24 @@ export interface AiClientToolOutputField {
   label?: string
   /** Renderer-neutral scalar format such as percent or integer. */
   format?: string
+  /** Domain-neutral measure identity such as duration or count. */
+  measure?: string
+  /** Canonical scalar unit such as ms, percent, or count. */
+  unit?: string
+  /** Deterministic aggregation/operator identity. */
+  aggregation?: string
+}
+
+export interface AiClientToolMetricDescriptor {
+  name: string
+  measure: string
+  unit: string
+  aggregation: string
+  value?: unknown
+  scope: Record<string, unknown>
+  coverage: Record<string, unknown>
+  exact: boolean
+  provenance: Record<string, unknown>
 }
 
 export interface AiClientToolOutputBinding {
@@ -32,6 +53,10 @@ export interface AiClientToolOutputBinding {
   complete: boolean
   truncated?: boolean
   fields?: AiClientToolOutputField[]
+  requestedRange?: Record<string, unknown>
+  observedRange?: Record<string, unknown>
+  coverage?: Record<string, unknown>
+  metric?: AiClientToolMetricDescriptor
 }
 
 export interface AiClientToolArtifactReference {
@@ -95,8 +120,66 @@ const boundedStrings = (values: string[] | undefined, limit: number) => (
   Array.from(new Set((values || []).map(value => String(value || '').trim()).filter(Boolean))).slice(0, limit)
 )
 
+const STRUCTURED_RECORD_LIMITS = {
+  depth: 4,
+  objectKeys: 32,
+  arrayItems: 32,
+  keyCharacters: 160,
+  stringCharacters: 600,
+} as const
+
+const UNSAFE_RECORD_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
+const isStructuredRecord = (value: unknown): value is Record<string, unknown> => (
+  !!value && typeof value === 'object' && !Array.isArray(value)
+)
+
+/** Copies model-readable metadata into a bounded JSON-compatible value without inferring domain fields. */
+const boundedStructuredValue = (
+  value: unknown,
+  depth = 0,
+  ancestors = new Set<object>(),
+): unknown => {
+  if (value === null || typeof value === 'boolean') return value
+  if (typeof value === 'string') return value.slice(0, STRUCTURED_RECORD_LIMITS.stringCharacters)
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
+  if ((typeof value !== 'object' || value === null) || depth >= STRUCTURED_RECORD_LIMITS.depth) {
+    return undefined
+  }
+  if (ancestors.has(value)) return undefined
+  ancestors.add(value)
+  try {
+    if (Array.isArray(value)) {
+      return value
+        .slice(0, STRUCTURED_RECORD_LIMITS.arrayItems)
+        .map(item => boundedStructuredValue(item, depth + 1, ancestors))
+        .filter(item => item !== undefined)
+    }
+    const entries: Array<[string, unknown]> = []
+    const keys = new Set<string>()
+    for (const [rawKey, rawValue] of Object.entries(value)) {
+      const key = rawKey.trim().slice(0, STRUCTURED_RECORD_LIMITS.keyCharacters)
+      if (!key || UNSAFE_RECORD_KEYS.has(key) || keys.has(key)) continue
+      const normalized = boundedStructuredValue(rawValue, depth + 1, ancestors)
+      if (normalized === undefined) continue
+      entries.push([key, normalized])
+      keys.add(key)
+      if (entries.length >= STRUCTURED_RECORD_LIMITS.objectKeys) break
+    }
+    return Object.fromEntries(entries)
+  } finally {
+    ancestors.delete(value)
+  }
+}
+
+const boundedStructuredRecord = (value: unknown) => {
+  if (!isStructuredRecord(value)) return undefined
+  const normalized = boundedStructuredValue(value)
+  return isStructuredRecord(normalized) ? normalized : undefined
+}
+
 const BINDING_SEMANTIC_ROLES = new Set<AiClientToolFieldSemanticRole>([
-  'timestamp', 'number', 'category', 'longitude', 'latitude', 'identifier',
+  'timestamp', 'number', 'category', 'longitude', 'latitude', 'geo_point', 'identifier', 'state', 'duration',
 ])
 
 const boundedBindingFields = (values: AiClientToolOutputField[] | undefined) => (
@@ -105,14 +188,43 @@ const boundedBindingFields = (values: AiClientToolOutputField[] | undefined) => 
     const semanticRole = String(value?.semanticRole || '').trim().toLowerCase() as AiClientToolFieldSemanticRole
     const label = String(value?.label || '').trim().slice(0, 120)
     const format = String(value?.format || '').trim().toLowerCase().slice(0, 32)
+    const measure = String(value?.measure || '').trim().toLowerCase().slice(0, 160)
+    const unit = String(value?.unit || '').trim().toLowerCase().slice(0, 32)
+    const aggregation = String(value?.aggregation || '').trim().toLowerCase().slice(0, 160)
     return name && BINDING_SEMANTIC_ROLES.has(semanticRole) ? [{
       name,
       semanticRole,
       ...(label ? { label } : {}),
       ...(format ? { format } : {}),
+      ...(measure ? { measure } : {}),
+      ...(unit ? { unit } : {}),
+      ...(aggregation ? { aggregation } : {}),
     }] : []
   }).slice(0, 32)
 )
+
+const boundedMetric = (value: AiClientToolMetricDescriptor | undefined) => {
+  const name = String(value?.name || '').trim().slice(0, 160)
+  const measure = String(value?.measure || '').trim().toLowerCase().slice(0, 160)
+  const unit = String(value?.unit || '').trim().toLowerCase().slice(0, 32)
+  const aggregation = String(value?.aggregation || '').trim().toLowerCase().slice(0, 160)
+  const scope = boundedStructuredRecord(value?.scope)
+  const coverage = boundedStructuredRecord(value?.coverage)
+  const provenance = boundedStructuredRecord(value?.provenance)
+  const metricValue = boundedStructuredValue(value?.value)
+  if (!name || !measure || !unit || !aggregation || !scope || !coverage || !provenance) return undefined
+  return {
+    name,
+    measure,
+    unit,
+    aggregation,
+    ...(metricValue !== undefined ? { value: metricValue } : {}),
+    scope,
+    coverage,
+    exact: value.exact === true,
+    provenance,
+  }
+}
 
 export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBinding[] | undefined) => (
   (values || []).flatMap((value) => {
@@ -123,6 +235,10 @@ export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBi
     const shape = String(value?.shape || '').trim().slice(0, 160)
     if (!name || (!ref && !path) || !shape) return []
     const fields = boundedBindingFields(value.fields)
+    const metric = boundedMetric(value.metric)
+    const requestedRange = boundedStructuredRecord(value.requestedRange)
+    const observedRange = boundedStructuredRecord(value.observedRange)
+    const coverage = boundedStructuredRecord(value.coverage)
     return [{
       name,
       ...(label ? { label } : {}),
@@ -134,6 +250,10 @@ export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBi
       complete: value.complete === true,
       ...(value.truncated !== undefined ? { truncated: value.truncated === true } : {}),
       ...(fields.length ? { fields } : {}),
+      ...(requestedRange ? { requestedRange } : {}),
+      ...(observedRange ? { observedRange } : {}),
+      ...(coverage ? { coverage } : {}),
+      ...(metric ? { metric } : {}),
     }]
   }).slice(0, 16)
 )
@@ -164,19 +284,22 @@ export const withAiClientToolEvidence = <T extends Record<string, unknown>>(
 ) => {
   const outputBindings = normalizeAiClientToolOutputBindings(options.outputBindings)
   const claims = boundedClaims(options.claims)
+  const requestedRange = boundedStructuredRecord(options.requestedRange)
+  const observedRange = boundedStructuredRecord(options.observedRange)
+  const facts = boundedStructuredRecord(options.facts)
   const evidence: AiClientToolEvidence = {
     contract: AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
     complete: options.complete,
     truncated: options.truncated,
-    ...(options.requestedRange ? { requestedRange: { ...options.requestedRange } } : {}),
-    ...(options.observedRange ? { observedRange: { ...options.observedRange } } : {}),
+    ...(requestedRange ? { requestedRange } : {}),
+    ...(observedRange ? { observedRange } : {}),
     ...(Number.isFinite(options.recordCount) ? { recordCount: Number(options.recordCount) } : {}),
     ...(Number.isFinite(options.returnedCount) ? { returnedCount: Number(options.returnedCount) } : {}),
     ...(options.limitReason ? { limitReason: options.limitReason } : {}),
     ...(options.resultStatus ? { resultStatus: options.resultStatus } : {}),
     ...(options.evidenceCoverage ? { evidenceCoverage: options.evidenceCoverage } : {}),
     ...(options.supportsAbsenceClaim === true ? { supportsAbsenceClaim: true } : {}),
-    ...(options.facts && Object.keys(options.facts).length ? { facts: { ...options.facts } } : {}),
+    ...(facts && Object.keys(facts).length ? { facts } : {}),
     ...(claims.length ? { claims } : {}),
     ...(options.warnings?.length ? { warnings: boundedStrings(options.warnings, 8) } : {}),
     ...(options.artifacts?.length ? { artifacts: options.artifacts.slice(0, 16).map(value => ({ ...value })) } : {}),

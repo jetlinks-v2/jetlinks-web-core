@@ -12,6 +12,7 @@
     "micro": "node scripts/start-micro.js",
     "build:server": "pnpm build --mode server",
     "build:modules": "pnpm build -- --module-name",
+    "test:client-tools": "node scripts/run-client-tool-contract-tests.mjs",
     "dev:proxy": "vite -- --backend-url"
   },
   "dependencies": {
