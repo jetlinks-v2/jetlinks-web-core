@@ -92,10 +92,10 @@
       <a-card title="定义与配置" :bordered="false" class="definition-card">
         <a-tabs v-model:activeKey="activeTab">
           <a-tab-pane key="definition" tab="Definition">
-            <pre>{{ formatJson(selectedCapability) }}</pre>
+            <CodeBlock class="json-output" variant="light" label="JSON" :content="formatJson(selectedCapability)" copyable />
           </a-tab-pane>
           <a-tab-pane key="choices" tab="Choice Directory">
-            <pre>{{ formatJson(capabilityChoiceResult) }}</pre>
+            <CodeBlock class="json-output" variant="light" label="JSON" :content="formatJson(capabilityChoiceResult)" copyable />
           </a-tab-pane>
           <a-tab-pane key="config" tab="Config / Query / Input">
             <a-alert
@@ -105,13 +105,13 @@
             />
             <a-form layout="vertical" class="draft-form">
               <a-form-item label="config JSON">
-                <a-textarea v-model:value="draftConfig" :rows="5" />
+                <MonacoEditor v-model:modelValue="draftConfig" class="json-editor" theme="vs" :options="jsonEditorOptions" />
               </a-form-item>
               <a-form-item label="query JSON（DataSource / OptionSource）">
-                <a-textarea v-model:value="draftQuery" :rows="5" />
+                <MonacoEditor v-model:modelValue="draftQuery" class="json-editor" theme="vs" :options="jsonEditorOptions" />
               </a-form-item>
               <a-form-item label="input JSON（Operation）">
-                <a-textarea v-model:value="draftInput" :rows="5" />
+                <MonacoEditor v-model:modelValue="draftInput" class="json-editor" theme="vs" :options="jsonEditorOptions" />
               </a-form-item>
             </a-form>
           </a-tab-pane>
@@ -166,13 +166,13 @@
             show-icon
             :message="`已接收 ${eventStats.received} 条事件，保留最近 ${events.length}/${eventStats.limit} 条，已裁剪 ${eventStats.dropped} 条。`"
           />
-          <pre>{{ formatJson(events) }}</pre>
+          <CodeBlock class="json-output events-output" variant="light" label="JSON" :content="formatJson(events)" copyable />
         </a-tab-pane>
         <a-tab-pane key="result" tab="Result">
-          <pre>{{ formatJson(result) }}</pre>
+          <MonacoEditor :model-value="formatJson(result)" class="json-editor result-json-editor" theme="vs" read-only :blur-format="false" :options="jsonEditorOptions" />
         </a-tab-pane>
         <a-tab-pane key="fixture" tab="Fixture">
-          <pre>{{ formatJson(currentFixture) }}</pre>
+          <CodeBlock class="json-output" variant="light" label="JSON" :content="formatJson(currentFixture)" copyable />
         </a-tab-pane>
       </a-tabs>
     </a-card>
@@ -180,7 +180,16 @@
 </template>
 
 <script setup lang="ts">
+import CodeBlock from '../../../components/CodeBlock/index.vue'
+import MonacoEditor from '../../../components/MonacoEditor/monacoEditor.vue'
 import { useDataCapabilityLab } from './useDataCapabilityLab'
+
+const jsonEditorOptions = {
+  folding: true,
+  minimap: { enabled: false },
+  showFoldingControls: 'always',
+  wordWrap: 'on',
+}
 
 const {
   context,
@@ -219,7 +228,7 @@ const {
   stopConnection,
 } = useDataCapabilityLab()
 
-const formatJson = (value: unknown) => JSON.stringify(value, null, 2)
+const formatJson = (value: unknown) => JSON.stringify(value ?? null, null, 2)
 
 void loadCatalog()
 </script>
@@ -264,11 +273,23 @@ void loadCatalog()
 .result-card {
   margin-top: 16px;
 }
-pre {
-  max-height: 520px;
-  padding: 12px;
+.json-editor {
+  height: 9rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+}
+.result-json-editor {
+  height: 32.5rem;
+}
+.json-output :deep(.cb-body) {
+  max-height: 32.5rem;
   overflow: auto;
-  background: #f6f8fa;
-  border-radius: 6px;
+  font-family: var(--font-mono);
+  white-space: pre;
+  word-break: normal;
+}
+.events-output {
+  margin-top: var(--space-3);
 }
 </style>
