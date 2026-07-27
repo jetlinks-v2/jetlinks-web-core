@@ -75,6 +75,7 @@ let readinessLoadCount = 0
 readinessRegistry.registerProvider({
   id: 'option-readiness-provider',
   owner: { moduleId: 'test-ui', providerId: 'option-readiness-provider' },
+  capabilityIds: ['test.option.readiness'],
   async load() {
     readinessLoadCount += 1
     await wait()

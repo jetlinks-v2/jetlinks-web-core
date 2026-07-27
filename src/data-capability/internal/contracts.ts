@@ -35,7 +35,7 @@ export interface RuntimeRegistryAccess {
   readonly operations: CapabilityRegistry<OperationDefinition>
   readonly contexts: CapabilityRegistry<ContextValueDefinition>
   readonly optionSources: CapabilityRegistry<OptionSourceDefinition>
-  ensureReady(context?: CapabilityContext): Promise<void>
+  ensureReady(context?: CapabilityContext, capabilityId?: string): Promise<void>
   getDefinitionRegistration(definition: CapabilityDefinitionBase): CapabilityMountStamp | undefined
   isMountActive(
     mount: CapabilityMountStamp | undefined,

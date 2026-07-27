@@ -118,10 +118,10 @@ export class ModuleRegistry {
    * @param resources 资源对象
    * @param options 注册选项
    */
-  public registerResource<T = unknown>(
+  public registerResource<T extends ModuleResourceType>(
     moduleId: string,
-    resourceType: ModuleResourceType,
-    resources: Record<string, T>,
+    resourceType: T,
+    resources: GetResourceType<T>,
     options: RegisterOptions = {}
   ): void {
     if (!moduleId || !resourceType) {
@@ -397,7 +397,8 @@ export class ModuleRegistry {
    * 处理模块卸载
    */
   public handleModuleUnload(moduleId: string): void {
-    // 更新状态
+    // Runtime resources must leave the registry snapshot before listeners reconcile Provider mounts.
+    this.registry.delete(moduleId);
     this.updateMetadata(moduleId, {
       status: ModuleStatus.IDLE
     });

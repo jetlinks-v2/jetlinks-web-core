@@ -8,6 +8,7 @@ import {
   type DataSourceDefinition,
   type OperationDefinition,
   type OperationEvent,
+  type PersistedDataBinding,
   type PreparedOperation,
 } from '../../src/data-capability'
 
@@ -99,12 +100,13 @@ let loadArgCount = -1
 providerRegistry.registerProvider({
   id: 'neutral-provider',
   owner: { moduleId: 'test-ui', providerId: 'neutral-provider' },
+  capabilityIds: ['test.source.neutral'],
   load(...args: any[]) {
     loadCount += 1
     loadArgCount = args.length
     return {
       sources: [{
-        id: 'neutral-source',
+        id: 'test.source.neutral',
         kind: 'data-source',
         version: 1,
         name: 'Neutral Source',
@@ -120,6 +122,119 @@ assert.equal((await providerRegistry.resolveCatalog({ parameters: { feature: 'b'
 assert.equal(loadCount, 1)
 assert.equal(loadArgCount, 0)
 
+const choiceRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let choiceSourceCreateCount = 0
+let choiceSourceQueryCount = 0
+let choiceOperationCreateCount = 0
+choiceRegistry.registerProvider({
+  id: 'choice-provider',
+  owner: { moduleId: 'choice-ui', providerId: 'choice-provider' },
+  capabilityIds: [
+    'test.source.choice',
+    'test.source.choice-execute-disabled',
+    'test.operation.choice-config-disabled',
+  ],
+  load: () => ({
+    sources: [{
+      id: 'test.source.choice',
+      kind: 'data-source',
+      version: 2,
+      name: 'Selectable Source',
+      description: 'Lists selectable records',
+      owner: { moduleId: 'choice-ui', providerId: 'choice-provider' },
+      tags: ['selector'],
+      facets: { category: 'test' },
+      modes: ['snapshot', 'page'],
+      configSchema: { type: 'object' },
+      querySchema: { type: 'object', properties: { keyword: { type: 'string' } } },
+      outputSchema: { type: 'array', items: { type: 'object' } },
+      create: () => {
+        choiceSourceCreateCount += 1
+        return {
+          query: () => {
+            choiceSourceQueryCount += 1
+            return of({ data: [] }) as any
+          },
+        }
+      },
+    }, {
+      ...source,
+      id: 'test.source.choice-execute-disabled',
+      name: 'Execute Disabled Source',
+      owner: { moduleId: 'choice-ui', providerId: 'choice-provider' },
+      availability: (_context, phase) => ({
+        ...available,
+        executable: phase !== 'execute',
+        reason: phase === 'execute' ? 'execution denied' : undefined,
+      }),
+    }],
+    operations: [{
+      ...operation,
+      id: 'test.operation.choice-config-disabled',
+      name: 'Configure Disabled Operation',
+      owner: { moduleId: 'choice-ui', providerId: 'choice-provider' },
+      inputSchema: { type: 'object', properties: { value: { type: 'number' } } },
+      outputSchema: { type: 'object' },
+      availability: (_context, phase) => ({
+        ...available,
+        configurable: phase !== 'configure',
+        reason: phase === 'configure' ? 'configuration denied' : undefined,
+      }),
+      create: () => {
+        choiceOperationCreateCount += 1
+        return operation.create(undefined, {})
+      },
+    }],
+  }),
+})
+choiceRegistry.registerProvider({
+  id: 'choice-failed-provider',
+  owner: { moduleId: 'choice-ui', providerId: 'choice-failed-provider' },
+  capabilityIds: ['test.source.choice-failed'],
+  load: () => { throw new Error('raw provider failure') },
+})
+const choiceDirectory = await choiceRegistry.resolveCapabilityChoices({})
+assert.equal(choiceDirectory.partial, true)
+assert.equal(choiceDirectory.items.length, 3)
+assert.equal(choiceDirectory.items.some(item => item.value === 'test.source.choice-failed'), false)
+assert.deepEqual(choiceDirectory.diagnostics, [{
+  code: 'provider.load_failed',
+  message: 'Some data capabilities could not be loaded',
+  capabilityIds: ['test.source.choice-failed'],
+  retryable: true,
+}])
+assert.equal(JSON.stringify(choiceDirectory).includes('raw provider failure'), false)
+assert.equal(JSON.stringify(choiceDirectory).includes('manual:'), false)
+assert.equal(JSON.stringify(choiceDirectory).includes('"definition"'), false)
+assert.equal(JSON.stringify(choiceDirectory).includes('"create"'), false)
+
+const selectableSource = choiceDirectory.items.find(item => item.value === 'test.source.choice')
+assert.equal(selectableSource?.disabled, false)
+assert.equal(selectableSource?.metadata.moduleId, 'choice-ui')
+assert.deepEqual(selectableSource?.metadata.tags, ['selector'])
+if (!selectableSource || selectableSource.kind !== 'data-source') throw new Error('missing data-source choice')
+assert.deepEqual(selectableSource.contract.modes, ['snapshot', 'page'])
+assert.equal(selectableSource.contract.paramsSchema?.properties?.keyword.type, 'string')
+assert.equal(selectableSource.contract.resultSchema?.type, 'array')
+
+const configureDisabled = choiceDirectory.items.find(item => item.value === 'test.operation.choice-config-disabled')
+assert.equal(configureDisabled?.disabled, true)
+assert.equal(configureDisabled?.disabledReason, 'configuration denied')
+if (!configureDisabled || configureDisabled.kind !== 'operation') throw new Error('missing operation choice')
+assert.equal(configureDisabled.contract.action, 'invoke')
+assert.equal(configureDisabled.contract.paramsSchema?.properties?.value.type, 'number')
+
+const executeDisabled = choiceDirectory.items.find(item => item.value === 'test.source.choice-execute-disabled')
+assert.equal(executeDisabled?.disabled, true)
+assert.equal(executeDisabled?.disabledReason, 'execution denied')
+assert.equal(choiceSourceCreateCount, 0)
+assert.equal(choiceSourceQueryCount, 0)
+assert.equal(choiceOperationCreateCount, 0)
+assert.deepEqual(
+  { capabilityId: selectableSource.value, capabilityVersion: selectableSource.version },
+  { capabilityId: 'test.source.choice', capabilityVersion: 2 },
+)
+
 const readinessRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let readinessLoadCount = 0
 let releaseReadinessLoader!: () => void
@@ -127,6 +242,7 @@ const readinessLoaderReady = new Promise<void>(resolve => { releaseReadinessLoad
 readinessRegistry.registerProvider({
   id: 'readiness-provider',
   owner: { moduleId: 'test-ui', providerId: 'readiness-provider' },
+  capabilityIds: ['test.source.readiness', 'test.operation.readiness'],
   async load() {
     readinessLoadCount += 1
     await readinessLoaderReady
@@ -177,6 +293,7 @@ const cancelledReadinessRegistry = new DefaultDataCapabilityRegistry({ loadModul
 cancelledReadinessRegistry.registerProvider({
   id: 'cancelled-readiness-provider',
   owner: { moduleId: 'test-ui', providerId: 'cancelled-readiness-provider' },
+  capabilityIds: ['test.source.cancelled-readiness', 'test.operation.cancelled-readiness'],
   load: () => new Promise(() => undefined),
 })
 const cancelledReadinessRuntime = cancelledReadinessRegistry.createRuntime({ runtimeId: 'cancelled-readiness' })
@@ -517,7 +634,10 @@ replayRegistry.sources.register({
   create: () => ({ query: () => upstream as any }),
 })
 const replayRuntime = replayRegistry.createRuntime({ runtimeId: 'replay' })
-const replayBinding = { version: 1, source: { capabilityId: 'test.source.replay', version: 1 } }
+const replayBinding: PersistedDataBinding = {
+  version: 1,
+  source: { capabilityId: 'test.source.replay', version: 1 },
+}
 replayRuntime.connect({ consumerId: 'first', binding: replayBinding }).events$.subscribe(() => undefined)
 await wait()
 upstream.next({ data: [1] })
@@ -553,6 +673,7 @@ let providerAbortCount = 0
 const unregisterProvider = unregisterRegistry.registerProvider({
   id: 'unregister-provider',
   owner: { moduleId: 'test-ui', providerId: 'unregister-provider' },
+  capabilityIds: ['test.source.unregister'],
   load: () => ({
     sources: [{
       ...source,
@@ -592,10 +713,15 @@ const singleFlightReady = new Promise<void>(resolve => { releaseSingleFlight = r
 singleFlightRegistry.registerProvider({
   id: 'single-flight-provider',
   owner: { moduleId: 'test-ui', providerId: 'single-flight-provider' },
+  capabilityIds: ['test.source.single-flight'],
   async load() {
     singleFlightLoadCount += 1
     await singleFlightReady
-    return { sources: [{ ...source, id: 'test.source.single-flight' }] }
+    return { sources: [{
+      ...source,
+      id: 'test.source.single-flight',
+      owner: { moduleId: 'test-ui', providerId: 'single-flight-provider' },
+    }] }
   },
 })
 const singleFlightA = singleFlightRegistry.resolveCatalog({})
@@ -612,9 +738,14 @@ const ghostReady = new Promise<void>(resolve => { releaseGhost = resolve })
 const unregisterGhost = ghostRegistry.registerProvider({
   id: 'ghost-provider',
   owner: { moduleId: 'test-ui', providerId: 'ghost-provider' },
+  capabilityIds: ['test.source.ghost'],
   async load() {
     await ghostReady
-    return { sources: [{ ...source, id: 'test.source.ghost' }] }
+    return { sources: [{
+      ...source,
+      id: 'test.source.ghost',
+      owner: { moduleId: 'test-ui', providerId: 'ghost-provider' },
+    }] }
   },
 })
 const ghostRuntime = ghostRegistry.createRuntime({ runtimeId: 'ghost-readiness' })
@@ -627,7 +758,7 @@ await wait()
 unregisterGhost()
 releaseGhost()
 assert.equal((await ghostCatalog).sources.length, 0)
-assert.equal(await ghostQueryOutcome, 'source.not_found')
+assert.equal(await ghostQueryOutcome, 'provider.unregistered')
 assert.equal((await ghostRegistry.resolveCatalog({})).sources.length, 0)
 await ghostRuntime.dispose()
 
@@ -640,11 +771,16 @@ let lateLoadResourceActive = false
 const unregisterLateLoad = lateLoadDisposeRegistry.registerProvider({
   id: 'late-load-dispose-provider',
   owner: { moduleId: 'test-ui', providerId: 'late-load-dispose-provider' },
+  capabilityIds: ['test.source.late-load-dispose'],
   async load() {
     lateLoadStarted = true
     await lateLoadReady
     lateLoadResourceActive = true
-    return { sources: [{ ...source, id: 'test.source.late-load-dispose' }] }
+    return { sources: [{
+      ...source,
+      id: 'test.source.late-load-dispose',
+      owner: { moduleId: 'test-ui', providerId: 'late-load-dispose-provider' },
+    }] }
   },
   dispose() {
     lateLoadDisposeCount += 1
@@ -665,6 +801,7 @@ let unregisteredOperationDisposeCount = 0
 const unregisterOperationProvider = operationUnregisterRegistry.registerProvider({
   id: 'operation-unregister-provider',
   owner: { moduleId: 'test-ui', providerId: 'operation-unregister-provider' },
+  capabilityIds: ['test.operation.unregister'],
   load: () => ({
     operations: [{
       ...operation,
@@ -697,6 +834,7 @@ let disposeB = 0
 const unregisterSameA = sameIdRegistry.registerProvider({
   id: 'same-a',
   owner: { moduleId: 'test-ui', providerId: 'same-a' },
+  capabilityIds: ['test.source.same-id'],
   load: () => ({
     sources: [{
       ...source,
@@ -707,19 +845,23 @@ const unregisterSameA = sameIdRegistry.registerProvider({
     }],
   }),
 })
-sameIdRegistry.registerProvider({
-  id: 'same-b',
-  owner: { moduleId: 'test-ui', providerId: 'same-b' },
-  load: () => ({
-    sources: [{
-      ...source,
-      id: 'test.source.same-id',
-      owner: { moduleId: 'test-ui', providerId: 'same-b' },
-      modes: ['stream'],
-      create: () => ({ query: () => new Observable(() => () => undefined), dispose() { disposeB += 1 } }),
-    }],
+assert.throws(
+  () => sameIdRegistry.registerProvider({
+    id: 'same-b',
+    owner: { moduleId: 'test-ui', providerId: 'same-b' },
+    capabilityIds: ['test.source.same-id'],
+    load: () => ({
+      sources: [{
+        ...source,
+        id: 'test.source.same-id',
+        owner: { moduleId: 'test-ui', providerId: 'same-b' },
+        modes: ['stream'],
+        create: () => ({ query: () => new Observable(() => () => undefined), dispose() { disposeB += 1 } }),
+      }],
+    }),
   }),
-})
+  (error: any) => error?.code === 'capability.id_conflict',
+)
 await sameIdRegistry.resolveCatalog({})
 const sameRuntime = sameIdRegistry.createRuntime({ runtimeId: 'same-id' })
 const sameEvents: DataConnectionEvent[] = []
@@ -730,11 +872,11 @@ sameRuntime.connect({
 await wait()
 unregisterSameA()
 await wait()
-assert.equal(sameEvents.some(event => event.type === 'status' && event.status === 'unavailable'), false)
-assert.equal(disposeA, 0)
+assert.equal(sameEvents.some(event => event.type === 'status' && event.status === 'unavailable'), true)
+assert.equal(disposeA, 1)
 assert.equal(disposeB, 0)
 await sameRuntime.dispose()
-assert.equal(disposeB, 1)
+assert.equal(disposeA, 1)
 
 const pendingAvailabilityRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let releaseAvailability!: () => void
@@ -873,6 +1015,7 @@ let providerPendingPrepareDispose = 0
 const unregisterProviderPendingPrepare = providerPendingPrepareRegistry.registerProvider({
   id: 'pending-prepare-provider',
   owner: { moduleId: 'test-ui', providerId: 'pending-prepare-provider' },
+  capabilityIds: ['test.operation.provider-pending-prepare'],
   load: () => ({
     operations: [{
       ...operation,
@@ -1246,6 +1389,7 @@ let providerGapCreateCount = 0
 const unregisterProviderGap = providerGapRegistry.registerProvider({
   id: 'provider-gap',
   owner: { moduleId: 'test-ui', providerId: 'provider-gap' },
+  capabilityIds: ['test.source.provider-gap'],
   load: () => ({
     sources: [{
       ...source,
@@ -1281,6 +1425,7 @@ let executeGapDispatched = 0
 const unregisterExecuteGap = executeGapRegistry.registerProvider({
   id: 'execute-gap',
   owner: { moduleId: 'test-ui', providerId: 'execute-gap' },
+  capabilityIds: ['test.operation.execute-gap'],
   load: () => ({
     operations: [{
       ...operation,
@@ -1376,6 +1521,13 @@ await assert.rejects(
   }),
   (error: any) => error?.code === 'capability.version_mismatch',
 )
+await assert.rejects(
+  () => versionRegistry.createRuntime({ runtimeId: 'operation-binding-version' }).prepareOperation({
+    version: 2,
+    operation: { capabilityId: 'test.operation.version', version: 2 },
+  } as any),
+  (error: any) => error?.code === 'operation_binding.version_unsupported',
+)
 
 const directRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let directDispose = 0
@@ -1405,6 +1557,10 @@ const directOverrideRegistry = new DefaultDataCapabilityRegistry({ loadModulePro
 const directBase = { ...source, id: 'test.source.direct-override', name: 'Direct Base' }
 const directOverride = { ...source, id: 'test.source.direct-override', name: 'Direct Override' }
 directOverrideRegistry.sources.register(directBase)
+assert.throws(
+  () => directOverrideRegistry.sources.register(directOverride),
+  (error: any) => error?.code === 'capability.id_conflict',
+)
 const unregisterDirectOverride = directOverrideRegistry.sources.register(directOverride, { override: true })
 assert.equal(directOverrideRegistry.sources.get('test.source.direct-override')?.name, 'Direct Override')
 unregisterDirectOverride()
@@ -1428,6 +1584,7 @@ let providerQueryTeardown = 0
 const unregisterProviderQuery = providerQueryRegistry.registerProvider({
   id: 'query-pending-provider',
   owner: { moduleId: 'test-ui', providerId: 'query-pending-provider' },
+  capabilityIds: ['test.source.provider-query-pending'],
   load: () => ({
     sources: [{
       ...source,
@@ -1501,6 +1658,7 @@ let providerConnectDispose = 0
 const unregisterConnectProviderDispose = connectProviderDisposeRegistry.registerProvider({
   id: 'connect-provider-dispose-once',
   owner: { moduleId: 'test-ui', providerId: 'connect-provider-dispose-once' },
+  capabilityIds: ['test.source.connect-provider-dispose-once'],
   load: () => ({
     sources: [{
       ...source,
@@ -1651,12 +1809,18 @@ const providerFailureRegistry = new DefaultDataCapabilityRegistry({ loadModulePr
 providerFailureRegistry.registerProvider({
   id: 'failed-provider',
   owner: { moduleId: 'test-ui', providerId: 'failed-provider' },
+  capabilityIds: ['test.source.failed-provider'],
   load: () => { throw new Error('provider failed') },
 })
 providerFailureRegistry.registerProvider({
   id: 'healthy-provider',
   owner: { moduleId: 'test-ui', providerId: 'healthy-provider' },
-  load: () => ({ sources: [{ ...source, id: 'test.source.healthy-provider' }] }),
+  capabilityIds: ['test.source.healthy-provider'],
+  load: () => ({ sources: [{
+    ...source,
+    id: 'test.source.healthy-provider',
+    owner: { moduleId: 'test-ui', providerId: 'healthy-provider' },
+  }] }),
 })
 const providerFailureRuntime = providerFailureRegistry.createRuntime({ runtimeId: 'provider-failure' })
 assert.deepEqual((await providerFailureRuntime.query({
@@ -1669,10 +1833,11 @@ const rollbackRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders
 rollbackRegistry.registerProvider({
   id: 'rollback-provider',
   owner: { moduleId: 'test-ui', providerId: 'rollback-provider' },
+  capabilityIds: ['test.source.rollback'],
   load: () => ({
     sources: [
-      { ...source, id: 'test.source.rollback' },
-      { ...source, id: 'test.source.rollback' },
+      { ...source, id: 'test.source.rollback', owner: { moduleId: 'test-ui', providerId: 'rollback-provider' } },
+      { ...source, id: 'test.source.rollback', owner: { moduleId: 'test-ui', providerId: 'rollback-provider' } },
     ],
   }),
 }, { override: false })
@@ -1680,10 +1845,22 @@ assert.equal((await rollbackRegistry.resolveCatalog({})).sources.length, 0)
 assert.equal(rollbackRegistry.sources.get('test.source.rollback'), undefined)
 
 const kindKeyRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+assert.throws(
+  () => kindKeyRegistry.sources.register({ ...source, id: 'invalid-id' }),
+  (error: any) => error?.code === 'capability.id_invalid',
+)
+assert.throws(
+  () => kindKeyRegistry.sources.register({ ...source, id: 'test.source.invalid-version', version: 0 }),
+  (error: any) => error?.code === 'capability.version_invalid',
+)
 const sameId = 'test.capability.same-id'
 const unregisterSameOperation = kindKeyRegistry.operations.register({ ...operation, id: sameId })
-kindKeyRegistry.sources.register({ ...source, id: sameId })
+assert.throws(
+  () => kindKeyRegistry.sources.register({ ...source, id: sameId }),
+  (error: any) => error?.code === 'capability.id_conflict',
+)
 unregisterSameOperation()
+kindKeyRegistry.sources.register({ ...source, id: sameId })
 assert.equal(kindKeyRegistry.sources.get(sameId)?.id, sameId)
 
 await assert.rejects(
@@ -1693,6 +1870,14 @@ await assert.rejects(
     plan: { version: 1, nodes: [{ id: 'node1', source: { capabilityId: source.id, version: 1 } }] },
   }),
   (error: any) => error?.code === 'data_source.plan.unsupported',
+)
+await assert.rejects(
+  () => registry.createRuntime({ runtimeId: 'plan-version-test' }).query({
+    version: 1,
+    source: { capabilityId: source.id, version: 1 },
+    plan: { version: 2, nodes: [] },
+  } as any),
+  (error: any) => error?.code === 'data_source.plan.version_unsupported',
 )
 
 await assert.rejects(async () => {

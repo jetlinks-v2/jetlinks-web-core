@@ -1,13 +1,17 @@
 import type {
+  CapabilityChoiceResult,
   CapabilityContext,
   CapabilityDefinitionBase,
+  CapabilityDirectoryDiagnostic,
   CapabilityQuery,
-  CapabilityRegisterOptions,
   ContextValueDefinition,
   DataCapabilityProvider,
   DataCapabilityProviderLoadedResult,
   DataCapabilityProviderLoader,
+  DataCapabilityProviderManifestEntry,
+  DataCapabilityProviderRegisterOptions,
   DataCapabilityRegistry,
+  DataCapabilityRegistryOptions,
   DataCapabilityRuntime,
   DataSourceDefinition,
   OperationDefinition,
@@ -19,6 +23,7 @@ import type {
 } from '../types'
 import { createCapabilityError, matchesCapabilityQuery } from '../utils'
 import { resolveAvailability } from './availability'
+import { projectCapabilityChoices } from './capability-choice'
 import type {
   CapabilityMountStamp,
   ProviderDefinitionIds,
@@ -28,9 +33,22 @@ import { sameMount } from './contracts'
 import { safeDisposeAsync } from './resource-lifecycle'
 import { DefaultDataCapabilityRuntime } from './runtime'
 import { ScopedCapabilityRegistry } from './scoped-registry'
+import {
+  ProviderCapabilityManifestIndex,
+  assertCapabilityDefinition,
+  assertCapabilityId,
+  assertLoadedProviderContract,
+  assertProviderIdentity,
+  isCapabilityError,
+  normalizeCapabilityIds,
+  normalizeManifestEntry,
+  resolveProviderLoadTimeout,
+  sameStringSet,
+} from './provider-manifest'
 
 interface ProviderEntry {
   token: string
+  sequence: number
   scope: string
   registered: boolean
   generation: number
@@ -38,16 +56,18 @@ interface ProviderEntry {
   module: boolean
   provider?: DataCapabilityProvider
   loader?: DataCapabilityProviderLoader
+  moduleId?: string
+  capabilityIds?: Set<string>
+  loadTimeout: number
   loadPromise?: Promise<void>
   disposePromise?: Promise<void>
   override: boolean
-  reconcileVersion?: number
 }
 
 let providerRegistrationSequence = 0
 
 export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
-  constructor(private readonly options: { loadModuleProviders?: boolean } = {}) {}
+  constructor(private readonly options: DataCapabilityRegistryOptions = {}) {}
   readonly sources = new ScopedCapabilityRegistry<DataSourceDefinition>(
     () => this.emitChange(),
     (definition, scope) => this.registerDirectDefinition('sources', definition, scope),
@@ -83,27 +103,34 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   private readonly runtimes = new Set<DefaultDataCapabilityRuntime>()
   private readonly activeMounts = new Set<string>()
   private readonly moduleProviderGenerations = new Map<string, number>()
+  private readonly providerManifestIndex = new ProviderCapabilityManifestIndex()
+  private readonly effectiveCapabilityKinds = new Map<string, { kind: ProviderDefinitionKind; mountId: string }>()
+  private readonly readinessPromises = new Map<string, Promise<CapabilityDirectoryDiagnostic[]>>()
   private moduleRegistryUnsubscribe?: () => void
   private moduleProviderReconcilePromise?: Promise<void>
   private moduleProviderReconcileDirty = false
-  private moduleProviderReconcileVersion = 0
-  private readinessDirty = false
-  private readinessPromise?: Promise<void>
 
-  registerProvider(provider: DataCapabilityProvider, options: CapabilityRegisterOptions = {}): () => void {
-    const token = `manual:${provider.id}:${options.scope || 'default'}:${providerRegistrationSequence++}`
+  registerProvider(provider: DataCapabilityProvider, options: DataCapabilityProviderRegisterOptions = {}): () => void {
+    assertProviderIdentity(provider)
+    const capabilityIds = normalizeCapabilityIds(provider.capabilityIds)
+    this.providerManifestIndex.assertAvailable(capabilityIds, options.override === true)
+    const sequence = providerRegistrationSequence++
+    const token = `manual:${provider.id}:${options.scope || 'default'}:${sequence}`
     const entry: ProviderEntry = {
       token,
+      sequence,
       provider,
       scope: options.scope || `provider:${token}`,
       registered: true,
       generation: 0,
       loaded: false,
       module: false,
-      override: options.override ?? true,
+      override: options.override ?? false,
+      capabilityIds,
+      loadTimeout: resolveProviderLoadTimeout(options.timeout, this.options.providerLoadTimeout),
     }
     this.providerEntries.set(token, entry)
-    this.readinessDirty = true
+    this.rebuildCapabilityProviderIndex()
     this.emitChange()
 
     return () => {
@@ -112,41 +139,92 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     }
   }
 
-  async loadModuleProviders(context: CapabilityContext = {}): Promise<void> {
+  async loadModuleProviders(_context: CapabilityContext = {}): Promise<void> {
     if (this.options.loadModuleProviders === false) return
-    return this.requestModuleProviderReconcile(context, false)
+    return this.requestModuleProviderReconcile(false)
   }
 
-  async ensureReady(context: CapabilityContext = {}): Promise<void> {
-    // Readiness is Registry-owned and shared by all consumers. Individual Runtime cancellation
-    // races this promise locally instead of aborting Provider loading for other consumers.
-    do {
-      let readiness = this.readinessPromise
-      if (!readiness) {
-        readiness = this.runReadinessLoop(context)
-        this.readinessPromise = readiness
+  async loadCapability(capabilityId: string, context: CapabilityContext = {}): Promise<void> {
+    assertCapabilityId(capabilityId)
+    await this.ensureReady(context, capabilityId)
+  }
+
+  async ensureReady(context: CapabilityContext = {}, capabilityId?: string): Promise<void> {
+    await this.resolveReadiness(context, capabilityId)
+  }
+
+  private async resolveReadiness(
+    context: CapabilityContext = {},
+    capabilityId?: string,
+  ): Promise<CapabilityDirectoryDiagnostic[]> {
+    const key = capabilityId || '*'
+    let readiness = this.readinessPromises.get(key)
+    if (!readiness) {
+      readiness = this.runReadiness(context, capabilityId)
+        .finally(() => this.readinessPromises.delete(key))
+      this.readinessPromises.set(key, readiness)
+    }
+    return readiness
+  }
+
+  private async runReadiness(
+    context: CapabilityContext,
+    capabilityId?: string,
+  ): Promise<CapabilityDirectoryDiagnostic[]> {
+    // Reconcile only builds the manifest index. Provider code is loaded below, per target ID.
+    await this.loadModuleProviders(context)
+    if (capabilityId) {
+      const conflict = this.providerManifestIndex.getConflict(capabilityId)
+      if (conflict) throw conflict
+      const entries = this.getProviderEntries(capabilityId)
+      if (!entries.length) return []
+      const expectedEntry = entries[entries.length - 1]
+      if (this.getRegisteredCapabilityToken(capabilityId) === expectedEntry.token) return []
+      let firstError: unknown
+      for (const entry of entries) {
         try {
-          await readiness
-        } finally {
-          if (this.readinessPromise === readiness) this.readinessPromise = undefined
+          await this.ensureProviderLoadedWithinTimeout(entry)
+        } catch (error) {
+          firstError ||= error
         }
-      } else {
-        await readiness
       }
-    } while (this.readinessDirty)
-  }
+      if (this.getRegisteredCapabilityToken(capabilityId) !== expectedEntry.token && firstError) throw firstError
+      return []
+    }
 
-  private async runReadinessLoop(context: CapabilityContext): Promise<void> {
-    do {
-      this.readinessDirty = false
-      // The latest module snapshot must be mounted before manual Providers are loaded.
-      await this.loadModuleProviders(context)
-      await this.loadRegisteredProviders(context)
-    } while (this.readinessDirty)
+    const diagnostics: CapabilityDirectoryDiagnostic[] = this.providerManifestIndex
+      .getConflictedCapabilityIds()
+      .map(capabilityId => ({
+        code: 'capability.id_conflict',
+        message: 'Some data capabilities are unavailable because their IDs conflict',
+        capabilityIds: [capabilityId],
+        retryable: false,
+      }))
+    const conflictedTokens = this.providerManifestIndex.getConflictedTokens()
+    const entries = [...this.providerEntries.values()]
+      .filter(entry => entry.registered && !conflictedTokens.has(entry.token))
+      .sort((left, right) => left.sequence - right.sequence)
+    const baseEntries = entries.filter(entry => !entry.override)
+    const results = await Promise.allSettled(baseEntries.map(entry => this.ensureProviderLoadedWithinTimeout(entry)))
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.warn(`[DataCapability] provider loader failed: ${baseEntries[index].token}`, result.reason)
+        diagnostics.push(this.createProviderDiagnostic(baseEntries[index], result.reason))
+      }
+    })
+    // Explicit overrides mount after every default entry so catalog loading cannot make stack order race-dependent.
+    for (const entry of entries.filter(item => item.override)) {
+      try {
+        await this.ensureProviderLoadedWithinTimeout(entry)
+      } catch (error) {
+        console.warn(`[DataCapability] provider loader failed: ${entry.token}`, error)
+        diagnostics.push(this.createProviderDiagnostic(entry, error))
+      }
+    }
+    return diagnostics
   }
 
   private async requestModuleProviderReconcile(
-    context: CapabilityContext = {},
     snapshotChanged = false,
   ): Promise<void> {
     if (this.options.loadModuleProviders === false) return
@@ -155,7 +233,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     // moduleRegistry change invalidates an in-flight snapshot and requires another round.
     if (snapshotChanged) this.moduleProviderReconcileDirty = true
     if (this.moduleProviderReconcilePromise) return this.moduleProviderReconcilePromise
-    this.moduleProviderReconcilePromise = this.runModuleProviderReconcileLoop(context)
+    this.moduleProviderReconcilePromise = this.runModuleProviderReconcileLoop()
       .finally(() => {
         this.moduleProviderReconcilePromise = undefined
         this.emitChange()
@@ -168,75 +246,86 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     const { moduleRegistry } = await import('@jetlinks-web-core/utils/module-registry')
     if (this.moduleRegistryUnsubscribe) return
     this.moduleRegistryUnsubscribe = moduleRegistry.onChange(() => {
-      this.readinessDirty = true
-      this.requestModuleProviderReconcile({}, true).catch((error) => {
+      this.requestModuleProviderReconcile(true).catch((error) => {
         console.warn('[DataCapability] module provider refresh failed', error)
       })
     })
   }
 
-  private async runModuleProviderReconcileLoop(context: CapabilityContext): Promise<void> {
+  private async runModuleProviderReconcileLoop(): Promise<void> {
     const { moduleRegistry } = await import('@jetlinks-web-core/utils/module-registry')
     do {
       this.moduleProviderReconcileDirty = false
-      const reconcileVersion = ++this.moduleProviderReconcileVersion
-      await this.reconcileModuleProviderSnapshot(moduleRegistry.getAllModules(), context, reconcileVersion)
+      await this.reconcileModuleProviderSnapshot(moduleRegistry.getAllModules())
     } while (this.moduleProviderReconcileDirty)
   }
 
   private async reconcileModuleProviderSnapshot(
-    modules: Map<string, { dataCapabilityProviders?: unknown }>,
-    _context: CapabilityContext,
-    reconcileVersion: number,
+    modules: Map<string, { dataCapabilityProviders?: Record<string, DataCapabilityProviderManifestEntry> }>,
   ): Promise<void> {
-    const loaders: Array<{ key: string; loader: DataCapabilityProviderLoader }> = []
+    const manifests: Array<{
+      token: string
+      key: string
+      moduleId: string
+      entry: DataCapabilityProviderManifestEntry
+      capabilityIds: Set<string>
+    }> = []
     modules.forEach((resource, moduleId) => {
       const providers = resource.dataCapabilityProviders
       if (providers && typeof providers === 'object') {
-        Object.entries(providers as Record<string, DataCapabilityProviderLoader>).forEach(([key, loader]) => {
-          if (typeof loader === 'function') {
-            loaders.push({ key: `${moduleId}:${key}`, loader })
+        Object.entries(providers).forEach(([key, manifest]) => {
+          try {
+            const entry = normalizeManifestEntry(manifest, moduleId, key)
+            manifests.push({
+              token: `${moduleId}:${key}`,
+              key,
+              moduleId,
+              entry,
+              capabilityIds: normalizeCapabilityIds(entry.capabilityIds)!,
+            })
+          } catch (error) {
+            console.warn(`[DataCapability] invalid provider manifest: ${moduleId}:${key}`, error)
           }
         })
       }
     })
 
-    const activeModuleTokens = new Set(loaders.map(item => item.key))
+    const activeModuleTokens = new Set(manifests.map(item => item.token))
     for (const token of [...this.moduleProviderTokens]) {
       if (!activeModuleTokens.has(token)) {
         this.disposeProviderEntry(token, true)
       }
     }
 
-    for (const item of loaders) {
-      let entry = this.providerEntries.get(item.key)
-      if (!entry || entry.loader !== item.loader) {
-        if (entry) this.disposeProviderEntry(item.key, true)
+    for (const item of manifests) {
+      let entry = this.providerEntries.get(item.token)
+      const loadTimeout = resolveProviderLoadTimeout(item.entry.timeout, this.options.providerLoadTimeout)
+      if (!entry
+        || entry.loader !== item.entry.loader
+        || entry.loadTimeout !== loadTimeout
+        || !sameStringSet(entry.capabilityIds, item.capabilityIds)) {
+        if (entry) this.disposeProviderEntry(item.token, true)
         entry = {
-          token: item.key,
-          loader: item.loader,
-          scope: `provider:${item.key}`,
+          token: item.token,
+          sequence: providerRegistrationSequence++,
+          loader: item.entry.loader,
+          scope: `provider:${item.token}`,
           registered: true,
-          generation: this.nextModuleProviderGeneration(item.key),
+          generation: this.nextModuleProviderGeneration(item.token),
           loaded: false,
           module: true,
-          override: true,
-          reconcileVersion,
+          moduleId: item.moduleId,
+          capabilityIds: item.capabilityIds,
+          loadTimeout,
+          override: false,
         }
-        this.providerEntries.set(item.key, entry)
-        this.moduleProviderTokens.add(item.key)
+        this.providerEntries.set(item.token, entry)
+        this.moduleProviderTokens.add(item.token)
       } else {
         entry.registered = true
-        entry.reconcileVersion = reconcileVersion
-      }
-      try {
-        await this.ensureProviderLoaded(entry, () => (
-          this.moduleProviderReconcileDirty || entry?.reconcileVersion !== this.moduleProviderReconcileVersion
-        ))
-      } catch (error) {
-        console.warn(`[DataCapability] provider loader failed: ${item.key}`, error)
       }
     }
+    this.rebuildCapabilityProviderIndex()
   }
 
   private nextModuleProviderGeneration(token: string): number {
@@ -246,7 +335,29 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   }
 
   async resolveCatalog(context: CapabilityContext, query?: CapabilityQuery): Promise<ResolvedCapabilityCatalog> {
-    await this.ensureReady(context)
+    await this.resolveReadiness(context)
+    return this.resolveLoadedCatalog(context, query)
+  }
+
+  async resolveCapabilityChoices(
+    context: CapabilityContext,
+    query?: CapabilityQuery,
+  ): Promise<CapabilityChoiceResult> {
+    const readinessDiagnostics = await this.resolveReadiness(context)
+    const catalog = await this.resolveLoadedCatalog(context, query)
+    const projected = await projectCapabilityChoices(catalog, context)
+    const diagnostics = [...readinessDiagnostics, ...projected.diagnostics]
+    return {
+      items: projected.items,
+      partial: diagnostics.length > 0,
+      diagnostics,
+    }
+  }
+
+  private async resolveLoadedCatalog(
+    context: CapabilityContext,
+    query?: CapabilityQuery,
+  ): Promise<ResolvedCapabilityCatalog> {
     return {
       sources: await this.resolveDefinitions('sources', this.sources.list(), context, query, definition => (
         !query?.sourceModes?.length || query.sourceModes.some(mode => definition.modes.includes(mode))
@@ -257,17 +368,6 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
       contexts: await this.resolveDefinitions('contexts', this.contexts.list(), context, query),
       valueEditors: await this.resolveDefinitions('valueEditors', this.valueEditors.list(), context, query),
       optionSources: await this.resolveDefinitions('optionSources', this.optionSources.list(), context, query),
-    }
-  }
-
-  private async loadRegisteredProviders(_context: CapabilityContext): Promise<void> {
-    for (const entry of this.providerEntries.values()) {
-      if (entry.module || !entry.registered) continue
-      try {
-        await this.ensureProviderLoaded(entry)
-      } catch (error) {
-        console.warn(`[DataCapability] provider loader failed: ${entry.token}`, error)
-      }
     }
   }
 
@@ -282,7 +382,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     return runtime
   }
 
-  private async ensureProviderLoaded(entry: ProviderEntry, isStale?: () => boolean): Promise<void> {
+  private async ensureProviderLoaded(entry: ProviderEntry): Promise<void> {
     if (!entry.registered || entry.loaded) return
     if (entry.loadPromise) return entry.loadPromise
     const generation = entry.generation
@@ -292,20 +392,17 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
       try {
         if (!provider && entry.loader) {
           const loaded = await entry.loader()
-          provider = 'default' in loaded ? loaded.default : loaded
+          provider = typeof loaded === 'object' && loaded !== null && 'default' in loaded
+            ? loaded.default
+            : loaded as DataCapabilityProvider
           providerCreatedAfterUnregister = !this.isProviderEntryCurrent(entry, generation)
           entry.provider = provider
         }
         if (!provider) return
+        assertProviderIdentity(provider, entry.moduleId)
         if (!this.isProviderEntryCurrent(entry, generation)) {
           if (providerCreatedAfterUnregister) await this.disposeProvider(entry, `provider:${entry.token}:late`)
           this.assertProviderEntryCurrent(entry, generation)
-        }
-        if (isStale?.()) {
-          this.disposeProviderEntry(entry.token, true)
-          throw createCapabilityError('provider.unregistered', 'Provider snapshot is stale', {
-            details: { token: entry.token },
-          })
         }
         let result: DataCapabilityProviderLoadedResult | undefined
         try {
@@ -316,23 +413,13 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
           }
           throw error
         }
-        if (isStale?.()) {
-          if (this.providerEntries.get(entry.token) === entry) {
-            this.disposeProviderEntry(entry.token, true)
-          } else {
-            await this.disposeProvider(entry, `provider:${entry.token}:late-load`)
-          }
-          throw createCapabilityError('provider.unregistered', 'Provider snapshot is stale', {
-            details: { token: entry.token },
-          })
-        }
         if (!this.isProviderEntryCurrent(entry, generation)) {
           // unregister() may have disposed the Provider before load() created its final resources.
           await this.disposeProvider(entry, `provider:${entry.token}:late-load`)
         }
         this.assertProviderEntryCurrent(entry, generation)
         const unregisters: Array<() => void> = []
-        this.registerLoadedDefinitions(entry, result, unregisters)
+        this.registerLoadedDefinitions(entry, provider, result, unregisters)
         this.providerUnregisters.set(entry.token, unregisters)
         entry.loaded = true
       } finally {
@@ -347,6 +434,50 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
       throw error
     })
     return entry.loadPromise
+  }
+
+  private async ensureProviderLoadedWithinTimeout(entry: ProviderEntry): Promise<void> {
+    if (!entry.registered || entry.loaded) return
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        const error = createCapabilityError('provider.load_timeout', 'Provider loading timed out', {
+          retryable: true,
+          details: { token: entry.token, timeout: entry.loadTimeout },
+        })
+        if (this.providerEntries.get(entry.token) === entry) {
+          this.disposeProviderEntry(entry.token, true)
+        }
+        reject(error)
+      }, entry.loadTimeout)
+    })
+    try {
+      await Promise.race([this.ensureProviderLoaded(entry), timeout])
+    } catch (error) {
+      if (this.providerEntries.get(entry.token) === entry) {
+        this.invalidateFailedProviderEntry(entry)
+      }
+      if (isCapabilityError(error)) throw error
+      throw createCapabilityError('provider.load_failed', 'Provider loading failed', {
+        retryable: true,
+        cause: error,
+        details: { token: entry.token },
+      })
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId)
+    }
+  }
+
+  private invalidateFailedProviderEntry(entry: ProviderEntry): void {
+    if (entry.module && entry.loader) {
+      entry.loaded = false
+      entry.generation += 1
+      entry.loadPromise = undefined
+      void this.disposeProvider(entry, `provider:${entry.token}:failed`)
+      entry.provider = undefined
+      return
+    }
+    this.disposeProviderEntry(entry.token, true)
   }
 
   private isProviderEntryCurrent(entry: ProviderEntry, generation: number): boolean {
@@ -369,7 +500,6 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     entry.generation += 1
     entry.loadPromise = undefined
     this.providerEntries.delete(token)
-    this.readinessDirty = true
     this.moduleProviderTokens.delete(token)
     const unregisters = this.providerUnregisters.get(token) || []
     unregisters.splice(0).forEach(unregister => unregister())
@@ -378,6 +508,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     if (disposeProvider) {
       void this.disposeProvider(entry, `provider:${token}`)
     }
+    this.rebuildCapabilityProviderIndex()
   }
 
   private disposeProvider(entry: ProviderEntry, label: string): Promise<void> {
@@ -390,9 +521,11 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
 
   private registerLoadedDefinitions(
     entry: ProviderEntry,
+    provider: DataCapabilityProvider,
     result: DataCapabilityProviderLoadedResult | undefined,
     unregisters: Array<() => void>,
   ) {
+    assertLoadedProviderContract(entry, provider, result)
     const mount: CapabilityMountStamp = {
       token: entry.token,
       generation: entry.generation,
@@ -453,6 +586,14 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     definition: T,
     scope: string,
   ): CapabilityMountStamp | undefined {
+    assertCapabilityDefinition(definition)
+    const effective = this.effectiveCapabilityKinds.get(definition.id)
+    if (effective && effective.kind !== kind) {
+      throw createCapabilityError('capability.id_conflict', 'Capability ID is already registered for another kind', {
+        capabilityId: definition.id,
+        details: { registeredKind: effective.kind, incomingKind: kind },
+      })
+    }
     const existed = this.definitionOwners.get(definition)
     const token = existed?.token || `direct:${kind}:${definition.id}:${scope}:${providerRegistrationSequence++}`
     const mount: CapabilityMountStamp = {
@@ -477,12 +618,16 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     }
     this.definitionOwners.set(definition, mount)
     this.activeMounts.add(this.getActiveMountKey(mount, kind, definition.id))
+    this.effectiveCapabilityKinds.set(definition.id, { kind, mountId: mount.mountId })
     return mount
   }
 
   private unregisterDefinition(kind: ProviderDefinitionKind, definition: CapabilityDefinitionBase, mount?: CapabilityMountStamp): void {
     if (!mount) return
     this.activeMounts.delete(this.getActiveMountKey(mount, kind, definition.id))
+    if (this.effectiveCapabilityKinds.get(definition.id)?.mountId === mount.mountId) {
+      this.effectiveCapabilityKinds.delete(definition.id)
+    }
     const affected: ProviderDefinitionIds = {
       mount,
       sources: new Set(),
@@ -532,5 +677,39 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
 
   private emitChange(): void {
     this.listeners.forEach(listener => listener())
+  }
+
+  private getRegisteredCapabilityToken(capabilityId: string): string | undefined {
+    const definition = this.sources.get(capabilityId)
+      || this.operations.get(capabilityId)
+      || this.contexts.get(capabilityId)
+      || this.valueEditors.get(capabilityId)
+      || this.optionSources.get(capabilityId)
+    return definition ? this.definitionOwners.get(definition)?.token : undefined
+  }
+
+  private getProviderEntries(capabilityId: string): ProviderEntry[] {
+    return this.providerManifestIndex.getTokens(capabilityId)
+      .map(token => this.providerEntries.get(token))
+      .filter((entry): entry is ProviderEntry => !!entry?.registered)
+      .sort((left, right) => left.sequence - right.sequence)
+  }
+
+  private rebuildCapabilityProviderIndex(): void {
+    this.providerManifestIndex.rebuild(this.providerEntries.values())
+  }
+
+  private createProviderDiagnostic(entry: ProviderEntry, error: unknown): CapabilityDirectoryDiagnostic {
+    const capabilityError = isCapabilityError(error) ? error : undefined
+    const timedOut = capabilityError?.code === 'provider.load_timeout'
+    const ordinaryLoadFailure = capabilityError?.code === 'provider.load_failed'
+    return {
+      code: timedOut ? 'provider.load_timeout' : 'provider.load_failed',
+      message: timedOut
+        ? 'Some data capabilities could not be loaded before the Provider timeout'
+        : 'Some data capabilities could not be loaded',
+      capabilityIds: [...(entry.capabilityIds || [])].sort(),
+      retryable: timedOut || ordinaryLoadFailure ? capabilityError?.retryable ?? true : false,
+    }
   }
 }

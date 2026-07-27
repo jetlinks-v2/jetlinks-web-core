@@ -31,7 +31,35 @@
               <a-input v-model:value="query.providerId" allow-clear />
             </a-form-item>
           </a-col>
+          <a-col :span="6">
+            <a-form-item label="可调用接口">
+              <a-select
+                :value="selectedChoiceValue"
+                allow-clear
+                placeholder="选择已注册接口"
+                @change="selectCapabilityChoice"
+              >
+                <a-select-option
+                  v-for="item in capabilityChoiceResult.items"
+                  :key="item.value"
+                  :value="item.value"
+                  :disabled="item.disabled"
+                >
+                  {{ item.label }} · {{ item.kind }}
+                  <template v-if="item.disabled && item.disabledReason">
+                    · {{ item.disabledReason }}
+                  </template>
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
         </a-row>
+        <a-alert
+          v-if="capabilityChoiceResult.partial"
+          type="warning"
+          show-icon
+          :message="`部分接口暂不可用，已返回 ${capabilityChoiceResult.items.length} 个可识别接口。`"
+        />
       </a-form>
     </a-card>
 
@@ -65,6 +93,9 @@
         <a-tabs v-model:activeKey="activeTab">
           <a-tab-pane key="definition" tab="Definition">
             <pre>{{ formatJson(selectedCapability) }}</pre>
+          </a-tab-pane>
+          <a-tab-pane key="choices" tab="Choice Directory">
+            <pre>{{ formatJson(capabilityChoiceResult) }}</pre>
           </a-tab-pane>
           <a-tab-pane key="config" tab="Config / Query / Input">
             <a-alert
@@ -171,10 +202,13 @@ const {
   componentPreviewProps,
   componentLoading,
   componentError,
+  capabilityChoiceResult,
   capabilityItems,
+  selectedChoiceValue,
   currentFixture,
   loadCatalog,
   selectCapability,
+  selectCapabilityChoice,
   refreshComponentPreview,
   runPreview,
   runQuery,

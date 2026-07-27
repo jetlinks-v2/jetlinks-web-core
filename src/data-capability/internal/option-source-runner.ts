@@ -38,7 +38,7 @@ type OptionRequestResource = CancellationResource & {
 export interface OptionSourceRunnerHost {
   readonly registry: RuntimeRegistryAccess
   readonly disposed: boolean
-  ensureReady(signal?: AbortSignal): Promise<void>
+  ensureReady(capabilityId: string, signal?: AbortSignal): Promise<void>
   assertActive(): void
   assertRegistrationActive(
     registration: CapabilityMountStamp | undefined,
@@ -87,7 +87,10 @@ export class OptionSourceRunner {
     this.resources.add(resource)
 
     try {
-      await raceOptionCancel(this.runtime.ensureReady(resource.abortController.signal), resource)
+      await raceOptionCancel(
+        this.runtime.ensureReady(resource.capabilityId, resource.abortController.signal),
+        resource,
+      )
       this.assertResourceActive(resource)
       const result = ref.type === 'provider'
         ? await this.resolveProvider(ref, request, resource)

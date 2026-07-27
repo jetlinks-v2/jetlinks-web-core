@@ -3,6 +3,7 @@ import type {
   CapabilityRegisterOptions,
   CapabilityRegistry,
 } from '../types'
+import { createCapabilityError } from '../utils'
 import type { CapabilityMountStamp } from './contracts'
 
 interface RegisteredDefinition<T> {
@@ -25,14 +26,26 @@ export class ScopedCapabilityRegistry<T extends CapabilityDefinitionBase> implem
   register(definition: T, options: CapabilityRegisterOptions = {}): () => void {
     const scope = options.scope || 'global'
     const entries = this.definitions.get(definition.id) || []
-    if (!options.override && entries.some(item => item.active && item.scope === scope)) {
-      throw new Error(`Capability ${definition.id} already registered in scope ${scope}`)
+    if (!options.override && entries.some(item => item.active)) {
+      throw createCapabilityError('capability.id_conflict', 'Capability ID is already registered', {
+        capabilityId: definition.id,
+        details: { scope },
+      })
     }
 
     const entry: RegisteredDefinition<T> = { definition, scope, active: true, mounted: false }
     entries.push(entry)
     this.definitions.set(definition.id, entries)
-    this.recompute(definition.id)
+    try {
+      this.recompute(definition.id)
+    } catch (error) {
+      entry.active = false
+      const rest = entries.filter(item => item.active)
+      if (rest.length) this.definitions.set(definition.id, rest)
+      else this.definitions.delete(definition.id)
+      this.recompute(definition.id)
+      throw error
+    }
     this.notify()
 
     return () => {

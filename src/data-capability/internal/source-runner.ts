@@ -15,7 +15,8 @@ import type {
   RuntimeContext,
   RuntimeQueryOptions,
 } from '../types'
-import { applyOutputMapping, createCapabilityError } from '../utils'
+import { applyOutputMapping } from '../mapping'
+import { createCapabilityError } from '../utils'
 import { capabilitySchemaValidator } from '../validation'
 import { assertExecutable } from './availability'
 import { CancellationResource } from './cancellation-resource'
@@ -26,6 +27,7 @@ import type {
   RuntimeRegistryAccess,
 } from './contracts'
 import { sameMount } from './contracts'
+import { assertDataBindingVersion } from './version-guards'
 import {
   nextRuntimeResourceId,
   safeDispose,
@@ -63,7 +65,7 @@ interface QueryRunResult<T> {
 export interface SourceRunnerHost {
   readonly registry: RuntimeRegistryAccess
   readonly disposed: boolean
-  ensureReady(signal?: AbortSignal): Promise<void>
+  ensureReady(capabilityId: string, signal?: AbortSignal): Promise<void>
   assertActive(): void
   assertRegistrationActive(
     registration: CapabilityMountStamp | undefined,
@@ -120,6 +122,7 @@ export class DataSourceRunner {
   }
   connect<T = unknown>(request: DataConnectionRequest): DataConnection<T> {
     this.assertActive()
+    assertDataBindingVersion(request.binding)
     assertPlanSupported(request.binding)
     const id = request.id || nextRuntimeResourceId(`connection:${request.consumerId}`)
     const events$ = new ReplaySubject<DataConnectionEvent<T>>(1)
@@ -161,7 +164,7 @@ export class DataSourceRunner {
       try {
         const binding = request.binding
         const signal = request.options?.signal
-        await this.runtime.ensureReady(signal)
+        await this.runtime.ensureReady(binding.source.capabilityId, signal)
         this.assertActive()
         if (stopped || signal?.aborted) return
         const definition = this.requireSource(binding.source)
@@ -193,7 +196,7 @@ export class DataSourceRunner {
           limit: resolveLimit(request.options?.limit, definition.defaults?.limit),
           timeout: request.options?.timeout || definition.defaults?.timeout,
         }, runtimeContext)
-        sharedKey = getExecutionKey(resolvedRequest, binding, registration)
+        sharedKey = getExecutionKey(resolvedRequest, binding, request.options?.targetSchema, registration)
         if (stopped || signal?.aborted) return
         const shared = this.sharedConnections.get(sharedKey)
         if (shared && !shared.disposed) {
@@ -201,7 +204,15 @@ export class DataSourceRunner {
           return
         }
         if (stopped || signal?.aborted) return
-        const createSharedPromise = this.createSharedConnection(definition, registration, resolvedRequest, binding, sharedKey, leaseId)
+        const createSharedPromise = this.createSharedConnection(
+          definition,
+          registration,
+          resolvedRequest,
+          binding,
+          request.options?.targetSchema,
+          sharedKey,
+          leaseId,
+        )
         joinedShared = true
         const created = await createSharedPromise
         if (stopped || signal?.aborted) {
@@ -251,6 +262,7 @@ export class DataSourceRunner {
     expectedRegistration?: CapabilityMountStamp,
   ): Promise<QueryRunResult<T>> {
     this.assertActive()
+    assertDataBindingVersion(binding)
     assertPlanSupported(binding)
     const capabilityId = binding.source.capabilityId
     const externalSignal = options.signal
@@ -270,7 +282,10 @@ export class DataSourceRunner {
     this.queryResources.add(queryResource)
     const runtimeContext = this.toRuntimeContext(queryResource.abortController.signal)
     try {
-      await raceQueryCancel(this.runtime.ensureReady(queryResource.abortController.signal), queryResource)
+      await raceQueryCancel(
+        this.runtime.ensureReady(capabilityId, queryResource.abortController.signal),
+        queryResource,
+      )
       this.assertActive()
       this.assertQueryNotAborted(queryResource, capabilityId)
       const definition = this.requireSource(binding.source)
@@ -331,18 +346,23 @@ export class DataSourceRunner {
       this.assertQueryNotAborted(queryResource, definition.id)
       this.assertRegistrationActive(registration, 'sources', definition.id)
       queryResource.settled = true
-      const outputSchema = result.outputSchema || definition.outputSchema
+      const sourceOutputSchema = result.outputSchema || definition.outputSchema
       const warnings = validateOutput
         ? capabilitySchemaValidator
-            .validate(outputSchema, result.data, 'output')
+            .validate(sourceOutputSchema, result.data, 'output')
             .map(issue => capabilitySchemaValidator.toError(issue, definition.id))
         : undefined
+      const mapped = applyOutputMapping(result.data, binding.mapping, {
+        targetSchema: options.targetSchema,
+        capabilityId: definition.id,
+      }) as T
       return {
         result: limitDataSourceResult({
           ...result,
-          data: applyOutputMapping(result.data, binding.mapping) as T,
+          data: mapped,
+          outputSchema: options.targetSchema || result.outputSchema,
         }, resolvedRequest.limit),
-        outputSchema,
+        outputSchema: options.targetSchema || sourceOutputSchema,
         warnings: warnings?.length ? warnings : undefined,
       }
     } finally {
@@ -360,7 +380,7 @@ export class DataSourceRunner {
     assertPlanSupported(request.binding)
     const { result, outputSchema, warnings } = await this.runQuery<T>(
       request.binding,
-      { timeout: request.timeout, limit: request.limit },
+      { timeout: request.timeout, limit: request.limit, targetSchema: request.targetSchema },
       true,
     )
     return {
@@ -377,6 +397,7 @@ export class DataSourceRunner {
     registration: CapabilityMountStamp | undefined,
     request: ResolvedDataSourceRequest,
     binding: PersistedDataBinding,
+    targetSchema: CapabilitySchema | undefined,
     key: string,
     initialConsumerId: string,
   ): Promise<SharedConnection> {
@@ -413,11 +434,29 @@ export class DataSourceRunner {
         .pipe(request.timeout ? rxTimeout({ first: request.timeout }) : source => source)
         .subscribe({
           next: (result) => {
-            const mapped = applyOutputMapping(result.data, binding.mapping)
-            this.emitSharedConnection(shared, {
-              type: 'data',
-              result: limitDataSourceResult({ ...result, data: mapped as T }, request.limit),
-            })
+            if (shared.disposed) return
+            try {
+              const mapped = applyOutputMapping(result.data, binding.mapping, {
+                targetSchema,
+                capabilityId: definition.id,
+              })
+              this.emitSharedConnection(shared, {
+                type: 'data',
+                result: limitDataSourceResult({
+                  ...result,
+                  data: mapped as T,
+                  outputSchema: targetSchema || result.outputSchema,
+                }, request.limit),
+              })
+            } catch (error) {
+              this.emitSharedConnection(shared, {
+                type: 'status',
+                status: 'failed',
+                error: toCapabilityError(error, binding.source.capabilityId),
+              })
+              shared.events$.complete()
+              this.disposeSharedConnection(key)
+            }
           },
           error: (error) => {
             this.emitSharedConnection(shared, { type: 'status', status: 'failed', error: toCapabilityError(error, binding.source.capabilityId) })
@@ -554,10 +593,17 @@ function normalizeDataSourceRequest(
 function getExecutionKey(
   request: ResolvedDataSourceRequest,
   binding: PersistedDataBinding,
+  targetSchema?: CapabilitySchema,
   registration?: CapabilityMountStamp,
 ): string {
   const { signal: _signal, ...stableRequest } = request
-  return stableStringify({ source: stableRequest, mapping: binding.mapping, plan: binding.plan, registration })
+  return stableStringify({
+    source: stableRequest,
+    mapping: binding.mapping,
+    targetSchema,
+    plan: binding.plan,
+    registration,
+  })
 }
 
 

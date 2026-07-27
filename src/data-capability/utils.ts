@@ -4,8 +4,6 @@ import type {
   CapabilityError,
   CapabilityQuery,
   DataPath,
-  OutputMapping,
-  OutputMappingValue,
   ValueBinding,
 } from './types'
 
@@ -68,30 +66,4 @@ export function matchesCapabilityQuery(definition: CapabilityDefinitionBase, que
     if (!haystack.includes(keyword)) return false
   }
   return true
-}
-
-export function applyOutputMapping(data: unknown, mapping?: OutputMapping): unknown {
-  if (!mapping) return data
-  return projectMappingFields(data, mapping.fields)
-}
-
-function projectMappingFields(data: unknown, fields: Record<string, OutputMappingValue>): Record<string, unknown> {
-  const result: Record<string, unknown> = {}
-  Object.entries(fields).forEach(([key, mapping]) => {
-    result[key] = projectMappingValue(data, mapping)
-  })
-  return result
-}
-
-function projectMappingValue(data: unknown, mapping: OutputMappingValue): unknown {
-  if (isValueBinding(mapping)) {
-    return mapping.kind === 'literal' ? mapping.value : undefined
-  }
-  if (mapping.kind === 'path') {
-    return getByPath(data, mapping.path) ?? mapping.defaultValue
-  }
-  if (mapping.kind === 'object') {
-    return projectMappingFields(data, mapping.fields)
-  }
-  return undefined
 }

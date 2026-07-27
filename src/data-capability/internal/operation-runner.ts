@@ -29,6 +29,7 @@ import {
   safeDisposeAsync,
   safeUnsubscribe,
 } from './resource-lifecycle'
+import { assertOperationBindingVersion } from './version-guards'
 
 interface PreparedOperationEntry {
   definition: OperationDefinition
@@ -59,7 +60,7 @@ type PendingPrepareResource = CancellationResource & {
 export interface OperationRunnerHost {
   readonly registry: RuntimeRegistryAccess
   readonly disposed: boolean
-  ensureReady(signal?: AbortSignal): Promise<void>
+  ensureReady(capabilityId: string, signal?: AbortSignal): Promise<void>
   assertActive(): void
   assertRegistrationActive(
     registration: CapabilityMountStamp | undefined,
@@ -132,12 +133,16 @@ export class OperationRunner {
   }
   async prepareOperation(binding: PersistedOperationBinding): Promise<PreparedOperation> {
     this.assertActive()
+    assertOperationBindingVersion(binding)
     const capabilityId = binding.operation.capabilityId
     const prepareResource = this.createPendingPrepareResource(capabilityId)
     this.pendingPrepareResources.add(prepareResource)
     let operationAssigned = false
     try {
-      await racePrepareCancel(this.runtime.ensureReady(prepareResource.abortController.signal), prepareResource)
+      await racePrepareCancel(
+        this.runtime.ensureReady(capabilityId, prepareResource.abortController.signal),
+        prepareResource,
+      )
       this.assertActive()
       this.assertPrepareNotAborted(prepareResource, capabilityId)
       const definition = this.requireOperation(binding.operation)

@@ -2,9 +2,13 @@ import assert from 'node:assert/strict'
 import { Subject, of } from 'rxjs'
 
 import {
+  createDataCapabilityClient,
   DefaultDataCapabilityRegistry,
+  type CapabilitySchema,
   type DataConnectionEvent,
   type DataSourceDefinition,
+  type OutputMapping,
+  type PersistedDataBinding,
 } from '../../src/data-capability'
 
 const wait = () => new Promise(resolve => setTimeout(resolve, 0))
@@ -117,5 +121,140 @@ assert.throws(
   () => runtime.updateOutput({ nodeId: 'disposed' }, 1),
   (error: any) => error?.code === 'runtime.disposed',
 )
+
+const mappingRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+const mappingSourceId = 'test.source.mapping-engine'
+mappingRegistry.sources.register({
+  ...source,
+  id: mappingSourceId,
+  outputSchema: { type: 'object' },
+  create: () => ({
+    query<T = unknown>() {
+      return of({
+        data: {
+          title: 'Projects',
+          rows: [
+            { id: 'a', metrics: { value: 1 } },
+            { id: 'b' },
+          ],
+        } as unknown as T,
+      })
+    },
+  }),
+})
+const targetSchema = {
+  type: 'object',
+  required: ['title', 'items'],
+  properties: {
+    title: { type: 'string' },
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['key', 'value', 'source'],
+        properties: {
+          key: { type: 'string' },
+          value: { type: 'number' },
+          source: { type: 'string' },
+        },
+      },
+    },
+  },
+} satisfies CapabilitySchema
+const mapping: OutputMapping = {
+  version: 1,
+  fields: {
+    title: { kind: 'path', path: ['title'] },
+    items: {
+      kind: 'each',
+      path: ['rows'],
+      item: {
+        kind: 'object',
+        fields: {
+          key: { kind: 'path', path: ['id'] },
+          value: {
+            kind: 'default',
+            source: { kind: 'path', path: ['metrics', 'value'] },
+            value: 0,
+          },
+          source: { kind: 'literal', value: 'project' },
+        },
+      },
+    },
+  },
+}
+const mappingBinding: PersistedDataBinding = {
+  version: 1,
+  source: { capabilityId: mappingSourceId, version: 1 },
+  mapping,
+}
+const mappingRuntime = mappingRegistry.createRuntime({ runtimeId: 'mapping-engine' })
+const mappedRuntimeResult = await mappingRuntime.query(mappingBinding, { targetSchema })
+const mappedPreviewResult = await mappingRuntime.preview({ binding: mappingBinding, targetSchema })
+const expectedMappedData = {
+  title: 'Projects',
+  items: [
+    { key: 'a', value: 1, source: 'project' },
+    { key: 'b', value: 0, source: 'project' },
+  ],
+}
+assert.deepEqual(mappedRuntimeResult.data, expectedMappedData)
+assert.deepEqual(mappedPreviewResult.data, expectedMappedData)
+assert.deepEqual(mappedRuntimeResult.outputSchema, targetSchema)
+assert.deepEqual(mappedPreviewResult.outputSchema, targetSchema)
+
+await assert.rejects(
+  () => mappingRuntime.query(mappingBinding, { targetSchema: { type: 'array' } }),
+  (error: any) => error?.code === 'capability.validation_failed' && error?.details?.phase === 'output',
+)
+await assert.rejects(
+  () => mappingRuntime.query({
+    ...mappingBinding,
+    mapping: { ...mapping, format: { title: { type: 'string' } } },
+  }),
+  (error: any) => error?.code === 'output_mapping.format_unsupported',
+)
+await assert.rejects(
+  () => mappingRuntime.query({
+    ...mappingBinding,
+    mapping: { version: 1, fields: { value: { kind: 'expression' } as any } },
+  }),
+  (error: any) => error?.code === 'output_mapping.expression_unsupported',
+)
+await assert.rejects(
+  () => mappingRuntime.query({
+    ...mappingBinding,
+    mapping: { version: 1, fields: { value: { kind: 'coerce' } as any } },
+  }),
+  (error: any) => error?.code === 'output_mapping.coerce_unsupported',
+)
+await assert.rejects(
+  () => mappingRuntime.query({
+    ...mappingBinding,
+    mapping: { ...mapping, version: 2 } as any,
+  }),
+  (error: any) => error?.code === 'output_mapping.version_unsupported',
+)
+await assert.rejects(
+  () => mappingRuntime.query({ ...mappingBinding, version: 2 } as any),
+  (error: any) => error?.code === 'data_binding.version_unsupported',
+)
+
+const client = createDataCapabilityClient({ runtimeId: 'thin-client' }, registry)
+assert.deepEqual((await client.query({
+  capabilityId: source.id,
+  params: { value: 3 },
+  targetSchema: {
+    type: 'object',
+    required: ['value'],
+    properties: { value: { type: 'number' } },
+  },
+})).data, { value: 3 })
+await client.dispose()
+await assert.rejects(
+  () => client.query({ capabilityId: source.id }),
+  (error: any) => error?.code === 'client.disposed',
+)
+await mappingRuntime.dispose()
 
 console.log('data capability output tests passed')

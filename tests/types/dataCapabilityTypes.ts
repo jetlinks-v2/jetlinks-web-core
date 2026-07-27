@@ -1,5 +1,10 @@
 import type {
+  CapabilityChoiceResult,
+  DataCapabilityClientQueryRequest,
+  DataCapabilityProvider,
+  DataCapabilityProviderManifest,
   OptionSourceRef,
+  OutputMapping,
   PersistedOperationBinding,
   RuntimeOptionRequest,
 } from '../../src/data-capability'
@@ -96,3 +101,102 @@ void invalidVersionlessProvider
 void invalidStaticOptionSource
 void invalidProviderFields
 void validOptionRequest
+
+const providerManifest: DataCapabilityProviderManifest = {
+  sample: {
+    capabilityIds: ['test.source.sample'],
+    loader: async () => ({}) as DataCapabilityProvider,
+  },
+}
+
+const invalidFunctionOnlyManifest: DataCapabilityProviderManifest = {
+  // @ts-expect-error module Provider resources require a manifest entry, not a bare loader.
+  sample: async () => ({}) as DataCapabilityProvider,
+}
+
+const validOutputMapping: OutputMapping = {
+  version: 1,
+  fields: {
+    items: {
+      kind: 'each',
+      path: ['rows'],
+      item: { kind: 'path', path: ['id'] },
+    },
+  },
+}
+
+const invalidExpressionMapping: OutputMapping = {
+  version: 1,
+  fields: {
+    // @ts-expect-error arbitrary expressions are not part of the persisted mapping contract.
+    value: { kind: 'expression', expression: 'value' },
+  },
+}
+
+const clientQuery: DataCapabilityClientQueryRequest = {
+  capabilityId: 'test.source.sample',
+  params: { id: 'sample' },
+  targetSchema: { type: 'object' },
+}
+
+const capabilityChoices: CapabilityChoiceResult = {
+  items: [{
+    value: 'test.source.sample',
+    label: 'Sample Source',
+    version: 1,
+    kind: 'data-source',
+    disabled: false,
+    metadata: {
+      moduleId: 'test-ui',
+      providerId: 'test-provider',
+      tags: [],
+      facets: {},
+    },
+    contract: {
+      modes: ['snapshot'],
+      paramsSchema: { type: 'object' },
+      resultSchema: { type: 'array', items: { type: 'object' } },
+    },
+  }, {
+    value: 'test.operation.sample',
+    label: 'Sample Operation',
+    version: 1,
+    kind: 'operation',
+    disabled: true,
+    disabledReason: 'permission denied',
+    metadata: {
+      moduleId: 'test-ui',
+      providerId: 'test-provider',
+      tags: [],
+      facets: {},
+    },
+    contract: {
+      action: 'invoke',
+      policy: {
+        risk: 'low',
+        confirmation: 'none',
+        idempotency: 'natural',
+        cancellation: 'before-dispatch',
+        retry: 'never',
+        concurrency: 'parallel',
+      },
+    },
+  }],
+  partial: false,
+  diagnostics: [],
+}
+
+capabilityChoices.items.forEach((item) => {
+  if (item.kind === 'data-source') {
+    void item.contract.modes
+  } else {
+    void item.contract.action
+  }
+})
+
+void providerManifest
+void invalidFunctionOnlyManifest
+void validOutputMapping
+void invalidExpressionMapping
+void clientQuery
+void capabilityChoices

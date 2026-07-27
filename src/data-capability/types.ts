@@ -12,6 +12,10 @@ export type DataSourceMode = 'snapshot' | 'page' | 'poll' | 'stream'
 export type OperationAction = 'create' | 'update' | 'delete' | 'invoke' | 'control' | 'trigger'
 export type CapabilityAccessPhase = 'discover' | 'configure' | 'execute'
 export type DataPath = Array<string | number>
+export type PersistedDataBindingVersion = 1
+export type PersistedOperationBindingVersion = 1
+export type OutputMappingVersion = 1
+export type DataSourcePlanVersion = 1
 
 export interface CapabilityOwner {
   moduleId: string
@@ -78,6 +82,65 @@ export interface ResolvedCapabilityCatalog {
   contexts: Array<ResolvedCapability<ContextValueDefinition>>
   valueEditors: Array<ResolvedCapability<ValueEditorDefinition>>
   optionSources: Array<ResolvedCapability<OptionSourceDefinition>>
+}
+
+/** Stable display and filtering metadata copied from a capability definition. */
+export interface CapabilityChoiceMetadata {
+  moduleId: string
+  providerId: string
+  tags: string[]
+  facets: Record<string, unknown>
+}
+
+interface CapabilityChoiceBase {
+  value: string
+  label: string
+  description?: string
+  version: number
+  disabled: boolean
+  disabledReason?: string
+  metadata: CapabilityChoiceMetadata
+}
+
+/** User-selectable read interface; runtime factories and UI loaders are intentionally omitted. */
+export interface DataSourceCapabilityChoice extends CapabilityChoiceBase {
+  kind: 'data-source'
+  contract: {
+    modes: DataSourceMode[]
+    configSchema?: CapabilitySchema
+    paramsSchema?: CapabilitySchema
+    resultSchema?: CapabilitySchema
+  }
+}
+
+/** User-selectable side-effect interface with its confirmation and execution policy. */
+export interface OperationCapabilityChoice extends CapabilityChoiceBase {
+  kind: 'operation'
+  contract: {
+    action: OperationAction
+    configSchema?: CapabilitySchema
+    paramsSchema?: CapabilitySchema
+    resultSchema?: CapabilitySchema
+    policy: OperationPolicy
+  }
+}
+
+/** Directory item intended for an end-user capability selector. */
+export type CapabilityChoice = DataSourceCapabilityChoice | OperationCapabilityChoice
+
+/** Sanitized directory diagnostics; Provider tokens, loaders and raw errors never cross this boundary. */
+export interface CapabilityDirectoryDiagnostic {
+  code: string
+  message: string
+  capabilityIds: string[]
+  retryable?: boolean
+}
+
+/** A healthy subset may be returned with partial=true when other Providers cannot load. */
+export interface CapabilityChoiceResult {
+  items: CapabilityChoice[]
+  partial: boolean
+  diagnostics: CapabilityDirectoryDiagnostic[]
 }
 
 export interface CapabilitySchema {
@@ -448,12 +511,17 @@ export interface CapabilityOption {
 }
 
 export interface OutputMapping {
-  version: number
+  version: OutputMappingVersion
   fields: Record<string, OutputMappingValue>
   format?: Record<string, OutputFormatRule>
 }
 
-export type OutputMappingValue = DataPathMapping | ValueBinding | NestedOutputMapping
+export type OutputMappingValue =
+  | DataPathMapping
+  | NestedOutputMapping
+  | EachOutputMapping
+  | LiteralOutputMapping
+  | DefaultOutputMapping
 
 export interface DataPathMapping {
   kind: 'path'
@@ -466,6 +534,23 @@ export interface NestedOutputMapping {
   fields: Record<string, OutputMappingValue>
 }
 
+export interface EachOutputMapping {
+  kind: 'each'
+  path?: DataPath
+  item: OutputMappingValue
+}
+
+export interface LiteralOutputMapping<T = unknown> {
+  kind: 'literal'
+  value: T
+}
+
+export interface DefaultOutputMapping {
+  kind: 'default'
+  source: OutputMappingValue
+  value: unknown
+}
+
 export interface OutputFormatRule {
   type: 'raw' | 'string' | 'number' | 'date' | 'boolean' | 'array' | 'object'
   format?: string
@@ -474,7 +559,7 @@ export interface OutputFormatRule {
 }
 
 export interface DataSourcePlan {
-  version: number
+  version: DataSourcePlanVersion
   nodes: DataSourcePlanNode[]
   output?: DataSourcePlanOutput
 }
@@ -507,7 +592,7 @@ export interface PersistedCapabilityRef {
 }
 
 export interface PersistedDataBinding {
-  version: number
+  version: PersistedDataBindingVersion
   source: PersistedCapabilityRef
   query?: Record<string, ValueBinding | unknown>
   mapping?: OutputMapping
@@ -515,7 +600,7 @@ export interface PersistedDataBinding {
 }
 
 export interface PersistedOperationBinding {
-  version: number
+  version: PersistedOperationBindingVersion
   operation: PersistedCapabilityRef
   input?: Record<string, ValueBinding | unknown>
   policyOverride?: OperationPolicyOverride
@@ -525,6 +610,8 @@ export interface RuntimeQueryOptions {
   timeout?: number
   limit?: number
   signal?: AbortSignal
+  /** Consumer-owned result contract, validated after OutputMapping is applied. */
+  targetSchema?: CapabilitySchema
 }
 
 export interface DataConnectionRequest {
@@ -559,6 +646,7 @@ export interface CapabilityPreviewRequest {
   sampleContext?: Record<string, unknown>
   timeout?: number
   limit?: number
+  targetSchema?: CapabilitySchema
 }
 
 export interface CapabilityPreviewResult<T = unknown> {
@@ -588,6 +676,8 @@ export interface DataCapabilityProviderLoadedResult {
 export interface DataCapabilityProvider {
   id: string
   owner: CapabilityOwner
+  /** Enables precise loading for providers registered directly instead of through a module manifest. */
+  capabilityIds?: readonly string[]
   order?: number
   load?(): Promise<DataCapabilityProviderLoadedResult> | DataCapabilityProviderLoadedResult
   /** Must be idempotent because unregister may be followed by one serialized late-load cleanup pass. */
@@ -599,6 +689,15 @@ export type DataCapabilityProviderLoader = () =>
   | DataCapabilityProvider
   | { default: DataCapabilityProvider }
 
+/** Module-owned lazy Provider declaration used to build the capabilityId -> loader index. */
+export interface DataCapabilityProviderManifestEntry {
+  capabilityIds: readonly string[]
+  loader: DataCapabilityProviderLoader
+  timeout?: number
+}
+
+export type DataCapabilityProviderManifest = Record<string, DataCapabilityProviderManifestEntry>
+
 export interface CapabilityRegistry<T extends CapabilityDefinitionBase> {
   register(definition: T, options?: CapabilityRegisterOptions): () => void
   get(id: string): T | undefined
@@ -609,6 +708,15 @@ export interface CapabilityRegistry<T extends CapabilityDefinitionBase> {
 export interface CapabilityRegisterOptions {
   scope?: string
   override?: boolean
+}
+
+export interface DataCapabilityProviderRegisterOptions extends CapabilityRegisterOptions {
+  timeout?: number
+}
+
+export interface DataCapabilityRegistryOptions {
+  loadModuleProviders?: boolean
+  providerLoadTimeout?: number
 }
 
 export interface DataCapabilityRuntime {
@@ -635,9 +743,34 @@ export interface DataCapabilityRegistry {
   readonly contexts: CapabilityRegistry<ContextValueDefinition>
   readonly valueEditors: CapabilityRegistry<ValueEditorDefinition>
   readonly optionSources: CapabilityRegistry<OptionSourceDefinition>
-  registerProvider(provider: DataCapabilityProvider, options?: CapabilityRegisterOptions): () => void
+  registerProvider(provider: DataCapabilityProvider, options?: DataCapabilityProviderRegisterOptions): () => void
   loadModuleProviders(context?: CapabilityContext): Promise<void>
+  loadCapability(capabilityId: string, context?: CapabilityContext): Promise<void>
   resolveCatalog(context: CapabilityContext, query?: CapabilityQuery): Promise<ResolvedCapabilityCatalog>
+  /** Resolves callable module interfaces into a serializable, user-selectable directory. */
+  resolveCapabilityChoices(context: CapabilityContext, query?: CapabilityQuery): Promise<CapabilityChoiceResult>
   onChange(listener: () => void): () => void
   createRuntime(context: RuntimeCreateContext): DataCapabilityRuntime
+}
+
+export interface DataCapabilityClientCreateContext extends CapabilityContext {
+  runtimeId?: string
+}
+
+export interface DataCapabilityClientQueryRequest {
+  capabilityId: string
+  /** Optional for transient calls. Persisted bindings must continue to store an explicit version. */
+  capabilityVersion?: number
+  config?: unknown
+  params?: Record<string, ValueBinding | unknown>
+  mapping?: OutputMapping
+  targetSchema?: CapabilitySchema
+  timeout?: number
+  limit?: number
+  signal?: AbortSignal
+}
+
+export interface DataCapabilityClient {
+  query<T = unknown>(request: DataCapabilityClientQueryRequest): Promise<DataSourceResult<T>>
+  dispose(): Promise<void>
 }

@@ -1,6 +1,7 @@
 import { computed, markRaw, reactive, ref, shallowRef, type Component } from 'vue'
 import {
   dataCapabilityRegistry,
+  type CapabilityChoiceResult,
   type CapabilityKind,
   type CapabilityQuery,
   type LazyComponentDefinition,
@@ -15,6 +16,7 @@ export function useDataCapabilityLab() {
   const query = reactive<CapabilityQuery>({ includeUnavailable: true })
   const selectedKind = ref<CapabilityKind>()
   const catalog = ref<ResolvedCapabilityCatalog>()
+  const capabilityChoiceResult = ref<CapabilityChoiceResult>({ items: [], partial: false, diagnostics: [] })
   const selectedCapability = ref<LabCapabilityItem>()
   const loading = ref(false)
   const activeTab = ref('definition')
@@ -58,12 +60,21 @@ export function useDataCapabilityLab() {
     return rows
   })
 
+  const selectedChoice = computed(() => capabilityChoiceResult.value.items.find(item => (
+    item.value === selectedCapability.value?.id && item.kind === selectedCapability.value?.kind
+  )))
+  const selectedChoiceValue = computed(() => selectedChoice.value?.value)
+
   const currentFixture = computed(() => ({
     context,
     query: buildQuery(),
     selected: selectedCapability.value && {
       id: selectedCapability.value.id,
       kind: selectedCapability.value.kind,
+    },
+    capabilityReference: selectedChoice.value && {
+      capabilityId: selectedChoice.value.value,
+      capabilityVersion: selectedChoice.value.version,
     },
     config: safeParseJson(draftConfig.value),
     queryInput: safeParseJson(draftQuery.value),
@@ -84,7 +95,13 @@ export function useDataCapabilityLab() {
   const loadCatalog = async () => {
     loading.value = true
     try {
-      catalog.value = await dataCapabilityRegistry.resolveCatalog(context, buildQuery())
+      const currentQuery = buildQuery()
+      const [resolvedCatalog, resolvedChoices] = await Promise.all([
+        dataCapabilityRegistry.resolveCatalog(context, currentQuery),
+        dataCapabilityRegistry.resolveCapabilityChoices(context, currentQuery),
+      ])
+      catalog.value = resolvedCatalog
+      capabilityChoiceResult.value = resolvedChoices
     } finally {
       loading.value = false
     }
@@ -93,13 +110,24 @@ export function useDataCapabilityLab() {
     ...query,
     kinds: selectedKind.value ? [selectedKind.value] : undefined,
   })
-  const selectCapability = (item: LabCapabilityItem) => {
+  const selectCapability = (item?: LabCapabilityItem) => {
     runtimeActions.stopConnection()
     selectedCapability.value = item
     runtimeActions.preparedOperation.value = undefined
     result.value = undefined
     resetEvents()
     void refreshComponentPreview()
+  }
+
+  const selectCapabilityChoice = (value?: string) => {
+    if (!value) {
+      selectCapability()
+      return
+    }
+    const choice = capabilityChoiceResult.value.items.find(item => item.value === value)
+    if (!choice || choice.disabled) return
+    const capability = capabilityItems.value.find(item => item.id === choice.value && item.kind === choice.kind)
+    if (capability) selectCapability(capability)
   }
 
   const refreshComponentPreview = async () => {
@@ -163,10 +191,13 @@ export function useDataCapabilityLab() {
     componentPreviewProps,
     componentLoading,
     componentError,
+    capabilityChoiceResult,
     capabilityItems,
+    selectedChoiceValue,
     currentFixture,
     loadCatalog,
     selectCapability,
+    selectCapabilityChoice,
     refreshComponentPreview,
     runPreview: runtimeActions.runPreview,
     runQuery: runtimeActions.runQuery,
