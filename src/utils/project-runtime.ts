@@ -1,4 +1,16 @@
-import { isFromCloud } from "@/utils/comm";
+import { isFromCloud } from '@/utils/comm'
+import { isProjectStorageEnabled } from './project-storage'
+
+export type RuntimeScope = 'auto' | 'tenant' | 'project'
+
+export interface ProjectRuntimeConfig {
+  scope: RuntimeScope
+  projectCode: string
+  basePath: string
+  fixedProject: boolean
+  projectStorageEnabled: boolean
+  subAccountLoginEnabled: boolean
+}
 
 const normalizeSegment = (value: unknown) => {
   if (typeof value !== 'string') return ''
@@ -11,6 +23,17 @@ const normalizeHashPath = (path = '') => {
   return `${normalizedPath}${search ? `?${search}` : ''}`
 }
 
+const normalizeBasePath = (value: unknown) => {
+  const basePath = typeof value === 'string' ? value.trim() : ''
+  if (!basePath || basePath === './') return '/'
+  return `/${basePath.replace(/^\/+|\/+$/g, '')}/`.replace(/\/+/g, '/')
+}
+
+const getRuntimeScope = (): RuntimeScope => {
+  const scope = String(import.meta.env.VITE_APP_RUNTIME_SCOPE || '').trim().toLowerCase()
+  return scope === 'project' || scope === 'tenant' ? scope : 'auto'
+}
+
 export const getProjectCodeFromPathname = (pathname = window.location.pathname) => {
   const [first] = pathname.split('/').filter(Boolean)
   return normalizeSegment(first)
@@ -18,11 +41,35 @@ export const getProjectCodeFromPathname = (pathname = window.location.pathname) 
 
 export const getProjectIdFromPathname = getProjectCodeFromPathname
 
-export const getProjectCodeFromLocation = () => getProjectCodeFromPathname()
+export const getProjectRuntimeConfig = (): ProjectRuntimeConfig => {
+  const scope = getRuntimeScope()
+  const fixedProject = scope === 'project'
+  const projectCode = fixedProject
+    ? normalizeSegment(import.meta.env.VITE_APP_PROJECT_CODE)
+    : scope === 'tenant'
+      ? ''
+      : getProjectCodeFromPathname()
+  const projectStorageEnabled = isProjectStorageEnabled()
+
+  return {
+    scope,
+    projectCode,
+    basePath: normalizeBasePath(import.meta.env.BASE_URL),
+    fixedProject,
+    projectStorageEnabled,
+    subAccountLoginEnabled: projectStorageEnabled,
+  }
+}
+
+export const getProjectCodeFromLocation = () => getProjectRuntimeConfig().projectCode
 
 export const getProjectIdFromLocation = getProjectCodeFromLocation
 
-export const isProjectRuntime = () => !isFromCloud() && !!getProjectCodeFromLocation()
+export const isProjectRuntime = () => {
+  const config = getProjectRuntimeConfig()
+  return config.scope === 'project'
+    || (config.scope === 'auto' && !isFromCloud() && !!config.projectCode)
+}
 
 export const normalizeProjectRuntimePath = (path = '') => {
   const nextPath = normalizeHashPath(path)
@@ -36,8 +83,15 @@ export const normalizeProjectRuntimePath = (path = '') => {
 }
 
 export const createProjectRuntimeHref = (projectCode: string, path = '/') => {
-  const normalizedProjectCode = normalizeSegment(projectCode)
+  const runtimeConfig = getProjectRuntimeConfig()
   const hashPath = normalizeProjectRuntimePath(path)
+
+  // 固定项目产物部署在 Vite base 下，项目编码不再参与浏览器 pathname。
+  if (runtimeConfig.fixedProject) {
+    return `${runtimeConfig.basePath}#${hashPath}`
+  }
+
+  const normalizedProjectCode = normalizeSegment(projectCode)
 
   if (!normalizedProjectCode) {
     return `/#${hashPath}`

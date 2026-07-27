@@ -74,7 +74,12 @@ function resolveMediaProjectContext(projectId?: string): {
   projectToken?: string | null
   projectDomain?: string
 } {
-  const runtimeProjectId = isProjectStorageEnabled() ? getProjectIdFromLocation() : ''
+  // Legacy media fallbacks read project credentials directly, so enforce the SaaS gate first.
+  if (!isProjectStorageEnabled()) {
+    return {}
+  }
+
+  const runtimeProjectId = getProjectIdFromLocation()
   const strictStorage = !!runtimeProjectId
   const resolvedProjectId = runtimeProjectId || projectId || ''
   const projectStorage = resolvedProjectId ? getProjectStorage(resolvedProjectId) : undefined

@@ -13,7 +13,7 @@
             <AIcon type="LoadingOutlined" />
           </div>
           <template v-else>
-            <img id="upload-img" :style="`height: ${height};`" :src="imgSrc" :alt="$t('upload.upload.283727-0')">
+            <img id="upload-img" :style="`height: ${height};`" :src="displayImgSrc" :alt="$t('upload.upload.283727-0')">
             <div class="upload-mask" :style="`height: ${height};`">{{ $t('upload.upload.283727-1') }}</div>
           </template>
         </div>
@@ -27,7 +27,7 @@ import { UploadInfoType } from './typing'
 import { onlyMessage } from '@jetlinks-web/utils'
 import {FileStaticPath} from '@jetlinks-web-core/api/comm'
 import { useI18n } from 'vue-i18n';
-import { getUploadHeaders } from '@jetlinks-web-core/utils'
+import { getUploadHeaders, resolvePublicAssetUrl } from '@jetlinks-web-core/utils'
 
 const { t: $t } = useI18n();
 const emit = defineEmits(['update:imgSrc'])
@@ -51,6 +51,8 @@ const props = defineProps({
     default: '10rem'
   }
 })
+
+const displayImgSrc = computed(() => resolvePublicAssetUrl(props.imgSrc))
 
 // 上传框接收类型
 const accept = computed(() => {

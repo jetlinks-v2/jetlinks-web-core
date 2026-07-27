@@ -6,7 +6,7 @@
     <div class="container">
       <div class="left">
         <img
-          :src="systemInfo?.front?.background || bgImage"
+          :src="frontConfig.background || bgImage"
           alt=""
         />
         <a
@@ -21,7 +21,7 @@
       </div>
       <div class="right">
         <Right
-          :logo="systemInfo?.front?.logo"
+          :logo="frontConfig.logo"
           :title="layout?.title"
           :bindings="bindings"
           v-model:loading="loading"
@@ -31,7 +31,8 @@
   </a-spin>
 </template>
 <script setup name="Login" lang="ts">
-import { getImage, LocalStore } from '@jetlinks-web/utils'
+import { LocalStore } from '@jetlinks-web/utils'
+import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { storeToRefs } from 'pinia'
 import Right from './right.vue'
@@ -43,12 +44,16 @@ const systemStore = useSystemStore()
 const { systemInfo, layout } = storeToRefs(systemStore)
 const loading = ref(false)
 
-const bgImage = getImage('/login/login.png')
+const bgImage = resolvePublicAssetUrl('images/login/login.png')
 const bindings = ref([])
 
-const basis: any = computed(() => {
-  return systemInfo.value.front || {}
-})
+const frontConfig = computed(() => ({
+  ...(systemInfo.value.front || {}),
+  logo: resolvePublicAssetUrl(systemInfo.value.front?.logo),
+  background: resolvePublicAssetUrl(systemInfo.value.front?.background),
+}))
+
+const basis: any = computed(() => frontConfig.value)
 
 const getOpen = async () => {
   await systemStore.queryVersion()
