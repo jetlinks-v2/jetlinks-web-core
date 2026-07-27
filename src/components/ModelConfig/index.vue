@@ -123,7 +123,7 @@
           <span>{{ activeTitle }}</span>
         </div>
         <a-space>
-          <template v-if="activeType === 'model'">
+          <template v-if="activeType === 'model' && isBuiltinConfigTab">
             <a-button v-if="!editing" @click="startEdit">
               <AIcon type="EditOutlined" />
               {{ text.edit }}
@@ -165,12 +165,27 @@
         <a-tabs v-model:activeKey="configTab" @change="refreshEditorValue">
           <a-tab-pane key="definition" :tab="text.modelParams" />
           <a-tab-pane v-if="showManifest" key="manifest" :tab="text.basicInfo" />
+          <a-tab-pane
+            v-for="item in normalizedExtraConfigTabs"
+            :key="item.key"
+            :tab="item.label"
+            :disabled="editing || item.disabled"
+          />
         </a-tabs>
       </div>
 
       <section class="model-config__editor-wrap">
+        <div
+          v-if="activeType === 'model' && isExtraConfigTab"
+          class="model-config__extra-content"
+        >
+          <slot
+            name="extra-config-content"
+            :active-key="configTab"
+          />
+        </div>
         <MonacoEditor
-          v-if="showEditor"
+          v-else-if="showEditor"
           ref="editorRef"
           v-model:modelValue="editorValue"
           :key="editorKey"
@@ -273,6 +288,12 @@ interface FormatDetail {
   local?: boolean
 }
 
+interface ExtraConfigTab {
+  key: string
+  label: string
+  disabled?: boolean
+}
+
 interface TreeNode {
   title: string
   key: string
@@ -284,6 +305,13 @@ interface TreeNode {
 }
 
 type LocaleText = Record<string, string>
+type BuiltinConfigTab = 'definition' | 'manifest'
+
+const BUILTIN_CONFIG_TABS: BuiltinConfigTab[] = ['definition', 'manifest']
+
+function isBuiltinConfigTabKey(key: string): key is BuiltinConfigTab {
+  return BUILTIN_CONFIG_TABS.includes(key as BuiltinConfigTab)
+}
 
 interface AddFilePayload {
   id?: string
@@ -480,6 +508,10 @@ const props = defineProps({
   showManifest: {
     type: Boolean,
     default: true
+  },
+  extraConfigTabs: {
+    type: Array as PropType<ExtraConfigTab[]>,
+    default: () => []
   }
 })
 
@@ -500,7 +532,7 @@ const selectedKeys = ref<string[]>([])
 const files = ref<ModelFile[]>([])
 const activeType = ref<'model' | 'file'>('model')
 const selectedFile = ref<ModelFile>()
-const configTab = ref<'definition' | 'manifest'>('definition')
+const configTab = ref<string>('definition')
 const editing = ref(false)
 const editorValue = ref('')
 const draftValue = ref('')
@@ -570,6 +602,24 @@ const formatNameMap = computed(() => props.availableFormats.reduce<Map<string, s
 
 const modelId = computed(() => props.model?.id)
 
+const normalizedExtraConfigTabs = computed(() => {
+  const keys = new Set<string>(BUILTIN_CONFIG_TABS)
+  return props.extraConfigTabs.filter((item) => {
+    if (!item?.key || keys.has(item.key)) return false
+    keys.add(item.key)
+    return true
+  })
+})
+
+const availableConfigTabs = computed(() => [
+  'definition',
+  ...(props.showManifest ? ['manifest'] : []),
+  ...normalizedExtraConfigTabs.value.map(item => item.key)
+])
+
+const isBuiltinConfigTab = computed(() => isBuiltinConfigTabKey(configTab.value))
+const isExtraConfigTab = computed(() => normalizedExtraConfigTabs.value.some(item => item.key === configTab.value))
+
 const activeTitle = computed(() => {
   return activeType.value === 'model'
     ? text.value.modelConfig
@@ -582,7 +632,10 @@ const canEditFile = computed(() => {
   return !!ext && editableExtensions.includes(ext)
 })
 
-const showEditor = computed(() => activeType.value === 'model' || (canEditFile.value && filePreviewLoaded.value))
+const showEditor = computed(() => (
+  (activeType.value === 'model' && isBuiltinConfigTab.value)
+  || (canEditFile.value && filePreviewLoaded.value)
+))
 
 const editorLanguage = computed(() => {
   if (activeType.value === 'model') return 'json'
@@ -645,19 +698,19 @@ watch([modelId, selectedFormat], () => {
 }, { immediate: true })
 
 watch(() => props.model, () => {
-  if (activeType.value === 'model' && !editing.value) {
+  if (activeType.value === 'model' && isBuiltinConfigTab.value && !editing.value) {
     refreshEditorValue()
   }
 }, { deep: true, immediate: true })
 
 watch(configTab, () => {
-  if (!editing.value) {
+  if (isBuiltinConfigTab.value && !editing.value) {
     refreshEditorValue()
   }
 })
 
-watch(() => props.showManifest, (showManifest) => {
-  if (!showManifest && configTab.value === 'manifest') {
+watch(availableConfigTabs, (tabs) => {
+  if (!tabs.includes(configTab.value)) {
     configTab.value = 'definition'
   }
 }, { immediate: true })
@@ -939,6 +992,7 @@ function selectFile(file: ModelFile) {
 }
 
 function refreshEditorValue() {
+  if (!isBuiltinConfigTabKey(configTab.value)) return
   const source = configTab.value === 'definition' ? props.model?.definition : props.model?.manifest
   editorValue.value = stringifyValue(source)
   draftValue.value = editorValue.value
@@ -973,6 +1027,7 @@ async function saveEdit() {
     await saveTextFile()
     return
   }
+  if (!isBuiltinConfigTabKey(configTab.value)) return
   const config = buildSaveConfigPayload(configTab.value)
   if (!config) return
   fileSaving.value = true
@@ -1527,6 +1582,13 @@ async function previewFile() {
   min-height: 0;
   display: grid;
   padding: var(--space-4);
+}
+
+.model-config__extra-content {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .model-config__editor {
