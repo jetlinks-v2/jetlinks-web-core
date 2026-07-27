@@ -203,8 +203,14 @@ export interface AiClientToolSessionFileApi {
   ) => Promise<{ path?: string; uri?: string; size?: number; mimeType?: string; ok?: boolean }>;
   remove: (
     path: string,
-    options?: { recursive?: boolean },
-  ) => Promise<{ ok?: boolean; path?: string; uri?: string; recursive?: boolean }>;
+    options?: { recursive?: boolean; ignoreMissing?: boolean },
+  ) => Promise<{
+    ok?: boolean;
+    path?: string;
+    uri?: string;
+    recursive?: boolean;
+    ignoreMissing?: boolean;
+  }>;
 }
 
 /** Browser-runtime metadata. It must never be inferred into model-facing routing semantics. */

@@ -623,6 +623,7 @@ test('semantic fact profiles cap fields and category cardinality', () => {
 
 test('file failure degrades to the retained sample with truthful returnedCount', async () => {
   const records = Array.from({ length: 5 }, (_, index) => ({ index }))
+  const removals: Array<{ path: string; ignoreMissing?: boolean }> = []
   const stream = createAiClientToolRecordStream({
     source: createAiClientToolArrayRecordSource(records),
     schema: { type: 'object', properties: { index: { type: 'number', 'x-ai-role': 'number' } } },
@@ -637,7 +638,10 @@ test('file failure degrades to the retained sample with truthful returnedCount',
       sessionFiles: {
         toUri: path => `fs://${path}`,
         upload: async () => { throw new Error('write failed') },
-        remove: async path => ({ ok: true, path }),
+        remove: async (path, options) => {
+          removals.push({ path, ignoreMissing: options?.ignoreMissing })
+          return { ok: true, path }
+        },
       },
     },
     resultDelivery: 'auto',
@@ -659,6 +663,8 @@ test('file failure degrades to the retained sample with truthful returnedCount',
   assert.equal(result.evidence.complete, false)
   assert.equal(result.evidence.truncated, true)
   assert.equal(result.evidence.outputBindings[0].path, '$.data.sample')
+  assert.equal(removals.length, 1)
+  assert.equal(removals[0]?.ignoreMissing, true)
 })
 
 test('file success and inline delivery expose equivalent logical bindings', async () => {
@@ -727,6 +733,45 @@ test('record and cancellation limits stay partial or abort without unbounded con
     call: { id: 'call-aborted', toolName: 'records_read', signal: controller.signal },
     resultDelivery: 'inline',
   }), (error: unknown) => error instanceof Error && error.name === 'AbortError')
+})
+
+test('in-flight cancellation performs one idempotent compensation delete', async () => {
+  const controller = new AbortController()
+  const removals: Array<{ path: string; ignoreMissing?: boolean }> = []
+  let uploadStarted!: () => void
+  const started = new Promise<void>(resolve => { uploadStarted = resolve })
+  const delivery = deliverAiClientToolResult(createAiClientToolRecordStream({
+    source: createAiClientToolArrayRecordSource([{ index: 1 }]),
+    schema: { type: 'object' },
+  }), {
+    call: {
+      id: 'call-cancel-upload',
+      toolName: 'records_read',
+      signal: controller.signal,
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async (path, _body, options) => {
+          uploadStarted()
+          await new Promise<void>((_resolve, reject) => {
+            const abort = () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))
+            if (options?.signal?.aborted) abort()
+            else options?.signal?.addEventListener('abort', abort, { once: true })
+          })
+          return { ok: true, path }
+        },
+        remove: async (path, options) => {
+          removals.push({ path, ignoreMissing: options?.ignoreMissing })
+          return { ok: true, path }
+        },
+      },
+    },
+    resultDelivery: 'auto',
+  })
+  await started
+  controller.abort()
+  await assert.rejects(delivery, (error: unknown) => error instanceof Error && error.name === 'AbortError')
+  assert.equal(removals.length, 1)
+  assert.equal(removals[0]?.ignoreMissing, true)
 })
 
 test('inline binding attachment uses declared paths and ignores failures', async () => {
@@ -838,18 +883,45 @@ test('materialization URI failures degrade to a complete bounded inline result',
   assert.equal(result.evidence.outputBindings[0].path, '$.data.sample')
 })
 
-test('zero-record streams remain complete and expose an empty inline binding', async () => {
+test('zero-record streams remain complete without creating or compensating a file', async () => {
+  let uploads = 0
+  let removals = 0
+  let uriResolutions = 0
   const result = await deliverAiClientToolResult(createAiClientToolRecordStream({
     source: createAiClientToolArrayRecordSource([]),
     schema: { type: 'object' },
   }), {
-    call: { id: 'call-empty', toolName: 'records_read' },
-    resultDelivery: 'inline',
+    call: {
+      id: 'call-empty',
+      toolName: 'records_read',
+      sessionFiles: {
+        toUri: path => {
+          uriResolutions += 1
+          return `fs://${path}`
+        },
+        upload: async path => {
+          uploads += 1
+          return { ok: true, path }
+        },
+        remove: async path => {
+          removals += 1
+          return { ok: true, path }
+        },
+      },
+    },
+    resultDelivery: 'file',
   }) as any
   assert.equal(result.status, 'empty')
   assert.equal(result.evidence.recordCount, 0)
   assert.equal(result.evidence.complete, true)
+  assert.equal(result.data.delivery, 'empty')
+  assert.equal(result.data.fileUnavailable, undefined)
+  assert.equal(result.data.fileErrorCode, undefined)
+  assert.equal(result.producedFile, false)
   assert.deepEqual(result.data.sample, [])
+  assert.equal(uploads, 0)
+  assert.equal(removals, 0)
+  assert.equal(uriResolutions, 0)
 })
 
 test('record source timeouts propagate cancellation and remain a partial result', async () => {

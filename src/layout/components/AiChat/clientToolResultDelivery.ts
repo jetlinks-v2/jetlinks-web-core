@@ -28,6 +28,7 @@ const DEFAULT_PREVIEW_LIMIT = 3
 const DEFAULT_FALLBACK_SAMPLE_LIMIT = 10
 
 type JsonRecord = Record<string, unknown>
+type SessionFileDeliveryState = 'not-started' | 'unknown' | 'opened' | 'committed' | 'rolled-back'
 
 export type AiClientToolRecordLimitReason =
   | 'bytes'
@@ -82,7 +83,7 @@ export interface AiClientToolRecordStream<T> extends AiClientToolRecordStreamOpt
 export interface AiClientToolRecordDeliveryData<T> {
   success: true
   producedFile: boolean
-  delivery: 'session-file' | 'inline-sample'
+  delivery: 'session-file' | 'inline-sample' | 'empty'
   path?: string
   fileRef?: string
   mimeType: typeof NDJSON_MIME_TYPE
@@ -220,13 +221,16 @@ const resolveSessionFiles = (
 const cleanupPartialFile = async (
   files: AiClientToolSessionFileApi | undefined,
   path: string,
-  writeAttempted: boolean,
-) => {
-  if (!files || !writeAttempted) return
+  state: SessionFileDeliveryState,
+): Promise<SessionFileDeliveryState> => {
+  if (!files || (state !== 'unknown' && state !== 'opened')) return state
   try {
-    await files.remove(path)
+    // The server owns physical rollback; repeated client compensation must therefore be idempotent.
+    await files.remove(path, { ignoreMissing: true })
+    return 'rolled-back'
   } catch {
-    // Cleanup is best-effort; incomplete files are never exposed through the tool result.
+    // Preserve the unknown state so a transport/storage failure is not mistaken for a completed rollback.
+    return 'unknown'
   }
 }
 
@@ -287,7 +291,7 @@ const materializeRecordStream = async <T>(
   let totalBytes = 0
   let count = 0
   let uploaded = false
-  let writeAttempted = false
+  let deliveryState: SessionFileDeliveryState = 'not-started'
   let sourceCompleted = false
   let timedOut = false
   let limitReason: AiClientToolRecordLimitReason | undefined
@@ -306,11 +310,11 @@ const materializeRecordStream = async <T>(
   else options.call.signal?.addEventListener('abort', abortFromCaller, { once: true })
 
   const flush = async () => {
-    if (!files || (!pendingLines.length && uploaded)) return
+    if (!files || !pendingLines.length) return
     const payload = new Blob(pendingLines, { type: NDJSON_MIME_TYPE })
     pendingLines = []
     pendingBytes = 0
-    writeAttempted = true
+    deliveryState = 'unknown'
     try {
       const result = await files.upload(path, payload, {
         append: uploaded,
@@ -322,6 +326,7 @@ const materializeRecordStream = async <T>(
       throw new RecordFileWriteError(error)
     }
     uploaded = true
+    deliveryState = 'opened'
   }
 
   const accept = async (row: T) => {
@@ -379,32 +384,51 @@ const materializeRecordStream = async <T>(
     if (externalAbort) throw createAbortError()
     const profile = factCollector.snapshot()
 
+    if (sourceCompleted && count === 0 && !limitReason && !fileErrorCode) {
+      return createDeliveryData({
+        producedFile: false,
+        delivery: 'empty',
+        size: 0,
+        count: 0,
+        schema: stream.schema,
+        timeRange: stream.timeRange,
+        observedRange: profile.observedRange,
+        facts: profile.facts,
+        sample: [],
+        complete: true,
+        truncated: false,
+      })
+    }
+
     if (files && !fileErrorCode) {
       try {
         await flush()
         if (externalAbort) throw createAbortError()
-        let fileRef: string
-        try {
-          fileRef = files.toUri(path)
-        } catch (error) {
-          throw new RecordFileWriteError(error)
+        if (uploaded) {
+          let fileRef: string
+          try {
+            fileRef = files.toUri(path)
+          } catch (error) {
+            throw new RecordFileWriteError(error)
+          }
+          deliveryState = 'committed'
+          return createDeliveryData({
+            producedFile: true,
+            delivery: 'session-file',
+            path,
+            fileRef,
+            size: totalBytes,
+            count,
+            schema: stream.schema,
+            timeRange: stream.timeRange,
+            observedRange: profile.observedRange,
+            facts: profile.facts,
+            sample: retainedSamples.slice(0, previewLimit),
+            complete: sourceCompleted && !limitReason,
+            truncated: !sourceCompleted || !!limitReason,
+            limitReason,
+          })
         }
-        return createDeliveryData({
-          producedFile: true,
-          delivery: 'session-file',
-          path,
-          fileRef,
-          size: totalBytes,
-          count,
-          schema: stream.schema,
-          timeRange: stream.timeRange,
-          observedRange: profile.observedRange,
-          facts: profile.facts,
-          sample: retainedSamples.slice(0, previewLimit),
-          complete: sourceCompleted && !limitReason,
-          truncated: !sourceCompleted || !!limitReason,
-          limitReason,
-        })
       } catch (error) {
         if (externalAbort) throw createAbortError()
         if (error instanceof RecordFileWriteError) fileErrorCode = error.code
@@ -412,14 +436,14 @@ const materializeRecordStream = async <T>(
       }
     }
 
-    await cleanupPartialFile(files, path, writeAttempted)
+    deliveryState = await cleanupPartialFile(files, path, deliveryState)
     const complete = sourceCompleted
       && retainedSamples.length >= count
       && !limitReason
     const fallbackLimitReason = complete
       ? undefined
       : (limitReason || (count > retainedSamples.length ? 'sample' : undefined))
-    const unavailable = mode !== 'inline'
+    const unavailable = mode !== 'inline' && (!files || !!fileErrorCode)
     return createDeliveryData({
       producedFile: false,
       delivery: 'inline-sample',
@@ -437,7 +461,7 @@ const materializeRecordStream = async <T>(
       fileErrorCode: fileErrorCode || (unavailable ? 'CLIENT_TOOL_FILE_UNAVAILABLE' : undefined),
     })
   } catch (error) {
-    await cleanupPartialFile(files, path, writeAttempted)
+    deliveryState = await cleanupPartialFile(files, path, deliveryState)
     throw error
   } finally {
     clearTimeout(sourceTimeout)
