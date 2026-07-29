@@ -255,6 +255,10 @@ export const handleMenus = (
     if (_menu && _menu.length) {
       return _menu.map((item) => {
         const _route = handleRoute(item)
+        _route.meta = {
+          ..._route.meta,
+          hasPage: Boolean(findComponent(item, 3)),
+        }
         _route.children = siderLoop(item.children || [])
         return _route as RouteRecordRaw
       })

@@ -347,15 +347,24 @@ const normalizeMenuNode = (item: RouteRecordRaw): MenuNode | undefined => {
   const title = String(meta.title || item.name || item.path || '')
   if (!title) return undefined
 
+  const children = ((item.children || []) as RouteRecordRaw[])
+    .map(child => normalizeMenuNode(child))
+    .filter(Boolean) as MenuNode[]
+  // Only a component that resolves to an actual page, iframe, or micro app marks
+  // this node as navigable. Generated layout components do not count as pages.
+  const hasPage = meta.hasPage === true
+
+  // Application disablement can remove all child pages while leaving its route group.
+  // Do not render that empty group in either the product navigation or the sidebar.
+  if (!hasPage && !children.length) return undefined
+
   return {
     key: String(item.path || item.name || title),
     title,
     path: item.path,
     name: item.name ? String(item.name) : undefined,
     icon: meta.icon as string | undefined,
-    children: ((item.children || []) as RouteRecordRaw[])
-      .map(child => normalizeMenuNode(child))
-      .filter(Boolean) as MenuNode[],
+    children,
     raw: item,
   }
 }
@@ -363,7 +372,7 @@ const normalizeMenuNode = (item: RouteRecordRaw): MenuNode | undefined => {
 const menuNodes = computed(() => (
   (menuStore.siderMenus || [])
     .map(item => normalizeMenuNode(item))
-    .filter(Boolean) as MenuNode[]
+    .filter((item): item is MenuNode => Boolean(item && item.children.length))
 ))
 
 const isOwnMenuNodeActive = (node: MenuNode) => {
