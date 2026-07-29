@@ -201,7 +201,7 @@ const dealMenu = (data: MenuItem[]) => {
       item?.options || {},
     );
 
-    item.owner = OWNER_KEY
+    item.owner = item.owner || OWNER_KEY
     if (item.children) {
       dealMenu(item.children);
     }

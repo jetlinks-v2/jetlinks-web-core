@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import cloneDeep from 'lodash-es/cloneDeep'
 import router from '@jetlinks-web-core/router'
 import { setParamsValue } from '@jetlinks-web/hooks'
+import { request } from '@jetlinks-web/core'
 import { onlyMessage } from '@jetlinks-web/utils'
 import {modules, getBaseApi, isFromCloud, getModulesMenu} from '@jetlinks-web-core/utils'
 import { getOwnMenuThree } from '@jetlinks-web-core/api/system/menu'
@@ -14,7 +15,6 @@ import i18n from '@jetlinks-web-core/locales'
 import { useProjectRouter } from '@/hooks'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 import { createMenuStoreRuntime } from './menuRuntime'
-import {OWNER_KEY} from "@/utils/consts";
 
 type OptionsType = {
   params?: Record<string, any>
@@ -23,23 +23,122 @@ type OptionsType = {
 
 const $t = i18n.global.t
 
-const defaultOwnParams: any[] = [
-  {
-    terms: [
-      {
-        column: 'owner',
-        termType: 'eq',
-        value: OWNER_KEY,
-      },
-      {
-        column: 'owner',
-        termType: 'isnull',
-        value: '1',
-        type: 'or',
-      },
-    ],
-  }
-]
+const MENU_APPLICATION_OWNERS = new Set(['accessControlService', 'parkingService'])
+const INTERNAL_APPLICATION_PROVIDERS = new Set(['internal-integrated', 'internal-standalone'])
+const INTERNAL_APPLICATION_GROUP = 'internal_group'
+
+const getResponseData = (response: any) => response?.result ?? response?.data ?? response
+
+const getResponseList = (response: any): any[] => {
+  const data = getResponseData(response)
+  return Array.isArray(data) ? data : []
+}
+
+const getEnabledMenuOwners = async (): Promise<string[]> => {
+  const applicationResponse = await request.post('/application/_query/no-paging', { paging: false })
+  const [archiveResponse, serviceResponse] = await Promise.all([
+    request.post('/park/app/archive/_query/no-paging', { paging: false }),
+    request.get('/subsystem/internal/services'),
+  ])
+
+  const enabledApplications = getResponseList(applicationResponse)
+    .filter((item: any) => {
+      const provider = String(item?.provider || item?.type || '')
+      const state = String(item?.state?.value || item?.status || item?.state || '')
+      const groupId = String(item?.configurations?.smartParkAppGroup || '')
+      return state === 'enabled' && (groupId === INTERNAL_APPLICATION_GROUP || INTERNAL_APPLICATION_PROVIDERS.has(provider))
+    })
+    .filter((item: any) => !!item?.id)
+
+  const applicationDetails = await Promise.all(
+    enabledApplications.map((item: any) =>
+      request.get(`/application/${encodeURIComponent(String(item.id))}`).catch(() => undefined),
+    ),
+  )
+
+  const enabledApplicationSystems = new Map(
+    enabledApplications.map((item: any, index): [string, string] => {
+      const detail = getResponseData(applicationDetails[index]) || {}
+      return [
+        String(item.id),
+        String(
+          detail?.page?.configuration?.checkedSystem ||
+            detail?.configurations?.smartParkInternalSystem ||
+            item?.page?.configuration?.checkedSystem ||
+            item?.configurations?.smartParkInternalSystem ||
+            '',
+        ),
+      ]
+    }),
+  )
+
+  const serviceTypes = new Map(
+    getResponseList(serviceResponse)
+      .map((item: any): [string, string] => [
+        String(
+          item?.serviceType ||
+            item?.systemType ||
+            item?.type?.value ||
+            item?.type?.id ||
+            item?.type?.code ||
+            item?.type?.name ||
+            item?.type ||
+            '',
+        ),
+        String(
+          item?.serviceType ||
+            item?.systemType ||
+            item?.type?.value ||
+            item?.type?.id ||
+            item?.type?.code ||
+            item?.type?.name ||
+            item?.type ||
+            '',
+        ),
+      ])
+      .filter(([id, type]) => id && type),
+  )
+
+  const legacyServiceNames = new Map(
+    getResponseList(serviceResponse)
+      .map((item: any): [string, string] => [
+        String(item?.name || ''),
+        String(item?.type || ''),
+      ])
+      .filter(([name, type]) => name && type),
+  )
+
+  const archiveInternalSystems = new Map(
+    getResponseList(archiveResponse)
+      .map((item: any): [string, string] => [String(item?.appId || ''), String(item?.internalSystem || '')])
+      .filter(([appId, internalSystem]) => appId && internalSystem),
+  )
+
+  return [...new Set(
+    [...enabledApplicationSystems]
+      .map(([appId, configuredInternalSystem]) => {
+        const internalSystem = archiveInternalSystems.get(appId) || configuredInternalSystem
+        return serviceTypes.get(internalSystem) || legacyServiceNames.get(internalSystem)
+      })
+      .filter((owner): owner is string => !!owner && MENU_APPLICATION_OWNERS.has(owner)),
+  )]
+}
+
+const getOwnMenuParams = (owners: string[]) => {
+  const menuOwners = new Set(['smart-park', ...owners])
+
+  return [
+    {
+      terms: [
+        {
+          column: 'owner',
+          termType: 'in',
+          value: [...menuOwners],
+        },
+      ],
+    },
+  ]
+}
 
 const collectMenuMap = (nodes: any[] = [], map = new Map<string, any>()) => {
   nodes.forEach((node) => {
@@ -142,10 +241,12 @@ const rebuildMenuTree = (localNodes: any[] = [], remoteMap = new Map<string, any
       }
     })
 
+    const hasLocalChildren = Array.isArray(localNode.children) && localNode.children.length > 0
+    if (hasLocalChildren && !mergedChildren.length && !remoteExtras.length) {
+      return
+    }
+
     if (!remoteNode && !mergedChildren.length && !remoteExtras.length) {
-      if (String(localNode.code || '').startsWith('config')) {
-        result.push(cloneDeep(localNode))
-      }
       return
     }
 
@@ -350,9 +451,13 @@ export const useMenuStore = defineStore('menu', () => {
   })
 
   const queryMenus = async () => {
+    const owners = await getEnabledMenuOwners().catch((error) => {
+      console.warn('查询应用菜单 owner 失败:', error)
+      return []
+    })
     const resp = await getOwnMenuThree({
       paging: false,
-      terms: defaultOwnParams,
+      terms: getOwnMenuParams(owners),
       sorts: [{ name: 'sortIndex', order: 'asc' }],
     })
 
