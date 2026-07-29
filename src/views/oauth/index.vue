@@ -80,7 +80,8 @@ import { TOKEN_KEY } from '@jetlinks-web/constants'
 import { captchaConfig, codeUrl, getOAuth2, initApplication, authLogin, encryptionConfig } from '@jetlinks-web-core/api/login'
 import { settingDetail } from '@jetlinks-web-core/api/system/basis'
 import { getMe_api } from '@jetlinks-web-core/api/auth'
-import { getImage, getToken, encrypt } from '@jetlinks-web/utils'
+import { getToken, encrypt } from '@jetlinks-web/utils'
+import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
 import { ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -96,7 +97,7 @@ const internal = ref('false')
 const params = ref()
 
 document.title = $t('auth.index.559799-6', 'Jetlinks');
-headerImg.value = getImage('/logo.png')
+headerImg.value = resolvePublicAssetUrl('logo.png')
 
 type LoginParam = {
   username: string;
@@ -273,8 +274,8 @@ const getSettingDetail = () => {
   settingDetail('front').then((res: any) => {
     if (res.success) {
       const ico: any = document.querySelector('link[rel="icon"]');
-      ico.href = res.result.ico;
-      headerImg.value = res.result.logo
+      ico.href = resolvePublicAssetUrl(res.result.ico);
+      headerImg.value = resolvePublicAssetUrl(res.result.logo)
       if (res.result.title) {
         document.title = $t('auth.index.559799-6', [res.result.title]);
       } else {

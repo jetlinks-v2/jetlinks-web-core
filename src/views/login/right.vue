@@ -132,7 +132,8 @@
 </template>
 <script setup name="LoginRight">
 import Remember from "./remember.vue";
-import {encrypt, getImage, onlyMessage, setToken} from "@jetlinks-web/utils";
+import {encrypt, onlyMessage, setToken} from "@jetlinks-web/utils";
+import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
 import { useRequest } from "@jetlinks-web/hooks";
 import {
   captchaConfig,
@@ -154,7 +155,7 @@ import { resetSessionStores } from '@jetlinks-web-core/router/startup'
 
 const BASE_API_PATH = import.meta.env.VITE_APP_BASE_API
 
-const logoImage = getImage("/login/logo.png");
+const logoImage = resolvePublicAssetUrl('images/login/logo.png');
 const $t = i18n.global.t
 
 const props = defineProps({

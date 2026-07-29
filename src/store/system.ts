@@ -15,6 +15,7 @@ import {
   persistThemeStyle,
   type ThemeStyleKey
 } from '@jetlinks-web-core/utils/theme-style'
+import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
 
 interface LayoutType {
   siderWidth: number
@@ -32,7 +33,7 @@ const useSystemStoreBase = defineStore('system', () => {
   const themeStyleToken = ref(initialThemeStyle.token)
   const themeColor = ref<string>(applyThemeColor(getThemeStyleInitialColor(themeStyle.value, getInitialThemeColor())))
   applyThemeStyle(themeStyle.value, themeColor.value)
-  const ico = ref<string>('/favicon.ico') // 浏览器标签页logo
+  const ico = ref<string>(resolvePublicAssetUrl('favicon.ico')) // 浏览器标签页logo
   const systemInfo = ref<Record<string, any>>({})
   const microApp = ref<Record<string, any>>({})
   const calendarTagColor = new Map([
@@ -49,7 +50,7 @@ const useSystemStoreBase = defineStore('system', () => {
     headerHeight: 48,
     collapsedWidth: 48,
     title: '物联网平台', // 浏览器标签页title和系统名称
-    logo: '/images/login/logo.png',
+    logo: resolvePublicAssetUrl('images/login/logo.png'),
     layout: 'mix'
   })
 
@@ -103,10 +104,11 @@ const useSystemStoreBase = defineStore('system', () => {
    * @param url
    */
   const changeIco = (url: string) => {
-    ico.value = url
+    const resolvedUrl = resolvePublicAssetUrl(url)
+    ico.value = resolvedUrl
     const icoDom: any = document.querySelector('link[rel="icon"]')!
     if (!icoDom) return
-    icoDom.href = url
+    icoDom.href = resolvedUrl
   }
 
   const changeTitle = (value: string) => {
@@ -118,7 +120,7 @@ const useSystemStoreBase = defineStore('system', () => {
     if (_data) {
       const ico: any = document.querySelector('link[rel="icon"]')
       if (!ico) return
-      ico.href = _data.ico
+      ico.href = resolvePublicAssetUrl(_data.ico)
       document.title = _data.title || ''
     }
   }
@@ -126,7 +128,7 @@ const useSystemStoreBase = defineStore('system', () => {
   const handleFront = (_value: any, userThemeStyle?: ThemeStyleKey) => {
     if (!_value) return
     layout.title = _value.title
-    layout.logo = _value.logo
+    layout.logo = resolvePublicAssetUrl(_value.logo)
     const frontThemeStyle = userThemeStyle || normalizeThemeStyle(_value.headerTheme)
     // localStorage 只负责接口返回前的首屏主题；登录后用户设置优先，系统设置兜底。
     changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle))

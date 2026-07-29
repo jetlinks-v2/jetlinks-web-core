@@ -144,13 +144,10 @@ export default function monacoEditorPlugin(options: IMonacoEditorOpts): Plugin {
       const resolvedOutDir = isAbsolute(resolvedConfig.build.outDir)
         ? resolvedConfig.build.outDir
         : resolve(resolvedConfig.root, resolvedConfig.build.outDir);
-      const normalizeBase = (base: string) =>
-        base && base !== './' ? base.replace(/^\//, '').replace(/\/$/, '') : '';
       const distPath = options.customDistPath
         ? options.customDistPath(resolvedConfig.root, resolvedConfig.build.outDir,
           resolvedConfig.base)
-        : join(resolvedOutDir, normalizeBase(resolvedConfig.base ?? ''),
-          options.publicPath);
+        : join(resolvedOutDir, options.publicPath);
 
       //  console.log("distPath", distPath)
 
