@@ -689,6 +689,7 @@
   "components.AiChat.confirm.content": "This action will invoke a capability on the current page. Please confirm to continue.",
   "components.AiChat.confirm.rejected": "The user cancelled or rejected this tool call. Do not continue or retry automatically; ask for confirmation again only after a new explicit request.",
   "components.AiChat.domainAgent.errors.timeRangeIncomplete": "A custom time range requires both a start and an end time.",
+  "components.AiChat.domainAgent.errors.timeRangeConflict": "A preset time range cannot include custom start or end times.",
   "components.AiChat.domainAgent.errors.timeRangeRequired": "Provide the time range to query.",
   "components.AiChat.domainAgent.errors.timeRangeInvalidValue": "Invalid time value. Use a date-time or an epoch-millisecond timestamp.",
   "components.AiChat.domainAgent.claims.recordCount": "Record count",

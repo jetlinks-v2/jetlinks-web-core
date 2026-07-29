@@ -196,12 +196,26 @@ const isRecord = (value: unknown): value is Record<string, unknown> => (
 )
 
 const toSessionInput = (value: unknown) => {
-  if (!isRecord(value) || value.required !== true) return value
+  if (!isRecord(value)) return value
+  const required = value.required === true
+  const hasDefaultValue = Object.prototype.hasOwnProperty.call(value, 'defaultValue')
+    && value.defaultValue !== undefined
+  if (!required && !hasDefaultValue) return value
+
   const expands = isRecord(value.expands) ? value.expands : {}
+  const sessionValue = { ...value }
+  delete sessionValue.defaultValue
+
   return {
-    ...value,
-    // JetLinks FunctionMetadata reads required from PropertyMetadata.expands.
-    expands: { ...expands, required: true },
+    ...sessionValue,
+    // JetLinks FunctionMetadata reads required/default from PropertyMetadata.expands.
+    expands: {
+      ...expands,
+      ...(required ? { required: true } : {}),
+      ...(hasDefaultValue && !Object.prototype.hasOwnProperty.call(expands, 'default')
+        ? { default: value.defaultValue }
+        : {}),
+    },
   }
 }
 

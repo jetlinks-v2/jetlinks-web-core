@@ -2,9 +2,15 @@ import { withAiClientToolSilentRequest } from '@jetlinks-web-core/utils/ai-clien
 import i18n from '@jetlinks-web-core/locales';
 import { aiClientToolRegistry } from './clientToolRegistry';
 import {
+  createAiClientToolArtifact,
   deliverAiClientToolResult,
+  type AiClientToolArtifact,
+  type AiClientToolArtifactOptions,
   type AiClientToolResultBindingDefinition,
 } from './clientToolResultDelivery';
+
+export { createAiClientToolArtifact };
+export type { AiClientToolArtifact, AiClientToolArtifactOptions };
 import {
   createAiClientToolFailureResult,
   normalizeAiClientToolOutputBindings,
@@ -18,6 +24,10 @@ import {
   AI_CLIENT_TOOL_ROUTING_EXPAND_KEY,
   normalizeAiClientToolRoutingMetadata,
 } from './clientToolRouting';
+import {
+  mergeAiClientToolParameterSchema,
+  type AiClientToolParameterSchema,
+} from './clientToolParameterSchema';
 import { defineAiClientToolContract } from './clientToolContract';
 import type {
   AiClientToolRoutingDataAccessMode,
@@ -121,11 +131,16 @@ export interface AiClientToolValueType {
   [key: string]: any;
 }
 
+/** Canonical root JSON Schema constraints merged with the generated client-tool input properties. */
+export type { AiClientToolParameterSchema } from './clientToolParameterSchema';
+
 export interface AiClientToolInput {
   id: string;
   name?: string;
   description?: string;
   required?: boolean;
+  /** Provider-neutral default; the session boundary projects it into tool schema metadata. */
+  defaultValue?: unknown;
   valueType?: string | AiClientToolValueType;
   [key: string]: any;
 }
@@ -243,6 +258,8 @@ export interface AiClientToolDefinition<TContext = Record<string, any>> {
   description?: string;
   help?: string | ((tool: AiClientToolDefinition<TContext>) => string);
   inputs?: AiClientToolInput[];
+  /** Root constraints that cannot be represented by independent JetLinks input metadata. */
+  parameterSchema?: AiClientToolParameterSchema;
   output?: AiClientToolValueType | Record<string, any>;
   confirm?: boolean | AiClientToolConfirmOptions<TContext>;
   annotations?: Record<string, any>;
@@ -385,7 +402,11 @@ const resolveToolExpands = <TContext>(
   tool: AiClientToolDefinition<TContext>,
   options: AiClientToolRuntimeOptions<TContext>,
 ) => {
-  const explicitExpands = isRecord(tool.expands) ? tool.expands : {};
+  const explicitExpands = mergeAiClientToolParameterSchema(
+    tool.id,
+    tool.parameterSchema,
+    tool.expands,
+  );
   const routing = normalizeAiClientToolRoutingMetadata(tool);
   const toolRisk = pickRisk(tool.risk);
   const clientConfirmation = !!tool.confirm;

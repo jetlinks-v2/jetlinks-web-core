@@ -1,11 +1,17 @@
 import i18n from '@jetlinks-web-core/locales'
 import {
   createAiClientToolFailureResult,
+  normalizeAiClientToolCardinality,
   withAiClientToolEvidence,
   type AiClientToolEvidence,
+  type AiClientToolCardinality,
   type AiClientToolClaim,
   type AiClientToolOutputBinding,
 } from './clientToolResult'
+import type {
+  AiClientToolInput,
+  AiClientToolParameterSchema,
+} from './clientTools'
 
 export {
   searchDomainAgentItems,
@@ -59,6 +65,54 @@ export interface DomainAgentToolResult<T> {
   outputBindings?: AiClientToolOutputBinding[]
 }
 
+export type DomainAgentCardinality = AiClientToolCardinality
+
+/** Returns a finite numeric measurement while preserving null/blank values as missing data. */
+export const normalizeDomainAgentMeasurement = (value: unknown): number | undefined => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
+  if (typeof value !== 'string' || value.trim() === '') return undefined
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : undefined
+}
+
+export const createDomainAgentRecordSetCardinality = (input: {
+  returnedCount: number
+  totalCount?: number
+}): Extract<DomainAgentCardinality, { kind: 'record-set' }> => (
+  normalizeAiClientToolCardinality({
+    kind: 'record-set',
+    recordCount: input.totalCount ?? input.returnedCount,
+    returnedCount: input.returnedCount,
+    totalCount: input.totalCount ?? input.returnedCount,
+  })
+)
+
+export const createDomainAgentAggregateCardinality = (input: {
+  bucketCount: number
+  populatedBucketCount: number
+  measurementCount: number
+}): Extract<DomainAgentCardinality, { kind: 'aggregate-series' }> => (
+  normalizeAiClientToolCardinality({
+    kind: 'aggregate-series',
+    ...input,
+  })
+)
+
+export const createDomainAgentPreviewCardinality = (input: {
+  displayedCount: number
+  totalCount?: number
+  modelSampleCount?: number
+}): Extract<DomainAgentCardinality, { kind: 'preview' }> => (
+  normalizeAiClientToolCardinality({
+    kind: 'preview',
+    displayedCount: input.displayedCount,
+    ...(input.totalCount === undefined ? {} : { totalCount: input.totalCount }),
+    ...(input.modelSampleCount === undefined ? {} : {
+      modelSample: { count: input.modelSampleCount, userVisible: false },
+    }),
+  })
+)
+
 export interface ResolveDomainAgentTimeRangeOptions {
   defaultPreset?: 'today' | '24h' | '7d' | '30d'
   maxDays?: number
@@ -98,6 +152,7 @@ interface DomainAgentPropertyMetadata {
 }
 
 export const DOMAIN_AGENT_TIME_PRESETS = ['today', '24h', '7d', '30d', 'custom'] as const
+export const DOMAIN_AGENT_RELATIVE_TIME_PRESETS = ['today', '24h', '7d', '30d'] as const
 
 export const resolveDomainAgentMessage = (
   key: string,
@@ -160,6 +215,75 @@ export const domainAgentEnumArrayValueType = <T extends string>(
 
 export const domainAgentDateTimeValueType = (): DomainAgentValueType => ({
   type: 'date',
+})
+
+export interface DomainAgentTimeScopeDescriptions {
+  timeRange: string
+  startTime: string
+  endTime: string
+}
+
+/**
+ * Defines one discriminated time scope for model-facing question-data tools.
+ * The root constraint is serialized by the shared client-tool adapter, so owning modules never handle `_schema`.
+ */
+export const createDomainAgentTimeScopeContract = (
+  descriptions: DomainAgentTimeScopeDescriptions,
+): { inputs: AiClientToolInput[]; parameterSchema: AiClientToolParameterSchema } => ({
+  inputs: [
+    {
+      id: 'timeRange',
+      name: 'timeRange',
+      description: descriptions.timeRange,
+      required: true,
+      valueType: domainAgentEnumValueType(DOMAIN_AGENT_TIME_PRESETS),
+    },
+    {
+      id: 'startTime',
+      name: 'startTime',
+      description: descriptions.startTime,
+      valueType: domainAgentDateTimeValueType(),
+    },
+    {
+      id: 'endTime',
+      name: 'endTime',
+      description: descriptions.endTime,
+      valueType: domainAgentDateTimeValueType(),
+    },
+  ],
+  parameterSchema: {
+    type: 'object',
+    oneOf: [
+      {
+        title: 'Preset time range',
+        required: ['timeRange'],
+        properties: {
+          timeRange: {
+            type: 'string',
+            enum: [...DOMAIN_AGENT_RELATIVE_TIME_PRESETS],
+            description: descriptions.timeRange,
+          },
+        },
+        not: {
+          anyOf: [
+            { required: ['startTime'] },
+            { required: ['endTime'] },
+          ],
+        },
+      },
+      {
+        title: 'Custom time range',
+        required: ['timeRange', 'startTime', 'endTime'],
+        properties: {
+          timeRange: { const: 'custom', description: descriptions.timeRange },
+          // Branch-local declarations keep the composed schema self-contained for fail-closed tool audits.
+          // The generated root properties remain authoritative for the actual date-time constraints.
+          startTime: { description: descriptions.startTime },
+          endTime: { description: descriptions.endTime },
+        },
+      },
+    ],
+  },
 })
 
 const domainAgentProperty = (
@@ -290,10 +414,10 @@ export const resolveDomainAgentTimeRange = (
 ): DomainAgentTimeRange => {
   const now = Number.isFinite(options.now) ? Number(options.now) : Date.now()
   const maxDuration = Math.max(1, options.maxDays ?? 90) * 24 * 60 * 60 * 1000
-  const presetValue = input.timeRange ?? input.preset ?? options.defaultPreset
+  const presetValue = input.timeRange ?? options.defaultPreset
   const preset = String(presetValue ?? '').trim()
-  const startValue = input.startTime ?? input.start
-  const endValue = input.endTime ?? input.end
+  const startValue = input.startTime
+  const endValue = input.endTime
   const startProvided = hasTimeValue(startValue)
   const endProvided = hasTimeValue(endValue)
   const customStart = parseTimestamp(startValue)
@@ -303,7 +427,7 @@ export const resolveDomainAgentTimeRange = (
   let end: number
   let label: string
 
-  if (startProvided || endProvided) {
+  if (preset === 'custom') {
     if (!startProvided || !endProvided) {
       throw createDomainAgentInputError(
         'TIME_RANGE_INCOMPLETE',
@@ -319,15 +443,15 @@ export const resolveDomainAgentTimeRange = (
     start = customStart
     end = customEnd
     label = 'custom'
-  } else if (preset === 'custom') {
-    throw createDomainAgentInputError(
-      'TIME_RANGE_INCOMPLETE',
-      'components.AiChat.domainAgent.errors.timeRangeIncomplete',
-    )
   } else if (!preset) {
     throw createDomainAgentInputError(
       'TIME_RANGE_REQUIRED',
       'components.AiChat.domainAgent.errors.timeRangeRequired',
+    )
+  } else if (startProvided || endProvided) {
+    throw createDomainAgentInputError(
+      'TIME_RANGE_CONFLICT',
+      'components.AiChat.domainAgent.errors.timeRangeConflict',
     )
   } else if (preset === 'today') {
     start = startOfToday(now)
@@ -423,9 +547,11 @@ export const resolveDomainAgentStringList = (
 
 export const createDomainAgentToolResult = <T>(
   input: Omit<DomainAgentToolResult<T>,
-    'success' | 'complete' | 'status' | 'truncated' | 'scope' | 'evidence' | 'outputBindings'> & {
+    'success' | 'complete' | 'status' | 'truncated' | 'scope' | 'evidence' | 'outputBindings' | 'total'> & {
     status?: DomainAgentStatus
     truncated?: boolean
+    /** Required whenever the compatibility `total` field is emitted. */
+    cardinality?: DomainAgentCardinality
     scopeName?: string
     evidenceCoverage?: string
     supportsAbsenceClaim?: boolean
@@ -434,7 +560,7 @@ export const createDomainAgentToolResult = <T>(
     /** Explicit scalar facts safe for canonical user-visible fallback. */
     claims?: AiClientToolClaim[]
     outputBindings?: AiClientToolOutputBinding[]
-  },
+  } & ({ total?: never; cardinality?: DomainAgentCardinality } | { total: number; cardinality: DomainAgentCardinality }),
 ): DomainAgentToolResult<T> => {
   const {
     scopeName,
@@ -445,12 +571,24 @@ export const createDomainAgentToolResult = <T>(
     facts,
     claims,
     outputBindings,
+    cardinality,
     ...result
   } = input
-  const resolvedStatus = status ?? (Array.isArray(input.data) && input.data.length === 0 ? 'empty' : 'ok')
-  const returnedCount = Array.isArray(input.data) ? input.data.length : undefined
+  const recordSet = cardinality?.kind === 'record-set' ? cardinality : undefined
+  const aggregate = cardinality?.kind === 'aggregate-series' ? cardinality : undefined
+  const preview = cardinality?.kind === 'preview' ? cardinality : undefined
+  const cardinalityEmpty = recordSet?.totalCount === 0
+    || aggregate?.measurementCount === 0
+    || (preview?.displayedCount === 0 && preview.totalCount === 0)
   const incompletePage = input.nextPage !== undefined
-    || (Number.isFinite(input.total) && returnedCount !== undefined && Number(input.total) > returnedCount)
+    || (recordSet !== undefined && recordSet.totalCount > recordSet.returnedCount)
+    || (preview?.totalCount !== undefined && preview.totalCount > preview.displayedCount)
+  const resolvedStatus = status ?? (cardinalityEmpty
+    || (!cardinality && Array.isArray(input.data) && input.data.length === 0)
+    ? 'empty'
+    : incompletePage
+      ? 'partial'
+      : 'ok')
   const complete = resolvedStatus !== 'partial' && !truncated && !incompletePage
   const base = {
     ...result,
@@ -472,14 +610,13 @@ export const createDomainAgentToolResult = <T>(
     } as DomainAgentToolResult<T>
   }
   return withAiClientToolEvidence(base, {
-    requestedRange: input.timeRange,
-    recordCount: Number.isFinite(input.total) ? Number(input.total) : returnedCount,
-    returnedCount,
+    requestedRange: input.timeRange ? { ...input.timeRange } : undefined,
+    cardinality,
     complete,
     truncated: !complete,
     resultStatus: resolvedStatus,
     evidenceCoverage: evidenceCoverage || 'filtered-query',
-    supportsAbsenceClaim: supportsAbsenceClaim === true,
+    supportsAbsenceClaim,
     facts,
     claims,
     warnings: input.warnings,

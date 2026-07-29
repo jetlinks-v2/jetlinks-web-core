@@ -99,6 +99,21 @@ export type GeneralAgentMarkdownBlockDisplayMode = 'preview' | 'source';
 
 export type GeneralAgentMarkdownBlockDeliveryPolicy = 'explicit' | 'preferred' | 'required';
 
+export type GeneralAgentPresentationNarrativeMode = 'card-first' | 'analysis' | 'free';
+
+/**
+ * Bounded prose guidance owned by a presentation renderer.
+ *
+ * The runtime may expose this policy to the model, but it must never treat the policy as authorization or a
+ * task-completion condition, and it must not rewrite model-authored text to enforce the limits.
+ */
+export interface GeneralAgentPresentationNarrativePolicy {
+  mode: GeneralAgentPresentationNarrativeMode;
+  allowedTextRoles: string[];
+  maxTextBlocks: number;
+  maxTextChars: number;
+}
+
 /**
  * Declares how a trusted conversation client can present one fenced block.
  *
@@ -118,6 +133,12 @@ export interface GeneralAgentMarkdownBlockPresentation {
   preferredInputShapes?: string[];
   /** Whether compatible result shapes are explicit-only, preferred, or required in the terminal response. */
   deliveryPolicy?: GeneralAgentMarkdownBlockDeliveryPolicy;
+  /** Low-cardinality interaction tokens already provided by the rendered card. */
+  affordances?: string[];
+  /** Low-cardinality content tokens whose details are already rendered by the card. */
+  contentResponsibilities?: string[];
+  /** Renderer-owned prose guidance. It never changes task completion or grants capabilities. */
+  narrativePolicy?: Partial<GeneralAgentPresentationNarrativePolicy>;
 }
 
 export interface GeneralAgentMarkdownPresentationCapability
@@ -127,6 +148,52 @@ export interface GeneralAgentMarkdownPresentationCapability
 
 const PRESENTATION_TYPE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 const PRESENTATION_INPUT_SHAPE_PATTERN = /^[a-z0-9][a-z0-9._-]{0,95}(?:\.\*)?$/;
+const PRESENTATION_CONTENT_HINT_PATTERN = /^[a-z0-9][a-z0-9._-]{0,63}$/;
+
+const normalizePresentationContentHints = (values?: string[]) => Array.from(new Set(
+  (values || [])
+    .map(value => normalizeText(value).toLowerCase())
+    .filter(value => PRESENTATION_CONTENT_HINT_PATTERN.test(value)),
+)).slice(0, 16);
+
+const DEFAULT_NARRATIVE_POLICIES: Record<GeneralAgentPresentationNarrativeMode, GeneralAgentPresentationNarrativePolicy> = {
+  'card-first': {
+    mode: 'card-first',
+    allowedTextRoles: ['summary', 'next_step'],
+    maxTextBlocks: 2,
+    maxTextChars: 300,
+  },
+  analysis: {
+    mode: 'analysis',
+    allowedTextRoles: ['summary', 'analysis', 'next_step'],
+    maxTextBlocks: 4,
+    maxTextChars: 1200,
+  },
+  free: {
+    mode: 'free',
+    allowedTextRoles: [],
+    maxTextBlocks: 8,
+    maxTextChars: 4000,
+  },
+};
+
+const normalizePresentationNarrativePolicy = (
+  policy: Partial<GeneralAgentPresentationNarrativePolicy> | undefined,
+  hasContentResponsibilities: boolean,
+): GeneralAgentPresentationNarrativePolicy => {
+  const declaredMode = normalizeText(policy?.mode).toLowerCase() as GeneralAgentPresentationNarrativeMode;
+  const mode: GeneralAgentPresentationNarrativeMode = ['card-first', 'analysis', 'free'].includes(declaredMode)
+    ? declaredMode
+    : (hasContentResponsibilities ? 'card-first' : 'free');
+  const defaults = DEFAULT_NARRATIVE_POLICIES[mode];
+  const allowedTextRoles = normalizePresentationContentHints(policy?.allowedTextRoles);
+  return {
+    mode,
+    allowedTextRoles: allowedTextRoles.length ? allowedTextRoles : defaults.allowedTextRoles,
+    maxTextBlocks: Math.max(1, Math.min(Number(policy?.maxTextBlocks) || defaults.maxTextBlocks, 8)),
+    maxTextChars: Math.max(80, Math.min(Number(policy?.maxTextChars) || defaults.maxTextChars, 4000)),
+  };
+};
 
 /**
  * Normalizes renderer metadata before it crosses the conversation boundary.
@@ -151,6 +218,12 @@ export const normalizeGeneralAgentMarkdownPresentationCapability = (
   const deliveryPolicy = ['preferred', 'required'].includes(capability.deliveryPolicy || '')
     ? capability.deliveryPolicy as GeneralAgentMarkdownBlockDeliveryPolicy
     : 'explicit';
+  const affordances = normalizePresentationContentHints(capability.affordances);
+  const contentResponsibilities = normalizePresentationContentHints(capability.contentResponsibilities);
+  const narrativePolicy = normalizePresentationNarrativePolicy(
+    capability.narrativePolicy,
+    contentResponsibilities.length > 0,
+  );
   return {
     type,
     contentType: contentType as GeneralAgentMarkdownBlockContentType,
@@ -161,6 +234,9 @@ export const normalizeGeneralAgentMarkdownPresentationCapability = (
     purpose: 'conversation-preview',
     ...(preferredInputShapes.length ? { preferredInputShapes } : {}),
     deliveryPolicy,
+    ...(affordances.length ? { affordances } : {}),
+    ...(contentResponsibilities.length ? { contentResponsibilities } : {}),
+    narrativePolicy,
   };
 };
 

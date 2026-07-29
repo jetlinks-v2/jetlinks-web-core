@@ -21,6 +21,9 @@ import {
 } from '../src/layout/components/AiChat/clientToolResultDelivery'
 import { createAiClientToolRecordFactCollector } from '../src/layout/components/AiChat/clientToolRecordFacts'
 import { withAiClientToolEvidence } from '../src/layout/components/AiChat/clientToolResult'
+import {
+  mergeAiClientToolParameterSchema,
+} from '../src/layout/components/AiChat/clientToolParameterSchema'
 
 const createSeriesContract = () => defineAiClientToolContract({
   routingKind: 'aggregate',
@@ -188,6 +191,50 @@ test('session serialization preserves explicit metadata and relocates required i
   assert.equal(definition.inputs[0].expands.source, 'page')
   assert.equal(definition.inputs[1].expands, undefined)
   assert.equal(definition.expands.custom, 'retained')
+})
+
+test('typed parameter schema is serialized through the canonical session expand', () => {
+  const parameterSchema = {
+    type: 'object' as const,
+    oneOf: [{
+      required: ['timeRange'],
+      properties: { timeRange: { enum: ['today', '24h', '7d', '30d'] } },
+    }, {
+      required: ['timeRange', 'startTime', 'endTime'],
+      properties: {
+        timeRange: { const: 'custom' },
+        startTime: { type: 'string' },
+        endTime: { type: 'string' },
+      },
+    }],
+  }
+  const expands = mergeAiClientToolParameterSchema('history_read', parameterSchema, {
+    custom: 'retained',
+  }) as any
+  assert.equal(expands._schema.type, 'object')
+  assert.equal(expands._schema.oneOf.length, 2)
+  assert.deepEqual(expands._schema.oneOf[0].properties.timeRange.enum, [
+    'today', '24h', '7d', '30d',
+  ])
+  assert.deepEqual(expands._schema.oneOf[1].required, [
+    'timeRange', 'startTime', 'endTime',
+  ])
+  assert.deepEqual(Object.keys(expands._schema.oneOf[1].properties), [
+    'timeRange', 'startTime', 'endTime',
+  ])
+  assert.equal(expands.custom, 'retained')
+  assert.deepEqual(mergeAiClientToolParameterSchema('empty'), {})
+  assert.deepEqual(mergeAiClientToolParameterSchema('explicit_only', undefined, {
+    custom: 'retained',
+  }), { custom: 'retained' })
+  assert.throws(
+    () => mergeAiClientToolParameterSchema(
+      'conflicting_schema',
+      { type: 'object' },
+      { _schema: { type: 'object' } },
+    ),
+    /declares parameterSchema and expands\._schema/,
+  )
 })
 
 test('routing diagnostics cover conflicting sources and incomplete data contracts', () => {

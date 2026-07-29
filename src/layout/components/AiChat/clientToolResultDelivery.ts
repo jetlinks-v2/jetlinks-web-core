@@ -4,8 +4,10 @@ import type {
   AiClientToolSessionFileApi,
 } from './clientTools'
 import {
+  normalizeAiClientToolCardinality,
   normalizeAiClientToolOutputBindings,
   withAiClientToolEvidence,
+  type AiClientToolCardinality,
   type AiClientToolArtifactReference,
   type AiClientToolClaim,
   type AiClientToolOutputBinding,
@@ -18,6 +20,7 @@ import {
 } from './clientToolRecordFacts'
 
 const RECORD_STREAM_KIND = 'ai-client-tool-record-stream/v1'
+const ARTIFACT_KIND = 'ai-client-tool-artifact/v1'
 const NDJSON_MIME_TYPE = 'application/x-ndjson'
 const DEFAULT_CHUNK_BYTES = 256 * 1024
 const DEFAULT_MAX_BYTES = 8 * 1024 * 1024
@@ -26,6 +29,7 @@ const DEFAULT_MAX_DURATION_MS = 25_000
 const DEFAULT_MAX_ROW_BYTES = 64 * 1024
 const DEFAULT_PREVIEW_LIMIT = 3
 const DEFAULT_FALLBACK_SAMPLE_LIMIT = 10
+const DEFAULT_MAX_INLINE_BYTES = 128 * 1024
 
 type JsonRecord = Record<string, unknown>
 type SessionFileDeliveryState = 'not-started' | 'unknown' | 'opened' | 'committed' | 'rolled-back'
@@ -99,6 +103,50 @@ export interface AiClientToolRecordDeliveryData<T> {
   limitReason?: AiClientToolRecordLimitReason
   fileUnavailable?: boolean
   fileErrorCode?: 'CLIENT_TOOL_FILE_UNAVAILABLE' | 'CLIENT_TOOL_FILE_WRITE_FAILED'
+}
+
+export interface AiClientToolArtifactOptions<TPreview = unknown> {
+  /** Complete renderer source. This value is never copied into the model-facing result. */
+  content: ArrayBuffer | Blob | string
+  mimeType: string
+  preview: TPreview
+  /** Producer-reviewed JSON source that may be exposed when session-file delivery is unavailable. */
+  modelSafeInline?: unknown
+  maxInlineBytes?: number
+  bindingName?: string
+  outputShape?: string
+  fileExtension?: string
+  maxBytes?: number
+  /** Semantic source cardinality; generic artifact sizes and producer `total` fields are never interpreted as rows. */
+  cardinality?: AiClientToolCardinality
+  /** Bounded model-only sample metadata; independent from user-visible source cardinality. */
+  modelSample?: { count: number; userVisible: false }
+  complete?: boolean
+  truncated?: boolean
+  requestedRange?: JsonRecord
+  observedRange?: JsonRecord
+  facts?: JsonRecord
+  /** Created once by the producer so one execution remains idempotent without coupling paths to call.id. */
+  executionId?: string
+}
+
+export interface AiClientToolArtifact<TPreview = unknown> extends AiClientToolArtifactOptions<TPreview> {
+  kind: typeof ARTIFACT_KIND
+  executionId: string
+}
+
+interface AiClientToolArtifactDeliveryData<TPreview> {
+  producedFile: boolean
+  delivery: 'session-file' | 'inline' | 'bounded-preview'
+  preview: TPreview
+  mimeType: string
+  size: number
+  source?: unknown
+  path?: string
+  fileRef?: string
+  fileUnavailable?: boolean
+  fileErrorCode?: 'CLIENT_TOOL_FILE_WRITE_FAILED'
+  limitReason?: 'bytes'
 }
 
 export interface DeliverAiClientToolResultOptions {
@@ -181,6 +229,28 @@ export const createAiClientToolResultPath = (
   timestamp = Date.now(),
 ) => `tool-results/${safeCallId(toolName || 'tool-result')}-${formatResultTime(timestamp)}.ndjson`
 
+const createExecutionId = () => {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+  } catch {
+    // Older embedded runtimes fall through to a bounded random identifier.
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`
+}
+
+const safeExtension = (value: unknown) => {
+  const extension = String(value || 'bin').trim().toLowerCase().replace(/[^a-z0-9]+/g, '')
+  return extension.slice(0, 16) || 'bin'
+}
+
+export const createAiClientToolArtifactPath = (
+  toolName: unknown,
+  executionId: unknown,
+  extension: unknown,
+) => `tool-artifacts/${safeCallId(toolName || 'tool-artifact')}-${safeCallId(executionId)}.${safeExtension(extension)}`
+
 const createAbortError = () => {
   const error = new Error('client tool record delivery aborted') as Error & { code?: string }
   error.name = 'AbortError'
@@ -261,6 +331,133 @@ export const createAiClientToolArrayRecordSource = <T>(
     }
   },
 })
+
+/** Creates a renderer-neutral source descriptor materialized by the client-tool runtime. */
+export const createAiClientToolArtifact = <TPreview>(
+  options: AiClientToolArtifactOptions<TPreview>,
+): AiClientToolArtifact<TPreview> => ({
+  kind: ARTIFACT_KIND,
+  ...options,
+  executionId: String(options.executionId || createExecutionId()),
+})
+
+const isArtifact = (value: unknown): value is AiClientToolArtifact<unknown> => (
+  isRecord(value)
+  && value.kind === ARTIFACT_KIND
+  && typeof value.mimeType === 'string'
+  && 'content' in value
+  && 'preview' in value
+)
+
+const resolveArtifact = (value: unknown) => {
+  if (isArtifact(value)) return { artifact: value, envelope: undefined }
+  if (isRecord(value) && isArtifact(value.data)) return { artifact: value.data, envelope: value }
+  return undefined
+}
+
+const artifactSize = (content: ArrayBuffer | Blob | string) => {
+  if (content instanceof Blob) return content.size
+  if (content instanceof ArrayBuffer) return content.byteLength
+  return new TextEncoder().encode(content).byteLength
+}
+
+const modelSafeInlineSource = (artifact: AiClientToolArtifact<unknown>) => {
+  if (artifact.modelSafeInline === undefined || artifact.modelSafeInline === null) return undefined
+  try {
+    const json = JSON.stringify(artifact.modelSafeInline)
+    if (json === undefined) return undefined
+    const maxBytes = clampInteger(
+      artifact.maxInlineBytes,
+      1024,
+      DEFAULT_MAX_INLINE_BYTES,
+      DEFAULT_MAX_INLINE_BYTES,
+    )
+    if (new TextEncoder().encode(json).byteLength > maxBytes) return undefined
+    return JSON.parse(json) as unknown
+  } catch {
+    return undefined
+  }
+}
+
+const artifactFallback = <TPreview>(
+  artifact: AiClientToolArtifact<TPreview>,
+  size: number,
+  failure: Pick<AiClientToolArtifactDeliveryData<TPreview>, 'fileUnavailable' | 'fileErrorCode' | 'limitReason'>,
+): AiClientToolArtifactDeliveryData<TPreview> => {
+  const source = modelSafeInlineSource(artifact)
+  if (source !== undefined) {
+    return {
+      producedFile: false,
+      delivery: 'inline',
+      preview: artifact.preview,
+      source,
+      mimeType: artifact.mimeType,
+      size,
+      ...failure,
+    }
+  }
+  return {
+    producedFile: false,
+    delivery: 'bounded-preview',
+    preview: artifact.preview,
+    mimeType: artifact.mimeType,
+    size,
+    ...failure,
+  }
+}
+
+const materializeArtifact = async <TPreview>(
+  artifact: AiClientToolArtifact<TPreview>,
+  options: DeliverAiClientToolResultOptions,
+): Promise<AiClientToolArtifactDeliveryData<TPreview>> => {
+  const mode = options.resultDelivery || 'auto'
+  const files = resolveSessionFiles(mode, options.call.sessionFiles)
+  const maxBytes = clampInteger(artifact.maxBytes, 1024, 10 * 1024 * 1024, DEFAULT_MAX_BYTES)
+  const size = artifactSize(artifact.content)
+  const path = createAiClientToolArtifactPath(
+    options.call.toolName,
+    artifact.executionId,
+    artifact.fileExtension,
+  )
+  if (options.call.signal?.aborted) throw createAbortError()
+  if (!files || size > maxBytes) {
+    return artifactFallback(artifact, size, {
+      fileUnavailable: !files,
+      limitReason: size > maxBytes ? 'bytes' : undefined,
+    })
+  }
+  let deliveryState: SessionFileDeliveryState = 'not-started'
+  try {
+    deliveryState = 'unknown'
+    const uploaded = await files.upload(path, artifact.content, {
+      maxBytes,
+      signal: options.call.signal,
+    })
+    deliveryState = 'opened'
+    if (options.call.signal?.aborted) throw createAbortError()
+    if (uploaded?.ok === false) throw new Error('session file upload was rejected')
+    const fileRef = uploaded?.uri || files.toUri(path)
+    deliveryState = 'committed'
+    return {
+      producedFile: true,
+      delivery: 'session-file' as const,
+      preview: artifact.preview,
+      mimeType: artifact.mimeType,
+      size: Number.isFinite(uploaded?.size) ? Number(uploaded.size) : size,
+      path,
+      fileRef,
+    }
+  } catch (error) {
+    deliveryState = await cleanupPartialFile(files, path, deliveryState)
+    if (options.call.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+      throw createAbortError()
+    }
+    return artifactFallback(artifact, size, {
+      fileUnavailable: true,
+      fileErrorCode: 'CLIENT_TOOL_FILE_WRITE_FAILED' as const,
+    })
+  }
+}
 
 const materializeRecordStream = async <T>(
   stream: AiClientToolRecordStream<T>,
@@ -584,7 +781,9 @@ const mergeDeliveryResult = <T>(
     evidenceCoverage: typeof declaredEvidence.evidenceCoverage === 'string'
       ? declaredEvidence.evidenceCoverage
       : undefined,
-    supportsAbsenceClaim: declaredEvidence.supportsAbsenceClaim === true,
+    supportsAbsenceClaim: typeof declaredEvidence.supportsAbsenceClaim === 'boolean'
+      ? declaredEvidence.supportsAbsenceClaim
+      : undefined,
     warnings: [
       ...(Array.isArray(declaredEvidence.warnings) ? declaredEvidence.warnings : []),
       ...(Array.isArray(envelope?.warnings) ? envelope.warnings : []),
@@ -619,6 +818,154 @@ const resolveRecordStreamBinding = <T>(
     name: declaredBindingName || expectedBindingName || 'records',
     shape: declaredOutputShape || expectedOutputShape || 'tabular.records',
   }
+}
+
+const resolveArtifactBinding = <TPreview>(
+  artifact: AiClientToolArtifact<TPreview>,
+  options: DeliverAiClientToolResultOptions,
+) => {
+  const declaredBindingName = String(artifact.bindingName || '').trim()
+  const expectedBindingName = String(options.bindingName || '').trim()
+  const declaredOutputShape = String(artifact.outputShape || '').trim()
+  const expectedOutputShape = String(options.outputShape || '').trim()
+  if (declaredBindingName && expectedBindingName && declaredBindingName !== expectedBindingName) {
+    throw Object.assign(new Error('artifact binding does not match tool routing'), {
+      code: 'CLIENT_TOOL_BINDING_MISMATCH',
+    })
+  }
+  if (declaredOutputShape && expectedOutputShape && declaredOutputShape !== expectedOutputShape) {
+    throw Object.assign(new Error('artifact output shape does not match tool routing'), {
+      code: 'CLIENT_TOOL_OUTPUT_SHAPE_MISMATCH',
+    })
+  }
+  return {
+    name: declaredBindingName || expectedBindingName || 'artifact',
+    shape: declaredOutputShape || expectedOutputShape || 'artifact',
+  }
+}
+
+const mergeArtifactResult = <TPreview>(
+  artifact: AiClientToolArtifact<TPreview>,
+  envelope: JsonRecord | undefined,
+  delivery: AiClientToolArtifactDeliveryData<TPreview>,
+  binding: { name: string; shape: string },
+) => {
+  const declaredEvidence = isRecord(envelope?.evidence) ? envelope.evidence : {}
+  const originalSummary = isRecord(envelope?.summary) ? envelope.summary : {}
+  const preview = isRecord(delivery.preview) ? delivery.preview : { preview: delivery.preview }
+  const cardinality = normalizeAiClientToolCardinality(artifact.cardinality)
+  const recordSet = cardinality?.kind === 'record-set' ? cardinality : undefined
+  const sourcePreview = cardinality?.kind === 'preview' ? cardinality : undefined
+  const aggregate = cardinality?.kind === 'aggregate-series' ? cardinality : undefined
+  const recordCount = recordSet?.recordCount
+  const totalCount = recordSet?.totalCount ?? sourcePreview?.totalCount
+  const sourceComplete = artifact.complete !== false && artifact.truncated !== true
+  const inlineSourceAvailable = delivery.delivery === 'inline' && delivery.source !== undefined
+  const sourceEmpty = recordSet?.totalCount === 0
+    || (sourcePreview?.displayedCount === 0 && sourcePreview.totalCount === 0)
+    || aggregate?.measurementCount === 0
+  const complete = sourceComplete && (delivery.producedFile || inlineSourceAvailable || sourceEmpty)
+  const truncated = !complete
+  const displayedCount = sourcePreview?.displayedCount
+  const returnedCount = recordSet?.returnedCount ?? displayedCount
+  const modelSample = artifact.modelSample ?? sourcePreview?.modelSample
+  const outputBindings: AiClientToolOutputBinding[] = delivery.producedFile && delivery.fileRef
+    ? [{
+        name: binding.name,
+        ref: delivery.fileRef,
+        ...(delivery.path ? { path: delivery.path } : {}),
+        shape: binding.shape,
+        mediaType: artifact.mimeType,
+        ...(recordCount === undefined ? {} : { recordCount }),
+        ...(totalCount === undefined ? {} : { totalCount }),
+        ...(displayedCount === undefined ? {} : { displayedCount }),
+        complete,
+        truncated,
+      }]
+    : inlineSourceAvailable
+      ? [{
+          name: binding.name,
+          path: '$.data.presentationSource',
+          shape: binding.shape,
+          mediaType: artifact.mimeType,
+          ...(recordCount === undefined ? {} : { recordCount }),
+          ...(totalCount === undefined ? {} : { totalCount }),
+          ...(displayedCount === undefined ? {} : { displayedCount }),
+          complete,
+          truncated,
+        }]
+      : []
+  const artifacts: AiClientToolArtifactReference[] = delivery.producedFile && delivery.fileRef
+    ? [{
+        uri: delivery.fileRef,
+        ...(delivery.path ? {
+          path: delivery.path,
+          fileName: delivery.path.split('/').filter(Boolean).pop(),
+        } : {}),
+        mimeType: artifact.mimeType,
+        size: delivery.size,
+      }]
+    : []
+  const warnings = [
+    ...(Array.isArray(declaredEvidence.warnings) ? declaredEvidence.warnings : []),
+    ...(Array.isArray(envelope?.warnings) ? envelope.warnings : []),
+    ...(delivery.fileUnavailable ? ['CLIENT_TOOL_FILE_UNAVAILABLE'] : []),
+    ...(delivery.fileErrorCode ? [delivery.fileErrorCode] : []),
+    ...(delivery.limitReason ? [`CLIENT_TOOL_ARTIFACT_LIMIT_${delivery.limitReason.toUpperCase()}`] : []),
+  ].map(value => String(value))
+  const status = sourceEmpty ? 'empty' : (complete ? String(envelope?.status || 'ok') : 'partial')
+  const result = {
+    ...(envelope || {}),
+    status,
+    complete,
+    truncated,
+    summary: {
+      ...originalSummary,
+      ...(recordCount === undefined ? {} : { count: recordCount }),
+      ...(totalCount === undefined ? {} : { totalCount }),
+      ...(displayedCount === undefined ? {} : { displayedCount }),
+      delivery: delivery.delivery,
+      complete,
+    },
+    data: {
+      ...preview,
+      ...(inlineSourceAvailable ? { presentationSource: delivery.source } : {}),
+      ...(delivery.fileRef ? { fileRef: delivery.fileRef, contentRef: delivery.fileRef } : {}),
+    },
+    ...(totalCount === undefined ? {} : { total: totalCount }),
+    producedFile: delivery.producedFile,
+    ...(delivery.path ? { path: delivery.path } : {}),
+    ...(delivery.fileRef ? { fileRef: delivery.fileRef, contentRef: delivery.fileRef } : {}),
+    mimeType: artifact.mimeType,
+    size: delivery.size,
+  }
+  return withAiClientToolEvidence(result, {
+    requestedRange: artifact.requestedRange || (isRecord(declaredEvidence.requestedRange)
+      ? declaredEvidence.requestedRange
+      : undefined),
+    observedRange: artifact.observedRange || (isRecord(declaredEvidence.observedRange)
+      ? declaredEvidence.observedRange
+      : undefined),
+    recordCount,
+    returnedCount,
+    totalCount,
+    displayedCount,
+    cardinality,
+    modelSample,
+    complete,
+    truncated,
+    limitReason: delivery.limitReason,
+    resultStatus: status,
+    facts: {
+      ...(isRecord(declaredEvidence.facts) ? declaredEvidence.facts : {}),
+      ...(artifact.facts || {}),
+      ...(totalCount === undefined ? {} : { totalCount }),
+      ...(displayedCount === undefined ? {} : { displayedCount }),
+    },
+    warnings,
+    artifacts,
+    outputBindings,
+  })
 }
 
 const isFailureResult = (value: JsonRecord) => (
@@ -683,10 +1030,19 @@ export const deliverAiClientToolResult = async (
   result: unknown,
   options: DeliverAiClientToolResultOptions,
 ) => {
-  const resolved = resolveRecordStream(result)
-  if (!resolved) return attachInlineOutputBindings(result, options.outputBindings)
-  const stream = resolved.stream as AiClientToolRecordStream<unknown>
-  const binding = resolveRecordStreamBinding(stream, options)
-  const data = await materializeRecordStream(stream, options)
-  return mergeDeliveryResult(stream, resolved.envelope, data, binding)
+  const recordStream = resolveRecordStream(result)
+  if (recordStream) {
+    const stream = recordStream.stream as AiClientToolRecordStream<unknown>
+    const binding = resolveRecordStreamBinding(stream, options)
+    const data = await materializeRecordStream(stream, options)
+    return mergeDeliveryResult(stream, recordStream.envelope, data, binding)
+  }
+  const artifactResult = resolveArtifact(result)
+  if (artifactResult) {
+    const artifact = artifactResult.artifact as AiClientToolArtifact<unknown>
+    const binding = resolveArtifactBinding(artifact, options)
+    const delivery = await materializeArtifact(artifact, options)
+    return mergeArtifactResult(artifact, artifactResult.envelope, delivery, binding)
+  }
+  return attachInlineOutputBindings(result, options.outputBindings)
 }

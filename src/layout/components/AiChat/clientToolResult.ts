@@ -50,6 +50,8 @@ export interface AiClientToolOutputBinding {
   shape: string
   mediaType?: string
   recordCount?: number
+  totalCount?: number
+  displayedCount?: number
   complete: boolean
   truncated?: boolean
   fields?: AiClientToolOutputField[]
@@ -75,12 +77,38 @@ export interface AiClientToolClaim {
   visibility: 'user'
 }
 
+export type AiClientToolCardinality =
+  | {
+      kind: 'record-set'
+      recordCount: number
+      returnedCount: number
+      totalCount: number
+    }
+  | {
+      kind: 'aggregate-series'
+      bucketCount: number
+      populatedBucketCount: number
+      measurementCount: number
+    }
+  | {
+      kind: 'preview'
+      displayedCount: number
+      totalCount?: number
+      modelSample?: { count: number; userVisible: false }
+    }
+
 export interface AiClientToolEvidence {
   contract: typeof AI_CLIENT_TOOL_EVIDENCE_CONTRACT
   requestedRange?: Record<string, unknown>
   observedRange?: Record<string, unknown>
   recordCount?: number
   returnedCount?: number
+  totalCount?: number
+  displayedCount?: number
+  /** Closed cardinality semantics prevent generated buckets and previews from becoming business record counts. */
+  cardinality?: AiClientToolCardinality
+  /** Bounded model-only sample metadata; never a user-visible count claim. */
+  modelSample?: { count: number; userVisible: false }
   complete: boolean
   truncated: boolean
   limitReason?: string
@@ -247,6 +275,8 @@ export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBi
       shape,
       ...(value.mediaType ? { mediaType: String(value.mediaType).trim().slice(0, 160) } : {}),
       ...(Number.isFinite(value.recordCount) ? { recordCount: Number(value.recordCount) } : {}),
+      ...(Number.isFinite(value.totalCount) ? { totalCount: Number(value.totalCount) } : {}),
+      ...(Number.isFinite(value.displayedCount) ? { displayedCount: Number(value.displayedCount) } : {}),
       complete: value.complete === true,
       ...(value.truncated !== undefined ? { truncated: value.truncated === true } : {}),
       ...(fields.length ? { fields } : {}),
@@ -277,6 +307,63 @@ const boundedClaims = (values: AiClientToolClaim[] | undefined) => {
   }).slice(0, 32)
 }
 
+const nonNegativeCount = (value: unknown) => (
+  Number.isFinite(value) ? Math.max(0, Math.trunc(Number(value))) : 0
+)
+
+/** Normalizes the additive v1 cardinality contract without inferring semantics from generic `total` fields. */
+export function normalizeAiClientToolCardinality(value: undefined): undefined
+export function normalizeAiClientToolCardinality(
+  value: Extract<AiClientToolCardinality, { kind: 'record-set' }>,
+): Extract<AiClientToolCardinality, { kind: 'record-set' }>
+export function normalizeAiClientToolCardinality(
+  value: Extract<AiClientToolCardinality, { kind: 'aggregate-series' }>,
+): Extract<AiClientToolCardinality, { kind: 'aggregate-series' }>
+export function normalizeAiClientToolCardinality(
+  value: Extract<AiClientToolCardinality, { kind: 'preview' }>,
+): Extract<AiClientToolCardinality, { kind: 'preview' }>
+export function normalizeAiClientToolCardinality(
+  value: AiClientToolCardinality | undefined,
+): AiClientToolCardinality | undefined
+export function normalizeAiClientToolCardinality(
+  value: AiClientToolCardinality | undefined,
+): AiClientToolCardinality | undefined {
+  if (!value) return undefined
+  if (value.kind === 'record-set') {
+    const returnedCount = nonNegativeCount(value.returnedCount)
+    const totalCount = Math.max(
+      returnedCount,
+      nonNegativeCount(value.recordCount),
+      nonNegativeCount(value.totalCount),
+    )
+    return {
+      kind: value.kind,
+      recordCount: totalCount,
+      returnedCount,
+      totalCount,
+    }
+  }
+  if (value.kind === 'aggregate-series') {
+    return {
+      kind: value.kind,
+      bucketCount: nonNegativeCount(value.bucketCount),
+      populatedBucketCount: nonNegativeCount(value.populatedBucketCount),
+      measurementCount: nonNegativeCount(value.measurementCount),
+    }
+  }
+  const displayedCount = nonNegativeCount(value.displayedCount)
+  return {
+    kind: value.kind,
+    displayedCount,
+    ...(Number.isFinite(value.totalCount)
+      ? { totalCount: Math.max(displayedCount, nonNegativeCount(value.totalCount)) }
+      : {}),
+    ...(Number.isFinite(value.modelSample?.count) ? {
+      modelSample: { count: nonNegativeCount(value.modelSample?.count), userVisible: false },
+    } : {}),
+  }
+}
+
 /** Adds the canonical evidence envelope without replacing the owning tool's business result shape. */
 export const withAiClientToolEvidence = <T extends Record<string, unknown>>(
   result: T,
@@ -287,18 +374,38 @@ export const withAiClientToolEvidence = <T extends Record<string, unknown>>(
   const requestedRange = boundedStructuredRecord(options.requestedRange)
   const observedRange = boundedStructuredRecord(options.observedRange)
   const facts = boundedStructuredRecord(options.facts)
+  const cardinality = normalizeAiClientToolCardinality(options.cardinality)
+  const recordSet = cardinality?.kind === 'record-set' ? cardinality : undefined
+  const preview = cardinality?.kind === 'preview' ? cardinality : undefined
+  const recordCount = Number.isFinite(options.recordCount) ? Number(options.recordCount) : recordSet?.recordCount
+  const returnedCount = Number.isFinite(options.returnedCount) ? Number(options.returnedCount) : recordSet?.returnedCount
+  const totalCount = Number.isFinite(options.totalCount)
+    ? Number(options.totalCount)
+    : (recordSet?.totalCount ?? preview?.totalCount)
+  const displayedCount = Number.isFinite(options.displayedCount)
+    ? Number(options.displayedCount)
+    : preview?.displayedCount
+  const modelSample = options.modelSample ?? preview?.modelSample
   const evidence: AiClientToolEvidence = {
     contract: AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
     complete: options.complete,
     truncated: options.truncated,
     ...(requestedRange ? { requestedRange } : {}),
     ...(observedRange ? { observedRange } : {}),
-    ...(Number.isFinite(options.recordCount) ? { recordCount: Number(options.recordCount) } : {}),
-    ...(Number.isFinite(options.returnedCount) ? { returnedCount: Number(options.returnedCount) } : {}),
+    ...(Number.isFinite(recordCount) ? { recordCount: Number(recordCount) } : {}),
+    ...(Number.isFinite(returnedCount) ? { returnedCount: Number(returnedCount) } : {}),
+    ...(Number.isFinite(totalCount) ? { totalCount: Number(totalCount) } : {}),
+    ...(Number.isFinite(displayedCount) ? { displayedCount: Number(displayedCount) } : {}),
+    ...(cardinality ? { cardinality } : {}),
+    ...(Number.isFinite(modelSample?.count) ? {
+      modelSample: { count: Number(modelSample?.count), userVisible: false },
+    } : {}),
     ...(options.limitReason ? { limitReason: options.limitReason } : {}),
     ...(options.resultStatus ? { resultStatus: options.resultStatus } : {}),
     ...(options.evidenceCoverage ? { evidenceCoverage: options.evidenceCoverage } : {}),
-    ...(options.supportsAbsenceClaim === true ? { supportsAbsenceClaim: true } : {}),
+    ...(options.supportsAbsenceClaim !== undefined
+      ? { supportsAbsenceClaim: options.supportsAbsenceClaim === true }
+      : {}),
     ...(facts && Object.keys(facts).length ? { facts } : {}),
     ...(claims.length ? { claims } : {}),
     ...(options.warnings?.length ? { warnings: boundedStrings(options.warnings, 8) } : {}),
