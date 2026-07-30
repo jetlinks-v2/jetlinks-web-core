@@ -9,6 +9,7 @@ export {
 } from './project-path'
 
 export type ProjectRuntimeScope = 'auto' | 'tenant' | 'project'
+export type RuntimeScope = ProjectRuntimeScope
 
 export interface ProjectRuntimeConfig {
   scope: ProjectRuntimeScope
@@ -30,8 +31,9 @@ const normalizeProjectCode = (value: unknown) => {
 }
 
 const normalizeBasePath = (value: unknown) => {
-  const path = `/${String(value || '/').replace(/^\/+|\/+$/g, '')}`.replace(/\/+/g, '/')
-  return path === '/' ? path : `${path}/`
+  const basePath = typeof value === 'string' ? value.trim() : ''
+  if (!basePath || basePath === './') return '/'
+  return `/${basePath.replace(/^\/+|\/+$/g, '')}/`.replace(/\/+/g, '/')
 }
 
 export const getProjectRuntimeConfig = (): ProjectRuntimeConfig => {
@@ -65,7 +67,7 @@ const normalizeHashPath = (path = '') => {
 export const isProjectRuntime = () => {
   const runtimeConfig = getProjectRuntimeConfig()
   return runtimeConfig.fixedProject
-    || (!isFromCloud() && !!runtimeConfig.projectCode)
+    || (runtimeConfig.scope === 'auto' && !isFromCloud() && !!runtimeConfig.projectCode)
 }
 
 export const normalizeProjectRuntimePath = (path = '') => {
@@ -81,13 +83,14 @@ export const normalizeProjectRuntimePath = (path = '') => {
 
 export const createProjectRuntimeHref = (projectCode: string, path = '/') => {
   const runtimeConfig = getProjectRuntimeConfig()
-  const normalizedProjectCode = normalizeProjectCode(projectCode)
   const hashPath = normalizeProjectRuntimePath(path)
 
   // A fixed-project build owns its deployment base; the project code is context, not a URL prefix.
   if (runtimeConfig.fixedProject) {
     return `${runtimeConfig.basePath}#${hashPath}`
   }
+
+  const normalizedProjectCode = normalizeProjectCode(projectCode)
 
   if (!normalizedProjectCode) {
     return `/#${hashPath}`

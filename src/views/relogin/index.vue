@@ -28,7 +28,7 @@
         </div>
         <div class="right">
           <Right
-            :logo="systemInfo?.front?.logo"
+            :logo="layout?.logo"
             :title="layout?.title"
             :bindings="[]"
             v-model:loading="loading"

@@ -24,6 +24,11 @@ const isProjectStorageInfo = (value: unknown): value is ProjectStorageInfo => {
 }
 
 export const getProjectStorage = (projectCode?: string): ProjectStorageInfo | undefined => {
+  // Standalone builds must not observe stale SaaS project sessions left on the same origin.
+  if (!isProjectStorageEnabled()) {
+    return undefined
+  }
+
   const code = normalizeProjectCode(projectCode)
   if (!code || typeof localStorage === 'undefined') {
     return undefined
@@ -43,6 +48,10 @@ export const getProjectStorage = (projectCode?: string): ProjectStorageInfo | un
 }
 
 export const setProjectStorage = (projectCode: string, value: ProjectStorageInfo) => {
+  if (!isProjectStorageEnabled()) {
+    return
+  }
+
   const code = normalizeProjectCode(projectCode)
 
   if (!code || typeof localStorage === 'undefined') {

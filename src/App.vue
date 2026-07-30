@@ -21,7 +21,7 @@ import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
 import {initPackages} from "@jetlinks-web-core/package";
 import { setToken} from "@jetlinks-web/utils";
-import { getBaseApi, getPackageConfig, initPersonal } from '@jetlinks-web-core/utils'
+import { getBaseApi, getPackageConfig, initPersonal, resolvePublicAssetUrl } from '@jetlinks-web-core/utils'
 import { componentsRegistry } from './utils/components-registry'
 import {
   applyThemeStyle,
@@ -42,7 +42,7 @@ type AppPackageConfig = {
   }
 }
 
-const DEFAULT_ICON_SCRIPT_URL = '/icons/iconfont.js'
+const DEFAULT_ICON_SCRIPT_URL = resolvePublicAssetUrl('icons/iconfont.js')
 const packageConfig = getPackageConfig() as AppPackageConfig | undefined
 
 const routeSkeletonVariant = computed<RouteSkeletonVariant>(() => (

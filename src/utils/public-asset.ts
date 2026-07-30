@@ -1,58 +1,61 @@
-const ABSOLUTE_ASSET_PATTERN = /^(?:(?:https?:)?\/\/|data:|blob:)/i
+const EXTERNAL_URL_PATTERN = /^(?:https?:)?\/\//i
+const INLINE_URL_PATTERN = /^(?:data|blob):/i
+const ROUTE_OR_API_PATTERN = /^(?:\/?#\/|\/?api(?:\/|$))/i
 
-const normalizeBasePath = (value: unknown) => {
-  const path = `/${String(value || '/').replace(/^\/+|\/+$/g, '')}`.replace(/\/+/g, '/')
-  return path === '/' ? path : `${path}/`
+const normalizeBasePath = () => {
+  const value = String(import.meta.env.BASE_URL || '/').trim()
+  if (!value || value === './') return '/'
+  return `/${value.replace(/^\/+|\/+$/g, '')}/`.replace(/\/+/g, '/')
 }
 
 const splitPathSuffix = (value: string) => {
-  const queryIndex = value.indexOf('?')
-  const hashIndex = value.indexOf('#')
-  const indexes = [queryIndex, hashIndex].filter(index => index >= 0)
-  const suffixIndex = indexes.length ? Math.min(...indexes) : value.length
-  return [value.slice(0, suffixIndex), value.slice(suffixIndex)] as const
+  const suffixIndex = value.search(/[?#]/)
+  return suffixIndex === -1
+    ? [value, ''] as const
+    : [value.slice(0, suffixIndex), value.slice(suffixIndex)] as const
 }
+
+const normalizeLogicalPath = (value: string) => value
+  .replace(/\\/g, '/')
+  .replace(/^(?:\.\/)+/, '')
+  .replace(/^\/+/, '')
+  .replace(/\/+/g, '/')
 
 const containsPathTraversal = (value: string) => {
   try {
     return decodeURIComponent(value)
       .replace(/\\/g, '/')
       .split('/')
-      .some(segment => segment === '..')
+      .includes('..')
   } catch {
     return true
   }
 }
 
-/** Resolves public-directory assets against the active Vite base without rewriting remote URLs. */
-export const resolvePublicAssetUrl = (value?: string | null) => {
+/**
+ * Resolve a logical file from Vite's public directory without changing stored configuration values.
+ */
+export const resolvePublicAssetUrl = (value?: string | null): string => {
   const source = typeof value === 'string' ? value.trim() : ''
-  if (!source || ABSOLUTE_ASSET_PATTERN.test(source)) {
+  if (!source) return ''
+  if (EXTERNAL_URL_PATTERN.test(source) || INLINE_URL_PATTERN.test(source)) return source
+  if (ROUTE_OR_API_PATTERN.test(source)) return source
+
+  const [pathname, suffix] = splitPathSuffix(source)
+  if (!pathname || containsPathTraversal(pathname)) return ''
+
+  const logicalPath = normalizeLogicalPath(pathname)
+  if (!logicalPath || (!logicalPath.includes('/') && !/\.[A-Za-z0-9]+$/.test(logicalPath))) {
     return source
   }
-  if (source.startsWith('#') || source.startsWith('/#')) {
-    return source
-  }
 
-  const [rawPath, suffix] = splitPathSuffix(source)
-  if (!rawPath || containsPathTraversal(rawPath)) {
-    return ''
-  }
-
-  const assetPath = rawPath
-    .replace(/\\/g, '/')
-    .replace(/^(?:\.\/)+/, '')
-    .replace(/^\/+/, '')
-    .replace(/\/+/g, '/')
-  if (!assetPath) {
-    return ''
-  }
-
-  const basePath = normalizeBasePath(import.meta.env.BASE_URL)
+  const basePath = normalizeBasePath()
   const baseSegment = basePath.replace(/^\/+|\/+$/g, '')
-  if (baseSegment && (assetPath === baseSegment || assetPath.startsWith(`${baseSegment}/`))) {
-    return `/${assetPath}${suffix}`
-  }
+  const pathWithoutBase = baseSegment && (
+    logicalPath === baseSegment || logicalPath.startsWith(`${baseSegment}/`)
+  )
+    ? logicalPath.slice(baseSegment.length).replace(/^\/+/, '')
+    : logicalPath
 
-  return `${basePath}${assetPath}${suffix}`
+  return `${basePath}${pathWithoutBase}${suffix}`
 }

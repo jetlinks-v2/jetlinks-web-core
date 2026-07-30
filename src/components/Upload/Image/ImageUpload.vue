@@ -19,7 +19,7 @@
         <div class="upload-image-content" :style="style">
           <slot name="content" :imageUrl="imageUrl" :loading="loading">
             <template v-if="imageUrl">
-              <img :src="imageUrl" width="100%" class="upload-image" draggable="false" @dragstart.prevent />
+              <img :src="displayImageUrl" width="100%" class="upload-image" draggable="false" @dragstart.prevent />
               <div class="upload-image-mask">{{ $t('Image.ImageUpload.825077-0') }}</div>
             </template>
             <AIcon
@@ -57,6 +57,7 @@ import CropperModal from "./CropperModal";
 import { useI18n } from "vue-i18n";
 import i18n from "@jetlinks-web-core/locales";
 import { uploadByRequest } from '../utils'
+import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
 
 const { t: $t } = useI18n();
 const props = defineProps({
@@ -118,6 +119,7 @@ const cropper = reactive({
 })
 const loading = ref(false) // 上传图片状态
 const imageUrl = ref<string | undefined >('')
+const displayImageUrl = computed(() => resolvePublicAssetUrl(imageUrl.value))
 
 const mergedCropperProps = computed(() => ({
   zIndex: 200000,
