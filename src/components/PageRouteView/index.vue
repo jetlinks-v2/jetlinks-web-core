@@ -1,5 +1,12 @@
 <template>
-  <RouterView v-slot="{ Component }">
+  <component
+    :is="routeLoading.loadingComponent"
+    v-if="showRouteLoading && routeLoading.visible && routeLoading.loadingComponent"
+  />
+  <RouterView
+    v-else
+    v-slot="{ Component }"
+  >
     <PageRouteSkeleton
       v-if="showRouteLoading && routeLoading.visible && !Component"
       :variant="skeletonVariant"
@@ -10,7 +17,14 @@
         v-if="Component"
       />
       <template #fallback>
-        <PageRouteSkeleton :variant="skeletonVariant" />
+        <component
+          :is="activeRouteLoadingComponent"
+          v-if="activeRouteLoadingComponent"
+        />
+        <PageRouteSkeleton
+          v-else
+          :variant="skeletonVariant"
+        />
       </template>
     </Suspense>
   </RouterView>
@@ -31,4 +45,10 @@ withDefaults(defineProps<{
 })
 
 const routeLoading = useRouteLoadingStore()
+const route = useRoute()
+
+// afterEach 会先结束导航 pending，当前路由 meta 继续为异步后代保留同一个 fallback。
+const activeRouteLoadingComponent = computed(() => (
+  routeLoading.loadingComponent || route.meta.routeLoadingComponent
+))
 </script>
