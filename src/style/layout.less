@@ -167,11 +167,11 @@
   &.jet-layout-menu-compact-search {
     .ant-layout-sider {
       background: var(--layout-menu-bg, var(--jet-theme-bg-container));
-      box-shadow: 1px 0 0 0 var(--jet-theme-border-secondary) !important;
+      box-shadow: 1px 0 0 0 var(--chrome-line, var(--jet-theme-border-secondary)) !important;
     }
 
     .ant-pro-sider-extra {
-      padding: 0.75rem 0.625rem 0.5rem;
+      padding: var(--layout-menu-padding-y, 0.625rem) var(--layout-menu-padding-x, 1rem) 0;
       margin-bottom: 0;
     }
 
@@ -183,6 +183,12 @@
       border-color: var(--layout-menu-search-border, var(--jet-theme-border-secondary));
       border-radius: 0.3125rem;
       box-shadow: none;
+
+      &:focus-within,
+      &.ant-input-affix-wrapper-focused {
+        border-color: var(--layout-menu-item-active-color, var(--primary-color));
+        box-shadow: var(--chrome-focus-ring, var(--ring-focus));
+      }
 
       .ant-input {
         height: 1.75rem;
@@ -213,7 +219,7 @@
       padding: var(--layout-menu-padding, 0.5rem 0.625rem);
       border-inline-end: 0;
       background: transparent;
-      font-size: var(--fs-13);
+      font-size: var(--layout-menu-item-font-size, var(--fs-14));
     }
 
     .ant-menu {
@@ -229,9 +235,12 @@
       .ant-menu-submenu-title {
         width: 100%;
         height: var(--layout-menu-item-height, 2rem);
-        margin: 0.125rem 0;
+        margin: calc(var(--layout-menu-item-gap, 0.25rem) / 2) 0;
+        border: 1px solid transparent;
         border-radius: var(--layout-menu-item-radius, var(--r-2));
-        line-height: var(--layout-menu-item-height, 2rem);
+        color: var(--layout-menu-item-color, var(--jet-theme-text));
+        font-size: var(--layout-menu-item-font-size, var(--fs-14));
+        line-height: var(--layout-menu-item-line-height, 1.25rem);
 
         span,
         .anticon {
@@ -240,7 +249,21 @@
 
         &:hover {
           background: var(--layout-menu-item-hover-bg, var(--jet-theme-border-secondary));
-          color: var(--jet-theme-text);
+          color: var(--layout-menu-item-color, var(--jet-theme-text));
+        }
+
+        &:focus-visible {
+          box-shadow: var(--chrome-focus-ring, var(--ring-focus));
+          outline: 0;
+        }
+
+        &.ant-menu-item-disabled,
+        &.ant-menu-submenu-disabled {
+          color: var(--layout-menu-item-disabled-color, var(--jet-theme-text-disabled));
+        }
+
+        .anticon {
+          font-size: var(--layout-menu-item-icon-size, 1rem);
         }
       }
 
@@ -261,17 +284,19 @@
       .ant-menu-item-selected {
         position: relative;
         background: var(--layout-menu-item-active-bg, var(--jet-theme-border-secondary)) !important;
+        border-color: var(--layout-menu-item-active-border, transparent);
         color: var(--layout-menu-item-active-color, var(--jet-theme-text)) !important;
-          overflow: unset;
+        font-weight: var(--layout-menu-item-active-font-weight, 500);
+        overflow: visible;
 
         &::before {
           content: '';
           position: absolute;
-          top: 0.375rem;
-          bottom: 0.375rem;
-          left: -10px;
-          width: 0.175rem;
-          border-radius: 0.125rem;
+          top: var(--layout-menu-item-padding-y, 0.5rem);
+          bottom: var(--layout-menu-item-padding-y, 0.5rem);
+          left: calc(var(--layout-menu-padding-x, 1rem) * -1);
+          width: var(--layout-menu-item-active-line-width, 2px);
+          border-radius: 0 var(--layout-menu-item-active-line-width, 2px) var(--layout-menu-item-active-line-width, 2px) 0;
           background: var(--layout-menu-item-active-line, var(--jet-theme-primary));
         }
       }
@@ -288,5 +313,5 @@
 }
 
 .ant-notification {
-  z-index: 1073;
+  z-index: var(--z-toast, 1200);
 }
