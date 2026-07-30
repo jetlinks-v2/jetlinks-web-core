@@ -1,10 +1,13 @@
 import { defineStore } from 'pinia'
+import type { Component } from 'vue'
+import type { RouteMeta } from 'vue-router'
 
 const SHOW_DELAY = 120
 
 export const useRouteLoadingStore = defineStore('route-loading', () => {
   const pending = ref(false)
   const visible = ref(false)
+  const loadingComponent = shallowRef<Component>()
   let timer: ReturnType<typeof setTimeout> | undefined
 
   const clearTimer = () => {
@@ -14,9 +17,18 @@ export const useRouteLoadingStore = defineStore('route-loading', () => {
     }
   }
 
-  const start = () => {
+  const start = (meta?: RouteMeta) => {
     pending.value = true
+    visible.value = false
+    loadingComponent.value = meta?.routeLoadingComponent
     clearTimer()
+
+    // 导航确认前 currentRoute 尚未切换，必须从目标 meta 提前取得路由专属 loading。
+    if (loadingComponent.value) {
+      visible.value = true
+      return
+    }
+
     timer = setTimeout(() => {
       if (pending.value) {
         visible.value = true
@@ -28,6 +40,7 @@ export const useRouteLoadingStore = defineStore('route-loading', () => {
     pending.value = false
     clearTimer()
     visible.value = false
+    loadingComponent.value = undefined
   }
 
   const reset = () => {
@@ -37,6 +50,7 @@ export const useRouteLoadingStore = defineStore('route-loading', () => {
   return {
     pending,
     visible,
+    loadingComponent,
     start,
     finish,
     reset

@@ -176,7 +176,7 @@ const getRoutesByServer = async (
 // ============ 全局守卫 ============
 router.beforeEach((to, from, next) => {
   const routeLoading = useRouteLoadingStore()
-  routeLoading.start()
+  routeLoading.start(to.meta)
 
   if (redirectLegacyProjectHash()) {
     routeLoading.finish()

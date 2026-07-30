@@ -1,3 +1,4 @@
+import type { Component } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import type { ModuleRouteOverride } from '@jetlinks-web-core/types/module'
 
@@ -27,6 +28,8 @@ declare module 'vue-router' {
     title?: string
     /** Whether hidden in menu */
     hideInMenu?: boolean
+    /** Custom loading component shown from navigation start through async route resolution */
+    routeLoadingComponent?: Component
     /** Dynamic hide condition for menu-related filtering. Return true to hide. */
     handleHideInMenuFn?: RouteHideInMenuHandler
   }
