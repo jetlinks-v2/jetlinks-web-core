@@ -7,6 +7,7 @@
  */
 import { createNdJson, request } from '@jetlinks-web/core'
 import i18n from '@jetlinks-web-core/locales'
+import { langKey } from '@jetlinks-web-core/utils/consts'
 import type { TagChipItem } from './sidebar'
 import type {
   CapabilityVersionOption,
@@ -17,6 +18,7 @@ import type {
 } from './types'
 
 const marketplaceNdJson = createNdJson({
+  langKey,
   requestOptions(config) {
     return {
       headers: {
