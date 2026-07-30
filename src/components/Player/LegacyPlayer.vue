@@ -213,6 +213,7 @@ const createXgPlayer = (host: HTMLElement) => {
     height: '100%',
     hasStart: false,
     playbackRate: false,
+    cssFullscreen: false,
     lang: props.lang || 'zh-cn',
     muted: muted.value,
     autoplay: props.autoplay ?? true,
