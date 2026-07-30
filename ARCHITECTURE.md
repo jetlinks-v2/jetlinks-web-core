@@ -72,6 +72,7 @@ Route responsibilities:
 - Hidden/detail pages should be exposed through module `getExtraRoutesMap()`.
 - Menu routes are fetched and installed during router startup through `bootstrapSession()` and `ensureMenuRoutes()`.
 - Route security is expressed with `RouteSecurityLevel.PUBLIC`, `RouteSecurityLevel.AUTHENTICATED`, and `RouteSecurityLevel.AUTHORIZED`.
+- Routes may provide `routeLoadingComponent` for a custom navigation loading state. `routeLoadingOverlay` keeps the target route mounted behind that state, and `routeLoadingManualFinish` keeps it visible after `afterEach` until the owning page calls `useRouteLoadingStore().finish()`; both options are opt-in and leave ordinary route skeleton behavior unchanged.
 
 Use `jetlinks-web-core/src/router/MODULE_OVERRIDE_GUIDE.md` for the current route override contract.
 

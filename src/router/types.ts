@@ -30,6 +30,10 @@ declare module 'vue-router' {
     hideInMenu?: boolean
     /** Custom loading component shown from navigation start through async route resolution */
     routeLoadingComponent?: Component
+    /** Keep route content mounted behind the custom loading component */
+    routeLoadingOverlay?: boolean
+    /** Keep the custom loading visible after navigation until the page explicitly finishes it */
+    routeLoadingManualFinish?: boolean
     /** Dynamic hide condition for menu-related filtering. Return true to hide. */
     handleHideInMenuFn?: RouteHideInMenuHandler
   }
