@@ -15,7 +15,7 @@
   --color-jet-bg-base: var(--jet-theme-bg-base);
   --color-jet-bg-layout: var(--jet-theme-bg-layout);
   --color-jet-bg-container: var(--jet-theme-bg-container);
-  --color-jet-bg-elevated: var(--jet-theme-bg-elevated);
+  --color-jet-bg-elevated: var(--jet-theme-bg-base);
   --color-jet-text-title: var(--jet-theme-text-title);
   --color-jet-text: var(--jet-theme-text);
   --color-jet-text-secondary: var(--jet-theme-text-secondary);
@@ -77,7 +77,7 @@ html {
   --jet-theme-bg-base: #FFFFFF;
   --jet-theme-bg-layout: #F5F5F5;
   --jet-theme-bg-container: #FFFFFF;
-  --jet-theme-bg-elevated: #FFFFFF;
+  --jet-theme-bg-elevated: #f8fafc;
   --jet-theme-text-title: var(--text-color);
   --jet-theme-text: var(--text-color);
   --jet-theme-text-secondary: var(--text-color-secondary);
@@ -85,6 +85,7 @@ html {
   --jet-theme-text-disabled: var(--text-color-disabled);
   --jet-theme-border: #D9D9D9;
   --jet-theme-border-secondary: #F0F0F0;
+  --jet-theme-border-color-1: #ECEFF3;
   --jet-theme-radius: 12px;
   --jet-theme-radius-lg: 14px;
   --jet-theme-radius-sm: 10px;
@@ -97,7 +98,7 @@ html {
 
   --canvas: var(--jet-theme-bg-layout);
   --bg: var(--jet-theme-bg-container);
-  --bg-elev: var(--jet-theme-bg-elevated);
+  --bg-elev: var(--jet-theme-bg-base);
   --bg-sunken: var(--jet-theme-bg-layout);
   --bg-hover: var(--jet-theme-border-secondary);
   --bg-2: #FAFAFA;
