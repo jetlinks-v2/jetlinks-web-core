@@ -110,6 +110,7 @@ export type GeneralAgentPresentationNarrativeMode = 'card-first' | 'analysis' | 
 export interface GeneralAgentPresentationNarrativePolicy {
   mode: GeneralAgentPresentationNarrativeMode;
   allowedTextRoles: string[];
+  minTextBlocks: number;
   maxTextBlocks: number;
   maxTextChars: number;
 }
@@ -160,18 +161,21 @@ const DEFAULT_NARRATIVE_POLICIES: Record<GeneralAgentPresentationNarrativeMode, 
   'card-first': {
     mode: 'card-first',
     allowedTextRoles: ['summary', 'next_step'],
+    minTextBlocks: 0,
     maxTextBlocks: 2,
     maxTextChars: 300,
   },
   analysis: {
     mode: 'analysis',
     allowedTextRoles: ['summary', 'analysis', 'next_step'],
+    minTextBlocks: 1,
     maxTextBlocks: 4,
     maxTextChars: 1200,
   },
   free: {
     mode: 'free',
     allowedTextRoles: [],
+    minTextBlocks: 0,
     maxTextBlocks: 8,
     maxTextChars: 4000,
   },
@@ -187,10 +191,17 @@ const normalizePresentationNarrativePolicy = (
     : (hasContentResponsibilities ? 'card-first' : 'free');
   const defaults = DEFAULT_NARRATIVE_POLICIES[mode];
   const allowedTextRoles = normalizePresentationContentHints(policy?.allowedTextRoles);
+  const maxTextBlocks = Math.max(1, Math.min(Number(policy?.maxTextBlocks) || defaults.maxTextBlocks, 8));
+  const declaredMinTextBlocks = Number(policy?.minTextBlocks);
+  const minTextBlocks = Number.isFinite(declaredMinTextBlocks)
+    ? Math.trunc(declaredMinTextBlocks)
+    : defaults.minTextBlocks;
+  const requiredMinTextBlocks = mode === 'analysis' ? 1 : 0;
   return {
     mode,
     allowedTextRoles: allowedTextRoles.length ? allowedTextRoles : defaults.allowedTextRoles,
-    maxTextBlocks: Math.max(1, Math.min(Number(policy?.maxTextBlocks) || defaults.maxTextBlocks, 8)),
+    minTextBlocks: Math.max(requiredMinTextBlocks, Math.min(minTextBlocks, maxTextBlocks)),
+    maxTextBlocks,
     maxTextChars: Math.max(80, Math.min(Number(policy?.maxTextChars) || defaults.maxTextChars, 4000)),
   };
 };

@@ -138,6 +138,11 @@ interface ClientToolOutputBase<TResult> {
   shape: string
   label?: string
   fields?: readonly AiClientToolOutputField[]
+  /**
+   * Resolves execution-specific field semantics when a producer's columns are selected at runtime.
+   * The logical output name and shape remain static; only renderer-neutral field metadata may vary.
+   */
+  resolveFields?: (result: TResult, selectedValue: unknown) => readonly AiClientToolOutputField[]
   optional?: boolean
   select?: (result: TResult) => unknown
 }
@@ -379,7 +384,8 @@ const compileDerivedOutputPlan = <TResult>(
 ): ClientToolDerivedOutputPlan<TResult> | undefined => {
   if (outputs.some(output => output.kind === 'artifact')) return undefined
   const candidates = outputs.flatMap((output, sourceIndex) => (
-    output.kind === 'aggregateSeries' && canCreateClientToolAggregatePresentation(output)
+    output.kind === 'aggregateSeries'
+      && (canCreateClientToolAggregatePresentation(output) || !!output.resolveFields)
       ? [{ output, sourceIndex }]
       : []
   ))
@@ -586,6 +592,7 @@ const prepareMaterializedValue = <TResult>(
     return {
       ...(value as Record<string, unknown>),
       bindingName: output.name,
+      ...(output.label ? { bindingLabel: output.label } : {}),
       outputShape: output.shape,
     }
   }
@@ -594,6 +601,7 @@ const prepareMaterializedValue = <TResult>(
       source: createAiClientToolArrayRecordSource(value),
       schema: { type: 'object' },
       bindingName: output.name,
+      ...(output.label ? { bindingLabel: output.label } : {}),
       outputShape: output.shape,
     })
   }
@@ -617,7 +625,12 @@ const adaptExecutionResult = async <TResult>(
     : clientToolResult.success(result as TResult)
   if (execution.outcome === 'failure') return createAiClientToolFailureResult(execution.failure)
 
-  const selected: Array<{ output: ClientToolOutput<TResult>; index: number; value: unknown }> = []
+  const selected: Array<{
+    output: ClientToolOutput<TResult>
+    index: number
+    value: unknown
+    fields?: readonly AiClientToolOutputField[]
+  }> = []
   for (let index = 0; index < outputs.length; index += 1) {
     const output = outputs[index]
     let value: unknown
@@ -630,13 +643,24 @@ const adaptExecutionResult = async <TResult>(
       if (output.optional) continue
       throw createSelectionError(toolId, output.name)
     }
-    selected.push({ output, index, value })
+    let fields = output.fields
+    if (output.resolveFields) {
+      try {
+        fields = output.resolveFields(execution.data, value)
+      } catch (error) {
+        throw createSelectionError(toolId, output.name, error)
+      }
+    }
+    selected.push({ output, index, value, fields })
   }
 
   if (derivedOutput) {
     const source = selected.find(item => item.index === derivedOutput.sourceIndex)
     const presentation = source && source.output.kind === 'aggregateSeries'
-      ? createClientToolAggregatePresentation(source.value, source.output, {
+      ? createClientToolAggregatePresentation(source.value, {
+          ...source.output,
+          fields: source.fields,
+        }, {
           requestedRange: execution.requestedRange,
           observedRange: execution.observedRange,
           complete: execution.complete,
@@ -654,8 +678,13 @@ const adaptExecutionResult = async <TResult>(
 
   const inlineValues: Record<string, unknown> = {}
   let materialized: unknown
-  const inlineStates: Array<{ name: string; path: string; complete: boolean }> = []
-  selected.forEach(({ output, index, value }) => {
+  const inlineStates: Array<{
+    name: string
+    path: string
+    complete: boolean
+    fields?: AiClientToolOutputField[]
+  }> = []
+  selected.forEach(({ output, index, value, fields }) => {
     const prepared = prepareMaterializedValue(value, output)
     if (prepared) {
       if (materialized) throw createSelectionError(toolId, output.name)
@@ -671,6 +700,7 @@ const adaptExecutionResult = async <TResult>(
       name: output.name,
       path: outputSlotPath(index),
       complete: execution.complete,
+      ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
     })
   })
 

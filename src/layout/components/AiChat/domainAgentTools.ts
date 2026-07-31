@@ -12,6 +12,7 @@ import type {
   AiClientToolInput,
   AiClientToolParameterSchema,
 } from './clientTools'
+import type { ClientToolInputAlternative } from './clientToolDefinition'
 
 export {
   searchDomainAgentItems,
@@ -229,7 +230,11 @@ export interface DomainAgentTimeScopeDescriptions {
  */
 export const createDomainAgentTimeScopeContract = (
   descriptions: DomainAgentTimeScopeDescriptions,
-): { inputs: AiClientToolInput[]; parameterSchema: AiClientToolParameterSchema } => ({
+): {
+  inputs: AiClientToolInput[]
+  parameterSchema: AiClientToolParameterSchema
+  inputAlternatives: ClientToolInputAlternative[]
+} => ({
   inputs: [
     {
       id: 'timeRange',
@@ -284,6 +289,19 @@ export const createDomainAgentTimeScopeContract = (
       },
     ],
   },
+  inputAlternatives: [
+    {
+      title: 'Preset time range',
+      required: ['timeRange'],
+      when: { input: 'timeRange', oneOf: [...DOMAIN_AGENT_RELATIVE_TIME_PRESETS] },
+      forbidden: ['startTime', 'endTime'],
+    },
+    {
+      title: 'Custom time range',
+      required: ['timeRange', 'startTime', 'endTime'],
+      when: { input: 'timeRange', equals: 'custom' },
+    },
+  ],
 })
 
 const domainAgentProperty = (

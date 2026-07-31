@@ -45,16 +45,122 @@ const uniqueFieldNames = (fields: readonly AiClientToolOutputField[]) => (
   && new Set(fields.map(field => String(field.name || '').trim())).size === fields.length
 )
 
-const resolveFields = (fields: readonly AiClientToolOutputField[] = []) => {
+const resolveTrendFields = (fields: readonly AiClientToolOutputField[]) => {
   const dimensions = fields.filter(field => (
     field.semanticRole === 'category' || field.semanticRole === 'timestamp'
   ))
   const measures = fields.filter(field => field.semanticRole === 'number')
+  if (dimensions.length + measures.length !== fields.length) return undefined
   if (dimensions.length !== 1
     || measures.length < 1
     || measures.length > MAX_SERIES
     || !uniqueFieldNames([dimensions[0], ...measures])) return undefined
-  return { dimension: dimensions[0], measures }
+  return { kind: 'trend' as const, dimension: dimensions[0], measures }
+}
+
+const resolveOrderedPathFields = (fields: readonly AiClientToolOutputField[]) => {
+  const timestamps = fields.filter(field => field.semanticRole === 'timestamp')
+  const longitudes = fields.filter(field => field.semanticRole === 'longitude')
+  const latitudes = fields.filter(field => field.semanticRole === 'latitude')
+  if (timestamps.length + longitudes.length + latitudes.length !== fields.length
+    || timestamps.length !== 1
+    || longitudes.length !== 1
+    || latitudes.length !== 1
+    || !uniqueFieldNames(fields)) return undefined
+  const [longitude] = longitudes
+  const [latitude] = latitudes
+  const measure = normalizedText(longitude.measure)
+  const longitudeAggregation = normalizedText(longitude.aggregation).toLowerCase()
+  const latitudeAggregation = normalizedText(latitude.aggregation).toLowerCase()
+  if (!measure
+    || measure !== normalizedText(latitude.measure)
+    || longitudeAggregation !== latitudeAggregation
+    || !['first', 'last'].includes(longitudeAggregation)) return undefined
+  return {
+    kind: 'ordered-path' as const,
+    timestamp: timestamps[0],
+    longitude,
+    latitude,
+  }
+}
+
+const resolveFields = (fields: readonly AiClientToolOutputField[] = []) => (
+  resolveTrendFields(fields) || resolveOrderedPathFields(fields)
+)
+
+const resolveCoordinateValue = (value: unknown, min: number, max: number) => (
+  typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
+    ? value
+    : undefined
+)
+
+const coordinateAxis = (field: AiClientToolOutputField) => ({
+  type: 'value',
+  scale: true,
+  ...(normalizedText(field.label, 120) ? { name: normalizedText(field.label, 120) } : {}),
+})
+
+const createOrderedPathOption = (
+  value: readonly unknown[],
+  descriptor: ClientToolAggregatePresentationDescriptor,
+  resolved: ReturnType<typeof resolveOrderedPathFields> & {},
+) => {
+  const { timestamp, longitude, latitude } = resolved
+  const source: unknown[][] = []
+  for (const item of value) {
+    if (!isRecord(item)) return undefined
+    const timestampValue = resolveDimensionValue(item[timestamp.name])
+    const longitudeValue = resolveCoordinateValue(item[longitude.name], -180, 180)
+    const latitudeValue = resolveCoordinateValue(item[latitude.name], -90, 90)
+    if (timestampValue === undefined || longitudeValue === undefined || latitudeValue === undefined) return undefined
+    source.push([longitudeValue, latitudeValue, timestampValue])
+  }
+  const name = normalizedText(descriptor.label, 120)
+  return {
+    option: {
+      animation: false,
+      tooltip: { trigger: 'item' },
+      grid: {
+        left: 24,
+        right: 24,
+        top: 48,
+        bottom: 24,
+        containLabel: true,
+      },
+      toolbox: {
+        right: 8,
+        feature: {
+          dataZoom: { xAxisIndex: 0, yAxisIndex: 0 },
+          restore: {},
+        },
+      },
+      dataZoom: [
+        { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
+        { type: 'inside', yAxisIndex: 0, filterMode: 'none' },
+      ],
+      dataset: {
+        dimensions: [longitude.name, latitude.name, timestamp.name],
+        source,
+      },
+      xAxis: coordinateAxis(longitude),
+      yAxis: coordinateAxis(latitude),
+      series: [{
+        type: 'line',
+        ...(name ? { name } : {}),
+        encode: {
+          x: longitude.name,
+          y: latitude.name,
+          tooltip: [timestamp.name, longitude.name, latitude.name],
+        },
+        showSymbol: source.length <= 48,
+        connectNulls: false,
+      }],
+    },
+    populatedBucketCount: source.length,
+    measurementCount: source.length * 2,
+    bucketCount: source.length,
+    seriesCount: 1,
+  }
 }
 
 /** A series is auto-presentable only when its producer supplied a closed, unambiguous field contract. */
@@ -108,6 +214,36 @@ export const createClientToolAggregatePresentation = (
   if (!context.complete || context.truncated || !Array.isArray(value) || value.length === 0) return undefined
   const resolved = resolveFields(descriptor.fields)
   if (!resolved) return undefined
+  if (resolved.kind === 'ordered-path') {
+    // FIRST/LAST coordinate fields from one measure retain producer order; other coordinate sets stay ambiguous.
+    const path = createOrderedPathOption(value, descriptor, resolved)
+    if (!path) return undefined
+    const content = JSON.stringify(path.option)
+    if (sourceByteLength(content) > MAX_SOURCE_BYTES) return undefined
+    return createAiClientToolArtifact({
+      content,
+      mimeType: CLIENT_TOOL_ECHARTS_MEDIA_TYPE,
+      fileExtension: 'json',
+      modelSafeInline: path.option,
+      maxInlineBytes: MAX_INLINE_BYTES,
+      maxBytes: MAX_SOURCE_BYTES,
+      preview: {
+        label: normalizedText(descriptor.label || descriptor.name, 120),
+        bucketCount: path.bucketCount,
+        seriesCount: path.seriesCount,
+      },
+      cardinality: {
+        kind: 'aggregate-series',
+        bucketCount: path.bucketCount,
+        populatedBucketCount: path.populatedBucketCount,
+        measurementCount: path.measurementCount,
+      },
+      requestedRange: context.requestedRange,
+      observedRange: context.observedRange,
+      complete: true,
+      truncated: false,
+    })
+  }
   const { dimension, measures } = resolved
   const source: unknown[][] = []
   let populatedBucketCount = 0

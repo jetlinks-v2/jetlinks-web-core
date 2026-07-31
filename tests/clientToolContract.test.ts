@@ -156,17 +156,49 @@ test('aggregate facade derives one renderer-ready source without rewriting categ
   assert.equal(option.dataset.source[1][0], points[1].label)
   assert.deepEqual(delivered.outputBindings.map((binding: any) => ({
     name: binding.name,
+    label: binding.label,
     mediaType: binding.mediaType,
   })), [
     {
       name: 'online-rate-series-echarts-source',
+      label: 'Online rate',
       mediaType: 'application/vnd.echarts+json',
     },
     {
       name: 'online-rate-series',
+      label: 'Online rate',
       mediaType: undefined,
     },
   ])
+})
+
+test('record-set materialization preserves the owning output label', async () => {
+  const records = Array.from({ length: 201 }, (_, index) => ({ index }))
+  const tool = defineClientTool<Record<string, unknown>, Record<string, unknown>, { records: typeof records }>({
+    id: 'test_labeled_records',
+    description: {
+      text: 'Read labeled records',
+      capabilities: ['test.records.labeled'],
+    },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet<{ records: typeof records }>({
+      name: 'labeled-records',
+      label: 'Labeled records',
+      shape: 'test.labeled-records',
+      select: result => result.records,
+    }),
+    execute: () => clientToolResult.success({ records }),
+  })
+
+  const prepared = await tool.execute({}, {}, { id: 'records', toolName: tool.id })
+  const delivered = await deliverAiClientToolResult(prepared, {
+    call: { id: 'records', toolName: tool.id },
+    outputBindings: tool._meta?.resultBindings,
+  }) as any
+
+  assert.equal(delivered.outputBindings[0].name, 'labeled-records')
+  assert.equal(delivered.outputBindings[0].label, 'Labeled records')
+  assert.equal(delivered.outputBindings[0].path, '$.data.sample')
 })
 
 test('aggregate presentation preserves timestamps and declines ambiguous dynamic measures', async () => {
@@ -226,6 +258,97 @@ test('aggregate presentation preserves timestamps and declines ambiguous dynamic
   assert.deepEqual(dynamicPrepared.__clientToolOutputs.output0, [
     { time: 1_785_387_600_000, values: { avg: 12 } },
   ])
+})
+
+test('aggregate facade derives an ordered path from execution-specific coordinate semantics', async () => {
+  const points = [
+    {
+      time: 1_735_660_800_000,
+      position_longitude: 120.1,
+      position_latitude: 30.1,
+    },
+    {
+      time: 1_735_664_400_000,
+      position_longitude: 121.2,
+      position_latitude: 31.2,
+    },
+  ]
+  const fields = [
+    { name: 'time', semanticRole: 'timestamp' as const },
+    {
+      name: 'position_longitude',
+      semanticRole: 'longitude' as const,
+      measure: 'position',
+      aggregation: 'last',
+    },
+    {
+      name: 'position_latitude',
+      semanticRole: 'latitude' as const,
+      measure: 'position',
+      aggregation: 'last',
+    },
+  ]
+  const tool = defineClientTool({
+    id: 'test_dynamic_geo_series',
+    description: { text: 'Read a dynamic location series', capabilities: ['test.location.aggregate'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'location-series',
+      shape: 'time-series.aggregate',
+      select: (result: any) => result.points,
+      resolveFields: () => fields,
+    }),
+    execute: () => ({ points }),
+  })
+
+  const prepared = await tool.execute({}, {}, { id: 'geo', toolName: tool.id }) as any
+  assert.equal(prepared.data.kind, 'ai-client-tool-artifact/v1')
+  assert.deepEqual(prepared.__clientToolOutputs.output0, points)
+  assert.deepEqual(prepared.outputBindings[0].fields, fields)
+  const delivered = await deliverAiClientToolResult(prepared, {
+    call: { id: 'geo', toolName: tool.id },
+    outputBindings: tool._meta?.resultBindings,
+  }) as any
+  const option = delivered.data.presentationSource
+  assert.equal(option.series[0].type, 'line')
+  assert.equal(option.xAxis.scale, true)
+  assert.equal(option.yAxis.scale, true)
+  assert.deepEqual(option.dataZoom, [
+    { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
+    { type: 'inside', yAxisIndex: 0, filterMode: 'none' },
+  ])
+  assert.deepEqual(option.toolbox.feature, {
+    dataZoom: { xAxisIndex: 0, yAxisIndex: 0 },
+    restore: {},
+  })
+  assert.deepEqual(option.dataset.source, [
+    [120.1, 30.1, 1_735_660_800_000],
+    [121.2, 31.2, 1_735_664_400_000],
+  ])
+  assert.deepEqual(option.series[0].encode, {
+    x: 'position_longitude',
+    y: 'position_latitude',
+    tooltip: ['time', 'position_longitude', 'position_latitude'],
+  })
+
+  const unorderedTool = defineClientTool({
+    id: 'test_dynamic_unordered_geo_series',
+    description: { text: 'Read an unordered location set', capabilities: ['test.location.records'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'location-set',
+      shape: 'time-series.aggregate',
+      select: (result: any) => result.points,
+      resolveFields: () => fields.map(field => ({ ...field, aggregation: undefined })),
+    }),
+    execute: () => ({ points }),
+  })
+  const unorderedPrepared = await unorderedTool.execute(
+    {},
+    {},
+    { id: 'unordered-geo', toolName: unorderedTool.id },
+  ) as any
+  assert.equal(unorderedPrepared.data, undefined)
 })
 
 test('facade compiles self-contained input alternatives and rejects undeclared references', () => {
