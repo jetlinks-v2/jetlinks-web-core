@@ -11,8 +11,8 @@ export const shouldUseJessibuca = (
   url?: string | MediaStream,
   protocol?: MediaPlayerProtocol,
 ) => {
-  if (protocol === 'flv') return true;
-  return typeof url === 'string' && /\.flv(?:$|[?#])/i.test(url);
+  if (protocol === 'flv' || protocol === 'ws' || protocol === 'wss') return true;
+  return typeof url === 'string' && (/\.flv(?:$|[?#])/i.test(url) || /^wss?:\/\//i.test(url));
 };
 
 export const inferLegacyPlayerProtocol = (
