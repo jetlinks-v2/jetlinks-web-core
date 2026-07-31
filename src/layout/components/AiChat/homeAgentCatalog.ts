@@ -11,35 +11,13 @@ import {
   toArray,
   uniqueStrings,
 } from './homeAgentShared'
-
-const includesKeyword = (values: unknown[], keyword: string) => (
-  !keyword || values.some(value => normalizeKeyword(value).includes(keyword))
-)
+import { searchHomeAgentCapabilities } from './homeAgentCapabilitySearch'
 
 export const filterHomeAgentCapabilities = (
   capabilities: HomeAgentCapability[],
   args: Record<string, any>,
 ) => {
-  const keyword = normalizeKeyword(args.keyword)
-  const kind = normalizeKeyword(args.kind)
-  const category = normalizeKeyword(args.category)
-  return capabilities.filter((item) => {
-    if (kind && normalizeKeyword(item.kind) !== kind) return false
-    if (category && normalizeKeyword(item.category) !== category) return false
-    return includesKeyword([
-      item.id,
-      item.name,
-      item.description,
-      item.category,
-      item.kind,
-      item.menuCode,
-      item.routeName,
-      item.path,
-      item.clientId,
-      item.clientType,
-      ...(item.keywords || []),
-    ], keyword)
-  })
+  return searchHomeAgentCapabilities(capabilities, args)
 }
 
 const compactContinuation = (value: unknown) => {

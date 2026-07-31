@@ -7,6 +7,7 @@ import {
   HOME_AGENT_CAPABILITY_CHANGE_EVENT,
   HOME_AGENT_CLIENT_ID,
   type HomeAgentConversationMessageContext,
+  type HomeAgentRuntime,
 } from './homeAgentCapabilities';
 import {
   createHomeAgentCapabilityLoaderTool,
@@ -20,6 +21,8 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
   let syncTimer: number | undefined;
   let preparedRouteClientId = '';
   let latestUserMessage: HomeAgentConversationMessageContext | undefined;
+  let activeRuntime: HomeAgentRuntime | undefined;
+  let unsubscribeRuntime: (() => void) | undefined;
 
   const normalizeMessageText = (value: unknown) => String(value || '').trim();
 
@@ -52,12 +55,29 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     };
   };
 
-  const buildRuntime = () => createHomeAgentRuntime({
-    currentView: () => String(route.name || route.path || ''),
-    extraTools: () => [createHomeAgentCapabilityLoaderTool(refreshParameters)],
-    getLatestUserMessage: () => latestUserMessage,
-    onConversationMessage: recordConversationMessage,
-  });
+  const applyRuntimeParameters = (runtime: HomeAgentRuntime) => {
+    if (!isHomeAgentActive() || runtime !== activeRuntime) return;
+    aiStore.parameters = {
+      ...aiStore.parameters,
+      ...runtime.parameters,
+      clientTools: runtime.clientTools,
+      clientToolsVersion: runtime.clientToolsVersion,
+    };
+  };
+
+  const buildRuntime = () => {
+    const runtime = createHomeAgentRuntime({
+      currentView: () => String(route.name || route.path || ''),
+      extraTools: () => [createHomeAgentCapabilityLoaderTool(refreshParameters)],
+      getLatestUserMessage: () => latestUserMessage,
+      onConversationMessage: recordConversationMessage,
+    });
+    unsubscribeRuntime?.();
+    activeRuntime?.dispose();
+    activeRuntime = runtime;
+    unsubscribeRuntime = runtime.subscribeClientTools(() => applyRuntimeParameters(runtime));
+    return runtime;
+  };
 
   const isHomeAgentActive = () => aiStore.parameters?.subjectId === HOME_AGENT_CLIENT_ID;
 
@@ -107,10 +127,7 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     if (!aiStore.agentList.length || !isHomeAgentActive()) return;
 
     const runtime = buildRuntime();
-    aiStore.parameters = {
-      ...aiStore.parameters,
-      ...runtime.parameters,
-    };
+    applyRuntimeParameters(runtime);
   };
 
   const sync = async () => {
@@ -122,7 +139,7 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
       await loadHomeAgentCapabilityProviders({ loadAll: true });
       const runtime = buildRuntime();
       await aiStore.queryAgent(HOME_AGENT_CLIENT_ID, runtime.parameters);
-      refreshParameters();
+      applyRuntimeParameters(runtime);
     } finally {
       syncing = false;
     }
@@ -159,6 +176,10 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
       window.clearTimeout(syncTimer);
     }
     releasePreparedRouteAgent();
+    unsubscribeRuntime?.();
+    activeRuntime?.dispose();
+    unsubscribeRuntime = undefined;
+    activeRuntime = undefined;
     window.removeEventListener(HOME_AGENT_CAPABILITY_CHANGE_EVENT, handleCapabilityChange);
   });
 };
