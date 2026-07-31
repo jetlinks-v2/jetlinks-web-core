@@ -58,6 +58,7 @@ import PageRouteView from './PageRouteView/index.vue'
 import EqualHeightColumns from './EqualHeightColumns/index.vue'
 import ModelConfig from './ModelConfig/index.vue'
 import MenuAssetPermissionEditor from './MenuAssetPermissionEditor/index.vue'
+import StatusTag from './StatusTag/index.vue'
 
 export default {
     install(app: App) {
@@ -121,6 +122,7 @@ export default {
           .component('EqualHeightColumns', EqualHeightColumns)
           .component('ModelConfig', ModelConfig)
           .component('MenuAssetPermissionEditor', MenuAssetPermissionEditor)
+          .component('StatusTag', StatusTag)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
