@@ -4,6 +4,7 @@
       <div class="person-sider">
         <full-page>
           <a-menu
+              class="person-menu"
               mode="inline"
               :selectedKeys="[user.tabKey]"
               @click="onMenuClick"
@@ -36,12 +37,10 @@
 </template>
 
 <script setup lang="ts" name="Center">
-import HomeView from './components/HomeView/index.vue'
 import AccountInfo from './components/AccountInfo/index.vue'
-import Subscribe from './components/Subscribe/index.vue'
+// import Subscribe from './components/Subscribe/index.vue'
 import StationMessage from './components/StationMessage/index.vue'
 import EditPassword from './components/EditPassword/index.vue'
-import PersonalToken from './components/PersonalToken/index.vue'
 import { useUserStore } from '@jetlinks-web-core/store'
 import { useRouterParams } from '@jetlinks-web/hooks'
 import { tabList } from '@jetlinks-web-core/views/account/center/data'
@@ -51,11 +50,10 @@ import FullPage from "@/layout/FullPage.vue";
 const user = useUserStore()
 
 const tabs = {
-  HomeView,
+  // HomeView,
   BindThirdAccount: AccountInfo,
-  Subscribe,
+  // Subscribe,
   StationMessage,
-  PersonalToken
 }
 
 const router = useRouterParams()
@@ -97,30 +95,73 @@ onUnmounted(() => {
 <style lang="less" scoped>
 .person {
   width: 100%;
-  padding: 1.5rem 1rem;
+  //padding: 1.5rem 1rem;
   box-sizing: border-box;
+  overflow-x: hidden;
 
   .person-inner {
     width: 100%;
-    //margin: 0 auto;
     display: flex;
-    //align-items: flex-start;
     justify-content: center;
     gap: var(--space-4);
-
+    align-items: flex-start;
+    min-width: 0;
   }
 
   .person-sider {
-    width: 13.75rem;
+    flex: 0 0 13.75rem;
     background-color: #fff;
     border-radius: var(--r-3);
-    padding: 0.5rem 0;
     box-shadow: 0 1px 0.1875rem rgba(0, 0, 0, 0.06);
+
+    :deep(.full-page-warp) {
+      padding: 0.5rem 0;
+      background: #fff;
+    }
+
+    :deep(.person-menu) {
+      border-inline-end: 0;
+      background: transparent !important;
+    }
+
+    :deep(.person-menu.ant-menu-inline .ant-menu-item) {
+      width: auto;
+      height: 2.5rem;
+      margin: 0.125rem 0.5rem;
+      padding-inline: 1rem !important;
+      border-radius: var(--jet-theme-button-r);
+      color: var(--jet-theme-text-secondary);
+      line-height: 2.5rem;
+      background: transparent !important;
+    }
+
+    :deep(.person-menu.ant-menu-inline .ant-menu-item::after),
+    :deep(.person-menu.ant-menu-inline .ant-menu-item::before) {
+      display: none !important;
+    }
+
+    :deep(.person-menu.ant-menu-inline .ant-menu-item:hover) {
+      color: var(--jet-theme-text) !important;
+      background: transparent !important;
+    }
+
+    :deep(.person-menu.ant-menu-inline .ant-menu-item-selected) {
+      color: var(--jet-theme-text) !important;
+      background: transparent !important;
+      font-weight: 500;
+    }
+
+    :deep(.person-menu .ant-menu-title-content) {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   .person-main {
     flex: 1;
-    min-width: 75rem;
+    min-width: 0;
   }
 
   .person-main-content {
@@ -130,4 +171,28 @@ onUnmounted(() => {
     box-shadow: 0 1px 0.1875rem rgba(0, 0, 0, 0.06);
     height: 100%;
   }
-}</style>
+}
+
+@media (max-width: 768px) {
+  .person {
+    padding: 1rem 0.75rem;
+
+    .person-inner {
+      flex-direction: column;
+    }
+
+    .person-sider {
+      flex: none;
+      width: 100%;
+
+      :deep(.full-page-warp) {
+        height: auto !important;
+      }
+    }
+
+    .person-main {
+      width: 100%;
+    }
+  }
+}
+</style>

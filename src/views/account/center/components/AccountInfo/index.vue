@@ -251,13 +251,13 @@
       </section>
 
       <!-- 第三方账号 -->
-      <section class="account-info-section" v-if="hasThirdAccount">
-        <h3 class="section-title">{{ $t('AccountInfo.thirdSection') }}</h3>
-        <p class="section-desc">{{ $t('AccountInfo.thirdSectionDesc') }}</p>
-        <div class="section-content">
-          <BindThirdAccount />
-        </div>
-      </section>
+<!--      <section class="account-info-section" v-if="hasThirdAccount">-->
+<!--        <h3 class="section-title">{{ $t('AccountInfo.thirdSection') }}</h3>-->
+<!--        <p class="section-desc">{{ $t('AccountInfo.thirdSectionDesc') }}</p>-->
+<!--        <div class="section-content">-->
+<!--          <BindThirdAccount />-->
+<!--        </div>-->
+<!--      </section>-->
     </div>
 </template>
 
@@ -276,7 +276,7 @@ import {
 import { onlyMessage } from '@jetlinks-web/utils'
 import { useI18n } from 'vue-i18n'
 import { queryModal } from '@jetlinks-web-core/api/login'
-import BindThirdAccount from '../BindThirdAccount/index.vue'
+// import BindThirdAccount from '../BindThirdAccount/index.vue'
 import UploadAvatar from '../UploadAvatar/index.vue'
 
 interface IdentityItem {
