@@ -29,6 +29,8 @@ declare module 'vue-router' {
     hideInMenu?: boolean
     /** Dynamic hide condition for menu-related filtering. Return true to hide. */
     handleHideInMenuFn?: RouteHideInMenuHandler
+    /** Optional class applied to the outer layout route surface. */
+    layoutClassName?: string
   }
 }
 
