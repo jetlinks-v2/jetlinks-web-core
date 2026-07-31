@@ -1,3 +1,5 @@
+import { normalizeAiClientToolRecordPath } from './clientToolBindingPath'
+
 export const AI_CLIENT_TOOL_EVIDENCE_CONTRACT = 'tool-result-evidence/v1'
 
 export type AiClientToolFailureDisposition = 'request' | 'tool' | 'dependency' | 'permission/user'
@@ -47,6 +49,8 @@ export interface AiClientToolOutputBinding {
   label?: string
   ref?: string
   path?: string
+  /** Safe JSONPath to the logical record collection inside the referenced JSON value. */
+  recordPath?: string
   shape: string
   mediaType?: string
   recordCount?: number
@@ -249,7 +253,7 @@ const boundedMetric = (value: AiClientToolMetricDescriptor | undefined) => {
     ...(metricValue !== undefined ? { value: metricValue } : {}),
     scope,
     coverage,
-    exact: value.exact === true,
+    exact: value?.exact === true,
     provenance,
   }
 }
@@ -260,6 +264,9 @@ export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBi
     const label = String(value?.label || '').trim().slice(0, 120)
     const ref = String(value?.ref || '').trim().slice(0, 512)
     const path = String(value?.path || '').trim().slice(0, 512)
+    const recordPath = value?.recordPath === undefined
+      ? undefined
+      : normalizeAiClientToolRecordPath(value.recordPath)
     const shape = String(value?.shape || '').trim().slice(0, 160)
     if (!name || (!ref && !path) || !shape) return []
     const fields = boundedBindingFields(value.fields)
@@ -272,6 +279,7 @@ export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBi
       ...(label ? { label } : {}),
       ...(ref ? { ref } : {}),
       ...(path ? { path } : {}),
+      ...(recordPath ? { recordPath } : {}),
       shape,
       ...(value.mediaType ? { mediaType: String(value.mediaType).trim().slice(0, 160) } : {}),
       ...(Number.isFinite(value.recordCount) ? { recordCount: Number(value.recordCount) } : {}),

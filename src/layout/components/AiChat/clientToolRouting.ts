@@ -110,7 +110,7 @@ const ROUTING_KIND_DEFAULTS: Record<AiClientToolRoutingKind, AiClientToolRouting
     dataAccessModes: ['records'],
     resultDeliveries: ['inline'],
     evidencePolicy: 'optional',
-    exposure: 'deferred',
+    exposure: 'auto',
   },
   artifact: {
     stages: ['terminal'],
@@ -450,6 +450,17 @@ export const validateAiClientToolResultBindings = (
   const rawBindings = meta.resultBindings
   const bindings = Array.isArray(rawBindings) ? rawBindings : []
   const issues: AiClientToolRoutingIssue[] = []
+  const typedOutputs = isRecord(meta.clientToolContract)
+    && Array.isArray(meta.clientToolContract.outputs)
+    ? meta.clientToolContract.outputs.filter(isRecord)
+    : []
+  const materializedNames = new Set(typedOutputs.flatMap((output) => {
+    const name = normalizeText(output.name, 160).toLowerCase()
+    const delivery = normalizeText(output.delivery).toLowerCase()
+    const kind = normalizeText(output.kind).toLowerCase()
+    return name && (delivery === 'file' || (kind === 'artifact' && !delivery)) ? [name] : []
+  }))
+  const inlineProduces = produces.filter(name => !materializedNames.has(name))
 
   if (!produces.length) {
     if (bindings.length) {
@@ -471,7 +482,7 @@ export const validateAiClientToolResultBindings = (
     addIssue(issues, 'result_binding_malformed', '_meta.resultBindings', 'inline result bindings must be an array')
     return issues
   }
-  if (!bindings.length) {
+  if (!bindings.length && inlineProduces.length) {
     addIssue(issues, 'result_binding_missing', '_meta.resultBindings', 'inline produced outputs must declare their actual JSON paths')
     return issues
   }
@@ -502,13 +513,13 @@ export const validateAiClientToolResultBindings = (
     }
   })
 
-  produces.forEach((name) => {
+  inlineProduces.forEach((name) => {
     if (!declaredNames.has(name)) {
       addIssue(issues, 'result_binding_missing', '_meta.resultBindings', `missing inline result binding: ${name}`)
     }
   })
   declaredNames.forEach((name) => {
-    if (!produces.includes(name)) {
+    if (!inlineProduces.includes(name)) {
       addIssue(issues, 'result_binding_unexpected', '_meta.resultBindings', `result binding is not declared by routing.produces: ${name}`)
     }
   })

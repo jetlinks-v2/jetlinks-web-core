@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import path from 'node:path'
 import test from 'node:test'
 import {
   createAiClientToolContractOutputBinding,
@@ -15,6 +17,7 @@ import {
 } from '../src/layout/components/AiChat/clientToolRouting'
 import { resolveAiClientToolBindingPath } from '../src/layout/components/AiChat/clientToolBindingPath'
 import {
+  createAiClientToolArtifact,
   createAiClientToolArrayRecordSource,
   createAiClientToolRecordStream,
   deliverAiClientToolResult,
@@ -24,6 +27,16 @@ import { withAiClientToolEvidence } from '../src/layout/components/AiChat/client
 import {
   mergeAiClientToolParameterSchema,
 } from '../src/layout/components/AiChat/clientToolParameterSchema'
+import { resolveClientCapabilityLoaderToolId } from '../src/layout/components/AiChat/clientCapabilityLoader'
+import {
+  CLIENT_TOOL_DEFINITION_META_KEY,
+  clientToolOutput,
+  clientToolResult,
+  defineClientTool,
+  isCompiledClientToolDefinition,
+} from '../src/layout/components/AiChat/clientToolDefinition'
+import { aiClientToolRegistry } from '../src/layout/components/AiChat/clientToolRegistry'
+import { createClientToolSnapshotController } from '../src/layout/components/AiChat/clientToolSnapshot'
 
 const createSeriesContract = () => defineAiClientToolContract({
   routingKind: 'aggregate',
@@ -40,6 +53,456 @@ const createSeriesContract = () => defineAiClientToolContract({
     delivery: 'auto',
     fields: [{ name: 'time', semanticRole: 'timestamp' }],
   }],
+})
+
+test('stable client-tool facade compiles business facts without inferring resources from inputs', async () => {
+  let selections = 0
+  const tool = defineClientTool<Record<string, unknown>, Record<string, unknown>, { items: unknown[] }>({
+    id: 'test_records_read',
+    description: {
+      text: 'Read records',
+      capabilities: ['test.records.read'],
+      intents: ['read test records'],
+    },
+    inputs: [{ id: 'deviceId', required: true, valueType: 'string' }],
+    consumes: [{ name: 'subject-property-id', optional: true, source: 'TOOL' }],
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet<{ items: unknown[] }>({
+      name: 'test-records',
+      shape: 'test.records',
+      select: (result) => {
+        selections += 1
+        return result.items
+      },
+    }),
+    execute: () => clientToolResult.success({ items: [{ id: 'one' }] }),
+  })
+
+  assert.deepEqual(tool.routing?.accepts, ['subject-property-id'])
+  assert.deepEqual(tool.routing?.prerequisites, undefined)
+  assert.equal(tool.routing?.accepts?.includes('device-id'), false)
+  assert.equal(tool.routing?.dataAccessModes?.[0], 'records')
+  assert.equal(tool.routing?.exposure, 'auto')
+  assert.equal(tool.annotations?.readOnlyHint, true)
+  assert.equal(isCompiledClientToolDefinition(tool._meta?.[CLIENT_TOOL_DEFINITION_META_KEY]), true)
+  assert.equal(createAiClientToolCatalogReport([tool], {
+    requireRouting: true,
+    requireResultBindings: true,
+  }).tools[0]?.authoringStatus, 'facade')
+
+  const result = await tool.execute({}, {}, { id: 'call', toolName: tool.id }) as any
+  assert.equal(selections, 1)
+  assert.deepEqual(result.__clientToolOutputs.output0, [{ id: 'one' }])
+  assert.equal(result.outputBindings[0].path, '$.__clientToolOutputs.output0')
+})
+
+test('aggregate facade derives one renderer-ready source without rewriting category time labels', async () => {
+  let selections = 0
+  const points = [
+    { label: '13:00', value: 0, timestamp: 1_785_387_600_000 },
+    { label: '14:00', value: 100, timestamp: 1_785_391_200_000 },
+  ]
+  const tool = defineClientTool<Record<string, unknown>, Record<string, unknown>, { points: typeof points }>({
+    id: 'test_online_rate_trend',
+    description: {
+      text: 'Read an online-rate trend',
+      capabilities: ['test.online-rate.aggregate'],
+    },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries<{ points: typeof points }>({
+      name: 'online-rate-series',
+      label: 'Online rate',
+      shape: 'metric.time-series',
+      fields: [
+        { name: 'label', semanticRole: 'category' },
+        { name: 'value', semanticRole: 'number', format: 'percent' },
+      ],
+      select: (result) => {
+        selections += 1
+        return result.points
+      },
+    }),
+    execute: () => clientToolResult.success({ points }, {
+      requestedRange: { label: '24h' },
+    }),
+  })
+
+  assert.deepEqual(tool.routing?.produces, [
+    'online-rate-series',
+    'online-rate-series-echarts-source',
+  ])
+  assert.deepEqual(tool.routing?.outputShapes, [
+    'metric.time-series',
+    'presentation.echarts-option',
+  ])
+
+  const prepared = await tool.execute({}, {}, { id: 'trend', toolName: tool.id }) as any
+  assert.equal(selections, 1)
+  assert.deepEqual(prepared.__clientToolOutputs.output0, points)
+  assert.equal(prepared.data.kind, 'ai-client-tool-artifact/v1')
+
+  const delivered = await deliverAiClientToolResult(prepared, {
+    call: { id: 'trend', toolName: tool.id },
+    outputBindings: tool._meta?.resultBindings,
+  }) as any
+  const option = delivered.data.presentationSource
+  assert.equal(option.xAxis.type, 'category')
+  assert.equal(option.yAxis.axisLabel.formatter, '{value}%')
+  assert.deepEqual(option.dataset.source, [
+    ['13:00', 0],
+    ['14:00', 100],
+  ])
+  assert.equal(option.dataset.source[0][0], points[0].label)
+  assert.equal(option.dataset.source[1][0], points[1].label)
+  assert.deepEqual(delivered.outputBindings.map((binding: any) => ({
+    name: binding.name,
+    mediaType: binding.mediaType,
+  })), [
+    {
+      name: 'online-rate-series-echarts-source',
+      mediaType: 'application/vnd.echarts+json',
+    },
+    {
+      name: 'online-rate-series',
+      mediaType: undefined,
+    },
+  ])
+})
+
+test('aggregate presentation preserves timestamps and declines ambiguous dynamic measures', async () => {
+  const timestampPoints = [
+    { time: 1_785_387_600_000, value: 12 },
+    { time: 1_785_391_200_000, value: 18 },
+  ]
+  const timestampTool = defineClientTool({
+    id: 'test_timestamp_series',
+    description: { text: 'Read a timestamp series', capabilities: ['test.timestamp.aggregate'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'timestamp-series',
+      shape: 'time-series.aggregate',
+      fields: [
+        { name: 'time', semanticRole: 'timestamp' },
+        { name: 'value', semanticRole: 'number' },
+      ],
+      select: (result: any) => result.points,
+    }),
+    execute: () => ({ points: timestampPoints }),
+  })
+  const timestampPrepared = await timestampTool.execute(
+    {},
+    {},
+    { id: 'timestamp', toolName: timestampTool.id },
+  )
+  const timestampDelivered = await deliverAiClientToolResult(timestampPrepared, {
+    call: { id: 'timestamp', toolName: timestampTool.id },
+    outputBindings: timestampTool._meta?.resultBindings,
+  }) as any
+  assert.equal(timestampDelivered.data.presentationSource.xAxis.type, 'time')
+  assert.deepEqual(timestampDelivered.data.presentationSource.dataset.source, [
+    [1_785_387_600_000, 12],
+    [1_785_391_200_000, 18],
+  ])
+
+  const dynamicMeasureTool = defineClientTool({
+    id: 'test_dynamic_measure_series',
+    description: { text: 'Read dynamic measures', capabilities: ['test.dynamic.aggregate'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'dynamic-series',
+      shape: 'time-series.summary',
+      fields: [{ name: 'time', semanticRole: 'timestamp' }],
+      select: (result: any) => result.points,
+    }),
+    execute: () => ({ points: [{ time: 1_785_387_600_000, values: { avg: 12 } }] }),
+  })
+  assert.deepEqual(dynamicMeasureTool.routing?.produces, ['dynamic-series'])
+  const dynamicPrepared = await dynamicMeasureTool.execute(
+    {},
+    {},
+    { id: 'dynamic', toolName: dynamicMeasureTool.id },
+  ) as any
+  assert.equal(dynamicPrepared.data, undefined)
+  assert.deepEqual(dynamicPrepared.__clientToolOutputs.output0, [
+    { time: 1_785_387_600_000, values: { avg: 12 } },
+  ])
+})
+
+test('facade compiles self-contained input alternatives and rejects undeclared references', () => {
+  const tool = defineClientTool({
+    id: 'test_time_scoped_read',
+    description: {
+      text: 'Read records in one time scope',
+      capabilities: ['test.records.read'],
+    },
+    inputs: [
+      { id: 'timeRange', description: 'Preset or custom range', required: true, valueType: 'string' },
+      { id: 'startTime', description: 'Custom range start', valueType: 'string' },
+      { id: 'endTime', description: 'Custom range end', valueType: 'string' },
+    ],
+    inputAlternatives: [{
+      title: 'Custom time range',
+      required: ['timeRange', 'startTime', 'endTime'],
+      when: { input: 'timeRange', equals: 'custom' },
+    }],
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({
+      name: 'test-records',
+      shape: 'test.records',
+      select: result => result,
+    }),
+    execute: () => [],
+  })
+
+  assert.deepEqual(Object.keys(tool.parameterSchema!.oneOf![0].properties!), [
+    'timeRange', 'startTime', 'endTime',
+  ])
+  assert.deepEqual(tool.parameterSchema!.oneOf![0].properties, {
+    timeRange: { description: 'Preset or custom range', const: 'custom' },
+    startTime: { description: 'Custom range start' },
+    endTime: { description: 'Custom range end' },
+  })
+  assert.throws(
+    () => defineClientTool({
+      id: 'test_invalid_alternative',
+      description: { text: 'Invalid alternative', capabilities: ['test.invalid'] },
+      inputs: [{ id: 'known', valueType: 'string' }],
+      inputAlternatives: [{ required: ['missing'] }],
+      effect: { kind: 'READ' },
+      output: clientToolOutput.detail({ name: 'detail', shape: 'test.detail', select: result => result }),
+      execute: () => ({}),
+    }),
+    /input alternative references undeclared input: missing/,
+  )
+})
+
+test('facade keeps materialized artifacts and inline follow-up selectors in one execution', async () => {
+  const tool = defineClientTool<Record<string, unknown>, Record<string, unknown>, {
+    artifact: ReturnType<typeof createAiClientToolArtifact>
+    ids: string[]
+  }>({
+    id: 'test_artifact_with_ids',
+    description: {
+      text: 'Create a renderer-neutral result artifact',
+      capabilities: ['test.artifact.create'],
+      activation: 'ON_DEMAND',
+    },
+    effect: { kind: 'READ' },
+    output: [
+      clientToolOutput.artifact<any>({
+        name: 'test-artifact',
+        shape: 'test.result-set',
+        mediaType: 'application/json',
+        select: result => result.artifact,
+      }),
+      clientToolOutput.lookup<any>({
+        name: 'test-result-id',
+        shape: 'test.result-ids',
+        select: result => result.ids,
+      }),
+    ],
+    execute: () => ({
+      ids: ['one'],
+      artifact: createAiClientToolArtifact({
+        content: JSON.stringify({ results: [{ id: 'one' }] }),
+        mimeType: 'application/json',
+        preview: { count: 1 },
+      }),
+    }),
+  })
+
+  const prepared = await tool.execute({}, {}, { id: 'artifact', toolName: tool.id })
+  const delivered = await deliverAiClientToolResult(prepared, {
+    call: {
+      id: 'artifact',
+      toolName: tool.id,
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => ({ ok: true, path }),
+        remove: async path => ({ ok: true, path }),
+      },
+    },
+    outputBindings: tool._meta?.resultBindings,
+  }) as any
+
+  assert.equal(delivered.producedFile, true)
+  assert.deepEqual(delivered.__clientToolOutputs.output1, ['one'])
+  assert.deepEqual(delivered.outputBindings.map((item: any) => item.name).sort(), [
+    'test-artifact',
+    'test-result-id',
+  ])
+})
+
+test('registry revisions, scoped snapshots and stale disposers preserve the latest registration', () => {
+  const scope = `test-scope-${Date.now()}`
+  const changes: number[] = []
+  const unsubscribe = aiClientToolRegistry.subscribe(scope, change => changes.push(change.revision))
+  const first = aiClientToolRegistry.register(scope, {
+    id: 'registry_first',
+    execute: () => ({}),
+  })
+  const firstRevision = aiClientToolRegistry.revision
+  const second = aiClientToolRegistry.register(scope, {
+    id: 'registry_second',
+    execute: () => ({}),
+  })
+
+  first()
+  assert.deepEqual(aiClientToolRegistry.snapshot(scope).tools.map(tool => tool.id), ['registry_second'])
+  assert.ok(aiClientToolRegistry.revision > firstRevision)
+  second()
+  assert.deepEqual(aiClientToolRegistry.snapshot(scope).tools, [])
+  assert.equal(changes.length, 3)
+  unsubscribe()
+})
+
+test('runtime refreshes handlers without changing the semantic wire version', async () => {
+  let handlerVersion = 1
+  const runtime = createClientToolSnapshotController(
+    () => ({ signature: 'stable', execute: () => ({ handlerVersion }) }),
+    snapshot => snapshot.signature,
+  )
+  const versions: number[] = []
+  const unsubscribe = runtime.subscribe(version => versions.push(version))
+
+  handlerVersion = 2
+  runtime.refresh()
+
+  assert.equal(runtime.version, 1)
+  assert.deepEqual(versions, [])
+  assert.equal(runtime.snapshot.execute().handlerVersion, 2)
+
+  unsubscribe()
+  runtime.dispose()
+})
+
+test('runtime publishes semantic schema changes only after active execution completes', async () => {
+  let schemaVersion = 1
+  const runtime = createClientToolSnapshotController(
+    () => ({ signature: `Schema version ${schemaVersion}`, schemaVersion }),
+    snapshot => snapshot.signature,
+  )
+  const versions: number[] = []
+  runtime.subscribe(version => versions.push(version))
+  const execution = runtime.beginExecution()
+
+  schemaVersion = 2
+  runtime.refresh()
+  assert.equal(runtime.version, 1)
+  assert.equal(runtime.snapshot.signature, 'Schema version 1')
+  assert.deepEqual(versions, [])
+
+  assert.equal(execution.snapshot.schemaVersion, 1)
+  execution.complete()
+  assert.equal(runtime.version, 2)
+  assert.equal(runtime.snapshot.signature, 'Schema version 2')
+  assert.deepEqual(versions, [2])
+  runtime.dispose()
+})
+
+test('a reconstructed runtime always reads the latest authorized registry snapshot', () => {
+  const scope = `runtime-reconnect-${Date.now()}`
+  let disposeRegistration = aiClientToolRegistry.register(scope, {
+    id: 'runtime_before_reconnect',
+    description: 'Before reconnect',
+    execute: () => ({}),
+  })
+  const createRuntime = () => createClientToolSnapshotController(
+    () => aiClientToolRegistry.snapshot(scope),
+    snapshot => String(snapshot.revision),
+  )
+  const firstRuntime = createRuntime()
+  assert.deepEqual(firstRuntime.snapshot.tools.map(tool => tool.id), ['runtime_before_reconnect'])
+  firstRuntime.dispose()
+
+  disposeRegistration()
+  disposeRegistration = aiClientToolRegistry.register(scope, {
+    id: 'runtime_after_reconnect',
+    description: 'After reconnect',
+    execute: () => ({}),
+  })
+  const restoredRuntime = createRuntime()
+  assert.deepEqual(restoredRuntime.snapshot.tools.map(tool => tool.id), ['runtime_after_reconnect'])
+
+  restoredRuntime.dispose()
+  disposeRegistration()
+})
+
+test('migrated business authoring uses the stable facade and internal imports stay allowlisted', () => {
+  const workspaceRoot = path.resolve(process.cwd(), '..')
+  const migratedFiles = [
+    'jetlinks-web-core/src/layout/components/AiChat/homeAgentBaseTools.ts',
+    'jetlinks-web-core/src/layout/components/AiChat/routeCapabilityLoader.ts',
+    'modules/alarm-ui/agentCapabilities/alarmAnalysis/tools.ts',
+    'modules/vision-ui/agentCapabilities/aiSearch/tools.ts',
+    'modules/iot-ui/agentCapabilities/deviceAnalysis/tools.ts',
+  ]
+  migratedFiles.filter(relativePath => existsSync(path.join(workspaceRoot, relativePath))).forEach((relativePath) => {
+    const source = readFileSync(path.join(workspaceRoot, relativePath), 'utf8')
+    assert.match(source, /clientToolApi/)
+    assert.doesNotMatch(source, /AiChat\/clientTools['"]/)
+    assert.doesNotMatch(source, /clientTool(?:Routing|Contract|ResultDelivery|BindingPath)['"]/)
+  })
+
+  const retainedLegacyImports = new Set([
+    'modules/iot-ui/agentCapabilities/deviceAnalysis/deviceProperty.service.ts',
+  ])
+  const collectSourceFiles = (directory: string): string[] => readdirSync(directory, { withFileTypes: true })
+    .flatMap((entry) => {
+      if (['node_modules', 'dist', 'coverage'].includes(entry.name) || entry.isSymbolicLink()) return []
+      const absolutePath = path.join(directory, entry.name)
+      if (entry.isDirectory()) return collectSourceFiles(absolutePath)
+      return /\.(?:ts|tsx|vue)$/.test(entry.name) ? [absolutePath] : []
+    })
+  const candidateFiles = collectSourceFiles(path.join(workspaceRoot, 'modules'))
+    .map(absolutePath => path.relative(workspaceRoot, absolutePath))
+  const violations = candidateFiles.filter((relativePath) => {
+    const source = readFileSync(path.join(workspaceRoot, relativePath), 'utf8')
+    return /AiChat\/clientTool(?:Routing|Contract|ResultDelivery|BindingPath)['"]/.test(source)
+      && !retainedLegacyImports.has(relativePath)
+  })
+  assert.deepEqual(violations, [])
+})
+
+test('capability loading prompts resolve the loader from the actual serialized catalog', () => {
+  const loaderContract = defineAiClientToolContract({
+    routingKind: 'discovery',
+    routing: {
+      capabilities: ['client-capability.load'],
+      evidencePolicy: 'none',
+    },
+  })
+  const homeLoader = toAiClientToolSessionDefinition({
+    id: 'home_agent_load_route_capabilities',
+    ...loaderContract,
+  }) as Record<string, any>
+  const generalLoader = toAiClientToolSessionDefinition({
+    id: 'general_agent_load_route_capabilities',
+    ...loaderContract,
+  }) as Record<string, any>
+
+  assert.equal(resolveClientCapabilityLoaderToolId([homeLoader]), 'home_agent_load_route_capabilities')
+  assert.equal(resolveClientCapabilityLoaderToolId([generalLoader]), 'general_agent_load_route_capabilities')
+  assert.equal(resolveClientCapabilityLoaderToolId([]), '')
+})
+
+test('ordinary record queries stay auto-exposed while discovery helpers opt into deferred', () => {
+  const records = defineAiClientToolContract({
+    routingKind: 'records',
+    routing: {
+      capabilities: ['test.records.read'],
+    },
+  })
+  const discovery = defineAiClientToolContract({
+    routingKind: 'discovery',
+    routing: {
+      capabilities: ['test.capability.search'],
+      exposure: 'deferred',
+    },
+  })
+
+  assert.equal(records.routing.exposure, 'auto')
+  assert.equal(discovery.routing.exposure, 'deferred')
 })
 
 test('typed contract generates routing, binding and evidence from one output declaration', () => {
@@ -68,15 +531,23 @@ test('materialized references never reuse a physical file path as JSONPath', () 
     name: 'series',
     ref: 'fs://generated/series.ndjson',
     path: 'generated/series.ndjson',
+    recordPath: '$.results',
     complete: true,
   })
   assert.equal(binding.ref, 'fs://generated/series.ndjson')
   assert.equal(binding.path, undefined)
+  assert.equal(binding.recordPath, '$.results')
   assert.throws(() => createAiClientToolContractOutputBinding(createSeriesContract(), {
     name: 'series',
     path: '$..data',
     complete: true,
   }), /Unsupported client tool execution binding path/)
+  assert.throws(() => createAiClientToolContractOutputBinding(createSeriesContract(), {
+    name: 'series',
+    ref: 'fs://generated/series.json',
+    recordPath: '$.*',
+    complete: true,
+  }), /Unsupported client tool record path/)
 })
 
 test('binding paths support only the bounded property, wildcard and equality grammar', () => {
@@ -158,6 +629,92 @@ test('artifact outputs default to file delivery and cannot create inline binding
   assert.throws(() => createAiClientToolContractOutputBinding(contract, {
     name: 'document', complete: true,
   }), /has no inline path or materialized reference/)
+})
+
+test('JSON artifacts publish only bounded logical record paths', async () => {
+  const result = await deliverAiClientToolResult({
+    data: createAiClientToolArtifact({
+      executionId: 'records',
+      content: JSON.stringify({ results: [{ id: 'one' }] }),
+      mimeType: 'application/json',
+      bindingName: 'records',
+      outputShape: 'generic.result-set',
+      recordPath: '$.results',
+      cardinality: {
+        kind: 'record-set',
+        recordCount: 1,
+        returnedCount: 1,
+        totalCount: 1,
+      },
+      preview: { resultCount: 1 },
+    }),
+  }, {
+    call: {
+      id: 'records',
+      toolName: 'generic_json_producer',
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => ({ ok: true, path }),
+        remove: async path => ({ ok: true, path }),
+      },
+    },
+    resultDelivery: 'file',
+  }) as any
+
+  assert.equal(result.data.recordPath, '$.results')
+  assert.equal(result.outputBindings[0].recordPath, '$.results')
+  assert.equal(createAiClientToolArtifact({
+    content: '{}', mimeType: 'application/json', preview: {}, recordPath: '$.*',
+  }).recordPath, undefined)
+  assert.equal(createAiClientToolArtifact({
+    content: '{}', mimeType: 'application/json', preview: {}, recordPath: '$.result-items',
+  }).recordPath, undefined)
+  assert.equal(createAiClientToolArtifact({
+    content: '{}',
+    mimeType: 'application/json',
+    preview: {},
+    recordPath: "$.results[?(@.type=='person')]",
+  }).recordPath, undefined)
+  assert.equal(createAiClientToolArtifact({
+    content: '{}',
+    mimeType: 'application/json',
+    preview: {},
+    recordPath: `$.${'segment.'.repeat(260)}records`,
+  }).recordPath, undefined)
+  assert.equal(createAiClientToolArtifact({
+    content: '{}', mimeType: 'application/json', preview: {},
+  }).recordPath, undefined)
+
+  const inline = await deliverAiClientToolResult({
+    data: createAiClientToolArtifact({
+      content: '{}',
+      modelSafeInline: { results: [{ id: 'inline' }] },
+      mimeType: 'application/json',
+      bindingName: 'records',
+      outputShape: 'generic.result-set',
+      recordPath: '$.results',
+      preview: {},
+    }),
+  }, {
+    call: { id: 'inline-records', toolName: 'generic_json_producer' },
+    resultDelivery: 'auto',
+  }) as any
+  assert.equal(inline.outputBindings[0].path, '$.data.presentationSource')
+  assert.equal(inline.outputBindings[0].recordPath, '$.results')
+
+  const mutated = createAiClientToolArtifact({
+    content: '{}',
+    modelSafeInline: { results: [] },
+    mimeType: 'application/json',
+    preview: {},
+  }) as any
+  mutated.recordPath = '$.*'
+  const sanitized = await deliverAiClientToolResult({ data: mutated }, {
+    call: { id: 'mutated-records', toolName: 'generic_json_producer' },
+    resultDelivery: 'auto',
+  }) as any
+  assert.equal(sanitized.data.recordPath, undefined)
+  assert.equal(sanitized.outputBindings[0].recordPath, undefined)
 })
 
 test('browser-only contract and binding metadata never enters the session tool declaration', () => {
@@ -390,17 +947,29 @@ test('catalog classifies typed, legacy, missing and malformed contracts independ
     },
     { id: 'missing_tool' },
     {
+      id: 'remote_tool',
+      _meta: {
+        clientToolAdapter: {
+          version: 'remote-definition/v1',
+          source: 'iframe',
+          sourceRevision: '7',
+        },
+      },
+    },
+    {
       id: 'malformed_tool',
       ...typed,
       _meta: { ...typed._meta, clientToolContract: { version: 'bad', outputs: [] } },
     },
   ], { requireRouting: false, requireResultBindings: true })
-  assert.equal(report.summary.total, 4)
+  assert.equal(report.summary.total, 5)
   assert.equal(report.summary.typed, 1)
-  assert.equal(report.summary.legacy, 2)
+  assert.equal(report.summary.legacy, 3)
   assert.equal(report.summary.malformedContract, 1)
   assert.equal(report.tools.find(tool => tool.toolId === 'legacy_tool')?.contractStatus, 'legacy')
   assert.equal(report.tools.find(tool => tool.toolId === 'missing_tool')?.routingStatus, 'missing')
+  assert.equal(report.tools.find(tool => tool.toolId === 'remote_tool')?.authoringStatus, 'remote-adapted')
+  assert.equal(report.summary.remoteAdapted, 1)
   assert.ok(report.issues.some(issue => issue.code === 'typed_contract_malformed'))
 })
 

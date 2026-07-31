@@ -1,6 +1,7 @@
 import { withAiClientToolSilentRequest } from '@jetlinks-web-core/utils/ai-client-tool-request';
 import i18n from '@jetlinks-web-core/locales';
 import { aiClientToolRegistry } from './clientToolRegistry';
+import { createClientToolSnapshotController } from './clientToolSnapshot';
 import {
   createAiClientToolArtifact,
   deliverAiClientToolResult,
@@ -88,6 +89,7 @@ export {
   createAiClientToolCatalogReport,
 } from './clientToolCatalog';
 export type {
+  AiClientToolCatalogAuthoringStatus,
   AiClientToolCatalogContractStatus,
   AiClientToolCatalogToolReport,
   AiClientToolCatalogReport,
@@ -125,6 +127,44 @@ export type {
   AiClientToolOutputField,
   AiClientToolRepair,
 } from './clientToolResult';
+export {
+  CLIENT_TOOL_DEFINITION_META_KEY,
+  CLIENT_TOOL_DEFINITION_VERSION,
+  clientToolOutput,
+  clientToolResult,
+  defineClientTool,
+  isCompiledClientToolDefinition,
+} from './clientToolDefinition';
+export type {
+  ClientToolActivation,
+  ClientToolArtifactOutput,
+  ClientToolConfirmation,
+  ClientToolConsumedResource,
+  ClientToolDefinition,
+  ClientToolDescription,
+  ClientToolDetailOutput,
+  ClientToolEffect,
+  ClientToolEffectKind,
+  ClientToolExecutionResult,
+  ClientToolExternalActionEffect,
+  ClientToolIdempotency,
+  ClientToolInput,
+  ClientToolInputAlternative,
+  ClientToolInputCondition,
+  ClientToolLookupOutput,
+  ClientToolOutput,
+  ClientToolOwner,
+  ClientToolPresentation,
+  ClientToolReadEffect,
+  ClientToolRecordSetOutput,
+  ClientToolAggregateSeriesOutput,
+  ClientToolStateChangeOutput,
+  ClientToolSuccessOptions,
+  ClientToolPartialOptions,
+  ClientToolValueType,
+  ClientToolWriteEffect,
+  CompiledClientToolMetadata,
+} from './clientToolDefinition';
 
 export interface AiClientToolValueType {
   type: string;
@@ -325,12 +365,17 @@ export interface AiClientToolRuntimeOptions<TContext = Record<string, any>> {
 }
 
 export interface AiClientToolRuntime {
-  clientTools: Array<Record<string, any>>;
+  readonly clientTools: Array<Record<string, any>>;
+  readonly clientToolsVersion: number;
   clientToolsName: string;
   clientToolsDescription: string;
   handleClientToolCall: (call: AiClientToolCall) => Promise<any>;
   getToolHelp: (toolName: string) => string;
   getAllToolHelp: () => string;
+  /** Rebuilds handler and schema snapshots; a semantic version is published only when wire fields change. */
+  refreshClientTools: () => void;
+  subscribeClientTools: (listener: (version: number) => void) => () => void;
+  dispose: () => void;
 }
 
 const DEFAULT_HELP_TOOL_ID = 'client_tool_help';
@@ -1020,96 +1065,135 @@ export const guardAiClientToolResult = (
  * normalized descriptors to the agent session and keeps the executable handlers in the browser.
  */
 export const createAiClientToolRuntime = <TContext = Record<string, any>>(
-  tools: AiClientToolDefinition<TContext>[],
+  tools: AiClientToolDefinition<TContext>[] | (() => readonly AiClientToolDefinition<TContext>[]),
   options: AiClientToolRuntimeOptions<TContext> = {},
 ): AiClientToolRuntime => {
   const helpToolId = options.helpToolId || DEFAULT_HELP_TOOL_ID;
-  const resolvedExtraTools = typeof options.extraTools === 'function'
-    ? options.extraTools()
-    : (options.extraTools || []);
-  const extraTools = Array.isArray(resolvedExtraTools) ? resolvedExtraTools : [];
-  const registeredTools = aiClientToolRegistry.getTools<TContext>(options.registeredToolScopes);
-  const sourceTools = mergeToolDefinitions([...tools, ...extraTools, ...registeredTools]);
-  const toolMap = new Map<string, AiClientToolDefinition<TContext>>();
+  let disposed = false;
 
-  sourceTools.forEach((tool) => {
-    toolMap.set(tool.id, tool);
-    if (tool.name) {
-      toolMap.set(tool.name, tool);
-    }
-  });
+  interface RuntimeSnapshot {
+    sourceTools: AiClientToolDefinition<TContext>[];
+    definitions: AiClientToolDefinition<TContext>[];
+    definitionsByName: Map<string, AiClientToolDefinition<TContext>>;
+    clientTools: Array<Record<string, any>>;
+    wireSignature: string;
+  }
 
-  const getToolHelp = (toolName: string) => {
-    const tool = toolMap.get(toolName);
-    if (!tool) {
-      return i18n.global.t('components.AiChat.toolHelp.notFound', [toolName]);
-    }
-    return createToolHelp(tool);
+  const resolveDefinitions = () => {
+    const resolvedTools = typeof tools === 'function' ? tools() : tools;
+    const baseTools = Array.isArray(resolvedTools) ? [...resolvedTools] : [];
+    const resolvedExtraTools = typeof options.extraTools === 'function'
+      ? options.extraTools()
+      : (options.extraTools || []);
+    const extraTools = Array.isArray(resolvedExtraTools) ? resolvedExtraTools : [];
+    const registeredTools = aiClientToolRegistry.getTools<TContext>(options.registeredToolScopes);
+    return mergeToolDefinitions<TContext>([...baseTools, ...extraTools, ...registeredTools]);
   };
 
-  const getAllToolHelp = () => sourceTools.map(createToolHelp).join('\n\n');
-
-  const helpToolContract = defineAiClientToolContract({
-    routingKind: 'discovery',
-    routing: {
-      capabilities: ['client-tool.help.read'],
-      accepts: ['tool-id'],
-      evidencePolicy: 'none',
-    },
-    outputs: [{
-      kind: 'lookup',
-      name: 'client-tool-help',
-      shape: 'tool.help',
-      path: '$.help',
-    }],
-  });
-  const helpTool: AiClientToolDefinition<TContext> = {
-    id: helpToolId,
-    name: helpToolId,
-    description: i18n.global.t('components.AiChat.toolHelp.description'),
-    help: i18n.global.t('components.AiChat.toolHelp.help'),
-    ...helpToolContract,
-    inputs: [
-      {
+  const createHelpTool = (
+    sourceTools: AiClientToolDefinition<TContext>[],
+    sourceMap: Map<string, AiClientToolDefinition<TContext>>,
+  ): AiClientToolDefinition<TContext> => {
+    const getSourceHelp = (toolName: string) => {
+      const tool = sourceMap.get(toolName);
+      return tool
+        ? createToolHelp(tool)
+        : i18n.global.t('components.AiChat.toolHelp.notFound', [toolName]);
+    };
+    const getAllSourceHelp = () => sourceTools.map(createToolHelp).join('\n\n');
+    return {
+      id: helpToolId,
+      name: helpToolId,
+      description: i18n.global.t('components.AiChat.toolHelp.description'),
+      help: i18n.global.t('components.AiChat.toolHelp.help'),
+      ...defineAiClientToolContract({
+        routingKind: 'discovery',
+        routing: {
+          capabilities: ['client-tool.help.read'],
+          accepts: ['tool-id'],
+          evidencePolicy: 'none',
+        },
+        outputs: [{
+          kind: 'lookup',
+          name: 'client-tool-help',
+          shape: 'tool.help',
+          path: '$.help',
+        }],
+      }),
+      inputs: [{
         id: 'toolName',
         name: 'toolName',
         description: i18n.global.t('components.AiChat.toolHelp.toolNameDescription'),
         required: false,
         valueType: 'string',
+      }],
+      output: { type: 'object' },
+      execute: (args = {}) => {
+        const toolName = String(args.toolName || '').trim();
+        return {
+          toolName: toolName || undefined,
+          help: toolName ? getSourceHelp(toolName) : getAllSourceHelp(),
+        };
       },
-    ],
-    output: { type: 'object' },
-    execute: (args = {}) => {
-      const toolName = String(args.toolName || '').trim();
-      return {
-        toolName: toolName || undefined,
-        help: toolName ? getToolHelp(toolName) : getAllToolHelp(),
-      };
-    },
+    };
   };
 
-  if (options.includeHelpTool !== false) {
-    toolMap.set(helpTool.id, helpTool);
-    if (helpTool.name) {
-      toolMap.set(helpTool.name, helpTool);
-    }
-  }
+  const wireSignature = (clientTools: Array<Record<string, any>>) => safeJsonStringify(
+    clientTools.map((tool) => {
+      const {
+        _meta,
+        displayName,
+        title,
+        label,
+        progressText,
+        progressDescription,
+        ...wire
+      } = tool;
+      return wire;
+    }),
+  );
 
-  if (options.includeHelpTool !== false && sourceTools.some(tool => tool.id === helpTool.id)) {
-    throw new Error(`Duplicate client tool id: ${helpTool.id}`);
-  }
-  const runtimeTools = options.includeHelpTool === false ? sourceTools : [...sourceTools, helpTool];
-  const runtimeToolMap = new Map<string, AiClientToolDefinition<TContext>>();
-  runtimeTools.forEach((tool) => {
-    runtimeToolMap.set(tool.id, tool);
-    if (tool.name) {
-      runtimeToolMap.set(tool.name, tool);
+  const buildSnapshot = (): RuntimeSnapshot => {
+    const sourceTools = resolveDefinitions();
+    if (options.includeHelpTool !== false && sourceTools.some(tool => tool.id === helpToolId)) {
+      throw new Error(`Duplicate client tool id: ${helpToolId}`);
     }
-  });
+    const sourceMap = new Map<string, AiClientToolDefinition<TContext>>();
+    sourceTools.forEach((tool) => {
+      sourceMap.set(tool.id, tool);
+      if (tool.name) sourceMap.set(tool.name, tool);
+    });
+    const definitions = options.includeHelpTool === false
+      ? sourceTools
+      : [...sourceTools, createHelpTool(sourceTools, sourceMap)];
+    const definitionsByName = new Map<string, AiClientToolDefinition<TContext>>();
+    definitions.forEach((tool) => {
+      definitionsByName.set(tool.id, tool);
+      if (tool.name) definitionsByName.set(tool.name, tool);
+    });
+    const clientTools = definitions.map(tool => normalizeTool(tool, options));
+    return {
+      sourceTools,
+      definitions,
+      definitionsByName,
+      clientTools,
+      wireSignature: wireSignature(clientTools),
+    };
+  };
+
+  const snapshotController = createClientToolSnapshotController(
+    buildSnapshot,
+    current => current.wireSignature,
+  );
+
+  const refreshClientTools = () => snapshotController.refresh();
 
   const handleClientToolCall = async (call: AiClientToolCall) => {
-    const tool = runtimeToolMap.get(call.toolName);
+    const execution = snapshotController.beginExecution();
+    const executionSnapshot = execution.snapshot;
+    const tool = executionSnapshot.definitionsByName.get(call.toolName);
     if (!tool) {
+      execution.complete();
       throw new Error(`Unsupported client tool: ${call.toolName}`);
     }
     const context = options.getContext?.() || ({} as TContext);
@@ -1148,16 +1232,48 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
       // API failures inside a page tool are still tool results; keep the chat session alive and
       // let the agent explain the failed business call instead of surfacing a global connection error.
       result = normalizeClientToolExecutionError(error, tool.id);
+    } finally {
+      execution.complete();
     }
     return guardAiClientToolResult(result, options.resultGuard, tool.id);
   };
 
+  const unsubscribeRegistry = aiClientToolRegistry.subscribe(
+    options.registeredToolScopes || [],
+    () => {
+      try {
+        refreshClientTools();
+      } catch (error) {
+        // A malformed late registration must not invalidate the last executable snapshot.
+        console.error('[AiClientToolRuntime] failed to refresh client tools', error);
+      }
+    },
+  );
+
   return {
-    clientTools: runtimeTools.map((tool) => normalizeTool(tool, options)),
+    get clientTools() {
+      return snapshotController.snapshot.clientTools;
+    },
+    get clientToolsVersion() {
+      return snapshotController.version;
+    },
     clientToolsName: options.toolsName || 'frontend-client-tools',
     clientToolsDescription: options.toolsDescription || i18n.global.t('components.AiChat.clientToolsDescription'),
     handleClientToolCall,
-    getToolHelp,
-    getAllToolHelp,
+    getToolHelp: (toolName: string) => {
+      const tool = snapshotController.snapshot.definitionsByName.get(toolName);
+      return tool
+        ? createToolHelp(tool)
+        : i18n.global.t('components.AiChat.toolHelp.notFound', [toolName]);
+    },
+    getAllToolHelp: () => snapshotController.snapshot.sourceTools.map(createToolHelp).join('\n\n'),
+    refreshClientTools,
+    subscribeClientTools: snapshotController.subscribe,
+    dispose: () => {
+      if (disposed) return;
+      disposed = true;
+      unsubscribeRegistry();
+      snapshotController.dispose();
+    },
   };
 };

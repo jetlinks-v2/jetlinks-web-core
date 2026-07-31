@@ -13,7 +13,10 @@ import {
   type AiClientToolOutputField,
 } from './clientToolResult'
 import type { AiClientToolResultBindingDefinition } from './clientToolResultDelivery'
-import { isSupportedAiClientToolBindingPath } from './clientToolBindingPath'
+import {
+  isSupportedAiClientToolBindingPath,
+  normalizeAiClientToolRecordPath,
+} from './clientToolBindingPath'
 
 export const AI_CLIENT_TOOL_CONTRACT_VERSION = 'ai-client-tool-contract/v1'
 export const AI_CLIENT_TOOL_CONTRACT_META_KEY = 'clientToolContract'
@@ -236,11 +239,18 @@ export const createAiClientToolContractOutputBinding = (
   if (!path && !ref) {
     throw new Error(`Client tool output binding has no inline path or materialized reference: ${state.name}`)
   }
+  const recordPath = state.recordPath === undefined
+    ? undefined
+    : normalizeAiClientToolRecordPath(state.recordPath)
+  if (state.recordPath !== undefined && !recordPath) {
+    throw new Error(`Unsupported client tool record path: ${state.recordPath}`)
+  }
   return {
     name: output.name,
     ...(output.label ? { label: output.label } : {}),
     ...(ref ? { ref } : {}),
     ...(path ? { path } : {}),
+    ...(recordPath ? { recordPath } : {}),
     shape: output.shape,
     ...(state.mediaType || output.mediaType ? { mediaType: state.mediaType || output.mediaType } : {}),
     ...(Number.isFinite(state.recordCount) ? { recordCount: Number(state.recordCount) } : {}),

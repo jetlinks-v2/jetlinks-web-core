@@ -13,6 +13,7 @@
     "build:server": "pnpm build --mode server",
     "build:modules": "pnpm build -- --module-name",
     "test:client-tools": "node scripts/run-client-tool-contract-tests.mjs",
+    "test:client-tool-types": "vue-tsc --noEmit -p tsconfig.client-tools.json",
     "dev:proxy": "vite -- --backend-url"
   },
   "dependencies": {

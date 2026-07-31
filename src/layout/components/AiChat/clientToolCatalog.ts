@@ -14,16 +14,27 @@ import {
   type AiClientToolRoutingSource,
   type AiClientToolRoutingStatus,
 } from './clientToolRouting'
+import {
+  CLIENT_TOOL_DEFINITION_META_KEY,
+  isCompiledClientToolDefinition,
+} from './clientToolDefinition'
 
 export const AI_CLIENT_TOOL_CATALOG_REPORT_VERSION = 'ai-client-tool-catalog-report/v1'
 
 export type AiClientToolCatalogContractStatus = 'typed' | 'legacy' | 'malformed'
+export type AiClientToolCatalogAuthoringStatus =
+  | 'facade'
+  | 'typed-legacy'
+  | 'routed-legacy'
+  | 'plain-legacy'
+  | 'remote-adapted'
 
 /** Per-tool diagnostics; one malformed declaration never suppresses sibling tools. */
 export interface AiClientToolCatalogToolReport {
   toolId: string
   routingStatus: AiClientToolRoutingStatus
   contractStatus: AiClientToolCatalogContractStatus
+  authoringStatus: AiClientToolCatalogAuthoringStatus
   outputKinds: AiClientToolOutputKind[]
   issues: AiClientToolRoutingCatalogIssue[]
 }
@@ -40,6 +51,11 @@ export interface AiClientToolCatalogReport {
     typed: number
     legacy: number
     malformedContract: number
+    facade: number
+    typedLegacy: number
+    routedLegacy: number
+    plainLegacy: number
+    remoteAdapted: number
     affectedTools: number
     issues: number
   }
@@ -54,6 +70,21 @@ const contractMetadata = (tool: AiClientToolRoutingSource) => {
     ? tool._meta
     : undefined
   return meta?.[AI_CLIENT_TOOL_CONTRACT_META_KEY]
+}
+
+const authoringStatus = (
+  tool: AiClientToolRoutingSource,
+  routingStatus: AiClientToolRoutingStatus,
+  typedContract: boolean,
+): AiClientToolCatalogAuthoringStatus => {
+  const meta = tool._meta && typeof tool._meta === 'object' && !Array.isArray(tool._meta)
+    ? tool._meta
+    : undefined
+  if (isCompiledClientToolDefinition(meta?.[CLIENT_TOOL_DEFINITION_META_KEY])) return 'facade'
+  if (meta?.clientToolAdapter && typeof meta.clientToolAdapter === 'object') return 'remote-adapted'
+  if (typedContract) return 'typed-legacy'
+  if (routingStatus === 'valid') return 'routed-legacy'
+  return 'plain-legacy'
 }
 
 const normalizedList = (values: readonly unknown[] = []) => Array.from(new Set(
@@ -156,6 +187,7 @@ export const createAiClientToolCatalogReport = (
       toolId,
       routingStatus: routing.status,
       contractStatus,
+      authoringStatus: authoringStatus(tool, routing.status, typedContract),
       outputKinds: typedContract
         ? Array.from(new Set(rawContract.outputs.map(output => output.kind)))
         : [],
@@ -166,6 +198,9 @@ export const createAiClientToolCatalogReport = (
   const malformedRouting = toolsReport.filter(tool => tool.routingStatus === 'malformed').length
   const typed = toolsReport.filter(tool => tool.contractStatus === 'typed').length
   const malformedContract = toolsReport.filter(tool => tool.contractStatus === 'malformed').length
+  const authoringCounts = (status: AiClientToolCatalogAuthoringStatus) => (
+    toolsReport.filter(tool => tool.authoringStatus === status).length
+  )
   return {
     version: AI_CLIENT_TOOL_CATALOG_REPORT_VERSION,
     valid: issues.length === 0,
@@ -177,6 +212,11 @@ export const createAiClientToolCatalogReport = (
       typed,
       legacy: toolsReport.length - typed - malformedContract,
       malformedContract,
+      facade: authoringCounts('facade'),
+      typedLegacy: authoringCounts('typed-legacy'),
+      routedLegacy: authoringCounts('routed-legacy'),
+      plainLegacy: authoringCounts('plain-legacy'),
+      remoteAdapted: authoringCounts('remote-adapted'),
       affectedTools: toolsReport.filter(tool => tool.issues.length).length,
       issues: issues.length,
     },

@@ -1,8 +1,10 @@
 import i18n from '@jetlinks-web-core/locales'
 import {
-  defineAiClientToolContract,
-  defineAiClientTools,
-} from './clientTools'
+  clientToolOutput,
+  defineClientTool,
+  defineClientTools,
+  type ClientToolDefinition,
+} from './clientToolApi'
 import type { HomeAgentCapabilityContext } from './homeAgentContracts'
 import {
   compactHomeAgentCapability,
@@ -10,63 +12,29 @@ import {
 } from './homeAgentCatalog'
 import { clampLimit, isPlainRecord, uniqueStrings } from './homeAgentShared'
 
-const HOME_AGENT_CONTEXT_CONTRACT = defineAiClientToolContract({
-  routingKind: 'discovery',
-  routing: {
-    capabilities: ['session.context.read'],
-    evidencePolicy: 'none',
-    exposure: 'eager',
-    cost: 'low',
-  },
-  outputs: [{
-    kind: 'lookup',
-    name: 'session-context',
-    shape: 'session.context',
-    path: '$',
-  }],
-})
+const defineHomeClientTool = (
+  definition: ClientToolDefinition<Record<string, any>, HomeAgentCapabilityContext, any>,
+) => defineClientTool(definition)
 
-const HOME_AGENT_CAPABILITY_SEARCH_CONTRACT = defineAiClientToolContract({
-  routingKind: 'discovery',
-  routing: {
-    capabilities: ['client-capability.search'],
-    accepts: ['natural-language-query'],
-    evidencePolicy: 'none',
-  },
-  outputs: [{
-    kind: 'lookup',
-    name: 'client-capability-candidates',
-    shape: 'capability.candidates',
-    path: '$.items',
-  }],
-})
-
-const HOME_AGENT_OPEN_MENU_CONTRACT = defineAiClientToolContract({
-  routingKind: 'navigation',
-  routing: {
-    capabilities: ['navigation.menu.open'],
-    accepts: ['menu-code'],
-    exposure: 'auto',
-  },
-  outputs: [{
-    kind: 'lookup',
-    name: 'navigation-receipt',
-    shape: 'navigation.receipt',
-    path: '$',
-  }],
-})
-
-export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapabilityContext>([
-  {
+export const createHomeAgentBaseTools = () => defineClientTools<HomeAgentCapabilityContext>([
+  defineHomeClientTool({
     id: 'home_agent_get_context',
-    name: 'home_agent_get_context',
-    displayName: i18n.global.t('components.AiChat.homeAgent.tools.context.displayName'),
-    progressText: i18n.global.t('components.AiChat.homeAgent.tools.context.progressText'),
-    description: i18n.global.t('components.AiChat.homeAgent.tools.context.description'),
-    ...HOME_AGENT_CONTEXT_CONTRACT,
+    description: {
+      text: i18n.global.t('components.AiChat.homeAgent.tools.context.description'),
+      capabilities: ['session.context.read'],
+      activation: 'BOOTSTRAP',
+    },
+    presentation: {
+      displayName: i18n.global.t('components.AiChat.homeAgent.tools.context.displayName'),
+      progressText: i18n.global.t('components.AiChat.homeAgent.tools.context.progressText'),
+    },
     inputs: [],
-    output: { type: 'object' },
-    annotations: { readOnlyHint: true },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.lookup({
+      name: 'session-context',
+      shape: 'session.context',
+    }),
+    owner: { module: 'jetlinks-web-core', group: 'home-agent' },
     execute: (_args, context) => ({
       currentRoute: context.currentRoute,
       currentView: context.currentView,
@@ -75,14 +43,26 @@ export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapab
       categories: uniqueStrings(context.capabilities.map(item => item.category)),
       capabilityKinds: uniqueStrings(context.capabilities.map(item => item.kind)),
     }),
-  },
-  {
+  }),
+  defineHomeClientTool({
     id: 'home_agent_search_capabilities',
-    name: 'home_agent_search_capabilities',
-    displayName: i18n.global.t('components.AiChat.homeAgent.tools.search.displayName'),
-    progressText: i18n.global.t('components.AiChat.homeAgent.tools.search.progressText'),
-    description: i18n.global.t('components.AiChat.homeAgent.tools.search.description'),
-    ...HOME_AGENT_CAPABILITY_SEARCH_CONTRACT,
+    description: {
+      text: i18n.global.t('components.AiChat.homeAgent.tools.search.description'),
+      capabilities: ['client-capability.search'],
+      intents: [
+        '查询当前会话、页面或菜单提供了哪些能力和功能入口',
+        'find capabilities, features, menus, or page entries available in the current session',
+      ],
+      notFor: [
+        '使用已声明业务工具查询或分析平台数据',
+        'query or analyze business data with an already declared tool',
+      ],
+      activation: 'ON_DEMAND',
+    },
+    presentation: {
+      displayName: i18n.global.t('components.AiChat.homeAgent.tools.search.displayName'),
+      progressText: i18n.global.t('components.AiChat.homeAgent.tools.search.progressText'),
+    },
     inputs: [
       {
         id: 'keyword',
@@ -113,8 +93,14 @@ export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapab
         valueType: 'int',
       },
     ],
-    output: { type: 'object' },
-    annotations: { readOnlyHint: true },
+    consumes: [{ name: 'natural-language-query', optional: true, source: 'CONTEXT' }],
+    effect: { kind: 'READ' },
+    output: clientToolOutput.lookup<any>({
+      name: 'client-capability-candidates',
+      shape: 'capability.candidates',
+      select: result => result.items,
+    }),
+    owner: { module: 'jetlinks-web-core', group: 'home-agent' },
     execute: (args, context) => {
       const matches = filterHomeAgentCapabilities(context.capabilities, args)
       const limit = clampLimit(args.limit)
@@ -126,24 +112,16 @@ export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapab
         items: matches.slice(0, limit).map(compactHomeAgentCapability),
       }
     },
-  },
-  {
+  }),
+  defineHomeClientTool({
     id: 'home_agent_open_menu',
-    name: 'home_agent_open_menu',
-    displayName: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.displayName'),
-    progressText: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.progressText'),
-    description: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.description'),
-    ...HOME_AGENT_OPEN_MENU_CONTRACT,
-    confirm: {
-      title: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.confirmTitle'),
-      content: (args, context) => {
-        const menu = context.findMenu(String(args.menuCode || args.routeName || ''))
-        return menu
-          ? i18n.global.t('components.AiChat.homeAgent.tools.openMenu.confirmContent', [menu.breadcrumb.join(' / ')])
-          : i18n.global.t('components.AiChat.homeAgent.tools.openMenu.confirmUnknown')
-      },
-      okText: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.okText'),
-      cancelText: i18n.global.t('verify.cancel'),
+    description: {
+      text: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.description'),
+      capabilities: ['navigation.menu.open'],
+    },
+    presentation: {
+      displayName: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.displayName'),
+      progressText: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.progressText'),
     },
     inputs: [
       {
@@ -168,8 +146,29 @@ export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapab
         valueType: { type: 'object' },
       },
     ],
-    output: { type: 'object' },
-    annotations: { readOnlyHint: false, idempotentHint: true },
+    consumes: [{ name: 'menu-code', optional: true, source: 'EITHER' }],
+    effect: {
+      kind: 'EXTERNAL_ACTION',
+      idempotency: 'IDEMPOTENT',
+      reversible: true,
+      confirmation: {
+        title: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.confirmTitle'),
+        content: (args, context) => {
+          const menu = context.findMenu(String(args.menuCode || args.routeName || ''))
+          return menu
+            ? i18n.global.t('components.AiChat.homeAgent.tools.openMenu.confirmContent', [menu.breadcrumb.join(' / ')])
+            : i18n.global.t('components.AiChat.homeAgent.tools.openMenu.confirmUnknown')
+        },
+        okText: i18n.global.t('components.AiChat.homeAgent.tools.openMenu.okText'),
+        cancelText: i18n.global.t('verify.cancel'),
+      },
+    },
+    output: clientToolOutput.stateChange({
+      name: 'navigation-receipt',
+      shape: 'navigation.receipt',
+      transition: 'NAVIGATION',
+    }),
+    owner: { module: 'jetlinks-web-core', group: 'home-agent' },
     execute: (args, context) => {
       const menuCode = String(args.menuCode || args.routeName || '')
       const menu = context.findMenu(menuCode)
@@ -189,5 +188,5 @@ export const createHomeAgentBaseTools = () => defineAiClientTools<HomeAgentCapab
         error: opened ? undefined : i18n.global.t('components.AiChat.homeAgent.tools.openMenu.notFound'),
       }
     },
-  },
+  }),
 ])

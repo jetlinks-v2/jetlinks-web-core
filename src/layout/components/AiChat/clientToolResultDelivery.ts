@@ -13,7 +13,10 @@ import {
   type AiClientToolOutputBinding,
   type AiClientToolOutputField,
 } from './clientToolResult'
-import { resolveAiClientToolBindingPath } from './clientToolBindingPath'
+import {
+  normalizeAiClientToolRecordPath,
+  resolveAiClientToolBindingPath,
+} from './clientToolBindingPath'
 import {
   collectAiClientToolSemanticFields,
   createAiClientToolRecordFactCollector,
@@ -115,6 +118,8 @@ export interface AiClientToolArtifactOptions<TPreview = unknown> {
   maxInlineBytes?: number
   bindingName?: string
   outputShape?: string
+  /** Safe JSONPath to the logical record collection inside this JSON artifact. */
+  recordPath?: string
   fileExtension?: string
   maxBytes?: number
   /** Semantic source cardinality; generic artifact sizes and producer `total` fields are never interpreted as rows. */
@@ -335,11 +340,18 @@ export const createAiClientToolArrayRecordSource = <T>(
 /** Creates a renderer-neutral source descriptor materialized by the client-tool runtime. */
 export const createAiClientToolArtifact = <TPreview>(
   options: AiClientToolArtifactOptions<TPreview>,
-): AiClientToolArtifact<TPreview> => ({
-  kind: ARTIFACT_KIND,
-  ...options,
-  executionId: String(options.executionId || createExecutionId()),
-})
+): AiClientToolArtifact<TPreview> => {
+  const { recordPath, ...artifactOptions } = options
+  const normalizedRecordPath = recordPath === undefined
+    ? undefined
+    : normalizeAiClientToolRecordPath(recordPath)
+  return {
+    kind: ARTIFACT_KIND,
+    ...artifactOptions,
+    ...(normalizedRecordPath ? { recordPath: normalizedRecordPath } : {}),
+    executionId: String(options.executionId || createExecutionId()),
+  }
+}
 
 const isArtifact = (value: unknown): value is AiClientToolArtifact<unknown> => (
   isRecord(value)
@@ -851,6 +863,9 @@ const mergeArtifactResult = <TPreview>(
   binding: { name: string; shape: string },
 ) => {
   const declaredEvidence = isRecord(envelope?.evidence) ? envelope.evidence : {}
+  const recordPath = artifact.recordPath === undefined
+    ? undefined
+    : normalizeAiClientToolRecordPath(artifact.recordPath)
   const originalSummary = isRecord(envelope?.summary) ? envelope.summary : {}
   const preview = isRecord(delivery.preview) ? delivery.preview : { preview: delivery.preview }
   const cardinality = normalizeAiClientToolCardinality(artifact.cardinality)
@@ -874,6 +889,7 @@ const mergeArtifactResult = <TPreview>(
         name: binding.name,
         ref: delivery.fileRef,
         ...(delivery.path ? { path: delivery.path } : {}),
+        ...(recordPath ? { recordPath } : {}),
         shape: binding.shape,
         mediaType: artifact.mimeType,
         ...(recordCount === undefined ? {} : { recordCount }),
@@ -886,6 +902,7 @@ const mergeArtifactResult = <TPreview>(
       ? [{
           name: binding.name,
           path: '$.data.presentationSource',
+          ...(recordPath ? { recordPath } : {}),
           shape: binding.shape,
           mediaType: artifact.mimeType,
           ...(recordCount === undefined ? {} : { recordCount }),
@@ -929,6 +946,7 @@ const mergeArtifactResult = <TPreview>(
     },
     data: {
       ...preview,
+      ...(recordPath ? { recordPath } : {}),
       ...(inlineSourceAvailable ? { presentationSource: delivery.source } : {}),
       ...(delivery.fileRef ? { fileRef: delivery.fileRef, contentRef: delivery.fileRef } : {}),
     },
@@ -1001,11 +1019,16 @@ const attachInlineOutputBindings = (
       recordCount: selectedCount,
     }]
   }))
-  const existing = normalizeAiClientToolOutputBindings([
+  const normalizedExisting = normalizeAiClientToolOutputBindings([
     ...(Array.isArray(evidence.outputBindings) ? evidence.outputBindings : []),
     ...(Array.isArray(result.outputBindings) ? result.outputBindings : []),
   ] as AiClientToolOutputBinding[])
-  const names = new Set(existing.map(binding => binding.name))
+  const names = new Set<string>()
+  const existing = normalizedExisting.filter((binding) => {
+    if (names.has(binding.name)) return false
+    names.add(binding.name)
+    return true
+  })
   const outputBindings = [
     ...existing,
     ...declared.filter(binding => !names.has(binding.name)),
@@ -1042,7 +1065,10 @@ export const deliverAiClientToolResult = async (
     const artifact = artifactResult.artifact as AiClientToolArtifact<unknown>
     const binding = resolveArtifactBinding(artifact, options)
     const delivery = await materializeArtifact(artifact, options)
-    return mergeArtifactResult(artifact, artifactResult.envelope, delivery, binding)
+    const delivered = mergeArtifactResult(artifact, artifactResult.envelope, delivery, binding)
+    // A tool may produce one materialized renderer source plus small inline selectors (for example,
+    // result ids used by a follow-up query). Materialization must not suppress those declared ports.
+    return attachInlineOutputBindings(delivered, options.outputBindings)
   }
   return attachInlineOutputBindings(result, options.outputBindings)
 }

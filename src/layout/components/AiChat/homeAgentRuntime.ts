@@ -1,4 +1,5 @@
 import i18n from '@jetlinks-web-core/locales'
+import { resolveClientCapabilityLoaderToolId } from './clientCapabilityLoader'
 import { createAiClientToolRuntime } from './clientTools'
 import { createHomeAgentBaseTools } from './homeAgentBaseTools'
 import {
@@ -56,12 +57,15 @@ const buildProviderSystemPromptLines = (
 const buildHomeAgentSystemPrompt = (
   context: HomeAgentCapabilityContext,
   options: HomeAgentRuntimeOptions,
+  capabilityLoaderToolId?: string,
 ) => {
   const topMenus = context.menus.slice(0, 8).map(menu => `${menu.title}(${menu.code})`).join('、')
   return [
     i18n.global.t('components.AiChat.homeAgent.prompt.role'),
     i18n.global.t('components.AiChat.homeAgent.prompt.discovery'),
-    i18n.global.t('components.AiChat.homeAgent.prompt.dynamicLoading'),
+    capabilityLoaderToolId
+      ? i18n.global.t('components.AiChat.homeAgent.prompt.dynamicLoading', [capabilityLoaderToolId])
+      : '',
     i18n.global.t('components.AiChat.homeAgent.prompt.execution'),
     i18n.global.t('components.AiChat.homeAgent.prompt.navigation'),
     i18n.global.t('components.AiChat.homeAgent.prompt.menuLinks'),
@@ -103,11 +107,14 @@ export const createHomeAgentRuntime = (
   const getContext = () => createHomeAgentContext(options)
   const context = getContext()
   const runtime = createAiClientToolRuntime<HomeAgentCapabilityContext>(
-    [
-      ...createHomeAgentBaseTools(),
-      ...buildProviderTools(context, options),
-      ...resolveMaybeArray(options.extraTools),
-    ],
+    () => {
+      const currentContext = getContext()
+      return [
+        ...createHomeAgentBaseTools(),
+        ...buildProviderTools(currentContext, options),
+        ...resolveMaybeArray(options.extraTools),
+      ]
+    },
     {
       toolsName: options.toolsName || i18n.global.t('components.AiChat.homeAgent.toolsName'),
       toolsDescription: buildHomeAgentToolsDescription(context, options),
@@ -128,6 +135,7 @@ export const createHomeAgentRuntime = (
       },
     },
   )
+  const capabilityLoaderToolId = resolveClientCapabilityLoaderToolId(runtime.clientTools)
   const subjectType = resolveOptionText(options.subjectType) || HOME_AGENT_SUBJECT_TYPE
   const subjectId = resolveOptionText(options.subjectId) || HOME_AGENT_CLIENT_ID
   const subjectName = resolveOptionText(options.subjectName)
@@ -148,13 +156,14 @@ export const createHomeAgentRuntime = (
       currentView: context.currentView,
       currentRoute: context.currentRoute,
       clientTools: runtime.clientTools,
+      clientToolsVersion: runtime.clientToolsVersion,
       clientToolHandler: runtime.handleClientToolCall,
       clientToolsName: runtime.clientToolsName,
       clientToolsDescription: runtime.clientToolsDescription,
       workflowGuides: buildProviderWorkflowGuides(context, options),
       markdownLinkHandler: createHomeAgentMarkdownLinkHandler(options),
       ...(options.onConversationMessage ? { onConversationMessage: options.onConversationMessage } : {}),
-      systemPrompt: buildHomeAgentSystemPrompt(context, options),
+      systemPrompt: buildHomeAgentSystemPrompt(context, options, capabilityLoaderToolId),
       openingStatement: options.openingStatement || i18n.global.t('components.AiChat.homeAgent.opening'),
       promptExamples: promptExamples.slice(0, HOME_AGENT_PROMPT_EXAMPLE_LIMIT),
     },
