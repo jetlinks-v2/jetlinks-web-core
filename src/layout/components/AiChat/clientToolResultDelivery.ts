@@ -12,6 +12,7 @@ import {
   type AiClientToolClaim,
   type AiClientToolOutputBinding,
   type AiClientToolOutputField,
+  type AiClientToolOrdering,
 } from './clientToolResult'
 import {
   normalizeAiClientToolRecordPath,
@@ -81,6 +82,10 @@ export interface AiClientToolRecordStreamOptions<T> {
   outputShape?: string
   timeRange?: JsonRecord
   summary?: JsonRecord
+  /** Producer-owned field semantics copied by the contract compiler for materialized records. */
+  fields?: readonly AiClientToolOutputField[]
+  /** Producer-guaranteed record order; never inferred by the delivery layer. */
+  ordering?: AiClientToolOrdering
   path?: string
   limits?: AiClientToolRecordDeliveryLimits
 }
@@ -135,6 +140,10 @@ export interface AiClientToolArtifactOptions<TPreview = unknown> {
   requestedRange?: JsonRecord
   observedRange?: JsonRecord
   facts?: JsonRecord
+  /** Structured field semantics copied from the producer output contract. */
+  fields?: readonly AiClientToolOutputField[]
+  /** Producer-guaranteed structured record ordering. */
+  ordering?: AiClientToolOrdering
   /** Created once by the producer so one execution remains idempotent without coupling paths to call.id. */
   executionId?: string
 }
@@ -176,6 +185,7 @@ export interface AiClientToolResultBindingDefinition {
   shape: string
   mediaType?: string
   fields?: AiClientToolOutputField[]
+  ordering?: AiClientToolOrdering
 }
 
 class RecordDeliveryLimitError extends Error {
@@ -700,15 +710,17 @@ const mergeDeliveryResult = <T>(
     : []
   const bindingName = binding.name
   const outputShape = binding.shape
-  const bindingFields = collectAiClientToolSemanticFields(stream.schema).map(field => ({
-    name: field.path,
-    semanticRole: field.role,
-    ...(field.label ? { label: field.label } : {}),
-    ...(field.format ? { format: field.format } : {}),
-    ...(field.measure ? { measure: field.measure } : {}),
-    ...(field.unit ? { unit: field.unit } : {}),
-    ...(field.aggregation ? { aggregation: field.aggregation } : {}),
-  }))
+  const bindingFields = stream.fields?.length
+    ? stream.fields.map(field => ({ ...field }))
+    : collectAiClientToolSemanticFields(stream.schema).map(field => ({
+        name: field.path,
+        semanticRole: field.role,
+        ...(field.label ? { label: field.label } : {}),
+        ...(field.format ? { format: field.format } : {}),
+        ...(field.measure ? { measure: field.measure } : {}),
+        ...(field.unit ? { unit: field.unit } : {}),
+        ...(field.aggregation ? { aggregation: field.aggregation } : {}),
+      }))
   const outputBindings: AiClientToolOutputBinding[] = data.producedFile && data.fileRef
     ? [{
         name: bindingName,
@@ -727,6 +739,7 @@ const mergeDeliveryResult = <T>(
           returned: data.count,
         },
         ...(bindingFields.length ? { fields: bindingFields } : {}),
+        ...(stream.ordering ? { ordering: stream.ordering } : {}),
       }]
     : [{
         name: bindingName,
@@ -745,6 +758,7 @@ const mergeDeliveryResult = <T>(
           returned: data.sample.length,
         },
         ...(bindingFields.length ? { fields: bindingFields } : {}),
+        ...(stream.ordering ? { ordering: stream.ordering } : {}),
       }]
   const status = data.truncated
     ? 'partial'
@@ -908,6 +922,8 @@ const mergeArtifactResult = <TPreview>(
         ...(displayedCount === undefined ? {} : { displayedCount }),
         complete,
         truncated,
+        ...(artifact.fields?.length ? { fields: artifact.fields.map(field => ({ ...field })) } : {}),
+        ...(artifact.ordering ? { ordering: artifact.ordering } : {}),
       }]
     : inlineSourceAvailable
       ? [{
@@ -922,6 +938,8 @@ const mergeArtifactResult = <TPreview>(
           ...(displayedCount === undefined ? {} : { displayedCount }),
           complete,
           truncated,
+          ...(artifact.fields?.length ? { fields: artifact.fields.map(field => ({ ...field })) } : {}),
+          ...(artifact.ordering ? { ordering: artifact.ordering } : {}),
         }]
       : []
   const artifacts: AiClientToolArtifactReference[] = delivery.producedFile && delivery.fileRef

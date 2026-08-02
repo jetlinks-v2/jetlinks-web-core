@@ -31,6 +31,19 @@ export interface AiClientToolOutputField {
   aggregation?: string
 }
 
+export type AiClientToolOrderingDirection = 'asc' | 'desc'
+
+export interface AiClientToolOrderingKey {
+  field: string
+  direction: AiClientToolOrderingDirection
+}
+
+/** Bounded output ordering asserted by the producer; it never describes renderer behavior. */
+export interface AiClientToolOrdering {
+  keys: AiClientToolOrderingKey[]
+  producerGuaranteed: boolean
+}
+
 export interface AiClientToolMetricDescriptor {
   name: string
   measure: string
@@ -59,6 +72,7 @@ export interface AiClientToolOutputBinding {
   complete: boolean
   truncated?: boolean
   fields?: AiClientToolOutputField[]
+  ordering?: AiClientToolOrdering
   requestedRange?: Record<string, unknown>
   observedRange?: Record<string, unknown>
   coverage?: Record<string, unknown>
@@ -235,6 +249,40 @@ const boundedBindingFields = (values: AiClientToolOutputField[] | undefined) => 
   }).slice(0, 32)
 )
 
+/**
+ * Accepts ordering only when every bounded key references a declared field.
+ * Invalid declarations fail closed as a whole and are never repaired from field names or row samples.
+ */
+export const normalizeAiClientToolOrdering = (
+  value: unknown,
+  fields: readonly AiClientToolOutputField[] | undefined,
+): AiClientToolOrdering | undefined => {
+  if (!isStructuredRecord(value)
+    || typeof value.producerGuaranteed !== 'boolean'
+    || !Array.isArray(value.keys)
+    || value.keys.length === 0
+    || value.keys.length > 8) return undefined
+  const declaredFields = new Set((fields || []).map(field => String(field?.name || '').trim()).filter(Boolean))
+  const seen = new Set<string>()
+  const keys: AiClientToolOrderingKey[] = []
+  for (const rawKey of value.keys) {
+    if (!isStructuredRecord(rawKey)) return undefined
+    const field = String(rawKey.field || '').trim()
+    const direction = String(rawKey.direction || '').trim().toLowerCase()
+    if (!field
+      || field.length > 160
+      || !declaredFields.has(field)
+      || seen.has(field)
+      || (direction !== 'asc' && direction !== 'desc')) return undefined
+    seen.add(field)
+    keys.push({ field, direction })
+  }
+  return {
+    keys,
+    producerGuaranteed: value.producerGuaranteed,
+  }
+}
+
 const boundedMetric = (value: AiClientToolMetricDescriptor | undefined) => {
   const name = String(value?.name || '').trim().slice(0, 160)
   const measure = String(value?.measure || '').trim().toLowerCase().slice(0, 160)
@@ -270,6 +318,7 @@ export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBi
     const shape = String(value?.shape || '').trim().slice(0, 160)
     if (!name || (!ref && !path) || !shape) return []
     const fields = boundedBindingFields(value.fields)
+    const ordering = normalizeAiClientToolOrdering(value.ordering, fields)
     const metric = boundedMetric(value.metric)
     const requestedRange = boundedStructuredRecord(value.requestedRange)
     const observedRange = boundedStructuredRecord(value.observedRange)
@@ -288,6 +337,7 @@ export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBi
       complete: value.complete === true,
       ...(value.truncated !== undefined ? { truncated: value.truncated === true } : {}),
       ...(fields.length ? { fields } : {}),
+      ...(ordering ? { ordering } : {}),
       ...(requestedRange ? { requestedRange } : {}),
       ...(observedRange ? { observedRange } : {}),
       ...(coverage ? { coverage } : {}),
