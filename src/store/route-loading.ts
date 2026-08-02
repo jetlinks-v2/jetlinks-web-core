@@ -8,6 +8,8 @@ export const useRouteLoadingStore = defineStore('route-loading', () => {
   const pending = ref(false)
   const visible = ref(false)
   const loadingComponent = shallowRef<Component>()
+  const overlay = ref(false)
+  const manualFinish = ref(false)
   let timer: ReturnType<typeof setTimeout> | undefined
 
   const clearTimer = () => {
@@ -21,6 +23,8 @@ export const useRouteLoadingStore = defineStore('route-loading', () => {
     pending.value = true
     visible.value = false
     loadingComponent.value = meta?.routeLoadingComponent
+    overlay.value = Boolean(loadingComponent.value && meta?.routeLoadingOverlay)
+    manualFinish.value = Boolean(overlay.value && meta?.routeLoadingManualFinish)
     clearTimer()
 
     // 导航确认前 currentRoute 尚未切换，必须从目标 meta 提前取得路由专属 loading。
@@ -41,6 +45,15 @@ export const useRouteLoadingStore = defineStore('route-loading', () => {
     clearTimer()
     visible.value = false
     loadingComponent.value = undefined
+    overlay.value = false
+    manualFinish.value = false
+  }
+
+  const finishNavigation = () => {
+    pending.value = false
+    clearTimer()
+    if (manualFinish.value && visible.value && loadingComponent.value) return
+    finish()
   }
 
   const reset = () => {
@@ -51,8 +64,11 @@ export const useRouteLoadingStore = defineStore('route-loading', () => {
     pending,
     visible,
     loadingComponent,
+    overlay,
+    manualFinish,
     start,
     finish,
+    finishNavigation,
     reset
   }
 })

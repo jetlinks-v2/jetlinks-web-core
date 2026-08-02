@@ -224,7 +224,7 @@ router.beforeEach((to, from, next) => {
 })
 
 router.afterEach(() => {
-  useRouteLoadingStore().finish()
+  useRouteLoadingStore().finishNavigation()
 })
 
 router.onError(() => {
