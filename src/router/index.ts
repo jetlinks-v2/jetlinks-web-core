@@ -176,7 +176,15 @@ const getRoutesByServer = async (
 // ============ 全局守卫 ============
 router.beforeEach((to, from, next) => {
   const routeLoading = useRouteLoadingStore()
-  routeLoading.start(to.meta)
+  const reuseManualRouteLoading = Boolean(
+    to.meta.routeLoadingManualFinish
+    && to.name === from.name
+    && to.path === from.path
+  )
+  // AI 编辑器会清理一次性 query；复用页面时不会重发 ready，必须沿用当前手动覆盖层。
+  if (!reuseManualRouteLoading) {
+    routeLoading.start(to.meta)
+  }
 
   if (redirectLegacyProjectHash()) {
     routeLoading.finish()
