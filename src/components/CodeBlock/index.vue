@@ -14,6 +14,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+
 /**
  * CodeBlock —— 通用代码块（变体）
  *

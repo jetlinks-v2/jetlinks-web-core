@@ -72,6 +72,7 @@ Route responsibilities:
 - Hidden/detail pages should be exposed through module `getExtraRoutesMap()`.
 - Menu routes are fetched and installed during router startup through `bootstrapSession()` and `ensureMenuRoutes()`.
 - Route security is expressed with `RouteSecurityLevel.PUBLIC`, `RouteSecurityLevel.AUTHENTICATED`, and `RouteSecurityLevel.AUTHORIZED`.
+- Routes may provide `routeLoadingComponent` for a custom navigation loading state. `routeLoadingOverlay` keeps the target route mounted behind that state, and `routeLoadingManualFinish` keeps it visible after `afterEach` until the owning page calls `useRouteLoadingStore().finish()`; both options are opt-in and leave ordinary route skeleton behavior unchanged.
 
 Use `jetlinks-web-core/src/router/MODULE_OVERRIDE_GUIDE.md` for the current route override contract.
 
@@ -94,6 +95,14 @@ const Component = moduleRegistry.getResourceItem('some-module-ui', 'components',
 The registry stores cross-module resources by module id. It also exposes remote module/component loading helpers backed by `@jetlinks-web/vite/dist/dynamic-remote`.
 
 Public contract typing for this registry is handled by the separate module-contract task. Until that is complete, keep docs aligned with the actual `module-registry.ts` API and do not invent resource keys.
+
+## Data Capability Registry
+
+The proposed neutral contract for module-owned data sources, side-effecting operations, structured value bindings, subscription lifecycle, composition, and legacy visualization-command compatibility is documented in:
+
+- `jetlinks-web-core/docs/数据能力注册中心设计.md`
+
+The design keeps discovery in `DataCapabilityRegistry`, read/query/stream execution in `DataSourceRunner`, and side-effecting execution in `OperationRunner`. It is a design contract pending confirmation and implementation; the current production path continues to use the existing visualization command APIs and persisted `bindCommands`.
 
 ## Component Registration And Extension Points
 
