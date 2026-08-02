@@ -7,10 +7,12 @@ import {
   type AiClientToolRoutingResultDelivery,
 } from './clientToolRouting'
 import {
+  normalizeAiClientToolOrdering,
   withAiClientToolEvidence,
   type AiClientToolEvidenceOptions,
   type AiClientToolOutputBinding,
   type AiClientToolOutputField,
+  type AiClientToolOrdering,
 } from './clientToolResult'
 import type { AiClientToolResultBindingDefinition } from './clientToolResultDelivery'
 import {
@@ -45,6 +47,7 @@ interface AiClientToolOutputContractBase {
   mediaType?: string
   delivery?: AiClientToolRoutingResultDelivery
   fields?: AiClientToolOutputField[]
+  ordering?: AiClientToolOrdering
 }
 
 export interface AiClientToolLookupOutput extends AiClientToolOutputContractBase {
@@ -139,13 +142,19 @@ const validateOutputs = (outputs: readonly AiClientToolOutputContract[]) => {
   })
 }
 
-const copyOutput = (output: AiClientToolOutputContract): AiClientToolOutputContract => ({
-  ...output,
-  name: normalizedText(output.name),
-  shape: normalizedText(output.shape),
-  ...(output.path ? { path: normalizedText(output.path) } : {}),
-  ...(output.fields ? { fields: output.fields.map(field => ({ ...field })) } : {}),
-})
+const copyOutput = (output: AiClientToolOutputContract): AiClientToolOutputContract => {
+  const { fields: declaredFields, ordering: declaredOrdering, ...rest } = output
+  const fields = declaredFields?.map(field => ({ ...field }))
+  const ordering = normalizeAiClientToolOrdering(declaredOrdering, fields)
+  return {
+    ...rest,
+    name: normalizedText(output.name),
+    shape: normalizedText(output.shape),
+    ...(output.path ? { path: normalizedText(output.path) } : {}),
+    ...(fields ? { fields } : {}),
+    ...(ordering ? { ordering } : {}),
+  } as AiClientToolOutputContract
+}
 
 const outputDelivery = (output: AiClientToolOutputContract): AiClientToolRoutingResultDelivery => (
   output.delivery || (output.kind === 'artifact' ? 'file' : 'inline')
@@ -177,6 +186,7 @@ export const defineAiClientToolContract = (
       shape: output.shape,
       ...(output.mediaType ? { mediaType: output.mediaType } : {}),
       ...(output.fields?.length ? { fields: output.fields.map(field => ({ ...field })) } : {}),
+      ...(output.ordering ? { ordering: output.ordering } : {}),
     }] : []
   ))
   const outputShapes = outputs.map(output => output.shape)
@@ -245,6 +255,13 @@ export const createAiClientToolContractOutputBinding = (
   if (state.recordPath !== undefined && !recordPath) {
     throw new Error(`Unsupported client tool record path: ${state.recordPath}`)
   }
+  const fields = state.fields?.length
+    ? state.fields.map(field => ({ ...field }))
+    : output.fields?.map(field => ({ ...field }))
+  const ordering = normalizeAiClientToolOrdering(
+    state.ordering !== undefined ? state.ordering : output.ordering,
+    fields,
+  )
   return {
     name: output.name,
     ...(output.label ? { label: output.label } : {}),
@@ -256,9 +273,8 @@ export const createAiClientToolContractOutputBinding = (
     ...(Number.isFinite(state.recordCount) ? { recordCount: Number(state.recordCount) } : {}),
     complete: state.complete,
     ...(state.truncated !== undefined ? { truncated: state.truncated } : {}),
-    ...(state.fields?.length
-      ? { fields: state.fields.map(field => ({ ...field })) }
-      : output.fields?.length ? { fields: output.fields.map(field => ({ ...field })) } : {}),
+    ...(fields?.length ? { fields } : {}),
+    ...(ordering ? { ordering } : {}),
     ...(state.requestedRange ? { requestedRange: { ...state.requestedRange } } : {}),
     ...(state.observedRange ? { observedRange: { ...state.observedRange } } : {}),
     ...(state.coverage ? { coverage: { ...state.coverage } } : {}),
@@ -299,6 +315,12 @@ export const isAiClientToolContractMetadata = (
       const name = normalizedText(record.name)
       const delivery = normalizedText(record.delivery)
       const path = record.path === undefined ? '' : normalizedText(record.path)
+      const ordering = record.ordering === undefined
+        ? undefined
+        : normalizeAiClientToolOrdering(
+            record.ordering,
+            Array.isArray(record.fields) ? record.fields as AiClientToolOutputField[] : undefined,
+          )
       if (!AI_CLIENT_TOOL_OUTPUT_KINDS.includes(kind)
         || !name
         || names.has(name)
@@ -306,6 +328,7 @@ export const isAiClientToolContractMetadata = (
         || (delivery && !AI_CLIENT_TOOL_RESULT_DELIVERIES.includes(delivery as AiClientToolRoutingResultDelivery))
         || (record.path !== undefined && !isSupportedAiClientToolBindingPath(path))
         || ((delivery === 'file' || (kind === 'artifact' && !delivery)) && record.path !== undefined)
+        || (record.ordering !== undefined && !ordering)
         || (kind === 'artifact' && !normalizedText(record.mediaType))) return false
       names.add(name)
       return true

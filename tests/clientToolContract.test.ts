@@ -23,7 +23,10 @@ import {
   deliverAiClientToolResult,
 } from '../src/layout/components/AiChat/clientToolResultDelivery'
 import { createAiClientToolRecordFactCollector } from '../src/layout/components/AiChat/clientToolRecordFacts'
-import { withAiClientToolEvidence } from '../src/layout/components/AiChat/clientToolResult'
+import {
+  normalizeAiClientToolOrdering,
+  withAiClientToolEvidence,
+} from '../src/layout/components/AiChat/clientToolResult'
 import {
   mergeAiClientToolParameterSchema,
 } from '../src/layout/components/AiChat/clientToolParameterSchema'
@@ -52,6 +55,10 @@ const createSeriesContract = () => defineAiClientToolContract({
     path: '$.data',
     delivery: 'auto',
     fields: [{ name: 'time', semanticRole: 'timestamp' }],
+    ordering: {
+      keys: [{ field: 'time', direction: 'asc' }],
+      producerGuaranteed: true,
+    },
   }],
 })
 
@@ -96,7 +103,7 @@ test('stable client-tool facade compiles business facts without inferring resour
   assert.equal(result.outputBindings[0].path, '$.__clientToolOutputs.output0')
 })
 
-test('aggregate facade derives one renderer-ready source without rewriting category time labels', async () => {
+test('aggregate facade exposes renderer-neutral data without deriving a browser presentation', async () => {
   let selections = 0
   const points = [
     { label: '13:00', value: 0, timestamp: 1_785_387_600_000 },
@@ -127,46 +134,29 @@ test('aggregate facade derives one renderer-ready source without rewriting categ
     }),
   })
 
-  assert.deepEqual(tool.routing?.produces, [
-    'online-rate-series',
-    'online-rate-series-echarts-source',
-  ])
-  assert.deepEqual(tool.routing?.outputShapes, [
-    'metric.time-series',
-    'presentation.echarts-option',
-  ])
+  assert.deepEqual(tool.routing?.produces, ['online-rate-series'])
+  assert.deepEqual(tool.routing?.outputShapes, ['metric.time-series'])
 
   const prepared = await tool.execute({}, {}, { id: 'trend', toolName: tool.id }) as any
   assert.equal(selections, 1)
   assert.deepEqual(prepared.__clientToolOutputs.output0, points)
-  assert.equal(prepared.data.kind, 'ai-client-tool-artifact/v1')
+  assert.equal(prepared.data, undefined)
 
   const delivered = await deliverAiClientToolResult(prepared, {
     call: { id: 'trend', toolName: tool.id },
     outputBindings: tool._meta?.resultBindings,
   }) as any
-  const option = delivered.data.presentationSource
-  assert.equal(option.xAxis.type, 'category')
-  assert.equal(option.yAxis.axisLabel.formatter, '{value}%')
-  assert.deepEqual(option.dataset.source, [
-    ['13:00', 0],
-    ['14:00', 100],
-  ])
-  assert.equal(option.dataset.source[0][0], points[0].label)
-  assert.equal(option.dataset.source[1][0], points[1].label)
+  assert.equal(delivered.data, undefined)
   assert.deepEqual(delivered.outputBindings.map((binding: any) => ({
     name: binding.name,
     label: binding.label,
+    shape: binding.shape,
     mediaType: binding.mediaType,
   })), [
     {
-      name: 'online-rate-series-echarts-source',
-      label: 'Online rate',
-      mediaType: 'application/vnd.echarts+json',
-    },
-    {
       name: 'online-rate-series',
       label: 'Online rate',
+      shape: 'metric.time-series',
       mediaType: undefined,
     },
   ])
@@ -201,7 +191,7 @@ test('record-set materialization preserves the owning output label', async () =>
   assert.equal(delivered.outputBindings[0].path, '$.data.sample')
 })
 
-test('aggregate presentation preserves timestamps and declines ambiguous dynamic measures', async () => {
+test('aggregate facade preserves timestamp and dynamic measure contracts without presentation output', async () => {
   const timestampPoints = [
     { time: 1_785_387_600_000, value: 12 },
     { time: 1_785_391_200_000, value: 18 },
@@ -226,14 +216,11 @@ test('aggregate presentation preserves timestamps and declines ambiguous dynamic
     {},
     { id: 'timestamp', toolName: timestampTool.id },
   )
-  const timestampDelivered = await deliverAiClientToolResult(timestampPrepared, {
-    call: { id: 'timestamp', toolName: timestampTool.id },
-    outputBindings: timestampTool._meta?.resultBindings,
-  }) as any
-  assert.equal(timestampDelivered.data.presentationSource.xAxis.type, 'time')
-  assert.deepEqual(timestampDelivered.data.presentationSource.dataset.source, [
-    [1_785_387_600_000, 12],
-    [1_785_391_200_000, 18],
+  assert.equal((timestampPrepared as any).data, undefined)
+  assert.deepEqual((timestampPrepared as any).__clientToolOutputs.output0, timestampPoints)
+  assert.deepEqual((timestampPrepared as any).outputBindings[0].fields, [
+    { name: 'time', semanticRole: 'timestamp' },
+    { name: 'value', semanticRole: 'number' },
   ])
 
   const dynamicMeasureTool = defineClientTool({
@@ -260,7 +247,7 @@ test('aggregate presentation preserves timestamps and declines ambiguous dynamic
   ])
 })
 
-test('aggregate facade derives an ordered path from execution-specific coordinate semantics', async () => {
+test('aggregate facade preserves ordered coordinate semantics without choosing a path renderer', async () => {
   const points = [
     {
       time: 1_735_660_800_000,
@@ -295,6 +282,11 @@ test('aggregate facade derives an ordered path from execution-specific coordinat
     output: clientToolOutput.aggregateSeries({
       name: 'location-series',
       shape: 'time-series.aggregate',
+      fields: [{ name: 'time', semanticRole: 'timestamp' }],
+      ordering: {
+        keys: [{ field: 'time', direction: 'asc' }],
+        producerGuaranteed: true,
+      },
       select: (result: any) => result.points,
       resolveFields: () => fields,
     }),
@@ -302,33 +294,24 @@ test('aggregate facade derives an ordered path from execution-specific coordinat
   })
 
   const prepared = await tool.execute({}, {}, { id: 'geo', toolName: tool.id }) as any
-  assert.equal(prepared.data.kind, 'ai-client-tool-artifact/v1')
+  assert.equal(prepared.data, undefined)
   assert.deepEqual(prepared.__clientToolOutputs.output0, points)
   assert.deepEqual(prepared.outputBindings[0].fields, fields)
+  assert.deepEqual(prepared.outputBindings[0].ordering, {
+    keys: [{ field: 'time', direction: 'asc' }],
+    producerGuaranteed: true,
+  })
   const delivered = await deliverAiClientToolResult(prepared, {
     call: { id: 'geo', toolName: tool.id },
     outputBindings: tool._meta?.resultBindings,
   }) as any
-  const option = delivered.data.presentationSource
-  assert.equal(option.series[0].type, 'line')
-  assert.equal(option.xAxis.scale, true)
-  assert.equal(option.yAxis.scale, true)
-  assert.deepEqual(option.dataZoom, [
-    { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
-    { type: 'inside', yAxisIndex: 0, filterMode: 'none' },
-  ])
-  assert.deepEqual(option.toolbox.feature, {
-    dataZoom: { xAxisIndex: 0, yAxisIndex: 0 },
-    restore: {},
-  })
-  assert.deepEqual(option.dataset.source, [
-    [120.1, 30.1, 1_735_660_800_000],
-    [121.2, 31.2, 1_735_664_400_000],
-  ])
-  assert.deepEqual(option.series[0].encode, {
-    x: 'position_longitude',
-    y: 'position_latitude',
-    tooltip: ['time', 'position_longitude', 'position_latitude'],
+  assert.equal(delivered.data, undefined)
+  assert.equal(delivered.outputBindings.length, 1)
+  assert.equal(delivered.outputBindings[0].shape, 'time-series.aggregate')
+  assert.equal(delivered.outputBindings[0].mediaType, undefined)
+  assert.deepEqual(delivered.outputBindings[0].ordering, {
+    keys: [{ field: 'time', direction: 'asc' }],
+    producerGuaranteed: true,
   })
 
   const unorderedTool = defineClientTool({
@@ -638,6 +621,10 @@ test('typed contract generates routing, binding and evidence from one output dec
     path: '$.data',
     shape: 'time-series.aggregate',
     fields: [{ name: 'time', semanticRole: 'timestamp' }],
+    ordering: {
+      keys: [{ field: 'time', direction: 'asc' }],
+      producerGuaranteed: true,
+    },
   }])
 
   const result = withAiClientToolContractEvidence({ data: [{ time: 1 }] }, contract, {
@@ -647,6 +634,35 @@ test('typed contract generates routing, binding and evidence from one output dec
   })
   assert.equal(result.evidence.outputBindings?.[0]?.name, 'series')
   assert.equal(result.evidence.outputBindings?.[0]?.shape, 'time-series.aggregate')
+  assert.deepEqual(result.evidence.outputBindings?.[0]?.ordering, {
+    keys: [{ field: 'time', direction: 'asc' }],
+    producerGuaranteed: true,
+  })
+})
+
+test('ordering is bounded to declared fields and invalid declarations fail closed', () => {
+  const fields = [
+    { name: 'capturedAt', semanticRole: 'timestamp' as const },
+    { name: 'value', semanticRole: 'number' as const },
+  ]
+  assert.deepEqual(normalizeAiClientToolOrdering({
+    keys: [{ field: 'capturedAt', direction: 'ASC' }],
+    producerGuaranteed: false,
+  }, fields), {
+    keys: [{ field: 'capturedAt', direction: 'asc' }],
+    producerGuaranteed: false,
+  })
+  const invalid = [
+    { keys: [{ field: 'missing', direction: 'asc' }], producerGuaranteed: true },
+    { keys: [{ field: 'value', direction: 'asc' }, { field: 'value', direction: 'desc' }], producerGuaranteed: true },
+    { keys: [{ field: 'value', direction: 'sideways' }], producerGuaranteed: true },
+    { keys: [{ field: 'value', direction: 'asc' }] },
+    {
+      keys: Array.from({ length: 9 }, (_, index) => ({ field: index ? `field-${index}` : 'value', direction: 'asc' })),
+      producerGuaranteed: true,
+    },
+  ]
+  invalid.forEach(value => assert.equal(normalizeAiClientToolOrdering(value, fields), undefined))
 })
 
 test('materialized references never reuse a physical file path as JSONPath', () => {

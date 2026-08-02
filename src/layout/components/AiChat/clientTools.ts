@@ -97,6 +97,7 @@ export type {
 export {
   AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
   createAiClientToolFailureResult,
+  normalizeAiClientToolOrdering,
   withAiClientToolEvidence,
 } from './clientToolResult';
 export {
@@ -119,6 +120,9 @@ export type {
   AiClientToolEvidence,
   AiClientToolEvidenceOptions,
   AiClientToolMetricDescriptor,
+  AiClientToolOrdering,
+  AiClientToolOrderingDirection,
+  AiClientToolOrderingKey,
   AiClientToolFailureDisposition,
   AiClientToolRecoveryAction,
   AiClientToolFieldSemanticRole,

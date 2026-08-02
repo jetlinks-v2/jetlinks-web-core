@@ -8,17 +8,12 @@ import {
   createAiClientToolFailureResult,
   type AiClientToolFailureOptions,
   type AiClientToolOutputField,
+  type AiClientToolOrdering,
 } from './clientToolResult'
 import {
   createAiClientToolArrayRecordSource,
   createAiClientToolRecordStream,
 } from './clientToolResultDelivery'
-import {
-  canCreateClientToolAggregatePresentation,
-  CLIENT_TOOL_ECHARTS_MEDIA_TYPE,
-  CLIENT_TOOL_ECHARTS_OUTPUT_SHAPE,
-  createClientToolAggregatePresentation,
-} from './clientToolAggregatePresentation'
 import type {
   AiClientToolCall,
   AiClientToolConfirmOptions,
@@ -138,6 +133,8 @@ interface ClientToolOutputBase<TResult> {
   shape: string
   label?: string
   fields?: readonly AiClientToolOutputField[]
+  /** Renderer-neutral ordering guaranteed by the producer. */
+  ordering?: AiClientToolOrdering
   /**
    * Resolves execution-specific field semantics when a producer's columns are selected at runtime.
    * The logical output name and shape remain static; only renderer-neutral field metadata may vary.
@@ -373,44 +370,6 @@ const resolveActivation = (activation: ClientToolActivation | undefined) => {
 
 const outputSlotPath = (index: number) => `$.__clientToolOutputs.output${index}`
 
-interface ClientToolDerivedOutputPlan<TResult> {
-  output: ClientToolArtifactOutput<TResult>
-  index: number
-  sourceIndex: number
-}
-
-const compileDerivedOutputPlan = <TResult>(
-  outputs: readonly ClientToolOutput<TResult>[],
-): ClientToolDerivedOutputPlan<TResult> | undefined => {
-  if (outputs.some(output => output.kind === 'artifact')) return undefined
-  const candidates = outputs.flatMap((output, sourceIndex) => (
-    output.kind === 'aggregateSeries'
-      && (canCreateClientToolAggregatePresentation(output) || !!output.resolveFields)
-      ? [{ output, sourceIndex }]
-      : []
-  ))
-  // One execution owns at most one materialized artifact. Ambiguous multi-series tools must
-  // declare an explicit renderer-ready artifact instead of receiving an inferred combination.
-  if (candidates.length !== 1) return undefined
-  const candidate = candidates[0]
-  const name = `${candidate.output.name}-echarts-source`
-  if (outputs.some(output => output.name === name)) {
-    throw new Error(`Client tool output conflicts with derived presentation binding: ${name}`)
-  }
-  return {
-    index: outputs.length,
-    sourceIndex: candidate.sourceIndex,
-    output: {
-      kind: 'artifact',
-      name,
-      shape: CLIENT_TOOL_ECHARTS_OUTPUT_SHAPE,
-      label: candidate.output.label,
-      mediaType: CLIENT_TOOL_ECHARTS_MEDIA_TYPE,
-      optional: true,
-    },
-  }
-}
-
 const compileOutputContract = <TResult>(
   output: ClientToolOutput<TResult>,
   index: number,
@@ -420,6 +379,7 @@ const compileOutputContract = <TResult>(
     shape: normalizedText(output.shape),
     ...(output.label ? { label: output.label } : {}),
     ...(output.fields?.length ? { fields: output.fields.map(field => ({ ...field })) } : {}),
+    ...(output.ordering ? { ordering: output.ordering } : {}),
   }
   if (output.kind === 'artifact') {
     return {
@@ -449,7 +409,6 @@ const compileOutputContract = <TResult>(
 const compileContract = <TResult>(
   definition: ClientToolDefinition<any, any, TResult>,
   outputs: readonly ClientToolOutput<TResult>[],
-  derivedOutput: ClientToolDerivedOutputPlan<TResult> | undefined,
 ) => {
   const { capabilities } = normalizeDescription(definition.description)
   const consumes = definition.consumes || []
@@ -468,10 +427,7 @@ const compileContract = <TResult>(
       exposure: resolveActivation(definition.description.activation),
       ...(definition.effect.kind === 'READ' ? {} : { cost: 'medium' as const }),
     },
-    outputs: [
-      ...outputs.map(compileOutputContract),
-      ...(derivedOutput ? [compileOutputContract(derivedOutput.output, derivedOutput.index)] : []),
-    ],
+    outputs: outputs.map(compileOutputContract),
   })
 }
 
@@ -586,6 +542,7 @@ const isInternalDescriptor = (value: unknown, kind: string) => (
 const prepareMaterializedValue = <TResult>(
   value: unknown,
   output: ClientToolOutput<TResult>,
+  fields: readonly AiClientToolOutputField[] | undefined,
 ) => {
   if (isInternalDescriptor(value, MATERIALIZED_ARTIFACT_KIND)
     || isInternalDescriptor(value, MATERIALIZED_RECORD_STREAM_KIND)) {
@@ -594,6 +551,8 @@ const prepareMaterializedValue = <TResult>(
       bindingName: output.name,
       ...(output.label ? { bindingLabel: output.label } : {}),
       outputShape: output.shape,
+      ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
+      ...(output.ordering ? { ordering: output.ordering } : {}),
     }
   }
   if (output.kind === 'recordSet' && Array.isArray(value) && value.length > INLINE_RECORD_LIMIT) {
@@ -603,6 +562,8 @@ const prepareMaterializedValue = <TResult>(
       bindingName: output.name,
       ...(output.label ? { bindingLabel: output.label } : {}),
       outputShape: output.shape,
+      ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
+      ...(output.ordering ? { ordering: output.ordering } : {}),
     })
   }
   return undefined
@@ -613,7 +574,6 @@ const adaptExecutionResult = async <TResult>(
   result: TResult | ClientToolExecutionResult<TResult>,
   outputs: readonly ClientToolOutput<TResult>[],
   contract: AiClientToolContractFragment,
-  derivedOutput: ClientToolDerivedOutputPlan<TResult> | undefined,
 ) => {
   if (isExecutionResult<TResult>(result) && result.outcome === 'failure') {
     return createAiClientToolFailureResult(result.failure)
@@ -654,28 +614,6 @@ const adaptExecutionResult = async <TResult>(
     selected.push({ output, index, value, fields })
   }
 
-  if (derivedOutput) {
-    const source = selected.find(item => item.index === derivedOutput.sourceIndex)
-    const presentation = source && source.output.kind === 'aggregateSeries'
-      ? createClientToolAggregatePresentation(source.value, {
-          ...source.output,
-          fields: source.fields,
-        }, {
-          requestedRange: execution.requestedRange,
-          observedRange: execution.observedRange,
-          complete: execution.complete,
-          truncated: execution.truncated,
-        })
-      : undefined
-    if (presentation) {
-      selected.push({
-        output: derivedOutput.output,
-        index: derivedOutput.index,
-        value: presentation,
-      })
-    }
-  }
-
   const inlineValues: Record<string, unknown> = {}
   let materialized: unknown
   const inlineStates: Array<{
@@ -683,9 +621,10 @@ const adaptExecutionResult = async <TResult>(
     path: string
     complete: boolean
     fields?: AiClientToolOutputField[]
+    ordering?: AiClientToolOrdering
   }> = []
   selected.forEach(({ output, index, value, fields }) => {
-    const prepared = prepareMaterializedValue(value, output)
+    const prepared = prepareMaterializedValue(value, output, fields)
     if (prepared) {
       if (materialized) throw createSelectionError(toolId, output.name)
       materialized = prepared
@@ -701,6 +640,7 @@ const adaptExecutionResult = async <TResult>(
       path: outputSlotPath(index),
       complete: execution.complete,
       ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
+      ...(output.ordering ? { ordering: output.ordering } : {}),
     })
   })
 
@@ -739,13 +679,12 @@ export const defineClientTool = <
   if (!id) throw new Error('Client tool id is required')
   const { text } = normalizeDescription(definition.description)
   const outputs = normalizeOutputs(definition.output)
-  const derivedOutput = compileDerivedOutputPlan(outputs)
-  const contract = compileContract(definition, outputs, derivedOutput)
+  const contract = compileContract(definition, outputs)
   const effect = compileEffect(definition.effect)
   const metadata: CompiledClientToolMetadata = {
     version: CLIENT_TOOL_DEFINITION_VERSION,
     effect: definition.effect.kind,
-    outputCount: outputs.length + (derivedOutput ? 1 : 0),
+    outputCount: outputs.length,
   }
   return {
     id,
@@ -777,7 +716,6 @@ export const defineClientTool = <
       await definition.execute(args as TArgs, context, call),
       outputs,
       contract,
-      derivedOutput,
     ),
   }
 }
