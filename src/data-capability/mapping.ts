@@ -18,7 +18,6 @@ export function applyOutputMapping(
   mapping?: OutputMapping,
   options: OutputMappingExecutionOptions = {},
 ): unknown {
-  assertOutputMappingVersion(mapping)
   if (mapping?.format && Object.keys(mapping.format).length) {
     throw createCapabilityError('output_mapping.format_unsupported', 'Output mapping format is not supported yet', {
       capabilityId: options.capabilityId,
@@ -31,14 +30,6 @@ export function applyOutputMapping(
     capabilityId: options.capabilityId,
   })
   return result
-}
-
-export function assertOutputMappingVersion(mapping?: OutputMapping): void {
-  if (mapping && mapping.version !== 1) {
-    throw createCapabilityError('output_mapping.version_unsupported', 'Output mapping version is not supported', {
-      details: { version: mapping.version },
-    })
-  }
 }
 
 function projectMappingFields(

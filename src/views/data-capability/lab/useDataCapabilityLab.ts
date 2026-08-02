@@ -74,7 +74,7 @@ export function useDataCapabilityLab() {
     },
     capabilityReference: selectedChoice.value && {
       capabilityId: selectedChoice.value.value,
-      capabilityVersion: selectedChoice.value.version,
+      version: selectedChoice.value.version,
     },
     config: safeParseJson(draftConfig.value),
     queryInput: safeParseJson(draftQuery.value),

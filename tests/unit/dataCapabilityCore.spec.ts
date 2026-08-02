@@ -231,8 +231,8 @@ assert.equal(choiceSourceCreateCount, 0)
 assert.equal(choiceSourceQueryCount, 0)
 assert.equal(choiceOperationCreateCount, 0)
 assert.deepEqual(
-  { capabilityId: selectableSource.value, capabilityVersion: selectableSource.version },
-  { capabilityId: 'test.source.choice', capabilityVersion: 2 },
+  { capabilityId: selectableSource.value, version: selectableSource.version },
+  { capabilityId: 'test.source.choice', version: 2 },
 )
 
 const readinessRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
@@ -1867,19 +1867,10 @@ await assert.rejects(
   () => registry.createRuntime({ runtimeId: 'plan-test' }).query({
     version: 1,
     source: { capabilityId: source.id, version: 1 },
-    plan: { version: 1, nodes: [{ id: 'node1', source: { capabilityId: source.id, version: 1 } }] },
+    plan: { nodes: [{ id: 'node1', source: { capabilityId: source.id, version: 1 } }] },
   }),
   (error: any) => error?.code === 'data_source.plan.unsupported',
 )
-await assert.rejects(
-  () => registry.createRuntime({ runtimeId: 'plan-version-test' }).query({
-    version: 1,
-    source: { capabilityId: source.id, version: 1 },
-    plan: { version: 2, nodes: [] },
-  } as any),
-  (error: any) => error?.code === 'data_source.plan.version_unsupported',
-)
-
 await assert.rejects(async () => {
   await registry.createRuntime({ runtimeId: 'expression-test' }).prepareOperation({
     version: 1,

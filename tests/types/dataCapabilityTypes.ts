@@ -115,7 +115,6 @@ const invalidFunctionOnlyManifest: DataCapabilityProviderManifest = {
 }
 
 const validOutputMapping: OutputMapping = {
-  version: 1,
   fields: {
     items: {
       kind: 'each',
@@ -126,7 +125,6 @@ const validOutputMapping: OutputMapping = {
 }
 
 const invalidExpressionMapping: OutputMapping = {
-  version: 1,
   fields: {
     // @ts-expect-error arbitrary expressions are not part of the persisted mapping contract.
     value: { kind: 'expression', expression: 'value' },

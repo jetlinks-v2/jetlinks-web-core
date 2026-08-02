@@ -46,7 +46,7 @@ export class DefaultDataCapabilityClient implements DataCapabilityClient {
       version: 1,
       source: {
         capabilityId: request.capabilityId,
-        version: request.capabilityVersion ?? definition.version,
+        version: request.version ?? definition.version,
         config: request.config,
       },
       query: request.params,

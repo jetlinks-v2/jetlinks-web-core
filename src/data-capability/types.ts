@@ -14,8 +14,6 @@ export type CapabilityAccessPhase = 'discover' | 'configure' | 'execute'
 export type DataPath = Array<string | number>
 export type PersistedDataBindingVersion = 1
 export type PersistedOperationBindingVersion = 1
-export type OutputMappingVersion = 1
-export type DataSourcePlanVersion = 1
 
 export interface CapabilityOwner {
   moduleId: string
@@ -511,7 +509,6 @@ export interface CapabilityOption {
 }
 
 export interface OutputMapping {
-  version: OutputMappingVersion
   fields: Record<string, OutputMappingValue>
   format?: Record<string, OutputFormatRule>
 }
@@ -559,7 +556,6 @@ export interface OutputFormatRule {
 }
 
 export interface DataSourcePlan {
-  version: DataSourcePlanVersion
   nodes: DataSourcePlanNode[]
   output?: DataSourcePlanOutput
 }
@@ -760,7 +756,7 @@ export interface DataCapabilityClientCreateContext extends CapabilityContext {
 export interface DataCapabilityClientQueryRequest {
   capabilityId: string
   /** Optional for transient calls. Persisted bindings must continue to store an explicit version. */
-  capabilityVersion?: number
+  version?: number
   config?: unknown
   params?: Record<string, ValueBinding | unknown>
   mapping?: OutputMapping

@@ -46,6 +46,37 @@ assert.equal(validator.validate(
   'output',
 ).length, 100)
 
+const optionalObjectRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
+let optionalConfig: unknown
+let optionalQuery: unknown
+optionalObjectRegistry.sources.register({
+  id: 'test.source.optional-object-input',
+  kind: 'data-source',
+  version: 1,
+  name: 'Optional Object Input Source',
+  owner: { moduleId: 'test-ui', providerId: 'schema-provider' },
+  modes: ['snapshot'],
+  configSchema: { type: 'object' },
+  querySchema: { type: 'object', properties: { keyword: { type: 'string' } } },
+  create(config) {
+    optionalConfig = config
+    return {
+      query<T = unknown>(request: DataSourceRequest) {
+        optionalQuery = request.query
+        return of({ data: { ok: true } as T })
+      },
+    }
+  },
+})
+const optionalObjectRuntime = optionalObjectRegistry.createRuntime({ runtimeId: 'optional-object-input' })
+await optionalObjectRuntime.query({
+  version: 1,
+  source: { capabilityId: 'test.source.optional-object-input', version: 1 },
+})
+assert.deepEqual(optionalConfig, {})
+assert.deepEqual(optionalQuery, {})
+await optionalObjectRuntime.dispose()
+
 const sourceRegistry = new DefaultDataCapabilityRegistry({ loadModuleProviders: false })
 let sourceCreateCount = 0
 let sourceQueryCount = 0

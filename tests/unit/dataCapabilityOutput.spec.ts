@@ -162,7 +162,6 @@ const targetSchema = {
   },
 } satisfies CapabilitySchema
 const mapping: OutputMapping = {
-  version: 1,
   fields: {
     title: { kind: 'path', path: ['title'] },
     items: {
@@ -217,23 +216,16 @@ await assert.rejects(
 await assert.rejects(
   () => mappingRuntime.query({
     ...mappingBinding,
-    mapping: { version: 1, fields: { value: { kind: 'expression' } as any } },
+    mapping: { fields: { value: { kind: 'expression' } as any } },
   }),
   (error: any) => error?.code === 'output_mapping.expression_unsupported',
 )
 await assert.rejects(
   () => mappingRuntime.query({
     ...mappingBinding,
-    mapping: { version: 1, fields: { value: { kind: 'coerce' } as any } },
+    mapping: { fields: { value: { kind: 'coerce' } as any } },
   }),
   (error: any) => error?.code === 'output_mapping.coerce_unsupported',
-)
-await assert.rejects(
-  () => mappingRuntime.query({
-    ...mappingBinding,
-    mapping: { ...mapping, version: 2 } as any,
-  }),
-  (error: any) => error?.code === 'output_mapping.version_unsupported',
 )
 await assert.rejects(
   () => mappingRuntime.query({ ...mappingBinding, version: 2 } as any),

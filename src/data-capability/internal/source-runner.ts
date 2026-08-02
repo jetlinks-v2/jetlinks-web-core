@@ -170,7 +170,8 @@ export class DataSourceRunner {
         const definition = this.requireSource(binding.source)
         const registration = this.registry.getDefinitionRegistration(definition)
         this.assertRegistrationActive(registration, 'sources', definition.id)
-        capabilitySchemaValidator.assert(definition.configSchema, binding.source.config, {
+        const config = normalizeOmittedObject(definition.configSchema, binding.source.config)
+        capabilitySchemaValidator.assert(definition.configSchema, config, {
           phase: 'config',
           capabilityId: definition.id,
         })
@@ -179,7 +180,10 @@ export class DataSourceRunner {
         this.assertActive()
         this.assertRegistrationActive(registration, 'sources', definition.id)
         if (stopped || signal?.aborted) return
-        const query = await this.resolveRecord(binding.query, signal)
+        const query = normalizeOmittedObject(
+          definition.querySchema,
+          await this.resolveRecord(binding.query, signal),
+        )
         this.assertActive()
         this.assertRegistrationActive(registration, 'sources', definition.id)
         if (stopped || signal?.aborted) return
@@ -190,7 +194,7 @@ export class DataSourceRunner {
         const resolvedRequest = normalizeDataSourceRequest(definition, {
           capabilityId: binding.source.capabilityId,
           version: binding.source.version,
-          config: binding.source.config,
+          config,
           query,
           signal,
           limit: resolveLimit(request.options?.limit, definition.defaults?.limit),
@@ -299,7 +303,8 @@ export class DataSourceRunner {
       }
       queryResource.registration = registration
       this.assertRegistrationActive(registration, 'sources', definition.id)
-      capabilitySchemaValidator.assert(definition.configSchema, binding.source.config, {
+      const config = normalizeOmittedObject(definition.configSchema, binding.source.config)
+      capabilitySchemaValidator.assert(definition.configSchema, config, {
         phase: 'config',
         capabilityId: definition.id,
       })
@@ -307,7 +312,13 @@ export class DataSourceRunner {
       this.assertActive()
       this.assertQueryNotAborted(queryResource, definition.id)
       this.assertRegistrationActive(registration, 'sources', definition.id)
-      const query = await raceQueryCancel(this.resolveRecord(binding.query, queryResource.abortController.signal), queryResource)
+      const query = normalizeOmittedObject(
+        definition.querySchema,
+        await raceQueryCancel(
+          this.resolveRecord(binding.query, queryResource.abortController.signal),
+          queryResource,
+        ),
+      )
       this.assertActive()
       this.assertQueryNotAborted(queryResource, definition.id)
       this.assertRegistrationActive(registration, 'sources', definition.id)
@@ -318,7 +329,7 @@ export class DataSourceRunner {
       const resolvedRequest = normalizeDataSourceRequest(definition, {
         capabilityId: binding.source.capabilityId,
         version: binding.source.version,
-        config: binding.source.config,
+        config,
         query,
         signal: queryResource.abortController.signal,
         limit: resolveLimit(options.limit, definition.defaults?.limit),
@@ -564,6 +575,14 @@ function resolveLimit(...values: Array<number | undefined>): number | undefined 
   ))
   if (!candidates.length) return undefined
   return Math.min(...candidates)
+}
+
+// config/query 在持久化契约中可省略；对象 Schema 仍应以空对象进入 required 校验和 Provider。
+function normalizeOmittedObject<T>(
+  schema: CapabilitySchema | undefined,
+  value: T,
+): T | Record<string, never> {
+  return value === undefined && schema?.type === 'object' ? {} : value
 }
 
 function limitDataSourceResult<T>(result: DataSourceResult<T>, limit?: number): DataSourceResult<T> {
