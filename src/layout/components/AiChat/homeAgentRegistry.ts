@@ -49,7 +49,10 @@ class HomeAgentCapabilityRegistry {
       .filter(([key]) => prefixes.some(prefix => key.startsWith(prefix)))
       .map(([, items]) => items[items.length - 1]?.provider)
       .filter((item): item is HomeAgentCapabilityProvider => !!item)
-      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .sort((a, b) => (
+        (a.order || 0) - (b.order || 0)
+        || normalizeText(a.id).localeCompare(normalizeText(b.id))
+      ))
   }
 }
 

@@ -1,17 +1,186 @@
-import { withAiClientToolSilentRequest } from '@jetlinks-web-core/utils';
+import { withAiClientToolSilentRequest } from '@jetlinks-web-core/utils/ai-client-tool-request';
 import i18n from '@jetlinks-web-core/locales';
 import { aiClientToolRegistry } from './clientToolRegistry';
+import { createClientToolSnapshotController } from './clientToolSnapshot';
+import {
+  createAiClientToolArtifact,
+  deliverAiClientToolResult,
+  type AiClientToolArtifact,
+  type AiClientToolArtifactOptions,
+  type AiClientToolResultBindingDefinition,
+} from './clientToolResultDelivery';
+
+export { createAiClientToolArtifact };
+export type { AiClientToolArtifact, AiClientToolArtifactOptions };
+import {
+  createAiClientToolFailureResult,
+  normalizeAiClientToolOutputBindings,
+} from './clientToolResult';
+import type {
+  AiClientToolFailureDisposition,
+  AiClientToolRepair,
+  AiClientToolRecoveryAction,
+} from './clientToolResult';
+import {
+  AI_CLIENT_TOOL_ROUTING_EXPAND_KEY,
+  normalizeAiClientToolRoutingMetadata,
+} from './clientToolRouting';
+import {
+  mergeAiClientToolParameterSchema,
+  type AiClientToolParameterSchema,
+} from './clientToolParameterSchema';
+import { defineAiClientToolContract } from './clientToolContract';
+import type {
+  AiClientToolRoutingDataAccessMode,
+  AiClientToolRoutingResultDelivery,
+  AiClientToolRoutingCost,
+  AiClientToolRoutingMetadata,
+} from './clientToolRouting';
+
+export type {
+  AiClientToolRoutingExposure,
+  AiClientToolRoutingKind,
+  AiClientToolRoutingCost,
+  AiClientToolRoutingStage,
+  AiClientToolRoutingDataAccessMode,
+  AiClientToolRoutingResultDelivery,
+  AiClientToolEvidencePolicy,
+  AiClientToolRoutingHelp,
+  AiClientToolRoutingIntentSection,
+  AiClientToolRoutingMetadata,
+} from './clientToolRouting';
+export {
+  AI_CLIENT_TOOL_ROUTING_STAGES,
+  AI_CLIENT_TOOL_DATA_ACCESS_MODES,
+  AI_CLIENT_TOOL_RESULT_DELIVERIES,
+  defineAiClientToolRouting,
+  validateAiClientToolRoutingMetadata,
+  validateAiClientToolResultBindings,
+  validateAiClientToolRoutingCatalog,
+  toAiClientToolSessionDefinition,
+  toAiClientToolSessionDefinitions,
+} from './clientToolRouting';
+export {
+  AI_CLIENT_TOOL_CONTRACT_VERSION,
+  AI_CLIENT_TOOL_CONTRACT_META_KEY,
+  AI_CLIENT_TOOL_OUTPUT_KINDS,
+  defineAiClientToolContract,
+  createAiClientToolContractOutputBinding,
+  withAiClientToolContractEvidence,
+  isAiClientToolContractMetadata,
+} from './clientToolContract';
+export type {
+  AiClientToolOutputKind,
+  AiClientToolOutputContract,
+  AiClientToolLookupOutput,
+  AiClientToolRecordSetOutput,
+  AiClientToolAggregateSeriesOutput,
+  AiClientToolScalarMetricOutput,
+  AiClientToolStateEventsOutput,
+  AiClientToolArtifactOutput,
+  AiClientToolContractDefinition,
+  AiClientToolContractMetadata,
+  AiClientToolContractFragment,
+  AiClientToolContractOutputState,
+  AiClientToolContractEvidenceOptions,
+} from './clientToolContract';
+export {
+  AI_CLIENT_TOOL_CATALOG_REPORT_VERSION,
+  createAiClientToolCatalogReport,
+} from './clientToolCatalog';
+export type {
+  AiClientToolCatalogAuthoringStatus,
+  AiClientToolCatalogContractStatus,
+  AiClientToolCatalogToolReport,
+  AiClientToolCatalogReport,
+} from './clientToolCatalog';
+export {
+  AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
+  createAiClientToolFailureResult,
+  withAiClientToolEvidence,
+} from './clientToolResult';
+export {
+  createAiClientToolArrayRecordSource,
+  createAiClientToolRecordStream,
+  createAiClientToolResultPath,
+} from './clientToolResultDelivery';
+export type {
+  AiClientToolRecordConsumerContext,
+  AiClientToolRecordDeliveryData,
+  AiClientToolRecordDeliveryLimits,
+  AiClientToolRecordLimitReason,
+  AiClientToolRecordSource,
+  AiClientToolRecordStream,
+  AiClientToolRecordStreamOptions,
+} from './clientToolResultDelivery';
+export type {
+  AiClientToolArtifactReference,
+  AiClientToolClaim,
+  AiClientToolEvidence,
+  AiClientToolEvidenceOptions,
+  AiClientToolMetricDescriptor,
+  AiClientToolFailureDisposition,
+  AiClientToolRecoveryAction,
+  AiClientToolFieldSemanticRole,
+  AiClientToolFailureOptions,
+  AiClientToolOutputBinding,
+  AiClientToolOutputField,
+  AiClientToolRepair,
+} from './clientToolResult';
+export {
+  CLIENT_TOOL_DEFINITION_META_KEY,
+  CLIENT_TOOL_DEFINITION_VERSION,
+  clientToolOutput,
+  clientToolResult,
+  defineClientTool,
+  isCompiledClientToolDefinition,
+} from './clientToolDefinition';
+export type {
+  ClientToolActivation,
+  ClientToolArtifactOutput,
+  ClientToolConfirmation,
+  ClientToolConsumedResource,
+  ClientToolDefinition,
+  ClientToolDescription,
+  ClientToolDetailOutput,
+  ClientToolEffect,
+  ClientToolEffectKind,
+  ClientToolExecutionResult,
+  ClientToolExternalActionEffect,
+  ClientToolIdempotency,
+  ClientToolInput,
+  ClientToolInputAlternative,
+  ClientToolInputCondition,
+  ClientToolLookupOutput,
+  ClientToolOutput,
+  ClientToolOwner,
+  ClientToolPresentation,
+  ClientToolReadEffect,
+  ClientToolRecordSetOutput,
+  ClientToolAggregateSeriesOutput,
+  ClientToolStateChangeOutput,
+  ClientToolSuccessOptions,
+  ClientToolPartialOptions,
+  ClientToolValueType,
+  ClientToolWriteEffect,
+  CompiledClientToolMetadata,
+} from './clientToolDefinition';
 
 export interface AiClientToolValueType {
   type: string;
   [key: string]: any;
 }
 
+/** Canonical root JSON Schema constraints merged with the generated client-tool input properties. */
+export type { AiClientToolParameterSchema } from './clientToolParameterSchema';
+
 export interface AiClientToolInput {
   id: string;
   name?: string;
   description?: string;
   required?: boolean;
+  /** Provider-neutral default; the session boundary projects it into tool schema metadata. */
+  defaultValue?: unknown;
   valueType?: string | AiClientToolValueType;
   [key: string]: any;
 }
@@ -20,7 +189,9 @@ export interface AiClientToolCall {
   id: string;
   toolName: string;
   arguments?: Record<string, any>;
-  sessionFiles?: Record<string, any>;
+  sessionFiles?: AiClientToolSessionFileApi;
+  /** Aborted when the conversation turn, socket, or client-tool request is cancelled. */
+  signal?: AbortSignal;
   requestConfirmation?: (
     request: AiClientToolConfirmationRequest,
   ) => Promise<AiClientToolConfirmationResponse | void> | AiClientToolConfirmationResponse | void;
@@ -62,6 +233,60 @@ export interface AiClientToolRisk {
   [key: string]: any;
 }
 
+/**
+ * Declares how a client tool reads business data so the conversation layer can
+ * plan bounded queries without inferring semantics from tool names.
+ *
+ * - `aggregate`: server-side counts, trends, distributions, rankings, or summaries.
+ * - `records`: bounded record lists or result pages used as evidence or samples.
+ * - `detail`: one known object's detail or a navigation action targeting it.
+ * - `discovery`: available capabilities, scenes, labels, or other query vocabulary.
+ */
+export type AiClientToolDataAccessMode = AiClientToolRoutingDataAccessMode;
+
+/** Declares whether a client tool returns inline data or materializes it in the session container. */
+export type AiClientToolResultDelivery = AiClientToolRoutingResultDelivery;
+
+/** Minimal session-file contract used by page-level tools without exposing session credentials. */
+export interface AiClientToolSessionFileApi {
+  capabilities?: () => Record<string, any>;
+  toUri: (path: string) => string;
+  upload: (
+    path: string,
+    body: ArrayBuffer | Blob | string,
+    options?: { append?: boolean; charset?: string; maxBytes?: number; signal?: AbortSignal },
+  ) => Promise<{ path?: string; uri?: string; size?: number; mimeType?: string; ok?: boolean }>;
+  remove: (
+    path: string,
+    options?: { recursive?: boolean; ignoreMissing?: boolean },
+  ) => Promise<{
+    ok?: boolean;
+    path?: string;
+    uri?: string;
+    recursive?: boolean;
+    ignoreMissing?: boolean;
+  }>;
+}
+
+/** Browser-runtime metadata. It must never be inferred into model-facing routing semantics. */
+export interface AiClientToolMetadata {
+  ownerModule?: string;
+  capabilityGroup?: string;
+  /** Local execution/delivery classification; model routing must declare its own routing contract. */
+  dataAccessMode?: AiClientToolDataAccessMode;
+  /** Explicit result-delivery semantics; file-backed tools must not expose model-driven paging. */
+  resultDelivery?: AiClientToolResultDelivery;
+  /** Stable model-facing output shape used for progressive step selection. */
+  outputShape?: string | string[];
+  /** Relative execution cost; it never changes permission or confirmation policy. */
+  cost?: AiClientToolRoutingCost;
+  /** Generic preconditions that should already be available before selection. */
+  prerequisites?: string[];
+  /** Exact inline result paths backing routing.produces; browser-only and never serialized to the server. */
+  resultBindings?: AiClientToolResultBindingDefinition[];
+  [key: string]: any;
+}
+
 export interface AiClientToolDefinition<TContext = Record<string, any>> {
   id: string;
   name?: string;
@@ -73,12 +298,15 @@ export interface AiClientToolDefinition<TContext = Record<string, any>> {
   description?: string;
   help?: string | ((tool: AiClientToolDefinition<TContext>) => string);
   inputs?: AiClientToolInput[];
+  /** Root constraints that cannot be represented by independent JetLinks input metadata. */
+  parameterSchema?: AiClientToolParameterSchema;
   output?: AiClientToolValueType | Record<string, any>;
   confirm?: boolean | AiClientToolConfirmOptions<TContext>;
   annotations?: Record<string, any>;
   risk?: AiClientToolRisk;
+  routing?: AiClientToolRoutingMetadata;
   expands?: Record<string, any>;
-  _meta?: Record<string, any>;
+  _meta?: AiClientToolMetadata;
   execute: (
     args: Record<string, any>,
     context: TContext,
@@ -137,12 +365,17 @@ export interface AiClientToolRuntimeOptions<TContext = Record<string, any>> {
 }
 
 export interface AiClientToolRuntime {
-  clientTools: Array<Record<string, any>>;
+  readonly clientTools: Array<Record<string, any>>;
+  readonly clientToolsVersion: number;
   clientToolsName: string;
   clientToolsDescription: string;
   handleClientToolCall: (call: AiClientToolCall) => Promise<any>;
   getToolHelp: (toolName: string) => string;
   getAllToolHelp: () => string;
+  /** Rebuilds handler and schema snapshots; a semantic version is published only when wire fields change. */
+  refreshClientTools: () => void;
+  subscribeClientTools: (listener: (version: number) => void) => () => void;
+  dispose: () => void;
 }
 
 const DEFAULT_HELP_TOOL_ID = 'client_tool_help';
@@ -214,17 +447,23 @@ const resolveToolExpands = <TContext>(
   tool: AiClientToolDefinition<TContext>,
   options: AiClientToolRuntimeOptions<TContext>,
 ) => {
-  const explicitExpands = isRecord(tool.expands) ? tool.expands : {};
+  const explicitExpands = mergeAiClientToolParameterSchema(
+    tool.id,
+    tool.parameterSchema,
+    tool.expands,
+  );
+  const routing = normalizeAiClientToolRoutingMetadata(tool);
   const toolRisk = pickRisk(tool.risk);
   const clientConfirmation = !!tool.confirm;
   const confirmationRisk = clientConfirmation ? { needsApproval: false, parallelSafe: false } : {};
-  const resolved = {
+  const resolved: Record<string, any> = {
     ...pickRisk(options.riskDefaults),
     ...riskFromAnnotations(tool.annotations),
     ...confirmationRisk,
     ...pickConfirmRisk(tool.confirm),
     ...toolRisk,
     ...explicitExpands,
+    ...(routing ? { [AI_CLIENT_TOOL_ROUTING_EXPAND_KEY]: routing } : {}),
   };
 
   // Client tools are confirmed by the shared frontend component. The backend sees them as
@@ -248,7 +487,8 @@ const normalizeTool = <TContext>(
   const expands = resolveToolExpands(tool, options);
   return {
     id: tool.id,
-    name: tool.name || tool.id,
+    // The session tool identity must not change with locale or display copy.
+    name: tool.id,
     ...(tool.displayName ? { displayName: tool.displayName } : {}),
     ...(tool.title ? { title: tool.title } : {}),
     ...(tool.label ? { label: tool.label } : {}),
@@ -295,6 +535,26 @@ export const defineAiClientTools = <TContext = Record<string, any>>(
   tools: AiClientToolDefinition<TContext>[],
 ) => tools;
 
+/** Builds browser-only binding metadata from owning-tool JSON paths without inferring result fields at runtime. */
+export type AiClientToolResultBindingMetadata = Omit<
+  AiClientToolResultBindingDefinition,
+  'name' | 'path' | 'shape'
+>;
+
+export const defineAiClientToolResultBindings = (
+  routing: AiClientToolRoutingMetadata,
+  paths: Readonly<Record<string, string>>,
+  metadata: Readonly<Record<string, AiClientToolResultBindingMetadata>> = {},
+): AiClientToolResultBindingDefinition[] => {
+  const produces = routing.produces || [];
+  const shapes = routing.outputShapes || [];
+  return produces.flatMap((name, index) => {
+    const path = String(paths[name] || '').trim();
+    const shape = String(shapes.length === 1 ? shapes[0] : shapes[index] || '').trim();
+    return path && shape ? [{ name, path, shape, ...(metadata[name] || {}) }] : [];
+  });
+};
+
 const normalizeConfirmRuleText = <TTool, TContext>(
   value: AiClientToolConfirmRuleText<TContext, TTool> | undefined,
   tool: TTool,
@@ -336,8 +596,8 @@ const confirmRuleToOptions = <TTool, TContext>(
   when: normalizeConfirmRuleWhen(rule.when, tool),
 });
 
-const matchConfirmRule = <TTool>(
-  rule: AiClientToolConfirmRule<TTool>,
+const matchConfirmRule = <TTool, TContext>(
+  rule: AiClientToolConfirmRule<TTool, TContext>,
   tool: TTool,
   type: string,
   id: string,
@@ -396,7 +656,7 @@ const mergeToolDefinitions = <TContext = Record<string, any>>(
       indexMap.set(tool.id, result.length);
       result.push(tool);
     } else {
-      result[index] = tool;
+      throw new Error(`Duplicate client tool id: ${tool.id}`);
     }
   });
   return result;
@@ -453,32 +713,116 @@ const createClientToolConfirmationRejectedResult = (
   toolName: string,
   response?: AiClientToolConfirmationResponse,
 ) => ({
+  ...createAiClientToolFailureResult({
+    code: 'client_tool.user_rejected',
+    message: String(i18n.global.t('components.AiChat.confirm.rejected')),
+    failureDisposition: 'permission/user',
+    recoveryAction: 'terminal',
+    retryable: false,
+  }),
   ok: false,
   toolName,
   status: 'rejected',
   rejected: true,
   cancelledByUser: true,
-  retryable: false,
   reason: 'user_rejected_confirmation',
   optionId: response?.optionId,
-  message: i18n.global.t('components.AiChat.confirm.rejected'),
 });
 
-const normalizeClientToolExecutionError = (error: any, toolName: string) => (
-  error?.code === 'CLIENT_TOOL_CONFIRM_CANCELLED'
-    ? createClientToolConfirmationRejectedResult(toolName)
-    : {
-        ok: false,
-        toolName,
-        error: {
-          name: error?.name,
-          message: error?.message || String(error),
-          status: error?.status || error?.response?.status,
-          code: error?.code || error?.response?.data?.code,
-          type: error?.response?.data?.errorType || error?.response?.data?.type,
-        },
-      }
+const CLIENT_TOOL_FAILURE_DISPOSITIONS = new Set<AiClientToolFailureDisposition>([
+  'request', 'tool', 'dependency', 'permission/user',
+]);
+const CLIENT_TOOL_RECOVERY_ACTIONS = new Set<AiClientToolRecoveryAction>([
+  'retry', 'repair', 'clarify', 'terminal',
+]);
+
+const failureRecord = (value: unknown) => (
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, any>
+    : {}
 );
+
+export const isAiClientToolCancellationError = (error: unknown) => {
+  const source = failureRecord(error);
+  const code = String(source.code || source.name || '').trim().toLowerCase();
+  return code === 'aborterror'
+    || code === 'client_tool_aborted'
+    || code === 'err_canceled'
+    || code === 'err_cancelled';
+};
+
+const normalizeClientToolExecutionError = (error: any, toolName: string) => {
+  if (error?.code === 'CLIENT_TOOL_CONFIRM_CANCELLED') {
+    return createClientToolConfirmationRejectedResult(toolName);
+  }
+  const responseData = failureRecord(error?.response?.data);
+  const status = Number(error?.status || error?.response?.status);
+  const code = String(error?.code || responseData.code || 'client_tool.execution_failed');
+  const message = String(error?.message || responseData.message || error);
+  const permissionFailure = status === 401 || status === 403;
+  const repairableRequest = status === 400 || status === 409 || status === 422;
+  const retryableDependency = status === 408 || status === 429 || status >= 500;
+  const explicitDisposition = String(
+    error?.failureDisposition || responseData.failureDisposition || '',
+  ).trim().toLowerCase() as AiClientToolFailureDisposition;
+  const explicitRecoveryAction = String(
+    error?.recoveryAction || responseData.recoveryAction || '',
+  ).trim().toLowerCase() as AiClientToolRecoveryAction;
+  const failureDisposition: AiClientToolFailureDisposition = CLIENT_TOOL_FAILURE_DISPOSITIONS.has(explicitDisposition)
+    ? explicitDisposition
+    : permissionFailure
+    ? 'permission/user'
+    : repairableRequest
+      ? 'request'
+      : retryableDependency
+        ? 'dependency'
+        : 'tool';
+  const recoveryAction: AiClientToolRecoveryAction = CLIENT_TOOL_RECOVERY_ACTIONS.has(explicitRecoveryAction)
+    ? explicitRecoveryAction
+    : permissionFailure
+    ? 'terminal'
+    : repairableRequest
+      ? 'repair'
+      : retryableDependency
+        ? 'retry'
+        : 'terminal';
+  const explicitRepair = failureRecord(error?.repair || responseData.repair);
+  const repair = explicitRepair.field
+    || Array.isArray(explicitRepair.preserveArguments)
+    || Number.isFinite(explicitRepair.maxAttempts)
+    ? explicitRepair as AiClientToolRepair
+    : recoveryAction === 'repair' ? { maxAttempts: 1 } : undefined;
+  return {
+    ...createAiClientToolFailureResult({
+      code,
+      message,
+      failureDisposition,
+      recoveryAction,
+      retryable: typeof error?.retryable === 'boolean'
+        ? error.retryable
+        : typeof responseData.retryable === 'boolean'
+          ? responseData.retryable
+          : retryableDependency || repairableRequest,
+      ...(repair ? { repair } : {}),
+      details: {
+        name: error?.name,
+        ...(Number.isFinite(status) ? { status } : {}),
+        type: responseData.errorType || responseData.type,
+      },
+    }),
+    ok: false,
+    toolName,
+  };
+};
+
+const resolveToolResultBindings = <TContext>(
+  tool: AiClientToolDefinition<TContext>,
+): AiClientToolResultBindingDefinition[] => {
+  const declared = Array.isArray(tool._meta?.resultBindings)
+    ? tool._meta.resultBindings
+    : [];
+  return declared;
+};
 
 const resolveConfirmText = <TContext>(
   value: AiClientToolConfirmOptions<TContext>['title'] | AiClientToolConfirmOptions<TContext>['content'],
@@ -530,7 +874,10 @@ const requestAiClientToolConfirmation = async <TContext>(
     arguments: args,
   });
 
-  if (response?.approved === false) {
+  if (!response) {
+    return undefined;
+  }
+  if (response.approved === false) {
     return response;
   }
 
@@ -652,7 +999,53 @@ export const guardAiClientToolResult = (
     compactedJson = safeJsonStringify(compacted);
   }
 
+  const source = isRecord(value) ? value : {};
+  const failure = source.success === false || source.ok === false;
+  const sourceEvidence = isRecord(source.evidence) ? source.evidence : {};
+  const outputBindings = normalizeAiClientToolOutputBindings([
+    ...(Array.isArray(sourceEvidence.outputBindings) ? sourceEvidence.outputBindings : []),
+    ...(Array.isArray(source.outputBindings) ? source.outputBindings : []),
+  ]);
+  const bindingNames = new Set<string>();
+  const guardedBindings = outputBindings.flatMap((binding) => {
+    if (bindingNames.has(binding.name)) return [];
+    bindingNames.add(binding.name);
+    return [binding.ref
+      ? binding
+      : { ...binding, complete: false, truncated: true }];
+  });
+  const completeExternalResult = guardedBindings.length > 0
+    && guardedBindings.every(binding => !!binding.ref && binding.complete && binding.truncated !== true);
+  const guardedComplete = !failure && completeExternalResult && source.complete === true;
+  const guardedEvidence = Object.keys(sourceEvidence).length
+    ? compactClientToolValue({
+        ...sourceEvidence,
+        complete: guardedComplete,
+        truncated: !guardedComplete,
+        ...(!guardedComplete ? { limitReason: 'client_tool_result_too_large' } : {}),
+        ...(guardedBindings.length ? { outputBindings: guardedBindings } : {}),
+      }, options)
+    : undefined;
+  const failureKeys = [
+    'success', 'ok', 'code', 'message', 'failureDisposition', 'recoveryAction',
+    'retryable', 'repair', 'status', 'toolName',
+  ];
+  const failureContract = failure
+    ? Object.fromEntries(failureKeys
+        .filter(key => source[key] !== undefined)
+        .map(key => [key, compactClientToolValue(source[key], options)]))
+    : {};
+
   return {
+    ...failureContract,
+    ...(!failure ? {
+      success: true,
+      complete: guardedComplete,
+      truncated: !guardedComplete,
+      status: guardedComplete ? source.status : 'partial',
+    } : {}),
+    ...(isRecord(guardedEvidence) ? { evidence: guardedEvidence } : {}),
+    ...(guardedBindings.length ? { outputBindings: guardedBindings } : {}),
     result: compacted,
     meta: {
       toolName,
@@ -672,78 +1065,135 @@ export const guardAiClientToolResult = (
  * normalized descriptors to the agent session and keeps the executable handlers in the browser.
  */
 export const createAiClientToolRuntime = <TContext = Record<string, any>>(
-  tools: AiClientToolDefinition<TContext>[],
+  tools: AiClientToolDefinition<TContext>[] | (() => readonly AiClientToolDefinition<TContext>[]),
   options: AiClientToolRuntimeOptions<TContext> = {},
 ): AiClientToolRuntime => {
   const helpToolId = options.helpToolId || DEFAULT_HELP_TOOL_ID;
-  const resolvedExtraTools = typeof options.extraTools === 'function'
-    ? options.extraTools()
-    : (options.extraTools || []);
-  const extraTools = Array.isArray(resolvedExtraTools) ? resolvedExtraTools : [];
-  const registeredTools = aiClientToolRegistry.getTools<TContext>(options.registeredToolScopes);
-  const sourceTools = mergeToolDefinitions([...tools, ...extraTools, ...registeredTools]);
-  const toolMap = new Map<string, AiClientToolDefinition<TContext>>();
+  let disposed = false;
 
-  sourceTools.forEach((tool) => {
-    toolMap.set(tool.id, tool);
-    if (tool.name) {
-      toolMap.set(tool.name, tool);
-    }
-  });
+  interface RuntimeSnapshot {
+    sourceTools: AiClientToolDefinition<TContext>[];
+    definitions: AiClientToolDefinition<TContext>[];
+    definitionsByName: Map<string, AiClientToolDefinition<TContext>>;
+    clientTools: Array<Record<string, any>>;
+    wireSignature: string;
+  }
 
-  const getToolHelp = (toolName: string) => {
-    const tool = toolMap.get(toolName);
-    if (!tool) {
-      return i18n.global.t('components.AiChat.toolHelp.notFound', [toolName]);
-    }
-    return createToolHelp(tool);
+  const resolveDefinitions = () => {
+    const resolvedTools = typeof tools === 'function' ? tools() : tools;
+    const baseTools = Array.isArray(resolvedTools) ? [...resolvedTools] : [];
+    const resolvedExtraTools = typeof options.extraTools === 'function'
+      ? options.extraTools()
+      : (options.extraTools || []);
+    const extraTools = Array.isArray(resolvedExtraTools) ? resolvedExtraTools : [];
+    const registeredTools = aiClientToolRegistry.getTools<TContext>(options.registeredToolScopes);
+    return mergeToolDefinitions<TContext>([...baseTools, ...extraTools, ...registeredTools]);
   };
 
-  const getAllToolHelp = () => sourceTools.map(createToolHelp).join('\n\n');
-
-  const helpTool: AiClientToolDefinition<TContext> = {
-    id: helpToolId,
-    name: helpToolId,
-    description: i18n.global.t('components.AiChat.toolHelp.description'),
-    help: i18n.global.t('components.AiChat.toolHelp.help'),
-    inputs: [
-      {
+  const createHelpTool = (
+    sourceTools: AiClientToolDefinition<TContext>[],
+    sourceMap: Map<string, AiClientToolDefinition<TContext>>,
+  ): AiClientToolDefinition<TContext> => {
+    const getSourceHelp = (toolName: string) => {
+      const tool = sourceMap.get(toolName);
+      return tool
+        ? createToolHelp(tool)
+        : i18n.global.t('components.AiChat.toolHelp.notFound', [toolName]);
+    };
+    const getAllSourceHelp = () => sourceTools.map(createToolHelp).join('\n\n');
+    return {
+      id: helpToolId,
+      name: helpToolId,
+      description: i18n.global.t('components.AiChat.toolHelp.description'),
+      help: i18n.global.t('components.AiChat.toolHelp.help'),
+      ...defineAiClientToolContract({
+        routingKind: 'discovery',
+        routing: {
+          capabilities: ['client-tool.help.read'],
+          accepts: ['tool-id'],
+          evidencePolicy: 'none',
+        },
+        outputs: [{
+          kind: 'lookup',
+          name: 'client-tool-help',
+          shape: 'tool.help',
+          path: '$.help',
+        }],
+      }),
+      inputs: [{
         id: 'toolName',
         name: 'toolName',
         description: i18n.global.t('components.AiChat.toolHelp.toolNameDescription'),
         required: false,
         valueType: 'string',
+      }],
+      output: { type: 'object' },
+      execute: (args = {}) => {
+        const toolName = String(args.toolName || '').trim();
+        return {
+          toolName: toolName || undefined,
+          help: toolName ? getSourceHelp(toolName) : getAllSourceHelp(),
+        };
       },
-    ],
-    output: { type: 'object' },
-    execute: (args = {}) => {
-      const toolName = String(args.toolName || '').trim();
-      return {
-        toolName: toolName || undefined,
-        help: toolName ? getToolHelp(toolName) : getAllToolHelp(),
-      };
-    },
+    };
   };
 
-  if (options.includeHelpTool !== false) {
-    toolMap.set(helpTool.id, helpTool);
-    if (helpTool.name) {
-      toolMap.set(helpTool.name, helpTool);
-    }
-  }
+  const wireSignature = (clientTools: Array<Record<string, any>>) => safeJsonStringify(
+    clientTools.map((tool) => {
+      const {
+        _meta,
+        displayName,
+        title,
+        label,
+        progressText,
+        progressDescription,
+        ...wire
+      } = tool;
+      return wire;
+    }),
+  );
 
-  const runtimeTools = options.includeHelpTool === false ? sourceTools : [...sourceTools, helpTool];
-  const runtimeToolMap = new Map<string, AiClientToolDefinition<TContext>>();
-  runtimeTools.forEach((tool) => {
-    runtimeToolMap.set(tool.id, tool);
-    if (tool.name) {
-      runtimeToolMap.set(tool.name, tool);
+  const buildSnapshot = (): RuntimeSnapshot => {
+    const sourceTools = resolveDefinitions();
+    if (options.includeHelpTool !== false && sourceTools.some(tool => tool.id === helpToolId)) {
+      throw new Error(`Duplicate client tool id: ${helpToolId}`);
     }
-  });
+    const sourceMap = new Map<string, AiClientToolDefinition<TContext>>();
+    sourceTools.forEach((tool) => {
+      sourceMap.set(tool.id, tool);
+      if (tool.name) sourceMap.set(tool.name, tool);
+    });
+    const definitions = options.includeHelpTool === false
+      ? sourceTools
+      : [...sourceTools, createHelpTool(sourceTools, sourceMap)];
+    const definitionsByName = new Map<string, AiClientToolDefinition<TContext>>();
+    definitions.forEach((tool) => {
+      definitionsByName.set(tool.id, tool);
+      if (tool.name) definitionsByName.set(tool.name, tool);
+    });
+    const clientTools = definitions.map(tool => normalizeTool(tool, options));
+    return {
+      sourceTools,
+      definitions,
+      definitionsByName,
+      clientTools,
+      wireSignature: wireSignature(clientTools),
+    };
+  };
+
+  const snapshotController = createClientToolSnapshotController(
+    buildSnapshot,
+    current => current.wireSignature,
+  );
+
+  const refreshClientTools = () => snapshotController.refresh();
 
   const handleClientToolCall = async (call: AiClientToolCall) => {
-    const tool = runtimeToolMap.get(call.toolName);
+    const execution = snapshotController.beginExecution();
+    const executionSnapshot = execution.snapshot;
+    const tool = executionSnapshot.definitionsByName.get(call.toolName);
     if (!tool) {
+      execution.complete();
       throw new Error(`Unsupported client tool: ${call.toolName}`);
     }
     const context = options.getContext?.() || ({} as TContext);
@@ -755,29 +1205,75 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
         result = createClientToolConfirmationRejectedResult(tool.id, confirmation);
       } else {
         const executionArgs = confirmation?.arguments || args;
-        result = await withAiClientToolSilentRequest(() => tool.execute(
-          executionArgs,
-          context,
-          {
+        result = await withAiClientToolSilentRequest(async () => {
+          const executionCall = {
             ...call,
             arguments: executionArgs,
-          },
-        ));
+          };
+          const executionResult = await tool.execute(
+            executionArgs,
+            context,
+            executionCall,
+          );
+          const routing = normalizeAiClientToolRoutingMetadata(tool);
+          return deliverAiClientToolResult(executionResult, {
+            call: executionCall,
+            resultDelivery: tool._meta?.resultDelivery,
+            ...(routing?.produces?.length === 1 ? { bindingName: routing.produces[0] } : {}),
+            ...(routing?.outputShapes?.length === 1 ? { outputShape: routing.outputShapes[0] } : {}),
+            outputBindings: resolveToolResultBindings(tool),
+          });
+        });
       }
     } catch (error) {
+      if (call.signal?.aborted || isAiClientToolCancellationError(error)) {
+        throw error;
+      }
       // API failures inside a page tool are still tool results; keep the chat session alive and
       // let the agent explain the failed business call instead of surfacing a global connection error.
       result = normalizeClientToolExecutionError(error, tool.id);
+    } finally {
+      execution.complete();
     }
     return guardAiClientToolResult(result, options.resultGuard, tool.id);
   };
 
+  const unsubscribeRegistry = aiClientToolRegistry.subscribe(
+    options.registeredToolScopes || [],
+    () => {
+      try {
+        refreshClientTools();
+      } catch (error) {
+        // A malformed late registration must not invalidate the last executable snapshot.
+        console.error('[AiClientToolRuntime] failed to refresh client tools', error);
+      }
+    },
+  );
+
   return {
-    clientTools: runtimeTools.map((tool) => normalizeTool(tool, options)),
+    get clientTools() {
+      return snapshotController.snapshot.clientTools;
+    },
+    get clientToolsVersion() {
+      return snapshotController.version;
+    },
     clientToolsName: options.toolsName || 'frontend-client-tools',
     clientToolsDescription: options.toolsDescription || i18n.global.t('components.AiChat.clientToolsDescription'),
     handleClientToolCall,
-    getToolHelp,
-    getAllToolHelp,
+    getToolHelp: (toolName: string) => {
+      const tool = snapshotController.snapshot.definitionsByName.get(toolName);
+      return tool
+        ? createToolHelp(tool)
+        : i18n.global.t('components.AiChat.toolHelp.notFound', [toolName]);
+    },
+    getAllToolHelp: () => snapshotController.snapshot.sourceTools.map(createToolHelp).join('\n\n'),
+    refreshClientTools,
+    subscribeClientTools: snapshotController.subscribe,
+    dispose: () => {
+      if (disposed) return;
+      disposed = true;
+      unsubscribeRegistry();
+      snapshotController.dispose();
+    },
   };
 };

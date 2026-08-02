@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "tests/clientToolDefinition.type-test.ts",
+    "src/auto-imports.d.ts",
+    "src/env.d.ts"
+  ],
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true
+  }
+}
