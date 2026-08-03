@@ -55,14 +55,13 @@
 </template>
 
 <script setup lang="ts">
-import { getUnreadNoPagingList_api, getUnreadSummary_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { getList_api } from '@jetlinks-web-core/api/account/notificationRecord';
 import { useMenuStore } from '@jetlinks-web-core/store/menu';
 import { useUserStore } from '@jetlinks-web-core/store/user';
 import NoticeItem from './NoticeItem.vue';
 import NoticeTab from './NoticeTab.vue';
 import { useI18n } from 'vue-i18n';
 import {
-    BADGE_OVERFLOW_COUNT,
     type CappedUnreadCount,
     createTabCountMap,
     createUnreadQueryParams,
@@ -99,11 +98,11 @@ const getData = (providers: string[] = []) => {
     loading.value = true;
     const currentRequestId = ++listRequestId;
     const params = createUnreadQueryParams(providers, DROPDOWN_PAGE_SIZE);
-    getUnreadNoPagingList_api(params)
+    getList_api(params)
         .then((resp: any) => {
             // 只接收最新 Tab 的响应，避免快速切换时旧请求覆盖当前列表。
             if (currentRequestId === listRequestId) {
-                list.value = Array.isArray(resp.result) ? resp.result : (resp.result?.data || []);
+                list.value = resp.result?.data || [];
             }
         })
         .finally(() => {
@@ -121,9 +120,14 @@ const refreshSummary = () => {
         tabCountMap.value = {};
         return;
     }
-    getUnreadSummary_api(createUnreadQueryParams(providers, BADGE_OVERFLOW_COUNT)).then((resp: any) => {
-        tabCountMap.value = createTabCountMap(props.tabs, resp.result);
-    });
+    Promise
+        .all(props.tabs.map(async (item) => {
+            const resp = await getList_api(createUnreadQueryParams(item.type, 1));
+            return [item.key, Number(resp.result?.total || 0)] as const;
+        }))
+        .then((counts) => {
+            tabCountMap.value = createTabCountMap(props.tabs, Object.fromEntries(counts));
+        });
 };
 
 const onChange = (_key: string | number) => {
@@ -138,6 +142,12 @@ const onRefresh = () => {
     refreshSummary();
     getData(type.value.length ? type.value : props.tabs.find((item) => item.key === activeKey.value)?.type || [])
 };
+
+// WebSocket notifications use the shared counter to keep the opened dropdown current.
+watch(
+    () => userInfo.alarmUpdateCount,
+    () => onRefresh(),
+);
 
 const onMore = (key: string) => {
     // 判断当前是否为/account/center

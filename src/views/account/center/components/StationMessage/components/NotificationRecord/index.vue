@@ -1,9 +1,9 @@
 <template>
   <div class="notification-record-container">
-    <pro-search
+    <ConfigManagerSearch
       :columns="columns"
-      :target="type"
-      style="padding: 0"
+      target="notification-record"
+      :split-count="4"
       @search="onSearch"
     />
     <j-pro-table
@@ -105,13 +105,12 @@ import { useRouterParams } from '@jetlinks-web/hooks'
 import { getTypeListNew } from '@jetlinks-web-core/api/account/notificationSubscription'
 import { onlyMessage } from '@jetlinks-web/utils'
 import { useI18n } from 'vue-i18n';
-
+import ConfigManagerSearch, { type SearchPayload } from '@config-manager-ui/components/Search'
 const { t: $t } = useI18n();
 const user = useUserStore()
 interface ProviderItem {
   provider: string;
 }
-
 const props = defineProps({
   type: {
     type: String,
@@ -122,33 +121,7 @@ const props = defineProps({
     default: () => ([])
   }
 })
-
-const getType = computed(() => {
-  return props.children.map((item) => item.provider)
-  // if (props.type === 'system-business') {
-  //   return ['device-transparent-codec']
-  // } else if (props.type === 'system-monitor') {
-  //   return ['system-event']
-  // } else if (props.type === 'workflow-notification') {
-  //   return [
-  //     'workflow-task-cc',
-  //     'workflow-task-todo',
-  //     'workflow-task-reject',
-  //     'workflow-process-finish',
-  //     'workflow-process-repealed',
-  //     'workflow-task-transfer-todo',
-  //   ]
-  // } else {
-  //   return [
-  //     'alarm',
-  //     'alarm-product',
-  //     'alarm-device',
-  //     'alarm-other',
-  //     'alarm-org',
-  //   ]
-  // }
-})
-
+const getType = computed(() => props.children.map((item) => item.provider))
 const columns = [
   {
     title: $t('NotificationRecord.index.803553-4'),
@@ -241,8 +214,8 @@ const defaultParams = {
   ],
 }
 const queryParams = ref({})
-const onSearch = (params: Record<string, any>) => {
-  queryParams.value = params
+const onSearch = ({ terms }: SearchPayload) => {
+  queryParams.value = { terms }
 }
 
 const tableRef = ref()

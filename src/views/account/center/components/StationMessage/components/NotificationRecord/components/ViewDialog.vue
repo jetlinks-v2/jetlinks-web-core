@@ -74,6 +74,43 @@
         </a-descriptions-item>
       </a-descriptions>
     </template>
+    <template v-else-if="isWorkOrder">
+      <a-descriptions
+        :column="2"
+        :contentStyle="{
+          color: '#333333',
+        }"
+        :labelStyle="{
+          color: 'rgba(0, 0, 0, 0.6)',
+          width: '4.5rem',
+        }"
+      >
+        <a-descriptions-item :label="$t('components.ViewDialog.411617-16')">
+          <j-ellipsis>{{ workOrderData?.title || data?.message || '' }}</j-ellipsis>
+        </a-descriptions-item>
+        <a-descriptions-item :label="$t('components.ViewDialog.411617-17')">
+          <j-ellipsis>{{ workOrderData?.orderNo || data?.dataId || '' }}</j-ellipsis>
+        </a-descriptions-item>
+        <a-descriptions-item :label="$t('components.ViewDialog.411617-18')">
+          <j-ellipsis>{{ workOrderData?.parkName || '' }}</j-ellipsis>
+        </a-descriptions-item>
+        <a-descriptions-item :label="$t('components.ViewDialog.411617-19')">
+          <j-ellipsis>{{ workOrderData?.typeName || '' }}</j-ellipsis>
+        </a-descriptions-item>
+        <a-descriptions-item :label="$t('components.ViewDialog.411617-20')">
+          <j-ellipsis>{{ workOrderEventName }}</j-ellipsis>
+        </a-descriptions-item>
+        <a-descriptions-item :label="$t('components.ViewDialog.411617-21')">
+          <j-ellipsis>{{ workOrderData?.operatorName || '' }}</j-ellipsis>
+        </a-descriptions-item>
+        <a-descriptions-item :label="$t('components.ViewDialog.411617-22')">
+          {{ formatWorkOrderTime(workOrderData?.occurredTime || data?.notifyTime) }}
+        </a-descriptions-item>
+        <a-descriptions-item :label="$t('components.ViewDialog.411617-23')">
+          <j-ellipsis>{{ workOrderData?.reason || data?.message || '' }}</j-ellipsis>
+        </a-descriptions-item>
+      </a-descriptions>
+    </template>
     <template v-else>
       <a-descriptions
         :column="2"
@@ -136,12 +173,14 @@
 import { JsonViewer } from 'vue3-json-viewer'
 import 'vue3-json-viewer/dist/index.css'
 import dayjs from 'dayjs'
+import { useI18n } from 'vue-i18n'
 import {
   getWorkflowNotice,
+  getWorkOrderDetail_api,
   queryLevel as queryLevel_api,
 } from '@jetlinks-web-core/api/account/notificationRecord'
-
 const emits = defineEmits(['update:visible'])
+const { t } = useI18n()
 const props = defineProps<{
   visible: boolean
   data: any
@@ -151,12 +190,38 @@ const props = defineProps<{
 const levelList = ref<any[]>([])
 //工作流详情的值
 const workFlowData = ref()
-
+const workOrderDetail = ref<Record<string, any>>({})
 const _data = computed(() => {
-  if (props.data.detailJson) return JSON.parse(props.data.detailJson)
-  else return props.data?.detail || props.data
+  if (props.data.detailJson) {
+    try {
+      return JSON.parse(props.data.detailJson)
+    } catch {
+      // Older notification records can contain invalid serialized details; retain the direct payload when available.
+      return props.data?.detail || props.data
+    }
+  }
+  return props.data?.detail || props.data
 })
-
+const isWorkOrder = computed(() => props.data?.topicProvider === 'work-order')
+const workOrderData = computed(() => ({ ...workOrderDetail.value, ...(_data.value || {}) }))
+const workOrderEventType = computed(() => {
+  return workOrderData.value?.eventType || props.data?.code?.replace('work-order.', '')
+})
+const workOrderEventName = computed(() => {
+  const names: Record<string, string> = {
+    dispatched: 'components.ViewDialog.411617-24',
+    autoDispatched: 'components.ViewDialog.411617-25',
+    accepted: 'components.ViewDialog.411617-26',
+    submittedForVerification: 'components.ViewDialog.411617-27',
+    verificationRejected: 'components.ViewDialog.411617-28',
+    verified: 'components.ViewDialog.411617-29',
+    reassigned: 'components.ViewDialog.411617-30',
+    urged: 'components.ViewDialog.411617-31',
+    closed: 'components.ViewDialog.411617-32',
+  }
+  return t(names[workOrderEventType.value] || 'components.ViewDialog.411617-33')
+})
+const formatWorkOrderTime = (value?: number) => value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : ''
 const getLevel = () => {
   queryLevel_api().then((resp: any) => {
     if (resp.status === 200) levelList.value = resp.result.levels
@@ -169,7 +234,7 @@ const getLevelLabel = (id: number) => {
 }
 onMounted(() => {
   if (
-    !['device-transparent-codec', 'system-event'].includes(
+    !['device-transparent-codec', 'system-event', 'work-order'].includes(
       props?.data?.topicProvider,
     )
   ) {
@@ -206,6 +271,13 @@ onMounted(() => {
       workFlowData.value = {
         topicProvider: props?.data?.topicProvider,
         ...res?.result?.[0],
+      }
+    })
+  }
+  if (isWorkOrder.value && props.data?.dataId) {
+    getWorkOrderDetail_api(props.data.dataId).then((res: any) => {
+      if (res.status === 200) {
+        workOrderDetail.value = res.result || {}
       }
     })
   }

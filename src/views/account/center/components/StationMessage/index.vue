@@ -1,15 +1,10 @@
 <template>
   <div style="height: 100%; padding-right: 1.25rem">
-    <a-tabs
-      tab-position="left"
-      v-if="tabs.length"
-      :destroyInactiveTabPane="true"
-      v-model:activeKey="user.other.tabKey"
-    >
-      <a-tab-pane v-for="item in tabs" :key="item.provider" :tab="item.name">
-        <NotificationRecord :type="item.provider" :children="item.children" />
-      </a-tab-pane>
-    </a-tabs>
+    <NotificationRecord
+      v-if="activeTab"
+      :type="activeTab.provider"
+      :children="activeTab.children"
+    />
     <div v-else style="margin: 12.5rem 0"><CloudEmpty  /></div>
   </div>
 </template>
@@ -24,6 +19,9 @@ import { omit } from "lodash-es";
 const tabs = ref<any[]>([]);
 const router = useRouterParams();
 const user = useUserStore();
+const activeTab = computed(() => {
+  return tabs.value.find((item) => item.provider === user.other.tabKey) || tabs.value[0];
+});
 // let initData: any[]
 const queryTypeList = () => {
   getAllNotice().then((resp: any) => {
@@ -47,7 +45,7 @@ const queryTypeList = () => {
         }
       });
       tabs.value = [...dataMap.values()];
-      if (!user.other.tabKey) {
+      if (!tabs.value.some((item) => item.provider === user.other.tabKey)) {
         user.other.tabKey = tabs.value?.[0]?.provider;
       }
     }

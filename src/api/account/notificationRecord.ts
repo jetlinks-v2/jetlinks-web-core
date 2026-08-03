@@ -2,12 +2,8 @@ import { request } from '@jetlinks-web/core'
 
 // 获取记录列表
 export const getList_api = (data: any): any => request.post(`/notifications/_query`, data)
-// 获取有效未读记录列表，后端会合并 read marker 与显式未读状态。
-export const getUnreadNoPagingList_api = (data: any): any => request.post(`/notifications/_query/unread/no-paging`, data)
-// 获取有效未读数量，后端按 pageSize 做 capped count，避免为角标返回消息正文。
-export const getUnreadCount_api = (data: any): any => request.post(`/notifications/_query/unread/count`, data)
-// 获取有效未读数量汇总，用于一次性刷新站内信分类角标。
-export const getUnreadSummary_api = (data: any): any => request.post(`/notifications/_query/unread/summary`, data)
+// 工单消息详情使用当前用户流程权限查询，避免通知记录缺少历史详情时展示空内容。
+export const getWorkOrderDetail_api = (id: string): any => request.post(`/park/event-work-order/work-orders/${id}/_my-flow-detail`)
 // 修改记录状态
 export const changeStatus_api = (type: '_read' | '_unread', data: string[]): any => request.post(`/notifications/${type}`, data)
 

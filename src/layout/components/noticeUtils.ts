@@ -4,11 +4,6 @@ export interface CappedUnreadCount {
   overflow?: boolean;
 }
 
-export interface UnreadSummary {
-  total?: CappedUnreadCount;
-  topics?: CappedUnreadCount[];
-}
-
 export interface NoticeTabItem {
   key: string;
   tab: string;
@@ -18,11 +13,9 @@ export interface NoticeTabItem {
 export const BADGE_OVERFLOW_COUNT = 99;
 export const BADGE_OVERFLOW_VALUE = BADGE_OVERFLOW_COUNT + 1;
 
-export const toBadgeCount = (count?: CappedUnreadCount) => {
-  if (!count) {
-    return 0;
-  }
-  return count.overflow ? BADGE_OVERFLOW_VALUE : Number(count.count || 0);
+export const toBadgeCount = (count?: number) => {
+  const value = Number(count || 0);
+  return value > BADGE_OVERFLOW_COUNT ? BADGE_OVERFLOW_VALUE : value;
 };
 
 export const createUnreadQueryParams = (topicProviders: string[], pageSize: number) => ({
@@ -44,6 +37,12 @@ export const createUnreadQueryParams = (topicProviders: string[], pageSize: numb
           termType: 'in',
           column: 'topicProvider',
         },
+        {
+          type: 'and',
+          value: 'unread',
+          termType: 'eq',
+          column: 'state',
+        },
       ],
     },
   ],
@@ -51,21 +50,11 @@ export const createUnreadQueryParams = (topicProviders: string[], pageSize: numb
 
 export const createTabCountMap = (
   tabs: NoticeTabItem[],
-  summary?: UnreadSummary,
+  counts: Record<string, number>,
 ): Record<string, CappedUnreadCount> => {
-  const providerCounts = new Map(
-    (summary?.topics || [])
-      .filter((item) => item.topicProvider)
-      .map((item) => [item.topicProvider as string, item] as const),
-  );
-
   return tabs.reduce<Record<string, CappedUnreadCount>>((result, tab) => {
-    const count = tab.type.reduce((total, provider) => {
-      return total + Number(providerCounts.get(provider)?.count || 0);
-    }, 0);
-    const overflow =
-      tab.type.some((provider) => Boolean(providerCounts.get(provider)?.overflow)) ||
-      count > BADGE_OVERFLOW_COUNT;
+    const count = Number(counts[tab.key] || 0);
+    const overflow = count > BADGE_OVERFLOW_COUNT;
     result[tab.key] = {
       count: Math.min(count, BADGE_OVERFLOW_COUNT),
       overflow,

@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts" name="Notice">
-import { changeStatus_api, getUnreadCount_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { changeStatus_api, getList_api } from '@jetlinks-web-core/api/account/notificationRecord';
 import { ref } from 'vue'
 import NoticeInfo from './NoticeInfo.vue';
 import { useWebSocket } from '@jetlinks-web-core/hooks'
@@ -36,7 +36,8 @@ import {
 } from './noticeUtils';
 
 const { t: $t } = useI18n();
-const updateCount = computed(() => useUserStore().alarmUpdateCount);
+const userInfo = useUserStore();
+const updateCount = computed(() => userInfo.alarmUpdateCount);
 const menuStory = useMenuStore();
 
 const visible = ref(false)
@@ -53,6 +54,7 @@ const { send } = useWebSocket({
     if (!data?.payload?.id) return;
     // 消息处理
     total.value = Math.min(total.value + 1, BADGE_OVERFLOW_VALUE);
+    userInfo.updateAlarm();
     notification.open({
                 message: data?.payload?.topicName,
                 description: () =>
@@ -128,9 +130,9 @@ const getList = () => {
     }
     loading.value = true;
     const params = createUnreadQueryParams(topicProviders, BADGE_OVERFLOW_COUNT);
-    getUnreadCount_api(params)
+    getList_api(params)
         .then((resp: any) => {
-            total.value = toBadgeCount(resp.result);
+            total.value = toBadgeCount(resp.result?.total);
         })
         .finally(() => (loading.value = false));
 };
