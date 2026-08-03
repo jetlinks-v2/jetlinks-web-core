@@ -6,6 +6,8 @@ import {
 } from './clientToolContract'
 import {
   createAiClientToolFailureResult,
+  type AiClientToolCardinality,
+  type AiClientToolClaim,
   type AiClientToolFailureOptions,
   type AiClientToolOutputField,
   type AiClientToolOrdering,
@@ -184,6 +186,9 @@ export interface ClientToolSuccessOptions {
   summary?: Record<string, unknown>
   requestedRange?: Record<string, unknown>
   observedRange?: Record<string, unknown>
+  cardinality?: AiClientToolCardinality
+  claims?: AiClientToolClaim[]
+  supportsAbsenceClaim?: boolean
   facts?: Record<string, unknown>
   warnings?: string[]
 }
@@ -203,6 +208,9 @@ interface ClientToolExecutionSuccess<TResult> {
   summary?: Record<string, unknown>
   requestedRange?: Record<string, unknown>
   observedRange?: Record<string, unknown>
+  cardinality?: AiClientToolCardinality
+  claims?: AiClientToolClaim[]
+  supportsAbsenceClaim?: boolean
   facts?: Record<string, unknown>
   warnings?: string[]
   limitReason?: string
@@ -229,6 +237,11 @@ export const clientToolResult = {
     ...(options.summary ? { summary: options.summary } : {}),
     ...(options.requestedRange ? { requestedRange: options.requestedRange } : {}),
     ...(options.observedRange ? { observedRange: options.observedRange } : {}),
+    ...(options.cardinality ? { cardinality: options.cardinality } : {}),
+    ...(options.claims?.length ? { claims: options.claims.map(claim => ({ ...claim })) } : {}),
+    ...(options.supportsAbsenceClaim !== undefined
+      ? { supportsAbsenceClaim: options.supportsAbsenceClaim }
+      : {}),
     ...(options.facts ? { facts: options.facts } : {}),
     ...(options.warnings?.length ? { warnings: [...options.warnings] } : {}),
   }),
@@ -242,6 +255,11 @@ export const clientToolResult = {
     ...(options.summary ? { summary: options.summary } : {}),
     ...(options.requestedRange ? { requestedRange: options.requestedRange } : {}),
     ...(options.observedRange ? { observedRange: options.observedRange } : {}),
+    ...(options.cardinality ? { cardinality: options.cardinality } : {}),
+    ...(options.claims?.length ? { claims: options.claims.map(claim => ({ ...claim })) } : {}),
+    ...(options.supportsAbsenceClaim !== undefined
+      ? { supportsAbsenceClaim: options.supportsAbsenceClaim }
+      : {}),
     ...(options.facts ? { facts: options.facts } : {}),
     ...(options.warnings?.length ? { warnings: [...options.warnings] } : {}),
     ...(options.limitReason ? { limitReason: options.limitReason } : {}),
@@ -619,6 +637,7 @@ const adaptExecutionResult = async <TResult>(
   const inlineStates: Array<{
     name: string
     path: string
+    recordCount?: number
     complete: boolean
     fields?: AiClientToolOutputField[]
     ordering?: AiClientToolOrdering
@@ -638,10 +657,19 @@ const adaptExecutionResult = async <TResult>(
     inlineStates.push({
       name: output.name,
       path: outputSlotPath(index),
+      ...(Array.isArray(value) ? { recordCount: value.length } : {}),
       complete: execution.complete,
       ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
       ...(output.ordering ? { ordering: output.ordering } : {}),
     })
+  })
+
+  const selectedOutputNames = new Set(selected.map(({ output }) => output.name))
+  const claims = (execution.claims || []).flatMap((claim) => {
+    const binding = String(claim.binding || '').trim()
+    if (binding) return selectedOutputNames.has(binding) ? [{ ...claim, binding }] : []
+    // A single selected output is unambiguous; multiple outputs must declare their claim binding.
+    return selected.length === 1 ? [{ ...claim, binding: selected[0].output.name }] : []
   })
 
   const envelope = {
@@ -658,6 +686,11 @@ const adaptExecutionResult = async <TResult>(
     truncated: execution.truncated,
     ...(execution.requestedRange ? { requestedRange: execution.requestedRange } : {}),
     ...(execution.observedRange ? { observedRange: execution.observedRange } : {}),
+    ...(execution.cardinality ? { cardinality: execution.cardinality } : {}),
+    ...(claims.length ? { claims } : {}),
+    ...(execution.supportsAbsenceClaim !== undefined
+      ? { supportsAbsenceClaim: execution.supportsAbsenceClaim }
+      : {}),
     ...(execution.facts ? { facts: execution.facts } : {}),
     ...(execution.warnings?.length ? { warnings: execution.warnings } : {}),
     ...(execution.limitReason ? { limitReason: execution.limitReason } : {}),

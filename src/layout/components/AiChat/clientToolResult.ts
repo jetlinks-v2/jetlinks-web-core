@@ -115,8 +115,6 @@ export type AiClientToolCardinality =
       bucketCount: number
       populatedBucketCount: number
       measurementCount: number
-      missingBucketCount?: number
-      samplingSemantics?: 'observed_only'
     }
   | {
       kind: 'preview'
@@ -427,15 +425,6 @@ export function normalizeAiClientToolCardinality(
       bucketCount,
       populatedBucketCount,
       measurementCount: nonNegativeCount(value.measurementCount),
-      ...(Number.isFinite(value.missingBucketCount) ? {
-        missingBucketCount: Math.min(
-          bucketCount,
-          nonNegativeCount(value.missingBucketCount),
-        ),
-      } : {}),
-      ...(value.samplingSemantics === 'observed_only'
-        ? { samplingSemantics: value.samplingSemantics }
-        : {}),
     }
   }
   const displayedCount = nonNegativeCount(value.displayedCount)

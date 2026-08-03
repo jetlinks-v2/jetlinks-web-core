@@ -162,6 +162,130 @@ test('aggregate facade exposes renderer-neutral data without deriving a browser 
   ])
 })
 
+test('typed aggregate execution facts survive standard adaptation and delivery', async () => {
+  const points = [
+    { time: 1_785_387_600_000, energy: 12 },
+    { time: 1_785_391_200_000, energy: 18 },
+  ]
+  const tool = defineClientTool({
+    id: 'test_facility_energy_aggregate',
+    description: {
+      text: 'Read a facility energy aggregate',
+      capabilities: ['facility.energy.aggregate'],
+    },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'facility-energy-series',
+      shape: 'metric.time-series',
+      fields: [
+        { name: 'time', semanticRole: 'timestamp' },
+        { name: 'energy', semanticRole: 'number', measure: 'energy', unit: 'kwh', aggregation: 'sum' },
+      ],
+      select: (result: { points: typeof points }) => result.points,
+    }),
+    execute: () => clientToolResult.success({ points }, {
+      cardinality: {
+        kind: 'aggregate-series',
+        bucketCount: 24,
+        populatedBucketCount: 2,
+        measurementCount: 2,
+      },
+      claims: [{
+        id: 'energy-total',
+        label: 'Total energy',
+        value: 30,
+        measure: 'energy',
+        statistic: 'sum',
+        unit: 'kwh',
+        visibility: 'user',
+      }],
+      supportsAbsenceClaim: false,
+    }),
+  })
+  const prepared = await tool.execute(
+    {},
+    {},
+    { id: 'facility-energy-call', toolName: tool.id },
+  )
+  const delivered = await deliverAiClientToolResult(prepared, {
+    call: { id: 'facility-energy-call', toolName: tool.id },
+    outputBindings: tool._meta?.resultBindings,
+  }) as any
+
+  assert.deepEqual(delivered.evidence.cardinality, {
+    kind: 'aggregate-series',
+    bucketCount: 24,
+    populatedBucketCount: 2,
+    measurementCount: 2,
+  })
+  assert.equal(delivered.evidence.claims[0].binding, 'facility-energy-series')
+  assert.equal(delivered.evidence.claims[0].statistic, 'sum')
+  assert.equal(delivered.evidence.supportsAbsenceClaim, false)
+  assert.deepEqual(delivered.evidence.outputBindings.map((binding: any) => ({
+    name: binding.name,
+    shape: binding.shape,
+    recordCount: binding.recordCount,
+  })), [{
+    name: 'facility-energy-series',
+    shape: 'metric.time-series',
+    recordCount: 2,
+  }])
+})
+
+test('typed claims fail closed when multiple outputs do not identify a binding', async () => {
+  const tool = defineClientTool({
+    id: 'test_multi_output_claims',
+    description: { text: 'Read two independent outputs', capabilities: ['test.multi.read'] },
+    effect: { kind: 'READ' },
+    output: [
+      clientToolOutput.lookup({ name: 'first-output', shape: 'test.ids', select: (result: any) => result.first }),
+      clientToolOutput.lookup({ name: 'second-output', shape: 'test.ids', select: (result: any) => result.second }),
+    ],
+    execute: () => clientToolResult.success({ first: ['one'], second: ['two'] }, {
+      claims: [
+        { id: 'ambiguous', label: 'Ambiguous', value: 2, visibility: 'user' },
+        { id: 'bound', label: 'Bound', value: 1, binding: 'first-output', visibility: 'user' },
+        { id: 'undeclared', label: 'Undeclared', value: 1, binding: 'missing-output', visibility: 'user' },
+      ],
+    }),
+  })
+
+  const prepared = await tool.execute({}, {}, { id: 'multi', toolName: tool.id }) as any
+  assert.deepEqual(prepared.evidence.claims.map((claim: any) => claim.id), ['bound'])
+  assert.equal(prepared.evidence.claims[0].binding, 'first-output')
+})
+
+test('typed partial results retain bounded evidence facts without becoming complete', async () => {
+  const tool = defineClientTool({
+    id: 'test_partial_aggregate_evidence',
+    description: { text: 'Read a bounded partial aggregate', capabilities: ['test.partial.aggregate'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'partial-series',
+      shape: 'metric.time-series',
+      select: (result: any) => result.points,
+    }),
+    execute: () => clientToolResult.partial({ points: [{ value: 1 }] }, {
+      cardinality: {
+        kind: 'aggregate-series',
+        bucketCount: 4,
+        populatedBucketCount: 1,
+        measurementCount: 1,
+      },
+      claims: [{ id: 'observed', label: 'Observed', value: 1, visibility: 'user' }],
+      supportsAbsenceClaim: false,
+      limitReason: 'records',
+    }),
+  })
+
+  const prepared = await tool.execute({}, {}, { id: 'partial', toolName: tool.id }) as any
+  assert.equal(prepared.complete, false)
+  assert.equal(prepared.truncated, true)
+  assert.equal(prepared.evidence.limitReason, 'records')
+  assert.equal(prepared.evidence.claims[0].binding, 'partial-series')
+  assert.equal(prepared.evidence.cardinality.measurementCount, 1)
+})
+
 test('record-set materialization preserves the owning output label', async () => {
   const records = Array.from({ length: 201 }, (_, index) => ({ index }))
   const tool = defineClientTool<Record<string, unknown>, Record<string, unknown>, { records: typeof records }>({
