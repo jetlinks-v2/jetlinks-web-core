@@ -8,6 +8,30 @@ const normalizeBasePath = () => {
   return `/${value.replace(/^\/+|\/+$/g, '')}/`.replace(/\/+/g, '/')
 }
 
+const splitPathSuffix = (value: string) => {
+  const suffixIndex = value.search(/[?#]/)
+  return suffixIndex === -1
+    ? [value, ''] as const
+    : [value.slice(0, suffixIndex), value.slice(suffixIndex)] as const
+}
+
+const normalizeLogicalPath = (value: string) => value
+  .replace(/\\/g, '/')
+  .replace(/^(?:\.\/)+/, '')
+  .replace(/^\/+/, '')
+  .replace(/\/+/g, '/')
+
+const containsPathTraversal = (value: string) => {
+  try {
+    return decodeURIComponent(value)
+      .replace(/\\/g, '/')
+      .split('/')
+      .includes('..')
+  } catch {
+    return true
+  }
+}
+
 /**
  * Resolve a logical file from Vite's public directory without changing stored configuration values.
  */
@@ -17,17 +41,10 @@ export const resolvePublicAssetUrl = (value?: string | null): string => {
   if (EXTERNAL_URL_PATTERN.test(source) || INLINE_URL_PATTERN.test(source)) return source
   if (ROUTE_OR_API_PATTERN.test(source)) return source
 
-  const suffixIndex = source.search(/[?#]/)
-  const pathname = suffixIndex === -1 ? source : source.slice(0, suffixIndex)
-  const suffix = suffixIndex === -1 ? '' : source.slice(suffixIndex)
-  const logicalPath = pathname.replace(/^\.\//, '').replace(/^\/+/, '')
+  const [pathname, suffix] = splitPathSuffix(source)
+  if (!pathname || containsPathTraversal(pathname)) return ''
 
-  try {
-    if (decodeURIComponent(logicalPath).split('/').includes('..')) return ''
-  } catch {
-    return ''
-  }
-
+  const logicalPath = normalizeLogicalPath(pathname)
   if (!logicalPath || (!logicalPath.includes('/') && !/\.[A-Za-z0-9]+$/.test(logicalPath))) {
     return source
   }

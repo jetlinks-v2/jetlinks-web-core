@@ -1,0 +1,51 @@
+import {
+  clientToolOutput,
+  clientToolResult,
+  defineClientTool,
+  defineClientTools,
+  type ClientToolDefinition,
+} from '../src/layout/components/AiChat/clientToolApi'
+
+const validDefinition: ClientToolDefinition<
+  { deviceId: string },
+  { projectId: string },
+  { records: Array<{ id: string }> }
+> = {
+  id: 'type_fixture_records',
+  description: {
+    text: 'Read bounded records',
+    capabilities: ['fixture.records.read'],
+  },
+  inputs: [{ id: 'deviceId', required: true, valueType: 'string' }],
+  consumes: [{ name: 'device-id', source: 'EITHER', optional: true }],
+  effect: { kind: 'READ' },
+  output: clientToolOutput.recordSet({
+    name: 'fixture-records',
+    shape: 'fixture.records',
+    select: result => result.records,
+  }),
+  execute: ({ deviceId }) => clientToolResult.success({ records: [{ id: deviceId }] }),
+}
+
+defineClientTools([defineClientTool(validDefinition)])
+
+defineClientTool({
+  ...validDefinition,
+  // @ts-expect-error Routing is compiled from stable business facts and is not author-owned.
+  routing: { stages: ['FETCH'] },
+})
+
+clientToolOutput.recordSet({
+  name: 'invalid-records',
+  shape: 'fixture.records',
+  // @ts-expect-error JSONPath bindings are selected by the compiler-owned output slot.
+  path: '$.records',
+})
+
+clientToolOutput.artifact({
+  name: 'invalid-artifact',
+  shape: 'fixture.document',
+  mediaType: 'application/json',
+  // @ts-expect-error Physical delivery policy is runtime-owned.
+  delivery: 'file',
+})

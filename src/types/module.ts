@@ -1,9 +1,10 @@
 import type { Component } from 'vue'
 import type { RouteMeta, RouteRecordRaw } from 'vue-router'
+import type { DataCapabilityProviderManifest } from '../data-capability/types'
 
 export type ModuleResourceRecord<T = unknown> = Record<string, T>
 
-export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes'
+export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders'
 export type ModuleResourceType = KnownModuleResourceType | (string & {})
 
 export interface ModuleResource {
@@ -14,6 +15,7 @@ export interface ModuleResource {
   stores?: ModuleResourceRecord
   utils?: ModuleResourceRecord
   routes?: ModuleResourceRecord
+  dataCapabilityProviders?: DataCapabilityProviderManifest
   [resourceType: string]: ModuleResourceRecord | string | undefined
 }
 

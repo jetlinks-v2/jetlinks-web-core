@@ -81,17 +81,184 @@ export interface GeneralAgentConversationBridge {
  * The fence info string is matched against `type`. Returning `undefined` from
  * `decode` rejects the block so the conversation falls back to a normal code block.
  */
-export interface GeneralAgentMarkdownBlockRenderer {
+export interface GeneralAgentPresentationRenderer {
   type: string;
   renderer: Component;
+  /** Side-effect-free placeholder rendered while the assistant response is still streaming. */
+  skeleton?: Component;
   decode?: (content: string) => unknown | undefined;
+  presentation?: GeneralAgentMarkdownBlockPresentation;
 }
 
-export interface GeneralAgentResolvedMarkdownBlock {
+/** @deprecated Markdown is only one compatibility envelope for a presentation renderer. */
+export interface GeneralAgentMarkdownBlockRenderer extends GeneralAgentPresentationRenderer {}
+
+export type GeneralAgentMarkdownBlockContentType = 'json' | 'text';
+
+export type GeneralAgentMarkdownBlockDisplayMode = 'preview' | 'source';
+
+export type GeneralAgentMarkdownBlockDeliveryPolicy = 'explicit' | 'preferred' | 'required';
+
+export type GeneralAgentPresentationNarrativeMode = 'card-first' | 'analysis' | 'free';
+
+/**
+ * Bounded prose guidance owned by a presentation renderer.
+ *
+ * The runtime may expose this policy to the model, but it must never treat the policy as authorization or a
+ * task-completion condition, and it must not rewrite model-authored text to enforce the limits.
+ */
+export interface GeneralAgentPresentationNarrativePolicy {
+  mode: GeneralAgentPresentationNarrativeMode;
+  allowedTextRoles: string[];
+  minTextBlocks: number;
+  maxTextBlocks: number;
+  maxTextChars: number;
+}
+
+/**
+ * Declares how a trusted conversation client can present one fenced block.
+ *
+ * The metadata is converted into a bounded model hint during session initialization. It is
+ * presentation-only and must never be treated as authorization or a resource access grant.
+ */
+export interface GeneralAgentMarkdownBlockPresentation {
+  contentType: GeneralAgentMarkdownBlockContentType;
+  /** Canonical source media type consumed directly by the client renderer. */
+  mediaType?: string;
+  supportsSessionFile?: boolean;
+  maxInlineBytes?: number;
+  defaultMode?: GeneralAgentMarkdownBlockDisplayMode;
+  /** Default delivery purpose; currently used to distinguish chat previews from reusable artifacts. */
+  purpose?: 'conversation-preview';
+  /** Generic tool result shapes that this renderer can present without a derived media artifact. */
+  preferredInputShapes?: string[];
+  /** Whether compatible result shapes are explicit-only, preferred, or required in the terminal response. */
+  deliveryPolicy?: GeneralAgentMarkdownBlockDeliveryPolicy;
+  /** Low-cardinality interaction tokens already provided by the rendered card. */
+  affordances?: string[];
+  /** Low-cardinality content tokens whose details are already rendered by the card. */
+  contentResponsibilities?: string[];
+  /** Renderer-owned prose guidance. It never changes task completion or grants capabilities. */
+  narrativePolicy?: Partial<GeneralAgentPresentationNarrativePolicy>;
+}
+
+export interface GeneralAgentMarkdownPresentationCapability
+  extends GeneralAgentMarkdownBlockPresentation {
+  type: string;
+}
+
+const PRESENTATION_TYPE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,31}$/;
+const PRESENTATION_INPUT_SHAPE_PATTERN = /^[a-z0-9][a-z0-9._-]{0,95}(?:\.\*)?$/;
+const PRESENTATION_CONTENT_HINT_PATTERN = /^[a-z0-9][a-z0-9._-]{0,63}$/;
+
+const normalizePresentationContentHints = (values?: string[]) => Array.from(new Set(
+  (values || [])
+    .map(value => normalizeText(value).toLowerCase())
+    .filter(value => PRESENTATION_CONTENT_HINT_PATTERN.test(value)),
+)).slice(0, 16);
+
+const DEFAULT_NARRATIVE_POLICIES: Record<GeneralAgentPresentationNarrativeMode, GeneralAgentPresentationNarrativePolicy> = {
+  'card-first': {
+    mode: 'card-first',
+    allowedTextRoles: ['summary', 'next_step'],
+    minTextBlocks: 0,
+    maxTextBlocks: 2,
+    maxTextChars: 300,
+  },
+  analysis: {
+    mode: 'analysis',
+    allowedTextRoles: ['summary', 'analysis', 'next_step'],
+    minTextBlocks: 1,
+    maxTextBlocks: 4,
+    maxTextChars: 1200,
+  },
+  free: {
+    mode: 'free',
+    allowedTextRoles: [],
+    minTextBlocks: 0,
+    maxTextBlocks: 8,
+    maxTextChars: 4000,
+  },
+};
+
+const normalizePresentationNarrativePolicy = (
+  policy: Partial<GeneralAgentPresentationNarrativePolicy> | undefined,
+  hasContentResponsibilities: boolean,
+): GeneralAgentPresentationNarrativePolicy => {
+  const declaredMode = normalizeText(policy?.mode).toLowerCase() as GeneralAgentPresentationNarrativeMode;
+  const mode: GeneralAgentPresentationNarrativeMode = ['card-first', 'analysis', 'free'].includes(declaredMode)
+    ? declaredMode
+    : (hasContentResponsibilities ? 'card-first' : 'free');
+  const defaults = DEFAULT_NARRATIVE_POLICIES[mode];
+  const allowedTextRoles = normalizePresentationContentHints(policy?.allowedTextRoles);
+  const maxTextBlocks = Math.max(1, Math.min(Number(policy?.maxTextBlocks) || defaults.maxTextBlocks, 8));
+  const declaredMinTextBlocks = Number(policy?.minTextBlocks);
+  const minTextBlocks = Number.isFinite(declaredMinTextBlocks)
+    ? Math.trunc(declaredMinTextBlocks)
+    : defaults.minTextBlocks;
+  const requiredMinTextBlocks = mode === 'analysis' ? 1 : 0;
+  return {
+    mode,
+    allowedTextRoles: allowedTextRoles.length ? allowedTextRoles : defaults.allowedTextRoles,
+    minTextBlocks: Math.max(requiredMinTextBlocks, Math.min(minTextBlocks, maxTextBlocks)),
+    maxTextBlocks,
+    maxTextChars: Math.max(80, Math.min(Number(policy?.maxTextChars) || defaults.maxTextChars, 4000)),
+  };
+};
+
+/**
+ * Normalizes renderer metadata before it crosses the conversation boundary.
+ *
+ * Presentation metadata is descriptive only. Bounding it here prevents an extension from turning
+ * arbitrary runtime data into a server-side routing, authorization, or prompt channel.
+ */
+export const normalizeGeneralAgentMarkdownPresentationCapability = (
+  capability: GeneralAgentMarkdownPresentationCapability,
+): GeneralAgentMarkdownPresentationCapability | undefined => {
+  const type = normalizeText(capability?.type).toLowerCase();
+  const contentType = normalizeText(capability?.contentType).toLowerCase();
+  if (!PRESENTATION_TYPE_PATTERN.test(type) || !['json', 'text'].includes(contentType)) {
+    return undefined;
+  }
+  const mediaType = normalizeText(capability.mediaType).toLowerCase().slice(0, 160);
+  const preferredInputShapes = Array.from(new Set(
+    (capability.preferredInputShapes || [])
+      .map(value => normalizeText(value).toLowerCase())
+      .filter(value => PRESENTATION_INPUT_SHAPE_PATTERN.test(value)),
+  )).slice(0, 16);
+  const deliveryPolicy = ['preferred', 'required'].includes(capability.deliveryPolicy || '')
+    ? capability.deliveryPolicy as GeneralAgentMarkdownBlockDeliveryPolicy
+    : 'explicit';
+  const affordances = normalizePresentationContentHints(capability.affordances);
+  const contentResponsibilities = normalizePresentationContentHints(capability.contentResponsibilities);
+  const narrativePolicy = normalizePresentationNarrativePolicy(
+    capability.narrativePolicy,
+    contentResponsibilities.length > 0,
+  );
+  return {
+    type,
+    contentType: contentType as GeneralAgentMarkdownBlockContentType,
+    ...(mediaType ? { mediaType } : {}),
+    supportsSessionFile: capability.supportsSessionFile === true,
+    maxInlineBytes: Math.max(0, Math.min(Number(capability.maxInlineBytes) || 0, 1024 * 1024)),
+    defaultMode: capability.defaultMode === 'source' ? 'source' : 'preview',
+    purpose: 'conversation-preview',
+    ...(preferredInputShapes.length ? { preferredInputShapes } : {}),
+    deliveryPolicy,
+    ...(affordances.length ? { affordances } : {}),
+    ...(contentResponsibilities.length ? { contentResponsibilities } : {}),
+    narrativePolicy,
+  };
+};
+
+export interface GeneralAgentResolvedPresentationBlock {
   type: string;
   renderer: Component;
   value: unknown;
 }
+
+/** @deprecated Use the neutral presentation block contract. */
+export type GeneralAgentResolvedMarkdownBlock = GeneralAgentResolvedPresentationBlock;
 
 export interface GeneralAgentMarkdownTextResourceOptions {
   maxBytes?: number;
@@ -163,6 +330,8 @@ export const findGeneralAgentMarkdownBlockContents = (
 export interface GeneralAgentConversationExtension {
   displayAdapter?: GeneralAgentConversationDisplayAdapter;
   suppressedMessageRenderer?: Component;
+  presentationRenderers?: GeneralAgentPresentationRenderer[];
+  /** Compatibility renderers discovered from closed Markdown fences. */
   markdownBlockRenderers?: GeneralAgentMarkdownBlockRenderer[];
   createBridge?: (
     context: GeneralAgentConversationBridgeContext,
@@ -222,11 +391,88 @@ class GeneralAgentExtensionRegistry {
       .filter(([key]) => prefixes.some(prefix => key.startsWith(prefix)))
       .map(([, items]) => items[items.length - 1]?.extension)
       .filter((item): item is GeneralAgentExtension => !!item)
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
+      .sort((a, b) => (
+        (a.order || 0) - (b.order || 0)
+        || normalizeText(a.id).localeCompare(normalizeText(b.id))
+      ));
   }
 
   getConversationExtensions(scopes: string | string[] = 'general') {
     return this.getExtensions(scopes).filter(extension => !!extension.conversation);
+  }
+
+  getPresentationRenderers(scopes: string | string[] = 'general') {
+    const renderers: GeneralAgentPresentationRenderer[] = [];
+    const seen = new Set<string>();
+    for (const extension of this.getConversationExtensions(scopes)) {
+      for (const renderer of [
+        ...(extension.conversation?.presentationRenderers || []),
+        ...(extension.conversation?.markdownBlockRenderers || []),
+      ]) {
+        const type = normalizeText(renderer.type).toLowerCase();
+        if (!type || seen.has(type)) continue;
+        seen.add(type);
+        renderers.push(renderer);
+      }
+    }
+    return renderers;
+  }
+
+  /** Returns the neutral presentation contract actually installed in the current client. */
+  getPresentationCapabilities(
+    scopes: string | string[] = 'general',
+  ): GeneralAgentMarkdownPresentationCapability[] {
+    const capabilities: GeneralAgentMarkdownPresentationCapability[] = [];
+    const seen = new Set<string>();
+    for (const renderer of this.getPresentationRenderers(scopes)) {
+      const type = normalizeText(renderer.type).toLowerCase();
+      if (!type || seen.has(type) || !renderer.presentation) continue;
+      const capability = normalizeGeneralAgentMarkdownPresentationCapability({
+        type,
+        ...renderer.presentation,
+      });
+      if (!capability) continue;
+      seen.add(type);
+      capabilities.push(capability);
+    }
+    return capabilities;
+  }
+
+  /** @deprecated Use {@link getPresentationCapabilities}. */
+  getMarkdownPresentationCapabilities(
+    scopes: string | string[] = 'general',
+  ): GeneralAgentMarkdownPresentationCapability[] {
+    return this.getPresentationCapabilities(scopes);
+  }
+
+  /**
+   * Resolves a typed assistant presentation through the installed renderer registry.
+   * Decoder failures are isolated to the block and never break the conversation timeline.
+   */
+  resolvePresentationBlock(
+    type: string,
+    content: string,
+    scopes: string | string[] = 'general',
+  ): GeneralAgentResolvedPresentationBlock | undefined {
+    const normalizedType = normalizeText(type).toLowerCase();
+    if (!normalizedType) return undefined;
+
+    for (const candidate of this.getPresentationRenderers(scopes)) {
+      if (normalizeText(candidate.type).toLowerCase() !== normalizedType) continue;
+      try {
+        const value = candidate.decode ? candidate.decode(content) : content;
+        if (value !== undefined) {
+          return {
+            type: normalizedType,
+            renderer: candidate.renderer,
+            value,
+          };
+        }
+      } catch {
+        // Invalid capability payloads remain isolated to their presentation block.
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -238,28 +484,7 @@ class GeneralAgentExtensionRegistry {
     content: string,
     scopes: string | string[] = 'general',
   ): GeneralAgentResolvedMarkdownBlock | undefined {
-    const normalizedType = normalizeText(type).toLowerCase();
-    if (!normalizedType) return undefined;
-
-    for (const extension of this.getConversationExtensions(scopes)) {
-      const renderers = extension.conversation?.markdownBlockRenderers || [];
-      for (const candidate of renderers) {
-        if (normalizeText(candidate.type).toLowerCase() !== normalizedType) continue;
-        try {
-          const value = candidate.decode ? candidate.decode(content) : content;
-          if (value !== undefined) {
-            return {
-              type: normalizedType,
-              renderer: candidate.renderer,
-              value,
-            };
-          }
-        } catch {
-          // Invalid capability payloads remain visible as ordinary source blocks.
-        }
-      }
-    }
-    return undefined;
+    return this.resolvePresentationBlock(type, content, scopes);
   }
 }
 

@@ -11,7 +11,9 @@ export function resolveCoreRoutes(
   context?: RouteHideInMenuContext,
 ) {
   const registry = new Map(
-    Object.values(basicRoutes).map(config => [config.name, { ...config }]),
+    Object.values(basicRoutes)
+      .filter(isRouteRecord)
+      .map(config => [config.name, { ...config }]),
   )
 
   const overrideLogs: string[] = []
@@ -20,13 +22,13 @@ export function resolveCoreRoutes(
     if (override.component) {
       if (shouldApplyOverride(override, context)) {
         registry.set(override.name, override)
-        overrideLogs.push(`  - ${override.name}: ${override.description || 'module override'}`)
+        overrideLogs.push(`  - ${String(override.name)}: ${override.description || 'module override'}`)
       }
       continue
     }
 
     registry.delete(override.name)
-    overrideLogs.push(`  - ${override.name}: [removed]`)
+    overrideLogs.push(`  - ${String(override.name)}: [removed]`)
   }
 
   const routes = [...registry.values()]
@@ -39,6 +41,10 @@ export function resolveCoreRoutes(
     menuFilterPaths,
     registry: routes,
   }
+}
+
+function isRouteRecord(route: unknown): route is RouteRecordRaw {
+  return !!route && typeof route === 'object' && 'name' in route && 'path' in route
 }
 
 function shouldApplyOverride(route: ModuleRouteOverride, context?: RouteHideInMenuContext): boolean {

@@ -1,11 +1,15 @@
 import i18n from '@jetlinks-web-core/locales';
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry';
+import { homeAgentCapabilityRegistry } from './homeAgentRegistry';
+import type {
+  HomeAgentCapabilityContext,
+  HomeAgentCapabilityProvider,
+} from './homeAgentContracts';
 import {
-  homeAgentCapabilityRegistry,
-  type HomeAgentCapabilityContext,
-  type HomeAgentCapabilityProvider,
-} from './homeAgentCapabilities';
-import type { AiClientToolDefinition } from './clientTools';
+  clientToolOutput,
+  defineClientTool,
+  type CompiledClientTool,
+} from './clientToolApi';
 import {
   generalAgentExtensionRegistry,
   type GeneralAgentExtension,
@@ -217,12 +221,29 @@ const createCapabilityLoaderTool = (
   toolId: string,
   loadProviders: typeof loadHomeAgentCapabilityProviders,
   afterLoaded?: () => void,
-): AiClientToolDefinition<HomeAgentCapabilityContext> => ({
+): CompiledClientTool<HomeAgentCapabilityContext> => defineClientTool<
+  Record<string, any>,
+  HomeAgentCapabilityContext,
+  Record<string, any>
+>({
   id: toolId,
-  name: toolId,
-  displayName: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.displayName'),
-  progressText: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.progressText'),
-  description: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.description'),
+  description: {
+    text: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.description'),
+    capabilities: ['client-capability.load'],
+    intents: [
+      '加载当前路由或菜单尚未注册的专属能力',
+      'load route- or menu-specific capabilities that are not registered yet',
+    ],
+    notFor: [
+      '使用当前会话已声明的业务工具查询或分析数据',
+      'query or analyze data with a business tool already declared in the current session',
+    ],
+    activation: 'ON_DEMAND',
+  },
+  presentation: {
+    displayName: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.displayName'),
+    progressText: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.progressText'),
+  },
   inputs: [
     {
       id: 'menuCode',
@@ -253,8 +274,13 @@ const createCapabilityLoaderTool = (
       valueType: 'boolean',
     },
   ],
-  output: { type: 'object' },
-  annotations: { readOnlyHint: true },
+  consumes: [{ name: 'session-context', optional: true, source: 'CONTEXT' }],
+  effect: { kind: 'READ' },
+  output: clientToolOutput.lookup({
+    name: 'client-tool-catalog',
+    shape: 'tool.catalog',
+  }),
+  owner: { module: 'jetlinks-web-core', group: 'home-agent' },
   execute: async (args, context) => {
     const result = await loadProviders({
       menuCode: args.menuCode,

@@ -106,6 +106,11 @@ export interface HomeAgentWorkflowGuide {
   steps?: Array<string | {
     title?: string
     description?: string
+    /** Stable routing capability, never a concrete tool id. */
+    capability?: string
+    /** Binding types expected from this evidence step. */
+    evidence?: string | string[]
+    /** @deprecated Workflow guidance must not prescribe concrete tool ids. */
     tools?: string[]
     inputs?: Record<string, any>
     tips?: string[]

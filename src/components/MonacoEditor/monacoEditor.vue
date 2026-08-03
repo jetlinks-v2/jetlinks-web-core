@@ -42,6 +42,11 @@ const emit = defineEmits([
 const dom = ref();
 
 let instance
+let modelInstance
+let markerDisposable
+let formatTimer
+let readOnlyTimer
+let initialFormatTimer
 
 const monacoProviderRef = ref();
 const monacoTypescriptProviderRef = ref();
@@ -105,28 +110,32 @@ const registerTypescript = () => {
  */
 const editorFormat = () => {
   if (!instance) return;
-  setTimeout(() => {
-    instance.getAction('editor.action.formatDocument')?.run();
+  window.clearTimeout(formatTimer);
+  formatTimer = window.setTimeout(() => {
+    formatTimer = undefined;
+    instance?.getAction('editor.action.formatDocument')?.run();
   }, 300)
   if (props.hasOwnProperty('readOnly')) {
-    setTimeout(() => {
-      instance.updateOptions({
+    window.clearTimeout(readOnlyTimer);
+    readOnlyTimer = window.setTimeout(() => {
+      readOnlyTimer = undefined;
+      instance?.updateOptions({
         readOnly: props.readOnly !== false,
       });
     }, 400);
   }
 };
 
-monaco.editor.onDidChangeMarkers(([uri]) => {
+markerDisposable = monaco.editor.onDidChangeMarkers(([uri]) => {
   const markers = monaco.editor.getModelMarkers({resource: uri});
   emit('errorChange', markers);
 });
 
-onMounted(async () => {
-  const _model = monaco.editor.createModel(props.modelValue, props.language);
+onMounted(() => {
+  modelInstance = monaco.editor.createModel(props.modelValue, props.language);
 
   instance = monaco.editor.create(dom.value, {
-    model: _model,
+    model: modelInstance,
     tabSize: 2,
     automaticLayout: true,
     scrollBeyondLastLine: false,
@@ -156,7 +165,8 @@ onMounted(async () => {
   });
 
   if (props.modelValue) {
-    setTimeout(() => {
+    initialFormatTimer = window.setTimeout(() => {
+      initialFormatTimer = undefined;
       editorFormat();
     }, 200);
   }
@@ -231,7 +241,19 @@ watch(
 onUnmounted(() => {
   disposeRegister();
   disposeTypescript();
-  instance.editor?.dispose?.();
+  markerDisposable?.dispose();
+  markerDisposable = undefined;
+  window.clearTimeout(formatTimer);
+  window.clearTimeout(readOnlyTimer);
+  window.clearTimeout(initialFormatTimer);
+
+  // 主题切换会重建编辑器，卸载可能早于初始化完成；createModel 及全局监听需显式释放。
+  const editor = instance;
+  const model = modelInstance || editor?.getModel?.();
+  editor?.dispose?.();
+  model?.dispose?.();
+  instance = undefined;
+  modelInstance = undefined;
 });
 
 defineExpose({
