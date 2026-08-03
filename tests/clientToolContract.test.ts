@@ -141,6 +141,7 @@ test('aggregate facade exposes renderer-neutral data without deriving a browser 
   assert.equal(selections, 1)
   assert.deepEqual(prepared.__clientToolOutputs.output0, points)
   assert.equal(prepared.data, undefined)
+  assert.deepEqual(prepared.outputBindings[0].requestedRange, { label: '24h' })
 
   const delivered = await deliverAiClientToolResult(prepared, {
     call: { id: 'trend', toolName: tool.id },
@@ -301,7 +302,10 @@ test('record-set materialization preserves the owning output label', async () =>
       shape: 'test.labeled-records',
       select: result => result.records,
     }),
-    execute: () => clientToolResult.success({ records }),
+    execute: () => clientToolResult.success({ records }, {
+      requestedRange: { start: 1_785_387_600_000, end: 1_785_473_999_999 },
+      observedRange: { start: 1_785_391_200_000, end: 1_785_470_400_000 },
+    }),
   })
 
   const prepared = await tool.execute({}, {}, { id: 'records', toolName: tool.id })
@@ -313,6 +317,14 @@ test('record-set materialization preserves the owning output label', async () =>
   assert.equal(delivered.outputBindings[0].name, 'labeled-records')
   assert.equal(delivered.outputBindings[0].label, 'Labeled records')
   assert.equal(delivered.outputBindings[0].path, '$.data.sample')
+  assert.deepEqual(delivered.outputBindings[0].requestedRange, {
+    start: 1_785_387_600_000,
+    end: 1_785_473_999_999,
+  })
+  assert.deepEqual(delivered.outputBindings[0].observedRange, {
+    start: 1_785_391_200_000,
+    end: 1_785_470_400_000,
+  })
 })
 
 test('aggregate facade preserves timestamp and dynamic measure contracts without presentation output', async () => {
@@ -456,6 +468,54 @@ test('aggregate facade preserves ordered coordinate semantics without choosing a
     { id: 'unordered-geo', toolName: unorderedTool.id },
   ) as any
   assert.equal(unorderedPrepared.data, undefined)
+})
+
+test('execution label resolver changes only the user-facing binding label', async () => {
+  const fields = [
+    { name: 'time', semanticRole: 'timestamp' as const },
+    {
+      name: 'value',
+      semanticRole: 'number' as const,
+      label: 'Temperature',
+      measure: 'temperature',
+      aggregation: 'avg',
+    },
+  ]
+  const tool = defineClientTool({
+    id: 'test_dynamic_output_label',
+    description: { text: 'Read one typed value series', capabilities: ['test.value.aggregate'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'stable-value-series',
+      label: 'Static aggregate result',
+      shape: 'time-series.aggregate',
+      fields: [{ name: 'time', semanticRole: 'timestamp' }],
+      select: (result: any) => result.points,
+      resolveFields: () => fields,
+      resolveLabel: (_result, _value, resolvedFields) => (
+        `${resolvedFields.find(field => field.semanticRole === 'number')?.label} · Average`
+      ),
+    }),
+    execute: () => ({ points: [{ time: 1_785_387_600_000, value: 12 }] }),
+  })
+
+  assert.equal(tool.routing?.produces?.[0], 'stable-value-series')
+  assert.equal(tool.routing?.outputShapes?.[0], 'time-series.aggregate')
+  assert.equal(tool._meta?.resultBindings?.[0]?.label, 'Static aggregate result')
+
+  const prepared = await tool.execute(
+    {},
+    {},
+    { id: 'dynamic-label', toolName: tool.id },
+  ) as any
+  assert.equal(prepared.outputBindings[0].name, 'stable-value-series')
+  assert.equal(prepared.outputBindings[0].shape, 'time-series.aggregate')
+  assert.equal(prepared.outputBindings[0].label, 'Temperature · Average')
+  const delivered = await deliverAiClientToolResult(prepared, {
+    call: { id: 'dynamic-label', toolName: tool.id },
+    outputBindings: tool._meta?.resultBindings,
+  }) as any
+  assert.equal(delivered.outputBindings[0].label, 'Temperature · Average')
 })
 
 test('facade compiles self-contained input alternatives and rejects undeclared references', () => {

@@ -142,6 +142,15 @@ interface ClientToolOutputBase<TResult> {
    * The logical output name and shape remain static; only renderer-neutral field metadata may vary.
    */
   resolveFields?: (result: TResult, selectedValue: unknown) => readonly AiClientToolOutputField[]
+  /**
+   * Resolves the user-facing label from producer-declared execution fields. Stable binding identity and shape remain
+   * owned by the static contract; the resolver must not infer semantics from tool ids or physical field names.
+   */
+  resolveLabel?: (
+    result: TResult,
+    selectedValue: unknown,
+    fields: readonly AiClientToolOutputField[],
+  ) => string | undefined
   optional?: boolean
   select?: (result: TResult) => unknown
 }
@@ -561,13 +570,14 @@ const prepareMaterializedValue = <TResult>(
   value: unknown,
   output: ClientToolOutput<TResult>,
   fields: readonly AiClientToolOutputField[] | undefined,
+  label: string | undefined,
 ) => {
   if (isInternalDescriptor(value, MATERIALIZED_ARTIFACT_KIND)
     || isInternalDescriptor(value, MATERIALIZED_RECORD_STREAM_KIND)) {
     return {
       ...(value as Record<string, unknown>),
       bindingName: output.name,
-      ...(output.label ? { bindingLabel: output.label } : {}),
+      ...(label ? { bindingLabel: label } : {}),
       outputShape: output.shape,
       ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
       ...(output.ordering ? { ordering: output.ordering } : {}),
@@ -578,7 +588,7 @@ const prepareMaterializedValue = <TResult>(
       source: createAiClientToolArrayRecordSource(value),
       schema: { type: 'object' },
       bindingName: output.name,
-      ...(output.label ? { bindingLabel: output.label } : {}),
+      ...(label ? { bindingLabel: label } : {}),
       outputShape: output.shape,
       ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
       ...(output.ordering ? { ordering: output.ordering } : {}),
@@ -608,6 +618,7 @@ const adaptExecutionResult = async <TResult>(
     index: number
     value: unknown
     fields?: readonly AiClientToolOutputField[]
+    label?: string
   }> = []
   for (let index = 0; index < outputs.length; index += 1) {
     const output = outputs[index]
@@ -629,21 +640,32 @@ const adaptExecutionResult = async <TResult>(
         throw createSelectionError(toolId, output.name, error)
       }
     }
-    selected.push({ output, index, value, fields })
+    let label = output.label
+    if (output.resolveLabel) {
+      try {
+        label = normalizedText(output.resolveLabel(execution.data, value, fields || [])) || label
+      } catch (error) {
+        throw createSelectionError(toolId, output.name, error)
+      }
+    }
+    selected.push({ output, index, value, fields, label })
   }
 
   const inlineValues: Record<string, unknown> = {}
   let materialized: unknown
   const inlineStates: Array<{
     name: string
+    label?: string
     path: string
     recordCount?: number
     complete: boolean
     fields?: AiClientToolOutputField[]
     ordering?: AiClientToolOrdering
+    requestedRange?: Record<string, unknown>
+    observedRange?: Record<string, unknown>
   }> = []
-  selected.forEach(({ output, index, value, fields }) => {
-    const prepared = prepareMaterializedValue(value, output, fields)
+  selected.forEach(({ output, index, value, fields, label }) => {
+    const prepared = prepareMaterializedValue(value, output, fields, label)
     if (prepared) {
       if (materialized) throw createSelectionError(toolId, output.name)
       materialized = prepared
@@ -656,11 +678,14 @@ const adaptExecutionResult = async <TResult>(
     inlineValues[slot] = value
     inlineStates.push({
       name: output.name,
+      ...(label ? { label } : {}),
       path: outputSlotPath(index),
       ...(Array.isArray(value) ? { recordCount: value.length } : {}),
       complete: execution.complete,
       ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
       ...(output.ordering ? { ordering: output.ordering } : {}),
+      ...(execution.requestedRange ? { requestedRange: { ...execution.requestedRange } } : {}),
+      ...(execution.observedRange ? { observedRange: { ...execution.observedRange } } : {}),
     })
   })
 
