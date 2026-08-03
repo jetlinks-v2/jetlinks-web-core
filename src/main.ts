@@ -15,9 +15,12 @@ import 'vue3-json-viewer/dist/index.css'
 import '@jetlinks-web-core/style/global.less'
 import 'dayjs/locale/zh-cn'
 import microApp from '@micro-zoe/micro-app'
+import { registerModule } from '@jetlinks-web-core/utils/modules'
 
 dayjs.locale('zh-cn')
 
+// 模块扫描会加载各业务模块入口；必须在 package 初始化完成后执行，避免模块入口回引 package 时产生循环初始化。
+registerModule()
 initAxios()
 loadMicroApp()
 

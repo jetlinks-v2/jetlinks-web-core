@@ -131,7 +131,8 @@ Use `componentsRegistry.register(action)` or module `getRegisterComponents()` on
 - 实施结果：`StickyActionBar` 的唯一外部消费者已直接改用 core 同名组件；SaaS 的 `components/index.ts` 对已迁移组件保留 re-export。项目创建弹窗保留在 SaaS 业务域，通过 `saas-manager-ui/register.ts` 注册为 `ProjectCreateDialog`，边缘网关经 `moduleRegistry` 获取，core 不反向导入 SaaS 私有项目、地区或客户资料实现。
 - 国际化：安装日志与状态胶囊的用户可见文案迁入 `jetlinks-web-core/src/locales/lang/{zh,en}.json`，不再依赖 SaaS locale 键。
 - 业务 API 排除：`saas-manager-ui/api/device-asset-firmware.ts` 属于设备资产固件业务域，保留在 SaaS；边缘网关对其的既有调用不纳入 core 迁移范围。
-- 验证结果：已迁移组件与 hooks 的非 SaaS 消费者均不再引用 `@saas-manager-ui/`；core 源码中反向 SaaS 引用扫描为 0；中英文 JSON 可解析，相关子模块 `git diff --check` 通过。`pnpm -F jetlinks-web-core build` 首次发现并修复目录导入解析问题，第二次在 Vite transforming 阶段未返回最终退出结果；`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 仍受大量既有全仓库类型错误阻塞，但迁移文件名过滤结果为 0。
+- 启动依赖边界：模块扫描由 `src/main.ts` 在 `package.ts` 初始化完成后、Axios 与 Vue 应用初始化前调用 `registerModule()`；`package.ts` 不再顶层调用它，避免扫描到模块入口后回引 package 时发生循环初始化。
+- 验证结果：已迁移组件与 hooks 的非 SaaS 消费者均不再引用 `@saas-manager-ui/`；core 源码中反向 SaaS 引用扫描为 0；中英文 JSON 可解析，相关子模块 `git diff --check` 通过。启动循环已通过调整模块注册时机与直达导入切断；`pnpm -F jetlinks-web-core build` 已完成 Vite transforming 阶段，未再出现 `registerModule` 初始化错误，但本环境未返回最终退出结果。`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 仍受大量既有全仓库类型错误阻塞，但迁移文件名过滤结果为 0。
 
 ## Store Boundary
 

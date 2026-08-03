@@ -12,7 +12,6 @@ import i18n from '@jetlinks-web-core/locales'
 import andtv from 'ant-design-vue'
 import {
     getPackageConfig,
-    registerModule,
     getBaseApi,
     routerFallback,
     isFromCloud,
@@ -365,6 +364,3 @@ export const loadMicroApp = () => {
         })
     }
 }
-
-// 支持多模块注册
-registerModule()
