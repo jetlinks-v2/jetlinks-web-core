@@ -59,6 +59,11 @@ import EqualHeightColumns from './EqualHeightColumns/index.vue'
 import ModelConfig from './ModelConfig/index.vue'
 import MenuAssetPermissionEditor from './MenuAssetPermissionEditor/index.vue'
 import StatusTag from './StatusTag/index.vue'
+import DetailHeader from './DetailHeader/index.vue'
+import PageHeader from './PageHeader/index.vue'
+import MetricCards from './MetricCards/index.vue'
+import MarketplaceInstallStream from './MarketplaceInstallStream/index.vue'
+import StatusPill from './StatusPill/index.vue'
 
 export default {
     install(app: App) {
@@ -123,6 +128,11 @@ export default {
           .component('ModelConfig', ModelConfig)
           .component('MenuAssetPermissionEditor', MenuAssetPermissionEditor)
           .component('StatusTag', StatusTag)
+          .component('DetailHeader', DetailHeader)
+          .component('PageHeader', PageHeader)
+          .component('MetricCards', MetricCards)
+          .component('MarketplaceInstallStream', MarketplaceInstallStream)
+          .component('StatusPill', StatusPill)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
@@ -132,4 +142,20 @@ export default {
     }
 }
 
-export { MenuAssetPermissionEditor }
+export {
+    MenuAssetPermissionEditor,
+    DetailHeader,
+    PageHeader,
+    MetricCards,
+    MarketplaceInstallStream,
+    StatusPill,
+}
+export type {
+    MetricCardIcon,
+    MetricCardItem,
+    MetricCardValue,
+} from './MetricCards/types'
+export type {
+    MarketplaceInstallStreamRow,
+    MarketplaceInstallStreamRowType,
+} from './MarketplaceInstallStream/types'

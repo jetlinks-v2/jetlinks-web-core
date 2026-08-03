@@ -1054,5 +1054,12 @@
   "data.aiData.knowledgeAISearch.name": "Knowledge Base Intelligent Search",
   "data.aiData.knowledgeAISearch.description": "Supports intelligent search conversations for knowledge base management.",
   "data.aiData.knowledgeAISearch.searchCode": "knowledgeAISearch|Knowledge Base/Search",
-  "data.aiData.knowledgeAISearch.menuName": "Visualization/Knowledge Base Intelligent Search"
+  "data.aiData.knowledgeAISearch.menuName": "Visualization/Knowledge Base Intelligent Search",
+  "components.MarketplaceInstallStream.viewLogs": "View {count} log(s)",
+  "components.DetailHeader.back": "Back",
+  "components.StatusPill.draft": "Draft",
+  "components.StatusPill.review": "In Review",
+  "components.StatusPill.published": "Published",
+  "components.StatusPill.deprecated": "Deprecated",
+  "components.StatusPill.archived": "Archived"
 }
