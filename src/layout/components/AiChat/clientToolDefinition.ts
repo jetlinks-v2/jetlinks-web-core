@@ -6,6 +6,8 @@ import {
 } from './clientToolContract'
 import {
   createAiClientToolFailureResult,
+  type AiClientToolCardinality,
+  type AiClientToolClaim,
   type AiClientToolFailureOptions,
   type AiClientToolOutputField,
   type AiClientToolOrdering,
@@ -140,6 +142,15 @@ interface ClientToolOutputBase<TResult> {
    * The logical output name and shape remain static; only renderer-neutral field metadata may vary.
    */
   resolveFields?: (result: TResult, selectedValue: unknown) => readonly AiClientToolOutputField[]
+  /**
+   * Resolves the user-facing label from producer-declared execution fields. Stable binding identity and shape remain
+   * owned by the static contract; the resolver must not infer semantics from tool ids or physical field names.
+   */
+  resolveLabel?: (
+    result: TResult,
+    selectedValue: unknown,
+    fields: readonly AiClientToolOutputField[],
+  ) => string | undefined
   optional?: boolean
   select?: (result: TResult) => unknown
 }
@@ -184,6 +195,9 @@ export interface ClientToolSuccessOptions {
   summary?: Record<string, unknown>
   requestedRange?: Record<string, unknown>
   observedRange?: Record<string, unknown>
+  cardinality?: AiClientToolCardinality
+  claims?: AiClientToolClaim[]
+  supportsAbsenceClaim?: boolean
   facts?: Record<string, unknown>
   warnings?: string[]
 }
@@ -203,6 +217,9 @@ interface ClientToolExecutionSuccess<TResult> {
   summary?: Record<string, unknown>
   requestedRange?: Record<string, unknown>
   observedRange?: Record<string, unknown>
+  cardinality?: AiClientToolCardinality
+  claims?: AiClientToolClaim[]
+  supportsAbsenceClaim?: boolean
   facts?: Record<string, unknown>
   warnings?: string[]
   limitReason?: string
@@ -229,6 +246,11 @@ export const clientToolResult = {
     ...(options.summary ? { summary: options.summary } : {}),
     ...(options.requestedRange ? { requestedRange: options.requestedRange } : {}),
     ...(options.observedRange ? { observedRange: options.observedRange } : {}),
+    ...(options.cardinality ? { cardinality: options.cardinality } : {}),
+    ...(options.claims?.length ? { claims: options.claims.map(claim => ({ ...claim })) } : {}),
+    ...(options.supportsAbsenceClaim !== undefined
+      ? { supportsAbsenceClaim: options.supportsAbsenceClaim }
+      : {}),
     ...(options.facts ? { facts: options.facts } : {}),
     ...(options.warnings?.length ? { warnings: [...options.warnings] } : {}),
   }),
@@ -242,6 +264,11 @@ export const clientToolResult = {
     ...(options.summary ? { summary: options.summary } : {}),
     ...(options.requestedRange ? { requestedRange: options.requestedRange } : {}),
     ...(options.observedRange ? { observedRange: options.observedRange } : {}),
+    ...(options.cardinality ? { cardinality: options.cardinality } : {}),
+    ...(options.claims?.length ? { claims: options.claims.map(claim => ({ ...claim })) } : {}),
+    ...(options.supportsAbsenceClaim !== undefined
+      ? { supportsAbsenceClaim: options.supportsAbsenceClaim }
+      : {}),
     ...(options.facts ? { facts: options.facts } : {}),
     ...(options.warnings?.length ? { warnings: [...options.warnings] } : {}),
     ...(options.limitReason ? { limitReason: options.limitReason } : {}),
@@ -543,13 +570,14 @@ const prepareMaterializedValue = <TResult>(
   value: unknown,
   output: ClientToolOutput<TResult>,
   fields: readonly AiClientToolOutputField[] | undefined,
+  label: string | undefined,
 ) => {
   if (isInternalDescriptor(value, MATERIALIZED_ARTIFACT_KIND)
     || isInternalDescriptor(value, MATERIALIZED_RECORD_STREAM_KIND)) {
     return {
       ...(value as Record<string, unknown>),
       bindingName: output.name,
-      ...(output.label ? { bindingLabel: output.label } : {}),
+      ...(label ? { bindingLabel: label } : {}),
       outputShape: output.shape,
       ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
       ...(output.ordering ? { ordering: output.ordering } : {}),
@@ -560,7 +588,7 @@ const prepareMaterializedValue = <TResult>(
       source: createAiClientToolArrayRecordSource(value),
       schema: { type: 'object' },
       bindingName: output.name,
-      ...(output.label ? { bindingLabel: output.label } : {}),
+      ...(label ? { bindingLabel: label } : {}),
       outputShape: output.shape,
       ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
       ...(output.ordering ? { ordering: output.ordering } : {}),
@@ -590,6 +618,7 @@ const adaptExecutionResult = async <TResult>(
     index: number
     value: unknown
     fields?: readonly AiClientToolOutputField[]
+    label?: string
   }> = []
   for (let index = 0; index < outputs.length; index += 1) {
     const output = outputs[index]
@@ -611,20 +640,32 @@ const adaptExecutionResult = async <TResult>(
         throw createSelectionError(toolId, output.name, error)
       }
     }
-    selected.push({ output, index, value, fields })
+    let label = output.label
+    if (output.resolveLabel) {
+      try {
+        label = normalizedText(output.resolveLabel(execution.data, value, fields || [])) || label
+      } catch (error) {
+        throw createSelectionError(toolId, output.name, error)
+      }
+    }
+    selected.push({ output, index, value, fields, label })
   }
 
   const inlineValues: Record<string, unknown> = {}
   let materialized: unknown
   const inlineStates: Array<{
     name: string
+    label?: string
     path: string
+    recordCount?: number
     complete: boolean
     fields?: AiClientToolOutputField[]
     ordering?: AiClientToolOrdering
+    requestedRange?: Record<string, unknown>
+    observedRange?: Record<string, unknown>
   }> = []
-  selected.forEach(({ output, index, value, fields }) => {
-    const prepared = prepareMaterializedValue(value, output, fields)
+  selected.forEach(({ output, index, value, fields, label }) => {
+    const prepared = prepareMaterializedValue(value, output, fields, label)
     if (prepared) {
       if (materialized) throw createSelectionError(toolId, output.name)
       materialized = prepared
@@ -637,11 +678,23 @@ const adaptExecutionResult = async <TResult>(
     inlineValues[slot] = value
     inlineStates.push({
       name: output.name,
+      ...(label ? { label } : {}),
       path: outputSlotPath(index),
+      ...(Array.isArray(value) ? { recordCount: value.length } : {}),
       complete: execution.complete,
       ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
       ...(output.ordering ? { ordering: output.ordering } : {}),
+      ...(execution.requestedRange ? { requestedRange: { ...execution.requestedRange } } : {}),
+      ...(execution.observedRange ? { observedRange: { ...execution.observedRange } } : {}),
     })
+  })
+
+  const selectedOutputNames = new Set(selected.map(({ output }) => output.name))
+  const claims = (execution.claims || []).flatMap((claim) => {
+    const binding = String(claim.binding || '').trim()
+    if (binding) return selectedOutputNames.has(binding) ? [{ ...claim, binding }] : []
+    // A single selected output is unambiguous; multiple outputs must declare their claim binding.
+    return selected.length === 1 ? [{ ...claim, binding: selected[0].output.name }] : []
   })
 
   const envelope = {
@@ -658,6 +711,11 @@ const adaptExecutionResult = async <TResult>(
     truncated: execution.truncated,
     ...(execution.requestedRange ? { requestedRange: execution.requestedRange } : {}),
     ...(execution.observedRange ? { observedRange: execution.observedRange } : {}),
+    ...(execution.cardinality ? { cardinality: execution.cardinality } : {}),
+    ...(claims.length ? { claims } : {}),
+    ...(execution.supportsAbsenceClaim !== undefined
+      ? { supportsAbsenceClaim: execution.supportsAbsenceClaim }
+      : {}),
     ...(execution.facts ? { facts: execution.facts } : {}),
     ...(execution.warnings?.length ? { warnings: execution.warnings } : {}),
     ...(execution.limitReason ? { limitReason: execution.limitReason } : {}),

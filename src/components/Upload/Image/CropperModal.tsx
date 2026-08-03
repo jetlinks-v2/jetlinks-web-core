@@ -43,7 +43,7 @@ const CropperModalProps = {
   },
   outputType: {
     type: String,
-    default: 'jpeg'
+    default: 'jpg'
   },
   openServer: {
     type: Boolean,
@@ -57,7 +57,7 @@ const CropperModalProps = {
   /** 禁止滚轮缩放图片，以拖动裁剪框 / 拖动图片为主 */
   canScale: {
     type: Boolean,
-    default: false
+    default: true
   },
   canMove: {
     type: Boolean,
@@ -73,11 +73,11 @@ const CropperModalProps = {
   },
   fixedNumber: {
     type: Array as PropType<[number, number]>,
-    default: () => [1, 1] as [number, number]
+    default: () => [0.5, 0.5] as [number, number]
   },
   centerBox: {
     type: Boolean,
-    default: true
+    default: false
   }
 }
 

@@ -710,6 +710,12 @@ const mergeDeliveryResult = <T>(
     : []
   const bindingName = binding.name
   const outputShape = binding.shape
+  const bindingRequestedRange = stream.timeRange || (isRecord(declaredEvidence.requestedRange)
+    ? declaredEvidence.requestedRange
+    : undefined)
+  const bindingObservedRange = data.observedRange || (isRecord(declaredEvidence.observedRange)
+    ? declaredEvidence.observedRange
+    : undefined)
   const bindingFields = stream.fields?.length
     ? stream.fields.map(field => ({ ...field }))
     : collectAiClientToolSemanticFields(stream.schema).map(field => ({
@@ -731,8 +737,8 @@ const mergeDeliveryResult = <T>(
         recordCount: data.count,
         complete: data.complete,
         truncated: data.truncated,
-        ...(stream.timeRange ? { requestedRange: stream.timeRange } : {}),
-        ...(data.observedRange ? { observedRange: data.observedRange } : {}),
+        ...(bindingRequestedRange ? { requestedRange: bindingRequestedRange } : {}),
+        ...(bindingObservedRange ? { observedRange: bindingObservedRange } : {}),
         coverage: {
           complete: data.complete,
           truncated: data.truncated,
@@ -750,8 +756,8 @@ const mergeDeliveryResult = <T>(
         recordCount: data.sample.length,
         complete: data.complete,
         truncated: data.truncated,
-        ...(stream.timeRange ? { requestedRange: stream.timeRange } : {}),
-        ...(data.observedRange ? { observedRange: data.observedRange } : {}),
+        ...(bindingRequestedRange ? { requestedRange: bindingRequestedRange } : {}),
+        ...(bindingObservedRange ? { observedRange: bindingObservedRange } : {}),
         coverage: {
           complete: data.complete,
           truncated: data.truncated,
