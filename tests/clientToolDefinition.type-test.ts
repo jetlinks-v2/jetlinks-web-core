@@ -24,7 +24,21 @@ const validDefinition: ClientToolDefinition<
     shape: 'fixture.records',
     select: result => result.records,
   }),
-  execute: ({ deviceId }) => clientToolResult.success({ records: [{ id: deviceId }] }),
+  execute: ({ deviceId }) => clientToolResult.success({ records: [{ id: deviceId }] }, {
+    cardinality: {
+      kind: 'record-set',
+      recordCount: 1,
+      returnedCount: 1,
+      totalCount: 1,
+    },
+    claims: [{
+      id: 'record-count',
+      label: 'Record count',
+      value: 1,
+      visibility: 'user',
+    }],
+    supportsAbsenceClaim: true,
+  }),
 }
 
 defineClientTools([defineClientTool(validDefinition)])
