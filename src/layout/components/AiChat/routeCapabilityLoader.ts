@@ -1,11 +1,19 @@
 import i18n from '@jetlinks-web-core/locales';
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry';
+import { homeAgentCapabilityRegistry } from './homeAgentRegistry';
+import type {
+  HomeAgentCapabilityContext,
+  HomeAgentCapabilityProvider,
+} from './homeAgentContracts';
 import {
-  registerHomeAgentCapabilityProvider,
-  type HomeAgentCapabilityContext,
-  type HomeAgentCapabilityProvider,
-} from './homeAgentCapabilities';
-import type { AiClientToolDefinition } from './clientTools';
+  clientToolOutput,
+  defineClientTool,
+  type CompiledClientTool,
+} from './clientToolApi';
+import {
+  generalAgentExtensionRegistry,
+  type GeneralAgentExtension,
+} from './generalAgentExtensions';
 
 type MaybeArray<T> = T | T[] | undefined | null;
 
@@ -14,6 +22,12 @@ type HomeAgentCapabilityProviderModule = {
   homeAgentCapabilityProvider?: HomeAgentCapabilityProvider;
   homeAgentCapabilityProviders?: HomeAgentCapabilityProvider[];
   registerHomeAgentProvider?: () => MaybeArray<() => void> | void;
+};
+
+type GeneralAgentExtensionModule = {
+  default?: MaybeArray<GeneralAgentExtension>;
+  generalAgentExtension?: GeneralAgentExtension;
+  generalAgentExtensions?: GeneralAgentExtension[];
 };
 
 export interface LoadHomeAgentCapabilityProvidersOptions {
@@ -30,6 +44,8 @@ export interface LoadHomeAgentCapabilityProvidersResult {
 }
 
 type HomeAgentCapabilityProviderLoader = () => Promise<unknown>;
+type ProviderResourceName = 'generalAgentExtensions' | 'homeAgentProviders';
+type ProviderScope = 'general' | 'home';
 
 const loadedModules = new Map<string, Array<() => void>>();
 const loadingModules = new Map<string, Promise<LoadHomeAgentCapabilityProvidersResult>>();
@@ -53,19 +69,17 @@ const getProviderRouteCode = (modulePath: string) => {
   return normalizeRouteKey(
     resourcePath
       .replace(/^.*\/views\//, '')
-      .replace(/\/homeAgentProvider\.ts$/, '')
+      .replace(/\/(?:generalAgentExtension|homeAgentProvider)\.ts$/, '')
       .replace(/^\.\//, ''),
   );
 };
 
-const getProviderLoaders = () => {
+const getProviderLoaders = (resourceName: ProviderResourceName) => {
   const loaders: Record<string, HomeAgentCapabilityProviderLoader> = {};
   moduleRegistry.getAllModules().forEach((module, moduleId) => {
-    const resources = module.homeAgentProviders as Record<string, unknown> | undefined;
-    if (!resources || typeof resources !== 'object') {
-      return;
-    }
-    Object.entries(resources).forEach(([path, loader]) => {
+    const resources = module[resourceName];
+    if (!resources || typeof resources !== 'object') return;
+    Object.entries(resources as Record<string, unknown>).forEach(([path, loader]) => {
       if (typeof loader === 'function') {
         loaders[`${moduleId}::${path}`] = loader as HomeAgentCapabilityProviderLoader;
       }
@@ -98,17 +112,31 @@ const isProvider = (value: unknown): value is HomeAgentCapabilityProvider => (
   && !!normalizeText((value as HomeAgentCapabilityProvider).id)
 );
 
-const resolveModuleProviders = (module: HomeAgentCapabilityProviderModule) => [
+const resolveHomeModuleProviders = (module: HomeAgentCapabilityProviderModule) => [
   ...toArray(module.default).filter(isProvider),
   ...toArray(module.homeAgentCapabilityProvider).filter(isProvider),
   ...toArray(module.homeAgentCapabilityProviders).filter(isProvider),
 ];
 
+const isExtension = (value: unknown): value is GeneralAgentExtension => (
+  !!value
+  && typeof value === 'object'
+  && !!normalizeText((value as GeneralAgentExtension).id)
+);
+
+const resolveGeneralAgentExtensions = (module: GeneralAgentExtensionModule) => [
+  ...toArray(module.default).filter(isExtension),
+  ...toArray(module.generalAgentExtension).filter(isExtension),
+  ...toArray(module.generalAgentExtensions).filter(isExtension),
+];
+
 const loadProviderModule = async (
   providerLoaders: Record<string, HomeAgentCapabilityProviderLoader>,
   modulePath: string,
+  scope: ProviderScope,
 ) => {
-  if (loadedModules.has(modulePath)) {
+  const scopedModulePath = `${scope}:${modulePath}`;
+  if (loadedModules.has(scopedModulePath)) {
     return {
       loaded: false,
       modulePath,
@@ -116,26 +144,36 @@ const loadProviderModule = async (
   }
 
   const loader = providerLoaders[modulePath];
-  const module = await loader() as HomeAgentCapabilityProviderModule;
-  const unregisters = resolveModuleProviders(module)
-    .map((provider) => registerHomeAgentCapabilityProvider(provider));
-  const registered = module.registerHomeAgentProvider?.();
-  unregisters.push(...toArray(registered));
+  const module = await loader() as HomeAgentCapabilityProviderModule & GeneralAgentExtensionModule;
+  const unregisters = scope === 'general'
+    ? resolveGeneralAgentExtensions(module)
+      .map(extension => generalAgentExtensionRegistry.register(extension, scope))
+    : resolveHomeModuleProviders(module)
+      .map(provider => homeAgentCapabilityRegistry.register(provider, scope));
+  const registrations = scope === 'home'
+    ? module.registerHomeAgentProvider?.()
+    : undefined;
+  if (registrations) {
+    unregisters.push(...toArray(registrations));
+  }
 
-  loadedModules.set(modulePath, unregisters);
+  loadedModules.set(scopedModulePath, unregisters);
   return {
     loaded: unregisters.length > 0,
     modulePath,
   };
 };
 
-export const loadHomeAgentCapabilityProviders = async (
+const loadCapabilityProviders = async (
+  resourceName: ProviderResourceName,
+  scope: ProviderScope,
   options: LoadHomeAgentCapabilityProvidersOptions = {},
 ): Promise<LoadHomeAgentCapabilityProvidersResult> => {
-  const providerLoaders = getProviderLoaders();
+  const providerLoaders = getProviderLoaders(resourceName);
   const providerPaths = Object.keys(providerLoaders);
   const modulePaths = providerPaths.filter((modulePath) => matchesOptions(modulePath, options));
   const cacheKey = JSON.stringify({
+    scope,
     menuCode: normalizeRouteKey(options.menuCode),
     routeName: normalizeRouteKey(options.routeName),
     path: normalizeRouteKey(options.path),
@@ -146,7 +184,7 @@ export const loadHomeAgentCapabilityProviders = async (
     return loadingModules.get(cacheKey)!;
   }
 
-  const promise = Promise.all(modulePaths.map((modulePath) => loadProviderModule(providerLoaders, modulePath)))
+  const promise = Promise.all(modulePaths.map((modulePath) => loadProviderModule(providerLoaders, modulePath, scope)))
     .then((items) => ({
       total: providerPaths.length,
       loaded: items.filter((item) => item.loaded).map((item) => item.modulePath),
@@ -160,19 +198,52 @@ export const loadHomeAgentCapabilityProviders = async (
   return promise;
 };
 
-export const unloadHomeAgentCapabilityProviders = () => {
-  loadedModules.forEach((unregisters) => {
+export const loadHomeAgentCapabilityProviders = (
+  options: LoadHomeAgentCapabilityProvidersOptions = {},
+) => loadCapabilityProviders('homeAgentProviders', 'home', options);
+
+export const loadGeneralAgentExtensions = (
+  options: LoadHomeAgentCapabilityProvidersOptions = {},
+) => loadCapabilityProviders('generalAgentExtensions', 'general', options);
+
+const unloadCapabilityProviders = (scope: ProviderScope) => {
+  loadedModules.forEach((unregisters, key) => {
+    if (!key.startsWith(`${scope}:`)) return;
     unregisters.forEach((unregister) => unregister());
+    loadedModules.delete(key);
   });
-  loadedModules.clear();
 };
 
-export const createHomeAgentCapabilityLoaderTool = (
+export const unloadHomeAgentCapabilityProviders = () => unloadCapabilityProviders('home');
+export const unloadGeneralAgentExtensions = () => unloadCapabilityProviders('general');
+
+const createCapabilityLoaderTool = (
+  toolId: string,
+  loadProviders: typeof loadHomeAgentCapabilityProviders,
   afterLoaded?: () => void,
-): AiClientToolDefinition<HomeAgentCapabilityContext> => ({
-  id: 'home_agent_load_route_capabilities',
-  name: 'home_agent_load_route_capabilities',
-  description: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.description'),
+): CompiledClientTool<HomeAgentCapabilityContext> => defineClientTool<
+  Record<string, any>,
+  HomeAgentCapabilityContext,
+  Record<string, any>
+>({
+  id: toolId,
+  description: {
+    text: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.description'),
+    capabilities: ['client-capability.load'],
+    intents: [
+      '加载当前路由或菜单尚未注册的专属能力',
+      'load route- or menu-specific capabilities that are not registered yet',
+    ],
+    notFor: [
+      '使用当前会话已声明的业务工具查询或分析数据',
+      'query or analyze data with a business tool already declared in the current session',
+    ],
+    activation: 'ON_DEMAND',
+  },
+  presentation: {
+    displayName: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.displayName'),
+    progressText: i18n.global.t('components.AiChat.homeAgent.tools.loadCapabilities.progressText'),
+  },
   inputs: [
     {
       id: 'menuCode',
@@ -203,10 +274,15 @@ export const createHomeAgentCapabilityLoaderTool = (
       valueType: 'boolean',
     },
   ],
-  output: { type: 'object' },
-  annotations: { readOnlyHint: true },
+  consumes: [{ name: 'session-context', optional: true, source: 'CONTEXT' }],
+  effect: { kind: 'READ' },
+  output: clientToolOutput.lookup({
+    name: 'client-tool-catalog',
+    shape: 'tool.catalog',
+  }),
+  owner: { module: 'jetlinks-web-core', group: 'home-agent' },
   execute: async (args, context) => {
-    const result = await loadHomeAgentCapabilityProviders({
+    const result = await loadProviders({
       menuCode: args.menuCode,
       routeName: args.routeName || context.currentRoute.name,
       path: args.path || context.currentRoute.path,
@@ -219,3 +295,19 @@ export const createHomeAgentCapabilityLoaderTool = (
     };
   },
 });
+
+export const createHomeAgentCapabilityLoaderTool = (
+  afterLoaded?: () => void,
+) => createCapabilityLoaderTool(
+  'home_agent_load_route_capabilities',
+  loadHomeAgentCapabilityProviders,
+  afterLoaded,
+);
+
+export const createGeneralAgentExtensionLoaderTool = (
+  afterLoaded?: () => void,
+) => createCapabilityLoaderTool(
+  'general_agent_load_route_capabilities',
+  loadGeneralAgentExtensions,
+  afterLoaded,
+);

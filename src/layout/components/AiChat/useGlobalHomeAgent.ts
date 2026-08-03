@@ -6,6 +6,8 @@ import {
   createHomeAgentRuntime,
   HOME_AGENT_CAPABILITY_CHANGE_EVENT,
   HOME_AGENT_CLIENT_ID,
+  type HomeAgentConversationMessageContext,
+  type HomeAgentRuntime,
 } from './homeAgentCapabilities';
 import {
   createHomeAgentCapabilityLoaderTool,
@@ -17,11 +19,65 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
   const menuStore = useMenuStore();
   let syncing = false;
   let syncTimer: number | undefined;
+  let preparedRouteClientId = '';
+  let latestUserMessage: HomeAgentConversationMessageContext | undefined;
+  let activeRuntime: HomeAgentRuntime | undefined;
+  let unsubscribeRuntime: (() => void) | undefined;
 
-  const buildRuntime = () => createHomeAgentRuntime({
-    currentView: () => String(route.name || route.path || ''),
-    extraTools: () => [createHomeAgentCapabilityLoaderTool(refreshParameters)],
-  });
+  const normalizeMessageText = (value: unknown) => String(value || '').trim();
+
+  const resolveMessageContent = (message: Record<string, any>) => normalizeMessageText(
+    message.content
+    || message.text
+    || message.payload?.content
+    || message.payload?.text
+    || message.payload?.message,
+  );
+
+  const recordConversationMessage = (message: HomeAgentConversationMessageContext & Record<string, any>) => {
+    const localUserMessage = message?.type === 'user'
+      && (
+        message?.headers?.origin === 'client'
+        || normalizeMessageText(message.id).startsWith('local-user:')
+      );
+    if (!localUserMessage) {
+      return;
+    }
+    const content = resolveMessageContent(message);
+    if (!content) {
+      return;
+    }
+    latestUserMessage = {
+      id: normalizeMessageText(message.id) || undefined,
+      type: 'user',
+      content,
+      createdAt: Number(message.createdAt) || Date.now(),
+    };
+  };
+
+  const applyRuntimeParameters = (runtime: HomeAgentRuntime) => {
+    if (!isHomeAgentActive() || runtime !== activeRuntime) return;
+    aiStore.parameters = {
+      ...aiStore.parameters,
+      ...runtime.parameters,
+      clientTools: runtime.clientTools,
+      clientToolsVersion: runtime.clientToolsVersion,
+    };
+  };
+
+  const buildRuntime = () => {
+    const runtime = createHomeAgentRuntime({
+      currentView: () => String(route.name || route.path || ''),
+      extraTools: () => [createHomeAgentCapabilityLoaderTool(refreshParameters)],
+      getLatestUserMessage: () => latestUserMessage,
+      onConversationMessage: recordConversationMessage,
+    });
+    unsubscribeRuntime?.();
+    activeRuntime?.dispose();
+    activeRuntime = runtime;
+    unsubscribeRuntime = runtime.subscribeClientTools(() => applyRuntimeParameters(runtime));
+    return runtime;
+  };
 
   const isHomeAgentActive = () => aiStore.parameters?.subjectId === HOME_AGENT_CLIENT_ID;
 
@@ -30,17 +86,52 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     || (aiStore.showAiButton && !isHomeAgentActive())
   );
 
+  const getRoutePageAgentClientId = () => {
+    const meta = (route.meta || {}) as Record<string, any>;
+    const config = meta.pageAgent || meta.aiAgent || {};
+    return String(
+      meta.pageAgentClientId
+      || meta.aiAgentClientId
+      || config.clientId
+      || '',
+    ).trim();
+  };
+
+  const releasePreparedRouteAgent = () => {
+    if (!preparedRouteClientId) return;
+    aiStore.releaseAgentConversation(preparedRouteClientId);
+    preparedRouteClientId = '';
+  };
+
+  const prepareRouteAgent = () => {
+    const clientId = getRoutePageAgentClientId();
+    if (!clientId || clientId === HOME_AGENT_CLIENT_ID) {
+      releasePreparedRouteAgent();
+      return false;
+    }
+    if (preparedRouteClientId && preparedRouteClientId !== clientId) {
+      releasePreparedRouteAgent();
+    }
+    if (aiStore.pendingClientId === clientId || aiStore.activeClientId === clientId) {
+      preparedRouteClientId = clientId;
+      return true;
+    }
+    if (preparedRouteClientId !== clientId) {
+      aiStore.prepareAgentConversation(clientId);
+      preparedRouteClientId = clientId;
+    }
+    return true;
+  };
+
   const refreshParameters = () => {
     if (!aiStore.agentList.length || !isHomeAgentActive()) return;
 
     const runtime = buildRuntime();
-    aiStore.parameters = {
-      ...aiStore.parameters,
-      ...runtime.parameters,
-    };
+    applyRuntimeParameters(runtime);
   };
 
   const sync = async () => {
+    if (prepareRouteAgent()) return;
     if (syncing || hasOtherAgentActivity()) return;
 
     syncing = true;
@@ -48,7 +139,7 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
       await loadHomeAgentCapabilityProviders({ loadAll: true });
       const runtime = buildRuntime();
       await aiStore.queryAgent(HOME_AGENT_CLIENT_ID, runtime.parameters);
-      refreshParameters();
+      applyRuntimeParameters(runtime);
     } finally {
       syncing = false;
     }
@@ -84,6 +175,11 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     if (syncTimer) {
       window.clearTimeout(syncTimer);
     }
+    releasePreparedRouteAgent();
+    unsubscribeRuntime?.();
+    activeRuntime?.dispose();
+    unsubscribeRuntime = undefined;
+    activeRuntime = undefined;
     window.removeEventListener(HOME_AGENT_CAPABILITY_CHANGE_EVENT, handleCapabilityChange);
   });
 };

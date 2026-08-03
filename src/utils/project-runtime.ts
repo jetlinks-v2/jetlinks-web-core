@@ -1,9 +1,62 @@
-import { isFromCloud } from "@/utils/comm";
+import { getProjectCodeFromLocation as getProjectCodeFromPathnameLocation } from './project-path'
+import { isProjectStorageEnabled } from './project-storage'
+import { isFromCloud } from './request-context'
 
-const normalizeSegment = (value: unknown) => {
+export {
+  getProjectCodeFromPathname,
+  getProjectIdFromLocation,
+  getProjectIdFromPathname,
+} from './project-path'
+
+export type ProjectRuntimeScope = 'auto' | 'tenant' | 'project'
+export type RuntimeScope = ProjectRuntimeScope
+
+export interface ProjectRuntimeConfig {
+  scope: ProjectRuntimeScope
+  projectCode: string
+  basePath: string
+  fixedProject: boolean
+  projectStorageEnabled: boolean
+  subAccountLoginEnabled: boolean
+}
+
+const normalizeRuntimeScope = (value: unknown): ProjectRuntimeScope => {
+  const scope = String(value || '').trim().toLowerCase()
+  return scope === 'tenant' || scope === 'project' ? scope : 'auto'
+}
+
+const normalizeProjectCode = (value: unknown) => {
   if (typeof value !== 'string') return ''
   return decodeURIComponent(value).trim()
 }
+
+const normalizeBasePath = (value: unknown) => {
+  const basePath = typeof value === 'string' ? value.trim() : ''
+  if (!basePath || basePath === './') return '/'
+  return `/${basePath.replace(/^\/+|\/+$/g, '')}/`.replace(/\/+/g, '/')
+}
+
+export const getProjectRuntimeConfig = (): ProjectRuntimeConfig => {
+  const scope = normalizeRuntimeScope(import.meta.env.VITE_APP_RUNTIME_SCOPE)
+  const fixedProject = scope === 'project'
+  const projectStorageEnabled = scope === 'auto' && isProjectStorageEnabled()
+  const projectCode = fixedProject
+    ? normalizeProjectCode(import.meta.env.VITE_APP_PROJECT_CODE)
+    : scope === 'tenant'
+      ? ''
+      : getProjectCodeFromPathnameLocation()
+
+  return {
+    scope,
+    projectCode,
+    basePath: normalizeBasePath(import.meta.env.BASE_URL),
+    fixedProject,
+    projectStorageEnabled,
+    subAccountLoginEnabled: projectStorageEnabled,
+  }
+}
+
+export const getProjectCodeFromLocation = () => getProjectRuntimeConfig().projectCode
 
 const normalizeHashPath = (path = '') => {
   const [pathname = '', search = ''] = path.split('?')
@@ -11,18 +64,11 @@ const normalizeHashPath = (path = '') => {
   return `${normalizedPath}${search ? `?${search}` : ''}`
 }
 
-export const getProjectCodeFromPathname = (pathname = window.location.pathname) => {
-  const [first] = pathname.split('/').filter(Boolean)
-  return normalizeSegment(first)
+export const isProjectRuntime = () => {
+  const runtimeConfig = getProjectRuntimeConfig()
+  return runtimeConfig.fixedProject
+    || (runtimeConfig.scope === 'auto' && !isFromCloud() && !!runtimeConfig.projectCode)
 }
-
-export const getProjectIdFromPathname = getProjectCodeFromPathname
-
-export const getProjectCodeFromLocation = () => getProjectCodeFromPathname()
-
-export const getProjectIdFromLocation = getProjectCodeFromLocation
-
-export const isProjectRuntime = () => !isFromCloud() && !!getProjectCodeFromLocation()
 
 export const normalizeProjectRuntimePath = (path = '') => {
   const nextPath = normalizeHashPath(path)
@@ -36,8 +82,15 @@ export const normalizeProjectRuntimePath = (path = '') => {
 }
 
 export const createProjectRuntimeHref = (projectCode: string, path = '/') => {
-  const normalizedProjectCode = normalizeSegment(projectCode)
+  const runtimeConfig = getProjectRuntimeConfig()
   const hashPath = normalizeProjectRuntimePath(path)
+
+  // A fixed-project build owns its deployment base; the project code is context, not a URL prefix.
+  if (runtimeConfig.fixedProject) {
+    return `${runtimeConfig.basePath}#${hashPath}`
+  }
+
+  const normalizedProjectCode = normalizeProjectCode(projectCode)
 
   if (!normalizedProjectCode) {
     return `/#${hashPath}`

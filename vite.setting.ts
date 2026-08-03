@@ -115,7 +115,7 @@ export const getDefine = (
   envDefine['import.meta.env.DEV'] = String(isDev)
   envDefine['import.meta.env.PROD'] = String(!isDev)
   envDefine['import.meta.env.SSR'] = 'false'
-  envDefine['import.meta.env.VITE_MODULE_NAME'] = JSON.stringify(mavenName)
+  envDefine['import.meta.env.VITE_MODULE_NAME'] = JSON.stringify(mavenName || '')
 
   return envDefine
 }
@@ -179,7 +179,9 @@ export const getFederationSetting = (mavenName: string, envDir: string) => {
   }
 }
 
-export const getModulesName = (): { moduleNames?: string[], moduleName?: string } => {
+export const getModulesName = (
+  runtimeScope = getRuntimeAppEnv().VITE_APP_RUNTIME_SCOPE
+): { moduleNames: string[] | null, moduleName: string } => {
   const moduleNameIndex = process.argv.indexOf('--module-name')
   let moduleNames: string[] | null = null
 
@@ -191,7 +193,12 @@ export const getModulesName = (): { moduleNames?: string[], moduleName?: string 
 
   // 兼容单个模块名的场景（向后兼容）
   // 如果是单个模块，传递模块名；如果是多个模块，传递null使用默认host配置
-  const moduleName = moduleNames && moduleNames.length === 1 ? moduleNames[0] : null
+  // 独立项目始终是完整 host SPA；模块列表只用于裁剪业务模块。
+  const moduleName = runtimeScope === 'project'
+    ? ''
+    : moduleNames && moduleNames.length === 1
+      ? moduleNames[0]
+      : ''
 
   return {
     moduleNames,
