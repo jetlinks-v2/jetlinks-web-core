@@ -1,4 +1,5 @@
 ﻿<template>
+  <div :class="routeLayoutClassName">
   <j-pro-layout
     v-bind="config"
     v-model:openKeys="state.openKeys"
@@ -47,6 +48,7 @@
     <PageRouteView />
   </j-pro-layout>
   <AiChat />
+  </div>
 </template>
 
 <script setup name="BasicLayoutPage" lang="ts">
@@ -87,6 +89,12 @@ const state = reactive({
 
 const themeLayout = computed(() => themeStyleToken.value.layout)
 const menuVariant = computed(() => themeLayout.value?.menuVariant || 'classic')
+const routeLayoutClassName = computed(() => (
+  [...route.matched]
+    .reverse()
+    .find(record => record.meta.layoutClassName)
+    ?.meta.layoutClassName || ''
+))
 const showMenuSearch = computed(() => !!themeLayout.value?.showMenuSearch && !state.collapsed)
 const { layoutConfig } = useResponsiveLayoutDimensions(layout, themeLayout)
 useGlobalHomeAgent(route)

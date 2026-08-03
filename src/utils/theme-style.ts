@@ -262,7 +262,7 @@ const defaultThemeCssVars: ThemeStyleCssVars = {
   '--text-color-disabled': 'var(--jet-theme-text-disabled)',
   '--canvas': 'var(--jet-theme-bg-layout)',
   '--bg': 'var(--jet-theme-bg-container)',
-  '--bg-elev': 'var(--jet-theme-bg-elevated)',
+  '--bg-elev': 'var(--jet-theme-bg-base)',
   '--bg-sunken': 'var(--jet-theme-bg-layout)',
   '--bg-hover': 'var(--jet-theme-border-secondary)',
   '--bg-2': '#FAFAFA',
@@ -530,7 +530,7 @@ export const applyThemeStyle = (style?: unknown, color?: string) => {
     rootStyle.setProperty('--jet-theme-bg-base', token.colorBgBase)
     rootStyle.setProperty('--jet-theme-bg-layout', token.colorBgLayout)
     rootStyle.setProperty('--jet-theme-bg-container', token.colorBgContainer)
-    rootStyle.setProperty('--jet-theme-bg-elevated', token.colorBgElevated)
+    rootStyle.setProperty('--jet-theme-bg-base', token.colorBgElevated)
     rootStyle.setProperty('--jet-theme-success', token.colorSuccess || '#52C41A')
     rootStyle.setProperty('--jet-theme-warning', token.colorWarning || '#FAAD14')
     rootStyle.setProperty('--jet-theme-error', token.colorError || '#FF4D4F')
