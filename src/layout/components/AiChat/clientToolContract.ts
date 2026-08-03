@@ -214,6 +214,8 @@ export interface AiClientToolContractOutputState extends Omit<
   'label' | 'shape'
 > {
   name: string
+  /** Execution-specific user-facing label; stable name and shape still come from the declaration. */
+  label?: string
 }
 
 /** Execution facts supplied after the owning producer has run. */
@@ -262,9 +264,10 @@ export const createAiClientToolContractOutputBinding = (
     state.ordering !== undefined ? state.ordering : output.ordering,
     fields,
   )
+  const label = normalizedText(state.label) || normalizedText(output.label)
   return {
     name: output.name,
-    ...(output.label ? { label: output.label } : {}),
+    ...(label ? { label } : {}),
     ...(ref ? { ref } : {}),
     ...(path ? { path } : {}),
     ...(recordPath ? { recordPath } : {}),
