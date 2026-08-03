@@ -92,6 +92,8 @@ export const createDomainAgentAggregateCardinality = (input: {
   bucketCount: number
   populatedBucketCount: number
   measurementCount: number
+  missingBucketCount?: number
+  samplingSemantics?: 'observed_only'
 }): Extract<DomainAgentCardinality, { kind: 'aggregate-series' }> => (
   normalizeAiClientToolCardinality({
     kind: 'aggregate-series',
@@ -176,11 +178,13 @@ export const createDomainAgentClaim = (
   label: string,
   value: string | number | boolean,
   format?: string,
+  semantics: Pick<AiClientToolClaim, 'binding' | 'measure' | 'statistic' | 'unit'> = {},
 ): AiClientToolClaim => ({
   id,
   label,
   value,
   ...(format ? { format } : {}),
+  ...semantics,
   visibility: 'user',
 })
 

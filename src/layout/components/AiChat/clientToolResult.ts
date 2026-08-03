@@ -92,6 +92,14 @@ export interface AiClientToolClaim {
   label: string
   value: string | number | boolean
   format?: string
+  /** Logical output binding that owns this user-visible fact. */
+  binding?: string
+  /** Renderer-neutral measure identity declared by the owning binding. */
+  measure?: string
+  /** Deterministic statistic represented by this fact. */
+  statistic?: string
+  /** Canonical scalar unit such as count, percent, ms, or bytes. */
+  unit?: string
   visibility: 'user'
 }
 
@@ -107,6 +115,8 @@ export type AiClientToolCardinality =
       bucketCount: number
       populatedBucketCount: number
       measurementCount: number
+      missingBucketCount?: number
+      samplingSemantics?: 'observed_only'
     }
   | {
       kind: 'preview'
@@ -355,11 +365,19 @@ const boundedClaims = (values: AiClientToolClaim[] | undefined) => {
     if (!id || !label || ids.has(id)
       || !['string', 'number', 'boolean'].includes(typeof scalar)) return []
     ids.add(id)
+    const binding = String(value.binding || '').trim().slice(0, 160)
+    const measure = String(value.measure || '').trim().slice(0, 160)
+    const statistic = String(value.statistic || '').trim().toLowerCase().slice(0, 64)
+    const unit = String(value.unit || '').trim().toLowerCase().slice(0, 32)
     return [{
       id,
       label,
       value: typeof scalar === 'string' ? scalar.slice(0, 600) : scalar,
       ...(value.format ? { format: String(value.format).slice(0, 32) } : {}),
+      ...(binding ? { binding } : {}),
+      ...(measure ? { measure } : {}),
+      ...(statistic ? { statistic } : {}),
+      ...(unit ? { unit } : {}),
       visibility: 'user' as const,
     }]
   }).slice(0, 32)
@@ -402,11 +420,22 @@ export function normalizeAiClientToolCardinality(
     }
   }
   if (value.kind === 'aggregate-series') {
+    const bucketCount = nonNegativeCount(value.bucketCount)
+    const populatedBucketCount = Math.min(bucketCount, nonNegativeCount(value.populatedBucketCount))
     return {
       kind: value.kind,
-      bucketCount: nonNegativeCount(value.bucketCount),
-      populatedBucketCount: nonNegativeCount(value.populatedBucketCount),
+      bucketCount,
+      populatedBucketCount,
       measurementCount: nonNegativeCount(value.measurementCount),
+      ...(Number.isFinite(value.missingBucketCount) ? {
+        missingBucketCount: Math.min(
+          bucketCount,
+          nonNegativeCount(value.missingBucketCount),
+        ),
+      } : {}),
+      ...(value.samplingSemantics === 'observed_only'
+        ? { samplingSemantics: value.samplingSemantics }
+        : {}),
     }
   }
   const displayedCount = nonNegativeCount(value.displayedCount)
