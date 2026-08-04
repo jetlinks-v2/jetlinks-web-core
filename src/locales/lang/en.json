@@ -1,4 +1,11 @@
 {
+  "ProjectGeneralAgent.subjectName": "Project {0}",
+  "ProjectGeneralAgent.bubbleTooltip": "Open AI Assistant",
+  "ProjectGeneralAgent.prompt.currentPage": "What can I do on this page?",
+  "ProjectGeneralAgent.prompt.deviceEntry": "Help me find device management",
+  "ProjectGeneralAgent.prompt.alarmEntry": "Help me find alarm handling",
+  "ProjectGeneralAgent.prompt.availableFeatures": "View features available in this project",
+  "ProjectGeneralAgent.scopePrompt": "This conversation only uses authorized menus and module capabilities in project {0}. Do not reuse objects or context from another project.",
   "components.MenuAssetPermissionEditor.menuPermission": "Menu permissions",
   "components.MenuAssetPermissionEditor.menu": "Menu",
   "components.MenuAssetPermissionEditor.operationPermission": "Operations",

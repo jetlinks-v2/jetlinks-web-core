@@ -1,4 +1,11 @@
 {
+  "ProjectGeneralAgent.subjectName": "项目 {0}",
+  "ProjectGeneralAgent.bubbleTooltip": "打开智能助手",
+  "ProjectGeneralAgent.prompt.currentPage": "当前页面可以做什么？",
+  "ProjectGeneralAgent.prompt.deviceEntry": "帮我找到设备管理入口",
+  "ProjectGeneralAgent.prompt.alarmEntry": "帮我找到告警处理入口",
+  "ProjectGeneralAgent.prompt.availableFeatures": "查看当前项目可用功能",
+  "ProjectGeneralAgent.scopePrompt": "当前会话仅处理项目 {0} 的已授权菜单和模块能力。不要跨项目引用对象或上下文。",
   "components.MenuAssetPermissionEditor.menuPermission": "菜单权限",
   "components.MenuAssetPermissionEditor.menu": "菜单",
   "components.MenuAssetPermissionEditor.operationPermission": "操作权限",
