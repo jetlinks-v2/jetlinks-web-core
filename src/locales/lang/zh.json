@@ -1061,5 +1061,6 @@
   "components.StatusPill.review": "审核中",
   "components.StatusPill.published": "已发布",
   "components.StatusPill.deprecated": "已下线",
-  "components.StatusPill.archived": "已归档"
+  "components.StatusPill.archived": "已归档",
+    "comm.api.timeout": "网络环境不佳"
 }

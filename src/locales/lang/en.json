@@ -1061,5 +1061,6 @@
   "components.StatusPill.review": "In Review",
   "components.StatusPill.published": "Published",
   "components.StatusPill.deprecated": "Deprecated",
-  "components.StatusPill.archived": "Archived"
+  "components.StatusPill.archived": "Archived",
+    "comm.api.timeout": "The network environment is poor"
 }
