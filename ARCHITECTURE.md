@@ -215,7 +215,7 @@ The current operations and runtime frontends share the same `jetlinks-web-core` 
 Inventory entry points:
 
 - Shared runtime and registries: `ui/jetlinks-web-core/src/layout/components/AiChat/`.
-- Operations general-agent tools: `ui/modules/alarm-ui/agentCapabilities/`, `ui/modules/iot-ui/agentCapabilities/`, `ui/modules/vision-ui/agentCapabilities/`, and `ui/modules/visualization-manager-ui/agentCapabilities/`.
+- Operations general-agent tools: `ui/modules/alarm-ui/agentCapabilities/`, `ui/modules/iot-ui/agentCapabilities/`, `ui/modules/jetlinks-media-ui/agentCapabilities/`, `ui/modules/jetlinks-ai-ui/agentCapabilities/`, and `ui/modules/visualization-manager-ui/agentCapabilities/`.
 - Home and device-detail tools: `ui/modules/device-manager-ui/views/device/` and `runtime-ui/modules/device-manager-ui/views/device/`.
 - Conversation transport/session refresh: `ui/modules/jetlinks-ai-agent-ui/components/AgentConversation/`.
 - Runtime rule and alarm tools: `runtime-ui/modules/rule-engine-manager-ui/views/`.
