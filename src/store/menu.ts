@@ -3,7 +3,13 @@ import type { RouteRecordRaw } from 'vue-router'
 import router from '@jetlinks-web-core/router'
 import { setParamsValue } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
-import {modules, getBaseApi, isFromCloud} from '@jetlinks-web-core/utils'
+import {
+  modules,
+  getBaseApi,
+  isFromCloud,
+  isProjectRuntime,
+  normalizeProjectRuntimePath,
+} from '@jetlinks-web-core/utils'
 import { getOwnMenuThree } from '@jetlinks-web-core/api/system/menu'
 import { getGlobModules } from '@jetlinks-web-core/router/globModules'
 import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
@@ -13,7 +19,7 @@ import i18n from '@jetlinks-web-core/locales'
 import { useProjectRouter } from '@/hooks'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 import { createMenuStoreRuntime } from './menuRuntime'
-import {OWNER_KEY} from "@/utils/consts";
+import { OWNER_KEY } from '@/utils/consts'
 
 type OptionsType = {
   params?: Record<string, any>
@@ -22,21 +28,32 @@ type OptionsType = {
 
 const $t = i18n.global.t
 
-const defaultOwnParams: any[] = [
+const PROJECT_MENU_OWNER = 'cloud'
+const LEGACY_PROJECT_MENU_OPTION_KEYS = ['componentCode', 'routeName', 'authCode', 'authCodes']
+
+const getDefaultOwnParams = (): any[] => [
   {
-    terms: [
-      {
-        column: 'owner',
-        termType: 'eq',
-        value: OWNER_KEY,
-      },
-      {
-        column: 'owner',
-        termType: 'isnull',
-        value: '1',
-        type: 'or',
-      },
-    ],
+    terms: isProjectRuntime()
+      ? [
+          {
+            column: 'owner',
+            termType: 'eq',
+            value: PROJECT_MENU_OWNER,
+          },
+        ]
+      : [
+          {
+            column: 'owner',
+            termType: 'eq',
+            value: OWNER_KEY,
+          },
+          {
+            column: 'owner',
+            termType: 'isnull',
+            value: '1',
+            type: 'or',
+          },
+        ],
   }
 ]
 
@@ -142,11 +159,42 @@ const registerMenuRoute = (route: RouteRecordRaw) => {
   router.addRoute(route)
 }
 
+const omitLegacyProjectMenuAliases = (source?: Record<string, any>) => {
+  if (!source) return source
+
+  // 项目端菜单以服务端 code/url 为唯一入口，避免旧壳层别名继续影响组件匹配和权限映射。
+  const result = { ...source }
+  LEGACY_PROJECT_MENU_OPTION_KEYS.forEach(key => {
+    delete result[key]
+  })
+  return result
+}
+
+const normalizeProjectMenuUrl = (item: any): any => ({
+  ...omitLegacyProjectMenuAliases(item),
+  url: typeof item.url === 'string' ? normalizeProjectRuntimePath(item.url) : item.url,
+  meta: omitLegacyProjectMenuAliases(item.meta),
+  options: item.options
+    ? {
+        ...omitLegacyProjectMenuAliases(item.options),
+        meta: omitLegacyProjectMenuAliases(item.options.meta),
+      }
+    : item.options,
+  children: item.children?.map(normalizeProjectMenuUrl),
+})
+
+const prepareRuntimeMenus = (menus: any[]) => (
+  isProjectRuntime()
+    ? menus.map(normalizeProjectMenuUrl)
+    : menus
+)
+
 export const useMenuStore = defineStore('menu', () => {
   const app = useApplication()
   const runtime = createMenuStoreRuntime({
     getAsyncRoutes: getGlobModules,
     resolveExtraMenus: () => getExtraRouters(),
+    prepareMenus: prepareRuntimeMenus,
     registerRoute: registerMenuRoute,
     routerPush: (name, options?: OptionsType) => {
       const _query = options?.query || {}
@@ -207,7 +255,7 @@ export const useMenuStore = defineStore('menu', () => {
   const queryMenus = async () => {
     const resp = await getOwnMenuThree({
       paging: false,
-      terms: defaultOwnParams,
+      terms: getDefaultOwnParams(),
       sorts: [{ name: 'sortIndex', order: 'asc' }],
     })
 

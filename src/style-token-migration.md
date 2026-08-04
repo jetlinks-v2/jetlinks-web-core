@@ -83,7 +83,7 @@ The Tailwind `--radius-jet*` mapping continues to point to those legacy tokens. 
 
 The project workspace uses a shared full-canvas background contract. `--layout-workspace-bg` keeps the canvas geometry stable while allowing each theme to supply its own wash: light uses the Figma-aligned `#F4F7FB` base with broad blue washes at the top-right and bottom-left, dark layers low-opacity blue washes over the dark canvas, and AI layers low-opacity purple and cyan washes over the AI canvas. The runtime source, reset set, and first-frame fallback must stay synchronized under the value-source contract above.
 
-`ProjectLayoutPage` uses the design image's weak full-row background and full border as the primary selected signal for its first-level menu and does not render a separate accent marker. The shared `--layout-menu-item-active-line-width: 2px` contract remains available to secondary navigation and other consumers that explicitly render an active line; it does not require every first-level menu to show one.
+The project runtime now uses the shared `BasicLayoutPage` and server-returned menus. The shared `--layout-menu-item-active-line-width: 2px` contract remains available to layouts or secondary navigation that explicitly render an active line; it does not require every first-level menu to show one.
 
 Figma node `4543:4144` maps to these geometry tokens:
 
@@ -109,7 +109,7 @@ Existing `--layout-menu-search-*` and `--chrome-*` names remain the shared searc
 
 `--layout-menu-width` is specific to the Figma-aligned project workspace menu. It does not alias or replace the broader `--sidebar-w` shell contract, which remains `14rem`; other layouts keep their existing width until they explicitly adopt the project-menu token.
 
-`--layout-menu-bg` remains the current theme's container background for shared layouts. `ProjectLayoutPage` overrides it to `transparent` inside `.project-layout` only, so the Figma workspace treatment does not make every compact-search sidebar transparent.
+`--layout-menu-bg` remains the current theme's container background for shared layouts. Project-specific transparent menu treatment should be expressed by the active route layout class or theme token override, not by a SaaS-local project shell.
 
 `--chrome-header-height` is the fixed `56px` Figma header measurement. Responsive layout code may take the maximum of this token and an existing large-screen profile, but it must not convert the token itself to `rem` and inflate the 2K header.
 
@@ -188,9 +188,6 @@ For `--jet-z-index-custom-drawer`, migrate the existing custom drawer consumer f
 
 ```bash
 pnpm exec lessc jetlinks-web-core/src/style/layout.less
-pnpm exec lessc modules/saas-manager-ui/views/project/ProjectLayoutPage.less
-pnpm exec lessc modules/saas-manager-ui/views/project/ProjectLayoutPage.scoped.less
-pnpm exec lessc modules/saas-manager-ui/views/project/components/ProjectSidebarUser.less
 git -C jetlinks-web-core diff --check
 git -C modules/saas-manager-ui diff --check
 ```

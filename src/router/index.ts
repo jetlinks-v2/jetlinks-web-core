@@ -21,7 +21,7 @@ import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 
 const FORBIDDEN_PATH = '/403'
-const PROJECT_PERSON_CENTER_PATH = '/person-center'
+const PROJECT_RUNTIME_ROOT_PATH = '/'
 const PROJECT_TENANT_ROUTE_PREFIXES = ['/console', '/account']
 
 // ============ 核心路由解析 ============
@@ -118,9 +118,9 @@ const getSubAccountRedirect = (to: RouteLocationNormalized) => {
       return
     }
 
-    // 子账号在项目域名下误入租户端语义路由时，回到项目端个人中心。
+    // 项目端入口由服务端菜单决定，避免继续跳转到已下线的旧项目个人中心壳。
     const projectCode = getProjectCodeFromLocation()
-    window.location.href = createProjectRuntimeHref(projectCode, PROJECT_PERSON_CENTER_PATH)
+    window.location.href = createProjectRuntimeHref(projectCode, PROJECT_RUNTIME_ROOT_PATH)
     return false
   }
 
@@ -210,11 +210,6 @@ router.beforeEach((to, from, next) => {
           }
           if (subAccountRedirect) {
             next(subAccountRedirect)
-            return
-          }
-
-          if (isProjectRuntime()) {
-            next()
             return
           }
 

@@ -9,5 +9,3 @@ export * from './useResponsiveLayoutDimensions';
 export * from './useResponsiveAntdToken';
 export * from './useMenuAssetPermissionEditor';
 export * from './menuAssetPermissionEditor.types';
-export * from './useProjectNavigation';
-export * from './useProjectSecondaryMenu';
