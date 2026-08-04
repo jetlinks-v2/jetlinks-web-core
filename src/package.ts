@@ -175,6 +175,7 @@ export const initAxios = () => {
               '/user/identity/_me',
           ],
           handleError: (description, key, err: any) => {
+              let _description = description
               const resp = err?.response
               const data = resp?.data
               const isVerifyRequired =
@@ -184,24 +185,29 @@ export const initAxios = () => {
                   return handleVerifyAndRetry(err)
               }
               // 取消验证时不显示错误提示（检查多个可能的错误来源）
-              const errorMessage = err?.message || data?.message || description || ''
+              const errorMessage = err?.message || data?.message || _description || ''
               const errorCode = err?.code || data?.code || ''
               if (
                   errorMessage === 'verify_canceled' ||
                   errorMessage?.includes('verify_canceled') ||
                   errorCode === 'verify_canceled' ||
                   errorCode?.includes('verify_canceled') ||
-                  String(description)?.includes('verify_canceled')
+                  String(_description)?.includes('verify_canceled')
               ) {
                   return
               }
               const requestConfig = err?.config || resp?.config
+
+              if (key === 'timeout') {
+                  _description = i18n.global.t('comm.api.timeout')
+              }
+
               if (!requestConfig?.hiddenError) {
                   notification.error({
                       style: { zIndex: 1040 },
                       key: key as string,
                       message: '',
-                      description
+                      description: _description
                   })
               }
           },
