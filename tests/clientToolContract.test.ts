@@ -724,7 +724,7 @@ test('migrated business authoring uses the stable facade and internal imports st
     'jetlinks-web-core/src/layout/components/AiChat/homeAgentBaseTools.ts',
     'jetlinks-web-core/src/layout/components/AiChat/routeCapabilityLoader.ts',
     'modules/alarm-ui/agentCapabilities/alarmAnalysis/tools.ts',
-    'modules/vision-ui/agentCapabilities/aiSearch/tools.ts',
+    'modules/jetlinks-ai-ui/agentCapabilities/aiSearch/tools.ts',
     'modules/iot-ui/agentCapabilities/deviceAnalysis/tools.ts',
   ]
   migratedFiles.filter(relativePath => existsSync(path.join(workspaceRoot, relativePath))).forEach((relativePath) => {
