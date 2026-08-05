@@ -29,18 +29,20 @@ const props = defineProps({
 }
 .title .title-content {
   position: relative;
-  padding-left: 0.625rem;
-  color: color-mix(in srgb, var(--ink-1) 80%, transparent);
-  font-weight: 600;
+  padding-left: 0.5rem;
+  color: #1D2129;
+  font-weight: 500;
+  font-size: 1rem;
   line-height: 1;
 }
 .title .title-content::before {
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 0;
-  width: 0.25rem;
-  height: 100%;
-  background-color: var(--accent);
-  border-radius: 0 var(--r-1) var(--r-1) 0;
+  width: 4px;
+  height: calc(100% - 2px);
+  background-color: var(--primary-color);
   content: ' ';
-}</style>
+  transform: translateY(-50%);
+}
+</style>

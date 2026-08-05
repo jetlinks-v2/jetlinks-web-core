@@ -97,23 +97,17 @@ const handleClick = (item: SimpleTabsOption) => {
 }
 </script>
 
-<style scoped>
+<style scoped lang="less">
 .simple-tabs {
   display: grid;
   gap: var(--space-3);
-  //padding: 1rem;
-  //border-radius: 8px;
-  //border: 1px solid #FFF;
-  //background: rgba(255, 255, 255, 0.80);
   margin-bottom: var(--space-4);
 }
 
 .simple-tabs__nav {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  //gap: var(--space-2);
-  padding: var(--space-1);
-  //border-radius: var(--r-2);
+  gap: 8px;
   width: fit-content;
   max-width: 100%;
   overflow-x: auto;
@@ -121,28 +115,28 @@ const handleClick = (item: SimpleTabsOption) => {
 
 .simple-tabs__tab {
   flex: 0 0 auto;
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
+  display: flex;
+  padding: 6px 16px;
   justify-content: center;
-  padding: 6px 12px;
-  border-radius: 8px;
-  color: var(--ink-2);
-  font-size: var(--fs-14);
-  font-weight: 500;
-  line-height: 1.5;
+  align-items: center;
+  border-radius: 4px;
+  border: 1px solid #ECEFF3;
+  background: rgba(255, 255, 255, 0.20);
   cursor: pointer;
-  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
-  white-space: nowrap;
+  color: #4E5969;
 }
 
 .simple-tabs__tab:hover {
-  color: var(--accent);
+  color: var(--primary-color-active);
 }
 
 .simple-tabs__tab--active {
-  color: var(--accent);
-  background-color: #fff;
+  color: #fff;
+  background-color: var(--primary-color-active);
+
+  &:hover {
+    color: #fff;
+  }
 }
 
 .simple-tabs__tab--disabled {
