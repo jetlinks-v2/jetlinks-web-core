@@ -23,6 +23,10 @@ import type {
   AiClientToolInput,
   AiClientToolValueType,
 } from './clientTools'
+import type {
+  AiClientToolResourceType,
+  AiClientToolSourcePolicy,
+} from './clientToolRouting'
 
 export const CLIENT_TOOL_DEFINITION_VERSION = 'client-tool-definition/v1' as const
 export const CLIENT_TOOL_DEFINITION_META_KEY = 'clientToolDefinition' as const
@@ -82,11 +86,35 @@ export interface ClientToolInputAlternative {
   forbidden?: readonly string[]
 }
 
-export interface ClientToolConsumedResource {
+export interface ClientToolCanonicalConsumedResource {
+  name: string
+  type: AiClientToolResourceType
+  mediaType: string
+  shape: string
+  required: boolean
+  sourcePolicy: AiClientToolSourcePolicy
+  optional?: never
+  source?: never
+}
+
+/**
+ * Released client-tool modules may still provide the former name-only consumer declaration. It is projected only to
+ * flat discovery metadata and never promoted to a canonical descriptor whose representation cannot be proven.
+ */
+export interface ClientToolLegacyConsumedResource {
   name: string
   optional?: boolean
-  source?: 'CONTEXT' | 'TOOL' | 'EITHER'
+  source?: AiClientToolSourcePolicy
+  type?: never
+  mediaType?: never
+  shape?: never
+  required?: never
+  sourcePolicy?: never
 }
+
+export type ClientToolConsumedResource =
+  | ClientToolCanonicalConsumedResource
+  | ClientToolLegacyConsumedResource
 
 export interface ClientToolPresentation {
   displayName?: string
@@ -132,6 +160,8 @@ export type ClientToolEffect<TContext = Record<string, unknown>> =
 
 interface ClientToolOutputBase<TResult> {
   name: string
+  type?: AiClientToolResourceType
+  mediaType?: string
   shape: string
   label?: string
   fields?: readonly AiClientToolOutputField[]
@@ -165,7 +195,6 @@ export interface ClientToolDetailOutput<TResult = unknown> extends ClientToolOut
 
 export interface ClientToolRecordSetOutput<TResult = unknown> extends ClientToolOutputBase<TResult> {
   kind: 'recordSet'
-  mediaType?: string
 }
 
 export interface ClientToolAggregateSeriesOutput<TResult = unknown> extends ClientToolOutputBase<TResult> {
@@ -397,12 +426,38 @@ const resolveActivation = (activation: ClientToolActivation | undefined) => {
 
 const outputSlotPath = (index: number) => `$.__clientToolOutputs.output${index}`
 
+const CANONICAL_CONSUMER_FIELDS = ['type', 'mediaType', 'shape', 'required', 'sourcePolicy'] as const
+
+const hasOwn = (value: object, key: PropertyKey) => Object.prototype.hasOwnProperty.call(value, key)
+
+const isCanonicalConsumer = (
+  value: ClientToolConsumedResource,
+): value is ClientToolCanonicalConsumedResource => CANONICAL_CONSUMER_FIELDS.every(key => hasOwn(value, key))
+
+const isLegacyConsumer = (
+  value: ClientToolConsumedResource,
+): value is ClientToolLegacyConsumedResource => CANONICAL_CONSUMER_FIELDS.every(key => !hasOwn(value, key))
+
+const compileConsumedResources = (consumes: readonly ClientToolConsumedResource[]) => {
+  if (!consumes.length) return { canonical: [] as ClientToolCanonicalConsumedResource[], legacy: [] as ClientToolLegacyConsumedResource[] }
+  const canonical = consumes.filter(isCanonicalConsumer)
+  const legacy = consumes.filter(isLegacyConsumer)
+  if (canonical.length !== consumes.length && legacy.length !== consumes.length) {
+    throw new Error('Client tool consumers must use either canonical descriptors or legacy name-only declarations')
+  }
+  return { canonical, legacy }
+}
+
 const compileOutputContract = <TResult>(
   output: ClientToolOutput<TResult>,
   index: number,
 ): AiClientToolOutputContract => {
   const shared = {
     name: normalizedText(output.name),
+    type: output.type || (output.kind === 'artifact'
+      ? 'artifact'
+      : output.kind === 'stateChange' ? 'state' : 'structured-data'),
+    mediaType: normalizedText(output.mediaType || 'application/json'),
     shape: normalizedText(output.shape),
     ...(output.label ? { label: output.label } : {}),
     ...(output.fields?.length ? { fields: output.fields.map(field => ({ ...field })) } : {}),
@@ -439,23 +494,38 @@ const compileContract = <TResult>(
 ) => {
   const { capabilities } = normalizeDescription(definition.description)
   const consumes = definition.consumes || []
+  const compiledConsumes = compileConsumedResources(consumes)
   const routingKind = resolveRoutingKind(definition.effect, outputs)
-  return defineAiClientToolContract({
+  const contract = defineAiClientToolContract({
     routingKind,
     routing: {
       capabilities,
       ...(definition.description.aliases?.length ? { aliases: uniqueText(definition.description.aliases) } : {}),
       ...(definition.description.intents?.length ? { intents: uniqueText(definition.description.intents) } : {}),
       ...(definition.description.notFor?.length ? { notFor: uniqueText(definition.description.notFor) } : {}),
-      ...(consumes.length ? { accepts: uniqueText(consumes.map(item => item.name)) } : {}),
-      ...(consumes.some(item => !item.optional) ? {
-        prerequisites: uniqueText(consumes.filter(item => !item.optional).map(item => item.name)),
-      } : {}),
       exposure: resolveActivation(definition.description.activation),
       ...(definition.effect.kind === 'READ' ? {} : { cost: 'medium' as const }),
     },
+    inputs: compiledConsumes.canonical.map(input => ({ ...input })),
     outputs: outputs.map(compileOutputContract),
   })
+  if (!compiledConsumes.legacy.length) return contract
+
+  // A name-only legacy consumer keeps its released discovery behavior without fabricating canonical identity.
+  const accepts = uniqueText(compiledConsumes.legacy.map(input => input.name))
+  const prerequisites = uniqueText(compiledConsumes.legacy.filter(input => !input.optional).map(input => input.name))
+  return {
+    ...contract,
+    routing: {
+      ...contract.routing,
+      ...(accepts.length ? { accepts } : {}),
+      ...(prerequisites.length ? { prerequisites } : {}),
+    },
+    _meta: {
+      ...contract._meta,
+      ...(prerequisites.length ? { prerequisites } : {}),
+    },
+  }
 }
 
 const compileEffect = <TContext>(effect: ClientToolEffect<TContext>) => {

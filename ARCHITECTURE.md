@@ -168,21 +168,15 @@ Changes in this area must preserve parent/sub-app token propagation, module regi
 
 ## AI Client Capability Runtime
 
-The shared AI capability runtime is owned by `jetlinks-web-core/src/layout/components/AiChat/`. Home and project-general runtimes reuse the same provider and client-tool assembly code, but they may install different route capability loader tools. Model-facing discovery instructions must therefore derive the loader id from the actual serialized client-tool catalog (`client-capability.load`) built for that runtime; they must not hard-code a home or general loader name. A semantic catalog update is applied by `modules/jetlinks-ai-agent-ui` only after the current response reaches its authoritative terminal boundary, so loading a route extension cannot detach the client-tool websocket in the middle of the same turn.
+The shared AI capability runtime is owned by src/layout/components/AiChat/. Business modules register tools through the shared registry; home and project-general runtimes may install different route capability loaders, but discovery instructions must derive the active loader id from the serialized catalog rather than hard-code a route or tool name.
 
-This contract is runtime-generic: business modules register capabilities and tools through the existing registries, and neither the core prompt nor the conversation transport selects behavior from a user phrase, route-specific keyword, or tool-name prefix. Ordinary `records` query tools remain `auto`-exposed in FLAT mode; capability search, route-provider loading, workflow guidance, artifact creation, and side-effect actions opt into `deferred` exposure explicitly. This keeps real business queries available to weak models without letting discovery helpers crowd them out. Verification covers home/general loader resolution, FLAT exposure defaults, init-contract deferral across intermediate assistant/tool epochs, and the affected module builds.
+Semantic catalog updates are published only after the current response reaches its authoritative terminal boundary. Registry revision, active-turn deferral and reconnect refresh are runtime responsibilities; business tools must not depend on WebSocket/session fields.
 
-### Client Tool Authoring Target
+### Stable Authoring Contract
 
-Business modules should define only stable business facts: tool identity and usage boundary, caller-owned input schema, logical consumed resources, typed produced outputs, effect semantics, and the execute function. They must not assemble workflow stages, data-access modes, output-shape arrays, delivery arrays, evidence policy, result JSONPath maps, physical resource references, retry instructions, or FLAT/HYBRID selection hints. These runtime-facing values are compiled from one typed definition by the shared adapter while the current session-init and `client.tools.call` wire contracts remain unchanged.
+Business modules declare only stable business facts:
 
-The stable public facade will provide a minimal `defineClientTool` entry, typed logical resource ports, output presets such as record set, aggregate series, artifact, and state change, plus typed success/partial/failure results. Output identity, shape, media type, field semantics, selection, delivery, binding, and evidence must have one producer-owned source. Business execution may report completeness, coverage, and domain facts, but must not restate output slot names or binding paths. Common defaults derive routing, risk annotations, inline/file policy, and catalog metadata from output kind and `READ`/`WRITE`/`EXTERNAL_ACTION` effect; exceptional behavior uses an explicit adapter strategy instead of an open-ended options map.
-
-Low-level helpers such as routing assembly, result binding, evidence attachment, delivery orchestration, and session projection remain internal adapter/runtime APIs. Existing released callers may continue through a compatibility adapter, but new or modified typed tools must use the stable facade. The compatibility boundary must be confirmed before implementation: unreleased in-branch callers are migrated directly, while released or externally consumed APIs receive a documented deprecation window. The public facade must not expose `[key: string]: any` extension bags.
-
-The intended authoring surface is deliberately smaller than either the current browser definition or the backend wire definition:
-
-```ts
+~~~ts
 defineClientTool({
   id,
   description,
@@ -192,11 +186,16 @@ defineClientTool({
   output,
   execute,
 })
-```
+~~~
 
-`inputs` describes values the caller supplies. `consumes` describes only typed logical resources supplied by authoritative page context or a preceding tool; an input such as `deviceId` must not automatically become a logical resource dependency. `output` is a typed preset with an owning selector, so one declaration produces the logical output id, result shape, field semantics, delivery strategy, binding, and evidence metadata. `effect` is a closed discriminated contract for `READ`, `WRITE`, or `EXTERNAL_ACTION`, including only business facts such as idempotency, reversibility, and whether local confirmation is required. Optional localized display text remains a UI concern and does not change routing or execution semantics.
+- inputs contains caller-owned business values and a closed schema.
+- consumes is the canonical consumer-port surface and contains name/type/mediaType/shape/required/sourcePolicy. New and
+  modified business tools must use this complete descriptor.
+- output is the producer-owned typed preset. Current producer descriptors already own stable name, shape, media type, field semantics, selector and delivery metadata.
+- effect is READ, WRITE or EXTERNAL_ACTION plus business idempotency/reversibility facts.
+- execute returns typed success/partial/failure and business facts.
 
-### Current Client Tool Inventory
+Business modules must not assemble FLAT/HYBRID stages, evidence policy, physical paths, runtime resource ids, retry prompts, workflow edges or provider-specific schema. Low-level routing, binding, evidence, delivery and session projection helpers remain internal.
 
 The current operations and runtime frontends share the same `jetlinks-web-core` commit, but each workspace owns different business modules. The inventory therefore treats shared copies as one family and treats iframe-provided rule-editor definitions as a dynamic family rather than pretending they are static TypeScript literals.
 
@@ -236,207 +235,101 @@ The public facade is stable because backend- and model-specific concepts termina
 
 | Layer | Owns | Must not own |
 | --- | --- | --- |
-| Business definition | id, description, caller inputs, logical consumed resources, effect facts, output preset/selectors, execution | FLAT/HYBRID, stages, evidence policy, JSONPath, physical files, websocket/session fields |
-| Definition compiler | current routing metadata, risk annotations, closed parameter schema, catalog metadata, session projection | Business query implementation or route/tool-id special cases |
-| Result adapter | selector evaluation, canonical success/partial/failure envelope, delivery/materialization, output bindings, evidence | Re-execution, domain inference from arbitrary result field names, or false completion |
-| Execution policy | local confirmation, cancellation, effect/idempotency handling, compensation status | Output shape or resource identity |
-| Registry/runtime | scoped registration, snapshot, revision, subscribe/unregister, active-turn deferral, reconnect refresh | Duplicated business tool definitions |
-| Transport adapter | projection to the currently negotiated frontend/backend wire version | Public authoring fields or business-module imports |
+| Business definition | id, description, inputs, typed ports, effect, execution | routing mode, physical refs, binding/evidence wire |
+| Definition compiler | closed parameter schema, routing/catalog/session projection | business query logic or tool-id branches |
+| Result adapter | selectors, materialization, binding, completeness, range, evidence | re-execution or inference from arbitrary result keys |
+| Execution policy | confirmation, cancellation, idempotency, compensation | resource identity or output shape |
+| Registry/runtime | scoped registration, revision, deferral, reconnect | duplicated business definitions |
+| Transport adapter | negotiated frontend/backend wire projection | public authoring fields |
 
-The first public output presets are:
+Output presets include lookup/detail, recordSet, aggregateSeries, artifact and stateChange. Exceptional lifecycles use named adapter strategies such as record streaming, controlled navigation, editor mutation, remote definition or canvas transaction; they are not expressed through an open extension bag.
 
-- `lookup` / `detail`: one bounded object, schema, capability, or resolved subject.
-- `recordSet`: bounded inline records with automatic record-stream/session-file materialization above the shared limit.
-- `aggregateSeries`: summaries, metrics, trends, rankings, and their field semantics.
-- `artifact`: a renderer-neutral resource with a declared media type; presentation is negotiated by runtime capabilities, not guessed from a filename.
-- `stateChange`: navigation receipts and write/action receipts, including truthful completion, version, rollback, and compensation facts.
+### Static Ports And Runtime Facts
 
-`aggregateSeries` remains renderer-neutral at the business boundary. The compiler may derive one optional
-`application/vnd.echarts+json` presentation artifact only when the tool declares exactly one category/timestamp field,
-one to eight numeric fields, one unambiguous aggregate output, and returns a complete flat record array. The adapter
-uses only those declared field names: category labels are preserved exactly, timestamp values remain unchanged and use
-the ECharts time axis, and no model-authored timestamp or copied record set participates. Dynamic/nested measures,
-multiple aggregate outputs, incomplete data, unsafe values, and oversized sources fail closed to the original aggregate
-binding. The original renderer-neutral output is always retained for analysis and follow-up tools.
+The cross-layer canonical contract is defined by modules/jetlinks-ai-agent/docs/help/general-agent-tool-definition-spec.md:
 
-Presets may have optional selectors for conditional outputs. The result adapter evaluates each selector once. An absent optional selection omits that output; selector failure is a tool failure or partial result according to the declared strategy, never an invitation to call the business operation again. Physical file paths and session resource ids remain runtime values and never enter the business definition.
+~~~text
+ProducerPort = name + type + mediaType + shape
+ConsumerPort = name + type + mediaType + shape + required + sourcePolicy
+RuntimeBinding/Evidence = port identity + execution path/ref, range, count, completeness and claims
+~~~
 
-Exceptional behavior is selected from closed adapter strategies such as record streaming, controlled navigation, editor mutation, remote definition, or canvas transaction. It is not expressed through a growing optional-property bag. A new strategy is justified only when at least two tools share a lifecycle or when an existing business contract cannot be represented truthfully by the standard presets.
+The definition compiler projects static ports to the current session wire. The result adapter derives execution facts from the typed result. Business code does not repeat output names, binding paths, completeness wire or evidence envelopes.
 
-### Versioning And Compatibility Boundary
+Current compatibility classes:
 
-`defineClientTool` is the versioned authoring contract. A separate internal compiler version projects it to the current session-init and `client.tools.call` wire. A backend metadata, routing, provider, FLAT/HYBRID, or result-ledger change therefore updates the compiler/transport adapter and its snapshots, not every business definition. Capability negotiation chooses the compiler projection when multiple backend wire versions must coexist.
+1. Typed core: producer contract exists and routing/binding are derived.
+2. Released name-only consumer: the centralized definition adapter preserves only accepts/prerequisites discovery
+   metadata while the opposite producer side may migrate independently; it never invents type/mediaType/shape or grants
+   typed resource authority.
+3. Routed legacy: routing and result bindings are assembled independently.
+4. Plain legacy: executable definition has no canonical output contract.
+5. Remote/editor adapted: another runtime owns the definition or write lifecycle.
 
-The existing `defineAiClientToolContract`, `defineAiClientToolRouting`, `defineAiClientToolResultBindings`, evidence helpers, delivery helpers, and raw `AiClientToolDefinition` remain internal building blocks. Their public compatibility treatment depends on a release fact that must be confirmed before implementation:
+Malformed legacy tools must not block valid siblings. New or modified typed tools fail registration when their stable contract is invalid. Legacy tools remain executable but receive only the typed capabilities that can be proven.
 
-- If they have not been released or consumed outside this repository, migrate all in-branch callers and do not retain aliases for intermediate APIs.
-- If they are already released or externally imported, provide one legacy adapter, a bounded deprecation window, diagnostics, and a migration guide; do not maintain two independent runtimes.
+### Presentation And Renderer Boundary
 
-Package exports and repository linting must prevent new business-module imports from internal routing, binding, evidence, delivery, session-wire, or transport modules. A generated catalog inventory becomes the migration allowlist and must decrease monotonically until the legacy boundary can be removed.
+aggregateSeries remains renderer-neutral. The browser retains the original binding, declared field semantics, producer-guaranteed ordering, range and completeness; it never derives or repairs ECharts options.
 
-### Client Tool Runtime Optimization Plan
+The backend canonical presentation compiler is the single decision and materialization boundary for application/vnd.echarts+json. It may derive a presentation only from a complete, verified and unambiguous structured source plus the current session renderer capability. Preview, restored history and document export consume the same canonical source.
 
-Owning scope:
+Renderer capability is session-scoped:
 
-- `jetlinks-web-core/src/layout/components/AiChat/`: stable definition/output/result facade, definition and result adapters, delivery strategies, catalog audit, registry lifecycle, and legacy adapter.
-- Owning business modules: migration of representative vision, alarm, device, and rule-editor tools after the core facade is stable.
-- `modules/jetlinks-ai-agent-ui/components/AgentConversation/`: session snapshot refresh only where required to consume registry revisions; it must not duplicate tool contract logic.
-- The operations and runtime frontends consume the same merged `jetlinks-web-core` commit by updating their submodule references; the `AiChat` implementation is never copied between the two workspaces.
+- mediaType/preferredInputShapes is a consumer compatibility declaration;
+- supportsSessionFile/maxInlineBytes/defaultMode is transport capability;
+- deliveryPolicy/narrativePolicy is UX policy.
 
-Non-goals:
+These are not business-tool fields and do not grant permission or create presentation obligations by themselves.
 
-- No second client-tool wire protocol and no backend runner/resource-table changes.
-- No model-, provider-, route-, prompt-, tool-id-, or evaluation-case-specific branches.
-- No automatic inference of business resource semantics from parameter names or result field names.
-- No big-bang migration of all legacy tools before the typed facade and compatibility policy are verified.
-- No visual/page-shell changes.
+### Registry, Versioning And Compatibility
 
-Implementation waves:
+defineClientTool is the stable authoring facade. An internal compiler version projects it to session-init and client.tools.call. Backend routing, provider, result-ledger or transport changes update the compiler/adapter rather than every business definition.
 
-1. **Wave 0 — contract and inventory gate.** Freeze the public types with positive/negative compile fixtures; generate the typed/routed-legacy/plain-legacy/remote inventory; reserve runtime-owned parameter and metadata names; decide the released compatibility boundary.
-2. **Wave 1 — compiler, result adapter, and registry.** Implement the definition compiler, canonical result adapter, output presets, effect policy, current-wire transport adapter, and lifecycle-aware registry. Split the existing monolith by responsibility while retaining one small compatibility export facade. No broad business migration occurs in this wave.
-3. **Wave 2 — bootstrap and simple reads.** Migrate home/bootstrap tools and the alarm overview/detail/records/aggregate family. This proves FLAT discovery/exposure defaults, logical resource handling, inline bindings, controlled navigation, registry revision, and reconnect behavior with low-complexity tools.
-4. **Wave 3 — multi-output and materialized reads.** Migrate visual search/video, general IoT analysis, and big-screen template recommendation. Prove conditional outputs, renderer-neutral artifacts, large record streaming, aggregate field semantics, navigation, and partial delivery without duplicate execution.
-5. **Wave 4 — home and page-local tools.** Migrate device domain, instance/product/dashboard, alarm dashboard, then device-detail tools in bounded subfamilies: metadata/properties; records/alarms/events; documents/files; edge diagnostics; trace and function invocation. Delete duplicate local routing/result helpers only after each subfamily passes its contract snapshots.
-6. **Wave 5 — editor mutations.** Migrate big-screen editor tools using explicit editor strategies for confirmation, resource versioning, idempotency, partial completion, rollback, and compensation. Read and write tools still share the same facade; strategy code remains internal.
-7. **Wave 6 — rule-editor remote boundary.** Normalize iframe definitions through one remote adapter, subscribe to definition revisions, and map canvas transactional results through the typed state-change/artifact strategy. Preserve remote business schemas and do not copy backend/iframe routing fields into page modules.
-8. **Wave 7 — enforcement and dual-workspace rollout.** Remove or deprecate legacy exports according to the confirmed release boundary; make the import/catalog gates blocking; publish one shared core commit; update `ui` and `runtime-ui` submodule pointers independently; run both workspace builds without copying implementation.
+The current defineAiClientToolContract, routing, binding, evidence and delivery helpers are internal building blocks. New
+business modules must not import them directly. Released name-only consumers are accepted only by the centralized
+definition adapter and projected to flat accepts/prerequisites; canonical and legacy descriptors must not be mixed in one
+consumer declaration. Business modules must not copy this adapter. Producer and consumer migration may proceed one side
+at a time, but a legacy side remains legacy until its complete descriptor is authored. New parallel runtimes or a second
+wire protocol are forbidden.
 
-Risks and rollout controls:
+Operations and runtime workspaces consume the same jetlinks-web-core commit and update their submodule pointers independently. AiChat implementation is never copied between ui and runtime-ui.
 
-- Catalog changes during an active turn can detach or invalidate the executing socket. Registry revisions are published only at the authoritative terminal boundary; reconnect always serializes a fresh authorized snapshot.
-- A generic result adapter can accidentally convert partial work into success. Completion, rollback, compensation, truncation, coverage, and delivery failure remain explicit canonical facts and are covered by negative tests.
-- Write tools can be duplicated by retry or selector failure. Selectors never execute business work, and effect/idempotency policy prevents blind replay after an uncertain write.
-- Dynamic iframe tools can drift from the page snapshot. The remote adapter keys definitions by source revision and unregisters the previous scope atomically.
-- Operations and runtime workspaces can drift even while sharing the core repository. Each migration wave lands in the shared core first, then each owning workspace updates only its business tools and submodule pointer.
-- An over-general facade can recreate the current optional-field problem. Public unions remain closed; exceptional lifecycles require a named internal strategy and representative cross-tool tests.
+### Implementation Entry Points
 
-Verification gates:
+- clientToolApi.ts: public authoring facade.
+- clientToolDefinition.ts: input, consumer, effect, output and result compilation.
+- clientToolContract.ts: producer contract and routing/binding metadata projection.
+- clientToolResult.ts and clientToolResultDelivery.ts: typed result normalization and materialization.
+- clientToolCatalog.ts: catalog audit and legacy diagnostics.
+- clientToolRegistry.ts and clientToolSnapshot.ts: registration, revision, active-turn deferral and disposal.
+- clientTools.ts: runtime assembly and dynamic snapshot access.
+- generalAgentExtensions.ts: bounded session renderer capability types.
 
-- Type tests prove a standard tool can be defined from ID, description, inputs, logical resources, effect, output preset, and execute only; runtime-owned fields and open extension bags are rejected.
-- Contract snapshots prove the compiled session definition remains wire-compatible and routing, produced slots, shapes, delivery, binding, and evidence originate from the same output descriptor.
-- Result tests cover small inline data, empty output, multiple and conditional outputs, 10,000-record streaming, session-file fallback, artifact delivery, partial coverage, cancellation, dependency failure, permission failure, compensation, and unknown effect without duplicate execution.
-- Registry tests cover register/unregister, late capability loading, monotonic revision, active-turn deferral, WebSocket reconnect, and restored-session tool availability.
-- Representative business tests cover alarm, visual search, device aggregate, and rule-editor flows without scenario-specific branches.
-- Catalog reports keep one malformed legacy tool from blocking siblings while enforcing the typed-tool gate.
-- Run core unit/type checks and the narrow owning-module builds first, then the operations and runtime frontend builds after both consume the same core commit.
+The former clientToolAggregatePresentation.ts browser write path is deleted. Canonical presentation is backend-owned.
 
-Completion criteria:
+### Canonical Port Status
 
-- A new ordinary business tool imports no routing, binding, evidence, delivery, or session-wire helper.
-- Each logical output slot is declared exactly once and business code contains no resource-propagation JSONPath.
-- Adding a standard tool does not modify the runtime, catalog auditor, conversation transport, or backend runner.
-- Reconnect and dynamic capability loading publish the latest authorized catalog without interrupting an active turn.
-- Existing representative completion and artifact-delivery behavior does not regress, and definition size/duplicate metadata decrease measurably.
+- Canonical `ClientToolConsumedResource` exposes name/type/mediaType/shape/required/sourcePolicy; the released name-only
+  form is a read-compatible migration input owned by clientToolDefinition.ts, not a new authoring option.
+- `ai-tool-port/v1` consumer/producer ports are the canonical routing envelope.
+- accepts/prerequisites/produces/outputShapes are compiler-owned legacy projections; authored drift fails catalog audit.
+- Multi-output producer descriptors remain intact through routing and output binding generation.
+- Remaining migration is limited to reducing routed/plain legacy callers through the centralized adapter, without route-, tool- or scenario-specific branches.
 
-### Dual-Workspace Delivery And Scenario Verification Plan
+Conditional input alternatives remain compiled by clientToolDefinition.ts. Every branch must declare its referenced properties and validate required, discriminator and forbidden names against the root input definition; the backend ToolContractAudit remains fail closed.
 
-Goal: finish the current client-tool rollout through the existing PRs, make the operations and runtime workspaces
-consume the same shared commits, and verify enterprise-query and rule-editor workflows without prompt-, tool-id-, or
-evaluation-question-specific branches.
+### Verification Gates
 
-Owning repositories and delivery order:
+- pnpm run test:client-tools
+- pnpm run test:client-tool-types
+- pnpm -F jetlinks-web-core build -- --module-name <module-name>
+- registry tests for register/unregister, revision, active-turn deferral and reconnect;
+- result tests for empty, multi-output, large materialized, partial, cancellation, permission, compensation and unknown effect;
+- catalog tests proving one malformed legacy tool does not block valid siblings;
+- anonymous cross-domain fixtures proving no tool-id, page, provider, field-name or prompt special cases.
 
-1. jetlinks-web-core owns the stable facade, compiler, aggregate presentation adapter, catalog/registry lifecycle,
-   reconnect behavior, and shared contract tests. It is committed and reviewed once.
-2. jetlinks-ai-agent-ui owns canonical conversation/presentation rendering and terminal-state interaction. It is
-   committed and reviewed once.
-3. Business repositories own only their definitions and lifecycle integration. The rule editor keeps its iframe
-   remote-definition adapter in rule-engine-manager-ui.
-4. cloud.jetlinks.ui updates its business definitions, focused tests, and shared submodule references.
-5. saas-runtime-ui updates the same shared references plus runtime-only adapters; it must not copy AiChat source.
-
-Non-goals:
-
-- Do not submit unrelated dirty submodules, browser snapshots, build artifacts, or workspace configuration.
-- Do not change backend tool-wire semantics during this frontend rollout.
-- Do not special-case phrases such as latest person, 24-hour online rate, HTTP, or Kafka.
-- Do not save or publish a rule-engine canvas during verification unless separately authorized.
-
-Implementation and PR steps:
-
-1. Attribute every dirty file to an owning repository or unrelated user work and stage only attributed paths.
-2. Run one stage-level verification batch, then update the already-open shared-repository PRs.
-3. Update both parent gitlinks to the exact same shared commit ids and push the two parent PRs independently.
-4. Run the scenario matrix against the restarted local services and record tool calls, results, reconnect, rendering,
-   and canvas state rather than judging only final prose.
-5. Fix any defect in its owning semantic layer, add a representative contract test, and repeat the affected batch.
-
-Verification matrix:
-
-- Enterprise query: category trend, timestamp trend, multi-metric or mixed-unit result, empty result,
-  partial/truncated result, oversized/tabular result that must not be misrepresented as a chart, and renderer fallback.
-- Temporal visual search: earliest/latest global occurrence and optional channel-scoped occurrence use the same typed
-  browse contract; reconnect republishes the authorized catalog before the next call.
-- Rule editor in FLAT mode: empty-canvas creation using device subscription or ReactorQL as the real-time source;
-  ReactorQL wildcard semantics; HTTP/Kafka payload construction; node insertion and automatic wiring; remote schema
-  revision refresh; validation failure, partial completion, rollback/compensation, and reconnect recovery.
-- Side-effect boundary: editor verification mutates only the current unsaved canvas and never invokes save/publish.
-
-Risks and controls:
-
-- Multiple repositories contain unrelated dirty work. Use explicit path staging and verify each staged diff.
-- The two shared-repository checkouts contain overlapping local copies. Publish from one owning checkout, preserve the
-  other diff until equality is proven, then move it to the published commit without losing unmatched work.
-- Existing PRs target different integration branches. Keep current bases unless maintainers request retargeting.
-- Browser success alone is insufficient: contract/type tests and focused builds remain the merge gate.
-
-### Client Tool Runtime Implementation And Verification
-
-The first rollout of the stable facade and lifecycle contract is implemented in `src/layout/components/AiChat/`:
-
-- `clientToolApi.ts` is the business-facing authoring facade. `clientToolDefinition.ts` compiles closed input, consumed-resource, effect, output, and result declarations into the existing wire contract.
-- `clientToolRegistry.ts` owns monotonic scoped registration. `clientToolSnapshot.ts` owns semantic snapshots, active-execution deferral, subscriptions, and disposal. Handler-only refreshes do not change the wire version.
-- `clientTools.ts` exposes dynamic `clientTools` and `clientToolsVersion` getters plus `refreshClientTools`, `subscribeClientTools`, and `dispose`; wrappers must proxy these members instead of spreading the runtime object.
-- Home/bootstrap, alarm, visual search, and general IoT analysis tools use the facade. The catalog gate rejects new business imports of routing, binding, delivery, and contract internals while keeping an explicit legacy allowlist.
-- A generic aggregate-presentation adapter now materializes one safe ECharts source from a closed field contract. It is
-  selected by semantic roles rather than tool ids or result-key guessing, keeps the original aggregate binding, and
-  uses the shared artifact delivery boundary for session-file/inline fallback. Renderer capability input shapes now
-  describe renderer-ready sources only; raw `time-series.*` data is never forwarded directly as an ECharts option.
-- The runtime rule editor adapts iframe definitions through `rule-editor-remote-definition/v1`, uses an explicit or stable-hash source revision, refreshes one runtime in place, defers semantic publication during execution, and disposes replaced runtimes.
-
-Verification on 2026-07-31:
-
-- `pnpm run test:client-tools`: 46/46 passed; coverage remained above the client-tool gate (95.96% lines,
-  81.88% branches, 91.05% functions).
-- `pnpm run test:client-tool-types` passed.
-- `agentConversationVisualizationSafety.spec.ts` passed through the repository's esbuild-backed standalone runner,
-  covering renderer capability source shape and JSON-to-ECharts safety boundaries.
-- `iot-ui` and `system-setting-ui` module builds passed (8040 and 7716 transformed modules respectively); only the
-  existing Rollup input, CSS comment, dynamic/static import, and chunk-size warnings remained.
-- A fresh `/ai-search-hub` conversation produced one canonical ECharts presentation. Its source used the exact 24
-  server labels from `13:00` through `12:00`, contained no generated epoch timestamps, and retained the original
-  aggregate binding alongside the renderer-ready resource.
-
-Verification on 2026-07-31:
-
-- Both `ui/jetlinks-web-core` and `runtime-ui/jetlinks-web-core` passed `pnpm run test:client-tools`: 43/43 tests, line coverage 94.77%, branch coverage above 81%, and function coverage 89.98%.
-- Both core workspaces passed `pnpm run test:client-tool-types`; tracked source and new-file content match across the two checkouts.
-- `runtime-ui/modules/rule-engine-manager-ui` passed `pnpm run test:agent-tools`: 12/12 tests, line coverage 99.32%, branch coverage 92.64%, and function coverage 93.94%.
-- Narrow runtime builds passed for `rule-engine-manager-ui`, `visualization-manager-ui`, and `device-manager-ui`. Operations builds passed for `alarm-ui` and `iot-ui`.
-- The `vision-ui` build remains blocked by the pre-existing `VideoChannelPlayerView.vue` import of `DetailHeader`, which is not exported by `modules/saas-manager-ui/components/index.ts`; the failure does not originate in the client-tool changes.
-- In-app Browser verification on the project visual-search page confirmed FLAT catalog validity and direct `visual_search_browse` execution for global earliest/latest requests. The client sends `timeRange + order + objectType` and omits `topK` when the user did not request a count; the execution default still returns one server-sorted record. A page reconnect rebuilt the authorized catalog and subsequent tool execution succeeded.
-
-One workflow contract was corrected during browser verification: `vision.search.browse` is the only required operation for a global temporal occurrence request. `video.channel.search` is a conditional prerequisite only when the user explicitly supplies a place or channel; representing it as universally required caused weak models to substitute a resource overview for the actual target-image query.
-
-### Client Tool Alternative Schema Hardening Implementation
-
-Goal: keep the stable business-facing `defineClientTool` API while ensuring every compiled conditional-input branch is a self-contained JSON Schema that passes the backend fail-closed tool audit.
-
-Scope and owner: `jetlinks-web-core/src/layout/components/AiChat/clientToolDefinition.ts` owns alternative compilation; representative coverage lives in the shared client-tool tests and the general IoT analysis catalog. The compiler will validate every `required`, discriminator, and forbidden input reference against the declared tool inputs, then emit branch-local property declarations without duplicating the authoritative root value constraints.
-
-Non-goals: do not weaken `ToolContractAudit`, add exceptions for the four affected device tools, expose raw `_schema` authoring to business modules, or copy the shared-core implementation into `runtime-ui` during this change.
-
-Implementation: `compileInputAlternatives` validates every `required`, discriminator, and forbidden reference against the tool's declared inputs. Each `oneOf` branch declares its referenced inputs in branch-local `properties`, while the root input definitions remain the single owner of type, range, and enum constraints. An invalid alternative now fails during frontend definition compilation instead of being serialized and rejected later by the backend.
-
-Verification on 2026-07-31:
-
-- `pnpm run test:client-tools` passed 44/44 tests with 95.45% line, 81.26% branch, and 90% function coverage; `pnpm run test:client-tool-types` also passed.
-- `pnpm -F jetlinks-web-core build -- --module-name iot-ui` passed after transforming 8,039 modules.
-- A real AI Search Hub session-init contained all four formerly rejected tools. Every time alternative declared `timeRange`, `startTime`, and `endTime` in the corresponding branch and had no undeclared or branch-missing required property.
-- The model successfully invoked `device_query_online_rate_trend` with `timeRange=24h`, proving the corrected declaration remained model-exposable after the backend audit.
-- Device metric trend bindings expose the actual ordered point array as `metric.time-series`, with the backend-provided local-time `label` as the category field and `value` as the measure. Summary wrappers and raw timestamps remain evidence, not renderer rows; a chart producer therefore cannot invent bucket spacing or timezone formatting while flattening the result.
-
+For documentation-only changes, use link/fact checks and git diff --check. For runtime changes, run the narrowest owning-module checks first, then the affected workspace builds.
 ## Verification Entry Points
 
 Common commands are defined in `package.json` and `jetlinks-web-core/package.json`:
