@@ -270,6 +270,10 @@ html {
   --layout-menu-footer-icon-size: 1rem;
   --layout-menu-footer-font-size: 0.875rem;
   --layout-menu-footer-line-height: 1.375rem;
+  --layout-project-menu-width: 240px;
+  --layout-project-menu-collapsed-width: 56px;
+  --layout-project-menu-bg: #F5F7F9;
+  --layout-project-user-card-height: 10.75rem;
   --chrome-bg: var(--bg);
   --chrome-header-height: 56px;
   --chrome-elev: var(--bg-elev);

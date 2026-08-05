@@ -17,7 +17,7 @@ import {
 import { HOME_AGENT_CAPABILITY_CHANGE_EVENT } from '@jetlinks-web-core/layout/components/AiChat/homeAgentCapabilities'
 import { getProjectIdFromLocation, normalizeProjectRuntimePath } from '@jetlinks-web-core/utils/project-runtime'
 import { getProjectStorage } from '@jetlinks-web-core/utils/project-storage'
-import { useProjectMenuStore } from '@saas-manager-ui/store/projectMenu'
+import { useMenuStore } from '@/store/menu'
 import { createProjectBubbleParameters } from '../utils/projectGeneralAgent'
 
 type ProjectMenu = Record<string, any> & { children?: ProjectMenu[] }
@@ -105,7 +105,7 @@ export const createProjectGeneralAgentRuntime = (
 
 export function useProjectGeneralAgent(route: RouteLocationNormalizedLoaded, router: Router) {
   const aiStore = useAIStore()
-  const projectMenuStore = useProjectMenuStore()
+  const projectMenuStore = useMenuStore()
   const projectId = computed(() => normalizeText(getProjectIdFromLocation()) || projectMenuStore.projectId)
   let syncing = false
   let syncTimer: number | undefined

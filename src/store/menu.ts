@@ -203,6 +203,7 @@ const prepareRuntimeMenus = (menus: any[]) => (
 export const useMenuStore = defineStore('menu', () => {
   const app = useApplication()
     const rawMenus = ref<ProjectMenuItem[]>([])
+    const projectId = ref()
 
 
   const runtime = createMenuStoreRuntime({
@@ -367,6 +368,7 @@ export const useMenuStore = defineStore('menu', () => {
     getMenu: runtime.getMenu,
     createRoutes: runtime.createRoutes,
     init: runtime.init,
-      rawMenus
+      rawMenus,
+      projectId
   }
 })

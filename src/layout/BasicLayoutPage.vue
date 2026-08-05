@@ -1,10 +1,10 @@
 ﻿<template>
-  <div :class="routeLayoutClassName">
+  <div :class="['basic-layout-page', routeLayoutClassName]">
   <j-pro-layout
     v-bind="config"
     v-model:openKeys="state.openKeys"
     v-model:collapsed="state.collapsed"
-    :selectedKeys="state.selectedKeys"
+    :selectedKeys="primarySelectedKeys"
     :breadcrumb="{ routes: [] }"
     :pure="state.pure"
     :layoutType="layoutType"
@@ -13,19 +13,30 @@
     @menuClick="handlePrimaryMenuClick"
     @backClick='goBack'
   >
-<!--    <template #breadcrumbRender="slotProps">-->
-<!--      <a v-if="slotProps.route.index !== 0 && !slotProps.route.isLast" @click="() => jumpPage(slotProps)" >-->
-<!--        {{ slotProps.route.breadcrumbName }}-->
-<!--      </a>-->
-<!--      <span v-else style='cursor: default' >{{ slotProps.route.breadcrumbName }}</span>-->
-<!--    </template>-->
+    <template #menuHeaderRender>
+      <div class="project-layout__brand">
+        <span v-if="!state.collapsed" class="project-layout__brand-main">
+          <img class="project-layout__brand-logo" :src="layout.logo" alt="" />
+          <span class="project-layout__brand-title">{{ layout.title }}</span>
+        </span>
+        <a-button
+          class="project-layout__brand-collapse"
+          type="text"
+          :aria-label="$t(state.collapsed ? 'components.LayoutSidebarUser.expand' : 'components.LayoutSidebarUser.collapse')"
+          @click.stop="state.collapsed = !state.collapsed"
+        >
+          <template #icon>
+            <AIcon :type="state.collapsed ? 'MenuUnfoldOutlined' : 'MenuFoldOutlined'" />
+          </template>
+        </a-button>
+      </div>
+    </template>
     <template #menuExtraRender>
-      <LayoutMenuSearch />
+      <LayoutMenuSearch @search="menuSearchKeyword = $event" />
     </template>
     <template #linksRender>
       <LayoutSidebarUser
         :collapsed="state.collapsed"
-        @toggleCollapse="state.collapsed = !state.collapsed"
       />
     </template>
     <template #leftContentRender>
@@ -38,12 +49,11 @@
       <div class="right-content">
         <RegistryComponent pageCode="layout" code="headerRight">
           <template v-if="!hideHeaderRight">
-            <Language key="Language" />
             <Resource key="resource" v-if="systemInfo?.['front']?.resources"/>
             <Notice key="notice" />
+            <Language key="Language" />
           </template>
 <!--          <HeaderThemeSwitch key="theme" />-->
-          <User key="user" :hideHeaderRight="hideHeaderRight" />
         </RegistryComponent>
       </div>
     </template>
@@ -73,8 +83,7 @@ import {
   Resource,
   AiChat,
   LayoutMenuSearch,
-  LayoutSidebarUser,
-  User
+  LayoutSidebarUser
 } from './components'
 import { storeToRefs } from 'pinia'
 import { getHideHeaderRightConfig, routerFallback } from '@jetlinks-web-core/utils'
@@ -184,20 +193,18 @@ useGlobalHomeAgent(route)
 
 const config = computed(() => ({
   ...layoutConfig.value,
+  headerHeight: 56,
+  siderWidth: 240,
+  collapsedWidth: 56,
   theme: theme.value,
-  menuData: menuStore.siderMenus,
-  splitMenus: layout.value.layout === 'mix',
+  menuData: primaryMenus.value,
+  splitMenus: false,
   classNames: {
+    'cloud-project': true,
+    'cloud-project--collapsed': state.collapsed,
     [`jet-layout-menu-${menuVariant.value}`]: true
   }
 }))
-
-/**
- * 路由跳转
- */
-const jumpPage = (record: any) => {
-  menuStore.jumpPage(record.route.name, {})
-}
 
 const goBack = () => {
   if (isSubApp) {
@@ -218,35 +225,7 @@ const init = () => {
 
 init()
 
-const onClick = () => {
-  console.log('点击了')
-}
-
-const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
-  const menuPaths = paths.map(item => item.path).filter(Boolean)
-  const leafPath = menuPaths.at(-1)
-  const openKeys = leafPath ? menuPaths.slice(0, -1) : menuPaths
-
-  if (!leafPath) {
-    return {
-      selectedKeys: [],
-      openKeys
-    }
-  }
-
-  if (layout.value.layout === 'mix') {
-    const rootPath = menuPaths[0]
-    return {
-      selectedKeys: rootPath && rootPath !== leafPath ? [rootPath, leafPath] : [leafPath],
-      openKeys
-    }
-  }
-
-  return {
-    selectedKeys: [leafPath],
-    openKeys
-  }
-}
+const onClick = () => undefined
 
 const handlePrimaryMenuClick = ({ item, key }: ProjectMenuClickEvent) => {
     navigatePrimary(String(item?.path || item?.key || key))
@@ -270,7 +249,6 @@ watchEffect(() => {
     const paths = (
       route.meta.breadcrumb || route.meta.breadcrumbCache || []
     ) as ProjectBreadcrumbRoute[]
-    // const { selectedKeys, openKeys } = resolveMenuKeys(paths)
     state.selectedKeys = paths.map(item => item.path).filter((path): path is string => !!path)
     state.openKeys = paths.map(item => item.path).filter((path): path is string => !!path)
   }
@@ -283,9 +261,11 @@ watchEffect(() => {
 
 <style scoped>
 .right-content {
+  margin-left: auto;
   margin-right: var(--space-6);
   display: flex;
   align-items: center;
   gap: var(--space-6);
-  height: 3rem;
+  height: var(--chrome-header-height);
+  line-height: var(--chrome-header-height);
 }</style>
