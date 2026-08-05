@@ -157,7 +157,7 @@
   }
 
   .ant-pro-page-container-children-content {
-    margin: var(--space-4) var(--space-4) 0 0;
+    margin: var(--space-4);
   }
 
   .ant-pro-sider-menu {
@@ -338,13 +338,8 @@
 
       .ant-pro-top-nav-header-main-left {
         flex: 0 0 var(--layout-menu-width) !important;
-        min-width: var(--layout-menu-width);
-        max-width: var(--layout-menu-width);
-        width: var(--layout-menu-width);
-        height: var(--chrome-header-height);
         padding: 0;
         background: var(--layout-menu-bg);
-        border-right: 1px solid var(--line);
       }
 
       .ant-pro-top-nav-header-left-content {
@@ -356,10 +351,6 @@
         min-width: 0;
         width: 100%;
         padding: 0;
-      }
-
-      .ant-pro-top-nav-header-menu {
-        display: none !important;
       }
 
       .ant-pro-top-nav-header-main-right,
@@ -418,14 +409,15 @@
     }
 
     .project-layout__brand {
-      width: 100%;
       height: var(--chrome-header-height);
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: var(--space-2);
-      padding: 0 var(--space-4) 0 var(--space-5);
+      padding: 0 var(--space-4);
       color: var(--ink-1);
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
     }
 
     .project-layout__brand-main {
@@ -609,13 +601,12 @@
 }
 
 .layout-sidebar-user {
-  height: var(--layout-project-user-card-height);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   justify-content: space-between;
   overflow: hidden;
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--line, var(--jet-theme-border-secondary));
   border-radius: var(--r-3);
   background: var(--bg, var(--jet-theme-bg-container));
@@ -638,11 +629,6 @@
     text-align: left;
     cursor: pointer;
     transition: background 0.16s ease;
-
-    &:hover,
-    &[aria-expanded='true'] {
-      background: var(--bg-hover, var(--jet-theme-border-secondary));
-    }
   }
 
   &__avatar {

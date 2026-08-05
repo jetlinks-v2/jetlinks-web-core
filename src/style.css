@@ -102,7 +102,7 @@ html {
   --bg-sunken: var(--jet-theme-bg-layout);
   --bg-hover: var(--jet-theme-border-secondary);
   --bg-2: #FAFAFA;
-  --line: var(--jet-theme-border-secondary);
+  --line: #ECEFF3;
   --line-2: var(--jet-theme-bg-layout);
   --line-strong: var(--jet-theme-border);
   --ink-1: var(--text-color);
@@ -237,7 +237,7 @@ html {
   --layout-workspace-bg: radial-gradient(ellipse 34rem 22rem at 90% 0%, #B9D6FB 0%, rgba(185, 214, 251, 0) 100%), radial-gradient(ellipse 34rem 22rem at 8% 100%, #D6EBFB 0%, rgba(214, 235, 251, 0) 100%), #F4F7FB;
   --layout-menu-width: 10.875rem;
   --layout-menu-collapsed-width: 64px;
-  --layout-menu-bg: var(--jet-theme-bg-container);
+  --layout-menu-bg: #f5f7f9;
   --layout-menu-padding-x: 1rem;
   --layout-menu-padding-y: 0.625rem;
   --layout-menu-padding: var(--layout-menu-padding-y) var(--layout-menu-padding-x);

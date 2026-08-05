@@ -1,25 +1,35 @@
 <template>
-  <nav
-    v-if="items.length"
-    class="project-secondary-menu"
-    :aria-label="$t('ProjectLayout.navigationLabel')"
-  >
-    <a-menu
-      class="project-secondary-menu__items"
-      mode="horizontal"
-      :selectedKeys="selectedKeys"
-      @click="handleClick"
-    >
-        <a-menu-item
-            v-for="item in items"
-            :key="item.key"
-            :class="item.code ? PROJECT_ONBOARDING_MENU_TARGET_CLASSES[item.code] : undefined"
-        >
-            <AIcon :type="String(item.icon)" />
-            <span>{{ item.label }}</span>
-        </a-menu-item>
-    </a-menu>
-  </nav>
+<!--  <nav-->
+<!--    v-if="items.length"-->
+<!--    class="project-secondary-menu"-->
+<!--    :aria-label="$t('ProjectLayout.navigationLabel')"-->
+<!--  >-->
+<!--    <a-menu-->
+<!--      class="project-secondary-menu__items"-->
+<!--      mode="horizontal"-->
+<!--      :selectedKeys="selectedKeys"-->
+<!--      @click="handleClick"-->
+<!--    >-->
+<!--        <a-menu-item-->
+<!--            v-for="item in items"-->
+<!--            :key="item.key"-->
+<!--            :class="item.code ? PROJECT_ONBOARDING_MENU_TARGET_CLASSES[item.code] : undefined"-->
+<!--        >-->
+<!--            <AIcon :type="String(item.icon)" />-->
+<!--            <span>{{ item.label }}</span>-->
+<!--        </a-menu-item>-->
+<!--    </a-menu>-->
+<!--  </nav>-->
+    <div class="project-secondary-menu" v-if="items.length > 0">
+        <a-tabs @change="handleClick">
+            <a-tab-pane v-for="item in items" :key="item.key">
+                <template #tab>
+                    <AIcon v-if="item.icon" :type="item.icon"/>
+                    {{ item.label }}
+                </template>
+            </a-tab-pane>
+        </a-tabs>
+    </div>
 </template>
 
 <script setup lang="ts" name="ProjectSecondaryMenu">
@@ -53,15 +63,14 @@ const getMenuIconSource = (icon?: string) => {
 
 const selectedKeys = computed(() => props.selectedKey ? [props.selectedKey] : [])
 
-const handleClick = ({ key }: MenuClickInfo) => {
+const handleClick = (key) => {
   emit('select', String(key))
 }
 </script>
 
 <style scoped lang="less">
 .project-secondary-menu {
-  min-width: 0;
-  background: transparent;
+    padding: 0 var(--space-4);
 }
 
 .project-secondary-menu__items {
