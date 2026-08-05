@@ -14,7 +14,7 @@
     @backClick='goBack'
   >
     <template #menuHeaderRender>
-      <div class="project-layout__brand" :style="{width: `${config.siderWidth}px`}">
+      <div class="project-layout__brand" :style="{width: `${!state.collapsed ? config.siderWidth + 'px' : '100%'}`}">
         <div v-if="!state.collapsed" class="project-layout__brand-main">
           <img class="project-layout__brand-logo" :src="layout.logo" alt="" />
           <span class="project-layout__brand-title">{{ layout.title }}</span>

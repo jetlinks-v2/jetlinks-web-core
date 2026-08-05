@@ -111,6 +111,12 @@ Existing `--layout-menu-search-*` and `--chrome-*` names remain the shared searc
 
 `--layout-menu-bg` remains the current theme's container background for shared layouts. Project-specific transparent menu treatment should be expressed by the active route layout class or theme token override, not by a SaaS-local project shell.
 
+## Project runtime menu hierarchy
+
+The project workspace keeps the first two menu levels in the left sidebar. The first level is rendered as a collapsible group, while its direct children remain the clickable second-level entries. The current second-level route owns the third-level navigation rendered in the content header through `ProjectSecondaryMenu`; page-registered tabs remain a fallback when the route tree has no third-level children.
+
+The navigation hook must derive the selected second-level key from the active route's breadcrumb context, so deep routes keep their parent group open and selected. The top-level sidebar collapse is independent from first-level group expansion and continues to use the shared `j-pro-layout` `collapsed` and `openKeys` contracts.
+
 `--chrome-header-height` is the fixed `56px` Figma header measurement. Responsive layout code may take the maximum of this token and an existing large-screen profile, but it must not convert the token itself to `rem` and inflate the 2K header.
 
 ## 浮层层级

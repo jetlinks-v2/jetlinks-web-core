@@ -530,6 +530,29 @@
       }
     }
 
+    &:not(.cloud-project--collapsed) {
+      .ant-menu-inline > .ant-menu-submenu > .ant-menu-submenu-title {
+        color: var(--layout-menu-item-color);
+        font-weight: var(--chrome-nav-font-weight);
+      }
+
+      .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub > .ant-menu-item {
+        padding-left: var(--space-8) !important;
+      }
+
+      .ant-menu-inline > .ant-menu-submenu-selected > .ant-menu-submenu-title {
+        background: transparent !important;
+        border-color: transparent;
+        box-shadow: none;
+        color: var(--layout-menu-item-active-color) !important;
+        font-weight: var(--chrome-nav-font-weight);
+      }
+
+      .ant-menu-inline > .ant-menu-submenu-selected > .ant-menu-submenu-title .anticon {
+        color: var(--layout-menu-item-muted-color);
+      }
+    }
+
     .ant-pro-sider-links {
       padding: 0 var(--space-4) var(--space-4);
       background: var(--layout-menu-bg);
