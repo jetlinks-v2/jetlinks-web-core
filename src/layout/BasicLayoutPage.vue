@@ -139,8 +139,8 @@ const currentUserParkTree = ref<BasicConfigTreeNode[]>([])
 const state = reactive({
   pure: false,
   collapsed: false, // default value
-  openKeys: [],
-  selectedKeys: [],
+  openKeys: [] as string[],
+  selectedKeys: [] as string[],
 });
 
 const themeLayout = computed(() => themeStyleToken.value.layout)
@@ -177,9 +177,7 @@ const goBack = () => {
 }
 
 const openApplicationCenter = () => {
-  router.push({
-    name: 'smart-park-services/application'
-  })
+  router.push('/application/center')
 }
 
 const init = () => {
@@ -313,10 +311,10 @@ const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
  */
 watchEffect(() => {
   if (router.currentRoute) {
-    const paths = route.meta.breadcrumb || route.meta.breadcrumbCache || []
-    // const { selectedKeys, openKeys } = resolveMenuKeys(paths)
-    state.selectedKeys = paths.map(item => item.path)
-    state.openKeys = paths.map(item => item.path)
+    const paths = (route.meta.breadcrumb || route.meta.breadcrumbCache || []) as Array<{ path?: string }>
+    const menuPaths = paths.map(item => item.path).filter((path): path is string => Boolean(path))
+    state.selectedKeys = menuPaths
+    state.openKeys = menuPaths.slice(0, -1)
   }
   if (route.query?.layout === 'false') {
     state.pure = true

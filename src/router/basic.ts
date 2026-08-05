@@ -25,9 +25,9 @@ export const USER_CENTER_ROUTE: RouteRecordRaw = {
 }
 
 export const APPLICATION_CENTER_ROUTE: RouteRecordRaw = {
-  path: '/services/application-layout',
-  name: 'ApplicationCenterLayout',
-  redirect: '/services/application',
+  path: '/application',
+  name: 'Application',
+  redirect: '/application/center',
   component: () => import('@jetlinks-web-core/layout/BasicLayoutPage.vue'),
   meta: {
     title: '应用中心',
@@ -35,23 +35,11 @@ export const APPLICATION_CENTER_ROUTE: RouteRecordRaw = {
   },
   children: [
     {
-      path: '/services/application',
-      name: 'smart-park-services/application',
+      path: '/application/center',
+      name: 'application/center',
       meta: {
         title: '应用中心',
-        hideInMenu: false,
-        breadcrumb: [
-          {
-            name: 'services',
-            breadcrumbName: '园区服务',
-            path: '/services'
-          },
-          {
-            name: 'smart-park-services/application',
-            breadcrumbName: '应用中心',
-            path: '/services/application'
-          }
-        ]
+        hideInMenu: false
       },
       component: () => import('@park-service-ui/views/services/application/index.vue')
     }
