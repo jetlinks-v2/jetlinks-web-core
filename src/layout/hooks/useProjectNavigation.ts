@@ -25,6 +25,7 @@ type ProjectBreadcrumbRoute = {
 type ProjectMenuIndexEntry = {
   key: string
   rootKey: string
+  secondaryKey: string
   depth: number
 }
 
@@ -46,6 +47,24 @@ const findRootMenu = (menus: RouteRecordRaw[], rootKey: string) => {
   return menus.find(menu => getMenuKey(menu) === rootKey)
 }
 
+const findMenuByKey = (
+  menus: RouteRecordRaw[],
+  targetKey: string,
+): RouteRecordRaw | undefined => {
+  for (const menu of menus) {
+    if (getMenuKey(menu) === targetKey) {
+      return menu
+    }
+
+    const child = findMenuByKey((menu.children || []) as RouteRecordRaw[], targetKey)
+    if (child) {
+      return child
+    }
+  }
+
+  return undefined
+}
+
 export const findFirstLeafKey = (menu: ProjectNavigationRoute): string => {
   for (const child of menu.children || []) {
     const childKey = findFirstLeafKey(child)
@@ -61,17 +80,28 @@ export const findFirstLeafKey = (menu: ProjectNavigationRoute): string => {
 const buildMenuIndex = (menus: RouteRecordRaw[]) => {
   const index = new Map<string, ProjectMenuIndexEntry>()
 
-  const visit = (items: RouteRecordRaw[], rootKey = '', depth = 1) => {
+  const visit = (
+    items: RouteRecordRaw[],
+    rootKey = '',
+    secondaryKey = '',
+    depth = 1,
+  ) => {
     items.forEach((item) => {
       const key = getMenuKey(item)
       const currentRootKey = rootKey || key
+      const currentSecondaryKey = depth === 2 ? key : secondaryKey
 
       if (key) {
-        index.set(key, { key, rootKey: currentRootKey, depth })
+        index.set(key, {
+          key,
+          rootKey: currentRootKey,
+          secondaryKey: currentSecondaryKey,
+          depth,
+        })
       }
 
       if (item.children?.length) {
-        visit(item.children, currentRootKey, depth + 1)
+        visit(item.children, currentRootKey, currentSecondaryKey, depth + 1)
       }
     })
   }
@@ -154,7 +184,7 @@ const resolveActiveEntry = (
 }
 
 /**
- * 将项目菜单树拆为一级侧栏与当前一级菜单的横向子导航。
+ * 将项目菜单树拆为左侧一级/二级侧栏与当前二级菜单的三级导航。
  * 权限与隐藏菜单已由 projectMenuStore 处理；这里仅维护路由层级、搜索结果和选中态联动。
  */
 export const useProjectNavigation = ({
@@ -167,29 +197,44 @@ export const useProjectNavigation = ({
   const menuIndex = computed(() => buildMenuIndex(menus.value))
   const activeEntry = computed(() => resolveActiveEntry(menuIndex.value, route))
   const activePrimaryKey = computed(() => activeEntry.value?.rootKey || '')
+  const activeSecondaryKey = computed(() => activeEntry.value?.secondaryKey || '')
 
   const primaryMenus = computed(() => {
+    // 三级及更深路由留给内容区导航，左侧只展开到二级，避免同一菜单树重复呈现。
     return filteredMenus.value
       .map(menu => ({
         ...menu,
-        children: undefined,
+        children: menu.children?.map(child => ({
+          ...child,
+          children: undefined,
+        })),
       }))
   })
 
   const primarySelectedKeys = computed(() => {
-    const selectedKey = activePrimaryKey.value
-    const isVisible = primaryMenus.value.some(menu => normalizeMenuKey(menu.path) === selectedKey)
+    const selectedKey = activeSecondaryKey.value || activePrimaryKey.value
+    const isVisible = primaryMenus.value.some(menu => (
+      normalizeMenuKey(menu.path) === selectedKey
+      || menu.children?.some(child => normalizeMenuKey(child.path) === selectedKey)
+    ))
 
     return selectedKey && isVisible ? [selectedKey] : []
   })
 
-  const secondaryRoot = computed(() => {
+  const activeRootMenu = computed(() => {
     const sourceMenus = searchKeyword.value ? filteredMenus.value : menus.value
     return findRootMenu(sourceMenus, activePrimaryKey.value)
   })
 
+  const activeSecondaryMenu = computed(() => {
+    const rootMenu = activeRootMenu.value
+    const children = (rootMenu?.children || []) as RouteRecordRaw[]
+
+    return children.find(menu => getMenuKey(menu) === activeSecondaryKey.value)
+  })
+
   const secondaryItems = computed<ProjectNavigationItem[]>(() => {
-    return (secondaryRoot.value?.children || [])
+    return (activeSecondaryMenu.value?.children || [])
       .map(toNavigationItem)
       .filter((item): item is ProjectNavigationItem => !!item)
   })
@@ -197,11 +242,11 @@ export const useProjectNavigation = ({
   const secondarySelectedKey = computed(() => {
     const entry = activeEntry.value
 
-    if (!entry || entry.depth === 1) {
+    if (!entry || entry.depth < 3) {
       return ''
     }
 
-    return containsNavigationKey(secondaryItems.value, entry.key) ? entry.key : ''
+    return secondaryItems.value.some(item => item.key === entry.key) ? entry.key : ''
   })
 
   const navigateTo = (path?: string) => {
@@ -213,11 +258,11 @@ export const useProjectNavigation = ({
   }
 
   const navigatePrimary = (path?: string) => {
-    const rootKey = normalizeMenuKey(path)
+    const targetKey = normalizeMenuKey(path)
     const sourceMenus = searchKeyword.value ? filteredMenus.value : menus.value
-    const rootMenu = findRootMenu(sourceMenus, rootKey)
+    const targetMenu = findMenuByKey(sourceMenus, targetKey)
 
-    navigateTo(rootMenu ? findFirstLeafKey(rootMenu) : rootKey)
+    navigateTo(targetMenu ? findFirstLeafKey(targetMenu) : targetKey)
   }
 
   const navigateSecondary = (path: string) => {
