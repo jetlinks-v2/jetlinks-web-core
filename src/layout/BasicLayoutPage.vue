@@ -14,7 +14,7 @@
     @backClick='goBack'
   >
     <template #menuHeaderRender>
-      <div class="project-layout__brand" :style="{width: `${!state.collapsed ? config.siderWidth + 'px' : '100%'}`}">
+      <div class="project-layout__brand" :style="logoWidth">
         <div v-if="!state.collapsed" class="project-layout__brand-main">
           <img class="project-layout__brand-logo" :src="layout.logo" alt="" />
           <span class="project-layout__brand-title">{{ layout.title }}</span>
@@ -164,6 +164,15 @@ const {
     searchKeyword: menuSearchKeyword,
     route,
     router,
+})
+
+const logoWidth = computed(() => {
+    const _width = `${!state.collapsed ? config.value.siderWidth + 'px' : '100%'}`
+    return {
+        width: _width,
+        minWidth: _width,
+        maxWidth: _width,
+    }
 })
 
 const {
