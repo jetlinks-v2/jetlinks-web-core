@@ -59,6 +59,8 @@ import PageRouteView from './PageRouteView/index.vue'
 import EqualHeightColumns from './EqualHeightColumns/index.vue'
 import ModelConfig from './ModelConfig/index.vue'
 import ParkTreeSelect from './ParkTreeSelect/index.vue'
+import OverviewCard from './OverviewCard/index.vue'
+import OverviewCardGroup from './OverviewCardGroup/index.vue'
 
 export default {
     install(app: App) {
@@ -123,6 +125,8 @@ export default {
           .component('EqualHeightColumns', EqualHeightColumns)
           .component('ModelConfig', ModelConfig)
           .component('ParkTreeSelect', ParkTreeSelect)
+          .component('OverviewCard', OverviewCard)
+          .component('OverviewCardGroup', OverviewCardGroup)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
