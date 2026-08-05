@@ -198,7 +198,7 @@ export const initAxios = () => {
               }
               const requestConfig = err?.config || resp?.config
 
-              if (key === 'timeout') {
+              if (err.message.includes('timeout')) {
                   _description = i18n.global.t('comm.api.timeout')
               }
 
