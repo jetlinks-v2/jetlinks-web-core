@@ -5,18 +5,20 @@
     v-model:openKeys="state.openKeys"
     v-model:collapsed="state.collapsed"
     :selectedKeys="state.selectedKeys"
-    :breadcrumb="{ routes: route.meta.breadcrumb }"
+    :breadcrumb="{ routes: [] }"
     :pure="state.pure"
     :layoutType="layoutType"
     :menuExtraRender="showMenuSearch ? undefined : false"
+    class="cloud-project"
+    @menuClick="handlePrimaryMenuClick"
     @backClick='goBack'
   >
-    <template #breadcrumbRender="slotProps">
-      <a v-if="slotProps.route.index !== 0 && !slotProps.route.isLast" @click="() => jumpPage(slotProps)" >
-        {{ slotProps.route.breadcrumbName }}
-      </a>
-      <span v-else style='cursor: default' >{{ slotProps.route.breadcrumbName }}</span>
-    </template>
+<!--    <template #breadcrumbRender="slotProps">-->
+<!--      <a v-if="slotProps.route.index !== 0 && !slotProps.route.isLast" @click="() => jumpPage(slotProps)" >-->
+<!--        {{ slotProps.route.breadcrumbName }}-->
+<!--      </a>-->
+<!--      <span v-else style='cursor: default' >{{ slotProps.route.breadcrumbName }}</span>-->
+<!--    </template>-->
     <template #menuExtraRender>
       <LayoutMenuSearch />
     </template>
@@ -45,7 +47,17 @@
         </RegistryComponent>
       </div>
     </template>
-    <PageRouteView />
+      <div class="project-layout__content">
+          <ProjectSecondaryMenu
+              v-if="visibleSecondaryItems.length"
+              :items="visibleSecondaryItems"
+              :selectedKey="visibleSecondarySelectedKey"
+              @select="selectVisibleSecondaryItem"
+          />
+          <div class="project-layout__route-content">
+              <PageRouteView />
+          </div>
+      </div>
   </j-pro-layout>
   <AiChat />
   </div>
@@ -70,6 +82,13 @@ import { isSubApp } from '@/utils/consts'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { useResponsiveLayoutDimensions } from '@jetlinks-web-core/hooks'
 import { useGlobalHomeAgent } from '@jetlinks-web-core/layout/components/AiChat/useGlobalHomeAgent'
+import ProjectSecondaryMenu from './components/ProjectSecondaryMenu.vue'
+import { filterMenusByKeyword } from './utils/menuSearch'
+import { useProjectGeneralAgent } from './hooks/useProjectGeneralAgent'
+import { useProjectNavigation } from './hooks/useProjectNavigation'
+import { provideProjectSecondaryMenu } from './hooks/useProjectSecondaryMenu'
+import { useProjectSecondaryMenuExtensions } from './hooks/useProjectSecondaryMenuExtensions'
+import { PROJECT_SETTINGS_MENU_CODE } from './navigation.constants'
 
 const router = useRouter();
 const route = useRoute();
@@ -77,10 +96,28 @@ const systemStore = useSystemStore()
 const menuStore = useMenuStore()
 const layoutType = ref('list')
 const hideHeaderRight = getHideHeaderRightConfig()
+const menuSearchKeyword = ref('')
 
 const { theme, layout, language, systemInfo, themeStyleToken } = storeToRefs(systemStore)
 
-const state = reactive({
+type ProjectBreadcrumbRoute = {
+    path?: string
+}
+
+type ProjectMenuClickEvent = {
+    key: string | number
+    item?: {
+        path?: string
+        key?: string | number
+    }
+}
+
+const state = reactive<{
+  pure: boolean
+  collapsed: boolean
+  openKeys: string[]
+  selectedKeys: string[]
+}>({
   pure: false,
   collapsed: false, // default value
   openKeys: [],
@@ -90,13 +127,59 @@ const state = reactive({
 const themeLayout = computed(() => themeStyleToken.value.layout)
 const menuVariant = computed(() => themeLayout.value?.menuVariant || 'classic')
 const routeLayoutClassName = computed(() => (
-  [...route.matched]
-    .reverse()
-    .find(record => record.meta.layoutClassName)
-    ?.meta.layoutClassName || ''
+    [...route.matched]
+        .reverse()
+        .find(record => record.meta.layoutClassName)
+        ?.meta.layoutClassName || ''
 ))
 const showMenuSearch = computed(() => !!themeLayout.value?.showMenuSearch && !state.collapsed)
 const { layoutConfig } = useResponsiveLayoutDimensions(layout, themeLayout)
+
+useProjectGeneralAgent(route, router)
+
+const filteredSiderMenus = computed(() => {
+    return filterMenusByKeyword(menuStore.siderMenus, menuSearchKeyword.value.toLowerCase())
+})
+
+const projectMenus = computed(() => menuStore.siderMenus)
+const {
+    primaryMenus,
+    primarySelectedKeys,
+    secondaryItems,
+    secondarySelectedKey,
+    navigatePrimary,
+    navigateSecondary,
+} = useProjectNavigation({
+    menus: projectMenus,
+    filteredMenus: filteredSiderMenus,
+    searchKeyword: menuSearchKeyword,
+    route,
+    router,
+})
+
+const {
+    active: settingsActive,
+    enterTarget: enterSettings,
+    items: settingsSecondaryItems,
+    selectedKey: settingsSecondarySelectedKey,
+} = useProjectSecondaryMenuExtensions(PROJECT_SETTINGS_MENU_CODE)
+const pageSecondaryMenu = provideProjectSecondaryMenu()
+
+const pageSecondaryMenuActive = computed(() => (
+    !settingsActive.value
+    && !secondaryItems.value.length
+    && !!pageSecondaryMenu.items.value.length
+))
+
+const visibleSecondaryItems = computed(() => {
+    if (settingsActive.value) return settingsSecondaryItems.value
+    return pageSecondaryMenuActive.value ? pageSecondaryMenu.items.value : secondaryItems.value
+})
+const visibleSecondarySelectedKey = computed(() => {
+    if (settingsActive.value) return settingsSecondarySelectedKey.value
+    return pageSecondaryMenuActive.value ? pageSecondaryMenu.selectedKey.value : secondarySelectedKey.value
+})
+
 useGlobalHomeAgent(route)
 
 const config = computed(() => ({
@@ -165,15 +248,31 @@ const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
   }
 }
 
+const handlePrimaryMenuClick = ({ item, key }: ProjectMenuClickEvent) => {
+    navigatePrimary(String(item?.path || item?.key || key))
+}
+
+
+const selectVisibleSecondaryItem = (key: string) => {
+    if (pageSecondaryMenuActive.value) {
+        pageSecondaryMenu.select(key)
+        return
+    }
+
+    navigateSecondary(key)
+}
+
 /**
  * 处理菜单选中，展开状态
  */
 watchEffect(() => {
   if (router.currentRoute) {
-    const paths = route.meta.breadcrumb || route.meta.breadcrumbCache || []
+    const paths = (
+      route.meta.breadcrumb || route.meta.breadcrumbCache || []
+    ) as ProjectBreadcrumbRoute[]
     // const { selectedKeys, openKeys } = resolveMenuKeys(paths)
-    state.selectedKeys = paths.map(item => item.path)
-    state.openKeys = paths.map(item => item.path)
+    state.selectedKeys = paths.map(item => item.path).filter((path): path is string => !!path)
+    state.openKeys = paths.map(item => item.path).filter((path): path is string => !!path)
   }
   if (route.query?.layout === 'false') {
     state.pure = true

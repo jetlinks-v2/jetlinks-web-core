@@ -26,6 +26,17 @@ type OptionsType = {
   query?: Record<string, any>
 }
 
+type ProjectMenuItem = {
+    code: string
+    name: string
+    url: string
+    icon?: string
+    options?: Record<string, any>
+    meta?: Record<string, any>
+    children?: ProjectMenuItem[]
+    [key: string]: any
+}
+
 const $t = i18n.global.t
 
 const PROJECT_MENU_OWNER = 'cloud'
@@ -191,6 +202,9 @@ const prepareRuntimeMenus = (menus: any[]) => (
 
 export const useMenuStore = defineStore('menu', () => {
   const app = useApplication()
+    const rawMenus = ref<ProjectMenuItem[]>([])
+
+
   const runtime = createMenuStoreRuntime({
     getAsyncRoutes: getGlobModules,
     resolveExtraMenus: () => getExtraRouters(),
@@ -353,5 +367,6 @@ export const useMenuStore = defineStore('menu', () => {
     getMenu: runtime.getMenu,
     createRoutes: runtime.createRoutes,
     init: runtime.init,
+      rawMenus
   }
 })
