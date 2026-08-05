@@ -5,7 +5,6 @@
       placement="topLeft"
       trigger="click"
       overlay-class-name="layout-sidebar-user-overlay"
-      getPopupContainer=''
     >
       <a-button class="layout-sidebar-user__card" :aria-expanded="open ? 'true' : 'false'">
         <a-avatar :size="30" :src="avatar" class="layout-sidebar-user__avatar">
@@ -13,10 +12,10 @@
             <span>{{ avatarText }}</span>
           </template>
         </a-avatar>
-        <span v-if="!collapsed" class="layout-sidebar-user__meta">
-          <span class="layout-sidebar-user__name">{{ displayName }}</span>
-          <span class="layout-sidebar-user__account">{{ account }}</span>
-        </span>
+        <div v-if="!collapsed" class="layout-sidebar-user__meta">
+          <div class="layout-sidebar-user__name">{{ displayName }}</div>
+          <div class="layout-sidebar-user__account">{{ account }}</div>
+        </div>
         <AIcon v-if="!collapsed" type="UpOutlined" class="layout-sidebar-user__arrow" />
       </a-button>
 
@@ -40,21 +39,21 @@
       </template>
     </a-dropdown>
 
-    <div v-if="!collapsed" class="layout-sidebar-user__actions">
-      <a-button
-        v-for="item in quickItems"
-        :key="item.key"
-        class="layout-sidebar-user__action"
-        type="text"
-        block
-        @click="item.onClick"
-      >
-        <template #icon>
-          <AIcon :type="item.icon" />
-        </template>
-        <span>{{ item.label }}</span>
-      </a-button>
-    </div>
+<!--    <div v-if="!collapsed" class="layout-sidebar-user__actions">-->
+<!--      <a-button-->
+<!--        v-for="item in quickItems"-->
+<!--        :key="item.key"-->
+<!--        class="layout-sidebar-user__action"-->
+<!--        type="text"-->
+<!--        block-->
+<!--        @click="item.onClick"-->
+<!--      >-->
+<!--        <template #icon>-->
+<!--          <AIcon :type="item.icon" />-->
+<!--        </template>-->
+<!--        <span>{{ item.label }}</span>-->
+<!--      </a-button>-->
+<!--    </div>-->
   </div>
 </template>
 

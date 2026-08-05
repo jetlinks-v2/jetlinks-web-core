@@ -474,7 +474,7 @@ export const styleTokens = {
       bgSunken: '#F5F5F5',
       bgHover: '#F0F0F0',
       bg2: '#FAFAFA',
-      line: '#F0F0F0',
+      line: '#ECEFF3',
       line2: '#F5F5F5',
       lineStrong: '#D9D9D9',
       text: '#1A1A1A',
