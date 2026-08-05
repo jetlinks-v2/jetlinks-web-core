@@ -183,6 +183,7 @@ function onFormSubmit(e: Event) {
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-3);
+  padding-top: 0;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
