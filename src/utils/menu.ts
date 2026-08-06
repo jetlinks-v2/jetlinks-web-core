@@ -75,6 +75,41 @@ const getMenuAliasCodes = (item: MenuItem, meta: RouteMeta) => {
   ].filter(Boolean) as string[]
 }
 
+const mergeMenusByCode = (data: MenuItem[] = []): MenuItem[] => {
+  const menuMap = new Map<string, MenuItem>()
+  const result: MenuItem[] = []
+
+  data.forEach((item) => {
+    const children = mergeMenusByCode(item.children || [])
+    const menu = {
+      ...item,
+      children: children.length ? children : undefined,
+    }
+    const code = typeof menu.code === 'string' ? menu.code : ''
+
+    if (!code) {
+      result.push(menu)
+      return
+    }
+
+    const existing = menuMap.get(code)
+    if (!existing) {
+      menuMap.set(code, menu)
+      result.push(menu)
+      return
+    }
+
+    // Duplicate menu groups from different sources share one route; merge their children before route generation.
+    const mergedChildren = mergeMenusByCode([
+      ...(existing.children || []),
+      ...(menu.children || []),
+    ])
+    existing.children = mergedChildren.length ? mergedChildren : undefined
+  })
+
+  return result
+}
+
 /**
  *
  * @param menuData 服务端菜单数据
@@ -93,6 +128,7 @@ export const handleMenus = (
   let authButtons: Record<string, any> = {}
   let menuRoutes: RouteRecordRaw[] = []
   let menus: Partial<RouteRecordRaw>[] = []
+  const mergedMenuData = mergeMenusByCode(menuData)
 
   /**
    * 过滤不需要生成路由的菜单数据
@@ -249,9 +285,9 @@ export const handleMenus = (
     return []
   }
 
-  menus = siderLoop(menuData)
+  menus = siderLoop(mergedMenuData)
 
-  menuRoutes = loop(menuData, level)
+  menuRoutes = loop(mergedMenuData, level)
 
   return {
     menuMap,

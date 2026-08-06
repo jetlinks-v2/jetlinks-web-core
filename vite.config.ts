@@ -33,27 +33,10 @@ export default defineConfig(async ({ mode, command }) => {
   const env = getMergedEnv(mode, envDir)
   const isDev = command === 'serve'
   const publicPath = (env.VITE_PUBLIC_PATH || '/').trim() || '/'
-  const apiBase = env.VITE_APP_BASE_API || '/api'
-
-  if (env.VITE_APP_RUNTIME_SCOPE === 'project') {
-    if (!String(env.VITE_APP_PROJECT_CODE || '').trim()) {
-      throw new Error('VITE_APP_PROJECT_CODE is required for an independent project build')
-    }
-    if (env.VITE_APP_ENVIRONMENT !== '') {
-      throw new Error('Independent project builds require an empty VITE_APP_ENVIRONMENT')
-    }
-    if (publicPath !== '/project/') {
-      throw new Error('Independent project builds require VITE_PUBLIC_PATH=/project/')
-    }
-    if (apiBase !== '/api') {
-      throw new Error('Independent project builds require VITE_APP_BASE_API=/api')
-    }
-  }
-
   const themeConfigPath = getThemeConfigPath(envDir)
   const themeV3Token = await v3Token(envDir)
 
-  const { moduleName, moduleNames } = getModulesName(env.VITE_APP_RUNTIME_SCOPE)
+  const { moduleName, moduleNames} = getModulesName()
   const backendUrl = getProxyUrl()
 
   const envDefine = getDefine(env, mode, isDev, moduleName, publicPath)
@@ -84,8 +67,8 @@ export default defineConfig(async ({ mode, command }) => {
         output: {
           entryFileNames: `assets/[name].${new Date().getTime()}.js`,
           chunkFileNames: `assets/[name].${new Date().getTime()}.js`,
-          assetFileNames: (pre: { name?: string }) => {
-            const fileType = pre.name?.split('.')?.pop() || ''
+          assetFileNames: (pre) => {
+            const fileType = pre.name.split('.')?.pop()
             if (['png', 'svg', 'ico', 'jpg'].includes(fileType)) {
               return `assets/[name].[ext]`
             }
@@ -138,12 +121,12 @@ export default defineConfig(async ({ mode, command }) => {
         '.local-host.cn', // 允许的自定义域名
       ],
       proxy: {
-        [apiBase]: {
+        [env.VITE_APP_BASE_API]: {
           // 优先使用命令行参数，其次使用环境变量
           target: backendUrl || env.VITE_APP_DEV_PROXY_URL,
           ws: true,
           changeOrigin: true,
-          rewrite: (requestPath: string) => requestPath.replace(new RegExp(`^${apiBase}`), '')
+          rewrite: (path) => path.replace(new RegExp(`^${env.VITE_APP_BASE_API}`), '')
         }
       }
     },
