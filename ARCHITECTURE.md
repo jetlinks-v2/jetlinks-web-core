@@ -126,11 +126,12 @@ Use `componentsRegistry.register(action)` or module `getRegisterComponents()` on
 
 - 目标：将被非 `saas-manager-ui` 模块引用、且不携带 SaaS 业务语义的 UI 组件与通用 hooks 上移至 core；业务 API 即使存在跨模块调用，也继续留在 owning module。
 - 影响范围：`jetlinks-web-core`、`saas-manager-ui` 及其 11 个消费模块（告警、边缘网关、巡检、物联、空间、通知、流量分析、系统设置、可视化、视联、视觉模型）；不修改 `runtime-ui`，不改变路由、菜单、权限或后端接口语义。
-- 已迁移入口：`PageHeader`（原 45 处引用）、`DetailHeader`、`MetricCards`、`MarketplaceInstallStream`、`StatusPill`、`useProjectSecondaryMenu` 及 `useProjectNavigation`；它们的源码位于 `src/components/` 或 `src/hooks/`，并由 core 的公开入口导出。
-- 文件路径：组件实现为 `src/components/PageHeader/index.vue`、`DetailHeader/index.vue`、`MetricCards/index.vue`（类型：`MetricCards/types.ts`）、`MarketplaceInstallStream/index.vue`（类型：`MarketplaceInstallStream/types.ts`）、`StatusPill/index.vue`；深层默认导入入口为同级 `PageHeader.ts`、`MetricCards.ts`、`MarketplaceInstallStream.ts`、`StatusPill.ts`。导航 hooks 为 `src/hooks/useProjectNavigation.ts`、`src/hooks/useProjectSecondaryMenu.ts`，统一从 `src/hooks/index.ts` 导出；具名组件与类型从 `src/components/index.ts` 导出。
+- 已迁移入口：`PageHeader`（原 45 处引用）、`DetailHeader`、`MetricCards`、`MarketplaceInstallStream`、`StatusPill`、`useProjectSecondaryMenu` 及 `useProjectNavigation`；组件源码位于 `src/components/`，当前项目导航契约由 `src/layout/hooks/` 统一维护。
+- 文件路径：组件实现为 `src/components/PageHeader/index.vue`、`DetailHeader/index.vue`、`MetricCards/index.vue`（类型：`MetricCards/types.ts`）、`MarketplaceInstallStream/index.vue`（类型：`MarketplaceInstallStream/types.ts`）、`StatusPill/index.vue`；深层默认导入入口为同级 `PageHeader.ts`、`MetricCards.ts`、`MarketplaceInstallStream.ts`、`StatusPill.ts`。导航 hooks 为 `src/layout/hooks/useProjectNavigation.ts`、`src/layout/hooks/useProjectSecondaryMenu.ts`。确定处于项目布局的页面使用严格的 `useProjectSecondaryMenu`；同时支持普通布局、项目布局或多应用挂载的页面使用 `useOptionalProjectSecondaryMenu`，缺少 provider 时保留页内导航，不得按具体菜单或路由兜底。
 - 实施结果：`StickyActionBar` 的唯一外部消费者已直接改用 core 同名组件；SaaS 的 `components/index.ts` 对已迁移组件保留 re-export。项目创建弹窗保留在 SaaS 业务域，通过 `saas-manager-ui/register.ts` 注册为 `ProjectCreateDialog`，边缘网关经 `moduleRegistry` 获取，core 不反向导入 SaaS 私有项目、地区或客户资料实现。
 - 国际化：安装日志与状态胶囊的用户可见文案迁入 `jetlinks-web-core/src/locales/lang/{zh,en}.json`，不再依赖 SaaS locale 键。
 - 业务 API 排除：`saas-manager-ui/api/device-asset-firmware.ts` 属于设备资产固件业务域，保留在 SaaS；边缘网关对其的既有调用不纳入 core 迁移范围。
+- 项目通用智能体装配：菜单状态由 `src/store/menu.ts` 的 `useMenuStore` 统一提供，runtime factory 由 `src/layout/components/AiChat/projectGeneralAgentRuntime.ts` 统一提供。业务模块可直接消费这两个 core 契约，不得再要求 `saas-manager-ui` 注册无 SaaS 业务语义的 store 或 runtime factory；部署缺失与客户端 runtime 装配失败必须保持独立错误语义。
 - 启动依赖边界：模块扫描由 `src/main.ts` 在 `package.ts` 初始化完成后、Axios 与 Vue 应用初始化前调用 `registerModule()`；`package.ts` 不再顶层调用它，避免扫描到模块入口后回引 package 时发生循环初始化。
 - 验证结果：已迁移组件与 hooks 的非 SaaS 消费者均不再引用 `@saas-manager-ui/`；core 源码中反向 SaaS 引用扫描为 0；中英文 JSON 可解析，相关子模块 `git diff --check` 通过。启动循环已通过调整模块注册时机与直达导入切断；`pnpm -F jetlinks-web-core build` 已完成 Vite transforming 阶段，未再出现 `registerModule` 初始化错误，但本环境未返回最终退出结果。`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 仍受大量既有全仓库类型错误阻塞，但迁移文件名过滤结果为 0。
 
