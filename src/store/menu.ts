@@ -43,29 +43,29 @@ const PROJECT_MENU_OWNER = 'cloud'
 const LEGACY_PROJECT_MENU_OPTION_KEYS = ['componentCode', 'routeName', 'authCode', 'authCodes']
 
 const getDefaultOwnParams = (): any[] => [
-  {
-    terms: isProjectRuntime()
-      ? [
-          {
-            column: 'owner',
-            termType: 'eq',
-            value: PROJECT_MENU_OWNER,
-          },
-        ]
-      : [
-          {
-            column: 'owner',
-            termType: 'eq',
-            value: OWNER_KEY,
-          },
-          {
-            column: 'owner',
-            termType: 'isnull',
-            value: '1',
-            type: 'or',
-          },
-        ],
-  }
+    // {
+    //     terms: isProjectRuntime()
+    //         ? [
+    //             {
+    //                 column: 'owner',
+    //                 termType: 'eq',
+    //                 value: PROJECT_MENU_OWNER,
+    //             },
+    //         ]
+    //         : [
+    //             {
+    //                 column: 'owner',
+    //                 termType: 'eq',
+    //                 value: OWNER_KEY,
+    //             },
+    //             {
+    //                 column: 'owner',
+    //                 termType: 'isnull',
+    //                 value: '1',
+    //                 type: 'or',
+    //             },
+    //         ],
+    // }
 ]
 
 const shouldShowOverrideRoute = (
