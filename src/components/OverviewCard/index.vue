@@ -19,7 +19,7 @@
           <slot name="title">{{ title }}</slot>
         </div>
         <div v-if="$slots.description || description" class="overview-card__description">
-          <j-ellipsis :lineClamp="2">
+          <j-ellipsis>
             <slot name="description">{{ description }}</slot>
           </j-ellipsis>
         </div>
