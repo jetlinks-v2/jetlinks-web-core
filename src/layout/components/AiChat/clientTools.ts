@@ -22,8 +22,10 @@ import type {
   AiClientToolRecoveryAction,
 } from './clientToolResult';
 import {
+  AI_CLIENT_TOOL_EFFECT_EXPAND_KEY,
   AI_CLIENT_TOOL_ROUTING_EXPAND_KEY,
   normalizeAiClientToolRoutingMetadata,
+  resolveAiClientToolCanonicalEffect,
 } from './clientToolRouting';
 import {
   mergeAiClientToolParameterSchema,
@@ -48,8 +50,16 @@ export type {
   AiClientToolRoutingHelp,
   AiClientToolRoutingIntentSection,
   AiClientToolRoutingMetadata,
+  AiClientToolProducerPort,
+  AiClientToolConsumerPort,
+  AiClientToolResourceType,
+  AiClientToolSourcePolicy,
 } from './clientToolRouting';
 export {
+  AI_CLIENT_TOOL_EFFECT_EXPAND_KEY,
+  AI_CLIENT_TOOL_PORT_VERSION,
+  AI_CLIENT_TOOL_RESOURCE_TYPES,
+  AI_CLIENT_TOOL_SOURCE_POLICIES,
   AI_CLIENT_TOOL_ROUTING_STAGES,
   AI_CLIENT_TOOL_DATA_ACCESS_MODES,
   AI_CLIENT_TOOL_RESULT_DELIVERIES,
@@ -57,6 +67,7 @@ export {
   validateAiClientToolRoutingMetadata,
   validateAiClientToolResultBindings,
   validateAiClientToolRoutingCatalog,
+  resolveAiClientToolCanonicalEffect,
   toAiClientToolSessionDefinition,
   toAiClientToolSessionDefinitions,
 } from './clientToolRouting';
@@ -457,6 +468,7 @@ const resolveToolExpands = <TContext>(
     tool.expands,
   );
   const routing = normalizeAiClientToolRoutingMetadata(tool);
+  const canonicalEffect = resolveAiClientToolCanonicalEffect(tool);
   const toolRisk = pickRisk(tool.risk);
   const clientConfirmation = !!tool.confirm;
   const confirmationRisk = clientConfirmation ? { needsApproval: false, parallelSafe: false } : {};
@@ -467,6 +479,9 @@ const resolveToolExpands = <TContext>(
     ...pickConfirmRisk(tool.confirm),
     ...toolRisk,
     ...explicitExpands,
+    ...(canonicalEffect
+      ? { [AI_CLIENT_TOOL_EFFECT_EXPAND_KEY]: canonicalEffect }
+      : {}),
     ...(routing ? { [AI_CLIENT_TOOL_ROUTING_EXPAND_KEY]: routing } : {}),
   };
 
@@ -1114,12 +1129,21 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
         routingKind: 'discovery',
         routing: {
           capabilities: ['client-tool.help.read'],
-          accepts: ['tool-id'],
           evidencePolicy: 'none',
         },
+        inputs: [{
+          name: 'tool-id',
+          type: 'structured-data',
+          mediaType: 'text/plain',
+          shape: 'tool.identifier',
+          required: false,
+          sourcePolicy: 'EITHER',
+        }],
         outputs: [{
           kind: 'lookup',
+          type: 'structured-data',
           name: 'client-tool-help',
+          mediaType: 'text/plain',
           shape: 'tool.help',
           path: '$.help',
         }],
@@ -1225,6 +1249,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
             resultDelivery: tool._meta?.resultDelivery,
             ...(routing?.produces?.length === 1 ? { bindingName: routing.produces[0] } : {}),
             ...(routing?.outputShapes?.length === 1 ? { outputShape: routing.outputShapes[0] } : {}),
+            ...(routing?.producerPorts?.length === 1 ? { outputType: routing.producerPorts[0].type } : {}),
             outputBindings: resolveToolResultBindings(tool),
           });
         });

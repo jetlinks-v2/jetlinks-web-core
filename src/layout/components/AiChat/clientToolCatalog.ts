@@ -114,6 +114,18 @@ const contractRoutingIssues = (
     output.delivery || (output.kind === 'artifact' ? 'file' : 'inline')
   )))).map(value => value.toLowerCase())
   const issues: AiClientToolRoutingCatalogIssue[] = []
+  const contractConsumes = normalizedList(contract.inputs.map(input => input.name))
+  const routingConsumes = normalizedList(routing.consumerPorts?.map(input => input.name))
+  const routingProducerNames = normalizedList(routing.producerPorts?.map(output => output.name))
+  if (!sameOrderedList(routingConsumes, contractConsumes)
+    || !sameOrderedList(routingProducerNames, contractProduces)) {
+    issues.push({
+      toolId,
+      code: 'typed_contract_port_mismatch',
+      field: 'routing.consumerPorts/producerPorts',
+      message: 'routing canonical ports must be generated from the typed contract',
+    })
+  }
   if (!sameOrderedList(produces, contractProduces)) {
     issues.push({
       toolId,
