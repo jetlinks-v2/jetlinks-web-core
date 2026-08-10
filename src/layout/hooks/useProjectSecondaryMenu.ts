@@ -103,19 +103,10 @@ export const provideProjectSecondaryMenu = () => {
   }
 }
 
-/**
- * 将一级菜单页面内的 Tab 注册到项目二级导航，并以 URL query 保存选中状态。
- * activeKey 是可写 computed，可直接用于页面内容分支或原有 Tab 的 v-model。
- */
-export const useProjectSecondaryMenu = (
+const createProjectSecondaryMenu = (
+  context: ProjectSecondaryMenuContext,
   options: UseProjectSecondaryMenuOptions,
 ): UseProjectSecondaryMenuResult => {
-  const context = inject(PROJECT_SECONDARY_MENU_KEY)
-
-  if (!context) {
-    throw new Error('useProjectSecondaryMenu must be used inside ProjectLayoutPage')
-  }
-
   const route = useRoute()
   const router = useRouter() as Router
   const queryKey = options.queryKey || DEFAULT_ACTIVE_QUERY_KEY
@@ -174,4 +165,31 @@ export const useProjectSecondaryMenu = (
     activeKey,
     setActiveKey,
   }
+}
+
+/**
+ * 在存在项目布局 provider 时注册页面级二级导航。
+ * 同时支持普通布局或多应用挂载的页面使用此入口，并在缺少 provider 时保留自身导航。
+ */
+export const useOptionalProjectSecondaryMenu = (
+  options: UseProjectSecondaryMenuOptions,
+): UseProjectSecondaryMenuResult | undefined => {
+  const context = inject(PROJECT_SECONDARY_MENU_KEY)
+  return context ? createProjectSecondaryMenu(context, options) : undefined
+}
+
+/**
+ * 将一级菜单页面内的 Tab 注册到项目二级导航，并以 URL query 保存选中状态。
+ * 只用于确定处于项目布局内的页面；跨布局页面应使用 useOptionalProjectSecondaryMenu。
+ */
+export const useProjectSecondaryMenu = (
+  options: UseProjectSecondaryMenuOptions,
+): UseProjectSecondaryMenuResult => {
+  const result = useOptionalProjectSecondaryMenu(options)
+
+  if (!result) {
+    throw new Error('useProjectSecondaryMenu must be used inside ProjectLayoutPage')
+  }
+
+  return result
 }

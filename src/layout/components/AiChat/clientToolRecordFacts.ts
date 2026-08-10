@@ -30,7 +30,7 @@ interface NumberProfile {
 }
 
 interface CategoryProfile {
-  role: 'category' | 'identifier' | 'state'
+  role: 'category' | 'label' | 'identifier' | 'state'
   count: number
   nullCount: number
   values: Set<string>
@@ -53,7 +53,7 @@ const isRecord = (value: unknown): value is JsonRecord => (
 )
 
 const isCategoryProfile = (profile: MutableFieldProfile): profile is CategoryProfile => (
-  profile.role === 'category' || profile.role === 'identifier' || profile.role === 'state'
+  profile.role === 'category' || profile.role === 'label' || profile.role === 'identifier' || profile.role === 'state'
 )
 
 const isOpaqueProfile = (profile: MutableFieldProfile): profile is OpaqueProfile => profile.role === 'geo_point'
@@ -61,7 +61,7 @@ const isOpaqueProfile = (profile: MutableFieldProfile): profile is OpaqueProfile
 const normalizeSemanticRole = (value: unknown): SemanticRole | undefined => {
   const role = String(value || '').trim().toLowerCase()
   return [
-    'timestamp', 'number', 'category', 'longitude', 'latitude', 'geo_point', 'identifier', 'state', 'duration',
+    'timestamp', 'number', 'category', 'label', 'longitude', 'latitude', 'geo_point', 'identifier', 'state', 'duration',
   ].includes(role) ? role as SemanticRole : undefined
 }
 
@@ -120,7 +120,7 @@ const numericValue = (value: unknown) => {
 }
 
 const createFieldProfile = (role: SemanticRole): MutableFieldProfile => {
-  if (role === 'category' || role === 'identifier' || role === 'state') {
+  if (role === 'category' || role === 'label' || role === 'identifier' || role === 'state') {
     return { role, count: 0, nullCount: 0, values: new Set(), valuesTruncated: false }
   }
   if (role === 'geo_point') return { role, count: 0, nullCount: 0 }

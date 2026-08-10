@@ -1,6 +1,17 @@
 import { isSupportedAiClientToolBindingPath } from './clientToolBindingPath'
 
 export const AI_CLIENT_TOOL_ROUTING_EXPAND_KEY = 'x-ai-routing'
+export const AI_CLIENT_TOOL_EFFECT_EXPAND_KEY = 'effect'
+export const AI_CLIENT_TOOL_PORT_VERSION = 'ai-tool-port/v1' as const
+
+export const AI_CLIENT_TOOL_RESOURCE_TYPES = [
+  'structured-data',
+  'artifact',
+  'state',
+  'presentation',
+] as const
+
+export const AI_CLIENT_TOOL_SOURCE_POLICIES = ['CONTEXT', 'TOOL', 'EITHER'] as const
 
 export const AI_CLIENT_TOOL_ROUTING_STAGES = [
   'navigation',
@@ -27,6 +38,22 @@ export type AiClientToolRoutingExposure = 'auto' | 'eager' | 'deferred'
 export type AiClientToolRoutingCost = 'low' | 'medium' | 'high'
 export type AiClientToolEvidencePolicy = 'auto' | 'required' | 'optional' | 'none'
 export type AiClientToolRoutingStatus = 'valid' | 'missing' | 'malformed'
+export type AiClientToolResourceType = typeof AI_CLIENT_TOOL_RESOURCE_TYPES[number]
+export type AiClientToolSourcePolicy = typeof AI_CLIENT_TOOL_SOURCE_POLICIES[number]
+
+/** Stable producer identity compiled together with the result binding; physical paths remain runtime facts. */
+export interface AiClientToolProducerPort {
+  name: string
+  type: AiClientToolResourceType
+  mediaType: string
+  shape: string
+}
+
+/** Static consumer requirement. Source policy constrains provenance but never identifies a producer or argument. */
+export interface AiClientToolConsumerPort extends AiClientToolProducerPort {
+  required: boolean
+  sourcePolicy: AiClientToolSourcePolicy
+}
 
 export interface AiClientToolRoutingIntentSection {
   intent: string
@@ -45,6 +72,9 @@ export interface AiClientToolRoutingHelp {
  * discover an already authorized tool, but never grants permission or changes its handler.
  */
 export interface AiClientToolRoutingMetadata {
+  portVersion?: typeof AI_CLIENT_TOOL_PORT_VERSION
+  consumerPorts?: AiClientToolConsumerPort[]
+  producerPorts?: AiClientToolProducerPort[]
   aliases?: string[]
   capabilities?: string[]
   accepts?: string[]
@@ -146,6 +176,14 @@ export interface AiClientToolRoutingSource extends Record<string, unknown> {
   routing?: AiClientToolRoutingMetadata
   expands?: Record<string, unknown>
   _meta?: Record<string, unknown>
+}
+
+export const resolveAiClientToolCanonicalEffect = (tool: AiClientToolRoutingSource) => {
+  if (!isRecord(tool._meta)) return undefined
+  const definition = tool._meta.clientToolDefinition
+  if (!isRecord(definition) || definition.version !== 'client-tool-definition/v1') return undefined
+  const effect = normalizeText(definition.effect).toUpperCase()
+  return (['READ', 'WRITE', 'EXTERNAL_ACTION'] as const).find(candidate => candidate === effect)
 }
 
 export interface AiClientToolRoutingIssue {
@@ -284,8 +322,46 @@ const normalizeEnum = <T extends string>(value: unknown, allowed: readonly T[]) 
   return allowed.includes(normalized as T) ? normalized as T : undefined
 }
 
+const normalizeProducerPort = (value: unknown): AiClientToolProducerPort | undefined => {
+  if (!isRecord(value)) return undefined
+  const name = normalizeText(value.name, 160).toLowerCase()
+  const type = normalizeEnum(value.type, AI_CLIENT_TOOL_RESOURCE_TYPES)
+  const mediaType = normalizeText(value.mediaType, 160).toLowerCase()
+  const shape = normalizeText(value.shape, 160).toLowerCase()
+  if (!name || !type || !mediaType || !shape) return undefined
+  return { name, type, mediaType, shape }
+}
+
+const normalizePorts = <T>(value: unknown, mapper: (item: unknown) => T | undefined): T[] => {
+  if (!Array.isArray(value)) return []
+  const ports: T[] = []
+  value.slice(0, MAX_ROUTING_ITEMS).forEach((item) => {
+    const port = mapper(item)
+    if (port) ports.push(port)
+  })
+  return ports
+}
+
+const normalizeConsumerPort = (value: unknown): AiClientToolConsumerPort | undefined => {
+  const producer = normalizeProducerPort(value)
+  if (!producer || !isRecord(value)) return undefined
+  const normalizedSourcePolicy = normalizeText(value.sourcePolicy).toUpperCase()
+  const sourcePolicy = AI_CLIENT_TOOL_SOURCE_POLICIES.includes(
+    normalizedSourcePolicy as AiClientToolSourcePolicy,
+  )
+    ? normalizedSourcePolicy as AiClientToolSourcePolicy
+    : undefined
+  if (!sourcePolicy || typeof value.required !== 'boolean') return undefined
+  return { ...producer, required: value.required, sourcePolicy }
+}
+
 const normalizeRoutingRecord = (value: unknown): AiClientToolRoutingMetadata | undefined => {
   if (!isRecord(value)) return undefined
+  const portVersion = value.portVersion === AI_CLIENT_TOOL_PORT_VERSION
+    ? AI_CLIENT_TOOL_PORT_VERSION
+    : undefined
+  const consumerPorts = normalizePorts(value.consumerPorts, normalizeConsumerPort)
+  const producerPorts = normalizePorts(value.producerPorts, normalizeProducerPort)
   const aliases = normalizeNaturalLanguageList(value.aliases, MAX_ALIASES, MAX_ALIAS_LENGTH)
   const capabilities = normalizeList(value.capabilities)
   const accepts = normalizeList(value.accepts)
@@ -306,6 +382,9 @@ const normalizeRoutingRecord = (value: unknown): AiClientToolRoutingMetadata | u
   const help = normalizeHelp(value.help)
   const validationHints = normalizeList(value.validationHints)
   const result: AiClientToolRoutingMetadata = {
+    ...(portVersion ? { portVersion } : {}),
+    ...(consumerPorts.length ? { consumerPorts } : {}),
+    ...(producerPorts.length ? { producerPorts } : {}),
     ...(aliases.length ? { aliases } : {}),
     ...(capabilities.length ? { capabilities } : {}),
     ...(accepts.length ? { accepts } : {}),
@@ -386,6 +465,19 @@ export const validateAiClientToolRoutingMetadata = (
 
   const source = declared || raw
   if (!source) return { status: 'malformed', issues }
+  const declaredSource = hasDeclared && isRecord(tool.routing) ? tool.routing : rawValue
+  if (isRecord(declaredSource) && declaredSource.portVersion !== undefined
+    && declaredSource.portVersion !== AI_CLIENT_TOOL_PORT_VERSION) {
+    addIssue(issues, 'invalid_port_version', 'portVersion', 'unsupported canonical tool port version')
+  }
+  if (isRecord(declaredSource) && Array.isArray(declaredSource.consumerPorts)
+    && source.consumerPorts?.length !== declaredSource.consumerPorts.length) {
+    addIssue(issues, 'invalid_consumer_port', 'consumerPorts', 'consumer ports must declare a complete canonical descriptor')
+  }
+  if (isRecord(declaredSource) && Array.isArray(declaredSource.producerPorts)
+    && source.producerPorts?.length !== declaredSource.producerPorts.length) {
+    addIssue(issues, 'invalid_producer_port', 'producerPorts', 'producer ports must declare a complete canonical descriptor')
+  }
   if (!source.capabilities?.length) addIssue(issues, 'required', 'capabilities', 'at least one capability is required')
   if (!source.stages?.length) addIssue(issues, 'required', 'stages', 'at least one workflow stage is required')
   if (source.dataAccessModes?.length && !source.resultDeliveries?.length) {
@@ -698,10 +790,13 @@ export const normalizeAiClientToolRoutingMetadata = (tool: AiClientToolRoutingSo
  */
 export const toAiClientToolSessionDefinition = <T extends AiClientToolRoutingSource>(tool: T) => {
   const routing = normalizeAiClientToolRoutingMetadata(tool)
+  const effect = resolveAiClientToolCanonicalEffect(tool)
   const explicitExpands = isRecord(tool.expands) ? { ...tool.expands } : {}
   delete explicitExpands[AI_CLIENT_TOOL_ROUTING_EXPAND_KEY]
+  delete explicitExpands[AI_CLIENT_TOOL_EFFECT_EXPAND_KEY]
   const expands = {
     ...explicitExpands,
+    ...(effect ? { [AI_CLIENT_TOOL_EFFECT_EXPAND_KEY]: effect } : {}),
     ...(routing ? { [AI_CLIENT_TOOL_ROUTING_EXPAND_KEY]: routing } : {}),
   }
   const id = normalizeText(tool.id, 128)
