@@ -12,7 +12,10 @@ import type {
   AiClientToolInput,
   AiClientToolParameterSchema,
 } from './clientTools'
-import type { ClientToolInputAlternative } from './clientToolDefinition'
+import {
+  clientToolResult,
+  type ClientToolInputAlternative,
+} from './clientToolDefinition'
 
 export {
   searchDomainAgentItems,
@@ -64,6 +67,34 @@ export interface DomainAgentToolResult<T> {
   navigation?: DomainAgentNavigation[]
   evidence?: AiClientToolEvidence
   outputBindings?: AiClientToolOutputBinding[]
+}
+
+/**
+ * Moves domain execution facts into the typed result contract before the definition adapter builds evidence.
+ * Logical output names, paths and shapes remain definition-owned.
+ */
+export const adaptDomainAgentClientToolResult = <TResult extends DomainAgentToolResult<unknown>>(
+  result: TResult,
+) => {
+  if (result.success === false) return result
+  const evidence = result.evidence
+  const options = {
+    summary: result.summary,
+    requestedRange: evidence?.requestedRange,
+    observedRange: evidence?.observedRange,
+    cardinality: evidence?.cardinality,
+    claims: evidence?.claims,
+    supportsAbsenceClaim: evidence?.supportsAbsenceClaim,
+    facts: evidence?.facts,
+    warnings: result.warnings,
+    limitReason: evidence?.limitReason,
+  }
+  return result.complete === false || result.truncated === true
+    ? clientToolResult.partial(result, { ...options, status: result.status })
+    : clientToolResult.success(result, {
+        ...options,
+        status: result.status === 'empty' ? 'empty' : 'ok',
+      })
 }
 
 export type DomainAgentCardinality = AiClientToolCardinality
@@ -176,11 +207,13 @@ export const createDomainAgentClaim = (
   label: string,
   value: string | number | boolean,
   format?: string,
+  semantics: Pick<AiClientToolClaim, 'binding' | 'measure' | 'statistic' | 'unit'> = {},
 ): AiClientToolClaim => ({
   id,
   label,
   value,
   ...(format ? { format } : {}),
+  ...semantics,
   visibility: 'user',
 })
 

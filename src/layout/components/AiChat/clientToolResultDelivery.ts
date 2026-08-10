@@ -174,12 +174,15 @@ export interface DeliverAiClientToolResultOptions {
   bindingName?: string
   /** Single canonical output shape declared by the executing tool's routing metadata. */
   outputShape?: string
+  /** Canonical producer category for single-output legacy materialization helpers. */
+  outputType?: string
   /** Declarative paths for inline values advertised through routing.produces. */
   outputBindings?: AiClientToolResultBindingDefinition[]
 }
 
 export interface AiClientToolResultBindingDefinition {
   name: string
+  type?: string
   label?: string
   path: string
   shape: string
@@ -696,7 +699,7 @@ const mergeDeliveryResult = <T>(
   stream: AiClientToolRecordStream<T>,
   envelope: JsonRecord | undefined,
   data: AiClientToolRecordDeliveryData<T>,
-  binding: { name: string; label?: string; shape: string },
+  binding: { name: string; label?: string; type?: string; shape: string },
 ) => {
   const originalSummary = isRecord(envelope?.summary) ? envelope.summary : {}
   const declaredEvidence = isRecord(envelope?.evidence) ? envelope.evidence : {}
@@ -710,6 +713,12 @@ const mergeDeliveryResult = <T>(
     : []
   const bindingName = binding.name
   const outputShape = binding.shape
+  const bindingRequestedRange = stream.timeRange || (isRecord(declaredEvidence.requestedRange)
+    ? declaredEvidence.requestedRange
+    : undefined)
+  const bindingObservedRange = data.observedRange || (isRecord(declaredEvidence.observedRange)
+    ? declaredEvidence.observedRange
+    : undefined)
   const bindingFields = stream.fields?.length
     ? stream.fields.map(field => ({ ...field }))
     : collectAiClientToolSemanticFields(stream.schema).map(field => ({
@@ -723,7 +732,8 @@ const mergeDeliveryResult = <T>(
       }))
   const outputBindings: AiClientToolOutputBinding[] = data.producedFile && data.fileRef
     ? [{
-        name: bindingName,
+      name: bindingName,
+      ...(binding.type ? { type: binding.type } : {}),
         ...(binding.label ? { label: binding.label } : {}),
         ref: data.fileRef,
         shape: outputShape,
@@ -731,8 +741,8 @@ const mergeDeliveryResult = <T>(
         recordCount: data.count,
         complete: data.complete,
         truncated: data.truncated,
-        ...(stream.timeRange ? { requestedRange: stream.timeRange } : {}),
-        ...(data.observedRange ? { observedRange: data.observedRange } : {}),
+        ...(bindingRequestedRange ? { requestedRange: bindingRequestedRange } : {}),
+        ...(bindingObservedRange ? { observedRange: bindingObservedRange } : {}),
         coverage: {
           complete: data.complete,
           truncated: data.truncated,
@@ -742,7 +752,8 @@ const mergeDeliveryResult = <T>(
         ...(stream.ordering ? { ordering: stream.ordering } : {}),
       }]
     : [{
-        name: bindingName,
+      name: bindingName,
+      ...(binding.type ? { type: binding.type } : {}),
         ...(binding.label ? { label: binding.label } : {}),
         path: '$.data.sample',
         shape: outputShape,
@@ -750,8 +761,8 @@ const mergeDeliveryResult = <T>(
         recordCount: data.sample.length,
         complete: data.complete,
         truncated: data.truncated,
-        ...(stream.timeRange ? { requestedRange: stream.timeRange } : {}),
-        ...(data.observedRange ? { observedRange: data.observedRange } : {}),
+        ...(bindingRequestedRange ? { requestedRange: bindingRequestedRange } : {}),
+        ...(bindingObservedRange ? { observedRange: bindingObservedRange } : {}),
         coverage: {
           complete: data.complete,
           truncated: data.truncated,
@@ -849,6 +860,7 @@ const resolveRecordStreamBinding = <T>(
   }
   return {
     name: declaredBindingName || expectedBindingName || 'records',
+    ...(options.outputType ? { type: options.outputType } : {}),
     ...(declaredBindingLabel ? { label: declaredBindingLabel } : {}),
     shape: declaredOutputShape || expectedOutputShape || 'tabular.records',
   }
@@ -875,6 +887,7 @@ const resolveArtifactBinding = <TPreview>(
   }
   return {
     name: declaredBindingName || expectedBindingName || 'artifact',
+    ...(options.outputType ? { type: options.outputType } : {}),
     ...(declaredBindingLabel ? { label: declaredBindingLabel } : {}),
     shape: declaredOutputShape || expectedOutputShape || 'artifact',
   }
@@ -884,7 +897,7 @@ const mergeArtifactResult = <TPreview>(
   artifact: AiClientToolArtifact<TPreview>,
   envelope: JsonRecord | undefined,
   delivery: AiClientToolArtifactDeliveryData<TPreview>,
-  binding: { name: string; label?: string; shape: string },
+  binding: { name: string; label?: string; type?: string; shape: string },
 ) => {
   const declaredEvidence = isRecord(envelope?.evidence) ? envelope.evidence : {}
   const recordPath = artifact.recordPath === undefined
@@ -911,6 +924,7 @@ const mergeArtifactResult = <TPreview>(
   const outputBindings: AiClientToolOutputBinding[] = delivery.producedFile && delivery.fileRef
     ? [{
         name: binding.name,
+        ...(binding.type ? { type: binding.type } : {}),
         ...(binding.label ? { label: binding.label } : {}),
         ref: delivery.fileRef,
         ...(delivery.path ? { path: delivery.path } : {}),
@@ -928,6 +942,7 @@ const mergeArtifactResult = <TPreview>(
     : inlineSourceAvailable
       ? [{
           name: binding.name,
+          ...(binding.type ? { type: binding.type } : {}),
           ...(binding.label ? { label: binding.label } : {}),
           path: '$.data.presentationSource',
           ...(recordPath ? { recordPath } : {}),

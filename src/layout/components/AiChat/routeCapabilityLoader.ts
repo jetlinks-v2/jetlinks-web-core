@@ -274,7 +274,10 @@ const createCapabilityLoaderTool = (
       valueType: 'boolean',
     },
   ],
-  consumes: [{ name: 'session-context', optional: true, source: 'CONTEXT' }],
+  consumes: [{
+    name: 'session-context', type: 'structured-data', mediaType: 'application/json',
+    shape: 'session.context', required: false, sourcePolicy: 'CONTEXT',
+  }],
   effect: { kind: 'READ' },
   output: clientToolOutput.lookup({
     name: 'client-tool-catalog',

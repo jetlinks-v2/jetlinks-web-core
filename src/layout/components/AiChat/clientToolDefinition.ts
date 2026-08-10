@@ -6,6 +6,8 @@ import {
 } from './clientToolContract'
 import {
   createAiClientToolFailureResult,
+  type AiClientToolCardinality,
+  type AiClientToolClaim,
   type AiClientToolFailureOptions,
   type AiClientToolOutputField,
   type AiClientToolOrdering,
@@ -21,6 +23,10 @@ import type {
   AiClientToolInput,
   AiClientToolValueType,
 } from './clientTools'
+import type {
+  AiClientToolResourceType,
+  AiClientToolSourcePolicy,
+} from './clientToolRouting'
 
 export const CLIENT_TOOL_DEFINITION_VERSION = 'client-tool-definition/v1' as const
 export const CLIENT_TOOL_DEFINITION_META_KEY = 'clientToolDefinition' as const
@@ -80,11 +86,35 @@ export interface ClientToolInputAlternative {
   forbidden?: readonly string[]
 }
 
-export interface ClientToolConsumedResource {
+export interface ClientToolCanonicalConsumedResource {
+  name: string
+  type: AiClientToolResourceType
+  mediaType: string
+  shape: string
+  required: boolean
+  sourcePolicy: AiClientToolSourcePolicy
+  optional?: never
+  source?: never
+}
+
+/**
+ * Released client-tool modules may still provide the former name-only consumer declaration. It is projected only to
+ * flat discovery metadata and never promoted to a canonical descriptor whose representation cannot be proven.
+ */
+export interface ClientToolLegacyConsumedResource {
   name: string
   optional?: boolean
-  source?: 'CONTEXT' | 'TOOL' | 'EITHER'
+  source?: AiClientToolSourcePolicy
+  type?: never
+  mediaType?: never
+  shape?: never
+  required?: never
+  sourcePolicy?: never
 }
+
+export type ClientToolConsumedResource =
+  | ClientToolCanonicalConsumedResource
+  | ClientToolLegacyConsumedResource
 
 export interface ClientToolPresentation {
   displayName?: string
@@ -130,6 +160,8 @@ export type ClientToolEffect<TContext = Record<string, unknown>> =
 
 interface ClientToolOutputBase<TResult> {
   name: string
+  type?: AiClientToolResourceType
+  mediaType?: string
   shape: string
   label?: string
   fields?: readonly AiClientToolOutputField[]
@@ -140,6 +172,15 @@ interface ClientToolOutputBase<TResult> {
    * The logical output name and shape remain static; only renderer-neutral field metadata may vary.
    */
   resolveFields?: (result: TResult, selectedValue: unknown) => readonly AiClientToolOutputField[]
+  /**
+   * Resolves the user-facing label from producer-declared execution fields. Stable binding identity and shape remain
+   * owned by the static contract; the resolver must not infer semantics from tool ids or physical field names.
+   */
+  resolveLabel?: (
+    result: TResult,
+    selectedValue: unknown,
+    fields: readonly AiClientToolOutputField[],
+  ) => string | undefined
   optional?: boolean
   select?: (result: TResult) => unknown
 }
@@ -154,7 +195,6 @@ export interface ClientToolDetailOutput<TResult = unknown> extends ClientToolOut
 
 export interface ClientToolRecordSetOutput<TResult = unknown> extends ClientToolOutputBase<TResult> {
   kind: 'recordSet'
-  mediaType?: string
 }
 
 export interface ClientToolAggregateSeriesOutput<TResult = unknown> extends ClientToolOutputBase<TResult> {
@@ -184,6 +224,9 @@ export interface ClientToolSuccessOptions {
   summary?: Record<string, unknown>
   requestedRange?: Record<string, unknown>
   observedRange?: Record<string, unknown>
+  cardinality?: AiClientToolCardinality
+  claims?: AiClientToolClaim[]
+  supportsAbsenceClaim?: boolean
   facts?: Record<string, unknown>
   warnings?: string[]
 }
@@ -203,6 +246,9 @@ interface ClientToolExecutionSuccess<TResult> {
   summary?: Record<string, unknown>
   requestedRange?: Record<string, unknown>
   observedRange?: Record<string, unknown>
+  cardinality?: AiClientToolCardinality
+  claims?: AiClientToolClaim[]
+  supportsAbsenceClaim?: boolean
   facts?: Record<string, unknown>
   warnings?: string[]
   limitReason?: string
@@ -229,6 +275,11 @@ export const clientToolResult = {
     ...(options.summary ? { summary: options.summary } : {}),
     ...(options.requestedRange ? { requestedRange: options.requestedRange } : {}),
     ...(options.observedRange ? { observedRange: options.observedRange } : {}),
+    ...(options.cardinality ? { cardinality: options.cardinality } : {}),
+    ...(options.claims?.length ? { claims: options.claims.map(claim => ({ ...claim })) } : {}),
+    ...(options.supportsAbsenceClaim !== undefined
+      ? { supportsAbsenceClaim: options.supportsAbsenceClaim }
+      : {}),
     ...(options.facts ? { facts: options.facts } : {}),
     ...(options.warnings?.length ? { warnings: [...options.warnings] } : {}),
   }),
@@ -242,6 +293,11 @@ export const clientToolResult = {
     ...(options.summary ? { summary: options.summary } : {}),
     ...(options.requestedRange ? { requestedRange: options.requestedRange } : {}),
     ...(options.observedRange ? { observedRange: options.observedRange } : {}),
+    ...(options.cardinality ? { cardinality: options.cardinality } : {}),
+    ...(options.claims?.length ? { claims: options.claims.map(claim => ({ ...claim })) } : {}),
+    ...(options.supportsAbsenceClaim !== undefined
+      ? { supportsAbsenceClaim: options.supportsAbsenceClaim }
+      : {}),
     ...(options.facts ? { facts: options.facts } : {}),
     ...(options.warnings?.length ? { warnings: [...options.warnings] } : {}),
     ...(options.limitReason ? { limitReason: options.limitReason } : {}),
@@ -370,12 +426,38 @@ const resolveActivation = (activation: ClientToolActivation | undefined) => {
 
 const outputSlotPath = (index: number) => `$.__clientToolOutputs.output${index}`
 
+const CANONICAL_CONSUMER_FIELDS = ['type', 'mediaType', 'shape', 'required', 'sourcePolicy'] as const
+
+const hasOwn = (value: object, key: PropertyKey) => Object.prototype.hasOwnProperty.call(value, key)
+
+const isCanonicalConsumer = (
+  value: ClientToolConsumedResource,
+): value is ClientToolCanonicalConsumedResource => CANONICAL_CONSUMER_FIELDS.every(key => hasOwn(value, key))
+
+const isLegacyConsumer = (
+  value: ClientToolConsumedResource,
+): value is ClientToolLegacyConsumedResource => CANONICAL_CONSUMER_FIELDS.every(key => !hasOwn(value, key))
+
+const compileConsumedResources = (consumes: readonly ClientToolConsumedResource[]) => {
+  if (!consumes.length) return { canonical: [] as ClientToolCanonicalConsumedResource[], legacy: [] as ClientToolLegacyConsumedResource[] }
+  const canonical = consumes.filter(isCanonicalConsumer)
+  const legacy = consumes.filter(isLegacyConsumer)
+  if (canonical.length !== consumes.length && legacy.length !== consumes.length) {
+    throw new Error('Client tool consumers must use either canonical descriptors or legacy name-only declarations')
+  }
+  return { canonical, legacy }
+}
+
 const compileOutputContract = <TResult>(
   output: ClientToolOutput<TResult>,
   index: number,
 ): AiClientToolOutputContract => {
   const shared = {
     name: normalizedText(output.name),
+    type: output.type || (output.kind === 'artifact'
+      ? 'artifact'
+      : output.kind === 'stateChange' ? 'state' : 'structured-data'),
+    mediaType: normalizedText(output.mediaType || 'application/json'),
     shape: normalizedText(output.shape),
     ...(output.label ? { label: output.label } : {}),
     ...(output.fields?.length ? { fields: output.fields.map(field => ({ ...field })) } : {}),
@@ -412,23 +494,38 @@ const compileContract = <TResult>(
 ) => {
   const { capabilities } = normalizeDescription(definition.description)
   const consumes = definition.consumes || []
+  const compiledConsumes = compileConsumedResources(consumes)
   const routingKind = resolveRoutingKind(definition.effect, outputs)
-  return defineAiClientToolContract({
+  const contract = defineAiClientToolContract({
     routingKind,
     routing: {
       capabilities,
       ...(definition.description.aliases?.length ? { aliases: uniqueText(definition.description.aliases) } : {}),
       ...(definition.description.intents?.length ? { intents: uniqueText(definition.description.intents) } : {}),
       ...(definition.description.notFor?.length ? { notFor: uniqueText(definition.description.notFor) } : {}),
-      ...(consumes.length ? { accepts: uniqueText(consumes.map(item => item.name)) } : {}),
-      ...(consumes.some(item => !item.optional) ? {
-        prerequisites: uniqueText(consumes.filter(item => !item.optional).map(item => item.name)),
-      } : {}),
       exposure: resolveActivation(definition.description.activation),
       ...(definition.effect.kind === 'READ' ? {} : { cost: 'medium' as const }),
     },
+    inputs: compiledConsumes.canonical.map(input => ({ ...input })),
     outputs: outputs.map(compileOutputContract),
   })
+  if (!compiledConsumes.legacy.length) return contract
+
+  // A name-only legacy consumer keeps its released discovery behavior without fabricating canonical identity.
+  const accepts = uniqueText(compiledConsumes.legacy.map(input => input.name))
+  const prerequisites = uniqueText(compiledConsumes.legacy.filter(input => !input.optional).map(input => input.name))
+  return {
+    ...contract,
+    routing: {
+      ...contract.routing,
+      ...(accepts.length ? { accepts } : {}),
+      ...(prerequisites.length ? { prerequisites } : {}),
+    },
+    _meta: {
+      ...contract._meta,
+      ...(prerequisites.length ? { prerequisites } : {}),
+    },
+  }
 }
 
 const compileEffect = <TContext>(effect: ClientToolEffect<TContext>) => {
@@ -543,13 +640,14 @@ const prepareMaterializedValue = <TResult>(
   value: unknown,
   output: ClientToolOutput<TResult>,
   fields: readonly AiClientToolOutputField[] | undefined,
+  label: string | undefined,
 ) => {
   if (isInternalDescriptor(value, MATERIALIZED_ARTIFACT_KIND)
     || isInternalDescriptor(value, MATERIALIZED_RECORD_STREAM_KIND)) {
     return {
       ...(value as Record<string, unknown>),
       bindingName: output.name,
-      ...(output.label ? { bindingLabel: output.label } : {}),
+      ...(label ? { bindingLabel: label } : {}),
       outputShape: output.shape,
       ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
       ...(output.ordering ? { ordering: output.ordering } : {}),
@@ -560,7 +658,7 @@ const prepareMaterializedValue = <TResult>(
       source: createAiClientToolArrayRecordSource(value),
       schema: { type: 'object' },
       bindingName: output.name,
-      ...(output.label ? { bindingLabel: output.label } : {}),
+      ...(label ? { bindingLabel: label } : {}),
       outputShape: output.shape,
       ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
       ...(output.ordering ? { ordering: output.ordering } : {}),
@@ -590,6 +688,7 @@ const adaptExecutionResult = async <TResult>(
     index: number
     value: unknown
     fields?: readonly AiClientToolOutputField[]
+    label?: string
   }> = []
   for (let index = 0; index < outputs.length; index += 1) {
     const output = outputs[index]
@@ -611,20 +710,32 @@ const adaptExecutionResult = async <TResult>(
         throw createSelectionError(toolId, output.name, error)
       }
     }
-    selected.push({ output, index, value, fields })
+    let label = output.label
+    if (output.resolveLabel) {
+      try {
+        label = normalizedText(output.resolveLabel(execution.data, value, fields || [])) || label
+      } catch (error) {
+        throw createSelectionError(toolId, output.name, error)
+      }
+    }
+    selected.push({ output, index, value, fields, label })
   }
 
   const inlineValues: Record<string, unknown> = {}
   let materialized: unknown
   const inlineStates: Array<{
     name: string
+    label?: string
     path: string
+    recordCount?: number
     complete: boolean
     fields?: AiClientToolOutputField[]
     ordering?: AiClientToolOrdering
+    requestedRange?: Record<string, unknown>
+    observedRange?: Record<string, unknown>
   }> = []
-  selected.forEach(({ output, index, value, fields }) => {
-    const prepared = prepareMaterializedValue(value, output, fields)
+  selected.forEach(({ output, index, value, fields, label }) => {
+    const prepared = prepareMaterializedValue(value, output, fields, label)
     if (prepared) {
       if (materialized) throw createSelectionError(toolId, output.name)
       materialized = prepared
@@ -637,11 +748,23 @@ const adaptExecutionResult = async <TResult>(
     inlineValues[slot] = value
     inlineStates.push({
       name: output.name,
+      ...(label ? { label } : {}),
       path: outputSlotPath(index),
+      ...(Array.isArray(value) ? { recordCount: value.length } : {}),
       complete: execution.complete,
       ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
       ...(output.ordering ? { ordering: output.ordering } : {}),
+      ...(execution.requestedRange ? { requestedRange: { ...execution.requestedRange } } : {}),
+      ...(execution.observedRange ? { observedRange: { ...execution.observedRange } } : {}),
     })
+  })
+
+  const selectedOutputNames = new Set(selected.map(({ output }) => output.name))
+  const claims = (execution.claims || []).flatMap((claim) => {
+    const binding = String(claim.binding || '').trim()
+    if (binding) return selectedOutputNames.has(binding) ? [{ ...claim, binding }] : []
+    // A single selected output is unambiguous; multiple outputs must declare their claim binding.
+    return selected.length === 1 ? [{ ...claim, binding: selected[0].output.name }] : []
   })
 
   const envelope = {
@@ -658,6 +781,11 @@ const adaptExecutionResult = async <TResult>(
     truncated: execution.truncated,
     ...(execution.requestedRange ? { requestedRange: execution.requestedRange } : {}),
     ...(execution.observedRange ? { observedRange: execution.observedRange } : {}),
+    ...(execution.cardinality ? { cardinality: execution.cardinality } : {}),
+    ...(claims.length ? { claims } : {}),
+    ...(execution.supportsAbsenceClaim !== undefined
+      ? { supportsAbsenceClaim: execution.supportsAbsenceClaim }
+      : {}),
     ...(execution.facts ? { facts: execution.facts } : {}),
     ...(execution.warnings?.length ? { warnings: execution.warnings } : {}),
     ...(execution.limitReason ? { limitReason: execution.limitReason } : {}),
