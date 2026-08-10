@@ -62,6 +62,8 @@ export interface HomeAgentCapability {
 }
 
 export interface HomeAgentRuntimeOptions {
+  /** Stable scope for data-backed capability state such as project recommendations. */
+  scopeKey?: string | (() => string | undefined)
   currentView?: string | (() => string | undefined)
   contextAdapter?: HomeAgentContextAdapter
   subjectType?: string | (() => string | undefined)
@@ -124,6 +126,8 @@ export interface HomeAgentWorkflowGuide {
 }
 
 export interface HomeAgentCapabilityContext {
+  /** Runtime-owned scope used to isolate capability data between projects/tenants. */
+  scopeKey?: string
   currentRoute: {
     name?: string
     path?: string
