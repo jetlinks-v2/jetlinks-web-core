@@ -40,6 +40,7 @@ import { TagManagerSidebar } from './TagManagerSidebar'
 import ConditionFilter from './ConditionFilter'
 import QuickFilterSidebar from './QuickFilterSidebar'
 import Avatar from './Avatar/index.vue'
+import IconBadge from './IconBadge/index.vue'
 import AppTag from './AppTag/index.vue'
 import AmbientCard from './AmbientCard/index.vue'
 import ChipGroup from './ChipGroup/index.vue'
@@ -109,6 +110,7 @@ export default {
           .component('ConditionFilter', ConditionFilter)
           .component('QuickFilterSidebar', QuickFilterSidebar)
           .component('Avatar', Avatar)
+          .component('IconBadge', IconBadge)
           .component('AppTag', AppTag)
           .component('AmbientCard', AmbientCard)
           .component('ChipGroup', ChipGroup)
@@ -143,6 +145,7 @@ export default {
 }
 
 export {
+    IconBadge,
     MenuAssetPermissionEditor,
     DetailHeader,
     PageHeader,
