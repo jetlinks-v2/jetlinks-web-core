@@ -67,6 +67,43 @@ const getDefaultOwnParams = (): any[] => [
     // }
 ]
 
+const developmentGatewayVisionModelTestMenu = {
+  code: 'machine-vision/GatewayVisionModelTest',
+  name: '网关视觉模型（测试）',
+  url: '/machine-vision/GatewayVisionModelTest',
+  icon: 'icon-shebeishuchu',
+  options: {
+    show: true,
+  },
+}
+
+const mergeDevelopmentMachineVisionMenus = (menus: any[]) => {
+  let hasMachineVisionMenu = false
+
+  const mergeMenus = (items: any[]): any[] => items.map(item => {
+    if (item.code === 'machine-vision') {
+      hasMachineVisionMenu = true
+      return {
+        ...item,
+        children: [
+          ...(item.children || []).filter(child => (
+            child.code !== developmentGatewayVisionModelTestMenu.code
+          )),
+          developmentGatewayVisionModelTestMenu,
+        ],
+      }
+    }
+
+    return item.children?.length
+      ? { ...item, children: mergeMenus(item.children) }
+      : item
+  })
+
+  // The runtime menu is not provisioned yet; expose this temporary local entry only in development.
+  const mergedMenus = mergeMenus(menus)
+  return hasMachineVisionMenu ? mergedMenus : menus
+}
+
 const shouldShowOverrideRoute = (
   route: RouteRecordRaw,
   context?: RouteHideInMenuContext,
@@ -277,7 +314,10 @@ export const useMenuStore = defineStore('menu', () => {
       sorts: [{ name: 'sortIndex', order: 'asc' }],
     })
 
-    const menuResult = Array.isArray(resp.result) ? resp.result : []
+    const serverMenuResult = Array.isArray(resp.result) ? resp.result : []
+    const menuResult = import.meta.env.DEV
+      ? mergeDevelopmentMachineVisionMenus(serverMenuResult)
+      : serverMenuResult
     runtime.menuResultCache.value = JSON.parse(JSON.stringify(menuResult))
 
     if (app.appList.length > 0) {
