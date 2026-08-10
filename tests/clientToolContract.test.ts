@@ -24,6 +24,7 @@ import {
 } from '../src/layout/components/AiChat/clientToolResultDelivery'
 import { createAiClientToolRecordFactCollector } from '../src/layout/components/AiChat/clientToolRecordFacts'
 import {
+  normalizeAiClientToolOutputBindings,
   normalizeAiClientToolOrdering,
   withAiClientToolEvidence,
 } from '../src/layout/components/AiChat/clientToolResult'
@@ -72,7 +73,10 @@ test('stable client-tool facade compiles business facts without inferring resour
       intents: ['read test records'],
     },
     inputs: [{ id: 'deviceId', required: true, valueType: 'string' }],
-    consumes: [{ name: 'subject-property-id', optional: true, source: 'TOOL' }],
+    consumes: [{
+      name: 'subject-property-id', type: 'structured-data', mediaType: 'text/plain',
+      shape: 'subject.property-identifier', required: false, sourcePolicy: 'TOOL',
+    }],
     effect: { kind: 'READ' },
     output: clientToolOutput.recordSet<{ items: unknown[] }>({
       name: 'test-records',
@@ -121,9 +125,14 @@ test('aggregate facade exposes renderer-neutral data without deriving a browser 
       label: 'Online rate',
       shape: 'metric.time-series',
       fields: [
-        { name: 'label', semanticRole: 'category' },
+        { name: 'timestamp', semanticRole: 'timestamp' },
+        { name: 'label', semanticRole: 'label' },
         { name: 'value', semanticRole: 'number', format: 'percent' },
       ],
+      ordering: {
+        keys: [{ field: 'timestamp', direction: 'asc' }],
+        producerGuaranteed: true,
+      },
       select: (result) => {
         selections += 1
         return result.points
@@ -141,6 +150,16 @@ test('aggregate facade exposes renderer-neutral data without deriving a browser 
   assert.equal(selections, 1)
   assert.deepEqual(prepared.__clientToolOutputs.output0, points)
   assert.equal(prepared.data, undefined)
+  assert.deepEqual(prepared.outputBindings[0].requestedRange, { label: '24h' })
+  assert.deepEqual(prepared.outputBindings[0].fields, [
+    { name: 'timestamp', semanticRole: 'timestamp' },
+    { name: 'label', semanticRole: 'label' },
+    { name: 'value', semanticRole: 'number', format: 'percent' },
+  ])
+  assert.deepEqual(prepared.outputBindings[0].ordering, {
+    keys: [{ field: 'timestamp', direction: 'asc' }],
+    producerGuaranteed: true,
+  })
 
   const delivered = await deliverAiClientToolResult(prepared, {
     call: { id: 'trend', toolName: tool.id },
@@ -157,9 +176,148 @@ test('aggregate facade exposes renderer-neutral data without deriving a browser 
       name: 'online-rate-series',
       label: 'Online rate',
       shape: 'metric.time-series',
-      mediaType: undefined,
+      mediaType: 'application/json',
     },
   ])
+})
+
+test('binding normalization preserves display-only label semantics', () => {
+  const [binding] = normalizeAiClientToolOutputBindings([{
+    name: 'series',
+    path: '$.series',
+    shape: 'metric.time-series',
+    complete: true,
+    fields: [
+      { name: 'display', semanticRole: 'label' },
+      { name: 'invalid', semanticRole: 'unknown' as any },
+    ],
+  }])
+
+  assert.deepEqual(binding.fields, [{ name: 'display', semanticRole: 'label' }])
+})
+
+test('typed aggregate execution facts survive standard adaptation and delivery', async () => {
+  const points = [
+    { time: 1_785_387_600_000, energy: 12 },
+    { time: 1_785_391_200_000, energy: 18 },
+  ]
+  const tool = defineClientTool({
+    id: 'test_facility_energy_aggregate',
+    description: {
+      text: 'Read a facility energy aggregate',
+      capabilities: ['facility.energy.aggregate'],
+    },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'facility-energy-series',
+      shape: 'metric.time-series',
+      fields: [
+        { name: 'time', semanticRole: 'timestamp' },
+        { name: 'energy', semanticRole: 'number', measure: 'energy', unit: 'kwh', aggregation: 'sum' },
+      ],
+      select: (result: { points: typeof points }) => result.points,
+    }),
+    execute: () => clientToolResult.success({ points }, {
+      cardinality: {
+        kind: 'aggregate-series',
+        bucketCount: 24,
+        populatedBucketCount: 2,
+        measurementCount: 2,
+      },
+      claims: [{
+        id: 'energy-total',
+        label: 'Total energy',
+        value: 30,
+        measure: 'energy',
+        statistic: 'sum',
+        unit: 'kwh',
+        visibility: 'user',
+      }],
+      supportsAbsenceClaim: false,
+    }),
+  })
+  const prepared = await tool.execute(
+    {},
+    {},
+    { id: 'facility-energy-call', toolName: tool.id },
+  )
+  const delivered = await deliverAiClientToolResult(prepared, {
+    call: { id: 'facility-energy-call', toolName: tool.id },
+    outputBindings: tool._meta?.resultBindings,
+  }) as any
+
+  assert.deepEqual(delivered.evidence.cardinality, {
+    kind: 'aggregate-series',
+    bucketCount: 24,
+    populatedBucketCount: 2,
+    measurementCount: 2,
+  })
+  assert.equal(delivered.evidence.claims[0].binding, 'facility-energy-series')
+  assert.equal(delivered.evidence.claims[0].statistic, 'sum')
+  assert.equal(delivered.evidence.supportsAbsenceClaim, false)
+  assert.deepEqual(delivered.evidence.outputBindings.map((binding: any) => ({
+    name: binding.name,
+    shape: binding.shape,
+    recordCount: binding.recordCount,
+  })), [{
+    name: 'facility-energy-series',
+    shape: 'metric.time-series',
+    recordCount: 2,
+  }])
+})
+
+test('typed claims fail closed when multiple outputs do not identify a binding', async () => {
+  const tool = defineClientTool({
+    id: 'test_multi_output_claims',
+    description: { text: 'Read two independent outputs', capabilities: ['test.multi.read'] },
+    effect: { kind: 'READ' },
+    output: [
+      clientToolOutput.lookup({ name: 'first-output', shape: 'test.ids', select: (result: any) => result.first }),
+      clientToolOutput.lookup({ name: 'second-output', shape: 'test.ids', select: (result: any) => result.second }),
+    ],
+    execute: () => clientToolResult.success({ first: ['one'], second: ['two'] }, {
+      claims: [
+        { id: 'ambiguous', label: 'Ambiguous', value: 2, visibility: 'user' },
+        { id: 'bound', label: 'Bound', value: 1, binding: 'first-output', visibility: 'user' },
+        { id: 'undeclared', label: 'Undeclared', value: 1, binding: 'missing-output', visibility: 'user' },
+      ],
+    }),
+  })
+
+  const prepared = await tool.execute({}, {}, { id: 'multi', toolName: tool.id }) as any
+  assert.deepEqual(prepared.evidence.claims.map((claim: any) => claim.id), ['bound'])
+  assert.equal(prepared.evidence.claims[0].binding, 'first-output')
+})
+
+test('typed partial results retain bounded evidence facts without becoming complete', async () => {
+  const tool = defineClientTool({
+    id: 'test_partial_aggregate_evidence',
+    description: { text: 'Read a bounded partial aggregate', capabilities: ['test.partial.aggregate'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'partial-series',
+      shape: 'metric.time-series',
+      select: (result: any) => result.points,
+    }),
+    execute: () => clientToolResult.partial({ points: [{ value: 1 }] }, {
+      cardinality: {
+        kind: 'aggregate-series',
+        bucketCount: 4,
+        populatedBucketCount: 1,
+        measurementCount: 1,
+      },
+      claims: [{ id: 'observed', label: 'Observed', value: 1, visibility: 'user' }],
+      supportsAbsenceClaim: false,
+      limitReason: 'records',
+    }),
+  })
+
+  const prepared = await tool.execute({}, {}, { id: 'partial', toolName: tool.id }) as any
+  assert.equal(prepared.complete, false)
+  assert.equal(prepared.truncated, true)
+  assert.equal(prepared.evidence.limitReason, 'records')
+  assert.equal(prepared.evidence.claims[0].binding, 'partial-series')
+  assert.equal(prepared.evidence.cardinality.measurementCount, 1)
 })
 
 test('record-set materialization preserves the owning output label', async () => {
@@ -177,7 +335,10 @@ test('record-set materialization preserves the owning output label', async () =>
       shape: 'test.labeled-records',
       select: result => result.records,
     }),
-    execute: () => clientToolResult.success({ records }),
+    execute: () => clientToolResult.success({ records }, {
+      requestedRange: { start: 1_785_387_600_000, end: 1_785_473_999_999 },
+      observedRange: { start: 1_785_391_200_000, end: 1_785_470_400_000 },
+    }),
   })
 
   const prepared = await tool.execute({}, {}, { id: 'records', toolName: tool.id })
@@ -189,6 +350,14 @@ test('record-set materialization preserves the owning output label', async () =>
   assert.equal(delivered.outputBindings[0].name, 'labeled-records')
   assert.equal(delivered.outputBindings[0].label, 'Labeled records')
   assert.equal(delivered.outputBindings[0].path, '$.data.sample')
+  assert.deepEqual(delivered.outputBindings[0].requestedRange, {
+    start: 1_785_387_600_000,
+    end: 1_785_473_999_999,
+  })
+  assert.deepEqual(delivered.outputBindings[0].observedRange, {
+    start: 1_785_391_200_000,
+    end: 1_785_470_400_000,
+  })
 })
 
 test('aggregate facade preserves timestamp and dynamic measure contracts without presentation output', async () => {
@@ -308,7 +477,7 @@ test('aggregate facade preserves ordered coordinate semantics without choosing a
   assert.equal(delivered.data, undefined)
   assert.equal(delivered.outputBindings.length, 1)
   assert.equal(delivered.outputBindings[0].shape, 'time-series.aggregate')
-  assert.equal(delivered.outputBindings[0].mediaType, undefined)
+  assert.equal(delivered.outputBindings[0].mediaType, 'application/json')
   assert.deepEqual(delivered.outputBindings[0].ordering, {
     keys: [{ field: 'time', direction: 'asc' }],
     producerGuaranteed: true,
@@ -332,6 +501,54 @@ test('aggregate facade preserves ordered coordinate semantics without choosing a
     { id: 'unordered-geo', toolName: unorderedTool.id },
   ) as any
   assert.equal(unorderedPrepared.data, undefined)
+})
+
+test('execution label resolver changes only the user-facing binding label', async () => {
+  const fields = [
+    { name: 'time', semanticRole: 'timestamp' as const },
+    {
+      name: 'value',
+      semanticRole: 'number' as const,
+      label: 'Temperature',
+      measure: 'temperature',
+      aggregation: 'avg',
+    },
+  ]
+  const tool = defineClientTool({
+    id: 'test_dynamic_output_label',
+    description: { text: 'Read one typed value series', capabilities: ['test.value.aggregate'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'stable-value-series',
+      label: 'Static aggregate result',
+      shape: 'time-series.aggregate',
+      fields: [{ name: 'time', semanticRole: 'timestamp' }],
+      select: (result: any) => result.points,
+      resolveFields: () => fields,
+      resolveLabel: (_result, _value, resolvedFields) => (
+        `${resolvedFields.find(field => field.semanticRole === 'number')?.label} · Average`
+      ),
+    }),
+    execute: () => ({ points: [{ time: 1_785_387_600_000, value: 12 }] }),
+  })
+
+  assert.equal(tool.routing?.produces?.[0], 'stable-value-series')
+  assert.equal(tool.routing?.outputShapes?.[0], 'time-series.aggregate')
+  assert.equal(tool._meta?.resultBindings?.[0]?.label, 'Static aggregate result')
+
+  const prepared = await tool.execute(
+    {},
+    {},
+    { id: 'dynamic-label', toolName: tool.id },
+  ) as any
+  assert.equal(prepared.outputBindings[0].name, 'stable-value-series')
+  assert.equal(prepared.outputBindings[0].shape, 'time-series.aggregate')
+  assert.equal(prepared.outputBindings[0].label, 'Temperature · Average')
+  const delivered = await deliverAiClientToolResult(prepared, {
+    call: { id: 'dynamic-label', toolName: tool.id },
+    outputBindings: tool._meta?.resultBindings,
+  }) as any
+  assert.equal(delivered.outputBindings[0].label, 'Temperature · Average')
 })
 
 test('facade compiles self-contained input alternatives and rejects undeclared references', () => {
@@ -551,7 +768,7 @@ test('migrated business authoring uses the stable facade and internal imports st
   })
 
   const retainedLegacyImports = new Set([
-    'modules/iot-ui/agentCapabilities/deviceAnalysis/deviceProperty.service.ts',
+    'modules/device-manager-ui/agentCapabilities/deviceAnalysis/deviceProperty.service.ts',
   ])
   const collectSourceFiles = (directory: string): string[] => readdirSync(directory, { withFileTypes: true })
     .flatMap((entry) => {
@@ -613,13 +830,22 @@ test('ordinary record queries stay auto-exposed while discovery helpers opt into
 
 test('typed contract generates routing, binding and evidence from one output declaration', () => {
   const contract = createSeriesContract()
+  assert.equal(contract.routing.portVersion, 'ai-tool-port/v1')
+  assert.deepEqual(contract.routing.producerPorts, [{
+    name: 'series',
+    type: 'structured-data',
+    mediaType: 'application/json',
+    shape: 'time-series.aggregate',
+  }])
   assert.deepEqual(contract.routing.produces, ['series'])
   assert.deepEqual(contract.routing.outputShapes, ['time-series.aggregate'])
   assert.deepEqual(contract.routing.resultDeliveries, ['auto'])
   assert.deepEqual(contract._meta.resultBindings, [{
     name: 'series',
+    type: 'structured-data',
     path: '$.data',
     shape: 'time-series.aggregate',
+    mediaType: 'application/json',
     fields: [{ name: 'time', semanticRole: 'timestamp' }],
     ordering: {
       keys: [{ field: 'time', direction: 'asc' }],
@@ -638,6 +864,101 @@ test('typed contract generates routing, binding and evidence from one output dec
     keys: [{ field: 'time', direction: 'asc' }],
     producerGuaranteed: true,
   })
+})
+
+test('consumer descriptors compile canonical ports and legacy discovery projections from one source', () => {
+  const tool = defineClientTool({
+    id: 'test_consumer_port',
+    description: { text: 'Consume records', capabilities: ['test.records.consume'] },
+    inputs: [],
+    consumes: [{
+      name: 'source',
+      type: 'structured-data',
+      mediaType: 'application/json',
+      shape: 'tabular.records',
+      required: true,
+      sourcePolicy: 'EITHER',
+    }],
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'summary', shape: 'tabular.summary' }),
+    execute: () => clientToolResult.success({ total: 1 }),
+  })
+
+  assert.deepEqual(tool.routing?.consumerPorts, [{
+    name: 'source',
+    type: 'structured-data',
+    mediaType: 'application/json',
+    shape: 'tabular.records',
+    required: true,
+    sourcePolicy: 'EITHER',
+  }])
+  assert.deepEqual(tool.routing?.accepts, ['source'])
+  assert.deepEqual(tool.routing?.prerequisites, ['source'])
+  assert.equal(createAiClientToolCatalogReport([tool], {
+    requireRouting: true,
+    requireResultBindings: true,
+  }).tools[0]?.contractStatus, 'typed')
+})
+
+test('legacy name-only consumers remain a bounded flat projection beside canonical outputs', () => {
+  const tool = defineClientTool({
+    id: 'test_legacy_consumer_port',
+    description: { text: 'Consume a released legacy selector', capabilities: ['test.legacy.consume'] },
+    inputs: [],
+    consumes: [{ name: 'legacy-source', source: 'EITHER' }],
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'summary', shape: 'tabular.summary' }),
+    execute: () => clientToolResult.success({ total: 1 }),
+  })
+
+  assert.equal(tool.routing?.portVersion, 'ai-tool-port/v1')
+  assert.deepEqual(tool.routing?.consumerPorts, undefined)
+  assert.deepEqual(tool.routing?.accepts, ['legacy-source'])
+  assert.deepEqual(tool.routing?.prerequisites, ['legacy-source'])
+  assert.deepEqual(tool.routing?.producerPorts, [{
+    name: 'summary',
+    type: 'structured-data',
+    mediaType: 'application/json',
+    shape: 'tabular.summary',
+  }])
+})
+
+test('partially migrated consumer descriptors fail instead of silently losing typed fields', () => {
+  assert.throws(() => defineClientTool({
+    id: 'test_partial_consumer_port',
+    description: { text: 'Reject a partial descriptor', capabilities: ['test.partial.consume'] },
+    inputs: [],
+    consumes: [{
+      name: 'partial-source',
+      type: 'structured-data',
+      source: 'EITHER',
+    } as any],
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'summary', shape: 'tabular.summary' }),
+    execute: () => clientToolResult.success({ total: 1 }),
+  }), /either canonical descriptors or legacy name-only declarations/)
+})
+
+test('canonical and legacy consumer descriptors cannot be mixed in one declaration', () => {
+  assert.throws(() => defineClientTool({
+    id: 'test_mixed_consumer_ports',
+    description: { text: 'Reject mixed migration states', capabilities: ['test.mixed.consume'] },
+    inputs: [],
+    consumes: [{
+      name: 'canonical-source',
+      type: 'structured-data',
+      mediaType: 'application/json',
+      shape: 'tabular.records',
+      required: true,
+      sourcePolicy: 'EITHER',
+    }, {
+      name: 'legacy-source',
+      source: 'EITHER',
+    }],
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'summary', shape: 'tabular.summary' }),
+    execute: () => clientToolResult.success({ total: 1 }),
+  }), /either canonical descriptors or legacy name-only declarations/)
 })
 
 test('ordering is bounded to declared fields and invalid declarations fail closed', () => {
@@ -856,18 +1177,44 @@ test('JSON artifacts publish only bounded logical record paths', async () => {
   assert.equal(sanitized.outputBindings[0].recordPath, undefined)
 })
 
-test('browser-only contract and binding metadata never enters the session tool declaration', () => {
+test('session serialization sends canonical effect but keeps browser-only contract and bindings local', () => {
   const sessionDefinition = toAiClientToolSessionDefinition({
     id: 'series_read',
     description: 'read a bounded series',
     inputs: [],
     output: { type: 'object' },
     ...createSeriesContract(),
+    _meta: {
+      clientToolDefinition: {
+        version: 'client-tool-definition/v1',
+        effect: 'READ',
+        outputCount: 1,
+      },
+    },
   })
   const serialized = JSON.stringify(sessionDefinition)
   assert.equal(serialized.includes('clientToolContract'), false)
   assert.equal(serialized.includes('resultBindings'), false)
   assert.equal(serialized.includes('x-ai-routing'), true)
+  assert.equal((sessionDefinition as any).expands.effect, 'READ')
+})
+
+test('typed compiler projects every canonical effect to the WebSocket session definition', () => {
+  const definitions = (['READ', 'WRITE', 'EXTERNAL_ACTION'] as const).map((kind) => defineClientTool({
+    id: `effect_${kind.toLowerCase()}`,
+    description: { text: `Execute ${kind}`, capabilities: [`test.effect.${kind.toLowerCase()}`] },
+    inputs: [],
+    effect: kind === 'READ'
+      ? { kind }
+      : { kind, idempotency: 'IDEMPOTENT', reversible: true, confirmation: false },
+    output: clientToolOutput.detail({ name: 'result', shape: 'test.result' }),
+    execute: () => clientToolResult.success({ ok: true }),
+  }))
+
+  assert.deepEqual(
+    definitions.map(tool => (toAiClientToolSessionDefinition(tool) as any).expands.effect),
+    ['READ', 'WRITE', 'EXTERNAL_ACTION'],
+  )
 })
 
 test('session serialization preserves explicit metadata and relocates required input flags', () => {

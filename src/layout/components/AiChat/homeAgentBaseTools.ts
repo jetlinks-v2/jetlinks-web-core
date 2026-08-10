@@ -93,7 +93,10 @@ export const createHomeAgentBaseTools = () => defineClientTools<HomeAgentCapabil
         valueType: 'int',
       },
     ],
-    consumes: [{ name: 'natural-language-query', optional: true, source: 'CONTEXT' }],
+    consumes: [{
+      name: 'natural-language-query', type: 'structured-data', mediaType: 'text/plain',
+      shape: 'query.natural-language', required: false, sourcePolicy: 'CONTEXT',
+    }],
     effect: { kind: 'READ' },
     output: clientToolOutput.lookup<any>({
       name: 'client-capability-candidates',
@@ -146,7 +149,10 @@ export const createHomeAgentBaseTools = () => defineClientTools<HomeAgentCapabil
         valueType: { type: 'object' },
       },
     ],
-    consumes: [{ name: 'menu-code', optional: true, source: 'EITHER' }],
+    consumes: [{
+      name: 'menu-code', type: 'structured-data', mediaType: 'text/plain',
+      shape: 'navigation.menu-code', required: false, sourcePolicy: 'EITHER',
+    }],
     effect: {
       kind: 'EXTERNAL_ACTION',
       idempotency: 'IDEMPOTENT',
