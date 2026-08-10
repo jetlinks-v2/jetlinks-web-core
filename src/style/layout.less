@@ -318,6 +318,10 @@
       background: var(--bg);
     }
 
+      .ant-menu-item-group-title {
+          padding: var(--space-1) var(--space-2) var(--space-1) 0;
+      }
+
     .ant-pro-fixed-header {
       height: var(--chrome-header-height) !important;
       line-height: var(--chrome-header-height) !important;
@@ -531,6 +535,29 @@
     }
 
     &:not(.cloud-project--collapsed) {
+      .project-primary-menu-group {
+        &:not(:first-child) {
+          margin-top: var(--space-2);
+        }
+
+        > .ant-menu-item-group-title {
+          padding: var(--space-1) var(--space-2) !important;
+          color: var(--layout-menu-item-disabled-color);
+          font-size: var(--fs-12);
+          font-weight: var(--chrome-nav-font-weight);
+          line-height: var(--layout-menu-item-line-height);
+          cursor: default;
+        }
+
+        > .ant-menu-item-group-list {
+          margin: 0;
+
+          > .ant-menu-item {
+            padding-left: var(--space-2) !important;
+          }
+        }
+      }
+
       .ant-menu-inline > .ant-menu-submenu > .ant-menu-submenu-title {
         color: var(--layout-menu-item-color);
         font-weight: var(--chrome-nav-font-weight);

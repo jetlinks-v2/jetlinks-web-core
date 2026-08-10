@@ -82,9 +82,6 @@ const handleBack = () => {
 <style scoped lang="less">
 .cloud-page-header {
   background: rgba(255, 255, 255, 0.6);
-  border: 1px solid #eceff3;
-  border-radius: 16px;
-  padding: 16px;
     margin-bottom: var(--space-4);
 }
 

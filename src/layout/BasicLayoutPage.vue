@@ -9,6 +9,7 @@
     :pure="state.pure"
     :layoutType="layoutType"
     :menuExtraRender="showMenuSearch ? undefined : false"
+    :subMenuItemRender="state.collapsed ? undefined : renderPrimaryMenuGroup"
     class="cloud-project"
     @menuClick="handlePrimaryMenuClick"
     @backClick='goBack'
@@ -74,7 +75,10 @@
 </template>
 
 <script setup name="BasicLayoutPage" lang="ts">
-import { reactive, computed, watchEffect } from 'vue'
+import { reactive, computed, h, watchEffect, type VNode } from 'vue'
+import type { RouteRecordRaw } from 'vue-router'
+import { Menu } from 'ant-design-vue'
+import i18n from '@jetlinks-web-core/locales'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import {
@@ -120,6 +124,21 @@ type ProjectMenuClickEvent = {
         key?: string | number
     }
 }
+
+type PrimaryMenuGroupRenderContext = {
+    item: RouteRecordRaw
+    children: VNode[]
+}
+
+// 展开态使用静态分组；侧栏收起时交还 ProLayout，保留 icon-only 菜单的访问能力。
+const renderPrimaryMenuGroup = ({ item, children }: PrimaryMenuGroupRenderContext) => h(
+    Menu.ItemGroup,
+    { key: item.path, class: 'project-primary-menu-group' },
+    {
+        title: () => String(i18n.global.t(String(item.meta?.title || item.name || item.path))),
+        default: () => children,
+    },
+)
 
 const state = reactive<{
   pure: boolean

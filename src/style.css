@@ -225,6 +225,38 @@ html {
   --ring-info: 0 0 0 0.1875rem var(--info-bg);
   --shadow-sticky-top: 0 -0.25rem 0.75rem rgba(0, 0, 0, 0.04);
   --shadow-fab: 0 0.375rem 1rem rgba(0, 0, 0, 0.12), 0 0.125rem 0.375rem rgba(0, 0, 0, 0.08);
+  --motion-duration-fast: 0.15s;
+  --motion-ease-standard: ease;
+  --card-shell-bg: var(--bg);
+  --card-shell-bg-active: color-mix(in srgb, var(--accent) 4%, var(--bg));
+  --card-shell-border: var(--line);
+  --card-shell-border-hover: var(--line-strong);
+  --card-shell-border-active: var(--accent);
+  --card-shell-radius: var(--jet-theme-radius-lg);
+  --card-shell-shadow: var(--shadow-1);
+  --card-shell-shadow-hover: var(--shadow-hover);
+  --card-shell-shadow-active: var(--ring-active);
+  --card-shell-transition:
+    border-color var(--motion-duration-fast) var(--motion-ease-standard),
+    background var(--motion-duration-fast) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-ease-standard);
+  --card-shell-disabled-opacity: 0.55;
+  --card-tone-default: var(--ink-2);
+  --card-tone-default-soft: var(--bg-sunken);
+  --card-tone-info: var(--info);
+  --card-tone-info-soft: var(--info-bg);
+  --card-tone-success: var(--ok);
+  --card-tone-success-soft: var(--ok-bg);
+  --card-tone-warning: var(--warn);
+  --card-tone-warning-soft: var(--warn-bg);
+  --card-tone-error: var(--err);
+  --card-tone-error-soft: var(--err-bg);
+  --card-shell-avatar-size: 4rem;
+  --card-shell-avatar-size-sm: 3rem;
+  --card-shell-chart-size: 4.5rem;
+  --card-shell-chart-stroke: 0.5rem;
+  --card-shell-suggestion-min-height: 6.5rem;
+  --card-shell-toggle-min-height: 9.75rem;
   --z-modal: 1000;
   --z-drawer: 1100;
   --z-toast: 1200;
