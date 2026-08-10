@@ -1,7 +1,13 @@
 import type { App, Component, Plugin } from 'vue'
 import TitleComponent from './TitleComponent/index.vue'
 import ImageUpload from "./Upload/Image/ImageUpload.vue";
-import CardBox from './CardBox/index.vue';
+import CardBox, {
+    CardStatistic,
+    CardStatus,
+    CardSuggestion,
+    CardSummary,
+    CardToggle,
+} from './CardBox';
 import Search from './Search'
 import AMapComponent from './AMapComponent/AMap.vue'
 import PathSimplifier from './AMapComponent/PathSimplifier.vue'
@@ -72,6 +78,11 @@ export default {
         app.component('TitleComponent', TitleComponent)
             .component('ImageUpload', ImageUpload)
             .component('CardBox', CardBox)
+            .component('CardSuggestion', CardSuggestion)
+            .component('CardSummary', CardSummary)
+            .component('CardStatus', CardStatus)
+            .component('CardStatistic', CardStatistic)
+            .component('CardToggle', CardToggle)
             .component('ProSearch', Search)
             .component('FullPage', FullPage)
             .component('AMapComponent', AMapComponent)
@@ -145,6 +156,12 @@ export default {
 }
 
 export {
+    CardBox,
+    CardStatistic,
+    CardStatus,
+    CardSuggestion,
+    CardSummary,
+    CardToggle,
     IconBadge,
     MenuAssetPermissionEditor,
     DetailHeader,
@@ -153,6 +170,20 @@ export {
     MarketplaceInstallStream,
     StatusPill,
 }
+export type {
+    CardAvatarData,
+    CardMetaItem,
+    CardStatisticData,
+    CardStatisticSegment,
+    CardStateData,
+    CardStatusData,
+    CardSuggestionData,
+    CardSummaryData,
+    CardTagItem,
+    CardToggleData,
+    CardTone,
+    CardValue,
+} from './CardBox'
 export type {
     MetricCardIcon,
     MetricCardItem,
