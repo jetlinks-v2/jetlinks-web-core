@@ -16,7 +16,6 @@ import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
 import type { RouteHideInMenuContext } from '@jetlinks-web-core/router/types'
 import { useApplication } from '@jetlinks-web-core/store'
 import i18n from '@jetlinks-web-core/locales'
-import { useProjectRouter } from '@/hooks'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 import { createMenuStoreRuntime } from './menuRuntime'
 import { OWNER_KEY } from '@/utils/consts'
@@ -215,11 +214,15 @@ export const useMenuStore = defineStore('menu', () => {
       const _query = options?.query || {}
       const _params = options?.params || {}
       setParamsValue(name, _params)
-      if (getProjectIdFromLocation() && !isFromCloud()) {
-        const { push } = useProjectRouter()
-        push({
+      const runtimeProjectId = getProjectIdFromLocation()
+      if (runtimeProjectId && !isFromCloud()) {
+        // Menu navigation runs outside component setup, so use the router singleton and carry project context explicitly.
+        router.push({
           name,
-          params: _params,
+          params: {
+            ..._params,
+            projectId: _params.projectId || runtimeProjectId,
+          },
           query: _query,
         })
         return
