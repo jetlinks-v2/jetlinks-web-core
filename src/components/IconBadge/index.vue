@@ -77,7 +77,6 @@ function handleImageError() {
   border-radius: 50%;
   background: linear-gradient(180deg, #f6fafe 0%, #fefefe 100%);
   box-sizing: border-box;
-  color: var(--jet-theme-primary);
   flex: none;
 }
 
@@ -90,7 +89,7 @@ function handleImageError() {
   overflow: hidden;
   border-radius: 50%;
   background: linear-gradient(180deg, var(--jet-theme-primary) 0%, var(--jet-theme-primary-3) 100%);
-  color: var(--jet-theme-primary);
+  color: #fff;
   font-size: calc(var(--icon-badge-content-size) * 0.5);
   font-weight: 600;
 }
