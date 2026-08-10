@@ -5,12 +5,23 @@ export interface FileOwnerFormatOption {
 }
 
 export const SHARED_OWNER_VALUE = '__shared__'
+export const MODEL_FILE_PATH = 'models'
+export const TARGET_INFERENCE_MODEL_PATH = 'models/targetInference'
 
 export const normalizeFilePath = (path?: string) => path?.trim().replace(/^\/+|\/+$/g, '') || ''
 
 export function isModelFilePath(path?: string) {
   const value = normalizeFilePath(path)
-  return value === 'models' || value.startsWith('models/')
+  return value === MODEL_FILE_PATH || value.startsWith(`${MODEL_FILE_PATH}/`)
+}
+
+export function isTargetInferenceModelPath(path?: string) {
+  const value = normalizeFilePath(path)
+  return value === TARGET_INFERENCE_MODEL_PATH || value.startsWith(`${TARGET_INFERENCE_MODEL_PATH}/`)
+}
+
+export function isStandardModelPath(path?: string) {
+  return isModelFilePath(path) && !isTargetInferenceModelPath(path)
 }
 
 export function buildFileOwnerOptions(

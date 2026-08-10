@@ -1,0 +1,103 @@
+.model-parameter-config__intro {
+  margin-bottom: var(--space-2);
+  color: var(--ink-3);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+
+.model-parameter-config__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}
+
+.model-parameter-config__matrix {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+}
+
+.model-parameter-config__matrix--editing {
+  .model-parameter-config__matrix-head,
+  .model-parameter-config__matrix-row {
+    grid-template-columns: minmax(8rem, 1.1fr) minmax(10rem, 1.4fr) 6rem minmax(10rem, 1.8fr) 7rem 7rem 4rem;
+    min-width: 54rem;
+  }
+}
+
+.model-parameter-config__matrix-head,
+.model-parameter-config__matrix-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1.1fr) minmax(10rem, 1.4fr) 6rem minmax(10rem, 1.8fr) 7rem 7rem;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 50rem;
+  padding: 0.75rem 1rem;
+}
+
+.model-parameter-config__matrix-head {
+  color: var(--ink-3);
+  background: var(--bg-sunken);
+  font-size: var(--fs-12);
+}
+
+.model-parameter-config__matrix-row + .model-parameter-config__matrix-row {
+  border-top: 1px solid var(--line);
+}
+
+.model-parameter-config__matrix-head > :nth-child(n + 5),
+.model-parameter-config__matrix-row > :nth-child(n + 5) {
+  justify-self: center;
+  text-align: center;
+}
+
+.model-parameter-config__name,
+.model-parameter-config__path,
+.model-parameter-config__type,
+.model-parameter-config__description {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.model-parameter-config__name {
+  color: var(--ink-1);
+  line-height: 1.5;
+}
+
+.model-parameter-config__path,
+.model-parameter-config__type {
+  color: var(--ink-1);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+
+.model-parameter-config__description {
+  color: var(--ink-3);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+
+.model-parameter-config__checkbox--error {
+  color: var(--jet-theme-error);
+}
+
+.model-parameter-config__checkbox--error .ant-checkbox .ant-checkbox-inner,
+.model-parameter-config__checkbox--error .ant-checkbox:hover .ant-checkbox-inner,
+.model-parameter-config__checkbox--error .ant-checkbox-input:focus + .ant-checkbox-inner {
+  border-color: var(--jet-theme-error) !important;
+}
+
+.model-parameter-config__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .model-parameter-config__matrix-head,
+  .model-parameter-config__matrix-row {
+    grid-template-columns: minmax(7rem, 1fr) minmax(9rem, 1.2fr) 5rem minmax(9rem, 1.5fr) 5.5rem 5.5rem;
+  }
+}
