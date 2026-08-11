@@ -1,0 +1,81 @@
+.model-parameter-editor__scene-list {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+}
+
+.model-parameter-editor__scene-table-head,
+.model-parameter-editor__scene-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1.1fr) minmax(10rem, 1.4fr) 6rem minmax(10rem, 1.8fr) minmax(16rem, 1.5fr);
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 55rem;
+  padding: 0.75rem 1rem;
+}
+
+.model-parameter-editor__scene-table-head {
+  color: var(--ink-3);
+  background: var(--bg-sunken);
+  font-size: var(--fs-12);
+}
+
+.model-parameter-editor__scene-row + .model-parameter-editor__scene-row {
+  border-top: 1px solid var(--line);
+}
+
+.model-parameter-editor__property-name {
+  min-width: 0;
+  color: var(--ink-1);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.model-parameter-editor__path,
+.model-parameter-editor__type {
+  min-width: 0;
+  color: var(--ink-1);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.model-parameter-editor__description {
+  min-width: 0;
+  color: var(--ink-3);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.model-parameter-editor__value {
+  min-width: 0;
+}
+
+.model-parameter-editor__value--error {
+  color: var(--jet-theme-error);
+}
+
+.model-parameter-editor__value--error :deep(.ant-input),
+.model-parameter-editor__value--error :deep(.ant-input-affix-wrapper),
+.model-parameter-editor__value--error :deep(.ant-input-number),
+.model-parameter-editor__value--error :deep(.ant-select-selector) {
+  border-color: var(--jet-theme-error) !important;
+}
+
+.model-parameter-editor__value-error {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--jet-theme-error);
+  font-size: var(--fs-12);
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .model-parameter-editor__scene-table-head,
+  .model-parameter-editor__scene-row {
+    grid-template-columns: minmax(7rem, 1fr) minmax(9rem, 1.2fr) 5rem minmax(9rem, 1.5fr) minmax(14rem, 1.4fr);
+  }
+}

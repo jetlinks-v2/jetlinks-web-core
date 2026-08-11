@@ -14,7 +14,7 @@
   >
     <a-form layout="vertical" :disabled="confirming">
       <a-row :gutter="16">
-        <a-col :span="10">
+        <a-col :span="isModelFilePath ? 8 : 10">
           <a-form-item :label="locale.filePath">
             <a-input
               v-model:value="form.path"
@@ -23,7 +23,16 @@
             />
           </a-form-item>
         </a-col>
-        <a-col :span="14">
+        <a-col v-if="isModelFilePath" :span="8">
+          <a-form-item :label="locale.modelPurpose" required>
+            <a-select
+              v-model:value="modelPurpose"
+              :options="modelPurposeOptions"
+              style="width: 100%"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="isModelFilePath ? 8 : 14">
           <a-form-item required>
             <template #label>
               <span>{{ locale.fileOwner }}</span>
@@ -48,8 +57,12 @@
         </template>
         <a-radio-group v-model:value="form.createType">
           <a-radio-button value="upload">{{ locale.uploadCreate }}</a-radio-button>
-          <a-radio-button value="extract">{{ locale.extractCreate }}</a-radio-button>
-          <a-radio-button value="empty">{{ locale.emptyCreate }}</a-radio-button>
+          <a-radio-button v-if="!isModelFilePath" value="extract">
+            {{ locale.extractCreate }}
+          </a-radio-button>
+          <a-radio-button v-if="!isModelFilePath" value="empty">
+            {{ locale.emptyCreate }}
+          </a-radio-button>
           <a-radio-button v-if="showCustomCreate" value="custom">
             <slot name="custom-create-option" />
           </a-radio-button>
@@ -123,7 +136,18 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import { onlyMessage } from '@jetlinks-web/utils'
-import { buildFileOwnerOptions, isModelFilePath as checkModelFilePath, SHARED_OWNER_VALUE, type FileOwnerFormatOption } from './fileOwnerOptions'
+import {
+  buildFileOwnerOptions,
+  isModelFilePath as checkModelFilePath,
+  isTargetInferenceModelPath,
+  MODEL_FILE_PATH,
+  normalizeFilePath,
+  SHARED_OWNER_VALUE,
+  TARGET_INFERENCE_MODEL_PATH,
+  type FileOwnerFormatOption
+} from './fileOwnerOptions'
+
+type ModelPurpose = 'standard' | 'targetInference'
 interface AddFilePayload {
   name: string
   path?: string
@@ -179,6 +203,7 @@ const form = reactive<AddFilePayload>({
 })
 const uploadFiles = ref<any[]>([])
 const selectedOwnerFormat = ref<string>()
+const modelPurpose = ref<ModelPurpose>('standard')
 const businessTypeInput = ref('')
 const algorithmModelInput = ref('')
 const modelFileFormatInput = ref('')
@@ -231,6 +256,11 @@ const algorithmModelOptions = computed<ModelFileOption[]>(() => [
 const modelFileFormatOptions: ModelFileOption[] = ['plan', 'onnx', 'bin', 'rknn', 'bmodel', 'om']
   .map(value => createModelFileOption(`.${value}`, value))
 
+const modelPurposeOptions = computed(() => [
+  { label: props.locale.standardModel, value: 'standard' },
+  { label: props.locale.targetInferenceModel, value: 'targetInference' }
+])
+
 // AutoComplete 选中后显示 label，真实文件名后缀仍使用 rawValue。
 const businessType = computed(() => resolveModelFileOptionValue(businessTypeInput.value, businessTypeOptions.value))
 const algorithmModel = computed(() => resolveModelFileOptionValue(algorithmModelInput.value, algorithmModelOptions.value))
@@ -243,6 +273,32 @@ watch(() => form.createType, (createType) => {
   }
   if (createType === 'custom') {
     selectedOwnerFormat.value = undefined
+  }
+})
+
+watch(modelPurpose, (purpose) => {
+  if (!props.open) return
+  if (purpose === 'targetInference') {
+    form.path = TARGET_INFERENCE_MODEL_PATH
+    if (form.createType === 'empty' || form.createType === 'extract') {
+      form.createType = 'upload'
+    }
+    return
+  }
+  if (isTargetInferenceModelPath(form.path)) {
+    const selectedPath = normalizeFilePath(props.selectedOwner)
+    form.path = isTargetInferenceModelPath(selectedPath) || !selectedPath ? MODEL_FILE_PATH : selectedPath
+  }
+})
+
+watch(() => form.path, (path) => {
+  if (!props.open || modelPurpose.value === 'targetInference') return
+  // 模型文件只允许直接上传；切换路径时清理已隐藏的内置创建方式。
+  if (checkModelFilePath(path) && (form.createType === 'empty' || form.createType === 'extract')) {
+    form.createType = 'upload'
+  }
+  if (isTargetInferenceModelPath(path)) {
+    modelPurpose.value = 'targetInference'
   }
 })
 
@@ -281,7 +337,7 @@ const normalizeModelFileFormat = (format: string) => {
 }
 
 const isModelFilePath = computed(() => checkModelFilePath(form.path))
-const pathReadonly = computed(() => checkModelFilePath(props.selectedOwner))
+const pathReadonly = computed(() => modelPurpose.value === 'targetInference' || checkModelFilePath(props.selectedOwner))
 const ownerOptions = computed(() => buildFileOwnerOptions(props.availableFormats, props.locale, isModelFilePath.value))
 
 // AutoComplete 展示选项文案，提交状态始终保留文件归属的原始值。
@@ -299,7 +355,9 @@ watch(() => props.open, (open) => {
     autocompleteResetKey.value += 1
     confirming.value = false
     form.name = ''
-    form.path = props.selectedOwner
+    modelPurpose.value = 'standard'
+    const selectedPath = normalizeFilePath(props.selectedOwner)
+    form.path = isTargetInferenceModelPath(selectedPath) ? MODEL_FILE_PATH : props.selectedOwner
     selectedOwnerFormat.value = isModelFilePath.value ? undefined : SHARED_OWNER_VALUE
     form.createType = 'upload'
     form.format = []
@@ -324,7 +382,7 @@ watch(isModelFilePath, (modelFilePath) => {
 
 const modelFileNameSuffix = computed(() => {
   if (!isModelFilePath.value) return ''
-  // 模型文件保存时要求业务类型、算法模型、模型格式三段后缀进入真实文件名。
+  // 两类模型文件均使用业务类型、算法模型、模型格式三段后缀。
   const business = businessType.value.trim()
   const algorithm = algorithmModel.value.trim()
   const fileFormat = normalizeModelFileFormat(modelFileFormat.value)

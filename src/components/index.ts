@@ -64,6 +64,7 @@ import PageRouteSkeleton from './PageRouteSkeleton/index.vue'
 import PageRouteView from './PageRouteView/index.vue'
 import EqualHeightColumns from './EqualHeightColumns/index.vue'
 import ModelConfig from './ModelConfig/index.vue'
+import ModelParameterEditor from './ModelParameterEditor/index.vue'
 import MenuAssetPermissionEditor from './MenuAssetPermissionEditor/index.vue'
 import StatusTag from './StatusTag/index.vue'
 import DetailHeader from './DetailHeader/index.vue'
@@ -139,6 +140,7 @@ export default {
           .component('PageRouteView', PageRouteView)
           .component('EqualHeightColumns', EqualHeightColumns)
           .component('ModelConfig', ModelConfig)
+          .component('ModelParameterEditor', ModelParameterEditor)
           .component('MenuAssetPermissionEditor', MenuAssetPermissionEditor)
           .component('StatusTag', StatusTag)
           .component('DetailHeader', DetailHeader)
@@ -164,6 +166,7 @@ export {
     CardToggle,
     IconBadge,
     MenuAssetPermissionEditor,
+    ModelParameterEditor,
     DetailHeader,
     PageHeader,
     MetricCards,
@@ -184,6 +187,15 @@ export type {
     CardTone,
     CardValue,
 } from './CardBox'
+export type {
+  ModelParameterFile,
+  ModelParameterLocale,
+  ModelParameterOption,
+  ModelParameterProperty,
+  ModelParameterDefinitionSource,
+  ModelParameterScene,
+  ModelParameterSceneMode
+} from './ModelParameterEditor/types'
 export type {
     MetricCardIcon,
     MetricCardItem,
