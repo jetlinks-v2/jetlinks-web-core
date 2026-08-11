@@ -110,6 +110,7 @@ import { useUserStore } from '@jetlinks-web-core/store'
 import { Notice, User } from './components'
 import { getHideHeaderRightConfig } from '@jetlinks-web-core/utils'
 import { PARK_STORAGE_KEY } from '@jetlinks-web-core/utils/consts'
+import { dispatchParkChanged, isWorkflowEmbedRoute } from '@jetlinks-web-core/utils/park-events'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { LayoutType } from '@jetlinks-web/components/es/ProLayout/defaultSettings'
 import { defaultRouteContext, provideRouteContext } from '@jetlinks-web/components/es/ProLayout/RouteContext'
@@ -570,7 +571,12 @@ watchEffect(() => {
 })
 
 watch(selectedPark, (value, oldValue) => {
-  if (value !== oldValue && route.name !== 'ParkSwitchRedirect') {
+  if (value === oldValue) return
+  dispatchParkChanged(String(value || ''))
+  if (isWorkflowEmbedRoute(route.path) || route.fullPath.includes('workflow-admin')) {
+    return
+  }
+  if (route.name !== 'ParkSwitchRedirect') {
     router.replace({
       name: 'ParkSwitchRedirect',
       query: {

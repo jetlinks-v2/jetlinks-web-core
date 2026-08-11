@@ -87,6 +87,7 @@ import defaultImg from '@jetlinks-web-core/assets/apply/internal-standalone.png'
 import { initPackages } from '@jetlinks-web-core/package'
 import i18n from '@jetlinks-web-core/locales'
 import { resetSessionStores } from '@jetlinks-web-core/router/startup'
+import { request } from '@jetlinks-web/core'
 
 const BASE_API_PATH = import.meta.env.VITE_APP_BASE_API
 
@@ -108,6 +109,12 @@ const moreVisible = ref(false)
 const userStore = useUserStore()
 const router = useRouter()
 const formRef = ref()
+
+const warmupWorkflowSession = () => {
+  request.post('/park/workflow/session/warmup').catch((error) => {
+    console.warn('mldong session warmup failed; workflow will retry on demand', error)
+  })
+}
 
 const formData = reactive({
   username: '',
@@ -169,6 +176,8 @@ const { loading, run } = useRequest(login, {
   async onSuccess(res) {
     if (res.success) {
       setToken(res.result.token)
+      // 预热失败不影响 Detainer 主登录，流程页面打开时仍会按需换取会话。
+      warmupWorkflowSession()
       // 登录成功后，直接关闭模态弹窗，停留在当前页面//若使用另外账号登录,直接跳转默认首页
       const flag = LocalStore.get('userId') === res.result.userId
       if (props.type === 'relogin') {
