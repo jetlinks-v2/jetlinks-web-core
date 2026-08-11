@@ -4,12 +4,12 @@
     v-bind="config"
     v-model:openKeys="state.openKeys"
     v-model:collapsed="state.collapsed"
-    :selectedKeys="primarySelectedKeys"
+    :selectedKeys="layout.layout === 'mix' ? mixSelectedKeys : primarySelectedKeys"
     :breadcrumb="{ routes: [] }"
     :pure="state.pure"
     :layoutType="layoutType"
     :menuExtraRender="showMenuSearch ? undefined : false"
-    :subMenuItemRender="state.collapsed ? undefined : renderPrimaryMenuGroup"
+    :subMenuItemRender="layout.layout === 'side' && !state.collapsed ? renderPrimaryMenuGroup : undefined"
     class="cloud-project"
     @menuClick="handlePrimaryMenuClick"
     @backClick='goBack'
@@ -32,9 +32,9 @@
         </a-button>
       </div>
     </template>
-    <template #menuExtraRender>
-      <LayoutMenuSearch @search="menuSearchKeyword = $event" />
-    </template>
+<!--    <template #menuExtraRender>-->
+<!--      <LayoutMenuSearch @search="menuSearchKeyword = $event" />-->
+<!--    </template>-->
     <template #linksRender>
       <LayoutSidebarUser
         :collapsed="state.collapsed"
@@ -130,7 +130,7 @@ type PrimaryMenuGroupRenderContext = {
     children: VNode[]
 }
 
-// 展开态使用静态分组；侧栏收起时交还 ProLayout，保留 icon-only 菜单的访问能力。
+// 仅 side 展开态将左侧菜单改为静态分组；mix、top 与折叠态均保留 ProLayout 默认菜单行为。
 const renderPrimaryMenuGroup = ({ item, children }: PrimaryMenuGroupRenderContext) => h(
     Menu.ItemGroup,
     { key: item.path, class: 'project-primary-menu-group' },
@@ -173,6 +173,7 @@ const projectMenus = computed(() => menuStore.siderMenus)
 const {
     primaryMenus,
     primarySelectedKeys,
+    mixSelectedKeys,
     secondaryItems,
     secondarySelectedKey,
     navigatePrimary,
@@ -226,7 +227,7 @@ const config = computed(() => ({
   collapsedWidth: 56,
   theme: theme.value,
   menuData: primaryMenus.value,
-  splitMenus: false,
+  splitMenus: layoutConfig.value.layout === 'mix',
   classNames: {
     'cloud-project': true,
     'cloud-project--collapsed': state.collapsed,

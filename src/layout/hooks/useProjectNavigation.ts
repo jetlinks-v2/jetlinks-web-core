@@ -233,6 +233,12 @@ export const useProjectNavigation = ({
     return children.find(menu => getMenuKey(menu) === activeSecondaryKey.value)
   })
 
+  // ProLayout 的 mix 拆分菜单以 selectedKeys[0] 定位一级菜单，再把其 children 渲染到左侧。
+  const mixSelectedKeys = computed(() => {
+    const keys = [activeRootMenu.value?.path, activeSecondaryMenu.value?.path]
+    return keys.filter((key, index): key is string => !!key && keys.indexOf(key) === index)
+  })
+
   const secondaryItems = computed<ProjectNavigationItem[]>(() => {
     return (activeSecondaryMenu.value?.children || [])
       .map(toNavigationItem)
@@ -272,6 +278,7 @@ export const useProjectNavigation = ({
   return {
     primaryMenus,
     primarySelectedKeys,
+    mixSelectedKeys,
     secondaryItems,
     secondarySelectedKey,
     navigatePrimary,

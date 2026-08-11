@@ -17,6 +17,7 @@ import type { RouteHideInMenuContext } from '@jetlinks-web-core/router/types'
 import { useApplication } from '@jetlinks-web-core/store'
 import i18n from '@jetlinks-web-core/locales'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
+import { getApplicationScopeFromLocation } from '@jetlinks-web-core/utils/application-scope'
 import { createMenuStoreRuntime } from './menuRuntime'
 import { OWNER_KEY } from '@/utils/consts'
 
@@ -270,12 +271,12 @@ export const useMenuStore = defineStore('menu', () => {
     },
   })
 
-  const queryMenus = async () => {
+  const queryMenus = async (applicationScope = getApplicationScopeFromLocation()) => {
     const resp = await getOwnMenuThree({
       paging: false,
       terms: getDefaultOwnParams(),
       sorts: [{ name: 'sortIndex', order: 'asc' }],
-    })
+    }, applicationScope)
 
     const menuResult = Array.isArray(resp.result) ? resp.result : []
     runtime.menuResultCache.value = JSON.parse(JSON.stringify(menuResult))
