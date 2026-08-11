@@ -278,7 +278,8 @@ watchEffect(() => {
       route.meta.breadcrumb || route.meta.breadcrumbCache || []
     ) as ProjectBreadcrumbRoute[]
     state.selectedKeys = paths.map(item => item.path).filter((path): path is string => !!path)
-    state.openKeys = paths.map(item => item.path).filter((path): path is string => !!path)
+    // 顶部菜单的 openKeys 会直接打开浮层，刷新时只恢复侧栏菜单的展开状态。
+    state.openKeys = layout.value.layout === 'top' ? [] : paths.map(item => item.path).filter((path): path is string => !!path)
   }
   if (route.query?.layout === 'false') {
     state.pure = true
