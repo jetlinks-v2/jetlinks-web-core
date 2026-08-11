@@ -157,7 +157,7 @@
   }
 
   .ant-pro-page-container-children-content {
-    margin: var(--space-4);
+    margin: 0;
   }
 
   .ant-pro-sider-menu {
@@ -353,9 +353,7 @@
       }
 
       .right-content {
-        .notice-container,
         .resource-link,
-        .language-switch,
         .header-theme-switch {
           min-width: auto;
           height: 2rem;
@@ -370,7 +368,6 @@
           line-height: 1;
         }
 
-        .notice-container,
         .resource-link {
           cursor: pointer;
           transition: background 0.16s ease, color 0.16s ease;
@@ -475,6 +472,7 @@
         background: transparent;
         border-bottom: 0;
         line-height: var(--chrome-header-height);
+        padding-left: var(--space-4);
 
         > .ant-menu-item,
         > .ant-menu-submenu {
@@ -516,6 +514,10 @@
         background: var(--canvas);
       }
 
+        .ant-layout-content {
+            padding: var(--space-2) var(--space-4) var(--space-4);
+        }
+
         .ant-pro-top-nav-header {
             background: transparent !important;
             border-bottom: none;
@@ -523,7 +525,7 @@
 
       .ant-pro-top-nav-header-main {
         gap: var(--space-6);
-        padding-inline: var(--space-6);
+        padding-inline: var(--space-4);
       }
 
       .ant-pro-top-nav-header-main-left {
@@ -552,19 +554,17 @@
       }
 
       .ant-pro-basicLayout-content {
-        padding: var(--space-6);
         background: var(--canvas);
       }
 
       .project-layout__content {
-          min-height: 0;
-          flex: 1;
+        min-height: 0;
+        flex: 1;
         overflow: clip;
         background: var(--bg);
         border: var(--jet-theme-stroke-width) solid var(--line);
         border-radius: var(--jet-theme-radius-lg);
         box-shadow: var(--shadow-1);
-          margin: var(--space-4);
       }
 
       .project-layout__route-content {
@@ -575,10 +575,18 @@
 
     &.ant-pro-basicLayout-side,
     &.ant-pro-basicLayout-mix {
+
+        .ant-pro-top-nav-header {
+            padding-right: var(--space-4);
+        }
       .ant-pro-top-nav-header-main {
         gap: 0;
         padding: 0;
       }
+
+        .ant-layout-content {
+            background-color: var(--jet-theme-bg-base);
+        }
 
       .ant-pro-top-nav-header-main-left {
         flex: 0 0 var(--layout-menu-width) !important;
@@ -725,7 +733,10 @@
       }
 
       .project-layout__content {
-        min-height: calc(100vh - var(--chrome-header-height));
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          padding: var(--space-4);
         overflow: visible;
         background: var(--bg);
         border: 0;
@@ -815,14 +826,6 @@
 .layout-sidebar-user {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  justify-content: space-between;
-  overflow: hidden;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--line, var(--jet-theme-border-secondary));
-  border-radius: var(--r-3);
-  background: var(--bg, var(--jet-theme-bg-container));
-  box-shadow: var(--shadow-1);
 
   &__card.ant-btn {
     min-width: 0;

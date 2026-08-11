@@ -35,9 +35,9 @@
 <!--      <LayoutMenuSearch @search="menuSearchKeyword = $event" />-->
 <!--    </template>-->
     <template #linksRender>
-      <LayoutSidebarUser
-        :collapsed="state.collapsed"
-      />
+<!--      <LayoutSidebarUser-->
+<!--        :collapsed="state.collapsed"-->
+<!--      />-->
     </template>
     <template #leftContentRender>
       <RegistryComponent pageCode="layout" code="layout" @click="onClick">
@@ -50,9 +50,13 @@
         <RegistryComponent pageCode="layout" code="headerRight">
           <template v-if="!hideHeaderRight">
             <Resource key="resource" v-if="systemInfo?.['front']?.resources"/>
-            <Notice key="notice" />
             <Language key="Language" />
+            <Notice key="notice" />
           </template>
+            <LayoutSidebarUser
+                key="user"
+                :collapsed="state.collapsed"
+            />
 <!--          <HeaderThemeSwitch key="theme" />-->
         </RegistryComponent>
       </div>
@@ -216,7 +220,7 @@ useGlobalHomeAgent(route)
 
 const config = computed(() => ({
   ...layoutConfig.value,
-  headerHeight: 56,
+  headerHeight: 52,
   siderWidth: 240,
   collapsedWidth: 56,
   theme: theme.value,
@@ -286,10 +290,9 @@ watchEffect(() => {
 <style scoped>
 .right-content {
   margin-left: auto;
-  margin-right: var(--space-6);
   display: flex;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--space-4);
   height: var(--chrome-header-height);
   line-height: var(--chrome-header-height);
 }</style>

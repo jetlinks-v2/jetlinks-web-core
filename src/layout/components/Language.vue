@@ -3,9 +3,8 @@
     placement="bottomRight"
     :trigger="['click']"
   >
-    <a-button
+    <div
       class="language-switch"
-      type="text"
     >
       <AIcon type="GlobalOutlined" />
       <span>{{ currentLanguageLabel }}</span>
@@ -13,7 +12,7 @@
         class="language-switch__arrow"
         type="DownOutlined"
       />
-    </a-button>
+    </div>
 
     <template #overlay>
       <a-menu
@@ -79,19 +78,15 @@ const handleChangeLanguage = ({ key }: MenuClickEvent) => {
   gap: var(--space-1);
   padding: 0 var(--space-2);
   border-radius: var(--r-2);
-  color: var(--jet-theme-text-secondary);
+  color: var(--ink-1);
   font-size: var(--fs-14);
   line-height: 1;
   transition: background 0.16s ease, color 0.16s ease;
+    cursor: pointer;
 
-  &:hover,
-  &:focus-visible {
-    background: var(--jet-theme-border-secondary);
-    color: var(--jet-theme-text);
-  }
 
   &__arrow {
-    color: var(--jet-theme-text-tertiary, var(--jet-theme-text-secondary));
+    color: var(--ink-1);
     font-size: var(--fs-12);
   }
 

@@ -12,11 +12,6 @@
             <span>{{ avatarText }}</span>
           </template>
         </a-avatar>
-        <div v-if="!collapsed" class="layout-sidebar-user__meta">
-          <div class="layout-sidebar-user__name">{{ displayName }}</div>
-          <div class="layout-sidebar-user__account">{{ account }}</div>
-        </div>
-        <AIcon v-if="!collapsed" type="UpOutlined" class="layout-sidebar-user__arrow" />
       </a-button>
 
       <template #overlay>
