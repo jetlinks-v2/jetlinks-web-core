@@ -4,18 +4,17 @@
     v-bind="config"
     v-model:openKeys="state.openKeys"
     v-model:collapsed="state.collapsed"
-    :selectedKeys="layout.layout === 'mix' ? mixSelectedKeys : primarySelectedKeys"
+    :selectedKeys="layoutSelectedKeys"
     :breadcrumb="{ routes: [] }"
     :pure="state.pure"
     :layoutType="layoutType"
     :menuExtraRender="showMenuSearch ? undefined : false"
     :subMenuItemRender="layout.layout === 'side' && !state.collapsed ? renderPrimaryMenuGroup : undefined"
-    class="cloud-project"
     @menuClick="handlePrimaryMenuClick"
     @backClick='goBack'
   >
     <template #menuHeaderRender>
-      <div class="project-layout__brand" :style="logoWidth">
+      <div class="project-layout__brand" :style="layout.layout === 'top' ? undefined : logoWidth">
         <div v-if="!state.collapsed" class="project-layout__brand-main">
           <img class="project-layout__brand-logo" :src="layout.logo" alt="" />
           <span class="project-layout__brand-title">{{ layout.title }}</span>
@@ -75,10 +74,7 @@
 </template>
 
 <script setup name="BasicLayoutPage" lang="ts">
-import { reactive, computed, h, watchEffect, type VNode } from 'vue'
-import type { RouteRecordRaw } from 'vue-router'
-import { Menu } from 'ant-design-vue'
-import i18n from '@jetlinks-web-core/locales'
+import { reactive, computed, watchEffect } from 'vue'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import {
@@ -102,6 +98,7 @@ import { useProjectNavigation } from './hooks/useProjectNavigation'
 import { provideProjectSecondaryMenu } from './hooks/useProjectSecondaryMenu'
 import { useProjectSecondaryMenuExtensions } from './hooks/useProjectSecondaryMenuExtensions'
 import { PROJECT_SETTINGS_MENU_CODE } from './navigation.constants'
+import { renderPrimaryMenuGroup } from './utils/projectMenuRender'
 
 const router = useRouter();
 const route = useRoute();
@@ -124,21 +121,6 @@ type ProjectMenuClickEvent = {
         key?: string | number
     }
 }
-
-type PrimaryMenuGroupRenderContext = {
-    item: RouteRecordRaw
-    children: VNode[]
-}
-
-// 仅 side 展开态将左侧菜单改为静态分组；mix、top 与折叠态均保留 ProLayout 默认菜单行为。
-const renderPrimaryMenuGroup = ({ item, children }: PrimaryMenuGroupRenderContext) => h(
-    Menu.ItemGroup,
-    { key: item.path, class: 'project-primary-menu-group' },
-    {
-        title: () => String(i18n.global.t(String(item.meta?.title || item.name || item.path))),
-        default: () => children,
-    },
-)
 
 const state = reactive<{
   pure: boolean
@@ -174,6 +156,7 @@ const {
     primaryMenus,
     primarySelectedKeys,
     mixSelectedKeys,
+    topSelectedKeys,
     secondaryItems,
     secondarySelectedKey,
     navigatePrimary,
@@ -185,6 +168,15 @@ const {
     route,
     router,
 })
+
+const layoutSelectedKeys = computed(() => {
+    if (layout.value.layout === 'mix') return mixSelectedKeys.value
+    return layout.value.layout === 'top' ? topSelectedKeys.value : primarySelectedKeys.value
+})
+// top 保留完整树用于级联子菜单；side/mix 仍只把一级、二级交给 ProLayout。
+const layoutMenuData = computed(() => (
+    layout.value.layout === 'top' ? filteredSiderMenus.value : primaryMenus.value
+))
 
 const logoWidth = computed(() => {
     const _width = `${!state.collapsed ? config.value.siderWidth + 'px' : '100%'}`
@@ -211,7 +203,9 @@ const pageSecondaryMenuActive = computed(() => (
 
 const visibleSecondaryItems = computed(() => {
     if (settingsActive.value) return settingsSecondaryItems.value
-    return pageSecondaryMenuActive.value ? pageSecondaryMenu.items.value : secondaryItems.value
+    if (pageSecondaryMenuActive.value) return pageSecondaryMenu.items.value
+    // top 的路由三级菜单由 header 级联承载，不再重复渲染为内容区 Tab。
+    return layout.value.layout === 'top' ? [] : secondaryItems.value
 })
 const visibleSecondarySelectedKey = computed(() => {
     if (settingsActive.value) return settingsSecondarySelectedKey.value
@@ -226,12 +220,13 @@ const config = computed(() => ({
   siderWidth: 240,
   collapsedWidth: 56,
   theme: theme.value,
-  menuData: primaryMenus.value,
-  splitMenus: layoutConfig.value.layout === 'mix',
+  menuData: layoutMenuData.value,
+  splitMenus: layout.value.layout === 'mix',
   classNames: {
     'cloud-project': true,
     'cloud-project--collapsed': state.collapsed,
-    [`jet-layout-menu-${menuVariant.value}`]: true
+    [`jet-layout-menu-${menuVariant.value}`]: true,
+    [`cloud-layout-${layout.value.layout}`]: true
   }
 }))
 

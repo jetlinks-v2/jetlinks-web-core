@@ -221,6 +221,11 @@ export const useProjectNavigation = ({
     return selectedKey && isVisible ? [selectedKey] : []
   })
 
+  const topSelectedKeys = computed(() => {
+    const selectedKey = activeEntry.value?.key || activeSecondaryKey.value || activePrimaryKey.value
+    return selectedKey ? [selectedKey] : []
+  })
+
   const activeRootMenu = computed(() => {
     const sourceMenus = searchKeyword.value ? filteredMenus.value : menus.value
     return findRootMenu(sourceMenus, activePrimaryKey.value)
@@ -279,6 +284,7 @@ export const useProjectNavigation = ({
     primaryMenus,
     primarySelectedKeys,
     mixSelectedKeys,
+    topSelectedKeys,
     secondaryItems,
     secondarySelectedKey,
     navigatePrimary,
