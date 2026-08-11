@@ -11,8 +11,16 @@ export const shouldUseJessibuca = (
   url?: string | MediaStream,
   protocol?: MediaPlayerProtocol,
 ) => {
-  if (protocol === 'flv' || protocol === 'ws' || protocol === 'wss') return true;
-  return typeof url === 'string' && (/\.flv(?:$|[?#])/i.test(url) || /^wss?:\/\//i.test(url));
+  if (protocol === 'flv') return true;
+  return typeof url === 'string' && /\.flv(?:$|[?#])/i.test(url);
+};
+
+export const shouldUseHikvisionH5Player = (
+  url?: string | MediaStream,
+  protocol?: MediaPlayerProtocol,
+) => {
+  if (protocol === 'ws' || protocol === 'wss') return true;
+  return typeof url === 'string' && /^wss?:\/\//i.test(url);
 };
 
 export const inferLegacyPlayerProtocol = (
@@ -22,7 +30,7 @@ export const inferLegacyPlayerProtocol = (
   if (protocol === 'rtc' || isMediaStreamValue(url)) {
     return 'rtc';
   }
-  if (protocol === 'm3u8') {
+  if (protocol === 'hls' || protocol === 'm3u8') {
     return 'm3u8';
   }
   if (typeof url === 'string' && /\.m3u8(?:$|[?#])/i.test(url)) {

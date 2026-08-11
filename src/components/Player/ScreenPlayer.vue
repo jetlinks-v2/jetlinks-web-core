@@ -107,7 +107,24 @@
                     class="player-screen"
                     :class="`screen-${screen}`"
                 >
-                    <template v-for="(item, index) in players" :key="item.key">
+                    <HikvisionH5Player
+                        v-if="useHikvisionH5Player"
+                        class="player-screen__hikvision"
+                        :streams="players"
+                        :screen="screen"
+                        :active-index="playerActive"
+                        autoplay
+                        @window-select="handleHikvisionWindowSelect"
+                    />
+                    <div
+                        v-if="useHikvisionH5Player && screen > 1"
+                        class="player-screen__split-grid"
+                        :class="`player-screen__split-grid--${screen}`"
+                        aria-hidden="true"
+                    >
+                        <span v-for="index in screen" :key="index" />
+                    </div>
+                    <template v-else v-for="(item, index) in players" :key="item.key">
                         <div
                             class="player-screen-item"
                             :class="{
@@ -129,7 +146,7 @@
                             >
                                 {{ $t('Player.ScreenPlayer.521467-11') }}
                             </div>
-                            <LivePlayer :live="true" :url="item.url" autoplay />
+                            <LivePlayer :live="true" :protocol="item.protocol" :url="item.url" autoplay />
                         </div>
                     </template>
                 </div>
@@ -148,15 +165,19 @@ import {
     saveSearchHistory,
 } from '@jetlinks-web-core/api/comm';
 import LivePlayer from './index.vue';
+import HikvisionH5Player from './HikvisionH5Player.vue';
 import MediaTool from './mediaTool.vue';
 import { onlyMessage } from '@jetlinks-web-core/utils/comm';
 import { useI18n } from 'vue-i18n';
+import type { MediaPlayerProtocol } from './types';
+import { shouldUseHikvisionH5Player } from './legacyPlayerUtils';
 
 const { t: $t } = useI18n();
 type Player = {
     id?: string;
     url?: string;
     channelId?: string;
+    protocol?: MediaPlayerProtocol;
     key: string;
     show: boolean;
 };
@@ -181,6 +202,7 @@ interface ScreenProps {
     onMouseUp?: (deviceId: string, channelId: string, type: string) => void;
     showScreen?: boolean;
     historyEnabled?: boolean;
+    protocol?: MediaPlayerProtocol;
 }
 
 const props = defineProps<ScreenProps>();
@@ -204,6 +226,11 @@ const formData = ref({
     name: '',
 });
 
+const useHikvisionH5Player = computed(() =>
+    shouldUseHikvisionH5Player(props.url, props.protocol)
+    || players.value.some(item => shouldUseHikvisionH5Player(item.url, item.protocol)),
+);
+
 // 全屏元素
 const fullscreenRef = ref(null);
 const { isFullscreen, enter, exit, toggle } = useFullscreen(fullscreenRef);
@@ -220,11 +247,13 @@ const reloadPlayer = (
     channelId: string,
     url: string,
     index: number,
+    protocol?: MediaPlayerProtocol,
 ) => {
     const olPlayers = [...players.value];
     olPlayers[index] = {
         id: '',
         channelId: '',
+        protocol: undefined,
         url: '',
         key: olPlayers[index].key,
         show: true,
@@ -233,6 +262,7 @@ const reloadPlayer = (
         id,
         url,
         channelId,
+        protocol,
         key: olPlayers[index].key,
         show: true,
     };
@@ -249,19 +279,20 @@ const reloadPlayer = (
  * @param channelId
  * @param url
  */
-const replaceVideo = (id: string, channelId: string, url: string) => {
+const replaceVideo = (id: string, channelId: string, url: string, protocol = props.protocol) => {
     const olPlayers = [...players.value];
     const newPlayer = {
         id,
         url,
         channelId,
+        protocol,
         key: olPlayers[playerActive.value].key,
         show: true,
     };
 
     if (olPlayers[playerActive.value].url === url) {
         // 刷新视频
-        reloadPlayer(id, channelId, url, playerActive.value);
+        reloadPlayer(id, channelId, url, playerActive.value, protocol);
     } else {
         olPlayers[playerActive.value] = newPlayer;
         players.value = olPlayers;
@@ -271,6 +302,12 @@ const replaceVideo = (id: string, channelId: string, url: string) => {
         playerActive.value = 0;
     } else {
         playerActive.value += 1;
+    }
+};
+
+const handleHikvisionWindowSelect = (index: number) => {
+    if (Number.isInteger(index) && index >= 0 && index < screen.value) {
+        playerActive.value = index;
     }
 };
 
@@ -443,7 +480,7 @@ watch(
     () => props.url,
     (val) => {
         if (val && props.id) {
-            replaceVideo(props.id, props.channelId, val);
+            replaceVideo(props.id, props.channelId, val, props.protocol);
         }
     },
 );
@@ -523,6 +560,34 @@ defineExpose({
 }
 .live-player-warp .live-player-content .player-body .player-screen .player-screen-item {
   position: relative;
+}
+.live-player-warp .live-player-content .player-body .player-screen .player-screen__hikvision {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  width: 100%;
+  height: 100%;
+}
+.live-player-warp .live-player-content .player-body .player-screen .player-screen__split-grid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  z-index: 2;
+  gap: 0.125rem;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.16);
+}
+.live-player-warp .live-player-content .player-body .player-screen .player-screen__split-grid > span {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+.live-player-warp .live-player-content .player-body .player-screen .player-screen__split-grid--4 {
+  grid-template: repeat(2, minmax(0, 1fr)) / repeat(2, minmax(0, 1fr));
+}
+.live-player-warp .live-player-content .player-body .player-screen .player-screen__split-grid--9 {
+  grid-template: repeat(3, minmax(0, 1fr)) / repeat(3, minmax(0, 1fr));
 }
 .live-player-warp .live-player-content .player-body .player-screen .player-screen-item .media-btn-refresh {
   position: absolute;
