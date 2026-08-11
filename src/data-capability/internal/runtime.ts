@@ -1,5 +1,6 @@
 import type {
   BindingRuntimeContext,
+  CapabilityFilterExpression,
   CapabilityDefinitionBase,
   CapabilityPreviewRequest,
   CapabilityPreviewResult,
@@ -176,6 +177,13 @@ export class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     signal?: AbortSignal,
   ): Promise<Record<string, unknown> | undefined> {
     return this.bindingResolver.resolveRecord(values, this.toRuntimeContext(signal))
+  }
+
+  resolveFilter(
+    filter: CapabilityFilterExpression | undefined,
+    signal?: AbortSignal,
+  ): Promise<CapabilityFilterExpression | undefined> {
+    return this.bindingResolver.resolveFilter(filter, this.toRuntimeContext(signal))
   }
 
   toRuntimeContext(signal?: AbortSignal): BindingRuntimeContext {

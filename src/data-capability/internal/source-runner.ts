@@ -73,6 +73,7 @@ export interface SourceRunnerHost {
     capabilityId?: string,
   ): void
   resolveRecord(values: PersistedDataBinding['query'], signal?: AbortSignal): Promise<Record<string, unknown> | undefined>
+  resolveFilter(values: PersistedDataBinding['filter'], signal?: AbortSignal): Promise<PersistedDataBinding['filter']>
   toRuntimeContext(signal?: AbortSignal): RuntimeContext
   toDataSourceCreateContext(signal?: AbortSignal): DataSourceCreateContext
   requireSource(ref: { capabilityId: string; version: number }): DataSourceDefinition
@@ -107,6 +108,10 @@ export class DataSourceRunner {
 
   private resolveRecord(values: PersistedDataBinding['query'], signal?: AbortSignal) {
     return this.runtime.resolveRecord(values, signal)
+  }
+
+  private resolveFilter(values: PersistedDataBinding['filter'], signal?: AbortSignal) {
+    return this.runtime.resolveFilter(values, signal)
   }
 
   private toRuntimeContext(signal?: AbortSignal): RuntimeContext {
@@ -191,11 +196,17 @@ export class DataSourceRunner {
           phase: 'query',
           capabilityId: definition.id,
         })
+        const filter = await this.resolveFilter(binding.filter, signal)
+        this.assertActive()
+        this.assertRegistrationActive(registration, 'sources', definition.id)
+        if (stopped || signal?.aborted) return
+        assertCapabilityFilter(definition, filter)
         const resolvedRequest = normalizeDataSourceRequest(definition, {
           capabilityId: binding.source.capabilityId,
           version: binding.source.version,
           config,
           query,
+          filter,
           signal,
           limit: resolveLimit(request.options?.limit, definition.defaults?.limit),
           timeout: request.options?.timeout || definition.defaults?.timeout,
@@ -326,11 +337,20 @@ export class DataSourceRunner {
         phase: 'query',
         capabilityId: definition.id,
       })
+      const filter = await raceQueryCancel(
+        this.resolveFilter(binding.filter, queryResource.abortController.signal),
+        queryResource,
+      )
+      this.assertActive()
+      this.assertQueryNotAborted(queryResource, definition.id)
+      this.assertRegistrationActive(registration, 'sources', definition.id)
+      assertCapabilityFilter(definition, filter)
       const resolvedRequest = normalizeDataSourceRequest(definition, {
         capabilityId: binding.source.capabilityId,
         version: binding.source.version,
         config,
         query,
+        filter,
         signal: queryResource.abortController.signal,
         limit: resolveLimit(options.limit, definition.defaults?.limit),
         timeout: options.timeout || definition.defaults?.timeout,
@@ -606,6 +626,75 @@ function normalizeDataSourceRequest(
   context: RuntimeContext,
 ): ResolvedDataSourceRequest {
   return definition.optimizer?.normalize?.(request, context) || request
+}
+
+function assertCapabilityFilter(
+  definition: DataSourceDefinition,
+  filter: PersistedDataBinding['filter'],
+): void {
+  const terms = filter?.terms || []
+  const schema = definition.filterSchema
+  if (!schema) {
+    if (terms.length) {
+      throw createCapabilityError('filter.unsupported', 'Data source does not support filter conditions', {
+        capabilityId: definition.id,
+      })
+    }
+    return
+  }
+
+  const values: Record<string, unknown> = {}
+  const fields = new Set<string>()
+  terms.forEach((term) => {
+    if (!term.field || fields.has(term.field)) {
+      throw createCapabilityError('filter.field_invalid', 'Filter fields must be unique', {
+        capabilityId: definition.id,
+        details: { field: term.field },
+      })
+    }
+    const fieldSchema = resolveFilterFieldSchema(schema, term.field)
+    const operators = fieldSchema?.filter?.operators || []
+    if (!fieldSchema || !operators.includes(term.operator)) {
+      throw createCapabilityError('filter.operator_unsupported', 'Filter operator is not supported', {
+        capabilityId: definition.id,
+        details: { field: term.field, operator: term.operator },
+      })
+    }
+    fields.add(term.field)
+    setFilterFieldValue(values, term.field, term.value)
+  })
+  capabilitySchemaValidator.assert(schema, values, {
+    phase: 'query',
+    capabilityId: definition.id,
+  })
+}
+
+function setFilterFieldValue(
+  target: Record<string, unknown>,
+  field: string,
+  value: unknown,
+): void {
+  const segments = field.split('.').filter(Boolean)
+  let current = target
+  segments.forEach((segment, index) => {
+    if (index === segments.length - 1) {
+      current[segment] = value
+      return
+    }
+    const nested = current[segment]
+    if (!nested || typeof nested !== 'object' || Array.isArray(nested)) current[segment] = {}
+    current = current[segment] as Record<string, unknown>
+  })
+}
+
+function resolveFilterFieldSchema(
+  schema: CapabilitySchema,
+  field: string,
+): CapabilitySchema | undefined {
+  return field.split('.').filter(Boolean).reduce<CapabilitySchema | undefined>(
+    (current, segment) => current?.type === 'object' ? current.properties?.[segment] : undefined,
+    schema,
+  )
 }
 
 // Until merge/split is implemented, only fully identical normalized requests can share upstream.

@@ -50,6 +50,7 @@ export class DefaultDataCapabilityClient implements DataCapabilityClient {
         config: request.config,
       },
       query: request.params,
+      filter: request.filter,
       mapping: request.mapping,
     }, {
       timeout: request.timeout,

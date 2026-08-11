@@ -15,6 +15,36 @@ export type DataPath = Array<string | number>
 export type PersistedDataBindingVersion = 1
 export type PersistedOperationBindingVersion = 1
 
+export type CapabilityFilterOperator =
+  | 'eq'
+  | 'neq'
+  | 'contains'
+  | 'notContains'
+  | 'in'
+  | 'notIn'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'between'
+
+export interface CapabilityFilterFieldPolicy {
+  /** Only operators implemented by the owning Provider may be declared here. */
+  operators: CapabilityFilterOperator[]
+  defaultOperator?: CapabilityFilterOperator
+}
+
+export interface CapabilityFilterTerm {
+  /** Public capability field; Providers translate it to their private API/query model. */
+  field: string
+  operator: CapabilityFilterOperator
+  value?: ValueBinding | unknown
+}
+
+export interface CapabilityFilterExpression {
+  terms: CapabilityFilterTerm[]
+}
+
 export interface CapabilityOwner {
   moduleId: string
   providerId: string
@@ -107,6 +137,7 @@ export interface DataSourceCapabilityChoice extends CapabilityChoiceBase {
     modes: DataSourceMode[]
     configSchema?: CapabilitySchema
     paramsSchema?: CapabilitySchema
+    filterSchema?: CapabilitySchema
     resultSchema?: CapabilitySchema
   }
 }
@@ -156,6 +187,7 @@ export interface CapabilitySchema {
   readOnly?: boolean
   bindable?: boolean
   binding?: FieldBindingPolicy
+  filter?: CapabilityFilterFieldPolicy
   optionSource?: OptionSourceRef
 }
 
@@ -212,6 +244,7 @@ export interface DataSourceCreateContext extends CapabilityContext {
 export interface DataSourceRequest {
   config?: unknown
   query?: Record<string, unknown>
+  filter?: CapabilityFilterExpression
   signal?: AbortSignal
   limit?: number
   timeout?: number
@@ -235,6 +268,7 @@ export interface DataSourceDefinition extends CapabilityDefinitionBase {
   kind: 'data-source'
   configSchema?: CapabilitySchema
   querySchema?: CapabilitySchema
+  filterSchema?: CapabilitySchema
   outputSchema?: CapabilitySchema
   modes: DataSourceMode[]
   ui?: DataSourceUiDefinition
@@ -591,6 +625,7 @@ export interface PersistedDataBinding {
   version: PersistedDataBindingVersion
   source: PersistedCapabilityRef
   query?: Record<string, ValueBinding | unknown>
+  filter?: CapabilityFilterExpression
   mapping?: OutputMapping
   plan?: DataSourcePlan
 }
@@ -759,6 +794,7 @@ export interface DataCapabilityClientQueryRequest {
   version?: number
   config?: unknown
   params?: Record<string, ValueBinding | unknown>
+  filter?: CapabilityFilterExpression
   mapping?: OutputMapping
   targetSchema?: CapabilitySchema
   timeout?: number
