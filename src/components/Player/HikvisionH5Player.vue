@@ -161,7 +161,7 @@ const ensurePlayer = async (layout: number, version: number) => {
   const nextPlayer = new Runtime({
     szId: containerId,
     szBasePath: getAssetBasePath(),
-    iMaxSplit: 9,
+    iMaxSplit: layout,
     iCurrentSplit: Math.sqrt(layout),
     mseWorkerEnable: false,
     openDebug: false,
@@ -249,8 +249,12 @@ const resize = () => {
   void player.value?.JS_Resize?.();
 };
 
-const resizeAfterLayoutChange = () => {
-  void nextTick(() => requestAnimationFrame(resize));
+const resizeAfterFullscreenChange = () => {
+  void nextTick(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(resize);
+    });
+  });
 };
 
 const screenshot = (
@@ -268,7 +272,7 @@ const getDuration = () => undefined;
 onMounted(() => {
   mounted = true;
   window.addEventListener('resize', resize);
-  document.addEventListener('fullscreenchange', resizeAfterLayoutChange);
+  document.addEventListener('fullscreenchange', resizeAfterFullscreenChange);
   if (props.autoplay) {
     void play();
   }
@@ -278,7 +282,7 @@ onBeforeUnmount(() => {
   mounted = false;
   requestVersion++;
   window.removeEventListener('resize', resize);
-  document.removeEventListener('fullscreenchange', resizeAfterLayoutChange);
+  document.removeEventListener('fullscreenchange', resizeAfterFullscreenChange);
   void stop();
 });
 

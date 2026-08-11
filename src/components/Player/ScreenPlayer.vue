@@ -528,6 +528,11 @@ defineExpose({
 }
 .live-player-warp .live-player-content .player-body .player-screen.screen-1 {
   grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+.live-player-warp .live-player-content .player-body .player-screen.screen-1 .player-screen-item:not(:first-of-type) {
+  display: none !important;
 }
 .live-player-warp .live-player-content .player-body .player-screen.screen-4 {
   grid-template-rows: 1fr 1fr;
