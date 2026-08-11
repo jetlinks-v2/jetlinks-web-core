@@ -57,7 +57,11 @@
                 @click="openApplicationCenter"
               >
                 <template #icon>
-                  <AIcon type="AppstoreOutlined" />
+                  <img
+                    class="application-center-icon"
+                    src="/overview/application.png"
+                    alt=""
+                  />
                 </template>
               </a-button>
             </a-tooltip>
@@ -385,11 +389,16 @@ onMounted(loadCurrentUserParkTree)
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 2.5rem;
+  height: 2rem;
+  padding: 0;
   color: #1d2129;
+}
 
-  :deep(.anticon) {
-    font-size: 1rem;
-  }
+.application-center-icon {
+  display: block;
+  width: 2.5rem;
+  height: 2rem;
 }
 
 .layout-bg-blur {
