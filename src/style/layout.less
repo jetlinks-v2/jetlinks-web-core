@@ -450,6 +450,7 @@
 
     .ant-pro-basicLayout-content {
       margin: 0;
+      min-height: calc(100vh - var(--chrome-header-height));
     }
 
     .project-layout__content {
@@ -556,7 +557,8 @@
       }
 
       .project-layout__content {
-        min-height: 100%;
+          min-height: 0;
+          flex: 1;
         overflow: clip;
         background: var(--bg);
         border: var(--jet-theme-stroke-width) solid var(--line);

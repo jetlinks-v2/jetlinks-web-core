@@ -373,7 +373,7 @@ const sharedLayout = {
 
 const sharedLayoutCssVars = {
   '--sidebar-w': '14rem',
-  '--chrome-header-height': '56px',
+  '--chrome-header-height': '52px',
   '--layout-menu-width': '10.875rem',
   '--layout-menu-collapsed-width': '64px',
   '--layout-menu-padding-x': '1rem',
