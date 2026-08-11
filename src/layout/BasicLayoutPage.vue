@@ -1,5 +1,5 @@
 ﻿<template>
-  <div :class="['basic-layout-page', routeLayoutClassName]">
+  <div :class="['basic-layout-page', routeLayoutClassName, { 'basic-layout-page--header-scrolled': headerScrolled }]">
   <j-pro-layout
     v-bind="config"
     v-model:openKeys="state.openKeys"
@@ -8,6 +8,7 @@
     :breadcrumb="{ routes: [] }"
     :pure="state.pure"
     :layoutType="layoutType"
+    :collapsedButtonRender="false"
     :menuExtraRender="showMenuSearch ? undefined : false"
     :subMenuItemRender="layout.layout === 'side' && !state.collapsed ? renderPrimaryMenuGroup : undefined"
     @menuClick="handlePrimaryMenuClick"
@@ -31,14 +32,6 @@
         </a-button>
       </div>
     </template>
-<!--    <template #menuExtraRender>-->
-<!--      <LayoutMenuSearch @search="menuSearchKeyword = $event" />-->
-<!--    </template>-->
-    <template #linksRender>
-<!--      <LayoutSidebarUser-->
-<!--        :collapsed="state.collapsed"-->
-<!--      />-->
-    </template>
     <template #leftContentRender>
       <RegistryComponent pageCode="layout" code="layout" @click="onClick">
 
@@ -57,7 +50,6 @@
                 key="user"
                 :collapsed="state.collapsed"
             />
-<!--          <HeaderThemeSwitch key="theme" />-->
         </RegistryComponent>
       </div>
     </template>
@@ -79,6 +71,7 @@
 
 <script setup name="BasicLayoutPage" lang="ts">
 import { reactive, computed, watchEffect } from 'vue'
+import { useWindowScroll } from '@vueuse/core'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import {
@@ -86,7 +79,6 @@ import {
   Language,
   Resource,
   AiChat,
-  LayoutMenuSearch,
   LayoutSidebarUser
 } from './components'
 import { storeToRefs } from 'pinia'
@@ -113,6 +105,8 @@ const hideHeaderRight = getHideHeaderRightConfig()
 const menuSearchKeyword = ref('')
 
 const { theme, layout, language, systemInfo, themeStyleToken } = storeToRefs(systemStore)
+const { y: scrollY } = useWindowScroll()
+const headerScrolled = computed(() => layout.value.layout === 'top' && scrollY.value > 0)
 
 type ProjectBreadcrumbRoute = {
     path?: string

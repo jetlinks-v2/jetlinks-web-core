@@ -811,6 +811,14 @@
   }
 }
 
+// 顶部导航滚动离开页面顶端后，使用毛玻璃隔开下方内容。
+.basic-layout-page--header-scrolled .ant-pro-basicLayout.cloud-project.ant-pro-basicLayout-top .ant-pro-fixed-header {
+  background: var(--bg) !important;
+  background: color-mix(in srgb, var(--bg) 85%, transparent) !important;
+  -webkit-backdrop-filter: blur(0.75rem) saturate(140%);
+  backdrop-filter: blur(0.75rem) saturate(140%);
+}
+
 .ant-descriptions.ant-descriptions-bordered .ant-descriptions-view > table {
   table-layout: fixed;
 
