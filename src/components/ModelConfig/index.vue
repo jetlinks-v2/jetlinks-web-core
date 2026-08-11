@@ -304,11 +304,14 @@
       :open="addFileVisible"
       :available-formats="availableFormats"
       :selected-owner="selectedOwner"
+      :existing-files="files"
       :editable-extensions="editableExtensions"
       :locale="text"
+      :show-batch-upload="showBatchUpload"
       :show-custom-create="showCustomCreate"
       @update:open="handleAddFileVisibleChange"
       @confirm="addFile"
+      @batch-confirm="batchAddFile"
     >
       <template #custom-create-option>
         <slot name="add-file-custom-create-option" />
@@ -330,6 +333,8 @@ import SectionCard from '../SectionCard/index.vue'
 import KvGrid from '../KvGrid/index.vue'
 import ModelParameterEditor from '../ModelParameterEditor/index.vue'
 import AddFileModal from './AddFileModal.vue'
+import { normalizeFilePath } from './fileOwnerOptions'
+import type { BatchAddFilePayload } from './batchFileUpload'
 
 interface FormatDetail {
   id: string
@@ -476,6 +481,7 @@ const defaultLocale: LocaleText = {
   copyPath: '复制路径',
   copySuccess: '文件路径已复制',
   filePath: '文件路径',
+  appendPath: '可选追加子路径',
   modelPurpose: '模型用途',
   standardModel: '普通模型',
   targetInferenceModel: '二次推理模型',
@@ -520,6 +526,24 @@ const defaultLocale: LocaleText = {
   uploadCreateDescription: '上传文件到对应路径',
   extractCreateDescription: '上传压缩包，使用时解压到对应路径',
   emptyCreateDescription: '创建可在线编辑的文本文件',
+  batchUploadCreate: '批量上传',
+  batchUploadCreateDescription: '一次选择多个文件并逐项上传',
+  batchUploadTitle: '选择多个文件',
+  batchUploadDescription: '支持同时选择多个文件，上传前可逐项修改文件名',
+  batchUploadList: '待上传文件',
+  batchUploadTargetName: '保存文件名',
+  batchUploadOverwrite: '覆盖已有文件',
+  batchUploadConflict: '当前路径存在同名文件，请确认覆盖',
+  batchUploadDuplicate: '当前批次存在重复文件名',
+  batchUploadNameRequired: '请输入文件名',
+  batchUploadEmpty: '请完善文件信息',
+  batchUploadRetryHint: '失败文件可修改后重新点击确定重试',
+  batchUploadStatusPending: '待上传',
+  batchUploadStatusUploading: '上传中',
+  batchUploadStatusUploaded: '已上传',
+  batchUploadStatusSaving: '保存中',
+  batchUploadStatusSuccess: '已完成',
+  batchUploadStatusError: '失败',
   pleaseEnterArchiveFileName: '请上传 zip 或 tar 格式压缩包',
   rootDirectory: '根目录',
   currentFormatFile: '当前架构文件',
@@ -599,6 +623,10 @@ const props = defineProps({
     type: Array as PropType<ExtraConfigTab[]>,
     default: () => []
   },
+  batchUploadOwners: {
+    type: Array as PropType<string[]>,
+    default: () => ['python', 'skill']
+  },
   customCreateVisible: {
     type: Function as PropType<CustomCreateVisible>,
     default: undefined
@@ -609,6 +637,7 @@ const emit = defineEmits<{
   (e: 'load-files', payload: LoadFilesPayload): void
   (e: 'save-config', payload: SaveConfigPayload): void
   (e: 'add-file', payload: AddFileEventPayload): void
+  (e: 'batch-add-file', payload: BatchAddFilePayload): void
   (e: 'add-file-close'): void
   (e: 'save-file', payload: SaveFilePayload): void
   (e: 'replace-file', payload: ReplaceFilePayload): void
@@ -646,6 +675,15 @@ const showCustomCreate = computed(() => {
   return props.customCreateVisible
     ? props.customCreateVisible(selectedOwner.value || undefined)
     : true
+})
+
+const showBatchUpload = computed(() => {
+  const selectedPath = normalizeFilePath(selectedOwner.value)
+  if (!selectedPath) return false
+  return props.batchUploadOwners.some(owner => {
+    const ownerPath = normalizeFilePath(owner)
+    return !!ownerPath && (selectedPath === ownerPath || selectedPath.startsWith(`${ownerPath}/`))
+  })
 })
 
 const SIDER_WIDTH_STORAGE_KEY = 'jetlinks:model-config:sider-width'
@@ -1210,6 +1248,29 @@ async function addFile(payload: AddFilePayload) {
   emit('add-file', {
     format: selectedFormat.value || payload.format?.[0] || '',
     file: normalizeAddFilePayload(payload),
+    done: (success = true) => {
+      if (success && targetFormat && selectedFormat.value) {
+        selectedFormat.value = targetFormat
+      }
+      completeFileCreate(success)
+      payload.done?.(success)
+    }
+  })
+}
+
+function batchAddFile(payload: BatchAddFilePayload) {
+  if (!modelId.value) {
+    payload.done?.(false)
+    return
+  }
+  const targetFormat = payload.format?.[0]
+  fileSaving.value = true
+  // 批量保存沿用弹窗中选择的文件归属，保持与旧创建方式的 file.format 契约一致。
+  emit('batch-add-file', {
+    path: payload.path,
+    format: payload.format,
+    files: payload.files,
+    update: payload.update,
     done: (success = true) => {
       if (success && targetFormat && selectedFormat.value) {
         selectedFormat.value = targetFormat
