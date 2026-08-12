@@ -1,21 +1,21 @@
 ﻿<template>
-  <div :class="['basic-layout-page', routeLayoutClassName]">
+  <div :class="['basic-layout-page', routeLayoutClassName, { 'basic-layout-page--header-scrolled': headerScrolled }]">
   <j-pro-layout
     v-bind="config"
     v-model:openKeys="state.openKeys"
     v-model:collapsed="state.collapsed"
-    :selectedKeys="primarySelectedKeys"
+    :selectedKeys="layoutSelectedKeys"
     :breadcrumb="{ routes: [] }"
     :pure="state.pure"
     :layoutType="layoutType"
+    :collapsedButtonRender="false"
     :menuExtraRender="showMenuSearch ? undefined : false"
-    :subMenuItemRender="state.collapsed ? undefined : renderPrimaryMenuGroup"
-    class="cloud-project"
+    :subMenuItemRender="layout.layout === 'side' && !state.collapsed ? renderPrimaryMenuGroup : undefined"
     @menuClick="handlePrimaryMenuClick"
     @backClick='goBack'
   >
     <template #menuHeaderRender>
-      <div class="project-layout__brand" :style="logoWidth">
+      <div class="project-layout__brand" :style="layout.layout === 'top' ? undefined : logoWidth">
         <div v-if="!state.collapsed" class="project-layout__brand-main">
           <img class="project-layout__brand-logo" :src="layout.logo" alt="" />
           <span class="project-layout__brand-title">{{ layout.title }}</span>
@@ -32,14 +32,6 @@
         </a-button>
       </div>
     </template>
-    <template #menuExtraRender>
-      <LayoutMenuSearch @search="menuSearchKeyword = $event" />
-    </template>
-    <template #linksRender>
-      <LayoutSidebarUser
-        :collapsed="state.collapsed"
-      />
-    </template>
     <template #leftContentRender>
       <RegistryComponent pageCode="layout" code="layout" @click="onClick">
 
@@ -51,10 +43,13 @@
         <RegistryComponent pageCode="layout" code="headerRight">
           <template v-if="!hideHeaderRight">
             <Resource key="resource" v-if="systemInfo?.['front']?.resources"/>
-            <Notice key="notice" />
             <Language key="Language" />
+            <Notice key="notice" />
           </template>
-<!--          <HeaderThemeSwitch key="theme" />-->
+            <LayoutSidebarUser
+                key="user"
+                :collapsed="state.collapsed"
+            />
         </RegistryComponent>
       </div>
     </template>
@@ -75,10 +70,8 @@
 </template>
 
 <script setup name="BasicLayoutPage" lang="ts">
-import { reactive, computed, h, watchEffect, type VNode } from 'vue'
-import type { RouteRecordRaw } from 'vue-router'
-import { Menu } from 'ant-design-vue'
-import i18n from '@jetlinks-web-core/locales'
+import { reactive, computed, watchEffect } from 'vue'
+import { useWindowScroll } from '@vueuse/core'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import {
@@ -86,7 +79,6 @@ import {
   Language,
   Resource,
   AiChat,
-  LayoutMenuSearch,
   LayoutSidebarUser
 } from './components'
 import { storeToRefs } from 'pinia'
@@ -102,6 +94,7 @@ import { useProjectNavigation } from './hooks/useProjectNavigation'
 import { provideProjectSecondaryMenu } from './hooks/useProjectSecondaryMenu'
 import { useProjectSecondaryMenuExtensions } from './hooks/useProjectSecondaryMenuExtensions'
 import { PROJECT_SETTINGS_MENU_CODE } from './navigation.constants'
+import { renderPrimaryMenuGroup } from './utils/projectMenuRender'
 
 const router = useRouter();
 const route = useRoute();
@@ -112,6 +105,8 @@ const hideHeaderRight = getHideHeaderRightConfig()
 const menuSearchKeyword = ref('')
 
 const { theme, layout, language, systemInfo, themeStyleToken } = storeToRefs(systemStore)
+const { y: scrollY } = useWindowScroll()
+const headerScrolled = computed(() => layout.value.layout === 'top' && scrollY.value > 0)
 
 type ProjectBreadcrumbRoute = {
     path?: string
@@ -124,21 +119,6 @@ type ProjectMenuClickEvent = {
         key?: string | number
     }
 }
-
-type PrimaryMenuGroupRenderContext = {
-    item: RouteRecordRaw
-    children: VNode[]
-}
-
-// 展开态使用静态分组；侧栏收起时交还 ProLayout，保留 icon-only 菜单的访问能力。
-const renderPrimaryMenuGroup = ({ item, children }: PrimaryMenuGroupRenderContext) => h(
-    Menu.ItemGroup,
-    { key: item.path, class: 'project-primary-menu-group' },
-    {
-        title: () => String(i18n.global.t(String(item.meta?.title || item.name || item.path))),
-        default: () => children,
-    },
-)
 
 const state = reactive<{
   pure: boolean
@@ -173,6 +153,8 @@ const projectMenus = computed(() => menuStore.siderMenus)
 const {
     primaryMenus,
     primarySelectedKeys,
+    mixSelectedKeys,
+    topSelectedKeys,
     secondaryItems,
     secondarySelectedKey,
     navigatePrimary,
@@ -184,6 +166,15 @@ const {
     route,
     router,
 })
+
+const layoutSelectedKeys = computed(() => {
+    if (layout.value.layout === 'mix') return mixSelectedKeys.value
+    return layout.value.layout === 'top' ? topSelectedKeys.value : primarySelectedKeys.value
+})
+// top 保留完整树用于级联子菜单；side/mix 仍只把一级、二级交给 ProLayout。
+const layoutMenuData = computed(() => (
+    layout.value.layout === 'top' ? filteredSiderMenus.value : primaryMenus.value
+))
 
 const logoWidth = computed(() => {
     const _width = `${!state.collapsed ? config.value.siderWidth + 'px' : '100%'}`
@@ -210,7 +201,9 @@ const pageSecondaryMenuActive = computed(() => (
 
 const visibleSecondaryItems = computed(() => {
     if (settingsActive.value) return settingsSecondaryItems.value
-    return pageSecondaryMenuActive.value ? pageSecondaryMenu.items.value : secondaryItems.value
+    if (pageSecondaryMenuActive.value) return pageSecondaryMenu.items.value
+    // top 的路由三级菜单由 header 级联承载，不再重复渲染为内容区 Tab。
+    return layout.value.layout === 'top' ? [] : secondaryItems.value
 })
 const visibleSecondarySelectedKey = computed(() => {
     if (settingsActive.value) return settingsSecondarySelectedKey.value
@@ -221,16 +214,17 @@ useGlobalHomeAgent(route)
 
 const config = computed(() => ({
   ...layoutConfig.value,
-  headerHeight: 56,
+  headerHeight: 52,
   siderWidth: 240,
   collapsedWidth: 56,
   theme: theme.value,
-  menuData: primaryMenus.value,
-  splitMenus: false,
+  menuData: layoutMenuData.value,
+  splitMenus: layout.value.layout === 'mix',
   classNames: {
     'cloud-project': true,
     'cloud-project--collapsed': state.collapsed,
-    [`jet-layout-menu-${menuVariant.value}`]: true
+    [`jet-layout-menu-${menuVariant.value}`]: true,
+    [`cloud-layout-${layout.value.layout}`]: true
   }
 }))
 
@@ -278,7 +272,8 @@ watchEffect(() => {
       route.meta.breadcrumb || route.meta.breadcrumbCache || []
     ) as ProjectBreadcrumbRoute[]
     state.selectedKeys = paths.map(item => item.path).filter((path): path is string => !!path)
-    state.openKeys = paths.map(item => item.path).filter((path): path is string => !!path)
+    // 顶部菜单的 openKeys 会直接打开浮层，刷新时只恢复侧栏菜单的展开状态。
+    state.openKeys = layout.value.layout === 'top' ? [] : paths.map(item => item.path).filter((path): path is string => !!path)
   }
   if (route.query?.layout === 'false') {
     state.pure = true
@@ -290,10 +285,9 @@ watchEffect(() => {
 <style scoped>
 .right-content {
   margin-left: auto;
-  margin-right: var(--space-6);
   display: flex;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--space-4);
   height: var(--chrome-header-height);
   line-height: var(--chrome-header-height);
 }</style>

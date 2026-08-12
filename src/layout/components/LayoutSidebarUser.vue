@@ -2,7 +2,7 @@
   <div class="layout-sidebar-user" :class="{ 'layout-sidebar-user--collapsed': collapsed }">
     <a-dropdown
       v-model:open="open"
-      placement="topLeft"
+      placement="bottomRight"
       trigger="click"
       overlay-class-name="layout-sidebar-user-overlay"
     >
@@ -12,48 +12,40 @@
             <span>{{ avatarText }}</span>
           </template>
         </a-avatar>
-        <div v-if="!collapsed" class="layout-sidebar-user__meta">
-          <div class="layout-sidebar-user__name">{{ displayName }}</div>
-          <div class="layout-sidebar-user__account">{{ account }}</div>
-        </div>
-        <AIcon v-if="!collapsed" type="UpOutlined" class="layout-sidebar-user__arrow" />
       </a-button>
 
       <template #overlay>
         <div class="layout-sidebar-user__menu">
-          <RegistryComponent pageCode="layout" code="sidebarUserMenu" @click="open = false" />
-          <a-button class="layout-sidebar-user__menu-item" type="text" block @click="goAccountCenter">
-            <template #icon>
-              <AIcon type="UserOutlined" />
-            </template>
-            {{ $t('components.LayoutSidebarUser.accountCenter') }}
-          </a-button>
+          <div class="layout-sidebar-user__summary">
+            <div class="layout-sidebar-user__title-row">
+              <span class="layout-sidebar-user__name">{{ displayName }}</span>
+            </div>
+            <div class="layout-sidebar-user__account-row">
+              <span class="layout-sidebar-user__account-label">
+                {{ $t('components.LayoutSidebarUser.accountId') }}
+              </span>
+              <span class="layout-sidebar-user__account">{{ account }}</span>
+            </div>
+          </div>
           <div class="layout-sidebar-user__divider" />
-          <a-button class="layout-sidebar-user__menu-item layout-sidebar-user__menu-item--muted" type="text" block :loading="logoutLoading" @click="handleLogout">
-            <template #icon>
-              <AIcon type="LogoutOutlined" />
-            </template>
+          <div class="layout-sidebar-user__menu-content">
+            <a-button class="layout-sidebar-user__menu-item" type="text" block @click="goAccountCenter">
+              {{ $t('components.LayoutSidebarUser.accountCenter') }}
+            </a-button>
+            <RegistryComponent
+              class="layout-sidebar-user__menu-item"
+              pageCode="layout"
+              code="sidebarUserMenu"
+              @click="open = false"
+            />
+          </div>
+          <div class="layout-sidebar-user__divider" />
+          <a-button class="layout-sidebar-user__logout" type="text" block :loading="logoutLoading" @click="handleLogout">
             {{ $t('components.LayoutSidebarUser.logout') }}
           </a-button>
         </div>
       </template>
     </a-dropdown>
-
-<!--    <div v-if="!collapsed" class="layout-sidebar-user__actions">-->
-<!--      <a-button-->
-<!--        v-for="item in quickItems"-->
-<!--        :key="item.key"-->
-<!--        class="layout-sidebar-user__action"-->
-<!--        type="text"-->
-<!--        block-->
-<!--        @click="item.onClick"-->
-<!--      >-->
-<!--        <template #icon>-->
-<!--          <AIcon :type="item.icon" />-->
-<!--        </template>-->
-<!--        <span>{{ item.label }}</span>-->
-<!--      </a-button>-->
-<!--    </div>-->
   </div>
 </template>
 
@@ -61,7 +53,6 @@
 import { logout } from '@jetlinks-web-core/api/login'
 import { clearVerifyCache } from '@jetlinks-web-core/package'
 import { jumpLogin } from '@jetlinks-web-core/router'
-import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useI18n } from 'vue-i18n'
 
@@ -74,50 +65,21 @@ defineProps({
 
 const router = useRouter()
 const { t: $t } = useI18n()
-const systemStore = useSystemStore()
 const userStore = useUserStore()
 const open = ref(false)
 const logoutLoading = ref(false)
 
 const displayName = computed(() => userStore.userInfo?.name || userStore.userInfo?.username || '-')
-const account = computed(() => {
-  const info = userStore.userInfo as Record<string, any>
-  return info.email || info.username || ''
-})
-const avatar = computed(() => (userStore.userInfo as Record<string, any>)?.avatar || '')
+const account = computed(() => userStore.userInfo?.username || userStore.userInfo?.id || '-')
+
+const avatar = computed(() => (userStore.userInfo as { avatar?: string })?.avatar || '')
 const avatarText = computed(() => displayName.value.trim().slice(0, 1) || '用')
-
-const goStationMessage = () => {
-  open.value = false
-  userStore.tabKey = 'StationMessage'
-  router.push('/account/center')
-}
-
-const toggleDarkMode = () => {
-  systemStore.changeThemeStyle(systemStore.themeStyle === 'dark' ? 'light' : 'dark')
-}
-
-const goProjectConfig = () => {
-  open.value = false
-  router.push('/system-setting/project-config')
-}
 
 const goAccountCenter = () => {
   open.value = false
   userStore.tabKey = 'BindThirdAccount'
   router.push('/account/center')
 }
-
-const quickItems = computed(() => [
-  { key: 'message', label: $t('components.LayoutSidebarUser.messageCenter'), icon: 'BellOutlined', onClick: goStationMessage },
-  {
-    key: 'theme',
-    label: $t(systemStore.themeStyle === 'dark' ? 'components.LayoutSidebarUser.lightMode' : 'components.LayoutSidebarUser.darkMode'),
-    icon: systemStore.themeStyle === 'dark' ? 'SunOutlined' : 'MoonOutlined',
-    onClick: toggleDarkMode
-  },
-  { key: 'settings', label: $t('components.LayoutSidebarUser.systemConfig'), icon: 'SettingOutlined', onClick: goProjectConfig }
-])
 
 const handleLogout = async () => {
   if (logoutLoading.value) return

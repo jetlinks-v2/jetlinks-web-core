@@ -23,7 +23,7 @@ const CropperModalProps = {
   },
   fixedBox: {
     type: Boolean,
-    default: true
+    default: false
   },
   autoCrop: {
     type: Boolean,
@@ -65,7 +65,7 @@ const CropperModalProps = {
   },
   canMoveBox: {
     type: Boolean,
-    default: true
+    default: false
   },
   fixed: {
     type: Boolean,

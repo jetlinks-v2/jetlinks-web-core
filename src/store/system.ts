@@ -17,13 +17,22 @@ import {
 } from '@jetlinks-web-core/utils/theme-style'
 import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
 
+export type LayoutMode = 'mix' | 'side' | 'top'
+
+const layoutModes: readonly LayoutMode[] = ['mix', 'side', 'top']
+
+// 历史 front 配置没有 layout，统一回退侧边导航，保持升级前的菜单行为。
+export const normalizeLayoutMode = (value: unknown): LayoutMode => (
+  layoutModes.includes(value as LayoutMode) ? value as LayoutMode : 'side'
+)
+
 interface LayoutType {
   siderWidth: number
   headerHeight: number
   collapsedWidth: number
   title: string
   logo: string
-  layout: 'mix' | 'side' | 'top'
+  layout: LayoutMode
 }
 
 const useSystemStoreBase = defineStore('system', () => {
@@ -129,6 +138,7 @@ const useSystemStoreBase = defineStore('system', () => {
     if (!_value) return
     layout.title = _value.title
     layout.logo = resolvePublicAssetUrl(_value.logo)
+    layout.layout = normalizeLayoutMode(_value.layout)
     const frontThemeStyle = userThemeStyle || normalizeThemeStyle(_value.headerTheme)
     // localStorage 只负责接口返回前的首屏主题；登录后用户设置优先，系统设置兜底。
     changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle))

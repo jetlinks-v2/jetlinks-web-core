@@ -36,7 +36,5 @@ const handleClick = (key: string | number) => {
 </script>
 
 <style scoped lang="less">
-.project-secondary-menu {
-  padding: 0 var(--space-4);
-}
+
 </style>
