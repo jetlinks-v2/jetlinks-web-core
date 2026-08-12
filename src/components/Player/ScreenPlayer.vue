@@ -519,12 +519,22 @@ defineExpose({
 }
 .live-player-warp .live-player-content .player-body {
   flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .live-player-warp .live-player-content .player-body .player-screen {
   position: relative;
   display: grid;
   box-sizing: border-box;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #000;
+}
+.live-player-warp .live-player-content .player-body .player-screen:fullscreen {
   height: 100%;
+  aspect-ratio: auto;
 }
 .live-player-warp .live-player-content .player-body .player-screen.screen-1 {
   grid-template-columns: 1fr;

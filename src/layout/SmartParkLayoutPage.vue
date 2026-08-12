@@ -10,7 +10,7 @@
         </span>
       </div>
 
-      <div class="smart-park-product-tabs">
+      <div v-if="showProductTabs" class="smart-park-product-tabs">
         <a-button
           v-for="item in menuNodes"
           :key="item.key"
@@ -81,7 +81,6 @@
           >
             <SmartParkSidebarMenu
               :nodes="secondaryMenuItems"
-              :title-click="handleMenuClick"
               :is-active="isOwnMenuNodeActive"
             />
           </a-menu>
@@ -190,10 +189,6 @@ const SmartParkSidebarMenu = defineComponent({
       type: Array as PropType<MenuNode[]>,
       required: true,
     },
-    titleClick: {
-      type: Function as PropType<(node: MenuNode) => void>,
-      required: true,
-    },
     isActive: {
       type: Function as PropType<(node: MenuNode) => boolean>,
       required: true,
@@ -216,7 +211,6 @@ const SmartParkSidebarMenu = defineComponent({
       if (node.children.length) {
         return h(ASubMenu, {
           key: node.key,
-          onTitleClick: () => props.titleClick(node),
         }, {
           title: () => renderLabel(node),
           default: () => renderNodes(node.children),
@@ -375,6 +369,7 @@ const menuNodes = computed(() => (
     .map(item => normalizeMenuNode(item))
     .filter((item): item is MenuNode => Boolean(item && item.children.length))
 ))
+const showProductTabs = computed(() => menuNodes.value.length > 1)
 
 const isOwnMenuNodeActive = (node: MenuNode) => {
   const keys = routeSelectedKeys.value
@@ -558,11 +553,14 @@ watchEffect(() => {
   if (!includesParkOptionValue(parkOptions.value, selectedPark.value)) {
     selectedPark.value = findFirstSelectableParkValue(parkOptions.value) || ''
   }
+})
+
+watch(() => route.fullPath, () => {
   const paths = (route.meta.breadcrumb || route.meta.breadcrumbCache || []) as Array<{ path?: string; name?: string }>
   const resolved = resolveMenuKeys(paths)
   state.selectedKeys = resolved.selectedKeys
   state.openKeys = resolved.openKeys
-})
+}, { immediate: true })
 
 watchEffect(() => {
   if (selectedPark.value) {
