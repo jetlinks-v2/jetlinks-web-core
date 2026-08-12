@@ -104,7 +104,6 @@ const handleBack = () => {
   flex-shrink: 0;
   padding: 0;
   width: 16px;
-  height: 16px;
   min-width: 16px;
 
   :deep(.anticon) {

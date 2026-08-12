@@ -80,7 +80,8 @@ export const INIT_HOME: RouteRecordRaw = {
   name: 'init-home',
   component: () => import('@jetlinks-web-core/views/init-home/index.vue'),
   meta: {
-    title: '初始化'
+    title: '初始化',
+    security: RouteSecurityLevel.ADMINISTRATOR
   }
 }
 

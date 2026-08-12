@@ -10,7 +10,13 @@ import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
 import { RouteSecurityLevel } from './types'
 import { toValue } from 'vue'
-import { bootstrapSession, ensureMenuRoutes, resetRouteStartupState, resetSessionStores } from './startup'
+import {
+  addFallbackRoute,
+  bootstrapSession,
+  ensureMenuRoutes,
+  resetRouteStartupState,
+  resetSessionStores
+} from './startup'
 import {
   createProjectRuntimeHref,
   getProjectCodeFromLocation,
@@ -21,6 +27,7 @@ import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 
 const FORBIDDEN_PATH = '/403'
+const NOT_FOUND_PATH = '/404'
 const PROJECT_RUNTIME_ROOT_PATH = '/'
 const PROJECT_TENANT_ROUTE_PREFIXES = ['/console', '/account']
 
@@ -99,6 +106,24 @@ function shouldSkipMenuFetch(to: RouteLocationNormalized): boolean {
 }
 
 const isForbiddenRoute = (to: RouteLocationNormalized) => to.path === FORBIDDEN_PATH
+const isNotFoundRoute = (to: RouteLocationNormalized) => to.name === 'error'
+
+const getAdministratorRouteRedirect = (to: RouteLocationNormalized) => {
+  const requiresAdministrator = to.matched.some(
+    record => record.meta.security === RouteSecurityLevel.ADMINISTRATOR
+  )
+
+  if (!requiresAdministrator || useUserStore().isAdmin) {
+    return
+  }
+
+  // 404 fallback normally waits for menu routes; register it now so denied routes never render briefly.
+  addFallbackRoute(router)
+  return {
+    path: NOT_FOUND_PATH,
+    replace: true
+  }
+}
 
 const isProjectTenantSemanticRoute = (to: RouteLocationNormalized) => {
   return PROJECT_TENANT_ROUTE_PREFIXES.some(prefix => (
@@ -124,7 +149,7 @@ const getSubAccountRedirect = (to: RouteLocationNormalized) => {
     return false
   }
 
-  if (isForbiddenRoute(to) || isPublicRoute(to)) {
+  if (isForbiddenRoute(to) || isNotFoundRoute(to) || isPublicRoute(to)) {
     return
   }
 
@@ -203,6 +228,12 @@ router.beforeEach((to, from, next) => {
     } else {
       bootstrapSession()
         .then(() => {
+          const administratorRouteRedirect = getAdministratorRouteRedirect(to)
+          if (administratorRouteRedirect) {
+            next(administratorRouteRedirect)
+            return
+          }
+
           const subAccountRedirect = getSubAccountRedirect(to)
           if (subAccountRedirect === false) {
             routeLoading.finish()
@@ -217,6 +248,12 @@ router.beforeEach((to, from, next) => {
         })
         .catch(error => {
           console.error('[Router] 初始化会话失败:', error)
+          const administratorRouteRedirect = getAdministratorRouteRedirect(to)
+          if (administratorRouteRedirect) {
+            next(administratorRouteRedirect)
+            return
+          }
+
           next()
         })
     }

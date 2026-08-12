@@ -8,6 +8,8 @@ export enum RouteSecurityLevel {
   PUBLIC = 'public',
   /** Token required, menu permission not required. */
   AUTHENTICATED = 'authenticated',
+  /** Platform administrator required. */
+  ADMINISTRATOR = 'administrator',
   /** Token and menu permission required (default). */
   AUTHORIZED = 'authorized'
 }

@@ -26,16 +26,16 @@
     color: var(--ink-2);
     .ant-tree-list-holder-inner {
       gap: 0;
-    }
 
-    .ant-tree-treenode {
-      position: relative;
-      width: 100%;
-      align-items: center;
-      min-height: 2.5rem;
-      padding: 0;
-      border-radius: var(--r-3);
-      overflow: hidden;
+      // 仅约束列表内的可见节点，避免撑宽 Ant Tree 挂在根节点下的隐藏测量节点。
+      .ant-tree-treenode {
+        position: relative;
+        width: 100%;
+        align-items: center;
+        min-height: 2.5rem;
+        padding: 0;
+        overflow: hidden;
+      }
     }
 
     .ant-tree-treenode:hover {
@@ -43,7 +43,6 @@
     }
 
     .ant-tree-treenode-selected {
-      border-left: 0.125rem solid var(--jet-theme-primary);
       background: linear-gradient(90deg, var(--accent-soft) 0%, transparent 100%);
     }
 
@@ -90,4 +89,8 @@
       background: transparent;
     }
   }
+}
+
+.pro-table__no-padding {
+    padding: 0 !important;
 }
