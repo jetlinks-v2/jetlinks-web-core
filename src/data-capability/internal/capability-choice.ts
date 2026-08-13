@@ -78,6 +78,7 @@ async function projectCapabilityChoice(
           modes: [...item.definition.modes],
           configSchema: item.definition.configSchema,
           paramsSchema: item.definition.querySchema,
+          filterSchema: item.definition.filterSchema,
           resultSchema: item.definition.outputSchema,
         },
       }
