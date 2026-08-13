@@ -14,6 +14,8 @@ defaults after removing all paths declared by either `params.properties` or
 `testParams.properties` as JSON; while editing, changes update only the non-configurable
 part and preserve user parameter values. The default JSON intentionally omits the entire
 `targetInference` tree; secondary inference is maintained in its dedicated tab.
+The structured value table fills the remaining panel height and scrolls internally, so long
+real-time or image parameter lists do not push the whole model configuration page.
 
 While editing, the parameter table keeps row drafts locally so adding or checking a row
 does not reorder or discard other drafts. It emits a non-destructive preview definition so
@@ -44,6 +46,8 @@ Target cards and part cards can be collapsed independently. Target and part labe
 directly in their card headers. Capability rows show their name, path, and enabled state;
 their model, vector profile, and additional JSON parameters open in a configuration modal.
 Collapse state is local UI state and is never written into the model definition.
+Long target-inference group lists also fill the remaining tab height and scroll internally,
+matching the real-time and image parameter tabs.
 
 `ModelConfig` uses it as the default editor on the model parameters tab, so existing
 `ModelConfig` callers do not need to add a slot or register the component:
