@@ -46,9 +46,12 @@
             :suggested-prompts="conversationSuggestedPrompts"
             :prefill-input-key="conversationHandoffPrompt?.id || ''"
             :prefill-input-value="conversationHandoffPrompt?.value || ''"
+            :before-send-chat="handleConversationBeforeSend"
             :visible="open"
             @message="handleConversationMessage"
             @background-message="handleBackgroundMessage"
+            @restored-messages="handleRestoredMessages"
+            @socket-payload="handleConversationSocketPayload"
           >
             <template #header-extra>
               <a-dropdown
@@ -112,7 +115,12 @@ import { useRoute } from 'vue-router';
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry';
 import { buildAgentSubjectPayload, normalizeAgentSubject } from './subject';
 import type { AiClientToolCall } from './clientTools';
+import type {
+  GeneralAgentConversationChatPayload,
+  GeneralAgentConversationMessage,
+} from './generalAgentExtensions';
 import { useFloatingPanel } from './useFloatingPanel';
+import { useGeneralAgentConversationBridges } from './useGeneralAgentConversationBridges';
 import {
   buildAiAgentHandoffKey,
   clearAiAgentHandoff,
@@ -193,6 +201,7 @@ const route = useRoute();
 const activeAgent = ref<AgentDeployRecord>({});
 const conversationComponent = shallowRef<any>();
 const conversationRef = ref<any>();
+const restoredConversationMessages = ref<GeneralAgentConversationMessage[]>([]);
 const activeHandoffRecord = ref<AiAgentHandoffRecord>();
 const consumedHandoffId = ref('');
 const appliedHandoffPromptId = ref('');
@@ -532,6 +541,24 @@ const handleBackgroundMessage = (payload: any) => {
   emits('background-message', payload);
 };
 
+const conversationBridges = useGeneralAgentConversationBridges({
+  restoredMessages: restoredConversationMessages,
+  t: $t,
+  upsertLocalMessage: message => conversationRef.value?.upsertLocalMessage?.(message),
+});
+
+const handleConversationBeforeSend = (payload: GeneralAgentConversationChatPayload) => (
+  conversationBridges.beforeSend(payload)
+);
+
+const handleRestoredMessages = (messages: GeneralAgentConversationMessage[]) => {
+  restoredConversationMessages.value = messages;
+};
+
+const handleConversationSocketPayload = (payload: Record<string, unknown>) => {
+  conversationBridges.onSocketPayload(payload);
+};
+
 const isLocalUserMessage = (message: any) => (
   message?.type === 'user'
   && (
@@ -541,6 +568,7 @@ const isLocalUserMessage = (message: any) => (
 );
 
 const handleConversationMessage = (message: any) => {
+  conversationBridges.onMessage(message as GeneralAgentConversationMessage);
   if (typeof props.parameters?.onConversationMessage === 'function') {
     // Page runtimes can keep transient business context from the user's latest message
     // without leaking handler functions into the session init payload.
