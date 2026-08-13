@@ -150,14 +150,11 @@ watch(
 );
 
 const onMore = (key: string) => {
-    // 判断当前是否为/account/center
-    if (route.path === '/account/center') {
-        userInfo.tabKey = 'StationMessage';
+    if (route.path === '/workbench/notices') {
         userInfo.other.tabKey = key;
     } else {
-        menuStory.routerPush('account/center', {
+        menuStory.routerPush('workbench/notices', {
             params:{
-                tabKey: 'StationMessage',
                 other: {
                     tabKey: key,
                 },
