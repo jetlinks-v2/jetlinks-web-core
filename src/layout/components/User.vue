@@ -48,7 +48,7 @@ const click = (e: { key: string }) => {
       logout().then((resp) => {
         if (resp.success) {
           clearVerifyCache()
-          jumpLogin()
+          jumpLogin({ reason: 'logout' })
         }
       })
       return;

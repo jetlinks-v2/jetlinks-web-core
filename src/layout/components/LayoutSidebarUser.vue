@@ -113,7 +113,7 @@ const handleLogout = async () => {
     if (resp.success) {
       open.value = false
       clearVerifyCache()
-      jumpLogin()
+      jumpLogin({ reason: 'logout' })
     }
   } finally {
     logoutLoading.value = false
