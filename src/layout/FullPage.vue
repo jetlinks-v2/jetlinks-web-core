@@ -80,7 +80,6 @@ const updateHeight = () => {
   MinHeight.value = `calc(100vh - ${height}px)`
 
   if (props.flex && props.fixed !== false) {
-    window.cancelAnimationFrame(layoutFrame)
     layoutFrame = window.requestAnimationFrame(() => {
       const documentElement = document.documentElement
       const overflowHeight = Math.max(documentElement.scrollHeight - documentElement.clientHeight, 0)
