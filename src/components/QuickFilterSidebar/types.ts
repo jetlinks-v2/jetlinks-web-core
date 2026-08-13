@@ -2,6 +2,8 @@ import type { ConditionFilterField, ConditionFilterTerm } from '../ConditionFilt
 
 export type QuickFilterSidebarValue = string | number | boolean | null | undefined
 
+export type QuickFilterSidebarVariant = 'list' | 'tags'
+
 export type QuickFilterSidebarAction = {
   key?: string
   label?: string

@@ -1,5 +1,11 @@
 ﻿<template>
-  <aside class="quick-filter-sidebar">
+  <aside
+    class="quick-filter-sidebar"
+    :class="`quick-filter-sidebar--${variant}`"
+  >
+    <div v-if="title" class="quick-filter-sidebar__title">
+      {{ title }}
+    </div>
     <div
       v-for="section in sections"
       :key="section.key"
@@ -145,14 +151,32 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import {
+  cloneTerms,
   isSameTerms,
   normalizeInputTerms,
   type ConditionFilterField,
   type ConditionFilterTerm,
 } from '../ConditionFilter'
-import type { QuickFilterSidebarItem, QuickFilterSidebarSection, QuickFilterSidebarShortcut } from './types'
+import type {
+  QuickFilterSidebarItem,
+  QuickFilterSidebarSection,
+  QuickFilterSidebarShortcut,
+  QuickFilterSidebarVariant,
+} from './types'
 
 const props = defineProps({
+  title: {
+    type: String,
+    default: '',
+  },
+  variant: {
+    type: String as PropType<QuickFilterSidebarVariant>,
+    default: 'list',
+  },
+  allowDeselect: {
+    type: Boolean,
+    default: false,
+  },
   sections: {
     type: Array as PropType<QuickFilterSidebarSection[]>,
     default: () => [],
@@ -248,7 +272,12 @@ const handleSelect = (section: QuickFilterSidebarSection, item: QuickFilterSideb
   emit('select', section.key, item)
 
   if (item.shortcut) {
-    const nextTerms = applyShortcut(props.modelValue || [], item.shortcut)
+    // 标签型快捷筛选允许再次点击当前项还原该字段，同时保留其他筛选条件。
+    const nextTerms = props.allowDeselect && isShortcutActive(item.shortcut)
+      ? applyShortcut(props.modelValue || [], {
+          removeColumns: collectShortcutColumns(item.shortcut),
+        })
+      : applyShortcut(props.modelValue || [], item.shortcut)
     emit('update:modelValue', nextTerms)
     emit('change', {
       terms: nextTerms,
@@ -262,31 +291,11 @@ const isSameValue = (left: QuickFilterSidebarItem['value'], right: QuickFilterSi
   return Object.is(left, right)
 }
 
-const cloneTermValue = (value: unknown): unknown => {
-  if (Array.isArray(value)) {
-    return value.map((item) => cloneTermValue(item))
-  }
-
-  if (value && typeof value === 'object') {
-    return { ...(value as Record<string, unknown>) }
-  }
-
-  return value
-}
-
-const cloneTerms = (terms: ConditionFilterTerm[] = []) => {
-  return terms.map((item) => ({
-    ...item,
-    value: cloneTermValue(item.value),
-    terms: item.terms ? cloneTerms(item.terms as ConditionFilterTerm[]) : undefined,
-  }))
-}
-
-const normalizeTerms = (terms: ConditionFilterTerm[] = []) => {
+const normalizeTerms = (terms: ConditionFilterTerm[] = []): ConditionFilterTerm[] => {
   return normalizeInputTerms(cloneTerms(terms), props.fields || [])
 }
 
-const collectShortcutColumns = (shortcut?: QuickFilterSidebarShortcut) => {
+const collectShortcutColumns = (shortcut?: QuickFilterSidebarShortcut): string[] => {
   const columns = new Set<string>()
 
   ;(shortcut?.removeColumns || []).forEach((item) => {
@@ -304,7 +313,15 @@ const collectShortcutColumns = (shortcut?: QuickFilterSidebarShortcut) => {
   return Array.from(columns)
 }
 
-const extractTermsByColumns = (terms: ConditionFilterTerm[] = [], columns: string[] = []) => {
+const toNestedTerms = (terms: ConditionFilterTerm[]): NonNullable<ConditionFilterTerm['terms']> => {
+  // ConditionFilter 的编辑态 term 类型比嵌套表达式宽松，这里只在递归边界收窄已规范化的条件。
+  return terms as NonNullable<ConditionFilterTerm['terms']>
+}
+
+const extractTermsByColumns = (
+  terms: ConditionFilterTerm[] = [],
+  columns: string[] = [],
+): ConditionFilterTerm[] => {
   if (!columns.length) {
     return []
   }
@@ -315,20 +332,17 @@ const extractTermsByColumns = (terms: ConditionFilterTerm[] = [], columns: strin
     }
 
     if (item.column && columns.includes(String(item.column))) {
-      acc.push({
-        ...item,
-        value: cloneTermValue(item.value),
-      })
+      acc.push(...cloneTerms([item]))
       return acc
     }
 
     if (Array.isArray(item.terms) && item.terms.length) {
-      const nextTerms = extractTermsByColumns(item.terms as ConditionFilterTerm[], columns)
+      const nextTerms = extractTermsByColumns(item.terms, columns)
 
       if (nextTerms.length) {
         acc.push({
           ...item,
-          terms: nextTerms,
+          terms: toNestedTerms(nextTerms),
         })
       }
     }
@@ -337,7 +351,10 @@ const extractTermsByColumns = (terms: ConditionFilterTerm[] = [], columns: strin
   }, [])
 }
 
-const removeTermsByColumns = (terms: ConditionFilterTerm[] = [], columns: string[] = []) => {
+const removeTermsByColumns = (
+  terms: ConditionFilterTerm[] = [],
+  columns: string[] = [],
+): ConditionFilterTerm[] => {
   if (!columns.length) {
     return cloneTerms(terms)
   }
@@ -348,34 +365,34 @@ const removeTermsByColumns = (terms: ConditionFilterTerm[] = [], columns: string
     }
 
     if (Array.isArray(item.terms) && item.terms.length) {
-      const nextTerms = removeTermsByColumns(item.terms as ConditionFilterTerm[], columns)
+      const nextTerms = removeTermsByColumns(item.terms, columns)
 
       if (nextTerms.length) {
         acc.push({
           ...item,
-          terms: nextTerms,
+          terms: toNestedTerms(nextTerms),
         })
       }
 
       return acc
     }
 
-    acc.push({
-      ...item,
-      value: cloneTermValue(item.value),
-    })
+    acc.push(...cloneTerms([item]))
     return acc
   }, [])
 }
 
-const applyShortcut = (terms: ConditionFilterTerm[] = [], shortcut?: QuickFilterSidebarShortcut) => {
+const applyShortcut = (
+  terms: ConditionFilterTerm[] = [],
+  shortcut?: QuickFilterSidebarShortcut,
+): ConditionFilterTerm[] => {
   if (!shortcut) {
     return normalizeTerms(terms)
   }
 
   const columns = collectShortcutColumns(shortcut)
   const baseTerms = removeTermsByColumns(terms, columns)
-  const shortcutTerms = cloneTerms(shortcut.terms || [])
+  const shortcutTerms: ConditionFilterTerm[] = cloneTerms(shortcut.terms || [])
 
   shortcutTerms.forEach((item, index) => {
     if (!item.type) {
@@ -386,7 +403,7 @@ const applyShortcut = (terms: ConditionFilterTerm[] = [], shortcut?: QuickFilter
   return normalizeTerms([...baseTerms, ...shortcutTerms])
 }
 
-const isShortcutActive = (shortcut?: QuickFilterSidebarShortcut) => {
+const isShortcutActive = (shortcut?: QuickFilterSidebarShortcut): boolean => {
   if (!shortcut) {
     return false
   }
@@ -623,3 +640,5 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   font-size: var(--fs-12);
   line-height: 1.25rem;
 }</style>
+
+<style src="./tag-variant.css"></style>

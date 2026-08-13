@@ -28,7 +28,7 @@ export const bootstrapSession = async () => {
   }
 }
 
-const addFallbackRoute = (router: Router) => {
+export const addFallbackRoute = (router: Router) => {
   if (router.hasRoute('error')) {
     return
   }
