@@ -5,26 +5,27 @@
         :class="{ active: active ? 'active' : '', 'disabled': disabled }"
         @click="handleClick"
     >
-      <div class="card-type" v-if="slots.type">
+      <div class="card-type" v-if="hasTitleSlot">
         <div class="card-type-text">
-          <slot name="type"></slot>
+          <slot v-if="slots.type" name="type"></slot>
+          <slot v-else name="header"></slot>
         </div>
       </div>
       <div
           class="card-content"
-          :class="{'card-content-top-line': !slots.type}"
-          :style="{ paddingTop: slots.type ? '40px' : '30px' }"
+          :class="{'card-content-top-line': !hasTitleSlot}"
+          :style="{ paddingTop: hasTitleSlot ? '40px' : '30px' }"
       >
         <div
             class="card-content-bg1"
             :style="{
-                background: showStatus ? getBackgroundColor(statusNames[status]) : 'transparent',
+                background: showCardStatus ? getBackgroundColor(statusNames[status]) : 'transparent',
             }"
         ></div>
         <div
             class="card-content-bg2"
             :style="{
-                background: showStatus ? getBackgroundColor(statusNames[status]) : 'transparent',
+                background: showCardStatus ? getBackgroundColor(statusNames[status]) : 'transparent',
             }"
         ></div>
         <div style="display: flex">
@@ -41,7 +42,9 @@
           </div>
           <!-- 内容 -->
           <div class="card-item-body">
-            <slot name="content">
+            <slot v-if="slots.content" name="content"></slot>
+            <slot v-else-if="slots.default"></slot>
+            <template v-else>
               <j-ellipsis style="width: calc(100% - 100px);">
                 <span class="card-item-heard-name">
                   {{ value.name }}
@@ -53,7 +56,7 @@
                   <j-ellipsis>{{ _item?.value ?? "--" }}</j-ellipsis>
                 </a-col>
               </a-row>
-            </slot>
+            </template>
           </div>
         </div>
         <!-- 勾选 -->
@@ -64,7 +67,7 @@
         </div>
         <!-- 状态 -->
         <div
-            v-if="showStatus"
+            v-if="showCardStatus"
             class="card-state"
             :style="{
                         backgroundColor: getHexColor(statusNames[status]),
@@ -196,6 +199,10 @@ const props = defineProps({
     default: []
   }
 });
+
+// 兼容采用常规 header/default 插槽的业务页面；该模式没有卡片状态语义，不展示默认“正常”角标。
+const hasTitleSlot = computed(() => Boolean(slots.type || slots.header));
+const showCardStatus = computed(() => props.showStatus && !slots.header && !slots.default);
 
 const getBackgroundColor = (code: string) => {
   const _color1 = getHexColor(code, 0.03);
