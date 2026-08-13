@@ -234,10 +234,15 @@ defineExpose<TargetInferenceEditorExpose>({ prepareForSave })
 
 <style scoped lang="less">
 .target-inference-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
   min-width: 0;
 }
 
 .target-inference-editor__intro {
+  flex: 0 0 auto;
   margin-bottom: 0.5rem;
   color: var(--ink-2);
   font-size: var(--fs-12);
@@ -246,14 +251,18 @@ defineExpose<TargetInferenceEditorExpose>({ prepareForSave })
 
 .target-inference-editor__toolbar {
   display: flex;
+  flex: 0 0 auto;
   justify-content: flex-end;
   margin-bottom: var(--space-3);
 }
 
 .target-inference-editor__groups {
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
   gap: 0.75rem;
+  min-height: 0;
+  overflow: auto;
 }
 
 </style>
