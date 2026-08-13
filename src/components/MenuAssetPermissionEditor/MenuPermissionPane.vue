@@ -21,6 +21,7 @@
             <a-checkbox
               :checked="selection.checked"
               :indeterminate="selection.indeterminate"
+              :disabled="readonly"
               @change="context.setMenusChecked(activeMenus, $event.target.checked)"
             >{{ $t('components.MenuAssetPermissionEditor.menu') }}</a-checkbox>
           </div>
@@ -46,7 +47,7 @@
             v-if="column.key === 'menu'"
             :checked="record._granted"
             :indeterminate="record.indeterminate"
-            :disabled="isProtectedMenu(record)"
+            :disabled="readonly || isProtectedMenu(record)"
             @change="toggleMenu(record, $event.target.checked)"
           >{{ record.i18nName || record.name || record.code || record.id }}</a-checkbox>
           <div v-else-if="column.key === 'action'" class="button-list">
@@ -54,7 +55,7 @@
               v-for="button in record.buttons || []"
               :key="button.id"
               :checked="button.granted"
-              :disabled="isProtectedButton(record, button)"
+              :disabled="readonly || isProtectedButton(record, button)"
               @change="toggleButton(record, button, $event.target.checked)"
             >{{ button.i18nName || button.name || button.id }}</a-checkbox>
             <span v-if="!record.buttons?.length">--</span>
@@ -80,9 +81,11 @@ const props = withDefaults(defineProps<{
   context: MenuAssetPermissionEditorContext
   columns?: any[]
   ownerLabels?: Record<string, string>
+  readonly?: boolean
 }>(), {
   columns: () => [],
   ownerLabels: () => ({}),
+  readonly: false,
 })
 
 const { t: $t } = useI18n()
