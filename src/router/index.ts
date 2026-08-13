@@ -4,7 +4,8 @@ import {
   type RouteLocationNormalized,
   type NavigationGuardNext
 } from 'vue-router'
-import { getToken, removeToken } from '@jetlinks-web/utils'
+import { TOKEN_KEY } from '@jetlinks-web/constants'
+import { getToken, LocalStore, removeToken } from '@jetlinks-web/utils'
 import microApp from '@micro-zoe/micro-app'
 import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
@@ -14,11 +15,17 @@ import { bootstrapSession, ensureMenuRoutes, resetRouteStartupState, resetSessio
 import {
   createProjectRuntimeHref,
   getProjectCodeFromLocation,
+  getProjectRuntimeConfig,
   redirectLegacyProjectHash,
   isProjectRuntime
 } from '@jetlinks-web-core/utils/project-runtime'
+import { removeProjectStorage } from '@jetlinks-web-core/utils/project-storage'
 import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 import { useUserStore } from '@jetlinks-web-core/store/user'
+import {
+  createLoginNavigationHref,
+  type LoginNavigationReason,
+} from './login-navigation'
 
 const FORBIDDEN_PATH = '/403'
 const PROJECT_PERSON_CENTER_PATH = '/person-center'
@@ -240,25 +247,44 @@ router.onError(() => {
 })
 
 
-export const jumpLogin = () => {
+export interface JumpLoginOptions {
+  reason?: LoginNavigationReason
+}
+
+export const jumpLogin = (options: JumpLoginOptions = {}) => {
   const currentRoute = toValue(router.currentRoute)
 
   // 优化: 使用新的公开路由检查
   if (isPublicRoute(currentRoute)) return
 
   setTimeout(() => {
+    const reason = options.reason || 'session-expired'
+    const projectRuntime = isProjectRuntime()
+    const projectCode = projectRuntime ? getProjectCodeFromLocation() : ''
+
     resetSessionStores()
     removeToken()
-    const loginRoute = coreRoutes.find(r => r.name === 'Login')
-    // router.replace({
-    //   path: loginRoute?.path || '/login',
-    // })
-      const loginPath = loginRoute?.path || '/login'
-      const { origin, pathname, hash} = window.location
-      const hashPath = !!hash ? '#' : ''
-      if (currentRoute.path !== loginPath) {
-        window.location.href = `${origin}${pathname}${hashPath}${loginPath}?redirect=${currentRoute.path}`
+
+    if (reason === 'logout') {
+      // 主动退出是整段 SaaS 会话的结束，不能只清 pathname 对应的项目 token。
+      LocalStore.remove(TOKEN_KEY)
+      if (projectCode) {
+        removeProjectStorage(projectCode)
       }
+    }
+
+    const loginRoute = coreRoutes.find(r => r.name === 'Login')
+    const loginPath = loginRoute?.path || '/login'
+    if (currentRoute.path !== loginPath) {
+      window.location.href = createLoginNavigationHref({
+        currentPath: currentRoute.fullPath,
+        isProjectRuntime: projectRuntime,
+        location: window.location,
+        loginPath,
+        reason,
+        runtimeConfig: getProjectRuntimeConfig(),
+      })
+    }
   })
 }
 
