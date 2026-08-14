@@ -287,9 +287,9 @@ const findFirstSelectableParkValue = (options: ParkTreeSelectNode[]): string | u
   return undefined
 }
 
-const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
+const resolveMenuKeys = (paths: Array<Record<string, any>>, activeMenu?: unknown) => {
   const menuKeys = paths.map(item => item.path || item.name).filter(Boolean).map(String)
-  const leafKey = menuKeys.at(-1)
+  const leafKey = typeof activeMenu === 'string' && activeMenu ? activeMenu : menuKeys.at(-1)
   const openKeys = leafKey ? menuKeys.slice(0, -1) : menuKeys
 
   if (!leafKey) {
@@ -326,7 +326,7 @@ const handleOpenKeysChange = (openKeys: string[]) => {
 watchEffect(() => {
   if (router.currentRoute) {
     const paths = (route.meta.breadcrumb || route.meta.breadcrumbCache || []) as Array<{ path?: string; name?: string }>
-    const resolved = resolveMenuKeys(paths)
+    const resolved = resolveMenuKeys(paths, route.meta.activeMenu)
     state.selectedKeys = resolved.selectedKeys
     routeOpenKeys.value = resolved.openKeys
     state.openKeys = resolved.openKeys

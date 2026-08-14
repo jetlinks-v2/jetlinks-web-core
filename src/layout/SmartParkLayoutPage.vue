@@ -525,10 +525,10 @@ const handleSecondaryOpenChange: MenuProps['onOpenChange'] = (openKeys) => {
   state.openKeys = openKeys.map(String)
 }
 
-const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
+const resolveMenuKeys = (paths: Array<Record<string, any>>, activeMenu?: unknown) => {
   // a-menu 的 key 与 normalizeMenuNode 一致，优先取 path，再回退 name，避免 selectedKeys 命中不到菜单节点。
   const menuKeys = paths.map(item => item.path || item.name).filter(Boolean).map(String)
-  const leafKey = menuKeys.at(-1)
+  const leafKey = typeof activeMenu === 'string' && activeMenu ? activeMenu : menuKeys.at(-1)
   const openKeys = leafKey ? menuKeys.slice(0, -1) : menuKeys
 
   if (!leafKey) {
@@ -557,7 +557,7 @@ watchEffect(() => {
 
 watch(() => route.fullPath, () => {
   const paths = (route.meta.breadcrumb || route.meta.breadcrumbCache || []) as Array<{ path?: string; name?: string }>
-  const resolved = resolveMenuKeys(paths)
+  const resolved = resolveMenuKeys(paths, route.meta.activeMenu)
   state.selectedKeys = resolved.selectedKeys
   state.openKeys = resolved.openKeys
 }, { immediate: true })
