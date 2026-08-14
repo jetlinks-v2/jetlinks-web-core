@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { onlyMessage } from '@jetlinks-web/utils'
-import router from '@jetlinks-web-core/router'
 import i18n from '@jetlinks-web-core/locales'
 import {
   getMyBusinessApplications,
@@ -14,6 +13,7 @@ import {
   selectApplicationScope,
   setApplicationScope,
 } from '@jetlinks-web-core/utils/application-scope'
+import { prepareApplicationAccess } from '@jetlinks-web-core/utils/application-access'
 import { useMenuStore } from './menu'
 
 const $t = i18n.global.t
@@ -76,9 +76,22 @@ export const useBusinessApplicationStore = defineStore('business-application', (
       const result = await useMenuStore().queryMenus(nextApplication.id)
       if (!result?.applied) return false
 
+      const customDomain = typeof nextApplication.configuration?.customDomain === 'string'
+        ? nextApplication.configuration.customDomain
+        : ''
+      const access = prepareApplicationAccess({
+        applicationId: nextApplication.id,
+        applicationName: nextApplication.name,
+        domain: customDomain,
+        path: result.firstMenuPath || '/403',
+      })
+      if (!access.success) {
+        throw new Error(`Application access context is unavailable: ${access.reason}`)
+      }
+
       currentApplication.value = nextApplication
       setApplicationScope(nextApplication.id)
-      await router.replace(result.firstMenuPath || '/403')
+      window.location.assign(access.url)
       return true
     } catch (error) {
       onlyMessage($t(

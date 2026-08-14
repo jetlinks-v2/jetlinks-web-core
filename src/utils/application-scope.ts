@@ -8,11 +8,61 @@ type ApplicationIdentity = {
 }
 
 type ApplicationScopeStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
+type RouteQueryLocation = Pick<Location, 'search'> & Partial<Pick<Location, 'hash'>>
 export type MenuApplicationScope = string | false | undefined
 
 const normalizeApplicationScope = (value: unknown) => typeof value === 'string'
   ? value.trim()
   : ''
+
+const getHashRouteQuery = (hash = '') => {
+  const queryIndex = hash.indexOf('?')
+  return queryIndex >= 0 ? new URLSearchParams(hash.slice(queryIndex + 1)) : undefined
+}
+
+const getRouteQuery = (location: RouteQueryLocation, key: string) => {
+  const hashQuery = getHashRouteQuery(location.hash)
+  return hashQuery?.has(key) ? hashQuery : new URLSearchParams(location.search)
+}
+
+/**
+ * Read a query parameter from a hash route first, while retaining compatibility with
+ * legacy links that placed router parameters before the hash.
+ */
+export const getRouteQueryParam = (location: RouteQueryLocation, key: string) => (
+  getRouteQuery(location, key).get(key)
+)
+
+export const setRouteQueryParam = (url: URL, key: string, value: string) => {
+  if (!url.hash.startsWith('#/')) {
+    url.searchParams.set(key, value)
+    return
+  }
+
+  const hash = url.hash.slice(1)
+  const queryIndex = hash.indexOf('?')
+  const hashPath = queryIndex >= 0 ? hash.slice(0, queryIndex) : hash
+  const hashQuery = queryIndex >= 0
+    ? new URLSearchParams(hash.slice(queryIndex + 1))
+    : new URLSearchParams()
+  hashQuery.set(key, value)
+  url.hash = `${hashPath}?${hashQuery.toString()}`
+}
+
+export const deleteRouteQueryParam = (url: URL, key: string) => {
+  // Clear both locations so links created by the previous non-hash-aware implementation are sanitized too.
+  url.searchParams.delete(key)
+  if (!url.hash.startsWith('#/')) return
+
+  const hash = url.hash.slice(1)
+  const queryIndex = hash.indexOf('?')
+  if (queryIndex < 0) return
+
+  const hashPath = hash.slice(0, queryIndex)
+  const hashQuery = new URLSearchParams(hash.slice(queryIndex + 1))
+  hashQuery.delete(key)
+  url.hash = hashQuery.size ? `${hashPath}?${hashQuery.toString()}` : hashPath
+}
 
 const statusOf = (value: unknown) => {
   const status = Number(value)
@@ -84,6 +134,40 @@ export const normalizeBusinessApplications = <T extends ApplicationIdentity>(
   return hasApplicationId(response) ? [response as T] : []
 }
 
+const trimUrlEnd = (value: string) => value.endsWith('/') ? value.slice(0, -1) : value
+
+export const createApplicationCodeUrl = (
+  applicationCode?: unknown,
+  baseUrl = window.location.origin,
+) => {
+  const code = normalizeApplicationScope(applicationCode).replace(/^\/+|\/+$/g, '')
+  if (!code) return ''
+
+  return new URL(`/${encodeURIComponent(code)}`, baseUrl).toString()
+}
+
+export const resolveApplicationAccessUrl = (
+  target?: unknown,
+  applicationCode?: unknown,
+  baseUrl = window.location.origin,
+) => {
+  const normalizedTarget = normalizeApplicationScope(target)
+  const resolvedTarget = normalizedTarget || createApplicationCodeUrl(applicationCode, baseUrl)
+  if (!resolvedTarget) return ''
+
+  const normalizedUrl = /^https?:\/\//i.test(resolvedTarget) || resolvedTarget.startsWith('/')
+    ? resolvedTarget
+    : `https://${resolvedTarget}`
+
+  return new URL(normalizedUrl, baseUrl).toString()
+}
+
+export const normalizeApplicationBaseUrl = (
+  target?: unknown,
+  applicationCode?: unknown,
+  baseUrl = window.location.origin,
+) => trimUrlEnd(resolveApplicationAccessUrl(target, applicationCode, baseUrl))
+
 /**
  * Resolve the application menu scope for the current browser tab.
  *
@@ -91,10 +175,10 @@ export const normalizeBusinessApplications = <T extends ApplicationIdentity>(
  * the same menu scope across reloads without turning it into a global request header.
  */
 export const getApplicationScopeFromLocation = (
-  location: Pick<Location, 'search'> = window.location,
+  location: RouteQueryLocation = window.location,
   storage: ApplicationScopeStorage = window.sessionStorage,
 ) => {
-  const query = new URLSearchParams(location.search)
+  const query = getRouteQuery(location, APPLICATION_SCOPE_QUERY_KEY)
 
   if (query.has(APPLICATION_SCOPE_QUERY_KEY)) {
     const scope = normalizeApplicationScope(query.get(APPLICATION_SCOPE_QUERY_KEY))
@@ -111,7 +195,7 @@ export const getApplicationScopeFromLocation = (
 
 export const resolveMenuApplicationScope = (
   applicationScope: MenuApplicationScope,
-  location: Pick<Location, 'search'> = window.location,
+  location: RouteQueryLocation = window.location,
   storage: ApplicationScopeStorage = window.sessionStorage,
 ) => (
   applicationScope === false
@@ -140,11 +224,12 @@ export const createApplicationScopeUrl = (
   target: string,
   applicationId: string,
   baseUrl = window.location.origin,
+  applicationCode?: string,
 ) => {
-  const normalizedTarget = /^https?:\/\//i.test(target) || target.startsWith('/')
-    ? target
-    : `https://${target}`
-  const url = new URL(normalizedTarget, baseUrl)
-  url.searchParams.set(APPLICATION_SCOPE_QUERY_KEY, applicationId)
+  const targetUrl = resolveApplicationAccessUrl(target, applicationCode, baseUrl)
+  if (!targetUrl) return ''
+
+  const url = new URL(targetUrl)
+  setRouteQueryParam(url, APPLICATION_SCOPE_QUERY_KEY, applicationId)
   return url.toString()
 }
