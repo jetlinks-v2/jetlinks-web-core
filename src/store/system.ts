@@ -16,6 +16,8 @@ import {
   type ThemeStyleKey
 } from '@jetlinks-web-core/utils/theme-style'
 import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
+import { getProjectCodeFromLocation, isProjectRuntime } from '@jetlinks-web-core/utils/project-runtime'
+import { getProjectStorage } from '@jetlinks-web-core/utils/project-storage'
 
 export type LayoutMode = 'mix' | 'side' | 'top'
 
@@ -25,6 +27,18 @@ const layoutModes: readonly LayoutMode[] = ['mix', 'side', 'top']
 export const normalizeLayoutMode = (value: unknown): LayoutMode => (
   layoutModes.includes(value as LayoutMode) ? value as LayoutMode : 'side'
 )
+
+const resolveLayoutTitle = (frontTitle: unknown) => {
+  const fallbackTitle = typeof frontTitle === 'string' ? frontTitle : ''
+  if (!isProjectRuntime()) return fallbackTitle
+
+  const projectCode = getProjectCodeFromLocation()
+  const projectName = getProjectStorage(projectCode)?.name
+  // 项目名称属于运行上下文，不能被项目端接口回退出的平台 front.title 覆盖。
+  return typeof projectName === 'string' && projectName.trim()
+    ? projectName.trim()
+    : fallbackTitle
+}
 
 interface LayoutType {
   siderWidth: number
@@ -136,7 +150,8 @@ const useSystemStoreBase = defineStore('system', () => {
 
   const handleFront = (_value: any, userThemeStyle?: ThemeStyleKey) => {
     if (!_value) return
-    layout.title = _value.title
+    const title = resolveLayoutTitle(_value.title)
+    layout.title = title
     layout.logo = resolvePublicAssetUrl(_value.logo)
     layout.layout = normalizeLayoutMode(_value.layout)
     const frontThemeStyle = userThemeStyle || normalizeThemeStyle(_value.headerTheme)
@@ -144,7 +159,7 @@ const useSystemStoreBase = defineStore('system', () => {
     changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle))
     changeIco(_value.ico)
     setDocumentTitle()
-    changeTitle(_value.title)
+    changeTitle(title)
   }
 
   const queryInfo = async () => {
