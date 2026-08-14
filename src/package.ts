@@ -32,6 +32,16 @@ let verifyHeadersCache: { key: string; token: string } | null = null
 /** 用于校验成功后重试原请求的 axios 实例（与拦截器使用同一实例） */
 let requestInstanceForRetry: any = null
 
+type PackageRequestConfig = Record<string, any> & {
+    headers?: Record<string, any>
+    projectContext?: false
+    url?: string
+    baseURL?: string
+    hiddenError?: boolean
+}
+
+type PackageRequestOptions = (config: PackageRequestConfig) => PackageRequestConfig | Record<string, any>
+
 const getProjectContext = () => {
     if (!isProjectStorageEnabled()) {
         return undefined
@@ -50,6 +60,94 @@ const getProjectContext = () => {
 
 // 云端边缘代理 baseApi 以 /_ 结尾，WebSocket 分支会自行拼接 _ws。
 const getCloudWsBaseApi = () => getBaseApi().replace(/\/_$/, '')
+
+function getVerifyHeadersCache() {
+    let cache = verifyHeadersCache
+    if (!cache) {
+        try {
+            const raw = localStorage.getItem('jetlinks_verify_cache')
+            if (raw) cache = JSON.parse(raw) as { key: string; token: string }
+        } catch {
+            // ignore
+        }
+    }
+    return cache
+}
+
+const isRecord = (value: unknown): value is Record<string, any> =>
+    !!value && typeof value === 'object' && !Array.isArray(value)
+
+// Axios 与 NDJSON 都要遵守项目运行态、云端边缘代理和二次校验的同一请求契约。
+function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
+    if (isAiClientToolSilentRequest()) {
+        config.hiddenError = true
+    }
+
+    const headers = config.headers || {}
+    config.headers = headers
+
+    const cache = getVerifyHeadersCache()
+    const projectContext = config.projectContext === false ? undefined : getProjectContext()
+    if (projectContext) {
+        const { storage: projectStorage } = projectContext
+
+        if (projectStorage?.token) {
+            headers[TOKEN_KEY] = projectStorage.token
+            if (projectStorage.domain) {
+                headers['X-Tenant-Domain'] = projectStorage.domain
+            } else if ('X-Tenant-Domain' in headers) {
+                delete headers['X-Tenant-Domain']
+            }
+        }
+
+        if (projectStorage?.apiUrl) {
+            config.baseURL = projectStorage.apiUrl
+        }
+    } else {
+        const token = localStorage.getItem(TOKEN_KEY)
+        if (token) {
+            headers[TOKEN_KEY] = token
+        } else if (TOKEN_KEY in headers) {
+            delete headers[TOKEN_KEY]
+        }
+
+        if ('X-Tenant-Domain' in headers) {
+            delete headers['X-Tenant-Domain']
+        }
+    }
+
+    if (cache?.key && cache?.token) {
+        headers['x-verify-key'] = cache.key
+        headers['x-verify-token'] = cache.token
+    }
+
+    if (isFromCloud() && config.url) {
+        config.baseURL = getFromCloudPathName()
+        config.url = config.url.replace(/^\/+/, '') // 清理前缀斜杠
+    }
+
+    return config
+}
+
+function applyRequestOptions<T extends PackageRequestConfig>(
+    config: T,
+    requestOptions: PackageRequestOptions
+): T {
+    const extraOptions = requestOptions(config)
+    if (!isRecord(extraOptions) || extraOptions === config) {
+        return config
+    }
+
+    const { headers, ...restOptions } = extraOptions
+    Object.assign(config, restOptions)
+    if (isRecord(headers)) {
+        config.headers = {
+            ...(config.headers || {}),
+            ...headers
+        }
+    }
+    return config
+}
 
 /**
  * 初始化package
@@ -210,54 +308,7 @@ export const initAxios = () => {
                   })
               }
           },
-        requestOptions(config: any) {
-            if (isAiClientToolSilentRequest()) {
-                config.hiddenError = true
-            }
-
-            let cache = verifyHeadersCache
-            if (!cache) {
-                try {
-                    const raw = localStorage.getItem('jetlinks_verify_cache')
-                    if (raw) cache = JSON.parse(raw) as { key: string; token: string }
-                } catch {
-                    // ignore
-                }
-            }
-
-            const projectContext = config.projectContext === false ? undefined : getProjectContext()
-            if (projectContext) {
-                const { storage: projectStorage } = projectContext
-
-                if (projectStorage?.token) {
-                    config.headers = config.headers || {}
-                    config.headers[TOKEN_KEY] = projectStorage.token
-                    config.headers['X-Tenant-Domain'] = projectStorage.domain
-                }
-
-                if (projectStorage?.apiUrl) {
-                    config.baseURL = projectStorage.apiUrl
-                }
-            } else {
-                config.headers[TOKEN_KEY] = localStorage.getItem(TOKEN_KEY)
-                if ('X-Tenant-Domain' in config.headers) {
-                    delete config.headers['X-Tenant-Domain']
-                }
-            }
-
-            if (cache?.key && cache?.token) {
-                config.headers = config.headers || {}
-                config.headers['x-verify-key'] = cache.key
-                config.headers['x-verify-token'] = cache.token
-            }
-
-            if (isFromCloud() && config.url) {
-                config.baseURL = getFromCloudPathName()
-                config.url = config.url.replace(/^\/+/, '') // 清理前缀斜杠
-            }
-
-            return config
-        }
+        requestOptions: packageRequestOptions
       }
 
       if (isSubApp) { // 获取基座传过来的
@@ -277,9 +328,15 @@ export const initAxios = () => {
               ...config.axiosSettings
           }
       }
+    const requestOptions = settings.requestOptions as PackageRequestOptions
     crateAxios(settings)
     ndJson.create({
-
+        langKey: settings.langKey,
+        filter_url: settings.filter_url,
+        tokenExpiration: settings.tokenExpiration,
+        handleRequest(config) {
+            return applyRequestOptions(config as typeof config & PackageRequestConfig, requestOptions)
+        }
     })
 }
 

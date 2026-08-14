@@ -16,8 +16,16 @@ import '@jetlinks-web-core/style/global.less'
 import 'dayjs/locale/zh-cn'
 import microApp from '@micro-zoe/micro-app'
 import { registerModule } from '@jetlinks-web-core/utils/modules'
+import { consumeApplicationAccessBootstrap } from '@jetlinks-web-core/utils/application-access'
+import { setToken } from '@jetlinks-web/utils'
 
 dayjs.locale('zh-cn')
+
+const applicationBootstrap = consumeApplicationAccessBootstrap()
+if (applicationBootstrap.status === 'applied' && applicationBootstrap.projectStorage.token) {
+  // Cross-Origin tabs have no tenant session yet; router startup still needs the copied project token.
+  setToken(applicationBootstrap.projectStorage.token)
+}
 
 // 模块扫描会加载各业务模块入口；必须在 package 初始化完成后执行，避免模块入口回引 package 时产生循环初始化。
 registerModule()

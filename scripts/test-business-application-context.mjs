@@ -30,7 +30,14 @@ assert.equal(
   getApplicationScopeFromLocation({ search: '?applicationScope=application-b' }, storage),
   'application-b',
 )
-assert.equal(getApplicationScopeFromLocation({ search: '' }, storage), 'application-b')
+assert.equal(
+  getApplicationScopeFromLocation({
+    search: '?applicationScope=legacy-application',
+    hash: '#/?applicationScope=application-a',
+  }, storage),
+  'application-a',
+)
+assert.equal(getApplicationScopeFromLocation({ search: '' }, storage), 'application-a')
 setApplicationScope(undefined, storage)
 assert.equal(getApplicationScopeFromLocation({ search: '' }, storage), undefined)
 

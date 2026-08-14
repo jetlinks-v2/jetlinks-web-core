@@ -15,9 +15,13 @@ import i18n from '@jetlinks-web-core/locales'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 import {
   resolveMenuApplicationScope,
+    createApplicationCodeUrl,
+    getApplicationScopeFromLocation,
   type MenuApplicationScope,
 } from '@jetlinks-web-core/utils/application-scope'
+import type { MenuFilterConditions } from '@jetlinks-web-core/types/module'
 import { createMenuStoreRuntime } from './menuRuntime'
+import { applyModuleMenuFilters } from './menuFilters'
 import {
   getCoreRouteOverrideMenus,
   getFirstMenuPath,
@@ -42,11 +46,33 @@ type ProjectMenuItem = {
     [key: string]: any
 }
 
+type QueryMenusOptions = {
+  applicationScope?: MenuApplicationScope
+  conditions?: MenuFilterConditions
+}
+
+type QueryMenusInput = MenuApplicationScope | QueryMenusOptions
+
 const $t = i18n.global.t
 
 const LEGACY_PROJECT_MENU_OPTION_KEYS = ['componentCode', 'routeName', 'authCode', 'authCodes']
 
 const getDefaultOwnParams = (): any[] => []
+
+const isQueryMenusOptions = (value: QueryMenusInput): value is QueryMenusOptions => (
+  !!value
+  && typeof value === 'object'
+  && !Array.isArray(value)
+)
+
+const resolveQueryMenusOptions = (
+  value?: QueryMenusInput,
+  conditions?: MenuFilterConditions,
+): QueryMenusOptions => (
+  isQueryMenusOptions(value)
+    ? value
+    : { applicationScope: value, conditions }
+)
 
 /**
  * 处理侧边栏路由，生成面包屑数据
@@ -191,9 +217,13 @@ export const useMenuStore = defineStore('menu', () => {
 
   let menuRequestId = 0
 
-  const queryMenus = async (applicationScope?: MenuApplicationScope) => {
+  const queryMenus = async (
+    value?: QueryMenusInput,
+    conditions?: MenuFilterConditions,
+  ) => {
     const requestId = ++menuRequestId
-    const resolvedApplicationScope = resolveMenuApplicationScope(applicationScope)
+    const queryOptions = resolveQueryMenusOptions(value, conditions)
+    const resolvedApplicationScope = resolveMenuApplicationScope(queryOptions.applicationScope)
     runtime.loading.value = true
     try {
       const resp = await getOwnMenuThree({
@@ -203,20 +233,28 @@ export const useMenuStore = defineStore('menu', () => {
       }, resolvedApplicationScope)
 
       const menuResult = Array.isArray(resp.result) ? resp.result : []
-      prepareMicroApplicationMenus(menuResult, app)
 
       // An older response must never replace the routes and permissions of the latest application.
       if (requestId !== menuRequestId) return { applied: false }
 
       if (resp.success) {
+        // Module filters run before route generation so filtered menus never enter routes or permissions.
+        const filteredMenuResult = await applyModuleMenuFilters(menuResult, {
+          applicationScope: resolvedApplicationScope,
+          conditions: queryOptions.conditions,
+        })
+        if (requestId !== menuRequestId) return { applied: false }
+
+        prepareMicroApplicationMenus(filteredMenuResult, app)
+
         const context = await runtime.createRoutes(
-          menuResult,
+          filteredMenuResult,
           () => requestId === menuRequestId,
         )
         if (!context) return { applied: false }
 
-        runtime.menuResultCache.value = JSON.parse(JSON.stringify(menuResult))
-        runtime.hasResponeMenu.value = !!menuResult.length
+        runtime.menuResultCache.value = JSON.parse(JSON.stringify(filteredMenuResult))
+        runtime.hasResponeMenu.value = !!filteredMenuResult.length
         runtime.loading.value = false
         return {
           applied: true,
