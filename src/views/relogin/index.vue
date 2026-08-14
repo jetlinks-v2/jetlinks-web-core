@@ -5,7 +5,7 @@
     :maskClosable="false"
     :footer="null"
     :width="!isCloud ? 1020 : 718"
-    :bodyStyle="{padding: 0}"
+    :bodyStyle="{padding: `0 !important` }"
     @cancel="onCancel"
     centered
   >
@@ -94,7 +94,7 @@ defineExpose({ open })
   }
 
   .ant-modal-content {
-    padding: 0;
+    overflow: hidden;
 
     .ant-modal-close {
       width: 3.5rem;

@@ -1077,5 +1077,8 @@
   "components.StatusPill.published": "Published",
   "components.StatusPill.deprecated": "Deprecated",
   "components.StatusPill.archived": "Archived",
-    "comm.api.timeout": "The network environment is poor"
+  "components.BusinessApplicationSwitcher.switchApplication": "Switch application",
+  "components.BusinessApplicationSwitcher.switching": "Switching application",
+  "components.BusinessApplicationSwitcher.switchFailed": "Could not switch to “{name}”. The current application remains active.",
+  "comm.api.timeout": "The network environment is poor"
 }

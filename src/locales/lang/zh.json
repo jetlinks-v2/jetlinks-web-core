@@ -1077,5 +1077,8 @@
   "components.StatusPill.published": "已发布",
   "components.StatusPill.deprecated": "已下线",
   "components.StatusPill.archived": "已归档",
-    "comm.api.timeout": "网络环境不佳"
+  "components.BusinessApplicationSwitcher.switchApplication": "切换应用",
+  "components.BusinessApplicationSwitcher.switching": "正在切换应用",
+  "components.BusinessApplicationSwitcher.switchFailed": "切换到“{name}”失败，已保留当前应用",
+  "comm.api.timeout": "网络环境不佳"
 }

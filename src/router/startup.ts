@@ -1,6 +1,13 @@
 import type { Router } from 'vue-router'
-import { useApplication, useAuthStore, useMenuStore, useSystemStore, useUserStore } from '@jetlinks-web-core/store'
-import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
+import {
+  useApplication,
+  useAuthStore,
+  useBusinessApplicationStore,
+  useMenuStore,
+  useSystemStore,
+  useUserStore,
+} from '@jetlinks-web-core/store'
+import { isSaaS, isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
 
 let menuRoutePromise: Promise<boolean> | undefined
 
@@ -25,6 +32,10 @@ export const bootstrapSession = async () => {
 
   if (!isSubApp && !applicationStore.appList.length && OpenMicroApp) {
     await applicationStore.queryApplication()
+  }
+
+  if (!isSubApp && isSaaS) {
+    await useBusinessApplicationStore().initialize()
   }
 }
 
@@ -58,13 +69,21 @@ export const ensureMenuRoutes = async (
   }
 
   menuRoutePromise = (async () => {
-    await menuStore.queryMenus()
+    const businessApplicationStore = useBusinessApplicationStore()
+    const shouldUseApplicationScope = !isSubApp && isSaaS && businessApplicationStore.scopeSupported
+    const applicationId = shouldUseApplicationScope
+      ? businessApplicationStore.currentApplication?.id
+      : undefined
+
+    // Business application context is optional; no selected app means the legacy/global menu should continue.
+    await menuStore.queryMenus(shouldUseApplicationScope ? applicationId || false : undefined)
 
     if (menuStore.initialized) {
       addFallbackRoute(router)
     }
 
-    return menuStore.hasRouteMenu()
+    // Empty application menus still register a root redirect to 403 and must rematch the route.
+    return menuStore.initialized
   })()
 
   try {
@@ -86,4 +105,5 @@ export const resetSessionStores = () => {
   useMenuStore().init()
   useAuthStore().init()
   useApplication().init()
+  useBusinessApplicationStore().init()
 }

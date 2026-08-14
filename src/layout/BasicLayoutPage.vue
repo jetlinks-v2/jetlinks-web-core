@@ -16,7 +16,12 @@
   >
     <template #menuHeaderRender>
       <div class="project-layout__brand" :style="layout.layout === 'top' ? undefined : logoWidth">
-        <div v-if="!state.collapsed" class="project-layout__brand-main">
+        <BusinessApplicationSwitcher
+          v-if="businessApplicationRuntime && !state.collapsed"
+          :fallback-logo="layout.logo"
+          :fallback-title="layout.title"
+        />
+        <div v-else-if="!state.collapsed" class="project-layout__brand-main">
           <img class="project-layout__brand-logo" :src="layout.logo" alt="" />
           <span class="project-layout__brand-title">{{ layout.title }}</span>
         </div>
@@ -79,11 +84,12 @@ import {
   Language,
   Resource,
   AiChat,
-  LayoutSidebarUser
+  LayoutSidebarUser,
+  BusinessApplicationSwitcher
 } from './components'
 import { storeToRefs } from 'pinia'
 import { getHideHeaderRightConfig, routerFallback } from '@jetlinks-web-core/utils'
-import { isSubApp } from '@/utils/consts'
+import { isSaaS, isSubApp } from '@/utils/consts'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { useResponsiveLayoutDimensions } from '@jetlinks-web-core/hooks'
 import { useGlobalHomeAgent } from '@jetlinks-web-core/layout/components/AiChat/useGlobalHomeAgent'
@@ -103,6 +109,7 @@ const menuStore = useMenuStore()
 const layoutType = ref('list')
 const hideHeaderRight = getHideHeaderRightConfig()
 const menuSearchKeyword = ref('')
+const businessApplicationRuntime = isSaaS && !isSubApp
 
 const { theme, layout, language, systemInfo, themeStyleToken } = storeToRefs(systemStore)
 const { y: scrollY } = useWindowScroll()
