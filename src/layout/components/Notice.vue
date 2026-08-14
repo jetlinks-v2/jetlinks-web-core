@@ -111,9 +111,8 @@ const read = (type: string, data: any) => {
         // notification.close(data.payload.id);
         getList();
         if (type !== '_read') {
-            menuStory.routerPush('account/center', {
+            menuStory.routerPush('workbench/notices', {
                params:{
-                tabKey: 'StationMessage',
                 row: data.payload,
                }
             });

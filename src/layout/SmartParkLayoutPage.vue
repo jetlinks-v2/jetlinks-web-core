@@ -10,7 +10,7 @@
         </span>
       </div>
 
-      <div class="smart-park-product-tabs">
+      <div v-if="showProductTabs" class="smart-park-product-tabs">
         <a-button
           v-for="item in menuNodes"
           :key="item.key"
@@ -81,7 +81,6 @@
           >
             <SmartParkSidebarMenu
               :nodes="secondaryMenuItems"
-              :title-click="handleMenuClick"
               :is-active="isOwnMenuNodeActive"
             />
           </a-menu>
@@ -110,6 +109,7 @@ import { useUserStore } from '@jetlinks-web-core/store'
 import { Notice, User } from './components'
 import { getHideHeaderRightConfig } from '@jetlinks-web-core/utils'
 import { PARK_STORAGE_KEY } from '@jetlinks-web-core/utils/consts'
+import { dispatchParkChanged, isWorkflowEmbedRoute } from '@jetlinks-web-core/utils/park-events'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { LayoutType } from '@jetlinks-web/components/es/ProLayout/defaultSettings'
 import { defaultRouteContext, provideRouteContext } from '@jetlinks-web/components/es/ProLayout/RouteContext'
@@ -189,10 +189,6 @@ const SmartParkSidebarMenu = defineComponent({
       type: Array as PropType<MenuNode[]>,
       required: true,
     },
-    titleClick: {
-      type: Function as PropType<(node: MenuNode) => void>,
-      required: true,
-    },
     isActive: {
       type: Function as PropType<(node: MenuNode) => boolean>,
       required: true,
@@ -215,7 +211,6 @@ const SmartParkSidebarMenu = defineComponent({
       if (node.children.length) {
         return h(ASubMenu, {
           key: node.key,
-          onTitleClick: () => props.titleClick(node),
         }, {
           title: () => renderLabel(node),
           default: () => renderNodes(node.children),
@@ -374,6 +369,7 @@ const menuNodes = computed(() => (
     .map(item => normalizeMenuNode(item))
     .filter((item): item is MenuNode => Boolean(item && item.children.length))
 ))
+const showProductTabs = computed(() => menuNodes.value.length > 1)
 
 const isOwnMenuNodeActive = (node: MenuNode) => {
   const keys = routeSelectedKeys.value
@@ -529,10 +525,10 @@ const handleSecondaryOpenChange: MenuProps['onOpenChange'] = (openKeys) => {
   state.openKeys = openKeys.map(String)
 }
 
-const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
+const resolveMenuKeys = (paths: Array<Record<string, any>>, activeMenu?: unknown) => {
   // a-menu 的 key 与 normalizeMenuNode 一致，优先取 path，再回退 name，避免 selectedKeys 命中不到菜单节点。
   const menuKeys = paths.map(item => item.path || item.name).filter(Boolean).map(String)
-  const leafKey = menuKeys.at(-1)
+  const leafKey = typeof activeMenu === 'string' && activeMenu ? activeMenu : menuKeys.at(-1)
   const openKeys = leafKey ? menuKeys.slice(0, -1) : menuKeys
 
   if (!leafKey) {
@@ -557,11 +553,14 @@ watchEffect(() => {
   if (!includesParkOptionValue(parkOptions.value, selectedPark.value)) {
     selectedPark.value = findFirstSelectableParkValue(parkOptions.value) || ''
   }
+})
+
+watch(() => route.fullPath, () => {
   const paths = (route.meta.breadcrumb || route.meta.breadcrumbCache || []) as Array<{ path?: string; name?: string }>
-  const resolved = resolveMenuKeys(paths)
+  const resolved = resolveMenuKeys(paths, route.meta.activeMenu)
   state.selectedKeys = resolved.selectedKeys
   state.openKeys = resolved.openKeys
-})
+}, { immediate: true })
 
 watchEffect(() => {
   if (selectedPark.value) {
@@ -570,7 +569,12 @@ watchEffect(() => {
 })
 
 watch(selectedPark, (value, oldValue) => {
-  if (value !== oldValue && route.name !== 'ParkSwitchRedirect') {
+  if (value === oldValue) return
+  dispatchParkChanged(String(value || ''))
+  if (isWorkflowEmbedRoute(route.path) || route.fullPath.includes('workflow-admin')) {
+    return
+  }
+  if (route.name !== 'ParkSwitchRedirect') {
     router.replace({
       name: 'ParkSwitchRedirect',
       query: {

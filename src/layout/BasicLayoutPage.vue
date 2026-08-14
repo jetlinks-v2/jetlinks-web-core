@@ -1,13 +1,14 @@
 ﻿<template>
   <j-pro-layout
     v-bind="config"
-    v-model:openKeys="state.openKeys"
+    :openKeys="state.openKeys"
     v-model:collapsed="state.collapsed"
     :selectedKeys="state.selectedKeys"
     :breadcrumb="{ routes: route.meta.breadcrumb }"
     :pure="state.pure"
     :layoutType="layoutType"
     :menuExtraRender="showMenuSearch ? undefined : false"
+    @update:openKeys="handleOpenKeysChange"
     @backClick='goBack'
   >
     <template #breadcrumbRender="slotProps">
@@ -56,7 +57,11 @@
                 @click="openApplicationCenter"
               >
                 <template #icon>
-                  <AIcon type="AppstoreOutlined" />
+                  <img
+                    class="application-center-icon"
+                    src="/overview/application.png"
+                    alt=""
+                  />
                 </template>
               </a-button>
             </a-tooltip>
@@ -103,6 +108,7 @@ import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue
 import { useResponsiveLayoutDimensions } from '@jetlinks-web-core/hooks'
 import { useGlobalHomeAgent } from '@jetlinks-web-core/layout/components/AiChat/useGlobalHomeAgent'
 import { PARK_STORAGE_KEY } from '@jetlinks-web-core/utils/consts'
+import { dispatchParkChanged, isWorkflowEmbedRoute } from '@jetlinks-web-core/utils/park-events'
 
 type BasicConfigTreeNode = {
   id?: string
@@ -142,6 +148,7 @@ const state = reactive({
   openKeys: [] as string[],
   selectedKeys: [] as string[],
 });
+const routeOpenKeys = ref<string[]>([])
 
 const themeLayout = computed(() => themeStyleToken.value.layout)
 const menuVariant = computed(() => themeLayout.value?.menuVariant || 'classic')
@@ -280,12 +287,12 @@ const findFirstSelectableParkValue = (options: ParkTreeSelectNode[]): string | u
   return undefined
 }
 
-const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
-  const menuPaths = paths.map(item => item.path).filter(Boolean)
-  const leafPath = menuPaths.at(-1)
-  const openKeys = leafPath ? menuPaths.slice(0, -1) : menuPaths
+const resolveMenuKeys = (paths: Array<Record<string, any>>, activeMenu?: unknown) => {
+  const menuKeys = paths.map(item => item.path || item.name).filter(Boolean).map(String)
+  const leafKey = typeof activeMenu === 'string' && activeMenu ? activeMenu : menuKeys.at(-1)
+  const openKeys = leafKey ? menuKeys.slice(0, -1) : menuKeys
 
-  if (!leafPath) {
+  if (!leafKey) {
     return {
       selectedKeys: [],
       openKeys
@@ -293,17 +300,24 @@ const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
   }
 
   if (layout.value.layout === 'mix') {
-    const rootPath = menuPaths[0]
+    const rootKey = menuKeys[0]
     return {
-      selectedKeys: rootPath && rootPath !== leafPath ? [rootPath, leafPath] : [leafPath],
+      selectedKeys: rootKey && rootKey !== leafKey ? [rootKey, leafKey] : [leafKey],
       openKeys
     }
   }
 
   return {
-    selectedKeys: [leafPath],
+    selectedKeys: [leafKey],
     openKeys
   }
+}
+
+const handleOpenKeysChange = (openKeys: string[]) => {
+  state.openKeys = Array.from(new Set([
+    ...routeOpenKeys.value,
+    ...openKeys.map(String),
+  ]))
 }
 
 /**
@@ -311,10 +325,11 @@ const resolveMenuKeys = (paths: Array<Record<string, any>>) => {
  */
 watchEffect(() => {
   if (router.currentRoute) {
-    const paths = (route.meta.breadcrumb || route.meta.breadcrumbCache || []) as Array<{ path?: string }>
-    const menuPaths = paths.map(item => item.path).filter((path): path is string => Boolean(path))
-    state.selectedKeys = menuPaths
-    state.openKeys = menuPaths.slice(0, -1)
+    const paths = (route.meta.breadcrumb || route.meta.breadcrumbCache || []) as Array<{ path?: string; name?: string }>
+    const resolved = resolveMenuKeys(paths, route.meta.activeMenu)
+    state.selectedKeys = resolved.selectedKeys
+    routeOpenKeys.value = resolved.openKeys
+    state.openKeys = resolved.openKeys
   }
   if (route.query?.layout === 'false') {
     state.pure = true
@@ -335,7 +350,12 @@ watchEffect(() => {
 })
 
 watch(selectedPark, (value, oldValue) => {
-  if (value !== oldValue && route.name !== 'ParkSwitchRedirect') {
+  if (value === oldValue) return
+  dispatchParkChanged(String(value || ''))
+  if (isWorkflowEmbedRoute(route.path) || route.fullPath.includes('workflow-admin')) {
+    return
+  }
+  if (route.name !== 'ParkSwitchRedirect') {
     router.replace({
       name: 'ParkSwitchRedirect',
       query: {
@@ -369,11 +389,16 @@ onMounted(loadCurrentUserParkTree)
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 2.5rem;
+  height: 2rem;
+  padding: 0;
   color: #1d2129;
+}
 
-  :deep(.anticon) {
-    font-size: 1rem;
-  }
+.application-center-icon {
+  display: block;
+  width: 2.5rem;
+  height: 2rem;
 }
 
 .layout-bg-blur {

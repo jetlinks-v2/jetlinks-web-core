@@ -6,9 +6,10 @@
 import { computed, watchEffect } from 'vue';
 
 import { createAiOverlayDebugLogger } from './aiOverlay/debug';
+import HikvisionH5Player from './HikvisionH5Player.vue';
 import LegacyPlayer from './LegacyPlayer.vue';
 import JessibucaPlayer from './JessibucaPlayer.vue';
-import { shouldUseJessibuca } from './legacyPlayerUtils';
+import { shouldUseHikvisionH5Player, shouldUseJessibuca } from './legacyPlayerUtils';
 import { mediaPlayerProps } from './types';
 
 defineOptions({
@@ -16,14 +17,15 @@ defineOptions({
 });
 
 const props = defineProps(mediaPlayerProps);
-const playerRef = ref<InstanceType<typeof JessibucaPlayer> | InstanceType<typeof LegacyPlayer>>();
-// Shared Player keeps FLV on Jessibuca, while the rest stays on the legacy path for compatibility.
-const playerComponent = computed(() =>
-  shouldUseJessibuca(props.url, props.protocol) ? JessibucaPlayer : LegacyPlayer,
-);
-const playerComponentName = computed(() =>
-  shouldUseJessibuca(props.url, props.protocol) ? 'JessibucaPlayer' : 'LegacyPlayer',
-);
+const playerRef = ref<InstanceType<typeof HikvisionH5Player> | InstanceType<typeof JessibucaPlayer> | InstanceType<typeof LegacyPlayer>>();
+const playerComponent = computed(() => {
+  if (shouldUseHikvisionH5Player(props.url, props.protocol)) return HikvisionH5Player;
+  return shouldUseJessibuca(props.url, props.protocol) ? JessibucaPlayer : LegacyPlayer;
+});
+const playerComponentName = computed(() => {
+  if (shouldUseHikvisionH5Player(props.url, props.protocol)) return 'HikvisionH5Player';
+  return shouldUseJessibuca(props.url, props.protocol) ? 'JessibucaPlayer' : 'LegacyPlayer';
+});
 
 watchEffect(() => {
   createAiOverlayDebugLogger(

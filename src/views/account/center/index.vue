@@ -39,7 +39,6 @@
 <script setup lang="ts" name="Center">
 import AccountInfo from './components/AccountInfo/index.vue'
 // import Subscribe from './components/Subscribe/index.vue'
-import StationMessage from './components/StationMessage/index.vue'
 import EditPassword from './components/EditPassword/index.vue'
 import { useUserStore } from '@jetlinks-web-core/store'
 import { useRouterParams } from '@jetlinks-web/hooks'
@@ -53,7 +52,6 @@ const tabs = {
   // HomeView,
   BindThirdAccount: AccountInfo,
   // Subscribe,
-  StationMessage,
 }
 
 const router = useRouterParams()
@@ -71,13 +69,18 @@ const _tabList = computed(() => {
 })
 
 const getTabKey = () => {
-  if (router.params.value?.tabKey) return
+  const routeTabKey = router.params.value?.tabKey
+  if (routeTabKey && routeTabKey in tabs) {
+    user.tabKey = routeTabKey
+    return
+  }
   user.tabKey = _tabList.value[0]?.key ?? (user.isApplicationUser ? (!isNoCommunity ? 'Subscribe' : 'BindThirdAccount') : 'HomeView')
 }
 
 watchEffect(() => {
-  if (router.params.value?.tabKey) {
-    user.tabKey = router.params.value?.tabKey
+  const routeTabKey = router.params.value?.tabKey
+  if (routeTabKey && routeTabKey in tabs) {
+    user.tabKey = routeTabKey
   }
 })
 

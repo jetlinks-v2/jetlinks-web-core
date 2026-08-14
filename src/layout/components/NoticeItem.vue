@@ -76,16 +76,13 @@ const onMove = () => {
 };
 
 const detail = () => {
-    // 判断当前是否为/account/center
-    if (route.path === '/account/center') {
-        userInfo.tabKey = 'StationMessage';
+    if (route.path === '/workbench/notices') {
         userInfo.messageInfo = props.data;
         userInfo.other.tabKey = props.type;
     } else {
-        menuStory.routerPush('account/center', {
+        menuStory.routerPush('workbench/notices', {
            params:{
             row: props.data,
-            tabKey: 'StationMessage',
             other: {
                 tabKey: props.type
             }

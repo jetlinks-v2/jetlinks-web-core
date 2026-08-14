@@ -1,7 +1,7 @@
 import type { ExtractPropTypes, PropType } from 'vue';
 import type { AiOverlayOptions, AiOverlayPayload, AiOverlayVideoInfo } from './aiOverlay/types';
 
-export type MediaPlayerProtocol = 'mp4' | 'flv' | 'm3u8' | 'rtc' | 'ws' | 'wss' | string;
+export type MediaPlayerProtocol = 'mp4' | 'flv' | 'hls' | 'm3u8' | 'rtc' | 'ws' | 'wss' | string;
 
 export const mediaPlayerProps = {
   url: {

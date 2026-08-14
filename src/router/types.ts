@@ -27,6 +27,8 @@ declare module 'vue-router' {
     title?: string
     /** Whether hidden in menu */
     hideInMenu?: boolean
+    /** Visible menu path highlighted while visiting a hidden child route */
+    activeMenu?: string
     /** Dynamic hide condition for menu-related filtering. Return true to hide. */
     handleHideInMenuFn?: RouteHideInMenuHandler
   }
