@@ -15,8 +15,8 @@ import i18n from '@jetlinks-web-core/locales'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 import {
   resolveMenuApplicationScope,
-    createApplicationCodeUrl,
-    getApplicationScopeFromLocation,
+  getApplicationScopeFromLocation,
+  isProjectApplicationScope,
   type MenuApplicationScope,
 } from '@jetlinks-web-core/utils/application-scope'
 import type { MenuFilterConditions } from '@jetlinks-web-core/types/module'
@@ -72,6 +72,14 @@ const resolveQueryMenusOptions = (
   isQueryMenusOptions(value)
     ? value
     : { applicationScope: value, conditions }
+)
+
+const resolveRequestedApplicationScope = (applicationScope: MenuApplicationScope) => (
+  applicationScope === undefined ? getApplicationScopeFromLocation() : applicationScope
+)
+
+const shouldSuppressStorageApplicationScope = (applicationScope: MenuApplicationScope) => (
+  applicationScope === false || isProjectApplicationScope(applicationScope)
 )
 
 /**
@@ -223,14 +231,18 @@ export const useMenuStore = defineStore('menu', () => {
   ) => {
     const requestId = ++menuRequestId
     const queryOptions = resolveQueryMenusOptions(value, conditions)
-    const resolvedApplicationScope = resolveMenuApplicationScope(queryOptions.applicationScope)
+    const requestedApplicationScope = resolveRequestedApplicationScope(queryOptions.applicationScope)
+    const resolvedApplicationScope = resolveMenuApplicationScope(requestedApplicationScope)
+    const menuApplicationScope = shouldSuppressStorageApplicationScope(requestedApplicationScope)
+      ? false
+      : resolvedApplicationScope
     runtime.loading.value = true
     try {
       const resp = await getOwnMenuThree({
         paging: false,
         terms: getDefaultOwnParams(),
         sorts: [{ name: 'sortIndex', order: 'asc' }],
-      }, resolvedApplicationScope)
+      }, menuApplicationScope)
 
       const menuResult = Array.isArray(resp.result) ? resp.result : []
 

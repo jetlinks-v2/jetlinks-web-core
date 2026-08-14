@@ -20,6 +20,7 @@ import {
     getProjectStorage,
     isProjectStorageEnabled,
     isAiClientToolSilentRequest,
+    APPLICATION_SCOPE_HEADER,
 } from '@jetlinks-web-core/utils'
 import microApp from '@micro-zoe/micro-app'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
@@ -35,6 +36,7 @@ let requestInstanceForRetry: any = null
 type PackageRequestConfig = Record<string, any> & {
     headers?: Record<string, any>
     projectContext?: false
+    applicationScope?: false
     url?: string
     baseURL?: string
     hiddenError?: boolean
@@ -77,6 +79,10 @@ function getVerifyHeadersCache() {
 const isRecord = (value: unknown): value is Record<string, any> =>
     !!value && typeof value === 'object' && !Array.isArray(value)
 
+const normalizeHeaderValue = (value: unknown) => (
+    typeof value === 'string' ? value.trim() : ''
+)
+
 // Axios 与 NDJSON 都要遵守项目运行态、云端边缘代理和二次校验的同一请求契约。
 function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
     if (isAiClientToolSilentRequest()) {
@@ -85,6 +91,8 @@ function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
 
     const headers = config.headers || {}
     config.headers = headers
+    const shouldApplyApplicationScope = config.applicationScope !== false
+    delete config.applicationScope
 
     const cache = getVerifyHeadersCache()
     const projectContext = config.projectContext === false ? undefined : getProjectContext()
@@ -102,6 +110,12 @@ function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
 
         if (projectStorage?.apiUrl) {
             config.baseURL = projectStorage.apiUrl
+        }
+
+        const applicationScope = normalizeHeaderValue(projectStorage?.scope)
+        if (shouldApplyApplicationScope && applicationScope) {
+            // 业务应用运行态的普通接口也需要应用维度；项目本身不会写入 scope。
+            headers[APPLICATION_SCOPE_HEADER] = applicationScope
         }
     } else {
         const token = localStorage.getItem(TOKEN_KEY)

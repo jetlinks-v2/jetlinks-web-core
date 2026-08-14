@@ -1,5 +1,6 @@
 export const APPLICATION_SCOPE_HEADER = 'X-Application-Scope'
 export const APPLICATION_SCOPE_QUERY_KEY = 'applicationScope'
+export const PROJECT_APPLICATION_SCOPE = '__jetlinks_project__'
 
 const APPLICATION_SCOPE_STORAGE_KEY = 'jetlinks-web:application-scope'
 
@@ -14,6 +15,10 @@ export type MenuApplicationScope = string | false | undefined
 const normalizeApplicationScope = (value: unknown) => typeof value === 'string'
   ? value.trim()
   : ''
+
+export const isProjectApplicationScope = (value: unknown) => (
+  normalizeApplicationScope(value) === PROJECT_APPLICATION_SCOPE
+)
 
 const getHashRouteQuery = (hash = '') => {
   const queryIndex = hash.indexOf('?')
@@ -198,15 +203,19 @@ export const resolveMenuApplicationScope = (
   location: RouteQueryLocation = window.location,
   storage: ApplicationScopeStorage = window.sessionStorage,
 ) => (
-  applicationScope === false
-    ? undefined
-    : applicationScope ?? getApplicationScopeFromLocation(location, storage)
+  (() => {
+    const resolved = applicationScope === false
+      ? undefined
+      : applicationScope ?? getApplicationScopeFromLocation(location, storage)
+    return isProjectApplicationScope(resolved) ? undefined : resolved
+  })()
 )
 
 /**
  * Persist the active application for this browser tab only.
  *
- * Application scope remains a menu request concern and must not become a global request header.
+ * The tab scope bootstraps menu selection; application request headers come from
+ * project storage scope so the project entry can stay header-free.
  */
 export const setApplicationScope = (
   applicationId?: string,

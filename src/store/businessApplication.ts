@@ -9,25 +9,111 @@ import {
 import {
   getApplicationScopeFromLocation,
   isBusinessApplicationEndpointMissing,
+  isProjectApplicationScope,
   normalizeBusinessApplications,
-  selectApplicationScope,
+  PROJECT_APPLICATION_SCOPE,
   setApplicationScope,
 } from '@jetlinks-web-core/utils/application-scope'
 import { prepareApplicationAccess } from '@jetlinks-web-core/utils/application-access'
+import { createProjectRuntimeHref, getProjectCodeFromLocation } from '@jetlinks-web-core/utils/project-runtime'
+import { getProjectStorage } from '@jetlinks-web-core/utils/project-storage'
 import { useMenuStore } from './menu'
 
 const $t = i18n.global.t
 
+type BusinessApplicationRuntimeType = 'application' | 'project'
+
+type BusinessApplicationEntry = BusinessApplicationEntity & {
+  runtimeType?: BusinessApplicationRuntimeType
+  projectCode?: string
+}
+
+type EnterApplicationOptions = {
+  currentProjectCode?: string
+  fallbackPath?: string
+  force?: boolean
+  silent?: boolean
+}
+
+const normalizeText = (value: unknown) => typeof value === 'string' ? value.trim() : ''
+
+const isProjectEntry = (application?: BusinessApplicationEntry) => (
+  application?.runtimeType === 'project' || isProjectApplicationScope(application?.id)
+)
+
+const getCurrentProjectContext = (projectCodeHint?: string) => {
+  const locationCode = normalizeText(projectCodeHint) || getProjectCodeFromLocation()
+  const locationStorage = getProjectStorage(locationCode)
+  const projectCode = normalizeText(locationStorage?.domain) || locationCode
+  const projectStorage = getProjectStorage(projectCode) || locationStorage
+  const projectName = normalizeText(projectStorage?.projectName)
+    || normalizeText(projectStorage?.name)
+    || normalizeText(locationStorage?.projectName)
+    || projectCode
+    || $t('components.BusinessApplicationSwitcher.projectEntry')
+
+  return {
+    projectCode,
+    projectName,
+  }
+}
+
+const createProjectApplicationEntry = (
+  sourceApplications: BusinessApplicationEntity[],
+  projectCodeHint?: string,
+): BusinessApplicationEntry | undefined => {
+  if (!sourceApplications.length) return undefined
+
+  const { projectCode, projectName } = getCurrentProjectContext(projectCodeHint)
+  if (!projectCode) return undefined
+
+  return {
+    id: PROJECT_APPLICATION_SCOPE,
+    projectId: projectCode,
+    templateId: '',
+    name: projectName,
+    icon: 'ProjectOutlined',
+    runtimeType: 'project',
+    projectCode,
+  }
+}
+
+const withProjectEntry = (
+  sourceApplications: BusinessApplicationEntity[],
+  projectCodeHint?: string,
+): BusinessApplicationEntry[] => {
+  const businessEntries = sourceApplications.map(item => ({
+    ...item,
+    runtimeType: 'application' as const,
+  }))
+  const projectEntry = createProjectApplicationEntry(sourceApplications, projectCodeHint)
+
+  return projectEntry ? [...businessEntries, projectEntry] : businessEntries
+}
+
+const selectInitialApplication = (
+  entries: BusinessApplicationEntry[],
+  applicationScope?: string,
+) => {
+  const normalizedScope = normalizeText(applicationScope)
+  if (normalizedScope) {
+    const matchedApplication = entries.find(item => item.id === normalizedScope)
+    if (matchedApplication) return matchedApplication
+  }
+
+  return entries.find(isProjectEntry) || entries[0]
+}
+
 export const useBusinessApplicationStore = defineStore('business-application', () => {
-  const applications = ref<BusinessApplicationEntity[]>([])
-  const currentApplication = ref<BusinessApplicationEntity>()
+  const applications = ref<BusinessApplicationEntry[]>([])
+  const currentApplication = ref<BusinessApplicationEntry>()
   const loading = ref(false)
   const switching = ref(false)
   const initialized = ref(false)
   const scopeSupported = ref(true)
-  let initializePromise: Promise<BusinessApplicationEntity | undefined> | undefined
+  let initializePromise: Promise<BusinessApplicationEntry | undefined> | undefined
 
-  const initialize = () => {
+  const initialize = (projectCodeHint?: string) => {
     if (initialized.value) return Promise.resolve(currentApplication.value)
     if (initializePromise) return initializePromise
 
@@ -49,9 +135,11 @@ export const useBusinessApplicationStore = defineStore('business-application', (
       }
 
       const result = normalizeBusinessApplications<BusinessApplicationEntity>(response)
-      const selected = selectApplicationScope(result, getApplicationScopeFromLocation())
+      const entries = withProjectEntry(result, projectCodeHint)
+      // 普通项目入口默认保留项目菜单；子账号登录会显式调用 enterFirstApplication 进入首个业务应用。
+      const selected = selectInitialApplication(entries, getApplicationScopeFromLocation())
 
-      applications.value = result
+      applications.value = entries
       currentApplication.value = selected
       scopeSupported.value = true
       setApplicationScope(selected?.id)
@@ -65,40 +153,101 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     })
   }
 
+  const enterProject = async (
+    projectEntry: BusinessApplicationEntry,
+    options: EnterApplicationOptions = {},
+  ) => {
+    const result = await useMenuStore().queryMenus(PROJECT_APPLICATION_SCOPE)
+    if (!result?.applied) return false
+
+    const projectCode = normalizeText(projectEntry.projectCode)
+      || getCurrentProjectContext(options.currentProjectCode).projectCode
+    const path = result.firstMenuPath || options.fallbackPath || '/403'
+
+    currentApplication.value = projectEntry
+    setApplicationScope(PROJECT_APPLICATION_SCOPE)
+    window.location.assign(createProjectRuntimeHref(projectCode, path))
+    return true
+  }
+
+  const enterBusinessApplication = async (
+    nextApplication: BusinessApplicationEntry,
+    options: EnterApplicationOptions = {},
+  ) => {
+    const result = await useMenuStore().queryMenus(nextApplication.id)
+    if (!result?.applied) return false
+
+    const customDomain = typeof nextApplication.configuration?.customDomain === 'string'
+      ? nextApplication.configuration.customDomain
+      : ''
+    const access = prepareApplicationAccess({
+      applicationId: nextApplication.id,
+      applicationName: nextApplication.name,
+      currentProjectCode: options.currentProjectCode,
+      domain: customDomain,
+      path: result.firstMenuPath || options.fallbackPath || '/403',
+    })
+    if (!access.success) {
+      throw new Error(`Application access context is unavailable: ${access.reason}`)
+    }
+
+    currentApplication.value = nextApplication
+    setApplicationScope(nextApplication.id)
+    window.location.assign(access.url)
+    return true
+  }
+
+  const enterApplication = async (
+    nextApplication: BusinessApplicationEntry,
+    options: EnterApplicationOptions = {},
+  ) => {
+    if (!options.force && nextApplication.id === currentApplication.value?.id) {
+      return false
+    }
+
+    return isProjectEntry(nextApplication)
+      ? enterProject(nextApplication, options)
+      : enterBusinessApplication(nextApplication, options)
+  }
+
   const switchApplication = async (applicationId: string) => {
     const nextApplication = applications.value.find(item => item.id === applicationId)
-    if (!nextApplication || nextApplication.id === currentApplication.value?.id || switching.value) {
+    if (!nextApplication || switching.value) {
       return false
     }
 
     switching.value = true
     try {
-      const result = await useMenuStore().queryMenus(nextApplication.id)
-      if (!result?.applied) return false
-
-      const customDomain = typeof nextApplication.configuration?.customDomain === 'string'
-        ? nextApplication.configuration.customDomain
-        : ''
-      const access = prepareApplicationAccess({
-        applicationId: nextApplication.id,
-        applicationName: nextApplication.name,
-        domain: customDomain,
-        path: result.firstMenuPath || '/403',
-      })
-      if (!access.success) {
-        throw new Error(`Application access context is unavailable: ${access.reason}`)
-      }
-
-      currentApplication.value = nextApplication
-      setApplicationScope(nextApplication.id)
-      window.location.assign(access.url)
-      return true
+      return await enterApplication(nextApplication)
     } catch (error) {
-      onlyMessage($t(
-        'components.BusinessApplicationSwitcher.switchFailed',
-        { name: nextApplication.name },
-      ), 'error')
+      onlyMessage($t('components.BusinessApplicationSwitcher.switchFailed', { name: nextApplication.name }), 'error')
       console.error('[Business Application] Failed to switch application:', error)
+      return false
+    } finally {
+      switching.value = false
+    }
+  }
+
+  const enterFirstApplication = async (options: EnterApplicationOptions = {}) => {
+    if (switching.value) return false
+
+    switching.value = true
+    try {
+      await initialize(options.currentProjectCode)
+      const firstApplication = applications.value.find(item => !isProjectEntry(item))
+      if (!firstApplication) return false
+
+      return await enterApplication(firstApplication, {
+        ...options,
+        force: true,
+      })
+    } catch (error) {
+      if (!options.silent) {
+        onlyMessage($t('components.BusinessApplicationSwitcher.switchFailed', {
+          name: applications.value.find(item => !isProjectEntry(item))?.name || '',
+        }), 'error')
+      }
+      console.error('[Business Application] Failed to enter first application:', error)
       return false
     } finally {
       switching.value = false
@@ -124,6 +273,7 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     scopeSupported,
     initialize,
     switchApplication,
+    enterFirstApplication,
     init,
   }
 })

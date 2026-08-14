@@ -7,6 +7,7 @@ import {
 import { createProjectPathRuntimeHref, getProjectCodeFromPathname } from './project-path'
 import {
   getProjectStorage, setProjectStorage,
+  isProjectStorageEnabled,
   type ProjectStorageInfo,
 } from './project-storage'
 
@@ -37,7 +38,7 @@ export type ApplicationAccessResult = {
   success: true
   url: string
   crossOrigin: boolean
-  projectStorage: ProjectStorageInfo
+  projectStorage?: ProjectStorageInfo
 } | {
   success: false
   reason: ApplicationAccessFailureReason
@@ -62,6 +63,7 @@ export interface ApplicationAccessDependencies {
   getProjectStorage: typeof getProjectStorage
   setProjectStorage: typeof setProjectStorage
   createProjectRuntimeHref: typeof createProjectPathRuntimeHref
+  isProjectStorageEnabled: typeof isProjectStorageEnabled
 }
 
 interface ApplicationAccessBootstrapPayload {
@@ -75,6 +77,7 @@ const defaultDependencies: ApplicationAccessDependencies = {
   getProjectStorage,
   setProjectStorage,
   createProjectRuntimeHref: createProjectPathRuntimeHref,
+  isProjectStorageEnabled,
 }
 
 const normalizeText = (value: unknown) => typeof value === 'string' ? value.trim() : ''
@@ -101,18 +104,23 @@ const normalizeProjectStorage = (value: unknown): ProjectStorageInfo | undefined
     runtime: typeof value.runtime === 'string' ? value.runtime : undefined,
     id: typeof value.id === 'string' ? value.id : undefined,
     name: typeof value.name === 'string' ? value.name : undefined,
+    projectName: typeof value.projectName === 'string' ? value.projectName : undefined,
+    scope: typeof value.scope === 'string' ? value.scope : undefined,
   }
 }
 
 const copyProjectStorage = (
   source: ProjectStorageInfo,
   applicationName?: string,
+  applicationScope?: string,
 ): ProjectStorageInfo | undefined => {
   const projectStorage = normalizeProjectStorage(source)
   if (!projectStorage) return undefined
 
   const name = normalizeText(applicationName) || projectStorage.name
-  return { ...projectStorage, name }
+  const projectName = normalizeText(source.projectName) || projectStorage.name
+  const scope = normalizeApplicationCode(applicationScope) || projectStorage.scope
+  return { ...projectStorage, name, projectName, scope }
 }
 
 const resolveTargetOrigin = (target: unknown, currentOrigin: string) => {
@@ -155,18 +163,6 @@ export const prepareApplicationAccess = (
     return { success: false, reason: 'missing-application-code' }
   }
 
-  const currentProjectCode = normalizeApplicationCode(options.currentProjectCode)
-    || getProjectCodeFromPathname(location.pathname)
-  const currentProjectStorage = dependencies.getProjectStorage(currentProjectCode)
-  if (!currentProjectStorage) {
-    return { success: false, reason: 'missing-project-storage' }
-  }
-
-  const projectStorage = copyProjectStorage(currentProjectStorage, options.applicationName)
-  if (!projectStorage) {
-    return { success: false, reason: 'invalid-project-storage' }
-  }
-
   let targetOrigin = ''
   try {
     targetOrigin = resolveTargetOrigin(options.domain, location.origin)
@@ -182,6 +178,29 @@ export const prepareApplicationAccess = (
   setRouteQueryParam(url, APPLICATION_SCOPE_QUERY_KEY, applicationCode)
 
   const crossOrigin = url.origin !== new URL(location.origin).origin
+
+  if (!dependencies.isProjectStorageEnabled()) {
+    return crossOrigin
+      ? { success: false, reason: 'missing-project-storage' }
+      : {
+          success: true,
+          url: url.toString(),
+          crossOrigin,
+        }
+  }
+
+  const currentProjectCode = normalizeApplicationCode(options.currentProjectCode)
+    || getProjectCodeFromPathname(location.pathname)
+  const currentProjectStorage = dependencies.getProjectStorage(currentProjectCode)
+  if (!currentProjectStorage) {
+    return { success: false, reason: 'missing-project-storage' }
+  }
+
+  const projectStorage = copyProjectStorage(currentProjectStorage, options.applicationName, applicationCode)
+  if (!projectStorage) {
+    return { success: false, reason: 'invalid-project-storage' }
+  }
+
   if (crossOrigin) {
     // The token is removed by the target runtime before router/session initialization.
     setRouteQueryParam(

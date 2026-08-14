@@ -14,6 +14,7 @@ const projectStorage = {
   runtime: 'runtime-service',
   id: 'project-id',
   name: 'Project name',
+  projectName: 'Project name',
 }
 
 assert.equal(
@@ -43,6 +44,7 @@ const createDependencies = (initial = new Map([['project-code', projectStorage]]
         values.set(code, value)
       },
       createProjectRuntimeHref: (code, path) => `/${encodeURIComponent(code)}/#${path}`,
+      isProjectStorageEnabled: () => true,
     },
   }
 }
@@ -71,6 +73,7 @@ const createDependencies = (initial = new Map([['project-code', projectStorage]]
     value: {
       ...projectStorage,
       name: 'Application A',
+      scope: 'application-a',
     },
   }])
 }
@@ -90,6 +93,7 @@ const createDependencies = (initial = new Map([['project-code', projectStorage]]
   assert.equal(writes[0].code, 'application-b')
   assert.equal(writes[0].value.id, 'project-id')
   assert.equal(writes[0].value.domain, 'project-code')
+  assert.equal(writes[0].value.scope, 'application-b')
 }
 
 {
@@ -135,12 +139,60 @@ const createDependencies = (initial = new Map([['project-code', projectStorage]]
     value: {
       ...projectStorage,
       name: 'Cross origin application',
+      scope: 'application-cross-origin',
     },
   }])
   assert.equal(
     cleanedUrl,
     '/application-cross-origin/#/?applicationScope=application-cross-origin',
   )
+}
+
+{
+  const source = createDependencies()
+  const result = prepareApplicationAccess({
+    applicationId: 'application-a',
+    applicationName: 'Application A',
+    currentProjectCode: 'project-code',
+    path: '/device/list',
+    location: {
+      origin: 'https://project.example.com',
+      pathname: '/project/',
+    },
+  }, {
+    ...source.dependencies,
+    createProjectRuntimeHref: (_code, path) => `/project/#${path}`,
+    isProjectStorageEnabled: () => false,
+  })
+
+  assert.equal(result.success, true)
+  assert.equal(result.crossOrigin, false)
+  assert.equal(
+    result.url,
+    'https://project.example.com/project/#/device/list?applicationScope=application-a',
+  )
+  assert.equal(source.writes.length, 0)
+}
+
+{
+  const source = createDependencies()
+  const result = prepareApplicationAccess({
+    applicationId: 'application-a',
+    applicationName: 'Application A',
+    domain: 'application.example.com',
+    currentProjectCode: 'project-code',
+    location: {
+      origin: 'https://project.example.com',
+      pathname: '/project/',
+    },
+  }, {
+    ...source.dependencies,
+    createProjectRuntimeHref: (_code, path) => `/project/#${path}`,
+    isProjectStorageEnabled: () => false,
+  })
+
+  assert.deepEqual(result, { success: false, reason: 'missing-project-storage' })
+  assert.equal(source.writes.length, 0)
 }
 
 {
