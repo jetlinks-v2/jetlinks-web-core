@@ -4,6 +4,14 @@ import wechat from '@jetlinks-web-core/assets/bindPage/wechat-webapp.png'
 import thirdParty from '@jetlinks-web-core/assets/apply/third-party.png'
 import wechatMiniapp from '@jetlinks-web-core/assets/apply/wechat-miniapp.png'
 import i18n from '@jetlinks-web-core/locales';
+
+export interface SsoBinding {
+  id: string
+  name: string
+  provider: string
+  logoUrl?: string
+}
+
 export const rules = {
   username: [
     {

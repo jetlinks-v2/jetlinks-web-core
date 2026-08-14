@@ -63,12 +63,17 @@
           </Button>
         </FormItem>
       </Form>
+      <SsoLogin
+        :bindings="bindings"
+        @select="handleClickOther"
+      />
     </div>
   </div>
 </template>
 <script setup name="LoginRight">
 import Remember from './remember.vue'
-import { encrypt, getImage, onlyMessage, setToken } from '@jetlinks-web/utils'
+import SsoLogin from './sso-login.vue'
+import { encrypt, onlyMessage, setToken } from '@jetlinks-web/utils'
 import { useRequest } from '@jetlinks-web/hooks'
 import {
   captchaConfig,
@@ -80,10 +85,8 @@ import {
 import { rules } from './util'
 import { useUserStore } from '@jetlinks-web-core/store'
 import { LocalStore } from '@jetlinks-web/utils'
-import { iconMap } from './util'
-import { Form, FormItem, Button, Divider, Popover, Input, InputPassword } from 'ant-design-vue'
+import { Form, FormItem, Button, Input, InputPassword } from 'ant-design-vue'
 
-import defaultImg from '@jetlinks-web-core/assets/apply/internal-standalone.png'
 import { initPackages } from '@jetlinks-web-core/package'
 import i18n from '@jetlinks-web-core/locales'
 import { resetSessionStores } from '@jetlinks-web-core/router/startup'
@@ -97,6 +100,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  bindings: {
+    type: Array,
+    default: () => []
+  },
   type: {
     type: String,
     default: 'login' // 'login' 'relogin'
@@ -104,9 +111,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['submit', 'update:loading'])
-const moreVisible = ref(false)
 const userStore = useUserStore()
-const router = useRouter()
 const formRef = ref()
 
 const formData = reactive({
@@ -223,6 +228,16 @@ const handleEnterSubmit = () => {
   formRef.value?.submit()
 }
 
+const handleClickOther = (item) => {
+  LocalStore.set('onLogin', 'no')
+  window.open(`${BASE_API_PATH}/application/sso/${item.id}/login`)
+  window.onstorage = (event) => {
+    if (event.newValue) {
+      window.location.href = '/'
+    }
+  }
+}
+
 watch(
   () => loading.value,
   () => {
@@ -276,6 +291,7 @@ watch(
         }
       }
     }
+
   }
 }
 </style>

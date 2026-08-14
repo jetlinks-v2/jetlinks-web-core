@@ -29,7 +29,10 @@
         </a>
       </div>
       <div class="right">
-        <Right v-model:loading="loading" />
+        <Right
+          v-model:loading="loading"
+          :bindings="bindings"
+        />
       </div>
     </div>
   </a-spin>
@@ -39,6 +42,7 @@ import { getImage, LocalStore } from '@jetlinks-web/utils'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { storeToRefs } from 'pinia'
 import Right from './right.vue'
+import type { SsoBinding } from './util'
 import { bindInfo } from '@jetlinks-web-core/api/login'
 import { useI18n } from 'vue-i18n'
 
@@ -50,7 +54,7 @@ const loading = ref(false)
 const logoImage = getImage('/login/logo.png')
 const bgImage = getImage('/login/login.png')
 
-// const bindings = ref([])
+const bindings = ref<SsoBinding[]>([])
 
 const basis: any = computed(() => {
   return systemInfo.value.front || {}
@@ -59,13 +63,12 @@ const basis: any = computed(() => {
 const getOpen = async () => {
   await systemStore.queryVersion()
   const version = LocalStore.get('system_edition')
-  // if (version !== 'community') {
-  //   bindInfo().then((res: any) => {
-  //     if (res.success) {
-  //       bindings.value = res.result
-  //     }
-  //   })
-  // }
+  if (version !== 'community') {
+    const resp = await bindInfo()
+    if (resp.success) {
+      bindings.value = resp.result || []
+    }
+  }
   await systemStore.querySingleInfo('front')
 }
 
