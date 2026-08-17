@@ -157,9 +157,13 @@ export const handleMenus = (
     const routes = Array.isArray(menu) ? menu : menu.children
 
     return routes?.map((e: any) => {
+      const activeMenu = e.meta?.activeMenu
+        || e.options?.meta?.activeMenu
+        || (item.appId ? `/${item.appId}${item.url}` : item.url)
       const meta: RouteMeta = {
         ...(e.options?.meta || {}),
         ...(e.meta || {}),
+        activeMenu,
         title: e.i18nName || e.name,
         hideInMenu: true,
         options: {
