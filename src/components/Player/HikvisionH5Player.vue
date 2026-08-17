@@ -15,6 +15,8 @@ type HikvisionH5Player = {
     url: string,
     options: Record<string, unknown>,
     windowIndex: number,
+    startTime?: string,
+    endTime?: string,
   ) => Promise<unknown>;
   JS_Resize?: () => Promise<unknown> | unknown;
   JS_ArrangeWindow?: (split: number) => Promise<unknown> | unknown;
@@ -57,6 +59,8 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  playbackStartTime: String,
+  playbackEndTime: String,
 });
 const emit = defineEmits<{
   (event: 'window-select', index: number): void;
@@ -219,11 +223,13 @@ const play = async () => {
         return;
       }
       if (url) {
+        const startTime = props.playbackStartTime?.trim();
+        const endTime = props.playbackEndTime?.trim();
         await current.JS_Play(url, {
           playURL: url,
           mode: 0,
           keepDecoder: 0,
-        }, index);
+        }, index, startTime, endTime);
       }
       currentUrls[index] = url;
     }
@@ -287,7 +293,15 @@ onBeforeUnmount(() => {
 });
 
 watch(
-  () => [props.url, props.protocol, props.autoplay, props.screen, getStreamsSignature()] as const,
+  () => [
+    props.url,
+    props.protocol,
+    props.autoplay,
+    props.screen,
+    props.playbackStartTime,
+    props.playbackEndTime,
+    getStreamsSignature(),
+  ] as const,
   () => {
     if (mounted && props.autoplay) {
       void play();

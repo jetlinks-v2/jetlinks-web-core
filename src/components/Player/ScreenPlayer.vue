@@ -3,8 +3,13 @@
     <div class="live-player-warp">
         <div class="live-player-content">
             <!-- 工具栏 -->
-            <div class="player-screen-tool" v-if="showScreen">
+            <div
+                v-if="showScreen || $slots.toolbar"
+                class="player-screen-tool"
+                :class="{ 'player-screen-tool--toolbar-only': !showScreen }"
+            >
                 <a-radio-group
+                    v-if="showScreen"
                     :value="screen"
                     button-style="solid"
                     @change="handleScreenChange"
@@ -113,6 +118,8 @@
                         :streams="players"
                         :screen="screen"
                         :active-index="playerActive"
+                        :playback-start-time="playbackStartTime"
+                        :playback-end-time="playbackEndTime"
                         autoplay
                         @window-select="handleHikvisionWindowSelect"
                     />
@@ -153,7 +160,11 @@
             </div>
             <!-- 控制器 -->
         </div>
-        <MediaTool @onMouseDown="handleMouseDown" @onMouseUp="handleMouseUp" />
+        <MediaTool
+            v-if="showMediaTool !== false"
+            @onMouseDown="handleMouseDown"
+            @onMouseUp="handleMouseUp"
+        />
     </div>
 </template>
 
@@ -201,8 +212,11 @@ interface ScreenProps {
      */
     onMouseUp?: (deviceId: string, channelId: string, type: string) => void;
     showScreen?: boolean;
+    showMediaTool?: boolean;
     historyEnabled?: boolean;
     protocol?: MediaPlayerProtocol;
+    playbackStartTime?: string;
+    playbackEndTime?: string;
 }
 
 const props = defineProps<ScreenProps>();
@@ -279,7 +293,12 @@ const reloadPlayer = (
  * @param channelId
  * @param url
  */
-const replaceVideo = (id: string, channelId: string, url: string, protocol = props.protocol) => {
+const replaceVideo = (
+    id: string,
+    channelId: string,
+    url: string,
+    protocol = props.protocol,
+) => {
     const olPlayers = [...players.value];
     const newPlayer = {
         id,
@@ -478,9 +497,9 @@ const handleMouseUp = (type: string) => {
 
 watch(
     () => props.url,
-    (val) => {
-        if (val && props.id) {
-            replaceVideo(props.id, props.channelId, val, props.protocol);
+    (url) => {
+        if (url && props.id) {
+            replaceVideo(props.id, props.channelId, url, props.protocol);
         }
     },
 );
@@ -516,6 +535,16 @@ defineExpose({
 .live-player-warp .live-player-content .player-screen-tool .ant-radio-button-wrapper {
   height: auto;
   padding: 0.25rem 1.25rem;
+}
+.live-player-warp .live-player-content .player-screen-tool--toolbar-only .screen-tool-save {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+}
+.live-player-warp .live-player-content .player-screen-tool--toolbar-only {
+  height: 4rem;
+  margin-bottom: 0;
 }
 .live-player-warp .live-player-content .player-body {
   flex: 1;
