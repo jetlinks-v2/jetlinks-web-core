@@ -19,7 +19,7 @@
         >
           <img
             :alt="item.name"
-            :src="item.logoUrl || iconMap.get(item.provider) || defaultImg"
+            :src="resolveLogo(item)"
           />
         </button>
       </Tooltip>
@@ -32,6 +32,7 @@ import type { PropType } from 'vue'
 import { Divider, Tooltip } from 'ant-design-vue'
 import { iconMap, type SsoBinding } from './util'
 import defaultImg from '@jetlinks-web-core/assets/apply/internal-standalone.png'
+import { resolvePersistedAssetUrl } from '@jetlinks-web-core/utils'
 
 defineProps({
   bindings: {
@@ -43,6 +44,13 @@ defineProps({
 const emit = defineEmits<{
   select: [binding: SsoBinding]
 }>()
+
+const resolveLogo = (binding: SsoBinding) => {
+  return resolvePersistedAssetUrl(
+    binding.logoUrl,
+    iconMap.get(binding.provider) || defaultImg,
+  )
+}
 </script>
 
 <style scoped lang="less">

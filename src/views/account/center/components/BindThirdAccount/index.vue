@@ -20,7 +20,7 @@
       <div v-else-if="accounts.length" class="account-list">
         <div v-for="item in accounts" :key="item.id" class="account-item">
           <div class="account-summary">
-            <img :src="item.logoUrl || providerIcons[item.provider]" class="account-icon" alt="" />
+            <img :src="resolveLogo(item)" class="account-icon" alt="" />
             <div class="account-content">
               <div class="account-name">{{ item.name }}</div>
               <div class="account-meta">
@@ -61,6 +61,7 @@ import { getSsoBinds_api, unBind_api } from '@jetlinks-web-core/api/account/cent
 import { DingTalk, WeixinCorp } from '@jetlinks-web-core/assets/notice'
 import { InternalStandalone, ThirdParty } from '@jetlinks-web-core/assets/apply'
 import { onlyMessage } from '@jetlinks-web/utils'
+import { resolvePersistedAssetUrl } from '@jetlinks-web-core/utils'
 import { useI18n } from 'vue-i18n'
 
 interface ThirdAccount {
@@ -87,6 +88,10 @@ const providerIcons: Record<string, string> = {
   'wechat-webapp': WeixinCorp,
   'internal-standalone': InternalStandalone,
   'third-party': ThirdParty,
+}
+
+const resolveLogo = (item: ThirdAccount) => {
+  return resolvePersistedAssetUrl(item.logoUrl, providerIcons[item.provider] || ThirdParty)
 }
 
 const loadAccounts = async () => {
