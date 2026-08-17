@@ -38,7 +38,7 @@
 
 <script setup lang="ts" name="Center">
 import AccountInfo from './components/AccountInfo/index.vue'
-// import Subscribe from './components/Subscribe/index.vue'
+import BindThirdAccount from './components/BindThirdAccount/index.vue'
 import EditPassword from './components/EditPassword/index.vue'
 import { useUserStore } from '@jetlinks-web-core/store'
 import { useRouterParams } from '@jetlinks-web/hooks'
@@ -49,9 +49,8 @@ import FullPage from "@/layout/FullPage.vue";
 const user = useUserStore()
 
 const tabs = {
-  // HomeView,
-  BindThirdAccount: AccountInfo,
-  // Subscribe,
+  AccountInfo,
+  BindThirdAccount,
 }
 
 const router = useRouterParams()
@@ -65,7 +64,7 @@ const onMenuClick = (info: any) => {
 }
 
 const _tabList = computed(() => {
-  return tabList.filter(i => (i.key !== 'BindThirdAccount' || isNoCommunity) && (!user.isApplicationUser || i.key !== 'HomeView'))
+  return tabList.filter(i => i.key !== 'BindThirdAccount' || isNoCommunity)
 })
 
 const getTabKey = () => {
@@ -74,7 +73,7 @@ const getTabKey = () => {
     user.tabKey = routeTabKey
     return
   }
-  user.tabKey = _tabList.value[0]?.key ?? (user.isApplicationUser ? (!isNoCommunity ? 'Subscribe' : 'BindThirdAccount') : 'HomeView')
+  user.tabKey = _tabList.value[0]?.key ?? 'AccountInfo'
 }
 
 watchEffect(() => {
@@ -90,7 +89,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  user.tabKey = tabList?.[0]?.key || (user.isApplicationUser ? 'BindThirdAccount' : 'HomeView')
+  user.tabKey = tabList?.[0]?.key || 'AccountInfo'
   user.other.tabKey = ''
 })
 </script>

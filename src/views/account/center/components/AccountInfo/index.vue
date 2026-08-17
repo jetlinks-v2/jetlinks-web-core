@@ -249,15 +249,6 @@
           </div>
         </div>
       </section>
-
-      <!-- 第三方账号 -->
-<!--      <section class="account-info-section" v-if="hasThirdAccount">-->
-<!--        <h3 class="section-title">{{ $t('AccountInfo.thirdSection') }}</h3>-->
-<!--        <p class="section-desc">{{ $t('AccountInfo.thirdSectionDesc') }}</p>-->
-<!--        <div class="section-content">-->
-<!--          <BindThirdAccount />-->
-<!--        </div>-->
-<!--      </section>-->
     </div>
 </template>
 
@@ -270,13 +261,11 @@ import {
   requestIdentityValidation_api,
   confirmIdentityValidation_api,
   unbindIdentity_api,
-  getSsoBinds_api,
   updateMeInfo_api,
 } from '@jetlinks-web-core/api/account/center'
 import { onlyMessage } from '@jetlinks-web/utils'
 import { useI18n } from 'vue-i18n'
 import { queryModal } from '@jetlinks-web-core/api/login'
-// import BindThirdAccount from '../BindThirdAccount/index.vue'
 import UploadAvatar from '../UploadAvatar/index.vue'
 
 interface IdentityItem {
@@ -328,9 +317,6 @@ const phoneCode = ref('')
 const phoneConfirming = ref(false)
 const phoneCountdown = ref(0)
 let phoneCountdownTimer: ReturnType<typeof setInterval> | null = null
-// 是否存在支持的第三方账号（用于控制「第三方账号」整个区块是否展示）
-const hasThirdAccount = ref(false)
-
 const emailList = computed(() =>
   identityList.value.filter((i) => i.provider === 'email'),
 )
@@ -451,22 +437,6 @@ async function loadProviders() {
     providers.value = list
   } catch {
     providers.value = []
-  }
-}
-
-async function checkThirdAccount() {
-  try {
-    const resp: any = await getSsoBinds_api()
-    if (resp?.status === 200 && Array.isArray(resp.result)) {
-      const list = resp.result.filter((item: any) => !item.features?.includes('ssoUnsupportedRedirect'))
-      hasThirdAccount.value = list.length > 0
-    } else if (Array.isArray(resp)) {
-      hasThirdAccount.value = resp.length > 0
-    } else {
-      hasThirdAccount.value = false
-    }
-  } catch {
-    hasThirdAccount.value = false
   }
 }
 
@@ -743,8 +713,6 @@ onMounted(async () => {
     loadProviders()
     await loadIdentities()
   }
-  checkThirdAccount()
-
   // 等待DOM渲染完成后再滚动
   await nextTick()
   scrollToAnchor()

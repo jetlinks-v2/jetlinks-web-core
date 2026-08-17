@@ -216,6 +216,20 @@ const formRules = {
 
 const changeHeaderTheme = createHeaderThemeChange(formData)
 
+const buildSsoPaths = (basePath: string) => {
+  const normalizedBasePath = basePath.replace(/\/+$/, '')
+  const baseUrl = new URL(normalizedBasePath, window.location.origin)
+  const origin = baseUrl.origin
+
+  // SSO callbacks must follow the externally accessible domain configured during initialization.
+  return {
+    'base-path': normalizedBasePath,
+    'sso-redirect': origin,
+    'sso-bind': `${origin}/#/account/center/bind`,
+    'sso-token-set': `${normalizedBasePath}/token-set.html`,
+  }
+}
+
 
 // 修改系统信息
 const getDetails = async () => {
@@ -265,9 +279,7 @@ const submit = () => {
         },
         {
           scope: 'paths',
-          properties: {
-            'base-path': formData['base-path'],
-          },
+          properties: buildSsoPaths(formData['base-path']),
         },
       ]
       save_api(params).then(resp => {

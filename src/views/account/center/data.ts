@@ -1,21 +1,13 @@
 import i18n from "@jetlinks-web-core/locales";
 
-type KeyType = 'HomeView' | 'BindThirdAccount' | 'Subscribe' | 'PersonalToken';
+type KeyType = 'AccountInfo' | 'BindThirdAccount';
 export const tabList: { key: KeyType; title: string }[] = [
     {
-        key: 'BindThirdAccount',
+        key: 'AccountInfo',
         title: i18n.global.t('center.data.accountInfo'),
     },
-    // {
-    //     key: 'HomeView',
-    //     title: i18n.global.t('center.data.756829-2'),
-    // },
-    // {
-    //     key: 'Subscribe',
-    //     title: i18n.global.t('center.data.756829-0'),
-    // },
-    // {
-    //   key: 'PersonalToken',
-    //   title: i18n.global.t('center.data.756829-4'),
-    // },
+    {
+        key: 'BindThirdAccount',
+        title: i18n.global.t('center.data.756829-3'),
+    },
 ]
