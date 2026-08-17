@@ -24,6 +24,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     /** Route access level */
     security?: RouteSecurityLevel
+    /** Preserve the original route when redirecting unauthenticated users to login. */
+    preserveLoginRedirect?: boolean
     /** Legacy compatibility: skip menu permission check */
     skipMenuFetch?: boolean
     /** Page title */
