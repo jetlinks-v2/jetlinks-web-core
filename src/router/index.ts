@@ -182,7 +182,12 @@ const NoTokenJump = (
   } else {
     // 查找登录路由
     const loginRoute = coreRoutes.find(r => r.name === 'Login')
-    next({ path: loginRoute?.path || '/login' })
+    const loginPath = loginRoute?.path || '/login'
+    next(
+      to.meta.preserveLoginRedirect
+        ? { path: loginPath, query: { redirect: to.fullPath } }
+        : { path: loginPath }
+    )
   }
 }
 
