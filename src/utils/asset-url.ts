@@ -11,6 +11,22 @@ export const isDevelopmentAssetUrl = (url?: string): boolean => {
     || /^[a-zA-Z]:[\\/]/.test(url)
 }
 
+const resolveSameOriginFileUrl = (url: string): string => {
+  if (typeof window === 'undefined') return url
+
+  try {
+    const parsedUrl = new URL(url, window.location.origin)
+    // 配置中可能保存后端内网地址，文件接口需沿当前公开域名访问以避免 HTTPS 混合内容拦截。
+    if (parsedUrl.pathname.startsWith('/api/file/') && parsedUrl.origin !== window.location.origin) {
+      return `${window.location.origin}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`
+    }
+  } catch {
+    return url
+  }
+
+  return url
+}
+
 export const resolvePersistedAssetUrl = (url: string | undefined, fallback: string): string => {
-  return !url || isDevelopmentAssetUrl(url) ? fallback : url
+  return !url || isDevelopmentAssetUrl(url) ? fallback : resolveSameOriginFileUrl(url)
 }

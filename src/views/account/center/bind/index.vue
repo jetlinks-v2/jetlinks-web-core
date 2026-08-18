@@ -9,7 +9,7 @@
           <div class="info-body">
             <a-avatar
               :size="86"
-              :src="user?.avatar || jetlinksLogoImg"
+              :src="platformLogo"
               style="margin-bottom: 1rem"
             />
             <div class="info-body-item">
@@ -59,7 +59,7 @@
       <template v-else>
         <div class="not-login">
           <div class="logo">
-            <img :src="jetlinksLogoImg" />
+            <img :src="platformLogo" />
             <img :src="vectorImg" class="arrow" />
             <img
               :src="
@@ -143,6 +143,7 @@ import { applicationInfo, bindAccount } from "@jetlinks-web-core/api/system/bind
 import { codeUrl, authLogin, userDetail, encryptionConfig } from "@jetlinks-web-core/api/login";
 import { useSystemStore } from "@jetlinks-web-core/store/system";
 import { useI18n } from "vue-i18n";
+import { resolvePersistedAssetUrl } from "@jetlinks-web-core/utils";
 import jetlinksLogoImg from "@jetlinks-web-core/assets/bindPage/jetlinksLogo.png";
 import vectorImg from "@jetlinks-web-core/assets/bindPage/Vector.png";
 import internalStandaloneImg from "@jetlinks-web-core/assets/apply/internal-standalone.png";
@@ -168,6 +169,12 @@ iconMap.set("internal-standalone", internalStandaloneImg);
 iconMap.set("third-party", thirdPartyImg);
 
 const token = computed(() => LocalStore.get(TOKEN_KEY));
+const platformLogo = computed(
+  () => resolvePersistedAssetUrl(
+    systemStore.systemInfo?.front?.logo || systemStore.layout.logo,
+    jetlinksLogoImg,
+  ),
+);
 
 /**
  * 用户信息
@@ -345,7 +352,9 @@ onMounted(() => {
   getAppInfo();
   getCode();
   getDetail();
-  // systemStore.getFront()
+  if (!systemStore.systemInfo?.front?.logo) {
+    systemStore.querySingleInfo("front");
+  }
 });
 </script>
 
