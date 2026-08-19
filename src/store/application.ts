@@ -10,6 +10,14 @@ type ApplicationItemType = {
   name: string
   version?: string
   description?: string
+  provider?: string
+  page?: {
+    baseUrl?: string
+    routeType?: 'hash' | 'history'
+  }
+  configurations?: {
+    smartParkAppGroup?: string
+  }
 }
 
 export const useApplication = defineStore('application', () => {
@@ -57,7 +65,7 @@ export const useApplication = defineStore('application', () => {
   /**
    * 根据ID查找应用
    */
-  const findAppById = (appId: string) => appList.value.find((item: any) => item.id === appId)
+  const findAppById = (appId: string) => appList.value.find((item) => item.id === appId)
 
   const init = () => {
     appList.value = []

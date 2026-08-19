@@ -39,6 +39,18 @@
         />
         <RegistryComponent pageCode="layout" code="headerRight">
           <template v-if="!hideHeaderRight">
+            <a-tooltip :title="t('layout.applicationCenter')">
+              <a-button
+                class="smart-park-application-center"
+                type="text"
+                shape="circle"
+                @click="openApplicationCenter"
+              >
+                <template #icon>
+                  <img class="smart-park-application-center__icon" src="/overview/application.png" alt="" />
+                </template>
+              </a-button>
+            </a-tooltip>
             <Notice key="notice" />
           </template>
           <User key="user" :hideHeaderRight="hideHeaderRight" />
@@ -113,6 +125,7 @@ import { dispatchParkChanged, isWorkflowEmbedRoute } from '@jetlinks-web-core/ut
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { LayoutType } from '@jetlinks-web/components/es/ProLayout/defaultSettings'
 import { defaultRouteContext, provideRouteContext } from '@jetlinks-web/components/es/ProLayout/RouteContext'
+import { useI18n } from 'vue-i18n'
 
 type MenuNode = {
   key: string
@@ -228,6 +241,7 @@ const SmartParkSidebarMenu = defineComponent({
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 const systemStore = useSystemStore()
 const menuStore = useMenuStore()
 const userStore = useUserStore()
@@ -243,6 +257,10 @@ const state = reactive({
   openKeys: [] as string[],
   selectedKeys: [] as string[],
 })
+
+const openApplicationCenter = () => {
+  router.push('/application/center')
+}
 
 const routeSelectedKeys = computed(() => {
   const paths = (route.meta.breadcrumb || route.meta.breadcrumbCache || []) as Array<{ name?: string; path?: string }>
@@ -668,6 +686,20 @@ onMounted(loadCurrentUserParkTree)
 .smart-park-global-actions :deep(.notice-container .ant-badge .notice-icon),
 .smart-park-global-actions :deep(.user-info) {
   color: #fff;
+}
+
+.smart-park-application-center {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.smart-park-application-center__icon {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
 }
 
 .smart-park-park-select {

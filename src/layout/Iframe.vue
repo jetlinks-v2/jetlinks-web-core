@@ -21,7 +21,7 @@ import FullPage from "./FullPage.vue";
 import {onUnmounted} from "vue";
 import { jumpLogin } from "@jetlinks-web-core/router";
 import { clearVerifyCache } from "@jetlinks-web-core/package";
-import { getBaseApi } from '@jetlinks-web-core/utils'
+import { getBaseApi, normalizeExternalUrl } from '@jetlinks-web-core/utils'
 
 const iframeUrl = ref('');
 const route = useRoute()
@@ -46,6 +46,15 @@ const handle = async (appId, url) => {
   let menuUrl = url;
   if (res.status === 200) {
     const result = res.result
+    const baseUrl = result.page?.baseUrl?.trim()
+
+    if (result.configurations?.smartParkAppGroup === 'third_party_link' && baseUrl) {
+      loading.value = false
+      iframeUrl.value = ''
+      window.open(normalizeExternalUrl(baseUrl), '_blank', 'noopener')
+      return
+    }
+
     if (result.page.routeType === 'hash') {
       menuUrl = url.startsWith('/') ? `/#${url}` : `/#/${url}`;
     }
@@ -64,16 +73,16 @@ const handle = async (appId, url) => {
     }
     const _url = menuUrl.startsWith('/') ? menuUrl : `/${menuUrl}`;
 
-    const baseUrl = result.page.baseUrl.endsWith('/') ? result.page.baseUrl.slice(0,-1) : result.page.baseUrl;
+    const appBaseUrl = result.page.baseUrl.endsWith('/') ? result.page.baseUrl.slice(0,-1) : result.page.baseUrl;
     if (result.provider === 'internal-standalone') {
-      iframeUrl.value = `${baseUrl}${getBaseApi()}/application/sso/${appId}/login?redirect=${menuUrl}?layout=false`;
+      iframeUrl.value = `${appBaseUrl}${getBaseApi()}/application/sso/${appId}/login?redirect=${menuUrl}?layout=false`;
     } else if (result.provider === 'internal-integrated') {
       const tokenUrl = `${
-        baseUrl
+        appBaseUrl
       }${_url}?layout=false&X-Access-Token=${LocalStore.get(TOKEN_KEY)}`;
       iframeUrl.value = tokenUrl;
     } else {
-      iframeUrl.value = `${baseUrl}${_url}`;
+      iframeUrl.value = `${appBaseUrl}${_url}`;
     }
   }
 }

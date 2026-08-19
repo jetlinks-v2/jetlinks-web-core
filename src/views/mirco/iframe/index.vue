@@ -17,6 +17,7 @@
 import { jumpLogin } from  '@jetlinks-web-core/router'
 import { clearVerifyCache } from '@jetlinks-web-core/package'
 import { useApplication, useMenuStore } from '@jetlinks-web-core/store'
+import { normalizeExternalUrl } from '@jetlinks-web-core/utils'
 import { nextTick } from 'vue'
 import { LayoutType } from '@jetlinks-web/components/es/ProLayout/defaultSettings'
 
@@ -85,7 +86,15 @@ const handleQuery = () => {
   const {appId, url} = route.meta
   if (appId) {
     const appInfo = application.findAppById(appId)
-    if (appInfo.page?.baseUrl) {
+    const baseUrl = appInfo?.page?.baseUrl?.trim()
+    if (appInfo?.configurations?.smartParkAppGroup === 'third_party_link' && baseUrl) {
+      loading.value = false
+      iframeUrl.value = ''
+      window.open(normalizeExternalUrl(baseUrl), '_blank', 'noopener')
+      return
+    }
+
+    if (appInfo?.page?.baseUrl) {
       let _url = appInfo.page.baseUrl
       const pageParams = new URLSearchParams()
 

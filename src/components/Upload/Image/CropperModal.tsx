@@ -54,10 +54,9 @@ const CropperModalProps = {
     type: Number,
     default: 200000
   },
-  /** 禁止滚轮缩放图片，以拖动裁剪框 / 拖动图片为主 */
   canScale: {
     type: Boolean,
-    default: false
+    default: true
   },
   canMove: {
     type: Boolean,

@@ -20,6 +20,13 @@ export const openEdgeUrl = (id: string, routePath?: string) => {
   window.open(url.toString())
 }
 
+export const normalizeExternalUrl = (value?: string) => {
+  const url = value?.trim() || ''
+  if (!url) return ''
+  if (url.startsWith('//')) return `https:${url}`
+  return /^[a-z][a-z\d+.-]*:\/\//i.test(url) ? url : `https://${url}`
+}
+
 export class TabSaveSuccess {
   private id: string
   private url: string

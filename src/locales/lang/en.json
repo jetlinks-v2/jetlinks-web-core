@@ -1066,5 +1066,6 @@
   "data.aiData.knowledgeAISearch.name": "Knowledge Base Intelligent Search",
   "data.aiData.knowledgeAISearch.description": "Supports intelligent search conversations for knowledge base management.",
   "data.aiData.knowledgeAISearch.searchCode": "knowledgeAISearch|Knowledge Base/Search",
-  "data.aiData.knowledgeAISearch.menuName": "Visualization/Knowledge Base Intelligent Search"
+  "data.aiData.knowledgeAISearch.menuName": "Visualization/Knowledge Base Intelligent Search",
+  "layout.applicationCenter": "Application Center"
 }

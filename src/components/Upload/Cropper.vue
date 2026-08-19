@@ -16,7 +16,7 @@
           :fixed-number="[1, 1]"
           :fixed-box="true"
           :center-box="true"
-          :can-scale="false"
+          :can-scale="true"
           :can-move="true"
           :can-move-box="true"
           :autoCrop="true"

@@ -1066,5 +1066,6 @@
   "data.aiData.knowledgeAISearch.name": "知识库智能搜索",
   "data.aiData.knowledgeAISearch.description": "用于支持知识库管理智能搜索对话",
   "data.aiData.knowledgeAISearch.searchCode": "knowledgeAISearch|知识库/搜索",
-  "data.aiData.knowledgeAISearch.menuName": "可视化/知识库智能搜索"
+  "data.aiData.knowledgeAISearch.menuName": "可视化/知识库智能搜索",
+  "layout.applicationCenter": "应用中心"
 }
