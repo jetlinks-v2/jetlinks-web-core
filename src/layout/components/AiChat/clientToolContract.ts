@@ -311,6 +311,18 @@ export interface AiClientToolContractOutputState extends Omit<
   label?: string
 }
 
+const executionAxisBindings = new WeakMap<object, { field: string; axis: string }>()
+
+/** Internal compiler hook: authorizes one invocation-specific dimension axis without exposing mutable field metadata. */
+export const bindAiClientToolContractExecutionAxis = <T extends AiClientToolContractOutputState>(
+  state: T,
+  field: string,
+  axis: string,
+): T => {
+  executionAxisBindings.set(state, { field, axis })
+  return state
+}
+
 /** Execution facts supplied after the owning producer has run. */
 export interface AiClientToolContractEvidenceOptions extends Omit<
   AiClientToolEvidenceOptions,
@@ -347,12 +359,35 @@ export const createAiClientToolContractOutputBinding = (
   const recordPath = output.recordPath === undefined
     ? undefined
     : normalizeAiClientToolRecordPath(output.recordPath)
-  const fields = output.fields?.map(field => ({ ...field }))
+  const executionAxis = executionAxisBindings.get(state)
+  const fields = output.fields?.map(field => {
+    if (!executionAxis || field.name !== executionAxis.field) return { ...field }
+    if (!isCanonicalAiClientToolOutputField(field)
+      || field.role !== 'dimension'
+      || (field.axis && field.axis !== executionAxis.axis)) {
+      throw new Error(`Invalid client tool execution axis binding: ${state.name}`)
+    }
+    return { ...field, axis: executionAxis.axis }
+  })
+  const normalizedFields = normalizeAiClientToolOutputFields(fields)
+  if (fields && (!normalizedFields || normalizedFields.length !== fields.length)) {
+    throw new Error(`Invalid client tool execution fields: ${state.name}`)
+  }
+  if (executionAxis && !normalizedFields?.some(field => (
+    isCanonicalAiClientToolOutputField(field)
+    && field.name === executionAxis.field
+    && field.axis === executionAxis.axis
+  ))) {
+    throw new Error(`Undeclared client tool execution axis binding: ${state.name}`)
+  }
   const ordering = output.ordering
-    ? normalizeAiClientToolOrdering(output.ordering, fields)
+    ? normalizeAiClientToolOrdering(output.ordering, normalizedFields)
     : undefined
+  if (output.ordering && !ordering) {
+    throw new Error(`Invalid client tool execution ordering: ${state.name}`)
+  }
   const label = normalizedText(state.label) || normalizedText(output.label)
-  const canonicalFields = !!fields?.length && fields.every(isCanonicalAiClientToolOutputField)
+  const canonicalFields = !!normalizedFields?.length && normalizedFields.every(isCanonicalAiClientToolOutputField)
   const completeness = state.completeness || (canonicalFields
     ? state.complete ? 'complete' : state.continuation ? 'partial' : 'truncated'
     : undefined)
@@ -366,13 +401,14 @@ export const createAiClientToolContractOutputBinding = (
     shape: output.shape,
     ...(state.mediaType || output.mediaType ? { mediaType: state.mediaType || output.mediaType } : {}),
     ...(Number.isFinite(state.recordCount) ? { recordCount: Number(state.recordCount) } : {}),
+    ...(Number.isFinite(state.totalCount) ? { totalCount: Number(state.totalCount) } : {}),
     complete: state.complete,
     ...(state.truncated !== undefined ? { truncated: state.truncated } : {}),
     ...(completeness ? { completeness } : {}),
     ...(completeness === 'partial' && state.continuation
       ? { continuation: { ...state.continuation } }
       : {}),
-    ...(fields?.length ? { fields } : {}),
+    ...(normalizedFields?.length ? { fields: normalizedFields } : {}),
     ...(ordering ? { ordering } : {}),
     ...(state.requestedRange ? { requestedRange: { ...state.requestedRange } } : {}),
     ...(state.observedRange ? { observedRange: { ...state.observedRange } } : {}),

@@ -113,6 +113,7 @@ export {
   AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
   createAiClientToolFailureResult,
   normalizeAiClientToolOrdering,
+  resolveAiClientToolResultState,
   withAiClientToolEvidence,
 } from './clientToolResult';
 export {
@@ -131,9 +132,11 @@ export type {
 } from './clientToolResultDelivery';
 export type {
   AiClientToolArtifactReference,
+  AiClientToolAbsenceAuthority,
   AiClientToolClaim,
   AiClientToolEvidence,
   AiClientToolEvidenceOptions,
+  AiClientToolExecutionStatus,
   AiClientToolMetricDescriptor,
   AiClientToolOrdering,
   AiClientToolOrderingDirection,
@@ -145,18 +148,28 @@ export type {
   AiClientToolOutputBinding,
   AiClientToolOutputField,
   AiClientToolRepair,
+  AiClientToolResultCompleteness,
+  AiClientToolResultState,
 } from './clientToolResult';
 export {
   CLIENT_TOOL_DEFINITION_META_KEY,
   CLIENT_TOOL_DEFINITION_VERSION,
   clientToolOutput,
   clientToolResult,
+  defineClientToolAnalyticalProducer,
+  defineClientToolBoundedAnalyticalProducer,
   defineClientTool,
   isCompiledClientToolDefinition,
 } from './clientToolDefinition';
 export type {
   ClientToolActivation,
+  ClientToolAnalyticalAuthoring,
+  ClientToolAnalyticalCoverage,
+  ClientToolAnalyticalMeasure,
+  ClientToolAnalyticalOrdering,
+  ClientToolAnalyticalProducerDefinition,
   ClientToolArtifactOutput,
+  ClientToolBoundedAnalyticalProducerDefinition,
   ClientToolConfirmation,
   ClientToolConsumedResource,
   ClientToolDefinition,

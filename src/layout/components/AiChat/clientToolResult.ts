@@ -47,6 +47,8 @@ interface AiClientToolOutputFieldBase {
 export interface AiClientToolCanonicalOutputField extends AiClientToolOutputFieldBase {
   type: AiClientToolFieldType
   role: AiClientToolFieldRole
+  /** Canonical dimension identity. Measure fields bind through measure instead and cannot declare axis. */
+  axis?: string
   semanticRole?: never
 }
 
@@ -55,6 +57,7 @@ export interface AiClientToolLegacyOutputField extends AiClientToolOutputFieldBa
   semanticRole: AiClientToolFieldSemanticRole
   type?: never
   role?: never
+  axis?: never
 }
 
 export type AiClientToolOutputField = AiClientToolCanonicalOutputField | AiClientToolLegacyOutputField
@@ -73,6 +76,20 @@ export interface AiClientToolOrdering {
 }
 
 export type AiClientToolCompleteness = 'complete' | 'empty' | 'partial' | 'truncated'
+
+export type AiClientToolExecutionStatus = 'completed' | 'failed'
+export type AiClientToolResultCompleteness = 'complete' | 'partial' | 'unknown'
+export type AiClientToolAbsenceAuthority = 'supported' | 'unsupported' | 'unknown'
+
+/** Read-only projection consumed by generic tool-result lifecycle and presentation adapters. */
+export interface AiClientToolResultState {
+  executionStatus: AiClientToolExecutionStatus
+  resultCompleteness: AiClientToolResultCompleteness
+  evidenceCoverage?: string
+  absenceAuthority: AiClientToolAbsenceAuthority
+  source: 'canonical' | 'legacy' | 'unknown'
+  conflicted: boolean
+}
 
 export interface AiClientToolContinuation {
   producerId: string
@@ -282,6 +299,7 @@ const BINDING_SEMANTIC_ROLES = new Set<AiClientToolFieldSemanticRole>([
 ])
 const BINDING_FIELD_TYPES = new Set<AiClientToolFieldType>(AI_CLIENT_TOOL_FIELD_TYPES)
 const BINDING_FIELD_ROLES = new Set<AiClientToolFieldRole>(AI_CLIENT_TOOL_FIELD_ROLES)
+const BINDING_ANALYTICAL_AXIS_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/
 
 /**
  * Accepts either the canonical type/role pair or the released semanticRole shape, never both. Canonical values are
@@ -312,11 +330,12 @@ export const normalizeAiClientToolOutputFields = (
     const label = optionalText(value.label, 120)
     const format = optionalText(value.format, 32, true)
     const measure = optionalText(value.measure, 160, true)
+    const axis = optionalText(value.axis, 160, true)
     const unit = optionalText(value.unit, 32, true)
     const aggregation = optionalText(value.aggregation, 160, true)
     if (!name || names.has(name)
       || label === undefined || format === undefined || measure === undefined
-      || unit === undefined || aggregation === undefined) return undefined
+      || axis === undefined || unit === undefined || aggregation === undefined) return undefined
     const common = {
       name,
       ...(label ? { label } : {}),
@@ -333,10 +352,12 @@ export const normalizeAiClientToolOutputFields = (
     descriptorKind = currentKind
     if (currentKind === 'canonical') {
       if (!type || !role || semanticRole
-        || !BINDING_FIELD_TYPES.has(type) || !BINDING_FIELD_ROLES.has(role)) return undefined
-      fields.push({ ...common, type, role })
+        || !BINDING_FIELD_TYPES.has(type) || !BINDING_FIELD_ROLES.has(role)
+        || (axis && (!BINDING_ANALYTICAL_AXIS_PATTERN.test(axis)
+          || !['dimension', 'temporal_dimension'].includes(role)))) return undefined
+      fields.push({ ...common, type, role, ...(axis ? { axis } : {}) })
     } else {
-      if (!semanticRole || !BINDING_SEMANTIC_ROLES.has(semanticRole)) return undefined
+      if (!semanticRole || axis || !BINDING_SEMANTIC_ROLES.has(semanticRole)) return undefined
       fields.push({ ...common, semanticRole })
     }
     names.add(name)
@@ -687,3 +708,177 @@ export const createAiClientToolFailureResult = (options: AiClientToolFailureOpti
   } : {}),
   ...(options.details ? { details: { ...options.details } } : {}),
 })
+
+const TOOL_RESULT_COMPLETENESS = new Set<AiClientToolCompleteness>([
+  'complete', 'empty', 'partial', 'truncated',
+])
+const TOOL_RESULT_FAILURE_STATUSES = new Set([
+  'failed', 'failure', 'error', 'cancelled', 'canceled', 'rejected',
+])
+const TOOL_RESULT_SUCCESS_STATUSES = new Set([
+  'completed', 'complete', 'success', 'succeeded', 'successful', 'ok', 'empty', 'partial', 'truncated',
+])
+
+const toolResultToken = (value: unknown) => String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+
+/**
+ * General Agent wraps browser results in `{toolCallId,result}` while ACP may emit the result directly.
+ * Only that explicit session envelope is unwrapped; arbitrary business `result` fields remain opaque.
+ */
+const collectAiClientToolResultRecords = (value: unknown): Record<string, unknown>[] => {
+  if (!isStructuredRecord(value)) return []
+  const nested = isStructuredRecord(value.result) ? value.result : undefined
+  if (nested && String(value.toolCallId || '').trim()) {
+    return [nested, value]
+  }
+  return [value]
+}
+
+interface CompletenessProjection {
+  value: AiClientToolResultCompleteness
+  explicit: boolean
+  conflicted: boolean
+}
+
+const projectCompletenessRecord = (
+  record: Record<string, unknown>,
+  canonical: boolean,
+): CompletenessProjection => {
+  const hasComplete = typeof record.complete === 'boolean'
+  const hasTruncated = typeof record.truncated === 'boolean'
+  const completenessToken = toolResultToken(record.completeness)
+  const hasCompleteness = record.completeness !== undefined
+  const completeness = TOOL_RESULT_COMPLETENESS.has(completenessToken as AiClientToolCompleteness)
+    ? completenessToken as AiClientToolCompleteness
+    : undefined
+  const status = toolResultToken(record.resultStatus ?? record.status)
+  const partial = record.complete === false
+    || record.truncated === true
+    || completeness === 'partial'
+    || completeness === 'truncated'
+    || record.continuation !== undefined
+    || status === 'partial'
+    || status === 'truncated'
+  const complete = record.complete === true
+    || completeness === 'complete'
+    || completeness === 'empty'
+    || (!canonical && record.truncated === false)
+  const explicit = hasComplete || hasTruncated || hasCompleteness
+    || record.continuation !== undefined || status === 'partial' || status === 'truncated'
+  const malformedCanonical = canonical && (!hasComplete || !hasTruncated)
+  const conflicted = (hasCompleteness && !completeness)
+    || malformedCanonical
+    || (partial && complete)
+
+  if (partial) return { value: 'partial', explicit, conflicted }
+  if (complete && !conflicted) return { value: 'complete', explicit, conflicted: false }
+  return { value: 'unknown', explicit, conflicted }
+}
+
+const combineCompleteness = (
+  records: readonly Record<string, unknown>[],
+  canonical: boolean,
+): CompletenessProjection => {
+  const projections = records.map(record => projectCompletenessRecord(record, canonical))
+  const explicit = projections.some(projection => projection.explicit)
+  const values = new Set(projections
+    .map(projection => projection.value)
+    .filter(value => value !== 'unknown'))
+  const conflicted = projections.some(projection => projection.conflicted) || values.size > 1
+  if (values.has('partial')) return { value: 'partial', explicit, conflicted }
+  if (values.has('complete')) {
+    return { value: conflicted ? 'partial' : 'complete', explicit, conflicted }
+  }
+  return { value: 'unknown', explicit, conflicted }
+}
+
+const resolveExecutionStatus = (records: readonly Record<string, unknown>[]) => {
+  let succeeded = false
+  let failed = false
+  for (const record of records) {
+    const outcome = toolResultToken(record.outcome)
+    const status = toolResultToken(record.status)
+    succeeded ||= record.success === true || record.ok === true
+      || outcome === 'success' || outcome === 'partial'
+      || TOOL_RESULT_SUCCESS_STATUSES.has(status)
+    failed ||= record.success === false || record.ok === false
+      || outcome === 'failure'
+      || TOOL_RESULT_FAILURE_STATUSES.has(status)
+      || (record.error !== undefined && record.error !== null && record.error !== '')
+  }
+  return {
+    executionStatus: failed ? 'failed' as const : 'completed' as const,
+    conflicted: failed && succeeded,
+  }
+}
+
+const booleanSignals = (records: readonly Record<string, unknown>[], key: string) => records
+  .map(record => record[key])
+  .filter((value): value is boolean => typeof value === 'boolean')
+
+/**
+ * Resolves execution, result completeness and absence authority without inspecting business fields.
+ * A received tool result is terminal; incomplete evidence changes coverage, never the call lifecycle.
+ */
+export const resolveAiClientToolResultState = (value: unknown): AiClientToolResultState => {
+  const records = collectAiClientToolResultRecords(value)
+  const canonicalEvidence = records
+    .map(record => record.evidence)
+    .filter((evidence): evidence is Record<string, unknown> => (
+      isStructuredRecord(evidence) && evidence.contract === AI_CLIENT_TOOL_EVIDENCE_CONTRACT
+    ))
+  const canonicalCompleteness = combineCompleteness(canonicalEvidence, true)
+  const legacyCompleteness = combineCompleteness(records, false)
+  const execution = resolveExecutionStatus(records)
+  let conflicted = execution.conflicted || canonicalCompleteness.conflicted || legacyCompleteness.conflicted
+  let resultCompleteness = canonicalEvidence.length
+    ? canonicalCompleteness.value
+    : legacyCompleteness.value
+  if (canonicalEvidence.length
+    && legacyCompleteness.explicit
+    && legacyCompleteness.value !== 'unknown'
+    && legacyCompleteness.value !== canonicalCompleteness.value) {
+    conflicted = true
+  }
+  if (conflicted && resultCompleteness === 'complete') resultCompleteness = 'partial'
+  if (execution.executionStatus === 'failed') resultCompleteness = 'unknown'
+
+  const canonicalAbsence = booleanSignals(canonicalEvidence, 'supportsAbsenceClaim')
+  const legacyAbsence = booleanSignals(records, 'supportsAbsenceClaim')
+  const absenceSignals = canonicalAbsence.length ? canonicalAbsence : legacyAbsence
+  if (canonicalAbsence.length && legacyAbsence.length
+    && canonicalAbsence.some(value => value !== legacyAbsence[0])) {
+    conflicted = true
+  }
+  if (absenceSignals.includes(true) && absenceSignals.includes(false)) conflicted = true
+  let absenceAuthority: AiClientToolAbsenceAuthority = absenceSignals.includes(false)
+    ? 'unsupported'
+    : absenceSignals.includes(true)
+      ? 'supported'
+      : 'unknown'
+  if (absenceAuthority === 'supported'
+    && (resultCompleteness !== 'complete' || execution.executionStatus === 'failed' || conflicted)) {
+    absenceAuthority = 'unsupported'
+    conflicted = true
+  }
+
+  const coverageValues = canonicalEvidence.length
+    ? canonicalEvidence.map(evidence => evidence.evidenceCoverage)
+    : records.map(record => record.evidenceCoverage)
+  const evidenceCoverageValues = Array.from(new Set(coverageValues
+    .filter((coverage): coverage is string => typeof coverage === 'string')
+    .map(coverage => coverage.trim())
+    .filter(Boolean)))
+  if (evidenceCoverageValues.length > 1) conflicted = true
+  if (conflicted && resultCompleteness === 'complete') resultCompleteness = 'partial'
+  if (conflicted && absenceAuthority === 'supported') absenceAuthority = 'unsupported'
+
+  return {
+    executionStatus: execution.executionStatus,
+    resultCompleteness,
+    ...(evidenceCoverageValues[0] ? { evidenceCoverage: evidenceCoverageValues[0] } : {}),
+    absenceAuthority,
+    source: canonicalEvidence.length ? 'canonical' : legacyCompleteness.explicit ? 'legacy' : 'unknown',
+    conflicted,
+  }
+}

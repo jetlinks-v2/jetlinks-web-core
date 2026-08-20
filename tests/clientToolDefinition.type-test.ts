@@ -1,8 +1,10 @@
 import {
   clientToolOutput,
   clientToolResult,
+  defineClientToolBoundedAnalyticalProducer,
   defineClientTool,
   defineClientTools,
+  type ClientToolAnalyticalAuthoring,
   type ClientToolDefinition,
 } from '../src/layout/components/AiChat/clientToolApi'
 
@@ -47,6 +49,95 @@ const validDefinition: ClientToolDefinition<
 }
 
 defineClientTools([defineClientTool(validDefinition)])
+
+type BoundedArgs = { limit?: number }
+const boundedDefinition = {
+  producerKey: 'type.bounded',
+  factKey: 'type.bounded.values',
+  subjects: ['entity'],
+  measures: [{ name: 'semantic_score', aggregations: ['sum'], units: ['record'] }],
+  dimensions: ['semantic_group'],
+  filters: [],
+  grains: [],
+  criterion: {
+    name: 'top_n',
+    measure: 'semantic_score',
+    direction: 'desc',
+    valueField: 'physical_score',
+    coordinateField: 'physical_group',
+    axis: 'semantic_group',
+  },
+  boundedBy: 'limit',
+  output: 'bounded-records',
+} as const
+const boundedScope = defineClientToolBoundedAnalyticalProducer<BoundedArgs>(boundedDefinition)
+
+defineClientTool<BoundedArgs, Record<string, unknown>, number[]>({
+  id: 'typed_bounded_scope',
+  description: { text: 'Read a bounded scope', capabilities: ['type.bounded.read'] },
+  inputs: [{ id: 'limit', valueType: 'number', defaultValue: 5 }],
+  analytical: boundedScope,
+  effect: { kind: 'READ' },
+  output: clientToolOutput.recordSet({
+    name: 'bounded-records',
+    shape: 'type.bounded-records',
+    recordPath: '$',
+    fields: [
+      { name: 'physical_group', type: 'string', role: 'dimension' },
+      { name: 'physical_score', type: 'number', role: 'measure', measure: 'semantic_score' },
+    ],
+  }),
+  execute: () => clientToolResult.success([1]),
+})
+
+defineClientToolBoundedAnalyticalProducer<BoundedArgs>({
+  ...boundedDefinition,
+  // @ts-expect-error Wire version is compiler-owned.
+  version: 'analytical-capability/v1',
+})
+
+defineClientToolBoundedAnalyticalProducer<BoundedArgs>({
+  ...boundedDefinition,
+  // @ts-expect-error Wire transform cost is compiler-owned.
+  transformCost: 0,
+})
+
+defineClientToolBoundedAnalyticalProducer<BoundedArgs>({
+  ...boundedDefinition,
+  // @ts-expect-error Output authoring binds a declared output by name, never by wire shape.
+  output: { shape: 'type.bounded-records' },
+})
+
+defineClientToolBoundedAnalyticalProducer<BoundedArgs>({
+  ...boundedDefinition,
+  // @ts-expect-error Bounded scope must bind an input that exists in the business argument type.
+  boundedBy: 'requestedCount',
+})
+
+defineClientToolBoundedAnalyticalProducer<BoundedArgs>({
+  ...boundedDefinition,
+  criterion: {
+    ...boundedDefinition.criterion,
+    axis: undefined,
+    // @ts-expect-error Dynamic axes must bind an input that exists in the business argument type.
+    axisFromInput: 'dimension',
+  },
+})
+
+defineClientToolBoundedAnalyticalProducer<BoundedArgs>({
+  ...boundedDefinition,
+  // @ts-expect-error Bounded ordering is compiled from the single criterion binding.
+  ordering: [{ axis: 'physical_score', direction: 'desc' }],
+})
+
+clientToolResult.success([1], {
+  // @ts-expect-error Business execution results never carry analytical proof tokens.
+  analyticalCompletion: {},
+})
+
+// @ts-expect-error Analytical authoring handles are opaque and can only be created by Web Core helpers.
+const rawAnalyticalAuthoring: ClientToolAnalyticalAuthoring<BoundedArgs> = {}
+void rawAnalyticalAuthoring
 
 defineClientTool({
   ...validDefinition,

@@ -28,8 +28,10 @@ import {
 } from '../src/layout/components/AiChat/clientToolResultDelivery'
 import { createAiClientToolRecordFactCollector } from '../src/layout/components/AiChat/clientToolRecordFacts'
 import {
+  AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
   normalizeAiClientToolOutputBindings,
   normalizeAiClientToolOrdering,
+  resolveAiClientToolResultState,
   withAiClientToolEvidence,
 } from '../src/layout/components/AiChat/clientToolResult'
 import {
@@ -40,6 +42,7 @@ import {
   CLIENT_TOOL_DEFINITION_META_KEY,
   clientToolOutput,
   clientToolResult,
+  defineClientToolBoundedAnalyticalProducer,
   defineClientTool,
   isCompiledClientToolDefinition,
 } from '../src/layout/components/AiChat/clientToolDefinition'
@@ -66,6 +69,67 @@ const createSeriesContract = () => defineAiClientToolContract({
     },
   }],
 })
+
+const anonymousBoundedDefinition = (
+  producerKey: string,
+  criterion: 'top_n' | 'bottom_n',
+) => ({
+  producerKey,
+  factKey: `${producerKey}.values`,
+  subjects: ['entity'] as const,
+  measures: [{ name: 'semantic_score', aggregations: ['sum'], units: ['record'] }],
+  dimensions: ['semantic_group'],
+  filters: ['authorized_scope'],
+  grains: [],
+  criterion: {
+    name: criterion,
+    measure: 'semantic_score',
+    direction: criterion === 'top_n' ? 'desc' as const : 'asc' as const,
+    valueField: 'physical_score',
+    coordinateField: 'physical_group',
+    axis: 'semantic_group',
+  },
+  boundedBy: 'requestedCount' as const,
+  output: 'ranked-records',
+})
+
+const createAnonymousBoundedTool = (
+  source: number[],
+  criterion: 'top_n' | 'bottom_n' = 'top_n',
+) => {
+  type Args = { requestedCount?: number }
+  const analytical = defineClientToolBoundedAnalyticalProducer<Args>(
+    anonymousBoundedDefinition(`anonymous.${criterion}`, criterion),
+  )
+  const records = source.map((score, index) => ({ physical_group: `group-${index}`, physical_score: score }))
+  const tool = defineClientTool<Args, Record<string, unknown>, typeof records>({
+    id: `anonymous_${criterion}`,
+    description: { text: 'Return a bounded ordered subset', capabilities: ['generic.rank'] },
+    inputs: [{ id: 'requestedCount', valueType: { type: 'integer', min: 1, max: 5 }, defaultValue: 3 }],
+    analytical,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet<typeof records>({
+      name: 'ranked-records',
+      shape: 'generic.ranked-records',
+      recordPath: '$',
+      fields: [
+        { name: 'physical_group', type: 'string', role: 'dimension' },
+        {
+          name: 'physical_score', type: 'number', role: 'measure', measure: 'semantic_score',
+          unit: 'record', aggregation: 'sum',
+        },
+      ],
+    }),
+    execute: ({ requestedCount = 3 }) => clientToolResult.success(
+      [...records]
+        .sort((left, right) => criterion === 'top_n'
+          ? right.physical_score - left.physical_score
+          : left.physical_score - right.physical_score)
+        .slice(0, requestedCount),
+    ),
+  })
+  return { tool, analytical }
+}
 
 test('stable client-tool facade compiles business facts without inferring resources from inputs', async () => {
   let selections = 0
@@ -256,6 +320,329 @@ test('facade rejects canonical fields when the producer omits recordPath', () =>
   }), /explicit recordPath/)
 })
 
+test('bounded analytical completeness is relative to the canonical requested scope', async () => {
+  const cases = [
+    { source: [2, 1], args: {}, expected: [2, 1] },
+    { source: [3, 2, 1], args: { requestedCount: 3 }, expected: [3, 2, 1] },
+    { source: [1, 5, 3, 4, 2], args: { requestedCount: 3 }, expected: [5, 4, 3] },
+  ]
+  for (const [index, item] of cases.entries()) {
+    const { tool } = createAnonymousBoundedTool(item.source)
+    const result = await tool.execute(item.args, {}, {
+      id: `bounded-${index}`,
+      toolName: tool.id,
+    }) as any
+    assert.equal(result.complete, true)
+    assert.equal(result.truncated, false)
+    assert.equal(result.evidence.complete, true)
+    assert.equal(result.evidence.completeness, 'complete')
+    assert.deepEqual(
+      result.__clientToolOutputs.output0.map((record: Record<string, number>) => record.physical_score),
+      item.expected,
+    )
+    assert.equal(result.outputBindings[0].recordCount, item.expected.length)
+    assert.equal(result.outputBindings[0].totalCount, item.expected.length)
+    assert.equal(result.outputBindings[0].complete, true)
+    assert.equal(result.outputBindings[0].completeness, 'complete')
+  }
+
+  const { tool: siblingCriterion } = createAnonymousBoundedTool([3, 1, 2, 4], 'bottom_n')
+  const siblingResult = await siblingCriterion.execute({ requestedCount: 2 }, {}, {
+    id: 'bounded-sibling',
+    toolName: siblingCriterion.id,
+  }) as any
+  assert.deepEqual(
+    siblingResult.__clientToolOutputs.output0.map((record: Record<string, number>) => record.physical_score),
+    [1, 2],
+  )
+  assert.equal(siblingResult.complete, true)
+  assert.equal(siblingResult.outputBindings[0].totalCount, 2)
+
+  const session = toAiClientToolSessionDefinition(siblingCriterion) as any
+  const serialized = JSON.stringify(session)
+  assert.equal((serialized.match(/"x-ai-routing"/g) || []).length, 1)
+  assert.equal(serialized.includes('boundedScope'), false)
+  assert.equal(serialized.includes('proveComplete'), false)
+  assert.equal(serialized.includes('analyticalCompletion'), false)
+  assert.equal(
+    session.expands['x-ai-routing'].analyticalCapability.criteria.includes('bottom_n'),
+    true,
+  )
+  assert.deepEqual(session.expands['x-ai-routing'].analyticalCapability.ordering, [{
+    axis: 'semantic_score', direction: 'asc', producerGuaranteed: true,
+  }])
+  assert.deepEqual(siblingResult.outputBindings[0].ordering, {
+    keys: [{ field: 'physical_score', direction: 'asc' }],
+    producerGuaranteed: true,
+  })
+  assert.equal(
+    siblingResult.outputBindings[0].fields.find((field: Record<string, unknown>) => (
+      field.name === 'physical_group'
+    )).axis,
+    'semantic_group',
+  )
+})
+
+test('bounded analytical axis binding is explicit for static and invocation-selected dimensions', async () => {
+  type Args = { requestedCount?: number; coordinateAxis: 'semantic_group' | 'alternate_group' }
+  const base = anonymousBoundedDefinition('anonymous.dynamic-axis', 'top_n')
+  const analytical = defineClientToolBoundedAnalyticalProducer<Args>({
+    ...base,
+    dimensions: ['semantic_group', 'alternate_group'],
+    criterion: {
+      ...base.criterion,
+      axis: undefined,
+      axisFromInput: 'coordinateAxis',
+    },
+  })
+  const tool = defineClientTool<Args, Record<string, unknown>, Array<Record<string, unknown>>>({
+    id: 'anonymous_dynamic_axis',
+    description: { text: 'Return records for an explicitly selected axis', capabilities: ['generic.rank'] },
+    inputs: [
+      { id: 'requestedCount', valueType: { type: 'integer', min: 1, max: 5 }, defaultValue: 2 },
+      { id: 'coordinateAxis', valueType: 'string', required: true },
+    ],
+    analytical,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({
+      name: 'ranked-records',
+      shape: 'generic.ranked-records',
+      recordPath: '$',
+      fields: [
+        { name: 'physical_group', type: 'string', role: 'dimension' },
+        {
+          name: 'physical_score', type: 'number', role: 'measure', measure: 'semantic_score',
+          unit: 'record', aggregation: 'sum',
+        },
+      ],
+    }),
+    execute: () => clientToolResult.success([{ physical_group: 'a', physical_score: 9 }]),
+  })
+
+  assert.equal(
+    tool._meta.clientToolContract.outputs[0].fields.find(
+      (field: Record<string, unknown>) => field.name === 'physical_group',
+    ).axis,
+    undefined,
+  )
+  for (const coordinateAxis of ['semantic_group', 'alternate_group'] as const) {
+    const result = await tool.execute({ coordinateAxis, requestedCount: 2 }, {}, {
+      id: `dynamic-${coordinateAxis}`,
+      toolName: tool.id,
+    }) as any
+    assert.equal(result.complete, true)
+    assert.equal(
+      result.outputBindings[0].fields.find(
+        (field: Record<string, unknown>) => field.name === 'physical_group',
+      ).axis,
+      coordinateAxis,
+    )
+  }
+
+  const invalid = await tool.execute({ coordinateAxis: 'unknown' as any, requestedCount: 2 }, {}, {
+    id: 'dynamic-invalid',
+    toolName: tool.id,
+  }) as any
+  assert.equal(invalid.complete, false)
+  assert.equal(invalid.evidence.limitReason, 'analytical_scope_unproven')
+})
+
+test('bounded analytical results fail closed when scope cardinality is invalid, out of range or exceeded', async () => {
+  type Args = { requestedCount: number }
+  const primary = defineClientToolBoundedAnalyticalProducer<Args>(
+    anonymousBoundedDefinition('anonymous.primary', 'top_n'),
+  )
+  const executeCase = async (
+    id: string,
+    execute: () => any,
+    requestedCount: unknown = 2,
+  ) => {
+    const tool = defineClientTool<Args, Record<string, unknown>, Array<Record<string, unknown>>>({
+      id,
+      description: { text: 'Return a bounded subset', capabilities: ['generic.rank'] },
+      inputs: [{ id: 'requestedCount', valueType: { type: 'integer', min: 1, max: 5 }, required: true }],
+      analytical: primary,
+      effect: { kind: 'READ' },
+      output: clientToolOutput.recordSet<Array<Record<string, unknown>>>({
+        name: 'ranked-records', shape: 'generic.ranked-records', recordPath: '$',
+        fields: [
+          { name: 'physical_group', type: 'string', role: 'dimension' },
+          {
+            name: 'physical_score', type: 'number', role: 'measure', measure: 'semantic_score',
+            unit: 'record', aggregation: 'sum',
+          },
+        ],
+      }),
+      execute,
+    })
+    return tool.execute({ requestedCount } as Args, {}, { id, toolName: id }) as Promise<any>
+  }
+
+  const cases = [
+    await executeCase('bounded_exceeded_scope', () => clientToolResult.success([
+      { physical_group: 'a', physical_score: 3 },
+      { physical_group: 'b', physical_score: 2 },
+      { physical_group: 'c', physical_score: 1 },
+    ])),
+    await executeCase('bounded_zero_scope', () => clientToolResult.success([]), 0),
+    await executeCase('bounded_fractional_scope', () => clientToolResult.success([
+      { physical_group: 'a', physical_score: 2 },
+    ]), 1.5),
+    await executeCase('bounded_out_of_range_scope', () => clientToolResult.success([
+      { physical_group: 'a', physical_score: 5 },
+    ]), 6),
+    await executeCase('bounded_malformed_scope', () => clientToolResult.success([
+      { physical_group: 'a', physical_score: 2 },
+    ]), '2'),
+  ]
+  for (const result of cases) {
+    assert.equal(result.complete, false)
+    assert.equal(result.truncated, true)
+    assert.equal(result.status, 'partial')
+    assert.equal(result.evidence.complete, false)
+    assert.equal(result.evidence.completeness, 'truncated')
+    assert.equal(result.evidence.limitReason, 'analytical_scope_unproven')
+    assert.equal(result.outputBindings[0].complete, false)
+    assert.equal(result.outputBindings[0].totalCount, undefined)
+  }
+
+  const paginated = await executeCase('bounded_paginated', () => clientToolResult.partial([{
+    physical_group: 'a', physical_score: 2,
+  }], {
+    limitReason: 'pagination',
+  }))
+  assert.equal(paginated.complete, false)
+  assert.equal(paginated.truncated, true)
+  assert.equal(paginated.evidence.limitReason, 'pagination')
+  assert.equal(paginated.evidence.completeness, 'truncated')
+})
+
+test('bounded authoring rejects ambiguous semantics and never guesses physical fields or output slots', async () => {
+  type Args = { requestedCount?: number; first?: number; second?: number }
+  const executeCase = async (
+    id: string,
+    definition: Record<string, unknown>,
+    inputs: Array<{ id: keyof Args & string; valueType: string }>,
+    output: ReturnType<typeof clientToolOutput.recordSet<Array<Record<string, unknown>>>>
+      | Array<ReturnType<typeof clientToolOutput.recordSet<Array<Record<string, unknown>>>>>,
+    args: Args = { requestedCount: 2, first: 2, second: 2 },
+  ) => {
+    const analytical = defineClientToolBoundedAnalyticalProducer<Args>(definition as any)
+    const tool = defineClientTool<Args, Record<string, unknown>, Array<Record<string, unknown>>>({
+      id,
+      description: { text: 'Return an explicitly bounded subset', capabilities: ['generic.rank'] },
+      inputs,
+      analytical,
+      effect: { kind: 'READ' },
+      output,
+      execute: () => clientToolResult.success([{ physical_group: 'a', physical_score: 2 }]),
+    })
+    return tool.execute(args, {}, {
+      id,
+      toolName: id,
+    }) as Promise<any>
+  }
+  const output = () => clientToolOutput.recordSet<Array<Record<string, unknown>>>({
+    name: 'ranked-records',
+    shape: 'generic.ranked-records',
+    recordPath: '$',
+    fields: [
+      { name: 'physical_group', type: 'string', role: 'dimension' },
+      {
+        name: 'physical_score', type: 'number', role: 'measure', measure: 'semantic_score',
+        unit: 'record', aggregation: 'sum',
+      },
+    ],
+  })
+  const cases = [
+    await executeCase(
+      'bounded_ambiguous_criteria',
+      { ...anonymousBoundedDefinition('anonymous.ambiguous-criteria', 'top_n'), criterion: ['top_n', 'bottom_n'] },
+      [{ id: 'requestedCount', valueType: 'number' }],
+      output(),
+    ),
+    await executeCase(
+      'bounded_missing_explicit_input',
+      anonymousBoundedDefinition('anonymous.missing-input', 'top_n'),
+      [{ id: 'first', valueType: 'number' }],
+      output(),
+    ),
+    await executeCase(
+      'bounded_unmapped_semantic_axis',
+      {
+        ...anonymousBoundedDefinition('anonymous.unmapped-axis', 'top_n'),
+        criterion: {
+          ...anonymousBoundedDefinition('anonymous.unmapped-axis', 'top_n').criterion,
+          axis: undefined,
+          axisFromInput: 'notDeclared',
+        },
+      },
+      [{ id: 'first', valueType: 'number' }, { id: 'second', valueType: 'number' }],
+      output(),
+    ),
+    await executeCase(
+      'bounded_physical_field_not_guessed_from_semantic_measure',
+      {
+        ...anonymousBoundedDefinition('anonymous.no-field-guess', 'top_n'),
+        criterion: {
+          ...anonymousBoundedDefinition('anonymous.no-field-guess', 'top_n').criterion,
+          valueField: 'semantic_score',
+        },
+      },
+      [{ id: 'requestedCount', valueType: 'number' }],
+      output(),
+    ),
+    await executeCase(
+      'bounded_missing_explicit_output',
+      { ...anonymousBoundedDefinition('anonymous.missing-output', 'top_n'), output: 'not-declared' },
+      [{ id: 'requestedCount', valueType: 'number' }],
+      [
+        output(),
+        clientToolOutput.recordSet<Array<Record<string, unknown>>>({
+          name: 'ranked-records-sibling',
+          shape: 'generic.ranked-records',
+          recordPath: '$',
+        }),
+      ],
+    ),
+  ]
+
+  for (const result of cases) {
+    assert.equal(result.complete, false)
+    assert.equal(result.truncated, true)
+    assert.equal(result.evidence.limitReason, 'analytical_scope_unproven')
+  }
+
+  const unregistered = defineClientTool<Args, Record<string, unknown>, number[]>({
+    id: 'bounded_unregistered_authoring',
+    description: { text: 'Reject an unregistered authoring object', capabilities: ['generic.rank'] },
+    inputs: [{ id: 'requestedCount', valueType: 'number', required: true }],
+    analytical: Object.freeze({}) as any,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet<number[]>({
+      name: 'ranked-records', shape: 'generic.ranked-records', recordPath: '$',
+    }),
+    execute: () => clientToolResult.success([2, 1]),
+  })
+  const unregisteredResult = await unregistered.execute({ requestedCount: 2 }, {}, {
+    id: 'bounded-unregistered',
+    toolName: unregistered.id,
+  }) as any
+  assert.equal(unregistered.routing?.analyticalCapability, undefined)
+  assert.equal(unregisteredResult.complete, false)
+  assert.equal(unregisteredResult.evidence.limitReason, 'analytical_scope_unproven')
+
+  const explicitlyMapped = await executeCase(
+    'bounded_explicit_physical_mapping',
+    { ...anonymousBoundedDefinition('anonymous.explicit-mapping', 'top_n'), boundedBy: 'second' },
+    [{ id: 'first', valueType: 'number' }, { id: 'second', valueType: 'number' }],
+    output(),
+    { first: 0, second: 2 },
+  )
+  assert.equal(explicitlyMapped.complete, true)
+  assert.equal(explicitlyMapped.truncated, false)
+})
+
 test('binding normalization preserves display-only label semantics', () => {
   const [binding] = normalizeAiClientToolOutputBindings([{
     name: 'series',
@@ -276,16 +663,16 @@ test('binding normalization preserves orthogonal physical types and analytical r
     shape: 'metric.time-series',
     complete: true,
     fields: [
-      { name: 'capturedAt', type: 'timestamp', role: 'temporal_dimension' },
-      { name: 'ordinal', type: 'integer', role: 'dimension' },
+      { name: 'capturedAt', type: 'timestamp', role: 'temporal_dimension', axis: 'event_time' },
+      { name: 'ordinal', type: 'integer', role: 'dimension', axis: 'semantic_position' },
       { name: 'value', type: 'number', role: 'measure', measure: 'energy', unit: 'kwh', aggregation: 'sum' },
       { name: 'looksNumeric', type: 'string', role: 'label', format: 'integer' },
     ] as any,
   }])
 
   assert.deepEqual(binding.fields, [
-    { name: 'capturedAt', type: 'timestamp', role: 'temporal_dimension' },
-    { name: 'ordinal', type: 'integer', role: 'dimension' },
+    { name: 'capturedAt', type: 'timestamp', role: 'temporal_dimension', axis: 'event_time' },
+    { name: 'ordinal', type: 'integer', role: 'dimension', axis: 'semantic_position' },
     { name: 'value', type: 'number', role: 'measure', measure: 'energy', unit: 'kwh', aggregation: 'sum' },
     { name: 'looksNumeric', type: 'string', role: 'label', format: 'integer' },
   ])
@@ -327,11 +714,39 @@ test('malformed or oversized field collections reject the whole binding while pr
       role: 'dimension',
     })),
   }
+  const invalidAxis = {
+    name: 'invalid-axis',
+    path: '$.invalidAxis',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: true,
+    completeness: 'complete',
+    fields: [{ name: 'group', type: 'string', role: 'dimension', axis: 'not an axis' }],
+  }
+  const measureAxis = {
+    name: 'measure-axis',
+    path: '$.measureAxis',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: true,
+    completeness: 'complete',
+    fields: [{ name: 'value', type: 'number', role: 'measure', measure: 'score', axis: 'group' }],
+  }
+  const legacyAxis = {
+    name: 'legacy-axis',
+    path: '$.legacyAxis',
+    shape: 'tabular.records',
+    complete: true,
+    fields: [{ name: 'group', semanticRole: 'category', axis: 'group' }],
+  }
 
   const normalized = normalizeAiClientToolOutputBindings([
     mixedInvalid,
     validSibling,
     oversized,
+    invalidAxis,
+    measureAxis,
+    legacyAxis,
   ] as any)
 
   assert.deepEqual(normalized.map(binding => binding.name), ['valid-sibling'])
@@ -405,6 +820,119 @@ test('typed continuation is retained only for a partial canonical binding', () =
   assert.deepEqual(partial.continuation, continuation)
   assert.equal(truncated.completeness, 'truncated')
   assert.equal(truncated.continuation, undefined)
+})
+
+test('tool-result state keeps execution terminal while canonical evidence remains partial', () => {
+  const state = resolveAiClientToolResultState({
+    toolCallId: 'anonymous-call',
+    result: {
+      success: true,
+      status: 'partial',
+      complete: false,
+      truncated: true,
+      completeness: 'truncated',
+      evidence: {
+        contract: AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
+        complete: false,
+        truncated: true,
+        completeness: 'truncated',
+        evidenceCoverage: 'bounded-window',
+        supportsAbsenceClaim: false,
+      },
+    },
+  })
+
+  assert.deepEqual(state, {
+    executionStatus: 'completed',
+    resultCompleteness: 'partial',
+    evidenceCoverage: 'bounded-window',
+    absenceAuthority: 'unsupported',
+    source: 'canonical',
+    conflicted: false,
+  })
+})
+
+test('complete empty delivery keeps absence authority as an independent fact', () => {
+  const createState = (supportsAbsenceClaim: boolean) => resolveAiClientToolResultState({
+    success: true,
+    status: 'empty',
+    complete: true,
+    truncated: false,
+    completeness: 'empty',
+    evidence: {
+      contract: AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
+      complete: true,
+      truncated: false,
+      completeness: 'empty',
+      supportsAbsenceClaim,
+    },
+  })
+
+  const boundedEmpty = createState(false)
+  const authoritativeEmpty = createState(true)
+  assert.equal(boundedEmpty.resultCompleteness, 'complete')
+  assert.equal(boundedEmpty.absenceAuthority, 'unsupported')
+  assert.equal(authoritativeEmpty.resultCompleteness, 'complete')
+  assert.equal(authoritativeEmpty.absenceAuthority, 'supported')
+})
+
+test('legacy result state remains callable without guessing missing completeness', () => {
+  assert.deepEqual(resolveAiClientToolResultState({ success: true, status: 'ok' }), {
+    executionStatus: 'completed',
+    resultCompleteness: 'unknown',
+    absenceAuthority: 'unknown',
+    source: 'unknown',
+    conflicted: false,
+  })
+  assert.equal(resolveAiClientToolResultState({
+    success: true,
+    status: 'partial',
+    complete: false,
+    truncated: true,
+  }).resultCompleteness, 'partial')
+  assert.equal(resolveAiClientToolResultState({
+    success: false,
+    status: 'failed',
+  }).executionStatus, 'failed')
+})
+
+test('malformed and conflicting result evidence fails closed without affecting a valid sibling', () => {
+  const malformed = resolveAiClientToolResultState({
+    success: true,
+    evidence: {
+      contract: AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
+      complete: true,
+      truncated: 'false',
+      completeness: 'complete',
+    },
+  })
+  const conflicting = resolveAiClientToolResultState({
+    success: true,
+    complete: true,
+    truncated: false,
+    completeness: 'complete',
+    supportsAbsenceClaim: true,
+    evidence: {
+      contract: AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
+      complete: false,
+      truncated: true,
+      completeness: 'truncated',
+      supportsAbsenceClaim: false,
+    },
+  })
+  const validSibling = resolveAiClientToolResultState({
+    success: true,
+    complete: true,
+    truncated: false,
+  })
+
+  assert.equal(malformed.resultCompleteness, 'unknown')
+  assert.equal(malformed.conflicted, true)
+  assert.equal(conflicting.resultCompleteness, 'partial')
+  assert.equal(conflicting.absenceAuthority, 'unsupported')
+  assert.equal(conflicting.conflicted, true)
+  assert.equal(validSibling.resultCompleteness, 'complete')
+  assert.equal(validSibling.conflicted, false)
 })
 
 test('typed aggregate execution facts survive standard adaptation and delivery', async () => {
@@ -1891,8 +2419,10 @@ test('canonical catalog snapshot admits five authoring classes through one wire 
   assert.equal(snapshot.semanticDigest.length, 16)
 })
 
-test('catalog isolates malformed effects while typed metadata defects degrade only that sibling', () => {
+test('catalog isolates malformed effects while a valid analytical sibling remains callable', async () => {
+  const { tool: analyticalSibling } = createAnonymousBoundedTool([9, 3, 6])
   const snapshot = createAiClientToolCatalogSnapshot([
+    analyticalSibling,
     { id: 'valid_legacy_write', expands: { effect: 'WRITE' } },
     { id: 'missing_effect_write', annotations: { readOnlyHint: false } },
     { id: 'invalid_effect', expands: { effect: 'SIDE_EFFECT' } },
@@ -1905,18 +2435,35 @@ test('catalog isolates malformed effects while typed metadata defects degrade on
   ])
 
   assert.deepEqual(snapshot.definitions.map(tool => tool.id), [
-    'valid_legacy_write', 'malformed_routing_read', 'plain_sibling',
+    'anonymous_top_n', 'valid_legacy_write', 'malformed_routing_read', 'plain_sibling',
   ])
   assert.deepEqual(snapshot.wireDefinitions.map(tool => tool.id), [
-    'valid_legacy_write', 'malformed_routing_read', 'plain_sibling',
+    'anonymous_top_n', 'valid_legacy_write', 'malformed_routing_read', 'plain_sibling',
   ])
-  assert.equal(snapshot.wireDefinitions[0]?.expands?.effect, 'WRITE')
-  assert.equal(snapshot.wireDefinitions[1]?.expands?.['x-ai-routing'], undefined)
+  assert.equal(
+    snapshot.wireDefinitions[0]?.expands?.['x-ai-routing']?.analyticalCapability?.capabilityId,
+    'anonymous.top_n',
+  )
+  assert.equal(snapshot.wireDefinitions[1]?.expands?.effect, 'WRITE')
+  assert.equal(snapshot.wireDefinitions[2]?.expands?.['x-ai-routing'], undefined)
+  const callable = snapshot.definitions.find(
+    tool => tool.id === analyticalSibling.id,
+  ) as typeof analyticalSibling | undefined
+  assert.equal(typeof callable?.execute, 'function')
+  const result = await callable?.execute?.({ requestedCount: 2 }, {}, {
+    id: 'call-valid-analytical-sibling',
+    toolName: analyticalSibling.id,
+  }) as any
+  assert.equal(result?.evidence?.complete, true)
+  assert.deepEqual(
+    result?.__clientToolOutputs?.output0.map((record: Record<string, number>) => record.physical_score),
+    [9, 6],
+  )
   assert.ok(snapshot.report.issues.some(issue => issue.code === 'effect_required_for_side_effect'))
   assert.ok(snapshot.report.issues.some(issue => issue.code === 'effect_legacy_malformed'))
 })
 
-test('catalog rejects ambiguous identities and conflicting canonical effects without losing siblings', () => {
+test('catalog rejects canonical and legacy effect conflicts without losing valid siblings', () => {
   const facade = defineClientTool({
     id: 'conflicting_facade',
     description: { text: 'write', capabilities: ['catalog.conflict.write'] },

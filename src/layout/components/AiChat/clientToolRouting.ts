@@ -508,7 +508,9 @@ const normalizeAnalyticalOrdering = (value: unknown): AiClientToolAnalyticalOrde
  * Normalizes the sole producer-authored analytical contract. No digest, alias, field-name heuristic or inferred
  * default crosses the session boundary; an incomplete descriptor fails closed as one value.
  */
-const normalizeAnalyticalCapability = (value: unknown): AiClientToolAnalyticalCapability | undefined => {
+export const normalizeAiClientToolAnalyticalCapability = (
+  value: unknown,
+): AiClientToolAnalyticalCapability | undefined => {
   if (!isRecord(value) || value.version !== AI_CLIENT_TOOL_ANALYTICAL_CAPABILITY_VERSION) return undefined
   const capabilityId = normalizeText(value.capabilityId, 160).toLowerCase()
   const semanticKey = normalizeText(value.semanticKey, 160).toLowerCase()
@@ -582,7 +584,7 @@ const normalizeRoutingRecord = (value: unknown): AiClientToolRoutingMetadata | u
   const exposure = normalizeEnum(value.exposure, ['auto', 'eager', 'deferred'] as const)
   const help = normalizeHelp(value.help)
   const validationHints = normalizeList(value.validationHints)
-  const analyticalCapability = normalizeAnalyticalCapability(value.analyticalCapability)
+  const analyticalCapability = normalizeAiClientToolAnalyticalCapability(value.analyticalCapability)
   const result: AiClientToolRoutingMetadata = {
     ...(portVersion ? { portVersion } : {}),
     ...(consumerPorts.length ? { consumerPorts } : {}),

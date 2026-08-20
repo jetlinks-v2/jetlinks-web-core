@@ -10,7 +10,10 @@ import {
   loadGeneralAgentExtensions,
   unloadGeneralAgentExtensions,
 } from '../src/layout/components/AiChat/routeCapabilityLoader'
-import { createAiClientToolRuntime } from '../src/layout/components/AiChat/clientTools'
+import {
+  createAiClientToolRuntime,
+  guardAiClientToolResult,
+} from '../src/layout/components/AiChat/clientTools'
 import { moduleRegistry } from '../src/utils/module-registry'
 
 const collectObjectKeys = (value: unknown, result = new Set<string>()) => {
@@ -25,6 +28,76 @@ const collectObjectKeys = (value: unknown, result = new Set<string>()) => {
   })
   return result
 }
+
+test('64 KiB result guard fails closed without an exact ref and preserves exact materialized bindings', () => {
+  const maxJsonLength = 64 * 1024
+  const preview = 'x'.repeat(maxJsonLength + 1024)
+  const inlineBinding = {
+    name: 'bounded-records',
+    path: '$.data',
+    shape: 'generic.records',
+    complete: true,
+    completeness: 'complete',
+  }
+  const oversizedInline = guardAiClientToolResult({
+    success: true,
+    status: 'ok',
+    complete: true,
+    truncated: false,
+    data: { preview },
+    evidence: {
+      complete: true,
+      truncated: false,
+      completeness: 'complete',
+      outputBindings: [inlineBinding],
+    },
+    outputBindings: [inlineBinding],
+  }, { maxJsonLength }, 'anonymous_inline') as any
+
+  assert.equal(oversizedInline.complete, false)
+  assert.equal(oversizedInline.truncated, true)
+  assert.equal(oversizedInline.status, 'partial')
+  assert.equal(oversizedInline.meta.reason, 'client_tool_result_too_large')
+  assert.equal(oversizedInline.evidence.complete, false)
+  assert.equal(oversizedInline.evidence.truncated, true)
+  assert.equal(oversizedInline.evidence.limitReason, 'client_tool_result_too_large')
+  assert.equal(oversizedInline.outputBindings[0].complete, false)
+  assert.equal(oversizedInline.outputBindings[0].truncated, true)
+  assert.equal(oversizedInline.outputBindings[0].ref, undefined)
+
+  const exactBinding = {
+    name: 'bounded-records',
+    ref: 'materialized:anonymous:bounded-records:sha256',
+    shape: 'generic.records',
+    complete: true,
+    completeness: 'complete',
+  }
+  const oversizedExact = guardAiClientToolResult({
+    success: true,
+    status: 'ok',
+    complete: true,
+    truncated: false,
+    data: { preview },
+    evidence: {
+      complete: true,
+      truncated: false,
+      completeness: 'complete',
+      outputBindings: [exactBinding],
+    },
+    outputBindings: [exactBinding],
+  }, { maxJsonLength }, 'anonymous_materialized') as any
+
+  assert.equal(oversizedExact.complete, true)
+  assert.equal(oversizedExact.truncated, false)
+  assert.equal(oversizedExact.status, 'ok')
+  assert.equal(oversizedExact.meta.reason, 'client_tool_result_too_large')
+  assert.equal(oversizedExact.evidence.complete, true)
+  assert.equal(oversizedExact.evidence.truncated, false)
+  assert.equal(oversizedExact.evidence.limitReason, undefined)
+  assert.equal(oversizedExact.outputBindings[0].ref, exactBinding.ref)
+  assert.equal(oversizedExact.outputBindings[0].complete, true)
+  assert.equal(oversizedExact.outputBindings[0].truncated, undefined)
+})
 
 test('route-specific extension loading consumes explicit activation manifests without path inference', async () => {
   const moduleId = `activation-contract-${Date.now()}`
