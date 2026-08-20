@@ -5,9 +5,12 @@ import {
   type AiClientToolOutputKind,
 } from './clientToolContract'
 import {
+  toAiClientToolSessionDefinition,
   validateAiClientToolResultBindings,
   validateAiClientToolRoutingCatalog,
+  validateAiClientToolEffectMetadata,
   validateAiClientToolRoutingMetadata,
+  type AiClientToolEffectStatus,
   type AiClientToolRoutingCatalogIssue,
   type AiClientToolRoutingCatalogValidationOptions,
   type AiClientToolRoutingMetadata,
@@ -20,6 +23,7 @@ import {
 } from './clientToolDefinition'
 
 export const AI_CLIENT_TOOL_CATALOG_REPORT_VERSION = 'ai-client-tool-catalog-report/v1'
+export const AI_CLIENT_TOOL_CATALOG_SNAPSHOT_VERSION = 'ai-client-tool-catalog-snapshot/v1'
 
 export type AiClientToolCatalogContractStatus = 'typed' | 'legacy' | 'malformed'
 export type AiClientToolCatalogAuthoringStatus =
@@ -35,6 +39,7 @@ export interface AiClientToolCatalogToolReport {
   routingStatus: AiClientToolRoutingStatus
   contractStatus: AiClientToolCatalogContractStatus
   authoringStatus: AiClientToolCatalogAuthoringStatus
+  effectStatus: AiClientToolEffectStatus
   outputKinds: AiClientToolOutputKind[]
   issues: AiClientToolRoutingCatalogIssue[]
 }
@@ -56,6 +61,10 @@ export interface AiClientToolCatalogReport {
     routedLegacy: number
     plainLegacy: number
     remoteAdapted: number
+    canonicalEffect: number
+    legacyEffect: number
+    missingEffect: number
+    malformedEffect: number
     affectedTools: number
     issues: number
   }
@@ -63,7 +72,73 @@ export interface AiClientToolCatalogReport {
   issues: AiClientToolRoutingCatalogIssue[]
 }
 
+export interface AiClientToolCatalogSnapshot<T extends AiClientToolRoutingSource = AiClientToolRoutingSource> {
+  version: typeof AI_CLIENT_TOOL_CATALOG_SNAPSHOT_VERSION
+  definitions: T[]
+  wireDefinitions: ReturnType<typeof toAiClientToolSessionDefinition>[]
+  report: AiClientToolCatalogReport
+  /** Exact canonical projection used for equality; it does not rely on a compact hash. */
+  semanticFingerprint: string
+  /** Compact telemetry identity for the exact semantic fingerprint. */
+  semanticDigest: string
+}
+
 const text = (value: unknown) => String(value || '').trim()
+
+const normalizeValueType = (value: unknown) => {
+  if (!value) return { type: 'string' }
+  return typeof value === 'string' ? { type: value } : value
+}
+
+const normalizeCatalogDefinition = <T extends AiClientToolRoutingSource>(tool: T): T => {
+  const id = text(tool.id || tool.name)
+  const inputs = Array.isArray(tool.inputs)
+    ? tool.inputs.map(input => ({
+      ...input,
+      name: text(input.name || input.id),
+      valueType: normalizeValueType(input.valueType),
+    }))
+    : []
+  return {
+    ...tool,
+    id,
+    name: id,
+    inputs,
+    output: normalizeValueType(tool.output || { type: 'object' }),
+  }
+}
+
+const CATALOG_SET_FIELDS = new Set([
+  'aliases', 'capabilities', 'accepts', 'produces', 'intents', 'notFor', 'stages',
+  'dataAccessModes', 'resultDeliveries', 'outputShapes', 'prerequisites', 'validationHints',
+])
+
+const canonicalize = (value: unknown, parentKey = ''): unknown => {
+  if (Array.isArray(value)) {
+    const values = value.map(item => canonicalize(item, parentKey))
+    return CATALOG_SET_FIELDS.has(parentKey)
+      ? [...values].sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
+      : values
+  }
+  if (!value || typeof value !== 'object') {
+    return typeof value === 'function' || value === undefined ? undefined : value
+  }
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+    .filter(([, item]) => item !== undefined && typeof item !== 'function')
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, item]) => [key, canonicalize(item, key)]))
+}
+
+const compactDigest = (value: string) => {
+  let left = 0x811c9dc5
+  let right = 0x9e3779b9
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    left = Math.imul(left ^ code, 0x01000193)
+    right = Math.imul(right ^ code, 0x85ebca6b)
+  }
+  return `${(left >>> 0).toString(16).padStart(8, '0')}${(right >>> 0).toString(16).padStart(8, '0')}`
+}
 
 const contractMetadata = (tool: AiClientToolRoutingSource) => {
   const meta = tool._meta && typeof tool._meta === 'object' && !Array.isArray(tool._meta)
@@ -165,6 +240,8 @@ export const createAiClientToolCatalogReport = (
   const toolsReport = tools.map((tool): AiClientToolCatalogToolReport => {
     const toolId = text(tool.id || tool.name)
     const routing = validateAiClientToolRoutingMetadata(tool)
+    const effect = validateAiClientToolEffectMetadata(tool)
+    effect.issues.forEach(issue => issues.push({ toolId, ...issue }))
     const rawContract = contractMetadata(tool)
     const typedContract = isAiClientToolContractMetadata(rawContract)
     const alignmentIssues = typedContract
@@ -200,6 +277,7 @@ export const createAiClientToolCatalogReport = (
       routingStatus: routing.status,
       contractStatus,
       authoringStatus: authoringStatus(tool, routing.status, typedContract),
+      effectStatus: effect.status,
       outputKinds: typedContract
         ? Array.from(new Set(rawContract.outputs.map(output => output.kind)))
         : [],
@@ -229,10 +307,65 @@ export const createAiClientToolCatalogReport = (
       routedLegacy: authoringCounts('routed-legacy'),
       plainLegacy: authoringCounts('plain-legacy'),
       remoteAdapted: authoringCounts('remote-adapted'),
+      canonicalEffect: toolsReport.filter(tool => tool.effectStatus === 'canonical').length,
+      legacyEffect: toolsReport.filter(tool => tool.effectStatus === 'legacy').length,
+      missingEffect: toolsReport.filter(tool => tool.effectStatus === 'missing').length,
+      malformedEffect: toolsReport.filter(tool => tool.effectStatus === 'malformed').length,
       affectedTools: toolsReport.filter(tool => tool.issues.length).length,
       issues: issues.length,
     },
     tools: toolsReport,
     issues,
+  }
+}
+
+/**
+ * Normalizes and serializes a complete authorized catalog once. Typed routing defects degrade
+ * only typed capabilities; ambiguous identity or malformed effect metadata isolates that tool.
+ */
+export const createAiClientToolCatalogSnapshot = <T extends AiClientToolRoutingSource>(
+  tools: readonly T[] = [],
+  options: AiClientToolRoutingCatalogValidationOptions = {},
+): AiClientToolCatalogSnapshot<T> => {
+  const normalized = tools.map(tool => normalizeCatalogDefinition(tool))
+  const report = createAiClientToolCatalogReport(normalized, options)
+  const isolatedIds = new Set(report.issues
+    .filter(issue => issue.code === 'duplicate_tool_id' || issue.code === 'invalid_tool_id')
+    .map(issue => issue.toolId))
+  const admitted = normalized.flatMap((tool, index) => {
+    const toolReport = report.tools[index]
+    const admitted = !!toolReport?.toolId
+      && !isolatedIds.has(toolReport.toolId)
+      && toolReport.effectStatus !== 'malformed'
+    if (!admitted) return []
+    const wireSource = toolReport.routingStatus === 'malformed'
+      || toolReport.contractStatus === 'malformed'
+      ? { ...tool, routing: undefined }
+      : tool
+    return [{ definition: tool, wireDefinition: toAiClientToolSessionDefinition(wireSource) }]
+  })
+  const definitions = admitted.map(item => item.definition)
+  const wireDefinitions = admitted.map(item => item.wireDefinition)
+  const activeIds = new Set(definitions.map(tool => text(tool.id)))
+  const semanticFingerprint = JSON.stringify(canonicalize({
+    version: AI_CLIENT_TOOL_CATALOG_SNAPSHOT_VERSION,
+    tools: report.tools.map(tool => ({
+      toolId: tool.toolId,
+      authoringStatus: tool.authoringStatus,
+      routingStatus: tool.routingStatus,
+      contractStatus: tool.contractStatus,
+      effectStatus: tool.effectStatus,
+      isolated: !activeIds.has(tool.toolId),
+      issues: tool.issues.map(issue => ({ code: issue.code, field: issue.field })),
+    })),
+    wireDefinitions,
+  }))
+  return {
+    version: AI_CLIENT_TOOL_CATALOG_SNAPSHOT_VERSION,
+    definitions,
+    wireDefinitions,
+    report,
+    semanticFingerprint,
+    semanticDigest: compactDigest(semanticFingerprint),
   }
 }

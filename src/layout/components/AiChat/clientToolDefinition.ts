@@ -21,6 +21,7 @@ import type {
   AiClientToolConfirmOptions,
   AiClientToolDefinition,
   AiClientToolInput,
+  AiClientToolPreparedCall,
   AiClientToolValueType,
 } from './clientTools'
 import type {
@@ -135,6 +136,20 @@ export interface ClientToolConfirmation<TContext = Record<string, unknown>> {
   when?: (args: Record<string, unknown>, context: TContext, call: AiClientToolCall) => boolean
 }
 
+export interface ClientToolPreparedConfirmation {
+  title?: string
+  content?: string
+}
+
+export interface ClientToolPreparedExecution<TArgs extends Record<string, unknown>> {
+  arguments: TArgs
+  confirmation?: ClientToolPreparedConfirmation
+}
+
+export type ClientToolPreparationResult<TArgs extends Record<string, unknown>> =
+  | ClientToolPreparedExecution<TArgs>
+  | ClientToolExecutionResult<never>
+
 export interface ClientToolReadEffect {
   kind: 'READ'
 }
@@ -163,6 +178,8 @@ interface ClientToolOutputBase<TResult> {
   type?: AiClientToolResourceType
   mediaType?: string
   shape: string
+  /** Explicit JSON path to records within the selected output value; no default is inferred by the facade. */
+  recordPath?: string
   label?: string
   fields?: readonly AiClientToolOutputField[]
   /** Renderer-neutral ordering guaranteed by the producer. */
@@ -357,6 +374,15 @@ export interface ClientToolDefinition<
   output: ClientToolOutput<TResult> | readonly ClientToolOutput<TResult>[]
   presentation?: ClientToolPresentation
   owner?: ClientToolOwner
+  /**
+   * Validates and normalizes a side-effect target before confirmation. A failure ends the call without prompting;
+   * execution must still revalidate mutable external state after approval.
+   */
+  prepare?: (
+    args: TArgs,
+    context: TContext,
+    call: AiClientToolCall,
+  ) => ClientToolPreparationResult<TArgs> | Promise<ClientToolPreparationResult<TArgs>>
   execute: (
     args: TArgs,
     context: TContext,
@@ -459,6 +485,7 @@ const compileOutputContract = <TResult>(
       : output.kind === 'stateChange' ? 'state' : 'structured-data'),
     mediaType: normalizedText(output.mediaType || 'application/json'),
     shape: normalizedText(output.shape),
+    ...(output.recordPath !== undefined ? { recordPath: output.recordPath } : {}),
     ...(output.label ? { label: output.label } : {}),
     ...(output.fields?.length ? { fields: output.fields.map(field => ({ ...field })) } : {}),
     ...(output.ordering ? { ordering: output.ordering } : {}),
@@ -794,6 +821,28 @@ const adaptExecutionResult = async <TResult>(
   })
 }
 
+const adaptPreparationResult = <TArgs extends Record<string, unknown>>(
+  toolId: string,
+  result: ClientToolPreparationResult<TArgs>,
+): AiClientToolPreparedCall | ReturnType<typeof createAiClientToolFailureResult> => {
+  if (isExecutionResult<never>(result)) {
+    if (result.outcome === 'failure') return createAiClientToolFailureResult(result.failure)
+    throw new Error(`Client tool ${toolId} prepare must return prepared arguments or a failure`)
+  }
+  if (isFailureLike(result)) return result
+  if (!result
+    || typeof result !== 'object'
+    || !result.arguments
+    || typeof result.arguments !== 'object'
+    || Array.isArray(result.arguments)) {
+    throw new Error(`Client tool ${toolId} prepare arguments must be an object`)
+  }
+  return {
+    arguments: { ...result.arguments },
+    ...(result.confirmation ? { confirmation: { ...result.confirmation } } : {}),
+  }
+}
+
 /**
  * Compiles a stable business declaration into the current browser runtime contract.
  * Backend wire fields, JSONPath bindings, evidence and delivery policy remain compiler-owned.
@@ -805,6 +854,9 @@ export const defineClientTool = <
 >(definition: ClientToolDefinition<TArgs, TContext, TResult>): AiClientToolDefinition<TContext> => {
   const id = normalizedText(definition.id)
   if (!id) throw new Error('Client tool id is required')
+  if (definition.prepare && definition.effect.kind === 'READ') {
+    throw new Error(`Client tool ${id} cannot prepare a read-only effect`)
+  }
   const { text } = normalizeDescription(definition.description)
   const outputs = normalizeOutputs(definition.output)
   const contract = compileContract(definition, outputs)
@@ -839,6 +891,12 @@ export const defineClientTool = <
       ...(definition.owner?.group ? { capabilityGroup: definition.owner.group } : {}),
       [CLIENT_TOOL_DEFINITION_META_KEY]: metadata,
     },
+    ...(definition.prepare ? {
+      prepare: async (args, context, call) => adaptPreparationResult(
+        id,
+        await definition.prepare!(args as TArgs, context, call),
+      ),
+    } : {}),
     execute: async (args, context, call) => adaptExecutionResult(
       id,
       await definition.execute(args as TArgs, context, call),

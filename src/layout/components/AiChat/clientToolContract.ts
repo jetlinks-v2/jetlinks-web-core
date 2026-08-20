@@ -10,6 +10,9 @@ import {
   type AiClientToolRoutingResultDelivery,
 } from './clientToolRouting'
 import {
+  isCanonicalAiClientToolOutputField,
+  normalizeAiClientToolOutputBindings,
+  normalizeAiClientToolOutputFields,
   normalizeAiClientToolOrdering,
   withAiClientToolEvidence,
   type AiClientToolEvidenceOptions,
@@ -48,6 +51,8 @@ interface AiClientToolOutputContractBase {
   shape: string
   /** Exact inline JSON path. Omit only when the output is materialized as a file at runtime. */
   path?: string
+  /** Logical record collection inside the value selected by path/ref. */
+  recordPath?: string
   label?: string
   mediaType?: string
   delivery?: AiClientToolRoutingResultDelivery
@@ -137,6 +142,19 @@ const validateOutputs = (outputs: readonly AiClientToolOutputContract[]) => {
     if (output.path !== undefined && !isSupportedAiClientToolBindingPath(normalizedText(output.path))) {
       throw new Error(`Unsupported client tool output binding path: ${output.path}`)
     }
+    if (output.recordPath !== undefined && !normalizeAiClientToolRecordPath(output.recordPath)) {
+      throw new Error(`Unsupported client tool output record path: ${output.recordPath}`)
+    }
+    const fields = output.fields === undefined ? [] : normalizeAiClientToolOutputFields(output.fields)
+    if (!fields || fields.length !== (output.fields?.length || 0)) {
+      throw new Error(`Client tool output fields must use one complete canonical or released descriptor: ${name}`)
+    }
+    if (fields.some(isCanonicalAiClientToolOutputField) && output.recordPath === undefined) {
+      throw new Error(`Canonical client tool output fields require an explicit recordPath: ${name}`)
+    }
+    if (output.ordering !== undefined && !normalizeAiClientToolOrdering(output.ordering, fields)) {
+      throw new Error(`Client tool output ordering must reference declared fields: ${name}`)
+    }
     if (delivery === 'file' && output.path !== undefined) {
       throw new Error(`File client tool output must not declare an inline binding path: ${name}`)
     }
@@ -177,8 +195,27 @@ const copyOutput = (output: AiClientToolOutputContract): AiClientToolOutputContr
     throw new Error(`Artifact client tool output requires a media type: ${output.name}`)
   }
   const { fields: declaredFields, ordering: declaredOrdering, ...rest } = output
-  const fields = declaredFields?.map(field => ({ ...field }))
-  const ordering = normalizeAiClientToolOrdering(declaredOrdering, fields)
+  const fields = declaredFields === undefined
+    ? undefined
+    : normalizeAiClientToolOutputFields(declaredFields)
+  if (declaredFields !== undefined && !fields) {
+    throw new Error(`Client tool output fields must use one complete canonical or released descriptor: ${output.name}`)
+  }
+  const ordering = declaredOrdering === undefined
+    ? undefined
+    : normalizeAiClientToolOrdering(declaredOrdering, fields)
+  if (declaredOrdering !== undefined && !ordering) {
+    throw new Error(`Client tool output ordering must reference declared fields: ${output.name}`)
+  }
+  const declaredRecordPath = output.recordPath === undefined
+    ? undefined
+    : normalizeAiClientToolRecordPath(output.recordPath)
+  if (output.recordPath !== undefined && !declaredRecordPath) {
+    throw new Error(`Unsupported client tool output record path: ${output.recordPath}`)
+  }
+  if (fields?.some(isCanonicalAiClientToolOutputField) && !declaredRecordPath) {
+    throw new Error(`Canonical client tool output fields require an explicit recordPath: ${output.name}`)
+  }
   return {
     ...rest,
     name: normalizedText(output.name),
@@ -188,6 +225,7 @@ const copyOutput = (output: AiClientToolOutputContract): AiClientToolOutputContr
     mediaType: normalizedText(output.mediaType || 'application/json').toLowerCase(),
     shape: normalizedText(output.shape),
     ...(output.path ? { path: normalizedText(output.path) } : {}),
+    ...(declaredRecordPath ? { recordPath: declaredRecordPath } : {}),
     ...(fields ? { fields } : {}),
     ...(ordering ? { ordering } : {}),
   } as AiClientToolOutputContract
@@ -266,7 +304,7 @@ export const defineAiClientToolContract = (
 
 export interface AiClientToolContractOutputState extends Omit<
   AiClientToolOutputBinding,
-  'label' | 'shape'
+  'label' | 'shape' | 'recordPath' | 'fields' | 'ordering'
 > {
   name: string
   /** Execution-specific user-facing label; stable name and shape still come from the declaration. */
@@ -306,21 +344,19 @@ export const createAiClientToolContractOutputBinding = (
   if (!path && !ref) {
     throw new Error(`Client tool output binding has no inline path or materialized reference: ${state.name}`)
   }
-  const recordPath = state.recordPath === undefined
+  const recordPath = output.recordPath === undefined
     ? undefined
-    : normalizeAiClientToolRecordPath(state.recordPath)
-  if (state.recordPath !== undefined && !recordPath) {
-    throw new Error(`Unsupported client tool record path: ${state.recordPath}`)
-  }
-  const fields = state.fields?.length
-    ? state.fields.map(field => ({ ...field }))
-    : output.fields?.map(field => ({ ...field }))
-  const ordering = normalizeAiClientToolOrdering(
-    state.ordering !== undefined ? state.ordering : output.ordering,
-    fields,
-  )
+    : normalizeAiClientToolRecordPath(output.recordPath)
+  const fields = output.fields?.map(field => ({ ...field }))
+  const ordering = output.ordering
+    ? normalizeAiClientToolOrdering(output.ordering, fields)
+    : undefined
   const label = normalizedText(state.label) || normalizedText(output.label)
-  return {
+  const canonicalFields = !!fields?.length && fields.every(isCanonicalAiClientToolOutputField)
+  const completeness = state.completeness || (canonicalFields
+    ? state.complete ? 'complete' : state.continuation ? 'partial' : 'truncated'
+    : undefined)
+  const binding: AiClientToolOutputBinding = {
     name: output.name,
     type: output.type || 'structured-data',
     ...(label ? { label } : {}),
@@ -332,6 +368,10 @@ export const createAiClientToolContractOutputBinding = (
     ...(Number.isFinite(state.recordCount) ? { recordCount: Number(state.recordCount) } : {}),
     complete: state.complete,
     ...(state.truncated !== undefined ? { truncated: state.truncated } : {}),
+    ...(completeness ? { completeness } : {}),
+    ...(completeness === 'partial' && state.continuation
+      ? { continuation: { ...state.continuation } }
+      : {}),
     ...(fields?.length ? { fields } : {}),
     ...(ordering ? { ordering } : {}),
     ...(state.requestedRange ? { requestedRange: { ...state.requestedRange } } : {}),
@@ -339,6 +379,9 @@ export const createAiClientToolContractOutputBinding = (
     ...(state.coverage ? { coverage: { ...state.coverage } } : {}),
     ...(state.metric ? { metric: { ...state.metric } } : {}),
   }
+  const normalized = normalizeAiClientToolOutputBindings([binding])[0]
+  if (!normalized) throw new Error(`Invalid client tool execution binding: ${state.name}`)
+  return normalized
 }
 
 /** Attaches canonical evidence without allowing runtime code to restate logical output semantics. */
@@ -390,11 +433,17 @@ export const isAiClientToolContractMetadata = (
       const name = normalizedText(record.name)
       const delivery = normalizedText(record.delivery)
       const path = record.path === undefined ? '' : normalizedText(record.path)
+      const recordPath = record.recordPath === undefined
+        ? undefined
+        : normalizeAiClientToolRecordPath(record.recordPath)
+      const fields = Array.isArray(record.fields)
+        ? normalizeAiClientToolOutputFields(record.fields as AiClientToolOutputField[])
+        : undefined
       const ordering = record.ordering === undefined
         ? undefined
         : normalizeAiClientToolOrdering(
             record.ordering,
-            Array.isArray(record.fields) ? record.fields as AiClientToolOutputField[] : undefined,
+            fields,
           )
       if (!AI_CLIENT_TOOL_OUTPUT_KINDS.includes(kind)
         || !name
@@ -404,6 +453,10 @@ export const isAiClientToolContractMetadata = (
         || !normalizedText(record.shape)
         || (delivery && !AI_CLIENT_TOOL_RESULT_DELIVERIES.includes(delivery as AiClientToolRoutingResultDelivery))
         || (record.path !== undefined && !isSupportedAiClientToolBindingPath(path))
+        || (record.recordPath !== undefined && !recordPath)
+        || (record.fields !== undefined && !Array.isArray(record.fields))
+        || (Array.isArray(record.fields) && fields?.length !== record.fields.length)
+        || (!!fields?.some(isCanonicalAiClientToolOutputField) && record.recordPath === undefined)
         || ((delivery === 'file' || (kind === 'artifact' && !delivery)) && record.path !== undefined)
         || (record.ordering !== undefined && !ordering)
         || (kind === 'artifact' && !normalizedText(record.mediaType))) return false

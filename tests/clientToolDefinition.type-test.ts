@@ -25,6 +25,8 @@ const validDefinition: ClientToolDefinition<
   output: clientToolOutput.recordSet({
     name: 'fixture-records',
     shape: 'fixture.records',
+    recordPath: '$',
+    fields: [{ name: 'id', type: 'string', role: 'identifier' }],
     select: result => result.records,
   }),
   execute: ({ deviceId }) => clientToolResult.success({ records: [{ id: deviceId }] }, {
@@ -50,6 +52,24 @@ defineClientTool({
   ...validDefinition,
   // @ts-expect-error Routing is compiled from stable business facts and is not author-owned.
   routing: { stages: ['FETCH'] },
+})
+
+defineClientTool({
+  id: 'prepared_write_fixture',
+  description: { text: 'Write one record', capabilities: ['fixture.records.write'] },
+  effect: {
+    kind: 'WRITE',
+    idempotency: 'IDEMPOTENT',
+    reversible: true,
+    confirmation: {},
+  },
+  output: clientToolOutput.stateChange({
+    name: 'write-receipt',
+    shape: 'fixture.write-receipt',
+    transition: 'MUTATION',
+  }),
+  prepare: args => ({ arguments: args }),
+  execute: () => ({ updated: true }),
 })
 
 clientToolOutput.recordSet({

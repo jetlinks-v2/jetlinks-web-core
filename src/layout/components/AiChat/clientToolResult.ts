@@ -18,9 +18,19 @@ export type AiClientToolFieldSemanticRole =
   | 'state'
   | 'duration'
 
-export interface AiClientToolOutputField {
+export const AI_CLIENT_TOOL_FIELD_TYPES = [
+  'string', 'integer', 'number', 'boolean', 'timestamp', 'duration', 'object',
+] as const
+
+export const AI_CLIENT_TOOL_FIELD_ROLES = [
+  'identifier', 'dimension', 'measure', 'temporal_dimension', 'state', 'longitude', 'latitude', 'label',
+] as const
+
+export type AiClientToolFieldType = typeof AI_CLIENT_TOOL_FIELD_TYPES[number]
+export type AiClientToolFieldRole = typeof AI_CLIENT_TOOL_FIELD_ROLES[number]
+
+interface AiClientToolOutputFieldBase {
   name: string
-  semanticRole: AiClientToolFieldSemanticRole
   /** Optional user-facing series/axis label supplied by the owning tool. */
   label?: string
   /** Renderer-neutral scalar format such as percent or integer. */
@@ -33,6 +43,22 @@ export interface AiClientToolOutputField {
   aggregation?: string
 }
 
+/** Canonical producer wire. Physical scalar type and analytical role are deliberately independent. */
+export interface AiClientToolCanonicalOutputField extends AiClientToolOutputFieldBase {
+  type: AiClientToolFieldType
+  role: AiClientToolFieldRole
+  semanticRole?: never
+}
+
+/** Released authoring shape retained only for non-migrated tools until their exact consumers move. */
+export interface AiClientToolLegacyOutputField extends AiClientToolOutputFieldBase {
+  semanticRole: AiClientToolFieldSemanticRole
+  type?: never
+  role?: never
+}
+
+export type AiClientToolOutputField = AiClientToolCanonicalOutputField | AiClientToolLegacyOutputField
+
 export type AiClientToolOrderingDirection = 'asc' | 'desc'
 
 export interface AiClientToolOrderingKey {
@@ -44,6 +70,17 @@ export interface AiClientToolOrderingKey {
 export interface AiClientToolOrdering {
   keys: AiClientToolOrderingKey[]
   producerGuaranteed: boolean
+}
+
+export type AiClientToolCompleteness = 'complete' | 'empty' | 'partial' | 'truncated'
+
+export interface AiClientToolContinuation {
+  producerId: string
+  capabilityId: string
+  scopeDigest: string
+  remainingScopeDigest: string
+  argument: string
+  value: string | number | boolean
 }
 
 export interface AiClientToolMetricDescriptor {
@@ -75,6 +112,8 @@ export interface AiClientToolOutputBinding {
   displayedCount?: number
   complete: boolean
   truncated?: boolean
+  completeness?: AiClientToolCompleteness
+  continuation?: AiClientToolContinuation
   fields?: AiClientToolOutputField[]
   ordering?: AiClientToolOrdering
   requestedRange?: Record<string, unknown>
@@ -141,6 +180,8 @@ export interface AiClientToolEvidence {
   modelSample?: { count: number; userVisible: false }
   complete: boolean
   truncated: boolean
+  completeness?: AiClientToolCompleteness
+  continuation?: AiClientToolContinuation
   limitReason?: string
   resultStatus?: string
   evidenceCoverage?: string
@@ -239,26 +280,76 @@ const boundedStructuredRecord = (value: unknown) => {
 const BINDING_SEMANTIC_ROLES = new Set<AiClientToolFieldSemanticRole>([
   'timestamp', 'number', 'category', 'label', 'longitude', 'latitude', 'geo_point', 'identifier', 'state', 'duration',
 ])
+const BINDING_FIELD_TYPES = new Set<AiClientToolFieldType>(AI_CLIENT_TOOL_FIELD_TYPES)
+const BINDING_FIELD_ROLES = new Set<AiClientToolFieldRole>(AI_CLIENT_TOOL_FIELD_ROLES)
 
-const boundedBindingFields = (values: AiClientToolOutputField[] | undefined) => (
-  (values || []).flatMap((value) => {
-    const name = String(value?.name || '').trim().slice(0, 160)
-    const semanticRole = String(value?.semanticRole || '').trim().toLowerCase() as AiClientToolFieldSemanticRole
-    const label = String(value?.label || '').trim().slice(0, 120)
-    const format = String(value?.format || '').trim().toLowerCase().slice(0, 32)
-    const measure = String(value?.measure || '').trim().toLowerCase().slice(0, 160)
-    const unit = String(value?.unit || '').trim().toLowerCase().slice(0, 32)
-    const aggregation = String(value?.aggregation || '').trim().toLowerCase().slice(0, 160)
-    return name && BINDING_SEMANTIC_ROLES.has(semanticRole) ? [{
+/**
+ * Accepts either the canonical type/role pair or the released semanticRole shape, never both. Canonical values are
+ * validated as authored and are not reconstructed from names, formats, measures or row samples.
+ */
+export const normalizeAiClientToolOutputFields = (
+  values: readonly AiClientToolOutputField[] | undefined,
+): AiClientToolOutputField[] | undefined => {
+  if (values === undefined) return []
+  if (!Array.isArray(values) || values.length > 32) return undefined
+  const fields: AiClientToolOutputField[] = []
+  const names = new Set<string>()
+  let descriptorKind: 'canonical' | 'legacy' | undefined
+  for (const rawValue of values as readonly unknown[]) {
+    if (!isStructuredRecord(rawValue)) return undefined
+    const value = rawValue as Record<string, unknown>
+    const requiredText = (raw: unknown, maxLength: number, lowerCase = false) => {
+      if (typeof raw !== 'string') return undefined
+      const normalized = raw.trim()
+      if (!normalized || normalized.length > maxLength) return undefined
+      return lowerCase ? normalized.toLowerCase() : normalized
+    }
+    const optionalText = (raw: unknown, maxLength: number, lowerCase = false) => {
+      if (raw === undefined) return ''
+      return requiredText(raw, maxLength, lowerCase)
+    }
+    const name = requiredText(value.name, 160)
+    const label = optionalText(value.label, 120)
+    const format = optionalText(value.format, 32, true)
+    const measure = optionalText(value.measure, 160, true)
+    const unit = optionalText(value.unit, 32, true)
+    const aggregation = optionalText(value.aggregation, 160, true)
+    if (!name || names.has(name)
+      || label === undefined || format === undefined || measure === undefined
+      || unit === undefined || aggregation === undefined) return undefined
+    const common = {
       name,
-      semanticRole,
       ...(label ? { label } : {}),
       ...(format ? { format } : {}),
       ...(measure ? { measure } : {}),
       ...(unit ? { unit } : {}),
       ...(aggregation ? { aggregation } : {}),
-    }] : []
-  }).slice(0, 32)
+    }
+    const type = requiredText(value.type, 32, true) as AiClientToolFieldType | undefined
+    const role = requiredText(value.role, 32, true) as AiClientToolFieldRole | undefined
+    const semanticRole = requiredText(value.semanticRole, 32, true) as AiClientToolFieldSemanticRole | undefined
+    const currentKind = type || role ? 'canonical' : 'legacy'
+    if (descriptorKind && descriptorKind !== currentKind) return undefined
+    descriptorKind = currentKind
+    if (currentKind === 'canonical') {
+      if (!type || !role || semanticRole
+        || !BINDING_FIELD_TYPES.has(type) || !BINDING_FIELD_ROLES.has(role)) return undefined
+      fields.push({ ...common, type, role })
+    } else {
+      if (!semanticRole || !BINDING_SEMANTIC_ROLES.has(semanticRole)) return undefined
+      fields.push({ ...common, semanticRole })
+    }
+    names.add(name)
+  }
+  return fields
+}
+
+export const isCanonicalAiClientToolOutputField = (
+  value: AiClientToolOutputField,
+): value is AiClientToolCanonicalOutputField => (
+  BINDING_FIELD_TYPES.has(String(value?.type || '').trim().toLowerCase() as AiClientToolFieldType)
+  && BINDING_FIELD_ROLES.has(String(value?.role || '').trim().toLowerCase() as AiClientToolFieldRole)
+  && !String(value?.semanticRole || '').trim()
 )
 
 /**
@@ -318,8 +409,56 @@ const boundedMetric = (value: AiClientToolMetricDescriptor | undefined) => {
   }
 }
 
-export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBinding[] | undefined) => (
-  (values || []).flatMap((value) => {
+const normalizeAiClientToolContinuation = (value: unknown): AiClientToolContinuation | undefined => {
+  if (!isStructuredRecord(value)) return undefined
+  const boundedText = (raw: unknown, maxLength: number) => {
+    if (typeof raw !== 'string') return ''
+    const normalized = raw.trim()
+    return normalized.length <= maxLength ? normalized : ''
+  }
+  const producerId = boundedText(value.producerId, 160)
+  const capabilityId = boundedText(value.capabilityId, 160)
+  const scopeDigest = boundedText(value.scopeDigest, 128)
+  const remainingScopeDigest = boundedText(value.remainingScopeDigest, 128)
+  const argument = boundedText(value.argument, 160)
+  const continuationValue = value.value
+  if (!producerId || !capabilityId || !scopeDigest || !remainingScopeDigest || !argument
+    || !['string', 'number', 'boolean'].includes(typeof continuationValue)
+    || (typeof continuationValue === 'number' && !Number.isFinite(continuationValue))) return undefined
+  return {
+    producerId,
+    capabilityId,
+    scopeDigest,
+    remainingScopeDigest,
+    argument,
+    value: continuationValue as string | number | boolean,
+  }
+}
+
+const normalizeBindingCompleteness = (
+  value: AiClientToolOutputBinding,
+  continuation: AiClientToolContinuation | undefined,
+): { valid: boolean; completeness?: AiClientToolCompleteness } => {
+  if (value.completeness === undefined) {
+    return { valid: value.continuation === undefined }
+  }
+  if (typeof value.completeness !== 'string') return { valid: false }
+  const declared = value.completeness.trim().toLowerCase() as AiClientToolCompleteness
+  if (!(['complete', 'empty', 'partial', 'truncated'] as const).includes(declared)) return { valid: false }
+  if (declared === 'complete' || declared === 'empty') {
+    return { valid: value.complete === true && value.continuation === undefined, completeness: declared }
+  }
+  if (declared === 'partial') {
+    return { valid: value.complete === false && !!continuation, completeness: declared }
+  }
+  return { valid: value.complete === false && value.continuation === undefined, completeness: declared }
+}
+
+export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBinding[] | undefined) => {
+  if (values === undefined) return []
+  if (!Array.isArray(values)) return []
+  return values.flatMap((value) => {
+    if (!isStructuredRecord(value) || typeof value.complete !== 'boolean') return []
     const name = String(value?.name || '').trim().slice(0, 160)
     const type = String(value?.type || '').trim().toLowerCase().slice(0, 64)
     const label = String(value?.label || '').trim().slice(0, 120)
@@ -329,9 +468,20 @@ export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBi
       ? undefined
       : normalizeAiClientToolRecordPath(value.recordPath)
     const shape = String(value?.shape || '').trim().slice(0, 160)
-    if (!name || (!ref && !path) || !shape) return []
-    const fields = boundedBindingFields(value.fields)
+    if (!name || (!ref && !path) || !shape
+      || (value.recordPath !== undefined && !recordPath)
+      || (value.fields !== undefined && !Array.isArray(value.fields))) return []
+    const fields = normalizeAiClientToolOutputFields(value.fields)
+    if (!fields) return []
+    const canonicalFields = fields.length > 0 && fields.every(isCanonicalAiClientToolOutputField)
+    if (canonicalFields && !recordPath) return []
     const ordering = normalizeAiClientToolOrdering(value.ordering, fields)
+    if (value.ordering !== undefined && !ordering) return []
+    const continuation = normalizeAiClientToolContinuation(value.continuation)
+    if (value.continuation !== undefined && !continuation) return []
+    const completenessResult = normalizeBindingCompleteness(value, continuation)
+    if (!completenessResult.valid) return []
+    const completeness = completenessResult.completeness
     const metric = boundedMetric(value.metric)
     const requestedRange = boundedStructuredRecord(value.requestedRange)
     const observedRange = boundedStructuredRecord(value.observedRange)
@@ -350,6 +500,8 @@ export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBi
       ...(Number.isFinite(value.displayedCount) ? { displayedCount: Number(value.displayedCount) } : {}),
       complete: value.complete === true,
       ...(value.truncated !== undefined ? { truncated: value.truncated === true } : {}),
+      ...(completeness ? { completeness } : {}),
+      ...(completeness === 'partial' && continuation ? { continuation } : {}),
       ...(fields.length ? { fields } : {}),
       ...(ordering ? { ordering } : {}),
       ...(requestedRange ? { requestedRange } : {}),
@@ -358,7 +510,7 @@ export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBi
       ...(metric ? { metric } : {}),
     }]
   }).slice(0, 16)
-)
+}
 
 const boundedClaims = (values: AiClientToolClaim[] | undefined) => {
   const ids = new Set<string>()
@@ -468,10 +620,16 @@ export const withAiClientToolEvidence = <T extends Record<string, unknown>>(
     ? Number(options.displayedCount)
     : preview?.displayedCount
   const modelSample = options.modelSample ?? preview?.modelSample
+  const continuation = normalizeAiClientToolContinuation(options.continuation)
+  const completeness: AiClientToolCompleteness = options.complete
+    ? options.resultStatus === 'empty' ? 'empty' : 'complete'
+    : continuation ? 'partial' : 'truncated'
   const evidence: AiClientToolEvidence = {
     contract: AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
     complete: options.complete,
     truncated: options.truncated,
+    completeness,
+    ...(completeness === 'partial' && continuation ? { continuation } : {}),
     ...(requestedRange ? { requestedRange } : {}),
     ...(observedRange ? { observedRange } : {}),
     ...(Number.isFinite(recordCount) ? { recordCount: Number(recordCount) } : {}),
@@ -500,6 +658,8 @@ export const withAiClientToolEvidence = <T extends Record<string, unknown>>(
     success: true as const,
     complete: options.complete,
     truncated: options.truncated,
+    completeness,
+    ...(completeness === 'partial' && continuation ? { continuation } : {}),
     evidence,
     // The top-level mirror is model-readable; the evidence envelope remains the authoritative source.
     ...(outputBindings.length ? { outputBindings } : {}),

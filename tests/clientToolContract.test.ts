@@ -8,9 +8,13 @@ import {
   isAiClientToolContractMetadata,
   withAiClientToolContractEvidence,
 } from '../src/layout/components/AiChat/clientToolContract'
-import { createAiClientToolCatalogReport } from '../src/layout/components/AiChat/clientToolCatalog'
+import {
+  createAiClientToolCatalogReport,
+  createAiClientToolCatalogSnapshot,
+} from '../src/layout/components/AiChat/clientToolCatalog'
 import {
   toAiClientToolSessionDefinition,
+  toAiClientToolSessionDefinitions,
   validateAiClientToolResultBindings,
   validateAiClientToolRoutingCatalog,
   validateAiClientToolRoutingMetadata,
@@ -107,6 +111,30 @@ test('stable client-tool facade compiles business facts without inferring resour
   assert.equal(result.outputBindings[0].path, '$.__clientToolOutputs.output0')
 })
 
+test('required EITHER consumers remain prerequisites while accepting explicit arguments', () => {
+  const tool = defineClientTool({
+    id: 'test_required_either_consumer',
+    description: { text: 'Read one subject', capabilities: ['test.subject.read'] },
+    inputs: [{ id: 'subjectId', required: true, valueType: 'string' }],
+    consumes: [{
+      name: 'subject-id',
+      type: 'structured-data',
+      mediaType: 'application/json',
+      shape: 'subject.ids',
+      required: true,
+      sourcePolicy: 'EITHER',
+    }],
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'subject-detail', shape: 'subject.detail' }),
+    execute: ({ subjectId }) => ({ id: subjectId }),
+  })
+
+  assert.deepEqual(tool.routing?.accepts, ['subject-id'])
+  assert.deepEqual(tool.routing?.prerequisites, ['subject-id'])
+  assert.equal(tool.routing?.consumerPorts?.[0]?.sourcePolicy, 'EITHER')
+  assert.equal(tool.routing?.consumerPorts?.[0]?.required, true)
+})
+
 test('aggregate facade exposes renderer-neutral data without deriving a browser presentation', async () => {
   let selections = 0
   const points = [
@@ -181,19 +209,202 @@ test('aggregate facade exposes renderer-neutral data without deriving a browser 
   ])
 })
 
+test('facade projects only explicitly authored record paths into contracts and runtime bindings', async () => {
+  const chartable = defineClientTool({
+    id: 'test_explicit_record_path',
+    description: { text: 'Read canonical records', capabilities: ['test.records.aggregate'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'canonical-records',
+      shape: 'tabular.records',
+      recordPath: '$',
+      fields: [
+        { name: 'category', type: 'string', role: 'dimension' },
+        { name: 'value', type: 'number', role: 'measure', measure: 'count', unit: 'record', aggregation: 'sum' },
+      ],
+    }),
+    execute: () => clientToolResult.success([{ category: 'A', value: 1 }]),
+  })
+  const summary = defineClientTool({
+    id: 'test_omitted_record_path',
+    description: { text: 'Read a non-chartable summary', capabilities: ['test.summary.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'summary', shape: 'test.summary' }),
+    execute: () => clientToolResult.success({ total: 1 }),
+  })
+
+  assert.equal((chartable._meta?.clientToolContract as any).outputs[0].recordPath, '$')
+  assert.equal((summary._meta?.clientToolContract as any).outputs[0].recordPath, undefined)
+
+  const chartableResult = await chartable.execute({}, {}, { id: 'chartable', toolName: chartable.id }) as any
+  const summaryResult = await summary.execute({}, {}, { id: 'summary', toolName: summary.id }) as any
+  assert.equal(chartableResult.outputBindings[0].recordPath, '$')
+  assert.equal(summaryResult.outputBindings[0].recordPath, undefined)
+})
+
+test('facade rejects canonical fields when the producer omits recordPath', () => {
+  assert.throws(() => defineClientTool({
+    id: 'test_missing_record_path',
+    description: { text: 'Reject an incomplete canonical output', capabilities: ['test.records.aggregate'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'canonical-records',
+      shape: 'tabular.records',
+      fields: [{ name: 'value', type: 'number', role: 'measure' }],
+    }),
+    execute: () => clientToolResult.success([{ value: 1 }]),
+  }), /explicit recordPath/)
+})
+
 test('binding normalization preserves display-only label semantics', () => {
   const [binding] = normalizeAiClientToolOutputBindings([{
     name: 'series',
     path: '$.series',
     shape: 'metric.time-series',
     complete: true,
-    fields: [
-      { name: 'display', semanticRole: 'label' },
-      { name: 'invalid', semanticRole: 'unknown' as any },
-    ],
+    fields: [{ name: 'display', semanticRole: 'label' }],
   }])
 
   assert.deepEqual(binding.fields, [{ name: 'display', semanticRole: 'label' }])
+})
+
+test('binding normalization preserves orthogonal physical types and analytical roles without inference', () => {
+  const [binding] = normalizeAiClientToolOutputBindings([{
+    name: 'series',
+    path: '$.series',
+    recordPath: '$',
+    shape: 'metric.time-series',
+    complete: true,
+    fields: [
+      { name: 'capturedAt', type: 'timestamp', role: 'temporal_dimension' },
+      { name: 'ordinal', type: 'integer', role: 'dimension' },
+      { name: 'value', type: 'number', role: 'measure', measure: 'energy', unit: 'kwh', aggregation: 'sum' },
+      { name: 'looksNumeric', type: 'string', role: 'label', format: 'integer' },
+    ] as any,
+  }])
+
+  assert.deepEqual(binding.fields, [
+    { name: 'capturedAt', type: 'timestamp', role: 'temporal_dimension' },
+    { name: 'ordinal', type: 'integer', role: 'dimension' },
+    { name: 'value', type: 'number', role: 'measure', measure: 'energy', unit: 'kwh', aggregation: 'sum' },
+    { name: 'looksNumeric', type: 'string', role: 'label', format: 'integer' },
+  ])
+  assert.equal(binding.recordPath, '$')
+})
+
+test('malformed or oversized field collections reject the whole binding while preserving valid siblings', () => {
+  const validSibling = {
+    name: 'valid-sibling',
+    path: '$.valid',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: true,
+    completeness: 'complete',
+    fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+  }
+  const mixedInvalid = {
+    name: 'mixed-invalid',
+    path: '$.mixed',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: true,
+    completeness: 'complete',
+    fields: [
+      { name: 'id', type: 'string', role: 'identifier' },
+      { name: 'invalid', type: 'string', role: 'unknown' },
+    ],
+  }
+  const oversized = {
+    name: 'oversized',
+    path: '$.oversized',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: true,
+    completeness: 'complete',
+    fields: Array.from({ length: 33 }, (_, index) => ({
+      name: `field${index}`,
+      type: 'string',
+      role: 'dimension',
+    })),
+  }
+
+  const normalized = normalizeAiClientToolOutputBindings([
+    mixedInvalid,
+    validSibling,
+    oversized,
+  ] as any)
+
+  assert.deepEqual(normalized.map(binding => binding.name), ['valid-sibling'])
+})
+
+test('invalid completeness rejects the whole binding while preserving valid siblings', () => {
+  const validSibling = {
+    name: 'valid-sibling',
+    path: '$.valid',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: false,
+    completeness: 'truncated',
+    fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+  }
+  const invalidBindings = [
+    { name: 'unknown-state', complete: false, completeness: 'bounded' },
+    { name: 'partial-without-continuation', complete: false, completeness: 'partial' },
+    {
+      name: 'partial-with-malformed-continuation',
+      complete: false,
+      completeness: 'partial',
+      continuation: { producerId: 'producer-only' },
+    },
+    { name: 'complete-conflict', complete: true, completeness: 'truncated' },
+  ].map(value => ({
+    path: `$.${value.name}`,
+    recordPath: '$',
+    shape: 'tabular.records',
+    fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+    ...value,
+  }))
+
+  const normalized = normalizeAiClientToolOutputBindings([
+    ...invalidBindings,
+    validSibling,
+  ] as any)
+
+  assert.deepEqual(normalized.map(binding => binding.name), ['valid-sibling'])
+})
+
+test('typed continuation is retained only for a partial canonical binding', () => {
+  const continuation = {
+    producerId: 'station_scope_read',
+    capabilityId: 'station.scope.list',
+    scopeDigest: 'scope-current',
+    remainingScopeDigest: 'scope-remaining',
+    argument: 'pageIndex',
+    value: 1,
+  }
+  const [partial, truncated] = normalizeAiClientToolOutputBindings([{
+    name: 'partial-records',
+    path: '$.partial',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: false,
+    completeness: 'partial',
+    continuation,
+    fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+  }, {
+    name: 'bounded-records',
+    path: '$.bounded',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: false,
+    completeness: 'truncated',
+    fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+  }] as any)
+
+  assert.equal(partial.completeness, 'partial')
+  assert.deepEqual(partial.continuation, continuation)
+  assert.equal(truncated.completeness, 'truncated')
+  assert.equal(truncated.continuation, undefined)
 })
 
 test('typed aggregate execution facts survive standard adaptation and delivery', async () => {
@@ -416,7 +627,7 @@ test('aggregate facade preserves timestamp and dynamic measure contracts without
   ])
 })
 
-test('aggregate facade preserves ordered coordinate semantics without choosing a path renderer', async () => {
+test('aggregate facade keeps contract-owned field semantics when a runtime resolver proposes alternatives', async () => {
   const points = [
     {
       time: 1_735_660_800_000,
@@ -465,7 +676,9 @@ test('aggregate facade preserves ordered coordinate semantics without choosing a
   const prepared = await tool.execute({}, {}, { id: 'geo', toolName: tool.id }) as any
   assert.equal(prepared.data, undefined)
   assert.deepEqual(prepared.__clientToolOutputs.output0, points)
-  assert.deepEqual(prepared.outputBindings[0].fields, fields)
+  assert.deepEqual(prepared.outputBindings[0].fields, [
+    { name: 'time', semanticRole: 'timestamp' },
+  ])
   assert.deepEqual(prepared.outputBindings[0].ordering, {
     keys: [{ field: 'time', direction: 'asc' }],
     producerGuaranteed: true,
@@ -986,28 +1199,94 @@ test('ordering is bounded to declared fields and invalid declarations fail close
   invalid.forEach(value => assert.equal(normalizeAiClientToolOrdering(value, fields), undefined))
 })
 
-test('materialized references never reuse a physical file path as JSONPath', () => {
-  const binding = createAiClientToolContractOutputBinding(createSeriesContract(), {
+test('canonical output fields require an explicit bounded record path', () => {
+  assert.throws(() => defineAiClientToolContract({
+    routingKind: 'records',
+    routing: { capabilities: ['test.records.read'] },
+    outputs: [{
+      kind: 'record-set',
+      name: 'records',
+      shape: 'tabular.records',
+      path: '$.data',
+      fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+    }],
+  }), /explicit recordPath/)
+})
+
+test('execution state cannot override contract-owned record path, fields, or ordering', () => {
+  const contract = defineAiClientToolContract({
+    routingKind: 'aggregate',
+    routing: { capabilities: ['test.series.aggregate'] },
+    outputs: [{
+      kind: 'aggregate-series',
+      name: 'series',
+      shape: 'time-series.aggregate',
+      path: '$.data',
+      recordPath: '$.records[*]',
+      fields: [
+        { name: 'capturedAt', type: 'timestamp', role: 'temporal_dimension' },
+        { name: 'value', type: 'number', role: 'measure', measure: 'energy', unit: 'kwh', aggregation: 'sum' },
+      ],
+      ordering: {
+        keys: [{ field: 'capturedAt', direction: 'asc' }],
+        producerGuaranteed: true,
+      },
+    }],
+  })
+
+  const binding = createAiClientToolContractOutputBinding(contract, {
+    name: 'series',
+    path: '$.runtime',
+    complete: true,
+    completeness: 'complete',
+    recordPath: '$.overridden[*]',
+    fields: [{ name: 'other', type: 'string', role: 'label' }],
+    ordering: {
+      keys: [{ field: 'other', direction: 'desc' }],
+      producerGuaranteed: false,
+    },
+  } as any)
+
+  assert.equal(binding.path, '$.runtime')
+  assert.equal(binding.recordPath, '$.records[*]')
+  assert.deepEqual(binding.fields, contract._meta.clientToolContract.outputs[0].fields)
+  assert.deepEqual(binding.ordering, contract._meta.clientToolContract.outputs[0].ordering)
+})
+
+test('materialized references keep contract-owned record paths and never reuse a physical file path as JSONPath', () => {
+  const contract = defineAiClientToolContract({
+    routingKind: 'aggregate',
+    routing: { capabilities: ['test.series.aggregate'] },
+    outputs: [{
+      kind: 'aggregate-series',
+      name: 'series',
+      shape: 'time-series.aggregate',
+      path: '$.data',
+      recordPath: '$.results',
+      fields: [{ name: 'time', semanticRole: 'timestamp' }],
+    }],
+  })
+  const binding = createAiClientToolContractOutputBinding(contract, {
     name: 'series',
     ref: 'fs://generated/series.ndjson',
     path: 'generated/series.ndjson',
-    recordPath: '$.results',
     complete: true,
   })
   assert.equal(binding.ref, 'fs://generated/series.ndjson')
   assert.equal(binding.path, undefined)
   assert.equal(binding.recordPath, '$.results')
-  assert.throws(() => createAiClientToolContractOutputBinding(createSeriesContract(), {
+  assert.throws(() => createAiClientToolContractOutputBinding(contract, {
     name: 'series',
     path: '$..data',
     complete: true,
   }), /Unsupported client tool execution binding path/)
-  assert.throws(() => createAiClientToolContractOutputBinding(createSeriesContract(), {
+  const ignoredOverride = createAiClientToolContractOutputBinding(contract, {
     name: 'series',
     ref: 'fs://generated/series.json',
     recordPath: '$.*',
     complete: true,
-  }), /Unsupported client tool record path/)
+  } as any)
+  assert.equal(ignoredOverride.recordPath, '$.results')
 })
 
 test('binding paths support only the bounded property, wildcard and equality grammar', () => {
@@ -1197,6 +1476,114 @@ test('session serialization sends canonical effect but keeps browser-only contra
   assert.equal(serialized.includes('resultBindings'), false)
   assert.equal(serialized.includes('x-ai-routing'), true)
   assert.equal((sessionDefinition as any).expands.effect, 'READ')
+})
+
+test('analytical capability survives canonical routing normalization and session serialization', () => {
+  const analyticalCapability = {
+    version: 'analytical-capability/v1',
+    capabilityId: 'station.passenger.rank',
+    semanticKey: 'line-crossing-events-by-station',
+    subjects: ['station'],
+    measures: [{
+      name: 'passenger_total',
+      aggregations: ['sum'],
+      units: ['crossing-event'],
+    }],
+    dimensions: ['area'],
+    filters: ['direction'],
+    grains: ['day'],
+    criteria: ['top_n'],
+    ordering: [{ axis: 'rank', direction: 'asc', producerGuaranteed: true }],
+    completeness: { complete: false, partial: true, continuation: false },
+    output: { shape: 'tabular.records' },
+    transformCost: 0,
+  }
+  const definition = toAiClientToolSessionDefinition({
+    id: 'station_passenger_rank',
+    description: 'rank station passenger totals',
+    routing: {
+      ...createSeriesContract().routing,
+      analyticalCapability,
+    } as any,
+  }) as any
+
+  assert.deepEqual(definition.expands['x-ai-routing'].analyticalCapability, analyticalCapability)
+
+  const reordered = toAiClientToolSessionDefinition({
+    id: 'station_passenger_rank_reordered',
+    description: 'rank station passenger totals',
+    routing: {
+      analyticalCapability: {
+        transformCost: 0,
+        output: { shape: 'tabular.records' },
+        completeness: { continuation: false, partial: true, complete: false },
+        ordering: [{ producerGuaranteed: true, direction: 'asc', axis: 'rank' }],
+        criteria: ['top_n'],
+        grains: ['day'],
+        filters: ['direction'],
+        dimensions: ['area'],
+        measures: [{ units: ['crossing-event'], aggregations: ['sum'], name: 'passenger_total' }],
+        subjects: ['station'],
+        semanticKey: 'line-crossing-events-by-station',
+        capabilityId: 'station.passenger.rank',
+        version: 'analytical-capability/v1',
+      },
+      ...createSeriesContract().routing,
+    } as any,
+  }) as any
+  assert.deepEqual(
+    reordered.expands['x-ai-routing'].analyticalCapability,
+    definition.expands['x-ai-routing'].analyticalCapability,
+  )
+})
+
+test('malformed analytical capability fails closed for one tool without suppressing its sibling', () => {
+  const routing = createSeriesContract().routing
+  const [malformed, sibling] = toAiClientToolSessionDefinitions([{
+    id: 'malformed_analytical_tool',
+    description: 'malformed analytical tool',
+    routing: {
+      ...routing,
+      analyticalCapability: {
+        version: 'analytical-capability/v1',
+        capabilityId: 'station.passenger.rank',
+        semanticKey: 'line-crossing-events-by-station',
+        subjects: ['station'],
+        measures: [{ name: 'passenger_total', aggregations: [], units: ['crossing-event'] }],
+        dimensions: [], filters: [], grains: [], criteria: [], ordering: [],
+        completeness: { complete: true, partial: false, continuation: false },
+        output: { shape: 'tabular.records' },
+        transformCost: 0,
+      },
+    } as any,
+  }, {
+    id: 'plain_sibling',
+    description: 'plain sibling',
+    routing,
+  }]) as any[]
+
+  assert.equal(malformed.id, 'malformed_analytical_tool')
+  assert.equal(malformed.expands?.['x-ai-routing'], undefined)
+  assert.deepEqual(sibling.expands['x-ai-routing'], routing)
+  const validation = validateAiClientToolRoutingMetadata({
+    id: 'malformed_analytical_tool',
+    routing: {
+      ...routing,
+      analyticalCapability: {
+        version: 'analytical-capability/v1',
+        capabilityId: 'station.passenger.rank',
+        semanticKey: 'line-crossing-events-by-station',
+        subjects: ['station'],
+        measures: [{ name: 'passenger_total', aggregations: [], units: ['crossing-event'] }],
+        dimensions: [], filters: [], grains: [], criteria: [], ordering: [],
+        completeness: { complete: true, partial: false, continuation: false },
+        output: { shape: 'tabular.records' },
+        transformCost: 0,
+      },
+    } as any,
+  })
+  assert.equal(validation.status, 'malformed')
+  assert.ok(validation.issues.some(issue => issue.code === 'analytical_capability_malformed'))
 })
 
 test('typed compiler projects every canonical effect to the WebSocket session definition', () => {
@@ -1459,6 +1846,155 @@ test('catalog classifies typed, legacy, missing and malformed contracts independ
   assert.ok(report.issues.some(issue => issue.code === 'typed_contract_malformed'))
 })
 
+test('canonical catalog snapshot admits five authoring classes through one wire projection', () => {
+  const facade = defineClientTool({
+    id: 'facade_reader',
+    description: { text: 'facade read', capabilities: ['catalog.facade.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'facade-result', shape: 'catalog.facade' }),
+    execute: () => clientToolResult.success({ ok: true }),
+  })
+  const typedLegacy = { id: 'typed_legacy', ...createSeriesContract(), expands: { effect: 'READ' } }
+  const routedLegacy = {
+    id: 'routed_legacy',
+    routing: {
+      capabilities: ['catalog.routed.read'],
+      stages: ['execution'],
+      resultDeliveries: ['inline'],
+      evidencePolicy: 'optional',
+    },
+    expands: { effect: 'READ' },
+  }
+  const plainLegacy = { id: 'plain_legacy' }
+  const remoteAdapted = {
+    id: 'remote_adapted',
+    expands: { effect: 'EXTERNAL_ACTION' },
+    _meta: { clientToolAdapter: { version: 'remote-definition/v1', source: 'iframe' } },
+  }
+  const snapshot = createAiClientToolCatalogSnapshot([
+    facade,
+    typedLegacy,
+    routedLegacy,
+    plainLegacy,
+    remoteAdapted,
+  ])
+
+  assert.deepEqual(snapshot.report.tools.map(tool => tool.authoringStatus), [
+    'facade', 'typed-legacy', 'routed-legacy', 'plain-legacy', 'remote-adapted',
+  ])
+  assert.deepEqual(snapshot.definitions.map(tool => tool.id), [
+    'facade_reader', 'typed_legacy', 'routed_legacy', 'plain_legacy', 'remote_adapted',
+  ])
+  assert.deepEqual(snapshot.wireDefinitions.map(tool => tool.expands?.effect), [
+    'READ', 'READ', 'READ', undefined, 'EXTERNAL_ACTION',
+  ])
+  assert.equal(snapshot.semanticDigest.length, 16)
+})
+
+test('catalog isolates malformed effects while typed metadata defects degrade only that sibling', () => {
+  const snapshot = createAiClientToolCatalogSnapshot([
+    { id: 'valid_legacy_write', expands: { effect: 'WRITE' } },
+    { id: 'missing_effect_write', annotations: { readOnlyHint: false } },
+    { id: 'invalid_effect', expands: { effect: 'SIDE_EFFECT' } },
+    {
+      id: 'malformed_routing_read',
+      expands: { effect: 'READ' },
+      routing: { capabilities: ['not valid'] },
+    },
+    { id: 'plain_sibling' },
+  ])
+
+  assert.deepEqual(snapshot.definitions.map(tool => tool.id), [
+    'valid_legacy_write', 'malformed_routing_read', 'plain_sibling',
+  ])
+  assert.deepEqual(snapshot.wireDefinitions.map(tool => tool.id), [
+    'valid_legacy_write', 'malformed_routing_read', 'plain_sibling',
+  ])
+  assert.equal(snapshot.wireDefinitions[0]?.expands?.effect, 'WRITE')
+  assert.equal(snapshot.wireDefinitions[1]?.expands?.['x-ai-routing'], undefined)
+  assert.ok(snapshot.report.issues.some(issue => issue.code === 'effect_required_for_side_effect'))
+  assert.ok(snapshot.report.issues.some(issue => issue.code === 'effect_legacy_malformed'))
+})
+
+test('catalog rejects ambiguous identities and conflicting canonical effects without losing siblings', () => {
+  const facade = defineClientTool({
+    id: 'conflicting_facade',
+    description: { text: 'write', capabilities: ['catalog.conflict.write'] },
+    effect: { kind: 'WRITE', idempotency: 'IDEMPOTENT', reversible: true, confirmation: false },
+    output: clientToolOutput.stateChange({ name: 'state', shape: 'catalog.state', transition: 'MUTATION' }),
+    execute: () => clientToolResult.success({ ok: true }),
+  })
+  const snapshot = createAiClientToolCatalogSnapshot([
+    { ...facade, expands: { ...facade.expands, effect: 'READ' } },
+    { id: 'duplicate_reader' },
+    { id: 'duplicate_reader' },
+    { id: 'valid_reader', expands: { effect: 'READ' } },
+  ])
+
+  assert.deepEqual(snapshot.definitions.map(tool => tool.id), ['valid_reader'])
+  assert.ok(snapshot.report.issues.some(issue => issue.code === 'effect_conflict'))
+  assert.ok(snapshot.report.issues.some(issue => issue.code === 'duplicate_tool_id'))
+})
+
+test('catalog snapshot has a stable semantic identity and freezes active execution refreshes', () => {
+  let tools: Array<Record<string, unknown>> = [{ id: 'first_reader', expands: { effect: 'READ' } }]
+  const build = () => createAiClientToolCatalogSnapshot(tools)
+  const reordered = createAiClientToolCatalogSnapshot([{
+    id: 'first_reader',
+    expands: { effect: 'READ' },
+    routing: {
+      capabilities: ['catalog.first.read', 'catalog.first.detail'],
+      stages: ['execution', 'preparation'],
+      resultDeliveries: ['inline'],
+      evidencePolicy: 'optional',
+    },
+  }])
+  const equivalent = createAiClientToolCatalogSnapshot([{
+    id: 'first_reader',
+    expands: { effect: 'READ' },
+    routing: {
+      capabilities: ['catalog.first.detail', 'catalog.first.read'],
+      stages: ['preparation', 'execution'],
+      resultDeliveries: ['inline'],
+      evidencePolicy: 'optional',
+    },
+  }])
+  assert.equal(reordered.semanticFingerprint, equivalent.semanticFingerprint)
+  assert.equal(reordered.semanticDigest, equivalent.semanticDigest)
+
+  const runtime = createClientToolSnapshotController(build, snapshot => snapshot.semanticFingerprint)
+  const active = runtime.beginExecution()
+  tools = [{ id: 'second_reader', expands: { effect: 'READ' } }]
+  runtime.refresh()
+  assert.deepEqual(active.snapshot.wireDefinitions.map(tool => tool.id), ['first_reader'])
+  assert.deepEqual(runtime.snapshot.wireDefinitions.map(tool => tool.id), ['first_reader'])
+  active.complete()
+  assert.deepEqual(runtime.snapshot.wireDefinitions.map(tool => tool.id), ['second_reader'])
+  assert.equal(runtime.version, 2)
+  runtime.dispose()
+})
+
+test('reconstructed catalog snapshots reconnect to the latest canonical registry state', () => {
+  const scope = `catalog-reconnect-${Date.now()}`
+  const disposeFirst = aiClientToolRegistry.register(scope, {
+    id: 'registered_first',
+    execute: () => ({ ok: true }),
+  })
+  const first = createAiClientToolCatalogSnapshot(aiClientToolRegistry.snapshot(scope).tools)
+  const disposeSecond = aiClientToolRegistry.register(scope, {
+    id: 'registered_second',
+    execute: () => ({ ok: true }),
+  })
+  const reconnected = createAiClientToolCatalogSnapshot(aiClientToolRegistry.snapshot(scope).tools)
+
+  assert.deepEqual(first.wireDefinitions.map(tool => tool.id), ['registered_first'])
+  assert.deepEqual(reconnected.wireDefinitions.map(tool => tool.id), ['registered_second'])
+  assert.notEqual(first.semanticFingerprint, reconnected.semanticFingerprint)
+  disposeFirst()
+  assert.deepEqual(aiClientToolRegistry.snapshot(scope).tools.map(tool => tool.id), ['registered_second'])
+  disposeSecond()
+})
+
 test('catalog preserves runtime tolerance while reporting routing and binding failures', () => {
   const report = createAiClientToolCatalogReport([
     {
@@ -1617,7 +2153,6 @@ test('structured evidence metadata is JSON-safe and bounded at every nesting bou
           unit: 'ms',
           aggregation: 'sum',
         },
-        { name: '', semanticRole: 'number' },
       ],
       requestedRange: manyKeys,
       observedRange: { start: 2, end: 3 },

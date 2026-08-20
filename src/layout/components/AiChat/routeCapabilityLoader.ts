@@ -38,12 +38,39 @@ export interface LoadHomeAgentCapabilityProvidersOptions {
 }
 
 export interface LoadHomeAgentCapabilityProvidersResult {
+  discovered: number;
+  matched: number;
+  attempted: number;
   total: number;
   loaded: string[];
   skipped: string[];
+  rejected: string[];
 }
 
 type HomeAgentCapabilityProviderLoader = () => Promise<unknown>;
+export type AgentProviderActivationScopeKind = 'path' | 'menuCode' | 'routeName';
+
+export interface AgentProviderActivationManifest {
+  version: 'general-agent-provider-activation/v1';
+  scopes: Array<{
+    kind: AgentProviderActivationScopeKind;
+    values: string[];
+  }>;
+}
+
+export interface AgentCapabilityProviderResource {
+  loader: HomeAgentCapabilityProviderLoader;
+  activation: AgentProviderActivationManifest;
+}
+
+interface DiscoveredProviderResource {
+  modulePath: string;
+  loader?: HomeAgentCapabilityProviderLoader;
+  activation?: AgentProviderActivationManifest;
+  legacy: boolean;
+  valid: boolean;
+}
+
 type ProviderResourceName = 'generalAgentExtensions' | 'homeAgentProviders';
 type ProviderScope = 'general' | 'home';
 
@@ -51,6 +78,9 @@ const loadedModules = new Map<string, Array<() => void>>();
 const loadingModules = new Map<string, Promise<LoadHomeAgentCapabilityProvidersResult>>();
 
 const normalizeText = (value: unknown) => String(value || '').trim();
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  !!value && typeof value === 'object' && !Array.isArray(value)
+);
 
 const toArray = <T>(value: MaybeArray<T>): T[] => {
   if (value === undefined || value === null) {
@@ -60,50 +90,100 @@ const toArray = <T>(value: MaybeArray<T>): T[] => {
 };
 
 const normalizeRouteKey = (value: unknown) => normalizeText(value)
-  .replace(/^#\/?/, '')
-  .replace(/^\//, '')
-  .replace(/^iot\//, '');
+  .toLowerCase()
+  .replace(/^#/, '')
+  .replace(/^\/+|\/+$/g, '');
 
-const getProviderRouteCode = (modulePath: string) => {
-  const resourcePath = modulePath.includes('::') ? modulePath.split('::').slice(1).join('::') : modulePath;
-  return normalizeRouteKey(
-    resourcePath
-      .replace(/^.*\/views\//, '')
-      .replace(/\/(?:generalAgentExtension|homeAgentProvider)\.ts$/, '')
-      .replace(/^\.\//, ''),
-  );
+const ACTIVATION_VERSION = 'general-agent-provider-activation/v1';
+const ACTIVATION_SCOPE_KINDS = new Set<AgentProviderActivationScopeKind>([
+  'path',
+  'menuCode',
+  'routeName',
+]);
+
+const normalizeActivationManifest = (value: unknown): AgentProviderActivationManifest | undefined => {
+  if (!isRecord(value) || value.version !== ACTIVATION_VERSION || !Array.isArray(value.scopes)) {
+    return undefined;
+  }
+  if (!value.scopes.length) {
+    return undefined;
+  }
+
+  const scopes: AgentProviderActivationManifest['scopes'] = [];
+  for (const candidate of value.scopes) {
+    if (!isRecord(candidate) || !ACTIVATION_SCOPE_KINDS.has(candidate.kind as AgentProviderActivationScopeKind)) {
+      return undefined;
+    }
+    if (!Array.isArray(candidate.values) || !candidate.values.length) {
+      return undefined;
+    }
+    const normalizedValues = candidate.values.map((item) => (
+      typeof item === 'string' ? normalizeRouteKey(item) : ''
+    ));
+    if (normalizedValues.some(item => !item)) {
+      return undefined;
+    }
+    const values = Array.from(new Set(normalizedValues));
+    scopes.push({
+      kind: candidate.kind as AgentProviderActivationScopeKind,
+      values,
+    });
+  }
+  return { version: ACTIVATION_VERSION, scopes };
 };
 
-const getProviderLoaders = (resourceName: ProviderResourceName) => {
-  const loaders: Record<string, HomeAgentCapabilityProviderLoader> = {};
+const getProviderResources = (resourceName: ProviderResourceName): DiscoveredProviderResource[] => {
+  const resources: DiscoveredProviderResource[] = [];
   moduleRegistry.getAllModules().forEach((module, moduleId) => {
-    const resources = module[resourceName];
-    if (!resources || typeof resources !== 'object') return;
-    Object.entries(resources as Record<string, unknown>).forEach(([path, loader]) => {
-      if (typeof loader === 'function') {
-        loaders[`${moduleId}::${path}`] = loader as HomeAgentCapabilityProviderLoader;
+    const entries = module[resourceName];
+    if (!entries || typeof entries !== 'object') return;
+    Object.entries(entries as Record<string, unknown>).forEach(([path, resource]) => {
+      const modulePath = `${moduleId}::${path}`;
+      if (typeof resource === 'function') {
+        resources.push({
+          modulePath,
+          loader: resource as HomeAgentCapabilityProviderLoader,
+          legacy: true,
+          valid: true,
+        });
+        return;
       }
+      const loader = isRecord(resource) && typeof resource.loader === 'function'
+        ? resource.loader as HomeAgentCapabilityProviderLoader
+        : undefined;
+      const activation = isRecord(resource)
+        ? normalizeActivationManifest(resource.activation)
+        : undefined;
+      resources.push({
+        modulePath,
+        loader,
+        activation,
+        legacy: false,
+        valid: !!loader && !!activation,
+      });
     });
   });
-  return loaders;
+  return resources;
 };
 
 const matchesOptions = (
-  modulePath: string,
+  resource: DiscoveredProviderResource,
   options: LoadHomeAgentCapabilityProvidersOptions = {},
 ) => {
   if (options.loadAll) {
-    return true;
+    return resource.valid;
   }
-
-  const routeCode = getProviderRouteCode(modulePath);
-  const candidates = [
-    options.menuCode,
-    options.routeName,
-    options.path,
-  ].map(normalizeRouteKey).filter(Boolean);
-
-  return !candidates.length || candidates.some((item) => item === routeCode);
+  if (!resource.activation || resource.legacy || !resource.valid) {
+    return false;
+  }
+  const candidates: Record<AgentProviderActivationScopeKind, string> = {
+    path: normalizeRouteKey(options.path),
+    menuCode: normalizeRouteKey(options.menuCode),
+    routeName: normalizeRouteKey(options.routeName),
+  };
+  return resource.activation.scopes.some(scope => (
+    !!candidates[scope.kind] && scope.values.includes(candidates[scope.kind])
+  ));
 };
 
 const isProvider = (value: unknown): value is HomeAgentCapabilityProvider => (
@@ -131,10 +211,10 @@ const resolveGeneralAgentExtensions = (module: GeneralAgentExtensionModule) => [
 ];
 
 const loadProviderModule = async (
-  providerLoaders: Record<string, HomeAgentCapabilityProviderLoader>,
-  modulePath: string,
+  resource: DiscoveredProviderResource,
   scope: ProviderScope,
 ) => {
+  const { modulePath, loader } = resource;
   const scopedModulePath = `${scope}:${modulePath}`;
   if (loadedModules.has(scopedModulePath)) {
     return {
@@ -143,7 +223,9 @@ const loadProviderModule = async (
     };
   }
 
-  const loader = providerLoaders[modulePath];
+  if (!loader) {
+    throw new Error(`Provider loader is unavailable: ${modulePath}`);
+  }
   const module = await loader() as HomeAgentCapabilityProviderModule & GeneralAgentExtensionModule;
   const unregisters = scope === 'general'
     ? resolveGeneralAgentExtensions(module)
@@ -169,11 +251,12 @@ const loadCapabilityProviders = async (
   scope: ProviderScope,
   options: LoadHomeAgentCapabilityProvidersOptions = {},
 ): Promise<LoadHomeAgentCapabilityProvidersResult> => {
-  const providerLoaders = getProviderLoaders(resourceName);
-  const providerPaths = Object.keys(providerLoaders);
-  const modulePaths = providerPaths.filter((modulePath) => matchesOptions(modulePath, options));
+  const resources = getProviderResources(resourceName);
+  const rejectedResources = resources.filter(resource => !resource.valid);
+  const matchedResources = resources.filter(resource => matchesOptions(resource, options));
   const cacheKey = JSON.stringify({
     scope,
+    resourceName,
     menuCode: normalizeRouteKey(options.menuCode),
     routeName: normalizeRouteKey(options.routeName),
     path: normalizeRouteKey(options.path),
@@ -184,12 +267,36 @@ const loadCapabilityProviders = async (
     return loadingModules.get(cacheKey)!;
   }
 
-  const promise = Promise.all(modulePaths.map((modulePath) => loadProviderModule(providerLoaders, modulePath, scope)))
-    .then((items) => ({
-      total: providerPaths.length,
-      loaded: items.filter((item) => item.loaded).map((item) => item.modulePath),
-      skipped: items.filter((item) => !item.loaded).map((item) => item.modulePath),
-    }))
+  const promise = Promise.all(matchedResources.map(async (resource) => {
+    try {
+      return {
+        ...(await loadProviderModule(resource, scope)),
+        rejected: false,
+      };
+    } catch {
+      return {
+        loaded: false,
+        modulePath: resource.modulePath,
+        rejected: true,
+      };
+    }
+  }))
+    .then((items) => {
+      const rejected = [
+        ...rejectedResources.map(resource => resource.modulePath),
+        ...items.filter(item => item.rejected).map(item => item.modulePath),
+      ];
+      const accepted = items.filter(item => !item.rejected);
+      return {
+        discovered: resources.length,
+        matched: matchedResources.length,
+        attempted: matchedResources.length,
+        total: matchedResources.length,
+        loaded: accepted.filter(item => item.loaded).map(item => item.modulePath),
+        skipped: accepted.filter(item => !item.loaded).map(item => item.modulePath),
+        rejected: Array.from(new Set(rejected)),
+      };
+    })
     .finally(() => {
       loadingModules.delete(cacheKey);
     });
