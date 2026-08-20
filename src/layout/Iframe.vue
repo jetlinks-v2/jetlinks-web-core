@@ -21,7 +21,7 @@ import FullPage from "./FullPage.vue";
 import {onUnmounted} from "vue";
 import { jumpLogin } from "@jetlinks-web-core/router";
 import { clearVerifyCache } from "@jetlinks-web-core/package";
-import { getBaseApi } from '@jetlinks-web-core/utils'
+import { getBaseApi, normalizeApplicationBaseUrl } from '@jetlinks-web-core/utils'
 
 const iframeUrl = ref('');
 const route = useRoute()
@@ -46,11 +46,11 @@ const handle = async (appId, url) => {
   let menuUrl = url;
   if (res.status === 200) {
     const result = res.result
-    if (result.page.routeType === 'hash') {
+    if (result.page?.routeType === 'hash') {
       menuUrl = url.startsWith('/') ? `/#${url}` : `/#/${url}`;
     }
 
-    if (result.page.parameters) {
+    if (result.page?.parameters) {
       const params = new URLSearchParams()
       result.page.parameters.forEach((item) => {
         if (item?.key) {
@@ -64,7 +64,9 @@ const handle = async (appId, url) => {
     }
     const _url = menuUrl.startsWith('/') ? menuUrl : `/${menuUrl}`;
 
-    const baseUrl = result.page.baseUrl.endsWith('/') ? result.page.baseUrl.slice(0,-1) : result.page.baseUrl;
+    // 应用接入地址为空时，远程访问按当前域名 + 应用 code/id 访问，不回写应用配置。
+    const baseUrl = normalizeApplicationBaseUrl(result.page?.baseUrl, appId);
+    if (!baseUrl) return
     if (result.provider === 'internal-standalone') {
       iframeUrl.value = `${baseUrl}${getBaseApi()}/application/sso/${appId}/login?redirect=${menuUrl}?layout=false`;
     } else if (result.provider === 'internal-integrated') {

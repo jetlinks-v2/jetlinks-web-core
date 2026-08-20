@@ -29,7 +29,7 @@ import { removeProjectStorage } from '@jetlinks-web-core/utils/project-storage'
 import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useBusinessApplicationStore } from '@jetlinks-web-core/store/businessApplication'
-import { isSaaS, isSubApp } from '@jetlinks-web-core/utils/consts'
+import { isBusinessApplicationRuntime } from '@jetlinks-web-core/utils/business-application-runtime'
 import {
   createLoginNavigationHref,
   type LoginNavigationReason,
@@ -182,7 +182,12 @@ const NoTokenJump = (
   } else {
     // 查找登录路由
     const loginRoute = coreRoutes.find(r => r.name === 'Login')
-    next({ path: loginRoute?.path || '/login' })
+    const loginPath = loginRoute?.path || '/login'
+    next(
+      to.meta.preserveLoginRedirect
+        ? { path: loginPath, query: { redirect: to.fullPath } }
+        : { path: loginPath }
+    )
   }
 }
 
@@ -264,7 +269,7 @@ router.beforeEach((to, from, next) => {
           }
 
           const businessApplicationStore = useBusinessApplicationStore()
-          if (!isSubApp && isSaaS && businessApplicationStore.scopeSupported && !isForbiddenRoute(to)) {
+          if (isBusinessApplicationRuntime() && businessApplicationStore.scopeSupported && !isForbiddenRoute(to)) {
             next({ path: FORBIDDEN_PATH, replace: true })
             return
           }

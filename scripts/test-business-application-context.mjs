@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import {
+  PROJECT_APPLICATION_SCOPE,
   getApplicationScopeFromLocation,
   isBusinessApplicationEndpointMissing,
+  isProjectApplicationScope,
   normalizeBusinessApplications,
   resolveMenuApplicationScope,
   selectApplicationScope,
@@ -16,6 +18,7 @@ const applications = [
 assert.equal(selectApplicationScope(applications, 'application-b')?.id, 'application-b')
 assert.equal(selectApplicationScope(applications, 'removed-application')?.id, 'application-a')
 assert.equal(selectApplicationScope([], 'application-a'), undefined)
+assert.equal(isProjectApplicationScope(PROJECT_APPLICATION_SCOPE), true)
 
 const values = new Map()
 const storage = {
@@ -30,7 +33,14 @@ assert.equal(
   getApplicationScopeFromLocation({ search: '?applicationScope=application-b' }, storage),
   'application-b',
 )
-assert.equal(getApplicationScopeFromLocation({ search: '' }, storage), 'application-b')
+assert.equal(
+  getApplicationScopeFromLocation({
+    search: '?applicationScope=legacy-application',
+    hash: '#/?applicationScope=application-a',
+  }, storage),
+  'application-a',
+)
+assert.equal(getApplicationScopeFromLocation({ search: '' }, storage), 'application-a')
 setApplicationScope(undefined, storage)
 assert.equal(getApplicationScopeFromLocation({ search: '' }, storage), undefined)
 
@@ -38,6 +48,10 @@ setApplicationScope('application-a', storage)
 assert.equal(resolveMenuApplicationScope(undefined, { search: '' }, storage), 'application-a')
 assert.equal(resolveMenuApplicationScope('application-b', { search: '' }, storage), 'application-b')
 assert.equal(resolveMenuApplicationScope(false, { search: '' }, storage), undefined)
+setApplicationScope(PROJECT_APPLICATION_SCOPE, storage)
+assert.equal(getApplicationScopeFromLocation({ search: '' }, storage), PROJECT_APPLICATION_SCOPE)
+assert.equal(resolveMenuApplicationScope(undefined, { search: '' }, storage), undefined)
+assert.equal(resolveMenuApplicationScope(PROJECT_APPLICATION_SCOPE, { search: '' }, storage), undefined)
 
 assert.equal(isBusinessApplicationEndpointMissing({ status: 404 }), true)
 assert.equal(isBusinessApplicationEndpointMissing({ response: { status: 404 } }), true)

@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang='ts' name='CloudDetailHeader'>
-import { computed, useAttrs, useSlots } from 'vue'
+import { computed, getCurrentInstance, useSlots } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -68,12 +68,14 @@ const emit = defineEmits<{
 }>()
 
 const slots = useSlots()
-const attrs = useAttrs()
 const router = useRouter()
+const instance = getCurrentInstance()
 
 const handleBack = () => {
-  emit('back')
-  if (!attrs.onBack) {
+  // 已声明的 emits 监听器不会进入 attrs，需从当前 vnode 判断是否由父组件接管返回。
+  if (instance?.vnode.props?.onBack) {
+    emit('back')
+  } else {
     router.back()
   }
 }

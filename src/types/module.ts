@@ -49,6 +49,7 @@ export interface ModuleDefinition {
   getAsyncRoutesMap?: () => ModuleAsyncRoutesMap
   getExtraRoutesMap?: () => Record<string, unknown>
   getCoreRouteOverrides?: () => ModuleRouteOverride[]
+  getMenuFilters?: () => MenuFilterDefinition[]
   getFilterRoutes?: () => RouteRecordRaw[]
   getRegisterComponents?: () => RegistryAction[]
 }
@@ -76,6 +77,7 @@ export interface MenuItem {
   code: string
   url: string
   appId?: string
+  owner?: string
   isShow?: boolean
   buttons?: MenuButton[]
   options?: Record<string, unknown>
@@ -85,6 +87,24 @@ export interface MenuItem {
   id?: string
   describe?: string
   i18nDescribe?: string
+}
+
+export type MenuFilterConditions = Record<string, unknown>
+
+export interface MenuFilterContext {
+  applicationScope?: string
+  conditions?: MenuFilterConditions
+}
+
+export type MenuFilter = (
+  menus: MenuItem[],
+  context: MenuFilterContext,
+) => MenuItem[] | Promise<MenuItem[]>
+
+export interface MenuFilterDefinition {
+  code: string
+  order?: number
+  filter: MenuFilter
 }
 
 export type BaseMenuExport = MenuItem | MenuItem[] | (() => MenuItem | MenuItem[] | undefined)

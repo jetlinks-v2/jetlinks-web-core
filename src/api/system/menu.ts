@@ -1,5 +1,8 @@
 import { request } from '@jetlinks-web/core'
-import { APPLICATION_SCOPE_HEADER } from '@jetlinks-web-core/utils/application-scope'
+import {
+  APPLICATION_SCOPE_HEADER,
+  type MenuApplicationScope,
+} from '@jetlinks-web-core/utils/application-scope'
 
 // /**
 //  * 获取当前用户可访问菜单
@@ -13,13 +16,15 @@ import { APPLICATION_SCOPE_HEADER } from '@jetlinks-web-core/utils/application-s
  * @param data
  * @returns
  */
-export const getOwnMenuThree = (data: any, applicationScope?: string) => request.post(
-  '/menu/user-own/tree',
-  data,
-  applicationScope
-    ? { headers: { [APPLICATION_SCOPE_HEADER]: applicationScope } }
-    : undefined,
-)
+export const getOwnMenuThree = (data: any, applicationScope?: MenuApplicationScope) => {
+  const config = applicationScope === false
+    ? { applicationScope: false }
+    : applicationScope
+      ? { headers: { [APPLICATION_SCOPE_HEADER]: applicationScope } }
+      : undefined
+
+  return request.post('/menu/user-own/tree', data, config)
+}
 // /**
 //  * 校验编码唯一性
 //  * @param data

@@ -1084,5 +1084,6 @@
   "components.BusinessApplicationSwitcher.switchApplication": "切换应用",
   "components.BusinessApplicationSwitcher.switching": "正在切换应用",
   "components.BusinessApplicationSwitcher.switchFailed": "切换到“{name}”失败，已保留当前应用",
+  "components.BusinessApplicationSwitcher.projectEntry": "当前项目",
   "comm.api.timeout": "网络环境不佳"
 }

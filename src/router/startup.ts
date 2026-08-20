@@ -7,7 +7,8 @@ import {
   useSystemStore,
   useUserStore,
 } from '@jetlinks-web-core/store'
-import { isSaaS, isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
+import { isBusinessApplicationRuntime } from '@jetlinks-web-core/utils/business-application-runtime'
+import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
 
 let menuRoutePromise: Promise<boolean> | undefined
 
@@ -34,7 +35,7 @@ export const bootstrapSession = async () => {
     await applicationStore.queryApplication()
   }
 
-  if (!isSubApp && isSaaS) {
+  if (isBusinessApplicationRuntime()) {
     await useBusinessApplicationStore().initialize()
   }
 }
@@ -70,7 +71,7 @@ export const ensureMenuRoutes = async (
 
   menuRoutePromise = (async () => {
     const businessApplicationStore = useBusinessApplicationStore()
-    const shouldUseApplicationScope = !isSubApp && isSaaS && businessApplicationStore.scopeSupported
+    const shouldUseApplicationScope = isBusinessApplicationRuntime() && businessApplicationStore.scopeSupported
     const applicationId = shouldUseApplicationScope
       ? businessApplicationStore.currentApplication?.id
       : undefined

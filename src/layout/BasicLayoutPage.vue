@@ -88,8 +88,12 @@ import {
   BusinessApplicationSwitcher
 } from './components'
 import { storeToRefs } from 'pinia'
-import { getHideHeaderRightConfig, routerFallback } from '@jetlinks-web-core/utils'
-import { isSaaS, isSubApp } from '@/utils/consts'
+import {
+  getHideHeaderRightConfig,
+  routerFallback
+} from '@jetlinks-web-core/utils'
+import { isBusinessApplicationRuntime } from '@jetlinks-web-core/utils/business-application-runtime'
+import { isSubApp } from '@/utils/consts'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { useResponsiveLayoutDimensions } from '@jetlinks-web-core/hooks'
 import { useGlobalHomeAgent } from '@jetlinks-web-core/layout/components/AiChat/useGlobalHomeAgent'
@@ -109,7 +113,7 @@ const menuStore = useMenuStore()
 const layoutType = ref('list')
 const hideHeaderRight = getHideHeaderRightConfig()
 const menuSearchKeyword = ref('')
-const businessApplicationRuntime = isSaaS && !isSubApp
+const businessApplicationRuntime = isBusinessApplicationRuntime()
 
 const { theme, layout, language, systemInfo, themeStyleToken } = storeToRefs(systemStore)
 const { y: scrollY } = useWindowScroll()
