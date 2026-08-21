@@ -43,6 +43,7 @@ import {
   CLIENT_TOOL_DEFINITION_META_KEY,
   clientToolOutput,
   clientToolResult,
+  defineClientToolAnalyticalProducer,
   defineClientToolBoundedAnalyticalProducer,
   defineClientTool,
   isCompiledClientToolDefinition,
@@ -175,6 +176,71 @@ test('stable client-tool facade compiles business facts without inferring resour
   assert.equal(selections, 1)
   assert.deepEqual(result.__clientToolOutputs.output0, [{ id: 'one' }])
   assert.equal(result.outputBindings[0].path, '$.__clientToolOutputs.output0')
+})
+
+test('compile-time preparation owns routing stage without creating a second role or analytical authority', () => {
+  const preparation = defineClientTool({
+    id: 'anonymous_scope_resolution',
+    description: { text: 'Resolve one authorized scope', capabilities: ['anonymous.scope.resolve'] },
+    preparation: true,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({
+      name: 'authorized-scope-candidates',
+      shape: 'anonymous.scope-candidates',
+    }),
+    execute: () => [],
+  })
+
+  assert.deepEqual(preparation.routing?.stages, ['preparation'])
+  assert.deepEqual(preparation.routing?.dataAccessModes, ['records'])
+  assert.equal(preparation.routing?.analyticalCapability, undefined)
+  assert.equal(Object.hasOwn(
+    preparation._meta?.[CLIENT_TOOL_DEFINITION_META_KEY] as Record<string, unknown>,
+    'preparation',
+  ), false)
+  const session = toAiClientToolSessionDefinition(preparation) as any
+  assert.deepEqual(session.expands['x-ai-routing'].stages, ['preparation'])
+  assert.equal(session.expands['x-ai-routing'].analyticalCapability, undefined)
+  assert.equal(Object.keys(session.expands).filter(key => key === 'x-ai-routing').length, 1)
+  assert.equal(JSON.stringify(session).includes('workflowRole'), false)
+  assert.equal(JSON.stringify(session).includes('"preparation":true'), false)
+
+  const analytical = defineClientToolAnalyticalProducer({
+    producerKey: 'anonymous.metric.read',
+    factKey: 'anonymous.metric',
+    subjects: ['anonymous-subject'],
+    measures: [{ name: 'metric', aggregations: ['sum'], units: ['record'] }],
+    criteria: ['summary'],
+    coverage: 'complete',
+    output: 'anonymous-metric',
+  })
+  assert.throws(() => defineClientTool({
+    id: 'invalid_preparation_producer',
+    description: { text: 'Invalid preparation producer', capabilities: ['anonymous.invalid'] },
+    preparation: true,
+    analytical,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'anonymous-metric', shape: 'anonymous.metric' }),
+    execute: () => ({ value: 1 }),
+  }), /preparation cannot declare analytical producer authority/)
+
+  assert.throws(() => defineClientTool({
+    id: 'invalid_preparation_flag',
+    description: { text: 'Reject an invalid preparation flag', capabilities: ['anonymous.invalid-flag'] },
+    preparation: false as never,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'invalid-flag-output', shape: 'anonymous.invalid-flag' }),
+    execute: () => ({ value: 1 }),
+  }), /preparation flag must be true/)
+
+  const releasedDefault = defineClientTool({
+    id: 'released_record_reader',
+    description: { text: 'Read records', capabilities: ['anonymous.records.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({ name: 'released-records', shape: 'anonymous.records' }),
+    execute: () => [],
+  })
+  assert.deepEqual(releasedDefault.routing?.stages, ['execution'])
 })
 
 test('required EITHER consumers remain prerequisites while accepting explicit arguments', () => {

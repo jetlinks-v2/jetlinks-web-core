@@ -146,6 +146,12 @@ defineClientTool({
 })
 
 defineClientTool({
+  ...validDefinition,
+  // @ts-expect-error Preparation is a compile-time-only true flag, not a second routing enum.
+  preparation: false,
+})
+
+defineClientTool({
   id: 'prepared_write_fixture',
   description: { text: 'Write one record', capabilities: ['fixture.records.write'] },
   effect: {

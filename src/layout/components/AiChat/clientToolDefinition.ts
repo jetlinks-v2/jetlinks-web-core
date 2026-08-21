@@ -491,6 +491,8 @@ export interface ClientToolDefinition<
   /** Closed cross-field alternatives for complex inputs; compiled to the current wire schema internally. */
   inputAlternatives?: readonly ClientToolInputAlternative[]
   consumes?: readonly ClientToolConsumedResource[]
+  /** Compile-time-only flag for non-terminal scope/discovery preparation; never serialized as a second role. */
+  preparation?: true
   analytical?: ClientToolAnalyticalAuthoring<TArgs>
   effect: ClientToolEffect<TContext>
   output: ClientToolOutput<TResult> | readonly ClientToolOutput<TResult>[]
@@ -576,6 +578,18 @@ const resolveActivation = (activation: ClientToolActivation | undefined) => {
   return 'auto' as const
 }
 
+const compilePreparation = (
+  value: true | undefined,
+  analytical: CompiledClientToolAnalyticalAuthoring | undefined,
+) => {
+  if (value === undefined) return undefined
+  if (value !== true) throw new Error('Client tool preparation flag must be true when declared')
+  if (analytical) {
+    throw new Error('Client tool preparation cannot declare analytical producer authority')
+  }
+  return ['preparation'] as const
+}
+
 const outputSlotPath = (index: number) => `$.__clientToolOutputs.output${index}`
 
 const CANONICAL_CONSUMER_FIELDS = ['type', 'mediaType', 'shape', 'required', 'sourcePolicy'] as const
@@ -649,6 +663,7 @@ const compileContract = <TResult>(
   definition: ClientToolDefinition<any, any, TResult>,
   outputs: readonly ClientToolOutput<TResult>[],
   analyticalCapability?: AiClientToolAnalyticalCapability,
+  workflowStages?: readonly ('preparation' | 'execution')[],
 ) => {
   const { capabilities } = normalizeDescription(definition.description)
   const consumes = definition.consumes || []
@@ -663,6 +678,7 @@ const compileContract = <TResult>(
       ...(definition.description.notFor?.length ? { notFor: uniqueText(definition.description.notFor) } : {}),
       exposure: resolveActivation(definition.description.activation),
       ...(definition.effect.kind === 'READ' ? {} : { cost: 'medium' as const }),
+      ...(workflowStages ? { stages: [...workflowStages] } : {}),
       ...(analyticalCapability ? { analyticalCapability } : {}),
     },
     inputs: compiledConsumes.canonical.map(input => ({ ...input })),
@@ -1280,11 +1296,12 @@ export const defineClientTool = <
   const { text } = normalizeDescription(definition.description)
   const declaredOutputs = normalizeOutputs(definition.output)
   const analytical = compileAnalyticalAuthoring(definition.analytical, definition.inputs || [], declaredOutputs)
+  const workflowStages = compilePreparation(definition.preparation, analytical)
   const outputs = applyCompiledAnalyticalOutputSemantics(declaredOutputs, analytical)
   const analyticalCapability = analytical && analytical.status !== 'malformed'
     ? analytical.capability
     : undefined
-  const contract = compileContract(definition, outputs, analyticalCapability)
+  const contract = compileContract(definition, outputs, analyticalCapability, workflowStages)
   const effect = compileEffect(definition.effect)
   const metadata: CompiledClientToolMetadata = {
     version: CLIENT_TOOL_DEFINITION_VERSION,
