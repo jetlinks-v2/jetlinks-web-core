@@ -22,6 +22,7 @@ import {
 import type { MenuFilterConditions } from '@jetlinks-web-core/types/module'
 import { createMenuStoreRuntime } from './menuRuntime'
 import { applyModuleMenuFilters } from './menuFilters'
+import { applyMenuRouteTargets } from './menuRouteTarget'
 import {
   getCoreRouteOverrideMenus,
   getFirstMenuPath,
@@ -257,16 +258,23 @@ export const useMenuStore = defineStore('menu', () => {
         })
         if (requestId !== menuRequestId) return { applied: false }
 
-        prepareMicroApplicationMenus(filteredMenuResult, app)
+        const targetedMenus = applyMenuRouteTargets(filteredMenuResult)
+        targetedMenus.issues.forEach((issue) => {
+          console.warn(
+            `[Menu Route Target] Keep "${issue.sourceCode}" in place: ${issue.type} "${issue.target}".`,
+          )
+        })
+
+        prepareMicroApplicationMenus(targetedMenus.menus, app)
 
         const context = await runtime.createRoutes(
-          filteredMenuResult,
+          targetedMenus.menus,
           () => requestId === menuRequestId,
         )
         if (!context) return { applied: false }
 
-        runtime.menuResultCache.value = JSON.parse(JSON.stringify(filteredMenuResult))
-        runtime.hasResponeMenu.value = !!filteredMenuResult.length
+        runtime.menuResultCache.value = JSON.parse(JSON.stringify(targetedMenus.menus))
+        runtime.hasResponeMenu.value = !!targetedMenus.menus.length
         runtime.loading.value = false
         return {
           applied: true,

@@ -1,0 +1,244 @@
+.project-layout-page {
+  --project-secondary-menu-width: 14rem;
+
+  :deep(.ant-pro-basicLayout.cloud-project.ant-pro-basicLayout-top > .ant-layout > .ant-layout-content) {
+    padding: 0;
+  }
+
+  :deep(.ant-pro-basicLayout.cloud-project .project-layout__content) {
+    min-height: calc(100vh - var(--chrome-header-height));
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 0;
+    overflow: visible;
+    background: var(--bg-sunken);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  :deep(.project-secondary-menu) {
+    width: var(--project-secondary-menu-width);
+    min-width: var(--project-secondary-menu-width);
+    flex: 0 0 var(--project-secondary-menu-width);
+    padding: var(--space-4) 0 var(--space-4) var(--space-4);
+    background: var(--bg-sunken);
+  }
+
+  :deep(.project-secondary-menu .ant-tabs) {
+    height: 100%;
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-nav) {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-nav::before),
+  :deep(.project-secondary-menu .ant-tabs-ink-bar) {
+    display: none;
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-nav-wrap),
+  :deep(.project-secondary-menu .ant-tabs-nav-list) {
+    width: 100%;
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-tab) {
+    width: 100%;
+    min-height: var(--layout-menu-item-height);
+    margin: 0 0 var(--layout-menu-item-gap) !important;
+    padding: 0 var(--space-4);
+    color: var(--layout-menu-item-color);
+    border: var(--jet-theme-stroke-width) solid transparent;
+    border-radius: var(--layout-menu-item-radius);
+    background: transparent;
+    transition:
+      color var(--motion-duration-fast) var(--motion-ease-standard),
+      background var(--motion-duration-fast) var(--motion-ease-standard),
+      border-color var(--motion-duration-fast) var(--motion-ease-standard),
+      box-shadow var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-tab:hover) {
+    color: var(--ink-1);
+    background: var(--bg-hover);
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-tab-active) {
+    color: var(--layout-menu-item-active-color);
+    border-color: var(--layout-menu-item-active-border);
+    background: var(--bg);
+    box-shadow: var(--shadow-2);
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-tab-btn) {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: inherit;
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-tab-active .ant-tabs-tab-btn) {
+    color: var(--layout-menu-item-active-color);
+    font-weight: var(--layout-menu-item-active-font-weight);
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-tab-btn:focus-visible) {
+    border-radius: var(--r-1);
+    outline: 0;
+    box-shadow: var(--chrome-focus-ring);
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-tab .anticon) {
+    margin: 0;
+    color: var(--layout-menu-item-muted-color);
+    font-size: var(--layout-menu-item-icon-size);
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-tab-active .anticon) {
+    color: var(--layout-menu-item-active-color);
+  }
+
+  :deep(.project-secondary-menu__label) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-content-holder) {
+    display: none;
+  }
+
+  :deep(.project-layout__route-content) {
+    min-width: 0;
+    flex: 1 1 auto;
+    background: var(--bg);
+    border-radius: 0;
+      padding: var(--space-4);
+  }
+
+  :deep(.project-layout__content--settings) {
+    flex-direction: column;
+    background: var(--bg);
+  }
+
+  :deep(.project-layout__content--settings .project-secondary-menu) {
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+    padding: 0 var(--space-5);
+    border-bottom: var(--jet-theme-stroke-width) solid var(--jet-theme-border-secondary);
+    background: var(--bg);
+  }
+
+  :deep(.project-layout__content--settings .project-secondary-menu .ant-tabs) {
+    display: block;
+    height: auto;
+  }
+
+  :deep(.project-layout__content--settings .project-secondary-menu .ant-tabs-nav) {
+    width: auto;
+  }
+
+  :deep(.project-layout__content--settings .project-secondary-menu .ant-tabs-nav-list) {
+    width: auto;
+    flex-direction: row;
+  }
+
+  :deep(.project-layout__content--settings .project-secondary-menu .ant-tabs-tab) {
+    width: auto;
+    min-height: var(--chrome-header-height);
+    flex: none;
+    margin: 0 var(--space-6) 0 0 !important;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  :deep(.project-layout__content--settings .project-secondary-menu .ant-tabs-tab:hover) {
+    background: transparent;
+    color: var(--jet-theme-primary);
+  }
+
+  :deep(.project-layout__content--settings .project-secondary-menu .ant-tabs-tab-active) {
+    border: 0;
+    background: transparent;
+    color: var(--jet-theme-primary);
+    box-shadow: none;
+  }
+
+  :deep(.project-layout__content--settings .project-secondary-menu .ant-tabs-ink-bar) {
+    display: block;
+    height: var(--layout-menu-item-active-line-width);
+    background: var(--jet-theme-primary);
+  }
+
+  :deep(.project-layout__content--settings .project-secondary-menu .ant-tabs-nav-wrap) {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  :deep(.project-layout__content--settings .project-secondary-menu .ant-tabs-nav-wrap::-webkit-scrollbar),
+  :deep(.project-layout__content--settings .project-secondary-menu .ant-tabs-nav-operations) {
+    display: none;
+  }
+
+  :deep(.project-layout__content--settings .project-layout__route-content) {
+    width: 100%;
+  }
+
+  @media (max-width: 64rem) {
+    :deep(.ant-pro-basicLayout.cloud-project .project-layout__content) {
+      flex-direction: column;
+    }
+
+    :deep(.project-secondary-menu) {
+      width: 100%;
+      min-width: 0;
+      flex-basis: auto;
+      padding: var(--space-3) var(--space-4) 0;
+    }
+
+    :deep(.project-secondary-menu .ant-tabs) {
+      display: block;
+      height: auto;
+    }
+
+    :deep(.project-secondary-menu .ant-tabs-nav-list) {
+      width: auto;
+      flex-direction: row;
+      transform: none !important;
+    }
+
+    :deep(.project-secondary-menu .ant-tabs-nav-wrap) {
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+    }
+
+    :deep(.project-secondary-menu .ant-tabs-nav-wrap::-webkit-scrollbar),
+    :deep(.project-secondary-menu .ant-tabs-nav-operations) {
+      display: none;
+    }
+
+    :deep(.project-secondary-menu .ant-tabs-tab) {
+      width: auto;
+      flex: none;
+      margin: 0 var(--space-1) 0 0 !important;
+      padding: 0 var(--space-3);
+    }
+
+    :deep(.project-secondary-menu .ant-tabs-tab-btn) {
+      width: auto;
+    }
+  }
+}

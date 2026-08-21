@@ -70,6 +70,13 @@ export type MenuButton = {
   [key: string]: unknown
 }
 
+export type MenuItemOptions = Record<string, unknown> & {
+  routeName?: string
+  routeTarget?: string
+  show?: boolean
+  meta?: RouteMeta
+}
+
 export interface MenuItem {
   icon?: string
   name: string
@@ -80,11 +87,12 @@ export interface MenuItem {
   owner?: string
   isShow?: boolean
   buttons?: MenuButton[]
-  options?: Record<string, unknown>
+  options?: MenuItemOptions
   meta?: RouteMeta
   children?: MenuItem[]
   component?: Component | (() => Promise<unknown>)
   id?: string
+  sortIndex?: number
   describe?: string
   i18nDescribe?: string
 }

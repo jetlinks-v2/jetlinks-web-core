@@ -1,0 +1,29 @@
+.right-content {
+  display: flex;
+  height: var(--chrome-header-height);
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: auto;
+  line-height: var(--chrome-header-height);
+}
+
+.project-layout__header-action {
+  display: inline-grid;
+  width: var(--space-8);
+  height: var(--space-8);
+  padding: 0;
+  place-items: center;
+  border-radius: var(--r-2);
+  color: var(--ink-2);
+
+  &:hover,
+  &:focus-visible,
+  &--active {
+    background: var(--jet-theme-primary-soft);
+    color: var(--jet-theme-primary);
+  }
+
+  :deep(.anticon) {
+    font-size: var(--fs-16);
+  }
+}

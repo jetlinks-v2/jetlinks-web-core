@@ -1,49 +1,63 @@
 <template>
   <a-dropdown
     v-if="currentApplication"
-    placement="bottomLeft"
+    :placement="mode === 'header' ? 'bottomRight' : 'bottomLeft'"
     :trigger="['click']"
     :disabled="loading || switching"
   >
     <button
       class="application-trigger"
+      :class="`application-trigger--${mode}`"
       type="button"
       :aria-label="$t('components.BusinessApplicationSwitcher.switchApplication')"
     >
-      <a-spin :spinning="loading || switching" size="small">
-        <BusinessApplicationIcon :application="currentApplication" />
-      </a-spin>
-      <a-tooltip :title="currentApplication.name">
-        <span class="application-trigger__name">{{ currentApplication.name }}</span>
-      </a-tooltip>
+      <template v-if="mode === 'header'">
+        <AIcon class="application-trigger__header-icon" type="AppstoreOutlined" />
+        <span class="application-trigger__header-label">
+          {{ $t('components.BusinessApplicationSwitcher.headerLabel') }}
+        </span>
+      </template>
+      <template v-else>
+        <a-spin :spinning="loading || switching" size="small">
+          <BusinessApplicationIcon :application="currentApplication" />
+        </a-spin>
+        <a-tooltip :title="currentApplication.name">
+          <span class="application-trigger__name">{{ currentApplication.name }}</span>
+        </a-tooltip>
+      </template>
       <AIcon class="application-trigger__arrow" type="DownOutlined" />
     </button>
 
     <template #overlay>
-      <a-menu class="application-menu" :selectable="false" @click="handleSelect">
-        <a-menu-item
-          v-for="item in applications"
-          :key="item.id"
-          :disabled="switching"
-          :class="{ 'application-menu__item--selected': item.id === currentApplication.id }"
-        >
-          <div class="application-menu__item">
-            <BusinessApplicationIcon :application="item" />
-            <a-tooltip :title="item.name">
-              <span class="application-menu__name">{{ item.name }}</span>
-            </a-tooltip>
-            <AIcon
-              v-if="item.id === currentApplication.id"
-              class="application-menu__check"
-              type="CheckOutlined"
-            />
-          </div>
-        </a-menu-item>
-      </a-menu>
+      <div class="application-menu-panel">
+        <div v-if="mode === 'header'" class="application-menu-panel__title">
+          {{ $t('components.BusinessApplicationSwitcher.quickEntry') }}
+        </div>
+        <a-menu class="application-menu" :selectable="false" @click="handleSelect">
+          <a-menu-item
+            v-for="item in applications"
+            :key="item.id"
+            :disabled="switching"
+            :class="{ 'application-menu__item--selected': item.id === currentApplication.id }"
+          >
+            <div class="application-menu__item">
+              <BusinessApplicationIcon :application="item" />
+              <a-tooltip :title="item.name">
+                <span class="application-menu__name">{{ item.name }}</span>
+              </a-tooltip>
+              <AIcon
+                v-if="item.id === currentApplication.id"
+                class="application-menu__check"
+                type="CheckOutlined"
+              />
+            </div>
+          </a-menu-item>
+        </a-menu>
+      </div>
     </template>
   </a-dropdown>
 
-  <div v-else class="project-layout__brand-main">
+  <div v-else-if="mode === 'brand'" class="project-layout__brand-main">
     <img v-if="fallbackLogo" class="project-layout__brand-logo" :src="fallbackLogo" alt="">
     <span class="project-layout__brand-title">{{ fallbackTitle }}</span>
   </div>
@@ -61,6 +75,7 @@
 </template>
 
 <script setup lang="ts">
+import type { PropType } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { AIcon } from '@jetlinks-web/components'
@@ -70,6 +85,10 @@ import BusinessApplicationIcon from './BusinessApplicationIcon.vue'
 type MenuClickEvent = { key: string | number }
 
 defineProps({
+  mode: {
+    type: String as PropType<'brand' | 'header'>,
+    default: 'brand',
+  },
   fallbackLogo: {
     type: String,
     default: '',
@@ -89,85 +108,4 @@ const handleSelect = ({ key }: MenuClickEvent) => {
 }
 </script>
 
-<style scoped lang="less">
-.application-trigger {
-  display: inline-flex;
-  align-items: center;
-  max-width: 12.5rem;
-  height: 2.5rem;
-  min-width: 0;
-  gap: var(--space-2);
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--r-2);
-  background: transparent;
-  color: var(--ink-1);
-  cursor: pointer;
-  font-size: var(--fs-14);
-  font-weight: 500;
-  transition: background 0.16s ease;
-
-  &:hover,
-  &:focus-visible {
-    background: var(--bg-hover);
-  }
-
-  &:disabled {
-    cursor: wait;
-  }
-
-  &__name {
-    overflow: hidden;
-    min-width: 0;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &__arrow {
-    color: var(--ink-3);
-    font-size: var(--fs-12);
-  }
-}
-
-.application-menu {
-  width: 16rem;
-  max-height: 22rem;
-  overflow-y: auto;
-  padding: var(--space-1);
-  border-radius: var(--r-3);
-
-  &__item {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    gap: var(--space-2);
-  }
-
-  &__item--selected {
-    background: var(--jet-theme-primary-soft);
-    color: var(--jet-theme-primary);
-  }
-
-  &__name {
-    flex: 1;
-    overflow: hidden;
-    min-width: 0;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &__check {
-    color: var(--jet-theme-primary);
-  }
-}
-
-.business-application-switch-mask {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--jet-theme-bg-container) 72%, transparent);
-}
-</style>
+<style scoped lang="less" src="./BusinessApplicationSwitcher.less"></style>

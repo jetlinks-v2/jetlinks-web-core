@@ -34,6 +34,7 @@ const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
 
   return {
     ..._meta,
+    routeTarget: item.options?.routeTarget,
     id: item.id,
     icon: item.icon,
     desc: item.i18nDescribe || item.describe,

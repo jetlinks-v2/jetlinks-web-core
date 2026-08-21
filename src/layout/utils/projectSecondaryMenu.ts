@@ -26,6 +26,7 @@ export type ProjectRawMenu = {
   meta?: ProjectRawMenuMeta
   options?: {
     show?: boolean
+    routeName?: string
     meta?: ProjectRawMenuMeta
   }
   children?: ProjectRawMenu[]
@@ -61,22 +62,27 @@ export type ResolvedContribution = {
   target?: string
 }
 
-const findRouteByCode = (menus: ProjectNavigationRoute[], code: string): ProjectNavigationRoute | undefined => {
+const findRouteByKey = (menus: ProjectNavigationRoute[], key: string): ProjectNavigationRoute | undefined => {
   for (const menu of menus) {
-    if (String(menu.name || '') === code) return menu
+    if (String(menu.name || '') === key) return menu
 
-    const child = findRouteByCode(menu.children || [], code)
+    const child = findRouteByKey(menu.children || [], key)
     if (child) return child
   }
 
   return undefined
 }
 
-const findRawMenuByCode = (menus: ProjectRawMenu[], code: string): ProjectRawMenu | undefined => {
+const findRawMenuByKey = (
+  menus: ProjectRawMenu[],
+  key: string,
+  menuMap: Map<string, ProjectMenuMapEntry>,
+): ProjectRawMenu | undefined => {
   for (const menu of menus) {
-    if (menu.code === code) return menu
+    const routeName = menu.options?.routeName || (menu.code ? menuMap.get(menu.code)?.routeName : undefined)
+    if (menu.code === key || routeName === key) return menu
 
-    const child = findRawMenuByCode(menu.children || [], code)
+    const child = findRawMenuByKey(menu.children || [], key, menuMap)
     if (child) return child
   }
 
@@ -111,7 +117,7 @@ const toRawRoute = (
 
   return {
     path,
-    name: menuInfo?.routeName || menu.code,
+    name: menu.options?.routeName || menuInfo?.routeName || menu.code,
     meta: {
       ...(menu.options?.meta || {}),
       ...(menu.meta || {}),
@@ -123,32 +129,39 @@ const toRawRoute = (
   }
 }
 
-export const resolveProjectMenuByCode = (
-  code: string,
+export const resolveProjectMenu = (
+  key: string,
   visibleMenus: RouteRecordRaw[],
   rawMenus: ProjectRawMenu[],
   menuMap: Map<string, ProjectMenuMapEntry>,
   routeExists: (route: ProjectNavigationRoute) => boolean,
 ) => {
-  const visibleMenu = findRouteByCode(visibleMenus, code)
+  const visibleMenu = findRouteByKey(visibleMenus, key)
   if (visibleMenu && routeExists(visibleMenu)) return visibleMenu
 
-  const rawMenu = findRawMenuByCode(rawMenus, code)
+  const rawMenu = findRawMenuByKey(rawMenus, key, menuMap)
   const rawRoute = rawMenu ? toRawRoute(rawMenu, menuMap) : undefined
   if (rawRoute && routeExists(rawRoute)) return rawRoute
 
-  const menuInfo = menuMap.get(code)
+  const menuMapEntry = [...menuMap.entries()].find(([code, menuInfo]) => (
+    code === key || menuInfo.routeName === key
+  ))
+  const menuCode = menuMapEntry?.[0] || key
+  const menuInfo = menuMapEntry?.[1]
   const path = normalizeProjectRuntimePath(menuInfo?.path || '')
   const fallbackRoute: ProjectNavigationRoute | undefined = path
     ? {
         path,
-        name: menuInfo?.routeName || code,
-        meta: { title: menuInfo?.title || code },
+        name: menuInfo?.routeName || menuCode,
+        meta: { title: menuInfo?.title || menuCode },
       }
     : undefined
 
   return fallbackRoute && routeExists(fallbackRoute) ? fallbackRoute : undefined
 }
+
+// Keep the existing export for module extensions that still resolve sources by menu code.
+export const resolveProjectMenuByCode = resolveProjectMenu
 
 export const normalizeSecondaryMenuSource = (
   source: string | ProjectSecondaryMenuSource,

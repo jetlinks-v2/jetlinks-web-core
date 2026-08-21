@@ -1081,5 +1081,8 @@
   "components.BusinessApplicationSwitcher.switching": "Switching application",
   "components.BusinessApplicationSwitcher.switchFailed": "Could not switch to “{name}”. The current application remains active.",
   "components.BusinessApplicationSwitcher.projectEntry": "Current project",
+  "components.BusinessApplicationSwitcher.headerLabel": "Applications",
+  "components.BusinessApplicationSwitcher.quickEntry": "Quick access",
+  "layout.project.settings": "Settings",
   "comm.api.timeout": "The network environment is poor"
 }

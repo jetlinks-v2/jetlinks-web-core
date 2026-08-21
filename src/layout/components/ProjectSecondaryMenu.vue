@@ -1,10 +1,14 @@
 <template>
   <div v-if="items.length" class="project-secondary-menu">
-    <a-tabs :activeKey="props.selectedKey" @change="handleClick">
+    <a-tabs
+      :activeKey="props.selectedKey"
+      :tabPosition="props.tabPosition"
+      @change="handleClick"
+    >
       <a-tab-pane v-for="item in items" :key="item.key">
         <template #tab>
           <AIcon v-if="item.icon" :type="item.icon" />
-          {{ item.label }}
+          <span class="project-secondary-menu__label">{{ item.label }}</span>
         </template>
       </a-tab-pane>
     </a-tabs>
@@ -24,6 +28,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  tabPosition: {
+    type: String as PropType<'top' | 'left'>,
+    default: 'top',
+  },
 })
 
 const emit = defineEmits<{
@@ -34,7 +42,3 @@ const handleClick = (key: string | number) => {
   emit('select', String(key))
 }
 </script>
-
-<style scoped lang="less">
-
-</style>
