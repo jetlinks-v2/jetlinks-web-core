@@ -4,6 +4,7 @@ import {
   defineAiClientToolRouting,
   type AiClientToolConsumerPort,
   type AiClientToolProducerPort,
+  type AiClientToolOutputAudience,
   type AiClientToolRoutingDataAccessMode,
   type AiClientToolRoutingKind,
   type AiClientToolRoutingMetadata,
@@ -21,6 +22,7 @@ import {
   type AiClientToolOrdering,
 } from './clientToolResult'
 import type { AiClientToolResultBindingDefinition } from './clientToolResultDelivery'
+import type { GeneralAgentMarkdownPresentationCapability } from './generalAgentExtensions'
 import {
   isSupportedAiClientToolBindingPath,
   normalizeAiClientToolRecordPath,
@@ -49,6 +51,8 @@ interface AiClientToolOutputContractBase {
   name: string
   /** Stable renderer-neutral shape owned by the producer. */
   shape: string
+  /** Visibility/delivery projection; it never changes fact authority or completeness. */
+  audience: AiClientToolOutputAudience
   /** Exact inline JSON path. Omit only when the output is materialized as a file at runtime. */
   path?: string
   /** Logical record collection inside the value selected by path/ref. */
@@ -112,6 +116,32 @@ export interface AiClientToolContractMetadata {
   outputs: AiClientToolOutputContract[]
 }
 
+export type AiClientToolPresentationCompatibilityStatus =
+  | 'compatible'
+  | 'incompatible'
+  | 'ambiguous'
+  | 'malformed'
+
+export type AiClientToolPresentationCompatibilityIssueCode =
+  | 'contract_malformed'
+  | 'presentation_malformed'
+  | 'resource_type_mismatch'
+  | 'audience_mismatch'
+  | 'media_type_mismatch'
+  | 'shape_mismatch'
+  | 'delivery_mismatch'
+
+export interface AiClientToolPresentationCompatibilityIssue {
+  code: AiClientToolPresentationCompatibilityIssueCode
+  outputName?: string
+}
+
+export interface AiClientToolPresentationCompatibilityDiagnostic {
+  status: AiClientToolPresentationCompatibilityStatus
+  compatibleOutputs: string[]
+  issues: AiClientToolPresentationCompatibilityIssue[]
+}
+
 /** Contract fragment spread into the owning client-tool definition. */
 export interface AiClientToolContractFragment {
   routing: AiClientToolRoutingMetadata
@@ -135,10 +165,14 @@ const validateOutputs = (outputs: readonly AiClientToolOutputContract[]) => {
   outputs.forEach((output) => {
     const name = normalizedText(output.name)
     const shape = normalizedText(output.shape)
-    if (!name || !shape || !normalizedText(output.type) || !normalizedText(output.mediaType)) {
-      throw new Error('Client tool output contract requires name, type, mediaType and shape')
+    if (!name || !shape || !normalizedText(output.type) || !normalizedText(output.mediaType)
+      || !(['model-evidence', 'client-presentation', 'reusable-source'] as const).includes(output.audience)) {
+      throw new Error('Client tool output contract requires name, type, mediaType, shape and audience')
     }
     const delivery = outputDelivery(output)
+    if (output.audience === 'model-evidence' && delivery !== 'inline') {
+      throw new Error(`Model-evidence output must use bounded inline delivery: ${name}`)
+    }
     if (output.path !== undefined && !isSupportedAiClientToolBindingPath(normalizedText(output.path))) {
       throw new Error(`Unsupported client tool output binding path: ${output.path}`)
     }
@@ -160,6 +194,13 @@ const validateOutputs = (outputs: readonly AiClientToolOutputContract[]) => {
     }
     if (output.kind === 'artifact' && !normalizedText(output.mediaType)) {
       throw new Error(`Artifact client tool output requires a media type: ${name}`)
+    }
+    if (output.kind === 'artifact'
+      && (output.type !== 'artifact' || delivery !== 'file')) {
+      throw new Error(`Artifact client tool output must use artifact type and file delivery: ${name}`)
+    }
+    if (output.kind === 'artifact' && output.audience !== 'reusable-source') {
+      throw new Error(`Artifact client tool output must use reusable-source audience: ${name}`)
     }
     if (names.has(name)) {
       throw new Error(`Duplicate client tool output binding: ${name}`)
@@ -224,6 +265,7 @@ const copyOutput = (output: AiClientToolOutputContract): AiClientToolOutputContr
       : output.kind === 'state-events' ? 'state' : 'structured-data'),
     mediaType: normalizedText(output.mediaType || 'application/json').toLowerCase(),
     shape: normalizedText(output.shape),
+    audience: output.audience,
     ...(output.path ? { path: normalizedText(output.path) } : {}),
     ...(declaredRecordPath ? { recordPath: declaredRecordPath } : {}),
     ...(fields ? { fields } : {}),
@@ -263,6 +305,7 @@ export const defineAiClientToolContract = (
         type: output.type || 'structured-data',
         mediaType: output.mediaType || 'application/json',
         shape: output.shape,
+        audience: output.audience,
       })),
       produces: outputs.map(output => output.name),
       outputShapes: outputs.map(output => output.shape),
@@ -274,6 +317,7 @@ export const defineAiClientToolContract = (
       name: output.name,
       type: output.type || 'structured-data',
       ...(output.label ? { label: output.label } : {}),
+      audience: output.audience,
       path: output.path,
       shape: output.shape,
       ...(output.mediaType ? { mediaType: output.mediaType } : {}),
@@ -304,7 +348,7 @@ export const defineAiClientToolContract = (
 
 export interface AiClientToolContractOutputState extends Omit<
   AiClientToolOutputBinding,
-  'label' | 'shape' | 'recordPath' | 'fields' | 'ordering'
+  'label' | 'shape' | 'audience' | 'recordPath' | 'fields' | 'ordering'
 > {
   name: string
   /** Execution-specific user-facing label; stable name and shape still come from the declaration. */
@@ -399,6 +443,7 @@ export const createAiClientToolContractOutputBinding = (
     ...(path ? { path } : {}),
     ...(recordPath ? { recordPath } : {}),
     shape: output.shape,
+    audience: output.audience,
     ...(state.mediaType || output.mediaType ? { mediaType: state.mediaType || output.mediaType } : {}),
     ...(Number.isFinite(state.recordCount) ? { recordCount: Number(state.recordCount) } : {}),
     ...(Number.isFinite(state.totalCount) ? { totalCount: Number(state.totalCount) } : {}),
@@ -466,6 +511,7 @@ export const isAiClientToolContractMetadata = (
       if (!output || typeof output !== 'object' || Array.isArray(output)) return false
       const record = output as Record<string, unknown>
       const kind = record.kind as AiClientToolOutputKind
+      const audience = normalizedText(record.audience) as AiClientToolOutputAudience
       const name = normalizedText(record.name)
       const delivery = normalizedText(record.delivery)
       const path = record.path === undefined ? '' : normalizedText(record.path)
@@ -487,6 +533,7 @@ export const isAiClientToolContractMetadata = (
         || !normalizedText(record.type)
         || !normalizedText(record.mediaType)
         || !normalizedText(record.shape)
+        || !(['model-evidence', 'client-presentation', 'reusable-source'] as const).includes(audience)
         || (delivery && !AI_CLIENT_TOOL_RESULT_DELIVERIES.includes(delivery as AiClientToolRoutingResultDelivery))
         || (record.path !== undefined && !isSupportedAiClientToolBindingPath(path))
         || (record.recordPath !== undefined && !recordPath)
@@ -494,9 +541,120 @@ export const isAiClientToolContractMetadata = (
         || (Array.isArray(record.fields) && fields?.length !== record.fields.length)
         || (!!fields?.some(isCanonicalAiClientToolOutputField) && record.recordPath === undefined)
         || ((delivery === 'file' || (kind === 'artifact' && !delivery)) && record.path !== undefined)
+        || (audience === 'model-evidence' && delivery && delivery !== 'inline')
         || (record.ordering !== undefined && !ordering)
+        || (kind === 'artifact'
+          && (record.type !== 'artifact' || (delivery && delivery !== 'file')))
+        || (kind === 'artifact' && audience !== 'reusable-source')
         || (kind === 'artifact' && !normalizedText(record.mediaType))) return false
       names.add(name)
       return true
     })
+}
+
+const matchesPresentationShape = (shape: string, preferredInputShape: string) => {
+  if (!preferredInputShape.endsWith('.*')) return shape === preferredInputShape
+  const prefix = preferredInputShape.slice(0, -1)
+  return shape.startsWith(prefix) && shape.length > prefix.length
+}
+
+const supportsPresentationDelivery = (
+  delivery: AiClientToolRoutingResultDelivery,
+  capability: GeneralAgentMarkdownPresentationCapability,
+) => {
+  const supportsInline = Number.isFinite(capability.maxInlineBytes)
+    && Number(capability.maxInlineBytes) > 0
+  const supportsSessionFile = capability.supportsSessionFile === true
+  if (delivery === 'auto') return supportsInline || supportsSessionFile
+  if (delivery === 'file') return supportsSessionFile
+  return supportsInline
+}
+
+/** Compares one canonical output port with one renderer contract without selecting either side. */
+export const diagnoseAiClientToolOutputPresentationCompatibility = (
+  output: Pick<AiClientToolOutputContract, 'kind' | 'type' | 'name' | 'mediaType' | 'shape' | 'audience' | 'delivery'>,
+  capability: GeneralAgentMarkdownPresentationCapability,
+): AiClientToolPresentationCompatibilityIssue[] => {
+  const outputName = output.name
+  const issues: AiClientToolPresentationCompatibilityIssue[] = []
+  if (output.audience !== 'client-presentation') {
+    issues.push({ code: 'audience_mismatch', outputName })
+  }
+  if (output.kind === 'artifact' || output.type !== 'structured-data') {
+    issues.push({ code: 'resource_type_mismatch', outputName })
+  }
+  if (normalizedText(output.mediaType).toLowerCase()
+    !== normalizedText(capability.mediaType).toLowerCase()) {
+    issues.push({ code: 'media_type_mismatch', outputName })
+  }
+  const outputShape = normalizedText(output.shape).toLowerCase()
+  const preferredInputShapes = Array.isArray(capability.preferredInputShapes)
+    ? unique(capability.preferredInputShapes
+      .map(value => normalizedText(value).toLowerCase())
+      .filter(Boolean))
+    : []
+  if (!preferredInputShapes.some(shape => matchesPresentationShape(outputShape, shape))) {
+    issues.push({ code: 'shape_mismatch', outputName })
+  }
+  if (!supportsPresentationDelivery(outputDelivery(output as AiClientToolOutputContract), capability)) {
+    issues.push({ code: 'delivery_mismatch', outputName })
+  }
+  return issues
+}
+
+/**
+ * Diagnoses static producer compatibility with one normalized required presentation contract.
+ *
+ * This function is intentionally read-only: backend admission remains the only producer selector.
+ * It consumes canonical contract axes only and never inspects tool ids, result fields or payload values.
+ */
+export const diagnoseAiClientToolPresentationCompatibility = (
+  contract: unknown,
+  capability: GeneralAgentMarkdownPresentationCapability,
+): AiClientToolPresentationCompatibilityDiagnostic => {
+  if (!isAiClientToolContractMetadata(contract)) {
+    return {
+      status: 'malformed',
+      compatibleOutputs: [],
+      issues: [{ code: 'contract_malformed' }],
+    }
+  }
+
+  const presentationType = normalizedText(capability?.type).toLowerCase()
+  const contentType = normalizedText(capability?.contentType).toLowerCase()
+  const mediaType = normalizedText(capability?.mediaType).toLowerCase()
+  const preferredInputShapes = Array.isArray(capability?.preferredInputShapes)
+    ? unique(capability.preferredInputShapes.map(value => normalizedText(value).toLowerCase()).filter(Boolean))
+    : []
+  const supportsDelivery = capability?.supportsSessionFile === true
+    || (Number.isFinite(capability?.maxInlineBytes) && Number(capability.maxInlineBytes) > 0)
+  if (!presentationType
+    || !['json', 'text'].includes(contentType)
+    || capability?.deliveryPolicy !== 'required'
+    || !mediaType
+    || !preferredInputShapes.length
+    || !supportsDelivery) {
+    return {
+      status: 'malformed',
+      compatibleOutputs: [],
+      issues: [{ code: 'presentation_malformed' }],
+    }
+  }
+
+  const issues: AiClientToolPresentationCompatibilityIssue[] = []
+  const compatibleOutputs = contract.outputs.flatMap((output) => {
+    const outputName = output.name
+    const outputIssues = diagnoseAiClientToolOutputPresentationCompatibility(output, capability)
+    issues.push(...outputIssues)
+    return outputIssues.length ? [] : [outputName]
+  })
+
+  if (compatibleOutputs.length > 1) {
+    return { status: 'ambiguous', compatibleOutputs, issues }
+  }
+  return {
+    status: compatibleOutputs.length === 1 ? 'compatible' : 'incompatible',
+    compatibleOutputs,
+    issues,
+  }
 }

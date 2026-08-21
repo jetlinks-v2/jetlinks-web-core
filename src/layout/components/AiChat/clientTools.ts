@@ -2,6 +2,7 @@ import { withAiClientToolSilentRequest } from '@jetlinks-web-core/utils/ai-clien
 import i18n from '@jetlinks-web-core/locales';
 import { aiClientToolRegistry } from './clientToolRegistry';
 import { createClientToolSnapshotController } from './clientToolSnapshot';
+import type { GeneralAgentMarkdownPresentationCapability } from './generalAgentExtensions';
 import {
   createAiClientToolArtifact,
   deliverAiClientToolResult,
@@ -31,7 +32,11 @@ import {
   mergeAiClientToolParameterSchema,
   type AiClientToolParameterSchema,
 } from './clientToolParameterSchema';
-import { defineAiClientToolContract } from './clientToolContract';
+import {
+  AI_CLIENT_TOOL_CONTRACT_META_KEY,
+  defineAiClientToolContract,
+  isAiClientToolContractMetadata,
+} from './clientToolContract';
 import type {
   AiClientToolRoutingDataAccessMode,
   AiClientToolRoutingResultDelivery,
@@ -53,6 +58,7 @@ export type {
   AiClientToolProducerPort,
   AiClientToolConsumerPort,
   AiClientToolResourceType,
+  AiClientToolOutputAudience,
   AiClientToolSourcePolicy,
 } from './clientToolRouting';
 export {
@@ -63,6 +69,7 @@ export {
   AI_CLIENT_TOOL_ROUTING_STAGES,
   AI_CLIENT_TOOL_DATA_ACCESS_MODES,
   AI_CLIENT_TOOL_RESULT_DELIVERIES,
+  AI_CLIENT_TOOL_OUTPUT_AUDIENCES,
   defineAiClientToolRouting,
   validateAiClientToolRoutingMetadata,
   validateAiClientToolEffectMetadata,
@@ -108,6 +115,7 @@ export type {
   AiClientToolCatalogToolReport,
   AiClientToolCatalogReport,
   AiClientToolCatalogSnapshot,
+  AiClientToolCatalogOptions,
 } from './clientToolCatalog';
 export {
   AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
@@ -129,6 +137,7 @@ export type {
   AiClientToolRecordSource,
   AiClientToolRecordStream,
   AiClientToolRecordStreamOptions,
+  AiClientToolResultOutputDefinition,
 } from './clientToolResultDelivery';
 export type {
   AiClientToolArtifactReference,
@@ -225,6 +234,8 @@ export interface AiClientToolCall {
   toolName: string;
   arguments?: Record<string, any>;
   sessionFiles?: AiClientToolSessionFileApi;
+  /** Installed renderer contracts for generic post-execution delivery; they never select a producer. */
+  presentationCapabilities?: readonly GeneralAgentMarkdownPresentationCapability[];
   /** Aborted when the conversation turn, socket, or client-tool request is cancelled. */
   signal?: AbortSignal;
   requestConfirmation?: (
@@ -1019,6 +1030,19 @@ const resolveToolResultBindings = <TContext>(
   return declared;
 };
 
+const resolveToolResultOutputs = <TContext>(tool: AiClientToolDefinition<TContext>) => {
+  const contract = tool._meta?.[AI_CLIENT_TOOL_CONTRACT_META_KEY];
+  if (!isAiClientToolContractMetadata(contract)) return undefined;
+  return contract.outputs.map(output => ({
+    name: output.name,
+    type: output.type || 'structured-data',
+    shape: output.shape,
+    mediaType: output.mediaType || 'application/json',
+    audience: output.audience,
+    delivery: output.delivery || (output.kind === 'artifact' ? 'file' : 'inline'),
+  }));
+};
+
 const resolveConfirmText = <TContext>(
   value: AiClientToolConfirmOptions<TContext>['title'] | AiClientToolConfirmOptions<TContext>['content'],
   args: Record<string, any>,
@@ -1359,6 +1383,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
           name: 'client-tool-help',
           mediaType: 'text/plain',
           shape: 'tool.help',
+          audience: 'model-evidence',
           path: '$.help',
         }],
       }),
@@ -1514,6 +1539,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
             ...(routing?.outputShapes?.length === 1 ? { outputShape: routing.outputShapes[0] } : {}),
             ...(routing?.producerPorts?.length === 1 ? { outputType: routing.producerPorts[0].type } : {}),
             outputBindings: resolveToolResultBindings(tool),
+            outputs: resolveToolResultOutputs(tool),
           });
         });
       }

@@ -32,9 +32,16 @@ export const AI_CLIENT_TOOL_DATA_ACCESS_MODES = [
 
 export const AI_CLIENT_TOOL_RESULT_DELIVERIES = ['inline', 'file', 'auto'] as const
 
+export const AI_CLIENT_TOOL_OUTPUT_AUDIENCES = [
+  'model-evidence',
+  'client-presentation',
+  'reusable-source',
+] as const
+
 export type AiClientToolRoutingStage = typeof AI_CLIENT_TOOL_ROUTING_STAGES[number]
 export type AiClientToolRoutingDataAccessMode = typeof AI_CLIENT_TOOL_DATA_ACCESS_MODES[number]
 export type AiClientToolRoutingResultDelivery = typeof AI_CLIENT_TOOL_RESULT_DELIVERIES[number]
+export type AiClientToolOutputAudience = typeof AI_CLIENT_TOOL_OUTPUT_AUDIENCES[number]
 export type AiClientToolRoutingExposure = 'auto' | 'eager' | 'deferred'
 export type AiClientToolRoutingCost = 'low' | 'medium' | 'high'
 export type AiClientToolEvidencePolicy = 'auto' | 'required' | 'optional' | 'none'
@@ -50,10 +57,12 @@ export interface AiClientToolProducerPort {
   type: AiClientToolResourceType
   mediaType: string
   shape: string
+  /** Canonical visibility/delivery projection. Released routed-legacy ports may omit it. */
+  audience?: AiClientToolOutputAudience
 }
 
 /** Static consumer requirement. Source policy constrains provenance but never identifies a producer or argument. */
-export interface AiClientToolConsumerPort extends AiClientToolProducerPort {
+export interface AiClientToolConsumerPort extends Omit<AiClientToolProducerPort, 'audience'> {
   required: boolean
   sourcePolicy: AiClientToolSourcePolicy
 }
@@ -442,8 +451,10 @@ const normalizeProducerPort = (value: unknown): AiClientToolProducerPort | undef
   const type = normalizeEnum(value.type, AI_CLIENT_TOOL_RESOURCE_TYPES)
   const mediaType = normalizeText(value.mediaType, 160).toLowerCase()
   const shape = normalizeText(value.shape, 160).toLowerCase()
+  const audience = normalizeEnum(value.audience, AI_CLIENT_TOOL_OUTPUT_AUDIENCES)
+  if (value.audience !== undefined && !audience) return undefined
   if (!name || !type || !mediaType || !shape) return undefined
-  return { name, type, mediaType, shape }
+  return { name, type, mediaType, shape, ...(audience ? { audience } : {}) }
 }
 
 const normalizePorts = <T>(value: unknown, mapper: (item: unknown) => T | undefined): T[] => {
@@ -466,7 +477,8 @@ const normalizeConsumerPort = (value: unknown): AiClientToolConsumerPort | undef
     ? normalizedSourcePolicy as AiClientToolSourcePolicy
     : undefined
   if (!sourcePolicy || typeof value.required !== 'boolean') return undefined
-  return { ...producer, required: value.required, sourcePolicy }
+  const { audience: _audience, ...resource } = producer
+  return { ...resource, required: value.required, sourcePolicy }
 }
 
 const ANALYTICAL_TOKEN_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/

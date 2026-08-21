@@ -4,6 +4,7 @@ import path from 'node:path'
 import test from 'node:test'
 import {
   createAiClientToolContractOutputBinding,
+  diagnoseAiClientToolPresentationCompatibility,
   defineAiClientToolContract,
   isAiClientToolContractMetadata,
   withAiClientToolContractEvidence,
@@ -60,6 +61,7 @@ const createSeriesContract = () => defineAiClientToolContract({
     kind: 'aggregate-series',
     name: 'series',
     shape: 'time-series.aggregate',
+    audience: 'reusable-source',
     path: '$.data',
     delivery: 'auto',
     fields: [{ name: 'time', semanticRole: 'timestamp' }],
@@ -653,6 +655,26 @@ test('binding normalization preserves display-only label semantics', () => {
   }])
 
   assert.deepEqual(binding.fields, [{ name: 'display', semanticRole: 'label' }])
+})
+
+test('binding normalization preserves only canonical source digests and isolates malformed siblings', () => {
+  const digest = `sha256:${'ab'.repeat(32)}`
+  const normalized = normalizeAiClientToolOutputBindings([{
+    name: 'valid-source',
+    ref: 'session://valid-source.json',
+    shape: 'anonymous.records',
+    complete: true,
+    sourceDigest: digest.toUpperCase(),
+  }, {
+    name: 'malformed-source',
+    ref: 'session://malformed-source.json',
+    shape: 'anonymous.records',
+    complete: true,
+    sourceDigest: 'sha256:not-a-digest',
+  }] as any)
+
+  assert.deepEqual(normalized.map(binding => binding.name), ['valid-source'])
+  assert.equal(normalized[0].sourceDigest, digest)
 })
 
 test('binding normalization preserves orthogonal physical types and analytical roles without inference', () => {
@@ -1577,6 +1599,7 @@ test('typed contract generates routing, binding and evidence from one output dec
     type: 'structured-data',
     mediaType: 'application/json',
     shape: 'time-series.aggregate',
+    audience: 'reusable-source',
   }])
   assert.deepEqual(contract.routing.produces, ['series'])
   assert.deepEqual(contract.routing.outputShapes, ['time-series.aggregate'])
@@ -1584,6 +1607,7 @@ test('typed contract generates routing, binding and evidence from one output dec
   assert.deepEqual(contract._meta.resultBindings, [{
     name: 'series',
     type: 'structured-data',
+    audience: 'reusable-source',
     path: '$.data',
     shape: 'time-series.aggregate',
     mediaType: 'application/json',
@@ -1601,6 +1625,7 @@ test('typed contract generates routing, binding and evidence from one output dec
   })
   assert.equal(result.evidence.outputBindings?.[0]?.name, 'series')
   assert.equal(result.evidence.outputBindings?.[0]?.shape, 'time-series.aggregate')
+  assert.equal(result.evidence.outputBindings?.[0]?.audience, 'reusable-source')
   assert.deepEqual(result.evidence.outputBindings?.[0]?.ordering, {
     keys: [{ field: 'time', direction: 'asc' }],
     producerGuaranteed: true,
@@ -1661,6 +1686,7 @@ test('legacy name-only consumers remain a bounded flat projection beside canonic
     type: 'structured-data',
     mediaType: 'application/json',
     shape: 'tabular.summary',
+    audience: 'model-evidence',
   }])
 })
 
@@ -1735,6 +1761,7 @@ test('canonical output fields require an explicit bounded record path', () => {
       kind: 'record-set',
       name: 'records',
       shape: 'tabular.records',
+      audience: 'model-evidence',
       path: '$.data',
       fields: [{ name: 'id', type: 'string', role: 'identifier' }],
     }],
@@ -1749,6 +1776,7 @@ test('execution state cannot override contract-owned record path, fields, or ord
       kind: 'aggregate-series',
       name: 'series',
       shape: 'time-series.aggregate',
+      audience: 'model-evidence',
       path: '$.data',
       recordPath: '$.records[*]',
       fields: [
@@ -1789,6 +1817,7 @@ test('materialized references keep contract-owned record paths and never reuse a
       kind: 'aggregate-series',
       name: 'series',
       shape: 'time-series.aggregate',
+      audience: 'model-evidence',
       path: '$.data',
       recordPath: '$.results',
       fields: [{ name: 'time', semanticRole: 'timestamp' }],
@@ -1836,20 +1865,37 @@ test('contract validation rejects duplicate outputs and unsafe delivery declarat
     routingKind: 'records',
     routing: { capabilities: ['test.records.read'] },
     outputs: [
-      { kind: 'record-set', name: 'records', shape: 'records', path: '$.data' },
-      { kind: 'record-set', name: 'records', shape: 'records', path: '$.other' },
+      { kind: 'record-set', name: 'records', shape: 'records', audience: 'model-evidence', path: '$.data' },
+      { kind: 'record-set', name: 'records', shape: 'records', audience: 'model-evidence', path: '$.other' },
     ],
   }), /Duplicate client tool output binding/)
   assert.throws(() => defineAiClientToolContract({
     routingKind: 'records',
     routing: { capabilities: ['test.records.read'] },
-    outputs: [{ kind: 'record-set', name: 'records', shape: 'records', path: '$.data', delivery: 'file' }],
+    outputs: [{
+      kind: 'record-set',
+      name: 'records',
+      shape: 'records',
+      audience: 'reusable-source',
+      path: '$.data',
+      delivery: 'file',
+    }],
   }), /must not declare an inline binding path/)
   assert.throws(() => defineAiClientToolContract({
     routingKind: 'artifact',
     routing: { capabilities: ['test.artifact.create'] },
-    outputs: [{ kind: 'artifact', name: 'artifact', shape: 'document', mediaType: '' }],
+    outputs: [{
+      kind: 'artifact', name: 'artifact', shape: 'document', audience: 'reusable-source', mediaType: '',
+    }],
   }), /requires a media type/)
+  assert.throws(() => defineAiClientToolContract({
+    routingKind: 'artifact',
+    routing: { capabilities: ['test.artifact.create'] },
+    outputs: [{
+      kind: 'artifact', name: 'artifact', type: 'structured-data', shape: 'document',
+      audience: 'reusable-source', mediaType: 'application/octet-stream', delivery: 'auto',
+    }],
+  }), /must use artifact type and file delivery/)
 })
 
 test('runtime evidence rejects duplicate bindings', () => {
@@ -1882,7 +1928,13 @@ test('artifact outputs default to file delivery and cannot create inline binding
   const contract = defineAiClientToolContract({
     routingKind: 'artifact',
     routing: { capabilities: ['test.document.create'] },
-    outputs: [{ kind: 'artifact', name: 'document', shape: 'document.pdf', mediaType: 'application/pdf' }],
+    outputs: [{
+      kind: 'artifact',
+      name: 'document',
+      shape: 'document.pdf',
+      audience: 'reusable-source',
+      mediaType: 'application/pdf',
+    }],
   })
   assert.deepEqual(contract.routing.resultDeliveries, ['file'])
   assert.deepEqual(contract._meta.resultBindings, [])
@@ -1896,6 +1948,356 @@ test('artifact outputs default to file delivery and cannot create inline binding
   assert.throws(() => createAiClientToolContractOutputBinding(contract, {
     name: 'document', complete: true,
   }), /has no inline path or materialized reference/)
+})
+
+test('required presentation diagnostics use canonical resource, media, shape and delivery axes', () => {
+  const presentation = {
+    type: 'anonymous-grid',
+    contentType: 'json' as const,
+    mediaType: 'application/vnd.example.records+json',
+    supportsSessionFile: true,
+    maxInlineBytes: 4096,
+    defaultMode: 'preview' as const,
+    purpose: 'conversation-preview' as const,
+    preferredInputShapes: ['example.records'],
+    deliveryPolicy: 'required' as const,
+  }
+  const compatible = defineAiClientToolContract({
+    routingKind: 'records',
+    routing: { capabilities: ['example.records.read'] },
+    outputs: [{
+      kind: 'record-set',
+      name: 'records',
+      type: 'structured-data',
+      mediaType: presentation.mediaType,
+      shape: 'example.records',
+      audience: 'client-presentation',
+      path: '$.data',
+      delivery: 'auto',
+    }],
+  })
+  assert.deepEqual(
+    diagnoseAiClientToolPresentationCompatibility(compatible._meta.clientToolContract, presentation),
+    { status: 'compatible', compatibleOutputs: ['records'], issues: [] },
+  )
+
+  const artifact = defineAiClientToolContract({
+    routingKind: 'artifact',
+    routing: { capabilities: ['example.file.create'] },
+    outputs: [{
+      kind: 'artifact',
+      name: 'file',
+      type: 'artifact',
+      mediaType: presentation.mediaType,
+      shape: 'example.records',
+      audience: 'reusable-source',
+      delivery: 'file',
+    }],
+  })
+  const artifactDiagnostic = diagnoseAiClientToolPresentationCompatibility(
+    artifact._meta.clientToolContract,
+    presentation,
+  )
+  assert.equal(artifactDiagnostic.status, 'incompatible')
+  assert.deepEqual(artifactDiagnostic.compatibleOutputs, [])
+  assert.ok(artifactDiagnostic.issues.some(issue => issue.code === 'resource_type_mismatch'))
+
+  const incompatible = [
+    defineAiClientToolContract({
+      routingKind: 'records',
+      routing: { capabilities: ['example.other-media.read'] },
+      outputs: [{
+        kind: 'record-set', name: 'other-media', shape: 'example.records', path: '$.data',
+        audience: 'client-presentation', mediaType: 'application/vnd.example.other+json', delivery: 'auto',
+      }],
+    }),
+    defineAiClientToolContract({
+      routingKind: 'records',
+      routing: { capabilities: ['example.other-shape.read'] },
+      outputs: [{
+        kind: 'record-set', name: 'other-shape', shape: 'example.other', path: '$.data',
+        audience: 'client-presentation', mediaType: presentation.mediaType, delivery: 'auto',
+      }],
+    }),
+    artifact,
+  ].map(contract => diagnoseAiClientToolPresentationCompatibility(
+    contract._meta.clientToolContract,
+    presentation,
+  ))
+  assert.deepEqual(incompatible.map(item => item.status), [
+    'incompatible', 'incompatible', 'incompatible',
+  ])
+  assert.ok(incompatible[0].issues.some(issue => issue.code === 'media_type_mismatch'))
+  assert.ok(incompatible[1].issues.some(issue => issue.code === 'shape_mismatch'))
+
+  const ambiguous = defineAiClientToolContract({
+    routingKind: 'records',
+    routing: { capabilities: ['example.ambiguous.read'] },
+    outputs: ['left', 'right'].map((name, index) => ({
+      kind: 'record-set' as const,
+      name,
+      shape: 'example.records',
+      mediaType: presentation.mediaType,
+      audience: 'client-presentation' as const,
+      path: `$.__clientToolOutputs.output${index}`,
+      delivery: 'auto' as const,
+    })),
+  })
+  assert.deepEqual(
+    diagnoseAiClientToolPresentationCompatibility(ambiguous._meta.clientToolContract, presentation),
+    { status: 'ambiguous', compatibleOutputs: ['left', 'right'], issues: [] },
+  )
+  assert.equal(diagnoseAiClientToolPresentationCompatibility({
+    ...compatible._meta.clientToolContract,
+    version: 'unknown',
+  }, presentation).status, 'malformed')
+  assert.equal(diagnoseAiClientToolPresentationCompatibility(
+    compatible._meta.clientToolContract,
+    { ...presentation, preferredInputShapes: [] },
+  ).status, 'malformed')
+
+  const wildcardDiagnostic = diagnoseAiClientToolPresentationCompatibility(
+    compatible._meta.clientToolContract,
+    { ...presentation, preferredInputShapes: ['example.*'] },
+  )
+  assert.equal(wildcardDiagnostic.status, 'compatible')
+})
+
+test('structured producer keeps one canonical binding through artifact materialization', async () => {
+  let producerCalls = 0
+  let incompatibleCalls = 0
+  const mediaType = 'application/vnd.example.materialized-records+json'
+  const shape = 'example.materialized-records'
+  const presentation = {
+    type: 'anonymous-table',
+    contentType: 'json' as const,
+    mediaType,
+    supportsSessionFile: true,
+    maxInlineBytes: 4096,
+    defaultMode: 'preview' as const,
+    purpose: 'conversation-preview' as const,
+    preferredInputShapes: [shape],
+    deliveryPolicy: 'required' as const,
+  }
+  const createCarrier = (modelSafeInline: boolean) => createAiClientToolArtifact({
+    content: JSON.stringify({ records: [{ id: 'one' }, { id: 'two' }] }),
+    mimeType: mediaType,
+    fileExtension: 'json',
+    bindingName: 'records',
+    outputShape: shape,
+    recordPath: '$.records',
+    cardinality: {
+      kind: 'record-set',
+      recordCount: 2,
+      returnedCount: 2,
+      totalCount: 2,
+    },
+    complete: true,
+    truncated: false,
+    preview: { records: [{ id: 'one' }] },
+    ...(modelSafeInline ? { modelSafeInline: { records: [{ id: 'one' }, { id: 'two' }] } } : {}),
+  })
+  const producer = defineClientTool<Record<string, unknown>, Record<string, unknown>, ReturnType<typeof createCarrier>>({
+    id: 'anonymous_structured_producer',
+    description: { text: 'Produce anonymous structured records', capabilities: ['example.records.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({
+      name: 'records',
+      shape,
+      mediaType,
+      audience: 'client-presentation',
+      recordPath: '$.records',
+    }),
+    execute: () => {
+      producerCalls += 1
+      return createCarrier(true)
+    },
+  })
+  const incompatibleProducer = defineClientTool<Record<string, unknown>, Record<string, unknown>, ReturnType<typeof createCarrier>>({
+    id: 'anonymous_file_producer',
+    description: { text: 'Produce anonymous file', capabilities: ['example.file.create'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.artifact({ name: 'records', shape, mediaType }),
+    execute: () => {
+      incompatibleCalls += 1
+      return createCarrier(true)
+    },
+  })
+  const diagnostic = diagnoseAiClientToolPresentationCompatibility(
+    producer._meta?.clientToolContract,
+    presentation,
+  )
+  const incompatibleDiagnostic = diagnoseAiClientToolPresentationCompatibility(
+    incompatibleProducer._meta?.clientToolContract,
+    presentation,
+  )
+  assert.equal(diagnostic.status, 'compatible')
+  assert.equal(incompatibleDiagnostic.status, 'incompatible')
+  assert.equal(producerCalls, 0)
+  assert.equal(incompatibleCalls, 0)
+
+  const prepared = await producer.execute({}, {}, { id: 'one-call', toolName: producer.id })
+  const port = producer.routing?.producerPorts?.[0]
+  assert.ok(port)
+  const deliveryOptions = {
+    bindingName: port.name,
+    outputShape: port.shape,
+    outputType: port.type,
+    outputs: producer._meta!.clientToolContract.outputs.map((output: any) => ({
+      name: output.name,
+      type: output.type,
+      shape: output.shape,
+      mediaType: output.mediaType,
+      audience: output.audience,
+      delivery: output.delivery,
+    })),
+  }
+  const inline = await deliverAiClientToolResult(prepared, {
+    call: {
+      id: 'inline',
+      toolName: producer.id,
+      presentationCapabilities: [{ ...presentation, supportsSessionFile: false }],
+    },
+    resultDelivery: 'auto',
+    ...deliveryOptions,
+  }) as any
+  const file = await deliverAiClientToolResult(prepared, {
+    call: {
+      id: 'file',
+      toolName: producer.id,
+      presentationCapabilities: [{ ...presentation, maxInlineBytes: 0 }],
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => ({ ok: true, path }),
+        remove: async path => ({ ok: true, path }),
+      },
+    },
+    resultDelivery: 'auto',
+    ...deliveryOptions,
+  }) as any
+  assert.equal(producerCalls, 1)
+  assert.equal(incompatibleCalls, 0)
+  const logicalBinding = (value: any) => ({
+    name: value.name,
+    type: value.type,
+    audience: value.audience,
+    sourceDigest: value.sourceDigest,
+    shape: value.shape,
+    mediaType: value.mediaType,
+    recordPath: value.recordPath,
+    complete: value.complete,
+    truncated: value.truncated,
+  })
+  assert.deepEqual(logicalBinding(inline.outputBindings[0]), logicalBinding(file.outputBindings[0]))
+  assert.match(inline.outputBindings[0].sourceDigest, /^sha256:[a-f0-9]{64}$/)
+  assert.equal(file.outputBindings[0].sourceDigest, inline.outputBindings[0].sourceDigest)
+  assert.deepEqual(logicalBinding(file.outputBindings[0]), {
+    name: 'records',
+    type: 'structured-data',
+    audience: 'client-presentation',
+    sourceDigest: inline.outputBindings[0].sourceDigest,
+    shape,
+    mediaType,
+    recordPath: '$.records',
+    complete: true,
+    truncated: false,
+  })
+  assert.equal(inline.outputBindings[0].path, '$.data.presentationSource')
+  assert.ok(file.outputBindings[0].ref.startsWith('fs://'))
+
+  const boundedPreview = await deliverAiClientToolResult({ data: createCarrier(false) }, {
+    call: {
+      id: 'preview',
+      toolName: producer.id,
+      presentationCapabilities: [presentation],
+    },
+    resultDelivery: 'auto',
+    ...deliveryOptions,
+  }) as any
+  assert.equal(boundedPreview.status, 'partial')
+  assert.equal(boundedPreview.complete, false)
+  assert.equal(boundedPreview.truncated, true)
+  assert.equal(boundedPreview.outputBindings, undefined)
+  assert.equal(boundedPreview.evidence?.outputBindings?.[0]?.sourceDigest, undefined)
+  assert.equal(boundedPreview.data.presentationSource, undefined)
+})
+
+test('artifact auto delivery applies audience and requiredness without changing canonical source semantics', async () => {
+  const mediaType = 'application/vnd.example.audience-records+json'
+  const shape = 'anonymous.audience-records'
+  const artifact = createAiClientToolArtifact({
+    content: JSON.stringify({ records: [{ id: 'complete-source' }] }),
+    modelSafeInline: { records: [{ id: 'bounded-model-sample' }] },
+    mimeType: mediaType,
+    bindingName: 'records',
+    outputShape: shape,
+    recordPath: '$.records',
+    cardinality: { kind: 'record-set', recordCount: 1, returnedCount: 1, totalCount: 1 },
+    preview: { count: 1 },
+  })
+  let uploads = 0
+  const modelEvidence = await deliverAiClientToolResult({ data: artifact }, {
+    call: {
+      id: 'model-evidence',
+      toolName: 'anonymous_audience_producer',
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => {
+          uploads += 1
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: [{
+      name: 'records', type: 'structured-data', shape, mediaType,
+      audience: 'model-evidence', delivery: 'inline',
+    }],
+  }) as any
+  assert.equal(uploads, 0)
+  assert.equal(modelEvidence.summary.delivery, 'inline')
+  assert.equal(modelEvidence.complete, true)
+  assert.deepEqual(modelEvidence.data.presentationSource, {
+    records: [{ id: 'bounded-model-sample' }],
+  })
+  assert.equal(modelEvidence.outputBindings, undefined)
+
+  const reusableWithoutExactRef = await deliverAiClientToolResult({ data: artifact }, {
+    call: { id: 'reusable-source', toolName: 'anonymous_audience_producer' },
+    outputs: [{
+      name: 'records', type: 'structured-data', shape, mediaType,
+      audience: 'reusable-source', delivery: 'auto',
+    }],
+  }) as any
+  assert.equal(reusableWithoutExactRef.summary.delivery, 'bounded-preview')
+  assert.equal(reusableWithoutExactRef.complete, false)
+  assert.equal(reusableWithoutExactRef.truncated, true)
+  assert.equal(reusableWithoutExactRef.outputBindings, undefined)
+  assert.equal(reusableWithoutExactRef.data.presentationSource, undefined)
+
+  const optionalPresentation = await deliverAiClientToolResult({ data: artifact }, {
+    call: {
+      id: 'optional-presentation',
+      toolName: 'anonymous_audience_producer',
+      presentationCapabilities: [{
+        type: 'anonymous-optional-view',
+        contentType: 'json',
+        mediaType,
+        supportsSessionFile: false,
+        maxInlineBytes: 1,
+        defaultMode: 'preview',
+        purpose: 'conversation-preview',
+        preferredInputShapes: [shape],
+        deliveryPolicy: 'optional',
+      }],
+    },
+    outputs: [{
+      name: 'records', type: 'structured-data', shape, mediaType,
+      audience: 'client-presentation', delivery: 'auto',
+    }],
+  }) as any
+  assert.equal(optionalPresentation.summary.delivery, 'bounded-preview')
+  assert.equal(optionalPresentation.complete, true)
+  assert.equal(optionalPresentation.outputBindings, undefined)
 })
 
 test('JSON artifacts publish only bounded logical record paths', async () => {
@@ -1954,7 +2356,7 @@ test('JSON artifacts publish only bounded logical record paths', async () => {
 
   const inline = await deliverAiClientToolResult({
     data: createAiClientToolArtifact({
-      content: '{}',
+      content: JSON.stringify({ results: [{ id: 'inline' }] }),
       modelSafeInline: { results: [{ id: 'inline' }] },
       mimeType: 'application/json',
       bindingName: 'records',
@@ -1970,7 +2372,7 @@ test('JSON artifacts publish only bounded logical record paths', async () => {
   assert.equal(inline.outputBindings[0].recordPath, '$.results')
 
   const mutated = createAiClientToolArtifact({
-    content: '{}',
+    content: JSON.stringify({ results: [] }),
     modelSafeInline: { results: [] },
     mimeType: 'application/json',
     preview: {},
@@ -2307,8 +2709,8 @@ test('catalog diagnoses contract drift without rejecting repeated output shapes'
     routingKind: 'records',
     routing: { capabilities: ['test.records.read'] },
     outputs: [
-      { kind: 'record-set', name: 'left', shape: 'tabular.records', path: '$.left' },
-      { kind: 'record-set', name: 'right', shape: 'tabular.records', path: '$.right' },
+      { kind: 'record-set', name: 'left', shape: 'tabular.records', audience: 'model-evidence', path: '$.left' },
+      { kind: 'record-set', name: 'right', shape: 'tabular.records', audience: 'model-evidence', path: '$.right' },
     ],
   })
   const valid = createAiClientToolCatalogReport([{ id: 'records_read', ...repeatedShape }], {
@@ -2325,6 +2727,66 @@ test('catalog diagnoses contract drift without rejecting repeated output shapes'
   }], { requireRouting: true })
   assert.equal(drifted.tools[0]?.contractStatus, 'malformed')
   assert.ok(drifted.issues.some(issue => issue.code === 'typed_contract_routing_mismatch'))
+})
+
+test('catalog presentation preflight isolates an incompatible sibling and keeps a valid producer callable', async () => {
+  let producerCalls = 0
+  const mediaType = 'application/vnd.example.preflight-records+json'
+  const shape = 'anonymous.preflight-records'
+  const presentation = {
+    type: 'anonymous-preflight-view',
+    contentType: 'json' as const,
+    mediaType,
+    supportsSessionFile: true,
+    maxInlineBytes: 4096,
+    defaultMode: 'preview' as const,
+    purpose: 'conversation-preview' as const,
+    preferredInputShapes: [shape],
+    deliveryPolicy: 'required' as const,
+  }
+  const validProducer = defineClientTool({
+    id: 'anonymous_preflight_valid',
+    description: { text: 'Produce compatible anonymous records', capabilities: ['anonymous.preflight.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({
+      name: 'records', shape, mediaType, audience: 'client-presentation', recordPath: '$.records',
+    }),
+    execute: () => {
+      producerCalls += 1
+      return clientToolResult.success({ records: [{ id: 'one' }] })
+    },
+  })
+  const incompatibleSibling = defineClientTool({
+    id: 'anonymous_preflight_incompatible',
+    description: { text: 'Produce incompatible anonymous records', capabilities: ['anonymous.preflight.other'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({
+      name: 'other-records', shape, mediaType: 'application/vnd.example.other+json',
+      audience: 'client-presentation', recordPath: '$.records',
+    }),
+    execute: () => clientToolResult.success({ records: [] }),
+  })
+  const snapshot = createAiClientToolCatalogSnapshot(
+    [incompatibleSibling, validProducer],
+    { presentationCapabilities: [presentation] },
+  )
+
+  assert.equal(snapshot.report.valid, false)
+  assert.deepEqual(
+    snapshot.report.issues.filter(issue => issue.code === 'presentation_output_incompatible')
+      .map(issue => issue.toolId),
+    ['anonymous_preflight_incompatible'],
+  )
+  assert.deepEqual(snapshot.definitions.map(tool => tool.id), [
+    'anonymous_preflight_incompatible', 'anonymous_preflight_valid',
+  ])
+  assert.equal(
+    snapshot.wireDefinitions[1]?.expands?.['x-ai-routing']?.producerPorts?.[0]?.audience,
+    'client-presentation',
+  )
+  const callable = snapshot.definitions[1] as typeof validProducer
+  await callable.execute({}, {}, { id: 'preflight-call', toolName: callable.id })
+  assert.equal(producerCalls, 1)
 })
 
 test('catalog classifies typed, legacy, missing and malformed contracts independently', () => {
@@ -2887,6 +3349,342 @@ test('file success and inline delivery expose equivalent logical bindings', asyn
   assert.equal(inlineResult.evidence.complete, true)
 })
 
+test('record streams share one audience policy and exact NDJSON digest across inline and file carriers', async () => {
+  const records = [{ id: 'alpha' }, { id: 'beta' }]
+  const canonicalBytes = new TextEncoder().encode(
+    records.map(record => `${JSON.stringify(record)}\n`).join(''),
+  )
+  const expectedDigestBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', canonicalBytes))
+  const expectedDigest = `sha256:${Array.from(
+    expectedDigestBytes,
+    byte => byte.toString(16).padStart(2, '0'),
+  ).join('')}`
+  const shape = 'anonymous.stream-records'
+  const mediaType = 'application/x-ndjson'
+  const stream = () => createAiClientToolRecordStream({
+    source: createAiClientToolArrayRecordSource(records),
+    schema: { type: 'object', properties: { id: { type: 'string', 'x-ai-role': 'identifier' } } },
+    bindingName: 'records',
+    outputShape: shape,
+  })
+  const output = (audience: 'model-evidence' | 'client-presentation' | 'reusable-source') => [{
+    name: 'records', type: 'structured-data' as const, shape, mediaType, audience, delivery: 'auto' as const,
+  }]
+  const capability = (deliveryPolicy: 'required' | 'optional', maxInlineBytes: number) => ({
+    type: 'anonymous-stream-view',
+    contentType: 'json' as const,
+    mediaType,
+    supportsSessionFile: true,
+    maxInlineBytes,
+    defaultMode: 'preview' as const,
+    purpose: 'conversation-preview' as const,
+    preferredInputShapes: [shape],
+    deliveryPolicy,
+  })
+  let modelUploads = 0
+  const modelEvidence = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-model-evidence',
+      toolName: 'anonymous_stream_producer',
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => {
+          modelUploads += 1
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: output('model-evidence'),
+  }) as any
+  assert.equal(modelUploads, 0)
+  assert.equal(modelEvidence.data.delivery, 'inline-sample')
+  assert.equal(modelEvidence.complete, true)
+  assert.equal(modelEvidence.evidence.complete, true)
+  assert.equal(modelEvidence.outputBindings[0].audience, 'model-evidence')
+  assert.equal(modelEvidence.outputBindings[0].sourceDigest, expectedDigest)
+
+  const requiredInline = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-required-inline',
+      toolName: 'anonymous_stream_producer',
+      presentationCapabilities: [capability('required', 4096)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(requiredInline.data.delivery, 'inline-sample')
+  assert.equal(requiredInline.evidence.complete, true)
+  assert.equal(requiredInline.outputBindings[0].sourceDigest, expectedDigest)
+
+  const uploadedChunks: string[] = []
+  const requiredFile = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-required-file',
+      toolName: 'anonymous_stream_producer',
+      presentationCapabilities: [capability('required', 1)],
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async (path, body) => {
+          uploadedChunks.push(body instanceof Blob ? await body.text() : String(body))
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(uploadedChunks.join(''), new TextDecoder().decode(canonicalBytes))
+  assert.equal(requiredFile.data.delivery, 'session-file')
+  assert.equal(requiredFile.evidence.complete, true)
+  assert.equal(requiredFile.outputBindings[0].sourceDigest, expectedDigest)
+  assert.equal(requiredFile.outputBindings[0].sourceDigest, requiredInline.outputBindings[0].sourceDigest)
+
+  const requiredUnavailable = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-required-unavailable',
+      toolName: 'anonymous_stream_producer',
+      presentationCapabilities: [capability('required', 1)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(requiredUnavailable.evidence.complete, false)
+  assert.equal(requiredUnavailable.evidence.truncated, true)
+  assert.equal(requiredUnavailable.outputBindings, undefined)
+  assert.equal(requiredUnavailable.data.sourceDigest, undefined)
+
+  const optionalUnavailable = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-optional-unavailable',
+      toolName: 'anonymous_stream_producer',
+      presentationCapabilities: [capability('optional', 1)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(optionalUnavailable.evidence.complete, true)
+  assert.equal(optionalUnavailable.outputBindings, undefined)
+  assert.equal(optionalUnavailable.data.sourceDigest, undefined)
+
+  const reusableUnavailable = await deliverAiClientToolResult(stream(), {
+    call: { id: 'stream-reusable-unavailable', toolName: 'anonymous_stream_producer' },
+    outputs: output('reusable-source'),
+  }) as any
+  assert.equal(reusableUnavailable.evidence.complete, false)
+  assert.equal(reusableUnavailable.outputBindings, undefined)
+  assert.equal(reusableUnavailable.data.sourceDigest, undefined)
+
+  const reusableFile = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-reusable-file',
+      toolName: 'anonymous_stream_producer',
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => ({ ok: true, path }),
+      },
+    },
+    outputs: output('reusable-source'),
+  }) as any
+  assert.equal(reusableFile.data.delivery, 'session-file')
+  assert.equal(reusableFile.evidence.complete, true)
+  assert.equal(reusableFile.outputBindings[0].sourceDigest, expectedDigest)
+})
+
+test('empty record streams keep evidence separate from required carrier admission', async () => {
+  const semanticToken = crypto.randomUUID().replaceAll('-', '')
+  const shape = `anonymous.${semanticToken}.records`
+  const mediaType = 'application/x-ndjson'
+  const emptyDigestBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array()))
+  const emptyDigest = `sha256:${Array.from(
+    emptyDigestBytes,
+    byte => byte.toString(16).padStart(2, '0'),
+  ).join('')}`
+  const stream = () => createAiClientToolRecordStream({
+    source: createAiClientToolArrayRecordSource([]),
+    schema: { type: 'object', properties: { id: { type: 'string', 'x-ai-role': 'identifier' } } },
+    bindingName: 'records',
+    outputShape: shape,
+  })
+  const output = (
+    audience: 'model-evidence' | 'client-presentation' | 'reusable-source',
+    delivery: 'auto' | 'inline' = 'auto',
+  ) => [{
+    name: 'records', type: 'structured-data' as const, shape, mediaType, audience, delivery,
+  }]
+  const capability = (
+    deliveryPolicy: 'required' | 'optional',
+    supportsSessionFile: boolean,
+    maxInlineBytes: number,
+  ) => ({
+    type: `anonymous-empty-view-${semanticToken}`,
+    contentType: 'json' as const,
+    mediaType,
+    supportsSessionFile,
+    maxInlineBytes,
+    defaultMode: 'preview' as const,
+    purpose: 'conversation-preview' as const,
+    preferredInputShapes: [shape],
+    deliveryPolicy,
+  })
+
+  let modelUploads = 0
+  const modelEvidence = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-model-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => {
+          modelUploads += 1
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: output('model-evidence'),
+  }) as any
+  assert.equal(modelUploads, 0)
+  assert.equal(modelEvidence.status, 'empty')
+  assert.equal(modelEvidence.evidence.complete, true)
+  assert.equal(modelEvidence.outputBindings[0].path, '$.data.sample')
+  assert.equal(modelEvidence.outputBindings[0].sourceDigest, emptyDigest)
+
+  const missingPresentation = await deliverAiClientToolResult(stream(), {
+    call: { id: `empty-missing-${semanticToken}`, toolName: `anonymous_empty_${semanticToken}` },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(missingPresentation.status, 'partial')
+  assert.equal(missingPresentation.evidence.complete, false)
+  assert.equal(missingPresentation.evidence.truncated, true)
+  assert.equal(missingPresentation.outputBindings, undefined)
+  assert.equal(missingPresentation.data.sourceDigest, undefined)
+
+  const requiredInline = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-inline-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      presentationCapabilities: [capability('required', false, 4096)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(requiredInline.status, 'empty')
+  assert.equal(requiredInline.evidence.complete, true)
+  assert.equal(requiredInline.outputBindings[0].path, '$.data.sample')
+  assert.equal(requiredInline.outputBindings[0].sourceDigest, emptyDigest)
+
+  const requiredFileUnavailable = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-file-unavailable-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      presentationCapabilities: [capability('required', true, 0)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(requiredFileUnavailable.status, 'partial')
+  assert.equal(requiredFileUnavailable.evidence.complete, false)
+  assert.equal(requiredFileUnavailable.outputBindings, undefined)
+  assert.equal(requiredFileUnavailable.data.sourceDigest, undefined)
+
+  const uploadedEmptyBodies: Blob[] = []
+  const requiredFile = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-file-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      presentationCapabilities: [capability('required', true, 0)],
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async (path, body) => {
+          uploadedEmptyBodies.push(body as Blob)
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(uploadedEmptyBodies.length, 1)
+  assert.equal(await uploadedEmptyBodies[0]?.text(), '')
+  assert.equal(requiredFile.status, 'empty')
+  assert.equal(requiredFile.evidence.complete, true)
+  assert.ok(requiredFile.outputBindings[0].ref.startsWith('fs://'))
+  assert.equal(requiredFile.outputBindings[0].sourceDigest, emptyDigest)
+
+  const optionalUnavailable = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-optional-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      presentationCapabilities: [capability('optional', true, 0)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(optionalUnavailable.status, 'empty')
+  assert.equal(optionalUnavailable.evidence.complete, true)
+  assert.equal(optionalUnavailable.data.required, false)
+  assert.equal(optionalUnavailable.data.satisfied, false)
+  assert.equal(optionalUnavailable.outputBindings, undefined)
+  assert.equal(optionalUnavailable.data.sourceDigest, undefined)
+
+  const reusableUnavailable = await deliverAiClientToolResult(stream(), {
+    call: { id: `empty-reuse-unavailable-${semanticToken}`, toolName: `anonymous_empty_${semanticToken}` },
+    outputs: output('reusable-source'),
+  }) as any
+  assert.equal(reusableUnavailable.status, 'partial')
+  assert.equal(reusableUnavailable.evidence.complete, false)
+  assert.equal(reusableUnavailable.outputBindings, undefined)
+  assert.equal(reusableUnavailable.data.sourceDigest, undefined)
+
+  let reusableUploads = 0
+  const reusableFile = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-reuse-file-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => {
+          reusableUploads += 1
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: output('reusable-source'),
+  }) as any
+  assert.equal(reusableUploads, 1)
+  assert.equal(reusableFile.status, 'empty')
+  assert.equal(reusableFile.evidence.complete, true)
+  assert.ok(reusableFile.outputBindings[0].ref.startsWith('fs://'))
+  assert.equal(reusableFile.outputBindings[0].sourceDigest, emptyDigest)
+
+  const reusableInline = await deliverAiClientToolResult(stream(), {
+    call: { id: `empty-reuse-inline-${semanticToken}`, toolName: `anonymous_empty_${semanticToken}` },
+    outputs: output('reusable-source', 'inline'),
+  }) as any
+  assert.equal(reusableInline.status, 'empty')
+  assert.equal(reusableInline.evidence.complete, true)
+  assert.equal(reusableInline.outputBindings[0].path, '$.data.sample')
+  assert.equal(reusableInline.outputBindings[0].sourceDigest, emptyDigest)
+})
+
+test('empty artifact cardinality never substitutes for a required carrier', async () => {
+  const semanticToken = crypto.randomUUID().replaceAll('-', '')
+  const shape = `anonymous.${semanticToken}.artifact-records`
+  const mediaType = `application/vnd.${semanticToken}+json`
+  const artifact = createAiClientToolArtifact({
+    content: JSON.stringify({ records: [] }),
+    mimeType: mediaType,
+    bindingName: 'records',
+    outputShape: shape,
+    recordPath: '$.records',
+    cardinality: { kind: 'record-set', recordCount: 0, returnedCount: 0, totalCount: 0 },
+    preview: { count: 0 },
+  })
+  const result = await deliverAiClientToolResult({ data: artifact }, {
+    call: { id: `empty-artifact-${semanticToken}`, toolName: `anonymous_empty_${semanticToken}` },
+    outputs: [{
+      name: 'records', type: 'structured-data', shape, mediaType,
+      audience: 'client-presentation', delivery: 'auto',
+    }],
+  }) as any
+  assert.equal(result.status, 'partial')
+  assert.equal(result.complete, false)
+  assert.equal(result.truncated, true)
+  assert.equal(result.outputBindings, undefined)
+  assert.equal(result.evidence.outputBindings, undefined)
+})
+
 test('record and cancellation limits stay partial or abort without unbounded consumption', async () => {
   const limited = await deliverAiClientToolResult(createAiClientToolRecordStream({
     source: createAiClientToolArrayRecordSource([{ index: 1 }, { index: 2 }, { index: 3 }]),
@@ -3098,8 +3896,8 @@ test('zero-record streams remain complete without creating or compensating a fil
   assert.equal(result.status, 'empty')
   assert.equal(result.evidence.recordCount, 0)
   assert.equal(result.evidence.complete, true)
-  assert.equal(result.data.delivery, 'empty')
-  assert.equal(result.data.fileUnavailable, undefined)
+  assert.equal(result.data.delivery, 'inline-sample')
+  assert.equal(result.data.fileUnavailable, false)
   assert.equal(result.data.fileErrorCode, undefined)
   assert.equal(result.producedFile, false)
   assert.deepEqual(result.data.sample, [])

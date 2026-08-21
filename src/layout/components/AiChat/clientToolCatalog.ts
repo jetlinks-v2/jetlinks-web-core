@@ -1,9 +1,11 @@
 import {
   AI_CLIENT_TOOL_CONTRACT_META_KEY,
+  diagnoseAiClientToolOutputPresentationCompatibility,
   isAiClientToolContractMetadata,
   type AiClientToolContractMetadata,
   type AiClientToolOutputKind,
 } from './clientToolContract'
+import type { GeneralAgentMarkdownPresentationCapability } from './generalAgentExtensions'
 import {
   toAiClientToolSessionDefinition,
   validateAiClientToolResultBindings,
@@ -81,6 +83,11 @@ export interface AiClientToolCatalogSnapshot<T extends AiClientToolRoutingSource
   semanticFingerprint: string
   /** Compact telemetry identity for the exact semantic fingerprint. */
   semanticDigest: string
+}
+
+export interface AiClientToolCatalogOptions extends AiClientToolRoutingCatalogValidationOptions {
+  /** Installed renderer descriptors used only for static output compatibility diagnostics. */
+  presentationCapabilities?: readonly GeneralAgentMarkdownPresentationCapability[]
 }
 
 const text = (value: unknown) => String(value || '').trim()
@@ -192,8 +199,17 @@ const contractRoutingIssues = (
   const contractConsumes = normalizedList(contract.inputs.map(input => input.name))
   const routingConsumes = normalizedList(routing.consumerPorts?.map(input => input.name))
   const routingProducerNames = normalizedList(routing.producerPorts?.map(output => output.name))
+  const routingProducerPorts = routing.producerPorts || []
+  const contractProducerPorts = contract.outputs.map(output => ({
+    name: output.name.toLowerCase(),
+    type: (output.type || 'structured-data').toLowerCase(),
+    mediaType: (output.mediaType || 'application/json').toLowerCase(),
+    shape: output.shape.toLowerCase(),
+    audience: output.audience,
+  }))
   if (!sameOrderedList(routingConsumes, contractConsumes)
-    || !sameOrderedList(routingProducerNames, contractProduces)) {
+    || !sameOrderedList(routingProducerNames, contractProduces)
+    || JSON.stringify(routingProducerPorts) !== JSON.stringify(contractProducerPorts)) {
     issues.push({
       toolId,
       code: 'typed_contract_port_mismatch',
@@ -234,7 +250,7 @@ const contractRoutingIssues = (
  */
 export const createAiClientToolCatalogReport = (
   tools: readonly AiClientToolRoutingSource[] = [],
-  options: AiClientToolRoutingCatalogValidationOptions = {},
+  options: AiClientToolCatalogOptions = {},
 ): AiClientToolCatalogReport => {
   const issues = validateAiClientToolRoutingCatalog(tools, options)
   const toolsReport = tools.map((tool): AiClientToolCatalogToolReport => {
@@ -256,6 +272,23 @@ export const createAiClientToolCatalogReport = (
       })
     }
     issues.push(...alignmentIssues)
+    if (typedContract && options.presentationCapabilities) {
+      rawContract.outputs
+        .filter(output => output.audience === 'client-presentation')
+        .forEach((output) => {
+          const compatible = options.presentationCapabilities!.filter(capability => (
+            !diagnoseAiClientToolOutputPresentationCompatibility(output, capability).length
+          ))
+          if (!compatible.length) {
+            issues.push({
+              toolId,
+              code: 'presentation_output_incompatible',
+              field: `_meta.${AI_CLIENT_TOOL_CONTRACT_META_KEY}.outputs.${output.name}`,
+              message: 'client-presentation output has no compatible installed renderer capability',
+            })
+          }
+        })
+    }
     const bindingIssues = options.requireResultBindings
       ? validateAiClientToolResultBindings(tool)
       : []
@@ -325,7 +358,7 @@ export const createAiClientToolCatalogReport = (
  */
 export const createAiClientToolCatalogSnapshot = <T extends AiClientToolRoutingSource>(
   tools: readonly T[] = [],
-  options: AiClientToolRoutingCatalogValidationOptions = {},
+  options: AiClientToolCatalogOptions = {},
 ): AiClientToolCatalogSnapshot<T> => {
   const normalized = tools.map(tool => normalizeCatalogDefinition(tool))
   const report = createAiClientToolCatalogReport(normalized, options)

@@ -32,6 +32,7 @@ import {
   AI_CLIENT_TOOL_ANALYTICAL_CAPABILITY_VERSION,
   normalizeAiClientToolAnalyticalCapability,
   type AiClientToolAnalyticalCapability,
+  type AiClientToolOutputAudience,
   type AiClientToolResourceType,
   type AiClientToolSourcePolicy,
 } from './clientToolRouting'
@@ -286,6 +287,8 @@ interface ClientToolOutputBase<TResult> {
   type?: AiClientToolResourceType
   mediaType?: string
   shape: string
+  /** Generic delivery audience; the compiler always emits it on the canonical port. */
+  audience?: AiClientToolOutputAudience
   /** Explicit JSON path to records within the selected output value; no default is inferred by the facade. */
   recordPath?: string
   label?: string
@@ -439,31 +442,41 @@ type ClientToolOutputConfig<TResult, TKind extends ClientToolOutput<TResult>['ki
   'kind'
 >
 
+const defaultOutputAudience = (kind: ClientToolOutput['kind']): AiClientToolOutputAudience => (
+  kind === 'artifact' ? 'reusable-source' : 'model-evidence'
+)
+
 /** Stable, renderer-neutral output presets. Selectors run after the business operation and never retry it. */
 export const clientToolOutput = {
   lookup: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'lookup'>): ClientToolLookupOutput<TResult> => ({
     kind: 'lookup',
     ...output,
+    audience: output.audience || defaultOutputAudience('lookup'),
   }),
   detail: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'detail'>): ClientToolDetailOutput<TResult> => ({
     kind: 'detail',
     ...output,
+    audience: output.audience || defaultOutputAudience('detail'),
   }),
   recordSet: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'recordSet'>): ClientToolRecordSetOutput<TResult> => ({
     kind: 'recordSet',
     ...output,
+    audience: output.audience || defaultOutputAudience('recordSet'),
   }),
   aggregateSeries: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'aggregateSeries'>): ClientToolAggregateSeriesOutput<TResult> => ({
     kind: 'aggregateSeries',
     ...output,
+    audience: output.audience || defaultOutputAudience('aggregateSeries'),
   }),
   artifact: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'artifact'>): ClientToolArtifactOutput<TResult> => ({
     kind: 'artifact',
     ...output,
+    audience: output.audience || defaultOutputAudience('artifact'),
   }),
   stateChange: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'stateChange'>): ClientToolStateChangeOutput<TResult> => ({
     kind: 'stateChange',
     ...output,
+    audience: output.audience || defaultOutputAudience('stateChange'),
   }),
 }
 
@@ -525,6 +538,10 @@ const normalizeOutputs = <TResult>(output: ClientToolDefinition<any, any, TResul
     const name = normalizedText(item.name)
     const shape = normalizedText(item.shape)
     if (!name || !shape) throw new Error('Client tool output requires a stable name and shape')
+    if (item.audience !== undefined
+      && !(['model-evidence', 'client-presentation', 'reusable-source'] as const).includes(item.audience)) {
+      throw new Error(`Client tool output audience is invalid: ${name}`)
+    }
     if (names.has(name)) throw new Error(`Duplicate client tool output: ${name}`)
     names.add(name)
     if (item.kind === 'artifact' && !normalizedText(item.mediaType)) {
@@ -589,11 +606,12 @@ const compileOutputContract = <TResult>(
 ): AiClientToolOutputContract => {
   const shared = {
     name: normalizedText(output.name),
-    type: output.type || (output.kind === 'artifact'
+    type: output.kind === 'artifact'
       ? 'artifact'
-      : output.kind === 'stateChange' ? 'state' : 'structured-data'),
+      : output.type || (output.kind === 'stateChange' ? 'state' : 'structured-data'),
     mediaType: normalizedText(output.mediaType || 'application/json'),
     shape: normalizedText(output.shape),
+    audience: output.audience || defaultOutputAudience(output.kind),
     ...(output.recordPath !== undefined ? { recordPath: output.recordPath } : {}),
     ...(output.label ? { label: output.label } : {}),
     ...(output.fields?.length ? { fields: output.fields.map(field => ({ ...field })) } : {}),
@@ -607,10 +625,13 @@ const compileOutputContract = <TResult>(
       delivery: 'file',
     }
   }
+  const audience = output.audience || defaultOutputAudience(output.kind)
   const inline = {
     ...shared,
     path: outputSlotPath(index),
-    delivery: output.kind === 'recordSet' ? 'auto' as const : 'inline' as const,
+    delivery: output.kind === 'recordSet' && audience !== 'model-evidence'
+      ? 'auto' as const
+      : 'inline' as const,
   }
   if (output.kind === 'recordSet') {
     return {
