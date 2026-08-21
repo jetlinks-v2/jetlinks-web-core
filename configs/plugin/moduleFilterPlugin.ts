@@ -28,8 +28,15 @@ export const moduleFilterPlugin = (targetModules: string[] | null) => {
               return '<template></template>' // 返回空 Vue 模板
             } else if (normalizedId.match(/\.(css|less|scss|sass|styl)$/)) {
               return '' // 返回空样式
+            } else if (normalizedId.endsWith('.ts') || normalizedId.endsWith('.tsx')) {
+              const isModuleEntry = new RegExp(`/modules/${moduleName}/(index|baseMenu|register)\\.ts$`).test(normalizedId)
+              // Keep imported APIs available to a standalone module build, but hide other module entry points.
+              if (!isModuleEntry) {
+                return null
+              }
+              return 'export default { filter: true }'
             } else {
-              // 默认 JS/TS 返回空导出
+              // 默认 JS 返回空导出
               return 'export default { filter: true }'
             }
           }
