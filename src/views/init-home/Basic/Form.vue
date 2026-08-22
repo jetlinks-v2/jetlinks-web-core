@@ -177,7 +177,9 @@ const formData = reactive({
   'base-path': `${window.location.origin}/api`,  // base-path
   logo: "images/login/logo.png",  // 系统logo
   ico: "favicon.ico",  // 浏览器页签
-  background: "images/login/login.png"  // 登录背景图
+  background: "images/login/login.png",  // 登录背景图
+  layout: 'mix',
+  layoutVariant: 'project'
 })
 
 const formRef = ref()
@@ -228,6 +230,8 @@ const getDetails = async () => {
     ico: configInfo.front?.ico || 'favicon.ico',
     showRecordNumber: configInfo.front?.showRecordNumber || false,
     recordNumber: configInfo.front?.recordNumber,
+    layoutVariant: configInfo.front?.layoutVariant || 'project',
+    layout: configInfo.front?.layout || 'mix',
     background: configInfo.front?.background || 'images/login/login.png',
     apiKey: configInfo.amap?.apiKey,
     webKey: configInfo.amap?.webKey,
@@ -245,6 +249,7 @@ onMounted(() => {
 const submit = () => {
   return new Promise((resolve, reject) => {
     formRef.value.validate().then(() => {
+      debugger
       const params = [
         {
           scope: 'front',
@@ -253,6 +258,8 @@ const submit = () => {
             'webKey',
             'secretKey',
             'base-path',
+              'layout',
+              'layoutVariant'
           ])
         },
         {
