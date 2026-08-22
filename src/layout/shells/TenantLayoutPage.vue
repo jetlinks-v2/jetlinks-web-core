@@ -108,9 +108,6 @@ const renderTenantSubMenu = ({ item, children }: SubMenuRenderContext) => {
   }
 
   const menuLayout = arrangeTopLevelMenuChildren(key, children)
-  const megaMenuColumnClass = menuLayout.isMegaMenu
-    ? `tenant-menu-popup--columns-${Math.min(menuLayout.children.length, 6)}`
-    : ''
 
   return h(
     Menu.SubMenu,
@@ -120,7 +117,6 @@ const renderTenantSubMenu = ({ item, children }: SubMenuRenderContext) => {
         'ant-pro-menu-popup',
         'tenant-menu-popup',
         menuLayout.isMegaMenu ? 'tenant-menu-popup--mega' : 'tenant-menu-popup--compact',
-        megaMenuColumnClass,
       ].join(' '),
       title: h('span', { class: 'ant-pro-menu-item' }, [
         h('span', { class: 'ant-pro-menu-item-title' }, getMenuTitle(item)),
@@ -166,7 +162,7 @@ const renderTenantSubMenu = ({ item, children }: SubMenuRenderContext) => {
   }
 
   .ant-menu-item {
-    width: 100%;
+    width: 100% !important;
     height: var(--layout-menu-item-height);
     margin: 0 0 var(--layout-menu-item-gap) !important;
     padding-inline: var(--layout-menu-item-padding-x) !important;
@@ -201,6 +197,14 @@ const renderTenantSubMenu = ({ item, children }: SubMenuRenderContext) => {
     gap: var(--space-2);
   }
 
+  .ant-pro-menu-item-title {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .ant-menu-item .anticon {
     margin: 0;
     color: var(--layout-menu-item-muted-color);
@@ -218,20 +222,24 @@ const renderTenantSubMenu = ({ item, children }: SubMenuRenderContext) => {
 }
 
 .tenant-menu-popup--mega {
-  --tenant-menu-popup-width: 76rem;
-  --tenant-menu-popup-half-width: -38rem;
+  /* 浮层宽度由列数自动汇总，后续只需调整单列宽度。 */
+  --tenant-menu-item-width: 8.5rem;
+  --tenant-menu-effective-item-width: min(
+    var(--tenant-menu-item-width),
+    calc(100vw - var(--space-12) - var(--space-12))
+  );
 
   inset-inline-start: 50% !important;
   inset-inline-end: auto !important;
-  margin-inline-start: max(
-    var(--tenant-menu-popup-half-width),
-    calc(-50vw + var(--space-4))
-  );
+  margin-inline-start: 0;
+  /* 使用独立位移，避免覆盖 Ant Design 弹层动画使用的 transform。 */
+  translate: -50% 0;
 
   > .ant-menu {
-    width: min(var(--tenant-menu-popup-width), calc(100vw - var(--space-8)));
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    width: max-content;
+    max-width: calc(100vw - var(--space-8));
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--space-5) var(--space-8);
     padding: var(--space-4) !important;
     justify-content: center;
@@ -243,32 +251,9 @@ const renderTenantSubMenu = ({ item, children }: SubMenuRenderContext) => {
   }
 
   .ant-menu-item-group[data-tenant-menu-column] {
+    width: var(--tenant-menu-effective-item-width);
+    flex: 0 0 var(--tenant-menu-effective-item-width);
     align-self: start;
   }
-}
-
-.tenant-menu-popup--columns-1 {
-  --tenant-menu-popup-width: 16rem;
-  --tenant-menu-popup-half-width: -8rem;
-}
-
-.tenant-menu-popup--columns-2 {
-  --tenant-menu-popup-width: 31rem;
-  --tenant-menu-popup-half-width: -15.5rem;
-}
-
-.tenant-menu-popup--columns-3 {
-  --tenant-menu-popup-width: 46rem;
-  --tenant-menu-popup-half-width: -23rem;
-}
-
-.tenant-menu-popup--columns-4 {
-  --tenant-menu-popup-width: 61rem;
-  --tenant-menu-popup-half-width: -30.5rem;
-}
-
-.tenant-menu-popup--columns-6 {
-  --tenant-menu-popup-width: 91rem;
-  --tenant-menu-popup-half-width: -45.5rem;
 }
 </style>

@@ -107,8 +107,10 @@ const getSystemPermissionData = async ( BaseMenu: MenuItem[] ) => {
       BaseMenu,
       hasProtocol,
     );
+
     const newTree = props.filterMenu ? await props.filterMenu(permissionTree) : permissionTree
     const _count = menuCount(newTree);
+
     menusData.current = newTree;
     menusData.count = _count;
     expandedKeys.value = collectExpandedKeys(buildMenuTreeData(newTree, localeKeys.value))

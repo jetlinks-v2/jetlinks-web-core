@@ -57,6 +57,7 @@ export const buildMenuTreeData = (
   localeKeys: string[],
   parentKey = '',
 ): MenuTreeNode[] => {
+
   return menus.map((item, index) => {
     const rawKey = item.code || item.id || item.name || String(index)
     const key = parentKey ? `${parentKey}/${rawKey}` : rawKey

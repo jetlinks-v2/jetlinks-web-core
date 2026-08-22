@@ -1,5 +1,5 @@
 <template>
-  <BasicLayoutShell :variant="layoutVariant" />
+  <BasicLayoutShell variant="application" />
 </template>
 
 <script setup name="ApplicationLayoutPage" lang="ts">
