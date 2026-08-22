@@ -113,9 +113,11 @@ Existing `--layout-menu-search-*` and `--chrome-*` names remain the shared searc
 
 ## Project runtime menu hierarchy
 
-In side and mix layouts, the project workspace keeps the first two menu levels in the left sidebar. The first level is rendered as a collapsible group, while its direct children remain the clickable second-level entries. The current second-level route owns the third-level navigation rendered in the content header through `ProjectSecondaryMenu`. In top layout, the horizontal header receives the complete route tree and renders level-two and deeper entries as cascaded submenus instead of duplicating level-three routes in `ProjectSecondaryMenu`; page-registered tabs remain a fallback when the route tree has no third-level children.
+In side and mix layouts, the project workspace keeps the complete project route tree in ProLayout. Mix layout uses the top navigation for level one and renders level two plus level three in the same left sidebar; side layout renders the full hierarchy in its sidebar. Route-derived level-three entries must not create a second `ProjectSecondaryMenu` column. In top layout, the horizontal header continues to render level-two and deeper entries as cascaded submenus. Page-registered tabs and the project settings domain keep their dedicated secondary-navigation behavior because they are not route-tree menu levels.
 
-The navigation hook must derive the selected second-level key from the active route's breadcrumb context, so deep routes keep their parent group open and selected. The top-level sidebar collapse is independent from first-level group expansion and continues to use the shared `j-pro-layout` `collapsed` and `openKeys` contracts.
+The navigation hook must derive the selected leaf key from the active route's breadcrumb context, while keeping the level-one key first in mix-layout selected keys so ProLayout can split the menu correctly. Deep routes keep their parent groups open through the shared `j-pro-layout` `openKeys` contract. The top-level sidebar collapse remains independent from group expansion.
+
+The hierarchy contract is covered by `tests/projectNavigationHierarchy.test.mjs`; run it with `pnpm -F jetlinks-web-core test:project-navigation`. A production `pnpm -F jetlinks-web-core build` must also complete before delivery because the change affects the shared layout shell.
 
 `--chrome-header-height` is the fixed `56px` Figma header measurement. Responsive layout code may take the maximum of this token and an existing large-screen profile, but it must not convert the token itself to `rem` and inflate the 2K header.
 

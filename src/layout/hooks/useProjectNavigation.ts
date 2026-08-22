@@ -200,7 +200,7 @@ export const useProjectNavigation = ({
   const activeSecondaryKey = computed(() => activeEntry.value?.secondaryKey || '')
 
   const primaryMenus = computed(() => {
-    // 三级及更深路由留给内容区导航，左侧只展开到二级，避免同一菜单树重复呈现。
+    // 非项目壳层仍只把一级、二级交给 ProLayout，保留原有内容区导航契约。
     return filteredMenus.value
       .map(menu => ({
         ...menu,
@@ -210,6 +210,9 @@ export const useProjectNavigation = ({
         })),
       }))
   })
+
+  // 项目工作区需要在同一侧栏连续呈现二、三级菜单，不能再截断当前路由树。
+  const projectSidebarMenus = computed(() => filteredMenus.value)
 
   const primarySelectedKeys = computed(() => {
     const selectedKey = activeSecondaryKey.value || activePrimaryKey.value
@@ -238,9 +241,24 @@ export const useProjectNavigation = ({
     return children.find(menu => getMenuKey(menu) === activeSecondaryKey.value)
   })
 
+  const projectSidebarSelectedKeys = computed(() => {
+    const selectedKey = activeEntry.value?.key || activeSecondaryKey.value || activePrimaryKey.value
+    const isVisible = selectedKey && !!findMenuByKey(projectSidebarMenus.value, selectedKey)
+
+    return isVisible ? [selectedKey] : []
+  })
+
   // ProLayout 的 mix 拆分菜单以 selectedKeys[0] 定位一级菜单，再把其 children 渲染到左侧。
   const mixSelectedKeys = computed(() => {
     const keys = [activeRootMenu.value?.path, activeSecondaryMenu.value?.path]
+    return keys.filter((key, index): key is string => !!key && keys.indexOf(key) === index)
+  })
+
+  const projectMixSelectedKeys = computed(() => {
+    const activeKey = projectSidebarSelectedKeys.value[0]
+    const keys = [activeRootMenu.value?.path, activeKey]
+
+    // splitMenus 依赖首项定位顶部一级菜单，末项负责左侧深层叶子选中态。
     return keys.filter((key, index): key is string => !!key && keys.indexOf(key) === index)
   })
 
@@ -283,7 +301,10 @@ export const useProjectNavigation = ({
   return {
     primaryMenus,
     primarySelectedKeys,
+    projectSidebarMenus,
+    projectSidebarSelectedKeys,
     mixSelectedKeys,
+    projectMixSelectedKeys,
     topSelectedKeys,
     secondaryItems,
     secondarySelectedKey,

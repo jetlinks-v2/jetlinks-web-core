@@ -111,6 +111,25 @@ const mergeMenusByCode = (data: MenuItem[] = []): MenuItem[] => {
   return result
 }
 
+export const handleAuthMenu = (menuData: MenuItem[], cb: (code: string, buttons: Array<MenuButton['id']>) => void) => {
+  if (menuData && menuData.length) {
+    return menuData.forEach((item) => {
+      const { code, buttons, children } = item
+
+      if (buttons) {
+        cb(
+          code,
+          buttons.map((a) => a.id)
+        )
+      }
+
+      if (children) {
+        handleAuthMenu(children, cb)
+      }
+    })
+  }
+}
+
 /**
  *
  * @param menuData 服务端菜单数据
@@ -126,10 +145,15 @@ export const handleMenus = (
 ) => {
   const filterMenuCode = [USER_CENTER_MENU_CODE]
   const menuMap = new Map<string, MenuMapValue>() //
-  let authButtons: Record<string, any> = {}
+  const authButtons: Record<string, string[]> = {}
   let menuRoutes: RouteRecordRaw[] = []
   let menus: Partial<RouteRecordRaw>[] = []
   const mergedMenuData = mergeMenusByCode(menuData)
+
+  // 权限树不受侧栏可见性影响，隐藏路由域下的页面仍需保留按钮权限。
+  handleAuthMenu(mergedMenuData, (code, buttons) => {
+    authButtons[code] = buttons
+  })
 
   /**
    * 过滤不需要生成路由的菜单数据
@@ -270,11 +294,6 @@ export const handleMenus = (
 
   function siderLoop(data: MenuItem[]) {
     const _menu = filterMenuData(data).filter((item) => !handleMeta(item, !!item.appId).hideInMenu)
-    for (const menuItem of data) {
-      if (menuItem.buttons) {
-        authButtons[menuItem.code] = menuItem.buttons.map((item) => item.id)
-      }
-    }
 
     if (_menu && _menu.length) {
       return _menu.map((item) => {
@@ -295,25 +314,6 @@ export const handleMenus = (
     menus,
     menuRoutes,
     authButtons
-  }
-}
-
-export const handleAuthMenu = (menuData: MenuItem[], cb: (code: string, buttons: Array<MenuButton['id']>) => void) => {
-  if (menuData && menuData.length) {
-    return menuData.forEach((item) => {
-      const { code, buttons, children } = item
-
-      if (buttons) {
-        cb(
-          code,
-          buttons.map((a) => a.id)
-        )
-      }
-
-      if (children) {
-        handleAuthMenu(children, cb)
-      }
-    })
   }
 }
 

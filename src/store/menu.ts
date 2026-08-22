@@ -56,7 +56,8 @@ type QueryMenusInput = MenuApplicationScope | QueryMenusOptions
 
 const $t = i18n.global.t
 
-const LEGACY_PROJECT_MENU_OPTION_KEYS = ['componentCode', 'routeName', 'authCode', 'authCodes']
+// routeName is the stable target contract for virtual navigation domains such as project settings.
+const LEGACY_PROJECT_MENU_OPTION_KEYS = ['componentCode', 'authCode', 'authCodes']
 
 const getDefaultOwnParams = (): any[] => []
 

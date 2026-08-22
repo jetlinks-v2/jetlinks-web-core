@@ -98,7 +98,10 @@ export const useBasicLayoutController = (
   const {
     primaryMenus,
     primarySelectedKeys,
+    projectSidebarMenus,
+    projectSidebarSelectedKeys,
     mixSelectedKeys,
+    projectMixSelectedKeys,
     topSelectedKeys,
     secondaryItems,
     secondarySelectedKey,
@@ -111,14 +114,23 @@ export const useBasicLayoutController = (
     route,
     router,
   })
+  const isProjectLayout = computed(() => layoutVariant.value === 'project')
 
   const layoutSelectedKeys = computed(() => {
+    if (isProjectLayout.value && layout.value.layout === 'mix') {
+      return projectMixSelectedKeys.value
+    }
+    if (isProjectLayout.value && layout.value.layout !== 'top') {
+      return projectSidebarSelectedKeys.value
+    }
     if (layout.value.layout === 'mix') return mixSelectedKeys.value
     return layout.value.layout === 'top' ? topSelectedKeys.value : primarySelectedKeys.value
   })
-  // top 保留完整树用于级联子菜单；side/mix 只把一级、二级交给 ProLayout。
+  // 项目端 side/mix 保留完整树，让二、三级菜单在同一左侧导航内展开。
   const layoutMenuData = computed(() => (
-    layout.value.layout === 'top' ? filteredSiderMenus.value : primaryMenus.value
+    layout.value.layout === 'top' || isProjectLayout.value
+      ? projectSidebarMenus.value
+      : primaryMenus.value
   ))
   const logoWidth = computed(() => {
     const width = !state.collapsed ? `${config.value.siderWidth}px` : '100%'
@@ -155,6 +167,7 @@ export const useBasicLayoutController = (
   const visibleSecondaryItems = computed(() => {
     if (settingsActive.value) return settingsSecondaryItems.value
     if (pageSecondaryMenuActive.value) return pageSecondaryMenu.items.value
+    if (isProjectLayout.value) return []
     return layout.value.layout === 'top' ? [] : secondaryItems.value
   })
   const visibleSecondarySelectedKey = computed(() => {

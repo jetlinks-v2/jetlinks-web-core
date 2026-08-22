@@ -19,7 +19,7 @@
       :menuExtraRender="showMenuSearch ? undefined : false"
       :subMenuItemRender="layout.layout === 'top'
         ? subMenuItemRender
-        : layout.layout === 'side' && !state.collapsed
+        : layout.layout === 'side' && variant !== 'project' && !state.collapsed
           ? renderPrimaryMenuGroup
           : undefined"
       @menuClick="handlePrimaryMenuClick"

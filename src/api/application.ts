@@ -1,4 +1,10 @@
 import { request } from '@jetlinks-web/core'
+import type { BasicLayoutVariant } from '@jetlinks-web-core/layout/runtime/layoutVariant'
+
+export interface BusinessApplicationConfiguration {
+  layoutVariant?: BasicLayoutVariant
+  [key: string]: unknown
+}
 
 export interface BusinessApplicationEntity {
   id: string
@@ -7,7 +13,7 @@ export interface BusinessApplicationEntity {
   name: string
   icon?: string
   description?: string
-  configuration?: Record<string, unknown>
+  configuration?: BusinessApplicationConfiguration
   state?: string | { value: string; text?: string }
 }
 
