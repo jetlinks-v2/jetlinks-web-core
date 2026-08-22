@@ -113,6 +113,7 @@ function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
         }
 
         const applicationScope = normalizeHeaderValue(projectStorage?.scope)
+
         if (shouldApplyApplicationScope && applicationScope) {
             // 业务应用运行态的普通接口也需要应用维度；项目本身不会写入 scope。
             headers[APPLICATION_SCOPE_HEADER] = 'business_application:'+applicationScope

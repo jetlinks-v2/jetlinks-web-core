@@ -235,16 +235,14 @@ export const useMenuStore = defineStore('menu', () => {
     const queryOptions = resolveQueryMenusOptions(value, conditions)
     const requestedApplicationScope = resolveRequestedApplicationScope(queryOptions.applicationScope)
     const resolvedApplicationScope = resolveMenuApplicationScope(requestedApplicationScope)
-    const menuApplicationScope = shouldSuppressStorageApplicationScope(requestedApplicationScope)
-      ? false
-      : resolvedApplicationScope
+
     runtime.loading.value = true
     try {
       const resp = await getOwnMenuThree({
         paging: false,
         terms: getDefaultOwnParams(),
         sorts: [{ name: 'sortIndex', order: 'asc' }],
-      }, menuApplicationScope)
+      })
 
       const menuResult = Array.isArray(resp.result) ? resp.result : []
 

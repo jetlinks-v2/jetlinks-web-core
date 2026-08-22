@@ -152,7 +152,7 @@ export default defineConfig(async ({ mode, command }) => {
     },
     optimizeDeps: {
       entries: ['index.html'],
-      include: ['pinia', 'vue-router', 'axios', 'lodash-es', '@vueuse/core', 'echarts', 'dayjs', 'md-editor-v3'],
+      include: ['pinia', 'vue-router', 'axios', 'lodash-es', '@vueuse/core', 'echarts', 'dayjs', 'md-editor-v3', 'dayjs/plugin/duration'],
       esbuildOptions: {
         define: envDefine
       }
