@@ -1,5 +1,5 @@
 <template>
-  <BasicLayoutShell variant="application" />
+  <BasicLayoutShell variant="application" layout="side" />
 </template>
 
 <script setup name="ApplicationLayoutPage" lang="ts">

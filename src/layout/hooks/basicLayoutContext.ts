@@ -9,12 +9,14 @@ export const provideBasicLayoutController = (controller: BasicLayoutController) 
   provide(BASIC_LAYOUT_CONTROLLER_KEY, controller)
 }
 
-export const useBasicLayoutControllerContext = () => {
+export const useBasicLayoutControllerContext = (layout?:string) => {
   const controller = inject(BASIC_LAYOUT_CONTROLLER_KEY)
 
   if (!controller) {
     throw new Error('useBasicLayoutControllerContext must be used inside BasicLayoutPage')
   }
-
+  if (layout ) {
+    controller.layout.value.layout = layout
+  }
   return controller
 }

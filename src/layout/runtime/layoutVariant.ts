@@ -23,9 +23,9 @@ export const resolveBasicLayoutVariant = (
 ): BasicLayoutVariant => {
   const normalizedVariant = normalizeBasicLayoutVariant(configuredVariant)
 
-  if (normalizedVariant) return normalizedVariant
   if (context.projectScope) return 'project'
   if (context.applicationScope) return 'application'
   if (context.projectRuntime) return 'project'
+  if (normalizedVariant) return normalizedVariant
   return 'application'
 }

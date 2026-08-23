@@ -16,6 +16,7 @@ export const useBasicLayoutVariant = () => {
   const { systemInfo } = storeToRefs(systemStore)
   const applicationScope = getApplicationScopeFromLocation()
   const projectScope = isProjectApplicationScope(applicationScope)
+
   const runtimeContext = {
     projectScope,
     applicationScope: !!applicationScope && !projectScope,

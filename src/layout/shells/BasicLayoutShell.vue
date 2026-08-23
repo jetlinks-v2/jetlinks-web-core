@@ -27,13 +27,7 @@
     >
       <template #menuHeaderRender>
         <div class="project-layout__brand" :style="layout.layout === 'top' ? undefined : logoWidth">
-          <BusinessApplicationSwitcher
-            v-if="variant !== 'project' && businessApplicationRuntime && !state.collapsed"
-            :fallback-logo="layout.logo"
-            :fallback-title="layout.title"
-            mode="brand"
-          />
-          <div v-else-if="!state.collapsed" class="project-layout__brand-main">
+          <div v-if="!state.collapsed" class="project-layout__brand-main">
             <img class="project-layout__brand-logo" :src="layout.logo" alt="" />
             <span class="project-layout__brand-title">{{ layout.title }}</span>
           </div>
@@ -128,11 +122,14 @@ type SubMenuItemRender = (context: {
   children: VNode[]
 }) => VNode
 
-defineProps({
+const props = defineProps({
   variant: {
     type: String as PropType<BasicLayoutVariant>,
     required: true,
   },
+    layout: {
+        type: String,
+    },
   subMenuItemRender: {
     type: Function as PropType<SubMenuItemRender>,
     default: undefined,
@@ -163,7 +160,7 @@ const {
   systemInfo,
   visibleSecondaryItems,
   visibleSecondarySelectedKey,
-} = useBasicLayoutControllerContext()
+} = useBasicLayoutControllerContext(props.layout)
 </script>
 
 <style scoped lang="less" src="./BasicLayoutShell.less"></style>
