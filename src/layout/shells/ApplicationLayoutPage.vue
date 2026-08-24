@@ -223,7 +223,7 @@ const {
 } = controller
 
 // 应用端默认收起一级菜单，项目/租户布局继续使用各自的 shell 状态。
-state.collapsed = true
+// state.collapsed = true
 
 // 应用端左侧只承载一级菜单，二级导航交给内容区 ProjectSecondaryMenu，避免改动项目/租户壳层契约。
 const applicationPrimarySourceMenus = computed(() => (
