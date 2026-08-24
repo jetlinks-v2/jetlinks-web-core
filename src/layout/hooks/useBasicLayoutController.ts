@@ -63,6 +63,7 @@ export const useBasicLayoutController = (
   const layoutType = ref('list')
   const hideHeaderRight = getHideHeaderRightConfig()
   const menuSearchKeyword = ref('')
+  const expandSecondaryMenu = ref(false)
   const businessApplicationRuntime = isBusinessApplicationRuntime()
   const { theme, layout, systemInfo, themeStyleToken } = storeToRefs(systemStore)
   const { y: scrollY } = useWindowScroll()
@@ -233,7 +234,8 @@ export const useBasicLayoutController = (
       .filter((path): path is string => !!path)
 
     state.selectedKeys = selectedPaths
-    state.openKeys = layout.value.layout === 'top' ? [] : selectedPaths
+    // 二级菜单自动展开由具体 shell 显式开启，避免共享壳层默认撑开侧栏树。
+    state.openKeys = layout.value.layout === 'top' || !expandSecondaryMenu.value ? [] : selectedPaths
     if (route.query?.layout === 'false') state.pure = true
   })
 
@@ -241,6 +243,7 @@ export const useBasicLayoutController = (
     businessApplicationRuntime,
     config,
     enterSettings,
+    expandSecondaryMenu,
     handlePrimaryMenuClick,
     headerScrolled,
     hideHeaderRight,

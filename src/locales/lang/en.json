@@ -1083,6 +1083,7 @@
   "components.BusinessApplicationSwitcher.projectEntry": "Current project",
   "components.BusinessApplicationSwitcher.headerLabel": "Applications",
   "components.BusinessApplicationSwitcher.quickEntry": "Quick access",
+  "layout.menuBadge.comingSoon": "Coming soon",
   "layout.project.settings": "Settings",
   "comm.api.timeout": "The network environment is poor"
 }

@@ -1,6 +1,7 @@
 import type { RouteMeta } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { isSubApp, OpenMicroApp, USER_CENTER_MENU_CODE } from '@jetlinks-web-core/utils/consts'
+import { isComingSoonMenuMeta } from '@jetlinks-web-core/utils/menuBadge'
 import router from '../router'
 import type { MenuButton, MenuItem } from '@jetlinks-web-core/types/module'
 
@@ -43,6 +44,10 @@ const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
     isApp
   }
 }
+
+const isRoutePlaceholderMenu = (item: MenuItem) => (
+  isComingSoonMenuMeta(handleMeta(item, !!item.appId))
+)
 
 export const handleRoute = (item: MenuItem, parent?: ParentType): Partial<RouteRecordRaw> => {
   const isApp = !!item.appId
@@ -226,7 +231,8 @@ export const handleMenus = (
   }
 
   function loop(data: MenuItem[], level: number = 1, parent?: ParentType): RouteRecordRaw[] {
-    const _menu = filterMenuData(data)
+    // 占位菜单只参与侧栏展示，不能注册动态路由，避免直链进入未实现页面。
+    const _menu = filterMenuData(data).filter((item) => !isRoutePlaceholderMenu(item))
     const _routes = []
 
     for (let i = _menu.length; i > 0; i--) {
@@ -298,7 +304,7 @@ export const handleMenus = (
     if (_menu && _menu.length) {
       return _menu.map((item) => {
         const _route = handleRoute(item)
-        _route.children = siderLoop(item.children || [])
+        _route.children = isRoutePlaceholderMenu(item) ? [] : siderLoop(item.children || [])
         return _route as RouteRecordRaw
       })
     }

@@ -1083,6 +1083,7 @@
   "components.BusinessApplicationSwitcher.projectEntry": "当前项目",
   "components.BusinessApplicationSwitcher.headerLabel": "应用",
   "components.BusinessApplicationSwitcher.quickEntry": "快速进入应用",
+  "layout.menuBadge.comingSoon": "敬请期待",
   "layout.project.settings": "设置",
   "comm.api.timeout": "网络环境不佳"
 }
