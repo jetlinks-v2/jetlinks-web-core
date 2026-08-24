@@ -16,6 +16,7 @@ import {
 import type { BasicLayoutVariant } from '../runtime/layoutVariant'
 import { filterMenusByKeyword } from '../utils/menuSearch'
 import { renderPrimaryMenuGroup } from '../utils/projectMenuRender'
+import { getProjectSidebarOpenKeys } from '../utils/projectSidebarOpenKeys'
 import { useProjectGeneralAgent } from './useProjectGeneralAgent'
 import { useProjectNavigation } from './useProjectNavigation'
 import { provideProjectSecondaryMenu } from './useProjectSecondaryMenu'
@@ -234,8 +235,13 @@ export const useBasicLayoutController = (
       .filter((path): path is string => !!path)
 
     state.selectedKeys = selectedPaths
-    // 二级菜单自动展开由具体 shell 显式开启，避免共享壳层默认撑开侧栏树。
-    state.openKeys = layout.value.layout === 'top' || !expandSecondaryMenu.value ? [] : selectedPaths
+    // 项目壳层显式开启时，默认把当前一级菜单下的二级分组一起展开，避免只撑开当前路由分支。
+    state.openKeys = getProjectSidebarOpenKeys(
+      layoutMenuData.value,
+      selectedPaths,
+      expandSecondaryMenu.value,
+      layout.value.layout,
+    )
     if (route.query?.layout === 'false') state.pure = true
   })
 
