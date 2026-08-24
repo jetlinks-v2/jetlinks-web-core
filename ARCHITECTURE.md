@@ -73,6 +73,8 @@ Route responsibilities:
 - Menu routes are fetched and installed during router startup through `bootstrapSession()` and `ensureMenuRoutes()`.
 - `src/store/menu.ts#queryMenus()` accepts the legacy application scope argument and an optional `{ applicationScope, conditions }` object. After `/menu/user-own/tree` returns and before route generation, the store applies module `getMenuFilters()` hooks with that context.
 - Server menu trees are normalized in `src/utils/menu.ts#handleMenus()` before sidebar and route generation; sibling nodes with the same `code` share one route node and recursively merge their children.
+- Placeholder menu items declared with `options.meta.menuBadge.type = "comingSoon"` stay visible in layout navigation but are excluded from dynamic route generation; `BasicLayoutShell` renders leaf items as disabled text with a small badge, and project secondary navigation preserves the disabled state.
+- Application side layout is owned by `src/layout/shells/ApplicationLayoutPage.vue`: ProLayout receives level-one menus only, while the active level-one menu's level-two children render through `ProjectSecondaryMenu` in the content area. Project and tenant layouts keep their `BasicLayoutShell` contracts.
 - Route security is expressed with `RouteSecurityLevel.PUBLIC`, `RouteSecurityLevel.AUTHENTICATED`, and `RouteSecurityLevel.AUTHORIZED`.
 - Routes may provide `routeLoadingComponent` for a custom navigation loading state. `routeLoadingOverlay` keeps the target route mounted behind that state, and `routeLoadingManualFinish` keeps it visible after `afterEach` until the owning page calls `useRouteLoadingStore().finish()`; both options are opt-in and leave ordinary route skeleton behavior unchanged.
 

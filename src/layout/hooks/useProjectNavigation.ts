@@ -1,5 +1,6 @@
 import { computed, type ComputedRef, type Ref } from 'vue'
 import type { RouteLocationNormalizedLoaded, RouteMeta, RouteRecordRaw, Router } from 'vue-router'
+import { isComingSoonMenuMeta } from '@jetlinks-web-core/utils/menuBadge'
 import { normalizeProjectRuntimePath } from '@jetlinks-web-core/utils/project-runtime'
 
 export type ProjectNavigationItem = {
@@ -8,6 +9,8 @@ export type ProjectNavigationItem = {
   label: string
   icon?: string
   description?: string
+  disabled?: boolean
+  menuBadge?: RouteMeta['menuBadge']
   children?: ProjectNavigationItem[]
 }
 
@@ -65,7 +68,15 @@ const findMenuByKey = (
   return undefined
 }
 
+const isNavigationDisabled = (menu: ProjectNavigationRoute) => (
+  menu.meta?.disabled === true || isComingSoonMenuMeta(menu.meta)
+)
+
 export const findFirstLeafKey = (menu: ProjectNavigationRoute): string => {
+  if (isNavigationDisabled(menu)) {
+    return ''
+  }
+
   for (const child of menu.children || []) {
     const childKey = findFirstLeafKey(child)
 
@@ -127,6 +138,8 @@ export const toNavigationItem = (menu: ProjectNavigationRoute): ProjectNavigatio
     label: String(menu.meta?.title || menu.name || key),
     icon: menu.meta?.icon ? String(menu.meta.icon) : undefined,
     description: menu.meta?.desc ? String(menu.meta.desc) : undefined,
+    disabled: isNavigationDisabled(menu),
+    menuBadge: menu.meta?.menuBadge,
     children: children.length ? children : undefined,
   }
 }
@@ -280,6 +293,11 @@ export const useProjectNavigation = ({
 
   const navigateTo = (path?: string) => {
     const targetPath = normalizeMenuKey(path)
+    const targetMenu = findMenuByKey(menus.value, targetPath)
+
+    if (targetMenu && isNavigationDisabled(targetMenu)) {
+      return
+    }
 
     if (targetPath && targetPath !== normalizeMenuKey(route.path)) {
       void router.push(targetPath)

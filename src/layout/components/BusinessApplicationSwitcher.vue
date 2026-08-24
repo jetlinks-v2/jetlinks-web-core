@@ -25,7 +25,6 @@
           <span class="application-trigger__name">{{ currentApplication.name }}</span>
         </a-tooltip>
       </template>
-      <AIcon class="application-trigger__arrow" type="DownOutlined" />
     </button>
 
     <template #overlay>

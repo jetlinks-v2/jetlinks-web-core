@@ -8,10 +8,6 @@
     >
       <AIcon type="GlobalOutlined" />
       <span>{{ currentLanguageLabel }}</span>
-      <AIcon
-        class="language-switch__arrow"
-        type="DownOutlined"
-      />
     </div>
 
     <template #overlay>

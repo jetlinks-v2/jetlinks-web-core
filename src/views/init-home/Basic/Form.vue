@@ -249,7 +249,6 @@ onMounted(() => {
 const submit = () => {
   return new Promise((resolve, reject) => {
     formRef.value.validate().then(() => {
-      debugger
       const params = [
         {
           scope: 'front',
