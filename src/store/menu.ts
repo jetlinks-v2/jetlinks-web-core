@@ -23,6 +23,7 @@ type OptionsType = {
 
 const $t = i18n.global.t
 
+const MENU_APPLICATION_OWNERS = new Set(['accessControlService', 'parkingService'])
 const INTERNAL_APPLICATION_PROVIDERS = new Set(['internal-integrated', 'internal-standalone'])
 const INTERNAL_APPLICATION_GROUP = 'internal_group'
 
@@ -263,6 +264,21 @@ const mergeMenuOrderByRemote = (remoteMenus: any[] = [], normalizedMenus: any[] 
 
   return [...mergedMenus, ...localOnlyMenus]
 }
+
+const sortMenusBySortIndex = (menus: any[] = []): any[] => [...menus]
+  .map((menu) => ({
+    ...menu,
+    children: Array.isArray(menu?.children)
+      ? sortMenusBySortIndex(menu.children)
+      : menu?.children,
+  }))
+  .sort((left, right) => {
+    const leftIndex = Number(left?.sortIndex)
+    const rightIndex = Number(right?.sortIndex)
+    const normalizedLeft = Number.isFinite(leftIndex) ? leftIndex : Number.MAX_SAFE_INTEGER
+    const normalizedRight = Number.isFinite(rightIndex) ? rightIndex : Number.MAX_SAFE_INTEGER
+    return normalizedLeft - normalizedRight
+  })
 
 const rebuildMenuTree = (localNodes: any[] = [], remoteMap = new Map<string, any>(), used = new Set<string>()) => {
   const result: any[] = []
@@ -521,6 +537,13 @@ export const useMenuStore = defineStore('menu', () => {
     const normalizedMenuResult = rebuildMenuTree(localMenus, remoteMenuMap)
     const normalizedMenuMap = collectMenuMap(normalizedMenuResult)
 
+    const mergedMenuResult = sortMenusBySortIndex(mergeMenuOrderByRemote(
+      menuResult,
+      [
+        ...normalizedMenuResult,
+        ...menuResult.filter((node) => !node?.code || !normalizedMenuMap.has(node.code)),
+      ],
+    ))
     const mergedMenuResult = filterEmptyMenuGroups(
       filterEnabledApplicationMenus(
         mergeMenuOrderByRemote(
