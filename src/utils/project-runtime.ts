@@ -3,7 +3,7 @@ import {
   getProjectCodeFromLocation as getProjectCodeFromPathnameLocation,
   normalizeProjectHashPath,
 } from './project-path'
-import { isProjectStorageEnabled } from './project-storage'
+import { getProjectStorage, isProjectStorageEnabled } from './project-storage'
 import { isFromCloud } from './request-context'
 
 export {
@@ -22,6 +22,22 @@ export interface ProjectRuntimeConfig {
   fixedProject: boolean
   projectStorageEnabled: boolean
   subAccountLoginEnabled: boolean
+}
+
+const getProjectContext = () => {
+    if (!isProjectStorageEnabled()) {
+        return undefined
+    }
+
+    const projectId = getProjectCodeFromPathnameLocation()
+    if (!projectId) {
+        return undefined
+    }
+
+    return {
+        projectId,
+        storage: getProjectStorage(projectId)
+    }
 }
 
 const normalizeRuntimeScope = (value: unknown): ProjectRuntimeScope => {
@@ -101,4 +117,16 @@ export const redirectLegacyProjectHash = (hash = window.location.hash) => {
   const [, projectId, path = '/', query = ''] = match
   window.location.href = createProjectRuntimeHref(projectId, `${path}${query}`)
   return true
+}
+
+export const isApplicationRuntime = () => {
+    const projectContext = getProjectContext()
+
+    if (projectContext) {
+        const { storage: projectStorage } = projectContext
+
+        return !!projectStorage.scope
+    }
+
+    return false
 }
