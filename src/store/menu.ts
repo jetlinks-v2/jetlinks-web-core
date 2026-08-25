@@ -537,14 +537,7 @@ export const useMenuStore = defineStore('menu', () => {
     const normalizedMenuResult = rebuildMenuTree(localMenus, remoteMenuMap)
     const normalizedMenuMap = collectMenuMap(normalizedMenuResult)
 
-    const mergedMenuResult = sortMenusBySortIndex(mergeMenuOrderByRemote(
-      menuResult,
-      [
-        ...normalizedMenuResult,
-        ...menuResult.filter((node) => !node?.code || !normalizedMenuMap.has(node.code)),
-      ],
-    ))
-    const mergedMenuResult = filterEmptyMenuGroups(
+    const mergedMenuResult = sortMenusBySortIndex(filterEmptyMenuGroups(
       filterEnabledApplicationMenus(
         mergeMenuOrderByRemote(
           menuResult,
@@ -556,7 +549,7 @@ export const useMenuStore = defineStore('menu', () => {
         enabledApplications.types,
       ),
       menuGroupCodes,
-    )
+    ))
     runtime.menuResultCache.value = JSON.parse(JSON.stringify(mergedMenuResult))
 
     if (app.appList.length > 0) {
