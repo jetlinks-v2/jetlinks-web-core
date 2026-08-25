@@ -93,6 +93,7 @@ import { resetSessionStores } from '@jetlinks-web-core/router/startup'
 import { request } from '@jetlinks-web/core'
 
 const BASE_API_PATH = import.meta.env.VITE_APP_BASE_API
+const DEFAULT_LOGIN_REDIRECT = '/'
 
 const $t = i18n.global.t
 
@@ -119,6 +120,24 @@ const warmupWorkflowSession = () => {
   request.post('/park/workflow/session/warmup').catch((error) => {
     console.warn('mldong session warmup failed; workflow will retry on demand', error)
   })
+}
+
+const getLoginRedirect = () => {
+  const query = window.location.hash.split('?')[1]
+  const redirect = query ? new URLSearchParams(query).get('redirect') : null
+
+  if (!redirect) {
+    return DEFAULT_LOGIN_REDIRECT
+  }
+
+  try {
+    const path = decodeURIComponent(redirect)
+    return path.startsWith('/') && !path.startsWith('//')
+      ? path
+      : DEFAULT_LOGIN_REDIRECT
+  } catch {
+    return DEFAULT_LOGIN_REDIRECT
+  }
 }
 
 const formData = reactive({
@@ -205,7 +224,7 @@ const { loading, run } = useRequest(login, {
           return
         }
       }
-      window.location.href = '/'
+      window.location.href = `/#${getLoginRedirect()}`
     }
   },
   onWarn: () => {
@@ -242,7 +261,7 @@ const handleClickOther = (item) => {
   window.open(`${BASE_API_PATH}/application/sso/${item.id}/login`)
   window.onstorage = (event) => {
     if (event.newValue) {
-      window.location.href = '/'
+      window.location.href = `/#${getLoginRedirect()}`
     }
   }
 }

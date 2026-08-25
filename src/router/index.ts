@@ -21,6 +21,7 @@ import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 
 const FORBIDDEN_PATH = '/403'
+const DEFAULT_LOGIN_REDIRECT = '/'
 const PROJECT_PERSON_CENTER_PATH = '/person-center'
 const PROJECT_TENANT_ROUTE_PREFIXES = ['/console', '/account']
 
@@ -191,7 +192,7 @@ router.beforeEach((to, from, next) => {
   if (token) {
     if (isLoginRoute) {
       resetRouteStartupState()
-      next({ path: '/' })
+      next({ path: DEFAULT_LOGIN_REDIRECT })
     } else {
       bootstrapSession()
         .then(() => {
