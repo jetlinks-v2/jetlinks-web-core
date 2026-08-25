@@ -16,7 +16,8 @@
         @keydown.enter.prevent="handleClick(item)"
         @keydown.space.prevent="handleClick(item)"
       >
-        {{ item.label }}
+        <span>{{ item.label }}</span>
+        <span v-if="item.count !== undefined" class="simple-tabs__count">{{ item.count }}</span>
       </div>
     </div>
   </div>
@@ -31,6 +32,7 @@ interface SimpleTabsOption {
   label: string
   value: TabsValue
   disabled?: boolean
+  count?: string | number
 }
 
 const props = defineProps({
@@ -126,6 +128,18 @@ const handleClick = (item: SimpleTabsOption) => {
   color: #4E5969;
 }
 
+.simple-tabs__count {
+  min-width: 20px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--bg-sunken, #f5f5f5);
+  color: var(--ink-3, #86909c);
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+}
+
 .simple-tabs__tab:hover {
   color: var(--primary-color-active);
 }
@@ -137,6 +151,11 @@ const handleClick = (item: SimpleTabsOption) => {
   &:hover {
     color: #fff;
   }
+}
+
+.simple-tabs__tab--active .simple-tabs__count {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
 }
 
 .simple-tabs__tab--disabled {

@@ -171,7 +171,7 @@ const ensurePlayer = async (layout: number, version: number) => {
     openDebug: false,
     bSupporDoubleClickFull: true,
     oStyle: {
-      borderSelect: '#ff0000',
+      borderSelect: 'transparent',
     },
   });
   if (version !== requestVersion) {
