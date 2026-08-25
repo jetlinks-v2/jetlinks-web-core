@@ -23,7 +23,6 @@ type OptionsType = {
 
 const $t = i18n.global.t
 
-const MENU_APPLICATION_OWNERS = new Set(['accessControlService', 'parkingService'])
 const INTERNAL_APPLICATION_PROVIDERS = new Set(['internal-integrated', 'internal-standalone'])
 const INTERNAL_APPLICATION_GROUP = 'internal_group'
 
@@ -34,70 +33,74 @@ const getResponseList = (response: any): any[] => {
   return Array.isArray(data) ? data : []
 }
 
-const getEnabledMenuOwners = async (): Promise<string[]> => {
+type EnabledMenuApplications = {
+  types: Set<string>
+}
+
+const getEnabledMenuApplications = async (): Promise<EnabledMenuApplications> => {
   const applicationResponse = await request.post('/application/_query/no-paging', { paging: false })
-  const [archiveResponse, serviceResponse] = await Promise.all([
-    request.post('/park/app/archive/_query/no-paging', { paging: false }),
-    request.get('/subsystem/internal/services'),
-  ])
+  const serviceResponse = await request.get('/subsystem/internal/services')
 
   const enabledApplications = getResponseList(applicationResponse)
     .filter((item: any) => {
-      const provider = String(item?.provider || item?.type || '')
       const state = String(item?.state?.value || item?.status || item?.state || '')
-      const groupId = String(item?.configurations?.smartParkAppGroup || '')
-      return state === 'enabled' && (groupId === INTERNAL_APPLICATION_GROUP || INTERNAL_APPLICATION_PROVIDERS.has(provider))
+      return state === 'enabled' && !!item?.id
     })
-    .filter((item: any) => !!item?.id)
+
+  const enabledMenuApplications = enabledApplications.filter((item: any) => {
+    const provider = String(item?.provider || item?.type || '')
+    const groupId = String(item?.configurations?.smartParkAppGroup || '')
+    return groupId === INTERNAL_APPLICATION_GROUP || INTERNAL_APPLICATION_PROVIDERS.has(provider)
+  })
 
   const applicationDetails = await Promise.all(
-    enabledApplications.map((item: any) =>
+    enabledMenuApplications.map((item: any) =>
       request.get(`/application/${encodeURIComponent(String(item.id))}`).catch(() => undefined),
     ),
   )
 
-  const enabledApplicationSystems = new Map(
-    enabledApplications.map((item: any, index): [string, string] => {
-      const detail = getResponseData(applicationDetails[index]) || {}
-      return [
-        String(item.id),
-        String(
-          detail?.page?.configuration?.checkedSystem ||
-            detail?.configurations?.smartParkInternalSystem ||
-            item?.page?.configuration?.checkedSystem ||
-            item?.configurations?.smartParkInternalSystem ||
-            '',
-        ),
-      ]
-    }),
-  )
+  const enabledApplicationSystems = enabledMenuApplications.map((item: any, index): string => {
+    const detail = getResponseData(applicationDetails[index]) || {}
+    return String(
+      detail?.page?.configuration?.checkedSystem ||
+        detail?.configurations?.smartParkInternalSystem ||
+        item?.page?.configuration?.checkedSystem ||
+        item?.configurations?.smartParkInternalSystem ||
+        '',
+    )
+  })
 
-  const serviceTypes = new Map(
-    getResponseList(serviceResponse)
-      .map((item: any): [string, string] => [
-        String(
-          item?.serviceType ||
-            item?.systemType ||
-            item?.type?.value ||
-            item?.type?.id ||
-            item?.type?.code ||
-            item?.type?.name ||
-            item?.type ||
-            '',
-        ),
-        String(
-          item?.serviceType ||
-            item?.systemType ||
-            item?.type?.value ||
-            item?.type?.id ||
-            item?.type?.code ||
-            item?.type?.name ||
-            item?.type ||
-            '',
-        ),
-      ])
-      .filter(([id, type]) => id && type),
-  )
+  const serviceTypes = new Map<string, string>()
+  getResponseList(serviceResponse).forEach((item: any) => {
+    const type = String(
+      item?.type?.value ||
+        item?.type?.id ||
+        item?.type?.code ||
+        item?.serviceType ||
+        item?.systemType ||
+        item?.type ||
+        '',
+    )
+    const aliases = [
+      item?.value,
+      item?.id,
+      item?.code,
+      item?.name,
+      item?.serviceType,
+      item?.systemType,
+      item?.type?.value,
+      item?.type?.id,
+      item?.type?.code,
+      item?.type?.name,
+      item?.type,
+    ]
+    aliases.forEach((alias) => {
+      const key = String(alias || '')
+      if (key && type) {
+        serviceTypes.set(key, type)
+      }
+    })
+  })
 
   const legacyServiceNames = new Map(
     getResponseList(serviceResponse)
@@ -108,24 +111,23 @@ const getEnabledMenuOwners = async (): Promise<string[]> => {
       .filter(([name, type]) => name && type),
   )
 
-  const archiveInternalSystems = new Map(
-    getResponseList(archiveResponse)
-      .map((item: any): [string, string] => [String(item?.appId || ''), String(item?.internalSystem || '')])
-      .filter(([appId, internalSystem]) => appId && internalSystem),
-  )
-
-  return [...new Set(
-    [...enabledApplicationSystems]
-      .map(([appId, configuredInternalSystem]) => {
-        const internalSystem = archiveInternalSystems.get(appId) || configuredInternalSystem
-        return serviceTypes.get(internalSystem) || legacyServiceNames.get(internalSystem)
-      })
-      .filter((owner): owner is string => !!owner && MENU_APPLICATION_OWNERS.has(owner)),
+  const enabledApplicationTypes = [...new Set(
+    enabledApplicationSystems
+      .map((configuredInternalSystem) =>
+        serviceTypes.get(configuredInternalSystem) ||
+        legacyServiceNames.get(configuredInternalSystem) ||
+        configuredInternalSystem,
+      )
+      .filter((type): type is string => !!type),
   )]
+
+  return {
+    types: new Set(enabledApplicationTypes),
+  }
 }
 
-const getOwnMenuParams = (owners: string[]) => {
-  const menuOwners = new Set(['smart-park', ...owners])
+const getOwnMenuParams = (types: string[]) => {
+  const menuOwners = new Set(['smart-park', ...types])
 
   return [
     {
@@ -138,6 +140,54 @@ const getOwnMenuParams = (owners: string[]) => {
       ],
     },
   ]
+}
+
+const filterEnabledApplicationMenus = (nodes: any[] = [], enabledApplicationTypes = new Set<string>()): any[] => {
+  return nodes.flatMap((node) => {
+    const owner = String(node?.owner || '')
+    if (owner && owner !== 'smart-park' && !enabledApplicationTypes.has(owner)) {
+      return []
+    }
+
+    const sourceChildren = Array.isArray(node?.children) ? node.children : []
+    const children = filterEnabledApplicationMenus(sourceChildren, enabledApplicationTypes)
+    if (sourceChildren.length && !children.length) {
+      return []
+    }
+
+    return [{
+      ...node,
+      ...(sourceChildren.length ? { children } : {}),
+    }]
+  })
+}
+
+const collectMenuGroupCodes = (nodes: any[] = [], codes = new Set<string>()) => {
+  nodes.forEach((node) => {
+    if (node?.code && Array.isArray(node.children) && node.children.length) {
+      codes.add(node.code)
+    }
+    if (Array.isArray(node?.children) && node.children.length) {
+      collectMenuGroupCodes(node.children, codes)
+    }
+  })
+  return codes
+}
+
+const filterEmptyMenuGroups = (nodes: any[] = [], groupCodes = new Set<string>()): any[] => {
+  return nodes.flatMap((node) => {
+    const children = filterEmptyMenuGroups(
+      Array.isArray(node?.children) ? node.children : [],
+      groupCodes,
+    )
+    if (groupCodes.has(node?.code) && !children.length) {
+      return []
+    }
+    return [{
+      ...node,
+      ...(Array.isArray(node?.children) ? { children } : {}),
+    }]
+  })
 }
 
 const collectMenuMap = (nodes: any[] = [], map = new Map<string, any>()) => {
@@ -451,30 +501,40 @@ export const useMenuStore = defineStore('menu', () => {
   })
 
   const queryMenus = async () => {
-    const owners = await getEnabledMenuOwners().catch((error) => {
-      console.warn('查询应用菜单 owner 失败:', error)
-      return []
+    const enabledApplications = await getEnabledMenuApplications().catch((error) => {
+      console.warn('查询启用应用菜单失败:', error)
+      return { types: new Set<string>() }
     })
     const resp = await getOwnMenuThree({
       paging: false,
-      terms: getOwnMenuParams(owners),
+      terms: getOwnMenuParams([...enabledApplications.types]),
       sorts: [{ name: 'sortIndex', order: 'asc' }],
     })
 
-    const menuResult = Array.isArray(resp.result) ? resp.result : []
-    runtime.menuResultCache.value = JSON.parse(JSON.stringify(menuResult))
+    const menuResult = filterEnabledApplicationMenus(
+      Array.isArray(resp.result) ? resp.result : [],
+      enabledApplications.types,
+    )
     const localMenus = mergeLocalMenus(getModulesMenu())
+    const menuGroupCodes = collectMenuGroupCodes(localMenus)
     const remoteMenuMap = collectMenuMap(menuResult)
     const normalizedMenuResult = rebuildMenuTree(localMenus, remoteMenuMap)
     const normalizedMenuMap = collectMenuMap(normalizedMenuResult)
 
-    const mergedMenuResult = mergeMenuOrderByRemote(
-      menuResult,
-      [
-        ...normalizedMenuResult,
-        ...menuResult.filter((node) => !node?.code || !normalizedMenuMap.has(node.code)),
-      ],
+    const mergedMenuResult = filterEmptyMenuGroups(
+      filterEnabledApplicationMenus(
+        mergeMenuOrderByRemote(
+          menuResult,
+          [
+            ...normalizedMenuResult,
+            ...menuResult.filter((node) => !node?.code || !normalizedMenuMap.has(node.code)),
+          ],
+        ),
+        enabledApplications.types,
+      ),
+      menuGroupCodes,
     )
+    runtime.menuResultCache.value = JSON.parse(JSON.stringify(mergedMenuResult))
 
     if (app.appList.length > 0) {
       const localMenuCodes = new Set<string>()
