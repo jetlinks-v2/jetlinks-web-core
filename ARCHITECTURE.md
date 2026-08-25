@@ -29,6 +29,17 @@ Current startup flow:
 
 Startup changes are high-risk because they can affect login, token handling, websocket connection, module registration, theme, and micro-app data exchange.
 
+## Unified Verification
+
+The shared verification dialog is owned by `jetlinks-web-core/src/views/verify/index.vue` and is opened from `jetlinks-web-core/src/package.ts` when a request fails with `verify.required`.
+
+Captcha confirmation uses `jetlinks-web-core/src/api/verify.ts#confirmCaptcha` and must keep the provider-specific parameter contract aligned with the backend `CaptchaProvider` implementations:
+
+- `image`: submit `params.verifyKey` and `params.verifyCode`.
+- `tianai`: first complete `jetlinks-web-core/src/components/Captcha`, then submit the returned passed captcha id as `params["captcha-id"]`.
+
+`jetlinks-web-core/src/components/Captcha/useCaptha.ts` returns the backend validation success payload to callers. Consumers that need a follow-up confirmation token must use that payload instead of assuming the component only emits a boolean success flag.
+
 ## Module Loading
 
 Module discovery is centralized in:
