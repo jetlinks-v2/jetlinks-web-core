@@ -4,6 +4,7 @@
     :title="title"
     :maskClosable="false"
     :width="type === 'identity' ? 420 : modalWidth"
+    :footer="modalFooter"
     @cancel="onCancel"
     @ok="onSubmit"
     :okButtonProps="{ loading: submitting, disabled: submitDisabled }"
@@ -211,6 +212,8 @@ const identityRules = {
 }
 
 const isTianaiCaptcha = computed(() => captchaConfig.value?.type === 'tianai')
+const isAutoSubmitCaptcha = computed(() => type.value === 'captcha' && isTianaiCaptcha.value)
+const modalFooter = computed(() => isAutoSubmitCaptcha.value ? null : undefined)
 const submitDisabled = computed(() => {
   if (type.value === 'identity') {
     return identityListRaw.value.length === 0
@@ -261,7 +264,17 @@ function getTianaiCaptchaId(value: unknown) {
 }
 
 function onTianaiCaptchaSuccess(value: unknown) {
-  tianaiCaptchaId.value = getTianaiCaptchaId(value)
+  if (submitting.value) {
+    return
+  }
+  const captchaId = getTianaiCaptchaId(value)
+  if (!captchaId) {
+    tianaiCaptchaId.value = ''
+    captchaRenderKey.value += 1
+    return
+  }
+  tianaiCaptchaId.value = captchaId
+  onSubmit().catch(() => undefined)
 }
 
 function onTianaiCaptchaFail() {
@@ -411,6 +424,9 @@ async function resendIdentityCode() {
 }
 
 async function onSubmit() {
+  if (submitting.value) {
+    return
+  }
   // 如果没有身份信息，不允许提交
   if (type.value === 'identity' && identityListRaw.value.length === 0) {
     return

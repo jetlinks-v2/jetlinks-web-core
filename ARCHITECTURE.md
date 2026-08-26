@@ -36,7 +36,7 @@ The shared verification dialog is owned by `jetlinks-web-core/src/views/verify/i
 Captcha confirmation uses `jetlinks-web-core/src/api/verify.ts#confirmCaptcha` and must keep the provider-specific parameter contract aligned with the backend `CaptchaProvider` implementations:
 
 - `image`: submit `params.verifyKey` and `params.verifyCode`.
-- `tianai`: first complete `jetlinks-web-core/src/components/Captcha`, then submit the returned passed captcha id as `params["captcha-id"]`.
+- `tianai`: first complete `jetlinks-web-core/src/components/Captcha`, then submit the returned passed captcha id as `params["captcha-id"]`. The parent verification dialog hides its footer for this provider and auto-confirms as soon as the behavior captcha succeeds.
 
 `jetlinks-web-core/src/components/Captcha/useCaptha.ts` returns the backend validation success payload to callers. Consumers that need a follow-up confirmation token must use that payload instead of assuming the component only emits a boolean success flag.
 
