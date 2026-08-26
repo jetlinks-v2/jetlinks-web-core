@@ -229,12 +229,6 @@ const renderTenantSubMenu = ({ item, children }: SubMenuRenderContext) => {
     calc(100vw - var(--space-12) - var(--space-12))
   );
 
-  inset-inline-start: 50% !important;
-  inset-inline-end: auto !important;
-  margin-inline-start: 0;
-  /* 使用独立位移，避免覆盖 Ant Design 弹层动画使用的 transform。 */
-  translate: -50% 0;
-
   > .ant-menu {
     width: max-content;
     max-width: calc(100vw - var(--space-8));
