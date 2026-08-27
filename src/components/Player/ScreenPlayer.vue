@@ -110,7 +110,10 @@
                 <div
                     ref="fullscreenRef"
                     class="player-screen"
-                    :class="`screen-${screen}`"
+                    :class="[
+                        `screen-${screen}`,
+                        { 'player-screen--with-footer': Boolean($slots.footer) },
+                    ]"
                 >
                     <HikvisionH5Player
                         v-if="useHikvisionH5Player"
@@ -158,10 +161,10 @@
                             <LivePlayer :live="true" :protocol="item.protocol" :url="item.url" autoplay />
                         </div>
                     </template>
+                    <div v-if="$slots.footer" class="player-screen-footer">
+                        <slot name="footer" />
+                    </div>
                 </div>
-            </div>
-            <div v-if="$slots.footer" class="player-screen-footer">
-                <slot name="footer" />
             </div>
             <!-- 控制器 -->
         </div>
@@ -523,10 +526,20 @@ watchEffect(() => {
 });
 
 const getCurrentTime = () => hikvisionPlayer.value?.getCurrentTime();
+const togglePlayback = async () => {
+    if (hikvisionPlayer.value?.paused?.()) {
+        await hikvisionPlayer.value.play();
+    } else {
+        await hikvisionPlayer.value?.pause();
+    }
+};
+const toggleFullscreen = () => toggle();
 
 defineExpose({
     replaceVideo,
     getCurrentTime,
+    togglePlayback,
+    toggleFullscreen,
 });
 </script>
 
@@ -561,12 +574,11 @@ defineExpose({
   margin-bottom: 0;
 }
 .live-player-warp .live-player-content .player-body {
+  display: flex;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-.live-player-warp .live-player-content .player-screen-footer {
-  flex: none;
+  background: #000;
 }
 .live-player-warp .live-player-content .player-body .player-screen {
   position: relative;
@@ -577,6 +589,31 @@ defineExpose({
   aspect-ratio: 16 / 9;
   overflow: hidden;
   background: #000;
+}
+.live-player-warp .live-player-content .player-body .player-screen .player-screen-footer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  padding: 0.5rem 0 0;
+  background: rgba(0, 0, 0, 0.22);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  opacity: 0;
+  pointer-events: auto;
+  transform: translateY(0.5rem);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+.live-player-warp .live-player-content .player-body .player-screen .player-screen-footer:hover,
+.live-player-warp .live-player-content .player-body .player-screen:focus-within .player-screen-footer {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.live-player-warp .live-player-content .player-body .player-screen.player-screen--with-footer {
+  flex: 1;
+  height: 100%;
+  aspect-ratio: auto;
 }
 .live-player-warp .live-player-content .player-body .player-screen:fullscreen {
   height: 100%;

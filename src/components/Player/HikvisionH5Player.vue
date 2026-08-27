@@ -22,6 +22,8 @@ type HikvisionH5Player = {
   JS_ArrangeWindow?: (split: number) => Promise<unknown> | unknown;
   JS_SetWindowControlCallback?: (events: Record<string, (...args: any[]) => void>) => Promise<unknown> | unknown;
   JS_Stop?: () => Promise<unknown> | unknown;
+  JS_Pause?: (windowIndex?: number) => Promise<unknown> | unknown;
+  JS_Resume?: (windowIndex?: number) => Promise<unknown> | unknown;
   JS_SelectWnd?: (windowIndex: number) => Promise<unknown> | unknown;
   JS_Speed?: (windowIndex?: number, speed?: number) => Promise<unknown> | unknown;
   JS_GetOSDTime?: (windowIndex?: number) => Promise<number> | number;
@@ -78,6 +80,7 @@ const containerId = `hikvision-h5-player-${++instanceSequence}`;
 let requestVersion = 0;
 let currentLayout = 0;
 let currentUrls: string[] = [];
+let pausedTimes: Array<number | undefined> = [];
 let mounted = false;
 
 const getAssetBasePath = () => {
@@ -230,6 +233,28 @@ const play = async () => {
     for (let index = 0; index < layout; index++) {
       const url = targetUrls[index];
       if (currentUrls[index] === url) {
+        if (!playing.value) {
+          let resumed = false;
+          if (current.JS_Resume) {
+            try {
+              await current.JS_Resume(index);
+              resumed = true;
+            } catch {
+              resumed = false;
+            }
+          }
+          if (!resumed && pausedTimes[index]) {
+            await current.JS_Play(url, {
+              playURL: url,
+              mode: 0,
+              keepDecoder: 0,
+            }, index, new Date(pausedTimes[index]!).toISOString(), props.playbackEndTime);
+            await current.JS_Speed?.(
+              index,
+              toHikvisionPlaybackRate(Number(props.playbackRate) > 0 ? props.playbackRate : 1),
+            );
+          }
+        }
         continue;
       }
       if (currentUrls[index]) {
@@ -270,7 +295,19 @@ const play = async () => {
 };
 
 const pause = async () => {
-  await stop();
+  const current = player.value;
+  if (!current) {
+    return;
+  }
+  const index = Math.max(0, Math.min(normalizeLayout(props.screen) - 1, props.activeIndex || 0));
+  await current.JS_SelectWnd?.(index);
+  pausedTimes[index] = await getCurrentTime();
+  if (current.JS_Pause) {
+    await current.JS_Pause(index);
+    playing.value = false;
+  } else {
+    await stop();
+  }
   props.onPause?.();
 };
 
