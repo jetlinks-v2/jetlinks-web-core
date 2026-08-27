@@ -23,6 +23,8 @@ type HikvisionH5Player = {
   JS_SetWindowControlCallback?: (events: Record<string, (...args: any[]) => void>) => Promise<unknown> | unknown;
   JS_Stop?: () => Promise<unknown> | unknown;
   JS_SelectWnd?: (windowIndex: number) => Promise<unknown> | unknown;
+  JS_Speed?: (windowIndex?: number, speed?: number) => Promise<unknown> | unknown;
+  JS_GetOSDTime?: (windowIndex?: number) => Promise<number> | number;
 };
 
 type HikvisionStream = {
@@ -61,6 +63,10 @@ const props = defineProps({
   },
   playbackStartTime: String,
   playbackEndTime: String,
+  playbackRate: {
+    type: Number,
+    default: 1,
+  },
 });
 const emit = defineEmits<{
   (event: 'window-select', index: number): void;
@@ -151,6 +157,19 @@ const selectWindow = async () => {
   await current?.JS_SelectWnd?.(index);
 };
 
+const toHikvisionPlaybackRate = (rate: number) => rate > 0 && rate < 1 ? -1 / rate : rate;
+
+const applyPlaybackRate = async (rate = props.playbackRate) => {
+  const current = player.value;
+  if (!current) return;
+  const normalizedRate = Number(rate) > 0 ? Number(rate) : 1;
+  for (let index = 0; index < currentLayout; index++) {
+    if (currentUrls[index]) {
+      await current.JS_Speed?.(index, toHikvisionPlaybackRate(normalizedRate));
+    }
+  }
+};
+
 const ensurePlayer = async (layout: number, version: number) => {
   if (player.value && currentLayout === layout) {
     return player.value;
@@ -230,6 +249,10 @@ const play = async () => {
           mode: 0,
           keepDecoder: 0,
         }, index, startTime, endTime);
+        await current.JS_Speed?.(
+          index,
+          toHikvisionPlaybackRate(Number(props.playbackRate) > 0 ? props.playbackRate : 1),
+        );
       }
       currentUrls[index] = url;
     }
@@ -269,9 +292,19 @@ const screenshot = (
   _quality?: number,
 ) => undefined;
 
-const setPlaybackRate = (_value: number) => undefined;
+const setPlaybackRate = (value: number) => applyPlaybackRate(value);
 
-const getCurrentTime = () => undefined;
+const getCurrentTime = async () => {
+  const current = player.value;
+  if (!current) return undefined;
+  const index = Math.max(0, Math.min(normalizeLayout(props.screen) - 1, props.activeIndex || 0));
+  try {
+    const time = await current.JS_GetOSDTime?.(index);
+    return Number.isFinite(time) ? Number(time) : undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 const getDuration = () => undefined;
 
@@ -305,6 +338,15 @@ watch(
   () => {
     if (mounted && props.autoplay) {
       void play();
+    }
+  },
+);
+
+watch(
+  () => props.playbackRate,
+  rate => {
+    if (mounted && player.value) {
+      void applyPlaybackRate(rate);
     }
   },
 );

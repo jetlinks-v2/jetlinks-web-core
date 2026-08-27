@@ -114,12 +114,14 @@
                 >
                     <HikvisionH5Player
                         v-if="useHikvisionH5Player"
+                        ref="hikvisionPlayer"
                         class="player-screen__hikvision"
                         :streams="players"
                         :screen="screen"
                         :active-index="playerActive"
                         :playback-start-time="playbackStartTime"
                         :playback-end-time="playbackEndTime"
+                        :playback-rate="playbackRate"
                         autoplay
                         @window-select="handleHikvisionWindowSelect"
                     />
@@ -158,6 +160,9 @@
                     </template>
                 </div>
             </div>
+            <div v-if="$slots.footer" class="player-screen-footer">
+                <slot name="footer" />
+            </div>
             <!-- 控制器 -->
         </div>
         <MediaTool
@@ -193,6 +198,10 @@ type Player = {
     show: boolean;
 };
 
+type HikvisionPlayerInstance = {
+    getCurrentTime: () => Promise<number | undefined>;
+};
+
 interface ScreenProps {
     url?: string;
     id?: string;
@@ -217,6 +226,7 @@ interface ScreenProps {
     protocol?: MediaPlayerProtocol;
     playbackStartTime?: string;
     playbackEndTime?: string;
+    playbackRate?: number;
 }
 
 const props = defineProps<ScreenProps>();
@@ -229,6 +239,7 @@ const screen = ref(1);
 const players = ref<Player[]>([]);
 // 当前选中的窗口
 const playerActive = ref(0);
+const hikvisionPlayer = ref<HikvisionPlayerInstance>();
 // 历史记录
 const historyList = ref<any[]>([]);
 // 展示保存浮窗
@@ -511,8 +522,11 @@ watchEffect(() => {
     mediaInit();
 });
 
+const getCurrentTime = () => hikvisionPlayer.value?.getCurrentTime();
+
 defineExpose({
     replaceVideo,
+    getCurrentTime,
 });
 </script>
 
@@ -549,7 +563,10 @@ defineExpose({
 .live-player-warp .live-player-content .player-body {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
+}
+.live-player-warp .live-player-content .player-screen-footer {
+  flex: none;
 }
 .live-player-warp .live-player-content .player-body .player-screen {
   position: relative;
