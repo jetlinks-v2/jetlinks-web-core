@@ -78,6 +78,7 @@ import { useRequest } from '@jetlinks-web/hooks'
 import {
   captchaConfig,
   codeUrl,
+  consumeFirstLoginRedirect,
   encryptionConfig,
   getInitSet,
   login
@@ -132,9 +133,12 @@ const getLoginRedirect = () => {
 
   try {
     const path = decodeURIComponent(redirect)
-    return path.startsWith('/') && !path.startsWith('//')
-      ? path
-      : DEFAULT_LOGIN_REDIRECT
+    if (!path.startsWith('/') || path.startsWith('//')) {
+      return DEFAULT_LOGIN_REDIRECT
+    }
+    return path === '/account/center' || path.startsWith('/account/center?')
+      ? DEFAULT_LOGIN_REDIRECT
+      : path
   } catch {
     return DEFAULT_LOGIN_REDIRECT
   }
@@ -224,7 +228,11 @@ const { loading, run } = useRequest(login, {
           return
         }
       }
-      window.location.href = `/#${getLoginRedirect()}`
+      const firstLogin = await consumeFirstLoginRedirect().catch(() => undefined)
+      const redirect = firstLogin?.success && firstLogin.result
+        ? '/account/center?firstLogin=true'
+        : getLoginRedirect()
+      window.location.href = `/#${redirect}`
     }
   },
   onWarn: () => {

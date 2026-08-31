@@ -42,6 +42,7 @@ import BindThirdAccount from './components/BindThirdAccount/index.vue'
 import EditPassword from './components/EditPassword/index.vue'
 import { useUserStore } from '@jetlinks-web-core/store'
 import { useRouterParams } from '@jetlinks-web/hooks'
+import { useRoute } from 'vue-router'
 import { tabList } from '@jetlinks-web-core/views/account/center/data'
 import { isNoCommunity } from '@jetlinks-web-core/utils'
 import FullPage from "@/layout/FullPage.vue";
@@ -54,6 +55,7 @@ const tabs = {
 }
 
 const router = useRouterParams()
+const route = useRoute()
 
 const editPasswordVisible = ref<boolean>(false)
 
@@ -86,6 +88,9 @@ watchEffect(() => {
 onMounted(async () => {
   await user.getUserInfo()
   getTabKey()
+  if (route.query.firstLogin === 'true') {
+    editPasswordVisible.value = true
+  }
 })
 
 onUnmounted(() => {

@@ -7,6 +7,9 @@ import { request } from '@jetlinks-web/core'
  */
 export const login = (data: any) => request.post('/authorize/login', data)
 
+export const consumeFirstLoginRedirect = () =>
+  request.post<boolean>('/user/current/first-login/_consume')
+
 /**
  * 退出登录
  */
@@ -61,4 +64,3 @@ export const bindInfo = () => request.get(`/application/sso/_all`)
 export const getOAuth2 = (params: any) => request.get('/oauth2/authorize', params)
 
 export const initApplication = (clientId: string | number) => request.get<{name: string}>(`/application/${clientId}/info`)
-
