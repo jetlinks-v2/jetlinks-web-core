@@ -559,6 +559,13 @@ const normalizeOutputTermValue = (term: ConditionTerm) => {
     }
   }
 
+  if (['like', 'nlike'].includes(term.termType || '') && typeof term.value === 'string' && term.value) {
+    return {
+      ...term,
+      value: `${term.value.startsWith('%') ? '' : '%'}${term.value}${term.value.endsWith('%') ? '' : '%'}`,
+    }
+  }
+
   return term
 }
 
