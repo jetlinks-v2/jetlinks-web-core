@@ -4,13 +4,18 @@ import path from 'node:path'
 import test from 'node:test'
 import {
   createAiClientToolContractOutputBinding,
+  diagnoseAiClientToolPresentationCompatibility,
   defineAiClientToolContract,
   isAiClientToolContractMetadata,
   withAiClientToolContractEvidence,
 } from '../src/layout/components/AiChat/clientToolContract'
-import { createAiClientToolCatalogReport } from '../src/layout/components/AiChat/clientToolCatalog'
+import {
+  createAiClientToolCatalogReport,
+  createAiClientToolCatalogSnapshot,
+} from '../src/layout/components/AiChat/clientToolCatalog'
 import {
   toAiClientToolSessionDefinition,
+  toAiClientToolSessionDefinitions,
   validateAiClientToolResultBindings,
   validateAiClientToolRoutingCatalog,
   validateAiClientToolRoutingMetadata,
@@ -24,8 +29,10 @@ import {
 } from '../src/layout/components/AiChat/clientToolResultDelivery'
 import { createAiClientToolRecordFactCollector } from '../src/layout/components/AiChat/clientToolRecordFacts'
 import {
+  AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
   normalizeAiClientToolOutputBindings,
   normalizeAiClientToolOrdering,
+  resolveAiClientToolResultState,
   withAiClientToolEvidence,
 } from '../src/layout/components/AiChat/clientToolResult'
 import {
@@ -36,6 +43,8 @@ import {
   CLIENT_TOOL_DEFINITION_META_KEY,
   clientToolOutput,
   clientToolResult,
+  defineClientToolAnalyticalProducer,
+  defineClientToolBoundedAnalyticalProducer,
   defineClientTool,
   isCompiledClientToolDefinition,
 } from '../src/layout/components/AiChat/clientToolDefinition'
@@ -53,6 +62,7 @@ const createSeriesContract = () => defineAiClientToolContract({
     kind: 'aggregate-series',
     name: 'series',
     shape: 'time-series.aggregate',
+    audience: 'reusable-source',
     path: '$.data',
     delivery: 'auto',
     fields: [{ name: 'time', semanticRole: 'timestamp' }],
@@ -62,6 +72,67 @@ const createSeriesContract = () => defineAiClientToolContract({
     },
   }],
 })
+
+const anonymousBoundedDefinition = (
+  producerKey: string,
+  criterion: 'top_n' | 'bottom_n',
+) => ({
+  producerKey,
+  factKey: `${producerKey}.values`,
+  subjects: ['entity'] as const,
+  measures: [{ name: 'semantic_score', aggregations: ['sum'], units: ['record'] }],
+  dimensions: ['semantic_group'],
+  filters: ['authorized_scope'],
+  grains: [],
+  criterion: {
+    name: criterion,
+    measure: 'semantic_score',
+    direction: criterion === 'top_n' ? 'desc' as const : 'asc' as const,
+    valueField: 'physical_score',
+    coordinateField: 'physical_group',
+    axis: 'semantic_group',
+  },
+  boundedBy: 'requestedCount' as const,
+  output: 'ranked-records',
+})
+
+const createAnonymousBoundedTool = (
+  source: number[],
+  criterion: 'top_n' | 'bottom_n' = 'top_n',
+) => {
+  type Args = { requestedCount?: number }
+  const analytical = defineClientToolBoundedAnalyticalProducer<Args>(
+    anonymousBoundedDefinition(`anonymous.${criterion}`, criterion),
+  )
+  const records = source.map((score, index) => ({ physical_group: `group-${index}`, physical_score: score }))
+  const tool = defineClientTool<Args, Record<string, unknown>, typeof records>({
+    id: `anonymous_${criterion}`,
+    description: { text: 'Return a bounded ordered subset', capabilities: ['generic.rank'] },
+    inputs: [{ id: 'requestedCount', valueType: { type: 'integer', min: 1, max: 5 }, defaultValue: 3 }],
+    analytical,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet<typeof records>({
+      name: 'ranked-records',
+      shape: 'generic.ranked-records',
+      recordPath: '$',
+      fields: [
+        { name: 'physical_group', type: 'string', role: 'dimension' },
+        {
+          name: 'physical_score', type: 'number', role: 'measure', measure: 'semantic_score',
+          unit: 'record', aggregation: 'sum',
+        },
+      ],
+    }),
+    execute: ({ requestedCount = 3 }) => clientToolResult.success(
+      [...records]
+        .sort((left, right) => criterion === 'top_n'
+          ? right.physical_score - left.physical_score
+          : left.physical_score - right.physical_score)
+        .slice(0, requestedCount),
+    ),
+  })
+  return { tool, analytical }
+}
 
 test('stable client-tool facade compiles business facts without inferring resources from inputs', async () => {
   let selections = 0
@@ -105,6 +176,95 @@ test('stable client-tool facade compiles business facts without inferring resour
   assert.equal(selections, 1)
   assert.deepEqual(result.__clientToolOutputs.output0, [{ id: 'one' }])
   assert.equal(result.outputBindings[0].path, '$.__clientToolOutputs.output0')
+})
+
+test('compile-time preparation owns routing stage without creating a second role or analytical authority', () => {
+  const preparation = defineClientTool({
+    id: 'anonymous_scope_resolution',
+    description: { text: 'Resolve one authorized scope', capabilities: ['anonymous.scope.resolve'] },
+    preparation: true,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({
+      name: 'authorized-scope-candidates',
+      shape: 'anonymous.scope-candidates',
+    }),
+    execute: () => [],
+  })
+
+  assert.deepEqual(preparation.routing?.stages, ['preparation'])
+  assert.deepEqual(preparation.routing?.dataAccessModes, ['records'])
+  assert.equal(preparation.routing?.analyticalCapability, undefined)
+  assert.equal(Object.hasOwn(
+    preparation._meta?.[CLIENT_TOOL_DEFINITION_META_KEY] as Record<string, unknown>,
+    'preparation',
+  ), false)
+  const session = toAiClientToolSessionDefinition(preparation) as any
+  assert.deepEqual(session.expands['x-ai-routing'].stages, ['preparation'])
+  assert.equal(session.expands['x-ai-routing'].analyticalCapability, undefined)
+  assert.equal(Object.keys(session.expands).filter(key => key === 'x-ai-routing').length, 1)
+  assert.equal(JSON.stringify(session).includes('workflowRole'), false)
+  assert.equal(JSON.stringify(session).includes('"preparation":true'), false)
+
+  const analytical = defineClientToolAnalyticalProducer({
+    producerKey: 'anonymous.metric.read',
+    factKey: 'anonymous.metric',
+    subjects: ['anonymous-subject'],
+    measures: [{ name: 'metric', aggregations: ['sum'], units: ['record'] }],
+    criteria: ['summary'],
+    coverage: 'complete',
+    output: 'anonymous-metric',
+  })
+  assert.throws(() => defineClientTool({
+    id: 'invalid_preparation_producer',
+    description: { text: 'Invalid preparation producer', capabilities: ['anonymous.invalid'] },
+    preparation: true,
+    analytical,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'anonymous-metric', shape: 'anonymous.metric' }),
+    execute: () => ({ value: 1 }),
+  }), /preparation cannot declare analytical producer authority/)
+
+  assert.throws(() => defineClientTool({
+    id: 'invalid_preparation_flag',
+    description: { text: 'Reject an invalid preparation flag', capabilities: ['anonymous.invalid-flag'] },
+    preparation: false as never,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'invalid-flag-output', shape: 'anonymous.invalid-flag' }),
+    execute: () => ({ value: 1 }),
+  }), /preparation flag must be true/)
+
+  const releasedDefault = defineClientTool({
+    id: 'released_record_reader',
+    description: { text: 'Read records', capabilities: ['anonymous.records.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({ name: 'released-records', shape: 'anonymous.records' }),
+    execute: () => [],
+  })
+  assert.deepEqual(releasedDefault.routing?.stages, ['execution'])
+})
+
+test('required EITHER consumers remain prerequisites while accepting explicit arguments', () => {
+  const tool = defineClientTool({
+    id: 'test_required_either_consumer',
+    description: { text: 'Read one subject', capabilities: ['test.subject.read'] },
+    inputs: [{ id: 'subjectId', required: true, valueType: 'string' }],
+    consumes: [{
+      name: 'subject-id',
+      type: 'structured-data',
+      mediaType: 'application/json',
+      shape: 'subject.ids',
+      required: true,
+      sourcePolicy: 'EITHER',
+    }],
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'subject-detail', shape: 'subject.detail' }),
+    execute: ({ subjectId }) => ({ id: subjectId }),
+  })
+
+  assert.deepEqual(tool.routing?.accepts, ['subject-id'])
+  assert.deepEqual(tool.routing?.prerequisites, ['subject-id'])
+  assert.equal(tool.routing?.consumerPorts?.[0]?.sourcePolicy, 'EITHER')
+  assert.equal(tool.routing?.consumerPorts?.[0]?.required, true)
 })
 
 test('aggregate facade exposes renderer-neutral data without deriving a browser presentation', async () => {
@@ -181,19 +341,686 @@ test('aggregate facade exposes renderer-neutral data without deriving a browser 
   ])
 })
 
+test('facade projects only explicitly authored record paths into contracts and runtime bindings', async () => {
+  const chartable = defineClientTool({
+    id: 'test_explicit_record_path',
+    description: { text: 'Read canonical records', capabilities: ['test.records.aggregate'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'canonical-records',
+      shape: 'tabular.records',
+      recordPath: '$',
+      fields: [
+        { name: 'category', type: 'string', role: 'dimension' },
+        { name: 'value', type: 'number', role: 'measure', measure: 'count', unit: 'record', aggregation: 'sum' },
+      ],
+    }),
+    execute: () => clientToolResult.success([{ category: 'A', value: 1 }]),
+  })
+  const summary = defineClientTool({
+    id: 'test_omitted_record_path',
+    description: { text: 'Read a non-chartable summary', capabilities: ['test.summary.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'summary', shape: 'test.summary' }),
+    execute: () => clientToolResult.success({ total: 1 }),
+  })
+
+  assert.equal((chartable._meta?.clientToolContract as any).outputs[0].recordPath, '$')
+  assert.equal((summary._meta?.clientToolContract as any).outputs[0].recordPath, undefined)
+
+  const chartableResult = await chartable.execute({}, {}, { id: 'chartable', toolName: chartable.id }) as any
+  const summaryResult = await summary.execute({}, {}, { id: 'summary', toolName: summary.id }) as any
+  assert.equal(chartableResult.outputBindings[0].recordPath, '$')
+  assert.equal(summaryResult.outputBindings[0].recordPath, undefined)
+})
+
+test('facade rejects canonical fields when the producer omits recordPath', () => {
+  assert.throws(() => defineClientTool({
+    id: 'test_missing_record_path',
+    description: { text: 'Reject an incomplete canonical output', capabilities: ['test.records.aggregate'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'canonical-records',
+      shape: 'tabular.records',
+      fields: [{ name: 'value', type: 'number', role: 'measure' }],
+    }),
+    execute: () => clientToolResult.success([{ value: 1 }]),
+  }), /explicit recordPath/)
+})
+
+test('bounded analytical completeness is relative to the canonical requested scope', async () => {
+  const cases = [
+    { source: [2, 1], args: {}, expected: [2, 1] },
+    { source: [3, 2, 1], args: { requestedCount: 3 }, expected: [3, 2, 1] },
+    { source: [1, 5, 3, 4, 2], args: { requestedCount: 3 }, expected: [5, 4, 3] },
+  ]
+  for (const [index, item] of cases.entries()) {
+    const { tool } = createAnonymousBoundedTool(item.source)
+    const result = await tool.execute(item.args, {}, {
+      id: `bounded-${index}`,
+      toolName: tool.id,
+    }) as any
+    assert.equal(result.complete, true)
+    assert.equal(result.truncated, false)
+    assert.equal(result.evidence.complete, true)
+    assert.equal(result.evidence.completeness, 'complete')
+    assert.deepEqual(
+      result.__clientToolOutputs.output0.map((record: Record<string, number>) => record.physical_score),
+      item.expected,
+    )
+    assert.equal(result.outputBindings[0].recordCount, item.expected.length)
+    assert.equal(result.outputBindings[0].totalCount, item.expected.length)
+    assert.equal(result.outputBindings[0].complete, true)
+    assert.equal(result.outputBindings[0].completeness, 'complete')
+  }
+
+  const { tool: siblingCriterion } = createAnonymousBoundedTool([3, 1, 2, 4], 'bottom_n')
+  const siblingResult = await siblingCriterion.execute({ requestedCount: 2 }, {}, {
+    id: 'bounded-sibling',
+    toolName: siblingCriterion.id,
+  }) as any
+  assert.deepEqual(
+    siblingResult.__clientToolOutputs.output0.map((record: Record<string, number>) => record.physical_score),
+    [1, 2],
+  )
+  assert.equal(siblingResult.complete, true)
+  assert.equal(siblingResult.outputBindings[0].totalCount, 2)
+
+  const session = toAiClientToolSessionDefinition(siblingCriterion) as any
+  const serialized = JSON.stringify(session)
+  assert.equal((serialized.match(/"x-ai-routing"/g) || []).length, 1)
+  assert.equal(serialized.includes('boundedScope'), false)
+  assert.equal(serialized.includes('proveComplete'), false)
+  assert.equal(serialized.includes('analyticalCompletion'), false)
+  assert.equal(
+    session.expands['x-ai-routing'].analyticalCapability.criteria.includes('bottom_n'),
+    true,
+  )
+  assert.deepEqual(session.expands['x-ai-routing'].analyticalCapability.ordering, [{
+    axis: 'semantic_score', direction: 'asc', producerGuaranteed: true,
+  }])
+  assert.deepEqual(siblingResult.outputBindings[0].ordering, {
+    keys: [{ field: 'physical_score', direction: 'asc' }],
+    producerGuaranteed: true,
+  })
+  assert.equal(
+    siblingResult.outputBindings[0].fields.find((field: Record<string, unknown>) => (
+      field.name === 'physical_group'
+    )).axis,
+    'semantic_group',
+  )
+})
+
+test('bounded analytical axis binding is explicit for static and invocation-selected dimensions', async () => {
+  type Args = { requestedCount?: number; coordinateAxis: 'semantic_group' | 'alternate_group' }
+  const base = anonymousBoundedDefinition('anonymous.dynamic-axis', 'top_n')
+  const analytical = defineClientToolBoundedAnalyticalProducer<Args>({
+    ...base,
+    dimensions: ['semantic_group', 'alternate_group'],
+    criterion: {
+      ...base.criterion,
+      axis: undefined,
+      axisFromInput: 'coordinateAxis',
+    },
+  })
+  const tool = defineClientTool<Args, Record<string, unknown>, Array<Record<string, unknown>>>({
+    id: 'anonymous_dynamic_axis',
+    description: { text: 'Return records for an explicitly selected axis', capabilities: ['generic.rank'] },
+    inputs: [
+      { id: 'requestedCount', valueType: { type: 'integer', min: 1, max: 5 }, defaultValue: 2 },
+      { id: 'coordinateAxis', valueType: 'string', required: true },
+    ],
+    analytical,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({
+      name: 'ranked-records',
+      shape: 'generic.ranked-records',
+      recordPath: '$',
+      fields: [
+        { name: 'physical_group', type: 'string', role: 'dimension' },
+        {
+          name: 'physical_score', type: 'number', role: 'measure', measure: 'semantic_score',
+          unit: 'record', aggregation: 'sum',
+        },
+      ],
+    }),
+    execute: () => clientToolResult.success([{ physical_group: 'a', physical_score: 9 }]),
+  })
+
+  assert.equal(
+    tool._meta.clientToolContract.outputs[0].fields.find(
+      (field: Record<string, unknown>) => field.name === 'physical_group',
+    ).axis,
+    undefined,
+  )
+  for (const coordinateAxis of ['semantic_group', 'alternate_group'] as const) {
+    const result = await tool.execute({ coordinateAxis, requestedCount: 2 }, {}, {
+      id: `dynamic-${coordinateAxis}`,
+      toolName: tool.id,
+    }) as any
+    assert.equal(result.complete, true)
+    assert.equal(
+      result.outputBindings[0].fields.find(
+        (field: Record<string, unknown>) => field.name === 'physical_group',
+      ).axis,
+      coordinateAxis,
+    )
+  }
+
+  const invalid = await tool.execute({ coordinateAxis: 'unknown' as any, requestedCount: 2 }, {}, {
+    id: 'dynamic-invalid',
+    toolName: tool.id,
+  }) as any
+  assert.equal(invalid.complete, false)
+  assert.equal(invalid.evidence.limitReason, 'analytical_scope_unproven')
+})
+
+test('bounded analytical results fail closed when scope cardinality is invalid, out of range or exceeded', async () => {
+  type Args = { requestedCount: number }
+  const primary = defineClientToolBoundedAnalyticalProducer<Args>(
+    anonymousBoundedDefinition('anonymous.primary', 'top_n'),
+  )
+  const executeCase = async (
+    id: string,
+    execute: () => any,
+    requestedCount: unknown = 2,
+  ) => {
+    const tool = defineClientTool<Args, Record<string, unknown>, Array<Record<string, unknown>>>({
+      id,
+      description: { text: 'Return a bounded subset', capabilities: ['generic.rank'] },
+      inputs: [{ id: 'requestedCount', valueType: { type: 'integer', min: 1, max: 5 }, required: true }],
+      analytical: primary,
+      effect: { kind: 'READ' },
+      output: clientToolOutput.recordSet<Array<Record<string, unknown>>>({
+        name: 'ranked-records', shape: 'generic.ranked-records', recordPath: '$',
+        fields: [
+          { name: 'physical_group', type: 'string', role: 'dimension' },
+          {
+            name: 'physical_score', type: 'number', role: 'measure', measure: 'semantic_score',
+            unit: 'record', aggregation: 'sum',
+          },
+        ],
+      }),
+      execute,
+    })
+    return tool.execute({ requestedCount } as Args, {}, { id, toolName: id }) as Promise<any>
+  }
+
+  const cases = [
+    await executeCase('bounded_exceeded_scope', () => clientToolResult.success([
+      { physical_group: 'a', physical_score: 3 },
+      { physical_group: 'b', physical_score: 2 },
+      { physical_group: 'c', physical_score: 1 },
+    ])),
+    await executeCase('bounded_zero_scope', () => clientToolResult.success([]), 0),
+    await executeCase('bounded_fractional_scope', () => clientToolResult.success([
+      { physical_group: 'a', physical_score: 2 },
+    ]), 1.5),
+    await executeCase('bounded_out_of_range_scope', () => clientToolResult.success([
+      { physical_group: 'a', physical_score: 5 },
+    ]), 6),
+    await executeCase('bounded_malformed_scope', () => clientToolResult.success([
+      { physical_group: 'a', physical_score: 2 },
+    ]), '2'),
+  ]
+  for (const result of cases) {
+    assert.equal(result.complete, false)
+    assert.equal(result.truncated, true)
+    assert.equal(result.status, 'partial')
+    assert.equal(result.evidence.complete, false)
+    assert.equal(result.evidence.completeness, 'truncated')
+    assert.equal(result.evidence.limitReason, 'analytical_scope_unproven')
+    assert.equal(result.outputBindings[0].complete, false)
+    assert.equal(result.outputBindings[0].totalCount, undefined)
+  }
+
+  const paginated = await executeCase('bounded_paginated', () => clientToolResult.partial([{
+    physical_group: 'a', physical_score: 2,
+  }], {
+    limitReason: 'pagination',
+  }))
+  assert.equal(paginated.complete, false)
+  assert.equal(paginated.truncated, true)
+  assert.equal(paginated.evidence.limitReason, 'pagination')
+  assert.equal(paginated.evidence.completeness, 'truncated')
+})
+
+test('bounded authoring rejects ambiguous semantics and never guesses physical fields or output slots', async () => {
+  type Args = { requestedCount?: number; first?: number; second?: number }
+  const executeCase = async (
+    id: string,
+    definition: Record<string, unknown>,
+    inputs: Array<{ id: keyof Args & string; valueType: string }>,
+    output: ReturnType<typeof clientToolOutput.recordSet<Array<Record<string, unknown>>>>
+      | Array<ReturnType<typeof clientToolOutput.recordSet<Array<Record<string, unknown>>>>>,
+    args: Args = { requestedCount: 2, first: 2, second: 2 },
+  ) => {
+    const analytical = defineClientToolBoundedAnalyticalProducer<Args>(definition as any)
+    const tool = defineClientTool<Args, Record<string, unknown>, Array<Record<string, unknown>>>({
+      id,
+      description: { text: 'Return an explicitly bounded subset', capabilities: ['generic.rank'] },
+      inputs,
+      analytical,
+      effect: { kind: 'READ' },
+      output,
+      execute: () => clientToolResult.success([{ physical_group: 'a', physical_score: 2 }]),
+    })
+    return tool.execute(args, {}, {
+      id,
+      toolName: id,
+    }) as Promise<any>
+  }
+  const output = () => clientToolOutput.recordSet<Array<Record<string, unknown>>>({
+    name: 'ranked-records',
+    shape: 'generic.ranked-records',
+    recordPath: '$',
+    fields: [
+      { name: 'physical_group', type: 'string', role: 'dimension' },
+      {
+        name: 'physical_score', type: 'number', role: 'measure', measure: 'semantic_score',
+        unit: 'record', aggregation: 'sum',
+      },
+    ],
+  })
+  const cases = [
+    await executeCase(
+      'bounded_ambiguous_criteria',
+      { ...anonymousBoundedDefinition('anonymous.ambiguous-criteria', 'top_n'), criterion: ['top_n', 'bottom_n'] },
+      [{ id: 'requestedCount', valueType: 'number' }],
+      output(),
+    ),
+    await executeCase(
+      'bounded_missing_explicit_input',
+      anonymousBoundedDefinition('anonymous.missing-input', 'top_n'),
+      [{ id: 'first', valueType: 'number' }],
+      output(),
+    ),
+    await executeCase(
+      'bounded_unmapped_semantic_axis',
+      {
+        ...anonymousBoundedDefinition('anonymous.unmapped-axis', 'top_n'),
+        criterion: {
+          ...anonymousBoundedDefinition('anonymous.unmapped-axis', 'top_n').criterion,
+          axis: undefined,
+          axisFromInput: 'notDeclared',
+        },
+      },
+      [{ id: 'first', valueType: 'number' }, { id: 'second', valueType: 'number' }],
+      output(),
+    ),
+    await executeCase(
+      'bounded_physical_field_not_guessed_from_semantic_measure',
+      {
+        ...anonymousBoundedDefinition('anonymous.no-field-guess', 'top_n'),
+        criterion: {
+          ...anonymousBoundedDefinition('anonymous.no-field-guess', 'top_n').criterion,
+          valueField: 'semantic_score',
+        },
+      },
+      [{ id: 'requestedCount', valueType: 'number' }],
+      output(),
+    ),
+    await executeCase(
+      'bounded_missing_explicit_output',
+      { ...anonymousBoundedDefinition('anonymous.missing-output', 'top_n'), output: 'not-declared' },
+      [{ id: 'requestedCount', valueType: 'number' }],
+      [
+        output(),
+        clientToolOutput.recordSet<Array<Record<string, unknown>>>({
+          name: 'ranked-records-sibling',
+          shape: 'generic.ranked-records',
+          recordPath: '$',
+        }),
+      ],
+    ),
+  ]
+
+  for (const result of cases) {
+    assert.equal(result.complete, false)
+    assert.equal(result.truncated, true)
+    assert.equal(result.evidence.limitReason, 'analytical_scope_unproven')
+  }
+
+  const unregistered = defineClientTool<Args, Record<string, unknown>, number[]>({
+    id: 'bounded_unregistered_authoring',
+    description: { text: 'Reject an unregistered authoring object', capabilities: ['generic.rank'] },
+    inputs: [{ id: 'requestedCount', valueType: 'number', required: true }],
+    analytical: Object.freeze({}) as any,
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet<number[]>({
+      name: 'ranked-records', shape: 'generic.ranked-records', recordPath: '$',
+    }),
+    execute: () => clientToolResult.success([2, 1]),
+  })
+  const unregisteredResult = await unregistered.execute({ requestedCount: 2 }, {}, {
+    id: 'bounded-unregistered',
+    toolName: unregistered.id,
+  }) as any
+  assert.equal(unregistered.routing?.analyticalCapability, undefined)
+  assert.equal(unregisteredResult.complete, false)
+  assert.equal(unregisteredResult.evidence.limitReason, 'analytical_scope_unproven')
+
+  const explicitlyMapped = await executeCase(
+    'bounded_explicit_physical_mapping',
+    { ...anonymousBoundedDefinition('anonymous.explicit-mapping', 'top_n'), boundedBy: 'second' },
+    [{ id: 'first', valueType: 'number' }, { id: 'second', valueType: 'number' }],
+    output(),
+    { first: 0, second: 2 },
+  )
+  assert.equal(explicitlyMapped.complete, true)
+  assert.equal(explicitlyMapped.truncated, false)
+})
+
 test('binding normalization preserves display-only label semantics', () => {
   const [binding] = normalizeAiClientToolOutputBindings([{
     name: 'series',
     path: '$.series',
     shape: 'metric.time-series',
     complete: true,
-    fields: [
-      { name: 'display', semanticRole: 'label' },
-      { name: 'invalid', semanticRole: 'unknown' as any },
-    ],
+    fields: [{ name: 'display', semanticRole: 'label' }],
   }])
 
   assert.deepEqual(binding.fields, [{ name: 'display', semanticRole: 'label' }])
+})
+
+test('binding normalization preserves only canonical source digests and isolates malformed siblings', () => {
+  const digest = `sha256:${'ab'.repeat(32)}`
+  const normalized = normalizeAiClientToolOutputBindings([{
+    name: 'valid-source',
+    ref: 'session://valid-source.json',
+    shape: 'anonymous.records',
+    complete: true,
+    sourceDigest: digest.toUpperCase(),
+  }, {
+    name: 'malformed-source',
+    ref: 'session://malformed-source.json',
+    shape: 'anonymous.records',
+    complete: true,
+    sourceDigest: 'sha256:not-a-digest',
+  }] as any)
+
+  assert.deepEqual(normalized.map(binding => binding.name), ['valid-source'])
+  assert.equal(normalized[0].sourceDigest, digest)
+})
+
+test('binding normalization preserves orthogonal physical types and analytical roles without inference', () => {
+  const [binding] = normalizeAiClientToolOutputBindings([{
+    name: 'series',
+    path: '$.series',
+    recordPath: '$',
+    shape: 'metric.time-series',
+    complete: true,
+    fields: [
+      { name: 'capturedAt', type: 'timestamp', role: 'temporal_dimension', axis: 'event_time' },
+      { name: 'ordinal', type: 'integer', role: 'dimension', axis: 'semantic_position' },
+      { name: 'value', type: 'number', role: 'measure', measure: 'energy', unit: 'kwh', aggregation: 'sum' },
+      { name: 'looksNumeric', type: 'string', role: 'label', format: 'integer' },
+    ] as any,
+  }])
+
+  assert.deepEqual(binding.fields, [
+    { name: 'capturedAt', type: 'timestamp', role: 'temporal_dimension', axis: 'event_time' },
+    { name: 'ordinal', type: 'integer', role: 'dimension', axis: 'semantic_position' },
+    { name: 'value', type: 'number', role: 'measure', measure: 'energy', unit: 'kwh', aggregation: 'sum' },
+    { name: 'looksNumeric', type: 'string', role: 'label', format: 'integer' },
+  ])
+  assert.equal(binding.recordPath, '$')
+})
+
+test('malformed or oversized field collections reject the whole binding while preserving valid siblings', () => {
+  const validSibling = {
+    name: 'valid-sibling',
+    path: '$.valid',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: true,
+    completeness: 'complete',
+    fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+  }
+  const mixedInvalid = {
+    name: 'mixed-invalid',
+    path: '$.mixed',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: true,
+    completeness: 'complete',
+    fields: [
+      { name: 'id', type: 'string', role: 'identifier' },
+      { name: 'invalid', type: 'string', role: 'unknown' },
+    ],
+  }
+  const oversized = {
+    name: 'oversized',
+    path: '$.oversized',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: true,
+    completeness: 'complete',
+    fields: Array.from({ length: 33 }, (_, index) => ({
+      name: `field${index}`,
+      type: 'string',
+      role: 'dimension',
+    })),
+  }
+  const invalidAxis = {
+    name: 'invalid-axis',
+    path: '$.invalidAxis',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: true,
+    completeness: 'complete',
+    fields: [{ name: 'group', type: 'string', role: 'dimension', axis: 'not an axis' }],
+  }
+  const measureAxis = {
+    name: 'measure-axis',
+    path: '$.measureAxis',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: true,
+    completeness: 'complete',
+    fields: [{ name: 'value', type: 'number', role: 'measure', measure: 'score', axis: 'group' }],
+  }
+  const legacyAxis = {
+    name: 'legacy-axis',
+    path: '$.legacyAxis',
+    shape: 'tabular.records',
+    complete: true,
+    fields: [{ name: 'group', semanticRole: 'category', axis: 'group' }],
+  }
+
+  const normalized = normalizeAiClientToolOutputBindings([
+    mixedInvalid,
+    validSibling,
+    oversized,
+    invalidAxis,
+    measureAxis,
+    legacyAxis,
+  ] as any)
+
+  assert.deepEqual(normalized.map(binding => binding.name), ['valid-sibling'])
+})
+
+test('invalid completeness rejects the whole binding while preserving valid siblings', () => {
+  const validSibling = {
+    name: 'valid-sibling',
+    path: '$.valid',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: false,
+    completeness: 'truncated',
+    fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+  }
+  const invalidBindings = [
+    { name: 'unknown-state', complete: false, completeness: 'bounded' },
+    { name: 'partial-without-continuation', complete: false, completeness: 'partial' },
+    {
+      name: 'partial-with-malformed-continuation',
+      complete: false,
+      completeness: 'partial',
+      continuation: { producerId: 'producer-only' },
+    },
+    { name: 'complete-conflict', complete: true, completeness: 'truncated' },
+  ].map(value => ({
+    path: `$.${value.name}`,
+    recordPath: '$',
+    shape: 'tabular.records',
+    fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+    ...value,
+  }))
+
+  const normalized = normalizeAiClientToolOutputBindings([
+    ...invalidBindings,
+    validSibling,
+  ] as any)
+
+  assert.deepEqual(normalized.map(binding => binding.name), ['valid-sibling'])
+})
+
+test('typed continuation is retained only for a partial canonical binding', () => {
+  const continuation = {
+    producerId: 'station_scope_read',
+    capabilityId: 'station.scope.list',
+    scopeDigest: 'scope-current',
+    remainingScopeDigest: 'scope-remaining',
+    argument: 'pageIndex',
+    value: 1,
+  }
+  const [partial, truncated] = normalizeAiClientToolOutputBindings([{
+    name: 'partial-records',
+    path: '$.partial',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: false,
+    completeness: 'partial',
+    continuation,
+    fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+  }, {
+    name: 'bounded-records',
+    path: '$.bounded',
+    recordPath: '$',
+    shape: 'tabular.records',
+    complete: false,
+    completeness: 'truncated',
+    fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+  }] as any)
+
+  assert.equal(partial.completeness, 'partial')
+  assert.deepEqual(partial.continuation, continuation)
+  assert.equal(truncated.completeness, 'truncated')
+  assert.equal(truncated.continuation, undefined)
+})
+
+test('tool-result state keeps execution terminal while canonical evidence remains partial', () => {
+  const state = resolveAiClientToolResultState({
+    toolCallId: 'anonymous-call',
+    result: {
+      success: true,
+      status: 'partial',
+      complete: false,
+      truncated: true,
+      completeness: 'truncated',
+      evidence: {
+        contract: AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
+        complete: false,
+        truncated: true,
+        completeness: 'truncated',
+        evidenceCoverage: 'bounded-window',
+        supportsAbsenceClaim: false,
+      },
+    },
+  })
+
+  assert.deepEqual(state, {
+    executionStatus: 'completed',
+    resultCompleteness: 'partial',
+    evidenceCoverage: 'bounded-window',
+    absenceAuthority: 'unsupported',
+    source: 'canonical',
+    conflicted: false,
+  })
+})
+
+test('complete empty delivery keeps absence authority as an independent fact', () => {
+  const createState = (supportsAbsenceClaim: boolean) => resolveAiClientToolResultState({
+    success: true,
+    status: 'empty',
+    complete: true,
+    truncated: false,
+    completeness: 'empty',
+    evidence: {
+      contract: AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
+      complete: true,
+      truncated: false,
+      completeness: 'empty',
+      supportsAbsenceClaim,
+    },
+  })
+
+  const boundedEmpty = createState(false)
+  const authoritativeEmpty = createState(true)
+  assert.equal(boundedEmpty.resultCompleteness, 'complete')
+  assert.equal(boundedEmpty.absenceAuthority, 'unsupported')
+  assert.equal(authoritativeEmpty.resultCompleteness, 'complete')
+  assert.equal(authoritativeEmpty.absenceAuthority, 'supported')
+})
+
+test('legacy result state remains callable without guessing missing completeness', () => {
+  assert.deepEqual(resolveAiClientToolResultState({ success: true, status: 'ok' }), {
+    executionStatus: 'completed',
+    resultCompleteness: 'unknown',
+    absenceAuthority: 'unknown',
+    source: 'unknown',
+    conflicted: false,
+  })
+  assert.equal(resolveAiClientToolResultState({
+    success: true,
+    status: 'partial',
+    complete: false,
+    truncated: true,
+  }).resultCompleteness, 'partial')
+  assert.equal(resolveAiClientToolResultState({
+    success: false,
+    status: 'failed',
+  }).executionStatus, 'failed')
+})
+
+test('malformed and conflicting result evidence fails closed without affecting a valid sibling', () => {
+  const malformed = resolveAiClientToolResultState({
+    success: true,
+    evidence: {
+      contract: AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
+      complete: true,
+      truncated: 'false',
+      completeness: 'complete',
+    },
+  })
+  const conflicting = resolveAiClientToolResultState({
+    success: true,
+    complete: true,
+    truncated: false,
+    completeness: 'complete',
+    supportsAbsenceClaim: true,
+    evidence: {
+      contract: AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
+      complete: false,
+      truncated: true,
+      completeness: 'truncated',
+      supportsAbsenceClaim: false,
+    },
+  })
+  const validSibling = resolveAiClientToolResultState({
+    success: true,
+    complete: true,
+    truncated: false,
+  })
+
+  assert.equal(malformed.resultCompleteness, 'unknown')
+  assert.equal(malformed.conflicted, true)
+  assert.equal(conflicting.resultCompleteness, 'partial')
+  assert.equal(conflicting.absenceAuthority, 'unsupported')
+  assert.equal(conflicting.conflicted, true)
+  assert.equal(validSibling.resultCompleteness, 'complete')
+  assert.equal(validSibling.conflicted, false)
 })
 
 test('typed aggregate execution facts survive standard adaptation and delivery', async () => {
@@ -416,7 +1243,7 @@ test('aggregate facade preserves timestamp and dynamic measure contracts without
   ])
 })
 
-test('aggregate facade preserves ordered coordinate semantics without choosing a path renderer', async () => {
+test('aggregate facade keeps contract-owned field semantics when a runtime resolver proposes alternatives', async () => {
   const points = [
     {
       time: 1_735_660_800_000,
@@ -465,7 +1292,9 @@ test('aggregate facade preserves ordered coordinate semantics without choosing a
   const prepared = await tool.execute({}, {}, { id: 'geo', toolName: tool.id }) as any
   assert.equal(prepared.data, undefined)
   assert.deepEqual(prepared.__clientToolOutputs.output0, points)
-  assert.deepEqual(prepared.outputBindings[0].fields, fields)
+  assert.deepEqual(prepared.outputBindings[0].fields, [
+    { name: 'time', semanticRole: 'timestamp' },
+  ])
   assert.deepEqual(prepared.outputBindings[0].ordering, {
     keys: [{ field: 'time', direction: 'asc' }],
     producerGuaranteed: true,
@@ -836,6 +1665,7 @@ test('typed contract generates routing, binding and evidence from one output dec
     type: 'structured-data',
     mediaType: 'application/json',
     shape: 'time-series.aggregate',
+    audience: 'reusable-source',
   }])
   assert.deepEqual(contract.routing.produces, ['series'])
   assert.deepEqual(contract.routing.outputShapes, ['time-series.aggregate'])
@@ -843,6 +1673,7 @@ test('typed contract generates routing, binding and evidence from one output dec
   assert.deepEqual(contract._meta.resultBindings, [{
     name: 'series',
     type: 'structured-data',
+    audience: 'reusable-source',
     path: '$.data',
     shape: 'time-series.aggregate',
     mediaType: 'application/json',
@@ -860,6 +1691,7 @@ test('typed contract generates routing, binding and evidence from one output dec
   })
   assert.equal(result.evidence.outputBindings?.[0]?.name, 'series')
   assert.equal(result.evidence.outputBindings?.[0]?.shape, 'time-series.aggregate')
+  assert.equal(result.evidence.outputBindings?.[0]?.audience, 'reusable-source')
   assert.deepEqual(result.evidence.outputBindings?.[0]?.ordering, {
     keys: [{ field: 'time', direction: 'asc' }],
     producerGuaranteed: true,
@@ -920,6 +1752,7 @@ test('legacy name-only consumers remain a bounded flat projection beside canonic
     type: 'structured-data',
     mediaType: 'application/json',
     shape: 'tabular.summary',
+    audience: 'model-evidence',
   }])
 })
 
@@ -986,28 +1819,97 @@ test('ordering is bounded to declared fields and invalid declarations fail close
   invalid.forEach(value => assert.equal(normalizeAiClientToolOrdering(value, fields), undefined))
 })
 
-test('materialized references never reuse a physical file path as JSONPath', () => {
-  const binding = createAiClientToolContractOutputBinding(createSeriesContract(), {
+test('canonical output fields require an explicit bounded record path', () => {
+  assert.throws(() => defineAiClientToolContract({
+    routingKind: 'records',
+    routing: { capabilities: ['test.records.read'] },
+    outputs: [{
+      kind: 'record-set',
+      name: 'records',
+      shape: 'tabular.records',
+      audience: 'model-evidence',
+      path: '$.data',
+      fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+    }],
+  }), /explicit recordPath/)
+})
+
+test('execution state cannot override contract-owned record path, fields, or ordering', () => {
+  const contract = defineAiClientToolContract({
+    routingKind: 'aggregate',
+    routing: { capabilities: ['test.series.aggregate'] },
+    outputs: [{
+      kind: 'aggregate-series',
+      name: 'series',
+      shape: 'time-series.aggregate',
+      audience: 'model-evidence',
+      path: '$.data',
+      recordPath: '$.records[*]',
+      fields: [
+        { name: 'capturedAt', type: 'timestamp', role: 'temporal_dimension' },
+        { name: 'value', type: 'number', role: 'measure', measure: 'energy', unit: 'kwh', aggregation: 'sum' },
+      ],
+      ordering: {
+        keys: [{ field: 'capturedAt', direction: 'asc' }],
+        producerGuaranteed: true,
+      },
+    }],
+  })
+
+  const binding = createAiClientToolContractOutputBinding(contract, {
+    name: 'series',
+    path: '$.runtime',
+    complete: true,
+    completeness: 'complete',
+    recordPath: '$.overridden[*]',
+    fields: [{ name: 'other', type: 'string', role: 'label' }],
+    ordering: {
+      keys: [{ field: 'other', direction: 'desc' }],
+      producerGuaranteed: false,
+    },
+  } as any)
+
+  assert.equal(binding.path, '$.runtime')
+  assert.equal(binding.recordPath, '$.records[*]')
+  assert.deepEqual(binding.fields, contract._meta.clientToolContract.outputs[0].fields)
+  assert.deepEqual(binding.ordering, contract._meta.clientToolContract.outputs[0].ordering)
+})
+
+test('materialized references keep contract-owned record paths and never reuse a physical file path as JSONPath', () => {
+  const contract = defineAiClientToolContract({
+    routingKind: 'aggregate',
+    routing: { capabilities: ['test.series.aggregate'] },
+    outputs: [{
+      kind: 'aggregate-series',
+      name: 'series',
+      shape: 'time-series.aggregate',
+      audience: 'model-evidence',
+      path: '$.data',
+      recordPath: '$.results',
+      fields: [{ name: 'time', semanticRole: 'timestamp' }],
+    }],
+  })
+  const binding = createAiClientToolContractOutputBinding(contract, {
     name: 'series',
     ref: 'fs://generated/series.ndjson',
     path: 'generated/series.ndjson',
-    recordPath: '$.results',
     complete: true,
   })
   assert.equal(binding.ref, 'fs://generated/series.ndjson')
   assert.equal(binding.path, undefined)
   assert.equal(binding.recordPath, '$.results')
-  assert.throws(() => createAiClientToolContractOutputBinding(createSeriesContract(), {
+  assert.throws(() => createAiClientToolContractOutputBinding(contract, {
     name: 'series',
     path: '$..data',
     complete: true,
   }), /Unsupported client tool execution binding path/)
-  assert.throws(() => createAiClientToolContractOutputBinding(createSeriesContract(), {
+  const ignoredOverride = createAiClientToolContractOutputBinding(contract, {
     name: 'series',
     ref: 'fs://generated/series.json',
     recordPath: '$.*',
     complete: true,
-  }), /Unsupported client tool record path/)
+  } as any)
+  assert.equal(ignoredOverride.recordPath, '$.results')
 })
 
 test('binding paths support only the bounded property, wildcard and equality grammar', () => {
@@ -1029,20 +1931,37 @@ test('contract validation rejects duplicate outputs and unsafe delivery declarat
     routingKind: 'records',
     routing: { capabilities: ['test.records.read'] },
     outputs: [
-      { kind: 'record-set', name: 'records', shape: 'records', path: '$.data' },
-      { kind: 'record-set', name: 'records', shape: 'records', path: '$.other' },
+      { kind: 'record-set', name: 'records', shape: 'records', audience: 'model-evidence', path: '$.data' },
+      { kind: 'record-set', name: 'records', shape: 'records', audience: 'model-evidence', path: '$.other' },
     ],
   }), /Duplicate client tool output binding/)
   assert.throws(() => defineAiClientToolContract({
     routingKind: 'records',
     routing: { capabilities: ['test.records.read'] },
-    outputs: [{ kind: 'record-set', name: 'records', shape: 'records', path: '$.data', delivery: 'file' }],
+    outputs: [{
+      kind: 'record-set',
+      name: 'records',
+      shape: 'records',
+      audience: 'reusable-source',
+      path: '$.data',
+      delivery: 'file',
+    }],
   }), /must not declare an inline binding path/)
   assert.throws(() => defineAiClientToolContract({
     routingKind: 'artifact',
     routing: { capabilities: ['test.artifact.create'] },
-    outputs: [{ kind: 'artifact', name: 'artifact', shape: 'document', mediaType: '' }],
+    outputs: [{
+      kind: 'artifact', name: 'artifact', shape: 'document', audience: 'reusable-source', mediaType: '',
+    }],
   }), /requires a media type/)
+  assert.throws(() => defineAiClientToolContract({
+    routingKind: 'artifact',
+    routing: { capabilities: ['test.artifact.create'] },
+    outputs: [{
+      kind: 'artifact', name: 'artifact', type: 'structured-data', shape: 'document',
+      audience: 'reusable-source', mediaType: 'application/octet-stream', delivery: 'auto',
+    }],
+  }), /must use artifact type and file delivery/)
 })
 
 test('runtime evidence rejects duplicate bindings', () => {
@@ -1075,7 +1994,13 @@ test('artifact outputs default to file delivery and cannot create inline binding
   const contract = defineAiClientToolContract({
     routingKind: 'artifact',
     routing: { capabilities: ['test.document.create'] },
-    outputs: [{ kind: 'artifact', name: 'document', shape: 'document.pdf', mediaType: 'application/pdf' }],
+    outputs: [{
+      kind: 'artifact',
+      name: 'document',
+      shape: 'document.pdf',
+      audience: 'reusable-source',
+      mediaType: 'application/pdf',
+    }],
   })
   assert.deepEqual(contract.routing.resultDeliveries, ['file'])
   assert.deepEqual(contract._meta.resultBindings, [])
@@ -1089,6 +2014,356 @@ test('artifact outputs default to file delivery and cannot create inline binding
   assert.throws(() => createAiClientToolContractOutputBinding(contract, {
     name: 'document', complete: true,
   }), /has no inline path or materialized reference/)
+})
+
+test('required presentation diagnostics use canonical resource, media, shape and delivery axes', () => {
+  const presentation = {
+    type: 'anonymous-grid',
+    contentType: 'json' as const,
+    mediaType: 'application/vnd.example.records+json',
+    supportsSessionFile: true,
+    maxInlineBytes: 4096,
+    defaultMode: 'preview' as const,
+    purpose: 'conversation-preview' as const,
+    preferredInputShapes: ['example.records'],
+    deliveryPolicy: 'required' as const,
+  }
+  const compatible = defineAiClientToolContract({
+    routingKind: 'records',
+    routing: { capabilities: ['example.records.read'] },
+    outputs: [{
+      kind: 'record-set',
+      name: 'records',
+      type: 'structured-data',
+      mediaType: presentation.mediaType,
+      shape: 'example.records',
+      audience: 'client-presentation',
+      path: '$.data',
+      delivery: 'auto',
+    }],
+  })
+  assert.deepEqual(
+    diagnoseAiClientToolPresentationCompatibility(compatible._meta.clientToolContract, presentation),
+    { status: 'compatible', compatibleOutputs: ['records'], issues: [] },
+  )
+
+  const artifact = defineAiClientToolContract({
+    routingKind: 'artifact',
+    routing: { capabilities: ['example.file.create'] },
+    outputs: [{
+      kind: 'artifact',
+      name: 'file',
+      type: 'artifact',
+      mediaType: presentation.mediaType,
+      shape: 'example.records',
+      audience: 'reusable-source',
+      delivery: 'file',
+    }],
+  })
+  const artifactDiagnostic = diagnoseAiClientToolPresentationCompatibility(
+    artifact._meta.clientToolContract,
+    presentation,
+  )
+  assert.equal(artifactDiagnostic.status, 'incompatible')
+  assert.deepEqual(artifactDiagnostic.compatibleOutputs, [])
+  assert.ok(artifactDiagnostic.issues.some(issue => issue.code === 'resource_type_mismatch'))
+
+  const incompatible = [
+    defineAiClientToolContract({
+      routingKind: 'records',
+      routing: { capabilities: ['example.other-media.read'] },
+      outputs: [{
+        kind: 'record-set', name: 'other-media', shape: 'example.records', path: '$.data',
+        audience: 'client-presentation', mediaType: 'application/vnd.example.other+json', delivery: 'auto',
+      }],
+    }),
+    defineAiClientToolContract({
+      routingKind: 'records',
+      routing: { capabilities: ['example.other-shape.read'] },
+      outputs: [{
+        kind: 'record-set', name: 'other-shape', shape: 'example.other', path: '$.data',
+        audience: 'client-presentation', mediaType: presentation.mediaType, delivery: 'auto',
+      }],
+    }),
+    artifact,
+  ].map(contract => diagnoseAiClientToolPresentationCompatibility(
+    contract._meta.clientToolContract,
+    presentation,
+  ))
+  assert.deepEqual(incompatible.map(item => item.status), [
+    'incompatible', 'incompatible', 'incompatible',
+  ])
+  assert.ok(incompatible[0].issues.some(issue => issue.code === 'media_type_mismatch'))
+  assert.ok(incompatible[1].issues.some(issue => issue.code === 'shape_mismatch'))
+
+  const ambiguous = defineAiClientToolContract({
+    routingKind: 'records',
+    routing: { capabilities: ['example.ambiguous.read'] },
+    outputs: ['left', 'right'].map((name, index) => ({
+      kind: 'record-set' as const,
+      name,
+      shape: 'example.records',
+      mediaType: presentation.mediaType,
+      audience: 'client-presentation' as const,
+      path: `$.__clientToolOutputs.output${index}`,
+      delivery: 'auto' as const,
+    })),
+  })
+  assert.deepEqual(
+    diagnoseAiClientToolPresentationCompatibility(ambiguous._meta.clientToolContract, presentation),
+    { status: 'ambiguous', compatibleOutputs: ['left', 'right'], issues: [] },
+  )
+  assert.equal(diagnoseAiClientToolPresentationCompatibility({
+    ...compatible._meta.clientToolContract,
+    version: 'unknown',
+  }, presentation).status, 'malformed')
+  assert.equal(diagnoseAiClientToolPresentationCompatibility(
+    compatible._meta.clientToolContract,
+    { ...presentation, preferredInputShapes: [] },
+  ).status, 'malformed')
+
+  const wildcardDiagnostic = diagnoseAiClientToolPresentationCompatibility(
+    compatible._meta.clientToolContract,
+    { ...presentation, preferredInputShapes: ['example.*'] },
+  )
+  assert.equal(wildcardDiagnostic.status, 'compatible')
+})
+
+test('structured producer keeps one canonical binding through artifact materialization', async () => {
+  let producerCalls = 0
+  let incompatibleCalls = 0
+  const mediaType = 'application/vnd.example.materialized-records+json'
+  const shape = 'example.materialized-records'
+  const presentation = {
+    type: 'anonymous-table',
+    contentType: 'json' as const,
+    mediaType,
+    supportsSessionFile: true,
+    maxInlineBytes: 4096,
+    defaultMode: 'preview' as const,
+    purpose: 'conversation-preview' as const,
+    preferredInputShapes: [shape],
+    deliveryPolicy: 'required' as const,
+  }
+  const createCarrier = (modelSafeInline: boolean) => createAiClientToolArtifact({
+    content: JSON.stringify({ records: [{ id: 'one' }, { id: 'two' }] }),
+    mimeType: mediaType,
+    fileExtension: 'json',
+    bindingName: 'records',
+    outputShape: shape,
+    recordPath: '$.records',
+    cardinality: {
+      kind: 'record-set',
+      recordCount: 2,
+      returnedCount: 2,
+      totalCount: 2,
+    },
+    complete: true,
+    truncated: false,
+    preview: { records: [{ id: 'one' }] },
+    ...(modelSafeInline ? { modelSafeInline: { records: [{ id: 'one' }, { id: 'two' }] } } : {}),
+  })
+  const producer = defineClientTool<Record<string, unknown>, Record<string, unknown>, ReturnType<typeof createCarrier>>({
+    id: 'anonymous_structured_producer',
+    description: { text: 'Produce anonymous structured records', capabilities: ['example.records.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({
+      name: 'records',
+      shape,
+      mediaType,
+      audience: 'client-presentation',
+      recordPath: '$.records',
+    }),
+    execute: () => {
+      producerCalls += 1
+      return createCarrier(true)
+    },
+  })
+  const incompatibleProducer = defineClientTool<Record<string, unknown>, Record<string, unknown>, ReturnType<typeof createCarrier>>({
+    id: 'anonymous_file_producer',
+    description: { text: 'Produce anonymous file', capabilities: ['example.file.create'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.artifact({ name: 'records', shape, mediaType }),
+    execute: () => {
+      incompatibleCalls += 1
+      return createCarrier(true)
+    },
+  })
+  const diagnostic = diagnoseAiClientToolPresentationCompatibility(
+    producer._meta?.clientToolContract,
+    presentation,
+  )
+  const incompatibleDiagnostic = diagnoseAiClientToolPresentationCompatibility(
+    incompatibleProducer._meta?.clientToolContract,
+    presentation,
+  )
+  assert.equal(diagnostic.status, 'compatible')
+  assert.equal(incompatibleDiagnostic.status, 'incompatible')
+  assert.equal(producerCalls, 0)
+  assert.equal(incompatibleCalls, 0)
+
+  const prepared = await producer.execute({}, {}, { id: 'one-call', toolName: producer.id })
+  const port = producer.routing?.producerPorts?.[0]
+  assert.ok(port)
+  const deliveryOptions = {
+    bindingName: port.name,
+    outputShape: port.shape,
+    outputType: port.type,
+    outputs: producer._meta!.clientToolContract.outputs.map((output: any) => ({
+      name: output.name,
+      type: output.type,
+      shape: output.shape,
+      mediaType: output.mediaType,
+      audience: output.audience,
+      delivery: output.delivery,
+    })),
+  }
+  const inline = await deliverAiClientToolResult(prepared, {
+    call: {
+      id: 'inline',
+      toolName: producer.id,
+      presentationCapabilities: [{ ...presentation, supportsSessionFile: false }],
+    },
+    resultDelivery: 'auto',
+    ...deliveryOptions,
+  }) as any
+  const file = await deliverAiClientToolResult(prepared, {
+    call: {
+      id: 'file',
+      toolName: producer.id,
+      presentationCapabilities: [{ ...presentation, maxInlineBytes: 0 }],
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => ({ ok: true, path }),
+        remove: async path => ({ ok: true, path }),
+      },
+    },
+    resultDelivery: 'auto',
+    ...deliveryOptions,
+  }) as any
+  assert.equal(producerCalls, 1)
+  assert.equal(incompatibleCalls, 0)
+  const logicalBinding = (value: any) => ({
+    name: value.name,
+    type: value.type,
+    audience: value.audience,
+    sourceDigest: value.sourceDigest,
+    shape: value.shape,
+    mediaType: value.mediaType,
+    recordPath: value.recordPath,
+    complete: value.complete,
+    truncated: value.truncated,
+  })
+  assert.deepEqual(logicalBinding(inline.outputBindings[0]), logicalBinding(file.outputBindings[0]))
+  assert.match(inline.outputBindings[0].sourceDigest, /^sha256:[a-f0-9]{64}$/)
+  assert.equal(file.outputBindings[0].sourceDigest, inline.outputBindings[0].sourceDigest)
+  assert.deepEqual(logicalBinding(file.outputBindings[0]), {
+    name: 'records',
+    type: 'structured-data',
+    audience: 'client-presentation',
+    sourceDigest: inline.outputBindings[0].sourceDigest,
+    shape,
+    mediaType,
+    recordPath: '$.records',
+    complete: true,
+    truncated: false,
+  })
+  assert.equal(inline.outputBindings[0].path, '$.data.presentationSource')
+  assert.ok(file.outputBindings[0].ref.startsWith('fs://'))
+
+  const boundedPreview = await deliverAiClientToolResult({ data: createCarrier(false) }, {
+    call: {
+      id: 'preview',
+      toolName: producer.id,
+      presentationCapabilities: [presentation],
+    },
+    resultDelivery: 'auto',
+    ...deliveryOptions,
+  }) as any
+  assert.equal(boundedPreview.status, 'partial')
+  assert.equal(boundedPreview.complete, false)
+  assert.equal(boundedPreview.truncated, true)
+  assert.equal(boundedPreview.outputBindings, undefined)
+  assert.equal(boundedPreview.evidence?.outputBindings?.[0]?.sourceDigest, undefined)
+  assert.equal(boundedPreview.data.presentationSource, undefined)
+})
+
+test('artifact auto delivery applies audience and requiredness without changing canonical source semantics', async () => {
+  const mediaType = 'application/vnd.example.audience-records+json'
+  const shape = 'anonymous.audience-records'
+  const artifact = createAiClientToolArtifact({
+    content: JSON.stringify({ records: [{ id: 'complete-source' }] }),
+    modelSafeInline: { records: [{ id: 'bounded-model-sample' }] },
+    mimeType: mediaType,
+    bindingName: 'records',
+    outputShape: shape,
+    recordPath: '$.records',
+    cardinality: { kind: 'record-set', recordCount: 1, returnedCount: 1, totalCount: 1 },
+    preview: { count: 1 },
+  })
+  let uploads = 0
+  const modelEvidence = await deliverAiClientToolResult({ data: artifact }, {
+    call: {
+      id: 'model-evidence',
+      toolName: 'anonymous_audience_producer',
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => {
+          uploads += 1
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: [{
+      name: 'records', type: 'structured-data', shape, mediaType,
+      audience: 'model-evidence', delivery: 'inline',
+    }],
+  }) as any
+  assert.equal(uploads, 0)
+  assert.equal(modelEvidence.summary.delivery, 'inline')
+  assert.equal(modelEvidence.complete, true)
+  assert.deepEqual(modelEvidence.data.presentationSource, {
+    records: [{ id: 'bounded-model-sample' }],
+  })
+  assert.equal(modelEvidence.outputBindings, undefined)
+
+  const reusableWithoutExactRef = await deliverAiClientToolResult({ data: artifact }, {
+    call: { id: 'reusable-source', toolName: 'anonymous_audience_producer' },
+    outputs: [{
+      name: 'records', type: 'structured-data', shape, mediaType,
+      audience: 'reusable-source', delivery: 'auto',
+    }],
+  }) as any
+  assert.equal(reusableWithoutExactRef.summary.delivery, 'bounded-preview')
+  assert.equal(reusableWithoutExactRef.complete, false)
+  assert.equal(reusableWithoutExactRef.truncated, true)
+  assert.equal(reusableWithoutExactRef.outputBindings, undefined)
+  assert.equal(reusableWithoutExactRef.data.presentationSource, undefined)
+
+  const optionalPresentation = await deliverAiClientToolResult({ data: artifact }, {
+    call: {
+      id: 'optional-presentation',
+      toolName: 'anonymous_audience_producer',
+      presentationCapabilities: [{
+        type: 'anonymous-optional-view',
+        contentType: 'json',
+        mediaType,
+        supportsSessionFile: false,
+        maxInlineBytes: 1,
+        defaultMode: 'preview',
+        purpose: 'conversation-preview',
+        preferredInputShapes: [shape],
+        deliveryPolicy: 'optional',
+      }],
+    },
+    outputs: [{
+      name: 'records', type: 'structured-data', shape, mediaType,
+      audience: 'client-presentation', delivery: 'auto',
+    }],
+  }) as any
+  assert.equal(optionalPresentation.summary.delivery, 'bounded-preview')
+  assert.equal(optionalPresentation.complete, true)
+  assert.equal(optionalPresentation.outputBindings, undefined)
 })
 
 test('JSON artifacts publish only bounded logical record paths', async () => {
@@ -1147,7 +2422,7 @@ test('JSON artifacts publish only bounded logical record paths', async () => {
 
   const inline = await deliverAiClientToolResult({
     data: createAiClientToolArtifact({
-      content: '{}',
+      content: JSON.stringify({ results: [{ id: 'inline' }] }),
       modelSafeInline: { results: [{ id: 'inline' }] },
       mimeType: 'application/json',
       bindingName: 'records',
@@ -1163,7 +2438,7 @@ test('JSON artifacts publish only bounded logical record paths', async () => {
   assert.equal(inline.outputBindings[0].recordPath, '$.results')
 
   const mutated = createAiClientToolArtifact({
-    content: '{}',
+    content: JSON.stringify({ results: [] }),
     modelSafeInline: { results: [] },
     mimeType: 'application/json',
     preview: {},
@@ -1197,6 +2472,114 @@ test('session serialization sends canonical effect but keeps browser-only contra
   assert.equal(serialized.includes('resultBindings'), false)
   assert.equal(serialized.includes('x-ai-routing'), true)
   assert.equal((sessionDefinition as any).expands.effect, 'READ')
+})
+
+test('analytical capability survives canonical routing normalization and session serialization', () => {
+  const analyticalCapability = {
+    version: 'analytical-capability/v1',
+    capabilityId: 'station.passenger.rank',
+    semanticKey: 'line-crossing-events-by-station',
+    subjects: ['station'],
+    measures: [{
+      name: 'passenger_total',
+      aggregations: ['sum'],
+      units: ['crossing-event'],
+    }],
+    dimensions: ['area'],
+    filters: ['direction'],
+    grains: ['day'],
+    criteria: ['top_n'],
+    ordering: [{ axis: 'rank', direction: 'asc', producerGuaranteed: true }],
+    completeness: { complete: false, partial: true, continuation: false },
+    output: { shape: 'tabular.records' },
+    transformCost: 0,
+  }
+  const definition = toAiClientToolSessionDefinition({
+    id: 'station_passenger_rank',
+    description: 'rank station passenger totals',
+    routing: {
+      ...createSeriesContract().routing,
+      analyticalCapability,
+    } as any,
+  }) as any
+
+  assert.deepEqual(definition.expands['x-ai-routing'].analyticalCapability, analyticalCapability)
+
+  const reordered = toAiClientToolSessionDefinition({
+    id: 'station_passenger_rank_reordered',
+    description: 'rank station passenger totals',
+    routing: {
+      analyticalCapability: {
+        transformCost: 0,
+        output: { shape: 'tabular.records' },
+        completeness: { continuation: false, partial: true, complete: false },
+        ordering: [{ producerGuaranteed: true, direction: 'asc', axis: 'rank' }],
+        criteria: ['top_n'],
+        grains: ['day'],
+        filters: ['direction'],
+        dimensions: ['area'],
+        measures: [{ units: ['crossing-event'], aggregations: ['sum'], name: 'passenger_total' }],
+        subjects: ['station'],
+        semanticKey: 'line-crossing-events-by-station',
+        capabilityId: 'station.passenger.rank',
+        version: 'analytical-capability/v1',
+      },
+      ...createSeriesContract().routing,
+    } as any,
+  }) as any
+  assert.deepEqual(
+    reordered.expands['x-ai-routing'].analyticalCapability,
+    definition.expands['x-ai-routing'].analyticalCapability,
+  )
+})
+
+test('malformed analytical capability fails closed for one tool without suppressing its sibling', () => {
+  const routing = createSeriesContract().routing
+  const [malformed, sibling] = toAiClientToolSessionDefinitions([{
+    id: 'malformed_analytical_tool',
+    description: 'malformed analytical tool',
+    routing: {
+      ...routing,
+      analyticalCapability: {
+        version: 'analytical-capability/v1',
+        capabilityId: 'station.passenger.rank',
+        semanticKey: 'line-crossing-events-by-station',
+        subjects: ['station'],
+        measures: [{ name: 'passenger_total', aggregations: [], units: ['crossing-event'] }],
+        dimensions: [], filters: [], grains: [], criteria: [], ordering: [],
+        completeness: { complete: true, partial: false, continuation: false },
+        output: { shape: 'tabular.records' },
+        transformCost: 0,
+      },
+    } as any,
+  }, {
+    id: 'plain_sibling',
+    description: 'plain sibling',
+    routing,
+  }]) as any[]
+
+  assert.equal(malformed.id, 'malformed_analytical_tool')
+  assert.equal(malformed.expands?.['x-ai-routing'], undefined)
+  assert.deepEqual(sibling.expands['x-ai-routing'], routing)
+  const validation = validateAiClientToolRoutingMetadata({
+    id: 'malformed_analytical_tool',
+    routing: {
+      ...routing,
+      analyticalCapability: {
+        version: 'analytical-capability/v1',
+        capabilityId: 'station.passenger.rank',
+        semanticKey: 'line-crossing-events-by-station',
+        subjects: ['station'],
+        measures: [{ name: 'passenger_total', aggregations: [], units: ['crossing-event'] }],
+        dimensions: [], filters: [], grains: [], criteria: [], ordering: [],
+        completeness: { complete: true, partial: false, continuation: false },
+        output: { shape: 'tabular.records' },
+        transformCost: 0,
+      },
+    } as any,
+  })
+  assert.equal(validation.status, 'malformed')
+  assert.ok(validation.issues.some(issue => issue.code === 'analytical_capability_malformed'))
 })
 
 test('typed compiler projects every canonical effect to the WebSocket session definition', () => {
@@ -1392,8 +2775,8 @@ test('catalog diagnoses contract drift without rejecting repeated output shapes'
     routingKind: 'records',
     routing: { capabilities: ['test.records.read'] },
     outputs: [
-      { kind: 'record-set', name: 'left', shape: 'tabular.records', path: '$.left' },
-      { kind: 'record-set', name: 'right', shape: 'tabular.records', path: '$.right' },
+      { kind: 'record-set', name: 'left', shape: 'tabular.records', audience: 'model-evidence', path: '$.left' },
+      { kind: 'record-set', name: 'right', shape: 'tabular.records', audience: 'model-evidence', path: '$.right' },
     ],
   })
   const valid = createAiClientToolCatalogReport([{ id: 'records_read', ...repeatedShape }], {
@@ -1410,6 +2793,66 @@ test('catalog diagnoses contract drift without rejecting repeated output shapes'
   }], { requireRouting: true })
   assert.equal(drifted.tools[0]?.contractStatus, 'malformed')
   assert.ok(drifted.issues.some(issue => issue.code === 'typed_contract_routing_mismatch'))
+})
+
+test('catalog presentation preflight isolates an incompatible sibling and keeps a valid producer callable', async () => {
+  let producerCalls = 0
+  const mediaType = 'application/vnd.example.preflight-records+json'
+  const shape = 'anonymous.preflight-records'
+  const presentation = {
+    type: 'anonymous-preflight-view',
+    contentType: 'json' as const,
+    mediaType,
+    supportsSessionFile: true,
+    maxInlineBytes: 4096,
+    defaultMode: 'preview' as const,
+    purpose: 'conversation-preview' as const,
+    preferredInputShapes: [shape],
+    deliveryPolicy: 'required' as const,
+  }
+  const validProducer = defineClientTool({
+    id: 'anonymous_preflight_valid',
+    description: { text: 'Produce compatible anonymous records', capabilities: ['anonymous.preflight.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({
+      name: 'records', shape, mediaType, audience: 'client-presentation', recordPath: '$.records',
+    }),
+    execute: () => {
+      producerCalls += 1
+      return clientToolResult.success({ records: [{ id: 'one' }] })
+    },
+  })
+  const incompatibleSibling = defineClientTool({
+    id: 'anonymous_preflight_incompatible',
+    description: { text: 'Produce incompatible anonymous records', capabilities: ['anonymous.preflight.other'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.recordSet({
+      name: 'other-records', shape, mediaType: 'application/vnd.example.other+json',
+      audience: 'client-presentation', recordPath: '$.records',
+    }),
+    execute: () => clientToolResult.success({ records: [] }),
+  })
+  const snapshot = createAiClientToolCatalogSnapshot(
+    [incompatibleSibling, validProducer],
+    { presentationCapabilities: [presentation] },
+  )
+
+  assert.equal(snapshot.report.valid, false)
+  assert.deepEqual(
+    snapshot.report.issues.filter(issue => issue.code === 'presentation_output_incompatible')
+      .map(issue => issue.toolId),
+    ['anonymous_preflight_incompatible'],
+  )
+  assert.deepEqual(snapshot.definitions.map(tool => tool.id), [
+    'anonymous_preflight_incompatible', 'anonymous_preflight_valid',
+  ])
+  assert.equal(
+    snapshot.wireDefinitions[1]?.expands?.['x-ai-routing']?.producerPorts?.[0]?.audience,
+    'client-presentation',
+  )
+  const callable = snapshot.definitions[1] as typeof validProducer
+  await callable.execute({}, {}, { id: 'preflight-call', toolName: callable.id })
+  assert.equal(producerCalls, 1)
 })
 
 test('catalog classifies typed, legacy, missing and malformed contracts independently', () => {
@@ -1457,6 +2900,174 @@ test('catalog classifies typed, legacy, missing and malformed contracts independ
   assert.equal(report.tools.find(tool => tool.toolId === 'remote_tool')?.authoringStatus, 'remote-adapted')
   assert.equal(report.summary.remoteAdapted, 1)
   assert.ok(report.issues.some(issue => issue.code === 'typed_contract_malformed'))
+})
+
+test('canonical catalog snapshot admits five authoring classes through one wire projection', () => {
+  const facade = defineClientTool({
+    id: 'facade_reader',
+    description: { text: 'facade read', capabilities: ['catalog.facade.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.detail({ name: 'facade-result', shape: 'catalog.facade' }),
+    execute: () => clientToolResult.success({ ok: true }),
+  })
+  const typedLegacy = { id: 'typed_legacy', ...createSeriesContract(), expands: { effect: 'READ' } }
+  const routedLegacy = {
+    id: 'routed_legacy',
+    routing: {
+      capabilities: ['catalog.routed.read'],
+      stages: ['execution'],
+      resultDeliveries: ['inline'],
+      evidencePolicy: 'optional',
+    },
+    expands: { effect: 'READ' },
+  }
+  const plainLegacy = { id: 'plain_legacy' }
+  const remoteAdapted = {
+    id: 'remote_adapted',
+    expands: { effect: 'EXTERNAL_ACTION' },
+    _meta: { clientToolAdapter: { version: 'remote-definition/v1', source: 'iframe' } },
+  }
+  const snapshot = createAiClientToolCatalogSnapshot([
+    facade,
+    typedLegacy,
+    routedLegacy,
+    plainLegacy,
+    remoteAdapted,
+  ])
+
+  assert.deepEqual(snapshot.report.tools.map(tool => tool.authoringStatus), [
+    'facade', 'typed-legacy', 'routed-legacy', 'plain-legacy', 'remote-adapted',
+  ])
+  assert.deepEqual(snapshot.definitions.map(tool => tool.id), [
+    'facade_reader', 'typed_legacy', 'routed_legacy', 'plain_legacy', 'remote_adapted',
+  ])
+  assert.deepEqual(snapshot.wireDefinitions.map(tool => tool.expands?.effect), [
+    'READ', 'READ', 'READ', undefined, 'EXTERNAL_ACTION',
+  ])
+  assert.equal(snapshot.semanticDigest.length, 16)
+})
+
+test('catalog isolates malformed effects while a valid analytical sibling remains callable', async () => {
+  const { tool: analyticalSibling } = createAnonymousBoundedTool([9, 3, 6])
+  const snapshot = createAiClientToolCatalogSnapshot([
+    analyticalSibling,
+    { id: 'valid_legacy_write', expands: { effect: 'WRITE' } },
+    { id: 'missing_effect_write', annotations: { readOnlyHint: false } },
+    { id: 'invalid_effect', expands: { effect: 'SIDE_EFFECT' } },
+    {
+      id: 'malformed_routing_read',
+      expands: { effect: 'READ' },
+      routing: { capabilities: ['not valid'] },
+    },
+    { id: 'plain_sibling' },
+  ])
+
+  assert.deepEqual(snapshot.definitions.map(tool => tool.id), [
+    'anonymous_top_n', 'valid_legacy_write', 'malformed_routing_read', 'plain_sibling',
+  ])
+  assert.deepEqual(snapshot.wireDefinitions.map(tool => tool.id), [
+    'anonymous_top_n', 'valid_legacy_write', 'malformed_routing_read', 'plain_sibling',
+  ])
+  assert.equal(
+    snapshot.wireDefinitions[0]?.expands?.['x-ai-routing']?.analyticalCapability?.capabilityId,
+    'anonymous.top_n',
+  )
+  assert.equal(snapshot.wireDefinitions[1]?.expands?.effect, 'WRITE')
+  assert.equal(snapshot.wireDefinitions[2]?.expands?.['x-ai-routing'], undefined)
+  const callable = snapshot.definitions.find(
+    tool => tool.id === analyticalSibling.id,
+  ) as typeof analyticalSibling | undefined
+  assert.equal(typeof callable?.execute, 'function')
+  const result = await callable?.execute?.({ requestedCount: 2 }, {}, {
+    id: 'call-valid-analytical-sibling',
+    toolName: analyticalSibling.id,
+  }) as any
+  assert.equal(result?.evidence?.complete, true)
+  assert.deepEqual(
+    result?.__clientToolOutputs?.output0.map((record: Record<string, number>) => record.physical_score),
+    [9, 6],
+  )
+  assert.ok(snapshot.report.issues.some(issue => issue.code === 'effect_required_for_side_effect'))
+  assert.ok(snapshot.report.issues.some(issue => issue.code === 'effect_legacy_malformed'))
+})
+
+test('catalog rejects canonical and legacy effect conflicts without losing valid siblings', () => {
+  const facade = defineClientTool({
+    id: 'conflicting_facade',
+    description: { text: 'write', capabilities: ['catalog.conflict.write'] },
+    effect: { kind: 'WRITE', idempotency: 'IDEMPOTENT', reversible: true, confirmation: false },
+    output: clientToolOutput.stateChange({ name: 'state', shape: 'catalog.state', transition: 'MUTATION' }),
+    execute: () => clientToolResult.success({ ok: true }),
+  })
+  const snapshot = createAiClientToolCatalogSnapshot([
+    { ...facade, expands: { ...facade.expands, effect: 'READ' } },
+    { id: 'duplicate_reader' },
+    { id: 'duplicate_reader' },
+    { id: 'valid_reader', expands: { effect: 'READ' } },
+  ])
+
+  assert.deepEqual(snapshot.definitions.map(tool => tool.id), ['valid_reader'])
+  assert.ok(snapshot.report.issues.some(issue => issue.code === 'effect_conflict'))
+  assert.ok(snapshot.report.issues.some(issue => issue.code === 'duplicate_tool_id'))
+})
+
+test('catalog snapshot has a stable semantic identity and freezes active execution refreshes', () => {
+  let tools: Array<Record<string, unknown>> = [{ id: 'first_reader', expands: { effect: 'READ' } }]
+  const build = () => createAiClientToolCatalogSnapshot(tools)
+  const reordered = createAiClientToolCatalogSnapshot([{
+    id: 'first_reader',
+    expands: { effect: 'READ' },
+    routing: {
+      capabilities: ['catalog.first.read', 'catalog.first.detail'],
+      stages: ['execution', 'preparation'],
+      resultDeliveries: ['inline'],
+      evidencePolicy: 'optional',
+    },
+  }])
+  const equivalent = createAiClientToolCatalogSnapshot([{
+    id: 'first_reader',
+    expands: { effect: 'READ' },
+    routing: {
+      capabilities: ['catalog.first.detail', 'catalog.first.read'],
+      stages: ['preparation', 'execution'],
+      resultDeliveries: ['inline'],
+      evidencePolicy: 'optional',
+    },
+  }])
+  assert.equal(reordered.semanticFingerprint, equivalent.semanticFingerprint)
+  assert.equal(reordered.semanticDigest, equivalent.semanticDigest)
+
+  const runtime = createClientToolSnapshotController(build, snapshot => snapshot.semanticFingerprint)
+  const active = runtime.beginExecution()
+  tools = [{ id: 'second_reader', expands: { effect: 'READ' } }]
+  runtime.refresh()
+  assert.deepEqual(active.snapshot.wireDefinitions.map(tool => tool.id), ['first_reader'])
+  assert.deepEqual(runtime.snapshot.wireDefinitions.map(tool => tool.id), ['first_reader'])
+  active.complete()
+  assert.deepEqual(runtime.snapshot.wireDefinitions.map(tool => tool.id), ['second_reader'])
+  assert.equal(runtime.version, 2)
+  runtime.dispose()
+})
+
+test('reconstructed catalog snapshots reconnect to the latest canonical registry state', () => {
+  const scope = `catalog-reconnect-${Date.now()}`
+  const disposeFirst = aiClientToolRegistry.register(scope, {
+    id: 'registered_first',
+    execute: () => ({ ok: true }),
+  })
+  const first = createAiClientToolCatalogSnapshot(aiClientToolRegistry.snapshot(scope).tools)
+  const disposeSecond = aiClientToolRegistry.register(scope, {
+    id: 'registered_second',
+    execute: () => ({ ok: true }),
+  })
+  const reconnected = createAiClientToolCatalogSnapshot(aiClientToolRegistry.snapshot(scope).tools)
+
+  assert.deepEqual(first.wireDefinitions.map(tool => tool.id), ['registered_first'])
+  assert.deepEqual(reconnected.wireDefinitions.map(tool => tool.id), ['registered_second'])
+  assert.notEqual(first.semanticFingerprint, reconnected.semanticFingerprint)
+  disposeFirst()
+  assert.deepEqual(aiClientToolRegistry.snapshot(scope).tools.map(tool => tool.id), ['registered_second'])
+  disposeSecond()
 })
 
 test('catalog preserves runtime tolerance while reporting routing and binding failures', () => {
@@ -1617,7 +3228,6 @@ test('structured evidence metadata is JSON-safe and bounded at every nesting bou
           unit: 'ms',
           aggregation: 'sum',
         },
-        { name: '', semanticRole: 'number' },
       ],
       requestedRange: manyKeys,
       observedRange: { start: 2, end: 3 },
@@ -1803,6 +3413,342 @@ test('file success and inline delivery expose equivalent logical bindings', asyn
   assert.equal(inlineResult.evidence.outputBindings[0]?.name, 'records')
   assert.equal(inlineResult.evidence.outputBindings[0]?.path, '$.data.sample')
   assert.equal(inlineResult.evidence.complete, true)
+})
+
+test('record streams share one audience policy and exact NDJSON digest across inline and file carriers', async () => {
+  const records = [{ id: 'alpha' }, { id: 'beta' }]
+  const canonicalBytes = new TextEncoder().encode(
+    records.map(record => `${JSON.stringify(record)}\n`).join(''),
+  )
+  const expectedDigestBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', canonicalBytes))
+  const expectedDigest = `sha256:${Array.from(
+    expectedDigestBytes,
+    byte => byte.toString(16).padStart(2, '0'),
+  ).join('')}`
+  const shape = 'anonymous.stream-records'
+  const mediaType = 'application/x-ndjson'
+  const stream = () => createAiClientToolRecordStream({
+    source: createAiClientToolArrayRecordSource(records),
+    schema: { type: 'object', properties: { id: { type: 'string', 'x-ai-role': 'identifier' } } },
+    bindingName: 'records',
+    outputShape: shape,
+  })
+  const output = (audience: 'model-evidence' | 'client-presentation' | 'reusable-source') => [{
+    name: 'records', type: 'structured-data' as const, shape, mediaType, audience, delivery: 'auto' as const,
+  }]
+  const capability = (deliveryPolicy: 'required' | 'optional', maxInlineBytes: number) => ({
+    type: 'anonymous-stream-view',
+    contentType: 'json' as const,
+    mediaType,
+    supportsSessionFile: true,
+    maxInlineBytes,
+    defaultMode: 'preview' as const,
+    purpose: 'conversation-preview' as const,
+    preferredInputShapes: [shape],
+    deliveryPolicy,
+  })
+  let modelUploads = 0
+  const modelEvidence = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-model-evidence',
+      toolName: 'anonymous_stream_producer',
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => {
+          modelUploads += 1
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: output('model-evidence'),
+  }) as any
+  assert.equal(modelUploads, 0)
+  assert.equal(modelEvidence.data.delivery, 'inline-sample')
+  assert.equal(modelEvidence.complete, true)
+  assert.equal(modelEvidence.evidence.complete, true)
+  assert.equal(modelEvidence.outputBindings[0].audience, 'model-evidence')
+  assert.equal(modelEvidence.outputBindings[0].sourceDigest, expectedDigest)
+
+  const requiredInline = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-required-inline',
+      toolName: 'anonymous_stream_producer',
+      presentationCapabilities: [capability('required', 4096)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(requiredInline.data.delivery, 'inline-sample')
+  assert.equal(requiredInline.evidence.complete, true)
+  assert.equal(requiredInline.outputBindings[0].sourceDigest, expectedDigest)
+
+  const uploadedChunks: string[] = []
+  const requiredFile = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-required-file',
+      toolName: 'anonymous_stream_producer',
+      presentationCapabilities: [capability('required', 1)],
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async (path, body) => {
+          uploadedChunks.push(body instanceof Blob ? await body.text() : String(body))
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(uploadedChunks.join(''), new TextDecoder().decode(canonicalBytes))
+  assert.equal(requiredFile.data.delivery, 'session-file')
+  assert.equal(requiredFile.evidence.complete, true)
+  assert.equal(requiredFile.outputBindings[0].sourceDigest, expectedDigest)
+  assert.equal(requiredFile.outputBindings[0].sourceDigest, requiredInline.outputBindings[0].sourceDigest)
+
+  const requiredUnavailable = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-required-unavailable',
+      toolName: 'anonymous_stream_producer',
+      presentationCapabilities: [capability('required', 1)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(requiredUnavailable.evidence.complete, false)
+  assert.equal(requiredUnavailable.evidence.truncated, true)
+  assert.equal(requiredUnavailable.outputBindings, undefined)
+  assert.equal(requiredUnavailable.data.sourceDigest, undefined)
+
+  const optionalUnavailable = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-optional-unavailable',
+      toolName: 'anonymous_stream_producer',
+      presentationCapabilities: [capability('optional', 1)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(optionalUnavailable.evidence.complete, true)
+  assert.equal(optionalUnavailable.outputBindings, undefined)
+  assert.equal(optionalUnavailable.data.sourceDigest, undefined)
+
+  const reusableUnavailable = await deliverAiClientToolResult(stream(), {
+    call: { id: 'stream-reusable-unavailable', toolName: 'anonymous_stream_producer' },
+    outputs: output('reusable-source'),
+  }) as any
+  assert.equal(reusableUnavailable.evidence.complete, false)
+  assert.equal(reusableUnavailable.outputBindings, undefined)
+  assert.equal(reusableUnavailable.data.sourceDigest, undefined)
+
+  const reusableFile = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: 'stream-reusable-file',
+      toolName: 'anonymous_stream_producer',
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => ({ ok: true, path }),
+      },
+    },
+    outputs: output('reusable-source'),
+  }) as any
+  assert.equal(reusableFile.data.delivery, 'session-file')
+  assert.equal(reusableFile.evidence.complete, true)
+  assert.equal(reusableFile.outputBindings[0].sourceDigest, expectedDigest)
+})
+
+test('empty record streams keep evidence separate from required carrier admission', async () => {
+  const semanticToken = crypto.randomUUID().replaceAll('-', '')
+  const shape = `anonymous.${semanticToken}.records`
+  const mediaType = 'application/x-ndjson'
+  const emptyDigestBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array()))
+  const emptyDigest = `sha256:${Array.from(
+    emptyDigestBytes,
+    byte => byte.toString(16).padStart(2, '0'),
+  ).join('')}`
+  const stream = () => createAiClientToolRecordStream({
+    source: createAiClientToolArrayRecordSource([]),
+    schema: { type: 'object', properties: { id: { type: 'string', 'x-ai-role': 'identifier' } } },
+    bindingName: 'records',
+    outputShape: shape,
+  })
+  const output = (
+    audience: 'model-evidence' | 'client-presentation' | 'reusable-source',
+    delivery: 'auto' | 'inline' = 'auto',
+  ) => [{
+    name: 'records', type: 'structured-data' as const, shape, mediaType, audience, delivery,
+  }]
+  const capability = (
+    deliveryPolicy: 'required' | 'optional',
+    supportsSessionFile: boolean,
+    maxInlineBytes: number,
+  ) => ({
+    type: `anonymous-empty-view-${semanticToken}`,
+    contentType: 'json' as const,
+    mediaType,
+    supportsSessionFile,
+    maxInlineBytes,
+    defaultMode: 'preview' as const,
+    purpose: 'conversation-preview' as const,
+    preferredInputShapes: [shape],
+    deliveryPolicy,
+  })
+
+  let modelUploads = 0
+  const modelEvidence = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-model-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => {
+          modelUploads += 1
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: output('model-evidence'),
+  }) as any
+  assert.equal(modelUploads, 0)
+  assert.equal(modelEvidence.status, 'empty')
+  assert.equal(modelEvidence.evidence.complete, true)
+  assert.equal(modelEvidence.outputBindings[0].path, '$.data.sample')
+  assert.equal(modelEvidence.outputBindings[0].sourceDigest, emptyDigest)
+
+  const missingPresentation = await deliverAiClientToolResult(stream(), {
+    call: { id: `empty-missing-${semanticToken}`, toolName: `anonymous_empty_${semanticToken}` },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(missingPresentation.status, 'partial')
+  assert.equal(missingPresentation.evidence.complete, false)
+  assert.equal(missingPresentation.evidence.truncated, true)
+  assert.equal(missingPresentation.outputBindings, undefined)
+  assert.equal(missingPresentation.data.sourceDigest, undefined)
+
+  const requiredInline = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-inline-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      presentationCapabilities: [capability('required', false, 4096)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(requiredInline.status, 'empty')
+  assert.equal(requiredInline.evidence.complete, true)
+  assert.equal(requiredInline.outputBindings[0].path, '$.data.sample')
+  assert.equal(requiredInline.outputBindings[0].sourceDigest, emptyDigest)
+
+  const requiredFileUnavailable = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-file-unavailable-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      presentationCapabilities: [capability('required', true, 0)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(requiredFileUnavailable.status, 'partial')
+  assert.equal(requiredFileUnavailable.evidence.complete, false)
+  assert.equal(requiredFileUnavailable.outputBindings, undefined)
+  assert.equal(requiredFileUnavailable.data.sourceDigest, undefined)
+
+  const uploadedEmptyBodies: Blob[] = []
+  const requiredFile = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-file-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      presentationCapabilities: [capability('required', true, 0)],
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async (path, body) => {
+          uploadedEmptyBodies.push(body as Blob)
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(uploadedEmptyBodies.length, 1)
+  assert.equal(await uploadedEmptyBodies[0]?.text(), '')
+  assert.equal(requiredFile.status, 'empty')
+  assert.equal(requiredFile.evidence.complete, true)
+  assert.ok(requiredFile.outputBindings[0].ref.startsWith('fs://'))
+  assert.equal(requiredFile.outputBindings[0].sourceDigest, emptyDigest)
+
+  const optionalUnavailable = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-optional-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      presentationCapabilities: [capability('optional', true, 0)],
+    },
+    outputs: output('client-presentation'),
+  }) as any
+  assert.equal(optionalUnavailable.status, 'empty')
+  assert.equal(optionalUnavailable.evidence.complete, true)
+  assert.equal(optionalUnavailable.data.required, false)
+  assert.equal(optionalUnavailable.data.satisfied, false)
+  assert.equal(optionalUnavailable.outputBindings, undefined)
+  assert.equal(optionalUnavailable.data.sourceDigest, undefined)
+
+  const reusableUnavailable = await deliverAiClientToolResult(stream(), {
+    call: { id: `empty-reuse-unavailable-${semanticToken}`, toolName: `anonymous_empty_${semanticToken}` },
+    outputs: output('reusable-source'),
+  }) as any
+  assert.equal(reusableUnavailable.status, 'partial')
+  assert.equal(reusableUnavailable.evidence.complete, false)
+  assert.equal(reusableUnavailable.outputBindings, undefined)
+  assert.equal(reusableUnavailable.data.sourceDigest, undefined)
+
+  let reusableUploads = 0
+  const reusableFile = await deliverAiClientToolResult(stream(), {
+    call: {
+      id: `empty-reuse-file-${semanticToken}`,
+      toolName: `anonymous_empty_${semanticToken}`,
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => {
+          reusableUploads += 1
+          return { ok: true, path }
+        },
+      },
+    },
+    outputs: output('reusable-source'),
+  }) as any
+  assert.equal(reusableUploads, 1)
+  assert.equal(reusableFile.status, 'empty')
+  assert.equal(reusableFile.evidence.complete, true)
+  assert.ok(reusableFile.outputBindings[0].ref.startsWith('fs://'))
+  assert.equal(reusableFile.outputBindings[0].sourceDigest, emptyDigest)
+
+  const reusableInline = await deliverAiClientToolResult(stream(), {
+    call: { id: `empty-reuse-inline-${semanticToken}`, toolName: `anonymous_empty_${semanticToken}` },
+    outputs: output('reusable-source', 'inline'),
+  }) as any
+  assert.equal(reusableInline.status, 'empty')
+  assert.equal(reusableInline.evidence.complete, true)
+  assert.equal(reusableInline.outputBindings[0].path, '$.data.sample')
+  assert.equal(reusableInline.outputBindings[0].sourceDigest, emptyDigest)
+})
+
+test('empty artifact cardinality never substitutes for a required carrier', async () => {
+  const semanticToken = crypto.randomUUID().replaceAll('-', '')
+  const shape = `anonymous.${semanticToken}.artifact-records`
+  const mediaType = `application/vnd.${semanticToken}+json`
+  const artifact = createAiClientToolArtifact({
+    content: JSON.stringify({ records: [] }),
+    mimeType: mediaType,
+    bindingName: 'records',
+    outputShape: shape,
+    recordPath: '$.records',
+    cardinality: { kind: 'record-set', recordCount: 0, returnedCount: 0, totalCount: 0 },
+    preview: { count: 0 },
+  })
+  const result = await deliverAiClientToolResult({ data: artifact }, {
+    call: { id: `empty-artifact-${semanticToken}`, toolName: `anonymous_empty_${semanticToken}` },
+    outputs: [{
+      name: 'records', type: 'structured-data', shape, mediaType,
+      audience: 'client-presentation', delivery: 'auto',
+    }],
+  }) as any
+  assert.equal(result.status, 'partial')
+  assert.equal(result.complete, false)
+  assert.equal(result.truncated, true)
+  assert.equal(result.outputBindings, undefined)
+  assert.equal(result.evidence.outputBindings, undefined)
 })
 
 test('record and cancellation limits stay partial or abort without unbounded consumption', async () => {
@@ -2016,8 +3962,8 @@ test('zero-record streams remain complete without creating or compensating a fil
   assert.equal(result.status, 'empty')
   assert.equal(result.evidence.recordCount, 0)
   assert.equal(result.evidence.complete, true)
-  assert.equal(result.data.delivery, 'empty')
-  assert.equal(result.data.fileUnavailable, undefined)
+  assert.equal(result.data.delivery, 'inline-sample')
+  assert.equal(result.data.fileUnavailable, false)
   assert.equal(result.data.fileErrorCode, undefined)
   assert.equal(result.producedFile, false)
   assert.deepEqual(result.data.sample, [])

@@ -3,6 +3,7 @@ import { isSupportedAiClientToolBindingPath } from './clientToolBindingPath'
 export const AI_CLIENT_TOOL_ROUTING_EXPAND_KEY = 'x-ai-routing'
 export const AI_CLIENT_TOOL_EFFECT_EXPAND_KEY = 'effect'
 export const AI_CLIENT_TOOL_PORT_VERSION = 'ai-tool-port/v1' as const
+export const AI_CLIENT_TOOL_ANALYTICAL_CAPABILITY_VERSION = 'analytical-capability/v1' as const
 
 export const AI_CLIENT_TOOL_RESOURCE_TYPES = [
   'structured-data',
@@ -31,15 +32,24 @@ export const AI_CLIENT_TOOL_DATA_ACCESS_MODES = [
 
 export const AI_CLIENT_TOOL_RESULT_DELIVERIES = ['inline', 'file', 'auto'] as const
 
+export const AI_CLIENT_TOOL_OUTPUT_AUDIENCES = [
+  'model-evidence',
+  'client-presentation',
+  'reusable-source',
+] as const
+
 export type AiClientToolRoutingStage = typeof AI_CLIENT_TOOL_ROUTING_STAGES[number]
 export type AiClientToolRoutingDataAccessMode = typeof AI_CLIENT_TOOL_DATA_ACCESS_MODES[number]
 export type AiClientToolRoutingResultDelivery = typeof AI_CLIENT_TOOL_RESULT_DELIVERIES[number]
+export type AiClientToolOutputAudience = typeof AI_CLIENT_TOOL_OUTPUT_AUDIENCES[number]
 export type AiClientToolRoutingExposure = 'auto' | 'eager' | 'deferred'
 export type AiClientToolRoutingCost = 'low' | 'medium' | 'high'
 export type AiClientToolEvidencePolicy = 'auto' | 'required' | 'optional' | 'none'
 export type AiClientToolRoutingStatus = 'valid' | 'missing' | 'malformed'
 export type AiClientToolResourceType = typeof AI_CLIENT_TOOL_RESOURCE_TYPES[number]
 export type AiClientToolSourcePolicy = typeof AI_CLIENT_TOOL_SOURCE_POLICIES[number]
+export type AiClientToolEffectKind = 'READ' | 'WRITE' | 'EXTERNAL_ACTION'
+export type AiClientToolEffectStatus = 'canonical' | 'legacy' | 'missing' | 'malformed'
 
 /** Stable producer identity compiled together with the result binding; physical paths remain runtime facts. */
 export interface AiClientToolProducerPort {
@@ -47,10 +57,12 @@ export interface AiClientToolProducerPort {
   type: AiClientToolResourceType
   mediaType: string
   shape: string
+  /** Canonical visibility/delivery projection. Released routed-legacy ports may omit it. */
+  audience?: AiClientToolOutputAudience
 }
 
 /** Static consumer requirement. Source policy constrains provenance but never identifies a producer or argument. */
-export interface AiClientToolConsumerPort extends AiClientToolProducerPort {
+export interface AiClientToolConsumerPort extends Omit<AiClientToolProducerPort, 'audience'> {
   required: boolean
   sourcePolicy: AiClientToolSourcePolicy
 }
@@ -63,6 +75,38 @@ export interface AiClientToolRoutingIntentSection {
 export interface AiClientToolRoutingHelp {
   quickstartSection?: string
   intentSections?: Record<string, string> | AiClientToolRoutingIntentSection[]
+}
+
+export interface AiClientToolAnalyticalMeasureCapability {
+  name: string
+  aggregations: string[]
+  units: string[]
+}
+
+export interface AiClientToolAnalyticalOrderingCapability {
+  axis: string
+  direction: 'asc' | 'desc'
+  producerGuaranteed: boolean
+}
+
+export interface AiClientToolAnalyticalCapability {
+  version: typeof AI_CLIENT_TOOL_ANALYTICAL_CAPABILITY_VERSION
+  capabilityId: string
+  semanticKey: string
+  subjects: string[]
+  measures: AiClientToolAnalyticalMeasureCapability[]
+  dimensions: string[]
+  filters: string[]
+  grains: string[]
+  criteria: string[]
+  ordering: AiClientToolAnalyticalOrderingCapability[]
+  completeness: {
+    complete: boolean
+    partial: boolean
+    continuation: boolean
+  }
+  output: { shape: string }
+  transformCost: number
 }
 
 /**
@@ -92,6 +136,8 @@ export interface AiClientToolRoutingMetadata {
   exposure?: AiClientToolRoutingExposure
   help?: AiClientToolRoutingHelp
   validationHints?: string[]
+  /** ToolSurface capability declaration transported verbatim after bounded canonical validation. */
+  analyticalCapability?: AiClientToolAnalyticalCapability
 }
 
 export type AiClientToolRoutingKind =
@@ -178,7 +224,9 @@ export interface AiClientToolRoutingSource extends Record<string, unknown> {
   _meta?: Record<string, unknown>
 }
 
-export const resolveAiClientToolCanonicalEffect = (tool: AiClientToolRoutingSource) => {
+export const resolveAiClientToolCanonicalEffect = (
+  tool: AiClientToolRoutingSource,
+): AiClientToolEffectKind | undefined => {
   if (!isRecord(tool._meta)) return undefined
   const definition = tool._meta.clientToolDefinition
   if (!isRecord(definition) || definition.version !== 'client-tool-definition/v1') return undefined
@@ -190,6 +238,81 @@ export interface AiClientToolRoutingIssue {
   code: string
   field: string
   message: string
+}
+
+export interface AiClientToolEffectValidation {
+  status: AiClientToolEffectStatus
+  effect?: AiClientToolEffectKind
+  issues: AiClientToolRoutingIssue[]
+}
+
+const resolveEffectKind = (value: unknown): AiClientToolEffectKind | undefined => {
+  if (typeof value !== 'string') return undefined
+  const effect = normalizeText(value).toUpperCase()
+  return (['READ', 'WRITE', 'EXTERNAL_ACTION'] as const).find(candidate => candidate === effect)
+}
+
+/** Resolves facade and legacy effects once at the attach boundary without guessing from tool text. */
+export const validateAiClientToolEffectMetadata = (
+  tool: AiClientToolRoutingSource,
+): AiClientToolEffectValidation => {
+  const definition = isRecord(tool._meta) ? tool._meta.clientToolDefinition : undefined
+  const hasCanonicalDefinition = definition !== undefined
+  const canonicalEffect = resolveAiClientToolCanonicalEffect(tool)
+  const expands = isRecord(tool.expands) ? tool.expands : undefined
+  const hasLegacyEffect = !!expands
+    && Object.prototype.hasOwnProperty.call(expands, AI_CLIENT_TOOL_EFFECT_EXPAND_KEY)
+  const legacyEffect = hasLegacyEffect
+    ? resolveEffectKind(expands?.[AI_CLIENT_TOOL_EFFECT_EXPAND_KEY])
+    : undefined
+  const annotations = isRecord(tool.annotations) ? tool.annotations : undefined
+  const risk = isRecord(tool.risk) ? tool.risk : undefined
+  const declaresSideEffect = annotations?.readOnlyHint === false
+    || annotations?.destructiveHint === true
+    || expands?.readOnly === false
+    || risk?.readOnly === false
+    || expands?.needsApproval === true
+    || risk?.needsApproval === true
+    || tool.confirm === true
+    || isRecord(tool.confirm)
+  const declaresReadOnly = annotations?.readOnlyHint === true
+    || expands?.readOnly === true
+    || risk?.readOnly === true
+  const malformed = (code: string, field: string, message: string): AiClientToolEffectValidation => ({
+    status: 'malformed',
+    issues: [{ code, field, message }],
+  })
+
+  if (hasCanonicalDefinition && !canonicalEffect) {
+    return malformed('effect_canonical_malformed', '_meta.clientToolDefinition.effect',
+      'canonical client-tool effect must be READ, WRITE, or EXTERNAL_ACTION')
+  }
+  if (hasLegacyEffect && !legacyEffect) {
+    return malformed('effect_legacy_malformed', `expands.${AI_CLIENT_TOOL_EFFECT_EXPAND_KEY}`,
+      'legacy client-tool effect must be READ, WRITE, or EXTERNAL_ACTION')
+  }
+  if (canonicalEffect && legacyEffect && canonicalEffect !== legacyEffect) {
+    return malformed('effect_conflict', `expands.${AI_CLIENT_TOOL_EFFECT_EXPAND_KEY}`,
+      'legacy effect conflicts with the canonical client-tool definition')
+  }
+  const effect = canonicalEffect || legacyEffect
+  if (!effect && declaresSideEffect) {
+    return malformed('effect_required_for_side_effect', `expands.${AI_CLIENT_TOOL_EFFECT_EXPAND_KEY}`,
+      'a client tool declared as non-read-only must provide typed effect metadata')
+  }
+  if (effect === 'READ' && declaresSideEffect) {
+    return malformed('effect_read_only_conflict', `expands.${AI_CLIENT_TOOL_EFFECT_EXPAND_KEY}`,
+      'READ effect conflicts with non-read-only metadata')
+  }
+  if (effect && effect !== 'READ' && declaresReadOnly) {
+    return malformed('effect_side_effect_conflict', `expands.${AI_CLIENT_TOOL_EFFECT_EXPAND_KEY}`,
+      `${effect} effect conflicts with read-only metadata`)
+  }
+  return {
+    status: canonicalEffect ? 'canonical' : legacyEffect ? 'legacy' : 'missing',
+    ...(effect ? { effect } : {}),
+    issues: [],
+  }
 }
 
 export interface AiClientToolRoutingValidation {
@@ -328,8 +451,10 @@ const normalizeProducerPort = (value: unknown): AiClientToolProducerPort | undef
   const type = normalizeEnum(value.type, AI_CLIENT_TOOL_RESOURCE_TYPES)
   const mediaType = normalizeText(value.mediaType, 160).toLowerCase()
   const shape = normalizeText(value.shape, 160).toLowerCase()
+  const audience = normalizeEnum(value.audience, AI_CLIENT_TOOL_OUTPUT_AUDIENCES)
+  if (value.audience !== undefined && !audience) return undefined
   if (!name || !type || !mediaType || !shape) return undefined
-  return { name, type, mediaType, shape }
+  return { name, type, mediaType, shape, ...(audience ? { audience } : {}) }
 }
 
 const normalizePorts = <T>(value: unknown, mapper: (item: unknown) => T | undefined): T[] => {
@@ -352,7 +477,97 @@ const normalizeConsumerPort = (value: unknown): AiClientToolConsumerPort | undef
     ? normalizedSourcePolicy as AiClientToolSourcePolicy
     : undefined
   if (!sourcePolicy || typeof value.required !== 'boolean') return undefined
-  return { ...producer, required: value.required, sourcePolicy }
+  const { audience: _audience, ...resource } = producer
+  return { ...resource, required: value.required, sourcePolicy }
+}
+
+const ANALYTICAL_TOKEN_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/
+
+const normalizeAnalyticalValues = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value) || value.length > MAX_ROUTING_ITEMS) return undefined
+  const values: string[] = []
+  const seen = new Set<string>()
+  for (const item of value) {
+    const normalized = normalizeText(item, 160).toLowerCase()
+    if (!normalized || !ANALYTICAL_TOKEN_PATTERN.test(normalized)) return undefined
+    if (!seen.has(normalized)) {
+      seen.add(normalized)
+      values.push(normalized)
+    }
+  }
+  return values
+}
+
+const normalizeAnalyticalMeasure = (value: unknown): AiClientToolAnalyticalMeasureCapability | undefined => {
+  if (!isRecord(value)) return undefined
+  const name = normalizeText(value.name, 160).toLowerCase()
+  const aggregations = normalizeAnalyticalValues(value.aggregations)
+  const units = normalizeAnalyticalValues(value.units)
+  if (!name || !ANALYTICAL_TOKEN_PATTERN.test(name) || !aggregations?.length || !units) return undefined
+  return { name, aggregations, units }
+}
+
+const normalizeAnalyticalOrdering = (value: unknown): AiClientToolAnalyticalOrderingCapability | undefined => {
+  if (!isRecord(value)) return undefined
+  const axis = normalizeText(value.axis, 160).toLowerCase()
+  const direction = normalizeEnum(value.direction, ['asc', 'desc'] as const)
+  if (!axis || !ANALYTICAL_TOKEN_PATTERN.test(axis) || !direction
+    || typeof value.producerGuaranteed !== 'boolean') return undefined
+  return { axis, direction, producerGuaranteed: value.producerGuaranteed }
+}
+
+/**
+ * Normalizes the sole producer-authored analytical contract. No digest, alias, field-name heuristic or inferred
+ * default crosses the session boundary; an incomplete descriptor fails closed as one value.
+ */
+export const normalizeAiClientToolAnalyticalCapability = (
+  value: unknown,
+): AiClientToolAnalyticalCapability | undefined => {
+  if (!isRecord(value) || value.version !== AI_CLIENT_TOOL_ANALYTICAL_CAPABILITY_VERSION) return undefined
+  const capabilityId = normalizeText(value.capabilityId, 160).toLowerCase()
+  const semanticKey = normalizeText(value.semanticKey, 160).toLowerCase()
+  const subjects = normalizeAnalyticalValues(value.subjects)
+  const dimensions = normalizeAnalyticalValues(value.dimensions)
+  const filters = normalizeAnalyticalValues(value.filters)
+  const grains = normalizeAnalyticalValues(value.grains)
+  const criteria = normalizeAnalyticalValues(value.criteria)
+  if (!Array.isArray(value.measures) || value.measures.length > MAX_ROUTING_ITEMS
+    || !Array.isArray(value.ordering) || value.ordering.length > MAX_ROUTING_ITEMS) return undefined
+  const measures = value.measures.map(normalizeAnalyticalMeasure)
+  const ordering = value.ordering.map(normalizeAnalyticalOrdering)
+  const completeness = isRecord(value.completeness) ? value.completeness : undefined
+  const output = isRecord(value.output) ? value.output : undefined
+  const shape = normalizeText(output?.shape, 160).toLowerCase()
+  const transformCost = value.transformCost
+  if (!capabilityId || !CAPABILITY_PATTERN.test(capabilityId)
+    || !semanticKey || !ANALYTICAL_TOKEN_PATTERN.test(semanticKey)
+    || !subjects?.length || !dimensions || !filters || !grains || !criteria
+    || measures.some(item => !item) || ordering.some(item => !item)
+    || !completeness
+    || typeof completeness.complete !== 'boolean'
+    || typeof completeness.partial !== 'boolean'
+    || typeof completeness.continuation !== 'boolean'
+    || !shape || !RESOURCE_TYPE_PATTERN.test(shape)
+    || !Number.isInteger(transformCost) || Number(transformCost) < 0) return undefined
+  return {
+    version: AI_CLIENT_TOOL_ANALYTICAL_CAPABILITY_VERSION,
+    capabilityId,
+    semanticKey,
+    subjects,
+    measures: measures as AiClientToolAnalyticalMeasureCapability[],
+    dimensions,
+    filters,
+    grains,
+    criteria,
+    ordering: ordering as AiClientToolAnalyticalOrderingCapability[],
+    completeness: {
+      complete: completeness.complete,
+      partial: completeness.partial,
+      continuation: completeness.continuation,
+    },
+    output: { shape },
+    transformCost: Number(transformCost),
+  }
 }
 
 const normalizeRoutingRecord = (value: unknown): AiClientToolRoutingMetadata | undefined => {
@@ -381,6 +596,7 @@ const normalizeRoutingRecord = (value: unknown): AiClientToolRoutingMetadata | u
   const exposure = normalizeEnum(value.exposure, ['auto', 'eager', 'deferred'] as const)
   const help = normalizeHelp(value.help)
   const validationHints = normalizeList(value.validationHints)
+  const analyticalCapability = normalizeAiClientToolAnalyticalCapability(value.analyticalCapability)
   const result: AiClientToolRoutingMetadata = {
     ...(portVersion ? { portVersion } : {}),
     ...(consumerPorts.length ? { consumerPorts } : {}),
@@ -401,21 +617,27 @@ const normalizeRoutingRecord = (value: unknown): AiClientToolRoutingMetadata | u
     ...(exposure ? { exposure } : {}),
     ...(help ? { help } : {}),
     ...(validationHints.length ? { validationHints } : {}),
+    ...(analyticalCapability ? { analyticalCapability } : {}),
   }
   return Object.keys(result).length ? result : undefined
 }
 
-const canonicalRouting = (metadata: AiClientToolRoutingMetadata | undefined) => {
-  if (!metadata) return ''
-  const entries = Object.entries(metadata).map(([key, value]) => {
-    if (Array.isArray(value)) return [key, [...value].sort()]
-    if (isRecord(value)) {
-      return [key, Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right)))]
-    }
-    return [key, value]
-  })
-  return JSON.stringify(Object.fromEntries(entries.sort(([left], [right]) => left.localeCompare(right))))
+const canonicalRoutingValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    const normalized = value.map(canonicalRoutingValue)
+    return normalized.every(item => typeof item === 'string')
+      ? [...normalized].sort()
+      : normalized
+  }
+  if (!isRecord(value)) return value
+  return Object.fromEntries(Object.entries(value)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, item]) => [key, canonicalRoutingValue(item)]))
 }
+
+const canonicalRouting = (metadata: AiClientToolRoutingMetadata | undefined) => (
+  metadata ? JSON.stringify(canonicalRoutingValue(metadata)) : ''
+)
 
 const addIssue = (
   issues: AiClientToolRoutingIssue[],
@@ -461,6 +683,19 @@ export const validateAiClientToolRoutingMetadata = (
   if (hasRaw && !raw) addIssue(issues, 'empty_routing', 'expands.x-ai-routing', 'x-ai-routing is empty')
   if (declared && raw && canonicalRouting(declared) !== canonicalRouting(raw)) {
     addIssue(issues, 'conflicting_sources', 'routing', 'routing and expands.x-ai-routing must be identical')
+  }
+  if (isRecord(tool.routing)
+    && Object.prototype.hasOwnProperty.call(tool.routing, 'analyticalCapability')
+    && !declared?.analyticalCapability) {
+    addIssue(issues, 'analytical_capability_malformed', 'routing.analyticalCapability',
+      'analyticalCapability must be a complete analytical-capability/v1 descriptor')
+  }
+  if (isRecord(rawValue)
+    && Object.prototype.hasOwnProperty.call(rawValue, 'analyticalCapability')
+    && !raw?.analyticalCapability) {
+    addIssue(issues, 'analytical_capability_malformed',
+      'expands.x-ai-routing.analyticalCapability',
+      'analyticalCapability must be a complete analytical-capability/v1 descriptor')
   }
 
   const source = declared || raw
@@ -790,7 +1025,11 @@ export const normalizeAiClientToolRoutingMetadata = (tool: AiClientToolRoutingSo
  */
 export const toAiClientToolSessionDefinition = <T extends AiClientToolRoutingSource>(tool: T) => {
   const routing = normalizeAiClientToolRoutingMetadata(tool)
-  const effect = resolveAiClientToolCanonicalEffect(tool)
+  const effectValidation = validateAiClientToolEffectMetadata(tool)
+  if (effectValidation.status === 'malformed') {
+    throw new Error(effectValidation.issues[0]?.message || 'malformed client-tool effect metadata')
+  }
+  const effect = effectValidation.effect
   const explicitExpands = isRecord(tool.expands) ? { ...tool.expands } : {}
   delete explicitExpands[AI_CLIENT_TOOL_ROUTING_EXPAND_KEY]
   delete explicitExpands[AI_CLIENT_TOOL_EFFECT_EXPAND_KEY]
@@ -818,4 +1057,6 @@ export const toAiClientToolSessionDefinition = <T extends AiClientToolRoutingSou
 /** Serializes every authorized definition without routing-based or count-based filtering. */
 export const toAiClientToolSessionDefinitions = <T extends AiClientToolRoutingSource>(
   tools: readonly T[] = [],
-) => tools.map(tool => toAiClientToolSessionDefinition(tool))
+) => tools
+  .filter(tool => validateAiClientToolEffectMetadata(tool).status !== 'malformed')
+  .map(tool => toAiClientToolSessionDefinition(tool))

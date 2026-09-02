@@ -14,6 +14,13 @@ import {
   type AiClientToolOutputField,
   type AiClientToolOrdering,
 } from './clientToolResult'
+import type {
+  AiClientToolOutputAudience,
+  AiClientToolResourceType,
+  AiClientToolRoutingResultDelivery,
+} from './clientToolRouting'
+import type { GeneralAgentMarkdownPresentationCapability } from './generalAgentExtensions'
+import { diagnoseAiClientToolOutputPresentationCompatibility } from './clientToolContract'
 import {
   normalizeAiClientToolRecordPath,
   resolveAiClientToolBindingPath,
@@ -113,6 +120,11 @@ export interface AiClientToolRecordDeliveryData<T> {
   limitReason?: AiClientToolRecordLimitReason
   fileUnavailable?: boolean
   fileErrorCode?: 'CLIENT_TOOL_FILE_UNAVAILABLE' | 'CLIENT_TOOL_FILE_WRITE_FAILED'
+  audience?: AiClientToolOutputAudience
+  required?: boolean
+  satisfied?: boolean
+  sourceExact?: boolean
+  sourceDigest?: string
 }
 
 export interface AiClientToolArtifactOptions<TPreview = unknown> {
@@ -165,6 +177,11 @@ interface AiClientToolArtifactDeliveryData<TPreview> {
   fileUnavailable?: boolean
   fileErrorCode?: 'CLIENT_TOOL_FILE_WRITE_FAILED'
   limitReason?: 'bytes'
+  audience?: AiClientToolOutputAudience
+  required?: boolean
+  satisfied?: boolean
+  sourceExact?: boolean
+  sourceDigest?: string
 }
 
 export interface DeliverAiClientToolResultOptions {
@@ -178,17 +195,29 @@ export interface DeliverAiClientToolResultOptions {
   outputType?: string
   /** Declarative paths for inline values advertised through routing.produces. */
   outputBindings?: AiClientToolResultBindingDefinition[]
+  /** Canonical typed outputs used to resolve one materialized carrier without inspecting payload shape. */
+  outputs?: readonly AiClientToolResultOutputDefinition[]
 }
 
 export interface AiClientToolResultBindingDefinition {
   name: string
   type?: string
   label?: string
+  audience?: AiClientToolOutputAudience
   path: string
   shape: string
   mediaType?: string
   fields?: AiClientToolOutputField[]
   ordering?: AiClientToolOrdering
+}
+
+export interface AiClientToolResultOutputDefinition {
+  name: string
+  type: AiClientToolResourceType
+  shape: string
+  mediaType: string
+  audience: AiClientToolOutputAudience
+  delivery: AiClientToolRoutingResultDelivery
 }
 
 class RecordDeliveryLimitError extends Error {
@@ -390,7 +419,48 @@ const artifactSize = (content: ArrayBuffer | Blob | string) => {
   return new TextEncoder().encode(content).byteLength
 }
 
-const modelSafeInlineSource = (artifact: AiClientToolArtifact<unknown>) => {
+const canonicalArtifactSourceBytes = async (
+  artifact: Pick<AiClientToolArtifact<unknown>, 'content' | 'mimeType'>,
+) => {
+  const bytes = typeof artifact.content === 'string'
+    ? new TextEncoder().encode(artifact.content)
+    : artifact.content instanceof Blob
+      ? new Uint8Array(await artifact.content.arrayBuffer())
+      : new Uint8Array(artifact.content)
+  if (!artifact.mimeType.trim().toLowerCase().includes('json')) return bytes
+  try {
+    const normalized = JSON.stringify(JSON.parse(new TextDecoder().decode(bytes)))
+    return normalized === undefined ? bytes : new TextEncoder().encode(normalized)
+  } catch {
+    return bytes
+  }
+}
+
+/** Computes the identity of the canonical exact source once, independently from its inline/file carrier. */
+const createSha256SourceDigest = async (bytes: Uint8Array) => {
+  const subtle = globalThis.crypto?.subtle
+  if (!subtle) return undefined
+  try {
+    const input = bytes.buffer instanceof ArrayBuffer
+      && bytes.byteOffset === 0
+      && bytes.byteLength === bytes.buffer.byteLength
+      ? bytes.buffer
+      : bytes.slice().buffer
+    const digest = new Uint8Array(await subtle.digest('SHA-256', input))
+    return `sha256:${Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('')}`
+  } catch {
+    return undefined
+  }
+}
+
+const createArtifactSourceDigest = async (artifact: AiClientToolArtifact<unknown>) => (
+  createSha256SourceDigest(await canonicalArtifactSourceBytes(artifact))
+)
+
+const modelSafeInlineSource = (
+  artifact: AiClientToolArtifact<unknown>,
+  maximumBytes = DEFAULT_MAX_INLINE_BYTES,
+) => {
   if (artifact.modelSafeInline === undefined || artifact.modelSafeInline === null) return undefined
   try {
     const json = JSON.stringify(artifact.modelSafeInline)
@@ -401,10 +471,92 @@ const modelSafeInlineSource = (artifact: AiClientToolArtifact<unknown>) => {
       DEFAULT_MAX_INLINE_BYTES,
       DEFAULT_MAX_INLINE_BYTES,
     )
-    if (new TextEncoder().encode(json).byteLength > maxBytes) return undefined
-    return JSON.parse(json) as unknown
+    const bytes = new TextEncoder().encode(json).byteLength
+    if (bytes > Math.min(maxBytes, Math.max(0, maximumBytes))) return undefined
+    let exact = false
+    if (typeof artifact.content === 'string') {
+      if (artifact.mimeType.toLowerCase().includes('json')) {
+        try {
+          exact = JSON.stringify(JSON.parse(artifact.content)) === json
+        } catch {
+          exact = false
+        }
+      } else if (typeof artifact.modelSafeInline === 'string') {
+        exact = artifact.content === artifact.modelSafeInline
+      }
+    }
+    return { source: JSON.parse(json) as unknown, exact, bytes }
   } catch {
     return undefined
+  }
+}
+
+interface AiClientToolMaterializedDeliveryPolicy {
+  audience?: AiClientToolOutputAudience
+  required: boolean
+  allowFile: boolean
+  allowInline: boolean
+  requireExactInline: boolean
+  inlineBytes: number
+  preferInline: boolean
+}
+
+const presentationCapabilitiesForOutput = (
+  output: AiClientToolResultOutputDefinition,
+  capabilities: readonly GeneralAgentMarkdownPresentationCapability[] = [],
+) => capabilities.filter(capability => !diagnoseAiClientToolOutputPresentationCompatibility({
+  kind: output.type === 'artifact' ? 'artifact' : 'record-set',
+  ...output,
+}, capability).length)
+
+const resolveMaterializedDeliveryPolicy = (
+  output: AiClientToolResultOutputDefinition | undefined,
+  capabilities: readonly GeneralAgentMarkdownPresentationCapability[] = [],
+): AiClientToolMaterializedDeliveryPolicy => {
+  if (!output?.audience) {
+    return {
+      required: true,
+      allowFile: true,
+      allowInline: true,
+      requireExactInline: false,
+      inlineBytes: DEFAULT_MAX_INLINE_BYTES,
+      preferInline: false,
+    }
+  }
+  if (output.audience === 'model-evidence') {
+    return {
+      audience: output.audience,
+      required: true,
+      allowFile: false,
+      allowInline: true,
+      requireExactInline: false,
+      inlineBytes: DEFAULT_MAX_INLINE_BYTES,
+      preferInline: true,
+    }
+  }
+  if (output.audience === 'reusable-source') {
+    return {
+      audience: output.audience,
+      required: true,
+      allowFile: output.delivery !== 'inline',
+      allowInline: output.delivery === 'inline',
+      requireExactInline: true,
+      inlineBytes: DEFAULT_MAX_INLINE_BYTES,
+      preferInline: output.delivery === 'inline',
+    }
+  }
+  const compatible = presentationCapabilitiesForOutput(output, capabilities)
+  const requiredCapabilities = compatible.filter(capability => capability.deliveryPolicy === 'required')
+  const active = requiredCapabilities.length ? requiredCapabilities : compatible
+  const inlineLimits = active.map(capability => Number(capability.maxInlineBytes) || 0)
+  return {
+    audience: output.audience,
+    required: requiredCapabilities.length > 0 || compatible.length === 0,
+    allowFile: active.length > 0 && active.every(capability => capability.supportsSessionFile === true),
+    allowInline: active.length > 0 && inlineLimits.every(limit => limit > 0),
+    requireExactInline: true,
+    inlineBytes: inlineLimits.length ? Math.min(...inlineLimits) : 0,
+    preferInline: output.delivery !== 'file',
   }
 }
 
@@ -412,16 +564,27 @@ const artifactFallback = <TPreview>(
   artifact: AiClientToolArtifact<TPreview>,
   size: number,
   failure: Pick<AiClientToolArtifactDeliveryData<TPreview>, 'fileUnavailable' | 'fileErrorCode' | 'limitReason'>,
+  policy: AiClientToolMaterializedDeliveryPolicy,
+  sourceDigest?: string,
 ): AiClientToolArtifactDeliveryData<TPreview> => {
-  const source = modelSafeInlineSource(artifact)
-  if (source !== undefined) {
+  const inline = policy.allowInline
+    ? modelSafeInlineSource(artifact, policy.inlineBytes)
+    : undefined
+  if (inline
+    && (!policy.requireExactInline || inline.exact)
+    && (!policy.requireExactInline || !!sourceDigest)) {
     return {
       producedFile: false,
       delivery: 'inline',
       preview: artifact.preview,
-      source,
+      source: inline.source,
       mimeType: artifact.mimeType,
       size,
+      ...(policy.audience ? { audience: policy.audience } : {}),
+      required: policy.required,
+      satisfied: true,
+      sourceExact: inline.exact,
+      ...(inline.exact && sourceDigest ? { sourceDigest } : {}),
       ...failure,
     }
   }
@@ -431,6 +594,10 @@ const artifactFallback = <TPreview>(
     preview: artifact.preview,
     mimeType: artifact.mimeType,
     size,
+    ...(policy.audience ? { audience: policy.audience } : {}),
+    required: policy.required,
+    satisfied: false,
+    sourceExact: false,
     ...failure,
   }
 }
@@ -438,22 +605,34 @@ const artifactFallback = <TPreview>(
 const materializeArtifact = async <TPreview>(
   artifact: AiClientToolArtifact<TPreview>,
   options: DeliverAiClientToolResultOptions,
+  output?: AiClientToolResultOutputDefinition,
 ): Promise<AiClientToolArtifactDeliveryData<TPreview>> => {
-  const mode = options.resultDelivery || 'auto'
-  const files = resolveSessionFiles(mode, options.call.sessionFiles)
+  const mode = output?.delivery || options.resultDelivery || 'auto'
+  const policy = resolveMaterializedDeliveryPolicy(output, options.call.presentationCapabilities)
+  const files = policy.allowFile ? resolveSessionFiles(mode, options.call.sessionFiles) : undefined
   const maxBytes = clampInteger(artifact.maxBytes, 1024, 10 * 1024 * 1024, DEFAULT_MAX_BYTES)
   const size = artifactSize(artifact.content)
+  const sourceDigest = policy.requireExactInline || policy.allowFile
+    ? await createArtifactSourceDigest(artifact)
+    : undefined
   const path = createAiClientToolArtifactPath(
     options.call.toolName,
     artifact.executionId,
     artifact.fileExtension,
   )
   if (options.call.signal?.aborted) throw createAbortError()
+  if (policy.requireExactInline && !sourceDigest) {
+    return artifactFallback(artifact, size, {}, policy)
+  }
+  if (policy.preferInline) {
+    const inline = artifactFallback(artifact, size, {}, policy, sourceDigest)
+    if (inline.delivery === 'inline') return inline
+  }
   if (!files || size > maxBytes) {
     return artifactFallback(artifact, size, {
-      fileUnavailable: !files,
+      fileUnavailable: policy.allowFile && !files ? true : undefined,
       limitReason: size > maxBytes ? 'bytes' : undefined,
-    })
+    }, policy, sourceDigest)
   }
   let deliveryState: SessionFileDeliveryState = 'not-started'
   try {
@@ -475,6 +654,11 @@ const materializeArtifact = async <TPreview>(
       size: Number.isFinite(uploaded?.size) ? Number(uploaded.size) : size,
       path,
       fileRef,
+      ...(policy.audience ? { audience: policy.audience } : {}),
+      required: policy.required,
+      satisfied: true,
+      sourceExact: true,
+      ...(sourceDigest ? { sourceDigest } : {}),
     }
   } catch (error) {
     deliveryState = await cleanupPartialFile(files, path, deliveryState)
@@ -484,16 +668,18 @@ const materializeArtifact = async <TPreview>(
     return artifactFallback(artifact, size, {
       fileUnavailable: true,
       fileErrorCode: 'CLIENT_TOOL_FILE_WRITE_FAILED' as const,
-    })
+    }, policy, sourceDigest)
   }
 }
 
 const materializeRecordStream = async <T>(
   stream: AiClientToolRecordStream<T>,
   options: DeliverAiClientToolResultOptions,
+  output?: AiClientToolResultOutputDefinition,
 ): Promise<AiClientToolRecordDeliveryData<T>> => {
-  const mode = options.resultDelivery || 'auto'
-  const files = resolveSessionFiles(mode, options.call.sessionFiles)
+  const mode = output?.delivery || options.resultDelivery || 'auto'
+  const policy = resolveMaterializedDeliveryPolicy(output, options.call.presentationCapabilities)
+  const files = policy.allowFile ? resolveSessionFiles(mode, options.call.sessionFiles) : undefined
   const path = stream.path || createAiClientToolResultPath(options.call.toolName)
   const limits = stream.limits || {}
   const chunkBytes = clampInteger(limits.chunkBytes, 64 * 1024, 1024 * 1024, DEFAULT_CHUNK_BYTES)
@@ -512,11 +698,17 @@ const materializeRecordStream = async <T>(
   const encoder = new TextEncoder()
   const factCollector = createAiClientToolRecordFactCollector(stream.schema)
   const retainedSamples: T[] = []
+  const inlineRecords: T[] = []
+  const sourceLines: string[] = []
   let pendingLines: string[] = []
   let pendingBytes = 0
   let totalBytes = 0
   let count = 0
   let uploaded = false
+  let inlineCandidate = !!output?.audience
+    && policy.allowInline
+    && (policy.preferInline || !files)
+  let usingFile = !!files && !inlineCandidate
   let deliveryState: SessionFileDeliveryState = 'not-started'
   let sourceCompleted = false
   let timedOut = false
@@ -536,7 +728,7 @@ const materializeRecordStream = async <T>(
   else options.call.signal?.addEventListener('abort', abortFromCaller, { once: true })
 
   const flush = async () => {
-    if (!files || !pendingLines.length) return
+    if (!files || !usingFile || !pendingLines.length) return
     const payload = new Blob(pendingLines, { type: NDJSON_MIME_TYPE })
     pendingLines = []
     pendingBytes = 0
@@ -555,10 +747,22 @@ const materializeRecordStream = async <T>(
     deliveryState = 'opened'
   }
 
+  const switchToFile = async () => {
+    if (!files || usingFile) return
+    usingFile = true
+    inlineCandidate = false
+    inlineRecords.length = 0
+    pendingLines = [...sourceLines]
+    pendingBytes = totalBytes
+    if (pendingBytes >= chunkBytes) await flush()
+  }
+
   const accept = async (row: T) => {
     if (externalAbort || sourceController.signal.aborted) throw createAbortError()
     if (count >= maxRecords) throw new RecordDeliveryLimitError('records')
-    if (!files && count >= fallbackSampleLimit) throw new RecordDeliveryLimitError('sample')
+    if (!usingFile && !inlineCandidate && policy.required && count >= fallbackSampleLimit) {
+      throw new RecordDeliveryLimitError('sample')
+    }
 
     const serialized = JSON.stringify(row)
     if (serialized === undefined) {
@@ -570,12 +774,22 @@ const materializeRecordStream = async <T>(
     const rowBytes = encoder.encode(line).byteLength
     if (rowBytes > maxRowBytes) throw new RecordDeliveryLimitError('rowBytes')
     if (totalBytes + rowBytes > maxBytes) throw new RecordDeliveryLimitError('bytes')
+    if (inlineCandidate && totalBytes + rowBytes > policy.inlineBytes) {
+      if (files) await switchToFile()
+      else if (policy.required) throw new RecordDeliveryLimitError('bytes')
+      else {
+        inlineCandidate = false
+        inlineRecords.length = 0
+      }
+    }
 
     factCollector.accept(row)
     if (retainedSamples.length < retainedSampleLimit) retainedSamples.push(row)
+    if (inlineCandidate) inlineRecords.push(row)
+    sourceLines.push(line)
     count += 1
     totalBytes += rowBytes
-    if (files) {
+    if (usingFile) {
       pendingLines.push(line)
       pendingBytes += rowBytes
       if (pendingBytes >= chunkBytes) await flush()
@@ -610,26 +824,28 @@ const materializeRecordStream = async <T>(
     if (externalAbort) throw createAbortError()
     const profile = factCollector.snapshot()
 
-    if (sourceCompleted && count === 0 && !limitReason && !fileErrorCode) {
-      return createDeliveryData({
-        producedFile: false,
-        delivery: 'empty',
-        size: 0,
-        count: 0,
-        schema: stream.schema,
-        timeRange: stream.timeRange,
-        observedRange: profile.observedRange,
-        facts: profile.facts,
-        sample: [],
-        complete: true,
-        truncated: false,
-      })
+    // Released legacy streams historically keep an empty result inline without opening a file.
+    if (!output?.audience && sourceCompleted && count === 0 && !limitReason && !fileErrorCode) {
+      usingFile = false
+      inlineCandidate = true
     }
 
-    if (files && !fileErrorCode) {
+    if (usingFile && files && !fileErrorCode) {
       try {
         await flush()
         if (externalAbort) throw createAbortError()
+        if (sourceCompleted && count === 0 && !uploaded) {
+          deliveryState = 'unknown'
+          const result = await files.upload(path, new Blob([], { type: NDJSON_MIME_TYPE }), {
+            maxBytes,
+            signal: uploadController.signal,
+          })
+          if (result?.ok === false) throw new RecordFileWriteError(
+            new Error('session file upload was rejected'),
+          )
+          uploaded = true
+          deliveryState = 'opened'
+        }
         if (uploaded) {
           let fileRef: string
           try {
@@ -638,6 +854,13 @@ const materializeRecordStream = async <T>(
             throw new RecordFileWriteError(error)
           }
           deliveryState = 'committed'
+          const sourceExact = sourceCompleted && !limitReason
+          const sourceDigest = sourceExact
+            ? await createSha256SourceDigest(new Uint8Array(await new Blob(sourceLines).arrayBuffer()))
+            : undefined
+          const exactIdentityRequired = policy.audience === 'client-presentation'
+            || policy.audience === 'reusable-source'
+          const satisfied = sourceExact && (!exactIdentityRequired || !!sourceDigest)
           return createDeliveryData({
             producedFile: true,
             delivery: 'session-file',
@@ -650,9 +873,14 @@ const materializeRecordStream = async <T>(
             observedRange: profile.observedRange,
             facts: profile.facts,
             sample: retainedSamples.slice(0, previewLimit),
-            complete: sourceCompleted && !limitReason,
-            truncated: !sourceCompleted || !!limitReason,
+            complete: sourceCompleted && !limitReason && (satisfied || !policy.required),
+            truncated: !sourceCompleted || !!limitReason || (policy.required && !satisfied),
             limitReason,
+            ...(policy.audience ? { audience: policy.audience } : {}),
+            required: policy.required,
+            satisfied,
+            sourceExact: satisfied,
+            ...(satisfied && sourceDigest ? { sourceDigest } : {}),
           })
         }
       } catch (error) {
@@ -663,13 +891,34 @@ const materializeRecordStream = async <T>(
     }
 
     deliveryState = await cleanupPartialFile(files, path, deliveryState)
-    const complete = sourceCompleted
+    const producerComplete = sourceCompleted && !limitReason
+    const fallbackInlineExact = producerComplete
+      && policy.allowInline
+      && totalBytes <= policy.inlineBytes
       && retainedSamples.length >= count
-      && !limitReason
-    const fallbackLimitReason = complete
+    const inlineValues = inlineCandidate
+      ? inlineRecords
+      : fallbackInlineExact
+        ? retainedSamples
+        : retainedSamples.slice(0, fallbackSampleLimit)
+    const sourceExact = producerComplete
+      && (inlineCandidate || fallbackInlineExact)
+      && inlineValues.length === count
+    const sourceDigest = sourceExact
+      ? await createSha256SourceDigest(new Uint8Array(await new Blob(sourceLines).arrayBuffer()))
+      : undefined
+    const exactIdentityRequired = policy.audience === 'client-presentation'
+      || policy.audience === 'reusable-source'
+    const satisfied = !policy.audience
+      ? producerComplete && retainedSamples.length >= count
+      : policy.audience === 'model-evidence'
+      ? producerComplete && inlineCandidate
+      : sourceExact && (!exactIdentityRequired || !!sourceDigest)
+    const complete = producerComplete && (satisfied || !policy.required)
+    const fallbackLimitReason = complete || (producerComplete && !policy.required)
       ? undefined
       : (limitReason || (count > retainedSamples.length ? 'sample' : undefined))
-    const unavailable = mode !== 'inline' && (!files || !!fileErrorCode)
+    const unavailable = policy.allowFile && (!files || !!fileErrorCode)
     return createDeliveryData({
       producedFile: false,
       delivery: 'inline-sample',
@@ -679,12 +928,17 @@ const materializeRecordStream = async <T>(
       timeRange: stream.timeRange,
       observedRange: profile.observedRange,
       facts: profile.facts,
-      sample: retainedSamples.slice(0, fallbackSampleLimit),
+      sample: inlineValues,
       complete,
       truncated: !complete,
       limitReason: fallbackLimitReason,
       fileUnavailable: unavailable,
       fileErrorCode: fileErrorCode || (unavailable ? 'CLIENT_TOOL_FILE_UNAVAILABLE' : undefined),
+      ...(policy.audience ? { audience: policy.audience } : {}),
+      required: policy.required,
+      satisfied,
+      sourceExact: satisfied,
+      ...(satisfied && sourceDigest ? { sourceDigest } : {}),
     })
   } catch (error) {
     deliveryState = await cleanupPartialFile(files, path, deliveryState)
@@ -699,7 +953,13 @@ const mergeDeliveryResult = <T>(
   stream: AiClientToolRecordStream<T>,
   envelope: JsonRecord | undefined,
   data: AiClientToolRecordDeliveryData<T>,
-  binding: { name: string; label?: string; type?: string; shape: string },
+  binding: {
+    name: string
+    label?: string
+    type?: string
+    shape: string
+    audience?: AiClientToolOutputAudience
+  },
 ) => {
   const originalSummary = isRecord(envelope?.summary) ? envelope.summary : {}
   const declaredEvidence = isRecord(envelope?.evidence) ? envelope.evidence : {}
@@ -730,10 +990,21 @@ const mergeDeliveryResult = <T>(
         ...(field.unit ? { unit: field.unit } : {}),
         ...(field.aggregation ? { aggregation: field.aggregation } : {}),
       }))
-  const outputBindings: AiClientToolOutputBinding[] = data.producedFile && data.fileRef
+  const exactIdentityRequired = binding.audience === 'client-presentation'
+    || binding.audience === 'reusable-source'
+  const bindableFile = data.producedFile
+    && !!data.fileRef
+    && (!exactIdentityRequired || data.sourceExact === true)
+  const bindableInline = !data.producedFile
+    && (binding.audience === 'model-evidence'
+      || !exactIdentityRequired
+      || data.sourceExact === true)
+  const outputBindings: AiClientToolOutputBinding[] = bindableFile
     ? [{
       name: bindingName,
       ...(binding.type ? { type: binding.type } : {}),
+        ...(binding.audience ? { audience: binding.audience } : {}),
+        ...(data.sourceDigest ? { sourceDigest: data.sourceDigest } : {}),
         ...(binding.label ? { label: binding.label } : {}),
         ref: data.fileRef,
         shape: outputShape,
@@ -751,9 +1022,12 @@ const mergeDeliveryResult = <T>(
         ...(bindingFields.length ? { fields: bindingFields } : {}),
         ...(stream.ordering ? { ordering: stream.ordering } : {}),
       }]
-    : [{
+    : bindableInline
+      ? [{
       name: bindingName,
       ...(binding.type ? { type: binding.type } : {}),
+        ...(binding.audience ? { audience: binding.audience } : {}),
+        ...(data.sourceDigest ? { sourceDigest: data.sourceDigest } : {}),
         ...(binding.label ? { label: binding.label } : {}),
         path: '$.data.sample',
         shape: outputShape,
@@ -771,6 +1045,7 @@ const mergeDeliveryResult = <T>(
         ...(bindingFields.length ? { fields: bindingFields } : {}),
         ...(stream.ordering ? { ordering: stream.ordering } : {}),
       }]
+      : []
   const status = data.truncated
     ? 'partial'
     : data.count === 0
@@ -848,6 +1123,7 @@ const resolveRecordStreamBinding = <T>(
   const expectedBindingName = String(options.bindingName || '').trim()
   const declaredOutputShape = String(stream.outputShape || '').trim()
   const expectedOutputShape = String(options.outputShape || '').trim()
+  const output = resolveMaterializedOutput(options.outputs, declaredBindingName, declaredOutputShape)
   if (declaredBindingName && expectedBindingName && declaredBindingName !== expectedBindingName) {
     throw Object.assign(new Error('record stream binding does not match tool routing'), {
       code: 'CLIENT_TOOL_BINDING_MISMATCH',
@@ -859,11 +1135,32 @@ const resolveRecordStreamBinding = <T>(
     })
   }
   return {
-    name: declaredBindingName || expectedBindingName || 'records',
-    ...(options.outputType ? { type: options.outputType } : {}),
+    name: declaredBindingName || output?.name || expectedBindingName || 'records',
+    ...(output?.type || options.outputType ? { type: output?.type || options.outputType } : {}),
     ...(declaredBindingLabel ? { label: declaredBindingLabel } : {}),
-    shape: declaredOutputShape || expectedOutputShape || 'tabular.records',
+    shape: declaredOutputShape || output?.shape || expectedOutputShape || 'tabular.records',
+    ...(output?.audience ? { audience: output.audience } : {}),
+    output,
   }
+}
+
+const resolveMaterializedOutput = (
+  outputs: readonly AiClientToolResultOutputDefinition[] | undefined,
+  bindingName: string,
+  outputShape: string,
+) => {
+  if (!outputs?.length) return undefined
+  const candidates = bindingName
+    ? outputs.filter(output => output.name === bindingName)
+    : outputShape
+      ? outputs.filter(output => output.shape === outputShape)
+      : outputs.length === 1 ? [...outputs] : []
+  if (candidates.length !== 1) {
+    throw Object.assign(new Error('materialized result cannot be bound to one canonical output'), {
+      code: candidates.length ? 'CLIENT_TOOL_BINDING_AMBIGUOUS' : 'CLIENT_TOOL_BINDING_MISMATCH',
+    })
+  }
+  return candidates[0]
 }
 
 const resolveArtifactBinding = <TPreview>(
@@ -875,6 +1172,7 @@ const resolveArtifactBinding = <TPreview>(
   const expectedBindingName = String(options.bindingName || '').trim()
   const declaredOutputShape = String(artifact.outputShape || '').trim()
   const expectedOutputShape = String(options.outputShape || '').trim()
+  const output = resolveMaterializedOutput(options.outputs, declaredBindingName, declaredOutputShape)
   if (declaredBindingName && expectedBindingName && declaredBindingName !== expectedBindingName) {
     throw Object.assign(new Error('artifact binding does not match tool routing'), {
       code: 'CLIENT_TOOL_BINDING_MISMATCH',
@@ -885,11 +1183,18 @@ const resolveArtifactBinding = <TPreview>(
       code: 'CLIENT_TOOL_OUTPUT_SHAPE_MISMATCH',
     })
   }
+  if (output && artifact.mimeType.trim().toLowerCase() !== output.mediaType.trim().toLowerCase()) {
+    throw Object.assign(new Error('artifact media type does not match canonical output'), {
+      code: 'CLIENT_TOOL_OUTPUT_MEDIA_TYPE_MISMATCH',
+    })
+  }
   return {
-    name: declaredBindingName || expectedBindingName || 'artifact',
-    ...(options.outputType ? { type: options.outputType } : {}),
+    name: declaredBindingName || output?.name || expectedBindingName || 'artifact',
+    ...(output?.type || options.outputType ? { type: output?.type || options.outputType } : {}),
     ...(declaredBindingLabel ? { label: declaredBindingLabel } : {}),
-    shape: declaredOutputShape || expectedOutputShape || 'artifact',
+    shape: declaredOutputShape || output?.shape || expectedOutputShape || 'artifact',
+    ...(output?.audience ? { audience: output.audience } : {}),
+    output,
   }
 }
 
@@ -897,7 +1202,13 @@ const mergeArtifactResult = <TPreview>(
   artifact: AiClientToolArtifact<TPreview>,
   envelope: JsonRecord | undefined,
   delivery: AiClientToolArtifactDeliveryData<TPreview>,
-  binding: { name: string; label?: string; type?: string; shape: string },
+  binding: {
+    name: string
+    label?: string
+    type?: string
+    shape: string
+    audience?: AiClientToolOutputAudience
+  },
 ) => {
   const declaredEvidence = isRecord(envelope?.evidence) ? envelope.evidence : {}
   const recordPath = artifact.recordPath === undefined
@@ -913,10 +1224,14 @@ const mergeArtifactResult = <TPreview>(
   const totalCount = recordSet?.totalCount ?? sourcePreview?.totalCount
   const sourceComplete = artifact.complete !== false && artifact.truncated !== true
   const inlineSourceAvailable = delivery.delivery === 'inline' && delivery.source !== undefined
+  const bindableInlineSource = inlineSourceAvailable && delivery.sourceExact !== false
   const sourceEmpty = recordSet?.totalCount === 0
     || (sourcePreview?.displayedCount === 0 && sourcePreview.totalCount === 0)
     || aggregate?.measurementCount === 0
-  const complete = sourceComplete && (delivery.producedFile || inlineSourceAvailable || sourceEmpty)
+  const complete = sourceComplete && (
+    delivery.satisfied === true
+    || delivery.required === false
+  )
   const truncated = !complete
   const displayedCount = sourcePreview?.displayedCount
   const returnedCount = recordSet?.returnedCount ?? displayedCount
@@ -926,6 +1241,8 @@ const mergeArtifactResult = <TPreview>(
         name: binding.name,
         ...(binding.type ? { type: binding.type } : {}),
         ...(binding.label ? { label: binding.label } : {}),
+        ...(binding.audience ? { audience: binding.audience } : {}),
+        ...(delivery.sourceDigest ? { sourceDigest: delivery.sourceDigest } : {}),
         ref: delivery.fileRef,
         ...(delivery.path ? { path: delivery.path } : {}),
         ...(recordPath ? { recordPath } : {}),
@@ -939,11 +1256,13 @@ const mergeArtifactResult = <TPreview>(
         ...(artifact.fields?.length ? { fields: artifact.fields.map(field => ({ ...field })) } : {}),
         ...(artifact.ordering ? { ordering: artifact.ordering } : {}),
       }]
-    : inlineSourceAvailable
+    : bindableInlineSource
       ? [{
           name: binding.name,
           ...(binding.type ? { type: binding.type } : {}),
           ...(binding.label ? { label: binding.label } : {}),
+          ...(binding.audience ? { audience: binding.audience } : {}),
+          ...(delivery.sourceDigest ? { sourceDigest: delivery.sourceDigest } : {}),
           path: '$.data.presentationSource',
           ...(recordPath ? { recordPath } : {}),
           shape: binding.shape,
@@ -975,7 +1294,10 @@ const mergeArtifactResult = <TPreview>(
     ...(delivery.fileErrorCode ? [delivery.fileErrorCode] : []),
     ...(delivery.limitReason ? [`CLIENT_TOOL_ARTIFACT_LIMIT_${delivery.limitReason.toUpperCase()}`] : []),
   ].map(value => String(value))
-  const status = sourceEmpty ? 'empty' : (complete ? String(envelope?.status || 'ok') : 'partial')
+  // Empty cardinality grants absence semantics only; it cannot replace a required carrier proof.
+  const status = complete
+    ? (sourceEmpty ? 'empty' : String(envelope?.status || 'ok'))
+    : 'partial'
   const result = {
     ...(envelope || {}),
     status,
@@ -1102,14 +1424,14 @@ export const deliverAiClientToolResult = async (
   if (recordStream) {
     const stream = recordStream.stream as AiClientToolRecordStream<unknown>
     const binding = resolveRecordStreamBinding(stream, options)
-    const data = await materializeRecordStream(stream, options)
+    const data = await materializeRecordStream(stream, options, binding.output)
     return mergeDeliveryResult(stream, recordStream.envelope, data, binding)
   }
   const artifactResult = resolveArtifact(result)
   if (artifactResult) {
     const artifact = artifactResult.artifact as AiClientToolArtifact<unknown>
     const binding = resolveArtifactBinding(artifact, options)
-    const delivery = await materializeArtifact(artifact, options)
+    const delivery = await materializeArtifact(artifact, options, binding.output)
     const delivered = mergeArtifactResult(artifact, artifactResult.envelope, delivery, binding)
     // A tool may produce one materialized renderer source plus small inline selectors (for example,
     // result ids used by a follow-up query). Materialization must not suppress those declared ports.

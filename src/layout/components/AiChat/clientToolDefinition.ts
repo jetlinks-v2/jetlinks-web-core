@@ -1,11 +1,15 @@
 import {
+  bindAiClientToolContractExecutionAxis,
   defineAiClientToolContract,
   withAiClientToolContractEvidence,
   type AiClientToolContractFragment,
+  type AiClientToolContractOutputState,
   type AiClientToolOutputContract,
 } from './clientToolContract'
 import {
   createAiClientToolFailureResult,
+  isCanonicalAiClientToolOutputField,
+  normalizeAiClientToolOutputFields,
   type AiClientToolCardinality,
   type AiClientToolClaim,
   type AiClientToolFailureOptions,
@@ -21,17 +25,23 @@ import type {
   AiClientToolConfirmOptions,
   AiClientToolDefinition,
   AiClientToolInput,
+  AiClientToolPreparedCall,
   AiClientToolValueType,
 } from './clientTools'
-import type {
-  AiClientToolResourceType,
-  AiClientToolSourcePolicy,
+import {
+  AI_CLIENT_TOOL_ANALYTICAL_CAPABILITY_VERSION,
+  normalizeAiClientToolAnalyticalCapability,
+  type AiClientToolAnalyticalCapability,
+  type AiClientToolOutputAudience,
+  type AiClientToolResourceType,
+  type AiClientToolSourcePolicy,
 } from './clientToolRouting'
 
 export const CLIENT_TOOL_DEFINITION_VERSION = 'client-tool-definition/v1' as const
 export const CLIENT_TOOL_DEFINITION_META_KEY = 'clientToolDefinition' as const
 
 const CLIENT_TOOL_RESULT_KIND = 'client-tool-result/v1' as const
+declare const CLIENT_TOOL_ANALYTICAL_AUTHORING: unique symbol
 const MATERIALIZED_ARTIFACT_KIND = 'ai-client-tool-artifact/v1'
 const MATERIALIZED_RECORD_STREAM_KIND = 'ai-client-tool-record-stream/v1'
 const INLINE_RECORD_LIMIT = 200
@@ -49,6 +59,106 @@ export interface ClientToolDescription {
   activation?: ClientToolActivation
   help?: string
 }
+
+export interface ClientToolAnalyticalMeasure {
+  name: string
+  aggregations: readonly string[]
+  units: readonly string[]
+}
+
+export interface ClientToolAnalyticalOrdering {
+  axis: string
+  direction: 'asc' | 'desc'
+}
+
+export type ClientToolAnalyticalCoverage = 'complete' | 'partial' | 'complete-or-partial'
+
+interface ClientToolAnalyticalProducerSemantics {
+  /** Stable business producer identity; the adapter maps it to the current wire identity. */
+  producerKey: string
+  /** Stable fact family shared by producers that describe the same source semantics. */
+  factKey: string
+  subjects: readonly [string, ...string[]]
+  measures: readonly ClientToolAnalyticalMeasure[]
+  dimensions?: readonly string[]
+  filters?: readonly string[]
+  grains?: readonly string[]
+  /** Explicit logical output binding. Representation shape remains owned by the tool output declaration. */
+  output: string
+}
+
+export interface ClientToolAnalyticalProducerDefinition extends ClientToolAnalyticalProducerSemantics {
+  criteria: readonly [string, ...string[]]
+  ordering?: readonly ClientToolAnalyticalOrdering[]
+  coverage: ClientToolAnalyticalCoverage
+  continuation?: boolean
+}
+
+type ClientToolBoundedAnalyticalAxisBinding<
+  TArgs extends Record<string, unknown>,
+> =
+  | { axis: string; axisFromInput?: never }
+  | { axis?: never; axisFromInput: Extract<keyof TArgs, string> }
+
+export type ClientToolBoundedAnalyticalCriterion<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+> = {
+  name: string
+  /** Semantic measure used to rank the bounded records. */
+  measure: string
+  direction: 'asc' | 'desc'
+  /** Physical scalar field that carries the ranked measure. */
+  valueField: string
+  /** Physical dimension field that identifies each ranked coordinate. */
+  coordinateField: string
+} & ClientToolBoundedAnalyticalAxisBinding<TArgs>
+
+export interface ClientToolBoundedAnalyticalProducerDefinition<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+> extends ClientToolAnalyticalProducerSemantics {
+  /** One explicit criterion binding is the sole owner of semantic and physical ranking facts. */
+  criterion: ClientToolBoundedAnalyticalCriterion<TArgs>
+  /** Exact argument that bounds the requested analytical scope. */
+  boundedBy: Extract<keyof TArgs, string>
+}
+
+/**
+ * Opaque authoring handle consumed only by defineClientTool. Business modules cannot inspect or construct wire metadata.
+ */
+export interface ClientToolAnalyticalAuthoring<TArgs extends Record<string, unknown>> {
+  readonly [CLIENT_TOOL_ANALYTICAL_AUTHORING]: TArgs
+}
+
+type StoredClientToolAnalyticalAuthoring =
+  | { kind: 'standard'; definition: ClientToolAnalyticalProducerDefinition }
+  | { kind: 'bounded'; definition: ClientToolBoundedAnalyticalProducerDefinition<any> }
+
+const clientToolAnalyticalAuthoringDefinitions = new WeakMap<object, StoredClientToolAnalyticalAuthoring>()
+
+const registerClientToolAnalyticalAuthoring = <TArgs extends Record<string, unknown>>(
+  value: StoredClientToolAnalyticalAuthoring,
+): ClientToolAnalyticalAuthoring<TArgs> => {
+  const authoring = Object.freeze({}) as ClientToolAnalyticalAuthoring<TArgs>
+  clientToolAnalyticalAuthoringDefinitions.set(authoring, value)
+  return authoring
+}
+
+/** Declares analytical semantics without exposing the current agent-routing DTO. */
+export const defineClientToolAnalyticalProducer = <
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+>(definition: ClientToolAnalyticalProducerDefinition): ClientToolAnalyticalAuthoring<TArgs> => (
+  registerClientToolAnalyticalAuthoring<TArgs>({ kind: 'standard', definition })
+)
+
+/**
+ * Declares a producer that completely covers one explicitly bounded requested scope. The compiler binds and verifies
+ * the call automatically; business execution results never carry proof tokens.
+ */
+export const defineClientToolBoundedAnalyticalProducer = <TArgs extends Record<string, unknown>>(
+  definition: ClientToolBoundedAnalyticalProducerDefinition<TArgs>,
+): ClientToolAnalyticalAuthoring<TArgs> => (
+  registerClientToolAnalyticalAuthoring<TArgs>({ kind: 'bounded', definition })
+)
 
 export interface ClientToolValueType {
   type: string
@@ -135,6 +245,20 @@ export interface ClientToolConfirmation<TContext = Record<string, unknown>> {
   when?: (args: Record<string, unknown>, context: TContext, call: AiClientToolCall) => boolean
 }
 
+export interface ClientToolPreparedConfirmation {
+  title?: string
+  content?: string
+}
+
+export interface ClientToolPreparedExecution<TArgs extends Record<string, unknown>> {
+  arguments: TArgs
+  confirmation?: ClientToolPreparedConfirmation
+}
+
+export type ClientToolPreparationResult<TArgs extends Record<string, unknown>> =
+  | ClientToolPreparedExecution<TArgs>
+  | ClientToolExecutionResult<never>
+
 export interface ClientToolReadEffect {
   kind: 'READ'
 }
@@ -163,6 +287,10 @@ interface ClientToolOutputBase<TResult> {
   type?: AiClientToolResourceType
   mediaType?: string
   shape: string
+  /** Generic delivery audience; the compiler always emits it on the canonical port. */
+  audience?: AiClientToolOutputAudience
+  /** Explicit JSON path to records within the selected output value; no default is inferred by the facade. */
+  recordPath?: string
   label?: string
   fields?: readonly AiClientToolOutputField[]
   /** Renderer-neutral ordering guaranteed by the producer. */
@@ -314,31 +442,41 @@ type ClientToolOutputConfig<TResult, TKind extends ClientToolOutput<TResult>['ki
   'kind'
 >
 
+const defaultOutputAudience = (kind: ClientToolOutput['kind']): AiClientToolOutputAudience => (
+  kind === 'artifact' ? 'reusable-source' : 'model-evidence'
+)
+
 /** Stable, renderer-neutral output presets. Selectors run after the business operation and never retry it. */
 export const clientToolOutput = {
   lookup: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'lookup'>): ClientToolLookupOutput<TResult> => ({
     kind: 'lookup',
     ...output,
+    audience: output.audience || defaultOutputAudience('lookup'),
   }),
   detail: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'detail'>): ClientToolDetailOutput<TResult> => ({
     kind: 'detail',
     ...output,
+    audience: output.audience || defaultOutputAudience('detail'),
   }),
   recordSet: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'recordSet'>): ClientToolRecordSetOutput<TResult> => ({
     kind: 'recordSet',
     ...output,
+    audience: output.audience || defaultOutputAudience('recordSet'),
   }),
   aggregateSeries: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'aggregateSeries'>): ClientToolAggregateSeriesOutput<TResult> => ({
     kind: 'aggregateSeries',
     ...output,
+    audience: output.audience || defaultOutputAudience('aggregateSeries'),
   }),
   artifact: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'artifact'>): ClientToolArtifactOutput<TResult> => ({
     kind: 'artifact',
     ...output,
+    audience: output.audience || defaultOutputAudience('artifact'),
   }),
   stateChange: <TResult = unknown>(output: ClientToolOutputConfig<TResult, 'stateChange'>): ClientToolStateChangeOutput<TResult> => ({
     kind: 'stateChange',
     ...output,
+    audience: output.audience || defaultOutputAudience('stateChange'),
   }),
 }
 
@@ -353,10 +491,22 @@ export interface ClientToolDefinition<
   /** Closed cross-field alternatives for complex inputs; compiled to the current wire schema internally. */
   inputAlternatives?: readonly ClientToolInputAlternative[]
   consumes?: readonly ClientToolConsumedResource[]
+  /** Compile-time-only flag for non-terminal scope/discovery preparation; never serialized as a second role. */
+  preparation?: true
+  analytical?: ClientToolAnalyticalAuthoring<TArgs>
   effect: ClientToolEffect<TContext>
   output: ClientToolOutput<TResult> | readonly ClientToolOutput<TResult>[]
   presentation?: ClientToolPresentation
   owner?: ClientToolOwner
+  /**
+   * Validates and normalizes a side-effect target before confirmation. A failure ends the call without prompting;
+   * execution must still revalidate mutable external state after approval.
+   */
+  prepare?: (
+    args: TArgs,
+    context: TContext,
+    call: AiClientToolCall,
+  ) => ClientToolPreparationResult<TArgs> | Promise<ClientToolPreparationResult<TArgs>>
   execute: (
     args: TArgs,
     context: TContext,
@@ -390,6 +540,10 @@ const normalizeOutputs = <TResult>(output: ClientToolDefinition<any, any, TResul
     const name = normalizedText(item.name)
     const shape = normalizedText(item.shape)
     if (!name || !shape) throw new Error('Client tool output requires a stable name and shape')
+    if (item.audience !== undefined
+      && !(['model-evidence', 'client-presentation', 'reusable-source'] as const).includes(item.audience)) {
+      throw new Error(`Client tool output audience is invalid: ${name}`)
+    }
     if (names.has(name)) throw new Error(`Duplicate client tool output: ${name}`)
     names.add(name)
     if (item.kind === 'artifact' && !normalizedText(item.mediaType)) {
@@ -424,6 +578,18 @@ const resolveActivation = (activation: ClientToolActivation | undefined) => {
   return 'auto' as const
 }
 
+const compilePreparation = (
+  value: true | undefined,
+  analytical: CompiledClientToolAnalyticalAuthoring | undefined,
+) => {
+  if (value === undefined) return undefined
+  if (value !== true) throw new Error('Client tool preparation flag must be true when declared')
+  if (analytical) {
+    throw new Error('Client tool preparation cannot declare analytical producer authority')
+  }
+  return ['preparation'] as const
+}
+
 const outputSlotPath = (index: number) => `$.__clientToolOutputs.output${index}`
 
 const CANONICAL_CONSUMER_FIELDS = ['type', 'mediaType', 'shape', 'required', 'sourcePolicy'] as const
@@ -454,11 +620,13 @@ const compileOutputContract = <TResult>(
 ): AiClientToolOutputContract => {
   const shared = {
     name: normalizedText(output.name),
-    type: output.type || (output.kind === 'artifact'
+    type: output.kind === 'artifact'
       ? 'artifact'
-      : output.kind === 'stateChange' ? 'state' : 'structured-data'),
+      : output.type || (output.kind === 'stateChange' ? 'state' : 'structured-data'),
     mediaType: normalizedText(output.mediaType || 'application/json'),
     shape: normalizedText(output.shape),
+    audience: output.audience || defaultOutputAudience(output.kind),
+    ...(output.recordPath !== undefined ? { recordPath: output.recordPath } : {}),
     ...(output.label ? { label: output.label } : {}),
     ...(output.fields?.length ? { fields: output.fields.map(field => ({ ...field })) } : {}),
     ...(output.ordering ? { ordering: output.ordering } : {}),
@@ -471,10 +639,13 @@ const compileOutputContract = <TResult>(
       delivery: 'file',
     }
   }
+  const audience = output.audience || defaultOutputAudience(output.kind)
   const inline = {
     ...shared,
     path: outputSlotPath(index),
-    delivery: output.kind === 'recordSet' ? 'auto' as const : 'inline' as const,
+    delivery: output.kind === 'recordSet' && audience !== 'model-evidence'
+      ? 'auto' as const
+      : 'inline' as const,
   }
   if (output.kind === 'recordSet') {
     return {
@@ -491,6 +662,8 @@ const compileOutputContract = <TResult>(
 const compileContract = <TResult>(
   definition: ClientToolDefinition<any, any, TResult>,
   outputs: readonly ClientToolOutput<TResult>[],
+  analyticalCapability?: AiClientToolAnalyticalCapability,
+  workflowStages?: readonly ('preparation' | 'execution')[],
 ) => {
   const { capabilities } = normalizeDescription(definition.description)
   const consumes = definition.consumes || []
@@ -505,6 +678,8 @@ const compileContract = <TResult>(
       ...(definition.description.notFor?.length ? { notFor: uniqueText(definition.description.notFor) } : {}),
       exposure: resolveActivation(definition.description.activation),
       ...(definition.effect.kind === 'READ' ? {} : { cost: 'medium' as const }),
+      ...(workflowStages ? { stages: [...workflowStages] } : {}),
+      ...(analyticalCapability ? { analyticalCapability } : {}),
     },
     inputs: compiledConsumes.canonical.map(input => ({ ...input })),
     outputs: outputs.map(compileOutputContract),
@@ -667,18 +842,302 @@ const prepareMaterializedValue = <TResult>(
   return undefined
 }
 
+type CompiledClientToolAnalyticalAuthoring =
+  | { status: 'malformed' }
+  | { status: 'standard'; capability: AiClientToolAnalyticalCapability }
+  | {
+      status: 'bounded'
+      capability: AiClientToolAnalyticalCapability
+      limitInput: string
+      defaultLimit?: unknown
+      minimum?: number
+      maximum?: number
+      output: string
+      physicalOrdering: AiClientToolOrdering
+      fieldBinding: {
+        valueField: string
+        coordinateField: string
+        axis?: string
+        axisFromInput?: string
+      }
+    }
+
+const resolveAnalyticalCoverage = (
+  coverage: ClientToolAnalyticalCoverage,
+  continuation: boolean,
+) => {
+  if (coverage === 'complete') return { complete: true, partial: false, continuation }
+  if (coverage === 'partial') return { complete: false, partial: true, continuation }
+  if (coverage === 'complete-or-partial') return { complete: true, partial: true, continuation }
+  return undefined
+}
+
+const compileAnalyticalAuthoring = <TArgs extends Record<string, unknown>, TResult>(
+  analytical: ClientToolAnalyticalAuthoring<TArgs> | undefined,
+  inputs: readonly ClientToolInput[],
+  outputs: readonly ClientToolOutput<TResult>[],
+): CompiledClientToolAnalyticalAuthoring | undefined => {
+  if (!analytical) return undefined
+  const stored = clientToolAnalyticalAuthoringDefinitions.get(analytical)
+  if (!stored) return { status: 'malformed' }
+  const standardDefinition = stored.kind === 'standard' ? stored.definition : undefined
+  const boundedDefinition = stored.kind === 'bounded' ? stored.definition : undefined
+  const definition = stored.definition
+  const outputName = normalizedText(definition.output)
+  const matchingOutputs = outputs.filter(candidate => normalizedText(candidate.name) === outputName)
+  if (!outputName || matchingOutputs.length !== 1) return { status: 'malformed' }
+  const output = matchingOutputs[0]
+
+  const boundedBy = boundedDefinition ? normalizedText(boundedDefinition.boundedBy) : undefined
+  const rawCriterion = boundedDefinition?.criterion
+  const boundedCriterion = rawCriterion
+    && typeof rawCriterion === 'object'
+    && !Array.isArray(rawCriterion)
+    ? rawCriterion as ClientToolBoundedAnalyticalCriterion<Record<string, unknown>>
+    : undefined
+  const criterionName = boundedCriterion ? normalizedText(boundedCriterion.name).toLowerCase() : undefined
+  const criterionMeasure = boundedCriterion ? normalizedText(boundedCriterion.measure).toLowerCase() : undefined
+  const criterionDirection = boundedCriterion ? normalizedText(boundedCriterion.direction).toLowerCase() : undefined
+  const valueField = boundedCriterion ? normalizedText(boundedCriterion.valueField) : undefined
+  const coordinateField = boundedCriterion ? normalizedText(boundedCriterion.coordinateField) : undefined
+  const staticAxis = boundedCriterion ? normalizedText(boundedCriterion.axis).toLowerCase() : undefined
+  const axisFromInput = boundedCriterion ? normalizedText(boundedCriterion.axisFromInput) : undefined
+  if (boundedDefinition && (!boundedCriterion || !criterionName || !criterionMeasure
+    || !valueField || !coordinateField || valueField === coordinateField
+    || !['asc', 'desc'].includes(criterionDirection || '')
+    || (!!staticAxis === !!axisFromInput))) return { status: 'malformed' }
+  const criteria = boundedDefinition ? [criterionName!] : standardDefinition!.criteria
+  const completeness = boundedDefinition
+    ? { complete: true, partial: true, continuation: false }
+    : resolveAnalyticalCoverage(standardDefinition!.coverage, standardDefinition!.continuation === true)
+  if (!completeness) return { status: 'malformed' }
+
+  const capability = normalizeAiClientToolAnalyticalCapability({
+    version: AI_CLIENT_TOOL_ANALYTICAL_CAPABILITY_VERSION,
+    capabilityId: definition.producerKey,
+    semanticKey: definition.factKey,
+    subjects: [...definition.subjects],
+    measures: definition.measures.map(measure => ({
+      name: measure.name,
+      aggregations: [...measure.aggregations],
+      units: [...measure.units],
+    })),
+    dimensions: [...(definition.dimensions || [])],
+    filters: [...(definition.filters || []), ...(boundedBy ? [boundedBy] : [])],
+    grains: [...(definition.grains || [])],
+    criteria: [...criteria],
+    ordering: (boundedDefinition
+      ? [{ axis: criterionMeasure!, direction: criterionDirection as 'asc' | 'desc' }]
+      : (standardDefinition!.ordering || [])).map(ordering => ({
+      ...ordering,
+      producerGuaranteed: true,
+    })),
+    completeness,
+    output: { shape: output.shape },
+    transformCost: 0,
+  })
+  if (!capability) return { status: 'malformed' }
+  if (stored.kind === 'standard') return { status: 'standard', capability }
+
+  // Bounded scope uses explicit authoring bindings only. Semantic filters, output shapes, labels and array positions never
+  // select a physical port because doing so would turn a coincidental representation match into completion authority.
+  const matchingInputs = inputs.filter(candidate => normalizedText(candidate.id) === boundedBy)
+  const matchingAxisInputs = axisFromInput
+    ? inputs.filter(candidate => normalizedText(candidate.id) === axisFromInput)
+    : []
+  const normalizedFields = normalizeAiClientToolOutputFields(output.fields)
+  const measureFields = (normalizedFields || []).filter(field => (
+    isCanonicalAiClientToolOutputField(field)
+    && field.name === valueField
+    && field.role === 'measure'
+    && normalizedText(field.measure).toLowerCase() === criterionMeasure
+  ))
+  const coordinateFields = (normalizedFields || []).filter(field => (
+    isCanonicalAiClientToolOutputField(field)
+    && field.name === coordinateField
+    && field.role === 'dimension'
+    && !field.axis
+  ))
+  const declaredMeasures = capability.measures.filter(measure => measure.name === criterionMeasure)
+  if (matchingInputs.length !== 1
+    || capability.criteria.length !== 1
+    || capability.ordering.length !== 1
+    || declaredMeasures.length !== 1
+    || !normalizedFields
+    || normalizedFields.length !== (output.fields?.length || 0)
+    || measureFields.length !== 1
+    || coordinateFields.length !== 1
+    || output.ordering !== undefined
+    || (axisFromInput ? matchingAxisInputs.length !== 1 : !capability.dimensions.includes(staticAxis!))) {
+    return { status: 'malformed' }
+  }
+  const input = matchingInputs[0]
+  const valueType = typeof input.valueType === 'string' ? input.valueType : input.valueType?.type
+  if (!['int', 'integer', 'number'].includes(normalizedText(valueType).toLowerCase())) {
+    return { status: 'malformed' }
+  }
+  const minimum = typeof input.valueType === 'object' ? input.valueType.min : undefined
+  const maximum = typeof input.valueType === 'object' ? input.valueType.max : undefined
+  if ((minimum !== undefined && !Number.isSafeInteger(minimum))
+    || (maximum !== undefined && !Number.isSafeInteger(maximum))
+    || (minimum !== undefined && maximum !== undefined && minimum > maximum)) {
+    return { status: 'malformed' }
+  }
+  return {
+    status: 'bounded',
+    capability,
+    limitInput: input.id,
+    ...(input.defaultValue !== undefined ? { defaultLimit: input.defaultValue } : {}),
+    ...(minimum !== undefined ? { minimum } : {}),
+    ...(maximum !== undefined ? { maximum } : {}),
+    output: output.name,
+    physicalOrdering: {
+      keys: [{ field: valueField!, direction: criterionDirection as 'asc' | 'desc' }],
+      producerGuaranteed: true,
+    },
+    fieldBinding: {
+      valueField: valueField!,
+      coordinateField: coordinateField!,
+      ...(staticAxis ? { axis: staticAxis } : {}),
+      ...(axisFromInput ? { axisFromInput } : {}),
+    },
+  }
+}
+
+const applyCompiledAnalyticalOutputSemantics = <TResult>(
+  outputs: readonly ClientToolOutput<TResult>[],
+  analytical: CompiledClientToolAnalyticalAuthoring | undefined,
+): readonly ClientToolOutput<TResult>[] => {
+  if (!analytical || analytical.status !== 'bounded') return outputs
+  return outputs.map((output) => {
+    if (output.name !== analytical.output) return output
+    const fields = output.fields?.map<AiClientToolOutputField>((field) => {
+      if (field.name !== analytical.fieldBinding.coordinateField
+        || !analytical.fieldBinding.axis
+        || !isCanonicalAiClientToolOutputField(field)) return { ...field }
+      return { ...field, axis: analytical.fieldBinding.axis }
+    })
+    return {
+      ...output,
+      ...(fields ? { fields } : {}),
+      ordering: analytical.physicalOrdering,
+    }
+  })
+}
+
+const downgradeUnprovenAnalyticalResult = <TResult>(
+  execution: ClientToolExecutionSuccess<TResult>,
+): ClientToolExecutionSuccess<TResult> => {
+  return {
+    ...execution,
+    outcome: 'partial',
+    status: 'partial',
+    complete: false,
+    truncated: true,
+    limitReason: 'analytical_scope_unproven',
+  }
+}
+
+/** Resolves only explicitly authored semantic bindings; physical names and runtime values are never guessed. */
+const resolveBoundedAnalyticalFields = (
+  args: Record<string, unknown>,
+  fields: readonly AiClientToolOutputField[] | undefined,
+  analytical: Extract<CompiledClientToolAnalyticalAuthoring, { status: 'bounded' }>,
+): AiClientToolOutputField[] | undefined => {
+  const normalizedFields = normalizeAiClientToolOutputFields(fields)
+  if (!normalizedFields || normalizedFields.length !== (fields?.length || 0)) return undefined
+  const semanticMeasure = analytical.capability.ordering[0]?.axis
+  const valueFields = normalizedFields.filter(field => (
+    isCanonicalAiClientToolOutputField(field)
+    && field.name === analytical.fieldBinding.valueField
+    && field.role === 'measure'
+    && normalizedText(field.measure).toLowerCase() === semanticMeasure
+  ))
+  const requestedAxis = analytical.fieldBinding.axis
+    || normalizedText(args[analytical.fieldBinding.axisFromInput!]).toLowerCase()
+  const coordinateFields = normalizedFields.filter(field => (
+    isCanonicalAiClientToolOutputField(field)
+    && field.name === analytical.fieldBinding.coordinateField
+    && field.role === 'dimension'
+    && (!field.axis || field.axis === requestedAxis)
+  ))
+  if (!requestedAxis
+    || !analytical.capability.dimensions.includes(requestedAxis)
+    || valueFields.length !== 1
+    || coordinateFields.length !== 1) return undefined
+  return normalizedFields.map<AiClientToolOutputField>((field) => {
+    if (field.name !== analytical.fieldBinding.coordinateField
+      || !isCanonicalAiClientToolOutputField(field)) return field
+    return { ...field, axis: requestedAxis }
+  })
+}
+
+const resolveAnalyticalExecution = <TResult>(
+  execution: ClientToolExecutionSuccess<TResult>,
+  args: Record<string, unknown>,
+  selected: readonly {
+    output: ClientToolOutput<TResult>
+    value: unknown
+    fields?: readonly AiClientToolOutputField[]
+  }[],
+  analytical: CompiledClientToolAnalyticalAuthoring | undefined,
+): {
+  execution: ClientToolExecutionSuccess<TResult>
+  boundedOutput?: {
+    name: string
+    recordCount: number
+    fields: AiClientToolOutputField[]
+    axisField: string
+    axis: string
+  }
+} => {
+  if (execution.outcome !== 'success') return { execution }
+  if (!analytical) return { execution }
+  if (analytical.status === 'malformed') {
+    return { execution: downgradeUnprovenAnalyticalResult(execution) }
+  }
+  if (analytical.status === 'standard') return { execution }
+
+  const requestedLimit = args[analytical.limitInput] ?? analytical.defaultLimit
+  const selectedOutput = selected.find(item => item.output.name === analytical.output)
+  const fields = resolveBoundedAnalyticalFields(args, selectedOutput?.fields, analytical)
+  const complete = typeof requestedLimit === 'number'
+    && Number.isSafeInteger(requestedLimit)
+    && requestedLimit > 0
+    && (analytical.minimum === undefined || requestedLimit >= analytical.minimum)
+    && (analytical.maximum === undefined || requestedLimit <= analytical.maximum)
+    && Array.isArray(selectedOutput?.value)
+    && !!fields
+    && selectedOutput.value.length <= requestedLimit
+  if (!complete || !selectedOutput || !Array.isArray(selectedOutput.value) || !fields) {
+    return { execution: downgradeUnprovenAnalyticalResult(execution) }
+  }
+  return {
+    execution,
+    boundedOutput: {
+      name: analytical.output,
+      recordCount: selectedOutput.value.length,
+      fields,
+      axisField: analytical.fieldBinding.coordinateField,
+      axis: fields.find(field => field.name === analytical.fieldBinding.coordinateField)!.axis!,
+    },
+  }
+}
+
 const adaptExecutionResult = async <TResult>(
   toolId: string,
+  args: Record<string, unknown>,
   result: TResult | ClientToolExecutionResult<TResult>,
   outputs: readonly ClientToolOutput<TResult>[],
   contract: AiClientToolContractFragment,
+  analytical: CompiledClientToolAnalyticalAuthoring | undefined,
 ) => {
   if (isExecutionResult<TResult>(result) && result.outcome === 'failure') {
     return createAiClientToolFailureResult(result.failure)
   }
   if (!isExecutionResult<TResult>(result) && isFailureLike(result)) return result
 
-  const execution = isExecutionResult<TResult>(result)
+  let execution = isExecutionResult<TResult>(result)
     ? result
     : clientToolResult.success(result as TResult)
   if (execution.outcome === 'failure') return createAiClientToolFailureResult(execution.failure)
@@ -721,21 +1180,18 @@ const adaptExecutionResult = async <TResult>(
     selected.push({ output, index, value, fields, label })
   }
 
+  // A bounded producer's success is authoritative only when the declared input/output bindings and observed
+  // cardinality cover this call's canonical scope. A failed proof degrades this result without affecting peers.
+  const analyticalResolution = resolveAnalyticalExecution(execution, args, selected, analytical)
+  execution = analyticalResolution.execution
+  const boundedOutput = analyticalResolution.boundedOutput
+
   const inlineValues: Record<string, unknown> = {}
   let materialized: unknown
-  const inlineStates: Array<{
-    name: string
-    label?: string
-    path: string
-    recordCount?: number
-    complete: boolean
-    fields?: AiClientToolOutputField[]
-    ordering?: AiClientToolOrdering
-    requestedRange?: Record<string, unknown>
-    observedRange?: Record<string, unknown>
-  }> = []
+  const inlineStates: AiClientToolContractOutputState[] = []
   selected.forEach(({ output, index, value, fields, label }) => {
-    const prepared = prepareMaterializedValue(value, output, fields, label)
+    const resolvedFields = boundedOutput?.name === output.name ? boundedOutput.fields : fields
+    const prepared = prepareMaterializedValue(value, output, resolvedFields, label)
     if (prepared) {
       if (materialized) throw createSelectionError(toolId, output.name)
       materialized = prepared
@@ -746,17 +1202,24 @@ const adaptExecutionResult = async <TResult>(
     }
     const slot = `output${index}`
     inlineValues[slot] = value
-    inlineStates.push({
+    const state: AiClientToolContractOutputState = {
       name: output.name,
       ...(label ? { label } : {}),
       path: outputSlotPath(index),
       ...(Array.isArray(value) ? { recordCount: value.length } : {}),
+      ...(boundedOutput?.name === output.name ? { totalCount: boundedOutput.recordCount } : {}),
       complete: execution.complete,
-      ...(fields?.length ? { fields: fields.map(field => ({ ...field })) } : {}),
-      ...(output.ordering ? { ordering: output.ordering } : {}),
+      truncated: execution.truncated,
       ...(execution.requestedRange ? { requestedRange: { ...execution.requestedRange } } : {}),
       ...(execution.observedRange ? { observedRange: { ...execution.observedRange } } : {}),
-    })
+    }
+    inlineStates.push(boundedOutput?.name === output.name
+      ? bindAiClientToolContractExecutionAxis(
+          state,
+          boundedOutput.axisField,
+          boundedOutput.axis,
+        )
+      : state)
   })
 
   const selectedOutputNames = new Set(selected.map(({ output }) => output.name))
@@ -794,6 +1257,28 @@ const adaptExecutionResult = async <TResult>(
   })
 }
 
+const adaptPreparationResult = <TArgs extends Record<string, unknown>>(
+  toolId: string,
+  result: ClientToolPreparationResult<TArgs>,
+): AiClientToolPreparedCall | ReturnType<typeof createAiClientToolFailureResult> => {
+  if (isExecutionResult<never>(result)) {
+    if (result.outcome === 'failure') return createAiClientToolFailureResult(result.failure)
+    throw new Error(`Client tool ${toolId} prepare must return prepared arguments or a failure`)
+  }
+  if (isFailureLike(result)) return result
+  if (!result
+    || typeof result !== 'object'
+    || !result.arguments
+    || typeof result.arguments !== 'object'
+    || Array.isArray(result.arguments)) {
+    throw new Error(`Client tool ${toolId} prepare arguments must be an object`)
+  }
+  return {
+    arguments: { ...result.arguments },
+    ...(result.confirmation ? { confirmation: { ...result.confirmation } } : {}),
+  }
+}
+
 /**
  * Compiles a stable business declaration into the current browser runtime contract.
  * Backend wire fields, JSONPath bindings, evidence and delivery policy remain compiler-owned.
@@ -805,9 +1290,18 @@ export const defineClientTool = <
 >(definition: ClientToolDefinition<TArgs, TContext, TResult>): AiClientToolDefinition<TContext> => {
   const id = normalizedText(definition.id)
   if (!id) throw new Error('Client tool id is required')
+  if (definition.prepare && definition.effect.kind === 'READ') {
+    throw new Error(`Client tool ${id} cannot prepare a read-only effect`)
+  }
   const { text } = normalizeDescription(definition.description)
-  const outputs = normalizeOutputs(definition.output)
-  const contract = compileContract(definition, outputs)
+  const declaredOutputs = normalizeOutputs(definition.output)
+  const analytical = compileAnalyticalAuthoring(definition.analytical, definition.inputs || [], declaredOutputs)
+  const workflowStages = compilePreparation(definition.preparation, analytical)
+  const outputs = applyCompiledAnalyticalOutputSemantics(declaredOutputs, analytical)
+  const analyticalCapability = analytical && analytical.status !== 'malformed'
+    ? analytical.capability
+    : undefined
+  const contract = compileContract(definition, outputs, analyticalCapability, workflowStages)
   const effect = compileEffect(definition.effect)
   const metadata: CompiledClientToolMetadata = {
     version: CLIENT_TOOL_DEFINITION_VERSION,
@@ -839,11 +1333,19 @@ export const defineClientTool = <
       ...(definition.owner?.group ? { capabilityGroup: definition.owner.group } : {}),
       [CLIENT_TOOL_DEFINITION_META_KEY]: metadata,
     },
+    ...(definition.prepare ? {
+      prepare: async (args, context, call) => adaptPreparationResult(
+        id,
+        await definition.prepare!(args as TArgs, context, call),
+      ),
+    } : {}),
     execute: async (args, context, call) => adaptExecutionResult(
       id,
+      args,
       await definition.execute(args as TArgs, context, call),
       outputs,
       contract,
+      analytical,
     ),
   }
 }
