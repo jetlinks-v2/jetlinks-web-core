@@ -1,16 +1,29 @@
 import type { SearchItem } from '../Search/Filter/typing'
+import { isArrayTermType } from '../Search/Filter/setting'
 import type { ConditionFieldSchema } from './types'
 
+/**
+ * 旧 Search 可通过 isBtw 为字段扩展数组值操作符；新筛选编辑器也应使用同一判定。
+ */
+export const isConditionFieldArrayTermType = (field: ConditionFieldSchema['search'] | undefined, termType?: string) => {
+  return isArrayTermType(termType) || Boolean(termType && field?.isBtw?.includes(termType))
+}
+
 const cloneFieldSchema = (field: ConditionFieldSchema): ConditionFieldSchema => {
+  const search = field.search
+
   return {
     ...field,
-    search: field.search
+    search: search
       ? {
-          ...field.search,
-          componentProps: field.search.componentProps ? { ...field.search.componentProps } : field.search.componentProps,
-          optionPanel: field.search.optionPanel ? { ...field.search.optionPanel } : field.search.optionPanel,
+          ...search,
+          // 旧 Search 的 format 是日期组件参数；保留显式 componentProps.format 的优先级。
+          componentProps: search.componentProps || search.format
+            ? { ...(search.format ? { format: search.format } : {}), ...search.componentProps }
+            : search.componentProps,
+          optionPanel: search.optionPanel ? { ...search.optionPanel } : search.optionPanel,
         }
-      : field.search,
+      : search,
   }
 }
 

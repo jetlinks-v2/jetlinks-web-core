@@ -73,7 +73,9 @@ const keywordPlaceholder = computed(() => props.config?.keywordPlaceholder || $t
 const emptyText = computed(() => props.config?.emptyText || $t('components.ConditionFilter.optionPanel.empty'))
 const hintText = computed(() => props.config?.hintText || (props.config?.loadOptions ? $t('components.ConditionFilter.optionPanel.hint') : ''))
 
-const normalizeOptions = (items: any[] = []) => normalizeOptionItemsByFields(items || [], optionFields.value) as OptionItem[]
+const normalizeOptions = (items: any[] = []) => {
+  return normalizeOptionItemsByFields(Array.isArray(items) ? items : [], optionFields.value) as OptionItem[]
+}
 
 const mergeOptions = (...groups: OptionItem[][]) => {
   const seen = new Set<string>()
@@ -88,7 +90,7 @@ const mergeOptions = (...groups: OptionItem[][]) => {
   })
 }
 
-const flattenOptions = (items: OptionItem[] = [], parents: string[] = []) => {
+const flattenOptions = (items: OptionItem[] = [], parents: string[] = []): OptionItem[] => {
   return items.flatMap((item) => {
     const path = [...parents, String(item.label ?? item.name ?? item.value)]
     const current: OptionItem = {

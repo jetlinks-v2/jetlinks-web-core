@@ -1,6 +1,6 @@
 import { randomString } from '@jetlinks-web/utils'
-import { isArrayTermType } from '../Search/Filter/setting'
 import type { ConditionFieldSchema, ConditionFilterRouteVersion, ConditionTerm } from './types'
+import { isConditionFieldArrayTermType } from './schema'
 
 type Token = {
   value: string
@@ -547,6 +547,16 @@ const hasConditionGroups = (terms: ConditionTerm[] = []) => {
   return terms.some(item => isConditionGroup(item) || hasConditionGroups(item.terms || []))
 }
 
+export const escapeLikeValue = (value: string) => {
+  return value.split('').reduce((result, item) => {
+    if (item === '\\') {
+      return `${result}\\\\`
+    }
+
+    return item === '%' ? `${result}\\%` : `${result}${item}`
+  }, '')
+}
+
 const normalizeOutputTermValue = (term: ConditionTerm) => {
   if (isConditionGroup(term)) {
     return term
@@ -562,7 +572,7 @@ const normalizeOutputTermValue = (term: ConditionTerm) => {
   if (['like', 'nlike'].includes(term.termType || '') && typeof term.value === 'string' && term.value) {
     return {
       ...term,
-      value: `${term.value.startsWith('%') ? '' : '%'}${term.value}${term.value.endsWith('%') ? '' : '%'}`,
+      value: `%${escapeLikeValue(term.value)}%`,
     }
   }
 
@@ -903,7 +913,7 @@ export const decodeLegacySearchQuery = (value: unknown, columns: ConditionFieldS
     }
 
     const rawTermValue = valueParts.join(':')
-    const parsedValue = isArrayTermType(termType)
+    const parsedValue = isConditionFieldArrayTermType(columnsMap[column]?.search, termType)
       ? parseLegacyArrayValue(column, termType, rawTermValue, columnsMap)
       : parseLegacyScalarValue(column, rawTermValue, columnsMap)
 
@@ -982,11 +992,26 @@ export const buildOutputTerms = (terms: ConditionTerm[] = [], columns: Condition
       return normalizeOutputTermValue(applyOutputColumnRename(normalizedHandledTerm, normalizedHandledColumn))
     }
 
+    nextItem = applyOutputColumnRename(nextItem, column)
+
     if (column.search.handleValue) {
-      nextItem.value = column.search.handleValue(cloneValue(item.value))
+      nextItem.value = column.search.handleValue(cloneValue(item.value), {
+        ...nextItem,
+        value: cloneValue(item.value),
+      })
     }
 
-    return normalizeOutputTermValue(applyOutputColumnRename(nextItem, column))
+    const normalizedItem = normalizeOutputTermValue(nextItem)
+
+    // 兼容旧 Search：handleTerms 在字段改名、值转换及 like/nlike 处理完成后接收最终条件。
+    if (column.search.handleTerms) {
+      return column.search.handleTerms({
+        ...normalizedItem,
+        value: cloneValue(normalizedItem.value),
+      })
+    }
+
+    return normalizedItem
   }).filter((item) => {
     if (!item) {
       return false
