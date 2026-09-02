@@ -6,14 +6,13 @@ import {
   getConditionFilterDefaultTermType,
   getReadableTermTypeLabel,
   getTermTypeOption,
-  isArrayTermType,
   isNullaryTermType,
   normalizeTermTypeOption,
 } from '../Search/Filter/setting'
 import { useColumnsMap } from '../Search/Filter/hooks/useSearchEngine'
 import type { SearchItem } from '../Search/Filter/typing'
 import type { ConditionFilterField, ConditionFilterTerm } from './types'
-import { resolveConditionFields } from './schema'
+import { isConditionFieldArrayTermType, resolveConditionFields } from './schema'
 
 const props = defineProps({
   fields: {
@@ -82,7 +81,10 @@ const getTermTypeOptions = (column?: ConditionFilterField) => {
 
   if (search.termOptions?.length) {
     return search.termOptions.map((option) => {
-      const nextOption = normalizeTermTypeOption(option)
+      const normalizedOption = typeof option === 'string'
+        ? getTermTypeOption(option) || { label: option, value: option }
+        : option
+      const nextOption = normalizeTermTypeOption(normalizedOption)
       return {
         ...nextOption,
         label: nextOption.readableLabel || nextOption.label || getReadableTermTypeLabel(nextOption.value),
@@ -119,7 +121,7 @@ const cloneValue = (value: any) => {
   return value
 }
 
-const buildInitialValue = (termType?: string, value?: any) => {
+const buildInitialValue = (termType?: string, value?: any, column?: ConditionFilterField) => {
   if (isNullaryTermType(termType)) {
     return undefined
   }
@@ -128,23 +130,23 @@ const buildInitialValue = (termType?: string, value?: any) => {
     return cloneValue(value)
   }
 
-  if (isArrayTermType(termType || '')) {
+  if (isConditionFieldArrayTermType(column?.search, termType)) {
     return ['btw', 'nbtw'].includes(termType || '') ? [undefined, undefined] : []
   }
 
   return undefined
 }
 
-const convertValue = (oldTermType?: string, newTermType?: string, currentValue?: any) => {
+const convertValue = (column: ConditionFilterField | undefined, oldTermType?: string, newTermType?: string, currentValue?: any) => {
   if (!newTermType || oldTermType === newTermType) {
-    return buildInitialValue(newTermType, currentValue)
+    return buildInitialValue(newTermType, currentValue, column)
   }
 
   if (isNullaryTermType(newTermType)) {
     return undefined
   }
 
-  const expectsArrayValue = isArrayTermType(newTermType)
+  const expectsArrayValue = isConditionFieldArrayTermType(column?.search, newTermType)
   const isRangeType = ['btw', 'nbtw'].includes(newTermType)
 
   if (!expectsArrayValue) {
@@ -199,7 +201,7 @@ const syncFromProps = () => {
     'eq'
 
   draftTermType.value = defaultTermType
-  draftValue.value = buildInitialValue(defaultTermType, props.term?.value ?? search.defaultValue)
+  draftValue.value = buildInitialValue(defaultTermType, props.term?.value ?? search.defaultValue, column)
 }
 
 const filterFieldOption = (input: string, option: Record<string, any>) => {
@@ -235,7 +237,7 @@ const onColumnSelect = (value?: string) => {
     getTermTypeOptions(column)[0]?.value ||
     (search ? getConditionFilterDefaultTermType(search.type)[0] : undefined) ||
     'eq'
-  const nextValue = buildInitialValue(nextTermType, search?.defaultValue)
+  const nextValue = buildInitialValue(nextTermType, search?.defaultValue, column)
 
   draftColumn.value = value
   draftTermType.value = nextTermType
@@ -249,7 +251,7 @@ const onColumnSelect = (value?: string) => {
 }
 
 const onTermTypeChange = (value: string) => {
-  const nextValue = convertValue(draftTermType.value, value, draftValue.value)
+  const nextValue = convertValue(currentColumn.value, draftTermType.value, value, draftValue.value)
   draftTermType.value = value
   draftValue.value = nextValue
 
