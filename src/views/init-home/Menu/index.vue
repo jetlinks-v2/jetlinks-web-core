@@ -10,19 +10,20 @@
       </div>
     </div>
 
-    <div v-if="menuTreeData.length" class="menu-tree-panel">
+    <div v-if="menusData.current.length" class="menu-tree-panel">
       <div class="menu-tree-panel__header">
         {{ $t("Menu.index.459633-3") }}
       </div>
       <a-tree
         v-model:expandedKeys="expandedKeys"
-        :tree-data="menuTreeData"
+        :tree-data="menusData.current"
         :selectedKeys="[]"
         :show-line="{ showLeafIcon: false }"
+        :fieldNames="{key: 'id'}"
         blockNode
       >
-        <template #title="{ title }">
-          <span class="menu-tree-node-title">{{ title }}</span>
+        <template #title="{ name }">
+          <span class="menu-tree-node-title">{{ name }}</span>
         </template>
       </a-tree>
     </div>
@@ -50,7 +51,7 @@ import {saveAgentList} from "@jetlinks-web-core/api/comm";
 import {agentData} from "../data/aiData";
 import { Menu } from '@jetlinks-web-core/assets/init-home'
 import { useI18n } from 'vue-i18n';
-import { buildMenuTreeData, collectExpandedKeys, getLocaleKeys, type MenuFilter, type MenuItem } from './utils'
+import { collectExpandedKeys, type MenuFilter, type MenuItem } from './utils'
 
 const props = defineProps<{
   filterMenu?: MenuFilter
@@ -69,9 +70,6 @@ const menusData = reactive({
 });
 const hasAgentPermission = ref(false)
 const expandedKeys = ref<string[]>([])
-
-const localeKeys = computed(() => getLocaleKeys(String(locale.value || '')))
-const menuTreeData = computed(() => buildMenuTreeData(menusData.current, localeKeys.value))
 
 /**
  * 查询支持的协议
@@ -110,10 +108,10 @@ const getSystemPermissionData = async ( BaseMenu: MenuItem[] ) => {
 
     const newTree = props.filterMenu ? await props.filterMenu(permissionTree) : permissionTree
     const _count = menuCount(newTree);
-
+    debugger
     menusData.current = newTree;
     menusData.count = _count;
-    expandedKeys.value = collectExpandedKeys(buildMenuTreeData(newTree, localeKeys.value))
+    expandedKeys.value = collectExpandedKeys(newTree)
     hasAgentPermission.value = _permission.includes('ai-agent-deploy')
   }
 };
@@ -184,29 +182,44 @@ const dealMenu = (data: MenuItem[]) => {
 /**
  * 初始化菜单
  */
-const initMenu = async () => {
-  return new Promise(async (resolve) => {
-    //  用户中心
-    dealMenu(menusData.current);
+const initMenu = async (): Promise<boolean> => {
+  // 菜单接口按顶层 owner 分批写入，保留每个 owner 下的完整子树。
+  dealMenu(menusData.current);
+  if(hasAgentPermission.value){
+    USER_CENTER_MENU_DATA.buttons.push(ACCESS_AI_AGENT_CODE_DATA)
+  }
+
+  const menusByOwner = menusData.current.reduce<Map<string, MenuItem[]>>((groups, menu) => {
+    const owner = menu.owner || OWNER_KEY
+    const ownerMenus = groups.get(owner) || []
+
+    ownerMenus.push(menu)
+    groups.set(owner, ownerMenus)
+    return groups
+  }, new Map())
+
+  const userCenterOwner = USER_CENTER_MENU_DATA.owner || OWNER_KEY
+  const userCenterMenus = menusByOwner.get(userCenterOwner) || []
+  menusByOwner.set(userCenterOwner, [...userCenterMenus, USER_CENTER_MENU_DATA])
+
+  try {
+    // 并行提交所有 owner 分组，必须全部成功后才能继续保存后续初始化数据。
+    const responses = await Promise.all(
+      [...menusByOwner.entries()].map(([owner, menus]) => updateMenus(menus, owner)),
+    )
+    if (!responses.every((response) => response.success)) {
+      return false
+    }
+
     if(hasAgentPermission.value){
-      USER_CENTER_MENU_DATA.buttons.push(ACCESS_AI_AGENT_CODE_DATA)
+      const resp = await saveAgentList(agentData)
+      return resp.success
     }
-    const res = await updateMenus([
-      ...menusData.current!,
-      USER_CENTER_MENU_DATA,
-    ]);
-    if(res.success){
-      // 保存ai初始化数据
-      if(hasAgentPermission.value){
-        const resp = await saveAgentList(agentData)
-        resolve(resp.success)
-      } else {
-        resolve(res.success)
-      }
-    } else {
-      resolve(res.success)
-    }
-  });
+
+    return true
+  } catch {
+    return false
+  }
 };
 
 const getCloudMenu = async () => {
@@ -225,7 +238,6 @@ const getCloudMenu = async () => {
       }
     }
   }
-
   getSystemPermissionData(bseMenus)
 }
 
