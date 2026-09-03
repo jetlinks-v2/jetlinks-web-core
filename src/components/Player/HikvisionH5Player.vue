@@ -161,10 +161,11 @@ const selectWindow = async () => {
 };
 
 const toHikvisionPlaybackRate = (rate: number) => rate > 0 && rate < 1 ? -1 / rate : rate;
+const isPlayback = () => Boolean(props.playbackStartTime?.trim() || props.playbackEndTime?.trim());
 
 const applyPlaybackRate = async (rate = props.playbackRate) => {
   const current = player.value;
-  if (!current) return;
+  if (!current || !isPlayback()) return;
   const normalizedRate = Number(rate) > 0 ? Number(rate) : 1;
   for (let index = 0; index < currentLayout; index++) {
     if (currentUrls[index]) {
@@ -249,10 +250,12 @@ const play = async () => {
               mode: 0,
               keepDecoder: 0,
             }, index, new Date(pausedTimes[index]!).toISOString(), props.playbackEndTime);
-            await current.JS_Speed?.(
-              index,
-              toHikvisionPlaybackRate(Number(props.playbackRate) > 0 ? props.playbackRate : 1),
-            );
+            if (isPlayback()) {
+              await current.JS_Speed?.(
+                index,
+                toHikvisionPlaybackRate(Number(props.playbackRate) > 0 ? props.playbackRate : 1),
+              );
+            }
           }
         }
         continue;
@@ -274,10 +277,14 @@ const play = async () => {
           mode: 0,
           keepDecoder: 0,
         }, index, startTime, endTime);
-        await current.JS_Speed?.(
-          index,
-          toHikvisionPlaybackRate(Number(props.playbackRate) > 0 ? props.playbackRate : 1),
-        );
+        // JS_Speed is a playback-only SDK operation; invoking it for live preview
+        // rejects the first window and prevents the remaining split windows from starting.
+        if (isPlayback()) {
+          await current.JS_Speed?.(
+            index,
+            toHikvisionPlaybackRate(Number(props.playbackRate) > 0 ? props.playbackRate : 1),
+          );
+        }
       }
       currentUrls[index] = url;
     }
