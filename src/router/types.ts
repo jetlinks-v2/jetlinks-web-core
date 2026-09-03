@@ -8,6 +8,8 @@ export enum RouteSecurityLevel {
   PUBLIC = 'public',
   /** Token required, menu permission not required. */
   AUTHENTICATED = 'authenticated',
+  /** Platform administrator required. */
+  ADMINISTRATOR = 'administrator',
   /** Token and menu permission required (default). */
   AUTHORIZED = 'authorized'
 }
@@ -18,16 +20,32 @@ export type RouteHideInMenuContext = {
 
 export type RouteHideInMenuHandler = (context?: RouteHideInMenuContext) => boolean
 
+export type RouteMenuBadgeType = 'comingSoon' | (string & {})
+
+export interface RouteMenuBadge {
+  type?: RouteMenuBadgeType
+  i18nKey?: string
+  text?: string
+}
+
 declare module 'vue-router' {
   interface RouteMeta {
     /** Route access level */
     security?: RouteSecurityLevel
+    /** Preserve the original route when redirecting unauthenticated users to login. */
+    preserveLoginRedirect?: boolean
     /** Legacy compatibility: skip menu permission check */
     skipMenuFetch?: boolean
     /** Page title */
     title?: string
     /** Whether hidden in menu */
     hideInMenu?: boolean
+    /** Whether the menu item should be disabled by the menu renderer */
+    disabled?: boolean
+    /** Whether the menu item should use Ant Design danger style */
+    danger?: boolean
+    /** Small status badge rendered beside the menu title */
+    menuBadge?: RouteMenuBadge
     /** Custom loading component shown from navigation start through async route resolution */
     routeLoadingComponent?: Component
     /** Keep route content mounted behind the custom loading component */

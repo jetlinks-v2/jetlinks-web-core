@@ -17,7 +17,10 @@ const validDefinition: ClientToolDefinition<
     capabilities: ['fixture.records.read'],
   },
   inputs: [{ id: 'deviceId', required: true, valueType: 'string' }],
-  consumes: [{ name: 'device-id', source: 'EITHER', optional: true }],
+  consumes: [{
+    name: 'device-id', type: 'structured-data', mediaType: 'text/plain',
+    shape: 'device.identifier', sourcePolicy: 'EITHER', required: false,
+  }],
   effect: { kind: 'READ' },
   output: clientToolOutput.recordSet({
     name: 'fixture-records',
@@ -62,4 +65,23 @@ clientToolOutput.artifact({
   mediaType: 'application/json',
   // @ts-expect-error Physical delivery policy is runtime-owned.
   delivery: 'file',
+})
+
+defineClientTool({
+  ...validDefinition,
+  consumes: [{
+    name: 'legacy-consumer',
+    optional: true,
+    source: 'EITHER',
+  }],
+})
+
+defineClientTool({
+  ...validDefinition,
+  // @ts-expect-error A canonical consumer must provide the complete descriptor and cannot mix legacy aliases.
+  consumes: [{
+    name: 'invalid-partial-canonical-consumer',
+    type: 'structured-data',
+    source: 'EITHER' as const,
+  }],
 })

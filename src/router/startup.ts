@@ -1,5 +1,13 @@
 import type { Router } from 'vue-router'
-import { useApplication, useAuthStore, useMenuStore, useSystemStore, useUserStore } from '@jetlinks-web-core/store'
+import {
+  useApplication,
+  useAuthStore,
+  useBusinessApplicationStore,
+  useMenuStore,
+  useSystemStore,
+  useUserStore,
+} from '@jetlinks-web-core/store'
+import { isBusinessApplicationRuntime } from '@jetlinks-web-core/utils/business-application-runtime'
 import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
 
 let menuRoutePromise: Promise<boolean> | undefined
@@ -26,9 +34,13 @@ export const bootstrapSession = async () => {
   if (!isSubApp && !applicationStore.appList.length && OpenMicroApp) {
     await applicationStore.queryApplication()
   }
+
+  if (isBusinessApplicationRuntime()) {
+    await useBusinessApplicationStore().initialize()
+  }
 }
 
-const addFallbackRoute = (router: Router) => {
+export const addFallbackRoute = (router: Router) => {
   if (router.hasRoute('error')) {
     return
   }
@@ -58,13 +70,21 @@ export const ensureMenuRoutes = async (
   }
 
   menuRoutePromise = (async () => {
-    await menuStore.queryMenus()
+    const businessApplicationStore = useBusinessApplicationStore()
+    const shouldUseApplicationScope = isBusinessApplicationRuntime() && businessApplicationStore.scopeSupported
+    const applicationId = shouldUseApplicationScope
+      ? businessApplicationStore.currentApplication?.id
+      : undefined
+
+    // 租户端必须显式禁用应用 Scope；undefined 会继续读取当前标签页遗留的 session Scope。
+    await menuStore.queryMenus(shouldUseApplicationScope ? applicationId || false : false)
 
     if (menuStore.initialized) {
       addFallbackRoute(router)
     }
 
-    return menuStore.hasRouteMenu()
+    // Empty application menus still register a root redirect to 403 and must rematch the route.
+    return menuStore.initialized
   })()
 
   try {
@@ -86,4 +106,5 @@ export const resetSessionStores = () => {
   useMenuStore().init()
   useAuthStore().init()
   useApplication().init()
+  useBusinessApplicationStore().init()
 }

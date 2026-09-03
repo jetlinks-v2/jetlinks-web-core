@@ -70,6 +70,9 @@ security: RouteSecurityLevel.PUBLIC
 // 需要 token，但无需菜单权限
 security: RouteSecurityLevel.AUTHENTICATED
 
+// 仅平台管理员可访问；其他已登录用户跳转 404
+security: RouteSecurityLevel.ADMINISTRATOR
+
 // 需要 token 和菜单权限（默认）
 security: RouteSecurityLevel.AUTHORIZED
 ```

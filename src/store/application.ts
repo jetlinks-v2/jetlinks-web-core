@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { uiList } from "@jetlinks-web-core/api/application";
 import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
+import { createApplicationCodeUrl } from '@jetlinks-web-core/utils/application-scope'
 
 type ApplicationItemType = {
   id: string
@@ -10,6 +11,19 @@ type ApplicationItemType = {
   name: string
   version?: string
   description?: string
+  provider?: string
+  page?: {
+    baseUrl?: string
+    routeType?: 'hash' | 'history'
+    parameters?: Array<{ key?: string; value?: string }>
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
+const normalizeApplicationPath = (item: ApplicationItemType) => {
+  const configuredPath = typeof item.path === 'string' ? item.path.trim() : ''
+  return configuredPath || createApplicationCodeUrl(item.id)
 }
 
 export const useApplication = defineStore('application', () => {
@@ -38,10 +52,16 @@ export const useApplication = defineStore('application', () => {
           result = result.filter((item: any) => (item.name + '-ui') !== import.meta.env.VITE_MODULE_NAME)
         }
 
+        result = result.map((item: ApplicationItemType) => ({
+          ...item,
+          path: normalizeApplicationPath(item),
+        }))
+
         // 获取是否已在本地注册子模块分享出来的apis，components等
         for (const item of result) {
           const name = item.id + '-ui'
           if (!moduleRegistry.hasModule(name)) { // 没有本地模块注册，获取微前端模块进行注册
+            if (!item.path) continue
             const path = [item.path, item.path.endsWith('/') ? '' : '/', 'assets/remoteEntry.js' ].join('')
             await moduleRegistry.loadRemoteModule(name, path)
           }

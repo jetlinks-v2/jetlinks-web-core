@@ -4,9 +4,10 @@
     :title="title"
     :maskClosable="false"
     :width="type === 'identity' ? 420 : modalWidth"
+    :footer="modalFooter"
     @cancel="onCancel"
     @ok="onSubmit"
-    :okButtonProps="{ loading: submitting, disabled: type === 'identity' && identityListRaw.length === 0 }"
+    :okButtonProps="{ loading: submitting, disabled: submitDisabled }"
     :okText="submitText"
     :cancelText="t('verify.cancel')"
   >
@@ -36,7 +37,16 @@
           </Input>
         </FormItem>
       </Form>
-      <Captcha v-else :showDialog="false" :open="visible" :config="captchaConfig.tianai" @imageWidth="v => modalWidth=v+48"  />
+      <Captcha
+        v-else
+        :key="captchaRenderKey"
+        :showDialog="false"
+        :open="visible"
+        :config="captchaConfig.tianai"
+        @success="onTianaiCaptchaSuccess"
+        @fail="onTianaiCaptchaFail"
+        @imageWidth="onCaptchaImageWidth"
+      />
     </template>
 
     <!-- 身份校验 -->
@@ -174,7 +184,9 @@ const captchaForm = reactive({
   imageKey: ''
 })
 const captchaImage = ref('')
-const captchaConfig = ref<{ type?: string, tianai?: Record<string, string> } | null>(null)
+const captchaConfig = ref<{ type?: string, tianai?: Record<string, unknown> } | null>(null)
+const tianaiCaptchaId = ref('')
+const captchaRenderKey = ref(0)
 
 const identityForm = reactive({
   identityId: '',
@@ -199,6 +211,16 @@ const identityRules = {
   code: [{ required: true, message: t('verify.codeRequired') }]
 }
 
+const isTianaiCaptcha = computed(() => captchaConfig.value?.type === 'tianai')
+const isAutoSubmitCaptcha = computed(() => type.value === 'captcha' && isTianaiCaptcha.value)
+const modalFooter = computed(() => isAutoSubmitCaptcha.value ? null : undefined)
+const submitDisabled = computed(() => {
+  if (type.value === 'identity') {
+    return identityListRaw.value.length === 0
+  }
+  return type.value === 'captcha' && isTianaiCaptcha.value && !tianaiCaptchaId.value
+})
+
 async function loadCaptchaImage() {
   try {
     const res = await getVerifyCaptchaImage()
@@ -217,12 +239,50 @@ async function loadCaptchaConfig() {
     const res = await getVerifyCaptchaConfig()
     const data = res?.result ?? res
     captchaConfig.value = data ?? null
-    if (data.type === 'image') {
+    tianaiCaptchaId.value = ''
+    if (data?.type === 'image') {
       await loadCaptchaImage()
+    } else if (data?.type === 'tianai') {
+      captchaRenderKey.value += 1
     }
   } catch {
     captchaConfig.value = null
+    tianaiCaptchaId.value = ''
   }
+}
+
+function getTianaiCaptchaId(value: unknown) {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    const id = record.id ?? record.captchaId ?? record['captcha-id']
+    return typeof id === 'string' ? id : ''
+  }
+  return ''
+}
+
+function onTianaiCaptchaSuccess(value: unknown) {
+  if (submitting.value) {
+    return
+  }
+  const captchaId = getTianaiCaptchaId(value)
+  if (!captchaId) {
+    tianaiCaptchaId.value = ''
+    captchaRenderKey.value += 1
+    return
+  }
+  tianaiCaptchaId.value = captchaId
+  onSubmit().catch(() => undefined)
+}
+
+function onTianaiCaptchaFail() {
+  tianaiCaptchaId.value = ''
+}
+
+function onCaptchaImageWidth(width: number) {
+  modalWidth.value = width + 48
 }
 
 async function loadIdentities() {
@@ -364,6 +424,9 @@ async function resendIdentityCode() {
 }
 
 async function onSubmit() {
+  if (submitting.value) {
+    return
+  }
   // 如果没有身份信息，不允许提交
   if (type.value === 'identity' && identityListRaw.value.length === 0) {
     return
@@ -387,13 +450,21 @@ async function onSubmit() {
   try {
     let res: { result?: { token: string } }
     if (type.value === 'captcha') {
+      const provider = captchaConfig.value?.type ?? 'image'
+      if (provider === 'tianai' && !tianaiCaptchaId.value) {
+        submitting.value = false
+        return
+      }
       res = await confirmCaptcha({
         key: props.verifyResult.key,
-        provider: captchaConfig.value?.type ?? 'image',
-        params: {
-          verifyKey: captchaForm.imageKey,
-          verifyCode: captchaForm.verifyCode
-        }
+        provider,
+        params: provider === 'tianai'
+          // tianai 二次确认消费第一次行为验证返回的通过态 captcha id。
+          ? { 'captcha-id': tianaiCaptchaId.value }
+          : {
+              verifyKey: captchaForm.imageKey,
+              verifyCode: captchaForm.verifyCode
+            }
       })
     } else {
       if (!validationData.value) throw new Error('Validation not sent')
@@ -420,8 +491,13 @@ async function onSubmit() {
   } catch (e) {
     console.error(e)
     if (type.value === 'captcha') {
-      captchaForm.verifyCode = ''
-      await loadCaptchaImage()
+      if (isTianaiCaptcha.value) {
+        tianaiCaptchaId.value = ''
+        captchaRenderKey.value += 1
+      } else {
+        captchaForm.verifyCode = ''
+        await loadCaptchaImage()
+      }
     }
     submitting.value = false
     return Promise.reject(e)

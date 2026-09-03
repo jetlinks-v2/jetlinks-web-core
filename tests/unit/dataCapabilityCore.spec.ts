@@ -81,6 +81,46 @@ const queryResult = await runtime.query({
 })
 assert.deepEqual(queryResult.data, { config: { fixed: true }, query: { deviceId: 'd1' } })
 
+registry.sources.register({
+  ...source,
+  id: 'test.source.filter',
+  filterSchema: {
+    type: 'object',
+    required: ['state'],
+    properties: {
+      state: {
+        type: 'string',
+        filter: { operators: ['eq', 'neq'], defaultOperator: 'eq' },
+      },
+    },
+  },
+  create: () => ({
+    query: request => of({ data: request.filter }) as any,
+  }),
+})
+const filterResult = await runtime.query({
+  version: 1,
+  source: { capabilityId: 'test.source.filter', version: 1 },
+  filter: {
+    terms: [{
+      field: 'state',
+      operator: 'eq',
+      value: { kind: 'parameter', parameterId: 'deviceId' },
+    }],
+  },
+})
+assert.deepEqual(filterResult.data, {
+  terms: [{ field: 'state', operator: 'eq', value: 'd1' }],
+})
+await assert.rejects(
+  () => runtime.query({
+    version: 1,
+    source: { capabilityId: 'test.source.filter', version: 1 },
+    filter: { terms: [{ field: 'state', operator: 'contains', value: 'active' }] },
+  }),
+  (error: any) => error?.code === 'filter.operator_unsupported',
+)
+
 const prepared = await runtime.prepareOperation({
   version: 1,
   operation: { capabilityId: operation.id, version: 1 },
@@ -147,6 +187,12 @@ choiceRegistry.registerProvider({
       modes: ['snapshot', 'page'],
       configSchema: { type: 'object' },
       querySchema: { type: 'object', properties: { keyword: { type: 'string' } } },
+      filterSchema: {
+        type: 'object',
+        properties: {
+          state: { type: 'string', filter: { operators: ['eq'] } },
+        },
+      },
       outputSchema: { type: 'array', items: { type: 'object' } },
       create: () => {
         choiceSourceCreateCount += 1
@@ -215,6 +261,7 @@ assert.deepEqual(selectableSource?.metadata.tags, ['selector'])
 if (!selectableSource || selectableSource.kind !== 'data-source') throw new Error('missing data-source choice')
 assert.deepEqual(selectableSource.contract.modes, ['snapshot', 'page'])
 assert.equal(selectableSource.contract.paramsSchema?.properties?.keyword.type, 'string')
+assert.deepEqual(selectableSource.contract.filterSchema?.properties?.state.filter?.operators, ['eq'])
 assert.equal(selectableSource.contract.resultSchema?.type, 'array')
 
 const configureDisabled = choiceDirectory.items.find(item => item.value === 'test.operation.choice-config-disabled')

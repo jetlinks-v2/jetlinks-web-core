@@ -4,24 +4,40 @@ import {
   type RouteLocationNormalized,
   type NavigationGuardNext
 } from 'vue-router'
-import { getToken, removeToken } from '@jetlinks-web/utils'
+import { TOKEN_KEY } from '@jetlinks-web/constants'
+import { getToken, LocalStore, removeToken } from '@jetlinks-web/utils'
 import microApp from '@micro-zoe/micro-app'
 import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
 import { RouteSecurityLevel } from './types'
 import { toValue } from 'vue'
-import { bootstrapSession, ensureMenuRoutes, resetRouteStartupState, resetSessionStores } from './startup'
+import {
+  addFallbackRoute,
+  bootstrapSession,
+  ensureMenuRoutes,
+  resetRouteStartupState,
+  resetSessionStores
+} from './startup'
 import {
   createProjectRuntimeHref,
   getProjectCodeFromLocation,
+  getProjectRuntimeConfig,
   redirectLegacyProjectHash,
   isProjectRuntime
 } from '@jetlinks-web-core/utils/project-runtime'
+import { removeProjectStorage } from '@jetlinks-web-core/utils/project-storage'
 import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 import { useUserStore } from '@jetlinks-web-core/store/user'
+import { useBusinessApplicationStore } from '@jetlinks-web-core/store/businessApplication'
+import { isBusinessApplicationRuntime } from '@jetlinks-web-core/utils/business-application-runtime'
+import {
+  createLoginNavigationHref,
+  type LoginNavigationReason,
+} from './login-navigation'
 
 const FORBIDDEN_PATH = '/403'
-const PROJECT_PERSON_CENTER_PATH = '/person-center'
+const NOT_FOUND_PATH = '/404'
+const PROJECT_RUNTIME_ROOT_PATH = '/'
 const PROJECT_TENANT_ROUTE_PREFIXES = ['/console', '/account']
 
 // ============ 核心路由解析 ============
@@ -99,6 +115,24 @@ function shouldSkipMenuFetch(to: RouteLocationNormalized): boolean {
 }
 
 const isForbiddenRoute = (to: RouteLocationNormalized) => to.path === FORBIDDEN_PATH
+const isNotFoundRoute = (to: RouteLocationNormalized) => to.name === 'error'
+
+const getAdministratorRouteRedirect = (to: RouteLocationNormalized) => {
+  const requiresAdministrator = to.matched.some(
+    record => record.meta.security === RouteSecurityLevel.ADMINISTRATOR
+  )
+
+  if (!requiresAdministrator || useUserStore().isAdmin) {
+    return
+  }
+
+  // 404 fallback normally waits for menu routes; register it now so denied routes never render briefly.
+  addFallbackRoute(router)
+  return {
+    path: NOT_FOUND_PATH,
+    replace: true
+  }
+}
 
 const isProjectTenantSemanticRoute = (to: RouteLocationNormalized) => {
   return PROJECT_TENANT_ROUTE_PREFIXES.some(prefix => (
@@ -118,13 +152,13 @@ const getSubAccountRedirect = (to: RouteLocationNormalized) => {
       return
     }
 
-    // 子账号在项目域名下误入租户端语义路由时，回到项目端个人中心。
+    // 项目端入口由服务端菜单决定，避免继续跳转到已下线的旧项目个人中心壳。
     const projectCode = getProjectCodeFromLocation()
-    window.location.href = createProjectRuntimeHref(projectCode, PROJECT_PERSON_CENTER_PATH)
+    window.location.href = createProjectRuntimeHref(projectCode, PROJECT_RUNTIME_ROOT_PATH)
     return false
   }
 
-  if (isForbiddenRoute(to) || isPublicRoute(to)) {
+  if (isForbiddenRoute(to) || isNotFoundRoute(to) || isPublicRoute(to)) {
     return
   }
 
@@ -148,7 +182,12 @@ const NoTokenJump = (
   } else {
     // 查找登录路由
     const loginRoute = coreRoutes.find(r => r.name === 'Login')
-    next({ path: loginRoute?.path || '/login' })
+    const loginPath = loginRoute?.path || '/login'
+    next(
+      to.meta.preserveLoginRedirect
+        ? { path: loginPath, query: { redirect: to.fullPath } }
+        : { path: loginPath }
+    )
   }
 }
 
@@ -203,6 +242,12 @@ router.beforeEach((to, from, next) => {
     } else {
       bootstrapSession()
         .then(() => {
+          const administratorRouteRedirect = getAdministratorRouteRedirect(to)
+          if (administratorRouteRedirect) {
+            next(administratorRouteRedirect)
+            return
+          }
+
           const subAccountRedirect = getSubAccountRedirect(to)
           if (subAccountRedirect === false) {
             routeLoading.finish()
@@ -213,15 +258,22 @@ router.beforeEach((to, from, next) => {
             return
           }
 
-          if (isProjectRuntime()) {
-            next()
-            return
-          }
-
           getRoutesByServer(to, next)
         })
         .catch(error => {
           console.error('[Router] 初始化会话失败:', error)
+          const administratorRouteRedirect = getAdministratorRouteRedirect(to)
+          if (administratorRouteRedirect) {
+            next(administratorRouteRedirect)
+            return
+          }
+
+          const businessApplicationStore = useBusinessApplicationStore()
+          if (isBusinessApplicationRuntime() && businessApplicationStore.scopeSupported && !isForbiddenRoute(to)) {
+            next({ path: FORBIDDEN_PATH, replace: true })
+            return
+          }
+
           next()
         })
     }
@@ -240,25 +292,44 @@ router.onError(() => {
 })
 
 
-export const jumpLogin = () => {
+export interface JumpLoginOptions {
+  reason?: LoginNavigationReason
+}
+
+export const jumpLogin = (options: JumpLoginOptions = {}) => {
   const currentRoute = toValue(router.currentRoute)
 
   // 优化: 使用新的公开路由检查
   if (isPublicRoute(currentRoute)) return
 
   setTimeout(() => {
+    const reason = options.reason || 'session-expired'
+    const projectRuntime = isProjectRuntime()
+    const projectCode = projectRuntime ? getProjectCodeFromLocation() : ''
+
     resetSessionStores()
     removeToken()
-    const loginRoute = coreRoutes.find(r => r.name === 'Login')
-    // router.replace({
-    //   path: loginRoute?.path || '/login',
-    // })
-      const loginPath = loginRoute?.path || '/login'
-      const { origin, pathname, hash} = window.location
-      const hashPath = !!hash ? '#' : ''
-      if (currentRoute.path !== loginPath) {
-        window.location.href = `${origin}${pathname}${hashPath}${loginPath}?redirect=${currentRoute.path}`
+
+    if (reason === 'logout') {
+      // 主动退出是整段 SaaS 会话的结束，不能只清 pathname 对应的项目 token。
+      LocalStore.remove(TOKEN_KEY)
+      if (projectCode) {
+        removeProjectStorage(projectCode)
       }
+    }
+
+    const loginRoute = coreRoutes.find(r => r.name === 'Login')
+    const loginPath = loginRoute?.path || '/login'
+    if (currentRoute.path !== loginPath) {
+      window.location.href = createLoginNavigationHref({
+        currentPath: currentRoute.fullPath,
+        isProjectRuntime: projectRuntime,
+        location: window.location,
+        loginPath,
+        reason,
+        runtimeConfig: getProjectRuntimeConfig(),
+      })
+    }
   })
 }
 

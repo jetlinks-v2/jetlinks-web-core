@@ -439,7 +439,7 @@ const defaultThemeCssVars: ThemeStyleCssVars = {
   '--layout-menu-footer-font-size': '0.875rem',
   '--layout-menu-footer-line-height': '1.375rem',
   '--chrome-bg': 'var(--bg)',
-  '--chrome-header-height': '56px',
+  '--chrome-header-height': '52px',
   '--chrome-elev': 'var(--bg-elev)',
   '--chrome-sunken': 'var(--bg-sunken)',
   '--chrome-hover': 'var(--bg-hover)',

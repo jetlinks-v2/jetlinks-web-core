@@ -19,6 +19,7 @@ import { clearVerifyCache } from '@jetlinks-web-core/package'
 import { useApplication, useMenuStore } from '@jetlinks-web-core/store'
 import { nextTick } from 'vue'
 import { LayoutType } from '@jetlinks-web/components/es/ProLayout/defaultSettings'
+import { normalizeApplicationBaseUrl } from '@jetlinks-web-core/utils/application-scope'
 
 const loading = ref(false)
 const iframeUrl = ref('')
@@ -85,8 +86,9 @@ const handleQuery = () => {
   const {appId, url} = route.meta
   if (appId) {
     const appInfo = application.findAppById(appId)
-    if (appInfo.page?.baseUrl) {
-      let _url = appInfo.page.baseUrl
+    if (appInfo?.page) {
+      let _url = normalizeApplicationBaseUrl(appInfo.page.baseUrl, appInfo.id || appId)
+      if (!_url) return
       const pageParams = new URLSearchParams()
 
       if (appInfo.page?.routeType === 'hash') {

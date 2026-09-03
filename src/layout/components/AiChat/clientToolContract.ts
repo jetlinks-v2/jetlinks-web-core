@@ -1,6 +1,9 @@
 import {
+  AI_CLIENT_TOOL_PORT_VERSION,
   AI_CLIENT_TOOL_RESULT_DELIVERIES,
   defineAiClientToolRouting,
+  type AiClientToolConsumerPort,
+  type AiClientToolProducerPort,
   type AiClientToolRoutingDataAccessMode,
   type AiClientToolRoutingKind,
   type AiClientToolRoutingMetadata,
@@ -20,7 +23,7 @@ import {
   normalizeAiClientToolRecordPath,
 } from './clientToolBindingPath'
 
-export const AI_CLIENT_TOOL_CONTRACT_VERSION = 'ai-client-tool-contract/v1'
+export const AI_CLIENT_TOOL_CONTRACT_VERSION = 'ai-client-tool-contract/v2'
 export const AI_CLIENT_TOOL_CONTRACT_META_KEY = 'clientToolContract'
 
 export const AI_CLIENT_TOOL_OUTPUT_KINDS = [
@@ -37,6 +40,8 @@ export type AiClientToolOutputKind = typeof AI_CLIENT_TOOL_OUTPUT_KINDS[number]
 interface AiClientToolOutputContractBase {
   /** Closed, domain-neutral output category used by catalog diagnostics. */
   kind: AiClientToolOutputKind
+  /** Canonical resource category; it is orthogonal to MIME type and shape. */
+  type?: AiClientToolProducerPort['type']
   /** Stable logical binding name; it is not a JSON field or physical URI. */
   name: string
   /** Stable renderer-neutral shape owned by the producer. */
@@ -88,14 +93,17 @@ export interface AiClientToolContractDefinition {
   routingKind: AiClientToolRoutingKind
   routing: Omit<
     AiClientToolRoutingMetadata,
-    'produces' | 'outputShapes' | 'resultDeliveries'
+    'portVersion' | 'consumerPorts' | 'producerPorts' |
+    'accepts' | 'produces' | 'outputShapes' | 'prerequisites' | 'resultDeliveries'
   >
+  inputs?: readonly AiClientToolConsumerPort[]
   outputs?: readonly AiClientToolOutputContract[]
 }
 
 /** Serializable catalog metadata retained only in the browser runtime. */
 export interface AiClientToolContractMetadata {
   version: typeof AI_CLIENT_TOOL_CONTRACT_VERSION
+  inputs: AiClientToolConsumerPort[]
   outputs: AiClientToolOutputContract[]
 }
 
@@ -122,8 +130,8 @@ const validateOutputs = (outputs: readonly AiClientToolOutputContract[]) => {
   outputs.forEach((output) => {
     const name = normalizedText(output.name)
     const shape = normalizedText(output.shape)
-    if (!name || !shape) {
-      throw new Error('Client tool output contract requires a stable name and shape')
+    if (!name || !shape || !normalizedText(output.type) || !normalizedText(output.mediaType)) {
+      throw new Error('Client tool output contract requires name, type, mediaType and shape')
     }
     const delivery = outputDelivery(output)
     if (output.path !== undefined && !isSupportedAiClientToolBindingPath(normalizedText(output.path))) {
@@ -142,13 +150,42 @@ const validateOutputs = (outputs: readonly AiClientToolOutputContract[]) => {
   })
 }
 
+const validateInputs = (inputs: readonly AiClientToolConsumerPort[]) => {
+  const names = new Set<string>()
+  inputs.forEach((input) => {
+    const name = normalizedText(input.name)
+    if (!name || !normalizedText(input.type) || !normalizedText(input.mediaType)
+      || !normalizedText(input.shape) || !normalizedText(input.sourcePolicy)) {
+      throw new Error('Client tool input contract requires name, type, mediaType, shape and sourcePolicy')
+    }
+    if (names.has(name)) throw new Error(`Duplicate client tool input port: ${name}`)
+    names.add(name)
+  })
+}
+
+const copyInput = (input: AiClientToolConsumerPort): AiClientToolConsumerPort => ({
+  name: normalizedText(input.name),
+  type: input.type,
+  mediaType: normalizedText(input.mediaType).toLowerCase(),
+  shape: normalizedText(input.shape).toLowerCase(),
+  required: input.required === true,
+  sourcePolicy: input.sourcePolicy,
+})
+
 const copyOutput = (output: AiClientToolOutputContract): AiClientToolOutputContract => {
+  if (output.kind === 'artifact' && !normalizedText(output.mediaType)) {
+    throw new Error(`Artifact client tool output requires a media type: ${output.name}`)
+  }
   const { fields: declaredFields, ordering: declaredOrdering, ...rest } = output
   const fields = declaredFields?.map(field => ({ ...field }))
   const ordering = normalizeAiClientToolOrdering(declaredOrdering, fields)
   return {
     ...rest,
     name: normalizedText(output.name),
+    type: output.type || (output.kind === 'artifact'
+      ? 'artifact'
+      : output.kind === 'state-events' ? 'state' : 'structured-data'),
+    mediaType: normalizedText(output.mediaType || 'application/json').toLowerCase(),
     shape: normalizedText(output.shape),
     ...(output.path ? { path: normalizedText(output.path) } : {}),
     ...(fields ? { fields } : {}),
@@ -167,12 +204,28 @@ const outputDelivery = (output: AiClientToolOutputContract): AiClientToolRouting
 export const defineAiClientToolContract = (
   definition: AiClientToolContractDefinition,
 ): AiClientToolContractFragment => {
+  const inputs = (definition.inputs || []).map(copyInput)
   const outputs = (definition.outputs || []).map(copyOutput)
+  validateInputs(inputs)
   validateOutputs(outputs)
   const deliveries = unique(outputs.map(outputDelivery))
   const routing = defineAiClientToolRouting(definition.routingKind, {
     ...definition.routing,
+    portVersion: AI_CLIENT_TOOL_PORT_VERSION,
+    ...(inputs.length ? {
+      consumerPorts: inputs,
+      accepts: inputs.map(input => input.name),
+      ...(inputs.some(input => input.required) ? {
+        prerequisites: inputs.filter(input => input.required).map(input => input.name),
+      } : {}),
+    } : {}),
     ...(outputs.length ? {
+      producerPorts: outputs.map((output): AiClientToolProducerPort => ({
+        name: output.name,
+        type: output.type || 'structured-data',
+        mediaType: output.mediaType || 'application/json',
+        shape: output.shape,
+      })),
       produces: outputs.map(output => output.name),
       outputShapes: outputs.map(output => output.shape),
       resultDeliveries: deliveries,
@@ -181,6 +234,7 @@ export const defineAiClientToolContract = (
   const resultBindings = outputs.flatMap((output): AiClientToolResultBindingDefinition[] => (
     output.path && outputDelivery(output) !== 'file' ? [{
       name: output.name,
+      type: output.type || 'structured-data',
       ...(output.label ? { label: output.label } : {}),
       path: output.path,
       shape: output.shape,
@@ -203,6 +257,7 @@ export const defineAiClientToolContract = (
       resultBindings,
       [AI_CLIENT_TOOL_CONTRACT_META_KEY]: {
         version: AI_CLIENT_TOOL_CONTRACT_VERSION,
+        inputs,
         outputs,
       },
     },
@@ -267,6 +322,7 @@ export const createAiClientToolContractOutputBinding = (
   const label = normalizedText(state.label) || normalizedText(output.label)
   return {
     name: output.name,
+    type: output.type || 'structured-data',
     ...(label ? { label } : {}),
     ...(ref ? { ref } : {}),
     ...(path ? { path } : {}),
@@ -309,7 +365,23 @@ export const isAiClientToolContractMetadata = (
 ): value is AiClientToolContractMetadata => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const metadata = value as Record<string, unknown>
-  if (metadata.version !== AI_CLIENT_TOOL_CONTRACT_VERSION || !Array.isArray(metadata.outputs)) return false
+  if (metadata.version !== AI_CLIENT_TOOL_CONTRACT_VERSION
+    || !Array.isArray(metadata.inputs)
+    || !Array.isArray(metadata.outputs)) return false
+  const inputNames = new Set<string>()
+  if (!metadata.inputs.every((input) => {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return false
+    const record = input as Record<string, unknown>
+    const name = normalizedText(record.name)
+    if (!name || inputNames.has(name)
+      || !normalizedText(record.type)
+      || !normalizedText(record.mediaType)
+      || !normalizedText(record.shape)
+      || typeof record.required !== 'boolean'
+      || !normalizedText(record.sourcePolicy)) return false
+    inputNames.add(name)
+    return true
+  })) return false
   const names = new Set<string>()
   return metadata.outputs.every((output) => {
       if (!output || typeof output !== 'object' || Array.isArray(output)) return false
@@ -327,6 +399,8 @@ export const isAiClientToolContractMetadata = (
       if (!AI_CLIENT_TOOL_OUTPUT_KINDS.includes(kind)
         || !name
         || names.has(name)
+        || !normalizedText(record.type)
+        || !normalizedText(record.mediaType)
         || !normalizedText(record.shape)
         || (delivery && !AI_CLIENT_TOOL_RESULT_DELIVERIES.includes(delivery as AiClientToolRoutingResultDelivery))
         || (record.path !== undefined && !isSupportedAiClientToolBindingPath(path))

@@ -16,6 +16,57 @@ import {
   type ThemeStyleKey
 } from '@jetlinks-web-core/utils/theme-style'
 import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
+import { getProjectCodeFromLocation, isProjectRuntime } from '@jetlinks-web-core/utils/project-runtime'
+import { getProjectStorage } from '@jetlinks-web-core/utils/project-storage'
+
+export type LayoutMode = 'mix' | 'side' | 'top'
+
+export type SystemConfigProperties = Record<string, unknown>
+
+export interface SystemConfigScope {
+  scope: string
+  properties: SystemConfigProperties
+}
+
+export interface SystemConfigResponse<T> {
+  success: boolean
+  result: T
+}
+
+/**
+ * Shared system-store configuration boundary.
+ *
+ * Runtime modules may replace the source, but must keep the response semantics
+ * used by the complete shared store so existing consumers retain one contract.
+ */
+export interface SystemConfigSource {
+  queryScopes: (scopes: readonly string[]) => Promise<SystemConfigResponse<SystemConfigScope[]>>
+  queryScope: (scope: string) => Promise<SystemConfigResponse<SystemConfigProperties>>
+}
+
+export const defaultSystemConfigSource: SystemConfigSource = {
+  queryScopes: scopes => getDetails_api([...scopes]),
+  queryScope: settingDetail,
+}
+
+const layoutModes: readonly LayoutMode[] = ['mix', 'side', 'top']
+
+// 历史 front 配置没有 layout，统一回退侧边导航，保持升级前的菜单行为。
+export const normalizeLayoutMode = (value: unknown): LayoutMode => (
+  layoutModes.includes(value as LayoutMode) ? value as LayoutMode : 'side'
+)
+
+const resolveLayoutTitle = (frontTitle: unknown) => {
+  const fallbackTitle = typeof frontTitle === 'string' ? frontTitle : ''
+  if (!isProjectRuntime()) return fallbackTitle
+
+  const projectCode = getProjectCodeFromLocation()
+  const projectName = getProjectStorage(projectCode)?.name
+  // 项目名称属于运行上下文，不能被项目端接口回退出的平台 front.title 覆盖。
+  return typeof projectName === 'string' && projectName.trim()
+    ? projectName.trim()
+    : fallbackTitle
+}
 
 interface LayoutType {
   siderWidth: number
@@ -23,10 +74,10 @@ interface LayoutType {
   collapsedWidth: number
   title: string
   logo: string
-  layout: 'mix' | 'side' | 'top'
+  layout: LayoutMode
 }
 
-const useSystemStoreBase = defineStore('system', () => {
+export const createSystemStore = (source: SystemConfigSource) => defineStore('system', () => {
   const initialThemeStyle = getInitialThemeStyleConfig()
   const theme = ref<string>('ai') // 主题色
   const themeStyle = ref<ThemeStyleKey>(initialThemeStyle.style)
@@ -51,7 +102,7 @@ const useSystemStoreBase = defineStore('system', () => {
     collapsedWidth: 48,
     title: '物联网平台', // 浏览器标签页title和系统名称
     logo: resolvePublicAssetUrl('images/login/logo.png'),
-    layout: 'mix'
+    layout: 'side'
   })
 
   /**
@@ -127,23 +178,25 @@ const useSystemStoreBase = defineStore('system', () => {
 
   const handleFront = (_value: any, userThemeStyle?: ThemeStyleKey) => {
     if (!_value) return
-    layout.title = _value.title
+    const title = resolveLayoutTitle(_value.title)
+    layout.title = title
     layout.logo = resolvePublicAssetUrl(_value.logo)
+    layout.layout = normalizeLayoutMode(_value.layout)
     const frontThemeStyle = userThemeStyle || normalizeThemeStyle(_value.headerTheme)
     // localStorage 只负责接口返回前的首屏主题；登录后用户设置优先，系统设置兜底。
     changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle))
     changeIco(_value.ico)
     setDocumentTitle()
-    changeTitle(_value.title)
+    changeTitle(title)
   }
 
   const queryInfo = async () => {
     const _keys = ['front', 'amap', 'paths']
     const userThemeStyle = await getUserThemeStyle()
-    const resp = await getDetails_api(_keys)
+    const resp = await source.queryScopes(_keys)
     if (resp.success) {
       _keys.forEach((key: string) => {
-        const _value = resp.result.find((item: any) => item.scope === key)?.properties
+        const _value = resp.result.find(item => item.scope === key)?.properties
         systemInfo.value[key] = _value ?? {}
         if (key === 'front') {
           handleFront(_value, userThemeStyle)
@@ -155,7 +208,7 @@ const useSystemStoreBase = defineStore('system', () => {
   const querySingleInfo = async (__keys: string) => {
     if (!__keys) return
     const userThemeStyle = __keys === 'front' ? await getUserThemeStyle() : undefined
-    const resp = await settingDetail(__keys)
+    const resp = await source.queryScope(__keys)
     if (resp.success) {
       const _value = resp.result
       systemInfo.value[__keys] = _value ?? {}
@@ -237,5 +290,7 @@ const useSystemStoreBase = defineStore('system', () => {
     resetSessionInitialization
   }
 })
+
+const useSystemStoreBase = createSystemStore(defaultSystemConfigSource)
 
 export const useSystemStore = withModuleStoreOverride(useSystemStoreBase)

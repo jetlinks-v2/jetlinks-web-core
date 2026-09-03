@@ -96,12 +96,18 @@ const onFilterChange = ({ filter, where }) => {
 
 ## 默认条件策略
 
-- `string`：`包含`、`不包含`、`为`、`不为`、`为空`、`不为空`
+- `string`：`包含`、`不包含`、`为`、`不为`、`为空`、`不为空`；`包含`和`不包含`会在输出查询参数时自动补齐值两端的 `%`
 - `number`：`为`、`不为`、`大于`、`大于等于`、`小于`、`小于等于`、`为空`、`不为空`
 - `select/tree/treeSelect`：`属于`、`不属于`、`为`、`不为`、`为空`、`不为空`
 - `date/time`：`处于范围`、`大于等于`、`小于等于`、`为`、`为空`、`不为空`
 
 操作符下拉会显示一行用途说明，选中后的操作符 Token 支持悬浮查看完整解释。
+
+### Search 字段处理兼容
+
+以旧 `Search` 的 `columns[].search` 配置作为 `ConditionFilter` 的 `columns` 时，查询输出按以下顺序处理：`rename`、`handleValue(value, term)`、`like` / `nlike` 的 `\\` 与 `%` 转义及通配符补齐、`handleTerms(term)`。`handleParamsItem` 仍是 `ConditionFilter` 的终端自定义转换入口，配置后优先执行。
+
+同时兼容 `format`、`options`、`first`、`sortIndex`、`defaultTermType`、`defaultValue`、`defaultOnceValue`、`termOptions`（对象或字符串数组）、`termFilter`、`componentProps`、`components` 与 `isBtw`。其中 `format` 会适配到日期组件的 `componentProps.format`；`defaultOnceValue` 仅首次初始化，`clear()` 后不会恢复；`defaultValue` 会在初始化与 `clear()` 后恢复；`span` 仅保留类型兼容，不参与新组件布局。
 
 ## 分组 AST
 
@@ -189,6 +195,7 @@ const fields = [
 - `update:modelValue`：输出 `terms`
 - `update:where`：输出 `where`
 - `change`：输出 `{ terms, filter, where }`
+- `search`：兼容旧 `Search` 回调，输出 `{ terms: [{ terms }] }`；用于只替换组件标签并保留既有 `@search` 处理函数
 
 ## 插槽
 

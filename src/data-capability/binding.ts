@@ -1,6 +1,7 @@
 import { EmptyError, isObservable, type Observable, type Subscription } from 'rxjs'
 import type {
   BindingRuntimeContext,
+  CapabilityFilterExpression,
   CapabilityRegistry,
   ContextValueDefinition,
   DataPath,
@@ -24,6 +25,19 @@ export class BindingResolver {
       result[key] = await this.resolve(value, context)
     }
     return result
+  }
+
+  async resolveFilter(
+    filter: CapabilityFilterExpression | undefined,
+    context: BindingRuntimeContext,
+  ): Promise<CapabilityFilterExpression | undefined> {
+    if (!filter) return undefined
+    return {
+      terms: await Promise.all(filter.terms.map(async term => ({
+        ...term,
+        value: await this.resolve(term.value, context),
+      }))),
+    }
   }
 
   async resolve(value: ValueBinding | unknown, context: BindingRuntimeContext): Promise<unknown> {

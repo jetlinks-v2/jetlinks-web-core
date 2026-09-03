@@ -1,7 +1,13 @@
 import type { App, Component, Plugin } from 'vue'
 import TitleComponent from './TitleComponent/index.vue'
 import ImageUpload from "./Upload/Image/ImageUpload.vue";
-import CardBox from './CardBox/index.vue';
+import CardBox, {
+    CardStatistic,
+    CardStatus,
+    CardSuggestion,
+    CardSummary,
+    CardToggle,
+} from './CardBox';
 import Search from './Search'
 import AMapComponent from './AMapComponent/AMap.vue'
 import PathSimplifier from './AMapComponent/PathSimplifier.vue'
@@ -40,6 +46,7 @@ import { TagManagerSidebar } from './TagManagerSidebar'
 import ConditionFilter from './ConditionFilter'
 import QuickFilterSidebar from './QuickFilterSidebar'
 import Avatar from './Avatar/index.vue'
+import IconBadge from './IconBadge/index.vue'
 import AppTag from './AppTag/index.vue'
 import AmbientCard from './AmbientCard/index.vue'
 import ChipGroup from './ChipGroup/index.vue'
@@ -57,8 +64,16 @@ import PageRouteSkeleton from './PageRouteSkeleton/index.vue'
 import PageRouteView from './PageRouteView/index.vue'
 import EqualHeightColumns from './EqualHeightColumns/index.vue'
 import ModelConfig from './ModelConfig/index.vue'
+import ModelParameterEditor from './ModelParameterEditor/index.vue'
 import MenuAssetPermissionEditor from './MenuAssetPermissionEditor/index.vue'
 import StatusTag from './StatusTag/index.vue'
+import DetailHeader from './DetailHeader/index.vue'
+import PageHeader from './PageHeader/index.vue'
+import MetricCards from './MetricCards/index.vue'
+import MarketplaceInstallStream from './MarketplaceInstallStream/index.vue'
+import StatusPill from './StatusPill/index.vue'
+import CheckboxGroup from './CheckboxGroup/index.vue'
+import PageActions from './PageActions/index.vue'
 
 export default {
     install(app: App) {
@@ -66,6 +81,11 @@ export default {
         app.component('TitleComponent', TitleComponent)
             .component('ImageUpload', ImageUpload)
             .component('CardBox', CardBox)
+            .component('CardSuggestion', CardSuggestion)
+            .component('CardSummary', CardSummary)
+            .component('CardStatus', CardStatus)
+            .component('CardStatistic', CardStatistic)
+            .component('CardToggle', CardToggle)
             .component('ProSearch', Search)
             .component('FullPage', FullPage)
             .component('AMapComponent', AMapComponent)
@@ -104,6 +124,7 @@ export default {
           .component('ConditionFilter', ConditionFilter)
           .component('QuickFilterSidebar', QuickFilterSidebar)
           .component('Avatar', Avatar)
+          .component('IconBadge', IconBadge)
           .component('AppTag', AppTag)
           .component('AmbientCard', AmbientCard)
           .component('ChipGroup', ChipGroup)
@@ -121,8 +142,16 @@ export default {
           .component('PageRouteView', PageRouteView)
           .component('EqualHeightColumns', EqualHeightColumns)
           .component('ModelConfig', ModelConfig)
+          .component('ModelParameterEditor', ModelParameterEditor)
           .component('MenuAssetPermissionEditor', MenuAssetPermissionEditor)
           .component('StatusTag', StatusTag)
+          .component('DetailHeader', DetailHeader)
+          .component('PageHeader', PageHeader)
+          .component('MetricCards', MetricCards)
+          .component('MarketplaceInstallStream', MarketplaceInstallStream)
+          .component('StatusPill', StatusPill)
+          .component('CheckboxGroup', CheckboxGroup)
+          .component('PageActions', PageActions)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
@@ -132,4 +161,51 @@ export default {
     }
 }
 
-export { MenuAssetPermissionEditor }
+export {
+    CardBox,
+    CardStatistic,
+    CardStatus,
+    CardSuggestion,
+    CardSummary,
+    CardToggle,
+    IconBadge,
+    MenuAssetPermissionEditor,
+    ModelParameterEditor,
+    DetailHeader,
+    PageHeader,
+    MetricCards,
+    MarketplaceInstallStream,
+    StatusPill,
+}
+export type {
+    CardAvatarData,
+    CardMetaItem,
+    CardStatisticData,
+    CardStatisticSegment,
+    CardStateData,
+    CardStatusData,
+    CardSuggestionData,
+    CardSummaryData,
+    CardTagItem,
+    CardToggleData,
+    CardTone,
+    CardValue,
+} from './CardBox'
+export type {
+  ModelParameterFile,
+  ModelParameterLocale,
+  ModelParameterOption,
+  ModelParameterProperty,
+  ModelParameterDefinitionSource,
+  ModelParameterScene,
+  ModelParameterSceneMode
+} from './ModelParameterEditor/types'
+export type {
+    MetricCardIcon,
+    MetricCardItem,
+    MetricCardValue,
+} from './MetricCards/types'
+export type {
+    MarketplaceInstallStreamRow,
+    MarketplaceInstallStreamRowType,
+} from './MarketplaceInstallStream/types'

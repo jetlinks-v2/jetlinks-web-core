@@ -3,6 +3,8 @@ export interface ProjectStorageInfo {
   apiUrl?: string
   token?: string
   name?: string
+  projectName?: string
+  scope?: string
   runtime?: string
   id?: string
 }

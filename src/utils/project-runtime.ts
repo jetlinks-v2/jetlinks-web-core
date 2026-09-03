@@ -1,5 +1,9 @@
-import { getProjectCodeFromLocation as getProjectCodeFromPathnameLocation } from './project-path'
-import { isProjectStorageEnabled } from './project-storage'
+import {
+  createProjectPathRuntimeHref,
+  getProjectCodeFromLocation as getProjectCodeFromPathnameLocation,
+  normalizeProjectHashPath,
+} from './project-path'
+import { getProjectStorage, isProjectStorageEnabled } from './project-storage'
 import { isFromCloud } from './request-context'
 
 export {
@@ -18,6 +22,22 @@ export interface ProjectRuntimeConfig {
   fixedProject: boolean
   projectStorageEnabled: boolean
   subAccountLoginEnabled: boolean
+}
+
+const getProjectContext = () => {
+    if (!isProjectStorageEnabled()) {
+        return undefined
+    }
+
+    const projectId = getProjectCodeFromPathnameLocation()
+    if (!projectId) {
+        return undefined
+    }
+
+    return {
+        projectId,
+        storage: getProjectStorage(projectId)
+    }
 }
 
 const normalizeRuntimeScope = (value: unknown): ProjectRuntimeScope => {
@@ -58,12 +78,6 @@ export const getProjectRuntimeConfig = (): ProjectRuntimeConfig => {
 
 export const getProjectCodeFromLocation = () => getProjectRuntimeConfig().projectCode
 
-const normalizeHashPath = (path = '') => {
-  const [pathname = '', search = ''] = path.split('?')
-  const normalizedPath = `/${pathname.replace(/^\/+/, '')}`.replace(/\/+/g, '/')
-  return `${normalizedPath}${search ? `?${search}` : ''}`
-}
-
 export const isProjectRuntime = () => {
   const runtimeConfig = getProjectRuntimeConfig()
   return runtimeConfig.fixedProject
@@ -71,11 +85,11 @@ export const isProjectRuntime = () => {
 }
 
 export const normalizeProjectRuntimePath = (path = '') => {
-  const nextPath = normalizeHashPath(path)
+  const nextPath = normalizeProjectHashPath(path)
   const projectMatch = nextPath.match(/^\/project\/([^/?#]+)(\/.*)?$/)
 
   if (projectMatch) {
-    return normalizeHashPath(projectMatch[2] || '/')
+    return normalizeProjectHashPath(projectMatch[2] || '/')
   }
 
   return nextPath
@@ -90,13 +104,7 @@ export const createProjectRuntimeHref = (projectCode: string, path = '/') => {
     return `${runtimeConfig.basePath}#${hashPath}`
   }
 
-  const normalizedProjectCode = normalizeProjectCode(projectCode)
-
-  if (!normalizedProjectCode) {
-    return `/#${hashPath}`
-  }
-
-  return `/${encodeURIComponent(normalizedProjectCode)}/#${hashPath}`
+  return createProjectPathRuntimeHref(projectCode, hashPath)
 }
 
 export const redirectLegacyProjectHash = (hash = window.location.hash) => {
@@ -109,4 +117,16 @@ export const redirectLegacyProjectHash = (hash = window.location.hash) => {
   const [, projectId, path = '/', query = ''] = match
   window.location.href = createProjectRuntimeHref(projectId, `${path}${query}`)
   return true
+}
+
+export const isApplicationRuntime = () => {
+    const projectContext = getProjectContext()
+
+    if (projectContext) {
+        const { storage: projectStorage } = projectContext
+
+        return !!projectStorage.scope
+    }
+
+    return false
 }

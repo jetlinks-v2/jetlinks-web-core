@@ -17,7 +17,7 @@ export type MenuRuntimeOptions = {
     context: Pick<MenuRuntimeContext, 'asyncRoutes'>,
   ) => MaybePromise<any[]>
   afterHandleMenus?: (context: MenuRuntimeContext) => MaybePromise<void>
-  registerRoute?: (route: RouteRecordRaw) => void
+  registerRoute?: (route: RouteRecordRaw) => (() => void) | void
   routerPush?: (
     name: string,
     options?: MenuRuntimeRouterOptions,
@@ -38,6 +38,7 @@ export type MenuRuntimeContext = {
   menuMap: Map<string, any>
   menus: RouteRecordRaw[]
   authButtons: Record<string, string[]>
+  managedRouteNames: Set<string>
 }
 
 export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
@@ -49,6 +50,15 @@ export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
   const hasResponeMenu = ref(false)
   const initialized = ref(false)
   const authStore = useAuthStore()
+  let removeManagedRoutes: Array<() => void> = []
+  let managedRouteNames = new Set<string>()
+
+  const clearManagedRoutes = () => {
+    // Vue Router disposers remove only the server routes registered by the previous application.
+    removeManagedRoutes.reverse().forEach(removeRoute => removeRoute())
+    removeManagedRoutes = []
+    managedRouteNames = new Set()
+  }
 
   const hasRouteMenu = () => {
     return menu.value.some(route => route.path !== '/')
@@ -80,8 +90,10 @@ export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
     }
   }
 
-  const createRoutes = async (menuResult: any[]) => {
-    menusMap.value.clear()
+  const createRoutes = async (
+    menuResult: any[],
+    shouldApply: () => boolean = () => true,
+  ) => {
     const asyncRoutes = await options.getAsyncRoutes()
     const sourceMenus = await (options.prepareMenus?.(menuResult, { asyncRoutes }) || menuResult)
     const extraMenus = await options.resolveExtraMenus(sourceMenus, { asyncRoutes })
@@ -99,10 +111,29 @@ export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
       menuMap,
       menus: menus as RouteRecordRaw[],
       authButtons,
+      managedRouteNames: new Set(managedRouteNames),
     }
 
     await options.afterHandleMenus?.(context)
-    context.menuRoutes.forEach(route => options.registerRoute?.(route))
+    if (!shouldApply()) return
+
+    const nextManagedRouteNames = new Set<string>()
+    const collectManagedRouteNames = (routes: RouteRecordRaw[]) => {
+      routes.forEach(route => {
+        if (typeof route.name === 'string') nextManagedRouteNames.add(route.name)
+        if (route.children?.length) collectManagedRouteNames(route.children)
+      })
+    }
+
+    clearManagedRoutes()
+    context.menuRoutes.forEach(route => {
+      const removeRoute = options.registerRoute?.(route)
+      if (removeRoute) {
+        removeManagedRoutes.push(removeRoute)
+        collectManagedRouteNames([route])
+      }
+    })
+    managedRouteNames = nextManagedRouteNames
     menusMap.value = context.menuMap
     menu.value = context.menuRoutes
     siderMenus.value = context.menus
@@ -113,6 +144,7 @@ export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
   }
 
   const init = () => {
+    clearManagedRoutes()
     menusMap.value = new Map()
     menu.value = []
     siderMenus.value = []

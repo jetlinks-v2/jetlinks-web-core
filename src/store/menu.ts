@@ -3,85 +3,86 @@ import type { RouteRecordRaw } from 'vue-router'
 import router from '@jetlinks-web-core/router'
 import { setParamsValue } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
-import {modules, getBaseApi, isFromCloud} from '@jetlinks-web-core/utils'
+import {
+  isFromCloud,
+  isProjectRuntime,
+  normalizeProjectRuntimePath,
+} from '@jetlinks-web-core/utils'
 import { getOwnMenuThree } from '@jetlinks-web-core/api/system/menu'
 import { getGlobModules } from '@jetlinks-web-core/router/globModules'
 import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
-import type { RouteHideInMenuContext } from '@jetlinks-web-core/router/types'
-import { useApplication } from '@jetlinks-web-core/store'
 import i18n from '@jetlinks-web-core/locales'
-import { useProjectRouter } from '@/hooks'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
+import {
+  resolveMenuApplicationScope,
+  getApplicationScopeFromLocation,
+  isProjectApplicationScope,
+  type MenuApplicationScope,
+} from '@jetlinks-web-core/utils/application-scope'
+import type { MenuFilterConditions } from '@jetlinks-web-core/types/module'
 import { createMenuStoreRuntime } from './menuRuntime'
-import {OWNER_KEY} from "@/utils/consts";
+import { applyModuleMenuFilters } from './menuFilters'
+import { applyMenuRouteTargets } from './menuRouteTarget'
+import {
+  getCoreRouteOverrideMenus,
+  getFirstMenuPath,
+  prepareMicroApplicationMenus,
+} from './menuHelpers'
+import { useApplication } from './application'
+import { isSaaS } from '@/utils/consts'
 
 type OptionsType = {
   params?: Record<string, any>
   query?: Record<string, any>
 }
 
+type ProjectMenuItem = {
+    code: string
+    name: string
+    url: string
+    icon?: string
+    options?: Record<string, any>
+    meta?: Record<string, any>
+    children?: ProjectMenuItem[]
+    [key: string]: any
+}
+
+type QueryMenusOptions = {
+  applicationScope?: MenuApplicationScope
+  conditions?: MenuFilterConditions
+}
+
+type QueryMenusInput = MenuApplicationScope | QueryMenusOptions
+
 const $t = i18n.global.t
 
-const defaultOwnParams: any[] = [
-  {
-    terms: [
-      {
-        column: 'owner',
-        termType: 'eq',
-        value: OWNER_KEY,
-      },
-      {
-        column: 'owner',
-        termType: 'isnull',
-        value: '1',
-        type: 'or',
-      },
-    ],
-  }
-]
+// routeName is the stable target contract for virtual navigation domains such as project settings.
+const LEGACY_PROJECT_MENU_OPTION_KEYS = ['componentCode', 'authCode', 'authCodes']
 
-const shouldShowOverrideRoute = (
-  route: RouteRecordRaw,
-  context?: RouteHideInMenuContext,
-): boolean => {
-  const routeMeta = (route.meta || {}) as Record<string, any>
+const getDefaultOwnParams = (): any[] => []
 
-  if (typeof routeMeta.handleHideInMenuFn === 'function') {
-    try {
-      return routeMeta.handleHideInMenuFn(context) !== true
-    } catch (error) {
-      console.warn(
-        `[Menu Override] Skip dynamic filter for route "${String(route.name)}", fallback to static flag.`,
-        error,
-      )
-    }
-  }
+const isQueryMenusOptions = (value: QueryMenusInput): value is QueryMenusOptions => (
+  !!value
+  && typeof value === 'object'
+  && !Array.isArray(value)
+)
 
-  return routeMeta.hideInMenu !== true && routeMeta?.options?.show !== false
-}
+const resolveQueryMenusOptions = (
+  value?: QueryMenusInput,
+  conditions?: MenuFilterConditions,
+): QueryMenusOptions => (
+  isQueryMenusOptions(value)
+    ? value
+    : { applicationScope: value, conditions }
+)
 
-const transformCoreRouteToMenu = (
-  route: RouteRecordRaw,
-  context?: RouteHideInMenuContext,
-): RouteRecordRaw | null => {
-  const routeMeta = (route.meta || {}) as Record<string, any>
-  const children = (route.children || [])
-    .map(item => transformCoreRouteToMenu(item, context))
-    .filter(Boolean) as RouteRecordRaw[]
+const resolveRequestedApplicationScope = (applicationScope: MenuApplicationScope) => (
+  applicationScope === undefined ? getApplicationScopeFromLocation() : applicationScope
+)
 
-  if (!shouldShowOverrideRoute(route, context)) {
-    return null
-  }
-
-  if (!routeMeta.title && !children.length) {
-    return null
-  }
-
-  return {
-    ...route,
-    children: children.length ? children : undefined,
-  }
-}
+const shouldSuppressStorageApplicationScope = (applicationScope: MenuApplicationScope) => (
+  applicationScope === false || isProjectApplicationScope(applicationScope)
+)
 
 /**
  * 处理侧边栏路由，生成面包屑数据
@@ -106,26 +107,6 @@ export function handleSiderBreadcrumb(route: RouteRecordRaw[], parent?: Record<s
   })
 }
 
-const getCoreRouteOverrideMenus = (context?: RouteHideInMenuContext) => {
-  const modulesFile = modules()
-  const overrideMenuMap = new Map<string, RouteRecordRaw>()
-
-  Object.values(modulesFile).forEach((item: any) => {
-    const moduleOverrides = item.default.getCoreRouteOverrides?.() || []
-    moduleOverrides.forEach((override: RouteRecordRaw) => {
-
-      const _route = transformCoreRouteToMenu(override, context)
-      if (!_route) {
-        overrideMenuMap.delete(override.name)
-        return
-      }
-      overrideMenuMap.set(override.name, _route)
-    })
-  })
-
-  return [...overrideMenuMap.values()]
-}
-
 const hasRegisteredRoute = (route: RouteRecordRaw) => {
   if (route.name) {
     return router.hasRoute(route.name)
@@ -139,24 +120,63 @@ const registerMenuRoute = (route: RouteRecordRaw) => {
     return
   }
 
-  router.addRoute(route)
+  return router.addRoute(route)
 }
+
+const omitLegacyProjectMenuAliases = (source?: Record<string, any>) => {
+  if (!source) return source
+
+  // 项目端菜单以服务端 code/url 为唯一入口，避免旧壳层别名继续影响组件匹配和权限映射。
+  const result = { ...source }
+  LEGACY_PROJECT_MENU_OPTION_KEYS.forEach(key => {
+    delete result[key]
+  })
+  return result
+}
+
+const normalizeProjectMenuUrl = (item: any): any => ({
+  ...omitLegacyProjectMenuAliases(item),
+  url: typeof item.url === 'string' ? normalizeProjectRuntimePath(item.url) : item.url,
+  meta: omitLegacyProjectMenuAliases(item.meta),
+  options: item.options
+    ? {
+        ...omitLegacyProjectMenuAliases(item.options),
+        meta: omitLegacyProjectMenuAliases(item.options.meta),
+      }
+    : item.options,
+  children: item.children?.map(normalizeProjectMenuUrl),
+})
+
+const prepareRuntimeMenus = (menus: any[]) => (
+  isProjectRuntime()
+    ? menus.map(normalizeProjectMenuUrl)
+    : menus
+)
 
 export const useMenuStore = defineStore('menu', () => {
   const app = useApplication()
+    const rawMenus = ref<ProjectMenuItem[]>([])
+    const projectId = ref()
+
+
   const runtime = createMenuStoreRuntime({
     getAsyncRoutes: getGlobModules,
     resolveExtraMenus: () => getExtraRouters(),
+    prepareMenus: prepareRuntimeMenus,
     registerRoute: registerMenuRoute,
     routerPush: (name, options?: OptionsType) => {
       const _query = options?.query || {}
       const _params = options?.params || {}
       setParamsValue(name, _params)
-      if (getProjectIdFromLocation() && !isFromCloud()) {
-        const { push } = useProjectRouter()
-        push({
+      const runtimeProjectId = getProjectIdFromLocation()
+      if (runtimeProjectId && !isFromCloud()) {
+        // Menu navigation runs outside component setup, so use the router singleton and carry project context explicitly.
+        router.push({
           name,
-          params: _params,
+          params: {
+            ..._params,
+            projectId: _params.projectId || runtimeProjectId,
+          },
           query: _query,
         })
         return
@@ -170,7 +190,7 @@ export const useMenuStore = defineStore('menu', () => {
     },
     afterHandleMenus: (context) => {
       const overrideMenus = getCoreRouteOverrideMenus({
-        hasResponeMenu: runtime.hasResponeMenu.value,
+        hasResponeMenu: !!context.sourceMenus.length,
       })
       const overrideMenuKeys = new Set(context.menus.map(item => item.name))
       const mergedMenus = [
@@ -186,15 +206,16 @@ export const useMenuStore = defineStore('menu', () => {
 
       if (!router.hasRoute('saas-tenant-root')) {
         const defaultRedirect = import.meta.env.VITE_DEFAULT_REDIRECT_PATH || '/account'
-        const redirectUrl = context.menuRoutes.length ? context.menuRoutes[0].path : defaultRedirect
         context.menuRoutes.push({
           path: '/',
-          redirect: redirectUrl,
+          redirect: getFirstMenuPath(context.menuRoutes)
+            || (isSaaS ? '/403' : defaultRedirect),
         })
       }
 
       routerRoutes.forEach((item: any) => {
         if (typeof item.name !== 'string' || !item.path || !item.meta?.title) return
+        if (context.managedRouteNames.has(item.name)) return
         if (!context.menuMap.has(item.name)) {
           context.menuMap.set(item.name, { path: item.path, title: item.meta.title as string, routeName: item.name })
         }
@@ -204,64 +225,66 @@ export const useMenuStore = defineStore('menu', () => {
     },
   })
 
-  const queryMenus = async () => {
-    const resp = await getOwnMenuThree({
-      paging: false,
-      terms: defaultOwnParams,
-      sorts: [{ name: 'sortIndex', order: 'asc' }],
-    })
+  let menuRequestId = 0
 
-    const menuResult = Array.isArray(resp.result) ? resp.result : []
-    runtime.menuResultCache.value = JSON.parse(JSON.stringify(menuResult))
+  const queryMenus = async (
+    value?: QueryMenusInput,
+    conditions?: MenuFilterConditions,
+  ) => {
+    const requestId = ++menuRequestId
+    const queryOptions = resolveQueryMenusOptions(value, conditions)
+    const requestedApplicationScope = resolveRequestedApplicationScope(queryOptions.applicationScope)
+    const resolvedApplicationScope = resolveMenuApplicationScope(requestedApplicationScope)
 
-    if (app.appList.length > 0) {
-      const handleMicroApp = (nodes: any[]) => {
-        if (!nodes || nodes.length === 0) return
+    runtime.loading.value = true
+    try {
+      const resp = await getOwnMenuThree({
+        paging: false,
+        terms: getDefaultOwnParams(),
+        sorts: [{ name: 'sortIndex', order: 'asc' }],
+      })
 
-        for (const node of nodes) {
-          if (node.children && node.children.length > 0) {
-            handleMicroApp(node.children)
-          }
+      const menuResult = Array.isArray(resp.result) ? resp.result : []
 
-          if (node.options && node.options.appName) {
-            const appInfo = app.findAppById(node.options.appName)
+      // An older response must never replace the routes and permissions of the latest application.
+      if (requestId !== menuRequestId) return { applied: false }
 
-            let url = appInfo?.path
-            if (url && !url.startsWith('http') && !url.startsWith('/')) {
-              url = '/' + url
-            }
+      if (resp.success) {
+        // Module filters run before route generation so filtered menus never enter routes or permissions.
+        const filteredMenuResult = await applyModuleMenuFilters(menuResult, {
+          applicationScope: resolvedApplicationScope,
+          conditions: queryOptions.conditions,
+        })
+        if (requestId !== menuRequestId) return { applied: false }
 
-            if (url?.startsWith('/')) {
-              url = getBaseApi() + url
-            }
+        const targetedMenus = applyMenuRouteTargets(filteredMenuResult)
+        targetedMenus.issues.forEach((issue) => {
+          console.warn(
+            `[Menu Route Target] Keep "${issue.sourceCode}" in place: ${issue.type} "${issue.target}".`,
+          )
+        })
 
-            let isLocal = false
+        prepareMicroApplicationMenus(targetedMenus.menus, app)
 
-            if (import.meta.env.DEV) {
-              const modulesFile = modules()
-              isLocal = Object.values(modulesFile).some(v => {
-                const localMenus = (v as any).default.getAsyncRoutesMap()
-                return localMenus?.[node.code]
-              })
-            }
+        const context = await runtime.createRoutes(
+          targetedMenus.menus,
+          () => requestId === menuRequestId,
+        )
+        if (!context) return { applied: false }
 
-            if (!isLocal) {
-              node.meta = {
-                appName: node.options.appName,
-                appUrl: url,
-              }
-            }
-          }
+        runtime.menuResultCache.value = JSON.parse(JSON.stringify(targetedMenus.menus))
+        runtime.hasResponeMenu.value = !!targetedMenus.menus.length
+        runtime.loading.value = false
+        return {
+          applied: true,
+          firstMenuPath: getFirstMenuPath(context.menuRoutes),
         }
       }
 
-      handleMicroApp(menuResult)
-    }
-
-    if (resp.success) {
-      runtime.hasResponeMenu.value = !!menuResult.length
-      await runtime.createRoutes(menuResult)
-      runtime.loading.value = false
+      throw new Error(resp.message || 'Failed to load menus')
+    } catch (error) {
+      if (requestId === menuRequestId) runtime.loading.value = false
+      throw error
     }
   }
 
@@ -271,6 +294,12 @@ export const useMenuStore = defineStore('menu', () => {
 
   const getOwnerMenu = (owner: string) => {
     return runtime.menuResultCache.value.find((item) => item.owner === owner)
+  }
+
+  const init = () => {
+    // Logout invalidates in-flight responses so the previous account cannot repopulate this store.
+    menuRequestId += 1
+    runtime.init()
   }
 
   const jumpPage = (
@@ -304,6 +333,8 @@ export const useMenuStore = defineStore('menu', () => {
     queryMenus,
     getMenu: runtime.getMenu,
     createRoutes: runtime.createRoutes,
-    init: runtime.init,
+    init,
+      rawMenus,
+      projectId
   }
 })

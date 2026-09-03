@@ -124,6 +124,14 @@
         </div>
         <a-space>
           <template v-if="activeType === 'model' && isBuiltinConfigTab">
+            <a-button
+              v-if="configTab === 'definition'"
+              :disabled="editing"
+              @click="toggleDefinitionViewMode"
+            >
+              <AIcon :type="definitionViewMode === 'form' ? 'CodeOutlined' : 'FormOutlined'" />
+              {{ definitionViewMode === 'form' ? text.jsonFormat : text.formFormat }}
+            </a-button>
             <a-button v-if="!editing" @click="startEdit">
               <AIcon type="EditOutlined" />
               {{ text.edit }}
@@ -174,9 +182,48 @@
         </a-tabs>
       </div>
 
-      <section class="model-config__editor-wrap">
+      <section
+        class="model-config__editor-wrap"
+        :class="{ 'model-config__editor-wrap--definition': activeType === 'model' && configTab === 'definition' }"
+      >
         <div
-          v-if="activeType === 'model' && isExtraConfigTab"
+          v-if="activeType === 'model' && configTab === 'definition'"
+          class="model-config__definition-content"
+        >
+          <template v-if="definitionViewMode === 'form'">
+            <slot
+              name="definition-content"
+              :definition="definitionContent"
+              :editing="editing"
+              :files="files"
+              :model="model"
+              :update-definition="updateDefinitionContent"
+            >
+              <ModelParameterEditor
+                ref="definitionEditorRef"
+                :definition="definitionContent"
+                :editing="editing"
+                :files="files"
+                :locale="text"
+                @update:definition="updateDefinitionContent"
+              />
+            </slot>
+          </template>
+          <MonacoEditor
+            v-else
+            ref="editorRef"
+            v-model:modelValue="editorValue"
+            :key="editorKey"
+            class="model-config__editor"
+            theme="vs"
+            language="json"
+            :read-only="!editing"
+            :blur-format="true"
+            :options="{ minimap: { enabled: false }, wordWrap: 'on' }"
+          />
+        </div>
+        <div
+          v-else-if="activeType === 'model' && isExtraConfigTab"
           class="model-config__extra-content"
         >
           <slot
@@ -257,11 +304,14 @@
       :open="addFileVisible"
       :available-formats="availableFormats"
       :selected-owner="selectedOwner"
+      :existing-files="files"
       :editable-extensions="editableExtensions"
       :locale="text"
-      :show-custom-create="!!$slots['add-file-custom-create-option']"
+      :show-batch-upload="showBatchUpload"
+      :show-custom-create="showCustomCreate"
       @update:open="handleAddFileVisibleChange"
       @confirm="addFile"
+      @batch-confirm="batchAddFile"
     >
       <template #custom-create-option>
         <slot name="add-file-custom-create-option" />
@@ -275,12 +325,16 @@
 
 <script setup lang="ts">
 import type { PropType } from 'vue'
+import { useSlots } from 'vue'
 import { Modal } from 'ant-design-vue'
 import { onlyMessage } from '@jetlinks-web/utils'
 import MonacoEditor from '../MonacoEditor/monacoEditor.vue'
 import SectionCard from '../SectionCard/index.vue'
 import KvGrid from '../KvGrid/index.vue'
+import ModelParameterEditor from '../ModelParameterEditor/index.vue'
 import AddFileModal from './AddFileModal.vue'
+import { normalizeFilePath } from './fileOwnerOptions'
+import type { BatchAddFilePayload } from './batchFileUpload'
 
 interface FormatDetail {
   id: string
@@ -292,6 +346,10 @@ interface ExtraConfigTab {
   key: string
   label: string
   disabled?: boolean
+}
+
+interface DefinitionEditorExpose {
+  prepareForSave: () => Record<string, any> | undefined
 }
 
 interface TreeNode {
@@ -306,6 +364,8 @@ interface TreeNode {
 
 type LocaleText = Record<string, string>
 type BuiltinConfigTab = 'definition' | 'manifest'
+type DefinitionViewMode = 'form' | 'json'
+type CustomCreateVisible = (path?: string) => boolean
 
 const BUILTIN_CONFIG_TABS: BuiltinConfigTab[] = ['definition', 'manifest']
 
@@ -394,6 +454,8 @@ const defaultLocale: LocaleText = {
   addFile: '新增文件',
   noFiles: '暂无模型文件，先选择架构后上传文件',
   edit: '编辑',
+  jsonFormat: 'JSON格式',
+  formFormat: '表单格式',
   exitEdit: '退出编辑',
   save: '保存',
   delete: '删除',
@@ -419,6 +481,10 @@ const defaultLocale: LocaleText = {
   copyPath: '复制路径',
   copySuccess: '文件路径已复制',
   filePath: '文件路径',
+  appendPath: '可选追加子路径',
+  modelPurpose: '模型用途',
+  standardModel: '普通模型',
+  targetInferenceModel: '二次推理模型',
   fileName: '文件名称',
   businessType: '业务类型', businessTypePlaceholder: '请选择或输入业务类型',
   businessTypeOptionObjectDetection: '目标检测(object_detection)', businessTypeOptionPoseDetection: '人体姿态检测(pose_detection)',
@@ -460,6 +526,24 @@ const defaultLocale: LocaleText = {
   uploadCreateDescription: '上传文件到对应路径',
   extractCreateDescription: '上传压缩包，使用时解压到对应路径',
   emptyCreateDescription: '创建可在线编辑的文本文件',
+  batchUploadCreate: '批量上传',
+  batchUploadCreateDescription: '一次选择多个文件并逐项上传',
+  batchUploadTitle: '选择多个文件',
+  batchUploadDescription: '支持同时选择多个文件，上传前可逐项修改文件名',
+  batchUploadList: '待上传文件',
+  batchUploadTargetName: '保存文件名',
+  batchUploadOverwrite: '覆盖已有文件',
+  batchUploadConflict: '当前路径存在同名文件，请确认覆盖',
+  batchUploadDuplicate: '当前批次存在重复文件名',
+  batchUploadNameRequired: '请输入文件名',
+  batchUploadEmpty: '请完善文件信息',
+  batchUploadRetryHint: '失败文件可修改后重新点击确定重试',
+  batchUploadStatusPending: '待上传',
+  batchUploadStatusUploading: '上传中',
+  batchUploadStatusUploaded: '已上传',
+  batchUploadStatusSaving: '保存中',
+  batchUploadStatusSuccess: '已完成',
+  batchUploadStatusError: '失败',
   pleaseEnterArchiveFileName: '请上传 zip 或 tar 格式压缩包',
   rootDirectory: '根目录',
   currentFormatFile: '当前架构文件',
@@ -469,7 +553,33 @@ const defaultLocale: LocaleText = {
   modelFiles: '模型文件',
   codeFiles: '代码文件',
   skillFiles: '技能文件',
-  resizeFileDirectory: '调整文件目录宽度'
+  resizeFileDirectory: '调整文件目录宽度',
+  parameterConfig: '参数配置',
+  parameterConfigDescription: '定义用户可配置的模型参数',
+  validationFailed: '请完善配置项后再保存',
+  addParameter: '新增参数',
+  realtime: '实时推理',
+  imageTest: '图片推理',
+  userParameters: '用户参数',
+  defaultParameters: '默认参数',
+  others: '其他配置',
+  othersDescription: '模型其余配置',
+  realtimeUserDescription: '实时推理时，用户可配置参数的默认值',
+  realtimeDefaultDescription: '实时推理时，用户不可配置参数的默认值',
+  imageUserDescription: '图片推理时，用户可配置参数的默认值',
+  imageDefaultDescription: '图片推理时，用户不可配置参数的默认值',
+  parameterName: '名称',
+  parameterPath: '路径',
+  parameterType: '类型',
+  parameterDescription: '说明',
+  parameterValue: '值',
+  actions: '操作',
+  deleteParameter: '删除参数',
+  noParameters: '模型未声明可配置参数',
+  noSceneParameters: '请先在参数配置中选择适用参数',
+  pleaseEnter: '请输入参数值',
+  pleaseSelect: '请选择参数值',
+  configure: '配置'
 }
 
 const props = defineProps({
@@ -512,6 +622,14 @@ const props = defineProps({
   extraConfigTabs: {
     type: Array as PropType<ExtraConfigTab[]>,
     default: () => []
+  },
+  batchUploadOwners: {
+    type: Array as PropType<string[]>,
+    default: () => ['python', 'skill']
+  },
+  customCreateVisible: {
+    type: Function as PropType<CustomCreateVisible>,
+    default: undefined
   }
 })
 
@@ -519,6 +637,7 @@ const emit = defineEmits<{
   (e: 'load-files', payload: LoadFilesPayload): void
   (e: 'save-config', payload: SaveConfigPayload): void
   (e: 'add-file', payload: AddFileEventPayload): void
+  (e: 'batch-add-file', payload: BatchAddFilePayload): void
   (e: 'add-file-close'): void
   (e: 'save-file', payload: SaveFilePayload): void
   (e: 'replace-file', payload: ReplaceFilePayload): void
@@ -526,6 +645,7 @@ const emit = defineEmits<{
   (e: 'delete-file', file: ModelFile): void
 }>()
 
+const slots = useSlots()
 const text = computed(() => ({ ...defaultLocale, ...props.locale }))
 const selectedFormat = ref('')
 const selectedKeys = ref<string[]>([])
@@ -533,6 +653,7 @@ const files = ref<ModelFile[]>([])
 const activeType = ref<'model' | 'file'>('model')
 const selectedFile = ref<ModelFile>()
 const configTab = ref<string>('definition')
+const definitionViewMode = ref<DefinitionViewMode>('form')
 const editing = ref(false)
 const editorValue = ref('')
 const draftValue = ref('')
@@ -546,6 +667,24 @@ const localFormatDetails = ref<FormatDetail[][]>([])
 const editorRef = ref<{ layout?: () => void }>()
 const resizingSider = ref(false)
 const siderWidth = ref(280)
+const definitionEditorRef = ref<DefinitionEditorExpose>()
+
+const showCustomCreate = computed(() => {
+  if (!slots['add-file-custom-create-option']) return false
+  // Without a predicate, keep the original slot-driven behavior for existing callers.
+  return props.customCreateVisible
+    ? props.customCreateVisible(selectedOwner.value || undefined)
+    : true
+})
+
+const showBatchUpload = computed(() => {
+  const selectedPath = normalizeFilePath(selectedOwner.value)
+  if (!selectedPath) return false
+  return props.batchUploadOwners.some(owner => {
+    const ownerPath = normalizeFilePath(owner)
+    return !!ownerPath && (selectedPath === ownerPath || selectedPath.startsWith(`${ownerPath}/`))
+  })
+})
 
 const SIDER_WIDTH_STORAGE_KEY = 'jetlinks:model-config:sider-width'
 const SIDER_WIDTH_DEFAULT = 280
@@ -619,6 +758,13 @@ const availableConfigTabs = computed(() => [
 
 const isBuiltinConfigTab = computed(() => isBuiltinConfigTabKey(configTab.value))
 const isExtraConfigTab = computed(() => normalizedExtraConfigTabs.value.some(item => item.key === configTab.value))
+// Business modules can replace the definition Monaco editor while retaining ModelConfig's save-config contract.
+const definitionContent = computed(() => {
+  const parsed = parseJsonSilently(editorValue.value)
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+    ? parsed
+    : props.model?.definition || {}
+})
 
 const activeTitle = computed(() => {
   return activeType.value === 'model'
@@ -998,6 +1144,25 @@ function refreshEditorValue() {
   draftValue.value = editorValue.value
 }
 
+function updateDefinitionContent(value: Record<string, unknown>) {
+  editorValue.value = stringifyValue(value)
+}
+
+function toggleDefinitionViewMode() {
+  // Keep the two editors from holding competing drafts while a model definition is being edited.
+  if (editing.value || activeType.value !== 'model' || configTab.value !== 'definition') return
+  definitionViewMode.value = definitionViewMode.value === 'form' ? 'json' : 'form'
+}
+
+function parseJsonSilently(value: string) {
+  if (!value.trim()) return {}
+  try {
+    return JSON.parse(value)
+  } catch {
+    return undefined
+  }
+}
+
 function stringifyValue(value: unknown) {
   if (typeof value === 'string') {
     return value
@@ -1028,6 +1193,17 @@ async function saveEdit() {
     return
   }
   if (!isBuiltinConfigTabKey(configTab.value)) return
+  // The default definition editor validates its local parameter draft before the shared save event is emitted.
+  const definitionEditor = definitionEditorRef.value
+  if (
+    configTab.value === 'definition'
+    && definitionViewMode.value === 'form'
+    && definitionEditor
+    && definitionEditor.prepareForSave() === undefined
+  ) {
+    onlyMessage(text.value.validationFailed, 'error')
+    return
+  }
   const config = buildSaveConfigPayload(configTab.value)
   if (!config) return
   fileSaving.value = true
@@ -1072,6 +1248,29 @@ async function addFile(payload: AddFilePayload) {
   emit('add-file', {
     format: selectedFormat.value || payload.format?.[0] || '',
     file: normalizeAddFilePayload(payload),
+    done: (success = true) => {
+      if (success && targetFormat && selectedFormat.value) {
+        selectedFormat.value = targetFormat
+      }
+      completeFileCreate(success)
+      payload.done?.(success)
+    }
+  })
+}
+
+function batchAddFile(payload: BatchAddFilePayload) {
+  if (!modelId.value) {
+    payload.done?.(false)
+    return
+  }
+  const targetFormat = payload.format?.[0]
+  fileSaving.value = true
+  // 批量保存沿用弹窗中选择的文件归属，保持与旧创建方式的 file.format 契约一致。
+  emit('batch-add-file', {
+    path: payload.path,
+    format: payload.format,
+    files: payload.files,
+    update: payload.update,
     done: (success = true) => {
       if (success && targetFormat && selectedFormat.value) {
         selectedFormat.value = targetFormat
@@ -1584,7 +1783,18 @@ async function previewFile() {
   padding: var(--space-4);
 }
 
+.model-config__editor-wrap--definition {
+  padding-top: var(--space-2);
+}
+
 .model-config__extra-content {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.model-config__definition-content {
   min-width: 0;
   min-height: 0;
   height: 100%;

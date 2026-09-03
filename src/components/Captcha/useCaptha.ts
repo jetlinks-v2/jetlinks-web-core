@@ -1,5 +1,12 @@
 import { ref, watch, onUnmounted, type Ref } from 'vue'
-import { CaptchaConfig, CaptchaData, Track, TrackData, ValidationResponse } from './captcha'
+import {
+  CaptchaConfig,
+  CaptchaData,
+  CaptchaValidationResult,
+  CaptchaValidationSuccess,
+  Track,
+  TrackData
+} from './captcha'
 import { request } from '@jetlinks-web/core'
 import dayjs from 'dayjs'
 import CryptoJS from "crypto-js";
@@ -9,8 +16,9 @@ export interface UseCaptchaReturn {
   captchaData: Ref<CaptchaData | null>
   loading: Ref<boolean>
   error: Ref<Error | null>
+  imageWidth: Ref<number>
   generate: () => Promise<void>
-  validate: (trackData: TrackData) => Promise<boolean>
+  validate: (trackData: TrackData) => Promise<CaptchaValidationResult>
   refresh: () => Promise<void>
 }
 
@@ -56,12 +64,12 @@ export function useCaptcha(config: Ref<CaptchaConfig> | CaptchaConfig): UseCaptc
     return Array.from(new Uint8Array(buffer));
   }
 
-  function stringToBytes(str) {
+  function stringToBytes(str: string) {
     return Array.from(new TextEncoder().encode(str));
   }
 
   // 字节数组转CryptoJS的WordArray
-  function bytesToWordArray(bytes) {
+  function bytesToWordArray(bytes: number[]) {
     return CryptoJS.lib.WordArray.create(new Uint8Array(bytes));
   }
 
@@ -86,7 +94,7 @@ export function useCaptcha(config: Ref<CaptchaConfig> | CaptchaConfig): UseCaptc
     // return md5.finalize().toString(CryptoJS.enc.nixi);
 
     // 创建一个数组来存储所有字节
-    let dataWords = [];
+    let dataWords: number[] = [];
 
     for (const track of trackList) {
       // 处理每个track的x、y、t
@@ -123,25 +131,30 @@ export function useCaptcha(config: Ref<CaptchaConfig> | CaptchaConfig): UseCaptc
     }
   }
 
-  const validate = async (trackData: TrackData): Promise<boolean> => {
+  const validate = async (trackData: TrackData): Promise<CaptchaValidationResult> => {
 
 
     loading.value = true
     error.value = null
 
     try {
+      const currentCaptcha = captchaData.value
+      if (!currentCaptcha) {
+        return false
+      }
       const response = await request.post(
         configRef.value.validateUrl,
         {
-          id: captchaData.value.id,
+          id: currentCaptcha.id,
           data: normalizeTrackData(trackData)
         })
 
       if (response.success) {
-        configRef.value.onSuccess?.(response.result)
-        return true
+        const successResult = (response.result ?? response.data ?? true) as CaptchaValidationSuccess
+        configRef.value.onSuccess?.(successResult)
+        return successResult
       } else {
-        configRef.value.onFail?.(response.result)
+        configRef.value.onFail?.(response.result ?? response.data)
         return false
       }
     } catch (err) {

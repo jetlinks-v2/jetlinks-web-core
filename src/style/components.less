@@ -1,0 +1,96 @@
+.ant-modal-content {
+  padding: 0 !important;
+  border-radius: var(--jet-theme-radius) !important;
+  .ant-modal-header {
+    padding: var(--space-6) var(--space-6) 0 var(--space-6);
+    border-radius: var(--jet-theme-radius) var(--jet-theme-radius) 0 0 !important;
+    .ant-modal-title {
+      border-bottom: 1px solid var(--jet-theme-border-secondary);
+      padding-bottom: var(--space-4);
+    }
+  }
+
+  .ant-modal-body {
+    padding: var(--space-2) var(--space-6) !important;
+  }
+
+  .ant-modal-footer {
+    box-shadow: 0 -8px 20px 0 rgba(0, 0, 0, 0.08);
+    padding: var(--space-2) var(--space-5);
+  }
+}
+
+#app {
+  .ant-tree:not(.ant-tree-show-line) {
+    background: transparent;
+    color: var(--ink-2);
+    .ant-tree-list-holder-inner {
+      gap: 0;
+
+      // 仅约束列表内的可见节点，避免撑宽 Ant Tree 挂在根节点下的隐藏测量节点。
+      .ant-tree-treenode {
+        position: relative;
+        width: 100%;
+        align-items: center;
+        min-height: 2.5rem;
+        padding: 0;
+        overflow: hidden;
+      }
+    }
+
+    .ant-tree-treenode:hover {
+      background: linear-gradient(90deg, var(--accent-soft) 0%, transparent 100%);
+    }
+
+    .ant-tree-treenode-selected {
+      background: linear-gradient(90deg, var(--accent-soft) 0%, transparent 100%);
+    }
+
+    .ant-tree-indent-unit {
+      width: var(--space-4);
+    }
+
+    .ant-tree-switcher {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--space-4);
+      height: 2.5rem;
+      color: var(--ink-3);
+    }
+
+    .ant-tree-switcher .anticon {
+      font-size: var(--fs-14);
+      transform: scale(0.72);
+    }
+
+    .ant-tree-switcher_open .anticon {
+      color: var(--ink-3);
+    }
+
+    .ant-tree-treenode:has(.is-active) .ant-tree-switcher {
+      color: var(--accent);
+    }
+
+    .ant-tree-node-content-wrapper {
+      position: relative;
+      z-index: 1;
+      display: block;
+      width: 100%;
+      min-width: 0;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    .ant-tree-node-content-wrapper:hover,
+    .ant-tree-node-content-wrapper.ant-tree-node-selected {
+      background: transparent;
+    }
+  }
+}
+
+.pro-table__no-padding {
+    padding: 0 !important;
+}

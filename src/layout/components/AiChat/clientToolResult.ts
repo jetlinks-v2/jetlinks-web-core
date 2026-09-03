@@ -9,6 +9,8 @@ export type AiClientToolFieldSemanticRole =
   | 'timestamp'
   | 'number'
   | 'category'
+  /** Display-only row text; it must not be interpreted as a grouping dimension. */
+  | 'label'
   | 'longitude'
   | 'latitude'
   | 'geo_point'
@@ -58,6 +60,8 @@ export interface AiClientToolMetricDescriptor {
 
 export interface AiClientToolOutputBinding {
   name: string
+  /** Static producer resource category copied from the owning typed port. */
+  type?: string
   /** Optional user-facing binding label; execution continues to use the stable name. */
   label?: string
   ref?: string
@@ -233,7 +237,7 @@ const boundedStructuredRecord = (value: unknown) => {
 }
 
 const BINDING_SEMANTIC_ROLES = new Set<AiClientToolFieldSemanticRole>([
-  'timestamp', 'number', 'category', 'longitude', 'latitude', 'geo_point', 'identifier', 'state', 'duration',
+  'timestamp', 'number', 'category', 'label', 'longitude', 'latitude', 'geo_point', 'identifier', 'state', 'duration',
 ])
 
 const boundedBindingFields = (values: AiClientToolOutputField[] | undefined) => (
@@ -317,6 +321,7 @@ const boundedMetric = (value: AiClientToolMetricDescriptor | undefined) => {
 export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBinding[] | undefined) => (
   (values || []).flatMap((value) => {
     const name = String(value?.name || '').trim().slice(0, 160)
+    const type = String(value?.type || '').trim().toLowerCase().slice(0, 64)
     const label = String(value?.label || '').trim().slice(0, 120)
     const ref = String(value?.ref || '').trim().slice(0, 512)
     const path = String(value?.path || '').trim().slice(0, 512)
@@ -333,6 +338,7 @@ export const normalizeAiClientToolOutputBindings = (values: AiClientToolOutputBi
     const coverage = boundedStructuredRecord(value.coverage)
     return [{
       name,
+      ...(type ? { type } : {}),
       ...(label ? { label } : {}),
       ...(ref ? { ref } : {}),
       ...(path ? { path } : {}),

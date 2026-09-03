@@ -14,16 +14,32 @@
   >
     <a-form layout="vertical" :disabled="confirming">
       <a-row :gutter="16">
-        <a-col :span="10">
+        <a-col :span="isModelFilePath ? 8 : 10">
           <a-form-item :label="locale.filePath">
             <a-input
+              v-if="fixedPathPrefix"
+              v-model:value="pathAppend"
+              :addon-before="`${fixedPathPrefix}/`"
+              :placeholder="locale.appendPath"
+            />
+            <a-input
+              v-else
               v-model:value="form.path"
               :placeholder="locale.rootDirectory"
               :disabled="pathReadonly"
             />
           </a-form-item>
         </a-col>
-        <a-col :span="14">
+        <a-col v-if="isModelFilePath" :span="8">
+          <a-form-item :label="locale.modelPurpose" required>
+            <a-select
+              v-model:value="modelPurpose"
+              :options="modelPurposeOptions"
+              style="width: 100%"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="isModelFilePath ? 8 : 14">
           <a-form-item required>
             <template #label>
               <span>{{ locale.fileOwner }}</span>
@@ -48,74 +64,91 @@
         </template>
         <a-radio-group v-model:value="form.createType">
           <a-radio-button value="upload">{{ locale.uploadCreate }}</a-radio-button>
-          <a-radio-button value="extract">{{ locale.extractCreate }}</a-radio-button>
-          <a-radio-button value="empty">{{ locale.emptyCreate }}</a-radio-button>
+          <a-radio-button v-if="showBatchUpload" value="batch">
+            {{ locale.batchUploadCreate }}
+          </a-radio-button>
+          <a-radio-button v-if="!isModelFilePath" value="extract">
+            {{ locale.extractCreate }}
+          </a-radio-button>
+          <a-radio-button v-if="!isModelFilePath" value="empty">
+            {{ locale.emptyCreate }}
+          </a-radio-button>
           <a-radio-button v-if="showCustomCreate" value="custom">
             <slot name="custom-create-option" />
           </a-radio-button>
         </a-radio-group>
       </a-form-item>
-      <slot
-        v-if="form.createType === 'custom'"
-        name="custom-create-content"
-        :set-file-name="setFileName"
-        :set-file-owner="setFileOwner"
+      <BatchFileUploadContent
+        v-if="form.createType === 'batch'"
+        ref="batchUploadRef"
+        :path="form.path"
+        :existing-files="existingFiles"
+        :locale="locale"
+        :disabled="confirming"
       />
-      <a-form-item v-if="form.createType === 'upload' || form.createType === 'extract'" :label="locale.selectFile" required>
-        <a-upload
-          v-model:file-list="uploadFiles"
-          :max-count="1"
-          :before-upload="beforeUpload"
-          @remove="removeFile"
-        >
-          <a-button>
-            <AIcon type="UploadOutlined" />
-            {{ locale.selectFile }}
-          </a-button>
-        </a-upload>
-      </a-form-item>
-      <a-form-item :label="locale.fileName" required>
-        <a-input
-          v-model:value="form.name"
-          :placeholder="locale.pleaseEnterFileName"
-          :addon-after="modelFileNameSuffix || undefined"
+      <template v-else>
+        <slot
+          v-if="form.createType === 'custom'"
+          name="custom-create-content"
+          :set-file-name="setFileName"
+          :set-file-owner="setFileOwner"
         />
-      </a-form-item>
-      <a-row v-if="isModelFilePath" :gutter="16">
-        <a-col :span="8">
-          <a-form-item :label="locale.businessType" required>
-            <a-auto-complete
-              :key="`business-${autocompleteResetKey}`"
-              v-model:value="businessTypeInput"
-              :options="businessTypeOptions"
-              :filter-option="filterModelFileOption"
-              :placeholder="locale.businessTypePlaceholder"
-            />
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item :label="locale.modelBusiness" required>
-            <a-auto-complete
-              :key="`algorithm-${autocompleteResetKey}`"
-              v-model:value="algorithmModelInput"
-              :options="algorithmModelOptions"
-              :filter-option="filterModelFileOption"
-              :placeholder="locale.modelBusinessPlaceholder"
-            />
-          </a-form-item>
-        </a-col>
-        <a-col :span="8">
-          <a-form-item :label="locale.modelFileFormat" required>
-            <a-auto-complete
-              :key="`format-${autocompleteResetKey}`"
-              v-model:value="modelFileFormatInput"
-              :options="modelFileFormatOptions"
-              :filter-option="filterModelFileOption"
-              :placeholder="locale.modelFileFormatPlaceholder"
-            />
-          </a-form-item>
-        </a-col>
-      </a-row>
+        <a-form-item v-if="form.createType === 'upload' || form.createType === 'extract'" :label="locale.selectFile" required>
+          <a-upload
+            v-model:file-list="uploadFiles"
+            :max-count="1"
+            :before-upload="beforeUpload"
+            @remove="removeFile"
+          >
+            <a-button>
+              <AIcon type="UploadOutlined" />
+              {{ locale.selectFile }}
+            </a-button>
+          </a-upload>
+        </a-form-item>
+        <a-form-item :label="locale.fileName" required>
+          <a-input
+            v-model:value="form.name"
+            :placeholder="locale.pleaseEnterFileName"
+            :addon-after="modelFileNameSuffix || undefined"
+          />
+        </a-form-item>
+        <a-row v-if="isModelFilePath" :gutter="16">
+          <a-col :span="8">
+            <a-form-item :label="locale.businessType" required>
+              <a-auto-complete
+                :key="`business-${autocompleteResetKey}`"
+                v-model:value="businessTypeInput"
+                :options="businessTypeOptions"
+                :filter-option="filterModelFileOption"
+                :placeholder="locale.businessTypePlaceholder"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item :label="locale.modelBusiness" required>
+              <a-auto-complete
+                :key="`algorithm-${autocompleteResetKey}`"
+                v-model:value="algorithmModelInput"
+                :options="algorithmModelOptions"
+                :filter-option="filterModelFileOption"
+                :placeholder="locale.modelBusinessPlaceholder"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item :label="locale.modelFileFormat" required>
+              <a-auto-complete
+                :key="`format-${autocompleteResetKey}`"
+                v-model:value="modelFileFormatInput"
+                :options="modelFileFormatOptions"
+                :filter-option="filterModelFileOption"
+                :placeholder="locale.modelFileFormatPlaceholder"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </template>
     </a-form>
   </a-modal>
 </template>
@@ -123,7 +156,26 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import { onlyMessage } from '@jetlinks-web/utils'
-import { buildFileOwnerOptions, isModelFilePath as checkModelFilePath, SHARED_OWNER_VALUE, type FileOwnerFormatOption } from './fileOwnerOptions'
+import {
+  buildFileOwnerOptions,
+  isModelFilePath as checkModelFilePath,
+  isTargetInferenceModelPath,
+  MODEL_FILE_PATH,
+  normalizeFilePath,
+  SHARED_OWNER_VALUE,
+  TARGET_INFERENCE_MODEL_PATH,
+  type FileOwnerFormatOption
+} from './fileOwnerOptions'
+import BatchFileUploadContent from './BatchFileUploadContent.vue'
+import type {
+  BatchAddFilePayload,
+  BatchFileStatusUpdate,
+  BatchFileUploadItem,
+  ExistingModelFile
+} from './batchFileUpload'
+
+type ModelPurpose = 'standard' | 'targetInference'
+type CreateType = 'upload' | 'extract' | 'empty' | 'custom' | 'batch'
 interface AddFilePayload {
   name: string
   path?: string
@@ -156,6 +208,14 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  existingFiles: {
+    type: Array as PropType<ExistingModelFile[]>,
+    default: () => []
+  },
+  showBatchUpload: {
+    type: Boolean,
+    default: false
+  },
   showCustomCreate: {
     type: Boolean,
     default: false
@@ -169,9 +229,16 @@ const props = defineProps({
 const emit = defineEmits<{
   (e: 'update:open', value: boolean): void
   (e: 'confirm', payload: AddFilePayload): void
+  (e: 'batch-confirm', payload: BatchAddFilePayload): void
 }>()
 
-const form = reactive<AddFilePayload>({
+const form = reactive<{
+  name: string
+  path?: string
+  format?: string[]
+  createType: CreateType
+  file?: File
+}>({
   name: '',
   path: '',
   createType: 'upload',
@@ -179,11 +246,17 @@ const form = reactive<AddFilePayload>({
 })
 const uploadFiles = ref<any[]>([])
 const selectedOwnerFormat = ref<string>()
+const modelPurpose = ref<ModelPurpose>('standard')
 const businessTypeInput = ref('')
 const algorithmModelInput = ref('')
 const modelFileFormatInput = ref('')
 const confirming = ref(false)
 const autocompleteResetKey = ref(0)
+const pathAppend = ref('')
+const batchUploadRef = ref<{
+  prepareForSave: () => BatchFileUploadItem[] | undefined
+  updateStatus: (index: number, update: BatchFileStatusUpdate) => void
+}>()
 
 function createModelFileOption(label: string, rawValue: string): ModelFileOption {
   const displayLabel = label || rawValue
@@ -231,6 +304,11 @@ const algorithmModelOptions = computed<ModelFileOption[]>(() => [
 const modelFileFormatOptions: ModelFileOption[] = ['plan', 'onnx', 'bin', 'rknn', 'bmodel', 'om']
   .map(value => createModelFileOption(`.${value}`, value))
 
+const modelPurposeOptions = computed(() => [
+  { label: props.locale.standardModel, value: 'standard' },
+  { label: props.locale.targetInferenceModel, value: 'targetInference' }
+])
+
 // AutoComplete 选中后显示 label，真实文件名后缀仍使用 rawValue。
 const businessType = computed(() => resolveModelFileOptionValue(businessTypeInput.value, businessTypeOptions.value))
 const algorithmModel = computed(() => resolveModelFileOptionValue(algorithmModelInput.value, algorithmModelOptions.value))
@@ -243,6 +321,46 @@ watch(() => form.createType, (createType) => {
   }
   if (createType === 'custom') {
     selectedOwnerFormat.value = undefined
+  }
+})
+
+watch(modelPurpose, (purpose) => {
+  if (!props.open) return
+  if (purpose === 'targetInference') {
+    form.path = TARGET_INFERENCE_MODEL_PATH
+    if (form.createType === 'empty' || form.createType === 'extract') {
+      form.createType = 'upload'
+    }
+    return
+  }
+  if (isTargetInferenceModelPath(form.path)) {
+    const selectedPath = normalizeFilePath(props.selectedOwner)
+    form.path = isTargetInferenceModelPath(selectedPath) || !selectedPath ? MODEL_FILE_PATH : selectedPath
+  }
+})
+
+watch(() => form.path, (path) => {
+  if (!props.open || modelPurpose.value === 'targetInference') return
+  // 模型文件只允许直接上传；切换路径时清理已隐藏的内置创建方式。
+  if (checkModelFilePath(path) && (form.createType === 'empty' || form.createType === 'extract')) {
+    form.createType = 'upload'
+  }
+  if (isTargetInferenceModelPath(path)) {
+    modelPurpose.value = 'targetInference'
+  }
+})
+
+watch(pathAppend, (append) => {
+  if (!fixedPathPrefix.value) return
+  const normalizedAppend = normalizeFilePath(append)
+  form.path = normalizedAppend
+    ? `${fixedPathPrefix.value}/${normalizedAppend}`
+    : fixedPathPrefix.value
+})
+
+watch(() => props.showBatchUpload, (visible) => {
+  if (!visible && form.createType === 'batch') {
+    form.createType = 'upload'
   }
 })
 
@@ -281,7 +399,11 @@ const normalizeModelFileFormat = (format: string) => {
 }
 
 const isModelFilePath = computed(() => checkModelFilePath(form.path))
-const pathReadonly = computed(() => checkModelFilePath(props.selectedOwner))
+const pathReadonly = computed(() => modelPurpose.value === 'targetInference' || checkModelFilePath(props.selectedOwner))
+const fixedPathPrefix = computed(() => {
+  const selectedPath = normalizeFilePath(props.selectedOwner)
+  return selectedPath && !checkModelFilePath(selectedPath) ? selectedPath : ''
+})
 const ownerOptions = computed(() => buildFileOwnerOptions(props.availableFormats, props.locale, isModelFilePath.value))
 
 // AutoComplete 展示选项文案，提交状态始终保留文件归属的原始值。
@@ -299,7 +421,12 @@ watch(() => props.open, (open) => {
     autocompleteResetKey.value += 1
     confirming.value = false
     form.name = ''
-    form.path = props.selectedOwner
+    modelPurpose.value = 'standard'
+    const selectedPath = normalizeFilePath(props.selectedOwner)
+    form.path = isTargetInferenceModelPath(selectedPath)
+      ? MODEL_FILE_PATH
+      : fixedPathPrefix.value || selectedPath
+    pathAppend.value = ''
     selectedOwnerFormat.value = isModelFilePath.value ? undefined : SHARED_OWNER_VALUE
     form.createType = 'upload'
     form.format = []
@@ -324,7 +451,7 @@ watch(isModelFilePath, (modelFilePath) => {
 
 const modelFileNameSuffix = computed(() => {
   if (!isModelFilePath.value) return ''
-  // 模型文件保存时要求业务类型、算法模型、模型格式三段后缀进入真实文件名。
+  // 两类模型文件均使用业务类型、算法模型、模型格式三段后缀。
   const business = businessType.value.trim()
   const algorithm = algorithmModel.value.trim()
   const fileFormat = normalizeModelFileFormat(modelFileFormat.value)
@@ -344,11 +471,12 @@ const ownerDescription = computed(() => {
 })
 
 const createTypeDescription = computed(() => {
-  const descriptionMap: Record<AddFilePayload['createType'], string> = {
+  const descriptionMap: Record<CreateType, string> = {
     upload: props.locale.uploadCreateDescription,
     extract: props.locale.extractCreateDescription,
     empty: props.locale.emptyCreateDescription,
-    custom: ''
+    custom: '',
+    batch: props.locale.batchUploadCreateDescription
   }
   return descriptionMap[form.createType]
 })
@@ -360,6 +488,10 @@ const cancel = () => {
 
 const confirm = () => {
   if (confirming.value) return
+  if (form.createType === 'batch') {
+    confirmBatchFiles()
+    return
+  }
   if (!form.name) {
     onlyMessage(props.locale.pleaseEnterFileName, 'warning')
     return
@@ -399,6 +531,32 @@ const confirm = () => {
     format: selectedOwnerFormat.value === SHARED_OWNER_VALUE ? [] : [selectedOwnerFormat.value],
     createType: form.createType,
     file: form.file,
+    done: (success = true) => {
+      confirming.value = false
+      if (success) {
+        emit('update:open', false)
+      }
+    }
+  })
+}
+
+function confirmBatchFiles() {
+  const files = batchUploadRef.value?.prepareForSave()
+  if (!files?.length) {
+    onlyMessage(props.locale.batchUploadEmpty, 'warning')
+    return
+  }
+  if (!selectedOwnerFormat.value) {
+    onlyMessage(props.locale.selectFileOwner, 'warning')
+    return
+  }
+
+  confirming.value = true
+  emit('batch-confirm', {
+    path: form.path?.trim() || undefined,
+    format: selectedOwnerFormat.value === SHARED_OWNER_VALUE ? [] : [selectedOwnerFormat.value],
+    files,
+    update: (index, update) => batchUploadRef.value?.updateStatus(index, update),
     done: (success = true) => {
       confirming.value = false
       if (success) {

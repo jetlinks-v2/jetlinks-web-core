@@ -488,7 +488,10 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     const menus = selectedMenus().map(source => {
       const menu = cloneDeep(source)
       menu.granted = !!source.granted
-      menu.buttons = buttonsOf(source).map(button => ({ ...cloneDeep(button), granted: !!button.granted }))
+      // 部分授权接口按 buttons 数组存在即授权，快照只提交真实勾选的按钮。
+      menu.buttons = buttonsOf(source)
+        .filter(button => button.granted === true)
+        .map(button => ({ ...cloneDeep(button), granted: true }))
       delete menu.children
       delete menu.actions
       // 后端仍会校验已授权菜单的菜单级资产权限，独立策略提交期间需同步最小兼容字段。

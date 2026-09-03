@@ -7,7 +7,11 @@
       :getPopupContainer="resolvePopupContainer"
     >
       <a-badge :count="total" :overflow-count="BADGE_OVERFLOW_COUNT" :offset="[3, -3]">
-        <AIcon class="notice-icon" :type="props.icon" />
+          <a-avatar :size="30" class="layout-sidebar-user__avatar" style="background: #fff">
+              <template #icon>
+                <AIcon class="notice-icon" :type="props.icon" />
+              </template>
+          </a-avatar>
       </a-badge>
       <template #overlay>
         <div>
