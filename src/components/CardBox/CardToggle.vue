@@ -1,6 +1,8 @@
 <template>
   <CardSelect
     class="card-toggle-select"
+    :class="{ 'card-toggle-select--borderless': !bordered }"
+    :style="appearanceStyle"
     :value="selectedValue"
     :options="options"
     :column="1"
@@ -62,10 +64,12 @@
 <script setup lang="ts" name="CardToggle">
 import { CardSelect } from '@jetlinks-web/components'
 import { computed, type PropType } from 'vue'
+import { cardAppearanceProps, useCardAppearanceStyle } from './appearance'
 import CardAvatar from './CardAvatar.vue'
 import type { CardToggleData } from './types'
 
 const props = defineProps({
+  ...cardAppearanceProps,
   data: {
     type: Object as PropType<CardToggleData>,
     required: true,
@@ -83,6 +87,8 @@ const props = defineProps({
     default: false,
   },
 })
+
+const appearanceStyle = useCardAppearanceStyle(() => props.backgroundOpacity)
 
 const emit = defineEmits<{
   (event: 'click', data: CardToggleData): void
@@ -125,26 +131,32 @@ const handleCheckedChange = (checked: boolean | string | number) => {
 .card-toggle-select :deep(.j-card-select-item) {
   overflow: hidden;
   padding: 0;
-  border: var(--jet-theme-stroke-width) solid var(--card-shell-border);
-  border-radius: var(--card-shell-radius);
-  background: var(--card-shell-bg);
+  border: var(--jet-theme-stroke-width) solid var(--jet-theme-border-color-1);
+  border-radius: var(--r-6);
+  background: var(--card-box-background);
   box-shadow: var(--card-shell-shadow);
   transition: var(--card-shell-transition);
 }
 
 .card-toggle-select :deep(.j-card-select-item:hover) {
-  border-color: var(--card-shell-border-hover);
+  border-color: var(--jet-theme-border-color-1);
   box-shadow: var(--card-shell-shadow-hover);
 }
 
 .card-toggle-select :deep(.j-card-select-item.active) {
   border-color: var(--card-shell-border-active);
-  background: var(--card-shell-bg-active);
+  background: var(--card-box-background-active);
   box-shadow: var(--card-shell-shadow-active);
 }
 
 .card-toggle-select :deep(.j-card-select-item.disabled) {
   opacity: var(--card-shell-disabled-opacity);
+}
+
+.card-toggle-select--borderless :deep(.j-card-select-item),
+.card-toggle-select--borderless :deep(.j-card-select-item:hover),
+.card-toggle-select--borderless :deep(.j-card-select-item.active) {
+  border-color: transparent;
 }
 
 .card-toggle {

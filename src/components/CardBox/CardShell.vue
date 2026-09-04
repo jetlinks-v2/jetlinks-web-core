@@ -3,9 +3,11 @@
     class="card-shell"
     :class="{
       'card-shell--active': active,
+      'card-shell--borderless': !bordered,
       'card-shell--disabled': disabled,
       'card-shell--interactive': interactive,
     }"
+    :style="appearanceStyle"
     :role="interactive ? 'button' : undefined"
     :tabindex="interactive && !disabled ? 0 : undefined"
     :aria-label="ariaLabel"
@@ -20,7 +22,10 @@
 </template>
 
 <script setup lang="ts" name="CardShell">
+import { cardAppearanceProps, useCardAppearanceStyle } from './appearance'
+
 const props = defineProps({
+  ...cardAppearanceProps,
   active: {
     type: Boolean,
     default: false,
@@ -39,6 +44,8 @@ const props = defineProps({
   },
 })
 
+const appearanceStyle = useCardAppearanceStyle(() => props.backgroundOpacity)
+
 const emit = defineEmits<{
   (event: 'click', nativeEvent: MouseEvent | KeyboardEvent): void
 }>()
@@ -55,9 +62,9 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border: var(--jet-theme-stroke-width) solid var(--card-shell-border);
-  border-radius: var(--card-shell-radius);
-  background: var(--card-shell-bg);
+  border: var(--jet-theme-stroke-width) solid var(--jet-theme-border-color-1);
+  border-radius: var(--r-6);
+  background: var(--card-box-background);
   box-shadow: var(--card-shell-shadow);
   color: var(--ink-1);
   transition: var(--card-shell-transition);
@@ -68,7 +75,7 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
 }
 
 .card-shell--interactive:hover {
-  border-color: var(--card-shell-border-hover);
+  border-color: var(--jet-theme-border-color-1);
   box-shadow: var(--card-shell-shadow-hover);
 }
 
@@ -80,12 +87,19 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
 
 .card-shell--active {
   border-color: var(--card-shell-border-active);
-  background: var(--card-shell-bg-active);
+  background: var(--card-box-background-active);
   box-shadow: var(--card-shell-shadow-active);
 }
 
 .card-shell--disabled {
   cursor: not-allowed;
   opacity: var(--card-shell-disabled-opacity);
+}
+
+.card-shell--borderless,
+.card-shell--borderless:hover,
+.card-shell--borderless:focus-visible,
+.card-shell--borderless.card-shell--active {
+  border-color: transparent;
 }
 </style>

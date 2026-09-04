@@ -74,6 +74,7 @@ import MarketplaceInstallStream from './MarketplaceInstallStream/index.vue'
 import StatusPill from './StatusPill/index.vue'
 import CheckboxGroup from './CheckboxGroup/index.vue'
 import PageActions from './PageActions/index.vue'
+import SvgIcon from './SvgIcon/index.vue'
 
 export default {
     install(app: App) {
@@ -152,6 +153,7 @@ export default {
           .component('StatusPill', StatusPill)
           .component('CheckboxGroup', CheckboxGroup)
           .component('PageActions', PageActions)
+          .component('SvgIcon', SvgIcon)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
@@ -176,7 +178,10 @@ export {
     MetricCards,
     MarketplaceInstallStream,
     StatusPill,
+    SvgIcon,
 }
+export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
+export type { SvgIconType } from './SvgIcon/icons'
 export type {
     CardAvatarData,
     CardMetaItem,

@@ -31,6 +31,13 @@
 | `disabled` | `boolean` | 禁止点击和键盘触发 |
 | `click` | `(data, nativeEvent)` | 返回当前数据和原生事件 |
 
+默认导出的 `CardBox` 及全部公开卡片变体还支持以下外观配置：
+
+| 属性 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `bordered` | `boolean` | `true` | 是否显示 `#ECEFF3`（`--jet-theme-border-color-1`）边框。 |
+| `backgroundOpacity` | `number` | `100` | 主题背景色的不透明度，支持 `0` 到 `100` 的任意数值。 |
+
 `CardToggle` 额外提供：
 
 | 属性 / 事件 | 类型 | 说明 |
@@ -43,6 +50,8 @@
 <CardSummary
   :data="summary"
   :active="summaryActive"
+  :bordered="false"
+  :background-opacity="80"
   @click="handleSelect"
 />
 ```
@@ -51,7 +60,7 @@
 
 ## 样式约束
 
-- 卡片颜色、字号、间距、圆角、阴影、状态和选中态只引用 `src/style.css` token。
+- 卡片圆角统一为 `var(--r-6)`，默认边框使用 `var(--jet-theme-border-color-1)`；主题背景通过 `backgroundOpacity` 配置透明度。
 - active 使用完整边框、弱背景和 focus ring，不使用单侧彩色线条表达选中状态。
 - 各组件 scoped CSS 只负责编排结构，不定义新的品牌色、字号或阴影体系。
 
