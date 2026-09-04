@@ -2,6 +2,8 @@
   <CardShell
     :active="active"
     :disabled="disabled"
+    :bordered="bordered"
+    :background-opacity="backgroundOpacity"
     :aria-label="data.title"
     @click="handleClick"
   >
@@ -47,11 +49,13 @@
 <script setup lang="ts" name="CardStatus">
 import type { PropType } from 'vue'
 import StatusTag from '../StatusTag/index.vue'
+import { cardAppearanceProps } from './appearance'
 import CardAvatar from './CardAvatar.vue'
 import CardShell from './CardShell.vue'
 import type { CardStatusData } from './types'
 
 const props = defineProps({
+  ...cardAppearanceProps,
   data: {
     type: Object as PropType<CardStatusData>,
     required: true,

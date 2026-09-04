@@ -2,6 +2,8 @@
   <CardShell
     :active="active"
     :disabled="disabled"
+    :bordered="bordered"
+    :background-opacity="backgroundOpacity"
     :aria-label="data.title"
     @click="handleClick"
   >
@@ -25,10 +27,12 @@
 
 <script setup lang="ts" name="CardSuggestion">
 import type { PropType } from 'vue'
+import { cardAppearanceProps } from './appearance'
 import CardShell from './CardShell.vue'
 import type { CardSuggestionData } from './types'
 
 const props = defineProps({
+  ...cardAppearanceProps,
   data: {
     type: Object as PropType<CardSuggestionData>,
     required: true,

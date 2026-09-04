@@ -1,8 +1,17 @@
 ﻿<template>
-  <div class="card a-table-card-box">
+  <div
+      class="card a-table-card-box"
+      :class="{ 'card--active': active, 'card--borderless': !bordered, 'card--disabled': disabled }"
+      :style="[
+        appearanceStyle,
+        {
+          '--card-status-color': getHexColor(statusNames[status]),
+          '--card-status-color-solid': getHexColor(statusNames[status], 1),
+        },
+      ]"
+  >
     <div
         class="card-warp"
-        :class="{ active: active ? 'active' : '', 'disabled': disabled }"
         @click="handleClick"
     >
       <div class="card-type" v-if="slots.type">
@@ -10,24 +19,22 @@
           <slot name="type"></slot>
         </div>
       </div>
+      <div v-if="!slots.type" class="card-top-line"></div>
+      <div v-if="showStatus" class="card-state-row">
+        <div class="card-state">
+          <div class="card-state-content">
+            <j-badge-status
+                :status="status"
+                :text="statusText"
+                :statusNames="statusNames"
+            ></j-badge-status>
+          </div>
+        </div>
+      </div>
       <div
-          class="card-content"
-          :class="{'card-content-top-line': !slots.type}"
-          :style="{ paddingTop: slots.type ? '2.5rem' : '1.875rem' }"
+          :class="{'card-content': true, 'card-content-no-state': !showStatus}"
       >
-        <div
-            class="card-content-bg1"
-            :style="{
-                background: showStatus ? getBackgroundColor(statusNames[status]) : 'transparent',
-            }"
-        ></div>
-        <div
-            class="card-content-bg2"
-            :style="{
-                background: showStatus ? getBackgroundColor(statusNames[status]) : 'transparent',
-            }"
-        ></div>
-        <div style="display: flex">
+        <div class="card-content-main">
           <!-- 图片 -->
           <div class="card-item-avatar">
             <slot name="img">
@@ -60,22 +67,6 @@
         <div v-if="active" class="checked-icon">
           <div>
             <AIcon type="CheckOutlined"/>
-          </div>
-        </div>
-        <!-- 状态 -->
-        <div
-            v-if="showStatus"
-            class="card-state"
-            :style="{
-                        backgroundColor: getHexColor(statusNames[status]),
-                    }"
-        >
-          <div class="card-state-content">
-            <j-badge-status
-                :status="status"
-                :text="statusText"
-                :statusNames="statusNames"
-            ></j-badge-status>
           </div>
         </div>
       </div>
@@ -136,6 +127,7 @@ import {getHexColor} from '@jetlinks-web/components/es/BadgeStatus/color';
 import {PropType} from 'vue';
 import i18n from '@jetlinks-web-core/locales';
 import {handleFuncValue} from "@jetlinks-web-core/components/CrudTable/utils";
+import { cardAppearanceProps, useCardAppearanceStyle } from './appearance';
 
 type EmitProps = {
   // (e: 'update:modelValue', data: Record<string, any>): void;
@@ -148,6 +140,7 @@ const emit = defineEmits<EmitProps>();
 const slots = useSlots();
 
 const props = defineProps({
+  ...cardAppearanceProps,
   value: {
     type: Object as PropType<Record<string, any>>,
     default: () => ({}),
@@ -197,6 +190,8 @@ const props = defineProps({
   }
 });
 
+const appearanceStyle = useCardAppearanceStyle(() => props.backgroundOpacity);
+
 const getBackgroundColor = (code: string) => {
   const _color1 = getHexColor(code, 0.03);
   const _color2 = getHexColor(code, 0);
@@ -218,8 +213,28 @@ const handleClick = () => {
 
 <style scoped>
 .card {
+  box-sizing: border-box;
+  position: relative;
   width: 100%;
-  background-color: var(--bg);
+  overflow: hidden;
+  border: var(--jet-theme-stroke-width) solid var(--jet-theme-border-color-1);
+  border-radius: var(--r-6);
+  background: var(--card-box-background);
+  transition: var(--card-shell-transition);
+}
+.card.card--active {
+  border-color: var(--jet-theme-primary, var(--accent));
+  box-shadow: var(--ring-active);
+}
+.card.card--borderless,
+.card.card--borderless.card--active {
+  border-color: transparent;
+}
+.card.card--disabled {
+  filter: grayscale(100%);
+}
+.card.card--disabled .card-warp {
+  cursor: not-allowed;
 }
 .card .checked-icon {
   position: absolute;
@@ -245,23 +260,13 @@ const handleClick = () => {
 }
 .card .card-warp {
   position: relative;
-  border: 1px solid var(--line-strong);
-  overflow: hidden;
   cursor: pointer;
 }
 .card .card-warp:hover {
-  box-shadow: var(--shadow-1);
+  box-shadow: none;
 }
 .card .card-warp:hover .card-mask {
   visibility: visible;
-}
-.card .card-warp.disabled {
-  filter: grayscale(100%);
-  cursor: not-allowed;
-}
-.card .card-warp.active {
-  position: relative;
-  border: 1px solid var(--jet-theme-primary, var(--accent));
 }
 .card .card-warp .card-type {
   position: absolute;
@@ -282,8 +287,24 @@ const handleClick = () => {
 }
 .card .card-warp .card-content {
   position: relative;
-  padding: 1.875rem 0.75rem 1.875rem 1.875rem;
+  padding: 0 var(--space-4) var(--space-5) var(--space-4);
   overflow: hidden;
+}
+.card-content.card-content-no-state {
+  padding-top: var(--space-5) !important;
+}
+.card .card-warp .card-state-row {
+  display: flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.card .card-warp .card-content-main {
+  display: flex;
+  align-items: center;
+  min-height: 5rem;
+  gap: var(--space-4);
 }
 .card .card-warp .card-content .card-item-avatar {
   margin-right: var(--space-4);
@@ -297,29 +318,43 @@ const handleClick = () => {
   width: 0;
 }
 .card .card-warp .card-content .card-item-body .ant-row {
-  margin-top: 1.125rem;
+  margin-top: var(--space-3);
 }
-.card .card-warp .card-content .card-state {
-  position: absolute;
-  top: 1.875rem;
-  right: -0.75rem;
+.card .card-warp .card-state {
   display: flex;
+  align-items: center;
+  min-width: 5rem;
+  height: 2rem;
   justify-content: center;
-  padding: 0 1.25rem 0 1.25rem;
-  background-color: color-mix(in srgb, var(--accent) 15%, transparent);
-  transform: skewX(45deg);
+  padding: 0 var(--space-3) 0 var(--space-5);
+  background: var(--card-status-color);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 20% 100%);
+  transform: none;
 }
-.card .card-warp .card-content .card-state.success {
-  background-color: color-mix(in srgb, var(--jet-theme-success, var(--ok)) 12%, transparent);
+.card .card-warp .card-state.success {
+  --card-status-color: var(--jet-theme-success, var(--ok));
 }
-.card .card-warp .card-content .card-state.warning {
-  background-color: color-mix(in srgb, var(--warn) 10%, transparent);
+.card .card-warp .card-state.warning {
+  --card-status-color: var(--warn);
 }
-.card .card-warp .card-content .card-state.error {
-  background-color: color-mix(in srgb, var(--err) 10%, transparent);
+.card .card-warp .card-state.error {
+  --card-status-color: var(--err);
 }
-.card .card-warp .card-content .card-state .card-state-content {
-  transform: skewX(-45deg);
+.card .card-warp .card-state .card-state-content {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  transform: none;
+}
+.card .card-warp .card-state :deep(.ant-badge-status) {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+}
+.card .card-warp .card-state :deep(.ant-badge-status-dot) {
+  margin-inline-end: var(--space-1);
 }
 .card .card-warp .card-content :deep(.card-item-content-title) {
   cursor: pointer;
@@ -334,42 +369,24 @@ const handleClick = () => {
 .card .card-warp .card-content :deep(.card-item-heard-name) {
   font-weight: 700;
   font-size: var(--fs-16);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 .card .card-warp .card-content :deep(.card-item-content-text) {
   color: var(--ink-2);
   font-size: var(--fs-12);
 }
-.card .card-warp .card-content-top-line::before {
+.card .card-warp .card-top-line {
   position: absolute;
   top: 0;
-  left: 2.5rem;
+  left: var(--space-5);
   display: block;
-  width: 15%;
-  min-width: 4rem;
+  width: 8%;
+  min-width: 3rem;
   height: 0.125rem;
-  background-image: url('@jetlinks-web-core/assets/rectangle.png');
+  background-image: linear-gradient(90deg, var(--card-status-color-solid), var(--card-status-color));
+  clip-path: polygon(0 0, 100% 0, 98% 100%, 2% 100%);
   background-repeat: no-repeat;
   background-size: 100% 100%;
-  content: ' ';
-}
-.card .card-warp .card-content-bg1 {
-  position: absolute;
-  right: -5%;
-  height: 100%;
-  width: 44.65%;
-  top: 0;
-  background: linear-gradient(188.4deg, color-mix(in srgb, var(--err) 3%, transparent) 22.94%, transparent 94.62%);
-  transform: skewX(-15deg);
-}
-.card .card-warp .card-content-bg2 {
-  position: absolute;
-  right: -5%;
-  height: 100%;
-  width: calc(44.65% + 2.125rem);
-  top: 0;
-  background: linear-gradient(188.4deg, color-mix(in srgb, var(--err) 3%, transparent) 22.94%, transparent 94.62%);
-  transform: skewX(-15deg);
 }
 .card .card-warp .card-mask {
   position: absolute;
@@ -398,16 +415,15 @@ const handleClick = () => {
 .card.item-active {
   position: relative;
   color: var(--jet-theme-primary, var(--accent));
+  border-color: var(--jet-theme-primary, var(--accent));
 }
 .card.item-active .checked-icon {
   display: block;
 }
-.card.item-active .card-warp {
-  border: 1px solid var(--jet-theme-primary, var(--accent));
-}
 .card .card-tools {
   display: flex;
-  margin-top: var(--space-2);
+  padding: 0 var(--space-4) var(--space-5) var(--space-5);
+  gap: var(--space-3);
 }
 .card .card-tools .card-button {
   display: flex;
@@ -415,13 +431,11 @@ const handleClick = () => {
 }
 .card .card-tools .card-button > :deep(span, button) {
   width: 100%;
-  border-radius: 0;
 }
 .card .card-tools .card-button :deep(button) {
   width: 100%;
-  border-radius: 0;
-  background: var(--bg-hover);
-  border: 1px solid var(--line-strong);
+  background: var(--card-box-background);
+  border: var(--jet-theme-stroke-width) solid var(--jet-theme-border-color-1);
   color: var(--jet-theme-primary, var(--accent));
 }
 .card .card-tools .card-button :deep(button):hover {
@@ -438,31 +452,8 @@ const handleClick = () => {
 .card .card-tools .card-button :deep(button):active span {
   color: var(--accent-ink) !important;
 }
-.card .card-tools .card-button:not(:last-child) {
-  margin-right: var(--space-2);
-}
 .card .card-tools .card-button.delete {
-  flex-basis: 3.75rem;
-  flex-grow: 0;
-}
-.card .card-tools .card-button.delete :deep(button) {
-  background: color-mix(in srgb, var(--jet-theme-error, var(--err)) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--jet-theme-error, var(--err)) 35%, transparent);
-}
-.card .card-tools .card-button.delete :deep(button) span {
-  color: var(--jet-theme-error, var(--err)) !important;
-}
-.card .card-tools .card-button.delete :deep(button):hover {
-  background-color: color-mix(in srgb, var(--jet-theme-error, var(--err)) 82%, var(--bg));
-}
-.card .card-tools .card-button.delete :deep(button):hover span {
-  color: var(--accent-ink) !important;
-}
-.card .card-tools .card-button.delete :deep(button):active {
-  background-color: color-mix(in srgb, var(--jet-theme-error, var(--err)) 88%, var(--ink-1));
-}
-.card .card-tools .card-button.delete :deep(button):active span {
-  color: var(--accent-ink) !important;
+  flex: 1;
 }
 .card .card-tools .card-button :deep(button[disabled]) {
   background: color-mix(in srgb, var(--jet-theme-text, var(--ink-1)) 4%, var(--jet-theme-bg-container, var(--bg)));

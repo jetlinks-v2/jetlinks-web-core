@@ -211,6 +211,8 @@ html {
   --r-2: 6px;
   --r-3: 8px;
   --r-4: 10px;
+  --r-5: 12px;
+  --r-6: 16px;
   --r-pill: 999px;
   --shadow-1: 0 1px 0 rgba(0, 0, 0, 0.03);
   --shadow-2: var(--jet-theme-shadow-secondary);

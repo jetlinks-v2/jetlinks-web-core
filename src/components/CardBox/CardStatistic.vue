@@ -2,6 +2,8 @@
   <CardShell
     :active="active"
     :disabled="disabled"
+    :bordered="bordered"
+    :background-opacity="backgroundOpacity"
     :aria-label="data.label"
     @click="handleClick"
   >
@@ -44,10 +46,12 @@
 
 <script setup lang="ts" name="CardStatistic">
 import { computed, type CSSProperties, type PropType } from 'vue'
+import { cardAppearanceProps } from './appearance'
 import CardShell from './CardShell.vue'
 import type { CardStatisticData, CardStatisticSegment, CardTone } from './types'
 
 const props = defineProps({
+  ...cardAppearanceProps,
   data: {
     type: Object as PropType<CardStatisticData>,
     required: true,
@@ -154,7 +158,7 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
   width: calc(var(--card-shell-chart-size) - var(--card-shell-chart-stroke) * 2);
   height: calc(var(--card-shell-chart-size) - var(--card-shell-chart-stroke) * 2);
   border-radius: var(--r-pill);
-  background: var(--bg);
+  background: var(--card-box-background);
 }
 
 .card-statistic__legend {
