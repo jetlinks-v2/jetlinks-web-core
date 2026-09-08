@@ -77,13 +77,21 @@ const subscriptionState = computed(() => {
 
 /** 停用实体可能保留历史渠道，展示时必须以订阅状态为准。 */
 const notifyChannels = computed(() => {
-  return subscriptionState.value === 'disabled'
-    ? []
-    : props.subscribe?.notifyChannels || []
+  if (subscriptionState.value === 'disabled') {
+    return []
+  }
+  if (props.subscribe) {
+    return props.subscribe.notifyChannels || []
+  }
+  return props.data?.defaultSubscribed
+    ? props.data?.defaultNotifyChannels || []
+    : []
 })
 
 const onSubscribe = async (obj: any) => {
-  const channels = new Set(props.subscribe?.notifyChannels || [])
+  const channels = new Set(
+    props.subscribe ? props.subscribe.notifyChannels || [] : notifyChannels.value,
+  )
   channels.add(obj?.id)
   const _obj = {
     ...props.subscribe,
@@ -105,7 +113,9 @@ const onSubscribe = async (obj: any) => {
 }
 
 const onUnSubscribe = async (obj: any) => {
-  const _set = new Set(props.subscribe?.notifyChannels || [])
+  const _set = new Set(
+    props.subscribe ? props.subscribe.notifyChannels || [] : notifyChannels.value,
+  )
   _set.delete(obj?.id)
   const _obj = {
     subscribeName: obj.name,
