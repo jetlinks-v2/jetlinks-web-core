@@ -1,7 +1,12 @@
 import { randomString } from '@jetlinks-web/utils'
 import {isSaaS, isSubApp} from '@jetlinks-web-core/utils/consts'
 import { useMenuStore } from '@jetlinks-web-core/store'
-import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
+import {
+  createProjectRuntimeHref,
+  getProjectIdFromLocation,
+  getProjectRuntimeConfig,
+  isProjectRuntime,
+} from '@jetlinks-web-core/utils/project-runtime'
 
 type OptionsType = {
   onSuccess?: (value: any) => void
@@ -36,12 +41,20 @@ export const useTabSaveSuccess = (code: string = '', options?: OptionsType) => {
       }
 
       const _params = new URLSearchParams({...params, sourceId: id.value})
-      const domain = getProjectIdFromLocation()
-      const domainPath = domain ? `/${domain}` : ''
-      const beforeHash = isSaaS ? `${domainPath}` : ''
-      const hash = location.hash ? `${beforeHash}/#` : ''
       const path = _options.menuParams ? formatPath(menuItem.path, _options.menuParams)  : menuItem.path
-      const url = [location.origin, hash, path, '?', _params.toString()].join('')
+      const runtime = getProjectRuntimeConfig()
+      // 仅项目运行态采用新路径；普通部署目录不能当作项目，微应用仍沿用宿主跳转契约。
+      const useRuntimePath = !isSubApp && (
+        runtime.fixedProject || (runtime.projectStorageEnabled && isProjectRuntime())
+      )
+      const domain = getProjectIdFromLocation()
+      const beforeHash = isSaaS && domain ? `/${domain}` : ''
+      const targetPath = location.hash
+        ? useRuntimePath
+          ? createProjectRuntimeHref(runtime.projectCode, path)
+          : `${beforeHash}/#${path}`
+        : path
+      const url = [location.origin, targetPath, '?', _params.toString()].join('')
 
       if (isSubApp) { // 微前端
         const globalData = (window as any).microApp.getGlobalData() as { api: Record<string, any>}

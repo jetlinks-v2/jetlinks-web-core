@@ -257,8 +257,6 @@ const submit = () => {
             'webKey',
             'secretKey',
             'base-path',
-              'layout',
-              'layoutVariant'
           ])
         },
         {

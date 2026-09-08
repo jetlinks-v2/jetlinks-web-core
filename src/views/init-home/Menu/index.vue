@@ -108,7 +108,6 @@ const getSystemPermissionData = async ( BaseMenu: MenuItem[] ) => {
 
     const newTree = props.filterMenu ? await props.filterMenu(permissionTree) : permissionTree
     const _count = menuCount(newTree);
-    debugger
     menusData.current = newTree;
     menusData.count = _count;
     expandedKeys.value = collectExpandedKeys(newTree)

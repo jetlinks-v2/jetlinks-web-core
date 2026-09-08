@@ -18,6 +18,12 @@
 | `useRegistryOptions` / `useRegistryVNodeMerge` | `useRegistryComponentsMerge.ts` | 是 | 合并基础配置与运行时注册项，支持节点插入/替换 |
 | `useMenuAssetPermissionEditor` | `useMenuAssetPermissionEditor.ts` | 是 | 菜单资产权限编辑器的状态和动作编排 |
 
+`useTabSaveSuccess` 保留历史 `isSaaS` 地址分支。仅非微应用的固定项目部署，或启用项目存储且经 `isProjectRuntime()` 确认的项目入口，复用 `utils/project-runtime.ts` 生成新 Tab 地址。普通独立部署目录、云端边缘代理、租户端和微应用保持历史跳转规则；菜单参数、`sourceId` 和保存回传保持现有契约。历史依据为 `d4dd389`（修复 SaaS 可视化跳转）；后续项目上下文改为从 pathname 获取，而 cloud 项目入口不能继续只依赖 `isSaaS` 判断。
+
+验证：在仓库根执行 `rtk proxy node --test ui/jetlinks-web-core/tests/useTabSaveSuccess.test.mjs`，14 项通过，覆盖 cloud / SaaS 项目及根入口、普通部署子目录、租户运行态、固定项目 base、两类边缘代理、cloud / SaaS 微应用、无 hash 和模板预览，同时检查查询编码与保存回调。测试执行实际 Hook、运行态、路径和环境判断源码，浏览器及菜单 store 使用替身。收窄后浏览器再次验证模板编辑保留项目路径，作品名称、画布及配置正常加载。
+
+未逐一进入角色、部门、设备接入、告警场景、智能体等调用页面，也未实际保存模板数据；微应用宿主和其他部署模式只完成上述回归验证。TypeScript 语法与 `git diff --check` 通过。按机器性能约束未运行完整类型检查或构建，需要时在 `ui/` 执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 和 `pnpm -F jetlinks-web-core build`；当前包未配置独立 lint 脚本。
+
 ## 请求、订阅与图表
 
 | 能力 | 入口文件 | 根入口 | 适用场景 |
