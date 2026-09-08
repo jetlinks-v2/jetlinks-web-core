@@ -1,13 +1,22 @@
 <template>
   <a-modal
-    visible
-    :title="$t('components.ViewDialog.411617-0')"
+    open
+    :title="hasRegisteredDetail
+      ? (data?.topicName || data?.title || data?.message)
+      : $t('components.ViewDialog.411617-0')"
     :width="754"
     @cancel="emits('update:visible', false)"
     class="view-dialog-container"
   >
+    <RegistryComponent
+      v-if="hasRegisteredDetail"
+      page-code="notification-detail"
+      code="default"
+      :active-key="`${data.topicProvider}:append`"
+      :data="data"
+    />
     <template
-      v-if="
+      v-else-if="
         ['device-transparent-codec', 'system-event'].includes(
           data?.topicProvider,
         )
@@ -136,6 +145,8 @@
 import { JsonViewer } from 'vue3-json-viewer'
 import 'vue3-json-viewer/dist/index.css'
 import dayjs from 'dayjs'
+import RegistryComponent from '@jetlinks-web-core/components/RegisterComponents'
+import { componentsRegistry } from '@jetlinks-web-core/utils/components-registry'
 import {
   getWorkflowNotice,
   queryLevel as queryLevel_api,
@@ -157,6 +168,12 @@ const _data = computed(() => {
   else return props.data?.detail || props.data
 })
 
+const hasRegisteredDetail = computed(() =>
+  componentsRegistry
+    .getRegistry('notification-detail:default')
+    .some(item => item.code === props.data?.topicProvider),
+)
+
 const getLevel = () => {
   queryLevel_api().then((resp: any) => {
     if (resp.status === 200) levelList.value = resp.result.levels
@@ -169,6 +186,7 @@ const getLevelLabel = (id: number) => {
 }
 onMounted(() => {
   if (
+    !hasRegisteredDetail.value &&
     !['device-transparent-codec', 'system-event'].includes(
       props?.data?.topicProvider,
     )

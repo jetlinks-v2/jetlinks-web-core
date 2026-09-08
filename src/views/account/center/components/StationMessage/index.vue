@@ -24,7 +24,7 @@ import { omit } from "lodash-es";
 const tabs = ref<any[]>([]);
 const router = useRouterParams();
 const user = useUserStore();
-// let initData: any[]
+
 const queryTypeList = () => {
   getAllNotice().then((resp: any) => {
     if (resp.status === 200) {
@@ -56,32 +56,19 @@ const queryTypeList = () => {
 
 watchEffect(() => {
   if (router.params.value?.other?.tabKey) {
-    user.other.tabKey = router.params.value?.other?.tabKey;
+    user.other.tabKey = router.params.value.other.tabKey;
   }
-  if (router.params?.value.row) {
-    if (
-      ["device-transparent-codec"].includes(
-        router.params?.value.row.topicProvider,
-      )
-    ) {
-      user.other.tabKey = "system-business";
-    }
-    if (["system-event"].includes(router.params?.value.row.topicProvider)) {
-      user.other.tabKey = "system-monitor";
-    }
-    if (
-      [
-        "workflow-task-cc",
-        "workflow-task-todo",
-        "workflow-task-reject",
-        "workflow-process-finish",
-        "workflow-process-repealed",
-        "workflow-task-transfer-todo",
-      ].includes(router.params?.value.row.topicProvider)
-    ) {
-      user.other.tabKey = "workflow-notification";
-    }
-  }
+
+  const notification = user.messageInfo?.topicProvider
+    ? user.messageInfo
+    : router.params.value?.row;
+  if (!notification?.topicProvider) return;
+
+  /** 按服务端 provider 分组定位消息类型，新增通知无需再维护前端枚举。 */
+  const matched = tabs.value.find(tab =>
+    tab.children?.some((child: any) => child.provider === notification.topicProvider),
+  );
+  if (matched) user.other.tabKey = matched.provider;
 });
 
 onMounted(() => {

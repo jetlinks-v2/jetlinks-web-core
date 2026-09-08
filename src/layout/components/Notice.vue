@@ -35,7 +35,6 @@ import { flatten } from 'lodash-es';
 import { useI18n } from 'vue-i18n';
 import {
     BADGE_OVERFLOW_COUNT,
-    BADGE_OVERFLOW_VALUE,
     createUnreadQueryParams,
     type NoticeTabItem,
     toBadgeCount,
@@ -101,13 +100,13 @@ const markNotificationRead = async (id: string) => {
 const { send } = useWebSocket({
   async onMessage(data) {
     if (!data?.payload?.id) return;
-    // 消息处理
-    total.value = Math.min(total.value + 1, BADGE_OVERFLOW_VALUE);
     const handled = await handleRegisteredRealtimeNotice(data.payload, {
       markRead: () => markNotificationRead(data.payload.id),
       refresh: getList,
       appContext,
     });
+    // WebSocket 只触发刷新，角标始终以后端未读统计为准。
+    getList();
     if (handled) return;
     notification.open({
                 message: data?.payload?.topicName,
@@ -150,12 +149,6 @@ const { send } = useWebSocket({
     });
   }
 })
-
-// const visibleChange = (v: boolean) => {
-//   v && getList();
-// }
-
-
 
 const read = (type: string, data: any) => {
     const id = data?.payload?.id;
@@ -212,6 +205,12 @@ const queryTypeList = async () => {
 };
 
 watch(updateCount, () => getList());
+watch(visible, (opened) => {
+    // 打开铃铛时再次向后端校准，避免浏览器保留过期角标。
+    if (opened) {
+        getList();
+    }
+});
 
 onMounted(() => {
     queryTypeList()
