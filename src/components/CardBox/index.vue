@@ -63,12 +63,6 @@
             </slot>
           </div>
         </div>
-        <!-- 勾选 -->
-        <div v-if="active" class="checked-icon">
-          <div>
-            <AIcon type="CheckOutlined"/>
-          </div>
-        </div>
       </div>
       <div class="card-mask" v-if="props.hasMark">
         <div class="mask-content">
@@ -119,6 +113,12 @@
         </div>
       </div>
     </slot>
+    <!-- 选中态角标需要贴合整张卡片，而不是内容区。 -->
+    <div v-if="active" class="checked-icon">
+      <div>
+        <AIcon type="CheckOutlined"/>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -218,7 +218,7 @@ const handleClick = () => {
   width: 100%;
   overflow: hidden;
   border: var(--jet-theme-stroke-width) solid var(--jet-theme-border-color-1);
-  border-radius: var(--r-6);
+  border-radius: var(--panel-radius, var(--r-6));
   background: var(--card-box-background);
   transition: var(--card-shell-transition);
 }
@@ -238,24 +238,25 @@ const handleClick = () => {
 }
 .card .checked-icon {
   position: absolute;
-  right: -1.375rem;
-  bottom: -1.375rem;
+  right: 0;
+  bottom: 0;
   z-index: 2;
   width: 2.75rem;
   height: 2.75rem;
   color: var(--accent-ink);
   background-color: var(--jet-theme-primary, var(--accent));
-  transform: rotate(-45deg);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 .card .checked-icon > div {
   position: relative;
+  display: flex;
+  width: 100%;
   height: 100%;
-  transform: rotate(45deg);
 }
 .card .checked-icon > div > span {
   position: absolute;
-  top: 0.375rem;
-  left: 0.375rem;
+  right: var(--space-2);
+  bottom: var(--space-2);
   font-size: var(--fs-12);
 }
 .card .card-warp {
@@ -287,11 +288,11 @@ const handleClick = () => {
 }
 .card .card-warp .card-content {
   position: relative;
-  padding: 0 var(--space-4) var(--space-5) var(--space-4);
+  padding: 0 var(--panel-padding, var(--space-4)) var(--panel-padding, var(--space-4));
   overflow: hidden;
 }
 .card-content.card-content-no-state {
-  padding-top: var(--space-5) !important;
+  padding-top: var(--panel-padding, var(--space-4)) !important;
 }
 .card .card-warp .card-state-row {
   display: flex;
@@ -304,10 +305,10 @@ const handleClick = () => {
   display: flex;
   align-items: center;
   min-height: 5rem;
-  gap: var(--space-4);
+  gap: var(--panel-gap, var(--space-4));
 }
 .card .card-warp .card-content .card-item-avatar {
-  margin-right: var(--space-4);
+  margin-right: 0;
   display: flex;
   align-items: center;
 }
@@ -318,7 +319,7 @@ const handleClick = () => {
   width: 0;
 }
 .card .card-warp .card-content .card-item-body .ant-row {
-  margin-top: var(--space-3);
+  margin-top: var(--panel-gap, var(--space-4));
 }
 .card .card-warp .card-state {
   display: flex;
@@ -422,8 +423,11 @@ const handleClick = () => {
 }
 .card .card-tools {
   display: flex;
-  padding: 0 var(--space-4) var(--space-5) var(--space-5);
-  gap: var(--space-3);
+  padding: 0 var(--panel-padding, var(--space-4)) var(--panel-padding, var(--space-4));
+  gap: var(--panel-gap, var(--space-4));
+}
+.card.card--active .card-tools {
+  padding-right: calc(var(--space-5) + 2.75rem);
 }
 .card .card-tools .card-button {
   display: flex;

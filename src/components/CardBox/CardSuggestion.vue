@@ -59,14 +59,14 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
 <style scoped>
 .card-suggestion {
   min-height: var(--card-shell-suggestion-min-height);
-  padding: var(--space-4);
+  padding: var(--panel-padding, var(--space-4));
 }
 
 .card-suggestion__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--panel-gap, var(--space-4));
 }
 
 .card-suggestion__title {

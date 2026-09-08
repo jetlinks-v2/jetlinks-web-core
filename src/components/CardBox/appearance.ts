@@ -7,7 +7,7 @@ export const cardAppearanceProps = {
   },
   backgroundOpacity: {
     type: Number,
-    default: 100,
+    default: 80,
     validator: (value: number) => Number.isFinite(value) && value >= 0 && value <= 100,
   },
 }
@@ -15,7 +15,7 @@ export const cardAppearanceProps = {
 /** 将百分比配置转换为主题背景，避免使用元素 opacity 影响卡片内容。 */
 export const useCardAppearanceStyle = (backgroundOpacity: () => number) => computed<CSSProperties>(() => {
   const opacity = Math.min(100, Math.max(0, backgroundOpacity()))
-  const background = `color-mix(in srgb, var(--bg) ${opacity}%, transparent)`
+  const background = `rgb(var(--panel-background-rgb, 255 255 255) / ${opacity / 100})`
 
   return {
     '--card-box-background': background,

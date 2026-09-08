@@ -20,77 +20,116 @@
   }
 }
 
-#app {
-  .ant-tree:not(.ant-tree-show-line) {
-    background: transparent;
-    color: var(--ink-2);
-    .ant-tree-list-holder-inner {
-      gap: 0;
+.ant-tree:not(.ant-tree-show-line) {
+  background: transparent;
+  color: var(--ink-2);
+  .ant-tree-list-holder-inner {
+    gap: 0;
 
-      // 仅约束列表内的可见节点，避免撑宽 Ant Tree 挂在根节点下的隐藏测量节点。
-      .ant-tree-treenode {
-        position: relative;
-        width: 100%;
-        align-items: center;
-        min-height: 2.5rem;
-        padding: 0;
-        overflow: hidden;
-      }
-    }
-
-    .ant-tree-treenode:hover {
-      background: linear-gradient(90deg, var(--accent-soft) 0%, transparent 100%);
-    }
-
-    .ant-tree-treenode-selected {
-      background: linear-gradient(90deg, var(--accent-soft) 0%, transparent 100%);
-    }
-
-    .ant-tree-indent-unit {
-      width: var(--space-4);
-    }
-
-    .ant-tree-switcher {
+    // 仅约束列表内的可见节点，避免撑宽 Ant Tree 挂在根节点下的隐藏测量节点。
+    .ant-tree-treenode {
       position: relative;
-      z-index: 1;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: var(--space-4);
-      height: 2.5rem;
-      color: var(--ink-3);
-    }
-
-    .ant-tree-switcher .anticon {
-      font-size: var(--fs-14);
-      transform: scale(0.72);
-    }
-
-    .ant-tree-switcher_open .anticon {
-      color: var(--ink-3);
-    }
-
-    .ant-tree-treenode:has(.is-active) .ant-tree-switcher {
-      color: var(--accent);
-    }
-
-    .ant-tree-node-content-wrapper {
-      position: relative;
-      z-index: 1;
-      display: block;
       width: 100%;
-      min-width: 0;
-      padding: 0;
-      border-radius: 0;
+      align-items: center;
+      min-height: 2.5rem;
+      padding: 0 var(--space-2);
+      overflow: hidden;
     }
+  }
 
-    .ant-tree-node-content-wrapper:hover,
-    .ant-tree-node-content-wrapper.ant-tree-node-selected {
-      background: transparent;
+  .ant-tree-treenode:hover {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--primary-color) 10%, var(--bg)) 0%, var(--bg) 100%);
+    border-radius: var(--r-3);
+  }
+
+  .ant-tree-treenode-selected {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--primary-color) 10%, var(--bg)) 0%, var(--bg) 100%);
+    border: 1px solid color-mix(in srgb, var(--primary-color) 20%, var(--bg));
+    border-radius: var(--r-3);
+    .ant-tree-switcher-icon {
+      color: var(--primary-color) !important;
+    }
+  }
+
+  .ant-tree-indent-unit {
+    width: var(--space-4);
+  }
+
+  .ant-tree-switcher {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-4);
+    height: 2.5rem;
+    color: var(--ink-3);
+  }
+
+  .ant-tree-switcher .anticon {
+    font-size: var(--fs-14);
+    transform: scale(0.72);
+  }
+
+  .ant-tree-switcher_open .anticon {
+    color: var(--ink-3);
+  }
+
+  .ant-tree-treenode:has(.is-active) .ant-tree-switcher {
+    color: var(--accent);
+  }
+
+  .ant-tree-node-content-wrapper {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .ant-tree-node-content-wrapper:hover,
+  .ant-tree-node-content-wrapper.ant-tree-node-selected {
+    background: transparent;
+    .ant-tree-title {
+      color: var(--primary-color);
     }
   }
 }
 
 .pro-table__no-padding {
     padding: 0 !important;
+}
+
+.ant-table {
+  .ant-table-thead {
+    th {
+      background: #F5F7FA !important;
+    }
+  }
+}
+
+.JSearch-warp {
+  background-color: var(--bg-trans-8);
+  border-radius: var(--r-6);
+  border: 1px solid var(--bg);
+  padding: var(--space-4) !important;
+  margin-bottom: var(--space-4) !important;
+}
+
+.jtable-body-spin {
+  background: transparent;
+}
+
+.ant-card {
+  background: var(--bg-trans-8);
+  border-radius: var(--r-6);
+}
+
+.ant-pro-basicLayout .ant-page-header.has-breadcrumb:has(.ant-page-header-footer){
+  background: var(--bg-trans-8);
+  border-radius: var(--r-6);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
 }

@@ -62,8 +62,8 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border: var(--jet-theme-stroke-width) solid var(--jet-theme-border-color-1);
-  border-radius: var(--r-6);
+  border: var(--jet-theme-stroke-width) solid var(--bg);
+  border-radius: var(--panel-radius, var(--r-6));
   background: var(--card-box-background);
   box-shadow: var(--card-shell-shadow);
   color: var(--ink-1);

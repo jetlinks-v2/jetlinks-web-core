@@ -1,27 +1,23 @@
 .project-layout-page {
   --project-secondary-menu-width: var(--layout-project-menu-width, var(--sidebar-w));
 
-  background: var(--bg);
+  background: var(--layout-workbench-background) center top / cover fixed no-repeat;
 
   :deep(.ant-pro-basicLayout.cloud-project) {
-    background: var(--bg);
+    background: transparent;
   }
 
   :deep(.ant-pro-basicLayout.cloud-project .ant-pro-fixed-header),
   :deep(.ant-pro-basicLayout.cloud-project .ant-pro-top-nav-header),
   :deep(.ant-pro-basicLayout.cloud-project .ant-pro-top-nav-header-main-left) {
-    background: var(--bg) !important;
+    background: transparent !important;
     box-shadow: none !important;
   }
 
-  :deep(.ant-pro-basicLayout.cloud-project .ant-pro-top-nav-header) {
-    border-bottom: var(--jet-theme-stroke-width) solid var(--line);
-  }
 
   :deep(.ant-pro-basicLayout.cloud-project .ant-pro-top-nav-header-logo),
   :deep(.ant-pro-basicLayout.cloud-project .project-layout__brand) {
-    background: var(--bg);
-      border-bottom: var(--jet-theme-stroke-width) solid var(--line);
+    background: transparent;
   }
 
   :deep(.ant-pro-basicLayout.cloud-project .project-layout__brand) {
@@ -30,21 +26,21 @@
   }
 
   :deep(.ant-pro-basicLayout.cloud-project > .ant-layout) {
-    background: var(--bg);
+    background: transparent;
   }
 
   :deep(.ant-pro-basicLayout.cloud-project > .ant-layout > .ant-layout-content) {
     padding: 0;
-    background: var(--bg);
+    background: transparent;
   }
 
   :deep(.ant-pro-basicLayout.cloud-project .ant-layout-sider.ant-pro-sider) {
-    background: #f9fbfd !important;
+    background: transparent !important;
     box-shadow: none !important;
   }
 
   :deep(.ant-pro-basicLayout.cloud-project .ant-layout-sider.ant-pro-sider .ant-layout-sider-children) {
-    background: #f9fbfd;
+    background: transparent;
   }
 
   :deep(.ant-pro-basicLayout.cloud-project .ant-pro-sider-menu) {
@@ -59,7 +55,7 @@
     align-items: stretch;
     padding: 0;
     overflow: visible;
-    background: var(--bg-sunken);
+    background: transparent;
     border: 0;
     border-radius: 0;
     box-shadow: none;
@@ -71,7 +67,7 @@
     flex: 0 0 var(--project-secondary-menu-width);
     padding: var(--space-4);
     border-right: var(--jet-theme-stroke-width) solid var(--line);
-    background: var(--layout-menu-bg, var(--bg-sunken));
+    background: transparent;
   }
 
   :deep(.project-secondary-menu .ant-tabs) {
@@ -167,13 +163,13 @@
     min-width: 0;
     flex: 1 1 auto;
     padding: var(--space-4);
-    background: var(--bg);
+    background: transparent;
     border-radius: 0;
   }
 
   :deep(.project-layout__content--settings) {
     flex-direction: column;
-    background: var(--bg);
+    background: transparent;
   }
 
   :deep(.project-layout__content--settings .project-secondary-menu) {
@@ -183,7 +179,7 @@
     padding: 0 var(--space-5);
     border-right: 0;
     border-bottom: var(--jet-theme-stroke-width) solid var(--jet-theme-border-secondary);
-    background: var(--bg);
+    background: transparent;
   }
 
   :deep(.project-layout__content--settings .project-secondary-menu .ant-tabs) {

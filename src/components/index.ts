@@ -75,6 +75,9 @@ import StatusPill from './StatusPill/index.vue'
 import CheckboxGroup from './CheckboxGroup/index.vue'
 import PageActions from './PageActions/index.vue'
 import SvgIcon from './SvgIcon/index.vue'
+import SegmentPanel from './SegmentPanel'
+import SelectableListCard from './SelectableListCard'
+import ContentPanel from './ContentPanel/index.vue'
 
 export default {
     install(app: App) {
@@ -154,6 +157,9 @@ export default {
           .component('CheckboxGroup', CheckboxGroup)
           .component('PageActions', PageActions)
           .component('SvgIcon', SvgIcon)
+          .component('SegmentPanel', SegmentPanel)
+          .component('SelectableListCard', SelectableListCard)
+          .component('ContentPanel', ContentPanel)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
@@ -179,9 +185,13 @@ export {
     MarketplaceInstallStream,
     StatusPill,
     SvgIcon,
+    SegmentPanel,
+    SelectableListCard,
+    ContentPanel,
 }
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
 export type { SvgIconType } from './SvgIcon/icons'
+export type { SegmentPanelOption, SegmentPanelValue } from './SegmentPanel'
 export type {
     CardAvatarData,
     CardMetaItem,

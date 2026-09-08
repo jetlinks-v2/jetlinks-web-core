@@ -132,7 +132,7 @@ const handleCheckedChange = (checked: boolean | string | number) => {
   overflow: hidden;
   padding: 0;
   border: var(--jet-theme-stroke-width) solid var(--jet-theme-border-color-1);
-  border-radius: var(--r-6);
+  border-radius: var(--panel-radius, var(--r-6));
   background: var(--card-box-background);
   box-shadow: var(--card-shell-shadow);
   transition: var(--card-shell-transition);
@@ -173,8 +173,8 @@ const handleCheckedChange = (checked: boolean | string | number) => {
 .card-toggle__header {
   display: flex;
   align-items: flex-start;
-  padding: var(--space-5);
-  gap: var(--space-3);
+  padding: var(--panel-padding, var(--space-4));
+  gap: var(--panel-gap, var(--space-4));
   outline: none;
 }
 
@@ -187,7 +187,7 @@ const handleCheckedChange = (checked: boolean | string | number) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--panel-gap, var(--space-4));
 }
 
 .card-toggle__title {
@@ -224,7 +224,7 @@ const handleCheckedChange = (checked: boolean | string | number) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4) var(--space-5);
+  padding: var(--panel-padding, var(--space-4));
   border-top: var(--jet-theme-stroke-width) solid var(--line);
 }
 

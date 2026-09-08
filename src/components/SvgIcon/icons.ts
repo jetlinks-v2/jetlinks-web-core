@@ -4,14 +4,18 @@ type SvgIconLoader = () => Promise<Component>
 
 const MODULE_ICON_PATH = /^\.\.\/\.\.\/\.\.\/\.\.\/modules\/([^/]+)\/icons\/(.+)\.svg$/
 const CORE_ICON_PATH = /^\.\.\/\.\.\/icons\/(.+)\.svg$/
-const svgIconModules = import.meta.glob<Component>([
-  '../../../../modules/*/icons/**/*.svg',
-  '../../icons/**/*.svg',
-], {
+const moduleSvgIconModules = import.meta.glob<Component>('../../../../modules/*/icons/**/*.svg', {
   import: 'default',
   query: '?component',
 })
-console.log(svgIconModules)
+const coreSvgIconModules = import.meta.glob<Component>('../../icons/**/*.svg', {
+  import: 'default',
+  query: '?component',
+})
+const svgIconModules = {
+  ...moduleSvgIconModules,
+  ...coreSvgIconModules,
+}
 const svgIconLoaders = Object.entries(svgIconModules).reduce<Record<string, SvgIconLoader>>(
   (loaders, [path, loader]) => {
     const moduleMatched = MODULE_ICON_PATH.exec(path)

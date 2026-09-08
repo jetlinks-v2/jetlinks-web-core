@@ -36,7 +36,7 @@ const props = withDefaults(
   {
     height: '100%',
     gap: 'var(--space-4)',
-    leftWidth: '1fr',
+    leftWidth: '15rem',
     rightWidth: '1fr',
     align: 'stretch',
   }

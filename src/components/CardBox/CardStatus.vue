@@ -85,14 +85,14 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
   box-sizing: border-box;
   height: 100%;
   flex-direction: column;
-  padding: var(--space-5);
+  padding: var(--panel-padding, var(--space-4));
 }
 
 .card-status__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--panel-gap, var(--space-4));
 }
 
 .card-status__title {
@@ -124,7 +124,7 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
   margin-top: auto;
   padding-top: var(--space-4);
   border-top: var(--jet-theme-stroke-width) solid var(--line);
-  gap: var(--space-5);
+  gap: var(--panel-gap, var(--space-4));
 }
 
 .card-status__footer-item {

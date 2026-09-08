@@ -111,8 +111,8 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-5);
-  gap: var(--space-4);
+  padding: var(--panel-padding, var(--space-4));
+  gap: var(--panel-gap, var(--space-4));
 }
 
 .card-statistic__value-wrap {
@@ -164,7 +164,7 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
 .card-statistic__legend {
   display: flex;
   flex-wrap: wrap;
-  padding: var(--space-3) var(--space-5);
+  padding: var(--panel-padding, var(--space-4));
   border-top: var(--jet-theme-stroke-width) solid var(--line);
   gap: var(--space-4);
 }

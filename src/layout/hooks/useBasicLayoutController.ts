@@ -85,7 +85,7 @@ export const useBasicLayoutController = (
 
     return typeof className === 'string' ? className : ''
   })
-  const headerScrolled = computed(() => layout.value.layout === 'top' && scrollY.value > 0)
+  const headerScrolled = computed(() => scrollY.value > 0)
   const showMenuSearch = computed(() => !!themeLayout.value?.showMenuSearch && !state.collapsed)
   const { layoutConfig } = useResponsiveLayoutDimensions(layout, themeLayout)
 

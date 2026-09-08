@@ -64,9 +64,10 @@ withDefaults(
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--bg);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  background: var(--bg-trans-8);
+  box-shadow:var(--shadow-1);
   border-radius: var(--jet-theme-radius-sm);
+  border: 1px solid var(--bg);
   color: var(--ink-1);
   overflow: hidden;
   min-width: 0;
@@ -77,9 +78,8 @@ withDefaults(
   cursor: pointer;
 }
 .entity-card.interactive:hover {
-  border-color: var(--line-strong);
+  border-color: var(--jet-theme-primary);
   box-shadow: var(--shadow-lifted);
-  transform: translateY(-0.125rem);
 }
 
 .ec-top {

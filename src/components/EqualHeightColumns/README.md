@@ -4,13 +4,13 @@
 
 #### Props
 
-| 参数 | 说明 | 类型 | 默认值 |
-| --- | --- | --- | --- |
-| `height` | 容器高度 | `number \| string` | 100% |
+| 参数 | 说明 | 类型 | 默认值            |
+| --- | --- | --- |----------------|
+| `height` | 容器高度 | `number \| string` | 100%           |
 | `gap` | 列间距 | `number \| string` | var(--space-4) |
-| `leftWidth` | 左列宽度 | `CSS grid track` | 1fr |
-| `rightWidth` | 右列宽度 | `CSS grid track` | 1fr |
-| `align` | 纵向对齐 | `CSS align-items` | stretch |
+| `leftWidth` | 左列宽度 | `CSS grid track` | 15rem          |
+| `rightWidth` | 右列宽度 | `CSS grid track` | 1fr            |
+| `align` | 纵向对齐 | `CSS align-items` | stretch        |
 
 #### 事件
 
