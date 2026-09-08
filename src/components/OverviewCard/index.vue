@@ -7,30 +7,36 @@
       aria-hidden="true"
     />
 
-    <div class="overview-card__main">
-      <div v-if="$slots.image || image" class="overview-card__image">
-        <slot name="image">
-          <img :src="image" :alt="imageAlt" />
-        </slot>
+    <div class="overview-card__body">
+      <div class="overview-card__main">
+        <div v-if="$slots.image || image" class="overview-card__image">
+          <slot name="image">
+            <img :src="image" :alt="imageAlt" />
+          </slot>
+        </div>
+
+        <div class="overview-card__content">
+          <div v-if="$slots.title || title" class="overview-card__title">
+            <slot name="title">{{ title }}</slot>
+          </div>
+          <div v-if="$slots.description || description" class="overview-card__description">
+            <j-ellipsis>
+              <slot name="description">{{ description }}</slot>
+            </j-ellipsis>
+          </div>
+        </div>
       </div>
 
-      <div class="overview-card__content">
-        <div v-if="$slots.title || title" class="overview-card__title">
-          <slot name="title">{{ title }}</slot>
-        </div>
-        <div v-if="$slots.description || description" class="overview-card__description">
-          <j-ellipsis>
-            <slot name="description">{{ description }}</slot>
-          </j-ellipsis>
-        </div>
+      <div class="overview-card__value">
+        <slot name="value">{{ value }}</slot>
+        <span v-if="$slots.suffix || suffix" class="overview-card__suffix">
+          <slot name="suffix">{{ suffix }}</slot>
+        </span>
       </div>
     </div>
 
-    <div class="overview-card__value">
-      <slot name="value">{{ value }}</slot>
-      <span v-if="$slots.suffix || suffix" class="overview-card__suffix">
-        <slot name="suffix">{{ suffix }}</slot>
-      </span>
+    <div v-if="$slots.extra" class="overview-card__extra">
+      <slot name="extra" />
     </div>
   </div>
 </template>
@@ -40,7 +46,7 @@
  * OverviewCard —— 用于概览、总览场景的轻量指标卡片。
  *
  * 左侧展示图片、标题和描述，右侧突出展示数量。
- * 图片、标题、描述、数量和后缀均可通过同名 slot 自定义。
+ * 图片、标题、描述、数量、后缀和底部扩展内容均可通过同名 slot 自定义。
  */
 withDefaults(
   defineProps<{
@@ -66,9 +72,8 @@ withDefaults(
 .overview-card {
   position: relative;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4, 1rem);
+  flex-direction: column;
+  justify-content: center;
   min-width: 0;
   min-height: 5.5rem;
   overflow: hidden;
@@ -76,6 +81,17 @@ withDefaults(
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 1px 2px 0 rgba(13, 13, 18, 0.06);
+}
+
+.overview-card__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4, 1rem);
+  width: 100%;
+  min-width: 0;
 }
 
 .overview-card__background {
@@ -165,5 +181,13 @@ withDefaults(
   color: var(--ink-2, rgba(0, 0, 0, 0.65));
   font-size: var(--fs-14, 0.875rem);
   font-weight: 400;
+}
+
+.overview-card__extra {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-width: 0;
+  margin-top: var(--space-3, 0.75rem);
 }
 </style>
