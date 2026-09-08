@@ -88,9 +88,9 @@ const handleBack = () => {
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-4);
-  border: 0.0625rem solid var(--jet-theme-border-secondary);
-  border-radius: var(--jet-theme-radius);
-  background: var(--jet-theme-bg-container);
+  border: 0.0625rem solid var(--bg);
+  border-radius: var(--r-6);
+  background: var(--bg-trans-8);
   margin-bottom: 1rem;
 }
 

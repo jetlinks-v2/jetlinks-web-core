@@ -49,11 +49,14 @@ withDefaults(
 
 <style scoped>
 .section {
-  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--panel-gap, var(--space-4));
+  background: var(--panel-background, rgb(255 255 255 / 0.8));
   border: 1px solid var(--line);
-  border-radius: var(--r-3);
-  padding: 1.375rem 1.625rem;
-  margin-bottom: 0.875rem;
+  border-radius: var(--panel-radius, var(--r-6));
+  padding: var(--panel-padding, var(--space-4));
+  margin-bottom: var(--panel-gap, var(--space-4));
 }
 
 .section-head {
@@ -61,8 +64,8 @@ withDefaults(
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-bottom: var(--space-4);
-  padding-bottom: 0.875rem;
+  margin-bottom: 0;
+  padding-bottom: var(--panel-gap, var(--space-4));
   border-bottom: 1px solid var(--line);
 }
 
@@ -71,7 +74,7 @@ withDefaults(
 .section-title {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--panel-gap, var(--space-4));
   font-size: var(--fs-15);
   font-weight: 600;
   color: var(--ink-1);

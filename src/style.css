@@ -98,6 +98,15 @@ html {
 
   --canvas: var(--jet-theme-bg-layout);
   --bg: var(--jet-theme-bg-container);
+  --bg-trans-1: color-mix(in srgb, var(--bg) 10%, transparent);
+  --bg-trans-2: color-mix(in srgb, var(--bg) 20%, transparent);
+  --bg-trans-3: color-mix(in srgb, var(--bg) 30%, transparent);
+  --bg-trans-4: color-mix(in srgb, var(--bg) 40%, transparent);
+  --bg-trans-5: color-mix(in srgb, var(--bg) 50%, transparent);
+  --bg-trans-6: color-mix(in srgb, var(--bg) 60%, transparent);
+  --bg-trans-7: color-mix(in srgb, var(--bg) 70%, transparent);
+  --bg-trans-8: color-mix(in srgb, var(--bg) 80%, transparent);
+  --bg-trans-9: color-mix(in srgb, var(--bg) 90%, transparent);
   --bg-elev: var(--jet-theme-bg-base);
   --bg-sunken: var(--jet-theme-bg-layout);
   --bg-hover: var(--jet-theme-border-secondary);
@@ -204,6 +213,12 @@ html {
   --space-13: 3.25rem;
   --space-card: 1.5rem;
   --space-card-lg: 2rem;
+  /* 内容面板与卡片的统一默认契约；特殊业务场景可由组件显式覆盖。 */
+  --panel-radius: 16px;
+  --panel-padding: var(--space-4);
+  --panel-gap: var(--space-4);
+  --panel-background-rgb: 255 255 255;
+  --panel-background: rgb(var(--panel-background-rgb) / 0.8);
   --space-section: 4rem;
   --space-page: 6rem;
   --space-gutter: clamp(1.25rem, 2.2vw, 3rem);
@@ -211,6 +226,8 @@ html {
   --r-2: 6px;
   --r-3: 8px;
   --r-4: 10px;
+  --r-5: 12px;
+  --r-6: 16px;
   --r-pill: 999px;
   --shadow-1: 0 1px 0 rgba(0, 0, 0, 0.03);
   --shadow-2: var(--jet-theme-shadow-secondary);
@@ -286,7 +303,7 @@ html {
   --layout-menu-item-muted-color: #4E5969;
   --layout-menu-item-disabled-color: var(--chrome-ink-4);
   --layout-menu-item-hover-bg: #F5F5F5;
-  --layout-menu-item-active-bg: linear-gradient(90deg, #FFFFFF 0%, rgba(255, 255, 255, 0) 100%), #E2EDFF;
+  --layout-menu-item-active-bg: linear-gradient(90deg, #FFFFFF 0%, #E3EFFF 100%);
   --layout-menu-item-active-border: #E1EBF9;
   --layout-menu-item-active-color: #1E72F0;
   --layout-menu-item-active-line: #1E72F0;

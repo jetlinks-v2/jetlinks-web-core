@@ -2,6 +2,8 @@
   <CardShell
     :active="active"
     :disabled="disabled"
+    :bordered="bordered"
+    :background-opacity="backgroundOpacity"
     :aria-label="data.title"
     @click="handleClick"
   >
@@ -25,10 +27,12 @@
 
 <script setup lang="ts" name="CardSuggestion">
 import type { PropType } from 'vue'
+import { cardAppearanceProps } from './appearance'
 import CardShell from './CardShell.vue'
 import type { CardSuggestionData } from './types'
 
 const props = defineProps({
+  ...cardAppearanceProps,
   data: {
     type: Object as PropType<CardSuggestionData>,
     required: true,
@@ -55,14 +59,14 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
 <style scoped>
 .card-suggestion {
   min-height: var(--card-shell-suggestion-min-height);
-  padding: var(--space-4);
+  padding: var(--panel-padding, var(--space-4));
 }
 
 .card-suggestion__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--panel-gap, var(--space-4));
 }
 
 .card-suggestion__title {

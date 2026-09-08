@@ -2,6 +2,8 @@
   <CardShell
     :active="active"
     :disabled="disabled"
+    :bordered="bordered"
+    :background-opacity="backgroundOpacity"
     :aria-label="data.title"
     @click="handleClick"
   >
@@ -86,11 +88,13 @@
 <script setup lang="ts" name="CardSummary">
 import type { PropType } from 'vue'
 import StatusTag from '../StatusTag/index.vue'
+import { cardAppearanceProps } from './appearance'
 import CardAvatar from './CardAvatar.vue'
 import CardShell from './CardShell.vue'
 import type { CardSummaryData } from './types'
 
 const props = defineProps({
+  ...cardAppearanceProps,
   data: {
     type: Object as PropType<CardSummaryData>,
     required: true,
@@ -120,13 +124,13 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
   box-sizing: border-box;
   height: 100%;
   flex-direction: column;
-  padding: var(--space-5) var(--space-5) 0;
+  padding: var(--panel-padding, var(--space-4)) var(--panel-padding, var(--space-4)) 0;
 }
 
 .card-summary__header {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-4);
+  gap: var(--panel-gap, var(--space-4));
 }
 
 .card-summary__identity {
@@ -178,7 +182,7 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--panel-gap, var(--space-4));
   margin-top: var(--space-3);
 }
 
@@ -232,10 +236,10 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
 .card-summary__footer {
   display: flex;
   align-items: center;
-  margin: auto calc(var(--space-5) * -1) 0;
-  padding: var(--space-4) var(--space-5);
+  margin: auto calc(var(--panel-padding, var(--space-4)) * -1) 0;
+  padding: var(--panel-padding, var(--space-4));
   border-top: var(--jet-theme-stroke-width) solid var(--line);
-  gap: var(--space-5);
+  gap: var(--panel-gap, var(--space-4));
 }
 
 .card-summary__footer-item {

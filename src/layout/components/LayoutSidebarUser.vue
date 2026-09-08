@@ -17,32 +17,38 @@
       <template #overlay>
         <div class="layout-sidebar-user__menu">
           <div class="layout-sidebar-user__summary">
-            <div class="layout-sidebar-user__title-row">
-              <span class="layout-sidebar-user__name">{{ displayName }}</span>
-            </div>
-            <div class="layout-sidebar-user__account-row">
-              <span class="layout-sidebar-user__account-label">
-                {{ $t('components.LayoutSidebarUser.accountId') }}
-              </span>
-              <span class="layout-sidebar-user__account">{{ account }}</span>
+            <a-avatar :size="32" :src="avatar" class="layout-sidebar-user__avatar layout-sidebar-user__summary-avatar">
+              <template #icon>
+                <span>{{ avatarText }}</span>
+              </template>
+            </a-avatar>
+            <div class="layout-sidebar-user__summary-content">
+              <div class="layout-sidebar-user__title-row">
+                <span class="layout-sidebar-user__name">{{ displayName }}</span>
+              </div>
+              <div class="layout-sidebar-user__account-row">
+                <span class="layout-sidebar-user__account">{{ account }}</span>
+              </div>
             </div>
           </div>
           <div class="layout-sidebar-user__divider" />
           <div class="layout-sidebar-user__menu-content">
-            <a-button class="layout-sidebar-user__menu-item" type="text" block @click="goAccountCenter">
-              {{ $t('components.LayoutSidebarUser.accountCenter') }}
+            <a-button class="layout-sidebar-user__menu-item" type="text" @click="goAccountCenter">
+              <svg-icon type="layout/account-center" aria-hidden="true" />
+              <span>{{ $t('components.LayoutSidebarUser.accountCenter') }}</span>
             </a-button>
+            <a-button class="layout-sidebar-user__menu-item" type="text" :loading="logoutLoading" @click="handleLogout">
+              <svg-icon type="layout/logout" aria-hidden="true" />
+              <span>{{ $t('components.LayoutSidebarUser.logout') }}</span>
+            </a-button>
+          </div>
+          <div class="layout-sidebar-user__extensions">
             <RegistryComponent
-              class="layout-sidebar-user__menu-item"
               pageCode="layout"
               code="sidebarUserMenu"
               @click="open = false"
             />
           </div>
-          <div class="layout-sidebar-user__divider" />
-          <a-button class="layout-sidebar-user__logout" type="text" block :loading="logoutLoading" @click="handleLogout">
-            {{ $t('components.LayoutSidebarUser.logout') }}
-          </a-button>
         </div>
       </template>
     </a-dropdown>

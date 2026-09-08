@@ -1,5 +1,5 @@
 ﻿<template>
-  <aside
+  <ContentPanel
     class="quick-filter-sidebar"
     :class="`quick-filter-sidebar--${variant}`"
   >
@@ -145,7 +145,7 @@
         </div>
       </div>
     </div>
-  </aside>
+  </ContentPanel>
 </template>
 
 <script setup lang="ts">
@@ -464,11 +464,7 @@ const getSectionItems = (section: QuickFilterSidebarSection) => {
   gap: var(--space-2);
   width: 14.5rem;
   height: 100%;
-  padding: var(--space-3);
   overflow: auto;
-  background: var(--bg);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-3);
 }
 .quick-filter-sidebar__section {
   display: flex;
