@@ -94,8 +94,7 @@ const normalizeProjectStorage = (value: unknown): ProjectStorageInfo | undefined
   if (!isRecord(value)) return undefined
 
   const token = normalizeText(value.token)
-  const apiUrl = normalizeText(value.apiUrl)
-  if (!token || !apiUrl) return undefined
+  if (!token) return undefined
 
   return {
     token: value.token as string,

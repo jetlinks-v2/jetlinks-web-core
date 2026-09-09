@@ -18,6 +18,7 @@ export interface CreateLoginNavigationHrefOptions {
   loginPath: string
   reason: LoginNavigationReason
   runtimeConfig: ProjectRuntimeConfig
+  origin: string | null
 }
 
 /**
@@ -33,20 +34,26 @@ export const createLoginNavigationHref = ({
   loginPath,
   reason,
   runtimeConfig,
+    origin
 }: CreateLoginNavigationHrefOptions) => {
+  let _origin = origin || location.origin
   if (reason === ACTIVE_LOGOUT_LOGIN_REASON) {
-    const loginQuery = `${LOGIN_REASON_QUERY_KEY}=${ACTIVE_LOGOUT_LOGIN_REASON}`
+    let loginQuery = `${LOGIN_REASON_QUERY_KEY}=${ACTIVE_LOGOUT_LOGIN_REASON}`
+
+    if (origin) {
+      loginQuery += `&clearToken=true`
+    }
 
     if (runtimeConfig.fixedProject) {
-      return `${location.origin}${runtimeConfig.basePath}#${loginPath}?${loginQuery}`
+      return `${_origin}${runtimeConfig.basePath}#${loginPath}?${loginQuery}`
     }
 
     const pathname = projectRuntime ? '/' : location.pathname
-    return `${location.origin}${pathname}#${loginPath}?${loginQuery}`
+    return `${_origin}${pathname}#${loginPath}?${loginQuery}`
   }
 
   const hashPrefix = location.hash ? '#' : ''
-  return `${location.origin}${location.pathname}${hashPrefix}${loginPath}?redirect=${encodeURIComponent(currentPath)}`
+  return `${_origin}${location.pathname}${hashPrefix}${loginPath}?redirect=${encodeURIComponent(currentPath)}`
 }
 
 export const isActiveLogoutLoginReason = (value: unknown) => {

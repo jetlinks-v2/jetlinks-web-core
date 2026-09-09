@@ -96,6 +96,7 @@ function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
 
     const cache = getVerifyHeadersCache()
     const projectContext = config.projectContext === false ? undefined : getProjectContext()
+
     if (projectContext) {
         const { storage: projectStorage } = projectContext
 
@@ -108,9 +109,9 @@ function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
             }
         }
 
-        if (projectStorage?.apiUrl) {
-            config.baseURL = projectStorage.apiUrl
-        }
+        // if (projectStorage?.apiUrl) {
+        //     config.baseURL = projectStorage.apiUrl
+        // }
 
         const applicationScope = normalizeHeaderValue(projectStorage?.scope)
 
