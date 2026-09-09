@@ -59,9 +59,9 @@ html {
   --primary-color-1: #E6F4FF;
   --primary-color-2: #BAE0FF;
   --primary-color-active: #0958D9;
-  --text-color: #1A1A1A;
-  --text-color-secondary: #6B7280;
-  --text-color-disabled: #9CA3AF;
+  --text-color: #1D2129;
+  --text-color-secondary: #4E5969;
+  --text-color-disabled: #86909C;
   --jet-theme-primary-1: var(--primary-color-1);
   --jet-theme-primary-2: var(--primary-color-2);
   --jet-theme-primary-3: #91caff;
