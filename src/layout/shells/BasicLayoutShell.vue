@@ -51,6 +51,7 @@
       <template #rightContentRender>
         <div class="right-content">
           <RegistryComponent pageCode="layout" code="headerRight">
+            <MenuSource />
             <BusinessApplicationSwitcher
               v-if="variant === 'project' && businessApplicationRuntime"
               mode="header"
@@ -119,6 +120,7 @@ import {
 import ProjectSecondaryMenu from '../components/ProjectSecondaryMenu.vue'
 import { useBasicLayoutControllerContext } from '../hooks/basicLayoutContext'
 import type { BasicLayoutVariant } from '../runtime/layoutVariant'
+import MenuSource from '../components/MenuSearch.vue'
 
 type LayoutMenuRouteRecord = RouteRecordRaw & {
   key?: string

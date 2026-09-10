@@ -1111,6 +1111,8 @@
   "components.BusinessApplicationSwitcher.headerLabel": "Applications",
   "components.BusinessApplicationSwitcher.quickEntry": "Quick access",
   "layout.menuBadge.comingSoon": "Coming soon",
+  "layout.menuSearch.placeholder": "Search menus",
+  "layout.menuSearch.empty": "No matching menus",
   "layout.project.settings": "Settings",
   "comm.api.timeout": "The network environment is poor"
 }

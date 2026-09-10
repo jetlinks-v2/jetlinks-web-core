@@ -58,7 +58,7 @@
 
   <div v-else-if="mode === 'brand'" class="project-layout__brand-main">
     <img v-if="fallbackLogo" class="project-layout__brand-logo" :src="fallbackLogo" alt="">
-    <span class="project-layout__brand-title">{{ fallbackTitle }}</span>
+    <span v-if="fallbackTitle" class="project-layout__brand-title">{{ fallbackTitle }}</span>
   </div>
 
   <Teleport to="body">
