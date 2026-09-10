@@ -154,6 +154,19 @@
     &:has(.ant-page-header-heading), &:has(.ant-page-header-content), &:has(.ant-page-header-footer) {
       background-color: #fff;
     }
+
+    &:has(.ant-page-header-footer){
+      background: var(--bg-trans-8);
+      border-radius: var(--r-6);
+      padding: var(--space-4);
+      margin-bottom: var(--space-4);
+    }
+
+    &:not(:has(>.ant-page-header-heading)) .ant-page-header-footer{
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+      border: none !important;
+    }
   }
 
   .ant-pro-page-container-children-content {
@@ -706,6 +719,9 @@
 
         .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub > .ant-menu-item {
           padding-left: var(--space-8) !important;
+          a {
+            color: var(--jet-theme-text-secondary) !important;
+          }
         }
 
         .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub > .ant-menu-submenu > .ant-menu-submenu-title {
