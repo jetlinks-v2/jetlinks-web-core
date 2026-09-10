@@ -299,7 +299,8 @@ export const handleMenus = (
   }
 
   function siderLoop(data: MenuItem[]) {
-    const _menu = filterMenuData(data)
+    // 隐藏节点不进入侧栏树；路由和按钮权限仍由完整菜单树生成。
+    const _menu = filterMenuData(data).filter((item) => !handleMeta(item, !!item.appId).hideInMenu)
 
     if (_menu && _menu.length) {
       return _menu.map((item) => {
