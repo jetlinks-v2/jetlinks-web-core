@@ -119,6 +119,10 @@ The navigation hook must derive the selected leaf key from the active route's br
 
 The hierarchy contract is covered by `tests/projectNavigationHierarchy.test.mjs`; run it with `pnpm -F jetlinks-web-core test:project-navigation`. A production `pnpm -F jetlinks-web-core build` must also complete before delivery because the change affects the shared layout shell.
 
+三级叶子菜单由 `src/style/layout.less` 统一处理：未选中圆点图标使用 `#C9CDD4`，图标与文本间距为 `var(--space-1)`（4px）；选中后两者都使用 `--layout-menu-item-active-color`，不得让三级链接的次级文字色覆盖该状态。此约定仅作用于二级分组下的三级叶子项，不改变一级、二级菜单或菜单层级。
+
+本次验证（2026-09-10）：`pnpm -F jetlinks-web-core build` 完成并刷新 `runtime-ui/dist`；本地告警规则页面确认选中图标与文本均为主题色，未选中圆点为 `#C9CDD4`，间距为 4px。
+
 `--chrome-header-height` is the fixed `56px` Figma header measurement. Responsive layout code may take the maximum of this token and an existing large-screen profile, but it must not convert the token itself to `rem` and inflate the 2K header.
 
 ## 浮层层级
