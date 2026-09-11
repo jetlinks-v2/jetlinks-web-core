@@ -7,7 +7,6 @@
       :placeholder="$t('layout.menuSearch.placeholder')"
       @focus="open = true"
       @keydown.esc="close"
-      @change="valueChange"
     >
       <template #prefix>
         <AIcon type="SearchOutlined" />
@@ -15,23 +14,29 @@
     </a-input>
 
     <div v-if="open && keyword.trim()" class="menu-search__panel">
-      <div v-if="results.length" class="menu-search__list">
-        <button
-          v-for="item in results"
-          :key="item.key"
-          type="button"
-          class="menu-search__item"
-          @mousedown.prevent="handleSelect(item)"
-        >
-          <AIcon v-if="item.icon" class="menu-search__icon" :type="item.icon" />
-          <span v-else class="menu-search__icon menu-search__icon--empty" />
-          <span class="menu-search__title">
-            <template v-for="(segment, index) in highlightTitle(item.title)" :key="index">
-              <em v-if="segment.match" class="menu-search__hit">{{ segment.text }}</em>
-              <template v-else>{{ segment.text }}</template>
-            </template>
-          </span>
-        </button>
+      <div v-if="groups.length" class="menu-search__list">
+        <section v-for="group in groups" :key="group.key" class="menu-search__group">
+          <div class="menu-search__group-title">{{ group.title }}</div>
+          <button
+            v-for="item in group.items"
+            :key="item.key"
+            type="button"
+            class="menu-search__item"
+            @mousedown.prevent
+            @click="handleSelect(item)"
+          >
+            <span class="menu-search__parent" :title="item.parentTitle">{{ item.parentTitle }}</span>
+            <span class="menu-search__target" :title="item.title">
+              <AIcon v-if="item.icon" class="menu-search__icon" :type="item.icon" />
+              <span class="menu-search__title">
+                <template v-for="(segment, index) in highlightTitle(item.title)" :key="index">
+                  <em v-if="segment.match" class="menu-search__hit">{{ segment.text }}</em>
+                  <template v-else>{{ segment.text }}</template>
+                </template>
+              </span>
+            </span>
+          </button>
+        </section>
       </div>
       <div v-else class="menu-search__empty">
         {{ $t('layout.menuSearch.empty') }}
@@ -41,117 +46,9 @@
 </template>
 
 <script setup lang="ts" name="MenuSearch">
-import type { RouteRecordRaw } from 'vue-router'
-import i18n from '@jetlinks-web-core/locales'
-import { debounce } from 'lodash-es'
-import { useMenuStore } from '@/store'
+import { useMenuSearch } from '../hooks/useMenuSearch'
 
-type MenuSearchItem = {
-  key: string
-  name: string
-  title: string
-  icon?: string
-}
-
-type TitleSegment = {
-  text: string
-  match: boolean
-}
-
-const menuStore = useMenuStore()
-
-const keyword = ref('')
-const open = ref(false)
-const rootRef = ref<HTMLElement>()
-
-const collectMenus = (
-  menus: RouteRecordRaw[],
-  result: MenuSearchItem[] = [],
-): MenuSearchItem[] => {
-  menus.forEach((menu) => {
-    const meta = (menu.meta || {}) as Record<string, any>
-    if (meta.hideInMenu !== true && meta.title) {
-      result.push({
-        key: String(menu.name || menu.path),
-        name: String(menu.name || ''),
-        title: String(i18n.global.t(String(meta.title))),
-        icon: meta.icon,
-      })
-    }
-
-    if (menu.children?.length) {
-      collectMenus(menu.children as RouteRecordRaw[], result)
-    }
-  })
-
-  return result
-}
-
-const menuItems = computed(() => collectMenus(menuStore.siderMenus as RouteRecordRaw[]))
-
-const results = computed(() => {
-  const searchText = keyword.value.trim().toLowerCase()
-  if (!searchText) return []
-
-  return menuItems.value.filter(item => item.title.toLowerCase().includes(searchText))
-})
-
-const highlightTitle = (title: string): TitleSegment[] => {
-  const searchText = keyword.value.trim().toLowerCase()
-  if (!searchText) return [{ text: title, match: false }]
-
-  const segments: TitleSegment[] = []
-  const lowerTitle = title.toLowerCase()
-  let cursor = 0
-  let index = lowerTitle.indexOf(searchText)
-
-  while (index > -1) {
-    if (index > cursor) {
-      segments.push({ text: title.slice(cursor, index), match: false })
-    }
-    segments.push({ text: title.slice(index, index + searchText.length), match: true })
-    cursor = index + searchText.length
-    index = lowerTitle.indexOf(searchText, cursor)
-  }
-
-  if (cursor < title.length) {
-    segments.push({ text: title.slice(cursor), match: false })
-  }
-
-  return segments
-}
-
-const close = () => {
-  open.value = false
-}
-
-const handleSelect = (item: MenuSearchItem) => {
-  keyword.value = ''
-  close()
-  menuStore.jumpPage(item.name)
-}
-
-const handleDocumentMousedown = (event: MouseEvent) => {
-  if (!rootRef.value?.contains(event.target as Node)) {
-    close()
-  }
-}
-
-const valueChange = debounce((e) => {
-  open.value = !!e.target.value
-},300)
-
-watch(open, (value) => {
-  if (value) {
-    document.addEventListener('mousedown', handleDocumentMousedown)
-  } else {
-    document.removeEventListener('mousedown', handleDocumentMousedown)
-  }
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('mousedown', handleDocumentMousedown)
-})
+const { keyword, open, rootRef, groups, highlightTitle, close, handleSelect } = useMenuSearch()
 </script>
 
 <style scoped lang="less">
@@ -198,9 +95,10 @@ onBeforeUnmount(() => {
   &__panel {
     position: absolute;
     top: calc(100% + var(--space-1));
-    left: 0;
+    right: 0;
     z-index: var(--z-drawer);
-    width: 19rem;
+    width: 28rem;
+    max-width: calc(100vw - var(--space-8));
     padding: var(--space-1);
     border: 1px solid var(--jet-theme-border-secondary);
     border-radius: var(--r-3);
@@ -214,12 +112,44 @@ onBeforeUnmount(() => {
     overflow-y: auto;
   }
 
+  &__group + &__group {
+    margin-top: var(--space-3);
+  }
+
+  &__group-title {
+    padding: var(--space-2);
+    border-bottom: 1px solid var(--jet-theme-border-secondary);
+    color: var(--jet-theme-text);
+    font-size: var(--fs-14);
+  }
+
+  &__parent {
+    width: 30%;
+    flex-shrink: 0;
+    color: var(--jet-theme-text-secondary);
+    font-size: var(--fs-12);
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__target {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    flex: 1;
+    padding: var(--space-2);
+    border-left: 1px solid var(--jet-theme-border-secondary);
+  }
+
   &__item {
     display: flex;
     width: 100%;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2);
+    padding: 0 var(--space-2);
     border: 0;
     border-radius: var(--r-2);
     background: transparent;
@@ -240,11 +170,6 @@ onBeforeUnmount(() => {
     flex: 0 0 auto;
     color: var(--jet-theme-text-secondary);
     font-size: var(--layout-menu-item-icon-size, 1rem);
-  }
-
-  &__icon--empty {
-    display: inline-block;
-    width: var(--layout-menu-item-icon-size, 1rem);
   }
 
   &__title {
