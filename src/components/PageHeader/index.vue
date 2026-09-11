@@ -85,7 +85,7 @@ const handleBack = () => {
   background: var(--bg-trans-8);
   margin-bottom: var(--space-4);
   padding: var(--space-4);
-  border-radius: var(--r-6);
+  border-radius: var(--r-3);
 }
 
 .cloud-page-header__content {
