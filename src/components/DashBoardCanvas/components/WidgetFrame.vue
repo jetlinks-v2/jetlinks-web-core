@@ -39,7 +39,18 @@ function remove() {
 // Selection.vue's drag strip and hover menu; the business component retains ownership of its appearance.
 .draggable-item { position: absolute; width: 100%; height: 100%; user-select: none; }
 .no-drag { width: 100%; height: 100%; }
-.drag-handle { position: absolute; top: 0; left: 0; width: 100%; height: 24px; z-index: 1; cursor: grab; touch-action: none; }
+.drag-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 24px;
+  z-index: 1;
+  cursor: grab;
+  touch-action: none;
+  border-top-left-radius: var(--dashboard-card-radius, 12px);
+  border-top-right-radius: var(--dashboard-card-radius, 12px);
+}
 .drag-handle:hover { background: linear-gradient(to bottom, rgba(0, 0, 0, .05), transparent); }
 .drag-handle:active { cursor: grabbing; }
 .topRight { position: absolute; top: 0; right: 0; z-index: 2; opacity: 0; pointer-events: none; transition: opacity .25s; }

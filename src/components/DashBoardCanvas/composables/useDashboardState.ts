@@ -22,15 +22,41 @@ export function useDashboardState(options: DashboardStateOptions) {
   const stored = options.storageKey?.()
   if (options.layoutEditable() && stored && typeof localStorage !== 'undefined') {
     try {
-      const saved = parseStoredLayout(JSON.parse(localStorage.getItem(stored) || 'null'))
-      if (saved) initial.components = applyGridLayout(initial.components, saved, getGridSettings(initial.canvas).columns)
+      let saved = parseStoredLayout(JSON.parse(localStorage.getItem(stored) || 'null'))
+      if (saved) {
+        const activeIds = new Set(initial.components.map(c => c.id))
+        const savedIds = new Set(saved.map(item => item.i))
+        if (saved.some(item => !activeIds.has(item.i)) || initial.components.some(c => !savedIds.has(c.id))) {
+          try { localStorage.removeItem(stored) } catch {}
+          saved = null
+        } else {
+          initial.components = applyGridLayout(initial.components, saved, getGridSettings(initial.canvas).columns)
+        }
+      }
     } catch { /* Ignore malformed or unavailable local storage. */ }
   }
   const value = shallowRef(initial)
   const gridSettings = computed(() => getGridSettings(value.value.canvas))
 
   watch(options.value, next => {
-    if (!isEqual(next, value.value)) value.value = cloneDeep(next)
+    let nextValue = cloneDeep(next)
+    const stored = options.storageKey?.()
+    if (options.layoutEditable() && stored && typeof localStorage !== 'undefined') {
+      try {
+        let saved = parseStoredLayout(JSON.parse(localStorage.getItem(stored) || 'null'))
+        if (saved) {
+          const activeIds = new Set(nextValue.components.map(c => c.id))
+          const savedIds = new Set(saved.map(item => item.i))
+          if (saved.some(item => !activeIds.has(item.i)) || nextValue.components.some(c => !savedIds.has(c.id))) {
+            try { localStorage.removeItem(stored) } catch {}
+            saved = null
+          } else {
+            nextValue.components = applyGridLayout(nextValue.components, saved, getGridSettings(nextValue.canvas).columns)
+          }
+        }
+      } catch { /* Ignore malformed or unavailable local storage. */ }
+    }
+    if (!isEqual(nextValue, value.value)) value.value = nextValue
   }, { deep: true })
 
   function commit(next: DashboardValue) {
