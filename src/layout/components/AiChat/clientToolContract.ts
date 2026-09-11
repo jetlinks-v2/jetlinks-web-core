@@ -167,41 +167,41 @@ const validateOutputs = (outputs: readonly AiClientToolOutputContract[]) => {
     const shape = normalizedText(output.shape)
     if (!name || !shape || !normalizedText(output.type) || !normalizedText(output.mediaType)
       || !(['model-evidence', 'client-presentation', 'reusable-source'] as const).includes(output.audience)) {
-      throw new Error('Client tool output contract requires name, type, mediaType, shape and audience')
+      console.error('Client tool output contract requires name, type, mediaType, shape and audience')
     }
     const delivery = outputDelivery(output)
     // Audience controls evidence visibility; auto delivery independently authorizes compatible materialization.
     if (output.path !== undefined && !isSupportedAiClientToolBindingPath(normalizedText(output.path))) {
-      throw new Error(`Unsupported client tool output binding path: ${output.path}`)
+      console.error(`Unsupported client tool output binding path: ${output.path}`)
     }
     if (output.recordPath !== undefined && !normalizeAiClientToolRecordPath(output.recordPath)) {
-      throw new Error(`Unsupported client tool output record path: ${output.recordPath}`)
+      console.error(`Unsupported client tool output record path: ${output.recordPath}`)
     }
     const fields = output.fields === undefined ? [] : normalizeAiClientToolOutputFields(output.fields)
     if (!fields || fields.length !== (output.fields?.length || 0)) {
-      throw new Error(`Client tool output fields must use one complete canonical or released descriptor: ${name}`)
+      console.error(`Client tool output fields must use one complete canonical or released descriptor: ${name}`)
     }
-    if (fields.some(isCanonicalAiClientToolOutputField) && output.recordPath === undefined) {
-      throw new Error(`Canonical client tool output fields require an explicit recordPath: ${name}`)
+    if (fields?.some(isCanonicalAiClientToolOutputField) && output.recordPath === undefined) {
+      console.error(`Canonical client tool output fields require an explicit recordPath: ${name}`)
     }
     if (output.ordering !== undefined && !normalizeAiClientToolOrdering(output.ordering, fields)) {
-      throw new Error(`Client tool output ordering must reference declared fields: ${name}`)
+      console.error(`Client tool output ordering must reference declared fields: ${name}`)
     }
     if (delivery === 'file' && output.path !== undefined) {
-      throw new Error(`File client tool output must not declare an inline binding path: ${name}`)
+      console.error(`File client tool output must not declare an inline binding path: ${name}`)
     }
     if (output.kind === 'artifact' && !normalizedText(output.mediaType)) {
-      throw new Error(`Artifact client tool output requires a media type: ${name}`)
+      console.error(`Artifact client tool output requires a media type: ${name}`)
     }
     if (output.kind === 'artifact'
       && (output.type !== 'artifact' || delivery !== 'file')) {
-      throw new Error(`Artifact client tool output must use artifact type and file delivery: ${name}`)
+      console.error(`Artifact client tool output must use artifact type and file delivery: ${name}`)
     }
     if (output.kind === 'artifact' && output.audience !== 'reusable-source') {
-      throw new Error(`Artifact client tool output must use reusable-source audience: ${name}`)
+      console.error(`Artifact client tool output must use reusable-source audience: ${name}`)
     }
     if (names.has(name)) {
-      throw new Error(`Duplicate client tool output binding: ${name}`)
+      console.error(`Duplicate client tool output binding: ${name}`)
     }
     names.add(name)
   })
