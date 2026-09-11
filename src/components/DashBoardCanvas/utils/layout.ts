@@ -1,11 +1,22 @@
 import type {
   DashboardCanvasConfig, DashboardGridItem, DashboardGridSettings,
-  DashboardLayoutItem, DashboardWidget,
+  DashboardLayoutItem, DashboardWidget, DashboardStoredLayoutItem,
 } from '../types'
 
 function finite(value: unknown, fallback: number, min = 0, max = Number.MAX_SAFE_INTEGER) {
   return typeof value === 'number' && Number.isFinite(value)
     ? Math.min(max, Math.max(min, value)) : fallback
+}
+
+export function toStoredLayout(layout: readonly DashboardLayoutItem[]): DashboardStoredLayoutItem[] {
+  return layout.filter(item => item.i && item.i.indexOf('drop_') !== 0).map(({ i, x, y, w, h }) => ({ i, x, y, w, h }))
+}
+
+export function parseStoredLayout(value: unknown): DashboardStoredLayoutItem[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const layout = value.filter(item => item && typeof item === 'object').map(item => item as Record<string, unknown>)
+  if (layout.some(item => typeof item.i !== 'string' || ![item.x, item.y, item.w, item.h].every(value => typeof value === 'number' && Number.isFinite(value)))) return undefined
+  return layout as unknown as DashboardStoredLayoutItem[]
 }
 
 export function getGridSettings(canvas: DashboardCanvasConfig): DashboardGridSettings {

@@ -1,6 +1,6 @@
 <template>
   <div class="draggable-item" :class="{ 'dropdown-open': dropdownVisible }">
-    <div v-if="editable" class="drag-handle" :title="t('dashboardCanvas.drag')" />
+    <div v-if="draggable" class="drag-handle" :title="t('dashboardCanvas.drag')" />
     <div class="no-drag"><slot /></div>
     <div v-if="editable" class="topRight">
       <a-dropdown v-model:open="dropdownVisible">
@@ -25,7 +25,7 @@ import { ref } from 'vue'
 import { Button as AButton, Dropdown as ADropdown, Menu as AMenu, MenuItem as AMenuItem, Modal } from 'ant-design-vue'
 import { BarsOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
-defineProps<{ editable: boolean; configurable: boolean }>()
+defineProps<{ editable: boolean; draggable: boolean; configurable: boolean }>()
 const emit = defineEmits<{ configure: []; remove: [] }>()
 const { t } = useI18n()
 const dropdownVisible = ref(false)

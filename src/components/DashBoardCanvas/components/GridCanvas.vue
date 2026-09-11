@@ -2,10 +2,10 @@
   <div ref="host" class="dashboard-grid" @dragover="drag.onDragOver" @drop="drag.onDrop">
     <GridLayout ref="layoutRef" v-model:layout="layoutJSON" :col-num="settings.columns"
       :row-height="settings.rowHeight" :margin="settings.margin" :style="gridLayoutStyle"
-      :is-draggable="editable" :is-resizable="editable">
+      :is-draggable="layoutEditable" :is-resizable="layoutEditable">
       <GridItem v-for="item in layoutJSON" :key="item.i" ref="gridItemRefs"
-        v-bind="item" :static="item.static || !editable"
-        :is-draggable="editable && !item.static" :is-resizable="editable && !item.static"
+        v-bind="item" :static="item.static || (!editable && !layoutEditable)"
+        :is-draggable="layoutEditable && !item.static" :is-resizable="layoutEditable && !item.static"
         :drag-option="{ allowFrom: '.drag-handle', ignoreFrom: '.no-drag' }"
         @moved="onLayoutEnd" @resized="onLayoutEnd"
         @move="$emit('interaction', true)" @resize="$emit('interaction', true)">
@@ -27,6 +27,7 @@ const props = defineProps<{
   widgets: DashboardWidget[]
   settings: DashboardGridSettings
   editable: boolean
+  layoutEditable: boolean
   dragging?: { type: string; gridItem?: Partial<DashboardGridItem> }
 }>()
 const emit = defineEmits<{
@@ -66,7 +67,7 @@ async function onLayoutEnd() {
   emit('interaction', false)
   // The grid emits moved/resized before its final collision/compaction update has completed.
   await nextTick()
-  if (props.editable) emit('change', drag.getCommittedLayout())
+  if (props.layoutEditable) emit('change', drag.getCommittedLayout())
 }
 </script>
 
@@ -77,5 +78,12 @@ async function onLayoutEnd() {
   .vue-resizable-handle { opacity: 0; transition: opacity .25s; }
   &:hover .vue-resizable-handle, &.resizing .vue-resizable-handle { opacity: 1; }
 }
-:deep(.vue-grid-item.vue-grid-placeholder) { background: var(--accent-soft); }
+:deep(.vue-grid-item.vue-grid-placeholder),
+:deep(.vue-grid-item.vue-draggable-dragging),
+:deep(.vue-grid-item.resizing) {
+  background: var(--accent-soft);
+  border-radius: 12px !important;
+  clip-path: inset(0 round 12px);
+  overflow: hidden;
+}
 </style>
