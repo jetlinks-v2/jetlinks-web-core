@@ -56,7 +56,7 @@ const props = withDefaults(
     leftWidth: '15rem',
     rightWidth: '1fr',
     align: 'stretch',
-    collapsible: true,
+    collapsible: false,
   }
 )
 
