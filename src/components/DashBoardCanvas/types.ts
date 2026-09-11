@@ -99,6 +99,8 @@ export interface DashboardLayoutItem extends DashboardGridItem {
   static?: boolean
 }
 
+export interface DashboardStoredLayoutItem { i: string; x: number; y: number; w: number; h: number }
+
 export interface DashboardGridSettings {
   columns: number
   rowHeight: number

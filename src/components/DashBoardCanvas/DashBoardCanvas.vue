@@ -2,10 +2,12 @@
   <div class="dashboard-card-layout">
     <div class="dashboard-card-content" :style="surfaceStyle">
       <GridCanvas :widgets="state.value.value.components" :settings="state.gridSettings.value"
-        :editable="editable" :dragging="dragging" @change="state.updateLayout" @drop="onDrop"
+        :editable="editable" :layout-editable="layoutEditable" :dragging="dragging"
+        @change="state.updateLayout" @drop="onDrop"
         @interaction="isDrawerDragging = $event" @drag-end="endDrag">
         <template #default="{ id }">
           <WidgetFrame v-if="widgetsById[id]" :editable="editable && !widgetsById[id].isLocked"
+            :draggable="layoutEditable && !widgetsById[id].isLocked"
             :configurable="Boolean(catalog.components[widgetsById[id].type]?.configs.length)"
             @configure="openWidgetConfig(id)" @remove="state.removeWidget(id)">
             <WidgetRenderer :widget="widgetsById[id]" :definition="catalog.components[widgetsById[id].type]"
@@ -77,14 +79,18 @@ const props = withDefaults(defineProps<{
   modelValue: DashboardValue
   catalog: DashboardCatalog
   editable?: boolean
+  layoutEditable?: boolean
+  /** Stable localStorage key for this dashboard's personal layout. */
+  storageKey?: string
   /** Business component isEdit; independent from permission to rearrange a live dashboard. */
   previewMode?: boolean
   resolveImage?: (fileId: string) => string
-}>(), { editable: false, previewMode: false })
+}>(), { editable: false, layoutEditable: false, previewMode: false })
 const emit = defineEmits<{ 'update:modelValue': [value: DashboardValue] }>()
 const { t } = useI18n()
 const state = useDashboardState({ value: () => props.modelValue, catalog: () => props.catalog,
-  editable: () => props.editable, onChange: value => emit('update:modelValue', value) })
+  editable: () => props.editable, layoutEditable: () => props.layoutEditable,
+  storageKey: () => props.storageKey, onChange: value => emit('update:modelValue', value) })
 type DrawerMode = 'components' | 'component-config' | 'canvas-config'
 const drawerVisible = ref(false)
 const drawerMode = ref<DrawerMode>('components')
