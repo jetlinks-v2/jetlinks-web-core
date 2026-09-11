@@ -34,12 +34,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { CaptchaData, TrackData } from './captcha'
+import type { CaptchaData, CaptchaValidationResult, TrackData } from './captcha'
 import SliderLine from './components/SliderLine.vue'
 
 interface Props {
   captchaData: CaptchaData
-  validate: (trackData: TrackData) => Promise<boolean>
+  validate: (trackData: TrackData) => Promise<CaptchaValidationResult>
   type: String
 }
 

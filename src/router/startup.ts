@@ -76,8 +76,8 @@ export const ensureMenuRoutes = async (
       ? businessApplicationStore.currentApplication?.id
       : undefined
 
-    // Business application context is optional; no selected app means the legacy/global menu should continue.
-    await menuStore.queryMenus(shouldUseApplicationScope ? applicationId || false : undefined)
+    // 租户端必须显式禁用应用 Scope；undefined 会继续读取当前标签页遗留的 session Scope。
+    await menuStore.queryMenus(shouldUseApplicationScope ? applicationId || false : false)
 
     if (menuStore.initialized) {
       addFallbackRoute(router)

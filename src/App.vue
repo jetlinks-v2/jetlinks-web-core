@@ -20,7 +20,7 @@ import theme from '@theme-config'
 import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
 import {initPackages} from "@jetlinks-web-core/package";
-import { setToken} from "@jetlinks-web/utils";
+import { setToken, removeToken} from "@jetlinks-web/utils";
 import { getBaseApi, getPackageConfig, initPersonal, resolvePublicAssetUrl } from '@jetlinks-web-core/utils'
 import { componentsRegistry } from './utils/components-registry'
 import {
@@ -165,12 +165,17 @@ watch(() => JSON.stringify(route.query || {}), () => {
 
     localStorage.setItem(key, String(storageValue))
   })
+
   if (query.token) {
     setToken(query.token as string)
   }
 
   if (query.token || query.from) {
     clearUrlAuthQuery()
+  }
+
+  if (query.clearToken === 'true') {
+    removeToken()
   }
 }, { immediate: true })
 

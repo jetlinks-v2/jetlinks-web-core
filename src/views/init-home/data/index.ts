@@ -20,7 +20,8 @@ export const mergeTrees = (tree1: any[], tree2: any[]) => {
       }
       const existing = map.get(node.code);
 
-      existing.children = mergeTrees(existing.children || [], node.children || []);
+      const mergeChildren = mergeTrees(existing.children || [], node.children || []);
+      existing.children = mergeChildren.length ? mergeChildren : null
     }
   }
 

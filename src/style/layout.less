@@ -67,7 +67,7 @@
 
       .ant-menu-item-selected,& .ant-menu-item-active {
         transition: background 0.3s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
-        background: linear-gradient(0deg, rgba(#fff, 0.25) 0%, rgba(#fff, 0) 82%) !important;
+        background: var(--layout-menu-item-active-bg);
         &::after {
           border-bottom-color: rgba(#fff, .8);
         }
@@ -153,6 +153,19 @@
 
     &:has(.ant-page-header-heading), &:has(.ant-page-header-content), &:has(.ant-page-header-footer) {
       background-color: #fff;
+    }
+
+    &:has(.ant-page-header-footer){
+      background: var(--bg-trans-8);
+      border-radius: var(--r-6);
+      padding: var(--space-4);
+      margin-bottom: var(--space-4);
+    }
+
+    &:not(:has(>.ant-page-header-heading)) .ant-page-header-footer{
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+      border: none !important;
     }
   }
 
@@ -242,8 +255,7 @@
         font-size: var(--layout-menu-item-font-size, var(--fs-14));
         line-height: var(--layout-menu-item-line-height, 1.25rem);
 
-        span,
-        .anticon {
+        span {
           color: inherit !important;
         }
 
@@ -307,9 +319,9 @@
     --layout-menu-width: var(--layout-project-menu-width, 240px);
     --layout-menu-collapsed-width: var(--layout-project-menu-collapsed-width, 56px);
     --layout-menu-bg: var(--layout-project-menu-bg, var(--bg-sunken));
-    --layout-menu-item-active-bg: var(--bg);
+    --layout-menu-item-active-bg: linear-gradient(90deg, #FFFFFF 0%, #E3EFFF 100%);
     --layout-menu-item-active-border: var(--line);
-    --layout-menu-item-hover-bg: var(--bg);
+    --layout-menu-item-hover-bg: var(--layout-menu-item-active-bg);
 
     background: var(--bg);
 
@@ -330,7 +342,6 @@
 
     .ant-pro-top-nav-header {
       background: var(--bg) !important;
-      border-bottom: 1px solid var(--line);
       box-shadow: none !important;
 
       .ant-pro-top-nav-header-main {
@@ -420,12 +431,15 @@
 
     .project-layout__brand-title {
       overflow: hidden;
-      color: var(--ink-1);
-      font-size: var(--fs-18);
+      color:transparent;
+      font-size: var(--fs-20);
       font-weight: 600;
       line-height: 1.5rem;
       text-overflow: ellipsis;
       white-space: nowrap;
+      background: linear-gradient(90deg, #1E72F0, #12A2EF);
+      background-clip: text;
+      -webkit-background-clip: text;
     }
 
     .project-layout__brand-collapse.ant-btn {
@@ -562,10 +576,7 @@
         flex: 1;
         overflow: clip;
         background: var(--bg);
-        border: var(--jet-theme-stroke-width) solid var(--line);
         border-radius: var(--jet-theme-radius-lg);
-        box-shadow: var(--shadow-1);
-          padding: var(--space-4);
       }
 
       .project-layout__route-content {
@@ -603,8 +614,8 @@
 
       .project-layout__brand {
         padding: 0 var(--space-4);
-        border-right: var(--jet-theme-stroke-width) solid var(--line);
-        border-bottom: var(--jet-theme-stroke-width) solid var(--line);
+        //border-right: var(--jet-theme-stroke-width) solid var(--line);
+        //border-bottom: var(--jet-theme-stroke-width) solid var(--line);
       }
 
       .ant-layout-sider.ant-pro-sider {
@@ -614,7 +625,6 @@
         max-width: var(--layout-menu-width) !important;
         padding-top: var(--chrome-header-height) !important;
         background: var(--layout-menu-bg) !important;
-        border-right: var(--jet-theme-stroke-width) solid var(--line);
         box-shadow: none !important;
       }
 
@@ -664,7 +674,7 @@
           font-weight: var(--layout-menu-item-active-font-weight);
           background: var(--layout-menu-item-active-bg) !important;
           border-color: var(--layout-menu-item-active-border);
-          box-shadow: var(--shadow-1);
+          box-shadow:var(--shadow-1);
         }
 
         .ant-menu-item-selected .anticon {
@@ -707,7 +717,34 @@
         }
 
         .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub > .ant-menu-item {
-          padding-left: var(--space-8) !important;
+          padding-left: var(--space-6) !important;
+
+          a {
+            display: inline-flex;
+            align-items: center;
+            color: var(--jet-theme-text-secondary) !important;
+            .ant-pro-menu-item-title {
+              margin-inline-start: var(--space-1) !important;
+            }
+          }
+
+          a .anticon {
+            color: #C9CDD4 !important;
+          }
+
+          &.ant-menu-item-selected a,
+          &.ant-menu-item-selected a .anticon,
+          &.ant-menu-item-selected a .ant-pro-menu-item-title {
+            color: var(--layout-menu-item-active-color) !important;
+          }
+        }
+
+        .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub > .ant-menu-submenu > .ant-menu-submenu-title {
+          padding-left: var(--space-6) !important;
+        }
+
+        .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub > .ant-menu-submenu > .ant-menu-sub > .ant-menu-item {
+          padding-left: var(--space-12) !important;
         }
 
         .ant-menu-inline > .ant-menu-submenu-selected > .ant-menu-submenu-title {
@@ -779,7 +816,7 @@
           color: var(--layout-menu-item-active-color) !important;
           background: var(--layout-menu-item-active-bg) !important;
           border-color: var(--layout-menu-item-active-border);
-          box-shadow: var(--shadow-1);
+          box-shadow:var(--shadow-1);
         }
 
         .ant-menu-inline > .ant-menu-submenu-selected > .ant-menu-submenu-title .anticon {
@@ -807,6 +844,7 @@
         .project-layout__content {
           min-height: calc(100vh - var(--chrome-header-height) - var(--space-8));
           border-radius: var(--r-3);
+
         }
       }
     }
@@ -814,11 +852,41 @@
 }
 
 // 顶部导航滚动离开页面顶端后，使用毛玻璃隔开下方内容。
-.basic-layout-page--header-scrolled .ant-pro-basicLayout.cloud-project.ant-pro-basicLayout-top .ant-pro-fixed-header {
+.basic-layout-page--header-scrolled .ant-pro-fixed-header {
   background: var(--bg) !important;
-  background: color-mix(in srgb, var(--bg) 85%, transparent) !important;
+  background: color-mix(in srgb, var(--bg) 50%, transparent) !important;
   -webkit-backdrop-filter: blur(0.75rem) saturate(140%);
   backdrop-filter: blur(0.75rem) saturate(140%);
+}
+
+// 工作台背景只由布局根节点承载；导航和路由容器保持透明，页面内容继续自行决定卡片层级。
+.basic-layout-page {
+  min-height: 100vh;
+  --layout-workbench-background: url('../assets/layout/workbench-background.svg');
+
+  background: var(--layout-workbench-background) center top / cover fixed no-repeat;
+
+  .ant-pro-basicLayout.cloud-project,
+  .ant-pro-basicLayout.cloud-project > .ant-layout,
+  .ant-pro-basicLayout.cloud-project .ant-layout-content,
+  .ant-pro-basicLayout.cloud-project .ant-pro-basicLayout-content,
+  .ant-pro-basicLayout.cloud-project .project-layout__content,
+  .ant-pro-basicLayout.cloud-project .project-layout__route-content {
+    background: transparent !important;
+  }
+
+  .ant-pro-basicLayout.cloud-project .ant-pro-fixed-header,
+  .ant-pro-basicLayout.cloud-project .ant-pro-top-nav-header,
+  .ant-pro-basicLayout.cloud-project .ant-pro-top-nav-header-main-left,
+  .ant-pro-basicLayout.cloud-project .ant-layout-sider.ant-pro-sider,
+  .ant-pro-basicLayout.cloud-project .ant-layout-sider-children,
+  .ant-pro-basicLayout.cloud-project .ant-pro-sider-links {
+    background: transparent !important;
+    box-shadow:none !important;
+  }
+  .ant-layout {
+    background: transparent !important;
+  }
 }
 
 .ant-descriptions.ant-descriptions-bordered .ant-descriptions-view > table {
@@ -865,17 +933,24 @@
   }
 
   &__menu {
-    width: 20rem;
-    padding: 0;
+    width: 17rem;
+    padding: var(--space-4) var(--space-6);
     overflow: hidden;
     background: var(--chrome-elev, var(--jet-theme-bg-container));
     border: 1px solid var(--chrome-line, var(--jet-theme-border));
-    border-radius: var(--chrome-popover-radius, var(--r-3));
+    border-radius: var(--r-5);
     box-shadow: var(--shadow-pop);
   }
 
   &__summary {
-    padding: var(--space-5) var(--space-6) var(--space-4);
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  &__summary-content {
+    min-width: 0;
   }
 
   &__title-row {
@@ -901,82 +976,55 @@
     font-weight: 600;
   }
 
-  &__account-type {
-    flex: none;
-    padding: 0 var(--space-2);
-    border: 1px solid var(--jet-theme-primary);
-    border-radius: var(--r-pill);
-    color: var(--jet-theme-primary);
-    font-size: var(--fs-12);
-    line-height: 1.125rem;
-  }
-
   &__account-row {
     min-width: 0;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    gap: var(--space-6);
-    margin-top: var(--space-4);
-    font-size: var(--fs-14);
-    line-height: 1.375rem;
-  }
-
-  &__account-label {
-    color: var(--jet-theme-text-secondary);
+    margin-top: var(--space-1);
+    font-size: var(--fs-12);
+    line-height: 1.25rem;
   }
 
   &__account {
-    color: var(--jet-theme-text);
+    color: var(--jet-theme-text-secondary);
   }
 
   &__menu-content {
-    padding: var(--space-2) var(--space-4);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    padding: 0;
   }
 
   &__menu-item.ant-btn {
     width: 100%;
-    height: 2rem;
+    height: 4.25rem;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    padding: 0 var(--space-2);
+    justify-content: center;
+    gap: var(--space-2);
+    padding: 0;
     border: 0;
     border-radius: var(--r-2);
     background: transparent;
     color: var(--jet-theme-text);
-    font-size: var(--fs-14);
+    font-size: var(--fs-13);
     line-height: 1;
-    text-align: left;
+    text-align: center;
     cursor: pointer;
 
     &:hover {
-      background: var(--bg-hover, var(--jet-theme-border-secondary));
+      background: var(--bg-hover);
     }
   }
 
   &__divider {
     height: 0.0625rem;
-    margin: 0;
+    margin: var(--space-3) 0;
     background: var(--jet-theme-border-secondary);
   }
 
-  &__logout.ant-btn {
-    width: 100%;
-    height: 3rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 var(--space-4);
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    color: var(--jet-theme-text);
-    font-size: var(--fs-14);
-    line-height: 1;
-
-    &:hover {
-      background: var(--bg-hover, var(--jet-theme-border-secondary));
-    }
+  &__extensions:empty {
+    display: none;
   }
 
   &--collapsed {

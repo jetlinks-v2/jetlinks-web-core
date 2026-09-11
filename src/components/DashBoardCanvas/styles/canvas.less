@@ -1,0 +1,203 @@
+// Extracted from LoadingBoard/index.vue; the settings dock is local to each canvas.
+
+.dashboard-card-layout {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+
+  .dashboard-setting-dock {
+    position: absolute;
+    right: 0;
+    bottom: 12px;
+    z-index: 40;
+    width: 64px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .dashboard-setting-hotspot {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 18px;
+    height: 100%;
+    pointer-events: auto;
+  }
+
+  :deep(.dashboard-setting-dock .ant-dropdown-trigger) {
+    display: block;
+    pointer-events: auto;
+  }
+
+  .dashboard-setting-trigger {
+    width: 48px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 5px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px 0 0 8px;
+    background: rgba(255, 255, 255, 0.9);
+    color: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+    cursor: pointer;
+    overflow: hidden;
+    transform: translateX(32px);
+    transition:
+      transform 0.22s ease,
+      background-color 0.24s ease,
+      border-color 0.24s ease,
+      color 0.24s ease,
+      box-shadow 0.24s ease;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 8px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.28);
+      box-shadow:
+        0 -6px 0 rgba(15, 23, 42, 0.28),
+        0 6px 0 rgba(15, 23, 42, 0.28);
+      transform: translateY(-50%);
+      transition: opacity 0.2s ease;
+    }
+
+    :deep(.anticon) {
+      font-size: 16px;
+      opacity: 0.92;
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(22, 119, 255, 0.28);
+      outline-offset: 2px;
+    }
+  }
+
+  .dashboard-setting-dock:hover .dashboard-setting-trigger,
+  .dashboard-setting-dock:focus-within .dashboard-setting-trigger,
+  .dashboard-setting-dock.is-open .dashboard-setting-trigger {
+    transform: translateX(0);
+    background: #ffffff;
+    border-color: rgba(22, 119, 255, 0.16);
+    color: #1677ff;
+    box-shadow: 0 14px 28px rgba(22, 119, 255, 0.16);
+  }
+
+  .dashboard-setting-dock:hover .dashboard-setting-trigger::before,
+  .dashboard-setting-dock:focus-within .dashboard-setting-trigger::before,
+  .dashboard-setting-dock.is-open .dashboard-setting-trigger::before {
+    opacity: 0;
+  }
+
+  :deep(.component-box) {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .dashboard-card-content {
+    height: 100%;
+    flex: 1;
+    width: 0;
+    box-sizing: border-box;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+  }
+
+}
+
+:deep(.vue-grid-item),
+:deep(.vue-resizable),
+:deep(.draggable-item) {
+  touch-action: none;
+}
+@media (hover: none) {
+  .dashboard-card-layout {
+    .dashboard-setting-dock {
+      right: 12px;
+      top: auto;
+      bottom: 12px;
+      width: 42px;
+      height: 42px;
+      transform: none;
+    }
+
+    .dashboard-setting-trigger {
+      width: 42px;
+      height: 42px;
+      padding-left: 0;
+      justify-content: center;
+      border-radius: 14px;
+      transform: none;
+
+      &::before {
+        display: none;
+      }
+    }
+  }
+}
+
+.dashboard-empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.dashboard-empty-content {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.dashboard-empty-icon {
+  font-size: 36px;
+  color: rgba(15, 23, 42, 0.25);
+}
+
+.dashboard-empty-desc {
+  font-size: 13px;
+  color: rgba(15, 23, 42, 0.45);
+}
+
+.dashboard-empty-inline-icon {
+  margin: 0 2px;
+  color: rgba(15, 23, 42, 0.55);
+}
+
+.dashboard-empty-action {
+  margin-top: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-card-layout {
+    .dashboard-setting-trigger {
+      transition: none;
+    }
+  }
+}

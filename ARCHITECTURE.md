@@ -29,6 +29,17 @@ Current startup flow:
 
 Startup changes are high-risk because they can affect login, token handling, websocket connection, module registration, theme, and micro-app data exchange.
 
+## Unified Verification
+
+The shared verification dialog is owned by `jetlinks-web-core/src/views/verify/index.vue` and is opened from `jetlinks-web-core/src/package.ts` when a request fails with `verify.required`.
+
+Captcha confirmation uses `jetlinks-web-core/src/api/verify.ts#confirmCaptcha` and must keep the provider-specific parameter contract aligned with the backend `CaptchaProvider` implementations:
+
+- `image`: submit `params.verifyKey` and `params.verifyCode`.
+- `tianai`: first complete `jetlinks-web-core/src/components/Captcha`, then submit the returned passed captcha id as `params["captcha-id"]`. The parent verification dialog hides its footer for this provider and auto-confirms as soon as the behavior captcha succeeds.
+
+`jetlinks-web-core/src/components/Captcha/useCaptha.ts` returns the backend validation success payload to callers. Consumers that need a follow-up confirmation token must use that payload instead of assuming the component only emits a boolean success flag.
+
 ## Module Loading
 
 Module discovery is centralized in:
@@ -73,6 +84,8 @@ Route responsibilities:
 - Menu routes are fetched and installed during router startup through `bootstrapSession()` and `ensureMenuRoutes()`.
 - `src/store/menu.ts#queryMenus()` accepts the legacy application scope argument and an optional `{ applicationScope, conditions }` object. After `/menu/user-own/tree` returns and before route generation, the store applies module `getMenuFilters()` hooks with that context.
 - Server menu trees are normalized in `src/utils/menu.ts#handleMenus()` before sidebar and route generation; sibling nodes with the same `code` share one route node and recursively merge their children.
+- Placeholder menu items declared with `options.meta.menuBadge.type = "comingSoon"` stay visible in layout navigation but are excluded from dynamic route generation; `BasicLayoutShell` renders leaf items as disabled text with a small badge, and project secondary navigation preserves the disabled state.
+- Application side layout is owned by `src/layout/shells/ApplicationLayoutPage.vue`: ProLayout receives level-one menus only, while the active level-one menu's level-two children render through `ProjectSecondaryMenu` in the content area. Project and tenant layouts keep their `BasicLayoutShell` contracts.
 - Route security is expressed with `RouteSecurityLevel.PUBLIC`, `RouteSecurityLevel.AUTHENTICATED`, and `RouteSecurityLevel.AUTHORIZED`.
 - Routes may provide `routeLoadingComponent` for a custom navigation loading state. `routeLoadingOverlay` keeps the target route mounted behind that state, and `routeLoadingManualFinish` keeps it visible after `afterEach` until the owning page calls `useRouteLoadingStore().finish()`; both options are opt-in and leave ordinary route skeleton behavior unchanged.
 

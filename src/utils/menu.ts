@@ -1,6 +1,7 @@
 import type { RouteMeta } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { isSubApp, OpenMicroApp, USER_CENTER_MENU_CODE } from '@jetlinks-web-core/utils/consts'
+import { isComingSoonMenuMeta } from '@jetlinks-web-core/utils/menuBadge'
 import router from '../router'
 import type { MenuButton, MenuItem } from '@jetlinks-web-core/types/module'
 
@@ -34,6 +35,7 @@ const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
 
   return {
     ..._meta,
+    routeTarget: item.options?.routeTarget,
     id: item.id,
     icon: item.icon,
     desc: item.i18nDescribe || item.describe,
@@ -42,6 +44,10 @@ const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
     isApp
   }
 }
+
+const isRoutePlaceholderMenu = (item: MenuItem) => (
+  isComingSoonMenuMeta(handleMeta(item, !!item.appId))
+)
 
 export const handleRoute = (item: MenuItem, parent?: ParentType): Partial<RouteRecordRaw> => {
   const isApp = !!item.appId
@@ -110,6 +116,25 @@ const mergeMenusByCode = (data: MenuItem[] = []): MenuItem[] => {
   return result
 }
 
+export const handleAuthMenu = (menuData: MenuItem[], cb: (code: string, buttons: Array<MenuButton['id']>) => void) => {
+  if (menuData && menuData.length) {
+    return menuData.forEach((item) => {
+      const { code, buttons, children } = item
+
+      if (buttons) {
+        cb(
+          code,
+          buttons.map((a) => a.id)
+        )
+      }
+
+      if (children) {
+        handleAuthMenu(children, cb)
+      }
+    })
+  }
+}
+
 /**
  *
  * @param menuData 服务端菜单数据
@@ -125,10 +150,15 @@ export const handleMenus = (
 ) => {
   const filterMenuCode = [USER_CENTER_MENU_CODE]
   const menuMap = new Map<string, MenuMapValue>() //
-  let authButtons: Record<string, any> = {}
+  const authButtons: Record<string, string[]> = {}
   let menuRoutes: RouteRecordRaw[] = []
   let menus: Partial<RouteRecordRaw>[] = []
   const mergedMenuData = mergeMenusByCode(menuData)
+
+  // 权限树不受侧栏可见性影响，隐藏路由域下的页面仍需保留按钮权限。
+  handleAuthMenu(mergedMenuData, (code, buttons) => {
+    authButtons[code] = buttons
+  })
 
   /**
    * 过滤不需要生成路由的菜单数据
@@ -201,7 +231,8 @@ export const handleMenus = (
   }
 
   function loop(data: MenuItem[], level: number = 1, parent?: ParentType): RouteRecordRaw[] {
-    const _menu = filterMenuData(data)
+    // 占位菜单只参与侧栏展示，不能注册动态路由，避免直链进入未实现页面。
+    const _menu = filterMenuData(data).filter((item) => !isRoutePlaceholderMenu(item))
     const _routes = []
 
     for (let i = _menu.length; i > 0; i--) {
@@ -268,17 +299,13 @@ export const handleMenus = (
   }
 
   function siderLoop(data: MenuItem[]) {
+    // 隐藏节点不进入侧栏树；路由和按钮权限仍由完整菜单树生成。
     const _menu = filterMenuData(data).filter((item) => !handleMeta(item, !!item.appId).hideInMenu)
-    for (const menuItem of data) {
-      if (menuItem.buttons) {
-        authButtons[menuItem.code] = menuItem.buttons.map((item) => item.id)
-      }
-    }
 
     if (_menu && _menu.length) {
       return _menu.map((item) => {
         const _route = handleRoute(item)
-        _route.children = siderLoop(item.children || [])
+        _route.children = isRoutePlaceholderMenu(item) ? [] : siderLoop(item.children || [])
         return _route as RouteRecordRaw
       })
     }
@@ -294,25 +321,6 @@ export const handleMenus = (
     menus,
     menuRoutes,
     authButtons
-  }
-}
-
-export const handleAuthMenu = (menuData: MenuItem[], cb: (code: string, buttons: Array<MenuButton['id']>) => void) => {
-  if (menuData && menuData.length) {
-    return menuData.forEach((item) => {
-      const { code, buttons, children } = item
-
-      if (buttons) {
-        cb(
-          code,
-          buttons.map((a) => a.id)
-        )
-      }
-
-      if (children) {
-        handleAuthMenu(children, cb)
-      }
-    })
   }
 }
 

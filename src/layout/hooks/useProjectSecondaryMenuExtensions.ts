@@ -11,7 +11,7 @@ import {
   mergeProjectSecondaryMenuContributions,
   normalizeSecondaryMenuSource,
   projectRouteMatchesPath,
-  resolveProjectMenuByCode,
+  resolveProjectMenu,
   type ProjectMenuMapEntry,
   type ProjectRawMenu,
   type ProjectSecondaryMenuRegistryOptions,
@@ -30,10 +30,13 @@ import {
 export type { ProjectSecondaryMenuSource }
 
 /**
- * 按目标菜单 code 组装二级导航。基础 children、隐藏菜单和批量扩展均在 Hook 内解析，
- * 调用方不需要持有菜单树，也不会绕过项目菜单的权限过滤结果。
+ * 按目标菜单 code 或 route name 组装二级导航。基础 children、隐藏菜单和批量扩展均在 Hook 内解析，
+ * 调用方不需要持有菜单树，也不会绕过项目菜单的权限过滤结果。registryTargetKey 用于兼容已有 code 注册点。
  */
-export const useProjectSecondaryMenuExtensions = (targetCode: string) => {
+export const useProjectSecondaryMenuExtensions = (
+  targetKey: string,
+  registryTargetKey = targetKey,
+) => {
   const route = useRoute()
   const router = useRouter()
   const projectMenuStore = useMenuStore()
@@ -42,22 +45,22 @@ export const useProjectSecondaryMenuExtensions = (targetCode: string) => {
     return !!menu.name && router.hasRoute(menu.name)
   }
 
-  const resolveByCode = (code: string) => resolveProjectMenuByCode(
-    code,
+  const resolveByKey = (key: string) => resolveProjectMenu(
+    key,
     projectMenuStore.siderMenus,
-    projectMenuStore.rawMenus as ProjectRawMenu[],
+    projectMenuStore.menuResultCache as ProjectRawMenu[],
     projectMenuStore.menusMap as Map<string, ProjectMenuMapEntry>,
     routeExists,
   )
 
-  const targetMenu = computed(() => resolveByCode(targetCode))
+  const targetMenu = computed(() => resolveByKey(targetKey))
   const targetPath = computed(() => normalizeMenuKey(targetMenu.value?.path))
   const baseItems = computed(() => (targetMenu.value?.children || [])
     .map(toNavigationItem)
     .filter((item): item is ProjectNavigationItem => !!item))
 
   const registryItems = computed(() => {
-    return componentsRegistry.getRegistry(getProjectSecondaryMenuRegistryKey(targetCode)) || []
+    return componentsRegistry.getRegistry(getProjectSecondaryMenuRegistryKey(registryTargetKey)) || []
   })
 
   const contributions = computed<ResolvedContribution[]>(() => {
@@ -67,7 +70,7 @@ export const useProjectSecondaryMenuExtensions = (targetCode: string) => {
       const options = action.extraOptions as ProjectSecondaryMenuRegistryOptions | undefined
 
       return (options?.menus || []).map(normalizeSecondaryMenuSource).map((source) => {
-        const resolvedMenu = resolveByCode(source.code)
+        const resolvedMenu = resolveByKey(source.code)
         const menu = source.requireChildren && !resolvedMenu?.children?.length
           ? undefined
           : resolvedMenu
@@ -132,6 +135,6 @@ export const useProjectSecondaryMenuExtensions = (targetCode: string) => {
     selectedKey,
     targetMenu,
     targetPath,
-    visible: computed(() => !!targetMenu.value),
+    visible: computed(() => items.value.length > 0),
   }
 }

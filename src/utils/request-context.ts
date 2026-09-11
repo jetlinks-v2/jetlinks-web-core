@@ -3,7 +3,7 @@ import { getToken } from '@jetlinks-web/utils'
 
 import { edgeDefaultUrl, isSubApp } from './consts'
 import { getProjectIdFromLocation } from './project-path'
-import { getProjectStorage, isProjectStorageEnabled } from './project-storage'
+import { getProjectStorage, isProjectStorageEnabled, type ProjectStorageInfo } from './project-storage'
 
 const TENANT_DOMAIN_KEY = 'X-Tenant-Domain'
 const VERIFY_CACHE_KEY = 'jetlinks_verify_cache'
@@ -49,7 +49,7 @@ export const getRequestBaseApi = () => {
   return projectApi || getBaseApi()
 }
 
-const getVerifyHeaders = () => {
+const getVerifyHeaders = (): Record<string, string> => {
   if (typeof localStorage === 'undefined') return {}
 
   try {
@@ -71,7 +71,7 @@ const getVerifyHeaders = () => {
   }
 }
 
-export const getRequestHeaders = () => {
+export const getRequestHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {}
   const projectId = isProjectStorageEnabled() ? getProjectIdFromLocation() : ''
   const projectStorage = projectId ? getProjectStorage(projectId) : undefined
@@ -87,3 +87,13 @@ export const getRequestHeaders = () => {
 }
 
 export const getUploadHeaders = getRequestHeaders
+
+/** 使用当前请求的凭证和 API 地址进入应用，兼容没有项目会话的独立部署。 */
+export const getApplicationAccessContext = (): ProjectStorageInfo => {
+  const headers = getRequestHeaders()
+  return {
+    token: headers[TOKEN_KEY],
+    apiUrl: getRequestBaseApi(),
+    domain: headers[TENANT_DOMAIN_KEY],
+  }
+}

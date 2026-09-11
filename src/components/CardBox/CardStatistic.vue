@@ -2,6 +2,8 @@
   <CardShell
     :active="active"
     :disabled="disabled"
+    :bordered="bordered"
+    :background-opacity="backgroundOpacity"
     :aria-label="data.label"
     @click="handleClick"
   >
@@ -44,10 +46,12 @@
 
 <script setup lang="ts" name="CardStatistic">
 import { computed, type CSSProperties, type PropType } from 'vue'
+import { cardAppearanceProps } from './appearance'
 import CardShell from './CardShell.vue'
 import type { CardStatisticData, CardStatisticSegment, CardTone } from './types'
 
 const props = defineProps({
+  ...cardAppearanceProps,
   data: {
     type: Object as PropType<CardStatisticData>,
     required: true,
@@ -107,8 +111,8 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-5);
-  gap: var(--space-4);
+  padding: var(--panel-padding, var(--space-4));
+  gap: var(--panel-gap, var(--space-4));
 }
 
 .card-statistic__value-wrap {
@@ -154,13 +158,13 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
   width: calc(var(--card-shell-chart-size) - var(--card-shell-chart-stroke) * 2);
   height: calc(var(--card-shell-chart-size) - var(--card-shell-chart-stroke) * 2);
   border-radius: var(--r-pill);
-  background: var(--bg);
+  background: var(--card-box-background);
 }
 
 .card-statistic__legend {
   display: flex;
   flex-wrap: wrap;
-  padding: var(--space-3) var(--space-5);
+  padding: var(--panel-padding, var(--space-4));
   border-top: var(--jet-theme-stroke-width) solid var(--line);
   gap: var(--space-4);
 }

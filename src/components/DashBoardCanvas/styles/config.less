@@ -1,0 +1,168 @@
+// 仅配置面板提供旧变量别名，避免设计器的全局变量缺失或主题覆盖影响仪表盘。
+// dashboard-config 变量由调用方在祖先节点按需覆盖；默认使用 core 平台主题。
+.dashboard-config-scope {
+  --designer-space-1: var(--dashboard-config-space-1, var(--space-1, 4px));
+  --designer-space-2: var(--dashboard-config-space-2, var(--space-2, 8px));
+  --designer-space-3: var(--dashboard-config-space-3, var(--space-3, 12px));
+  --designer-space-4: var(--dashboard-config-space-4, var(--space-4, 16px));
+  --designer-space-5: var(--dashboard-config-space-5, var(--space-5, 20px));
+  --designer-space-6: var(--dashboard-config-space-6, var(--space-6, 24px));
+  --designer-font-size-caption: var(--dashboard-config-caption-size, 0.6875rem);
+  --designer-font-size-default: var(--dashboard-config-font-size, var(--fs-12, 12px));
+  --designer-font-size-context: var(--dashboard-config-context-size, var(--fs-13, 13px));
+  --designer-line-height-caption: 1rem;
+  --designer-line-height-short: 1.125rem;
+  --designer-line-height-default: var(--dashboard-config-line-height, 1.25rem);
+  --designer-line-height-context: 1.5rem;
+  --designer-font-weight-regular: 400;
+  --designer-font-weight-medium: 500;
+  --designer-font-weight-semibold: 600;
+  --designer-control-height: var(--dashboard-config-control-height, 1.875rem);
+  --designer-icon-size: 1rem;
+  --designer-icon-size-small: 0.875rem;
+  --designer-icon-size-caret: 0.75rem;
+  --designer-panel-inline-padding: var(--designer-space-3);
+
+  --designer-main-bg-color-1: var(--dashboard-config-bg, var(--bg, #fff));
+  --designer-main-bg-color-2: var(--dashboard-config-bg-muted, var(--bg-sunken, #f5f5f5));
+  --designer-main-bg-color-3: var(--dashboard-config-bg-hover, var(--bg-hover, #f0f0f0));
+  --designer-main-color-1: var(--dashboard-config-text, var(--ink-1, #262626));
+  --designer-main-color-2: var(--dashboard-config-text-secondary, var(--ink-2, #595959));
+  // 旧 color-3 实际也用于单选按钮背景，不能直接映射为文字色。
+  --designer-main-color-3: var(--designer-main-bg-color-2);
+  --designer-main-border-color-1: var(--dashboard-config-border, var(--line-strong, #d9d9d9));
+  --designer-main-btn-color-1: var(--designer-main-bg-color-2);
+  --designer-main-btn-hover-color-1: var(--designer-main-bg-color-3);
+  --designer-main-active-color1: var(--dashboard-config-active-bg, var(--accent-soft, #e6f4ff));
+  --designer-main-active-color2: var(--designer-main-bg-color-3);
+  --designer-main-disabled-color-1: var(--dashboard-config-text-disabled, var(--ink-3, #bfbfbf));
+  --designer-main-placeholder-color-1: var(--designer-main-disabled-color-1);
+  --designer-main-form-component: var(--dashboard-config-control-bg, var(--bg-sunken, #f5f5f5));
+  --designer-main-border-radius-1: var(--dashboard-config-radius, var(--jet-theme-button-r-sm, 6px));
+
+  color: var(--designer-main-color-1);
+  font-size: var(--designer-font-size-default);
+  line-height: var(--designer-line-height-default);
+
+  .ant-collapse,
+  .ant-form,
+  .ant-form-item-label > label,
+  .ant-input,
+  .ant-input-number,
+  .ant-select,
+  .ant-picker,
+  .ant-btn {
+    font-size: var(--designer-font-size-default);
+    line-height: var(--designer-line-height-default);
+  }
+
+  .ant-collapse > .ant-collapse-item > .ant-collapse-header {
+    padding: var(--designer-space-3) 0;
+    color: var(--designer-main-color-1);
+    line-height: var(--designer-line-height-default);
+  }
+
+  .ant-collapse-ghost > .ant-collapse-item > .ant-collapse-content > .ant-collapse-content-box {
+    padding: 0 var(--designer-panel-inline-padding) var(--designer-space-3);
+  }
+
+  // 沿用 Inspector 的两行表单：标签/帮助图标在上，控件/单位在下。
+  // 旧 ConfigItem 的固定宽度由内联 style 设置，需在局部显式解除。
+  .config-form-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'label icon' 'content suffix';
+    gap: var(--designer-space-2) var(--designer-space-1);
+    align-items: center;
+    justify-content: stretch;
+    min-width: 0;
+
+    > .j-ellipsis {
+      grid-area: label;
+      min-width: 0;
+      display: block;
+      overflow: visible;
+      white-space: normal;
+      -webkit-line-clamp: unset;
+    }
+
+    > .config-form-item-icon {
+      grid-area: icon;
+      margin-left: 0;
+
+      &:empty { display: none; }
+    }
+
+    > .config-form-item-label {
+      grid-area: suffix;
+      white-space: nowrap;
+    }
+
+    &:not(:has(> .config-form-item-icon:not(:empty))) {
+      grid-template-areas: 'label label' 'content suffix';
+    }
+
+    &:not(:has(> .config-form-item-label)) {
+      grid-template-areas: 'label icon' 'content content';
+    }
+
+    &:not(:has(> .config-form-item-icon:not(:empty))):not(:has(> .config-form-item-label)) {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: 'label' 'content';
+    }
+
+    // 仅有控件的配置行不保留空标签行；帮助图标与单位仍各占一列。
+    &:not(:has(> .j-ellipsis > .config-form-item-label:not(:empty))) {
+      row-gap: 0;
+      > .j-ellipsis { display: none; }
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas: 'icon content suffix';
+
+      &:not(:has(> .config-form-item-icon:not(:empty))) {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: 'content suffix';
+      }
+
+      &:not(:has(> .config-form-item-label)) {
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-areas: 'icon content';
+      }
+
+      &:not(:has(> .config-form-item-icon:not(:empty))):not(:has(> .config-form-item-label)) {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: 'content';
+      }
+    }
+  }
+
+  .config-form-item .config-form-item-label {
+    width: auto !important;
+    min-width: 0 !important;
+    color: var(--designer-main-color-2);
+    font-size: var(--designer-font-size-default);
+    line-height: var(--designer-line-height-default);
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .config-form-item .config-form-item-content {
+    grid-area: content;
+    width: 100%;
+    min-width: 0;
+    padding-left: 0;
+  }
+
+  // 修正旧配置项把背景色 color-3 同时用作控件文字色的规则。
+  .config-form-item .config-form-item-content {
+    .ant-select .ant-select-selector,
+    .ant-input-affix-wrapper,
+    .ant-input-number {
+      color: var(--designer-main-color-1);
+    }
+  }
+
+  .config-actions {
+    gap: var(--designer-space-2);
+    background: var(--designer-main-bg-color-1);
+  }
+}

@@ -109,9 +109,9 @@ const getIconStyle = (item: MetricCardItem): CSSProperties => {
   align-items: center;
   min-width: 0;
   padding: var(--space-4);
-  border: 0.0625rem solid var(--jet-theme-border-soft, transparent);
+  border: 0.0625rem solid var(--bg);
   border-radius: var(--jet-theme-radius-lg);
-  background: var(--jet-theme-bg-container);
+  background: var(--bg-trans-8);
   box-shadow: var(--jet-theme-shadow-card, 0 0.5rem 1.5rem rgb(15 23 42 / 4%));
   gap: var(--space-4);
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;

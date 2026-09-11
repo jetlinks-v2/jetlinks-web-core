@@ -11,7 +11,6 @@ import {
   getTermTypeDescription,
   getTermTypeOption,
   getTermTypeShortDescription,
-  isArrayTermType,
   isNullaryTermType,
   normalizeTermTypeOption,
 } from '../Search/Filter/setting'
@@ -19,12 +18,13 @@ import { useColumnItemOptionsContext, useColumnsMapContext } from '../Search/Fil
 import ConditionEditorPanel from './ConditionEditorPanel.vue'
 import FieldSelectPanel from './FieldSelectPanel.vue'
 import { normalizeOptionItemsByFields, resolveOptionDisplayFields } from './option-display'
-import { resolveConditionFields } from './schema'
+import { isConditionFieldArrayTermType, resolveConditionFields } from './schema'
 import type {
   ConditionFilterChangePayload,
   ConditionFilterCommonField,
   ConditionFilterExpose,
   ConditionFilterField,
+  ConditionFilterLegacySearchPayload,
   ConditionFieldQuickSuggestion,
   ConditionFilterTerm,
 } from './types'
@@ -83,6 +83,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: ConditionFilterTerm[]): void
   (e: 'update:where', value: string): void
   (e: 'change', value: ConditionFilterChangePayload): void
+  (e: 'search', value: ConditionFilterLegacySearchPayload): void
 }>()
 
 const { t: $t } = useI18n()
@@ -120,6 +121,7 @@ const valueDraftMap = reactive<Record<string, ConditionFilterTerm | undefined>>(
 const valuePanelKeywordMap = reactive<Record<string, string | undefined>>({})
 const watchDisposers = new Map<string, () => void>()
 const pendingEmptyRemovalKeys = new Set<string>()
+let hasInitializedDefaultTerms = false
 let autoSearchTimer: number | undefined
 let keepEmptyValueOnBlur = false
 
@@ -132,7 +134,7 @@ const searchColumns = computed(() => {
   return resolvedFields.value
     .map((column, index) => ({
       ...column,
-      sortIndex: index,
+      sortIndex: column.search?.sortIndex ?? index,
     }))
     .filter(item => item.search)
     .sort((a, b) => {
@@ -316,7 +318,7 @@ const resolveQuickSelectValue = (
 
   const targetValue = target.value ?? target.id
 
-  return isArrayTermType(termType || '') ? [targetValue] : targetValue
+  return isConditionFieldArrayTermType(column.search, termType) ? [targetValue] : targetValue
 }
 
 const buildQuickSuggestionDescription = (
@@ -591,7 +593,9 @@ const getTermTypeOptions = (column?: ConditionFilterField) => {
   }
 
   if (search.termOptions?.length) {
-    return search.termOptions.map(option => normalizeTermTypeOption(option))
+    return search.termOptions.map((option) => normalizeTermTypeOption(
+      typeof option === 'string' ? getTermTypeOption(option) || { label: option, value: option } : option,
+    ))
   }
 
   const filterKeys = search.termFilter || []
@@ -610,6 +614,10 @@ const getRecommendedTermType = (column?: ConditionFilterField) => {
   }
 
   const options = getTermTypeOptions(column)
+  if (search.defaultTermType && options.some(item => item.value === search.defaultTermType)) {
+    return search.defaultTermType
+  }
+
   if (typeof search.recommendTermType === 'function') {
     return search.recommendTermType(column, { options }) || search.defaultTermType || options[0]?.value
   }
@@ -660,7 +668,7 @@ const getRecommendedTermType = (column?: ConditionFilterField) => {
   return search.defaultTermType || options[0]?.value
 }
 
-const buildInitialValue = (termType?: string, value?: any) => {
+const buildInitialValue = (termType?: string, value?: any, column?: ConditionFilterField) => {
   if (isNullaryTermType(termType)) {
     return undefined
   }
@@ -669,7 +677,7 @@ const buildInitialValue = (termType?: string, value?: any) => {
     return cloneValue(value)
   }
 
-  if (isArrayTermType(termType || '')) {
+  if (isConditionFieldArrayTermType(column?.search, termType)) {
     return ['btw', 'nbtw'].includes(termType || '') ? [undefined, undefined] : []
   }
 
@@ -686,7 +694,7 @@ const getFieldValueKind = (column?: ConditionFilterField, termType?: string) => 
   }
 
   const searchType = column.search.type
-  const isArray = isArrayTermType(termType)
+  const isArray = isConditionFieldArrayTermType(column.search, termType)
 
   if (searchType === 'string' && !isArray) {
     return 'text'
@@ -745,16 +753,21 @@ const canReuseFieldValueOnSwitch = (
   return currentKind === nextKind
 }
 
-const convertValue = (oldTermType?: string, newTermType?: string, currentValue?: any) => {
+const convertValue = (
+  column: ConditionFilterField | undefined,
+  oldTermType?: string,
+  newTermType?: string,
+  currentValue?: any,
+) => {
   if (!newTermType || oldTermType === newTermType) {
-    return buildInitialValue(newTermType, currentValue)
+    return buildInitialValue(newTermType, currentValue, column)
   }
 
   if (isNullaryTermType(newTermType)) {
     return undefined
   }
 
-  const expectsArrayValue = isArrayTermType(newTermType)
+  const expectsArrayValue = isConditionFieldArrayTermType(column?.search, newTermType)
   const isRangeType = ['btw', 'nbtw'].includes(newTermType)
 
   if (!expectsArrayValue) {
@@ -777,7 +790,7 @@ const convertValue = (oldTermType?: string, newTermType?: string, currentValue?:
 }
 
 const isDirectTextTerm = (column?: ConditionFilterField, termType?: string) => {
-  return column?.search?.type === 'string' && !!termType && !isNullaryTermType(termType) && !isArrayTermType(termType)
+  return column?.search?.type === 'string' && !!termType && !isNullaryTermType(termType) && !isConditionFieldArrayTermType(column.search, termType)
 }
 
 const isPopupValueTerm = (column?: ConditionFilterField, termType?: string) => {
@@ -1292,6 +1305,43 @@ const createOptionsLoader = async (column: ConditionFilterField | undefined, ter
   }
 }
 
+/**
+ * 兼容旧 Search 的默认筛选：defaultValue 可在清空后恢复，defaultOnceValue 仅首次注入。
+ */
+const createDefaultTerms = (includeOnceValue: boolean) => {
+  const terms = searchColumns.value
+    .map((column) => {
+      const search = column.search
+      if (!search) {
+        return undefined
+      }
+
+      const defaultValue = search.defaultValue !== undefined
+        ? search.defaultValue
+        : includeOnceValue ? search.defaultOnceValue : undefined
+
+      if (defaultValue === undefined) {
+        return undefined
+      }
+
+      const termType = search.defaultTermType || getRecommendedTermType(column) || 'eq'
+      const term: ConditionFilterTerm = {
+        column: column.dataIndex,
+        termType,
+        value: buildInitialValue(termType, defaultValue, column),
+        key: randomString(10),
+      }
+
+      return hasTermValue(term) ? term : undefined
+    })
+    .filter(Boolean) as ConditionFilterTerm[]
+
+  return terms.map((term, index) => ({
+    ...term,
+    type: index ? 'and' : undefined,
+  }))
+}
+
 const ensureTermOptionsLoaded = (terms: ConditionFilterTerm[] = termsModel.value) => {
   terms.forEach((term) => {
     if (isConditionGroup(term)) {
@@ -1308,9 +1358,14 @@ const syncByProps = () => {
     ? parseWhereExpression(props.where, resolvedFields.value)
     : normalizeInputTerms(props.modelValue, resolvedFields.value)
 
-  if (!isSameTerms(termsModel.value, nextTerms)) {
-    termsModel.value = nextTerms
+  const shouldApplyInitialDefaults = !hasInitializedDefaultTerms && !props.where?.trim() && !nextTerms.length
+  const targetTerms = shouldApplyInitialDefaults ? createDefaultTerms(true) : nextTerms
+
+  if (!isSameTerms(termsModel.value, targetTerms)) {
+    termsModel.value = targetTerms
   }
+
+  hasInitializedDefaultTerms = true
 
   ensureTermOptionsLoaded()
 }
@@ -1505,14 +1560,15 @@ const applyFieldSelection = (termKey: string, columnKey: string) => {
       term.termType &&
       termOptions.some(item => item.value === term.termType) &&
       term.termType) ||
+    column.search.defaultTermType ||
     getRecommendedTermType(column) ||
     'eq'
 
   const nextValue = quickSuggestion?.value !== undefined
     ? cloneValue(quickSuggestion.value)
     : canReuseFieldValueOnSwitch(term, column, nextTermType)
-      ? convertValue(term.termType, nextTermType, term.value)
-      : buildInitialValue(nextTermType, column.search.defaultValue)
+      ? convertValue(column, term.termType, nextTermType, term.value)
+      : buildInitialValue(nextTermType, column.search.defaultValue, column)
 
   const nextTerm = {
     ...term,
@@ -1589,12 +1645,20 @@ const triggerSearch = () => {
     autoSearchTimer = undefined
   }
 
-  emit('change', {
+  const changePayload: ConditionFilterChangePayload = {
     terms: cloneTerms(payload.value.terms, { stripKey: true }),
     filter: {
       terms: cloneTerms(payload.value.filter.terms, { stripKey: true }),
     },
     where: payload.value.where,
+  }
+
+  emit('change', changePayload)
+  // 旧 Search 以一个根分组传递条件，保留形状以便页面只替换组件标签。
+  emit('search', {
+    terms: [{
+      terms: cloneTerms(changePayload.filter.terms, { stripKey: true }),
+    }],
   })
 }
 
@@ -1616,7 +1680,7 @@ const onTermTypeChange = (termKey: string, nextTermType: string) => {
     return
   }
 
-  const nextValue = convertValue(term.termType, nextTermType, term.value)
+  const nextValue = convertValue(column, term.termType, nextTermType, term.value)
   operatorPanelTermKey.value = undefined
   applyTermUpdate(termKey, {
     termType: nextTermType,
@@ -1771,7 +1835,7 @@ const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?
 }
 
 const onClear = () => {
-  termsModel.value = []
+  termsModel.value = createDefaultTerms(false)
   Object.keys(valueDraftMap).forEach((key) => {
     delete valueDraftMap[key]
   })

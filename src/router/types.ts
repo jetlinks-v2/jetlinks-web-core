@@ -20,6 +20,14 @@ export type RouteHideInMenuContext = {
 
 export type RouteHideInMenuHandler = (context?: RouteHideInMenuContext) => boolean
 
+export type RouteMenuBadgeType = 'comingSoon' | (string & {})
+
+export interface RouteMenuBadge {
+  type?: RouteMenuBadgeType
+  i18nKey?: string
+  text?: string
+}
+
 declare module 'vue-router' {
   interface RouteMeta {
     /** Route access level */
@@ -32,6 +40,12 @@ declare module 'vue-router' {
     title?: string
     /** Whether hidden in menu */
     hideInMenu?: boolean
+    /** Whether the menu item should be disabled by the menu renderer */
+    disabled?: boolean
+    /** Whether the menu item should use Ant Design danger style */
+    danger?: boolean
+    /** Small status badge rendered beside the menu title */
+    menuBadge?: RouteMenuBadge
     /** Custom loading component shown from navigation start through async route resolution */
     routeLoadingComponent?: Component
     /** Keep route content mounted behind the custom loading component */

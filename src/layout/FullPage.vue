@@ -41,6 +41,10 @@ const props = defineProps({
   flex: {
     type: Boolean,
     default: false
+  },
+  hasPadding: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -60,10 +64,21 @@ const styles = computed(() => {
     }
   }
 
-  return {
-    ...sizeStyle,
-    background: props.transparentBackground ? 'transparent' : '#fff'
+  if(props.transparentBackground) {
+    sizeStyle = {
+      ...sizeStyle,
+      background: 'transparent',
+    }
+  } else {
+    sizeStyle = {
+      ...sizeStyle,
+      background: 'var(--bg-trans-8)',
+      border: '1px solid var(--bg)',
+      borderRadius: 'var(--r-6)',
+      padding: props.hasPadding ? 'var(--space-4)' : 0,
+    }
   }
+  return sizeStyle
 })
 
 let mountTimer

@@ -6,8 +6,8 @@ export interface CaptchaConfig {
   requestHeaders?: Record<string, string>
   timeout?: number
   autoRefreshOnFail?: boolean
-  onSuccess?: (response: ValidationResponse) => void
-  onFail?: (response: ValidationResponse) => void
+  onSuccess?: (response: CaptchaValidationSuccess) => void
+  onFail?: (response: unknown) => void
 }
 
 export interface StyleConfig {
@@ -41,6 +41,10 @@ export interface CaptchaData {
   randomX?: number
   randomY?: number
   wordCount?: number
+  data?: {
+    key?: string
+    [key: string]: unknown
+  }
 }
 
 export interface CaptchaResponse {
@@ -55,6 +59,9 @@ export interface ValidationResponse {
   success: boolean
 }
 
+export type CaptchaValidationSuccess = string | Record<string, unknown> | true
+export type CaptchaValidationResult = CaptchaValidationSuccess | false
+
 export interface Track {
   x: number
   y: number
@@ -65,9 +72,12 @@ export interface Track {
 export interface TrackData {
   startTime: number
   stopTime: number
-  backgroundImageHeight: number
-  backgroundImageWidth: number
-  templateImageHeight: number
-  templateImageWidth: number
+  backgroundImageHeight?: number
+  backgroundImageWidth?: number
+  bgImageHeight?: number
+  bgImageWidth?: number
+  templateImageHeight?: number
+  templateImageWidth?: number
   trackList: Track[]
+  data?: string | Track[]
 }

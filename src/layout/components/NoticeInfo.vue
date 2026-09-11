@@ -25,16 +25,6 @@
                                     @refresh="onRefresh"
                                 />
                             </template>
-                            <div
-                                v-if="list.length < DROPDOWN_PAGE_SIZE"
-                                style="
-                                    color: #666666;
-                                    text-align: center;
-                                    padding: 0.5rem;
-                                "
-                            >
-                                {{ $t('components.NoticeInfo.811677-0') }}
-                            </div>
                         </div>
                         <div class="no-data" v-else>
                             <CloudEmpty />
@@ -68,6 +58,7 @@ import {
     createUnreadQueryParams,
     type NoticeTabItem,
 } from './noticeUtils';
+import { loadRegisteredNoticeList } from './noticeListHandler';
 
 const { t: $t } = useI18n();
 const emits = defineEmits(['action']);
@@ -91,6 +82,13 @@ const type = ref<string[]>([]);
 const userInfo = useUserStore();
 let listRequestId = 0;
 
+const defaultNoticeList = (providers: string[]) => {
+    const params = createUnreadQueryParams(providers, DROPDOWN_PAGE_SIZE);
+    return getUnreadNoPagingList_api(params).then((resp: any) => {
+        return Array.isArray(resp.result) ? resp.result : (resp.result?.data || []);
+    });
+};
+
 const getData = (providers: string[] = []) => {
     if (!providers.length) {
         list.value = [];
@@ -98,12 +96,12 @@ const getData = (providers: string[] = []) => {
     }
     loading.value = true;
     const currentRequestId = ++listRequestId;
-    const params = createUnreadQueryParams(providers, DROPDOWN_PAGE_SIZE);
-    getUnreadNoPagingList_api(params)
-        .then((resp: any) => {
+    loadRegisteredNoticeList(providers, DROPDOWN_PAGE_SIZE)
+        .then(result => result ?? defaultNoticeList(providers))
+        .then((data) => {
             // 只接收最新 Tab 的响应，避免快速切换时旧请求覆盖当前列表。
             if (currentRequestId === listRequestId) {
-                list.value = Array.isArray(resp.result) ? resp.result : (resp.result?.data || []);
+                list.value = data;
             }
         })
         .finally(() => {
@@ -166,7 +164,7 @@ onMounted(async () => {
 
 <style lang="less" scoped>
 .notice-info-container {
-    width: 21rem;
+    width: 24rem;
     background-color: #fff;
     border-radius: var(--r-1);
     box-shadow: 0 0.375rem 1rem -0.5rem rgb(0 0 0 / 8%), 0 0.5625rem 1.75rem 0 rgb(0 0 0 / 5%),
@@ -174,7 +172,8 @@ onMounted(async () => {
 
     :deep(.ant-tabs-nav-wrap) {
         display: flex;
-        justify-content: center;
+        justify-content: flex-start;
+        padding: 0 var(--space-4);
     }
 
     .no-data {
@@ -190,7 +189,7 @@ onMounted(async () => {
 
     .content {
         .list {
-            max-height: 28.125rem;
+            max-height: 30rem;
             overflow: auto;
             padding: 0;
             margin: 0;
@@ -202,7 +201,8 @@ onMounted(async () => {
         .btns {
             display: flex;
             height: 2.875rem;
-            justify-content: center;
+            justify-content: flex-end;
+            padding: 0 var(--space-3);
             align-items: center;
         }
     }

@@ -73,7 +73,11 @@
               title: slotProps.state.value === 'read' ? $t('NotificationRecord.index.803553-1') : $t('NotificationRecord.index.803553-2'),
             }"
           >
-            <AIcon type="icon-a-PIZHU1" />
+            <AIcon
+              :type="slotProps.state.value === 'read'
+                ? 'MailOutlined'
+                : 'CheckCircleOutlined'"
+            />
           </j-permission-button>
           <j-permission-button
             type="link"

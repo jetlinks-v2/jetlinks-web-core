@@ -1,4 +1,4 @@
-import type { Ref, VNode } from 'vue'
+import type { Component, Ref, VNode } from 'vue'
 
 export type ConditionLogicType = 'and' | 'or'
 
@@ -99,6 +99,8 @@ export interface ConditionFieldSchema {
 
 export interface ConditionFieldSearchConfig {
   type: string
+  /** 兼容旧 Search 的日期展示格式；适配为 componentProps.format。 */
+  format?: string
   dictId?: string
   fixed?: boolean
   rename?: string
@@ -106,14 +108,22 @@ export interface ConditionFieldSearchConfig {
   matchTokens?: string[]
   defaultTermType?: string
   defaultValue?: any
+  /** 仅首次初始化时使用，调用 clear 后不会恢复。 */
+  defaultOnceValue?: any
   first?: boolean
+  /** 兼容旧 Search 字段顺序；不影响 ConditionFilter 的布局。 */
+  sortIndex?: number
+  /** 兼容旧 Search 的栅格配置；ConditionFilter 不使用该布局属性。 */
+  span?: number
   termTypeOptions?: string[]
-  termOptions?: ConditionTermOption[]
+  termOptions?: Array<ConditionTermOption | string>
   termFilter?: string[]
-  components?: VNode
+  /** 自定义数组值操作符，兼容旧 Search 的 isBtw。 */
+  isBtw?: string[]
+  components?: Component | VNode
   componentProps?: Record<string, any>
   optionPanel?: ConditionOptionPanelConfig
-  options?: any[] | Ref<any[]> | (() => Promise<any[]>)
+  options?: any[] | Ref<any[]> | (() => any[] | Promise<any[]>)
   nestedFields?: ConditionFieldSchema[]
   nestedPlaceholder?: string
   formatValueTooltip?: (value: any, term: ConditionTerm, field: ConditionFieldSchema) => string
@@ -124,7 +134,8 @@ export interface ConditionFieldSearchConfig {
       options: ConditionTermOption[]
     },
   ) => ConditionFieldQuickSuggestion | undefined
-  handleValue?: (value: any) => any
+  handleValue?: (value: any, term: ConditionTerm) => any
+  handleTerms?: (term: ConditionTerm) => ConditionTerm | undefined
   handleParamsItem?: (record: Record<string, any>, params: ConditionTerm[]) => ConditionTerm
   recommendTermType?: string | ((field: ConditionFieldSchema, context: { options: ConditionTermOption[] }) => string | undefined)
   formatValuePreview?: (value: any, term: ConditionTerm, field: ConditionFieldSchema) => string
@@ -155,6 +166,13 @@ export interface ConditionFilterChangePayload {
     terms: ConditionFilterTerm[]
   }
   where: string
+}
+
+/** 兼容旧 Search 的 search 事件根分组结构。 */
+export interface ConditionFilterLegacySearchPayload {
+  terms: Array<{
+    terms: ConditionFilterTerm[]
+  }>
 }
 
 export interface ConditionFilterExpose {

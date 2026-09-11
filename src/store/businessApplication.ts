@@ -17,6 +17,7 @@ import {
 import { prepareApplicationAccess } from '@jetlinks-web-core/utils/application-access'
 import { createProjectRuntimeHref, getProjectCodeFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 import { getProjectStorage } from '@jetlinks-web-core/utils/project-storage'
+import { getApplicationAccessContext } from '@jetlinks-web-core/utils/request-context'
 import { useMenuStore } from './menu'
 
 const $t = i18n.global.t
@@ -112,44 +113,67 @@ export const useBusinessApplicationStore = defineStore('business-application', (
   const initialized = ref(false)
   const scopeSupported = ref(true)
   let initializePromise: Promise<BusinessApplicationEntry | undefined> | undefined
+  let refreshPromise: Promise<BusinessApplicationEntry | undefined> | undefined
+
+  const loadApplications = async (
+    projectCodeHint?: string,
+    preferredApplicationId?: string,
+  ) => {
+    const response = await getMyBusinessApplications().catch((err: unknown) => {
+      if (isBusinessApplicationEndpointMissing(err)) return err
+      throw err
+    })
+
+    if (isBusinessApplicationEndpointMissing(response)) {
+      // 兼容未部署业务应用能力的 SaaS 后端，继续走普通菜单加载。
+      applications.value = []
+      currentApplication.value = undefined
+      scopeSupported.value = false
+      setApplicationScope()
+      initialized.value = true
+      return undefined
+    }
+
+    const result = normalizeBusinessApplications<BusinessApplicationEntity>(response)
+    const entries = withProjectEntry(result, projectCodeHint)
+    // 普通项目入口默认保留项目菜单；子账号登录会显式调用 enterFirstApplication 进入首个业务应用。
+    const selected = selectInitialApplication(entries, preferredApplicationId)
+
+    applications.value = entries
+    currentApplication.value = selected
+    scopeSupported.value = true
+    setApplicationScope(selected?.id)
+    initialized.value = true
+    return selected
+  }
 
   const initialize = (projectCodeHint?: string) => {
     if (initialized.value) return Promise.resolve(currentApplication.value)
     if (initializePromise) return initializePromise
 
     loading.value = true
-    initializePromise = (async () => {
-      const response = await getMyBusinessApplications().catch((err) => {
-        if (isBusinessApplicationEndpointMissing(err)) return err
-        throw err
-      })
-
-      if (isBusinessApplicationEndpointMissing(response)) {
-        // 兼容未部署业务应用能力的 SaaS 后端，继续走普通菜单加载。
-        applications.value = []
-        currentApplication.value = undefined
-        scopeSupported.value = false
-        setApplicationScope()
-        initialized.value = true
-        return undefined
-      }
-
-      const result = normalizeBusinessApplications<BusinessApplicationEntity>(response)
-      const entries = withProjectEntry(result, projectCodeHint)
-      // 普通项目入口默认保留项目菜单；子账号登录会显式调用 enterFirstApplication 进入首个业务应用。
-      const selected = selectInitialApplication(entries, getApplicationScopeFromLocation())
-
-      applications.value = entries
-      currentApplication.value = selected
-      scopeSupported.value = true
-      setApplicationScope(selected?.id)
-      initialized.value = true
-      return selected
-    })()
+    initializePromise = loadApplications(projectCodeHint, getApplicationScopeFromLocation())
 
     return initializePromise.finally(() => {
       loading.value = false
       initializePromise = undefined
+    })
+  }
+
+  const refreshApplications = (projectCodeHint?: string) => {
+    if (refreshPromise) return refreshPromise
+
+    // Header 快捷入口与项目应用管理共享此状态；重拉时保留当前作用域，避免刷新列表改变菜单上下文。
+    refreshPromise = (async () => {
+      if (initializePromise) await initializePromise
+      loading.value = true
+      const preferredApplicationId = currentApplication.value?.id || getApplicationScopeFromLocation()
+      return loadApplications(projectCodeHint, preferredApplicationId)
+    })()
+
+    return refreshPromise.finally(() => {
+      loading.value = false
+      refreshPromise = undefined
     })
   }
 
@@ -185,6 +209,7 @@ export const useBusinessApplicationStore = defineStore('business-application', (
       applicationName: nextApplication.name,
       currentProjectCode: options.currentProjectCode,
       domain: customDomain,
+      accessContext: getApplicationAccessContext(),
       path: result.firstMenuPath || options.fallbackPath || '/403',
     })
     if (!access.success) {
@@ -262,6 +287,7 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     initialized.value = false
     scopeSupported.value = true
     initializePromise = undefined
+    refreshPromise = undefined
   }
 
   return {
@@ -272,6 +298,7 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     initialized,
     scopeSupported,
     initialize,
+    refreshApplications,
     switchApplication,
     enterFirstApplication,
     init,

@@ -328,6 +328,7 @@ export const jumpLogin = (options: JumpLoginOptions = {}) => {
         loginPath,
         reason,
         runtimeConfig: getProjectRuntimeConfig(),
+        origin: localStorage.getItem('pFrom')
       })
     }
   })

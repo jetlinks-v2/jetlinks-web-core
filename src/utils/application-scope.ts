@@ -1,4 +1,4 @@
-export const APPLICATION_SCOPE_HEADER = 'X-Application-Scope'
+export const APPLICATION_SCOPE_HEADER = 'X-Asset-Scope'
 export const APPLICATION_SCOPE_QUERY_KEY = 'applicationScope'
 export const PROJECT_APPLICATION_SCOPE = '__jetlinks_project__'
 

@@ -227,6 +227,7 @@ function handleCropProcessingChange(busy: boolean) {
   border-color: var(--jet-theme-primary-hover);
 }
 .upload-image-warp .upload-image-border :deep(.ant-upload-picture-card-wrapper) {
+  display: block;
   width: 100%;
   height: 100%;
 }

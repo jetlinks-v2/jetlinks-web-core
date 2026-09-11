@@ -1,9 +1,16 @@
 import { request } from '@jetlinks-web/core'
 
+export type SubscriptionState = 'enabled' | 'disabled'
+
 // 获取通知订阅列表
-export const getNoticeList_api = () => request.post(`/notifications/subscriptions/_query`,{});
+export const getNoticeList_api = (query: Record<string, unknown> = {}) =>
+  request.post(`/notifications/subscriptions/_query`, query);
 // 保存通知订阅
 export const save_api = (data:any) => request.patch(`/notifications/subscribe`, data);
+
+// 修改当前用户订阅状态，保留订阅实体及已选通知渠道
+export const changeSubscriptionState_api = (id: string, state: SubscriptionState) =>
+  request.put(`/notifications/subscription/${encodeURIComponent(id)}/_${state}`, {});
 
 // 获取订阅类型
 export const getTypeList_api = () => request.get(`/notifications/providers`);
@@ -25,7 +32,6 @@ export const getUserBind = (type: 'wechat' | 'dingtalk', params: any) => request
 
 // 根据绑定码绑定当前用户
 export const bindThirdParty = (type: string, provider: string, bindCode: string) => request.post(`/user/third-party/me/${type}/${provider}/${bindCode}/_bind`);
-
 
 
 

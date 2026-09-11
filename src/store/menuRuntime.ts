@@ -136,7 +136,9 @@ export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
     managedRouteNames = nextManagedRouteNames
     menusMap.value = context.menuMap
     menu.value = context.menuRoutes
+
     siderMenus.value = context.menus
+
     authStore.setPermissionsAll(context.authButtons)
     initialized.value = true
 

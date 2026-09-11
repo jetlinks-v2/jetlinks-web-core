@@ -262,6 +262,7 @@ const { loading, run } = useRequest(login, {
         }
       }
       await userStore.getUserInfo();
+      localStorage.removeItem('pFrom') // 清掉来源地址
       if (userStore.isAdmin) {
         const initResp = await getInitSet();
         if (initResp.success && !initResp.result?.length) {

@@ -24,7 +24,7 @@
 
 <script setup lang="ts" name="Notice">
 import { changeStatus_api, getUnreadCount_api } from '@jetlinks-web-core/api/account/notificationRecord';
-import { ref, type PropType } from 'vue'
+import { getCurrentInstance, ref, type PropType } from 'vue'
 import NoticeInfo from './NoticeInfo.vue';
 import { useWebSocket } from '@jetlinks-web-core/hooks'
 import { notification, Button } from 'ant-design-vue';
@@ -35,11 +35,11 @@ import { flatten } from 'lodash-es';
 import { useI18n } from 'vue-i18n';
 import {
     BADGE_OVERFLOW_COUNT,
-    BADGE_OVERFLOW_VALUE,
     createUnreadQueryParams,
     type NoticeTabItem,
     toBadgeCount,
 } from './noticeUtils';
+import { handleRegisteredRealtimeNotice } from './noticeRealtimeHandler';
 
 type NoticePlacement = 'top' | 'bottom' | 'topLeft' | 'topRight' | 'topCenter'
   | 'bottomLeft' | 'bottomRight' | 'bottomCenter'
@@ -69,16 +69,45 @@ const visible = ref(false)
 const total = ref(0)
 const loading = ref(false)
 const noticeRef = ref<HTMLElement | null>(null)
+const appContext = getCurrentInstance()?.appContext
 
 const resolvePopupContainer = (triggerNode: HTMLElement) => {
   return props.getPopupContainer?.(triggerNode) || noticeRef.value || document.body
 }
 
+const getList = () => {
+    const topicProviders = flatten(tabs.value.map((i: any) => i?.type)).filter(Boolean);
+    if (topicProviders.length <= 0) {
+        total.value = 0;
+        return;
+    }
+    loading.value = true;
+    const params = createUnreadQueryParams(topicProviders, BADGE_OVERFLOW_COUNT);
+    getUnreadCount_api(params)
+        .then((resp: any) => {
+            total.value = toBadgeCount(resp.result);
+        })
+        .finally(() => (loading.value = false));
+};
+
+const markNotificationRead = async (id: string) => {
+    const resp = await changeStatus_api('_read', [id]);
+    if (resp.status === 200) {
+        getList();
+    }
+};
+
 const { send } = useWebSocket({
-  onMessage(data) {
+  async onMessage(data) {
     if (!data?.payload?.id) return;
-    // 消息处理
-    total.value = Math.min(total.value + 1, BADGE_OVERFLOW_VALUE);
+    const handled = await handleRegisteredRealtimeNotice(data.payload, {
+      markRead: () => markNotificationRead(data.payload.id),
+      refresh: getList,
+      appContext,
+    });
+    // WebSocket 只触发刷新，角标始终以后端未读统计为准。
+    getList();
+    if (handled) return;
     notification.open({
                 message: data?.payload?.topicName,
                 description: () =>
@@ -121,12 +150,6 @@ const { send } = useWebSocket({
   }
 })
 
-// const visibleChange = (v: boolean) => {
-//   v && getList();
-// }
-
-
-
 const read = (type: string, data: any) => {
     const id = data?.payload?.id;
     if (!id) return;
@@ -144,23 +167,6 @@ const read = (type: string, data: any) => {
         }
     });
 };
-
-// 查询未读数量
-const getList = () => {
-    const topicProviders = flatten(tabs.value.map((i: any) => i?.type)).filter(Boolean);
-    if (topicProviders.length <= 0) {
-        total.value = 0;
-        return;
-    }
-    loading.value = true;
-    const params = createUnreadQueryParams(topicProviders, BADGE_OVERFLOW_COUNT);
-    getUnreadCount_api(params)
-        .then((resp: any) => {
-            total.value = toBadgeCount(resp.result);
-        })
-        .finally(() => (loading.value = false));
-};
-
 
 const handleRead = () => {
     visible.value = false;
@@ -199,6 +205,12 @@ const queryTypeList = async () => {
 };
 
 watch(updateCount, () => getList());
+watch(visible, (opened) => {
+    // 打开铃铛时再次向后端校准，避免浏览器保留过期角标。
+    if (opened) {
+        getList();
+    }
+});
 
 onMounted(() => {
     queryTypeList()

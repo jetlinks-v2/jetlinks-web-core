@@ -1,9 +1,7 @@
 import { request } from '@jetlinks-web/core'
 
 // 更新全部菜单
-export const updateMenus = (data: any) => request.patch(`/menu/iot/_all`, data)
-
-
+export const updateMenus = (data: any,owner: string = 'iot') => request.patch(`/menu/${owner}/_all`, data)
 // 记录初始化
 export const saveInit = () => request.post(`/user/settings/init`,{ init: true },)
 

@@ -40,6 +40,7 @@
 </template>
 
 <script setup lang="ts" name="CloudPageHeader">
+import ContentPanel from '../ContentPanel/index.vue'
 /**
  * 跨模块页面标题栏：保留返回事件优先、路由回退兜底的既有交互契约。
  */
@@ -81,8 +82,10 @@ const handleBack = () => {
 
 <style scoped lang="less">
 .cloud-page-header {
-  background: rgba(255, 255, 255, 0.6);
-    margin-bottom: var(--space-4);
+  background: var(--bg-trans-8);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--r-6);
 }
 
 .cloud-page-header__content {
@@ -114,8 +117,8 @@ const handleBack = () => {
 
 .cloud-page-header__title {
   margin: 0;
-  color: #1d2129;
-  font-size: 20px;
+  color: var(--text-color);
+  font-size: var(--fs-20);
   font-weight: 600;
   line-height: normal;
   white-space: nowrap;
@@ -132,7 +135,7 @@ const handleBack = () => {
 
 .cloud-page-header__description {
   overflow: hidden;
-  color: #64748b;
+  color: var(--text-color-disabled);
   font-size: 14px;
   line-height: 20px;
   text-overflow: ellipsis;

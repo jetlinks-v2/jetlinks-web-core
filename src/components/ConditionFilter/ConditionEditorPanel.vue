@@ -3,9 +3,9 @@ import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ConditionOptionPanel from './ConditionOptionPanel.vue'
 import ValueItem from '../Search/Filter/ValueItem.vue'
-import { isArrayTermType } from '../Search/Filter/setting'
 import { useColumnItemOptions, useColumnsMap } from '../Search/Filter/hooks/useSearchEngine'
 import type { ConditionFilterTerm } from './types'
+import { isConditionFieldArrayTermType } from './schema'
 
 const props = defineProps({
   column: {
@@ -60,10 +60,13 @@ const isOptionPanelMode = computed(() => ['select', 'tree', 'treeSelect'].includ
 const hideTitle = computed(() => optionPanelConfig.value?.hideTitle ?? isOptionPanelMode.value)
 const panelWidth = computed(() => `${optionPanelConfig.value?.width || (isOptionPanelMode.value ? 320 : 280)}px`)
 const optionPanelValue = computed(() => draftValue.value)
-const optionPanelOptions = computed(() => currentColumn.value?.search?.options || [])
+const optionPanelOptions = computed(() => {
+  const options = currentColumn.value?.search?.options
+  return Array.isArray(options) ? options : []
+})
 const resolvedOptionPanelConfig = computed(() => ({
   ...optionPanelConfig.value,
-  multiple: isArrayTermType(termType.value || ''),
+  multiple: isConditionFieldArrayTermType(currentColumn.value?.search, termType.value),
 }))
 
 const cloneValue = (value: any) => {
@@ -80,7 +83,7 @@ const initDraft = () => {
 
   draftValue.value = cloneValue(props.term?.value ?? search.defaultValue)
 
-  if (draftValue.value === undefined && isArrayTermType(termType.value || '')) {
+  if (draftValue.value === undefined && isConditionFieldArrayTermType(search, termType.value)) {
     draftValue.value = ['btw', 'nbtw'].includes(termType.value || '') ? [undefined, undefined] : []
   }
 }
@@ -94,7 +97,7 @@ const canApply = computed(() => {
     return Array.isArray(draftValue.value) && draftValue.value.length > 1 && draftValue.value.every(item => item !== undefined && item !== null && item !== '')
   }
 
-  if (isArrayTermType(termType.value)) {
+  if (isConditionFieldArrayTermType(currentColumn.value?.search, termType.value)) {
     return Array.isArray(draftValue.value) && draftValue.value.some(item => item !== undefined && item !== null && item !== '')
   }
 

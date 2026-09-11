@@ -75,6 +75,23 @@ export const USER_CENTER_MENU_DATA = {
                 },
             ]
         },
+
+        {
+            id: 'application',
+            name: '应用',
+            i18nMessages: {
+                zh_CN: "应用",
+                en_US: "application",
+                en: "application"
+            },
+            permissions: [
+                {
+                    permission: 'business-application',
+                    actions: ['query'],
+                }
+            ]
+        },
+
     ]
 }
 

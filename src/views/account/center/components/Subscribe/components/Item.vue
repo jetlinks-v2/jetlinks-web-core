@@ -70,18 +70,37 @@ const props = defineProps({
 
 const emits = defineEmits(['refresh'])
 
+const subscriptionState = computed(() => {
+  const state = props.subscribe?.state
+  return typeof state === 'string' ? state : state?.value
+})
+
+/** 停用实体可能保留历史渠道，展示时必须以订阅状态为准。 */
 const notifyChannels = computed(() => {
-  return props.subscribe?.notifyChannels || []
+  if (subscriptionState.value === 'disabled') {
+    return []
+  }
+  if (props.subscribe) {
+    return props.subscribe.notifyChannels || []
+  }
+  return props.data?.defaultSubscribed
+    ? props.data?.defaultNotifyChannels || []
+    : []
 })
 
 const onSubscribe = async (obj: any) => {
+  const channels = new Set(
+    props.subscribe ? props.subscribe.notifyChannels || [] : notifyChannels.value,
+  )
+  channels.add(obj?.id)
   const _obj = {
+    ...props.subscribe,
     subscribeName: obj.name,
     topicProvider: props.data?.provider,
     providerId: obj.providerId,
-    ...props.subscribe,
+    state: 'enabled',
     locale: systemStore.language,
-    notifyChannels: [...(props.subscribe?.notifyChannels || []), obj?.id],
+    notifyChannels: [...channels],
   }
   const resp = await save_api(_obj)
   if (resp.status === 200) {
@@ -94,7 +113,9 @@ const onSubscribe = async (obj: any) => {
 }
 
 const onUnSubscribe = async (obj: any) => {
-  const _set = new Set(props.subscribe?.notifyChannels || [])
+  const _set = new Set(
+    props.subscribe ? props.subscribe.notifyChannels || [] : notifyChannels.value,
+  )
   _set.delete(obj?.id)
   const _obj = {
     subscribeName: obj.name,

@@ -1,0 +1,108 @@
+.application-trigger {
+  display: inline-flex;
+  max-width: 12.5rem;
+  height: var(--space-10);
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--r-2);
+  background: transparent;
+  color: var(--ink-1);
+  cursor: pointer;
+  font-size: var(--fs-14);
+  font-weight: 500;
+  transition:
+    background var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard);
+
+  &:hover,
+  &:focus-visible {
+    background: var(--bg-hover);
+  }
+
+  &:disabled {
+    cursor: wait;
+  }
+
+  &--header {
+    height: var(--space-8);
+  }
+
+  &__header-icon {
+    color: var(--ink-2);
+    font-size: var(--fs-16);
+  }
+
+  &__header-label,
+  &__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__arrow {
+    color: var(--ink-3);
+    font-size: var(--fs-12);
+  }
+}
+
+.application-menu-panel {
+  width: 16rem;
+  overflow: hidden;
+  padding: var(--space-1);
+  border: var(--jet-theme-stroke-width) solid var(--jet-theme-border-secondary);
+  border-radius: var(--r-3);
+  background: var(--jet-theme-bg-container);
+  box-shadow: var(--shadow-pop);
+
+  &__title {
+    padding: var(--space-2) var(--space-3) var(--space-1);
+    color: var(--ink-3);
+    font-size: var(--fs-12);
+    font-weight: 500;
+  }
+}
+
+.application-menu {
+  max-height: 22rem;
+  overflow-y: auto;
+  border: 0;
+  box-shadow: none;
+
+  &__item {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  &__item--selected {
+    background: var(--jet-theme-primary-soft);
+    color: var(--jet-theme-primary);
+  }
+
+  &__name {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__check {
+    color: var(--jet-theme-primary);
+  }
+}
+
+.business-application-switch-mask {
+  position: fixed;
+  z-index: var(--z-modal);
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--jet-theme-bg-container) 72%, transparent);
+}

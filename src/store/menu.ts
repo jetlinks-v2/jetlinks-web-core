@@ -22,6 +22,7 @@ import {
 import type { MenuFilterConditions } from '@jetlinks-web-core/types/module'
 import { createMenuStoreRuntime } from './menuRuntime'
 import { applyModuleMenuFilters } from './menuFilters'
+import { applyMenuRouteTargets } from './menuRouteTarget'
 import {
   getCoreRouteOverrideMenus,
   getFirstMenuPath,
@@ -55,7 +56,8 @@ type QueryMenusInput = MenuApplicationScope | QueryMenusOptions
 
 const $t = i18n.global.t
 
-const LEGACY_PROJECT_MENU_OPTION_KEYS = ['componentCode', 'routeName', 'authCode', 'authCodes']
+// routeName is the stable target contract for virtual navigation domains such as project settings.
+const LEGACY_PROJECT_MENU_OPTION_KEYS = ['componentCode', 'authCode', 'authCodes']
 
 const getDefaultOwnParams = (): any[] => []
 
@@ -233,16 +235,14 @@ export const useMenuStore = defineStore('menu', () => {
     const queryOptions = resolveQueryMenusOptions(value, conditions)
     const requestedApplicationScope = resolveRequestedApplicationScope(queryOptions.applicationScope)
     const resolvedApplicationScope = resolveMenuApplicationScope(requestedApplicationScope)
-    const menuApplicationScope = shouldSuppressStorageApplicationScope(requestedApplicationScope)
-      ? false
-      : resolvedApplicationScope
+
     runtime.loading.value = true
     try {
       const resp = await getOwnMenuThree({
         paging: false,
         terms: getDefaultOwnParams(),
         sorts: [{ name: 'sortIndex', order: 'asc' }],
-      }, menuApplicationScope)
+      })
 
       const menuResult = Array.isArray(resp.result) ? resp.result : []
 
@@ -257,16 +257,23 @@ export const useMenuStore = defineStore('menu', () => {
         })
         if (requestId !== menuRequestId) return { applied: false }
 
-        prepareMicroApplicationMenus(filteredMenuResult, app)
+        const targetedMenus = applyMenuRouteTargets(filteredMenuResult)
+        targetedMenus.issues.forEach((issue) => {
+          console.warn(
+            `[Menu Route Target] Keep "${issue.sourceCode}" in place: ${issue.type} "${issue.target}".`,
+          )
+        })
+
+        prepareMicroApplicationMenus(targetedMenus.menus, app)
 
         const context = await runtime.createRoutes(
-          filteredMenuResult,
+          targetedMenus.menus,
           () => requestId === menuRequestId,
         )
         if (!context) return { applied: false }
 
-        runtime.menuResultCache.value = JSON.parse(JSON.stringify(filteredMenuResult))
-        runtime.hasResponeMenu.value = !!filteredMenuResult.length
+        runtime.menuResultCache.value = JSON.parse(JSON.stringify(targetedMenus.menus))
+        runtime.hasResponeMenu.value = !!targetedMenus.menus.length
         runtime.loading.value = false
         return {
           applied: true,
