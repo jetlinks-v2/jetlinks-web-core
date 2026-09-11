@@ -192,8 +192,18 @@ export const initPackages = () => {
     const projectContext = getProjectContext()
     if (projectContext) {
         const { storage: projectStorage } = projectContext
-        if (projectStorage) {
-            url = `${projectStorage.apiUrl}/messaging/${projectStorage.token}?${tokenKey}=${projectStorage.token}&X-Tenant-Domain=${projectStorage.domain}`;
+        if (projectStorage?.token) {
+            // Project storage may be populated asynchronously. Never emit an undefined
+            // path/query value: fall back to the current gateway and project id.
+            const api = String(projectStorage.apiUrl || `${protocol}${filterHost}${getBaseApi()}`)
+                .replace(/^http:/, 'ws:')
+                .replace(/^https:/, 'wss:')
+                .replace(/\/undefined(?=\/|$)/g, '')
+                .replace(/\/$/, '')
+            const params = new URLSearchParams({ [tokenKey]: projectStorage.token })
+            const domain = String(projectStorage.domain || projectContext.projectId || '').trim()
+            if (domain) params.set('X-Tenant-Domain', domain)
+            url = `${api}/messaging/${encodeURIComponent(projectStorage.token)}?${params}`
         }
     }
     // wsClient.setOptions({

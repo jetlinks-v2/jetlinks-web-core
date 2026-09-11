@@ -1,11 +1,39 @@
 import type { MaybeArray } from './homeAgentContracts'
 
+export type HomeAgentProviderContribution =
+  | 'capabilities'
+  | 'skillBindings'
+  | 'clientTools'
+  | 'workflowGuides'
+  | 'promptExamples'
+  | 'systemPromptLines'
+
 export const DEFAULT_HOME_AGENT_LIMIT = 20
 export const HOME_AGENT_PROMPT_EXAMPLE_LIMIT = 3
 
 export const toArray = <T>(value: MaybeArray<T>): T[] => {
   if (value === undefined || value === null) return []
   return (Array.isArray(value) ? value : [value]).filter((item): item is T => !!item)
+}
+
+/**
+ * Keeps one optional capability provider from invalidating the base catalog or sibling providers.
+ * Contract errors remain fail-closed because the rejected contribution is never advertised or executed.
+ */
+export const readHomeAgentProviderContribution = <T>(
+  providerId: unknown,
+  contribution: HomeAgentProviderContribution,
+  read: () => MaybeArray<T>,
+): T[] => {
+  try {
+    return toArray(read())
+  } catch (cause) {
+    console.error('[HomeAgentRuntime] Rejected provider contribution.', {
+      providerId: normalizeText(providerId) || 'unknown',
+      contribution,
+    }, cause)
+    return []
+  }
 }
 
 export const resolveMaybeArray = <T>(

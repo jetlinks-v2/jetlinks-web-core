@@ -14,8 +14,8 @@ import {
   isPlainRecord,
   normalizeKeyword,
   normalizeText,
+  readHomeAgentProviderContribution,
   resolveMaybeArray,
-  toArray,
   uniqueStrings,
 } from './homeAgentShared'
 
@@ -254,7 +254,11 @@ export const createHomeAgentContext = (
     navigateToRoute: createRouteNavigator(options),
   }
   const providers = homeAgentCapabilityRegistry.getProviders(options.providerScopes || 'home')
-  const providerCapabilities = providers.flatMap(provider => toArray(provider.getCapabilities?.(context)))
+  const providerCapabilities = providers.flatMap(provider => readHomeAgentProviderContribution(
+    provider.id,
+    'capabilities',
+    () => provider.getCapabilities?.(context),
+  ))
   context.capabilities = filterUnauthorizedCapabilities(mergeCapabilities([
     ...menus.map(menuToCapability),
     ...resolveMaybeArray(options.extraCapabilities),
