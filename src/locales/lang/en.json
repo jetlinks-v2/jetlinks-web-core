@@ -1099,6 +1099,8 @@
   "data.aiData.knowledgeAISearch.menuName": "Visualization/Knowledge Base Intelligent Search",
   "components.MarketplaceInstallStream.viewLogs": "View {count} log(s)",
   "components.DetailHeader.back": "Back",
+  "components.EqualHeightColumns.collapse": "Collapse left panel",
+  "components.EqualHeightColumns.expand": "Expand left panel",
   "components.StatusPill.draft": "Draft",
   "components.StatusPill.review": "In Review",
   "components.StatusPill.published": "Published",
