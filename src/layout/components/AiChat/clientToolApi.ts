@@ -1,6 +1,9 @@
 import {
+  defineAiClientToolFactory,
   defineAiClientTools,
   type AiClientToolDefinition,
+  type AiClientToolFactory,
+  type AiClientToolSource,
 } from './clientTools'
 
 export {
@@ -10,9 +13,18 @@ export {
   clientToolResult,
   defineClientToolAnalyticalProducer,
   defineClientToolBoundedAnalyticalProducer,
+  defineClientToolScope,
   defineClientTool,
+  defineClientToolStringArgumentBinding,
   isCompiledClientToolDefinition,
 } from './clientToolDefinition'
+
+/** Shared materialized-output helpers are re-exported so business tools never import runtime internals. */
+export { createAiClientToolArtifact } from './clientToolResultDelivery'
+export { toAiClientToolSessionDefinition } from './clientToolRouting'
+
+export type { AiClientToolArtifact } from './clientToolResultDelivery'
+export type { AiClientToolOutputField } from './clientToolResult'
 
 export type {
   ClientToolActivation,
@@ -22,6 +34,7 @@ export type {
   ClientToolAnalyticalMeasure,
   ClientToolAnalyticalOrdering,
   ClientToolAnalyticalProducerDefinition,
+  ClientToolAnalyticalSemanticIntentBindingDefinition,
   ClientToolArtifactOutput,
   ClientToolBoundedAnalyticalProducerDefinition,
   ClientToolConfirmation,
@@ -46,6 +59,9 @@ export type {
   ClientToolPreparationResult,
   ClientToolReadEffect,
   ClientToolRecordSetOutput,
+  ClientToolScopeAuthoring,
+  ClientToolScopeCoordinateDefinition,
+  ClientToolScopeDefinition,
   ClientToolAggregateSeriesOutput,
   ClientToolStateChangeOutput,
   ClientToolSuccessOptions,
@@ -61,7 +77,28 @@ export type {
  */
 export type CompiledClientTool<TContext = Record<string, unknown>> = AiClientToolDefinition<TContext>
 
+export type ClientToolFactory<TContext = Record<string, unknown>> = AiClientToolFactory<TContext>
+
+export type ClientToolSource<TContext = Record<string, unknown>> = AiClientToolSource<TContext>
+
+/** Defers one tool compiler so an invalid sibling cannot poison the provider catalog. */
+export const defineClientToolFactory = <TContext = Record<string, unknown>>(
+  id: string,
+  build: () => CompiledClientTool<TContext>,
+) => defineAiClientToolFactory<TContext>(id, build)
+
 /** Public list helper for tools compiled through defineClientTool. */
-export const defineClientTools = <TContext = Record<string, unknown>>(
+export function defineClientTools<TContext = Record<string, unknown>>(
   tools: readonly CompiledClientTool<TContext>[],
-) => defineAiClientTools<TContext>([...tools])
+): CompiledClientTool<TContext>[]
+export function defineClientTools<TContext = Record<string, unknown>>(
+  tools: readonly ClientToolFactory<TContext>[],
+): ClientToolFactory<TContext>[]
+export function defineClientTools<TContext = Record<string, unknown>>(
+  tools: readonly ClientToolSource<TContext>[],
+): ClientToolSource<TContext>[]
+export function defineClientTools<TContext = Record<string, unknown>>(
+  tools: readonly ClientToolSource<TContext>[],
+) {
+  return defineAiClientTools<TContext>([...tools])
+}

@@ -247,13 +247,18 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     };
   };
 
+  const createRuntimeParameters = (runtime: HomeAgentRuntime) => ({
+    ...runtime.parameters,
+    clientTools: runtime.clientTools,
+    clientToolsVersion: runtime.clientToolsVersion,
+    skillBindings: runtime.skillBindings,
+  });
+
   const applyRuntimeParameters = (runtime: HomeAgentRuntime) => {
     if (!isHomeAgentActive() || runtime !== activeRuntime) return;
     aiStore.parameters = {
       ...aiStore.parameters,
-      ...runtime.parameters,
-      clientTools: runtime.clientTools,
-      clientToolsVersion: runtime.clientToolsVersion,
+      ...createRuntimeParameters(runtime),
     };
   };
 
@@ -323,7 +328,7 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     try {
       await loadHomeAgentCapabilityProviders({ loadAll: true });
       const runtime = buildRuntime();
-      await aiStore.queryAgent(HOME_AGENT_CLIENT_ID, runtime.parameters);
+      await aiStore.queryAgent(HOME_AGENT_CLIENT_ID, createRuntimeParameters(runtime));
       applyRuntimeParameters(runtime);
     } finally {
       syncing = false;

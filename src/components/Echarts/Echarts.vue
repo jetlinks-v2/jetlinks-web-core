@@ -3,8 +3,8 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, defineProps, defineOptions, defineExpose } from 'vue'
-import { useEcharts, type EchartsRenderErrorStage } from '@jetlinks-web-core/hooks'
+import { ref, defineProps, defineOptions, defineExpose, type PropType } from 'vue'
+import { useEcharts, type EchartsRenderErrorStage, type EchartsProps, type EchartsLayoutProfile } from '@jetlinks-web-core/hooks/Echarts/useEcharts'
 
 defineOptions({
   name: 'JEcharts'
@@ -12,13 +12,18 @@ defineOptions({
 
 const props = defineProps({
   option: {
-    type: Object,
+    type: Object as PropType<EchartsProps['option']>,
     default: undefined,
   },
   library: {
-    type: Array,
+    type: Array as PropType<EchartsProps['library']>,
     default: () => [],
-  }
+  },
+  // Opt-in renderer policy; canonical options and ordinary page charts retain their existing semantics.
+  layoutProfile: {
+    type: String as PropType<EchartsLayoutProfile>,
+    default: 'native',
+  },
 })
 const emit = defineEmits<{
   (event: 'error', error: unknown, stage: EchartsRenderErrorStage): void

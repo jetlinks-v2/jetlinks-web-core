@@ -190,9 +190,12 @@ const contractRoutingIssues = (
   const produces = normalizedList(routing.produces)
   const shapes = normalizedList(routing.outputShapes)
   const deliveries = normalizedList(routing.resultDeliveries)
-  const contractProduces = normalizedList(contract.outputs.map(output => output.name))
-  const contractShapes = normalizedList(contract.outputs.map(output => output.shape))
-  const contractDeliveries = Array.from(new Set(contract.outputs.map(output => (
+  const routingOutputs = contract.outputs.filter(output => (
+    output.audience !== 'client-presentation' || output.type === 'presentation'
+  ))
+  const contractProduces = normalizedList(routingOutputs.map(output => output.name))
+  const contractShapes = normalizedList(routingOutputs.map(output => output.shape))
+  const contractDeliveries = Array.from(new Set(routingOutputs.map(output => (
     output.delivery || (output.kind === 'artifact' ? 'file' : 'inline')
   )))).map(value => value.toLowerCase())
   const issues: AiClientToolRoutingCatalogIssue[] = []
@@ -200,7 +203,7 @@ const contractRoutingIssues = (
   const routingConsumes = normalizedList(routing.consumerPorts?.map(input => input.name))
   const routingProducerNames = normalizedList(routing.producerPorts?.map(output => output.name))
   const routingProducerPorts = routing.producerPorts || []
-  const contractProducerPorts = contract.outputs.map(output => ({
+  const contractProducerPorts = routingOutputs.map(output => ({
     name: output.name.toLowerCase(),
     type: (output.type || 'structured-data').toLowerCase(),
     mediaType: (output.mediaType || 'application/json').toLowerCase(),
@@ -233,7 +236,7 @@ const contractRoutingIssues = (
       message: 'routing output shapes must be generated from typed contract outputs',
     })
   }
-  if (contract.outputs.length && !sameSet(deliveries, contractDeliveries)) {
+  if (routingOutputs.length && !sameSet(deliveries, contractDeliveries)) {
     issues.push({
       toolId,
       code: 'typed_contract_routing_mismatch',

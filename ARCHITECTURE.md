@@ -175,6 +175,17 @@ The shared AI capability runtime is owned by src/layout/components/AiChat/. Busi
 
 Semantic catalog updates are published only after the current response reaches its authoritative terminal boundary. Registry revision, active-turn deferral and reconnect refresh are runtime responsibilities; business tools must not depend on WebSocket/session fields.
 
+### Runtime Catalog Failure Isolation
+
+The runtime keeps contract validation fail-closed, but a malformed optional extension must not prevent the authorized base catalog and unrelated providers from initializing.
+
+- Provider contributions are read independently. A provider that throws while producing capabilities, tools, workflow guides, prompt examples, or system prompt lines is quarantined for that contribution and reported with its provider id and contribution kind.
+- Tool projection is admitted independently after canonical ids have been checked. A tool that cannot be projected into a model declaration is absent from both the advertised catalog and the executable name map; duplicate ids and advertised-to-canonical identity collisions still fail the complete snapshot.
+- The last executable snapshot remains authoritative during a failed refresh. Isolation never converts an invalid definition into a legacy/direct tool and never weakens effect, schema, resource, evidence, or delivery validation.
+- Business modules must still repair invalid authoring declarations. Isolation is a runtime availability boundary, not a compatibility fallback.
+
+Verification must cover a failing provider beside a healthy provider, an individually unprojectable tool beside a healthy tool, duplicate-id rejection, and absence of quarantined tools from both model declarations and execution dispatch.
+
 ### Stable Authoring Contract
 
 Business modules declare only stable business facts:

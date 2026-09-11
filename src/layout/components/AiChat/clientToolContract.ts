@@ -170,9 +170,7 @@ const validateOutputs = (outputs: readonly AiClientToolOutputContract[]) => {
       throw new Error('Client tool output contract requires name, type, mediaType, shape and audience')
     }
     const delivery = outputDelivery(output)
-    if (output.audience === 'model-evidence' && delivery !== 'inline') {
-      throw new Error(`Model-evidence output must use bounded inline delivery: ${name}`)
-    }
+    // Audience controls evidence visibility; auto delivery independently authorizes compatible materialization.
     if (output.path !== undefined && !isSupportedAiClientToolBindingPath(normalizedText(output.path))) {
       throw new Error(`Unsupported client tool output binding path: ${output.path}`)
     }
@@ -229,6 +227,16 @@ const copyInput = (input: AiClientToolConsumerPort): AiClientToolConsumerPort =>
   shape: normalizedText(input.shape).toLowerCase(),
   required: input.required === true,
   sourcePolicy: input.sourcePolicy,
+  ...(input.argumentBinding ? {
+    argumentBinding: {
+      argument: input.argumentBinding.argument,
+      valueCardinality: input.argumentBinding.valueCardinality,
+      encoding: input.argumentBinding.encoding,
+      ...(input.argumentBinding.contextSource ? {
+        contextSource: { ...input.argumentBinding.contextSource },
+      } : {}),
+    },
+  } : {}),
 })
 
 const copyOutput = (output: AiClientToolOutputContract): AiClientToolOutputContract => {
@@ -288,10 +296,15 @@ export const defineAiClientToolContract = (
   const outputs = (definition.outputs || []).map(copyOutput)
   validateInputs(inputs)
   validateOutputs(outputs)
-  const deliveries = unique(outputs.map(outputDelivery))
+  // Native delivery needs its explicit canonical port across the session boundary. Browser-only data
+  // remains outside model routing; presentation audience alone never grants native or analytical authority.
+  const routingOutputs = outputs.filter(output => (
+    output.audience !== 'client-presentation' || output.type === 'presentation'
+  ))
+  const deliveries = unique(routingOutputs.map(outputDelivery))
   const routing = defineAiClientToolRouting(definition.routingKind, {
     ...definition.routing,
-    portVersion: AI_CLIENT_TOOL_PORT_VERSION,
+    ...(inputs.length || routingOutputs.length ? { portVersion: AI_CLIENT_TOOL_PORT_VERSION } : {}),
     ...(inputs.length ? {
       consumerPorts: inputs,
       accepts: inputs.map(input => input.name),
@@ -299,16 +312,16 @@ export const defineAiClientToolContract = (
         prerequisites: inputs.filter(input => input.required).map(input => input.name),
       } : {}),
     } : {}),
-    ...(outputs.length ? {
-      producerPorts: outputs.map((output): AiClientToolProducerPort => ({
+    ...(routingOutputs.length ? {
+      producerPorts: routingOutputs.map((output): AiClientToolProducerPort => ({
         name: output.name,
         type: output.type || 'structured-data',
         mediaType: output.mediaType || 'application/json',
         shape: output.shape,
         audience: output.audience,
       })),
-      produces: outputs.map(output => output.name),
-      outputShapes: outputs.map(output => output.shape),
+      produces: routingOutputs.map(output => output.name),
+      outputShapes: routingOutputs.map(output => output.shape),
       resultDeliveries: deliveries,
     } : {}),
   })
@@ -319,6 +332,7 @@ export const defineAiClientToolContract = (
       ...(output.label ? { label: output.label } : {}),
       audience: output.audience,
       path: output.path,
+      ...(output.recordPath ? { recordPath: output.recordPath } : {}),
       shape: output.shape,
       ...(output.mediaType ? { mediaType: output.mediaType } : {}),
       ...(output.fields?.length ? { fields: output.fields.map(field => ({ ...field })) } : {}),
@@ -356,6 +370,7 @@ export interface AiClientToolContractOutputState extends Omit<
 }
 
 const executionAxisBindings = new WeakMap<object, { field: string; axis: string }>()
+const executionOrderingBindings = new WeakMap<object, AiClientToolOrdering>()
 
 /** Internal compiler hook: authorizes one invocation-specific dimension axis without exposing mutable field metadata. */
 export const bindAiClientToolContractExecutionAxis = <T extends AiClientToolContractOutputState>(
@@ -364,6 +379,15 @@ export const bindAiClientToolContractExecutionAxis = <T extends AiClientToolCont
   axis: string,
 ): T => {
   executionAxisBindings.set(state, { field, axis })
+  return state
+}
+
+/** Internal compiler hook: projects one producer-guaranteed invocation ordering onto its owning output only. */
+export const bindAiClientToolContractExecutionOrdering = <T extends AiClientToolContractOutputState>(
+  state: T,
+  ordering: AiClientToolOrdering,
+): T => {
+  executionOrderingBindings.set(state, ordering)
   return state
 }
 
@@ -424,16 +448,20 @@ export const createAiClientToolContractOutputBinding = (
   ))) {
     throw new Error(`Undeclared client tool execution axis binding: ${state.name}`)
   }
-  const ordering = output.ordering
-    ? normalizeAiClientToolOrdering(output.ordering, normalizedFields)
+  const declaredOrdering = executionOrderingBindings.get(state) || output.ordering
+  const ordering = declaredOrdering
+    ? normalizeAiClientToolOrdering(declaredOrdering, normalizedFields)
     : undefined
-  if (output.ordering && !ordering) {
+  if (declaredOrdering && !ordering) {
     throw new Error(`Invalid client tool execution ordering: ${state.name}`)
   }
   const label = normalizedText(state.label) || normalizedText(output.label)
   const canonicalFields = !!normalizedFields?.length && normalizedFields.every(isCanonicalAiClientToolOutputField)
+  const requestSatisfied = state.requestSatisfied ?? state.complete
+  const exhaustive = state.exhaustive ?? state.complete
+  const displayTruncated = state.displayTruncated ?? state.truncated ?? false
   const completeness = state.completeness || (canonicalFields
-    ? state.complete ? 'complete' : state.continuation ? 'partial' : 'truncated'
+    ? exhaustive ? 'complete' : 'partial'
     : undefined)
   const binding: AiClientToolOutputBinding = {
     name: output.name,
@@ -447,8 +475,11 @@ export const createAiClientToolContractOutputBinding = (
     ...(state.mediaType || output.mediaType ? { mediaType: state.mediaType || output.mediaType } : {}),
     ...(Number.isFinite(state.recordCount) ? { recordCount: Number(state.recordCount) } : {}),
     ...(Number.isFinite(state.totalCount) ? { totalCount: Number(state.totalCount) } : {}),
-    complete: state.complete,
-    ...(state.truncated !== undefined ? { truncated: state.truncated } : {}),
+    complete: requestSatisfied,
+    truncated: displayTruncated,
+    requestSatisfied,
+    exhaustive,
+    displayTruncated,
     ...(completeness ? { completeness } : {}),
     ...(completeness === 'partial' && state.continuation
       ? { continuation: { ...state.continuation } }
@@ -541,7 +572,6 @@ export const isAiClientToolContractMetadata = (
         || (Array.isArray(record.fields) && fields?.length !== record.fields.length)
         || (!!fields?.some(isCanonicalAiClientToolOutputField) && record.recordPath === undefined)
         || ((delivery === 'file' || (kind === 'artifact' && !delivery)) && record.path !== undefined)
-        || (audience === 'model-evidence' && delivery && delivery !== 'inline')
         || (record.ordering !== undefined && !ordering)
         || (kind === 'artifact'
           && (record.type !== 'artifact' || (delivery && delivery !== 'file')))
@@ -580,7 +610,7 @@ export const diagnoseAiClientToolOutputPresentationCompatibility = (
   if (output.audience !== 'client-presentation') {
     issues.push({ code: 'audience_mismatch', outputName })
   }
-  if (output.kind === 'artifact' || output.type !== 'structured-data') {
+  if (output.kind === 'artifact' || (output.type !== 'structured-data' && output.type !== 'presentation')) {
     issues.push({ code: 'resource_type_mismatch', outputName })
   }
   if (normalizedText(output.mediaType).toLowerCase()

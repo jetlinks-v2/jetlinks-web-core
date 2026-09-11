@@ -32,6 +32,7 @@
             :client-tool-handler="conversationClientToolHandler"
             :client-tools="conversationClientTools"
             :client-tools-version="conversationClientToolsVersion"
+            :skill-bindings="conversationSkillBindings"
             :client-tools-name="conversationClientToolsName"
             :client-tools-description="conversationClientToolsDescription"
             :workflow-guides="conversationWorkflowGuides"
@@ -249,6 +250,8 @@ const conversationBaseParameters = computed(() => {
     clientToolHandler,
     clientToolsName,
     clientToolsDescription,
+    skillBindings,
+    clientToolCatalogDigest,
     markdownLinkHandler,
     onMarkdownLinkClick,
     systemPrompt,
@@ -300,6 +303,9 @@ const conversationClientTools = computed(() => (
   Array.isArray(props.parameters?.clientTools) ? props.parameters.clientTools : []
 ));
 const conversationClientToolsVersion = computed(() => props.parameters?.clientToolsVersion);
+const conversationSkillBindings = computed(() => (
+  Array.isArray(props.parameters?.skillBindings) ? props.parameters.skillBindings : []
+));
 const conversationClientToolHandler = computed<AiChatClientToolHandler | undefined>(() => (
   typeof props.parameters?.clientToolHandler === 'function'
     ? props.parameters.clientToolHandler

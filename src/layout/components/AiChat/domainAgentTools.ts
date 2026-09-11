@@ -7,6 +7,7 @@ import {
   type AiClientToolCardinality,
   type AiClientToolClaim,
   type AiClientToolOutputBinding,
+  type AiClientToolFailureOptions,
 } from './clientToolResult'
 import type {
   AiClientToolInput,
@@ -14,8 +15,17 @@ import type {
 } from './clientTools'
 import {
   clientToolResult,
+  defineClientToolTemporalRange,
   type ClientToolInputAlternative,
+  type ClientToolTemporalAuthoring,
 } from './clientToolDefinition'
+
+export {
+  createDomainAgentScopeContract,
+  type DomainAgentScopeContract,
+  type DomainAgentScopeContractOptions,
+  type DomainAgentScopeCoordinateConfig,
+} from './clientToolScope'
 
 export {
   searchDomainAgentItems,
@@ -62,6 +72,9 @@ export interface DomainAgentToolResult<T> {
   data: T
   total?: number
   truncated: boolean
+  requestSatisfied?: boolean
+  exhaustive?: boolean
+  displayTruncated?: boolean
   nextPage?: number
   warnings?: string[]
   navigation?: DomainAgentNavigation[]
@@ -85,6 +98,9 @@ export const adaptDomainAgentClientToolResult = <TResult extends DomainAgentTool
     cardinality: evidence?.cardinality,
     claims: evidence?.claims,
     supportsAbsenceClaim: evidence?.supportsAbsenceClaim,
+    requestSatisfied: evidence?.requestSatisfied,
+    exhaustive: evidence?.exhaustive,
+    displayTruncated: evidence?.displayTruncated,
     facts: evidence?.facts,
     warnings: result.warnings,
     limitReason: evidence?.limitReason,
@@ -267,6 +283,7 @@ export const createDomainAgentTimeScopeContract = (
   inputs: AiClientToolInput[]
   parameterSchema: AiClientToolParameterSchema
   inputAlternatives: ClientToolInputAlternative[]
+  temporal: ClientToolTemporalAuthoring<Record<string, unknown>>
 } => ({
   inputs: [
     {
@@ -335,6 +352,13 @@ export const createDomainAgentTimeScopeContract = (
       when: { input: 'timeRange', equals: 'custom' },
     },
   ],
+  temporal: defineClientToolTemporalRange<Record<string, unknown>>({
+    rangeArgument: 'timeRange',
+    startArgument: 'startTime',
+    endArgument: 'endTime',
+    customValue: 'custom',
+    encoding: 'date-time',
+  }),
 })
 
 const domainAgentProperty = (
@@ -596,11 +620,27 @@ export const resolveDomainAgentStringList = (
   return result
 }
 
+type DomainAgentResultContext<T> = Omit<DomainAgentToolResult<T>,
+  'success' | 'complete' | 'evidence' | 'outputBindings'>
+
+/** Domain context carries no recovery authority; the canonical factory constructs failure control once. */
+const createDomainAgentFailureResult = <T>(
+  context: DomainAgentResultContext<T>,
+  failure: AiClientToolFailureOptions,
+): DomainAgentToolResult<T> & ReturnType<typeof createAiClientToolFailureResult> => ({
+  ...context,
+  ...createAiClientToolFailureResult(failure),
+  complete: false,
+})
+
 export const createDomainAgentToolResult = <T>(
   input: Omit<DomainAgentToolResult<T>,
     'success' | 'complete' | 'status' | 'truncated' | 'scope' | 'evidence' | 'outputBindings' | 'total'> & {
     status?: DomainAgentStatus
     truncated?: boolean
+    requestSatisfied?: boolean
+    exhaustive?: boolean
+    displayTruncated?: boolean
     /** Required whenever the compatibility `total` field is emitted. */
     cardinality?: DomainAgentCardinality
     scopeName?: string
@@ -617,6 +657,9 @@ export const createDomainAgentToolResult = <T>(
     scopeName,
     status,
     truncated,
+    requestSatisfied,
+    exhaustive,
+    displayTruncated,
     evidenceCoverage,
     supportsAbsenceClaim,
     facts,
@@ -641,30 +684,31 @@ export const createDomainAgentToolResult = <T>(
       ? 'partial'
       : 'ok')
   const complete = resolvedStatus !== 'partial' && !truncated && !incompletePage
-  const base = {
+  const base: DomainAgentResultContext<T> = {
     ...result,
     status: resolvedStatus,
     scope: { type: 'project', ...(scopeName ? { name: scopeName } : {}) },
-    truncated: truncated ?? false,
+    truncated: displayTruncated ?? truncated ?? false,
   }
   if (resolvedStatus === 'forbidden' || resolvedStatus === 'unavailable') {
-    return {
-      ...base,
-      ...createAiClientToolFailureResult({
-        code: String(input.summary?.errorCode || `domain.${resolvedStatus}`),
-        message: String(input.warnings?.[0] || resolvedStatus),
-        failureDisposition: resolvedStatus === 'forbidden' ? 'permission/user' : 'dependency',
-        recoveryAction: resolvedStatus === 'forbidden' ? 'terminal' : 'retry',
-        retryable: resolvedStatus === 'unavailable',
-      }),
-      complete: false,
-    } as DomainAgentToolResult<T>
+    return createDomainAgentFailureResult(base, {
+      code: String(input.summary?.errorCode || `domain.${resolvedStatus}`),
+      message: String(input.warnings?.[0] || resolvedStatus),
+      // A coarse availability status does not prove that repeating the request can recover.
+      failureDisposition: resolvedStatus === 'forbidden' ? 'permission/user' : 'tool',
+      recoveryAction: 'terminal',
+      retryable: false,
+    })
   }
   return withAiClientToolEvidence(base, {
     requestedRange: input.timeRange ? { ...input.timeRange } : undefined,
     cardinality,
     complete,
-    truncated: !complete,
+    // Source coverage and presentation omission are separate evidence axes.
+    truncated: displayTruncated ?? truncated ?? false,
+    requestSatisfied: requestSatisfied ?? complete,
+    exhaustive: exhaustive ?? complete,
+    displayTruncated: displayTruncated ?? truncated ?? false,
     resultStatus: resolvedStatus,
     evidenceCoverage: evidenceCoverage || 'filtered-query',
     supportsAbsenceClaim,
@@ -679,37 +723,128 @@ const toRecord = (value: unknown): Record<string, unknown> => (
   value && typeof value === 'object' ? value as Record<string, unknown> : {}
 )
 
-const errorStatus = (error: unknown): DomainAgentStatus => {
-  const record = toRecord(error)
-  const response = toRecord(record.response)
-  const responseData = toRecord(response.data)
-  const status = Number(record.status ?? response.status ?? responseData.status)
-  return status === 401 || status === 403 ? 'forbidden' : 'unavailable'
+/** Only bounded business text crosses the tool boundary; transport objects and diagnostics stay private. */
+const safeDomainAgentErrorText = (value: unknown): string | undefined => {
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined
+  if (typeof value === 'number' && !Number.isFinite(value)) return undefined
+  const text = String(value).trim()
+  if (!text || text.length > 600 || /[\r\n]|(?:https?|wss?):\/\/|\b(?:bearer|basic)\s+|(?:authorization|cookie|password|secret|token)\s*[:=]/i.test(text)) {
+    return undefined
+  }
+  return text
 }
 
+/** Repair hints are typed metadata, never a channel for request/config/header snapshots. */
+const safeDomainAgentRepairInput = (value: unknown, depth = 0): unknown => {
+  if (depth > 4) return undefined
+  if (value === null || typeof value === 'boolean') return value
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
+  if (typeof value === 'string') return safeDomainAgentErrorText(value)
+  if (Array.isArray(value)) return value.slice(0, 32).map(item => safeDomainAgentRepairInput(item, depth + 1)).filter(item => item !== undefined)
+  const entries = Object.entries(toRecord(value)).slice(0, 32)
+    .filter(([key]) => !/^(?:__proto__|constructor|prototype|response|request|config|headers|stack|url)$|authorization|cookie|password|secret|token/i.test(key))
+    .map(([key, item]) => [key, safeDomainAgentRepairInput(item, depth + 1)] as const)
+    .filter(([, item]) => item !== undefined)
+  return entries.length ? Object.fromEntries(entries) : undefined
+}
+
+type DomainAgentFailureControl = Pick<AiClientToolFailureOptions,
+  'failureDisposition' | 'recoveryAction' | 'retryable' | 'repair'>
+
+/** Recovery authority is independent of whether provider code/message text is safe to display. */
+const domainAgentTypedFailureControl = (value: unknown): DomainAgentFailureControl | undefined => {
+  const source = toRecord(value)
+  const disposition = source.failureDisposition
+  const recovery = source.recoveryAction
+  if (typeof source.retryable !== 'boolean'
+    || typeof disposition !== 'string' || !['request', 'tool', 'dependency', 'permission/user'].includes(disposition)
+    || (recovery !== undefined && (typeof recovery !== 'string' || !['retry', 'repair', 'clarify', 'terminal'].includes(recovery)))) {
+    return undefined
+  }
+  const repair = toRecord(source.repair)
+  const field = safeDomainAgentErrorText(repair.field)
+  const requiredInput = safeDomainAgentRepairInput(repair.requiredInput)
+  return {
+    failureDisposition: disposition as AiClientToolFailureOptions['failureDisposition'],
+    recoveryAction: recovery as AiClientToolFailureOptions['recoveryAction'],
+    retryable: source.retryable,
+    ...(source.repair ? {
+      repair: {
+        ...(field ? { field } : {}),
+        ...(Array.isArray(repair.preserveArguments) ? {
+          preserveArguments: repair.preserveArguments.slice(0, 32).map(safeDomainAgentErrorText).filter((item): item is string => item !== undefined),
+        } : {}),
+        ...(typeof repair.maxAttempts === 'number' && Number.isFinite(repair.maxAttempts) ? { maxAttempts: repair.maxAttempts } : {}),
+        ...(requiredInput && typeof requiredInput === 'object' && !Array.isArray(requiredInput)
+          ? { requiredInput: requiredInput as Record<string, unknown> } : {}),
+      },
+    } : {}),
+  }
+}
+
+/** Preserve provider failure semantics; use HTTP/transport facts only when typed recovery is absent. */
 export const createDomainAgentErrorResult = <T>(
   domain: DomainAgentName,
   data: T,
   error: unknown,
   summary: Record<string, unknown> = {},
-): DomainAgentToolResult<T> => {
-  const status = errorStatus(error)
+): DomainAgentToolResult<T> & ReturnType<typeof createAiClientToolFailureResult> => {
   const record = toRecord(error)
   const response = toRecord(record.response)
   const responseData = toRecord(response.data)
-  const errorCode = String(record.code ?? responseData.code ?? '').trim()
-  return createDomainAgentToolResult({
+  const numericStatus = response.status ?? record.status
+  const httpStatus = typeof numericStatus === 'number' && Number.isInteger(numericStatus)
+    && numericStatus >= 100 && numericStatus <= 599 ? numericStatus : undefined
+  const permissionFailure = httpStatus === 401 || httpStatus === 403
+  const responseControl = domainAgentTypedFailureControl(responseData)
+  const directControl = domainAgentTypedFailureControl(error)
+  const networkFailure = record.isAxiosError === true && record.response == null
+    && typeof record.code === 'string' && ['ERR_NETWORK', 'ECONNABORTED', 'ETIMEDOUT'].includes(record.code)
+  const recoverableDependency = networkFailure || httpStatus === 408 || httpStatus === 429
+    || (httpStatus !== undefined && httpStatus >= 500)
+  const requestRejected = httpStatus !== undefined && httpStatus >= 400 && httpStatus < 500
+  const fallback: DomainAgentFailureControl = {
+    failureDisposition: permissionFailure ? 'permission/user' : recoverableDependency ? 'dependency' : requestRejected ? 'request' : 'tool',
+    recoveryAction: recoverableDependency && !permissionFailure ? 'retry' : 'terminal',
+    retryable: recoverableDependency && !permissionFailure,
+  }
+  const control = permissionFailure ? fallback : responseControl ?? directControl ?? fallback
+  const status: DomainAgentStatus = control.failureDisposition === 'permission/user' ? 'forbidden' : 'unavailable'
+  const directCode = safeDomainAgentErrorText(record.code)
+  const businessCode = safeDomainAgentErrorText(responseData.code) ?? (directControl ? directCode : undefined)
+  const transportCode = record.isAxiosError === true || record.response != null ? directCode : undefined
+  const code = businessCode ?? directCode ?? `domain.${status}`
+  const message = safeDomainAgentErrorText(responseData.message)
+    ?? (directControl ? safeDomainAgentErrorText(record.message) : undefined)
+    ?? resolveDomainAgentMessage(
+      status === 'forbidden'
+        ? 'components.AiChat.domainAgent.errors.forbidden'
+        : control.recoveryAction === 'retry' && control.retryable
+          ? 'components.AiChat.domainAgent.errors.unavailable'
+          : 'IdentityResult.failTitle',
+    )
+  const sourceDetails = toRecord(responseData.details ?? record.details)
+  const type = safeDomainAgentErrorText(sourceDetails.type ?? responseData.errorType ?? responseData.type)
+  return createDomainAgentFailureResult({
     domain,
     status,
     data,
+    scope: { type: 'project' },
+    truncated: false,
     summary: {
       ...summary,
-      ...(errorCode ? { errorCode } : {}),
+      errorCode: code,
     },
-    warnings: [resolveDomainAgentMessage(
-      status === 'forbidden'
-        ? 'components.AiChat.domainAgent.errors.forbidden'
-        : 'components.AiChat.domainAgent.errors.unavailable',
-    )],
+    warnings: [message],
+  }, {
+    ...control,
+    code,
+    message,
+    details: {
+      ...(httpStatus !== undefined ? { status: httpStatus } : {}),
+      ...(businessCode ? { businessCode } : {}),
+      ...(transportCode && transportCode !== businessCode ? { transportCode } : {}),
+      ...(type ? { type } : {}),
+    },
   })
 }

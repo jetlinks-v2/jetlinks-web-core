@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { selectDomainAgentScopeCandidate } from '../src/layout/components/AiChat/clientToolScope'
+import { createHash } from 'node:crypto'
+import { createAiClientToolArtifact } from '../src/layout/components/AiChat/clientToolResultDelivery'
 import {
   clientToolOutput,
   clientToolResult,
@@ -12,8 +15,12 @@ import {
 } from '../src/layout/components/AiChat/routeCapabilityLoader'
 import {
   createAiClientToolRuntime,
+  defineAiClientToolFactory,
+  defineAiClientToolResultBindings,
   guardAiClientToolResult,
 } from '../src/layout/components/AiChat/clientTools'
+import { normalizeClientSkillBindingContribution } from '../src/layout/components/AiChat/clientSkillBindings'
+import { readHomeAgentProviderContribution } from '../src/layout/components/AiChat/homeAgentShared'
 import { moduleRegistry } from '../src/utils/module-registry'
 
 const collectObjectKeys = (value: unknown, result = new Set<string>()) => {
@@ -28,6 +35,90 @@ const collectObjectKeys = (value: unknown, result = new Set<string>()) => {
   })
   return result
 }
+
+test('result bindings inherit canonical multi-output ports while legacy metadata keeps its authoring semantics', () => {
+  const bindings = defineAiClientToolResultBindings({
+    produces: ['resolved-identifiers', 'aggregate-summary'],
+    outputShapes: ['legacy.identifiers', 'legacy.aggregate'],
+    producerPorts: [
+      {
+        name: 'resolved-identifiers',
+        type: 'structured-data',
+        mediaType: 'application/vnd.example.identifiers+json',
+        shape: 'example.identifier-set',
+        audience: 'reusable-source',
+      },
+      {
+        name: 'aggregate-summary',
+        type: 'structured-data',
+        mediaType: 'application/vnd.example.aggregate+json',
+        shape: 'example.aggregate-summary',
+      },
+    ],
+  }, {
+    'resolved-identifiers': '$.data[*].id',
+    'aggregate-summary': '$.aggregates.total',
+  }, {
+    'resolved-identifiers': {
+      type: 'artifact',
+      mediaType: 'text/plain',
+      audience: 'client-presentation',
+      label: 'Resolved identifiers',
+      fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+    },
+    'aggregate-summary': {
+      type: 'artifact',
+      mediaType: 'text/plain',
+      audience: 'client-presentation',
+      label: 'Aggregate summary',
+      ordering: { keys: [{ field: 'bucket', direction: 'asc' }], producerGuaranteed: true },
+    },
+  })
+
+  assert.deepEqual(bindings, [
+    {
+      name: 'resolved-identifiers',
+      type: 'structured-data',
+      path: '$.data[*].id',
+      shape: 'example.identifier-set',
+      mediaType: 'application/vnd.example.identifiers+json',
+      audience: 'reusable-source',
+      label: 'Resolved identifiers',
+      fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+    },
+    {
+      name: 'aggregate-summary',
+      type: 'structured-data',
+      path: '$.aggregates.total',
+      shape: 'example.aggregate-summary',
+      mediaType: 'application/vnd.example.aggregate+json',
+      label: 'Aggregate summary',
+      ordering: { keys: [{ field: 'bucket', direction: 'asc' }], producerGuaranteed: true },
+    },
+  ])
+
+  assert.deepEqual(defineAiClientToolResultBindings({
+    produces: ['legacy-summary'],
+    outputShapes: ['legacy.summary'],
+  }, {
+    'legacy-summary': '$.summary',
+  }, {
+    'legacy-summary': {
+      type: 'artifact',
+      mediaType: 'text/plain',
+      audience: 'client-presentation',
+      label: 'Legacy summary',
+    },
+  }), [{
+    name: 'legacy-summary',
+    path: '$.summary',
+    shape: 'legacy.summary',
+    type: 'artifact',
+    mediaType: 'text/plain',
+    audience: 'client-presentation',
+    label: 'Legacy summary',
+  }])
+})
 
 test('64 KiB result guard fails closed without an exact ref and preserves exact materialized bindings', () => {
   const maxJsonLength = 64 * 1024
@@ -97,6 +188,154 @@ test('64 KiB result guard fails closed without an exact ref and preserves exact 
   assert.equal(oversizedExact.outputBindings[0].ref, exactBinding.ref)
   assert.equal(oversizedExact.outputBindings[0].complete, true)
   assert.equal(oversizedExact.outputBindings[0].truncated, undefined)
+})
+
+test('runtime backs a 744-row explicit-auto aggregate before the unchanged effective reply guard', async () => {
+  const records = Array.from({ length: 744 }, (_, index) => ({
+    id: `${index}-${'x'.repeat(100)}`,
+    value: index,
+  }))
+  const cardinality = { kind: 'aggregate-series' as const, bucketCount: 744, populatedBucketCount: 744, measurementCount: 9123 }
+  let producerCalls = 0
+  let uploads = 0
+  let source = ''
+  const tool = defineClientTool({
+    id: 'anonymous_complete_aggregate',
+    description: { text: 'Read anonymous aggregate records', capabilities: ['anonymous.aggregate.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'series', shape: 'anonymous.aggregate', audience: 'model-evidence', delivery: 'auto',
+      recordPath: '$', fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+      ordering: { keys: [{ field: 'id', direction: 'asc' }], producerGuaranteed: true },
+    }),
+    execute: () => {
+      producerCalls += 1
+      return clientToolResult.success(records, {
+        cardinality, requestedRange: { start: 1, end: 745 }, observedRange: { start: 1, end: 744 },
+      })
+    },
+  })
+  const runtime = createAiClientToolRuntime([tool], {
+    includeHelpTool: false,
+    resultGuard: { maxJsonLength: 64 * 1024, maxArrayLength: 30, maxObjectKeys: 64 },
+  })
+  try {
+    const reply = await runtime.handleClientToolCall({
+      id: 'one-execution', toolName: tool.id,
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async (path, content) => {
+          uploads += 1
+          source = String(content)
+          return { ok: true, path }
+        },
+        remove: async path => ({ ok: true, path }),
+      },
+    }) as any
+    assert.equal(producerCalls, 1)
+    assert.equal(uploads, 1)
+    assert.ok(source.length > 64 * 1024)
+    assert.deepEqual(JSON.parse(source), records)
+    assert.ok(JSON.stringify(reply).length < 64 * 1024)
+    assert.equal(reply.complete, true)
+    assert.equal(reply.truncated, false)
+    assert.equal(reply.meta, undefined)
+    assert.equal(reply.outputBindings.length, 1)
+    assert.equal(reply.outputBindings[0].recordCount, 744)
+    assert.equal(reply.outputBindings[0].recordPath, '$')
+    assert.equal(reply.outputBindings[0].audience, 'model-evidence')
+    assert.match(reply.outputBindings[0].ref, /^fs:\/\//)
+    assert.equal(reply.outputBindings[0].path, undefined)
+    assert.deepEqual(reply.evidence.cardinality, cardinality)
+    assert.deepEqual(reply.outputBindings[0].ordering, {
+      keys: [{ field: 'id', direction: 'asc' }], producerGuaranteed: true,
+    })
+    assert.equal(reply.__clientToolOutputs.output0, undefined)
+    assert.equal(reply.producedFile, undefined)
+    assert.equal(reply.artifacts, undefined)
+  } finally {
+    runtime.dispose()
+  }
+})
+
+test('runtime preserves promoted native proof while the reply guard still downgrades inline siblings', async () => {
+  const source = { records: [{ id: 'one', description: 'x'.repeat(38 * 1024) }] }
+  const content = JSON.stringify(source)
+  const mediaType = 'application/vnd.example.budget-native+json'
+  const shape = 'example.budget-native'
+  let producerCalls = 0
+  let uploads = 0
+  const tool = defineClientTool({
+    id: 'anonymous_budget_native',
+    description: { text: 'Read anonymous bounded native data', capabilities: ['example.budget.read'] },
+    effect: { kind: 'READ' },
+    output: [
+      clientToolOutput.recordSet({
+        name: 'native', type: 'presentation', shape, mediaType, audience: 'client-presentation', delivery: 'auto',
+        recordPath: '$.records', fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+        select: (result: any) => result.data,
+      }),
+      clientToolOutput.detail({
+        name: 'model-info', shape: 'example.model-info', mediaType: 'application/json',
+        audience: 'model-evidence', delivery: 'inline', select: (result: any) => result.smallEvidence,
+      }),
+    ],
+    execute: () => {
+      producerCalls += 1
+      return clientToolResult.success({
+        // Only declared output selections survive the authoring adapter. This sibling keeps
+        // the actual runtime envelope over budget even after the native carrier is promoted.
+        smallEvidence: { id: 'model-only', explanation: 'e'.repeat(70 * 1024) },
+        data: createAiClientToolArtifact({
+          content, modelSafeInline: source, mimeType: mediaType, fileExtension: 'json',
+          bindingName: 'native', outputShape: shape, recordPath: '$.records',
+          preview: { returnedCount: 1 }, complete: true, exhaustive: false,
+        }),
+      }, { requestSatisfied: true, exhaustive: false })
+    },
+  })
+  const runtime = createAiClientToolRuntime([tool], {
+    includeHelpTool: false, resultGuard: { maxJsonLength: 64 * 1024 },
+  })
+  try {
+    const reply = await runtime.handleClientToolCall({
+      id: 'one-call', toolName: tool.id,
+      presentationCapabilities: [{ type: 'anonymous-view', contentType: 'json', mediaType,
+        supportsSessionFile: true, maxInlineBytes: 64 * 1024, defaultMode: 'preview',
+        purpose: 'conversation-preview', preferredInputShapes: [shape], deliveryPolicy: 'required' }],
+      sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async (path, value) => {
+          uploads += 1
+          assert.equal(String(value), content)
+          return { ok: true, path }
+        },
+        remove: async path => ({ ok: true, path }),
+      },
+    }) as any
+    assert.equal(producerCalls, 1)
+    assert.equal(uploads, 1)
+    assert.equal(reply.meta.reason, 'client_tool_result_too_large')
+    const native = reply.outputBindings.find((binding: any) => binding.name === 'native')
+    const model = reply.outputBindings.find((binding: any) => binding.name === 'model-info')
+    assert.ok(native)
+    assert.equal(native.type, 'presentation')
+    assert.equal(native.complete, true)
+    assert.equal(native.truncated, false)
+    assert.equal(native.exhaustive, false)
+    assert.match(native.ref, /^fs:\/\//)
+    assert.equal(native.sourceDigest, `sha256:${createHash('sha256').update(content, 'utf8').digest('hex')}`)
+    assert.equal(native.sourceDigestProfile, 'bytes-v1')
+    assert.ok(model)
+    assert.equal(model.audience, 'model-evidence')
+    assert.equal(model.ref, undefined)
+    assert.equal(model.complete, false)
+    assert.equal(model.truncated, true)
+    assert.equal(reply.complete, false)
+    assert.equal(reply.truncated, true)
+  } finally {
+    runtime.dispose()
+  }
 })
 
 test('route-specific extension loading consumes explicit activation manifests without path inference', async () => {
@@ -390,6 +629,52 @@ test('prepared client-tool failures and rejections never execute the side effect
   runtime.dispose()
 })
 
+test('client-tool failures expose whether external execution started', async () => {
+  let executions = 0
+  const tool = defineClientTool({
+    id: 'test_effect_execution_boundary',
+    description: { text: 'Run an effect after confirmation', capabilities: ['test.effect.run'] },
+    effect: {
+      kind: 'WRITE',
+      idempotency: 'IDEMPOTENT',
+      reversible: true,
+      confirmation: {},
+    },
+    output: clientToolOutput.stateChange({
+      name: 'effect-receipt',
+      shape: 'effect.receipt',
+      transition: 'MUTATION',
+    }),
+    execute: () => {
+      executions += 1
+      const error = new Error('execution failed after entering the effect boundary') as Error & { code: string }
+      error.code = 'TEST_EFFECT_EXECUTION_FAILED'
+      throw error
+    },
+  })
+  const runtime = createAiClientToolRuntime([tool], { includeHelpTool: false })
+
+  const beforeExecution = await runtime.handleClientToolCall({
+    id: 'missing-confirmation-handler',
+    toolName: tool.id,
+  }) as any
+  assert.equal(beforeExecution.success, false)
+  assert.equal(beforeExecution.code, 'CLIENT_TOOL_CONFIRM_HANDLER_UNAVAILABLE')
+  assert.equal(beforeExecution.effectState, 'not-started')
+  assert.equal(executions, 0)
+
+  const afterExecutionStarted = await runtime.handleClientToolCall({
+    id: 'execution-window-failure',
+    toolName: tool.id,
+    requestConfirmation: () => ({ approved: true }),
+  }) as any
+  assert.equal(afterExecutionStarted.success, false)
+  assert.equal(afterExecutionStarted.code, 'TEST_EFFECT_EXECUTION_FAILED')
+  assert.equal(afterExecutionStarted.effectState, undefined)
+  assert.equal(executions, 1)
+  runtime.dispose()
+})
+
 test('runtime keeps the prepared tool snapshot stable until confirmation and execution finish', async () => {
   let handlerVersion = 1
   let approve: (() => void) | undefined
@@ -439,4 +724,236 @@ test('runtime keeps the prepared tool snapshot stable until confirmation and exe
   })
   assert.deepEqual(executions, [1, 2])
   runtime.dispose()
+})
+
+test('runtime quarantines an unprojectable tool from both declaration and execution views', async () => {
+  const healthy = {
+    id: 'test_catalog_healthy',
+    description: 'Healthy tool',
+    execute: () => ({ ok: true }),
+  }
+  const malformed = {
+    id: 'test_catalog_malformed',
+    description: 'Malformed tool',
+    parameterSchema: { type: 'object' as const },
+    expands: { _schema: { type: 'object' } },
+    execute: () => ({ ok: true }),
+  }
+  const errors: unknown[][] = []
+  const originalError = console.error
+  console.error = (...args: unknown[]) => errors.push(args)
+  try {
+    const runtime = createAiClientToolRuntime([healthy, malformed], { includeHelpTool: false })
+    assert.deepEqual(runtime.clientTools.map(tool => tool.name), ['test_catalog_healthy'])
+    await assert.rejects(
+      runtime.handleClientToolCall({ id: 'malformed-call', toolName: malformed.id }),
+      /Unsupported client tool/,
+    )
+    assert.match(String(errors[0]?.[0] || ''), /Rejected client tool definition/)
+    assert.equal((errors[0]?.[1] as any)?.toolId, malformed.id)
+    runtime.dispose()
+  } finally {
+    console.error = originalError
+  }
+})
+
+test('lazy tool factories isolate one compiler failure and retain valid siblings', async () => {
+  const createHealthy = (id: string) => defineAiClientToolFactory(id, () => defineClientTool({
+    id,
+    description: { text: `Healthy ${id}`, capabilities: ['test.catalog.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.lookup({ name: `${id}-output`, shape: 'test.lookup' }),
+    execute: () => ({ ok: true, id }),
+  }))
+  const malformed = defineAiClientToolFactory('test_factory_malformed', () => defineClientTool({
+    id: 'test_factory_malformed',
+    description: { text: 'Malformed summary', capabilities: ['test.catalog.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.aggregateSeries({
+      name: 'test-malformed-summary',
+      shape: 'tabular.summary',
+      fields: [{ name: 'count', type: 'integer', role: 'measure', unit: 'count' }],
+    }),
+    execute: () => ({ count: 1 }),
+  }))
+  const errors: unknown[][] = []
+  const originalError = console.error
+  console.error = (...args: unknown[]) => errors.push(args)
+  try {
+    const runtime = createAiClientToolRuntime([
+      createHealthy('test_factory_first'),
+      malformed,
+      createHealthy('test_factory_last'),
+    ], { includeHelpTool: false })
+    assert.deepEqual(runtime.clientTools.map(tool => tool.name), [
+      'test_factory_first',
+      'test_factory_last',
+    ])
+    await assert.rejects(
+      runtime.handleClientToolCall({ id: 'malformed-factory-call', toolName: malformed.id }),
+      /Unsupported client tool/,
+    )
+    assert.ok(errors.some(args => (args[1] as any)?.toolId === malformed.id))
+    runtime.dispose()
+  } finally {
+    console.error = originalError
+  }
+})
+
+test('lazy tool factories publish removal and recovery without persistent quarantine', async () => {
+  let enabled = true
+  const factory = defineAiClientToolFactory('test_factory_refresh', () => {
+    if (!enabled) throw new Error('temporarily invalid factory')
+    return defineClientTool({
+      id: 'test_factory_refresh',
+      description: { text: 'Refreshable tool', capabilities: ['test.catalog.read'] },
+      effect: { kind: 'READ' },
+      output: clientToolOutput.lookup({ name: 'test-refresh-output', shape: 'test.lookup' }),
+      execute: () => ({ ok: true }),
+    })
+  })
+  const originalError = console.error
+  console.error = () => undefined
+  try {
+    const runtime = createAiClientToolRuntime([factory], { includeHelpTool: false })
+    assert.deepEqual(runtime.clientTools.map(tool => tool.name), [factory.id])
+    const initialVersion = runtime.clientToolsVersion
+
+    enabled = false
+    runtime.refreshClientTools()
+    assert.deepEqual(runtime.clientTools, [])
+    assert.equal(runtime.clientToolsVersion, initialVersion + 1)
+    await assert.rejects(
+      runtime.handleClientToolCall({ id: 'removed-factory-call', toolName: factory.id }),
+      /Unsupported client tool/,
+    )
+
+    enabled = true
+    runtime.refreshClientTools()
+    assert.deepEqual(runtime.clientTools.map(tool => tool.name), [factory.id])
+    assert.equal(runtime.clientToolsVersion, initialVersion + 2)
+    await runtime.handleClientToolCall({ id: 'restored-factory-call', toolName: factory.id })
+    runtime.dispose()
+  } finally {
+    console.error = originalError
+  }
+})
+
+test('provider contributions quarantine one failure without losing healthy siblings', () => {
+  const providers = [
+    { id: 'test-provider-healthy', read: () => ['healthy contribution'] },
+    { id: 'test-provider-broken', read: () => { throw new Error('broken contribution') } },
+  ]
+  const errors: unknown[][] = []
+  const originalError = console.error
+  console.error = (...args: unknown[]) => errors.push(args)
+  try {
+    const contributions = providers.flatMap(provider => readHomeAgentProviderContribution(
+      provider.id,
+      'clientTools',
+      provider.read,
+    ))
+    assert.deepEqual(contributions, ['healthy contribution'])
+    assert.ok(errors.some(args => (args[1] as any)?.providerId === 'test-provider-broken'))
+  } finally {
+    console.error = originalError
+  }
+})
+
+test('client Skill binding contribution preserves provider order and deduplicates opaque ids', () => {
+  assert.deepEqual(normalizeClientSkillBindingContribution([
+    { bindingId: ' passenger-flow ' },
+    { bindingId: '' },
+    { bindingId: 'device-analysis' },
+    { bindingId: 'passenger-flow' },
+    { bindingId: '  ' },
+  ]), [
+    { bindingId: 'passenger-flow' },
+    { bindingId: 'device-analysis' },
+  ])
+  assert.deepEqual(normalizeClientSkillBindingContribution(), [])
+})
+
+test('duplicate client tool ids still reject the complete snapshot', () => {
+  const duplicate = (label: string) => ({
+    id: 'test_catalog_duplicate',
+    description: label,
+    execute: () => ({ ok: true }),
+  })
+  assert.throws(
+    () => createAiClientToolRuntime([duplicate('first'), duplicate('second')]),
+    /Duplicate client tool id/,
+  )
+})
+
+
+test('scope search resolves names to fresh complete candidates without treating text as an id', async () => {
+  const text = { question: 'Choose', cancel: 'Cancel', required: 'Required', cancelled: 'Cancelled', incomplete: 'Incomplete', invalid: 'Invalid' }
+  const candidates = [{ id: 'a', title: 'A', value: 'device-a/channel-a' }, { id: 'b', title: 'B', value: 'device-b/channel-b' }]
+  const requests: any[] = []
+  const responses = [{ searchText: ' north ' }, { optionId: 'b' }]
+  const found = await selectDomainAgentScopeCandidate({ requestInput: async request => {
+    requests.push(request)
+    return responses.shift()!
+  } }, [], true, 0, text, { placeholder: 'Name', submitText: 'Search', resolve: async name => {
+    assert.equal(name, 'north')
+    return { candidates, complete: true, total: 2 }
+  } })
+  assert.equal(found, 'device-b/channel-b')
+  assert.deepEqual(requests.map(request => request.options.map((option: any) => option.id)), [[], ['a', 'b']])
+  for (const lookup of [
+    async () => ({ candidates, complete: false, total: 2 }),
+    async () => ({ candidates, complete: true, total: 3 }),
+    async () => { throw new Error('permission denied') },
+  ]) {
+    let prompts = 0
+    await assert.rejects(selectDomainAgentScopeCandidate({ requestInput: async () => {
+      prompts++
+      return { searchText: 'north' }
+    } }, [], true, 0, text, { placeholder: 'Name', submitText: 'Search', resolve: lookup }))
+    assert.equal(prompts, 1, 'incomplete or failed lookup cannot become another empty picker')
+  }
+  await assert.rejects(selectDomainAgentScopeCandidate({ requestInput: async () => ({ optionId: 'north' }) },
+    candidates, true, 2, text), /Invalid/)
+})
+
+test('scope search cannot continue after abort even when its resolver ignores the signal', async () => {
+  const controller = new AbortController()
+  const text = { question: 'Choose', cancel: 'Cancel', required: 'Required', cancelled: 'Cancelled', incomplete: 'Incomplete', invalid: 'Invalid' }
+  let finish!: (value: any) => void
+  let started!: () => void
+  const lookupStarted = new Promise<void>(resolve => { started = resolve })
+  let executed = 0
+  const selection = selectDomainAgentScopeCandidate({ signal: controller.signal,
+    requestInput: async () => ({ searchText: 'north' }) }, [], true, 0, text,
+  { placeholder: 'Name', submitText: 'Search', resolve: async (_name, signal) => {
+    assert.equal(signal, controller.signal)
+    started()
+    return new Promise(resolve => { finish = resolve })
+  } }).then(() => { executed++ })
+  await lookupStarted
+  controller.abort()
+  finish({ candidates: [{ id: 'a', title: 'A', value: 'exact-pair' }], complete: true, total: 1 })
+  await assert.rejects(selection, /Cancelled/)
+  assert.equal(executed, 0)
+})
+
+test('scope tree uses complete authorized options and never automatically chooses a replacement scope', async () => {
+  const text = { question: 'Choose', cancel: 'Cancel', required: 'Required', cancelled: 'Cancelled', incomplete: 'Incomplete', invalid: 'Invalid' }
+  const options = [{ id: 'area:a', title: 'A', value: { areaId: 'a' } }]
+  let prompts = 0
+  const picked = await selectDomainAgentScopeCandidate({ requestInput: async request => {
+    prompts++
+    assert.equal(request.editor, 'scope-tree')
+    assert.equal(request.options.length, 1)
+    return { optionId: 'area:a' }
+  } }, [], true, 0, text, { placeholder: 'Name', submitText: 'Search', editor: 'scope-tree',
+    browse: async () => ({ candidates: options, complete: true, total: 1 }),
+    resolve: async () => { throw new Error('tree filtering must not issue another lookup') },
+  })
+  assert.deepEqual(picked, { areaId: 'a' })
+  assert.equal(prompts, 1)
+  await assert.rejects(selectDomainAgentScopeCandidate({ requestInput: async () => {
+    throw new Error('invalid tree must not become selectable')
+  } }, [{ ...options[0], parentId: 'area:a' }], true, 1, text), /Invalid/)
 })
