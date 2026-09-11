@@ -49,11 +49,16 @@ export const defaultSystemConfigSource: SystemConfigSource = {
   queryScope: settingDetail,
 }
 
-const layoutModes: readonly LayoutMode[] = ['mix', 'side', 'top']
+export const layoutModes: readonly LayoutMode[] = ['mix', 'side', 'top']
 
 // 历史 front 配置没有 layout，统一回退侧边导航，保持升级前的菜单行为。
 export const normalizeLayoutMode = (value: unknown): LayoutMode => (
   layoutModes.includes(value as LayoutMode) ? value as LayoutMode : 'side'
+)
+
+// 与 normalizeLayoutMode 不同，非法值返回 undefined，便于调用方区分「未声明」和「显式 side」。
+export const toLayoutMode = (value: unknown): LayoutMode | undefined => (
+  layoutModes.includes(value as LayoutMode) ? value as LayoutMode : undefined
 )
 
 const resolveLayoutTitle = (frontTitle: unknown) => {

@@ -2,6 +2,7 @@
   <BasicLayoutShell
     class="tenant-layout-page"
     variant="tenant"
+    layout="top"
     :subMenuItemRender="renderTenantSubMenu"
   />
 </template>

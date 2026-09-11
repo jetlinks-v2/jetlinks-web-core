@@ -1,5 +1,10 @@
 <template>
-  <BasicLayoutShell class="project-layout-page" variant="project" :expandSecondaryMenu="true" />
+  <BasicLayoutShell
+    class="project-layout-page"
+    variant="project"
+    layout="mix"
+    :expandSecondaryMenu="true"
+  />
 </template>
 
 <script setup name="ProjectLayoutPage" lang="ts">

@@ -1207,6 +1207,11 @@ export const parseWhereExpression = (where: string | undefined, columns: Conditi
           value = [startValue, endValue]
         } else {
           value = parseScalarValue(consume(), column)
+          // where 使用查询格式；回显包含条件时撤销一层通配符和转义，避免 v-model:where 循环膨胀。
+          if (['like', 'nlike'].includes(termType) && typeof value === 'string'
+            && value.startsWith('%') && value.endsWith('%') && value.length >= 2) {
+            value = value.slice(1, -1).replace(/\\([\\%])/g, '$1')
+          }
         }
 
         terms.push(createInternalTerm({ column: columnKey, termType, value, type: nextType }, terms.length))

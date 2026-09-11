@@ -111,6 +111,7 @@ type MenuItemRender = (context: {
   icon?: VNode
 }) => VNode | undefined
 
+// 应用端壳层通过 props 语义声明导航模式为 side，优先级高于 system.layout.layout。
 const controller = useBasicLayoutControllerContext('side')
 const route = useRoute()
 const router = useRouter()

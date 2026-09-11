@@ -2290,6 +2290,7 @@ const onClearTermValue = (termKey: string) => {
 
 defineExpose<ConditionFilterExpose>(exposeApi)
 
+// 字段映射与默认条件需要初始化；查询输出不能回填编辑态，由调用方在路由同步时区分。
 watch(
   searchColumns,
   () => {

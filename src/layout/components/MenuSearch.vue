@@ -138,7 +138,7 @@ const handleDocumentMousedown = (event: MouseEvent) => {
 }
 
 const valueChange = debounce((e) => {
-  open = !!e.target.value
+  open.value = !!e.target.value
 },300)
 
 watch(open, (value) => {

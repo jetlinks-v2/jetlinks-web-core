@@ -18,16 +18,16 @@
       :collapsedButtonRender="false"
       :menuExtraRender="showMenuSearch ? undefined : false"
       :menuItemRender="renderMenuItem"
-      :subMenuItemRender="layout.layout === 'top'
+      :subMenuItemRender="layoutMode === 'top'
         ? subMenuItemRender
-        : layout.layout === 'side' && variant !== 'project' && !state.collapsed
+        : layoutMode === 'side' && variant !== 'project' && !state.collapsed
           ? renderPrimaryMenuGroup
           : undefined"
       @menuClick="handlePrimaryMenuClick"
       @backClick="goBack"
     >
       <template #menuHeaderRender>
-        <div class="project-layout__brand" :style="layout.layout === 'top' ? undefined : logoWidth">
+        <div class="project-layout__brand" :style="layoutMode === 'top' ? undefined : logoWidth">
           <div v-if="!state.collapsed" class="project-layout__brand-main">
             <img class="project-layout__brand-logo" :src="layout.logo" alt="" />
             <span class="project-layout__brand-title">{{ layout.title }}</span>
@@ -104,6 +104,7 @@ import { h, watchEffect, type PropType, type VNode } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { Menu } from 'ant-design-vue'
 import i18n from '@jetlinks-web-core/locales'
+import type { LayoutMode } from '@jetlinks-web-core/store/system'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import {
   DEFAULT_COMING_SOON_MENU_BADGE_I18N_KEY,
@@ -143,7 +144,7 @@ const props = defineProps({
     required: true,
   },
   layout: {
-    type: String,
+    type: String as PropType<LayoutMode>,
   },
   expandSecondaryMenu: {
     type: Boolean,
@@ -206,6 +207,7 @@ const {
   headerScrolled,
   hideHeaderRight,
   layout,
+  layoutMode,
   layoutSelectedKeys,
   layoutType,
   logoWidth,

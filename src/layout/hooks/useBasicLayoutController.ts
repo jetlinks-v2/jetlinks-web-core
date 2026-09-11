@@ -4,7 +4,7 @@ import { useWindowScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useResponsiveLayoutDimensions } from '@jetlinks-web-core/hooks'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
-import { useSystemStore } from '@jetlinks-web-core/store/system'
+import { useSystemStore, type LayoutMode } from '@jetlinks-web-core/store/system'
 import { getHideHeaderRightConfig, routerFallback } from '@jetlinks-web-core/utils'
 import { isBusinessApplicationRuntime } from '@jetlinks-web-core/utils/business-application-runtime'
 import { isSubApp } from '@jetlinks-web-core/utils/consts'
@@ -75,6 +75,11 @@ export const useBasicLayoutController = (
     selectedKeys: [] as string[],
   })
 
+  // 壳层通过 props 声明自己的导航模式，优先级高于 system.layout.layout 全局配置。
+  // 布局模式属于壳层特征（租户 top / 项目 mix / 应用 side），不能靠共享 store 互相覆盖。
+  const layoutModeOverride = ref<LayoutMode | undefined>(undefined)
+  const layoutMode = computed<LayoutMode>(() => layoutModeOverride.value ?? layout.value.layout)
+
   const themeLayout = computed(() => themeStyleToken.value.layout)
   const menuVariant = computed(() => themeLayout.value?.menuVariant || 'classic')
   const routeLayoutClassName = computed(() => {
@@ -119,18 +124,18 @@ export const useBasicLayoutController = (
   const isProjectLayout = computed(() => layoutVariant.value === 'project')
 
   const layoutSelectedKeys = computed(() => {
-    if (isProjectLayout.value && layout.value.layout === 'mix') {
+    if (isProjectLayout.value && layoutMode.value === 'mix') {
       return projectMixSelectedKeys.value
     }
-    if (isProjectLayout.value && layout.value.layout !== 'top') {
+    if (isProjectLayout.value && layoutMode.value !== 'top') {
       return projectSidebarSelectedKeys.value
     }
-    if (layout.value.layout === 'mix') return mixSelectedKeys.value
-    return layout.value.layout === 'top' ? topSelectedKeys.value : primarySelectedKeys.value
+    if (layoutMode.value === 'mix') return mixSelectedKeys.value
+    return layoutMode.value === 'top' ? topSelectedKeys.value : primarySelectedKeys.value
   })
   // 项目端 side/mix 保留完整树，让二、三级菜单在同一左侧导航内展开。
   const layoutMenuData = computed(() => (
-    layout.value.layout === 'top' || isProjectLayout.value
+    layoutMode.value === 'top' || isProjectLayout.value
       ? projectSidebarMenus.value
       : primaryMenus.value
   ))
@@ -169,7 +174,7 @@ export const useBasicLayoutController = (
     if (settingsActive.value) return settingsSecondaryItems.value
     if (pageSecondaryMenuActive.value) return pageSecondaryMenu.items.value
     if (isProjectLayout.value) return []
-    return layout.value.layout === 'top' ? [] : secondaryItems.value
+    return layoutMode.value === 'top' ? [] : secondaryItems.value
   })
   const visibleSecondarySelectedKey = computed(() => {
     if (settingsActive.value) return settingsSecondarySelectedKey.value
@@ -187,13 +192,14 @@ export const useBasicLayoutController = (
     siderWidth: 240,
     collapsedWidth: 56,
     theme: theme.value,
+    layout: layoutMode.value,
     menuData: layoutMenuData.value,
-    splitMenus: layout.value.layout === 'mix',
+    splitMenus: layoutMode.value === 'mix',
     classNames: {
       'cloud-project': true,
       'cloud-project--collapsed': state.collapsed,
       [`jet-layout-menu-${menuVariant.value}`]: true,
-      [`cloud-layout-${layout.value.layout}`]: true,
+      [`cloud-layout-${layoutMode.value}`]: true,
       [`cloud-layout-variant-${layoutVariant.value}`]: true,
     },
   }))
@@ -239,7 +245,7 @@ export const useBasicLayoutController = (
       layoutMenuData.value,
       selectedPaths,
       expandSecondaryMenu.value,
-      layout.value.layout,
+      layoutMode.value,
     )
     if (route.query?.layout === 'false') state.pure = true
   })
@@ -253,6 +259,8 @@ export const useBasicLayoutController = (
     headerScrolled,
     hideHeaderRight,
     layout,
+    layoutMode,
+    layoutModeOverride,
     layoutSelectedKeys,
     layoutType,
     layoutVariant,

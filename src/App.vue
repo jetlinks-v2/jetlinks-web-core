@@ -21,7 +21,13 @@ import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
 import {initPackages} from "@jetlinks-web-core/package";
 import { setToken, removeToken} from "@jetlinks-web/utils";
-import { getBaseApi, getPackageConfig, initPersonal, resolvePublicAssetUrl } from '@jetlinks-web-core/utils'
+import {
+  getBaseApi,
+  getPackageConfig,
+  initPersonal,
+  resolvePublicAssetUrl,
+  setProjectStorage
+} from '@jetlinks-web-core/utils'
 import { componentsRegistry } from './utils/components-registry'
 import {
   applyThemeStyle,
@@ -177,6 +183,17 @@ watch(() => JSON.stringify(route.query || {}), () => {
   if (query.clearToken === 'true') {
     removeToken()
   }
+
+  if (query.token && query.pName && query.pRuntime && query.pCode) {
+    setProjectStorage(query.pCode as string, {
+      domain: query.pCode as string,
+      token: query.token as string,
+      name: query.pNmae as string,
+      runtime: query.pRuntime as string,
+      id: query.pId as string,
+    })
+  }
+
 }, { immediate: true })
 
 </script>
