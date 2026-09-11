@@ -1,4 +1,13 @@
-import type { AiClientToolDefinition, AiClientToolRuntime } from './clientTools'
+import type { AiClientToolRuntime, AiClientToolSource } from './clientTools'
+import type {
+  ClientSkillBindingContribution,
+  ClientSkillBindingRef,
+} from './clientSkillBindings'
+
+export type {
+  ClientSkillBindingContribution,
+  ClientSkillBindingRef,
+} from './clientSkillBindings'
 
 export const HOME_AGENT_CLIENT_ID = 'iotHome'
 export const HOME_AGENT_SUBJECT_TYPE = 'runtimeHome'
@@ -69,8 +78,8 @@ export interface HomeAgentRuntimeOptions {
   subjectName?: string | (() => string | undefined)
   conversationTitle?: string | (() => string | undefined)
   extraCapabilities?: MaybeArray<HomeAgentCapability> | (() => MaybeArray<HomeAgentCapability>)
-  extraTools?: MaybeArray<AiClientToolDefinition<HomeAgentCapabilityContext>>
-    | (() => MaybeArray<AiClientToolDefinition<HomeAgentCapabilityContext>>)
+  extraTools?: MaybeArray<AiClientToolSource<HomeAgentCapabilityContext>>
+    | (() => MaybeArray<AiClientToolSource<HomeAgentCapabilityContext>>)
   registeredToolScopes?: string | string[]
   toolsName?: string
   toolsDescription?: string
@@ -164,9 +173,10 @@ export interface HomeAgentCapabilityProvider {
   id: string
   order?: number
   getCapabilities?: (context: HomeAgentCapabilityContext) => MaybeArray<HomeAgentCapability>
+  getSkillBindings?: (context: HomeAgentCapabilityContext) => MaybeArray<ClientSkillBindingRef>
   getClientTools?: (
     context: HomeAgentCapabilityContext,
-  ) => MaybeArray<AiClientToolDefinition<HomeAgentCapabilityContext>>
+  ) => MaybeArray<AiClientToolSource<HomeAgentCapabilityContext>>
   getWorkflowGuides?: (context: HomeAgentCapabilityContext) => MaybeArray<HomeAgentWorkflowGuide>
   getPromptExamples?: (context: HomeAgentCapabilityContext) => MaybeArray<string>
   getSystemPromptLines?: (context: HomeAgentCapabilityContext) => MaybeArray<string>
@@ -174,6 +184,7 @@ export interface HomeAgentCapabilityProvider {
 
 export interface HomeAgentRuntime extends AiClientToolRuntime {
   parameters: Record<string, any>
+  skillBindings: ClientSkillBindingContribution
   getContext: () => HomeAgentCapabilityContext
   /** Complete authorized pool for hosts that need stable recommendation rotation. */
   promptExamples: string[]

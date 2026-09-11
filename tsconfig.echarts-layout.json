@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/hooks/Echarts/*.ts",
+    "src/components/Echarts/Echarts.vue",
+    "tests/echartsGeometryDefaults.test.ts",
+    "tests/echartsLayout.browser.ts"
+  ],
+  "compilerOptions": {
+    "types": ["node", "vite/client"],
+    "noEmit": true
+  }
+}

@@ -1,7 +1,9 @@
+import type { Component } from 'vue';
 import { withAiClientToolSilentRequest } from '@jetlinks-web-core/utils/ai-client-tool-request';
 import i18n from '@jetlinks-web-core/locales';
 import { aiClientToolRegistry } from './clientToolRegistry';
 import { createClientToolSnapshotController } from './clientToolSnapshot';
+import type { GeneralAgentMarkdownPresentationCapability } from './generalAgentExtensions';
 import {
   createAiClientToolArtifact,
   deliverAiClientToolResult,
@@ -26,12 +28,17 @@ import {
   AI_CLIENT_TOOL_ROUTING_EXPAND_KEY,
   normalizeAiClientToolRoutingMetadata,
   resolveAiClientToolCanonicalEffect,
+  toAiClientToolBusinessArguments,
 } from './clientToolRouting';
 import {
   mergeAiClientToolParameterSchema,
   type AiClientToolParameterSchema,
 } from './clientToolParameterSchema';
-import { defineAiClientToolContract } from './clientToolContract';
+import {
+  AI_CLIENT_TOOL_CONTRACT_META_KEY,
+  defineAiClientToolContract,
+  isAiClientToolContractMetadata,
+} from './clientToolContract';
 import type {
   AiClientToolRoutingDataAccessMode,
   AiClientToolRoutingResultDelivery,
@@ -53,6 +60,7 @@ export type {
   AiClientToolProducerPort,
   AiClientToolConsumerPort,
   AiClientToolResourceType,
+  AiClientToolOutputAudience,
   AiClientToolSourcePolicy,
 } from './clientToolRouting';
 export {
@@ -63,8 +71,10 @@ export {
   AI_CLIENT_TOOL_ROUTING_STAGES,
   AI_CLIENT_TOOL_DATA_ACCESS_MODES,
   AI_CLIENT_TOOL_RESULT_DELIVERIES,
+  AI_CLIENT_TOOL_OUTPUT_AUDIENCES,
   defineAiClientToolRouting,
   validateAiClientToolRoutingMetadata,
+  validateAiClientToolEffectMetadata,
   validateAiClientToolResultBindings,
   validateAiClientToolRoutingCatalog,
   resolveAiClientToolCanonicalEffect,
@@ -97,6 +107,8 @@ export type {
 } from './clientToolContract';
 export {
   AI_CLIENT_TOOL_CATALOG_REPORT_VERSION,
+  AI_CLIENT_TOOL_CATALOG_SNAPSHOT_VERSION,
+  createAiClientToolCatalogSnapshot,
   createAiClientToolCatalogReport,
 } from './clientToolCatalog';
 export type {
@@ -104,11 +116,14 @@ export type {
   AiClientToolCatalogContractStatus,
   AiClientToolCatalogToolReport,
   AiClientToolCatalogReport,
+  AiClientToolCatalogSnapshot,
+  AiClientToolCatalogOptions,
 } from './clientToolCatalog';
 export {
   AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
   createAiClientToolFailureResult,
   normalizeAiClientToolOrdering,
+  resolveAiClientToolResultState,
   withAiClientToolEvidence,
 } from './clientToolResult';
 export {
@@ -124,12 +139,15 @@ export type {
   AiClientToolRecordSource,
   AiClientToolRecordStream,
   AiClientToolRecordStreamOptions,
+  AiClientToolResultOutputDefinition,
 } from './clientToolResultDelivery';
 export type {
   AiClientToolArtifactReference,
+  AiClientToolAbsenceAuthority,
   AiClientToolClaim,
   AiClientToolEvidence,
   AiClientToolEvidenceOptions,
+  AiClientToolExecutionStatus,
   AiClientToolMetricDescriptor,
   AiClientToolOrdering,
   AiClientToolOrderingDirection,
@@ -141,18 +159,28 @@ export type {
   AiClientToolOutputBinding,
   AiClientToolOutputField,
   AiClientToolRepair,
+  AiClientToolResultCompleteness,
+  AiClientToolResultState,
 } from './clientToolResult';
 export {
   CLIENT_TOOL_DEFINITION_META_KEY,
   CLIENT_TOOL_DEFINITION_VERSION,
   clientToolOutput,
   clientToolResult,
+  defineClientToolAnalyticalProducer,
+  defineClientToolBoundedAnalyticalProducer,
   defineClientTool,
   isCompiledClientToolDefinition,
 } from './clientToolDefinition';
 export type {
   ClientToolActivation,
+  ClientToolAnalyticalAuthoring,
+  ClientToolAnalyticalCoverage,
+  ClientToolAnalyticalMeasure,
+  ClientToolAnalyticalOrdering,
+  ClientToolAnalyticalProducerDefinition,
   ClientToolArtifactOutput,
+  ClientToolBoundedAnalyticalProducerDefinition,
   ClientToolConfirmation,
   ClientToolConsumedResource,
   ClientToolDefinition,
@@ -170,6 +198,9 @@ export type {
   ClientToolOutput,
   ClientToolOwner,
   ClientToolPresentation,
+  ClientToolPreparedConfirmation,
+  ClientToolPreparedExecution,
+  ClientToolPreparationResult,
   ClientToolReadEffect,
   ClientToolRecordSetOutput,
   ClientToolAggregateSeriesOutput,
@@ -200,17 +231,62 @@ export interface AiClientToolInput {
   [key: string]: any;
 }
 
+export interface AiClientToolUserInputResolution {
+  version: 'user-input-resolution/v1';
+  interactionId?: string;
+  requirementFingerprint?: string;
+  optionId?: string;
+  optionTitle?: string;
+  toolCallId: string;
+  /** Server binding to this one execution; values must not affect a later model invocation. */
+  executionToolCallId?: string;
+  values?: Record<string, unknown>;
+}
+
+export interface AiClientToolExecutionContext {
+  responseId?: string;
+  logicalToolCallId?: string;
+  turnSeq?: number;
+  userMessage?: string;
+  userInputResolution?: AiClientToolUserInputResolution;
+}
+
 export interface AiClientToolCall {
   id: string;
   toolName: string;
   arguments?: Record<string, any>;
+  executionContext?: AiClientToolExecutionContext;
+  /** Session-scoped browser facts supplied by the conversation host, never model arguments. */
+  environment?: {
+    timeZone?: string;
+  };
   sessionFiles?: AiClientToolSessionFileApi;
+  /** Installed renderer contracts for generic post-execution delivery; they never select a producer. */
+  presentationCapabilities?: readonly GeneralAgentMarkdownPresentationCapability[];
   /** Aborted when the conversation turn, socket, or client-tool request is cancelled. */
   signal?: AbortSignal;
+  requestInput?: (request: AiClientToolInputRequest) => Promise<AiClientToolInputResponse>;
   requestConfirmation?: (
     request: AiClientToolConfirmationRequest,
   ) => Promise<AiClientToolConfirmationResponse | void> | AiClientToolConfirmationResponse | void;
   raw?: Record<string, any>;
+}
+
+/** Read-only choice within the current client call; it never grants effect approval. */
+export interface AiClientToolInputRequest {
+  question: string;
+  options: readonly { id: string; title: string; description?: string; parentId?: string }[];
+  cancelText: string;
+  /** Local name lookup only; the owning tool resolves text through its authorized directory. */
+  search?: { placeholder: string; submitText: string };
+  /** Local registered tool code may request the existing business scope tree; never a model component name. */
+  editor?: 'scope-tree';
+}
+
+export interface AiClientToolInputResponse {
+  optionId?: string;
+  /** Mutually exclusive with optionId; never a resource identifier or edited tool arguments. */
+  searchText?: string;
 }
 
 export interface AiClientToolConfirmationRequest {
@@ -222,6 +298,8 @@ export interface AiClientToolConfirmationRequest {
   okText: string;
   cancelText: string;
   arguments: Record<string, any>;
+  /** Prepared arguments are validated facts and must not be edited after the confirmation is rendered. */
+  allowArgumentEdits?: boolean;
 }
 
 export interface AiClientToolConfirmationResponse {
@@ -239,6 +317,21 @@ export interface AiClientToolConfirmOptions<TContext = Record<string, any>> {
   risk?: AiClientToolRisk;
   when?: (args: Record<string, any>, context: TContext, call: AiClientToolCall) => boolean;
 }
+
+export interface AiClientToolPreparedConfirmation {
+  title?: string;
+  content?: string;
+}
+
+/** Result of the validation phase that runs before a side-effect confirmation is requested. */
+export interface AiClientToolPreparedCall {
+  arguments: Record<string, any>;
+  confirmation?: AiClientToolPreparedConfirmation;
+}
+
+export type AiClientToolPreparationResult =
+  | AiClientToolPreparedCall
+  | ReturnType<typeof createAiClientToolFailureResult>;
 
 export interface AiClientToolRisk {
   needsApproval?: boolean;
@@ -303,6 +396,8 @@ export interface AiClientToolMetadata {
 }
 
 export interface AiClientToolDefinition<TContext = Record<string, any>> {
+  /** Local presentation capability only; never serialized into a model/server tool declaration. */
+  resolveInputEditor?: () => Component | undefined;
   id: string;
   name?: string;
   displayName?: string;
@@ -322,6 +417,11 @@ export interface AiClientToolDefinition<TContext = Record<string, any>> {
   routing?: AiClientToolRoutingMetadata;
   expands?: Record<string, any>;
   _meta?: AiClientToolMetadata;
+  prepare?: (
+    args: Record<string, any>,
+    context: TContext,
+    call: AiClientToolCall,
+  ) => Promise<AiClientToolPreparationResult> | AiClientToolPreparationResult;
   execute: (
     args: Record<string, any>,
     context: TContext,
@@ -329,6 +429,34 @@ export interface AiClientToolDefinition<TContext = Record<string, any>> {
   ) => Promise<any> | any;
   [key: string]: any;
 }
+
+export const AI_CLIENT_TOOL_FACTORY_KIND = 'ai-client-tool-factory/v1' as const;
+
+/** Lazy authoring contribution materialized once into the request-local runtime snapshot. */
+export interface AiClientToolFactory<TContext = Record<string, any>> {
+  kind: typeof AI_CLIENT_TOOL_FACTORY_KIND;
+  id: string;
+  build: () => AiClientToolDefinition<TContext>;
+}
+
+export type AiClientToolSource<TContext = Record<string, any>> =
+  | AiClientToolDefinition<TContext>
+  | AiClientToolFactory<TContext>;
+
+export const defineAiClientToolFactory = <TContext = Record<string, any>>(
+  id: string,
+  build: () => AiClientToolDefinition<TContext>,
+): AiClientToolFactory<TContext> => ({
+  kind: AI_CLIENT_TOOL_FACTORY_KIND,
+  id: String(id || '').trim(),
+  build,
+});
+
+const isAiClientToolFactory = <TContext>(
+  source: AiClientToolSource<TContext>,
+): source is AiClientToolFactory<TContext> => (
+  source?.kind === AI_CLIENT_TOOL_FACTORY_KIND && typeof source.build === 'function'
+);
 
 export type AiClientToolConfirmRuleMatcher<TTool> =
   | string
@@ -371,7 +499,7 @@ export interface AiClientToolRuntimeOptions<TContext = Record<string, any>> {
   toolsName?: string;
   toolsDescription?: string;
   registeredToolScopes?: string | string[];
-  extraTools?: AiClientToolDefinition<TContext>[] | (() => AiClientToolDefinition<TContext>[]);
+  extraTools?: AiClientToolSource<TContext>[] | (() => AiClientToolSource<TContext>[]);
   includeHelpTool?: boolean;
   helpToolId?: string;
   getContext?: () => TContext;
@@ -394,6 +522,18 @@ export interface AiClientToolRuntime {
 }
 
 const DEFAULT_HELP_TOOL_ID = 'client_tool_help';
+/**
+ * Keeps factual answers and their visual encodings on one model-facing evidence chain.
+ * The same text is reused by the Home Agent prompt, runtime description, and on-demand help.
+ */
+export const AI_CLIENT_TOOL_EVIDENCE_NARRATIVE_CONTRACT = [
+  'EVIDENCE-NARRATIVE-v1:',
+  '1. Trace every factual claim to an explicit tool-result field or a stated calculation over those fields. Keep observed facts, derived calculations, and explanatory inferences distinct; label inferences as hypotheses and state when evidence is insufficient.',
+  '2. Do not extend observations beyond their support. requestedRange is the user-requested interval, effectiveRange is the subset actually evaluated, and observedRange is only the minimum-to-maximum span of returned observations. coverage.exhausted=true means the producer exhausted the effectiveRange; it does not prove continuous observations, values for missing points, or behavior outside the observedRange. Sparse points alone do not establish continuity, acceleration, or a whole-interval trend.',
+  '3. Equality or correlation does not establish uniqueness, exclusivity, or causation. Preserve the producer-declared meaning of every measure: a difference, ratio, aggregate, or other derived value must not be renamed as a different business concept unless the tool explicitly defines that meaning.',
+  '4. Build charts from the same observed fields and stated calculations used by the answer. The option title must match the actual scope and measures; every legend.data entry must match an actual series[].name; and each series name, type, data, and encoded style must describe the same field. Describe the chart according to its actual option, including its real series types and styles; do not narrate colors, line styles, series, or semantics that are not encoded.',
+].join('\n');
+
 const DEFAULT_RESULT_GUARD: Required<AiClientToolResultGuardOptions> = {
   enabled: true,
   maxJsonLength: 96 * 1024,
@@ -402,6 +542,12 @@ const DEFAULT_RESULT_GUARD: Required<AiClientToolResultGuardOptions> = {
   maxObjectKeys: 80,
   maxDepth: 6,
 };
+
+/** Appends the shared evidence discipline without letting custom runtime copy replace it. */
+const withEvidenceNarrativeContract = (value: unknown) => [
+  String(value || '').trim(),
+  AI_CLIENT_TOOL_EVIDENCE_NARRATIVE_CONTRACT,
+].filter(Boolean).join('\n\n');
 
 const normalizeValueType = (valueType?: string | AiClientToolValueType) => {
   if (!valueType) {
@@ -506,6 +652,7 @@ const normalizeTool = <TContext>(
   const expands = resolveToolExpands(tool, options);
   return {
     id: tool.id,
+    ...(typeof tool.resolveInputEditor === 'function' ? { resolveInputEditor: tool.resolveInputEditor } : {}),
     // The session tool identity must not change with locale or display copy.
     name: tool.id,
     ...(tool.displayName ? { displayName: tool.displayName } : {}),
@@ -524,10 +671,10 @@ const normalizeTool = <TContext>(
 
 const createToolHelp = <TContext>(tool: AiClientToolDefinition<TContext>) => {
   if (typeof tool.help === 'function') {
-    return tool.help(tool);
+    return withEvidenceNarrativeContract(tool.help(tool));
   }
   if (typeof tool.help === 'string' && tool.help.trim()) {
-    return tool.help.trim();
+    return withEvidenceNarrativeContract(tool.help);
   }
 
   const lines = [
@@ -547,12 +694,147 @@ const createToolHelp = <TContext>(tool: AiClientToolDefinition<TContext>) => {
     });
   }
 
-  return lines.join('\n');
+  return withEvidenceNarrativeContract(lines.join('\n'));
 };
 
-export const defineAiClientTools = <TContext = Record<string, any>>(
-  tools: AiClientToolDefinition<TContext>[],
-) => tools;
+const HELP_CATALOG_PAGE_LIMIT = 12;
+const HELP_CATALOG_TEXT_LIMIT = 4096;
+const HELP_TOOL_PAGE_DEFAULT_LIMIT = 2048;
+const HELP_TOOL_PAGE_MAX_LIMIT = 4096;
+const HELP_CATALOG_ITEM_DESCRIPTION_LIMIT = 240;
+
+const normalizePageOffset = (value: unknown) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+};
+
+const normalizePageLimit = (value: unknown, fallback: number, maximum: number) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return Math.min(Math.floor(parsed), maximum);
+};
+
+const normalizeHelpQuery = (value: unknown) => String(value || '').trim();
+
+const createHelpCatalogPage = <TContext>(
+  sourceTools: AiClientToolDefinition<TContext>[],
+  args: Record<string, any> = {},
+) => {
+  const query = normalizeHelpQuery(args.query);
+  const normalizedQuery = query.toLowerCase();
+  const candidates = sourceTools.filter((tool) => {
+    if (!normalizedQuery) return true;
+    return [tool.id, tool.name, tool.displayName, tool.description]
+      .some(value => String(value || '').toLowerCase().includes(normalizedQuery));
+  });
+  const requestedOffset = normalizePageOffset(args.offset);
+  const offset = Math.min(requestedOffset, candidates.length);
+  const limit = normalizePageLimit(args.limit, HELP_CATALOG_PAGE_LIMIT, HELP_CATALOG_PAGE_LIMIT);
+  const items = candidates.slice(offset, offset + limit).map(tool => ({
+    toolName: tool.id,
+    description: String(tool.description || tool.displayName || tool.name || tool.id)
+      .trim()
+      .slice(0, HELP_CATALOG_ITEM_DESCRIPTION_LIMIT),
+  }));
+  const nextOffset = offset + items.length;
+  const complete = nextOffset >= candidates.length;
+  const help = items
+    .map(item => `- ${item.toolName}: ${item.description}`)
+    .join('\n')
+    .slice(0, HELP_CATALOG_TEXT_LIMIT);
+
+  return {
+    mode: 'catalog',
+    ...(query ? { query } : {}),
+    offset,
+    limit,
+    totalCount: candidates.length,
+    items,
+    help,
+    complete,
+    truncated: !complete,
+    ...(!complete ? { nextOffset } : {}),
+  };
+};
+
+const selectHelpSection = (help: string, section: string) => {
+  if (!section) return help;
+  const expected = section.toLowerCase();
+  const lines = help.split('\n');
+  let start = -1;
+  let level = 0;
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(lines[index]);
+    if (match && match[2].trim().toLowerCase() === expected) {
+      start = index;
+      level = match[1].length;
+      break;
+    }
+  }
+  if (start < 0) return '';
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const match = /^(#{1,6})\s+/.exec(lines[index]);
+    if (match && match[1].length <= level) {
+      end = index;
+      break;
+    }
+  }
+  return lines.slice(start, end).join('\n').trim();
+};
+
+const filterHelpByQuery = (help: string, query: string) => {
+  if (!query) return help;
+  const normalizedQuery = query.toLowerCase();
+  return help
+    .split('\n')
+    .filter(line => line.toLowerCase().includes(normalizedQuery))
+    .join('\n');
+};
+
+const createSingleToolHelpPage = <TContext>(
+  toolName: string,
+  sourceMap: Map<string, AiClientToolDefinition<TContext>>,
+  args: Record<string, any> = {},
+) => {
+  const section = normalizeHelpQuery(args.section);
+  const query = normalizeHelpQuery(args.query);
+  const tool = sourceMap.get(toolName);
+  const sourceHelp = tool
+    ? filterHelpByQuery(selectHelpSection(createToolHelp(tool), section), query)
+    : i18n.global.t('components.AiChat.toolHelp.notFound', [toolName]);
+  const requestedOffset = normalizePageOffset(args.offset);
+  const offset = Math.min(requestedOffset, sourceHelp.length);
+  const limit = normalizePageLimit(
+    args.limit,
+    HELP_TOOL_PAGE_DEFAULT_LIMIT,
+    HELP_TOOL_PAGE_MAX_LIMIT,
+  );
+  const help = sourceHelp.slice(offset, offset + limit);
+  const nextOffset = offset + help.length;
+  const complete = nextOffset >= sourceHelp.length;
+
+  return {
+    mode: 'tool',
+    toolName,
+    ...(section ? { section } : {}),
+    ...(query ? { query } : {}),
+    offset,
+    limit,
+    totalLength: sourceHelp.length,
+    help,
+    complete,
+    truncated: !complete,
+    ...(!complete ? { nextOffset } : {}),
+  };
+};
+
+export const defineAiClientTools = <
+  TContext = Record<string, any>,
+  TTool extends AiClientToolSource<TContext> = AiClientToolSource<TContext>,
+>(tools: TTool[]) => tools;
 
 /** Builds browser-only binding metadata from owning-tool JSON paths without inferring result fields at runtime. */
 export type AiClientToolResultBindingMetadata = Omit<
@@ -560,6 +842,7 @@ export type AiClientToolResultBindingMetadata = Omit<
   'name' | 'path' | 'shape'
 >;
 
+/** Canonical producer ports own binding identity; this helper only joins their types to owning-tool result paths. */
 export const defineAiClientToolResultBindings = (
   routing: AiClientToolRoutingMetadata,
   paths: Readonly<Record<string, string>>,
@@ -567,10 +850,31 @@ export const defineAiClientToolResultBindings = (
 ): AiClientToolResultBindingDefinition[] => {
   const produces = routing.produces || [];
   const shapes = routing.outputShapes || [];
+  const producerPorts = new Map((routing.producerPorts || []).map(port => [port.name, port]));
   return produces.flatMap((name, index) => {
     const path = String(paths[name] || '').trim();
-    const shape = String(shapes.length === 1 ? shapes[0] : shapes[index] || '').trim();
-    return path && shape ? [{ name, path, shape, ...(metadata[name] || {}) }] : [];
+    const producerPort = producerPorts.get(name);
+    const shape = String(
+      producerPort ? producerPort.shape : (shapes.length === 1 ? shapes[0] : shapes[index] || ''),
+    ).trim();
+    if (!path || !shape) return [];
+    if (!producerPort) return [{ name, path, shape, ...(metadata[name] || {}) }];
+    const additionalMetadata: Partial<AiClientToolResultBindingDefinition> = { ...(metadata[name] || {}) };
+    delete additionalMetadata.name;
+    delete additionalMetadata.type;
+    delete additionalMetadata.path;
+    delete additionalMetadata.shape;
+    delete additionalMetadata.mediaType;
+    delete additionalMetadata.audience;
+    return [{
+      ...additionalMetadata,
+      name,
+      type: producerPort.type,
+      path,
+      shape: producerPort.shape,
+      mediaType: producerPort.mediaType,
+      ...(producerPort.audience ? { audience: producerPort.audience } : {}),
+    }];
   });
 };
 
@@ -770,7 +1074,11 @@ export const isAiClientToolCancellationError = (error: unknown) => {
     || code === 'err_cancelled';
 };
 
-const normalizeClientToolExecutionError = (error: any, toolName: string) => {
+const normalizeClientToolExecutionError = (
+  error: any,
+  toolName: string,
+  executionStarted: boolean,
+) => {
   if (error?.code === 'CLIENT_TOOL_CONFIRM_CANCELLED') {
     return createClientToolConfirmationRejectedResult(toolName);
   }
@@ -827,8 +1135,22 @@ const normalizeClientToolExecutionError = (error: any, toolName: string) => {
         name: error?.name,
         ...(Number.isFinite(status) ? { status } : {}),
         type: responseData.errorType || responseData.type,
+        ...(isRecord(error?.inputRequest) ? {
+          inputRequest: {
+            question: error.inputRequest.question,
+            status: error.inputRequest.status,
+            total: error.inputRequest.total,
+            complete: error.inputRequest.complete,
+            options: Array.isArray(error.inputRequest.options)
+              ? error.inputRequest.options.map((option: any) => ({
+                  id: option?.id, title: option?.title, description: option?.description,
+                })) : [],
+          },
+        } : {}),
       },
     }),
+    // A failure before tool.execute cannot make the external effect uncertain.
+    ...(!executionStarted ? { effectState: 'not-started' } : {}),
     ok: false,
     toolName,
   };
@@ -843,6 +1165,19 @@ const resolveToolResultBindings = <TContext>(
   return declared;
 };
 
+const resolveToolResultOutputs = <TContext>(tool: AiClientToolDefinition<TContext>) => {
+  const contract = tool._meta?.[AI_CLIENT_TOOL_CONTRACT_META_KEY];
+  if (!isAiClientToolContractMetadata(contract)) return undefined;
+  return contract.outputs.map(output => ({
+    name: output.name,
+    type: output.type || 'structured-data',
+    shape: output.shape,
+    mediaType: output.mediaType || 'application/json',
+    audience: output.audience,
+    delivery: output.delivery || (output.kind === 'artifact' ? 'file' : 'inline'),
+  }));
+};
+
 const resolveConfirmText = <TContext>(
   value: AiClientToolConfirmOptions<TContext>['title'] | AiClientToolConfirmOptions<TContext>['content'],
   args: Record<string, any>,
@@ -853,6 +1188,45 @@ const resolveConfirmText = <TContext>(
 const resolveToolDisplayName = <TContext>(tool: AiClientToolDefinition<TContext>) => (
   String(tool.displayName || tool.title || tool.label || tool.name || tool.id || '').trim()
 );
+
+const PREPARED_CONFIRMATION_TITLE_LIMIT = 160;
+const PREPARED_CONFIRMATION_CONTENT_LIMIT = 1200;
+
+const boundedPreparedText = (value: unknown, limit: number) => {
+  const text = String(value || '').trim();
+  return text ? text.slice(0, limit) : undefined;
+};
+
+const createClientToolPreparationInvalidError = () => {
+  const error = new Error('client tool prepare result is invalid');
+  (error as any).code = 'CLIENT_TOOL_PREPARE_RESULT_INVALID';
+  return error;
+};
+
+const isAiClientToolPreparationFailure = (
+  value: unknown,
+): value is ReturnType<typeof createAiClientToolFailureResult> => (
+  isRecord(value) && value.success === false
+);
+
+const normalizeAiClientToolPreparedCall = (value: unknown): AiClientToolPreparedCall => {
+  if (!isRecord(value) || !isRecord(value.arguments)) {
+    throw createClientToolPreparationInvalidError();
+  }
+  const confirmation = isRecord(value.confirmation)
+    ? {
+        title: boundedPreparedText(value.confirmation.title, PREPARED_CONFIRMATION_TITLE_LIMIT),
+        content: boundedPreparedText(value.confirmation.content, PREPARED_CONFIRMATION_CONTENT_LIMIT),
+      }
+    : undefined;
+  const normalizedConfirmation = confirmation?.title || confirmation?.content
+    ? confirmation
+    : undefined;
+  return {
+    arguments: { ...value.arguments },
+    ...(normalizedConfirmation ? { confirmation: normalizedConfirmation } : {}),
+  };
+};
 
 const createClientToolConfirmationHandlerMissingError = () => {
   const error = new Error('client tool confirmation handler unavailable');
@@ -865,6 +1239,8 @@ const requestAiClientToolConfirmation = async <TContext>(
   args: Record<string, any>,
   context: TContext,
   call: AiClientToolCall,
+  preparedConfirmation?: AiClientToolPreparedConfirmation,
+  allowArgumentEdits = true,
 ): Promise<AiClientToolConfirmationResponse | undefined> => {
   if (!tool.confirm) {
     return undefined;
@@ -874,9 +1250,12 @@ const requestAiClientToolConfirmation = async <TContext>(
   if (options.when && !options.when(args, context, call)) {
     return undefined;
   }
-  const title = resolveConfirmText(options.title, args, context, call)
+  const title = preparedConfirmation?.title
+    || resolveConfirmText(options.title, args, context, call)
     || resolveToolDisplayName(tool);
-  const content = resolveConfirmText(options.content, args, context, call) || '';
+  const content = preparedConfirmation?.content
+    || resolveConfirmText(options.content, args, context, call)
+    || '';
 
   if (!call.requestConfirmation) {
     throw createClientToolConfirmationHandlerMissingError();
@@ -891,6 +1270,7 @@ const requestAiClientToolConfirmation = async <TContext>(
     okText: options.okText || i18n.global.t('verify.confirm'),
     cancelText: options.cancelText || i18n.global.t('verify.cancel'),
     arguments: args,
+    allowArgumentEdits,
   });
 
   if (!response) {
@@ -1084,10 +1464,11 @@ export const guardAiClientToolResult = (
  * normalized descriptors to the agent session and keeps the executable handlers in the browser.
  */
 export const createAiClientToolRuntime = <TContext = Record<string, any>>(
-  tools: AiClientToolDefinition<TContext>[] | (() => readonly AiClientToolDefinition<TContext>[]),
+  tools: AiClientToolSource<TContext>[] | (() => readonly AiClientToolSource<TContext>[]),
   options: AiClientToolRuntimeOptions<TContext> = {},
 ): AiClientToolRuntime => {
   const helpToolId = options.helpToolId || DEFAULT_HELP_TOOL_ID;
+  const resultGuard = normalizeResultGuardOptions(options.resultGuard);
   let disposed = false;
 
   interface RuntimeSnapshot {
@@ -1098,6 +1479,27 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
     wireSignature: string;
   }
 
+  const materializeToolSources = (
+    sources: readonly AiClientToolSource<TContext>[],
+  ): AiClientToolDefinition<TContext>[] => sources.flatMap((source) => {
+    if (!isAiClientToolFactory(source)) return [source];
+    try {
+      if (!source.id) throw new Error('Client tool factory id is required');
+      const definition = source.build();
+      if (!definition?.id || definition.id !== source.id) {
+        throw new Error(
+          `Client tool factory identity drift: ${source.id || 'unknown'} -> ${definition?.id || 'missing'}`,
+        );
+      }
+      return [definition];
+    } catch (cause) {
+      console.error('[AiClientToolRuntime] Rejected client tool factory.', {
+        toolId: source.id || 'unknown',
+      }, cause);
+      return [];
+    }
+  });
+
   const resolveDefinitions = () => {
     const resolvedTools = typeof tools === 'function' ? tools() : tools;
     const baseTools = Array.isArray(resolvedTools) ? [...resolvedTools] : [];
@@ -1106,20 +1508,17 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
       : (options.extraTools || []);
     const extraTools = Array.isArray(resolvedExtraTools) ? resolvedExtraTools : [];
     const registeredTools = aiClientToolRegistry.getTools<TContext>(options.registeredToolScopes);
-    return mergeToolDefinitions<TContext>([...baseTools, ...extraTools, ...registeredTools]);
+    return mergeToolDefinitions<TContext>(materializeToolSources([
+      ...baseTools,
+      ...extraTools,
+      ...registeredTools,
+    ]));
   };
 
   const createHelpTool = (
     sourceTools: AiClientToolDefinition<TContext>[],
     sourceMap: Map<string, AiClientToolDefinition<TContext>>,
   ): AiClientToolDefinition<TContext> => {
-    const getSourceHelp = (toolName: string) => {
-      const tool = sourceMap.get(toolName);
-      return tool
-        ? createToolHelp(tool)
-        : i18n.global.t('components.AiChat.toolHelp.notFound', [toolName]);
-    };
-    const getAllSourceHelp = () => sourceTools.map(createToolHelp).join('\n\n');
     return {
       id: helpToolId,
       name: helpToolId,
@@ -1145,6 +1544,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
           name: 'client-tool-help',
           mediaType: 'text/plain',
           shape: 'tool.help',
+          audience: 'model-evidence',
           path: '$.help',
         }],
       }),
@@ -1154,14 +1554,37 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
         description: i18n.global.t('components.AiChat.toolHelp.toolNameDescription'),
         required: false,
         valueType: 'string',
+      }, {
+        id: 'section',
+        name: 'section',
+        description: i18n.global.t('components.AiChat.toolHelp.sectionDescription'),
+        required: false,
+        valueType: 'string',
+      }, {
+        id: 'query',
+        name: 'query',
+        description: i18n.global.t('components.AiChat.toolHelp.queryDescription'),
+        required: false,
+        valueType: 'string',
+      }, {
+        id: 'offset',
+        name: 'offset',
+        description: i18n.global.t('components.AiChat.toolHelp.offsetDescription'),
+        required: false,
+        valueType: 'int',
+      }, {
+        id: 'limit',
+        name: 'limit',
+        description: i18n.global.t('components.AiChat.toolHelp.limitDescription'),
+        required: false,
+        valueType: 'int',
       }],
       output: { type: 'object' },
       execute: (args = {}) => {
         const toolName = String(args.toolName || '').trim();
-        return {
-          toolName: toolName || undefined,
-          help: toolName ? getSourceHelp(toolName) : getAllSourceHelp(),
-        };
+        return toolName
+          ? createSingleToolHelpPage(toolName, sourceMap, args)
+          : createHelpCatalogPage(sourceTools, args);
       },
     };
   };
@@ -1175,6 +1598,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
         label,
         progressText,
         progressDescription,
+        resolveInputEditor,
         ...wire
       } = tool;
       return wire;
@@ -1182,24 +1606,43 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
   );
 
   const buildSnapshot = (): RuntimeSnapshot => {
-    const sourceTools = resolveDefinitions();
-    if (options.includeHelpTool !== false && sourceTools.some(tool => tool.id === helpToolId)) {
+    const resolvedSourceTools = resolveDefinitions();
+    if (options.includeHelpTool !== false && resolvedSourceTools.some(tool => tool.id === helpToolId)) {
       throw new Error(`Duplicate client tool id: ${helpToolId}`);
     }
+    const projectedSourceTools = resolvedSourceTools.flatMap((tool) => {
+      try {
+        return [{
+          definition: tool,
+          declaration: normalizeTool(tool, options),
+        }];
+      } catch (cause) {
+        // An invalid optional definition is absent from both model and execution views.
+        console.error('[AiClientToolRuntime] Rejected client tool definition.', {
+          toolId: String(tool?.id || tool?.name || 'unknown'),
+        }, cause);
+        return [];
+      }
+    });
+    const sourceTools = projectedSourceTools.map(item => item.definition);
     const sourceMap = new Map<string, AiClientToolDefinition<TContext>>();
     sourceTools.forEach((tool) => {
       sourceMap.set(tool.id, tool);
       if (tool.name) sourceMap.set(tool.name, tool);
     });
-    const definitions = options.includeHelpTool === false
-      ? sourceTools
-      : [...sourceTools, createHelpTool(sourceTools, sourceMap)];
+    const helpTool = options.includeHelpTool === false
+      ? undefined
+      : createHelpTool(sourceTools, sourceMap);
+    const definitions = helpTool ? [...sourceTools, helpTool] : sourceTools;
     const definitionsByName = new Map<string, AiClientToolDefinition<TContext>>();
     definitions.forEach((tool) => {
       definitionsByName.set(tool.id, tool);
       if (tool.name) definitionsByName.set(tool.name, tool);
     });
-    const clientTools = definitions.map(tool => normalizeTool(tool, options));
+    const clientTools = [
+      ...projectedSourceTools.map(item => item.declaration),
+      ...(helpTool ? [normalizeTool(helpTool, options)] : []),
+    ];
     return {
       sourceTools,
       definitions,
@@ -1226,18 +1669,46 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
     }
     const context = options.getContext?.() || ({} as TContext);
     let result: unknown;
+    let executionStarted = false;
     try {
       const args = call.arguments || {};
-      const confirmation = await requestAiClientToolConfirmation(tool, args, context, call);
-      if (confirmation?.approved === false) {
-        result = createClientToolConfirmationRejectedResult(tool.id, confirmation);
-      } else {
-        const executionArgs = confirmation?.arguments || args;
+      let executionArgs = args;
+      let preparedConfirmation: AiClientToolPreparedConfirmation | undefined;
+      if (tool.prepare) {
+        const prepareCall = { ...call, arguments: args };
+        const preparedResult = await tool.prepare(args, context, prepareCall);
+        if (isAiClientToolPreparationFailure(preparedResult)) {
+          result = preparedResult;
+        } else {
+          const prepared = normalizeAiClientToolPreparedCall(preparedResult);
+          executionArgs = prepared.arguments;
+          preparedConfirmation = prepared.confirmation;
+        }
+      }
+
+      if (result === undefined) {
+        const confirmation = await requestAiClientToolConfirmation(
+          tool,
+          executionArgs,
+          context,
+          { ...call, arguments: executionArgs },
+          preparedConfirmation,
+          !tool.prepare,
+        );
+        if (confirmation?.approved === false) {
+          result = createClientToolConfirmationRejectedResult(tool.id, confirmation);
+        } else {
+          executionArgs = confirmation?.arguments || executionArgs;
+        }
+      }
+
+      if (result === undefined) {
         result = await withAiClientToolSilentRequest(async () => {
           const executionCall = {
             ...call,
             arguments: executionArgs,
           };
+          executionStarted = true;
           const executionResult = await tool.execute(
             executionArgs,
             context,
@@ -1251,6 +1722,8 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
             ...(routing?.outputShapes?.length === 1 ? { outputShape: routing.outputShapes[0] } : {}),
             ...(routing?.producerPorts?.length === 1 ? { outputType: routing.producerPorts[0].type } : {}),
             outputBindings: resolveToolResultBindings(tool),
+            outputs: resolveToolResultOutputs(tool),
+            replyMaxJsonLength: resultGuard ? resultGuard.maxJsonLength : undefined,
           });
         });
       }
@@ -1260,11 +1733,11 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
       }
       // API failures inside a page tool are still tool results; keep the chat session alive and
       // let the agent explain the failed business call instead of surfacing a global connection error.
-      result = normalizeClientToolExecutionError(error, tool.id);
+      result = normalizeClientToolExecutionError(error, tool.id, executionStarted);
     } finally {
       execution.complete();
     }
-    return guardAiClientToolResult(result, options.resultGuard, tool.id);
+    return guardAiClientToolResult(result, resultGuard, tool.id);
   };
 
   const unsubscribeRegistry = aiClientToolRegistry.subscribe(
@@ -1287,7 +1760,9 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
       return snapshotController.version;
     },
     clientToolsName: options.toolsName || 'frontend-client-tools',
-    clientToolsDescription: options.toolsDescription || i18n.global.t('components.AiChat.clientToolsDescription'),
+    clientToolsDescription: withEvidenceNarrativeContract(
+      options.toolsDescription || i18n.global.t('components.AiChat.clientToolsDescription'),
+    ),
     handleClientToolCall,
     getToolHelp: (toolName: string) => {
       const tool = snapshotController.snapshot.definitionsByName.get(toolName);
@@ -1295,7 +1770,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
         ? createToolHelp(tool)
         : i18n.global.t('components.AiChat.toolHelp.notFound', [toolName]);
     },
-    getAllToolHelp: () => snapshotController.snapshot.sourceTools.map(createToolHelp).join('\n\n'),
+    getAllToolHelp: () => createHelpCatalogPage(snapshotController.snapshot.sourceTools).help,
     refreshClientTools,
     subscribeClientTools: snapshotController.subscribe,
     dispose: () => {

@@ -1,6 +1,10 @@
 import echarts from "./library"
-import { Ref, onMounted, onUnmounted, unref } from 'vue'
-import { debounce } from 'lodash-es'
+import { type Ref, onMounted, onUnmounted, unref, watch } from 'vue'
+import { cloneDeep, debounce } from 'lodash-es'
+import { createMeasuredEchartsLayout } from './measuredLayout'
+import type { EchartsLayoutProfile } from './geometryDefaults'
+
+export type { EchartsLayoutProfile } from './geometryDefaults'
 
 export type EchartsRenderErrorStage = 'init' | 'setOption' | 'resize' | 'export'
 
@@ -8,13 +12,21 @@ export interface EchartsLifecycleOptions {
   onError?: (error: unknown, stage: EchartsRenderErrorStage) => void
 }
 
+export interface EchartsProps {
+  option?: echarts.EChartsCoreOption
+  library?: Parameters<typeof echarts.use>[0]
+  layoutProfile?: EchartsLayoutProfile
+}
+
+/** Render canonical options, optionally deriving measured presentation anchors on a renderer copy. */
 export const useEcharts = (
   el: Ref<HTMLDivElement | undefined>,
-  props: any = {},
+  props: EchartsProps = {},
   lifecycle: EchartsLifecycleOptions = {}
 ) => {
   let echartsInstance: echarts.ECharts | null = null  // echarts实例
   let resizeObserver: ResizeObserver | null = null
+  let measuredLayout: ReturnType<typeof createMeasuredEchartsLayout> | undefined
 
   const reportError = (error: unknown, stage: EchartsRenderErrorStage) => {
     lifecycle.onError?.(error, stage)
@@ -23,6 +35,8 @@ export const useEcharts = (
   const disposeInstance = () => {
     const instance = echartsInstance
     echartsInstance = null
+    measuredLayout?.dispose()
+    measuredLayout = undefined
     try {
       instance?.dispose()
     } catch {
@@ -30,7 +44,7 @@ export const useEcharts = (
     }
   }
 
-  if (props?.library?.length) { // 添加依赖包
+  if (props.library) { // 添加依赖包
     try {
       echarts.use(props.library)
     } catch (error) {
@@ -44,6 +58,7 @@ export const useEcharts = (
     if (!_el || echartsInstance) return !!echartsInstance
     try {
       echartsInstance = echarts.init(_el)
+      measuredLayout = createMeasuredEchartsLayout(echartsInstance, echarts, props.layoutProfile === 'presentation')
       return true
     } catch (error) {
       reportError(error, 'init')
@@ -52,10 +67,13 @@ export const useEcharts = (
   }
 
   // 配置option
-  function setOption(option: any) {
+  function setOption(option: echarts.EChartsCoreOption) {
     if (!echartsInstance && !init()) return false
     try {
-      echartsInstance?.setOption(option || {})
+      const renderOption = props.layoutProfile === 'presentation' ? cloneDeep(option || {}) : option || {}
+      measuredLayout?.prepare(renderOption)
+      echartsInstance?.setOption(renderOption)
+      measuredLayout?.apply()
       return true
     } catch (error) {
       // Invalid model/user options may leave ECharts partially initialized; dispose it to stop resize retries.
@@ -78,6 +96,7 @@ export const useEcharts = (
   const echartsResize = debounce(() => {
     try {
       echartsInstance?.resize?.()
+      measuredLayout?.apply()
     } catch (error) {
       disposeInstance()
       reportError(error, 'resize')
@@ -128,6 +147,19 @@ export const useEcharts = (
     },
     { deep: true }
   )
+
+  // Changing the presentation profile must not replay source data or reset current interactions.
+  watch(() => props.layoutProfile, profile => {
+    if (!echartsInstance) return
+    try {
+      measuredLayout?.setEnabled(profile === 'presentation')
+      echartsInstance.resize()
+      measuredLayout?.apply()
+    } catch (error) {
+      disposeInstance()
+      reportError(error, 'setOption')
+    }
+  })
 
   return {
     setOption,

@@ -29,7 +29,19 @@ export interface GeneralAgentConversationChatPayload {
   params?: Record<string, unknown>;
   configOptions?: Record<string, unknown>;
   commandArguments?: Record<string, unknown>;
+  toolAction?: GeneralAgentToolAction;
 }
+
+/** Re-execute a real saved call with user-confirmed values; the server owns tool/permission/provenance lookup. */
+export interface GeneralAgentToolAction {
+  sourceResponseId: string;
+  toolCallId: string;
+  values: Record<string, unknown>;
+}
+
+export const GENERAL_AGENT_TOOL_ACTION_KEY: InjectionKey<
+  (action: GeneralAgentToolAction, content: string) => Promise<void>
+> = Symbol('generalAgentToolAction');
 
 export interface GeneralAgentConversationDisplayContext {
   capabilityKey: string;
