@@ -10,6 +10,7 @@
 import { computed, h, type VNode } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { Menu } from 'ant-design-vue'
+import { AIcon } from '@jetlinks-web/components'
 import i18n from '@jetlinks-web-core/locales'
 import { useBasicLayoutControllerContext } from '../hooks/basicLayoutContext'
 import BasicLayoutShell from './BasicLayoutShell.vue'
@@ -91,6 +92,7 @@ const arrangeTopLevelMenuChildren = (parentKey: string, children: VNode[]) => {
 
 const renderTenantSubMenu = ({ item, children }: SubMenuRenderContext) => {
   const key = getMenuKey(item)
+  const icon = item.meta?.icon
 
   // ProLayout 未提供菜单深度，一级节点保留弹层，其余子菜单转换为同屏分组。
   if (!topLevelMenuItems.value.has(item)) {
@@ -108,6 +110,13 @@ const renderTenantSubMenu = ({ item, children }: SubMenuRenderContext) => {
   }
 
   const menuLayout = arrangeTopLevelMenuChildren(key, children)
+  const titleChildren: VNode[] = []
+
+  // 顶级分组由自定义标题承载，需显式复用菜单元数据中的图标。
+  if (icon) {
+    titleChildren.push(h(AIcon, { class: 'ant-pro-menu-item-icon', type: String(icon) }))
+  }
+  titleChildren.push(h('span', { class: 'ant-pro-menu-item-title' }, getMenuTitle(item)))
 
   return h(
     Menu.SubMenu,
@@ -118,9 +127,7 @@ const renderTenantSubMenu = ({ item, children }: SubMenuRenderContext) => {
         'tenant-menu-popup',
         menuLayout.isMegaMenu ? 'tenant-menu-popup--mega' : 'tenant-menu-popup--compact',
       ].join(' '),
-      title: h('span', { class: 'ant-pro-menu-item' }, [
-        h('span', { class: 'ant-pro-menu-item-title' }, getMenuTitle(item)),
-      ]),
+      title: h('span', { class: 'ant-pro-menu-item' }, titleChildren),
     },
     { default: () => menuLayout.children },
   )
