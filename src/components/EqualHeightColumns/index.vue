@@ -149,8 +149,8 @@ const rightStyle = paneStyle
 }
 
 .equal-height-columns__toggle {
-  --equal-height-columns-toggle-width: 1.875rem;
-  --equal-height-columns-toggle-height: 1.5rem;
+  --equal-height-columns-toggle-width: 0.8rem;
+  --equal-height-columns-toggle-height: 4rem;
   /* 与左列共享单元格：展开时贴左列右边缘，收起后左列宽度归零，再靠位移把按钮拉回容器左边缘。 */
   grid-area: 1 / 1 / 2 / 2;
   justify-self: end;
@@ -167,7 +167,7 @@ const rightStyle = paneStyle
   background: var(--bg);
   border: var(--jet-theme-stroke-width) solid var(--line-strong);
   /* 右侧贴合左列边缘，贴住的一侧不留圆角，视觉上像挂在面板边上 */
-  border-radius: var(--r-3) 0 0 var(--r-3);
+  border-radius: var(--r-2) 0 0 var(--r-2);
   box-shadow: var(--shadow-1);
   cursor: pointer;
   transition:
@@ -187,7 +187,7 @@ const rightStyle = paneStyle
  * 位移量与列宽收缩使用同一时长和缓动，两者叠加后按钮从「左列右边缘」连续滑到「容器左边缘」，不会跳变。
  */
 .equal-height-columns--collapsed .equal-height-columns__toggle {
-  border-radius: 0 var(--r-3) var(--r-3) 0;
+  border-radius: 0 var(--r-2) var(--r-2) 0;
   transform: translateX(var(--equal-height-columns-toggle-width));
 }
 </style>
