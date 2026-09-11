@@ -75,7 +75,35 @@ async function onLayoutEnd() {
 .dashboard-grid { position: relative; width: 100%; min-height: 100%; }
 :deep(.vue-grid-item) {
   &.resizing { opacity: .9; }
-  .vue-resizable-handle { opacity: 0; transition: opacity .25s; }
+  .vue-resizable-handle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    bottom: 2px;
+    right: 2px;
+    z-index: 10;
+    cursor: se-resize;
+    opacity: 0;
+    transition: opacity .2s ease;
+    background: none;
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: 5px;
+      bottom: 5px;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid #bfbfbf;
+      border-bottom: 2px solid #bfbfbf;
+      transition: border-color .2s ease;
+    }
+
+    &:hover::after,
+    &.resizing::after {
+      border-color: var(--ant-primary-color, #1677ff);
+    }
+  }
   &:hover .vue-resizable-handle, &.resizing .vue-resizable-handle { opacity: 1; }
 }
 :deep(.vue-grid-item.vue-grid-placeholder),
