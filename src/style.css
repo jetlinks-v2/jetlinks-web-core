@@ -214,7 +214,7 @@ html {
   --space-card: 1.5rem;
   --space-card-lg: 2rem;
   /* 内容面板与卡片的统一默认契约；特殊业务场景可由组件显式覆盖。 */
-  --panel-radius: 16px;
+  --panel-radius: var(--r-3);
   --panel-padding: var(--space-4);
   --panel-gap: var(--space-4);
   --panel-background-rgb: 255 255 255;

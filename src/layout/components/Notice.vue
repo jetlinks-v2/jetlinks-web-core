@@ -7,11 +7,7 @@
       :getPopupContainer="resolvePopupContainer"
     >
       <a-badge :count="total" :overflow-count="BADGE_OVERFLOW_COUNT" :offset="[3, -3]">
-          <a-avatar :size="30" class="layout-sidebar-user__avatar" style="background: #fff">
-              <template #icon>
-                <AIcon class="notice-icon" :type="props.icon" />
-              </template>
-          </a-avatar>
+	      <AIcon class="notice-icon" :type="props.icon" />
       </a-badge>
       <template #overlay>
         <div>
@@ -220,6 +216,8 @@ onMounted(() => {
 
 <style scoped lang="less">
 .notice-container {
+		display: flex;
+		align-items: center;
     .notice-icon {
         font-size: var(--fs-h4);
     }

@@ -126,3 +126,162 @@
   background: var(--bg-trans-8);
   border-radius: var(--r-6);
 }
+
+/* ==========================================================================
+ * ContentPanel 内容融合
+ *
+ * ContentPanel 采用玻璃拟态背景（半透明白色渐变 + backdrop-filter 模糊），
+ * 内部 ant-design-vue 组件若保留实心白底会形成割裂色块。这里统一把面板内
+ * 的组件表面改为半透明/透明，使组件背景与面板背景自然过渡。
+ *
+ * 规则全部限定在 .content-panel 作用域内：
+ * - 未使用 ContentPanel 的页面不受影响；
+ * - modal / drawer / dropdown / tooltip 等浮层不在此作用域内，保持不透明以保证可读性。
+ * ========================================================================== */
+.content-panel {
+  /* 面板内各层级表面：越靠近内容越实，保证文字可读性 */
+  --panel-head-bg: color-mix(in srgb, var(--bg) 44%, transparent);
+  --panel-fixed-bg: color-mix(in srgb, var(--bg) 82%, transparent);
+  --panel-surface: color-mix(in srgb, var(--bg) 58%, transparent);
+  --panel-surface-soft: color-mix(in srgb, var(--bg) 32%, transparent);
+  --panel-line: color-mix(in srgb, var(--primary-color) 10%, transparent);
+  --panel-row-hover: color-mix(in srgb, var(--primary-color) 9%, transparent);
+  --panel-row-selected: color-mix(in srgb, var(--primary-color) 14%, transparent);
+
+  /* ---------- 表格 ---------- */
+  .ant-table,
+  .ant-table-container,
+  .ant-table-content,
+  .ant-table-header,
+  .ant-table-body,
+  .ant-table-summary,
+  .ant-table-sticky-holder {
+    background: transparent;
+  }
+
+  .ant-table-thead > tr > th {
+    background: var(--panel-head-bg) !important;
+    border-bottom: 1px solid var(--panel-line);
+
+    &::before {
+      background-color: transparent !important;
+    }
+  }
+
+  .ant-table-tbody > tr > td {
+    background: transparent;
+    border-bottom: 1px solid var(--panel-line);
+  }
+
+  /* 固定列在横向滚动时需要实底，避免透出下方单元格文字 */
+  .ant-table-thead > tr > th.ant-table-cell-fix-left,
+  .ant-table-thead > tr > th.ant-table-cell-fix-right,
+  .ant-table-tbody > tr > td.ant-table-cell-fix-left,
+  .ant-table-tbody > tr > td.ant-table-cell-fix-right {
+    background: var(--panel-fixed-bg) !important;
+  }
+
+  .ant-table-tbody > tr:hover > td,
+  .ant-table-tbody > tr > td.ant-table-cell-row-hover {
+    background: var(--panel-row-hover) !important;
+  }
+
+  .ant-table-tbody > tr.ant-table-row-selected > td {
+    background: var(--panel-row-selected) !important;
+  }
+
+  .ant-table-placeholder,
+  .ant-table-placeholder > td,
+  .ant-table-expanded-row > td {
+    background: transparent !important;
+  }
+
+  .ant-table-cell-scrollbar {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .ant-table-column-sorter,
+  .ant-table-filter-trigger {
+    background: transparent;
+  }
+
+  /* ---------- 卡片 / 列表 ---------- */
+  .ant-card {
+    background: var(--panel-surface);
+    border-color: var(--panel-line);
+  }
+
+  .ant-card-head {
+    border-bottom-color: var(--panel-line);
+  }
+
+  .ant-list .ant-list-item {
+    border-bottom-color: var(--panel-line);
+  }
+
+  /* ---------- 表单控件 ---------- */
+  .ant-input,
+  .ant-input-affix-wrapper,
+  .ant-input-number,
+  .ant-picker,
+  .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+  .ant-cascader-picker {
+    background: var(--panel-surface);
+  }
+
+  .ant-input-affix-wrapper > input.ant-input,
+  .ant-picker-input > input,
+  .ant-input-number-input {
+    background: transparent;
+  }
+
+  /* ---------- 分页 / 标签页 / 折叠 ---------- */
+  .ant-pagination,
+  .ant-tabs,
+  .ant-tabs-nav,
+  .ant-tabs-content-holder,
+  .ant-collapse,
+  .ant-collapse-item,
+  .ant-collapse-content {
+    background: transparent;
+  }
+
+  .ant-tabs-top > .ant-tabs-nav::before,
+  .ant-tabs-bottom > .ant-tabs-nav::before,
+  .ant-collapse > .ant-collapse-item {
+    border-color: var(--panel-line);
+  }
+
+  /* ---------- 空状态 / 描述列表 ---------- */
+  .ant-empty-description {
+    color: var(--ink-3);
+  }
+
+  .ant-descriptions-bordered {
+    .ant-descriptions-view,
+    .ant-descriptions-item-content {
+      background: transparent;
+    }
+
+    .ant-descriptions-item-label {
+      background: var(--panel-head-bg);
+    }
+  }
+
+  /* ---------- ProTable / 搜索条外壳 ---------- */
+  .jtable-body-spin,
+  .jtable-card,
+  .jtable-body-header {
+    background: transparent;
+  }
+
+  .JSearch-warp {
+    background-color: var(--panel-surface-soft);
+    border-color: var(--panel-line);
+  }
+
+  .ant-btn-default {
+    background: var(--panel-surface);
+  }
+}

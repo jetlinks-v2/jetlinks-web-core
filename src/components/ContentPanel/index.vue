@@ -5,7 +5,7 @@
       '--content-panel-padding': `${normalizedPadding}px`,
     }"
   >
-    <a-flex>
+    <a-flex align="center" justify="space-between" class="content-panel__header">
       <div v-if="title || $slots.title" class="content-panel__title">
         <slot name="title">{{ title }}</slot>
       </div>
@@ -40,11 +40,16 @@ const normalizedPadding = computed(() => Math.max(props.padding, 0))
   gap: var(--panel-gap, var(--space-4));
   padding: var(--content-panel-padding);
   border-radius: var(--panel-radius, var(--r-6));
-  background-color: var(--bg-trans-8);
-  border: 1px solid var(--bg);
+  background: linear-gradient(rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 14%, rgba(255, 255, 255, 0.25) 47%, rgba(255, 255, 255, 0.6) 99%);
   overflow: auto;
+	backdrop-filter: blur(10px);
+	box-shadow: rgba(30, 118, 255, 0.13) 0 1px 16px 0;
+	height: 100%;
 }
 
+.content-panel__header {
+	margin-bottom: var(--space-4);
+}
 .content-panel__title {
   margin-bottom: 0;
   color: var(--ink-1);
