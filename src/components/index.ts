@@ -74,6 +74,7 @@ import MarketplaceInstallStream from './MarketplaceInstallStream/index.vue'
 import StatusPill from './StatusPill/index.vue'
 import CheckboxGroup from './CheckboxGroup/index.vue'
 import PageActions from './PageActions/index.vue'
+import MatrixGrid from './MatrixGrid/index.vue'
 import SvgIcon from './SvgIcon/index.vue'
 import SegmentPanel from './SegmentPanel'
 import SelectableListCard from './SelectableListCard'
@@ -156,6 +157,7 @@ export default {
           .component('StatusPill', StatusPill)
           .component('CheckboxGroup', CheckboxGroup)
           .component('PageActions', PageActions)
+          .component('MatrixGrid', MatrixGrid)
           .component('SvgIcon', SvgIcon)
           .component('SegmentPanel', SegmentPanel)
           .component('SelectableListCard', SelectableListCard)
@@ -183,6 +185,7 @@ export {
     PageHeader,
     MetricCards,
     MarketplaceInstallStream,
+    MatrixGrid,
     StatusPill,
     SvgIcon,
     SegmentPanel,
@@ -224,3 +227,12 @@ export type {
     MarketplaceInstallStreamRow,
     MarketplaceInstallStreamRowType,
 } from './MarketplaceInstallStream/types'
+export type {
+    MatrixGridCellSlotScope,
+    MatrixGridColumn,
+    MatrixGridColumnGroup,
+    MatrixGridColumnGroupLayout,
+    MatrixGridRow,
+    MatrixGridRowKind,
+    MatrixGridRowSlotScope,
+} from './MatrixGrid/types'

@@ -40,6 +40,7 @@
 | `useResponsiveLayoutDimensions` | `useResponsiveLayoutDimensions.ts` | 是 | 根据容器和主题计算响应式布局尺寸 |
 | `useResponsiveAntdToken` | `useResponsiveAntdToken.ts` | 是 | 根据屏幕档位生成响应式 Ant Design token |
 | `useUiTicker` | `useUiTicker.ts` | 是 | 受控的 UI 定时刷新；使用时确认暂停和销毁边界 |
+| `useElementFlight` | `useElementFlight.ts` | 是 | 在两个调用方提供的 DOM 元素之间播放贝塞尔飞行动画，并在组件卸载时清理动画节点 |
 
 ## 使用约束
 

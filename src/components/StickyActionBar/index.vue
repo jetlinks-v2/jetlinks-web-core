@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="sticky-action-bar" :class="positionClass">
+  <div ref="barRef" class="sticky-action-bar" :class="[positionClass, toneClass]">
     <div v-if="hint || $slots.hint" class="sab-hint">
       <slot name="hint">{{ hint }}</slot>
     </div>
@@ -25,22 +25,34 @@
  *   </StickyActionBar>
  *
  * 默认 position='bottom'（sticky 在容器底）；'inline' = 普通 flex 不 sticky，
- * 用于在已经是底部的容器内（比如 JlDrawerShell 的 #foot slot）。
+ * 用于在已经是底部的容器内（比如 JlDrawerShell 的 #foot slot）；
+ * 'floating' = 容器内水平居中的浮动操作条。
  *
- * 不包含：按钮样式（用 design system 的 button class 或 a-button）。
+ * default/info 语气不改变按钮；inverse 语气统一提示文字与 Ant Design 主次按钮样式。
  */
 
 const props = withDefaults(
   defineProps<{
     /** 左侧提示文字（可被 #hint slot 覆盖） */
     hint?: string
-    /** 'bottom' = sticky 底（默认），'inline' = 普通 flex 不 sticky */
-    position?: 'bottom' | 'inline'
+    /** 'bottom' = sticky 底（默认），'inline' = 普通 flex，'floating' = 容器底部浮动 */
+    position?: 'bottom' | 'inline' | 'floating'
+    /** 可选视觉语气；默认值保持历史底栏样式 */
+    tone?: 'default' | 'info' | 'inverse'
   }>(),
-  { hint: '', position: 'bottom' },
+  { hint: '', position: 'bottom', tone: 'default' },
 )
 
+const barRef = ref<HTMLElement>()
 const positionClass = computed(() => `sab-${props.position}`)
+const toneClass = computed(() => `sab-${props.tone}`)
+
+/** 供元素动效等外部交互取得实际根节点，不暴露组件内部布局结构。 */
+function getElement() {
+  return barRef.value
+}
+
+defineExpose({ getElement })
 </script>
 
 <style scoped>
@@ -68,6 +80,67 @@ const positionClass = computed(() => `sab-${props.position}`)
   background: transparent;
 }
 
+.sab-floating {
+  position: absolute;
+  right: 50%;
+  bottom: var(--space-6);
+  z-index: var(--z-modal);
+  gap: var(--space-2);
+  max-width: calc(100% - 3rem);
+  min-height: 3rem;
+  padding: var(--space-2);
+  border-radius: var(--r-3);
+  transform: translateX(50%);
+}
+
+.sab-info {
+  flex-shrink: 0;
+  padding: var(--space-3);
+  border-top: 0;
+  border-radius: var(--r-3);
+  background: var(--info-bg);
+}
+
+.sab-info .sab-hint {
+  color: inherit;
+  font-size: inherit;
+}
+
+.sab-inverse {
+  border: 0.0625rem solid color-mix(in srgb, var(--accent) 60%, transparent);
+  background: color-mix(in srgb, var(--ink-1) 92%, var(--accent) 8%);
+  box-shadow:
+    0 0 0 0.0625rem color-mix(in srgb, var(--accent) 36%, transparent),
+    0 1rem 2.5rem color-mix(in srgb, var(--ink-1) 22%, transparent);
+}
+
+.sab-inverse .sab-hint {
+  overflow: hidden;
+  padding: 0 var(--space-3);
+  color: #fff;
+  font-size: var(--fs-13);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sab-inverse :deep(.ant-btn:not(.ant-btn-primary)) {
+  border-color: color-mix(in srgb, #fff 24%, transparent);
+  color: #fff;
+  background: transparent;
+}
+
+.sab-inverse :deep(.ant-btn:not(.ant-btn-primary):hover),
+.sab-inverse :deep(.ant-btn:not(.ant-btn-primary):focus) {
+  border-color: color-mix(in srgb, #fff 72%, transparent);
+  color: #fff;
+  background: color-mix(in srgb, #fff 10%, transparent);
+}
+
+.sab-inverse :deep(.ant-btn-primary) {
+  min-width: 6rem;
+}
+
 .sab-hint {
   flex: 1;
   min-width: 0;
@@ -80,4 +153,15 @@ const positionClass = computed(() => `sab-${props.position}`)
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
-}</style>
+}
+
+@container (max-width: 56rem) {
+  .sab-floating {
+    right: var(--space-3);
+    left: var(--space-3);
+    bottom: var(--space-3);
+    max-width: none;
+    transform: none;
+  }
+}
+</style>
