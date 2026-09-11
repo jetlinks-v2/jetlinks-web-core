@@ -1099,6 +1099,8 @@
   "data.aiData.knowledgeAISearch.menuName": "可视化/知识库智能搜索",
   "components.MarketplaceInstallStream.viewLogs": "查看 {count} 条日志",
   "components.DetailHeader.back": "返回",
+  "components.EqualHeightColumns.collapse": "收起左侧",
+  "components.EqualHeightColumns.expand": "展开左侧",
   "components.StatusPill.draft": "草稿",
   "components.StatusPill.review": "审核中",
   "components.StatusPill.published": "已发布",
