@@ -2,7 +2,7 @@
   <a-modal
     open
     :title="hasRegisteredDetail
-      ? (data?.topicName || data?.title || data?.message)
+      ? notificationTitle
       : $t('components.ViewDialog.411617-0')"
     :width="754"
     @cancel="emits('update:visible', false)"
@@ -145,6 +145,7 @@
 import { JsonViewer } from 'vue3-json-viewer'
 import 'vue3-json-viewer/dist/index.css'
 import dayjs from 'dayjs'
+import globalI18n from '@jetlinks-web-core/locales'
 import RegistryComponent from '@jetlinks-web-core/components/RegisterComponents'
 import { componentsRegistry } from '@jetlinks-web-core/utils/components-registry'
 import {
@@ -166,6 +167,16 @@ const workFlowData = ref()
 const _data = computed(() => {
   if (props.data.detailJson) return JSON.parse(props.data.detailJson)
   else return props.data?.detail || props.data
+})
+
+const notificationTitle = computed(() => {
+  const messages = _data.value?.others?.i18n?.title || _data.value?.i18n?.title
+  if (messages && typeof messages === 'object') {
+    const locale = String(globalI18n.global.locale.value || 'zh').replace('_', '-').toLowerCase()
+    const localized = String(messages[locale] || messages[locale.split('-')[0]] || '').trim()
+    if (localized) return localized
+  }
+  return props.data?.topicName || props.data?.title || props.data?.message || ''
 })
 
 const hasRegisteredDetail = computed(() =>
