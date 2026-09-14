@@ -20,6 +20,9 @@
   }
 }
 
+.ant-tree {
+  background: transparent;
+}
 .ant-tree:not(.ant-tree-show-line) {
   background: transparent;
   color: var(--ink-2);
@@ -159,31 +162,14 @@
     background: transparent;
   }
 
-  .ant-table-thead > tr > th {
-    background: var(--panel-head-bg) !important;
-    border-bottom: 1px solid var(--panel-line);
-
-    &::before {
-      background-color: transparent !important;
-    }
-  }
-
   .ant-table-tbody > tr > td {
     background: transparent;
     border-bottom: 1px solid var(--panel-line);
   }
 
-  /* 固定列在横向滚动时需要实底，避免透出下方单元格文字 */
-  .ant-table-thead > tr > th.ant-table-cell-fix-left,
-  .ant-table-thead > tr > th.ant-table-cell-fix-right,
-  .ant-table-tbody > tr > td.ant-table-cell-fix-left,
-  .ant-table-tbody > tr > td.ant-table-cell-fix-right {
-    background: var(--panel-fixed-bg) !important;
-  }
-
   .ant-table-tbody > tr:hover > td,
   .ant-table-tbody > tr > td.ant-table-cell-row-hover {
-    background: var(--panel-row-hover) !important;
+    background: var(--bg) !important;
   }
 
   .ant-table-tbody > tr.ant-table-row-selected > td {
