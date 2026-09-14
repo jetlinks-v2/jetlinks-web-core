@@ -1554,7 +1554,10 @@ const materializeDeclaredStructuredSources = async (
   options: DeliverAiClientToolResultOptions,
 ) => {
   const budget = options.replyMaxJsonLength
-  if (!isRecord(result) || isFailureResult(result) || typeof budget !== 'number' || !Number.isFinite(budget) || budget <= 0) return result
+  const replyBudget = typeof budget === 'number' && Number.isFinite(budget) && budget > 0
+    ? budget
+    : undefined
+  if (!isRecord(result) || isFailureResult(result)) return result
   let delivered = result
   const bindings = normalizeAiClientToolOutputBindings(result.outputBindings as AiClientToolOutputBinding[])
   for (const binding of bindings) {
@@ -1574,6 +1577,7 @@ const materializeDeclaredStructuredSources = async (
       ))) continue
     if (output.audience !== 'model-evidence'
       && !resolveMaterializedDeliveryPolicy(output, options.call.presentationCapabilities).allowFile) continue
+    if (output.delivery === 'auto' && replyBudget === undefined) continue
     const selected = resolveAiClientToolBindingPath(delivered, path)
     if (!selected.resolved || selected.values.length !== 1) continue
     const logicalSource = selected.values[0]
@@ -1584,7 +1588,12 @@ const materializeDeclaredStructuredSources = async (
     } catch {
       continue
     }
-    if (content === undefined || content.length <= budget) continue
+    const requiresFile = output.delivery === 'file'
+    const exceedsAutoReplyBudget = output.delivery === 'auto'
+      && replyBudget !== undefined
+      && content !== undefined
+      && content.length > replyBudget
+    if (content === undefined || (!requiresFile && !exceedsAutoReplyBudget)) continue
     const artifact = createAiClientToolArtifact({
       content,
       mimeType: output.mediaType,

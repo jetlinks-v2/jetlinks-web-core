@@ -17,6 +17,13 @@ try {
     platform: 'node',
     format: 'esm',
     target: 'node22',
+    define: {
+      'import.meta.env': '{}',
+      'import.meta.glob': '__testImportMetaGlob',
+    },
+    banner: {
+      js: 'const __testImportMetaGlob = () => ({}); globalThis.window ??= globalThis; globalThis.window.addEventListener ??= () => undefined; globalThis.window.removeEventListener ??= () => undefined; globalThis.localStorage ??= { getItem: () => null, setItem: () => undefined, removeItem: () => undefined }; globalThis.navigator ??= { language: "en" };',
+    },
     sourcemap: 'inline',
     logLevel: 'warning',
   })

@@ -4333,16 +4333,17 @@ test('binding paths support only the bounded property, wildcard and equality gra
   assert.deepEqual(resolveAiClientToolBindingPath(root, '$.missing[*]'), { resolved: false, values: [] })
 })
 
-test('contract validation rejects duplicate outputs and unsafe delivery declarations', () => {
-  assert.throws(() => defineAiClientToolContract({
+test('contract validation retains structured file source selectors and rejects unsafe delivery declarations', () => {
+  const duplicateOutputs = defineAiClientToolContract({
     routingKind: 'records',
     routing: { capabilities: ['test.records.read'] },
     outputs: [
       { kind: 'record-set', name: 'records', shape: 'records', audience: 'model-evidence', path: '$.data' },
       { kind: 'record-set', name: 'records', shape: 'records', audience: 'model-evidence', path: '$.other' },
     ],
-  }), /Duplicate client tool output binding/)
-  assert.throws(() => defineAiClientToolContract({
+  })
+  assert.equal(isAiClientToolContractMetadata(duplicateOutputs._meta.clientToolContract), false)
+  const structuredFile = defineAiClientToolContract({
     routingKind: 'records',
     routing: { capabilities: ['test.records.read'] },
     outputs: [{
@@ -4353,7 +4354,30 @@ test('contract validation rejects duplicate outputs and unsafe delivery declarat
       path: '$.data',
       delivery: 'file',
     }],
-  }), /must not declare an inline binding path/)
+  })
+  assert.deepEqual(structuredFile._meta.resultBindings, [{
+    name: 'records', type: 'structured-data', audience: 'reusable-source', path: '$.data',
+    shape: 'records', mediaType: 'application/json',
+  }])
+  assert.equal(structuredFile._meta.clientToolContract.outputs[0].delivery, 'file')
+  assert.equal(isAiClientToolContractMetadata(structuredFile._meta.clientToolContract), true)
+  assert.deepEqual(validateAiClientToolResultBindings({ id: 'structured_file_selector', ...structuredFile }), [])
+  assert.equal(isAiClientToolContractMetadata({
+    ...structuredFile._meta.clientToolContract,
+    outputs: [{ ...structuredFile._meta.clientToolContract.outputs[0], kind: 'artifact', type: 'artifact' }],
+  }), false)
+  const defaultArtifact = {
+    id: 'default_artifact_selector',
+    ...structuredFile,
+    _meta: {
+      ...structuredFile._meta,
+      clientToolContract: {
+        ...structuredFile._meta.clientToolContract,
+        outputs: [{ ...structuredFile._meta.clientToolContract.outputs[0], kind: 'artifact', type: 'artifact', delivery: undefined }],
+      },
+    },
+  }
+  assert.ok(validateAiClientToolResultBindings(defaultArtifact).some(issue => issue.code === 'result_binding_unexpected'))
   assert.throws(() => defineAiClientToolContract({
     routingKind: 'artifact',
     routing: { capabilities: ['test.artifact.create'] },
@@ -4361,14 +4385,15 @@ test('contract validation rejects duplicate outputs and unsafe delivery declarat
       kind: 'artifact', name: 'artifact', shape: 'document', audience: 'reusable-source', mediaType: '',
     }],
   }), /requires a media type/)
-  assert.throws(() => defineAiClientToolContract({
+  const invalidArtifact = defineAiClientToolContract({
     routingKind: 'artifact',
     routing: { capabilities: ['test.artifact.create'] },
     outputs: [{
       kind: 'artifact', name: 'artifact', type: 'structured-data', shape: 'document',
       audience: 'reusable-source', mediaType: 'application/octet-stream', delivery: 'auto',
     }],
-  }), /must use artifact type and file delivery/)
+  })
+  assert.equal(isAiClientToolContractMetadata(invalidArtifact._meta.clientToolContract), false)
 })
 
 test('runtime evidence rejects duplicate bindings', () => {
@@ -7391,6 +7416,16 @@ const declaredLargeSourceFixture = () => {
   return { logicalSource, binding, result, output }
 }
 
+const declaredSmallSourceFixture = () => {
+  const fixture = declaredLargeSourceFixture()
+  const logicalSource = { records: [{ id: 'small' }] }
+  const binding = { ...fixture.binding, recordCount: 1,
+    requestedRange: { start: 1, end: 2 }, observedRange: { start: 1, end: 1 } }
+  const result = { ...fixture.result, __clientToolOutputs: { output0: logicalSource, output1: { id: 'sibling' } },
+    outputBindings: [binding], evidence: { ...fixture.result.evidence, outputBindings: [binding] } }
+  return { logicalSource, binding, result, output: fixture.output }
+}
+
 test('declared JSON source backing replaces the exact carrier and preserves all source metadata', async () => {
   const { result, binding, logicalSource, output } = declaredLargeSourceFixture()
   let uploaded = ''
@@ -7418,6 +7453,56 @@ test('declared JSON source backing replaces the exact carrier and preserves all 
   assert.deepEqual(delivered.evidence.claims, result.evidence.claims)
   assert.equal(delivered.artifacts, undefined)
   assert.equal(delivered.producedFile, undefined)
+})
+
+test('small explicit declared source files materialize without a reply budget', async () => {
+  const { result, logicalSource, output } = declaredSmallSourceFixture()
+  let uploaded = ''
+  const delivered = await deliverAiClientToolResult(result, {
+    call: { id: 'small-explicit-file', toolName: 'anonymous_source', sessionFiles: {
+      toUri: path => `fs://${path}`,
+      upload: async (path, content) => { uploaded = String(content); return { ok: true, path } },
+      remove: async path => ({ ok: true, path }),
+    } },
+    outputs: [{ ...output, delivery: 'file' }],
+  }) as any
+  assert.deepEqual(JSON.parse(uploaded), logicalSource)
+  assert.match(delivered.outputBindings[0].ref, /^fs:\/\//)
+  assert.equal(delivered.__clientToolOutputs.output0, undefined)
+  assert.deepEqual(delivered.__clientToolOutputs.output1, { id: 'sibling' })
+})
+
+test('small auto declared sources remain inline under the reply budget', async () => {
+  const { result, logicalSource, output } = declaredSmallSourceFixture()
+  let uploads = 0
+  const delivered = await deliverAiClientToolResult(result, {
+    call: { id: 'small-auto-source', toolName: 'anonymous_source', sessionFiles: {
+      toUri: path => `fs://${path}`,
+      upload: async path => { uploads += 1; return { ok: true, path } },
+      remove: async path => ({ ok: true, path }),
+    } },
+    outputs: [output], replyMaxJsonLength: 64 * 1024,
+  }) as any
+  assert.equal(uploads, 0)
+  assert.equal(delivered.outputBindings[0].ref, undefined)
+  assert.deepEqual(delivered.__clientToolOutputs.output0, logicalSource)
+})
+
+test('unavailable explicit declared source files retain the inline source and UI sibling', async () => {
+  const { result, logicalSource, output } = declaredSmallSourceFixture()
+  const delivered = await deliverAiClientToolResult(result, {
+    call: { id: 'small-unavailable-file', toolName: 'anonymous_source', sessionFiles: {
+      capabilities: () => ({ available: false }),
+      toUri: path => `fs://${path}`,
+      upload: async path => ({ ok: true, path }),
+      remove: async path => ({ ok: true, path }),
+    } },
+    outputs: [{ ...output, delivery: 'file' }],
+  }) as any
+  assert.equal(delivered.outputBindings[0].ref, undefined)
+  assert.deepEqual(delivered.__clientToolOutputs.output0, logicalSource)
+  assert.deepEqual(delivered.__clientToolOutputs.output1, { id: 'sibling' })
+  assert.deepEqual(delivered.evidence.outputBindings, delivered.outputBindings)
 })
 
 test('explicit source backing preserves true truncated coverage and continuation without changing query facts', async () => {
