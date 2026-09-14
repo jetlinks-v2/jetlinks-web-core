@@ -46,7 +46,14 @@
         </a-dropdown>
       </template>
       <template #topicProvider="slotProps">
-        {{ slotProps.topicName }}
+        <div class="notification-title-cell">
+          <AIcon
+            v-if="props.type?.endsWith('Bulletin')"
+            :type="resolveBulletinTypeIcon(slotProps)"
+            :style="{ color: resolveBulletinTypeColor(slotProps) }"
+          />
+          <j-ellipsis>{{ getNotificationTitle(slotProps) }}</j-ellipsis>
+        </div>
       </template>
       <template #notifyTime="slotProps">
         {{ dayjs(slotProps.notifyTime).format('YYYY-MM-DD HH:mm:ss') }}
@@ -127,6 +134,48 @@ const props = defineProps({
   }
 })
 
+const parseDetail = (record: Record<string, any>) => {
+  if (record.detail && typeof record.detail === 'object') return record.detail
+  if (typeof record.detailJson !== 'string') return undefined
+  try {
+    const detail = JSON.parse(record.detailJson)
+    return detail && typeof detail === 'object' ? detail : undefined
+  } catch {
+    return undefined
+  }
+}
+
+const getNotificationTitle = (record: Record<string, any>) => {
+  const detail = parseDetail(record)
+  return String(detail?.title || record.topicName || record.title || record.message || '').trim()
+}
+
+const resolveBulletinTypeIcon = (record: Record<string, any>) => {
+  const type = parseDetail(record)?.type
+  const value = typeof type === 'object' ? type?.value : type
+  return {
+    default: 'NotificationOutlined',
+    maintenance: 'ToolOutlined',
+    incident: 'WarningOutlined',
+    release: 'RocketOutlined',
+    security: 'SafetyCertificateOutlined',
+    policy: 'FileTextOutlined',
+  }[String(value || 'default')] || 'NotificationOutlined'
+}
+
+const resolveBulletinTypeColor = (record: Record<string, any>) => {
+  const type = parseDetail(record)?.type
+  const value = typeof type === 'object' ? type?.value : type
+  return {
+    default: 'var(--jet-theme-primary)',
+    maintenance: '#fa8c16',
+    incident: '#f5222d',
+    release: '#1677ff',
+    security: '#722ed1',
+    policy: '#52c41a',
+  }[String(value || 'default')] || 'var(--jet-theme-primary)'
+}
+
 const getType = computed(() => {
   return props.children.map((item) => item.provider)
   // if (props.type === 'system-business') {
@@ -155,7 +204,9 @@ const getType = computed(() => {
 
 const columns = [
   {
-    title: $t('NotificationRecord.index.803553-4'),
+    title: props.type?.endsWith('Bulletin')
+      ? $t('Announcement.inbox.message')
+      : $t('NotificationRecord.index.803553-4'),
     dataIndex: 'topicProvider',
     key: 'topicProvider',
     search: {
@@ -174,7 +225,9 @@ const columns = [
     ellipsis: true,
   },
   {
-    title: $t('NotificationRecord.index.803553-5'),
+    title: props.type?.endsWith('Bulletin')
+      ? $t('Announcement.inbox.summary')
+      : $t('NotificationRecord.index.803553-5'),
     dataIndex: 'message',
     key: 'message',
     search: {
@@ -326,6 +379,18 @@ onUnmounted(() => {
           padding: 0;
         }
       }
+    }
+  }
+
+  .notification-title-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+
+    :deep(.anticon) {
+      flex: none;
+      color: var(--jet-theme-text-secondary);
+      font-size: var(--fs-14);
     }
   }
 }</style>

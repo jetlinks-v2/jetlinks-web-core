@@ -3,6 +3,12 @@
         <span class="list-item__dot" />
         <div class="list-item__content">
             <div class="list-item__header">
+                <AIcon
+                    v-if="noticeIcon"
+                    class="list-item__icon"
+                    :style="{ color: noticeIconColor }"
+                    :type="noticeIcon"
+                />
                 <j-ellipsis class="list-item__title">{{ props.data?.topicName }}</j-ellipsis>
                 <span class="list-item__time">{{ formattedTime }}</span>
             </div>
@@ -78,6 +84,9 @@ const normalizedMessage = computed(() => String(props.data?.message || '').trim(
 const displayMessage = computed(() => normalizedMessage.value && normalizedMessage.value !== normalizedTitle.value
     ? normalizedMessage.value
     : '')
+// 业务模块可以通过通知记录上的通用图标字段补充展示图标，core 不感知具体 provider。
+const noticeIcon = computed(() => String(props.data?.noticeIcon || '').trim())
+const noticeIconColor = computed(() => String(props.data?.noticeIconColor || '').trim())
 const formattedTime = computed(() => dayjs(props.data?.notifyTime).format('YYYY-MM-DD HH:mm:ss'))
 
 watchEffect(() => {
@@ -89,6 +98,7 @@ const detail = async () => {
         markRead: () => markRead(false),
         refresh: () => emits('refresh'),
         appContext,
+        source: 'list',
     });
     if (handled) {
         emits('action');
@@ -169,6 +179,12 @@ const markRead = async (feedback = true) => {
         flex: 1;
         color: var(--jet-theme-text-title);
         font-size: var(--fs-14);
+    }
+
+    &__icon {
+        flex: none;
+        color: var(--jet-theme-text-secondary);
+        font-size: var(--fs-12);
     }
 
     &--unread &__title {
