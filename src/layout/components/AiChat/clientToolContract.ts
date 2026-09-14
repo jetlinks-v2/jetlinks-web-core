@@ -187,7 +187,8 @@ const validateOutputs = (outputs: readonly AiClientToolOutputContract[]) => {
     if (output.ordering !== undefined && !normalizeAiClientToolOrdering(output.ordering, fields)) {
       console.error(`Client tool output ordering must reference declared fields: ${name}`)
     }
-    if (delivery === 'file' && output.path !== undefined) {
+    if (delivery === 'file' && output.path !== undefined
+      && !supportsStructuredFileSourceSelector(output.type, delivery)) {
       console.error(`File client tool output must not declare an inline binding path: ${name}`)
     }
     if (output.kind === 'artifact' && !normalizedText(output.mediaType)) {
@@ -285,6 +286,11 @@ const outputDelivery = (output: AiClientToolOutputContract): AiClientToolRouting
   output.delivery || (output.kind === 'artifact' ? 'file' : 'inline')
 )
 
+// Structured file outputs retain a validated selector until materialization replaces it with a file ref.
+const supportsStructuredFileSourceSelector = (type: unknown, delivery: unknown) => (
+  type === 'structured-data' && delivery === 'file'
+)
+
 /**
  * Creates the model-facing routing metadata, browser-only binding paths and typed catalog metadata
  * from one producer-owned source. It never infers semantics from tool ids, descriptions or result fields.
@@ -326,7 +332,8 @@ export const defineAiClientToolContract = (
     } : {}),
   })
   const resultBindings = outputs.flatMap((output): AiClientToolResultBindingDefinition[] => (
-    output.path && outputDelivery(output) !== 'file' ? [{
+    output.path && (outputDelivery(output) !== 'file'
+      || supportsStructuredFileSourceSelector(output.type, outputDelivery(output))) ? [{
       name: output.name,
       type: output.type || 'structured-data',
       ...(output.label ? { label: output.label } : {}),
@@ -571,7 +578,9 @@ export const isAiClientToolContractMetadata = (
         || (record.fields !== undefined && !Array.isArray(record.fields))
         || (Array.isArray(record.fields) && fields?.length !== record.fields.length)
         || (!!fields?.some(isCanonicalAiClientToolOutputField) && record.recordPath === undefined)
-        || ((delivery === 'file' || (kind === 'artifact' && !delivery)) && record.path !== undefined)
+        || ((delivery === 'file' || (kind === 'artifact' && !delivery))
+          && record.path !== undefined
+          && !supportsStructuredFileSourceSelector(record.type, delivery))
         || (record.ordering !== undefined && !ordering)
         || (kind === 'artifact'
           && (record.type !== 'artifact' || (delivery && delivery !== 'file')))

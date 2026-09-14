@@ -2059,8 +2059,8 @@ export const validateAiClientToolRoutingMetadata = (
 }
 
 /**
- * Validates browser-only inline binding paths against the model-facing produces contract.
- * File streams publish their binding after materialization and therefore do not need an inline path.
+ * Validates browser-only source selectors against the model-facing produces contract.
+ * Structured file sources retain a selector until materialization replaces it with a file reference.
  */
 export const validateAiClientToolResultBindings = (
   tool: AiClientToolRoutingSource,
@@ -2093,10 +2093,11 @@ export const validateAiClientToolResultBindings = (
   if (hasTypedOutputs) {
     const inlineTypedOutputs = typedOutputs.filter((output) => {
       const delivery = normalizeText(output.delivery).toLowerCase()
+      const type = normalizeText(output.type).toLowerCase()
       const kind = normalizeText(output.kind).toLowerCase()
       return !!normalizeText(output.path, 512)
-        && delivery !== 'file'
-        && !(kind === 'artifact' && !delivery)
+        && ((delivery !== 'file' && !(kind === 'artifact' && !delivery))
+          || (type === 'structured-data' && delivery === 'file'))
     })
     const inlineTypedNames = new Set(inlineTypedOutputs.map(output => (
       normalizeText(output.name, 160).toLowerCase()
