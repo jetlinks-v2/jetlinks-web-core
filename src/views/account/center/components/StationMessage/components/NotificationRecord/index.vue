@@ -165,7 +165,7 @@ const parseDetail = (record: Record<string, any>) => {
 }
 
 const resolveDetailI18nText = (detail: Record<string, any> | undefined, field: string) => {
-  const messages = detail?.others?.i18n?.[field] || detail?.i18n?.[field]
+  const messages = detail?.i18nMessages?.[field]
   if (!messages || typeof messages !== 'object') return ''
   const locale = String(globalI18n.global.locale.value || 'zh').replace('_', '-').toLowerCase()
   const language = locale.split('-')[0]
