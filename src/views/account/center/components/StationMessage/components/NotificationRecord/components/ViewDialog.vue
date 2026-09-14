@@ -170,7 +170,7 @@ const _data = computed(() => {
 })
 
 const notificationTitle = computed(() => {
-  const messages = _data.value?.others?.i18n?.title || _data.value?.i18n?.title
+  const messages = _data.value?.i18nMessages?.title
   if (messages && typeof messages === 'object') {
     const locale = String(globalI18n.global.locale.value || 'zh').replace('_', '-').toLowerCase()
     const localized = String(messages[locale] || messages[locale.split('-')[0]] || '').trim()
