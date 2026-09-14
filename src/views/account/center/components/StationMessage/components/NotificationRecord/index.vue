@@ -9,7 +9,7 @@
     <j-pro-table
       ref="tableRef"
       :columns="columns"
-      :request="getList_api"
+      :request="requestNotifications"
       mode="TABLE"
       :params="queryParams"
       :bodyStyle="{ padding: 0 }"
@@ -54,6 +54,9 @@
           />
           <j-ellipsis>{{ getNotificationTitle(slotProps) }}</j-ellipsis>
         </div>
+      </template>
+      <template #message="slotProps">
+        <j-ellipsis>{{ getNotificationSummary(slotProps) }}</j-ellipsis>
       </template>
       <template #notifyTime="slotProps">
         {{ dayjs(slotProps.notifyTime).format('YYYY-MM-DD HH:mm:ss') }}
@@ -116,8 +119,10 @@ import { useRouterParams } from '@jetlinks-web/hooks'
 import { getTypeListNew } from '@jetlinks-web-core/api/account/notificationSubscription'
 import { onlyMessage } from '@jetlinks-web/utils'
 import { useI18n } from 'vue-i18n';
+import globalI18n from '@jetlinks-web-core/locales'
+import { resolveNoticeTexts } from '@jetlinks-web-core/layout/components/noticeTextResolver'
 
-const { t: $t } = useI18n();
+const { t: $t, locale } = useI18n();
 const user = useUserStore()
 interface ProviderItem {
   provider: string;
@@ -134,6 +139,20 @@ const props = defineProps({
   }
 })
 
+const requestNotifications = async (params: Record<string, unknown>) => {
+  const response = await getList_api(params)
+  const result = response?.result
+  const records = Array.isArray(result) ? result : result?.data
+  if (!Array.isArray(records)) return response
+  const resolved = await resolveNoticeTexts(records)
+  return {
+    ...response,
+    result: Array.isArray(result)
+      ? resolved
+      : { ...result, data: resolved },
+  }
+}
+
 const parseDetail = (record: Record<string, any>) => {
   if (record.detail && typeof record.detail === 'object') return record.detail
   if (typeof record.detailJson !== 'string') return undefined
@@ -145,9 +164,24 @@ const parseDetail = (record: Record<string, any>) => {
   }
 }
 
+const resolveDetailI18nText = (detail: Record<string, any> | undefined, field: string) => {
+  const messages = detail?.others?.i18n?.[field] || detail?.i18n?.[field]
+  if (!messages || typeof messages !== 'object') return ''
+  const locale = String(globalI18n.global.locale.value || 'zh').replace('_', '-').toLowerCase()
+  const language = locale.split('-')[0]
+  return String(messages[locale] || messages[language] || '').trim()
+}
+
 const getNotificationTitle = (record: Record<string, any>) => {
   const detail = parseDetail(record)
-  return String(detail?.title || record.topicName || record.title || record.message || '').trim()
+  return resolveDetailI18nText(detail, 'title')
+    || String(detail?.title || record.topicName || record.title || record.message || '').trim()
+}
+
+const getNotificationSummary = (record: Record<string, any>) => {
+  const detail = parseDetail(record)
+  return resolveDetailI18nText(detail, 'summary')
+    || String(record.message || '').trim()
 }
 
 const resolveBulletinTypeIcon = (record: Record<string, any>) => {
@@ -311,6 +345,8 @@ const view = (row: any) => {
 const refresh = () => {
   tableRef.value && tableRef.value.reload()
 }
+
+watch(locale, refresh)
 
 const changeStatus = (row: any) => {
   const type = row.state.value === 'read' ? '_unread' : '_read'

@@ -60,7 +60,7 @@ import {
 } from './noticeUtils';
 import { loadRegisteredNoticeList } from './noticeListHandler';
 
-const { t: $t } = useI18n();
+const { t: $t, locale } = useI18n();
 const emits = defineEmits(['action']);
 const DROPDOWN_PAGE_SIZE = 12;
 
@@ -136,6 +136,10 @@ const onRefresh = () => {
     refreshSummary();
     getData(type.value.length ? type.value : props.tabs.find((item) => item.key === activeKey.value)?.type || [])
 };
+
+watch(locale, () => {
+    getData(type.value.length ? type.value : props.tabs.find((item) => item.key === activeKey.value)?.type || [])
+});
 
 const onMore = (key: string) => {
     // 判断当前是否为/account/center
