@@ -135,6 +135,12 @@ The shell globally installs common components such as `CloudEmpty`, `ConditionFi
 
 Use `componentsRegistry.register(action)` or module `getRegisterComponents()` only for stable extension points already rendered by `RegistryComponent`. Extension actions describe where a component should be inserted, replaced, hidden, or appended; they should not hide business orchestration inside the registry definition.
 
+Notification extension points (business-neutral):
+
+- Realtime and list handlers are registered through `notification-realtime:handlers` and `notification-provider:default`, and consumed by `src/layout/components/noticeRealtimeHandler.ts` and `noticeListHandler.ts`.
+- The handler context uses `source: 'realtime' | 'list'` to separate a realtime arrival from clicking an existing bell record. Only the realtime path receives `showTip(options)`, which renders a single top-right tip with an optional icon, title, description and click callback; core keeps its own default tip for providers that do not take over.
+- A bell record may carry the generic `noticeIcon` field (an Ant Design icon name) and `NoticeItem.vue` only renders that field. Core never resolves a provider's business type, provider name, or copy.
+
 ### 待确认：SaaS 跨模块公共能力迁移
 
 状态：已完成（2026-08-03）。

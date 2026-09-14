@@ -35,7 +35,7 @@ import {
     type NoticeTabItem,
     toBadgeCount,
 } from './noticeUtils';
-import { handleRegisteredRealtimeNotice } from './noticeRealtimeHandler';
+import { handleRegisteredRealtimeNotice, type NoticeTipOptions } from './noticeRealtimeHandler';
 
 type NoticePlacement = 'top' | 'bottom' | 'topLeft' | 'topRight' | 'topCenter'
   | 'bottomLeft' | 'bottomRight' | 'bottomCenter'
@@ -93,6 +93,24 @@ const markNotificationRead = async (id: string) => {
     }
 };
 
+// 业务模块可以按 provider 接管实时提示图标与点击行为，未接管时仍走下面的通用轻提示。
+const showNoticeTip = (
+  payload: Record<string, any>,
+  options: NoticeTipOptions,
+) => {
+    const key = String(payload?.id || options.title || '');
+    notification.open({
+        key,
+        icon: options.icon,
+        message: options.title,
+        description: options.description,
+        onClick: () => {
+            notification.close(key);
+            options.onClick?.();
+        },
+    });
+};
+
 const { send } = useWebSocket({
   async onMessage(data) {
     if (!data?.payload?.id) return;
@@ -100,6 +118,8 @@ const { send } = useWebSocket({
       markRead: () => markNotificationRead(data.payload.id),
       refresh: getList,
       appContext,
+      source: 'realtime',
+      showTip: (options: NoticeTipOptions) => showNoticeTip(data.payload, options),
     });
     // WebSocket 只触发刷新，角标始终以后端未读统计为准。
     getList();
