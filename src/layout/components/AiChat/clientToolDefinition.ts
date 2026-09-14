@@ -383,6 +383,8 @@ export interface ClientToolStringArgumentAuthoring<TArgs extends Record<string, 
 
 interface ClientToolStringArgumentAuthoringDefinition {
   argument: string
+  valueCardinality: 'exactly-one' | 'one-or-more'
+  encoding: 'single-string' | 'string-array'
   contextSource?: {
     kind: 'subject'
     selection: 'primary'
@@ -401,7 +403,24 @@ export const defineClientToolStringArgumentBinding = <TArgs extends Record<strin
   argument: Extract<keyof TArgs, string>,
 ): ClientToolStringArgumentAuthoring<TArgs> => {
   const authoring = Object.freeze({}) as ClientToolStringArgumentAuthoring<TArgs>
-  clientToolStringArgumentAuthoringDefinitions.set(authoring, { argument })
+  clientToolStringArgumentAuthoringDefinitions.set(authoring, {
+    argument,
+    valueCardinality: 'exactly-one',
+    encoding: 'single-string',
+  })
+  return authoring
+}
+
+/** Binds one canonical resource port to an exact top-level array of strings. */
+export const defineClientToolStringArrayArgumentBinding = <TArgs extends Record<string, unknown>>(
+  argument: Extract<keyof TArgs, string>,
+): ClientToolStringArgumentAuthoring<TArgs> => {
+  const authoring = Object.freeze({}) as ClientToolStringArgumentAuthoring<TArgs>
+  clientToolStringArgumentAuthoringDefinitions.set(authoring, {
+    argument,
+    valueCardinality: 'one-or-more',
+    encoding: 'string-array',
+  })
   return authoring
 }
 
@@ -415,6 +434,8 @@ export const defineClientToolPrimarySubjectArgumentBinding = <
   const authoring = Object.freeze({}) as ClientToolStringArgumentAuthoring<TArgs>
   clientToolStringArgumentAuthoringDefinitions.set(authoring, {
     argument,
+    valueCardinality: 'exactly-one',
+    encoding: 'single-string',
     contextSource: {
       kind: 'subject',
       selection: 'primary',
@@ -898,6 +919,13 @@ const isSingleStringInput = (input: ClientToolInput | undefined) => {
   return normalizedText(typeof valueType === 'string' ? valueType : valueType?.type).toLowerCase() === 'string'
 }
 
+const isStringArrayInput = (input: ClientToolInput | undefined) => {
+  const valueType = input?.valueType
+  if (typeof valueType === 'string' || !valueType) return false
+  return normalizedText(valueType.type).toLowerCase() === 'array'
+    && normalizedText(valueType.elementType?.type).toLowerCase() === 'string'
+}
+
 const compileConsumedResources = <TArgs extends Record<string, unknown>>(
   consumes: readonly ClientToolConsumedResource<TArgs>[],
   inputs: readonly ClientToolInput[],
@@ -919,6 +947,7 @@ const compileConsumedResources = <TArgs extends Record<string, unknown>>(
     }
     if (!resource.bindArgument) return port
     const authoring = clientToolStringArgumentAuthoringDefinitions.get(resource.bindArgument)
+    if (!authoring) return undefined
     const argument = normalizedText(authoring?.argument)
     const subjectType = normalizedText(authoring?.contextSource?.subjectType)
     const contextSource = authoring?.contextSource && subjectType
@@ -929,16 +958,19 @@ const compileConsumedResources = <TArgs extends Record<string, unknown>>(
         }
       : undefined
     const matches = inputs.filter(input => normalizedText(input.id) === argument)
-    if (!argument || matches.length !== 1 || !isSingleStringInput(matches[0])
+    const arrayBinding = authoring.valueCardinality === 'one-or-more'
+      && authoring.encoding === 'string-array'
+    const inputMatches = arrayBinding ? isStringArrayInput(matches[0]) : isSingleStringInput(matches[0])
+    if (!argument || matches.length !== 1 || !inputMatches
       || (resource.sourcePolicy === 'TOOL' && contextSource)
       || (resource.sourcePolicy === 'CONTEXT' && !contextSource)
-      || (authoring?.contextSource && !contextSource)) return undefined
+      || (authoring.contextSource && !contextSource)) return undefined
     return {
       ...port,
       argumentBinding: {
         argument: matches[0].id,
-        valueCardinality: 'exactly-one',
-        encoding: 'single-string',
+        valueCardinality: authoring.valueCardinality,
+        encoding: authoring.encoding,
         ...(contextSource ? { contextSource } : {}),
       },
     }
