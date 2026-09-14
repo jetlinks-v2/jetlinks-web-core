@@ -728,10 +728,6 @@
             }
           }
 
-          a .anticon {
-            color: #C9CDD4 !important;
-          }
-
           &.ant-menu-item-selected a,
           &.ant-menu-item-selected a .anticon,
           &.ant-menu-item-selected a .ant-pro-menu-item-title {
@@ -741,6 +737,16 @@
 
         .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub > .ant-menu-submenu > .ant-menu-submenu-title {
           padding-left: var(--space-6) !important;
+        }
+
+        .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub > .ant-menu-item:not(.ant-menu-item-selected) a .anticon,
+        .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub > .ant-menu-submenu > .ant-menu-submenu-title .anticon {
+          color: #C9CDD4 !important;
+        }
+
+        // 子分组圆点只跟随路由选中状态，展开和悬停不表示当前所在位置。
+        .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub > .ant-menu-submenu-selected > .ant-menu-submenu-title .anticon {
+          color: var(--layout-menu-item-active-color) !important;
         }
 
         .ant-menu-inline > .ant-menu-submenu > .ant-menu-sub > .ant-menu-submenu > .ant-menu-sub > .ant-menu-item {

@@ -87,6 +87,12 @@ cssVars: {
 
 ## Typography And Spacing Tokens
 
+### Project Sidebar Child Indicators
+
+The project sidebar's nested group indicators (for example, 素材库) follow the same inactive gray as sibling leaf indicators. Only `ant-menu-submenu-selected` activates a group indicator with `--layout-menu-item-active-color`; expanding, collapsing, hovering, or focusing the group does not activate it. Top-level module icons keep their existing style.
+
+Implementation scope: `src/style/layout.less`, reusing the existing ProLayout / Ant Design Vue selection classes without changing route matching or `openKeys`. Single-file Less rendering, seven selector / color / scope assertions, and `git diff --check` passed. Browser verification is pending because the browser connector reports `Codex auth token is unavailable`: check an unrelated selected route and each resource child route with the group both expanded and collapsed, including hover / focus. No Vue / TypeScript changed; lint, typecheck, and a full build were not run for this style-only patch to avoid unnecessary resource usage. If release verification requires a full build, run `rtk pnpm -C runtime-ui build` from the workspace root.
+
 Text color tokens follow the product typography rules:
 
 | Usage | Token | Value |
