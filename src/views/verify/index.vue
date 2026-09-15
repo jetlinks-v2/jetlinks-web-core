@@ -3,6 +3,8 @@
     v-model:open="visible"
     :title="type === 'captcha' ? undefined : title"
     :maskClosable="false"
+    :closable="type !== 'captcha'"
+    :keyboard="true"
     :width="type === 'captcha' ? captchaModalWidth : type === 'identity' ? 420 : modalWidth"
     :centered="type === 'captcha'"
     :wrapClassName="isAltchaCaptcha ? 'altcha-verification-modal' : captchaConfig?.type === 'image' ? 'image-captcha-modal' : undefined"
@@ -70,6 +72,9 @@
           @imageWidth="onCaptchaImageWidth"
         />
       </div>
+      <Button v-if="isAutoSubmitCaptcha" type="link" class="captcha-cancel" @click="onCancel">
+        {{ t('verify.cancel') }}
+      </Button>
     </template>
 
     <!-- 身份校验 -->
@@ -666,8 +671,7 @@ onUnmounted(() => {
   color: #999;
 }
 .image-captcha {
-  padding-top: var(--space-8);
-  padding-bottom: var(--space-2);
+  padding-block: var(--space-2);
 }
 .image-captcha :deep(.ant-form-item) {
   margin-bottom: 0;
@@ -681,7 +685,7 @@ onUnmounted(() => {
 .captcha-verification-panel--altcha {
   box-sizing: border-box;
   min-height: 5.375rem;
-  padding: var(--space-3) calc(var(--space-8) + var(--space-3)) var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
 }
 .captcha-verification-panel__icon {
   display: flex;
@@ -705,8 +709,9 @@ onUnmounted(() => {
   --altcha-checkbox-size: 24px;
   font-size: var(--fs-14);
 }
-.tianai-captcha {
-  padding-top: calc(var(--space-8) + var(--space-1));
+.captcha-cancel {
+  display: block;
+  margin: var(--space-2) auto 0;
 }
 :global(.altcha-verification-modal .ant-modal-content) {
   background: var(--bg-2);
@@ -715,30 +720,6 @@ onUnmounted(() => {
 }
 :global(.altcha-verification-modal .ant-modal-body) {
   padding: 0 !important;
-}
-:global(.altcha-verification-modal .ant-modal-close) {
-  top: 4px;
-  right: 4px;
-  width: 28px;
-  height: 28px;
-  line-height: 28px;
-  color: var(--text-color-secondary);
-  border-radius: 50%;
-}
-:global(.altcha-verification-modal .ant-modal-close:hover) {
-  background: var(--bg-hover);
-}
-:global(.image-captcha-modal .ant-modal-close) {
-  top: 4px;
-  right: 4px;
-  width: 28px;
-  height: 28px;
-  line-height: 28px;
-  color: var(--text-color-secondary);
-  border-radius: 50%;
-}
-:global(.image-captcha-modal .ant-modal-close:hover) {
-  background: var(--bg-hover);
 }
 :global(.image-captcha-modal .ant-modal-content .ant-modal-footer) {
   padding: var(--space-4) var(--space-6);
