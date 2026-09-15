@@ -84,6 +84,10 @@ import {
 | 业务配置和市场资源 | `ModelConfig`、`ModelParameterEditor`、`MarketplaceResourcePicker`、`MarketplaceInstallStream` | [ModelConfig](ModelConfig/README.md)、[ModelParameterEditor](ModelParameterEditor/README.md)、[MarketplaceResourcePicker](MarketplaceResourcePicker/README.md)、[MarketplaceInstallStream](MarketplaceInstallStream/README.md) | `ModelConfig`、`ModelParameterEditor`、`MarketplaceInstallStream`；`MarketplaceResourcePicker` 见非根入口 |
 | 弹窗、远程组件和运行时扩展 | `ConfirmModal`、`JlConfirmDialog`、`RemoteComponent`、`RegisterComponents`、`BatchDropdown` | [ConfirmModal](ConfirmModal/README.md)、[JlConfirmDialog](JlConfirmDialog/README.md)、[RemoteComponent](RemoteComponent/README.md)、[RegisterComponents](RegisterComponents/README.md)、[BatchDropdown](BatchDropdown/README.md) | `ConfirmModal`、`JlConfirmDialog`、`RemoteComponent`、`RegistryComponent`、`BatchDropdown` |
 
+### 表格行操作
+
+[`TableActions`](TableActions/README.md) 将标记 `common` 的 `TableActionsItem` 放在行内，其余放入可承载按钮、开关和确认交互的更多面板。二者均有根入口具名导出和同名全局注册，也支持目录导入后的 `TableActions.Item`。权限、业务请求、加载和错误反馈由插槽内的现有控件负责。
+
 ## 非根入口能力
 
 以下能力有实现或文档，但不是 `@jetlinks-web-core/components` 根入口的具名导出；使用前必须核验当前版本和生产代码中的导入路径：

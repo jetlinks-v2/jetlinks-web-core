@@ -1118,5 +1118,6 @@
   "layout.menuSearch.placeholder": "Search menus",
   "layout.menuSearch.empty": "No matching menus",
   "layout.project.settings": "Settings",
+  "components.TableActions.more": "More actions",
   "comm.api.timeout": "The network environment is poor"
 }
