@@ -474,6 +474,7 @@
   "verify.submit": "Confirm",
   "verify.confirm": "Confirm",
   "verify.cancel": "Cancel",
+  "verify.cancelVerification": "Cancel verification",
   "verify.loading": "Loading...",
   "verify.noIdentity": "No Identity Information",
   "verify.noIdentityDesc": "You have not bound an email or phone number. Please bind your identity information first before verification",

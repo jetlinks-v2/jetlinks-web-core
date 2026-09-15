@@ -73,7 +73,7 @@
         />
       </div>
       <Button v-if="isAutoSubmitCaptcha" type="link" class="captcha-cancel" @click="onCancel">
-        {{ t('verify.cancel') }}
+        {{ t('verify.cancelVerification') }}
       </Button>
     </template>
 
@@ -671,7 +671,7 @@ onUnmounted(() => {
   color: #999;
 }
 .image-captcha {
-  padding-block: var(--space-2);
+  padding-top: var(--space-2);
 }
 .image-captcha :deep(.ant-form-item) {
   margin-bottom: 0;
@@ -722,7 +722,8 @@ onUnmounted(() => {
   padding: 0 !important;
 }
 :global(.image-captcha-modal .ant-modal-content .ant-modal-footer) {
-  padding: var(--space-4) var(--space-6);
+  margin-top: 0;
+  padding: var(--space-2) var(--space-6) var(--space-4);
   box-shadow: none;
 }
 .identity-empty {
