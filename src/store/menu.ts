@@ -4,6 +4,7 @@ import router from '@jetlinks-web-core/router'
 import { setParamsValue } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
 import {
+  isApplicationRuntime,
   isFromCloud,
   isProjectRuntime,
   normalizeProjectRuntimePath,
@@ -29,7 +30,7 @@ import {
   prepareMicroApplicationMenus,
 } from './menuHelpers'
 import { useApplication } from './application'
-import { isSaaS } from '@/utils/consts'
+import {isSaaS, OWNER_KEY} from '@/utils/consts'
 
 type OptionsType = {
   params?: Record<string, any>
@@ -59,7 +60,17 @@ const $t = i18n.global.t
 // routeName is the stable target contract for virtual navigation domains such as project settings.
 const LEGACY_PROJECT_MENU_OPTION_KEYS = ['componentCode', 'authCode', 'authCodes']
 
-const getDefaultOwnParams = (): any[] => []
+const getDefaultOwnParams = (): any[] => {
+  const termsItems: Record<string, any> = {
+    column: 'owner',
+    value: OWNER_KEY
+  }
+  if (isApplicationRuntime()) { // 应用端
+    termsItems.value = 'app'
+  }
+
+  return [termsItems]
+}
 
 const isQueryMenusOptions = (value: QueryMenusInput): value is QueryMenusOptions => (
   !!value
