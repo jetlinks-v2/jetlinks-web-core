@@ -18,6 +18,7 @@
 | 可复用响应式逻辑 | [hooks/README.md](hooks/README.md) | [hooks/index.ts](hooks/index.ts) | Hook 用途、根入口/深层路径和副作用边界 |
 | 通用函数、运行时和数据转换 | [utils/README.md](utils/README.md) | [utils/index.ts](utils/index.ts) | 工具按场景分组，标记根入口与深层路径 |
 | 跨页面共享状态 | [store/README.md](store/README.md) | [store/index.ts](store/index.ts) 及各 store 源文件 | Pinia store 的职责、状态范围和导出事实 |
+| 模板指令 | [directive/README.md](directive/README.md) | [directive/index.ts](directive/index.ts) | 指令安装、菜单条件渲染及编译边界 |
 | core 页面和页面族 | [views/README.md](views/README.md) | `views/**`、路由入口和相邻页面 | 页面目标、入口、状态流和可复用能力 |
 
 ## 文档维护约定

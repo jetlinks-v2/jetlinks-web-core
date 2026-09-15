@@ -28,6 +28,7 @@ import {
   getMergedEnv
 } from './vite.setting'
 import { moduleFilterPlugin } from './configs/plugin/moduleFilterPlugin'
+import { hasMenuPlugin } from './configs/plugin/has-menu'
 
 export default defineConfig(async ({ mode, command }) => {
   const envDir = path.resolve(__dirname, '..')
@@ -86,6 +87,7 @@ export default defineConfig(async ({ mode, command }) => {
     },
     plugins: [
       tailwindcss(),
+      hasMenuPlugin(),
       vue(),
       svgLoader({
         defaultImport: 'url',
