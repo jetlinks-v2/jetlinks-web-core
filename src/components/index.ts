@@ -41,6 +41,7 @@ import DesignerPreview from './DesignerPreview/index.vue'
 import IconLibrary from './IconLibrary/index.vue'
 import ChatTextArea from './ChatTextArea/index.vue'
 import Captcha from './Captcha'
+import AltchaCaptcha from './AltchaCaptcha/index.vue'
 import RegistryComponent from './RegisterComponents'
 import { TagManagerSidebar } from './TagManagerSidebar'
 import ConditionFilter from './ConditionFilter'
@@ -124,6 +125,7 @@ export default {
           .component('IconLibrary', IconLibrary)
           .component('ChatTextArea', ChatTextArea)
           .component('Captcha', Captcha)
+          .component('AltchaCaptcha', AltchaCaptcha)
           .component('RegistryComponent', RegistryComponent)
           .component('TagManagerSidebar', TagManagerSidebar)
           .component('ConditionFilter', ConditionFilter)

@@ -38,7 +38,7 @@
         </FormItem>
       </Form>
       <Captcha
-        v-else
+        v-else-if="isTianaiCaptcha"
         :key="captchaRenderKey"
         :showDialog="false"
         :open="visible"
@@ -46,6 +46,15 @@
         @success="onTianaiCaptchaSuccess"
         @fail="onTianaiCaptchaFail"
         @imageWidth="onCaptchaImageWidth"
+      />
+      <AltchaCaptcha
+        v-else-if="isAltchaCaptcha && captchaConfig?.altcha"
+        :config="captchaConfig.altcha"
+        :open="visible"
+        :verify-key="props.verifyResult.key"
+        @success="onAltchaCaptchaSuccess"
+        @fail="onAltchaCaptchaFail"
+        @expired="onAltchaCaptchaExpired"
       />
     </template>
 
@@ -128,6 +137,7 @@ import {
   getVerifyCaptchaConfig,
   getVerifyCaptchaImage,
   confirmCaptcha,
+  isValidAltchaCaptchaProof,
   requestIdentityVerify,
   confirmIdentityVerify,
   getSelfIdentitiesForVerify
@@ -136,6 +146,8 @@ import { getIdentityProviders_api } from '@jetlinks-web-core/api/account/center'
 import type { VerifyRequiredResult } from '@jetlinks-web-core/api/verify'
 import i18n from '@jetlinks-web-core/locales'
 import Captcha from '@jetlinks-web-core/components/Captcha'
+import AltchaCaptcha from '@jetlinks-web-core/components/AltchaCaptcha/index.vue'
+import type { AltchaCaptchaConfig, AltchaCaptchaProof } from '@jetlinks-web-core/api/verify'
 
 const { t } = i18n.global
 const router = useRouter()
@@ -184,8 +196,9 @@ const captchaForm = reactive({
   imageKey: ''
 })
 const captchaImage = ref('')
-const captchaConfig = ref<{ type?: string, tianai?: Record<string, unknown> } | null>(null)
+const captchaConfig = ref<{ type?: string; tianai?: Record<string, unknown>; altcha?: AltchaCaptchaConfig } | null>(null)
 const tianaiCaptchaId = ref('')
+const altchaProof = ref<AltchaCaptchaProof>()
 const captchaRenderKey = ref(0)
 
 const identityForm = reactive({
@@ -212,13 +225,17 @@ const identityRules = {
 }
 
 const isTianaiCaptcha = computed(() => captchaConfig.value?.type === 'tianai')
-const isAutoSubmitCaptcha = computed(() => type.value === 'captcha' && isTianaiCaptcha.value)
+const isAltchaCaptcha = computed(() => captchaConfig.value?.type === 'altcha')
+const isAutoSubmitCaptcha = computed(() => type.value === 'captcha' && (isTianaiCaptcha.value || isAltchaCaptcha.value))
 const modalFooter = computed(() => isAutoSubmitCaptcha.value ? null : undefined)
 const submitDisabled = computed(() => {
   if (type.value === 'identity') {
     return identityListRaw.value.length === 0
   }
-  return type.value === 'captcha' && isTianaiCaptcha.value && !tianaiCaptchaId.value
+  if (type.value !== 'captcha') return false
+  if (isTianaiCaptcha.value) return !tianaiCaptchaId.value
+  if (isAltchaCaptcha.value) return !altchaProof.value
+  return false
 })
 
 async function loadCaptchaImage() {
@@ -240,6 +257,7 @@ async function loadCaptchaConfig() {
     const data = res?.result ?? res
     captchaConfig.value = data ?? null
     tianaiCaptchaId.value = ''
+    altchaProof.value = undefined
     if (data?.type === 'image') {
       await loadCaptchaImage()
     } else if (data?.type === 'tianai') {
@@ -248,6 +266,7 @@ async function loadCaptchaConfig() {
   } catch {
     captchaConfig.value = null
     tianaiCaptchaId.value = ''
+    altchaProof.value = undefined
   }
 }
 
@@ -279,6 +298,21 @@ function onTianaiCaptchaSuccess(value: unknown) {
 
 function onTianaiCaptchaFail() {
   tianaiCaptchaId.value = ''
+}
+
+function onAltchaCaptchaSuccess(proof: AltchaCaptchaProof) {
+  if (submitting.value) return
+  altchaProof.value = proof
+  onSubmit().catch(() => undefined)
+}
+
+function onAltchaCaptchaFail(error: Error) {
+  altchaProof.value = undefined
+  console.error(error)
+}
+
+function onAltchaCaptchaExpired() {
+  altchaProof.value = undefined
 }
 
 function onCaptchaImageWidth(width: number) {
@@ -450,21 +484,37 @@ async function onSubmit() {
   try {
     let res: { result?: { token: string } }
     if (type.value === 'captcha') {
-      const provider = captchaConfig.value?.type ?? 'image'
+      const provider = captchaConfig.value?.type
+      if (!provider) {
+        throw new Error('Captcha provider is unavailable')
+      }
       if (provider === 'tianai' && !tianaiCaptchaId.value) {
         submitting.value = false
         return
       }
+      let params: Record<string, unknown>
+      if (provider === 'tianai') {
+        params = { 'captcha-id': tianaiCaptchaId.value }
+      } else if (provider === 'altcha') {
+        const proof = altchaProof.value
+        if (!isValidAltchaCaptchaProof(proof)) {
+          altchaProof.value = undefined
+          submitting.value = false
+          return
+        }
+        params = { proof: proof.proof.trim() }
+      } else if (provider === 'image') {
+        params = {
+          verifyKey: captchaForm.imageKey,
+          verifyCode: captchaForm.verifyCode
+        }
+      } else {
+        throw new Error(`Unsupported captcha provider: ${provider}`)
+      }
       res = await confirmCaptcha({
         key: props.verifyResult.key,
         provider,
-        params: provider === 'tianai'
-          // tianai 二次确认消费第一次行为验证返回的通过态 captcha id。
-          ? { 'captcha-id': tianaiCaptchaId.value }
-          : {
-              verifyKey: captchaForm.imageKey,
-              verifyCode: captchaForm.verifyCode
-            }
+        params
       })
     } else {
       if (!validationData.value) throw new Error('Validation not sent')
@@ -494,6 +544,8 @@ async function onSubmit() {
       if (isTianaiCaptcha.value) {
         tianaiCaptchaId.value = ''
         captchaRenderKey.value += 1
+      } else if (isAltchaCaptcha.value) {
+        altchaProof.value = undefined
       } else {
         captchaForm.verifyCode = ''
         await loadCaptchaImage()
