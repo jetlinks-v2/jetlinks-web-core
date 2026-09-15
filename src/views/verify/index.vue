@@ -1,9 +1,11 @@
 ﻿<template>
   <Modal
     v-model:open="visible"
-    :title="title"
+    :title="type === 'captcha' ? undefined : title"
     :maskClosable="false"
-    :width="type === 'identity' ? 420 : modalWidth"
+    :width="type === 'captcha' ? captchaModalWidth : type === 'identity' ? 420 : modalWidth"
+    :centered="type === 'captcha'"
+    :wrapClassName="isAltchaCaptcha ? 'altcha-verification-modal' : undefined"
     :footer="modalFooter"
     @cancel="onCancel"
     @ok="onSubmit"
@@ -13,8 +15,27 @@
   >
     <!-- 验证码 -->
     <template v-if="type === 'captcha' && captchaConfig">
-
-      <Form v-if="captchaConfig.type === 'image'" ref="formRef" layout="vertical" :model="captchaForm" :rules="captchaRules">
+      <div v-if="isAltchaCaptcha && captchaConfig.altcha" class="captcha-verification-panel captcha-verification-panel--altcha">
+        <div class="captcha-verification-panel__content">
+          <AltchaCaptcha
+            :config="captchaConfig.altcha"
+            :open="visible"
+            :verify-key="props.verifyResult.key"
+            @success="onAltchaCaptchaSuccess"
+            @fail="onAltchaCaptchaFail"
+            @expired="onAltchaCaptchaExpired"
+          />
+        </div>
+        <div
+          class="captcha-verification-panel__icon"
+          role="img"
+          :aria-label="t('verify.securityTitle')"
+        >
+          <SafetyCertificateOutlined />
+          <span>{{ t('verify.securityTitle') }}</span>
+        </div>
+      </div>
+      <Form v-else-if="captchaConfig.type === 'image'" ref="formRef" layout="vertical" :model="captchaForm" :rules="captchaRules">
         <FormItem :label="t('verify.captchaLabel')" name="verifyCode">
           <Input
             ref="captchaInputRef"
@@ -37,25 +58,17 @@
           </Input>
         </FormItem>
       </Form>
-      <Captcha
-        v-else-if="isTianaiCaptcha"
-        :key="captchaRenderKey"
-        :showDialog="false"
-        :open="visible"
-        :config="captchaConfig.tianai"
-        @success="onTianaiCaptchaSuccess"
-        @fail="onTianaiCaptchaFail"
-        @imageWidth="onCaptchaImageWidth"
-      />
-      <AltchaCaptcha
-        v-else-if="isAltchaCaptcha && captchaConfig?.altcha"
-        :config="captchaConfig.altcha"
-        :open="visible"
-        :verify-key="props.verifyResult.key"
-        @success="onAltchaCaptchaSuccess"
-        @fail="onAltchaCaptchaFail"
-        @expired="onAltchaCaptchaExpired"
-      />
+      <div v-else-if="isTianaiCaptcha" class="tianai-captcha">
+        <Captcha
+          :key="captchaRenderKey"
+          :showDialog="false"
+          :open="visible"
+          :config="captchaConfig.tianai"
+          @success="onTianaiCaptchaSuccess"
+          @fail="onTianaiCaptchaFail"
+          @imageWidth="onCaptchaImageWidth"
+        />
+      </div>
     </template>
 
     <!-- 身份校验 -->
@@ -131,6 +144,7 @@
 <script setup lang="ts">
 import { nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { SafetyCertificateOutlined } from '@ant-design/icons-vue'
 import { Modal, Form, FormItem, Input, Select, Button } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
@@ -226,6 +240,13 @@ const identityRules = {
 
 const isTianaiCaptcha = computed(() => captchaConfig.value?.type === 'tianai')
 const isAltchaCaptcha = computed(() => captchaConfig.value?.type === 'altcha')
+const captchaModalWidth = computed(() =>
+  isAltchaCaptcha.value
+    ? 'min(360px, calc(100vw - 48px))'
+    : isTianaiCaptcha.value
+    ? `min(${modalWidth.value}px, calc(100vw - 32px))`
+    : modalWidth.value
+)
 const isAutoSubmitCaptcha = computed(() => type.value === 'captcha' && (isTianaiCaptcha.value || isAltchaCaptcha.value))
 const modalFooter = computed(() => isAutoSubmitCaptcha.value ? null : undefined)
 const submitDisabled = computed(() => {
@@ -640,6 +661,62 @@ onUnmounted(() => {
 .captcha-loading {
   font-size: var(--fs-12);
   color: #999;
+}
+.captcha-verification-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3rem;
+  align-items: center;
+  gap: var(--space-4);
+}
+.captcha-verification-panel--altcha {
+  box-sizing: border-box;
+  min-height: 5.375rem;
+  padding: var(--space-3) calc(var(--space-8) + var(--space-3)) var(--space-3) var(--space-4);
+}
+.captcha-verification-panel__icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-color-secondary);
+  font-size: var(--fs-12);
+}
+.captcha-verification-panel__icon :deep(.anticon) {
+  font-size: var(--fs-24);
+}
+.captcha-verification-panel__content {
+  width: 100%;
+}
+.captcha-verification-panel :deep(.altcha-captcha) {
+  --altcha-border-width: 0;
+  --altcha-color-base: transparent;
+  --altcha-max-width: 100%;
+  --altcha-padding: 0;
+  --altcha-checkbox-size: 24px;
+  font-size: var(--fs-14);
+}
+.tianai-captcha {
+  padding-top: calc(var(--space-8) + var(--space-1));
+}
+:global(.altcha-verification-modal .ant-modal-content) {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2) !important;
+}
+:global(.altcha-verification-modal .ant-modal-body) {
+  padding: 0 !important;
+}
+:global(.altcha-verification-modal .ant-modal-close) {
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  color: var(--text-color-secondary);
+  border-radius: 50%;
+}
+:global(.altcha-verification-modal .ant-modal-close:hover) {
+  background: var(--bg-hover);
 }
 .identity-empty {
   text-align: center;

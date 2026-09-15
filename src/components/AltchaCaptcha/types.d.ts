@@ -3,6 +3,8 @@ export interface AltchaWidgetElement extends HTMLElement {
     auto: 'off'
     challenge: Record<string, unknown>
     credentials: RequestCredentials
+    hideFooter: boolean
+    hideLogo: boolean
     language: string
     retryOnOutOfMemoryError: boolean
     workers: number

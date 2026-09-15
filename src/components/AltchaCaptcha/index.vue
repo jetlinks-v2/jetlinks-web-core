@@ -102,6 +102,8 @@ async function loadChallenge() {
       auto: 'off',
       challenge,
       credentials: 'include',
+      hideFooter: true,
+      hideLogo: true,
       language: getLanguage(),
       retryOnOutOfMemoryError: false,
       workers: 2,
@@ -213,6 +215,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .altcha-captcha {
   display: block;
+  margin: 0 auto;
   width: 100%;
 }
 
