@@ -9,7 +9,6 @@ export default function hasMenu(app: App): void {
   // 显式绑定当前应用的 Pinia，避免读取其他应用最后激活的权限上下文。
   // 在渲染期间读取响应式 Store，使菜单替换、清空和 code 变化都触发更新。
   app.config.globalProperties.$hasMenu = (code: string): boolean => {
-    console.log('$hasMenu', code)
     return typeof code === 'string' && code.length > 0 && useMenuStore(pinia).hasMenu(code)
   }
 }
