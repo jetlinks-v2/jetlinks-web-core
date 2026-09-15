@@ -5,7 +5,7 @@
     :maskClosable="false"
     :width="type === 'captcha' ? captchaModalWidth : type === 'identity' ? 420 : modalWidth"
     :centered="type === 'captcha'"
-    :wrapClassName="isAltchaCaptcha ? 'altcha-verification-modal' : undefined"
+    :wrapClassName="isAltchaCaptcha ? 'altcha-verification-modal' : captchaConfig?.type === 'image' ? 'image-captcha-modal' : undefined"
     :footer="modalFooter"
     @cancel="onCancel"
     @ok="onSubmit"
@@ -35,11 +35,12 @@
           <span>{{ t('verify.securityTitle') }}</span>
         </div>
       </div>
-      <Form v-else-if="captchaConfig.type === 'image'" ref="formRef" layout="vertical" :model="captchaForm" :rules="captchaRules">
+      <Form v-else-if="captchaConfig.type === 'image'" ref="formRef" class="image-captcha" layout="vertical" :model="captchaForm" :rules="captchaRules">
         <FormItem :label="t('verify.captchaLabel')" name="verifyCode">
           <Input
             ref="captchaInputRef"
             v-model:value="captchaForm.verifyCode"
+            size="large"
             :placeholder="t('verify.captchaPlaceholder')"
             :maxlength="64"
             autocomplete="off"
@@ -245,6 +246,8 @@ const captchaModalWidth = computed(() =>
     ? 'min(360px, calc(100vw - 48px))'
     : isTianaiCaptcha.value
     ? `min(${modalWidth.value}px, calc(100vw - 32px))`
+    : captchaConfig.value?.type === 'image'
+    ? 'min(400px, calc(100vw - 32px))'
     : modalWidth.value
 )
 const isAutoSubmitCaptcha = computed(() => type.value === 'captcha' && (isTianaiCaptcha.value || isAltchaCaptcha.value))
@@ -662,6 +665,13 @@ onUnmounted(() => {
   font-size: var(--fs-12);
   color: #999;
 }
+.image-captcha {
+  padding-top: var(--space-8);
+  padding-bottom: var(--space-2);
+}
+.image-captcha :deep(.ant-form-item) {
+  margin-bottom: 0;
+}
 .captcha-verification-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 3rem;
@@ -717,6 +727,22 @@ onUnmounted(() => {
 }
 :global(.altcha-verification-modal .ant-modal-close:hover) {
   background: var(--bg-hover);
+}
+:global(.image-captcha-modal .ant-modal-close) {
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  color: var(--text-color-secondary);
+  border-radius: 50%;
+}
+:global(.image-captcha-modal .ant-modal-close:hover) {
+  background: var(--bg-hover);
+}
+:global(.image-captcha-modal .ant-modal-content .ant-modal-footer) {
+  padding: var(--space-4) var(--space-6);
+  box-shadow: none;
 }
 .identity-empty {
   text-align: center;
