@@ -2,7 +2,7 @@
   <Modal
     v-model:open="visible"
     :title="type === 'captcha' ? undefined : title"
-    :maskClosable="false"
+    :maskClosable="isAutoSubmitCaptcha"
     :closable="type !== 'captcha'"
     :keyboard="true"
     :width="type === 'captcha' ? captchaModalWidth : type === 'identity' ? 420 : modalWidth"
@@ -72,9 +72,6 @@
           @imageWidth="onCaptchaImageWidth"
         />
       </div>
-      <Button v-if="isAutoSubmitCaptcha" type="link" class="captcha-cancel" @click="onCancel">
-        {{ t('verify.cancelVerification') }}
-      </Button>
     </template>
 
     <!-- 身份校验 -->
@@ -708,10 +705,6 @@ onUnmounted(() => {
   --altcha-padding: 0;
   --altcha-checkbox-size: 24px;
   font-size: var(--fs-14);
-}
-.captcha-cancel {
-  display: block;
-  margin: var(--space-2) auto 0;
 }
 :global(.altcha-verification-modal .ant-modal-content) {
   background: var(--bg-2);
