@@ -72,6 +72,21 @@ function getLanguage() {
   return String(i18n.global.locale.value).toLowerCase().startsWith('zh') ? 'zh-cn' : 'en'
 }
 
+function applyAltchaI18n() {
+  const strings = {
+    label: i18n.global.t('verify.altchaStart'),
+    verifying: i18n.global.t('verify.altchaVerifying'),
+    verified: i18n.global.t('verify.altchaVerified'),
+    error: i18n.global.t('verify.altchaError'),
+  }
+  for (const language of ['en', 'zh-cn'] as const) {
+    $altcha.i18n.set(language, {
+      ...$altcha.i18n.get(language),
+      ...strings,
+    })
+  }
+}
+
 function resetWidget() {
   challengeSequence += 1
   ready.value = false
@@ -79,13 +94,19 @@ function resetWidget() {
   requestController = undefined
 }
 
+applyAltchaI18n()
+
 async function loadChallenge() {
   if (disposed) {
     return
   }
   resetWidget()
+  if (disposed || !props.open) {
+    return
+  }
+  applyAltchaI18n()
   const context = getContext()
-  if (disposed || !props.open || !context) {
+  if (!context) {
     return
   }
 
@@ -98,13 +119,14 @@ async function loadChallenge() {
     if (sequence !== challengeSequence || !widgetRef.value) {
       return
     }
+    const language = getLanguage()
     await widgetRef.value.configure({
       auto: 'off',
       challenge,
       credentials: 'include',
       hideFooter: true,
       hideLogo: true,
-      language: getLanguage(),
+      language,
       retryOnOutOfMemoryError: false,
       workers: 2,
     })
