@@ -34,6 +34,7 @@ type EnterApplicationOptions = {
   fallbackPath?: string
   force?: boolean
   silent?: boolean
+    accessUrl?: string
 }
 
 const normalizeText = (value: unknown) => typeof value === 'string' ? value.trim() : ''
