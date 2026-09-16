@@ -1,5 +1,10 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { RouteSecurityLevel } from './types'
+import { isActiveLogoutLoginReason } from './login-navigation'
+import {
+  clearLoginTransientState,
+  rememberLoginRedirect,
+} from '@jetlinks-web-core/views/login/utils/redirect'
 
 export const USER_CENTER_ROUTE: RouteRecordRaw = {
   path: '/account',
@@ -27,8 +32,28 @@ export const USER_CENTER_ROUTE: RouteRecordRaw = {
 export const LOGIN_ROUTE: RouteRecordRaw = {
   path: '/login',
   name: 'Login',
-  // @ts-ignore
   component: () => import('@jetlinks-web-core/views/login/index.vue'),
+  /**
+   * 会话失效时记录来源地址，登录成功后回跳；主动退出必须清掉上一次登录的临时态，
+   * 否则回跳地址、设备扫码参数与微信应用信息会带到下一次登录。
+   *
+   * 该守卫原先由 `saas-runtime-ui` 的 `getCoreRouteOverrides()` 挂在同名 Login 覆盖上，
+   * 登录页迁入 core 后由 core 自己持有。
+   */
+  beforeEnter: (to, from) => {
+    if (isActiveLogoutLoginReason(to.query.reason)) {
+      clearLoginTransientState()
+      return
+    }
+
+    const { pathname } = window.location
+    const cleanPath = pathname.replace(/\/+$/, '')
+    if (cleanPath && cleanPath !== '/') {
+      rememberLoginRedirect(`${cleanPath}/#${from.fullPath}`)
+    } else {
+      rememberLoginRedirect(from.fullPath)
+    }
+  },
   meta: {
     title: '登录页',
     security: RouteSecurityLevel.PUBLIC

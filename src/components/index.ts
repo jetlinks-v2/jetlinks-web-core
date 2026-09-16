@@ -79,6 +79,7 @@ import MatrixGrid from './MatrixGrid/index.vue'
 import SvgIcon from './SvgIcon/index.vue'
 import SegmentPanel from './SegmentPanel'
 import SlantedTabs from './SlantedTabs'
+import SwitchGroup from './SwitchGroup'
 import SelectableListCard from './SelectableListCard'
 import ContentPanel from './ContentPanel/index.vue'
 import { TableActions, TableActionsItem } from './TableActions'
@@ -165,6 +166,7 @@ export default {
           .component('SvgIcon', SvgIcon)
           .component('SegmentPanel', SegmentPanel)
           .component('SlantedTabs', SlantedTabs)
+          .component('SwitchGroup', SwitchGroup)
           .component('SelectableListCard', SelectableListCard)
           .component('ContentPanel', ContentPanel)
           .component('TableActions', TableActions)
@@ -197,6 +199,7 @@ export {
     SvgIcon,
     SegmentPanel,
     SlantedTabs,
+    SwitchGroup,
     SelectableListCard,
     ContentPanel,
     TableActions,
@@ -207,6 +210,7 @@ export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
 export type { SvgIconType } from './SvgIcon/icons'
 export type { SegmentPanelOption, SegmentPanelValue } from './SegmentPanel'
 export type { SlantedTabKey, SlantedTabOption, SlantedTabsState } from './SlantedTabs'
+export type { SwitchGroupOption, SwitchGroupValue } from './SwitchGroup'
 export type {
     CardAvatarData,
     CardMetaItem,
