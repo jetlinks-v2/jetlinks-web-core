@@ -69,6 +69,7 @@ import {
 
 | 场景 | 候选能力 | 文档 | 根入口 / 全局名 |
 | --- | --- | --- | --- |
+| 带数量的圆角斜边页签 | `SlantedTabs` | [SlantedTabs](SlantedTabs/README.md) | 具名导出、全局注册：`SlantedTabs` |
 | 页面标题、返回和操作区 | `PageHeader`、`DetailHeader`、`PageActions`、`TitleComponent` | [PageHeader](PageHeader/README.md)、[DetailHeader](DetailHeader/README.md)、[PageActions](PageActions/README.md)、[TitleComponent](TitleComponent/README.md) | 具名导出：`PageHeader`、`DetailHeader`；全局注册：`PageActions`、`TitleComponent` |
 | 页面容器、区块和布局 | `FullPage`、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`ResponsiveGrid`、`KvGrid` | [HomeView](HomeView/README.md)、[SectionCard](SectionCard/README.md)、[ContentPanel](ContentPanel/README.md)、[AmbientCard](AmbientCard/README.md)、[JlDrawerShell](JlDrawerShell/README.md)、[StickyActionBar](StickyActionBar/README.md)、[EqualHeightColumns](EqualHeightColumns/README.md)、[ResponsiveGrid](ResponsiveGrid/README.md)、[KvGrid](KvGrid/README.md) | `FullPage`（来自 `@jetlinks-web-core/layout`）、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`ResponsiveGrid`、`KvGrid` |
 | 路由加载和页面空态 | `PageRouteView`、`PageRouteSkeleton`、`CloudEmpty` | [PageRouteView](PageRouteView/README.md)、[PageRouteSkeleton](PageRouteSkeleton/README.md)、[CloudEmpty](CloudEmpty/README.md) | `PageRouteView`、`PageRouteSkeleton`、`CloudEmpty` |

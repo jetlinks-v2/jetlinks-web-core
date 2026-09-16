@@ -52,7 +52,7 @@ const props = withDefaults(
   }>(),
   {
     height: '100%',
-    gap: 'var(--space-4)',
+    gap: 'var(--space-8)',
     leftWidth: '15rem',
     rightWidth: '1fr',
     align: 'stretch',
@@ -146,13 +146,7 @@ const rightStyle = paneStyle
   width: var(--jet-theme-stroke-width);
   /* 位移与 column-gap 同步过渡，展开/收起时线始终贴着缝隙正中，不会先跳到列边缘 */
   transform: translateX(calc(var(--equal-height-columns-gap) / 2));
-  background: linear-gradient(
-    to bottom,
-    transparent 0,
-    var(--jet-theme-border-secondary) 12%,
-    var(--jet-theme-border-secondary) 88%,
-    transparent 100%
-  );
+  background: #eceff3;
   pointer-events: none;
   transition: transform 0.2s ease;
 }
