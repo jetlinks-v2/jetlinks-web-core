@@ -101,6 +101,102 @@
   }
 }
 
+.ant-tree.ant-tree-show-line {
+  background: transparent;
+  color: var(--ink-1);
+
+  .ant-tree-list-holder-inner {
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .ant-tree-treenode {
+    width: 100%;
+    align-items: center;
+    min-height: 2rem;
+    padding: 0;
+  }
+
+  .ant-tree-indent {
+    align-self: stretch;
+  }
+
+  .ant-tree-indent-unit {
+    width: 1.5rem;
+  }
+
+  // 保留 Ant Tree 自身的分支拓扑，只统一为设计稿中的浅灰虚线。
+  .ant-tree-indent-unit::before,
+  .ant-tree-switcher-leaf-line::before {
+    border-inline-end: var(--jet-theme-stroke-width) dashed var(--line-strong) !important;
+  }
+
+  .ant-tree-switcher-leaf-line::after {
+    height: 50%;
+    border-bottom: var(--jet-theme-stroke-width) dashed var(--line-strong) !important;
+  }
+
+  .ant-tree-treenode-leaf-last .ant-tree-switcher-leaf-line::before {
+    top: 0 !important;
+    bottom: auto !important;
+    height: 50% !important;
+  }
+
+  .ant-tree-switcher {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    min-height: 2rem;
+    line-height: 2rem;
+    color: var(--ink-3);
+    background: transparent;
+
+    .ant-tree-switcher-line-icon {
+      position: relative;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: inherit;
+      background: var(--bg);
+      font-size: var(--fs-14);
+      vertical-align: 0;
+    }
+  }
+
+  .ant-tree-node-content-wrapper {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 2rem;
+    line-height: 2rem;
+    padding: 0 0.5rem;
+    border-radius: var(--r-2);
+
+    &:hover {
+      background: var(--bg-hover);
+    }
+
+    &.ant-tree-node-selected {
+      color: var(--accent);
+      background: var(--accent-soft) !important;
+    }
+
+    .ant-tree-title {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      color: inherit;
+    }
+  }
+}
+
 .pro-table__no-padding {
   padding: 0 !important;
 }
