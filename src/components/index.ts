@@ -41,6 +41,7 @@ import DesignerPreview from './DesignerPreview/index.vue'
 import IconLibrary from './IconLibrary/index.vue'
 import ChatTextArea from './ChatTextArea/index.vue'
 import Captcha from './Captcha'
+import AltchaCaptcha from './AltchaCaptcha/index.vue'
 import RegistryComponent from './RegisterComponents'
 import { TagManagerSidebar } from './TagManagerSidebar'
 import ConditionFilter from './ConditionFilter'
@@ -79,6 +80,7 @@ import SvgIcon from './SvgIcon/index.vue'
 import SegmentPanel from './SegmentPanel'
 import SelectableListCard from './SelectableListCard'
 import ContentPanel from './ContentPanel/index.vue'
+import { TableActions, TableActionsItem } from './TableActions'
 
 export default {
     install(app: App) {
@@ -124,6 +126,7 @@ export default {
           .component('IconLibrary', IconLibrary)
           .component('ChatTextArea', ChatTextArea)
           .component('Captcha', Captcha)
+          .component('AltchaCaptcha', AltchaCaptcha)
           .component('RegistryComponent', RegistryComponent)
           .component('TagManagerSidebar', TagManagerSidebar)
           .component('ConditionFilter', ConditionFilter)
@@ -162,6 +165,8 @@ export default {
           .component('SegmentPanel', SegmentPanel)
           .component('SelectableListCard', SelectableListCard)
           .component('ContentPanel', ContentPanel)
+          .component('TableActions', TableActions)
+          .component('TableActionsItem', TableActionsItem)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
@@ -191,7 +196,10 @@ export {
     SegmentPanel,
     SelectableListCard,
     ContentPanel,
+    TableActions,
+    TableActionsItem,
 }
+export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlacement } from './TableActions'
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
 export type { SvgIconType } from './SvgIcon/icons'
 export type { SegmentPanelOption, SegmentPanelValue } from './SegmentPanel'

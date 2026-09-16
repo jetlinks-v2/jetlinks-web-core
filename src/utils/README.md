@@ -21,8 +21,11 @@
 | `context.ts`：`initRequest` | 否 | 请求上下文初始化 |
 | `project-storage.ts` | 是 | 项目级 token、域名、API 地址和 Scope 存储 |
 | `business-application-runtime.ts` | 是 | 业务应用运行态判定 |
+| `deployment.ts`：`isPrivateDeployment()` | 是 | 无参数、无副作用，返回当前构建是否为私有化部署的 boolean；读取构建时的 `VITE_APP_DEPLOYMENT` |
 | `service-result.ts`：`ok`、`err` | 是 | 纯函数式服务结果包装 |
 | `ai-client-tool-request.ts` | 是 | AI 客户端工具静默请求上下文 |
+
+通过 `import { isPrivateDeployment } from '@jetlinks-web-core/utils'` 导入，使用 `if (isPrivateDeployment()) { /* 私有化部署逻辑 */ }` 判断。`pnpm build:private` 设置 `VITE_APP_DEPLOYMENT=private`，未配置时默认 `saas`；切换部署方式需重新构建。覆盖顺序为命令行参数 > 进程环境变量 > 根目录环境配置 > core 环境配置 > 默认值。此判断独立于 `VITE_APP_ENVIRONMENT` 的 saas/cloud 业务环境，目前由业务模块按需接入。
 
 ## 资产、媒体与资源
 

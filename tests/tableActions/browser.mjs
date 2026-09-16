@@ -1,0 +1,172 @@
+/** 用现有 Playwright page 验证真实表格、权限按钮、确认框和键盘交互。 */
+async (page) => {
+  const assert = {
+    equal(actual, expected) {
+      if (actual !== expected) throw new Error(`Expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}`)
+    },
+    deepEqual(actual, expected) {
+      this.equal(JSON.stringify(actual), JSON.stringify(expected))
+    },
+    ok(value) {
+      if (!value) throw new Error('Expected a truthy value')
+    },
+  }
+  const errors = []
+  const onError = error => errors.push(error.message)
+  page.on('pageerror', onError)
+  await page.setViewportSize({ width: 1100, height: 900 })
+  await page.goto('http://127.0.0.1:5187/')
+  const trigger = page.getByRole('button', { name: '更多操作', exact: true })
+  const panel = page.locator('.table-actions__panel:visible')
+  const results = []
+  const check = async (name, run) => {
+    await run()
+    results.push(name)
+  }
+  const open = async () => {
+    await trigger.click()
+    await panel.waitFor()
+  }
+  const closed = () => panel.waitFor({ state: 'hidden' })
+  const countText = () => page.getByTestId('counts').innerText()
+  try {
+    await page.locator('.table-actions').waitFor()
+    await check('two inline, three folded, body portal outside fixed table', async () => {
+      assert.equal(await page.locator('.table-actions__item--inline').count(), 2)
+      await open()
+      assert.equal(await panel.locator('.table-actions__item--more').count(), 3)
+      assert.equal(await panel.evaluate(element => !element.closest('table') && element.ownerDocument.body.contains(element)), true)
+      const triggerBox = await trigger.boundingBox()
+      const panelBox = await panel.boundingBox()
+      assert.ok(triggerBox && panelBox)
+      assert.ok(panelBox.y > triggerBox.y)
+    })
+    await check('controlled switch remains open; stop modifier closes once without row click', async () => {
+      await panel.getByRole('switch').click()
+      assert.equal(await panel.getByRole('switch').getAttribute('aria-checked'), 'false')
+      await panel.getByRole('button', { name: 'copy-more', exact: true }).click()
+      await closed()
+      assert.equal(await countText(), 'clicks:1 rows:0 confirmed:0')
+    })
+    await check('dynamic v-if and keyed v-for update while open', async () => {
+      await open()
+      await page.getByRole('button', { name: 'Toggle copy', exact: true }).dispatchEvent('click')
+      await page.waitForFunction(() => document.querySelectorAll('.table-actions__item--more').length === 2)
+      assert.equal(await panel.isVisible(), true)
+      await page.getByRole('button', { name: 'Toggle copy', exact: true }).dispatchEvent('click')
+      await page.getByRole('button', { name: 'Reverse', exact: true }).dispatchEvent('click')
+      await page.waitForFunction(() => document.querySelector('.table-actions__panel')?.textContent?.indexOf('overwrite') < document.querySelector('.table-actions__panel')?.textContent?.indexOf('copy'))
+      assert.deepEqual(await panel.locator('button:not([role="switch"])').allTextContents(), ['overwrite-more', 'copy-more'])
+      await page.getByRole('button', { name: 'Reverse', exact: true }).dispatchEvent('click')
+    })
+    await check('all common hides trigger and popup; all folded and empty render correctly', async () => {
+      await page.getByRole('button', { name: 'All inline', exact: true }).dispatchEvent('click')
+      await trigger.waitFor({ state: 'detached' })
+      assert.equal(await page.locator('.table-actions__item--inline').count(), 5)
+      assert.equal(await panel.count(), 0)
+      await page.getByRole('button', { name: 'All folded', exact: true }).click()
+      await trigger.waitFor()
+      assert.equal(await page.locator('.table-actions__item--inline').count(), 0)
+      await open()
+      assert.equal(await panel.locator('.table-actions__item--more').count(), 5)
+      await page.getByRole('button', { name: 'Clear', exact: true }).dispatchEvent('click')
+      await page.locator('.table-actions').waitFor({ state: 'detached' })
+      assert.equal(await panel.count(), 0)
+      await page.getByRole('button', { name: 'Mixed', exact: true }).click()
+    })
+    await check('disabled, loading, permission tooltip and preventDefault retain panel', async () => {
+      await page.getByRole('button', { name: 'Extra controls', exact: true }).click()
+      await open()
+      await panel.getByRole('button', { name: 'disabled', exact: true }).dispatchEvent('click')
+      await panel.locator('.ant-btn-loading').click()
+      const permission = panel.locator('.ant-tooltip-disabled-compatible-wrapper')
+      await permission.hover()
+      await page.locator('.ant-tooltip:visible').waitFor()
+      await permission.click()
+      assert.equal(await countText(), 'clicks:1 rows:0 confirmed:0')
+      await panel.getByRole('button', { name: 'prevent close', exact: true }).click()
+      assert.equal(await trigger.getAttribute('aria-expanded'), 'true')
+      assert.equal(await countText(), 'clicks:2 rows:0 confirmed:0')
+    })
+    await check('auto-close preserves independent permission confirmation; cancel has no effect', async () => {
+      await panel.getByRole('button', { name: 'confirm automatically', exact: true }).click()
+      const dialog = page.getByRole('dialog')
+      await dialog.waitFor()
+      await closed()
+      await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await dialog.waitFor({ state: 'hidden' })
+      assert.equal(await countText(), 'clicks:2 rows:0 confirmed:0')
+    })
+    await check('manual close after permission confirmation succeeds once', async () => {
+      await open()
+      await panel.getByRole('button', { name: 'confirm manually', exact: true }).click()
+      const dialog = page.getByRole('dialog')
+      await dialog.waitFor()
+      assert.equal(await panel.isVisible(), true)
+      await dialog.getByRole('button', { name: 'OK', exact: true }).click()
+      await dialog.waitFor({ state: 'hidden' })
+      await closed()
+      assert.equal(await countText(), 'clicks:2 rows:0 confirmed:1')
+    })
+    await check('nested popconfirm cancel retains panel and confirm closes without row event', async () => {
+      await open()
+      await panel.getByRole('button', { name: 'inline confirmation', exact: true }).click()
+      const confirmation = page.locator('.ant-popconfirm:visible')
+      await confirmation.waitFor()
+      await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await confirmation.waitFor({ state: 'hidden' })
+      assert.equal(await panel.isVisible(), true)
+      await panel.getByRole('button', { name: 'inline confirmation', exact: true }).click()
+      await confirmation.waitFor()
+      await confirmation.getByRole('button', { name: 'OK', exact: true }).click()
+      await closed()
+      assert.equal(await countText(), 'clicks:2 rows:0 confirmed:2')
+    })
+    await check('explicit close and outside click', async () => {
+      await open()
+      await panel.getByRole('button', { name: 'close manually', exact: true }).click()
+      await closed()
+      await open()
+      await page.getByRole('button', { name: 'After table', exact: true }).click()
+      await closed()
+      await page.getByRole('button', { name: 'Extra controls', exact: true }).click()
+    })
+    await check('ArrowDown and Escape focus on first control and return to trigger', async () => {
+      await trigger.focus()
+      await page.keyboard.press('ArrowDown')
+      await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'switch')
+      await page.keyboard.press('Escape')
+      await closed()
+      assert.equal(await trigger.evaluate(element => element === document.activeElement), true)
+    })
+    await check('Enter, Tab, Shift+Tab and Space traverse popup without trapping focus', async () => {
+      await page.keyboard.press('Enter')
+      await panel.waitFor()
+      await page.keyboard.press('Tab')
+      assert.equal(await panel.getByRole('switch').evaluate(element => element === document.activeElement), true)
+      await page.keyboard.press('Shift+Tab')
+      await closed()
+      assert.equal(await trigger.evaluate(element => element === document.activeElement), true)
+      await page.keyboard.press('Space')
+      await panel.waitFor()
+      await page.keyboard.press('Tab')
+      await page.keyboard.press('Tab')
+      await page.keyboard.press('Tab')
+      await page.keyboard.press('Tab')
+      await closed()
+      assert.equal(await page.getByRole('button', { name: 'After table', exact: true }).evaluate(element => element === document.activeElement), true)
+      assert.equal(await countText(), 'clicks:2 rows:0 confirmed:2')
+    })
+    await check('locale updates accessible trigger and panel labels', async () => {
+      await page.getByRole('button', { name: 'Locale', exact: true }).click()
+      const englishTrigger = page.getByRole('button', { name: 'More actions', exact: true })
+      await englishTrigger.click()
+      await panel.waitFor()
+      assert.equal(await panel.getAttribute('aria-label'), 'More actions')
+    })
+    assert.deepEqual(errors, [])
+    return { passed: results.length, scenarios: results }
+  } finally {
+    page.off('pageerror', onError)
+  }
+}
