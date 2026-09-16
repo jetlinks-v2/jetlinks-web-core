@@ -145,15 +145,18 @@ import {
 import { rules } from "./util";
 import {useUserStore} from "@jetlinks-web-core/store";
 import { LocalStore } from "@jetlinks-web/utils";
-import { iconMap } from "./util";
 import { Form, FormItem, Button, Divider, Popover, Input, InputPassword } from 'ant-design-vue'
 
-import defaultImg from '@jetlinks-web-core/assets/apply/internal-standalone.png'
+import { ssoIconMap, defaultSsoIcon } from '@jetlinks-web-core/utils/sso-icon'
 import {initPackages} from "@jetlinks-web-core/package";
 import i18n from "@jetlinks-web-core/locales";
 import { resetSessionStores } from '@jetlinks-web-core/router/startup'
 
 const BASE_API_PATH = import.meta.env.VITE_APP_BASE_API
+
+// 兼容模板里既有的 iconMap / defaultImg 命名。
+const iconMap = ssoIconMap
+const defaultImg = defaultSsoIcon
 
 const logoImage = resolvePublicAssetUrl('images/login/logo.png');
 const $t = i18n.global.t
