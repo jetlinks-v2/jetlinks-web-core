@@ -477,6 +477,8 @@ export interface ClientToolConfirmation<TContext = Record<string, unknown>> {
   content?: string | ((args: Record<string, unknown>, context: TContext, call: AiClientToolCall) => string)
   okText?: string
   cancelText?: string
+  /** Browser-local confirmation; must not be treated as backend HITL. */
+  localConfirmation?: boolean
   when?: (args: Record<string, unknown>, context: TContext, call: AiClientToolCall) => boolean
 }
 
@@ -1075,7 +1077,10 @@ const compileEffect = <TContext>(effect: ClientToolEffect<TContext>) => {
   const idempotent = effect.idempotency === 'IDEMPOTENT'
   const confirmation = effect.confirmation === false
     ? undefined
-    : effect.confirmation as AiClientToolConfirmOptions<TContext>
+    : {
+        ...(effect.confirmation as AiClientToolConfirmOptions<TContext>),
+        localConfirmation: true,
+      }
   return {
     annotations: {
       readOnlyHint: false,
@@ -1086,7 +1091,8 @@ const compileEffect = <TContext>(effect: ClientToolEffect<TContext>) => {
     risk: {
       readOnly: false,
       parallelSafe: false,
-      needsApproval: effect.confirmation !== false,
+      // Browser-owned confirmation is not backend HITL. Published expands.needsApproval stays false.
+      needsApproval: false,
     },
     confirm: confirmation,
   }
