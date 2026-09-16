@@ -2677,8 +2677,8 @@ onUnmounted(() => {
     min-height: 2.1rem;
     padding: 0.175rem 0.625rem;
     background: var(--color-jet-bg-container);
-    border: 1px solid var(--color-jet-border);
-    border-radius: var(--jet-theme-button-r);
+    border: 1px solid var(--jet-theme-border-color-1);
+    border-radius: var(--r-1);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
     &:hover {
@@ -2846,7 +2846,7 @@ onUnmounted(() => {
     justify-content: center;
     width: 1.125rem;
     height: 1.125rem;
-    color: var(--color-jet-text-disabled);
+    color: var( --jet-theme-text-secondary);
     font-size: var(--fs-14);
     flex: 0 0 auto;
   }
@@ -2862,8 +2862,8 @@ onUnmounted(() => {
     border: 0;
     outline: none;
 
-    &::placeholder {
-      color: var(--color-jet-text-disabled);
+    &::-webkit-input-placeholder {
+      color: #C9CDD4;
     }
   }
 
