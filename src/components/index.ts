@@ -78,6 +78,7 @@ import PageActions from './PageActions/index.vue'
 import MatrixGrid from './MatrixGrid/index.vue'
 import SvgIcon from './SvgIcon/index.vue'
 import SegmentPanel from './SegmentPanel'
+import SwitchGroup from './SwitchGroup'
 import SelectableListCard from './SelectableListCard'
 import ContentPanel from './ContentPanel/index.vue'
 import { TableActions, TableActionsItem } from './TableActions'
@@ -163,6 +164,7 @@ export default {
           .component('MatrixGrid', MatrixGrid)
           .component('SvgIcon', SvgIcon)
           .component('SegmentPanel', SegmentPanel)
+          .component('SwitchGroup', SwitchGroup)
           .component('SelectableListCard', SelectableListCard)
           .component('ContentPanel', ContentPanel)
           .component('TableActions', TableActions)
@@ -194,6 +196,7 @@ export {
     StatusPill,
     SvgIcon,
     SegmentPanel,
+    SwitchGroup,
     SelectableListCard,
     ContentPanel,
     TableActions,
@@ -203,6 +206,7 @@ export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlac
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
 export type { SvgIconType } from './SvgIcon/icons'
 export type { SegmentPanelOption, SegmentPanelValue } from './SegmentPanel'
+export type { SwitchGroupOption, SwitchGroupValue } from './SwitchGroup'
 export type {
     CardAvatarData,
     CardMetaItem,
