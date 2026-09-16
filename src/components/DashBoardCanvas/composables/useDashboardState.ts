@@ -1,6 +1,7 @@
 import { computed, shallowRef, watch } from 'vue'
 import { cloneDeep, isEqual } from 'lodash-es'
-import { applyGridLayout, getGridSettings, normalizeGridItem, parseStoredLayout, toGridLayout, toStoredLayout } from '../utils/layout'
+import { applyGridLayout, getGridSettings, normalizeGridItem, toGridLayout, toStoredLayout } from '../utils/layout'
+import { readDashboardLayout } from '../utils/layoutStorage'
 import { applyWidgetDraft } from '../utils/config'
 import { createDashboardId } from '../utils/id'
 import type {
@@ -14,48 +15,35 @@ interface DashboardStateOptions {
   onChange: (value: DashboardValue) => void
   layoutEditable: () => boolean
   storageKey?: () => string | undefined
+  legacyStorageKeys?: () => readonly string[] | undefined
 }
 
 /** One state per canvas. Neither input configuration nor catalog defaults are mutated. */
 export function useDashboardState(options: DashboardStateOptions) {
-  const initial = cloneDeep(options.value())
-  const stored = options.storageKey?.()
-  if (options.layoutEditable() && stored && typeof localStorage !== 'undefined') {
+  function restoreLayout(input: DashboardValue): DashboardValue {
+    const next = cloneDeep(input)
+    const key = options.storageKey?.()
+    if (!options.layoutEditable() || !key) return next
     try {
-      let saved = parseStoredLayout(JSON.parse(localStorage.getItem(stored) || 'null'))
+      if (typeof localStorage === 'undefined') return next
+      const saved = readDashboardLayout(localStorage, key, options.legacyStorageKeys?.())
       if (saved) {
-        const activeIds = new Set(initial.components.map(c => c.id))
+        const activeIds = new Set(next.components.map(c => c.id))
         const savedIds = new Set(saved.map(item => item.i))
-        if (saved.some(item => !activeIds.has(item.i)) || initial.components.some(c => !savedIds.has(c.id))) {
-          try { localStorage.removeItem(stored) } catch {}
-          saved = null
+        if (saved.some(item => !activeIds.has(item.i)) || next.components.some(c => !savedIds.has(c.id))) {
+          localStorage.removeItem(key)
         } else {
-          initial.components = applyGridLayout(initial.components, saved, getGridSettings(initial.canvas).columns)
+          next.components = applyGridLayout(next.components, saved, getGridSettings(next.canvas).columns)
         }
       }
-    } catch { /* Ignore malformed or unavailable local storage. */ }
+    } catch { /* 存储不可用时沿用调用方默认布局。 */ }
+    return next
   }
-  const value = shallowRef(initial)
+  const value = shallowRef(restoreLayout(options.value()))
   const gridSettings = computed(() => getGridSettings(value.value.canvas))
 
   watch(options.value, next => {
-    let nextValue = cloneDeep(next)
-    const stored = options.storageKey?.()
-    if (options.layoutEditable() && stored && typeof localStorage !== 'undefined') {
-      try {
-        let saved = parseStoredLayout(JSON.parse(localStorage.getItem(stored) || 'null'))
-        if (saved) {
-          const activeIds = new Set(nextValue.components.map(c => c.id))
-          const savedIds = new Set(saved.map(item => item.i))
-          if (saved.some(item => !activeIds.has(item.i)) || nextValue.components.some(c => !savedIds.has(c.id))) {
-            try { localStorage.removeItem(stored) } catch {}
-            saved = null
-          } else {
-            nextValue.components = applyGridLayout(nextValue.components, saved, getGridSettings(nextValue.canvas).columns)
-          }
-        }
-      } catch { /* Ignore malformed or unavailable local storage. */ }
-    }
+    const nextValue = restoreLayout(next)
     if (!isEqual(nextValue, value.value)) value.value = nextValue
   }, { deep: true })
 
