@@ -547,6 +547,12 @@ test('prepared client-tool actions validate before confirmation and execute norm
     },
   })
   const runtime = createAiClientToolRuntime([tool], { includeHelpTool: false })
+  const published = runtime.clientTools.find(item => item.id === tool.id)
+
+  assert.equal(tool.confirm?.localConfirmation, true)
+  assert.equal(tool.risk?.needsApproval, false)
+  assert.equal(published?.expands?.needsApproval, false)
+  assert.equal(published?.confirm, undefined)
 
   const result = await runtime.handleClientToolCall({
     id: 'prepared-call',
