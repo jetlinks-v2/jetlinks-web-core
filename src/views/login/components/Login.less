@@ -1,0 +1,99 @@
+.login-workspace {
+  width: 100%;
+  color: var(--jet-theme-text);
+}
+
+.login-panel-body {
+  min-height: 15.875rem;
+}
+
+.wechat-panel {
+  display: flex;
+  justify-content: center;
+  min-height: 15rem;
+}
+
+.agreement-row {
+  margin-top: var(--space-4);
+  color: var(--jet-theme-text-secondary);
+  font-size: var(--fs-14);
+  line-height: 1.6;
+}
+
+:deep(.ant-input),
+:deep(.ant-input-affix-wrapper),
+:deep(.ant-input-group-wrapper),
+:deep(.ant-input-group),
+:deep(.ant-input-wrapper),
+:deep(.ant-input-group-addon),
+:deep(.ant-input-password) {
+  height: 3rem !important;
+  min-height: 3rem !important;
+  line-height: 3rem !important;
+  font-size: var(--fs-16) !important;
+}
+
+:deep(.ant-input-affix-wrapper),
+:deep(.ant-input-password) {
+  display: flex;
+  align-items: center;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+:deep(.ant-input-affix-wrapper .ant-input),
+:deep(.ant-input-password .ant-input) {
+  height: 100% !important;
+  min-height: 0 !important;
+  line-height: 3rem !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+:deep(.ant-input-prefix),
+:deep(.ant-input-suffix) {
+  display: inline-flex;
+  align-items: center;
+}
+
+:deep(.ant-input-group-addon) {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  vertical-align: middle;
+}
+
+:deep(.ant-form-item) {
+  margin-bottom: var(--space-6);
+}
+
+:deep(.ant-form-item-explain) {
+  min-height: 1.25rem;
+  font-size: var(--fs-14);
+  line-height: 1.25rem;
+}
+
+:deep(.ant-form-item-explain-error) {
+  padding-top: var(--space-1);
+}
+
+:deep(.submit-button) {
+  height: 2.75rem !important;
+  border-radius: var(--r-2);
+  font-size: var(--fs-16) !important;
+  font-weight: 400;
+  box-shadow: none;
+}
+
+:deep(.mobile-wechat-login) {
+  max-width: 100%;
+}
+
+@media (max-width: 48rem) {
+  .login-workspace {
+    width: 100%;
+  }
+
+  .login-panel-body {
+    min-height: auto;
+  }
+}
