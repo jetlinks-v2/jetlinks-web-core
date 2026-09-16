@@ -82,6 +82,8 @@ const props = withDefaults(defineProps<{
   layoutEditable?: boolean
   /** Stable localStorage key for this dashboard's personal layout. */
   storageKey?: string
+  /** Explicit legacy layout keys, ordered by migration priority. */
+  legacyStorageKeys?: readonly string[]
   /** Business component isEdit; independent from permission to rearrange a live dashboard. */
   previewMode?: boolean
   resolveImage?: (fileId: string) => string
@@ -90,7 +92,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: DashboardValue] }>()
 const { t } = useI18n()
 const state = useDashboardState({ value: () => props.modelValue, catalog: () => props.catalog,
   editable: () => props.editable, layoutEditable: () => props.layoutEditable,
-  storageKey: () => props.storageKey, onChange: value => emit('update:modelValue', value) })
+  storageKey: () => props.storageKey, legacyStorageKeys: () => props.legacyStorageKeys, onChange: value => emit('update:modelValue', value) })
 type DrawerMode = 'components' | 'component-config' | 'canvas-config'
 const drawerVisible = ref(false)
 const drawerMode = ref<DrawerMode>('components')
