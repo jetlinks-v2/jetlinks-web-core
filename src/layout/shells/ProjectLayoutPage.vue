@@ -2,7 +2,6 @@
   <BasicLayoutShell
     class="project-layout-page"
     variant="project"
-    layout="mix"
     :expandSecondaryMenu="true"
   />
 </template>

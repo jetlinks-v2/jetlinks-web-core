@@ -136,7 +136,7 @@ const renderTenantSubMenu = ({ item, children }: SubMenuRenderContext) => {
 </script>
 
 <style lang="less">
-.tenant-menu-popup {
+.ant-pro-menu-popup.tenant-menu-popup {
 
   > .ant-menu {
     max-height: calc(100vh - var(--chrome-header-height) - var(--space-8));
