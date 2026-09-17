@@ -58,7 +58,7 @@ export function useLoginSuccess() {
     await authStore.init()
 
     await userStore.getUserInfo()
-    await menuStore.queryMenus()
+    const menus = await menuStore.requestMenus(false)
 
     localStorage.removeItem('pFrom') // 清除来源地址
 
@@ -66,14 +66,25 @@ export function useLoginSuccess() {
       await options.afterStoreInit()
     }
 
-    const businessApplicationStore = useBusinessApplicationStore()
-    businessApplicationStore.init()
-    const enteredApplication = await businessApplicationStore.enterFirstApplication({
-      currentProjectCode: code,
-      fallbackPath: '',
-      silent: true,
+    // 获取菜单是否只有某一个
+    const menuOwners = new Set()
+    menus.result.forEach((menu) => {
+      console.log(menuOwners.size, menu)
+      if (menuOwners.size <= 2) {
+        menuOwners.add(menu.owner)
+      }
     })
-    if (enteredApplication) return
+
+    if (menuOwners.size === 1 && menuOwners.has('app')) {
+      const businessApplicationStore = useBusinessApplicationStore()
+      businessApplicationStore.init()
+      const enteredApplication = await businessApplicationStore.enterFirstApplication({
+        currentProjectCode: code,
+        fallbackPath: '',
+        silent: true,
+      })
+      if (enteredApplication) return
+    }
 
     if (code) {
       window.location.href = `${location.origin}/${code}/#/`

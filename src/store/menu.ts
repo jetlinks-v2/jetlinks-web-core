@@ -238,9 +238,18 @@ export const useMenuStore = defineStore('menu', () => {
 
   let menuRequestId = 0
 
+  const requestMenus = (hasTerms: boolean = true) => {
+    return getOwnMenuThree({
+      paging: false,
+      terms: hasTerms ? getDefaultOwnParams() : [],
+      sorts: [{ name: 'sortIndex', order: 'asc' }],
+    })
+  }
+
   const queryMenus = async (
     value?: QueryMenusInput,
     conditions?: MenuFilterConditions,
+    hasTerms?: boolean
   ) => {
     const requestId = ++menuRequestId
     const queryOptions = resolveQueryMenusOptions(value, conditions)
@@ -249,11 +258,7 @@ export const useMenuStore = defineStore('menu', () => {
 
     runtime.loading.value = true
     try {
-      const resp = await getOwnMenuThree({
-        paging: false,
-        terms: getDefaultOwnParams(),
-        sorts: [{ name: 'sortIndex', order: 'asc' }],
-      })
+      const resp = await requestMenus()
 
       const menuResult = Array.isArray(resp.result) ? resp.result : []
 
@@ -346,6 +351,7 @@ export const useMenuStore = defineStore('menu', () => {
     createRoutes: runtime.createRoutes,
     init,
       rawMenus,
-      projectId
+      projectId,
+    requestMenus
   }
 })
