@@ -38,6 +38,7 @@ export function useLoginSuccess() {
     const username = options?.username || ''
     const isSubAccess = username.includes('@')
     let code
+
     if (isSubAccess) {
       code = username.split('@')[1]
       if (code) {
@@ -65,19 +66,18 @@ export function useLoginSuccess() {
       await options.afterStoreInit()
     }
 
-    if (isSubAccess) {
-      const businessApplicationStore = useBusinessApplicationStore()
-      businessApplicationStore.init()
-      const enteredApplication = await businessApplicationStore.enterFirstApplication({
-        currentProjectCode: code,
-        fallbackPath: '',
-        silent: true,
-      })
-      if (enteredApplication) return
-      if (code) {
-        window.location.href = `${location.origin}/${code}/#/`
-        return
-      }
+    const businessApplicationStore = useBusinessApplicationStore()
+    businessApplicationStore.init()
+    const enteredApplication = await businessApplicationStore.enterFirstApplication({
+      currentProjectCode: code,
+      fallbackPath: '',
+      silent: true,
+    })
+    if (enteredApplication) return
+
+    if (code) {
+      window.location.href = `${location.origin}/${code}/#/`
+      return
     }
 
     if (options?.redirectTo) {
