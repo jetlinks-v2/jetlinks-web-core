@@ -33,7 +33,10 @@
         </a-button>
       </div>
 
-      <a-spin :spinning="filesLoading">
+      <a-spin
+        wrapper-class-name="model-config__tree-spin"
+        :spinning="filesLoading"
+      >
         <a-tree
           v-if="treeData.length"
           v-model:selectedKeys="selectedKeys"
@@ -1527,6 +1530,12 @@ async function previewFile() {
   border-left: 1px solid var(--line);
 }
 
+.model-config__sider {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .model-config__sider-head {
   display: flex;
   align-items: center;
@@ -1565,11 +1574,26 @@ async function previewFile() {
   background: transparent;
 }
 
-.model-config__sider :deep(.ant-spin-nested-loading),
-.model-config__sider :deep(.ant-spin-container) {
-  width: 100%;
-  min-width: 0;
+.model-config__tree-spin {
+  flex: 1 1 0;
+  min-height: 0;
   overflow: hidden;
+}
+
+.model-config__tree-spin :deep(.ant-spin-nested-loading),
+.model-config__tree-spin :deep(.ant-spin-container) {
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.model-config__tree-spin :deep(.ant-spin-nested-loading) {
+  overflow: hidden;
+}
+
+.model-config__tree-spin :deep(.ant-spin-container) {
+  overflow: hidden auto;
 }
 
 .model-config__tree :deep(.ant-tree-list),
