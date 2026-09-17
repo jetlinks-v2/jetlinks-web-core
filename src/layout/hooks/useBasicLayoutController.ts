@@ -241,12 +241,7 @@ export const useBasicLayoutController = (
 
     state.selectedKeys = selectedPaths
     // 项目壳层显式开启时，默认把当前一级菜单下的二级分组一起展开，避免只撑开当前路由分支。
-    state.openKeys = getProjectSidebarOpenKeys(
-      layoutMenuData.value,
-      selectedPaths,
-      expandSecondaryMenu.value,
-      layoutMode.value,
-    )
+    state.openKeys = selectedPaths
     if (route.query?.layout === 'false') state.pure = true
   })
 
