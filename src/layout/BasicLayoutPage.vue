@@ -21,7 +21,6 @@ const layoutComponents = {
 const layoutVariant = useBasicLayoutVariant()
 const controller = useBasicLayoutController(layoutVariant)
 const layoutComponent = computed(() => {
-  debugger
   return layoutComponents[layoutVariant.value]
 })
 
