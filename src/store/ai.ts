@@ -74,6 +74,21 @@ export const useAIStore = defineStore('ai', () => {
     const nextClientId = String(clientId || '')
     if (!nextClientId) return
 
+    const nextParameters = _parameters || {}
+    // 壳层对同一 pending client 的空 prepare 不得抬升 queryVersion，否则会丢弃页面正在进行的 queryAgent。
+    if (pendingClientId.value === nextClientId) {
+      const nextSubjectId = String(nextParameters.deviceId || nextParameters.subjectId || '')
+      const currentSubjectId = String(parameters.value?.deviceId || parameters.value?.subjectId || '')
+      const emptyPrepare = !Object.keys(nextParameters).length
+      if (emptyPrepare || nextSubjectId === currentSubjectId) {
+        if (!emptyPrepare) {
+          parameters.value = nextParameters
+          setBubbleConfig(parameters.value)
+        }
+        return
+      }
+    }
+
     queryVersion += 1
     pendingClientId.value = nextClientId
     if (activeClientId.value !== nextClientId) {
@@ -83,7 +98,7 @@ export const useAIStore = defineStore('ai', () => {
       agentList.value = []
       clearBubbleUnread()
     }
-    parameters.value = _parameters || {}
+    parameters.value = nextParameters
     setBubbleConfig(parameters.value)
   }
 
