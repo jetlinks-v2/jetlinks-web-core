@@ -80,6 +80,16 @@ export const useBasicLayoutController = (
   const layoutModeOverride = ref<LayoutMode | undefined>(undefined)
   const layoutMode = computed<LayoutMode>(() => layoutModeOverride.value ?? layout.value.layout)
 
+  // 顶部菜单使用组件内部的悬停展开状态，undefined 表示不受外部 openKeys 控制。
+  const layoutOpenKeys = computed(() => (
+    layoutMode.value === 'top' ? undefined : state.openKeys
+  ))
+
+  /** 仅同步侧栏展开状态，顶部菜单的展开事件由菜单组件自行处理。 */
+  const handleOpenKeysChange = (keys: string[]) => {
+    if (layoutMode.value !== 'top') state.openKeys = keys
+  }
+
   const themeLayout = computed(() => themeStyleToken.value.layout)
   const menuVariant = computed(() => themeLayout.value?.menuVariant || 'classic')
   const routeLayoutClassName = computed(() => {
@@ -240,8 +250,11 @@ export const useBasicLayoutController = (
       .filter((path): path is string => !!path)
 
     state.selectedKeys = selectedPaths
-    // 项目壳层显式开启时，默认把当前一级菜单下的二级分组一起展开，避免只撑开当前路由分支。
-    state.openKeys = selectedPaths
+    // 仅侧栏跟随路由展开，避免顶部菜单在刷新或切换页面时自动弹出。
+    if (layoutMode.value !== 'top') {
+      state.openKeys = selectedPaths
+    }
+
     if (route.query?.layout === 'false') state.pure = true
   })
 
@@ -250,12 +263,14 @@ export const useBasicLayoutController = (
     config,
     enterSettings,
     expandSecondaryMenu,
+    handleOpenKeysChange,
     handlePrimaryMenuClick,
     headerScrolled,
     hideHeaderRight,
     layout,
     layoutMode,
     layoutModeOverride,
+    layoutOpenKeys,
     layoutSelectedKeys,
     layoutType,
     layoutVariant,

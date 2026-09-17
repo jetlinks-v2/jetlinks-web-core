@@ -9,7 +9,7 @@
   >
     <j-pro-layout
       v-bind="config"
-      v-model:openKeys="state.openKeys"
+      :openKeys="layoutOpenKeys"
       v-model:collapsed="state.collapsed"
       :selectedKeys="layoutSelectedKeys"
       :breadcrumb="{ routes: [] }"
@@ -23,6 +23,7 @@
         : layoutMode === 'side' && variant !== 'project' && !state.collapsed
           ? renderPrimaryMenuGroup
           : undefined"
+      @update:openKeys="handleOpenKeysChange"
       @menuClick="handlePrimaryMenuClick"
       @backClick="goBack"
     >
@@ -203,11 +204,13 @@ const {
   config,
   enterSettings,
   goBack,
+  handleOpenKeysChange,
   handlePrimaryMenuClick,
   headerScrolled,
   hideHeaderRight,
   layout,
   layoutMode,
+  layoutOpenKeys,
   layoutSelectedKeys,
   layoutType,
   logoWidth,
