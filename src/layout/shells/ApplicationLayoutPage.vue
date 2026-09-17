@@ -55,16 +55,18 @@
         </div>
       </template>
       <div class="project-layout__content">
-        <ProjectSecondaryMenu
-          v-if="secondaryMenuItems.length"
-          :items="secondaryMenuItems"
-          :selectedKey="secondaryMenuSelectedKey"
-          tabPosition="top"
-          @select="handleSecondaryMenuSelect"
-        />
-        <div class="project-layout__route-content">
-          <PageRouteView />
-        </div>
+        <ContentPanel>
+	        <ProjectSecondaryMenu
+		        v-if="secondaryMenuItems.length"
+		        :items="secondaryMenuItems"
+		        :selectedKey="secondaryMenuSelectedKey"
+		        tabPosition="top"
+		        @select="handleSecondaryMenuSelect"
+	        />
+	        <div class="project-layout__route-content">
+		        <PageRouteView />
+	        </div>
+        </ContentPanel>
       </div>
     </j-pro-layout>
     <AiChat />
@@ -76,7 +78,6 @@ import { computed, h, watchEffect, type VNode } from 'vue'
 import { useRoute, useRouter, type RouteRecordRaw } from 'vue-router'
 import { Menu } from 'ant-design-vue'
 import i18n from '@jetlinks-web-core/locales'
-import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import {
   DEFAULT_COMING_SOON_MENU_BADGE_I18N_KEY,
@@ -90,7 +91,9 @@ import {
   Resource,
 } from '../components'
 import ProjectSecondaryMenu from '../components/ProjectSecondaryMenu.vue'
+import RouteContentSurface from '../components/RouteContentSurface/index.vue'
 import { useBasicLayoutControllerContext } from '../hooks/basicLayoutContext'
+import { useRouteContentPanel } from '../hooks/useRouteContentPanel'
 import {
   containsNavigationKey,
   findFirstLeafKey,
@@ -113,6 +116,9 @@ type MenuItemRender = (context: {
 
 // 应用端壳层通过 props 语义声明导航模式为 side，优先级高于 system.layout.layout。
 const controller = useBasicLayoutControllerContext('side')
+
+// 仅用于在面板开启时把内容区切成 flex 列，未开启时保持改造前的块级布局。
+const routeContentPanel = useRouteContentPanel()
 const route = useRoute()
 const router = useRouter()
 const menuStore = useMenuStore()
