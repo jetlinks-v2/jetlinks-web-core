@@ -7,6 +7,24 @@
   line-height: var(--chrome-header-height);
 }
 
+/*
+ * 内容面板开启时才把内容区切成 flex 列，让「面板外头部 + 面板」两段共享剩余高度。
+ * 两个壳层（项目/租户与应用端）共用这两个修饰类；默认关闭期间不加任何样式，
+ * 避免影响既有页面对父级高度/百分比的依赖。
+ */
+.project-layout__content--panel {
+  display: flex;
+  min-height: calc(100vh - var(--chrome-header-height));
+  flex-direction: column;
+}
+
+.project-layout__route-content--panel {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
 .project-layout__header-action {
   display: inline-grid;
   width: var(--space-8);
