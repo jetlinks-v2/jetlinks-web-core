@@ -1,4 +1,4 @@
-import { computed, reactive, ref, watchEffect, type ComputedRef } from 'vue'
+import { computed, reactive, ref, watch, watchEffect, type ComputedRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWindowScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -16,15 +16,14 @@ import {
 import type { BasicLayoutVariant } from '../runtime/layoutVariant'
 import { filterMenusByKeyword } from '../utils/menuSearch'
 import { renderPrimaryMenuGroup } from '../utils/projectMenuRender'
-import { getProjectSidebarOpenKeys } from '../utils/projectSidebarOpenKeys'
+import {
+  getProjectSidebarOpenKeys,
+  getProjectSidebarRootKey,
+} from '../utils/projectSidebarOpenKeys'
 import { useProjectGeneralAgent } from './useProjectGeneralAgent'
-import { useProjectNavigation } from './useProjectNavigation'
+import { getBreadcrumbPaths, useProjectNavigation } from './useProjectNavigation'
 import { provideProjectSecondaryMenu } from './useProjectSecondaryMenu'
 import { useProjectSecondaryMenuExtensions } from './useProjectSecondaryMenuExtensions'
-
-type ProjectBreadcrumbRoute = {
-  path?: string
-}
 
 type PrimaryMenuClickEvent = {
   key: string | number
@@ -228,25 +227,33 @@ export const useBasicLayoutController = (
     if (data.layoutType) layoutType.value = String(data.layoutType)
   }, true)
 
+  const selectedPaths = computed(() => getBreadcrumbPaths(route))
+  const openKeysContext = computed(() => {
+    const menuContextKey = isProjectLayout.value && !expandSecondaryMenu.value
+      ? getProjectSidebarRootKey(layoutMenuData.value, selectedPaths.value)
+      : selectedPaths.value.join('|')
+
+    return `${layoutVariant.value}:${layoutMode.value}:${menuContextKey}:${expandSecondaryMenu.value}`
+  })
+
+  watch(openKeysContext, () => {
+    state.openKeys = getProjectSidebarOpenKeys(
+      layoutMenuData.value,
+      selectedPaths.value,
+      expandSecondaryMenu.value,
+      layoutMode.value,
+      isProjectLayout.value,
+    )
+  }, {
+    flush: 'post',
+    immediate: true,
+  })
+
   watchEffect(() => {
     // 项目工作区保持固定导航宽度，不响应 ProLayout 的侧栏折叠状态。
     if (layoutVariant.value === 'project' && state.collapsed) state.collapsed = false
 
-    const paths = (
-      route.meta.breadcrumb || route.meta.breadcrumbCache || []
-    ) as ProjectBreadcrumbRoute[]
-    const selectedPaths = paths
-      .map(item => item.path)
-      .filter((path): path is string => !!path)
-
-    state.selectedKeys = selectedPaths
-    // 项目壳层显式开启时，默认把当前一级菜单下的二级分组一起展开，避免只撑开当前路由分支。
-    state.openKeys = getProjectSidebarOpenKeys(
-      layoutMenuData.value,
-      selectedPaths,
-      expandSecondaryMenu.value,
-      layoutMode.value,
-    )
+    state.selectedKeys = selectedPaths.value
     if (route.query?.layout === 'false') state.pure = true
   })
 

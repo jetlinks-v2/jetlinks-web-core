@@ -3,7 +3,7 @@
     class="project-layout-page"
     variant="project"
     layout="mix"
-    :expandSecondaryMenu="true"
+    :expandSecondaryMenu="false"
   />
 </template>
 

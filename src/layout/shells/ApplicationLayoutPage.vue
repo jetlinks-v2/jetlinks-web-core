@@ -55,16 +55,18 @@
         </div>
       </template>
       <div class="project-layout__content">
-        <ProjectSecondaryMenu
-          v-if="secondaryMenuItems.length"
-          :items="secondaryMenuItems"
-          :selectedKey="secondaryMenuSelectedKey"
-          tabPosition="top"
-          @select="handleSecondaryMenuSelect"
-        />
-        <div class="project-layout__route-content">
-          <PageRouteView />
-        </div>
+        <ContentPanel>
+	        <ProjectSecondaryMenu
+		        v-if="secondaryMenuItems.length"
+		        :items="secondaryMenuItems"
+		        :selectedKey="secondaryMenuSelectedKey"
+		        tabPosition="top"
+		        @select="handleSecondaryMenuSelect"
+	        />
+	        <div class="project-layout__route-content">
+		        <PageRouteView />
+	        </div>
+        </ContentPanel>
       </div>
     </j-pro-layout>
     <AiChat />

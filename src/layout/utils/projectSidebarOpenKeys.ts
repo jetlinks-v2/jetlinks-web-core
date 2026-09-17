@@ -21,6 +21,26 @@ const findMenuByKey = (
   return undefined
 }
 
+const findMenuPathByKey = (
+  menus: ProjectSidebarMenuRecord[],
+  targetKey: string,
+  parents: ProjectSidebarMenuRecord[] = [],
+): ProjectSidebarMenuRecord[] | undefined => {
+  for (const menu of menus) {
+    const path = [...parents, menu]
+    if (getMenuKey(menu) === targetKey) return path
+
+    const childPath = findMenuPathByKey(
+      (menu.children || []) as ProjectSidebarMenuRecord[],
+      targetKey,
+      path,
+    )
+    if (childPath) return childPath
+  }
+
+  return undefined
+}
+
 const collectDirectChildGroupKeys = (menu: ProjectSidebarMenuRecord) => {
   const keys: string[] = []
 
@@ -35,6 +55,21 @@ const collectDirectChildGroupKeys = (menu: ProjectSidebarMenuRecord) => {
 }
 
 const uniqueKeys = (keys: string[]) => [...new Set(keys.filter(Boolean))]
+
+const resolveActiveMenuPath = (
+  menus: ProjectSidebarMenuRecord[],
+  selectedPaths: string[],
+) => selectedPaths
+  .map(path => normalizeProjectRuntimePath(path))
+  .filter(Boolean)
+  .reverse()
+  .map(path => findMenuPathByKey(menus, path))
+  .find((path): path is ProjectSidebarMenuRecord[] => !!path)
+
+export const getProjectSidebarRootKey = (
+  menus: ProjectSidebarMenuRecord[],
+  selectedPaths: string[],
+) => getMenuKey(resolveActiveMenuPath(menus, selectedPaths)?.[0] || {})
 
 const resolveActiveRootKey = (
   menus: ProjectSidebarMenuRecord[],
@@ -52,14 +87,24 @@ export const getProjectSidebarOpenKeys = (
   selectedPaths: string[],
   expandSecondaryMenu: boolean,
   layoutType: string,
+  restoreActiveAncestors = false,
 ) => {
-  if (layoutType === 'top' || !expandSecondaryMenu) return []
+  if (layoutType === 'top' || !expandSecondaryMenu && !restoreActiveAncestors) return []
 
   const normalizedSelectedPaths = selectedPaths
     .map(path => normalizeProjectRuntimePath(path))
     .filter(Boolean)
 
   if (!normalizedSelectedPaths.length) return []
+
+  // 默认折叠模式仅展开当前选中叶子的祖先分组，刷新后保留必要的导航上下文。
+  if (!expandSecondaryMenu) {
+    const activeMenuPath = resolveActiveMenuPath(menus, normalizedSelectedPaths)
+
+    return uniqueKeys((activeMenuPath || [])
+      .filter(menu => !!menu.children?.length)
+      .map(getMenuKey))
+  }
 
   const activeRootKey = resolveActiveRootKey(menus, normalizedSelectedPaths)
   if (!activeRootKey) return uniqueKeys(normalizedSelectedPaths)
