@@ -1,9 +1,13 @@
 ﻿<template>
   <Modal
     v-model:open="visible"
-    :title="title"
-    :maskClosable="false"
-    :width="type === 'identity' ? 420 : modalWidth"
+    :title="type === 'captcha' ? undefined : title"
+    :maskClosable="isAutoSubmitCaptcha"
+    :closable="type !== 'captcha'"
+    :keyboard="true"
+    :width="type === 'captcha' ? captchaModalWidth : type === 'identity' ? 420 : modalWidth"
+    :centered="type === 'captcha'"
+    :wrapClassName="isAltchaCaptcha ? 'altcha-verification-modal' : captchaConfig?.type === 'image' ? 'image-captcha-modal' : undefined"
     :footer="modalFooter"
     @cancel="onCancel"
     @ok="onSubmit"
@@ -13,12 +17,32 @@
   >
     <!-- 验证码 -->
     <template v-if="type === 'captcha' && captchaConfig">
-
-      <Form v-if="captchaConfig.type === 'image'" ref="formRef" layout="vertical" :model="captchaForm" :rules="captchaRules">
+      <div v-if="isAltchaCaptcha && captchaConfig.altcha" class="captcha-verification-panel captcha-verification-panel--altcha">
+        <div class="captcha-verification-panel__content">
+          <AltchaCaptcha
+            :config="captchaConfig.altcha"
+            :open="visible"
+            :verify-key="props.verifyResult.key"
+            @success="onAltchaCaptchaSuccess"
+            @fail="onAltchaCaptchaFail"
+            @expired="onAltchaCaptchaExpired"
+          />
+        </div>
+        <div
+          class="captcha-verification-panel__icon"
+          role="img"
+          :aria-label="t('verify.securityTitle')"
+        >
+          <SafetyCertificateOutlined />
+          <span>{{ t('verify.securityTitle') }}</span>
+        </div>
+      </div>
+      <Form v-else-if="captchaConfig.type === 'image'" ref="formRef" class="image-captcha" layout="vertical" :model="captchaForm" :rules="captchaRules">
         <FormItem :label="t('verify.captchaLabel')" name="verifyCode">
           <Input
             ref="captchaInputRef"
             v-model:value="captchaForm.verifyCode"
+            size="large"
             :placeholder="t('verify.captchaPlaceholder')"
             :maxlength="64"
             autocomplete="off"
@@ -37,16 +61,17 @@
           </Input>
         </FormItem>
       </Form>
-      <Captcha
-        v-else
-        :key="captchaRenderKey"
-        :showDialog="false"
-        :open="visible"
-        :config="captchaConfig.tianai"
-        @success="onTianaiCaptchaSuccess"
-        @fail="onTianaiCaptchaFail"
-        @imageWidth="onCaptchaImageWidth"
-      />
+      <div v-else-if="isTianaiCaptcha" class="tianai-captcha">
+        <Captcha
+          :key="captchaRenderKey"
+          :showDialog="false"
+          :open="visible"
+          :config="captchaConfig.tianai"
+          @success="onTianaiCaptchaSuccess"
+          @fail="onTianaiCaptchaFail"
+          @imageWidth="onCaptchaImageWidth"
+        />
+      </div>
     </template>
 
     <!-- 身份校验 -->
@@ -122,12 +147,14 @@
 <script setup lang="ts">
 import { nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { SafetyCertificateOutlined } from '@ant-design/icons-vue'
 import { Modal, Form, FormItem, Input, Select, Button } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import {
   getVerifyCaptchaConfig,
   getVerifyCaptchaImage,
   confirmCaptcha,
+  isValidAltchaCaptchaProof,
   requestIdentityVerify,
   confirmIdentityVerify,
   getSelfIdentitiesForVerify
@@ -136,6 +163,8 @@ import { getIdentityProviders_api } from '@jetlinks-web-core/api/account/center'
 import type { VerifyRequiredResult } from '@jetlinks-web-core/api/verify'
 import i18n from '@jetlinks-web-core/locales'
 import Captcha from '@jetlinks-web-core/components/Captcha'
+import AltchaCaptcha from '@jetlinks-web-core/components/AltchaCaptcha/index.vue'
+import type { AltchaCaptchaConfig, AltchaCaptchaProof } from '@jetlinks-web-core/api/verify'
 
 const { t } = i18n.global
 const router = useRouter()
@@ -184,8 +213,9 @@ const captchaForm = reactive({
   imageKey: ''
 })
 const captchaImage = ref('')
-const captchaConfig = ref<{ type?: string, tianai?: Record<string, unknown> } | null>(null)
+const captchaConfig = ref<{ type?: string; tianai?: Record<string, unknown>; altcha?: AltchaCaptchaConfig } | null>(null)
 const tianaiCaptchaId = ref('')
+const altchaProof = ref<AltchaCaptchaProof>()
 const captchaRenderKey = ref(0)
 
 const identityForm = reactive({
@@ -212,13 +242,26 @@ const identityRules = {
 }
 
 const isTianaiCaptcha = computed(() => captchaConfig.value?.type === 'tianai')
-const isAutoSubmitCaptcha = computed(() => type.value === 'captcha' && isTianaiCaptcha.value)
+const isAltchaCaptcha = computed(() => captchaConfig.value?.type === 'altcha')
+const captchaModalWidth = computed(() =>
+  isAltchaCaptcha.value
+    ? 'min(360px, calc(100vw - 48px))'
+    : isTianaiCaptcha.value
+    ? `min(${modalWidth.value}px, calc(100vw - 32px))`
+    : captchaConfig.value?.type === 'image'
+    ? 'min(400px, calc(100vw - 32px))'
+    : modalWidth.value
+)
+const isAutoSubmitCaptcha = computed(() => type.value === 'captcha' && (isTianaiCaptcha.value || isAltchaCaptcha.value))
 const modalFooter = computed(() => isAutoSubmitCaptcha.value ? null : undefined)
 const submitDisabled = computed(() => {
   if (type.value === 'identity') {
     return identityListRaw.value.length === 0
   }
-  return type.value === 'captcha' && isTianaiCaptcha.value && !tianaiCaptchaId.value
+  if (type.value !== 'captcha') return false
+  if (isTianaiCaptcha.value) return !tianaiCaptchaId.value
+  if (isAltchaCaptcha.value) return !altchaProof.value
+  return false
 })
 
 async function loadCaptchaImage() {
@@ -240,6 +283,7 @@ async function loadCaptchaConfig() {
     const data = res?.result ?? res
     captchaConfig.value = data ?? null
     tianaiCaptchaId.value = ''
+    altchaProof.value = undefined
     if (data?.type === 'image') {
       await loadCaptchaImage()
     } else if (data?.type === 'tianai') {
@@ -248,6 +292,7 @@ async function loadCaptchaConfig() {
   } catch {
     captchaConfig.value = null
     tianaiCaptchaId.value = ''
+    altchaProof.value = undefined
   }
 }
 
@@ -279,6 +324,21 @@ function onTianaiCaptchaSuccess(value: unknown) {
 
 function onTianaiCaptchaFail() {
   tianaiCaptchaId.value = ''
+}
+
+function onAltchaCaptchaSuccess(proof: AltchaCaptchaProof) {
+  if (submitting.value) return
+  altchaProof.value = proof
+  onSubmit().catch(() => undefined)
+}
+
+function onAltchaCaptchaFail(error: Error) {
+  altchaProof.value = undefined
+  console.error(error)
+}
+
+function onAltchaCaptchaExpired() {
+  altchaProof.value = undefined
 }
 
 function onCaptchaImageWidth(width: number) {
@@ -450,21 +510,37 @@ async function onSubmit() {
   try {
     let res: { result?: { token: string } }
     if (type.value === 'captcha') {
-      const provider = captchaConfig.value?.type ?? 'image'
+      const provider = captchaConfig.value?.type
+      if (!provider) {
+        throw new Error('Captcha provider is unavailable')
+      }
       if (provider === 'tianai' && !tianaiCaptchaId.value) {
         submitting.value = false
         return
       }
+      let params: Record<string, unknown>
+      if (provider === 'tianai') {
+        params = { 'captcha-id': tianaiCaptchaId.value }
+      } else if (provider === 'altcha') {
+        const proof = altchaProof.value
+        if (!isValidAltchaCaptchaProof(proof)) {
+          altchaProof.value = undefined
+          submitting.value = false
+          return
+        }
+        params = { proof: proof.proof.trim() }
+      } else if (provider === 'image') {
+        params = {
+          verifyKey: captchaForm.imageKey,
+          verifyCode: captchaForm.verifyCode
+        }
+      } else {
+        throw new Error(`Unsupported captcha provider: ${provider}`)
+      }
       res = await confirmCaptcha({
         key: props.verifyResult.key,
         provider,
-        params: provider === 'tianai'
-          // tianai 二次确认消费第一次行为验证返回的通过态 captcha id。
-          ? { 'captcha-id': tianaiCaptchaId.value }
-          : {
-              verifyKey: captchaForm.imageKey,
-              verifyCode: captchaForm.verifyCode
-            }
+        params
       })
     } else {
       if (!validationData.value) throw new Error('Validation not sent')
@@ -494,6 +570,8 @@ async function onSubmit() {
       if (isTianaiCaptcha.value) {
         tianaiCaptchaId.value = ''
         captchaRenderKey.value += 1
+      } else if (isAltchaCaptcha.value) {
+        altchaProof.value = undefined
       } else {
         captchaForm.verifyCode = ''
         await loadCaptchaImage()
@@ -588,6 +666,58 @@ onUnmounted(() => {
 .captcha-loading {
   font-size: var(--fs-12);
   color: #999;
+}
+.image-captcha {
+  padding-top: var(--space-2);
+}
+.image-captcha :deep(.ant-form-item) {
+  margin-bottom: 0;
+}
+.captcha-verification-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3rem;
+  align-items: center;
+  gap: var(--space-4);
+}
+.captcha-verification-panel--altcha {
+  box-sizing: border-box;
+  min-height: 5.375rem;
+  padding: var(--space-3) var(--space-4);
+}
+.captcha-verification-panel__icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-color-secondary);
+  font-size: var(--fs-12);
+}
+.captcha-verification-panel__icon :deep(.anticon) {
+  font-size: var(--fs-24);
+}
+.captcha-verification-panel__content {
+  width: 100%;
+}
+.captcha-verification-panel :deep(.altcha-captcha) {
+  --altcha-border-width: 0;
+  --altcha-color-base: transparent;
+  --altcha-max-width: 100%;
+  --altcha-padding: 0;
+  --altcha-checkbox-size: 24px;
+  font-size: var(--fs-14);
+}
+:global(.altcha-verification-modal .ant-modal-content) {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2) !important;
+}
+:global(.altcha-verification-modal .ant-modal-body) {
+  padding: 0 !important;
+}
+:global(.image-captcha-modal .ant-modal-content .ant-modal-footer) {
+  margin-top: 0;
+  padding: var(--space-2) var(--space-6) var(--space-4);
+  box-shadow: none;
 }
 .identity-empty {
   text-align: center;

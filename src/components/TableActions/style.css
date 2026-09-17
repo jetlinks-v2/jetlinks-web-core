@@ -1,0 +1,52 @@
+.table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  white-space: nowrap;
+}
+
+.table-actions__item {
+  display: flex;
+  align-items: center;
+}
+
+.table-actions__item--inline .ant-btn-link {
+  padding-inline: 0;
+}
+
+.table-actions__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table-actions__panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 136px;
+}
+
+.table-actions__item--more {
+  min-height: 32px;
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  border-radius: var(--table-actions-radius);
+}
+
+.table-actions__item--more:hover,
+.table-actions__item--more:focus-within {
+  background: var(--table-actions-hover);
+}
+
+.table-actions__item--more .ant-btn-link,
+.table-actions__item--more .ant-btn-text {
+  width: 100%;
+  height: auto;
+  padding-inline: 0;
+  text-align: start;
+  white-space: nowrap;
+}
+
+/* 由操作行统一提供交互背景，避免按钮悬停层与行背景叠加。 */
+.table-actions__panel .table-actions__item--more .ant-btn:is(.ant-btn-link, .ant-btn-text):not(:disabled):is(:hover, :active, :focus-visible) {
+  background-color: transparent;
+}

@@ -5,6 +5,7 @@ import { crateAxios, request, wsClient, ndJson } from '@jetlinks-web/core'
 import { jumpLogin } from '@jetlinks-web-core/router'
 import { notification } from 'ant-design-vue'
 import { isSubApp, langKey, PersonalToken, PersonalUrlKey } from '@jetlinks-web-core/utils/consts'
+import { isPrivateDeployment } from '@jetlinks-web-core/utils/deployment'
 import Relogin from '@jetlinks-web-core/views/relogin/index.vue'
 import VerifyDialog from '@jetlinks-web-core/views/verify/index.vue'
 import pinia from '@jetlinks-web-core/store'
@@ -270,7 +271,10 @@ function openVerifyDialog(verifyResult: VerifyRequiredResult): Promise<{ key: st
 export const initAxios = () => {
     const config = getPackageConfig()
 
-    const isCreateTokenRefresh = import.meta.env.VITE_TOKEN_REFRESH === 'true'
+    // 会话失效后的“就地重新登录”弹窗（src/views/relogin/）只服务私有化部署：
+    // SaaS 下拿到 401 直接清理会话并退出到登录页，不弹窗。
+    const isCreateTokenRefresh =
+        import.meta.env.VITE_TOKEN_REFRESH === 'true' && isPrivateDeployment()
 
     let settings = {
           langKey: langKey,
@@ -288,6 +292,9 @@ export const initAxios = () => {
               '/system/config/front',
               '/authorize/captcha/config',
               '/authorize/captcha/image',
+              '/authorize/captcha/context',
+              '/authorize/captcha/altcha/challenge',
+              '/authorize/captcha/altcha/prevalidate',
               '/application/sso/bind-code',
               '/authorize/login',
               '/application/',
@@ -354,6 +361,12 @@ export const initAxios = () => {
               ...config.axiosSettings
           }
       }
+
+    // 基座或 package 配置可能覆盖 axiosSettings，这里按部署形态做最后收敛：
+    // 一旦打开重登录，401 会走 createTokenRefreshHandler，既不会执行上面的 jumpLogin()，
+    // 也会在 SaaS 下弹出本不该出现的重登录弹窗。
+    settings.isCreateTokenRefresh = isCreateTokenRefresh
+
     const requestOptions = settings.requestOptions as PackageRequestOptions
     crateAxios(settings)
     ndJson.create({

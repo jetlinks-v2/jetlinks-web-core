@@ -40,7 +40,7 @@ const normalizedPadding = computed(() => Math.max(props.padding, 0))
   gap: var(--panel-gap, var(--space-4));
   padding: var(--content-panel-padding);
   border-radius: var(--panel-radius, var(--r-6));
-  background: linear-gradient(rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 14%, rgba(255, 255, 255, 0.25) 47%, rgba(255, 255, 255, 0.6) 99%);
+  background: rgba(255, 255, 255, 0.8);
   overflow: auto;
 	backdrop-filter: blur(10px);
 	box-shadow: rgba(30, 118, 255, 0.13) 0 1px 16px 0;

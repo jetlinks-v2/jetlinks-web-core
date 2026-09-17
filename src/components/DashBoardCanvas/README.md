@@ -45,6 +45,10 @@ const { catalog, loading, errors, reload } = useDashboardCatalog(dashboardSource
 
 验证：共享适配器迁入画布目录后，四组 glob 匹配文件与迁移前完全一致，旧导入路径已清理；discovery 与共享适配器的定向 strict TypeScript 检查通过；现有 Vite 开发服务将共享适配器转换为 141 个懒加载入口。临时检查通过来源整理零执行、完整入口 ID 匹配、模块/目录/分组/入口范围交集、空范围、并发缓存复用、独立 catalog、失败重试、重复类型拒绝、入口条件响应式变化和过期结果丢弃；未在仓库新增测试文件或依赖。当前没有实际业务页面调用；遵循机器性能约束不执行全项目 lint/typecheck/build。后续接入需验证组件运行依赖和页面交互，可执行宿主 `pnpm build` 补充生产构建验证。本次不新增依赖、不修改 Vite 配置，无需重启后端服务。
 
+## 个人布局缓存
+
+`storageKey` 使用调用方提供的固定标识；布局恢复、保存、组件集合校验和历史 key 迁移均由画布负责。可选 `legacyStorageKeys` 按优先顺序声明历史 key，默认不迁移其他 key。已有有效固定缓存优先，否则读取第一个有效历史布局，成功写入固定 key 后才清理声明的旧 key。页面不直接操作 localStorage。存储不可用时继续使用默认布局。
+
 ## 接入
 
 以下装配代码放在调用方模块。组件契约以 `ui/modules/visualization-resources/system-resource.md` 和现有 BusinessAlarm 实现为依据，直接使用已有三组导出：

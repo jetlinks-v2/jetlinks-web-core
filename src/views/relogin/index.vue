@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import Right from "@jetlinks-web-core/views/login/right.vue";
+import Right from "@jetlinks-web-core/views/relogin/components/right.vue";
 import {useSystemStore} from "@jetlinks-web-core/store";
 import {storeToRefs} from "pinia";
 import { jumpLogin } from "@jetlinks-web-core/router";
