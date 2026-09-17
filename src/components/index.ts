@@ -70,6 +70,7 @@ import MenuAssetPermissionEditor from './MenuAssetPermissionEditor/index.vue'
 import StatusTag from './StatusTag/index.vue'
 import DetailHeader from './DetailHeader/index.vue'
 import PageHeader from './PageHeader/index.vue'
+import PageChrome from './PageChrome/index.vue'
 import MetricCards from './MetricCards/index.vue'
 import MarketplaceInstallStream from './MarketplaceInstallStream/index.vue'
 import StatusPill from './StatusPill/index.vue'
@@ -157,6 +158,7 @@ export default {
           .component('StatusTag', StatusTag)
           .component('DetailHeader', DetailHeader)
           .component('PageHeader', PageHeader)
+          .component('PageChrome', PageChrome)
           .component('MetricCards', MetricCards)
           .component('MarketplaceInstallStream', MarketplaceInstallStream)
           .component('StatusPill', StatusPill)
@@ -192,6 +194,7 @@ export {
     ModelParameterEditor,
     DetailHeader,
     PageHeader,
+    PageChrome,
     MetricCards,
     MarketplaceInstallStream,
     MatrixGrid,

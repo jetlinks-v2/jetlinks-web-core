@@ -82,7 +82,10 @@
       </template>
       <div
         class="project-layout__content"
-        :class="{ 'project-layout__content--settings': settingsActive }"
+        :class="{
+          'project-layout__content--settings': settingsActive,
+          'project-layout__content--panel': routeContentPanel.enabled,
+        }"
       >
         <ProjectSecondaryMenu
           v-if="visibleSecondaryItems.length"
@@ -91,8 +94,11 @@
           :tabPosition="secondaryTabPosition"
           @select="selectVisibleSecondaryItem"
         />
-        <div class="project-layout__route-content">
-          <PageRouteView />
+        <div
+          class="project-layout__route-content"
+          :class="{ 'project-layout__route-content--panel': routeContentPanel.enabled }"
+        >
+          <RouteContentSurface />
         </div>
       </div>
     </j-pro-layout>
@@ -106,7 +112,6 @@ import type { RouteRecordRaw } from 'vue-router'
 import { Menu } from 'ant-design-vue'
 import i18n from '@jetlinks-web-core/locales'
 import type { LayoutMode } from '@jetlinks-web-core/store/system'
-import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import {
   DEFAULT_COMING_SOON_MENU_BADGE_I18N_KEY,
   isComingSoonMenuMeta,
@@ -120,7 +125,9 @@ import {
   Resource,
 } from '../components'
 import ProjectSecondaryMenu from '../components/ProjectSecondaryMenu.vue'
+import RouteContentSurface from '../components/RouteContentSurface/index.vue'
 import { useBasicLayoutControllerContext } from '../hooks/basicLayoutContext'
+import { useRouteContentPanel } from '../hooks/useRouteContentPanel'
 import type { BasicLayoutVariant } from '../runtime/layoutVariant'
 import MenuSource from '../components/MenuSearch.vue'
 
@@ -158,6 +165,9 @@ const props = defineProps({
 })
 
 const controller = useBasicLayoutControllerContext(props.layout)
+
+// 面板是否包裹完全由路由 `meta.contentPanel` 决定，壳层只负责把内容区切成对应的布局。
+const routeContentPanel = useRouteContentPanel()
 
 watchEffect(() => {
   controller.expandSecondaryMenu.value = props.expandSecondaryMenu
