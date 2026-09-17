@@ -43,8 +43,10 @@ const normalizedPadding = computed(() => Math.max(props.padding, 0))
   background: rgba(255, 255, 255, 0.8);
   overflow: auto;
 	backdrop-filter: blur(10px);
-	box-shadow: rgba(30, 118, 255, 0.13) 0 1px 16px 0;
-	height: 100%;
+	//box-shadow: rgba(30, 118, 255, 0.13) 0 1px 16px 0;
+  box-shadow: 0px 0px 50px 0px #7794CB1A;
+  //border: 1px solid var(--jet-theme-border-color-1);
+  height: 100%;
 }
 
 .content-panel__header {

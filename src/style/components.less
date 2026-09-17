@@ -204,7 +204,7 @@
 .ant-table {
   .ant-table-thead {
     th {
-      background: #F5F7FA !important;
+      background: #F3F5FA !important;
     }
   }
 }
@@ -224,4 +224,51 @@
 .ant-card {
   background: var(--bg-trans-8);
   border-radius: var(--r-6);
+}
+
+.j-badge-status {
+  border: 1px solid rgba(#86909C, .2);
+  background: rgba(#86909C, .1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--r-6);
+
+  .ant-badge-status-dot {
+    display: none !important;
+  }
+
+  .ant-badge-status-text {
+    margin-inline-start: 0 !important;
+  }
+
+  &.processing {
+    background: color-mix(in srgb, var(--accent-blue) 10%, transparent);
+    border-color: var(--accent-blue);
+    .ant-badge-status-text {
+      color: var(--accent-blue);
+    }
+  }
+
+  &.success {
+    background: color-mix(in srgb, var(--success) 10%, transparent);
+    border-color: var(--success);
+    .ant-badge-status-text {
+      color: var(--success);
+    }
+  }
+
+  &.warning {
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
+    border-color: var(--warning);
+    .ant-badge-status-text {
+      color: var(--warning);
+    }
+  }
+
+  &.error {
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    border-color: var(--danger);
+    .ant-badge-status-text {
+      color: var(--danger);
+    }
+  }
 }

@@ -1,30 +1,16 @@
 import { computed } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useSystemStore } from '@jetlinks-web-core/store/system'
 import {
-  getApplicationScopeFromLocation,
-  isProjectApplicationScope,
-} from '@jetlinks-web-core/utils/application-scope'
-import { isProjectRuntime } from '@jetlinks-web-core/utils/project-runtime'
-import { resolveBasicLayoutVariant } from '../runtime/layoutVariant'
+  isApplicationRuntime,
+  isProjectRuntime,
+} from '@jetlinks-web-core/utils/project-runtime'
+import type { BasicLayoutVariant } from '../runtime/layoutVariant'
 
 /**
- * systemInfo 已由启动流程按当前项目/应用 Scope 拉取，这里只消费配置并补运行态回退。
+ * 统一壳层和控制器的端类型；应用入口优先，固定项目部署无需 URL 项目标识。
+ * 运行态按布局创建时的入口确定，存储变化不会触发响应式更新。
  */
-export const useBasicLayoutVariant = () => {
-  const systemStore = useSystemStore()
-  const { systemInfo } = storeToRefs(systemStore)
-  const applicationScope = getApplicationScopeFromLocation()
-  const projectScope = isProjectApplicationScope(applicationScope)
-
-  const runtimeContext = {
-    projectScope,
-    applicationScope: !!applicationScope && !projectScope,
-    projectRuntime: isProjectRuntime(),
-  }
-
-  return computed(() => resolveBasicLayoutVariant(
-    systemInfo.value.front?.layoutVariant,
-    runtimeContext,
-  ))
-}
+export const useBasicLayoutVariant = () => computed<BasicLayoutVariant>(() => {
+  if (isApplicationRuntime()) return 'application'
+  if (isProjectRuntime()) return 'project'
+  return 'tenant'
+})

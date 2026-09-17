@@ -20,7 +20,10 @@ const layoutComponents = {
 
 const layoutVariant = useBasicLayoutVariant()
 const controller = useBasicLayoutController(layoutVariant)
-const layoutComponent = computed(() => layoutComponents[layoutVariant.value])
+const layoutComponent = computed(() => {
+  debugger
+  return layoutComponents[layoutVariant.value]
+})
 
 provideBasicLayoutController(controller)
 </script>

@@ -181,8 +181,14 @@ export const getFederationSetting = (mavenName: string, envDir: string) => {
   }
 }
 
-export const getModulesName = (): { moduleNames?: string[], moduleName?: string } => {
+/** 解析模块白名单和排除列表；排除列表不改变宿主构建入口和输出目录。 */
+export const getModulesName = (): { moduleNames: string[] | null, moduleName: string | null, excludedModules: string[] } => {
   const moduleNameIndex = process.argv.indexOf('--module-name')
+  const excludeModulesIndex = process.argv.indexOf('--exclude-modules')
+  const excludeModulesArg = excludeModulesIndex !== -1 ? process.argv[excludeModulesIndex + 1] : undefined
+  const excludedModules = excludeModulesArg && !excludeModulesArg.startsWith('--')
+    ? excludeModulesArg.split(',').map(name => name.trim()).filter(Boolean)
+    : []
   let moduleNames: string[] | null = null
 
   if (moduleNameIndex !== -1) {
@@ -197,7 +203,8 @@ export const getModulesName = (): { moduleNames?: string[], moduleName?: string 
 
   return {
     moduleNames,
-    moduleName
+    moduleName,
+    excludedModules
   }
 }
 

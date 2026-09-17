@@ -298,7 +298,7 @@ html {
   --layout-menu-item-icon-size: 1rem;
   --layout-menu-item-font-size: 0.875rem;
   --layout-menu-item-line-height: 1.25rem;
-  --layout-menu-item-radius: var(--r-3);
+  --layout-menu-item-radius: var(--r-1);
   --layout-menu-item-color: #1D2129;
   --layout-menu-item-muted-color: #4E5969;
   --layout-menu-item-disabled-color: var(--chrome-ink-4);

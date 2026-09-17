@@ -38,6 +38,7 @@ export function useLoginSuccess() {
     const username = options?.username || ''
     const isSubAccess = username.includes('@')
     let code
+
     if (isSubAccess) {
       code = username.split('@')[1]
       if (code) {
@@ -57,7 +58,7 @@ export function useLoginSuccess() {
     await authStore.init()
 
     await userStore.getUserInfo()
-    await menuStore.queryMenus()
+    const menus = await menuStore.requestMenus(false)
 
     localStorage.removeItem('pFrom') // 清除来源地址
 
@@ -65,7 +66,16 @@ export function useLoginSuccess() {
       await options.afterStoreInit()
     }
 
-    if (isSubAccess) {
+    // 获取菜单是否只有某一个
+    const menuOwners = new Set()
+    menus.result.forEach((menu) => {
+      console.log(menuOwners.size, menu)
+      if (menuOwners.size <= 2) {
+        menuOwners.add(menu.owner)
+      }
+    })
+
+    if (menuOwners.size === 1 && menuOwners.has('app')) {
       const businessApplicationStore = useBusinessApplicationStore()
       businessApplicationStore.init()
       const enteredApplication = await businessApplicationStore.enterFirstApplication({
@@ -74,10 +84,11 @@ export function useLoginSuccess() {
         silent: true,
       })
       if (enteredApplication) return
-      if (code) {
-        window.location.href = `${location.origin}/${code}/#/`
-        return
-      }
+    }
+
+    if (code) {
+      window.location.href = `${location.origin}/${code}/#/`
+      return
     }
 
     if (options?.redirectTo) {
