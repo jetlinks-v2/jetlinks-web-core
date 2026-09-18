@@ -100,7 +100,6 @@ const { selectedKey, visitedKeys, select, onKeydown, tabId, panelId } = useSlant
   padding: var(--slanted-tabs-nav-padding, 0);
   overflow-x: auto;
   isolation: isolate;
-  background: var(--slanted-tabs-background, linear-gradient(105deg, #dfe6f6, #edf0f5 65%, #f3f5f8));
 }
 
 .slanted-tabs__tab {
