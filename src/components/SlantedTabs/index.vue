@@ -144,6 +144,7 @@ const { selectedKey, visitedKeys, select, onKeydown, tabId, panelId } = useSlant
 .slanted-tabs__tab.is-active .slanted-tabs__label {
   color: var(--ink-1, #20242d);
   font-weight: 500;
+	font-size: var(--fs-16);
 }
 
 .slanted-tabs__tab.is-active::before {
@@ -179,6 +180,7 @@ const { selectedKey, visitedKeys, select, onKeydown, tabId, panelId } = useSlant
   gap: 0.5em;
   color: var(--ink-3, #8793a3);
   white-space: nowrap;
+	font-size: var(--fs-14);
 }
 
 .slanted-tabs__count {
