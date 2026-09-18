@@ -195,13 +195,11 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     return true
   }
 
+  // 从应用根路由进入，由目标应用加载菜单后重定向，避免携带当前项目的菜单路径。
   const enterBusinessApplication = async (
     nextApplication: BusinessApplicationEntry,
     options: EnterApplicationOptions = {},
   ) => {
-    const result = await useMenuStore().queryMenus(nextApplication.id)
-    if (!result?.applied) return false
-
     const customDomain = typeof nextApplication.configuration?.customDomain === 'string'
       ? nextApplication.configuration.customDomain
       : ''
@@ -211,7 +209,7 @@ export const useBusinessApplicationStore = defineStore('business-application', (
       currentProjectCode: options.currentProjectCode,
       domain: customDomain,
       accessContext: getApplicationAccessContext(),
-      path: result.firstMenuPath || options.fallbackPath || '/403',
+      path: '/',
     })
     if (!access.success) {
       throw new Error(`Application access context is unavailable: ${access.reason}`)

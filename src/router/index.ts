@@ -28,8 +28,6 @@ import {
 import { removeProjectStorage } from '@jetlinks-web-core/utils/project-storage'
 import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 import { useUserStore } from '@jetlinks-web-core/store/user'
-import { useBusinessApplicationStore } from '@jetlinks-web-core/store/businessApplication'
-import { isBusinessApplicationRuntime } from '@jetlinks-web-core/utils/business-application-runtime'
 import {
   createLoginNavigationHref,
   type LoginNavigationReason,
@@ -268,13 +266,8 @@ router.beforeEach((to, from, next) => {
             return
           }
 
-          const businessApplicationStore = useBusinessApplicationStore()
-          if (isBusinessApplicationRuntime() && businessApplicationStore.scopeSupported && !isForbiddenRoute(to)) {
-            next({ path: FORBIDDEN_PATH, replace: true })
-            return
-          }
-
-          next()
+          // 初始化接口失败不代表页面无权限；继续加载菜单，让根路由仍可按实际菜单重定向。
+          getRoutesByServer(to, next)
         })
     }
   } else {
