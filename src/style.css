@@ -71,9 +71,9 @@ html {
   --jet-theme-primary-hover: #4096FF;
   --jet-theme-primary-active: var(--primary-color-active);
   --jet-theme-primary-soft: var(--primary-color-1);
-  --jet-theme-success: #52C41A;
-  --jet-theme-warning: #FAAD14;
-  --jet-theme-error: #FF4D4F;
+  --jet-theme-success: #06C170;
+  --jet-theme-warning: #F18900;
+  --jet-theme-error: #F84343;
   --jet-theme-bg-base: #FFFFFF;
   --jet-theme-bg-layout: #F5F5F5;
   --jet-theme-bg-container: #FFFFFF;

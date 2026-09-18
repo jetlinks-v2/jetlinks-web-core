@@ -33,6 +33,8 @@
   "ProjectGeneralAgent.prompt.alarmEntry": "Help me find alarm handling",
   "ProjectGeneralAgent.prompt.availableFeatures": "View features available in this project",
   "ProjectGeneralAgent.scopePrompt": "This conversation only uses authorized menus and module capabilities in project {0}. Do not reuse objects or context from another project.",
+  "components.EqualHeightColumns.expand": "Expand",
+  "components.EqualHeightColumns.collapse": "Collapse",
   "components.MenuAssetPermissionEditor.menuPermission": "Menu permissions",
   "components.MenuAssetPermissionEditor.menu": "Menu",
   "components.MenuAssetPermissionEditor.operationPermission": "Operations",
