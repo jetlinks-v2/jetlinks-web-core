@@ -23,7 +23,8 @@ export type RouteHideInMenuHandler = (context?: RouteHideInMenuContext) => boole
 /**
  * 布局级页面内容面板配置。
  *
- * 未声明时由 `DEFAULT_CONTENT_PANEL_ENABLED` 决定是否包裹；
+ * **只在项目布局生效**（见 `CONTENT_PANEL_LAYOUT_VARIANTS`）；租户端与应用端壳层不解析本配置。
+ * 项目布局下未声明时由 `DEFAULT_CONTENT_PANEL_ENABLED` 决定是否包裹；
  * 显式 `false` 等价于 `{ enabled: false }`。
  */
 export interface RouteContentPanelMeta {
