@@ -44,11 +44,15 @@
 
 ## 布局壳层中的统一包裹
 
-布局壳层**默认**会用 `ContentPanel` 包裹路由内容，页面代码不需要自己包裹：
+**项目布局**（`ProjectLayoutPage` → `BasicLayoutShell`）会用 `ContentPanel` 包裹路由内容，页面代码不需要自己包裹：
 
 - 页面**没有**自己写 `ContentPanel` → 壳层面板生效，页面获得统一的白底、圆角、阴影与内边距。
 - 页面**还写着** `ContentPanel` → 会出现双层卡片。页内面板要**逐页删除替换**，
   删掉后页面自动获得布局面板。壳层不判断页面内容（壳层跨路由常驻，按页面内容推断的状态会泄漏到下一个页面）。
+
+租户端虽然复用同一个 `BasicLayoutShell`，但**不包裹**面板；应用端 `ApplicationLayoutPage` 自己决定是否包裹。
+判定入口统一在 `src/layout/hooks/useRouteContentPanel.ts` 的 `CONTENT_PANEL_LAYOUT_VARIANTS`，
+租户端与应用端也不会解析路由 `meta.contentPanel`。
 
 需要放在**面板之外**的页面头部（返回按钮、卡片切换、页签）用 [`PageChrome`](../PageChrome/README.md)。
 
