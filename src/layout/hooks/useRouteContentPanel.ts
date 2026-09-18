@@ -1,15 +1,30 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import type { RouteContentPanelMeta } from '@jetlinks-web-core/router/types'
+import { useBasicLayoutVariant } from './useBasicLayoutVariant'
+import type { BasicLayoutVariant } from '../runtime/layoutVariant'
 
 /**
- * 布局级内容面板的默认开关：**默认开启**。
+ * 项目布局下的内容面板默认开关：**默认开启**。
  *
- * 布局壳层统一给每个路由页面套 `ContentPanel`，页面不需要自己包裹。
+ * 项目布局（`ProjectLayoutPage`）统一给每个路由页面套 `ContentPanel`，页面不需要自己包裹。
  * 页面里原有的 `ContentPanel` 由各模块逐个删除替换；壳层不去猜测页面内容，
  * 因为壳层是跨路由常驻的，任何按页面内容推断的状态都会带到下一个页面。
  */
 export const DEFAULT_CONTENT_PANEL_ENABLED = true
+
+/**
+ * 允许布局壳层统一提供内容面板的布局变体：**只有项目布局**。
+ *
+ * - 租户端复用同一个 `BasicLayoutShell`，但保持引入路由级内容面板之前的内容区结构，壳层不包裹面板；
+ * - 应用端 `ApplicationLayoutPage` 不经过 `RouteContentSurface`，是否包裹面板由该壳层自己决定。
+ *
+ * 因此「是否包裹面板」的判定入口只有这里，避免同一份能力在多个壳层各自漂移。
+ */
+export const CONTENT_PANEL_LAYOUT_VARIANTS: readonly BasicLayoutVariant[] = ['project']
+
+export const isContentPanelLayout = (variant: BasicLayoutVariant) =>
+  CONTENT_PANEL_LAYOUT_VARIANTS.includes(variant)
 
 export interface ResolvedRouteContentPanel {
   /** 布局壳层是否包裹面板。 */
@@ -63,6 +78,15 @@ export const resolveRouteContentPanel = (
 
 export const useRouteContentPanel = () => {
   const route = useRoute()
+  const variant = useBasicLayoutVariant()
 
-  return computed<ResolvedRouteContentPanel>(() => resolveRouteContentPanel(route.matched))
+  return computed<ResolvedRouteContentPanel>(() => {
+    // 非项目布局直接退化为改造前的内容区结构：连 `meta.contentPanel` 都不解析，
+    // 保证面板不会被页面上的 meta 意外打开。
+    if (!isContentPanelLayout(variant.value)) {
+      return { enabled: false, background: true }
+    }
+
+    return resolveRouteContentPanel(route.matched)
+  })
 }

@@ -165,7 +165,8 @@ const props = defineProps({
 
 const controller = useBasicLayoutControllerContext(props.layout)
 
-// 面板是否包裹完全由路由 `meta.contentPanel` 决定，壳层只负责把内容区切成对应的布局。
+// 面板只在项目布局生效（见 `isContentPanelLayout`），项目布局内再由路由 `meta.contentPanel` 决定；
+// 租户端复用本壳层但拿到 `enabled: false`，内容区保持引入面板前的结构。
 const routeContentPanel = useRouteContentPanel()
 
 watchEffect(() => {
