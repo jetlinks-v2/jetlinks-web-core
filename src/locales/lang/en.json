@@ -1188,5 +1188,6 @@
   "layout.menuSearch.empty": "No matching menus",
   "layout.project.settings": "Settings",
   "components.TableActions.more": "More actions",
-  "comm.api.timeout": "The network environment is poor"
+  "comm.api.timeout": "The network environment is poor",
+  "comm.table.empty": "Not Configured"
 }

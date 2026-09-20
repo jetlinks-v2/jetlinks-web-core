@@ -1188,5 +1188,6 @@
   "layout.menuSearch.empty": "未找到匹配菜单",
   "layout.project.settings": "设置",
   "components.TableActions.more": "更多操作",
-  "comm.api.timeout": "网络环境不佳"
+  "comm.api.timeout": "网络环境不佳",
+  "comm.table.empty": "未配置"
 }
