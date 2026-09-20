@@ -11,10 +11,9 @@
     <div class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
       <slot name="right" />
     </div>
-    <button
+    <a-button
       v-if="collapsible"
       class="equal-height-columns__toggle"
-      type="button"
       :title="toggleText"
       :aria-label="toggleText"
       :aria-expanded="!isCollapsed"
@@ -22,7 +21,7 @@
     >
       <DoubleRightOutlined v-if="isCollapsed" />
       <DoubleLeftOutlined v-else />
-    </button>
+    </a-button>
   </div>
 </template>
 
@@ -56,7 +55,7 @@ const props = withDefaults(
     leftWidth: '15rem',
     rightWidth: '1fr',
     align: 'stretch',
-    collapsible: false,
+    collapsible: true,
   }
 )
 
@@ -117,6 +116,7 @@ const rightStyle = paneStyle
 
 <style scoped>
 .equal-height-columns {
+	position: relative;
   display: grid;
   width: 100%;
   height: var(--equal-height-columns-height);
@@ -164,7 +164,7 @@ const rightStyle = paneStyle
   overflow: hidden;
 }
 
-/* 两栏显式落在同一行，按钮才能复用左列轨道叠放而不被挤到第二行。 */
+/* 两栏显式落在同一行。 */
 .equal-height-columns__pane--left {
   grid-area: 1 / 1 / 2 / 2;
 }
@@ -174,13 +174,13 @@ const rightStyle = paneStyle
 }
 
 .equal-height-columns__toggle {
-  --equal-height-columns-toggle-width: 0.8rem;
-  --equal-height-columns-toggle-height: 4rem;
-  /* 与左列共享单元格：展开时贴左列右边缘，收起后左列宽度归零，再靠位移把按钮拉回容器左边缘。 */
-  grid-area: 1 / 1 / 2 / 2;
-  justify-self: end;
-  align-self: center;
-  z-index: 1;
+  --equal-height-columns-toggle-width: 1.375rem;
+  --equal-height-columns-toggle-height: 1.5rem;
+  /* 绝对定位到中缝：left 是分割线位置，向左回退自身宽度后右边缘恰好贴住分割线。 */
+  position: fixed;
+  top: 50%;
+  left: calc(var(--equal-height-columns-left-width) + var(--equal-height-columns-gap));
+  z-index: 9999;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -191,14 +191,21 @@ const rightStyle = paneStyle
   color: var(--ink-2);
   border: var(--jet-theme-stroke-width) solid var(--line-strong);
   /* 右侧贴合左列边缘，贴住的一侧不留圆角，视觉上像挂在面板边上 */
-  border-radius: var(--r-2) 0 0 var(--r-2);
+  border-radius: var(--r-3) 0 0 var(--r-3);
   box-shadow: var(--shadow-1);
   cursor: pointer;
   transition:
+    left 0.2s ease,
     transform 0.2s ease,
     border-radius 0.2s ease,
     color var(--motion-duration-fast) var(--motion-ease-standard),
     border-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+/* 分割线位于列间距中点；让按钮右边缘与它重合，避免在左栏边缘留下空隙。 */
+.equal-height-columns:not(.equal-height-columns--collapsed) .equal-height-columns__toggle {
+  transform: translate(-100%, -50%);
+	border-right: none;
 }
 
 .equal-height-columns__toggle:hover {
@@ -211,7 +218,9 @@ const rightStyle = paneStyle
  * 位移量与列宽收缩使用同一时长和缓动，两者叠加后按钮从「左列右边缘」连续滑到「容器左边缘」，不会跳变。
  */
 .equal-height-columns--collapsed .equal-height-columns__toggle {
-  border-radius: 0 var(--r-2) var(--r-2) 0;
-  transform: translateX(var(--equal-height-columns-toggle-width));
+  left: 0;
+  border-radius: 0 var(--r-3) var(--r-3) 0;
+  transform: translateY(-50%);
+	border-left: none;
 }
 </style>

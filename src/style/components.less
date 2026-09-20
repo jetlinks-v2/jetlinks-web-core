@@ -110,7 +110,8 @@
     gap: 0;
   }
 
-  .ant-tree-treenode {
+  // 隐藏测量节点位于列表外，不能继承可见行的宽度和最小高度。
+  .ant-tree-list-holder-inner .ant-tree-treenode {
     width: 100%;
     align-items: center;
     min-height: 2rem;

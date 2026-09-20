@@ -159,6 +159,8 @@ export interface HomeAgentConversationMessageContext {
   type?: string
   content?: string
   createdAt?: number
+  /** Parameters belonging to this user turn, including explicit UI selections. */
+  params?: Record<string, unknown>
 }
 
 export interface HomeAgentRouteLink {

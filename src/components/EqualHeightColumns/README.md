@@ -29,3 +29,7 @@
 
 - height、leftWidth、rightWidth 可使用 px、rem、百分比或 grid track。
 - 左/右面板内容超出时应由面板内部处理滚动。
+
+#### 当前调整
+
+收起按钮由 `src/components/EqualHeightColumns/index.vue` 使用绝对定位：展开时根据左列宽度和 `gap` 计算位置，使按钮右边缘与列间分割线贴合；收起后贴在双栏最外层容器的左边缘。验证方式：在产品列表等使用该组件的双栏页面检查展开、收起状态及过渡位置。
