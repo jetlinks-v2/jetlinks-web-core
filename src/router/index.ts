@@ -199,7 +199,8 @@ const getRoutesByServer = async (
   try {
     const hasAddedMenuRoutes = await ensureMenuRoutes(router, shouldSkipMenuFetch(to))
     if (hasAddedMenuRoutes) {
-      next({ ...to, replace: true })
+      // 按路径重新匹配，避免沿用菜单加载前命中的 error 路由名而继续显示 404。
+      next({ path: to.path, query: to.query, hash: to.hash, replace: true })
       return
     }
 
