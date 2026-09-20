@@ -2678,7 +2678,7 @@ onUnmounted(() => {
     padding: 0.175rem 0.625rem;
     background: var(--color-jet-bg-container);
     border: 1px solid var(--jet-theme-border-color-1);
-    border-radius: var(--r-1);
+    border-radius: var(--r-3);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
     &:hover {
