@@ -2,17 +2,20 @@
   <div
     v-bind="rootAttrs"
     class="equal-height-columns"
-    :class="[attrs.class, { 'equal-height-columns--collapsed': isCollapsed }]"
+    :class="[attrs.class, {
+      'equal-height-columns--collapsed': isCollapsed,
+      'equal-height-columns--single': !showLeft,
+    }]"
     :style="[attrs.style, rootStyle]"
   >
-    <div class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
+    <div class="equal-height-columns__pane equal-height-columns__pane--left" v-if="showLeft" :style="leftStyle">
       <slot name="left" />
     </div>
     <div class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
       <slot name="right" />
     </div>
     <a-button
-      v-if="collapsible"
+      v-if="showLeft && collapsible"
       class="equal-height-columns__toggle"
       :title="toggleText"
       :aria-label="toggleText"
@@ -48,6 +51,8 @@ const props = withDefaults(
     align?: CSSProperties['alignItems']
     /** 是否显示左列展开/收起按钮 */
     collapsible?: boolean
+    /** 是否显示左列，默认 true；隐藏时右列铺满容器且不显示折叠按钮 */
+    showLeft?: boolean
   }>(),
   {
     height: '100%',
@@ -56,6 +61,7 @@ const props = withDefaults(
     rightWidth: '1fr',
     align: 'stretch',
     collapsible: true,
+    showLeft: true,
   }
 )
 
@@ -171,6 +177,20 @@ const rightStyle = paneStyle
 
 .equal-height-columns__pane--right {
   grid-area: 1 / 2 / 2 / 3;
+}
+
+/* 隐藏左列时改为单列，覆盖自定义列宽并移除中缝占位。 */
+.equal-height-columns--single {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.equal-height-columns--single::before {
+  content: none;
+}
+
+.equal-height-columns--single .equal-height-columns__pane--right {
+  grid-area: 1 / 1 / 2 / 2;
 }
 
 .equal-height-columns__toggle {
