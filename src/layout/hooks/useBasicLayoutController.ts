@@ -1,4 +1,4 @@
-import { computed, reactive, ref, watchEffect, type ComputedRef } from 'vue'
+import { computed, reactive, ref, watch, watchEffect, type ComputedRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWindowScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -113,6 +113,8 @@ export const useBasicLayoutController = (
   ))
   const projectMenus = computed(() => menuStore.siderMenus)
   const {
+    activePrimaryKey,
+    activeMenuKey,
     primaryMenus,
     primarySelectedKeys,
     projectSidebarMenus,
@@ -149,6 +151,34 @@ export const useBasicLayoutController = (
       ? projectSidebarMenus.value
       : primaryMenus.value
   ))
+  const sidebarRouteOpenKeys = computed(() => (
+    layoutVariant.value === 'application'
+      ? []
+      : getProjectSidebarOpenKeys(
+        layoutMenuData.value,
+        activeMenuKey.value,
+        layoutMode.value,
+      )
+  ))
+
+  // 仅导航上下文变化时补齐祖先分组；手动收起、查询参数变化和等价菜单刷新不重置展开状态。
+  watch(
+    [() => route.path, activePrimaryKey, layoutMode, layoutVariant, sidebarRouteOpenKeys],
+    ([path, root, mode, variant, requiredKeys], previous) => {
+      if (mode === 'top') return
+
+      const [oldPath, oldRoot, oldMode, oldVariant, oldKeys] = previous || []
+      const sameContext = root === oldRoot && mode === oldMode && variant === oldVariant
+      if (sameContext && path === oldPath
+        && requiredKeys.length === oldKeys?.length
+        && requiredKeys.every((key, index) => key === oldKeys[index])) return
+
+      state.openKeys = sameContext
+        ? [...new Set([...state.openKeys, ...requiredKeys])]
+        : requiredKeys
+    },
+    { immediate: true },
+  )
   const logoWidth = computed(() => {
     const width = !state.collapsed ? `${config.value.siderWidth}px` : '100%'
 
@@ -250,11 +280,6 @@ export const useBasicLayoutController = (
       .filter((path): path is string => !!path)
 
     state.selectedKeys = selectedPaths
-    // 仅侧栏跟随路由展开，避免顶部菜单在刷新或切换页面时自动弹出。
-    if (layoutMode.value !== 'top') {
-      state.openKeys = selectedPaths
-    }
-
     if (route.query?.layout === 'false') state.pure = true
   })
 

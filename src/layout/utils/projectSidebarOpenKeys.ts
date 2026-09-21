@@ -1,76 +1,27 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { normalizeProjectRuntimePath } from '@jetlinks-web-core/utils/project-runtime'
 
-type ProjectSidebarMenuRecord = Pick<RouteRecordRaw, 'path' | 'children'>
+type SidebarMenu = Pick<RouteRecordRaw, 'path' | 'meta'> & { children?: SidebarMenu[] }
 
-const getMenuKey = (item: ProjectSidebarMenuRecord) => (
-  normalizeProjectRuntimePath(String(item.path || ''))
-)
-
-const findMenuByKey = (
-  menus: ProjectSidebarMenuRecord[],
-  targetKey: string,
-): ProjectSidebarMenuRecord | undefined => {
-  for (const menu of menus) {
-    if (getMenuKey(menu) === targetKey) return menu
-
-    const child = findMenuByKey((menu.children || []) as ProjectSidebarMenuRecord[], targetKey)
-    if (child) return child
-  }
-
-  return undefined
-}
-
-const collectDirectChildGroupKeys = (menu: ProjectSidebarMenuRecord) => {
-  const keys: string[] = []
-
-  for (const child of (menu.children || []) as ProjectSidebarMenuRecord[]) {
-    if (!child.children?.length) continue
-
-    const key = getMenuKey(child)
-    if (key) keys.push(key)
-  }
-
-  return keys
-}
-
-const uniqueKeys = (keys: string[]) => [...new Set(keys.filter(Boolean))]
-
-const resolveActiveRootKey = (
-  menus: ProjectSidebarMenuRecord[],
-  selectedPaths: string[],
-) => {
-  for (const path of selectedPaths) {
-    if (findMenuByKey(menus, path)) return path
-  }
-
-  return selectedPaths[0] || ''
-}
-
+/** 从实际渲染的菜单树查找祖先分组，叶子页面和 mix 布局的顶部一级菜单不参与侧栏展开。 */
 export const getProjectSidebarOpenKeys = (
-  menus: ProjectSidebarMenuRecord[],
-  selectedPaths: string[],
-  expandSecondaryMenu: boolean,
-  layoutType: string,
-) => {
-  if (layoutType === 'top' || !expandSecondaryMenu) return []
+  menus: SidebarMenu[],
+  activeKey: string,
+  layoutMode: string,
+): string[] => {
+  if (layoutMode === 'top' || !activeKey) return []
 
-  const normalizedSelectedPaths = selectedPaths
-    .map(path => normalizeProjectRuntimePath(path))
-    .filter(Boolean)
+  const findAncestors = (items: SidebarMenu[], ancestors: string[]): string[] | undefined => {
+    for (const item of items) {
+      const key = normalizeProjectRuntimePath(item.path)
+      if (key === activeKey) return ancestors
+      if (!item.children?.length || item.meta?.hideChildrenInMenu) continue
 
-  if (!normalizedSelectedPaths.length) return []
+      const result = findAncestors(item.children, [...ancestors, item.path])
+      if (result) return result
+    }
+  }
 
-  const activeRootKey = resolveActiveRootKey(menus, normalizedSelectedPaths)
-  if (!activeRootKey) return uniqueKeys(normalizedSelectedPaths)
-
-  const activeRootMenu = findMenuByKey(menus, activeRootKey)
-  if (!activeRootMenu) return uniqueKeys(normalizedSelectedPaths)
-
-  // 项目壳层默认把当前一级菜单下的二级分组一起展开，避免只撑开当前路由分支。
-  return uniqueKeys([
-    activeRootKey,
-    ...normalizedSelectedPaths,
-    ...collectDirectChildGroupKeys(activeRootMenu),
-  ])
+  const ancestors = findAncestors(menus, []) || []
+  return layoutMode === 'mix' ? ancestors.slice(1) : ancestors
 }
