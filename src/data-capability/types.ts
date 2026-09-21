@@ -61,6 +61,15 @@ export interface CapabilityAvailability {
 export interface CapabilityContext {
   parameters?: Record<string, unknown>
   attributes?: Record<string, unknown>
+  /** Request identity belongs to the runtime, never to persisted bindings or query parameters. */
+  request?: DataCapabilityRequest
+}
+
+export interface DataCapabilityRequest {
+  get<T = any>(url: string, params?: any, config?: any): Promise<import('@jetlinks-web/types').AxiosResponseRewrite<T>>
+  post<T = any>(url: string, data?: any, config?: any): Promise<import('@jetlinks-web/types').AxiosResponseRewrite<T>>
+  /** For browser-loaded resources that cannot attach request headers. */
+  toResourceUrl?(path: string): string
 }
 
 export interface RuntimeCreateContext extends CapabilityContext {
