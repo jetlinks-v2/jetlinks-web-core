@@ -1,5 +1,5 @@
 ﻿<template>
-  <ContentPanel
+  <div
     class="quick-filter-sidebar"
     :class="`quick-filter-sidebar--${variant}`"
   >
@@ -145,7 +145,7 @@
         </div>
       </div>
     </div>
-  </ContentPanel>
+  </div>
 </template>
 
 <script setup lang="ts">
