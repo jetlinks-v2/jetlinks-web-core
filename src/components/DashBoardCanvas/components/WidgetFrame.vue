@@ -1,6 +1,8 @@
 <template>
   <div class="draggable-item" :class="{ 'dropdown-open': dropdownVisible }">
-    <div v-if="draggable" class="drag-handle" :title="t('dashboardCanvas.drag')" />
+    <div v-if="draggable" class="drag-handle" :title="t('dashboardCanvas.drag')">
+      <HolderOutlined class="drag-handle-icon" aria-hidden="true" />
+    </div>
     <div class="no-drag"><slot /></div>
     <div v-if="editable" class="topRight">
       <a-dropdown v-model:open="dropdownVisible">
@@ -23,7 +25,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { Button as AButton, Dropdown as ADropdown, Menu as AMenu, MenuItem as AMenuItem, Modal } from 'ant-design-vue'
-import { BarsOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons-vue'
+import { BarsOutlined, DeleteOutlined, EditOutlined, HolderOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 defineProps<{ editable: boolean; draggable: boolean; configurable: boolean }>()
 const emit = defineEmits<{ configure: []; remove: [] }>()
@@ -45,16 +47,35 @@ function remove() {
   left: 0;
   width: 100%;
   height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  box-sizing: border-box;
+  padding-top: 5px;
   z-index: 1;
   cursor: grab;
   touch-action: none;
   border-top-left-radius: var(--dashboard-card-radius, 12px);
   border-top-right-radius: var(--dashboard-card-radius, 12px);
 }
+.drag-handle-icon {
+  color: var(--ink-4);
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform: rotate(90deg);
+  transition: opacity .2s ease;
+}
+.draggable-item:hover > .drag-handle .drag-handle-icon,
+.draggable-item:focus-within > .drag-handle .drag-handle-icon { opacity: 1; }
 .drag-handle:hover { background: linear-gradient(to bottom, rgba(0, 0, 0, .05), transparent); }
 .drag-handle:active { cursor: grabbing; }
 .topRight { position: absolute; top: 0; right: 0; z-index: 2; opacity: 0; pointer-events: none; transition: opacity .25s; }
 .draggable-item:hover > .topRight, .draggable-item:focus-within > .topRight,
 .draggable-item.dropdown-open > .topRight { opacity: 1; pointer-events: auto; }
-@media (hover: none) { .topRight { opacity: 1; pointer-events: auto; } }
+@media (hover: none) {
+  .drag-handle-icon { opacity: 1; }
+  .topRight { opacity: 1; pointer-events: auto; }
+}
 </style>
