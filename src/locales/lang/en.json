@@ -860,7 +860,7 @@
   "Login.mobileMethod": "Phone",
   "Login.emailMethod": "Email",
   "Login.subAccountMethod": "Sub account",
-  "Login.accountPlaceholder": "Email / phone / sub account",
+  "Login.accountPlaceholder": "Email / phone / account",
   "Login.independentAccountPlaceholder": "Enter account",
   "Login.passwordPlaceholder": "Enter password",
   "Login.verifyCodePlaceholder": "Enter verification code",

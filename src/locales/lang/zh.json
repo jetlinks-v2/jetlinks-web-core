@@ -860,7 +860,7 @@
   "Login.mobileMethod": "手机",
   "Login.emailMethod": "邮箱",
   "Login.subAccountMethod": "子账号",
-  "Login.accountPlaceholder": "邮箱 / 手机号 / 子账号",
+  "Login.accountPlaceholder": "邮箱 / 手机号 / 账号",
   "Login.independentAccountPlaceholder": "请输入账号",
   "Login.passwordPlaceholder": "请输入密码",
   "Login.verifyCodePlaceholder": "请输入验证码",
