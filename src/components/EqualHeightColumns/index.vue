@@ -8,15 +8,16 @@
     }]"
     :style="[attrs.style, rootStyle]"
   >
-    <div class="equal-height-columns__pane equal-height-columns__pane--left" v-if="showLeft" :style="leftStyle">
+    <div v-if="showLeft" ref="leftPaneRef" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
       <slot name="left" />
     </div>
-    <div class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
+    <div ref="rightPaneRef" class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
       <slot name="right" />
     </div>
     <a-button
       v-if="showLeft && collapsible"
       class="equal-height-columns__toggle"
+      :style="toggleStyle"
       :title="toggleText"
       :aria-label="toggleText"
       :aria-expanded="!isCollapsed"
@@ -70,6 +71,10 @@ const emit = defineEmits<{
 }>()
 
 const isCollapsed = ref(false)
+const leftPaneRef = ref<HTMLElement>()
+const rightPaneRef = ref<HTMLElement>()
+const toggleStyle = ref<CSSProperties>()
+let togglePositionObserver: ResizeObserver | undefined
 
 const toggleText = computed(() => (
   isCollapsed.value
@@ -86,6 +91,54 @@ const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   emit('collapse-change', isCollapsed.value)
 }
+
+/** 将折叠按钮定位到左列实际宽度加列间距的位置，兼容 1fr 等动态 Grid 轨道。 */
+const updateTogglePosition = () => {
+  if (isCollapsed.value) {
+    toggleStyle.value = { left: '0px' }
+    return
+  }
+
+  const leftPane = leftPaneRef.value
+  const rightPane = rightPaneRef.value
+
+  if (!leftPane || !rightPane) {
+    return
+  }
+
+  const leftPaneRect = leftPane.getBoundingClientRect()
+  const rightPaneRect = rightPane.getBoundingClientRect()
+  const gap = rightPaneRect.left - leftPaneRect.right
+
+  toggleStyle.value = { left: `${leftPaneRect.width + (gap / 2)}px` }
+}
+
+const scheduleTogglePositionUpdate = () => nextTick(updateTogglePosition)
+
+watch(
+  () => [isCollapsed.value, props.collapsible, props.showLeft, props.leftWidth, props.rightWidth, props.gap],
+  scheduleTogglePositionUpdate,
+)
+
+onMounted(() => {
+  scheduleTogglePositionUpdate()
+
+  if (typeof ResizeObserver !== 'undefined') {
+    togglePositionObserver = new ResizeObserver(scheduleTogglePositionUpdate)
+    for (const element of [leftPaneRef.value, rightPaneRef.value]) {
+      if (element) {
+        togglePositionObserver.observe(element)
+      }
+    }
+  }
+
+  window.addEventListener('resize', scheduleTogglePositionUpdate)
+})
+
+onBeforeUnmount(() => {
+  togglePositionObserver?.disconnect()
+  window.removeEventListener('resize', scheduleTogglePositionUpdate)
+})
 
 const toCssValue = (value: SizeValue) => typeof value === 'number' ? `${value}px` : value
 
@@ -196,11 +249,11 @@ const rightStyle = paneStyle
 .equal-height-columns__toggle {
   --equal-height-columns-toggle-width: 1.375rem;
   --equal-height-columns-toggle-height: 1.5rem;
-  /* 绝对定位到中缝：left 是分割线位置，向左回退自身宽度后右边缘恰好贴住分割线。 */
-  position: fixed;
+  /* left 由左列实际宽度和实际列间距写入内联样式，避免计算 1fr 等弹性轨道。 */
+  position: absolute;
   top: 50%;
-  left: calc(var(--equal-height-columns-left-width) + var(--equal-height-columns-gap));
-  z-index: 9999;
+  left: 0;
+  z-index: 5;
   display: inline-flex;
   align-items: center;
   justify-content: center;
