@@ -164,6 +164,15 @@
   background: var(--bg);
 }
 
+.matrix-grid--virtual .matrix-grid__group-row,
+.matrix-grid--virtual .matrix-grid__group-cell,
+.matrix-grid--virtual .matrix-grid__row-header,
+.matrix-grid--virtual .matrix-grid__cell {
+  height: var(--matrix-grid-row-height);
+  max-height: var(--matrix-grid-row-height);
+  overflow: hidden;
+}
+
 .matrix-grid__filler-row-header,
 .matrix-grid__filler-cell {
   min-height: var(--matrix-grid-row-height);
