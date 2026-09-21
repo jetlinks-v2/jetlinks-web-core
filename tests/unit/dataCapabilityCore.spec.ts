@@ -81,6 +81,36 @@ const queryResult = await runtime.query({
 })
 assert.deepEqual(queryResult.data, { config: { fixed: true }, query: { deviceId: 'd1' } })
 
+const identitySource: DataSourceDefinition = {
+  ...source,
+  id: 'test.source.request-identity',
+  create: () => ({
+    query(_request, context) {
+      return of({ data: Boolean(context.request) }) as any
+    },
+  }),
+}
+registry.sources.register(identitySource)
+const requester = {
+  get: async () => ({ success: true }),
+  post: async () => ({ success: true }),
+} as any
+const isolatedRuntime = registry.createRuntime({
+  runtimeId: 'unit-test-personal-token',
+  request: requester,
+})
+const isolatedResult = await isolatedRuntime.query({
+  version: 1,
+  source: { capabilityId: identitySource.id, version: 1, config: {} },
+})
+assert.equal(isolatedResult.data, true)
+const defaultResult = await runtime.query({
+  version: 1,
+  source: { capabilityId: identitySource.id, version: 1, config: {} },
+})
+assert.equal(defaultResult.data, false)
+await isolatedRuntime.dispose()
+
 registry.sources.register({
   ...source,
   id: 'test.source.filter',
