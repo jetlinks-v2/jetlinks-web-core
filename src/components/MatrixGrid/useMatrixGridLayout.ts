@@ -68,14 +68,18 @@ export function useMatrixGridLayout(options: MatrixGridLayoutOptions) {
       .slice(visibleStartIndex.value, visibleEndIndex.value)
       .map((row, index) => ({ row, rowIndex: visibleStartIndex.value + index }))
   ))
+  // 网格间距由 CSS Grid 单独计算，占位行只补剩余行高。
   const topSpacerHeight = computed(() => (
-    options.getVirtual() ? visibleStartIndex.value * rowPitch.value : 0
-  ))
-  const bottomSpacerHeight = computed(() => (
-    options.getVirtual()
-      ? Math.max(0, totalRowCount.value - visibleEndIndex.value) * rowPitch.value
+    options.getVirtual() && visibleStartIndex.value
+      ? visibleStartIndex.value * rowPitch.value - options.getGridGap()
       : 0
   ))
+  const bottomSpacerHeight = computed(() => {
+    const remainingRows = totalRowCount.value - visibleEndIndex.value
+    return options.getVirtual() && remainingRows
+      ? remainingRows * rowPitch.value - options.getGridGap()
+      : 0
+  })
   const gridStyle = computed<CSSProperties>(() => {
     const columnCount = options.getColumnCount()
     const firstColumnWidth = options.getFirstColumnWidth()
