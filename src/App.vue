@@ -6,6 +6,9 @@
     :theme="themeConfig"
   >
     <PageRouteView :skeleton-variant="routeSkeletonVariant" />
+	  <template #renderEmpty>
+		  <CloudEmpty></CloudEmpty>
+	  </template>
   </ConfigProvider>
 </template>
 <script setup lang="ts">
