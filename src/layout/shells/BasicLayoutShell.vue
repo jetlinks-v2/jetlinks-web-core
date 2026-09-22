@@ -52,10 +52,6 @@
         <div class="right-content">
           <RegistryComponent pageCode="layout" code="headerRight">
             <MenuSource />
-            <BusinessApplicationSwitcher
-              v-if="variant === 'project' && businessApplicationRuntime"
-              mode="header"
-            />
             <template v-if="!hideHeaderRight">
               <Resource v-if="systemInfo?.front?.resources" key="resource" />
               <Language key="Language" />
