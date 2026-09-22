@@ -1,4 +1,9 @@
 {
+  "I18n.configure": "国际化配置",
+  "I18n.chinese": "中文",
+  "I18n.english": "English",
+  "I18n.placeholder": "请输入{language}",
+  "I18n.maxLength": "长度不能超过{max}个字符",
   "dashboardCanvas.component": "组件",
   "dashboardCanvas.componentFailed": "{name} 加载失败，请重试",
   "dashboardCanvas.componentMissing": "{name} 暂不可用，请检查组件是否已启用",

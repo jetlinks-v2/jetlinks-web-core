@@ -63,6 +63,21 @@ import {
 
 ## 场景映射
 
+### 多语言文本输入
+
+`I18nTextField`、`I18nTextDialog`、`I18nInputTrigger` 通过根入口具名导出，不全局注册：
+
+```ts
+import { I18nTextField, I18nTextDialog, I18nInputTrigger } from '@jetlinks-web-core/components'
+import type { I18nMessages } from '@jetlinks-web-core/components'
+```
+
+`I18nTextField` 同时绑定 `v-model:value` 和 `v-model:i18nMessages`，通过 `field` 指定字段键、`label` 设置弹窗标题；`i18nMessages` 的结构为 `{ [field]: { [language]: text } }`。直接输入会同步当前语言翻译，清空时删除该语言值；弹窗确认后回写当前语言的主输入框值，保留其他字段。`textarea` 切换文本域，`i18nMaxLength` 默认 200，其余输入控件属性透传。
+
+`I18nInputTrigger` 发出 `configure` 事件；独立使用 `I18nTextDialog` 时绑定 `v-model:visible`，提供 `title`、`data` 和可选的 `displayValue`、`maxLength`、`textarea`，通过 `confirm` 接收单字段语言映射。弹窗支持中文、英文编辑，校验失败不关闭，取消不提交，缺少翻译时以当前显示值初始化当前语言。组件不发起请求、不修改全局状态；文案由 core 的 `I18n.*` 翻译键提供。
+
+生产用法：SaaS 设备模板保存页，以及应用模板 `TemplateSummary` 中独立组合的触发器和弹窗。
+
 ### 独立仪表盘画布
 
 [`DashBoardCanvas`](DashBoardCanvas/README.md) 从历史 `LoadingBoard` 抽离网格与抽屉交互，按 `@jetlinks-web-core/components/DashBoardCanvas` 目录入口导入。调用方通过 `catalog` 注入符合 BusinessAlarm 协议的业务组件，通过 `v-model` 接收配置；core 使用实例内状态承载渲染与配置，不绑定项目管理或 designer store。接入方式、迁移对应关系与验证限制见组件说明。

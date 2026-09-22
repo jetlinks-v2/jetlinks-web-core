@@ -1,4 +1,9 @@
 {
+  "I18n.configure": "Internationalization settings",
+  "I18n.chinese": "Chinese",
+  "I18n.english": "English",
+  "I18n.placeholder": "Enter {language}",
+  "I18n.maxLength": "Must not exceed {max} characters",
   "dashboardCanvas.component": "Component",
   "dashboardCanvas.componentFailed": "Could not load {name}. Please retry.",
   "dashboardCanvas.componentMissing": "{name} is unavailable. Check that the component is enabled.",
