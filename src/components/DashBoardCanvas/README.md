@@ -137,7 +137,7 @@ const dashboard = ref<DashboardValue>({ canvas: {}, components: [] })
 
 抽离后增加取消拖拽时的布局回滚，并清理实例监听器。画布背景支持颜色和 URL 编辑、fileId 地址解析及原有滤镜；旧上传组件依赖 manager，未迁入 core。旧画布统一卡片样式由业务组件配置替代。
 
-manager 的普通/云端预览、发布管理和 designer 拖拽已移除对旧 `visualization-dashboard-ui` 的调用；旧仪表盘项目预览进入现有空态，不迁入新的公共画布。历史仓库保留作参考，业务组件依赖已转至本目录 runtime 与各业务模块。现有 BusinessAlarm 内部也仍有 visualization 依赖；注入这些组件时，调用方须满足其运行环境，core 独立不意味着这些业务组件已解耦。
+manager 的普通/云端预览、发布管理和 designer 拖拽已移除对旧 `visualization-dashboard-ui` 的调用；旧仪表盘项目预览进入现有空态，不迁入新的公共画布。业务组件依赖已转至本目录 runtime 与各业务模块，旧仓库不再作为项目子模块。现有 BusinessAlarm 内部也仍有 visualization 依赖；注入这些组件时，调用方须满足其运行环境，core 独立不意味着这些业务组件已解耦。
 
 
 ## 验证与依赖
@@ -150,4 +150,4 @@ manager 的普通/云端预览、发布管理和 designer 拖拽已移除对旧 
 
 `@jetlinks-web-core/components/DashBoardCanvas/runtime` 为存量业务卡片提供 `useDashboardData`、`useGridLayout`、`getDashboardImageUrl`、`TimeSelect` 和 `Guide`，无需旧仪表盘模块注册。订阅 hook 沿用 `$viewDataEventBus` 事件契约，在数据源变更和卸载时解除订阅；图片解析保持同步及项目 token 优先的地址规则。TimeSelect 保留小时、日、周快捷项及原 change 事件。
 
-设备列表与命令执行由 device-manager-ui 的 visDashboard/hooks 和 api/dashboardRuntime 持有；画布运行支持不导入设备模块或可视化项目 store。示例消费者为规则模块 AlertStats 和设备模块 NumericalListOne。宿主模块、语言、图标和组件来源扫描均排除保留在本地的旧仪表盘仓库。
+设备列表与命令执行由 device-manager-ui 的 visDashboard/hooks 和 api/dashboardRuntime 持有；画布运行支持不导入设备模块或可视化项目 store。示例消费者为规则模块 AlertStats 和设备模块 NumericalListOne。旧仪表盘子模块由宿主项目移除，自动发现使用通用扫描规则。

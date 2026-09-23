@@ -33,7 +33,7 @@ const resolveBaseMenus = (baseMenuItem?: BaseMenuModule): MenuItem[] => {
 }
 
 const getSortModules = (): ResolvedModuleExport[] => {
-  const modulesFiles = import.meta.glob(['../../../modules/*/index.ts', '!../../../modules/visualization-dashboard-ui/**'], {eager: true}) as ModuleGlobMap
+  const modulesFiles = import.meta.glob('../../../modules/*/index.ts', {eager: true}) as ModuleGlobMap
   return Object.keys(modulesFiles).sort((a, b) => {
     const itemA = modulesFiles[a].default
     const itemB = modulesFiles[b].default
@@ -60,7 +60,7 @@ export const modules = () => {
 
 export const getModulesMenu = () => {
   const modulesDefaultFiles = getSortModules()
-  const modulesFiles = import.meta.glob(['../../../modules/*/baseMenu.ts', '!../../../modules/visualization-dashboard-ui/**'], {eager: true}) as Record<string, BaseMenuModule>
+  const modulesFiles = import.meta.glob('../../../modules/*/baseMenu.ts', {eager: true}) as Record<string, BaseMenuModule>
   const menus: MenuItem[] = []
 
   modulesDefaultFiles.forEach((item) => {

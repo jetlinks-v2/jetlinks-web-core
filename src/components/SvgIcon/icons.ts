@@ -4,7 +4,7 @@ type SvgIconLoader = () => Promise<Component>
 
 const MODULE_ICON_PATH = /^\.\.\/\.\.\/\.\.\/\.\.\/modules\/([^/]+)\/icons\/(.+)\.svg$/
 const CORE_ICON_PATH = /^\.\.\/\.\.\/icons\/(.+)\.svg$/
-const moduleSvgIconModules = import.meta.glob<Component>(['../../../../modules/*/icons/**/*.svg', '!../../../../modules/visualization-dashboard-ui/**'], {
+const moduleSvgIconModules = import.meta.glob<Component>('../../../../modules/*/icons/**/*.svg', {
   import: 'default',
   query: '?component',
 })
