@@ -1202,5 +1202,8 @@
   "layout.project.settings": "Settings",
   "components.TableActions.more": "More actions",
   "comm.api.timeout": "The network environment is poor",
-  "comm.table.empty": "Not Configured"
+  "comm.table.empty": "Not Configured",
+  "TimeSelect.index.100001-0": "Last 1 hour",
+  "TimeSelect.index.100001-1": "Last 24 hours",
+  "TimeSelect.index.100001-2": "Last week"
 }

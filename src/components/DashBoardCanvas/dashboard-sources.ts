@@ -5,10 +5,12 @@ import type { DashboardSources } from './discovery/types'
 const manifests = import.meta.glob([
   '../../../../modules/*/visDashboard/*/manifest.json',
   '../../../../modules/*/packages/component/*/manifest.json',
+  '!../../../../modules/visualization-dashboard-ui/**',
 ], { eager: true, import: 'default' })
 const entries = import.meta.glob([
   '../../../../modules/*/visDashboard/*/*/index.ts',
   '../../../../modules/*/packages/component/*/*/index.ts',
+  '!../../../../modules/visualization-dashboard-ui/**',
 ])
 
 /** 按需导入的共享来源；只装配一次以复用加载器缓存，范围与画布状态由各调用方维护。 */
