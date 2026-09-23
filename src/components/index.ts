@@ -212,6 +212,8 @@ export {
     BasisSection
 }
 export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlacement } from './TableActions'
+export { I18nTextField, I18nTextDialog, I18nInputTrigger } from './I18n'
+export type { I18nMessages, I18nTextMessages, I18nTextFieldProps, I18nTextDialogProps } from './I18n'
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
 export type { SvgIconType } from './SvgIcon/icons'
 export type { SegmentPanelOption, SegmentPanelValue } from './SegmentPanel'
