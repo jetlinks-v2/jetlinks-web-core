@@ -1202,5 +1202,8 @@
   "layout.project.settings": "设置",
   "components.TableActions.more": "更多操作",
   "comm.api.timeout": "网络环境不佳",
-  "comm.table.empty": "未配置"
+  "comm.table.empty": "未配置",
+  "TimeSelect.index.100001-0": "最近1小时",
+  "TimeSelect.index.100001-1": "最近24小时",
+  "TimeSelect.index.100001-2": "近一周"
 }
