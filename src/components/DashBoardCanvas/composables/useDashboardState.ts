@@ -96,7 +96,11 @@ export function useDashboardState(options: DashboardStateOptions) {
     commit(next)
     const key = options.storageKey?.()
     if (key && typeof localStorage !== 'undefined') {
-      try { localStorage.setItem(key, JSON.stringify(toStoredLayout(layout))) } catch { /* Storage may be unavailable or full. */ }
+      // 隐藏组件仍属于画布；保留其网格项，避免下次恢复布局时把用户的调整判为缺项。
+      const hidden = next.components.filter(widget => widget.visible === false).map(widget => ({
+        ...normalizeGridItem(widget.componentProps.gridItem, gridSettings.value.columns), i: widget.id,
+      }))
+      try { localStorage.setItem(key, JSON.stringify(toStoredLayout([...layout, ...hidden]))) } catch { /* Storage may be unavailable or full. */ }
     }
   }
 
