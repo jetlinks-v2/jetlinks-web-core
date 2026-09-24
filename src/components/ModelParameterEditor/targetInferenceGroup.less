@@ -1,7 +1,8 @@
 .target-inference-editor__group {
+  flex: 0 0 auto;
   padding: var(--space-4);
-  border: 1px solid var(--jet-theme-border-secondary, var(--line));
-  border-radius: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
   background: var(--bg);
 }
 
@@ -10,17 +11,18 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-2);
 }
 
 .target-inference-editor__group-head {
   min-height: 2rem;
-  margin-bottom: var(--space-4);
-  padding: 0 var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line);
 }
 
 .target-inference-editor__group--collapsed .target-inference-editor__group-head {
-  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .target-inference-editor__group-head-main,
@@ -29,16 +31,22 @@
   align-items: center;
   min-width: 0;
   flex: 1;
-  gap: 0.35rem;
+  gap: var(--space-2);
   cursor: pointer;
 }
 
 .target-inference-editor__parts-head {
-  align-items: flex-start;
-  margin-bottom: var(--space-2);
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--line);
+  align-items: center;
+  padding: var(--space-4) 0 var(--space-2);
   color: var(--ink-1);
+}
+
+.target-inference-editor__parts-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  margin-left: var(--space-2);
+  background: var(--line);
 }
 
 .target-inference-editor__collapse-icon {
@@ -61,11 +69,18 @@
   flex: 1;
 }
 
+.target-inference-editor__label-context {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+  font-size: var(--fs-12);
+}
+
 .target-inference-editor__label-value {
   display: block;
   color: var(--ink-1);
-  font-size: var(--fs-14);
+  font-size: var(--fs-15);
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .target-inference-editor__label-field :deep(.ant-input-affix-wrapper) {
@@ -85,29 +100,14 @@
 }
 
 .target-inference-editor__parts-title strong {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--ink-2);
   line-height: 1.5;
-}
-
-.target-inference-editor__parts-title-wrap {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 0.2rem;
-}
-
-.target-inference-editor__parts-path {
-  color: var(--ink-3);
-  font-size: var(--fs-12);
-  line-height: 1.4;
-  word-break: break-all;
 }
 
 .target-inference-editor__group-body {
   min-width: 0;
-  padding: 0 var(--space-4) var(--space-3);
-  border: 1px solid var(--jet-theme-border-secondary, var(--line));
-  border-radius: 8px;
-  background: var(--bg);
 }
 
 .target-inference-editor__parts {

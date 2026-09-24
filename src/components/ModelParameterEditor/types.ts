@@ -8,6 +8,8 @@ export type ModelParameterInputType = 'number' | 'boolean' | 'select' | 'json' |
 
 export type ModelParameterPropertyField = 'name' | 'property' | 'description' | 'type'
 
+export type ModelRoiCapability = 'area' | 'line' | 'entryExitLine'
+
 export interface ModelParameterOption {
   label: string
   value: any
@@ -42,6 +44,10 @@ export interface ModelParameterLocale {
   defaultParameters: string
   others: string
   othersDescription: string
+  roiDrawing: string
+  roiArea: string
+  roiLine: string
+  roiEntryExitLine: string
   realtimeUserDescription: string
   realtimeDefaultDescription: string
   imageUserDescription: string
@@ -69,13 +75,17 @@ export interface ModelParameterLocale {
   parts: string
   targetDetection: string
   model: string
+  modelSummaryLabel: string
   vectorProfile: string
   additionalParams: string
   defaultEnabled: string
+  defaultDisabled: string
   userSelectable: string
+  userNotSelectable: string
   targetParameterName: string
   targetParameterDescription: string
   configure: string
+  viewConfiguration: string
   deleteTargetLabel: string
   deletePartLabel: string
   noTargetInference: string

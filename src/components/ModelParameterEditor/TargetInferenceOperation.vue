@@ -10,22 +10,37 @@
       <div class="target-inference-operation__title-wrap">
         <div class="target-inference-operation__title-line">
           <strong>{{ title }}</strong>
+          <!-- Default behavior and user choice are independent capability settings. -->
+          <div class="target-inference-operation__status">
+            <a-tag :bordered="false" :color="operation.enabled ? 'success' : undefined">
+              {{ operation.enabled ? locale.defaultEnabled : locale.defaultDisabled }}
+            </a-tag>
+            <a-tag :bordered="false" :color="operation.userSelectable ? 'processing' : undefined">
+              {{ operation.userSelectable ? locale.userSelectable : locale.userNotSelectable }}
+            </a-tag>
+          </div>
         </div>
-        <span class="target-inference-operation__path">{{ path }}</span>
+        <div v-if="operation.model" class="target-inference-operation__summary">
+          <span class="target-inference-operation__model-label">{{ locale.modelSummaryLabel }}</span>
+          <a-tooltip :title="operation.model">
+            <span class="target-inference-operation__model">{{ operation.model }}</span>
+          </a-tooltip>
+        </div>
         <span v-if="firstError" class="target-inference-operation__error">
           {{ getErrorMessage(firstError) }}
         </span>
       </div>
       <div class="target-inference-operation__actions">
-        <a-button
-          type="link"
-          size="small"
-          :aria-label="`${locale.configure} ${title}`"
-          @click="configOpen = true"
-        >
-          <AIcon type="SettingOutlined" />
-          {{ locale.configure }}
-        </a-button>
+        <a-tooltip :title="editing ? locale.configure : locale.viewConfiguration">
+          <a-button
+            type="text"
+            size="small"
+            :aria-label="`${editing ? locale.configure : locale.viewConfiguration} ${title}`"
+            @click="configOpen = true"
+          >
+            <template #icon><AIcon :type="editing ? 'SettingOutlined' : 'EyeOutlined'" /></template>
+          </a-button>
+        </a-tooltip>
       </div>
     </div>
 
@@ -35,7 +50,7 @@
       :footer="null"
       :destroy-on-close="true"
       width="min(720px, calc(100vw - 32px))"
-      :body-style="{ height: 'min(480px, calc(100vh - 180px))', overflow: 'hidden' }"
+      :body-style="{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto', overflowX: 'hidden' }"
     >
       <template #title>
         <div class="target-inference-operation__modal-title">
@@ -138,42 +153,83 @@ function getErrorMessage(key?: string) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-2);
 }
 
 .target-inference-operation__title-line {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   min-width: 0;
   color: var(--ink-1);
+}
+
+.target-inference-operation__title-line strong {
+  font-size: var(--fs-14);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.target-inference-operation__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+
+  :deep(.ant-tag) {
+    margin-inline-end: 0;
+    padding-inline: var(--space-1);
+    font-size: var(--fs-12);
+  }
 }
 
 .target-inference-operation__title-wrap {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 0.2rem;
+  flex: 1;
+  gap: var(--space-1);
 }
 
-.target-inference-operation__path {
+.target-inference-operation__summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  min-width: 0;
   color: var(--ink-3);
   font-size: var(--fs-12);
   line-height: 1.4;
-  word-break: break-all;
+}
+
+.target-inference-operation__model-label {
+  flex: 0 0 auto;
+}
+
+.target-inference-operation__model {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .target-inference-operation__actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 0.5rem;
 }
 
 .target-inference-operation__modal-title {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 0.15rem;
+  gap: var(--space-1);
+  padding-right: var(--space-6);
+}
+
+.target-inference-operation__modal-title strong {
+  color: var(--ink-1);
+  font-size: var(--fs-15);
+  line-height: 1.5;
 }
 
 .target-inference-operation__modal-path {

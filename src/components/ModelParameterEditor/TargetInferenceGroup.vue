@@ -19,6 +19,7 @@
           aria-hidden="true"
           @click.stop="toggleExpanded"
         />
+        <span class="target-inference-editor__label-context">{{ locale.targetLabel }}</span>
         <div class="target-inference-editor__label-field">
           <a-input
             v-if="editing"
@@ -41,17 +42,17 @@
           </span>
         </div>
       </div>
-      <a-button
-        v-if="editing"
-        type="text"
-        danger
-        size="small"
-        :aria-label="locale.deleteTargetLabel"
-        @click.stop="emit('remove')"
-      >
-        <AIcon type="DeleteOutlined" />
-        {{ locale.deleteTargetLabel }}
-      </a-button>
+      <a-tooltip v-if="editing" :title="locale.deleteTargetLabel">
+        <a-button
+          type="text"
+          danger
+          size="small"
+          :aria-label="locale.deleteTargetLabel"
+          @click.stop="emit('remove')"
+        >
+          <template #icon><AIcon type="DeleteOutlined" /></template>
+        </a-button>
+      </a-tooltip>
     </div>
 
     <div v-show="expanded" class="target-inference-editor__group-body">
@@ -89,22 +90,18 @@
             aria-hidden="true"
             @click.stop="togglePartsExpanded"
           />
-          <div class="target-inference-editor__parts-title-wrap">
-            <strong>{{ locale.parts }}</strong>
-            <span class="target-inference-editor__parts-path">
-              {{ buildPath(group.label, 'parts') }}
-            </span>
-          </div>
+          <strong>{{ locale.parts }}</strong>
         </div>
-        <a-button
-          v-if="editing"
-          type="link"
-          size="small"
-          @click.stop="emit('add-part')"
-        >
-          <AIcon type="PlusOutlined" />
-          {{ locale.addPartLabel }}
-        </a-button>
+        <a-tooltip v-if="editing" :title="locale.addPartLabel">
+          <a-button
+            type="text"
+            size="small"
+            :aria-label="locale.addPartLabel"
+            @click.stop="emit('add-part')"
+          >
+            <template #icon><AIcon type="PlusOutlined" /></template>
+          </a-button>
+        </a-tooltip>
       </div>
 
       <div

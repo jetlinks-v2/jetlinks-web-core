@@ -53,11 +53,10 @@
 
       <div v-show="activeTab === 'others'">
         <ParameterOthersPanel
-          :text="othersText"
-          :invalid="othersInvalid"
+          :value="asRecord(localDefinition.others)"
           :locale="locale"
           :editing="editing"
-          @update:text="updateOthers"
+          @change="updateRoiCapability"
         />
       </div>
     </div>
@@ -68,7 +67,6 @@
 import type { PropType } from 'vue'
 import { computed, ref, watch } from 'vue'
 import { cloneDeep } from 'lodash-es'
-import MonacoEditor from '../MonacoEditor/monacoEditor.vue'
 import ParameterConfigTable from './ParameterConfigTable.vue'
 import ParameterOthersPanel from './ParameterOthersPanel.vue'
 import ParameterScenePanel from './ParameterScenePanel.vue'
@@ -78,8 +76,9 @@ import {
   asRecord,
   isTargetInferenceProperty,
   normalizeParameterProperties,
+  normalizeModelRoiConfiguration,
   removePath,
-  stringifyJson,
+  updateModelRoiCapability,
   writePath,
   type ParameterRecord
 } from './modelParameterUtils'
@@ -95,7 +94,8 @@ import type {
   ModelParameterLocale,
   ModelParameterProperty,
   ModelParameterScene,
-  ModelParameterSceneMode
+  ModelParameterSceneMode,
+  ModelRoiCapability
 } from './types'
 
 type ParameterTab = 'config' | 'realtime' | 'image' | 'targetInference' | 'others'
@@ -135,8 +135,6 @@ const activeTab = ref<ParameterTab>('config')
 const parameterConfigTableRef = ref<ParameterConfigTableExpose>()
 const targetInferenceEditorRef = ref<TargetInferenceEditorExpose>()
 const localDefinition = ref<ParameterRecord>({})
-const othersText = ref('{}')
-const othersInvalid = ref(false)
 const imageUserInvalidProperties = ref<string[]>([])
 
 const locale = computed(() => ({ ...defaultModelParameterLocale, ...props.locale }))
@@ -179,10 +177,6 @@ watch(() => props.editing, () => {
   imageUserInvalidProperties.value = []
 })
 
-watch(() => localDefinition.value.others, value => {
-  othersText.value = stringifyJson(value)
-  othersInvalid.value = false
-}, { immediate: true, deep: true })
 function isApplicable(source: ModelParameterDefinitionSource, property: ModelParameterProperty) {
   return Boolean(source === 'params' ? property.paramsDefinition : property.testParamsDefinition)
 }
@@ -212,19 +206,11 @@ function updateSceneValue(scene: ModelParameterScene, property: string, value: u
   commit(next)
 }
 
-function updateOthers(value: string) {
-  othersText.value = value
-  if (!value.trim()) {
-    othersInvalid.value = false
-    commit({ ...cloneDeep(localDefinition.value), others: {} })
-    return
-  }
-  try {
-    othersInvalid.value = false
-    commit({ ...cloneDeep(localDefinition.value), others: JSON.parse(value) })
-  } catch {
-    othersInvalid.value = true
-  }
+function updateRoiCapability({ capability, enabled }: { capability: ModelRoiCapability; enabled: boolean }) {
+  if (!props.editing) return
+  const next = cloneDeep(localDefinition.value)
+  next.others = updateModelRoiCapability(asRecord(next.others) || {}, capability, enabled)
+  commit(next)
 }
 
 function updateTargetInference(value: TargetInferenceEditorValue) {
@@ -284,6 +270,9 @@ function prepareForSave() {
     targetInference.targetInference,
     targetInference.parameterDefinitions
   )
+  // Resolve persisted ROI conflicts only on save, never while loading or viewing a model.
+  const others = asRecord(finalDefinition.others)
+  if (others) finalDefinition.others = normalizeModelRoiConfiguration(others)
   commit(finalDefinition)
   return finalDefinition
 }
