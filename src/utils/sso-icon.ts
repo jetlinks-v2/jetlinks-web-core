@@ -1,6 +1,7 @@
 import standalone from '@jetlinks-web-core/assets/apply/internal-standalone.png'
 import dingtalk from '@jetlinks-web-core/assets/bindPage/dingtalk.png'
 import wechat from '@jetlinks-web-core/assets/bindPage/wechat-webapp.png'
+import wechatOfficial from '@jetlinks-web-core/assets/login/weChat.png'
 import thirdParty from '@jetlinks-web-core/assets/apply/third-party.png'
 import wechatMiniapp from '@jetlinks-web-core/assets/apply/wechat-miniapp.png'
 
@@ -13,6 +14,7 @@ import wechatMiniapp from '@jetlinks-web-core/assets/apply/wechat-miniapp.png'
 export const ssoIconMap = new Map<string, string>([
   ['dingtalk-ent-app', dingtalk],
   ['wechat-webapp', wechat],
+  ['wechat-official-account', wechatOfficial],
   ['internal-standalone', standalone],
   ['third-party', thirdParty],
   ['wechat-miniapp', wechatMiniapp],

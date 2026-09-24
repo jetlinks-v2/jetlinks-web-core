@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { LocalStore } from '@jetlinks-web/utils'
 import { useRequest } from '@jetlinks-web/hooks'
 import { bindInfoWithoutProjectContext } from '@jetlinks-web-core/api/login'
@@ -18,8 +18,8 @@ const BASE_API_PATH = import.meta.env.VITE_APP_BASE_API
 /**
  * SSO 登录入口。
  *
- * `bindInfo` 同时喂两条链路：公众号应用给扫码/微信浏览器登录用，其余应用在页面上
- * 直接以图标入口弹出对应 SSO 登录页。两者共用同一次请求，避免重复拉取绑定信息。
+ * `bindInfo` 提供登录页入口：有 appId 的公众号扫码，其它应用打开 SSO 登录页。
+ * 两类入口共用一次请求，避免同一个公众号被渲染两次。
  */
 export const useSsoLogin = () => {
   const bindings = ref<SsoBinding[]>([])
@@ -31,20 +31,6 @@ export const useSsoLogin = () => {
     onSuccess: (res) => {
       bindings.value = Array.isArray(res?.result) ? res.result : []
     },
-  })
-
-  /** 登录方式区已提供微信扫码时的公众号应用；没有 appId 时不能作为扫码入口。 */
-  const wechatRecord = computed<SsoBinding | null>(() => (
-    bindings.value.find(item => (
-      item.provider === 'wechat-official-account' && item.config?.appId
-    )) || null
-  ))
-
-  /** 图标入口列表：排除已作为微信扫码方式展示的同一个应用，避免重复入口。 */
-  const thirdPartyBindings = computed(() => {
-    const wechatId = wechatRecord.value?.id
-
-    return bindings.value.filter(item => item.id !== wechatId)
   })
 
   const handleCredentialStorage = (event: StorageEvent) => {
@@ -85,8 +71,6 @@ export const useSsoLogin = () => {
 
   return {
     bindings,
-    wechatRecord,
-    thirdPartyBindings,
     ensureLoaded,
     openSsoLogin,
   }
