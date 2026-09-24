@@ -860,6 +860,7 @@
   "Login.backDefault": "返回默认登录方式",
   "Login.otherMethods": "其它登录方式",
   "Login.ssoMethods": "第三方账号登录",
+  "Login.moreSsoMethods": "更多登录方式",
   "Login.passwordMethod": "账号",
   "Login.wechatMethod": "微信",
   "Login.mobileMethod": "手机",

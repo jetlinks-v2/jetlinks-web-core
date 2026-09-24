@@ -860,6 +860,7 @@
   "Login.backDefault": "Back to default login",
   "Login.otherMethods": "Other login methods",
   "Login.ssoMethods": "Sign in with a third-party account",
+  "Login.moreSsoMethods": "More sign-in methods",
   "Login.passwordMethod": "Account",
   "Login.wechatMethod": "WeChat",
   "Login.mobileMethod": "Phone",
