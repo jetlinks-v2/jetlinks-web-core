@@ -1,7 +1,7 @@
 import { createApp, h } from 'vue'
 import { getToken, LocalStore, setToken } from '@jetlinks-web/utils'
-import {TOKEN_KEY, TOKEN_KEY_URL} from '@jetlinks-web/constants'
-import { crateAxios, request, wsClient, ndJson } from '@jetlinks-web/core'
+import {BASE_API, TOKEN_KEY, TOKEN_KEY_URL} from '@jetlinks-web/constants'
+import { crateAxios, getInstance, request, wsClient, ndJson } from '@jetlinks-web/core'
 import { jumpLogin } from '@jetlinks-web-core/router'
 import { notification } from 'ant-design-vue'
 import { isSubApp, langKey, PersonalToken, PersonalUrlKey } from '@jetlinks-web-core/utils/consts'
@@ -369,6 +369,10 @@ export const initAxios = () => {
 
     const requestOptions = settings.requestOptions as PackageRequestOptions
     crateAxios(settings)
+    if (!BASE_API) {
+        // Java 资源包直接访问时请求从站点根路径发出；同时阻止 Axios 读取同域残留的 local-base-api。
+        getInstance().defaults.baseURL = '/'
+    }
     ndJson.create({
         langKey: settings.langKey,
         filter_url: settings.filter_url,
