@@ -110,8 +110,8 @@ async function onLayoutEnd() {
 :deep(.vue-grid-item.vue-draggable-dragging),
 :deep(.vue-grid-item.resizing) {
   background: var(--accent-soft);
-  border-radius: 12px !important;
-  clip-path: inset(0 round 12px);
+  border-radius: var(--r-3, 8px) !important;
+  clip-path: inset(0 round var(--r-3, 8px));
   overflow: hidden;
 }
 </style>
