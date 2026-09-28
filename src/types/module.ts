@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import type { RouteMeta, RouteRecordRaw } from 'vue-router'
 import type { DataCapabilityProviderManifest } from '../data-capability/types'
+import type { ContentPanelOverrides } from './content-panel'
 
 export type ModuleResourceRecord<T = unknown> = Record<string, T>
 
@@ -52,6 +53,13 @@ export interface ModuleDefinition {
   getMenuFilters?: () => MenuFilterDefinition[]
   getFilterRoutes?: () => RouteRecordRaw[]
   getRegisterComponents?: () => RegistryAction[]
+  /**
+   * 声明本模块哪些页面由布局壳层套统一 `ContentPanel`、哪些不套。
+   *
+   * 键为路由 `name`（菜单配的 `code`）或路由 `path`；返回的清单在项目布局下决定
+   * 壳层是否包裹面板。代码侧声明，改完随代码生效，不需要重新初始化菜单。
+   */
+  getContentPanelOverrides?: () => ContentPanelOverrides
 }
 
 export interface ModuleExport {

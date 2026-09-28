@@ -24,6 +24,8 @@ export interface GeneralAgentConversationMessage {
 }
 
 export interface GeneralAgentConversationChatPayload {
+  /** 本轮附加指引，与会话原系统提示合并，不覆盖宿主能力和边界。 */
+  systemPromptAppend?: string;
   content?: string;
   files?: unknown[];
   params?: Record<string, unknown>;
@@ -31,6 +33,10 @@ export interface GeneralAgentConversationChatPayload {
   commandArguments?: Record<string, unknown>;
   toolAction?: GeneralAgentToolAction;
 }
+
+// Shared DOM contract for composer actions rendered inside a floating general-agent surface.
+export const GENERAL_AGENT_COMPOSER_INTENT_EVENT = 'ai-capability:composer-intent';
+export const GENERAL_AGENT_COMPOSER_SURFACE_SELECTOR = '[data-ai-composer-surface]';
 
 /** Re-execute a real saved call with user-confirmed values; the server owns tool/permission/provenance lookup. */
 export interface GeneralAgentToolAction {

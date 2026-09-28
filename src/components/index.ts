@@ -84,6 +84,7 @@ import SwitchGroup from './SwitchGroup'
 import SelectableListCard from './SelectableListCard'
 import ContentPanel from './ContentPanel/index.vue'
 import { TableActions, TableActionsItem } from './TableActions'
+import BasisSection from './BasisSection/index.vue'
 
 export default {
     install(app: App) {
@@ -173,6 +174,7 @@ export default {
           .component('ContentPanel', ContentPanel)
           .component('TableActions', TableActions)
           .component('TableActionsItem', TableActionsItem)
+          .component('BasisSection', BasisSection)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
@@ -207,8 +209,11 @@ export {
     ContentPanel,
     TableActions,
     TableActionsItem,
+    BasisSection
 }
 export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlacement } from './TableActions'
+export { I18nTextField, I18nTextDialog, I18nInputTrigger } from './I18n'
+export type { I18nMessages, I18nTextMessages, I18nTextFieldProps, I18nTextDialogProps } from './I18n'
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
 export type { SvgIconType } from './SvgIcon/icons'
 export type { SegmentPanelOption, SegmentPanelValue } from './SegmentPanel'

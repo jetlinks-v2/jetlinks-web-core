@@ -100,7 +100,6 @@ const { selectedKey, visitedKeys, select, onKeydown, tabId, panelId } = useSlant
   padding: var(--slanted-tabs-nav-padding, 0);
   overflow-x: auto;
   isolation: isolate;
-  background: var(--slanted-tabs-background, linear-gradient(105deg, #dfe6f6, #edf0f5 65%, #f3f5f8));
 }
 
 .slanted-tabs__tab {
@@ -144,6 +143,7 @@ const { selectedKey, visitedKeys, select, onKeydown, tabId, panelId } = useSlant
 .slanted-tabs__tab.is-active .slanted-tabs__label {
   color: var(--ink-1, #20242d);
   font-weight: 500;
+	font-size: var(--fs-16);
 }
 
 .slanted-tabs__tab.is-active::before {
@@ -179,6 +179,7 @@ const { selectedKey, visitedKeys, select, onKeydown, tabId, panelId } = useSlant
   gap: 0.5em;
   color: var(--ink-3, #8793a3);
   white-space: nowrap;
+	font-size: var(--fs-14);
 }
 
 .slanted-tabs__count {

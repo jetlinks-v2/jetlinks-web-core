@@ -19,6 +19,7 @@
           aria-hidden="true"
           @click.stop="toggleExpanded"
         />
+        <span class="target-inference-editor__label-context">{{ locale.partLabel }}</span>
         <div class="target-inference-editor__label-field">
           <a-input
             v-if="editing"
@@ -30,9 +31,9 @@
             @click.stop="handleLabelClick"
             @update:value="emit('update:label', $event)"
           />
-          <strong v-else class="target-inference-editor__label-value">
+          <a-tag v-else :bordered="false" class="target-inference-editor__label-value">
             {{ part.label || '--' }}
-          </strong>
+          </a-tag>
           <span v-if="errors?.label" class="target-inference-editor__error">
             {{ getErrorMessage(errors.label) }}
           </span>
@@ -41,17 +42,17 @@
           </span>
         </div>
       </div>
-      <a-button
-        v-if="editing"
-        type="text"
-        danger
-        size="small"
-        :aria-label="locale.deletePartLabel"
-        @click.stop="emit('remove')"
-      >
-        <AIcon type="DeleteOutlined" />
-        {{ locale.deletePartLabel }}
-      </a-button>
+      <a-tooltip v-if="editing" :title="locale.deletePartLabel">
+        <a-button
+          type="text"
+          danger
+          size="small"
+          :aria-label="locale.deletePartLabel"
+          @click.stop="emit('remove')"
+        >
+          <template #icon><AIcon type="DeleteOutlined" /></template>
+        </a-button>
+      </a-tooltip>
     </div>
 
     <div v-show="expanded" class="target-inference-editor__part-body">
@@ -171,18 +172,14 @@ function getErrorMessage(key?: string) {
 <style scoped lang="less">
 .target-inference-editor__part {
   min-width: 0;
-  padding: 0 var(--space-3) var(--space-2);
-  border: 1px solid var(--jet-theme-border-secondary, var(--line));
-  border-radius: 8px;
-  background: var(--bg);
 }
 
 .target-inference-editor__part-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 2.5rem;
-  gap: 1rem;
+  min-height: 2rem;
+  gap: var(--space-2);
   padding: var(--space-2) 0;
 }
 
@@ -195,7 +192,7 @@ function getErrorMessage(key?: string) {
 .target-inference-editor__part-head-main {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-2);
   cursor: pointer;
 }
 
@@ -215,10 +212,21 @@ function getErrorMessage(key?: string) {
 }
 
 .target-inference-editor__label-value {
-  display: block;
+  display: inline-block;
+  max-width: 100%;
+  margin-inline-end: 0;
   color: var(--ink-1);
   font-size: var(--fs-14);
+  font-weight: 600;
   line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.target-inference-editor__label-context {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+  font-size: var(--fs-12);
 }
 
 .target-inference-editor__label-field :deep(.ant-input-affix-wrapper) {
@@ -239,7 +247,7 @@ function getErrorMessage(key?: string) {
 
 .target-inference-editor__part-body {
   min-width: 0;
-  border-top: 1px solid var(--line);
+  padding: 0 var(--space-2);
 }
 
 .target-inference-editor__error {

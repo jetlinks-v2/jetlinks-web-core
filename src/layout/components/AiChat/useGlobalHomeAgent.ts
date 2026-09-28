@@ -29,6 +29,8 @@ import {
   type GeneralAgentRuntime,
 } from './generalAgentRuntime';
 
+import { resolveHomeAgentConversationContext } from './homeAgentConversationContext';
+
 const normalizeMessageText = (value: unknown) => String(value || '').trim();
 
 const resolveRoutePageAgentClientId = (route: RouteLocationNormalizedLoaded) => {
@@ -93,12 +95,7 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
     if (message?.type !== 'user' && message?.type !== 'human') return;
     const content = resolveMessageContent(message);
     if (!content) return;
-    latestUserMessage = {
-      id: normalizeMessageText(message.id) || undefined,
-      type: 'user',
-      content,
-      createdAt: Number(message.createdAt) || Date.now(),
-    };
+    latestUserMessage = resolveHomeAgentConversationContext(message, content, latestUserMessage);
   };
 
   const createRuntimeParameters = (runtime: GeneralAgentRuntime) => ({
@@ -239,12 +236,7 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     if (!content) {
       return;
     }
-    latestUserMessage = {
-      id: normalizeMessageText(message.id) || undefined,
-      type: 'user',
-      content,
-      createdAt: Number(message.createdAt) || Date.now(),
-    };
+    latestUserMessage = resolveHomeAgentConversationContext(message, content, latestUserMessage);
   };
 
   const createRuntimeParameters = (runtime: HomeAgentRuntime) => ({

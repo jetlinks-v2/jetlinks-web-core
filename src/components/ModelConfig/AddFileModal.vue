@@ -245,6 +245,7 @@ const form = reactive<{
   format: []
 })
 const uploadFiles = ref<any[]>([])
+const autoFilledUploadName = ref('')
 const selectedOwnerFormat = ref<string>()
 const modelPurpose = ref<ModelPurpose>('standard')
 const businessTypeInput = ref('')
@@ -316,8 +317,7 @@ const modelFileFormat = computed(() => resolveModelFileOptionValue(modelFileForm
 
 watch(() => form.createType, (createType) => {
   if (createType !== 'upload' && createType !== 'extract') {
-    form.file = undefined
-    uploadFiles.value = []
+    clearUploadFile()
   }
   if (createType === 'custom') {
     selectedOwnerFormat.value = undefined
@@ -367,21 +367,45 @@ watch(() => props.showBatchUpload, (visible) => {
 // 业务调用方通过插槽扩展创建方式，公共弹窗只提供文件名和文件归属回填能力。
 const setFileName = (name: string) => {
   form.name = name
+  autoFilledUploadName.value = ''
 }
 
 const setFileOwner = (owner?: string) => {
   selectedOwnerFormat.value = owner || undefined
 }
 
+function trimModelFileUploadName(name: string) {
+  const dotIndex = name.indexOf('.')
+  return dotIndex > 0 ? name.slice(0, dotIndex) : name
+}
+
+function resolveUploadFileName(name: string) {
+  return isModelFilePath.value ? trimModelFileUploadName(name) : name
+}
+
+function clearUploadFile() {
+  form.file = undefined
+  uploadFiles.value = []
+  if (form.name === autoFilledUploadName.value) {
+    form.name = ''
+  }
+  autoFilledUploadName.value = ''
+}
+
 const beforeUpload = (file: File) => {
+  const nextName = resolveUploadFileName(file.name)
+  const shouldSyncName = !form.name || form.name === autoFilledUploadName.value
   form.file = file
-  if (!form.name) {
-    form.name = file.name
+  if (shouldSyncName) {
+    form.name = nextName
+    autoFilledUploadName.value = nextName
+  } else {
+    autoFilledUploadName.value = ''
   }
   return false
 }
 
-const removeFile = () => { form.file = undefined }
+const removeFile = () => { clearUploadFile() }
 
 const isEditableFileName = (name: string) => {
   const ext = name.split('.').pop()?.toLowerCase()
@@ -431,6 +455,7 @@ watch(() => props.open, (open) => {
     form.createType = 'upload'
     form.format = []
     form.file = undefined
+    autoFilledUploadName.value = ''
     businessTypeInput.value = ''
     algorithmModelInput.value = ''
     modelFileFormatInput.value = ''

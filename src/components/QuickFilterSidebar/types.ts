@@ -32,6 +32,7 @@ export type QuickFilterSidebarItem = {
 export type QuickFilterSidebarSection = {
   key: string
   title: string
+  icon?: string
   items?: QuickFilterSidebarItem[]
   activeValue?: QuickFilterSidebarValue
   activeValues?: QuickFilterSidebarValue[]

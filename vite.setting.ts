@@ -90,7 +90,6 @@ export const getMergedEnv = (mode: string, envDir: string) => {
 
   return {
     // 部署方式独立于 saas/cloud 业务环境，未配置时沿用 SaaS 部署。
-    VITE_APP_DEPLOYMENT: 'saas',
     ...loadEnv(mode, __dirname, ''),
     ...rootEnvOverride,
     ...getRuntimeAppEnv()

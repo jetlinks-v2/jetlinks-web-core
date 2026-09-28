@@ -1,6 +1,6 @@
 <template>
   <div class="menu-asset-permission-editor" :style="{ height: resolvedHeight }">
-    <EqualHeightColumns v-if="showAssetPermissions" height="100%" :left-width="leftWidth" :right-width="rightWidth">
+    <EqualHeightColumns v-if="showAssetPermissions" height="100%" :left-width="leftWidth" :right-width="rightWidth" :collapsible="false">
       <template #left>
         <MenuPermissionPane :context="context" :columns="columns" :owner-labels="ownerLabels" :readonly="readonly">
           <template #header-extra><slot name="menu-header-extra" :context="context" /></template>

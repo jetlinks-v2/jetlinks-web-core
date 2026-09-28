@@ -151,17 +151,6 @@ const defaultToolbars: ToolbarNames[] = [
   'fullscreen',
 ]
 
-const defaultTexts: MarkdownEditorTexts = {
-  emptyDescription: 'Nothing to preview',
-  uploadHint: 'Drag, paste, or upload images/files to insert Markdown links automatically',
-  uploading: 'Uploading files...',
-  uploadFile: 'Upload file',
-  dropTitle: 'Drop to upload into the document',
-  dropSubtitle: 'Images become ![]() and other files become []()',
-  uploadFailed: 'File upload failed',
-  uploadNoUrl: 'Upload succeeded but no file URL was returned',
-}
-
 const props = withDefaults(
   defineProps<{
     modelValue?: string
@@ -205,7 +194,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
 }>()
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 const slots = useSlots()
 
 const text = ref(props.modelValue ?? '')
@@ -225,6 +214,17 @@ const editorLanguage = computed(() => {
   return current.startsWith('zh') ? 'zh-CN' : 'en-US'
 })
 
+const defaultTexts = computed<MarkdownEditorTexts>(() => ({
+  emptyDescription: t('components.MarkdownEditor.emptyDescription'),
+  uploadHint: t('components.MarkdownEditor.uploadHint'),
+  uploading: t('components.MarkdownEditor.uploading'),
+  uploadFile: t('components.MarkdownEditor.uploadFile'),
+  dropTitle: t('components.MarkdownEditor.dropTitle'),
+  dropSubtitle: t('components.MarkdownEditor.dropSubtitle'),
+  uploadFailed: t('components.MarkdownEditor.uploadFailed'),
+  uploadNoUrl: t('components.MarkdownEditor.uploadNoUrl'),
+}))
+
 const isDisabled = computed(() => props.disabled || props.readonly)
 const sectionTemplates = computed(() => props.sectionTemplates ?? [])
 const domainHint = computed(() => props.domainHint?.trim() ?? '')
@@ -232,9 +232,9 @@ const hasAddonToolbar = computed(() => !!sectionTemplates.value.length || !!doma
 const editorHeight = computed(() => `${Math.max((props.rows ?? 12) * 24 + 120, 360)}px`)
 const mergedToolbars = computed(() => props.toolbars?.length ? props.toolbars : defaultToolbars)
 const mergedTexts = computed<MarkdownEditorTexts>(() => ({
-  ...defaultTexts,
+  ...defaultTexts.value,
   ...(props.texts || {}),
-  emptyDescription: props.emptyDescription?.trim() || props.texts?.emptyDescription || defaultTexts.emptyDescription,
+  emptyDescription: props.emptyDescription?.trim() || props.texts?.emptyDescription || defaultTexts.value.emptyDescription,
 }))
 const inputBoxWidth = computed(() => {
   if (props.inputBoxWidth?.trim()) return props.inputBoxWidth.trim()

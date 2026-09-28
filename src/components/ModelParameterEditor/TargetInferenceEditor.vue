@@ -5,8 +5,8 @@
     </div>
 
     <div v-if="editing" class="target-inference-editor__toolbar">
-      <a-button type="link" size="small" @click="addTargetGroup">
-        <AIcon type="PlusOutlined" />
+      <a-button class="target-inference-editor__add-target" type="dashed" block @click="addTargetGroup">
+        <template #icon><AIcon type="PlusOutlined" /></template>
         {{ locale.addTargetLabel }}
       </a-button>
     </div>
@@ -30,7 +30,7 @@
       />
     </div>
 
-    <a-empty v-else :description="locale.noTargetInference" />
+    <a-empty v-else-if="!editing" :description="locale.noTargetInference" />
   </div>
 </template>
 
@@ -252,8 +252,12 @@ defineExpose<TargetInferenceEditorExpose>({ prepareForSave })
 .target-inference-editor__toolbar {
   display: flex;
   flex: 0 0 auto;
-  justify-content: flex-end;
   margin-bottom: var(--space-3);
+}
+
+.target-inference-editor__add-target {
+  height: 2.5rem;
+  border-radius: var(--r-3);
 }
 
 .target-inference-editor__groups {

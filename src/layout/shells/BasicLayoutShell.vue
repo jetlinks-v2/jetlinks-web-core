@@ -9,7 +9,7 @@
   >
     <j-pro-layout
       v-bind="config"
-      v-model:openKeys="state.openKeys"
+      :openKeys="layoutOpenKeys"
       v-model:collapsed="state.collapsed"
       :selectedKeys="layoutSelectedKeys"
       :breadcrumb="{ routes: [] }"
@@ -23,7 +23,7 @@
         : layoutMode === 'side' && variant !== 'project' && !state.collapsed
           ? renderPrimaryMenuGroup
           : undefined"
-      @menuClick="handlePrimaryMenuClick"
+      @update:openKeys="handleOpenKeysChange"
       @backClick="goBack"
     >
       <template #menuHeaderRender>
@@ -52,10 +52,6 @@
         <div class="right-content">
           <RegistryComponent pageCode="layout" code="headerRight">
             <MenuSource />
-            <BusinessApplicationSwitcher
-              v-if="variant === 'project' && businessApplicationRuntime"
-              mode="header"
-            />
             <template v-if="!hideHeaderRight">
               <Resource v-if="systemInfo?.front?.resources" key="resource" />
               <Language key="Language" />
@@ -106,15 +102,9 @@
 </template>
 
 <script setup name="BasicLayoutShell" lang="ts">
-import { h, watchEffect, type PropType, type VNode } from 'vue'
+import { watchEffect, type PropType, type VNode } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import { Menu } from 'ant-design-vue'
-import i18n from '@jetlinks-web-core/locales'
 import type { LayoutMode } from '@jetlinks-web-core/store/system'
-import {
-  DEFAULT_COMING_SOON_MENU_BADGE_I18N_KEY,
-  isComingSoonMenuMeta,
-} from '@jetlinks-web-core/utils/menuBadge'
 import {
   AiChat,
   BusinessApplicationSwitcher,
@@ -127,6 +117,7 @@ import ProjectSecondaryMenu from '../components/ProjectSecondaryMenu.vue'
 import RouteContentSurface from '../components/RouteContentSurface/index.vue'
 import { useBasicLayoutControllerContext } from '../hooks/basicLayoutContext'
 import { useRouteContentPanel } from '../hooks/useRouteContentPanel'
+import { createLayoutMenuItemRenderer } from '../utils/projectMenuRender'
 import type { BasicLayoutVariant } from '../runtime/layoutVariant'
 import MenuSource from '../components/MenuSearch.vue'
 
@@ -138,12 +129,6 @@ type SubMenuItemRender = (context: {
   item: LayoutMenuRouteRecord
   children: VNode[]
 }) => VNode
-
-type MenuItemRender = (context: {
-  item: LayoutMenuRouteRecord
-  title: VNode
-  icon?: VNode
-}) => VNode | undefined
 
 const props = defineProps({
   variant: {
@@ -165,60 +150,28 @@ const props = defineProps({
 
 const controller = useBasicLayoutControllerContext(props.layout)
 
-// 面板只在项目布局生效（见 `isContentPanelLayout`），项目布局内再由路由 `meta.contentPanel` 决定；
-// 租户端复用本壳层但拿到 `enabled: false`，内容区保持引入面板前的结构。
+// 面板只在项目布局生效（见 `isContentPanelLayout`），项目布局内再由模块的
+// `getContentPanelOverrides()` 声明决定；租户端复用本壳层但拿到 `enabled: false`，
+// 内容区保持引入面板前的结构。
 const routeContentPanel = useRouteContentPanel()
 
 watchEffect(() => {
   controller.expandSecondaryMenu.value = props.expandSecondaryMenu
 })
 
-const getMenuTitle = (item: LayoutMenuRouteRecord) => String(
-  i18n.global.t(String(item.meta?.title || item.name || item.path)),
-)
-
-const getMenuBadgeText = (item: LayoutMenuRouteRecord) => {
-  const badge = item.meta?.menuBadge
-  const text = badge?.i18nKey
-    ? i18n.global.t(badge.i18nKey)
-    : badge?.text || i18n.global.t(DEFAULT_COMING_SOON_MENU_BADGE_I18N_KEY)
-
-  return String(text)
-}
-
-const renderMenuItem: MenuItemRender = ({ item, icon }) => {
-  if (!isComingSoonMenuMeta(item.meta)) return undefined
-
-  const children: VNode[] = []
-  if (icon) children.push(icon)
-  children.push(
-    h('span', { class: 'ant-pro-menu-item-title basic-layout-menu-placeholder__title' }, getMenuTitle(item)),
-    h('span', { class: 'layout-menu-badge' }, getMenuBadgeText(item)),
-  )
-
-  return h(
-    Menu.Item,
-    {
-      key: item.key || item.path,
-      disabled: true,
-      class: 'basic-layout-menu-placeholder',
-    },
-    {
-      default: () => h('span', { class: 'ant-pro-menu-item basic-layout-menu-placeholder__content' }, children),
-    },
-  )
-}
+const renderMenuItem = createLayoutMenuItemRenderer(path => controller.handlePrimaryMenuClick({ key: path }))
 
 const {
   businessApplicationRuntime,
   config,
   enterSettings,
   goBack,
-  handlePrimaryMenuClick,
+  handleOpenKeysChange,
   headerScrolled,
   hideHeaderRight,
   layout,
   layoutMode,
+  layoutOpenKeys,
   layoutSelectedKeys,
   layoutType,
   logoWidth,

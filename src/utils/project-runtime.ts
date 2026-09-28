@@ -5,6 +5,7 @@ import {
 } from './project-path'
 import { getProjectStorage, isProjectStorageEnabled } from './project-storage'
 import { isFromCloud } from './request-context'
+import { isPrivateDeployment } from './deployment'
 
 export {
   getProjectCodeFromPathname,
@@ -99,8 +100,8 @@ export const createProjectRuntimeHref = (projectCode: string, path = '/') => {
   const runtimeConfig = getProjectRuntimeConfig()
   const hashPath = normalizeProjectRuntimePath(path)
 
-  // A fixed-project build owns its deployment base; the project code is context, not a URL prefix.
-  if (runtimeConfig.fixedProject) {
+  // SaaS 也会使用 project scope；只有私有化部署使用构建基础路径而不拼接项目 ID。
+  if (isPrivateDeployment()) {
     return `${runtimeConfig.basePath}#${hashPath}`
   }
 

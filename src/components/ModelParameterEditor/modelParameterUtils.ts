@@ -4,7 +4,8 @@ import type {
   ModelParameterInputType,
   ModelParameterOption,
   ModelParameterProperty,
-  ModelParameterScene
+  ModelParameterScene,
+  ModelRoiCapability
 } from './types'
 import {
   asRecord,
@@ -14,6 +15,42 @@ import {
 export { asRecord, hasOwn, hasPath, readPath, removePath, writePath } from './parameterPathUtils'
 
 export type ParameterRecord = Record<string, any>
+
+export function getModelRoiCapabilities(others: Record<string, unknown>): Record<ModelRoiCapability, boolean> {
+  // Existing mixed flags use the compound mode, matching the ROI canvas.
+  const entryExitLine = others.entryExitLine === true
+  return {
+    area: !entryExitLine && others.area === true,
+    line: !entryExitLine && others.line === true,
+    entryExitLine
+  }
+}
+
+export function updateModelRoiCapability(
+  others: Record<string, unknown>,
+  capability: ModelRoiCapability,
+  enabled: boolean
+) {
+  // Normalize before toggling so disabling the compound mode cannot revive hidden flags.
+  const next = normalizeModelRoiConfiguration(others)
+  if (enabled) {
+    if (capability !== 'entryExitLine') delete next.entryExitLine
+    next[capability] = true
+  } else {
+    delete next[capability]
+  }
+  return normalizeModelRoiConfiguration(next)
+}
+
+export function normalizeModelRoiConfiguration(others: Record<string, unknown>) {
+  const next = { ...others }
+  const capabilities = getModelRoiCapabilities(others)
+  for (const capability of ['area', 'line', 'entryExitLine'] as const) {
+    if (capabilities[capability]) next[capability] = true
+    else delete next[capability]
+  }
+  return next
+}
 
 export function isTargetInferenceProperty(property: string) {
   return property === 'targetInference' || property.startsWith('targetInference.')

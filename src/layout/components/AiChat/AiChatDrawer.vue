@@ -10,6 +10,7 @@
         'ai-chat-bubble-panel--resizing': isResizing,
       }"
       :style="panelStyle"
+      data-ai-composer-surface="general-agent"
       role="dialog"
       aria-modal="false"
       :aria-hidden="!open"
@@ -47,6 +48,7 @@
             :suggested-prompts="conversationSuggestedPrompts"
             :prefill-input-key="conversationHandoffPrompt?.id || ''"
             :prefill-input-value="conversationHandoffPrompt?.value || ''"
+            :placeholder="composerPlaceholder"
             :before-send-chat="handleConversationBeforeSend"
             :visible="open"
             @message="handleConversationMessage"
@@ -122,6 +124,7 @@ import type {
 } from './generalAgentExtensions';
 import { useFloatingPanel } from './useFloatingPanel';
 import { useGeneralAgentConversationBridges } from './useGeneralAgentConversationBridges';
+import { useAiChatComposerIntent } from './useAiChatComposerIntent';
 import {
   buildAiAgentHandoffKey,
   clearAiAgentHandoff,
@@ -493,6 +496,18 @@ const conversationKey = computed(() => [
   conversationSystemPrompt.value,
 ].join('|'));
 
+const {
+  placeholder: composerPlaceholder,
+  consumeNextSendParams: consumeComposerNextSendParams,
+} = useAiChatComposerIntent({
+  target: panelRef,
+  resetKey: () => conversationKey.value,
+  focusInput: () => panelRef.value
+    ?.querySelector<HTMLElement>('.agent-conversation__composer-input')
+    ?.focus(),
+  prefillInput: value => conversationRef.value?.prefillInput?.(value),
+});
+
 const handleKeydown = (event: KeyboardEvent) => {
   if (!props.open) {
     return;
@@ -553,9 +568,11 @@ const conversationBridges = useGeneralAgentConversationBridges({
   upsertLocalMessage: message => conversationRef.value?.upsertLocalMessage?.(message),
 });
 
-const handleConversationBeforeSend = (payload: GeneralAgentConversationChatPayload) => (
-  conversationBridges.beforeSend(payload)
-);
+const handleConversationBeforeSend = (payload: GeneralAgentConversationChatPayload) => {
+  const scopedPayload = consumeComposerNextSendParams(payload);
+  if (conversationBridges.beforeSend(scopedPayload) === false) return false;
+  return scopedPayload === payload ? undefined : scopedPayload;
+};
 
 const handleRestoredMessages = (messages: GeneralAgentConversationMessage[]) => {
   restoredConversationMessages.value = messages;

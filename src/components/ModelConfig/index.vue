@@ -4,101 +4,20 @@
     :class="{ 'model-config--resizing': resizingSider }"
     :style="modelConfigStyle"
   >
-    <aside class="model-config__sider">
-      <div class="model-config__sider-head">
-        <span class="model-config__title">{{ text.fileDirectory }}</span>
-        <div class="model-config__format-actions">
-          <a-select
-            v-model:value="selectedFormat"
-            class="model-config__format"
-            :options="formatOptions"
-            :placeholder="text.selectFormat"
-            size="small"
-          />
-        </div>
-      </div>
-
-      <div class="model-config__actions">
-        <a-button
-          block
-          :type="activeType === 'model' ? 'primary' : 'default'"
-          @click="selectModelConfig"
-        >
-          <AIcon type="SettingOutlined" />
-          {{ text.modelConfig }}
-        </a-button>
-        <a-button v-if="showAddFile" block @click="openAddFile('')">
-          <AIcon type="PlusOutlined" />
-          {{ text.addFile }}
-        </a-button>
-      </div>
-
-      <a-spin
-        wrapper-class-name="model-config__tree-spin"
-        :spinning="filesLoading"
-      >
-        <a-tree
-          v-if="treeData.length"
-          v-model:selectedKeys="selectedKeys"
-          class="model-config__tree"
-          :tree-data="treeData"
-          :field-names="{ title: 'title', key: 'key', children: 'children' }"
-          default-expand-all
-          block-node
-          @select="onTreeSelect"
-        >
-          <template #title="{ title, isFile, path, shared, file }">
-            <span
-              class="model-config__tree-node"
-              :class="{ 'model-config__tree-node--tagged': hasFileTreeTags(file) }"
-            >
-              <span class="model-config__tree-node-main">
-                <AIcon :type="getTreeNodeIcon(isFile, shared, file)" />
-                <a-tooltip
-                  v-if="isFile"
-                  overlay-class-name="model-config__tree-file-tooltip"
-                >
-                  <template #title>
-                    <span class="model-config__tree-file-tooltip-content">
-                      <span v-if="file?.path" class="model-config__tree-file-tooltip-path">{{ file.path }}</span>
-                      <span class="model-config__tree-file-tooltip-name">{{ file?.name || title }}</span>
-                    </span>
-                  </template>
-                  <span class="model-config__tree-node-title">{{ title }}</span>
-                </a-tooltip>
-                <span v-else class="model-config__tree-node-title">{{ title }}</span>
-              </span>
-              <span v-if="hasFileTreeTags(file)" class="model-config__tree-tags">
-                <a-tooltip
-                  v-for="tag in getFileTreeTags(file)"
-                  :key="tag.key"
-                  :title="tag.title"
-                  overlay-class-name="model-config__tree-tag-tooltip"
-                >
-                  <span :class="['model-config__tree-tag', `model-config__tree-tag--${tag.type}`]">
-                    {{ tag.label }}
-                  </span>
-                </a-tooltip>
-              </span>
-              <a-button
-                v-if="!isFile"
-                type="link"
-                size="small"
-                class="model-config__tree-add"
-                @click.stop="openAddFile(path)"
-              >
-                <AIcon type="PlusOutlined" />
-              </a-button>
-            </span>
-          </template>
-        </a-tree>
-        <a-empty
-          v-else
-          class="model-config__empty"
-          :description="text.noFiles"
-        />
-      </a-spin>
-    </aside>
+    <ModelFileDirectory
+      v-model:selectedKeys="selectedKeys"
+      v-model:selectedFormat="selectedFormat"
+      :tree-data="treeData"
+      :format-options="formatOptions"
+      :format-names="formatNameMap"
+      :locale="text"
+      :files-loading="filesLoading"
+      :show-add-file="showAddFile"
+      :model-config-active="activeType === 'model'"
+      @select="onTreeSelect"
+      @add-file="openAddFile"
+      @model-config="selectModelConfig"
+    />
 
     <div
       class="model-config__resize"
@@ -336,6 +255,8 @@ import SectionCard from '../SectionCard/index.vue'
 import KvGrid from '../KvGrid/index.vue'
 import ModelParameterEditor from '../ModelParameterEditor/index.vue'
 import AddFileModal from './AddFileModal.vue'
+import ModelFileDirectory from './ModelFileDirectory.vue'
+import type { ModelFile, TreeNode } from './modelFileDirectory'
 import { normalizeFilePath } from './fileOwnerOptions'
 import type { BatchAddFilePayload } from './batchFileUpload'
 
@@ -353,16 +274,6 @@ interface ExtraConfigTab {
 
 interface DefinitionEditorExpose {
   prepareForSave: () => Record<string, any> | undefined
-}
-
-interface TreeNode {
-  title: string
-  key: string
-  path?: string
-  isFile?: boolean
-  shared?: boolean
-  file?: ModelFile
-  children?: TreeNode[]
 }
 
 type LocaleText = Record<string, string>
@@ -384,23 +295,6 @@ interface AddFilePayload {
   createType: 'upload' | 'extract' | 'empty' | 'custom'
   file?: File
   done?: (success?: boolean) => void
-}
-
-interface ModelFile {
-  id: string
-  modelId?: string
-  name: string
-  path?: string
-  fileKey?: string
-  url?: string
-  internalUrl?: string
-  size?: number
-  md5?: string
-  sha256?: string
-  format?: string[]
-  content?: string
-  local?: boolean
-  extract?: boolean
 }
 
 interface ModelConfigSavePayload {
@@ -452,8 +346,11 @@ interface PreviewFilePayload extends DonePayload<string> {
 
 const defaultLocale: LocaleText = {
   fileDirectory: '文件目录',
+  searchFiles: '搜索文件名或路径',
+  noMatchingFiles: '未找到匹配文件，请调整或清空搜索',
   selectFormat: '请选择架构',
   modelConfig: '模型配置',
+  modelManagement: '模型管理',
   addFile: '新增文件',
   noFiles: '暂无模型文件，先选择架构后上传文件',
   edit: '编辑',
@@ -468,7 +365,7 @@ const defaultLocale: LocaleText = {
   confirmDeleteSharedDescription: '该文件未绑定单一架构，删除后会在多个架构中同时删除，请谨慎操作。',
   viewProperty: '查看属性',
   collapseProperty: '收起属性',
-  modelParams: '模型参数',
+  modelParams: '模型配置',
   basicInfo: '基础信息',
   previewTitle: '文件暂不支持在线编辑',
   previewDescription: '当前文件类型不支持在线编辑，可以上传文件替换。',
@@ -946,49 +843,6 @@ function buildTree(source: ModelFile[]): TreeNode[] {
     })
   })
   return roots
-}
-
-function getTreeNodeIcon(isFile?: boolean, shared?: boolean, file?: ModelFile) {
-  if (!isFile) return 'FolderOutlined'
-  if (file?.extract) return 'FileZipOutlined'
-  return shared ? 'FileOutlined' : 'FileProtectOutlined'
-}
-
-function hasFileTreeTags(file?: ModelFile) {
-  return !!file && (file.extract || !!file.format?.filter(Boolean).length)
-}
-
-function getFileTreeTags(file?: ModelFile) {
-  if (!file) return []
-  const formats = file.format?.filter(Boolean) || []
-  const formatLabel = formats.map(format => formatNameMap.value.get(format) || format).join(',')
-  if (file.extract && formatLabel) {
-    return [{
-      key: 'extract-format',
-      label: text.value.extractFile + ' · ' + formatLabel,
-      title: text.value.extractFile + ' / ' + formatLabel,
-      type: 'extract' as const
-    }]
-  }
-
-  const tags: Array<{ key: string; label: string; title: string; type: 'extract' | 'format' }> = []
-  if (file.extract) {
-    tags.push({
-      key: 'extract',
-      label: text.value.extractFile,
-      title: text.value.extractFile,
-      type: 'extract'
-    })
-  }
-  if (formatLabel) {
-    tags.push({
-      key: 'format',
-      label: formatLabel,
-      title: formatLabel,
-      type: 'format'
-    })
-  }
-  return tags
 }
 
 function formatRootFolderTitle(title: string, path: string) {
@@ -1486,7 +1340,6 @@ async function previewFile() {
   user-select: none;
 }
 
-.model-config__sider,
 .model-config__property {
   min-height: 0;
   background: var(--bg);
@@ -1530,242 +1383,11 @@ async function previewFile() {
   border-left: 1px solid var(--line);
 }
 
-.model-config__sider {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.model-config__sider-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-
-.model-config__title {
-  flex-shrink: 0;
-  font-weight: 600;
-  color: var(--ink-1);
-}
-
-.model-config__format {
-  min-width: 9.5rem;
-}
-
-.model-config__format-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.model-config__actions {
-  display: grid;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-}
-
-.model-config__tree {
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  background: transparent;
-}
-
-.model-config__tree-spin {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.model-config__tree-spin :deep(.ant-spin-nested-loading),
-.model-config__tree-spin :deep(.ant-spin-container) {
-  height: 100%;
-  width: 100%;
-  min-height: 0;
-  min-width: 0;
-}
-
-.model-config__tree-spin :deep(.ant-spin-nested-loading) {
-  overflow: hidden;
-}
-
-.model-config__tree-spin :deep(.ant-spin-container) {
-  overflow: hidden auto;
-}
-
-.model-config__tree :deep(.ant-tree-list),
-.model-config__tree :deep(.ant-tree-list-holder),
-.model-config__tree :deep(.ant-tree-list-holder-inner),
-.model-config__tree :deep(.ant-tree-treenode),
-.model-config__tree :deep(.ant-tree-node-content-wrapper),
-.model-config__tree :deep(.ant-tree-title) {
-  min-width: 0;
-  max-width: 100%;
-}
-
-.model-config__tree :deep(.ant-tree-list-holder-inner) {
-  display: block;
-  width: 100%;
-  overflow: hidden;
-}
-
-.model-config__tree :deep(.ant-tree-treenode) {
-  display: flex;
-  width: 100%;
-  overflow: hidden;
-}
-
-.model-config__tree :deep(.ant-tree-switcher),
-.model-config__tree :deep(.ant-tree-indent) {
-  flex-shrink: 0;
-}
-
-.model-config__tree :deep(.ant-tree-node-content-wrapper) {
-  flex: 1 1 0;
-  width: 0;
-  overflow: hidden;
-}
-
-.model-config__tree :deep(.ant-tree-title) {
-  display: block;
-  width: 100%;
-  overflow: hidden;
-}
-
 .model-config__content-title {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-}
-
-.model-config__tree-node {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.model-config__tree-node-main {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: 1 1 0;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.model-config__tree-node-main :deep(.ant-tooltip-open),
-.model-config__tree-node-title {
-  display: block;
-  flex: 1 1 0;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.model-config__tree-node--tagged {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 5.625rem;
-}
-
-.model-config__tree-node--tagged .model-config__tree-node-main {
-  width: 100%;
-}
-
-.model-config__tree-tags {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  width: 5.625rem;
-  min-width: 0;
-  overflow: hidden;
-  justify-content: flex-end;
-}
-
-.model-config__tree-tags :deep(.ant-tooltip-open) {
-  min-width: 0;
-  max-width: 100%;
-}
-
-:global(.model-config__tree-file-tooltip .ant-tooltip-inner),
-:global(.model-config__tree-tag-tooltip .ant-tooltip-inner) {
-  width: max-content;
-  max-width: calc(100vw - 2rem);
-}
-
-:global(.model-config__tree-file-tooltip-content) {
-  display: block;
-  width: max-content;
-  max-width: calc(100vw - 3rem);
-}
-
-:global(.model-config__tree-file-tooltip-path) {
-  display: block;
-  width: max-content;
-  max-width: calc(100vw - 3rem);
-  color: rgba(255, 255, 255, 0.72);
-  white-space: nowrap;
-}
-
-:global(.model-config__tree-file-tooltip-path)::after {
-  content: "/";
-}
-
-:global(.model-config__tree-file-tooltip-name),
-:global(.model-config__tree-tag-tooltip .ant-tooltip-inner) {
-  display: block;
-  width: max-content;
-  max-width: calc(100vw - 3rem);
-  white-space: nowrap;
-}
-
-.model-config__tree-tag {
-  display: inline-block;
-  max-width: 100%;
-  min-width: 0;
-  height: 1.25rem;
-  padding: 0 0.375rem;
-  border-radius: var(--r-1);
-  border: 1px solid var(--line);
-  color: var(--ink-2);
-  background: var(--bg-sunken);
-  font-size: var(--fs-12);
-  line-height: 1.25rem;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.model-config__tree-tag--extract {
-  color: var(--warning);
-  border-color: color-mix(in srgb, var(--warning) 32%, var(--line));
-  background: color-mix(in srgb, var(--warning) 8%, var(--bg));
-}
-
-.model-config__tree-tag--format {
-  color: var(--primary-color);
-  border-color: color-mix(in srgb, var(--primary-color) 32%, var(--line));
-  background: color-mix(in srgb, var(--primary-color) 8%, var(--bg));
-}
-
-.model-config__tree-add {
-  opacity: 0;
-}
-
-.model-config__tree-node:hover .model-config__tree-add {
-  opacity: 1;
-}
-
-.model-config__empty {
-  margin-top: 3rem;
 }
 
 .model-config__main {

@@ -1,4 +1,4 @@
-import { computed, reactive, ref, watchEffect, type ComputedRef } from 'vue'
+import { computed, reactive, ref, watch, watchEffect, type ComputedRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useWindowScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -80,6 +80,16 @@ export const useBasicLayoutController = (
   const layoutModeOverride = ref<LayoutMode | undefined>(undefined)
   const layoutMode = computed<LayoutMode>(() => layoutModeOverride.value ?? layout.value.layout)
 
+  // 顶部菜单使用组件内部的悬停展开状态，undefined 表示不受外部 openKeys 控制。
+  const layoutOpenKeys = computed(() => (
+    layoutMode.value === 'top' ? undefined : state.openKeys
+  ))
+
+  /** 仅同步侧栏展开状态，顶部菜单的展开事件由菜单组件自行处理。 */
+  const handleOpenKeysChange = (keys: string[]) => {
+    if (layoutMode.value !== 'top') state.openKeys = keys
+  }
+
   const themeLayout = computed(() => themeStyleToken.value.layout)
   const menuVariant = computed(() => themeLayout.value?.menuVariant || 'classic')
   const routeLayoutClassName = computed(() => {
@@ -103,6 +113,8 @@ export const useBasicLayoutController = (
   ))
   const projectMenus = computed(() => menuStore.siderMenus)
   const {
+    activePrimaryKey,
+    activeMenuKey,
     primaryMenus,
     primarySelectedKeys,
     projectSidebarMenus,
@@ -139,6 +151,34 @@ export const useBasicLayoutController = (
       ? projectSidebarMenus.value
       : primaryMenus.value
   ))
+  const sidebarRouteOpenKeys = computed(() => (
+    layoutVariant.value === 'application'
+      ? []
+      : getProjectSidebarOpenKeys(
+        layoutMenuData.value,
+        activeMenuKey.value,
+        layoutMode.value,
+      )
+  ))
+
+  // 仅导航上下文变化时补齐祖先分组；手动收起、查询参数变化和等价菜单刷新不重置展开状态。
+  watch(
+    [() => route.path, activePrimaryKey, layoutMode, layoutVariant, sidebarRouteOpenKeys],
+    ([path, root, mode, variant, requiredKeys], previous) => {
+      if (mode === 'top') return
+
+      const [oldPath, oldRoot, oldMode, oldVariant, oldKeys] = previous || []
+      const sameContext = root === oldRoot && mode === oldMode && variant === oldVariant
+      if (sameContext && path === oldPath
+        && requiredKeys.length === oldKeys?.length
+        && requiredKeys.every((key, index) => key === oldKeys[index])) return
+
+      state.openKeys = sameContext
+        ? [...new Set([...state.openKeys, ...requiredKeys])]
+        : requiredKeys
+    },
+    { immediate: true },
+  )
   const logoWidth = computed(() => {
     const width = !state.collapsed ? `${config.value.siderWidth}px` : '100%'
 
@@ -240,8 +280,6 @@ export const useBasicLayoutController = (
       .filter((path): path is string => !!path)
 
     state.selectedKeys = selectedPaths
-    // 项目壳层显式开启时，默认把当前一级菜单下的二级分组一起展开，避免只撑开当前路由分支。
-    state.openKeys = selectedPaths
     if (route.query?.layout === 'false') state.pure = true
   })
 
@@ -250,12 +288,14 @@ export const useBasicLayoutController = (
     config,
     enterSettings,
     expandSecondaryMenu,
+    handleOpenKeysChange,
     handlePrimaryMenuClick,
     headerScrolled,
     hideHeaderRight,
     layout,
     layoutMode,
     layoutModeOverride,
+    layoutOpenKeys,
     layoutSelectedKeys,
     layoutType,
     layoutVariant,

@@ -8,8 +8,46 @@
 
 .model-parameter-editor__tabs {
   flex: 0 0 auto;
-  padding: 0 var(--space-4);
+  min-width: 0;
   border-bottom: 0;
+
+  :deep(.ant-tabs-nav) {
+    width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-bottom: var(--space-3);
+    padding: var(--space-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r-3);
+    background: var(--bg-sunken);
+  }
+
+  :deep(.ant-tabs-nav::before),
+  :deep(.ant-tabs-ink-bar) {
+    display: none;
+  }
+
+  :deep(.ant-tabs-tab) {
+    height: 1.75rem;
+    padding: 0 var(--space-3);
+    border-radius: var(--r-2);
+    color: var(--ink-2);
+  }
+
+  :deep(.ant-tabs-tab + .ant-tabs-tab) {
+    margin-left: var(--space-1);
+  }
+
+  :deep(.ant-tabs-tab-active) {
+    background: var(--bg);
+    box-shadow: var(--shadow-1);
+  }
+
+  :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+    color: var(--primary-color);
+    font-weight: 500;
+    text-shadow: none;
+  }
 }
 
 .model-parameter-editor__body {
@@ -18,7 +56,7 @@
   flex: 1 1 0;
   min-height: 0;
   overflow: auto;
-  padding: 0 var(--space-4) var(--space-4);
+  padding: 0 0 var(--space-4);
 }
 
 .model-parameter-editor__body > div {
@@ -68,13 +106,39 @@
   overflow: hidden;
 }
 
-.model-parameter-editor__others-editor {
-  flex: 1 1 0;
-  height: auto;
-  min-height: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--r-2);
-  overflow: hidden;
+.model-parameter-editor__others-head {
+  margin-bottom: var(--space-4);
+}
+
+.model-parameter-editor__others-section {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.model-parameter-editor__others-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.model-parameter-editor__others-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+
+  :deep(.ant-switch) {
+    flex: 0 0 auto;
+  }
+}
+
+.model-parameter-editor__others-label {
+  min-width: 0;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .model-parameter-editor__json-error {

@@ -20,7 +20,7 @@
           />
 
           <div v-else-if="activeMode === 'wechat'" class="wechat-panel">
-              <WechatScanLogin :record="wechatRecord" />
+              <WechatScanLogin :record="selectedWechatRecord || undefined" />
           </div>
 
           <template v-else-if="activeMode === 'mobile' || activeMode === 'email'">
@@ -43,22 +43,17 @@
       </div>
 
       <MobileWechatLogin
-          :record="wechatLoginRecord"
+          v-if="activeMode === 'wechat'"
+          :record="selectedWechatRecord"
           :is-mobile="isMobile"
       />
 
       <LoginMethodActions
           v-if="activeMode !== 'subAccount'"
           :title="t('Login.otherMethods')"
+          :more-label="t('Login.moreSsoMethods')"
           :methods="availableMethods"
-          :active-mode="activeMode"
-          @change="switchMode"
-      />
-
-      <SsoLoginMethods
-          :title="t('Login.ssoMethods')"
-          :bindings="thirdPartyBindings"
-          @select="onSsoSelect"
+          @change="selectMethod"
       />
 
     <Captcha
@@ -82,21 +77,24 @@ import { useRequest } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
 import { useLogin } from '../hooks/useLogin'
 import { useSsoLogin, type SsoBinding } from '../hooks/useSsoLogin'
+import { resolveSsoIcon } from '@jetlinks-web-core/utils/sso-icon'
+import DefaultImage from '@jetlinks-web-core/assets/login/default.png'
+import EmailImage from '@jetlinks-web-core/assets/login/email.png'
+import PhoneImage from '@jetlinks-web-core/assets/login/phone.png'
 import { clearLoginRedirect, toHashHref } from '../utils/redirect'
 import CodeLogin from './CodeLogin.vue'
 import LoginMethodActions from './LoginMethodActions.vue'
 import LoginPanelHeader from './LoginPanelHeader.vue'
 import MobileWechatLogin from './MobileWechatLogin.vue'
 import PasswordLogin from './PasswordLogin.vue'
-import SsoLoginMethods from './SsoLoginMethods.vue'
 import SubAccountLogin from './SubAccountLogin.vue'
 import WechatScanLogin from './WechatScanLogin.vue'
 
 type LoginMode = 'password' | 'wechat' | 'mobile' | 'email' | 'subAccount'
 type LoginMethodAction = {
-  key: LoginMode
+  key: string
   label: string
-  icon: string
+  image: string
 }
 
 const router = useRouter()
@@ -113,8 +111,7 @@ const skipDefaultModeVerifyCode = ref(
   subAccountLoginEnabled && !!getProjectCodeFromLocation()
 )
 const {
-  wechatRecord: wechatLoginRecord,
-  thirdPartyBindings,
+  bindings,
   ensureLoaded: ensureBindInfoLoaded,
   openSsoLogin
 } = useSsoLogin()
@@ -135,8 +132,7 @@ const {
 
 const showPhone = computed(() => providers.value.some(item => item.id === 'mobile'))
 const showEmail = computed(() => providers.value.some(item => item.id === 'email'))
-const showWechatLogin = computed(() => !!wechatLoginRecord.value)
-const wechatRecord = computed(() => wechatLoginRecord.value || undefined)
+const selectedWechatRecord = ref<SsoBinding | null>(null)
 
 const panelMeta = computed<Record<LoginMode, { title: string; description: string }>>(() => ({
   password: {
@@ -169,20 +165,30 @@ const panelDescription = computed(() => activeMode.value === 'password' && !subA
 const availableMethods = computed<LoginMethodAction[]>(() => {
   const methods: LoginMethodAction[] = []
 
-  if (showWechatLogin.value) {
-    methods.push({ key: 'wechat', label: t('Login.wechatMethod'), icon: 'WechatOutlined' })
+  // 有 appId 的公众号沿用扫码登录；其它应用仍打开各自的 SSO 登录页。
+  for (const item of bindings.value) {
+    if (item.id && item.provider === 'wechat-official-account' && item.config?.appId) {
+      methods.push({ key: `wechat:${item.id}`, label: item.name || t('Login.wechatMethod'), image: resolveSsoIcon(item) })
+    }
   }
   if (showPhone.value) {
-    methods.push({ key: 'mobile', label: t('Login.mobileMethod'), icon: 'MobileOutlined' })
+    methods.push({ key: 'mobile', label: t('Login.mobileMethod'), image: PhoneImage })
   }
   if (showEmail.value) {
-    methods.push({ key: 'email', label: t('Login.emailMethod'), icon: 'MailOutlined' })
+    methods.push({ key: 'email', label: t('Login.emailMethod'), image: EmailImage })
   }
   if (activeMode.value !== 'password') {
-    methods.push({ key: 'password', label: t('Login.passwordMethod'), icon: 'UserOutlined' })
+    methods.push({ key: 'password', label: t('Login.passwordMethod'), image: DefaultImage })
   }
 
-  return methods.filter(item => item.key !== activeMode.value)
+  for (const item of bindings.value) {
+    if (item.id && !(item.provider === 'wechat-official-account' && item.config?.appId)) {
+      methods.push({ key: `sso:${item.id}`, label: item.name || t('Login.ssoMethods'), image: resolveSsoIcon(item) })
+    }
+  }
+
+  return methods.filter(item => item.key !== activeMode.value &&
+    !(activeMode.value === 'wechat' && item.key === `wechat:${selectedWechatRecord.value?.id}`))
 })
 
 const updateIsMobile = () => {
@@ -191,8 +197,19 @@ const updateIsMobile = () => {
   }
 }
 
-const onSsoSelect = (item: SsoBinding) => {
-  openSsoLogin(item)
+const selectMethod = (key: string) => {
+  if (key.startsWith('wechat:')) {
+    const record = bindings.value.find(item => item.id === key.slice(7))
+    if (record) {
+      selectedWechatRecord.value = record
+      switchMode('wechat')
+    }
+  } else if (key.startsWith('sso:')) {
+    const record = bindings.value.find(item => item.id === key.slice(4))
+    if (record) openSsoLogin(record)
+  } else {
+    switchMode(key)
+  }
 }
 
 const switchMode = (mode: string) => {
@@ -200,7 +217,7 @@ const switchMode = (mode: string) => {
   if (nextMode === 'subAccount' && !subAccountLoginEnabled) {
     return
   }
-  if (nextMode === 'wechat' && !showWechatLogin.value) {
+  if (nextMode === 'wechat' && !selectedWechatRecord.value) {
     return
   }
   if (nextMode === 'mobile' && !showPhone.value) {

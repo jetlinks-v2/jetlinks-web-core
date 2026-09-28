@@ -13,6 +13,10 @@
 | `application-scope.ts` / `application-access.ts` | 是 | 业务应用 Scope、入口参数和访问引导 |
 | `project-path.ts` | 否 | 项目路径解析；使用深层路径前核验生产用法 |
 
+项目新窗口跳转统一由 `createProjectRuntimeHref` 按 `VITE_APP_DEPLOYMENT` 区分部署方式，覆盖可视化卡片设计、预览及需求确认入口。SaaS 保留目标项目路径（即使 `VITE_APP_RUNTIME_SCOPE=project`）；私有化使用 `BASE_URL`，不额外拼接项目 ID。保持现有 hash 路径标准化与查询参数规则。
+
+验证：在 core 目录运行 `node scripts/test-project-runtime-href.mjs`，6 种部署配置的 108 个断言通过，覆盖项目切换、空项目、中文编码、旧 hash 转换、私有化根路径与子路径。可视化模块的需求创建及任务展示定向测试共 38 项通过。未运行全量 lint/typecheck/build，页面交互由用户验证；如需全量检查，在 runtime-ui 执行 `pnpm exec vue-tsc --noEmit --project tsconfig.json` 和 `pnpm build`。已有开发服务刷新即可使用代码变更；部署类型的切换仍需重新构建，不涉及后端重启。
+
 ## 请求、运行态与结果
 
 | 文件/能力 | 根入口 | 主要用途 |

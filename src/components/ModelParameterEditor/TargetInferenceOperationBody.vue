@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="target-inference-operation__body"
-    :class="{ 'target-inference-operation__body--user-selectable': operation.userSelectable }"
-  >
+  <div class="target-inference-operation__body">
     <div class="target-inference-operation__switches">
       <label class="target-inference-operation__switch-field">
         <span>{{ locale.defaultEnabled }}</span>
@@ -52,10 +49,7 @@
       </div>
     </div>
 
-    <div
-      class="target-inference-operation__field target-inference-operation__field--model"
-      :class="{ 'target-inference-operation__field--model-full': kind !== 'vector' }"
-    >
+    <div class="target-inference-operation__field target-inference-operation__field--model">
       <span
         class="target-inference-operation__label"
         :class="{ 'target-inference-operation__label--required': capabilityActive }"

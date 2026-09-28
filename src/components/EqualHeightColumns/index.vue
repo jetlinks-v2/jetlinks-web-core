@@ -2,19 +2,22 @@
   <div
     v-bind="rootAttrs"
     class="equal-height-columns"
-    :class="[attrs.class, { 'equal-height-columns--collapsed': isCollapsed }]"
+    :class="[attrs.class, {
+      'equal-height-columns--collapsed': isCollapsed,
+      'equal-height-columns--single': !showLeft,
+    }]"
     :style="[attrs.style, rootStyle]"
   >
-    <div class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
+    <div v-if="showLeft" ref="leftPaneRef" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
       <slot name="left" />
     </div>
-    <div class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
+    <div ref="rightPaneRef" class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
       <slot name="right" />
     </div>
-    <button
-      v-if="collapsible"
+    <a-button
+      v-if="showLeft && collapsible"
       class="equal-height-columns__toggle"
-      type="button"
+      :style="toggleStyle"
       :title="toggleText"
       :aria-label="toggleText"
       :aria-expanded="!isCollapsed"
@@ -22,7 +25,7 @@
     >
       <DoubleRightOutlined v-if="isCollapsed" />
       <DoubleLeftOutlined v-else />
-    </button>
+    </a-button>
   </div>
 </template>
 
@@ -49,6 +52,8 @@ const props = withDefaults(
     align?: CSSProperties['alignItems']
     /** 是否显示左列展开/收起按钮 */
     collapsible?: boolean
+    /** 是否显示左列，默认 true；隐藏时右列铺满容器且不显示折叠按钮 */
+    showLeft?: boolean
   }>(),
   {
     height: '100%',
@@ -56,7 +61,8 @@ const props = withDefaults(
     leftWidth: '15rem',
     rightWidth: '1fr',
     align: 'stretch',
-    collapsible: false,
+    collapsible: true,
+    showLeft: true,
   }
 )
 
@@ -65,6 +71,10 @@ const emit = defineEmits<{
 }>()
 
 const isCollapsed = ref(false)
+const leftPaneRef = ref<HTMLElement>()
+const rightPaneRef = ref<HTMLElement>()
+const toggleStyle = ref<CSSProperties>()
+let togglePositionObserver: ResizeObserver | undefined
 
 const toggleText = computed(() => (
   isCollapsed.value
@@ -81,6 +91,54 @@ const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
   emit('collapse-change', isCollapsed.value)
 }
+
+/** 将折叠按钮定位到左列实际宽度加列间距的位置，兼容 1fr 等动态 Grid 轨道。 */
+const updateTogglePosition = () => {
+  if (isCollapsed.value) {
+    toggleStyle.value = { left: '0px' }
+    return
+  }
+
+  const leftPane = leftPaneRef.value
+  const rightPane = rightPaneRef.value
+
+  if (!leftPane || !rightPane) {
+    return
+  }
+
+  const leftPaneRect = leftPane.getBoundingClientRect()
+  const rightPaneRect = rightPane.getBoundingClientRect()
+  const gap = rightPaneRect.left - leftPaneRect.right
+
+  toggleStyle.value = { left: `${leftPaneRect.width + (gap / 2)}px` }
+}
+
+const scheduleTogglePositionUpdate = () => nextTick(updateTogglePosition)
+
+watch(
+  () => [isCollapsed.value, props.collapsible, props.showLeft, props.leftWidth, props.rightWidth, props.gap],
+  scheduleTogglePositionUpdate,
+)
+
+onMounted(() => {
+  scheduleTogglePositionUpdate()
+
+  if (typeof ResizeObserver !== 'undefined') {
+    togglePositionObserver = new ResizeObserver(scheduleTogglePositionUpdate)
+    for (const element of [leftPaneRef.value, rightPaneRef.value]) {
+      if (element) {
+        togglePositionObserver.observe(element)
+      }
+    }
+  }
+
+  window.addEventListener('resize', scheduleTogglePositionUpdate)
+})
+
+onBeforeUnmount(() => {
+  togglePositionObserver?.disconnect()
+  window.removeEventListener('resize', scheduleTogglePositionUpdate)
+})
 
 const toCssValue = (value: SizeValue) => typeof value === 'number' ? `${value}px` : value
 
@@ -117,6 +175,7 @@ const rightStyle = paneStyle
 
 <style scoped>
 .equal-height-columns {
+	position: relative;
   display: grid;
   width: 100%;
   height: var(--equal-height-columns-height);
@@ -164,7 +223,7 @@ const rightStyle = paneStyle
   overflow: hidden;
 }
 
-/* 两栏显式落在同一行，按钮才能复用左列轨道叠放而不被挤到第二行。 */
+/* 两栏显式落在同一行。 */
 .equal-height-columns__pane--left {
   grid-area: 1 / 1 / 2 / 2;
 }
@@ -173,14 +232,28 @@ const rightStyle = paneStyle
   grid-area: 1 / 2 / 2 / 3;
 }
 
-.equal-height-columns__toggle {
-  --equal-height-columns-toggle-width: 0.8rem;
-  --equal-height-columns-toggle-height: 4rem;
-  /* 与左列共享单元格：展开时贴左列右边缘，收起后左列宽度归零，再靠位移把按钮拉回容器左边缘。 */
+/* 隐藏左列时改为单列，覆盖自定义列宽并移除中缝占位。 */
+.equal-height-columns--single {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.equal-height-columns--single::before {
+  content: none;
+}
+
+.equal-height-columns--single .equal-height-columns__pane--right {
   grid-area: 1 / 1 / 2 / 2;
-  justify-self: end;
-  align-self: center;
-  z-index: 1;
+}
+
+.equal-height-columns__toggle {
+  --equal-height-columns-toggle-width: 1.375rem;
+  --equal-height-columns-toggle-height: 1.5rem;
+  /* left 由左列实际宽度和实际列间距写入内联样式，避免计算 1fr 等弹性轨道。 */
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 5;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -191,14 +264,21 @@ const rightStyle = paneStyle
   color: var(--ink-2);
   border: var(--jet-theme-stroke-width) solid var(--line-strong);
   /* 右侧贴合左列边缘，贴住的一侧不留圆角，视觉上像挂在面板边上 */
-  border-radius: var(--r-2) 0 0 var(--r-2);
+  border-radius: var(--r-3) 0 0 var(--r-3);
   box-shadow: var(--shadow-1);
   cursor: pointer;
   transition:
+    left 0.2s ease,
     transform 0.2s ease,
     border-radius 0.2s ease,
     color var(--motion-duration-fast) var(--motion-ease-standard),
     border-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+/* 分割线位于列间距中点；让按钮右边缘与它重合，避免在左栏边缘留下空隙。 */
+.equal-height-columns:not(.equal-height-columns--collapsed) .equal-height-columns__toggle {
+  transform: translate(-100%, -50%);
+	border-right: none;
 }
 
 .equal-height-columns__toggle:hover {
@@ -211,7 +291,9 @@ const rightStyle = paneStyle
  * 位移量与列宽收缩使用同一时长和缓动，两者叠加后按钮从「左列右边缘」连续滑到「容器左边缘」，不会跳变。
  */
 .equal-height-columns--collapsed .equal-height-columns__toggle {
-  border-radius: 0 var(--r-2) var(--r-2) 0;
-  transform: translateX(var(--equal-height-columns-toggle-width));
+  left: 0;
+  border-radius: 0 var(--r-3) var(--r-3) 0;
+  transform: translateY(-50%);
+	border-left: none;
 }
 </style>

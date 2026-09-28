@@ -20,6 +20,7 @@ export type GeneralAgentContextAdapter = HomeAgentContextAdapter;
 export type GeneralAgentRuntime = HomeAgentRuntime;
 export type GeneralAgentRuntimeOptions = HomeAgentRuntimeOptions;
 export type GeneralAgentWorkflowGuide = HomeAgentWorkflowGuide;
+export { resolveHomeAgentConversationContext } from './homeAgentConversationContext';
 
 export const createGeneralAgentRuntime = (options: GeneralAgentRuntimeOptions = {}) => (
   createHomeAgentRuntime({

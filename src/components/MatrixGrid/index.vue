@@ -1,7 +1,7 @@
 <template>
   <section
     class="matrix-grid"
-    :class="{ 'matrix-grid--with-column-groups': hasColumnGroups }"
+    :class="{ 'matrix-grid--with-column-groups': hasColumnGroups, 'matrix-grid--virtual': virtual }"
   >
     <div ref="scrollRef" class="matrix-grid__scroll">
       <div class="matrix-grid__grid" :style="gridStyle">

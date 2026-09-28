@@ -18,7 +18,6 @@
       :collapsedButtonRender="false"
       :menuExtraRender="showMenuSearch ? undefined : false"
       :menuItemRender="renderMenuItem"
-      @menuClick="handlePrimaryMenuClick"
       @backClick="goBack"
     >
       <template #menuHeaderRender>
@@ -74,15 +73,9 @@
 </template>
 
 <script setup name="ApplicationLayoutPage" lang="ts">
-import { computed, h, watchEffect, type VNode } from 'vue'
+import { computed, watchEffect } from 'vue'
 import { useRoute, useRouter, type RouteRecordRaw } from 'vue-router'
-import { Menu } from 'ant-design-vue'
-import i18n from '@jetlinks-web-core/locales'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
-import {
-  DEFAULT_COMING_SOON_MENU_BADGE_I18N_KEY,
-  isComingSoonMenuMeta,
-} from '@jetlinks-web-core/utils/menuBadge'
 import {
   AiChat,
   Language,
@@ -94,6 +87,7 @@ import ProjectSecondaryMenu from '../components/ProjectSecondaryMenu.vue'
 import RouteContentSurface from '../components/RouteContentSurface/index.vue'
 import { useBasicLayoutControllerContext } from '../hooks/basicLayoutContext'
 import { useRouteContentPanel } from '../hooks/useRouteContentPanel'
+import { createLayoutMenuItemRenderer } from '../utils/projectMenuRender'
 import {
   containsNavigationKey,
   findFirstLeafKey,
@@ -107,12 +101,6 @@ import {
 type LayoutMenuRouteRecord = RouteRecordRaw & {
   key?: string
 }
-
-type MenuItemRender = (context: {
-  item: LayoutMenuRouteRecord
-  title: VNode
-  icon?: VNode
-}) => VNode | undefined
 
 // 应用端壳层通过 props 语义声明导航模式为 side，优先级高于 system.layout.layout。
 const controller = useBasicLayoutControllerContext('side')
@@ -131,43 +119,11 @@ const getLayoutMenuKey = (menu: LayoutMenuRouteRecord | ProjectNavigationRoute) 
   normalizeMenuKey(menu.path || ('key' in menu && menu.key ? String(menu.key) : ''))
 )
 
-const getMenuTitle = (item: LayoutMenuRouteRecord) => String(
-  i18n.global.t(String(item.meta?.title || item.name || item.path)),
+const renderMenuItem = createLayoutMenuItemRenderer(path => controller.handlePrimaryMenuClick({ key: path }))
+
+const stripMenuChildren = (menu: LayoutMenuRouteRecord): LayoutMenuRouteRecord => (
+  { ...menu, children: undefined } as LayoutMenuRouteRecord
 )
-
-const getMenuBadgeText = (item: LayoutMenuRouteRecord) => {
-  const badge = item.meta?.menuBadge
-  const text = badge?.i18nKey
-    ? i18n.global.t(badge.i18nKey)
-    : badge?.text || i18n.global.t(DEFAULT_COMING_SOON_MENU_BADGE_I18N_KEY)
-
-  return String(text)
-}
-
-const renderMenuItem: MenuItemRender = ({ item, icon }) => {
-  if (!isComingSoonMenuMeta(item.meta)) return undefined
-
-  const children: VNode[] = []
-  if (icon) children.push(icon)
-  children.push(
-    h('span', { class: 'ant-pro-menu-item-title basic-layout-menu-placeholder__title' }, getMenuTitle(item)),
-    h('span', { class: 'layout-menu-badge' }, getMenuBadgeText(item)),
-  )
-
-  return h(
-    Menu.Item,
-    {
-      key: item.key || item.path,
-      disabled: true,
-      class: 'basic-layout-menu-placeholder',
-    },
-    {
-      default: () => h('span', { class: 'ant-pro-menu-item basic-layout-menu-placeholder__content' }, children),
-    },
-  )
-}
-
-const stripMenuChildren = (menu: LayoutMenuRouteRecord): LayoutMenuRouteRecord => ({ ...menu, children: undefined })
 
 const containsRouteContext = (
   menu: ProjectNavigationRoute,
@@ -213,7 +169,6 @@ const isNavigationItemActive = (
 const {
   config,
   goBack,
-  handlePrimaryMenuClick,
   headerScrolled,
   hideHeaderRight,
   layout,

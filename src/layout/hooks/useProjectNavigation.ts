@@ -306,6 +306,9 @@ export const useProjectNavigation = ({
 
   const navigatePrimary = (path?: string) => {
     const targetKey = normalizeMenuKey(path)
+    // 重复选择当前一级菜单时保留所在子页面，包括详情页和当前查询条件。
+    if (targetKey && targetKey === activePrimaryKey.value) return
+
     const sourceMenus = searchKeyword.value ? filteredMenus.value : menus.value
     const targetMenu = findMenuByKey(sourceMenus, targetKey)
 
@@ -317,6 +320,8 @@ export const useProjectNavigation = ({
   }
 
   return {
+    activePrimaryKey,
+    activeMenuKey: computed(() => activeEntry.value?.key || ''),
     primaryMenus,
     primarySelectedKeys,
     projectSidebarMenus,

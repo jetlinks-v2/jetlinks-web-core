@@ -35,8 +35,9 @@ import { providePageChromeTarget } from '../../hooks/usePageChromeTarget'
  * 项目端/租户端（`BasicLayoutShell`）与应用端（`ApplicationLayoutPage`）原本各自
  * 复刻同一段内容区结构，这里合并为唯一实现，避免第三处重复。
  *
- * 是否包裹**只由路由 `meta.contentPanel` 决定**，不去猜测页面里有没有 `ContentPanel`：
- * 壳层是跨路由常驻的，任何"按页面内容推断"的状态都会带到下一个页面上去。
+ * 是否包裹**只由代码侧声明决定**（模块的 `getContentPanelOverrides()`，见
+ * `useRouteContentPanel`），不去猜测页面里有没有 `ContentPanel`：壳层是跨路由常驻的，
+ * 任何"按页面内容推断"的状态都会带到下一个页面上去。
  */
 const panel = useRouteContentPanel()
 

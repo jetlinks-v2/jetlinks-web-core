@@ -52,7 +52,20 @@
 
 租户端虽然复用同一个 `BasicLayoutShell`，但**不包裹**面板；应用端 `ApplicationLayoutPage` 自己决定是否包裹。
 判定入口统一在 `src/layout/hooks/useRouteContentPanel.ts` 的 `CONTENT_PANEL_LAYOUT_VARIANTS`，
-租户端与应用端也不会解析路由 `meta.contentPanel`。
+非项目布局不解析任何页面声明。
+
+不需要面板、或只需要布局不要背景与阴影的页面，由所属模块在 `index.ts` 的
+`getContentPanelOverrides()` 里声明（键为路由 `name`／`path`）：
+
+```ts
+// modules/authentication-manager-ui/index.ts
+const getContentPanelOverrides = () => ({
+  'project/Overview': false,                      // 不套面板，页面自绘背景
+  'resources/Dashboard': { background: false },   // 要布局对齐，但不要白底与阴影
+})
+```
+
+**代码侧声明，改完随代码生效，不需要重新初始化菜单**（`baseMenu.json` 只承载菜单数据，不再承载这个开关）。
 
 需要放在**面板之外**的页面头部（返回按钮、卡片切换、页签）用 [`PageChrome`](../PageChrome/README.md)。
 

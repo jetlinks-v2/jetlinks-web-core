@@ -20,23 +20,14 @@ export type RouteHideInMenuContext = {
 
 export type RouteHideInMenuHandler = (context?: RouteHideInMenuContext) => boolean
 
-/**
- * 布局级页面内容面板配置。
+/*
+ * 页面级内容面板（是否由布局壳层套 `ContentPanel`）的声明类型见
+ * `@jetlinks-web-core/types/content-panel`。
  *
- * **只在项目布局生效**（见 `CONTENT_PANEL_LAYOUT_VARIANTS`）；租户端与应用端壳层不解析本配置。
- * 项目布局下未声明时由 `DEFAULT_CONTENT_PANEL_ENABLED` 决定是否包裹；
- * 显式 `false` 等价于 `{ enabled: false }`。
+ * 判断依据只来自代码侧——模块实现 `getContentPanelOverrides()` 声明自己的页面清单，
+ * **不再走路由 meta**：菜单驱动的路由 meta 由后端菜单生成（`utils/menu.ts` 的 `handleMeta`），
+ * 而菜单只在初始化流程推送一次，把开关放在菜单里会导致每改一个页面都要重新初始化菜单。
  */
-export interface RouteContentPanelMeta {
-  /** `false` 表示布局壳层不包裹面板，由页面自绘背景。 */
-  enabled?: boolean
-  /** 覆盖面板内边距，单位为 px。 */
-  padding?: number
-  /** 面板标题。 */
-  title?: string
-  /** `false` 保留面板留白与圆角，但背景透明、去掉模糊与阴影。 */
-  background?: boolean
-}
 
 export type RouteMenuBadgeType = 'comingSoon' | (string & {})
 
@@ -74,8 +65,6 @@ declare module 'vue-router' {
     handleHideInMenuFn?: RouteHideInMenuHandler
     /** Optional class applied to the outer layout route surface. */
     layoutClassName?: string
-    /** 布局级内容面板配置；取值按 `route.matched` 由深到浅第一条命中的记录生效。 */
-    contentPanel?: boolean | RouteContentPanelMeta
   }
 }
 
