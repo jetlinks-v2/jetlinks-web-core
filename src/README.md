@@ -24,6 +24,8 @@
 
 侧边栏用户菜单验证：`LayoutSidebarUser.vue` 的模板、脚本及 `style/layout.less` 独立编译通过，`git diff --check` 通过。全量 `vue-tsc` 仍有其他文件的既有错误，目标组件未报错；当前没有 lint 脚本。`pnpm -F jetlinks-web-core build` 完成 23,923 个模块转换后，在当前 `package.json` 的 8GB V8 堆上报 `JavaScript heap out of memory`，构建未通过，发布前需解决内存上限并重新构建。真实退出交互和两个菜单项在加载期间的等高效果仍待验证。
 
+交付入口：退出菜单提交 `aebcab1`，构建内存配置提交 `1def30c`；PR https://github.com/jetlinks-v2/jetlinks-web-core/pull/164。
+
 ## 文档维护约定
 
 - 新增或稳定调整的公共能力，先在对应分类索引增加一行，再在能力目录或文件旁增加简要说明。
