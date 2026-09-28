@@ -16,7 +16,12 @@ import {
   type ThemeStyleKey
 } from '@jetlinks-web-core/utils/theme-style'
 import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
-import { getProjectCodeFromLocation, isProjectRuntime } from '@jetlinks-web-core/utils/project-runtime'
+import {
+  getProjectCodeFromLocation,
+  getProjectCodeFromPathname,
+  isApplicationRuntime,
+  isProjectRuntime,
+} from '@jetlinks-web-core/utils/project-runtime'
 import { getProjectStorage } from '@jetlinks-web-core/utils/project-storage'
 
 export type LayoutMode = 'mix' | 'side' | 'top'
@@ -63,13 +68,17 @@ export const toLayoutMode = (value: unknown): LayoutMode | undefined => (
 
 const resolveLayoutTitle = (frontTitle: unknown) => {
   const fallbackTitle = typeof frontTitle === 'string' ? frontTitle : ''
-  if (!isProjectRuntime()) return fallbackTitle
+  const applicationRuntime = isApplicationRuntime()
+  if (!applicationRuntime && !isProjectRuntime()) return fallbackTitle
 
-  const projectCode = getProjectCodeFromLocation()
-  const projectName = getProjectStorage(projectCode)?.name
-  // 项目名称属于运行上下文，不能被项目端接口回退出的平台 front.title 覆盖。
-  return typeof projectName === 'string' && projectName.trim()
-    ? projectName.trim()
+  // 应用路径使用应用 ID；固定 project scope 的项目 code 不能用于读取应用名称。
+  const runtimeCode = applicationRuntime
+    ? getProjectCodeFromPathname()
+    : getProjectCodeFromLocation()
+  const runtimeName = getProjectStorage(runtimeCode)?.name
+  // 运行上下文名称不能被接口回退出的 front.title 覆盖。
+  return typeof runtimeName === 'string' && runtimeName.trim()
+    ? runtimeName.trim()
     : fallbackTitle
 }
 
