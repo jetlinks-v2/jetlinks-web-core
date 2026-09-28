@@ -6,6 +6,7 @@ import {
   getMyBusinessApplications,
   type BusinessApplicationEntity,
 } from '@jetlinks-web-core/api/application'
+import { hasOwnBusinessApplicationMenu } from '@jetlinks-web-core/api/system/menu'
 import {
   getApplicationScopeFromLocation,
   isBusinessApplicationEndpointMissing,
@@ -200,6 +201,14 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     nextApplication: BusinessApplicationEntry,
     options: EnterApplicationOptions = {},
   ) => {
+    // 先预检目标 Scope 的菜单，避免切换后清空当前路由再落入 403。
+    if (!await hasOwnBusinessApplicationMenu(nextApplication.id)) {
+      onlyMessage($t('components.BusinessApplicationSwitcher.notConfigured', {
+        name: nextApplication.name,
+      }), 'warning')
+      return false
+    }
+
     const customDomain = typeof nextApplication.configuration?.customDomain === 'string'
       ? nextApplication.configuration.customDomain
       : ''

@@ -1194,6 +1194,7 @@
   "components.BusinessApplicationSwitcher.switchApplication": "Switch application",
   "components.BusinessApplicationSwitcher.switching": "Switching application",
   "components.BusinessApplicationSwitcher.switchFailed": "Could not switch to “{name}”. The current application remains active.",
+  "components.BusinessApplicationSwitcher.notConfigured": "Unable to switch to “{name}”. No access is configured. Contact an administrator.",
   "components.BusinessApplicationSwitcher.projectEntry": "Current project",
   "components.BusinessApplicationSwitcher.headerLabel": "Applications",
   "components.BusinessApplicationSwitcher.quickEntry": "Quick access",
