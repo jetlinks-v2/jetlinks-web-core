@@ -55,8 +55,8 @@ function remove() {
   z-index: 1;
   cursor: grab;
   touch-action: none;
-  border-top-left-radius: var(--dashboard-card-radius, 12px);
-  border-top-right-radius: var(--dashboard-card-radius, 12px);
+  border-top-left-radius: var(--panel-radius, var(--r-6));
+  border-top-right-radius: var(--panel-radius, var(--r-6));
 }
 .drag-handle-icon {
   color: var(--ink-4);
