@@ -51,7 +51,7 @@ type AppPackageConfig = {
   }
 }
 
-const DEFAULT_ICON_SCRIPT_URL = resolvePublicAssetUrl('icons/iconfont.js')
+const DEFAULT_ICON_SCRIPT_URL = resolvePublicAssetUrl('icons/iconfont.js?t=202609291344')
 const packageConfig = getPackageConfig() as AppPackageConfig | undefined
 
 const routeSkeletonVariant = computed<RouteSkeletonVariant>(() => (
