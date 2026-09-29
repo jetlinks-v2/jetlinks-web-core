@@ -15,7 +15,7 @@ Do not statically deep-import private code from one business module into another
 
 ### core 同时被 SaaS 前端与私有化前端复用
 
-`jetlinks-web-core` 不是 `runtime-ui` 独占的：私有化部署是**另一个前端项目**，它同样把 `jetlinks-web-core` 作为基础模块、并挂载自己的 `modules/*` 子模块，区别只是**没有 `saas-runtime-ui` 这个模块**（本仓库侧构建私有化用 `pnpm -F jetlinks-web-core build -- --VITE_APP_DEPLOYMENT=private`，对应 `src/utils/deployment.ts` 的 `isPrivateDeployment()`）。
+`jetlinks-web-core` 不是 `runtime-ui` 独占的：私有化部署是**另一个前端项目**，它同样把 `jetlinks-web-core` 作为基础模块、并挂载自己的 `modules/*` 子模块，区别是**没有 `saas-runtime-ui` 这个模块**。本仓库侧用 `pnpm build:standalone` 构建独立包；该脚本排除 `saas-runtime-ui` 并设置 `VITE_APP_ENVIRONMENT` 为空，供 `src/utils/deployment.ts` 的 `isPrivateDeployment()` 和项目存储开关使用。
 
 由此产生的约束：
 
@@ -45,7 +45,7 @@ Do not statically deep-import private code from one business module into another
 验证结果（2026-09-16，编译产物级双向核对）：
 
 - SaaS 形态（默认构建）：`isPrivateDeployment()` 被折叠为 `S6e=()=>!1`；`tokenExpiration` 编译成 `()=>{getToken(),clearVerifyCache(),jumpLogin()}`，`!token || !isCreateTokenRefresh` 这个守卫因恒真被整体消除，反证 `isCreateTokenRefresh` 在构建期已知为 `false`；`crateAxios` 之前是 `t.isCreateTokenRefresh=e`（`e=false`）。即 401 不再进入 `createTokenRefreshHandler`，不会弹窗，而是清会话跳登录页。
-- 私有化形态（`VITE_APP_DEPLOYMENT=private`，`--outDir` 到临时目录核对后已删除）：`isPrivateDeployment()` 折叠为 `S6e=()=>!0`，`tokenExpiration` 保留为 `()=>{(!getToken()||!e)&&(clearVerifyCache(),jumpLogin())}`，`e=true`，原有「就地重登录」行为完全不变。
+- 私有化形态（历史产物验证，构建输出到临时目录，核对后已删除）：`isPrivateDeployment()` 折叠为 `S6e=()=>!0`，`tokenExpiration` 保留为 `()=>{(!getToken()||!e)&&(clearVerifyCache(),jumpLogin())}`，`e=true`，原有「就地重登录」行为完全不变。本次空值构建约定未重新执行产物级验证。
 
 ## Startup Chain
 
@@ -210,7 +210,7 @@ Notification extension points (business-neutral):
 - 自定义登录背景图按部署形态分流：`src/views/login/index.vue` 用 `--login-bg-image` 自定义属性承载背景，默认值是迁入的 `src/assets/login/login-bg.png`；只有 `isPrivateDeployment()` 为真时才用 `front.background`（未配置时回退历史默认图 `images/login/login.png`）覆盖它。原因是 SaaS 模块隐藏了 `BACKGROUND` 字段，但 `useBasisForm` 的表单模型始终带 `background: images/login/login.png` 并整表提交，后端该字段恒为历史默认值——若无条件支持，SaaS 登录页会退回旧背景图。备案号不必这样分流：`showRecordNumber` 默认 `false` 且是显式开关，隐藏后仍是 `false`。
 - 明确不做的两处：旧登录页在 `system_edition !== 'community'` 时才请求 `bindInfo`，新页面无条件请求——`useRequest` 会把失败吞进 `onWarn`/`console.warn`，core 也没有全局 axios 错误 toast，社区版最多多一次请求，而按 edition 门控反而可能让报 `community` 的实例丢掉微信扫码登录；旧页面的页级 `a-spin` 与 `v-model:loading` 换成按钮级 loading，属交互细节。
 - 验证结果：`node --max-old-space-size=12288 ../node_modules/vite/bin/vite.js build` 主机构建通过（`✓ 23674 modules transformed. built in 7m 39s`），产物落在 `runtime-ui/dist`，其中 `dist/.vite/manifest.json` 含 `src/views/login/index.vue`，`dist/assets/login-bg.png` 为迁入的背景图（2521024 字节，与 `modules/saas-runtime-ui/assets/login.png` 一致），SSO 入口用到的 `dingtalk.png`/`third-party.png`/`internal-standalone.png`/`wechat-miniapp.png` 与 `Login.*`、`Login.ssoMethods`、`login.index.102238-0` 等键均已打进产物。默认 `pnpm -F jetlinks-web-core build` 在本机因内存压力 OOM（swap 已用满），与环境相关，非本次改动导致。
-- 验证结果（背景图门控双向）：SaaS 形态产物中登录页 chunk（`dist/assets/index.*.js`）`login-bg-image` 与 `images/login/login.png` 出现次数均为 0，说明 `isPrivateDeployment()` 被常量折叠后该分支被摇掉，只用 CSS 里的内置 `login-bg.png`；私有化形态用 `VITE_APP_DEPLOYMENT=private` 单独构建（`--outDir` 到临时目录，验证后已删除）时同一 chunk 里两者各出现 1 次，编译结果为 `s => \`url("${s.replace(/["\\\r\n]/g,"")}")\`` 与 `o.value.background || <fallback>`，即后台配置的登录背景图在私有化下确实生效。
+- 历史验证结果（背景图门控双向）：SaaS 形态产物中登录页 chunk（`dist/assets/index.*.js`）`login-bg-image` 与 `images/login/login.png` 出现次数均为 0，说明 `isPrivateDeployment()` 被常量折叠后该分支被摇掉，只用 CSS 里的内置 `login-bg.png`；私有化形态单独构建（`--outDir` 到临时目录，验证后已删除）时同一 chunk 里两者各出现 1 次，编译结果为 `s => \`url("${s.replace(/["\\\r\n]/g,"")}")\`` 与 `o.value.background || <fallback>`，即后台配置的登录背景图在私有化下确实生效。本次空值构建约定未重新执行产物级验证。
 - 验证结果：单模块构建 `pnpm -F jetlinks-web-core build -- --module-name saas-runtime-ui` 失败于 `modules/saas-runtime-ui/views/device/Template/Save/index.vue:90` 的 `import { device } from '@device-manager-ui/assets'`，根因是 `configs/plugin/moduleFilterPlugin.ts` 把非目标模块的 `.ts` 置为 `export default { filter: true }`，该文件与机制均未被本次改动触及，属既有问题。
 - 验证结果：`vue-tsc --noEmit -p tsconfig.json` 在改动后为 561 条，改动前基线（core HEAD 的独立 worktree，补入 `components.d.ts`）为 552 条（worktree 无 `node_modules`，另有 5 条 `Cannot find module` 属该环境假报，已剔除）。差值 +9 由两部分构成：8 条是迁移前 `modules/saas-runtime-ui/views/login/**` 中已存在、只因 core 的 `tsconfig.json` 只 include `./**`（不含 `modules/`）而未被 core 扫到的旧错误，迁入后落进 core 的扫描范围；1 条是新增的 `src/api/login.ts` `codeUrlWithoutProjectContext` 复刻同文件既有 `codeUrl` 的 `request.get<T>` 写法而带出的同类 TS2347。剩余 12 条迁移文件类型错误均为纯类型标注问题（reactive 字段推断、rules/QRCode 联合类型、NDJSON 流 `unknown`），不影响运行时行为；按约定本次不修，仅在文档记录。补回四项旧登录页能力后错误数仍为 561，未新增任何类型错误。迁移文件的 import 解析另用静态脚本核对 112 条，0 处未解析或缺失导出。
 

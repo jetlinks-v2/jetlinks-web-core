@@ -13,9 +13,11 @@
 | `application-scope.ts` / `application-access.ts` | 是 | 业务应用 Scope、入口参数和访问引导 |
 | `project-path.ts` | 否 | 项目路径解析；使用深层路径前核验生产用法 |
 
-项目新窗口跳转统一由 `createProjectRuntimeHref` 按 `VITE_APP_DEPLOYMENT` 区分部署方式，覆盖可视化卡片设计、预览及需求确认入口。SaaS 保留目标项目路径（即使 `VITE_APP_RUNTIME_SCOPE=project`）；私有化使用 `BASE_URL`，不额外拼接项目 ID。保持现有 hash 路径标准化与查询参数规则。
+项目新窗口跳转统一由 `createProjectRuntimeHref` 按 `VITE_APP_ENVIRONMENT` 区分部署方式，覆盖可视化卡片设计、预览及需求确认入口。SaaS 保留目标项目路径（即使 `VITE_APP_RUNTIME_SCOPE=project`）；私有化使用 `BASE_URL`，不额外拼接项目 ID。保持现有 hash 路径标准化与查询参数规则。
 
-验证：在 core 目录运行 `node scripts/test-project-runtime-href.mjs`，6 种部署配置的 108 个断言通过，覆盖项目切换、空项目、中文编码、旧 hash 转换、私有化根路径与子路径。可视化模块的需求创建及任务展示定向测试共 38 项通过。未运行全量 lint/typecheck/build，页面交互由用户验证；如需全量检查，在 runtime-ui 执行 `pnpm exec vue-tsc --noEmit --project tsconfig.json` 和 `pnpm build`。已有开发服务刷新即可使用代码变更；部署类型的切换仍需重新构建，不涉及后端重启。
+构建环境约定：`runtime-ui/package.json` 的 `dev:standalone`、`build:standalone` 显式传入 `--VITE_APP_ENVIRONMENT=`，覆盖根 `.env.production` 的 `saas`。`src/utils/deployment.ts` 以空值判断私有化，`src/utils/project-storage.ts` 同时以空值关闭项目存储和子账号登录；SaaS 构建保持 `saas`，云端业务环境保持 `cloud`。范围仅为 `runtime-ui`，不改请求或登录实现。部署类型切换需要重新构建前端，不涉及后端重启。
+
+验证：本次在 core 目录运行 `node scripts/test-project-runtime-href.mjs`，`saas`、`cloud` 与空字符串的 6 种配置共 108 个断言通过，覆盖项目切换、空项目、中文编码、旧 hash 转换、私有化根路径与子路径；相关 Git 差异检查通过。此前可视化模块的需求创建及任务展示定向测试共 38 项通过，本次未重跑。未运行全量 lint/typecheck/build 或浏览器验证；如需全量检查，在 runtime-ui 执行 `pnpm exec vue-tsc --noEmit --project tsconfig.json` 和 `pnpm build:standalone`。已有开发服务刷新即可使用代码变更；部署类型的切换仍需重新构建，不涉及后端重启。
 
 ## 请求、运行态与结果
 
@@ -25,11 +27,11 @@
 | `context.ts`：`initRequest` | 否 | 请求上下文初始化 |
 | `project-storage.ts` | 是 | 项目级 token、域名、API 地址和 Scope 存储 |
 | `business-application-runtime.ts` | 是 | 业务应用运行态判定 |
-| `deployment.ts`：`isPrivateDeployment()` | 是 | 无参数、无副作用，返回当前构建是否为私有化部署的 boolean；读取构建时的 `VITE_APP_DEPLOYMENT` |
+| `deployment.ts`：`isPrivateDeployment()` | 是 | 无参数、无副作用，返回当前构建是否为私有化部署的 boolean；读取构建时的 `VITE_APP_ENVIRONMENT` |
 | `service-result.ts`：`ok`、`err` | 是 | 纯函数式服务结果包装 |
 | `ai-client-tool-request.ts` | 是 | AI 客户端工具静默请求上下文 |
 
-通过 `import { isPrivateDeployment } from '@jetlinks-web-core/utils'` 导入，使用 `if (isPrivateDeployment()) { /* 私有化部署逻辑 */ }` 判断。`pnpm build:private` 设置 `VITE_APP_DEPLOYMENT=private`，未配置时默认 `saas`；切换部署方式需重新构建。覆盖顺序为命令行参数 > 进程环境变量 > 根目录环境配置 > core 环境配置 > 默认值。此判断独立于 `VITE_APP_ENVIRONMENT` 的 saas/cloud 业务环境，目前由业务模块按需接入。
+通过 `import { isPrivateDeployment } from '@jetlinks-web-core/utils'` 导入，使用 `if (isPrivateDeployment()) { /* 私有化部署逻辑 */ }` 判断。独立包使用空字符串，SaaS 包使用 `saas`；构建命令的显式参数优先于进程环境变量、根目录和 core 环境配置。`VITE_APP_ENVIRONMENT` 是编译期值，切换部署方式需重新构建。
 
 ## 资产、媒体与资源
 

@@ -4,12 +4,12 @@ import { build } from 'esbuild'
 
 // 直接打包生产 URL 生成器；仅隔离与 URL 无关的存储及请求依赖。
 const scenarios = [
-  { deployment: 'saas', scope: 'project', base: '/' },
-  { deployment: 'saas', scope: 'auto', base: '/' },
-  { deployment: undefined, scope: 'project', base: '/' },
-  { deployment: 'private', scope: 'project', base: '/' },
-  { deployment: 'private', scope: 'project', base: '/iot/' },
-  { deployment: 'private', scope: 'auto', base: '/iot/' },
+  { environment: 'saas', scope: 'project', base: '/' },
+  { environment: 'saas', scope: 'auto', base: '/' },
+  { environment: 'cloud', scope: 'project', base: '/' },
+  { environment: '', scope: 'project', base: '/' },
+  { environment: '', scope: 'project', base: '/iot/' },
+  { environment: '', scope: 'auto', base: '/iot/' },
 ]
 let assertions = 0
 for (const scenario of scenarios) {
@@ -21,8 +21,7 @@ for (const scenario of scenarios) {
     format: 'esm',
     define: {
       'import.meta.env': JSON.stringify({
-        VITE_APP_DEPLOYMENT: scenario.deployment,
-        VITE_APP_ENVIRONMENT: 'saas',
+        VITE_APP_ENVIRONMENT: scenario.environment,
         VITE_APP_RUNTIME_SCOPE: scenario.scope,
         VITE_APP_PROJECT_CODE: 'fixed-project',
         BASE_URL: scenario.base,
@@ -45,7 +44,7 @@ for (const scenario of scenarios) {
     `data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`
   )
   for (const project of ['p_p9m9b7', 'other-project', '', '项目 A']) {
-    const prefix = scenario.deployment === 'private'
+    const prefix = !scenario.environment
       ? scenario.base
       : project ? `/${encodeURIComponent(project)}/` : '/'
     for (const route of ['/visualization/ai-editor/draft', '/visualization/preview/draft']) {
@@ -56,7 +55,7 @@ for (const scenario of scenarios) {
     }
   }
   assert.equal(redirectLegacyProjectHash('#/project/old/visualization/preview/draft?mode=preview'), true)
-  assert.equal(window.location.href, `${scenario.deployment === 'private' ? scenario.base : '/old/'}#/visualization/preview/draft?mode=preview`)
+  assert.equal(window.location.href, `${!scenario.environment ? scenario.base : '/old/'}#/visualization/preview/draft?mode=preview`)
   assertions += 2
 }
 console.log(`project-runtime href: ${assertions} assertions passed across ${scenarios.length} deployment configurations`)
