@@ -1194,6 +1194,7 @@
   "components.BusinessApplicationSwitcher.switchApplication": "Switch application",
   "components.BusinessApplicationSwitcher.switching": "Switching application",
   "components.BusinessApplicationSwitcher.switchFailed": "Could not switch to “{name}”. The current application remains active.",
+  "components.BusinessApplicationSwitcher.notConfigured": "Unable to switch to “{name}”. No access is configured. Contact an administrator.",
   "components.BusinessApplicationSwitcher.projectEntry": "Current project",
   "components.BusinessApplicationSwitcher.headerLabel": "Applications",
   "components.BusinessApplicationSwitcher.quickEntry": "Quick access",
@@ -1204,6 +1205,7 @@
   "components.TableActions.more": "More actions",
   "comm.api.timeout": "The network environment is poor",
   "comm.table.empty": "Not Configured",
+  "comm.table.empty-2": "Not Reported",
   "TimeSelect.index.100001-0": "Last 1 hour",
   "TimeSelect.index.100001-1": "Last 24 hours",
   "TimeSelect.index.100001-2": "Last week"
