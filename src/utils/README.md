@@ -39,6 +39,7 @@
 | --- | --- | --- |
 | `assetAccess.ts` | 是 | 资产类型、支持项和选择值归一化 |
 | `edge-media.ts` | 是 | 边缘媒体代理、设备媒体路径和媒体 URL |
+| `edge-image-proxy.ts` | 否 | 云端远程边端页面初始化代理上下文后，基于 `getBaseApi()` 统一改写网络图片 URL；覆盖原生 `img`、组件渲染的图片和 `new Image()` |
 | `public-asset.ts` | 是 | 公共资源 URL 解析 |
 | `comm.ts`：`getImageUrl`、`downloadJson` 等 | 是 | 下载、图片地址和通用集合/树处理 |
 

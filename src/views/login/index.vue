@@ -56,7 +56,7 @@ const toCssUrl = (url: string) => `url("${url.replace(/["\\\r\n]/g, '')}")`
  * 自定义登录背景图只在私有化部署生效。
  *
  * SaaS 模块隐藏了基础配置里的 `background` 字段，但 `useBasisForm` 的提交会把整个表单模型
- * 一起发给后端，该字段恒为历史默认值 `images/login/login.png`，因此 SaaS 必须继续用内置设计图。
+ * 一起发给后端，该字段恒为历史默认值 `images/login/login.png`，因此 SaaS 使用模块默认图或 core 内置图。
  */
 const loginBackgroundStyle = computed((): Record<string, string> => {
   if (!isPrivateDeployment()) {
@@ -67,7 +67,14 @@ const loginBackgroundStyle = computed((): Record<string, string> => {
     frontConfig.value.background || PRIVATE_LOGIN_BACKGROUND_FALLBACK
   )
 
-  return background ? { '--login-bg-image': toCssUrl(background) } : {}
+  if (!background) return {}
+
+  // 未配置背景时优先使用业务模块声明的默认图，私有化部署仍保留历史图片兜底。
+  return {
+    '--login-bg-image': frontConfig.value.background
+      ? toCssUrl(background)
+      : `var(--jet-login-bg-image, ${toCssUrl(background)})`
+  }
 })
 
 const applyLoginThemeColor = async () => {
@@ -127,8 +134,8 @@ applyLoginThemeColor()
 
 <style scoped lang="less">
 .login-container {
-  /* 私有化部署可在基础配置里自定义登录背景图，--login-bg-image 由行内样式覆盖。 */
-  --login-bg-image: url('@jetlinks-web-core/assets/login/login-bg.png');
+  /* 模块通过 --jet-login-bg-image 设置默认图，私有化基础配置由行内样式优先覆盖。 */
+  --login-bg-image: var(--jet-login-bg-image, url('@jetlinks-web-core/assets/login/login-bg.png'));
 
   position: relative;
   display: grid;
