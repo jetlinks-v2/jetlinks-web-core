@@ -25,6 +25,20 @@ export const getOwnMenuThree = (data: any, applicationScope?: MenuApplicationSco
 
   return request.post('/menu/user-own/tree', data, config)
 }
+
+/**
+ * Checks whether the current user has at least one runtime menu in a business application.
+ *
+ * The explicit scope keeps this preflight independent from the current browser-tab scope.
+ */
+export const hasOwnBusinessApplicationMenu = async (applicationId: string) => {
+  const response = await getOwnMenuThree({
+    paging: false,
+    terms: [{ column: 'owner', value: 'app' }],
+    sorts: [{ name: 'sortIndex', order: 'asc' }],
+  }, `business_application:${applicationId}`)
+  return Array.isArray(response?.result) && response.result.length > 0
+}
 // /**
 //  * 校验编码唯一性
 //  * @param data

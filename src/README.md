@@ -20,6 +20,11 @@
 | 跨页面共享状态 | [store/README.md](store/README.md) | [store/index.ts](store/index.ts) 及各 store 源文件 | Pinia store 的职责、状态范围和导出事实 |
 | 模板指令 | [directive/README.md](directive/README.md) | [directive/index.ts](directive/index.ts) | 指令安装、菜单条件渲染及编译边界 |
 | core 页面和页面族 | [views/README.md](views/README.md) | `views/**`、路由入口和相邻页面 | 页面目标、入口、状态流和可复用能力 |
+| 布局与侧边栏用户菜单 | [layout/components/LayoutSidebarUser.vue](layout/components/LayoutSidebarUser.vue) | [style/layout.less](style/layout.less) | 退出登录时以 `a-spin` 替换图标，并固定图标容器尺寸，保持菜单项与账户中心等高。 |
+
+侧边栏用户菜单验证：`LayoutSidebarUser.vue` 的模板、脚本及 `style/layout.less` 独立编译通过，`git diff --check` 通过。全量 `vue-tsc` 仍有其他文件的既有错误，目标组件未报错；当前没有 lint 脚本。`pnpm -F jetlinks-web-core build` 完成 23,923 个模块转换后，在当前 `package.json` 的 8GB V8 堆上报 `JavaScript heap out of memory`，构建未通过，发布前需解决内存上限并重新构建。真实退出交互和两个菜单项在加载期间的等高效果仍待验证。
+
+交付入口：退出菜单提交 `aebcab1`，构建内存配置提交 `1def30c`；PR https://github.com/jetlinks-v2/jetlinks-web-core/pull/164。
 
 ## 文档维护约定
 

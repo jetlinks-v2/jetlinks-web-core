@@ -37,8 +37,11 @@
               <svg-icon type="layout/account-center" aria-hidden="true" />
               <span>{{ $t('components.LayoutSidebarUser.accountCenter') }}</span>
             </a-button>
-            <a-button class="layout-sidebar-user__menu-item" type="text" :loading="logoutLoading" @click="handleLogout">
-              <svg-icon type="layout/logout" aria-hidden="true" />
+            <a-button class="layout-sidebar-user__menu-item" type="text" :disabled="logoutLoading" :aria-busy="logoutLoading" @click="handleLogout">
+              <span class="layout-sidebar-user__menu-icon" aria-hidden="true">
+                <AIcon v-if="logoutLoading" type="LoadingOutlined" />
+                <svg-icon v-else type="layout/logout" />
+              </span>
               <span>{{ $t('components.LayoutSidebarUser.logout') }}</span>
             </a-button>
           </div>

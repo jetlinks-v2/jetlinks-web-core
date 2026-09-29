@@ -39,7 +39,7 @@ function remove() {
 
 <style scoped lang="less">
 // Selection.vue's drag strip and hover menu; the business component retains ownership of its appearance.
-.draggable-item { position: absolute; width: 100%; height: 100%; user-select: none; }
+.draggable-item { position: absolute; width: 100%; height: 100%; user-select: none; border-radius: var(--r-3, 8px); }
 .no-drag { width: 100%; height: 100%; }
 .drag-handle {
   position: absolute;
@@ -55,8 +55,8 @@ function remove() {
   z-index: 1;
   cursor: grab;
   touch-action: none;
-  border-top-left-radius: var(--panel-radius, var(--r-6));
-  border-top-right-radius: var(--panel-radius, var(--r-6));
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
 }
 .drag-handle-icon {
   color: var(--ink-4);
