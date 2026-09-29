@@ -24,6 +24,7 @@ import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
 import {initPackages} from "@jetlinks-web-core/package";
 import { setToken, removeToken} from "@jetlinks-web/utils";
+import { installEdgeImageProxy } from '@jetlinks-web-core/utils/edge-image-proxy'
 import {
   getBaseApi,
   getPackageConfig,
@@ -198,6 +199,9 @@ watch(() => JSON.stringify(route.query || {}), () => {
   }
 
 }, { immediate: true })
+
+// 首次进入远程页面时，先由上方的 immediate watch 写入网关上下文，再读取 getBaseApi()。
+installEdgeImageProxy()
 
 </script>
 <style scoped></style>
