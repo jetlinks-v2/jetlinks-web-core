@@ -16,6 +16,7 @@ export {
   defineClientToolScope,
   defineClientTool,
   defineClientToolStringArgumentBinding,
+  defineClientToolStringArrayArgumentBinding,
   isCompiledClientToolDefinition,
 } from './clientToolDefinition'
 
