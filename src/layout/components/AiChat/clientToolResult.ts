@@ -180,6 +180,8 @@ export interface AiClientToolArtifactReference {
 export interface AiClientToolClaim {
   id: string
   label: string
+  /** Summary renders business prose; omitted/fact keeps the labeled fact contract. */
+  role?: 'fact' | 'summary'
   value: string | number | boolean
   format?: string
   /** Logical output binding that owns this user-visible fact. */
@@ -709,6 +711,7 @@ const boundedClaims = (values: AiClientToolClaim[] | undefined) => {
     return [{
       id,
       label,
+      ...(value.role === 'summary' || value.role === 'fact' ? { role: value.role } : {}),
       value: typeof scalar === 'string' ? scalar.slice(0, 600) : scalar,
       ...(value.format ? { format: String(value.format).slice(0, 32) } : {}),
       ...(binding ? { binding } : {}),

@@ -190,6 +190,34 @@ test('64 KiB result guard fails closed without an exact ref and preserves exact 
   assert.equal(oversizedExact.outputBindings[0].truncated, undefined)
 })
 
+test('result guard preserves a bounded structured recovery plan across runtime versions', () => {
+  const nextAction = {
+    detailTool: 'generic_detail',
+    ownerType: 'generic-owner',
+    applyTool: 'generic_apply',
+    completionMode: 'partial-draft',
+  }
+  const small = guardAiClientToolResult({
+    success: false,
+    code: 'NATIVE_AUTHORING_REQUIRED',
+    failureDisposition: 'request',
+    recoveryAction: 'repair',
+    retryable: true,
+    nextAction,
+  }, { maxJsonLength: 64 * 1024 }, 'anonymous_failure') as any
+
+  assert.deepEqual(small.nextAction, nextAction)
+  assert.deepEqual(small.recoveryPlan, nextAction)
+
+  const large = guardAiClientToolResult({
+    ...small,
+    diagnostics: { preview: 'x'.repeat(16 * 1024) },
+  }, { maxJsonLength: 2048, maxStringLength: 256 }, 'anonymous_failure') as any
+  assert.deepEqual(large.nextAction, nextAction)
+  assert.deepEqual(large.recoveryPlan, nextAction)
+  assert.equal(large.meta.reason, 'client_tool_result_too_large')
+})
+
 test('runtime backs a 744-row explicit-auto aggregate before the unchanged effective reply guard', async () => {
   const records = Array.from({ length: 744 }, (_, index) => ({
     id: `${index}-${'x'.repeat(100)}`,
@@ -577,6 +605,7 @@ test('prepared client-tool actions validate before confirmation and execute norm
 test('prepared client-tool failures and rejections never execute the side effect', async () => {
   let confirmations = 0
   let executions = 0
+  let cancellations = 0
   const tool = defineClientTool<{ target?: string }>({
     id: 'test_prepared_action_failure',
     description: { text: 'Run a validated action', capabilities: ['test.action.run'] },
@@ -592,7 +621,7 @@ test('prepared client-tool failures and rejections never execute the side effect
       transition: 'MUTATION',
     }),
     prepare: (args) => args.target
-      ? { arguments: { target: String(args.target) } }
+      ? { arguments: { target: String(args.target) }, cancel: () => { cancellations += 1 } }
       : clientToolResult.failure({
           code: 'TARGET_REQUIRED',
           message: 'Target is required',
@@ -619,8 +648,11 @@ test('prepared client-tool failures and rejections never execute the side effect
   }) as any
   assert.equal(invalid.success, false)
   assert.equal(invalid.code, 'TARGET_REQUIRED')
+  assert.equal(invalid.effectState, 'not-started')
+  assert.equal(invalid.externalExecutionStarted, false)
   assert.equal(confirmations, 0)
   assert.equal(executions, 0)
+  assert.equal(cancellations, 0)
 
   const rejected = await runtime.handleClientToolCall({
     id: 'rejected-prepare',
@@ -630,8 +662,85 @@ test('prepared client-tool failures and rejections never execute the side effect
   }) as any
   assert.equal(rejected.success, false)
   assert.equal(rejected.status, 'rejected')
+  assert.equal(rejected.effectState, 'not-started')
+  assert.equal(rejected.externalExecutionStarted, false)
   assert.equal(confirmations, 1)
   assert.equal(executions, 0)
+  assert.equal(cancellations, 1)
+  runtime.dispose()
+})
+
+test('legacy ok-false preparation results normalize to a zero-execution failure', async () => {
+  let executions = 0
+  const tool = defineClientTool({
+    id: 'test_legacy_prepare_failure',
+    description: { text: 'Reject an invalid prepared action', capabilities: ['test.prepare.reject'] },
+    effect: { kind: 'WRITE', idempotency: 'IDEMPOTENT', reversible: true, confirmation: {} },
+    output: clientToolOutput.stateChange({
+      name: 'prepare-failure', shape: 'test.prepare-failure', transition: 'MUTATION',
+    }),
+    prepare: (() => ({
+      ok: false,
+      code: 'OWNER_PREPARE_REJECTED',
+      message: 'Owner rejected preparation',
+      failureDisposition: 'request',
+      recoveryAction: 'repair',
+      retryable: false,
+    })) as any,
+    execute: () => {
+      executions += 1
+      return { updated: true }
+    },
+  })
+  const runtime = createAiClientToolRuntime([tool], { includeHelpTool: false })
+  const result = await runtime.handleClientToolCall({
+    id: 'legacy-prepare-failure', toolName: tool.id,
+  }) as any
+
+  assert.equal(result.ok, false)
+  assert.equal(result.success, false)
+  assert.equal(result.code, 'OWNER_PREPARE_REJECTED')
+  assert.equal(result.effectState, 'not-started')
+  assert.equal(result.externalExecutionStarted, false)
+  assert.equal(executions, 0)
+  runtime.dispose()
+})
+
+test('prepared replay can skip confirmation without skipping the stable execute path', async () => {
+  let confirmations = 0
+  let executions = 0
+  const tool = defineClientTool({
+    id: 'test_prepared_replay',
+    description: { text: 'Replay a terminal prepared result', capabilities: ['test.replay.read'] },
+    effect: {
+      kind: 'WRITE',
+      idempotency: 'IDEMPOTENT',
+      reversible: true,
+      confirmation: {},
+    },
+    output: clientToolOutput.stateChange({
+      name: 'replay',
+      shape: 'test.replay',
+      transition: 'MUTATION',
+    }),
+    prepare: () => ({ arguments: { replay: true }, skipConfirmation: true }),
+    execute: () => {
+      executions += 1
+      return { replayed: true }
+    },
+  })
+  const runtime = createAiClientToolRuntime([tool], { includeHelpTool: false })
+  const result = await runtime.handleClientToolCall({
+    id: 'prepared-replay',
+    toolName: tool.id,
+    requestConfirmation: () => {
+      confirmations += 1
+      return { approved: true }
+    },
+  }) as any
+  assert.equal(result.__clientToolOutputs?.output0?.replayed, true)
+  assert.equal(confirmations, 0)
+  assert.equal(executions, 1)
   runtime.dispose()
 })
 
@@ -667,6 +776,7 @@ test('client-tool failures expose whether external execution started', async () 
   assert.equal(beforeExecution.success, false)
   assert.equal(beforeExecution.code, 'CLIENT_TOOL_CONFIRM_HANDLER_UNAVAILABLE')
   assert.equal(beforeExecution.effectState, 'not-started')
+  assert.equal(beforeExecution.externalExecutionStarted, false)
   assert.equal(executions, 0)
 
   const afterExecutionStarted = await runtime.handleClientToolCall({
@@ -677,7 +787,46 @@ test('client-tool failures expose whether external execution started', async () 
   assert.equal(afterExecutionStarted.success, false)
   assert.equal(afterExecutionStarted.code, 'TEST_EFFECT_EXECUTION_FAILED')
   assert.equal(afterExecutionStarted.effectState, undefined)
+  assert.equal(afterExecutionStarted.externalExecutionStarted, undefined)
   assert.equal(executions, 1)
+  runtime.dispose()
+})
+
+test('thrown request/repair failures keep disposition, retryable, and details.instruction', async () => {
+  const tool = defineClientTool({
+    id: 'test_thrown_subject_required',
+    description: { text: 'Require a subject', capabilities: ['test.subject.read'] },
+    effect: { kind: 'READ' },
+    output: clientToolOutput.lookup({ name: 'subject', shape: 'test.lookup' }),
+    execute: () => {
+      const error = new Error('Provide subjectId or groupId. Continue with discovery then apply.') as Error & {
+        code: string
+        failureDisposition: 'request'
+        recoveryAction: 'repair'
+        retryable: false
+        details: Record<string, unknown>
+      }
+      error.code = 'subject.required'
+      error.failureDisposition = 'request'
+      error.recoveryAction = 'repair'
+      error.retryable = false
+      error.details = { instruction: 'Continue with discovery then apply.', kind: 'subject' }
+      throw error
+    },
+  })
+  const runtime = createAiClientToolRuntime([tool], { includeHelpTool: false })
+  const result = await runtime.handleClientToolCall({
+    id: 'missing-subject',
+    toolName: tool.id,
+    arguments: { keyword: 'FindSubject' },
+  }) as any
+  assert.equal(result.success, false)
+  assert.equal(result.code, 'subject.required')
+  assert.equal(result.failureDisposition, 'request')
+  assert.equal(result.recoveryAction, 'repair')
+  assert.equal(result.retryable, false)
+  assert.equal(result.details?.instruction, 'Continue with discovery then apply.')
+  assert.equal(result.details?.kind, 'subject')
   runtime.dispose()
 })
 

@@ -490,6 +490,10 @@ export interface ClientToolPreparedConfirmation {
 export interface ClientToolPreparedExecution<TArgs extends Record<string, unknown>> {
   arguments: TArgs
   confirmation?: ClientToolPreparedConfirmation
+  /** Skips a second confirmation when prepare returns a previously completed result. */
+  skipConfirmation?: boolean
+  /** Releases prepared owner state when execution never starts. */
+  cancel?: () => Promise<void> | void
 }
 
 export type ClientToolPreparationResult<TArgs extends Record<string, unknown>> =
@@ -2460,6 +2464,8 @@ const adaptPreparationResult = <TArgs extends Record<string, unknown>>(
   return {
     arguments: { ...result.arguments },
     ...(result.confirmation ? { confirmation: { ...result.confirmation } } : {}),
+    ...(result.skipConfirmation === true ? { skipConfirmation: true } : {}),
+    ...(typeof result.cancel === 'function' ? { cancel: result.cancel } : {}),
   }
 }
 

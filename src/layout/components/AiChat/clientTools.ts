@@ -28,7 +28,6 @@ import {
   AI_CLIENT_TOOL_ROUTING_EXPAND_KEY,
   normalizeAiClientToolRoutingMetadata,
   resolveAiClientToolCanonicalEffect,
-  toAiClientToolBusinessArguments,
 } from './clientToolRouting';
 import {
   mergeAiClientToolParameterSchema,
@@ -265,11 +264,24 @@ export interface AiClientToolCall {
   presentationCapabilities?: readonly GeneralAgentMarkdownPresentationCapability[];
   /** Aborted when the conversation turn, socket, or client-tool request is cancelled. */
   signal?: AbortSignal;
+  /** Real page-tool lifecycle progress. This is presentation-only and is never model input. */
+  reportProgress?: (progress: AiClientToolProgress) => void;
   requestInput?: (request: AiClientToolInputRequest) => Promise<AiClientToolInputResponse>;
   requestConfirmation?: (
     request: AiClientToolConfirmationRequest,
   ) => Promise<AiClientToolConfirmationResponse | void> | AiClientToolConfirmationResponse | void;
   raw?: Record<string, any>;
+}
+
+export interface AiClientToolProgress {
+  version: 'client-tool-progress/v1';
+  stepId: string;
+  status: 'pending' | 'running' | 'completed' | 'blocked' | 'failed';
+  label: string;
+  completed: number;
+  total: number;
+  targets?: string[];
+  elapsedMs?: number;
 }
 
 /** Read-only choice within the current client call; it never grants effect approval. */
@@ -327,6 +339,10 @@ export interface AiClientToolPreparedConfirmation {
 export interface AiClientToolPreparedCall {
   arguments: Record<string, any>;
   confirmation?: AiClientToolPreparedConfirmation;
+  /** Skips a second confirmation when prepare resolved a previously terminal call. */
+  skipConfirmation?: boolean;
+  /** Releases owner-side prepared state when execution never starts. */
+  cancel?: () => Promise<void> | void;
 }
 
 export type AiClientToolPreparationResult =
@@ -1132,6 +1148,7 @@ const normalizeClientToolExecutionError = (
           : retryableDependency || repairableRequest,
       ...(repair ? { repair } : {}),
       details: {
+        ...(isRecord(error?.details) ? error.details : {}),
         name: error?.name,
         ...(Number.isFinite(status) ? { status } : {}),
         type: responseData.errorType || responseData.type,
@@ -1150,7 +1167,7 @@ const normalizeClientToolExecutionError = (
       },
     }),
     // A failure before tool.execute cannot make the external effect uncertain.
-    ...(!executionStarted ? { effectState: 'not-started' } : {}),
+    ...(!executionStarted ? { effectState: 'not-started', externalExecutionStarted: false } : {}),
     ok: false,
     toolName,
   };
@@ -1203,11 +1220,17 @@ const createClientToolPreparationInvalidError = () => {
   return error;
 };
 
-const isAiClientToolPreparationFailure = (
+const normalizeAiClientToolPreparationFailure = (
   value: unknown,
-): value is ReturnType<typeof createAiClientToolFailureResult> => (
-  isRecord(value) && value.success === false
-);
+): (Record<string, unknown> & { success: false }) | undefined => {
+  if (!isRecord(value) || (value.success !== false && value.ok !== false)) {
+    return undefined;
+  }
+  return {
+    ...value,
+    success: false,
+  };
+};
 
 const normalizeAiClientToolPreparedCall = (value: unknown): AiClientToolPreparedCall => {
   if (!isRecord(value) || !isRecord(value.arguments)) {
@@ -1225,6 +1248,8 @@ const normalizeAiClientToolPreparedCall = (value: unknown): AiClientToolPrepared
   return {
     arguments: { ...value.arguments },
     ...(normalizedConfirmation ? { confirmation: normalizedConfirmation } : {}),
+    ...(value.skipConfirmation === true ? { skipConfirmation: true } : {}),
+    ...(typeof value.cancel === 'function' ? { cancel: value.cancel as AiClientToolPreparedCall['cancel'] } : {}),
   };
 };
 
@@ -1358,6 +1383,32 @@ const compactClientToolValue = (
 };
 
 /**
+ * Mirrors a structured failure action into a bounded compatibility field.
+ *
+ * Older agent runtimes reserve top-level `nextAction` for text guidance and remove object values.
+ * `recoveryPlan` keeps the client-owned structure available without changing string guidance.
+ */
+const projectStructuredFailureRecovery = (
+  value: unknown,
+  options: Required<AiClientToolResultGuardOptions>,
+) => {
+  if (!isRecord(value)
+    || (value.success !== false && value.ok !== false)
+    || !isRecord(value.nextAction)
+    || value.recoveryPlan !== undefined) {
+    return value;
+  }
+  const bounded = compactClientToolValue(value.nextAction, {
+    ...options,
+    maxStringLength: Math.min(options.maxStringLength, 256),
+    maxArrayLength: Math.min(options.maxArrayLength, 8),
+    maxObjectKeys: Math.min(options.maxObjectKeys, 16),
+    maxDepth: Math.min(options.maxDepth, 4),
+  });
+  return isRecord(bounded) ? { ...value, recoveryPlan: bounded } : value;
+};
+
+/**
  * Keeps browser-side tool replies small enough for JSON-RPC over WebSocket.
  *
  * Client tools can read logs, files or trace frames from the current page; returning those raw
@@ -1373,12 +1424,13 @@ export const guardAiClientToolResult = (
   if (!options) {
     return value;
   }
-  const json = safeJsonStringify(value);
+  const projectedValue = projectStructuredFailureRecovery(value, options);
+  const json = safeJsonStringify(projectedValue);
   if (json.length <= options.maxJsonLength) {
-    return value;
+    return projectedValue;
   }
 
-  let compacted = compactClientToolValue(value, options);
+  let compacted = compactClientToolValue(projectedValue, options);
   let compactedJson = safeJsonStringify(compacted);
   if (compactedJson.length > options.maxJsonLength) {
     const strictOptions = {
@@ -1388,7 +1440,7 @@ export const guardAiClientToolResult = (
       maxObjectKeys: Math.min(options.maxObjectKeys, 32),
       maxDepth: Math.min(options.maxDepth, 4),
     };
-    compacted = compactClientToolValue(value, strictOptions);
+    compacted = compactClientToolValue(projectedValue, strictOptions);
     compactedJson = safeJsonStringify(compacted);
   }
   if (compactedJson.length > options.maxJsonLength) {
@@ -1398,7 +1450,7 @@ export const guardAiClientToolResult = (
     compactedJson = safeJsonStringify(compacted);
   }
 
-  const source = isRecord(value) ? value : {};
+  const source = isRecord(projectedValue) ? projectedValue : {};
   const failure = source.success === false || source.ok === false;
   const sourceEvidence = isRecord(source.evidence) ? source.evidence : {};
   const outputBindings = normalizeAiClientToolOutputBindings([
@@ -1427,7 +1479,7 @@ export const guardAiClientToolResult = (
     : undefined;
   const failureKeys = [
     'success', 'ok', 'code', 'message', 'failureDisposition', 'recoveryAction',
-    'retryable', 'repair', 'status', 'toolName',
+    'retryable', 'repair', 'nextAction', 'recoveryPlan', 'status', 'toolName',
   ];
   const failureContract = failure
     ? Object.fromEntries(failureKeys
@@ -1670,6 +1722,8 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
     const context = options.getContext?.() || ({} as TContext);
     let result: unknown;
     let executionStarted = false;
+    let preparedCancel: AiClientToolPreparedCall['cancel'];
+    let skipConfirmation = false;
     try {
       const args = call.arguments || {};
       let executionArgs = args;
@@ -1677,16 +1731,23 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
       if (tool.prepare) {
         const prepareCall = { ...call, arguments: args };
         const preparedResult = await tool.prepare(args, context, prepareCall);
-        if (isAiClientToolPreparationFailure(preparedResult)) {
-          result = preparedResult;
+        const preparationFailure = normalizeAiClientToolPreparationFailure(preparedResult);
+        if (preparationFailure) {
+          result = {
+            ...preparationFailure,
+            effectState: 'not-started',
+            externalExecutionStarted: false,
+          };
         } else {
           const prepared = normalizeAiClientToolPreparedCall(preparedResult);
           executionArgs = prepared.arguments;
           preparedConfirmation = prepared.confirmation;
+          preparedCancel = prepared.cancel;
+          skipConfirmation = prepared.skipConfirmation === true;
         }
       }
 
-      if (result === undefined) {
+      if (result === undefined && !skipConfirmation) {
         const confirmation = await requestAiClientToolConfirmation(
           tool,
           executionArgs,
@@ -1696,7 +1757,11 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
           !tool.prepare,
         );
         if (confirmation?.approved === false) {
-          result = createClientToolConfirmationRejectedResult(tool.id, confirmation);
+          result = {
+            ...createClientToolConfirmationRejectedResult(tool.id, confirmation),
+            effectState: 'not-started',
+            externalExecutionStarted: false,
+          };
         } else {
           executionArgs = confirmation?.arguments || executionArgs;
         }
@@ -1735,6 +1800,15 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
       // let the agent explain the failed business call instead of surfacing a global connection error.
       result = normalizeClientToolExecutionError(error, tool.id, executionStarted);
     } finally {
+      if (preparedCancel && !executionStarted) {
+        try {
+          await preparedCancel();
+        } catch (error) {
+          console.warn('[AiClientToolRuntime] Failed to release prepared client tool state.', {
+            toolId: tool.id,
+          }, error);
+        }
+      }
       execution.complete();
     }
     return guardAiClientToolResult(result, resultGuard, tool.id);
