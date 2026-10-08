@@ -144,6 +144,7 @@ export const createProjectGeneralAgentRuntime = (
     || options.projectId
 
   const runtime = createGeneralAgentRuntime({
+    scopeKey: options.projectId,
     currentView: () => String(options.route.name || options.route.path || ''),
     contextAdapter: createProjectContextAdapter(options.menus, options.router),
     subjectType: PROJECT_GENERAL_AGENT_SUBJECT_TYPE,
