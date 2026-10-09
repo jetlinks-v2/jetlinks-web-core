@@ -32,6 +32,7 @@ import {
 import { createAiClientToolRecordFactCollector } from '../src/layout/components/AiChat/clientToolRecordFacts'
 import {
   AI_CLIENT_TOOL_EVIDENCE_CONTRACT,
+  type AiClientToolClaim,
   normalizeAiClientToolOutputBindings,
   normalizeAiClientToolOutputFields,
   normalizeAiClientToolOrdering,
@@ -4015,6 +4016,46 @@ test('typed contract generates routing, binding and evidence from one output dec
     keys: [{ field: 'time', direction: 'asc' }],
     producerGuaranteed: true,
   })
+})
+
+test('contract evidence retains valid claim roles without granting summary semantics to unknown roles', () => {
+  const claims: AiClientToolClaim[] = [
+    {
+      id: 'draft', label: 'Draft result', role: 'summary', value: 'The draft remains unpublished.',
+      binding: 'series', visibility: 'user',
+    },
+    { id: 'count', label: 'Ready items', role: 'fact', value: 3, binding: 'series', visibility: 'user' },
+    {
+      id: 'legacy', label: 'Suggested summary', value: 'Approved business title',
+      binding: 'series', visibility: 'user',
+    },
+    {
+      id: 'unknown', label: 'Business label', role: 'control' as AiClientToolClaim['role'],
+      value: 'Retained fact', binding: 'series', visibility: 'user',
+    },
+    {
+      id: 'uppercase', label: 'Business label', role: 'SUMMARY' as AiClientToolClaim['role'],
+      value: 'Another fact', binding: 'series', visibility: 'user',
+    },
+  ]
+  const result = withAiClientToolContractEvidence(
+    { data: [{ time: 1 }], instruction: 'Repair the current revision.' },
+    createSeriesContract(),
+    {
+      complete: false,
+      truncated: false,
+      outputs: [{ name: 'series', complete: true, path: '$.data' }],
+      claims,
+    },
+  )
+
+  assert.deepEqual(result.evidence.claims, claims.map(({ role, ...claim }) => (
+    role === 'summary' || role === 'fact' ? { ...claim, role } : claim
+  )))
+  assert.equal(result.evidence.complete, false)
+  assert.equal(result.evidence.requestSatisfied, false)
+  assert.equal(result.instruction, 'Repair the current revision.')
+  assert.equal(result.evidence.outputBindings?.[0]?.name, 'series')
 })
 
 test('consumer descriptors compile canonical ports and legacy discovery projections from one source', () => {
