@@ -3,17 +3,30 @@ export const APPLICATION_SCOPE_QUERY_KEY = 'applicationScope'
 export const PROJECT_APPLICATION_SCOPE = '__jetlinks_project__'
 
 const APPLICATION_SCOPE_STORAGE_KEY = 'jetlinks-web:application-scope'
+const APPLICATION_SCOPE_ENTRY_KEY = `${APPLICATION_SCOPE_STORAGE_KEY}:entry`
 
 type ApplicationIdentity = {
   id: string
 }
 
 type ApplicationScopeStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
-type RouteQueryLocation = Pick<Location, 'search'> & Partial<Pick<Location, 'hash'>>
+type RouteQueryLocation = Pick<Location, 'search'> & Partial<Pick<Location, 'hash' | 'pathname'>>
 export type MenuApplicationScope = string | false | undefined
 
+export type ApplicationRuntimeEntry =
+  | { type: 'application'; applicationId: string }
+  | { type: 'tenant' | 'project'; applicationId?: undefined }
+
+/** A requested application must never silently fall back to project menus. */
+export class ApplicationEntryUnavailableError extends Error {
+  constructor() {
+    super('Application entry unavailable')
+    this.name = 'ApplicationEntryUnavailableError'
+  }
+}
+
 const normalizeApplicationScope = (value: unknown) => typeof value === 'string'
-  ? value.trim()
+  ? value.trim().replace(/^(business_application:)+/, '')
   : ''
 
 export const isProjectApplicationScope = (value: unknown) => (
@@ -177,7 +190,7 @@ export const normalizeApplicationBaseUrl = (
  * Resolve the application menu scope for the current browser tab.
  *
  * The query parameter bootstraps a newly opened application tab. Session storage keeps
- * the same menu scope across reloads without turning it into a global request header.
+ * the same scope within this entry without leaking it to another project or tenant.
  */
 export const getApplicationScopeFromLocation = (
   location: RouteQueryLocation = window.location,
@@ -187,15 +200,73 @@ export const getApplicationScopeFromLocation = (
 
   if (query.has(APPLICATION_SCOPE_QUERY_KEY)) {
     const scope = normalizeApplicationScope(query.get(APPLICATION_SCOPE_QUERY_KEY))
-    if (scope) {
-      storage.setItem(APPLICATION_SCOPE_STORAGE_KEY, scope)
-      return scope
-    }
-    storage.removeItem(APPLICATION_SCOPE_STORAGE_KEY)
-    return undefined
+    setApplicationScope(scope, storage, location)
+    return scope || undefined
   }
 
+  if (location.pathname !== undefined
+    && storage.getItem(APPLICATION_SCOPE_ENTRY_KEY) !== location.pathname) return undefined
   return normalizeApplicationScope(storage.getItem(APPLICATION_SCOPE_STORAGE_KEY)) || undefined
+}
+
+/** Resolve one entry identity for all consumers; explicit project intent overrides SaaS storage. */
+export const resolveApplicationRuntimeEntry = (
+  projectRuntime: boolean,
+  storedScope?: string,
+  subApp = false,
+  location: RouteQueryLocation = window.location,
+  storage: ApplicationScopeStorage = window.sessionStorage,
+): ApplicationRuntimeEntry => {
+  if (subApp || !projectRuntime) return { type: projectRuntime ? 'project' : 'tenant' }
+
+  const queryScope = getRouteQueryParam(location, APPLICATION_SCOPE_QUERY_KEY)
+  const scope = queryScope !== null
+    ? getApplicationScopeFromLocation(location, storage)
+    : normalizeApplicationScope(storedScope) || getApplicationScopeFromLocation(location, storage)
+
+  return scope && !isProjectApplicationScope(scope)
+    ? { type: 'application', applicationId: scope }
+    : { type: 'project' }
+}
+
+/** Serialize application IDs only at the transport boundary, including already-prefixed IDs. */
+export const getApplicationScopeHeader = (scope?: string) => {
+  const id = normalizeApplicationScope(scope)
+  return id && !isProjectApplicationScope(id) ? `business_application:${id}` : undefined
+}
+
+/** Carry the entry through internal navigation without replacing an explicit route choice. */
+export const preserveApplicationScopeQuery = <T extends Record<string, unknown>>(
+  query: T,
+  applicationId?: string,
+) => applicationId !== undefined && !Object.prototype.hasOwnProperty.call(query, APPLICATION_SCOPE_QUERY_KEY)
+  ? { ...query, [APPLICATION_SCOPE_QUERY_KEY]: applicationId }
+  : query
+
+/** Apply disable > explicit target > current entry consistently to every HTTP transport. */
+export const applyApplicationScopeHeaders = (
+  headers: Record<string, unknown>,
+  applicationScope: MenuApplicationScope,
+  currentApplicationId?: string,
+  projectContext?: false,
+  url?: string,
+) => {
+  const scopeKeys = Object.keys(headers).filter(key => key.toLowerCase() === APPLICATION_SCOPE_HEADER.toLowerCase())
+  const explicitHeader = scopeKeys.map(key => headers[key]).find(value => typeof value === 'string' && value.trim())
+  scopeKeys.forEach(key => delete headers[key])
+  if (applicationScope === false || projectContext === false || isProjectApplicationScope(applicationScope)) return
+
+  if (applicationScope) {
+    headers[APPLICATION_SCOPE_HEADER] = getApplicationScopeHeader(applicationScope)
+  } else if (typeof explicitHeader === 'string') {
+    // Other asset types may explicitly use this header too; preserve their transport contract.
+    headers[APPLICATION_SCOPE_HEADER] = explicitHeader.startsWith('business_application:')
+      ? getApplicationScopeHeader(explicitHeader)
+      : explicitHeader
+  } else if (!url?.includes('/edge/device/')) {
+    const scope = getApplicationScopeHeader(currentApplicationId)
+    if (scope) headers[APPLICATION_SCOPE_HEADER] = scope
+  }
 }
 
 export const resolveMenuApplicationScope = (
@@ -207,26 +278,28 @@ export const resolveMenuApplicationScope = (
     const resolved = applicationScope === false
       ? undefined
       : applicationScope ?? getApplicationScopeFromLocation(location, storage)
-    return isProjectApplicationScope(resolved) ? undefined : resolved
+    return isProjectApplicationScope(resolved) ? undefined : normalizeApplicationScope(resolved) || undefined
   })()
 )
 
 /**
  * Persist the active application for this browser tab only.
  *
- * The tab scope bootstraps menu selection; application request headers come from
- * project storage scope so the project entry can stay header-free.
+ * Bind the cache to its pathname; URLs and SaaS entry storage remain the entry identity.
  */
 export const setApplicationScope = (
   applicationId?: string,
   storage: ApplicationScopeStorage = window.sessionStorage,
+  location: RouteQueryLocation | undefined = typeof window === 'undefined' ? undefined : window.location,
 ) => {
   const normalizedId = normalizeApplicationScope(applicationId)
   if (normalizedId) {
     storage.setItem(APPLICATION_SCOPE_STORAGE_KEY, normalizedId)
+    if (location?.pathname !== undefined) storage.setItem(APPLICATION_SCOPE_ENTRY_KEY, location.pathname)
     return
   }
   storage.removeItem(APPLICATION_SCOPE_STORAGE_KEY)
+  storage.removeItem(APPLICATION_SCOPE_ENTRY_KEY)
 }
 
 export const createApplicationScopeUrl = (

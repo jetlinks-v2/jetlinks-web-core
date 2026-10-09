@@ -1,3 +1,5 @@
+import { isPrivateDeployment } from './deployment'
+
 export interface ProjectStorageInfo {
   domain?: string
   apiUrl?: string
@@ -11,7 +13,7 @@ export interface ProjectStorageInfo {
 
 export const PROJECT_STORAGE_PREFIX = 'project_'
 
-export const isProjectStorageEnabled = () => !!import.meta.env.VITE_APP_ENVIRONMENT
+export const isProjectStorageEnabled = () => !isPrivateDeployment()
 
 const normalizeProjectCode = (projectCode: unknown) => {
   return typeof projectCode === 'string' ? projectCode.trim() : ''

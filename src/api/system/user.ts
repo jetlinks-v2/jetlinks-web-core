@@ -4,7 +4,7 @@ import { request } from '@jetlinks-web/core'
  * 获取用户基本信息
  * @returns
  */
-export const detail = () => request.get('/user/detail')
+export const detail = () => request.get('/user/detail', undefined, { applicationScope: false })
 
 // // 获取用户类型
 // export const getUserType_api = () => request.get(`/user/detail/types`);

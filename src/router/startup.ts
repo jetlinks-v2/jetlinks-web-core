@@ -8,6 +8,8 @@ import {
   useUserStore,
 } from '@jetlinks-web-core/store'
 import { isBusinessApplicationRuntime } from '@jetlinks-web-core/utils/business-application-runtime'
+import { getApplicationRuntimeEntry } from '@jetlinks-web-core/utils/project-runtime'
+import { ApplicationEntryUnavailableError } from '@jetlinks-web-core/utils/application-scope'
 import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
 
 let menuRoutePromise: Promise<boolean> | undefined
@@ -36,7 +38,11 @@ export const bootstrapSession = async () => {
   }
 
   if (isBusinessApplicationRuntime()) {
-    await useBusinessApplicationStore().initialize()
+    const selected = await useBusinessApplicationStore().initialize()
+    if (getApplicationRuntimeEntry().type === 'application' && selected) {
+      systemStore.layout.title = selected.name
+      systemStore.changeTitle(selected.name)
+    }
   }
 }
 
@@ -71,13 +77,19 @@ export const ensureMenuRoutes = async (
 
   menuRoutePromise = (async () => {
     const businessApplicationStore = useBusinessApplicationStore()
-    const shouldUseApplicationScope = isBusinessApplicationRuntime() && businessApplicationStore.scopeSupported
-    const applicationId = shouldUseApplicationScope
-      ? businessApplicationStore.currentApplication?.id
-      : undefined
+    const entry = getApplicationRuntimeEntry()
+    if (entry.type === 'application'
+      && (!businessApplicationStore.initialized
+        || !businessApplicationStore.scopeSupported
+        || businessApplicationStore.currentApplication?.id !== entry.applicationId)) {
+      throw new ApplicationEntryUnavailableError()
+    }
 
-    // 租户端必须显式禁用应用 Scope；undefined 会继续读取当前标签页遗留的 session Scope。
-    await menuStore.queryMenus(shouldUseApplicationScope ? applicationId || false : false)
+    // 项目和租户菜单显式禁用应用 Scope，应用菜单只使用已确认的目标。
+    const result = await menuStore.queryMenus(entry.applicationId || false)
+    if (entry.type === 'application' && result?.applied && !result.firstMenuPath) {
+      throw new ApplicationEntryUnavailableError()
+    }
 
     if (menuStore.initialized) {
       addFallbackRoute(router)

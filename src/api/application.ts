@@ -17,11 +17,12 @@ export interface BusinessApplicationEntity {
   state?: string | { value: string; text?: string }
 }
 
-export const uiList = () => request.get('/system/resources/ui')
+export const uiList = () => request.get('/system/resources/ui', undefined, { applicationScope: false })
 
 export const getMyBusinessApplications = () => (
   // Older deployments may not expose this optional endpoint; the store handles fallback.
   request.get<BusinessApplicationEntity[]>('/business-application/me', undefined, {
     hiddenError: true,
+    applicationScope: false,
   })
 )

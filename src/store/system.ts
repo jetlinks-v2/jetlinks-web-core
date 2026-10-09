@@ -23,6 +23,7 @@ import {
   isProjectRuntime,
 } from '@jetlinks-web-core/utils/project-runtime'
 import { getProjectStorage } from '@jetlinks-web-core/utils/project-storage'
+import { useBusinessApplicationStore } from './businessApplication'
 
 export type LayoutMode = 'mix' | 'side' | 'top'
 
@@ -69,13 +70,18 @@ export const toLayoutMode = (value: unknown): LayoutMode | undefined => (
 const resolveLayoutTitle = (frontTitle: unknown) => {
   const fallbackTitle = typeof frontTitle === 'string' ? frontTitle : ''
   const applicationRuntime = isApplicationRuntime()
+  const applicationName = applicationRuntime ? useBusinessApplicationStore().currentApplication?.name : undefined
+  if (applicationName) return applicationName
   if (!applicationRuntime && !isProjectRuntime()) return fallbackTitle
 
   // 应用路径使用应用 ID；固定 project scope 的项目 code 不能用于读取应用名称。
   const runtimeCode = applicationRuntime
     ? getProjectCodeFromPathname()
     : getProjectCodeFromLocation()
-  const runtimeName = getProjectStorage(runtimeCode)?.name
+  const runtimeStorage = getProjectStorage(runtimeCode)
+  const runtimeName = applicationRuntime
+    ? runtimeStorage?.name
+    : runtimeStorage?.projectName || runtimeStorage?.name
   // 运行上下文名称不能被接口回退出的 front.title 覆盖。
   return typeof runtimeName === 'string' && runtimeName.trim()
     ? runtimeName.trim()

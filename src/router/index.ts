@@ -5,7 +5,8 @@ import {
   type NavigationGuardNext
 } from 'vue-router'
 import { TOKEN_KEY } from '@jetlinks-web/constants'
-import { getToken, LocalStore, removeToken } from '@jetlinks-web/utils'
+import { getToken, LocalStore, removeToken, onlyMessage } from '@jetlinks-web/utils'
+import i18n from '@jetlinks-web-core/locales'
 import microApp from '@micro-zoe/micro-app'
 import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
@@ -23,8 +24,16 @@ import {
   getProjectCodeFromLocation,
   getProjectRuntimeConfig,
   redirectLegacyProjectHash,
-  isProjectRuntime
+  isProjectRuntime,
+  getApplicationRuntimeEntry,
 } from '@jetlinks-web-core/utils/project-runtime'
+import {
+  ApplicationEntryUnavailableError,
+  APPLICATION_SCOPE_QUERY_KEY,
+  getRouteQueryParam,
+  isProjectApplicationScope,
+  preserveApplicationScopeQuery,
+} from '@jetlinks-web-core/utils/application-scope'
 import { removeProjectStorage } from '@jetlinks-web-core/utils/project-storage'
 import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 import { useUserStore } from '@jetlinks-web-core/store/user'
@@ -114,6 +123,22 @@ function shouldSkipMenuFetch(to: RouteLocationNormalized): boolean {
 
 const isForbiddenRoute = (to: RouteLocationNormalized) => to.path === FORBIDDEN_PATH
 const isNotFoundRoute = (to: RouteLocationNormalized) => to.name === 'error'
+
+/** Application bootstrap failures stop at 403; project-menu fallback would change the entry identity. */
+const handleApplicationStartupError = (
+  error: unknown,
+  to: RouteLocationNormalized,
+  next: NavigationGuardNext,
+) => {
+  const entry = getApplicationRuntimeEntry()
+  if (entry.type !== 'application') return false
+  if (!(error instanceof ApplicationEntryUnavailableError)) {
+    onlyMessage(i18n.global.t('components.BusinessApplicationSwitcher.loadFailed'), 'error')
+  }
+  if (isForbiddenRoute(to)) next()
+  else next({ path: FORBIDDEN_PATH, query: to.query, replace: true })
+  return true
+}
 
 const getAdministratorRouteRedirect = (to: RouteLocationNormalized) => {
   const requiresAdministrator = to.matched.some(
@@ -207,12 +232,34 @@ const getRoutesByServer = async (
     next()
   } catch (error) {
     console.error('[Router] 获取服务端路由失败:', error)
+    if (handleApplicationStartupError(error, to, next)) return
     next()
   }
 }
 
 // ============ 全局守卫 ============
 router.beforeEach((to, from, next) => {
+  const entry = getApplicationRuntimeEntry()
+  const locationScope = getRouteQueryParam(window.location, APPLICATION_SCOPE_QUERY_KEY)
+  const navigationScope = entry.applicationId
+    ?? (locationScope === '' || isProjectApplicationScope(locationScope) ? locationScope ?? undefined : undefined)
+  const applicationQuery = preserveApplicationScopeQuery(to.query, navigationScope)
+  if (applicationQuery !== to.query) {
+    next({ path: to.path, query: applicationQuery, hash: to.hash, replace: true })
+    return
+  }
+
+  // Changing entry identity reloads the existing session/menu lifecycle, as the application switcher does.
+  const targetScope = to.query[APPLICATION_SCOPE_QUERY_KEY] === null ? '' : to.query[APPLICATION_SCOPE_QUERY_KEY]
+  if (typeof targetScope === 'string' && targetScope !== locationScope && from.matched.length
+    && targetScope !== entry.applicationId) {
+    const url = new URL(window.location.href)
+    url.hash = `#${to.fullPath}`
+    url.searchParams.delete(APPLICATION_SCOPE_QUERY_KEY)
+    window.location.assign(url.toString())
+    next(false)
+    return
+  }
   const routeLoading = useRouteLoadingStore()
   const reuseManualRouteLoading = Boolean(
     to.meta.routeLoadingManualFinish
@@ -230,6 +277,10 @@ router.beforeEach((to, from, next) => {
   }
 
   const token = getToken()
+  if (token && entry.type === 'application' && isForbiddenRoute(to)) {
+    next()
+    return
+  }
 
   // 优化: 使用路由名称判断（更可靠）
   const isLoginRoute = to.name === 'Login'
@@ -261,6 +312,7 @@ router.beforeEach((to, from, next) => {
         })
         .catch(error => {
           console.error('[Router] 初始化会话失败:', error)
+          if (handleApplicationStartupError(error, to, next)) return
           const administratorRouteRedirect = getAdministratorRouteRedirect(to)
           if (administratorRouteRedirect) {
             next(administratorRouteRedirect)

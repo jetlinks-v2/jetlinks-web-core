@@ -1194,6 +1194,7 @@
   "components.BusinessApplicationSwitcher.switchApplication": "切换应用",
   "components.BusinessApplicationSwitcher.switching": "正在切换应用",
   "components.BusinessApplicationSwitcher.switchFailed": "切换到“{name}”失败，已保留当前应用",
+  "components.BusinessApplicationSwitcher.loadFailed": "应用加载失败，请刷新页面重试。",
   "components.BusinessApplicationSwitcher.notConfigured": "无法切换到“{name}”。未配置访问权限，请联系管理员。",
   "components.BusinessApplicationSwitcher.projectEntry": "当前项目",
   "components.BusinessApplicationSwitcher.headerLabel": "应用",

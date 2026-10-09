@@ -8,7 +8,7 @@ import {
 } from '@jetlinks-web-core/api/application'
 import { hasOwnBusinessApplicationMenu } from '@jetlinks-web-core/api/system/menu'
 import {
-  getApplicationScopeFromLocation,
+  ApplicationEntryUnavailableError,
   isBusinessApplicationEndpointMissing,
   isProjectApplicationScope,
   normalizeBusinessApplications,
@@ -16,8 +16,8 @@ import {
   setApplicationScope,
 } from '@jetlinks-web-core/utils/application-scope'
 import { prepareApplicationAccess } from '@jetlinks-web-core/utils/application-access'
-import { createProjectRuntimeHref, getProjectCodeFromLocation } from '@jetlinks-web-core/utils/project-runtime'
-import { getProjectStorage } from '@jetlinks-web-core/utils/project-storage'
+import { createProjectRuntimeHref, getApplicationRuntimeEntry, getProjectCodeFromLocation, getProjectCodeFromPathname, isProjectRuntime } from '@jetlinks-web-core/utils/project-runtime'
+import { getProjectStorage, isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storage'
 import { getApplicationAccessContext } from '@jetlinks-web-core/utils/request-context'
 import { useMenuStore } from './menu'
 
@@ -46,6 +46,7 @@ const isProjectEntry = (application?: BusinessApplicationEntry) => (
 
 const getCurrentProjectContext = (projectCodeHint?: string) => {
   const locationCode = normalizeText(projectCodeHint) || getProjectCodeFromLocation()
+    || (isProjectStorageEnabled() ? getProjectCodeFromPathname() : '')
   const locationStorage = getProjectStorage(locationCode)
   const projectCode = normalizeText(locationStorage?.domain) || locationCode
   const projectStorage = getProjectStorage(projectCode) || locationStorage
@@ -68,7 +69,7 @@ const createProjectApplicationEntry = (
   if (!sourceApplications.length) return undefined
 
   const { projectCode, projectName } = getCurrentProjectContext(projectCodeHint)
-  if (!projectCode) return undefined
+  if (!projectCode && !isProjectRuntime()) return undefined
 
   return {
     id: PROJECT_APPLICATION_SCOPE,
@@ -100,11 +101,10 @@ const selectInitialApplication = (
 ) => {
   const normalizedScope = normalizeText(applicationScope)
   if (normalizedScope) {
-    const matchedApplication = entries.find(item => item.id === normalizedScope)
-    if (matchedApplication) return matchedApplication
+    return entries.find(item => item.id === normalizedScope)
   }
 
-  return entries.find(isProjectEntry) || entries[0]
+  return entries.find(isProjectEntry)
 }
 
 export const useBusinessApplicationStore = defineStore('business-application', () => {
@@ -127,6 +127,9 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     })
 
     if (isBusinessApplicationEndpointMissing(response)) {
+      if (preferredApplicationId && !isProjectApplicationScope(preferredApplicationId)) {
+        throw new ApplicationEntryUnavailableError()
+      }
       // 兼容未部署业务应用能力的 SaaS 后端，继续走普通菜单加载。
       applications.value = []
       currentApplication.value = undefined
@@ -140,6 +143,9 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     const entries = withProjectEntry(result, projectCodeHint)
     // 普通项目入口默认保留项目菜单；子账号登录会显式调用 enterFirstApplication 进入首个业务应用。
     const selected = selectInitialApplication(entries, preferredApplicationId)
+    if (preferredApplicationId && !isProjectApplicationScope(preferredApplicationId) && !selected) {
+      throw new ApplicationEntryUnavailableError()
+    }
 
     applications.value = entries
     currentApplication.value = selected
@@ -154,7 +160,7 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     if (initializePromise) return initializePromise
 
     loading.value = true
-    initializePromise = loadApplications(projectCodeHint, getApplicationScopeFromLocation())
+    initializePromise = loadApplications(projectCodeHint, getApplicationRuntimeEntry().applicationId)
 
     return initializePromise.finally(() => {
       loading.value = false
@@ -169,7 +175,7 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     refreshPromise = (async () => {
       if (initializePromise) await initializePromise
       loading.value = true
-      const preferredApplicationId = currentApplication.value?.id || getApplicationScopeFromLocation()
+      const preferredApplicationId = currentApplication.value?.id || getApplicationRuntimeEntry().applicationId
       return loadApplications(projectCodeHint, preferredApplicationId)
     })()
 
@@ -191,7 +197,7 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     const path = result.firstMenuPath || options.fallbackPath || '/403'
 
     currentApplication.value = projectEntry
-    setApplicationScope(PROJECT_APPLICATION_SCOPE)
+    setApplicationScope()
     window.location.assign(createProjectRuntimeHref(projectCode, path))
     return true
   }

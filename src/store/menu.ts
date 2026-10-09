@@ -5,6 +5,7 @@ import { setParamsValue } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
 import {
   isApplicationRuntime,
+  getApplicationRuntimeEntry,
   isFromCloud,
   isProjectRuntime,
   normalizeProjectRuntimePath,
@@ -16,8 +17,6 @@ import i18n from '@jetlinks-web-core/locales'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 import {
   resolveMenuApplicationScope,
-  getApplicationScopeFromLocation,
-  isProjectApplicationScope,
   type MenuApplicationScope,
 } from '@jetlinks-web-core/utils/application-scope'
 import type { MenuFilterConditions } from '@jetlinks-web-core/types/module'
@@ -60,12 +59,12 @@ const $t = i18n.global.t
 // routeName is the stable target contract for virtual navigation domains such as project settings.
 const LEGACY_PROJECT_MENU_OPTION_KEYS = ['componentCode', 'authCode', 'authCodes']
 
-const getDefaultOwnParams = (): any[] => {
+const getDefaultOwnParams = (applicationScope: MenuApplicationScope): any[] => {
   const termsItems: Record<string, any> = {
     column: 'owner',
     value: OWNER_KEY
   }
-  if (isApplicationRuntime()) { // 应用端
+  if (applicationScope) { // 显式目标决定菜单 owner，切回项目的预检不能沿用当前应用。
     termsItems.value = 'app'
   }
 
@@ -88,11 +87,7 @@ const resolveQueryMenusOptions = (
 )
 
 const resolveRequestedApplicationScope = (applicationScope: MenuApplicationScope) => (
-  applicationScope === undefined ? getApplicationScopeFromLocation() : applicationScope
-)
-
-const shouldSuppressStorageApplicationScope = (applicationScope: MenuApplicationScope) => (
-  applicationScope === false || isProjectApplicationScope(applicationScope)
+  applicationScope === undefined ? getApplicationRuntimeEntry().applicationId || false : applicationScope
 )
 
 /**
@@ -220,7 +215,7 @@ export const useMenuStore = defineStore('menu', () => {
         context.menuRoutes.push({
           path: '/',
           redirect: getFirstMenuPath(context.menuRoutes)
-            || (isSaaS ? '/403' : defaultRedirect),
+            || (isApplicationRuntime() || isSaaS ? '/403' : defaultRedirect),
         })
       }
 
@@ -238,12 +233,15 @@ export const useMenuStore = defineStore('menu', () => {
 
   let menuRequestId = 0
 
-  const requestMenus = (hasTerms: boolean = true) => {
+  const requestMenus = (
+    hasTerms: boolean = true,
+    applicationScope: MenuApplicationScope = getApplicationRuntimeEntry().applicationId || false,
+  ) => {
     return getOwnMenuThree({
       paging: false,
-      terms: hasTerms ? getDefaultOwnParams() : [],
+      terms: hasTerms ? getDefaultOwnParams(resolveMenuApplicationScope(applicationScope)) : [],
       sorts: [{ name: 'sortIndex', order: 'asc' }],
-    })
+    }, applicationScope)
   }
 
   const queryMenus = async (
@@ -258,7 +256,7 @@ export const useMenuStore = defineStore('menu', () => {
 
     runtime.loading.value = true
     try {
-      const resp = await requestMenus()
+      const resp = await requestMenus(hasTerms ?? true, resolvedApplicationScope || false)
 
       const menuResult = Array.isArray(resp.result) ? resp.result : []
 

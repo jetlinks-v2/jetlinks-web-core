@@ -4,6 +4,8 @@ import { getToken } from '@jetlinks-web/utils'
 import { edgeDefaultUrl, isSubApp } from './consts'
 import { getProjectIdFromLocation } from './project-path'
 import { getProjectStorage, isProjectStorageEnabled, type ProjectStorageInfo } from './project-storage'
+import { getApplicationRuntimeEntry } from './project-runtime'
+import { applyApplicationScopeHeaders, type MenuApplicationScope } from './application-scope'
 
 const TENANT_DOMAIN_KEY = 'X-Tenant-Domain'
 const VERIFY_CACHE_KEY = 'jetlinks_verify_cache'
@@ -71,7 +73,11 @@ const getVerifyHeaders = (): Record<string, string> => {
   }
 }
 
-export const getRequestHeaders = (): Record<string, string> => {
+export const getRequestHeaders = (options: {
+  applicationScope?: MenuApplicationScope
+  projectContext?: false
+  url?: string
+} = {}): Record<string, string> => {
   const headers: Record<string, string> = {}
   const projectId = isProjectStorageEnabled() ? getProjectIdFromLocation() : ''
   const projectStorage = projectId ? getProjectStorage(projectId) : undefined
@@ -79,6 +85,13 @@ export const getRequestHeaders = (): Record<string, string> => {
 
   if (token) headers[TOKEN_KEY] = token
   if (projectStorage?.domain) headers[TENANT_DOMAIN_KEY] = projectStorage.domain
+  applyApplicationScopeHeaders(
+    headers,
+    options.applicationScope,
+    getApplicationRuntimeEntry().applicationId,
+    options.projectContext,
+    options.url,
+  )
 
   return {
     ...headers,

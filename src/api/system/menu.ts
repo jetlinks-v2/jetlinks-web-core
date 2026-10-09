@@ -1,6 +1,8 @@
 import { request } from '@jetlinks-web/core'
 import {
   APPLICATION_SCOPE_HEADER,
+  getApplicationScopeHeader,
+  isProjectApplicationScope,
   type MenuApplicationScope,
 } from '@jetlinks-web-core/utils/application-scope'
 
@@ -17,10 +19,10 @@ import {
  * @returns
  */
 export const getOwnMenuThree = (data: any, applicationScope?: MenuApplicationScope) => {
-  const config = applicationScope === false
+  const config = applicationScope === false || isProjectApplicationScope(applicationScope)
     ? { applicationScope: false }
     : applicationScope
-      ? { headers: { [APPLICATION_SCOPE_HEADER]: applicationScope } }
+      ? { headers: { [APPLICATION_SCOPE_HEADER]: getApplicationScopeHeader(applicationScope) } }
       : undefined
 
   return request.post('/menu/user-own/tree', data, config)

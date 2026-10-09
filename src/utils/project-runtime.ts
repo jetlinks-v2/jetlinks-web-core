@@ -6,6 +6,8 @@ import {
 import { getProjectStorage, isProjectStorageEnabled } from './project-storage'
 import { isFromCloud } from './request-context'
 import { isPrivateDeployment } from './deployment'
+import { isSubApp } from './consts'
+import { resolveApplicationRuntimeEntry } from './application-scope'
 
 export {
   getProjectCodeFromPathname,
@@ -120,14 +122,11 @@ export const redirectLegacyProjectHash = (hash = window.location.hash) => {
   return true
 }
 
-export const isApplicationRuntime = () => {
-    const projectContext = getProjectContext()
+/** App identity is independent of whether this deployment supports SaaS project storage. */
+export const getApplicationRuntimeEntry = () => resolveApplicationRuntimeEntry(
+  isProjectRuntime(),
+  getProjectContext()?.storage?.scope,
+  !!isSubApp,
+)
 
-    if (projectContext) {
-        const { storage: projectStorage } = projectContext
-
-        return !!projectStorage?.scope
-    }
-
-    return false
-}
+export const isApplicationRuntime = () => getApplicationRuntimeEntry().type === 'application'
