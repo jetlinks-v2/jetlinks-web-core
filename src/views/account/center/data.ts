@@ -1,7 +1,7 @@
 import i18n from "@jetlinks-web-core/locales";
 
-type KeyType = 'HomeView' | 'BindThirdAccount' | 'Subscribe' | 'StationMessage' | 'PersonalToken';
-export const tabList: { key: KeyType; title: string }[] = [
+export type CenterTabKey = 'HomeView' | 'BindThirdAccount' | 'Subscribe' | 'StationMessage' | 'PersonalToken';
+export const tabList: { key: CenterTabKey; title: string }[] = [
     {
         key: 'BindThirdAccount',
         title: i18n.global.t('center.data.accountInfo'),
