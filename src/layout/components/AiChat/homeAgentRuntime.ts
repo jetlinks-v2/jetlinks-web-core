@@ -73,8 +73,8 @@ export const createHomeAgentRuntime = (
     },
   )
   const capabilityLoaderToolId = resolveClientCapabilityLoaderToolId(runtime.clientTools)
-  const composition = composeHomeAgentParameters({
-    context,
+  const composeParameters = () => composeHomeAgentParameters({
+    context: getContext(),
     options,
     providers: () => getProviders(options),
     runtime,
@@ -82,10 +82,17 @@ export const createHomeAgentRuntime = (
     markdownLinkHandler: createHomeAgentMarkdownLinkHandler(options),
     translate: i18n.global.t,
   })
-
-  return {
+  const agentRuntime: HomeAgentRuntime = {
     ...runtime,
     getContext,
-    ...composition,
+    ...composeParameters(),
+    // Preserve the live tool snapshot; object spread alone freezes runtime getters.
+    get clientTools() { return runtime.clientTools },
+    get clientToolsVersion() { return runtime.clientToolsVersion },
+    refreshContext: () => {
+      runtime.refreshClientTools()
+      Object.assign(agentRuntime, composeParameters())
+    },
   }
+  return agentRuntime
 }
