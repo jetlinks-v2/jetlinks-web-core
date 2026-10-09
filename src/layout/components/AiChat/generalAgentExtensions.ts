@@ -34,6 +34,10 @@ export interface GeneralAgentConversationChatPayload {
   toolAction?: GeneralAgentToolAction;
 }
 
+export type GeneralAgentConversationBeforeSend = (
+  payload: GeneralAgentConversationChatPayload,
+) => GeneralAgentConversationChatPayload | false | void;
+
 // Shared DOM contract for composer actions rendered inside a floating general-agent surface.
 export const GENERAL_AGENT_COMPOSER_INTENT_EVENT = 'ai-capability:composer-intent';
 export const GENERAL_AGENT_COMPOSER_SURFACE_SELECTOR = '[data-ai-composer-surface]';

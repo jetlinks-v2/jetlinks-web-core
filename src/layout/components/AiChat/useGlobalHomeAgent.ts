@@ -1,9 +1,10 @@
-import { computed, onBeforeUnmount, watch } from 'vue';
+import { onBeforeUnmount, watch } from 'vue';
 import { useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import { useAIStore } from '@jetlinks-web-core/store/ai';
 import { useMenuStore } from '@jetlinks-web-core/store/menu';
 import {
   getProjectIdFromLocation,
+  getProjectRuntimeConfig,
   isProjectRuntime,
   normalizeProjectRuntimePath,
 } from '@jetlinks-web-core/utils/project-runtime';
@@ -33,6 +34,19 @@ import { resolveHomeAgentConversationContext } from './homeAgentConversationCont
 
 const normalizeMessageText = (value: unknown) => String(value || '').trim();
 
+export const resolveProjectGlobalAgentScopeId = (
+  runtimeProjectId: unknown,
+  pathnameProjectId: unknown,
+) => (
+  normalizeMessageText(runtimeProjectId)
+  || normalizeMessageText(pathnameProjectId)
+);
+
+export const shouldUseProjectGlobalAgent = (
+  projectRuntime: boolean,
+  projectId: unknown,
+) => projectRuntime && !!normalizeMessageText(projectId);
+
 const resolveRoutePageAgentClientId = (route: RouteLocationNormalizedLoaded) => {
   const meta = (route.meta || {}) as Record<string, any>;
   const config = meta.pageAgent || meta.aiAgent || {};
@@ -52,11 +66,13 @@ const resolveMessageContent = (message: Record<string, any>) => normalizeMessage
   || message.payload?.message,
 );
 
-const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
+const useProjectGlobalAgent = (
+  route: RouteLocationNormalizedLoaded,
+  projectId: string,
+) => {
   const router = useRouter();
   const aiStore = useAIStore();
   const menuStore = useMenuStore();
-  const projectId = computed(() => normalizeMessageText(getProjectIdFromLocation()));
   let syncing = false;
   let syncTimer: number | undefined;
   let managedClientId = '';
@@ -64,6 +80,7 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
   let latestUserMessage: Record<string, any> | undefined;
   let activeRuntime: GeneralAgentRuntime | undefined;
   let unsubscribeRuntime: (() => void) | undefined;
+  let disposed = false;
 
   const isHubRoute = () => normalizeProjectRuntimePath(route.path) === '/ai-search-hub';
 
@@ -102,9 +119,9 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
     ...createProjectBubbleParameters(runtime),
     clientTools: runtime.clientTools,
     clientToolsVersion: runtime.clientToolsVersion,
-    projectId: projectId.value,
+    projectId,
     scopeType: PROJECT_GENERAL_AGENT_SUBJECT_TYPE,
-    scopeKey: projectId.value,
+    scopeKey: projectId,
   });
 
   const applyRuntimeParameters = (runtime: GeneralAgentRuntime) => {
@@ -116,17 +133,16 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
   };
 
   const buildRuntime = () => {
+    if (activeRuntime) return activeRuntime;
     const runtime = createProjectGeneralAgentRuntime({
       route,
       router,
-      projectId: projectId.value,
-      menus: menuStore.siderMenus as Record<string, any>[],
+      projectId,
+      menus: () => menuStore.siderMenus as Record<string, any>[],
       getLatestUserMessage: () => latestUserMessage,
       onConversationMessage: recordConversationMessage,
       onCapabilitiesLoaded: refreshParameters,
     });
-    unsubscribeRuntime?.();
-    activeRuntime?.dispose();
     activeRuntime = runtime;
     unsubscribeRuntime = runtime.subscribeClientTools(() => applyRuntimeParameters(runtime));
     return runtime;
@@ -138,15 +154,21 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
     managedClientId = '';
   };
 
+  const hasOtherAgentActivity = () => (
+    (!!aiStore.pendingClientId && aiStore.pendingClientId !== PROJECT_GENERAL_AGENT_CLIENT_ID)
+    || (aiStore.showAiButton && aiStore.activeClientId !== PROJECT_GENERAL_AGENT_CLIENT_ID)
+  );
+
   const refreshParameters = () => {
     if (resolveRoutePageAgentClientId(route) || aiStore.activeClientId !== PROJECT_GENERAL_AGENT_CLIENT_ID) return;
-    if (!aiStore.agentList.length || !projectId.value) return;
+    if (!aiStore.agentList.length) return;
     const runtime = buildRuntime();
+    runtime.refreshContext();
     applyRuntimeParameters(runtime);
   };
 
   const sync = async () => {
-    if (!projectId.value || !menuStore.initialized || syncing) return;
+    if (disposed || !menuStore.initialized || syncing) return;
     if (isHubRoute()) {
       releasePreparedRouteAgent();
       releaseManagedAgent();
@@ -164,14 +186,23 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
       refreshParameters();
       return;
     }
-    if (aiStore.pendingClientId && aiStore.pendingClientId !== PROJECT_GENERAL_AGENT_CLIENT_ID) return;
-    if (aiStore.showAiButton && aiStore.activeClientId !== PROJECT_GENERAL_AGENT_CLIENT_ID) return;
+    if (hasOtherAgentActivity()) return;
 
     syncing = true;
     try {
       await loadGeneralAgentExtensions({ loadAll: true });
+      if (disposed || isHubRoute()) return;
+      // 异步加载期间页面助手可能已经接管，查询前必须重新确认所有权，避免全局助手覆盖新 owner。
+      if (prepareRouteAgent()) {
+        releaseManagedAgent();
+        return;
+      }
+      if (hasOtherAgentActivity()) return;
       const runtime = buildRuntime();
+      runtime.refreshContext();
+      managedClientId = PROJECT_GENERAL_AGENT_CLIENT_ID;
       await aiStore.queryAgent(PROJECT_GENERAL_AGENT_CLIENT_ID, createRuntimeParameters(runtime));
+      if (disposed) return;
       managedClientId = aiStore.activeClientId === PROJECT_GENERAL_AGENT_CLIENT_ID
         ? PROJECT_GENERAL_AGENT_CLIENT_ID
         : '';
@@ -190,13 +221,25 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
   };
 
   watch(
-    () => [route.fullPath, projectId.value, menuStore.initialized, menuStore.siderMenus.length],
+    () => [route.fullPath, menuStore.initialized, menuStore.siderMenus, menuStore.siderMenus.length],
     scheduleSync,
     { immediate: true, flush: 'post' },
   );
 
+  // A page can release its assistant without navigating (for example, closing an editor).
+  watch(
+    () => [aiStore.pendingClientId, aiStore.activeClientId],
+    ([pending, active], previous) => {
+      if (!pending && !active && previous?.some(client => client && client !== PROJECT_GENERAL_AGENT_CLIENT_ID)) {
+        scheduleSync();
+      }
+    },
+    { flush: 'post' },
+  );
+
   window.addEventListener(HOME_AGENT_CAPABILITY_CHANGE_EVENT, scheduleSync);
   onBeforeUnmount(() => {
+    disposed = true;
     if (syncTimer) window.clearTimeout(syncTimer);
     releasePreparedRouteAgent();
     releaseManagedAgent();
@@ -209,8 +252,12 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
 };
 
 export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
-  if (isProjectRuntime()) {
-    useProjectGlobalAgent(route);
+  const projectId = resolveProjectGlobalAgentScopeId(
+    getProjectRuntimeConfig().projectCode,
+    getProjectIdFromLocation(),
+  );
+  if (shouldUseProjectGlobalAgent(isProjectRuntime(), projectId)) {
+    useProjectGlobalAgent(route, projectId);
     return;
   }
 
@@ -222,6 +269,7 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
   let latestUserMessage: HomeAgentConversationMessageContext | undefined;
   let activeRuntime: HomeAgentRuntime | undefined;
   let unsubscribeRuntime: (() => void) | undefined;
+  let disposed = false;
 
   const recordConversationMessage = (message: HomeAgentConversationMessageContext & Record<string, any>) => {
     const localUserMessage = message?.type === 'user'
@@ -255,14 +303,13 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
   };
 
   const buildRuntime = () => {
+    if (activeRuntime) return activeRuntime;
     const runtime = createHomeAgentRuntime({
       currentView: () => String(route.name || route.path || ''),
       extraTools: () => [createHomeAgentCapabilityLoaderTool(refreshParameters)],
       getLatestUserMessage: () => latestUserMessage,
       onConversationMessage: recordConversationMessage,
     });
-    unsubscribeRuntime?.();
-    activeRuntime?.dispose();
     activeRuntime = runtime;
     unsubscribeRuntime = runtime.subscribeClientTools(() => applyRuntimeParameters(runtime));
     return runtime;
@@ -309,17 +356,27 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     if (!aiStore.agentList.length || !isHomeAgentActive()) return;
 
     const runtime = buildRuntime();
+    runtime.refreshContext();
     applyRuntimeParameters(runtime);
   };
 
   const sync = async () => {
+    if (disposed) return;
     if (prepareRouteAgent()) return;
     if (syncing || hasOtherAgentActivity()) return;
+    if (isHomeAgentActive() && aiStore.agentList.length) {
+      refreshParameters();
+      return;
+    }
 
     syncing = true;
     try {
       await loadHomeAgentCapabilityProviders({ loadAll: true });
+      if (disposed) return;
+      // 异步加载期间页面助手可能已经接管，查询前必须重新确认所有权，避免全局助手覆盖新 owner。
+      if (prepareRouteAgent() || hasOtherAgentActivity()) return;
       const runtime = buildRuntime();
+      runtime.refreshContext();
       await aiStore.queryAgent(HOME_AGENT_CLIENT_ID, createRuntimeParameters(runtime));
       applyRuntimeParameters(runtime);
     } finally {
@@ -345,19 +402,32 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     () => [
       route.fullPath,
       menuStore.initialized,
+      menuStore.siderMenus,
       menuStore.siderMenus.length,
     ],
     scheduleSync,
     { immediate: true, flush: 'post' },
   );
 
+  watch(
+    () => [aiStore.pendingClientId, aiStore.activeClientId],
+    ([pending, active], previous) => {
+      if (!pending && !active && previous?.some(client => client && client !== HOME_AGENT_CLIENT_ID)) {
+        scheduleSync();
+      }
+    },
+    { flush: 'post' },
+  );
+
   window.addEventListener(HOME_AGENT_CAPABILITY_CHANGE_EVENT, handleCapabilityChange);
 
   onBeforeUnmount(() => {
+    disposed = true;
     if (syncTimer) {
       window.clearTimeout(syncTimer);
     }
     releasePreparedRouteAgent();
+    aiStore.releaseAgentConversation(HOME_AGENT_CLIENT_ID);
     unsubscribeRuntime?.();
     activeRuntime?.dispose();
     unsubscribeRuntime = undefined;

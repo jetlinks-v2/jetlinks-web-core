@@ -732,6 +732,7 @@ const shouldKeepTermTypeOnFieldSwitch = (
   return currentColumn.search.type === nextColumn.search.type
 }
 
+// 切换选择型字段时必须确认目标值域，避免沿用旧字段的 ID 导致无效查询和原始值反显。
 const canReuseFieldValueOnSwitch = (
   term: ConditionFilterTerm | undefined,
   nextColumn: ConditionFilterField | undefined,
@@ -750,7 +751,16 @@ const canReuseFieldValueOnSwitch = (
     return false
   }
 
-  return currentKind === nextKind
+  if (currentKind !== nextKind) {
+    return false
+  }
+
+  if (currentColumn?.dataIndex !== nextColumn.dataIndex && nextKind.startsWith('options-')) {
+    const values = Array.isArray(term.value) ? term.value : [term.value]
+    return hasResolvedOptionValues(nextColumn, values)
+  }
+
+  return true
 }
 
 const convertValue = (
@@ -2323,9 +2333,18 @@ watch(
     ensureTermOptionsLoaded()
     emit('update:modelValue', cloneTerms(termsModel.value, { stripKey: true }))
     emit('update:where', payload.value.where)
-    scheduleAutoSearch()
   },
   { deep: true },
+)
+
+// 未填值的条件仅保留编辑上下文，实际查询条件变化时才触发自动搜索。
+watch(
+  () => payload.value.terms,
+  (terms, previousTerms) => {
+    if (!isSameTerms(terms, previousTerms)) {
+      scheduleAutoSearch()
+    }
+  },
 )
 
 onUnmounted(() => {

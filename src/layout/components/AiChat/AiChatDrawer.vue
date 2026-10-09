@@ -119,6 +119,7 @@ import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry';
 import { buildAgentSubjectPayload, normalizeAgentSubject } from './subject';
 import type { AiClientToolCall } from './clientTools';
 import type {
+  GeneralAgentConversationBeforeSend,
   GeneralAgentConversationChatPayload,
   GeneralAgentConversationMessage,
 } from './generalAgentExtensions';
@@ -272,6 +273,7 @@ const conversationBaseParameters = computed(() => {
     conversationTitle,
     headerTitle,
     clientTitle,
+    beforeSendChat,
     onConversationMessage,
     ...rest
   } = props.parameters || {};
@@ -330,6 +332,11 @@ const conversationMarkdownLinkHandler = computed<AiChatMarkdownLinkHandler | und
   const handler = props.parameters?.markdownLinkHandler || props.parameters?.onMarkdownLinkClick;
   return typeof handler === 'function' ? handler : undefined;
 });
+const conversationBeforeSendChat = computed<GeneralAgentConversationBeforeSend | undefined>(() => (
+  typeof props.parameters?.beforeSendChat === 'function'
+    ? props.parameters.beforeSendChat
+    : undefined
+));
 const conversationSystemPrompt = computed(() => String(
   props.parameters?.systemPrompt
   || props.parameters?.agentSystemPrompt
@@ -491,9 +498,6 @@ const conversationKey = computed(() => [
   conversationSubject.value?.type || '',
   conversationSubject.value?.id || '',
   conversationIdentityKey.value,
-  conversationClientToolsName.value,
-  JSON.stringify(conversationWorkflowGuides.value || []),
-  conversationSystemPrompt.value,
 ].join('|'));
 
 const {
@@ -569,7 +573,10 @@ const conversationBridges = useGeneralAgentConversationBridges({
 });
 
 const handleConversationBeforeSend = (payload: GeneralAgentConversationChatPayload) => {
-  const scopedPayload = consumeComposerNextSendParams(payload);
+  let scopedPayload = consumeComposerNextSendParams(payload);
+  const pageResult = conversationBeforeSendChat.value?.(scopedPayload);
+  if (pageResult === false) return false;
+  if (pageResult) scopedPayload = pageResult;
   if (conversationBridges.beforeSend(scopedPayload) === false) return false;
   return scopedPayload === payload ? undefined : scopedPayload;
 };

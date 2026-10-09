@@ -48,6 +48,7 @@ const menuTree = () => [{ path: '/a', name: 'a', children: [
 function harness(t, { variant = 'project', menus = menuTree(), path = '/a/list/second' } = {}) {
   const scope = vue.effectScope()
   t.after(() => { scope.stop(); delete globalThis.window })
+  let globalAgentCalls = 0
   const route = vue.reactive({ path, meta: {}, query: {}, matched: [] })
   const store = vue.reactive({ siderMenus: menus })
   const pushes = []
@@ -63,15 +64,105 @@ function harness(t, { variant = 'project', menus = menuTree(), path = '/a/list/s
     '@jetlinks-web-core/utils': { getHideHeaderRightConfig: () => false },
     '@jetlinks-web-core/utils/business-application-runtime': { isBusinessApplicationRuntime: () => false },
     '@jetlinks-web-core/utils/consts': { isSubApp: false },
-    '@jetlinks-web-core/layout/components/AiChat/useGlobalHomeAgent': { useGlobalHomeAgent() {} },
-    './useProjectGeneralAgent': { useProjectGeneralAgent() {} },
+    '@jetlinks-web-core/layout/components/AiChat/useGlobalHomeAgent': {
+      useGlobalHomeAgent() { globalAgentCalls += 1 },
+    },
     './useProjectSecondaryMenu': { provideProjectSecondaryMenu: () => ({ items: vue.ref([]), selectedKey: vue.ref('') }) },
     './useProjectSecondaryMenuExtensions': { useProjectSecondaryMenuExtensions: () => ({ active: vue.ref(false), visible: vue.ref(false), items: vue.ref([]) }) },
   })
   globalThis.window = {}
   const controller = scope.run(() => load(resolve(src, 'layout/hooks/useBasicLayoutController.ts')).useBasicLayoutController(vue.computed(() => variant)))
-  return { controller, route, store, pushes }
+  return { controller, route, store, pushes, getGlobalAgentCalls: () => globalAgentCalls }
 }
+
+test('layout mounts exactly one global assistant lifecycle owner', t => {
+  const { getGlobalAgentCalls } = harness(t)
+  assert.equal(getGlobalAgentCalls(), 1)
+})
+
+test('global assistant uses project scope only when a stable project id exists', () => {
+  const load = createLoader({
+    'vue-router': {},
+    '@jetlinks-web-core/store/ai': {},
+    '@jetlinks-web-core/store/menu': {},
+    '@jetlinks-web-core/utils/project-runtime': {},
+    './homeAgentCapabilities': {},
+    './routeCapabilityLoader': {},
+    './projectGeneralAgentRuntime': {},
+    './generalAgentExtensionLoader': {},
+    './generalAgentRuntime': {},
+    './homeAgentConversationContext': {},
+  })
+  const agent = load(resolve(src, 'layout/components/AiChat/useGlobalHomeAgent.ts'))
+
+  assert.equal(agent.resolveProjectGlobalAgentScopeId('', ''), '')
+  assert.equal(agent.resolveProjectGlobalAgentScopeId('configured-project', 'path-project'), 'configured-project')
+  assert.equal(agent.resolveProjectGlobalAgentScopeId('', 'path-project'), 'path-project')
+  assert.equal(agent.shouldUseProjectGlobalAgent(true, ''), false)
+  assert.equal(agent.shouldUseProjectGlobalAgent(true, 'path-project'), true)
+  assert.equal(agent.shouldUseProjectGlobalAgent(false, 'path-project'), false)
+})
+
+test('global assistant owners recheck page ownership after asynchronous capability loading', () => {
+  const source = readFileSync(resolve(src, 'layout/components/AiChat/useGlobalHomeAgent.ts'), 'utf8')
+
+  const projectLoad = source.indexOf('await loadGeneralAgentExtensions({ loadAll: true });')
+  const projectGuard = source.indexOf('if (prepareRouteAgent()) {', projectLoad)
+  const projectActivityGuard = source.indexOf('if (hasOtherAgentActivity()) return;', projectGuard)
+  const projectQuery = source.indexOf('await aiStore.queryAgent(PROJECT_GENERAL_AGENT_CLIENT_ID', projectLoad)
+  assert.ok(projectLoad >= 0 && projectGuard > projectLoad)
+  assert.ok(projectActivityGuard > projectGuard && projectQuery > projectActivityGuard)
+
+  const homeLoad = source.indexOf('await loadHomeAgentCapabilityProviders({ loadAll: true });')
+  const homeGuard = source.indexOf('if (prepareRouteAgent() || hasOtherAgentActivity()) return;', homeLoad)
+  const homeQuery = source.indexOf('await aiStore.queryAgent(HOME_AGENT_CLIENT_ID', homeLoad)
+  assert.ok(homeLoad >= 0 && homeGuard > homeLoad && homeQuery > homeGuard)
+})
+
+test('AI support transport failures remain retryable instead of being cached as unsupported', async t => {
+  const pinia = require('pinia')
+  const previousRef = globalThis.ref
+  globalThis.ref = vue.ref
+  t.after(() => { globalThis.ref = previousRef })
+  pinia.setActivePinia(pinia.createPinia())
+
+  let supportAttempts = 0
+  let deploymentQueries = 0
+  const load = createLoader({
+    pinia,
+    '@jetlinks-web-core/api/comm': {
+      existsAiAgentSupport: async () => {
+        supportAttempts += 1
+        if (supportAttempts === 1) throw new Error('startup unavailable')
+        if (supportAttempts === 2) return { success: false }
+        return true
+      },
+      queryAgentList: async () => {
+        deploymentQueries += 1
+        return { success: true, result: [{ id: 'agent-1' }] }
+      },
+    },
+  })
+  const { useAIStore } = load(resolve(src, 'store/ai.ts'))
+  const store = useAIStore()
+
+  await store.queryAgent('iotHome')
+  assert.equal(store.aiAgentSupported, undefined)
+  assert.equal(store.showAiButton, false)
+  assert.equal(deploymentQueries, 0)
+
+  await store.queryAgent('iotHome')
+  assert.equal(store.aiAgentSupported, undefined)
+  assert.equal(store.showAiButton, false)
+  assert.equal(deploymentQueries, 0)
+
+  await store.queryAgent('iotHome')
+  assert.equal(store.aiAgentSupported, true)
+  assert.equal(store.showAiButton, true)
+  assert.equal(store.activeClientId, 'iotHome')
+  assert.equal(supportAttempts, 3)
+  assert.equal(deploymentQueries, 1)
+})
 
 test('deep link opens ancestors only; repeated primary selection keeps page and manual collapse', async t => {
   const { controller: c, pushes } = harness(t)

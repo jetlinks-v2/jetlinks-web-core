@@ -17,7 +17,6 @@ import type { BasicLayoutVariant } from '../runtime/layoutVariant'
 import { filterMenusByKeyword } from '../utils/menuSearch'
 import { renderPrimaryMenuGroup } from '../utils/projectMenuRender'
 import { getProjectSidebarOpenKeys } from '../utils/projectSidebarOpenKeys'
-import { useProjectGeneralAgent } from './useProjectGeneralAgent'
 import { useProjectNavigation } from './useProjectNavigation'
 import { provideProjectSecondaryMenu } from './useProjectSecondaryMenu'
 import { useProjectSecondaryMenuExtensions } from './useProjectSecondaryMenuExtensions'
@@ -104,7 +103,6 @@ export const useBasicLayoutController = (
   const showMenuSearch = computed(() => !!themeLayout.value?.showMenuSearch && !state.collapsed)
   const { layoutConfig } = useResponsiveLayoutDimensions(layout, themeLayout)
 
-  useProjectGeneralAgent(route, router)
   useGlobalHomeAgent(route)
 
   const filteredSiderMenus = computed(() => filterMenusByKeyword(
