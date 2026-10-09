@@ -13,6 +13,12 @@ export const useAIStore = defineStore('ai', () => {
   const aiAgentSupported = ref<boolean | undefined>(undefined)
   let supportPromise: Promise<boolean> | undefined
   let queryVersion = 0
+  let pendingQuery: {
+    clientId: string;
+    version: number;
+    parameters: Record<string, any>;
+    promise: Promise<void>;
+  } | undefined
 
   const setBubbleConfig = (_parameters: Record<string, any> = {}) => {
     bubbleConfig.value = {
@@ -173,40 +179,64 @@ export const useAIStore = defineStore('ai', () => {
 
   // 查询智能体列表
   const queryAgent = async (clientId: string, _parameters: Record<string, any> = {}) => {
+    // Route/context refreshes reuse the current deployment without hiding or unmounting the bubble.
+    if (activeClientId.value === clientId && !pendingClientId.value && agentList.value.length) {
+      if (Object.keys(_parameters).length) {
+        parameters.value = _parameters
+        setBubbleConfig(_parameters)
+      }
+      return
+    }
+    // Merge only the still-current request. A prepare/release or another owner invalidates it.
+    if (pendingQuery?.clientId === clientId && pendingQuery.version === queryVersion) {
+      if (Object.keys(_parameters).length) pendingQuery.parameters = _parameters
+      return pendingQuery.promise
+    }
     const currentVersion = queryVersion + 1
     queryVersion = currentVersion
     pendingClientId.value = clientId
     resetAgentState(false)
-
-    const supported = await ensureAiAgentSupport()
-    if (!supported || currentVersion !== queryVersion) {
-      if (currentVersion === queryVersion) {
-        pendingClientId.value = ''
-        activeClientId.value = ''
-      }
-      return
+    const query = {
+      clientId,
+      version: currentVersion,
+      parameters: _parameters,
+      promise: Promise.resolve(),
     }
-
-    try {
-      const resp = await queryAgentList('pagePoint', clientId)
-      if (currentVersion !== queryVersion) {
+    pendingQuery = query
+    query.promise = (async () => {
+      const supported = await ensureAiAgentSupport()
+      if (!supported || currentVersion !== queryVersion) {
+        if (currentVersion === queryVersion) {
+          pendingClientId.value = ''
+          activeClientId.value = ''
+        }
         return
       }
-      pendingClientId.value = ''
-      if (resp.success && Array.isArray(resp.result) && resp.result.length) {
-        agentList.value = resp.result
-        showAiButton.value = true
-        parameters.value = _parameters
-        setBubbleConfig(_parameters)
-        activeClientId.value = clientId
-      } else {
-        activeClientId.value = ''
+
+      try {
+        const resp = await queryAgentList('pagePoint', clientId)
+        if (currentVersion !== queryVersion) {
+          return
+        }
+        pendingClientId.value = ''
+        if (resp.success && Array.isArray(resp.result) && resp.result.length) {
+          agentList.value = resp.result
+          showAiButton.value = true
+          parameters.value = query.parameters
+          setBubbleConfig(query.parameters)
+          activeClientId.value = clientId
+        } else {
+          activeClientId.value = ''
+        }
+      } catch {
+        if (currentVersion === queryVersion) {
+          resetAgentState()
+        }
       }
-    } catch {
-      if (currentVersion === queryVersion) {
-        resetAgentState()
-      }
-    }
+    })().finally(() => {
+      if (pendingQuery === query) pendingQuery = undefined
+    })
+    return query.promise
   }
 
   return {

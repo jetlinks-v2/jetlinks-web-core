@@ -498,9 +498,6 @@ const conversationKey = computed(() => [
   conversationSubject.value?.type || '',
   conversationSubject.value?.id || '',
   conversationIdentityKey.value,
-  conversationClientToolsName.value,
-  JSON.stringify(conversationWorkflowGuides.value || []),
-  conversationSystemPrompt.value,
 ].join('|'));
 
 const {

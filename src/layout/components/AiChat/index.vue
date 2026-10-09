@@ -1,7 +1,7 @@
 ﻿<template>
   <div
     ref="bubbleRef"
-    v-if="showAiButton"
+    v-show="showAiButton"
     class="ai-float-btn-wrapper"
     :class="[
       bubbleConfig.className,
@@ -59,8 +59,8 @@
     @close="onClose"
     @anchor-drag="handlePanelAnchorDrag"
     @panel-size-change="handlePanelSizeChange"
-    v-if="drawerMounted && showAiButton"
-    :open="showAiDrawer"
+    v-if="drawerMounted"
+    :open="showAiDrawer && showAiButton"
     :agentList="agentList"
     :active-client-id="activeClientId"
     :parameters="parameters"
@@ -169,12 +169,6 @@ watch(showAiDrawer, (value) => {
     aiStore.clearBubbleUnread()
   }
 }, { immediate: true })
-
-watch(showAiButton, (value) => {
-  if (!value) {
-    drawerMounted.value = false
-  }
-})
 
 const pendingHandoffTarget = computed(() => {
   const target = resolveAiAgentHandoffTarget({
