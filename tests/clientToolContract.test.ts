@@ -3848,7 +3848,7 @@ test('runtime refreshes handlers without changing the semantic wire version', as
   runtime.dispose()
 })
 
-test('runtime publishes semantic schema changes only after active execution completes', async () => {
+test('runtime publishes semantic schema changes while an old snapshot is executing', async () => {
   let schemaVersion = 1
   const runtime = createClientToolSnapshotController(
     () => ({ signature: `Schema version ${schemaVersion}`, schemaVersion }),
@@ -3860,9 +3860,9 @@ test('runtime publishes semantic schema changes only after active execution comp
 
   schemaVersion = 2
   runtime.refresh()
-  assert.equal(runtime.version, 1)
-  assert.equal(runtime.snapshot.signature, 'Schema version 1')
-  assert.deepEqual(versions, [])
+  assert.equal(runtime.version, 2)
+  assert.equal(runtime.snapshot.signature, 'Schema version 2')
+  assert.deepEqual(versions, [2])
 
   assert.equal(execution.snapshot.schemaVersion, 1)
   execution.complete()
@@ -6410,7 +6410,7 @@ test('catalog rejects canonical and legacy effect conflicts without losing valid
   assert.ok(snapshot.report.issues.some(issue => issue.code === 'duplicate_tool_id'))
 })
 
-test('catalog snapshot has a stable semantic identity and freezes active execution refreshes', () => {
+test('catalog snapshot has a stable semantic identity and publishes during active execution', () => {
   let tools: Array<Record<string, unknown>> = [{ id: 'first_reader', expands: { effect: 'READ' } }]
   const build = () => createAiClientToolCatalogSnapshot(tools)
   const reordered = createAiClientToolCatalogSnapshot([{
@@ -6441,7 +6441,7 @@ test('catalog snapshot has a stable semantic identity and freezes active executi
   tools = [{ id: 'second_reader', expands: { effect: 'READ' } }]
   runtime.refresh()
   assert.deepEqual(active.snapshot.wireDefinitions.map(tool => tool.id), ['first_reader'])
-  assert.deepEqual(runtime.snapshot.wireDefinitions.map(tool => tool.id), ['first_reader'])
+  assert.deepEqual(runtime.snapshot.wireDefinitions.map(tool => tool.id), ['second_reader'])
   active.complete()
   assert.deepEqual(runtime.snapshot.wireDefinitions.map(tool => tool.id), ['second_reader'])
   assert.equal(runtime.version, 2)

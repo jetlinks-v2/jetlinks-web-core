@@ -67,16 +67,16 @@ class AiClientToolRegistry {
     if (!normalizedScope) return () => undefined
 
     const source = Array.isArray(tools) ? tools : [tools]
+    const token = Symbol(normalizedScope)
     const records: AiClientToolRegistryRecord<any>[] = source
       .filter(tool => !!tool?.id)
-      .map(tool => ({ scope: normalizedScope, tool, order }))
+      .map(tool => ({ scope: normalizedScope, tool: { ...tool, executionBinding: token }, order }))
     const ids = new Set<string>()
     records.forEach((record) => {
       if (ids.has(record.tool.id)) throw new Error(`Duplicate client tool id in scope ${normalizedScope}: ${record.tool.id}`)
       ids.add(record.tool.id)
     })
 
-    const token = Symbol(normalizedScope)
     if (records.length) {
       this.registryMap.set(normalizedScope, { token, records })
     } else {

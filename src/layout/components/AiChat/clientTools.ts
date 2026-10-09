@@ -394,6 +394,10 @@ export interface AiClientToolSessionFileApi {
 
 /** Browser-runtime metadata. It must never be inferred into model-facing routing semantics. */
 export interface AiClientToolMetadata {
+  /** Browser-only revocation of this published contract/binding; never a server field. */
+  executionSignal?: AbortSignal;
+  /** Compiler provenance pairs adapted handlers with the original authored functions. */
+  executionHandlers?: readonly unknown[];
   ownerModule?: string;
   capabilityGroup?: string;
   /** Local execution/delivery classification; model routing must declare its own routing contract. */
@@ -412,6 +416,8 @@ export interface AiClientToolMetadata {
 }
 
 export interface AiClientToolDefinition<TContext = Record<string, any>> {
+  /** Stable registration owner for contributions that rebuild wrappers. Replace it on rebinding. */
+  executionBinding?: object | symbol;
   /** Local presentation capability only; never serialized into a model/server tool declaration. */
   resolveInputEditor?: () => Component | undefined;
   id: string;
@@ -453,6 +459,7 @@ export interface AiClientToolFactory<TContext = Record<string, any>> {
   kind: typeof AI_CLIENT_TOOL_FACTORY_KIND;
   id: string;
   build: () => AiClientToolDefinition<TContext>;
+  executionBinding?: object | symbol;
 }
 
 export type AiClientToolSource<TContext = Record<string, any>> =
@@ -531,7 +538,7 @@ export interface AiClientToolRuntime {
   handleClientToolCall: (call: AiClientToolCall) => Promise<any>;
   getToolHelp: (toolName: string) => string;
   getAllToolHelp: () => string;
-  /** Rebuilds handler and schema snapshots; a semantic version is published only when wire fields change. */
+  /** Publishes contract and binding changes immediately; retained bindings keep their lifetime. */
   refreshClientTools: () => void;
   subscribeClientTools: (listener: (version: number) => void) => () => void;
   dispose: () => void;
@@ -1529,6 +1536,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
     definitionsByName: Map<string, AiClientToolDefinition<TContext>>;
     clientTools: Array<Record<string, any>>;
     wireSignature: string;
+    executionBindings: Map<string, { signature: string; references: readonly unknown[] }>;
   }
 
   const materializeToolSources = (
@@ -1543,7 +1551,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
           `Client tool factory identity drift: ${source.id || 'unknown'} -> ${definition?.id || 'missing'}`,
         );
       }
-      return [definition];
+      return [{ ...definition, executionBinding: definition.executionBinding || source.executionBinding || source.build }];
     } catch (cause) {
       console.error('[AiClientToolRuntime] Rejected client tool factory.', {
         toolId: source.id || 'unknown',
@@ -1573,6 +1581,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
   ): AiClientToolDefinition<TContext> => {
     return {
       id: helpToolId,
+      executionBinding: options,
       name: helpToolId,
       description: i18n.global.t('components.AiChat.toolHelp.description'),
       help: i18n.global.t('components.AiChat.toolHelp.help'),
@@ -1695,23 +1704,34 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
       ...projectedSourceTools.map(item => item.declaration),
       ...(helpTool ? [normalizeTool(helpTool, options)] : []),
     ];
+    const executionBindings = new Map(definitions.map((tool, index) => {
+      const handlers = tool._meta?.executionHandlers;
+      // A replaced adapter is a new binding even if compiler provenance is still present.
+      const references = tool.executionBinding ? [tool.executionBinding]
+        : handlers && handlers[0] === tool.prepare && handlers[1] === tool.execute
+          ? handlers.slice(2) : [tool.prepare, tool.execute];
+      return [tool.id, { signature: wireSignature([clientTools[index]]), references }] as const;
+    }));
     return {
       sourceTools,
       definitions,
       definitionsByName,
       clientTools,
       wireSignature: wireSignature(clientTools),
+      executionBindings,
     };
   };
 
   const snapshotController = createClientToolSnapshotController(
     buildSnapshot,
     current => current.wireSignature,
+    current => current.executionBindings,
   );
 
   const refreshClientTools = () => snapshotController.refresh();
 
   const handleClientToolCall = async (call: AiClientToolCall) => {
+    if (disposed || call.signal?.aborted) throw new DOMException('Client tool call cancelled', 'AbortError');
     const execution = snapshotController.beginExecution();
     const executionSnapshot = execution.snapshot;
     const tool = executionSnapshot.definitionsByName.get(call.toolName);
@@ -1719,12 +1739,18 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
       execution.complete();
       throw new Error(`Unsupported client tool: ${call.toolName}`);
     }
+    const bindingSignal = execution.getSignal(tool.id)!;
+    call = { ...call, signal: call.signal ? AbortSignal.any([call.signal, bindingSignal]) : bindingSignal };
+    const assertExecutionValid = () => {
+      if (disposed || call.signal?.aborted) throw new DOMException('Client tool binding expired', 'AbortError');
+    };
     const context = options.getContext?.() || ({} as TContext);
     let result: unknown;
     let executionStarted = false;
     let preparedCancel: AiClientToolPreparedCall['cancel'];
     let skipConfirmation = false;
     try {
+      assertExecutionValid();
       const args = call.arguments || {};
       let executionArgs = args;
       let preparedConfirmation: AiClientToolPreparedConfirmation | undefined;
@@ -1745,9 +1771,11 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
           preparedCancel = prepared.cancel;
           skipConfirmation = prepared.skipConfirmation === true;
         }
+        assertExecutionValid();
       }
 
       if (result === undefined && !skipConfirmation) {
+        assertExecutionValid();
         const confirmation = await requestAiClientToolConfirmation(
           tool,
           executionArgs,
@@ -1756,6 +1784,7 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
           preparedConfirmation,
           !tool.prepare,
         );
+        assertExecutionValid();
         if (confirmation?.approved === false) {
           result = {
             ...createClientToolConfirmationRejectedResult(tool.id, confirmation),
@@ -1768,11 +1797,13 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
       }
 
       if (result === undefined) {
+        assertExecutionValid();
         result = await withAiClientToolSilentRequest(async () => {
           const executionCall = {
             ...call,
             arguments: executionArgs,
           };
+          assertExecutionValid();
           executionStarted = true;
           const executionResult = await tool.execute(
             executionArgs,
@@ -1828,7 +1859,10 @@ export const createAiClientToolRuntime = <TContext = Record<string, any>>(
 
   return {
     get clientTools() {
-      return snapshotController.snapshot.clientTools;
+      return snapshotController.snapshot.clientTools.map(tool => ({
+        ...tool,
+        _meta: { ...tool._meta, executionSignal: snapshotController.getExecutionSignal(tool.id) },
+      }));
     },
     get clientToolsVersion() {
       return snapshotController.version;

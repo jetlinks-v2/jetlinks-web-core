@@ -459,10 +459,18 @@ export class ModuleRegistry {
   /**
    * 注册远程模块
    */
-  public async loadRemoteModule(moduleId: string, path: string): Promise<void> {
+  public async loadRemoteModule(
+    moduleId: string,
+    path: string,
+    isCurrent: () => boolean = () => true
+  ): Promise<void> {
+    if (!isCurrent()) return
     await dynamicRemoteManager.addRemote(remoteFileName, { url: path })
+    if (!isCurrent()) return
 
     const remote = await dynamicRemoteManager.loadRemoteComponent(remoteFileName, moduleId)
+    // Context resets must stop late discovery results before they publish runtime resources.
+    if (!isCurrent()) return
     moduleRegistry.register(moduleId, remote.default || remote)
   }
 

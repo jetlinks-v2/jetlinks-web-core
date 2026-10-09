@@ -1,4 +1,6 @@
 import type { AiClientToolRuntime, AiClientToolSource } from './clientTools'
+import type { AgentConversationWorkflowGuide as HomeAgentWorkflowGuide } from './agentConversationContracts'
+export type { AgentConversationWorkflowGuide as HomeAgentWorkflowGuide } from './agentConversationContracts'
 import type {
   ClientSkillBindingContribution,
   ClientSkillBindingRef,
@@ -101,35 +103,6 @@ export interface HomeAgentContextAdapter {
   getMenus?: () => Record<string, any>[]
   navigateToMenu?: (value: string, options?: HomeAgentNavigationOptions) => boolean
   navigateToRoute?: (routeName: string, options?: HomeAgentNavigationOptions) => boolean
-}
-
-/** Frontend workflow guide passed through to AgentConversation. */
-export interface HomeAgentWorkflowGuide {
-  id: string
-  name?: string
-  title?: string
-  description?: string
-  when?: string | string[]
-  scenarios?: string[]
-  keywords?: string[]
-  steps?: Array<string | {
-    title?: string
-    description?: string
-    /** Stable routing capability, never a concrete tool id. */
-    capability?: string
-    /** Binding types expected from this evidence step. */
-    evidence?: string | string[]
-    /** @deprecated Workflow guidance must not prescribe concrete tool ids. */
-    tools?: string[]
-    inputs?: Record<string, any>
-    tips?: string[]
-    required?: boolean
-    [key: string]: any
-  }>
-  output?: string | string[]
-  notes?: string | string[]
-  priority?: number
-  [key: string]: any
 }
 
 export interface HomeAgentCapabilityContext {

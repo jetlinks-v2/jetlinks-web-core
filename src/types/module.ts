@@ -2,10 +2,11 @@ import type { Component } from 'vue'
 import type { RouteMeta, RouteRecordRaw } from 'vue-router'
 import type { DataCapabilityProviderManifest } from '../data-capability/types'
 import type { ContentPanelOverrides } from './content-panel'
+import type { AgentConversationProviderManifest } from '../layout/components/AiChat/agentConversationContracts'
 
 export type ModuleResourceRecord<T = unknown> = Record<string, T>
 
-export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders'
+export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders' | 'agentConversationProviders'
 export type ModuleResourceType = KnownModuleResourceType | (string & {})
 
 export interface ModuleResource {
@@ -17,6 +18,7 @@ export interface ModuleResource {
   utils?: ModuleResourceRecord
   routes?: ModuleResourceRecord
   dataCapabilityProviders?: DataCapabilityProviderManifest
+  agentConversationProviders?: AgentConversationProviderManifest
   [resourceType: string]: ModuleResourceRecord | string | undefined
 }
 

@@ -769,6 +769,8 @@ export interface ClientToolDefinition<
   TContext = Record<string, unknown>,
   TResult = unknown,
 > {
+  /** Registration lifetime for owners that rebuild their authored wrappers. */
+  executionBinding?: object | symbol
   id: string
   description: ClientToolDescription
   inputs?: readonly ClientToolInput[]
@@ -2581,9 +2583,10 @@ export const defineClientTool = <
     effect: definition.effect.kind,
     outputCount: outputs.length,
   }
-  return {
+  const compiled: AiClientToolDefinition<TContext> = {
     id,
     name: id,
+    ...(definition.executionBinding ? { executionBinding: definition.executionBinding } : {}),
     description: text,
     ...(definition.description.help ? { help: definition.description.help } : {}),
     ...(definition.presentation?.displayName ? { displayName: definition.presentation.displayName } : {}),
@@ -2619,6 +2622,8 @@ export const defineClientTool = <
       analytical,
     ),
   }
+  compiled._meta!.executionHandlers = [compiled.prepare, compiled.execute, definition.prepare, definition.execute]
+  return compiled
 }
 
 export const isCompiledClientToolDefinition = (value: unknown): value is CompiledClientToolMetadata => {

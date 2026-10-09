@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { uiList } from "@jetlinks-web-core/api/application";
-import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
+import { isSubApp } from '@jetlinks-web-core/utils/consts'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
 import { createApplicationCodeUrl } from '@jetlinks-web-core/utils/application-scope'
 
@@ -29,49 +29,68 @@ const normalizeApplicationPath = (item: ApplicationItemType) => {
 export const useApplication = defineStore('application', () => {
   const appList = ref<Array<ApplicationItemType>>([])
 
-  let lock = false
+  let loaded = false
+  let loadPromise: Promise<void> | undefined
+  let generation = 0
 
   /**
-   * 查询应用列表
+   * 合并当前上下文的应用发现与模块加载；失败向调用方传播，下一次调用可重试。
    */
-  const queryApplication = async () => {
-    // if (appList.value.length > 0 || OpenMicroApp === 'false') return
+  const queryApplication = (): Promise<void> => {
+    if (loaded) return Promise.resolve()
+    if (loadPromise) return loadPromise
 
-    if (lock) return
-
-
-    try {
-      const resp = await uiList()
-      if (resp.success && resp.result) {
-        lock = true
-        let result = resp.result
-        // let result = [
-        //   { id: 'authentication-manager', name: 'authentication-manager-ui', path: 'http://localhost:8082/'}
-        // ]
+    const currentGeneration = generation
+    const loading = (async () => {
+      try {
+        const resp = await uiList()
+        if (currentGeneration !== generation) return
+        if (!resp.success || !Array.isArray(resp.result)) {
+          throw new Error(resp.message || '查询应用列表失败')
+        }
+        let result: ApplicationItemType[] = resp.result
         if (import.meta.env.VITE_MODULE_NAME && !isSubApp) { // 子模块编译之后独立运行时，排除自身
-          result = result.filter((item: any) => (item.name + '-ui') !== import.meta.env.VITE_MODULE_NAME)
+          result = result.filter(item => (item.name + '-ui') !== import.meta.env.VITE_MODULE_NAME)
         }
 
         result = result.map((item: ApplicationItemType) => ({
           ...item,
           path: normalizeApplicationPath(item),
         }))
+        // 应用发现成功不依赖远程资源加载成功，部分失败时仍保留完整目录。
+        appList.value = result
+        const failures: unknown[] = []
 
-        // 获取是否已在本地注册子模块分享出来的apis，components等
+        // remote 共用注册入口，保持顺序并隔离单模块失败，避免阻断后续模块。
         for (const item of result) {
+          if (currentGeneration !== generation) return
           const name = item.id + '-ui'
           if (!moduleRegistry.hasModule(name)) { // 没有本地模块注册，获取微前端模块进行注册
             if (!item.path) continue
             const path = [item.path, item.path.endsWith('/') ? '' : '/', 'assets/remoteEntry.js' ].join('')
-            await moduleRegistry.loadRemoteModule(name, path)
+            try {
+              await moduleRegistry.loadRemoteModule(name, path, () => currentGeneration === generation)
+            } catch (error) {
+              failures.push(error)
+            }
           }
         }
 
-        appList.value = result
+        if (currentGeneration !== generation) return
+        // 尝试完整列表后传播首个原始错误；失败批次不缓存成功，重试跳过已注册模块。
+        if (failures.length) throw failures[0]
+        loaded = true
+      } catch (error) {
+        // reset 前的失败不属于当前上下文，也不能清除新一轮的加载状态。
+        if (currentGeneration !== generation) return
+        console.error('查询应用列表失败:', error)
+        throw error
       }
-    } catch (error) {
-      console.error('查询应用列表失败:', error)
-    }
+    })().finally(() => {
+      if (loadPromise === loading) loadPromise = undefined
+    })
+    loadPromise = loading
+    return loading
   }
 
   /**
@@ -80,8 +99,10 @@ export const useApplication = defineStore('application', () => {
   const findAppById = (appId: string) => appList.value.find((item: any) => item.id === appId)
 
   const init = () => {
+    generation += 1
+    loaded = false
+    loadPromise = undefined
     appList.value = []
-    lock = false
   }
 
   return {
