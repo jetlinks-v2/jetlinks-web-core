@@ -297,3 +297,42 @@ test('完整查询失败时不能保存旧权限，重试搜索会先加载全�
     }
   }
 })
+
+test('权限 GET 查询按 Spring 属性路径编码搜索和排序，并保留分页参数', async () => {
+  const queryPath = fileURLToPath(new URL('src/api/system/permission.ts', moduleRoot))
+  const encodePath = fileURLToPath(new URL('src/utils/encodeQuery.ts', moduleRoot))
+  const queryBundle = await build({
+    entryPoints: [queryPath], bundle: true, write: false, format: 'esm', platform: 'node',
+    plugins: [{
+      name: 'grant-query-request-boundary',
+      setup(builder) {
+        builder.onResolve({ filter: /^@jetlinks-web(?:-core)?\// }, ({ path }) => {
+          if (path === '@jetlinks-web/core') return { path, namespace: 'grant-request' }
+          if (path === '@jetlinks-web-core/utils/encodeQuery') return { path: encodePath }
+        })
+        builder.onLoad({ filter: /.*/, namespace: 'grant-request' }, () => ({
+          contents: 'export const request = { get: async (url, params) => ({ url, params }) };',
+        }))
+      },
+    }],
+  })
+  const { queryPermission_api } = await import(
+    `data:text/javascript;base64,${Buffer.from(queryBundle.outputFiles[0].text).toString('base64')}`
+  )
+  const data = {
+    paging: false, current: 2, pageSize: 20,
+    terms: [{ column: 'name$like', value: '%AI告警%' }],
+    sorts: [{ name: 'name', order: 'asc' }],
+  }
+  const original = structuredClone(data)
+  const response = await queryPermission_api(data)
+  assert.equal(response.url, '/permission/_query/for-grant')
+  assert.deepEqual(response.params, {
+    paging: false, current: 2, pageSize: 20,
+    'terms[0].column': 'name$like', 'terms[0].value': '%AI告警%',
+    'sorts[0].name': 'name', 'sorts[0].order': 'asc',
+  })
+  assert.deepEqual(data, original)
+  const initial = await queryPermission_api({ paging: false })
+  assert.deepEqual(initial.params, { paging: false, current: undefined })
+})
