@@ -48,10 +48,12 @@ export const useTabSaveSuccess = (code: string = '', options?: OptionsType) => {
         runtime.fixedProject || (runtime.projectStorageEnabled && isProjectRuntime())
       )
       const domain = getProjectIdFromLocation()
+      // project 模式未固定项目编码时，保留当前地址中的项目，避免跳到租户登录入口。
+      const projectCode = runtime.projectCode || domain
       const beforeHash = isSaaS && domain ? `/${domain}` : ''
       const targetPath = location.hash
         ? useRuntimePath
-          ? createProjectRuntimeHref(runtime.projectCode, path)
+          ? createProjectRuntimeHref(projectCode, path)
           : `${beforeHash}/#${path}`
         : path
       const url = [location.origin, targetPath, '?', _params.toString()].join('')
