@@ -197,6 +197,20 @@ const fields = [
 - `change`：输出 `{ terms, filter, where }`
 - `search`：兼容旧 `Search` 回调，输出 `{ terms: [{ terms }] }`；用于只替换组件标签并保留既有 `@search` 处理函数
 
+### 自动搜索与编辑态
+
+自动搜索仅在有效查询条件变化时触发。新增或调整未填值条件、取消空条件只更新编辑态；填入有效值、修改或清空已生效条件，以及选择 `isnull` / `notnull` 等无值条件仍会触发搜索。手动搜索按钮仍可重复执行查询。
+
+实现入口为 `ConditionFilter.vue` 的自动搜索监听：比较 `payload.terms` 的前后值，沿用现有查询转换与防抖机制。验证：组件脚本、模板编译与 20 项交互事件检查通过，覆盖文本、选项、范围、`0` / `false`、无值条件、删除、清空及防抖；本地设备列表选择设备名称后保持编辑框，提交“测试”后从 4 条筛选为 1 条，清空后恢复 4 条；`git diff --check` 通过。工作区无 lint 脚本；在 `jetlinks-web-core` 执行 `pnpm exec vue-tsc -p tsconfig.json --noEmit` 仍有 557 个既有错误，与修改前基线诊断完全一致（忽略行号位移），未新增错误。生产构建 `pnpm build` 在转换 23,956 个模块后触及配置的 8 GB Node 堆内存上限，以 `JavaScript heap out of memory` 退出（134）；完整生产打包尚未验证，需在资源充足的环境重跑该命令。
+
+调用方兼容限制：`runtime-ui/modules/device-manager-ui/views/device/list/components/IotDeviceAssetSearchBar.vue` 的 `skipNextSearch` 会无条件跳过切换字段后的下一次查询；空条件不再搜索后，该标记可能误吞随后填值的首次有效搜索。页面已复现此情况，后续需改为只跳过对应的查询内容。本次范围仅为通用组件，不调整设备列表封装、后端接口、条件结构、路由编码或运营端。
+
+### 字段切换的选项值
+
+实现与范围：仅在通用组件 `ConditionFilter.vue#canReuseFieldValueOnSwitch` 补齐选择型字段的值域检查，复用 `hasResolvedOptionValues` 判断旧值是否存在于目标字段的已解析选项中。不同字段的编辑器类型相同不代表选项值兼容；无法确认旧值有效时清空并打开目标字段的选项面板，多选值必须全部有效才保留。同一字段重选以及文本、数值、日期的兼容值复用保持现有行为，不改业务页面、查询结构或选项接口。
+
+验证：组件脚本、模板编译和 13 项字段切换回归检查通过，覆盖静态与未加载的远程选项、兼容选项、部分无效的多选、单选、自定义选项值字段、`0` / `false`、同字段重选、文本/数值/日期复用以及未填值不搜索。产品列表已复现修复前的 `device` 原始值显示；修复后“设备类型 = 直连设备”切换为“网关类型”会显示“输入筛选值”并打开网关选项，重选“MQTT直连接入”后显示正确标签。`git diff --check` 通过；重新执行 `pnpm exec vue-tsc -p tsconfig.json --noEmit` 仍为与基线一致的 557 个既有错误，未新增诊断。工作区无 lint 脚本；本轮未重复全量构建，前次 8 GB 堆内存不足的限制仍适用，完整生产打包需在资源充足环境执行 `pnpm build` 验证。
+
 ## 插槽
 
 - `value-editor`：接管值输入，组件只负责字段/操作符/提交流程
