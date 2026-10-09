@@ -29,6 +29,13 @@ export type ConditionTerm = {
   key?: string
 }
 
+/** 输入更新可防抖；选择或确认提交立即生效。仅影响调度，不进入查询参数。 */
+export interface ConditionFilterSubmitOptions {
+  close?: boolean
+  allowEmpty?: boolean
+  source?: 'input' | 'commit'
+}
+
 export interface ConditionTermOption {
   label: string
   value: string
