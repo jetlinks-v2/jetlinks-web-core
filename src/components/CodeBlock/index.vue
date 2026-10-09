@@ -9,7 +9,7 @@
         <span v-if="showCopyLabel">{{ copied ? '已复制' : '复制' }}</span>
       </button>
     </header>
-    <pre class="cb-body" :class="{ inline }"><slot>{{ content }}</slot></pre>
+    <pre class="cb-body" :class="{ inline, 'no-wrap': !wrap }"><slot>{{ content }}</slot></pre>
   </div>
 </template>
 
@@ -36,6 +36,8 @@ const props = withDefaults(
     copyTitle?: string
     showCopyLabel?: boolean
     inline?: boolean
+    /** 关闭自动折行时保留原始换行，长行使用横向滚动查看。 */
+    wrap?: boolean
   }>(),
   {
     variant: 'dark',
@@ -43,6 +45,7 @@ const props = withDefaults(
     copyTitle: '复制',
     showCopyLabel: false,
     inline: false,
+    wrap: true,
   }
 )
 
@@ -147,6 +150,11 @@ function getSlotText(): string {
   white-space: pre-wrap;
   word-break: break-word;
   overflow-x: auto;
+}
+.cb-body.no-wrap {
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 .cb-body.inline {
   padding: var(--space-2) var(--space-3);

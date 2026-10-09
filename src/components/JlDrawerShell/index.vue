@@ -2,6 +2,7 @@
   <a-drawer
     :open="open"
     :width="drawerWidth"
+    :content-wrapper-style="wrapperStyle"
     placement="right"
     :body-style="{ padding: 0, background: 'var(--bg)' }"
     :header-style="{ display: 'none' }"
@@ -45,6 +46,7 @@
 </template>
 
 <script setup lang="ts">
+import type { CSSProperties } from 'vue'
 /**
  * JlDrawerShell —— 平台级抽屉骨架（v2.9 · 大 vision 需求开工前 C 阶段抽出）
  *
@@ -66,6 +68,7 @@ const props = withDefaults(
     open: boolean
     /** 抽屉宽度上限（默认 540） */
     width?: number
+    contentWrapperStyle?: CSSProperties
     /** 头部图标（Ant Design icon type）；slot=icon 也可直接覆盖 */
     icon?: string
     title?: string
@@ -93,6 +96,9 @@ const drawerWidth = computed(() => {
   if (!viewportWidth.value) return maxWidth
   return Math.min(maxWidth, Math.max(viewportWidth.value - 32, 320))
 })
+
+// Ant Design 的无遮罩关闭态会移除容器宽度，退场期间仍须保持与 width 相同的布局。
+const wrapperStyle = computed(() => ({ ...props.contentWrapperStyle, width: `${drawerWidth.value}px` }))
 
 function syncViewportWidth() {
   viewportWidth.value = window.innerWidth

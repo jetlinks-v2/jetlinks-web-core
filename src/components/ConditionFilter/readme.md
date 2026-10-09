@@ -205,6 +205,12 @@ const fields = [
 
 调用方兼容限制：`runtime-ui/modules/device-manager-ui/views/device/list/components/IotDeviceAssetSearchBar.vue` 的 `skipNextSearch` 会无条件跳过切换字段后的下一次查询；空条件不再搜索后，该标记可能误吞随后填值的首次有效搜索。页面已复现此情况，后续需改为只跳过对应的查询内容。本次范围仅为通用组件，不调整设备列表封装、后端接口、条件结构、路由编码或运营端。
 
+#### 查询触发策略
+
+快捷添加、日期/枚举选择、删除和外部条件同步立即查询；连续输入等待 260ms。确认动作取消待执行的输入任务并提交最新完整条件，同一轮更新合并为一次查询，相同有效条件不重复自动请求；手动搜索允许刷新。默认编辑模型在初始化时回传，供调用方追加条件时保留默认时间范围。
+
+内部 `ConditionFilterSubmitOptions.source` 区分 `input` / `commit`，不进入查询参数；公共 `change/search` 参数保持原结构。行内文本在 Enter/失焦时确认，中文输入法 Enter 不提交中间草稿；数值面板连续修改防抖，Enter/关闭面板立即确认。远程选项关键词保持独立防抖。实现入口为 `ConditionFilter.vue` 和 `ConditionEditorPanel.vue`，回归入口为 `tests/conditionFilterScheduling.test.mjs`。
+
 ### 字段切换的选项值
 
 实现与范围：仅在通用组件 `ConditionFilter.vue#canReuseFieldValueOnSwitch` 补齐选择型字段的值域检查，复用 `hasResolvedOptionValues` 判断旧值是否存在于目标字段的已解析选项中。不同字段的编辑器类型相同不代表选项值兼容；无法确认旧值有效时清空并打开目标字段的选项面板，多选值必须全部有效才保留。同一字段重选以及文本、数值、日期的兼容值复用保持现有行为，不改业务页面、查询结构或选项接口。
