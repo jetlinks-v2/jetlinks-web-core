@@ -1,9 +1,10 @@
-import { computed, onBeforeUnmount, watch } from 'vue';
+import { onBeforeUnmount, watch } from 'vue';
 import { useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import { useAIStore } from '@jetlinks-web-core/store/ai';
 import { useMenuStore } from '@jetlinks-web-core/store/menu';
 import {
   getProjectIdFromLocation,
+  getProjectRuntimeConfig,
   isProjectRuntime,
   normalizeProjectRuntimePath,
 } from '@jetlinks-web-core/utils/project-runtime';
@@ -33,6 +34,19 @@ import { resolveHomeAgentConversationContext } from './homeAgentConversationCont
 
 const normalizeMessageText = (value: unknown) => String(value || '').trim();
 
+export const resolveProjectGlobalAgentScopeId = (
+  runtimeProjectId: unknown,
+  pathnameProjectId: unknown,
+) => (
+  normalizeMessageText(runtimeProjectId)
+  || normalizeMessageText(pathnameProjectId)
+);
+
+export const shouldUseProjectGlobalAgent = (
+  projectRuntime: boolean,
+  projectId: unknown,
+) => projectRuntime && !!normalizeMessageText(projectId);
+
 const resolveRoutePageAgentClientId = (route: RouteLocationNormalizedLoaded) => {
   const meta = (route.meta || {}) as Record<string, any>;
   const config = meta.pageAgent || meta.aiAgent || {};
@@ -52,11 +66,13 @@ const resolveMessageContent = (message: Record<string, any>) => normalizeMessage
   || message.payload?.message,
 );
 
-const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
+const useProjectGlobalAgent = (
+  route: RouteLocationNormalizedLoaded,
+  projectId: string,
+) => {
   const router = useRouter();
   const aiStore = useAIStore();
   const menuStore = useMenuStore();
-  const projectId = computed(() => normalizeMessageText(getProjectIdFromLocation()));
   let syncing = false;
   let syncTimer: number | undefined;
   let managedClientId = '';
@@ -102,9 +118,9 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
     ...createProjectBubbleParameters(runtime),
     clientTools: runtime.clientTools,
     clientToolsVersion: runtime.clientToolsVersion,
-    projectId: projectId.value,
+    projectId,
     scopeType: PROJECT_GENERAL_AGENT_SUBJECT_TYPE,
-    scopeKey: projectId.value,
+    scopeKey: projectId,
   });
 
   const applyRuntimeParameters = (runtime: GeneralAgentRuntime) => {
@@ -119,7 +135,7 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
     const runtime = createProjectGeneralAgentRuntime({
       route,
       router,
-      projectId: projectId.value,
+      projectId,
       menus: menuStore.siderMenus as Record<string, any>[],
       getLatestUserMessage: () => latestUserMessage,
       onConversationMessage: recordConversationMessage,
@@ -138,15 +154,20 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
     managedClientId = '';
   };
 
+  const hasOtherAgentActivity = () => (
+    (!!aiStore.pendingClientId && aiStore.pendingClientId !== PROJECT_GENERAL_AGENT_CLIENT_ID)
+    || (aiStore.showAiButton && aiStore.activeClientId !== PROJECT_GENERAL_AGENT_CLIENT_ID)
+  );
+
   const refreshParameters = () => {
     if (resolveRoutePageAgentClientId(route) || aiStore.activeClientId !== PROJECT_GENERAL_AGENT_CLIENT_ID) return;
-    if (!aiStore.agentList.length || !projectId.value) return;
+    if (!aiStore.agentList.length) return;
     const runtime = buildRuntime();
     applyRuntimeParameters(runtime);
   };
 
   const sync = async () => {
-    if (!projectId.value || !menuStore.initialized || syncing) return;
+    if (!menuStore.initialized || syncing) return;
     if (isHubRoute()) {
       releasePreparedRouteAgent();
       releaseManagedAgent();
@@ -164,12 +185,17 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
       refreshParameters();
       return;
     }
-    if (aiStore.pendingClientId && aiStore.pendingClientId !== PROJECT_GENERAL_AGENT_CLIENT_ID) return;
-    if (aiStore.showAiButton && aiStore.activeClientId !== PROJECT_GENERAL_AGENT_CLIENT_ID) return;
+    if (hasOtherAgentActivity()) return;
 
     syncing = true;
     try {
       await loadGeneralAgentExtensions({ loadAll: true });
+      // 异步加载期间页面助手可能已经接管，查询前必须重新确认所有权，避免全局助手覆盖新 owner。
+      if (prepareRouteAgent()) {
+        releaseManagedAgent();
+        return;
+      }
+      if (hasOtherAgentActivity()) return;
       const runtime = buildRuntime();
       await aiStore.queryAgent(PROJECT_GENERAL_AGENT_CLIENT_ID, createRuntimeParameters(runtime));
       managedClientId = aiStore.activeClientId === PROJECT_GENERAL_AGENT_CLIENT_ID
@@ -190,7 +216,7 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
   };
 
   watch(
-    () => [route.fullPath, projectId.value, menuStore.initialized, menuStore.siderMenus.length],
+    () => [route.fullPath, menuStore.initialized, menuStore.siderMenus.length],
     scheduleSync,
     { immediate: true, flush: 'post' },
   );
@@ -209,8 +235,12 @@ const useProjectGlobalAgent = (route: RouteLocationNormalizedLoaded) => {
 };
 
 export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
-  if (isProjectRuntime()) {
-    useProjectGlobalAgent(route);
+  const projectId = resolveProjectGlobalAgentScopeId(
+    getProjectRuntimeConfig().projectCode,
+    getProjectIdFromLocation(),
+  );
+  if (shouldUseProjectGlobalAgent(isProjectRuntime(), projectId)) {
+    useProjectGlobalAgent(route, projectId);
     return;
   }
 
@@ -319,6 +349,8 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
     syncing = true;
     try {
       await loadHomeAgentCapabilityProviders({ loadAll: true });
+      // 异步加载期间页面助手可能已经接管，查询前必须重新确认所有权，避免全局助手覆盖新 owner。
+      if (prepareRouteAgent() || hasOtherAgentActivity()) return;
       const runtime = buildRuntime();
       await aiStore.queryAgent(HOME_AGENT_CLIENT_ID, createRuntimeParameters(runtime));
       applyRuntimeParameters(runtime);

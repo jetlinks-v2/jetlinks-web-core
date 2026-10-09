@@ -133,11 +133,17 @@ export const useAIStore = defineStore('ai', () => {
     }
   }
 
-  const isSupportedResponse = (resp: any) => {
+  const resolveSupportedResponse = (resp: any): boolean | undefined => {
     if (typeof resp === 'boolean') {
       return resp
     }
-    return resp?.result === true || resp?.data === true
+    if (typeof resp?.result === 'boolean') {
+      return resp.result
+    }
+    if (typeof resp?.data === 'boolean') {
+      return resp.data
+    }
+    return undefined
   }
 
   const ensureAiAgentSupport = async () => {
@@ -147,12 +153,15 @@ export const useAIStore = defineStore('ai', () => {
     if (!supportPromise) {
       supportPromise = existsAiAgentSupport()
         .then((resp) => {
-          const supported = isSupportedResponse(resp)
-          aiAgentSupported.value = supported
-          return supported
+          const supported = resolveSupportedResponse(resp)
+          if (supported !== undefined) {
+            aiAgentSupported.value = supported
+          }
+          return supported === true
         })
         .catch(() => {
-          aiAgentSupported.value = false
+          // Transport, authentication, and startup failures are not authoritative
+          // capability answers. Keep the state unknown so a later lifecycle sync can retry.
           return false
         })
         .finally(() => {
