@@ -20,7 +20,7 @@ export interface ProjectGeneralAgentRuntimeOptions {
   router: Router
   projectId: string
   projectName?: string
-  menus: ProjectMenu[]
+  menus: ProjectMenu[] | (() => ProjectMenu[])
   getLatestUserMessage?: () => Record<string, any> | undefined
   onConversationMessage?: (message: Record<string, any>) => void
   onCapabilitiesLoaded?: () => void
@@ -61,12 +61,12 @@ const findProjectMenu = (menus: ProjectMenu[], value: string): ProjectMenu | und
 }
 
 const createProjectContextAdapter = (
-  menus: ProjectMenu[],
+  menus: ProjectGeneralAgentRuntimeOptions['menus'],
   router: Router,
 ): GeneralAgentContextAdapter => ({
-  getMenus: () => menus,
+  getMenus: () => typeof menus === 'function' ? menus() : menus,
   navigateToMenu: (value, options) => {
-    const menu = findProjectMenu(menus, value)
+    const menu = findProjectMenu(typeof menus === 'function' ? menus() : menus, value)
     const path = normalizeText(menu?.path || menu?.url)
     if (!path) return false
     void router.push({
@@ -157,9 +157,16 @@ export const createProjectGeneralAgentRuntime = (
   })
   return {
     ...runtime,
-    parameters: {
-      ...runtime.parameters,
-      sessionClientId: createProjectGeneralAgentSessionClientId(options.projectId),
+    // The project wrapper must retain the live context and tool snapshots too.
+    get clientTools() { return runtime.clientTools },
+    get clientToolsVersion() { return runtime.clientToolsVersion },
+    get skillBindings() { return runtime.skillBindings },
+    get promptExamples() { return runtime.promptExamples },
+    get parameters() {
+      return {
+        ...runtime.parameters,
+        sessionClientId: createProjectGeneralAgentSessionClientId(options.projectId),
+      }
     },
   }
 }
