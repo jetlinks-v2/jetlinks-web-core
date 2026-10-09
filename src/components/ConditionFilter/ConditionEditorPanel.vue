@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import ConditionOptionPanel from './ConditionOptionPanel.vue'
 import ValueItem from '../Search/Filter/ValueItem.vue'
 import { useColumnItemOptions, useColumnsMap } from '../Search/Filter/hooks/useSearchEngine'
-import type { ConditionFilterTerm } from './types'
+import type { ConditionFilterSubmitOptions, ConditionFilterTerm } from './types'
 import { isConditionFieldArrayTermType } from './schema'
 
 const props = defineProps({
@@ -23,7 +23,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits<{
-  (e: 'apply', value: ConditionFilterTerm, options?: { close?: boolean; allowEmpty?: boolean }): void
+  (e: 'apply', value: ConditionFilterTerm, options?: ConditionFilterSubmitOptions): void
   (e: 'draft-change', value?: ConditionFilterTerm): void
 }>()
 
@@ -116,11 +116,14 @@ const onValueItemUpdate = (value: any) => {
   setDraftValue(value)
 
   if (canApply.value) {
-    onSubmit({ close: shouldCloseOnValueUpdate.value })
+    onSubmit({
+      close: shouldCloseOnValueUpdate.value,
+      source: shouldCloseOnValueUpdate.value ? 'commit' : 'input',
+    })
   }
 }
 
-const onSubmit = (options?: { close?: boolean; allowEmpty?: boolean }) => {
+const onSubmit = (options?: ConditionFilterSubmitOptions) => {
   if (!props.column || (!canApply.value && !options?.allowEmpty)) {
     return
   }
@@ -136,6 +139,10 @@ const onSubmit = (options?: { close?: boolean; allowEmpty?: boolean }) => {
   )
 }
 
+const onConfirmKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' && !event.isComposing && !isOptionPanelMode.value && !shouldCloseOnValueUpdate.value) onSubmit()
+}
+
 watch(
   () => [props.column, props.term?.termType, props.term?.value],
   () => {
@@ -146,7 +153,7 @@ watch(
 </script>
 
 <template>
-  <div class="condition-editor-panel" :class="{ 'condition-editor-panel--compact': hideTitle }" :style="{ width: panelWidth }">
+  <div class="condition-editor-panel" :class="{ 'condition-editor-panel--compact': hideTitle }" :style="{ width: panelWidth }" @keydown="onConfirmKeydown">
     <div v-if="!hideTitle" class="condition-editor-panel__title">{{ $t('components.ConditionFilter.editor.title', { title }) }}</div>
     <div class="condition-editor-panel__body">
       <slot

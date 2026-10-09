@@ -8,6 +8,7 @@
 | --- | --- | --- | --- |
 | `open` | 是否打开 | `boolean` | 必填 |
 | `width` | 抽屉宽度 | `number` | - |
+| `contentWrapperStyle` | 内容容器样式；宽度统一由 `width` 及视口约束确定 | `CSSProperties` | - |
 | `icon` | 头部图标 | `string` | - |
 | `title` | 标题 | `string` | - |
 | `sub` | 副标题 | `string` | - |
@@ -36,3 +37,4 @@
 
 - foot 插槽存在时才渲染底栏。
 - formMode 只负责语义化提交，校验和保存逻辑由调用方处理。
+- 无遮罩抽屉在关闭动画期间也保持响应式容器宽度：通过 `contentWrapperStyle.width` 补足 Ant Design 关闭时移除的宽度，避免内容撑宽后向左跳动；保留其他传入样式，沿用组件库动画。回归入口为 `tests/drawerShell.test.mjs`。

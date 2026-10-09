@@ -25,6 +25,7 @@ import type {
   ConditionFilterExpose,
   ConditionFilterField,
   ConditionFilterLegacySearchPayload,
+  ConditionFilterSubmitOptions,
   ConditionFieldQuickSuggestion,
   ConditionFilterTerm,
 } from './types'
@@ -123,7 +124,14 @@ const watchDisposers = new Map<string, () => void>()
 const pendingEmptyRemovalKeys = new Set<string>()
 let hasInitializedDefaultTerms = false
 let autoSearchTimer: number | undefined
+let autoSearchSource: ConditionFilterSubmitOptions['source']
+let lastSearchTerms: ConditionFilterTerm[] = []
 let keepEmptyValueOnBlur = false
+
+// 同一轮更新中确认动作优先于连续输入，最终只提交一次完整条件。
+const markSearchSource = (source: ConditionFilterSubmitOptions['source'] = 'commit') => {
+  if (autoSearchSource !== 'commit') autoSearchSource = source
+}
 
 useColumnsMapContext(columnsMap)
 useColumnItemOptionsContext(optionsMap)
@@ -1372,6 +1380,7 @@ const syncByProps = () => {
   const targetTerms = shouldApplyInitialDefaults ? createDefaultTerms(true) : nextTerms
 
   if (!isSameTerms(termsModel.value, targetTerms)) {
+    if (hasInitializedDefaultTerms) markSearchSource()
     termsModel.value = targetTerms
   }
 
@@ -1465,7 +1474,7 @@ const focusNextCondition = (termKey?: string) => {
   focusTailInput(false)
 }
 
-const applyTermUpdate = (termKey: string, value: Partial<ConditionFilterTerm>) => {
+const applyTermUpdate = (termKey: string, value: Partial<ConditionFilterTerm>, source: ConditionFilterSubmitOptions['source'] = 'commit') => {
   const index = getTermIndex(termKey)
 
   if (index === -1) {
@@ -1494,6 +1503,7 @@ const applyTermUpdate = (termKey: string, value: Partial<ConditionFilterTerm>) =
     return
   }
 
+  markSearchSource(source)
   termsModel.value.splice(index, 1, nextItem)
   delete valueDraftMap[termKey]
 }
@@ -1643,13 +1653,14 @@ const onChangeLogic = (index: number, type: string) => {
     return
   }
 
+  markSearchSource()
   termsModel.value.splice(index, 1, {
     ...termsModel.value[index],
     type,
   })
 }
 
-const triggerSearch = () => {
+const emitSearch = () => {
   if (autoSearchTimer) {
     window.clearTimeout(autoSearchTimer)
     autoSearchTimer = undefined
@@ -1663,6 +1674,7 @@ const triggerSearch = () => {
     where: payload.value.where,
   }
 
+  lastSearchTerms = cloneTerms(changePayload.terms, { stripKey: true })
   emit('change', changePayload)
   // 旧 Search 以一个根分组传递条件，保留形状以便页面只替换组件标签。
   emit('search', {
@@ -1672,13 +1684,41 @@ const triggerSearch = () => {
   })
 }
 
-const scheduleAutoSearch = () => {
+const triggerAutoSearch = () => {
+  if (!isSameTerms(payload.value.terms, lastSearchTerms)) emitSearch()
+}
+
+const flushAutoSearch = () => {
   if (autoSearchTimer) {
     window.clearTimeout(autoSearchTimer)
+    autoSearchTimer = undefined
+    triggerAutoSearch()
+  }
+}
+
+const confirmAutoSearch = () => {
+  // 输入与确认可能发生在同一轮，定时器尚未创建时也必须按确认提交。
+  markSearchSource()
+  flushAutoSearch()
+  nextTick(() => { autoSearchSource = undefined })
+}
+
+const scheduleAutoSearch = (source: ConditionFilterSubmitOptions['source']) => {
+  if (autoSearchTimer) {
+    window.clearTimeout(autoSearchTimer)
+    autoSearchTimer = undefined
+  }
+
+  if (isSameTerms(payload.value.terms, lastSearchTerms)) return
+
+  if (source !== 'input') {
+    triggerAutoSearch()
+    return
   }
 
   autoSearchTimer = window.setTimeout(() => {
-    triggerSearch()
+    autoSearchTimer = undefined
+    triggerAutoSearch()
   }, autoSearchDelay)
 }
 
@@ -1726,6 +1766,7 @@ const onRemoveTerm = (termKey: string, options?: { focusTail?: boolean }) => {
     return
   }
 
+  markSearchSource()
   termsModel.value.splice(index, 1)
   delete valueDraftMap[termKey]
   delete valuePanelKeywordMap[termKey]
@@ -1796,7 +1837,13 @@ const commitTextValue = (options?: { focusTail?: boolean; allowEmpty?: boolean; 
   }
 }
 
-const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?: { close?: boolean; allowEmpty?: boolean }) => {
+const triggerSearch = () => {
+  // 鼠标搜索保留输入焦点，在这里一次性确认草稿并查询，避免失焦先请求一次。
+  if (editorMode.value === 'value') commitTextValue({ focusTail: true })
+  emitSearch()
+}
+
+const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?: ConditionFilterSubmitOptions) => {
   const currentTerm = getTerm(termKey)
   delete valueDraftMap[termKey]
   delete valuePanelKeywordMap[termKey]
@@ -1812,7 +1859,7 @@ const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?
       applyTermUpdate(termKey, {
         termType: value.termType,
         value: cloneValue(value.value),
-      })
+      }, options.source)
 
       if (options?.close === false) {
         valuePanelTermKey.value = termKey
@@ -1831,7 +1878,8 @@ const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?
   }
 
   pendingEmptyRemovalKeys.delete(termKey)
-  applyTermUpdate(termKey, value)
+  applyTermUpdate(termKey, value, options?.source)
+  if (options?.source !== 'input') confirmAutoSearch()
 
   if (options?.close === false) {
     valuePanelTermKey.value = termKey
@@ -1845,6 +1893,7 @@ const onApplyPanelValue = (termKey: string, value: ConditionFilterTerm, options?
 }
 
 const onClear = () => {
+  markSearchSource()
   termsModel.value = createDefaultTerms(false)
   Object.keys(valueDraftMap).forEach((key) => {
     delete valueDraftMap[key]
@@ -1866,14 +1915,17 @@ const exposeApi: ConditionFilterExpose = {
   }),
   getWhere: () => payload.value.where,
   setTerms: (terms = []) => {
+    markSearchSource()
     termsModel.value = normalizeInputTerms(terms, resolvedFields.value)
     setTailMode()
   },
   setFilter: (filter) => {
+    markSearchSource()
     termsModel.value = normalizeInputTerms(filter?.terms || [], resolvedFields.value)
     setTailMode()
   },
   setWhere: (where = '') => {
+    markSearchSource()
     termsModel.value = parseWhereExpression(where, resolvedFields.value)
     setTailMode()
   },
@@ -2190,6 +2242,8 @@ const onValueBlur = (event: FocusEvent) => {
 }
 
 const onValueKeydown = (event: KeyboardEvent) => {
+  if (event.isComposing) return
+
   if (event.key === 'Tab' && !event.shiftKey) {
     event.preventDefault()
     commitTextValue({ focusNext: true })
@@ -2292,6 +2346,8 @@ const onValuePanelOpenChange = (termKey: string, visible: boolean) => {
 
   delete valueDraftMap[termKey]
   delete valuePanelKeywordMap[termKey]
+  // 关闭输入面板意味着确认当前值，不再等待连续输入的定时任务。
+  confirmAutoSearch()
 }
 
 const onClearTermValue = (termKey: string) => {
@@ -2334,17 +2390,22 @@ watch(
     emit('update:modelValue', cloneTerms(termsModel.value, { stripKey: true }))
     emit('update:where', payload.value.where)
   },
-  { deep: true },
+  // 默认条件在上方同步时已初始化，首次也回传编辑模型，供外部追加条件使用。
+  { immediate: true, deep: true },
 )
 
 // 未填值的条件仅保留编辑上下文，实际查询条件变化时才触发自动搜索。
+lastSearchTerms = cloneTerms(payload.value.terms, { stripKey: true })
 watch(
   () => payload.value.terms,
   (terms, previousTerms) => {
+    const source = autoSearchSource
+    autoSearchSource = undefined
     if (!isSameTerms(terms, previousTerms)) {
-      scheduleAutoSearch()
+      scheduleAutoSearch(source)
     }
   },
+  { flush: 'post' },
 )
 
 onUnmounted(() => {
@@ -2676,6 +2737,7 @@ onUnmounted(() => {
         <button
           class="condition-filter__action condition-filter__action--search"
           type="button"
+          @mousedown.prevent
           @click="triggerSearch"
         >
           <AIcon type="SearchOutlined" />
