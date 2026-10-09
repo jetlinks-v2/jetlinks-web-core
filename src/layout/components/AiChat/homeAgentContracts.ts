@@ -188,6 +188,8 @@ export interface HomeAgentRuntime extends AiClientToolRuntime {
   parameters: Record<string, any>
   skillBindings: ClientSkillBindingContribution
   getContext: () => HomeAgentCapabilityContext
+  /** Refreshes page context and authorized capabilities without replacing this runtime. */
+  refreshContext: () => void
   /** Complete authorized pool for hosts that need stable recommendation rotation. */
   promptExamples: string[]
 }

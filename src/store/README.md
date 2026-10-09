@@ -30,3 +30,5 @@
 - 通过 `storeToRefs` 消费响应式 state，动作从 Store 实例调用；不要在页面复制同一请求或直接改动 Store 内部状态。
 - 服务端数据由 Store action 统一拉取时，说明缓存、刷新和错误策略；涉及项目/业务应用 Scope 时同时核验对应 utils 与请求拦截器。
 - 新增或稳定调整 Store 时同步更新本索引，说明状态范围、action、副作用和持久化边界。
+
+`useAIStore.queryAgent` 复用同一 active client 的部署、合并同一有效 pending 查询，只刷新页面参数；`prepare/release` 或切换 owner 后的旧响应不会生效。部署结果不跨权限作用域持久缓存，失败后的后续调用仍可重试。
