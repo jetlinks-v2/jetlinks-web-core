@@ -23,7 +23,7 @@ const memoryStorage = () => {
   }
 }
 
-const applicationId = '2100158593397268480'
+const applicationId = '2108487683332870144'
 const applicationUrl = `http://localhost:9100/${applicationId}/#/overview?applicationScope=${applicationId}`
 const apps = [
   { id: applicationId, name: '应用 A', projectId: 'project', templateId: 'template' },
@@ -141,6 +141,7 @@ const bundle = async (environment, runtimeScope = 'project', subApp = false) => 
         export { useMenuStore } from '${source('store/menu.ts')}'
         export { useBasicLayoutVariant } from '${source('layout/hooks/useBasicLayoutVariant.ts')}'
         export { initAxios } from '${source('package.ts')}'
+        export { prepareApplicationAccess } from '${source('utils/application-access.ts')}'
         export { default as router } from '${source('router/index.ts')}'
       `,
       resolveDir: root,
@@ -196,6 +197,76 @@ try {
   for (const environment of ['', 'saas']) {
     const api = await bundle(environment)
     const { scope, runtime, context, startup } = api
+
+    // 裸应用入口必须先核验授权身份，不能在首个请求中把应用 ID 当作租户域名。
+    for (const domain of [undefined, applicationId, 'project']) {
+      reset(api, `http://localhost:9200/${applicationId}/#/`)
+      if (environment && domain !== undefined) {
+        localStorage.setItem(`project_${applicationId}`, JSON.stringify({ token: 'saas-token', domain }))
+      }
+      const state = globalThis.__applicationRuntimeTest
+      state.user.userInfo = {}
+      state.user.getUserInfo = async () => {
+        const request = state.axios.requestOptions({ url: '/user/detail', applicationScope: false })
+        state.requests.push(request)
+        state.user.userInfo = { id: 'user' }
+      }
+      await startup.bootstrapSession()
+      assert.equal(state.requests[0].url, '/business-application/me')
+      assert.equal(state.requests[0].headers['X-Tenant-Domain'], undefined)
+      assert.equal(runtime.getApplicationRuntimeEntry().applicationId, applicationId)
+      assert.equal(api.useBusinessApplicationStore().currentApplication.id, applicationId)
+      const expectedDomain = environment && domain === 'project' ? 'project' : undefined
+      if (environment && !expectedDomain) {
+        assert.equal(api.useBusinessApplicationStore().applications.some(item => item.runtimeType === 'project'), false)
+      }
+      assert.equal(state.requests[1].headers['X-Tenant-Domain'], expectedDomain)
+      await startup.ensureMenuRoutes(api.router, false)
+      assert.equal(state.requests.at(-1).headers['X-Asset-Scope'], `business_application:${applicationId}`)
+      for (const headers of [
+        state.axios.requestOptions({ url: '/device/_query' }).headers,
+        state.ndjson.handleRequest({ url: '/device/_query' }).headers,
+        context.getUploadHeaders(),
+      ]) {
+        assert.equal(headers['X-Asset-Scope'], `business_application:${applicationId}`)
+        assert.equal(headers['X-Tenant-Domain'], expectedDomain)
+      }
+      scenarios++
+    }
+
+    // 从“访问应用”进入时复制项目域名和应用 Scope，跳过本地凭证的接口仍保留项目路由。
+    for (const storedDomain of ['project', undefined]) {
+      reset(api, 'http://localhost:9200/project/#/application-center/ProjectApplication')
+      if (environment) {
+        localStorage.setItem('project_project', JSON.stringify({ token: 'saas-token', domain: storedDomain }))
+      }
+      const access = api.prepareApplicationAccess({
+        applicationId, applicationName: '应用 A', accessContext: context.getApplicationAccessContext(),
+      })
+      assert.equal(access.success, true)
+      if (environment) {
+        const applicationStorage = JSON.parse(localStorage.getItem(`project_${applicationId}`))
+        assert.equal(applicationStorage.domain, 'project')
+        assert.equal(applicationStorage.scope, applicationId)
+        assert.equal(applicationStorage.token, 'saas-token')
+      }
+      window.location = new URL(access.url)
+      window.sessionStorage.clear()
+      await startup.bootstrapSession()
+      for (const headers of [
+        globalThis.__applicationRuntimeTest.axios.requestOptions({ url: '/device/_query' }).headers,
+        globalThis.__applicationRuntimeTest.ndjson.handleRequest({ url: '/device/_query' }).headers,
+        context.getUploadHeaders(),
+      ]) {
+        assert.equal(headers['X-Asset-Scope'], `business_application:${applicationId}`)
+        assert.equal(headers['X-Tenant-Domain'], environment ? 'project' : undefined)
+      }
+      const loginRequest = globalThis.__applicationRuntimeTest.axios.requestOptions({ url: '/authorize/captcha/config', projectContext: false })
+      assert.equal(loginRequest.headers['X-Tenant-Domain'], environment ? 'project' : undefined)
+      assert.equal(loginRequest.headers['X-Asset-Scope'], undefined)
+      scenarios++
+    }
+
     reset(api)
     assert.equal(runtime.isApplicationRuntime(), true)
     assert.equal(api.useBasicLayoutVariant().value, 'application')

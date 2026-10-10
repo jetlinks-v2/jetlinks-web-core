@@ -10,6 +10,21 @@ import { applyApplicationScopeHeaders, type MenuApplicationScope } from './appli
 const TENANT_DOMAIN_KEY = 'X-Tenant-Domain'
 const VERIFY_CACHE_KEY = 'jetlinks_verify_cache'
 
+/** 应用路径不是租户域名；应用仅复用已保存的项目域名，不能用应用 ID 兜底。 */
+export const getRequestTenantDomain = (tenantDomain?: false): string | undefined => {
+  if (tenantDomain === false || !isProjectStorageEnabled()) return undefined
+
+  const code = getProjectIdFromLocation()
+  const storedDomain = code ? getProjectStorage(code)?.domain : undefined
+  const domain = typeof storedDomain === 'string' ? storedDomain.trim() : ''
+  const entry = getApplicationRuntimeEntry()
+  if (entry.type === 'application') {
+    return domain && domain !== entry.applicationId ? domain : undefined
+  }
+
+  return domain || code || undefined
+}
+
 export const isFromCloud = () => (
   ['cloud', 'cloud-pc'].includes(String(localStorage.getItem('terminal')))
   && window.location.href.includes(edgeDefaultUrl)
@@ -76,15 +91,17 @@ const getVerifyHeaders = (): Record<string, string> => {
 export const getRequestHeaders = (options: {
   applicationScope?: MenuApplicationScope
   projectContext?: false
+  tenantDomain?: false
   url?: string
 } = {}): Record<string, string> => {
   const headers: Record<string, string> = {}
   const projectId = isProjectStorageEnabled() ? getProjectIdFromLocation() : ''
   const projectStorage = projectId ? getProjectStorage(projectId) : undefined
-  const token = projectStorage?.token || getToken()
+  const token = (options.projectContext === false ? undefined : projectStorage?.token) || getToken()
+  const domain = getRequestTenantDomain(options.tenantDomain)
 
   if (token) headers[TOKEN_KEY] = token
-  if (projectStorage?.domain) headers[TENANT_DOMAIN_KEY] = projectStorage.domain
+  if (domain) headers[TENANT_DOMAIN_KEY] = domain
   applyApplicationScopeHeaders(
     headers,
     options.applicationScope,

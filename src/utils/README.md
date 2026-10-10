@@ -23,7 +23,7 @@
 
 | 文件/能力 | 根入口 | 主要用途 |
 | --- | --- | --- |
-| `request-context.ts`：`getBaseApi`、`getRequestHeaders`、`getUploadHeaders` | 否 | API base、请求头和上传请求上下文 |
+| `request-context.ts`：`getBaseApi`、`getRequestTenantDomain`、`getRequestHeaders`、`getUploadHeaders` | 经 `comm.ts` 导出 | API base、租户路由、请求头和上传请求上下文；应用入口仅复用已保存的项目域名，不以应用 ID 兜底。入口身份确认请求可用 `tenantDomain: false` 暂停租户路由 |
 | `context.ts`：`initRequest` | 否 | 请求上下文初始化 |
 | `project-storage.ts` | 是 | 项目级 token、域名、API 地址和 Scope 存储 |
 | `business-application-runtime.ts` | 是 | 业务应用运行态判定 |

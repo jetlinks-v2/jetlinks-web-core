@@ -19,6 +19,11 @@ export const bootstrapSession = async () => {
   const systemStore = useSystemStore()
   const applicationStore = useApplication()
 
+  // 先确认入口，避免首次用户/系统请求把裸应用路径作为租户域名而被拒绝。
+  const selected = isBusinessApplicationRuntime()
+    ? await useBusinessApplicationStore().initialize()
+    : undefined
+
   if (!Object.keys(userStore.userInfo).length) {
     await userStore.getUserInfo()
   }
@@ -39,7 +44,6 @@ export const bootstrapSession = async () => {
   }
 
   if (isBusinessApplicationRuntime()) {
-    const selected = await useBusinessApplicationStore().initialize()
     if (getApplicationRuntimeEntry().type === 'application' && selected) {
       systemStore.layout.title = selected.name
       systemStore.changeTitle(selected.name)

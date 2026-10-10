@@ -67,7 +67,8 @@ export const initApplication = (clientId: string | number) => request.get<{name:
 // ---------------------------------------------------------------------------
 // 运行时登录页（src/views/login/）专用端点
 //
-// 登录发生在项目上下文建立之前，因此这些请求统一携带 projectContext: false。
+// 登录发生在项目会话建立之前，因此这些请求统一携带 projectContext: false，
+// 跳过本地项目 token / Scope；URL 中的项目 code 仍由公共拦截器写入请求头。
 // 既有导出 login / codeUrl / authLogin / bindInfo 仍被 src/views/relogin、
 // src/views/oauth、src/views/share/authorize 使用，语义保持不变；这里只按需新增
 // 导出，不改动它们的请求行为。
@@ -79,13 +80,13 @@ const applicationRequest = new Request('/application')
 const loginRequestConfig = { projectContext: false }
 
 /**
- * 登录（不携带项目上下文）
+ * 登录（不复用本地项目会话，保留 URL 项目标识）
  */
 export const loginWithoutProjectContext = (data: any) =>
   request.post('/authorize/login', data, loginRequestConfig)
 
 /**
- * 获取图片验证码（不携带项目上下文）
+ * 获取图片验证码（不复用本地项目会话，保留 URL 项目标识）
  */
 export const codeUrlWithoutProjectContext = () =>
   request.get<{ base64: string; key: string }>(
@@ -95,7 +96,7 @@ export const codeUrlWithoutProjectContext = () =>
   )
 
 /**
- * 获取支持的 SSO 应用（不携带项目上下文）
+ * 获取支持的 SSO 应用（不复用本地项目会话，保留 URL 项目标识）
  */
 export const bindInfoWithoutProjectContext = () =>
   request.get(`/application/sso/_all`, {}, loginRequestConfig)

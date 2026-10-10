@@ -8,6 +8,7 @@ export {
   getBaseApi,
   getFromCloudPathName,
   getRequestBaseApi,
+  getRequestTenantDomain,
   getRequestHeaders,
   getUploadHeaders,
   isFromCloud,
