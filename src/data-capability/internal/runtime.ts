@@ -42,6 +42,7 @@ import { DataSourceRunner } from './source-runner'
 
 export class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   private disposedState = false
+  private readonly dynamicSources = new Map<string, DataSourceDefinition>()
   private readonly bindingResolver: BindingResolver
   private readonly parameters: Record<string, unknown>
   private readonly contexts = new Map<string, unknown>()
@@ -66,8 +67,14 @@ export class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     return this.disposedState
   }
 
-  ensureReady(capabilityId: string, signal?: AbortSignal): Promise<void> {
-    return this.registry.ensureReady(this.toRuntimeContext(signal), capabilityId)
+  async ensureReady(capabilityId: string, signal?: AbortSignal): Promise<void> {
+    const context = this.toRuntimeContext(signal)
+    await this.registry.ensureReady(context, capabilityId)
+    const source = await this.registry.resolveDynamicSource(capabilityId, context)
+    this.assertActive()
+    if (signal?.aborted) return
+    if (source) this.dynamicSources.set(capabilityId, source)
+    else this.dynamicSources.delete(capabilityId)
   }
 
   connect<T = unknown>(request: DataConnectionRequest): DataConnection<T> {
@@ -142,6 +149,7 @@ export class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     this.optionSourceRunner.dispose()
     await this.sourceRunner.dispose()
     await this.operationRunner.dispose()
+    this.dynamicSources.clear()
     this.contexts.clear()
     this.outputs.clear()
   }
@@ -237,7 +245,7 @@ export class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   }
 
   requireSource(ref: { capabilityId: string; version: number }): DataSourceDefinition {
-    const definition = this.registry.sources.get(ref.capabilityId)
+    const definition = this.dynamicSources.get(ref.capabilityId) || this.registry.sources.get(ref.capabilityId)
     if (!definition) {
       throw createCapabilityError('source.not_found', `DataSource ${ref.capabilityId} is not registered`, {
         capabilityId: ref.capabilityId,

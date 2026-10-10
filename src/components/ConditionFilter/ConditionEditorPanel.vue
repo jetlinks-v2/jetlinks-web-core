@@ -3,9 +3,8 @@ import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ConditionOptionPanel from './ConditionOptionPanel.vue'
 import ValueItem from '../Search/Filter/ValueItem.vue'
-import { useColumnItemOptions, useColumnsMap } from '../Search/Filter/hooks/useSearchEngine'
 import type { ConditionFilterSubmitOptions, ConditionFilterTerm } from './types'
-import { isConditionFieldArrayTermType } from './schema'
+import { useConditionEditorPanel } from './useConditionEditorPanel'
 
 const props = defineProps({
   column: {
@@ -28,128 +27,11 @@ const emit = defineEmits<{
 }>()
 
 const { t: $t } = useI18n()
-const columnsMap = useColumnsMap()
-const optionsMap = useColumnItemOptions()
-const draftValue = ref<any>()
-
-const currentColumn = computed(() => {
-  if (!props.column) {
-    return undefined
-  }
-
-  const column = columnsMap[props.column]
-  const resolvedOptions = optionsMap[props.column]
-
-  if (!column?.search || !Array.isArray(resolvedOptions) || !resolvedOptions.length) {
-    return column
-  }
-
-  return {
-    ...column,
-    search: {
-      ...column.search,
-      options: resolvedOptions,
-    },
-  }
-})
-
-const title = computed(() => currentColumn.value?.title || '')
-const termType = computed(() => props.term?.termType)
-const optionPanelConfig = computed(() => currentColumn.value?.search?.optionPanel)
-const isOptionPanelMode = computed(() => ['select', 'tree', 'treeSelect'].includes(currentColumn.value?.search?.type || '') || !!optionPanelConfig.value?.loadOptions)
-const hideTitle = computed(() => optionPanelConfig.value?.hideTitle ?? isOptionPanelMode.value)
-const panelWidth = computed(() => `${optionPanelConfig.value?.width || (isOptionPanelMode.value ? 320 : 280)}px`)
-const optionPanelValue = computed(() => draftValue.value)
-const optionPanelOptions = computed(() => {
-  const options = currentColumn.value?.search?.options
-  return Array.isArray(options) ? options : []
-})
-const resolvedOptionPanelConfig = computed(() => ({
-  ...optionPanelConfig.value,
-  multiple: isConditionFieldArrayTermType(currentColumn.value?.search, termType.value),
-}))
-
-const cloneValue = (value: any) => {
-  return Array.isArray(value) ? [...value] : value
-}
-
-const initDraft = () => {
-  const search = currentColumn.value?.search
-
-  if (!search) {
-    draftValue.value = undefined
-    return
-  }
-
-  draftValue.value = cloneValue(props.term?.value ?? search.defaultValue)
-
-  if (draftValue.value === undefined && isConditionFieldArrayTermType(search, termType.value)) {
-    draftValue.value = ['btw', 'nbtw'].includes(termType.value || '') ? [undefined, undefined] : []
-  }
-}
-
-const canApply = computed(() => {
-  if (!termType.value) {
-    return false
-  }
-
-  if (['btw', 'nbtw'].includes(termType.value)) {
-    return Array.isArray(draftValue.value) && draftValue.value.length > 1 && draftValue.value.every(item => item !== undefined && item !== null && item !== '')
-  }
-
-  if (isConditionFieldArrayTermType(currentColumn.value?.search, termType.value)) {
-    return Array.isArray(draftValue.value) && draftValue.value.some(item => item !== undefined && item !== null && item !== '')
-  }
-
-  return draftValue.value !== undefined && draftValue.value !== null && draftValue.value !== ''
-})
-
-const shouldCloseOnValueUpdate = computed(() =>
-  ['date', 'time', 'timeRange', 'rangePicker'].includes(currentColumn.value?.search?.type || ''),
-)
-
-const setDraftValue = (value: any) => {
-  draftValue.value = cloneValue(value)
-}
-
-const onValueItemUpdate = (value: any) => {
-  setDraftValue(value)
-
-  if (canApply.value) {
-    onSubmit({
-      close: shouldCloseOnValueUpdate.value,
-      source: shouldCloseOnValueUpdate.value ? 'commit' : 'input',
-    })
-  }
-}
-
-const onSubmit = (options?: ConditionFilterSubmitOptions) => {
-  if (!props.column || (!canApply.value && !options?.allowEmpty)) {
-    return
-  }
-
-  emit(
-    'apply',
-    {
-      column: props.column,
-      termType: termType.value,
-      value: cloneValue(draftValue.value),
-    },
-    options,
-  )
-}
-
-const onConfirmKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && !event.isComposing && !isOptionPanelMode.value && !shouldCloseOnValueUpdate.value) onSubmit()
-}
-
-watch(
-  () => [props.column, props.term?.termType, props.term?.value],
-  () => {
-    initDraft()
-  },
-  { immediate: true, deep: true },
-)
+const {
+  title, termType, currentColumn, draftValue, isOptionPanelMode, isTextMembershipMode,
+  hideTitle, panelWidth, optionPanelValue, valueItemValue, optionPanelOptions, resolvedOptionPanelConfig,
+  textValues, setDraftValue, onValueItemUpdate, onSubmit, onConfirmKeydown,
+} = useConditionEditorPanel(props, (value, options) => emit('apply', value, options))
 </script>
 
 <template>
@@ -175,9 +57,21 @@ watch(
           @update:value="setDraftValue"
           @submit="onSubmit"
         />
+        <a-select
+          v-else-if="isTextMembershipMode"
+          :value="textValues"
+          mode="tags"
+          :open="false"
+          :show-arrow="false"
+          :placeholder="$t('components.ConditionFilter.editor.textValues')"
+          :aria-label="title"
+          style="width: 100%"
+          @change="onValueItemUpdate"
+          @keydown.enter.stop
+        />
         <ValueItem
           v-else
-          :value="draftValue"
+          :value="valueItemValue"
           :column="column"
           :termType="termType"
           :show-action="false"
