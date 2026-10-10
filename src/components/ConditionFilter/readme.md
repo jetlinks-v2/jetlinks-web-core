@@ -103,6 +103,12 @@ const onFilterChange = ({ filter, where }) => {
 
 操作符下拉会显示一行用途说明，选中后的操作符 Token 支持悬浮查看完整解释。
 
+### 文本多值条件
+
+字段显式配置 `in` / `nin` 时，文本值面板使用标签输入，按回车或失焦添加值，删除标签同步更新条件；不按逗号拆分，以保留包含逗号的原始文本。已有数组直接回显，仍输出字符串数组。清空标签沿用选项面板的空值处理，不保留旧条件值。此行为由 `useConditionEditorPanel.ts` 管理，只作用于文本多值条件；枚举、远程选项、数值和日期继续使用原编辑器。
+
+回归入口：`pnpm test:condition-filter`，覆盖新增/修改/删除多值、清空、操作符切换、回显与其他值类型；可视化集成同时运行 `test:component-data-binding`。
+
 ### Search 字段处理兼容
 
 以旧 `Search` 的 `columns[].search` 配置作为 `ConditionFilter` 的 `columns` 时，查询输出按以下顺序处理：`rename`、`handleValue(value, term)`、`like` / `nlike` 的 `\\` 与 `%` 转义及通配符补齐、`handleTerms(term)`。`handleParamsItem` 仍是 `ConditionFilter` 的终端自定义转换入口，配置后优先执行。

@@ -2536,7 +2536,7 @@ onUnmounted(() => {
               placement="bottomLeft"
               @openChange="(visible) => onOperatorPanelOpenChange(getTermKey(term), visible)"
             >
-              <a-tooltip :title="getTermTypeTooltip(term.termType, getTermColumn(term)) || undefined">
+              <a-tooltip :title="operatorPanelTermKey === getTermKey(term) ? undefined : getTermTypeTooltip(term.termType, getTermColumn(term)) || undefined">
                 <button
                   class="condition-filter__chip condition-filter__chip--operator"
                   type="button"
@@ -2558,11 +2558,13 @@ onUnmounted(() => {
               </a-tooltip>
               <template #overlay>
                 <div class="condition-filter__dropdown-panel" @mousedown.prevent>
+                  <!-- 按视口定位提示，避免窄容器的避让计算将提示挤回选项上。 -->
                   <a-tooltip
                     v-for="option in getTermTypeOptions(getTermColumn(term))"
                     :key="option.value"
                     :title="getTermTypeTooltip(option.value, getTermColumn(term)) || undefined"
-                    placement="right"
+                    placement="left"
+                    :get-popup-container="trigger => trigger.ownerDocument.body"
                   >
                     <button
                       class="condition-filter__dropdown-option condition-filter__chip condition-filter__chip--operator"

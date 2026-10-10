@@ -1,11 +1,11 @@
 import { inject, getCurrentInstance } from 'vue'
 import { request as defaultRequest } from '@jetlinks-web/core'
-import type { DataCapabilityRequest, RuntimeContext } from './types'
+import type { DataCapabilityRequest, CapabilityContext } from './types'
 
 export const dataCapabilityRequestKey = Symbol('data-capability-request')
 
 /** Keep each runtime's identity separate; never replace the application's global request client. */
-export const getDataCapabilityRequest = (context?: RuntimeContext): DataCapabilityRequest =>
+export const getDataCapabilityRequest = (context?: CapabilityContext): DataCapabilityRequest =>
   context?.request ?? defaultRequest
 
 /** Capture the parent canvas request while setup is active, including for deferred resource queries. */

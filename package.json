@@ -12,6 +12,7 @@
     "test:has-menu": "node --test configs/plugin/has-menu/index.test.mjs",
     "test:application-runtime": "node scripts/test-application-runtime.mjs",
     "test:data-capability": "node scripts/test-data-capability.mjs",
+    "test:condition-filter": "node --test tests/conditionEditorPanel.test.mjs",
     "typecheck:data-capability": "vue-tsc -p tsconfig.data-capability.json --noEmit",
     "micro": "node scripts/start-micro.js",
     "build:server": "pnpm build --mode server",

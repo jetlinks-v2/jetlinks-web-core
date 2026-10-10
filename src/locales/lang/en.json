@@ -1102,6 +1102,7 @@
   "components.ConditionFilter.optionPanel.selectAll": "Select all",
   "components.ConditionFilter.optionPanel.loadingMore": "Loading more...",
   "components.ConditionFilter.editor.title": "Set {title}",
+  "components.ConditionFilter.editor.textValues": "Enter a value and press Enter to add",
   "components.SearchFilter.valueItem.rangeTo": "To",
   "components.SearchFilter.valueItem.confirm": "OK",
   "components.SearchFilter.term.eq.readableLabel": "is",
