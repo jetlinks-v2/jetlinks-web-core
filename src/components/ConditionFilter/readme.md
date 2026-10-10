@@ -103,6 +103,12 @@ const onFilterChange = ({ filter, where }) => {
 
 操作符下拉会显示一行用途说明，选中后的操作符 Token 支持悬浮查看完整解释。
 
+### 文本多值条件
+
+字段显式配置 `in` / `nin` 时，文本值面板使用标签输入，按回车或失焦添加值，删除标签同步更新条件；不按逗号拆分，以保留包含逗号的原始文本。已有数组直接回显，仍输出字符串数组。清空标签沿用选项面板的空值处理，不保留旧条件值。此行为由 `useConditionEditorPanel.ts` 管理，只作用于文本多值条件；枚举、远程选项、数值和日期继续使用原编辑器。
+
+回归入口：`pnpm test:condition-filter`，覆盖新增/修改/删除多值、清空、操作符切换、回显与其他值类型；可视化集成同时运行 `test:component-data-binding`。
+
 ### Search 字段处理兼容
 
 以旧 `Search` 的 `columns[].search` 配置作为 `ConditionFilter` 的 `columns` 时，查询输出按以下顺序处理：`rename`、`handleValue(value, term)`、`like` / `nlike` 的 `\\` 与 `%` 转义及通配符补齐、`handleTerms(term)`。`handleParamsItem` 仍是 `ConditionFilter` 的终端自定义转换入口，配置后优先执行。
@@ -209,7 +215,11 @@ const fields = [
 
 快捷添加、日期/枚举选择、删除和外部条件同步立即查询；连续输入等待 260ms。确认动作取消待执行的输入任务并提交最新完整条件，同一轮更新合并为一次查询，相同有效条件不重复自动请求；手动搜索允许刷新。默认编辑模型在初始化时回传，供调用方追加条件时保留默认时间范围。
 
-内部 `ConditionFilterSubmitOptions.source` 区分 `input` / `commit`，不进入查询参数；公共 `change/search` 参数保持原结构。行内文本在 Enter/失焦时确认，中文输入法 Enter 不提交中间草稿；数值面板连续修改防抖，Enter/关闭面板立即确认。远程选项关键词保持独立防抖。实现入口为 `ConditionFilter.vue` 和 `ConditionEditorPanel.vue`，回归入口为 `tests/conditionFilterScheduling.test.mjs`。
+内部 `ConditionFilterSubmitOptions.source` 区分 `input` / `commit`，不进入查询参数；公共 `change/search` 参数保持原结构。行内文本在 Enter/失焦时确认，中文输入法 Enter 不提交中间草稿；数值面板连续修改防抖，Enter/关闭面板立即确认。远程选项关键词保持独立防抖。实现入口为 `useConditionFilter.ts` 和 `useConditionEditorPanel.ts`，回归入口为 `pnpm test:condition-filter`。
+
+### 组件职责
+
+`ConditionFilter.vue` 保留公共 props、插槽、事件与 expose，负责筛选条布局；`ConditionFilterTerm.vue` 复用单条条件的 Token 视图，通过分组的 `ConditionTokenView` 调用 hook。模型、查询转换、焦点和搜索调度由 `useConditionFilter.ts` 管理，字典请求由 `service.ts` 统一发送。共享样式位于 `condition-filter.less`，所有选择器限定在 `condition-filter` 命名空间内。
 
 ### 字段切换的选项值
 

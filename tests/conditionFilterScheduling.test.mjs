@@ -9,6 +9,8 @@ import { compileScript, parse } from 'vue/compiler-sfc'
 
 const root = resolve(import.meta.dirname, '../src/components/ConditionFilter')
 const require = createRequire(import.meta.url)
+// Newer Node versions expose a CJS "module.exports" namespace key, which is not a parameter name.
+const vueBindings = Object.entries(vue).filter(([name]) => /^[A-Za-z_$][\w$]*$/.test(name))
 let nextKey = 0
 const dependencies = {
   'vue-i18n': { useI18n: () => ({ t: key => key }) },
@@ -34,7 +36,9 @@ const loadComponent = (name) => {
       if (id.startsWith('.')) return load(resolve(dirname(filename), `${id}.ts`))
       return require(id)
     }
-    new Function('require', 'module', 'exports', ...Object.keys(vue), code)(imports, module, module.exports, ...Object.values(vue))
+    new Function('require', 'module', 'exports', ...vueBindings.map(([name]) => name), code)(
+      imports, module, module.exports, ...vueBindings.map(([, value]) => value),
+    )
     return module.exports
   }
   const component = load(resolve(root, name), true).default

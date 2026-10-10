@@ -58,6 +58,7 @@ interface ProviderEntry {
   loader?: DataCapabilityProviderLoader
   moduleId?: string
   capabilityIds?: Set<string>
+  dynamicSourceNamespace?: string
   loadTimeout: number
   loadPromise?: Promise<void>
   disposePromise?: Promise<void>
@@ -127,6 +128,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
       module: false,
       override: options.override ?? false,
       capabilityIds,
+      dynamicSourceNamespace: provider.dynamicSources?.namespace,
       loadTimeout: resolveProviderLoadTimeout(options.timeout, this.options.providerLoadTimeout),
     }
     this.providerEntries.set(token, entry)
@@ -302,6 +304,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
       const loadTimeout = resolveProviderLoadTimeout(item.entry.timeout, this.options.providerLoadTimeout)
       if (!entry
         || entry.loader !== item.entry.loader
+        || entry.dynamicSourceNamespace !== item.entry.dynamicSourceNamespace
         || entry.loadTimeout !== loadTimeout
         || !sameStringSet(entry.capabilityIds, item.capabilityIds)) {
         if (entry) this.disposeProviderEntry(item.token, true)
@@ -316,6 +319,7 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
           module: true,
           moduleId: item.moduleId,
           capabilityIds: item.capabilityIds,
+          dynamicSourceNamespace: item.entry.dynamicSourceNamespace,
           loadTimeout,
           override: false,
         }
@@ -336,7 +340,8 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
 
   async resolveCatalog(context: CapabilityContext, query?: CapabilityQuery): Promise<ResolvedCapabilityCatalog> {
     await this.resolveReadiness(context)
-    return this.resolveLoadedCatalog(context, query)
+    const dynamic = await this.discoverDynamicSources(context, query)
+    return this.resolveLoadedCatalog(context, query, dynamic.sources)
   }
 
   async resolveCapabilityChoices(
@@ -344,9 +349,10 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     query?: CapabilityQuery,
   ): Promise<CapabilityChoiceResult> {
     const readinessDiagnostics = await this.resolveReadiness(context)
-    const catalog = await this.resolveLoadedCatalog(context, query)
+    const dynamic = await this.discoverDynamicSources(context, query)
+    const catalog = await this.resolveLoadedCatalog(context, query, dynamic.sources)
     const projected = await projectCapabilityChoices(catalog, context)
-    const diagnostics = [...readinessDiagnostics, ...projected.diagnostics]
+    const diagnostics = [...readinessDiagnostics, ...dynamic.diagnostics, ...projected.diagnostics]
     return {
       items: projected.items,
       partial: diagnostics.length > 0,
@@ -357,9 +363,10 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   private async resolveLoadedCatalog(
     context: CapabilityContext,
     query?: CapabilityQuery,
+    dynamicSources: DataSourceDefinition[] = [],
   ): Promise<ResolvedCapabilityCatalog> {
     return {
-      sources: await this.resolveDefinitions('sources', this.sources.list(), context, query, definition => (
+      sources: await this.resolveDefinitions('sources', [...this.sources.list(), ...dynamicSources], context, query, definition => (
         !query?.sourceModes?.length || query.sourceModes.some(mode => definition.modes.includes(mode))
       )),
       operations: await this.resolveDefinitions('operations', this.operations.list(), context, query, definition => (
@@ -504,6 +511,10 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
     const unregisters = this.providerUnregisters.get(token) || []
     unregisters.splice(0).forEach(unregister => unregister())
     this.providerUnregisters.delete(token)
+    const dynamicIds = this.providerDefinitionIds.get(token)
+    if (entry.dynamicSourceNamespace && dynamicIds) {
+      this.runtimes.forEach(runtime => runtime.disposeProviderCapabilities(dynamicIds))
+    }
     this.providerDefinitionIds.delete(token)
     if (disposeProvider) {
       void this.disposeProvider(entry, `provider:${token}`)
@@ -642,6 +653,11 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
 
   isMountActive(mount: CapabilityMountStamp | undefined, kind?: ProviderDefinitionKind, capabilityId?: string): boolean {
     if (!mount) return true
+    const entry = this.providerEntries.get(mount.token)
+    if (entry?.dynamicSourceNamespace && mount.generation === entry.generation
+      && this.providerDefinitionIds.get(entry.token)?.mount.mountId === mount.mountId) {
+      return !kind || (kind === 'sources' && !!capabilityId?.startsWith(`${entry.dynamicSourceNamespace}.`))
+    }
     if (kind && capabilityId) return this.activeMounts.has(this.getActiveMountKey(mount, kind, capabilityId))
     return [...this.activeMounts].some(key => key.startsWith(`${mount.mountId}:`))
   }
@@ -653,6 +669,77 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   getDefinitionRegistration(definition: CapabilityDefinitionBase): CapabilityMountStamp | undefined {
     const mount = this.definitionOwners.get(definition)
     return mount && { ...mount }
+  }
+
+  /** Resolve by saved ID without invoking management catalog discovery or sharing remote definitions. */
+  async resolveDynamicSource(capabilityId: string, context: CapabilityContext): Promise<DataSourceDefinition | undefined> {
+    const entries = this.getProviderEntries(capabilityId).filter(entry => entry.dynamicSourceNamespace)
+    if (!entries.length) return undefined
+    if (entries.length !== 1 || this.sources.get(capabilityId)) {
+      throw createCapabilityError('capability.id_conflict', 'Dynamic source namespace conflicts with another Provider')
+    }
+    const entry = entries[0]
+    const generation = entry.generation
+    const definition = await entry.provider?.dynamicSources?.resolve(capabilityId, context)
+    this.assertProviderEntryCurrent(entry, generation)
+    if (!definition) return undefined
+    if (definition.id !== capabilityId) throw createCapabilityError('provider.manifest_mismatch', 'Resolved source ID does not match requested ID')
+    return this.ownDynamicSource(entry, definition)
+  }
+
+  private ownDynamicSource(entry: ProviderEntry, definition: DataSourceDefinition): DataSourceDefinition {
+    assertCapabilityDefinition(definition)
+    const provider = entry.provider!
+    if (definition.kind !== 'data-source' || !definition.id.startsWith(`${entry.dynamicSourceNamespace}.`)
+      || definition.owner.moduleId !== provider.owner.moduleId || definition.owner.providerId !== provider.id) {
+      throw createCapabilityError('provider.owner_mismatch', 'Dynamic definition does not belong to Provider namespace')
+    }
+    const ids = this.providerDefinitionIds.get(entry.token)!
+    ids.sources.add(definition.id)
+    this.definitionOwners.set(definition, ids.mount)
+    return definition
+  }
+
+  private async discoverDynamicSources(context: CapabilityContext, query?: CapabilityQuery) {
+    const sources: DataSourceDefinition[] = []
+    const diagnostics: CapabilityDirectoryDiagnostic[] = []
+    if (query?.kinds?.length && !query.kinds.includes('data-source')) return { sources, diagnostics }
+    if (query?.ids?.length) {
+      const results = await Promise.allSettled(query.ids.map(async id => {
+        await this.ensureReady(context, id)
+        return this.resolveDynamicSource(id, context)
+      }))
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value) sources.push(result.value)
+        if (result.status === 'rejected') diagnostics.push({
+          code: 'source.resolve_failed', message: 'Saved data source could not be resolved',
+          capabilityIds: [query.ids![index]], retryable: true,
+        })
+      })
+      return { sources, diagnostics }
+    }
+    const entries = [...this.providerEntries.values()].filter(entry => entry.loaded && entry.provider?.dynamicSources)
+    const results = await Promise.allSettled(entries.map(async entry => {
+      const generation = entry.generation
+      const catalog = await entry.provider!.dynamicSources!.discover(context)
+      this.assertProviderEntryCurrent(entry, generation)
+      const ids = new Set<string>()
+      const definitions = catalog.sources.map(definition => {
+        if (ids.has(definition.id) || this.sources.get(definition.id) || this.getProviderEntries(definition.id).length !== 1) {
+          throw createCapabilityError('capability.id_conflict', 'Dynamic source ID conflicts with another definition')
+        }
+        ids.add(definition.id)
+        return this.ownDynamicSource(entry, definition)
+      })
+      return { sources: definitions, diagnostics: catalog.diagnostics || [] }
+    }))
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        sources.push(...result.value.sources)
+        diagnostics.push(...result.value.diagnostics)
+      } else diagnostics.push(this.createProviderDiagnostic(entries[index], result.reason))
+    })
+    return { sources, diagnostics }
   }
 
   private async resolveDefinitions<T extends CapabilityDefinitionBase>(
@@ -689,8 +776,11 @@ export class DefaultDataCapabilityRegistry implements DataCapabilityRegistry {
   }
 
   private getProviderEntries(capabilityId: string): ProviderEntry[] {
-    return this.providerManifestIndex.getTokens(capabilityId)
-      .map(token => this.providerEntries.get(token))
+    const tokens = new Set(this.providerManifestIndex.getTokens(capabilityId))
+    for (const entry of this.providerEntries.values()) {
+      if (entry.dynamicSourceNamespace && capabilityId.startsWith(`${entry.dynamicSourceNamespace}.`)) tokens.add(entry.token)
+    }
+    return [...tokens].map(token => this.providerEntries.get(token))
       .filter((entry): entry is ProviderEntry => !!entry?.registered)
       .sort((left, right) => left.sequence - right.sequence)
   }

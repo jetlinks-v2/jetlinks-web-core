@@ -1102,6 +1102,7 @@
   "components.ConditionFilter.optionPanel.selectAll": "全选",
   "components.ConditionFilter.optionPanel.loadingMore": "正在加载更多...",
   "components.ConditionFilter.editor.title": "设置 {title}",
+  "components.ConditionFilter.editor.textValues": "输入值后按回车添加",
   "components.SearchFilter.valueItem.rangeTo": "至",
   "components.SearchFilter.valueItem.confirm": "确定",
   "components.SearchFilter.term.eq.readableLabel": "为",
