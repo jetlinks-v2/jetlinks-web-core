@@ -10,6 +10,7 @@
     "clean": "pnpm rimraf node_modules && pnpm rimraf dist && pnpm rimraf .turbo",
     "test": "playwright test",
     "test:has-menu": "node --test configs/plugin/has-menu/index.test.mjs",
+    "test:captcha-verify": "node --test tests/captchaVerify.test.mjs",
     "test:application-runtime": "node scripts/test-application-runtime.mjs",
     "test:data-capability": "node scripts/test-data-capability.mjs",
     "typecheck:data-capability": "vue-tsc -p tsconfig.data-capability.json --noEmit",

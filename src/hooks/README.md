@@ -28,6 +28,25 @@
 
 未逐一进入角色、部门、设备接入、告警场景、智能体等调用页面，也未实际保存模板数据；微应用宿主和其他部署模式只完成上述回归验证。TypeScript 语法与 `git diff --check` 通过。按机器性能约束未运行完整类型检查或构建，需要时在 `ui/` 执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 和 `pnpm -F jetlinks-web-core build`；当前包未配置独立 lint 脚本。
 
+## 验证会话
+
+| 能力 | 入口文件 | 根入口 | 适用场景 |
+| --- | --- | --- | --- |
+| `useCaptchaVerify<TResult, TContext>` | `useCaptchaVerify.ts` | 是 | 在当前 Vue Scope 内管理一次验证等待，与验证码组件通过事件接线 |
+
+- `openCaptcha({ context?, signal? })` 返回 `Promise<TResult>`；同一实例不能覆盖未结束的等待，重复打开或已取消的请求会拒绝，多个实例彼此独立。
+- `captchaOpen` 可用于 `v-model:open`，但开启必须通过 `openCaptcha`；`context` 是当前等待的只读上下文。成功、关闭、AbortSignal 取消及 Scope 销毁会清空上下文、移除取消监听，并只结束一次等待。销毁后不能重新打开。
+- `onCaptchaSuccess(result)` 结束成功等待，`closeCaptcha(error?)` 结束取消或失败等待；验证码组件需要绑定这些事件。组件自身仍负责隔离过期请求与迟到事件。
+- 不请求验证码、不验证 proof、不复制业务输入、不登录或跳转；结果与上下文使用调用方的泛型，不绑定 ALTCHA、登录 API 或其他业务模块。业务流程继续管理从获取上下文到提交请求的整体锁和取消边界。
+
+```ts
+import { useCaptchaVerify } from '@jetlinks-web-core/hooks'
+
+const verification = useCaptchaVerify<string, { requestId: string }>()
+```
+
+生产用法：`src/views/login/hooks/useLogin.ts` 与 `modules/saas-manager-ui/views/login/hooks/useLogin.ts`；两者不再维护私有副本。专项验证入口为 `pnpm test:captcha-verify`（生命周期、类型及 Core 登录组件接线）与 SaaS 模块的 `pnpm test:login`。这组回归不代替真实后端认证集成或全站构建验证。
+
 ## 请求、订阅与图表
 
 | 能力 | 入口文件 | 根入口 | 适用场景 |

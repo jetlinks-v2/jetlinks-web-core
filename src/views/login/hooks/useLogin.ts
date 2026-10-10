@@ -3,7 +3,8 @@ import { computed, onBeforeUnmount, reactive, ref, toRaw } from 'vue'
 import { message } from 'ant-design-vue'
 import { encrypt } from '@jetlinks-web/utils'
 import { useLoginConfig } from './useLoginConfig'
-import { useCaptchaVerify } from './useCaptchaVerify'
+import { useCaptchaVerify } from '@jetlinks-web-core/hooks'
+import type { CaptchaValidationSuccess } from '@jetlinks-web-core/components/Captcha/captcha'
 import { useLoginSuccess } from './useLoginSuccess'
 import {
   encryptionConfig,
@@ -34,7 +35,7 @@ const ENCRYPTION_REFRESH_INTERVAL = 3 * 60 * 1000
 
 export function useLogin(config: Ref<any>, options: UseLoginOptions = {}) {
   const { providers, loading: configLoading } = useLoginConfig()
-  const { captchaOpen, openCaptcha, onCaptchaSuccess } = useCaptchaVerify()
+  const { captchaOpen, openCaptcha, onCaptchaSuccess } = useCaptchaVerify<CaptchaValidationSuccess>()
   const menuStore = useMenuStore()
   const { handleLoginSuccess } = useLoginSuccess()
 
