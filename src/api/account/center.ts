@@ -56,8 +56,13 @@ export const getCreatedPersonalTokens_api = (data:object) => request.post(`/pers
 /**
  * 新增/编辑个人令牌
  * @param data 个人令牌信息
+ * @param params 编辑时 false 保留原访问令牌并更新权限，true 吊销旧令牌；省略时沿用后端默认值
  */
-export const savePersonalToken_api = (data:object) => request.post(`/personal/token/me/_save`, data);
+export const savePersonalToken_api = (
+  data: object,
+  params?: { revokeAccessTokens: boolean }
+): Promise<{ success: boolean; result: { accessToken: string } }> =>
+  request.post(`/personal/token/me/_save`, data, params ? { params } : undefined);
 
 /**
  * 删除个人令牌

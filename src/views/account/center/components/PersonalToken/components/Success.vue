@@ -1,7 +1,7 @@
 <template>
   <a-modal
       :open="true"
-      title="新增令牌"
+      :title="$t('PersonalToken.Success.965370-0')"
       :width="600"
       :footer="null"
       :closable="true"
@@ -23,7 +23,7 @@
 
       <!-- 成功文本 -->
       <div class="success-title">
-        新增令牌成功
+        {{ $t('PersonalToken.Success.965370-1') }}
       </div>
 
       <!-- Token 展示区域 -->
@@ -48,21 +48,22 @@
       <div class="warning-section">
         <AIcon type="ExclamationCircleOutlined" class="warning-icon"/>
         <span class="warning-text">
-          令牌仅会明文显示一次，关闭此对话框后将不再显示，请确保已成功保存令牌信息
+          {{ $t('PersonalToken.Success.965370-2') }}
         </span>
       </div>
 
       <!-- 关闭按钮 -->
       <div class="footer-actions">
         <a-button type="default" @click="handleClose">
-          关闭
+          {{ $t('PersonalToken.Success.965370-3') }}
         </a-button>
       </div>
     </div>
   </a-modal>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import i18n from '@jetlinks-web-core/locales'
 
 import {onlyMessage} from "@jetlinks-web/utils";
 
@@ -79,7 +80,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 
-async function copy(text) {
+async function copy(text: string) {
   if (navigator.clipboard && window.isSecureContext) {
     await navigator.clipboard.writeText(text);
   } else {
@@ -91,12 +92,12 @@ async function copy(text) {
     document.execCommand("copy");
     document.body.removeChild(textArea);
   }
-  onlyMessage('令牌已复制到剪贴板')
+  onlyMessage(i18n.global.t('PersonalToken.Success.965370-4'))
 }
 
 
 const copyToken = () => {
-  copy(props.token)
+  void copy(props.token).catch(() => onlyMessage(i18n.global.t('PersonalToken.Success.965370-5'), 'error'))
 }
 
 const handleClose = () => {
