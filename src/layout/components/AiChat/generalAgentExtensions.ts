@@ -112,6 +112,13 @@ export interface GeneralAgentPresentationRenderer {
   presentation?: GeneralAgentMarkdownBlockPresentation;
 }
 
+/** Domain presentation semantics referencing a concrete renderer installed by the UI host. */
+export interface GeneralAgentPresentationAlias {
+  type: string;
+  rendererType: string;
+  presentation: GeneralAgentMarkdownBlockPresentation;
+}
+
 /** @deprecated Markdown is only one compatibility envelope for a presentation renderer. */
 export interface GeneralAgentMarkdownBlockRenderer extends GeneralAgentPresentationRenderer {}
 
@@ -353,6 +360,7 @@ export interface GeneralAgentConversationExtension {
   displayAdapter?: GeneralAgentConversationDisplayAdapter;
   suppressedMessageRenderer?: Component;
   presentationRenderers?: GeneralAgentPresentationRenderer[];
+  presentationAliases?: GeneralAgentPresentationAlias[];
   /** Compatibility renderers discovered from closed Markdown fences. */
   markdownBlockRenderers?: GeneralAgentMarkdownBlockRenderer[];
   createBridge?: (
@@ -426,13 +434,31 @@ class GeneralAgentExtensionRegistry {
   getPresentationRenderers(scopes: string | string[] = 'general') {
     const renderers: GeneralAgentPresentationRenderer[] = [];
     const seen = new Set<string>();
-    for (const extension of this.getConversationExtensions(scopes)) {
+    const extensions = this.getConversationExtensions(scopes);
+    const installed = new Map<string, GeneralAgentPresentationRenderer>();
+    for (const extension of extensions) {
       for (const renderer of [
         ...(extension.conversation?.presentationRenderers || []),
         ...(extension.conversation?.markdownBlockRenderers || []),
       ]) {
         const type = normalizeText(renderer.type).toLowerCase();
-        if (!type || seen.has(type)) continue;
+        if (type && renderer.renderer && !installed.has(type)) installed.set(type, renderer);
+      }
+    }
+    for (const extension of extensions) {
+      const candidates = [
+        ...(extension.conversation?.presentationRenderers || []),
+        ...(extension.conversation?.markdownBlockRenderers || []),
+      ];
+      // Only concrete installed renderers may satisfy aliases; chains/cycles never advertise a capability.
+      for (const alias of extension.conversation?.presentationAliases || []) {
+        const renderer = installed.get(normalizeText(alias.rendererType).toLowerCase());
+        if (!renderer) continue;
+        candidates.push({ ...renderer, type: alias.type, presentation: alias.presentation });
+      }
+      for (const renderer of candidates) {
+        const type = normalizeText(renderer.type).toLowerCase();
+        if (!type || !renderer.renderer || seen.has(type)) continue;
         seen.add(type);
         renderers.push(renderer);
       }

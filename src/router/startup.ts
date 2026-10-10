@@ -34,7 +34,8 @@ export const bootstrapSession = async () => {
   }
 
   if (!isSubApp && !applicationStore.appList.length && OpenMicroApp) {
-    await applicationStore.queryApplication()
+    // 非关键 UI 模块发现失败由 store 记录，仍继续初始化业务应用上下文。
+    await applicationStore.queryApplication().catch(() => undefined)
   }
 
   if (isBusinessApplicationRuntime()) {

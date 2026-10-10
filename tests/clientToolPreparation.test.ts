@@ -22,6 +22,174 @@ import {
 import { normalizeClientSkillBindingContribution } from '../src/layout/components/AiChat/clientSkillBindings'
 import { readHomeAgentProviderContribution } from '../src/layout/components/AiChat/homeAgentShared'
 import { moduleRegistry } from '../src/utils/module-registry'
+import { aiClientToolRegistry } from '../src/layout/components/AiChat/clientToolRegistry'
+
+const deferred = <T>() => {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>(complete => { resolve = complete })
+  return { promise, resolve }
+}
+
+test('removed tools publish immediately between calls and revoke a waiting confirmation', async () => {
+  let writes = 0
+  let releases = 0
+  const scope = 'test-live-tool-removal'
+  const approval = deferred<{ approved: boolean }>()
+  const waiting = deferred<void>()
+  const unregister = aiClientToolRegistry.register(scope, {
+    id: 'live_write', confirm: true,
+    prepare: () => ({ arguments: {}, cancel: () => { releases += 1 } }),
+    execute: () => { writes += 1 },
+  })
+  const runtime = createAiClientToolRuntime([], { registeredToolScopes: [scope], includeHelpTool: false })
+  const oldSignal = runtime.clientTools[0]._meta?.executionSignal
+  const call = runtime.handleClientToolCall({ id: 'waiting-write', toolName: 'live_write',
+    requestConfirmation: () => { waiting.resolve(); return approval.promise },
+  })
+  const settled = assert.rejects(call, { name: 'AbortError' })
+  await waiting.promise
+  unregister()
+  assert.equal(runtime.clientTools.length, 0)
+  assert.equal(oldSignal?.aborted, true)
+  approval.resolve({ approved: true })
+  await settled
+  assert.equal(writes, 0)
+  assert.equal(releases, 1)
+  await assert.rejects(runtime.handleClientToolCall({ id: 'late-write', toolName: 'live_write' }), /Unsupported/)
+  runtime.dispose()
+})
+
+test('prepare, confirmation and entry aborts never start an effect and release late prepared state', async () => {
+  for (const stage of ['entry', 'prepare', 'confirmation', 'approval-interleave']) {
+    let writes = 0
+    let releases = 0
+    let prepares = 0
+    const controller = new AbortController()
+    const ready = deferred<void>()
+    const resume = deferred<void>()
+    const runtime = createAiClientToolRuntime([{
+      id: 'abort_write', confirm: true,
+      prepare: async () => {
+        prepares += 1
+        if (stage === 'prepare') { ready.resolve(); await resume.promise }
+        return { arguments: {}, cancel: () => { releases += 1 } }
+      },
+      execute: () => { writes += 1 },
+    }], { includeHelpTool: false })
+    if (stage === 'entry') controller.abort()
+    const call = runtime.handleClientToolCall({ id: stage, toolName: 'abort_write', signal: controller.signal,
+      requestConfirmation: async () => {
+        if (stage === 'confirmation') { ready.resolve(); await resume.promise }
+        if (stage === 'approval-interleave') queueMicrotask(() => controller.abort())
+        return { approved: true }
+      },
+    })
+    const settled = assert.rejects(call, { name: 'AbortError' })
+    if (stage === 'prepare' || stage === 'confirmation') {
+      await ready.promise
+      controller.abort()
+      resume.resolve()
+    }
+    await settled
+    assert.equal(writes, 0, stage)
+    assert.equal(prepares, stage === 'entry' ? 0 : 1, stage)
+    assert.equal(releases, stage === 'entry' ? 0 : 1, stage)
+    runtime.dispose()
+  }
+})
+
+test('same-schema handler replacement revokes the old binding but additions and equivalent compilation do not', async () => {
+  let writes = 0
+  const execute = () => { writes += 1; return { ok: true } }
+  const authored = () => defineClientTool({
+    id: 'binding_write', description: { text: 'Write', capabilities: ['binding.write'] },
+    effect: { kind: 'WRITE', idempotency: 'IDEMPOTENT', reversible: true, confirmation: {} },
+    output: clientToolOutput.stateChange({ name: 'receipt', shape: 'receipt', transition: 'MUTATION' }),
+    execute,
+  })
+  let tools = [authored()]
+  const runtime = createAiClientToolRuntime(() => tools, { includeHelpTool: false })
+  const original = runtime.clientTools[0]._meta?.executionSignal
+  const version = runtime.clientToolsVersion
+  tools = [authored()]
+  runtime.refreshClientTools()
+  assert.equal(runtime.clientToolsVersion, version)
+  assert.equal(runtime.clientTools[0]._meta?.executionSignal, original)
+  const added = { id: 'added_read', execute: () => ({ ok: true }) }
+  tools = [...tools, added as any]
+  runtime.refreshClientTools()
+  assert.equal(original?.aborted, false)
+  const beforeReplace = runtime.clientToolsVersion
+  tools = [{ ...tools[0], execute: () => ({ ok: true }) }, added as any]
+  runtime.refreshClientTools()
+  assert.equal(original?.aborted, true)
+  assert.ok(runtime.clientToolsVersion > beforeReplace)
+  assert.equal(writes, 0)
+  runtime.dispose()
+})
+
+test('revocation is sticky across remove/readd while unrelated additions retain a prepared call', async () => {
+  for (const invalidate of [false, true]) {
+    let writes = 0
+    const approval = deferred<{ approved: boolean }>()
+    const ready = deferred<void>()
+    const write = { id: 'sticky_write', confirm: true, execute: () => { writes += 1 } }
+    let tools = [write]
+    const runtime = createAiClientToolRuntime(() => tools, { includeHelpTool: false })
+    const call = runtime.handleClientToolCall({ id: 'sticky', toolName: write.id,
+      requestConfirmation: () => { ready.resolve(); return approval.promise },
+    })
+    const settled = invalidate ? assert.rejects(call, { name: 'AbortError' }) : call
+    await ready.promise
+    if (invalidate) { tools = []; runtime.refreshClientTools() }
+    tools = [write, { id: 'another_read', execute: () => ({ ok: true }) } as any]
+    runtime.refreshClientTools()
+    runtime.refreshClientTools()
+    approval.resolve({ approved: true })
+    await settled
+    assert.equal(writes, invalidate ? 0 : 1)
+    runtime.dispose()
+  }
+})
+
+test('contract removal between completed calls and schema change during preparation revoke the old directory', async () => {
+  let executions = 0
+  let releases = 0
+  const read = { id: 'between_calls', execute: () => { executions += 1; return { ok: true } } }
+  let tools = [read]
+  const runtime = createAiClientToolRuntime(() => tools, { includeHelpTool: false })
+  await runtime.handleClientToolCall({ id: 'completed-read', toolName: read.id })
+  const removedSignal = runtime.clientTools[0]._meta?.executionSignal
+  tools = []
+  runtime.refreshClientTools()
+  assert.equal(removedSignal?.aborted, true)
+  await assert.rejects(runtime.handleClientToolCall({ id: 'late-read', toolName: read.id }), /Unsupported/)
+  assert.equal(executions, 1)
+  runtime.dispose()
+
+  const prepared = deferred<any>()
+  const ready = deferred<void>()
+  const write = { id: 'prepare_contract', description: 'Before', confirm: true,
+    prepare: () => { ready.resolve(); return prepared.promise }, execute: () => { executions += 1 },
+  }
+  let writes = [write]
+  const writeRuntime = createAiClientToolRuntime(() => writes, { includeHelpTool: false })
+  const oldSignal = writeRuntime.clientTools[0]._meta?.executionSignal
+  const call = writeRuntime.handleClientToolCall({ id: 'late-preparation', toolName: write.id,
+    requestConfirmation: () => { assert.fail('revoked preparation must not request approval') },
+  })
+  const rejected = assert.rejects(call, { name: 'AbortError' })
+  await ready.promise
+  writes = [{ ...write, description: 'After' }]
+  writeRuntime.refreshClientTools()
+  assert.equal(oldSignal?.aborted, true)
+  assert.equal(writeRuntime.clientTools[0].description, 'After')
+  prepared.resolve({ arguments: {}, cancel: () => { releases += 1 } })
+  await rejected
+  assert.equal(executions, 1)
+  assert.equal(releases, 1)
+  writeRuntime.dispose()
+})
 
 const collectObjectKeys = (value: unknown, result = new Set<string>()) => {
   if (!value || typeof value !== 'object') return result
@@ -830,7 +998,7 @@ test('thrown request/repair failures keep disposition, retryable, and details.in
   runtime.dispose()
 })
 
-test('runtime keeps the prepared tool snapshot stable until confirmation and execution finish', async () => {
+test('a replaced prepared binding cannot execute after late approval', async () => {
   let handlerVersion = 1
   let approve: (() => void) | undefined
   const executions: number[] = []
@@ -862,6 +1030,7 @@ test('runtime keeps the prepared tool snapshot stable until confirmation and exe
       approve = () => resolve({ approved: true })
     }),
   })
+  const revoked = assert.rejects(firstCall, { name: 'AbortError' })
 
   for (let index = 0; index < 10 && !approve; index += 1) {
     await Promise.resolve()
@@ -870,14 +1039,14 @@ test('runtime keeps the prepared tool snapshot stable until confirmation and exe
   handlerVersion = 2
   runtime.refreshClientTools()
   approve?.()
-  await firstCall
+  await revoked
 
   await runtime.handleClientToolCall({
     id: 'snapshot-second',
     toolName: 'test_prepared_snapshot',
     requestConfirmation: () => ({ approved: true }),
   })
-  assert.deepEqual(executions, [1, 2])
+  assert.deepEqual(executions, [2])
   runtime.dispose()
 })
 

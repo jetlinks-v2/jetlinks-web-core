@@ -112,10 +112,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type PropType } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry';
+import { useAgentConversationComponent } from './useAgentConversationComponent';
 import { buildAgentSubjectPayload, normalizeAgentSubject } from './subject';
 import type { AiClientToolCall } from './clientTools';
 import type {
@@ -204,7 +204,7 @@ const emits = defineEmits<{
 const { t: $t } = useI18n();
 const route = useRoute();
 const activeAgent = ref<AgentDeployRecord>({});
-const conversationComponent = shallowRef<any>();
+const { conversationComponent } = useAgentConversationComponent('access');
 const conversationRef = ref<any>();
 const restoredConversationMessages = ref<GeneralAgentConversationMessage[]>([]);
 const activeHandoffRecord = ref<AiAgentHandoffRecord>();
@@ -676,12 +676,6 @@ defineExpose({
 });
 
 onMounted(() => {
-  const component = moduleRegistry.getResourceItem(
-    'jetlinks-ai-agent-ui',
-    'components',
-    'AgentAccessConversation',
-  );
-  conversationComponent.value = component ? markRaw(component) : undefined;
   void initPanelPosition();
   window.addEventListener('resize', handleWindowResize);
   window.addEventListener('keydown', handleKeydown);

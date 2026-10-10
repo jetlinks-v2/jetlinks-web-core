@@ -8,7 +8,7 @@ import type {
   HomeAgentRuntime,
   HomeAgentRuntimeOptions,
 } from './homeAgentContracts'
-import { HOME_AGENT_TOOL_SCOPE } from './homeAgentContracts'
+import { HOME_AGENT_CAPABILITY_CHANGE_EVENT, HOME_AGENT_TOOL_SCOPE } from './homeAgentContracts'
 import { createHomeAgentContext } from './homeAgentContext'
 import { createHomeAgentMarkdownLinkHandler } from './homeAgentHandoff'
 import { homeAgentCapabilityRegistry } from './homeAgentRegistry'
@@ -25,7 +25,7 @@ const buildProviderTools = (
   provider.id,
   'clientTools',
   () => provider.getClientTools?.(context),
-))
+).map(tool => ({ ...tool, executionBinding: tool.executionBinding || provider })))
 
 const buildHomeAgentToolsDescription = (
   context: HomeAgentCapabilityContext,
@@ -43,13 +43,19 @@ export const createHomeAgentRuntime = (
 ): HomeAgentRuntime => {
   const getContext = () => createHomeAgentContext(options)
   const context = getContext()
+  // Rebuild localized declarations while retaining the runtime-owned execution lifetime.
+  const baseOwner = {}
   const runtime = createAiClientToolRuntime<HomeAgentCapabilityContext>(
     () => {
       const currentContext = getContext()
       return [
-        ...createHomeAgentBaseTools(),
+        ...createHomeAgentBaseTools().map(tool => ({ ...tool, executionBinding: baseOwner })),
         ...buildProviderTools(currentContext, options),
-        ...resolveMaybeArray(options.extraTools),
+        ...resolveMaybeArray(options.extraTools).map(tool => ({
+          ...tool,
+          ...(typeof options.extraTools === 'function'
+            ? { executionBinding: tool.executionBinding || options.extraTools } : {}),
+        })),
       ]
     },
     {
@@ -73,6 +79,13 @@ export const createHomeAgentRuntime = (
     },
   )
   const capabilityLoaderToolId = resolveClientCapabilityLoaderToolId(runtime.clientTools)
+  let disposed = false
+  const capabilityChangeTarget = window
+  // Revoke changed provider bindings synchronously, before debounced host parameter updates.
+  const refreshProviderTools = () => {
+    if (disposed) return
+    runtime.refreshClientTools()
+  }
   const composeParameters = () => composeHomeAgentParameters({
     context: getContext(),
     options,
@@ -90,9 +103,17 @@ export const createHomeAgentRuntime = (
     get clientTools() { return runtime.clientTools },
     get clientToolsVersion() { return runtime.clientToolsVersion },
     refreshContext: () => {
+      if (disposed) return
       runtime.refreshClientTools()
       Object.assign(agentRuntime, composeParameters())
     },
+    dispose: () => {
+      if (disposed) return
+      disposed = true
+      capabilityChangeTarget.removeEventListener(HOME_AGENT_CAPABILITY_CHANGE_EVENT, refreshProviderTools)
+      runtime.dispose()
+    },
   }
+  capabilityChangeTarget.addEventListener(HOME_AGENT_CAPABILITY_CHANGE_EVENT, refreshProviderTools)
   return agentRuntime
 }
