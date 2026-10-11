@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import test from 'node:test'
+import { normalizeGeneralAgentMarkdownPresentationCapability } from '../src/layout/components/AiChat/generalAgentExtensions'
 import {
   createAiClientToolContractOutputBinding,
   diagnoseAiClientToolPresentationCompatibility,
@@ -10,6 +11,18 @@ import {
   isAiClientToolContractMetadata,
   withAiClientToolContractEvidence,
 } from '../src/layout/components/AiChat/clientToolContract'
+
+test('presentation summary authorship is explicit and unknown declarations retain model defaults', () => {
+  const capability = { type: 'anonymous', contentType: 'json' as const }
+  for (const source of ['evidence', 'model', 'unknown', undefined]) {
+    const normalized = normalizeGeneralAgentMarkdownPresentationCapability({
+      ...capability, narrativePolicy: { source: source as 'evidence' | 'model' },
+    })
+    assert.equal(normalized?.narrativePolicy?.source, source === 'evidence' ? 'evidence' : undefined)
+    assert.equal(normalized?.narrativePolicy?.mode, 'free')
+    assert.equal(normalized?.deliveryPolicy, 'explicit')
+  }
+})
 import {
   createAiClientToolCatalogReport,
   createAiClientToolCatalogSnapshot,
@@ -7660,6 +7673,32 @@ test('declared source backing enforces source byte limits and does not grant uns
   assert.match(file.outputBindings[0].ref, /^fs:\/\//)
 })
 
+
+test('artifact delivery preserves bounded producer claims for inline and file carriers', async () => {
+  const claims = [{ id: 'record-count', label: 'Returned records', value: 2,
+    binding: 'anonymous-records', visibility: 'user' as const }]
+  for (const delivery of ['auto', 'file'] as const) {
+    const result = await deliverAiClientToolResult({
+      evidence: { claims: [...claims, { id: '', label: '', value: 9, visibility: 'user' }] },
+      data: createAiClientToolArtifact({
+        content: JSON.stringify({ records: [{ id: 'a' }, { id: 'b' }] }),
+        modelSafeInline: { records: [{ id: 'a' }, { id: 'b' }] },
+        preview: { recordCount: 2 }, mimeType: 'application/json',
+        bindingName: 'anonymous-records', outputShape: 'anonymous.records',
+        recordPath: '$.records', fields: [{ name: 'id', type: 'string', role: 'identifier' }],
+      }),
+    }, {
+      call: { id: `anonymous-claims-${delivery}`, toolName: 'anonymous_records', sessionFiles: {
+        toUri: path => `fs://${path}`,
+        upload: async path => ({ ok: true, path }), remove: async path => ({ ok: true, path }),
+      } },
+      outputs: [{ name: 'anonymous-records', type: 'structured-data', shape: 'anonymous.records',
+        mediaType: 'application/json', delivery }],
+    }) as any
+    assert.deepEqual(result.evidence.claims, claims)
+    assert.equal(result.outputBindings[0].name, claims[0].binding)
+  }
+})
 
 test('large declared source siblings use the same backing path beside a separately requested artifact', async () => {
   const { result, output, logicalSource } = declaredLargeSourceFixture()

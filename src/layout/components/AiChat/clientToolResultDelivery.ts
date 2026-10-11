@@ -1445,6 +1445,9 @@ const mergeArtifactResult = <TPreview>(
     supportsAbsenceClaim: typeof declaredEvidence.supportsAbsenceClaim === 'boolean'
       ? declaredEvidence.supportsAbsenceClaim
       : undefined,
+    claims: Array.isArray(declaredEvidence.claims)
+      ? declaredEvidence.claims as AiClientToolClaim[]
+      : undefined,
     facts: {
       ...(isRecord(declaredEvidence.facts) ? declaredEvidence.facts : {}),
       ...(artifact.facts || {}),
