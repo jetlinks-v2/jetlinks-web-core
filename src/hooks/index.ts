@@ -11,3 +11,4 @@ export * from './useMenuAssetPermissionEditor';
 export * from './menuAssetPermissionEditor.types';
 export * from './useUiTicker';
 export * from './useElementFlight';
+export * from './useCaptchaVerify';
