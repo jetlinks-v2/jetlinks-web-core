@@ -12,7 +12,7 @@
 	</div>
 </template>
 
-<script setup name="FullPage">
+<script setup lang="ts" name="FullPage">
 const props = defineProps({
 	extraHeight: {
 		type: Number,
@@ -44,7 +44,7 @@ const props = defineProps({
 	}
 })
 
-const fullPage = ref(null)
+const fullPage = ref<HTMLElement | null>(null)
 const MinHeight = ref(`0`)
 
 const styles = computed(() => {
@@ -66,16 +66,25 @@ const styles = computed(() => {
 	}
 })
 
-let mountTimer
-let layoutFrame
-let resizeFrame
+let mountTimer = 0
+let layoutFrame = 0
+let resizeFrame = 0
 
 const updateHeight = () => {
 	if (!fullPage.value) return
 	
 	const top = fullPage.value.getBoundingClientRect().top
 	const _y = top < 0 ? 0 : top
-	const height = _y + props.extraHeight + props.padding
+	let bottomInset = parseFloat(window.getComputedStyle(fullPage.value).marginBottom) || 0
+
+	// 元素 top 不包含自身外边距和祖先的底部间距；按真实留白预留高度，避免多层容器撑出整页滚动条。
+	for (let ancestor = fullPage.value.parentElement; ancestor; ancestor = ancestor.parentElement) {
+		const style = window.getComputedStyle(ancestor)
+		bottomInset += parseFloat(style.paddingBottom) || 0
+		bottomInset += parseFloat(style.borderBottomWidth) || 0
+	}
+
+	const height = _y + props.extraHeight + Math.max(props.padding, bottomInset)
 	
 	MinHeight.value = `calc(100vh - ${height}px)`
 	
@@ -99,9 +108,7 @@ const handleResize = () => {
 
 onMounted(() => {
 	mountTimer = window.setTimeout(updateHeight, 10)
-	if (props.flex) {
-		window.addEventListener('resize', handleResize)
-	}
+	window.addEventListener('resize', handleResize)
 })
 
 onBeforeUnmount(() => {

@@ -340,6 +340,7 @@ const buildQuickSuggestionDescription = (
   return keywordPreview ? `${readableLabel} ${keywordPreview}` : readableLabel
 }
 
+// 非空关键词按字段类型生成快捷条件；命中文本字段名时保留字段选择。
 const getFieldQuickSuggestion = (
   column: ConditionFilterField,
   rawKeyword: string,
@@ -435,10 +436,6 @@ const getFieldQuickSuggestion = (
 
   if (search.type === 'string') {
     if (keywordMatchedByField) {
-      return undefined
-    }
-
-    if (keyword.length < 2) {
       return undefined
     }
 

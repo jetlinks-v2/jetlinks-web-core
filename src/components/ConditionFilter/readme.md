@@ -17,6 +17,14 @@
 - 支持 `terms` 分组 AST，并在路由中自动兼容 `v1` / `v2` 编码
 - 选项面板的 `label/name/description/icon` 支持字段名或函数回调
 
+## 快速输入候选
+
+文本关键词从一个非空字符开始生成快捷筛选候选，单字符数字、中文和英文均可使用。匹配文本字段名称时仍优先选择字段；空白输入仅显示字段列表，不生成带值条件。条件操作符及提交结构保持原有语义。
+
+实现入口为 `runtime-ui/jetlinks-web-core/src/components/ConditionFilter/ConditionFilter.vue#getFieldQuickSuggestion`，Owning module 为运行时前端 `jetlinks-web-core`；关系配置页使用该公共能力，其他运行时页面的文本快捷候选同步支持单字符。运营端 `ui/` 不在本次修改范围。
+
+验证：关系配置页输入 `1`、`测`、`x` 和 `12` 均显示文本候选，输入 `正` 保留字段名称匹配，空白输入不生成带值候选；选中“正向关系名称包含 1”正常生成条件，选中“包含 4”返回暂无数据，清空后恢复原记录。`node --test tests/conditionFilterScheduling.test.mjs` 的 9 项回归全部通过；组件脚本、模板、样式编译及 `git diff --check` 通过。修改前后执行 `pnpm exec vue-tsc -p tsconfig.json --noEmit` 均有相同的 556 个既有诊断（忽略行号位移），未新增错误。工作区无 lint 脚本；完整生产构建未执行，发布前需在 `runtime-ui/jetlinks-web-core` 执行 `pnpm build` 验证。
+
 ## 基础示例
 
 ```vue
