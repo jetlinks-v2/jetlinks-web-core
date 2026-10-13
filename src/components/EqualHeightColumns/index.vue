@@ -8,16 +8,15 @@
     }]"
     :style="[attrs.style, rootStyle]"
   >
-    <div v-if="showLeft" ref="leftPaneRef" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
+    <div v-if="showLeft" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
       <slot name="left" />
     </div>
-    <div ref="rightPaneRef" class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
+    <div class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
       <slot name="right" />
     </div>
     <a-button
       v-if="showLeft && collapsible"
       class="equal-height-columns__toggle"
-      :style="toggleStyle"
       :title="toggleText"
       :aria-label="toggleText"
       :aria-expanded="!isCollapsed"
@@ -71,10 +70,6 @@ const emit = defineEmits<{
 }>()
 
 const isCollapsed = ref(false)
-const leftPaneRef = ref<HTMLElement>()
-const rightPaneRef = ref<HTMLElement>()
-const toggleStyle = ref<CSSProperties>()
-let togglePositionObserver: ResizeObserver | undefined
 
 const toggleText = computed(() => (
   isCollapsed.value
@@ -92,62 +87,15 @@ const toggleCollapse = () => {
   emit('collapse-change', isCollapsed.value)
 }
 
-/** 将折叠按钮定位到左列实际宽度加列间距的位置，兼容 1fr 等动态 Grid 轨道。 */
-const updateTogglePosition = () => {
-  if (isCollapsed.value) {
-    toggleStyle.value = { left: '0px' }
-    return
-  }
-
-  const leftPane = leftPaneRef.value
-  const rightPane = rightPaneRef.value
-
-  if (!leftPane || !rightPane) {
-    return
-  }
-
-  const leftPaneRect = leftPane.getBoundingClientRect()
-  const rightPaneRect = rightPane.getBoundingClientRect()
-  const gap = rightPaneRect.left - leftPaneRect.right
-
-  toggleStyle.value = { left: `${leftPaneRect.width + (gap / 2)}px` }
-}
-
-const scheduleTogglePositionUpdate = () => nextTick(updateTogglePosition)
-
-watch(
-  () => [isCollapsed.value, props.collapsible, props.showLeft, props.leftWidth, props.rightWidth, props.gap],
-  scheduleTogglePositionUpdate,
-)
-
-onMounted(() => {
-  scheduleTogglePositionUpdate()
-
-  if (typeof ResizeObserver !== 'undefined') {
-    togglePositionObserver = new ResizeObserver(scheduleTogglePositionUpdate)
-    for (const element of [leftPaneRef.value, rightPaneRef.value]) {
-      if (element) {
-        togglePositionObserver.observe(element)
-      }
-    }
-  }
-
-  window.addEventListener('resize', scheduleTogglePositionUpdate)
-})
-
-onBeforeUnmount(() => {
-  togglePositionObserver?.disconnect()
-  window.removeEventListener('resize', scheduleTogglePositionUpdate)
-})
-
 const toCssValue = (value: SizeValue) => typeof value === 'number' ? `${value}px` : value
 
-const toGridTrack = (value: SizeValue) => {
-  if (typeof value === 'number') {
-    return `${value}px`
+const toGridTrack = (value: SizeValue, collapsed = false) => {
+  if (collapsed) {
+    // 保留弹性轨道类型，避免 fr 与 0px 之间无法插值而在动画中途跳变。
+    return typeof value === 'string' && value.trim().endsWith('fr') ? '0fr' : '0px'
   }
 
-  return value
+  return toCssValue(value)
 }
 
 const rootStyle = computed<Record<string, string>>(() => ({
@@ -155,7 +103,7 @@ const rootStyle = computed<Record<string, string>>(() => ({
   // 收起时同时去掉左列宽度和列间距，右列才能真正占满整行
   '--equal-height-columns-gap': isCollapsed.value ? '0px' : toCssValue(props.gap),
   '--equal-height-columns-align': props.align,
-  '--equal-height-columns-left-width': isCollapsed.value ? '0px' : toGridTrack(props.leftWidth),
+  '--equal-height-columns-left-width': toGridTrack(props.leftWidth, isCollapsed.value),
   '--equal-height-columns-right-width': toGridTrack(props.rightWidth),
 }))
 
@@ -175,39 +123,29 @@ const rightStyle = paneStyle
 
 <style scoped>
 .equal-height-columns {
-	position: relative;
+  --equal-height-columns-transition: 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
   display: grid;
   width: 100%;
   height: var(--equal-height-columns-height);
   min-height: 0;
-  gap: var(--equal-height-columns-gap);
+  gap: 0;
   align-items: var(--equal-height-columns-align);
-  grid-template-columns: minmax(0, var(--equal-height-columns-left-width)) minmax(0, var(--equal-height-columns-right-width));
-  /* grid-template-columns 即使由 var 驱动也能插值，展开/收起因此可以平滑过渡；
-     非长度轨道（如 1fr）不可插值时会自动退化成瞬时切换，不会报错或错位。 */
-  transition:
-    grid-template-columns 0.2s ease,
-    column-gap 0.2s ease;
+  /* 将间距作为独立轨道，按钮和分割线可直接居中，百分比间距也由容器宽度解析。 */
+  grid-template-columns: minmax(0, var(--equal-height-columns-left-width)) var(--equal-height-columns-gap) minmax(0, var(--equal-height-columns-right-width));
+  /* 收起前后保留相同轨道类型，布局、间距和按钮位移使用同一段过渡。 */
+  transition: grid-template-columns var(--equal-height-columns-transition);
 }
 
-/*
- * 中缝分割线。
- * 做法：占用左列单元格、靠右对齐，再向右平移半个列间距，正好落在两栏缝隙的正中；
- * 这样只需知道 gap，不依赖 leftWidth 的单位（rem / px / % 都能用）。
- * 观感：颜色取主题次级边框色（--jet-theme-border-secondary，浅色与深色各自适配），
- * 并做上下各 12% 的渐隐，弱化成「一条缝」而不是一条通到底的硬边框；仍足以提示两栏边界。
- */
+/* 中缝分割线随间距轨道同步移动，不单独叠加位移过渡。 */
 .equal-height-columns::before {
   content: '';
-  grid-area: 1 / 1 / 2 / 2;
-  justify-self: end;
+  grid-area: 1 / 2 / 2 / 3;
+  justify-self: center;
   align-self: stretch;
   width: var(--jet-theme-stroke-width);
-  /* 位移与 column-gap 同步过渡，展开/收起时线始终贴着缝隙正中，不会先跳到列边缘 */
-  transform: translateX(calc(var(--equal-height-columns-gap) / 2));
   background: #eceff3;
   pointer-events: none;
-  transition: transform 0.2s ease;
 }
 
 /* 左列收起后两栏贴合，中缝已无意义，分割线随之消失。 */
@@ -229,7 +167,7 @@ const rightStyle = paneStyle
 }
 
 .equal-height-columns__pane--right {
-  grid-area: 1 / 2 / 2 / 3;
+  grid-area: 1 / 3 / 2 / 4;
 }
 
 /* 隐藏左列时改为单列，覆盖自定义列宽并移除中缝占位。 */
@@ -249,10 +187,11 @@ const rightStyle = paneStyle
 .equal-height-columns__toggle {
   --equal-height-columns-toggle-width: 1.375rem;
   --equal-height-columns-toggle-height: 1.5rem;
-  /* left 由左列实际宽度和实际列间距写入内联样式，避免计算 1fr 等弹性轨道。 */
+  /* 绝对定位参照间距轨道，left: 50% 直接跟随中缝，无需观察尺寸后二次过渡。 */
   position: absolute;
+  grid-area: 1 / 2 / 2 / 3;
   top: 50%;
-  left: 0;
+  left: 50%;
   z-index: 5;
   display: inline-flex;
   align-items: center;
@@ -268,9 +207,7 @@ const rightStyle = paneStyle
   box-shadow: var(--shadow-1);
   cursor: pointer;
   transition:
-    left 0.2s ease,
-    transform 0.2s ease,
-    border-radius 0.2s ease,
+    transform var(--equal-height-columns-transition),
     color var(--motion-duration-fast) var(--motion-ease-standard),
     border-color var(--motion-duration-fast) var(--motion-ease-standard);
 }
@@ -291,9 +228,20 @@ const rightStyle = paneStyle
  * 位移量与列宽收缩使用同一时长和缓动，两者叠加后按钮从「左列右边缘」连续滑到「容器左边缘」，不会跳变。
  */
 .equal-height-columns--collapsed .equal-height-columns__toggle {
-  left: 0;
   border-radius: 0 var(--r-3) var(--r-3) 0;
   transform: translateY(-50%);
 	border-left: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .equal-height-columns {
+    transition: none;
+  }
+
+  .equal-height-columns__toggle {
+    transition:
+      color var(--motion-duration-fast) var(--motion-ease-standard),
+      border-color var(--motion-duration-fast) var(--motion-ease-standard);
+  }
 }
 </style>
