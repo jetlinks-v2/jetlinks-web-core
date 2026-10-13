@@ -903,7 +903,7 @@
   "Login.platformService": "平台服务",
   "Login.agreementSeparator": "、",
   "Login.privacyAgreement": "隐私协议",
-  "Login.accountRequired": "请输入账号/手机号/邮箱",
+  "Login.accountRequired": "请输入账号",
   "Login.passwordRequired": "请输入密码",
   "Login.verifyCodeRequired": "请输入验证码",
   "Login.mobileRequired": "请输入手机号",

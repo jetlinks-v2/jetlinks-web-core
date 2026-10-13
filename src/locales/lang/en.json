@@ -903,7 +903,7 @@
   "Login.platformService": "Platform Service",
   "Login.agreementSeparator": " and ",
   "Login.privacyAgreement": "Privacy Policy",
-  "Login.accountRequired": "Please enter account, phone, or email",
+  "Login.accountRequired": "Please enter account",
   "Login.passwordRequired": "Please enter password",
   "Login.verifyCodeRequired": "Please enter verification code",
   "Login.mobileRequired": "Please enter phone number",
