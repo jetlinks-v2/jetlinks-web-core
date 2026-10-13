@@ -28,7 +28,8 @@ const failed = ref(false)
 const version = ref(0)
 const name = computed(() => props.widget.name || props.definition?.defaultConfig.name || t('dashboardCanvas.component'))
 function retry() { failed.value = false; version.value += 1 }
-watch(() => [props.widget.id, props.widget.type, props.definition?.component], retry)
+// Layout saves replace the widget object; only a new identity or implementation needs a remount.
+watch([() => props.widget.id, () => props.widget.type, () => props.definition?.component], retry)
 // A failed injected widget must not take down its neighboring widgets or erase its configuration.
 onErrorCaptured(error => {
   failed.value = true
