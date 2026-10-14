@@ -13,6 +13,7 @@ export interface ProviderContractEntry {
   token: string
   moduleId?: string
   capabilityIds?: Set<string>
+  dynamicSourceNamespace?: string
 }
 
 export interface ProviderIndexEntry extends ProviderContractEntry {
@@ -97,6 +98,7 @@ export function assertProviderIdentity(provider: DataCapabilityProvider, moduleI
     })
   }
   normalizeCapabilityIds(provider.capabilityIds)
+  if (provider.dynamicSources) assertCapabilityId(provider.dynamicSources.namespace)
 }
 
 export function assertCapabilityDefinition(definition: CapabilityDefinitionBase): void {
@@ -119,6 +121,9 @@ export function assertLoadedProviderContract(
   provider: DataCapabilityProvider,
   result: DataCapabilityProviderLoadedResult | undefined,
 ): void {
+  if (entry.dynamicSourceNamespace !== provider.dynamicSources?.namespace) {
+    throw createCapabilityError('provider.manifest_mismatch', 'Dynamic source namespace does not match manifest')
+  }
   const groups: Array<[keyof DataCapabilityProviderLoadedResult, string]> = [
     ['sources', 'data-source'],
     ['operations', 'operation'],
@@ -183,7 +188,8 @@ export function normalizeManifestEntry(
     })
   }
   const capabilityIds = normalizeCapabilityIds(manifest.capabilityIds)
-  if (!capabilityIds?.size) {
+  if (manifest.dynamicSourceNamespace) assertCapabilityId(manifest.dynamicSourceNamespace)
+  if (!capabilityIds?.size && !manifest.dynamicSourceNamespace) {
     throw createCapabilityError('provider.manifest_invalid', 'Provider manifest must declare capability IDs', {
       details: { moduleId, key },
     })

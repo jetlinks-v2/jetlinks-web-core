@@ -181,6 +181,15 @@ export interface CapabilityChoiceResult {
   diagnostics: CapabilityDirectoryDiagnostic[]
 }
 
+/** Opt-in editor contract. Fields must come from query metadata, never sampled result rows. */
+export interface CapabilityQueryEditor {
+  type: 'jetlinks-terms'
+  fields: Record<string, CapabilitySchema>
+  termsKey: string
+  simpleKey?: string
+  sortsKey?: string
+}
+
 export interface CapabilitySchema {
   type: 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null'
   title?: string
@@ -198,6 +207,7 @@ export interface CapabilitySchema {
   binding?: FieldBindingPolicy
   filter?: CapabilityFilterFieldPolicy
   optionSource?: OptionSourceRef
+  queryEditor?: CapabilityQueryEditor
 }
 
 export interface FieldBindingPolicy {
@@ -713,12 +723,25 @@ export interface DataCapabilityProviderLoadedResult {
   optionSources?: OptionSourceDefinition[]
 }
 
+export interface DynamicDataSourceCatalog {
+  sources: DataSourceDefinition[]
+  diagnostics?: CapabilityDirectoryDiagnostic[]
+}
+
+/** Remote definitions are resolved per caller; they must never enter the shared static registry. */
+export interface DynamicDataSourceProvider {
+  namespace: string
+  discover(context: CapabilityContext): Promise<DynamicDataSourceCatalog>
+  resolve(capabilityId: string, context: CapabilityContext): Promise<DataSourceDefinition | undefined>
+}
+
 export interface DataCapabilityProvider {
   id: string
   owner: CapabilityOwner
   /** Enables precise loading for providers registered directly instead of through a module manifest. */
   capabilityIds?: readonly string[]
   order?: number
+  dynamicSources?: DynamicDataSourceProvider
   load?(): Promise<DataCapabilityProviderLoadedResult> | DataCapabilityProviderLoadedResult
   /** Must be idempotent because unregister may be followed by one serialized late-load cleanup pass. */
   dispose?(): void | Promise<void>
@@ -731,6 +754,8 @@ export type DataCapabilityProviderLoader = () =>
 
 /** Module-owned lazy Provider declaration used to build the capabilityId -> loader index. */
 export interface DataCapabilityProviderManifestEntry {
+  /** Exclusive namespace for dynamically resolved source IDs, without a trailing dot. */
+  dynamicSourceNamespace?: string
   capabilityIds: readonly string[]
   loader: DataCapabilityProviderLoader
   timeout?: number
