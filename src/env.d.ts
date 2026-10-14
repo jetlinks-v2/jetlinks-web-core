@@ -1,4 +1,6 @@
 /// <reference types="vite/client" />
+/// <reference types="vue/jsx" />
+/// <reference path="./types/dynamic-remote.d.ts" />
 
 interface ImportMetaEnv {
   readonly VITE_APP_TITLE: string;
