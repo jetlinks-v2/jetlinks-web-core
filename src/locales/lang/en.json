@@ -861,7 +861,7 @@
   "Login.metricEvents": "Events today",
   "Login.metricAvailability": "Availability",
   "Login.language": "Language",
-  "Login.languageZh": "中文",
+  "Login.languageZh": "Chinese",
   "Login.languageEn": "English",
   "Login.passwordTitle": "Welcome to log in",
   "Login.passwordDescription": "Use your account, phone number, or email to continue accessing {systemName}.",
