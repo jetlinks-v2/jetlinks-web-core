@@ -1339,14 +1339,11 @@ const validatesStandardAnalyticalOutputSemantics = <TResult>(
     ))) return false
     if (validationMode === 'execution-authored') {
       const memberMeasures = measureFields.map(field => normalizedText(field.measure).toLowerCase())
-      const memberLabels = measureFields.map(field => normalizedText(field.label).toLowerCase())
       if (measureFields.length > 32
         || measureFields.some(field => (
           !ANALYTICAL_TOKEN_PATTERN.test(normalizedText(field.measure).toLowerCase())
-          || !normalizedText(field.unit)
         ))
-        || new Set(memberMeasures).size !== memberMeasures.length
-        || new Set(memberLabels).size !== memberLabels.length) return false
+        || new Set(memberMeasures).size !== memberMeasures.length) return false
       if (!fieldSet) return false
       if (fieldSet.measureCoordinates === 'exact') {
         if (measureFields.some(field => {
@@ -2109,12 +2106,11 @@ const isExecutionAuthoredAnalyticalOutput = <TResult>(
   && analytical.output === output.name
 
 /**
- * Execution-authored fields are optional analytical authority. An unproven projection keeps the selected raw output
- * but removes field and ordering semantics instead of borrowing authority from the declaration or a sibling.
+ * Physical source metadata is independent of analytical capability matching. The server proves analytical scope;
+ * this adapter validates the canonical descriptor and actual values without borrowing fields from a sibling.
  */
-const resolveExecutionAuthoredAnalyticalFields = <TResult>(
+const resolveExecutionAuthoredOutputFields = (
   analytical: Extract<CompiledClientToolAnalyticalAuthoring, { status: 'standard' }>,
-  output: ClientToolOutput<TResult>,
   fields: readonly AiClientToolOutputField[] | undefined,
 ): AiClientToolOutputField[] | undefined => {
   const normalizedFields = normalizeAiClientToolOutputFields(
@@ -2125,13 +2121,7 @@ const resolveExecutionAuthoredAnalyticalFields = <TResult>(
     || normalizedFields.length !== (fields?.length || 0)
     || !normalizedFields.length
     || !normalizedFields.every(isCanonicalAiClientToolOutputField)
-    || !validatesStandardAnalyticalOutputSemantics(
-      analytical.capability,
-      output,
-      normalizedFields,
-      'execution-authored',
-      true,
-    )) return undefined
+    || normalizedFields.some(field => !isAnalyticalFieldTypeAndDisplayFormatCompatible(field))) return undefined
   return normalizedFields
 }
 
@@ -2268,9 +2258,8 @@ const adaptExecutionResult = async <TResult>(
       }
     }
     if (executionAuthoredAnalyticalOutput) {
-      const resolvedFields = resolveExecutionAuthoredAnalyticalFields(
+      const resolvedFields = resolveExecutionAuthoredOutputFields(
         analytical as Extract<CompiledClientToolAnalyticalAuthoring, { status: 'standard' }>,
-        output,
         fields,
       )
       fields = resolvedFields

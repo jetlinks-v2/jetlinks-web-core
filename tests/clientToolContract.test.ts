@@ -997,22 +997,47 @@ test('device dynamic measures compile one fieldSet policy and keep raw rows atom
 
   const invalidFields = [
     [{ name: 'observed_at', semanticRole: 'timestamp' }, validMeasureField],
-    [{ name: 'category', type: 'string', role: 'dimension', axis: 'category', label: 'Category' }],
-    [temporalField],
-    [temporalField, validMeasureField, { ...validMeasureField, name: 'duplicateMeasure', label: 'Other' }],
-    [temporalField, validMeasureField, { ...validMeasureField, name: 'duplicateValue', measure: 'humidity' }],
-    [temporalField, validMeasureField, { ...validMeasureField, name: 'anotherValue', measure: 'humidity', label: 'Temperature' }],
-    [temporalField, { ...validMeasureField, aggregation: 'max' }],
-    [temporalField, { ...validMeasureField, aggregation: undefined }],
-    [temporalField, { ...validMeasureField, unit: undefined }],
-    [temporalField, { ...validMeasureField, label: undefined }],
+    [temporalField, validMeasureField, { ...validMeasureField }],
     [temporalField, { ...validMeasureField, format: 'integer' }],
-    [{ ...temporalField, axis: 'other_time' }, validMeasureField],
   ]
   for (const fields of invalidFields) {
     const downgraded = await execute(fields as any[]) as any
     assertUnprovenDynamicOutput(downgraded)
   }
+
+  // Physical descriptors do not prove analytical capability matching, which remains a server-side responsibility.
+  for (const fields of [
+    [temporalField],
+    [temporalField, { ...validMeasureField, aggregation: 'max' }],
+    [temporalField, { ...validMeasureField, aggregation: undefined }],
+    [temporalField, { ...validMeasureField, label: undefined }],
+    [{ ...temporalField, axis: 'other_time' }, validMeasureField],
+  ]) {
+    const preserved = await execute(fields) as any
+    assert.deepEqual(preserved.outputBindings[1].fields, fields.map(field => (
+      Object.fromEntries(Object.entries(field).filter(([, value]) => value !== undefined))
+    )))
+  }
+
+  const sameLabelFields = [
+    temporalField,
+    validMeasureField,
+    { ...validMeasureField, name: 'metricPeak', measure: 'temperature_peak', aggregation: 'sum', unit: undefined },
+  ]
+  const sameLabelRows = [{ observed_at: 1_785_387_600_000, metricValue: 12, metricPeak: 21 }]
+  const sameLabelResult = await tool.execute(
+    { result: { summary: { status: 'ok' }, series: sameLabelRows, fields: sameLabelFields } },
+    {},
+    { id: 'same-label-no-unit', toolName: tool.id },
+  ) as any
+  assert.deepEqual(sameLabelResult.outputBindings[1].fields.map((field: any) => field.name), [
+    'observed_at', 'metricValue', 'metricPeak',
+  ])
+  assert.equal(sameLabelResult.outputBindings[1].fields[2].unit, undefined)
+  assert.deepEqual(sameLabelResult.outputBindings[1].ordering, {
+    keys: [{ field: 'observed_at', direction: 'asc' }], producerGuaranteed: true,
+  })
+  assert.strictEqual(sameLabelResult.__clientToolOutputs.output1, sameLabelRows)
 
   const missing = await execute([], false) as any
   assert.equal(missing.success, true)
@@ -1072,7 +1097,7 @@ test('device dynamic measures compile one fieldSet policy and keep raw rows atom
     {},
     { id: 'fixed-unit', toolName: fixedUnit.id },
   ) as any
-  assertUnprovenDynamicOutput(fixedUnitResult)
+  assert.deepEqual(fixedUnitResult.outputBindings[1].fields, [temporalField, validMeasureField])
 
   const staticMeasureField = { ...validMeasureField, measure: 'device_metric' }
   const staticInvalidTool = defineClientTool<Record<string, unknown>, Record<string, unknown>, DynamicResult>({
@@ -1303,11 +1328,11 @@ test('execution-authored coordinates remain generic for passenger, rank, tempora
    {},
    { id: `generic-${tool.id}`, toolName: tool.id },
  )
-  const assertUnprovenFields = (result: any) => {
+  const assertPhysicalFields = (result: any, fields: any[]) => {
     assert.deepEqual(result.outputBindings.map((binding: any) => binding.name), [
       'ordinary-summary', 'analytical-records',
     ])
-    assert.equal(result.outputBindings[1].fields, undefined)
+    assert.deepEqual(result.outputBindings[1].fields, fields)
   }
 
   const passenger = createTool({
@@ -1333,7 +1358,9 @@ test('execution-authored coordinates remain generic for passenger, rank, tempora
   const passengerWrongMeasure = await execute(passenger, [time, {
     ...passengerFields[1], measure: 'unrelated_count', label: 'Unrelated',
   }], passengerRows) as any
-  assertUnprovenFields(passengerWrongMeasure)
+  assertPhysicalFields(passengerWrongMeasure, [time, {
+    ...passengerFields[1], measure: 'unrelated_count', label: 'Unrelated',
+  }])
 
   const rank = createTool({
     id: 'passenger_rank',
@@ -1373,7 +1400,10 @@ test('execution-authored coordinates remain generic for passenger, rank, tempora
     ...weekdayFields,
     { name: 'hour', type: 'timestamp', role: 'temporal_dimension', axis: 'hour', encoding: 'epoch-millis' },
   ], [{ observed_at: 1_785_387_600_000, weekday: 'monday', hour: 1_785_387_600_000, passengers: 42 }]) as any
-  assertUnprovenFields(hourAxis)
+  assertPhysicalFields(hourAxis, [
+    ...weekdayFields,
+    { name: 'hour', type: 'timestamp', role: 'temporal_dimension', axis: 'hour', encoding: 'epoch-millis' },
+  ])
 
   const portrait = createTool({
     id: 'portrait_group_by',
@@ -1393,7 +1423,9 @@ test('execution-authored coordinates remain generic for passenger, rank, tempora
   const portraitWrongAxis = await execute(portrait, [
     { ...portraitFields[0], axis: 'undeclared-group' }, portraitFields[1],
   ], [{ group: 'adult', people: 9 }]) as any
-  assertUnprovenFields(portraitWrongAxis)
+  assertPhysicalFields(portraitWrongAxis, [
+    { ...portraitFields[0], axis: 'undeclared-group' }, portraitFields[1],
+  ])
 })
 
 test('typed semantic intent bindings stay declaration-local and fail closed on coordinate drift', () => {

@@ -1223,7 +1223,7 @@ test('scope search resolves names to fresh complete candidates without treating 
     assert.equal(name, 'north')
     return { candidates, complete: true, total: 2 }
   } })
-  assert.equal(found, 'device-b/channel-b')
+  assert.deepEqual(found, { value: 'device-b/channel-b', source: 'user' })
   assert.deepEqual(requests.map(request => request.options.map((option: any) => option.id)), [[], ['a', 'b']])
   for (const lookup of [
     async () => ({ candidates, complete: false, total: 2 }),
@@ -1239,6 +1239,22 @@ test('scope search resolves names to fresh complete candidates without treating 
   }
   await assert.rejects(selectDomainAgentScopeCandidate({ requestInput: async () => ({ optionId: 'north' }) },
     candidates, true, 2, text), /Invalid/)
+})
+
+test('one scope candidate preserves whether it came from the initial lookup or user search', async () => {
+  const text = { question: 'Choose', cancel: 'Cancel', required: 'Required', cancelled: 'Cancelled', incomplete: 'Incomplete', invalid: 'Invalid' }
+  const candidates = [{ id: 'a', title: 'A', value: 'device-a/channel-a' }]
+  const automatic = await selectDomainAgentScopeCandidate(undefined, candidates, true, 1, text)
+  assert.deepEqual(automatic, { value: 'device-a/channel-a', source: 'automatic' })
+  let prompts = 0
+  const searched = await selectDomainAgentScopeCandidate({ requestInput: async () => {
+    prompts++
+    return { searchText: 'A' }
+  } }, [], true, 0, text, { placeholder: 'Name', submitText: 'Search',
+    resolve: async () => ({ candidates, complete: true, total: 1 }),
+  })
+  assert.deepEqual(searched, { value: 'device-a/channel-a', source: 'user' })
+  assert.equal(prompts, 1, 'recording the source adds no confirmation step')
 })
 
 test('scope search cannot continue after abort even when its resolver ignores the signal', async () => {
@@ -1275,7 +1291,7 @@ test('scope tree uses complete authorized options and never automatically choose
     browse: async () => ({ candidates: options, complete: true, total: 1 }),
     resolve: async () => { throw new Error('tree filtering must not issue another lookup') },
   })
-  assert.deepEqual(picked, { areaId: 'a' })
+  assert.deepEqual(picked, { value: { areaId: 'a' }, source: 'user' })
   assert.equal(prompts, 1)
   await assert.rejects(selectDomainAgentScopeCandidate({ requestInput: async () => {
     throw new Error('invalid tree must not become selectable')

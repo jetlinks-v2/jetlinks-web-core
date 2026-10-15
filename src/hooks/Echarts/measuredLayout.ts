@@ -44,7 +44,10 @@ function registerGeometryObserver(runtime: EchartsLayoutRuntime): GeometryObserv
     for (const kind of ['title', 'legend', 'grid'] as const) {
       model.eachComponent(kind, component => {
         const { top, bottom, height, left, right, width } = component.getBoxLayoutParams()
-        componentStates.push({ kind, id: component.id, name: component.name, index: component.componentIndex, anchors: { top, bottom, height, left, right, width } })
+        componentStates.push({ kind, id: component.id, name: component.name, index: component.componentIndex,
+          anchors: { top, bottom, height, left, right, width },
+          ...(kind === 'grid' && 'containLabel' in component.option ? { containLabel: component.option.containLabel === true } : {}),
+        })
       })
     }
     if (!observer.measure()) {
@@ -171,23 +174,29 @@ export function createMeasuredEchartsLayout(instance: ECharts, runtime: EchartsL
         previousStates = []
       }
       if (!enabled) return
-      // Every resize starts from native geometry. Two directional passes cannot feed back into one another.
+      // Every resize starts from native geometry. Containment is applied once before measuring remaining defaults.
       restore()
       baselineTops.clear()
-      const horizontalPatches = calculateHorizontalDefaults(authored, latest)
-      horizontalRestores = horizontalPatches.map(({ kind, id, fields }) => {
-        const state = latest!.componentStates.find(item => item.kind === kind && item.id === id)!
-        const restored: LayoutOptionPatch['fields'] = {}
-        for (const side of ['left', 'right'] as const) {
-          const anchor = state.anchors[side]
-          if (fields[side] !== undefined && (typeof anchor === 'string' || typeof anchor === 'number')) restored[side] = anchor
+      for (let pass = 0; pass < 2; pass++) {
+        const horizontalPatches = calculateHorizontalDefaults(authored, latest)
+        for (const { kind, id, fields } of horizontalPatches) {
+          const state = latest.componentStates.find(item => item.kind === kind && item.id === id)!
+          const restored: LayoutOptionPatch['fields'] = {}
+          for (const side of ['left', 'right'] as const) {
+            const anchor = state.anchors[side]
+            if (fields[side] !== undefined && (typeof anchor === 'string' || typeof anchor === 'number')) restored[side] = anchor
+          }
+          if (fields.containLabel !== undefined) restored.containLabel = state.containLabel ?? false
+          for (const key of ['textStyle', 'subtextStyle'] as const) {
+            if (fields[key]) restored[key] = { width: null, overflow: null }
+          }
+          const previous = horizontalRestores.find(item => item.kind === kind && item.id === id)
+          if (previous) Object.assign(previous.fields, restored)
+          else horizontalRestores.push({ kind, id, fields: restored })
         }
-        for (const key of ['textStyle', 'subtextStyle'] as const) {
-          if (fields[key]) restored[key] = { width: null, overflow: null }
-        }
-        return { kind, id, fields: restored }
-      })
-      applyHorizontalPatches(instance, horizontalPatches)
+        applyHorizontalPatches(instance, horizontalPatches)
+        if (!horizontalPatches.some(patch => patch.fields.containLabel === true)) break
+      }
       for (const component of latest.components) {
         const key = layoutComponentKey(component)
         if (!baselineTops.has(key)) baselineTops.set(key, component.top)

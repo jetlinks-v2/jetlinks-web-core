@@ -42,6 +42,7 @@ export interface LayoutComponentState {
   name: string
   index: number
   anchors: Record<LayoutDimension, unknown>
+  containLabel?: boolean
 }
 
 export interface LayoutTopPatch {
@@ -56,6 +57,7 @@ export interface LayoutOptionPatch {
   fields: {
     left?: LayoutAnchor
     right?: LayoutAnchor
+    containLabel?: boolean
     textStyle?: { width: number | null; overflow: 'break' | null }
     subtextStyle?: { width: number | null; overflow: 'break' | null }
   }
@@ -83,7 +85,7 @@ export function captureAuthoredLayout(option: Record<string, unknown>): Authored
     return (Array.isArray(value) ? value : value === undefined ? [] : [value])
       .filter(isObject)
       .map(item => {
-        const metadata = Object.fromEntries(['id', 'name', 'top', 'bottom', 'height', 'left', 'right', 'width', 'orient']
+        const metadata = Object.fromEntries(['id', 'name', 'top', 'bottom', 'height', 'left', 'right', 'width', 'orient', 'containLabel']
           .filter(key => Object.prototype.hasOwnProperty.call(item, key)).map(key => [key, item[key]]))
         for (const key of ['textStyle', 'subtextStyle'] as const) {
           const style = item[key]
@@ -196,6 +198,13 @@ export function calculateHorizontalDefaults(authored: AuthoredLayout, geometry: 
     const state = geometry.componentStates.find(item => item.kind === 'grid' && item.id === grid.id)
     if (option && state && !hasAnchor(option, 'width')) {
       const exterior = grid.exterior ?? grid.rect
+      const outside = exterior.x < -0.5 || exterior.x + exterior.width > geometry.width + 0.5
+        || exterior.y + exterior.height > geometry.height + 0.5
+      if (outside && !hasAnchor(option, 'containLabel') && !hasAnchor(option, 'height') && !state.containLabel) {
+        // Native containment reserves tick-label space inside authored margins; remeasure before deriving other defaults.
+        patches.push({ kind: 'grid', id: grid.id, fields: { containLabel: true } })
+        return patches
+      }
       const left = hasAnchor(option, 'left') ? 0 : Math.max(0, -exterior.x)
       const right = hasAnchor(option, 'right') ? 0 : Math.max(0, exterior.x + exterior.width - geometry.width)
       // A viewport that cannot contain the measured exterior does not authorize altering explicit dimensions.
@@ -247,7 +256,7 @@ export function calculateGeometryDefaults(
     const top = resolveLayoutTop(component.top, geometry.height)
     const baseline = resolveLayoutTop(baselineTops.get(layoutComponentKey(component)) ?? component.top, geometry.height)
     const eligible = !!option && top !== undefined && baseline !== undefined
-      && !hasAnchor(option, 'top') && !hasAnchor(option, 'bottom')
+      && !hasAnchor(option, 'top') && (component.kind === 'grid' || !hasAnchor(option, 'bottom'))
       && !hasAnchor(option, 'height')
       && (component.kind !== 'legend' || option.orient !== 'vertical')
     return {
@@ -280,10 +289,14 @@ export function calculateGeometryDefaults(
   const titles = headers.filter(item => item.kind === 'title' && item.eligible)
   const legends = headers.filter(item => item.kind === 'legend' && item.eligible)
   const grids = items.filter(item => item.kind === 'grid')
-  // Preserve each header's measured relation to the plot before moving headers around authored obstacles.
-  // A native footer legend must not consume the top reserve or invalidate a title's otherwise feasible move.
-  const topHeaders = grids.length === 1 ? headers.filter(header => overlapsX(header.rect, grids[0].exterior)
-    && header.rect.y <= grids[0].rect.y) : []
+  // Preserve native footer relations, but an authored numeric top anchor still owns top space when a tall viewport
+  // places its percentage below the grid's default top. Bottom/alignment anchors do not become top headers.
+  const topHeaders = grids.length === 1 ? headers.filter(header => {
+    const option = findAuthored(authored, header)
+    const anchoredTop = !!option && hasAnchor(option, 'top') && !hasAnchor(option, 'bottom')
+      && resolveLayoutTop(header.top, geometry.height) !== undefined
+    return overlapsX(header.rect, grids[0].exterior) && (header.rect.y <= grids[0].rect.y || anchoredTop)
+  }) : []
 
   // Fixed authored anchors are obstacles; a missing title precedes a missing horizontal legend.
   const placeAfter = (item: typeof items[number], obstacles: typeof items) => {
