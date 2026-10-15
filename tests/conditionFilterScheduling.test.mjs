@@ -57,7 +57,7 @@ const fields = [
   { title: 'Status', dataIndex: 'status', search: { type: 'select', options: [{ label: 'OK', value: 0 }] } },
 ]
 
-const mountFilter = () => {
+const mountFilter = (initialProps = {}) => {
   const timers = new Map()
   let timerKey = 0
   const previousWindow = globalThis.window
@@ -69,7 +69,7 @@ const mountFilter = () => {
   globalThis.document = { activeElement: null }
   const changes = []
   const models = []
-  const props = vue.reactive({ fields, modelValue: [] })
+  const props = vue.reactive({ fields, modelValue: [], ...initialProps })
   const component = loadComponent('ConditionFilter.vue')
   const app = renderer.createApp({
     setup: () => () => vue.h(component, {
@@ -95,6 +95,67 @@ const mountFilter = () => {
 }
 
 const url = value => ({ column: 'url', termType: 'eq', value, type: 'and' })
+
+test('tree option labels include the full ancestor path without changing submitted values', async () => {
+  const assetValue = id => JSON.stringify({ assetType: 'product', targets: [{ type: 'org', id }] })
+  const tree = [{
+    id: 'root', name: '一级组织', value: assetValue('root'),
+    children: [{
+      id: 'child', name: '二级组织', value: assetValue('child'),
+      children: [{ id: 'leaf', name: '三级组织', value: assetValue('leaf') }],
+    }],
+  }]
+  const column = { title: '所属组织', dataIndex: 'org', search: { type: 'treeSelect', options: tree } }
+  const h = mountFilter({ fields: [column] })
+  try {
+    await vue.nextTick()
+    for (const [value, label] of [
+      [assetValue('root'), '一级组织'],
+      [assetValue('child'), '一级组织/二级组织'],
+      [assetValue('leaf'), '一级组织/二级组织/三级组织'],
+      [[assetValue('child'), assetValue('leaf')], '一级组织/二级组织、一级组织/二级组织/三级组织'],
+      ['missing', 'missing'],
+    ]) {
+      const term = { column: 'org', termType: Array.isArray(value) ? 'in' : 'eq', value }
+      h.api.setTerms([term])
+      await vue.nextTick()
+      assert.equal(h.state.getValueLabel(h.state.termsModel[0]), label)
+      assert.equal(h.state.getValueTooltip(h.state.termsModel[0]), label)
+      assert.deepEqual(h.changes.at(-1).filter.terms[0].value, value)
+    }
+  } finally { h.stop() }
+})
+
+test('async tree options restore nested labels and recognize already loaded selected values', async () => {
+  const value = JSON.stringify({ assetType: 'product', targets: [{ type: 'org', id: 'child' }] })
+  let selectedLoads = 0
+  const column = {
+    title: '所属组织', dataIndex: 'org', search: {
+      type: 'treeSelect',
+      options: async () => [{ value: 'root', name: '一级组织', children: [{ value, name: '二级组织' }] }],
+      optionPanel: { loadSelectedOptions: async () => { selectedLoads++; return [] } },
+    },
+  }
+  const h = mountFilter({ fields: [column], modelValue: [{ column: 'org', termType: 'eq', value }] })
+  try {
+    await vue.nextTick()
+    assert.equal(h.state.getValueLabel(h.state.termsModel[0]), '一级组织/二级组织')
+    selectedLoads = 0
+    await h.state.createOptionsLoader(column, h.state.termsModel[0])
+    assert.equal(selectedLoads, 0)
+    assert.equal(h.state.hasResolvedOptionValues(column, [value]), true)
+    assert.equal(h.state.hasResolvedOptionValues(column, [value, 'missing']), false)
+
+    const valuesColumn = {
+      dataIndex: 'values', search: { type: 'tree', options: [
+        { value: 'root', label: 'Root', children: [{ value: 0, label: 'Zero' }, { value: false, label: 'False' }] },
+      ] },
+    }
+    assert.equal(h.state.getOptionLabel(valuesColumn, 0), 'Root/Zero')
+    assert.equal(h.state.getOptionLabel(valuesColumn, false), 'Root/False')
+    assert.equal(h.state.hasResolvedOptionValues(valuesColumn, [0, false]), true)
+  } finally { h.stop() }
+})
 
 test('initial defaults are mirrored before the first external append and confirmed changes have no timer', async () => {
   const h = mountFilter()

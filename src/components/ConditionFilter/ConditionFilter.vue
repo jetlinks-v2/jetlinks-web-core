@@ -17,7 +17,7 @@ import {
 import { useColumnItemOptionsContext, useColumnsMapContext } from '../Search/Filter/hooks/useSearchEngine'
 import ConditionEditorPanel from './ConditionEditorPanel.vue'
 import FieldSelectPanel from './FieldSelectPanel.vue'
-import { normalizeOptionItemsByFields, resolveOptionDisplayFields } from './option-display'
+import { findOptionPathByValue, normalizeOptionItemsByFields, resolveOptionDisplayFields } from './option-display'
 import { isConditionFieldArrayTermType, resolveConditionFields } from './schema'
 import type {
   ConditionFilterChangePayload,
@@ -340,6 +340,7 @@ const buildQuickSuggestionDescription = (
   return keywordPreview ? `${readableLabel} ${keywordPreview}` : readableLabel
 }
 
+// 非空关键词按字段类型生成快捷条件；命中文本字段名时保留字段选择。
 const getFieldQuickSuggestion = (
   column: ConditionFilterField,
   rawKeyword: string,
@@ -435,10 +436,6 @@ const getFieldQuickSuggestion = (
 
   if (search.type === 'string') {
     if (keywordMatchedByField) {
-      return undefined
-    }
-
-    if (keyword.length < 2) {
       return undefined
     }
 
@@ -911,24 +908,18 @@ const hasResolvedOptionValues = (column: ConditionFilterField | undefined, value
     return false
   }
 
-  const optionValueSet = new Set(
-    getOptionList(column).map((item: Record<string, any>) => String(item?.value ?? item?.id)),
-  )
-
-  return normalizedValues.every(value => optionValueSet.has(value))
+  const options = getOptionList(column)
+  return normalizedValues.every(value => !!findOptionPathByValue(options, value))
 }
 
 const getOptionLabel = (column: ConditionFilterField | undefined, value: any) => {
-  const option = getOptionList(column).find((item: Record<string, any>) => {
-    const optionValue = item?.value ?? item?.id
-    return String(optionValue) === String(value)
-  })
+  const path = findOptionPathByValue(getOptionList(column), value)
 
-  if (!option) {
+  if (!path) {
     return String(value)
   }
 
-  return String(option.label ?? option.name ?? option.title ?? option.value ?? option.id)
+  return path.map(option => String(option.label ?? option.name ?? option.title ?? option.value ?? option.id)).join('/')
 }
 
 const getDateDisplayFormat = (searchType?: string) => {

@@ -50,6 +50,103 @@ const createDependencies = (initial = new Map([['project-code', projectStorage]]
 }
 
 {
+  // 独立部署从根页面进入应用，凭证来自当前登录，不要求先创建项目会话。
+  const { dependencies, writes, values } = createDependencies(new Map())
+  const accessContext = { token: 'standalone-token', apiUrl: '/api' }
+  const result = prepareApplicationAccess({
+    applicationId: 'application-a',
+    applicationName: 'Application A',
+    accessContext,
+    location: { origin: 'https://standalone.example.com', pathname: '/' },
+  }, dependencies)
+
+  assert.equal(result.success, true)
+  assert.equal(result.url, 'https://standalone.example.com/application-a/#/?applicationScope=application-a')
+  assert.equal(writes.length, 1)
+  assert.equal(values.get('application-a').token, accessContext.token)
+  assert.equal(values.get('application-a').scope, 'application-a')
+  assert.equal(values.get('application-a').domain, undefined)
+  assert.equal(values.get('application-a').id, undefined)
+  assert.equal(new URLSearchParams(new URL(result.url).hash.split('?')[1]).has(APPLICATION_ACCESS_BOOTSTRAP_QUERY_KEY), false)
+  assert.deepEqual(accessContext, { token: 'standalone-token', apiUrl: '/api' })
+}
+
+{
+  // 已有项目会话仍优先于备用登录上下文，避免替换项目内的凭证和域名。
+  const { dependencies, values } = createDependencies()
+  prepareApplicationAccess({
+    applicationId: 'application-a',
+    accessContext: { token: 'standalone-token', apiUrl: '/api' },
+    location: { origin: 'https://cloud.example.com', pathname: '/project-code/' },
+  }, dependencies)
+  assert.equal(values.get('application-a').token, projectStorage.token)
+  assert.equal(values.get('application-a').domain, projectStorage.domain)
+}
+
+{
+  const { dependencies, writes } = createDependencies(new Map())
+  const result = prepareApplicationAccess({
+    applicationId: 'application-a',
+    accessContext: { token: '', apiUrl: '/api' },
+    location: { origin: 'https://standalone.example.com', pathname: '/' },
+  }, dependencies)
+  assert.deepEqual(result, { success: false, reason: 'invalid-project-storage' })
+  assert.equal(writes.length, 0)
+}
+
+// 本地项目会话可能只有凭证；复制时仍需保留当前请求解析出的租户域名。
+for (const storedDomain of [undefined, '', '   ']) {
+  for (const targetDomain of [undefined, 'https://application.example.com']) {
+    const sourceStorage = { ...projectStorage, domain: storedDomain }
+    const source = createDependencies(new Map([['project-code', sourceStorage]]))
+    const result = prepareApplicationAccess({
+      applicationId: 'application-a',
+      domain: targetDomain,
+      accessContext: { token: 'fallback-token', apiUrl: '/api', domain: 'project-code' },
+      location: { origin: 'https://cloud.example.com', pathname: '/project-code/' },
+    }, source.dependencies)
+    assert.equal(result.success, true)
+    assert.equal(result.projectStorage.domain, 'project-code')
+    assert.equal(result.projectStorage.token, projectStorage.token)
+    assert.equal(result.projectStorage.apiUrl, projectStorage.apiUrl)
+    assert.equal(sourceStorage.domain, storedDomain)
+
+    if (targetDomain) {
+      const target = createDependencies(new Map())
+      const consumed = consumeApplicationAccessBootstrap(new URL(result.url), {
+        state: null, replaceState() {},
+      }, target.dependencies)
+      assert.equal(consumed.status, 'applied')
+      assert.equal(target.values.get('application-a').domain, 'project-code')
+    } else {
+      assert.equal(source.values.get('application-a').domain, 'project-code')
+    }
+  }
+}
+
+{
+  const source = createDependencies(new Map())
+  const result = prepareApplicationAccess({
+    applicationId: 'application-a',
+    domain: 'application.example.com',
+    accessContext: { token: 'standalone-token', apiUrl: 'https://api.example.com' },
+    location: { origin: 'https://standalone.example.com', pathname: '/' },
+  }, source.dependencies)
+  assert.equal(result.success, true)
+  assert.equal(source.writes.length, 0)
+  const target = createDependencies(new Map())
+  let cleanedUrl = ''
+  const consumed = consumeApplicationAccessBootstrap(new URL(result.url), {
+    state: null,
+    replaceState: (_state, _unused, url) => { cleanedUrl = String(url) },
+  }, target.dependencies)
+  assert.equal(consumed.status, 'applied')
+  assert.equal(target.values.get('application-a').scope, 'application-a')
+  assert.equal(target.values.get('application-a').token, 'standalone-token')
+  assert.equal(cleanedUrl, '/application-a/#/?applicationScope=application-a')
+}
+
+{
   const { dependencies, writes } = createDependencies()
   const result = prepareApplicationAccess({
     applicationId: 'application-a',
@@ -227,8 +324,9 @@ const createDependencies = (initial = new Map([['project-code', projectStorage]]
 }
 
 {
-  const invalidStorage = { ...projectStorage, apiUrl: '' }
-  const { dependencies } = createDependencies(new Map([['project-code', invalidStorage]]))
+  // API 地址允许留空，此时由统一请求层使用部署配置中的默认地址。
+  const defaultApiStorage = { ...projectStorage, apiUrl: '' }
+  const { dependencies } = createDependencies(new Map([['project-code', defaultApiStorage]]))
   const result = prepareApplicationAccess({
     applicationId: 'application-a',
     currentProjectCode: 'project-code',
@@ -238,7 +336,8 @@ const createDependencies = (initial = new Map([['project-code', projectStorage]]
     },
   }, dependencies)
 
-  assert.deepEqual(result, { success: false, reason: 'invalid-project-storage' })
+  assert.equal(result.success, true)
+  assert.equal(result.projectStorage.apiUrl, '')
 }
 
 {

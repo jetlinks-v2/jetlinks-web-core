@@ -9,6 +9,8 @@ import {
 import { hasOwnBusinessApplicationMenu } from '@jetlinks-web-core/api/system/menu'
 import {
   ApplicationEntryUnavailableError,
+  APPLICATION_SCOPE_QUERY_KEY,
+  getRouteQueryParam,
   isBusinessApplicationEndpointMissing,
   isProjectApplicationScope,
   normalizeBusinessApplications,
@@ -44,11 +46,15 @@ const isProjectEntry = (application?: BusinessApplicationEntry) => (
   application?.runtimeType === 'project' || isProjectApplicationScope(application?.id)
 )
 
-const getCurrentProjectContext = (projectCodeHint?: string) => {
+const getCurrentProjectContext = (projectCodeHint?: string, applicationId = getApplicationRuntimeEntry().applicationId) => {
   const locationCode = normalizeText(projectCodeHint) || getProjectCodeFromLocation()
     || (isProjectStorageEnabled() ? getProjectCodeFromPathname() : '')
   const locationStorage = getProjectStorage(locationCode)
-  const projectCode = normalizeText(locationStorage?.domain) || locationCode
+  const domain = normalizeText(locationStorage?.domain)
+  // 没有父项目会话的应用入口不能把应用 ID 生成为“项目”切换项。
+  const projectCode = domain && domain !== applicationId
+    ? domain
+    : locationCode !== applicationId ? locationCode : ''
   const projectStorage = getProjectStorage(projectCode) || locationStorage
   const projectName = normalizeText(projectStorage?.projectName)
     || normalizeText(projectStorage?.name)
@@ -65,11 +71,12 @@ const getCurrentProjectContext = (projectCodeHint?: string) => {
 const createProjectApplicationEntry = (
   sourceApplications: BusinessApplicationEntity[],
   projectCodeHint?: string,
+  applicationId?: string,
 ): BusinessApplicationEntry | undefined => {
   if (!sourceApplications.length) return undefined
 
-  const { projectCode, projectName } = getCurrentProjectContext(projectCodeHint)
-  if (!projectCode && !isProjectRuntime()) return undefined
+  const { projectCode, projectName } = getCurrentProjectContext(projectCodeHint, applicationId)
+  if (!projectCode && (isProjectStorageEnabled() || !isProjectRuntime())) return undefined
 
   return {
     id: PROJECT_APPLICATION_SCOPE,
@@ -85,12 +92,13 @@ const createProjectApplicationEntry = (
 const withProjectEntry = (
   sourceApplications: BusinessApplicationEntity[],
   projectCodeHint?: string,
+  applicationId?: string,
 ): BusinessApplicationEntry[] => {
   const businessEntries = sourceApplications.map(item => ({
     ...item,
     runtimeType: 'application' as const,
   }))
-  const projectEntry = createProjectApplicationEntry(sourceApplications, projectCodeHint)
+  const projectEntry = createProjectApplicationEntry(sourceApplications, projectCodeHint, applicationId)
 
   return projectEntry ? [...businessEntries, projectEntry] : businessEntries
 }
@@ -121,7 +129,11 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     projectCodeHint?: string,
     preferredApplicationId?: string,
   ) => {
-    const response = await getMyBusinessApplications().catch((err: unknown) => {
+    // 裸应用链接没有 Scope 参数或预先复制的会话，先用授权应用列表核验路径身份。
+    const pathnameCode = getProjectCodeFromPathname()
+    const resolvePathEntry = !preferredApplicationId && !!pathnameCode
+      && getRouteQueryParam(window.location, APPLICATION_SCOPE_QUERY_KEY) === null
+    const response = await getMyBusinessApplications(resolvePathEntry ? { tenantDomain: false } : {}).catch((err: unknown) => {
       if (isBusinessApplicationEndpointMissing(err)) return err
       throw err
     })
@@ -140,9 +152,10 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     }
 
     const result = normalizeBusinessApplications<BusinessApplicationEntity>(response)
-    const entries = withProjectEntry(result, projectCodeHint)
+    const pathApplicationId = resolvePathEntry ? result.find(item => item.id === pathnameCode)?.id : undefined
+    const entries = withProjectEntry(result, projectCodeHint, preferredApplicationId || pathApplicationId)
     // 普通项目入口默认保留项目菜单；子账号登录会显式调用 enterFirstApplication 进入首个业务应用。
-    const selected = selectInitialApplication(entries, preferredApplicationId)
+    const selected = selectInitialApplication(entries, preferredApplicationId || pathApplicationId)
     if (preferredApplicationId && !isProjectApplicationScope(preferredApplicationId) && !selected) {
       throw new ApplicationEntryUnavailableError()
     }

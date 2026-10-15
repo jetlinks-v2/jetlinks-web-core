@@ -198,7 +198,14 @@ export const prepareApplicationAccess = (
     return { success: false, reason: 'missing-project-storage' }
   }
 
-  const projectStorage = copyProjectStorage(currentProjectStorage, options.applicationName, applicationCode)
+  // 本地会话优先保留项目凭证，但缺失的租户域名应从当前有效请求上下文补齐。
+  // options.domain 是目标站点地址，不能作为 X-Tenant-Domain 写入会话。
+  const projectStorage = copyProjectStorage({
+    ...currentProjectStorage,
+    domain: normalizeText(currentProjectStorage.domain)
+      || normalizeText(options.accessContext?.domain)
+      || undefined,
+  }, options.applicationName, applicationCode)
   if (!projectStorage) {
     return { success: false, reason: 'invalid-project-storage' }
   }

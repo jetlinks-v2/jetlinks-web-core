@@ -174,7 +174,7 @@ onMounted(async () => {
     box-shadow: 0 0.375rem 1rem -0.5rem rgb(0 0 0 / 8%), 0 0.5625rem 1.75rem 0 rgb(0 0 0 / 5%),
         0 0.75rem 3rem 1rem rgb(0 0 0 / 3%);
 
-    :deep(.ant-tabs-nav-wrap) {
+    :deep(.ant-tabs-nav) {
         display: flex;
         justify-content: flex-start;
         padding: 0 var(--space-4);

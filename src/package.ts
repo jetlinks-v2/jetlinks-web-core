@@ -23,6 +23,7 @@ import {
     isAiClientToolSilentRequest,
     applyApplicationScopeHeaders,
     getApplicationRuntimeEntry,
+    getRequestTenantDomain,
     type MenuApplicationScope,
 } from '@jetlinks-web-core/utils'
 import microApp from '@micro-zoe/micro-app'
@@ -38,7 +39,10 @@ let requestInstanceForRetry: any = null
 
 type PackageRequestConfig = Record<string, any> & {
     headers?: Record<string, any>
+    /** 跳过本地项目会话；URL 中的项目标识仍用于请求路由。 */
     projectContext?: false
+    /** 入口身份确认请求不使用尚未确认的路径作为租户域名。 */
+    tenantDomain?: false
     applicationScope?: MenuApplicationScope
     url?: string
     baseURL?: string
@@ -91,18 +95,14 @@ function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
     const headers = config.headers || {}
     config.headers = headers
     const cache = getVerifyHeadersCache()
-    const projectContext = config.projectContext === false ? undefined : getProjectContext()
+    const locationProjectContext = getProjectContext()
+    const projectContext = config.projectContext === false ? undefined : locationProjectContext
 
     if (projectContext) {
         const { storage: projectStorage } = projectContext
 
         if (projectStorage?.token) {
             headers[TOKEN_KEY] = projectStorage.token
-            if (projectStorage.domain) {
-                headers['X-Tenant-Domain'] = projectStorage.domain
-            } else if ('X-Tenant-Domain' in headers) {
-                delete headers['X-Tenant-Domain']
-            }
         }
 
         // if (projectStorage?.apiUrl) {
@@ -116,10 +116,14 @@ function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
         } else if (TOKEN_KEY in headers) {
             delete headers[TOKEN_KEY]
         }
+    }
 
-        if ('X-Tenant-Domain' in headers) {
-            delete headers['X-Tenant-Domain']
-        }
+    // 跳过本地凭证不改变项目路由；应用路径不能成为租户域名。
+    const domain = getRequestTenantDomain(config.tenantDomain)
+    if (domain) {
+        headers['X-Tenant-Domain'] = domain
+    } else {
+        delete headers['X-Tenant-Domain']
     }
 
     applyApplicationScopeHeaders(

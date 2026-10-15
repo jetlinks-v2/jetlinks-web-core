@@ -17,6 +17,24 @@
 - 支持 `terms` 分组 AST，并在路由中自动兼容 `v1` / `v2` 编码
 - 选项面板的 `label/name/description/icon` 支持字段名或函数回调
 
+## 树形选项回显
+
+树形选项按原始值递归查找 `children`，Token 与 Tooltip 显示从根节点到匹配节点的完整层级，例如 `一级组织/二级组织/三级组织`；多选显示各节点的完整路径。产品列表“所属组织”的二级、三级节点也使用此规则，避免回显原始查询 JSON。Owning module 为运行时前端 `jetlinks-web-core`，实现入口为 `src/components/ConditionFilter/option-display.ts#findOptionPathByValue` 与 `ConditionFilter.vue#getOptionLabel`、`hasResolvedOptionValues`。
+
+递归查找保留祖先路径，回显按 `/` 拼接；标签回显与已解析选中值判断使用同一查找结果。保留节点值、树数据、查询转换与组件 API；未匹配值保持原有回退显示。改动仅在 `runtime-ui/jetlinks-web-core`，产品业务页面和运营端 `ui/` 未修改。
+
+验证：`node --test tests/conditionFilterScheduling.test.mjs` 的 11 项回归全部通过，原实现已复现二级节点回显 JSON；回归覆盖一级至三级路径与 Tooltip、多选、静态和异步选项、已加载子节点识别、`0` / `false`、未匹配值回退及查询输出值保持一致。本地 `http://192.168.35.97:9201/#/resources/devices/products` 实际选择三级组织回显 `一级组织/二级组织/三级组织`。
+
+`pnpm --dir runtime-ui --filter jetlinks-web-core build -- --module-name device-manager-ui` 生产构建通过（11,074 个模块，仍有既有资源路径、CSS 注释和大包告警），`git diff --check` 通过。修改前后执行 `pnpm exec vue-tsc -p tsconfig.json --noEmit` 均为相同的 556 个既有诊断（忽略行号位移），未新增错误；完整类型检查仍受这些错误阻断，修复后需在 `runtime-ui/jetlinks-web-core` 重跑同一命令。工作区未提供 lint 脚本；完整工作区生产打包未执行，发布前可在同目录执行 `pnpm build`。
+
+## 快速输入候选
+
+文本关键词从一个非空字符开始生成快捷筛选候选，单字符数字、中文和英文均可使用。匹配文本字段名称时仍优先选择字段；空白输入仅显示字段列表，不生成带值条件。条件操作符及提交结构保持原有语义。
+
+实现入口为 `runtime-ui/jetlinks-web-core/src/components/ConditionFilter/ConditionFilter.vue#getFieldQuickSuggestion`，Owning module 为运行时前端 `jetlinks-web-core`；关系配置页使用该公共能力，其他运行时页面的文本快捷候选同步支持单字符。运营端 `ui/` 不在本次修改范围。
+
+验证：关系配置页输入 `1`、`测`、`x` 和 `12` 均显示文本候选，输入 `正` 保留字段名称匹配，空白输入不生成带值候选；选中“正向关系名称包含 1”正常生成条件，选中“包含 4”返回暂无数据，清空后恢复原记录。`node --test tests/conditionFilterScheduling.test.mjs` 的 9 项回归全部通过；组件脚本、模板、样式编译及 `git diff --check` 通过。修改前后执行 `pnpm exec vue-tsc -p tsconfig.json --noEmit` 均有相同的 556 个既有诊断（忽略行号位移），未新增错误。工作区无 lint 脚本；完整生产构建未执行，发布前需在 `runtime-ui/jetlinks-web-core` 执行 `pnpm build` 验证。
+
 ## 基础示例
 
 ```vue

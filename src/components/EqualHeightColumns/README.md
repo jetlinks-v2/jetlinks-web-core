@@ -36,4 +36,8 @@
 
 #### 当前调整
 
-收起按钮相对组件容器绝对定位：展开时读取左侧面板实际宽度和列间距，将中缝位置写入内联 `left`；收起时回落到容器左边缘。通过 `ResizeObserver` 及属性变更同步 `1fr`、`2fr` 等弹性 Grid 轨道的尺寸变化，不改变双栏 API、面板尺寸或按钮交互。
+实现位于 `runtime-ui/jetlinks-web-core/src/components/EqualHeightColumns/index.vue`：双栏使用“左列 / 间距 / 右列”三个 Grid 轨道，按钮和分割线直接锚定间距轨道中点，兼容长度和百分比间距。按钮不再通过 `ResizeObserver` 写入 `left` 并叠加过渡；布局与按钮位移统一使用 200ms 的 `cubic-bezier(0.23, 1, 0.32, 1)`，可在切换途中反向。`fr` 轨道收起时保留为 `0fr`，避免类型变化引起跳变。减少动态效果偏好下直接切换布局与位置，保留颜色反馈；组件 API 和业务页面无需调整。
+
+验证：当前内置浏览器的实际产品页及独立组件用例覆盖展开/收起、快速反向切换、`15rem` / `320px` / `30%` / `1fr` / `2fr` 列宽、`32px` / `0px` / `2%` 间距、容器缩放和隐藏左列后恢复。逐帧定位偏差小于 0.01px，布局结束后按钮仍过渡的帧数为 0；Vue SFC 编译、组件范围 Vite 生产构建和 `git diff --check` 通过。
+
+质量边界：组件范围 `vue-tsc` 检查仍因根节点 `attrs.style` 的 `unknown[]` 类型报 `TS2345`，修改前 HEAD 版本复查结果相同；当前工作区没有 lint 脚本或配置。未执行全量应用构建，未在其他浏览器或切换系统减少动态效果偏好后复验。全量待验证命令为 `pnpm -C runtime-ui exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 和 `pnpm -C runtime-ui build`，应先处理已有类型错误再完成全量检查。

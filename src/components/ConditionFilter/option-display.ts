@@ -6,6 +6,35 @@ import type {
 
 type OptionItem = Record<string, any>
 
+type OptionValueItem = {
+  value?: unknown
+  id?: unknown
+  children?: OptionValueItem[]
+  label?: unknown
+  name?: unknown
+  title?: unknown
+}
+
+/** 按原始查询值获取从根节点到目标节点的路径，保持选项树与节点标签不变。 */
+export const findOptionPathByValue = (items: OptionValueItem[] = [], value: unknown): OptionValueItem[] | undefined => {
+  const valueKey = String(value)
+
+  for (const item of items) {
+    if (String(item.value ?? item.id) === valueKey) {
+      return [item]
+    }
+
+    if (Array.isArray(item.children)) {
+      const childPath = findOptionPathByValue(item.children, value)
+      if (childPath) {
+        return [item, ...childPath]
+      }
+    }
+  }
+
+  return undefined
+}
+
 const isEmptyValue = (value: unknown) => value === undefined || value === null || value === ''
 
 const resolveFieldValue = (item: OptionItem, resolver?: ConditionOptionDisplayFieldResolver) => {

@@ -65,7 +65,7 @@ export const useUserStore = defineStore('user', () => {
     if (resp.success) {
       const userInfo = pick(resp.result, ['id', 'username', 'name', 'avatar'])
       setUserInfo(resp.result)
-      isAdmin.value = resp.result.username === 'admin'
+      isAdmin.value = resp.result.username === 'admin' || ['projectManager', 'projectOwner'].includes(resp.result?.type?.id)
       isApplicationUser.value = resp.result.type?.id === 'application'
       LocalStore.set('userId', resp.result?.id)
       LocalStore.set('user_info', userInfo)
