@@ -25,6 +25,12 @@
 
 页面内部的 `components/`、`types.ts`、`constants.ts` 和局部 hook 是实现细节；只有形成跨页面稳定复用契约时，才提升到 `src/components`、`src/hooks`、`src/utils` 或 `src/store` 并更新对应分类索引。
 
+## 会话续登
+
+`relogin/index.ts` 提供程序化入口 `openRelogin`，由 `src/main.ts` 传入请求初始化的 `handleReconnect`。入口负责独立 Vue 应用的创建、平台 Pinia 与国际化实例接入，以及成功、取消或异常后的卸载和容器清理；结果沿用组件 `open()` 的返回值，登录提交、取消回跳和请求层续登条件保持原逻辑。该入口不依赖可视化模块。
+
+定向验证：`node --test tests/relogin.test.mjs` 的 3 项测试通过，使用真实 Vue 生命周期、Pinia 与国际化插件验证成功、取消和异常后的返回语义及清理；请求初始化回调专项 1/1 通过。未执行完整 lint/typecheck/build 或真实页面续登验证；正式交付时按平台原流程构建前端，无需修改后端。
+
 ## 账号中心
 
 - 目标与归属：`jetlinks-web-core` 的通用个人中心，入口为 `src/views/account/center/index.vue`、路由为 `/account/center`。参考运行时项目 `modules/saas-runtime-ui/views/PersonCenter/index.vue` 的双栏布局，默认显示消息中心；core 不依赖该覆盖模块的组件、资源或文案。

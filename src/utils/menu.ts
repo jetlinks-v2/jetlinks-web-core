@@ -1,9 +1,10 @@
 import type { RouteMeta } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { isSubApp, OpenMicroApp, USER_CENTER_MENU_CODE } from '@jetlinks-web-core/utils/consts'
-import { isComingSoonMenuMeta } from '@jetlinks-web-core/utils/menuBadge'
-import router from '../router'
-import type { MenuButton, MenuItem } from '@jetlinks-web-core/types/module'
+import { handleMeta, isRoutePlaceholderMenu, getMenuAliasCodes, handleAuthMenu } from './menuMeta'
+export { handleAuthMenu } from './menuMeta'
+export { routerFallback } from './navigation'
+import type { MenuItem } from '@jetlinks-web-core/types/module'
 
 type BreadcrumbType = {
   name: string
@@ -27,28 +28,6 @@ type MenuRouteDraft = Omit<Partial<RouteRecordRaw>, 'children'> & {
   children?: MenuItem[] | RouteRecordRaw[]
 }
 
-const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
-  const _meta = {
-    ...(item.options?.meta || {}),
-    ...(item.meta || {})
-  } as RouteMeta & { options?: Record<string, any>; routeName?: string }
-
-  return {
-    ..._meta,
-    routeTarget: item.options?.routeTarget,
-    id: item.id,
-    icon: item.icon,
-    desc: item.i18nDescribe || item.describe,
-    title: item.i18nName || item.name,
-    hideInMenu: _meta.hideInMenu === true || _meta.options?.show === false || item.options?.show === false, // 隐藏菜单
-    isApp
-  }
-}
-
-const isRoutePlaceholderMenu = (item: MenuItem) => (
-  isComingSoonMenuMeta(handleMeta(item, !!item.appId))
-)
-
 export const handleRoute = (item: MenuItem, parent?: ParentType): Partial<RouteRecordRaw> => {
   const isApp = !!item.appId
   const meta = handleMeta(item, isApp)
@@ -69,16 +48,6 @@ export const handleRoute = (item: MenuItem, parent?: ParentType): Partial<RouteR
       breadcrumb
     }
   }
-}
-
-const getMenuAliasCodes = (item: MenuItem, meta: RouteMeta) => {
-  return [
-    item.code,
-    (meta as Record<string, any>)?.componentCode,
-    item.options?.componentCode,
-    (meta as Record<string, any>)?.routeName,
-    item.options?.routeName
-  ].filter(Boolean) as string[]
 }
 
 const mergeMenusByCode = (data: MenuItem[] = []): MenuItem[] => {
@@ -114,25 +83,6 @@ const mergeMenusByCode = (data: MenuItem[] = []): MenuItem[] => {
   })
 
   return result
-}
-
-export const handleAuthMenu = (menuData: MenuItem[], cb: (code: string, buttons: Array<MenuButton['id']>) => void) => {
-  if (menuData && menuData.length) {
-    return menuData.forEach((item) => {
-      const { code, buttons, children } = item
-
-      if (buttons) {
-        cb(
-          code,
-          buttons.map((a) => a.id)
-        )
-      }
-
-      if (children) {
-        handleAuthMenu(children, cb)
-      }
-    })
-  }
 }
 
 /**
@@ -321,18 +271,5 @@ export const handleMenus = (
     menus,
     menuRoutes,
     authButtons
-  }
-}
-
-export const routerFallback = () => {
-  if (window.history.state.back && window.history.length > 1) {
-    router.go(-1)
-  } else {
-    const meta = router.currentRoute.value.meta
-    const breadcrumb = meta.breadcrumb as Array<Record<string, any>>
-    if (breadcrumb.length > 1) {
-      const item = breadcrumb[breadcrumb.length - 2]
-      router.push(item.path)
-    }
   }
 }

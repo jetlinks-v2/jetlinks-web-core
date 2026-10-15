@@ -1,4 +1,3 @@
-import { createPinia } from 'pinia';
 
 export * from './auth'
 export * from './user'
@@ -9,6 +8,4 @@ export * from './businessApplication'
 export * from './ai'
 export * from './route-loading'
 
-const pinia = createPinia();
-
-export default pinia;
+export { default } from './pinia'

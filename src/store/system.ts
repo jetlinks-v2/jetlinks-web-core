@@ -23,7 +23,7 @@ import {
   isProjectRuntime,
 } from '@jetlinks-web-core/utils/project-runtime'
 import { getProjectStorage } from '@jetlinks-web-core/utils/project-storage'
-import { useBusinessApplicationStore } from './businessApplication'
+import { useBusinessApplicationContext } from './businessApplicationContext'
 
 export type LayoutMode = 'mix' | 'side' | 'top'
 
@@ -70,7 +70,7 @@ export const toLayoutMode = (value: unknown): LayoutMode | undefined => (
 const resolveLayoutTitle = (frontTitle: unknown) => {
   const fallbackTitle = typeof frontTitle === 'string' ? frontTitle : ''
   const applicationRuntime = isApplicationRuntime()
-  const applicationName = applicationRuntime ? useBusinessApplicationStore().currentApplication?.name : undefined
+  const applicationName = applicationRuntime ? useBusinessApplicationContext().currentApplication?.name : undefined
   if (applicationName) return applicationName
   if (!applicationRuntime && !isProjectRuntime()) return fallbackTitle
 

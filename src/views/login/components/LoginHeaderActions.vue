@@ -44,7 +44,7 @@
 import { computed, ref } from 'vue'
 import { LocalStore } from '@jetlinks-web/utils'
 import i18n from '@jetlinks-web-core/locales'
-import { useSystemStore } from '@jetlinks-web-core/store'
+import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { langKey, ruleEditorKey } from '@jetlinks-web-core/utils/consts'
 
 type LoginLanguage = 'zh' | 'en'

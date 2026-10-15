@@ -127,6 +127,9 @@ import { codeUrl } from '@jetlinks-web-core/api/login'
 import { useRequest } from '@jetlinks-web/hooks'
 import { encrypt, LocalStore, onlyMessage } from '@jetlinks-web/utils'
 import { PersonalKey, PersonalUrlKey, PersonalToken, PersonalAIKey } from '@jetlinks-web-core/utils/consts'
+import { shareRedirectHostKey } from './redirectHost'
+
+const redirectHost = inject(shareRedirectHostKey, undefined)
 
 const ERROR_MESSAGES = {
   MISSING_TOKEN: '缺少必要的授权参数',
@@ -179,7 +182,7 @@ const handleRedirect = async (params) => {
     const response = await getTokenRedirect(_personalToken.value, params || {})
 
     if (response?.result) {
-      const redirectUrl = processRedirectUrl(response.result)
+      const redirectUrl = await processRedirectUrl(response.result)
 
       if (params) {
         onlyMessage(ERROR_MESSAGES.AUTH_SUCCESS)
@@ -191,6 +194,9 @@ const handleRedirect = async (params) => {
       }
     }
   } catch (error) {
+    if (redirectHost && error instanceof Error && !error.response) {
+      onlyMessage(error.message, 'error')
+    }
     if (error.status === 401 || error.status === 500) {
       isExpired.value = true
     } else {
@@ -204,8 +210,9 @@ const handleRedirect = async (params) => {
   }
 }
 
-const processRedirectUrl = (urlString) => {
-  const urlObject = new URL(urlString)
+const processRedirectUrl = async (urlString) => {
+  const original = new URL(urlString)
+  const urlObject = redirectHost ? await redirectHost(original) : original
   const token = urlObject.searchParams.get(PersonalUrlKey)
 
   if (token) {
@@ -225,7 +232,6 @@ const processRedirectUrl = (urlString) => {
     }
   }
 
-  // return `http://localhost:9101/${urlObject.search}${urlObject.hash}`
   return urlObject.toString()
 }
 

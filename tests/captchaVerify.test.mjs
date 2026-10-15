@@ -191,7 +191,7 @@ test('Core login consumes the public hook and keeps its v-model and success wiri
   assert.match(template.code, /"onUpdate:open"/)
   assert.match(template.code, /onSuccess:.*onCaptchaSuccess/)
   const loginHook = readFileSync(resolve(root, 'src/views/login/hooks/useLogin.ts'), 'utf8')
-  assert.match(loginHook, /import \{ useCaptchaVerify \} from '@jetlinks-web-core\/hooks'/)
+  assert.match(loginHook, /import \{ useCaptchaVerify \} from '@jetlinks-web-core\/hooks(?:\/useCaptchaVerify)?'/)
 })
 
 test('result and context types pass strict checks, including rejected incompatible values', () => {
