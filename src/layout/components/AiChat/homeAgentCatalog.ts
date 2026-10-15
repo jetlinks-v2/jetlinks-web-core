@@ -35,7 +35,9 @@ const compactContinuation = (value: unknown) => {
 
 export const compactHomeAgentCapability = (item: HomeAgentCapability) => {
   const menuAnchor = item.menuCode || item.routeName
-  const link = menuAnchor
+  const link = menuAnchor && item.entry
+    ? `#feature=${encodeURIComponent(item.id)}`
+    : menuAnchor
     ? `#menu=${encodeURIComponent(String(menuAnchor))}`
     : undefined
   return {

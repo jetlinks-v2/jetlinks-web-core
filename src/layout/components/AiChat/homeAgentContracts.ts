@@ -65,6 +65,8 @@ export interface HomeAgentCapability {
   path?: string
   clientId?: string
   clientType?: string
+  /** Trusted navigation options; activate invokes a mounted page's open-only handler for this capability ID. */
+  entry?: HomeAgentNavigationOptions & { activate?: boolean }
   metadata?: Record<string, any> & {
     currentRoute?: boolean
     promptExamples?: string[]

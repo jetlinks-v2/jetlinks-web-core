@@ -9,6 +9,7 @@ import { createMeasuredEchartsLayout } from '../src/hooks/Echarts/measuredLayout
 import { calculateGeometryDefaults, captureAuthoredLayout, type EchartsGeometry } from '../src/hooks/Echarts/geometryDefaults'
 import originalOption from './fixtures/echarts-monthly-option.json'
 import longTitleOption from './fixtures/echarts-long-title-option.json'
+import percentageMarginOption from './fixtures/echarts-percentage-margin-option.json'
 
 use([BarChart, LineChart, TitleComponent, LegendComponent, GridComponent, ToolboxComponent, DataZoomComponent, TooltipComponent, TimelineComponent, SVGRenderer])
 
@@ -111,6 +112,56 @@ function assertInsideWidth(rects: Rect[], width: number) {
     assert.ok(rect.x >= -0.5 && rect.x + rect.width <= width + 0.5, `horizontal bounds ${rect.x}..${rect.x + rect.width} fit ${width}`)
   }
 }
+
+test('percentage side/bottom margins keep wrapped headers and tick labels inside the viewport without rewriting data', t => {
+  const chart = createChart(t, percentageMarginOption, 800, 480)
+  for (const [width, height] of [[400, 398], [360, 360], [800, 600], [800, 720], [800, 820], [400, 398]]) {
+    chart.resize(width, height)
+    const geometry = chart.geometry()
+    assertHeadersClear(geometry)
+    assertInsideWidth([...geometry.title, ...geometry.legend, ...geometry.axis], width)
+    for (const axis of geometry.axis) assert.ok(axis.y + axis.height <= height + 0.5, 'bottom tick labels fit the viewport')
+    const grid = arrayOf(chart.instance.getOption().grid)[0]
+    assert.equal(grid.left, '3%')
+    assert.equal(grid.right, '4%')
+    assert.equal(grid.bottom, '3%')
+    assert.equal(grid.containText, true, 'unknown option fields are not converted into aliases')
+    assert.equal(grid.containLabel, true)
+    assert.deepEqual(renderData(chart.instance), percentageMarginOption.series.map(series => series.data))
+  }
+})
+
+test('containment restores on native profile and preserves authored true/false choices and explicit dimensions', t => {
+  const chart = createChart(t, percentageMarginOption, 400, 398)
+  const native = createChart(t, percentageMarginOption, 400, 398, false)
+  chart.instance.dispatchAction({ type: 'legendUnSelect', name: 'Signal B maximum' })
+  chart.instance.dispatchAction({ type: 'dataZoom', start: 20, end: 70 })
+  native.instance.dispatchAction({ type: 'legendUnSelect', name: 'Signal B maximum' })
+  native.instance.dispatchAction({ type: 'dataZoom', start: 20, end: 70 })
+  const before = chart.instance.getOption()
+  chart.layout?.setEnabled(false)
+  assert.deepEqual(chart.geometry(), native.geometry())
+  assert.deepEqual(chart.instance.getOption().grid, native.instance.getOption().grid)
+  chart.layout?.setEnabled(true)
+  chart.resize(360, 360)
+  assertHeadersClear(chart.geometry())
+  assert.deepEqual(arrayOf(chart.instance.getOption().legend)[0].selected, arrayOf(before.legend)[0].selected)
+  assert.deepEqual(chart.instance.getOption().dataZoom, before.dataZoom)
+  for (const containLabel of [false, true]) {
+    chart.update({ grid: { containLabel } })
+    chart.resize(400, 398)
+    assert.equal(arrayOf(chart.instance.getOption().grid)[0].containLabel, containLabel)
+  }
+  for (const dimensions of [{ width: 260 }, { height: 210 }]) {
+    const option = { ...percentageMarginOption, grid: { ...percentageMarginOption.grid, ...dimensions } }
+    const fixed = createChart(t, option, 400, 398)
+    const baseline = createChart(t, option, 400, 398, false)
+    const actual = arrayOf(fixed.instance.getOption().grid)[0]
+    const expected = arrayOf(baseline.instance.getOption().grid)[0]
+    for (const dimension of Object.keys(dimensions)) assert.equal(actual[dimension], expected[dimension])
+    assert.equal(actual.containLabel, expected.containLabel)
+  }
+})
 
 const renderedCharacters = (text: string) => text.replace(/\{[^|}]+\|([^}]*)\}/g, '$1').replace(/\s/g, '')
 

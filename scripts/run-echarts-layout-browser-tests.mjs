@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
+import { createServer } from 'node:http'
 import { parse, compileScript, compileStyle } from 'vue/compiler-sfc'
-import { chromium } from 'playwright'
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outputDirectory = await mkdtemp(path.join(tmpdir(), 'jetlinks-echarts-canvas-tests-'))
@@ -40,6 +40,22 @@ try {
     logLevel: 'warning',
   })
   await writeFile(path.join(outputDirectory, 'index.html'), '<!doctype html><html><head><meta charset="utf-8"><style>body{margin:16px;background:white}</style></head><body><div id="host"></div><script src="./harness.js"></script></body></html>')
+  if (process.argv.includes('--serve-only')) {
+    const server = createServer(async (request, response) => {
+      const pathname = new URL(request.url || '/', 'http://localhost').pathname
+      const filename = pathname === '/' ? 'index.html' : pathname === '/harness.js' ? 'harness.js' : undefined
+      if (!filename) { response.writeHead(404).end(); return }
+      response.setHeader('Content-Type', filename.endsWith('.js') ? 'text/javascript' : 'text/html; charset=utf-8')
+      response.end(await readFile(path.join(outputDirectory, filename)))
+    })
+    const port = Number(process.env.ECHARTS_LAYOUT_PORT || 9251)
+    await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve) })
+    console.log(`Layout test controls: http://127.0.0.1:${port}/?manual=1`)
+    await new Promise(resolve => {
+      for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => server.close(resolve))
+    })
+  } else {
+  const { chromium } = await import('playwright')
   browser = await chromium.launch({ headless: true })
   const page = await browser.newPage({ viewport: { width: 1000, height: 700 }, deviceScaleFactor: 1 })
   page.on('pageerror', error => report.errors.push(String(error)))
@@ -47,6 +63,7 @@ try {
   await page.waitForFunction(() => !!window.echartsLayoutHarness)
   const original = JSON.parse(await readFile(path.join(packageRoot, 'tests/fixtures/echarts-monthly-option.json'), 'utf8'))
   const latest = JSON.parse(await readFile(path.join(packageRoot, 'tests/fixtures/echarts-long-title-option.json'), 'utf8'))
+  const percentageMargins = JSON.parse(await readFile(path.join(packageRoot, 'tests/fixtures/echarts-percentage-margin-option.json'), 'utf8'))
   const snapshot = () => page.evaluate(() => window.echartsLayoutHarness.snapshot())
   const overlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
   const verify = async (name, clearHeaders = true) => {
@@ -80,6 +97,19 @@ try {
   const characters = text => text.replace(/\{[^|}]+\|([^}]*)\}/g, '$1').replace(/\s/g, '')
   const completeTitle = (state, texts) => {
     for (const expected of texts) assert.ok(state.geometry.renderedTitleText.some(text => characters(text) === characters(expected)), 'all title/subtitle glyphs remain after layout')
+  }
+  await page.evaluate(option => window.echartsLayoutHarness.mount(option, 'presentation', 800, 600), percentageMargins)
+  for (const [width, height] of [[400, 398], [360, 360], [800, 600], [800, 720], [400, 398]]) {
+    await resize(width, height)
+    const state = await verify(`percentage-margins-${width}`)
+    insideWidth([...state.geometry.title, ...state.geometry.legend, ...state.geometry.axis], width, 'percentage margin exterior')
+    for (const axis of state.geometry.axis) assert.ok(axis.y + axis.height <= height + 0.5)
+    assert.equal(state.option.grid[0].left, '3%')
+    assert.equal(state.option.grid[0].right, '4%')
+    assert.equal(state.option.grid[0].bottom, '3%')
+    assert.equal(state.option.grid[0].containLabel, true)
+    assert.deepEqual(state.option.series.map(series => series.data), percentageMargins.series.map(series => series.data))
+    await page.locator('#host').screenshot({ path: path.join(artifactDirectory, `percentage-margins-${width}.png`) })
   }
   await page.evaluate(option => window.echartsLayoutHarness.mount(option, 'presentation', 800, 480), latest)
   const latestWide = await verify('latest-title-wide')
@@ -233,12 +263,13 @@ try {
   report.status = 'PASS'
   report.scenarioCount = report.scenarios.length
   console.log(JSON.stringify({ status: report.status, scenarioCount: report.scenarioCount, artifactDirectory }))
+  }
 } catch (error) {
   report.status = 'FAIL'
   report.failure = String(error?.stack || error)
   throw error
 } finally {
-  await writeFile(path.join(artifactDirectory, 'canvas-report.json'), JSON.stringify(report, null, 2))
+  if (!process.argv.includes('--serve-only')) await writeFile(path.join(artifactDirectory, 'canvas-report.json'), JSON.stringify(report, null, 2))
   await browser?.close()
   await rm(outputDirectory, { recursive: true, force: true })
 }

@@ -205,6 +205,8 @@ export interface AgentConversationClientToolCall {
   sessionFiles?: AgentConversationSessionFileApi;
   presentationCapabilities?: readonly GeneralAgentMarkdownPresentationCapability[];
   signal?: AbortSignal;
+  /** Host-only lifecycle signal for this active socket call; never forwarded as tool arguments. */
+  setWaitingForInput?: (waiting: boolean) => void;
   reportProgress?: (progress: {
     version: 'client-tool-progress/v1';
     stepId: string;

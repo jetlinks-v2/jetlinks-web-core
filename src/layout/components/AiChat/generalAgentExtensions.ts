@@ -135,8 +135,11 @@ export type GeneralAgentPresentationNarrativeMode = 'card-first' | 'analysis' | 
  *
  * The runtime may expose this policy to the model, but it must never treat the policy as authorization or a
  * task-completion condition, and it must not rewrite model-authored text to enforce the limits.
+ * The separate source declaration explicitly opts delivered results into evidence-authored summaries instead.
  */
 export interface GeneralAgentPresentationNarrativePolicy {
+  /** Opt-in evidence-authored summary after exact delivery; never an execution or completion gate. */
+  source?: 'model' | 'evidence';
   mode: GeneralAgentPresentationNarrativeMode;
   allowedTextRoles: string[];
   minTextBlocks: number;
@@ -227,6 +230,7 @@ const normalizePresentationNarrativePolicy = (
     : defaults.minTextBlocks;
   const requiredMinTextBlocks = mode === 'analysis' ? 1 : 0;
   return {
+    ...(policy?.source === 'evidence' ? { source: 'evidence' as const } : {}),
     mode,
     allowedTextRoles: allowedTextRoles.length ? allowedTextRoles : defaults.allowedTextRoles,
     minTextBlocks: Math.max(requiredMinTextBlocks, Math.min(minTextBlocks, maxTextBlocks)),

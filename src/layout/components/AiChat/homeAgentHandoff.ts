@@ -9,6 +9,7 @@ import {
   findHomeAgentRoutePermissionAnchor,
 } from './homeAgentContext'
 import { compactDefined, isPlainRecord, normalizeText } from './homeAgentShared'
+import { openHomeAgentFeatureEntry } from './useHomeAgentFeatureEntry'
 
 export const createHomeAgentContinuationReceipt = (options: HomeAgentContinuationReceiptOptions) => {
   const subjectType = normalizeText(options.subjectType)
@@ -131,9 +132,22 @@ export const resolveHomeAgentRouteLink = (href: string): HomeAgentRouteLink | un
 
 export const isHomeAgentMenuLink = (href: string) => !!resolveHomeAgentMenuLink(href)
 
+export const resolveHomeAgentFeatureLink = (href: string): string | undefined => {
+  const raw = normalizeSameOriginHashLink(href)
+  if (!raw.startsWith('#')) return undefined
+  const params = new URLSearchParams(raw.slice(1))
+  return params.has('feature') ? normalizeText(params.get('feature')) : undefined
+}
+
 export const createHomeAgentMarkdownLinkHandler = (
   options: HomeAgentRuntimeOptions = {},
 ) => (payload: { href: string; event: MouseEvent; defaultOpen?: () => void }) => {
+  const featureId = resolveHomeAgentFeatureLink(payload.href)
+  if (featureId !== undefined) {
+    payload.event.preventDefault()
+    openHomeAgentFeatureEntry(featureId, () => createHomeAgentContext(options))
+    return true
+  }
   const routeLink = resolveHomeAgentRouteLink(payload.href)
   if (routeLink?.routeName || routeLink?.path) {
     const context = createHomeAgentContext(options)

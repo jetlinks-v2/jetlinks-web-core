@@ -134,13 +134,15 @@ export const createDomainAgentSemanticScopeInput = (descriptions: {
   },
 })
 
-/** Keeps the original selector value for same-call comparison; lookup may trim the name separately. */
+/** Keeps the original name for same-call comparison; an explicit all:false does not select another scope. */
 export const parseDomainAgentSemanticScope = (value: unknown): { name: string } | { all: true } | undefined => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
   const selector = value as Record<string, unknown>
-  if (Object.keys(selector).length !== 1) return undefined
-  if (typeof selector.name === 'string' && selector.name.trim()) return { name: selector.name }
-  return selector.all === true ? { all: true } : undefined
+  const keys = Object.keys(selector)
+  if (keys.some(key => key !== 'name' && key !== 'all')) return undefined
+  if (typeof selector.name === 'string' && selector.name.trim()
+    && (keys.length === 1 || selector.all === false)) return { name: selector.name }
+  return keys.length === 1 && selector.all === true ? { all: true } : undefined
 }
 
 
@@ -160,7 +162,15 @@ export interface DomainAgentScopeSearch<T> {
   editor?: 'scope-tree'
 }
 
-/** Selects only from complete authorized candidates. Search text is resolved by the owning domain, never used as an id. */
+export type DomainAgentScopeSelectionSource = 'automatic' | 'user'
+
+/** The source records user participation, including a search that yields one candidate. */
+export interface DomainAgentScopeSelection<T> {
+  value: T
+  source: DomainAgentScopeSelectionSource
+}
+
+/** Selects only from complete authorized candidates and preserves how the selection was made. */
 export const selectDomainAgentScopeCandidate = async <T>(
   call: Pick<AiClientToolCall, 'requestInput' | 'signal'> | undefined,
   candidates: DomainAgentScopeCandidates<T>['candidates'],
@@ -168,11 +178,12 @@ export const selectDomainAgentScopeCandidate = async <T>(
   total: number,
   text: { question: string; cancel: string; required: string; cancelled: string; incomplete: string; invalid: string },
   search?: DomainAgentScopeSearch<T>,
-): Promise<T> => {
+): Promise<DomainAgentScopeSelection<T>> => {
   const fail = (code: string, message: string) => Object.assign(new DomainAgentInputError(code, message), {
     recoveryAction: 'terminal', retryable: false, repair: { maxAttempts: 0 },
   })
   let current = { candidates, complete, total }
+  let source: DomainAgentScopeSelectionSource = 'automatic'
   if (search?.browse) {
     if (call?.signal?.aborted) throw fail('scope.selection.cancelled', text.cancelled)
     current = await search.browse(call?.signal)
@@ -195,7 +206,7 @@ export const selectDomainAgentScopeCandidate = async <T>(
         parentId = byId.get(parentId)?.parentId
       }
     }
-    if (current.candidates.length === 1 && !search?.browse) return current.candidates[0].value
+    if (current.candidates.length === 1 && !search?.browse) return { value: current.candidates[0].value, source }
     const options = current.candidates.map(({ id, title, description, parentId }) => ({ id, title, description, parentId }))
     if (!call?.requestInput) {
       const preview = options.slice(0, 20)
@@ -213,12 +224,13 @@ export const selectDomainAgentScopeCandidate = async <T>(
       if (!search || response.optionId || typeof response.searchText !== 'string' || !response.searchText.trim()) {
         throw fail('scope.selection.invalid', text.invalid)
       }
+      source = 'user'
       current = await search.resolve(response.searchText.trim(), call.signal)
       continue
     }
     if (!response?.optionId) throw fail('scope.selection.cancelled', text.cancelled)
     const selected = byId.get(response.optionId)
     if (!selected) throw fail('scope.selection.invalid', text.invalid)
-    return selected.value
+    return { value: selected.value, source: 'user' }
   }
 }
