@@ -6,26 +6,28 @@ import { jumpLogin } from '@jetlinks-web-core/router'
 import { notification } from 'ant-design-vue'
 import { isSubApp, langKey, PersonalToken, PersonalUrlKey } from '@jetlinks-web-core/utils/consts'
 import { isPrivateDeployment } from '@jetlinks-web-core/utils/deployment'
-import Relogin from '@jetlinks-web-core/views/relogin/index.vue'
 import VerifyDialog from '@jetlinks-web-core/views/verify/index.vue'
-import pinia from '@jetlinks-web-core/store'
+import pinia from '@jetlinks-web-core/store/pinia'
 import i18n from '@jetlinks-web-core/locales'
 import andtv from 'ant-design-vue'
 import {
-    getPackageConfig,
     getBaseApi,
-    routerFallback,
     isFromCloud,
     getFromCloudPathName,
-    getProjectIdFromLocation,
+    getRequestTenantDomain,
+} from '@jetlinks-web-core/utils/request-context'
+import { routerFallback } from '@jetlinks-web-core/utils/navigation'
+import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-path'
+import {
     getProjectStorage,
     isProjectStorageEnabled,
-    isAiClientToolSilentRequest,
+} from '@jetlinks-web-core/utils/project-storage'
+import { isAiClientToolSilentRequest } from '@jetlinks-web-core/utils/ai-client-tool-request'
+import {
     applyApplicationScopeHeaders,
-    getApplicationRuntimeEntry,
-    getRequestTenantDomain,
     type MenuApplicationScope,
-} from '@jetlinks-web-core/utils'
+} from '@jetlinks-web-core/utils/application-scope'
+import { getApplicationRuntimeEntry } from '@jetlinks-web-core/utils/project-runtime'
 import microApp from '@micro-zoe/micro-app'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
 import { useVerifyStore } from '@jetlinks-web-core/store/verify'
@@ -227,13 +229,6 @@ export const initPackages = () => {
     wsClient.connect()
 };
 
-const _handleReconnect = async () => {
-    const modalWrapper = document.createElement('div')
-    const modalApp = createApp(Relogin).mount(modalWrapper)
-    document.body.appendChild(modalWrapper)
-    return await modalApp?.open?.()
-}
-
 /** 当前校验弹窗 Promise，用于互斥：同一时间只允许一个弹窗，取消后不再自动弹出 */
 let currentVerifyPromise: Promise<{ key: string; token: string; disposable: boolean } | null> | null = null
 
@@ -270,13 +265,11 @@ function openVerifyDialog(verifyResult: VerifyRequiredResult): Promise<{ key: st
     })
     return currentVerifyPromise
 }
-export const initAxios = () => {
-    const config = getPackageConfig()
+export const initAxios = (config: any = {}, host: { handleReconnect?: () => Promise<unknown> } = {}) => {
 
-    // 会话失效后的“就地重新登录”弹窗（src/views/relogin/）只服务私有化部署：
-    // SaaS 下拿到 401 直接清理会话并退出到登录页，不弹窗。
+    // 仅在私有化部署开启续登且入口提供回调时启用；其余情况会话失效后跳转登录页。
     const isCreateTokenRefresh =
-        import.meta.env.VITE_TOKEN_REFRESH === 'true' && isPrivateDeployment()
+        import.meta.env.VITE_TOKEN_REFRESH === 'true' && isPrivateDeployment() && !!host.handleReconnect
 
     let settings = {
           langKey: langKey,
@@ -288,7 +281,7 @@ export const initAxios = () => {
                   jumpLogin()
               }
           },
-          handleReconnect: _handleReconnect,
+          handleReconnect: host.handleReconnect,
           filter_url: [
               '/system/version',
               '/system/config/front',

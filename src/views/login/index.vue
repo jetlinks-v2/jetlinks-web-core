@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import i18n from '@jetlinks-web-core/locales'
-import { useSystemStore } from '@jetlinks-web-core/store'
+import { useSystemStore } from "@jetlinks-web-core/store/system"
 import { isPrivateDeployment } from '@jetlinks-web-core/utils/deployment'
 import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
 import Login from './components/Login.vue'

@@ -1,4 +1,5 @@
-import { defineStore } from 'pinia'
+import { defineStore, storeToRefs } from 'pinia'
+import { useBusinessApplicationContext, type BusinessApplicationEntry } from './businessApplicationContext'
 import { ref } from 'vue'
 import { onlyMessage } from '@jetlinks-web/utils'
 import i18n from '@jetlinks-web-core/locales'
@@ -24,13 +25,6 @@ import { getApplicationAccessContext } from '@jetlinks-web-core/utils/request-co
 import { useMenuStore } from './menu'
 
 const $t = i18n.global.t
-
-type BusinessApplicationRuntimeType = 'application' | 'project'
-
-type BusinessApplicationEntry = BusinessApplicationEntity & {
-  runtimeType?: BusinessApplicationRuntimeType
-  projectCode?: string
-}
 
 type EnterApplicationOptions = {
   currentProjectCode?: string
@@ -117,7 +111,7 @@ const selectInitialApplication = (
 
 export const useBusinessApplicationStore = defineStore('business-application', () => {
   const applications = ref<BusinessApplicationEntry[]>([])
-  const currentApplication = ref<BusinessApplicationEntry>()
+  const { currentApplication } = storeToRefs(useBusinessApplicationContext())
   const loading = ref(false)
   const switching = ref(false)
   const initialized = ref(false)

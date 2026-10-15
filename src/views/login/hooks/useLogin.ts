@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, reactive, ref, toRaw } from 'vue'
 import { message } from 'ant-design-vue'
 import { encrypt } from '@jetlinks-web/utils'
 import { useLoginConfig } from './useLoginConfig'
-import { useCaptchaVerify } from '@jetlinks-web-core/hooks'
+import { useCaptchaVerify } from '@jetlinks-web-core/hooks/useCaptchaVerify'
 import type { CaptchaValidationSuccess } from '@jetlinks-web-core/components/Captcha/captcha'
 import { useLoginSuccess } from './useLoginSuccess'
 import {
@@ -14,8 +14,6 @@ import {
   loginWithoutProjectContext,
 } from '@jetlinks-web-core/api/login'
 import { useRequest } from '@jetlinks-web/hooks'
-import {useBusinessApplicationStore, useMenuStore} from '@jetlinks-web-core/store'
-import {setProjectStorage} from "@jetlinks-web-core/utils";
 
 interface UseLoginOptions {
   shouldAutoLoadVerifyCode?: () => boolean
@@ -36,7 +34,6 @@ const ENCRYPTION_REFRESH_INTERVAL = 3 * 60 * 1000
 export function useLogin(config: Ref<any>, options: UseLoginOptions = {}) {
   const { providers, loading: configLoading } = useLoginConfig()
   const { captchaOpen, openCaptcha, onCaptchaSuccess } = useCaptchaVerify<CaptchaValidationSuccess>()
-  const menuStore = useMenuStore()
   const { handleLoginSuccess } = useLoginSuccess()
 
   const loading = ref(false)
@@ -152,7 +149,6 @@ export function useLogin(config: Ref<any>, options: UseLoginOptions = {}) {
   const handleLogin = async (loginType: 'password' | 'code') => {
     // Basic validation
 
-    const businessApplicationStore = useBusinessApplicationStore()
 
     let _params: Record<string, any> = {}
     let requestFn = undefined

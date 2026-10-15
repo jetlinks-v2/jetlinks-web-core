@@ -1,11 +1,12 @@
+import { resolveFileUrl } from '@jetlinks-web-core/utils/file-url'
 import {request} from '@jetlinks-web/core'
 import {getToken} from "@jetlinks-web/utils";
 import { TOKEN_KEY_URL} from '@jetlinks-web/constants';
-import { getBaseApi } from '@jetlinks-web-core/utils'
+import { getBaseApi } from '@jetlinks-web-core/utils/request-context'
 
 export const FileStatic = '/file/upload'
 export const FileStaticPath = () => `${getBaseApi()}${FileStatic}`
-export const getFileUrlById = (id: string) => `${getBaseApi()}/file/${id}?${TOKEN_KEY_URL}=${getToken()}`
+export const getFileUrlById = (id: string) => resolveFileUrl(id) || `${getBaseApi()}/file/${id}?${TOKEN_KEY_URL}=${getToken()}`
 export const fileUpload = (data: any) => request.post(FileStatic, data)
 // 分片上传
 export const fileShardingUpload = (sessionId: string, offset: number, length: number, data: any) => request.post(`/file/upload/sharding/${sessionId}?offset=${offset}&length=${length}`, data);

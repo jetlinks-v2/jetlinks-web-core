@@ -94,7 +94,7 @@ import { reactive, ref, watch } from 'vue'
 
 import { Form, FormItem, Input, InputPassword, Checkbox, Button } from 'ant-design-vue'
 import i18n from '@jetlinks-web-core/locales'
-import { isProjectStorageEnabled } from '@jetlinks-web-core/utils'
+import { isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storage'
 
 const t = i18n.global.t
 const subAccountLoginEnabled = isProjectStorageEnabled()
