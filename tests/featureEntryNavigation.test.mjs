@@ -259,6 +259,30 @@ test('waiting on an unsaved-edit guard does not expire the click before navigati
   assert.equal(calls, 1)
 })
 
+test('feature entry loads before router initialization and opens after the router is ready', async t => {
+  const h = await harness(t, { path: '/project/list', entry: {} })
+  let routerReady = false
+  let opened = 0
+  const load = createLoader({
+    '@jetlinks-web-core/router': {
+      __esModule: true,
+      get default() {
+        if (!routerReady) throw new ReferenceError("Cannot access 'router' before initialization")
+        return h.router
+      },
+    },
+    '@jetlinks-web-core/locales': { default: { global: { t: key => key } }, __esModule: true },
+    '@jetlinks-web-core/store/ai': { useAIStore: () => ({ setDrawer: () => { opened++ } }) },
+    '@jetlinks-web/utils': { onlyMessage: () => assert.fail('Entry should be available') },
+  })
+  const feature = load(resolve(src, 'layout/components/AiChat/useHomeAgentFeatureEntry.ts'))
+  routerReady = true
+  feature.openHomeAgentFeatureEntry(h.id, h.getContext)
+  feature.openHomeAgentFeatureEntry(h.id, h.getContext)
+  assert.equal(opened, 2)
+  assert.equal(h.router.currentRoute.value.path, '/project/list')
+})
+
 test('the page hook releases old mounted handlers and only collapses the assistant', async t => {
   const h = await harness(t, { path: '/project/list' })
   const feature = h.load(resolve(src, 'layout/components/AiChat/useHomeAgentFeatureEntry.ts'))
