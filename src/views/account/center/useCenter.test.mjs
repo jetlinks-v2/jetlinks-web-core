@@ -105,7 +105,7 @@ test('默认消息中心，账户信息常驻且仅保留三个主切换项', as
   assert.equal(center.activeKey.value, 'StationMessage')
   assert.equal(user.tabKey, 'StationMessage')
   assert.equal(center.accountInfoVisible.value, false)
-  assert.deepEqual(center.profile.value.items.map(item => item.key), ['id', 'username', 'roles', 'orgs', 'mobile'])
+  assert.deepEqual(center.profile.value.items.map(item => item.key), ['id', 'username', 'roles', 'orgs', 'mobile', 'email'])
   assert.deepEqual(center.segments.value.map(item => item.value), ['StationMessage', 'Subscribe', 'PersonalToken'])
   center.selectContent('PersonalToken')
   await flush()
@@ -188,11 +188,25 @@ test('验证返回的联系方式锚点不会被 Store 回声关闭', async t =>
 test('主身份优先、无身份服务时回退账户联系方式，过滤不支持重定向的绑定', async t => {
   const { center } = await mountCenter(t)
   assert.equal(center.profile.value.items.find(item => item.key === 'mobile').value, '139****1234')
+  assert.equal(center.profile.value.items.find(item => item.key === 'email').value, 'pr****@example.test')
+  assert.equal(center.profile.value.items.find(item => item.key === 'email').editTarget, 'email-section')
   assert.deepEqual(center.profile.value.thirdAccounts.map(item => item.key), ['supported'])
   const fallback = await mountCenter(t, { identitySupported: false })
   assert.equal(fallback.calls.identities, 0)
   assert.equal(fallback.center.profile.value.items.find(item => item.key === 'mobile').value, '138****9999')
   assert.equal(fallback.center.profile.value.items.find(item => item.key === 'mobile').editTarget, undefined)
+  assert.equal(fallback.center.profile.value.items.find(item => item.key === 'email').value, 'fa****@example.test')
+  assert.equal(fallback.center.profile.value.items.find(item => item.key === 'email').editTarget, undefined)
+})
+
+test('未填写邮箱时展示占位，资料刷新后更新脱敏邮箱', async t => {
+  const { center, user } = await mountCenter(t, { identitySupported: false })
+  user.userInfo.email = ''
+  assert.equal(center.profile.value.items.find(item => item.key === 'email').value, 'zh:AccountInfo.unbound')
+  user.userInfo.email = 'updated@example.test'
+  assert.equal(center.profile.value.items.find(item => item.key === 'email').value, 'up****@example.test')
+  user.userInfo.email = 'a@example.test'
+  assert.equal(center.profile.value.items.find(item => item.key === 'email').value, 'a****@example.test')
 })
 
 test('部分账户加载失败保留可用数据，重试成功后清除错误', async t => {

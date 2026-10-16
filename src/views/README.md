@@ -34,15 +34,24 @@
 ## 账号中心
 
 - 目标与归属：`jetlinks-web-core` 的通用个人中心，入口为 `src/views/account/center/index.vue`、路由为 `/account/center`。参考运行时项目 `modules/saas-runtime-ui/views/PersonCenter/index.vue` 的双栏布局，默认显示消息中心；core 不依赖该覆盖模块的组件、资源或文案。
-- 账户信息：`account/center/components/AccountCard.vue` 展示头像、名称、用户名、账号 ID、角色 / 组织、联系方式及第三方账号绑定状态。联系方式脱敏；详细编辑继续使用原 `components/AccountInfo/index.vue`，保留头像、名称、密码、邮箱 / 手机号验证绑定及第三方登录绑定 / 解绑操作。账户内容独立滚动，“修改密码”按钮位于面板底部的独立操作区；窄屏账户面板高度限制为可用高度与 `32rem` 的较小值，缩小窗口时继续由账户内容承担滚动。关闭编辑后刷新账户信息。
+- 账户信息：`account/center/components/AccountCard.vue` 展示头像、名称、用户名、账号 ID、角色 / 组织、手机号、邮箱及第三方账号绑定状态。联系方式脱敏；详细编辑使用 `components/AccountInfo/index.vue`，基本信息可分别保存手机号和邮箱，底部只展示角色与组织。保留头像、名称、密码、邮箱 / 手机号验证绑定及第三方登录绑定 / 解绑操作。账户内容独立滚动，“修改密码”按钮位于面板底部的独立操作区；窄屏账户面板高度限制为可用高度与 `32rem` 的较小值，缩小窗口时继续由账户内容承担滚动。关闭编辑后刷新账户信息。
 - 功能切换：右侧复用原 `components/StationMessage/index.vue`、`components/Subscribe/index.vue` 和 `components/PersonalToken/index.vue`，只提供消息中心 / 消息订阅 / 个人令牌三个主切换项。通过 `EqualHeightColumns` 和 Ant Design Vue 分段控件承载；左右两栏使用普通 `section` 组织标题、操作和内容，移除 `ContentPanel` 的卡片包裹。宽屏两栏各自滚动，窄屏堆叠并在容器内滚动。
 - 首页视图：左侧移除“首页视图”按钮，`components/HomeView/index.vue` 原代码与历史 `HomeView` 页签入口继续保留；应用用户沿用原入口限制。
 - 状态与兼容：`account/center/useCenter.ts` 管理数据、弹窗和路由联动，`types.ts` 定义展示契约。保持 `StationMessage` / `Subscribe` / `PersonalToken` / `BindThirdAccount` / `HomeView` 原页签参数，以及 `user.tabKey`、`user.messageInfo` 和原通知子页签联动；新通知可以切回消息中心，旧通知不会反复覆盖用户的手动选择。邮箱 / 手机号编辑继续兼容 `query.anchor`，账户能力按既有版本条件及 `authService:identity`、身份提供商和 SSO 重定向支持条件展示。
-- 边界：没有修改 SaaS 覆盖页面、运营端 `ui/`、后端接口、权限模型或原首页视图 / 账户编辑组件；沿用现有 API，保留工作区已有 API 改动，个人令牌配置同步见下文。新增文案仅维护 core 的 `src/locales/lang/{zh,en}.json`。
-- 行为验证：在 core 目录运行 `node --test src/views/account/center/useCenter.test.mjs`，11 项通过，覆盖账号 ID / 用户名 / 角色 / 组织 / 手机号的摘要字段、默认页签、异步加载期间的切换、历史入口、应用用户限制、通知联动、联系方式锚点、主身份与能力回退、SSO 过滤、部分失败重试、关闭编辑刷新、卸载清理和语言切换。
-- 编译与静态检查：新页面及账户卡片的 Vue 模板、TypeScript 脚本和 Less 独立编译通过，中英文 JSON 校验、`git diff --check` 通过。当前项目没有 lint 脚本或 ESLint 配置。`pnpm exec vue-tsc --noEmit -p tsconfig.json` 被未改文件的类型错误阻塞；本次新增 / 修改实现文件没有类型错误，发布前仍需修复全量类型检查。
+- 边界：没有修改 SaaS 覆盖页面、运营端 `ui/`、后端接口、权限模型或原首页视图；沿用现有 API，保留工作区已有 API 改动，个人令牌配置同步见下文。新增文案仅维护 core 的 `src/locales/lang/{zh,en}.json`。
+- 行为验证：在 core 目录运行 `node --test src/views/account/center/useCenter.test.mjs`，12 项通过，覆盖账号 ID / 用户名 / 角色 / 组织 / 手机号 / 邮箱的摘要字段、默认页签、异步加载期间的切换、历史入口、应用用户限制、通知联动、联系方式锚点、主身份与能力回退、邮箱占位及单字符邮箱脱敏、SSO 过滤、部分失败重试、关闭编辑刷新、卸载清理和语言切换。
+- 编译与静态检查：页面及账户卡片的 Vue 模板、TypeScript 脚本和 Less 独立编译通过，中英文 JSON 校验、`git diff --check` 通过。当前项目没有 lint 脚本或 ESLint 配置；全量类型检查仍有既有错误，联系方式调整的专项验证及具体限制见下文。
 - 页面验证：使用真实页面、账户摘要、双栏组件和原账户编辑组件进行隔离浏览器验证，数据接口及右侧业务面板使用替身。验证了三个功能切换、原资料与绑定编辑入口，以及 1280px / 820px 双栏和 390px 堆叠布局；中英文切换控件、页面与编辑弹窗无横向溢出。两侧容器均为透明背景且无卡片阴影；左侧“首页视图”按钮已移除。在 1280×380 与 390×480 的小高度窗口中，账户内容滚动前后“修改密码”操作区的位置不变，并保持在账户面板底部；1280×900、820×500 英文布局和 390×844 布局复核通过。真实后端下的通知详情定位、绑定 / 解绑提交、头像 / 密码修改、首页视图保存和令牌操作仍需联调。
 - 构建限制：在 `runtime-ui` 运行 `pnpm build:standalone`，转换 24,312 个模块后因当前 8GB V8 堆上限报 `JavaScript heap out of memory`，构建未完成。需在具备足够内存的环境调整进程堆上限后重新执行该命令；不能将模块转换完成视为完整构建通过。
+
+### 联系方式编辑
+
+- 展示与入口：`account/center/useCenter.ts` 为左侧摘要提供脱敏邮箱，优先展示已绑定的主邮箱，无身份时回退资料 `email`，没有值时显示“未绑定”；单字符邮箱同样脱敏。`components/AccountInfo/index.vue` 的基本信息新增手机号 / 邮箱输入，底部角色与组织使用两列，移除职位展示。
+- 保存与校验：`components/AccountInfo/useContactInfo.ts` 管理联系方式回填、格式校验、独立保存与状态；复用 `src/api/account/center.ts#updateMeInfo_api`（`PUT /user/detail`），修改后显示对应保存按钮，去除首尾空格并允许清空。每次只把当前字段的新值合入现有资料，刷新后保留另一字段未提交的草稿；保存期间阻止重复和并行提交，失败保留输入以便重试。
+- 身份边界：基本信息保存 `telephone` / `email` 资料字段，与验证码绑定的登录身份独立；不改变摘要的身份优先规则，也不改变原验证码绑定 / 解绑流程。运营端、SaaS 覆盖页面、后端、权限及路由均未修改。保存失败提示沿用公共请求层，Hook 保留草稿并释放提交锁以便重试。
+- 专项验证：`node --test src/views/account/center/components/AccountInfo/useContactInfo.test.mjs` 的 4 项测试通过，使用真实 Vue 状态与 Ant Design 校验器、替换 Store / API 边界，覆盖回填、非法格式拦截、独立提交、去空格、草稿保留、重复提交拦截、允许清空、失败与重试。连同上述个人中心测试共 16 项通过。修改的 Vue 模板、TypeScript 脚本和 Less 独立编译，中英文 JSON 及 `git diff --check` 均通过。
+- 页面验证：真实运行时个人中心已核对脱敏邮箱、手机号 / 邮箱编辑与格式提示、职位移除和角色 / 组织两列。使用实际账户组件与隔离数据验证了手机号保存、邮箱保存失败及重试、摘要更新、关闭重开回填；英文 390×844 布局无横向溢出，弹窗内容宽度 / 滚动宽度均为 295px，保存按钮完整可见。没有修改真实管理员资料；真实后端保存仍待联调。
+- 全量检查限制：项目没有 lint 脚本或 ESLint 配置；`pnpm exec vue-tsc --noEmit -p tsconfig.json` 报告 551 项既有类型诊断，新增联系方式逻辑无诊断，原账户编辑组件仍有头像 / 角色类型及验证码 `maxlength` 等既有诊断。完整构建未重复执行此前已确认的 8GB V8 堆内存不足路径；需在足够内存环境运行 `pnpm build:standalone`，不能将独立组件编译视为完整构建通过。
 
 ### 个人令牌配置
 

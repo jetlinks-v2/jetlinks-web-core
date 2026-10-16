@@ -47,7 +47,7 @@ const maskIdentity = (value: string | undefined, provider: 'mobile' | 'email'): 
   if (!value) return i18n.global.t('AccountInfo.unbound')
   return provider === 'mobile'
     ? value.replace(/^(.{3}).*(.{4})$/, '$1****$2')
-    : value.replace(/^(.{2}).*(@.*)$/, '$1****$2')
+    : value.replace(/^([^@]{1,2})[^@]*(@.*)$/, '$1****$2')
 }
 
 /** Core 个人中心的数据加载、弹窗及通知/历史页签联动；不依赖项目覆盖模块。 */
@@ -93,6 +93,7 @@ export const useCenter = () => {
         { key: 'roles', label: i18n.global.t('AccountInfo.roles'), value: formatDimensions(info.roleList, i18n.global.t('Detail.index.153077-6')) },
         { key: 'orgs', label: i18n.global.t('AccountInfo.orgs'), value: formatDimensions(info.orgList, i18n.global.t('Detail.index.153077-7')) },
         { key: 'mobile', label: i18n.global.t('AccountInfo.basicPhone'), value: maskIdentity(getIdentity('mobile') || info.telephone, 'mobile'), editTarget: editableProviders.value.includes('mobile') ? 'phone-section' : undefined },
+        { key: 'email', label: i18n.global.t('AccountInfo.basicEmail'), value: maskIdentity(getIdentity('email') || info.email, 'email'), editTarget: editableProviders.value.includes('email') ? 'email-section' : undefined },
       ],
       thirdAccounts: thirdAccounts.value.map(item => ({
         key: item.id,
