@@ -70,11 +70,11 @@ export interface AiClientToolProducerPort {
 export interface AiClientToolConsumerPort extends Omit<AiClientToolProducerPort, 'audience'> {
   required: boolean
   sourcePolicy: AiClientToolSourcePolicy
-  /** Exact scalar target for one admitted value from this canonical source port. */
+  /** Exact scalar or string-array target for one admitted value from this canonical source port. */
   argumentBinding?: {
     argument: string
-    valueCardinality: 'exactly-one'
-    encoding: 'single-string'
+    valueCardinality: 'exactly-one' | 'one-or-more'
+    encoding: 'single-string' | 'string-array'
     /** Optional typed projection from the current session context; TOOL provenance never permits it. */
     contextSource?: {
       kind: 'subject'
@@ -722,13 +722,19 @@ const normalizeConsumerPort = (value: unknown): AiClientToolConsumerPort | undef
       && Object.keys(rawArgumentBinding).length === (rawContextSource === undefined ? 3 : 4)
       && argument
       && ANALYTICAL_ARGUMENT_PATTERN.test(argument)
-      && rawArgumentBinding.valueCardinality === 'exactly-one'
-      && rawArgumentBinding.encoding === 'single-string'
+      && ((rawArgumentBinding.valueCardinality === 'exactly-one'
+        && rawArgumentBinding.encoding === 'single-string')
+        || (rawArgumentBinding.valueCardinality === 'one-or-more'
+          && rawArgumentBinding.encoding === 'string-array'))
       && (rawContextSource === undefined || contextSource)
       ? {
           argument,
-          valueCardinality: 'exactly-one' as const,
-          encoding: 'single-string' as const,
+          valueCardinality: rawArgumentBinding.valueCardinality === 'one-or-more'
+            ? 'one-or-more' as const
+            : 'exactly-one' as const,
+          encoding: rawArgumentBinding.encoding === 'string-array'
+            ? 'string-array' as const
+            : 'single-string' as const,
           ...(contextSource ? { contextSource } : {}),
         }
       : undefined
@@ -1826,16 +1832,29 @@ export const validateAiClientToolRoutingMetadata = (
       `${field} must reference exactly one top-level tool input`,
     )
   }
-  const validateConsumerArgument = (field: string, argument: string) => {
+  const validateConsumerArgument = (
+    field: string,
+    port: AiClientToolConsumerPort,
+  ) => {
+    const argument = port.argumentBinding?.argument
+    if (!argument) return
     validateAnalyticalArgument(field, argument)
     const matches = (tool.inputs || []).filter(input => isRecord(input) && input.id === argument)
     if (matches.length !== 1) return
-    if (normalizeText(inputValueType(matches[0])?.type).toLowerCase() !== 'string') {
+    const valueType = inputValueType(matches[0])
+    const arrayBinding = port.argumentBinding?.valueCardinality === 'one-or-more'
+      && port.argumentBinding.encoding === 'string-array'
+    const compatible = arrayBinding
+      ? valueType?.type === 'array'
+        && isRecord(valueType.elementType)
+        && normalizeText(valueType.elementType.type).toLowerCase() === 'string'
+      : normalizeText(valueType?.type).toLowerCase() === 'string'
+    if (!compatible) {
       addIssue(
         issues,
         'consumer_argument_schema_incompatible',
         field,
-        `${field} must reference one top-level string input`,
+        `${field} must reference a top-level input matching its argument binding`,
       )
     }
   }
@@ -1861,7 +1880,7 @@ export const validateAiClientToolRoutingMetadata = (
     if (port.argumentBinding) {
       validateConsumerArgument(
         `consumerPorts[${index}].argumentBinding.argument`,
-        port.argumentBinding.argument,
+        port,
       )
     }
   }
