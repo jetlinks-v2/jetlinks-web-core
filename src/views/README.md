@@ -27,9 +27,13 @@
 
 ## 会话续登
 
-`relogin/index.ts` 提供程序化入口 `openRelogin`，由 `src/main.ts` 传入请求初始化的 `handleReconnect`。入口负责独立 Vue 应用的创建、平台 Pinia 与国际化实例接入，以及成功、取消或异常后的卸载和容器清理；结果沿用组件 `open()` 的返回值，登录提交、取消回跳和请求层续登条件保持原逻辑。该入口不依赖可视化模块。
+`relogin/index.ts` 提供程序化入口 `openRelogin`，由 `src/main.ts` 传入请求初始化的 `handleReconnect`。入口负责独立 Vue 应用的创建、平台 Pinia 与国际化实例接入，以及成功、取消或异常后的卸载和容器清理。成功返回登录结果，由请求库重试原请求和等待队列；取消时先清除 token 和二次校验缓存、发起登录页跳转，再抛出 Axios `CanceledError`，使原请求和整个等待队列结束。不能以 `null` 返回取消结果，否则请求库直接清空等待队列，已排队的 Promise 会一直等待。弹窗仅通过 Modal 的 `cancel` 事件完成关闭，退出副作用统一由程序化入口执行。
 
-定向验证：`node --test tests/relogin.test.mjs` 的 3 项测试通过，使用真实 Vue 生命周期、Pinia 与国际化插件验证成功、取消和异常后的返回语义及清理；请求初始化回调专项 1/1 通过。未执行完整 lint/typecheck/build 或真实页面续登验证；正式交付时按平台原流程构建前端，无需修改后端。
+无 token 时，`openRelogin` 直接拒绝创建弹窗；`src/package.ts` 的 `initAxios.tokenExpiration` 在私有化续登模式下比较失败请求携带的 token 与当前 token，取消旧凭证请求的迟到 401，避免退出后或新登录会话再次被旧请求打断。之后的新会话仍可正常续登，SaaS 保留直接跳转登录页的行为。范围仅为 runtime core，使用请求库公开回调，不修改依赖、后端或路由配置，也不依赖可视化模块。
+
+验证：`node --test tests/relogin.test.mjs` 的 9 项测试通过，复用真实 Vue 生命周期、Pinia、国际化、`initAxios` 和已安装的 `AxiosService`，覆盖资源清理、并发取消、退出及新登录后的迟到 401、成功续登重试、下一会话续登和 SaaS 行为；`node scripts/test-application-runtime.mjs` 的 135 个场景通过。在 9202 私有化服务的隔离浏览器 origin 上，使用真实弹窗、登录页和三个后端 `/user/detail` 401 验证：退出一次后原请求与排队请求均取消，进入登录页后放行挂起响应，三个请求均结束且弹窗总打开次数保持 1、当前弹窗数为 0；未提交真实账号登录。
+
+静态与编译检查：续登入口、弹窗和请求初始化的定向 Vite 生产编译、`git diff --check` 通过。`pnpm exec vue-tsc --noEmit -p tsconfig.json` 仍有 549 项既有诊断；编译进程以只读源码覆盖方式对照修复前版本，同为 549 项，无新增错误位置或错误类型（原有 `handleReconnect` 可选类型错误的对象摘要随回调签名变化）。当前未配置 lint 脚本；完整 `pnpm build:standalone` 未重跑，下文记录的既有 8GB 堆内存不足限制仍需发布前验证。
 
 ## 账号中心
 

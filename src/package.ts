@@ -4,6 +4,7 @@ import {BASE_API, TOKEN_KEY, TOKEN_KEY_URL} from '@jetlinks-web/constants'
 import { crateAxios, getInstance, request, wsClient, ndJson } from '@jetlinks-web/core'
 import { jumpLogin } from '@jetlinks-web-core/router'
 import { notification } from 'ant-design-vue'
+import { CanceledError, type AxiosError } from 'axios'
 import { isSubApp, langKey, PersonalToken, PersonalUrlKey } from '@jetlinks-web-core/utils/consts'
 import { isPrivateDeployment } from '@jetlinks-web-core/utils/deployment'
 import VerifyDialog from '@jetlinks-web-core/views/verify/index.vue'
@@ -274,8 +275,13 @@ export const initAxios = (config: any = {}, host: { handleReconnect?: () => Prom
     let settings = {
           langKey: langKey,
           isCreateTokenRefresh: isCreateTokenRefresh,
-          tokenExpiration: () => {
+          tokenExpiration: (err?: AxiosError) => {
               const token = getToken();
+              const requestToken = err?.config?.headers.get(TOKEN_KEY)
+              // 退出或重新登录后，旧凭证请求的迟到 401 不能再次打断当前会话。
+              if (isCreateTokenRefresh && requestToken && requestToken !== token) {
+                  throw new CanceledError('session_changed')
+              }
               if(!token || !isCreateTokenRefresh){
                   clearVerifyCache()
                   jumpLogin()
