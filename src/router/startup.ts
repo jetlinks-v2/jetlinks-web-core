@@ -11,22 +11,25 @@ import { isBusinessApplicationRuntime } from '@jetlinks-web-core/utils/business-
 import { getApplicationRuntimeEntry } from '@jetlinks-web-core/utils/project-runtime'
 import { ApplicationEntryUnavailableError } from '@jetlinks-web-core/utils/application-scope'
 import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
+import { enterDefaultApplication, initializeBusinessApplicationEntry } from './default-entry'
 
 let menuRoutePromise: Promise<boolean> | undefined
 
-export const bootstrapSession = async () => {
+export const bootstrapSession = async (resolveDefaultEntry = true) => {
   const userStore = useUserStore()
   const systemStore = useSystemStore()
   const applicationStore = useApplication()
 
   // 先确认入口，避免首次用户/系统请求把裸应用路径作为租户域名而被拒绝。
   const selected = isBusinessApplicationRuntime()
-    ? await useBusinessApplicationStore().initialize()
+    ? await initializeBusinessApplicationEntry()
     : undefined
 
   if (!Object.keys(userStore.userInfo).length) {
     await userStore.getUserInfo()
   }
+
+  if (resolveDefaultEntry && await enterDefaultApplication()) return true
 
   const userKey = userStore.userInfo.id || userStore.userInfo.username
 
@@ -49,6 +52,7 @@ export const bootstrapSession = async () => {
       systemStore.changeTitle(selected.name)
     }
   }
+  return false
 }
 
 export const addFallbackRoute = (router: Router) => {

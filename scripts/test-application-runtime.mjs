@@ -23,6 +23,17 @@ const memoryStorage = () => {
   }
 }
 
+// Browser Location accepts relative href assignments, unlike the native URL setter.
+const browserLocation = url => new Proxy(Object.assign(new URL(url), {
+  assign: value => { globalThis.__applicationRuntimeTest.assignedUrl = value },
+}), {
+  get: (target, key) => {
+    const value = Reflect.get(target, key, target)
+    return typeof value === 'function' ? value.bind(target) : value
+  },
+  set: (target, key, value) => Reflect.set(target, key, key === 'href' ? new URL(value, target).href : value, target),
+})
+
 const applicationId = '2108487683332870144'
 const applicationUrl = `http://localhost:9100/${applicationId}/#/overview?applicationScope=${applicationId}`
 const apps = [
@@ -45,6 +56,11 @@ const fixtures = {
         if (state().applicationError) throw state().applicationError
         return { success: true, result: state().applications }
       }
+      if (url === '/authorize/me') {
+        if (state().authorizationError) throw state().authorizationError
+        if (state().authorizationWait) await state().authorizationWait
+        return state().authorizationResponse || { success: true, result: { dimensions: state().dimensions } }
+      }
       if (url === '/menu/user-own/tree') return { success: true, result: state().menus }
       return { success: true, result: {} }
     }
@@ -52,6 +68,7 @@ const fixtures = {
       get: (url, data, config) => execute('get', url, data, config),
       post: (url, data, config) => execute('post', url, data, config),
     }
+    export class Request {}
     export const crateAxios = settings => { state().axios = settings }
     export const getInstance = () => ({ defaults: {} })
     export const ndJson = { create: settings => { state().ndjson = settings } }
@@ -60,7 +77,7 @@ const fixtures = {
   '@jetlinks-web/constants': `export const BASE_API = '/api'; export const TOKEN_KEY = 'X-Access-Token'; export const TOKEN_KEY_URL = 'token';`,
   '@jetlinks-web/utils': `
     export const getToken = () => localStorage.getItem('X-Access-Token')
-    export const setToken = () => {}
+    export const setToken = token => localStorage.setItem('X-Access-Token', token)
     export const removeToken = () => {}
     export const onlyMessage = (...args) => globalThis.__applicationRuntimeTest.messages.push(args)
     export const LocalStore = { get: key => localStorage.getItem(key), set() {}, remove() {} }
@@ -104,15 +121,17 @@ const fixtures = {
     export const Login = { path: '/login', name: 'Login', component: {} }
     export const Forbidden = { path: '/403', name: 'Forbidden', component: {}, meta: { skipMenuFetch: true } }
   `,
-  'vue-router': `export * from 'vue-router-real'; import { createMemoryHistory } from 'vue-router-real'; export const createWebHashHistory = createMemoryHistory;`,
+  'vue-router': `export * from 'vue-router-real'; import { createMemoryHistory } from 'vue-router-real'; export const createWebHashHistory = createMemoryHistory; export const useRoute = () => globalThis.__applicationRuntimeTest.route;`,
 }
 
 const createState = () => ({
   applications: apps,
   menus: [menu],
+  dimensions: [],
+  route: { query: {}, params: {} },
   requests: [],
   messages: [],
-  user: { userInfo: { id: 'user' }, isAdmin: true, isSubAccount: false, init() {} },
+  user: { userInfo: { id: 'user' }, isAdmin: true, isSubAccount: false, init() {}, async getUserInfo() {} },
   microApplication: { appList: ['loaded'], findAppById() {}, init() {} },
   system: {
     layout: { title: '项目' }, isSessionInitializedFor: () => true,
@@ -128,6 +147,8 @@ const bundle = async (environment, runtimeScope = 'project', subApp = false) => 
     __MICRO_APP_ENVIRONMENT__: subApp,
     microApp: { getGlobalData: () => ({ api: {} }) },
   }
+  globalThis.sessionStorage = window.sessionStorage
+  globalThis.location = window.location
   globalThis.document = { title: '' }
   globalThis.__applicationRuntimeTest = createState()
   const built = await build({
@@ -139,6 +160,9 @@ const bundle = async (environment, runtimeScope = 'project', subApp = false) => 
         export * as startup from '${source('router/startup.ts')}'
         export { useBusinessApplicationStore } from '${source('store/businessApplication.ts')}'
         export { useMenuStore } from '${source('store/menu.ts')}'
+        export { useAuthStore } from '${source('store/auth.ts')}'
+        export { useLoginSuccess } from '${source('views/login/hooks/useLoginSuccess.ts')}'
+        export { DefaultApplicationEntryError } from '${source('router/default-entry.ts')}'
         export { useBasicLayoutVariant } from '${source('layout/hooks/useBasicLayoutVariant.ts')}'
         export { initAxios } from '${source('package.ts')}'
         export { prepareApplicationAccess } from '${source('utils/application-access.ts')}'
@@ -183,8 +207,10 @@ const bundle = async (environment, runtimeScope = 'project', subApp = false) => 
 }
 
 const reset = (api, url = applicationUrl) => {
-  window.location = Object.assign(new URL(url), { assign: url => { globalThis.__applicationRuntimeTest.assignedUrl = url } })
+  window.location = browserLocation(url)
   window.sessionStorage.clear()
+  globalThis.sessionStorage = window.sessionStorage
+  globalThis.location = window.location
   localStorage.clear()
   localStorage.setItem('X-Access-Token', 'test-token')
   globalThis.__applicationRuntimeTest = createState()
@@ -194,8 +220,8 @@ const reset = (api, url = applicationUrl) => {
 }
 
 try {
-  for (const environment of ['', 'saas']) {
-    const api = await bundle(environment)
+  for (const [environment, runtimeScope] of [['', 'project'], ['saas', 'project'], ['saas', 'auto']]) {
+    const api = await bundle(environment, runtimeScope)
     const { scope, runtime, context, startup } = api
 
     // 裸应用入口必须先核验授权身份，不能在首个请求中把应用 ID 当作租户域名。
@@ -367,6 +393,157 @@ try {
     assert.equal(api.useBasicLayoutVariant().value, 'project')
     scenarios++
 
+    const applicationRole = { type: 'role', options: { applicationId } }
+    const projectRole = { type: 'role', options: {} }
+    const projectUrl = 'http://localhost:9100/p_vdhvrs/#/'
+    const prepareProject = (dimensions, applications = apps) => {
+      reset(api, projectUrl)
+      const state = globalThis.__applicationRuntimeTest
+      state.user.isAdmin = false
+      state.dimensions = dimensions
+      state.applications = applications
+      if (environment) {
+        localStorage.setItem('project_p_vdhvrs', JSON.stringify({ token: 'project-token', domain: 'p_vdhvrs' }))
+      }
+      return state
+    }
+
+    for (const [name, dimensions, onlyApplications] of [
+      ['project', [projectRole], false],
+      ['mixed', [applicationRole, projectRole], false],
+      ['application', [applicationRole], true],
+      ['object-type', [{ ...applicationRole, type: { id: 'role' } }], true],
+      ['ignored-project', [applicationRole, { ...projectRole, options: { ignore: true } }], true],
+      ['ignored-application', [{ type: 'role', options: { applicationId, ignore: true } }], false],
+      ['empty', [], false],
+      ['tenant', [{ type: 'tenant' }, { type: 'business_application' }], false],
+      ['blank-application', [{ type: 'role', options: { applicationId: '  ' } }], false],
+    ]) {
+      const state = prepareProject(dimensions)
+      state.menus = [{ ...menu, owner: onlyApplications ? 'app' : 'iot' }]
+      assert.equal(await startup.bootstrapSession(), onlyApplications, name)
+      if (onlyApplications) {
+        assert.equal(new URL(state.assignedUrl).pathname, `/${applicationId}/`, name)
+        // Continue at the real application URL, preserving requests to verify every menu stayed in scope.
+        window.location = new URL(state.assignedUrl)
+        setActivePinia(createPinia())
+        await startup.bootstrapSession()
+      }
+      await startup.ensureMenuRoutes(api.router, false)
+      const authorizationIndex = state.requests.findIndex(request => request.url === '/authorize/me')
+      const menuRequests = state.requests.filter(request => request.url === '/menu/user-own/tree')
+      assert.ok(authorizationIndex >= 0 && authorizationIndex < state.requests.findIndex(request => request.url === '/menu/user-own/tree'), name)
+      assert.equal(state.requests[authorizationIndex].headers[scope.APPLICATION_SCOPE_HEADER], undefined, name)
+      assert.equal(state.requests[authorizationIndex].headers['X-Tenant-Domain'], environment ? 'p_vdhvrs' : undefined, name)
+      assert.ok(menuRequests.every(request => request.data.terms[0].value === (onlyApplications ? 'app' : 'iot')), name)
+      assert.ok(menuRequests.every(request => request.headers[scope.APPLICATION_SCOPE_HEADER] === (onlyApplications ? `business_application:${applicationId}` : undefined)), name)
+      scenarios++
+    }
+
+    // API ordering wins over role ordering, including a first application other than the role's application.
+    {
+      const state = prepareProject([applicationRole], [...apps].reverse())
+      assert.equal(await startup.bootstrapSession(), true)
+      assert.equal(new URL(state.assignedUrl).pathname, '/application-b/')
+      assert.equal(state.requests.at(-1).headers[scope.APPLICATION_SCOPE_HEADER], 'business_application:application-b')
+      scenarios++
+    }
+
+    for (const mode of ['administrator', 'explicit-project', 'authenticated-page']) {
+      const state = prepareProject([applicationRole])
+      if (mode === 'administrator') state.user.isAdmin = true
+      if (mode === 'explicit-project') window.location.hash = `#/?applicationScope=${scope.PROJECT_APPLICATION_SCOPE}`
+      assert.equal(await startup.bootstrapSession(mode !== 'authenticated-page'), false)
+      assert.equal(state.requests.some(request => request.url === '/authorize/me'), false)
+      assert.equal(state.assignedUrl, undefined)
+      scenarios++
+    }
+
+    for (const failure of ['authorization-network', 'authorization-result', 'empty-applications', 'empty-first-menu', 'application-network']) {
+      const state = prepareProject([applicationRole])
+      if (failure === 'authorization-network') state.authorizationError = new Error('authorization network failed')
+      if (failure === 'authorization-result') state.authorizationResponse = { success: false }
+      if (failure === 'empty-applications') state.applications = []
+      if (failure === 'empty-first-menu') state.menus = []
+      if (failure === 'application-network') state.applicationError = new Error('application network failed')
+      const originalError = console.error
+      try {
+        console.error = () => {}
+        await api.router.push('/')
+      } finally {
+        console.error = originalError
+      }
+      assert.equal(api.router.currentRoute.value.path, '/403', failure)
+      assert.equal(state.assignedUrl, undefined, failure)
+      assert.ok(state.messages.length > 0, failure)
+      assert.equal(state.requests.some(request => request.url === '/menu/user-own/tree' && request.data.terms[0]?.value !== 'app'), false, failure)
+      if (failure !== 'empty-first-menu') assert.equal(state.requests.some(request => request.url === '/menu/user-own/tree'), false, failure)
+      scenarios++
+    }
+
+    for (const onlyApplications of [false, true]) {
+      const state = prepareProject(onlyApplications ? [applicationRole] : [applicationRole, projectRole])
+      await api.useLoginSuccess().handleLoginSuccess('new-token')
+      const menuRequests = state.requests.filter(request => request.url === '/menu/user-own/tree')
+      if (onlyApplications) {
+        assert.equal(new URL(state.assignedUrl).pathname, `/${applicationId}/`)
+        assert.ok(menuRequests.every(request => request.headers[scope.APPLICATION_SCOPE_HEADER] === `business_application:${applicationId}`))
+      } else {
+        assert.equal(new URL(window.location.href, projectUrl).pathname, environment ? '/p_vdhvrs/' : '/')
+        assert.equal(menuRequests.length, 0)
+      }
+      assert.equal(state.requests.filter(request => request.url === '/authorize/me').length, 1)
+      assert.equal(state.requests.find(request => request.url === '/authorize/me').headers['X-Access-Token'], 'new-token')
+      scenarios++
+    }
+
+    // Explicit application links stay on that application after login, including username@project accounts.
+    {
+      reset(api, 'http://localhost:9100/application-b/#/login?applicationScope=application-b')
+      const state = globalThis.__applicationRuntimeTest
+      state.user.isAdmin = false
+      state.dimensions = [applicationRole]
+      if (environment) {
+        localStorage.setItem('project_application-b', JSON.stringify({ token: 'previous-token', domain: 'p_vdhvrs', scope: 'application-b' }))
+      }
+      await api.useLoginSuccess().handleLoginSuccess('application-token', { username: 'testyy@p_vdhvrs' })
+      assert.equal(new URL(window.location.href).pathname, '/application-b/')
+      assert.equal(scope.getRouteQueryParam(window.location, 'applicationScope'), 'application-b')
+      assert.equal(state.requests.some(request => request.url === '/authorize/me' || request.url === '/menu/user-own/tree'), false)
+      assert.equal(state.requests[0].headers['X-Access-Token'], 'application-token')
+      scenarios++
+    }
+
+    {
+      const state = prepareProject([applicationRole])
+      state.authorizationError = new Error('authorization unavailable')
+      await api.useLoginSuccess().handleLoginSuccess('new-token')
+      assert.equal(new URL(window.location.href).hash, '#/403')
+      assert.equal(state.requests.some(request => request.url === '/menu/user-own/tree'), false)
+      scenarios++
+    }
+
+    // Concurrent reads merge; logout and a late old response cannot restore the previous account's decision.
+    {
+      const state = prepareProject([applicationRole])
+      const auth = api.useAuthStore()
+      let release
+      state.authorizationWait = new Promise(resolve => { release = resolve })
+      const old = auth.hasOnlyApplicationRoles()
+      const oldRejected = assert.rejects(old, /session changed/)
+      const duplicateRejected = assert.rejects(auth.hasOnlyApplicationRoles(), /session changed/)
+      assert.equal(state.requests.filter(request => request.url === '/authorize/me').length, 1)
+      auth.init()
+      state.authorizationWait = undefined
+      state.dimensions = [projectRole]
+      assert.equal(await auth.hasOnlyApplicationRoles(), false)
+      release()
+      await Promise.all([oldRejected, duplicateRejected])
+      assert.equal(await auth.hasOnlyApplicationRoles(), false)
+      assert.equal(state.requests.filter(request => request.url === '/authorize/me').length, 2)
+      scenarios++
+    }
+
     for (const failure of ['missing', 'empty-menu', 'endpoint-missing', 'network']) {
       reset(api)
       const state = globalThis.__applicationRuntimeTest
@@ -443,6 +620,41 @@ try {
       assert.equal(runtime.isApplicationRuntime(), false)
       scenarios++
     }
+  }
+
+  // A fresh router must stop on 403 after a discovery failure, without redirecting to 403 repeatedly.
+  {
+    const api = await bundle('saas', 'auto')
+    reset(api, 'http://localhost:9100/p_vdhvrs/#/')
+    const state = globalThis.__applicationRuntimeTest
+    state.user.isAdmin = false
+    state.applicationError = new Error('application discovery unavailable')
+    const originalError = console.error
+    try {
+      console.error = () => {}
+      await api.router.push('/')
+    } finally {
+      console.error = originalError
+    }
+    assert.equal(api.router.currentRoute.value.path, '/403')
+    assert.equal(state.requests.some(request => request.url === '/menu/user-own/tree'), false)
+    assert.ok(state.requests.filter(request => request.url === '/business-application/me').length <= 2)
+    scenarios++
+  }
+
+  // Successful full-page navigation cancels the pending project navigation before its menus load.
+  {
+    const api = await bundle('saas', 'auto')
+    reset(api, 'http://localhost:9100/p_vdhvrs/#/')
+    const state = globalThis.__applicationRuntimeTest
+    state.user.isAdmin = false
+    state.dimensions = [{ type: 'role', options: { applicationId } }]
+    localStorage.setItem('project_p_vdhvrs', JSON.stringify({ token: 'project-token', domain: 'p_vdhvrs' }))
+    await api.router.push('/overview')
+    assert.equal(new URL(state.assignedUrl).pathname, `/${applicationId}/`)
+    assert.equal(api.router.currentRoute.value.path, '/')
+    assert.ok(state.requests.filter(request => request.url === '/menu/user-own/tree').every(request => request.data.terms[0]?.value === 'app'))
+    scenarios++
   }
 
   for (const [runtimeScope, subApp] of [['tenant', false], ['project', true]]) {

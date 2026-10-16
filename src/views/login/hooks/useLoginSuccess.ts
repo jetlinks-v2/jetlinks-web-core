@@ -7,7 +7,20 @@ import {
   toDefaultLoginSuccessHref,
   toRuntimeHashHref,
 } from '../utils/redirect'
-import {setProjectStorage} from "@jetlinks-web-core/utils";
+import { getProjectStorage, isProjectStorageEnabled, setProjectStorage } from '@jetlinks-web-core/utils/project-storage'
+import {
+  createProjectRuntimeHref,
+  getApplicationRuntimeEntry,
+  getProjectCodeFromLocation,
+  getProjectCodeFromPathname,
+} from '@jetlinks-web-core/utils/project-runtime'
+import { createApplicationScopeUrl } from '@jetlinks-web-core/utils/application-scope'
+import { isBusinessApplicationRuntime } from '@jetlinks-web-core/utils/business-application-runtime'
+import {
+  DefaultApplicationEntryError,
+  enterDefaultApplication,
+  initializeBusinessApplicationEntry,
+} from '@jetlinks-web-core/router/default-entry'
 
 interface LoginSuccessOptions {
   afterStoreInit?: () => Promise<void> | void
@@ -36,6 +49,7 @@ export function useLoginSuccess() {
 
     // 扫码登录与微信回调只传 token，这里必须允许 options 缺省，否则会直接抛 TypeError。
     const username = options?.username || ''
+    const currentProjectCode = getProjectCodeFromLocation() || getProjectCodeFromPathname()
     const isSubAccess = username.includes('@')
     let code
 
@@ -53,12 +67,17 @@ export function useLoginSuccess() {
         })
       }
     }
+    if (isProjectStorageEnabled() && isBusinessApplicationRuntime()
+      && (!code || code === currentProjectCode || getApplicationRuntimeEntry().type === 'application')) {
+      const stored = getProjectStorage(currentProjectCode)
+      // 当前项目凭证优先于全局 token；就地重登录也必须替换它，才能读取新账号的角色。
+      if (stored) setProjectStorage(currentProjectCode, { ...stored, token })
+    }
     await userStore.init()
     await menuStore.init()
     await authStore.init()
-
-    await userStore.getUserInfo()
-    const menus = await menuStore.requestMenus(false)
+    const businessApplicationStore = useBusinessApplicationStore()
+    businessApplicationStore.init()
 
     localStorage.removeItem('pFrom') // 清除来源地址
 
@@ -66,27 +85,23 @@ export function useLoginSuccess() {
       await options.afterStoreInit()
     }
 
-    // 获取菜单是否只有某一个
-    const menuOwners = new Set()
-    menus.result.forEach((menu) => {
-      console.log(menuOwners.size, menu)
-      if (menuOwners.size <= 2) {
-        menuOwners.add(menu.owner)
-      }
-    })
-
-    if (menuOwners.size === 1 && menuOwners.has('app')) {
-      const businessApplicationStore = useBusinessApplicationStore()
-      businessApplicationStore.init()
-      const enteredApplication = await businessApplicationStore.enterFirstApplication({
-        currentProjectCode: code,
-        fallbackPath: '',
-        silent: true,
-      })
-      if (enteredApplication) return
+    // 跨项目登录先建立目标 URL 上下文，身份判断交给目标项目的会话启动。
+    if (code && code !== currentProjectCode && getApplicationRuntimeEntry().type !== 'application') {
+      window.location.href = createProjectRuntimeHref(code)
+      return
     }
 
-    if (code) {
+    try {
+      if (isBusinessApplicationRuntime()) await initializeBusinessApplicationEntry()
+      await userStore.getUserInfo()
+      if (await enterDefaultApplication()) return
+    } catch (error) {
+      if (!(error instanceof DefaultApplicationEntryError)) throw error
+      window.location.href = createProjectRuntimeHref(currentProjectCode, '/403')
+      return
+    }
+
+    if (code && getApplicationRuntimeEntry().type !== 'application') {
       window.location.href = `${location.origin}/${code}/#/`
       return
     }
@@ -137,7 +152,14 @@ export function useLoginSuccess() {
     //   // url = hasInit ? '/#/home/analysis' : '/#/information'
     //   url = '/#/console/index'
     // }
-    window.location.href = toDefaultLoginSuccessHref()
+    const entry = getApplicationRuntimeEntry()
+    if (entry.type === 'application') {
+      window.location.href = createApplicationScopeUrl(`${location.origin}${location.pathname}#/`, entry.applicationId)
+      return
+    }
+    window.location.href = isBusinessApplicationRuntime()
+      ? createProjectRuntimeHref(currentProjectCode)
+      : toDefaultLoginSuccessHref()
   }
 
   return {

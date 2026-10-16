@@ -11,6 +11,7 @@ import microApp from '@micro-zoe/micro-app'
 import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
 import { RouteSecurityLevel } from './types'
+import { DefaultApplicationEntryError } from './default-entry'
 import { toValue } from 'vue'
 import {
   addFallbackRoute,
@@ -290,8 +291,13 @@ router.beforeEach((to, from, next) => {
       resetRouteStartupState()
       next({ path: '/' })
     } else {
-      bootstrapSession()
-        .then(() => {
+      bootstrapSession(!shouldSkipMenuFetch(to))
+        .then(redirected => {
+          if (redirected) {
+            routeLoading.finish()
+            next(false)
+            return
+          }
           const administratorRouteRedirect = getAdministratorRouteRedirect(to)
           if (administratorRouteRedirect) {
             next(administratorRouteRedirect)
@@ -312,6 +318,11 @@ router.beforeEach((to, from, next) => {
         })
         .catch(error => {
           console.error('[Router] 初始化会话失败:', error)
+          if (error instanceof DefaultApplicationEntryError) {
+            if (isForbiddenRoute(to)) next()
+            else next({ path: FORBIDDEN_PATH, query: to.query, replace: true })
+            return
+          }
           if (handleApplicationStartupError(error, to, next)) return
           const administratorRouteRedirect = getAdministratorRouteRedirect(to)
           if (administratorRouteRedirect) {

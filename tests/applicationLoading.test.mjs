@@ -114,12 +114,14 @@ function environment(t, {
     new Function('require', 'exports', 'window', 'localStorage', 'importMetaEnv', 'console', code)(id => {
       if (id === '@jetlinks-web-core/store') return {
         useApplication: () => application,
+        useAuthStore: () => ({ hasOnlyApplicationRoles: async () => false }),
         useUserStore: () => ({ userInfo: { id: 'user-42' } }),
         useSystemStore: () => system,
         useBusinessApplicationStore: () => businessApplication,
         useMenuStore: () => menu,
       };
-      if (id === '@jetlinks-web/utils') return { getToken: () => localStorage.getItem(runtimeEnv.VITE_TOKEN_KEY) };
+      if (id === '@jetlinks-web/utils') return { getToken: () => localStorage.getItem(runtimeEnv.VITE_TOKEN_KEY), onlyMessage() {} };
+      if (id === '@jetlinks-web-core/locales') return { default: { global: { t: key => key } } };
       if (id === '@jetlinks-web/core') return { request: { get: async url => {
         assert.equal(url, '/system/resources/ui');
         calls.lists.push(url);

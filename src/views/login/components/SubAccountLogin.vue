@@ -65,13 +65,12 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { Form, FormItem, Input, InputPassword, Checkbox, Button } from 'ant-design-vue'
+import { Form, FormItem, Input, InputPassword, Checkbox, Button, type FormProps } from 'ant-design-vue'
 import i18n from '@jetlinks-web-core/locales'
 
 import { subAccountLogin, type SubAccountLoginResponse } from '@jetlinks-web-core/api/login'
 import { onlyMessage, setToken } from '@jetlinks-web/utils'
 import { isProjectStorageEnabled, setProjectStorage } from '@jetlinks-web-core/utils'
-import { useBusinessApplicationStore } from '@jetlinks-web-core/store/businessApplication'
 import {
   createProjectRuntimeHref,
   getProjectCodeFromLocation,
@@ -88,7 +87,6 @@ withDefaults(
 )
 const t = i18n.global.t
 const subAccountLoginEnabled = isProjectStorageEnabled()
-const businessApplicationStore = useBusinessApplicationStore()
 
 const loading = ref(false)
 const usernameInputRef = ref()
@@ -101,7 +99,7 @@ const formState = reactive({
   remember: true,
 })
 
-const rules = {
+const rules: FormProps['rules'] = {
   username: [{ required: true, message: t('Login.usernameRequired'), trigger: 'blur' }],
   projectCode: [{ required: true, message: t('Login.projectCodeRequired'), trigger: 'blur' }],
   password: [{ required: true, message: t('Login.passwordRequired'), trigger: 'blur' }],
@@ -177,14 +175,7 @@ const handleFinish = async () => {
 
       const redirectPath = resolveRedirectPath()
 
-      businessApplicationStore.init()
-      const enteredApplication = await businessApplicationStore.enterFirstApplication({
-        currentProjectCode: code,
-        fallbackPath: redirectPath,
-        silent: true,
-      })
-      if (enteredApplication) return
-
+      // 先进入目标项目，由统一会话启动按角色归属选择项目或首个应用。
       window.location.href = createProjectRuntimeHref(code, redirectPath)
       return
     }

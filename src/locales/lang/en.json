@@ -1216,6 +1216,7 @@
   "components.BusinessApplicationSwitcher.switching": "Switching application",
   "components.BusinessApplicationSwitcher.switchFailed": "Could not switch to “{name}”. The current application remains active.",
   "components.BusinessApplicationSwitcher.loadFailed": "Could not load the application. Refresh the page to try again.",
+  "components.BusinessApplicationSwitcher.noAccessibleApplication": "No applications are available for this account. Contact an administrator.",
   "components.BusinessApplicationSwitcher.notConfigured": "Unable to switch to “{name}”. No access is configured. Contact an administrator.",
   "components.BusinessApplicationSwitcher.projectEntry": "Current project",
   "components.BusinessApplicationSwitcher.headerLabel": "Applications",
