@@ -41,6 +41,38 @@
                 <div class="basic-form-desc">{{ $t('AccountInfo.usernameDesc') }}</div>
               </div>
 
+              <a-form :model="contactForm" layout="vertical" class="basic-contact-form">
+                <a-form-item
+                  v-for="field in contactFields"
+                  :key="field.key"
+                  v-bind="validateInfos[field.key]"
+                  :label="$t(field.label)"
+                  :name="field.key"
+                  class="basic-form-item"
+                >
+                  <div class="basic-form-control">
+                    <a-input
+                      v-model:value="contactForm[field.key]"
+                      :type="field.type"
+                      :placeholder="$t(field.placeholder)"
+                      :disabled="!!savingContact"
+                      style="max-width: 22.5rem"
+                      allow-clear
+                    />
+                    <a-button
+                      v-if="contactChanged[field.key]"
+                      type="primary"
+                      size="small"
+                      :loading="savingContact === field.key"
+                      :disabled="!!savingContact && savingContact !== field.key"
+                      @click="saveContact(field.key)"
+                    >
+                      {{ $t('AccountInfo.save') }}
+                    </a-button>
+                  </div>
+                </a-form-item>
+              </a-form>
+
               <!-- 密码 -->
               <div class="basic-form-item">
                 <div class="basic-form-label">{{ $t('AccountInfo.password') }}</div>
@@ -65,7 +97,7 @@
           </div>
         </div>
 
-        <!-- 角色 / 组织 / 职位 信息展示（独立一行占据整行宽度） -->
+        <!-- 角色 / 组织 信息展示（独立一行占据整行宽度） -->
         <div class="basic-form-meta">
           <div class="basic-form-meta-item">
             <div class="basic-form-meta-label">{{ $t('AccountInfo.roles') }}</div>
@@ -108,24 +140,6 @@
               </template>
               <span v-else class="basic-form-meta-empty">
                 {{ $t('Detail.index.153077-7') }}
-              </span>
-            </div>
-          </div>
-
-          <div class="basic-form-meta-item">
-            <div class="basic-form-meta-label">{{ $t('AccountInfo.positions') }}</div>
-            <div class="basic-form-meta-value">
-              <template v-if="(userInfo?.positions || []).length">
-                <a-tag
-                  v-for="item in userInfo?.positions || []"
-                  :key="item.id || item.name"
-                  color="purple"
-                >
-                  {{ item.name }}
-                </a-tag>
-              </template>
-              <span v-else class="basic-form-meta-empty">
-                {{ $t('Detail.index.153077-9') }}
               </span>
             </div>
           </div>
@@ -278,6 +292,7 @@ import { useI18n } from 'vue-i18n'
 import { queryModal } from '@jetlinks-web-core/api/login'
 import BindThirdAccount from '../BindThirdAccount/index.vue'
 import UploadAvatar from '../UploadAvatar/index.vue'
+import { useContactInfo } from './useContactInfo'
 
 interface IdentityItem {
   id: string
@@ -292,6 +307,7 @@ const { t: $t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const user = useUserStore()
+const { contactFields, contactForm, contactChanged, savingContact, validateInfos, saveContact } = useContactInfo()
 const userInfo = computed(() => user.userInfo)
 const emit = defineEmits(['open-edit-password'])
 
@@ -804,6 +820,16 @@ onUnmounted(() => {
     margin-bottom: var(--space-5);
   }
 
+  .basic-contact-form :deep(.ant-form-item-label) {
+    padding-bottom: 0.375rem;
+
+    > label {
+      font-size: var(--fs-13);
+      font-weight: 500;
+      color: #1d2129;
+    }
+  }
+
   .basic-form-label {
     font-size: var(--fs-13);
     font-weight: 500;
@@ -843,7 +869,7 @@ onUnmounted(() => {
     border-top: 1px solid var(--line-strong);
     padding-top: var(--space-3);
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     column-gap: var(--space-6);
     row-gap: 0;
   }
