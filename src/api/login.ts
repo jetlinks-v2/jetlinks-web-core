@@ -7,7 +7,7 @@ import { isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storag
  * @param data
  * @returns
  */
-export const login = (data: any) => request.post('/authorize/login', data)
+export const login = (data: any) => request.post('/authorize/login', data,loginRequestConfig)
 
 /**
  * 退出登录
@@ -17,13 +17,13 @@ export const logout = () => request.get('/user-token/reset')
 /**
  * 获取验证码
  */
-export const codeUrl = () => request.get<{ base64: string, key: string }>(`/authorize/captcha/image?width=130&height=30`)
+export const codeUrl = () => request.get<{ base64: string, key: string }>(`/authorize/captcha/image?width=130&height=30`,{},loginRequestConfig)
 
 /**
  * 登录加密信息
  * @returns
  */
-export const encryptionConfig = () => request.get(`/authorize/login/configs`)
+export const encryptionConfig = () => request.get(`/authorize/login/configs`,{},loginRequestConfig)
 
 /**
  * 登录加密信息
@@ -36,7 +36,7 @@ export const captchaConfig = () => request.get(`/authorize/captcha/config`, {},{
  * 登录
  * @returns
  */
-export const authLogin = (data: any) => request.post(`/authorize/login`, data)
+export const authLogin = (data: any) => request.post(`/authorize/login`, data,{},{ projectContext: false })
 
 /**
  * 获取当前登录用户信息
