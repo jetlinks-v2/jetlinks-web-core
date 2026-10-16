@@ -243,7 +243,11 @@ export const createHomeAgentContext = (
   const menus = collectVisibleMenus(options)
   const findMenu = createFindMenu(menus)
   const latestUserMessage = options.getLatestUserMessage?.()
+  const scopeKey = typeof options.scopeKey === 'function'
+    ? options.scopeKey()
+    : options.scopeKey
   const context: HomeAgentCapabilityContext = {
+    ...(scopeKey ? { scopeKey } : {}),
     currentRoute: buildCurrentRouteSummary(),
     currentView: resolveCurrentView(options) || undefined,
     ...(latestUserMessage?.content ? { latestUserMessage } : {}),
