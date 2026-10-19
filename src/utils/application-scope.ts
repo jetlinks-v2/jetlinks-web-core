@@ -249,7 +249,6 @@ export const applyApplicationScopeHeaders = (
   applicationScope: MenuApplicationScope,
   currentApplicationId?: string,
   projectContext?: false,
-  url?: string,
 ) => {
   const scopeKeys = Object.keys(headers).filter(key => key.toLowerCase() === APPLICATION_SCOPE_HEADER.toLowerCase())
   const explicitHeader = scopeKeys.map(key => headers[key]).find(value => typeof value === 'string' && value.trim())
@@ -263,7 +262,7 @@ export const applyApplicationScopeHeaders = (
     headers[APPLICATION_SCOPE_HEADER] = explicitHeader.startsWith('business_application:')
       ? getApplicationScopeHeader(explicitHeader)
       : explicitHeader
-  } else if (!url?.includes('/edge/device/')) {
+  } else {
     const scope = getApplicationScopeHeader(currentApplicationId)
     if (scope) headers[APPLICATION_SCOPE_HEADER] = scope
   }

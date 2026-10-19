@@ -21,6 +21,20 @@
 
 ## 请求、运行态与结果
 
+### 边端请求上下文隔离
+
+边端请求不携带 `X-Tenant-Domain` 和 `X-Asset-Scope`，包括调用方显式传入、大小写不同及重试配置中保留的请求头。owning module 为 `runtime-ui/jetlinks-web-core`。
+
+`src/utils/request-context.ts` 的 `stripEdgeRequestHeaders` 是 core 内部深层入口：根据请求 `url`、`baseURL`（未传入时使用当前请求 API）识别 `/edge/{thingType}/{thingId}/_` 代理路径，并覆盖现有 `isFromCloud()` 远程边端页面。只匹配解析后的 pathname，查询参数与 hash 中出现代理地址不会触发隔离。该函数原位清理请求头，保留 Token、二次校验及其他请求头；绝对 URL 按传输层语义忽略 baseURL。
+
+`src/package.ts` 在公共请求头注入与远程代理 URL 改写后执行清理，供 Axios 与 NDJSON 共用；`getRequestHeaders` / `getUploadHeaders` 同样执行清理，访问特定边端目标时可传入 `{ url, baseURL }`。例如 `getUploadHeaders({ url: '/file/upload', baseURL: '/api/edge/device/gateway-1/_' })` 返回保留凭证、移除云端上下文的上传头。`src/utils/application-scope.ts` 不再通过宽泛的 `/edge/device/` 字符串排除应用 Scope，云端 `/edge/device/_query`、网关详情等管理接口按正常应用上下文处理。
+
+影响范围仅为运行时前端 core、`scripts/test-application-runtime.mjs`、`tests/relogin.test.mjs` 与本文档；不涉及后端接口、数据结构或鉴权 Token 选择。
+
+验证：core 下 `pnpm test:application-runtime` 的 185 个生产链路场景及 `node --test tests/relogin.test.mjs` 的 9 项回归通过，覆盖对象头与 AxiosHeaders、大小写、显式 Scope、重试、相对/绝对 URL、baseURL 代理、上传、远程边端入口及云端管理接口。`pnpm exec vue-tsc --noEmit -p tsconfig.json` 仍报告 549 条诊断，使用 HEAD 中本次修改前的三个源码文件在同一工作区比对，忽略行号后的输出完全一致；本次没有新增诊断。当前未配置 lint 脚本。最终 `pnpm build --outDir /tmp/jetlinks-edge-headers.MVFmPt/dist` 与 `git diff --check` 通过，构建耗时 1 分 53 秒；保留资源路径、循环分包、大 chunk 及可视化播放器未构建等工作区警告。构建、类型检查及基线对比日志位于 `/tmp/jetlinks-edge-headers.MVFmPt/`。
+
+剩余验证：尚未连接真实 SaaS 网关进行浏览器验收，需检查边端查询、上传和云端网关管理操作；特别确认移除代理请求的租户头后，云端入口仍能通过当前凭证完成访问路由。
+
 | 文件/能力 | 根入口 | 主要用途 |
 | --- | --- | --- |
 | `request-context.ts`：`getBaseApi`、`getRequestTenantDomain`、`getRequestHeaders`、`getUploadHeaders` | 经 `comm.ts` 导出 | API base、租户路由、请求头和上传请求上下文；应用入口仅复用已保存的项目域名，不以应用 ID 兜底。入口身份确认请求可用 `tenantDomain: false` 暂停租户路由 |

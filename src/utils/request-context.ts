@@ -5,7 +5,7 @@ import { edgeDefaultUrl, isSubApp } from './consts'
 import { getProjectIdFromLocation } from './project-path'
 import { getProjectStorage, isProjectStorageEnabled, type ProjectStorageInfo } from './project-storage'
 import { getApplicationRuntimeEntry } from './project-runtime'
-import { applyApplicationScopeHeaders, type MenuApplicationScope } from './application-scope'
+import { APPLICATION_SCOPE_HEADER, applyApplicationScopeHeaders, type MenuApplicationScope } from './application-scope'
 
 const TENANT_DOMAIN_KEY = 'X-Tenant-Domain'
 const VERIFY_CACHE_KEY = 'jetlinks_verify_cache'
@@ -66,6 +66,39 @@ export const getRequestBaseApi = () => {
   return projectApi || getBaseApi()
 }
 
+type RequestTarget = {
+  url?: string
+  baseURL?: string
+}
+
+/** 仅识别真正的边端代理路径，云端 /edge/device/_query 等管理接口仍使用云端上下文。 */
+const isEdgeRequest = ({ url = '', baseURL }: RequestTarget): boolean => {
+  if (isFromCloud()) return true
+
+  // Axios 的绝对 URL 忽略 baseURL；相对 URL（包括以 / 开头）追加在 baseURL 后。
+  const target = /^(?:[a-z][a-z\d+.-]*:)?\/\//i.test(url)
+    ? url
+    : `${(baseURL ?? getRequestBaseApi() ?? '').replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`
+  try {
+    return /(?:^|\/)edge\/[^/]+\/[^/]+\/_(?:\/|$)/.test(new URL(target, window.location.origin).pathname)
+  } catch {
+    // 无效 URL 交给传输层处理，不因解析失败而改写云端权限上下文。
+    return false
+  }
+}
+
+/** 边端没有租户和云端资产 Scope，发送前清理显式头与重试残留，头名称不区分大小写。 */
+export const stripEdgeRequestHeaders = (headers: Record<string, unknown>, target: RequestTarget = {}): void => {
+  if (!isEdgeRequest(target)) return
+
+  for (const key of Object.keys(headers)) {
+    const name = key.toLowerCase()
+    if (name === TENANT_DOMAIN_KEY.toLowerCase() || name === APPLICATION_SCOPE_HEADER.toLowerCase()) {
+      delete headers[key]
+    }
+  }
+}
+
 const getVerifyHeaders = (): Record<string, string> => {
   if (typeof localStorage === 'undefined') return {}
 
@@ -88,11 +121,10 @@ const getVerifyHeaders = (): Record<string, string> => {
   }
 }
 
-export const getRequestHeaders = (options: {
+export const getRequestHeaders = (options: RequestTarget & {
   applicationScope?: MenuApplicationScope
   projectContext?: false
   tenantDomain?: false
-  url?: string
 } = {}): Record<string, string> => {
   const headers: Record<string, string> = {}
   const projectId = isProjectStorageEnabled() ? getProjectIdFromLocation() : ''
@@ -107,8 +139,8 @@ export const getRequestHeaders = (options: {
     options.applicationScope,
     getApplicationRuntimeEntry().applicationId,
     options.projectContext,
-    options.url,
   )
+  stripEdgeRequestHeaders(headers, options)
 
   return {
     ...headers,
