@@ -95,7 +95,7 @@
           </span>
         </template>
       </a-tree>
-      <a-empty
+      <CloudEmpty
         v-else
         class="model-config__empty"
         :description="isSearching ? locale.noMatchingFiles : locale.noFiles"

@@ -30,7 +30,7 @@
       />
     </div>
 
-    <a-empty v-else-if="!editing" :description="locale.noTargetInference" />
+    <CloudEmpty v-else-if="!editing" :description="locale.noTargetInference" />
   </div>
 </template>
 
