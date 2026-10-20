@@ -110,7 +110,7 @@
         </div>
       </div>
     </div>
-    <a-empty v-else :description="locale.noParameters" />
+    <CloudEmpty v-else :description="locale.noParameters" />
   </div>
 </template>
 

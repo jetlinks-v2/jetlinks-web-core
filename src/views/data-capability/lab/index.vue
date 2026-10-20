@@ -126,9 +126,9 @@
               <div v-else-if="componentPreview" class="component-preview">
                 <component :is="componentPreview" v-bind="componentPreviewProps" />
               </div>
-              <a-empty v-else description="当前能力没有注册可预览组件">
+              <CloudEmpty v-else description="当前能力没有注册可预览组件">
                 <a-button @click="refreshComponentPreview">重新加载组件</a-button>
-              </a-empty>
+              </CloudEmpty>
             </a-spin>
           </a-tab-pane>
         </a-tabs>

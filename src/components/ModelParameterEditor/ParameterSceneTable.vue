@@ -44,7 +44,7 @@
       </div>
     </div>
   </div>
-  <a-empty v-else :description="locale.noSceneParameters" />
+  <CloudEmpty v-else :description="locale.noSceneParameters" />
 </template>
 
 <script setup lang="ts">
