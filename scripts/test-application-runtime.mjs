@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { build } from 'esbuild'
+import { AxiosHeaders } from 'axios'
 import { createPinia, setActivePinia } from 'pinia'
 // Load memory routing before installing the location fixture, so Vue Router stays in SSR mode.
 import 'vue-router'
@@ -311,7 +312,7 @@ try {
     assert.deepEqual(ndjsonConfig.headers, axiosConfig.headers)
     assert.deepEqual(context.getUploadHeaders(), context.getRequestHeaders())
     assert.equal(context.getRequestHeaders({ applicationScope: false })[scope.APPLICATION_SCOPE_HEADER], undefined)
-    assert.equal(globalThis.__applicationRuntimeTest.axios.requestOptions({ url: '/edge/device/_query' }).headers[scope.APPLICATION_SCOPE_HEADER], undefined)
+    assert.equal(globalThis.__applicationRuntimeTest.axios.requestOptions({ url: '/edge/device/_query' }).headers[scope.APPLICATION_SCOPE_HEADER], `business_application:${applicationId}`)
     scenarios++
 
     const tabA = memoryStorage()
@@ -348,6 +349,112 @@ try {
     })
     assert.equal(explicit.headers[scope.APPLICATION_SCOPE_HEADER], 'business_application:application-b')
     scenarios++
+
+    // Edge transports must discard cloud context, including explicit headers and retry residue.
+    reset(api)
+    if (environment) {
+      localStorage.setItem(`project_${applicationId}`, JSON.stringify({ token: 'saas-token', domain: 'project', scope: applicationId }))
+    }
+    localStorage.setItem('jetlinks_verify_cache', JSON.stringify({ key: 'verify-key', token: 'verify-token' }))
+    const assertEdgeHeaders = (headers, name) => {
+      assert.equal(Object.keys(headers).some(key => ['x-tenant-domain', 'x-asset-scope'].includes(key.toLowerCase())), false, name)
+      assert.equal(headers['X-Access-Token'], environment ? 'saas-token' : 'test-token', name)
+      assert.equal(headers['x-verify-key'], 'verify-key', name)
+      assert.equal(headers['x-verify-token'], 'verify-token', name)
+    }
+    const edgeTargets = [
+      { url: '/edge/device/gateway-1/_/device-instance/_query' },
+      { url: '/api/edge/device/gateway-1/_' },
+      { url: 'edge/device/gateway-1/_/file/upload', baseURL: '/api' },
+      { url: '/edge/product/product-1/_/system/config/front' },
+      { url: 'https://proxy.example/api/edge/device/gateway-1/_/device-instance/_query' },
+      { url: '//proxy.example/api/edge/device/gateway-1/_/device-instance/_query' },
+      { url: '/device-instance/_query', baseURL: '/api/edge/device/gateway-1/_' },
+      { url: 'device-instance/_query', baseURL: 'https://proxy.example/api/edge/device/gateway-1/_/' },
+    ]
+    for (const target of edgeTargets) {
+      for (const [name, send] of [
+        ['axios', config => globalThis.__applicationRuntimeTest.axios.requestOptions(config)],
+        ['ndjson', config => globalThis.__applicationRuntimeTest.ndjson.handleRequest(config)],
+      ]) {
+        for (const makeHeaders of [value => ({ ...value }), value => AxiosHeaders.from(value)]) {
+          const request = {
+            ...target, applicationScope: 'explicit-application',
+            headers: makeHeaders({
+              'X-Tenant-Domain': 'old-project', 'x-tenant-domain': 'stale-project',
+              'X-Asset-Scope': 'business_application:old', 'x-AsSeT-sCoPe': 'device:old',
+              'X-Custom': 'retained',
+            }),
+          }
+          assertEdgeHeaders(send(request).headers, name)
+          assert.equal(request.headers['X-Custom'], 'retained', name)
+          request.headers['x-tenant-domain'] = 'retry-project'
+          request.headers['x-asset-scope'] = 'business_application:retry'
+          assertEdgeHeaders(send(request).headers, `${name} retry`)
+        }
+      }
+      assertEdgeHeaders(context.getRequestHeaders({ ...target, applicationScope: 'explicit-application' }), 'fetch')
+      assertEdgeHeaders(context.getUploadHeaders(target), 'upload')
+      scenarios++
+    }
+
+    // Cloud management URLs and proxy strings in query/hash must retain their normal scope.
+    for (const target of [
+      { url: '/edge/device/_query' },
+      { url: '/edge/device/gateway-1' },
+      { url: '/edge/device/gateway-1/_query' },
+      { url: '/device/_query?next=/edge/device/gateway-1/_/device-instance' },
+      { url: '/device/_query#example=/edge/device/gateway-1/_/device-instance' },
+      { url: 'https://cloud.example/api/device/_query', baseURL: '/edge/device/gateway-1/_' },
+    ]) {
+      for (const headers of [
+        globalThis.__applicationRuntimeTest.axios.requestOptions({ ...target }).headers,
+        globalThis.__applicationRuntimeTest.ndjson.handleRequest({ ...target }).headers,
+        context.getUploadHeaders(target),
+      ]) {
+        assert.equal(headers[scope.APPLICATION_SCOPE_HEADER], `business_application:${applicationId}`)
+        assert.equal(headers['X-Tenant-Domain'], environment ? 'project' : undefined)
+      }
+      scenarios++
+    }
+
+    // Upload/fetch helpers can receive the edge base from the saved API without an explicit URL.
+    if (environment) {
+      localStorage.setItem(`project_${applicationId}`, JSON.stringify({
+        token: 'saas-token', domain: 'project', scope: applicationId,
+        apiUrl: 'https://proxy.example/api/edge/device/gateway-1/_',
+      }))
+      assertEdgeHeaders(context.getUploadHeaders(), 'stored edge API')
+      scenarios++
+    }
+
+    // Remote edge pages rewrite relative URLs only after normal header injection.
+    for (const terminal of ['cloud', 'cloud-pc']) {
+      reset(api, 'http://localhost:9200/api/ui/edge/cloud/default/#/overview')
+      localStorage.setItem('terminal', terminal)
+      localStorage.setItem('thingType', 'device')
+      localStorage.setItem('thingId', 'gateway-1')
+      localStorage.setItem('proxy', '/api')
+      localStorage.setItem('jetlinks_verify_cache', JSON.stringify({ key: 'verify-key', token: 'verify-token' }))
+      if (environment) {
+        localStorage.setItem('project_api', JSON.stringify({ token: 'saas-token', domain: 'project', scope: applicationId }))
+      }
+      for (const send of [
+        config => globalThis.__applicationRuntimeTest.axios.requestOptions(config),
+        config => globalThis.__applicationRuntimeTest.ndjson.handleRequest(config),
+      ]) {
+        const request = send({
+          url: '/device-instance/_query', applicationScope: 'explicit-application',
+          headers: { 'x-tenant-domain': 'stale-project', 'x-asset-scope': 'device:old' },
+        })
+        assert.equal(request.baseURL, context.getFromCloudPathName())
+        assert.equal(request.url, 'device-instance/_query')
+        assertEdgeHeaders(request.headers, terminal)
+        assertEdgeHeaders(send(request).headers, `${terminal} retry`)
+      }
+      assertEdgeHeaders(context.getUploadHeaders({ applicationScope: 'explicit-application' }), `${terminal} upload`)
+      scenarios++
+    }
 
     // Exercise the actual switcher and access utility, including SaaS parent-project restoration.
     reset(api)

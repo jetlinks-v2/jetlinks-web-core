@@ -16,6 +16,7 @@ import {
     isFromCloud,
     getFromCloudPathName,
     getRequestTenantDomain,
+    stripEdgeRequestHeaders,
 } from '@jetlinks-web-core/utils/request-context'
 import { routerFallback } from '@jetlinks-web-core/utils/navigation'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-path'
@@ -134,7 +135,6 @@ function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
         config.applicationScope,
         getApplicationRuntimeEntry().applicationId,
         config.projectContext,
-        config.url,
     )
     // Keep applicationScope on retry configs so explicit disable survives verification retries.
 
@@ -148,6 +148,7 @@ function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
         config.url = config.url.replace(/^\/+/, '') // 清理前缀斜杠
     }
 
+    stripEdgeRequestHeaders(headers, config)
     return config
 }
 

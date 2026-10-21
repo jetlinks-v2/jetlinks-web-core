@@ -1,4 +1,8 @@
 {
+  "data.aiData.visualizationComponentGenerator.name": "Visualization Component Assistant",
+  "data.aiData.visualizationComponentGenerator.description": "Generate and refine visualization components from text or reference images.",
+  "data.aiData.visualizationComponentGenerator.searchCode": "visualizationComponentGenerator|Resources/Visualization/Components",
+  "data.aiData.visualizationComponentGenerator.menuName": "Resources/Visualization/Components",
   "PersonalToken.index.loadFailed": "Failed to load tokens. Please try again.",
   "PersonalToken.PermissionList.loadFailed": "Failed to load permissions. Please try again.",
   "PersonalToken.TokenDialog.saveWithRefresh": "Save and refresh token",

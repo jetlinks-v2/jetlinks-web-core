@@ -3,6 +3,22 @@ import i18n from "@jetlinks-web-core/locales";
 export const agentData = [
   {
     clientType: 'pagePoint',
+    clientId: 'visualizationComponentGenerator',
+    name: i18n.global.t('data.aiData.visualizationComponentGenerator.name'),
+    description: i18n.global.t('data.aiData.visualizationComponentGenerator.description'),
+    searchCode: i18n.global.t('data.aiData.visualizationComponentGenerator.searchCode'),
+    maxAgentSize: 1,
+    expands: {
+      menuName: i18n.global.t('data.aiData.visualizationComponentGenerator.menuName'),
+      type: 'chatBubbles'
+    },
+    metadata: {
+      menuCode: 'visualization/resource',
+      path: '/resources/visualization/resource/component'
+    }
+  },
+  {
+    clientType: 'pagePoint',
     clientId: 'projectAiSearchHub',
     name: i18n.global.t('data.aiData.projectAiSearchHub.name'),
     description: i18n.global.t('data.aiData.projectAiSearchHub.description'),

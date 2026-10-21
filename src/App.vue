@@ -4,11 +4,9 @@
     :componentsLocale="componentsLocale[systemStore.language]"
     :IconConfig="iconConfig"
     :theme="themeConfig"
+    :renderEmpty="renderEmpty"
   >
     <PageRouteView :skeleton-variant="routeSkeletonVariant" />
-	  <template #renderEmpty>
-		  <CloudEmpty></CloudEmpty>
-	  </template>
   </ConfigProvider>
 </template>
 <script setup lang="ts">
@@ -39,6 +37,7 @@ import {
   pickAntdToken
 } from '@jetlinks-web-core/utils/theme-style'
 import { useResponsiveAntdToken } from '@jetlinks-web-core/hooks'
+import CloudEmpty from '@jetlinks-web-core/components/CloudEmpty/index.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -160,6 +159,10 @@ const clearUrlAuthQuery = () => {
       `${window.location.pathname}${window.location.search}${nextHash}`
     )
   }
+}
+
+const renderEmpty = () => {
+    return h(CloudEmpty)
 }
 
 watch(() => JSON.stringify(route.query || {}), () => {

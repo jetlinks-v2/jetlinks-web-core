@@ -103,7 +103,7 @@ const fixture = (t, { privateDeployment = true } = {}) => {
     '@jetlinks-web-core/utils/deployment': { isPrivateDeployment: () => privateDeployment },
     '@jetlinks-web-core/views/verify/index.vue': {}, '@jetlinks-web-core/store/pinia': pinia,
     '@jetlinks-web-core/locales': i18n,
-    '@jetlinks-web-core/utils/request-context': { getRequestTenantDomain: () => '', isFromCloud: () => false },
+    '@jetlinks-web-core/utils/request-context': { getRequestTenantDomain: () => '', isFromCloud: () => false, stripEdgeRequestHeaders() {} },
     '@jetlinks-web-core/utils/navigation': {}, '@jetlinks-web-core/utils/project-path': {},
     '@jetlinks-web-core/utils/project-storage': { isProjectStorageEnabled: () => false },
     '@jetlinks-web-core/utils/ai-client-tool-request': { isAiClientToolSilentRequest: () => false },
