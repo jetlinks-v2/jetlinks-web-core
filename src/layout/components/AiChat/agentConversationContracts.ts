@@ -10,6 +10,25 @@ export type AgentConversationComponentKind = 'access' | 'conversation';
 export interface AgentConversationProvider {
   priority?: number;
   components: Partial<Record<AgentConversationComponentKind, Component>>;
+  /** One isolated text turn through the deployed agent's configured runtime. */
+  runText?: (request: AgentConversationTextRequest) => Promise<string>;
+}
+
+export interface AgentConversationTextProgress {
+  phase: 'waiting' | 'thinking' | 'receiving';
+  characters: number;
+}
+
+export interface AgentConversationTextRequest {
+  agentId: string;
+  clientType: string;
+  clientId: string;
+  payload: AgentConversationChatPayload;
+  /** Disable these built-in groups for this session; omitted groups keep the agent's configuration. */
+  disabledBuiltinToolGroups?: readonly string[];
+  signal: AbortSignal;
+  maxOutputBytes?: number;
+  onProgress?: (progress: AgentConversationTextProgress) => void;
 }
 
 export type AgentConversationProviderManifest = Record<string, AgentConversationProvider>;
