@@ -196,11 +196,26 @@ export const useAssetOwnershipCondition = (
       const options = [...self, ...(source.options || []).filter(item => !self.some(option => option.value === item.value))]
       remember(options)
       optionsFailed.value = false
-      // 包装既有面板加载器以记录标签和错误；面板只在用户打开后挂载。
-      const wrap = <Args extends unknown[]>(load: (...args: Args) => Promise<AssetDimensionOption[]>) => async (...args: Args) => {
-        try { return remember(await load(...args)) } catch (error) {
-          if (current === selectorVersion) optionsFailed.value = true
-          throw error
+      // 候选与回查分别取最新响应；重试只清除自身错误，过期响应不能回填名称或阻止确认。
+      const failedLoads = new Set<symbol>()
+      const wrap = <Args extends unknown[]>(load: (...args: Args) => Promise<AssetDimensionOption[]>) => {
+        const channel = Symbol()
+        let requestVersion = 0
+        return async (...args: Args) => {
+          const request = ++requestVersion
+          try {
+            const items = await load(...args)
+            if (current !== selectorVersion || request !== requestVersion) return []
+            failedLoads.delete(channel)
+            optionsFailed.value = failedLoads.size > 0
+            return remember(items)
+          } catch (error) {
+            if (current === selectorVersion && request === requestVersion) {
+              failedLoads.add(channel)
+              optionsFailed.value = true
+            }
+            throw error
+          }
         }
       }
       selector.value = {

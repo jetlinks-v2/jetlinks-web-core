@@ -162,6 +162,18 @@ test('creator defaults only when selected and uses the same lazy target protocol
   } finally { h.stop() }
 })
 
+test('importing a standard OR condition preserves its connector through query and route transforms', () => {
+  const fields = [{ dataIndex: 'name', search: { type: 'string' } }, createAssetOwnershipField(base)]
+  const name = { column: 'name', termType: 'eq', value: 'demo' }
+  const original = { ...term('org'), type: 'or' }
+  const imported = [name, toAssetOwnershipFilterTerm(original)]
+  assert.deepEqual(query.buildQueryFilter(imported, fields).terms, [name, original])
+  const restored = query.decodeConditionFilterQuery(query.encodeConditionFilterQuery(imported, fields), fields)
+  assert.deepEqual(query.buildQueryFilter(restored, fields).terms, [name, original])
+  restored[1].type = 'and'
+  assert.deepEqual(query.buildQueryFilter(restored, fields).terms, [name, { ...original, type: 'and' }])
+})
+
 test('creator preserves inaccessible users and ignores pending names after selector permission is removed', async () => {
   const pending = deferred()
   let factories = 0
@@ -510,6 +522,76 @@ test('target loaders and name resolution run only after opening targets and reta
     assert.equal(loads, 1)
     assert.equal(selectedLoads, 1)
   } finally { h.stop(); moduleRegistry.unregister('lazy-org') }
+})
+
+for (const loader of ['loadOptions', 'loadSelectedOptions']) {
+  test(`${loader}: a stale failure cannot disable a newer successful selection`, async () => {
+    const old = deferred(), current = deferred()
+    const requests = [old, current]
+    const created = { column: 'assetId', termType: 'application-creator', value: 'other' }
+    const h = fixture({ context: context(), createCreatorSelector: () => ({
+      optionPanel: { [loader]: () => requests.shift().promise },
+    }) }, created)
+    try {
+      await h.api.openTargets()
+      const load = h.api.selector.value.optionPanel[loader]
+      const stale = load(loader === 'loadOptions' ? 'old' : ['other'])
+      const latest = load(loader === 'loadOptions' ? 'new' : ['other'])
+      current.resolve([{ value: 'other', label: 'Current name' }])
+      await latest
+      old.reject(Error('stale failure'))
+      await assert.rejects(stale)
+      assert.equal(h.api.failure.value, undefined)
+      assert.equal(h.api.preview.value, '创建人：Current name')
+      h.api.submit()
+      assert.deepEqual(h.changes.at(-1), created)
+    } finally { h.stop() }
+  })
+
+  test(`${loader}: stale success cannot overwrite labels from the latest response`, async () => {
+    const old = deferred(), current = deferred()
+    const requests = [old, current]
+    const h = fixture({ context: context(), createCreatorSelector: () => ({
+      optionPanel: { [loader]: () => requests.shift().promise },
+    }) }, { column: 'assetId', termType: 'application-creator', value: 'other' })
+    try {
+      await h.api.openTargets()
+      const load = h.api.selector.value.optionPanel[loader]
+      const stale = load(loader === 'loadOptions' ? 'old' : ['other'])
+      const latest = load(loader === 'loadOptions' ? 'new' : ['other'])
+      current.resolve([{ value: 'other', label: 'Current name' }])
+      await latest
+      old.resolve([{ value: 'other', label: 'Stale name' }])
+      await stale
+      assert.equal(h.api.preview.value, '创建人：Current name')
+      assert.equal(h.displays.at(-1).labels.get('creator').find(item => item.value === 'other').label, 'Current name')
+    } finally { h.stop() }
+  })
+}
+
+test('successful retries clear only their own loader errors without reopening the selector', async () => {
+  let failSearch = true, failSelected = true
+  const options = [{ value: 'other', label: 'Resolved name' }]
+  const h = fixture({ context: context(), createCreatorSelector: () => ({ optionPanel: {
+    loadOptions: async () => { if (failSearch) throw Error('search offline'); return options },
+    loadSelectedOptions: async () => { if (failSelected) throw Error('lookup offline'); return options },
+  } }) }, { column: 'assetId', termType: 'application-creator', value: 'other' })
+  try {
+    await h.api.openTargets()
+    const config = h.api.selector.value.optionPanel
+    await assert.rejects(config.loadOptions('query'))
+    await assert.rejects(config.loadSelectedOptions(['other']))
+    failSearch = false
+    await config.loadOptions('query')
+    assert.equal(h.api.failure.value, 'optionsFailed', 'search success must not clear a lookup error')
+    h.api.submit()
+    assert.equal(h.changes.length, 0)
+    failSelected = false
+    await config.loadSelectedOptions(['other'])
+    assert.equal(h.api.failure.value, undefined)
+    h.api.submit()
+    assert.equal(h.changes.at(-1).value, 'other')
+  } finally { h.stop() }
 })
 
 test('asset/identity changes and unmount discard late context responses without an automatic reload', async () => {

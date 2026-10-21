@@ -68,6 +68,8 @@ const resources = {
 
 ## 请求与条件边界
 
+- 导入标准条件时将 AND/OR 传递至 ConditionFilter 外层，编辑后以外层连接符为准，路由往返保持一致。
+- 候选搜索与已选名称回查分别忽略过期响应；成功只清除对应加载器的错误，其他加载器仍失败时禁止确认。错误响应不改变已提交条件，过期成功响应不覆盖名称。
 - 页面初始化、字段定义创建、独立组件默认挂载、外部赋值与冷回显均不请求。点击范围入口或重新打开已有条件编辑后才调用 `/assets/access-context/{assetType}`；已有目标条件直接恢复选择面板并按 ID 回查名称，存在性条件和禁止选择目标的范围不加载目录。失败可显式重试；关闭弹层即卸载编辑器。
 - 可选范围取 Context 与已注册维度能力的交集。`targets` / `notTargets` 同时要求范围 `canSelectTargets === true` 和已注册选择器；`bound` / `unbound` 不依赖目录权限。重复注册同一维度、扩展缺失或卸载时禁用编辑，保留原条件。
 - 创建人构造 `{assetType}-creator`；维度目标使用 `dim-assets / targets`；已绑定和未绑定使用 `targetType / not`。不增加权限，也不改写 Scope。
@@ -78,3 +80,5 @@ const resources = {
 ## 后端契约
 
 归属 Context 和绑定存在性查询依赖 [组件 PR #1655](https://github.com/jetlinks-v2/jetlinks-components/pull/1655) 与 [租户 PR #48](https://github.com/jetlinks-v2/jetlinks-tenant/pull/48)；全局无归属还需执行节点安装 `assets-unbound`，缺少该能力时 Context 不提供对应范围。指定租户、组织等目标的选择器由对应业务模块接入有权限的目录接口。
+
+验证：归属组件与筛选调度测试 43 项通过，隔离构建通过；应用页验证了目录失败后原面板恢复、创建人重开及名称回显、普通文本与枚举条件重开。定向类型检查仍有 245 条既有诊断，无新增；项目级类型检查尚未通过。完整变更见 [PR #186](https://github.com/jetlinks-v2/jetlinks-web-core/pull/186)。

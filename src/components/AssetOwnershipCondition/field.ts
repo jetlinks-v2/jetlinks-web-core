@@ -8,7 +8,7 @@ import type { AssetOwnershipOptions, AssetOwnershipTerm } from './types'
 
 /** 将后端条件装入通用筛选字段；路由保存的是同一个标准条件对象。 */
 export const toAssetOwnershipFilterTerm = (value: AssetOwnershipTerm, dataIndex = 'assetOwnership'): ConditionTerm => ({
-  column: dataIndex, termType: 'eq', value,
+  column: dataIndex, termType: 'eq', value, ...(value.type ? { type: value.type } : {}),
 })
 
 /** 只创建字段与转换函数，不查询 Context、候选或选中值。 */
