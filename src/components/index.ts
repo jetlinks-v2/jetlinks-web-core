@@ -45,6 +45,7 @@ import AltchaCaptcha from './AltchaCaptcha/index.vue'
 import RegistryComponent from './RegisterComponents'
 import { TagManagerSidebar } from './TagManagerSidebar'
 import ConditionFilter from './ConditionFilter'
+import AssetOwnershipCondition from './AssetOwnershipCondition'
 import QuickFilterSidebar from './QuickFilterSidebar'
 import Avatar from './Avatar/index.vue'
 import IconBadge from './IconBadge/index.vue'
@@ -134,6 +135,7 @@ export default {
           .component('RegistryComponent', RegistryComponent)
           .component('TagManagerSidebar', TagManagerSidebar)
           .component('ConditionFilter', ConditionFilter)
+          .component('AssetOwnershipCondition', AssetOwnershipCondition)
           .component('QuickFilterSidebar', QuickFilterSidebar)
           .component('Avatar', Avatar)
           .component('IconBadge', IconBadge)
@@ -185,6 +187,7 @@ export default {
 }
 
 export {
+    AssetOwnershipCondition,
     CardBox,
     CardStatistic,
     CardStatus,
@@ -216,6 +219,12 @@ export { I18nTextField, I18nTextDialog, I18nInputTrigger } from './I18n'
 export type { I18nMessages, I18nTextMessages, I18nTextFieldProps, I18nTextDialogProps } from './I18n'
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
 export type { SvgIconType } from './SvgIcon/icons'
+export { createAssetOwnershipField, toAssetOwnershipFilterTerm } from './AssetOwnershipCondition'
+export type {
+    AssetOwnershipOptions, AssetOwnershipTerm, AssetOwnershipSelection, AssetOwnershipDisplay,
+    AssetDimensionFilter, AssetDimensionSelector, AssetDimensionOperator, AssetDimensionOption,
+    AssetAccessContext, AssetAccessRange,
+} from './AssetOwnershipCondition'
 export type { SegmentPanelOption, SegmentPanelValue } from './SegmentPanel'
 export type { SlantedTabKey, SlantedTabOption, SlantedTabsState } from './SlantedTabs'
 export type { SwitchGroupOption, SwitchGroupValue } from './SwitchGroup'

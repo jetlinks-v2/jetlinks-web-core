@@ -90,6 +90,8 @@ const onFilterChange = ({ filter, where }) => {
 
 ## 自定义值输入
 
+值编辑弹层关闭后销毁编辑器，重新打开时根据当前条件重建；自定义编辑器应从传入值恢复选择，在卸载时丢弃未完成的异步回填。
+
 ```vue
 <ConditionFilter v-model="terms" :fields="fields">
   <template #value-editor="{ field, value, setValue }">
