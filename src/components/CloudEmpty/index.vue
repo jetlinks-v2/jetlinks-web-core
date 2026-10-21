@@ -6,7 +6,7 @@
   >
     <a-empty
       :description="$slots.description ? undefined : description || defaultDescription"
-      :image="emptyImage"
+      :image="bigEmptyImg"
       :image-style="mergedImageStyle"
     >
       <template v-if="$slots.description" #description>
@@ -56,7 +56,6 @@ const defaultImageStyle = computed(() => ({
 }))
 
 const mergedImageStyle = computed(() => ({
-  ...defaultImageStyle.value,
   ...props.imageStyle
 }))
 </script>

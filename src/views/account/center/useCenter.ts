@@ -69,7 +69,6 @@ export const useCenter = () => {
 
   const segments = computed(() => [
     { label: i18n.global.t('AccountCenter.messageCenter'), value: 'StationMessage' },
-    { label: i18n.global.t('center.data.756829-0'), value: 'Subscribe' },
     { label: i18n.global.t('center.data.756829-4'), value: 'PersonalToken' },
   ])
   const activeTitle = computed(() => segments.value.find(item => item.value === activeKey.value)?.label)

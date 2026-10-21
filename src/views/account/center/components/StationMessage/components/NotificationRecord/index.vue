@@ -1,11 +1,5 @@
 <template>
   <div class="notification-record-container">
-    <pro-search
-      :columns="columns"
-      :target="type"
-      style="padding: 0"
-      @search="onSearch"
-    />
     <j-pro-table
       ref="tableRef"
       :columns="columns"
@@ -16,6 +10,14 @@
       :defaultParams="defaultParams"
       :scroll="{ y: 420 }"
     >
+	    <template #headerLeftRender>
+		    <ConditionFilter
+			    :columns="columns"
+			    :target="type"
+			    style="padding: 0"
+			    @search="onSearch"
+		    />
+	    </template>
       <template #headerRightRender>
         <a-dropdown trigger="hover">
           <a-button type="link">
