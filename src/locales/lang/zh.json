@@ -1,4 +1,8 @@
 {
+  "data.aiData.visualizationComponentGenerator.name": "可视化组件生成助手",
+  "data.aiData.visualizationComponentGenerator.description": "根据文字或参考图片生成和调整可视化组件",
+  "data.aiData.visualizationComponentGenerator.searchCode": "visualizationComponentGenerator|资源中心/可视化/组件管理",
+  "data.aiData.visualizationComponentGenerator.menuName": "资源中心/可视化/组件管理",
   "PersonalToken.index.loadFailed": "令牌加载失败，请重试",
   "PersonalToken.PermissionList.loadFailed": "权限加载失败，请重试",
   "PersonalToken.TokenDialog.saveWithRefresh": "刷新令牌保存",

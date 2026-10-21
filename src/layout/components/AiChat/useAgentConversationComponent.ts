@@ -1,7 +1,7 @@
 import { onMounted, onScopeDispose, ref, shallowRef, type Component } from 'vue';
 import { useApplication } from '@jetlinks-web-core/store/application';
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry';
-import type { AgentConversationComponentKind } from './agentConversationContracts';
+import type { AgentConversationComponentKind, AgentConversationProvider } from './agentConversationContracts';
 
 export type { AgentConversationComponentKind } from './agentConversationContracts';
 
@@ -16,6 +16,22 @@ const getComponent = (kind: AgentConversationComponentKind): Component | undefin
   candidates.sort((left, right) => right.priority - left.priority || left.key.localeCompare(right.key));
   return candidates[0]?.component;
 };
+
+/** Resolve the installed text-turn capability without importing a concrete agent UI module. */
+export async function loadAgentConversationTextRunner(): Promise<NonNullable<AgentConversationProvider['runText']>> {
+  const findRunner = () => Array.from(moduleRegistry.getAllModules().entries())
+    .flatMap(([moduleId, module]) => Object.entries(module.agentConversationProviders || {})
+      .filter(([, provider]) => typeof provider.runText === 'function')
+      .map(([key, provider]) => ({ run: provider.runText!, priority: provider.priority || 0, key: `${moduleId}:${key}` })))
+    .sort((a, b) => b.priority - a.priority || a.key.localeCompare(b.key))[0]?.run;
+  let runner = findRunner();
+  if (!runner) {
+    await useApplication().queryApplication();
+    runner = findRunner();
+  }
+  if (!runner) throw new Error('agent.text.unavailable');
+  return runner;
+}
 
 /** Resolves the installed conversation UI without exposing provider identity to business modules. */
 export function useAgentConversationComponent(
