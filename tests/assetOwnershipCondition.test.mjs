@@ -106,7 +106,9 @@ test('foreign, mixed and unsupported conditions are not silently reconstructed',
     { ...term('org'), options: ['not'] },
     { ...term('org'), terms: [{ column: 'name', termType: 'eq', value: 'extra' }] },
     { ...term('org'), value: { assetType: 'application', targets: [{ type: 'org', id: '1', relation: 'owner' }] } },
-    { ...term('org'), value: { ...term('org').value, closure: true } },
+    { ...term('org'), value: { ...term('org').value, closure: 'true' } },
+    { ...term('org'), value: { ...term('org').value, closures: [{ type: 'org', id: 'parent' }] } },
+    { ...term('org', 'bound'), value: { ...term('org', 'bound').value, closure: true } },
     { ...term('org'), value: { ...term('org').value, assetType: 'device' } },
     { ...term('org'), value: { ...term('org').value, relations: ['owner'] } },
     { ...term('org'), value: { assetType: 'application', targets: [{ type: 'org', id: '1' }, { type: 'tenant', id: '2' }] } },
@@ -114,6 +116,116 @@ test('foreign, mixed and unsupported conditions are not silently reconstructed',
     { column: 'assetId', termType: 'application-creator', value: [] },
     { column: 'assetId', termType: 'application-creator', value: ['user-a', null] },
   ]) assert.equal(condition.parseAssetOwnershipTerm(value, base), undefined)
+})
+
+test('simple closures round-trip with multiple targets, negation and OR without enumerating children', () => {
+  const labels = new Map([['org', [{ value: 'one', label: '华东' }, { value: 'two', label: '华南' }]]])
+  const fields = [{ dataIndex: 'name', search: { type: 'string' } }, createAssetOwnershipField(base)]
+  const name = { column: 'name', termType: 'eq', value: 'demo' }
+  for (const closure of [true, false]) {
+    for (const operator of ['targets', 'notTargets']) {
+      const selected = { ...selection('dimension:org', operator, ['one', 'two']), closure }
+      const actual = { ...condition.buildAssetOwnershipTerm(selected, base), type: 'or' }
+      assert.deepEqual(actual.value.targets, [{ type: 'org', id: 'one' }, { type: 'org', id: 'two' }])
+      assert.equal(actual.value.closure, closure)
+      assert.deepEqual(condition.parseAssetOwnershipTerm(actual, base), selected)
+      const original = [name, toAssetOwnershipFilterTerm(actual)]
+      assert.deepEqual(query.buildQueryFilter(query.decodeConditionFilterQuery(query.encodeConditionFilterQuery(original, fields), fields), fields).terms, [name, actual])
+      assert.equal(condition.formatAssetOwnershipTerm(actual, base, context(), labels, translate),
+        `${operator === 'notTargets' ? '不' : ''}属于org：华东、华南${closure ? '及下级' : ''}`)
+    }
+  }
+})
+
+test('explicit ID input works without directory permission, stays lazy and cannot invent a context range', async () => {
+  let directoryCalls = 0
+  register('manual-id', { tenant: adapter({ allowIdInput: true, createSelector: () => { directoryCalls++; return {} } }) })
+  const c = context()
+  c.ranges.find(range => range.id === 'dimension:tenant').canSelectTargets = false
+  const h = fixture({ context: c })
+  try {
+    h.api.selectRange('dimension:tenant')
+    assert.deepEqual(h.api.operators.value, ['targets', 'notTargets', 'bound', 'unbound'])
+    assert.equal(h.api.targetMode.value, 'input')
+    await h.api.openTargets()
+    assert.equal(h.api.targetOpen.value, true)
+    assert.equal(h.api.selector.value, undefined)
+    h.api.selectTargets([' tenant-a ', 'tenant-a', ' ', 'tenant-b'])
+    h.api.submit()
+    await vue.nextTick()
+    assert.deepEqual(h.props.value, term('tenant', 'targets', ['tenant-a', 'tenant-b']))
+    await h.api.resumeEditing()
+    assert.equal(h.api.targetOpen.value, true)
+    assert.deepEqual(h.api.draft.value.ids, ['tenant-a', 'tenant-b'])
+    assert.equal(directoryCalls, 0)
+    h.props.options.context.ranges = c.ranges.filter(range => range.id !== 'dimension:tenant')
+    assert.equal(h.api.failure.value, 'unavailable')
+    assert.equal(h.api.targetOpen.value, false)
+    h.api.submit()
+    assert.equal(h.changes.length, 1)
+  } finally { h.stop(); moduleRegistry.unregister('manual-id') }
+})
+
+test('switching from a permitted directory to declared ID input ignores late directory names', async () => {
+  const pending = deferred()
+  register('input-fallback', { campus: adapter({ allowIdInput: true,
+    createSelector: () => ({ optionPanel: { loadOptions: () => pending.promise } }),
+  }) })
+  const h = fixture({ context: context() }, term('campus'))
+  try {
+    await h.api.resumeEditing()
+    assert.equal(h.api.targetMode.value, 'directory')
+    const request = h.api.selector.value.optionPanel.loadOptions()
+    h.props.options.context.ranges.find(range => range.id === 'dimension:campus').canSelectTargets = false
+    assert.equal(h.api.targetOpen.value, false)
+    pending.resolve([{ value: 'one', label: 'Late name' }])
+    await request
+    await h.api.resumeEditing()
+    assert.equal(h.api.targetMode.value, 'input')
+    assert.equal(h.api.preview.value, '属于campus：one')
+    assert.equal(h.changes.length, 0)
+  } finally { h.stop(); moduleRegistry.unregister('input-fallback') }
+})
+
+test('closure drafts restore, preserve negation and become unavailable if extension support disappears', async () => {
+  register('closure-org', { org: adapter({ supportsClosure: true }) })
+  const original = condition.buildAssetOwnershipTerm({ ...selection('dimension:org', 'notTargets', ['one']), closure: true }, base)
+  const h = fixture({ context: context() }, original)
+  try {
+    await h.api.resumeEditing()
+    assert.equal(h.api.draft.value.closure, true)
+    assert.equal(h.api.targetOpen.value, true)
+    h.api.selectTargets(['one', 'two'])
+    h.api.submit()
+    await vue.nextTick()
+    assert.equal(h.props.value.value.closure, true)
+    assert.equal(h.props.value.value.not, true)
+    await h.api.resumeEditing()
+    assert.deepEqual(h.api.draft.value.ids, ['one', 'two'])
+    assert.equal(h.api.draft.value.closure, true)
+    moduleRegistry.unregister('closure-org')
+    register('closure-org', { org: adapter() })
+    assert.equal(h.api.failure.value, 'unavailable')
+    h.api.submit()
+    assert.equal(h.changes.length, 1)
+    h.api.selectRange('dimension:org')
+    assert.equal(h.api.draft.value.closure, undefined)
+  } finally { h.stop(); moduleRegistry.unregister('closure-org') }
+})
+
+test('existence operators omit closure and ordinary target selection starts without descendants', async () => {
+  register('closure-existence', { org: adapter({ supportsClosure: true }) })
+  const h = fixture({ context: context() })
+  try {
+    h.api.selectRange('dimension:org')
+    assert.equal(h.api.draft.value.closure, undefined)
+    h.api.draft.value.closure = true
+    h.api.selectOperator('bound')
+    assert.equal(h.api.draft.value.closure, undefined)
+    assert.equal(Object.hasOwn(h.changes.at(-1).value, 'closure'), false)
+    h.api.selectOperator('notTargets')
+    assert.equal(h.api.draft.value.closure, undefined)
+  } finally { h.stop(); moduleRegistry.unregister('closure-existence') }
 })
 
 test('creator supports explicit users, route round-trip and useful cold previews without requests', () => {

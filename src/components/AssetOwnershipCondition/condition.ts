@@ -6,7 +6,7 @@ import type {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/** 只解析本编辑器支持的条件；复杂闭包、关系等条件不得在编辑时被静默改写。 */
+/** 只解析简单目标与布尔闭包；关系、混合维度等条件不得在编辑时被静默改写。 */
 export const parseAssetOwnershipTerm = (
   term: unknown, options: Pick<AssetOwnershipOptions, 'assetType' | 'column' | 'userId'>,
 ): AssetOwnershipSelection | undefined => {
@@ -24,10 +24,11 @@ export const parseAssetOwnershipTerm = (
   if (term.termType !== 'dim-assets' || !isRecord(term.value)) return undefined
   const value = term.value
   if (value.assetType !== options.assetType
-    || Object.keys(value).some(key => !['assetType', 'targets', 'targetType', 'not'].includes(key))
+    || Object.keys(value).some(key => !['assetType', 'targets', 'targetType', 'not', 'closure'].includes(key))
+    || value.closure !== undefined && typeof value.closure !== 'boolean'
     || value.not !== undefined && typeof value.not !== 'boolean') return undefined
   if (typeof value.targetType === 'string' && value.targetType.length > 0) {
-    if (value.targets !== undefined) return undefined
+    if (value.targets !== undefined || value.closure !== undefined) return undefined
     return { rangeId: `dimension:${value.targetType}`, operator: value.not ? 'unbound' : 'bound', ids: [] }
   }
   if (value.targetType !== undefined || !Array.isArray(value.targets) || !value.targets.length) return undefined
@@ -39,6 +40,7 @@ export const parseAssetOwnershipTerm = (
     rangeId: `dimension:${targets[0].type}`,
     operator: value.not ? 'notTargets' : 'targets',
     ids: targets.map(target => target.id),
+    ...(value.closure !== undefined ? { closure: value.closure } : {}),
   }
 }
 
@@ -73,6 +75,7 @@ export const buildAssetOwnershipTerm = (
         targets: [...new Set(selection.ids)].map(id => ({ type: dimension, id })),
       }),
       not: selection.operator === 'notTargets' || selection.operator === 'unbound',
+      ...(!existence && selection.closure !== undefined ? { closure: selection.closure } : {}),
     },
   }
 }
@@ -106,6 +109,7 @@ export const formatAssetOwnershipTerm = (
     return translate('components.AssetOwnershipCondition.preview.creator', { targets: values })
   }
   return translate(`components.AssetOwnershipCondition.preview.${selection.operator}`, {
-    dimension: name || dimension, targets: values,
+    dimension: name || dimension, targets: selection.closure
+      ? translate('components.AssetOwnershipCondition.withDescendants', { targets: values }) : values,
   })
 }

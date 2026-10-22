@@ -40,13 +40,21 @@ export const useAssetOwnershipCondition = (
     return draft.value.rangeId.startsWith('dimension:')
       ? resolveAssetDimensionFilter(draft.value.rangeId.slice(10)) : undefined
   })
-  const canSelectTargets = (rangeId: string) => context.value?.ranges
+  const canSelectTargets = (rangeId: string) => context.value?.assetType === props.options.assetType && context.value.ranges
     .some(range => range.id === rangeId && range.canSelectTargets === true) === true
   const supportedOperators = (dimension?: AssetDimensionFilter, rangeId = draft.value.rangeId) => (dimension?.getOperators(props.options.assetType) || [])
-    .filter(operator => !['targets', 'notTargets'].includes(operator) || !!dimension?.createSelector && canSelectTargets(rangeId))
+    .filter(operator => !['targets', 'notTargets'].includes(operator)
+      || dimension?.allowIdInput === true || !!dimension?.createSelector && canSelectTargets(rangeId))
   const operators = computed(() => supportedOperators(provider.value))
   const createSelector = computed(() => canSelectTargets(draft.value.rangeId)
     ? draft.value.rangeId === 'creator' ? props.options.createCreatorSelector : provider.value?.createSelector : undefined)
+  const targetMode = computed(() => {
+    if (context.value?.assetType !== props.options.assetType
+      || !context.value.ranges.some(range => range.id === draft.value.rangeId)) return undefined
+    if (createSelector.value) return 'directory'
+    return provider.value?.allowIdInput === true ? 'input' : undefined
+  })
+  const supportsClosure = computed(() => provider.value?.supportsClosure === true)
   const ranges = computed(() => {
     void registryVersion.value
     if (context.value?.assetType !== props.options.assetType) return []
@@ -79,7 +87,8 @@ export const useAssetOwnershipCondition = (
     : optionsFailed.value ? 'optionsFailed' : invalid.value ? 'invalid'
       : context.value && draft.value.rangeId !== 'all'
         && (!ranges.value.some(range => range.value === draft.value.rangeId && !range.disabled)
-          || draft.value.rangeId.startsWith('dimension:') && !operators.value.includes(draft.value.operator))
+          || draft.value.rangeId.startsWith('dimension:') && (!operators.value.includes(draft.value.operator)
+            || draft.value.closure === true && !supportsClosure.value))
         ? 'unavailable' : undefined)
 
   const syncValue = () => {
@@ -103,9 +112,10 @@ export const useAssetOwnershipCondition = (
   watch(() => [props.options.assetType, props.options.column, props.options.userId,
     props.options.context, props.options.loadContext, props.options.createCreatorSelector], reset, { flush: 'sync' })
   watch(() => props.value, syncValue, { immediate: true, deep: true })
-  // 能力撤回只关闭目录，保留已提交条件并拒绝旧目录响应回填名称。
-  watch(() => canSelectTargets(draft.value.rangeId), allowed => {
-    if (!allowed) { selectorVersion++; targetOpen.value = false; selector.value = undefined }
+  // 输入与目录能力独立；切换模式或撤回目录时丢弃旧请求，保留已提交条件。
+  watch(() => [targetMode.value, createSelector.value], (_, previous) => {
+    if (!previous[0] && !previous[1]) return
+    selectorVersion++; targetOpen.value = false; selector.value = undefined
   }, { flush: 'sync' })
   const stopRegistry = onAssetDimensionFiltersChange(() => {
     registryVersion.value++
@@ -166,19 +176,25 @@ export const useAssetOwnershipCondition = (
     if (!operators.value.includes(operator)) return
     selectorVersion++
     draft.value.operator = operator
+    if (['bound', 'unbound'].includes(operator)) draft.value.closure = undefined
     targetOpen.value = false
     selector.value = undefined
     optionsFailed.value = false
     if (['bound', 'unbound'].includes(operator)) submit()
   }
-  const selectTargets = (ids: string[]) => { draft.value.ids = ids }
+  const selectTargets = (ids: string[]) => {
+    draft.value.ids = targetMode.value === 'input' ? [...new Set(ids.map(id => id.trim()).filter(Boolean))] : ids
+  }
 
   const openTargets = async () => {
     const openingVersion = selectorVersion
     optionsFailed.value = false
     await activate()
     if (openingVersion !== selectorVersion || !context.value
-      || context.value.assetType !== props.options.assetType || failure.value || !createSelector.value) return
+      || context.value.assetType !== props.options.assetType || failure.value || !targetMode.value) return
+    if (targetMode.value === 'input') { targetOpen.value = true; return }
+    const factory = createSelector.value
+    if (!factory) return
     const current = ++selectorVersion
     const dimension = draft.value.rangeId === 'creator' ? 'creator' : draft.value.rangeId.slice(10)
     const remember = (items: AssetDimensionOption[]) => {
@@ -190,7 +206,7 @@ export const useAssetOwnershipCondition = (
       return items
     }
     try {
-      const source = createSelector.value({ assetType: props.options.assetType })
+      const source = factory({ assetType: props.options.assetType })
       const self = dimension === 'creator' && props.options.userId
         ? [{ value: props.options.userId, label: translate('components.AssetOwnershipCondition.me') }] : []
       const options = [...self, ...(source.options || []).filter(item => !self.some(option => option.value === item.value))]
@@ -237,8 +253,9 @@ export const useAssetOwnershipCondition = (
     const openingVersion = selectorVersion
     await activate()
     if (openingVersion !== selectorVersion || invalid.value || failure.value) return
-    if (['targets', 'notTargets'].includes(draft.value.operator) && createSelector.value) await openTargets()
+    if (['targets', 'notTargets'].includes(draft.value.operator) && targetMode.value) await openTargets()
   }
   return { context, loading, contextFailed, targetOpen, selector, draft, invalid,
-    ranges, operators, createSelector, preview, failure, activate, selectRange, selectOperator, selectTargets, openTargets, resumeEditing, submit }
+    ranges, operators, createSelector, targetMode, supportsClosure, preview, failure,
+    activate, selectRange, selectOperator, selectTargets, openTargets, resumeEditing, submit }
 }

@@ -29,7 +29,7 @@ export interface AssetDimensionOption {
 export interface AssetDimensionSelector {
   options?: AssetDimensionOption[]
   optionPanel?: ConditionOptionPanelConfig
-  /** 自定义编辑器遵循 value: string[]、update:value、submit；可通过 options-change 回传标签。 */
+  /** 自定义编辑器接收 value、options、config（封装后的 optionPanel）；通过 update:value、submit、options-change 输出。 */
   component?: Component
   componentProps?: Record<string, unknown>
 }
@@ -40,6 +40,10 @@ export interface AssetDimensionFilter {
   /** 说明按当前语言求值，仅影响展示。 */
   getDescription?: (assetType: string) => string
   getOperators: (assetType: string) => readonly AssetDimensionOperator[]
+  /** 显式开放手动 ID 输入；不依赖目录权限，范围与最终授权仍由后端限制。 */
+  allowIdInput?: boolean
+  /** 支持维度闭包查询，目标 ID 仍仅提交选中节点。 */
+  supportsClosure?: boolean
   createSelector?: (context: { assetType: string }) => AssetDimensionSelector
 }
 
@@ -61,4 +65,5 @@ export interface AssetOwnershipSelection {
   rangeId: string
   operator: AssetDimensionOperator
   ids: string[]
+  closure?: boolean
 }

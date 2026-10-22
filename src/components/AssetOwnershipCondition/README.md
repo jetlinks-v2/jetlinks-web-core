@@ -39,6 +39,8 @@ const options = {
 
 ## 维度扩展
 
+维度可显式声明 `allowIdInput`，在 Context 已提供的范围内直接输入多个 ID（回车添加、去空格去重、标签删除），不依赖目录查询权限；目录选择仍要求 `canSelectTargets`，有目录时优先目录。树状维度可声明 `supportsClosure`，通过“包含下级”生成标准 `closure: true`，由后端执行闭包查询，前端不枚举下级 ID。默认关闭，重新编辑恢复；切换到绑定存在性时清除闭包选项。能力缺失时保留已有闭包条件并禁止覆盖。
+
 模块在现有注册资源中声明 `assetDimensionFilters`，以 `dimensionType` 为键。core 不依赖租户、组织或自定义业务模块。
 
 ```ts
@@ -64,22 +66,22 @@ const resources = {
 
 目标统一为 `{ value: string, label: string, children?, disabled? }`，候选与按 ID 回查均返回该格式。也可提供静态 `options`。`getOperators` 按资产类型声明能力；只支持绑定存在性时可省略 `createSelector`。维度可选注册 `icon` 和 `getDescription(assetType)`，省略时使用通用图标与说明；说明随当前语言同步求值，不请求目录。
 
-自定义选择器由 `createSelector` 返回 `component` / `componentProps`，接收 `value: string[]`，通过 `update:value` 更新草稿、`submit` 确认；可通过 `options-change` 回传上述选项用于名称回显。选择器只在用户明确选择维度或打开目标时挂载。
+自定义选择器由 `createSelector` 返回 `component` / `componentProps`，接收 `value: string[]`、`options`、`config`（封装后的 `optionPanel`），通过 `update:value` 更新草稿、`submit` 确认；可通过 `options-change` 回传上述选项用于名称回显。目录请求应使用 `config` 中的加载器以沿用错误、过期响应和标签缓存控制，重试时响应新的加载器。选择器只在用户明确选择维度或打开目标时挂载。树控件由模块提供，独立勾选父子节点，搜索保留祖先及已选目标；是否包含下级由外层闭包选项统一控制。
 
 ## 请求与条件边界
 
-- 范围入口固定左侧标签，加载状态独立放在右侧；加载时可返回，Context 请求仍去重。目标名称或 ID 搜索由注册的选择器提供，未注册选择器时不自动开放任意 ID 输入。
+- 范围入口固定左侧标签，加载状态独立放在右侧；加载时可返回，Context 请求仍去重。仅显式注册 `allowIdInput` 的维度开放 ID 输入；输入模式不查询目录或验证 ID 存在性。
 - 导入标准条件时将 AND/OR 传递至 ConditionFilter 外层，编辑后以外层连接符为准，路由往返保持一致。
 - 候选搜索与已选名称回查分别忽略过期响应；成功只清除对应加载器的错误，其他加载器仍失败时禁止确认。错误响应不改变已提交条件，过期成功响应不覆盖名称。
 - 页面初始化、字段定义创建、独立组件默认挂载、外部赋值与冷回显均不请求。点击范围入口或重新打开已有条件编辑后才调用 `/assets/access-context/{assetType}`；已有目标条件直接恢复选择面板并按 ID 回查名称，存在性条件和禁止选择目标的范围不加载目录。失败可显式重试；关闭弹层即卸载编辑器。
-- 可选范围取 Context 与已注册维度能力的交集。`targets` / `notTargets` 同时要求范围 `canSelectTargets === true` 和已注册选择器；`bound` / `unbound` 不依赖目录权限。重复注册同一维度、扩展缺失或卸载时禁用编辑，保留原条件。
+- 可选范围取 Context 与已注册维度能力的交集。`targets` / `notTargets` 要求显式 ID 输入能力，或范围 `canSelectTargets === true` 且已注册选择器；`bound` / `unbound` 不依赖目录权限。重复注册同一维度、扩展缺失或卸载时禁用编辑，保留原条件。输入仅增加筛选条件，不扩大普通权限或 Scope。
 - 创建人构造 `{assetType}-creator`；维度目标使用 `dim-assets / targets`；已绑定和未绑定使用 `targetType / not`。不增加权限，也不改写 Scope。
 - Context 提供 `unbound` 时显示“无归属”，生成 `{ column, termType: 'assets-unbound', value: assetType }`。选择即提交，不创建维度选择器或加载目录；含义为所有维度均无绑定，不要求创建人为空。按某个维度“未绑定”仍使用原有条件。
-- 未绑定只表示该维度没有绑定，不能据此推断为平台数据。复杂闭包、混合维度或关系条件保留原值，不静默重建。
+- 未绑定只表示该维度没有绑定，不能据此推断为平台数据。仅支持同维度简单 targets 上的布尔 `closure`，多组闭包、混合维度或关系条件保留原值，不静默重建。
 - 冷回显优先已有名称，缺少目录时显示维度和目标 ID；不为显示 Token 自动查接口。交互加载后更新名称。
 
 ## 后端契约
 
 归属 Context 和绑定存在性查询依赖 [组件 PR #1655](https://github.com/jetlinks-v2/jetlinks-components/pull/1655) 与 [租户 PR #48](https://github.com/jetlinks-v2/jetlinks-tenant/pull/48)；全局无归属还需执行节点安装 `assets-unbound`，缺少该能力时 Context 不提供对应范围。指定租户、组织等目标的选择器由对应业务模块接入有权限的目录接口。
 
-验证：归属组件与筛选调度测试 43 项通过，隔离构建通过；目录恢复、创建人及普通条件重开已有应用页验证。定向类型检查仍有 245 条既有诊断，无新增；项目级类型检查尚未通过。加载状态布局与租户目录的浏览器验收因自动化连接超时待完成。完整变更见 [PR #186](https://github.com/jetlinks-v2/jetlinks-web-core/pull/186)。
+验证：`node --test tests/assetOwnershipCondition.test.mjs tests/conditionFilterScheduling.test.mjs` 48 项通过，覆盖 ID 输入与目录权限组合、范围撤回、闭包正反向与多目标查询、路由往返及重开恢复；包含本地组织树的隔离构建通过。定向 `vue-tsc -p tsconfig.asset-ownership.json --noEmit` 仍有 245 条既有诊断，无新增，整体未通过。模块无独立 lint 命令，`git diff --check` 通过。新租户输入和组织树的真实页面验收因浏览器连接超时待完成。完整变更见 [PR #186](https://github.com/jetlinks-v2/jetlinks-web-core/pull/186)。

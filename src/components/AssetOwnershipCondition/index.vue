@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LoadingOutlined } from '@ant-design/icons-vue'
+import type { SelectProps } from 'ant-design-vue'
 import ConditionOptionPanel from '../ConditionFilter/ConditionOptionPanel.vue'
 import { useAssetOwnershipCondition, type AssetOwnershipDisplay } from './useAssetOwnershipCondition'
 import type { AssetOwnershipOptions, AssetOwnershipTerm } from './types'
@@ -20,7 +21,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const translate = (key: string, values?: Record<string, string>) => t(key, values || {})
 const {
-  loading, targetOpen, selector, draft, invalid, ranges, operators, createSelector, preview, failure,
+  loading, targetOpen, selector, draft, invalid, ranges, operators, targetMode, supportsClosure, preview, failure,
   activate, selectRange, selectOperator, selectTargets, openTargets, resumeEditing, submit,
 } = useAssetOwnershipCondition(props, value => {
   emit('update:value', value)
@@ -33,8 +34,10 @@ const rangeName = computed(() => ranges.value.find(range => range.value === draf
   || (draft.value.rangeId === 'creator' ? t(key + 'creator')
     : draft.value.rangeId === 'unbound' ? t(key + 'unboundRange')
     : draft.value.rangeId.startsWith('dimension:') ? draft.value.rangeId.slice(10) : t(key + 'placeholder')))
-const needsTargets = computed(() => !!createSelector.value
+const needsTargets = computed(() => !!targetMode.value
   && ['targets', 'notTargets'].includes(draft.value.operator))
+const onIdsChange = (value: SelectProps['value']) => selectTargets(Array.isArray(value)
+  ? value.filter((id): id is string => typeof id === 'string') : [])
 watch(() => props.options.assetType, () => { choosingRange.value = false })
 onMounted(() => {
   if (props.resumeOnMount && props.value && !invalid.value) void resumeEditing()
@@ -80,12 +83,27 @@ const onOperatorChange = async (value: unknown) => {
       />
       <div v-if="value && !targetOpen" class="asset-ownership-condition__preview">{{ preview }}</div>
       <template v-if="needsTargets && !invalid">
+        <a-checkbox v-if="supportsClosure" v-model:checked="draft.closure">
+          {{ t(key + 'includeDescendants') }}
+        </a-checkbox>
+        <template v-if="targetOpen && targetMode === 'input'">
+          <a-select
+            mode="tags" :value="draft.ids" :open="false" allow-clear
+            :placeholder="t(key + 'idPlaceholder')" @update:value="onIdsChange"
+          />
+          <span class="asset-ownership-condition__preview">{{ t(key + 'idHint') }}</span>
+          <a-button type="primary" :disabled="!draft.ids.length || !!failure" @click="submit">
+            {{ t(key + 'apply') }}
+          </a-button>
+        </template>
         <template v-if="targetOpen && selector">
           <component
             :is="selector.component"
             v-if="selector.component"
             v-bind="selector.componentProps"
             :value="draft.ids"
+            :options="selector.options"
+            :config="selector.optionPanel"
             @update:value="selectTargets"
             @options-change="selector.onOptionsChange"
             @submit="submit"
@@ -101,7 +119,7 @@ const onOperatorChange = async (value: unknown) => {
             {{ t(key + 'apply') }}
           </a-button>
         </template>
-        <a-button v-else :disabled="!!failure" @click="openTargets">{{ t(key + 'selectTargets') }}</a-button>
+        <a-button v-if="!targetOpen" :disabled="!!failure" @click="openTargets">{{ t(key + 'selectTargets') }}</a-button>
       </template>
     </template>
     <a-alert v-if="failure" type="warning" :message="t(key + failure)" show-icon>
