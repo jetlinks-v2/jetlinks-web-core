@@ -124,6 +124,10 @@ useTermsParseConText({ options: data, map: new Map() })
 
 ## 操作符类型
 
+`TermTypeSelect.vue` 通过 Select 的 `change` 事件，仅在 `termType` 实际变化时转换参数值；重复选择同一操作符保留原值，包括区间的两个端点，且不触发参数更新和条件变更事件。不同操作符之间沿用现有转换规则。该行为由运行时共享组件维护，覆盖 `modules/data-collector-ui/views/data-collect/components/Config/AbnormalJudgment.vue` 的异常判断输入。
+
+验证：使用实际组件与 Ant Design Select 在 Chromium 中复现原问题；修复后，区间、含零或空端点、单值、布尔及对象共 8 组输入各重复选择 3 次，原值和事件计数均保持不变，另有 3 组实际操作符切换验证通过。在 `runtime-ui/jetlinks-web-core/` 执行 `pnpm exec vite build --outDir /tmp/collector-termtype-fix-build -- --module-name data-collector-ui` 通过，保留既有导出、sourcemap 与分块等告警；在 `runtime-ui/` 执行 `pnpm exec vue-tsc --noEmit -p modules/data-collector-ui/tsconfig.json` 仍有 478 条既有诊断，修改前后输出完全一致。差异空白检查通过，工作区和采集模块未配置 lint 脚本。完整业务页面与真实后端保存尚未联调，需通过 `pnpm dev` 在点位高级配置中输入 `300`、`500` 并连续选择“在…之间”，确认数值及保存结果；修复既有类型错误后重跑上述 typecheck。
+
 ```typescript
 // 数组类型（value 为数组）
 ['in', 'nin', 'contains_all', 'contains_any', 'not_contains']
