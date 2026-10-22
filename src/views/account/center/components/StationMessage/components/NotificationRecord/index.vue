@@ -245,18 +245,18 @@ const columns = [
       : $t('NotificationRecord.index.803553-4'),
     dataIndex: 'topicProvider',
     key: 'topicProvider',
-    search: {
-      type: 'select',
-      termFilter: ['in', 'nin'],
-      options: () =>
-      getTypeListNew(props.type).then((resp: any) => {
-                    return resp.result
-                        .map((item: any) => ({
-                            label: item.name,
-                            value: item.id,
-            }))
-        }),
-    },
+    // search: {
+    //   type: 'select',
+    //   termFilter: ['in', 'nin'],
+    //   options: () =>
+    //   getTypeListNew(props.type).then((resp: any) => {
+    //                 return resp.result
+    //                     .map((item: any) => ({
+    //                         label: item.name,
+    //                         value: item.id,
+    //         }))
+    //     }),
+    // },
     scopedSlots: true,
     ellipsis: true,
   },
@@ -398,6 +398,8 @@ const readPage = async () => {
 onMounted(() => {
   if (routerParams.params?.value.row) {
     view(routerParams.params?.value.row)
+    // 首次打开后消费跳转参数，避免下一页签在旧列表卸载前读取并重开同一详情。
+    routerParams.clear()
   }
 })
 

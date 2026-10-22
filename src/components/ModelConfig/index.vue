@@ -246,6 +246,7 @@
 </template>
 
 <script setup lang="ts">
+import globalI18n from '@jetlinks-web-core/locales'
 import type { PropType } from 'vue'
 import { useSlots } from 'vue'
 import { Modal } from 'ant-design-vue'
@@ -718,12 +719,12 @@ const propertyItems = computed(() => {
   const file = selectedFile.value
   if (!file) return []
   return [
-    { label: text.value.fileName, value: file.name || '--' },
+    { label: text.value.fileName, value: file.name || globalI18n.global.t('comm.table.empty-2') },
     { label: text.value.filePath, value: file.path || '', mono: true },
     { label: text.value.fileFormat, value: file.format?.length ? file.format.join(', ') : text.value.sharedFile },
-    { label: text.value.fileKey, value: file.fileKey || '--', mono: true },
-    { label: text.value.fileMd5, value: file.md5 || '--', mono: true },
-    { label: text.value.fileSha256, value: file.sha256 || '--', mono: true }
+    { label: text.value.fileKey, value: file.fileKey || globalI18n.global.t('comm.table.empty-2'), mono: true },
+    { label: text.value.fileMd5, value: file.md5 || globalI18n.global.t('comm.table.empty-2'), mono: true },
+    { label: text.value.fileSha256, value: file.sha256 || globalI18n.global.t('comm.table.empty-2'), mono: true }
   ]
 })
 

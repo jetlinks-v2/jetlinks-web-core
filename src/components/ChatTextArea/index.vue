@@ -26,7 +26,7 @@
               </div>
             </div>
             <div class="file-size">
-              {{ file.size ? formatFileSize(file.size || 0) : '--' }}
+              {{ file.size !== undefined && file.size !== null ? formatFileSize(file.size) : $t('comm.table.empty-2') }}
             </div>
             <div class="file-action">
               <a-button type="text" size="small" @click="removeFile(index)" danger>

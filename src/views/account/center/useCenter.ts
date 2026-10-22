@@ -81,14 +81,14 @@ export const useCenter = () => {
     }
     const createdAt = info.createTime ? dayjs(info.createTime) : undefined
     return {
-      name: info.name || info.username || '--',
-      username: info.username || '--',
+      name: info.name || info.username || i18n.global.t('comm.table.empty'),
+      username: info.username || i18n.global.t('comm.table.empty'),
       avatar: info.avatar,
       canEdit: isNoCommunity,
       canConfigureHome: !user.isApplicationUser,
       items: [
-        { key: 'id', label: i18n.global.t('AccountCenter.accountId'), value: info.id || '--' },
-        { key: 'username', label: i18n.global.t('AccountInfo.basicUsername'), value: info.username || '--' },
+        { key: 'id', label: i18n.global.t('AccountCenter.accountId'), value: info.id || i18n.global.t('comm.table.empty') },
+        { key: 'username', label: i18n.global.t('AccountInfo.basicUsername'), value: info.username || i18n.global.t('comm.table.empty') },
         { key: 'roles', label: i18n.global.t('AccountInfo.roles'), value: formatDimensions(info.roleList, i18n.global.t('Detail.index.153077-6')) },
         { key: 'orgs', label: i18n.global.t('AccountInfo.orgs'), value: formatDimensions(info.orgList, i18n.global.t('Detail.index.153077-7')) },
         { key: 'mobile', label: i18n.global.t('AccountInfo.basicPhone'), value: maskIdentity(getIdentity('mobile') || info.telephone, 'mobile'), editTarget: editableProviders.value.includes('mobile') ? 'phone-section' : undefined },

@@ -2596,6 +2596,7 @@ onUnmounted(() => {
               <a-dropdown
                 v-else-if="isPopupValueTerm(getTermColumn(term), term.termType)"
                 :open="valuePanelTermKey === getTermKey(term)"
+                :destroy-popup-on-hide="true"
                 trigger="click"
                 placement="bottomLeft"
                 @openChange="(visible) => onValuePanelOpenChange(getTermKey(term), visible)"

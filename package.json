@@ -3,6 +3,7 @@
   "private": true,
   "version": "2.12.0",
   "scripts": {
+    "test:asset-ownership": "node --test tests/assetOwnershipCondition.test.mjs",
     "dev": "vite",
     "dev:force": "vite --force",
     "build": "node --max_old_space_size=8192 --max-semi-space-size=64 ../node_modules/vite/bin/vite.js build",

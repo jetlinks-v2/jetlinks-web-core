@@ -1,3 +1,4 @@
+import globalI18n from '@jetlinks-web-core/locales'
 import type {
   ProjectOverviewActivityItem,
   ProjectOverviewServiceCard,
@@ -8,7 +9,7 @@ type Translate = (key: string, params?: Record<string, unknown>) => string
 
 export const getText = (...values: unknown[]) => {
   const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== '')
-  return value === undefined ? '--' : String(value)
+  return value === undefined ? globalI18n.global.t('comm.table.empty') : String(value)
 }
 
 export const createServiceCards = (t: Translate): ProjectOverviewServiceCard[] => [

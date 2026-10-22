@@ -37,7 +37,7 @@
               :title="record.name || viewDocumentText"
               @click.stop="openDocumentDrawer"
             >
-              <j-ellipsis class="mp-card__title mp-card__title--link">{{ record.name || '--' }}</j-ellipsis>
+              <j-ellipsis class="mp-card__title mp-card__title--link">{{ record.name || $t('comm.table.empty') }}</j-ellipsis>
               <span class="mp-card__title-link-affordance">
                 <FileTextOutlined />
                 <span>{{ viewDocumentText }}</span>
@@ -47,7 +47,7 @@
               v-else
               class="mp-card__title"
             >
-              {{ record.name || '--' }}
+              {{ record.name || $t('comm.table.empty') }}
             </j-ellipsis>
           </div>
           <span

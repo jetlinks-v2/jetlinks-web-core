@@ -32,7 +32,7 @@
             @update:value="emit('update:label', $event)"
           />
           <strong v-else class="target-inference-editor__label-value">
-            {{ group.label || '--' }}
+            {{ group.label || $t('comm.table.empty') }}
           </strong>
           <span v-if="errors?.label" class="target-inference-editor__error">
             {{ getErrorMessage(errors.label) }}
@@ -132,6 +132,7 @@
 </template>
 
 <script setup lang="ts">
+import globalI18n from '@jetlinks-web-core/locales'
 import { ref, type PropType } from 'vue'
 import TargetInferenceOperation from './TargetInferenceOperation.vue'
 import TargetInferencePart from './TargetInferencePart.vue'
@@ -202,7 +203,7 @@ function partError(partId: string) {
 }
 
 function buildPath(...parts: string[]) {
-  return parts.map(part => part.trim() || '--').join(' / ')
+  return parts.map(part => part.trim() || globalI18n.global.t('comm.table.empty')).join(' / ')
 }
 
 function getErrorMessage(key?: string) {

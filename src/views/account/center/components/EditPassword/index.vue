@@ -42,7 +42,7 @@
                         ]"
                     >
                         <template #extra>
-                            <a-button type="link" size="small" @click="handleForgotPassword" style="padding: 0;">
+                            <a-button v-if="!isPrivateDeployment()" type="link" size="small" @click="handleForgotPassword" style="padding: 0;">
                                 {{ $t('EditPassword.index.010161-22') }}
                             </a-button>
                         </template>
@@ -110,6 +110,7 @@ import {
 import { onlyMessage } from "@jetlinks-web/utils";
 import { Modal } from 'ant-design-vue';
 import { useI18n } from 'vue-i18n';
+import { isPrivateDeployment } from "@jetlinks-web-core/utils";
 
 const { t: $t } = useI18n();
 type formType = {
@@ -308,7 +309,6 @@ const handleOk = () => {
 
 <style scoped lang="less">
 .content {
-    padding: 1.875rem 3.125rem;
 
   &.no-padding {
     padding: 0;

@@ -6,7 +6,7 @@
     <div class="top-card-content">
       <div class="content-left">
         <div class="content-left-title">
-          <j-ellipsis>{{ data.componentProps.name || '--' }}</j-ellipsis>
+          <j-ellipsis>{{ data.componentProps.name || $t('comm.table.empty') }}</j-ellipsis>
           <!-- <j-tooltip
             placement="top"
             v-if="tooltip"

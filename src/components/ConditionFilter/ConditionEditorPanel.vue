@@ -123,6 +123,12 @@ const onValueItemUpdate = (value: any) => {
   }
 }
 
+// 显式确认使用事件携带的最新值；与普通输入共用提交调度，关闭由外层筛选器负责。
+const onValueItemSubmit = (value: unknown) => {
+  setDraftValue(value)
+  onSubmit({ close: true, source: 'commit' })
+}
+
 const onSubmit = (options?: ConditionFilterSubmitOptions) => {
   if (!props.column || (!canApply.value && !options?.allowEmpty)) {
     return
@@ -183,6 +189,7 @@ watch(
           :show-action="false"
           embedded
           @update:value="onValueItemUpdate"
+          @submit="onValueItemSubmit"
         />
       </slot>
     </div>
