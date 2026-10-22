@@ -12,6 +12,9 @@ import dayjs from 'dayjs'
 import CryptoJS from "crypto-js";
 import { onlyMessage } from '@jetlinks-web/utils'
 
+// 验证码生成和校验是公共请求，登录前不携带路径推断出的项目或租户上下文。
+const captchaRequestConfig = { projectContext: false, tenantDomain: false } as const
+
 export interface UseCaptchaReturn {
   captchaData: Ref<CaptchaData | null>
   loading: Ref<boolean>
@@ -35,7 +38,7 @@ export function useCaptcha(config: Ref<CaptchaConfig> | CaptchaConfig): UseCaptc
     error.value = null
 
     try {
-      const response = await request.post(configRef.value.imageUrl)
+      const response = await request.post(configRef.value.imageUrl, undefined, captchaRequestConfig)
       captchaData.value = response.data
       if (captchaData.value) {
         const imageWidthScale = Number((imageWidth.value / captchaData.value.backgroundImageWidth).toFixed(4))
@@ -147,7 +150,7 @@ export function useCaptcha(config: Ref<CaptchaConfig> | CaptchaConfig): UseCaptc
         {
           id: currentCaptcha.id,
           data: normalizeTrackData(trackData)
-        })
+        }, captchaRequestConfig)
 
       if (response.success) {
         const successResult = (response.result ?? response.data ?? true) as CaptchaValidationSuccess

@@ -1,13 +1,16 @@
-import { Request, ndJson, request } from '@jetlinks-web/core'
+import { Request, ndJson, request, type NdJsonRequestConfig } from '@jetlinks-web/core'
 import type { AxiosResponseRewrite } from '@jetlinks-web/types'
 import { isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storage'
+
+// 登录前尚未确认项目身份，URL 中的应用 ID 不能作为租户域名发送。
+const loginRequestConfig = { projectContext: false, tenantDomain: false } as const
 
 /**
  * 登录
  * @param data
  * @returns
  */
-export const login = (data: any) => request.post('/authorize/login', data,loginRequestConfig)
+export const login = (data: any) => request.post('/authorize/login', data, loginRequestConfig)
 
 /**
  * 退出登录
@@ -17,26 +20,26 @@ export const logout = () => request.get('/user-token/reset')
 /**
  * 获取验证码
  */
-export const codeUrl = () => request.get<{ base64: string, key: string }>(`/authorize/captcha/image?width=130&height=30`,{},loginRequestConfig)
+export const codeUrl = () => request.get<{ base64: string, key: string }>(`/authorize/captcha/image?width=130&height=30`, {}, loginRequestConfig)
 
 /**
  * 登录加密信息
  * @returns
  */
-export const encryptionConfig = () => request.get(`/authorize/login/configs`,{},loginRequestConfig)
+export const encryptionConfig = () => request.get(`/authorize/login/configs`, {}, loginRequestConfig)
 
 /**
- * 登录加密信息
+ * 验证码配置
  * @returns
  */
-export const captchaConfig = () => request.get(`/authorize/captcha/config`, {},{ projectContext: false })
+export const captchaConfig = () => request.get(`/authorize/captcha/config`, {}, loginRequestConfig)
 
 
 /**
  * 登录
  * @returns
  */
-export const authLogin = (data: any) => request.post(`/authorize/login`, data,{},{ projectContext: false })
+export const authLogin = (data: any) => request.post(`/authorize/login`, data, loginRequestConfig)
 
 /**
  * 获取当前登录用户信息
@@ -58,7 +61,7 @@ export const queryModal  = (serviceId:string) => request.get(`/command-supports/
  * 获取支持的SSO的应用
  * @returns
  */
-export const bindInfo = () => request.get(`/application/sso/_all`)
+export const bindInfo = () => request.get(`/application/sso/_all`, {}, loginRequestConfig)
 
 export const getOAuth2 = (params: any) => request.get('/oauth2/authorize', params)
 
@@ -67,26 +70,22 @@ export const initApplication = (clientId: string | number) => request.get<{name:
 // ---------------------------------------------------------------------------
 // 运行时登录页（src/views/login/）专用端点
 //
-// 登录发生在项目会话建立之前，因此这些请求统一携带 projectContext: false，
-// 跳过本地项目 token / Scope；URL 中的项目 code 仍由公共拦截器写入请求头。
-// 既有导出 login / codeUrl / authLogin / bindInfo 仍被 src/views/relogin、
-// src/views/oauth、src/views/share/authorize 使用，语义保持不变；这里只按需新增
-// 导出，不改动它们的请求行为。
+// 登录请求同时跳过本地项目 token / Scope 和租户头；
+// 登录成功后由既有流程建立项目或应用上下文。
 // ---------------------------------------------------------------------------
 
 const userIdentityRequest = new Request('/user/identity')
 const subAccountRequest = new Request('/sub-account')
 const applicationRequest = new Request('/application')
-const loginRequestConfig = { projectContext: false }
 
 /**
- * 登录（不复用本地项目会话，保留 URL 项目标识）
+ * 登录（不复用本地项目会话和租户头）
  */
 export const loginWithoutProjectContext = (data: any) =>
   request.post('/authorize/login', data, loginRequestConfig)
 
 /**
- * 获取图片验证码（不复用本地项目会话，保留 URL 项目标识）
+ * 获取图片验证码（不复用本地项目会话和租户头）
  */
 export const codeUrlWithoutProjectContext = () =>
   request.get<{ base64: string; key: string }>(
@@ -96,7 +95,7 @@ export const codeUrlWithoutProjectContext = () =>
   )
 
 /**
- * 获取支持的 SSO 应用（不复用本地项目会话，保留 URL 项目标识）
+ * 获取支持的 SSO 应用（不复用本地项目会话和租户头）
  */
 export const bindInfoWithoutProjectContext = () =>
   request.get(`/application/sso/_all`, {}, loginRequestConfig)
@@ -152,7 +151,9 @@ export const identityConfirm = (data: IdentityConfirmParams) =>
  */
 export const scanLoginAsync = (appId: string, forBind = false) => {
   const query = forBind ? '?forBind=true' : ''
-  return ndJson.get(`/application/sso/${appId}/login/_async${query}`)
+  // 登录后的账号绑定仍使用当前项目和应用上下文。
+  const options: Partial<NdJsonRequestConfig> = forBind ? {} : loginRequestConfig
+  return ndJson.get(`/application/sso/${appId}/login/_async${query}`, undefined, options)
 }
 
 export interface ApplicationSsoLoginResult {

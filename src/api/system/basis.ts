@@ -8,13 +8,13 @@ export const getDetails_api = (data: any) => request.post<any>(`/system/config/s
 /**
  * 系统版本
  */
-export const systemVersion = () => request.get('/system/version', undefined, { applicationScope: false })
+export const systemVersion = () => request.get('/system/version', undefined, { projectContext: false, tenantDomain: false })
 
 /**
  * 系统配置信息
  * @param scopes
  */
-export const settingDetail = (scopes: string) => request.get(`/system/config/${scopes}`,{}, { projectContext: false })
+export const settingDetail = (scopes: string) => request.get(`/system/config/${scopes}`, {}, { projectContext: false, tenantDomain: false })
 
 /**
  * 判断预处理数据是否开启

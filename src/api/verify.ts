@@ -1,5 +1,8 @@
 import { Request, request } from '@jetlinks-web/core'
 
+// 公共验证码接口用于登录前，不从入口路径推断租户。
+const publicCaptchaRequestConfig = { projectContext: false, tenantDomain: false } as const
+
 /** 403 校验响应中的 result 结构 */
 export interface VerifyRequiredResult {
   type: 'captcha' | 'identity'
@@ -61,20 +64,20 @@ export interface IdentityVerifyRequest {
 /** 获取验证码配置（与登录一致，走 CaptchaController） */
 export const getVerifyCaptchaConfig = () =>
   request.get<{ result: { enabled: boolean; type: string; types?: string[]; [key: string]: unknown } }>(
-    '/authorize/captcha/config', {}, { projectContext: false }
+    '/authorize/captcha/config', {}, publicCaptchaRequestConfig
   )
 
 /** 获取验证码图片（与登录一致） */
 export const getVerifyCaptchaImage = (params?: { width?: number; height?: number }) =>
   request.get<{ result: { base64: string; key: string } }>(
-    `/authorize/captcha/image?width=${params?.width ?? 130}&height=${params?.height ?? 40}`, {}, { projectContext: false }
+    `/authorize/captcha/image?width=${params?.width ?? 130}&height=${params?.height ?? 40}`, {}, publicCaptchaRequestConfig
   )
 
 /** 验证码确认（VerifyController） */
 export const confirmCaptcha = (data: VerifyCaptchaRequest) =>
-  request.post<{ result: VerifyResultResponse }>('/verify/captcha/_confirm', data, { projectContext: false, withCredentials: true })
+  request.post<{ result: VerifyResultResponse }>('/verify/captcha/_confirm', data, captchaRequestConfig)
 
-const captchaRequestConfig = { projectContext: false, withCredentials: true }
+const captchaRequestConfig = { ...publicCaptchaRequestConfig, withCredentials: true }
 
 const postCaptchaRequest = <T>(
   url: string,
