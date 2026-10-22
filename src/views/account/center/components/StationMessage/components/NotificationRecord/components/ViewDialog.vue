@@ -126,8 +126,8 @@
         <div style="padding: 0.625rem; background-color: #fafafa">
           <j-scrollbar height="12.5rem">
             <JsonViewer
-              style="background-color: #fafafa"
-              :value="JSON.parse(_data?.alarmInfo || '{}')"
+              style="background-color: #fafafa; height: 12.5rem"
+              :value="_data"
             />
           </j-scrollbar>
         </div>
