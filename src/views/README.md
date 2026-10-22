@@ -42,6 +42,9 @@
 - 功能切换：右侧复用原 `components/StationMessage/index.vue`、`components/Subscribe/index.vue` 和 `components/PersonalToken/index.vue`，只提供消息中心 / 消息订阅 / 个人令牌三个主切换项。通过 `EqualHeightColumns` 和 Ant Design Vue 分段控件承载；左右两栏使用普通 `section` 组织标题、操作和内容，移除 `ContentPanel` 的卡片包裹。宽屏两栏各自滚动，窄屏堆叠并在容器内滚动。
 - 首页视图：左侧移除“首页视图”按钮，`components/HomeView/index.vue` 原代码与历史 `HomeView` 页签入口继续保留；应用用户沿用原入口限制。
 - 状态与兼容：`account/center/useCenter.ts` 管理数据、弹窗和路由联动，`types.ts` 定义展示契约。保持 `StationMessage` / `Subscribe` / `PersonalToken` / `BindThirdAccount` / `HomeView` 原页签参数，以及 `user.tabKey`、`user.messageInfo` 和原通知子页签联动；新通知可以切回消息中心，旧通知不会反复覆盖用户的手动选择。邮箱 / 手机号编辑继续兼容 `query.anchor`，账户能力按既有版本条件及 `authService:identity`、身份提供商和 SSO 重定向支持条件展示。
+- 站内信子页签：`account/center/components/StationMessage/index.vue` 分别监听 `other.tabKey`、路由消息 `row` 和 Store 新通知，消息类型异步加载后补充定位；清空 `user.messageInfo` 不重新消费旧路由消息。`components/NotificationRecord/index.vue` 首次打开详情后清理一次性跳转缓存，避免新列表在旧列表卸载前重用 `row` 并重复打开详情。保留 provider 分组、默认页签、详情入口及接口契约。
+- 子页签验证：在 9201 真实页面复现旧问题，并验证“概览 → 顶部通知 → 安全告警 → 查看详情 → 关闭详情 → 合规告警 / 业务监控 / 告警 / 安全告警”完整链路，四类页签均保持手动选择且无旧详情重开；在消息中心内从通知入口查看合规告警后再次切换安全 / 合规告警同样通过。使用真实 Vue 响应式与子组件卸载生命周期的定向验证还覆盖新路由消息、Store 新通知、旧路由与新通知并存、消息类型慢加载及默认页签。
+- 子页签静态检查：两处修改组件的 Vue 模板与 TypeScript 脚本编译、`git diff --check` 通过；`pnpm exec vue-tsc --noEmit -p tsconfig.json` 仍报告 549 项项目级诊断，两处组件均无诊断。项目未配置 lint；本次未重跑完整构建，待在足够内存环境运行 `pnpm build:standalone`（此前构建限制见下文）。浏览器验证期间其他模块热更新曾触发模块初始化错误，重载后恢复，未纳入此次页签修复范围。
 - 边界：没有修改 SaaS 覆盖页面、运营端 `ui/`、后端接口、权限模型或原首页视图；沿用现有 API，保留工作区已有 API 改动，个人令牌配置同步见下文。新增文案仅维护 core 的 `src/locales/lang/{zh,en}.json`。
 - 行为验证：在 core 目录运行 `node --test src/views/account/center/useCenter.test.mjs`，12 项通过，覆盖账号 ID / 用户名 / 角色 / 组织 / 手机号 / 邮箱的摘要字段、默认页签、异步加载期间的切换、历史入口、应用用户限制、通知联动、联系方式锚点、主身份与能力回退、邮箱占位及单字符邮箱脱敏、SSO 过滤、部分失败重试、关闭编辑刷新、卸载清理和语言切换。
 - 编译与静态检查：页面及账户卡片的 Vue 模板、TypeScript 脚本和 Less 独立编译通过，中英文 JSON 校验、`git diff --check` 通过。当前项目没有 lint 脚本或 ESLint 配置；全量类型检查仍有既有错误，联系方式调整的专项验证及具体限制见下文。
