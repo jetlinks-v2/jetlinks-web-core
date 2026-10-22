@@ -1,36 +1,41 @@
 <template>
-  <div class="bacnet-scan">
-    <div class="bacnet-scan__sidebar">
-      <div class="bacnet-scan__header">
-        <span>{{ $lang('BACNetIp.scan.20260428-1') }}</span>
-        <a-button block @click="toggleAll">
-          {{ dataSource.length ? $lang('BACNetIp.scan.20260428-2') : $lang('BACNetIp.scan.20260428-3') }}
-        </a-button>
-      </div>
-      <a-spin :spinning="treeLoading">
-        <div v-if="treeData.length" class="bacnet-scan__tree">
-          <VirtualScroll :data="treeData" :itemHeight="40">
-            <template #renderItem="item">
-              <div class="bacnet-scan__tree-item" @click="addSelectedNode(item)">
-                <AIcon type="icon-dianwei" />
-                <div :class="['bacnet-scan__tree-title', selectedKeys.includes(item.pointKey) ? 'is-selected' : '']">
-                  <j-ellipsis>{{ item.name }}</j-ellipsis>
-                </div>
-              </div>
-            </template>
-          </VirtualScroll>
+  <PointScanWorkspace :empty="!dataSource.length">
+    <template #sidebar>
+      <div class="bacnet-scan__sidebar">
+        <div class="bacnet-scan__header">
+          <span>{{ $lang('BACNetIp.scan.20260428-1') }}</span>
+          <a-button block @click="toggleAll">
+            {{ dataSource.length ? $lang('BACNetIp.scan.20260428-2') : $lang('BACNetIp.scan.20260428-3') }}
+          </a-button>
         </div>
-        <a-empty v-else class="bacnet-scan__empty" />
-      </a-spin>
-    </div>
-    <div class="bacnet-scan__content">
+        <div class="bacnet-scan__browser">
+          <a-spin :spinning="treeLoading">
+            <div v-if="treeData.length" class="bacnet-scan__tree">
+              <VirtualScroll :data="treeData" :itemHeight="40">
+                <template #renderItem="item">
+                  <div class="bacnet-scan__tree-item" @click="addSelectedNode(item)">
+                    <AIcon type="icon-dianwei" />
+                    <div :class="['bacnet-scan__tree-title', selectedKeys.includes(item.pointKey) ? 'is-selected' : '']">
+                      <j-ellipsis>{{ item.name }}</j-ellipsis>
+                    </div>
+                  </div>
+                </template>
+              </VirtualScroll>
+            </div>
+            <a-empty v-else class="bacnet-scan__empty" />
+          </a-spin>
+        </div>
+      </div>
+    </template>
+    <template #default="{ bodyHeight }">
       <j-edit-table
         ref="tableRef"
         :dataSource="dataSource"
         :serial="false"
         :columns="columns"
-        :height="540"
+        :height="bodyHeight"
       >
+        <template #emptyText><span /></template>
         <template #name="{ record, index }">
           <j-edit-table-form-item :name="[index, 'name']">
             <a-input
@@ -153,11 +158,12 @@
           </j-permission-button>
         </template>
       </j-edit-table>
-    </div>
-  </div>
+    </template>
+  </PointScanWorkspace>
 </template>
 
 <script setup>
+import { PointScanWorkspace } from '@components'
 import { computed, inject, ref, watch } from 'vue'
 import { cloneDeep } from 'lodash-es'
 import { request } from '@jetlinks-web/core'
@@ -539,43 +545,57 @@ defineExpose({
 </script>
 
 <style scoped>
-.bacnet-scan {
-  display: flex;
-  gap: 16px;
-  min-height: 560px;
-}
-
 .bacnet-scan__sidebar {
-  width: 300px;
-  flex: none;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
 .bacnet-scan__header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: .75rem;
+  margin-bottom: .75rem;
 }
 
-.bacnet-scan__header .ant-btn {
-  width: 120px;
+.bacnet-scan__header > span {
+  font-weight: 500;
+}
+
+.bacnet-scan__browser {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.bacnet-scan__browser :deep(.ant-spin-nested-loading),
+.bacnet-scan__browser :deep(.ant-spin-container) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .bacnet-scan__tree {
-  height: 540px;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
-  border: 1px solid #f0f0f0;
-  border-radius: 2px;
 }
 
 .bacnet-scan__tree-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: .5rem;
   height: 40px;
-  padding: 0 10px;
+  padding: 0 .5rem;
+  border-radius: var(--r-3, 8px);
   cursor: pointer;
+}
+
+.bacnet-scan__tree-item:hover {
+  background: var(--accent-soft, #f0f7ff);
 }
 
 .bacnet-scan__tree-title {
@@ -584,18 +604,13 @@ defineExpose({
 }
 
 .bacnet-scan__tree-title.is-selected {
-  color: #1677ff;
-}
-
-.bacnet-scan__content {
-  min-width: 0;
-  flex: 1;
+  color: var(--accent, #1677ff);
 }
 
 .bacnet-scan__ditto {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: .5rem;
 }
 
 .bacnet-scan__grow {
@@ -605,6 +620,9 @@ defineExpose({
 }
 
 .bacnet-scan__empty {
-  margin-top: 120px;
+  display: grid;
+  flex: 1;
+  align-content: center;
+  margin: 1rem 0;
 }
 </style>

@@ -1,44 +1,49 @@
 <template>
-  <div class="opc-scan">
-    <div class="opc-scan__sidebar">
-      <div class="opc-scan__header">
-        <span>{{ $lang('OPC_UA.scan.20260422-1') }}</span>
-        <a-button block @click="toggleCurrentPage">
-          {{ hasSelectedCurrentPage ? $lang('OPC_UA.scan.20260422-2') : $lang('OPC_UA.scan.20260422-3') }}
-        </a-button>
-      </div>
-      <a-spin :spinning="treeLoading">
-        <a-breadcrumb class="opc-scan__breadcrumb">
-          <a-breadcrumb-item
-              v-for="(item, index) in breadcrumb"
-              :key="`${item.nodeId || 'root'}-${index}`"
-          >
-            <a href="javascript:void(0);" @click="jumpTo(index, item.nodeId)">{{ item.breadcrumbName }}</a>
-          </a-breadcrumb-item>
-        </a-breadcrumb>
-        <div v-if="treeData.length" class="opc-scan__tree">
-          <VirtualScroll :data="treeData" :itemHeight="40">
-            <template #renderItem="item">
-              <div class="opc-scan__tree-item" @click="handleNodeClick(item)">
-                <AIcon :type="item?.folder ? 'icon-wenjianjia' : 'icon-dianwei'"/>
-                <div :class="['opc-scan__tree-title', selectedKeys.includes(item.id) ? 'is-selected' : '']">
-                  <j-ellipsis>{{ item.name }}</j-ellipsis>
-                </div>
-              </div>
-            </template>
-          </VirtualScroll>
+  <PointScanWorkspace :empty="!dataSource.length">
+    <template #sidebar>
+      <div class="opc-scan__sidebar">
+        <div class="opc-scan__header">
+          <span>{{ $lang('OPC_UA.scan.20260422-1') }}</span>
+          <a-button block @click="toggleCurrentPage">
+            {{ hasSelectedCurrentPage ? $lang('OPC_UA.scan.20260422-2') : $lang('OPC_UA.scan.20260422-3') }}
+          </a-button>
         </div>
-        <a-empty v-else class="opc-scan__empty"/>
-      </a-spin>
-    </div>
-    <div class="opc-scan__content">
+        <div class="opc-scan__browser">
+          <a-spin :spinning="treeLoading">
+            <a-breadcrumb class="opc-scan__breadcrumb">
+              <a-breadcrumb-item
+                  v-for="(item, index) in breadcrumb"
+                  :key="`${item.nodeId || 'root'}-${index}`"
+              >
+                <a href="javascript:void(0);" @click="jumpTo(index, item.nodeId)">{{ item.breadcrumbName }}</a>
+              </a-breadcrumb-item>
+            </a-breadcrumb>
+            <div v-if="treeData.length" class="opc-scan__tree">
+              <VirtualScroll :data="treeData" :itemHeight="40">
+                <template #renderItem="item">
+                  <div class="opc-scan__tree-item" @click="handleNodeClick(item)">
+                    <AIcon :type="item?.folder ? 'icon-wenjianjia' : 'icon-dianwei'"/>
+                    <div :class="['opc-scan__tree-title', selectedKeys.includes(item.id) ? 'is-selected' : '']">
+                      <j-ellipsis>{{ item.name }}</j-ellipsis>
+                    </div>
+                  </div>
+                </template>
+              </VirtualScroll>
+            </div>
+            <a-empty v-else class="opc-scan__empty"/>
+          </a-spin>
+        </div>
+      </div>
+    </template>
+    <template #default="{ bodyHeight }">
       <j-edit-table
           ref="tableRef"
           :dataSource="dataSource"
           :serial="false"
           :columns="columns"
-          :height="540"
+          :height="bodyHeight"
       >
+        <template #emptyText><span /></template>
         <template #name="{ record, index }">
           <j-edit-table-form-item :name="[index, 'name']">
             <div class="opc-scan__ditto">
@@ -234,11 +239,12 @@
           </j-permission-button>
         </template>
       </j-edit-table>
-    </div>
-  </div>
+    </template>
+  </PointScanWorkspace>
 </template>
 
 <script setup>
+import { PointScanWorkspace } from '@components'
 import {computed, inject, ref, watch} from 'vue'
 import {cloneDeep} from 'lodash-es'
 import {useLocales} from '@hooks'
@@ -660,64 +666,89 @@ defineExpose({
 </script>
 
 <style scoped>
-.opc-scan {
-  display: flex;
-  gap: 16px;
-  min-height: 600px;
-}
-
 .opc-scan__sidebar {
-  width: 300px;
-  border-right: 1px solid #f0f0f0;
-  padding-right: 16px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
 .opc-scan__header {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: .75rem;
+  margin-bottom: .75rem;
 }
 
-.opc-scan__breadcrumb {
-  margin-bottom: 12px;
+.opc-scan__header > span {
+  font-weight: 500;
+}
+
+.opc-scan__browser {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.opc-scan__browser :deep(.ant-spin-nested-loading),
+.opc-scan__browser :deep(.ant-spin-container) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .opc-scan__tree {
-  height: 500px;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
 .opc-scan__tree-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: .5rem;
   height: 40px;
+  padding: 0 .5rem;
+  border-radius: var(--r-3, 8px);
   cursor: pointer;
 }
 
-.opc-scan__tree-title {
-  flex: 1;
-  min-width: 0;
+.opc-scan__tree-item:hover {
+  background: var(--accent-soft, #f0f7ff);
 }
 
-.opc-scan__content {
-  flex: 1;
+.opc-scan__tree-title {
   min-width: 0;
+  flex: 1;
+}
+
+.opc-scan__tree-title.is-selected {
+  color: var(--accent, #1677ff);
 }
 
 .opc-scan__ditto {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: .5rem;
 }
 
 .opc-scan__grow {
+  min-width: 0;
   flex: 1;
+  width: 100%;
 }
 
 .opc-scan__empty {
-  margin-top: 120px;
+  display: grid;
+  flex: 1;
+  align-content: center;
+  margin: 1rem 0;
 }
 
+.opc-scan__breadcrumb {
+  flex: none;
+  margin-bottom: .75rem;
+}
 </style>
