@@ -51,9 +51,42 @@ const verification = useCaptchaVerify<string, { requestId: string }>()
 
 | 能力 | 入口文件 | 根入口 | 适用场景 |
 | --- | --- | --- | --- |
+| `useEmptyCreateState` | `useEmptyCreateState.ts` | 是 | 按已生效的用户搜索状态控制空态新增与搜索提示 |
 | `useRequest` | `useRequest.ts` | 否 | 请求状态封装；仅沿用已有深层生产用法，不把文件存在当作根 API |
 | `useWebSocket` | `useWebSocket.ts` | 是 | WebSocket 订阅和连接状态 |
 | `useEcharts` | `Echarts/useEcharts.ts` | 是 | ECharts 实例生命周期、渲染错误和 resize 处理 |
+
+### 空态新增统一接入
+
+表格、卡片与主内容列表的可新增空态共用 `useEmptyCreateState(search)`；侧栏保留各页面原有行为，不参与本次统一接入。搜索存在时隐藏空态新增，以公共词条 `components.CloudEmpty.searchEmpty` 和已翻译的 `name` 参数显示“未找到匹配的{name}”；无搜索时保留原描述并复用原新增入口。Hook 不读取总数、不维护搜索前数据快照、不补发查询，也不修改接口默认条件或分页。
+
+页面通常直接使用已集成 Hook 的 `CloudEmpty`，无需重复编写描述和按钮条件：
+
+```vue
+<CloudEmpty :search="submittedTerms" :search-name="$t('Product.index.660348-15')">
+  <EmptyCreateButton />
+</CloudEmpty>
+```
+
+`EmptyCreateButton` 复用原工具栏入口，可通过已有组件、`createReusableTemplate` 或父级 slot 提供，保留原处理器、权限、禁用、loading 及只读条件。父级持有动作、子级持有空态时，使用 `empty-create` slot 透传。
+
+页面若需要在其他位置读取统一状态，直接调用 Hook：
+
+```ts
+import { useEmptyCreateState } from '@jetlinks-web-core/hooks'
+
+const { hasSearch, showEmptyCreate } = useEmptyCreateState(() => submittedTerms.value)
+```
+
+`search` 支持条件数组、关键词或布尔值，也支持对应的 Ref / getter；关键词忽略两端空白，条件数组按是否为空判断。只传当前集合已生效的用户搜索，固定业务条件、所属对象与接口默认 `terms` 应由调用方排除。点击搜索才生效的页面传已提交值；即时本地过滤可传当前关键词。
+
+返回只读计算值 `hasSearch` 与 `showEmptyCreate`，后者表示没有搜索，只用于页面已经判定的成功空态。Hook 不接管集合为空、加载或失败的判断，无请求、watch 或需要清理的副作用。
+
+`showEmptyCreate` 仅控制空态内新增，不改变原工具栏入口。传入 Ref 或 getter，避免传 `.value` 的快照导致搜索状态不更新。
+
+生产接入范围与验证见 `runtime-ui/README.md` 的“空状态新增入口”，组件参数见 `src/components/CloudEmpty/README.md`。侧栏中本次新增的按钮、复用模板及显示条件已撤回；原本已有的空态按钮继续保留。
+
+验证入口：在 `jetlinks-web-core/` 执行 `node --test tests/emptyCreateState.test.mjs`，保留 5 项公共检查，覆盖响应式搜索与清空、固定条件隔离、严格类型契约、实际 CloudEmpty 描述 / 插槽切换、中英文插值与复用按钮的处理器、权限、禁用、loading。已移除仅验证侧栏新增切换的业务模板检查；实际执行结果见运行时根 `README.md`。
 
 ## 布局、主题与响应式
 

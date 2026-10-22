@@ -1,5 +1,11 @@
 <template>
-  <div class="personal-token">
+
+  <DefineEmptyCreate>
+    <a-button type="primary" @click="handleAdd">
+      {{ $t('PersonalToken.index.061384-1') }}
+    </a-button>
+  </DefineEmptyCreate>
+  <div v-bind="$attrs" class="personal-token">
     <div class="personal-token-header">
       <div style="display: flex; gap: 1.5rem; align-items: center">
         <div>
@@ -7,9 +13,7 @@
         </div>
         <div style="color: #1A1A1A">{{ $t('PersonalToken.index.061384-0') }}</div>
       </div>
-      <a-button type="primary" @click="handleAdd">
-        {{ $t('PersonalToken.index.061384-1') }}
-      </a-button>
+      <EmptyCreateButton />
     </div>
 
     <div v-if="loading" class="empty-state"><a-spin /></div>
@@ -20,7 +24,9 @@
     </a-alert>
     <div v-else-if="tokenList.length === 0" class="empty-state">
       <div class="empty-content">
-        <CloudEmpty />
+        <CloudEmpty :search-name="$t('center.data.756829-4')">
+          <EmptyCreateButton />
+        </CloudEmpty>
       </div>
     </div>
 
@@ -49,6 +55,8 @@
 </template>
 
 <script setup lang="ts">
+import { createReusableTemplate } from '@vueuse/core'
+
 import TokenCard from './components/TokenCard.vue'
 import TokenDialog from './components/TokenDialog.vue'
 import { usePersonalToken } from './usePersonalToken'
@@ -57,6 +65,8 @@ const {
   tokenList, dialogVisible, dialogMode, selectedToken, loading, loadError, reload,
   handleAdd, handleView, handleEdit, handleDelete, handleDialogOk,
 } = usePersonalToken()
+
+const [DefineEmptyCreate, EmptyCreateButton] = createReusableTemplate()
 </script>
 
 <style lang="less" scoped>
