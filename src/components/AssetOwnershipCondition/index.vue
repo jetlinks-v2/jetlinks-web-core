@@ -56,7 +56,7 @@ const onOperatorChange = async (value: unknown) => {
   const operator = operators.value.find(item => item === value)
   if (!operator) return
   selectOperator(operator)
-  if (needsTargets.value) await openTargets()
+  if (needsTargets.value && !targetOpen.value && !failure.value) await openTargets()
 }
 </script>
 

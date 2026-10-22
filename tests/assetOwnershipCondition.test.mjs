@@ -850,3 +850,65 @@ test('the ConditionFilter field reopens the real SFC with checked IDs and resolv
   assert.equal(contextLoads, 2)
   assert.equal(directories, 2)
 })
+
+test('the real editor keeps its selector, pending responses and errors when switching target matching', async () => {
+  let factories = 0, loads = 0
+  const pending = deferred(), failing = deferred()
+  register('stable-target-selector', { org: adapter({ supportsClosure: true, createSelector: () => {
+    factories++
+    return { optionPanel: { loadOptions: () => ++loads === 1 ? pending.promise : failing.promise } }
+  } }) })
+  const component = source('components/AssetOwnershipCondition/index.vue').default
+  const renderer = vue.createRenderer({ createElement: tag => ({ tag, children: [] }),
+    createText: text => ({ text }), createComment: text => ({ text }),
+    insert: (child, parent) => parent.children.push(child), remove: () => {},
+    setText: () => {}, setElementText: () => {}, patchProp: () => {}, parentNode: () => null, nextSibling: () => null })
+  const editor = vue.ref(), changes = []
+  const app = renderer.createApp({ setup: () => () => vue.h(component, {
+    options: { ...base, context: context() }, value: term('org'), resumeOnMount: true,
+    ref: editor, onChange: value => changes.push(value),
+  }) })
+  app.mount({ children: [] })
+  try {
+    await new Promise(resolve => setImmediate(resolve))
+    const state = editor.value.$.setupState
+    const selector = state.selector
+    state.selectTargets(['one', 'two'])
+    state.draft.closure = true
+    const loading = selector.optionPanel.loadOptions()
+    for (const operator of ['notTargets', 'targets', 'targets']) {
+      await state.onOperatorChange(operator)
+      assert.equal(state.selector, selector)
+      assert.equal(state.targetOpen, true)
+      assert.deepEqual(state.draft.ids, ['one', 'two'])
+      assert.equal(state.draft.closure, true)
+    }
+    assert.equal(factories, 1)
+    assert.equal(loads, 1)
+    pending.resolve([{ value: 'one', label: 'Resolved organization' }])
+    assert.deepEqual(await loading, [{ value: 'one', label: 'Resolved organization' }])
+    assert.match(state.preview, /Resolved organization/)
+
+    const failedLoad = selector.optionPanel.loadOptions()
+    failing.reject(new Error('directory failed'))
+    await assert.rejects(failedLoad, /directory failed/)
+    await state.onOperatorChange('notTargets')
+    assert.equal(state.failure, 'optionsFailed')
+    assert.equal(state.selector, selector)
+    assert.equal(factories, 1)
+    state.submit()
+    assert.equal(changes.length, 0, 'changing matching must not bypass a directory failure')
+
+    await state.openTargets()
+    assert.equal(factories, 2, 'only explicit retry rebuilds the selector')
+    assert.equal(state.failure, undefined)
+    await state.onOperatorChange('unbound')
+    assert.equal(state.targetOpen, false)
+    assert.equal(state.selector, undefined)
+    assert.equal(state.draft.closure, undefined)
+    assert.deepEqual(changes, [term('org', 'unbound')])
+    await state.onOperatorChange('targets')
+    assert.equal(factories, 3)
+    assert.equal(state.targetOpen, true)
+  } finally { app.unmount(); moduleRegistry.unregister('stable-target-selector') }
+})

@@ -17,6 +17,8 @@ const terms = ref([]) // ConditionFilter v-model；不设置默认条件
 
 ConditionFilter 按需挂载的弹层使用 `resumeOnMount` 恢复既有范围、操作符和已选目标，按权限回查名称；直接挂载组件默认不请求。重复点击当前范围保留已选目标，不重置为自己。查询条件与路由仍仅保存 ID，已选用户的姓名、用户名格式由目录适配负责，core 仅消费 label。
 
+同一维度在“属于 / 不属于”之间切换只改变匹配方式，保留选择器、已选项、闭包设置和在途请求，不重新加载目录；加载错误需显式重试。切换到绑定存在性时关闭目标面板并清除闭包设置。
+
 `options` 必填 `assetType`、资产 ID 或关联资产列 `column`；可选 `userId`、`createCreatorSelector`、已加载的 `context`、`loadContext()`。多个字段使用不同 `dataIndex`，组织与租户条件通过 ConditionFilter 的 AND/OR 组合。使用方切换请求身份或 Scope 时应重建字段、更新 Context 或组件 key，避免复用旧请求上下文。
 
 ## 创建人
@@ -86,4 +88,4 @@ const resources = {
 
 归属 Context 和绑定存在性查询依赖 [组件 PR #1655](https://github.com/jetlinks-v2/jetlinks-components/pull/1655) 与 [租户 PR #48](https://github.com/jetlinks-v2/jetlinks-tenant/pull/48)；全局无归属还需执行节点安装 `assets-unbound`，缺少该能力时 Context 不提供对应范围。指定租户、组织等目标的选择器由对应业务模块接入有权限的目录接口。
 
-验证：`node --test tests/assetOwnershipCondition.test.mjs tests/conditionFilterScheduling.test.mjs` 48 项通过，覆盖 ID 输入与目录权限组合、范围撤回、闭包正反向与多目标查询、路由往返及重开恢复；包含本地组织树的隔离构建通过。定向 `vue-tsc -p tsconfig.asset-ownership.json --noEmit` 仍有 245 条既有诊断，无新增，整体未通过。模块无独立 lint 命令，`git diff --check` 通过。新租户输入和组织树的真实页面验收因浏览器连接超时待完成。完整变更见 [PR #186](https://github.com/jetlinks-v2/jetlinks-web-core/pull/186)。
+验证：`node --test tests/assetOwnershipCondition.test.mjs tests/conditionFilterScheduling.test.mjs` 49 项通过，覆盖 ID 输入与目录权限组合、范围撤回、闭包正反向与多目标查询、路由与重开恢复，以及切换匹配方式时保留选择器、在途响应和错误；包含本地组织树的隔离构建通过。定向 `vue-tsc -p tsconfig.asset-ownership.json --noEmit` 仍有 245 条既有诊断，无新增，整体未通过。模块无独立 lint 命令，`git diff --check` 通过。真实页面验收因浏览器连接超时待完成。完整变更见 [PR #186](https://github.com/jetlinks-v2/jetlinks-web-core/pull/186)。

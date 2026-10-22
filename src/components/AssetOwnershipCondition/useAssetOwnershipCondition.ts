@@ -173,9 +173,13 @@ export const useAssetOwnershipCondition = (
       : !rangeId.startsWith('dimension:') || ['bound', 'unbound'].includes(draft.value.operator)) submit()
   }
   const selectOperator = (operator: AssetDimensionOperator) => {
-    if (!operators.value.includes(operator)) return
-    selectorVersion++
+    if (!operators.value.includes(operator) || draft.value.operator === operator) return
+    const keepTargets = ['targets', 'notTargets'].includes(draft.value.operator)
+      && ['targets', 'notTargets'].includes(operator)
     draft.value.operator = operator
+    // 正反匹配复用同一目录；保留在途加载及错误，避免闪动或隐式重试。
+    if (keepTargets) return
+    selectorVersion++
     if (['bound', 'unbound'].includes(operator)) draft.value.closure = undefined
     targetOpen.value = false
     selector.value = undefined
