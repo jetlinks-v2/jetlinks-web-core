@@ -19,18 +19,18 @@ const dependencies = {
 
 // Run the real SFC setup and local query transforms with Vue's reactive scheduler.
 // Only rendering, i18n and network boundaries are replaced; input handlers stay real.
-const loadComponent = (name) => {
+const loadComponent = (name, render = false) => {
   const cache = new Map()
   const load = (filename, component = false) => {
     if (cache.has(filename)) return cache.get(filename).exports
     const module = { exports: {} }
     cache.set(filename, module)
     let source = readFileSync(filename, 'utf8')
-    if (component) source = compileScript(parse(source, { filename }).descriptor, { id: name }).content
+    if (component) source = compileScript(parse(source, { filename }).descriptor, { id: name, inlineTemplate: render }).content
     const { code } = transformSync(source, { loader: 'ts', format: 'cjs' })
     const imports = id => {
       if (Object.hasOwn(dependencies, id)) return dependencies[id]
-      if (id.endsWith('.vue')) return {}
+      if (id.endsWith('.vue')) return render && id.endsWith('/ValueItem.vue') ? load(resolve(dirname(filename), id), true) : {}
       if (id.startsWith('.')) return load(resolve(dirname(filename), `${id}.ts`))
       return require(id)
     }
@@ -38,16 +38,25 @@ const loadComponent = (name) => {
     return module.exports
   }
   const component = load(resolve(root, name), true).default
-  component.render = () => null
+  if (!render) component.render = () => null
   return component
 }
 
 const renderer = vue.createRenderer({
   createElement: tag => ({ tag, children: [] }),
   createText: text => ({ text }), createComment: text => ({ text }),
-  insert: (child, parent) => parent.children.push(child), remove: () => {},
+  insert: (child, parent, anchor) => {
+    if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1)
+    child.parent = parent
+    const index = anchor ? parent.children.indexOf(anchor) : -1
+    parent.children.splice(index < 0 ? parent.children.length : index, 0, child)
+  },
+  remove: child => {
+    if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1)
+    child.parent = null
+  },
   setText: () => {}, setElementText: () => {}, patchProp: () => {},
-  parentNode: () => null, nextSibling: () => null,
+  parentNode: child => child.parent, nextSibling: child => child.parent?.children[child.parent.children.indexOf(child) + 1] || null,
 })
 
 const fields = [
@@ -376,4 +385,78 @@ test('manual search confirms an active text draft without a second automatic req
     assert.equal(h.changes[0].terms[0].value, '/submitted')
     assert.equal(h.timers.size, 0)
   } finally { h.stop() }
+})
+
+test('a rendered custom editor confirms its latest value, closes the panel and searches once', async () => {
+  let editorEmit, editorProps, unmounts = 0
+  const editor = vue.markRaw({
+    props: ['value'], emits: ['update:value', 'change', 'submit'],
+    setup(props, { emit }) {
+      editorEmit = emit
+      editorProps = props
+      vue.onUnmounted(() => { unmounts++ })
+      return () => vue.h('button', 'Confirm')
+    },
+  })
+  const field = { title: 'Custom', dataIndex: 'custom', search: { type: 'component', components: editor, termOptions: ['eq'] } }
+  const h = mountFilter({ fields: [field], modelValue: [{ column: 'custom', termType: 'eq', value: 'old' }] })
+  const panel = loadComponent('ConditionEditorPanel.vue', true)
+  const app = renderer.createApp({
+    setup() {
+      vue.provide('columnsMapKey', { custom: field })
+      vue.provide('useColumnItemOptionsKey', {})
+      return () => h.state.valuePanelTermKey ? vue.h(panel, {
+        column: 'custom', term: h.state.termsModel[0],
+        onApply: (value, options) => h.state.onApplyPanelValue(h.state.valuePanelTermKey, value, options),
+      }) : null
+    },
+  })
+  for (const name of ['a-input-number', 'a-input', 'a-button']) {
+    app.component(name, { setup: () => () => null })
+  }
+  try {
+    await vue.nextTick()
+    h.changes.length = 0
+    const open = async () => {
+      h.state.activatePopupValueTerm(h.state.termsModel[0].key)
+      await vue.nextTick()
+    }
+    await open()
+    app.mount({ children: [] })
+    await vue.nextTick()
+    assert.equal(editorProps.value, 'old')
+    const next = { ids: ['root'], closure: true, not: true }
+    editorEmit('update:value', next)
+    editorEmit('change', next)
+    editorEmit('submit')
+    await vue.nextTick()
+    assert.equal(h.state.valuePanelTermKey, undefined)
+    assert.equal(h.changes.length, 1)
+    assert.deepEqual(h.changes[0].terms[0].value, next)
+    assert.equal(h.timers.size, 0)
+    assert.equal(unmounts, 1)
+
+    await open()
+    assert.deepEqual(editorProps.value, next, 'reopening restores the committed object')
+    editorEmit('submit')
+    await vue.nextTick()
+    assert.equal(h.state.valuePanelTermKey, undefined)
+    assert.equal(h.changes.length, 1, 'confirming an unchanged value only closes the panel')
+
+    await open()
+    editorEmit('update:value', 0)
+    await vue.nextTick()
+    assert.ok(h.state.valuePanelTermKey, 'an update without submit keeps the editor open')
+    assert.equal(h.changes.length, 1)
+    assert.equal(h.timers.size, 1)
+    editorEmit('submit')
+    await vue.nextTick()
+    assert.equal(h.state.valuePanelTermKey, undefined)
+    assert.equal(h.changes.length, 2)
+    assert.equal(h.changes[1].terms[0].value, 0)
+    assert.equal(h.timers.size, 0, 'confirmation consumes the pending input search')
+    h.drain()
+    await vue.nextTick()
+    assert.equal(h.changes.length, 2)
+  } finally { app.unmount(); h.stop() }
 })

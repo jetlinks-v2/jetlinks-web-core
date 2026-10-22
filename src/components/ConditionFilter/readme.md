@@ -92,13 +92,16 @@ const onFilterChange = ({ filter, where }) => {
 
 值编辑弹层关闭后销毁编辑器，重新打开时根据当前条件重建；自定义编辑器应从传入值恢复选择，在卸载时丢弃未完成的异步回填。
 
+字段使用 `search.type: 'component'` 时，自定义组件通过 `update:value` 更新值；如有自己的确认按钮，在更新值后发出无参数的 `submit` 事件。筛选器以最新值立即确认、合并待执行的自动搜索并关闭弹层。只更新值、不发出 `submit` 时，仍沿用原有输入更新策略；插槽编辑器继续使用下述 `submit` 回调。
+
 ```vue
 <ConditionFilter v-model="terms" :fields="fields">
-  <template #value-editor="{ field, value, setValue }">
+  <template #value-editor="{ field, value, setValue, submit }">
     <MyFilterValueEditor
       :field="field"
       :value="value"
       @update:value="setValue"
+      @submit="submit()"
     />
   </template>
 </ConditionFilter>

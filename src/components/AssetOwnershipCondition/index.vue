@@ -16,6 +16,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: 'update:value', value?: AssetOwnershipTerm): void
   (event: 'change', value?: AssetOwnershipTerm): void
+  (event: 'submit'): void
   (event: 'display-change', display: AssetOwnershipDisplay): void
 }>()
 const { t } = useI18n()
@@ -26,6 +27,7 @@ const {
 } = useAssetOwnershipCondition(props, value => {
   emit('update:value', value)
   emit('change', value)
+  emit('submit')
 }, display => emit('display-change', display), translate)
 const key = 'components.AssetOwnershipCondition.'
 const choosingRange = ref(false)

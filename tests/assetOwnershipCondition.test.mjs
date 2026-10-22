@@ -863,10 +863,11 @@ test('the real editor keeps its selector, pending responses and errors when swit
     createText: text => ({ text }), createComment: text => ({ text }),
     insert: (child, parent) => parent.children.push(child), remove: () => {},
     setText: () => {}, setElementText: () => {}, patchProp: () => {}, parentNode: () => null, nextSibling: () => null })
-  const editor = vue.ref(), changes = []
+  const editor = vue.ref(), changes = [], events = []
   const app = renderer.createApp({ setup: () => () => vue.h(component, {
     options: { ...base, context: context() }, value: term('org'), resumeOnMount: true,
-    ref: editor, onChange: value => changes.push(value),
+    ref: editor, 'onUpdate:value': () => events.push('update'),
+    onChange: value => { changes.push(value); events.push('change') }, onSubmit: () => events.push('submit'),
   }) })
   app.mount({ children: [] })
   try {
@@ -898,6 +899,7 @@ test('the real editor keeps its selector, pending responses and errors when swit
     assert.equal(factories, 1)
     state.submit()
     assert.equal(changes.length, 0, 'changing matching must not bypass a directory failure')
+    assert.deepEqual(events, [], 'a failed confirmation must not close its parent')
 
     await state.openTargets()
     assert.equal(factories, 2, 'only explicit retry rebuilds the selector')
@@ -907,8 +909,14 @@ test('the real editor keeps its selector, pending responses and errors when swit
     assert.equal(state.selector, undefined)
     assert.equal(state.draft.closure, undefined)
     assert.deepEqual(changes, [term('org', 'unbound')])
+    assert.deepEqual(events, ['update', 'change', 'submit'])
     await state.onOperatorChange('targets')
     assert.equal(factories, 3)
     assert.equal(state.targetOpen, true)
+    state.draft.closure = true
+    state.submit()
+    assert.deepEqual(changes.at(-1), { ...term('org', 'targets', ['one', 'two']),
+      value: { ...term('org', 'targets', ['one', 'two']).value, closure: true } })
+    assert.deepEqual(events, ['update', 'change', 'submit', 'update', 'change', 'submit'])
   } finally { app.unmount(); moduleRegistry.unregister('stable-target-selector') }
 })
