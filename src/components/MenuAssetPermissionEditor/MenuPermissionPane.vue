@@ -58,7 +58,7 @@
               :disabled="readonly || isProtectedButton(record, button)"
               @change="toggleButton(record, button, $event.target.checked)"
             >{{ button.i18nName || button.name || button.id }}</a-checkbox>
-            <span v-if="!record.buttons?.length">--</span>
+            <span v-if="!record.buttons?.length">{{ $t('comm.table.empty') }}</span>
           </div>
           <slot v-else name="column" :column="column" :record="record" />
         </template>

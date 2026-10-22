@@ -36,7 +36,7 @@
               :disabled="readonly || access.disabled"
             >{{ access.i18nName || access.name || access.supportId }}</a-radio>
           </a-radio-group>
-          <span v-if="!asset.accesses.length">--</span>
+          <span v-if="!asset.accesses.length">{{ $t('comm.table.empty') }}</span>
         </slot>
       </div>
     </div>

@@ -64,7 +64,7 @@
               </span>
             </a-descriptions-item>
             <a-descriptions-item :label="$t('PersonalToken.TokenCard.515931-5')">
-              {{ token.description || '--' }}
+              {{ token.description || $t('comm.table.empty') }}
             </a-descriptions-item>
           </a-descriptions>
           <div

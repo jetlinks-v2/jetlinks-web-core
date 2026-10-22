@@ -38,7 +38,7 @@
             <div class="field-label">{{ $t('PersonalToken.TokenCard.515931-5') }}</div>
             <div class="field-value">
               <j-ellipsis>
-                {{ token.description || '--' }}
+                {{ token.description || $t('comm.table.empty') }}
               </j-ellipsis>
             </div>
           </div>

@@ -261,7 +261,7 @@ export const normalizeTermTypeOption = (option: ConditionTermOption) => {
 
 export const getReadableTermTypeLabel = (termType?: string) => {
   const option = getTermTypeOption(termType)
-  return option?.readableLabel || option?.label || '--'
+  return option?.readableLabel || option?.label || i18n.global.t('comm.table.empty')
 }
 
 export const getTermTypeShortDescription = (termType?: string) => {

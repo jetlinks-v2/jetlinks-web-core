@@ -3,7 +3,7 @@
     <div v-if="!isEdit" style="display: flex; align-items: center; gap: 0.5rem">
       <j-ellipsis>
         <span :style="textStyle">
-          {{ _value || '--' }}
+          {{ _value || $t('comm.table.empty') }}
         </span>
       </j-ellipsis>
       <a-button type="link" @click="isEdit = true" size="small">

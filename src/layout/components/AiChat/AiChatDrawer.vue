@@ -302,7 +302,7 @@ const conversationTitle = computed(() => (
   || normalizeDisplayText(activeAgent.value?.clientId)
   || normalizeDisplayText(activeAgent.value?.agentName)
   || normalizeDisplayText(activeAgent.value?.agentId)
-  || '--'
+  || $t('comm.table.empty')
 ));
 const conversationClientTools = computed(() => (
   Array.isArray(props.parameters?.clientTools) ? props.parameters.clientTools : []
