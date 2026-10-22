@@ -83,7 +83,7 @@ const onOperatorChange = async (value: unknown) => {
       />
       <div v-if="value && !targetOpen" class="asset-ownership-condition__preview">{{ preview }}</div>
       <template v-if="needsTargets && !invalid">
-        <a-checkbox v-if="supportsClosure" v-model:checked="draft.closure">
+        <a-checkbox v-if="supportsClosure && !(targetOpen && selector?.component)" v-model:checked="draft.closure">
           {{ t(key + 'includeDescendants') }}
         </a-checkbox>
         <template v-if="targetOpen && targetMode === 'input'">
@@ -107,7 +107,11 @@ const onOperatorChange = async (value: unknown) => {
             @update:value="selectTargets"
             @options-change="selector.onOptionsChange"
             @submit="submit"
-          />
+          >
+            <template v-if="supportsClosure" #selection-extra>
+              <a-checkbox v-model:checked="draft.closure">{{ t(key + 'includeDescendants') }}</a-checkbox>
+            </template>
+          </component>
           <ConditionOptionPanel
             v-else
             :value="draft.ids"

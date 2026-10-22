@@ -68,6 +68,8 @@ const resources = {
 
 自定义选择器由 `createSelector` 返回 `component` / `componentProps`，接收 `value: string[]`、`options`、`config`（封装后的 `optionPanel`），通过 `update:value` 更新草稿、`submit` 确认；可通过 `options-change` 回传上述选项用于名称回显。目录请求应使用 `config` 中的加载器以沿用错误、过期响应和标签缓存控制，重试时响应新的加载器。选择器只在用户明确选择维度或打开目标时挂载。树控件由模块提供，独立勾选父子节点，搜索保留祖先及已选目标；是否包含下级由外层闭包选项统一控制。
 
+支持闭包的自定义选择器需在已选内容右侧承载 `selection-extra` 插槽，由 core 注入“包含下级”控件；已选标签可换行，控件保持右侧单行。默认选择器继续由 core 展示闭包选项。
+
 ## 请求与条件边界
 
 - 范围入口固定左侧标签，加载状态独立放在右侧；加载时可返回，Context 请求仍去重。仅显式注册 `allowIdInput` 的维度开放 ID 输入；输入模式不查询目录或验证 ID 存在性。
