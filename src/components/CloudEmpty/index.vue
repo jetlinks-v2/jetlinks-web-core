@@ -5,14 +5,14 @@
     :style="style"
   >
     <a-empty
-      :description="$slots.description ? undefined : description || defaultDescription"
+      :description="!hasSearch && $slots.description ? undefined : resolvedDescription"
       :image="bigEmptyImg"
       :image-style="mergedImageStyle"
     >
-      <template v-if="$slots.description" #description>
+      <template v-if="!hasSearch && $slots.description" #description>
         <slot name="description" />
       </template>
-      <slot />
+      <slot v-if="showEmptyCreate" />
     </a-empty>
   </div>
 </template>
@@ -21,6 +21,8 @@
 import type { PropType, StyleValue } from 'vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useEmptyCreateState } from '../../hooks/useEmptyCreateState'
+import type { EmptyCreateSearch } from '../../hooks/useEmptyCreateState'
 import emptyImg from '@jetlinks-web-core/assets/components/empty.svg'
 import bigEmptyImg from '@jetlinks-web-core/assets/components/big-empty.svg'
 
@@ -32,6 +34,16 @@ const props = defineProps({
     default: 'default'
   },
   description: {
+    type: String,
+    default: ''
+  },
+  // 仅传当前集合已生效的用户搜索；接口固定条件由调用方排除。
+  search: {
+    // String 先于 Boolean，避免 Vue 将空关键词 '' 转换为 true。
+    type: [String, Boolean, Array] as PropType<EmptyCreateSearch>,
+    default: false
+  },
+  searchName: {
     type: String,
     default: ''
   },
@@ -48,6 +60,10 @@ const props = defineProps({
 const { t } = useI18n()
 
 const defaultDescription = computed(() => t('components.CloudEmpty.description'))
+const { hasSearch, showEmptyCreate } = useEmptyCreateState(() => props.search)
+const resolvedDescription = computed(() => hasSearch.value
+  ? t('components.CloudEmpty.searchEmpty', { name: props.searchName })
+  : props.description || defaultDescription.value)
 
 const emptyImage = computed(() => props.type === 'page' ? bigEmptyImg : emptyImg)
 

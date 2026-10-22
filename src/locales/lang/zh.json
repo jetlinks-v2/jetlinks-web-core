@@ -1060,6 +1060,7 @@
   "components.IconLibrary.categoryLogo": "品牌",
   "components.IconLibrary.categoryOther": "其他",
   "components.CloudEmpty.description": "暂无数据",
+  "components.CloudEmpty.searchEmpty": "未找到匹配的{name}",
   "components.MarketplaceResourcePicker.all": "全部",
   "components.MarketplaceResourcePicker.tags": "标签",
   "components.MarketplaceResourcePicker.selectedTags": "已选标签",
@@ -1235,5 +1236,7 @@
   "comm.table.empty-2": "未上报",
   "TimeSelect.index.100001-0": "最近1小时",
   "TimeSelect.index.100001-1": "最近24小时",
-  "TimeSelect.index.100001-2": "近一周"
+  "TimeSelect.index.100001-2": "近一周",
+  "EmptyCreate.names.files": "文件",
+  "EmptyCreate.names.tag_categories": "标签分类"
 }

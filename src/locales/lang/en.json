@@ -1060,6 +1060,7 @@
   "components.IconLibrary.categoryLogo": "Logo",
   "components.IconLibrary.categoryOther": "Other",
   "components.CloudEmpty.description": "No data",
+  "components.CloudEmpty.searchEmpty": "No matching {name} found",
   "components.MarketplaceResourcePicker.all": "All",
   "components.MarketplaceResourcePicker.tags": "Tags",
   "components.MarketplaceResourcePicker.selectedTags": "Selected tags",
@@ -1235,5 +1236,7 @@
   "comm.table.empty-2": "Not Reported",
   "TimeSelect.index.100001-0": "Last 1 hour",
   "TimeSelect.index.100001-1": "Last 24 hours",
-  "TimeSelect.index.100001-2": "Last week"
+  "TimeSelect.index.100001-2": "Last week",
+  "EmptyCreate.names.files": "files",
+  "EmptyCreate.names.tag_categories": "tag categories"
 }
