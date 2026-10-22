@@ -10,7 +10,7 @@ import { normalizeOptionTree } from './utils'
 
 const props = defineProps({
   value: {
-    type: [String, Number, Array],
+    type: [String, Number, Array, Object],
     default: undefined,
   },
   column: {
@@ -36,7 +36,7 @@ const columnsMap = useColumnsMap()
 const myValue = ref()
 const { t: $t } = useI18n()
 
-const emit = defineEmits(['change', 'update:value'])
+const emit = defineEmits(['change', 'update:value', 'submit'])
 
 const columnItem = computed(() => {
   if (!props.column) {
@@ -100,6 +100,9 @@ const isNumberRangeMode = computed(() => {
 const onSubmit = () => {
   emit('change', myValue.value)
 }
+
+// 自定义编辑器先更新 v-model 再确认，直接传递当前值，避免等待异步 watch 回填。
+const onComponentSubmit = () => emit('submit', cloneValue(myValue.value))
 
 const onInputChange = (e) => {
   myValue.value = e.target.value
@@ -207,6 +210,7 @@ watch(myValue, (val) => {
       v-model:value="myValue"
       v-bind="columnItem.search.componentProps"
       @change="onValueChange"
+      @submit="onComponentSubmit"
     />
     <a-input v-else v-model:value="myValue" style="width:100%" @change="onInputChange" />
     <div v-if="showBtn" style="text-align: right;padding-right: 0.625rem;">
