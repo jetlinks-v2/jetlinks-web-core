@@ -1,16 +1,16 @@
 <template>
-  <div style="display: flex; flex-direction: column; gap: 16px; height: 100%">
-    <div style="flex: 1; min-height: 0; overflow-y: auto">
-      <PointEditTable
-        :columns="columns"
-        v-model:dataSource="dataSource"
-        ref="tableRef"
-      />
-    </div>
-    <div style="display: flex; gap: 16px">
-      <a-button type="link" @click="addOne">新增一条</a-button>
-    </div>
-  </div>
+  <PointEditTable
+    :columns="columns"
+    v-model:dataSource="dataSource"
+    ref="tableRef"
+  >
+    <template #toolbar>
+      <a-button @click="addOne">
+        <template #icon><AIcon type="PlusOutlined" /></template>
+        {{ $t('PointBatch.addOne') }}
+      </a-button>
+    </template>
+  </PointEditTable>
 </template>
 
 <script setup>
