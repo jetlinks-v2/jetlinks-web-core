@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { LoadingOutlined } from '@ant-design/icons-vue'
 import ConditionOptionPanel from '../ConditionFilter/ConditionOptionPanel.vue'
 import { useAssetOwnershipCondition, type AssetOwnershipDisplay } from './useAssetOwnershipCondition'
 import type { AssetOwnershipOptions, AssetOwnershipTerm } from './types'
@@ -58,9 +59,12 @@ const onOperatorChange = async (value: unknown) => {
 
 <template>
   <div class="asset-ownership-condition">
-    <a-button class="asset-ownership-condition__range" :loading="loading" @click="openRanges">
-      {{ invalid ? t(key + 'placeholder') : rangeName }}
-      <span>{{ choosingRange ? t(key + 'back') : t(key + 'changeRange') }}</span>
+    <a-button class="asset-ownership-condition__range" :aria-busy="loading" @click="openRanges">
+      <span class="asset-ownership-condition__label">{{ invalid ? t(key + 'placeholder') : rangeName }}</span>
+      <span class="asset-ownership-condition__action">
+        <span class="asset-ownership-condition__status"><LoadingOutlined v-if="loading" /></span>
+        <span>{{ choosingRange ? t(key + 'back') : t(key + 'changeRange') }}</span>
+      </span>
     </a-button>
     <ConditionOptionPanel
       v-if="choosingRange"
@@ -110,7 +114,10 @@ const onOperatorChange = async (value: unknown) => {
 
 <style scoped>
 .asset-ownership-condition { display: flex; flex-direction: column; gap: var(--space-2); min-width: 15rem; }
-.asset-ownership-condition__range { display: flex; align-items: center; justify-content: space-between; }
-.asset-ownership-condition__range span:last-child { color: var(--color-jet-text-secondary); font-size: var(--fs-12); }
+.asset-ownership-condition__range { display: flex; align-items: center; gap: var(--space-2); text-align: left; }
+.asset-ownership-condition__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.asset-ownership-condition__action { display: inline-flex; align-items: center; gap: var(--space-1); flex-shrink: 0; color: var(--color-jet-text-secondary); font-size: var(--fs-12); }
+/* 加载图标使用固定槽位，避免快请求结束时按钮文字横向跳动。 */
+.asset-ownership-condition__status { display: inline-flex; justify-content: center; width: 1em; }
 .asset-ownership-condition__preview { color: var(--color-jet-text-secondary); overflow-wrap: anywhere; }
 </style>
