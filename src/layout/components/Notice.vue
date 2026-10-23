@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="notice-container" ref="noticeRef">
     <a-dropdown
       v-model:open="visible"
@@ -11,7 +11,7 @@
       </a-badge>
       <template #overlay>
         <div>
-          <NoticeInfo :tabs="tabs" @action="handleRead" />
+          <NoticeInfo ref="noticeInfoRef" :tabs="tabs" @action="handleRead" />
         </div>
       </template>
     </a-dropdown>
@@ -65,6 +65,7 @@ const visible = ref(false)
 const total = ref(0)
 const loading = ref(false)
 const noticeRef = ref<HTMLElement | null>(null)
+const noticeInfoRef = ref<{ refresh: () => void } | null>(null)
 const appContext = getCurrentInstance()?.appContext
 
 const resolvePopupContainer = (triggerNode: HTMLElement) => {
@@ -123,6 +124,7 @@ const { send } = useWebSocket({
     });
     // WebSocket 只触发刷新，角标始终以后端未读统计为准。
     getList();
+    noticeInfoRef.value?.refresh();
     if (handled) return;
     notification.open({
                 message: data?.payload?.topicName,
@@ -225,6 +227,7 @@ watch(visible, (opened) => {
     // 打开铃铛时再次向后端校准，避免浏览器保留过期角标。
     if (opened) {
         getList();
+        noticeInfoRef.value?.refresh();
     }
 });
 
