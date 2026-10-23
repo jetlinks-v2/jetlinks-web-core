@@ -103,7 +103,7 @@ watch(() => props.value, (newValue) => {
       <template v-for="(item, index) in termsList" :key="item.key">
         <!-- 连接符 -->
         <span v-if="index > 0" class="connect-text">
-          <DropdownMenu :options="typeOptions" v-model:value="item.type" />
+          <DropdownMenu :options="typeOptions" v-model:value="item.type" @change="emitChange" />
         </span>
 
         <!-- 条件项 -->
