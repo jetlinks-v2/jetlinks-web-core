@@ -11,11 +11,8 @@ const termsValue = useTermsValue()
 const termsParseData = useTermsParse()
 const events = useTermsEvent()
 
-const onChange = () => {
-
-}
-
-const onSelect = (key) => {
+// 仅在操作符实际变化时转换参数，重复选择须保留原值。
+const onChange = (key) => {
   let value = events.getValue?.()
   //  区间值，旧数据保留第一位, 如果是数组，则value不变化，否则反之
   if (doubleParamsKey.includes(key) && !Array.isArray(value)) { //
@@ -49,7 +46,6 @@ const options = computed(() => {
     :options="options"
     :fieldNames="{label: 'name', value: 'id'}"
     @change="onChange"
-    @select="onSelect"
   >
     <template #suffixIcon> </template>
   </a-select>
