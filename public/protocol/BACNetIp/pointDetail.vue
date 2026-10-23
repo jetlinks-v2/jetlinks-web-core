@@ -68,10 +68,12 @@
   </div>
 </template>
 <script setup>
-import { computed, inject, ref, watch } from 'vue'
+import { computed, getCurrentInstance, inject, ref, watch } from 'vue'
 import { request } from '@jetlinks-web/core'
 import { useLocales } from '@hooks'
 
+// 动态协议加载器未提供 vue-i18n 模块，沿用宿主注入的全局翻译。
+const { proxy } = getCurrentInstance()
 const { $lang } = useLocales('BACNetIp')
 const formData = inject('plugin-form', {})
 const detailEvents = inject('plugin-detail-save-events')
@@ -96,7 +98,11 @@ const valueTypeOptions = computed(() => (valueTypeList.value.length ? valueTypeL
   label: item?.label || item?.name || item?.text || item,
   value: item?.value || item?.id || item?.key || item,
 })))
-const objectLabel = computed(() => `${formData.configuration.objectId.type || '--'} / ${formData.configuration.objectId.instanceNumber ?? '--'}`)
+const objectLabel = computed(() => {
+  const emptyText = proxy.$t('comm.table.empty')
+  const { type, instanceNumber } = formData.configuration.objectId
+  return `${type || emptyText} / ${instanceNumber ?? emptyText}`
+})
 const filterOption = (input, option) => String(option?.label || '').toLowerCase().includes(input.toLowerCase())
 const getValueTypes = async () => {
   const resp = await request.post('/data-collect/BACNetIp/command/QueryValueTypes').catch(() => undefined)
