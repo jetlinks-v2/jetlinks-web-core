@@ -51,7 +51,7 @@
                 v-if="!record.checkedOptions.length"
                 class="empty-text"
             >
-              --
+              {{ $t('comm.table.empty') }}
             </span>
           </a-space>
         </template>
