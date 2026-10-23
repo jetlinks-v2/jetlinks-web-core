@@ -32,7 +32,7 @@ const queryTypeList = () => {
       resp.result.forEach((i: any) => {
         if (!dataMap.has(i.type.id)) {
           dataMap.set(i.type.id, {
-            name: i.type.name,
+            name: i.name,
             provider: i.type.id,
             children: [
               {
