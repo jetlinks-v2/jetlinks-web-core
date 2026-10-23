@@ -137,6 +137,11 @@ const onRefresh = () => {
     getData(type.value.length ? type.value : props.tabs.find((item) => item.key === activeKey.value)?.type || [])
 };
 
+// 下拉面板常驻，父组件以此入口同步实时通知到达和再次打开时的列表状态。
+defineExpose({
+    refresh: onRefresh,
+});
+
 watch(locale, () => {
     getData(type.value.length ? type.value : props.tabs.find((item) => item.key === activeKey.value)?.type || [])
 });
