@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { getUnreadNoPagingList_api, getUnreadSummary_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { getUnreadNoPagingList_api } from '@jetlinks-web-core/api/account/notificationRecord';
 import { useMenuStore } from '@jetlinks-web-core/store/menu';
 import { useUserStore } from '@jetlinks-web-core/store/user';
 import NoticeItem from './NoticeItem.vue';
@@ -58,7 +58,7 @@ import {
     createUnreadQueryParams,
     type NoticeTabItem,
 } from './noticeUtils';
-import { loadRegisteredNoticeList } from './noticeListHandler';
+import { loadRegisteredNoticeList, queryNoticeUnreadSummary } from './noticeListHandler';
 
 const { t: $t, locale } = useI18n();
 const emits = defineEmits(['action']);
@@ -119,7 +119,7 @@ const refreshSummary = () => {
         tabCountMap.value = {};
         return;
     }
-    getUnreadSummary_api(createUnreadQueryParams(providers, BADGE_OVERFLOW_COUNT)).then((resp: any) => {
+    queryNoticeUnreadSummary(providers, createUnreadQueryParams(providers, BADGE_OVERFLOW_COUNT)).then((resp: any) => {
         tabCountMap.value = createTabCountMap(props.tabs, resp.result);
     });
 };

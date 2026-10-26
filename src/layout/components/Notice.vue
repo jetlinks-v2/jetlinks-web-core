@@ -19,14 +19,13 @@
 </template>
 
 <script setup lang="ts" name="Notice">
-import { changeStatus_api, getUnreadCount_api } from '@jetlinks-web-core/api/account/notificationRecord';
 import { getCurrentInstance, ref, type PropType } from 'vue'
 import NoticeInfo from './NoticeInfo.vue';
 import { useWebSocket } from '@jetlinks-web-core/hooks'
 import { notification, Button } from 'ant-design-vue';
 import { useUserStore } from '@jetlinks-web-core/store/user';
 import { useMenuStore } from '@jetlinks-web-core/store/menu';
-import { getAllNotice } from '@jetlinks-web-core/api/account/center';
+import { getReceivedNoticeProviders } from '@jetlinks-web-core/api/account/center';
 import { flatten } from 'lodash-es';
 import { useI18n } from 'vue-i18n';
 import {
@@ -36,6 +35,7 @@ import {
     toBadgeCount,
 } from './noticeUtils';
 import { handleRegisteredRealtimeNotice, type NoticeTipOptions } from './noticeRealtimeHandler';
+import { changeNoticeReadState, queryNoticeUnreadSummary } from './noticeListHandler';
 
 type NoticePlacement = 'top' | 'bottom' | 'topLeft' | 'topRight' | 'topCenter'
   | 'bottomLeft' | 'bottomRight' | 'bottomCenter'
@@ -80,15 +80,15 @@ const getList = () => {
     }
     loading.value = true;
     const params = createUnreadQueryParams(topicProviders, BADGE_OVERFLOW_COUNT);
-    getUnreadCount_api(params)
+    queryNoticeUnreadSummary(topicProviders, params)
         .then((resp: any) => {
-            total.value = toBadgeCount(resp.result);
+            total.value = toBadgeCount(resp.result?.total);
         })
         .finally(() => (loading.value = false));
 };
 
-const markNotificationRead = async (id: string) => {
-    const resp = await changeStatus_api('_read', [id]);
+const markNotificationRead = async (payload: Record<string, any>) => {
+    const resp = await changeNoticeReadState([payload.topicProvider], '_read', [payload.id]);
     if (resp.status === 200) {
         getList();
     }
@@ -116,7 +116,7 @@ const { send } = useWebSocket({
   async onMessage(data) {
     if (!data?.payload?.id) return;
     const handled = await handleRegisteredRealtimeNotice(data.payload, {
-      markRead: () => markNotificationRead(data.payload.id),
+      markRead: () => markNotificationRead(data.payload),
       refresh: getList,
       appContext,
       source: 'realtime',
@@ -171,7 +171,7 @@ const { send } = useWebSocket({
 const read = (type: string, data: any) => {
     const id = data?.payload?.id;
     if (!id) return;
-    changeStatus_api('_read', [id]).then((resp: any) => {
+    changeNoticeReadState([data.payload.topicProvider], '_read', [id]).then((resp: any) => {
         if (resp.status !== 200) return;
         // notification.close(data.payload.id);
         getList();
@@ -197,7 +197,7 @@ const handleRead = () => {
 const tabs = ref<NoticeTabItem[]>([]);
 
 const queryTypeList = async () => {
-    const resp: any = await getAllNotice();
+    const resp: any = await getReceivedNoticeProviders();
     if (resp.status === 200) {
       const typeMap = new Map<string, NoticeTabItem>()
         resp.result.forEach((i: any) => {

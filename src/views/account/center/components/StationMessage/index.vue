@@ -16,7 +16,7 @@
 
 <script lang="ts" setup>
 import NotificationRecord from "./components/NotificationRecord/index.vue";
-import { getAllNotice } from "@jetlinks-web-core/api/account/center";
+import { getReceivedNoticeProviders } from "@jetlinks-web-core/api/account/center";
 import { useRouterParams } from "@jetlinks-web/hooks";
 import { useUserStore } from "@jetlinks-web-core/store/user";
 import { omit } from "lodash-es";
@@ -26,7 +26,7 @@ const router = useRouterParams();
 const user = useUserStore();
 
 const queryTypeList = () => {
-  getAllNotice().then((resp: any) => {
+  getReceivedNoticeProviders().then((resp: any) => {
     if (resp.status === 200) {
       const dataMap = new Map();
       resp.result.forEach((i: any) => {

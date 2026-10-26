@@ -49,3 +49,9 @@
 - 单项说明至少写清：解决的问题、适用/不适用场景、实际导入路径、关键参数或返回值、副作用、最小示例和一个生产用法定位。
 - 需要区分根入口、全局注册和深层路径时，明确标注“根入口导出”“全局注册名”或“仅深层路径”。
 - 页面说明只描述终端用户任务、页面入口、关键状态和真实数据来源；不要把临时排查记录或设计草稿放入这里。
+
+## 独立通知接收数据源
+
+业务模块可在 `notification-provider:default` 注册项的 `props` 中提供 `metadata()` 和 `dataSource`。`metadata()` 返回 `{ provider, name, type: { id, name } }`，只参与消息接收分类；订阅设置继续查询真实通道配置。分类内的 Provider 共用一个数据源，独立数据源使用自己的分类标识。
+
+`dataSource` 提供 `query(params)`、`unreadCount(params)`、`changeState('_read' | '_unread', ids)`、`readAll()`；查询返回兼容通知记录的分页响应，未读数返回 `{ count, overflow }`。个人中心、铃铛已读操作和角标通过 `layout/components/noticeListHandler.ts` 分派；未注册的数据仍使用原通知接口。多分类未读汇总会排除普通收件箱中的已接管 Provider，避免重复统计。已有 `listHandler` 可继续控制铃铛列表顺序，数据源失败不会回退为另一份收件箱数据。
