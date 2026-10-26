@@ -1,8 +1,8 @@
 <template>
   <section class="thread-viewer">
-    <div v-if="threads.length" class="thread-toolbar diagnostics-compact-toolbar">
+    <div v-if="threads.length || $slots.actions" class="thread-toolbar diagnostics-compact-toolbar">
       <a-input-search v-if="threads.length" v-model:value="search" size="small" :placeholder="t('runtimeDiagnostics.threadSearch')" allow-clear />
-      <a-button type="primary" :disabled="!sampleAccess.allowed || state.status === 'loading'" :title="sampleAccess.reason" @click="sample">{{ t('runtimeDiagnostics.sample') }}</a-button>
+      <slot name="actions"><a-button type="primary" :disabled="!sampleAccess.allowed || state.status === 'loading'" :title="sampleAccess.reason" @click="sample">{{ t('runtimeDiagnostics.sample') }}</a-button></slot>
       <small v-if="state.sampledAt">{{ t('runtimeDiagnostics.snapshotAt') }} {{ new Date(state.sampledAt).toLocaleTimeString() }}</small>
     </div>
     <div v-if="threads.length && state.status !== 'forbidden'" class="thread-states">
@@ -11,9 +11,9 @@
       <a-tooltip :title="t('runtimeDiagnostics.blockedHint')"><a-tag v-if="counts.some(item => item.state === 'BLOCKED')" color="warning">{{ t('runtimeDiagnostics.blockedSnapshot') }}</a-tag></a-tooltip>
     </div>
     <DiagnosticsState :state="state" @retry="sample">
-      <div v-if="!threads.length" class="thread-empty"><a-button v-if="canSample" type="primary" size="large" @click="sample">{{ t('runtimeDiagnostics.sample') }}</a-button><p>{{ t('runtimeDiagnostics.noThreadSnapshot') }}</p></div>
+      <div v-if="!threads.length" class="thread-empty"><slot name="empty"><a-button v-if="canSample && !$slots.actions" type="primary" size="large" @click="sample">{{ t('runtimeDiagnostics.sample') }}</a-button><p>{{ t('runtimeDiagnostics.noThreadSnapshot') }}</p></slot></div>
       <a-empty v-else-if="!filtered.length" :description="t('runtimeDiagnostics.noMatchingThreads')" />
-      <a-table v-else :columns="columns" :data-source="filtered" row-key="id" size="small" :pagination="{ pageSize: 15, showSizeChanger: false }" :scroll="{ x: 480 }" :expand-row-by-click="true">
+      <a-table v-else :columns="columns" :data-source="filtered" row-key="id" size="small" :pagination="embedded ? false : { pageSize: 15, showSizeChanger: false }" :scroll="{ x: 480, y: embedded ? 320 : undefined }" :expand-row-by-click="true">
         <template #bodyCell="{ column, record }">
           <span v-if="column.key === 'name'" class="thread-name" :title="record.name">{{ record.name }} <small>#{{ record.id }}</small></span>
           <a-tag v-else-if="column.key === 'state'" :color="record.state === 'BLOCKED' ? 'warning' : record.state === 'RUNNABLE' ? 'processing' : undefined">{{ record.state }}</a-tag>
@@ -40,7 +40,7 @@ import DiagnosticsState from './DiagnosticsState.vue'
 import type { ThreadSnapshot, ViewState, ActionAccess } from './types'
 import { threadStackDepth } from './utils'
 type ThreadRow = ThreadSnapshot & { stackDepth: number }
-const props = withDefaults(defineProps<{ threads?: ThreadSnapshot[]; state?: ViewState; sampleAccess?: ActionAccess }>(), {
+const props = withDefaults(defineProps<{ threads?: ThreadSnapshot[]; state?: ViewState; sampleAccess?: ActionAccess; embedded?: boolean }>(), {
   threads: () => [], state: () => ({ status: 'ready' }), sampleAccess: () => ({ allowed: false }),
 })
 const emit = defineEmits<{ (event: 'sample'): void }>()

@@ -5,6 +5,7 @@ export interface FlameCell {
   key: string; parentKey?: string; name: string; samples: number; category: Exclude<FlameCategory, 'all'>
   className: string; method?: string; line?: number; validSamples: boolean; selfSamples?: number
   platform: boolean; depth: number; x: number; width: number; matched: boolean
+  foldedNames?: string[]; expandedLibrary?: boolean
 }
 export interface FlameOptions { search?: string; category?: FlameCategory; focus?: string; platformPrefixes?: string[] }
 export interface FlameLayout { cells: FlameCell[]; total: number; matched: number; depth: number; focus?: string }
@@ -78,7 +79,35 @@ function buildFlameLayout(frames: FlameFrame[], options: FlameOptions = {}): Fla
   return { cells, total, matched: cells.filter(cell => cell.matched).length, depth: cells.reduce((max, cell) => Math.max(max, cell.depth + 1), 0), focus: focused?.key }
 }
 
-/** Vue 和离线 HTML 共用 SVG 生成器；所有不可信字段只写入转义后的文本/属性。 */
+/** 只折叠同宽、同样本数、同类别的连续单子帧库调用；原树与帧身份保持不变。 */
+function compactFlameLayout(layout: FlameLayout, expanded: ReadonlySet<string> = new Set()): FlameLayout {
+  const keys = new Set(layout.cells.map(cell => cell.key)), children = new Map<string, FlameCell[]>()
+  for (const cell of layout.cells) if (cell.parentKey && keys.has(cell.parentKey)) {
+    const siblings = children.get(cell.parentKey)
+    if (siblings) siblings.push(cell)
+    else children.set(cell.parentKey, [cell])
+  }
+  const queue = layout.cells.filter(cell => !cell.parentKey || !keys.has(cell.parentKey)).map(cell => ({ cell, depth: 0, unfolded: new Set<string>() }))
+  const cells: FlameCell[] = []
+  for (let index = 0; index < queue.length; index++) {
+    const { cell, depth, unfolded } = queue[index], path = [cell]
+    let end = cell
+    if (!cell.platform && !unfolded.has(cell.key)) {
+      while ((children.get(end.key)?.length ?? 0) === 1) {
+        const next = children.get(end.key)![0]
+        if (next.platform || next.category !== cell.category || next.samples !== cell.samples || Math.abs(next.width - cell.width) > 1e-8) break
+        path.push(next); end = next
+      }
+    }
+    const foldable = path.length >= 3, open = foldable && expanded.has(cell.key)
+    cells.push({ ...cell, depth, foldedNames: foldable ? path.slice(1).map(frame => frame.name) : undefined, expandedLibrary: open })
+    const protectedKeys = open ? new Set([...unfolded, ...path.slice(1).map(frame => frame.key)]) : unfolded
+    for (const child of children.get(foldable && !open ? end.key : cell.key) ?? []) queue.push({ cell: child, depth: depth + 1, unfolded: protectedKeys })
+  }
+  return { ...layout, cells, depth: cells.reduce((max, cell) => Math.max(max, cell.depth + 1), 0) }
+}
+
+/** Vue 和离线 HTML 共用 SVG 生成器；嵌套 SVG 裁剪短帧文本，避免覆盖相邻调用。 */
 function renderFlameSvg(layout: FlameLayout, labels: { samples: string; platform: string }, viewportWidth = 1200): string {
   const escape = escapeFlameHtml
   const height = Math.max(60, layout.depth * 27)
@@ -88,13 +117,18 @@ function renderFlameSvg(layout: FlameLayout, labels: { samples: string; platform
     const x = cell.x / 100 * canvasWidth, width = Math.max(0.1, cell.width / 100 * canvasWidth - 1), y = height - (cell.depth + 1) * 27
     const percent = layout.total ? (cell.samples / layout.total * 100).toFixed(1) : '0.0'
     const title = `${cell.name}\n${cell.samples} ${labels.samples} · ${percent}%${cell.platform ? ` · ${labels.platform}` : ''}`
-    const text = `${cell.platform ? '◆ ' : ''}${cell.name}`
+    const shortName = `${cell.className.split('.').at(-1)}${cell.method ? `.${cell.method}` : ''}`
+    const folded = cell.foldedNames?.length ?? 0
+    const text = `${shortName}${folded && !cell.expandedLibrary ? ` +${folded}` : ''}`
     const clipped = text.length > Math.floor(width / 7) ? `${text.slice(0, Math.max(0, Math.floor(width / 7) - 1))}…` : text
-    return `<g role="button" tabindex="0" data-frame-key="${escape(cell.key)}" aria-label="${escape(title)}" opacity="${cell.matched ? 1 : 0.22}"><title>${escape(title)}</title><rect x="${x}" y="${y}" width="${width}" height="25" rx="2" fill="var(--flame-${cell.category})" stroke="${cell.platform ? 'var(--flame-platform-stroke)' : 'transparent'}"/><text x="${x + 4}" y="${y + 17}" fill="var(--flame-text)" font-size="12">${escape(width > 18 ? clipped : '')}</text></g>`
+    const iconWidth = folded && width > 24 ? 18 : 0
+    const toggle = iconWidth ? `<g data-expand-key="${escape(cell.key)}"><rect x="0" y="3" width="14" height="18" fill="transparent"/><path d="M3 12h8${cell.expandedLibrary ? '' : 'M7 8v8'}" fill="none" stroke="var(--flame-text)" stroke-width="1.3"/></g>` : ''
+    const foldedTitle = folded && !cell.expandedLibrary ? `\n${cell.foldedNames!.join('\n')}` : ''
+    return `<g role="button" tabindex="0" data-frame-key="${escape(cell.key)}" aria-label="${escape(title)}"><title>${escape(title + foldedTitle)}</title><rect x="${x}" y="${y}" width="${width}" height="25" rx="1" fill="var(--flame-${cell.category})" stroke="${cell.platform ? 'var(--flame-platform-stroke)' : 'var(--flame-border,transparent)'}" opacity="${cell.matched ? 1 : 0.45}"/><svg x="${x + 3}" y="${y}" width="${Math.max(0, width - 6)}" height="25" overflow="hidden">${toggle}<text x="${iconWidth}" y="17" fill="var(--flame-text)" opacity="${cell.matched ? 1 : 0.55}" font-size="12">${escape(width > 24 ? clipped : '')}</text></svg></g>`
   }).join('')
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${canvasWidth} ${height}" preserveAspectRatio="xMinYMax meet" width="100%" height="${height}" role="img" aria-label="${escape(labels.samples)}">${cells}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${canvasWidth} ${height}" preserveAspectRatio="xMinYMax meet" width="${canvasWidth}" height="${height}" role="img" aria-label="${escape(labels.samples)}">${cells}</svg>`
 }
-return { classifyFlameFrame, buildFlameLayout, renderFlameSvg, captureFlameViewport, restoreFlameViewport, escapeFlameHtml }
+return { classifyFlameFrame, buildFlameLayout, compactFlameLayout, renderFlameSvg, captureFlameViewport, restoreFlameViewport, escapeFlameHtml }
 }
 
-export const { classifyFlameFrame, buildFlameLayout, renderFlameSvg, captureFlameViewport, restoreFlameViewport, escapeFlameHtml } = createFlameRuntime()
+export const { classifyFlameFrame, buildFlameLayout, compactFlameLayout, renderFlameSvg, captureFlameViewport, restoreFlameViewport, escapeFlameHtml } = createFlameRuntime()

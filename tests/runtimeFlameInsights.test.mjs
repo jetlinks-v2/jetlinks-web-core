@@ -146,10 +146,10 @@ function offline(snapshot, options = {}) {
   const result = buildSync({ entryPoints: [resolve(root, 'flameGraphHtml.ts')], bundle: true, format: 'cjs', platform: 'node', target: 'es2020', minify: true, write: false })
   const module = { exports: {} }; new Function('module', 'exports', result.outputFiles[0].text)(module, module.exports)
   const html = module.exports.createFlameGraphHtml({ nodeId: 'node', snapshot, ...options })
-  const elements = Object.fromEntries(['#search', '#reset', '#count', '#chart', '#groups', '#info', '#insights', '#hotspots'].map(key => [key, { value: '', textContent: '', innerHTML: '', children: [], append(child) { this.children.push(child) } }]))
+  const elements = Object.fromEntries(['#search', '#reset', '#count', '#chart', '#groups', '#info', '#insights', '#hotspots', '.tools'].map(key => [key, { value: '', textContent: '', innerHTML: '', style: {}, listeners: {}, children: [], addEventListener(name, listener) { this.listeners[name] = listener }, append(child) { this.children.push(child) } }]))
   Object.assign(elements['#chart'], { clientHeight: 340, clientWidth: 980, scrollTop: 0, scrollLeft: 0 })
   Object.defineProperty(elements['#chart'], 'scrollHeight', { get() { return Math.max(this.clientHeight, Number(this.innerHTML.match(/height="(\d+)" role="img"/)?.[1] ?? 0)) } })
-  const copied = [], document = { querySelector: key => elements[key], querySelectorAll: () => elements['#groups'].children, createElement: () => ({ dataset: {}, setAttribute(key, value) { this[key] = value } }) }
+  const copied = [], document = { querySelector: key => key === '#flame-export' ? document : elements[key], querySelectorAll: () => elements['#groups'].children, createElement: () => ({ dataset: {}, setAttribute(key, value) { this[key] = value } }) }
   vm.runInNewContext(html.match(/<script>([\s\S]*)<\/script>/)[1], { document, navigator: { clipboard: { writeText: async text => { copied.push(text) } } } })
   const click = (area, attribute, value) => elements[area].onclick({ target: { closest: selector => selector === `[${attribute}]` ? { dataset: { [attribute.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())]: value } } : null } })
   return { elements, copied, html, click }
@@ -160,7 +160,7 @@ test('minified offline HTML shares compact rows, stable full-snapshot notes and 
   const { elements } = h
   assert.match(elements['#hotspots'].innerHTML, /Flux.subscribe:42/)
   assert.match(elements['#hotspots'].innerHTML, /reactor.core/)
-  assert.match(elements['#chart'].innerHTML, /◆/)
+  assert.match(elements['#chart'].innerHTML, /stroke="var\(--flame-platform-stroke\)"/)
   const notes = elements['#insights'].innerHTML
   elements['#search'].value = 'Flux'; elements['#search'].oninput()
   assert.equal(elements['#insights'].innerHTML, notes); assert.match(elements['#hotspots'].innerHTML, /80 \/ 120/)

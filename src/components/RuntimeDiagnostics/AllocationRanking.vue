@@ -14,7 +14,7 @@
       </li>
     </ol>
     <a-empty v-else-if="ranking.classCount" :description="t('runtimeDiagnostics.noMatches')" :image="Empty.PRESENTED_IMAGE_SIMPLE" />
-    <div v-else class="allocation-empty"><a-empty :description="t('runtimeDiagnostics.noAllocationEvents')" :image="Empty.PRESENTED_IMAGE_SIMPLE" /><small>{{ t('runtimeDiagnostics.allocationEmptyHint') }}</small><a-button type="link" size="small" @click="emit('go-performance')">{{ t('runtimeDiagnostics.goToPerformance') }}</a-button></div>
+    <div v-else class="allocation-empty"><a-empty :description="t('runtimeDiagnostics.noAllocationEvents')" :image="Empty.PRESENTED_IMAGE_SIMPLE" /><small>{{ t('runtimeDiagnostics.allocationEmptyHint') }}</small><a-button v-if="!integrated" type="link" size="small" @click="emit('go-performance')">{{ t('runtimeDiagnostics.goToPerformance') }}</a-button></div>
   </section>
 </template>
 <script setup lang="ts">
@@ -24,7 +24,7 @@ import { InfoCircleOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import type { ObjectAllocation } from './types'
 import { allocationRanking, formatAllocationBytes } from './allocationPresentation'
-const props = withDefaults(defineProps<{ allocations?: ObjectAllocation[]; search?: string }>(), { allocations: () => [], search: '' })
+const props = withDefaults(defineProps<{ allocations?: ObjectAllocation[]; search?: string; integrated?: boolean }>(), { allocations: () => [], search: '' })
 const emit = defineEmits<{ (event: 'update:search', value: string): void; (event: 'go-performance'): void }>()
 const { t } = useI18n()
 const ranking = computed(() => allocationRanking(props.allocations, props.search))

@@ -10,22 +10,18 @@
     </a-radio-group>
     <a-button v-if="scenario === 'waiting'" @click="receiveFrame">收到一帧</a-button>
     <div class="fixture-column" :style="{ maxWidth: `${contentWidth}px` }">
-      <JvmDiagnosticPanel v-model:active-tab="activeTab" node-id="fixture:8200" :access="access" :sampling-state="samplingState" :snapshot="snapshot" :elapsed-seconds="elapsed" @start="start" @stop="stop" @capture-jfr="record" />
-    </div>
-    <hr>
-    <div class="fixture-column" :style="{ maxWidth: `${contentWidth}px` }">
-      <ThreadViewer :threads="scenario === 'receiving' ? threads : []" :state="threadState" :sample-access="access.threadDump" @sample="record('sample')" />
+      <JvmDiagnosticPanel v-model:active-tab="activeTab" node-id="fixture:8200" :access="access" :sampling-state="samplingState" :snapshot="snapshot" :elapsed-seconds="elapsed" :threads="threadsCaptured ? threads : []" :thread-state="threadState" @start="start" @stop="stop" @capture-jfr="record('jfr')" @sample="threadsCaptured = true; record('sample')" @heap-dump="record('heap-confirmation')" />
     </div>
     <pre>{{ events }}</pre>
   </main>
 </template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { JvmDiagnosticPanel, ThreadViewer } from '../src/components/RuntimeDiagnostics'
-import type { FlameFrame, JfrSnapshot, SamplingState } from '../src/components/RuntimeDiagnostics'
+import { JvmDiagnosticPanel } from '../src/components/RuntimeDiagnostics'
+import type { FlameFrame, JfrSnapshot, JvmDiagnosticTab, SamplingState } from '../src/components/RuntimeDiagnostics'
 const scenarios = ['idle', 'waiting', 'zero-sample', 'receiving', 'stopped', 'error', 'error-without-snapshot', 'forbidden', 'unsupported', 'permission-denied'] as const
 const scenario = ref<typeof scenarios[number]>('idle'), events = ref<string[]>([])
-const activeTab = ref<'threads' | 'performance' | 'memory'>('performance')
+const activeTab = ref<JvmDiagnosticTab>('performance'), threadsCaptured = ref(false)
 const widths = [560, 626, 960], contentWidth = ref(626)
 const elapsed = ref(5), ticker = window.setInterval(() => { if (['waiting', 'zero-sample', 'receiving'].includes(scenario.value)) elapsed.value++ }, 1000)
 const snapshot = ref<JfrSnapshot>()
@@ -44,7 +40,7 @@ function fixtureSnapshot(samples = 8): JfrSnapshot {
       chain([['org.jetlinks.network.TcpTransport', 'read'], ['io.netty.channel.nio.NioEventLoop', 'run'], ['io.netty.util.concurrent.SingleThreadEventExecutor', 'runAllTasks'], ['org.jetlinks.device.session.DeviceSession', 'decode'], ['io.netty.buffer.AbstractByteBuf', 'readBytes'], ['org.jetlinks.protocol.MessageCodec', 'decode'], ['java.util.concurrent.ConcurrentHashMap', 'compute'], ['org.jetlinks.rule.engine.EventDispatcher', 'dispatch'], ['reactor.core.publisher.FluxPublishOn', 'runAsync'], ['org.jetlinks.runtime.TraceBridge', 'record']], 5),
       chain([['reactor.core.publisher.FluxFlatMap', 'drainLoop'], ['org.jetlinks.rule.engine.RuleExecutor', 'execute'], ['reactor.core.publisher.MonoFlatMap', 'subscribeOrReturn'], ['org.jetlinks.device.service.DeviceService', 'invoke'], ['reactor.core.publisher.FluxOnErrorResume', 'subscribe'], ['org.jetlinks.runtime.MetricReporter', 'report'], ['java.util.concurrent.ScheduledThreadPoolExecutor', 'runWorker'], ['org.jetlinks.network.ConnectionRegistry', 'refresh'], ['reactor.core.scheduler.WorkerTask', 'call']], 3),
     ] }] : [],
-    objectAllocations: [],
+    objectAllocations: samples ? Array.from({ length: 24 }, (_, index) => ({ className: `org.jetlinks.example.Payload${index}`, allocationSize: (24 - index) * 1024 })) : [],
   }
 }
 function selectScenario(value: typeof scenarios[number]) {

@@ -47,7 +47,8 @@ function harness(t, initial = snapshot()) {
   const canvas = vue.reactive({ isConnected: true, clientWidth: 624, clientHeight: 480, scrollHeight: initial ? Math.max(60, runtime.buildFlameLayout(initial.flameGraph).depth * 27) : 0, scrollTop: 0, scrollLeft: 0 })
   view.canvas.value = canvas
   // Simulate DOM patch after pre-flush watchers; measurements come from the production layout.
-  scope.run(() => vue.watch(() => view.svg.value, () => { canvas.scrollHeight = Math.max(60, view.layout.value.depth * 27) }, { flush: 'post' }))
+  scope.run(() => vue.watch(() => view.svg.value, () => { canvas.scrollHeight = Math.max(60, view.visualLayout.value.depth * 27) }, { flush: 'post' }))
+  view.compact.value = false
   return { props, view, canvas, observers,
     lifecycle: name => hooks[name].forEach(callback => callback()),
     stop: () => scope.stop(),
@@ -71,6 +72,28 @@ test('production viewer opens a deep first result at the root and retains relati
     h.view.search.value = 'Connection'; h.view.category.value = 'network'; await flush()
     assert.equal(h.canvas.scrollTop, 1500, 'search and category change preserve the reader location')
     assert.equal(h.canvas.scrollLeft, 72)
+  } finally { h.stop() }
+})
+
+test('keyboard zoom preserves fixed stack height and never captures keys typed into search fields', async t => {
+  const previousElement = globalThis.Element
+  class FakeElement { constructor(input = false) { this.input = input } closest() { return this.input ? this : null } }
+  globalThis.Element = FakeElement
+  t.after(() => { if (previousElement === undefined) delete globalThis.Element; else globalThis.Element = previousElement })
+  const h = harness(t), event = (key, input = false) => ({ key, target: new FakeElement(input), preventDefault() { this.prevented = true } })
+  try {
+    await flush(); h.canvas.scrollLeft = 120; h.view.rememberViewport()
+    const plus = event('+'); h.view.navigateKeyboard(plus); await flush()
+    assert.equal(plus.prevented, true); assert.equal(h.view.zoom.value, 1.5)
+    assert.match(h.view.svg.value, /viewBox="0 0 1080 1728"/)
+    assert.equal(h.canvas.scrollLeft, 336, 'horizontal zoom uses the viewport centre as its anchor')
+    const typed = event('+', true); h.view.navigateKeyboard(typed)
+    assert.equal(typed.prevented, undefined); assert.equal(h.view.zoom.value, 1.5)
+    const modified = { ...event('+'), ctrlKey: true }; h.view.navigateKeyboard(modified)
+    assert.equal(modified.prevented, undefined); assert.equal(h.view.zoom.value, 1.5)
+    h.view.navigateKeyboard(event('0')); await flush(); assert.equal(h.view.zoom.value, 1)
+    h.props.snapshot = snapshot(70, 2); await flush()
+    assert.equal(h.view.zoom.value, 1); assert.equal(h.canvas.scrollLeft, 0)
   } finally { h.stop() }
 })
 

@@ -8,6 +8,7 @@ export interface ViewState {
   sampledAt?: number
 }
 export interface ActionAccess { allowed: boolean; reason?: string }
+export type JvmDiagnosticTab = 'performance' | 'snapshots'
 /** 设备联想候选：value 为查询使用的真实设备 ID，label 为可读名称。 */
 export interface DeviceSessionDeviceOption { value: string; label: string; description?: string }
 export interface DeviceSessionConnection {

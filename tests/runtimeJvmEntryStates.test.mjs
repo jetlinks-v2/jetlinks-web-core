@@ -59,7 +59,7 @@ test('server denial states never render a start action while error and stopped s
 })
 
 test('production action gates reject denied access and allow idle JFR capture independently of sampling', () => {
-  const props = vue.reactive({ nodeId: 'node', activeTab: 'performance', access: { ...access, jfr: { allowed: false }, jfrExport: { allowed: false } }, samplingState: { status: 'idle' } })
+  const props = vue.reactive({ nodeId: 'node', active: true, activeTab: 'performance', access: { ...access, jfr: { allowed: false }, jfrExport: { allowed: false } }, samplingState: { status: 'idle' } })
   const events = [], scope = vue.effectScope()
   const view = scope.run(() => component(false).setup(props, { emit: event => events.push(event), expose() {} }))
   try {
@@ -71,5 +71,37 @@ test('production action gates reject denied access and allow idle JFR capture in
     props.samplingState = { status: 'forbidden' }
     view.start()
     assert.deepEqual(events, ['capture-jfr'])
+  } finally { scope.stop() }
+})
+
+test('two analysis pages keep collection explicit and map legacy modes without extra samples', () => {
+  const props = vue.reactive({ nodeId: 'node', active: true, activeTab: 'performance', access, threadState: { status: 'ready' }, samplingState: { status: 'idle' } })
+  const events = [], scope = vue.effectScope()
+  const view = scope.run(() => component(false).setup(props, { emit: (...args) => events.push(args), expose() {} }))
+  try {
+    assert.equal(view.active.value, 'performance')
+    view.changeTab('snapshots')
+    assert.deepEqual(events, [['update:activeTab', 'snapshots']], 'navigation does not capture threads or heap')
+    props.activeTab = 'snapshots'
+    assert.equal(view.active.value, 'snapshots')
+    view.sampleThreads(); view.heapDump()
+    assert.deepEqual(events.slice(1), [['sample'], ['heap-dump', { live: false }]])
+    events.length = 0; props.activeTab = 'performance'; view.start()
+    assert.deepEqual(events, [['start']], 'live collection never takes an implicit thread snapshot')
+    props.activeTab = 'memory'; assert.equal(view.active.value, 'performance')
+    props.activeTab = 'threads'; assert.equal(view.active.value, 'snapshots')
+    props.active = false; view.sampleThreads(); view.heapDump(); view.start()
+    assert.deepEqual(events, [['start']], 'inactive readers cannot invoke operations')
+  } finally { scope.stop() }
+})
+
+test('thread-only users enter snapshots; allocation-only JFR results remain available', () => {
+  const props = vue.reactive({ nodeId: 'node', active: true, access: { ...access, jfrView: { allowed: false } }, samplingState: { status: 'idle' } })
+  const scope = vue.effectScope(), view = scope.run(() => component(false).setup(props, { emit() {}, expose() {} }))
+  try {
+    assert.equal(view.active.value, 'snapshots')
+    props.access = access
+    props.snapshot = { flameGraph: [], objectAllocations: [{ className: 'example.Payload', allocationSize: 2048 }] }
+    assert.equal(view.hasAllocations.value, true); assert.equal(view.hasDisplaySamples.value, false)
   } finally { scope.stop() }
 })

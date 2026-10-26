@@ -83,10 +83,10 @@ test('shared SVG uses the actual canvas width without scaling or vertically cent
 })
 
 function offlineDocument() {
-  const elements = Object.fromEntries(['#search', '#reset', '#count', '#chart', '#groups', '#info', '#insights', '#hotspots'].map(key => [key, { value: '', textContent: '', innerHTML: '', children: [], append(child) { this.children.push(child) } }]))
+  const elements = Object.fromEntries(['#search', '#reset', '#count', '#chart', '#groups', '#info', '#insights', '#hotspots', '.tools'].map(key => [key, { value: '', textContent: '', innerHTML: '', style: {}, listeners: {}, children: [], addEventListener(name, listener) { this.listeners[name] = listener }, append(child) { this.children.push(child) } }]))
   Object.assign(elements['#chart'], { clientHeight: 480, clientWidth: 980, scrollTop: 0, scrollLeft: 0 })
   Object.defineProperty(elements['#chart'], 'scrollHeight', { get() { return Math.max(this.clientHeight, Number(this.innerHTML.match(/height="(\d+)" role="img"/)?.[1] ?? 0)) } })
-  const document = { querySelector: key => elements[key], querySelectorAll: () => elements['#groups'].children, createElement: () => ({ dataset: {}, setAttribute(key, value) { this[key] = value } }) }
+  const document = { querySelector: key => key === '#flame-export' ? document : elements[key], querySelectorAll: () => elements['#groups'].children, createElement: () => ({ dataset: {}, setAttribute(key, value) { this[key] = value } }) }
   return { document, elements }
 }
 test('HTML export executes offline from minified production bundle and escapes script terminators', () => {
@@ -118,6 +118,7 @@ test('offline deep graph opens at its root and preserves search/category reading
   const dom = offlineDocument(), observers = []
   vm.runInNewContext(html.match(/<script>([\s\S]*)<\/script>/)[1], { document: dom.document, ResizeObserver: class { constructor(callback) { observers.push(callback) } observe() {} } })
   const chart = dom.elements['#chart']
+  dom.elements['.tools'].children.find(button => button['aria-label'] === 'Collapse library calls').onclick()
   assert.equal(chart.scrollTop, 1728 - 480)
   assert.match(chart.innerHTML, /viewBox="0 0 980 1728"/)
   chart.scrollTop -= 180; chart.scrollLeft = 70
@@ -131,7 +132,7 @@ test('offline deep graph opens at its root and preserves search/category reading
   assert.equal(chart.scrollTop, before); assert.equal(chart.scrollLeft, 70)
   assert.match(chart.innerHTML, /fill="var\(--flame-network\)"/)
   const focusKey = buildFlameLayout([root]).cells[60].key
-  chart.onclick({ type: 'click', preventDefault() {}, target: { closest: () => ({ dataset: { frameKey: focusKey }, getAttribute: () => 'focused' }) } })
+  chart.onclick({ type: 'click', preventDefault() {}, target: { closest: selector => selector === '[data-frame-key]' ? { dataset: { frameKey: focusKey }, getAttribute: () => 'focused' } : null } })
   assert.equal(chart.scrollTop, 0); assert.equal(chart.scrollLeft, 0)
   dom.elements['#reset'].onclick()
   assert.equal(chart.scrollTop, 1248)

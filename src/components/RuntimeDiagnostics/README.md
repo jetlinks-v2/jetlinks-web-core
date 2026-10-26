@@ -12,13 +12,15 @@ import type { MBeanDescriptor, MBeanInvocation, ViewState, ActionAccess }
 
 组件和注册函数也从 components 根入口具名导出，组件按需异步加载；类型与纯数据工具从本目录公开入口导入。使用 core 的组件插件和 i18n 后可直接组合。
 
+`createJvmDiagnosticHtml(data, options)` 生成完整离线交互报告，`data: JvmDiagnosticExport` 必须由宿主按节点和现有授权冻结，`options: JvmDiagnosticHtmlOptions` 提供国际化文案、时间格式与平台包名前缀。报告保留实时分析 / 诊断快照页签，复用火焰图离线分析运行时，支持分配搜索排序、线程名称 / 状态筛选和完整栈展开；大列表分批展示但嵌入全部传入记录。分配占比仍以全量有效字节为分母。报告不依赖远端资源、账号状态或实时采集；`createFlameGraphHtml` 继续提供仅火焰图的导出，`createJvmDiagnosticReport` 提供可打印静态报告。
+
 | 组件 | 主要 props | 事件 / 插槽 |
 | --- | --- | --- |
 | RuntimeMetricsPanel | metrics、samples、charts、range、activeMetric、options、state、historyState | refresh、metric、range-change(TimeWindow)；metrics / summary / time / default 插槽 |
 | RuntimeMBeanOverview | beans、state、config、history?、showLifetime?、resetAccess?、resetState? | refresh、inspect(ObjectName)、update:config、reset(ObjectName)；启动时间 / 时长、Buffer 累计计数与近 5 分钟趋势 |
-| JvmDiagnosticPanel | nodeId、threads、threadState、snapshot、samplingState、access、activeTab、platformPrefixes | sample、start、stop、export-html、capture-jfr、heap-dump({live})、update:activeTab；memory 插槽 |
-| FlameGraphViewer | snapshot、platformPrefixes | 缩放聚焦、搜索、平台帧标记与操作分组 |
-| ThreadViewer | threads、sampleAccess、state | sample；列表支持筛选、排序及展开线程栈 / 锁 |
+| JvmDiagnosticPanel | nodeId、threads、threadState、snapshot、samplingState、access、activeTab、platformPrefixes | 实时分析 / 诊断快照两个页签；sample、start、stop、export-html、capture-jfr、heap-dump({live})、update:activeTab；memory 操作插槽 |
+| FlameGraphViewer | snapshot、platformPrefixes、embedded? | 搜索、平台帧标记、操作分组、库调用展开、缩放与全屏；embedded 缩短图高并默认收起热点明细 |
+| ThreadViewer | threads、sampleAccess、state、embedded? | sample；actions / empty 插槽；列表支持筛选、排序及展开线程栈 / 锁，embedded 使用内部滚动而非分页 |
 | DeviceSessionViewer | nodeId?、deviceId、queriedDeviceId、resultDeviceId?、sessions、state、access、active、expandConnections?、remoteSearch、deviceOptions、deviceSearching | update:deviceId、query(精确设备 ID)、refresh、search-device(keyword)、select-device(id)；filters 插槽；节点可选、多个连接原位展开，expandConnections 可直接展开全部 |
 | DeviceSessionObservation | entries、deviceOptions、deviceSearching、active、access、unsupported?、waiting?、paused、interval、metrics | add、remove、refresh、search-device、update:paused / interval / metrics；最多五设备的响应式观测卡片 |
 | MBeanBrowser | beans、selectedObject、target、invokeAccess、busy、result、state、detailState、resultState、config | refresh、select(ObjectName)、invoke(MBeanInvocation)、update:config |
@@ -28,6 +30,8 @@ import type { MBeanDescriptor, MBeanInvocation, ViewState, ActionAccess }
 所有组件的 `state: ViewState` 支持 ready / loading / empty / error / forbidden / unsupported / stale，带可选 message、sampledAt。动作权限 `ActionAccess` 为 `{ allowed: boolean, reason?: string }`，缺省拒绝。宿主也必须在事件处理器内校验权限，后端执行最终授权。
 
 ## 数据约定
+
+- 性能剖析默认进入实时分析，同一次 JFR 快照的火焰图与内存分配上下展示；没有执行样本时仍保留实际取得的分配事件。诊断快照提供显式线程采集与堆导出操作，进入页签或开始实时采样均不隐式采线程；页签切换不发停止事件，采样状态与停止入口跨页签保留。`activeTab` / `update:activeTab` 使用 `performance | snapshots`，旧 `threads` 输入映射为 snapshots，旧 memory 映射为 performance。组件不持久化，宿主按节点保留偏好和证据。
 
 - Buffer 趋势图的轴含义与完整单位放在图表下方，顶部图例仅说明队列与指标；Tooltip 继续显示原始计数和完整速率单位。
 
@@ -57,9 +61,13 @@ BufferQueues 条形比较各队列已知的待处理条数，不是容量使用�
 
 ## 火焰图导出
 
+`createJvmDiagnosticReport(data, labels)` 为当前节点已采集的线程、JFR 栈和对象分配生成自包含可打印报告。宿主冻结 `JvmDiagnosticExport` 后可保存原始 JSON，或打开报告调用浏览器打印 / 存为 PDF；报告本身不请求服务端、不补采堆文件、不代表长期历史。火焰图按层拆页，完整方法表、分配记录和线程锁 / 等待 / 栈证据继续分页，未采集项明确标注。宿主负责导出授权、节点隔离、异常反馈及本地化。
+
 `createFlameGraphHtml({nodeId, snapshot, platformPrefixes?, minimumSamples?, labels?})` 生成自包含 HTML，保留搜索、聚焦、操作分组、采样提示与热点完整路径。宿主负责权限、保存文件和本地化 labels（含 `insights`）。节点名、类名与方法均按不可信文本处理，不执行内嵌数据；导出不依赖外部脚本。
 
 在线与离线火焰图保持调用主干在底部、深层调用向上展开。首次有样本、新会话和显式聚焦 / 恢复全图定位到主干；流式快照按距底部的阅读偏移保留当前层级及横向位置，搜索与操作分组不重置阅读。隐藏后恢复须等待有效布局。SVG 按实际画布宽度排版，保留每层 27px，避免深栈缩放后的居中留白；最小图宽 720px，窄容器内可独立横向滚动。网络通信分类按包边界识别 Netty、RSocket、JDK 网络及 Reactor Netty，未知帧保留“其他”。
+
+图内显示短类名与方法，完整符号保留在 title / 可访问标签中，文字裁剪在本帧范围内。库调用折叠只压缩同类别、同宽、同样本数的连续单子帧，不跨平台边界或分支，不改变原树、搜索分母和分析证据。在线提供上下 / 横向滚动、1–16 倍横向缩放及全屏；图内获焦时 + / - 缩放、0 适应、Esc 返回，Ctrl / Command + 滚轮缩放，输入框不拦截字符。独立 HTML 同样保留缩放、折叠与原始证据。
 
 热点行主行保留类与方法，包名置于次行，长符号可换行；生成类身份、可靠正安全整数源码行和可复制原名均保留。唯一同权重子帧的线性链合并展示，展开保留全部路径，不合并不同调用路径的同名方法。每次仅展开一项证据，流式更新保留仍存在的展开项。图形高度随视口约束，将分组、提示和首个热点留在阅读区。
 

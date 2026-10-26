@@ -25,10 +25,11 @@ function load(filename, inline = false) {
   cache.set(key, module.exports); return module.exports
 }
 const permission = { allowed: true }, access = { threadDump: permission, jfr: permission, jfrView: permission, jfrExport: permission, heapDump: permission, heapExport: permission }
-const defaults = { nodeId: 'node:8200', activeTab: 'performance', access, elapsedSeconds: 0, samplingState: { status: 'idle' } }
+const defaults = { nodeId: 'node:8200', active: true, activeTab: 'performance', access, elapsedSeconds: 0, samplingState: { status: 'idle' } }
 const wrap = tag => vue.defineComponent({ setup: (_, { attrs, slots }) => () => vue.h(tag, attrs, slots.default?.()) })
 function configure(app) {
   for (const name of ['a-tabs', 'a-tab-pane', 'a-space', 'a-tag', 'a-tooltip', 'a-table', 'a-checkable-tag', 'a-typography-text']) app.component(name, wrap('span'))
+  app.component('a-tabs', { setup: (_, { attrs, slots }) => () => vue.h('div', attrs, [slots.default?.(), slots.rightExtra?.()]) })
   for (const name of ['a-button', 'a-input-search', 'a-checkbox']) app.component(name, wrap('button'))
   app.component('a-empty', { props: ['description'], setup: props => () => vue.h('p', { class: 'test-empty' }, props.description) })
   app.component('a-badge', { props: ['status', 'text'], setup: props => () => vue.h('span', { 'data-badge-status': props.status }, props.text) })
@@ -93,7 +94,7 @@ test('generic flame viewer retains its standalone empty fallback and accepts a c
 })
 
 function mountedPanel(props) {
-  const node = (tag, text = '') => ({ tag, text, props: {}, children: [], isConnected: true, clientWidth: 720, clientHeight: 480, scrollHeight: 720, scrollTop: 0, scrollLeft: 0 })
+  const node = (tag, text = '') => ({ tag, text, style: {}, props: {}, children: [], isConnected: true, clientWidth: 720, clientHeight: 480, scrollHeight: 720, scrollTop: 0, scrollLeft: 0 })
   const renderer = vue.createRenderer({
     createElement: tag => node(tag), createText: text => node('#text', text), createComment: text => node('#comment', text),
     setText: (target, text) => { target.text = text }, setElementText: (target, text) => { target.text = text; target.children = [] },
@@ -118,7 +119,7 @@ test('mounted JVM subpages retain flame reading state and release it on node cha
     await flush()
     h.search().props['onUpdate:value']('org.jetlinks'); h.group('platform').props.onChange(true); await flush()
     const searchHandler = h.search().props['onUpdate:value']
-    props.activeTab = 'memory'; await flush(); assert.equal(h.search(), undefined)
+    props.activeTab = 'snapshots'; await flush(); assert.equal(h.search(), undefined)
     props.activeTab = 'threads'; await flush(); assert.equal(h.search(), undefined)
     props.activeTab = 'performance'; await flush()
     assert.equal(h.search().props.value, 'org.jetlinks'); assert.equal(h.group('platform').props.checked, true)
