@@ -118,10 +118,16 @@ export const handleMenus = (
     return data.filter((item) => !filterMenuCode.includes(item.code))
   }
 
+  // 唯一菜单 code 与复用页面的 componentCode 是两个维度，组件解析和一级布局使用同一规则。
+  const getRegisteredComponent = (record: MenuItem) => {
+    const meta = handleMeta(record, !!record.appId)
+    return components[(meta.componentCode as string) || record.code]
+  }
+
   const findComponent = (record: MenuItem, level: number) => {
     const isApp = !!record.appId
     const meta = handleMeta(record, isApp)
-    const myComponents = components[(meta?.componentCode as string) || record.code]
+    const myComponents = getRegisteredComponent(record)
 
     if (record.component) {
       return record.component
@@ -201,7 +207,7 @@ export const handleMenus = (
       })
       _route.component = myComponent
 
-      if (level === 1 && components[item.code]) {
+      if (level === 1 && getRegisteredComponent(item)) {
         // 1级菜单，并且是页面
         // 为1级菜单添加父级路由
         _route.name = `${item.code}-parent`

@@ -56,8 +56,8 @@ type QueryMenusInput = MenuApplicationScope | QueryMenusOptions
 
 const $t = i18n.global.t
 
-// routeName is the stable target contract for virtual navigation domains such as project settings.
-const LEGACY_PROJECT_MENU_OPTION_KEYS = ['componentCode', 'authCode', 'authCodes']
+// componentCode 定位复用页面（如发布菜单），不能当作废弃的权限别名删除。
+const LEGACY_PROJECT_MENU_OPTION_KEYS = ['authCode', 'authCodes']
 
 const getDefaultOwnParams = (applicationScope: MenuApplicationScope): any[] => {
   const termsItems: Record<string, any> = {
@@ -132,7 +132,7 @@ const registerMenuRoute = (route: RouteRecordRaw) => {
 const omitLegacyProjectMenuAliases = (source?: Record<string, any>) => {
   if (!source) return source
 
-  // 项目端菜单以服务端 code/url 为唯一入口，避免旧壳层别名继续影响组件匹配和权限映射。
+  // 路由身份仍以服务端 code/url 为准，只移除旧壳层的权限别名，保留显式组件定位。
   const result = { ...source }
   LEGACY_PROJECT_MENU_OPTION_KEYS.forEach(key => {
     delete result[key]
