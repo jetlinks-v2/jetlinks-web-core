@@ -1,0 +1,32 @@
+.diagnostics-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:var(--space-2,8px); margin-block:var(--space-3,12px); }
+.diagnostics-compact-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:var(--space-2,8px); min-width:0; }
+.diagnostics-mode-tabs.ant-tabs-small > .ant-tabs-nav { min-height:32px; margin:0 0 var(--space-4,16px); }
+.diagnostics-mode-tabs.ant-tabs-small > .ant-tabs-nav::before { border-bottom:0; }
+/* 与 Ant small-tabs 的三层 selector 同级后再加诊断根，避免默认 8px block padding 回弹成 48px。 */
+.diagnostics-mode-tabs.ant-tabs-small > .ant-tabs-nav .ant-tabs-tab { min-height:32px; margin:0; padding:0 var(--space-2,8px); font-size:var(--fs-sm,13px); line-height:32px; }
+.diagnostics-mode-tabs.ant-tabs-small > .ant-tabs-nav .ant-tabs-tab + .ant-tabs-tab { margin:0; }
+.diagnostics-mode-tabs.ant-tabs-small > .ant-tabs-nav .ant-tabs-tab-active { font-weight:600; box-shadow:inset 0 -2px var(--primary-color); }
+.diagnostics-mode-tabs.ant-tabs-small > .ant-tabs-nav .ant-tabs-ink-bar { display:none; }
+.diagnostics-toolbar > .ant-input-affix-wrapper,.diagnostics-toolbar > .ant-input-search,.diagnostics-toolbar > .ant-input { width:min(100%,320px); }
+.diagnostics-toolbar > .ant-select { min-width:130px; max-width:100%; }
+.diagnostics-split { display:grid; grid-template-columns:240px minmax(0,1fr); gap:var(--space-4,16px); }
+.diagnostics-split > .ant-tree { max-height:65vh; overflow:auto; border-inline-end:1px solid var(--line,#eee); }
+.diagnostics-detail { min-width:0; overflow:hidden; }
+.diagnostics-detail .ant-typography { overflow-wrap:anywhere; }
+.diagnostics-detail .ant-form { margin-block:12px; }
+.diagnostics-logs { max-height:55vh; overflow:auto; }
+.diagnostics-log-line { flex:1; min-width:0; overflow-wrap:anywhere; }
+.diagnostics-log-line .code-block { border:0; }
+.diagnostics-log-line .cb-body { padding:2px 0; }
+.diagnostics-duration { position:relative; min-height:22px; overflow:hidden; }
+.diagnostics-duration > span:last-child { position:relative; }
+.diagnostics-duration__bar { position:absolute; inset-block:3px; background:var(--accent-soft,rgba(22,119,255,.16)); min-width:2px; }
+.diagnostics-chart { height:280px; min-width:0; overflow:hidden; }
+.diagnostics-charts { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr)); gap:16px; }
+.diagnostics-charts section { min-width:0; }
+.diagnostics-chart-info { margin-left:6px; color:var(--ink-3,#86909c); font-size:var(--fs-body,14px); }
+/* 全局表头固定浅色且带important，诊断组件统一恢复主题色。 */
+.runtime-diagnostics .ant-table .ant-table-thead > tr > th { background:var(--bg-sunken,#f3f5fa) !important; color:var(--ink-2,#4e5969); }
+.diagnostics-metric-detail { display:block; font-size:var(--fs-caption,12px); color:var(--ink-3); overflow-wrap:anywhere; }
+.diagnostics-state-empty { margin-block:var(--space-4,16px); }
+@media(max-width:768px) { .diagnostics-split { grid-template-columns:minmax(0,1fr); } .diagnostics-split > .ant-tree { max-height:180px; border-inline-end:0; border-bottom:1px solid var(--line,#eee); } }

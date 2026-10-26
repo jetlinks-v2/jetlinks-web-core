@@ -53,6 +53,8 @@ const verification = useCaptchaVerify<string, { requestId: string }>()
 | --- | --- | --- | --- |
 | `useEmptyCreateState` | `useEmptyCreateState.ts` | 是 | 按已生效的用户搜索状态控制空态新增与搜索提示 |
 | `useRequest` | `useRequest.ts` | 否 | 请求状态封装；仅沿用已有深层生产用法，不把文件存在当作根 API |
+| `useDiagnosticQuery` | `useDiagnosticQuery.ts` | 是 | 注入 loader 和显式授权，管理诊断快照状态、旧响应失效、停用与销毁清理 |
+| `useRetainedScroll` | `useRetainedScroll.ts` | 是 | 对显式容器在当前组件内存保留双轴阅读位置，支持工具隐藏与 KeepAlive 恢复 |
 | `useWebSocket` | `useWebSocket.ts` | 是 | WebSocket 订阅和连接状态 |
 | `useEcharts` | `Echarts/useEcharts.ts` | 是 | ECharts 实例生命周期、渲染错误和 resize 处理 |
 
@@ -87,6 +89,10 @@ const { hasSearch, showEmptyCreate } = useEmptyCreateState(() => submittedTerms.
 生产接入范围与验证见 `runtime-ui/README.md` 的“空状态新增入口”，组件参数见 `src/components/CloudEmpty/README.md`。侧栏中本次新增的按钮、复用模板及显示条件已撤回；原本已有的空态按钮继续保留。
 
 验证入口：在 `jetlinks-web-core/` 执行 `node --test tests/emptyCreateState.test.mjs`，保留 5 项公共检查，覆盖响应式搜索与清空、固定条件隔离、严格类型契约、实际 CloudEmpty 描述 / 插槽切换、中英文插值与复用按钮的处理器、权限、禁用、loading。已移除仅验证侧栏新增切换的业务模板检查；实际执行结果见运行时根 `README.md`。
+
+`useDiagnosticQuery<T>()` 返回 `data`、`state`、`run(loader, allowed, options?)` 和 `clear()`。options 的 isEmpty / errorState 由宿主解释空值与 HTTP 失败状态。每轮调用先清理旧数据，拒绝授权时不调用 loader；loader 接收 AbortSignal。新请求、clear、deactivate 或 scope dispose 后旧响应不落地。宿主负责 activate 后恢复、流订阅与阅读缓存；transport 不支持 signal 时仍保证响应隔离，但不能承诺实际网络取消或服务端诊断停止。
+
+`useRetainedScroll(elementRef, active?)` 绑定一个明确的滚动容器；将容器的 scroll 事件交给返回的 `onScroll`，正文身份改变或权限清理时调用 `reset()`。位置只保存在当前组件内存，支持 KeepAlive 与 v-show 隐藏，恢复等待有效布局；旧恢复帧与隐藏零值不能覆盖位置。它不访问路由、存储或接口，也不自动扫描其他 DOM；`visible()` 供日志跟随等可见性动作使用。
 
 ## 布局、主题与响应式
 
