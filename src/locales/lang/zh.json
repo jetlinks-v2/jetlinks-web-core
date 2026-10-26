@@ -731,6 +731,8 @@
   "init-home.index.011072-0": "角色初始化",
   "init-home.index.011072-1": "初始化内置角色与权限数据",
   "components.Notice.573407-0": "标记已读",
+  "components.Notice.loadFailed": "通知暂不可用，请重试",
+  "components.Notice.retry": "重试",
   "components.NoticeInfo.811677-0": "这是最后一条数据了",
   "components.NoticeInfo.811677-1": "查看更多",
   "components.NoticeItem.265390-0": "未读",
