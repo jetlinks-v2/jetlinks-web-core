@@ -81,6 +81,7 @@ test('production LogViewer passes remaining height through real Ant Spin wrapper
     }
     assert.equal(declarations(path.slice(0, 4))['flex-direction'], 'column')
     assert.equal(declarations(path).overflow, 'auto')
+    assert.equal(declarations(path)['overscroll-behavior-y'], 'contain', 'log edges do not scroll the outer page')
     assert.equal(!!direct(container, 'ant-alert'), status === 'stale', 'stale notice shares the flex column above the retained window')
     assert.equal(classes(container).includes('ant-spin-blur'), status === 'loading')
   }
@@ -91,6 +92,7 @@ test('production LogViewer keeps real error, forbidden and empty states inside t
     const { ast } = await rendered({ status, message: 'Retry this file' })
     const owner = find(ast, 'log-reader-state'), spin = owner && direct(owner, 'ant-spin-nested-loading'), container = spin && direct(spin, 'ant-spin-container')
     assert.ok(container, status)
+    assert.equal(declarations([owner, spin, container])['overscroll-behavior-y'], 'contain')
     assert.equal(declarations([owner, spin, container]).overflow, 'auto', `${status}: a small available height does not clip state actions`)
     assert.ok(find(container, status === 'error' || status === 'forbidden' ? 'ant-result' : 'ant-empty'))
     assert.equal(find(container, 'log-reader-window'), undefined, 'unavailable states do not expose previous log rows')

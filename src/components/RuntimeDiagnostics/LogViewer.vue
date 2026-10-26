@@ -175,13 +175,13 @@ watch(() => props.entries, async (entries, previous) => {
 .log-reader-state { display:flex; flex:1; min-width:0; min-height:0; }
 /* Spin 的 class 用于加载指示器，布局需从自有 DOM 接到真实的 nested-loading/container。 */
 .log-reader-state :deep(> .ant-spin-nested-loading),.log-reader-state :deep(> .ant-spin-nested-loading > .ant-spin-container) { display:flex; flex-direction:column; flex:1; min-width:0; min-height:0; }
-.log-reader-state :deep(> .ant-spin-nested-loading > .ant-spin-container) { overflow:auto; }
+.log-reader-state :deep(> .ant-spin-nested-loading > .ant-spin-container) { overflow:auto; overscroll-behavior-y:contain; }
 .log-reader-window { display:flex; flex-direction:column; flex:1; border:1px solid var(--line); border-radius:6px; min-width:0; min-height:0; overflow:hidden; }
 .log-reader--embedded { gap:0; }.log-reader--embedded .log-reader-window { border:0; border-radius:0; }.log-reader--embedded .log-file-toolbar { padding:6px 8px; min-height:36px; border-bottom:1px solid var(--line); }
 .log-search-toolbar { display:flex; flex:2 1 auto; align-items:center; gap:4px; min-width:0; }.log-search-toolbar--matching { flex-basis:390px; min-width:min(100%,280px); }
 .log-find { display:flex; align-items:center; gap:6px; flex:1 1 120px; min-width:0; }.log-find :deep(.ant-input-search) { flex:1; min-width:100px; }.log-match-count { color:var(--ink-3); font-size:var(--fs-caption,12px); white-space:nowrap; }
 .log-display-controls { display:flex; align-items:center; flex:none; gap:2px; }.log-display-controls :deep(.ant-btn) { display:inline-flex; align-items:center; gap:3px; }.log-more-menu { display:flex; flex-direction:column; gap:4px; min-width:132px; }
-.log-stream { flex:1; min-height:0; overflow:auto; background:var(--bg-surface); scrollbar-gutter:stable; }
+.log-stream { flex:1; min-height:0; overflow:auto; overscroll-behavior-y:contain; background:var(--bg-surface); scrollbar-gutter:stable; }
 .log-row { display:flex; align-items:baseline; min-width:0; padding:5px 10px 5px 6px; border-bottom:1px solid var(--line); }
 .log-row-number { flex:0 0 32px; text-align:end; padding-inline-end:10px; color:var(--ink-3); font:var(--fs-caption,12px)/var(--lh-relaxed,1.65) var(--font-mono,monospace); user-select:none; }
 .log-row:last-child { border-bottom:0; }.log-active-match { background:var(--diagnostic-log-selected); }
