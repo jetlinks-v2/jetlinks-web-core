@@ -41,13 +41,16 @@ export function formatDeviceSessionDuration(value: unknown, now: number, locale 
   let remaining = deviceSessionElapsed(value, now)
   if (remaining === undefined) return undefined
   const parts: string[] = []
+  const zhUnits = { day: '天', hour: '小时', minute: '分', second: '秒' }
   for (const [seconds, unit] of [[86400, 'day'], [3600, 'hour'], [60, 'minute'], [1, 'second']] as const) {
     const amount = Math.floor(remaining / seconds)
-    if (amount || unit === 'second' && !parts.length) parts.push(new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'short' }).format(amount))
+    if (amount || unit === 'second' && !parts.length) parts.push(locale.startsWith('zh')
+      ? `${new Intl.NumberFormat(locale).format(amount)}${zhUnits[unit]}`
+      : new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'narrow' }).format(amount))
     remaining %= seconds
-    if (parts.length === 2) break
+    if (parts.length === 3) break
   }
-  return parts.join(' ')
+  return parts.join('')
 }
 
 export function formatDeviceSessionLastSeen(value: unknown, now: number, locale = 'en'): string | undefined {

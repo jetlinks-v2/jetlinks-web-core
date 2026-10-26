@@ -2,7 +2,9 @@ import type { DeviceSessionInfo, ViewState } from '../types'
 import { deviceSessionCounter, deviceSessionTimestamp } from '../deviceSessionPresentation'
 import { formatAllocationBytes } from '../allocationPresentation'
 
-export type DeviceObservationMetric = 'receive' | 'send' | 'messages' | 'pending'
+export const deviceObservationMetrics = ['receive', 'send', 'messages', 'pending'] as const
+export type DeviceObservationMetric = typeof deviceObservationMetrics[number]
+export const deviceObservationMetricColors = { receive: '#1677ff', send: '#13a8a8', messages: '#722ed1', pending: '#d46b08' }
 interface ConnectionCounter { key: string; receive?: string; send?: string; messages?: string }
 export interface DeviceObservationSample {
   sampledAt: number; connections?: ConnectionCounter[]; pending?: number; interrupted?: boolean
@@ -68,6 +70,14 @@ export function deviceObservationActivity(sessions: readonly DeviceSessionInfo[]
   return { lastCommAt: comm.length ? Math.max(...comm) : undefined, lastHeartbeatAt: heartbeat.length ? Math.max(...heartbeat) : undefined }
 }
 
+/** 从全部服务节点选择已知建立时间最新的连接，节点与地址始终取自同一条记录。 */
+export function deviceObservationConnection(sessions: readonly DeviceSessionInfo[]) {
+  const connections = sessions.flatMap(session => (session.connections ?? []).map(connection => ({ serverId: session.serverId, transport: session.transport, address: connection.address, connectedAt: deviceSessionTimestamp(connection.metrics?.connectTime) })))
+  // 旧节点未提供连接明细时，只展示其真实会话字段，不从其他节点借用地址或时间。
+  const records = connections.length ? connections : sessions.map(session => ({ serverId: session.serverId, transport: session.transport, address: session.address, connectedAt: deviceSessionTimestamp(session.connectTime) }))
+  return records.reduce<(typeof records)[number] | undefined>((latest, value) => !latest || (value.connectedAt ?? -Infinity) > (latest.connectedAt ?? -Infinity) ? value : latest, undefined)
+}
+
 export function appendDeviceObservation(history: readonly DeviceObservationSample[], sample: DeviceObservationSample) {
   return [...history.filter(value => value.sampledAt >= sample.sampledAt - 600000 && value.sampledAt <= sample.sampledAt), sample].slice(-121)
 }
@@ -80,6 +90,15 @@ export function deviceObservationCurrentPoint(history: readonly DeviceObservatio
 }
 
 export const deviceObservationColors = ['#1677ff', '#13a8a8', '#722ed1', '#d46b08', '#c41d7f']
+
+/** 联动按真实时间匹配，最多容许半个实际采样周期；缺测帧参与匹配，不跨断点回填。 */
+export function deviceObservationPointAt(points: readonly DeviceObservationPoint[], time: number) {
+  if (!points.length || time < points[0].sampledAt || time > points[points.length - 1].sampledAt) return undefined
+  const periods = points.slice(1).map((point, index) => point.sampledAt - points[index].sampledAt).filter(value => value > 0).sort((a, b) => a - b)
+  const radius = periods.length ? periods[Math.floor((periods.length - 1) / 2)] / 2 : 0
+  const closest = points.reduce((previous, point) => Math.abs(point.sampledAt - time) < Math.abs(previous.sampledAt - time) ? point : previous)
+  return Math.abs(closest.sampledAt - time) <= radius ? closest : undefined
+}
 
 export function formatDeviceObservationValue(value: number, metric: DeviceObservationMetric, locale: string, countUnit: string) {
   return metric === 'receive' || metric === 'send' ? `${formatAllocationBytes(value, locale)}/s` : `${value.toLocaleString(locale, { maximumFractionDigits: 1 })} ${countUnit}`

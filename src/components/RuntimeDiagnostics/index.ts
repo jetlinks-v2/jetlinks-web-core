@@ -5,7 +5,7 @@ export const RuntimeMBeanOverview = defineAsyncComponent(() => import('./Runtime
 export const ThreadViewer = defineAsyncComponent(() => import('./ThreadViewer.vue'))
 export const DeviceSessionViewer = defineAsyncComponent(() => import('./DeviceSessionViewer.vue'))
 export const DeviceSessionObservation = defineAsyncComponent(() => import('./DeviceSessionObservation.vue'))
-export { appendDeviceObservation, deviceObservationSample, deviceObservationPoints, deviceObservationActivity, deviceObservationColors } from './device-sessions/observation'
+export { appendDeviceObservation, deviceObservationSample, deviceObservationPoints, deviceObservationActivity, deviceObservationColors, deviceObservationMetrics } from './device-sessions/observation'
 export type { DeviceObservationEntry, DeviceObservationMetric, DeviceObservationSample, DeviceObservationPoint } from './device-sessions/observation'
 export const JvmDiagnosticPanel = defineAsyncComponent(() => import('./JvmDiagnosticPanel.vue'))
 export const FlameGraphViewer = defineAsyncComponent(() => import('./FlameGraphViewer.vue'))

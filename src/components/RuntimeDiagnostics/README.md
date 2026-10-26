@@ -19,7 +19,8 @@ import type { MBeanDescriptor, MBeanInvocation, ViewState, ActionAccess }
 | JvmDiagnosticPanel | nodeId、threads、threadState、snapshot、samplingState、access、activeTab、platformPrefixes | sample、start、stop、export-html、capture-jfr、heap-dump({live})、update:activeTab；memory 插槽 |
 | FlameGraphViewer | snapshot、platformPrefixes | 缩放聚焦、搜索、平台帧标记与操作分组 |
 | ThreadViewer | threads、sampleAccess、state | sample；列表支持筛选、排序及展开线程栈 / 锁 |
-| DeviceSessionViewer | nodeId?、deviceId、queriedDeviceId、resultDeviceId?、sessions、state、access、active、remoteSearch、deviceOptions、deviceSearching | update:deviceId、query(精确设备 ID)、refresh、search-device(keyword)、select-device(id)；filters 插槽；节点可选、多个连接原位展开 |
+| DeviceSessionViewer | nodeId?、deviceId、queriedDeviceId、resultDeviceId?、sessions、state、access、active、expandConnections?、remoteSearch、deviceOptions、deviceSearching | update:deviceId、query(精确设备 ID)、refresh、search-device(keyword)、select-device(id)；filters 插槽；节点可选、多个连接原位展开，expandConnections 可直接展开全部 |
+| DeviceSessionObservation | entries、deviceOptions、deviceSearching、active、access、unsupported?、waiting?、paused、interval、metrics | add、remove、refresh、search-device、update:paused / interval / metrics；最多五设备的响应式观测卡片 |
 | MBeanBrowser | beans、selectedObject、target、invokeAccess、busy、result、state、detailState、resultState、config | refresh、select(ObjectName)、invoke(MBeanInvocation)、update:config |
 | TraceViewer | spans、selectedId、focusNode、logAccess、nodeAccess、state | refresh、select(TraceRow 或 undefined)、logs(Span)、node(Span) |
 | LogViewer | entries、files、fileId、filter、following、hasPrevious、hasNext、truncated、traceAccess、exportAccess、state、config、embedded、fileBusy | refresh、file、filter、follow、previous、next、trace、export、update:config |
@@ -27,6 +28,8 @@ import type { MBeanDescriptor, MBeanInvocation, ViewState, ActionAccess }
 所有组件的 `state: ViewState` 支持 ready / loading / empty / error / forbidden / unsupported / stale，带可选 message、sampledAt。动作权限 `ActionAccess` 为 `{ allowed: boolean, reason?: string }`，缺省拒绝。宿主也必须在事件处理器内校验权限，后端执行最终授权。
 
 ## 数据约定
+
+- Buffer 趋势图的轴含义与完整单位放在图表下方，顶部图例仅说明队列与指标；Tooltip 继续显示原始计数和完整速率单位。
 
 - DeviceSessionViewer 仅展示宿主提供的会话；输入与已提交查询 ID 分开，`resultDeviceId` 标识保留结果所属设备，查询新 ID 时不把旧结果标成新设备。`nodeId` 缺省为空，此时保持原始节点顺序；提供节点时仍优先展示当前节点。`remoteSearch=false` 保留精确 ID 输入；启用后，宿主提供 `DeviceSessionDeviceOption { value, label, description? }[]`，其中 value 为真实设备 ID、label 为设备名称。组件只发 `search-device(keyword)`，宿主负责防抖、取消、权限与有界候选查询；选择候选只发 `select-device(id)`，不重复发 query。自由文本的 Enter / 查询按钮仍发 query，候选和输入变化不改变保留结果身份。`filters` 插槽可组合节点筛选，提供 disabled 插槽属性。查询、选择与刷新受 active / access.allowed / 加载状态约束，宿主仍须校验实际读取权限、请求身份和取消。空结果表示未查询到会话，不等于设备离线。会话及连接的时间为 epoch 毫秒，`lastCommTime` 展示为“最近活跃”，包含心跳与显式保活，不代表该连接最近业务收发；结果标题以 state.sampledAt 标记查询快照时间。相对时间和已连接时长仅由本地时钟更新，失活暂停，不请求接口。计数支持精确十进制文本，缺失或无效值不补零；会话、连接及连接 metrics 中的待处理计数各自呈现，不相加。设备 ID、查询结果和连接信息不由组件写入浏览器存储。
 - 指标值与单位由宿主明确提供；缺失值保留缺口，不补零。samples 为单组趋势；charts 为多图、多 series 的毫秒时间样本，可提供单位、max、minInterval、formatValue 和按需说明。图表自动排列并随 Ant Design 明暗主题更新；metrics 插槽可复用宿主现有资源条。historyState 可单独承载历史请求状态，不隐藏仍有效的实时指标和 MBean。
@@ -37,6 +40,7 @@ import type { MBeanDescriptor, MBeanInvocation, ViewState, ActionAccess }
 - JVM 的实时 JFR snapshot 是累计快照，宿主逐条替换，不能累加样本 / 分配字节。线程、实时采集、结果查看、HTML / JFR 导出、heap 采集与导出分别由 access 动作授权；宿主确认副作用并处理生命周期。停止保留结果或清空由宿主明确选择。对象分配以无分页可搜索排行展示已捕获的 TLAB 内 / 外分配事件字节，完整类名可换行；占比始终以当前快照全部有效对象类型为分母，搜索只筛选行，不改变总量或占比。无效、负数及不可靠的非安全整数字节不参与排行；全零数据保持 0%，不补造分配事件。它不表示堆存量、精确总分配或泄漏结论，浏览偏好只保留当前节点内的搜索，不持久化诊断正文。
 - 实时 JFR 的 `SamplingState.updateCount` 仅统计本次有效快照接收次数，空 / 重复累计快照也只增加更新次数，不增加执行样本。宿主以已有时钟提供 `quietSeconds`，首帧等待 15 秒或最近更新间隔 5 秒后设置 `delay`（`first-frame` / `updates`）；提示保留最近结果，用户显式重新连接才按本页 stop → start 重开订阅，不调用全局停止。停止冻结计时 / 次数；新采集清零，迟到旧订阅不得更新。空报告树只表示没有可展示的执行样本，不能据此声称 JDK 未产生事件或诊断低负载。`FlameGraphViewer` 的 `empty` / `sampling-details` 插槽允许调用方补采集状态，独立调用仍保留默认空态与现有导出行为。
 - MBean 使用完整 canonical ObjectName 作为身份，方法使用参数类型列表作为精确签名。缺少可靠元数据时仅展示属性；属性写入未开放。组件调用前确认目标和参数，不自动重试。专用 renderer 只能通过宿主提供的 `executeInvocation` 执行已登记的只读查询白名单；宿主持续负责目标、权限和最终执行，通用 `invoke` 结果不与专用查询结果混用。
+- DeviceSessionObservation 按设备显示紧凑卡片，设备 ID 在名称后弱化展示；下方连接摘要从全部服务节点选择已知建立时间最新的记录，节点、协议、地址和时间来自同一记录；时钟图标配紧凑时长，悬停显示具体建立时间。连接明细缺失时仅使用该节点真实会话字段；缺失字段不向其他记录借值。多个已知连接显示数量和下拉箭头；点击摘要打开可滚动浮窗，只按节点分组展示紧凑连接列表，图标配数值，含义和完整时间放在悬停提示中，离开视图关闭；四项摘要宽屏横排、窄屏两列。每卡同一图区默认绘制收发速率、消息吞吐、待处理，分别使用流量左轴、消息速率右轴、数量右外轴，图下明确单位，指标颜色跨设备一致。宿主提供共享 metrics 选择，任意设备图例更新全部卡片；时间游标仅在当前观测区按真实时间联动，浮层最多在半个实际采样周期内匹配帧并显示真实采样时间，不跳过缺测或越界回填。图表浮层不接收鼠标事件，移动可穿过浮层继续读图。设备身份颜色保持独立。完整浮窗中的最近通信来自连接 metrics.lastCommTime，仅有会话 lastCommTime 时标为最近心跳；采样、权限、暂停和进入页面立即查询由宿主管理，组件不请求接口或持久化连接数据。
 - Trace 时间使用十进制纳秒字符串，先做整数差值再转毫秒；`nanosText` 可消费精确文本并拒绝不安全浮点数。保留多根、缺失 / 歧义父级、重复和循环记录。宿主把 select 事件的稳定 `TraceRow.key` 回传 selectedId，避免重复 SpanID 选错。focusNode 只高亮。nodeId 必须是已验证实例，未知 app 范围仍显示但不能跳转；返回样本数与已观测范围不表示完整集群覆盖。
 - Trace 的“下一异常”只定位明确的 `exception` 事件；“慢调用”按精确纳秒差值从长到短循环定位已挂接且正耗时的子调用，同耗时保留调用树顺序。耗时包含子调用，不推导自身耗时、阈值或瓶颈；入口和未挂接的结构异常根不进入慢调用序列。没有可比较子调用时禁用并提供可聚焦提示，单个调用仍可点行查看。定位展开祖先并保留搜索与其他折叠，详情继续在调用树原位展开。
 - 日志采用单一阅读工作区：来源切换与当前文件 / 真实阅读路径位于顶部，左侧约 200px 文件目录承载面包屑、上级、刷新、文件名 / 大小 / 修改时间，右侧承载已加载区查找 / 级别 / 跟随与紧凑正文。目录可折叠，工作区宽度 ≤640px 默认收起，显式打开时覆盖正文；较宽时固定分栏。`LogViewer` 的 `source` / `file-prefix` / `file-selector` / `console-actions` slots 分别承载来源、文件前置操作、选中文件身份与控制台接收动作；`file-selector` 默认仍提供文件选择，`embedded` 取消内层正文边框以便宿主只保留一个外框，`fileBusy` 禁用文件刷新 / 下载。`isConsole` 模式隐藏文件操作。目录与选中文件各自保留状态及独立取消代际，浏览 / 刷新 / 目录失败和 ZIP 返回上级不改变正在阅读、跟随或导出的文件。只有实际选择不同文件才切换正文，同文件重复点击不重读。

@@ -17,7 +17,7 @@ function load(filename) {
   new Function('require', 'module', 'exports', transformSync(script, { loader: 'ts', format: 'cjs' }).code)(id => {
     if (id === 'vue-i18n') return { useI18n: () => ({ t: translate, locale: vue.ref('en') }) }
     if (id === 'ant-design-vue') return { Empty: { PRESENTED_IMAGE_SIMPLE: '' } }
-    if (id === '@ant-design/icons-vue') return { DownOutlined: icon, ReloadOutlined: icon, LoadingOutlined: icon }
+    if (id === '@ant-design/icons-vue') return new Proxy({}, { get: () => icon })
     if (id === '@vueuse/core') return { useIntervalFn: callback => {
       const clock = { active: false, pause() { this.active = false }, resume() { this.active = true }, tick() { if (this.active) callback() } }
       vue.onScopeDispose(() => clock.pause()); clocks.push(clock); return clock
@@ -111,7 +111,9 @@ test('timestamps, elapsed connection time and recent communication use epoch mil
   assert.equal(presentation.deviceSessionTimestamp('1799999999000'), now - 1000)
   for (const value of [0, '0', -1, null, '', true, 'not-a-date', 8640000000000001]) assert.equal(presentation.deviceSessionTimestamp(value), undefined)
   assert.equal(presentation.deviceSessionElapsed(now - 1000, now), 1); assert.equal(presentation.deviceSessionElapsed(now + 1, now), undefined)
-  assert.match(presentation.formatDeviceSessionDuration(now - 3665000, now, 'en'), /1 hr.*1 min/)
+  assert.equal(presentation.formatDeviceSessionDuration(now - 3665000, now, 'en'), '1h1m5s')
+  assert.equal(presentation.formatDeviceSessionDuration(now - (86400 + 7200 + 1200) * 1000, now, 'en'), '1d2h20m')
+  assert.equal(presentation.formatDeviceSessionDuration(now - (86400 + 7200 + 1200) * 1000, now, 'zh'), '1天2小时20分')
   assert.match(presentation.formatDeviceSessionLastSeen(now - 3000, now, 'en'), /3 sec.*ago/)
   assert.ok(presentation.formatDeviceSessionTimestamp(now, 'zh')); assert.equal(presentation.formatDeviceSessionDuration(undefined, now), undefined)
 })
@@ -211,6 +213,37 @@ test('production results retain long IDs, label current nodes first and expand m
     assert.ok(h.content().includes('8 EB')); assert.equal(h.nodes(node => node.props?.title === '9223372036854775807 B').length, 1)
     toggle().props.onClick(); await flush(); assert.ok(!h.content().includes('second-connection'))
     assert.equal(h.nodes(node => node.type === 'pre').length, 0)
+  } finally { h.stop() }
+})
+
+test('expanded connection details show every connection across service nodes without nested toggles', async () => {
+  const now = Date.now(), connection = (id, address, age, readBytes) => ({ id, address, metrics: { connectTime: now - age, lastCommTime: now - 1000, readBytes, writeBytes: 0, totalMessages: 4, droppedMessages: 0 } })
+  const h = harness({ detailsOnly: true, expandConnections: true, resultDeviceId: 'device', sessions: [
+    { serverId: 'iot:8200', address: '/first', connections: [connection('a', '/first', 30000, 1024), connection('b', '/second', 20000, 2048)] },
+    { serverId: 'network:8300', connections: [connection('c', '/third', 10000, 4096)] },
+    { serverId: 'iot:8200', connections: [connection('d', '/fourth', 5000, 512)] },
+  ] })
+  try {
+    assert.equal(h.nodes(node => hasClass(node, 'device-session-connections-toggle')).length, 0)
+    const groups = h.nodes(node => hasClass(node, 'device-session-group'))
+    assert.equal(groups.length, 2)
+    assert.equal(h.nodes(node => node.props?.class === 'device-session-facts').length, 0, 'the compact list does not repeat session summaries')
+    for (const [index, addresses] of [[0, ['/first', '/second', '/fourth']], [1, ['/third']]]) {
+      assert.ok(addresses.every(address => text(groups[index]).includes(address)))
+      const items = findAll(groups[index], node => node.type === 'li')
+      assert.equal(items.length, addresses.length)
+      for (const [offset, item] of items.entries()) {
+        const age = index === 1 ? 10000 : [30000, 20000, 5000][offset]
+        const duration = findAll(item, node => hasClass(node, 'device-session-connection-duration'))[0]
+        assert.equal(duration.props.title, presentation.formatDeviceSessionTimestamp(now - age, 'en'))
+        assert.equal(text(duration), `${age / 1000}s`)
+        assert.match(text(item), /deviceSessions\.lastCommTime/)
+        assert.match(text(item), /deviceSessions\.readBytes/)
+      }
+    }
+    assert.match(text(groups[0]), /1 KB.*2 KB/); assert.match(text(groups[1]), /4 KB/)
+    h.props.access = { allowed: false }; h.props.state = { status: 'forbidden' }; await flush()
+    assert.equal(h.nodes(node => node.type === 'li').length, 0)
   } finally { h.stop() }
 })
 
