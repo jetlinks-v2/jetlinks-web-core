@@ -27,6 +27,10 @@
 
 ## 会话续登
 
+账号登录和重登录表单的回车与按钮都走原生表单提交，由 Ant Design Vue 校验后触发 `finish`。
+不能调用表单实例未公开的 `submit()` 方法，也不另加键盘处理绕过校验。重登录请求、加密和验证码刷新归属
+`relogin/components/useReloginForm.ts`，组件保留字段与布局。
+
 `relogin/index.ts` 提供程序化入口 `openRelogin`，由 `src/main.ts` 传入请求初始化的 `handleReconnect`。入口负责独立 Vue 应用的创建、平台 Pinia 与国际化实例接入，以及成功、取消或异常后的卸载和容器清理。成功返回登录结果，由请求库重试原请求和等待队列；取消时先清除 token 和二次校验缓存、发起登录页跳转，再抛出 Axios `CanceledError`，使原请求和整个等待队列结束。不能以 `null` 返回取消结果，否则请求库直接清空等待队列，已排队的 Promise 会一直等待。弹窗仅通过 Modal 的 `cancel` 事件完成关闭，退出副作用统一由程序化入口执行。
 
 无 token 时，`openRelogin` 直接拒绝创建弹窗；`src/package.ts` 的 `initAxios.tokenExpiration` 在私有化续登模式下比较失败请求携带的 token 与当前 token，取消旧凭证请求的迟到 401，避免退出后或新登录会话再次被旧请求打断。之后的新会话仍可正常续登，SaaS 保留直接跳转登录页的行为。范围仅为 runtime core，使用请求库公开回调，不修改依赖、后端或路由配置，也不依赖可视化模块。

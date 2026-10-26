@@ -739,6 +739,8 @@
   "init-home.index.011072-0": "Role Initialization",
   "init-home.index.011072-1": "Initialize built-in role and permission data",
   "components.Notice.573407-0": "Mark as Read",
+  "components.Notice.loadFailed": "Notifications are unavailable. Please retry.",
+  "components.Notice.retry": "Retry",
   "components.NoticeInfo.811677-0": "This is the last piece of data",
   "components.NoticeInfo.811677-1": "See More",
   "components.NoticeItem.265390-0": "Unread",

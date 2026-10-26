@@ -1,5 +1,6 @@
 import i18n from '@jetlinks-web-core/locales';
-export const rules = {
+import type { Rule } from 'ant-design-vue/es/form';
+export const rules: Record<string, Rule[]> = {
   username: [
     {
       validator(_: any, value: string) {
