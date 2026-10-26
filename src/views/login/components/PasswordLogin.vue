@@ -1,7 +1,7 @@
 <template>
   <div class="password-login">
+    <!-- 回车和按钮统一走原生 submit，由 Form 校验后触发 finish。 -->
     <Form
-      ref="formRef"
       :model="formState"
       :rules="rules"
       @finish="handleFinish"
@@ -58,7 +58,6 @@
             data-lpignore="true"
             data-1p-ignore="true"
             class="modern-input verify-code-input"
-            @keyup.enter="handleEnterSubmit"
           >
             <template #addonAfter>
               <img :src="image" @click="getCode" />
@@ -90,9 +89,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { reactive, watch } from 'vue'
 
 import { Form, FormItem, Input, InputPassword, Checkbox, Button } from 'ant-design-vue'
+import type { Rule } from 'ant-design-vue/es/form'
 import i18n from '@jetlinks-web-core/locales'
 import { isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storage'
 
@@ -112,8 +112,6 @@ const props = defineProps({
 
 const emit = defineEmits(['submit', 'forgot', 'getCode', 'subAccount'])
 
-const formRef = ref()
-
 const formState = reactive({
   username: '',
   password: '',
@@ -121,7 +119,7 @@ const formState = reactive({
   verifyCode: undefined,
 })
 
-const rules = {
+const rules: Record<string, Rule[]> = {
   username: [{ required: true, message: t('Login.accountRequired'), trigger: 'blur' }],
   password: [{ required: true, message: t('Login.passwordRequired'), trigger: 'blur' }],
   verifyCode: [{ required: true, message: t('Login.verifyCodeRequired'), trigger: 'blur' }]
@@ -129,10 +127,6 @@ const rules = {
 
 const handleFinish = () => {
   emit('submit', { ...formState })
-}
-
-const handleEnterSubmit = () => {
-  formRef.value?.submit()
 }
 
 const getCode = () => {

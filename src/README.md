@@ -39,6 +39,9 @@
 
 ## 通知页签滚动
 
+通知入口的通道查询、未读角标和实时事件由 `layout/components/useHeaderNotice.ts` 管理。
+接口失败时保留已有角标，在通知面板提示失败并提供重试；空通道才显示空态，不将后台请求拒绝留作未捕获异常。
+
 运行时 `layout/components/NoticeInfo.vue` 将页签栏的左右内边距放在 `.ant-tabs-nav`，保持 `.ant-tabs-nav-wrap` 的实际可视宽度与 Ant Design 测量结果一致。通知类型超出可视范围时，使用 Tabs 自带的横向滚动、滚轮和溢出菜单访问右侧页签。通知查询、角标、Tab 切换与“查看更多”逻辑保持原有行为，不涉及接口或运营端 `ui/`。
 
 验证：在 `1536×899` 的现有开发页面上，5 个通知页签可向左、向右滚动，也可通过纵向滚轮横向移动；滚动位移为 `0～-72px`，最右侧“业务监控”完整可见，两端页签切换正常，弹层宽度仍为 `384px`。组件模板、TypeScript 转译、scoped LESS 编译及独立 Vite 生产构建通过，`git diff --check` 通过。`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 报告 556 项工作区既有诊断，`NoticeInfo.vue` 无诊断；当前未配置 lint 脚本。完整应用生产构建未执行，发布前待运行 `pnpm -F jetlinks-web-core build`。
