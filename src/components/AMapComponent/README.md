@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `style` | 地图容器样式 | `CSSProperties` | 宽高 100% |
 | `class` | 容器 class | `string` | - |
-| `AMapUI` | 是否加载 AMapUI，可传版本号 | `string \| boolean` | false |
+| `AMapUI` | 是否加载 AMapUI，可传版本号；显式 false 时跳过 | `string \| boolean` | true（保留既有轨迹调用的默认加载行为） |
 | `center` | 初始中心点 | `number[]` | - |
 
 #### 事件
@@ -30,11 +30,20 @@
 - 地图 API Key 与安全密钥来自系统配置，调用方不在组件上写入密钥。
 - 通过 expose 的 setBounds(bounds) 调整视野；没有地图配置时显示统一空态。
 
-#### 高德异常提示（M 级，已确认居中方案）
+#### 高德异常提示
 
-1. 目标：采用用户确认的居中提示，在地图区域展示异常图标、标题、可获取的错误码和描述；错误码下方单独展示高德返回的 `info` 原文（如 `INVALID_REQUEST`，以实际返回值为准，为空时隐藏），再提示“请前往高德地图官网查看错误码说明。”；不提供刷新按钮，未知错误使用统一文案。
-2. 范围：由 `jetlinks-web-core/src/components/AMapComponent` 维护，调整 `AMap.vue`、本目录加载与生命周期逻辑、core 中英文词条及相关测试。设备地图、设备详情和坐标选择器等现有调用方通过共享组件获得相同反馈。
-3. 保持边界：不修改 `/geo/object/device/_search/geo.json`、Token、权限、点位和聚合逻辑，不修改运营端 `ui/`；不将正常无点位视为高德异常，不通过重置全局 SDK 实例影响其他地图。
-4. 实施：在本目录 hook 管理加载状态、错误信息及事件清理；接入 SDK 加载 Promise、地图错误回调与 AMapUI 脚本失败，组件使用 Ant Design 图标和反馈组件展示居中提示；初始化持续未完成时显示超时提示，成功完成后清理超时状态。保留现有正常地图插槽和调用契约。
-5. 风险：用户确认 `1013` 来自高德，但尚无完整错误载荷，不预设其含义；仅当 SDK 暴露错误码时展示该码。[高德 JS API 错误码描述](https://lbs.amap.com/api/javascript-api-v2/guide/abc/errorcode)列出了 `info` 返回值；响应中的字段是否被 SDK 透传仍需实测，展示实际可读取的 `info`，不按错误码硬编码映射。仅写入控制台且不触发错误事件的情况，需要通过初始化超时提示兜底；已初始化后 SDK 未暴露的内部错误无法承诺识别。保持现有 `init` 事件、图层插槽和 `setBounds` 能力，并验证多个地图实例互不干扰。
-6. 验证：覆盖携带错误码（含模拟 `1013`）与 `info` 的回调、`info` 为空及长文本换行、SDK/AMapUI 加载失败、未知错误、初始化超时、正常加载与卸载清理；运行相关地图回归、SFC 编译和类型检查，记录构建/lint 结果及真实高德环境仍待联调的范围。实现与验证完成后在本文档回填实际结果。
+- SDK 加载失败、地图 `error` 事件、AMapUI 加载失败时，在地图区域居中展示异常图标、标题和可获取的详细信息，不提供刷新按钮。
+- 错误码优先读取 `infocode` / `errcode` / `code`；其下展示实际返回的 `info` 原文（如 `INVALID_REQUEST`），为空时隐藏。原始 `message` 与 `info` 不同时另行展示。所有错误都提示“请前往高德地图官网查看错误码说明。”，不会根据 `1013` 等错误码硬编码 `info`。
+- 地图 SDK、底图 `complete` 事件和可选 AMapUI 均就绪后结束加载；15 秒仍未完成则显示超时提示。迟到的正常加载可以消除超时提示，明确的 SDK 错误持续显示。
+- 保留 `init`、图层插槽和 `setBounds`；AMapUI 默认加载，兼容 `modules/device-manager-ui/views/device/Instance/Detail/Running/Property/Detail/PropertyAMap.vue` 中的既有轨迹用法。多个地图共用 SDK / AMapUI 脚本，各自维护异常、超时和卸载状态。
+- 未配置 Key 时保留原有空态，正常无点位不视为异常。此能力由共享组件维护，设备地图、设备详情和坐标选择器等调用方继承相同反馈；不改变 GeoJSON 请求、Token、权限和点位聚合。
+
+实现入口：`src/components/AMapComponent/AMap.vue` 负责居中展示；`useAMapLifecycle.ts` 管理加载、事件与清理；`errors.ts` 提取错误字段；`utils.ts` 管理 AMapUI 脚本及失败清理；中英文文案位于 `src/locales/lang/zh.json`、`en.json`。
+
+#### 验证与边界
+
+- 在 core 执行 `node --test tests/amapLifecycle.test.mjs tests/amapUiLoader.test.mjs tests/amapFeedback.test.mjs`，19 项通过，覆盖正常加载、实际错误字段、未知错误、超时、AMapUI 失败、配置切换、卸载、多实例、文案与 SFC 编译。
+- 在 `modules/device-manager-ui` 执行 `node --test tests/deviceMapCluster.test.mjs tests/dashboardRuntime.test.mjs tests/deviceLocationGeoContract.test.mjs`，24 项通过。
+- 使用实际 SFC、Ant Design 和 Vue-AMap 事件注册，配合外部 SDK 替身，完成居中提示、`1013 / INVALID_REQUEST`、空 `info`、320px 容器长文本换行、中英文、超时后恢复和多地图隔离的浏览器检查；组件定向 Vite 生产构建通过。
+- `vue-tsc --noEmit` 仍被既有类型错误阻塞，改动前后错误位置和错误码一致，本次组件文件无新增错误。当前项目未配置 lint 脚本；全量应用构建尚未执行，可在运行时根目录执行 `pnpm build` 进一步验证所有业务模块装配。
+- [高德 JS API 错误码描述](https://lbs.amap.com/api/javascript-api-v2/guide/abc/errorcode)列出了 `info` 返回值。真实高德异常回包是否被 SDK 透传仍需联调；只有可读取到字段时才展示。仅写入控制台且不触发事件的初始化失败由超时提示兜底，已初始化后 SDK 未暴露的内部错误无法保证识别。
