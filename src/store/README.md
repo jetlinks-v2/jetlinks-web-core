@@ -29,6 +29,7 @@
 - 弹窗开关、临时输入、一次性表单草稿优先留在组件或 composable；跨页面共享、路由守卫依赖、全局配置和权限上下文才进入 Store。
 - 通过 `storeToRefs` 消费响应式 state，动作从 Store 实例调用；不要在页面复制同一请求或直接改动 Store 内部状态。
 - 服务端数据由 Store action 统一拉取时，说明缓存、刷新和错误策略；涉及项目/业务应用 Scope 时同时核验对应 utils 与请求拦截器。
+- 菜单 `code`/`url` 标识路由，`meta.componentCode` 或 `options.meta.componentCode` 定位复用的页面组件。项目端规范化保留组件定位，只清理废弃的 `authCode`/`authCodes`；`handleMenus` 对一级页面也按同一组件定位规则包裹布局。发布菜单无需新增公开路由或修改权限映射。
 - `useAuthStore.hasOnlyApplicationRoles()` 使用禁用应用 Scope 的认证维度，仅在有效角色非空且全部带有应用 ID 时返回 true；结果和并发查询只属于当前会话，`init()` 清空缓存并拒绝旧会话迟到结果。默认入口分流由 `router/default-entry.ts` 消费，不改变菜单按钮权限的既有设置方式。
 - 新增或稳定调整 Store 时同步更新本索引，说明状态范围、action、副作用和持久化边界。
 
