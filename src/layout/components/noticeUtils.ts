@@ -60,7 +60,7 @@ export const createTabCountMap = (
   );
 
   return tabs.reduce<Record<string, CappedUnreadCount>>((result, tab) => {
-    const count = tab.type.reduce((total, provider) => {
+    const count = [...new Set(tab.type)].reduce((total, provider) => {
       return total + Number(providerCounts.get(provider)?.count || 0);
     }, 0);
     const overflow =
