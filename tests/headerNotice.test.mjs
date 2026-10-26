@@ -14,8 +14,8 @@ const stubs = {
   '@jetlinks-web-core/hooks': 'export const useWebSocket=options=>{globalThis.__notice.onMessage=options.onMessage;return {send:(...args)=>globalThis.__notice.subscriptions.push(args)}}',
   '@jetlinks-web-core/store/user': 'export const useUserStore=()=>globalThis.__notice.user',
   '@jetlinks-web-core/store/menu': 'export const useMenuStore=()=>({routerPush:(...args)=>globalThis.__notice.navigations.push(args)})',
-  '@jetlinks-web-core/api/account/center': 'export const getAllNotice=()=>globalThis.__notice.channels()',
-  '@jetlinks-web-core/api/account/notificationRecord': 'export const getUnreadCount_api=params=>globalThis.__notice.count(params),changeStatus_api=(...args)=>globalThis.__notice.mark(...args)',
+  '@jetlinks-web-core/api/account/center': 'export const getReceivedNoticeProviders=()=>globalThis.__notice.channels()',
+  './noticeListHandler': 'export const queryNoticeUnreadSummary=async(providers,params)=>({result:{total:(await globalThis.__notice.count(params)).result}}),changeNoticeReadState=(providers,...args)=>globalThis.__notice.mark(...args)',
   './noticeRealtimeHandler': 'export const handleRegisteredRealtimeNotice=async()=>false'
 }
 const output = await build({

@@ -50,7 +50,7 @@
 <script setup lang="ts">
 import dayjs from 'dayjs';
 import { getCurrentInstance } from 'vue';
-import { changeStatus_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { changeNoticeReadState } from './noticeListHandler';
 import { useMenuStore } from '@jetlinks-web-core/store/menu';
 import { useUserStore } from '@jetlinks-web-core/store/user';
 import { onlyMessage } from '@jetlinks-web/utils';
@@ -126,7 +126,7 @@ const detail = async () => {
 /** 将当前通知标记为已读，并同步刷新铃铛数量和当前列表。 */
 const markRead = async (feedback = true) => {
     if (!props.data?.id) return;
-    const resp = await changeStatus_api('_read', [props.data.id]);
+    const resp = await changeNoticeReadState([props.data.topicProvider], '_read', [props.data.id]);
     if (resp.status !== 200) return;
     // 未读数量以后端有效状态为准，避免 read marker 与本地加减计数漂移。
     userInfo.updateAlarm();

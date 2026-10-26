@@ -1,4 +1,11 @@
 import { componentsRegistry } from '@jetlinks-web-core/utils/components-registry'
+import {
+  changeAllStatus,
+  changeStatus_api,
+  getList_api,
+  getUnreadSummary_api,
+} from '@jetlinks-web-core/api/account/notificationRecord'
+import type { CappedUnreadCount, UnreadSummary } from './noticeUtils'
 
 export interface NoticeListHandlerContext {
   topicProviders: readonly string[]
@@ -29,13 +36,107 @@ export const loadRegisteredNoticeList = async (
   const handler = handlers[0]
   if (!handler || handlers.some(current => current !== handler)) return undefined
 
-  try {
-    const result = await handler({
-      topicProviders: providers,
-      defaultPageSize,
-    })
-    return Array.isArray(result) ? result : undefined
-  } catch {
-    return undefined
+  const result = await handler({
+    topicProviders: providers,
+    defaultPageSize,
+  })
+  return Array.isArray(result) ? result : undefined
+}
+
+export interface NoticeProviderMetadata {
+  provider: string
+  name: string
+  type: { id: string; name: string }
+}
+
+/** 接收数据源独立于发送通道配置，普通通知继续使用原收件箱接口。 */
+export interface NoticeDataSource {
+  query: (params: Record<string, any>) => Promise<any>
+  unreadCount: (params: Record<string, any>) => Promise<any>
+  changeState: (state: '_read' | '_unread', ids: string[]) => Promise<any>
+  readAll: () => Promise<any>
+}
+
+const getProviderRegistration = (provider: string) => componentsRegistry
+  .getRegistry('notification-provider:default')
+  .find(item => item.code === provider)
+
+export const getNoticeDataSource = (providers: readonly string[]): NoticeDataSource | undefined => {
+  const unique = [...new Set(providers.filter(Boolean))]
+  const source = getProviderRegistration(unique[0])?.props?.dataSource as NoticeDataSource | undefined
+  return source && unique.every(provider => getProviderRegistration(provider)?.props?.dataSource === source)
+    ? source
+    : undefined
+}
+
+/** 只合并接收入口的分类；订阅设置仍从真实通道读取。 */
+export const mergeRegisteredNoticeProviders = (providers: NoticeProviderMetadata[]) => {
+  const result = new Map(providers.map(provider => [provider.provider, provider]))
+  componentsRegistry.getRegistry('notification-provider:default').forEach(action => {
+    const metadata = action.props?.metadata
+    if (typeof metadata === 'function') {
+      const provider = metadata() as NoticeProviderMetadata
+      result.set(provider.provider, provider)
+    }
+  })
+  return [...result.values()]
+}
+
+export const queryNoticeRecords = (providers: readonly string[], params: Record<string, any>) => {
+  return getNoticeDataSource(providers)?.query(params) || getList_api(params)
+}
+
+export const changeNoticeReadState = (
+  providers: readonly string[],
+  state: '_read' | '_unread',
+  ids: string[],
+) => getNoticeDataSource(providers)?.changeState(state, ids) || changeStatus_api(state, ids)
+
+export const markNoticeProvidersRead = async (providers: readonly string[]) => {
+  const unique = [...new Set(providers.filter(Boolean))]
+  const ordinary = unique.filter(provider => !getNoticeDataSource([provider]))
+  const sources = [...new Set(unique.map(provider => getNoticeDataSource([provider])).filter(Boolean))]
+  const responses = await Promise.all([
+    ...(ordinary.length ? [changeAllStatus('_read', ordinary)] : []),
+    ...sources.map(source => source!.readAll()),
+  ])
+  return responses.find(response => response?.status !== 200) || { status: 200, success: true }
+}
+
+const withNoticeProviders = (params: Record<string, any>, providers: string[]) => ({
+  ...params,
+  terms: [...(params.terms || []), { column: 'topicProvider', termType: 'in', value: providers }],
+})
+
+/** 各接收源分别统计，普通收件箱排除已接管分类，避免已物化记录重复计数。 */
+export const queryNoticeUnreadSummary = async (
+  providers: readonly string[],
+  params: Record<string, any>,
+): Promise<{ status: number; success: boolean; result: UnreadSummary }> => {
+  const unique = [...new Set(providers.filter(Boolean))]
+  const registered = unique.filter(provider => getNoticeDataSource([provider]))
+  const ordinary = unique.filter(provider => !getNoticeDataSource([provider]))
+  const [defaultResponse, registeredCounts] = await Promise.all([
+    ordinary.length
+      ? getUnreadSummary_api(withNoticeProviders(params, ordinary))
+      : Promise.resolve(undefined),
+    Promise.all(registered.map(async provider => {
+      const response = await getNoticeDataSource([provider])!.unreadCount(withNoticeProviders(params, [provider]))
+      return { ...response.result, topicProvider: provider } as CappedUnreadCount
+    })),
+  ])
+  const topics: CappedUnreadCount[] = [...(defaultResponse?.result?.topics || []), ...registeredCounts]
+  const total = topics.reduce((sum, topic) => sum + Number(topic.count || 0), 0)
+  const limit = Number(params.pageSize || 99)
+  return {
+    status: 200,
+    success: true,
+    result: {
+      topics,
+      total: {
+        count: Math.min(total, limit),
+        overflow: total > limit || topics.some(topic => topic.overflow),
+      },
+    },
   }
 }

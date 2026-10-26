@@ -4,8 +4,8 @@ import { notification, Button } from 'ant-design-vue'
 import { useWebSocket } from '@jetlinks-web-core/hooks'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
-import { getAllNotice } from '@jetlinks-web-core/api/account/center'
-import { changeStatus_api, getUnreadCount_api } from '@jetlinks-web-core/api/account/notificationRecord'
+import { getReceivedNoticeProviders } from '@jetlinks-web-core/api/account/center'
+import { changeNoticeReadState, queryNoticeUnreadSummary } from './noticeListHandler'
 import { BADGE_OVERFLOW_COUNT, createUnreadQueryParams, toBadgeCount, type NoticeTabItem } from './noticeUtils'
 import { handleRegisteredRealtimeNotice, type NoticeTipOptions } from './noticeRealtimeHandler'
 
@@ -33,9 +33,9 @@ export function useHeaderNotice() {
     const current = ++countRequestId
     loading.value = true
     try {
-      const response = await getUnreadCount_api(createUnreadQueryParams(providers, BADGE_OVERFLOW_COUNT))
+      const response = await queryNoticeUnreadSummary(providers, createUnreadQueryParams(providers, BADGE_OVERFLOW_COUNT))
       if (current !== countRequestId) return
-      total.value = toBadgeCount(response.result)
+      total.value = toBadgeCount(response.result.total)
       error.value = false
     } catch {
       if (current === countRequestId) error.value = true
@@ -44,15 +44,15 @@ export function useHeaderNotice() {
     }
   }
 
-  async function markNotificationRead(id: string) {
-    const response = await changeStatus_api('_read', [id])
+  async function markNotificationRead(payload: NoticePayload) {
+    const response = await changeNoticeReadState([String(payload.topicProvider || '')], '_read', [payload.id])
     if (response.status !== 200) throw new Error('Notification update failed')
     await getList()
   }
 
   async function read(type: string, payload: NoticePayload) {
     try {
-      await markNotificationRead(payload.id)
+      await markNotificationRead(payload)
       if (type !== '_read') menu.routerPush('account/center', { params: { tabKey: 'StationMessage', row: payload } })
     } catch { error.value = true }
   }
@@ -70,7 +70,7 @@ export function useHeaderNotice() {
       const payload = data?.payload as NoticePayload | undefined
       if (!payload?.id) return
       const handled = await handleRegisteredRealtimeNotice(payload, {
-        markRead: () => markNotificationRead(payload.id), refresh: getList, appContext, source: 'realtime',
+        markRead: () => markNotificationRead(payload), refresh: getList, appContext, source: 'realtime',
         showTip: options => showNoticeTip(payload, options)
       })
       void getList()
@@ -91,7 +91,7 @@ export function useHeaderNotice() {
   async function queryTypeList() {
     loading.value = true
     try {
-      const response = await getAllNotice()
+      const response = await getReceivedNoticeProviders()
       if (response.status !== 200) throw new Error('Notification channels unavailable')
       const grouped = new Map<string, NoticeTabItem>()
       for (const channel of response.result as NoticeChannel[]) {
