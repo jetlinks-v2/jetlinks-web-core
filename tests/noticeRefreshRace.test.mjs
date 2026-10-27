@@ -32,6 +32,16 @@ function fixture(t, filename) {
     if (name === '@jetlinks-web-core/api/account/center') return {getReceivedNoticeProviders: () => state.channels()}
     return {}
   }
+  if (filename === 'Notice.vue') {
+    const source = readFileSync(new URL('../src/layout/components/useHeaderNotice.ts', import.meta.url), 'utf8')
+      .replace('return { visible,', 'return { getList, queryTypeList, visible,')
+    const scope = vue.effectScope()
+    const injected = name => name === 'vue' ? {...vue, onMounted() {}} : dependencies(name)
+    const hook = loadModule(source, injected)
+    const model = scope.run(() => hook.useHeaderNotice())
+    t.after(() => scope.stop())
+    return {state, model}
+  }
   const { descriptor } = parse(readFileSync(new URL('../src/layout/components/' + filename, import.meta.url), 'utf8'))
   const script = compileScript(descriptor, { id: filename })
   const component = loadModule(script.content, dependencies, {ref: vue.ref, computed: vue.computed, watch: vue.watch, onMounted() {}, useRoute: () => ({path: '/'})}).default

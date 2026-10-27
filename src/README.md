@@ -39,6 +39,9 @@
 
 ## 通知页签滚动
 
+通知入口的通道查询、未读角标和实时事件由 `layout/components/useHeaderNotice.ts` 管理。
+接口失败时保留已有角标，在通知面板提示失败并提供重试；空通道才显示空态，不将后台请求拒绝留作未捕获异常。
+
 运行时 `layout/components/NoticeInfo.vue` 将页签栏的左右内边距放在 `.ant-tabs-nav`，保持 `.ant-tabs-nav-wrap` 的实际可视宽度与 Ant Design 测量结果一致。通知类型超出可视范围时，使用 Tabs 自带的横向滚动、滚轮和溢出菜单访问右侧页签。通知查询、角标、Tab 切换与“查看更多”逻辑保持原有行为，不涉及接口或运营端 `ui/`。
 
 验证：在 `1536×899` 的现有开发页面上，5 个通知页签可向左、向右滚动，也可通过纵向滚轮横向移动；滚动位移为 `0～-72px`，最右侧“业务监控”完整可见，两端页签切换正常，弹层宽度仍为 `384px`。组件模板、TypeScript 转译、scoped LESS 编译及独立 Vite 生产构建通过，`git diff --check` 通过。`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 报告 556 项工作区既有诊断，`NoticeInfo.vue` 无诊断；当前未配置 lint 脚本。完整应用生产构建未执行，发布前待运行 `pnpm -F jetlinks-web-core build`。
@@ -57,7 +60,5 @@
 `dataSource` 提供 `query(params)`、`unreadCount(params)`、`changeState('_read' | '_unread', ids)`、`readAll()`，可选 `queryNoPaging(params)` 与 `count(params)`；查询返回兼容通知记录的分页响应，未读数返回 `{ count, overflow }`。个人中心、铃铛已读操作和角标通过 `layout/components/noticeListHandler.ts` 分派；未注册的数据仍使用原通知接口。多分类未读汇总会排除普通收件箱中的已接管 Provider，避免重复统计。已有 `listHandler` 可继续控制铃铛列表顺序，数据源失败不会回退为另一份收件箱数据。
 
 数据源可声明 `confirmOnDetail: true`，让个人中心原有详情确认按钮调用该数据源的 `changeState('_read', [id])`；确认成功才关闭，关闭和取消不确认。未声明时保持原有仅关闭行为。可选 `subscribe(listener): unsubscribe` 将业务模块的状态变化通知接收入口；`useNoticeDataSourceChanges(() => providers, refresh)` 仅通过 `@jetlinks-web-core/layout/components/noticeListHandler` 深层导入，在分类切换或 Vue Scope 释放时取消订阅。core 不保存业务确认数据；存储隔离、跨标签页事件和具体状态语义由注册模块负责。生产消费者为 `NoticeInfo.vue`、个人中心 `NotificationRecord/index.vue` 与各端顶栏实现。
-
-
 
 独立数据源可选提供 `subscribeRealtime(listener): unsubscribe`，通过 `useNoticeDataSourceRealtime(() => providers, onPayload)` 深层导入挂接全局通知。业务模块维护具体Topic、订阅共享、身份切换及清理；core复用现有notification-realtime注册器展示消息。实时订阅与本地状态变化订阅相互独立，分类切换和组件销毁释放对应监听；普通通知保留 `/notifications` 原路径。生产消费者为顶栏Notice，公告模块提供独立实现。

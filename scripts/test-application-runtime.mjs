@@ -116,7 +116,7 @@ const fixtures = {
     export { useBusinessApplicationStore } from '${source('store/businessApplication.ts')}'
     export { useMenuStore } from '${source('store/menu.ts')}'
   `,
-  '@jetlinks-web-core/router/globModules': `export const collectCoreRouteOverrides = () => []; export const getGlobModules = () => ({ overview: async () => ({}) })`,
+  '@jetlinks-web-core/router/globModules': `export const collectCoreRouteOverrides = () => []; export const getGlobModules = () => ({ overview: async () => ({}), ...globalThis.__applicationRuntimeTest.asyncRoutes })`,
   '@jetlinks-web-core/router/extraMenu': `export const getExtraRouters = () => ({})`,
   'basic-routes': `
     export const Login = { path: '/login', name: 'Login', component: {} }
@@ -224,6 +224,37 @@ try {
   for (const [environment, runtimeScope] of [['', 'project'], ['saas', 'project'], ['saas', 'auto']]) {
     const api = await bundle(environment, runtimeScope)
     const { scope, runtime, context, startup } = api
+
+    // 发布菜单身份唯一，但复用一个播放器；项目规范化和应用一级布局不能丢失组件定位。
+    for (const owner of ['iot', 'app']) {
+      reset(api, owner === 'app' ? applicationUrl : 'http://localhost:9200/project/#/')
+      const state = globalThis.__applicationRuntimeTest
+      state.asyncRoutes = { 'visualization/rele': async () => ({ default: { name: 'PublishedCanvas' } }) }
+      const publications = ['101', '102'].map(id => ({
+        id, code: `published-${id}`, name: `Published ${id}`, owner,
+        url: `/visualization/release-page/${id}`,
+        options: { meta: { componentCode: 'visualization/rele', authCode: 'retired', authCodes: ['retired'] } },
+      }))
+      state.menus = owner === 'app' ? publications : [{
+        id: 'resources', code: 'resources', name: 'Resources', url: '/resources', owner,
+        children: [{id: 'visualization', code: 'visualization', name: 'Visualization', url: '/resources/visualization', owner, children: publications}]
+      }]
+      await api.useMenuStore().queryMenus(owner === 'app' ? applicationId : false)
+      for (const publication of publications) {
+        const matched = api.router.resolve(publication.url).matched
+        const leaf = matched.at(-1)
+        assert.equal(leaf.name, publication.code)
+        assert.equal(leaf.meta.componentCode, 'visualization/rele')
+        assert.equal(typeof leaf.components?.default, 'function')
+        assert.equal((await leaf.components.default()).default.name, 'PublishedCanvas')
+        assert.ok(matched.length >= 2, 'published pages retain the surrounding layout')
+        if (runtime.isProjectRuntime()) {
+          assert.equal(leaf.meta.authCode, undefined)
+          assert.equal(leaf.meta.authCodes, undefined)
+        }
+      }
+      scenarios++
+    }
 
     // 裸应用入口必须先核验授权身份，不能在首个请求中把应用 ID 当作租户域名。
     for (const domain of [undefined, applicationId, 'project']) {
