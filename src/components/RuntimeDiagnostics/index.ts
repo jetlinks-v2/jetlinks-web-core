@@ -1,5 +1,8 @@
 import { defineAsyncComponent } from 'vue'
 import './style.css'
+export const SamplingIntervalControl = defineAsyncComponent(() => import('./SamplingIntervalControl.vue'))
+export { diagnosticSamplingIntervals, defaultDiagnosticSamplingInterval, isDiagnosticSamplingInterval, normalizeDiagnosticSamplingInterval } from './samplingInterval'
+export type { DiagnosticSamplingInterval } from './samplingInterval'
 export const RuntimeMetricsPanel = defineAsyncComponent(() => import('./RuntimeMetricsPanel.vue'))
 export const RuntimeMBeanOverview = defineAsyncComponent(() => import('./RuntimeMBeanOverview.vue'))
 export const ThreadViewer = defineAsyncComponent(() => import('./ThreadViewer.vue'))

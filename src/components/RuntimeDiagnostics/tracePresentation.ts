@@ -9,7 +9,7 @@ export function summarizeTrace(rows: TraceRow[]) {
   const start = valid.reduce<string | undefined>((value, row) => value === undefined || BigInt(row.startNanos) < BigInt(value) ? row.startNanos : value, undefined)
   const end = valid.reduce<string | undefined>((value, row) => value === undefined || BigInt(row.endNanos) > BigInt(value) ? row.endNanos : value, undefined)
   return { start, end, duration: start === undefined || end === undefined ? undefined : nanosBetween(start, end),
-    nodes: new Set(rows.map(row => row.nodeId).filter(Boolean)).size,
+    nodes: new Set(rows.map(row => row.source && row.app ? JSON.stringify([row.source.id, row.app]) : row.nodeId).filter(Boolean)).size,
     exceptions: rows.filter(row => exceptionEvents(row).length > 0).length,
     malformed: rows.filter(row => row.missingParent || row.ambiguousParent || row.cyclic || row.duplicate).length }
 }

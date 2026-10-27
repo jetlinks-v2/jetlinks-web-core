@@ -2115,5 +2115,11 @@
   "runtimeDiagnostics.diagnosticSnapshots": "Diagnostic snapshots",
   "runtimeDiagnostics.captureThreads": "Capture thread stacks",
   "runtimeDiagnostics.exportHeapSnapshot": "Export heap snapshot",
-  "runtimeDiagnostics.heapSnapshotHint": "Export a JVM heap snapshot on demand to inspect object sizes and references offline."
+  "runtimeDiagnostics.heapSnapshotHint": "Export a JVM heap snapshot on demand to inspect object sizes and references offline.",
+  "runtimeDiagnostics.bean.HistorySummary": "Communication peaks and coverage",
+  "runtimeDiagnostics.bean.RecentHistory": "Last 60 seconds of communication",
+  "runtimeDiagnostics.bean.HourHistory": "Last hour of communication",
+  "runtimeDiagnostics.sampling.interval": "Sample interval",
+  "runtimeDiagnostics.sampling.seconds": "{seconds}s",
+  "runtimeDiagnostics.traceEdgeSource": "Edge {source}"
 }

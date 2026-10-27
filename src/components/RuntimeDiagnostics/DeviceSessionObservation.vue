@@ -2,14 +2,14 @@
   <section class="device-observation">
     <div class="device-observation-toolbar diagnostics-compact-toolbar">
       <form class="device-observation-add" @submit.prevent="addInput">
-        <a-auto-complete v-model:value="input" class="device-observation-input" :options="deviceOptions" :filter-option="false" :default-active-first-option="false" :placeholder="t('runtimeDiagnostics.deviceSessions.addPlaceholder')" :aria-label="t('runtimeDiagnostics.deviceSessions.addPlaceholder')" :disabled="!allowed || entries.length >= 5" allow-clear @search="value => emit('search-device', value)" @select="selectDevice" @keydown="searchKeydown">
+        <a-auto-complete v-model:value="input" class="device-observation-input" :options="deviceOptions" :filter-option="false" :default-active-first-option="false" :placeholder="t('runtimeDiagnostics.deviceSessions.addPlaceholder')" :aria-label="t('runtimeDiagnostics.deviceSessions.addPlaceholder')" :disabled="!allowed || entries.length >= 5" allow-clear @search="value => emit('search-device', value)" @popup-scroll="loadMoreDevices" @select="selectDevice" @keydown="searchKeydown">
           <template #option="{ label, value, description }"><span class="device-observation-option"><strong>{{ label }}</strong><small>{{ value }}<span v-if="description"> · {{ description }}</span></small></span></template>
         </a-auto-complete>
         <a-tooltip :title="t('runtimeDiagnostics.deviceSessions.add')"><a-button type="text" html-type="submit" :aria-label="t('runtimeDiagnostics.deviceSessions.add')" :disabled="!allowed || !input.trim() || entries.length >= 5"><LoadingOutlined v-if="deviceSearching" /><PlusOutlined v-else /></a-button></a-tooltip>
       </form>
       <div class="device-observation-controls">
         <a-tooltip :title="t(paused ? 'runtimeDiagnostics.deviceSessions.resume' : 'runtimeDiagnostics.deviceSessions.pause')"><a-button size="small" type="text" :disabled="!allowed || !entries.length" :aria-label="t(paused ? 'runtimeDiagnostics.deviceSessions.resume' : 'runtimeDiagnostics.deviceSessions.pause')" @click="emit('update:paused', !paused)"><CaretRightOutlined v-if="paused" /><PauseOutlined v-else />{{ t(paused ? 'runtimeDiagnostics.deviceSessions.paused' : 'runtimeDiagnostics.deviceSessions.observing') }}</a-button></a-tooltip>
-        <a-dropdown :trigger="['click']" :disabled="!allowed"><a-button type="text" size="small" :aria-label="t('runtimeDiagnostics.deviceSessions.frequency')">{{ interval }}s<DownOutlined /></a-button><template #overlay><a-menu @click="value => emit('update:interval', Number(value.key))"><a-menu-item v-for="seconds in [5,10,30,60]" :key="seconds">{{ t('runtimeDiagnostics.deviceSessions.everySeconds', { seconds }) }}</a-menu-item></a-menu></template></a-dropdown>
+        <SamplingIntervalControl :value="interval" :disabled="!allowed" @change="value => emit('update:interval', value)" />
         <a-tooltip :title="t('runtimeDiagnostics.deviceSessions.refresh')"><a-button size="small" type="text" :disabled="!allowed || !entries.length" :aria-label="t('runtimeDiagnostics.deviceSessions.refresh')" @click="emit('refresh')"><ReloadOutlined /></a-button></a-tooltip>
       </div>
     </div>
@@ -51,13 +51,14 @@ import { useIntervalFn } from '@vueuse/core'
 import { Empty } from 'ant-design-vue'
 import { CaretRightOutlined, ClockCircleOutlined, DownOutlined, InfoCircleOutlined, LinkOutlined, LoadingOutlined, PauseOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import DeviceSessionViewer from './DeviceSessionViewer.vue'
+import SamplingIntervalControl from './SamplingIntervalControl.vue'
 import DeviceObservationChart from './device-sessions/DeviceObservationChart.vue'
 import { deviceObservationConnection, deviceObservationColors as colors, deviceObservationMetrics, deviceObservationMetricColors as metricColors, deviceObservationCurrentPoint, formatDeviceObservationValue, type DeviceObservationEntry, type DeviceObservationMetric } from './device-sessions/observation'
 import { useDeviceObservationCharts } from './device-sessions/useDeviceObservationCharts'
 import { formatDeviceSessionDuration, formatDeviceSessionTimestamp } from './deviceSessionPresentation'
 import type { ActionAccess, DeviceSessionDeviceOption } from './types'
 const props = defineProps<{ entries: DeviceObservationEntry[]; deviceOptions: DeviceSessionDeviceOption[]; deviceSearching: boolean; active: boolean; access: ActionAccess; unsupported?: boolean; waiting?: boolean; paused: boolean; interval: number; metrics: DeviceObservationMetric[] }>()
-const emit = defineEmits<{ (event: 'add', id: string, label?: string): void; (event: 'remove' | 'search-device', value: string): void; (event: 'refresh', id?: string): void; (event: 'update:paused', value: boolean): void; (event: 'update:interval', value: number): void; (event: 'update:metrics', value: DeviceObservationMetric[]): void }>()
+const emit = defineEmits<{ (event: 'add', id: string, label?: string): void; (event: 'remove' | 'search-device', value: string): void; (event: 'refresh', id?: string): void; (event: 'load-more-devices'): void; (event: 'update:paused', value: boolean): void; (event: 'update:interval', value: number): void; (event: 'update:metrics', value: DeviceObservationMetric[]): void }>()
 const { t, locale } = useI18n(), now = ref(Date.now()), input = ref(''), expanded = ref<Record<string, boolean>>({})
 const allowed = computed(() => props.active && props.access.allowed && !props.unsupported && !props.waiting)
 const metricOptions = computed(() => deviceObservationMetrics.map(value => ({ value, label: t(`runtimeDiagnostics.deviceSessions.metric.${value}`) })))
@@ -71,6 +72,10 @@ watch(clockEnabled, enabled => { if (enabled) { now.value = Date.now(); clock.re
 const range = computed(() => { const times = props.entries.flatMap(entry => entry.history.map(sample => sample.sampledAt)); return times.length ? { from: Math.min(...times), to: Math.max(...times) + 1000 } : undefined })
 const { register, unregister } = useDeviceObservationCharts(toRef(props, 'active'))
 let selectionHandled = false
+function loadMoreDevices(event: UIEvent) {
+  const target = event.target as HTMLElement | null
+  if (allowed.value && !props.deviceSearching && props.entries.length < 5 && target && target.scrollTop + target.clientHeight >= target.scrollHeight - 32) emit('load-more-devices')
+}
 function addInput() { if (allowed.value && input.value.trim() && props.entries.length < 5) { emit('add', input.value.trim()); input.value = '' } }
 function selectDevice(value: unknown) { if (!allowed.value || typeof value !== 'string' || props.entries.length >= 5) return; selectionHandled = true; emit('add', value, props.deviceOptions.find(option => option.value === value)?.label); input.value = ''; void nextTick(() => { selectionHandled = false }) }
 function searchKeydown(event: KeyboardEvent) { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); if (!selectionHandled) addInput() } }

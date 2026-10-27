@@ -61,7 +61,7 @@ test('pauses and errors interrupt rate baselines and histories are bounded to te
   assert.equal(model.deviceObservationCurrentPoint([...beforePause, { sampledAt: 25000, interrupted: true }, model.deviceObservationSample(row('250'), 30000)]).receive, undefined, 'new resumed sample cannot present an old rate as current')
   let history = []
   for (let i = 0; i < 1000; i++) history = model.appendDeviceObservation(history, { sampledAt: 10000 + i * 1000, pending: i })
-  assert.equal(history.length, 121)
+  assert.equal(history.length, 601)
   history = model.appendDeviceObservation(history, { sampledAt: 2000000, pending: 1 })
   assert.equal(history.length, 1)
 })

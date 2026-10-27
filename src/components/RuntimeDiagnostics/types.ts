@@ -91,6 +91,8 @@ export interface TraceEvent {
 }
 export interface TraceSpan {
   id: string; parentId?: string; name: string; nodeId?: string; app?: string; traceId: string
+  /** 远程来源独立于服务节点；不能以远程 app 匹配云端节点跳转。 */
+  source?: { id: string; label: string }
   startNanos: Nanoseconds; endNanos: Nanoseconds; error?: boolean; attributes?: Record<string, unknown>; events?: TraceEvent[]
 }
 /** 树结构异常与业务异常分开；有歧义的父级不自动挂接。 */

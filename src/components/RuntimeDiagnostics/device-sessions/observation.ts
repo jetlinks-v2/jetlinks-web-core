@@ -79,7 +79,7 @@ export function deviceObservationConnection(sessions: readonly DeviceSessionInfo
 }
 
 export function appendDeviceObservation(history: readonly DeviceObservationSample[], sample: DeviceObservationSample) {
-  return [...history.filter(value => value.sampledAt >= sample.sampledAt - 600000 && value.sampledAt <= sample.sampledAt), sample].slice(-121)
+  return [...history.filter(value => value.sampledAt >= sample.sampledAt - 600000 && value.sampledAt <= sample.sampledAt), sample].slice(-601)
 }
 
 /** 暂停/失败的断点只作用于曲线；摘要仍保留最近完成样本，但不能跨新样本补旧速率。 */

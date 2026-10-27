@@ -2115,5 +2115,11 @@
   "runtimeDiagnostics.diagnosticSnapshots": "诊断快照",
   "runtimeDiagnostics.captureThreads": "采集线程栈",
   "runtimeDiagnostics.exportHeapSnapshot": "导出堆快照",
-  "runtimeDiagnostics.heapSnapshotHint": "按需导出 JVM 堆快照，用于离线分析对象占用与引用关系。"
+  "runtimeDiagnostics.heapSnapshotHint": "按需导出 JVM 堆快照，用于离线分析对象占用与引用关系。",
+  "runtimeDiagnostics.bean.HistorySummary": "通信峰值与统计范围",
+  "runtimeDiagnostics.bean.RecentHistory": "近60秒通信快照",
+  "runtimeDiagnostics.bean.HourHistory": "近一小时通信历史",
+  "runtimeDiagnostics.sampling.interval": "采集间隔",
+  "runtimeDiagnostics.sampling.seconds": "{seconds} 秒",
+  "runtimeDiagnostics.traceEdgeSource": "边缘 {source}"
 }

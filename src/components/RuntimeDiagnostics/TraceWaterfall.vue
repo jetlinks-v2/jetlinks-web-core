@@ -6,7 +6,8 @@
         <a-button v-if="parents.has(record.key)" type="text" size="small" class="trace-toggle" :aria-label="t(collapsed.has(record.key) ? 'runtimeDiagnostics.expandSpan' : 'runtimeDiagnostics.collapseSpan')" @click.stop="emit('toggle', record.key)"><component :is="collapsed.has(record.key) ? RightOutlined : DownOutlined" /></a-button><span v-else class="trace-toggle-space" />
         <div class="trace-label">
           <span class="trace-name" :class="{ 'trace-name--selected': selectedKey === record.key }" :title="record.name">{{ record.name }}</span>
-          <div v-if="record.nodeId || record.app || traceRowSummary(record as TraceRow).length" class="trace-meta">
+          <div v-if="record.source || record.nodeId || record.app || traceRowSummary(record as TraceRow).length" class="trace-meta">
+            <span v-if="record.source" class="trace-source" :title="t('runtimeDiagnostics.traceEdgeSource', { source: record.source.label })"><CloudServerOutlined aria-hidden="true" /><span>{{ t('runtimeDiagnostics.traceEdgeSource', { source: record.source.label }) }}</span></span>
             <span v-if="record.nodeId || record.app" class="trace-node" :title="record.nodeId || record.app" :aria-label="`${t('runtimeDiagnostics.node')}: ${record.nodeId || record.app}`"><span v-if="record.nodeId" class="trace-node-dot" :class="`trace-node-dot--${nodeColorIndex(record.nodeId)}`" /><span class="trace-node-name">{{ record.nodeId || record.app }}</span></span>
             <a-button v-for="item in traceRowSummary(record as TraceRow)" :key="item.type" type="text" size="small" class="trace-summary-item" :class="`trace-summary-item--${item.type}`" :title="summaryLabel(item)" :aria-label="summaryLabel(item)" @click.stop="emit('evidence', record as TraceRow, item.kind, item.attributeKey)"><component :is="summaryIcons[item.type]" class="trace-summary-icon" aria-hidden="true" /><span class="trace-summary-text">{{ summaryText(item) }}</span></a-button>
           </div>
@@ -26,7 +27,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ThunderboltOutlined, UserOutlined, GlobalOutlined, WarningOutlined, DatabaseOutlined, ApiOutlined, ExportOutlined, TagsOutlined, FieldTimeOutlined, RightOutlined, DownOutlined } from '@ant-design/icons-vue'
+import { CloudServerOutlined, ThunderboltOutlined, UserOutlined, GlobalOutlined, WarningOutlined, DatabaseOutlined, ApiOutlined, ExportOutlined, TagsOutlined, FieldTimeOutlined, RightOutlined, DownOutlined } from '@ant-design/icons-vue'
 import { exceptionEvents, formatTraceDuration, nodeColorIndex, summarizeTrace, traceBar, traceDurationLabel, traceRowSummary, traceNanosecondDelta, type TraceRowSummary, type TraceEvidenceKind } from './tracePresentation'
 import { nanosBetween } from './utils'
 import type { TraceRow } from './types'
@@ -103,6 +104,9 @@ function rowProps(row: TraceRow) { return {
 .trace-waterfall :deep(.trace-row-selected > td) { vertical-align:top; }.trace-time--selected .trace-bar { top:10px; }.trace-time--selected .trace-time-text { top:0; transform:none; }
 .trace-time:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .trace-meta { display:flex; flex-wrap:wrap; align-items:center; gap:2px var(--space-2,8px); min-width:0; font-size:var(--fs-12,12px); color:var(--ink-2); }
+.trace-source { display:inline-flex; align-items:center; gap:4px; max-width:min(100%,220px); min-width:0; color:var(--accent); }
+.trace-source > :first-child { flex-shrink:0; }
+.trace-source > span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .trace-node { max-width:min(28ch,100%); flex:none; }.trace-node-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .trace-meta :deep(.trace-summary-item) { display:inline-flex; align-items:center; gap:var(--space-1,4px); flex:0 1 auto; min-width:0; max-width:100%; height:20px; line-height:20px; padding:0; color:var(--ink-2); font-size:inherit; }
 .trace-summary-icon { flex:none; font-size:var(--fs-12,12px); }.trace-summary-text { min-width:0; max-width:18ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

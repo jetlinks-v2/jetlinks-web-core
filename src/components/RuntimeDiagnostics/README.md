@@ -16,6 +16,7 @@ import type { MBeanDescriptor, MBeanInvocation, ViewState, ActionAccess }
 
 | 组件 | 主要 props | 事件 / 插槽 |
 | --- | --- | --- |
+| SamplingIntervalControl | value、open?、disabled?、showInterval?、label? | change、update:open；footer 插槽。集群与设备连接共用 1 / 2 / 5 / 10 / 30 / 60 秒选项、时钟按钮及单次选择弹层，支持 Esc 回焦 |
 | RuntimeMetricsPanel | metrics、samples、charts、range、activeMetric、options、state、historyState | refresh、metric、range-change(TimeWindow)；metrics / summary / time / default 插槽 |
 | RuntimeMBeanOverview | beans、state、config、history?、showLifetime?、resetAccess?、resetState? | refresh、inspect(ObjectName)、update:config、reset(ObjectName)；启动时间 / 时长、Buffer 累计计数与近 5 分钟趋势 |
 | JvmDiagnosticPanel | nodeId、threads、threadState、snapshot、samplingState、access、activeTab、platformPrefixes | 实时分析 / 诊断快照两个页签；sample、start、stop、export-html、capture-jfr、heap-dump({live})、update:activeTab；memory 操作插槽 |
@@ -32,6 +33,8 @@ import type { MBeanDescriptor, MBeanInvocation, ViewState, ActionAccess }
 ## 数据约定
 
 - 性能剖析默认进入实时分析，同一次 JFR 快照的火焰图与内存分配上下展示；没有执行样本时仍保留实际取得的分配事件。诊断快照提供显式线程采集与堆导出操作，进入页签或开始实时采样均不隐式采线程；页签切换不发停止事件，采样状态与停止入口跨页签保留。`activeTab` / `update:activeTab` 使用 `performance | snapshots`，旧 `threads` 输入映射为 snapshots，旧 memory 映射为 performance。组件不持久化，宿主按节点保留偏好和证据。
+
+- 采集周期由目录公开入口的 `diagnosticSamplingIntervals` 与 `normalizeDiagnosticSamplingInterval` 统一校验，默认 2 秒，旧 3 秒迁移为 2 秒；两处各自保留已有有效偏好。周期控件仅展示并发出变更，不负责请求、轮询或持久化。
 
 - Buffer 趋势图的轴含义与完整单位放在图表下方，顶部图例仅说明队列与指标；Tooltip 继续显示原始计数和完整速率单位。
 

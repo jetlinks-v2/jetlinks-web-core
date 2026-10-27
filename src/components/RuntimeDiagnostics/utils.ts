@@ -58,7 +58,7 @@ export function traceRows(spans: TraceSpan[]): TraceRow[] {
   const rows: TraceRow[] = spans.map((span, index) => {
     const id = identity(span.traceId, span.id)
     identities.set(id, [...(identities.get(id) ?? []), index])
-    const baseKey = `${span.nodeId}:${span.id}`
+    const baseKey = span.source ? `${span.source.id}:${span.app}:${span.id}` : `${span.nodeId}:${span.id}`
     let key = baseKey, suffix = 1
     while (usedKeys.has(key)) key = `${baseKey}#${++suffix}`
     usedKeys.add(key)
