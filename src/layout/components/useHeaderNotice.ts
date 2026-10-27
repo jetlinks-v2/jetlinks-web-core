@@ -5,7 +5,7 @@ import { useWebSocket } from '@jetlinks-web-core/hooks'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import { getReceivedNoticeProviders } from '@jetlinks-web-core/api/account/center'
-import { changeNoticeReadState, queryNoticeUnreadSummary } from './noticeListHandler'
+import { changeNoticeReadState, queryNoticeUnreadSummary, useNoticeDataSourceChanges } from './noticeListHandler'
 import { BADGE_OVERFLOW_COUNT, createUnreadQueryParams, toBadgeCount, type NoticeTabItem } from './noticeUtils'
 import { handleRegisteredRealtimeNotice, type NoticeTipOptions } from './noticeRealtimeHandler'
 
@@ -25,12 +25,13 @@ export function useHeaderNotice() {
   const tabs = ref<NoticeTabItem[]>([])
   const noticeInfoRef = ref<{ refresh: () => void } | null>(null)
   let countRequestId = 0
+  let providerRequestId = 0
 
   async function getList() {
-    const providers = tabs.value.flatMap(item => item.type).filter(Boolean)
-    if (!providers.length) { total.value = 0; return }
-    // 多次实时刷新只接受最后一次响应，失败时保留已有角标。
     const current = ++countRequestId
+    const providers = tabs.value.flatMap(item => item.type).filter(Boolean)
+    if (!providers.length) { total.value = 0; loading.value = false; return }
+    // 多次实时刷新只接受最后一次响应，失败时保留已有角标。
     loading.value = true
     try {
       const response = await queryNoticeUnreadSummary(providers, createUnreadQueryParams(providers, BADGE_OVERFLOW_COUNT))
@@ -89,9 +90,12 @@ export function useHeaderNotice() {
   })
 
   async function queryTypeList() {
+    const current = ++providerRequestId
+    countRequestId++
     loading.value = true
     try {
       const response = await getReceivedNoticeProviders()
+      if (current !== providerRequestId) return
       if (response.status !== 200) throw new Error('Notification channels unavailable')
       const grouped = new Map<string, NoticeTabItem>()
       for (const channel of response.result as NoticeChannel[]) {
@@ -103,9 +107,15 @@ export function useHeaderNotice() {
       error.value = false
       if (tabs.value.length) send('notification', '/notifications', {})
       await getList()
-    } catch { error.value = true }
-    finally { loading.value = false }
+    } catch { if (current === providerRequestId) error.value = true }
+    finally { if (current === providerRequestId) loading.value = false }
   }
+
+  useNoticeDataSourceChanges(() => tabs.value.flatMap(tab => tab.type), () => {
+    void getList()
+    noticeInfoRef.value?.refresh()
+  })
+  watch(() => user.userInfo?.id, () => { void queryTypeList() })
 
   function handleRead() { visible.value = false; void getList() }
   watch(computed(() => user.alarmUpdateCount), () => { void getList() })

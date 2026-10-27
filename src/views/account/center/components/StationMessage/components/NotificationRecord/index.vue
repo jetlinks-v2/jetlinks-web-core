@@ -108,13 +108,14 @@
       v-model:visible="viewVisible"
       :data="viewItem"
       :type="type"
+      :confirm="confirmDetail"
     />
   </div>
 </template>
 
 <script setup lang="ts" name="NotificationRecord">
 import ViewDialog from './components/ViewDialog.vue'
-import { queryNoticeRecords, changeNoticeReadState, markNoticeProvidersRead } from '@jetlinks-web-core/layout/components/noticeListHandler'
+import { queryNoticeRecords, changeNoticeReadState, markNoticeProvidersRead, getNoticeDataSource, useNoticeDataSourceChanges } from '@jetlinks-web-core/layout/components/noticeListHandler'
 import dayjs from 'dayjs'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useRouterParams } from '@jetlinks-web/hooks'
@@ -349,6 +350,17 @@ const refresh = () => {
 }
 
 watch(locale, refresh)
+watch(() => user.userInfo?.id, refresh)
+useNoticeDataSourceChanges(() => getType.value, refresh)
+
+/** 业务接收源声明确认即已读时，沿用详情按钮触发，不在打开或关闭时确认。 */
+const confirmDetail = async () => {
+  if (!getNoticeDataSource(getType.value)?.confirmOnDetail) return
+  const response = await changeNoticeReadState(getType.value, '_read', [viewItem.value.id])
+  if (response.status !== 200) throw new Error('Notification update failed')
+  refresh()
+  user.updateAlarm()
+}
 
 const changeStatus = (row: any) => {
   const type = row.state.value === 'read' ? '_unread' : '_read'

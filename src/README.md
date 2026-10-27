@@ -57,4 +57,6 @@
 
 业务模块可在 `notification-provider:default` 注册项的 `props` 中提供 `metadata()` 和 `dataSource`。`metadata()` 返回 `{ provider, name, type: { id, name } }`，只参与消息接收分类；订阅设置继续查询真实通道配置。分类内的 Provider 共用一个数据源，独立数据源使用自己的分类标识。
 
-`dataSource` 提供 `query(params)`、`unreadCount(params)`、`changeState('_read' | '_unread', ids)`、`readAll()`；查询返回兼容通知记录的分页响应，未读数返回 `{ count, overflow }`。个人中心、铃铛已读操作和角标通过 `layout/components/noticeListHandler.ts` 分派；未注册的数据仍使用原通知接口。多分类未读汇总会排除普通收件箱中的已接管 Provider，避免重复统计。已有 `listHandler` 可继续控制铃铛列表顺序，数据源失败不会回退为另一份收件箱数据。
+`dataSource` 提供 `query(params)`、`unreadCount(params)`、`changeState('_read' | '_unread', ids)`、`readAll()`，可选 `queryNoPaging(params)` 与 `count(params)`；查询返回兼容通知记录的分页响应，未读数返回 `{ count, overflow }`。个人中心、铃铛已读操作和角标通过 `layout/components/noticeListHandler.ts` 分派；未注册的数据仍使用原通知接口。多分类未读汇总会排除普通收件箱中的已接管 Provider，避免重复统计。已有 `listHandler` 可继续控制铃铛列表顺序，数据源失败不会回退为另一份收件箱数据。
+
+数据源可声明 `confirmOnDetail: true`，让个人中心原有详情确认按钮调用该数据源的 `changeState('_read', [id])`；确认成功才关闭，关闭和取消不确认。未声明时保持原有仅关闭行为。可选 `subscribe(listener): unsubscribe` 将业务模块的状态变化通知接收入口；`useNoticeDataSourceChanges(() => providers, refresh)` 仅通过 `@jetlinks-web-core/layout/components/noticeListHandler` 深层导入，在分类切换或 Vue Scope 释放时取消订阅。core 不保存业务确认数据；存储隔离、跨标签页事件和具体状态语义由注册模块负责。生产消费者为 `NoticeInfo.vue`、个人中心 `NotificationRecord/index.vue` 与各端顶栏实现。
