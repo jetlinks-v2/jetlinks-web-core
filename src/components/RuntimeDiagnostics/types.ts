@@ -1,7 +1,8 @@
 import type { Component, ComputedRef, ShallowRef } from 'vue'
 
 export interface TargetRef { nodeId: string }
-export interface TimeWindow { from: number; to: number }
+/** 相对范围保留时长语义；from/to 是本次查询解析出的 epoch 毫秒。 */
+export interface TimeWindow { from: number; to: number; relativeSeconds?: number }
 export interface ViewState {
   status: 'ready' | 'loading' | 'empty' | 'error' | 'forbidden' | 'unsupported' | 'stale'
   message?: string

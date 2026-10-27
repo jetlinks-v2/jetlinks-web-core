@@ -1,5 +1,5 @@
 <template>
-  <section class="thread-viewer">
+  <section class="thread-viewer" :class="{ 'thread-viewer--embedded': embedded }">
     <div v-if="threads.length || $slots.actions" class="thread-toolbar diagnostics-compact-toolbar">
       <a-input-search v-if="threads.length" v-model:value="search" size="small" :placeholder="t('runtimeDiagnostics.threadSearch')" allow-clear />
       <slot name="actions"><a-button type="primary" :disabled="!sampleAccess.allowed || state.status === 'loading'" :title="sampleAccess.reason" @click="sample">{{ t('runtimeDiagnostics.sample') }}</a-button></slot>
@@ -13,7 +13,7 @@
     <DiagnosticsState :state="state" @retry="sample">
       <div v-if="!threads.length" class="thread-empty"><slot name="empty"><a-button v-if="canSample && !$slots.actions" type="primary" size="large" @click="sample">{{ t('runtimeDiagnostics.sample') }}</a-button><p>{{ t('runtimeDiagnostics.noThreadSnapshot') }}</p></slot></div>
       <a-empty v-else-if="!filtered.length" :description="t('runtimeDiagnostics.noMatchingThreads')" />
-      <a-table v-else :columns="columns" :data-source="filtered" row-key="id" size="small" :pagination="embedded ? false : { pageSize: 15, showSizeChanger: false }" :scroll="{ x: 480, y: embedded ? 320 : undefined }" :expand-row-by-click="true">
+      <a-table v-else class="thread-table" :columns="columns" :data-source="filtered" row-key="id" size="small" :pagination="embedded ? false : { pageSize: 15, showSizeChanger: false }" :scroll="{ x: 480, y: embedded ? '100%' : undefined }" :expand-row-by-click="true">
         <template #bodyCell="{ column, record }">
           <span v-if="column.key === 'name'" class="thread-name" :title="record.name">{{ record.name }} <small>#{{ record.id }}</small></span>
           <a-tag v-else-if="column.key === 'state'" :color="record.state === 'BLOCKED' ? 'warning' : record.state === 'RUNNABLE' ? 'processing' : undefined">{{ record.state }}</a-tag>
@@ -64,6 +64,9 @@ function sample() { if (props.sampleAccess.allowed && props.state.status !== 'lo
 </script>
 <style scoped>
 .thread-viewer { display:flex; flex:1 1 0; flex-direction:column; min-width:0; min-height:0; }.thread-viewer :deep(> .ant-spin-nested-loading),.thread-viewer :deep(> .ant-spin-nested-loading > .ant-spin-container) { display:flex; flex:1 1 0; flex-direction:column; min-height:0; }
+.thread-viewer--embedded :deep(.thread-table),.thread-viewer--embedded :deep(.thread-table > .ant-spin-nested-loading),.thread-viewer--embedded :deep(.thread-table > .ant-spin-nested-loading > .ant-spin-container),.thread-viewer--embedded :deep(.thread-table .ant-table),.thread-viewer--embedded :deep(.thread-table .ant-table-container) { display:flex; flex:1 1 0; flex-direction:column; min-width:0; min-height:0; }
+.thread-viewer--embedded :deep(.thread-table .ant-table-header) { flex:0 0 auto; }
+.thread-viewer--embedded :deep(.thread-table .ant-table-body) { flex:1 1 0; min-height:0; overscroll-behavior:contain; }
 .thread-toolbar,.thread-states { display:flex; align-items:center; flex-wrap:wrap; gap:var(--space-2,8px); margin-bottom:var(--space-2,8px); }
 .thread-toolbar .ant-input-search { width:min(100%,300px); }
 .thread-toolbar small,.thread-name small { color:var(--ink-3); }

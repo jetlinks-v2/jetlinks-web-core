@@ -25,11 +25,12 @@ const component = relative => {
 
 test('history presets and shared range editor submit each valid selection exactly once', async t => {
   t.mock.timers.enable({ apis: ['Date'], now: 10000000 })
-  const props = vue.reactive({ range: { from: 6400000, to: 10000000 } }), events = [], scope = vue.effectScope()
+  const props = vue.reactive({ range: { from: 6400000, to: 10000000, relativeSeconds: 3600 } }), events = [], scope = vue.effectScope()
   const state = scope.run(() => component('components/RuntimeDiagnostics/history/HistoryRangeControl.vue').setup(props, { expose() {}, emit: (...event) => events.push(event) }))
   try {
     assert.equal(state.preset.value, 3600)
-    state.selectPreset(900); assert.deepEqual(events.at(-1), ['change', { from: 9100000, to: 10000000 }])
+    t.mock.timers.tick(120000); assert.equal(state.preset.value, 3600, 'relative labels retain their meaning while time passes')
+    state.selectPreset(900); assert.deepEqual(events.at(-1), ['change', { from: 9220000, to: 10120000, relativeSeconds: 900 }])
     state.selectDates([120000, 240000]); state.selectDates([120000, 240000])
     assert.equal(events.length, 2, 'duplicate editor change/ok does not issue another request')
     props.range = { from: 120000, to: 240000 }; await vue.nextTick()
@@ -40,8 +41,10 @@ test('history presets and shared range editor submit each valid selection exactl
     assert.equal(state.open.value, false)
     props.range = { from: 0, to: 3600000 }; await vue.nextTick(); assert.equal(state.preset.value, undefined, 'historical custom hour is not labelled as the last hour')
     for (const seconds of [900, 3600, 21600, 86400]) {
-      state.selectPreset(seconds); assert.equal(events.at(-1)[1].to - events.at(-1)[1].from, seconds * 1000)
+      state.selectPreset(seconds); assert.equal(events.at(-1)[1].to - events.at(-1)[1].from, seconds * 1000); assert.equal(events.at(-1)[1].relativeSeconds, seconds)
     }
+    props.range = { from: Date.now() - 3600000, to: Date.now(), relativeSeconds: 3600 }; await vue.nextTick()
+    state.selectDates([props.range.from, props.range.to]); assert.deepEqual(events.at(-1)[1], { from: props.range.from, to: props.range.to }, 'explicit dates pin a range even when equal to the latest preset window')
   } finally { scope.stop() }
 })
 

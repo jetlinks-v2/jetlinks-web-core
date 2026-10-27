@@ -138,7 +138,7 @@ onBeforeUnmount(() => { moreOpen.value = false; popupFocus.cancel() })
 .jvm-tab-actions :deep(.ant-badge-status-text) { font-size:12px; }
 .jvm-tab-actions :deep(.ant-tag) { margin:0; }
 .jvm-allocation-evidence { margin-top:24px; padding-top:16px; border-top:1px solid var(--line); }
-.jvm-snapshot-evidence { min-width:0; }
+.jvm-snapshot-evidence { display:flex; flex:1 1 0; flex-direction:column; min-width:0; min-height:0; }
 .jvm-message { margin-bottom:8px; }
 .jvm-sampling-feedback { display:flex; align-items:center; flex-wrap:wrap; gap:4px 16px; margin-bottom:8px; color:var(--ink-2); font-size:12px; font-variant-numeric:tabular-nums; }
 .jvm-sampling-delay { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; margin-bottom:8px; color:var(--warning); font-size:12px; }

@@ -54,6 +54,17 @@
     }
   }
 
+  // 行内裁剪仍保留；把 Ant 内容区的焦点框移到整行内部，避免只露出左右两条边。
+  .ant-tree-treenode-active {
+    border-radius: var(--r-3);
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+
+    .ant-tree-node-content-wrapper {
+      outline: none;
+    }
+  }
+
   .ant-tree-indent-unit {
     width: var(--space-4);
   }

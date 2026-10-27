@@ -21,18 +21,18 @@ const props = defineProps({ range: { type: Object as PropType<TimeWindow>, requi
 const emit = defineEmits<{ (event: 'change', range: TimeWindow): void }>()
 const { t } = useI18n(), open = ref(false)
 const durations = [15 * 60, 3600, 6 * 3600, 24 * 3600]
-const preset = computed(() => Math.abs(Date.now() - props.range.to) < 60000 ? durations.find(seconds => Math.abs(props.range.to - props.range.from - seconds * 1000) < 1000) : undefined)
+const preset = computed(() => durations.find(seconds => seconds === props.range.relativeSeconds))
 const label = computed(() => preset.value ? t(`runtimeDiagnostics.range.${preset.value}`) : `${dayjs(props.range.from).format('MM-DD HH:mm')} – ${dayjs(props.range.to).format('MM-DD HH:mm')}`)
 let emitted = ''
 watch(() => props.range, () => { emitted = '' })
 /** 共享编辑器change/ok可能提供同一范围；仅提交一次有效范围，避免重复历史查询。 */
-function commit(from: number, to: number) {
+function commit(from: number, to: number, relativeSeconds?: number) {
   if (!Number.isFinite(from) || !Number.isFinite(to) || from >= to) return
-  const identity = `${from}:${to}`
-  if (identity === emitted || from === props.range.from && to === props.range.to) return
-  emitted = identity; open.value = false; emit('change', { from, to })
+  const identity = `${from}:${to}:${relativeSeconds ?? ''}`
+  if (identity === emitted || from === props.range.from && to === props.range.to && relativeSeconds === props.range.relativeSeconds) return
+  emitted = identity; open.value = false; emit('change', { from, to, ...(relativeSeconds === undefined ? {} : { relativeSeconds }) })
 }
-function selectPreset(seconds: number) { const to = Date.now(); commit(to - seconds * 1000, to) }
+function selectPreset(seconds: number) { const to = Date.now(); commit(to - seconds * 1000, to, seconds) }
 function selectDates(value: unknown) { if (Array.isArray(value) && value.length === 2 && value.every(part => typeof part === 'number')) commit(value[0], value[1]) }
 function popupContainer(element: HTMLElement) { return element.parentElement ?? element }
 </script>

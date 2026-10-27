@@ -17,11 +17,11 @@ import type { MBeanDescriptor, MBeanInvocation, ViewState, ActionAccess }
 | 组件 | 主要 props | 事件 / 插槽 |
 | --- | --- | --- |
 | SamplingIntervalControl | value、open?、disabled?、showInterval?、label? | change、update:open；footer 插槽。集群与设备连接共用 1 / 2 / 5 / 10 / 30 / 60 秒选项、时钟按钮及单次选择弹层，支持 Esc 回焦 |
-| RuntimeMetricsPanel | metrics、samples、charts、range、activeMetric、options、state、historyState | refresh、metric、range-change(TimeWindow)；metrics / summary / time / default 插槽 |
+| RuntimeMetricsPanel | metrics、samples、charts、range、activeMetric、options、state、historyState | refresh、metric、range-change(TimeWindow)；快捷范围携带 relativeSeconds，由宿主在查询时解析到当前时间；自定义 / 缩放只含 from/to，恢复缩放保留原范围语义；metrics / summary / time / default 插槽 |
 | RuntimeMBeanOverview | beans、state、config、history?、showLifetime?、resetAccess?、resetState? | refresh、inspect(ObjectName)、update:config、reset(ObjectName)；启动时间 / 时长、Buffer 累计计数与近 5 分钟趋势 |
 | JvmDiagnosticPanel | nodeId、threads、threadState、snapshot、samplingState、access、activeTab、platformPrefixes | 实时分析 / 诊断快照两个页签；sample、start、stop、export-html、capture-jfr、heap-dump({live})、update:activeTab；memory 操作插槽 |
 | FlameGraphViewer | snapshot、platformPrefixes、embedded? | 搜索、平台帧标记、操作分组、库调用展开、缩放与全屏；embedded 缩短图高并默认收起热点明细 |
-| ThreadViewer | threads、sampleAccess、state、embedded? | sample；actions / empty 插槽；列表支持筛选、排序及展开线程栈 / 锁，embedded 使用内部滚动而非分页 |
+| ThreadViewer | threads、sampleAccess、state、embedded? | sample；actions / empty 插槽；列表支持筛选、排序及展开线程栈 / 锁，embedded 填满父容器可用高度，表头固定、正文内部滚动而非分页；父容器须提供受约束高度 |
 | DeviceSessionViewer | nodeId?、deviceId、queriedDeviceId、resultDeviceId?、sessions、state、access、active、expandConnections?、remoteSearch、deviceOptions、deviceSearching | update:deviceId、query(精确设备 ID)、refresh、search-device(keyword)、select-device(id)；filters 插槽；节点可选、多个连接原位展开，expandConnections 可直接展开全部 |
 | DeviceSessionObservation | entries、deviceOptions、deviceSearching、active、access、unsupported?、waiting?、paused、interval、metrics | add、remove、refresh、search-device、update:paused / interval / metrics；最多五设备的响应式观测卡片 |
 | MBeanBrowser | beans、selectedObject、target、invokeAccess、busy、result、state、detailState、resultState、config | refresh、select(ObjectName)、invoke(MBeanInvocation)、update:config |
