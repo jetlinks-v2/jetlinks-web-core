@@ -1,6 +1,10 @@
 .ant-modal-content {
-  padding: 0 !important;
   border-radius: var(--jet-theme-radius) !important;
+}
+
+// 确认框保留 Ant Design 留白；where 仅限制范围，不提高原有规则的优先级。
+:where(.ant-modal:not(.ant-modal-confirm)) .ant-modal-content {
+  padding: 0 !important;
   .ant-modal-header {
     padding: var(--space-6) var(--space-6) 0 var(--space-6);
     border-radius: var(--jet-theme-radius) var(--jet-theme-radius) 0 0 !important;

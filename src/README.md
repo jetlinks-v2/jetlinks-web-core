@@ -46,6 +46,10 @@
 
 验证：在 `1536×899` 的现有开发页面上，5 个通知页签可向左、向右滚动，也可通过纵向滚轮横向移动；滚动位移为 `0～-72px`，最右侧“业务监控”完整可见，两端页签切换正常，弹层宽度仍为 `384px`。组件模板、TypeScript 转译、scoped LESS 编译及独立 Vite 生产构建通过，`git diff --check` 通过。`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 报告 556 项工作区既有诊断，`NoticeInfo.vue` 无诊断；当前未配置 lint 脚本。完整应用生产构建未执行，发布前待运行 `pnpm -F jetlinks-web-core build`。
 
+## 弹窗样式边界
+
+`style/components.less` 的表单弹窗内边距、标题分隔线和底部栏样式只适用于 `.ant-modal:not(.ant-modal-confirm)`；确认、警告、信息等静态弹窗沿用 Ant Design 的标准留白和按钮布局，统一圆角仍读取主题变量。普通表单弹窗继续保留原有标题、正文和底部栏规则。
+
 ## 文档维护约定
 
 - 新增或稳定调整的公共能力，先在对应分类索引增加一行，再在能力目录或文件旁增加简要说明。
