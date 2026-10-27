@@ -70,48 +70,20 @@
         </div>
       </div>
     </div>
-    <!-- 按钮 -->
+    <!-- 自定义底栏保留原契约，默认底栏统一主次按钮布局。 -->
     <slot name="bottom-tool">
-      <div
-          v-if="showTool && actions && actions.length"
-          class="card-tools"
+      <CardBoxActions
+        v-if="showTool && actions && actions.length"
+        :actions="actions"
+        :value="value"
+        :layout="actionLayout"
+        :primary-action-key="primaryActionKey"
+        :active="active"
       >
-        <div
-            v-for="item in _actions"
-            :key="item.key"
-            class="card-button"
-            :class="{
-                delete: item.key === 'delete',
-            }"
-            @click.stop
-        >
-          <slot name="actions" v-bind="item">
-            <j-permission-button
-                :disabled="handleFuncValue(item.disabled, value)"
-                :popConfirm="item.popConfirm ? {
-                  title: handleFuncValue(item.popConfirm.title, value),
-                  onConfirm: (e) => {
-                    item.popConfirm.onConfirm?.(value, e)
-                  }
-                } : null"
-                :tooltip="item.tooltip ? {
-                  title: handleFuncValue(item.tooltip.title, value)
-                } : null"
-                @click="(e) => item.onClick?.(value, e)"
-                type="link"
-                style="padding: 0;width: 100%"
-                :danger="item.key === 'delete'"
-                :hasPermission="item.hasPermission"
-            >
-              <AIcon type="DeleteOutlined" v-if="item.key === 'delete'"/>
-              <template v-else>
-                <AIcon :type="handleFuncValue(item.icon, value)"/>
-                <span>{{ handleFuncValue(item?.text, value) }}</span>
-              </template>
-            </j-permission-button>
-          </slot>
-        </div>
-      </div>
+        <template v-if="slots.actions" #actions="item">
+          <slot name="actions" v-bind="item" />
+        </template>
+      </CardBoxActions>
     </slot>
     <!-- 选中态角标需要贴合整张卡片，而不是内容区。 -->
     <div v-if="active" class="checked-icon">
@@ -124,17 +96,16 @@
 
 <script setup lang="ts" name='CardBox'>
 import {getHexColor} from '@jetlinks-web/components/es/BadgeStatus/color';
-import {PropType} from 'vue';
+import {useSlots, type PropType} from 'vue';
 import i18n from '@jetlinks-web-core/locales';
-import {handleFuncValue} from "@jetlinks-web-core/components/CrudTable/utils";
 import { cardAppearanceProps, useCardAppearanceStyle } from './appearance';
+import CardBoxActions from './CardBoxActions.vue';
+import type { CardBoxAction, CardBoxActionKey, CardBoxActionLayout } from './types';
 
 type EmitProps = {
   // (e: 'update:modelValue', data: Record<string, any>): void;
   (e: 'click', data: Record<string, any>): void;
 };
-
-type TableActionsType = any;
 
 const emit = defineEmits<EmitProps>();
 const slots = useSlots();
@@ -166,8 +137,16 @@ const props = defineProps({
     default: () => ({'default': 'default'})
   },
   actions: {
-    type: Array as PropType<TableActionsType[]>,
+    type: Array as PropType<CardBoxAction[]>,
     default: () => [],
+  },
+  actionLayout: {
+    type: String as PropType<CardBoxActionLayout>,
+    default: 'equal',
+  },
+  primaryActionKey: {
+    type: [String, Number] as PropType<CardBoxActionKey>,
+    default: undefined,
   },
   active: {
     type: Boolean,
@@ -202,273 +181,9 @@ const getBackgroundColor = (code: string) => {
             )`;
 };
 
-const _actions = computed(() => {
-  return props.actions.filter(i => handleFuncValue(i.show === undefined ? true : i.show, props.value))
-})
-
 const handleClick = () => {
   emit('click', props.value);
 };
 </script>
 
-<style scoped>
-.card {
-  box-sizing: border-box;
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  border: var(--jet-theme-stroke-width) solid var(--jet-theme-border-color-1);
-  border-radius: var(--panel-radius, var(--r-6));
-  background: var(--card-box-background);
-  transition: var(--card-shell-transition);
-}
-.card.card--active {
-  border-color: var(--jet-theme-primary, var(--accent));
-  box-shadow: var(--ring-active);
-}
-.card.card--borderless,
-.card.card--borderless.card--active {
-  border-color: transparent;
-}
-.card.card--disabled {
-  filter: grayscale(100%);
-}
-.card.card--disabled .card-warp {
-  cursor: not-allowed;
-}
-.card .checked-icon {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  z-index: 2;
-  width: 2.75rem;
-  height: 2.75rem;
-  color: var(--accent-ink);
-  background-color: var(--jet-theme-primary, var(--accent));
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
-}
-.card .checked-icon > div {
-  position: relative;
-  display: flex;
-  width: 100%;
-  height: 100%;
-}
-.card .checked-icon > div > span {
-  position: absolute;
-  right: var(--space-2);
-  bottom: var(--space-2);
-  font-size: var(--fs-12);
-}
-.card .card-warp {
-  position: relative;
-  cursor: pointer;
-}
-.card .card-warp:hover {
-  box-shadow: none;
-}
-.card .card-warp:hover .card-mask {
-  visibility: visible;
-}
-.card .card-warp .card-type {
-  position: absolute;
-  top: 0;
-  left: -0.9375rem;
-  height: 2rem;
-  padding: 0 1.875rem;
-  color: var(--ink-2);
-  line-height: 2rem;
-  background-color: color-mix(in srgb, var(--ink-1) 6%, transparent);
-  transform: skewX(-45deg);
-}
-.card .card-warp .card-type .card-type-text {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: skewX(45deg);
-}
-.card .card-warp .card-content {
-  position: relative;
-  padding: 0 var(--panel-padding, var(--space-4)) var(--panel-padding, var(--space-4));
-  overflow: hidden;
-}
-.card-content.card-content-no-state {
-  padding-top: var(--panel-padding, var(--space-4)) !important;
-}
-.card .card-warp .card-state-row {
-  display: flex;
-  min-height: 2rem;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.card .card-warp .card-content-main {
-  display: flex;
-  align-items: center;
-  min-height: 5rem;
-  gap: var(--panel-gap, var(--space-4));
-}
-.card .card-warp .card-content .card-item-avatar {
-  margin-right: 0;
-  display: flex;
-  align-items: center;
-}
-.card .card-warp .card-content .card-item-body {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  width: 0;
-}
-.card .card-warp .card-content .card-item-body .ant-row {
-  margin-top: var(--panel-gap, var(--space-4));
-}
-.card .card-warp .card-state {
-  display: flex;
-  align-items: center;
-  min-width: 5rem;
-  height: 2rem;
-  justify-content: center;
-  padding: 0 var(--space-3) 0 var(--space-5);
-  background: var(--card-status-color);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 20% 100%);
-  transform: none;
-}
-.card .card-warp .card-state.success {
-  --card-status-color: var(--jet-theme-success, var(--ok));
-}
-.card .card-warp .card-state.warning {
-  --card-status-color: var(--warn);
-}
-.card .card-warp .card-state.error {
-  --card-status-color: var(--err);
-}
-.card .card-warp .card-state .card-state-content {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-  transform: none;
-}
-.card .card-warp .card-state :deep(.ant-badge-status) {
-  display: inline-flex;
-  align-items: center;
-  margin: 0;
-}
-.card .card-warp .card-state :deep(.ant-badge-status-dot) {
-  margin-inline-end: var(--space-1);
-}
-.card .card-warp .card-content :deep(.card-item-content-title) {
-  cursor: pointer;
-  font-size: var(--fs-16);
-  font-weight: 700;
-  color: var(--jet-theme-primary, var(--accent));
-  width: calc(100% - 6.25rem);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.card .card-warp .card-content :deep(.card-item-heard-name) {
-  font-weight: 700;
-  font-size: var(--fs-16);
-  margin-bottom: var(--space-2);
-}
-.card .card-warp .card-content :deep(.card-item-content-text) {
-  color: var(--ink-2);
-  font-size: var(--fs-12);
-}
-.card .card-warp .card-top-line {
-  position: absolute;
-  top: 0;
-  left: var(--space-5);
-  display: block;
-  width: 8%;
-  min-width: 3rem;
-  height: 0.125rem;
-  background-image: linear-gradient(90deg, var(--card-status-color-solid), var(--card-status-color));
-  clip-path: polygon(0 0, 100% 0, 98% 100%, 2% 100%);
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-}
-.card .card-warp .card-mask {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  color: var(--accent-ink);
-  background-color: color-mix(in srgb, var(--ink-1) 50%, transparent);
-  visibility: hidden;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-.card .card-warp .card-mask .mask-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  padding: 0 !important;
-}
-.card.item-active {
-  position: relative;
-  color: var(--jet-theme-primary, var(--accent));
-  border-color: var(--jet-theme-primary, var(--accent));
-}
-.card.item-active .checked-icon {
-  display: block;
-}
-.card .card-tools {
-  display: flex;
-  padding: 0 var(--panel-padding, var(--space-4)) var(--panel-padding, var(--space-4));
-  gap: var(--panel-gap, var(--space-4));
-}
-.card.card--active .card-tools {
-  padding-right: calc(var(--space-5) + 2.75rem);
-}
-.card .card-tools .card-button {
-  display: flex;
-  flex-grow: 1;
-}
-.card .card-tools .card-button > :deep(span, button) {
-  width: 100%;
-}
-.card .card-tools .card-button :deep(button) {
-  width: 100%;
-  background: var(--card-box-background);
-  border: var(--jet-theme-stroke-width) solid var(--jet-theme-border-color-1);
-  color: var(--jet-theme-primary, var(--accent));
-}
-.card .card-tools .card-button :deep(button):hover {
-  background-color: var(--jet-theme-primary-hover);
-  border-color: var(--jet-theme-primary-hover);
-}
-.card .card-tools .card-button :deep(button):hover span {
-  color: var(--accent-ink) !important;
-}
-.card .card-tools .card-button :deep(button):active {
-  background-color: var(--jet-theme-primary-active);
-  border-color: var(--jet-theme-primary-active);
-}
-.card .card-tools .card-button :deep(button):active span {
-  color: var(--accent-ink) !important;
-}
-.card .card-tools .card-button.delete {
-  flex: 1;
-}
-.card .card-tools .card-button :deep(button[disabled]) {
-  background: color-mix(in srgb, var(--jet-theme-text, var(--ink-1)) 4%, var(--jet-theme-bg-container, var(--bg)));
-  border-color: var(--jet-theme-border, var(--ink-4));
-}
-.card .card-tools .card-button :deep(button[disabled]) span {
-  color: var(--jet-theme-text-secondary, var(--ink-4)) !important;
-}
-.card .card-tools .card-button :deep(button[disabled]):hover {
-  background-color: color-mix(in srgb, var(--jet-theme-text, var(--ink-1)) 8%, var(--jet-theme-bg-container, var(--bg)));
-}
-.card .card-tools .card-button :deep(button[disabled]):active {
-  background-color: color-mix(in srgb, var(--jet-theme-text, var(--ink-1)) 8%, var(--jet-theme-bg-container, var(--bg)));
-}</style>
+<style scoped src="./style.css"></style>

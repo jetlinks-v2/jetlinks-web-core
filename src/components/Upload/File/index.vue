@@ -4,26 +4,35 @@
       v-model:file-list="fileList"
       name="file"
       :accept="accept"
+      :type="drag ? 'drag' : 'select'"
       :maxCount="maxCount"
-      :custom-request="uploadCustomRequest"
+      :custom-request="customRequest || uploadCustomRequest"
       @change="handleChange"
       @remove="handleRemove"
       :listType="listType"
-      :beforeUpload="beforeUpload"
+      :beforeUpload="handleBeforeUpload"
       @preview="handlePreview"
-      :multiple="true"
+      :multiple="multiple"
+      :disabled="disabled"
     >
-      <template v-if="listType === 'text'">
-        <a-button>
-          <AIcon type="UploadOutlined" />
-          {{ btnText }}
-        </a-button>
-      </template>
-      <template v-else-if="listType === 'picture-card'">
-        <div v-if="fileList.length < maxCount">
-          <AIcon type="PlusOutlined" />
-        </div>
-      </template>
+      <slot>
+        <template v-if="drag">
+          <p class="ant-upload-drag-icon"><AIcon type="InboxOutlined" /></p>
+          <p class="ant-upload-text">{{ btnText || $t('Upload.File.dropPlaceholder') }}</p>
+          <p v-if="accept" class="ant-upload-hint">{{ accept }}</p>
+        </template>
+        <template v-else-if="listType === 'text'">
+          <a-button>
+            <AIcon type="UploadOutlined" />
+            {{ btnText }}
+          </a-button>
+        </template>
+        <template v-else-if="listType === 'picture-card'">
+          <div v-if="fileList.length < maxCount">
+            <AIcon type="PlusOutlined" />
+          </div>
+        </template>
+      </slot>
     </a-upload>
     <div
       v-if="listType === 'picture-card'"
@@ -34,7 +43,7 @@
           visible: visible,
           minScale: 0.1,
           current: currentPreviewIndex,
-          onVisibleChange: (vis) => (visible = vis)
+          onVisibleChange: (vis: boolean) => (visible = vis)
         }"
       >
         <a-image
@@ -50,13 +59,17 @@
 
 <script setup lang="ts">
 import type { UploadChangeParam, UploadProps } from 'ant-design-vue'
+import { ref, watch, type PropType } from 'vue'
 import { onlyMessage } from '@jetlinks-web/utils'
 import { getImageUrl } from '@jetlinks-web-core/utils'
 import { createFileUploadCustomRequest } from '../utils'
+import { useI18n } from 'vue-i18n'
+
+const { t: $t } = useI18n()
 
 const props = defineProps({
   value: {
-    type: [String, Array<UploadProps['fileList']>],
+    type: [String, Array] as PropType<string | UploadProps['fileList']>,
     default: undefined
   },
   btnText: {
@@ -79,6 +92,22 @@ const props = defineProps({
     type: Number,
     default: 1
   },
+  drag: {
+    type: Boolean,
+    default: false
+  },
+  multiple: {
+    type: Boolean,
+    default: true
+  },
+  beforeUpload: {
+    type: Function as PropType<UploadProps['beforeUpload']>,
+    default: undefined
+  },
+  customRequest: {
+    type: Function as PropType<UploadProps['customRequest']>,
+    default: undefined
+  },
   listType: {
     type: String as PropType<'text' | 'picture' | 'picture-card'>,
     default: 'text'
@@ -97,8 +126,8 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:value', 'change', 'remove'])
-const fileList = ref([] as any[])
+const emit = defineEmits(['update:value', 'change', 'remove', 'uploadChange'])
+const fileList = ref<NonNullable<UploadProps['fileList']>>([])
 const loading = ref(false)
 const uploadCustomRequest: UploadProps['customRequest'] = (options) =>
   createFileUploadCustomRequest(props.publicAccess)(options)
@@ -115,9 +144,9 @@ function getBase64(file: File) {
   })
 }
 
-const handlePreview = async (file: UploadProps['fileList'][number]) => {
+const handlePreview = async (file: NonNullable<UploadProps['fileList']>[number]) => {
   if (props.listType === 'picture-card') {
-    if (!file.url && !file.preview) {
+    if (!file.url && !file.preview && file.originFileObj) {
       file.preview = (await getBase64(file.originFileObj)) as string
     }
     // if (file.name === file.uid) {
@@ -133,6 +162,8 @@ const handlePreview = async (file: UploadProps['fileList'][number]) => {
 }
 
 const handleChange = (info: UploadChangeParam) => {
+  // change 保留仅完成时通知的契约，独立事件提供上传中和失败状态。
+  emit('uploadChange', info)
   if (info.file.status === 'uploading') {
     loading.value = true
   }
@@ -140,7 +171,7 @@ const handleChange = (info: UploadChangeParam) => {
     loading.value = false
     const _id = info.file.response?.result?.id
     previewImage.value.push({
-      url: info.file.response?.result.accessUrl,
+      url: info.file.response?.result?.accessUrl,
       uid: info.file.uid
     })
     emit('update:value', _id)
@@ -148,14 +179,14 @@ const handleChange = (info: UploadChangeParam) => {
   }
   if (info.file.status === 'error') {
     loading.value = false
-    onlyMessage('上传失败', 'error')
+    onlyMessage($t('Upload.index.805902-1'), 'error')
   }
   if (!info.file.status) {
     fileList.value = fileList.value.filter((item: any) => item.uid !== info.file.uid)
   }
 }
 
-const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+const handleBeforeUpload: UploadProps['beforeUpload'] = (file, files) => {
   if (!props.isUpload) {
     emit('change', file)
     return false
@@ -174,14 +205,17 @@ const beforeUpload: UploadProps['beforeUpload'] = (file) => {
   const isMaxSize = file.size / 1024 / 1024 < maxSize
 
   if (!inType) {
-    onlyMessage('请上传正确格式的文件', 'error')
+    onlyMessage($t('Upload.File.invalidType'), 'error')
     return false
   }
 
   if (!isMaxSize) {
-    onlyMessage(`文件大小必须小于${maxSize}M`, 'error')
+    onlyMessage($t('Upload.File.maxSize', [maxSize]), 'error')
     return false
   }
+
+  // 业务校验可返回 Upload.LIST_IGNORE，拒绝文件时保留原有文件列表。
+  return props.beforeUpload?.(file, files)
 }
 
 const handleRemove = (file: any) => {
@@ -196,9 +230,11 @@ const handleImageClick = (index: number) => {
 
 watch(
   () => props?.value,
-  (newValue: any) => {
-    if (newValue) {
-      fileList.value = [{ url: getImageUrl(newValue), name: newValue }]
+  (newValue) => {
+    if (Array.isArray(newValue)) {
+      fileList.value = newValue.map(file => ({ ...file }))
+    } else if (newValue) {
+      fileList.value = [{ uid: newValue, url: getImageUrl(newValue), name: newValue, status: 'done' }]
     } else {
       fileList.value = []
     }

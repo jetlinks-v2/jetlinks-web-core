@@ -36,8 +36,14 @@
 
 #### 当前调整
 
-实现位于 `runtime-ui/jetlinks-web-core/src/components/EqualHeightColumns/index.vue`：双栏使用“左列 / 间距 / 右列”三个 Grid 轨道，按钮和分割线直接锚定间距轨道中点，兼容长度和百分比间距。按钮不再通过 `ResizeObserver` 写入 `left` 并叠加过渡；布局与按钮位移统一使用 200ms 的 `cubic-bezier(0.23, 1, 0.32, 1)`，可在切换途中反向。`fr` 轨道收起时保留为 `0fr`，避免类型变化引起跳变。减少动态效果偏好下直接切换布局与位置，保留颜色反馈；组件 API 和业务页面无需调整。
+展开时保留按钮的左、上、下边框，分割线通过 `clip-path` 裁去按钮高度对应的线段，形成与按钮相接的缺口，不覆盖面板背景。布局根节点与按钮挂载层共用 `--equal-height-columns-toggle-height` 尺寸；仅在显示折叠按钮且展开时裁切，没有折叠按钮时继续显示完整分割线。
 
-验证：当前内置浏览器的实际产品页及独立组件用例覆盖展开/收起、快速反向切换、`15rem` / `320px` / `30%` / `1fr` / `2fr` 列宽、`32px` / `0px` / `2%` 间距、容器缩放和隐藏左列后恢复。逐帧定位偏差小于 0.01px，布局结束后按钮仍过渡的帧数为 0；Vue SFC 编译、组件范围 Vite 生产构建和 `git diff --check` 通过。
+实现位于 `runtime-ui/jetlinks-web-core/src/components/EqualHeightColumns/index.vue`，定位与尺寸/滚动监听位于同目录 `useColumnToggle.ts`。组件统一将折叠按钮置于内容顶部；存在外层 `ContentPanel` 时，通过 Teleport 挂载到最近的面板，避免中间页面容器的 `overflow: hidden` 裁切，收起后贴齐面板左边缘。没有面板时保留组件内定位，收起后贴齐组件左边缘。业务页面无需覆盖样式，props、slots 和事件保持不变。
 
-质量边界：组件范围 `vue-tsc` 检查仍因根节点 `attrs.style` 的 `unknown[]` 类型报 `TS2345`，修改前 HEAD 版本复查结果相同；当前工作区没有 lint 脚本或配置。未执行全量应用构建，未在其他浏览器或切换系统减少动态效果偏好后复验。全量待验证命令为 `pnpm -C runtime-ui exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 和 `pnpm -C runtime-ui build`，应先处理已有类型错误再完成全量检查。
+双栏仍使用“左列 / 间距 / 右列”三个 Grid 轨道，按钮跟随间距轨道中点。ResizeObserver 读取真实轨道位置，挂载层坐标不叠加过渡；布局与按钮 transform 沿用 200ms 的 `cubic-bezier(0.23, 1, 0.32, 1)`。按钮移出根节点后显式继承该局部过渡变量。`fr` 收起保留为 `0fr`，减少动态效果偏好下仍直接切换位置。
+
+验证：实际产品页与设备列表均覆盖展开/收起、点击和页面切换，无残留按钮；产品页恢复原 `overflow: hidden` 后，按钮仍与内容顶部及面板左边缘准确对齐，面板无新增滚动溢出。独立真实组件用例覆盖 16px/32px 面板内边距、无背景面板、无面板、`240px`/`30%`/`1fr`/`2fr` 列宽、`32px`/`0px`/`2%` 间距、快速反向、窗口滚动、隐藏左列后恢复及卸载清理，静止位置偏差均为 0px。SFC 脚本/模板/scoped CSS 编译、新增 hook 严格 TypeScript 检查、组件范围 Vite 生产构建、样式门禁与 `git diff --check` 通过。
+
+缺口样式复验：产品页展开、收起、再次展开通过；展开按钮右边框为 `0px`，分割线裁切高度与按钮实测高度同为 `32px`，收起按钮与面板左边缘偏差为 `0px`，未新增页面横向溢出。SFC 编译、hook 严格 TypeScript 检查、组件范围 Vite 生产构建、样式门禁与 `git diff --check` 再次通过，产品页源码及其 README 无差异。
+
+质量边界：未执行完整应用 build 或完整组件 `vue-tsc`，工作区无独立 lint 脚本；历史组件类型检查曾因根节点 `attrs.style` 的 `unknown[]` 报 `TS2345`，本次没有修改该类型边界。其他浏览器及系统减少动态效果偏好切换未复验。完整待验证命令为 `pnpm -C runtime-ui exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 与 `pnpm -C runtime-ui build`。
