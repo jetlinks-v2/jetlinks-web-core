@@ -33,6 +33,12 @@ function selectLegend(value: unknown) {
   emit('update:metrics', deviceObservationMetrics.filter(metric => typeof selected[metric] === 'boolean' ? selected[metric] : props.metrics.includes(metric)))
 }
 const chartEvents = { legendselectchanged: selectLegend }
+const metricIconPaths: Record<DeviceObservationMetric, string> = {
+  receive: 'M12 4v16m-7-7 7 7 7-7',
+  send: 'M12 20V4m-7 7 7-7 7 7',
+  messages: 'M4 4h16v12H9l-5 4ZM8 8h8M8 12h8',
+  pending: 'm5 4-3 9v7h20v-7l-3-9ZM2 13h6l2 3h4l2-3h6',
+}
 /** 四项始终来自同一个真实帧；图例仅控制曲线，缺测保留未知。联动时不拿远处旧帧冒充当前数据。 */
 function tooltip(value: unknown) {
   const params = (Array.isArray(value) ? value : [value]) as { value?: unknown; axisValue?: unknown }[]
@@ -42,11 +48,11 @@ function tooltip(value: unknown) {
   const rows = deviceObservationMetrics.map(metric => {
     const amount = point?.[metric], unit = t(`runtimeDiagnostics.deviceSessions.${metric === 'messages' ? 'messagesUnit' : 'pendingUnit'}`)
     const formatted = amount === undefined ? '—' : formatDeviceObservationValue(amount, metric, locale.value, unit)
-    return `<div style="display:flex;justify-content:space-between;gap:16px"><span>${escape(label(metric))}</span><b>${escape(formatted)}</b></div>`
+    const icon = `<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${colors[metric]}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="${metricIconPaths[metric]}"/></svg>`
+    return `<div style="min-width:0"><div style="display:flex;align-items:center;gap:5px;color:${token.value.colorTextSecondary};font-size:12px;line-height:18px">${icon}<span>${escape(label(metric))}</span></div><strong style="display:block;font-size:13px;font-weight:600;line-height:20px;font-variant-numeric:tabular-nums;white-space:nowrap">${escape(formatted)}</strong></div>`
   }).join('')
   const timestamp = new Date(point?.sampledAt ?? time).toLocaleTimeString(locale.value, { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 })
-  const ellipsis = 'display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'
-  return `<div style="max-width:260px;white-space:normal">${escape(timestamp)}<div style="margin-top:6px"><strong style="${ellipsis}">${escape(props.entry.label)}</strong><small style="${ellipsis}">${escape(props.entry.id)}</small>${rows}</div></div>`
+  return `<div style="min-width:210px;white-space:normal;color:${token.value.colorText}"><time style="display:block;color:${token.value.colorTextSecondary};font-size:12px;line-height:18px;font-variant-numeric:tabular-nums">${escape(timestamp)}</time><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 16px;margin-top:6px">${rows}</div></div>`
 }
 const option = computed(() => {
   const flow = props.metrics.includes('receive') || props.metrics.includes('send'), messages = props.metrics.includes('messages'), pending = props.metrics.includes('pending')
@@ -54,7 +60,7 @@ const option = computed(() => {
     animation: false, textStyle: { fontFamily: token.value.fontFamily, fontSize: 12, color: token.value.colorTextSecondary },
     grid: { top: 8, right: 46, bottom: 48, left: 8, containLabel: true },
     legend: { bottom: 0, left: 0, right: 0, icon: 'rect', itemWidth: 14, itemHeight: 2, itemGap: 10, data: [...deviceObservationMetrics], formatter: label, selected: Object.fromEntries(deviceObservationMetrics.map(metric => [metric, props.metrics.includes(metric)])), textStyle: { color: token.value.colorTextSecondary, fontSize: 12 } },
-    tooltip: { trigger: 'axis', renderMode: 'html', formatter: tooltip, appendTo: 'body', confine: true, enterable: false, extraCssText: 'max-width:calc(100% - 16px);white-space:normal;pointer-events:none;' },
+    tooltip: { trigger: 'axis', renderMode: 'html', formatter: tooltip, appendTo: 'body', confine: true, enterable: false, padding: 8, extraCssText: 'max-width:calc(100% - 16px);white-space:normal;pointer-events:none;' },
     xAxis: { type: 'time', show: hasPoint.value, min: props.range?.from ?? points.value[0]?.sampledAt, max: props.range?.to ?? (points.value.at(-1)?.sampledAt ?? 0) + 1000, splitNumber: 3, axisPointer: { snap: false }, axisLabel: { formatter: '{HH}:{mm}:{ss}', hideOverlap: true, color: token.value.colorTextSecondary }, axisLine: { lineStyle: { color: token.value.colorBorder } }, axisTick: { show: false }, splitLine: { show: false } },
     // 流量、消息速率与当前数量分别缩放，三个单位不共享数值轴；隐藏指标时显式清除轴位残留。
     yAxis: [flow, messages, pending].map((selected, index) => ({ id: `axis-${index}`, type: 'value', show: hasPoint.value && selected, min: 0, name: '', position: index === 0 ? 'left' : 'right', offset: index === 2 ? 44 : 0, splitNumber: 3, minInterval: index === 2 ? 1 : undefined,

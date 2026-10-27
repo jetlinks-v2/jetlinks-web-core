@@ -129,7 +129,7 @@ watch(() => props.active, active => { if (!active) expanded.value = {} })
 .device-observation-metrics .is-warning dd,.device-observation-status.is-warning { color:var(--ant-color-warning,#d48806); }
 .device-observation-card-main > .device-observation-chart { flex:1; height:auto; min-height:160px; }
 .device-observation-status { color:var(--ink-2); font-size:var(--fs-caption,12px); }
-.device-observation-details { width:min(640px,calc(100vw - 56px)); max-height:min(60vh,520px); overflow:auto; min-width:0; }
+.device-observation-details { width:min(480px,calc(100vw - 56px)); max-height:min(50vh,440px); overflow:auto; overscroll-behavior:contain; min-width:0; }
 @media(max-width:600px) { .device-observation-toolbar { flex-wrap:wrap; gap:6px; }.device-observation-add { flex:1 1 100%; }.device-observation-controls { margin-left:auto; } }
 @container(max-width:420px) { .device-observation-card-main { height:360px; }.device-observation-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }.device-observation-connection { grid-template-columns:minmax(0,1fr) auto; }.device-observation-address { grid-row:2;grid-column:1; }.device-observation-connection-time { grid-row:1;grid-column:2; } }
 </style>

@@ -219,7 +219,7 @@ test('production results retain long IDs, label current nodes first and expand m
 test('expanded connection details show every connection across service nodes without nested toggles', async () => {
   const now = Date.now(), connection = (id, address, age, readBytes) => ({ id, address, metrics: { connectTime: now - age, lastCommTime: now - 1000, readBytes, writeBytes: 0, totalMessages: 4, droppedMessages: 0 } })
   const h = harness({ detailsOnly: true, expandConnections: true, resultDeviceId: 'device', sessions: [
-    { serverId: 'iot:8200', address: '/first', connections: [connection('a', '/first', 30000, 1024), connection('b', '/second', 20000, 2048)] },
+    { deviceId: 'not-repeated-in-popover', serverId: 'iot:8200', address: '/first', connections: [connection('internal-connection-id', '/first', 30000, 1024), connection('b', '/second', 20000, 2048)] },
     { serverId: 'network:8300', connections: [connection('c', '/third', 10000, 4096)] },
     { serverId: 'iot:8200', connections: [connection('d', '/fourth', 5000, 512)] },
   ] })
@@ -227,6 +227,9 @@ test('expanded connection details show every connection across service nodes wit
     assert.equal(h.nodes(node => hasClass(node, 'device-session-connections-toggle')).length, 0)
     const groups = h.nodes(node => hasClass(node, 'device-session-group'))
     assert.equal(groups.length, 2)
+    assert.ok(!h.content().includes('not-repeated-in-popover'))
+    assert.ok(!h.content().includes('internal-connection-id'))
+    assert.ok(h.nodes(node => node.props?.title?.includes('internal-connection-id')).length > 0, 'connection identity remains available on hover')
     assert.equal(h.nodes(node => node.props?.class === 'device-session-facts').length, 0, 'the compact list does not repeat session summaries')
     for (const [index, addresses] of [[0, ['/first', '/second', '/fourth']], [1, ['/third']]]) {
       assert.ok(addresses.every(address => text(groups[index]).includes(address)))

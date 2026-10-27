@@ -101,7 +101,7 @@
   "runtimeDiagnostics.deviceSessions.waitingTrend": "正在积累样本；速率需要两次完整采样",
   "runtimeDiagnostics.deviceSessions.trendPaused": "已暂停，保留已有观测记录",
   "runtimeDiagnostics.deviceSessions.trendNoSessions": "暂未查询到会话，等待下次采样",
-  "runtimeDiagnostics.deviceSessions.trendInfo": "近 10 分钟本页采样。接收与发送为本节点连接视角，消息吞吐包含协议消息，不等同属性上报条数；重连与缺测处断开显示。",
+  "runtimeDiagnostics.deviceSessions.trendInfo": "近 10 分钟本页采样。收发速率与消息吞吐汇总该设备在所有节点的连接，消息包含协议通信，不等同属性上报条数；重连与缺测处断开显示。",
   "runtimeDiagnostics.deviceSessions.metricsUnavailable": "当前指标暂无完整数据",
   "runtimeDiagnostics.deviceSessions.observationInitial": "添加设备，对比通信趋势与待处理消息；支持同时观测 5 个设备",
   "runtimeDiagnostics.deviceSessions.waitingCapability": "正在确认设备连接能力",

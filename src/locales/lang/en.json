@@ -101,7 +101,7 @@
   "runtimeDiagnostics.deviceSessions.waitingTrend": "Collecting samples; rates need two complete samples",
   "runtimeDiagnostics.deviceSessions.trendPaused": "Paused; previous observations retained",
   "runtimeDiagnostics.deviceSessions.trendNoSessions": "No sessions found yet; waiting for the next sample",
-  "runtimeDiagnostics.deviceSessions.trendInfo": "Samples collected on this page over the last 10 minutes. Receive/send use the server connection perspective. Message rate includes protocol traffic, not just property reports. Reconnects and missing samples create gaps.",
+  "runtimeDiagnostics.deviceSessions.trendInfo": "Samples collected on this page over the last 10 minutes. Receive/send and message rates sum this device’s connections across all nodes. Messages include protocol traffic, not just property reports. Reconnects and missing samples create gaps.",
   "runtimeDiagnostics.deviceSessions.metricsUnavailable": "Complete data unavailable for this metric",
   "runtimeDiagnostics.deviceSessions.observationInitial": "Add devices to compare communication and pending messages; observe up to 5 devices",
   "runtimeDiagnostics.deviceSessions.waitingCapability": "Checking device connection availability",

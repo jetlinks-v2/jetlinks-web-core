@@ -40,6 +40,19 @@ test('rates subtract exact per-connection counters before aggregation and preser
   assert.equal(model.deviceObservationPoints([first, next])[1].pending, 3)
   assert.equal(model.deviceObservationPoints([first])[0].receive, undefined)
 })
+test('device message throughput sums every connection across nodes rather than one connection or the maximum', () => {
+  const sessions = counts => [
+    { deviceId: 'device', serverId: 'node-a', connectTime: 1000, pendingMessages: 0, connections: counts.slice(0, 2).map((totalMessages, index) => ({ id: `connection-${index}`, address: `/a:${index}`, metrics: { connectTime: 1000, totalMessages } })) },
+    { deviceId: 'device', serverId: 'node-b', connectTime: 1000, pendingMessages: 0, connections: [{ id: 'connection-2', address: '/b:2', metrics: { connectTime: 1000, totalMessages: counts[2] } }] },
+  ]
+  const first = model.deviceObservationSample(sessions(['9007199254740993', '100', '200']), 10000)
+  const nextSessions = sessions(['9007199254740995', '106', '212']).reverse()
+  nextSessions[1].connections.reverse()
+  const next = model.deviceObservationSample(nextSessions, 12000)
+  assert.equal(model.deviceObservationPoints([first, next])[1].messages, 10, '(2 + 6 + 12) messages / 2 seconds')
+  nextSessions[0].connections[0].metrics.totalMessages = undefined
+  assert.equal(model.deviceObservationPoints([first, model.deviceObservationSample(nextSessions, 12000)])[1].messages, undefined, 'a partial connection total cannot be presented as a device total')
+})
 test('missing counters, rollback, reconnect and ambiguous duplicate connections create gaps instead of false totals', () => {
   const first = model.deviceObservationSample(row('100'), 10000)
   const rollback = model.deviceObservationSample(row('50'), 15000)
@@ -66,14 +79,14 @@ test('pauses and errors interrupt rate baselines and histories are bounded to te
   assert.equal(history.length, 1)
 })
 
-function chart(entry, metrics = [...model.deviceObservationMetrics], range) {
+function chart(entry, metrics = [...model.deviceObservationMetrics], range, translate = key => key) {
   const source = readFileSync(resolve(root, 'device-sessions/DeviceObservationChart.vue'), 'utf8')
   let script = source.match(/<script setup lang="ts">([\s\S]*?)<\/script>/)[1]
     .replace(/const props = defineProps<[^>]+>\(\)/, 'const props = __props')
     .replace(/const emit = defineEmits<\{[\s\S]*?\}>\(\)/, 'const emit = __emit')
   script += '\nmodule.exports = { option, hasPoint, chartEvents }'
   const module = { exports: {} }, props = vue.reactive({ entry, metrics, range }), events = []
-  new Function('require', 'module', 'exports', '__props', '__emit', transformSync(script, { loader: 'ts', format: 'cjs' }).code)(id => id === 'vue' ? vue : id === 'vue-i18n' ? { useI18n: () => ({ t: key => key, locale: vue.ref('en') }) } : id === 'ant-design-vue' ? { theme: { useToken: () => ({ token: vue.ref({ fontFamily: 'sans-serif', colorTextSecondary: 'gray', colorBorder: 'silver', colorSplit: 'silver' }) }) } } : id === './observation' ? model : id === 'lodash-es' ? { escape } : {}, module, module.exports, props, (...args) => events.push(args))
+  new Function('require', 'module', 'exports', '__props', '__emit', transformSync(script, { loader: 'ts', format: 'cjs' }).code)(id => id === 'vue' ? vue : id === 'vue-i18n' ? { useI18n: () => ({ t: translate, locale: vue.ref('en') }) } : id === 'ant-design-vue' ? { theme: { useToken: () => ({ token: vue.ref({ fontFamily: 'sans-serif', colorText: 'black', colorTextSecondary: 'gray', colorBorder: 'silver', colorSplit: 'silver' }) }) } } : id === './observation' ? model : id === 'lodash-es' ? { escape } : {}, module, module.exports, props, (...args) => events.push(args))
   return { ...module.exports, props, events }
 }
 const entry = history => ({ id: 'device', label: 'Device', history, sessions: [], state: { status: 'ready' } })
@@ -92,12 +105,13 @@ test('all four series use the correct unit axes, exact samples and stable metric
   assert.deepEqual(view.option.value.yAxis.map(axis => axis.show), [false, false, true])
   view.props.metrics = []; assert.equal(view.hasPoint.value, false)
 })
-test('tooltip keeps all four metrics and escaped identity while respecting frame gaps and actual sample time', () => {
+test('tooltip omits repeated device identity and keeps escaped metrics, frame gaps and actual sample time', () => {
   const history = [model.deviceObservationSample(row('100'), 10000), model.deviceObservationSample(row('200'), 15000), { sampledAt: 20000 }, { sampledAt: 25000 }]
-  const view = chart({ ...entry(history), label: '<img src=x>' }), tooltip = view.option.value.tooltip.formatter
+  const view = chart({ ...entry(history), id: '2056924084996218880', label: 'Device identity' }, undefined, undefined, key => `<img src=x>${key}`), tooltip = view.option.value.tooltip.formatter
   const html = tooltip([{ axisValue: 15050, value: [15000, 20] }])
   for (const metric of model.deviceObservationMetrics) assert.ok(html.includes('metric.' + metric))
   assert.ok(html.includes('20 B/s')); assert.ok(html.includes('0 B/s')); assert.ok(html.includes('&lt;img src=x&gt;')); assert.ok(!html.includes('<img'))
+  assert.ok(!html.includes('Device identity')); assert.ok(!html.includes('2056924084996218880'))
   assert.equal((tooltip([{ axisValue: 20000 }]).match(/—/g) ?? []).length, 4)
   assert.equal((tooltip([{ axisValue: 50000 }]).match(/—/g) ?? []).length, 4)
   view.props.metrics = ['pending']; assert.ok(tooltip([{ axisValue: 15000 }]).includes('20 B/s'), 'legend only changes curves')
