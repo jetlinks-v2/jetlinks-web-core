@@ -1,3 +1,4 @@
+import { onScopeDispose, watch } from 'vue'
 import { componentsRegistry } from '@jetlinks-web-core/utils/components-registry'
 import {
   changeAllStatus,
@@ -52,9 +53,15 @@ export interface NoticeProviderMetadata {
 /** 接收数据源独立于发送通道配置，普通通知继续使用原收件箱接口。 */
 export interface NoticeDataSource {
   query: (params: Record<string, any>) => Promise<any>
+  queryNoPaging?: (params: Record<string, any>) => Promise<any>
+  count?: (params: Record<string, any>) => Promise<any>
   unreadCount: (params: Record<string, any>) => Promise<any>
   changeState: (state: '_read' | '_unread', ids: string[]) => Promise<any>
   readAll: () => Promise<any>
+  /** 详情确认按钮触发已读，关闭或取消不确认。 */
+  confirmOnDetail?: boolean
+  subscribe?: (listener: () => void) => () => void
+  subscribeRealtime?: (listener: (payload: Record<string, any>) => void) => () => void
 }
 
 const getProviderRegistration = (provider: string) => componentsRegistry
@@ -67,6 +74,38 @@ export const getNoticeDataSource = (providers: readonly string[]): NoticeDataSou
   return source && unique.every(provider => getProviderRegistration(provider)?.props?.dataSource === source)
     ? source
     : undefined
+}
+
+/** 订阅业务接收源变更；分类切换和组件销毁时释放旧监听。 */
+export const useNoticeDataSourceChanges = (
+  providers: () => readonly string[],
+  listener: () => void,
+) => {
+  const stop = watch(
+    () => [...new Set(providers().map(provider => getNoticeDataSource([provider])).filter(Boolean))],
+    (sources, _previous, onCleanup) => {
+      const unsubscribes = sources.map(source => source!.subscribe?.(listener))
+      onCleanup(() => unsubscribes.forEach(unsubscribe => unsubscribe?.()))
+    },
+    { immediate: true },
+  )
+  onScopeDispose(stop)
+}
+
+/** 顶栏订阅各业务实时源；分类变化和卸载释放对应连接，普通通知仍用原路径。 */
+export const useNoticeDataSourceRealtime = (
+  providers: () => readonly string[],
+  listener: (payload: Record<string, any>) => void,
+) => {
+  const stop = watch(
+    () => [...new Set(providers().map(provider => getNoticeDataSource([provider])).filter(Boolean))],
+    (sources, _previous, onCleanup) => {
+      const unsubscribes = sources.map(source => source!.subscribeRealtime?.(listener))
+      onCleanup(() => unsubscribes.forEach(unsubscribe => unsubscribe?.()))
+    },
+    { immediate: true },
+  )
+  onScopeDispose(stop)
 }
 
 /** 只合并接收入口的分类；订阅设置仍从真实通道读取。 */

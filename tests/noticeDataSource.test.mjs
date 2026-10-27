@@ -2,11 +2,12 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { transformSync } from 'esbuild'
+import * as vue from 'vue'
 
 const source = readFileSync(new URL('../src/layout/components/noticeListHandler.ts', import.meta.url), 'utf8')
 const load = (registrations, api = {}) => {
   const module = { exports: {} }
-  const dependency = (name) => name.endsWith('components-registry')
+  const dependency = (name) => name === 'vue' ? vue : name.endsWith('components-registry')
     ? { componentsRegistry: { getRegistry: () => registrations } }
     : api
   new Function('require', 'module', 'exports', transformSync(source, { loader: 'ts', format: 'cjs' }).code)(dependency, module, module.exports)
@@ -97,4 +98,71 @@ test('reception classification survives a channel failure while subscription set
   await assert.rejects(getAllNotice(), /channel denied/)
   const ordinaryOnly = loadCenter(get, () => [])
   await assert.rejects(ordinaryOnly.getReceivedNoticeProviders(), /channel denied/)
+})
+
+
+test('source changes refresh all subscribers and category switches release listeners', async () => {
+  const listeners = new Set()
+  let subscriptions = 0
+  let releases = 0
+  const source = { subscribe(listener) {
+    subscriptions++
+    listeners.add(listener)
+    return () => { releases++; listeners.delete(listener) }
+  } }
+  const { useNoticeDataSourceChanges } = load([provider(source)])
+  const providers = vue.ref(['business', 'business'])
+  let refreshes = 0
+  const scope = vue.effectScope()
+  scope.run(() => useNoticeDataSourceChanges(() => providers.value, () => refreshes++))
+  assert.equal(subscriptions, 1)
+  listeners.forEach(listener => listener())
+  assert.equal(refreshes, 1)
+  providers.value = ['alarm']
+  await vue.nextTick()
+  assert.equal(releases, 1)
+  assert.equal(listeners.size, 0)
+  providers.value = ['business']
+  await vue.nextTick()
+  listeners.forEach(listener => listener())
+  assert.equal(refreshes, 2)
+  scope.stop()
+  assert.equal(releases, 2)
+  assert.equal(listeners.size, 0)
+})
+
+test('a shared source signals every mounted entry and disposing one retains the other', () => {
+  const listeners = new Set()
+  const source = { subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener) } }
+  const { useNoticeDataSourceChanges } = load([provider(source)])
+  let header = 0, center = 0
+  const headerScope = vue.effectScope(), centerScope = vue.effectScope()
+  headerScope.run(() => useNoticeDataSourceChanges(() => ['business'], () => header++))
+  centerScope.run(() => useNoticeDataSourceChanges(() => ['business'], () => center++))
+  listeners.forEach(listener => listener())
+  assert.deepEqual([header, center], [1, 1])
+  headerScope.stop()
+  listeners.forEach(listener => listener())
+  assert.deepEqual([header, center], [1, 2])
+  centerScope.stop()
+  assert.equal(listeners.size, 0)
+})
+
+test('realtime source binds once per category and releases when the header unmounts', async () => {
+  const calls = []
+  let receive
+  const source = { subscribeRealtime(listener) { calls.push('sub'); receive = listener; return () => calls.push('unsub') } }
+  const { useNoticeDataSourceRealtime } = load([provider(source)])
+  const providers = vue.ref(['business', 'business'])
+  const scope = vue.effectScope()
+  scope.run(() => useNoticeDataSourceRealtime(() => providers.value, payload => calls.push(payload.id)))
+  receive({ id: 'batch' })
+  assert.deepEqual(calls, ['sub', 'batch'])
+  providers.value = ['alarm']
+  await vue.nextTick()
+  assert.deepEqual(calls, ['sub', 'batch', 'unsub'])
+  providers.value = ['business']
+  await vue.nextTick()
+  scope.stop()
+  assert.deepEqual(calls, ['sub', 'batch', 'unsub', 'sub', 'unsub'])
 })

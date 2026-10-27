@@ -35,7 +35,7 @@ import {
     toBadgeCount,
 } from './noticeUtils';
 import { handleRegisteredRealtimeNotice, type NoticeTipOptions } from './noticeRealtimeHandler';
-import { changeNoticeReadState, queryNoticeUnreadSummary } from './noticeListHandler';
+import { changeNoticeReadState, queryNoticeUnreadSummary, useNoticeDataSourceChanges, useNoticeDataSourceRealtime } from './noticeListHandler';
 
 type NoticePlacement = 'top' | 'bottom' | 'topLeft' | 'topRight' | 'topCenter'
   | 'bottomLeft' | 'bottomRight' | 'bottomCenter'
@@ -64,6 +64,8 @@ const menuStory = useMenuStore();
 const visible = ref(false)
 const total = ref(0)
 const loading = ref(false)
+let countRequestId = 0
+let providerRequestId = 0
 const noticeRef = ref<HTMLElement | null>(null)
 const noticeInfoRef = ref<{ refresh: () => void } | null>(null)
 const appContext = getCurrentInstance()?.appContext
@@ -73,18 +75,24 @@ const resolvePopupContainer = (triggerNode: HTMLElement) => {
 }
 
 const getList = () => {
+    const currentRequestId = ++countRequestId;
     const topicProviders = flatten(tabs.value.map((i: any) => i?.type)).filter(Boolean);
     if (topicProviders.length <= 0) {
         total.value = 0;
+        loading.value = false;
         return;
     }
     loading.value = true;
     const params = createUnreadQueryParams(topicProviders, BADGE_OVERFLOW_COUNT);
     queryNoticeUnreadSummary(topicProviders, params)
         .then((resp: any) => {
-            total.value = toBadgeCount(resp.result?.total);
+            if (currentRequestId === countRequestId) {
+                total.value = toBadgeCount(resp.result?.total);
+            }
         })
-        .finally(() => (loading.value = false));
+        .finally(() => {
+            if (currentRequestId === countRequestId) loading.value = false;
+        });
 };
 
 const markNotificationRead = async (payload: Record<string, any>) => {
@@ -112,20 +120,21 @@ const showNoticeTip = (
     });
 };
 
-const { send } = useWebSocket({
-  async onMessage(data) {
-    if (!data?.payload?.id) return;
-    const handled = await handleRegisteredRealtimeNotice(data.payload, {
-      markRead: () => markNotificationRead(data.payload),
+/** 独立数据源和普通通知共用现有展示分派，不在顶栏判断具体业务 Topic。 */
+const handleRealtimePayload = async (payload: Record<string, any>) => {
+    if (!payload?.id) return;
+    const handled = await handleRegisteredRealtimeNotice(payload, {
+      markRead: () => markNotificationRead(payload),
       refresh: getList,
       appContext,
       source: 'realtime',
-      showTip: (options: NoticeTipOptions) => showNoticeTip(data.payload, options),
+      showTip: (options: NoticeTipOptions) => showNoticeTip(payload, options),
     });
     // WebSocket 只触发刷新，角标始终以后端未读统计为准。
     getList();
     noticeInfoRef.value?.refresh();
     if (handled) return;
+    const data = { payload };
     notification.open({
                 message: data?.payload?.topicName,
                 description: () =>
@@ -165,8 +174,9 @@ const { send } = useWebSocket({
                     }
                   ),
     });
-  }
-})
+};
+
+const { send } = useWebSocket({ onMessage: data => handleRealtimePayload(data?.payload) });
 
 const read = (type: string, data: any) => {
     const id = data?.payload?.id;
@@ -197,7 +207,10 @@ const handleRead = () => {
 const tabs = ref<NoticeTabItem[]>([]);
 
 const queryTypeList = async () => {
+    const currentRequestId = ++providerRequestId;
+    countRequestId++;
     const resp: any = await getReceivedNoticeProviders();
+    if (currentRequestId !== providerRequestId) return;
     if (resp.status === 200) {
       const typeMap = new Map<string, NoticeTabItem>()
         resp.result.forEach((i: any) => {
@@ -217,11 +230,17 @@ const queryTypeList = async () => {
         tabs.value = [...typeMap.values()]
         if (tabs.value.length > 0) {
             send('notification', '/notifications', {});
-            getList();
         }
+        getList();
     }
 };
 
+useNoticeDataSourceChanges(() => tabs.value.flatMap(tab => tab.type), () => {
+    getList();
+    noticeInfoRef.value?.refresh();
+});
+useNoticeDataSourceRealtime(() => tabs.value.flatMap(tab => tab.type), handleRealtimePayload);
+watch(() => useUserStore().userInfo?.id, queryTypeList);
 watch(updateCount, () => getList());
 watch(visible, (opened) => {
     // 打开铃铛时再次向后端校准，避免浏览器保留过期角标。
