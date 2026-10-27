@@ -1,5 +1,27 @@
 export type CardValue = string | number
 
+/** 默认等宽排列；split 将显式指定的主操作放在右侧。 */
+export type CardBoxActionLayout = 'equal' | 'split'
+export type CardBoxActionKey = string | number
+export type CardBoxActionButtonType = 'link' | 'text' | 'primary'
+
+/** 保留既有 action 插槽的扩展字段，展示值仍由 handleFuncValue 解析。 */
+export interface CardBoxAction {
+  key: CardBoxActionKey
+  [name: string]: unknown
+  popConfirm?: {
+    title?: unknown
+    onConfirm?: (value: Record<string, unknown>, event: MouseEvent) => unknown
+  }
+  tooltip?: { title?: unknown; [name: string]: unknown }
+  onClick?: (value: Record<string, unknown>, event: MouseEvent) => unknown
+}
+
+export interface CardBoxActionSlotScope extends CardBoxAction {
+  isPrimary: boolean
+  buttonType: CardBoxActionButtonType
+}
+
 /** 公开卡片使用的语义色，不接受业务侧直接传入色值。 */
 export type CardTone = 'default' | 'info' | 'success' | 'warning' | 'error'
 

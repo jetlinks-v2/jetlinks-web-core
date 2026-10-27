@@ -1,37 +1,47 @@
 <template>
   <div
+    ref="layoutRef"
     v-bind="rootAttrs"
     class="equal-height-columns"
     :class="[attrs.class, {
+      'equal-height-columns--collapsible': showLeft && collapsible,
       'equal-height-columns--collapsed': isCollapsed,
       'equal-height-columns--single': !showLeft,
     }]"
     :style="[attrs.style, rootStyle]"
   >
-    <div v-if="showLeft" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
+    <div v-if="showLeft" ref="leftPaneRef" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
       <slot name="left" />
     </div>
     <div class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
       <slot name="right" />
     </div>
-    <a-button
+    <div v-if="showLeft && collapsible" ref="anchorRef" class="equal-height-columns__toggle-anchor" />
+    <Teleport
       v-if="showLeft && collapsible"
-      class="equal-height-columns__toggle"
-      :title="toggleText"
-      :aria-label="toggleText"
-      :aria-expanded="!isCollapsed"
-      @click="toggleCollapse"
+      :to="toggleHost || 'body'"
+      :disabled="!toggleHost"
     >
-      <DoubleRightOutlined v-if="isCollapsed" />
-      <DoubleLeftOutlined v-else />
-    </a-button>
+      <div ref="layerRef" class="equal-height-columns__toggle-layer" :style="togglePosition">
+        <a-button
+          class="equal-height-columns__toggle"
+          :class="{ 'equal-height-columns__toggle--collapsed': isCollapsed }"
+          :title="toggleText"
+          :aria-label="toggleText"
+          :aria-expanded="!isCollapsed"
+          @click="toggleCollapse"
+        >
+          <AIcon :type="isCollapsed ? 'RightOutlined' : 'LeftOutlined'" />
+        </a-button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts" name="EqualHeightColumns">
-import type { CSSProperties } from 'vue'
+import { computed, ref, useAttrs, type CSSProperties } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { DoubleLeftOutlined, DoubleRightOutlined } from '@ant-design/icons-vue'
+import { useColumnToggle } from './useColumnToggle'
 
 type SizeValue = number | string
 
@@ -41,6 +51,7 @@ defineOptions({
 
 const attrs = useAttrs()
 const { t: $t } = useI18n()
+const { layoutRef, leftPaneRef, anchorRef, layerRef, toggleHost, togglePosition } = useColumnToggle()
 
 const props = withDefaults(
   defineProps<{
@@ -80,7 +91,7 @@ const toggleText = computed(() => (
 /**
  * 切换左列展开状态。
  *
- * 收起后左列轨道与列间距一起归零，按钮由左列右边缘回落到容器左边缘；展开时恢复传入的 leftWidth / gap。
+ * 收起后左列轨道与列间距一起归零，按钮贴齐外层面板（无面板时为容器）左边缘。
  */
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
@@ -122,6 +133,11 @@ const rightStyle = paneStyle
 </script>
 
 <style scoped>
+.equal-height-columns,
+.equal-height-columns__toggle-layer {
+  --equal-height-columns-toggle-height: 2rem;
+}
+
 .equal-height-columns {
   --equal-height-columns-transition: 0.2s cubic-bezier(0.23, 1, 0.32, 1);
   position: relative;
@@ -144,8 +160,13 @@ const rightStyle = paneStyle
   justify-self: center;
   align-self: stretch;
   width: var(--jet-theme-stroke-width);
-  background: #eceff3;
+  background: var(--line-strong);
   pointer-events: none;
+}
+
+/* 展开按钮朝向右列的一侧敞开，分割线在按钮高度内留出缺口。 */
+.equal-height-columns--collapsible:not(.equal-height-columns--collapsed)::before {
+  clip-path: inset(var(--equal-height-columns-toggle-height) 0 0);
 }
 
 /* 左列收起后两栏贴合，中缝已无意义，分割线随之消失。 */
@@ -184,15 +205,30 @@ const rightStyle = paneStyle
   grid-area: 1 / 1 / 2 / 2;
 }
 
-.equal-height-columns__toggle {
-  --equal-height-columns-toggle-width: 1.375rem;
-  --equal-height-columns-toggle-height: 1.5rem;
-  /* 绝对定位参照间距轨道，left: 50% 直接跟随中缝，无需观察尺寸后二次过渡。 */
+.equal-height-columns__toggle-anchor {
+  grid-area: 1 / 2 / 2 / 3;
+  align-self: start;
+  height: 0;
+  pointer-events: none;
+}
+
+/* 挂载到面板后使用实测坐标；没有面板时仍由间距轨道承载。 */
+.equal-height-columns__toggle-layer {
   position: absolute;
   grid-area: 1 / 2 / 2 / 3;
-  top: 50%;
+  top: 0;
   left: 50%;
   z-index: 5;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.equal-height-columns__toggle {
+  --equal-height-columns-toggle-width: 0.8rem;
+  position: absolute;
+  top: calc(var(--equal-height-columns-toggle-height) / 2);
+  left: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -203,9 +239,10 @@ const rightStyle = paneStyle
   color: var(--ink-2);
   border: var(--jet-theme-stroke-width) solid var(--line-strong);
   /* 右侧贴合左列边缘，贴住的一侧不留圆角，视觉上像挂在面板边上 */
-  border-radius: var(--r-3) 0 0 var(--r-3);
+  border-radius: var(--r-1) 0 0 var(--r-1);
   box-shadow: var(--shadow-1);
   cursor: pointer;
+  pointer-events: auto;
   transition:
     transform var(--equal-height-columns-transition),
     color var(--motion-duration-fast) var(--motion-ease-standard),
@@ -213,9 +250,9 @@ const rightStyle = paneStyle
 }
 
 /* 分割线位于列间距中点；让按钮右边缘与它重合，避免在左栏边缘留下空隙。 */
-.equal-height-columns:not(.equal-height-columns--collapsed) .equal-height-columns__toggle {
+.equal-height-columns__toggle:not(.equal-height-columns__toggle--collapsed) {
   transform: translate(-100%, -50%);
-	border-right: none;
+  border-right: none;
 }
 
 .equal-height-columns__toggle:hover {
@@ -224,13 +261,12 @@ const rightStyle = paneStyle
 }
 
 /*
- * 收起后按钮贴容器左边缘，改为左侧不留圆角。
- * 位移量与列宽收缩使用同一时长和缓动，两者叠加后按钮从「左列右边缘」连续滑到「容器左边缘」，不会跳变。
+ * 收起后抵消组件与面板之间的留白，无面板时偏移量为零；沿用与轨道相同的过渡。
  */
-.equal-height-columns--collapsed .equal-height-columns__toggle {
-  border-radius: 0 var(--r-3) var(--r-3) 0;
-  transform: translateY(-50%);
-	border-left: none;
+.equal-height-columns__toggle--collapsed {
+  border-radius: 0 var(--r-1) var(--r-1) 0;
+  transform: translate(calc(0px - var(--equal-height-columns-edge-offset, 0px)), -50%);
+  border-left: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

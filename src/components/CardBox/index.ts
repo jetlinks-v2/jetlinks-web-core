@@ -16,6 +16,11 @@ export {
 }
 
 export type {
+  CardBoxAction,
+  CardBoxActionButtonType,
+  CardBoxActionKey,
+  CardBoxActionLayout,
+  CardBoxActionSlotScope,
   CardAvatarData,
   CardMetaItem,
   CardStatisticData,

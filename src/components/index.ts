@@ -13,6 +13,7 @@ import AMapComponent from './AMapComponent/AMap.vue'
 import PathSimplifier from './AMapComponent/PathSimplifier.vue'
 import { FullPage } from '@jetlinks-web-core/layout'
 import ProUpload from './Upload/index.vue'
+import FileUpload from './Upload/File/index.vue'
 import Player from './Player/index.vue'
 import BatchDropdown from './BatchDropdown/index.vue'
 import ConfirmModal from './ConfirmModal/index.vue'
@@ -187,6 +188,7 @@ export default {
 }
 
 export {
+    FileUpload,
     AssetOwnershipCondition,
     CardBox,
     CardStatistic,
@@ -235,6 +237,11 @@ export type { SegmentPanelOption, SegmentPanelValue } from './SegmentPanel'
 export type { SlantedTabKey, SlantedTabOption, SlantedTabsState } from './SlantedTabs'
 export type { SwitchGroupOption, SwitchGroupValue } from './SwitchGroup'
 export type {
+    CardBoxAction,
+    CardBoxActionButtonType,
+    CardBoxActionKey,
+    CardBoxActionLayout,
+    CardBoxActionSlotScope,
     CardAvatarData,
     CardMetaItem,
     CardStatisticData,
