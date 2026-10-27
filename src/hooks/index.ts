@@ -13,3 +13,6 @@ export * from './useUiTicker';
 export * from './useElementFlight';
 export * from './useCaptchaVerify';
 export * from './useEmptyCreateState';
+export { useDiagnosticQuery } from './useDiagnosticQuery'
+export { useRetainedScroll } from './useRetainedScroll'
+export type { DiagnosticQueryOptions } from './useDiagnosticQuery'

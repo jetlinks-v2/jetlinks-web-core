@@ -218,6 +218,12 @@ export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlac
 export { I18nTextField, I18nTextDialog, I18nInputTrigger } from './I18n'
 export type { I18nMessages, I18nTextMessages, I18nTextFieldProps, I18nTextDialogProps } from './I18n'
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
+export { RuntimeMetricsPanel, RuntimeMBeanOverview, ThreadViewer, JvmDiagnosticPanel, FlameGraphViewer, MBeanBrowser, TraceViewer, LogViewer, registerMBeanRenderer, createFlameGraphHtml, nanosText, nanosBetween, traceRows } from './RuntimeDiagnostics'
+export { useMBeanRendererContext } from './RuntimeDiagnostics'
+export { SamplingIntervalControl } from './RuntimeDiagnostics'
+export { DeviceSessionViewer } from './RuntimeDiagnostics'
+export type { DeviceSessionInfo, DeviceSessionConnection, DeviceSessionDeviceOption } from './RuntimeDiagnostics'
+export type { MBeanDescriptor, MBeanInvocation, MBeanRenderer, MBeanRendererContext, MBeanInvocationOutcome, MBeanQueryId, MBeanQuerySnapshot } from './RuntimeDiagnostics'
 export type { SvgIconType } from './SvgIcon/icons'
 export { createAssetOwnershipField, toAssetOwnershipFilterTerm } from './AssetOwnershipCondition'
 export type {

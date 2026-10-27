@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/components/RuntimeDiagnostics/**/*.ts", "src/components/RuntimeDiagnostics/**/*.vue", "src/hooks/useDiagnosticQuery.ts", "src/env.d.ts", "src/auto-imports.d.ts"]
+}

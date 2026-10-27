@@ -1,5 +1,6 @@
 ﻿<script setup lang="ts" name="RangePicker">
 import { computed, useAttrs, watch, ref } from 'vue'
+import type { Dayjs } from 'dayjs'
 import { useI18n } from 'vue-i18n'
 import { getDateShortcutOptions, getDateShortcutRange, toDayjsRangeValue, toTimestampRangeValue, type ConditionDateShortcutKey } from './utils'
 
@@ -26,7 +27,8 @@ const emit = defineEmits(['update:value', 'change'])
 const attrs = useAttrs()
 const { t: $t } = useI18n()
 
-const myValue = ref([])
+// 保留控件原有的空/未完成区间；模板仅适配组件声明要求的完整元组类型。
+const myValue = ref<ReturnType<typeof toDayjsRangeValue>>([])
 
 const pickerAttrs = computed(() => {
   const next = {
@@ -60,7 +62,7 @@ const shortcutOptions = computed(() => {
   return getDateShortcutOptions($t)
 })
 
-const change = (dates) => {
+const change = (dates: unknown) => {
   myValue.value = toDayjsRangeValue(dates)
   const timestamps = toTimestampRangeValue(dates)
   emit('update:value', timestamps)
@@ -80,7 +82,7 @@ watch(() => props.value, (val) => {
 <template>
   <div class="dropdown-range-picker">
     <a-range-picker
-      :value="myValue"
+      :value="(myValue as [Dayjs, Dayjs])"
       class="dropdown-range-picker__input"
       v-bind="pickerAttrs"
       @change="change"

@@ -61,7 +61,7 @@ const shortcutOptions = computed(() => {
   return getDateShortcutOptions($t)
 })
 
-const change = (e) => {
+const change = (e: unknown) => {
   myValue.value = toDayjsValue(e)
   const timestamp = toTimestampValue(e)
   emit('update:value', timestamp)

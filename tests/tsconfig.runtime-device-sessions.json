@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/components/RuntimeDiagnostics/DeviceSessionViewer.vue",
+    "../src/components/RuntimeDiagnostics/deviceSessionPresentation.ts",
+    "./RuntimeDeviceSessionPreview.vue",
+    "../src/auto-imports.d.ts",
+    "../src/env.d.ts"
+  ]
+}
