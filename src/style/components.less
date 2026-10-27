@@ -1,6 +1,10 @@
 .ant-modal-content {
-  padding: 0 !important;
   border-radius: var(--jet-theme-radius) !important;
+}
+
+// 确认框保留 Ant Design 留白；where 仅限制范围，不提高原有规则的优先级。
+:where(.ant-modal:not(.ant-modal-confirm)) .ant-modal-content {
+  padding: 0 !important;
   .ant-modal-header {
     padding: var(--space-6) var(--space-6) 0 var(--space-6);
     border-radius: var(--jet-theme-radius) var(--jet-theme-radius) 0 0 !important;
@@ -51,6 +55,17 @@
     border-radius: var(--r-3);
     .ant-tree-switcher-icon {
       color: var(--primary-color) !important;
+    }
+  }
+
+  // 行内裁剪仍保留；把 Ant 内容区的焦点框移到整行内部，避免只露出左右两条边。
+  .ant-tree-treenode-active {
+    border-radius: var(--r-3);
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+
+    .ant-tree-node-content-wrapper {
+      outline: none;
     }
   }
 

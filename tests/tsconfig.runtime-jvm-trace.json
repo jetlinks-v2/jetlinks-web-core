@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/components/RuntimeDiagnostics/ThreadViewer.vue",
+    "../src/components/RuntimeDiagnostics/JvmDiagnosticPanel.vue",
+    "../src/components/RuntimeDiagnostics/FlameGraphViewer.vue",
+    "../src/components/RuntimeDiagnostics/TraceViewer.vue",
+    "../src/components/RuntimeDiagnostics/TraceWaterfall.vue",
+    "../src/components/RuntimeDiagnostics/TraceSpanDetails.vue",
+    "../src/components/RuntimeDiagnostics/flameGraph.ts",
+    "../src/components/RuntimeDiagnostics/flameGraphHtml.ts",
+    "../src/components/RuntimeDiagnostics/tracePresentation.ts"
+  ]
+}

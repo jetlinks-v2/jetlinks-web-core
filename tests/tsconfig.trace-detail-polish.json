@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/components/RuntimeDiagnostics/TraceViewer.vue",
+    "../src/components/RuntimeDiagnostics/TraceWaterfall.vue",
+    "../src/components/RuntimeDiagnostics/TraceSpanDetails.vue",
+    "../src/components/RuntimeDiagnostics/trace/TraceAttributeGroups.vue",
+    "../src/components/RuntimeDiagnostics/tracePresentation.ts",
+    "../../modules/device-manager-ui/views/link/Tracing/TraceInputHelp.vue"
+  ]
+}

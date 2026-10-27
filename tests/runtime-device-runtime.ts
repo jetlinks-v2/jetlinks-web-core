@@ -1,0 +1,12 @@
+import { createApp } from 'vue'
+import Antd from 'ant-design-vue'
+import { createI18n } from 'vue-i18n'
+import coreZh from '../src/locales/lang/zh.json'
+import coreEn from '../src/locales/lang/en.json'
+import hostZh from '../../modules/device-manager-ui/locales/lang/zh.json'
+import hostEn from '../../modules/device-manager-ui/locales/lang/en.json'
+import Preview from '../../modules/device-manager-ui/tests/RuntimeDeviceRuntimePreview.vue'
+import '../src/style.css'
+import '../src/components/RuntimeDiagnostics/style.css'
+import 'ant-design-vue/dist/reset.css'
+createApp(Preview).use(Antd).use(createI18n({ legacy:false, locale:'zh', flatJson:true, messages:{zh:{...coreZh,...hostZh},en:{...coreEn,...hostEn}} })).mount('#app')

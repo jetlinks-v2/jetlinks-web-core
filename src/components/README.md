@@ -63,6 +63,10 @@ import {
 
 ## 场景映射
 
+### 运行诊断
+
+[`RuntimeDiagnostics`](RuntimeDiagnostics/README.md) 提供指标趋势、MBean / Buffer、JVM 诊断、线程、实时火焰图、集群链路与日志组件，以及 `registerMBeanRenderer` 和安全 HTML 导出工具。组件有根入口具名导出，类型及纯数据工具通过目录公开入口导入。宿主注入数据、权限、偏好、传输与导航；MBean 共用对象树，已识别对象自动匹配专用内容，未知对象回退属性表。完整 API 与数据语义见目录说明。
+
 ### 多语言文本输入
 
 `I18nTextField`、`I18nTextDialog`、`I18nInputTrigger` 通过根入口具名导出，不全局注册：
