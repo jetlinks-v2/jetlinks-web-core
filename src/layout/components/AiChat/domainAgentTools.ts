@@ -170,14 +170,17 @@ export interface ResolveDomainAgentTimeRangeOptions {
 export class DomainAgentInputError extends Error {
   readonly code: string
   readonly failureDisposition = 'request' as const
-  readonly recoveryAction = 'repair' as const
-  readonly retryable = true
-  readonly repair = { maxAttempts: 1 }
+  readonly recoveryAction: 'repair' | 'terminal'
+  readonly retryable: boolean
+  readonly repair?: { maxAttempts: number }
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, recoveryAction: 'repair' | 'terminal' = 'repair') {
     super(message)
     this.name = 'DomainAgentInputError'
     this.code = code
+    this.recoveryAction = recoveryAction
+    this.retryable = recoveryAction === 'repair'
+    if (this.retryable) this.repair = { maxAttempts: 1 }
   }
 }
 
@@ -216,7 +219,8 @@ export const createDomainAgentInputError = (
   code: string,
   messageKey: string,
   params?: DomainAgentMessageParams,
-) => new DomainAgentInputError(code, resolveDomainAgentMessage(messageKey, params))
+  recoveryAction: 'repair' | 'terminal' = 'repair',
+) => new DomainAgentInputError(code, resolveDomainAgentMessage(messageKey, params), recoveryAction)
 
 export const createDomainAgentClaim = (
   id: string,
@@ -589,7 +593,7 @@ export const resolveDomainAgentInteger = (
 export const resolveDomainAgentEnum = <T extends string>(
   value: unknown,
   allowed: readonly T[],
-  options: { name: string; defaultValue?: T },
+  options: { name: string; defaultValue?: T; unsupportedValueRecovery?: 'repair' | 'terminal' },
 ): T => {
   const normalized = String(value ?? options.defaultValue ?? '').trim() as T
   if (!allowed.includes(normalized)) {
@@ -597,6 +601,7 @@ export const resolveDomainAgentEnum = <T extends string>(
       'ENUM_UNSUPPORTED',
       'components.AiChat.domainAgent.errors.enumUnsupported',
       { name: options.name, values: allowed.join(', ') },
+      options.unsupportedValueRecovery,
     )
   }
   return normalized
