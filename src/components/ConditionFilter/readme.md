@@ -217,8 +217,10 @@ const fields = [
 
 - `update:modelValue`：输出 `terms`
 - `update:where`：输出 `where`
-- `change`：输出 `{ terms, filter, where }`
+- `change`：输出 `{ terms, filter, where }`。其中 `terms` 与 `filter.terms` 已完成字段映射、值转换及 `like` / `nlike` 的通配符转义，可直接作为接口请求条件；调用方只能追加业务固定条件，不能再次传入 `buildQueryFilter`，否则 `%a%` 会被重复转义为 `%\\%a\\%%`。
 - `search`：兼容旧 `Search` 回调，输出 `{ terms: [{ terms }] }`；用于只替换组件标签并保留既有 `@search` 处理函数
+
+`v-model` 回传的是用于编辑和回显的原始条件；调用方如果绕过 `change` 自行发起查询，应且只应对该原始条件调用一次 `buildQueryFilter`。不要混用两种条件形态。
 
 ### 自动搜索与编辑态
 

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts" name="ConditionFilter">
+<script setup lang="ts" name="ConditionFilter">
 import type { PropType } from 'vue'
 import dayjs from 'dayjs'
 import { isRef } from 'vue'
@@ -118,6 +118,7 @@ const valuePanelOpenVersion = ref(0)
 const columnsMap = reactive<Record<string, ConditionFilterField>>({})
 const optionsMap = reactive<Record<string, any[]>>({})
 const loadingMap = reactive<Record<string, boolean>>({})
+const selectedOptionsLoadingMap = reactive<Record<string, boolean>>({})
 const valueDraftMap = reactive<Record<string, ConditionFilterTerm | undefined>>({})
 const valuePanelKeywordMap = reactive<Record<string, string | undefined>>({})
 const watchDisposers = new Map<string, () => void>()
@@ -1237,6 +1238,10 @@ const syncColumnsContext = () => {
     delete loadingMap[key]
   })
 
+  Object.keys(selectedOptionsLoadingMap).forEach((key) => {
+    delete selectedOptionsLoadingMap[key]
+  })
+
   searchColumns.value.forEach((item) => {
     columnsMap[item.dataIndex] = item
   })
@@ -1268,28 +1273,21 @@ const createOptionsLoader = async (column: ConditionFilterField | undefined, ter
     return
   }
 
-  if (!rawOptions) {
-    return
-  }
-
   if (Array.isArray(rawOptions)) {
     optionsMap[key] = mergeOptionItems(normalizeOptionItems(rawOptions, column))
-    return
-  }
-
-  if (isRef(rawOptions)) {
+  } else if (isRef(rawOptions)) {
     const watchKey = `${key}:ref`
     if (watchDisposers.has(watchKey)) {
-      return
+      // 已为响应式选项建立监听，仍需继续补齐路由中未包含的已选值。
+    } else {
+      const stop = watch(
+        rawOptions,
+        val => (optionsMap[key] = mergeOptionItems(optionsMap[key] || [], normalizeOptionItems(val || [], column))),
+        { immediate: true },
+      )
+
+      watchDisposers.set(watchKey, stop)
     }
-
-    const stop = watch(
-      rawOptions,
-      val => (optionsMap[key] = mergeOptionItems(optionsMap[key] || [], normalizeOptionItems(val || [], column))),
-      { immediate: true },
-    )
-
-    watchDisposers.set(watchKey, stop)
   } else if (typeof rawOptions === 'function' && !loadingMap[key]) {
     loadingMap[key] = true
     try {
@@ -1302,14 +1300,20 @@ const createOptionsLoader = async (column: ConditionFilterField | undefined, ter
   if (loadSelectedOptions && term && hasTermValue(term)) {
     const values = Array.isArray(term.value) ? term.value : [term.value]
 
-    if (hasResolvedOptionValues(column, values)) {
+    if (hasResolvedOptionValues(column, values) || selectedOptionsLoadingMap[key]) {
       return
     }
 
-    const selectedItems = await loadSelectedOptions(values)
+    // 路由只存值，远程选项字段即使没有静态 options 也必须补查名称以渲染筛选 Token。
+    selectedOptionsLoadingMap[key] = true
+    try {
+      const selectedItems = await loadSelectedOptions(values)
 
-    if (Array.isArray(selectedItems) && selectedItems.length) {
-      optionsMap[key] = mergeOptionItems(optionsMap[key] || [], normalizeOptionItems(selectedItems, column))
+      if (Array.isArray(selectedItems) && selectedItems.length) {
+        optionsMap[key] = mergeOptionItems(optionsMap[key] || [], normalizeOptionItems(selectedItems, column))
+      }
+    } finally {
+      selectedOptionsLoadingMap[key] = false
     }
   }
 }
