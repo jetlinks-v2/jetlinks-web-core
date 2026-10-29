@@ -274,6 +274,21 @@ test('stable client-tool facade compiles business facts without inferring resour
   assert.equal(result.outputBindings[0].path, '$.__clientToolOutputs.output0')
 })
 
+test('read result reuse is opt-in and survives session definition serialization', () => {
+  for (const cacheableWithinTurn of [undefined, false, true]) {
+    const tool = defineClientTool({
+      id: 'cacheable_read',
+      description: { text: 'Read fixed query results', capabilities: ['anonymous.fixed-query'] },
+      effect: { kind: 'READ', cacheableWithinTurn },
+      output: clientToolOutput.detail({ name: 'fixed-query', shape: 'anonymous.fixed-query' }),
+      execute: () => clientToolResult.success({}),
+    })
+    const serialized = toAiClientToolSessionDefinition(tool)
+    assert.equal(serialized.expands?.cacheableWithinTurn, cacheableWithinTurn === true ? true : undefined)
+    assert.equal(serialized.annotations?.readOnlyHint, true)
+  }
+})
+
 test('compile-time preparation owns routing stage without creating a second role or analytical authority', () => {
   const preparation = defineClientTool({
     id: 'anonymous_scope_resolution',
