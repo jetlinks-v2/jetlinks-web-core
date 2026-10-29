@@ -56,3 +56,13 @@
 - 单项说明至少写清：解决的问题、适用/不适用场景、实际导入路径、关键参数或返回值、副作用、最小示例和一个生产用法定位。
 - 需要区分根入口、全局注册和深层路径时，明确标注“根入口导出”“全局注册名”或“仅深层路径”。
 - 页面说明只描述终端用户任务、页面入口、关键状态和真实数据来源；不要把临时排查记录或设计草稿放入这里。
+
+## 独立通知接收数据源
+
+业务模块可在 `notification-provider:default` 注册项的 `props` 中提供 `metadata()` 和 `dataSource`。`metadata()` 返回 `{ provider, name, type: { id, name } }`，只参与消息接收分类；订阅设置继续查询真实通道配置。分类内的 Provider 共用一个数据源，独立数据源使用自己的分类标识。
+
+`dataSource` 提供 `query(params)`、`unreadCount(params)`、`changeState('_read' | '_unread', ids)`、`readAll()`，可选 `queryNoPaging(params)` 与 `count(params)`；查询返回兼容通知记录的分页响应，未读数返回 `{ count, overflow }`。个人中心、铃铛已读操作和角标通过 `layout/components/noticeListHandler.ts` 分派；未注册的数据仍使用原通知接口。多分类未读汇总会排除普通收件箱中的已接管 Provider，避免重复统计。已有 `listHandler` 可继续控制铃铛列表顺序，数据源失败不会回退为另一份收件箱数据。
+
+数据源可声明 `confirmOnDetail: true`，让个人中心原有详情确认按钮调用该数据源的 `changeState('_read', [id])`；确认成功才关闭，关闭和取消不确认。未声明时保持原有仅关闭行为。可选 `subscribe(listener): unsubscribe` 将业务模块的状态变化通知接收入口；`useNoticeDataSourceChanges(() => providers, refresh)` 仅通过 `@jetlinks-web-core/layout/components/noticeListHandler` 深层导入，在分类切换或 Vue Scope 释放时取消订阅。core 不保存业务确认数据；存储隔离、跨标签页事件和具体状态语义由注册模块负责。生产消费者为 `NoticeInfo.vue`、个人中心 `NotificationRecord/index.vue` 与各端顶栏实现。
+
+独立数据源可选提供 `subscribeRealtime(listener): unsubscribe`，通过 `useNoticeDataSourceRealtime(() => providers, onPayload)` 深层导入挂接全局通知。业务模块维护具体Topic、订阅共享、身份切换及清理；core复用现有notification-realtime注册器展示消息。实时订阅与本地状态变化订阅相互独立，分类切换和组件销毁释放对应监听；普通通知保留 `/notifications` 原路径。生产消费者为顶栏Notice，公告模块提供独立实现。

@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { getUnreadNoPagingList_api, getUnreadSummary_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { getUnreadNoPagingList_api } from '@jetlinks-web-core/api/account/notificationRecord';
 import { useMenuStore } from '@jetlinks-web-core/store/menu';
 import { useUserStore } from '@jetlinks-web-core/store/user';
 import NoticeItem from './NoticeItem.vue';
@@ -58,7 +58,7 @@ import {
     createUnreadQueryParams,
     type NoticeTabItem,
 } from './noticeUtils';
-import { loadRegisteredNoticeList } from './noticeListHandler';
+import { loadRegisteredNoticeList, queryNoticeUnreadSummary, useNoticeDataSourceChanges } from './noticeListHandler';
 
 const { t: $t, locale } = useI18n();
 const emits = defineEmits(['action']);
@@ -81,6 +81,7 @@ const route = useRoute();
 const type = ref<string[]>([]);
 const userInfo = useUserStore();
 let listRequestId = 0;
+let summaryRequestId = 0;
 
 const defaultNoticeList = (providers: string[]) => {
     const params = createUnreadQueryParams(providers, DROPDOWN_PAGE_SIZE);
@@ -90,12 +91,13 @@ const defaultNoticeList = (providers: string[]) => {
 };
 
 const getData = (providers: string[] = []) => {
+    const currentRequestId = ++listRequestId;
     if (!providers.length) {
         list.value = [];
+        loading.value = false;
         return;
     }
     loading.value = true;
-    const currentRequestId = ++listRequestId;
     loadRegisteredNoticeList(providers, DROPDOWN_PAGE_SIZE)
         .then(result => result ?? defaultNoticeList(providers))
         .then((data) => {
@@ -112,6 +114,7 @@ const getData = (providers: string[] = []) => {
 };
 
 const refreshSummary = () => {
+    const currentRequestId = ++summaryRequestId;
     const providers = props.tabs.reduce<string[]>((result, item) => {
         return result.concat(item.type || []);
     }, []);
@@ -119,8 +122,10 @@ const refreshSummary = () => {
         tabCountMap.value = {};
         return;
     }
-    getUnreadSummary_api(createUnreadQueryParams(providers, BADGE_OVERFLOW_COUNT)).then((resp: any) => {
-        tabCountMap.value = createTabCountMap(props.tabs, resp.result);
+    queryNoticeUnreadSummary(providers, createUnreadQueryParams(providers, BADGE_OVERFLOW_COUNT)).then((resp: any) => {
+        if (currentRequestId === summaryRequestId) {
+            tabCountMap.value = createTabCountMap(props.tabs, resp.result);
+        }
     });
 };
 
@@ -134,8 +139,12 @@ const onChange = (_key: string | number) => {
 
 const onRefresh = () => {
     refreshSummary();
-    getData(type.value.length ? type.value : props.tabs.find((item) => item.key === activeKey.value)?.type || [])
+    type.value = props.tabs.find((item) => item.key === activeKey.value)?.type || [];
+    getData(type.value);
 };
+
+useNoticeDataSourceChanges(() => props.tabs.flatMap(tab => tab.type || []), onRefresh);
+watch(() => userInfo.userInfo?.id, onRefresh);
 
 // 下拉面板常驻，父组件以此入口同步实时通知到达和再次打开时的列表状态。
 defineExpose({

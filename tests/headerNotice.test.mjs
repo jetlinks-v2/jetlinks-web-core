@@ -14,8 +14,8 @@ const stubs = {
   '@jetlinks-web-core/hooks': 'export const useWebSocket=options=>{globalThis.__notice.onMessage=options.onMessage;return {send:(...args)=>globalThis.__notice.subscriptions.push(args)}}',
   '@jetlinks-web-core/store/user': 'export const useUserStore=()=>globalThis.__notice.user',
   '@jetlinks-web-core/store/menu': 'export const useMenuStore=()=>({routerPush:(...args)=>globalThis.__notice.navigations.push(args)})',
-  '@jetlinks-web-core/api/account/center': 'export const getAllNotice=()=>globalThis.__notice.channels()',
-  '@jetlinks-web-core/api/account/notificationRecord': 'export const getUnreadCount_api=params=>globalThis.__notice.count(params),changeStatus_api=(...args)=>globalThis.__notice.mark(...args)',
+  '@jetlinks-web-core/api/account/center': 'export const getReceivedNoticeProviders=()=>globalThis.__notice.channels()',
+  './noticeListHandler': 'export const useNoticeDataSourceRealtime=(providers,listener)=>{globalThis.__notice.realtime=listener};export const useNoticeDataSourceChanges=(providers,listener)=>{globalThis.__notice.sourceChange=listener};export const queryNoticeUnreadSummary=async(providers,params)=>({result:{total:(await globalThis.__notice.count(params)).result}}),changeNoticeReadState=(providers,...args)=>globalThis.__notice.mark(...args)',
   './noticeRealtimeHandler': 'export const handleRegisteredRealtimeNotice=async()=>false'
 }
 const output = await build({
@@ -107,4 +107,53 @@ test('opening the dropdown and receiving a notification refresh its list as well
   assert.equal(model.total.value, 7)
   await state.onMessage({payload: {message: 'missing id'}})
   assert.equal(refreshes, 2)
+})
+
+
+test('a registered source change refreshes the header without server state writes', async t => {
+  const {state, model} = fixture(t, {mark: () => assert.fail('source change must not mark notifications')})
+  await setImmediate()
+  state.count = async () => ({result: {count: 6}})
+  state.sourceChange()
+  await setImmediate()
+  assert.equal(model.total.value, 6)
+})
+
+
+test('a slow badge response cannot overwrite a later local confirmation refresh', async t => {
+  const {state, model} = fixture(t)
+  await setImmediate()
+  let resolveOld
+  state.count = () => new Promise(resolve => resolveOld = resolve)
+  state.sourceChange()
+  state.count = async () => ({result: {count: 1}})
+  state.sourceChange()
+  await setImmediate()
+  resolveOld({result: {count: 9}})
+  await setImmediate()
+  assert.equal(model.total.value, 1)
+})
+
+test('the latest account classification wins even when the old request arrives last', async t => {
+  const {state, model} = fixture(t)
+  await setImmediate()
+  let resolveOld
+  state.channels = () => new Promise(resolve => resolveOld = resolve)
+  const old = model.retry()
+  state.channels = async () => ({status: 200, result: [{provider: 'business', type: {id: 'business', name: 'Business'}}]})
+  await model.retry()
+  resolveOld(channelResult)
+  await old
+  assert.equal(model.tabs.value[0].key, 'business')
+})
+
+
+test('an independent realtime source uses the same display and refresh path as notifications', async t => {
+  const {state, model} = fixture(t)
+  await setImmediate()
+  state.count = async () => ({result: {count: 8}})
+  await state.realtime({id: 'independent-batch', topicProvider: 'business', topicName: 'Bulletin'})
+  await setImmediate()
+  assert.equal(state.tips[0].key, 'independent-batch')
+  assert.equal(model.total.value, 8)
 })
