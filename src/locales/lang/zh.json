@@ -1438,6 +1438,8 @@
   "Upload.index.805902-2": "请上传正确格式的图片",
   "Upload.index.805902-3": "图片大小必须小于{0}M",
   "Upload.File.dropPlaceholder": "点击或拖拽文件到此区域上传",
+  "Upload.File.download": "下载文件",
+  "Upload.File.downloadFailed": "文件下载失败，请重试",
   "Upload.File.invalidType": "请上传正确格式的文件",
   "Upload.File.maxSize": "文件大小必须小于{0}M",
   "Upload.Cropper.282287-0": "图片编辑",
