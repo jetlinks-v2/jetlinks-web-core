@@ -4,6 +4,15 @@
 
 `FileUpload` 从 `@jetlinks-web-core/components` 根入口具名导入，实际实现为 `Upload/File/index.vue`，不全局注册；`ProUpload` 与 `ImageUpload` 沿用原全局注册，属于图片上传能力。
 
+#### 回显文件下载
+
+- owning module 为 `jetlinks-web-core`：`Upload/File/index.vue` 通过 Ant Design Upload 的 `itemRender` 扩展列表操作，`File/useFileDownload.ts` 负责地址解析与下载。兼容回显 `UploadFile[]`、文件 ID 和刚上传完成的响应；上传后外层回写 ID 时保留原文件名和响应凭证。列表省略状态时按回显文件处理；上传中、失败、移除、业务失败响应或无法解析地址的文件不显示下载按钮。
+- 优先采用列表 `url`、上传响应 `result.accessUrl`，再用 `result.id` 调用既有文件地址解析能力，保留 `others.accessKey`。下载只响应点击，不提前请求回显文件。同源地址沿用 `downloadFileByUrl`；跨源优先读取 Blob 保留显示文件名，读取被 CORS 或网络限制时使用带 `download` 的原生链接，由文件服务器的附件响应决定下载文件名，并在新窗口处理以保留当前表单。跨源请求期间同一文件禁止重复点击，明确 HTTP 错误提示下载失败。
+- 上传、校验、移除、图片预览和文件 ID 回填契约保持原样。手工固件 `device-manager-ui/views/device/Firmware/Save/` 只保留拖拽区和文件列表，签名、大小及保存规则由业务适配层维护；不新增后端接口，不修改运营端 `ui/`。
+- 验证（2026-10-29 交付复核）：真实 Vue 响应式下的定向检查覆盖列表／ID／上传响应、名称和凭证、不可下载状态、点击下载、跨源请求去重、HTTP 失败和原生链接回退、图片预览及移除；SFC 脚本／模板／样式与中英文资源检查通过。在 `jetlinks-web-core/` 执行 `node --max-old-space-size=8192 --max-semi-space-size=64 ../node_modules/vite/bin/vite.js build --outDir /tmp/codex-web-core-delivery-build-20261029 -- --module-name device-manager-ui` 通过（11,179 个模块，2 分 12 秒），保留既有资源路径、Rollup 配置、CSS 注释与包体积警告；`node --test tests/drawerShell.test.mjs` 回归通过（1/1），目标差异空白检查通过。
+- 页面与文件：本地 `9200` 已确认固件表单无地址输入框、显示下载入口；移除后列表和下载入口消失、大小归零并触发校验、签名不变，取消后重新编辑恢复原数据。已有文件的直接请求返回 HTTP 200、3,506,305 字节，SHA256 与表单一致；携带当前页面 Origin 的请求返回 403，因此覆盖原生链接路径。内置浏览器自动化未捕获下载落盘事件，浏览器最终下载仍需人工验收；未上传或保存固件业务数据。
+- 类型与 lint：工作区无独立 lint 脚本。完整模块类型检查在 `runtime-ui/` 执行 `node node_modules/vue-tsc/bin/vue-tsc.js --noEmit --pretty false -p modules/device-manager-ui/tsconfig.json`，仍被既有 `views/device/Product/ResourcePackage/index.vue:187` 和 `views/link/Certificate/type.d.ts:2` 两处 TS1005 阻断，修复后需重跑。公共组件与固件适配器使用真实 Vue／Ant Design 类型进行隔离严格检查（外部平台依赖采用类型替身），只报告组件原有 `minScale` 的 TS2353，与原始组件基线完全一致，没有新增诊断。
+
 #### Props
 
 | 参数 | 说明 | 类型 | 默认值 |
