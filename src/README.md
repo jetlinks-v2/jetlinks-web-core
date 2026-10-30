@@ -21,13 +21,27 @@
 | 模板指令 | [directive/README.md](directive/README.md) | [directive/index.ts](directive/index.ts) | 指令安装、菜单条件渲染及编译边界 |
 | core 页面和页面族 | [views/README.md](views/README.md) | `views/**`、路由入口和相邻页面 | 页面目标、入口、状态流和可复用能力 |
 | 智能体契约与能力扩展 | [首页智能体能力扩展](../docs/首页智能体能力扩展.md) | `layout/components/AiChat/agentConversationContracts.ts`、`generalAgentExtensions.ts` | 业务工具、工作流和展示语义注册；UI provider 按公共契约接入，不反向依赖具体 UI 模块 |
-| 布局与侧边栏用户菜单 | [layout/components/LayoutSidebarUser.vue](layout/components/LayoutSidebarUser.vue) | [style/layout.less](style/layout.less) | 退出登录时以 `a-spin` 替换图标，并固定图标容器尺寸，保持菜单项与账户中心等高。 |
-| 通知下拉面板 | [layout/components/NoticeInfo.vue](layout/components/NoticeInfo.vue) | `layout/components/Notice.vue` | 页签溢出时使用 Ant Design Tabs 自带的横向滚动；左右留白放在外层导航栏，避免影响可视容器的宽度计算。 |
+| 布局与侧边栏用户菜单 | [layout/components/LayoutSidebarUser.vue](layout/components/LayoutSidebarUser.vue) | [style/layout.less](style/layout.less) | 头像摘要、主/子账号标签与纵向快捷入口；退出加载保持各行等高。 |
+| 通知下拉面板 | [layout/components/NoticeInfo.vue](layout/components/NoticeInfo.vue) | `layout/components/Notice.vue` | 消息与未读摘要、通知/公告分类、紧凑消息列表和统一消息中心入口；正文按视口限高滚动。 |
 | 整页高度与滚动 | [layout/FullPage.vue](layout/FullPage.vue) | `layout/components/RouteContentSurface/index.vue`、`components/ContentPanel/index.vue` | 页面高度、祖先底部间距及窗口缩放；生产入口包括角色页和组织页。 |
 
-侧边栏用户菜单验证：`LayoutSidebarUser.vue` 的模板、脚本及 `style/layout.less` 独立编译通过，`git diff --check` 通过。全量 `vue-tsc` 仍有其他文件的既有错误，目标组件未报错；当前没有 lint 脚本。`pnpm -F jetlinks-web-core build` 完成 23,923 个模块转换后，在当前 `package.json` 的 8GB V8 堆上报 `JavaScript heap out of memory`，构建未通过，发布前需解决内存上限并重新构建。真实退出交互和两个菜单项在加载期间的等高效果仍待验证。
+当前用户菜单的实现与验证边界见下文“顶部用户菜单”。
 
-交付入口：退出菜单提交 `aebcab1`，构建内存配置提交 `1def30c`；PR https://github.com/jetlinks-v2/jetlinks-web-core/pull/164。
+历史交付入口：退出菜单提交 `aebcab1`，构建内存配置提交 `1def30c`；PR https://github.com/jetlinks-v2/jetlinks-web-core/pull/164。
+
+## 顶部用户菜单
+
+运行时 `layout/components/LayoutSidebarUser.vue` 使用 240px 紧凑纵向下拉：顶部以头像配合姓名、账号两行身份摘要，账号下方集中展示主/子账号与用户类型标签，角色在有数据时补充展示；下方依次提供个人中心、消息中心、个人令牌，退出登录独立分隔。复用 Ant Design Vue 下拉、按钮和角标、项目 `AppTag` 与主题 token，保留 `sidebarUserMenu` 扩展位，长账号与角色名称单行省略。
+
+账号判断复用 `/user/detail` 返回的 `type.id` 及 `store/user.ts` 的 `isSubAccount`：`subAccount` 显示“子账号”，其他情况沿用既有“主账号”逻辑；标签使用现有中英文词条。摘要将账号与用户类型、角色拆行展示，避免长项目账号挤掉用户类型。接口 type.name 使用中性标签完整显示并允许换行，主/子账号使用蓝色标签；两者集中在账号下方，角色只省略自身长名称；与主/子账号标签或用户类型同名的信息不重复展示。后端接口与权限规则无需调整。
+
+`layout/components/useLayoutSidebarUser.ts` 承接展示派生、入口导航和退出状态；消息角标复用 `useHeaderNotice.ts` 写入 `store/user.ts` 的未读结果，不另建查询或实时订阅。入口沿用 `account/center` 路由及 `CenterTabKey`，每次导航同时携带规范化的 query.tab 与兼容旧入口的 params.tabKey；BindThirdAccount 映射为 BasicInfo。内容及 Store 由个人中心的 URL 监听统一同步，避免同页导航清空 query 后被框架侧栏恢复为默认页，也避免 Store 与路由竞争更新。项目覆盖页复用 core 个人中心，显式导航继续清除旧通知上下文。按用户要求，本次直接修复，未重复复现或运行检查/构建。
+
+验证：两处 Vue 脚本与模板、相关 TypeScript 语法、布局 Less 和中英文词条检查通过，差异空白检查通过。使用实际菜单组件、菜单 hook、AppTag、项目个人中心和 Ant Design Vue，在同一个浏览器页完成 30 项隔离交互检查，覆盖 240px 布局、375px 长名称、角标 0/7/99+、中英文、主/子账号标签、三个入口及重复导航、旧通知清理、退出加载等高、防重复点击、失败恢复与成功回跳；浏览器没有错误或警告。接口、Store 宿主与业务子组件使用替身，尚未进行真实主/子账号登录及后端退出联调。
+
+顶部排版验证：实际菜单 Vue 模板、hook、AppTag 与布局 Less 的定向编译通过，差异空白检查通过。22 项浏览器组件检查通过，覆盖头像和姓名对齐、中文身份标签同排、用户类型的中性层级、长账号、375px 窄屏、长英文类型换行、主/子账号、空类型及 16/18px 根字号；补充验证长角色独立省略且不遮挡用户类型。浏览器没有错误或警告；使用隔离账号数据，真实登录态仍待验收。
+
+工作区没有独立 lint 脚本；遵循设备性能约束，本次没有运行全量 typecheck/build。发布前在 `runtime-ui/` 执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 和 `pnpm build`，并补充真实登录态验收。仅需发布运行时前端静态资源，无后端服务重启要求。
 
 ## FullPage 高度约束
 
@@ -37,14 +51,17 @@
 
 编译与类型验证：`pnpm -F jetlinks-web-core build -- --module-name authentication-manager-ui` 通过（53.70 秒），`git diff --check` 通过；`FullPage.vue` 为 135 行。`pnpm exec vue-tsc --noEmit -p modules/authentication-manager-ui/tsconfig.json` 仍报告改动前相同的 605 项工作区诊断，输出逐字一致，`FullPage.vue` 无诊断；当前未配置 lint 脚本。
 
-## 通知页签滚动
+## 顶部消息弹层
 
-通知入口的通道查询、未读角标和实时事件由 `layout/components/useHeaderNotice.ts` 管理。
-接口失败时保留已有角标，在通知面板提示失败并提供重试；空通道才显示空态，不将后台请求拒绝留作未捕获异常。
+顶部未读角标使用 Badge 小尺寸，并向按钮内侧、下方偏移，为顶栏上沿留出间距；铃铛点击区域继续保持 2rem。
 
-运行时 `layout/components/NoticeInfo.vue` 将页签栏的左右内边距放在 `.ant-tabs-nav`，保持 `.ant-tabs-nav-wrap` 的实际可视宽度与 Ant Design 测量结果一致。通知类型超出可视范围时，使用 Tabs 自带的横向滚动、滚轮和溢出菜单访问右侧页签。通知查询、角标、Tab 切换与“查看更多”逻辑保持原有行为，不涉及接口或运营端 `ui/`。
+本次按现有顶部消息弹层做局部改版：保留铃铛、当前用户消息接口、实时订阅和详情接管，内容按“消息标题与未读摘要 / 通知与公告 / 紧凑摘要列表 / 进入消息中心”组织。沿用 Ant Design Tabs、Dropdown、Button 和主题色、圆角、边框；不改导航框架或后端通知规则。
 
-验证：在 `1536×899` 的现有开发页面上，5 个通知页签可向左、向右滚动，也可通过纵向滚轮横向移动；滚动位移为 `0～-72px`，最右侧“业务监控”完整可见，两端页签切换正常，弹层宽度仍为 `384px`。组件模板、TypeScript 转译、scoped LESS 编译及独立 Vite 生产构建通过，`git diff --check` 通过。`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 报告 556 项工作区既有诊断，`NoticeInfo.vue` 无诊断；当前未配置 lint 脚本。完整应用生产构建未执行，发布前待运行 `pnpm -F jetlinks-web-core build`。
+实现入口为 layout/components/Notice.vue、NoticeInfo.vue、NoticeItem.vue；查询、分类、失败重试和跳转归属 useHeaderNotice.ts，分类工具与消息类型归属 noticeUtils.ts。分类依据与消息中心相同的真实 provider 目录及公告注册元数据；整行打开原详情流程，底部进入当前分类的消息中心。列表限高滚动，未读数量继续复用用户 Store，空态与请求失败分别反馈。 底部入口使用 Ant Design RightOutlined，箭头按主题小字号渲染并继承链接颜色，与文字通过 inline-flex 和统一间距居中对齐；图标自身使用 1em 方形 flex 容器与零行高，消除内联 SVG 基线预留导致的垂直偏移。垂直对齐验证直接加载 9200 当前源码及平台字体：默认字号下 SVG 与文字中心偏差为 0px，18px 根字号及 390px 窄屏下约 0.008px；当前登录态页面已目视确认。弹层默认沿用 Ant Design 的 document.body 挂载，避免顶部栏的图标颜色、字号及行高进入消息正文；显式 getPopupContainer 仍优先采用调用方容器。此前隔离预览未覆盖顶部栏的真实样式边界。补充验证已直接在用户使用的 localhost:9200 登录页签中完成：修改前按钮为蓝色、箭头最终为黑色 18px，默认挂载恢复后，运行页面的箭头显示为与文字一致的蓝色小图标，弹层仍正确对齐铃铛。该修复只改变默认挂载边界，无需重启后端。
+
+验证：headerNotice.test.mjs 与 noticeUtils.test.mjs 共 17 项通过，覆盖真实分类、无通道公告、目录部分失败、未读数量保留、列表失败重试、迟到响应、原详情接管和消息中心导航。5 个改动 Vue/TypeScript 文件的脚本、模板、Less、中英文词条与行数检查通过，noticeUtils.ts 定向严格 TypeScript 检查与差异空白检查通过。隔离浏览器以真实消息组件及 Ant Design、模拟接口完成 20 项检查，包含 380px 桌面弹层、390px/500px 高窗口、中英文、摘要与标题截断、独立滚动、底部入口固定、整行点击、分类跳转、错误/空态及重试；控制台无警告或错误。
+
+顶部“通知”和“公告”页签统一查询当前用户的有效未读接口，最多请求 12 条；业务注册的历史列表加载器不参与顶部查询，公告标题与摘要仍由注册文本解析器补齐。已读历史进入消息中心查看，不追加到未读弹层中。未读查询修复的定向验证：headerNotice.test.mjs 与 noticeUtils.test.mjs 共 24 项通过，覆盖注册加载器存在时也不追加已读历史、无未读时保留空列表以及原详情入口；差异空白检查通过。当前登录页有待确认的公告弹窗，未操作其已读状态，真实弹层列表仍待刷新验收。未配置独立 lint 脚本，按设备性能约束未执行全量 typecheck 或构建；真实后端消息收取及各业务详情仍需登录环境验收。发布前在 runtime-ui 执行 pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json 和 pnpm build；上线仅更新运行时前端资源，无后端重启要求。
 
 ## 弹窗样式边界
 

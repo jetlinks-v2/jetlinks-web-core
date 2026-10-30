@@ -6,7 +6,7 @@
 
 | 页面族 | 主要入口 | 业务/运行态职责 | 说明 |
 | --- | --- | --- | --- |
-| 账号中心 | `account/index.vue`、`account/center/index.vue` | 用户资料、密码、绑定、通知、个人 Token | [双栏账户与消息中心](#账号中心)：复用账号 Store、既有编辑和绑定组件 |
+| 账号中心 | `account/index.vue`、`account/center/index.vue` | 用户资料、密码、绑定、通知、个人 Token | [六入口个人中心](#账号中心)：复用账号、身份、SSO、令牌与通知能力 |
 | 认证结果 | `account/identity-result/index.vue` | 身份认证结果展示 | 页面级反馈和回跳 |
 | 数据能力实验室 | `data-capability/lab/index.vue` | 数据能力调试和验证 | 使用前核验能力注册中心与请求契约 |
 | 初始化首页 | `init-home/index.vue`、`init-home/Basic/index.vue` | 首次初始化项目、基础信息、菜单和角色 | 具备初始化流程状态，不等同普通管理页 |
@@ -41,37 +41,106 @@
 
 ## 账号中心
 
-- 目标与归属：`jetlinks-web-core` 的通用个人中心，入口为 `src/views/account/center/index.vue`、路由为 `/account/center`。参考运行时项目 `modules/saas-runtime-ui/views/PersonCenter/index.vue` 的双栏布局，默认显示消息中心；core 不依赖该覆盖模块的组件、资源或文案。
-- 账户信息：`account/center/components/AccountCard.vue` 展示头像、名称、用户名、账号 ID、角色 / 组织、手机号、邮箱及第三方账号绑定状态。联系方式脱敏；详细编辑使用 `components/AccountInfo/index.vue`，基本信息可分别保存手机号和邮箱，底部只展示角色与组织。保留头像、名称、密码、邮箱 / 手机号验证绑定及第三方登录绑定 / 解绑操作。账户内容独立滚动，“修改密码”按钮位于面板底部的独立操作区；窄屏账户面板高度限制为可用高度与 `32rem` 的较小值，缩小窗口时继续由账户内容承担滚动。关闭编辑后刷新账户信息。
-- 功能切换：右侧复用原 `components/StationMessage/index.vue`、`components/Subscribe/index.vue` 和 `components/PersonalToken/index.vue`，只提供消息中心 / 消息订阅 / 个人令牌三个主切换项。通过 `EqualHeightColumns` 和 Ant Design Vue 分段控件承载；左右两栏使用普通 `section` 组织标题、操作和内容，移除 `ContentPanel` 的卡片包裹。宽屏两栏各自滚动，窄屏堆叠并在容器内滚动。
-- 首页视图：左侧移除“首页视图”按钮，`components/HomeView/index.vue` 原代码与历史 `HomeView` 页签入口继续保留；应用用户沿用原入口限制。
-- 状态与兼容：`account/center/useCenter.ts` 管理数据、弹窗和路由联动，`types.ts` 定义展示契约。保持 `StationMessage` / `Subscribe` / `PersonalToken` / `BindThirdAccount` / `HomeView` 原页签参数，以及 `user.tabKey`、`user.messageInfo` 和原通知子页签联动；新通知可以切回消息中心，旧通知不会反复覆盖用户的手动选择。邮箱 / 手机号编辑继续兼容 `query.anchor`，账户能力按既有版本条件及 `authService:identity`、身份提供商和 SSO 重定向支持条件展示。
-- 站内信子页签：`account/center/components/StationMessage/index.vue` 分别监听 `other.tabKey`、路由消息 `row` 和 Store 新通知，消息类型异步加载后补充定位；清空 `user.messageInfo` 不重新消费旧路由消息。`components/NotificationRecord/index.vue` 首次打开详情后清理一次性跳转缓存，避免新列表在旧列表卸载前重用 `row` 并重复打开详情。保留 provider 分组、默认页签、详情入口及接口契约。
-- 子页签验证：在 9201 真实页面复现旧问题，并验证“概览 → 顶部通知 → 安全告警 → 查看详情 → 关闭详情 → 合规告警 / 业务监控 / 告警 / 安全告警”完整链路，四类页签均保持手动选择且无旧详情重开；在消息中心内从通知入口查看合规告警后再次切换安全 / 合规告警同样通过。使用真实 Vue 响应式与子组件卸载生命周期的定向验证还覆盖新路由消息、Store 新通知、旧路由与新通知并存、消息类型慢加载及默认页签。
-- 子页签静态检查：两处修改组件的 Vue 模板与 TypeScript 脚本编译、`git diff --check` 通过；`pnpm exec vue-tsc --noEmit -p tsconfig.json` 仍报告 549 项项目级诊断，两处组件均无诊断。项目未配置 lint；本次未重跑完整构建，待在足够内存环境运行 `pnpm build:standalone`（此前构建限制见下文）。浏览器验证期间其他模块热更新曾触发模块初始化错误，重载后恢复，未纳入此次页签修复范围。
-- 边界：没有修改 SaaS 覆盖页面、运营端 `ui/`、后端接口、权限模型或原首页视图；沿用现有 API，保留工作区已有 API 改动，个人令牌配置同步见下文。新增文案仅维护 core 的 `src/locales/lang/{zh,en}.json`。
-- 行为验证：在 core 目录运行 `node --test src/views/account/center/useCenter.test.mjs`，12 项通过，覆盖账号 ID / 用户名 / 角色 / 组织 / 手机号 / 邮箱的摘要字段、默认页签、异步加载期间的切换、历史入口、应用用户限制、通知联动、联系方式锚点、主身份与能力回退、邮箱占位及单字符邮箱脱敏、SSO 过滤、部分失败重试、关闭编辑刷新、卸载清理和语言切换。
-- 编译与静态检查：页面及账户卡片的 Vue 模板、TypeScript 脚本和 Less 独立编译通过，中英文 JSON 校验、`git diff --check` 通过。当前项目没有 lint 脚本或 ESLint 配置；全量类型检查仍有既有错误，联系方式调整的专项验证及具体限制见下文。
-- 页面验证：使用真实页面、账户摘要、双栏组件和原账户编辑组件进行隔离浏览器验证，数据接口及右侧业务面板使用替身。验证了三个功能切换、原资料与绑定编辑入口，以及 1280px / 820px 双栏和 390px 堆叠布局；中英文切换控件、页面与编辑弹窗无横向溢出。两侧容器均为透明背景且无卡片阴影；左侧“首页视图”按钮已移除。在 1280×380 与 390×480 的小高度窗口中，账户内容滚动前后“修改密码”操作区的位置不变，并保持在账户面板底部；1280×900、820×500 英文布局和 390×844 布局复核通过。真实后端下的通知详情定位、绑定 / 解绑提交、头像 / 密码修改、首页视图保存和令牌操作仍需联调。
-- 构建限制：在 `runtime-ui` 运行 `pnpm build:standalone`，转换 24,312 个模块后因当前 8GB V8 堆上限报 `JavaScript heap out of memory`，构建未完成。需在具备足够内存的环境调整进程堆上限后重新执行该命令；不能将模块转换完成视为完整构建通过。
+个人中心复用现有框架的工作台背景、侧栏导航和默认 ContentPanel，按原型内容组织基本信息、安全设置、单点登录、个人令牌、消息中心和通知设置六个入口。左侧保留“个人中心 / 消息”两组；分组之间沿用标题自身留白，不再额外叠加上外边距；六个入口的内容由框架默认 ContentPanel 承载，页内公共容器不重复添加卡片边框、圆角或背景；六页统一使用 space-4（16px）的页内留白和内容区块间距，窄屏页内留白收为 space-2（8px）。基础信息保持原有三列字段布局，头像区与字段区统一对齐。右侧直接呈现内容、筛选与操作，不额外显示页面标题、标题图标、面包屑或附属统计行。导航与内容之间以框架间距分隔，不显示竖向边线。
 
-### 联系方式编辑
+容器与间距验证：统一入口及六个业务组件共 7 个 Vue 文件的脚本、模板和样式检查通过，差异空白检查通过；导航代码未变，沿用 centerFrameworkNavigation.test.mjs 的 3 项回归结果。在 localhost:9200 当前登录页逐项查看基本信息、安全设置、单点登录、个人令牌、消息中心和通知设置，六页内容留白与区块对齐一致，无重复内部卡片，基础信息保持三列；本次未进行窄屏浏览器验收。未配置独立 lint 脚本，按性能约束未执行全量 typecheck 或构建。仅更新运行时前端资源，无后端服务重启要求。
 
-- 展示与入口：`account/center/useCenter.ts` 为左侧摘要提供脱敏邮箱，优先展示已绑定的主邮箱，无身份时回退资料 `email`，没有值时显示“未绑定”；单字符邮箱同样脱敏。`components/AccountInfo/index.vue` 的基本信息新增手机号 / 邮箱输入，底部角色与组织使用两列，移除职位展示。
-- 保存与校验：`components/AccountInfo/useContactInfo.ts` 管理联系方式回填、格式校验、独立保存与状态；复用 `src/api/account/center.ts#updateMeInfo_api`（`PUT /user/detail`），修改后显示对应保存按钮，去除首尾空格并允许清空。每次只把当前字段的新值合入现有资料，刷新后保留另一字段未提交的草稿；保存期间阻止重复和并行提交，失败保留输入以便重试。
-- 身份边界：基本信息保存 `telephone` / `email` 资料字段，与验证码绑定的登录身份独立；不改变摘要的身份优先规则，也不改变原验证码绑定 / 解绑流程。运营端、SaaS 覆盖页面、后端、权限及路由均未修改。保存失败提示沿用公共请求层，Hook 保留草稿并释放提交锁以便重试。
-- 专项验证：`node --test src/views/account/center/components/AccountInfo/useContactInfo.test.mjs` 的 4 项测试通过，使用真实 Vue 状态与 Ant Design 校验器、替换 Store / API 边界，覆盖回填、非法格式拦截、独立提交、去空格、草稿保留、重复提交拦截、允许清空、失败与重试。连同上述个人中心测试共 16 项通过。修改的 Vue 模板、TypeScript 脚本和 Less 独立编译，中英文 JSON 及 `git diff --check` 均通过。
-- 页面验证：真实运行时个人中心已核对脱敏邮箱、手机号 / 邮箱编辑与格式提示、职位移除和角色 / 组织两列。使用实际账户组件与隔离数据验证了手机号保存、邮箱保存失败及重试、摘要更新、关闭重开回填；英文 390×844 布局无横向溢出，弹窗内容宽度 / 滚动宽度均为 295px，保存按钮完整可见。没有修改真实管理员资料；真实后端保存仍待联调。
-- 全量检查限制：项目没有 lint 脚本或 ESLint 配置；`pnpm exec vue-tsc --noEmit -p tsconfig.json` 报告 551 项既有类型诊断，新增联系方式逻辑无诊断，原账户编辑组件仍有头像 / 角色类型及验证码 `maxlength` 等既有诊断。完整构建未重复执行此前已确认的 8GB V8 堆内存不足路径；需在足够内存环境运行 `pnpm build:standalone`，不能将独立组件编译视为完整构建通过。
+入口与归属：`account/center/index.vue` 是运行时统一内容入口，路由仍为 `/account/center`；`runtime-ui/modules/saas-runtime-ui/views/PersonCenter/index.vue` 复用同一页面。导航由 `useCenter.ts` 管理，`query.tab` 支持刷新恢复；兼容原 `BindThirdAccount`、`StationMessage`、`Subscribe`、`PersonalToken` 和 `HomeView` 参数。头像菜单、顶部通知和联系方式 `query.anchor` 继续定位对应功能，新通知可切换到消息页，旧通知不覆盖用户后续手动选择。
 
-### 个人令牌配置
+| 功能 | 主要实现 | 当前行为 |
+| --- | --- | --- |
+| 基本信息 | `components/BasicInfo.vue`、`useBasicProfile.ts` | 头像与主/子账号、用户类型摘要；姓名就地编辑；用户名、联系方式、组织、角色和接口返回的最近登录时间栅格；第三方绑定摘要与管理入口；组织与角色为空统一显示“未分配”，单点登录无绑定时显示“未绑定 / 去绑定 ›” |
+| 联系方式 | `components/ContactDialog/`、既有 `AccountInfo/useContactInfo.ts` | 资料手机号/邮箱独立保存；后端支持身份服务时，保留验证码绑定、已绑定身份与解绑操作；资料联系方式与验证身份分别管理 |
+| 安全设置 | `components/SecuritySettings.vue`、`useSecuritySettings.ts` | 复用原密码流程与服务端校验；读取真实密码更新时间，并通过当前用户操作日志接口展示最近 10 条已记录的账号登录 |
+| 单点登录 | `components/BindThirdAccount/` | 列表显示接口返回的入口、绑定状态、绑定时间；保留微信/钉钉扫码绑定、其他入口跳转绑定与解绑 API，页面卸载清理授权订阅及窗口监听 |
+| 个人令牌 | `components/PersonalToken/` | 紧凑列表、详情抽屉与新增/编辑弹窗；支持跟随账号、只读和自定义权限，保留名称、说明、来源、创建/到期时间及有效/临期/过期展示；空列表提供用途说明和新建入口 |
+| 消息中心 | `components/StationMessage/` | 按真实 provider 归为通知与公告，复用 ConditionFilter、消息表格、已读/未读及详情跳转；无可访问来源时保留通知空列表 |
+| 通知设置 | `components/Subscribe/` | 按真实消息类型和通道生成订阅矩阵；保留默认订阅、状态及接收账号绑定引导；重新启用订阅时保留原渠道选择，失败不改变当前开关 |
 
-- 目标与范围：`jetlinks-web-core` 的 `src/views/account/center/components/PersonalToken/` 已参考 `modules/saas-runtime-ui/views/PersonCenter/components/PersonalToken/` 同步配置弹窗、权限展示和保存反馈。文案使用 core 自有中英文资源，组件不依赖 SaaS 覆盖模块；保持个人中心双栏、底部密码按钮和原首页视图代码。
-- 权限配置：直接显示可授权操作标签，替换原初始化选项和权限勾选。新增、编辑均在首次完整查询后使用当前全部可授权操作；搜索只过滤展示，不缩小保存范围。查看模式展示原令牌已授权的操作。首次完整权限未加载或加载失败时清空旧权限、禁止提交，并提供重试。
-- 保存流程：编辑回填保留原记录 `id` 和 `sourceId`；“不刷新令牌保存”传递 `revokeAccessTokens=false`，保留原令牌、更新权限、刷新列表并提示权限在原令牌生效。“刷新令牌保存”传递 `true`，展示新令牌供复制，关闭成功弹窗后刷新列表。新增生成令牌，查看只读；校验与请求期间阻止重复提交和取消，失败保留输入。窄屏表单堆叠，页脚按钮和权限操作表头可换行。
-- 关键入口：`components/useTokenDialog.ts` 管理回填、有效期、校验与两种保存；`components/useTokenPermissions.ts` 管理完整权限初始化、搜索、失败重试和卸载保护；`usePersonalToken.ts` 复用共享 `useRequest` 管理列表及保存反馈。`types.ts`、`components/data.ts` 定义令牌和授权范围类型，`TokenDialog.vue`、`PermissionList.vue`、`PermissionSelector.vue` 负责展示；`Success.vue` 提供一次性令牌展示和复制反馈。`src/api/account/center.ts#savePersonalToken_api` 支持可选的 `revokeAccessTokens` 查询参数，省略时沿用后端默认值；可授权范围由既有 `src/api/system/permission.ts#queryPermission_api` 获取。GET 查询复用 `paramsEncodeQuery` 将条件和排序编码为 `terms[0].column` / `sorts[0].name` 等 Spring 属性路径，并保留分页参数。
-- 关键影响：与 SaaS 当前行为一致，编辑保存会同步最新全量可授权权限，可能增加原令牌未包含的操作或移除已不可授权的操作；选择刷新保存会使原令牌失效。SaaS 覆盖页面、运营端、后端、菜单和路由不在本次改动范围。
-- 专项回归：在 core 目录运行 `node --test src/views/account/center/components/PersonalToken/useTokenDialog.test.mjs src/views/account/center/components/PersonalToken/permissions.test.mjs`，15 项通过，覆盖两种保存参数、原记录 ID、全量权限初始化与旧操作移除、搜索与清空、查看只读、权限失败重试、重复提交与取消保护、保存失败、新令牌反馈、中英文资源及自定义日期毫秒值；GET 查询契约验证复用真实编码工具，覆盖搜索、排序、分页与首次完整查询参数。
-- 编译与静态检查：5 个修改的 Vue 组件脚本、模板和 Less 独立编译通过，中英文 JSON 校验及 `git diff --check` 通过。`pnpm exec vue-tsc --noEmit -p tsconfig.json` 在当前更新后的代码上共报告 556 项既有类型错误，本次新增 / 恢复的实现文件 0 项诊断。当前没有 lint 脚本或 ESLint 配置；完整构建此前因 8GB V8 堆上限内存不足未完成，本次未重复该已知失败的构建，待执行命令及限制见上文。
-- 浏览器验证：使用真实个人中心、令牌列表、配置及权限组件，接口和部分宿主能力使用替身。新增选择 7 天有效期后生成模拟令牌，关闭成功弹窗后列表展示新记录；编辑展示最新 5 项操作，搜索后仍保留完整提交范围，两种保存均按预期反馈；查看保持原 1 项授权且不显示保存按钮。权限和保存失败重试通过。中文桌面与英文 390×844 布局通过，窄屏弹窗 `clientWidth` / `scrollWidth` 均为 358px，保存按钮完整显示。验证仅使用模拟数据，真实后端下的令牌轮换、原令牌失效及权限生效仍待联调。
-- 交付引用：实现提交 [1b6a428](https://github.com/jetlinks-v2/jetlinks-web-core/commit/1b6a428247b9025bf311fb66f60252e7f1587eb0)，对应 [PR #171](https://github.com/jetlinks-v2/jetlinks-web-core/pull/171)，目标分支为 `2.20`。
+### 消息中心内容与边界
+
+- 方案：保留平台统一 ConditionFilter，补齐原型的消息类型、已读状态和时间选项。消息内容支持“包含”等现有文本条件；时间提供今天、近 7 天、近 30 天，移除对应条件即查询全部。界面继续使用平台现有筛选、列表和详情组件。
+- 列表按真实通知 provider 归组；公告能力通过业务模块注册元数据发现，通道列表为空时也保留公告收件箱，数据继续由当前用户通知接口限定范围。core 不直接依赖公告模块，保留顶部通知跳转与消息详情注册扩展。
+- “类型”筛选与表头使用同一文案，候选按现有 /notifications/providers 返回的类型目录与 /notify/channel/all 通道信息合并；类型目录补充未配置通道的真实来源，消息记录仍通过当前用户通知接口查询，不写死原型中的分类名称。
+- 筛选沿用平台的 ConditionFilter 和后端查询契约，进入消息中心及切换通知/公告时默认不附加筛选；主动从具体来源进入时只回填来源，不暗加未读条件。列表按状态、类型、标题与摘要、时间和操作组织。真实存在的已读 / 未读接口支持单条、所选和全部标记；缺少接口的删除不展示。
+- 核心组件：资源中心同款 PageChrome flush + SlantedTabs、ConditionFilter、j-pro-table、j-badge-status 和既有详情弹窗。操作就近放在列表或页签工具区；沿用平台样式与中英文文案。
+- 此前验证：三个个人中心定向测试文件共 47 项、公告注册测试 1 项通过，覆盖类型目录补全与去重、查询失败重试、通道缺失时的公告入口、平台筛选字段、自然日时间转换、类型与状态条件组合、顶部跳转和已读操作；组件脚本、模板及样式检查通过。本地登录环境已确认“类型”字段的真实候选、平台筛选入口和一条未读公告；未执行全量 lint、类型检查或构建，真实消息批量操作仍需业务环境验收。
+- 本次局部调整：复用 PageChrome flush 与 SlantedTabs，不另写页面壳层；进入页面与切换分类均不恢复旧筛选，不默认追加未读条件。表格将 scroll.y 显式设为 false，避免共享表格回退到 100% 纵向滚动后生成多余横向容器；保留 x=820，使窄屏仍能访问其他列。标题列采用固定布局的截断，长内容不撑宽整表，筛选器取消不必要的最小宽度。
+- 本次验证：messageCenterView.test.mjs 与 personalCenterFlows.test.mjs 共 42 项通过；3 个改动 Vue/TypeScript 文件的脚本、模板、样式与词条检查、差异空白检查通过。当前 9200 登录态已确认统一页签、默认空条件和宽屏空表无横向条。另用真实页面/表格/筛选组件及隔离的 registry/HTTP 响应完成 13 项检查：空表及长标题有数据时宽度均为 1328/1328px；切换分类、返回原分类与主动清除均不带隐含状态条件；390px 窄屏无整页横向溢出，表格内按需滚动。不执行全量 lint/typecheck/build，真实消息批量写入沿用既有边界，未在本轮操作；发布只更新运行时前端资源。
+- 未实现：现有当前用户消息查询没有可靠的标题与正文联合搜索、公告细分类筛选或消息删除能力；页面不展示这些原型操作。
+
+### 通知设置接收方式
+
+- 目标与结构：只展示消息模板页面已启用且当前用户有权访问的通知类型；顶部提示更多通知类型需管理员在“告警中心 › 消息模板”中开启；渠道顺序与消息模板一致，但只展示后端明确支持个人订阅的渠道。当前 WebHook 为统一发送策略，因此整列隐藏；支持个人订阅但未配置的渠道仍保留禁用开关和原因提示。类型行保持紧凑，不平铺未启用的底层类型目录。
+- 数据来源：类型及可用渠道使用 /notify/channel/all；该接口按父类型启用状态和用户权限过滤，类型开启时后端会确保默认站内信配置。个人接收偏好、通知器绑定及接收策略沿用现有接口。关闭个人某个渠道不隐藏类型行；停用父类型后才不展示。
+- 保存：只修改个人选择的渠道，保留原订阅配置、其他渠道以及已有站内信偏好。站内信不属于消息模板的六个外部渠道列，不在本表改变其规则。WebHook 按后端明确接收策略由模板统一发送，个人设置隐藏该列，保存其他渠道时继续保留已有偏好。
+- 接收账号：邮箱、手机号来自当前用户资料，钉钉／微信接收账号按通知器 ID 读取 /user/third-party/me；不使用单点登录绑定替代。
+- 边界：不创建／启用真实通知类型或渠道，不将系统运行异常冒充登录／密码安全提醒；告警筛选与免打扰暂不展示。
+- 验证：本次四个个人中心测试文件共 61 项通过，覆盖按接收策略隐藏非个人订阅列、保留支持但未配置的渠道、启用过滤、个人关闭不隐藏类型、保留站内信及其他偏好、失败重试等；组件脚本、模板和样式检查通过。消息模板初始展开仍复用先前通过的 18 项模板／渠道回归证据，本次没有修改该模块。未执行全量 lint、类型检查或构建；完整页面及实际发送、接收和绑定仍需业务环境验收。
+
+### 已确认的边界
+
+2026-10-30 用户确认：全部入口改造，缺项隐藏，业务规则沿用现有平台。没有新增原型中的有效令牌数量限制、站内信强制开启、告警级别/来源过滤或免打扰策略。用户随后确认基于现有 Scope 契约实现跟随账号、只读和自定义权限，具体边界见下文。缺少完整当前用户登录历史、角色分配人、令牌尾号/使用记录/撤销历史及消息删除功能不以演示数据填充。公告页签由已注册的公告能力提供，通道列表为空也保留入口，实际内容仍由当前用户通知接口限定。原型的全局导航、场景切换与模拟数据不进入产品代码。
+
+`/user/detail` 提供最近登录摘要；基本信息现直接展示有效的 loginInfo.loginTime，没有时间则隐藏。后端在每次成功登录时以当前时间覆盖该字段，因此文案为“最近登录”，不能用它伪造原型所指的“本次之前上次登录”或最近十次记录。SSO 继续读取 `/application/sso/me/bindings` 与其 `bindTime`；微信/钉钉通过现有 login/_async?forBind=true&autoCreateUser=false 绑定当前账号，成功事件后读回绑定记录再确认，其他可重定向入口沿用跳转绑定，不支持重定向且没有扫码流程的入口展示绑定状态并禁用绑定操作。不存在的停用入口不自行补充。手机号/邮箱资料保存继续使用 `PUT /user/detail`，验证码身份保持 `/user/identity/*` 的验证/确认契约。
+
+令牌保存仍使用 `useTokenDialog.ts` 与 `useTokenPermissions.ts`：新增默认跟随账号，编辑按原 Scope 回填；模式与具体范围仅随用户操作改变，搜索只过滤展示，查看不改原令牌授权。编辑“不刷新令牌保存”传递 `revokeAccessTokens=false`，“刷新令牌保存”传递 `true`；原 ID/sourceId、失败草稿和一次性新令牌显示保持既有流程。后台、运营端 `ui/` 及接口权限规则未修改。
+
+### 安全设置的数据来源
+
+现有访问日志与用户操作日志是两条链路。已核对本地 2.20.0-SNAPSHOT 依赖源码：logging-component 的 LoggingProperties 默认在访问日志排除 /authorize/**，用户操作日志默认包含 /*/login。AuthorizationLoginLoggerInfoHandler 在成功登录事件中向日志补充用户 ID；失败登录不能保证具备该归属，第三方与验证码登录路径也不保证被默认规则覆盖。
+
+安全设置使用 POST /logger/operation/user/me/_query。OperationLoggerController 在服务端强制追加当前认证用户的 userId，前端不依赖管理端访问日志权限或自行传 userId；查询固定 actionId=/authorize/login，按 createTime 倒序取 10 条。日志存储元数据没有声明 source 列，因此不对它发过滤条件。显示真实时间、IP、属地和异常是否为空对应的结果，缺失结果显示占位，不暴露原始异常堆栈，也不推断“当前会话”标签。此列表是已记录账号登录，不等同全渠道、含全部失败尝试的审计历史；已有历史记录不会因前端接入自动补齐。
+
+GET /user/settings/userLoginInfo/lastPasswordChangeTime 由 UserSettingController 以当前认证用户查找设置；有效 content 是毫秒时间戳。用户创建时初始化、修改密码时更新，显示为“上次更新”，不使用资料修改时间替代。无记录或无效值隐藏，密码信息与日志独立加载，部分失败保留可用内容并支持重试。
+
+“修改密码”采用基础配置页编辑操作同样的默认描边按钮与 EditOutlined 图标，沿用平台主题的悬停/焦点状态；它是弹窗入口，不因日志加载而禁用或展示提交中的加载图标。实际密码校验和修改仍由原 EditPassword 组件执行，不写死原型密码强度。
+
+补充验证：新增的 2 项安全设置流程回归通过，覆盖日志与密码数据、缺失结果、独立失败/重试及迟到响应保护；真实 API 包装的契约检查确认使用当前用户接口、固定 10 条、已声明的过滤/排序字段和正确的密码设置路径。15 项隔离浏览器检查覆盖按钮默认样式/编辑图标、日志加载期间可用、打开原密码入口、三类结果、堆栈隐藏、失败重试、空态、日期缺失和窄屏。浏览器/API 使用替身，真实登录会话中的日志记录及覆盖范围仍待联调。本次没有修改后端或日志采集配置，无后端重启要求。
+
+### 个人令牌权限模式
+
+运行时个人令牌新增/编辑、列表与详情区分跟随账号、只读和自定义，沿用现有 Scope 与后端授权裁剪，不新增接口或后端规则。转换与兼容逻辑集中在 components/PersonalToken/permissionMode.ts，选择交互由 components/useTokenPermissions.ts 管理，useTokenDialog.ts 负责校验和保存。
+
+- 跟随账号：新令牌默认模式，提交单个全局权限 id=*、actions=[*]，由现有后端继承账号权限；不把创建时的完整权限快照当作动态跟随。
+- 只读：用户选择时，仅从完整可授权定义提取 query 操作，不授予写入、指令、导出或未知操作；保存为具体权限范围，之后打开编辑不自动扩张该范围。
+- 自定义：使用平台复选框选择资源及操作，至少保留一项操作。搜索只过滤展示；切换到其他模式再返回时保留自定义草稿。
+- 模式保存在 scope.attributes.personalTokenPermissionMode，既有 dimensions、其他属性和 Scope 字段原样保留。后端继续执行原有强制范围与权限上限，前端模式标签不作为授权依据。
+- 无模式标记的历史显式范围在列表/详情显示“指定权限”，编辑按自定义回填并保留具体清单；不根据其恰好只有 query 推断为只读。历史缺省 Scope 或单个全局通配范围按后端实际语义显示跟随账号；矛盾标记以真实范围为准。资源内 actions=* 在预览时展开，取消其中某项后转换为具体动作，确保被取消的操作不再由通配符授予。
+- 只读/自定义需要完整权限目录加载成功才能提交，跟随账号可在预览查询失败时正常保存。两种保存方式均记录模式，原 ID/sourceId、失败草稿和访问令牌轮换参数保持既有流程。
+
+列表无数据时复用 CloudEmpty，显示“还没有个人令牌”、开放 API 用途、权限受账号限制，以及完整令牌仅在创建或刷新后显示一次的说明；空态与工具区复用“新建令牌”入口。成功空态独立于宽表格展示，窄屏无需横向滚动即可看到说明与操作；查询失败继续显示错误与重试，不能伪装成尚未创建令牌。
+
+### 个人令牌弹层排版
+
+新增/编辑使用平台 a-modal，宽度 720px，字段按名称、说明、有效期和权限范围纵向排列；名称 64 字、说明 200 字、现有有效期选项及两种保存参数保持原样；权限初始化与切换遵循上述三种模式。正文受视口高度约束，底部按钮统一右对齐，编辑显示“取消 / 仅保存 / 保存并刷新”，完整影响说明保留在 Tooltip；刷新保存仍为主操作。权限表单独限高并滚动，搜索栏、表头和页脚不随权限行移动。
+
+详情继续复用 JlDrawerShell：名称旁显示简短状态点（例如“已过期”），元信息后展示权限清单，底部是带编辑图标的默认按钮。权限清单按抽屉剩余空间伸展并独立滚动，上方元信息、搜索栏和底部按钮保持可见；小高度窗口保留可操作的清单高度，正文可兜底滚动。状态文案使用新增简短词条，原授权状态判断保持原样。
+
+PermissionList 只在展示层过滤没有实际授权操作的空行；详情显示“已授权 N 项操作”，编辑显示“包含 N 项操作”，不将只读操作标签描述为可勾选项。原 scope 和保存数据不随搜索、过滤或滚动改变。原型中的令牌尾号、最后使用时间/IP 和撤销历史缺少现有接口支持，继续隐藏。
+
+验证：令牌定向回归共 20 项通过（permissions.test.mjs 11 项、useTokenDialog.test.mjs 9 项），覆盖三种模式请求与回显、历史范围保留、元数据透传、自定义草稿、搜索、资源通配符收窄、失败重试及两种保存参数。permissionMode.ts 与 tokenPresentation.ts 的定向严格 TypeScript 检查通过；本轮 11 个令牌 Vue/TypeScript 文件的脚本、模板、样式、词条及 Vue 文件行数约束检查通过，差异空白检查通过。
+
+隔离浏览器复用真实令牌列表、弹窗、抽屉、权限组件、CloudEmpty 与 Ant Design，接口使用替身；22 项交互检查覆盖模式切换、请求与回显、两种保存、详情和独立滚动，最终 8 项中英文窄屏/空态检查覆盖 390px 弹窗、权限控件、页脚、无数据说明及创建入口。此前 120 组/480 项授权的滚动检查继续有效：权限行独立滚动，元信息、搜索栏、表头与底部操作保持可见。浏览器控制台无警告或错误；未执行真实令牌创建/轮换/鉴权联调、全量 typecheck 或完整构建，不能以模拟接口检查代替后端验收。
+
+### 框架导航与外观边界
+
+页面通过 useOptionalProjectSecondaryMenu 注册导航，grouped 显式设为 true；ProjectSecondaryMenu 负责标题分组、图标和选中态，useCenter.ts 负责既有页签及 URL 兼容。页面内部仅在没有框架 provider 时显示同一个导航组件，不再另写按钮侧栏。
+
+grouped 默认 false，现有平铺注册调用的 DOM 和交互保持原样。框架的分组布局类只在该选项启用时生效，当前由个人中心使用；离开页面或卸载后撤销注册。此前为个人中心添加的整页面板禁用声明已移除，内容面板及背景由框架按默认规则提供。
+
+本轮验证：默认平铺导航与原版经过真实 Vue/Ant Design Vue 渲染对照，DOM 一致；新增 centerFrameworkNavigation.test.mjs 的 3 项测试覆盖菜单注册、URL/内容双向选择、离开页面清理和既有平铺模式。右侧六项标题栏、图标及独立统计行已按用户最后确认移除，SSO 内容直接从表格开始；默认姓名头像和各业务操作图标继续按用途展示。
+
+### 验证与发布
+
+- 此前六入口改造的定向回归共 48 项通过：`useCenter.test.mjs` 14 项、`AccountInfo/useContactInfo.test.mjs` 4 项、令牌保存/权限 15 项、新 `personalCenterFlows.test.mjs` 12 项，以及框架导航 3 项。覆盖六入口与旧导航、刷新恢复、联系方式、令牌两种保存、订阅默认值/停用恢复/失败重试/串行提交、验证码与身份对应、消息定位、日期边界、扫码绑定读回/过期/取消订阅，以及基本信息最近登录字段的有效值、缺失值和活跃时间区分。
+- 20 个改动 Vue/TypeScript 文件的脚本/模板、样式语法和中英文词条检查通过；改动 Vue 文件均不超过 300 行，差异空白检查通过。未运行全量类型检查，不能将转译与模板检查视为完整 typecheck。
+- 浏览器使用实际六入口页面、账户字段栅格、菜单 hook、Ant Design Vue、令牌列表/详情/保存组件与通知矩阵，接口和宿主能力使用替身；消息共享表格/筛选器以及未改的密码、裁剪、部分绑定和业务详情边界使用适配替身。姓名保存及失败重试、联系方式入口、SSO 列表、令牌详情及双保存入口、消息分类、通知开关及失败恢复、四类空态和 URL 刷新恢复已检查。微信扫码弹窗使用模拟授权流验证二维码、过期重试、绑定读回与订阅关闭。
+- 框架集成预览使用实际 ProjectSecondaryMenu、导航 provider、默认 ContentPanel、工作台背景 SVG 和布局样式，账号/API 使用替身。24 组最终检查覆盖 390/768/1440/2266px 的六项内容：页面内部无重复导航、无附加标题或面包屑、桌面侧栏竖线为 0，窄屏内容位于导航下方且宽度正常；标题图标与独立摘要栏均已去掉。真实登录页面仍需验收。
+- 实际登录态下的身份绑定/解绑、SSO、头像上传、密码修改、令牌生效和通知投递仍需联调，隔离验证不代表真实后端验收。工作区没有独立 lint 脚本；按设备性能约束未运行全量 build。发布前在 `runtime-ui/` 执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 和 `pnpm build`。上线只需更新运行时前端静态资源，无本次后端服务重启要求。
+
+定向回归命令（在 `runtime-ui/jetlinks-web-core/`）：
+
+```sh
+node --test src/views/account/center/useCenter.test.mjs src/views/account/center/centerFrameworkNavigation.test.mjs src/views/account/center/personalCenterFlows.test.mjs src/views/account/center/components/AccountInfo/useContactInfo.test.mjs src/views/account/center/components/PersonalToken/useTokenDialog.test.mjs src/views/account/center/components/PersonalToken/permissions.test.mjs
+```

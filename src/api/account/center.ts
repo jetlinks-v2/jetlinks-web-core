@@ -1,6 +1,18 @@
-import { request } from '@jetlinks-web/core'
+import { ndJson, request } from '@jetlinks-web/core'
+import type { Observable } from 'rxjs'
 
 export const getSsoBinds_api = (): any =>request.get(`/application/sso/me/bindings`)
+
+export type SsoBindingEvent =
+  | { type: 'init'; result: string }
+  | { type: 'processing' }
+  | { type: 'success'; result: { bound: boolean } }
+  | { type: 'failed'; message?: string }
+
+/** 与项目已有扫码绑定保持一致：绑定当前账号，不自动创建登录账号。 */
+export const getSsoBindingEvents_api = (appId: string): Observable<SsoBindingEvent> =>
+  ndJson.get('/application/sso/' + encodeURIComponent(appId) + '/login/_async?forBind=true&autoCreateUser=false')
+
 
 
 // 修改登录用户信息
@@ -90,3 +102,28 @@ export const confirmIdentityValidation_api = (
 /** 用户身份：解绑已绑定身份（如解绑邮箱/手机号），对应 UserIdentityController#unbind，body 为绑定ID列表 */
 export const unbindIdentity_api = (provider: string, ids: string[]) =>
   request.post(`/user/identity/${provider}/_unbind`, ids);
+
+
+export interface SecurityLoginRecord {
+  id: string
+  createTime?: number
+  actionId?: string
+  ip?: string
+  ipRegion?: string
+  exception?: string
+}
+
+/** 操作日志接口在服务端强制绑定当前用户；只查询已记录的平台账号登录。 */
+export const getSelfLoginRecords_api = () =>
+  request.post<{ data: SecurityLoginRecord[]; total?: number }>('/logger/operation/user/me/_query', {
+    pageIndex: 0,
+    pageSize: 10,
+    sorts: [{ name: 'createTime', order: 'desc' }],
+    terms: [
+      { column: 'actionId', termType: 'eq', value: '/authorize/login' },
+    ],
+  })
+
+/** 使用当前用户设置读取后端维护的密码更新时间，不借用用户资料修改时间。 */
+export const getPasswordChangeSetting_api = () =>
+  request.get<{ content?: string | number }>('/user/settings/userLoginInfo/lastPasswordChangeTime')
