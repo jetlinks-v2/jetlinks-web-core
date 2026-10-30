@@ -2127,5 +2127,7 @@
   "runtimeDiagnostics.bean.HourHistory": "Last hour of communication",
   "runtimeDiagnostics.sampling.interval": "Sample interval",
   "runtimeDiagnostics.sampling.seconds": "{seconds}s",
-  "runtimeDiagnostics.traceEdgeSource": "Edge {source}"
+  "runtimeDiagnostics.traceEdgeSource": "Edge {source}",
+  "ImagePreview.title": "Image preview",
+  "ImagePreview.reset": "Reset"
 }
