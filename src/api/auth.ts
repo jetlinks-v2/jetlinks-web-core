@@ -15,6 +15,6 @@ export interface CurrentAuthorization {
 }
 
 /** 默认入口判断必须禁用应用 Scope，避免把已裁剪的角色误认为完整身份。 */
-export const getMe_api = (options: { applicationScope?: false } = {}): Promise<AxiosResponseRewrite<CurrentAuthorization>> => (
+export const getMe_api = (options: { applicationScope?: false; hiddenError?: boolean; signal?: AbortSignal } = {}): Promise<AxiosResponseRewrite<CurrentAuthorization>> => (
   request.get('/authorize/me', undefined, options)
 )

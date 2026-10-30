@@ -1987,6 +1987,7 @@
   "layout.menuSearch.empty": "未找到匹配菜单",
   "layout.project.settings": "设置",
   "components.TableActions.more": "更多操作",
+  "components.SlantedTabs.more": "更多标签",
   "comm.api.timeout": "网络环境不佳",
   "comm.table.empty": "未配置",
   "comm.table.empty-2": "未上报",

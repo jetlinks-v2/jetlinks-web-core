@@ -4,6 +4,8 @@
 
 这是按需导入的公开目录入口，不在 core 组件插件中全局注册。它与 `components/Dashboard` 展示组件族无依赖，也不依赖 visualization 的项目、设计器 store 或模块注册表。
 
+固定排版的页面可从同一入口导入 `DashboardWidgetRenderer`，传入 `widget`、`definition` 与 `previewMode`，复用组件注入、错误隔离和重试，不创建拖拽网格或个人坐标缓存。宿主负责布局，可将渲染器的 `height` 设为 `auto` 以随内容撑高。需要个人拖拽、缩放和本地布局保存的页面应使用 `DashBoardCanvas`；`editable=false`、`layoutEditable=true`、`previewMode=false` 可在保持业务实时取数的同时只开放位置和尺寸调整。
+
 ## 自动发现
 
 采用 **共享懒加载来源 → 每处按范围取组件 → 生成 catalog → 画布渲染**。复用 `discovery` 的来源整理、加载缓存和 catalog 装配；同目录的 `dashboard-sources.ts` 作为可选宿主目录适配器，保持独立导入，通过 Vite 原生 `import.meta.glob` 发现以下目录：

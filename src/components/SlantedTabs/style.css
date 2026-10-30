@@ -1,0 +1,195 @@
+.slanted-tabs {
+  min-width: 0;
+  /* color 专用于页签轮廓，文字单独设色；em 尺寸跟随组件字号。 */
+  color: #fff;
+  font-size: var(--slanted-tabs-font-size, 1rem);
+  --slanted-tabs-height: 2.5em;
+  --slanted-tabs-min-width: 8em;
+  --slanted-tabs-overlap: 0.5em;
+}
+
+.slanted-tabs__nav {
+  display: flex;
+  box-sizing: border-box;
+  padding: var(--slanted-tabs-nav-padding, 0);
+  background: var(--slanted-tabs-background, transparent);
+}
+
+.slanted-tabs__viewport {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.slanted-tabs__viewport::before,
+.slanted-tabs__viewport::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.slanted-tabs__viewport::before {
+  left: 0;
+  box-shadow: inset 10px 0 8px -8px rgba(0, 0, 0, 0.2);
+}
+
+.slanted-tabs__viewport::after {
+  right: 0;
+  box-shadow: inset -10px 0 8px -8px rgba(0, 0, 0, 0.2);
+}
+
+.slanted-tabs__viewport.has-hidden-left::before,
+.slanted-tabs__viewport.has-hidden-right::after {
+  opacity: 1;
+}
+
+.slanted-tabs__scroller {
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* 隐藏滚动条占位，保持页签与内容相接，同时保留横向滚动。 */
+  scrollbar-width: none;
+  isolation: isolate;
+}
+
+.slanted-tabs__scroller::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.slanted-tabs__list {
+  position: relative;
+  display: flex;
+  width: max-content;
+  isolation: isolate;
+}
+
+.slanted-tabs__more {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--slanted-tabs-height);
+  height: var(--slanted-tabs-height);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--ink-3, #8793a3);
+  font-size: inherit;
+}
+
+.slanted-tabs__menu {
+  max-height: min(320px, calc(100vh - 80px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.slanted-tabs__menu-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5em;
+  max-width: min(400px, calc(100vw - 80px));
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.slanted-tabs__tab {
+  position: relative;
+  z-index: var(--tab-layer);
+  display: flex;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  height: var(--slanted-tabs-height);
+  min-width: var(--slanted-tabs-min-width);
+  padding: 0 1.5em;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font-family: var(--slanted-tabs-font-family, 'Microsoft YaHei', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-size: inherit;
+  font-weight: 400;
+  line-height: 1.5;
+  cursor: pointer;
+  appearance: none;
+}
+
+.slanted-tabs__tab + .slanted-tabs__tab {
+  margin-left: calc(-1 * var(--slanted-tabs-overlap));
+}
+
+/* 单层渐变经 SVG 遮罩裁切，避免拼接接缝；128 × 40 为参考轮廓基准。 */
+.slanted-tabs__tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--slanted-tabs-inactive-bg, linear-gradient(90deg, color-mix(in srgb, currentColor 20%, transparent) 11.72%, color-mix(in srgb, currentColor 60%, transparent) 75%));
+  -webkit-mask: url('./shape.svg') 0 0 / 100% 100% no-repeat;
+  mask: url('./shape.svg') 0 0 / 100% 100% no-repeat;
+  pointer-events: none;
+}
+
+.slanted-tabs__tab.is-active .slanted-tabs__label {
+  color: var(--ink-1, #20242d);
+  font-weight: 500;
+	font-size: var(--fs-16);
+}
+
+.slanted-tabs__tab.is-active::before {
+  background: var(--slanted-tabs-active-bg, currentColor);
+}
+
+.slanted-tabs__tab:focus-visible {
+  outline: none;
+}
+
+.slanted-tabs__tab:focus-visible .slanted-tabs__label {
+  outline: calc(2em / 14) solid var(--accent, #1677ff);
+  outline-offset: calc(5em / 14);
+  border-radius: calc(2em / 14);
+}
+
+.slanted-tabs__tab:not(:disabled):hover .slanted-tabs__label {
+  color: var(--ink-1, #20242d);
+}
+
+.slanted-tabs__tab:disabled {
+  cursor: not-allowed;
+}
+
+.slanted-tabs__tab:disabled .slanted-tabs__label {
+  opacity: 0.45;
+}
+
+.slanted-tabs__label {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5em;
+  color: var(--ink-3, #8793a3);
+  white-space: nowrap;
+	font-size: var(--fs-14);
+}
+
+.slanted-tabs__count {
+  font-variant-numeric: tabular-nums;
+}
+
+.slanted-tabs__panel,
+.slanted-tabs__feedback {
+  color: var(--ink-1, #20242d);
+  background: var(--slanted-tabs-panel-bg, var(--slanted-tabs-active-bg, #fff));
+}
+
+.slanted-tabs__feedback {
+  padding: var(--space-6, 24px);
+  text-align: center;
+}

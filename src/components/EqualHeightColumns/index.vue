@@ -166,7 +166,12 @@ const rightStyle = paneStyle
 
 /* 展开按钮朝向右列的一侧敞开，分割线在按钮高度内留出缺口。 */
 .equal-height-columns--collapsible:not(.equal-height-columns--collapsed)::before {
-  clip-path: inset(var(--equal-height-columns-toggle-height) 0 0);
+  background: linear-gradient(
+    to bottom,
+    var(--line-strong) 0 calc(50% - var(--equal-height-columns-toggle-height) / 2),
+    transparent 0 calc(50% + var(--equal-height-columns-toggle-height) / 2),
+    var(--line-strong) 0
+  );
 }
 
 /* 左列收起后两栏贴合，中缝已无意义，分割线随之消失。 */
@@ -207,7 +212,7 @@ const rightStyle = paneStyle
 
 .equal-height-columns__toggle-anchor {
   grid-area: 1 / 2 / 2 / 3;
-  align-self: start;
+  align-self: center;
   height: 0;
   pointer-events: none;
 }
@@ -216,7 +221,7 @@ const rightStyle = paneStyle
 .equal-height-columns__toggle-layer {
   position: absolute;
   grid-area: 1 / 2 / 2 / 3;
-  top: 0;
+  top: 50%;
   left: 50%;
   z-index: 5;
   width: 0;
@@ -227,7 +232,7 @@ const rightStyle = paneStyle
 .equal-height-columns__toggle {
   --equal-height-columns-toggle-width: 0.8rem;
   position: absolute;
-  top: calc(var(--equal-height-columns-toggle-height) / 2);
+  top: 0;
   left: 0;
   display: inline-flex;
   align-items: center;

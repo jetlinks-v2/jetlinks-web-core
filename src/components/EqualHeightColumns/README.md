@@ -36,14 +36,14 @@
 
 #### 当前调整
 
-展开时保留按钮的左、上、下边框，分割线通过 `clip-path` 裁去按钮高度对应的线段，形成与按钮相接的缺口，不覆盖面板背景。布局根节点与按钮挂载层共用 `--equal-height-columns-toggle-height` 尺寸；仅在显示折叠按钮且展开时裁切，没有折叠按钮时继续显示完整分割线。
+展开时保留按钮的左、上、下边框，分割线通过渐变的透明中段留出与按钮等高的缺口，不覆盖面板背景。布局根节点与按钮挂载层共用 `--equal-height-columns-toggle-height` 尺寸；仅在显示折叠按钮且展开时留出缺口，没有折叠按钮时继续显示完整分割线。
 
-实现位于 `runtime-ui/jetlinks-web-core/src/components/EqualHeightColumns/index.vue`，定位与尺寸/滚动监听位于同目录 `useColumnToggle.ts`。组件统一将折叠按钮置于内容顶部；存在外层 `ContentPanel` 时，通过 Teleport 挂载到最近的面板，避免中间页面容器的 `overflow: hidden` 裁切，收起后贴齐面板左边缘。没有面板时保留组件内定位，收起后贴齐组件左边缘。业务页面无需覆盖样式，props、slots 和事件保持不变。
+实现位于 `runtime-ui/jetlinks-web-core/src/components/EqualHeightColumns/index.vue`，定位与尺寸/滚动监听位于同目录 `useColumnToggle.ts`。组件统一将折叠按钮置于双栏容器的垂直中点，展开时挂在中缝分割线上；存在外层 `ContentPanel` 时，通过 Teleport 挂载到最近的面板，避免中间页面容器的 `overflow: hidden` 裁切，收起后贴齐面板左边缘并保持上下居中。没有面板时保留组件内定位，收起后贴齐组件左边缘。业务页面无需覆盖样式，props、slots 和事件保持不变。
 
-双栏仍使用“左列 / 间距 / 右列”三个 Grid 轨道，按钮跟随间距轨道中点。ResizeObserver 读取真实轨道位置，挂载层坐标不叠加过渡；布局与按钮 transform 沿用 200ms 的 `cubic-bezier(0.23, 1, 0.32, 1)`。按钮移出根节点后显式继承该局部过渡变量。`fr` 收起保留为 `0fr`，减少动态效果偏好下仍直接切换位置。
+双栏仍使用“左列 / 间距 / 右列”三个 Grid 轨道，零高度锚点在间距轨道中上下居中，按钮中心跟随锚点；无面板时挂载层通过 `top: 50%` 对齐同一中点。ResizeObserver 读取真实轨道位置，挂载层坐标不叠加过渡；布局与按钮 transform 沿用 200ms 的 `cubic-bezier(0.23, 1, 0.32, 1)`。按钮移出根节点后显式继承该局部过渡变量。`fr` 收起保留为 `0fr`，减少动态效果偏好下仍直接切换位置。
 
-验证：实际产品页与设备列表均覆盖展开/收起、点击和页面切换，无残留按钮；产品页恢复原 `overflow: hidden` 后，按钮仍与内容顶部及面板左边缘准确对齐，面板无新增滚动溢出。独立真实组件用例覆盖 16px/32px 面板内边距、无背景面板、无面板、`240px`/`30%`/`1fr`/`2fr` 列宽、`32px`/`0px`/`2%` 间距、快速反向、窗口滚动、隐藏左列后恢复及卸载清理，静止位置偏差均为 0px。SFC 脚本/模板/scoped CSS 编译、新增 hook 严格 TypeScript 检查、组件范围 Vite 生产构建、样式门禁与 `git diff --check` 通过。
+既有定位验证：产品页与设备列表覆盖展开/收起、点击和页面切换，无残留按钮或新增滚动溢出。独立真实组件用例覆盖 16px/32px 面板内边距、无背景面板、无面板、`240px`/`30%`/`1fr`/`2fr` 列宽、`32px`/`0px`/`2%` 间距、快速反向、窗口滚动、隐藏左列后恢复及卸载清理。新增 hook 严格 TypeScript 检查通过。
 
-缺口样式复验：产品页展开、收起、再次展开通过；展开按钮右边框为 `0px`，分割线裁切高度与按钮实测高度同为 `32px`，收起按钮与面板左边缘偏差为 `0px`，未新增页面横向溢出。SFC 编译、hook 严格 TypeScript 检查、组件范围 Vite 生产构建、样式门禁与 `git diff --check` 再次通过，产品页源码及其 README 无差异。
+居中与缺口复验：产品页展开、收起、再次展开通过，垂直中心偏差均为 `0px`；展开按钮右边框为 `0px`，分割线中段缺口与按钮同为 `32px`，收起按钮与面板左边缘偏差为 `0px`，未新增页面横向溢出。独立真实组件覆盖有面板的 `240px`/`360px` 高度、无面板的 `160px`/`280px` 高度，展开与收起时垂直中心及贴边偏差均为 `0px`；关闭折叠功能时不显示按钮并保留完整分割线。SFC 脚本/模板/scoped CSS 编译、组件范围 Vite 生产构建、样式门禁与 `git diff --check` 通过。
 
-质量边界：未执行完整应用 build 或完整组件 `vue-tsc`，工作区无独立 lint 脚本；历史组件类型检查曾因根节点 `attrs.style` 的 `unknown[]` 报 `TS2345`，本次没有修改该类型边界。其他浏览器及系统减少动态效果偏好切换未复验。完整待验证命令为 `pnpm -C runtime-ui exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 与 `pnpm -C runtime-ui build`。
+质量边界：组件范围 `vue-tsc` 仍因根节点 `attrs.style` 的 `unknown[]` 报既有 `TS2345`，本次仅改样式，没有修改该类型边界。未执行完整应用 build 或完整项目 `vue-tsc`，工作区无独立 lint 脚本。其他浏览器及系统减少动态效果偏好切换未复验。完整待验证命令为 `pnpm -C runtime-ui exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 与 `pnpm -C runtime-ui build`。

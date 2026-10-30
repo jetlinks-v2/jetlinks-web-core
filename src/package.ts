@@ -34,6 +34,7 @@ import microApp from '@micro-zoe/micro-app'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
 import { useVerifyStore } from '@jetlinks-web-core/store/verify'
 import type { VerifyRequiredResult } from '@jetlinks-web-core/api/verify'
+import { deserializeCollectorMessage } from '@jetlinks-web-core/utils/json/collector'
 
 /** 非一次性校验通过后缓存的 key/token，供请求头使用（避免拦截器内 pinia 未就绪） */
 let verifyHeadersCache: { key: string; token: string } | null = null
@@ -213,17 +214,7 @@ export const initPackages = () => {
             url = `${api}/messaging/${encodeURIComponent(projectStorage.token)}?${params}`
         }
     }
-    // wsClient.setOptions({
-    //     onError(message) {
-    //         notification.error({
-    //             key: 'ws-error',
-    //             message: message.message,
-    //             style: {
-    //                 zIndex: 1090
-    //             },
-    //         });
-    //     }
-    // })
+    wsClient.setOptions({ deserializer: deserializeCollectorMessage })
     if (isFromCloud()) {
         url = `${getCloudWsBaseApi()}/_ws/messaging?${TOKEN_KEY_URL}=${token}`;
     }
