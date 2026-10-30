@@ -67,7 +67,7 @@
 
 验证：headerNotice.test.mjs 与 noticeUtils.test.mjs 共 17 项通过，覆盖真实分类、无通道公告、目录部分失败、未读数量保留、列表失败重试、迟到响应、原详情接管和消息中心导航。5 个改动 Vue/TypeScript 文件的脚本、模板、Less、中英文词条与行数检查通过，noticeUtils.ts 定向严格 TypeScript 检查与差异空白检查通过。隔离浏览器以真实消息组件及 Ant Design、模拟接口完成 20 项检查，包含 380px 桌面弹层、390px/500px 高窗口、中英文、摘要与标题截断、独立滚动、底部入口固定、整行点击、分类跳转、错误/空态及重试；控制台无警告或错误。
 
-顶部“通知”和“公告”页签统一查询当前用户的有效未读接口，最多请求 12 条；业务注册的历史列表加载器不参与顶部查询，公告标题与摘要仍由注册文本解析器补齐。已读历史进入消息中心查看，不追加到未读弹层中。未读查询修复的定向验证：headerNotice.test.mjs 与 noticeUtils.test.mjs 共 24 项通过，覆盖注册加载器存在时也不追加已读历史、无未读时保留空列表以及原详情入口；差异空白检查通过。当前登录页有待确认的公告弹窗，未操作其已读状态，真实弹层列表仍待刷新验收。未配置独立 lint 脚本，按设备性能约束未执行全量 typecheck 或构建；真实后端消息收取及各业务详情仍需登录环境验收。发布前在 runtime-ui 执行 pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json 和 pnpm build；上线仅更新运行时前端资源，无后端重启要求。
+顶部“通知”和“公告”页签仅显示有效未读，最多请求 12 条：普通通知继续使用有效未读接口，注册的独立接收源由 queryNoticeRecordsNoPaging 显式追加 state=unread，并以 AND 分组保留原筛选条件、排序和分页；个人中心的完整列表不追加此条件。业务注册的历史列表加载器不参与顶部查询，公告标题与摘要仍由注册文本解析器补齐。已读历史进入消息中心查看，不追加到未读弹层中。未读查询修复的定向验证：noticeDataSource.test.mjs、headerNotice.test.mjs 与 noticeUtils.test.mjs 共 28 项通过，覆盖独立源在分页前筛选未读、有无无分页入口、原 OR 条件不绕过未读限制、消息中心保留完整列表、普通通知继续走有效未读接口和查询入参不被修改；差异空白检查通过。浏览器确认当前使用 rt-uat.jetlinks.cn 的部署资源，本次修复仅在本地，发布运行时前端后须复验“角标为零且公告已读时顶部弹层为空”，未更改真实消息的已读状态。未配置独立 lint 脚本，按设备性能约束未执行全量 typecheck 或构建；真实后端消息收取及各业务详情仍需登录环境验收。发布前在 runtime-ui 执行 pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json 和 pnpm build；上线仅更新运行时前端资源，无后端重启要求。
 
 ## 弹窗样式边界
 
