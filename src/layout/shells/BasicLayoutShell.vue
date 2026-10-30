@@ -80,11 +80,13 @@
         :class="{
           'project-layout__content--settings': settingsActive,
           'project-layout__content--panel': routeContentPanel.enabled,
+          'project-layout__content--grouped-page-navigation': visibleSecondaryGrouped && secondaryTabPosition === 'left',
         }"
       >
         <ProjectSecondaryMenu
           v-if="visibleSecondaryItems.length"
           :items="visibleSecondaryItems"
+          :grouped="visibleSecondaryGrouped"
           :selectedKey="visibleSecondarySelectedKey"
           :tabPosition="secondaryTabPosition"
           @select="selectVisibleSecondaryItem"
@@ -186,6 +188,7 @@ const {
   settingsVisible,
   systemInfo,
   visibleSecondaryItems,
+  visibleSecondaryGrouped,
   visibleSecondarySelectedKey,
 } = controller
 </script>

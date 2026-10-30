@@ -9,6 +9,7 @@ const require = createRequire(import.meta.url)
 const entry = fileURLToPath(new URL('./useCenter.ts', import.meta.url))
 const contextKey = '__jetlinksCenterTestContext'
 const stubSources = {
+  '@jetlinks-web-core/layout/hooks/useProjectSecondaryMenu': 'export const useOptionalProjectSecondaryMenu = () => undefined',
   '@jetlinks-web-core/store/user': 'export const useUserStore = () => context.user',
   '@jetlinks-web/hooks': 'export const useRouterParams = () => ({ params: context.params })',
   'vue-router': 'export const useRoute = () => context.route; export const useRouter = () => context.router',
@@ -100,19 +101,26 @@ const mountCenter = async (t, options = {}) => {
   return { center, context, user, calls, unmount }
 }
 
-test('默认消息中心，账户信息常驻且仅保留三个主切换项', async t => {
+test('默认基本信息，六个功能入口独立切换', async t => {
   const { center, user } = await mountCenter(t)
-  assert.equal(center.activeKey.value, 'StationMessage')
-  assert.equal(user.tabKey, 'StationMessage')
+  assert.equal(center.activeKey.value, 'BasicInfo')
+  assert.equal(user.tabKey, 'BasicInfo')
   assert.equal(center.accountInfoVisible.value, false)
   assert.deepEqual(center.profile.value.items.map(item => item.key), ['id', 'username', 'roles', 'orgs', 'mobile', 'email'])
-  assert.deepEqual(center.segments.value.map(item => item.value), ['StationMessage', 'Subscribe', 'PersonalToken'])
+  assert.deepEqual(center.segments.value.map(item => item.value), ['BasicInfo', 'Security', 'Sso', 'PersonalToken', 'StationMessage', 'Subscribe'])
+  assert.deepEqual(center.navigationGroups.value.map(group => ({ key: group.key, items: group.items.map(item => item.value) })), [
+    { key: 'account', items: ['BasicInfo', 'Security', 'Sso', 'PersonalToken'] },
+    { key: 'messages', items: ['StationMessage', 'Subscribe'] },
+  ])
+  center.selectContent('StationMessage')
+  assert.equal(center.activeGroupTitle.value, 'zh:PersonalCenter.messagesGroup')
+
   center.selectContent('PersonalToken')
   await flush()
   assert.equal(center.activeKey.value, 'PersonalToken')
   center.selectContent('unknown')
   await flush()
-  assert.equal(center.activeKey.value, 'StationMessage')
+  assert.equal(center.activeKey.value, 'BasicInfo')
 })
 
 test('路由指定订阅页且慢速用户加载完成后仍保持手动选择', async t => {
@@ -132,7 +140,8 @@ test('历史首页视图和账号信息参数打开辅助入口', async t => {
   assert.equal(center.homeViewVisible.value, false)
   context.params.value = { tabKey: 'BindThirdAccount' }
   await flush()
-  assert.equal(center.accountInfoVisible.value, true)
+  assert.equal(center.accountInfoVisible.value, false)
+  assert.equal(center.activeKey.value, 'BasicInfo')
   assert.equal(center.homeViewVisible.value, false)
   context.params.value = { tabKey: 'PersonalToken' }
   await flush()
@@ -163,7 +172,7 @@ test('异步识别到应用用户后关闭首页视图', async t => {
 test('新通知切回消息中心，旧通知不干扰订阅和令牌切换', async t => {
   const { center, context, user } = await mountCenter(t)
   center.selectContent('Subscribe')
-  center.openAccountInfo()
+  center.openAccountInfo('email-section')
   user.messageInfo = { id: 'notice-1', topicProvider: 'alarm' }
   await flush()
   assert.equal(center.activeKey.value, 'StationMessage')
@@ -182,21 +191,21 @@ test('验证返回的联系方式锚点不会被 Store 回声关闭', async t =>
   center.openAccountInfo('phone-section')
   await flush()
   assert.equal(center.accountInfoVisible.value, true)
-  assert.equal(context.route.query.anchor, 'phone-section')
+  assert.equal(center.contactTarget.value, 'phone-section')
 })
 
-test('主身份优先、无身份服务时回退账户联系方式，过滤不支持重定向的绑定', async t => {
+test('主身份优先、无身份服务时回退账户联系方式，并保留接口返回的绑定状态', async t => {
   const { center } = await mountCenter(t)
   assert.equal(center.profile.value.items.find(item => item.key === 'mobile').value, '139****1234')
   assert.equal(center.profile.value.items.find(item => item.key === 'email').value, 'pr****@example.test')
   assert.equal(center.profile.value.items.find(item => item.key === 'email').editTarget, 'email-section')
-  assert.deepEqual(center.profile.value.thirdAccounts.map(item => item.key), ['supported'])
+  assert.deepEqual(center.profile.value.thirdAccounts.map(item => item.key), ['supported', 'unsupported'])
   const fallback = await mountCenter(t, { identitySupported: false })
   assert.equal(fallback.calls.identities, 0)
   assert.equal(fallback.center.profile.value.items.find(item => item.key === 'mobile').value, '138****9999')
-  assert.equal(fallback.center.profile.value.items.find(item => item.key === 'mobile').editTarget, undefined)
+  assert.equal(fallback.center.profile.value.items.find(item => item.key === 'mobile').editTarget, 'phone-section')
   assert.equal(fallback.center.profile.value.items.find(item => item.key === 'email').value, 'fa****@example.test')
-  assert.equal(fallback.center.profile.value.items.find(item => item.key === 'email').editTarget, undefined)
+  assert.equal(fallback.center.profile.value.items.find(item => item.key === 'email').editTarget, 'email-section')
 })
 
 test('未填写邮箱时展示占位，资料刷新后更新脱敏邮箱', async t => {
@@ -248,7 +257,51 @@ test('社区版保持原账户能力边界，文案跟随语言切换', async t 
   assert.equal(calls.thirdAccounts, 0)
   center.openAccountInfo()
   assert.equal(center.accountInfoVisible.value, false)
-  assert.equal(center.activeTitle.value, 'zh:AccountCenter.messageCenter')
+  assert.equal(center.activeTitle.value, 'zh:PersonalCenter.basic')
   context.language.value = 'en'
-  assert.equal(center.activeTitle.value, 'en:AccountCenter.messageCenter')
+  assert.equal(center.activeTitle.value, 'en:PersonalCenter.basic')
+})
+
+test('URL 页签优先并支持刷新恢复，旧入口重复导航会覆盖手动选择', async t => {
+  const { center, context } = await mountCenter(t, { query: { tab: 'Security' }, params: { tabKey: 'PersonalToken' } })
+  assert.equal(center.activeKey.value, 'Security')
+  center.selectContent('Sso')
+  await flush()
+  assert.equal(context.route.query.tab, 'Sso')
+  context.params.value = { tabKey: 'PersonalToken' }
+  await flush()
+  assert.equal(center.activeKey.value, 'PersonalToken')
+  center.selectContent('BasicInfo')
+  context.params.value = { tabKey: 'PersonalToken' }
+  await flush()
+  assert.equal(center.activeKey.value, 'PersonalToken')
+  context.route.query = { tab: 'Subscribe' }
+  await flush()
+  assert.equal(center.activeKey.value, 'Subscribe')
+})
+
+test('关闭联系方式编辑清除一次性锚点并保留当前页签', async t => {
+  const { center, context } = await mountCenter(t, { query: { anchor: 'email-section', tab: 'BasicInfo' } })
+  assert.equal(center.accountInfoVisible.value, true)
+  center.closeAccountInfo()
+  await flush()
+  assert.equal(context.route.query.anchor, undefined)
+  assert.equal(context.route.query.tab, 'BasicInfo')
+  assert.equal(center.accountInfoVisible.value, false)
+})
+
+test('基本信息摘要与单点登录列表一致保留已绑定第三方账号', async t => {
+  const { center } = await mountCenter(t, { thirdAccountsRequest: () => ({ result: [
+    { id: 'legacy-bound', name: '已绑定账号', provider: 'legacy', bound: true, features: ['ssoUnsupportedRedirect'] },
+    { id: 'legacy-unbound', name: '不可用入口', provider: 'legacy', bound: false, features: ['ssoUnsupportedRedirect'] },
+    { id: 'oauth', name: '可用入口', provider: 'oauth', bound: false, features: [] },
+  ] }) })
+  assert.deepEqual(center.profile.value.thirdAccounts.map(item => item.key), ['legacy-bound', 'legacy-unbound', 'oauth'])
+})
+
+test('基本信息单点绑定摘要兼容接口直接返回数组', async t => {
+  const { center } = await mountCenter(t, { thirdAccountsRequest: () => [
+    { id: 'direct', name: '直接返回', provider: 'oauth', bound: true, features: [] },
+  ] })
+  assert.deepEqual(center.profile.value.thirdAccounts.map(item => item.key), ['direct'])
 })

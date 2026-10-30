@@ -289,3 +289,21 @@
     }
   }
 }
+
+// 只为显式注册 grouped 的页面排列侧栏，不改变现有导航和设置页。
+.project-layout-page {
+  :deep(.ant-pro-basicLayout.cloud-project .project-layout__content.project-layout__content--grouped-page-navigation) {
+    flex-direction: row;
+
+    > .project-secondary-menu {
+      border-right: 0;
+    }
+  }
+}
+@media (max-width: 64rem) {
+  .project-layout-page {
+    :deep(.ant-pro-basicLayout.cloud-project .project-layout__content.project-layout__content--grouped-page-navigation) {
+      flex-direction: column;
+    }
+  }
+}

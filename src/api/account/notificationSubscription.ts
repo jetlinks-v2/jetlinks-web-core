@@ -2,6 +2,16 @@ import { request } from '@jetlinks-web/core'
 
 export type SubscriptionState = 'enabled' | 'disabled'
 
+export interface NotificationChannelDefinition {
+  id: string
+  name?: string
+  receiverPolicy?: string | { value?: string }
+}
+
+/** 与消息模板共用的通道接收策略，只读元数据，不读取管理端配置。 */
+export const getNotificationChannelDefinitions_api = () =>
+  request.get<NotificationChannelDefinition[]>('/notify/channel/providers')
+
 // 获取通知订阅列表
 export const getNoticeList_api = (query: Record<string, unknown> = {}) =>
   request.post(`/notifications/subscriptions/_query`, query);
@@ -12,8 +22,14 @@ export const save_api = (data:any) => request.patch(`/notifications/subscribe`, 
 export const changeSubscriptionState_api = (id: string, state: SubscriptionState) =>
   request.put(`/notifications/subscription/${encodeURIComponent(id)}/_${state}`, {});
 
-// 获取订阅类型
-export const getTypeList_api = () => request.get(`/notifications/providers`);
+export interface NotificationTypeDefinition {
+  id: string
+  name: string
+  type?: { id: string; name: string }
+}
+
+/** 系统已注册的订阅类型，不代表已配置可用渠道。 */
+export const getTypeList_api = () => request.get<NotificationTypeDefinition[]>('/notifications/providers');
 
 //获取订阅类型 新
 export const getTypeListNew = (type:string) => request.get(`/notifications/current/${type}/providers`)
