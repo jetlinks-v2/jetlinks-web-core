@@ -221,8 +221,11 @@ export const useBasicLayoutController = (
       ? pageSecondaryMenu.selectedKey.value
       : secondarySelectedKey.value
   })
+  // 显式注册的分组页面导航使用侧栏；租户壳层的其他导航继续沿用顶部模式。
   const secondaryTabPosition = computed(() => (
-    settingsActive.value || layoutVariant.value !== 'project' ? 'top' : 'left'
+    pageSecondaryMenuActive.value && pageSecondaryMenu.grouped.value
+      ? 'left'
+      : settingsActive.value || layoutVariant.value !== 'project' ? 'top' : 'left'
   ))
 
   const config = computed(() => ({

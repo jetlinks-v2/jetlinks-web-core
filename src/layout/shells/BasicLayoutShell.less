@@ -25,6 +25,85 @@
   flex-direction: column;
 }
 
+/*
+ * 分组页面导航由壳层统一排列为左菜单、右内容，租户端显式复用个人中心时也生效。
+ * 只作用于 grouped 注册，不改变租户端其他页面的顶栏及面板默认规则。
+ */
+.project-layout__content.project-layout__content--grouped-page-navigation {
+  display: flex;
+  min-width: 0;
+  min-height: calc(100vh - var(--chrome-header-height));
+  flex-direction: row;
+  align-items: stretch;
+
+  > .project-secondary-menu {
+    width: var(--project-secondary-menu-width, var(--layout-project-menu-width, var(--sidebar-w)));
+    min-width: 0;
+    flex: 0 0 var(--project-secondary-menu-width, var(--layout-project-menu-width, var(--sidebar-w)));
+    padding: var(--space-4);
+    border: 0;
+    background: transparent;
+  }
+
+  > .project-layout__route-content {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    padding: var(--space-4);
+    background: transparent;
+  }
+
+  :deep(.project-secondary-menu .ant-tabs-nav),
+  :deep(.project-secondary-menu .ant-tabs-nav-wrap),
+  :deep(.project-secondary-menu .ant-tabs-nav-list) { width: 100%; min-width: 0; margin: 0; }
+
+  :deep(.project-secondary-menu .ant-tabs-nav::before),
+  :deep(.project-secondary-menu .ant-tabs-ink-bar),
+  :deep(.project-secondary-menu .ant-tabs-content-holder) { display: none; }
+
+  :deep(.project-secondary-menu .ant-tabs-tab) {
+    width: 100%;
+    min-height: var(--layout-menu-item-height);
+    margin: 0 0 var(--layout-menu-item-gap) !important;
+    padding: 0 var(--space-4);
+    color: var(--layout-menu-item-color);
+    border: var(--jet-theme-stroke-width) solid transparent;
+    border-radius: var(--layout-menu-item-radius);
+    background: transparent;
+  }
+  :deep(.project-secondary-menu .ant-tabs-tab:hover) { color: var(--ink-1); background: var(--bg-hover); }
+  :deep(.project-secondary-menu .ant-tabs-tab-active) {
+    color: var(--layout-menu-item-active-color);
+    border-color: var(--layout-menu-item-active-border);
+    background: var(--bg);
+    box-shadow: var(--shadow-2);
+  }
+  :deep(.project-secondary-menu .ant-tabs-tab-btn) {
+    display: flex; width: 100%; min-width: 0; align-items: center;
+    gap: var(--space-2); color: inherit;
+  }
+  :deep(.project-secondary-menu .ant-tabs-tab-active .ant-tabs-tab-btn) {
+    color: var(--layout-menu-item-active-color);
+    font-weight: var(--layout-menu-item-active-font-weight);
+  }
+  :deep(.project-secondary-menu .ant-tabs-tab .anticon) {
+    margin: 0; color: var(--layout-menu-item-muted-color); font-size: var(--layout-menu-item-icon-size);
+  }
+  :deep(.project-secondary-menu .ant-tabs-tab-active .anticon) { color: var(--layout-menu-item-active-color); }
+
+  > .project-layout__route-content:has(> .route-content-surface__chrome > .page-chrome--flush) > .content-panel {
+    border-top-left-radius: 0;
+  }
+}
+@media (max-width: 64rem) {
+  .project-layout__content.project-layout__content--grouped-page-navigation {
+    flex-direction: column;
+    > .project-secondary-menu { width: 100%; flex-basis: auto; padding-bottom: 0; }
+  }
+}
+
 .project-layout__header-action {
   display: inline-grid;
   width: var(--space-8);
