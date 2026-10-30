@@ -153,10 +153,11 @@ const clearUrlAuthQuery = () => {
     params.delete('token')
     params.delete('from')
     const nextHash = params.toString() ? `${hashPath}?${params.toString()}` : hashPath
+    // 项目运行入口可能重写 pathname 语义；仅替换 hash，避免拼接出跨域 History URL。
     window.history.replaceState(
       window.history.state,
       '',
-      `${window.location.pathname}${window.location.search}${nextHash}`
+      nextHash,
     )
   }
 }
