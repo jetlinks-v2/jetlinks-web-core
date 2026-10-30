@@ -2127,5 +2127,7 @@
   "runtimeDiagnostics.bean.HourHistory": "近一小时通信历史",
   "runtimeDiagnostics.sampling.interval": "采集间隔",
   "runtimeDiagnostics.sampling.seconds": "{seconds} 秒",
-  "runtimeDiagnostics.traceEdgeSource": "边缘 {source}"
+  "runtimeDiagnostics.traceEdgeSource": "边缘 {source}",
+  "ImagePreview.title": "大图预览",
+  "ImagePreview.reset": "还原"
 }
