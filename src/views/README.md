@@ -125,7 +125,7 @@ PermissionList 只在展示层过滤没有实际授权操作的空行；详情�
 
 ### 框架导航与外观边界
 
-页面通过 useOptionalProjectSecondaryMenu 注册导航，grouped 显式设为 true；ProjectSecondaryMenu 负责标题分组、图标和选中态，useCenter.ts 负责既有页签及 URL 兼容。页面内部仅在没有框架 provider 时显示同一个导航组件，不再另写按钮侧栏。
+页面通过 useOptionalProjectSecondaryMenu 注册导航，grouped 显式设为 true；ProjectSecondaryMenu 负责标题分组、图标和选中态，useCenter.ts 负责既有页签及 URL 兼容。运营端租户壳层也按显式 grouped 注册呈现左侧菜单，侧栏及右侧内容区布局统一由 BasicLayoutShell 承接；租户入口自行复用标准 ContentPanel，避免改变其他租户页面的面板默认规则。页面内部仅在没有框架 provider 时显示同一个导航组件，不再另写按钮侧栏。
 
 grouped 默认 false，现有平铺注册调用的 DOM 和交互保持原样。框架的分组布局类只在该选项启用时生效，当前由个人中心使用；离开页面或卸载后撤销注册。此前为个人中心添加的整页面板禁用声明已移除，内容面板及背景由框架按默认规则提供。
 
