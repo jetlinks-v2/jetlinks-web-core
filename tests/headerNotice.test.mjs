@@ -15,10 +15,17 @@ const stubs = {
   '@jetlinks-web-core/hooks': 'export const useWebSocket=options=>{globalThis.__notice.onMessage=options.onMessage;return {send:(...args)=>globalThis.__notice.subscriptions.push(args)}}',
   '@jetlinks-web-core/store/user': 'export const useUserStore=()=>globalThis.__notice.user',
   '@jetlinks-web-core/store/menu': 'export const useMenuStore=()=>({routerPush:(...args)=>globalThis.__notice.navigations.push(args)})',
-  '@jetlinks-web-core/api/account/center': 'export const getAllNotice=()=>globalThis.__notice.channels()',
-  '@jetlinks-web-core/api/account/notificationRecord': 'export const getUnreadCount_api=params=>globalThis.__notice.count(params),changeStatus_api=(...args)=>globalThis.__notice.mark(...args),getUnreadNoPagingList_api=params=>globalThis.__notice.list(params)',
+  '@jetlinks-web-core/api/account/center': 'export const getReceivedNoticeProviders=()=>globalThis.__notice.channels()',
   '@jetlinks-web-core/api/account/notificationSubscription': 'export const getTypeList_api=()=>globalThis.__notice.types()',
   '@jetlinks-web-core/utils/components-registry': 'export const componentsRegistry={getRegistry:key=>key==="notification-provider:default"?globalThis.__notice.registrations:[]}',
+  './noticeListHandler': `
+    export const queryNoticeUnreadSummary=async(_providers,params)=>{const response=await globalThis.__notice.count(params);if(response?.success===false)return response;return {status:200,success:true,result:{total:response.result?.total || response.result}}};
+    export const queryNoticeRecordsNoPaging=(_providers,params)=>globalThis.__notice.list(params);
+    export const changeNoticeReadState=(...args)=>globalThis.__notice.mark(...args);
+    export const useNoticeDataSourceChanges=()=>{};
+    export const useNoticeDataSourceRealtime=()=>{};
+  `,
+  './noticeLoginHandler': 'export const runRegisteredLoginNoticeHandlers=async()=>{}',
   './noticeRealtimeHandler': 'export const handleRegisteredRealtimeNotice=async(payload,context)=>globalThis.__notice.handler?.(payload,context) ?? false',
 }
 const output = await build({

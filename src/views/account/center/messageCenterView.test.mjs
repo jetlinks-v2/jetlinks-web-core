@@ -19,6 +19,12 @@ const fixtures = {
   '@jetlinks-web-core/api/account/notificationRecord': [
     'getList_api', 'changeStatus_api',
   ].map(name => 'export const '+name+'=(...args)=>ctx.request('+JSON.stringify(name)+',args)').join('\n'),
+  '@jetlinks-web-core/layout/components/noticeListHandler': `
+    export const queryNoticeRecords=(_providers,params)=>ctx.request('getList_api',[params]);
+    export const changeNoticeReadState=(_providers,state,ids)=>ctx.request('changeStatus_api',[state,ids]);
+    export const getNoticeDataSource=()=>undefined;
+    export const useNoticeDataSourceChanges=()=>{};
+  `,
   '@jetlinks-web-core/layout/components/noticeTextResolver': 'export const resolveNoticeTexts=async records=>records',
   '@jetlinks-web-core/components/ConditionFilter': 'export default {props:["modelValue","fields","commonFields"],emits:["update:modelValue","change"],setup(p,{emit}){return()=>require("vue").h("filter",{fields:p.fields,terms:p.modelValue,submit:(terms,filter)=>{emit("update:modelValue",terms);emit("change",{terms,filter,where:""})}})}}',
   'view-dialog': 'export default {props:[\"data\"],setup(p){return()=>require(\"vue\").h(\"detail\",{id:p.data.id})}}',
