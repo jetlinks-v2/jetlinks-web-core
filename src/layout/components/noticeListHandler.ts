@@ -56,6 +56,11 @@ export interface NoticeDataSource {
   unreadCount: (params: Record<string, any>) => Promise<any>
   changeState: (state: '_read' | '_unread', ids: string[]) => Promise<any>
   readAll: () => Promise<any>
+  /** 业务接收源的内容类型筛选；未声明时沿用普通通知的 provider 分类。 */
+  typeFilter?: {
+    column: string
+    options: () => Array<{ label: string; value: string }>
+  }
   /** 详情确认按钮触发已读，关闭或取消不确认。 */
   confirmOnDetail?: boolean
   subscribe?: (listener: () => void) => () => void
