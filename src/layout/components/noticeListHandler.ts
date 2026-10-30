@@ -56,6 +56,11 @@ export interface NoticeDataSource {
   unreadCount: (params: Record<string, any>) => Promise<any>
   changeState: (state: '_read' | '_unread', ids: string[]) => Promise<any>
   readAll: () => Promise<any>
+  /** 业务接收源的内容类型筛选；未声明时沿用普通通知的 provider 分类。 */
+  typeFilter?: {
+    column: string
+    options: () => Array<{ label: string; value: string }>
+  }
   /** 详情确认按钮触发已读，关闭或取消不确认。 */
   confirmOnDetail?: boolean
   subscribe?: (listener: () => void) => () => void
@@ -126,7 +131,15 @@ export const queryNoticeRecords = (providers: readonly string[], params: Record<
 /** 顶部弹层只查询有效未读；独立接收源优先使用自身无分页入口。 */
 export const queryNoticeRecordsNoPaging = (providers: readonly string[], params: Record<string, any>) => {
   const source = getNoticeDataSource(providers)
-  return source ? (source.queryNoPaging || source.query)(params) : getUnreadNoPagingList_api(params)
+  if (!source) return getUnreadNoPagingList_api(params)
+  // 独立接收接口默认包含历史记录，须在分页前按其已读规则筛选；原 OR 条件不能绕过未读限制。
+  return (source.queryNoPaging || source.query)({
+    ...params,
+    terms: [
+      { type: 'and', terms: params.terms || [] },
+      { column: 'state', termType: 'eq', value: 'unread', type: 'and' },
+    ],
+  })
 }
 
 export const changeNoticeReadState = (

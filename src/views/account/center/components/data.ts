@@ -1,7 +1,6 @@
 import { useMenuStore } from '@jetlinks-web-core/store/menu';
 import i18n from '@jetlinks-web-core/locales';
-const menuStore = useMenuStore();
-const systemNotice = [
+const systemNotice = () => [
     {
         provider: 'alarm',
         name: i18n.global.t('components.data.091431-0'),
@@ -53,7 +52,7 @@ const systemNotice = [
         ],
     },
 ];
-const workflowNotice = [
+const workflowNotice = () => [
     {
         provider: 'workflow-notification',
         name: i18n.global.t('components.data.091431-13'),
@@ -85,7 +84,18 @@ const workflowNotice = [
         ],
     },
 ]
-export const getInitData = () =>{
-   return menuStore.hasMenu('process') ? [...systemNotice,...workflowNotice] : [...systemNotice]
+/** 内置通知类型按稳定 provider 标识本地化，未知业务类型保留接口名称。 */
+export const resolveNotificationProviderName = (provider: string, fallback: string): string => {
+    for (const group of [...systemNotice(), ...workflowNotice()]) {
+        if (group.provider === provider) return group.name
+        const item = group.children.find(child => child.provider === provider)
+        if (item) return item.name
+    }
+    return fallback
+}
 
+export const getInitData = () => {
+    // 仅旧目录入口需要菜单权限；名称解析不在模块初始化时读取全局 Store。
+    const menuStore = useMenuStore()
+    return menuStore.hasMenu('process') ? [...systemNotice(), ...workflowNotice()] : systemNotice()
 }

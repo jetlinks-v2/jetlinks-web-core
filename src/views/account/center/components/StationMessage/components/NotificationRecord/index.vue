@@ -16,7 +16,7 @@ const emit = defineEmits<{
 }>()
 const {
   tableRef, filterTerms, queryParams, selectedIds, updating, failed, viewVisible, viewItem,
-  filterFields, columns, defaultParams, rowSelection, onFilterChange, requestNotifications,
+  filterFields, typeFilterKey, columns, defaultParams, rowSelection, onFilterChange, requestNotifications,
   titleOf, summaryOf, typeOf, stateOf, stateText, formatTime, refresh, markSelected, toggleRead, view,
   confirmDetail,
 } = useNotificationRecords(props, state => emit('filter-change', state), sequence => emit('type-filter-applied', sequence))
@@ -45,7 +45,7 @@ defineExpose({ refresh })
           v-model="filterTerms"
           class="notification-record-container__filter"
           :fields="filterFields"
-          :common-fields="['message', 'topicProvider', 'state', 'notifyTime']"
+          :common-fields="['message', typeFilterKey, 'state', 'notifyTime']"
           @change="onFilterChange"
         />
       </template>

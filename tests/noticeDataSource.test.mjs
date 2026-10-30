@@ -152,3 +152,44 @@ test('realtime source binds once per category and releases when the header unmou
   scope.stop()
   assert.deepEqual(calls, ['sub', 'batch', 'unsub', 'sub', 'unsub'])
 })
+
+test('top dropdown requests unread records from registered sources before applying the page limit', async () => {
+  for (const noPaging of [true, false]) {
+    let received
+    const records = [
+      {id: 'read-batch', state: {value: 'read'}},
+      {id: 'unread-batch', state: {value: 'unread'}},
+    ]
+    const query = async params => {
+      received = params
+      const unreadOnly = params.terms?.some(term => term.column === 'state' && term.termType === 'eq' && term.value === 'unread')
+      return {result: (unreadOnly ? records.filter(record => record.state.value === 'unread') : records).slice(0, params.pageSize)}
+    }
+    const dataSource = noPaging ? {queryNoPaging: query, query: () => assert.fail('unexpected paged query')} : {query}
+    const {queryNoticeRecordsNoPaging} = load([provider(dataSource)], {
+      getUnreadNoPagingList_api: () => assert.fail('unexpected ordinary inbox fallback'),
+    })
+    const params = {pageIndex: 0, pageSize: 1, sorts: [{name: 'notifyTime', order: 'desc'}],
+      terms: [{column: 'topicName', termType: 'like', value: 'release', type: 'or'}]}
+    const original = structuredClone(params)
+    const response = await queryNoticeRecordsNoPaging(['business'], params)
+    assert.deepEqual(response.result.map(record => record.id), ['unread-batch'])
+    assert.deepEqual(received, {...params, terms: [
+      {type: 'and', terms: params.terms},
+      {column: 'state', termType: 'eq', value: 'unread', type: 'and'},
+    ]})
+    assert.deepEqual(params, original, 'the dropdown must not mutate shared query parameters')
+  }
+})
+
+test('ordinary dropdown queries retain the effective unread endpoint and its original conditions', async () => {
+  const params = {pageSize: 12, terms: [{column: 'topicProvider', termType: 'in', value: ['alarm']}]}
+  const {queryNoticeRecordsNoPaging} = load([], {
+    getUnreadNoPagingList_api: async query => {
+      assert.equal(query, params)
+      return {result: [{id: 'ordinary-unread'}]}
+    },
+    getList_api: () => assert.fail('unexpected history query'),
+  })
+  assert.deepEqual((await queryNoticeRecordsNoPaging(['alarm'], params)).result, [{id: 'ordinary-unread'}])
+})

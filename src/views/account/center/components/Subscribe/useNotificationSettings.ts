@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useSystemStore } from '@jetlinks-web-core/store'
 import { getAllNotice } from '@jetlinks-web-core/api/account/center'
+import { resolveNotificationProviderName } from '../data'
 import { getNoticeList_api, getIsBindThird, getNotificationChannelDefinitions_api, save_api, type NotificationChannelDefinition } from '@jetlinks-web-core/api/account/notificationSubscription'
 
 type ChannelState = string | { value: string; text?: string }
@@ -55,7 +56,13 @@ export function useNotificationSettings() {
   const channelDefinitions = ref<NotificationChannelDefinition[]>([])
   const definitionsReady = ref(false)
   // /notify/channel/all 只返回已启用且当前用户可访问的类型，状态缺省遵循该接口契约。
-  const providers = computed(() => channelProviders.value.filter(row => stateValue(row.state) !== 'disabled'))
+  const providers = computed(() => channelProviders.value
+    .filter(row => stateValue(row.state) !== 'disabled')
+    .map(row => ({
+      ...row,
+      // 展示名称随界面语言变化；保留原始 name，保存订阅时不改写接口名称。
+      displayName: resolveNotificationProviderName(row.provider, row.name),
+    })))
   const subscriptions = ref<Subscription[]>([])
   const recipients = ref<ThirdPartyRecipient[]>([])
   const loading = ref(false)
