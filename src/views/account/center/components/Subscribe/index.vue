@@ -27,7 +27,7 @@ const columns = computed(() => [
 
 <template>
   <div class="notification-settings">
-    <p>{{ $t('PersonalCenter.deliveryHint') }} {{ $t('PersonalCenter.notificationMoreTypesHint') }}</p>
+    <p>{{ $t('PersonalCenter.deliveryHint') }}</p>
     <a-alert v-if="failed" type="error" show-icon :message="$t('PersonalCenter.notificationFailed')">
       <template #action><a-button type="link" :disabled="!!saving" @click="load">{{ $t('AccountCenter.retry') }}</a-button></template>
     </a-alert>
@@ -64,7 +64,7 @@ const columns = computed(() => [
       </template>
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'topic'">
-          <span class="notification-settings__name">{{ record.name }}</span>
+          <span class="notification-settings__name">{{ record.displayName }}</span>
           <div v-if="record.description" class="notification-settings__description">{{ record.description }}</div>
         </template>
         <template v-else>
@@ -77,7 +77,7 @@ const columns = computed(() => [
                     :checked="channelChecked(record, channel)"
                     :loading="saving === record.provider + ':' + channel.id"
                     :disabled="!!saving || !!channelUnavailable(channel)"
-                    :aria-label="record.name + ' · ' + column.title"
+                    :aria-label="record.displayName + ' · ' + column.title"
                     @change="toggle(record, channel, !!$event)"
                   />
                 </span>
@@ -86,7 +86,7 @@ const columns = computed(() => [
             </div>
           </div>
           <a-tooltip v-else :title="unavailableType(column.key)">
-            <span><a-switch size="small" disabled :checked="false" :aria-label="record.name + ' · ' + column.title" /></span>
+            <span><a-switch size="small" disabled :checked="false" :aria-label="record.displayName + ' · ' + column.title" /></span>
           </a-tooltip>
         </template>
       </template>
