@@ -26,19 +26,14 @@
               <div class="layout-sidebar-user__title-row">
                 <span class="layout-sidebar-user__name" :title="displayName">{{ displayName }}</span>
               </div>
-              <div class="layout-sidebar-user__account-row">
-                <span class="layout-sidebar-user__account" :title="account">{{ account }}</span>
-              </div>
-              <div class="layout-sidebar-user__metadata">
-                <AppTag
-                  v-for="tag in identityTags"
-                  :key="tag.key"
-                  class="layout-sidebar-user__meta-tag"
-                  :class="tag.key === 'account' ? 'layout-sidebar-user__account-type' : 'layout-sidebar-user__user-type'"
-                  :name="tag.label"
-                />
-              </div>
-              <div v-if="roleSummary" class="layout-sidebar-user__roles" :title="roleSummary">{{ roleSummary }}</div>
+              <dl class="layout-sidebar-user__details">
+                <dt class="layout-sidebar-user__detail-label">{{ $t('AccountInfo.basicUsername') }}：</dt>
+                <dd class="layout-sidebar-user__detail-value" :title="account">{{ account }}</dd>
+                <template v-if="roleSummary">
+                  <dt class="layout-sidebar-user__detail-label">{{ $t('AccountInfo.roles') }}：</dt>
+                  <dd class="layout-sidebar-user__detail-value" :title="roleSummary">{{ roleSummary }}</dd>
+                </template>
+              </dl>
             </div>
           </div>
           <div class="layout-sidebar-user__divider" />
@@ -90,7 +85,32 @@ defineProps({
 
 const { t: $t } = useI18n()
 const {
-  open, logoutLoading, displayName, account, roleSummary, identityTags, avatar, avatarText,
+  open, logoutLoading, displayName, account, roleSummary, avatar, avatarText,
   menuEntries, goAccountCenter, handleLogout,
 } = useLayoutSidebarUser()
 </script>
+
+<style scoped>
+.layout-sidebar-user__details {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  color: var(--text-color-secondary);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+.layout-sidebar-user__detail-label {
+  margin: 0;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.layout-sidebar-user__detail-value {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>
