@@ -54,6 +54,8 @@ export function useNotificationRecords(
   const viewVisible = ref(false)
   const viewItem = ref<NoticeRecord>()
   const providerIds = computed(() => props.children.map(item => item.provider))
+  const contentTypeFilter = computed(() => getNoticeDataSource(providerIds.value)?.typeFilter)
+  const typeFilterKey = computed(() => contentTypeFilter.value?.column || 'topicProvider')
   let disposed = false
   let incomingId = ''
 
@@ -74,14 +76,18 @@ export function useNotificationRecords(
       search: { type: 'string', defaultTermType: 'like' },
     },
     {
-      title: t('NotificationRecord.index.803553-4'), dataIndex: 'topicProvider',
+      title: t('NotificationRecord.index.803553-4'), dataIndex: typeFilterKey.value,
       search: {
-        type: 'select', defaultTermType: 'eq', termFilter: ['eq'],
-        options: providerGroups.value.map(item => ({ label: item.name, value: item.id })),
-        handleTerms: (term: ConditionFilterTerm) => ({
-          ...term, termType: 'in',
-          value: providerGroups.value.find(item => item.id === String(term.value))?.providers || [],
-        }),
+        type: 'select', defaultTermType: 'eq', termFilter: contentTypeFilter.value ? ['eq', 'in'] : ['eq'],
+        options: contentTypeFilter.value?.options
+          || providerGroups.value.map(item => ({ label: item.name, value: item.id })),
+        // 独立接收源按真实内容类型查询；普通通知仍把分类展开为 provider。
+        ...(!contentTypeFilter.value ? {
+          handleTerms: (term: ConditionFilterTerm) => ({
+            ...term, termType: 'in',
+            value: providerGroups.value.find(item => item.id === String(term.value))?.providers || [],
+          }),
+        } : {}),
       },
     },
     {
@@ -182,10 +188,16 @@ export function useNotificationRecords(
   }
 
   function typeOf(record: NoticeRecord) {
+    if (props.category === 'announcement') {
+      const detail = parseDetail(record)
+      const value = record.type ?? detail?.type
+      // 接收接口的顶层 type 优先，兼容历史枚举和详情快照，不回退成“公告”分类。
+      return String(record.typeText || (typeof value === 'object' ? value?.text : '')
+        || detail?.typeText || record.noticeTag
+        || (typeof value === 'object' ? value?.value : value) || '')
+    }
     const provider = props.children.find(item => item.provider === record.topicProvider)
-    const detailType = props.category === 'announcement' ? parseDetail(record)?.type : undefined
-    return (typeof detailType === 'object' ? detailType?.text : '')
-      || provider?.type?.name || provider?.name || record.topicName || record.topicProvider || ''
+    return provider?.type?.name || provider?.name || record.topicName || record.topicProvider || ''
   }
 
   function stateOf(record: NoticeRecord): string {
@@ -259,6 +271,11 @@ export function useNotificationRecords(
 
   watch(() => props.requestedType, request => {
     if (!request || request.category !== props.category) return
+    // 来源跳转不代表内容类型；独立类型源继续由默认范围限定，避免回填旧 provider 条件。
+    if (contentTypeFilter.value) {
+      typeFilterApplied(request.sequence)
+      return
+    }
     const group = providerGroups.value.find(item => item.id === request.id)
     if (!group) return
     filterTerms.value = [
@@ -280,7 +297,7 @@ export function useNotificationRecords(
 
   return {
     tableRef, filterTerms, queryParams, selectedIds, updating, failed, viewVisible, viewItem,
-    filterFields, columns, defaultParams, rowSelection, onFilterChange, requestNotifications,
+    filterFields, typeFilterKey, columns, defaultParams, rowSelection, onFilterChange, requestNotifications,
     titleOf, summaryOf, typeOf, stateOf, stateText, formatTime, refresh, markSelected, toggleRead, view,
     confirmDetail,
   }
