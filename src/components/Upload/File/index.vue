@@ -12,9 +12,25 @@
       :listType="listType"
       :beforeUpload="handleBeforeUpload"
       @preview="handlePreview"
+      @download="handleDownload"
       :multiple="multiple"
       :disabled="disabled"
     >
+      <template #itemRender="{ originNode, file, actions }">
+        <div class="upload-file-item" :class="{ 'upload-file-item-card': listType === 'picture-card' }">
+          <component :is="originNode" />
+          <a-button
+            v-if="canDownload(file)"
+            class="upload-file-download"
+            :type="listType === 'picture-card' ? 'default' : 'text'"
+            size="small"
+            :loading="isDownloading(file)"
+            :title="$t('Upload.File.download')"
+            :aria-label="$t('Upload.File.download')"
+            @click="actions.download"
+          ><AIcon type="DownloadOutlined" /></a-button>
+        </div>
+      </template>
       <slot>
         <template v-if="drag">
           <p class="ant-upload-drag-icon"><AIcon type="InboxOutlined" /></p>
@@ -64,8 +80,10 @@ import { onlyMessage } from '@jetlinks-web/utils'
 import { getImageUrl } from '@jetlinks-web-core/utils'
 import { createFileUploadCustomRequest } from '../utils'
 import { useI18n } from 'vue-i18n'
+import { getFileDownloadUrl, getFileUploadResponse, useFileDownload } from './useFileDownload'
 
 const { t: $t } = useI18n()
+const { canDownload, isDownloading, handleDownload } = useFileDownload()
 
 const props = defineProps({
   value: {
@@ -234,7 +252,9 @@ watch(
     if (Array.isArray(newValue)) {
       fileList.value = newValue.map(file => ({ ...file }))
     } else if (newValue) {
-      fileList.value = [{ uid: newValue, url: getImageUrl(newValue), name: newValue, status: 'done' }]
+      // 上传后外层回写 ID 时保留原文件名及响应中的访问凭证。
+      const uploaded = fileList.value.find(file => getFileUploadResponse(file)?.result?.id === newValue)
+      fileList.value = [{ ...uploaded, uid: newValue, url: (uploaded && getFileDownloadUrl(uploaded)) || getImageUrl(newValue), name: uploaded?.name || newValue, status: 'done' }]
     } else {
       fileList.value = []
     }
@@ -244,6 +264,29 @@ watch(
 </script>
 
 <style scoped>
+.upload-file-item {
+  display: flex;
+  align-items: center;
+}
+.upload-file-item > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.upload-file-download {
+  flex-shrink: 0;
+  margin-top: var(--space-2);
+}
+.upload-file-item-card {
+  position: relative;
+  height: 100%;
+}
+.upload-file-item-card .upload-file-download {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  z-index: 11;
+  margin: 0;
+}
 .ant-upload-select-picture-card i {
   font-size: var(--fs-32);
   color: var(--ink-4);

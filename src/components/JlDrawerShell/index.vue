@@ -135,7 +135,7 @@ function onFormSubmit(e: Event) {
   align-items: center;
   gap: var(--space-3);
   padding: 0.9375rem 1rem;
-  background: var(--bg);
+	background: linear-gradient(118deg, #fff, #fff 43%, #9bbfff);
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }

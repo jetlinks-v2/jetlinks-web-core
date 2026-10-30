@@ -67,8 +67,9 @@ function remove() {
   transform: rotate(90deg);
   transition: opacity .2s ease;
 }
+// 鼠标点击业务控件会保留焦点，仅键盘可见焦点延续拖拽提示。
 .draggable-item:hover > .drag-handle .drag-handle-icon,
-.draggable-item:focus-within > .drag-handle .drag-handle-icon { opacity: 1; }
+.draggable-item:has(:focus-visible) > .drag-handle .drag-handle-icon { opacity: 1; }
 .drag-handle:hover { background: linear-gradient(to bottom, rgba(0, 0, 0, .05), transparent); }
 .drag-handle:active { cursor: grabbing; }
 .topRight { position: absolute; top: 0; right: 0; z-index: 2; opacity: 0; pointer-events: none; transition: opacity .25s; }

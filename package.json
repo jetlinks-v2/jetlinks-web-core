@@ -28,6 +28,7 @@
     "altcha": "3.2.2",
     "crypto-js": "^4.2.0",
     "echarts": "^5.6.0",
+    "lossless-json": "4.3.3",
     "marked": "^14.1.4",
     "vue3-grid-layout-next": "^1.0.7",
     "md-editor-v3": "^6.4.2",

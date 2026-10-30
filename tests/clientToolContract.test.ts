@@ -3,6 +3,65 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import test from 'node:test'
+import {
+  buildWorkflowGuideToolsDescription,
+  createWorkflowGuideToolDefinition,
+  hasWorkflowGuides,
+  resolveWorkflowGuideToolResult,
+} from '../src/layout/components/AiChat/workflowGuides'
+
+test('workflow discovery exposes every declared guide through bounded pages without domain-specific ranking', () => {
+  const guides = Array.from({ length: 19 }, (_, index) => ({
+    id: `guide-${String(index).padStart(2, '0')}`, title: `Guide ${index}`, priority: 100 - index,
+    steps: [{ capability: 'subject.read', evidence: 'fact', required: false, tips: ['Read only when needed'] }],
+  }))
+  const original = guides.map(guide => guide.id)
+  const found: string[] = []
+  let offset = 0
+  while (true) {
+    const page = resolveWorkflowGuideToolResult({ offset, limit: 8 }, guides)
+    assert.equal(page.totalCount, 19)
+    assert.ok(page.matched <= 8)
+    found.push(...page.guidance.map(guide => guide.guideId))
+    if (!page.truncated) break
+    assert.ok(page.nextOffset! > offset)
+    offset = page.nextOffset!
+  }
+  assert.deepEqual(found, original)
+  assert.deepEqual(guides.map(guide => guide.id), original)
+  assert.equal(resolveWorkflowGuideToolResult({}, guides).guidance[0].summary, 'Guide 0')
+  assert.equal(resolveWorkflowGuideToolResult({}, guides).guidance[0].evidencePlan[0].required, false)
+})
+
+test('workflow direct reads retain descriptions, conditions and instructions independently of directory offsets', () => {
+  const guide = { id: 'last', name: 'Business task', description: 'Task description', when: 'When applicable',
+    scenarios: ['A natural business question'], steps: ['subject.read'], output: 'Business answer', notes: ['Bounded evidence'] }
+  const result = resolveWorkflowGuideToolResult({ guideId: 'last', offset: 100 }, [guide])
+  assert.equal(result.totalCount, 1)
+  assert.equal(result.offset, 0)
+  assert.equal(result.truncated, false)
+  assert.equal(result.nextOffset, undefined)
+  assert.equal(result.guidance[0].summary, 'Task description')
+  assert.deepEqual(result.guidance[0].scenarios, guide.scenarios)
+  assert.equal(result.guidance[0].evidencePlan[0].required, true)
+  assert.deepEqual(result.guidance[0].appliesWhen, ['When applicable'])
+  assert.equal(resolveWorkflowGuideToolResult({ id: 'missing' }, [guide]).matched, 0)
+  assert.equal(resolveWorkflowGuideToolResult({ offset: 100 }, [guide]).matched, 0)
+})
+
+test('workflow directory metadata and numeric boundaries remain usable for empty, malformed and fractional input', () => {
+  assert.equal(hasWorkflowGuides(), false)
+  assert.equal(buildWorkflowGuideToolsDescription(), '')
+  assert.equal(createWorkflowGuideToolDefinition(), undefined)
+  const guides = [{ id: 'one', title: 'First' }, { id: 'two', name: 'Second' }]
+  assert.equal(hasWorkflowGuides(guides), true)
+  assert.ok(buildWorkflowGuideToolsDescription(guides).includes('nextOffset'))
+  assert.ok(createWorkflowGuideToolDefinition(guides)?.inputs?.some(input => input.name === 'offset'))
+  assert.equal(resolveWorkflowGuideToolResult({ offset: -1, limit: 1.9 }, guides).matched, 1)
+  assert.equal(resolveWorkflowGuideToolResult({ offset: 1.9, limit: -2 }, guides).guidance[0].summary, 'Second')
+  assert.equal(resolveWorkflowGuideToolResult({ offset: 'invalid', limit: 'invalid' }, guides).offset, 0)
+  assert.equal(resolveWorkflowGuideToolResult().totalCount, 0)
+})
 import { normalizeGeneralAgentMarkdownPresentationCapability } from '../src/layout/components/AiChat/generalAgentExtensions'
 import {
   createAiClientToolContractOutputBinding,
@@ -272,6 +331,21 @@ test('stable client-tool facade compiles business facts without inferring resour
   assert.equal(selections, 1)
   assert.deepEqual(result.__clientToolOutputs.output0, [{ id: 'one' }])
   assert.equal(result.outputBindings[0].path, '$.__clientToolOutputs.output0')
+})
+
+test('read result reuse is opt-in and survives session definition serialization', () => {
+  for (const cacheableWithinTurn of [undefined, false, true]) {
+    const tool = defineClientTool({
+      id: 'cacheable_read',
+      description: { text: 'Read fixed query results', capabilities: ['anonymous.fixed-query'] },
+      effect: { kind: 'READ', cacheableWithinTurn },
+      output: clientToolOutput.detail({ name: 'fixed-query', shape: 'anonymous.fixed-query' }),
+      execute: () => clientToolResult.success({}),
+    })
+    const serialized = toAiClientToolSessionDefinition(tool)
+    assert.equal(serialized.expands?.cacheableWithinTurn, cacheableWithinTurn === true ? true : undefined)
+    assert.equal(serialized.annotations?.readOnlyHint, true)
+  }
 })
 
 test('compile-time preparation owns routing stage without creating a second role or analytical authority', () => {

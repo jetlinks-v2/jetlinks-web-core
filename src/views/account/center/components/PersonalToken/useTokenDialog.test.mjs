@@ -8,7 +8,7 @@ const moduleRoot = new URL('../../../../../../', import.meta.url)
 const apiPath = fileURLToPath(new URL('src/api/account/center.ts', moduleRoot))
 const fixtures = {
   '@jetlinks-web-core/locales': 'export default { global: { t: key => key } }',
-  '@jetlinks-web/core': 'export const request = { post: (...args) => globalThis.personalTokenFixture.post(...args) }',
+  '@jetlinks-web/core': 'export const ndJson = { get: () => { throw new Error("Unexpected SSO request in token tests") } }; export const request = { post: (...args) => globalThis.personalTokenFixture.post(...args) }',
   '@jetlinks-web/utils': `
     export const randomString = () => 'generated-source';
     export const onlyMessage = (...args) => globalThis.personalTokenFixture.messages.push(args);
@@ -41,7 +41,7 @@ const bundle = await build({
 })
 
 const { useTokenDialog, savePersonalToken_api, effectScope, reactive, nextTick } = await import(
-  `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`
+  `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text + '\n//# sourceURL=personal-token-dialog-fixture.mjs').toString('base64')}`
 )
 
 const token = {
@@ -66,6 +66,7 @@ function createDialog(mode = 'edit', post = async () => ({ success: true, result
   const props = reactive({ visible: true, mode, token: mode === 'add' ? null : structuredClone(token) })
   const dialog = scope.run(() => useTokenDialog(props, (...args) => events.push(args)))
   dialog.formRef.value = { validate: async () => {}, clearValidate: () => {} }
+  dialog.permissionsReady.value = true
   if (mode === 'add') {
     dialog.formData.value.name = 'new token'
     dialog.formData.value.expires = -1

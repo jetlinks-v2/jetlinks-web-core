@@ -1,13 +1,13 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRouterParams } from '@jetlinks-web/hooks'
-import dayjs from 'dayjs'
 import { useUserStore, type UserInfo } from '@jetlinks-web-core/store/user'
 import { queryModal } from '@jetlinks-web-core/api/login'
 import { getIdentityProviders_api, getSelfIdentities_api, getSsoBinds_api } from '@jetlinks-web-core/api/account/center'
 import i18n from '@jetlinks-web-core/locales'
 import { isNoCommunity } from '@jetlinks-web-core/utils'
 import { tabList } from './data'
+import { useOptionalProjectSecondaryMenu } from '@jetlinks-web-core/layout/hooks/useProjectSecondaryMenu'
 import type { AccountCardProfile, AccountEditTarget, CenterContentKey } from './types'
 
 interface IdentityItem {
@@ -21,6 +21,7 @@ interface ThirdAccount {
   name: string
   bound: boolean
   features?: string[]
+  provider?: string
 }
 
 type CenterUserInfo = Partial<UserInfo> & {
@@ -29,9 +30,9 @@ type CenterUserInfo = Partial<UserInfo> & {
   email?: string
 }
 
-/** 仅三个主功能参与分段切换，历史账号信息和首页视图通过辅助弹窗承接。 */
+/** 六个功能入口独立呈现，旧页签 key 继续兼容头像和通知入口。 */
 const isContentKey = (key: unknown): key is CenterContentKey =>
-  key === 'StationMessage' || key === 'Subscribe' || key === 'PersonalToken'
+  key === 'BasicInfo' || key === 'Security' || key === 'Sso' || key === 'StationMessage' || key === 'Subscribe' || key === 'PersonalToken'
 
 /** Store 的组织、角色、职位是 unknown[]，展示前只接受带名称的条目。 */
 const formatDimensions = (items: unknown[] | undefined, emptyText: string): string => {
@@ -56,7 +57,9 @@ export const useCenter = () => {
   const routerParams = useRouterParams()
   const route = useRoute()
   const router = useRouter()
-  const activeKey = ref<CenterContentKey>('StationMessage')
+  const initialTab = route.query.tab || routerParams.params.value?.tabKey || user.tabKey
+  const activeKey = ref<CenterContentKey>('BasicInfo')
+  const contactTarget = ref<AccountEditTarget>('email-section')
   const accountInfoVisible = ref(false)
   const homeViewVisible = ref(false)
   const editPasswordVisible = ref(false)
@@ -68,10 +71,31 @@ export const useCenter = () => {
   let loadVersion = 0
 
   const segments = computed(() => [
-    { label: i18n.global.t('AccountCenter.messageCenter'), value: 'StationMessage' },
-    { label: i18n.global.t('center.data.756829-4'), value: 'PersonalToken' },
+    { label: i18n.global.t('PersonalCenter.basic'), value: 'BasicInfo', icon: 'IdcardOutlined', group: 'account' },
+    { label: i18n.global.t('PersonalCenter.security'), value: 'Security', icon: 'SafetyCertificateOutlined', group: 'account' },
+    { label: i18n.global.t('PersonalCenter.sso'), value: 'Sso', icon: 'LinkOutlined', group: 'account' },
+    { label: i18n.global.t('center.data.756829-4'), value: 'PersonalToken', icon: 'KeyOutlined', group: 'account' },
+    { label: i18n.global.t('AccountCenter.messageCenter'), value: 'StationMessage', icon: 'MessageOutlined', group: 'messages' },
+    { label: i18n.global.t('PersonalCenter.notifications'), value: 'Subscribe', icon: 'BellOutlined', group: 'messages' },
   ])
+  const navigationGroups = computed(() => [
+    { key: 'account', label: i18n.global.t('components.LayoutSidebarUser.accountCenter'), items: segments.value.filter(item => item.group === 'account') },
+    { key: 'messages', label: i18n.global.t('PersonalCenter.messagesGroup'), items: segments.value.filter(item => item.group === 'messages') },
+  ])
+  const activeGroupTitle = computed(() => navigationGroups.value.find(group => group.items.some(item => item.value === activeKey.value))?.label)
   const activeTitle = computed(() => segments.value.find(item => item.value === activeKey.value)?.label)
+  const frameworkItems = computed(() => navigationGroups.value.map(group => ({
+    key: group.key, label: group.label,
+    children: group.items.map(item => ({ key: item.value, label: item.label, icon: item.icon })),
+  })))
+  // 个人中心仅注册菜单；布局与选中样式交给已有框架，分组为显式启用。
+  const frameworkNavigation = useOptionalProjectSecondaryMenu({
+    items: frameworkItems, grouped: true,
+    defaultActiveKey: isContentKey(initialTab) ? initialTab : 'BasicInfo',
+    queryKey: 'tab',
+  })
+  const hasFrameworkNavigation = !!frameworkNavigation
+
 
   const profile = computed<AccountCardProfile>(() => {
     const info: CenterUserInfo = user.userInfo
@@ -79,7 +103,6 @@ export const useCenter = () => {
       const list = identities.value.filter(item => item.provider === provider)
       return (list.find(item => item.isPrimary) || list[0])?.identity
     }
-    const createdAt = info.createTime ? dayjs(info.createTime) : undefined
     return {
       name: info.name || info.username || i18n.global.t('comm.table.empty'),
       username: info.username || i18n.global.t('comm.table.empty'),
@@ -89,10 +112,10 @@ export const useCenter = () => {
       items: [
         { key: 'id', label: i18n.global.t('AccountCenter.accountId'), value: info.id || i18n.global.t('comm.table.empty') },
         { key: 'username', label: i18n.global.t('AccountInfo.basicUsername'), value: info.username || i18n.global.t('comm.table.empty') },
-        { key: 'roles', label: i18n.global.t('AccountInfo.roles'), value: formatDimensions(info.roleList, i18n.global.t('Detail.index.153077-6')) },
-        { key: 'orgs', label: i18n.global.t('AccountInfo.orgs'), value: formatDimensions(info.orgList, i18n.global.t('Detail.index.153077-7')) },
-        { key: 'mobile', label: i18n.global.t('AccountInfo.basicPhone'), value: maskIdentity(getIdentity('mobile') || info.telephone, 'mobile'), editTarget: editableProviders.value.includes('mobile') ? 'phone-section' : undefined },
-        { key: 'email', label: i18n.global.t('AccountInfo.basicEmail'), value: maskIdentity(getIdentity('email') || info.email, 'email'), editTarget: editableProviders.value.includes('email') ? 'email-section' : undefined },
+        { key: 'roles', label: i18n.global.t('AccountInfo.roles'), value: formatDimensions(info.roleList, i18n.global.t('PersonalCenter.unassigned')) },
+        { key: 'orgs', label: i18n.global.t('AccountInfo.orgs'), value: formatDimensions(info.orgList, i18n.global.t('PersonalCenter.unassigned')) },
+        { key: 'mobile', label: i18n.global.t('AccountInfo.basicPhone'), value: maskIdentity(getIdentity('mobile') || info.telephone, 'mobile'), editTarget: isNoCommunity ? 'phone-section' : undefined },
+        { key: 'email', label: i18n.global.t('AccountInfo.basicEmail'), value: maskIdentity(getIdentity('email') || info.email, 'email'), editTarget: isNoCommunity ? 'email-section' : undefined },
       ],
       thirdAccounts: thirdAccounts.value.map(item => ({
         key: item.id,
@@ -116,11 +139,15 @@ export const useCenter = () => {
     return { identities: result.result || [], providers: providerItems.map(item => item.id) }
   }
 
-  /** 第三方登录只展示后端支持重定向的应用，操作继续由原账号信息组件承接。 */
+  /** 保留接口返回的应用及绑定状态，基本信息只展示其中已绑定的账号。 */
   const loadThirdAccounts = async (): Promise<ThirdAccount[]> => {
     if (!isNoCommunity) return []
-    const response: { result?: ThirdAccount[] } = await getSsoBinds_api()
-    return (response.result || []).filter(item => !item.features?.includes('ssoUnsupportedRedirect'))
+    const response: ThirdAccount[] | { success?: boolean; result?: ThirdAccount[] } = await getSsoBinds_api()
+    const result = Array.isArray(response) ? response : response?.result
+    if ((!Array.isArray(response) && response?.success === false) || !Array.isArray(result)) {
+      throw new Error('SSO binding query failed')
+    }
+    return result
   }
 
   /** 独立加载账户各区块；部分请求失败时保留可用数据并提供重试，不阻塞消息区。 */
@@ -141,18 +168,22 @@ export const useCenter = () => {
 
   /** 切换主功能时同步旧 Store 页签，通知入口继续使用原大写 key。 */
   const selectContent = (key: unknown) => {
-    activeKey.value = isContentKey(key) ? key : 'StationMessage'
+    activeKey.value = isContentKey(key) ? key : 'BasicInfo'
     accountInfoVisible.value = false
     homeViewVisible.value = false
     user.tabKey = activeKey.value
+    if (route.query.tab !== activeKey.value) {
+      void router.replace({ query: { ...route.query, tab: activeKey.value } })
+    }
   }
 
-  /** 复用旧组件的 query.anchor 定位邮箱/手机号编辑区。 */
+  /** 兼容联系方式锚点，资料编辑和验证码绑定在独立弹窗内完成。 */
   const openAccountInfo = (target?: AccountEditTarget) => {
     if (!isNoCommunity) return
-    homeViewVisible.value = false
+    selectContent('BasicInfo')
+    if (!target) return
+    contactTarget.value = target
     accountInfoVisible.value = true
-    if (target) void router.replace({ query: { ...route.query, anchor: target } })
   }
 
   /** 首页视图只对普通用户开放，应用用户沿用原限制。 */
@@ -162,26 +193,33 @@ export const useCenter = () => {
     homeViewVisible.value = true
   }
 
-  /** 历史 HomeView/BindThirdAccount 入口仍可打开对应功能，无效 key 回落消息中心。 */
+  /** 历史 HomeView 仍保留，BindThirdAccount 定位基本信息，无效 key 同样回落基本信息。 */
   const applyLegacyTab = (key: unknown) => {
     if (key === 'HomeView' && !user.isApplicationUser) openHomeView()
-    else if (key === 'BindThirdAccount' && isNoCommunity) openAccountInfo()
+    else if (key === 'BindThirdAccount') selectContent('BasicInfo')
     else selectContent(key)
   }
 
   /** 编辑可能变更身份及第三方绑定，关闭后重新读取卡片数据。 */
   const closeAccountInfo = () => {
     accountInfoVisible.value = false
+    if (route.query.anchor) {
+      const { anchor, ...query } = route.query
+      void router.replace({ query })
+    }
     void loadAccount()
   }
 
   // 同步处理 Store 页签，避免排队的回声关闭随后打开的锚点弹窗；外部通知仍可关闭辅助视图。
   watch(() => user.tabKey, applyLegacyTab, { flush: 'sync' })
-  watch(() => routerParams.params.value?.tabKey, key => {
-    if (key) applyLegacyTab(key)
+  watch(() => routerParams.params.value, params => {
+    if (params?.tabKey) applyLegacyTab(params.tabKey)
+  })
+  watch(() => route.query.tab, key => {
+    if (isContentKey(key) && key !== activeKey.value) selectContent(key)
   })
   watch(() => route.query.anchor, anchor => {
-    if (anchor === 'email-section' || anchor === 'phone-section') openAccountInfo()
+    if (anchor === 'email-section' || anchor === 'phone-section') openAccountInfo(anchor)
   }, { immediate: true })
 
   // 仅在收到新通知上下文时切换，避免旧消息持续把手动选择的订阅/令牌页切回。
@@ -193,10 +231,10 @@ export const useCenter = () => {
   })
 
   onMounted(() => {
-    const requestedKey = routerParams.params.value?.tabKey
+    const requestedKey = initialTab
     if (requestedKey) applyLegacyTab(requestedKey)
-    else selectContent(isContentKey(user.tabKey) ? user.tabKey : 'StationMessage')
-    if (route.query.anchor === 'email-section' || route.query.anchor === 'phone-section') openAccountInfo()
+    else selectContent(isContentKey(user.tabKey) ? user.tabKey : 'BasicInfo')
+    if (route.query.anchor === 'email-section' || route.query.anchor === 'phone-section') openAccountInfo(route.query.anchor)
     if (user.messageInfo?.topicProvider || routerParams.params.value?.row?.topicProvider) selectContent('StationMessage')
     void loadAccount()
   })
@@ -208,7 +246,7 @@ export const useCenter = () => {
   })
 
   return {
-    activeKey, activeTitle, segments, profile, loading, loadError,
+    activeKey, activeTitle, activeGroupTitle, segments, navigationGroups, frameworkItems, hasFrameworkNavigation, profile, loading, loadError, editableProviders, contactTarget,
     accountInfoVisible, homeViewVisible, editPasswordVisible,
     selectContent, loadAccount, openAccountInfo, openHomeView, closeAccountInfo,
   }

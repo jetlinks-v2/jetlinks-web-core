@@ -4,6 +4,7 @@ import {
   changeAllStatus,
   changeStatus_api,
   getList_api,
+  getUnreadNoPagingList_api,
   getUnreadSummary_api,
 } from '@jetlinks-web-core/api/account/notificationRecord'
 import type { CappedUnreadCount, UnreadSummary } from './noticeUtils'
@@ -120,6 +121,12 @@ export const mergeRegisteredNoticeProviders = (providers: NoticeProviderMetadata
 
 export const queryNoticeRecords = (providers: readonly string[], params: Record<string, any>) => {
   return getNoticeDataSource(providers)?.query(params) || getList_api(params)
+}
+
+/** 顶部弹层只查询有效未读；独立接收源优先使用自身无分页入口。 */
+export const queryNoticeRecordsNoPaging = (providers: readonly string[], params: Record<string, any>) => {
+  const source = getNoticeDataSource(providers)
+  return source ? (source.queryNoPaging || source.query)(params) : getUnreadNoPagingList_api(params)
 }
 
 export const changeNoticeReadState = (

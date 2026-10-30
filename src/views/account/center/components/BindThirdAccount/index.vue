@@ -1,147 +1,71 @@
-<template>
-    <j-scrollbar :height="`calc(100% - 3.1875rem)`">
-        <div class="box">
-        <div class="content">
-            <template v-if="bindList.length">
-                <div
-                    class="content-item"
-                    v-for="item in bindList"
-                    :key="item.id"
-                >
-                    <div class="content-item-left">
-                        <img
-                            :src="
-                                item.logoUrl ||
-                                bindIcon[item.provider]
-                            "
-                            style="height: 1.5rem; width: 1.5rem"
-                            alt=""
-                        />
-                        <j-ellipsis style="max-width: 12.5rem; color: #333; margin: 0 0.5rem 0 0.375rem">{{
-                            item?.name
-                        }}</j-ellipsis>
-                        <div>
-                            <span v-if="item.bound" style="color: #2BA245">{{ $t('BindThirdAccount.index.483756-0') }}</span>
-                            <span v-else style="color: #999">{{ $t('BindThirdAccount.index.483756-1') }}</span>
-                        </div>
-                        <div v-if="item.others?.name" style="color: #666666">
-                            {{ item.others?.name }}{{ $t('BindThirdAccount.index.483756-2') }}
-                        </div>
-                    </div>
-                    <div class="content-item-right">
-                        <a-popconfirm
-                            v-if="item.bound"
-                            :title="$t('BindThirdAccount.index.483756-3')"
-                            @confirm="() => unBind(item.id)"
-                        >
-                            <a-button>{{ $t('BindThirdAccount.index.483756-4') }}</a-button>
-                        </a-popconfirm>
-                        <a-button
-                            v-else
-                            ghost
-                            type="primary"
-                            @click="clickBind(item.id)"
-                            >{{ $t('BindThirdAccount.index.483756-5') }}</a-button
-                        >
-                    </div>
-                </div>
-            </template>
-          <div v-else style="margin: 12.5rem 0">
-            <CloudEmpty />
-          </div>
-        </div>
-        </div>
-    </j-scrollbar>
-</template>
-
 <script setup lang="ts">
-import { BASE_API } from '@jetlinks-web/constants'
-import { getSsoBinds_api , unBind_api} from '@jetlinks-web-core/api/account/center';
-import { onlyMessage } from "@jetlinks-web/utils";
-import { DingTalk, WeixinCorp } from '@jetlinks-web-core/assets/notice'
-import { InternalStandalone, ThirdParty } from '@jetlinks-web-core/assets/apply'
-import { useI18n } from 'vue-i18n';
-
-const { t: $t } = useI18n();
-const bindList = ref<any[]>([]);
-const bindIcon = {
-    'dingtalk-ent-app': DingTalk,
-    'wechat-webapp': WeixinCorp,
-    'internal-standalone': InternalStandalone,
-    'third-party': ThirdParty,
-};
-const unBind = (id: string) => {
-    unBind_api(id).then((resp) => {
-        if (resp.status === 200) {
-            onlyMessage($t('BindThirdAccount.index.483756-6'), 'success');
-            getSsoBinds();
-        }
-    });
-};
-const clickBind = (id: string) => {
-    window.open(
-        `${BASE_API}/application/sso/${id}/login?autoCreateUser=false`,
-    );
-    localStorage.setItem('onBind', 'false');
-    localStorage.setItem('onLogin', 'yes');
-    window.onstorage = (e) => {
-        if (e.newValue) {
-            getSsoBinds();
-        }
-    };
-};
-
-/**
- * 获取绑定第三方账号
- */
-function getSsoBinds() {
-    getSsoBinds_api().then((resp: any) => {
-        if (resp.status === 200) {
-            bindList.value = resp.result.filter((item: any) => {
-                return !item.features.includes('ssoUnsupportedRedirect')
-            })
-        }
-    });
-}
-
-onMounted(() => {
-    getSsoBinds();
-});
+import { computed } from 'vue'
+import { QRCode } from 'ant-design-vue'
+import { useI18n } from 'vue-i18n'
+import dayjs from 'dayjs'
+import { useSsoBindings } from './useSsoBindings'
+const { t } = useI18n()
+const { bindings, loading, failed, unbinding, icons, load, canBindSso, bind, unbind, binding, authorizationUrl, bindingState, closeBinding } = useSsoBindings()
+const columns = computed(() => [
+  { key: 'entry', title: t('PersonalCenter.loginEntry'), width: '40%' },
+  { key: 'binding', title: t('PersonalCenter.bindingState') },
+  { key: 'action', title: t('PersonalCenter.action'), width: 100, align: 'right' as const },
+])
 </script>
 
-<style lang="less" scoped>
-.box {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    .content {
-        width: 100%;
-        .content-item {
-            width: 100%;
-            margin-bottom: var(--space-4);
-            padding: 0.9375rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 3.75rem;
-            border-radius: var(--r-2);
-            background: #f7f8fa;
+<template>
+  <div class="sso-bindings">
+    <a-alert v-if="failed" type="error" show-icon :message="$t('PersonalCenter.bindingFailed')">
+      <template #action><a-button type="link" @click="load">{{ $t('AccountCenter.retry') }}</a-button></template>
+    </a-alert>
+    <p class="sso-bindings__hint">{{ $t('PersonalCenter.ssoHint') }}</p>
+    <a-table :columns="columns" :data-source="bindings" :loading="loading" :pagination="false" :row-key="item => item.id + ':' + (item.applicationUserId || '')" :scroll="{ x: 600 }">
+      <template #emptyText><CloudEmpty v-if="!failed" :description="$t('PersonalCenter.noSsoBindings')" /><span v-else>—</span></template>
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'entry'">
+          <a-space>
+            <a-avatar shape="square" :size="32" :src="record.logoUrl || icons[record.provider]">{{ record.name?.slice(0, 1) }}</a-avatar>
+            <span>{{ record.name }}</span>
+          </a-space>
+        </template>
+        <template v-else-if="column.key === 'binding'">
+          <a-badge :status="record.bound ? 'success' : 'default'" :text="$t(record.bound ? 'BindThirdAccount.index.483756-0' : 'BindThirdAccount.index.483756-1')" />
+          <div v-if="record.bound && (record.others?.name || record.bindTime)" class="sso-bindings__detail">
+            <span v-if="record.others?.name">{{ record.others.name }} · </span>
+            <span v-if="record.bindTime">{{ $t('PersonalCenter.boundAt', { time: dayjs(record.bindTime).format('YYYY-MM-DD') }) }}</span>
+          </div>
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <a-popconfirm v-if="record.bound" :title="$t('BindThirdAccount.index.483756-3')" @confirm="unbind(record.id)">
+            <a-button size="small" :disabled="!!unbinding" :loading="unbinding === record.id">{{ $t('BindThirdAccount.index.483756-4') }}</a-button>
+          </a-popconfirm>
+          <a-tooltip v-else-if="!canBindSso(record)" :title="$t('PersonalCenter.bindingUnsupported')">
+            <span><a-button type="link" disabled>{{ $t('BindThirdAccount.index.483756-5') }}</a-button></span>
+          </a-tooltip>
+          <a-button v-else type="link" @click="bind(record)">{{ $t('BindThirdAccount.index.483756-5') }}</a-button>
+        </template>
+      </template>
+    </a-table>
+    <a-modal :open="!!binding" :title="binding?.name" :width="440" :footer="null" destroy-on-close @cancel="closeBinding">
+      <div v-if="binding" class="sso-bindings__authorization">
+        <a-spin v-if="bindingState === 'loading' || bindingState === 'checking'" />
+        <template v-else-if="bindingState === 'active'">
+          <QRCode v-if="binding.provider === 'wechat-official-account'" :value="authorizationUrl" :size="240" />
+          <iframe v-else :src="authorizationUrl" :title="binding.name" />
+        </template>
+        <template v-else>
+          <a-alert type="warning" show-icon :message="$t('PersonalCenter.bindingRetry')" />
+          <a-button @click="bind(binding)">{{ $t('AccountCenter.retry') }}</a-button>
+        </template>
+      </div>
+    </a-modal>
+  </div>
+</template>
 
-            .content-item-left {
-                display: flex;
-                gap: var(--space-6);
-                align-items: center;
-            }
-        }
-
-        .content-item-right {
-            :deep(button) {
-                &:hover {
-                    background-color: var(--jet-theme-primary);
-                    color: #fff;
-                }
-            }
-
-        }
-    }
-}</style>
+<style scoped>
+.sso-bindings { display: flex; flex-direction: column; gap: var(--space-4); }
+.sso-bindings__hint { margin: 0; color: var(--text-color-secondary); font-size: var(--fs-12); line-height: 1.5; }
+.sso-bindings__detail { margin-top: var(--space-1); color: var(--text-color-secondary); font-size: var(--fs-12); }
+.sso-bindings__authorization { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 16rem; gap: var(--space-4); }
+.sso-bindings__authorization iframe { width: 100%; height: 26rem; border: 0; }
+</style>

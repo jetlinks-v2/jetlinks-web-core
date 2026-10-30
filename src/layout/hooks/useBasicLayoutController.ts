@@ -208,6 +208,7 @@ export const useBasicLayoutController = (
     && !secondaryItems.value.length
     && !!pageSecondaryMenu.items.value.length
   ))
+  const visibleSecondaryGrouped = computed(() => pageSecondaryMenuActive.value && pageSecondaryMenu.grouped.value)
   const visibleSecondaryItems = computed(() => {
     if (settingsActive.value) return settingsSecondaryItems.value
     if (pageSecondaryMenuActive.value) return pageSecondaryMenu.items.value
@@ -309,6 +310,7 @@ export const useBasicLayoutController = (
     settingsVisible,
     systemInfo,
     visibleSecondaryItems,
+    visibleSecondaryGrouped,
     visibleSecondarySelectedKey,
     goBack,
   }

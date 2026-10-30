@@ -502,6 +502,8 @@ export type ClientToolPreparationResult<TArgs extends Record<string, unknown>> =
 
 export interface ClientToolReadEffect {
   kind: 'READ'
+  /** Reuse successful identical reads within one turn; fresh reads remain the default. */
+  cacheableWithinTurn?: boolean
 }
 
 export interface ClientToolWriteEffect<TContext = Record<string, unknown>> {
@@ -2588,6 +2590,9 @@ export const defineClientTool = <
     output: { type: 'object' } as AiClientToolValueType,
     annotations: effect.annotations,
     risk: effect.risk,
+    ...(definition.effect.kind === 'READ' && definition.effect.cacheableWithinTurn
+      ? { expands: { cacheableWithinTurn: true } }
+      : {}),
     ...(effect.confirm ? { confirm: effect.confirm } : {}),
     ...contract,
     _meta: {
