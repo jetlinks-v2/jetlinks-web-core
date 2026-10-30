@@ -108,13 +108,20 @@
       v-model:visible="viewVisible"
       :data="viewItem"
       :type="type"
+      :confirm="confirmDetail"
     />
   </div>
 </template>
 
 <script setup lang="ts" name="NotificationRecord">
 import ViewDialog from './components/ViewDialog.vue'
-import { getList_api, changeStatus_api, changeAllStatus } from '@jetlinks-web-core/api/account/notificationRecord'
+import {
+  changeNoticeReadState,
+  getNoticeDataSource,
+  markNoticeProvidersRead,
+  queryNoticeRecords,
+  useNoticeDataSourceChanges,
+} from '@jetlinks-web-core/layout/components/noticeListHandler'
 import dayjs from 'dayjs'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useRouterParams } from '@jetlinks-web/hooks'
@@ -142,7 +149,7 @@ const props = defineProps({
 })
 
 const requestNotifications = async (params: Record<string, unknown>) => {
-  const response = await getList_api(params)
+  const response = await queryNoticeRecords(getType.value, params)
   const result = response?.result
   const records = Array.isArray(result) ? result : result?.data
   if (!Array.isArray(records)) return response
@@ -349,10 +356,21 @@ const refresh = () => {
 }
 
 watch(locale, refresh)
+watch(() => user.userInfo?.id, refresh)
+useNoticeDataSourceChanges(() => getType.value, refresh)
+
+/** 业务接收源声明确认即已读时，沿用详情按钮触发，不在打开或关闭时确认。 */
+const confirmDetail = async () => {
+  if (!getNoticeDataSource(getType.value)?.confirmOnDetail) return
+  const response = await changeNoticeReadState(getType.value, '_read', [viewItem.value.id])
+  if (response.status !== 200) throw new Error('Notification update failed')
+  refresh()
+  user.updateAlarm()
+}
 
 const changeStatus = (row: any) => {
   const type = row.state.value === 'read' ? '_unread' : '_read'
-  changeStatus_api(type, [row.id]).then((resp: any) => {
+  changeNoticeReadState(getType.value, type, [row.id]).then((resp: any) => {
     if (resp.status === 200) {
       onlyMessage($t('NotificationRecord.index.803553-11'))
       refresh()
@@ -371,7 +389,7 @@ watch(() => user.messageInfo?.id, (val) => {
 
 const onAllRead = async () => {
     if (!getType.value.length) return;
-    const resp = await changeAllStatus('_read', getType.value);
+    const resp = await markNoticeProvidersRead(getType.value);
     if (resp.status === 200) {
         onlyMessage($t('NotificationRecord.index.803553-11'));
         refresh();
@@ -387,7 +405,7 @@ const readPage = async () => {
     onlyMessage($t('NotificationRecord.index.803553-11'));
     return;
   }
-  const resp = await changeStatus_api('_read', unreadIds);
+  const resp = await changeNoticeReadState(getType.value, '_read', unreadIds);
   if (resp.status === 200) {
     onlyMessage($t('NotificationRecord.index.803553-11'));
     refresh();

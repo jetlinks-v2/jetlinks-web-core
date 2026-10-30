@@ -42,6 +42,14 @@
 通知入口的通道查询、未读角标和实时事件由 `layout/components/useHeaderNotice.ts` 管理。
 接口失败时保留已有角标，在通知面板提示失败并提供重试；空通道才显示空态，不将后台请求拒绝留作未捕获异常。
 
+登录通知扩展计划：`layout/components/noticeLoginHandler.ts` 提供业务中立的 `notification-login:handlers` 注册消费入口；`useHeaderNotice.ts` 在通知通道首次初始化成功后按 provider 顺序执行一次，并只传递 provider 集合、应用上下文和刷新回调。具体公告查询、弹窗文案、详情组件和已读写入仍由业务模块负责，core 不识别 `SystemBulletin` 或调用公告接口。该扩展不在通道重试、铃铛展开或实时通知刷新时重复执行。
+
+业务模块还可在 `notification-provider:default` 注册项中提供 `metadata()` 和 `dataSource`，为不写入通用通知收件箱的消息提供独立接收入口。`dataSource` 负责查询、未读统计、状态确认、全部确认以及可选的本地状态/实时订阅；`layout/components/noticeListHandler.ts` 将铃铛、个人中心和角标请求分派到对应数据源，未注册分类继续使用原通知接口。共享 core 不保存业务确认数据，也不识别具体公告接口、Topic 或存储键。
+
+独立数据源可声明 `confirmOnDetail: true`，让原详情确认按钮在成功写入业务确认状态后关闭；关闭或取消不确认。`subscribe` 与 `subscribeRealtime` 都必须返回释放函数，分类变化、账号变化或 Vue Scope 销毁时由 core 取消监听。接收分类通过 `metadata()` 合并，不要求当前用户拥有对应发送通道配置；订阅设置仍只读取真实通道。
+
+验证：业务中立注册与单次执行断言通过，authentication-manager-ui 定向生产构建完成 11,005 个模块转换；新增/修改 core 文件未命中完整 `vue-tsc` 的既有诊断。真实多标签页和多设备并发消费不具备原子领取保证，由业务模块记录剩余风险。
+
 运行时 `layout/components/NoticeInfo.vue` 将页签栏的左右内边距放在 `.ant-tabs-nav`，保持 `.ant-tabs-nav-wrap` 的实际可视宽度与 Ant Design 测量结果一致。通知类型超出可视范围时，使用 Tabs 自带的横向滚动、滚轮和溢出菜单访问右侧页签。通知查询、角标、Tab 切换与“查看更多”逻辑保持原有行为，不涉及接口或运营端 `ui/`。
 
 验证：在 `1536×899` 的现有开发页面上，5 个通知页签可向左、向右滚动，也可通过纵向滚轮横向移动；滚动位移为 `0～-72px`，最右侧“业务监控”完整可见，两端页签切换正常，弹层宽度仍为 `384px`。组件模板、TypeScript 转译、scoped LESS 编译及独立 Vite 生产构建通过，`git diff --check` 通过。`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 报告 556 项工作区既有诊断，`NoticeInfo.vue` 无诊断；当前未配置 lint 脚本。完整应用生产构建未执行，发布前待运行 `pnpm -F jetlinks-web-core build`。

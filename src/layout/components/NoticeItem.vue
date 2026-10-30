@@ -10,6 +10,7 @@
                     :type="noticeIcon"
                 />
                 <j-ellipsis class="list-item__title">{{ props.data?.topicName }}</j-ellipsis>
+                <a-tag v-if="noticeTag" class="list-item__tag">{{ noticeTag }}</a-tag>
                 <span class="list-item__time">{{ formattedTime }}</span>
             </div>
             <j-ellipsis v-if="displayMessage" class="list-item__summary">
@@ -50,7 +51,7 @@
 <script setup lang="ts">
 import dayjs from 'dayjs';
 import { getCurrentInstance } from 'vue';
-import { changeStatus_api } from '@jetlinks-web-core/api/account/notificationRecord';
+import { changeNoticeReadState } from './noticeListHandler';
 import { useMenuStore } from '@jetlinks-web-core/store/menu';
 import { useUserStore } from '@jetlinks-web-core/store/user';
 import { onlyMessage } from '@jetlinks-web/utils';
@@ -87,6 +88,7 @@ const displayMessage = computed(() => normalizedMessage.value && normalizedMessa
 // 业务模块可以通过通知记录上的通用图标字段补充展示图标，core 不感知具体 provider。
 const noticeIcon = computed(() => String(props.data?.noticeIcon || '').trim())
 const noticeIconColor = computed(() => String(props.data?.noticeIconColor || '').trim())
+const noticeTag = computed(() => String(props.data?.noticeTag || '').trim())
 const formattedTime = computed(() => dayjs(props.data?.notifyTime).format('YYYY-MM-DD HH:mm:ss'))
 
 watchEffect(() => {
@@ -126,7 +128,7 @@ const detail = async () => {
 /** 将当前通知标记为已读，并同步刷新铃铛数量和当前列表。 */
 const markRead = async (feedback = true) => {
     if (!props.data?.id) return;
-    const resp = await changeStatus_api('_read', [props.data.id]);
+    const resp = await changeNoticeReadState([props.data.topicProvider], '_read', [props.data.id]);
     if (resp.status !== 200) return;
     // 未读数量以后端有效状态为准，避免 read marker 与本地加减计数漂移。
     userInfo.updateAlarm();
@@ -185,6 +187,15 @@ const markRead = async (feedback = true) => {
         flex: none;
         color: var(--jet-theme-text-secondary);
         font-size: var(--fs-12);
+    }
+
+    &__tag {
+        max-width: 6.5rem;
+        overflow: hidden;
+        margin-inline-end: 0;
+        flex: none;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     &--unread &__title {

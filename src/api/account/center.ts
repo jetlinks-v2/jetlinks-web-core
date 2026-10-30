@@ -1,4 +1,5 @@
 import { request } from '@jetlinks-web/core'
+import { mergeRegisteredNoticeProviders } from '@jetlinks-web-core/layout/components/noticeListHandler'
 
 export const getSsoBinds_api = (): any =>request.get(`/application/sso/me/bindings`)
 
@@ -34,6 +35,18 @@ export const checkOldPassword_api = (password:string) => request.post(`/user/me/
 // 我的订阅
 // 查询当前用户可访问的通道配置
 export const getAllNotice = () => request.get(`/notify/channel/all`);
+
+/** 接收分类可由业务数据源提供，不要求用户拥有发送通道配置。 */
+export const getReceivedNoticeProviders = async () => {
+    const registered = mergeRegisteredNoticeProviders([]);
+    try {
+        const response = await getAllNotice();
+        return { ...response, result: mergeRegisteredNoticeProviders(response.result || []) };
+    } catch (error) {
+        if (!registered.length) throw error;
+        return { status: 200, success: true, result: registered };
+    }
+};
 
 
 // 当前登录用户权限信息
