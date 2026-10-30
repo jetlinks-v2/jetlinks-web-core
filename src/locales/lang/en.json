@@ -2161,6 +2161,8 @@
   "PersonalCenter.bindingFailed": "Could not update sign-in bindings. Please try again.",
   "PersonalCenter.ssoHint": "Once bound, you can use these methods to sign in from the login page without entering a password. An administrator configures sign-in methods under Open & Integrate > Third-Party Login.",
   "PersonalCenter.noSsoBindings": "No sign-in methods are available. Ask an administrator to check the configuration and status under Open & Integrate > Third-Party Login.",
+  "PersonalCenter.ssoHintOperations": "Once bound, you can use these methods to sign in from the login page without entering a password. An administrator configures sign-in methods under System Management > Application Management.",
+  "PersonalCenter.noSsoBindingsOperations": "No sign-in methods are available. Ask an administrator to check the configuration and status under System Management > Application Management.",
   "PersonalCenter.bindingUnsupported": "This sign-in method cannot be bound on this page yet.",
   "PersonalCenter.boundAt": "Bound on {time}",
   "PersonalCenter.tokenName": "Name",

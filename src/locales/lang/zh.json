@@ -2161,6 +2161,8 @@
   "PersonalCenter.bindingFailed": "登录绑定信息未能更新，请重试",
   "PersonalCenter.ssoHint": "绑定后可以在登录页用这些方式直接登录，不用输入密码。登录入口由管理员在「开放与集成 > 第三方登录」里配置。",
   "PersonalCenter.noSsoBindings": "暂无可用的登录入口，请联系管理员检查「开放与集成 > 第三方登录」中的配置和启用状态",
+  "PersonalCenter.ssoHintOperations": "绑定后可以在登录页用这些方式直接登录，不用输入密码。登录入口由管理员在「系统管理 > 应用管理」里配置。",
+  "PersonalCenter.noSsoBindingsOperations": "暂无可用的登录入口，请联系管理员检查「系统管理 > 应用管理」中的配置和启用状态",
   "PersonalCenter.bindingUnsupported": "该登录方式暂不支持在此页面绑定",
   "PersonalCenter.boundAt": "绑定于 {time}",
   "PersonalCenter.tokenName": "名称",
