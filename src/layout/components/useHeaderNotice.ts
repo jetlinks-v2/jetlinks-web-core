@@ -5,15 +5,22 @@ import { notification, Button } from 'ant-design-vue'
 import { useWebSocket } from '@jetlinks-web-core/hooks'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
-import { getAllNotice } from '@jetlinks-web-core/api/account/center'
+import { getReceivedNoticeProviders } from '@jetlinks-web-core/api/account/center'
 import { getTypeList_api, type NotificationTypeDefinition } from '@jetlinks-web-core/api/account/notificationSubscription'
-import { changeStatus_api, getUnreadCount_api, getUnreadNoPagingList_api } from '@jetlinks-web-core/api/account/notificationRecord'
 import { componentsRegistry } from '@jetlinks-web-core/utils/components-registry'
+import {
+  changeNoticeReadState,
+  queryNoticeRecordsNoPaging,
+  queryNoticeUnreadSummary,
+  useNoticeDataSourceChanges,
+  useNoticeDataSourceRealtime,
+} from './noticeListHandler'
 import {
   BADGE_OVERFLOW_COUNT, createNoticeCategoryTabs, createUnreadQueryParams, toBadgeCount,
   type NoticeProvider, type NoticeRecord, type NoticeTabItem,
 } from './noticeUtils'
 import { handleRegisteredRealtimeNotice, type NoticeTipOptions } from './noticeRealtimeHandler'
+import { runRegisteredLoginNoticeHandlers } from './noticeLoginHandler'
 import { resolveNoticeTexts } from './noticeTextResolver'
 
 /** 查询失败与真正的空列表分别处理，兼容现有普通列表和分页结果。 */
@@ -46,8 +53,10 @@ export function useHeaderNotice() {
   let channelProviders: NoticeProvider[] = []
   let typeProviders: NoticeProvider[] = []
   let countRequestId = 0
+  let catalogRequestId = 0
   let disposed = false
   let subscribed = false
+  let loginHandlersStarted = false
 
   async function getList() {
     const current = ++countRequestId
@@ -55,10 +64,13 @@ export function useHeaderNotice() {
     if (!providers.length) { total.value = 0; countFailed.value = false; countLoading.value = false; return }
     countLoading.value = true
     try {
-      const response = await getUnreadCount_api(createUnreadQueryParams(providers, BADGE_OVERFLOW_COUNT))
+      const response = await queryNoticeUnreadSummary(
+        providers,
+        createUnreadQueryParams(providers, BADGE_OVERFLOW_COUNT),
+      )
       if (disposed || current !== countRequestId) return
-      if (response?.success === false || !response?.result) throw new Error('Unread count unavailable')
-      total.value = toBadgeCount(response.result)
+      if (response?.success === false || !response?.result?.total) throw new Error('Unread count unavailable')
+      total.value = toBadgeCount(response.result.total)
       countFailed.value = false
     } catch {
       if (!disposed && current === countRequestId) countFailed.value = true
@@ -67,15 +79,19 @@ export function useHeaderNotice() {
     }
   }
 
-  async function markNotificationRead(id: string) {
-    const response = await changeStatus_api('_read', [id])
+  async function markNotificationRead(payload: NoticeRecord) {
+    const response = await changeNoticeReadState(
+      [String(payload.topicProvider || '')],
+      '_read',
+      [payload.id],
+    )
     if (response?.success === false || (response?.success !== true && response?.status !== 200)) throw new Error('Notification update failed')
     await getList()
   }
 
   async function read(type: string, payload: NoticeRecord) {
     try {
-      await markNotificationRead(payload.id)
+      await markNotificationRead(payload)
       if (type !== '_read') menu.routerPush('account/center', { params: { tabKey: 'StationMessage', row: payload } })
     } catch { countFailed.value = true }
   }
@@ -88,36 +104,39 @@ export function useHeaderNotice() {
     })
   }
 
+  async function handleRealtimePayload(payload: Record<string, any> | undefined) {
+    if (!payload?.id || disposed) return
+    const notice = payload as NoticeRecord
+    const handled = await handleRegisteredRealtimeNotice(notice, {
+      markRead: () => markNotificationRead(notice), refresh: getList, appContext, source: 'realtime',
+      showTip: options => showNoticeTip(notice, options),
+    })
+    void getList()
+    noticeInfoRef.value?.refresh()
+    if (handled) return
+    notification.open({
+      key: notice.id, message: notice.topicName,
+      description: () => h('div', { class: 'ellipsis', style: { cursor: 'pointer' }, onClick: () => read('', notice) }, notice.message),
+      onClick: () => read('', notice),
+      btn: () => h(Button, {
+        type: 'primary', size: 'small',
+        onClick: (event: Event) => { event.stopPropagation(); void read('_read', notice) },
+      }, { default: () => t('components.Notice.573407-0') }),
+    })
+  }
+
   const { send } = useWebSocket({
-    async onMessage(data) {
-      const payload = data?.payload as NoticeRecord | undefined
-      if (!payload?.id || disposed) return
-      const handled = await handleRegisteredRealtimeNotice(payload, {
-        markRead: () => markNotificationRead(payload.id), refresh: getList, appContext, source: 'realtime',
-        showTip: options => showNoticeTip(payload, options),
-      })
-      void getList()
-      noticeInfoRef.value?.refresh()
-      if (handled) return
-      notification.open({
-        key: payload.id, message: payload.topicName,
-        description: () => h('div', { class: 'ellipsis', style: { cursor: 'pointer' }, onClick: () => read('', payload) }, payload.message),
-        onClick: () => read('', payload),
-        btn: () => h(Button, {
-          type: 'primary', size: 'small',
-          onClick: (event: Event) => { event.stopPropagation(); void read('_read', payload) },
-        }, { default: () => t('components.Notice.573407-0') }),
-      })
-    },
+    onMessage: data => handleRealtimePayload(data?.payload as NoticeRecord | undefined),
   })
 
   /** 通道失败时保留已知目录，公告入口不依赖订阅通道是否存在。 */
   async function queryTypeList() {
-    if (catalogLoading.value) return
+    const current = ++catalogRequestId
+    countRequestId++
     catalogLoading.value = true
     try {
-      const results = await Promise.allSettled([getAllNotice(), getTypeList_api()])
-      if (disposed) return
+      const results = await Promise.allSettled([getReceivedNoticeProviders(), getTypeList_api()])
+      if (disposed || current !== catalogRequestId) return
       catalogFailed.value = false
       const [channels, types] = results.map(result => {
         try {
@@ -133,12 +152,40 @@ export function useHeaderNotice() {
       tabs.value = createNoticeCategoryTabs([...merged.keys()], announcements.map(item => item.code))
       providerNames.value = Object.fromEntries([...merged].map(([id, provider]) => [id, provider.type?.name || provider.name || '']))
       for (const item of announcements) providerNames.value[item.code] ||= t('PersonalCenter.messageAnnouncement')
-      if (tabs.value.some(item => item.type.length) && !subscribed) { send('notification', '/notifications', {}); subscribed = true }
+      if (tabs.value.some(item => item.type.length) && !subscribed) {
+        send('notification', '/notifications', {})
+        subscribed = true
+      }
       await getList()
-    } catch { if (!disposed) catalogFailed.value = true }
-    finally { if (!disposed) catalogLoading.value = false }
+      const providers = tabs.value.flatMap(item => item.type).filter(Boolean)
+      if (!loginHandlersStarted && providers.length) {
+        loginHandlersStarted = true
+        await runRegisteredLoginNoticeHandlers({
+          topicProviders: providers,
+          appContext,
+          refresh: async () => {
+            await getList()
+            noticeInfoRef.value?.refresh()
+          },
+        })
+      }
+    } catch {
+      if (!disposed && current === catalogRequestId) catalogFailed.value = true
+    } finally {
+      if (!disposed && current === catalogRequestId) catalogLoading.value = false
+    }
   }
 
+  useNoticeDataSourceChanges(() => tabs.value.flatMap(tab => tab.type), () => {
+    void getList()
+    noticeInfoRef.value?.refresh()
+  })
+  useNoticeDataSourceRealtime(() => tabs.value.flatMap(tab => tab.type), handleRealtimePayload)
+  watch(() => user.userInfo?.id, () => {
+    loginHandlersStarted = false
+    subscribed = false
+    void queryTypeList()
+  })
   function handleRead() { visible.value = false; void getList() }
   watch(() => user.alarmUpdateCount, () => { void getList() })
   watch(visible, opened => {
@@ -148,7 +195,7 @@ export function useHeaderNotice() {
     }
   })
   onMounted(() => { void queryTypeList() })
-  onUnmounted(() => { disposed = true; countRequestId++ })
+  onUnmounted(() => { disposed = true; countRequestId++; catalogRequestId++ })
   return { visible, total, loading, error, tabs, providerNames, noticeInfoRef, handleRead, retry: queryTypeList }
 }
 
@@ -178,8 +225,11 @@ export function useNoticeInfo(props: NoticeInfoProps, action: () => void) {
     if (!providers.length) { list.value = []; loading.value = false; return }
     loading.value = true
     try {
-      // 顶部两个分类都只展示有效未读，避免业务历史加载器混入已读公告。
-      const rows = readNoticeRows<NoticeRecord>(await getUnreadNoPagingList_api(createUnreadQueryParams(providers, DROPDOWN_PAGE_SIZE)))
+      const response = await queryNoticeRecordsNoPaging(
+        providers,
+        createUnreadQueryParams(providers, DROPDOWN_PAGE_SIZE),
+      )
+      const rows = readNoticeRows<NoticeRecord>(response)
       const resolved = await resolveNoticeTexts(rows)
       if (!disposed && current === requestId) list.value = resolved as NoticeRecord[]
     } catch {
@@ -214,7 +264,7 @@ export function useNoticeInfo(props: NoticeInfoProps, action: () => void) {
         appContext, source: 'list', refresh,
         markRead: async () => {
           try {
-            const response = await changeStatus_api('_read', [record.id])
+            const response = await changeNoticeReadState([String(record.topicProvider || '')], '_read', [record.id])
             if (response?.success === false || (response?.success !== true && response?.status !== 200)) throw new Error('Notification update failed')
             user.updateAlarm()
             void refresh()
@@ -229,6 +279,10 @@ export function useNoticeInfo(props: NoticeInfoProps, action: () => void) {
     finally { if (!disposed) openingId.value = '' }
   }
 
+  useNoticeDataSourceChanges(
+    () => props.tabs.find(item => item.key === activeKey.value)?.type || [],
+    () => { void refresh() },
+  )
   watch(() => props.tabs, () => {
     if (!props.tabs.some(item => item.key === activeKey.value)) activeKey.value = props.tabs[0]?.key || 'notification'
     list.value = []
@@ -236,6 +290,7 @@ export function useNoticeInfo(props: NoticeInfoProps, action: () => void) {
   }, { immediate: true })
   watch(activeKey, () => { list.value = []; void refresh() })
   watch(locale, () => { void refresh() })
+  watch(() => user.userInfo?.id, () => { void refresh() })
   onUnmounted(() => { disposed = true; requestId++ })
   return { activeKey, list, loading, failed, openingId, refresh, selectNotice, openMessageCenter }
 }

@@ -2,10 +2,14 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouterParams } from '@jetlinks-web/hooks'
 import { useUserStore } from '@jetlinks-web-core/store/user'
-import { getAllNotice } from '@jetlinks-web-core/api/account/center'
+import { getReceivedNoticeProviders } from '@jetlinks-web-core/api/account/center'
 import { getTypeList_api } from '@jetlinks-web-core/api/account/notificationSubscription'
-import { changeAllStatus, getUnreadSummary_api } from '@jetlinks-web-core/api/account/notificationRecord'
 import { componentsRegistry } from '@jetlinks-web-core/utils/components-registry'
+import {
+  markNoticeProvidersRead,
+  queryNoticeUnreadSummary,
+  useNoticeDataSourceChanges,
+} from '@jetlinks-web-core/layout/components/noticeListHandler'
 import {
   BADGE_OVERFLOW_COUNT, createTabCountMap, createUnreadQueryParams, toBadgeCount,
   type CappedUnreadCount,
@@ -63,7 +67,7 @@ export function useStationMessage() {
     const current = ++countVersion
     if (!ids.length) { counts.value = {}; return }
     try {
-      const response = await getUnreadSummary_api(createUnreadQueryParams(ids, BADGE_OVERFLOW_COUNT))
+      const response = await queryNoticeUnreadSummary(ids, createUnreadQueryParams(ids, BADGE_OVERFLOW_COUNT))
       if (disposed || current !== countVersion || response?.success === false || !response?.result) return
       counts.value = createTabCountMap(
         tabs.value.map(item => ({ key: item.key, tab: item.nameKey, type: item.children.map(child => child.provider) })),
@@ -82,7 +86,7 @@ export function useStationMessage() {
     if (loading.value) return
     loading.value = true
     let providers = tabs.value.flatMap(group => group.children)
-    const results = await Promise.allSettled([getAllNotice(), getTypeList_api()])
+    const results = await Promise.allSettled([getReceivedNoticeProviders(), getTypeList_api()])
     if (disposed) return
     const [channels, types] = results.map(result => {
       if (result.status === 'rejected') return undefined
@@ -134,7 +138,7 @@ export function useStationMessage() {
     markingAll.value = true
     operationFailed.value = false
     try {
-      const response = await changeAllStatus('_read', providers)
+      const response = await markNoticeProvidersRead(providers)
       if (response?.success === false || (response?.success !== true && response?.status !== 200)) throw new Error('Mark all failed')
       user.updateAlarm()
       void refreshCounts()
@@ -152,6 +156,10 @@ export function useStationMessage() {
   watch(() => router.params.value?.row, syncNotification)
   watch(() => user.messageInfo, syncNotification)
   watch(() => [user.alarmUpdateCount, user.unreadNoticeCount], () => { if (tabs.value.length) void refreshCounts() })
+  useNoticeDataSourceChanges(
+    () => tabs.value.flatMap(item => item.children.map(child => child.provider)),
+    () => { void refreshCounts() },
+  )
   onMounted(load)
   onUnmounted(() => {
     disposed = true

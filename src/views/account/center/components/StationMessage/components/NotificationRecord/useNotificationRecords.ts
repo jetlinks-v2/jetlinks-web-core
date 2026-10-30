@@ -4,7 +4,12 @@ import { useI18n } from 'vue-i18n'
 import { useRouterParams } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
 import { useUserStore } from '@jetlinks-web-core/store/user'
-import { changeStatus_api, getList_api } from '@jetlinks-web-core/api/account/notificationRecord'
+import {
+  changeNoticeReadState,
+  getNoticeDataSource,
+  queryNoticeRecords,
+  useNoticeDataSourceChanges,
+} from '@jetlinks-web-core/layout/components/noticeListHandler'
 import { resolveNoticeTexts } from '@jetlinks-web-core/layout/components/noticeTextResolver'
 import type { ConditionFilterChangePayload, ConditionFilterField, ConditionFilterTerm } from '@jetlinks-web-core/components/ConditionFilter'
 import type { MessageTypeRequest } from '../../useStationMessage'
@@ -140,7 +145,7 @@ export function useNotificationRecords(
     if (!providerIds.value.length) {
       return { success: true, status: 200, result: { data: [], total: 0, pageIndex: params.pageIndex, pageSize: params.pageSize } }
     }
-    const response = await getList_api(params)
+    const response = await queryNoticeRecords(providerIds.value, params)
     const result = response?.result
     const records = Array.isArray(result) ? result : result?.data
     if (!Array.isArray(records)) return response
@@ -207,7 +212,7 @@ export function useNotificationRecords(
     updating.value = true
     failed.value = false
     try {
-      const response = await changeStatus_api(type, ids)
+      const response = await changeNoticeReadState(providerIds.value, type, ids)
       if (response?.success === false || (response?.success !== true && response?.status !== 200)) throw new Error('Notification update failed')
       user.updateAlarm()
       if (!disposed) {
@@ -237,6 +242,13 @@ export function useNotificationRecords(
     viewVisible.value = true
   }
 
+  /** 独立接收源声明确认即已读时，只由详情确认按钮触发。 */
+  async function confirmDetail() {
+    const record = viewItem.value
+    if (!record?.id || !getNoticeDataSource([String(record.topicProvider || '')])?.confirmOnDetail) return
+    if (!await mark('_read', [record.id], false)) throw new Error('Notification update failed')
+  }
+
   function acceptIncoming(record?: Record<string, any>) {
     if (!record?.id || !record.topicProvider || !providerIds.value.includes(record.topicProvider) || incomingId === record.id) return
     incomingId = record.id
@@ -262,11 +274,14 @@ export function useNotificationRecords(
   watch(locale, refresh)
   watch(() => user.messageInfo, acceptIncoming, { immediate: true })
   watch(() => router.params.value?.row, acceptIncoming, { immediate: true })
+  watch(() => user.userInfo?.id, refresh)
+  useNoticeDataSourceChanges(() => providerIds.value, refresh)
   onUnmounted(() => { disposed = true })
 
   return {
     tableRef, filterTerms, queryParams, selectedIds, updating, failed, viewVisible, viewItem,
     filterFields, columns, defaultParams, rowSelection, onFilterChange, requestNotifications,
     titleOf, summaryOf, typeOf, stateOf, stateText, formatTime, refresh, markSelected, toggleRead, view,
+    confirmDetail,
   }
 }

@@ -33,11 +33,20 @@ const stubs = {
   '@jetlinks-web/hooks': 'export const useRouterParams=()=>({params:ctx.params,clear:()=>{ctx.params.value={}}})',
   '@jetlinks-web-core/utils/components-registry': 'export const componentsRegistry={getRegistry:()=>ctx.registeredProviders}',
   '@jetlinks-web-core/layout/components/noticeTextResolver': 'export const resolveNoticeTexts=async records=>records',
+  '@jetlinks-web-core/layout/components/noticeListHandler': `
+    export const queryNoticeRecords=(_providers,params)=>ctx.request('getList_api',[params]);
+    export const changeNoticeReadState=(_providers,state,ids)=>ctx.request('changeStatus_api',[state,ids]);
+    export const getNoticeDataSource=()=>undefined;
+    export const useNoticeDataSourceChanges=()=>{};
+    export const queryNoticeUnreadSummary=(_providers,params)=>ctx.request('getUnreadSummary_api',[params]);
+    export const markNoticeProvidersRead=providers=>ctx.request('changeAllStatus',['_read',providers]);
+  `,
   '@jetlinks-web-core/api/account/notificationRecord': ['getList_api','changeStatus_api','changeAllStatus','getUnreadSummary_api'].map(name => 'export const '+name+'=(...args)=>ctx.request('+JSON.stringify(name)+',args)').join('\n'),
   '@jetlinks-web-core/api/account/center': [
     'getSelfLoginRecords_api', 'getPasswordChangeSetting_api', 'getAllNotice', 'getSsoBinds_api', 'unBind_api', 'getSelfIdentities_api', 'requestIdentityValidation_api',
     'confirmIdentityValidation_api', 'unbindIdentity_api', 'updateMeInfo_api',
   ].map(name => 'export const '+name+'=(...args)=>ctx.request('+JSON.stringify(name)+',args)').join('\n') +
+    '\nexport const getReceivedNoticeProviders=(...args)=>ctx.request("getAllNotice",args)' +
     '\nexport const getSsoBindingEvents_api=id=>{ctx.calls.push({method:"binding.start",args:[id]});const stream=ctx.newStream();return stream}',
   '@jetlinks-web-core/api/account/notificationSubscription': [
     'getNoticeList_api', 'getIsBindThird', 'save_api', 'getTypeList_api', 'getNotificationChannelDefinitions_api',

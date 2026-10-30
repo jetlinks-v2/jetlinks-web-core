@@ -18,6 +18,7 @@ const {
   tableRef, filterTerms, queryParams, selectedIds, updating, failed, viewVisible, viewItem,
   filterFields, columns, defaultParams, rowSelection, onFilterChange, requestNotifications,
   titleOf, summaryOf, typeOf, stateOf, stateText, formatTime, refresh, markSelected, toggleRead, view,
+  confirmDetail,
 } = useNotificationRecords(props, state => emit('filter-change', state), sequence => emit('type-filter-applied', sequence))
 
 defineExpose({ refresh })
@@ -87,6 +88,7 @@ defineExpose({ refresh })
       v-model:visible="viewVisible"
       :data="viewItem"
       :type="category"
+      :confirm="confirmDetail"
     />
   </div>
 </template>
