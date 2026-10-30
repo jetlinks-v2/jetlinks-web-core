@@ -55,6 +55,12 @@
 
 顶部未读角标使用 Badge 小尺寸，并向按钮内侧、下方偏移，为顶栏上沿留出间距；铃铛点击区域继续保持 2rem。
 
+登录通知扩展计划：`layout/components/noticeLoginHandler.ts` 提供业务中立的 `notification-login:handlers` 注册消费入口；`useHeaderNotice.ts` 在通知通道首次初始化成功后按 provider 顺序执行一次，并只传递 provider 集合、应用上下文和刷新回调。具体公告查询、弹窗文案、详情组件和已读写入仍由业务模块负责，core 不识别 `SystemBulletin` 或调用公告接口。该扩展不在通道重试、铃铛展开或实时通知刷新时重复执行。
+
+业务模块还可在 `notification-provider:default` 注册项中提供 `metadata()` 和 `dataSource`，为不写入通用通知收件箱的消息提供独立接收入口。`dataSource` 负责查询、未读统计、状态确认、全部确认以及可选的本地状态/实时订阅；`layout/components/noticeListHandler.ts` 将铃铛、个人中心和角标请求分派到对应数据源，未注册分类继续使用原通知接口。共享 core 不保存业务确认数据，也不识别具体公告接口、Topic 或存储键。
+
+独立数据源可声明 `confirmOnDetail: true`，让原详情确认按钮在成功写入业务确认状态后关闭；关闭或取消不确认。`subscribe` 与 `subscribeRealtime` 都必须返回释放函数，分类变化、账号变化或 Vue Scope 销毁时由 core 取消监听。接收分类通过 `metadata()` 合并，不要求当前用户拥有对应发送通道配置；订阅设置仍只读取真实通道。
+
 本次按现有顶部消息弹层做局部改版：保留铃铛、当前用户消息接口、实时订阅和详情接管，内容按“消息标题与未读摘要 / 通知与公告 / 紧凑摘要列表 / 进入消息中心”组织。沿用 Ant Design Tabs、Dropdown、Button 和主题色、圆角、边框；不改导航框架或后端通知规则。
 
 实现入口为 layout/components/Notice.vue、NoticeInfo.vue、NoticeItem.vue；查询、分类、失败重试和跳转归属 useHeaderNotice.ts，分类工具与消息类型归属 noticeUtils.ts。分类依据与消息中心相同的真实 provider 目录及公告注册元数据；整行打开原详情流程，底部进入当前分类的消息中心。列表限高滚动，未读数量继续复用用户 Store，空态与请求失败分别反馈。 底部入口使用 Ant Design RightOutlined，箭头按主题小字号渲染并继承链接颜色，与文字通过 inline-flex 和统一间距居中对齐；图标自身使用 1em 方形 flex 容器与零行高，消除内联 SVG 基线预留导致的垂直偏移。垂直对齐验证直接加载 9200 当前源码及平台字体：默认字号下 SVG 与文字中心偏差为 0px，18px 根字号及 390px 窄屏下约 0.008px；当前登录态页面已目视确认。弹层默认沿用 Ant Design 的 document.body 挂载，避免顶部栏的图标颜色、字号及行高进入消息正文；显式 getPopupContainer 仍优先采用调用方容器。此前隔离预览未覆盖顶部栏的真实样式边界。补充验证已直接在用户使用的 localhost:9200 登录页签中完成：修改前按钮为蓝色、箭头最终为黑色 18px，默认挂载恢复后，运行页面的箭头显示为与文字一致的蓝色小图标，弹层仍正确对齐铃铛。该修复只改变默认挂载边界，无需重启后端。

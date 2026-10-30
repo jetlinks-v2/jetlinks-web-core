@@ -134,7 +134,7 @@
       </div>
     </template>
     <template #footer>
-      <a-button type="primary" @click="emits('update:visible', false)"
+      <a-button type="primary" :loading="confirming" @click="confirmDetail"
         >{{ $t('components.ViewDialog.411617-15') }}
       </a-button>
     </template>
@@ -142,6 +142,7 @@
 </template>
 
 <script setup lang="ts">
+import { onScopeDispose } from 'vue'
 import { JsonViewer } from 'vue3-json-viewer'
 import 'vue3-json-viewer/dist/index.css'
 import dayjs from 'dayjs'
@@ -158,7 +159,22 @@ const props = defineProps<{
   visible: boolean
   data: any
   type: string
+  confirm?: () => Promise<void>
 }>()
+
+let active = true
+onScopeDispose(() => { active = false })
+const confirming = ref(false)
+const confirmDetail = async () => {
+  if (confirming.value) return
+  confirming.value = true
+  try {
+    await props.confirm?.()
+    if (active) emits('update:visible', false)
+  } finally {
+    confirming.value = false
+  }
+}
 
 const levelList = ref<any[]>([])
 //工作流详情的值
