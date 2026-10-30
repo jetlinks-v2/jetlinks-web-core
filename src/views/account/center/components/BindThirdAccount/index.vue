@@ -4,7 +4,10 @@ import { QRCode } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import { useSsoBindings } from './useSsoBindings'
+import { useBasicLayoutVariant } from '@jetlinks-web-core/layout/hooks/useBasicLayoutVariant'
 const { t } = useI18n()
+const layoutVariant = useBasicLayoutVariant()
+const isOperations = computed(() => layoutVariant.value === 'tenant')
 const { bindings, loading, failed, unbinding, icons, load, canBindSso, bind, unbind, binding, authorizationUrl, bindingState, closeBinding } = useSsoBindings()
 const columns = computed(() => [
   { key: 'entry', title: t('PersonalCenter.loginEntry'), width: '40%' },
@@ -18,9 +21,9 @@ const columns = computed(() => [
     <a-alert v-if="failed" type="error" show-icon :message="$t('PersonalCenter.bindingFailed')">
       <template #action><a-button type="link" @click="load">{{ $t('AccountCenter.retry') }}</a-button></template>
     </a-alert>
-    <p class="sso-bindings__hint">{{ $t('PersonalCenter.ssoHint') }}</p>
+    <p class="sso-bindings__hint">{{ $t(isOperations ? 'PersonalCenter.ssoHintOperations' : 'PersonalCenter.ssoHint') }}</p>
     <a-table :columns="columns" :data-source="bindings" :loading="loading" :pagination="false" :row-key="item => item.id + ':' + (item.applicationUserId || '')" :scroll="{ x: 600 }">
-      <template #emptyText><CloudEmpty v-if="!failed" :description="$t('PersonalCenter.noSsoBindings')" /><span v-else>—</span></template>
+      <template #emptyText><CloudEmpty v-if="!failed" :description="$t(isOperations ? 'PersonalCenter.noSsoBindingsOperations' : 'PersonalCenter.noSsoBindings')" /><span v-else>—</span></template>
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'entry'">
           <a-space>

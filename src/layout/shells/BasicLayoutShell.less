@@ -93,7 +93,8 @@
   }
   :deep(.project-secondary-menu .ant-tabs-tab-active .anticon) { color: var(--layout-menu-item-active-color); }
 
-  > .project-layout__route-content:has(> .route-content-surface__chrome > .page-chrome--flush) > .content-panel {
+  // 租户个人中心的面板由业务路由提供，跨过组件 scoped 边界，仅拉平贴合头部下的直属面板。
+  > .project-layout__route-content:has(> .route-content-surface__chrome > .page-chrome--flush) > :deep(.content-panel) {
     border-top-left-radius: 0;
   }
 }

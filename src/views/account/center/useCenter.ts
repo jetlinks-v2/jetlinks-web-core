@@ -76,7 +76,7 @@ export const useCenter = () => {
     { label: i18n.global.t('PersonalCenter.sso'), value: 'Sso', icon: 'LinkOutlined', group: 'account' },
     { label: i18n.global.t('center.data.756829-4'), value: 'PersonalToken', icon: 'KeyOutlined', group: 'account' },
     { label: i18n.global.t('AccountCenter.messageCenter'), value: 'StationMessage', icon: 'MessageOutlined', group: 'messages' },
-    { label: i18n.global.t('PersonalCenter.notifications'), value: 'Subscribe', icon: 'BellOutlined', group: 'messages' },
+    // 通知设置菜单暂时隐藏，页面实现和订阅配置继续保留。
   ])
   const navigationGroups = computed(() => [
     { key: 'account', label: i18n.global.t('components.LayoutSidebarUser.accountCenter'), items: segments.value.filter(item => item.group === 'account') },

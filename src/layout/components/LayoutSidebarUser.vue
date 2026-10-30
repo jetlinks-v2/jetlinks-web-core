@@ -25,20 +25,30 @@
             <div class="layout-sidebar-user__summary-content">
               <div class="layout-sidebar-user__title-row">
                 <span class="layout-sidebar-user__name" :title="displayName">{{ displayName }}</span>
+                <template v-if="primaryRole">
+                  <a-tag class="layout-sidebar-user__role-tag" :bordered="false" :title="primaryRole">
+                    {{ primaryRole }}
+                  </a-tag>
+                  <a-tooltip v-if="extraRoleCount > 0" placement="bottom">
+                    <template #title>
+                      <div class="layout-sidebar-user__roles-tooltip">
+                        <div class="layout-sidebar-user__roles-tooltip-title">{{ $t('AccountInfo.roles') }}：</div>
+                        <div v-for="role in roleList" :key="role" class="layout-sidebar-user__roles-tooltip-item">
+                          {{ role }}
+                        </div>
+                      </div>
+                    </template>
+                    <a-tag class="layout-sidebar-user__role-tag layout-sidebar-user__role-tag--more" :bordered="false">
+                      +{{ extraRoleCount }}
+                    </a-tag>
+                  </a-tooltip>
+                </template>
               </div>
               <div class="layout-sidebar-user__account-row">
-                <span class="layout-sidebar-user__account" :title="account">{{ account }}</span>
+                <span class="layout-sidebar-user__account" :title="`${$t('AccountInfo.basicUsername')}：${account}`">
+                  {{ account }}
+                </span>
               </div>
-              <div class="layout-sidebar-user__metadata">
-                <AppTag
-                  v-for="tag in identityTags"
-                  :key="tag.key"
-                  class="layout-sidebar-user__meta-tag"
-                  :class="tag.key === 'account' ? 'layout-sidebar-user__account-type' : 'layout-sidebar-user__user-type'"
-                  :name="tag.label"
-                />
-              </div>
-              <div v-if="roleSummary" class="layout-sidebar-user__roles" :title="roleSummary">{{ roleSummary }}</div>
             </div>
           </div>
           <div class="layout-sidebar-user__divider" />
@@ -50,7 +60,8 @@
               type="text"
               @click="goAccountCenter(entry.key)"
             >
-              <span>{{ entry.label }}</span>
+              <AIcon v-if="entry.icon" class="layout-sidebar-user__menu-icon" :type="entry.icon" />
+              <span class="layout-sidebar-user__menu-text">{{ entry.label }}</span>
               <a-badge v-if="entry.count" size="small" :count="entry.count" :overflow-count="BADGE_OVERFLOW_COUNT" />
             </a-button>
           </div>
@@ -60,14 +71,15 @@
           <div class="layout-sidebar-user__divider" />
           <div class="layout-sidebar-user__footer">
             <a-button
-              class="layout-sidebar-user__menu-item"
+              class="layout-sidebar-user__menu-item layout-sidebar-user__menu-item--logout"
               type="text"
               :loading="logoutLoading"
               :disabled="logoutLoading"
               :aria-busy="logoutLoading"
               @click="handleLogout"
             >
-              <span>{{ $t('components.LayoutSidebarUser.logout') }}</span>
+              <AIcon v-if="!logoutLoading" class="layout-sidebar-user__menu-icon" type="LogoutOutlined" />
+              <span class="layout-sidebar-user__menu-text">{{ $t('components.LayoutSidebarUser.logout') }}</span>
             </a-button>
           </div>
         </div>
@@ -90,7 +102,8 @@ defineProps({
 
 const { t: $t } = useI18n()
 const {
-  open, logoutLoading, displayName, account, roleSummary, identityTags, avatar, avatarText,
-  menuEntries, goAccountCenter, handleLogout,
+  open, logoutLoading, displayName, account, roleSummary, roleList, primaryRole, extraRoleCount,
+  avatar, avatarText, menuEntries, goAccountCenter, handleLogout,
 } = useLayoutSidebarUser()
 </script>
+
