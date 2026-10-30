@@ -25,15 +25,30 @@
             <div class="layout-sidebar-user__summary-content">
               <div class="layout-sidebar-user__title-row">
                 <span class="layout-sidebar-user__name" :title="displayName">{{ displayName }}</span>
-              </div>
-              <dl class="layout-sidebar-user__details">
-                <dt class="layout-sidebar-user__detail-label">{{ $t('AccountInfo.basicUsername') }}：</dt>
-                <dd class="layout-sidebar-user__detail-value" :title="account">{{ account }}</dd>
-                <template v-if="roleSummary">
-                  <dt class="layout-sidebar-user__detail-label">{{ $t('AccountInfo.roles') }}：</dt>
-                  <dd class="layout-sidebar-user__detail-value" :title="roleSummary">{{ roleSummary }}</dd>
+                <template v-if="primaryRole">
+                  <a-tag class="layout-sidebar-user__role-tag" :bordered="false" :title="primaryRole">
+                    {{ primaryRole }}
+                  </a-tag>
+                  <a-tooltip v-if="extraRoleCount > 0" placement="bottom">
+                    <template #title>
+                      <div class="layout-sidebar-user__roles-tooltip">
+                        <div class="layout-sidebar-user__roles-tooltip-title">{{ $t('AccountInfo.roles') }}：</div>
+                        <div v-for="role in roleList" :key="role" class="layout-sidebar-user__roles-tooltip-item">
+                          {{ role }}
+                        </div>
+                      </div>
+                    </template>
+                    <a-tag class="layout-sidebar-user__role-tag layout-sidebar-user__role-tag--more" :bordered="false">
+                      +{{ extraRoleCount }}
+                    </a-tag>
+                  </a-tooltip>
                 </template>
-              </dl>
+              </div>
+              <div class="layout-sidebar-user__account-row">
+                <span class="layout-sidebar-user__account" :title="`${$t('AccountInfo.basicUsername')}：${account}`">
+                  {{ account }}
+                </span>
+              </div>
             </div>
           </div>
           <div class="layout-sidebar-user__divider" />
@@ -45,7 +60,8 @@
               type="text"
               @click="goAccountCenter(entry.key)"
             >
-              <span>{{ entry.label }}</span>
+              <AIcon v-if="entry.icon" class="layout-sidebar-user__menu-icon" :type="entry.icon" />
+              <span class="layout-sidebar-user__menu-text">{{ entry.label }}</span>
               <a-badge v-if="entry.count" size="small" :count="entry.count" :overflow-count="BADGE_OVERFLOW_COUNT" />
             </a-button>
           </div>
@@ -55,14 +71,15 @@
           <div class="layout-sidebar-user__divider" />
           <div class="layout-sidebar-user__footer">
             <a-button
-              class="layout-sidebar-user__menu-item"
+              class="layout-sidebar-user__menu-item layout-sidebar-user__menu-item--logout"
               type="text"
               :loading="logoutLoading"
               :disabled="logoutLoading"
               :aria-busy="logoutLoading"
               @click="handleLogout"
             >
-              <span>{{ $t('components.LayoutSidebarUser.logout') }}</span>
+              <AIcon v-if="!logoutLoading" class="layout-sidebar-user__menu-icon" type="LogoutOutlined" />
+              <span class="layout-sidebar-user__menu-text">{{ $t('components.LayoutSidebarUser.logout') }}</span>
             </a-button>
           </div>
         </div>
@@ -85,33 +102,8 @@ defineProps({
 
 const { t: $t } = useI18n()
 const {
-  open, logoutLoading, displayName, account, roleSummary, avatar, avatarText,
-  menuEntries, goAccountCenter, handleLogout,
+  open, logoutLoading, displayName, account, roleSummary, roleList, primaryRole, extraRoleCount,
+  avatar, avatarText, menuEntries, goAccountCenter, handleLogout,
 } = useLayoutSidebarUser()
 </script>
 
-<style scoped>
-.layout-sidebar-user__details {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--space-1);
-  margin: var(--space-1) 0 0;
-  color: var(--text-color-secondary);
-  font-size: var(--fs-12);
-  line-height: 1.5;
-}
-.layout-sidebar-user__detail-label {
-  margin: 0;
-  font-weight: 400;
-  text-align: right;
-  white-space: nowrap;
-}
-.layout-sidebar-user__detail-value {
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-</style>

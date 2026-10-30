@@ -7,10 +7,11 @@ import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import type { CenterTabKey } from '@jetlinks-web-core/views/account/center/data'
 
-interface UserMenuEntry {
+export interface UserMenuEntry {
   key: CenterTabKey
   label: string
   count?: number
+  icon?: string
 }
 
 /** 顶部用户菜单复用账号资料、通知角标和既有个人中心路由。 */
@@ -24,18 +25,21 @@ export function useLayoutSidebarUser() {
   const account = computed(() => userStore.userInfo?.username || userStore.userInfo?.id || '-')
   const avatar = computed(() => (userStore.userInfo as { avatar?: string })?.avatar || '')
   const avatarText = computed(() => displayName.value.trim().slice(0, 1) || '用')
-  const roleSummary = computed(() => {
+  const roleList = computed<string[]>(() => {
     const names = (userStore.userInfo.roleList || []).flatMap(role => {
       if (!role || typeof role !== 'object' || !('name' in role)) return []
       return typeof role.name === 'string' && role.name.trim() ? [role.name.trim()] : []
     })
     // 展示接口实际角色并去重，不因角色与用户类型同名而隐藏。
-    return [...new Set(names)].join('、')
+    return [...new Set(names)]
   })
+  const primaryRole = computed(() => roleList.value[0] || '')
+  const extraRoleCount = computed(() => Math.max(0, roleList.value.length - 1))
+  const roleSummary = computed(() => roleList.value.join('、'))
   const menuEntries = computed<UserMenuEntry[]>(() => [
-    { key: 'BindThirdAccount', label: t('components.LayoutSidebarUser.accountCenter') },
-    { key: 'StationMessage', label: t('components.LayoutSidebarUser.messageCenter'), count: userStore.unreadNoticeCount },
-    { key: 'PersonalToken', label: t('center.data.756829-4') },
+    { key: 'BindThirdAccount', label: t('components.LayoutSidebarUser.accountCenter'), icon: 'UserOutlined' },
+    { key: 'StationMessage', label: t('components.LayoutSidebarUser.messageCenter'), count: userStore.unreadNoticeCount, icon: 'BellOutlined' },
+    { key: 'PersonalToken', label: t('center.data.756829-4'), icon: 'KeyOutlined' },
   ])
 
   const goAccountCenter = (tabKey: CenterTabKey) => {
@@ -68,7 +72,7 @@ export function useLayoutSidebarUser() {
   }
 
   return {
-    open, logoutLoading, displayName, account, roleSummary, avatar, avatarText,
+    open, logoutLoading, displayName, account, roleSummary, roleList, primaryRole, extraRoleCount, avatar, avatarText,
     menuEntries, goAccountCenter, handleLogout,
   }
 }
