@@ -104,6 +104,7 @@ const {
 .layout-sidebar-user__detail-label {
   margin: 0;
   font-weight: 400;
+  text-align: right;
   white-space: nowrap;
 }
 .layout-sidebar-user__detail-value {

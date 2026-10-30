@@ -33,7 +33,7 @@
 
 运行时 `layout/components/LayoutSidebarUser.vue` 使用 240px 紧凑纵向下拉：顶部以头像配合姓名、账号两行身份摘要，账号与角色分两行标注为“用户名：…”和“角色：…”，不显示主/子账号或用户类型标签；下方依次提供个人中心、消息中心、个人令牌，退出登录独立分隔。复用 Ant Design Vue 下拉、按钮和角标、项目 `AppTag` 与主题 token，保留 `sidebarUserMenu` 扩展位，长账号与角色名称单行省略。
 
-账号判断复用 `/user/detail` 返回的 `type.id` 及 `store/user.ts` 的 `isSubAccount`：`subAccount` 显示“子账号”，其他情况沿用既有“主账号”逻辑；标签使用现有中英文词条。顶部菜单不再展示主/子账号及 type.name 用户类型标签。用户名和角色分两行展示，共用标签列和值列对齐，避免用户名长短影响角色位置；角色按接口实际数据去重，长用户名及角色单行省略并保留完整 title 提示。此调整仅影响顶部菜单摘要，账号类型和角色权限保持现有业务规则。后端接口与权限规则无需调整。
+账号判断复用 `/user/detail` 返回的 `type.id` 及 `store/user.ts` 的 `isSubAccount`：`subAccount` 显示“子账号”，其他情况沿用既有“主账号”逻辑；标签使用现有中英文词条。顶部菜单不再展示主/子账号及 type.name 用户类型标签。用户名和角色分两行展示，标签列右对齐以统一冒号位置，内容列保持相同左边界，避免用户名长短影响角色位置；角色按接口实际数据去重，长用户名及角色单行省略并保留完整 title 提示。此调整仅影响顶部菜单摘要，账号类型和角色权限保持现有业务规则。后端接口与权限规则无需调整。
 
 `layout/components/useLayoutSidebarUser.ts` 承接展示派生、入口导航和退出状态；消息角标复用 `useHeaderNotice.ts` 写入 `store/user.ts` 的未读结果，不另建查询或实时订阅。入口沿用 `account/center` 路由及 `CenterTabKey`，每次导航同时携带规范化的 query.tab 与兼容旧入口的 params.tabKey；BindThirdAccount 映射为 BasicInfo。内容及 Store 由个人中心的 URL 监听统一同步，避免同页导航清空 query 后被框架侧栏恢复为默认页，也避免 Store 与路由竞争更新。项目覆盖页复用 core 个人中心，显式导航继续清除旧通知上下文。按用户要求，本次直接修复，未重复复现或运行检查/构建。
 
