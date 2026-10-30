@@ -5022,6 +5022,99 @@ test('structured producer keeps one canonical binding through artifact materiali
   assert.equal(boundedPreview.data.presentationSource, undefined)
 })
 
+for (const cryptoMode of ['missing', 'no-subtle', 'rejecting'] as const) {
+  test(`source SHA-256 preserves required presentation and uploaded bytes with ${cryptoMode} Web Crypto`, async () => {
+    const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto')
+    Object.defineProperty(globalThis, 'crypto', {
+      configurable: true,
+      value: cryptoMode === 'missing' ? undefined : cryptoMode === 'no-subtle' ? {} : {
+        subtle: { digest: async () => { throw new Error('native digest unavailable') } },
+      },
+    })
+    try {
+      const source = { records: [{ id: '中文🙂', text: 'line\n"quoted"' }] }
+      const content = JSON.stringify(source)
+      const artifact = createAiClientToolArtifact({
+        content, modelSafeInline: source, mimeType: 'application/json', preview: { count: 1 },
+        bindingName: 'records', outputShape: 'anonymous.records', recordPath: '$.records',
+        cardinality: { kind: 'record-set', recordCount: 1, returnedCount: 1, totalCount: 1 },
+        complete: true, truncated: false,
+      })
+      const inline = await deliverAiClientToolResult(artifact, {
+        call: { id: 'insecure-inline', toolName: 'anonymous_source', presentationCapabilities: [{
+          type: 'anonymous-table', contentType: 'json', mediaType: 'application/json',
+          supportsSessionFile: false, maxInlineBytes: 4096, defaultMode: 'preview',
+          purpose: 'conversation-preview', preferredInputShapes: ['anonymous.records'], deliveryPolicy: 'required',
+        }] },
+        outputs: [{ name: 'records', type: 'structured-data', shape: 'anonymous.records',
+          mediaType: 'application/json', audience: 'client-presentation', delivery: 'auto' }],
+      }) as any
+      assert.equal(inline.summary.delivery, 'inline')
+      assert.equal(inline.complete, true)
+      assert.deepEqual(inline.data.presentationSource, source)
+      assert.equal(inline.outputBindings[0].sourceDigest,
+        `sha256:${createHash('sha256').update(content, 'utf8').digest('hex')}`)
+
+      // File identity covers exact bytes, including empty and non-text payloads.
+      for (const bytes of [new Uint8Array(), new TextEncoder().encode(content), new Uint8Array([0, 255, 128, 1, 0])]) {
+        let uploaded: ArrayBuffer | Blob | string | undefined
+        const delivered = await deliverAiClientToolResult(createAiClientToolArtifact({
+          content: bytes.buffer, mimeType: 'application/octet-stream', preview: {},
+        }), {
+          call: { id: 'insecure-file', toolName: 'anonymous_source', sessionFiles: {
+            toUri: filePath => `fs://${filePath}`,
+            upload: async (filePath, body) => { uploaded = body; return { ok: true, path: filePath } },
+          } },
+        }) as any
+        assert.ok(uploaded instanceof ArrayBuffer)
+        assert.deepEqual(new Uint8Array(uploaded), bytes)
+        assert.equal(delivered.outputBindings[0].sourceDigestProfile, 'bytes-v1')
+        assert.equal(delivered.outputBindings[0].sourceDigest,
+          `sha256:${createHash('sha256').update(bytes).digest('hex')}`)
+      }
+      for (const records of [[], source.records]) {
+        const uploaded: string[] = []
+        const delivered = await deliverAiClientToolResult(createAiClientToolRecordStream({
+          source: createAiClientToolArrayRecordSource(records), bindingName: 'records', outputShape: 'anonymous.records',
+          schema: { type: 'object', properties: { id: { type: 'string' }, text: { type: 'string' } } },
+        }), {
+          call: { id: 'insecure-stream', toolName: 'anonymous_source', sessionFiles: {
+            toUri: filePath => `fs://${filePath}`,
+            upload: async (filePath, body) => {
+              uploaded.push(typeof body === 'string' ? body
+                : new TextDecoder().decode(body instanceof Blob ? await body.arrayBuffer() : body))
+              return { ok: true, path: filePath }
+            },
+          } },
+          outputs: [{ name: 'records', type: 'structured-data', shape: 'anonymous.records',
+            mediaType: 'application/x-ndjson', audience: 'reusable-source', delivery: 'file' }],
+        }) as any
+        const expected = records.map(record => `${JSON.stringify(record)}\n`).join('')
+        assert.equal(uploaded.join(''), expected)
+        assert.equal(delivered.outputBindings[0].sourceDigestProfile, 'bytes-v1')
+        assert.equal(delivered.outputBindings[0].sourceDigest,
+          `sha256:${createHash('sha256').update(expected, 'utf8').digest('hex')}`)
+      }
+      const spilled = declaredLargeSourceFixture()
+      let uploadedSource = ''
+      const delivered = await deliverAiClientToolResult(spilled.result, {
+        call: { id: 'insecure-spill', toolName: 'anonymous_source', sessionFiles: {
+          toUri: filePath => `fs://${filePath}`,
+          upload: async (filePath, body) => { uploadedSource = String(body); return { ok: true, path: filePath } },
+        } },
+        outputs: [spilled.output], replyMaxJsonLength: 64 * 1024,
+      }) as any
+      assert.deepEqual(JSON.parse(uploadedSource), spilled.logicalSource)
+      assert.equal(delivered.outputBindings[0].sourceDigestProfile, 'bytes-v1')
+      assert.equal(delivered.outputBindings[0].sourceDigest,
+        `sha256:${createHash('sha256').update(uploadedSource, 'utf8').digest('hex')}`)
+    } finally {
+      if (originalCrypto) Object.defineProperty(globalThis, 'crypto', originalCrypto)
+      else Reflect.deleteProperty(globalThis, 'crypto')
+    }
+  })
+}
+
 test('materialized artifact validation targets the exact logical source and isolates malformed carriers', async () => {
   const semanticToken = crypto.randomUUID().replaceAll('-', '')
   const mediaType = `application/vnd.${semanticToken}+json`

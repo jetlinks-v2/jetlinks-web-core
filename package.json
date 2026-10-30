@@ -37,6 +37,7 @@
     "xgplayer-hls": "^3.0.24"
   },
   "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
     "@types/node": "24.3.0",
     "vite-plugin-monaco-editor": "^1.1.0",
     "vite-svg-loader": "^5.1.3"
