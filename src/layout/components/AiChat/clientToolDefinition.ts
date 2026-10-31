@@ -351,6 +351,7 @@ export interface ClientToolValueType {
   }[]
   min?: number
   max?: number
+  minLength?: number
   maxLength?: number
 }
 
@@ -1104,6 +1105,38 @@ const compileEffect = <TContext>(effect: ClientToolEffect<TContext>) => {
     },
     confirm: confirmation,
   }
+}
+
+/** Explicit string bounds supplement metadata without making optional inputs required. */
+const compileStringInputConstraints = (toolId: string, inputs: readonly ClientToolInput[]) => {
+  const properties: Record<string, unknown> = {}
+  const visit = (valueType: string | ClientToolValueType | undefined, path: string): Record<string, unknown> | undefined => {
+    if (!valueType || typeof valueType === 'string') return undefined
+    if (valueType.minLength !== undefined) {
+      if (valueType.type !== 'string' || !Number.isSafeInteger(valueType.minLength) || valueType.minLength < 0
+        || (valueType.maxLength !== undefined
+          && (!Number.isSafeInteger(valueType.maxLength) || valueType.minLength > valueType.maxLength))) {
+        throw new Error(`Client tool ${toolId} has invalid string bounds for ${path}`)
+      }
+      return { type: 'string', minLength: valueType.minLength,
+        ...(valueType.maxLength !== undefined ? { maxLength: valueType.maxLength } : {}) }
+    }
+    if (valueType.type === 'array') {
+      const items = visit(valueType.elementType || valueType.valueType, `${path}[]`)
+      return items ? { type: 'array', items } : undefined
+    }
+    if (valueType.type !== 'object') return undefined
+    const nested = Object.fromEntries((valueType.properties || []).flatMap(property => {
+      const constraint = visit(property.valueType, `${path}.${property.id}`)
+      return constraint ? [[property.id, constraint]] : []
+    }))
+    return Object.keys(nested).length ? { type: 'object', properties: nested } : undefined
+  }
+  for (const input of inputs) {
+    const constraint = visit(input.valueType, input.id)
+    if (constraint) properties[input.id] = constraint
+  }
+  return Object.keys(properties).length ? properties : undefined
 }
 
 const compileInputAlternatives = (
@@ -2478,9 +2511,13 @@ export const defineClientTool = <
   }
   const { text, intents } = normalizeDescription(definition.description)
   const declaredOutputs = normalizeOutputs(definition.output)
-  const parameterSchema = definition.inputAlternatives?.length
+  const alternativeSchema = definition.inputAlternatives?.length
     ? compileInputAlternatives(id, definition.inputs || [], definition.inputAlternatives)
     : hasFilterBindings(definition.analytical) ? { type: 'object' as const } : undefined
+  const stringConstraints = compileStringInputConstraints(id, definition.inputs || [])
+  const parameterSchema = stringConstraints
+    ? { ...alternativeSchema, type: 'object' as const, properties: stringConstraints }
+    : alternativeSchema
   const compiledConsumes = compileConsumedResources(
     definition.consumes || [],
     definition.inputs || [],

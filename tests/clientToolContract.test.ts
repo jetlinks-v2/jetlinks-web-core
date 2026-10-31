@@ -136,6 +136,36 @@ import { aiClientToolRegistry } from '../src/layout/components/AiChat/clientTool
 import { createClientToolSnapshotController } from '../src/layout/components/AiChat/clientToolSnapshot'
 import { createDomainAgentScopeContract } from '../src/layout/components/AiChat/clientToolScope'
 
+test('explicit string bounds survive serialization without requiring optional inputs or dropping alternatives', () => {
+  const definition = defineClientTool({
+    id: 'bounded_resource_test', description: { text: 'Read an optional resource', capabilities: ['resource.read'] }, effect: { kind: 'READ' },
+    inputs: [
+      { id: 'resource', valueType: { type: 'string', minLength: 1 } },
+      { id: 'ordinary', valueType: 'string' },
+      { id: 'nested', valueType: { type: 'object', properties: [
+        { id: 'refs', valueType: { type: 'array', elementType: { type: 'string', minLength: 2, maxLength: 12 } } },
+      ] } },
+    ],
+    inputAlternatives: [{ required: [] }],
+    execute: async () => ({}),
+    output: clientToolOutput.detail({ name: 'resource-detail', shape: 'resource.detail', select: value => value }),
+  })
+  const wire = toAiClientToolSessionDefinition(definition) as Record<string, any>
+  assert.deepEqual(wire.expands._schema.properties, {
+    resource: { type: 'string', minLength: 1 },
+    nested: { type: 'object', properties: { refs: { type: 'array', items: { type: 'string', minLength: 2, maxLength: 12 } } } },
+  })
+  assert.deepEqual(wire.expands._schema.oneOf[0].required, [])
+  assert.equal(wire.inputs.find((input: any) => input.id === 'resource').expands?.required, undefined)
+  for (const valueType of [{ type: 'integer', minLength: 1 }, { type: 'string', minLength: -1 },
+    { type: 'string', minLength: 4, maxLength: 2 }]) {
+    assert.throws(() => defineClientTool({ id: 'invalid_string_bounds', description: { text: 'Invalid bounds', capabilities: ['resource.read'] },
+      inputs: [{ id: 'resource', valueType }], effect: { kind: 'READ' }, execute: async () => ({}),
+      output: clientToolOutput.detail({ name: 'resource-detail', shape: 'resource.detail', select: value => value }),
+    }), /invalid string bounds/)
+  }
+})
+
 const createSeriesContract = () => defineAiClientToolContract({
   routingKind: 'aggregate',
   routing: {
