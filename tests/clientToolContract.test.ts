@@ -144,17 +144,28 @@ test('explicit string bounds survive serialization without requiring optional in
       { id: 'ordinary', valueType: 'string' },
       { id: 'nested', valueType: { type: 'object', properties: [
         { id: 'refs', valueType: { type: 'array', elementType: { type: 'string', minLength: 2, maxLength: 12 } } },
+        { id: 'mode', valueType: { type: 'enum', elements: [{ value: 'allowed' }] } },
       ] } },
+      { id: 'rows', valueType: { type: 'array', elementType: { type: 'object', properties: [
+        { id: 'ref', valueType: { type: 'string', minLength: 1 } },
+        { id: 'mode', valueType: { type: 'enum', elements: [{ value: 'allowed' }] } },
+      ] } } },
     ],
     inputAlternatives: [{ required: [] }],
     execute: async () => ({}),
     output: clientToolOutput.detail({ name: 'resource-detail', shape: 'resource.detail', select: value => value }),
   })
   const wire = toAiClientToolSessionDefinition(definition) as Record<string, any>
-  assert.deepEqual(wire.expands._schema.properties, {
+  assert.equal(wire.expands._schema.properties, undefined, 'partial fields must not replace the server-owned metadata schema')
+  assert.deepEqual(wire.expands._schema.allOf, [{ properties: {
     resource: { type: 'string', minLength: 1 },
     nested: { type: 'object', properties: { refs: { type: 'array', items: { type: 'string', minLength: 2, maxLength: 12 } } } },
-  })
+    rows: { type: 'array', items: { type: 'object', properties: { ref: { type: 'string', minLength: 1 } } } },
+  } }])
+  const nested = wire.inputs.find((input: any) => input.id === 'nested').valueType
+  const rows = wire.inputs.find((input: any) => input.id === 'rows').valueType.elementType
+  assert.equal(nested.properties.find((property: any) => property.id === 'mode').valueType.elements[0].value, 'allowed')
+  assert.equal(rows.properties.find((property: any) => property.id === 'mode').valueType.elements[0].value, 'allowed')
   assert.deepEqual(wire.expands._schema.oneOf[0].required, [])
   assert.equal(wire.inputs.find((input: any) => input.id === 'resource').expands?.required, undefined)
   for (const valueType of [{ type: 'integer', minLength: 1 }, { type: 'string', minLength: -1 },

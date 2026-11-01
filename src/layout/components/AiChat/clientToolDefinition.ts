@@ -2516,7 +2516,8 @@ export const defineClientTool = <
     : hasFilterBindings(definition.analytical) ? { type: 'object' as const } : undefined
   const stringConstraints = compileStringInputConstraints(id, definition.inputs || [])
   const parameterSchema = stringConstraints
-    ? { ...alternativeSchema, type: 'object' as const, properties: stringConstraints }
+    // The server owns each field's full metadata schema; add constraints without replacing nested siblings.
+    ? { ...alternativeSchema, type: 'object' as const, allOf: [{ properties: stringConstraints }] }
     : alternativeSchema
   const compiledConsumes = compileConsumedResources(
     definition.consumes || [],
