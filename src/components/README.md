@@ -137,6 +137,14 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 - `Echarts` 通过插件安装，不要把它与普通 `.component()` 注册组件混用；图表实例和按需 library 注册见 [Echarts/README.md](Echarts/README.md)。
 - `CardSelect`、`IconValue`、`MarketplaceResourcePicker` 等目录存在不等于根入口公开；除明确文档化的按需公开入口外，深层能力必须有当前生产代码证据。
 
+### 业务指标
+
+`MetricPanel`、`MetricResult`、`MetricWorkspace` 与指标类型从 `@jetlinks-web-core/components` 具名导出；业务模块提供已授权对象与来源选择，通用层统一维护配置、批量 latest 与输出质量展示，见 `Metric/index.ts`。
+
+`MetricLatest` 的 `{ configId, outputs, runtime? }` 中，`runtime` 是当前节点对当前配置身份的只读装载反馈：`pending` 等待装载、`loaded` 已装载、`failed` 装载失败，缺省表示本节点暂无反馈。它与输出质量独立；已有结果保留原值、质量和来源时间，未装载时另标“上次结果”。只有已装载且没有输出时显示“等待数据”。概览已有值时弱化正常装载反馈，详情展示反馈节点、最近成功/失败时间和安全错误码，具有维护权限的用户可用原配置的保存启用动作重试；不创建新配置。卡片和详情消费同一面板的既有批量轮询，不增加逐卡轮询或客户端 TTL；过期状态只消费服务端 `quality.stale`。 最新值的可读性、数值和运行反馈按同一快照版本接受；迟到详情响应不能撤销较新的授权快照或阻断其合法历史读取，新的拒权会清理当前值和历史。
+
+工作区记忆键继续以调用方提供的用户/项目/租户 `scopeKey` 隔离，只保存所选维度及各 `ownerType` 的对象 ID。恢复 ID 必须经过 navigator 的授权查询确认后才能创建指标上下文；对象失效或维度卸载只清理对应维度的记忆。
+
 ## 与 `@jetlinks-web/components` 的边界
 
 | 能力层 | 适合承载 | 查找入口 |

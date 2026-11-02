@@ -284,3 +284,4 @@ export type {
     MatrixGridRowKind,
     MatrixGridRowSlotScope,
 } from './MatrixGrid/types'
+export * from './Metric'
