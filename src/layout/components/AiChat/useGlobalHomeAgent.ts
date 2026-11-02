@@ -289,6 +289,14 @@ export const useGlobalHomeAgent = (route: RouteLocationNormalizedLoaded) => {
 
   const createRuntimeParameters = (runtime: HomeAgentRuntime) => ({
     ...runtime.parameters,
+    // Home keeps business queries, charts, reports and file access; specialist assistants own dataset processing.
+    'builtinToolGroup.dataset.enabled': false,
+    'builtinToolGroup.json.enabled': false,
+    'builtinToolGroup.media.enabled': false,
+    'builtinToolGroup.validate.enabled': false,
+    'builtinToolGroup.script.enabled': false,
+    'builtinToolGroup.skill.enabled': false,
+    'builtinToolGroup.memory.enabled': false,
     clientTools: runtime.clientTools,
     clientToolsVersion: runtime.clientToolsVersion,
     skillBindings: runtime.skillBindings,
