@@ -264,4 +264,3 @@ export interface MetricPresentationProvider {
   configFields?: Component<MetricConfigFieldsProps>
   presentationFields?: Component<MetricPresentationFieldsProps>
 }
-

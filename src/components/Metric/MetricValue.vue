@@ -44,4 +44,3 @@ const percentage = (value: number) => new Intl.NumberFormat(undefined, { style: 
 .metric-value--compact .metric-value__main strong { font-size:var(--fs-24,24px) }
 .metric-value__facts { display:flex; flex-wrap:wrap; gap:var(--space-1,4px) var(--space-4,16px); color:var(--ink-3); font-size:var(--fs-12,12px); margin-top:var(--space-1,4px) }
 </style>
-

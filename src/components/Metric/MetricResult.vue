@@ -51,4 +51,3 @@ function setRange(dates: [Dayjs, Dayjs] | null) { customRange.value = dates ? [d
 .metric-result__tools { display:flex; align-items:center; gap:var(--space-2,8px); flex-wrap:wrap; margin:var(--space-4,16px) 0 }
 .metric-result small { color:var(--ink-3) }
 </style>
-

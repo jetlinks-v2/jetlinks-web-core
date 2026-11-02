@@ -137,4 +137,3 @@ onMounted(load)
 .metric-template-manager__modes .active { background:var(--accent-soft); color:var(--accent) }
 @media(max-width:800px) { .metric-template-manager__workspace { grid-template-columns:1fr } .metric-template-manager__identity { grid-template-columns:1fr } }
 </style>
-

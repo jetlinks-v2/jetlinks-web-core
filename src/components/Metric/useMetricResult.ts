@@ -81,4 +81,3 @@ export function useMetricResult(reference: Ref<MetricReference | undefined>, api
   onScopeDispose(() => { generation++ })
   return { values, current, runtime, configuration, inaccessible, points, latest, loading, error, range, customRange, refresh }
 }
-

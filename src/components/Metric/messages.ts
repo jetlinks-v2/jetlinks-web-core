@@ -162,4 +162,3 @@ export const metricMessages = {
     discardEdits: 'Discard unsaved changes and continue?', continue: 'Continue', rangeStart: 'Start time', rangeEnd: 'End time'
   }
 }
-

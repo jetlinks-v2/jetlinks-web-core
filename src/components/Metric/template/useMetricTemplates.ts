@@ -189,4 +189,3 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
     simulationResults, simulationResponse, error, simulationError, loading, saving, simulating, readOnly, hasChanges,
     load, open, switchMode, switchFormat, save, release, newVersion, setAvailable, removeDraft, simulate, invalidateSimulation }
 }
-

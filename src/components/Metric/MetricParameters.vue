@@ -17,4 +17,3 @@ defineProps<{ definitions: MetricParameter[]; values: Record<string, unknown>; d
 const emit = defineEmits<{ (event: 'change', id: string, value: unknown): void }>()
 const { t } = useI18n({ useScope: 'local', messages: metricMessages })
 </script>
-
