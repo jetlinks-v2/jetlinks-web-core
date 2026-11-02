@@ -1,3 +1,6 @@
+import SHA256 from 'crypto-js/sha256'
+import WordArray from 'crypto-js/lib-typedarrays'
+import Hex from 'crypto-js/enc-hex'
 import type {
   AiClientToolCall,
   AiClientToolResultDelivery,
@@ -472,16 +475,23 @@ export const resolveAiClientToolArtifactLogicalSource = async (value: unknown) =
 
 /** Computes the identity of the canonical exact source once, independently from its inline/file carrier. */
 const createSha256SourceDigest = async (bytes: Uint8Array) => {
-  const subtle = globalThis.crypto?.subtle
-  if (!subtle) return undefined
   try {
-    const input = bytes.buffer instanceof ArrayBuffer
-      && bytes.byteOffset === 0
-      && bytes.byteLength === bytes.buffer.byteLength
-      ? bytes.buffer
-      : bytes.slice().buffer
-    const digest = new Uint8Array(await subtle.digest('SHA-256', input))
-    return `sha256:${Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('')}`
+    const subtle = globalThis.crypto?.subtle
+    if (subtle) {
+      const input = bytes.buffer instanceof ArrayBuffer
+        && bytes.byteOffset === 0
+        && bytes.byteLength === bytes.buffer.byteLength
+        ? bytes.buffer
+        : bytes.slice().buffer
+      const digest = new Uint8Array(await subtle.digest('SHA-256', input))
+      return `sha256:${Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('')}`
+    }
+  } catch {
+    // Embedded browsers may expose Web Crypto but reject a digest operation.
+  }
+  try {
+    // HTTP deployments lack subtle; hash the same bytes without changing source identity or admission rules.
+    return `sha256:${SHA256(WordArray.create(bytes)).toString(Hex)}`
   } catch {
     return undefined
   }

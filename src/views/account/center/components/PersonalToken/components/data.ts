@@ -30,16 +30,9 @@ export const handleData = (_arr: PermissionDefinition[], checkedValue: Permissio
             name: item.i18nName ||item.name,
             checkedList,
             checkedOptions: options.filter((option) => checkedList.includes(option.value)),
-            checkAll:
-                (checked &&
-                    item.actions &&
-                    checked.actions.length === item.actions.length) ||
-                false,
-            indeterminate:
-                (checked &&
-                    item.actions &&
-                    checked.actions.length < item.actions.length) ||
-                false,
+            checkAll: options.length > 0 && options.every(option => checkedList.includes(option.value)),
+            indeterminate: options.some(option => checkedList.includes(option.value))
+                && !options.every(option => checkedList.includes(option.value)),
             options,
         }
     })

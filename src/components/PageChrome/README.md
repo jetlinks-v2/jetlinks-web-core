@@ -49,7 +49,11 @@
 | 返回按钮、独立操作条 | `<PageChrome>` | 与面板之间保留壳层默认间距；自身可再加 `margin-bottom` |
 
 `flush` 由壳层用 `:has(> .route-content-surface__chrome > .page-chrome--flush)` 纯 CSS 判定，
-不引入任何跨路由的组件状态。
+不引入任何跨路由的组件状态。运营端个人中心由业务入口提供直属 `ContentPanel`；
+分组导航壳层通过 `:deep(.content-panel)` 匹配该子组件根节点，避免 scoped 样式要求面板携带壳层的 scope 属性而失效。
+只有贴合头部存在时取消面板左上圆角，其余圆角保留；切回其他入口后恢复默认圆角。
+
+验证：BasicLayoutShell.less 定向 Less/scoped 编译、check:ui-style 和差异空白检查通过；localhost:9100 登录页面已核对通知与公告页签的连续衔接，以及切回基本信息后默认圆角恢复。本次仅改样式，未运行全量类型检查或构建，无后端重启要求。
 
 参考实现：
 - 贴合式 —— `modules/device-manager-ui/views/device/list/unified/index.vue` 的 `SlantedTabs`

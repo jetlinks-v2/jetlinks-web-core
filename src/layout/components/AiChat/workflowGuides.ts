@@ -62,7 +62,7 @@ const normalizeStepForResult = (
 
 const normalizeGuideForResult = (guide: AgentConversationWorkflowGuide) => ({
   guideId: guide.id,
-  summary: normalizeText(guide.description) || '业务分析参考',
+  summary: normalizeText(guide.description) || normalizeGuideTitle(guide),
   appliesWhen: normalizeList(guide.when),
   scenarios: normalizeList(guide.scenarios),
   evidencePlan: (guide.steps || []).map(normalizeStepForResult),
@@ -76,7 +76,7 @@ export const hasWorkflowGuides = (guides?: AgentConversationWorkflowGuide[]) => 
 
 export const buildWorkflowGuideToolsDescription = (guides?: AgentConversationWorkflowGuide[]) => {
   if (!hasWorkflowGuides(guides)) return '';
-  return '内部分析参考能力可返回页面声明的有界目录，或按稳定标识读取一项；结果仅用于决定下一步业务动作，不应直接复述给用户。';
+  return '内部分析参考能力可分页返回页面声明的有界目录，或按稳定标识读取一项；目录未完整时可用 nextOffset 继续读取。结果仅用于决定下一步业务动作，不应直接复述给用户。';
 };
 
 export const createWorkflowGuideToolDefinition = (
@@ -86,7 +86,7 @@ export const createWorkflowGuideToolDefinition = (
   return {
     id: AGENT_WORKFLOW_GUIDE_TOOL_ID,
     name: AGENT_WORKFLOW_GUIDE_TOOL_ID,
-    description: '列出当前会话声明的内部分析参考，或按稳定标识读取一项；不根据用户原句在前端推断流程。',
+    description: '分页列出当前会话声明的内部分析参考，或按稳定标识读取一项；目录 truncated=true 时可用 nextOffset 继续，不根据用户原句在前端推断流程。',
     routing: WORKFLOW_GUIDE_ROUTING,
     inputs: [
       {
@@ -97,9 +97,16 @@ export const createWorkflowGuideToolDefinition = (
         valueType: 'string',
       },
       {
+        id: 'offset',
+        name: 'offset',
+        description: '目录从第几项开始，默认 0；继续读取时使用上次返回的 nextOffset。按 guideId 读取时忽略。',
+        required: false,
+        valueType: 'int',
+      },
+      {
         id: 'limit',
         name: 'limit',
-        description: '最多返回多少条匹配建议，默认 3。',
+        description: '每页最多返回多少项，默认 3，最大 8。',
         required: false,
         valueType: 'int',
       },
@@ -113,27 +120,36 @@ export const createWorkflowGuideToolDefinition = (
   };
 };
 
+/** Page the declared directory without hiding lower-priority guides; direct ID reads stay independent of paging. */
 export const resolveWorkflowGuideToolResult = (
-  args: Record<string, any> = {},
+  args: Record<string, unknown> = {},
   guides?: AgentConversationWorkflowGuide[],
 ) => {
   const source = (guides || []).filter((item) => !!item?.id);
   const guideId = normalizeText(args.guideId || args.id);
-  const limit = Math.min(Math.max(Number(args.limit || 3) || 3, 1), 8);
+  const limit = Math.min(Math.max(Math.floor(Number(args.limit || 3) || 3), 1), 8);
 
-  const matched = source
+  const candidates = source
     .filter(guide => !guideId || guide.id === guideId)
     .sort((left, right) => (
       Number(right.priority || 0) - Number(left.priority || 0)
       || String(left.id).localeCompare(String(right.id))
-    ))
-    .slice(0, limit)
+    ));
+  const offset = guideId ? 0 : Math.min(Math.max(Math.floor(Number(args.offset) || 0), 0), candidates.length);
+  const matched = candidates
+    .slice(offset, offset + limit)
     .map(normalizeGuideForResult);
+  const truncated = offset + matched.length < candidates.length;
 
   return {
     ok: true,
     ...(guideId ? { guideId } : {}),
+    totalCount: candidates.length,
+    offset,
+    limit,
     matched: matched.length,
+    truncated,
+    nextOffset: truncated ? offset + matched.length : undefined,
     guidance: matched,
     visibleReplyPolicy: [
       '任何用户可见文本都不要说明已选择、读取或匹配某个内部流程、分析参考、指导或工具。',

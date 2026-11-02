@@ -1,6 +1,6 @@
 import type { CenterTabKey } from './data'
 
-export type CenterContentKey = Exclude<CenterTabKey, 'HomeView' | 'BindThirdAccount'>
+export type CenterContentKey = Exclude<CenterTabKey, 'HomeView' | 'BindThirdAccount'> | 'BasicInfo' | 'Security' | 'Sso'
 export type AccountEditTarget = 'email-section' | 'phone-section'
 
 export interface AccountCardItem {

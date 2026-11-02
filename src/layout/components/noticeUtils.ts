@@ -74,3 +74,30 @@ export const createTabCountMap = (
   }, {});
 };
 
+
+export interface NoticeProvider {
+  provider: string
+  name?: string
+  type?: { id: string; name: string }
+}
+
+export interface NoticeRecord extends Record<string, unknown> {
+  id: string
+  topicProvider?: string
+  topicName?: string
+  message?: string
+  title?: string
+  summary?: string
+  notifyTime?: number | string
+  state?: string | { value: string; text?: string }
+}
+
+/** 顶部仅呈现消息大类；公告由注册元数据识别，并保留无通道时的历史收件入口。 */
+export function createNoticeCategoryTabs(providers: string[], announcementProviders: string[]): NoticeTabItem[] {
+  const announcements = new Set(announcementProviders.filter(Boolean))
+  const notifications = [...new Set(providers.filter(id => id && !announcements.has(id)))]
+  return [
+    { key: 'notification', tab: 'PersonalCenter.messageNotification', type: notifications },
+    ...(announcements.size ? [{ key: 'announcement', tab: 'PersonalCenter.messageAnnouncement', type: [...announcements] }] : []),
+  ]
+}

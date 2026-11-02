@@ -24,6 +24,7 @@ import {
 const DEFAULT_ACTIVE_QUERY_KEY = 'active'
 
 type ProjectSecondaryMenuRegistration = {
+  grouped: boolean
   id: symbol
   active: ComputedRef<boolean>
   items: ComputedRef<ProjectNavigationItem[]>
@@ -38,6 +39,8 @@ type ProjectSecondaryMenuContext = {
 }
 
 export type UseProjectSecondaryMenuOptions = {
+  /** 显式启用分组，现有调用方默认保持平铺导航。 */
+  grouped?: boolean
   items: MaybeRefOrGetter<ProjectNavigationItem[]>
   defaultActiveKey?: MaybeRefOrGetter<string | undefined>
   queryKey?: string
@@ -97,6 +100,7 @@ export const provideProjectSecondaryMenu = () => {
   const registration = computed(() => current.value?.active.value ? current.value : undefined)
 
   return {
+    grouped: computed(() => registration.value?.grouped === true),
     items: computed(() => registration.value?.items.value || []),
     selectedKey: computed(() => registration.value?.selectedKey.value || ''),
     select: (key: string) => registration.value?.select(key),
@@ -141,6 +145,7 @@ const createProjectSecondaryMenu = (
     set: setActiveKey,
   })
   const registration: ProjectSecondaryMenuRegistration = {
+    grouped: options.grouped === true,
     id: Symbol('project-secondary-menu-registration'),
     active: ownerActive,
     items,

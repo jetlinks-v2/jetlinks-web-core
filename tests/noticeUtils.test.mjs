@@ -24,3 +24,17 @@ test('unique topics still add together and retain capped overflow', () => {
     topics: [{ topicProvider: 'a', count: 99, overflow: true }],
   }), { messages: { count: 99, overflow: true } })
 })
+
+test('category tabs deduplicate providers and use registered metadata for announcements', () => {
+  assert.deepEqual(module.exports.createNoticeCategoryTabs(['a', 'b', 'a', 'bulletin'], ['bulletin', 'bulletin']), [
+    {key: 'notification', tab: 'PersonalCenter.messageNotification', type: ['a', 'b']},
+    {key: 'announcement', tab: 'PersonalCenter.messageAnnouncement', type: ['bulletin']},
+  ])
+})
+
+test('registered announcement inbox remains without channels; absent capability adds no fake announcement tab', () => {
+  assert.deepEqual(module.exports.createNoticeCategoryTabs([], ['bulletin'])[1].type, ['bulletin'])
+  assert.deepEqual(module.exports.createNoticeCategoryTabs([], []), [
+    {key: 'notification', tab: 'PersonalCenter.messageNotification', type: []},
+  ])
+})

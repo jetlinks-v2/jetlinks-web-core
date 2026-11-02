@@ -6,6 +6,7 @@ import { savePersonalToken_api } from '@jetlinks-web-core/api/account/center'
 import { onlyMessage, randomString } from '@jetlinks-web/utils'
 import type { Rule } from 'ant-design-vue/es/form'
 
+import { copyTokenScope, resolvePermissionMode, withPermissionMode } from '../permissionMode'
 import type { TokenDialogProps, TokenDialogEmit, TokenFormData } from '../types'
 
 type ExpireType = number | 'custom' | 'never'
@@ -19,9 +20,7 @@ const createDefaultFormData = (): TokenFormData => ({
   name: '',
   expires: null,
   description: '',
-  scope: {
-    permissions: [],
-  },
+  scope: withPermissionMode({ permissions: [] }, 'follow'),
   sourceType: 'account-center',
   sourceId: randomString(8),
   sourceTypeName: globalI18n.global.t('PersonalToken.TokenDialog.sourceName'),
@@ -35,6 +34,7 @@ export const useTokenDialog = (props: TokenDialogProps, emit: TokenDialogEmit) =
   const generatedToken = ref('')
   const expireType = ref<ExpireType>('custom')
   const loading = ref(false)
+  const permissionsReady = ref(false)
   const savingWithRefresh = ref(true)
   const formData = ref<TokenFormData>(createDefaultFormData())
 
@@ -62,10 +62,11 @@ export const useTokenDialog = (props: TokenDialogProps, emit: TokenDialogEmit) =
   })
 
   const canSubmit = computed(() => {
-    if (!formData.value.name) return false
+    if (!formData.value.name.trim()) return false
     if (!expireType.value) return false
     if (expireType.value === 'custom' && !formData.value.expires) return false
-    return formData.value.scope.permissions.length !== 0
+    if (resolvePermissionMode(formData.value.scope) === 'follow') return true
+    return permissionsReady.value && formData.value.scope.permissions.some(item => item.actions.length > 0)
   })
 
   const disabledDate = (current: Dayjs) => current && current < dayjs()
@@ -98,6 +99,7 @@ export const useTokenDialog = (props: TokenDialogProps, emit: TokenDialogEmit) =
 
   const resetForm = () => {
     formData.value = createDefaultFormData()
+    permissionsReady.value = false
     showSuccessModal.value = false
     generatedToken.value = ''
     nextTick(() => {
@@ -134,7 +136,10 @@ export const useTokenDialog = (props: TokenDialogProps, emit: TokenDialogEmit) =
 
     try {
       if (!canSubmit.value) return
-      const submitData = { ...formData.value }
+      formData.value.scope = withPermissionMode(
+        formData.value.scope, resolvePermissionMode(formData.value.scope),
+      )
+      const submitData = { ...formData.value, scope: copyTokenScope(formData.value.scope) }
       const params = props.mode === 'edit' ? { revokeAccessTokens } : undefined
       const res = await savePersonalToken_api(submitData, params)
       if (!res.success) {
@@ -187,9 +192,8 @@ export const useTokenDialog = (props: TokenDialogProps, emit: TokenDialogEmit) =
           description: props.token.description || '',
           sourceType: props.token.sourceType || 'account-center',
           sourceId: props.token.sourceId || randomString(8),
-          scope: {
-            permissions: props.token.scope?.permissions || [],
-          },
+          sourceTypeName: props.token.sourceTypeName,
+          scope: copyTokenScope(props.token.scope),
         }
         expireType.value = getExpireType(props.token.expires)
       } else if (!value) {
@@ -201,6 +205,7 @@ export const useTokenDialog = (props: TokenDialogProps, emit: TokenDialogEmit) =
 
   return {
     canSubmit,
+    permissionsReady,
     customExpires,
     dialogTitle,
     disabledDate,

@@ -17,7 +17,7 @@
             <img :src="imageUrl" height="100%" class="upload-image" />
           </template>
           <template v-else>
-            <AIcon type="UserOutlined" style="font-size: var(--fs-20)" />
+            <slot name="placeholder"><AIcon type="UserOutlined" style="font-size: var(--fs-20)" /></slot>
           </template>
           <div class="upload-image-mask">{{ $t('UploadAvatar.index.820744-0') }}</div>
         </div>

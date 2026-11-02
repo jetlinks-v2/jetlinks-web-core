@@ -33,7 +33,9 @@ export interface UserInfo {
     value: string;
   };
   loginInfo: {
-    loginIpRegion: string;
+    loginTime?: number;
+    loginIp?: string;
+    loginIpRegion?: string;
   };
 }
 
@@ -49,6 +51,7 @@ export const useUserStore = defineStore('user', () => {
   }
   const messageInfo = ref<Record<string, any>>({})
   const alarmUpdateCount = ref(0)
+  const unreadNoticeCount = ref(0)
   /**
    * 设置用户信息
    * @param data
@@ -83,6 +86,7 @@ export const useUserStore = defineStore('user', () => {
     other.tabKey = ''
     messageInfo.value = {}
     alarmUpdateCount.value = 0
+    unreadNoticeCount.value = 0
     LocalStore.remove('userId')
     LocalStore.remove('user_info')
   }
@@ -93,6 +97,7 @@ export const useUserStore = defineStore('user', () => {
     messageInfo,
     userInfo,
     alarmUpdateCount,
+    unreadNoticeCount,
     isAdmin,
     isApplicationUser,
     isSubAccount,
