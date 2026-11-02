@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "moduleResolution": "Bundler",
+    "types": ["node", "vite/client"]
+  },
+  "include": [
+    "src/components/Metric/**/*.ts",
+    "src/components/Metric/**/*.vue",
+    "src/env.d.ts",
+    "src/auto-imports.d.ts"
+  ]
+}
+
