@@ -47,6 +47,11 @@ export function registerMBeanRenderer(renderer: MBeanRenderer) {
   return () => { const index = renderers.indexOf(renderer); if (index >= 0) renderers.splice(index, 1) }
 }
 
+/** 复用同一注册表为节点概览声明轻量数据源；不在 core 发起请求或设置周期。 */
+export function mbeanOverviewRenderers() {
+  return renderers.filter((renderer): renderer is MBeanRenderer & { overview: NonNullable<MBeanRenderer['overview']> } => !!renderer.overview)
+}
+
 /** 匹配器失败时继续回退，保证未知或版本不匹配的对象仍可读取。 */
 export function resolveMBeanRenderer(bean: MBeanDescriptor) {
   return renderers.find(renderer => { try { return renderer.match(bean) } catch { return false } })?.component
