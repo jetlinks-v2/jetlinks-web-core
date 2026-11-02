@@ -28,4 +28,3 @@ const option = computed(() => ({
 .metric-trend { height:280px; width:100% }
 .metric-trend__history { display:grid; gap:var(--space-3,12px); max-height:320px; overflow:auto }
 </style>
-

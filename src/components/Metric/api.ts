@@ -25,4 +25,3 @@ export const metricApi: MetricApi = {
   removeTemplate: async templateId => { result(await http.remove(`/metric/templates/${id(templateId)}`, undefined, options)) },
   simulate: async simulation => result(await http.post<MetricSimulationResponse>('/metric/templates/_simulate', simulation, options))
 }
-

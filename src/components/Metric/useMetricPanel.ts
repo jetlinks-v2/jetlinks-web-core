@@ -213,4 +213,3 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
   return { configurations, templates, outputs, runtimes, selectedLatest, itemErrors, inaccessibleIds, latestErrors, actionError, loading, error, busyId, selectedId, selectedOutputId,
     selected, selectedOutput, reference, cards, select, closeDetail, editorOpen, editing, openEditor, closeDrawer, dismissDrawer, takeFocusReference, saved, refresh, setEnabled, rename, remove }
 }
-

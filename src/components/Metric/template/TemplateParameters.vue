@@ -54,4 +54,3 @@ function add() {
 .metric-declarations__row .ant-form { flex:1; display:grid; grid-template-columns:repeat(2,minmax(100px,1fr)); gap:0 var(--space-3,12px) }
 @media(max-width:600px) { .metric-declarations__row .ant-form { grid-template-columns:1fr } }
 </style>
-

@@ -12,4 +12,3 @@ export function configurationObject(text: string, format: ConfigurationFormat): 
   if (!value || Array.isArray(value) || typeof value !== 'object') throw new Error('Configuration must be an object')
   return value as Record<string, unknown>
 }
-

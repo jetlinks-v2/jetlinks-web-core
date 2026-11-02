@@ -138,4 +138,3 @@ async function submit(activate: boolean) { const saved = await save(activate); i
 .metric-binding__source { color:var(--ink-3); overflow-wrap:anywhere }
 @media(max-width:600px) { .metric-binding { grid-template-columns:1fr auto } .metric-binding__source { grid-column:1/-1; grid-row:2 } }
 </style>
-

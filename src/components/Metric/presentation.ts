@@ -31,4 +31,3 @@ export function metricChartPoints(values: MetricValue[]): Array<[number, number 
       && typeof value.value === 'number' && Number.isFinite(value.value) ? value.value : null] as [number, number | null])
     .sort((left, right) => left[0] - right[0])
 }
-

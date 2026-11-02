@@ -126,4 +126,3 @@ export function useMetricEditor(
   return { draft, templates, selectedTemplate, templateSelection, parameters, step, loading, saving, choosing,
     error, errorKind, sourceLabels, savedSnapshot, snapshotLoading, presentation, extensionFailed, load, choose, next, save, readSaved, useSaved }
 }
-
