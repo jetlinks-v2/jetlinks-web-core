@@ -165,7 +165,7 @@ test('failed deployment requests can be retried without a permanent negative cac
   assert.equal(h.store.activeClientId, 'global')
 })
 
-function globalHarness(t, { project = true, loading = Promise.resolve(), queryAgentList } = {}) {
+function globalHarness(t, { project = true, loading = Promise.resolve(), queryAgentList, runtimeParameters = {} } = {}) {
   const h = storeHarness(t, queryAgentList)
   const route = vue.reactive({ path: '/a', fullPath: '/a', name: 'a', meta: {} })
   const menu = vue.reactive({ initialized: true, siderMenus: [{ name: 'a' }] })
@@ -179,7 +179,7 @@ function globalHarness(t, { project = true, loading = Promise.resolve(), queryAg
       subscribeClientTools: () => () => {},
       refreshContext() {
         refreshes += 1
-        this.parameters = { subjectId: project ? 'project' : 'iotHome', currentView: route.name }
+        this.parameters = { ...runtimeParameters, subjectId: project ? 'project' : 'iotHome', currentView: route.name }
         this.clientTools = [{ name: route.name }]
         this.clientToolsVersion += 1
       },
@@ -240,6 +240,22 @@ for (const project of [true, false]) {
     assert.equal(h.queries(), 1)
   })
 }
+
+test('home limits processing tools while preserving charts, reports, file access and deployment restrictions', async t => {
+  const disabled = ['dataset', 'json', 'media', 'validate', 'script', 'skill', 'memory']
+  const runtimeParameters = Object.fromEntries([...disabled, 'fs', 'chart', 'document', 'tools', 'session'].map(group => [`builtinToolGroup.${group}.enabled`, true]))
+  for (const project of [false, true]) {
+    const h = globalHarness(t, { project, runtimeParameters })
+    await h.flush()
+    for (const group of disabled) assert.equal(h.store.parameters[`builtinToolGroup.${group}.enabled`], project)
+    for (const group of ['fs', 'chart', 'document', 'tools', 'session']) assert.equal(h.store.parameters[`builtinToolGroup.${group}.enabled`], true)
+    assert.equal(h.store.parameters.sessionFilesEnabled, undefined)
+    h.unmount()
+  }
+  const h = globalHarness(t, { project: false, runtimeParameters: { 'builtinToolGroup.document.enabled': false } })
+  await h.flush()
+  assert.equal(h.store.parameters['builtinToolGroup.document.enabled'], false)
+})
 
 test('page-specific ownership and returning to the global assistant reuse the same runtime', async t => {
   const h = globalHarness(t)
