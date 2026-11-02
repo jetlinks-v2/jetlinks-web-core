@@ -177,7 +177,7 @@ export const useMenuStore = defineStore('menu', () => {
       const runtimeProjectId = getProjectIdFromLocation()
       if (runtimeProjectId && !isFromCloud()) {
         // Menu navigation runs outside component setup, so use the router singleton and carry project context explicitly.
-        router.push({
+        return router.push({
           name,
           params: {
             ..._params,
@@ -185,10 +185,9 @@ export const useMenuStore = defineStore('menu', () => {
           },
           query: _query,
         })
-        return
       }
 
-      router.push({
+      return router.push({
         name,
         params: _params,
         query: _query,
@@ -316,6 +315,7 @@ export const useMenuStore = defineStore('menu', () => {
     runtime.init()
   }
 
+  /** 保留路由的异步结果，调用方可处理页面加载失败或导航取消。 */
   const jumpPage = (
     name: string,
     options?: OptionsType,
@@ -323,7 +323,7 @@ export const useMenuStore = defineStore('menu', () => {
     const menuItem = runtime.getMenu(name)
 
     if (menuItem) {
-      runtime.routerPush(menuItem.routeName || name, options)
+      return runtime.routerPush(menuItem.routeName || name, options)
     } else {
       onlyMessage($t('Home.index.010851-10'), 'warning')
       console.warn(`没有找到对应的页面: ${name}`)

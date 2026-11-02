@@ -1,4 +1,4 @@
-import type { RouteRecordRaw } from 'vue-router'
+import type { NavigationFailure, RouteRecordRaw } from 'vue-router'
 import { cloneDeep } from 'lodash-es'
 import { handleMenus } from '@jetlinks-web-core/utils'
 import { useAuthStore } from './auth'
@@ -22,7 +22,7 @@ export type MenuRuntimeOptions = {
     name: string,
     options?: MenuRuntimeRouterOptions,
     menuItem?: any,
-  ) => void
+  ) => Promise<void | NavigationFailure> | void
 }
 
 export type MenuRuntimeRouterOptions = {
@@ -76,7 +76,7 @@ export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
     name: string,
     routerOptions?: MenuRuntimeRouterOptions,
   ) => {
-    options.routerPush?.(name, routerOptions)
+    return options.routerPush?.(name, routerOptions)
   }
 
   const jumpPage = (
@@ -86,7 +86,7 @@ export const createMenuStoreRuntime = (options: MenuRuntimeOptions) => {
     const menuItem = menusMap.value.get(name)
 
     if (menuItem) {
-      options.routerPush?.(menuItem.routeName || name, routerOptions, menuItem)
+      return options.routerPush?.(menuItem.routeName || name, routerOptions, menuItem)
     }
   }
 
