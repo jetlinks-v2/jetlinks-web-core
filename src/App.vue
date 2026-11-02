@@ -14,9 +14,11 @@ import { ConfigProvider } from '@jetlinks-web/components'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import enUs from 'ant-design-vue/es/locale/en_US'
+import jaJP from 'ant-design-vue/es/locale/ja_JP'
 import { theme as antdTheme } from 'ant-design-vue'
 import componentsZhCN from '@jetlinks-web/components/es/locale/zh-CN'
 import componentsEnUS from '@jetlinks-web/components/es/locale/en-US'
+import componentsJa from './locales/componentsJa'
 import theme from '@theme-config'
 import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
@@ -60,12 +62,14 @@ const routeSkeletonVariant = computed<RouteSkeletonVariant>(() => (
 
 const language = {
     en: enUs,
-    zh: zhCN
+    zh: zhCN,
+    ja: jaJP
 }
 
 const componentsLocale = {
   en: componentsEnUS,
-  zh: componentsZhCN
+  zh: componentsZhCN,
+  ja: componentsJa
 }
 // 为公共hooks提供权限校验方法
 const { hasPermission } = useAuthStore();

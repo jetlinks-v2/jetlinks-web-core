@@ -47,6 +47,10 @@ const languageOptions = [
   {
     label: 'English',
     value: 'en'
+  },
+  {
+    label: '日本語',
+    value: 'ja'
   }
 ]
 
