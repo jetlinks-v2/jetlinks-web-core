@@ -1597,6 +1597,7 @@
   "Login.language": "Language",
   "Login.languageZh": "Chinese",
   "Login.languageEn": "English",
+  "Login.languageJa": "日本語",
   "Login.passwordTitle": "Welcome to log in",
   "Login.passwordDescription": "Use your account, phone number, or email to continue accessing {systemName}.",
   "Login.wechatTitle": "WeChat QR Login",

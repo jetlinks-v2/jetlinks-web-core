@@ -1597,6 +1597,7 @@
   "Login.language": "语言",
   "Login.languageZh": "中文",
   "Login.languageEn": "English",
+  "Login.languageJa": "日本語",
   "Login.passwordTitle": "欢迎登录",
   "Login.passwordDescription": "使用账号、手机号或邮箱继续访问 {systemName}。",
   "Login.wechatTitle": "微信扫码登录",
