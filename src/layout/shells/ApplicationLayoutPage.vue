@@ -56,7 +56,7 @@
       <div class="project-layout__content">
         <ContentPanel>
 	        <ProjectSecondaryMenu
-		        v-if="secondaryMenuItems.length"
+		        v-if="!sidebarNavigation && secondaryMenuItems.length"
 		        :items="secondaryMenuItems"
 		        :selectedKey="secondaryMenuSelectedKey"
 		        tabPosition="top"
@@ -73,7 +73,7 @@
 </template>
 
 <script setup name="ApplicationLayoutPage" lang="ts">
-import { computed, watchEffect } from 'vue'
+import { computed, watch, watchEffect } from 'vue'
 import { useRoute, useRouter, type RouteRecordRaw } from 'vue-router'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import {
@@ -88,6 +88,8 @@ import RouteContentSurface from '../components/RouteContentSurface/index.vue'
 import { useBasicLayoutControllerContext } from '../hooks/basicLayoutContext'
 import { useRouteContentPanel } from '../hooks/useRouteContentPanel'
 import { createLayoutMenuItemRenderer } from '../utils/projectMenuRender'
+import { getProjectSidebarOpenKeys } from '../utils/projectSidebarOpenKeys'
+import { applicationSidebarMenus } from '../utils/applicationNavigation'
 import {
   containsNavigationKey,
   findFirstLeafKey,
@@ -119,7 +121,10 @@ const getLayoutMenuKey = (menu: LayoutMenuRouteRecord | ProjectNavigationRoute) 
   normalizeMenuKey(menu.path || ('key' in menu && menu.key ? String(menu.key) : ''))
 )
 
-const renderMenuItem = createLayoutMenuItemRenderer(path => controller.handlePrimaryMenuClick({ key: path }))
+const renderMenuItem = createLayoutMenuItemRenderer(path => {
+  if (sidebarNavigation.value) navigateApplicationSecondary(path)
+  else controller.handlePrimaryMenuClick({ key: path })
+})
 
 const stripMenuChildren = (menu: LayoutMenuRouteRecord): LayoutMenuRouteRecord => (
   { ...menu, children: undefined } as LayoutMenuRouteRecord
@@ -168,6 +173,7 @@ const isNavigationItemActive = (
 
 const {
   config,
+  filteredSiderMenus,
   goBack,
   headerScrolled,
   hideHeaderRight,
@@ -187,12 +193,17 @@ const {
 // 应用端默认收起一级菜单，项目/租户布局继续使用各自的 shell 状态。
 // state.collapsed = true
 
-// 应用端左侧只承载一级菜单，二级导航交给内容区 ProjectSecondaryMenu，避免改动项目/租户壳层契约。
+// 菜单根显式选择侧栏树；其他应用继续沿用一级侧栏与内容区标签页。
+const sidebarNavigation = computed(() => menuStore.siderMenus.some(
+  menu => menu.meta?.applicationNavigation === 'sidebar',
+))
 const applicationPrimarySourceMenus = computed(() => (
   config.value.menuData as LayoutMenuRouteRecord[]
 ))
 const applicationPrimaryMenuData = computed(() => (
-  applicationPrimarySourceMenus.value.map(stripMenuChildren)
+  sidebarNavigation.value
+    ? applicationSidebarMenus(filteredSiderMenus.value)
+    : applicationPrimarySourceMenus.value.map(stripMenuChildren)
 ))
 const applicationConfig = computed(() => ({
   ...config.value,
@@ -214,11 +225,26 @@ const visibleActivePrimaryMenu = computed(() => (
   applicationPrimarySourceMenus.value.find(menu => getLayoutMenuKey(menu) === activePrimaryKey.value)
 ))
 const applicationPrimarySelectedKeys = computed(() => {
+  if (sidebarNavigation.value) {
+    const key = [...routeContextKeys.value].reverse().find(item =>
+      findMenuByKey(applicationPrimaryMenuData.value, item),
+    )
+    return key ? [key] : []
+  }
   const selectedKey = activePrimaryKey.value
   const isVisible = applicationPrimaryMenuData.value.some(menu => getLayoutMenuKey(menu) === selectedKey)
 
   return selectedKey && isVisible ? [selectedKey] : []
 })
+// 直链、刷新及切页时补齐祖先展开项；不因手动收起而立即重新展开。
+watch([currentRoutePath, sidebarNavigation, applicationPrimaryMenuData], () => {
+  if (!sidebarNavigation.value) return
+  const required = getProjectSidebarOpenKeys(
+    applicationPrimaryMenuData.value, currentRoutePath.value, 'side',
+  )
+  state.openKeys = [...new Set([...state.openKeys, ...required])]
+}, { immediate: true })
+
 const applicationSecondaryItems = computed<ProjectNavigationItem[]>(() => {
   const sourceMenu = visibleActivePrimaryMenu.value || activePrimaryMenu.value
 

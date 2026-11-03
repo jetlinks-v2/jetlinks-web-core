@@ -290,6 +290,7 @@ export const useBasicLayoutController = (
     config,
     enterSettings,
     expandSecondaryMenu,
+    filteredSiderMenus,
     handleOpenKeysChange,
     handlePrimaryMenuClick,
     headerScrolled,

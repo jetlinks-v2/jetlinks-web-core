@@ -234,7 +234,10 @@ test('disabled and coming-soon children are skipped', t => {
 })
 
 test('renderer routes once and retains query, modified clicks, links and disabled badges', async () => {
-  const load = createLoader(runtimeStubs)
+  const load = createLoader({
+    ...runtimeStubs,
+    '@jetlinks-web-core/utils/project-runtime': { normalizeProjectRuntimePath: path => path },
+  })
   const router = createRouter({ history: createMemoryHistory(), routes: [
     { path: '/a', name: 'a', redirect: '/a/list/first' },
     { path: '/a/list/first', name: 'first', component: {} },
@@ -265,4 +268,18 @@ test('renderer routes once and retains query, modified clicks, links and disable
   assert.equal(render({ item: { path: 'https://example.com' } }), undefined)
   assert.equal(render({ item: { path: '/a', meta: { target: '_blank' } } }), undefined)
   assert.equal(render({ item: { path: '/soon', meta: { menuBadge: { type: 'comingSoon' } } } }).props.disabled, true)
+})
+
+
+test('application sidebar keeps business groups and deep children while retaining other application roots', () => {
+  const load = createLoader({ ...runtimeStubs, '@jetlinks-web-core/utils/project-runtime': { normalizeProjectRuntimePath: path => path } })
+  const { applicationSidebarMenus } = load(resolve(src, 'layout/utils/applicationNavigation.ts'))
+  const { getProjectSidebarOpenKeys } = load(resolve(src, 'layout/utils/projectSidebarOpenKeys.ts'))
+  const menus = menuTree()
+  menus[0].meta = { applicationNavigation: 'sidebar' }
+  const sidebar = applicationSidebarMenus(menus)
+  assert.deepEqual(sidebar.map(item => item.path), ['/a/list', '/a/groups', '/b'])
+  assert.deepEqual(sidebar[0].children.map(item => item.path), ['/a/list/first', '/a/list/second'])
+  assert.deepEqual(getProjectSidebarOpenKeys(sidebar, '/a/list/second', 'side'), ['/a/list'])
+  assert.deepEqual(applicationSidebarMenus(menuTree()).map(item => item.path), ['/a', '/b'])
 })
