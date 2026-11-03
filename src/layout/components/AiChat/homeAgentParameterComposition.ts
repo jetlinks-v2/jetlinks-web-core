@@ -76,18 +76,19 @@ export const composeHomeAgentParameters = ({
   markdownLinkHandler,
   translate,
 }: HomeAgentParameterComposerInput) => {
+  const discovery = options.capabilityDiscovery !== false
   const topMenus = context.menus.slice(0, 8).map(menu => `${menu.title}(${menu.code})`).join('、')
   const systemPrompt = [
     translate('components.AiChat.homeAgent.prompt.role'),
-    translate('components.AiChat.homeAgent.prompt.discovery'),
-    capabilityLoaderToolId ? translate('components.AiChat.homeAgent.prompt.dynamicLoading', [capabilityLoaderToolId]) : '',
+    discovery ? translate('components.AiChat.homeAgent.prompt.discovery') : '',
+    discovery && capabilityLoaderToolId ? translate('components.AiChat.homeAgent.prompt.dynamicLoading', [capabilityLoaderToolId]) : '',
     translate('components.AiChat.homeAgent.prompt.execution'),
     AI_CLIENT_TOOL_EVIDENCE_NARRATIVE_CONTRACT,
-    translate('components.AiChat.homeAgent.prompt.navigation'),
-    translate('components.AiChat.homeAgent.prompt.menuLinks'),
+    discovery ? translate('components.AiChat.homeAgent.prompt.navigation') : '',
+    discovery ? translate('components.AiChat.homeAgent.prompt.menuLinks') : '',
     translate('components.AiChat.homeAgent.prompt.boundary'),
-    hasHomeAgentContinuationCapabilities(context) ? translate('components.AiChat.homeAgent.prompt.continuation') : '',
-    topMenus
+    discovery && hasHomeAgentContinuationCapabilities(context) ? translate('components.AiChat.homeAgent.prompt.continuation') : '',
+    !discovery ? '' : topMenus
       ? translate('components.AiChat.homeAgent.prompt.visibleMenus', [topMenus])
       : translate('components.AiChat.homeAgent.prompt.noMenus'),
     ...toArray(options.systemPromptLines),
