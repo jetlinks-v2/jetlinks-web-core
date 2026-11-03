@@ -888,7 +888,7 @@
   "Login.emailPlaceholder": "メールアドレスを入力してください",
   "Login.usernamePlaceholder": "ユーザー名を入力してください",
   "Login.projectCodePlaceholder": "プロジェクトコードを入力してください",
-  "Login.rememberMe": "7日間ログイン状態を保持します",
+  "Login.rememberMe": "7日間ログインを保持",
   "Login.forgotPassword": "パスワードをお忘れの場合",
   "Login.forgotPasswordLink": "パスワードをお忘れですか？",
   "Login.loginButton": "ログイン",
