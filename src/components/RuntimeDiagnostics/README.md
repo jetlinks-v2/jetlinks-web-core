@@ -90,6 +90,8 @@ const unregister = registerMBeanRenderer({
 
 后注册的 renderer 优先，接收 `bean` prop；匹配或渲染异常回退属性表。renderer 可选 emit `request-section`（`summary` / `attributes` / `operations`），请求切换已有页签；不存在的方法页签请求会忽略，此事件不执行方法、不扩大权限。扩展只提供展示，不持有 raw invoke 或自行绕过宿主动作授权。
 
+同一注册项可选声明 `overview: { name, attributes, titleKey }`，由节点概览复用该展示组件。`name` 为精确 MBean ObjectName / pattern，`attributes` 只能声明适合周期读取的有界内存属性，不能包含数据库计数或其他昂贵 getter；`titleKey` 为模块文案。宿主在模块装配完成后通过 `mbeanOverviewRenderers()` 注册到既有统一采集器，仅采集当前激活节点。`RuntimeMBeanExtensions` 消费 `MBeanOverviewEntry[]`，传入 `compact`、`active`、`sampleState`，提供刷新、同节点 `inspect(ObjectName)` 下钻与失败回退；`target` 隔离节点组件状态。组件不请求 API、不创建定时器；可保留有上限的本次观察样本，停用/缺采/重置要断开速率基线。能力不存在时宿主不提供 entry，读取失败保留未知或过期状态，撤权和身份变化释放旧快照。
+
 ## 最小用例
 
 ```vue
