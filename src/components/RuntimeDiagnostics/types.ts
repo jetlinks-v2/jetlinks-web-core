@@ -62,7 +62,10 @@ export interface MBeanRendererContext {
   snapshot: Readonly<ShallowRef<MBeanQuerySnapshot | undefined>>
   query(id: MBeanQueryId, values: readonly (string | undefined)[]): Promise<void>
 }
-export interface MBeanRenderer { id: string; match: (bean: MBeanDescriptor) => boolean; component: Component }
+/** 概览只声明精确属性读取；采集时机、权限及节点隔离由宿主控制。 */
+export interface MBeanOverviewSource { name: string; attributes: string[]; titleKey: string }
+export interface MBeanRenderer { id: string; match: (bean: MBeanDescriptor) => boolean; component: Component; overview?: MBeanOverviewSource }
+export interface MBeanOverviewEntry { id: string; bean?: MBeanDescriptor; state: ViewState }
 export interface MBeanDisplayConfig { expandedKeys: string[]; section: 'summary' | 'attributes' | 'operations' }
 export interface BufferDisplayConfig {
   filter: 'all' | 'failed' | 'pending'
