@@ -282,6 +282,3 @@ export type {
     MatrixGridRowKind,
     MatrixGridRowSlotScope,
 } from './MatrixGrid/types'
-
-export { default as ImagePreview } from './ImagePreview/index.vue'
-export type { ImagePreviewBox, ImagePreviewProps } from './ImagePreview/types'

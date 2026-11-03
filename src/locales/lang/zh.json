@@ -2134,8 +2134,6 @@
   "runtimeDiagnostics.sampling.interval": "采集间隔",
   "runtimeDiagnostics.sampling.seconds": "{seconds} 秒",
   "runtimeDiagnostics.traceEdgeSource": "边缘 {source}",
-  "ImagePreview.title": "大图预览",
-  "ImagePreview.reset": "还原",
   "PersonalCenter.basic": "基本信息",
   "PersonalCenter.security": "安全设置",
   "PersonalCenter.sso": "单点登录",

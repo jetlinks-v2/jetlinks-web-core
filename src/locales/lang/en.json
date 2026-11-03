@@ -2134,8 +2134,6 @@
   "runtimeDiagnostics.sampling.interval": "Sample interval",
   "runtimeDiagnostics.sampling.seconds": "{seconds}s",
   "runtimeDiagnostics.traceEdgeSource": "Edge {source}",
-  "ImagePreview.title": "Image preview",
-  "ImagePreview.reset": "Reset",
   "PersonalCenter.basic": "Basic information",
   "PersonalCenter.security": "Security",
   "PersonalCenter.sso": "Single sign-on",
