@@ -49,7 +49,8 @@ export const createHomeAgentRuntime = (
     () => {
       const currentContext = getContext()
       return [
-        ...createHomeAgentBaseTools().map(tool => ({ ...tool, executionBinding: baseOwner })),
+        ...(options.capabilityDiscovery === false ? [] : createHomeAgentBaseTools())
+          .map(tool => ({ ...tool, executionBinding: baseOwner })),
         ...buildProviderTools(currentContext, options),
         ...resolveMaybeArray(options.extraTools).map(tool => ({
           ...tool,
@@ -66,6 +67,7 @@ export const createHomeAgentRuntime = (
         ...toArray(options.registeredToolScopes),
       ]),
       getContext,
+      includeHelpTool: options.capabilityDiscovery !== false,
       resultGuard: {
         maxJsonLength: 64 * 1024,
         maxArrayLength: 30,

@@ -75,6 +75,8 @@ export interface HomeAgentCapability {
 }
 
 export interface HomeAgentRuntimeOptions {
+  /** Query-only hosts may omit feature discovery/navigation and the generic tool directory. Defaults to true. */
+  capabilityDiscovery?: boolean
   currentView?: string | (() => string | undefined)
   contextAdapter?: HomeAgentContextAdapter
   subjectType?: string | (() => string | undefined)
