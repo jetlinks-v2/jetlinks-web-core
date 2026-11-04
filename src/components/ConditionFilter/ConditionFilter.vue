@@ -546,7 +546,7 @@ const isNilValue = (value: any) => {
   return value === undefined || value === null || value === ''
 }
 
-const hasTermValue = (item?: ConditionFilterTerm) => {
+const hasTermValue = (item?: ConditionFilterTerm): boolean => {
   if (isConditionGroup(item)) {
     return Array.isArray(item.terms) && item.terms.some(child => hasTermValue(child))
   }
@@ -2437,7 +2437,7 @@ onUnmounted(() => {
               @click.stop
               @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'logic')"
             >
-              <span class="condition-filter__chip-text">{{ logicCompactLabelMap[term.type || 'and'] }}</span>
+              <span class="condition-filter__chip-text">{{ logicCompactLabelMap[term.type === 'or' ? 'or' : 'and'] }}</span>
             </button>
             <template #overlay>
               <div class="condition-filter__dropdown-panel" @mousedown.prevent>
@@ -2529,7 +2529,7 @@ onUnmounted(() => {
               :open="operatorPanelTermKey === getTermKey(term)"
               trigger="click"
               placement="bottomLeft"
-              @openChange="(visible) => onOperatorPanelOpenChange(getTermKey(term), visible)"
+              @openChange="(visible: boolean) => onOperatorPanelOpenChange(getTermKey(term), visible)"
             >
               <a-tooltip :title="getTermTypeTooltip(term.termType, getTermColumn(term)) || undefined">
                 <button
@@ -2603,7 +2603,7 @@ onUnmounted(() => {
                 :destroy-popup-on-hide="true"
                 trigger="click"
                 placement="bottomLeft"
-                @openChange="(visible) => onValuePanelOpenChange(getTermKey(term), visible)"
+                @openChange="(visible: boolean) => onValuePanelOpenChange(getTermKey(term), visible)"
               >
                 <a-tooltip :title="getValueTooltip(term) || undefined">
                   <button

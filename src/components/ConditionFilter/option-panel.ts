@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue'
+import { shallowRef, type Ref } from 'vue'
 import { request } from '@jetlinks-web/core'
 import type { ConditionOptionPanelLoadOptionsParams } from './types'
 
@@ -76,8 +76,9 @@ const buildKeywordTerms = (keyword = '', columns: string[] = []) => {
 export const createQueryNoPagingOptionSource = <T = any>(
   config: ConditionFilterNoPagingOptionSourceConfig<T>,
 ): ConditionFilterNoPagingOptionSource<T> => {
-  const options = ref<T[]>([])
-  const defaultOptions = ref<T[]>([])
+  // 选项按请求整批替换，保留调用方的泛型对象类型，不对任意 T 做深层解包。
+  const options = shallowRef<T[]>([])
+  const defaultOptions = shallowRef<T[]>([])
   const queryMode = config.queryMode || 'no-paging'
   const requestUrl = normalizeQueryUrl(config.url, queryMode)
   const pageSize = config.pageSize ?? 12
@@ -261,7 +262,8 @@ export const createQueryNoPagingOptionSource = <T = any>(
 export const createDictionaryOptionSource = <T = any>(
   config: ConditionFilterDictionaryOptionSourceConfig<T>,
 ): ConditionFilterNoPagingOptionSource<T> => {
-  const options = ref<T[]>([])
+  // 选项按请求整批替换，保留调用方的泛型对象类型，不对任意 T 做深层解包。
+  const options = shallowRef<T[]>([])
   const pageSize = config.pageSize ?? 12
   let sourceItems: any[] | undefined
 

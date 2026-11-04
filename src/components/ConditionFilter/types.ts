@@ -23,7 +23,8 @@ export type ConditionExpression = ConditionExpressionNode[]
 export type ConditionTerm = {
   column?: ConditionClause['column']
   termType?: ConditionClause['termType']
-  terms?: ConditionGroup['terms']
+  // 编辑中的条件组允许包含尚未填完的子条件，与顶层输入保持同一递归类型。
+  terms?: ConditionTerm[]
   value?: ConditionClause['value']
   type?: ConditionLogicType | string
   key?: string

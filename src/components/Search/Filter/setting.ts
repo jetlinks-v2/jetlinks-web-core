@@ -1,4 +1,4 @@
-import type { ConditionTermOption } from '../ConditionFilter/types'
+import type { ConditionTermOption } from '../../ConditionFilter/types'
 import i18n from '@jetlinks-web-core/locales'
 
 const translate = (key: string | undefined, fallback: string) => {

@@ -18,7 +18,7 @@ export const buildIdToTitle = (tree: any[], filedNames: Record<string, string> =
   return map
 }
 
-export const normalizeOptionTree = (options: any[] = []) => {
+export const normalizeOptionTree = (options: Record<string, unknown>[] = []): Record<string, unknown>[] => {
   return options.map(item => {
     const id = item?.id ?? item?.value ?? item?.key
     const name = item?.name ?? item?.label ?? item?.title ?? id

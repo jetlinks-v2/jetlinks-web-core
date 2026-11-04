@@ -124,7 +124,7 @@ export const isConditionClause = (
   return !isConditionGroup(item) && !!item?.column && !!item?.termType
 }
 
-const toComparableTerms = (terms: ConditionTerm[] = []) => {
+const toComparableTerms = (terms: ConditionTerm[] = []): ConditionTerm[] => {
   return terms.map((item, index) => ({
     ...(isConditionGroup(item)
       ? {
@@ -214,7 +214,7 @@ const hasArrayValue = (value: any) => {
   return Array.isArray(value) && value.some(item => !isNullishValue(item))
 }
 
-const hasTermValue = (item: ConditionTerm) => {
+const hasTermValue = (item: ConditionTerm): boolean => {
   if (isConditionGroup(item)) {
     return Array.isArray(item.terms) && item.terms.some(child => hasTermValue(child))
   }
@@ -505,7 +505,7 @@ export const isSameTerms = (source: ConditionTerm[] = [], target: ConditionTerm[
   return JSON.stringify(toComparableTerms(source)) === JSON.stringify(toComparableTerms(target))
 }
 
-export const normalizeInputTerms = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
+export const normalizeInputTerms = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []): ConditionTerm[] => {
   const { aliasMap } = getColumnsMeta(columns)
 
   return terms
@@ -543,7 +543,7 @@ export const normalizeInputTerms = (terms: ConditionTerm[] = [], columns: Condit
     .filter(Boolean) as ConditionTerm[]
 }
 
-const hasConditionGroups = (terms: ConditionTerm[] = []) => {
+const hasConditionGroups = (terms: ConditionTerm[] = []): boolean => {
   return terms.some(item => isConditionGroup(item) || hasConditionGroups(item.terms || []))
 }
 
@@ -929,7 +929,7 @@ export const decodeLegacySearchQuery = (value: unknown, columns: ConditionFieldS
   return normalizeInputTerms(terms, columns)
 }
 
-export const buildOutputTerms = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []) => {
+export const buildOutputTerms = (terms: ConditionTerm[] = [], columns: ConditionFieldSchema[] = []): ConditionTerm[] => {
   const { columnsMap } = getColumnsMeta(columns)
   const normalizedTerms = normalizeInputTerms(terms, columns)
 
@@ -1012,7 +1012,7 @@ export const buildOutputTerms = (terms: ConditionTerm[] = [], columns: Condition
     }
 
     return normalizedItem
-  }).filter((item) => {
+  }).filter((item): item is ConditionTerm => {
     if (!item) {
       return false
     }
