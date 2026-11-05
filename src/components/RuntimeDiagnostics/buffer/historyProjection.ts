@@ -1,8 +1,12 @@
 import type { BufferHistorySample } from '../types'
 import { bufferCounterText } from './counters'
+import { bufferObservationTotal } from './observation'
 
 export interface BufferHistoryPoint { sampledAt: number; pending?: number; dead?: number }
-export interface BufferThroughputPoint { sampledAt: number; writtenRate?: number; attemptedRate?: number }
+export interface BufferThroughputPoint {
+  sampledAt: number; writtenRate?: number; attemptedRate?: number; inRowsRate?: number; outRowsRate?: number; rowGap?: number; errorRate?: number
+  rateWindow?: { from: number; to: number; seconds: number }
+}
 export interface BufferOverviewPoint extends BufferHistoryPoint, BufferThroughputPoint {}
 export type BufferScope = string | readonly string[] | undefined
 type Queue = BufferHistorySample['buffers'][number]
@@ -56,7 +60,7 @@ export function createBufferHistoryProjection(history: readonly BufferHistorySam
     let written: bigint | undefined = 0n, attempted: bigint | undefined = 0n
     for (const name of rateNames) {
       const current = sample.queues.get(name), before = previous?.queues.get(name)
-      if (!current || !before || current.occurrences !== 1 || before.occurrences !== 1 || !validEpoch(current.counterEpoch) || !validEpoch(before.counterEpoch) || current.counterEpoch !== before.counterEpoch) { valid = false; break }
+      if (!current || !before || current.occurrences !== 1 || before.occurrences !== 1 || !validEpoch(current.counterEpoch) || !validEpoch(before.counterEpoch) || current.counterEpoch !== before.counterEpoch || current.observation?.generation !== before.observation?.generation) { valid = false; break }
       const delta = (value: bigint | undefined, prior: bigint | undefined) => value === undefined || prior === undefined || value < prior ? undefined : value - prior
       const w = delta(current.writtenCount, before.writtenCount), a = delta(current.attemptedCount, before.attemptedCount)
       written = written === undefined || w === undefined ? undefined : written + w
@@ -67,7 +71,24 @@ export function createBufferHistoryProjection(history: readonly BufferHistorySam
       const result = Number(value) / elapsed
       return Number.isFinite(result) ? result : undefined
     }
-    return { sampledAt: sample.sampledAt, pending: validBufferCount(pending), dead: validBufferCount(dead), writtenRate: rate(written), attemptedRate: rate(attempted) }
+    const result: BufferOverviewPoint = { sampledAt: sample.sampledAt, pending: validBufferCount(pending), dead: validBufferCount(dead), writtenRate: rate(written), attemptedRate: rate(attempted) }
+    const observationNames = scope === undefined ? [...sample.queues.keys()] : selected
+    const observations = observationNames.map(name => { const queue = sample.queues.get(name); return queue?.occurrences === 1 ? queue.observation : undefined })
+    if (observations.some(Boolean)) {
+      // 新节点直接展示已完成采样区间；页面刷新频率不再改变吞吐口径。
+      result.writtenRate = bufferObservationTotal(observations, 'WrittenRate')
+      result.attemptedRate = bufferObservationTotal(observations, 'AttemptedRate')
+      result.inRowsRate = bufferObservationTotal(observations, 'InRowsRate')
+      result.outRowsRate = bufferObservationTotal(observations, 'OutRowsRate')
+      // 差额只从同一完整范围的已知速率派生；负值表示消费历史数据，不是负积压。
+      result.rowGap = result.inRowsRate !== undefined && result.outRowsRate !== undefined ? result.inRowsRate - result.outRowsRate : undefined
+      result.errorRate = bufferObservationTotal(observations, 'ErrorRate')
+      const first = observations[0]
+      if (first?.fresh && first.windowMillis > 0 && observations.every(value => value?.fresh && value.sampledAt === first.sampledAt && value.windowMillis === first.windowMillis)) {
+        result.rateWindow = { from: first.sampledAt - first.windowMillis, to: first.sampledAt, seconds: first.windowMillis / 1000 }
+      }
+    }
+    return result
   }
   function cached(scope: BufferScope) { return typeof scope === 'object' ? selectionCache.get(scope) : queueCache.get(scope) }
   function overview(scope?: BufferScope): BufferOverviewPoint[] {

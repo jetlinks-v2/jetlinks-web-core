@@ -85,6 +85,8 @@ export interface BufferHistorySample {
     written?: string; attempted?: string
     /** 宿主在统计重置后递增；不同 epoch 之间不计算速率。 */
     counterEpoch?: number
+    /** 节点采样速率；只复制数值视图，不在每个页面历史点重复保存今日峰值。 */
+    observation?: Pick<import('./buffer/observation').BufferObservation, 'generation' | 'sampledAt' | 'windowMillis' | 'fresh' | 'values'>
   }>
 }
 export interface LogDisplayConfig { level: string; wrap: boolean }

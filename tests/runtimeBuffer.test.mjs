@@ -19,6 +19,139 @@ const { bufferCounterText, bufferMonitorCounters, bufferCounterTotal } = load(re
 const { createBufferHistoryProjection, bufferHistoryPoints, bufferThroughputPoints, bufferOverviewPoints, bufferTooltipHtml } = load(resolve(root, 'src/components/RuntimeDiagnostics/buffer/history.ts'))
 const { normalizeBufferConfig, bufferPlotValue, bufferAxisValue, bufferColorIndex, bufferQuantityTotal } = load(resolve(root, 'src/components/RuntimeDiagnostics/buffer/presentation.ts'))
 const { runtimeBeanOverview } = load(resolve(root, 'src/components/RuntimeDiagnostics/utils.ts'))
+const { readBufferObservation, readBufferObservationRecording, bufferObservationTotal, availableBufferObservationMetrics, bufferObservationRangePeaks } = load(resolve(root, 'src/components/RuntimeDiagnostics/buffer/observation.ts'))
+
+const observation = (extra = {}) => ({ StartTime: 1000, StatisticsStartTime: 1000, SampleTime: 2000, ReadTime: 2100,
+  Generation: 1, WindowMillis: 1000, RowsEnabled: true, ZoneId: 'Asia/Shanghai', TodayStartTime: 1,
+  Written: '9007199254740993', Attempted: '4',
+  Values: { accepted: { Metric: 'InRowsRate', Value: 100, Time: 2000 }, consumed: { Metric: 'OutRowsRate', Value: 80, Time: 2000 } },
+  TodayPeaks: { accepted: { Metric: 'InRowsRate', Value: 500, Time: 1500 } }, ...extra })
+
+test('node snapshots preserve exact counters and do not replace unavailable row counts with zero', () => {
+  const value = readBufferObservation(observation())
+  assert.equal(value.written, '9007199254740993')
+  assert.equal(value.values.InRowsRate, 100)
+  assert.deepEqual(value.todayPeaks.InRowsRate, { value: 500, time: 1500 })
+  const unconfigured = readBufferObservation(observation({ RowsEnabled: false, Values: {}, TodayPeaks: {} }))
+  assert.equal(unconfigured.values.InRowsRate, undefined)
+  assert.equal(readBufferObservation({}), undefined)
+  assert.equal(readBufferObservation(observation({ Values: { invalid: { Metric: 'Unknown', Value: 1, Time: 2000 } } })), undefined)
+})
+
+test('node sample rates are independent of page refresh interval and require complete fresh membership', () => {
+  const value = readBufferObservation(observation()), other = readBufferObservation(observation({ SampleTime: 2020 }))
+  assert.equal(bufferObservationTotal([value, other], 'InRowsRate'), 200)
+  assert.equal(bufferObservationTotal([value, undefined], 'InRowsRate'), undefined)
+  assert.equal(bufferObservationTotal([value, readBufferObservation(observation({ ReadTime: 5000 }))], 'InRowsRate'), undefined)
+  const points = createBufferHistoryProjection([sample(50000, { objectName: 'a', observation: value })]).latest('a')
+  assert.equal(points.inRowsRate, 100)
+  assert.equal(points.outRowsRate, 80)
+  assert.deepEqual(points.rateWindow, { from: 1000, to: 2000, seconds: 1 })
+  const repeated = createBufferHistoryProjection([sample(50000, { objectName: 'a', observation: value }), sample(50001, { objectName: 'a', observation: value })]).latest('a')
+  assert.equal(repeated.inRowsRate, 100)
+})
+
+test('cached histories keep minute averages, original peak times and unknown gaps', () => {
+  const bean = { attributes: [{ name: 'HourHistory', available: true, value: { Snapshot: observation(), Points: {
+    one: { Time: 1000, WindowMillis: 60000, InRowsRate: 12.5, InRowsRatePeak: 20, InRowsRatePeakTime: 1500 },
+    gap: { Time: 61000, WindowMillis: 60000, InRowsRate: -1, InRowsRatePeak: -1, InRowsRatePeakTime: 0 },
+  } } }] }
+  const data = readBufferObservationRecording(bean, true)
+  assert.equal(data.points[0].values.InRowsRate, 12.5)
+  assert.deepEqual(data.points[0].peaks.InRowsRate, { value: 20, time: 1500 })
+  assert.equal(data.points[1].values.InRowsRate, undefined)
+  assert.equal(readBufferObservationRecording(bean, false), undefined)
+  const oversized = { ...bean, attributes: [{ ...bean.attributes[0], value: { Snapshot: observation(), Points: Object.fromEntries(Array.from({ length: 61 }, (_, index) => [index, {}])) } }] }
+  assert.equal(readBufferObservationRecording(oversized, true), undefined)
+})
+
+test('all six snapshot counters retain exact long text while unavailable row metrics and malformed counters stay unavailable', () => {
+  const value = readBufferObservation(observation({ InRows: '9007199254740997', OutRows: '9007199254740995', Errors: '0', Dropped: '3' }))
+  assert.equal(value.inRows, '9007199254740997'); assert.equal(value.outRows, '9007199254740995')
+  assert.equal(value.errors, '0'); assert.equal(value.dropped, '3')
+  assert.equal(readBufferObservation(observation({ InRows: 9007199254740996 })).inRows, undefined)
+  assert.equal(readBufferObservation(observation({ Errors: '-1' })).errors, undefined)
+  assert.equal(availableBufferObservationMetrics(value).length, 11)
+  assert.ok(!availableBufferObservationMetrics({ rowsEnabled: false }).some(metric => metric === 'InRowsRate' || metric === 'OutRowsRate'))
+})
+
+test('range peaks use saved minute maxima and their original times rather than maxima of minute averages', () => {
+  const recording = { snapshot: readBufferObservation(observation()), hour: true, points: [
+    { time: 60000, windowMillis: 60000, values: { InRowsRate: 1, Pending: 0 }, peaks: { InRowsRate: { value: 300, time: 61000 }, Pending: { value: 0, time: 61000 } } },
+    { time: 120000, windowMillis: 60000, values: { InRowsRate: 20 }, peaks: { InRowsRate: { value: 200, time: 121000 } } },
+    { time: 180000, windowMillis: 60000, values: {}, peaks: {} },
+  ] }
+  const peaks = bufferObservationRangePeaks(recording)
+  assert.deepEqual(peaks.InRowsRate, { value: 300, time: 61000 })
+  assert.deepEqual(peaks.Pending, { value: 0, time: 61000 })
+  assert.equal(peaks.ErrorRate, undefined)
+  assert.deepEqual(bufferObservationRangePeaks({ ...recording, hour: false }).InRowsRate, { value: 20, time: 120000 })
+  assert.deepEqual(bufferObservationRangePeaks({ ...recording, points: [] }), {})
+})
+
+function bufferViewHarness(component, initial) {
+  const filename = resolve(root, 'src/components/RuntimeDiagnostics', component)
+  const script = compileScript(parse(readFileSync(filename, 'utf8'), { filename }).descriptor, { id: 'buffer-observation-view' }).content
+  const module = { exports: {} }
+  new Function('require', 'module', 'exports', transformSync(script, { loader: 'ts', format: 'cjs' }).code)(id => {
+    if (id === 'vue') return vue
+    if (id === 'vue-i18n') return { useI18n: () => ({ t: key => key }) }
+    if (id === 'ant-design-vue') return { theme: { useToken: () => ({ token: vue.ref({}) }) } }
+    if (id.endsWith('.vue') || id.startsWith('@ant-design/icons')) return {}
+    return id.startsWith('.') ? load(resolve(dirname(filename), `${id}.ts`)) : require(id)
+  }, module, module.exports)
+  const props = vue.reactive(initial), scope = vue.effectScope()
+  const view = scope.run(() => module.exports.default.setup(props, { expose() {}, emit() {} }))
+  return { props, scope, view }
+}
+
+test('shared statistics keep current, range and daily peaks distinct and retain gauge evidence when rate sampling is stale', () => {
+  const snapshot = readBufferObservation(observation({ Values: { rows: { Metric: 'InRowsRate', Value: 80, Time: 2000 }, pending: { Metric: 'Pending', Value: 0, Time: 2000 } } }))
+  const recording = { snapshot, hour: false, points: [{ time: 1500, windowMillis: 1000, values: { InRowsRate: 200 }, peaks: {} }] }
+  const h = bufferViewHarness('buffer/BufferObservationStats.vue', { observation: snapshot, recording })
+  try {
+    const row = () => h.view.rows.value.find(row => row.metric === 'InRowsRate')
+    assert.equal(row().current, 80)
+    assert.deepEqual(row().range, { value: 200, time: 1500 })
+    assert.deepEqual(row().today, { value: 500, time: 1500 })
+    h.props.observation.fresh = false
+    assert.equal(row().current, undefined)
+    assert.equal(row().today.value, 500)
+    assert.equal(h.view.rows.value.find(row => row.metric === 'Pending').current, 0)
+    h.props.observation.rowsEnabled = false
+    assert.equal(row(), undefined)
+    h.props.recording = undefined
+    assert.ok(!h.view.columns.value.some(column => column.key === 'range'))
+  } finally { h.scope.stop() }
+})
+
+test('MBean history parses only the expanded range and old buffer details keep their legacy counters', async () => {
+  let recentReads = 0, hourReads = 0
+  const snapshot = observation({ InRows: '100', OutRows: '90', Errors: '0', Dropped: '0' })
+  const bean = { objectName: 'org.jetlinks:type=PersistenceBuffer,name=a', domain: 'org.jetlinks', type: 'PersistenceBuffer', name: 'a', operations: [], attributes: [
+    { name: 'ObservationSnapshot', available: true, value: snapshot },
+    { name: 'RecentHistory', available: true, value: { Snapshot: snapshot, get Points() { recentReads++; return {} } } },
+    { name: 'HourHistory', available: true, value: { Snapshot: snapshot, get Points() { hourReads++; return {} } } },
+  ] }
+  const h = bufferViewHarness('MBeanSummary.vue', { bean })
+  const legacy = bufferViewHarness('buffer/BufferQueueDetail.vue', { buffer: { objectName: 'legacy', name: 'legacy', written: '9007199254740993', attempted: '2' }, showOperations: false })
+  try {
+    assert.equal(h.view.recording.value, undefined); assert.equal(recentReads + hourReads, 0)
+    h.view.historyOpen.value = ['history']
+    assert.equal(h.view.recording.value.hour, false); assert.equal(recentReads, 1); assert.equal(hourReads, 0)
+    h.view.historyRange.value = 'hour'
+    assert.equal(h.view.recording.value.hour, true); assert.equal(hourReads, 1)
+    h.props.bean = { ...bean, objectName: 'org.jetlinks:type=PersistenceBuffer,name=b' }; await vue.nextTick()
+    assert.deepEqual(h.view.historyOpen.value, [])
+    assert.equal(h.view.recording.value, undefined)
+    assert.equal(legacy.view.counters.value.length, 2)
+    assert.equal(legacy.view.counters.value[0].value, '9007199254740993')
+    legacy.props.buffer.observation = readBufferObservation(snapshot)
+    assert.equal(legacy.view.counters.value.length, 6)
+    legacy.props.buffer.observation.rowsEnabled = false
+    assert.equal(legacy.view.counters.value.length, 4)
+  } finally { h.scope.stop(); legacy.scope.stop() }
+})
 
 test('one history snapshot serves curves, latest readings and tooltips without rereading source arrays', () => {
   let reads = 0
@@ -65,6 +198,16 @@ test('real PersistenceBuffer Monitor format preserves long counters and labels o
   assert.equal(runtimeBeanOverview([bean]).buffers[0].written, '9007199254740993')
   assert.equal(runtimeBeanOverview([bean]).buffers[0].attempted, '9223372036854775807')
   assert.equal(runtimeBeanOverview([bean]).buffers[0].pending, undefined, 'in-out is never treated as backlog')
+})
+
+test('additional row and completion sections preserve existing counters and throughput', () => {
+  const monitor = (written, attempted, rows) => `\nqueue(in ${written},out ${attempted},dropped 0);\nconsume(opt 1,cost 2 ms);\nwriter(pending 0,batches 1,requests 1,items 1,lastBatch 1,maxBatch 1,fallback 0,lastReason EMPTY,maxObservedDrain 1 us);\ndist[0-50ms(1)]\nrows(inRows ${rows},outRows ${rows});\ncompletion(queuedCompletions 0,completionItems 0,completionBytes 0);\n`
+  assert.deepEqual(bufferMonitorCounters(monitor('10', '8', '1000')), { written: '10', attempted: '8' })
+  const before = bufferMonitorCounters(monitor('10', '8', '1000'))
+  const after = bufferMonitorCounters(monitor('20', '14', '2000'))
+  const snapshots = [sample(1000, { objectName: 'a', ...before }), sample(3000, { objectName: 'a', ...after })]
+  assert.equal(bufferThroughputPoints(snapshots, 'a').at(-1).writtenRate, 5)
+  assert.equal(bufferThroughputPoints(snapshots, 'a').at(-1).attemptedRate, 3)
 })
 
 test('unknown Monitor, nil, malformed sections and unsafe nontext counts remain unknown', () => {
@@ -274,6 +417,23 @@ test('legend selection is per canonical identity, survives sampling and does not
   } finally { h.scope.stop() }
 })
 
+test('a saved selection beyond the first legend page stays visible without recoloring queues or resetting on ordinary samples', async () => {
+  const h = chartHarness({ visibleObjectNames: ['f'] }, ['a', 'b', 'c', 'd', 'e', 'f'])
+  try {
+    const colors = () => Object.fromEntries(h.chart.option.value.series.filter(series => JSON.parse(series.id)[1] === 'pending').map(series => [series.name, series.itemStyle.color]))
+    const originalColors = colors()
+    assert.equal(h.chart.option.value.legend.data[0], 'f')
+    assert.equal(h.chart.option.value.legend.selected.f, true)
+    h.chart.selectLegend({ selected: { a: false, b: false, c: true, d: false, e: false, f: true } })
+    assert.deepEqual(new Set(h.chart.option.value.legend.data.slice(0, 2)), new Set(['c', 'f']))
+    assert.deepEqual(colors(), originalColors)
+    const authoredOption = h.chart.staticOption.value
+    h.props.history.push(sample(2000, queue('f', '12', '11', { pending: 0, dead: 0 }))); await vue.nextTick()
+    assert.equal(h.chart.staticOption.value, authoredOption, 'regular samples must not reset a manually scrolled legend')
+    assert.deepEqual(h.chart.selection.value.visibleObjectNames, ['c', 'f'])
+  } finally { h.scope.stop() }
+})
+
 test('more-menu selection helpers preserve canonical legend preferences without weakening reset confirmation', async () => {
   const h = chartHarness({ visibleObjectNames: ['a'] })
   try {
@@ -308,7 +468,7 @@ test('opening collection settings closes local floating controls before the host
   } finally { h.scope.stop() }
 })
 
-test('each queue keeps counts and rates on separate axes while compression preserves zero, gaps and raw tooltip values', async () => {
+test('each queue keeps counts and rates in time-aligned grids while compression preserves zero, gaps and raw tooltip values', async () => {
   const h = chartHarness({ visibleObjectNames: ['a', 'b'] })
   try {
     h.props.history = [sample(1000, queue('a', '0', '0', { pending: 0, dead: 0 }), queue('b', '0', '0', { pending: 1000000, dead: 0 })),
@@ -320,6 +480,15 @@ test('each queue keeps counts and rates on separate axes while compression prese
     assert.equal(series.length, 7)
     assert.equal(metric('a', 'pending').itemStyle.color, metric('a', 'writtenRate').itemStyle.color)
     assert.equal(metric('a', 'pending').yAxisIndex, 0); assert.equal(metric('a', 'writtenRate').yAxisIndex, 1); assert.equal(metric('a', 'attemptedRate').yAxisIndex, 1)
+    assert.equal(metric('a', 'pending').xAxisIndex, 1); assert.equal(metric('a', 'writtenRate').xAxisIndex, 0)
+    assert.equal(h.chart.option.value.yAxis[0].gridIndex, 1); assert.equal(h.chart.option.value.yAxis[1].gridIndex, 0)
+    assert.equal(h.chart.option.value.grid[0].left, h.chart.option.value.grid[1].left)
+    assert.equal(h.chart.option.value.grid[0].right, h.chart.option.value.grid[1].right)
+    assert.deepEqual(h.chart.option.value.xAxis.map(axis => [axis.min, axis.max]), [[1000, 3000], [1000, 3000]])
+    assert.equal(h.chart.option.value.xAxis[0].axisLabel.show, false); assert.equal(h.chart.option.value.xAxis[1].axisLabel.show, true)
+    assert.ok(h.chart.option.value.yAxis.every(axis => axis.position === 'left' && axis.min === 0), 'each region has one zero-based axis')
+    assert.equal(metric('a', 'writtenRate').lineStyle.type, 'solid'); assert.equal(metric('a', 'attemptedRate').lineStyle.type, 'dashed')
+    assert.ok(metric('a', 'writtenRate').lineStyle.opacity < metric('a', 'attemptedRate').lineStyle.opacity, 'equal rates remain distinguishable as light solid and dark dashed lines')
     assert.equal(metric('b', 'dead').yAxisIndex, 0); assert.equal(metric('b', 'dead').itemStyle.color, 'red')
     assert.deepEqual(metric('a', 'pending').data[0], [1000, 0]); assert.equal(metric('b', 'pending').data[1][1], null)
     assert.ok(Math.abs(metric('b', 'pending').data[0][1] - Math.log1p(1000000)) < 1e-10)
@@ -332,6 +501,75 @@ test('each queue keeps counts and rates on separate axes while compression prese
     assert.equal(metric('b', 'dead').showSymbol, true)
     assert.ok(metric('b', 'dead').symbolSize([3000, 10]) > 0, 'an isolated real failure remains visible')
     assert.equal(metric('b', 'dead').symbolSize([1000, 0]), 0, 'a real zero is not marked as a positive failure')
+  } finally { h.scope.stop() }
+})
+
+test('row curves compare accepted and consumed rates while signed gap stays in summary and tooltip without changing history or preferences', async () => {
+  const h = chartHarness({ grouping: 'aggregate' }, ['a'])
+  try {
+    const observation = (sampledAt, inRowsRate, outRowsRate) => ({ generation: 1, sampledAt, windowMillis: 1000, fresh: true,
+      values: { WrittenRate: 3, AttemptedRate: 4, InRowsRate: inRowsRate, OutRowsRate: outRowsRate } })
+    h.props.history = [sample(1000, queue('a', '3', '4', { pending: 5, dead: 0, observation: observation(1000, 100, 80) })),
+      sample(2000, queue('a', '6', '8', { pending: 3, dead: 0, observation: observation(2000, 80, 100) }))]
+    await vue.nextTick()
+    const projection = h.chart.historyProjection.value, selection = h.chart.selection.value, key = h.chart.chartKey.value
+    assert.equal(h.chart.rateUnit.value, 'items')
+    h.chart.selectRateUnit('rows')
+    assert.notEqual(h.chart.chartKey.value, key, 'recreate changed series topology rather than merging stale item curves')
+    assert.equal(h.chart.historyProjection.value, projection)
+    assert.equal(h.chart.selection.value, selection)
+    assert.equal(h.chart.hasRowRates.value, true)
+    assert.equal(h.chart.rowGap.value, -20)
+    const metric = key => h.chart.option.value.series.find(series => JSON.parse(series.id)[1] === key)
+    assert.deepEqual(metric('inRowsRate').data, [[1000, 100], [2000, 80]])
+    assert.deepEqual(metric('outRowsRate').data, [[1000, 80], [2000, 100]])
+    assert.equal(metric('rowGap'), undefined, 'the signed gap must not shift the zero baseline of positive throughput')
+    assert.equal(metric('pending').yAxisIndex, 0)
+    assert.equal(metric('inRowsRate').yAxisIndex, 1)
+    assert.notEqual(h.chart.option.value.yAxis[metric('pending').yAxisIndex].gridIndex, h.chart.option.value.yAxis[metric('inRowsRate').yAxisIndex].gridIndex)
+    assert.equal(h.chart.option.value.yAxis[0].min, 0)
+    assert.equal(h.chart.option.value.yAxis[1].min, 0)
+    const tooltip = h.chart.tooltip([{ axisValue: 2000 }])
+    assert.match(tooltip, /runtimeDiagnostics\.bufferObservation\.InRowsRate/)
+    assert.match(tooltip, /runtimeDiagnostics\.bufferObservation\.OutRowsRate/)
+    assert.match(tooltip, /-20 runtimeDiagnostics\.bufferRowsPerSecond/)
+    assert.doesNotMatch(tooltip, /bufferItemsPerSecond|bufferWriteRate/)
+    assert.deepEqual(h.events, [], 'display-unit changes do not emit sampling or preference updates')
+    h.chart.selectScale('compressed')
+    assert.ok(Math.abs(metric('inRowsRate').data[1][1] - Math.log1p(80)) < 1e-12)
+    assert.match(h.chart.tooltip([{ axisValue: 2000 }]), /-20 runtimeDiagnostics\.bufferRowsPerSecond/)
+    assert.equal(bufferPlotValue(-20, 'linear'), null, 'ordinary counters keep the previous nonnegative contract')
+    h.chart.selectRateUnit('items')
+    assert.equal(metric('inRowsRate'), undefined)
+    assert.equal(h.chart.currentRate.value.writtenRate, 3)
+    assert.equal(h.chart.option.value.yAxis[1].min, 0)
+    assert.match(h.chart.tooltip([{ axisValue: 2000 }]), /3 runtimeDiagnostics\.bufferItemsPerSecond/)
+  } finally { h.scope.stop() }
+})
+
+test('row mode preserves missing data for mixed capabilities and shows only the selected queue in per-queue mode', async () => {
+  const h = chartHarness({ grouping: 'aggregate' })
+  try {
+    const observed = readBufferObservation(observation())
+    h.props.history = [sample(1000, queue('a', '1', '1', { pending: 2, dead: 0, observation: observed }), queue('b', '2', '2', { pending: 3, dead: 0 })),
+      sample(2000, queue('a', '2', '2', { pending: 1, dead: 0, observation: observed }), queue('b', '4', '4', { pending: 4, dead: 0 }))]
+    await vue.nextTick(); h.chart.selectRateUnit('rows')
+    assert.equal(h.chart.hasRowRates.value, false, 'an aggregate cannot substitute a smaller partial row total')
+    assert.equal(h.chart.currentRate.value.rowGap, undefined)
+    assert.ok(h.chart.option.value.series.filter(series => series.yAxisIndex === 1).every(series => series.data.every(point => point[1] === null)))
+    h.chart.selectGrouping('queues'); h.chart.selectLegend({ selected: { a: true, b: false } })
+    assert.equal(h.chart.hasRowRates.value, true)
+    assert.equal(h.chart.currentRate.value.inRowsRate, 100)
+    assert.equal(h.chart.currentRate.value.rowGap, 20)
+    const tooltip = h.chart.tooltip([{ axisValue: 2000 }])
+    assert.match(tooltip, /100 runtimeDiagnostics\.bufferRowsPerSecond/)
+    assert.doesNotMatch(tooltip, /title="b"/)
+    h.chart.selectLegend({ selected: { a: false, b: true } })
+    assert.equal(h.chart.hasRowRates.value, false)
+    assert.match(h.chart.tooltip([{ axisValue: 2000 }]), /<span>—<\/span>/)
+    h.chart.selectRateUnit('items')
+    assert.equal(h.chart.currentRate.value.writtenRate, 2, 'old nodes still calculate item throughput normally')
+    assert.deepEqual(h.chart.selection.value.visibleObjectNames, ['b'])
   } finally { h.scope.stop() }
 })
 
@@ -429,12 +667,12 @@ test('production Buffer wiring forwards inspect and details owns cumulative fiel
   assert.match(overview, /@inspect="value => emit\('inspect', value\)"/)
   assert.match(overview, /props\.resetAccess\.allowed && props\.resetState\.status !== 'loading' && view\.value\.buffers\.some/)
   assert.match(chart, /@inspect="value => emit\('inspect', value\)"/)
-  assert.match(chart, /renderer="svg"/); assert.match(chart, /height:240px/)
+  assert.match(chart, /renderer="svg"/); assert.match(chart, /height:300px/)
   assert.doesNotMatch(chart.split('<script')[0], /bufferWritten|bufferAttempted|bufferResetConfirm/)
   assert.match(details, /:pagination="false"/); assert.match(details, /v-if="expanded"/)
   assert.match(details, /bufferWritten/); assert.match(details, /bufferAttempted/); assert.match(details, /@cancel="cancel"/); assert.match(details, /@after-close="restoreFocus/)
   const zh = JSON.parse(readFileSync(resolve(root, 'src/locales/lang/zh.json'), 'utf8')), en = JSON.parse(readFileSync(resolve(root, 'src/locales/lang/en.json'), 'utf8'))
-  const used = [...`${chart}\n${details}`.matchAll(/runtimeDiagnostics\.buffer[A-Za-z]+/g)].map(match => match[0])
+  const used = [...`${chart}\n${details}`.matchAll(/runtimeDiagnostics\.buffer[A-Za-z]+(?:\.[A-Za-z]+)?/g)].map(match => match[0])
   for (const key of new Set(used)) { assert.equal(typeof zh[key], 'string', key); assert.equal(typeof en[key], 'string', key) }
   const keys = dictionary => Object.keys(dictionary).filter(key => key.startsWith('runtimeDiagnostics.buffer')).sort()
   assert.deepEqual(keys(zh), keys(en))
@@ -443,14 +681,14 @@ test('production Buffer wiring forwards inspect and details owns cumulative fiel
 test('empty and first samples avoid an epoch axis, insufficient rates wait, and repeated zero backlog stays valid', () => {
   const h = chartHarness({ grouping: 'aggregate' })
   try {
-    h.props.history = []; assert.equal(h.chart.hasData.value, false); assert.equal(h.chart.option.value.xAxis.show, false); assert.ok(h.chart.option.value.yAxis.every(axis => !axis.show))
+    h.props.history = []; assert.equal(h.chart.hasData.value, false); assert.ok(h.chart.option.value.xAxis.every(axis => !axis.show)); assert.ok(h.chart.option.value.yAxis.every(axis => !axis.show))
     h.props.history = [sample(1000, queue('a', '0', '0', { pending: 0, dead: 0 }), queue('b', '0', '0', { pending: 0, dead: 0 }))]
-    assert.equal(h.chart.hasData.value, true); assert.equal(h.chart.hasLine.value, false); assert.equal(h.chart.points.value.length, 1); assert.equal(h.chart.option.value.xAxis.show, false)
-    assert.equal(h.chart.currentRate.value.writtenRate, undefined); assert.equal(h.chart.option.value.xAxis.show, false)
+    assert.equal(h.chart.hasData.value, true); assert.equal(h.chart.hasLine.value, false); assert.equal(h.chart.points.value.length, 1); assert.ok(h.chart.option.value.xAxis.every(axis => !axis.show))
+    assert.equal(h.chart.currentRate.value.writtenRate, undefined); assert.ok(h.chart.option.value.xAxis.every(axis => !axis.show))
     assert.ok(h.chart.option.value.series.filter(series => series.yAxisIndex === 1).every(series => series.data[0][1] === null))
     h.props.history.push(sample(2000, queue('a', '0', '0', { pending: 0, dead: 0 }), queue('b', '0', '0', { pending: 0, dead: 0 })))
     assert.equal(h.chart.hasData.value, true); assert.equal(h.chart.hasLine.value, true); assert.equal(h.chart.currentRate.value.writtenRate, 0)
-    assert.equal(h.chart.option.value.xAxis.show, true)
+    assert.ok(h.chart.option.value.xAxis.every(axis => axis.show))
     assert.deepEqual(h.chart.option.value.series[0].data, [[1000, 0], [2000, 0]]); assert.equal(h.chart.hasLine.value, true)
     assert.equal(h.chart.option.value.series[0].showSymbol, false); assert.equal(h.chart.option.value.animation, false)
     assert.equal(h.chart.option.value.legend.icon, 'rect'); assert.equal(h.chart.option.value.legend.itemHeight, 2)
