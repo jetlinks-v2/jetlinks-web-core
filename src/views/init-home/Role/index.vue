@@ -159,12 +159,12 @@ const saveRoleData = (item: any) => {
         // 添加该角色
         const res = await addRole(_itemData);
         if (res.status === 200) {
-            const menuTree = await getRoleMenu(res.result.id);
-            if (menuTree.status === 200) {
+            const grantDetail = await getRoleMenu(res.result.id);
+            if (grantDetail.status === 200 && Array.isArray(grantDetail.result?.menus)) {
                 const _roleData = (RoleMenuData[item] as []).filter(
                     (roleItem: any) => {
                         const _menu = findMenuByRole(
-                            menuTree.result,
+                            grantDetail.result.menus,
                             roleItem.code,
                         );
                         if (_menu) {
