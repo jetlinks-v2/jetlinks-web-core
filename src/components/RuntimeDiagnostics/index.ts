@@ -6,6 +6,7 @@ export type { DiagnosticSamplingInterval } from './samplingInterval'
 export const RuntimeMetricsPanel = defineAsyncComponent(() => import('./RuntimeMetricsPanel.vue'))
 export const RuntimeMBeanOverview = defineAsyncComponent(() => import('./RuntimeMBeanOverview.vue'))
 export const BufferObservationHistory = defineAsyncComponent(() => import('./buffer/BufferObservationHistory.vue'))
+export const BufferQueueDetail = defineAsyncComponent(() => import('./buffer/BufferQueueDetail.vue'))
 export { bufferObservationMetrics, readBufferObservation, readBufferObservationRecording } from './buffer/observation'
 export type { BufferObservation, BufferObservationMetric, BufferObservationRecording } from './buffer/observation'
 export const RuntimeMBeanExtensions = defineAsyncComponent(() => import('./RuntimeMBeanExtensions.vue'))

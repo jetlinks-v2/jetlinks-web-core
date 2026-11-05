@@ -1,7 +1,7 @@
 <template>
   <section class="buffer-observation-stats">
     <p class="buffer-stats-meta">{{ t('runtimeDiagnostics.bufferStatsAsOf', { sampledAt: clock(observation.sampledAt), since: clock(observation.statisticsStartTime), zone: observation.zoneId }) }} <a-tag v-if="!observation.fresh" color="warning">{{ t('runtimeDiagnostics.bufferSampleStale') }}</a-tag></p>
-    <a-table :columns="columns" :data-source="rows" :pagination="false" row-key="metric" size="small" :scroll="{ x: recording ? 680 : 500 }">
+    <a-table :columns="columns" :data-source="rows" :pagination="false" row-key="metric" size="small" :scroll="{ x: recording ? 560 : 420 }">
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'metric'"><span class="buffer-stats-metric">{{ t(`runtimeDiagnostics.bufferObservation.${record.metric}`) }}<small class="buffer-stats-unit">{{ unit(record.metric) }}</small></span></template>
         <template v-else-if="column.key === 'current'">{{ number(record.current) }}</template>
@@ -30,15 +30,15 @@ const rows = computed(() => availableBufferObservationMetrics(props.observation)
   range: rangePeaks.value[metric], today: props.observation.todayPeaks[metric],
 })))
 const columns = computed(() => [
-  { key: 'metric', title: t('runtimeDiagnostics.bufferHistoryMetric'), width: 160 },
-  { key: 'current', title: t('runtimeDiagnostics.bufferSnapshotValue'), width: 90, align: 'right' as const },
+  { key: 'metric', title: t('runtimeDiagnostics.bufferHistoryMetric'), width: 130 },
+  { key: 'current', title: t('runtimeDiagnostics.bufferSnapshotValue'), width: 76, align: 'right' as const },
   ...(props.recording ? [{ key: 'range', title: t('runtimeDiagnostics.bufferRangePeak'), align: 'right' as const }] : []),
   { key: 'today', title: t('runtimeDiagnostics.bufferHistoryTodayPeak'), align: 'right' as const },
 ])
 </script>
 <style scoped>
 .buffer-stats-meta { margin:8px 0; color:var(--ink-3); font-size:var(--fs-caption,12px); }
-.buffer-stats-metric,.buffer-stats-peak { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; }.buffer-stats-peak { justify-content:flex-end; font-variant-numeric:tabular-nums; }
+.buffer-stats-metric { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; }.buffer-stats-peak { display:flex; flex-direction:column; align-items:flex-end; gap:0; font-variant-numeric:tabular-nums; }
 .buffer-stats-unit,.buffer-stats-time { color:var(--ink-3); font-size:var(--fs-caption,12px); font-weight:400; }.buffer-stats-time { white-space:nowrap; }
 .buffer-observation-stats :deep(.ant-table-cell) { padding:6px 8px; font-size:var(--fs-caption,12px); line-height:20px; }
 </style>

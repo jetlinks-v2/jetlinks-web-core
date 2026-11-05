@@ -12,6 +12,10 @@ import type { MBeanDescriptor, MBeanInvocation, ViewState, ActionAccess }
 
 组件和注册函数也从 components 根入口具名导出，组件按需异步加载；类型与纯数据工具从本目录公开入口导入。使用 core 的组件插件和 i18n 后可直接组合。
 
+`RuntimeMBeanOverview` 的 `buffer-details` 插槽可用宿主的统一队列监控入口替换默认明细表；
+未传入时保留原明细与操作。`BufferQueueDetail` 复用当前阶段、精确累计量及错误展示，
+`showObservation=false` 可在旁边已有历史观测表时隐藏重复观测值。数据和操作仍由宿主传入。
+
 `createJvmDiagnosticHtml(data, options)` 生成完整离线交互报告，`data: JvmDiagnosticExport` 必须由宿主按节点和现有授权冻结，`options: JvmDiagnosticHtmlOptions` 提供国际化文案、时间格式与平台包名前缀。报告保留实时分析 / 诊断快照页签，复用火焰图离线分析运行时，支持分配搜索排序、线程名称 / 状态筛选和完整栈展开；大列表分批展示但嵌入全部传入记录。分配占比仍以全量有效字节为分母。报告不依赖远端资源、账号状态或实时采集；`createFlameGraphHtml` 继续提供仅火焰图的导出，`createJvmDiagnosticReport` 提供可打印静态报告。
 
 | 组件 | 主要 props | 事件 / 插槽 |
@@ -43,7 +47,7 @@ import type { MBeanDescriptor, MBeanInvocation, ViewState, ActionAccess }
 - RuntimeMBeanOverview 只消费已读取属性，按 java.lang / Runtime 和 org.jetlinks / PersistenceBuffer 完整身份匹配；未知、负数计数保留缺失。Buffer 概览使用原生滚动图例选择队列，吞吐区用同队列的浅实线 / 深虚线对比受理与处理，积压区展示待处理及失败条目，图高 300px。`BufferDisplayConfig` 保留 filter、objectName、view，扩展 visibleObjectNames 与 scale（linear / compressed）；旧 objectName 恢复为单选，缺省全选，空数组为主动全关。明确选择后新增队列默认隐藏；偏好保存期望的完整身份，当前曲线、摘要和 Tooltip 只展示与可用队列的交集。没有权威永久删除信号时，初始空、临时缺失或部分到达的快照不销毁选择，队列回载自动恢复；用户操作图例才明确替换期望集合。期望单选同步 objectName，多选 / 全关时清除 objectName，重置仍须该对象当前存在。宿主按节点持久化选择和刻度，采样与工具切换保留选择。默认线性刻度，可显式切换 log1p 压缩刻度，保留零值，坐标轴反变换、Tooltip 始终显示原数。说明入口解释 Buffer 的用途和指标含义。摘要显示所选队列累计写入、处理尝试、待处理和失败条目，单队列提示另列 WriterPending 请求数与 Wip 批次，不合并不同单位。
 - Buffer 累计条目计数优先来自 `ObservationSnapshot` 的精确文本，旧节点继续读取 `Monitor` 的 `queue(in N,out N,dropped N)` 段；`written` / `attempted` 保留 Java long 精度。out 包括失败、取消和重试的处理尝试，不是成功数，也不能用 in-out 推算积压。`history: BufferHistorySample[]` 保留最近五分钟，已有字段及 BigInt 差分入口保持兼容；可选 `observation` 仅保留节点代次、时间、实际窗口和数值，不重复保存峰值表。新节点使用自身采样速率，旧节点需相邻有效样本求差。缺字段、缺测、集合变化、计数倒退或不同代次均保留未知。行速率使用行/s，条目速率使用条/s；受理与成功消费行的速率差可为负，不代替积压。HTML tooltip 的动态文本统一转义。
 - `BufferObservationHistory` 只展示宿主按需加载的单队列记录：最近五分钟最多 300 点，最近一小时最多 60 个分钟桶，分钟均值与采样峰值同时显示。共享 `BufferObservationStats` 对照采样值、所选区间峰值 / 时间和今日峰值 / 时间，标明实际记录范围、统计起点、采样时间及节点时区；小时区间峰值取保存的峰值及原始发生时间，不取分钟均值的最大值。11 项观测各自标明条/s、行/s、次/s、条、字节、批或请求，未启用行计数时隐藏行指标；过期速率显示未知，保留已有峰值证据。未知值不补零，不合计不同时刻的峰值，不对缺少有效覆盖时长的分钟均值再求小时均值。组件不采集、不请求历史、不写浏览器存储；宿主负责能力探测、权限、取消及代次隔离。常规概览不请求完整历史。
-- Buffer 历史指标使用可横向滚动的原生标签切换，切换只改变本地曲线。统计表用紧凑行内单位和峰值时间，保留日期与秒，悬停查看完整时间；表格不建立独立纵向滚动区，由宿主统一约束正文高度。统计说明通过可聚焦的帮助提示查看。
+- Buffer 历史指标使用可横向滚动的原生标签切换，切换只改变本地曲线。统计表用紧凑行内单位，峰值数值与时间分行，保留日期与秒，悬停查看完整时间；表格不建立独立纵向滚动区，由宿主统一约束正文高度，适配队列目录旁的详情区域。统计说明通过可聚焦的帮助提示查看。
 - Buffer 重置缺省拒绝，全部队列不支持批量重置。具体队列须有 resetAccess.allowed，确认框说明仅重置统计、保留待处理与失败数据；确认时再次校验目标和权限，只发 reset(ObjectName)。宿主负责根据真实 metadata 与权限决定是否允许、执行 resetMonitor、更新 counterEpoch 并清理跨重置的在途采样；resetState 就近呈现加载与失败。组件不请求、定时采集、调用 MBean 或写浏览器存储。对象诊断中的单队列三阶段摘要和 BufferQueues 的筛选 / inspect 保持独立。
 - 线程为一次快照，携带真实采样时间、线程状态、栈和可选锁信息；单次 BLOCKED 不等于死锁。本组件不声称提供线程 CPU 或多样本分析。
 - JVM 的实时 JFR snapshot 是累计快照，宿主逐条替换，不能累加样本 / 分配字节。线程、实时采集、结果查看、HTML / JFR 导出、heap 采集与导出分别由 access 动作授权；宿主确认副作用并处理生命周期。停止保留结果或清空由宿主明确选择。对象分配以无分页可搜索排行展示已捕获的 TLAB 内 / 外分配事件字节，完整类名可换行；占比始终以当前快照全部有效对象类型为分母，搜索只筛选行，不改变总量或占比。无效、负数及不可靠的非安全整数字节不参与排行；全零数据保持 0%，不补造分配事件。它不表示堆存量、精确总分配或泄漏结论，浏览偏好只保留当前节点内的搜索，不持久化诊断正文。

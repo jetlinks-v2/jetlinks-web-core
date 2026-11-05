@@ -2,7 +2,9 @@
   <DiagnosticsState :state="state" @retry="emit('refresh')">
     <div class="runtime-mbean-overview">
       <dl v-if="showLifetime" class="runtime-lifetime"><dt>{{ t('runtimeDiagnostics.startTime') }}</dt><dd>{{ view.startTime === undefined ? '—' : new Date(view.startTime).toLocaleString() }}</dd><dt>{{ t('runtimeDiagnostics.uptime') }}</dt><dd>{{ uptime }}</dd></dl>
-      <BufferOverviewChart v-if="view.buffers.length" :queues="view.buffers" :history="history" :config="config" :reset-access="resetAccess" :reset-state="resetState" @update:config="value => emit('update:config', value)" @reset="reset" @inspect="value => emit('inspect', value)" @settings="emit('settings')" />
+      <BufferOverviewChart v-if="view.buffers.length" :queues="view.buffers" :history="history" :config="config" :reset-access="resetAccess" :reset-state="resetState" @update:config="value => emit('update:config', value)" @reset="reset" @inspect="value => emit('inspect', value)" @settings="emit('settings')">
+        <template v-if="$slots['buffer-details']" #details><slot name="buffer-details" /></template>
+      </BufferOverviewChart>
     </div>
   </DiagnosticsState>
 </template>
