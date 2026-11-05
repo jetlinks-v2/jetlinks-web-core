@@ -1,3 +1,4 @@
+import { composeStreamOption } from './echartsStreamFixture.mjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -15,9 +16,44 @@ function load(filename) {
   new Function('require', 'module', 'exports', code)(imports, module, module.exports); cache.set(filename, module.exports); return module.exports
 }
 const { bufferCounterText, bufferMonitorCounters, bufferCounterTotal } = load(resolve(root, 'src/components/RuntimeDiagnostics/buffer/counters.ts'))
-const { bufferHistoryPoints, bufferThroughputPoints, bufferOverviewPoints, bufferTooltipHtml } = load(resolve(root, 'src/components/RuntimeDiagnostics/buffer/history.ts'))
+const { createBufferHistoryProjection, bufferHistoryPoints, bufferThroughputPoints, bufferOverviewPoints, bufferTooltipHtml } = load(resolve(root, 'src/components/RuntimeDiagnostics/buffer/history.ts'))
 const { normalizeBufferConfig, bufferPlotValue, bufferAxisValue, bufferColorIndex, bufferQuantityTotal } = load(resolve(root, 'src/components/RuntimeDiagnostics/buffer/presentation.ts'))
 const { runtimeBeanOverview } = load(resolve(root, 'src/components/RuntimeDiagnostics/utils.ts'))
+
+test('one history snapshot serves curves, latest readings and tooltips without rereading source arrays', () => {
+  let reads = 0
+  const a = queue('a', '10', '8', { pending: 3, dead: 0 }), b = queue('a', '16', '12', { pending: 2, dead: 1 })
+  const history = [{ sampledAt: 1000, get buffers() { reads++; return [a] } }, { sampledAt: 3000, get buffers() { reads++; return [b] } }]
+  const projection = createBufferHistoryProjection(history), initialReads = reads, scope = ['a']
+  const curve = projection.overview('a')
+  assert.equal(projection.overview('a'), curve)
+  assert.equal(projection.at(3000, 'a'), curve[1]); assert.equal(projection.latest('a'), curve[1])
+  assert.equal(projection.overview(scope), projection.overview(scope))
+  assert.equal(projection.latest('a').writtenRate, 3)
+  bufferTooltipHtml(projection, 3000, { queue: 'queue', pending: 'pending', dead: 'dead', items: 'items' }, { combined: true })
+  assert.equal(reads, initialReads, 'curve, detail and tooltip share one index')
+  b.written = '20'; b.pending = 7
+  assert.equal(projection.latest('a').writtenRate, 3, 'snapshot does not observe later source mutations')
+  assert.equal(bufferThroughputPoints(history, 'a').at(-1).writtenRate, 5, 'plain arrays always use current content')
+  assert.equal(bufferHistoryPoints(history, 'a').at(-1).pending, 7)
+})
+
+test('projection preserves duplicate timestamps, membership gaps and exact aggregate counter arithmetic', () => {
+  const history = [sample(2000, queue('a', '5', '5')), sample(-1, queue('a', '0', '0')),
+    sample(1000, queue('a', '1', '1'), queue('b', '1', '1')),
+    sample(2000, queue('a', '2', '2'), queue('b', '3', '3')),
+    sample(3000, queue('a', '3', '3'), queue('a', '4', '4'))]
+  const projection = createBufferHistoryProjection(history)
+  assert.deepEqual(projection.overview().map(p => p.writtenRate), [undefined, 3, undefined])
+  assert.equal(projection.latest('a').writtenRate, undefined, 'duplicate queue entries invalidate rates')
+  assert.equal(projection.at(2000, 'a').writtenRate, 1, 'last timestamp wins, sorted before differencing')
+  assert.equal(projection.at(1234), undefined)
+  const large = [sample(1000, queue('a', '0', '0'), queue('b', '0', '0')),
+    sample(4000, queue('a', '4503599627370495', '1'), queue('b', '4503599627370496', '2'))]
+  assert.equal(createBufferHistoryProjection(large).latest().writtenRate, Number.MAX_SAFE_INTEGER / 3)
+  large[1].buffers[1].written = '4503599627370497'
+  assert.equal(createBufferHistoryProjection(large).latest().writtenRate, undefined)
+})
 const queue = (objectName, written, attempted, extra = {}) => ({ objectName, written, attempted, ...extra })
 const sample = (sampledAt, ...buffers) => ({ sampledAt, buffers })
 
@@ -117,7 +153,7 @@ function chartHarness(config = {}, initialQueues = ['a', 'b']) {
   }, module, module.exports)
   const props = vue.reactive({ queues: initialQueues.map(name => ({ objectName: name, name, written: '10', attempted: '9', pending: 1, dead: 0 })), history: [sample(1000, queue('a', '10', '9', { pending: 1, dead: 0 }))], config: { filter: 'pending', grouping: 'queues', ...config }, resetAccess: { allowed: true }, resetState: { status: 'ready' } }), events = [], scope = vue.effectScope()
   const chart = scope.run(() => module.exports.default.setup(props, { expose() {}, emit: (...event) => events.push(event) }))
-  return { scope, chart, props, events }
+  return { scope, chart: { ...chart, staticOption: chart.option, option: vue.computed(() => composeStreamOption(chart.option.value, chart.dataOption.value)) }, props, events }
 }
 
 test('native queue legend restores old single selection and limits display to currently available queues', async () => {
@@ -132,6 +168,22 @@ test('native queue legend restores old single selection and limits display to cu
     assert.deepEqual(h.chart.selection.value.visibleObjectNames, ['b']); assert.equal(h.chart.visibleQueues.value.length, 0)
     h.props.config = { filter: 'failed', grouping: 'queues', objectName: 'invalid' }; await vue.nextTick(); assert.equal(h.chart.visibleQueues.value.length, 0)
     assert.deepEqual(h.chart.selection.value.visibleObjectNames, ['invalid'])
+  } finally { h.scope.stop() }
+})
+
+test('queue reading changes preserve chart options and selection while topology or history changes update them', async () => {
+  const h = chartHarness()
+  try {
+    const option = h.chart.staticOption.value, data = h.chart.dataOption.value, selection = h.chart.selection.value
+    h.props.queues = h.props.queues.map(queue => ({ ...queue, pending: 2 }))
+    await vue.nextTick()
+    assert.equal(h.chart.staticOption.value, option); assert.equal(h.chart.selection.value, selection)
+    assert.equal(h.chart.pending.value, 4, 'current readings still update independently')
+    h.props.history = [...h.props.history, sample(2000, queue('a', '12', '11', { pending: 2 }))]
+    await vue.nextTick(); assert.equal(h.chart.staticOption.value, option); assert.notEqual(h.chart.dataOption.value, data)
+    const previous = h.chart.staticOption.value
+    h.props.queues = [...h.props.queues, { objectName: 'c', pending: 1 }]
+    await vue.nextTick(); assert.notEqual(h.chart.staticOption.value, previous)
   } finally { h.scope.stop() }
 })
 
