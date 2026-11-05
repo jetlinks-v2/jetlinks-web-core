@@ -12,6 +12,7 @@ export interface AuthorizationDimension {
 export interface CurrentAuthorization {
   user?: { name?: string }
   dimensions: AuthorizationDimension[]
+  permissions?: Array<{ id: string; actions: string[] }>
 }
 
 /** 默认入口判断必须禁用应用 Scope，避免把已裁剪的角色误认为完整身份。 */

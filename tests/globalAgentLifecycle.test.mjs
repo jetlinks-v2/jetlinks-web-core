@@ -85,6 +85,8 @@ function environment(t) {
     callbacks.forEach(callback => callback())
     for (let index = 0; index < 12; index += 1) await Promise.resolve()
     await vue.nextTick()
+    await new Promise(resolve => setImmediate(resolve))
+    await vue.nextTick()
   }
   flush.onCleanup = cleanup => cleanups.push(cleanup)
   return flush
@@ -96,11 +98,12 @@ const deferred = () => {
   return { promise, resolve }
 }
 
-function storeHarness(t, queryAgentList = async () => ({ success: true, result: [{ agentId: 'agent', clientType: 'pagePoint' }] })) {
+function storeHarness(t, queryAgentList = async () => ({ success: true, result: [{ agentId: 'agent', clientType: 'pagePoint' }] }), permissions = [{ id: 'ai-agent-deploy', actions: ['use'] }]) {
   const flush = environment(t)
   let queries = 0
   const load = createLoader({
     pinia,
+    '@jetlinks-web-core/api/auth': { getMe_api: async () => ({ success: true, result: { permissions } }) },
     '@jetlinks-web-core/api/comm': {
       existsAiAgentSupport: async () => true,
       queryAgentList: (...args) => { queries += 1; return queryAgentList(...args) },
@@ -372,6 +375,7 @@ test('home and project runtimes refresh route-specific capabilities without free
     '@jetlinks-web-core/store/menu': { useMenuStore: () => ({ siderMenus: menus }) },
     '@jetlinks-web-core/utils/project-runtime': { normalizeProjectRuntimePath: value => value },
     '@jetlinks-web-core/utils/project-storage': { getProjectStorage: () => ({ name: 'Project' }) },
+    '@jetlinks-web-core/api/auth': { getMe_api: async () => ({ success: true, result: { permissions } }) },
     '@jetlinks-web-core/api/comm': {},
     './homeAgentRegistry': { homeAgentCapabilityRegistry: { getProviders: () => providerEnabled ? [provider] : [] } },
     './homeAgentBaseTools': { createHomeAgentBaseTools: () => [] },
@@ -443,3 +447,14 @@ test('drawer identity changes only for agent, client, subject or explicit conver
   fields.conversationSubject.value = { type: 'project', id: 'p2' }
   assert.notEqual(key.value, initial)
 })
+
+for (const permissions of [[], [{ id: 'ai-agent-deploy', actions: ['query'] }], [{ id: 'other', actions: ['use'] }]]) {
+  test(`optional deployment skips unauthorized identity ${JSON.stringify(permissions)}`, async t => {
+    const h = storeHarness(t, undefined, permissions)
+    await h.store.queryAgent('projectAiSearchHub')
+    assert.equal(h.queries(), 0)
+    assert.equal(h.store.showAiButton, false)
+    assert.equal(h.store.pendingClientId, '')
+    assert.equal(h.store.activeClientId, '')
+  })
+}

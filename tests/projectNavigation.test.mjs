@@ -33,6 +33,7 @@ function createLoader(stubs = {}) {
 }
 
 const runtimeStubs = {
+  './consts': { isSubApp: false },
   './project-storage': {}, './request-context': {}, './deployment': {},
   '@jetlinks-web-core/locales': { default: { global: { t: key => key } }, __esModule: true },
 }
@@ -130,6 +131,7 @@ test('AI support transport failures remain retryable instead of being cached as 
   let deploymentQueries = 0
   const load = createLoader({
     pinia,
+    '@jetlinks-web-core/api/auth': { getMe_api: async () => ({ success: true, result: { permissions: [{ id: 'ai-agent-deploy', actions: ['use'] }] } }) },
     '@jetlinks-web-core/api/comm': {
       existsAiAgentSupport: async () => {
         supportAttempts += 1

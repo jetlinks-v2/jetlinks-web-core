@@ -1,5 +1,6 @@
 import {defineStore} from "pinia";
 import {existsAiAgentSupport, queryAgentList} from "@jetlinks-web-core/api/comm";
+import { getMe_api } from '@jetlinks-web-core/api/auth';
 
 export const useAIStore = defineStore('ai', () => {
   const showAiButton = ref(false)
@@ -214,6 +215,18 @@ export const useAIStore = defineStore('ai', () => {
       }
 
       try {
+        // 能力存在不代表当前应用身份可用；可选气泡不向无 use 权限的账号发起部署查询。
+        const authorization = await getMe_api({ hiddenError: true })
+        if (currentVersion !== queryVersion) return
+        const canUseAgent = authorization.success && authorization.result?.permissions?.some(permission => (
+          (permission.id === 'ai-agent-deploy' || permission.id === '*')
+          && (permission.actions.includes('use') || permission.actions.includes('*'))
+        ))
+        if (!canUseAgent) {
+          pendingClientId.value = ''
+          activeClientId.value = ''
+          return
+        }
         const resp = await queryAgentList('pagePoint', clientId)
         if (currentVersion !== queryVersion) {
           return

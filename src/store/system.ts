@@ -200,7 +200,7 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     if (!_value) return
     const title = resolveLayoutTitle(_value.title)
     layout.title = title
-    layout.logo = resolvePublicAssetUrl(_value.logo)
+    layout.logo = resolvePublicAssetUrl(_value.logo) || resolvePublicAssetUrl('images/login/logo.png')
     layout.layout = normalizeLayoutMode(_value.layout)
     const frontThemeStyle = userThemeStyle || normalizeThemeStyle(_value.headerTheme)
     // localStorage 只负责接口返回前的首屏主题；登录后用户设置优先，系统设置兜底。
