@@ -63,11 +63,16 @@ export const getProjectRuntimeConfig = (): ProjectRuntimeConfig => {
   const scope = normalizeRuntimeScope(import.meta.env.VITE_APP_RUNTIME_SCOPE)
   const fixedProject = scope === 'project'
   const projectStorageEnabled = scope === 'auto' && isProjectStorageEnabled()
-  const projectCode = fixedProject
+  let projectCode = fixedProject
     ? normalizeProjectCode(import.meta.env.VITE_APP_PROJECT_CODE)
     : scope === 'tenant'
       ? ''
       : getProjectCodeFromPathnameLocation()
+
+  // SaaS 的 project 模式也通过路径选择项目；私有化安装目录不能作为项目编码。
+  if (fixedProject && !projectCode && !isPrivateDeployment()) {
+    projectCode = getProjectCodeFromPathnameLocation()
+  }
 
   return {
     scope,
