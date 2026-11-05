@@ -1,6 +1,6 @@
 import { computed, reactive, ref, watch, watchEffect, type ComputedRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useWindowScroll } from '@vueuse/core'
+import { useMediaQuery, useWindowScroll } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useResponsiveLayoutDimensions } from '@jetlinks-web-core/hooks'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
@@ -101,6 +101,15 @@ export const useBasicLayoutController = (
   })
   const headerScrolled = computed(() => scrollY.value > 0)
   const showMenuSearch = computed(() => !!themeLayout.value?.showMenuSearch && !state.collapsed)
+  const narrow = useMediaQuery('(max-width: 767px)')
+  // The project navigation yields space on small screens, while its existing toggle remains available.
+  watch(
+    [narrow, layoutVariant],
+    () => {
+      if (layoutVariant.value === 'project') state.collapsed = narrow.value
+    },
+    { immediate: true },
+  )
   const { layoutConfig } = useResponsiveLayoutDimensions(layout, themeLayout)
 
   useGlobalHomeAgent(route)
@@ -271,9 +280,6 @@ export const useBasicLayoutController = (
   }, true)
 
   watchEffect(() => {
-    // 项目工作区保持固定导航宽度，不响应 ProLayout 的侧栏折叠状态。
-    if (layoutVariant.value === 'project' && state.collapsed) state.collapsed = false
-
     const paths = (
       route.meta.breadcrumb || route.meta.breadcrumbCache || []
     ) as ProjectBreadcrumbRoute[]
@@ -308,6 +314,7 @@ export const useBasicLayoutController = (
     secondaryTabPosition,
     selectVisibleSecondaryItem,
     showMenuSearch,
+    narrow,
     state,
     settingsActive,
     settingsVisible,

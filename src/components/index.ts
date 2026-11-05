@@ -217,7 +217,9 @@ export {
     BasisSection
 }
 export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlacement } from './TableActions'
-export { I18nTextField, I18nTextDialog, I18nInputTrigger } from './I18n'
+export { default as ObjectTypeIcon } from './IconValue/ObjectTypeIcon.vue'
+export { getObjectTypeIcon, objectTypeIcons } from './IconValue/objectTypeIcons'
+export { I18nTextField, I18nTextDialog, I18nInputTrigger, i18nText } from './I18n'
 export type { I18nMessages, I18nTextMessages, I18nTextFieldProps, I18nTextDialogProps } from './I18n'
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
 export { RuntimeMetricsPanel, RuntimeMBeanOverview, ThreadViewer, JvmDiagnosticPanel, FlameGraphViewer, MBeanBrowser, TraceViewer, LogViewer, registerMBeanRenderer, createFlameGraphHtml, nanosText, nanosBetween, traceRows } from './RuntimeDiagnostics'

@@ -4,6 +4,7 @@ import type { DataCapabilityProviderManifest } from '../data-capability/types'
 import type { ContentPanelOverrides } from './content-panel'
 import type { AgentConversationProviderManifest } from '../layout/components/AiChat/agentConversationContracts'
 import type { AssetDimensionFilter } from '../components/AssetOwnershipCondition/types'
+import type { ObjectPresentation } from './object-presentation'
 
 export type ModuleResourceRecord<T = unknown> = Record<string, T>
 
@@ -21,6 +22,7 @@ export interface ModuleResource {
   dataCapabilityProviders?: DataCapabilityProviderManifest
   agentConversationProviders?: AgentConversationProviderManifest
   assetDimensionFilters?: ModuleResourceRecord<AssetDimensionFilter>
+  objectPresentations?: ModuleResourceRecord<ObjectPresentation>
   [resourceType: string]: ModuleResourceRecord | string | undefined
 }
 
