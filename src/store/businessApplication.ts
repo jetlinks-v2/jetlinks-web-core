@@ -23,6 +23,7 @@ import { createProjectRuntimeHref, getApplicationRuntimeEntry, getProjectCodeFro
 import { getProjectStorage, isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storage'
 import { getApplicationAccessContext } from '@jetlinks-web-core/utils/request-context'
 import { useMenuStore } from './menu'
+import { useUserStore } from './user'
 
 const $t = i18n.global.t
 
@@ -32,6 +33,10 @@ type EnterApplicationOptions = {
   force?: boolean
   silent?: boolean
     accessUrl?: string
+}
+
+class BusinessApplicationSessionChangedError extends Error {
+  constructor() { super('Business application session changed') }
 }
 
 const normalizeText = (value: unknown) => typeof value === 'string' ? value.trim() : ''
@@ -118,19 +123,33 @@ export const useBusinessApplicationStore = defineStore('business-application', (
   const scopeSupported = ref(true)
   let initializePromise: Promise<BusinessApplicationEntry | undefined> | undefined
   let refreshPromise: Promise<BusinessApplicationEntry | undefined> | undefined
+  let sessionVersion = 0
+
+  /** 请求开始时固定账号、项目和应用作用域，旧会话不能回填新的共享状态。 */
+  const sessionContext = () => JSON.stringify([
+    useUserStore().userInfo.id || '', getProjectCodeFromLocation(), getApplicationRuntimeEntry().applicationId || '',
+  ])
+  const assertSession = (version: number, context: string) => {
+    if (version !== sessionVersion || context !== sessionContext()) throw new BusinessApplicationSessionChangedError()
+  }
 
   const loadApplications = async (
     projectCodeHint?: string,
     preferredApplicationId?: string,
   ) => {
+    const version = sessionVersion, context = sessionContext()
     // 裸应用链接没有 Scope 参数或预先复制的会话，先用授权应用列表核验路径身份。
     const pathnameCode = getProjectCodeFromPathname()
     const resolvePathEntry = !preferredApplicationId && !!pathnameCode
       && getRouteQueryParam(window.location, APPLICATION_SCOPE_QUERY_KEY) === null
     const response = await getMyBusinessApplications(resolvePathEntry ? { tenantDomain: false } : {}).catch((err: unknown) => {
+      // 旧会话的网络错误也不能阻断新会话接续加载。
+      assertSession(version, context)
       if (isBusinessApplicationEndpointMissing(err)) return err
       throw err
     })
+
+    assertSession(version, context)
 
     if (isBusinessApplicationEndpointMissing(response)) {
       if (preferredApplicationId && !isProjectApplicationScope(preferredApplicationId)) {
@@ -167,11 +186,14 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     if (initializePromise) return initializePromise
 
     loading.value = true
-    initializePromise = loadApplications(projectCodeHint, getApplicationRuntimeEntry().applicationId)
+    const pending = loadApplications(projectCodeHint, getApplicationRuntimeEntry().applicationId)
+    initializePromise = pending
 
-    return initializePromise.finally(() => {
-      loading.value = false
-      initializePromise = undefined
+    return pending.finally(() => {
+      if (initializePromise === pending) {
+        loading.value = false
+        initializePromise = undefined
+      }
     })
   }
 
@@ -179,16 +201,26 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     if (refreshPromise) return refreshPromise
 
     // Header 快捷入口与项目应用管理共享此状态；重拉时保留当前作用域，避免刷新列表改变菜单上下文。
-    refreshPromise = (async () => {
-      if (initializePromise) await initializePromise
+    const version = sessionVersion, context = sessionContext()
+    const pending = (async () => {
+      if (initializePromise) {
+        try { await initializePromise }
+        catch (error) {
+          if (!(error instanceof BusinessApplicationSessionChangedError)) throw error
+        }
+      }
+      assertSession(version, context)
       loading.value = true
       const preferredApplicationId = currentApplication.value?.id || getApplicationRuntimeEntry().applicationId
       return loadApplications(projectCodeHint, preferredApplicationId)
     })()
 
-    return refreshPromise.finally(() => {
-      loading.value = false
-      refreshPromise = undefined
+    refreshPromise = pending
+    return pending.finally(() => {
+      if (refreshPromise === pending) {
+        loading.value = false
+        refreshPromise = undefined
+      }
     })
   }
 
@@ -196,7 +228,9 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     projectEntry: BusinessApplicationEntry,
     options: EnterApplicationOptions = {},
   ) => {
+    const version = sessionVersion, context = sessionContext()
     const result = await useMenuStore().queryMenus(PROJECT_APPLICATION_SCOPE)
+    assertSession(version, context)
     if (!result?.applied) return false
 
     const projectCode = normalizeText(projectEntry.projectCode)
@@ -214,8 +248,11 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     nextApplication: BusinessApplicationEntry,
     options: EnterApplicationOptions = {},
   ) => {
+    const version = sessionVersion, context = sessionContext()
     // 先预检目标 Scope 的菜单，避免切换后清空当前路由再落入 403。
-    if (!await hasOwnBusinessApplicationMenu(nextApplication.id)) {
+    const hasMenu = await hasOwnBusinessApplicationMenu(nextApplication.id)
+    assertSession(version, context)
+    if (!hasMenu) {
       onlyMessage($t('components.BusinessApplicationSwitcher.notConfigured', {
         name: nextApplication.name,
       }), 'warning')
@@ -262,24 +299,29 @@ export const useBusinessApplicationStore = defineStore('business-application', (
       return false
     }
 
+    const version = sessionVersion, context = sessionContext()
     switching.value = true
     try {
       return await enterApplication(nextApplication)
     } catch (error) {
-      onlyMessage($t('components.BusinessApplicationSwitcher.switchFailed', { name: nextApplication.name }), 'error')
-      console.error('[Business Application] Failed to switch application:', error)
+      if (version === sessionVersion && context === sessionContext()) {
+        onlyMessage($t('components.BusinessApplicationSwitcher.switchFailed', { name: nextApplication.name }), 'error')
+        console.error('[Business Application] Failed to switch application:', error)
+      }
       return false
     } finally {
-      switching.value = false
+      if (version === sessionVersion) switching.value = false
     }
   }
 
   const enterFirstApplication = async (options: EnterApplicationOptions = {}) => {
     if (switching.value) return false
 
+    const version = sessionVersion, context = sessionContext()
     switching.value = true
     try {
       await initialize(options.currentProjectCode)
+      assertSession(version, context)
       const firstApplication = applications.value.find(item => !isProjectEntry(item))
       if (!firstApplication) return false
 
@@ -288,19 +330,20 @@ export const useBusinessApplicationStore = defineStore('business-application', (
         force: true,
       })
     } catch (error) {
-      if (!options.silent) {
+      if (!options.silent && version === sessionVersion && context === sessionContext()) {
         onlyMessage($t('components.BusinessApplicationSwitcher.switchFailed', {
           name: applications.value.find(item => !isProjectEntry(item))?.name || '',
         }), 'error')
       }
-      console.error('[Business Application] Failed to enter first application:', error)
+      if (version === sessionVersion && context === sessionContext()) console.error('[Business Application] Failed to enter first application:', error)
       return false
     } finally {
-      switching.value = false
+      if (version === sessionVersion) switching.value = false
     }
   }
 
   const init = () => {
+    sessionVersion++
     applications.value = []
     currentApplication.value = undefined
     loading.value = false
