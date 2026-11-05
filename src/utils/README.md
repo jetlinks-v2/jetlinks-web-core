@@ -15,6 +15,8 @@
 
 项目新窗口跳转统一由 `createProjectRuntimeHref` 按 `VITE_APP_ENVIRONMENT` 区分部署方式，覆盖可视化卡片设计、预览及需求确认入口。SaaS 保留目标项目路径（即使 `VITE_APP_RUNTIME_SCOPE=project`）；私有化使用 `BASE_URL`，不额外拼接项目 ID。保持现有 hash 路径标准化与查询参数规则。
 
+项目编码由 `project-runtime.ts#getProjectRuntimeConfig` 统一解析：`project` 模式优先使用有效的 `VITE_APP_PROJECT_CODE`；仅非私有化部署在编码为空时从 pathname 读取项目编码，避免 SaaS 的 `/ht_device/` 被资源用量页误判为缺少上下文。私有化安装目录不作为项目编码，`tenant` / `auto`、登录开关、菜单、请求头和接口保持原有规则。实际配置、路径解析与页面请求的回归覆盖及验证限制见[资源用量说明](../../../modules/saas-runtime-ui/docs/project-usage-resource-view.md)。
+
 构建环境约定：`runtime-ui/package.json` 的 `dev:standalone`、`build:standalone` 显式传入 `--VITE_APP_ENVIRONMENT=`，覆盖根 `.env.production` 的 `saas`。`src/utils/deployment.ts` 以空值判断私有化，`src/utils/project-storage.ts` 同时以空值关闭项目存储和子账号登录；SaaS 构建保持 `saas`，云端业务环境保持 `cloud`。范围仅为 `runtime-ui`，不改请求或登录实现。部署类型切换需要重新构建前端，不涉及后端重启。
 
 验证：本次在 core 目录运行 `node scripts/test-project-runtime-href.mjs`，`saas`、`cloud` 与空字符串的 6 种配置共 108 个断言通过，覆盖项目切换、空项目、中文编码、旧 hash 转换、私有化根路径与子路径；相关 Git 差异检查通过。此前可视化模块的需求创建及任务展示定向测试共 38 项通过，本次未重跑。未运行全量 lint/typecheck/build 或浏览器验证；如需全量检查，在 runtime-ui 执行 `pnpm exec vue-tsc --noEmit --project tsconfig.json` 和 `pnpm build:standalone`。已有开发服务刷新即可使用代码变更；部署类型的切换仍需重新构建，不涉及后端重启。
