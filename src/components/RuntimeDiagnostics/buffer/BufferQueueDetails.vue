@@ -30,15 +30,16 @@ import { useI18n } from 'vue-i18n'
 import type { ActionAccess, BufferHistorySample, ViewState } from '../types'
 import type { runtimeBeanOverview } from '../utils'
 import { bufferCounterText } from './counters'
-import { bufferThroughputPoints } from './history'
+import { createBufferHistoryProjection, type BufferHistoryProjection } from './history'
 import { useBufferQueueReset } from './useBufferQueueReset'
 type BufferQueue = ReturnType<typeof runtimeBeanOverview>['buffers'][number]
-const props = defineProps({ queues: { type: Array as PropType<BufferQueue[]>, default: () => [] }, history: { type: Array as PropType<BufferHistorySample[]>, default: () => [] }, scopeKey: { type: String, required: true }, coverage: { type: String, default: '' }, resetAccess: { type: Object as PropType<ActionAccess>, default: () => ({ allowed: false }) }, resetState: { type: Object as PropType<ViewState>, default: () => ({ status: 'ready' }) } })
+const props = defineProps({ queues: { type: Array as PropType<BufferQueue[]>, default: () => [] }, history: { type: Array as PropType<BufferHistorySample[]>, default: () => [] }, projection: { type: Object as PropType<BufferHistoryProjection>, default: undefined }, scopeKey: { type: String, required: true }, coverage: { type: String, default: '' }, resetAccess: { type: Object as PropType<ActionAccess>, default: () => ({ allowed: false }) }, resetState: { type: Object as PropType<ViewState>, default: () => ({ status: 'ready' }) } })
 const emit = defineEmits<{ (event: 'inspect' | 'reset', objectName: string): void }>()
 const { t } = useI18n()
 const expanded = ref(false), detailsTrigger = ref<{ $el: HTMLElement }>()
 const { resetOpen, resetTarget, canReset, request, cancel, confirm, restoreFocus } = useBufferQueueReset({ queues: toRef(props, 'queues'), active: expanded, scope: toRef(props, 'scopeKey'), access: toRef(props, 'resetAccess'), state: toRef(props, 'resetState') }, objectName => emit('reset', objectName))
-const rates = computed(() => new Map(props.queues.map(queue => [queue.objectName, bufferThroughputPoints(props.history, queue.objectName).at(-1)])))
+const historyProjection = computed(() => props.projection ?? createBufferHistoryProjection(props.history))
+const rates = computed(() => new Map(props.queues.map(queue => [queue.objectName, historyProjection.value.latest(queue.objectName)])))
 const numberText = (value: number | undefined) => value === undefined || !Number.isFinite(value) || value < 0 ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: 2 })
 const counterText = (value: unknown) => { const count = bufferCounterText(value); return count === undefined ? '—' : BigInt(count).toLocaleString() }
 const columns = computed(() => [

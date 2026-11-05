@@ -25,9 +25,9 @@
       </div>
     </header>
     <div v-if="['loading', 'error', 'forbidden', 'unsupported'].includes(resetState.status)" class="buffer-reset-status" :class="{ 'is-error': resetState.status !== 'loading' }" role="status">{{ resetState.status === 'loading' ? t('runtimeDiagnostics.bufferResetting') : resetState.message || t('runtimeDiagnostics.failed') }}</div>
-    <div class="buffer-history-chart"><div class="buffer-series-key"><span v-for="metric in seriesMetrics" :key="metric.key"><i :class="{ 'is-dashed': metric.lineType === 'dashed', 'is-dotted': metric.lineType === 'dotted', 'has-area': metric.key === 'pending' }" :style="{ color: perQueue && metric.key !== 'dead' ? undefined : metricColor(metric.key) }" />{{ metric.label }}</span></div><Echarts :key="chartKey" class="buffer-chart-canvas" :option="option" :events="chartEvents" :library="library" renderer="svg" /><span v-if="!hasData || !hasLine" class="buffer-history-waiting" :class="{ 'is-collecting': hasData }" role="status"><ClockCircleOutlined v-if="scopeNames.length" />{{ t(!scopeNames.length ? 'runtimeDiagnostics.bufferNoQueuesSelected' : hasData ? 'runtimeDiagnostics.bufferCollectingSamples' : 'runtimeDiagnostics.waitingBufferSamples') }}</span></div>
+    <div class="buffer-history-chart"><div class="buffer-series-key"><span v-for="metric in seriesMetrics" :key="metric.key"><i :class="{ 'is-dashed': metric.lineType === 'dashed', 'is-dotted': metric.lineType === 'dotted', 'has-area': metric.key === 'pending' }" :style="{ color: perQueue && metric.key !== 'dead' ? undefined : metricColor(metric.key) }" />{{ metric.label }}</span></div><Echarts :key="chartKey" class="buffer-chart-canvas" :option="option" :data-option="dataOption" defer-offscreen :events="chartEvents" :library="library" renderer="svg" /><span v-if="!hasData || !hasLine" class="buffer-history-waiting" :class="{ 'is-collecting': hasData }" role="status"><ClockCircleOutlined v-if="scopeNames.length" />{{ t(!scopeNames.length ? 'runtimeDiagnostics.bufferNoQueuesSelected' : hasData ? 'runtimeDiagnostics.bufferCollectingSamples' : 'runtimeDiagnostics.waitingBufferSamples') }}</span></div>
     <small class="buffer-axis-key">{{ t('runtimeDiagnostics.bufferCountAndRate', { items: t('runtimeDiagnostics.items'), rate: t('runtimeDiagnostics.bufferItemsPerSecond') }) }}</small>
-    <BufferQueueDetails :queues="queues" :history="history" :scope-key="selectionKey" :coverage="coverage" :reset-access="resetAccess" :reset-state="resetState" @inspect="value => emit('inspect', value)" @reset="value => emit('reset', value)" />
+    <BufferQueueDetails :queues="queues" :history="history" :projection="historyProjection" :scope-key="selectionKey" :coverage="coverage" :reset-access="resetAccess" :reset-state="resetState" @inspect="value => emit('inspect', value)" @reset="value => emit('reset', value)" />
   </section>
 </template>
 <script setup lang="ts">
@@ -43,7 +43,7 @@ import type { ActionAccess, BufferDisplayConfig, BufferHistorySample, ViewState 
 import type { runtimeBeanOverview } from '../utils'
 import { createVisiblePopupFocus } from '../popupFocus'
 import BufferQueueDetails from './BufferQueueDetails.vue'
-import { bufferOverviewPoints, bufferObjectLabel, bufferThroughputPoints, bufferTooltipHtml } from './history'
+import { createBufferHistoryProjection, bufferObjectLabel, bufferTooltipHtml } from './history'
 import { bufferAxisValue, bufferPlotValue, bufferQuantityTotal, normalizeBufferConfig } from './presentation'
 type BufferQueue = ReturnType<typeof runtimeBeanOverview>['buffers'][number]
 type BufferMetric = 'pending' | 'writtenRate' | 'attemptedRate' | 'dead'
@@ -52,7 +52,11 @@ const props = defineProps({ queues: { type: Array as PropType<BufferQueue[]>, de
 const emit = defineEmits<{ (event: 'update:config', value: BufferDisplayConfig): void; (event: 'reset' | 'inspect', objectName: string): void; (event: 'settings'): void }>()
 const { t } = useI18n(), { token } = theme.useToken()
 const library = [LineChart, GridComponent, TooltipComponent, LegendComponent]
-const queueNames = computed(() => props.queues.map(queue => queue.objectName))
+// Sampling changes queue readings, not topology; keep chart selection and projections stable.
+const queueNames = computed<string[]>(previous => {
+  const names = props.queues.map(queue => queue.objectName)
+  return previous && names.length === previous.length && names.every((name, index) => name === previous[index]) ? previous : names
+})
 // 当前身份集合稳定排序后互斥分配；刷新、列表重排和图例选择不会产生 hash 碰撞或换色。
 const queueColors = computed(() => {
   const palette = [token.value.colorPrimary, token.value.colorSuccess, token.value.colorWarning, token.value.purple, token.value.cyan]
@@ -74,12 +78,13 @@ watch(queueNames, names => {
 })
 const perQueue = computed(() => selection.value.grouping === 'queues')
 const visibleQueues = computed(() => props.queues.filter(queue => !perQueue.value || selection.value.visibleObjectNames?.includes(queue.objectName)))
-const scopeNames = computed(() => visibleQueues.value.map(queue => queue.objectName))
+const scopeNames = computed(() => queueNames.value.filter(name => !perQueue.value || selection.value.visibleObjectNames?.includes(name)))
 const selectionKey = computed(() => JSON.stringify([selection.value.grouping, selection.value.visibleObjectNames, queueNames.value]))
 const scopeLabel = computed(() => perQueue.value ? t('runtimeDiagnostics.bufferSelectedScope', { count: visibleQueues.value.length, total: props.queues.length }) : t('runtimeDiagnostics.bufferAggregateScope', { count: props.queues.length }))
 const coverage = computed(() => t('runtimeDiagnostics.bufferPendingCoverage', { count: visibleQueues.value.filter(queue => queue.pending !== undefined).length, total: visibleQueues.value.length }))
 const pending = computed(() => bufferQuantityTotal(visibleQueues.value, 'pending')), dead = computed(() => bufferQuantityTotal(visibleQueues.value, 'dead'))
-const currentRate = computed(() => bufferThroughputPoints(props.history, scopeNames.value).at(-1))
+const historyProjection = computed(() => createBufferHistoryProjection(props.history))
+const currentRate = computed(() => historyProjection.value.latest(scopeNames.value))
 const numberText = (value: number | undefined) => value === undefined ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: 2 })
 const groupingOptions = computed(() => [{ value: 'aggregate', label: t('runtimeDiagnostics.bufferAggregate') }, { value: 'queues', label: t('runtimeDiagnostics.bufferByQueue') }])
 const scaleOptions = computed(() => [{ value: 'linear', label: t('runtimeDiagnostics.bufferLinearScale') }, { value: 'compressed', label: t('runtimeDiagnostics.bufferCompressedScale') }])
@@ -106,11 +111,15 @@ function onOptionsKeydown(event: KeyboardEvent) {
 function openSettings() { closeOptions(); emit('settings') }
 if (getCurrentInstance()) { onDeactivated(() => closeOptions()); onBeforeUnmount(() => closeOptions()) }
 /** 聚合使用当前汇总的相同身份集合；历史缺成员不能悄悄变成较小的总量。 */
-const queuePoints = computed(() => (perQueue.value ? props.queues.map(queue => ({ name: queue.objectName, scope: queue.objectName })) : [{ name: t('runtimeDiagnostics.bufferAllQueues'), scope: scopeNames.value }]).map(queue => ({
-  name: queue.name, points: bufferOverviewPoints(props.history, queue.scope),
-})))
+const queueDefinitions = computed(() => perQueue.value ? queueNames.value.map(name => ({ name, scope: name })) : [{ name: t('runtimeDiagnostics.bufferAllQueues'), scope: scopeNames.value }])
+const queuePoints = computed(() => queueDefinitions.value.map(queue => ({ name: queue.name, points: historyProjection.value.overview(queue.scope) })))
+// Membership changes alter series topology; ordinary samples retain the authored option identity.
+const failureQueues = computed<string[]>(previous => {
+  const names = queuePoints.value.filter(queue => queue.points.some(point => point.dead !== undefined && point.dead > 0)).map(queue => queue.name)
+  return previous && names.length === previous.length && names.every((name, index) => name === previous[index]) ? previous : names
+})
 const points = computed(() => queuePoints.value[0]?.points ?? [])
-const hasFailures = computed(() => queuePoints.value.some(queue => (!perQueue.value || scopeNames.value.includes(queue.name)) && queue.points.some(point => point.dead !== undefined && point.dead > 0)))
+const hasFailures = computed(() => failureQueues.value.some(name => !perQueue.value || scopeNames.value.includes(name)))
 // 旧 view 偏好继续随其他设置保存；合图的指标集合不再由旧堆积/吞吐模式裁剪。
 const seriesMetrics = computed<SeriesMetric[]>(() => [
   { key: 'pending', label: t('runtimeDiagnostics.queue.pending'), axis: 0, lineType: 'solid' },
@@ -121,12 +130,12 @@ const seriesMetrics = computed<SeriesMetric[]>(() => [
 const hasData = computed(() => queuePoints.value.some(queue => (!perQueue.value || scopeNames.value.includes(queue.name)) && queue.points.some(point => seriesMetrics.value.some(metric => point[metric.key] !== undefined))))
 const hasLine = computed(() => queuePoints.value.some(queue => (!perQueue.value || scopeNames.value.includes(queue.name)) && queue.points.some((point, index, points) => index > 0 && point.sampledAt !== points[index - 1].sampledAt && seriesMetrics.value.some(metric => point[metric.key] !== undefined && points[index - 1][metric.key] !== undefined))))
 // ECharts 默认合并系列，身份或分组改变时重建以移除旧系列；采样和刻度仍保留实例。
-const chartKey = computed(() => JSON.stringify([selection.value.grouping, [...queueNames.value].sort(), hasFailures.value, queuePoints.value.filter(queue => queue.points.some(point => point.dead !== undefined && point.dead > 0)).map(queue => queue.name).sort()]))
+const chartKey = computed(() => JSON.stringify([selection.value.grouping, [...queueNames.value].sort(), hasFailures.value, [...failureQueues.value].sort()]))
 function metricColor(key: BufferMetric) { return key === 'pending' ? token.value.colorPrimary : key === 'dead' ? token.value.colorError : token.value.colorSuccess }
 function tooltip(params: unknown) {
   const first: unknown = Array.isArray(params) ? params[0] : params
   if (!first || typeof first !== 'object' || !('axisValue' in first) || typeof first.axisValue !== 'number') return ''
-  return bufferTooltipHtml(props.history, first.axisValue, { queue: t('runtimeDiagnostics.bufferName'), aggregate: scopeLabel.value, pending: t('runtimeDiagnostics.queue.pending'), dead: t('runtimeDiagnostics.bufferRetainedFailures'), items: t('runtimeDiagnostics.items'), writtenRate: t('runtimeDiagnostics.bufferWriteRate'), attemptedRate: t('runtimeDiagnostics.bufferAttemptRate'), itemsPerSecond: t('runtimeDiagnostics.bufferItemsPerSecond') }, { ...selection.value, visibleObjectNames: scopeNames.value, combined: true })
+  return bufferTooltipHtml(historyProjection.value, first.axisValue, { queue: t('runtimeDiagnostics.bufferName'), aggregate: scopeLabel.value, pending: t('runtimeDiagnostics.queue.pending'), dead: t('runtimeDiagnostics.bufferRetainedFailures'), items: t('runtimeDiagnostics.items'), writtenRate: t('runtimeDiagnostics.bufferWriteRate'), attemptedRate: t('runtimeDiagnostics.bufferAttemptRate'), itemsPerSecond: t('runtimeDiagnostics.bufferItemsPerSecond') }, { ...selection.value, visibleObjectNames: scopeNames.value, combined: true })
 }
 const option = computed(() => ({
   animation: false, textStyle: { fontFamily: token.value.fontFamily, fontSize: 12 },
@@ -139,16 +148,22 @@ const option = computed(() => ({
   },
   tooltip: { trigger: 'axis', renderMode: 'html', confine: true, enterable: true, textStyle: { fontSize: 12 }, formatter: tooltip },
   grid: { left: 4, right: 4, top: perQueue.value ? 26 : 8, bottom: 4, containLabel: true },
-  xAxis: { show: hasData.value && points.value.length > 1, type: 'time', min: points.value[0]?.sampledAt, max: points.value.at(-1)?.sampledAt, splitNumber: 3, axisLabel: { fontSize: 12, color: token.value.colorTextSecondary, hideOverlap: true, formatter: (value: number) => new Date(value).toLocaleTimeString([], { hour12: false }) }, axisLine: { lineStyle: { color: token.value.colorBorder } }, axisTick: { show: false } },
-  yAxis: [0, 1].map(axis => ({ show: hasData.value, type: 'value', position: axis ? 'right' : 'left', name: '', min: 0, minInterval: axis || selection.value.scale === 'compressed' ? undefined : 1, splitNumber: 3, axisLabel: { fontSize: 12, color: token.value.colorTextSecondary, formatter: (value: number) => bufferAxisValue(value, selection.value.scale).toLocaleString(undefined, { maximumFractionDigits: 2, notation: 'compact' }) }, splitLine: { show: !axis, lineStyle: { color: token.value.colorSplit } } })),
-  series: queuePoints.value.flatMap(queue => seriesMetrics.value.filter(metric => metric.key !== 'dead' || queue.points.some(point => point.dead !== undefined && point.dead > 0)).map(metric => {
+  xAxis: { type: 'time', splitNumber: 3, axisLabel: { fontSize: 12, color: token.value.colorTextSecondary, hideOverlap: true, formatter: (value: number) => new Date(value).toLocaleTimeString([], { hour12: false }) }, axisLine: { lineStyle: { color: token.value.colorBorder } }, axisTick: { show: false } },
+  yAxis: [0, 1].map(axis => ({ type: 'value', position: axis ? 'right' : 'left', name: '', min: 0, minInterval: axis || selection.value.scale === 'compressed' ? undefined : 1, splitNumber: 3, axisLabel: { fontSize: 12, color: token.value.colorTextSecondary, formatter: (value: number) => bufferAxisValue(value, selection.value.scale).toLocaleString(undefined, { maximumFractionDigits: 2, notation: 'compact' }) }, splitLine: { show: !axis, lineStyle: { color: token.value.colorSplit } } })),
+  series: queueDefinitions.value.flatMap(queue => seriesMetrics.value.filter(metric => metric.key !== 'dead' || failureQueues.value.includes(queue.name)).map(metric => {
     const color = metric.key === 'dead' ? token.value.colorError : perQueue.value ? queueColors.value.get(queue.name) : metricColor(metric.key)
     return {
       id: JSON.stringify([queue.name, metric.key]), name: queue.name, type: 'line', yAxisIndex: metric.axis, showSymbol: metric.key === 'dead', symbol: 'circle', symbolSize: (value: number[]) => metric.key === 'dead' && value[1] > 0 ? 5 : 0, connectNulls: false,
       itemStyle: { color }, lineStyle: { color, width: metric.key === 'writtenRate' ? 1.5 : 2, type: metric.lineType }, areaStyle: metric.key === 'pending' ? { opacity: perQueue.value ? 0.04 : 0.08, color } : undefined,
-      data: queue.points.map(point => [point.sampledAt, bufferPlotValue(point[metric.key], selection.value.scale)]),
     }
   })),
+}))
+const dataOption = computed(() => ({
+  xAxis: { show: hasData.value && points.value.length > 1, min: points.value[0]?.sampledAt, max: points.value.at(-1)?.sampledAt },
+  yAxis: [0, 1].map(() => ({ show: hasData.value })),
+  series: queuePoints.value.flatMap(queue => seriesMetrics.value.filter(metric => metric.key !== 'dead' || failureQueues.value.includes(queue.name)).map(metric => ({
+    id: JSON.stringify([queue.name, metric.key]), data: queue.points.map(point => [point.sampledAt, bufferPlotValue(point[metric.key], selection.value.scale)]),
+  }))),
 }))
 </script>
 <style scoped>

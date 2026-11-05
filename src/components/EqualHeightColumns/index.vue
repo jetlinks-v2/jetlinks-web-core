@@ -160,16 +160,18 @@ const rightStyle = paneStyle
   justify-self: center;
   align-self: stretch;
   width: var(--jet-theme-stroke-width);
+  /* 右沿对齐按钮的定位锚点，让上下横边与竖线共用同一条描边。 */
+  margin-right: var(--jet-theme-stroke-width);
   background: var(--line-strong);
   pointer-events: none;
 }
 
-/* 展开按钮朝向右列的一侧敞开，分割线在按钮高度内留出缺口。 */
+/* 仅避开按钮内侧，上下描边处重叠，避免半像素取整造成接缝缺口。 */
 .equal-height-columns--collapsible:not(.equal-height-columns--collapsed)::before {
   background: linear-gradient(
     to bottom,
-    var(--line-strong) 0 calc(50% - var(--equal-height-columns-toggle-height) / 2),
-    transparent 0 calc(50% + var(--equal-height-columns-toggle-height) / 2),
+    var(--line-strong) 0 calc(50% - var(--equal-height-columns-toggle-height) / 2 + var(--jet-theme-stroke-width)),
+    transparent 0 calc(50% + var(--equal-height-columns-toggle-height) / 2 - var(--jet-theme-stroke-width)),
     var(--line-strong) 0
   );
 }
@@ -232,12 +234,16 @@ const rightStyle = paneStyle
 .equal-height-columns__toggle {
   --equal-height-columns-toggle-width: 0.8rem;
   position: absolute;
-  top: 0;
-  left: 0;
+  /* 使用布局坐标，避免 transform 在缩放时将 1px 描边分摊到相邻像素。 */
+  top: calc(var(--equal-height-columns-toggle-height) / -2);
+  left: calc(0px - var(--equal-height-columns-toggle-width));
+  left: calc(0px - round(var(--equal-height-columns-toggle-width), 1px));
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: var(--equal-height-columns-toggle-width);
+  /* 避免 rem 换算后的小数宽度让左边框因抗锯齿而比竖线更浅。 */
+  width: round(var(--equal-height-columns-toggle-width), 1px);
   height: var(--equal-height-columns-toggle-height);
   padding: 0;
   font-size: var(--fs-12);
@@ -245,18 +251,17 @@ const rightStyle = paneStyle
   border: var(--jet-theme-stroke-width) solid var(--line-strong);
   /* 右侧贴合左列边缘，贴住的一侧不留圆角，视觉上像挂在面板边上 */
   border-radius: var(--r-1) 0 0 var(--r-1);
-  box-shadow: var(--shadow-1);
+  box-shadow: none;
   cursor: pointer;
   pointer-events: auto;
   transition:
-    transform var(--equal-height-columns-transition),
+    left var(--equal-height-columns-transition),
     color var(--motion-duration-fast) var(--motion-ease-standard),
     border-color var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 /* 分割线位于列间距中点；让按钮右边缘与它重合，避免在左栏边缘留下空隙。 */
 .equal-height-columns__toggle:not(.equal-height-columns__toggle--collapsed) {
-  transform: translate(-100%, -50%);
   border-right: none;
 }
 
@@ -270,7 +275,7 @@ const rightStyle = paneStyle
  */
 .equal-height-columns__toggle--collapsed {
   border-radius: 0 var(--r-1) var(--r-1) 0;
-  transform: translate(calc(0px - var(--equal-height-columns-edge-offset, 0px)), -50%);
+  left: calc(0px - var(--equal-height-columns-edge-offset, 0px));
   border-left: none;
 }
 
