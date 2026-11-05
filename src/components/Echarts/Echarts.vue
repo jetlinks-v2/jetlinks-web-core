@@ -16,6 +16,8 @@ const props = defineProps({
     type: Object as PropType<EchartsProps['option']>,
     default: undefined,
   },
+  dataOption: { type: Object as PropType<EchartsProps['dataOption']>, default: undefined },
+  deferOffscreen: { type: Boolean, default: false },
   library: {
     type: Array as PropType<EchartsProps['library']>,
     default: () => [],
