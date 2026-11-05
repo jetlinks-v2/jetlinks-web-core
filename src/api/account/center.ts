@@ -2,6 +2,8 @@ import { ndJson, request } from '@jetlinks-web/core'
 import { mergeRegisteredNoticeProviders } from '@jetlinks-web-core/layout/components/noticeListHandler'
 import type { Observable } from 'rxjs'
 
+export { getThemeStyle_api, saveThemeStyle_api } from './theme'
+
 export const getSsoBinds_api = (): any =>request.get(`/application/sso/me/bindings`)
 
 export type SsoBindingEvent =
@@ -67,10 +69,6 @@ export const getMe_api = () => request.get<{ user: any, [key : string]: any }>(`
 export const setView_api = (data:object) => request.patch(`/user/settings/view/user`, data);
 // 当前登录用户选择的页面
 export const getView_api = () => request.get(`/user/settings/view/user`);
-// 保存登录用户界面风格
-export const saveThemeStyle_api = (data: { name: string; content: string }) => request.patch(`/user/settings/theme/style`, data);
-// 当前登录用户界面风格
-export const getThemeStyle_api = () => request.get<{ content: string }>(`/user/settings/theme/style`, undefined, { applicationScope: false });
 
 /**
  * 查询创建的个人令牌
