@@ -1,3 +1,4 @@
+import { composeStreamOption } from './echartsStreamFixture.mjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -28,6 +29,7 @@ test('optional ECharts events replace listeners once and release them on rendere
   const filename = new URL('../src/hooks/Echarts/useEcharts.ts', import.meta.url), module = { exports: {} }
   new Function('require', 'module', 'exports', transformSync(readFileSync(filename, 'utf8'), { loader: 'ts', format: 'cjs' }).code)(id => {
     if (id === 'vue') return { ...vue, onMounted: callback => mounted.push(callback), onUnmounted: callback => unmounted.push(callback), onActivated() {}, onDeactivated() {} }
+    if (id === './streamOption') return { composeStreamOption }
     if (id === './library') return { __esModule: true, default: chart }
     if (id === './measuredLayout') return { createMeasuredEchartsLayout: () => ({ prepare() {}, apply() {}, setEnabled() {}, dispose() {} }) }
     return require(id)

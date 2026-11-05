@@ -25,29 +25,29 @@
             <div class="layout-sidebar-user__summary-content">
               <div class="layout-sidebar-user__title-row">
                 <span class="layout-sidebar-user__name" :title="displayName">{{ displayName }}</span>
-                <template v-if="primaryRole">
-                  <a-tag class="layout-sidebar-user__role-tag" :bordered="false" :title="primaryRole">
-                    {{ primaryRole }}
-                  </a-tag>
-                  <a-tooltip v-if="extraRoleCount > 0" placement="bottom">
-                    <template #title>
-                      <div class="layout-sidebar-user__roles-tooltip">
-                        <div class="layout-sidebar-user__roles-tooltip-title">{{ $t('AccountInfo.roles') }}：</div>
-                        <div v-for="role in roleList" :key="role" class="layout-sidebar-user__roles-tooltip-item">
-                          {{ role }}
-                        </div>
-                      </div>
-                    </template>
-                    <a-tag class="layout-sidebar-user__role-tag layout-sidebar-user__role-tag--more" :bordered="false">
-                      +{{ extraRoleCount }}
-                    </a-tag>
-                  </a-tooltip>
-                </template>
               </div>
               <div class="layout-sidebar-user__account-row">
                 <span class="layout-sidebar-user__account" :title="`${$t('AccountInfo.basicUsername')}：${account}`">
                   {{ account }}
                 </span>
+              </div>
+              <div v-if="primaryRole" class="layout-sidebar-user__roles-row">
+                <a-tag class="layout-sidebar-user__role-tag" :bordered="false" :title="primaryRole">
+                  {{ primaryRole }}
+                </a-tag>
+                <a-tooltip v-if="extraRoleCount > 0" placement="bottom">
+                  <template #title>
+                    <div class="layout-sidebar-user__roles-tooltip">
+                      <div class="layout-sidebar-user__roles-tooltip-title">{{ $t('AccountInfo.roles') }}：</div>
+                      <div v-for="role in roleList" :key="role" class="layout-sidebar-user__roles-tooltip-item">
+                        {{ role }}
+                      </div>
+                    </div>
+                  </template>
+                  <a-tag class="layout-sidebar-user__role-tag layout-sidebar-user__role-tag--more" :bordered="false">
+                    +{{ extraRoleCount }}
+                  </a-tag>
+                </a-tooltip>
               </div>
             </div>
           </div>

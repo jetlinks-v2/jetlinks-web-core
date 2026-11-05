@@ -10,7 +10,9 @@ export const ACCESS_AI_AGENT_CODE_DATA = {
     i18nMessages: {
         zh_CN: "访问智能体",
         en_US: "Access Ai Agent",
-        en: "Access Ai Agent"
+        en: "Access Ai Agent",
+        ja: 'エージェントへのアクセス',
+        ja_JP: 'エージェントへのアクセス'
     },
     permissions: [
         {
@@ -29,7 +31,9 @@ export const USER_CENTER_MENU_DATA = {
         name: {
             zh_CN: '个人中心',
             en_US: 'User Center',
-            en: 'User Center'
+            en: 'User Center',
+            ja: '個人センター',
+            ja_JP: '個人センター'
         }
     },
     url: '/account/center',
@@ -52,7 +56,9 @@ export const USER_CENTER_MENU_DATA = {
             i18nMessages: {
                 zh_CN: "查看",
                 en_US: "View",
-                en: "View"
+                en: "View",
+                ja: '表示',
+                ja_JP: '表示'
             },
             permissions: []
         },
@@ -62,7 +68,9 @@ export const USER_CENTER_MENU_DATA = {
             i18nMessages: {
                 zh_CN: "修改密码",
                 en_US: "Update Password",
-                en: "Update Password"
+                en: "Update Password",
+                ja: 'パスワードを変更',
+                ja_JP: 'パスワードを変更'
             },
             permissions: [
                 {
@@ -82,7 +90,9 @@ export const USER_CENTER_MENU_DATA = {
             i18nMessages: {
                 zh_CN: "应用",
                 en_US: "application",
-                en: "application"
+                en: "application",
+                ja: 'アプリケーション',
+                ja_JP: 'アプリケーション'
             },
             permissions: [
                 {

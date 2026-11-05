@@ -47,7 +47,7 @@ import i18n from '@jetlinks-web-core/locales'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { langKey, ruleEditorKey } from '@jetlinks-web-core/utils/consts'
 
-type LoginLanguage = 'zh' | 'en'
+type LoginLanguage = 'zh' | 'en' | 'ja'
 
 type LanguageOption = {
   label: string
@@ -58,7 +58,9 @@ const systemStore = useSystemStore()
 const t = i18n.global.t
 const languageOpen = ref(false)
 
-const normalizeLanguage = (language?: string): LoginLanguage => (language === 'en' ? 'en' : 'zh')
+const normalizeLanguage = (language?: string): LoginLanguage => (
+  language === 'en' || language === 'ja' ? language : 'zh'
+)
 
 const currentLanguage = computed(() => normalizeLanguage(systemStore.language))
 
@@ -70,6 +72,10 @@ const languageOptions = computed<LanguageOption[]>(() => [
   {
     label: t('Login.languageEn'),
     value: 'en'
+  },
+  {
+    label: t('Login.languageJa'),
+    value: 'ja'
   }
 ])
 
