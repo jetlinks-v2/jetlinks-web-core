@@ -24,7 +24,6 @@ export interface ProjectRuntimeConfig {
   basePath: string
   fixedProject: boolean
   projectStorageEnabled: boolean
-  subAccountLoginEnabled: boolean
 }
 
 const getProjectContext = () => {
@@ -80,7 +79,6 @@ export const getProjectRuntimeConfig = (): ProjectRuntimeConfig => {
     basePath: normalizeBasePath(import.meta.env.BASE_URL),
     fixedProject,
     projectStorageEnabled,
-    subAccountLoginEnabled: projectStorageEnabled,
   }
 }
 

@@ -94,10 +94,8 @@ import { reactive, watch } from 'vue'
 import { Form, FormItem, Input, InputPassword, Checkbox, Button } from 'ant-design-vue'
 import type { Rule } from 'ant-design-vue/es/form'
 import i18n from '@jetlinks-web-core/locales'
-import { isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storage'
 
 const t = i18n.global.t
-const subAccountLoginEnabled = isProjectStorageEnabled()
 
 const props = defineProps({
   loading: {
@@ -110,7 +108,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['submit', 'forgot', 'getCode', 'subAccount'])
+const emit = defineEmits(['submit', 'forgot', 'getCode'])
 
 const formState = reactive({
   username: '',
@@ -169,8 +167,7 @@ watch(() => props.image, () => {
     flex: none;
   }
 
-  .forgot-password,
-  .sub-account-link {
+  .forgot-password {
     color: var(--color-jet-gray-500);
     cursor: pointer;
     font-size: var(--fs-14);
@@ -181,12 +178,6 @@ watch(() => props.image, () => {
     &:hover {
       color: var(--jet-theme-primary);
     }
-  }
-
-  .account-links__divider {
-    width: 0.0625rem;
-    height: 0.75rem;
-    background: var(--jet-theme-border);
   }
 
   :deep(.verify-code-input .ant-input-group-addon) {
@@ -214,8 +205,7 @@ watch(() => props.image, () => {
       margin-bottom: var(--space-2);
     }
 
-    .forgot-password,
-    .sub-account-link {
+    .forgot-password {
       font-size: var(--fs-14);
     }
 

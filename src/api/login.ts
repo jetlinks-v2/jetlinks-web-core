@@ -1,6 +1,4 @@
 import { Request, ndJson, request, type NdJsonRequestConfig } from '@jetlinks-web/core'
-import type { AxiosResponseRewrite } from '@jetlinks-web/types'
-import { isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storage'
 
 // 登录前尚未确认项目身份，URL 中的应用 ID 不能作为租户域名发送。
 const loginRequestConfig = { projectContext: false, tenantDomain: false } as const
@@ -75,7 +73,6 @@ export const initApplication = (clientId: string | number) => request.get<{name:
 // ---------------------------------------------------------------------------
 
 const userIdentityRequest = new Request('/user/identity')
-const subAccountRequest = new Request('/sub-account')
 const applicationRequest = new Request('/application')
 
 /**
@@ -170,39 +167,3 @@ export interface ApplicationSsoLoginResult {
  */
 export const notifyApplicationLoginResult = (appId: string, code: string) =>
   applicationRequest.post<ApplicationSsoLoginResult>(`/${appId}/notify-result`, { code }, loginRequestConfig)
-
-export interface SubAccountLoginResult {
-  token?: string
-  access: {
-    accessUrl?: string
-    apiUrl?: string
-    code?: string
-    redirect?: string
-    token?: string
-  }
-  project: {
-    code?: string
-    id?: string
-    name?: string
-  }
-}
-
-export interface SubAccountLoginResponse extends AxiosResponseRewrite<SubAccountLoginResult> {
-  /** 历史响应包装可能把这两个字段放在顶层。 */
-  token?: string
-  message?: string
-}
-
-/**
- * 子账号登录
- */
-export const subAccountLogin = (data: { username: string; password: string; projectCode: string; expires?: number }) => {
-  // 独立部署下不开放子账号登录，接口边界保持不变。
-  if (!isProjectStorageEnabled()) {
-    return Promise.reject(new Error('Sub-account login is disabled in standalone mode'))
-  }
-
-  // 后端统一包装为 { result: SubAccountLoginResult, status: 200 }
-  return subAccountRequest.post<SubAccountLoginResult>('/login', data, loginRequestConfig) as Promise<SubAccountLoginResponse>
-}
-
