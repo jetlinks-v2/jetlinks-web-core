@@ -66,7 +66,14 @@ export const flush = async () => { await vue.nextTick(); await new Promise(resol
 export function createMetricRenderer() {
   class TestButton { focus(options) { this.focused = options } get isConnected() { return !!this.parent } get disabled() { return !!this.props.disabled } }
   globalThis.HTMLButtonElement = TestButton
-  const node = (type, text = '') => Object.assign(type === 'button' ? new TestButton() : {}, { type, text, props: {}, style: {}, children: [], parent: null })
+  const node = (type, text = '') => Object.assign(type === 'button' ? new TestButton() : {}, {
+    type, text, props: {}, style: {}, children: [], parent: null,
+    focus(options) { this.focused = options },
+    addEventListener(type, listener) { (this.listeners ||= new Map()).set(type,listener) },
+    removeEventListener(type, listener) { if (this.listeners?.get(type) === listener) this.listeners.delete(type) },
+    // 原位编辑的 DOM 边界：仅模拟实际使用的可聚焦输入查找。
+    querySelector() { return walk(this, item => ['input','textarea'].includes(item.type) || item.props.tabindex != null && item.props.tabindex !== '-1')[0] || null },
+  })
   const renderer = vue.createRenderer({
     createElement: type => node(type), createText: text => node('#text', text), createComment: text => node('#comment', text),
     insert(child, parent, anchor) { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = parent; const at = anchor ? parent.children.indexOf(anchor) : -1; at < 0 ? parent.children.push(child) : parent.children.splice(at, 0, child) },
@@ -78,4 +85,4 @@ export function createMetricRenderer() {
   return { renderer, root: node('root') }
 }
 export function walk(node, predicate) { return [node, ...node.children.flatMap(child => walk(child, predicate))].filter(predicate) }
-export const textContent = node => node.text + node.children.map(textContent).join('')
+export const textContent = node => node.type === '#comment' ? '' : node.text + node.children.map(textContent).join('')

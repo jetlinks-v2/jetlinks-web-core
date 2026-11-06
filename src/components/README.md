@@ -63,6 +63,8 @@ import {
 
 ## 场景映射
 
+可调右侧面板使用具名导出的 [`PanelResizeHandle`](PanelResizeHandle/README.md)，适配现有二列 Grid，宽度由父级持有，单栏切换由父级负责。
+
 ### 运行诊断
 
 [`RuntimeDiagnostics`](RuntimeDiagnostics/README.md) 提供指标趋势、MBean / Buffer、JVM 诊断、线程、实时火焰图、集群链路与日志组件，以及 `registerMBeanRenderer` 和安全 HTML 导出工具。组件有根入口具名导出，类型及纯数据工具通过目录公开入口导入。宿主注入数据、权限、偏好、传输与导航；MBean 共用对象树，已识别对象自动匹配专用内容，未知对象回退属性表。完整 API 与数据语义见目录说明。
@@ -140,6 +142,8 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 ### 业务指标
 
 `MetricPanel`、`MetricResult`、`MetricWorkspace` 与指标类型从 `@jetlinks-web-core/components` 具名导出；业务模块提供已授权对象与来源选择，通用层统一维护配置、批量 latest 与输出质量展示，见 `Metric/index.ts`。
+
+来源诊断消费后端有界的 `quality.attributes.inputIssues/inputIssueCount`，按当前计算的输入别名解析直接输入和上游计算名称。卡片显示一条具体原因，摘要仅显示简短状态，“查看原因”进入现有结果详情并展开问题及对应处理建议；只有可定位的直接输入提供检查来源动作。缺数、过期、上游失败分别解释，未知原因保持“未能取得有效数据”，不推断离线、绑定错误或读取失败；不为解释原因再次请求来源，也不按具体模板改写状态名称。
 
 `MetricLatest` 的 `{ configId, outputs, runtime? }` 中，`runtime` 是当前节点对当前配置身份的只读装载反馈：`pending` 等待装载、`loaded` 已装载、`failed` 装载失败，缺省表示本节点暂无反馈。它与输出质量独立；已有结果保留原值、质量和来源时间，未装载时另标“上次结果”。只有已装载且没有输出时显示“等待数据”。概览已有值时弱化正常装载反馈，详情展示反馈节点、最近成功/失败时间和安全错误码，具有维护权限的用户可用原配置的保存启用动作重试；不创建新配置。卡片和详情消费同一面板的既有批量轮询，不增加逐卡轮询或客户端 TTL；过期状态只消费服务端 `quality.stale`。 最新值的可读性、数值和运行反馈按同一快照版本接受；迟到详情响应不能撤销较新的授权快照或阻断其合法历史读取，新的拒权会清理当前值和历史。
 

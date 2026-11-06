@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { effectScope, ref, reactive, h } from 'vue'
+import { effectScope, ref, reactive, h, toRef } from 'vue'
 import { resolve } from 'node:path'
 import { createMetricLoader, createMetricRenderer, walk, flush, sourceRoot, passthrough, textContent } from './helpers/metricRuntime.mjs'
 
@@ -8,6 +8,10 @@ const load = createMetricLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key 
 const { calculationFields, calculationKind, windowFields, durationSeconds } = load('components/Metric/template/window.ts')
 const { addSimulationSample, patchSimulationSample, visualSamples, simulationRange, sampleInput, sampleDate } = load('components/Metric/template/simulation.ts')
 const { useMetricTemplates } = load('components/Metric/template/useMetricTemplates.ts')
+const { useTemplateSimulation } = load('components/Metric/template/useTemplateSimulation.ts')
+function trialState(props) {
+  return useTemplateSimulation({ ...Object.fromEntries(['template','text','format','results','response','loading'].map(key => [key,toRef(props,key)])), invalidate:() => { props.response = undefined; props.results = [] } })
+}
 const { simulationTimes, simulationSteps, simulationResultCells, simulationOperation } = load('components/Metric/template/simulationFlow.ts')
 const { expressionLabel } = load('components/Metric/template/designer.ts')
 const response = results => ({ status: 'success', results, records: [], recordsTruncated: false })
@@ -51,24 +55,25 @@ test('窗口族详情跟随具体输出的参与数量；本轮读取不冒充�
     [resolve(sourceRoot, 'components/Metric/MetricValue.vue')]: { default: passthrough('metric-value-stub'), __esModule: true },
     [resolve(sourceRoot, 'components/Metric/MetricTrend.vue')]: { default: passthrough('metric-trend-stub'), __esModule: true },
   })
-  const Flow = flowLoad('components/Metric/template/TemplateSimulationFlow.vue').default
+  const Detail = flowLoad('components/Metric/template/TemplateSimulationDetail.vue').default
+  const { simulationIndex, simulationNodeAt } = flowLoad('components/Metric/template/simulationPreview.ts')
   const value = template()
   value.definitions = [{ id: 'stats', sourceMetric: 'reading', dependsOn: ['reading'], windowFamily: { ranges: [{ mode: 'time', size: 'PT15M', outputs: [{ id: 'mean', aggregation: 'avg' }, { id: 'peak', aggregation: 'max' }] }] } }]
   const results = [{ metricId: 'mean', value: 100, evaluationTime: 1000, quality: { attributes: { actualCount: 8 } } }, { metricId: 'peak', value: 130, evaluationTime: 2000, quality: { attributes: { actualCount: 3 } } }]
   const records = [{ id: 'node', action: 'metric.node', attributes: { definitionId: 'stats', state: 'produced', evaluationTime: 2000, inputs: [{ id: 'reading', count: 1, value: 70 }] } },
     ...results.map((item, index) => ({ id: 'out-' + index, parentId: 'node', action: 'metric.output', attributes: { evaluationTime: item.evaluationTime, resultIndex: index } }))]
-  const props = reactive({ template: value, results, response: { ...response(results), records }, loading: false })
+  const selected = { kind:'rule', index:0 }
+  const index = simulationIndex(value, undefined, results, { ...response(results), records })
+  const props = reactive({ template: value, results, selected, snapshot:simulationNodeAt(index, selected, 1000), time:1000 })
   const { renderer, root } = createMetricRenderer()
-  const app = renderer.createApp({ setup: () => () => h(Flow, props) }); app.config.warnHandler = () => {}; app.mount(root)
+  const app = renderer.createApp({ setup: () => () => h(Detail, props) }); app.config.warnHandler = () => {}; app.mount(root)
   try {
-    const buttons = () => walk(root, node => String(node.props.class).split(' ').includes('simulation-flow__value'))
-    buttons()[0].props.onClick(); await flush()
     assert.match(textContent(root), /participatingSampleCount:8/)
     assert.match(textContent(root), /currentReads/); assert.match(textContent(root), /inputSampleCount:1/)
-    buttons()[1].props.onClick(); await flush()
+    props.snapshot = simulationNodeAt(index, selected, 2000); props.time = 2000; await flush()
     assert.match(textContent(root), /participatingSampleCount:3/)
     assert.doesNotMatch(textContent(root), /participatingSampleCount:8/)
-    props.results = []; props.response = undefined; await flush()
+    props.results = []; props.snapshot = undefined; await flush()
     assert.doesNotMatch(textContent(root), /participatingSampleCount:/)
   } finally { app.unmount() }
 })
@@ -79,7 +84,7 @@ test('观察截止点原位编辑、清空与JSON/YAML无损保留扩展', async
   const source = { ...facts(), custom: false, samples: [] }
   const props = reactive({ template: template(), text: JSON.stringify(source), format: 'json', results: [], loading: false, error: '',
     'onUpdate:text': text => { props.text = text } })
-  const app = renderer.createApp({ setup: () => () => h(Simulation, props) }); app.component('a-popover', passthrough('test-popover')); app.config.warnHandler = () => {}; app.mount(root)
+  const app = renderer.createApp({ setup: () => { const trial = trialState(props); return () => h(Simulation, {template:props.template,trial}) } }); app.component('a-popover', passthrough('test-popover')); app.config.warnHandler = () => {}; app.mount(root)
   try {
     const input = () => walk(root, node => node.type === 'a-input' && node.props['aria-label'] === 'observeUntil')[0]
     input().props.onChange({ target: { value: '2026-11-02T10:30:00' } }); await flush()
@@ -183,7 +188,7 @@ test('真实样本组件逐行保留时间错误；修正其它行不能放行�
     props.loading = true; await flush()
     const original = JSON.stringify(props.facts)
     fields()[0].props.onChange({target:{value:sampleDate(4000)}}); await flush(); assert.equal(JSON.stringify(props.facts), original)
-    assert.equal(walk(root, n => n.type === 'div' && n.props.inert === true).length, 1)
+    assert.equal(walk(root, n => n.props.inert === true).length, 1)
   } finally { app.unmount() }
 })
 
@@ -192,9 +197,10 @@ test('时长组件按分钟读写并保留自定义格式，切换单位保持�
   const { renderer, root } = createMetricRenderer(); const props = reactive({ modelValue: 'PT15M', 'onUpdate:modelValue': value => { props.modelValue = value } })
   const app = renderer.createApp({ setup: () => () => h(Duration, props) }); app.config.warnHandler = () => {}; app.mount(root)
   try {
-    assert.equal(walk(root, n => n.type === 'a-input-number')[0].props.value, 15)
-    walk(root, n => n.type === 'a-input-number')[0].props['onUpdate:value'](5); await flush(); assert.equal(props.modelValue, 'PT300S')
-    walk(root, n => n.type === 'a-select')[0].props['onUpdate:value'](3600); await flush(); assert.equal(props.modelValue, 'PT18000S')
+    const field = type => walk(root, n => n.type === 'external-shell' && n.props.type === type)[0]
+    assert.equal(field('number').props.value, 15)
+    field('number').props.onChange(5); await flush(); assert.equal(props.modelValue, 'PT300S')
+    field('select').props.onChange(3600); await flush(); assert.equal(props.modelValue, 'PT18000S')
     props.modelValue = '15m'; await flush(); assert.equal(walk(root, n => n.type === 'a-input')[0].props.value, '15m')
   } finally { app.unmount() }
 })
@@ -208,9 +214,9 @@ test('布尔数据点初始留空，显式选择false后才变为有效样本', 
   const app = renderer.createApp({ setup: () => () => h(Editor, props) }); app.component('a-popover', passthrough('test-popover')); app.config.warnHandler = () => {}; app.mount(root)
   try {
     assert.equal(invalid.at(-1), true)
-    const select = () => walk(root, node => node.type === 'a-select')[0]
+    const select = () => walk(root, node => node.type === 'external-shell' && node.props.type === 'select')[0]
     assert.equal(select().props.value, undefined)
-    select().props['onUpdate:value']('false'); await flush()
+    select().props.onChange('false'); await flush()
     assert.equal(props.facts.samples[0].value, false); assert.equal(select().props.value, 'false'); assert.equal(invalid.at(-1), false)
   } finally { app.unmount() }
 })
@@ -219,7 +225,7 @@ test('高级配置语法未完成时保留编辑器，修正后可返回图例',
   const Simulation = load('components/Metric/template/TemplateSimulation.vue').default
   const { renderer, root } = createMetricRenderer()
   const props = reactive({ template: template(), text: JSON.stringify(facts()), format: 'json', results: [], loading: false, error: '' })
-  const app = renderer.createApp({ setup: () => () => h(Simulation, props) }); app.config.warnHandler = () => {}; app.mount(root)
+  const app = renderer.createApp({ setup: () => { const trial = trialState(props); return () => h(Simulation, {template:props.template,trial}) } }); app.config.warnHandler = () => {}; app.mount(root)
   const toggle = () => walk(root, node => node.type === 'a-button' && node.props['aria-pressed'] !== undefined)[0]
   try {
     toggle().props.onClick(); await flush(); assert.equal(toggle().props['aria-pressed'], true)
@@ -228,6 +234,27 @@ test('高级配置语法未完成时保留编辑器，修正后可返回图例',
     assert.equal(walk(root, node => node.props.class === 'template-simulation__advanced').length, 1)
     props.text = JSON.stringify(facts()); await flush(); assert.equal(toggle().props.disabled, false)
     toggle().props.onClick(); await flush(); assert.equal(toggle().props['aria-pressed'], false)
+  } finally { app.unmount() }
+})
+
+test('融合面板切换节点保留未完成的时间编辑，修正后才允许试算', async () => {
+  const Simulation = load('components/Metric/template/TemplateSimulation.vue').default
+  const { renderer, root } = createMetricRenderer()
+  const value = template()
+  const samples = patchSimulationSample(addSimulationSample(value, facts(), 'reading', 1000), 0, {value:0})
+  const props = reactive({ template:value, text:JSON.stringify(samples), format:'json', results:[], loading:false, selected:{kind:'input',index:0} })
+  let trial
+  const app = renderer.createApp({ setup:() => { trial = trialState(props); return () => h(Simulation,{template:props.template,trial,selected:props.selected}) } })
+  app.component('a-popover',passthrough('test-popover')); app.config.warnHandler = () => {}; app.mount(root)
+  const inputTime = () => walk(root,node => node.type === 'a-input' && node.props['aria-label'] === '有功功率 · sampleTime')[0]
+  try {
+    inputTime().props.onChange({target:{value:''}}); await flush(); assert.equal(trial.invalid,true)
+    props.selected = {kind:'rule',index:0}; await flush()
+    assert.equal(trial.invalid,true); assert.equal(trial.facts.samples[0].value,0)
+    assert.equal(walk(root,node => node.type === 'details' && node.props.class === 'template-simulation__samples')[0].props.open,true)
+    props.selected = {kind:'input',index:0}; await flush(); assert.equal(trial.invalid,true)
+    inputTime().props.onChange({target:{value:sampleDate(2000)}}); await flush()
+    assert.equal(trial.invalid,false); assert.equal(trial.facts.samples[0].eventTime,2000)
   } finally { app.unmount() }
 })
 

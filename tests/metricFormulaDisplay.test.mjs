@@ -1,19 +1,20 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { h, reactive } from 'vue'
+import { createI18n } from 'vue-i18n'
 import { convertLatexToMarkup } from 'mathlive/ssr'
 import { createMetricLoader, createMetricRenderer, flush, walk, textContent } from './helpers/metricRuntime.mjs'
 
 function mount(expression, render = convertLatexToMarkup) {
   const Display = createMetricLoader({ mathlive: { convertLatexToMarkup: render }, 'mathlive/static.css': {} })('components/Metric/template/formula/TemplateFormulaDisplay.vue').default
   const rule = { id: 'unitEnergy', expression, inputs: [{ id: 'a', metricId: 'energyA' }] }
-  const props = reactive({ expression, rule, template: {
+  const props = reactive({ expression, rule, semanticOnly:false, template: {
     id: 'energy', version: '1', name: '单位能耗', parameters: {},
     inputDefinitions: [{ id: 'energyA', name: '产线A耗电' }, { id: 'energyB', name: '产线B耗电' }, { id: 'quantityA', name: '产线A产量' }, { id: 'quantityB', name: '产线B产量' }],
     definitions: [rule], outputs: [{ metricId: 'unitEnergy', label: '单位产量耗电' }], parameterDefinitions: [{ id: 'factor', name: '修正系数' }],
   } })
   const { renderer, root } = createMetricRenderer()
-  const app = renderer.createApp({ setup: () => () => h(Display, props) }); app.mount(root)
+  const app = renderer.createApp({ setup: () => () => h(Display, props) }); app.use(createI18n({ legacy:false,locale:'zh' })); app.mount(root)
   return { props, root, html: () => walk(root, item => item.props.class === 'template-formula__math')[0]?.props.innerHTML,
     close: () => app.unmount() }
 }
@@ -36,9 +37,9 @@ test('适用条件展示比较关系；高级表达式保持可读原文，切�
   const view = mount('quantityA + quantityB > 0')
   try {
     await flush(); assert.match(view.html(), /产线A产量/); assert.match(view.html(), /&gt;/)
-    view.props.expression = "a > 0 ? 'energyB' : 0"; await flush()
-    assert.equal(view.html(), undefined); assert.equal(textContent(view.root), "产线A耗电 > 0 ? 'energyB' : 0")
-    assert.equal(view.props.expression, "a > 0 ? 'energyB' : 0")
+    view.props.expression = "a > 0 ? unknown('energyB') : 0"; await flush()
+    assert.equal(view.html(), undefined); assert.equal(textContent(view.root), "产线A耗电 > 0 ? unknown('energyB') : 0")
+    assert.equal(view.props.expression, "a > 0 ? unknown('energyB') : 0")
     view.props.expression = 'a / quantityA'; await flush(); assert.match(view.html(), /ML__mfrac/)
   } finally { view.close() }
 })
@@ -60,4 +61,23 @@ test('卸载后资源完成不会进行渲染，也不创建后台编辑实例',
   let calls = 0
   const view = mount('a / quantityA', () => { calls++; return '' })
   view.close(); await flush(); assert.equal(calls, 0)
+})
+
+test('编辑器语义摘要共用分支展示；普通公式和未知语法不重复显示', async () => {
+  const view = mount('a > 0 ? true : false')
+  try {
+    view.props.semanticOnly = true
+    const before = JSON.stringify(view.props.rule)
+    await flush()
+    assert.ok(walk(view.root,item => item.props.role === 'group').length)
+    assert.match(textContent(view.root),/产线A耗电/)
+    assert.doesNotMatch(textContent(view.root),/\? true/)
+    assert.equal(JSON.stringify(view.props.rule),before)
+    for (const expression of ['a + energyB', 'unknown(a)']) {
+      view.props.expression = expression; await flush()
+      assert.equal(textContent(view.root),'')
+    }
+    view.props.semanticOnly = false; await flush()
+    assert.match(textContent(view.root),/unknown/)
+  } finally { view.close() }
 })

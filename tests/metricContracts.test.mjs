@@ -147,7 +147,7 @@ test('批量 latest 区分有权无值、无权省略和真实存储错误，撤
   let view
   const app = renderer.createApp({ setup() {
     view = useMetricPanel(ref({ ownerType: 'space', ownerId: 'floor2' }), {
-      byOwner: async () => [config()], configTemplate: async () => template(),
+      byOwner: async () => [{...config(),state:'enabled'}], configTemplate: async () => template(),
       latest: async () => { if (failure) throw failure; return response }
     })
     return () => null
@@ -340,12 +340,12 @@ test('不可选固定版本仍可编辑，所有输入必须绑定来源，prese
   }))
   await flush()
   assert.equal(view.selectedTemplate.value.version, '1')
-  assert.equal(view.next(), false)
+  assert.equal(view.ready(), false)
   assert.equal(view.errorKind.value, 'binding')
   view.draft.value.inputMappings.meter = config().inputMappings.meter
-  assert.equal(view.next(), false)
+  assert.equal(view.ready(), false)
   view.draft.value.inputMappings.optional = config().inputMappings.meter
-  assert.equal(view.next(), true)
+  assert.equal(view.ready(), true)
   assert.equal(view.draft.value.id, 'config-a')
   scope.stop()
 })
@@ -368,6 +368,55 @@ test('revision 冲突不覆盖编辑内容，重新读取先保存为比较快�
   assert.equal(view.draft.value.name, '同事已保存')
   assert.equal(view.draft.value.revision, 3)
   scope.stop()
+})
+
+test('重新打开配置恢复授权来源名称，映射修改后旧名称与迟到响应不回填', async () => {
+  const scope = effectScope(), pending = [], reads = []
+  const picker = Object.assign(async () => undefined, { describe:(owner, mappings) => {
+    reads.push([owner, mappings]); return new Promise(resolve => pending.push(resolve))
+  } })
+  let saves = 0
+  const context = ref({ ownerType:'space', ownerId:'floor2', editable:true })
+  const view = scope.run(() => useMetricEditor(context, ref(config()), ref(picker), {
+    selectable:async () => [], configTemplate:async () => template(), saveConfig:async next => { saves++; return next }
+  }))
+  try {
+    await flush(); assert.equal(reads.length, 1)
+    assert.equal(reads[0][1].meter.id, 'energy')
+    view.draft.value.inputMappings.meter.id = 'power'; await flush()
+    pending[0]({ meter:{ label:'旧设备 / 电量' } }); await flush()
+    assert.equal(view.sourceLabels.value.meter, undefined)
+    pending[1]({ meter:{ label:'电表 / 功率', unit:'kW' } }); await flush()
+    assert.equal(view.sourceLabels.value.meter, '电表 / 功率')
+    assert.equal(view.dirty.value, true)
+    view.draft.value.inputMappings.meter.id = 'removed'; await flush()
+    assert.equal(view.sourceLabels.value.meter, undefined)
+    pending[2]({ meter:{ error:'属性已移除' } }); await flush()
+    assert.equal(await view.save(false), undefined)
+    assert.equal(view.errorKind.value, 'binding'); assert.equal(saves, 0)
+    context.value.editable = false; await flush()
+    assert.equal(view.sourcesLoading.value, false)
+    assert.deepEqual(view.sourceDescriptions.value, {})
+  } finally { scope.stop() }
+})
+
+test('切换模板取消原位来源选择，迟到选择不能覆盖新模板', async () => {
+  const scope = effectScope(); let finish; let cancelled = 0
+  const picker = Object.assign(() => new Promise(resolve => { finish = resolve }), { cancel:() => cancelled++, editor:{} })
+  const nextTemplate = { ...template(), id:'next' }
+  const view = scope.run(() => useMetricEditor(ref({ ownerType:'space',ownerId:'floor2',editable:true }), ref(config()), ref(picker), {
+    configTemplate:async () => template(), selectable:async () => [{ id:'next', template:nextTemplate, released:true, available:true }]
+  }))
+  try {
+    await flush()
+    const choosing = view.choose(template().inputDefinitions[0], true)
+    view.templateSelection.value = JSON.stringify(['next','1'])
+    finish({ mapping:{ kind:'property', id:'late' }, label:'迟到来源' }); await choosing
+    assert.equal(view.draft.value.templateId, 'next')
+    assert.deepEqual(view.draft.value.inputMappings, {})
+    assert.equal(view.choosing.value, '')
+    assert.ok(cancelled > 0)
+  } finally { scope.stop() }
 })
 
 test('YAML/JSON 编辑使用同一模板 DTO，保留单位、布尔和来源要求', () => {
@@ -433,14 +482,14 @@ test('卡片详情按需装载；关闭、撤权、owner切换和保存均不重
     assert.equal(view.reference.value, undefined)
     await view.refresh(); await flush()
     assert.equal(view.reference.value, undefined)
-    view.openEditor(config())
+    view.openEditor({ ...config(), ownerId: owner.value.ownerId })
     assert.equal(view.editorOpen.value, true)
     owner.value = { ...owner.value, ownerId: 'floor4' }
     assert.equal(view.editorOpen.value, false)
     assert.equal(view.editing.value, undefined)
     await view.refresh()
     view.select('config-a', 'hourEnergy'); await flush()
-    view.openEditor(config()); await flush()
+    view.openEditor({ ...config(), ownerId: owner.value.ownerId }); await flush()
     assert.equal(view.reference.value, undefined)
     await view.saved(); await flush()
     assert.equal(view.editorOpen.value, false)

@@ -30,7 +30,7 @@ export function calculationKind(rule: TemplateRule): CalculationKind {
 }
 /** 显式切换计算方式时清除互斥字段，其余引用、质量策略与扩展字段不变。 */
 export function calculationFields(kind: CalculationKind): Partial<TemplateRule> {
-  const fields = { expression: undefined, calculator: undefined, temporalCondition: undefined, aggregation: undefined, timeAggregation: undefined, windowFamily: undefined, window: undefined }
+  const fields = { expression: undefined, calculator: undefined, temporalCondition: undefined, stateTracking: undefined, aggregation: undefined, timeAggregation: undefined, windowFamily: undefined, window: undefined }
   if (kind === 'statistics') return { ...fields, type: 'feature', aggregation: 'avg', window: { mode: 'time', size: 'PT15M', timeMode: 'event', emitPolicy: 'onEvent' } }
   if (kind === 'temporal') return { ...fields, type: 'composite', temporalCondition: { enterExpression: '', exitExpression: '', dwell: 'PT3M', recovery: 'PT1M' } }
   if (kind === 'calculator') return { ...fields, type: 'feature', calculator: { provider: '', providerVersion: '1', parameters: {} } }

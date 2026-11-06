@@ -13,7 +13,7 @@ export async function loadMetricLatest(api: Pick<MetricApi, 'latest'>, ids: stri
     try {
       const response = await api.latest(batchIds)
       if (!isCurrent()) return
-      const readable = new Map(response.filter(item => batchIds.includes(item.configId)).map(item => [item.configId, item]))
+      const readable = new Map(response.filter(item => !item.inaccessible && batchIds.includes(item.configId)).map(item => [item.configId, item]))
       for (const id of batchIds) {
         const item = readable.get(id)
         if (item) {

@@ -32,7 +32,7 @@ export function useMetricWorkspace(scopeKey: Ref<string>, initial: Ref<MetricWor
     if (!object || !provider || selection.value?.ownerId !== object.ownerId) return
     let canEdit = false
     try { canEdit = editable.value && (provider.canEdit?.(object) ?? true) } catch { canEdit = false }
-    return { ...object, ownerType: provider.ownerType, editable: canEdit }
+    return { ...object, ownerType: provider.ownerType, editable: canEdit, ...(provider.inheritance ? { inheritance: provider.inheritance() } : {}) }
   })
   /** 只记各维度ID；失效一个维度不能删除同一身份下其他维度的选择。 */
   function persist(value?: MetricWorkspaceSelection, invalidType?: string) {

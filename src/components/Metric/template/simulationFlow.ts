@@ -1,6 +1,7 @@
 import type { MetricTemplate, MetricValue, MetricActionRecord } from '../types'
 import { templateGraph, ruleDependencies, type TemplateRule } from './designer'
 import { calculationKind, durationParts } from './window'
+import { metricValueText } from '../presentation'
 
 export const simulationShape = (index: number) => ['circle', 'square', 'diamond', 'triangle'][index % 4]
 export const evaluationTime = (value: MetricValue) => value.evaluationTime ?? value.eventTime ?? value.timestamp
@@ -17,7 +18,7 @@ export function simulationSteps(template: MetricTemplate, results: MetricValue[]
     const values = byMetric.get(result.metricId) || []
     values.push(result); byMetric.set(result.metricId, values)
   }
-  const nodes = templateGraph(template).nodes.filter(node => node.kind === 'rule').sort((a, b) => a.column - b.column || a.index - b.index)
+  const nodes = templateGraph(template).nodes.filter(node => node.kind === 'rule')
   return nodes.flatMap(node => {
     const rule = template.definitions[node.index] as TemplateRule
     const family = rule.windowFamily as { ranges?: { size?: string; mode?: string; outputs?: { id?: string; aggregation?: string }[] }[] } | undefined
@@ -53,12 +54,21 @@ export function simulationOperation(rule: TemplateRule, t: Translate): string {
     return rule.window?.mode === 'none' || rule.type === 'raw' ? range : `${range} · ${t(`statistic_${rule.aggregation || 'avg'}`)}`
   }
   if (rule.temporalCondition) return `${rule.temporalCondition.enterExpression || '—'} · ${t('dwell')} ${simulationDuration(rule.temporalCondition.dwell, t)} · ${t('recovery')} ${simulationDuration(rule.temporalCondition.recovery, t)}`
+  const parameters = rule.calculator?.parameters || {}
+  if (rule.calculator?.provider === 'state') return t('stateCalculationSummary', { duration: simulationDuration(String(parameters.duration || ''), t), hold: simulationDuration(String(parameters.maxHold || ''), t) })
+  if (rule.calculator?.provider === 'measurement') return t(parameters.operation === 'integral' ? 'integralCalculationSummary' : 'increaseCalculationSummary', { source: rule.inputs?.[0]?.id || rule.sourceMetric || '' })
   return rule.expression || rule.calculator?.provider || t('calculation')
 }
 
 /** 同一时刻可有多个结果，保留服务端返回次序，不能用 Map<time,value> 覆盖。 */
 export function simulationResultCells(values: MetricValue[], columns: Map<number, number>) {
-  return simulationCells(values, columns, evaluationTime)
+  return simulationCells(values, columns, evaluationTime).map(cell => ({ ...cell,
+    // 仅改变展示层级：最后一次无效结果也必须保留，不能挑有效值伪装为最终值。
+    primary: cell.values[cell.values.length - 1], previous: cell.values.slice(0, -1),
+  }))
+}
+export function simulationValueText(value: unknown, t: Translate): string {
+  return typeof value === 'boolean' ? t(value ? 'conditionTrue' : 'conditionFalse') : metricValueText(value)
 }
 export function simulationRecordCells(values: MetricActionRecord[], columns: Map<number, number>) {
   return simulationCells(values, columns, record => Number(record.attributes.evaluationTime))

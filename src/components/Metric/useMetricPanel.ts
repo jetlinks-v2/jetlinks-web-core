@@ -1,8 +1,11 @@
 import { computed, onActivated, onDeactivated, onMounted, onScopeDispose, ref, watch, type Ref } from 'vue'
 import { metricApi } from './api'
-import { copy, errorText, outputId, templateKey } from './service'
+import { copy, errorText, outputId, metricDataTarget, metricValueMatches, newerMetricValue } from './service'
 import { loadMetricLatest } from './extensions/latestBatch'
+import { presentationSettings, primaryMetricOutput, summaryMetricOutputs } from './extensions/presentationSettings'
 import type { MetricApi, MetricConfig, MetricContext, MetricLatest, MetricReference, MetricRuntime, MetricTemplate, MetricValue } from './types'
+
+const templateRevisionKey = (config: MetricConfig) => JSON.stringify([config.templateId, config.templateVersion, config.templateRevision || 1])
 
 /** 一个面板管理一个对象；旧请求不得回填切换后的对象。轮询随页面可见性暂停。 */
 export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = metricApi, initialReference?: Ref<MetricReference | undefined>) {
@@ -21,6 +24,8 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
   const selectedOutputId = ref('')
   const editorOpen = ref(false)
   const editing = ref<MetricConfig>()
+  const refreshInterval = ref(1000)
+  const subscriptions = new Map<string, () => void>()
   let focusReturn: MetricReference | undefined
   let initialSelectionPending = true
   let generation = 0
@@ -31,14 +36,32 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
   let inFlight: Promise<void> | undefined
   let scheduleGeneration = 0
   const selected = computed(() => configurations.value.find(config => config.id === selectedId.value))
+  const canManage = (config: MetricConfig) => Boolean(context.value.editable && config.ownerType === context.value.ownerType && config.ownerId === context.value.ownerId)
   const selectedOutput = computed(() => templates.value[selectedId.value]?.outputs.find(output => outputId(output) === selectedOutputId.value))
   const reference = computed<MetricReference | undefined>(() => selected.value?.id && selectedOutput.value && !inaccessibleIds.value.includes(selected.value.id) && !latestErrors.value[selected.value.id]
-    ? { configId: selected.value.id, outputId: outputId(selectedOutput.value) } : undefined)
+    ? { configId: selected.value.id, outputId: outputId(selectedOutput.value),
+      ...(selected.value.scope === 'children' ? metricDataTarget(selected.value, context.value) : {}) } : undefined)
   const selectedLatest = computed<MetricLatest | undefined>(() => reference.value ? {
     configId: reference.value.configId, outputs: outputs.value[reference.value.configId] || {}, runtime: runtimes.value[reference.value.configId]
   } : undefined)
   const cards = computed(() => configurations.value.flatMap(config => config.id
     ? (templates.value[config.id]?.outputs || []).map(output => ({ config, output, reference: { configId: config.id!, outputId: outputId(output) } })) : []))
+  const cardGroups = computed(() => {
+    const groups = new Map<string, typeof cards.value>()
+    for (const card of cards.value) {
+      const group = groups.get(card.reference.configId)
+      if (group) group.push(card)
+      else groups.set(card.reference.configId, [card])
+    }
+    return [...groups.values()].map(group => {
+      const first = group[0]
+      const template = templates.value[first.reference.configId]
+      const id = outputId(primaryMetricOutput(template, first.config))
+      const primary = group.find(card => card.reference.outputId === id) || first
+      const summaryIds = summaryMetricOutputs(template, first.config).map(outputId)
+      return { ...primary, secondary: summaryIds.flatMap(id => group.filter(card => card.reference.outputId === id)), settings: presentationSettings(template, first.config) }
+    })
+  })
 
   /** 手动选择或关闭会消费返回定位；后续轮询、prop 变化和恢复权限都不能重开详情。 */
   function closeDetail() { initialSelectionPending = false; selectedId.value = ''; selectedOutputId.value = ''; focusReturn = undefined }
@@ -54,7 +77,7 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
   }
   /** 趋势和编辑共用一个抽屉；保存后回到刷新后的概览，不自动加载某个输出的历史。 */
   function openEditor(config?: MetricConfig) {
-    if (!context.value.editable) return
+    if (!context.value.editable || config && !canManage(config)) return
     closeDetail()
     editing.value = config ? copy(config) : undefined
     editorOpen.value = true
@@ -88,7 +111,7 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
 
   /** 写入只属于发起时的对象与操作；轮询不改变该身份，退场和对象切换会撤销它。 */
   async function writeConfig(config: MetricConfig, action: (id: string) => Promise<unknown>, feedback = error, onSaved?: () => void): Promise<boolean> {
-    if (!active || !context.value.editable || !config.id) return false
+    if (!active || !canManage(config) || !config.id) return false
     const epoch = ownerEpoch
     const operation = ++writeSequence
     const current = () => active && epoch === ownerEpoch && operation === writeSequence
@@ -109,14 +132,14 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
   function invalidateWrites() { ownerEpoch++; busyId.value = '' }
 
   /** Manual refresh, activation and poll share one owner request; an owner switch detaches the old task. */
-  function refresh(): Promise<void> {
+  function refresh(readValues = true): Promise<void> {
     if (inFlight) return inFlight
-    const task = readSnapshot()
+    const task = readSnapshot(readValues)
     inFlight = task
     void task.finally(() => { if (inFlight === task) inFlight = undefined })
     return task
   }
-  async function readSnapshot() {
+  async function readSnapshot(readValues: boolean) {
     const token = ++generation
     const owner = copy(context.value)
     loading.value = !configurations.value.length
@@ -125,22 +148,52 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
       const configs = await api.byOwner(owner.ownerType, owner.ownerId)
       const metadata: Record<string, MetricTemplate> = {}
       const errors: Record<string, string> = {}
-      const cache = new Map(Object.values(templates.value).map(template => [templateKey(template), template]))
+      const cache = new Map(configurations.value.flatMap(config => config.id && templates.value[config.id]
+        ? [[templateRevisionKey(config), templates.value[config.id]] as const] : []))
       for (const config of configs) {
         if (!config.id) continue
-        const key = templateKey({ id: config.templateId, version: config.templateVersion })
+        const key = templateRevisionKey(config)
         try {
-          const template = cache.get(key) || await api.configTemplate(config.id)
+          const template = cache.get(key) || await api.configTemplate(config.id, metricDataTarget(config, owner))
           cache.set(key, template)
           metadata[config.id] = template
         } catch (cause) { errors[config.id] = errorText(cause) }
       }
       const ids = configs.flatMap(config => config.id ? [config.id] : [])
-      const latest = await loadMetricLatest(api, ids, outputs.value, inaccessibleIds.value, () => token === generation, runtimes.value)
+      const targetApi: Pick<MetricApi, 'latest'> = { latest: async batchIds => {
+        const groups = new Map<string, { target: ReturnType<typeof metricDataTarget>; ids: string[] }>()
+        for (const id of batchIds) {
+          const config = configs.find(item => item.id === id)!
+          const target = metricDataTarget(config, owner), key = JSON.stringify(target)
+          const group = groups.get(key)
+          if (group) group.ids.push(id)
+          else groups.set(key, { target, ids: [id] })
+        }
+        const values: MetricLatest[] = []
+        for (const group of groups.values()) values.push(...await api.latest(group.ids, group.target))
+        return values
+      } }
+      // 持续流更新当前值；低频同步只刷新配置，不重复读取最新值或重建有效订阅。
+      const latest = readValues || !api.watchLatest || !subscriptions.size || Object.keys(latestErrors.value).length || inaccessibleIds.value.length
+        ? await loadMetricLatest(targetApi, ids, outputs.value, inaccessibleIds.value, () => token === generation, runtimes.value)
+        : { outputs: Object.fromEntries(ids.map(id => [id, outputs.value[id] || {}])),
+          runtimes: Object.fromEntries(ids.filter(id => runtimes.value[id]).map(id => [id, runtimes.value[id]])),
+          inaccessibleIds: inaccessibleIds.value.filter(id => ids.includes(id)), errors: { ...latestErrors.value } }
       if (token !== generation || !latest) return
       configurations.value = configs
       templates.value = metadata
       itemErrors.value = errors
+      for (const config of configs) {
+        if (!config.id || latest.inaccessibleIds.includes(config.id)) continue
+        if (config.state === 'disabled') { latest.outputs[config.id] = {}; continue }
+        const target = metricDataTarget(config, owner)
+        for (const [output, previous] of Object.entries(outputs.value[config.id] || {})) {
+          if (metricValueMatches(config, target, previous)) {
+            const incoming = latest.outputs[config.id]?.[output]
+            if (incoming) latest.outputs[config.id][output] = newerMetricValue(previous, incoming)
+          }
+        }
+      }
       outputs.value = latest.outputs
       runtimes.value = latest.runtimes
       latestErrors.value = latest.errors
@@ -162,9 +215,11 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
         if (!retryable) initialSelectionPending = false
       }
       if (selectedId.value && !reference.value) closeDetail()
+      synchronizeSubscriptions()
     } catch (cause) {
       if (token === generation) {
         error.value = errorText(cause)
+        stopSubscriptions()
         if (selectedId.value) closeDetail()
       }
     } finally { if (token === generation) loading.value = false }
@@ -178,16 +233,74 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
     })
   }
   function stop() { scheduleGeneration++; if (timer) clearTimeout(timer); timer = undefined }
+  function stopSubscriptions() { subscriptions.forEach(stop => stop()); subscriptions.clear() }
+  function synchronizeSubscriptions() {
+    if (!api.watchLatest || !active || document.hidden || error.value) { stopSubscriptions(); return }
+    const groups = new Map<string, { target: ReturnType<typeof metricDataTarget>; ids: string[] }>()
+    for (const config of configurations.value) {
+      if (!config.id || config.state !== 'enabled' || inaccessibleIds.value.includes(config.id) || latestErrors.value[config.id]) continue
+      const target = metricDataTarget(config, context.value), key = JSON.stringify(target) || ''
+      const group = groups.get(key)
+      if (group) group.ids.push(config.id)
+      else groups.set(key, { target, ids: [config.id] })
+    }
+    const targets = new Map<string, { target: ReturnType<typeof metricDataTarget>; ids: string[] }>()
+    for (const group of groups.values()) {
+      group.ids.sort()
+      for (let start = 0; start < group.ids.length; start += 128) {
+        const ids = group.ids.slice(start, start + 128)
+        targets.set(JSON.stringify([group.target, ids]), { target: group.target, ids })
+      }
+    }
+    for (const [key, stop] of subscriptions) if (!targets.has(key)) { stop(); subscriptions.delete(key) }
+    for (const [key, { target, ids }] of targets) {
+      if (subscriptions.has(key)) continue
+      let current = true
+      const stop = api.watchLatest(ids, target, refreshInterval.value, snapshot => {
+        if (!current || !active || document.hidden) return
+        const id = snapshot.configId, config = configurations.value.find(item => item.id === id)
+        if (!ids.includes(id) || !config) return
+        if (snapshot.inaccessible) {
+          delete outputs.value[id]; delete runtimes.value[id]
+          if (!inaccessibleIds.value.includes(id)) inaccessibleIds.value.push(id)
+          if (selectedId.value === id || editing.value?.id === id) closeDrawer()
+          return
+        }
+        const values: Record<string, MetricValue> = {}
+        for (const [output, value] of Object.entries(snapshot.outputs)) {
+          if (templates.value[id]?.outputs.some(item => item.metricId === output)
+            && metricValueMatches(config, metricDataTarget(config, context.value), value)) {
+            values[output] = newerMetricValue(outputs.value[id]?.[output], value)
+          }
+        }
+        // 配置刷新后仍可能收到在途旧修订；不能用不匹配的结果清空当前修订。
+        if (Object.keys(snapshot.outputs).length && !Object.keys(values).length) return
+        outputs.value[id] = values
+        inaccessibleIds.value = inaccessibleIds.value.filter(item => item !== id)
+        delete latestErrors.value[id]
+        if (snapshot.runtime) runtimes.value[id] = snapshot.runtime
+        else delete runtimes.value[id]
+      }, cause => {
+        if (!current) return
+        current = false; subscriptions.delete(key)
+        for (const id of ids) latestErrors.value[id] = errorText(cause)
+      })
+      if (current) subscriptions.set(key, () => { current = false; stop() })
+      else stop()
+    }
+  }
   async function poll() {
     stop()
     const scheduleToken = scheduleGeneration
     if (!active || document.hidden) return
-    await refresh()
+    await refresh(false)
     if (scheduleToken === scheduleGeneration && active && !document.hidden) timer = setTimeout(poll, 15000)
   }
-  function visibility() { document.hidden ? stop() : void poll() }
-  watch(() => [context.value.ownerType, context.value.ownerId], () => {
+  function visibility() { if (document.hidden) { stop(); stopSubscriptions() } else void poll() }
+  watch(refreshInterval, () => { stopSubscriptions(); synchronizeSubscriptions() })
+  watch([() => context.value.ownerType, () => context.value.ownerId], () => {
     generation++
+    stopSubscriptions()
     invalidateWrites()
     inFlight = undefined
     configurations.value = []
@@ -205,11 +318,11 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
   watch(() => context.value.editable, editable => { if (!editable && editorOpen.value) closeDrawer() }, { flush: 'sync' })
   onMounted(() => { document.addEventListener('visibilitychange', visibility); void poll() })
   onActivated(() => { if (!active) { active = true; void poll() } })
-  onDeactivated(() => { active = false; generation++; invalidateWrites(); stop() })
-  onScopeDispose(() => { active = false; generation++; invalidateWrites(); stop(); document.removeEventListener('visibilitychange', visibility) })
+  onDeactivated(() => { active = false; generation++; invalidateWrites(); stop(); stopSubscriptions() })
+  onScopeDispose(() => { active = false; generation++; invalidateWrites(); stop(); stopSubscriptions(); document.removeEventListener('visibilitychange', visibility) })
   async function rename(config: MetricConfig, name: string) {
     await writeConfig(config, () => api.saveConfig({ ...copy(config), name }))
   }
   return { configurations, templates, outputs, runtimes, selectedLatest, itemErrors, inaccessibleIds, latestErrors, actionError, loading, error, busyId, selectedId, selectedOutputId,
-    selected, selectedOutput, reference, cards, select, closeDetail, editorOpen, editing, openEditor, closeDrawer, dismissDrawer, takeFocusReference, saved, refresh, setEnabled, rename, remove }
+    selected, selectedOutput, reference, cards, cardGroups, select, closeDetail, editorOpen, editing, openEditor, closeDrawer, dismissDrawer, takeFocusReference, saved, refresh, setEnabled, rename, remove, canManage, refreshInterval }
 }

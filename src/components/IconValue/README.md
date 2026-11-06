@@ -9,6 +9,7 @@
 | `value/modelValue` | 图标值或编辑值 | `string \| null` |  |
 | `size/previewSize` | 展示或预览尺寸 | `number` | 48/56 |
 | `fallbackText/previewFallback` | 无值时文本 | `string` |  |
+| `indicator` | 标签已在外部提供时，纯色显示小圆点、字体图标去底色；容器尺寸和图片保留 | `boolean` | false |
 | `round/roundPreview` | 圆形展示 | `boolean` | false |
 | `safeColors` | 允许的颜色列表 | `string[]` | - |
 | `enableCropUpload` | 启用裁剪上传 | `boolean` | true |

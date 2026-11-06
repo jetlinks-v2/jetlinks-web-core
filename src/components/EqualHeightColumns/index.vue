@@ -8,7 +8,7 @@
       'equal-height-columns--collapsed': isCollapsed,
       'equal-height-columns--single': !showLeft,
     }]"
-    :style="[attrs.style, rootStyle]"
+    :style="[attrs.style as StyleValue, rootStyle]"
   >
     <div v-if="showLeft" ref="leftPaneRef" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
       <slot name="left" />
@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts" name="EqualHeightColumns">
-import { computed, ref, useAttrs, type CSSProperties } from 'vue'
+import { computed, ref, useAttrs, type CSSProperties, type StyleValue } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useColumnToggle } from './useColumnToggle'
 

@@ -5,19 +5,32 @@ import { durationSeconds } from './window'
 export interface SimulationSample extends Record<string, unknown> {
   thingType?: string; thingId?: string; metricId?: string; value?: unknown
   eventTime?: number; ingestTime?: number; processTime?: number; unit?: string
+  configId?: string
+  sourceKind?: MetricInputMapping['kind']
+  includeChildren?: boolean
+  statistics?: MetricInputMapping['statistics']
 }
 export interface SimulationFacts extends Record<string, unknown> { configuration: MetricConfig; samples: SimulationSample[] }
-const matches = (sample: SimulationSample, source: MetricInputMapping, config: MetricConfig) => source.kind === 'property'
+/** 与后端虚拟时钟的推进顺序一致，数据时间仍保留用于窗口归属。 */
+export const sampleExecutionTime = (sample: SimulationSample) => Number(sample.processTime) > 0 ? Number(sample.processTime)
+  : Number(sample.ingestTime) > 0 ? Number(sample.ingestTime) : sample.eventTime
+const statisticsFields = ['memberType','sourceType','sourceId','operation','operator','value','maxAge','period','zone','periodMetricId','coverageMetricId'] as const
+const sameStatistics = (left:MetricInputMapping['statistics'], right:MetricInputMapping['statistics']) => !left || !right
+  ? !left && !right : statisticsFields.every(field => left[field] === right[field])
+const matches = (sample: SimulationSample, source: MetricInputMapping, config: MetricConfig) => (source.kind === 'metric' ? !!source.configId && sample.configId === source.configId
+  : !sample.configId && (source.kind === 'builtin' ? sample.sourceKind === 'builtin' && !!source.includeChildren === !!sample.includeChildren : sample.sourceKind !== 'builtin'))
   && sample.thingType === (source.thingType || config.targetType) && sample.thingId === (source.thingId || config.targetId) && sample.metricId === source.id
+  && sameStatistics(sample.statistics, source.statistics)
+  && (!source.statistics || !!sample.includeChildren === !!source.includeChildren)
 
-/** 仅承接能无损映射到模板输入的样本；自定义事实继续保留在高级编辑器。 */
-export function sampleInput(template: MetricTemplate, facts: SimulationFacts, sample: SimulationSample): string | undefined {
-  const ids = template.inputDefinitions.filter(input => {
+/** 同一来源可以供多个输入使用；每条样本只发送一次，展示时关联所有引用它的输入。 */
+export function sampleInputs(template: MetricTemplate, facts: SimulationFacts, sample: SimulationSample): string[] {
+  return template.inputDefinitions.filter(input => {
     const source = facts.configuration.inputMappings?.[input.id]
     return source && matches(sample, source, facts.configuration)
-  })
-  return ids.length === 1 ? ids[0].id : undefined
+  }).map(input => input.id)
 }
+export const sampleInput = (template:MetricTemplate, facts:SimulationFacts, sample:SimulationSample) => sampleInputs(template, facts, sample)[0]
 export function visualSamples(template: MetricTemplate, value: Record<string, unknown>): value is SimulationFacts {
   const facts = value as SimulationFacts
   return !!facts.configuration?.inputMappings && Array.isArray(facts.samples) && facts.samples.every(sample => !!sample && typeof sample === 'object'
@@ -32,7 +45,8 @@ export function addSimulationSample(template: MetricTemplate, facts: SimulationF
   const config = { ...facts.configuration, templateId: template.id, templateVersion: template.version, inputMappings }
   const source = inputMappings[inputId]
   return { ...facts, configuration: config, samples: [...facts.samples, { thingType: source.thingType || config.targetType,
-    thingId: source.thingId || config.targetId, metricId: source.id, unit: input.unit, value: null,
+    thingId: source.thingId || config.targetId, metricId: source.id, ...(source.kind === 'metric' ? { configId:source.configId,
+      ...(source.statistics ? { statistics:{ ...source.statistics }, includeChildren:!!source.includeChildren } : {}) } : source.kind === 'builtin' ? { sourceKind:'builtin', includeChildren:!!source.includeChildren } : {}), unit: input.unit, value: null,
     eventTime: time, ingestTime: time, processTime: time }] }
 }
 /** 修改数据时间保留原到达延迟，0和false作为真实样本值保留。 */
@@ -59,7 +73,7 @@ export function simulationRange(template: MetricTemplate, facts: SimulationFacts
   const source = rule?.sourceMetric || rule?.dependsOn?.[0]
   const direct = template.inputDefinitions.some(input => input.id === source)
   const time = (sample: SimulationSample) => rule?.window?.timeMode === 'processing' ? sample.processTime ?? sample.eventTime! : sample.eventTime!
-  const points = facts.samples.map((sample, index) => ({ index, input: sampleInput(template, facts, sample), time: time(sample), value: sample.value }))
+  const points = facts.samples.flatMap((sample, index) => sampleInputs(template, facts, sample).map(input => ({ index, input, time:time(sample), value:sample.value })))
   const ordered = points.filter(point => !direct || point.input === source).sort((a, b) => a.time - b.time)
   if (!ordered.length) return undefined
   const end = ordered.at(-1)!.time

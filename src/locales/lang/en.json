@@ -723,6 +723,7 @@
   "PersonalToken.TokenDialog.editTitle": "Edit Token",
   "PersonalToken.TokenDialog.viewTitle": "View Token",
   "I18n.configure": "Internationalization settings",
+  "Editable.edit": "Edit",
   "I18n.chinese": "Chinese",
   "I18n.english": "English",
   "I18n.placeholder": "Enter {language}",

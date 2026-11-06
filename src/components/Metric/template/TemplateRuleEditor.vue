@@ -1,70 +1,102 @@
 <template>
-  <a-form layout="vertical" :disabled="disabled">
-    <a-form-item :label="t('calculationMethod')">
-      <a-select :value="kind" :options="kinds" @update:value="changeKind" />
-    </a-form-item>
+  <div class="rule-editor">
     <template v-if="kind === 'statistics'">
-      <a-form-item :label="t('source')"><a-select :value="rule.sourceMetric || ruleDependencies(rule)[0]" :options="references.map(item => ({ value: item.id, label: item.label }))" :aria-label="t('statisticSource')" @update:value="setStatisticSource" /></a-form-item>
-      <TemplateWindowEditor :rule="rule" :disabled="disabled" @patch="emit('patch', $event)" />
+      <TemplateWindowEditor :rule="rule" :disabled="disabled" @patch="emit('patch', $event)">
+        <template #source><TemplateReference :metric-id="rule.sourceMetric || ruleDependencies(rule)[0]"><Editable class="rule-editor__inline-source" type="select" :value="rule.sourceMetric || ruleDependencies(rule)[0]" :component-props="{ disabled, bordered:false, defaultOpen:true, options:referenceOptions, 'aria-label':t('statisticSource'), placeholder:t('chooseSource'), dropdownMatchSelectWidth:false }" @change="setStatisticSource($event as string)" /></TemplateReference></template>
+      </TemplateWindowEditor>
     </template>
     <template v-else-if="kind === 'expression'">
-      <a-form-item :label="t('formula')">
-        <TemplateFormulaEditor :model-value="rule.expression || ''" :references="formulaReferences" :disabled="disabled"
-          @change="updateFormula" @invalid="setFormulaInvalid" />
-      </a-form-item>
+      <TemplateFormulaDisplay :template="displayTemplate" :rule="rule" :expression="rule.expression || ''" :calculators="calculators" semantic-only />
+      <TemplateFormulaEditor :model-value="rule.expression || ''" :references="formulaReferences" :disabled="disabled"
+        @change="updateFormula" @invalid="setFormulaInvalid" />
+      <TemplateStateTracking :rule="rule" :disabled="disabled" @patch="emit('patch', $event)" />
     </template>
     <template v-else-if="kind === 'temporal'">
-      <a-form-item :label="t('enterCondition')"><a-textarea :value="rule.temporalCondition?.enterExpression" @update:value="temporal('enterExpression', $event)" /></a-form-item>
-      <a-form-item :label="t('dwell')"><TemplateDuration :model-value="rule.temporalCondition?.dwell" :disabled="disabled" @update:model-value="temporal('dwell', $event)" /></a-form-item>
-      <a-form-item :label="t('exitCondition')"><a-textarea :value="rule.temporalCondition?.exitExpression" @update:value="temporal('exitExpression', $event)" /></a-form-item>
-      <a-form-item :label="t('recovery')"><TemplateDuration :model-value="rule.temporalCondition?.recovery" :disabled="disabled" @update:model-value="temporal('recovery', $event)" /></a-form-item>
-      <a-form-item :label="t('maxNoData')"><TemplateDuration :model-value="rule.temporalCondition?.maxNoData" :disabled="disabled" @update:model-value="temporal('maxNoData', $event)" /></a-form-item>
+      <section v-for="phase in temporalPhases" :key="phase.field" class="rule-editor__phase">
+        <div class="rule-editor__phase-title"><AIcon :type="phase.icon" /><span>{{ t('sentenceWhen') }}</span><small>{{ t(phase.label) }}</small></div>
+        <TemplateFormulaEditor :model-value="rule.temporalCondition?.[phase.field] || ''" :references="formulaReferences" :disabled="disabled" conditions @change="updateCondition(phase.field, $event)" @invalid="setConditionInvalid(phase.key, $event)" />
+        <div class="rule-editor__timing"><span>{{ t('conditionHeldFor') }}</span><TemplateDuration :model-value="rule.temporalCondition?.[phase.duration]" :disabled="disabled" @update:model-value="temporal(phase.duration, $event)" /><span>{{ t(phase.result) }}{{ t('sentenceEnd') }}</span></div>
+      </section>
+      <div class="rule-editor__timing"><AIcon type="DisconnectOutlined" /><span>{{ t('sentenceNoDataFor') }}</span><TemplateDuration :model-value="rule.temporalCondition?.maxNoData" :disabled="disabled" @update:model-value="temporal('maxNoData', $event)" /><span>{{ t('sentenceInterrupted') }}{{ t('sentenceEnd') }}</span></div>
     </template>
-    <a-form-item v-else :label="t('algorithmConfiguration')">
-      <a-textarea v-model:value="calculatorText" :auto-size="{ minRows: 8, maxRows: 18 }" :aria-label="t('algorithmConfiguration')" @update:value="updateCalculator" />
-      <a-alert v-if="calculatorError" type="error" :message="t('invalidText')" :description="calculatorError" show-icon />
-    </a-form-item>
+    <TemplateAlgorithmEditor v-else :template="template" :rule="rule" :disabled="disabled" :calculators="calculators"
+      @patch="emit('patch', $event)" @invalid="setCalculatorInvalid" />
     <div v-if="kind !== 'statistics' && !rule.windowFamily && (!rule.window?.mode || rule.window.mode === 'none')" class="rule-editor__timing">
-      <span>{{ t('calculationTrigger') }}</span>
-      <a-select :value="rule.window?.emitPolicy || 'onEvent'" :aria-label="t('calculationTrigger')" :options="timings" @update:value="changeTiming" />
+      <AIcon type="ClockCircleOutlined" /><Editable class="rule-editor__trigger" :class="{ 'rule-editor__trigger--scheduled': rule.window?.emitPolicy === 'onSchedule' }" type="select" :value="rule.window?.emitPolicy || 'onEvent'" :component-props="{ disabled, bordered:false, defaultOpen:true, 'aria-label':t('calculationTrigger'), options:timings }" @change="changeTiming($event as 'onEvent' | 'onSchedule')" />
       <TemplateDuration v-if="rule.window?.emitPolicy === 'onSchedule'" :model-value="rule.window.emitInterval" :min="1" :disabled="disabled" @update:model-value="emit('patch', { window: { ...rule.window, emitInterval: $event } })" />
+      <span v-if="rule.window?.emitPolicy === 'onSchedule'">{{ t('calculate') }}</span>
     </div>
-    <a-collapse :bordered="false">
-      <a-collapse-panel key="conditions" :header="t('conditionsAndTiming')">
-        <a-form-item :label="t('dependencies')">
-          <a-select mode="tags" :value="ruleDependencies(rule)" :options="references.map(item => ({ value: item.id, label: item.label }))" @update:value="updateDependencies" />
-        </a-form-item>
-        <a-form-item :label="t('applicability')"><a-textarea :value="rule.applicabilityExpression" :placeholder="t('alwaysApplicable')" @update:value="emit('patch', { applicabilityExpression: $event || undefined })" /></a-form-item>
-        <a-form-item :label="t('maxInputSkew')"><TemplateDuration :model-value="rule.maxInputSkew" :disabled="disabled" @update:model-value="emit('patch', { maxInputSkew: $event })" /></a-form-item>
-      </a-collapse-panel>
-    </a-collapse>
-  </a-form>
+    <section class="rule-editor__condition" :aria-label="t('applicability')">
+      <div class="rule-editor__condition-summary">
+        <AIcon type="FilterOutlined" />
+        <span v-if="!hasCondition" class="rule-editor__muted">{{ t('noExtraCondition') }}</span>
+        <template v-else><span>{{ t('calculateOnlyWhen') }}</span><TemplateFormulaDisplay :template="displayTemplate" :rule="rule" :expression="rule.applicabilityExpression!" :calculators="calculators" compact /><span>{{ t('thenCalculate') }}</span></template>
+        <a-button v-if="hasCondition || !disabled" type="text" size="small" :disabled="invalidConditions.has('applicability')" :aria-expanded="conditionEditing" @click="conditionEditing = !conditionEditing"><AIcon v-if="!hasCondition && !conditionEditing" type="PlusOutlined" />{{ t(conditionEditing ? 'collapseEditor' : hasCondition ? disabled ? 'review' : 'editCondition' : 'addCondition') }}</a-button>
+      </div>
+      <div v-if="conditionEditing" class="rule-editor__condition-body">
+        <TemplateFormulaEditor :model-value="rule.applicabilityExpression || ''" :references="formulaReferences" :disabled="disabled" conditions @change="updateCondition('applicabilityExpression', $event)" @invalid="setConditionInvalid('applicability', $event)" />
+        <a-button v-if="!disabled" type="text" size="small" :disabled="!hasCondition && !invalidConditions.has('applicability')" @click="clearCondition">{{ t('clearCondition') }}</a-button>
+      </div>
+    </section>
+    <details class="rule-editor__requirements">
+      <summary>{{ t('moreRequirements') }}<small v-if="rule.maxInputSkew"> · {{ t('inputSkewSummary', { duration: simulationDuration(rule.maxInputSkew, t) }) }}</small></summary>
+      <TemplateClause icon="SwapOutlined" :title="t('maxInputSkew')"><TemplateDuration :model-value="rule.maxInputSkew" :disabled="disabled" @update:model-value="emit('patch', { maxInputSkew: $event })" /></TemplateClause>
+      <div class="rule-editor__dependencies"><AIcon type="BranchesOutlined" /><span><template v-if="dependencyLabels"><TemplateReference v-for="(id,index) in ruleDependencies(rule)" :key="id" :metric-id="id">{{ index ? '、' : '' }}{{ references.find(item => item.id === id)?.label || id }}</TemplateReference></template><template v-else>{{ t('noDependencies') }}</template></span><a-button v-if="!disabled" type="text" size="small" :aria-label="t('dependencies')" :aria-expanded="dependenciesEditing" @click="dependenciesEditing = !dependenciesEditing">{{ t(dependenciesEditing ? 'collapseEditor' : dependencyLabels ? 'adjustDependencies' : 'addDependencies') }}</a-button></div>
+      <a-select v-if="dependenciesEditing" class="rule-editor__source" mode="tags" :value="ruleDependencies(rule)" :disabled="disabled" :bordered="false" :aria-label="t('dependencies')" :options="referenceOptions" option-filter-prop="label" @update:value="updateDependencies"><template #option="option"><TemplateReference :metric-id="option.value"><SelectOption :label="option.label" :icon="option.icon || 'BranchesOutlined'" :description="option.description || String(option.value)" /></TemplateReference></template></a-select>
+    </details>
+  </div>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { configurationObject } from './configurationText'
 import { ruleDependencies, type TemplateRule } from './designer'
 import { ruleDataReferences, ruleFormulaReferences } from './formula'
 import TemplateFormulaEditor from './TemplateFormulaEditor.vue'
+import TemplateAlgorithmEditor from './TemplateAlgorithmEditor.vue'
 import TemplateDuration from './TemplateDuration.vue'
+import TemplateStateTracking from './TemplateStateTracking.vue'
 import TemplateWindowEditor from './TemplateWindowEditor.vue'
-import { calculationKind, calculationFields, type CalculationKind } from './window'
-import { errorText } from '../service'
+import TemplateClause from './TemplateClause.vue'
+import Editable from '../../Editable/index.vue'
+import SelectOption from '../../SelectOption/index.vue'
+import { referenceChoice } from './choices'
+import TemplateFormulaDisplay from './formula/TemplateFormulaDisplay.vue'
+import TemplateReference from './TemplateReference.vue'
+import { simulationDuration } from './simulationFlow'
+import { localizedTemplate } from './text'
+import { calculationKind } from './window'
 import { metricMessages } from '../messages'
-import type { MetricTemplate } from '../types'
-const props = defineProps<{ template: MetricTemplate; rule: TemplateRule; disabled?: boolean }>()
+import type { MetricCalculatorDescriptor, MetricTemplate } from '../types'
+const props = defineProps<{ template: MetricTemplate; rule: TemplateRule; disabled?: boolean; calculators?: MetricCalculatorDescriptor[] }>()
 const emit = defineEmits<{ (event: 'patch', fields: Partial<TemplateRule>): void; (event: 'invalid', value: boolean): void }>()
-const { t } = useI18n({ useScope: 'local', messages: metricMessages })
+const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const kind = computed(() => calculationKind(props.rule))
-const kinds = computed(() => ['expression', 'statistics', 'temporal', 'calculator'].map(value => ({ value, label: t(value) })))
-const timings = computed(() => ['onEvent', 'onSchedule'].map(value => ({ value, label: t(value) })))
-const references = computed(() => ruleDataReferences(props.template, props.rule))
-const calculatorText = ref(JSON.stringify(props.rule.calculator || { provider: '', providerVersion: '1', parameters: {} }, null, 2))
-const calculatorError = ref('')
+const temporalPhases = [
+  { key: 'enter', field: 'enterExpression', duration: 'dwell', icon: 'ThunderboltOutlined', label: 'enterCondition', result: 'conditionBecomesTrue' },
+  { key: 'exit', field: 'exitExpression', duration: 'recovery', icon: 'CheckCircleOutlined', label: 'exitCondition', result: 'thenRecover' },
+] as const
+const timings = computed(() => [{ value:'onEvent', label:t('calculateOnEvent'), icon:'ThunderboltOutlined', description:t('onEventHint') }, { value:'onSchedule', label:t('calculateEvery'), icon:'ClockCircleOutlined', description:t('onScheduleHint') }])
+const displayTemplate = computed(() => localizedTemplate(props.template, String(locale.value)))
+const references = computed(() => ruleDataReferences(displayTemplate.value, props.rule))
+const referenceOptions = computed(() => references.value.map(item => referenceChoice(displayTemplate.value, item, t)))
+const calculatorInvalid = ref(false)
 const formulaInvalid = ref(false)
-const formulaReferences = computed(() => ruleFormulaReferences(props.template, props.rule))
-function setFormulaInvalid(value: boolean) { formulaInvalid.value = value; emit('invalid', value) }
+const invalidConditions = reactive(new Set<string>())
+const conditionEditing = ref(false)
+const dependenciesEditing = ref(false)
+const hasCondition = computed(() => !!props.rule.applicabilityExpression?.trim())
+const dependencyLabels = computed(() => ruleDependencies(props.rule).map(id => references.value.find(item => item.id === id)?.label || id).join('、'))
+const formulaReferences = computed(() => ruleFormulaReferences(displayTemplate.value, props.rule, props.calculators))
+function reportInvalid() { emit('invalid', formulaInvalid.value || calculatorInvalid.value || invalidConditions.size > 0) }
+function setCalculatorInvalid(value: boolean) { calculatorInvalid.value = value; reportInvalid() }
+function setFormulaInvalid(value: boolean) { formulaInvalid.value = value; reportInvalid() }
+function setConditionInvalid(key: string, value: boolean) { if (value) invalidConditions.add(key); else invalidConditions.delete(key); reportInvalid() }
+function clearCondition() {
+  if (props.disabled) return
+  setConditionInvalid('applicability', false)
+  updateCondition('applicabilityExpression', { expression: '' })
+  conditionEditing.value = false
+}
 function dependencyFields(ids: string[]): Partial<TemplateRule> {
   if (!props.rule.inputs?.length) return { dependsOn: ids }
   const inputs = props.rule.inputs.filter(item => item.source || ids.includes(item.metricId || ''))
@@ -78,12 +110,13 @@ function updateFormula(value: { expression: string; metricIds?: string[] }) {
 }
 function updateDependencies(ids: string[]) { if (!props.disabled) emit('patch', dependencyFields(ids)) }
 function temporal(field: string, value: unknown) { if (!props.disabled) emit('patch', { temporalCondition: { ...props.rule.temporalCondition, [field]: value } }) }
-function updateCalculator(value: string) {
-  try {
-    const calculator = configurationObject(value, 'json')
-    calculatorError.value = ''; emit('invalid', false)
-    if (!props.disabled) emit('patch', { calculator })
-  } catch (cause) { calculatorError.value = errorText(cause); emit('invalid', true) }
+/** 条件复用公式的输入别名和参数路径；补齐依赖，不改变后端表达式语义。 */
+function updateCondition(field: 'enterExpression' | 'exitExpression' | 'applicabilityExpression', value: { expression: string; metricIds?: string[] }) {
+  if (props.disabled) return
+  const fields = value.metricIds ? dependencyFields([...new Set([...ruleDependencies(props.rule), ...value.metricIds])]) : {}
+  emit('patch', { ...fields, ...(field === 'applicabilityExpression'
+    ? { applicabilityExpression: value.expression || undefined }
+    : { temporalCondition: { ...props.rule.temporalCondition, [field]: value.expression } }) })
 }
 function setStatisticSource(id: string) { if (!props.disabled) emit('patch', { ...dependencyFields([id]), sourceMetric: id }) }
 function changeTiming(value: 'onEvent' | 'onSchedule') {
@@ -92,14 +125,29 @@ function changeTiming(value: 'onEvent' | 'onSchedule') {
   const window = value === 'onEvent' && props.rule.calculator ? undefined : { ...props.rule.window, mode: 'none' as const, emitPolicy: value, emitInterval: value === 'onSchedule' ? props.rule.window?.emitInterval || 'PT5M' : undefined }
   emit('patch', { window })
 }
-function changeKind(value: CalculationKind) {
-  if (props.disabled || calculatorError.value || formulaInvalid.value) return
-  const fields = calculationFields(value)
-  if (fields.calculator) calculatorText.value = JSON.stringify(fields.calculator, null, 2)
-  emit('patch', fields)
-}
 </script>
 <style scoped>
+.rule-editor :deep(.template-clause__content)>.ant-select { width:168px; max-width:100% }
+.rule-editor :deep(.template-clause__content)>.rule-editor__source { width:100%; min-width:0 }
+.rule-editor__source { width:100%; min-width:0 }
+.rule-editor__inline-source { min-width:80px; max-width:180px; color:var(--accent) }
+.rule-editor__phase-title > :first-child { color:var(--ink-3) }
+.rule-editor__phase + .rule-editor__phase { margin-top:16px }
+.rule-editor__phase-title { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px }
+.rule-editor__phase-title small { margin-left:auto; color:var(--ink-3); font-size:12px }
 .rule-editor__timing { display:flex; align-items:center; gap:var(--space-2,8px); flex-wrap:wrap; margin:var(--space-3,12px) 0 }
-.rule-editor__timing > .ant-select { min-width:150px }
+.rule-editor__timing > .rule-editor__trigger { width:190px; max-width:100%; color:var(--accent) }
+.rule-editor__timing > .rule-editor__trigger--scheduled { width:54px }
+.rule-editor__timing > :first-child,.rule-editor__condition-summary > :first-child,.rule-editor__dependencies > :first-child { color:var(--ink-3); flex:none }
+.rule-editor__condition-summary { display:flex; align-items:center; gap:6px; min-width:0; min-height:32px; font-size:13px }
+.rule-editor__condition-summary > .template-formula { flex:0 1 auto; min-width:0; overflow:hidden }
+.rule-editor__condition-summary > .ant-btn { flex:none; margin-left:auto; color:var(--ink-3); font-size:12px }
+.rule-editor__condition-body { padding-top:8px }
+.rule-editor__muted { color:var(--ink-3) }
+.rule-editor__requirements { margin-top:var(--space-3,12px); font-size:13px }
+.rule-editor__requirements > summary { padding:8px 0; color:var(--ink-3); cursor:pointer }
+.rule-editor__requirements > summary small { font-size:12px }
+.rule-editor__dependencies { display:flex; align-items:center; gap:8px; min-height:32px }
+.rule-editor__dependencies > span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.rule-editor__dependencies > .ant-btn { flex:none; font-size:12px; color:var(--ink-3) }
 </style>

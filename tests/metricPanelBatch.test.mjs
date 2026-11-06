@@ -40,6 +40,42 @@ test('149配置按128分批且刷新不重入；失败批次保留错误，不�
   } finally { app.unmount(); globalThis.document = prior }
 })
 
+test('同版本的固定修订分别缓存，升级后读取新修订且保留未升级配置的计算定义', async () => {
+  const prior = globalThis.document
+  globalThis.document = { hidden:true, addEventListener() {}, removeEventListener() {} }
+  let items = [config(1), { ...config(2), templateRevision:2 }]
+  const reads = []
+  let view
+  const { renderer, root } = createMetricRenderer()
+  const app = renderer.createApp({ setup() {
+    view = useMetricPanel(ref({ ownerType:'line', ownerId:'a' }), {
+      byOwner:async () => items,
+      configTemplate:async id => {
+        reads.push(id)
+        const revision = items.find(item => item.id === id).templateRevision || 1
+        return { ...template, definitions:[{ id:'value', expression:String(revision) }] }
+      },
+      latest:async ids => ids.map(configId => ({ configId, outputs:{} })),
+    })
+    return () => null
+  } })
+  try {
+    app.mount(root); await view.refresh()
+    assert.deepEqual(reads, ['config-1','config-2'])
+    assert.equal(view.templates.value['config-1'].definitions[0].expression, '1')
+    assert.equal(view.templates.value['config-2'].definitions[0].expression, '2')
+    await view.refresh(); assert.equal(reads.length, 2)
+    items = [items[0], { ...items[1], templateRevision:3 }]
+    await view.refresh()
+    assert.deepEqual(reads, ['config-1','config-2','config-2'])
+    assert.equal(view.templates.value['config-1'].definitions[0].expression, '1')
+    assert.equal(view.templates.value['config-2'].definitions[0].expression, '3')
+    items = [{ ...items[0], templateRevision:3 }, items[1]]
+    await view.refresh(); assert.equal(reads.length, 3)
+    assert.equal(view.templates.value['config-1'].definitions[0].expression, '3')
+  } finally { app.unmount(); globalThis.document = prior }
+})
+
 test('配置删除失败保留引用与配置，成功后清理并刷新，维护权限不可绕过', async () => {
   const prior = globalThis.document
   globalThis.document = { hidden: true, addEventListener() {}, removeEventListener() {} }

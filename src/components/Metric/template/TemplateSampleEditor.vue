@@ -1,96 +1,123 @@
 <template>
-  <a-form class="sample-editor" :disabled="loading">
+  <div class="sample-editor">
     <a-empty v-if="!template.inputDefinitions.length" :description="t('noSampleInputs')" />
-    <div v-for="(input, inputIndex) in template.inputDefinitions" :key="input.id" class="simulation-flow__row sample-editor__lane" :data-input="input.id">
-      <div class="simulation-flow__label">
-        <b><span class="simulation-shape" :class="simulationShape(inputIndex)" aria-hidden="true" />{{ input.name || input.id }}</b>
-        <small>{{ input.unit }}<template v-if="input.source?.lookback"> · {{ t('lookback') }} {{ simulationDuration(input.source.lookback, t) }}</template></small>
-      </div>
-      <div v-for="cell in lanes.get(input.id)" :key="cell.time" class="simulation-flow__cell" :style="{ gridColumn: cell.column }">
-        <div v-for="entry in cell.entries" :key="entry.index" class="sample-editor__row" :class="{ incomplete: entry.sample.value == null }">
-          <div class="sample-editor__value" :inert="loading || undefined">
-            <span class="simulation-shape" :class="simulationShape(inputIndex)" aria-hidden="true" />
-            <a-select v-if="input.valueType?.type === 'boolean'" :value="entry.sample.value == null ? undefined : String(entry.sample.value)" :disabled="loading" :placeholder="t('fillSampleValue')" :aria-label="`${input.name || input.id} · ${t('sampleValue')}`" :options="[{ value: 'true', label: 'true' }, { value: 'false', label: 'false' }]" @update:value="patch(entry.index, { value: $event === 'true' })" />
-            <MetricParameterValue v-else :parameter="{ ...input, valueType: { ...input.valueType, type: String(input.valueType?.type || 'double') } }" :model-value="entry.sample.value" @update:model-value="patch(entry.index, { value: $event ?? null })" />
-          </div>
-          <div class="sample-editor__tools">
-            <a-popover trigger="click" placement="bottom">
-              <template #content><a-input type="datetime-local" :value="sampleDate(entry.sample.eventTime)" :disabled="loading" :aria-label="`${input.name || input.id} · ${t('sampleTime')}`" step="1" @change="changeTime(entry.index, $event.target.value)" /></template>
-              <a-button type="text" size="small" class="sample-editor__time" :danger="timeErrors.has(entry.index)" :disabled="loading" :aria-label="`${input.name || input.id} · ${t('editSampleTime')}`" :title="sampleDate(entry.sample.eventTime)"><AIcon type="ClockCircleOutlined" />{{ sampleDate(entry.sample.eventTime).slice(11) }}</a-button>
-            </a-popover>
-            <a-button class="sample-editor__remove" type="text" size="small" danger :disabled="loading" :aria-label="t('removeSample')" @click="remove(entry.index)"><AIcon type="CloseOutlined" /></a-button>
-          </div>
+    <div v-if="selectedInput" class="sample-editor__filter"><AIcon type="FilterOutlined" />{{ inputName(selectedInput) }}<a-button type="text" size="small" :aria-label="t('trialAllInputs')" @click="emit('clear-input')"><AIcon type="CloseOutlined" /></a-button></div>
+    <section v-for="moment in moments" :key="moment.time" class="sample-editor__moment" :class="{ selected:moment.time === selectedTime }">
+      <button type="button" class="sample-editor__moment-time" :aria-pressed="moment.time === selectedTime" @click="emit('select-time', moment.time)"><AIcon :type="moment.hasInput ? 'ImportOutlined' : 'ClockCircleOutlined'" /><time>{{ sampleDate(moment.time).replace('T',' ') }}</time><small v-if="!moment.entries.length">{{ t(moment.hasInput ? 'trialOtherInputs' : 'trialEvaluation') }}</small></button>
+      <div v-for="entry in moment.entries" :key="entry.index" class="sample-editor__row" :class="{ incomplete:entry.sample.value == null }">
+        <div class="sample-editor__sentence">
+          <TemplateReference :metric-id="entry.input.id"><span>{{ entry.input.name || entry.input.id }}</span></TemplateReference><span class="sample-editor__is">{{ t('sentenceValue') }}</span>
+          <TemplateSampleValue :ref="editor => setValueEditor(entry.index, editor)" class="sample-editor__value" :template="template" :input="entry.input" :value="entry.sample.value" :disabled="loading" show-hint @change="patch(entry.index, { value:$event })" />
+          <small>{{ entry.sample.unit || entry.input.unit }}</small>
+          <a-popover trigger="click" placement="bottom">
+            <template #content><a-input type="datetime-local" :value="sampleDate(entry.sample.eventTime)" :disabled="loading" :aria-label="`${entry.input.name || entry.input.id} · ${t('sampleTime')}`" step="1" @change="changeTime(entry.index, $event.target.value)" /></template>
+            <a-button class="sample-editor__action" type="text" size="small" :danger="timeErrors.has(entry.index)" :disabled="loading" :aria-label="`${entry.input.name || entry.input.id} · ${t('editSampleTime')}`"><AIcon type="ClockCircleOutlined" /></a-button>
+          </a-popover>
+          <a-button class="sample-editor__action" type="text" size="small" :disabled="loading" :aria-label="t('removeSample')" @click="remove(entry.index)"><AIcon type="CloseOutlined" /></a-button>
         </div>
+        <small v-if="entry.sample.eventTime !== moment.time" class="sample-editor__data-time">{{ t('trialDataTime') }} · {{ sampleDate(entry.sample.eventTime) }}</small>
       </div>
-      <a-button class="sample-editor__add" size="small" type="text" :disabled="loading" :aria-label="`${input.name || input.id} · ${t('addSample')}`" :style="{ gridColumn: axis.length + 2 }" @click="add(input.id)"><AIcon type="PlusCircleOutlined" />{{ t('addData') }}</a-button>
-    </div>
+      <a-dropdown v-if="moment.time === selectedTime && template.inputDefinitions.length" :trigger="['click']" :disabled="loading">
+        <a-button type="text" size="small" class="sample-editor__at-add" :disabled="loading" :aria-label="t('trialAddHere')"><AIcon type="PlusOutlined" />{{ t('trialAddHere') }}</a-button>
+        <template #overlay><a-menu @click="addAt(moment.time, String($event.key))"><a-menu-item v-for="input in template.inputDefinitions" :key="input.id"><SelectOption :label="input.name || input.id" icon="ImportOutlined" :description="input.unit" /></a-menu-item></a-menu></template>
+      </a-dropdown>
+    </section>
+    <a-button v-if="selectedInput" type="text" class="sample-editor__add" :disabled="loading" @click="add(selectedInput)"><AIcon type="PlusCircleOutlined" />{{ t('addSample') }}</a-button>
+    <a-dropdown v-else-if="template.inputDefinitions.length" :trigger="['click']" :disabled="loading">
+      <a-button type="text" class="sample-editor__add" :disabled="loading"><AIcon type="PlusCircleOutlined" />{{ t('trialAddMoment') }}</a-button>
+      <template #overlay><a-menu @click="add(String($event.key))"><a-menu-item v-for="input in template.inputDefinitions" :key="input.id"><SelectOption :label="input.name || input.id" icon="ImportOutlined" :description="input.unit" /></a-menu-item></a-menu></template>
+    </a-dropdown>
     <a-alert v-if="timeErrors.size" type="error" show-icon :message="t('sampleTimeRequired')" />
-  </a-form>
+  </div>
 </template>
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import MetricParameterValue from '../MetricParameterValue.vue'
-import { sampleInput, sampleDate, addSimulationSample, patchSimulationSample, type SimulationFacts, type SimulationSample } from './simulation'
-import { simulationShape, simulationDuration, simulationTimes } from './simulationFlow'
-import type { MetricTemplate } from '../types'
+import TemplateSampleValue from './TemplateSampleValue.vue'
+import SelectOption from '../../SelectOption/index.vue'
+import TemplateReference from './TemplateReference.vue'
+import { sampleInput, sampleInputs, sampleExecutionTime, sampleDate, addSimulationSample, patchSimulationSample, type SimulationFacts, type SimulationSample } from './simulation'
+import type { MetricTemplate, MetricTemplateInput } from '../types'
 import { metricMessages } from '../messages'
-const props = defineProps<{ template: MetricTemplate; facts: SimulationFacts; loading?: boolean; times?: number[] }>()
-const emit = defineEmits<{ (event: 'change', facts: SimulationFacts): void; (event: 'invalid', value: boolean): void }>()
-const { t } = useI18n({ useScope: 'local', messages: metricMessages })
+const props = defineProps<{ template:MetricTemplate; facts:SimulationFacts; loading?:boolean; times?:number[]; selectedTime?:number; selectedInput?:string }>()
+const emit = defineEmits<{ (event:'change', facts:SimulationFacts):void; (event:'invalid', value:boolean):void; (event:'select-time', time:number):void; (event:'clear-input'):void }>()
+const { t } = useI18n({ useScope:'local', messages:metricMessages })
+const valueEditors = new Map<number, InstanceType<typeof TemplateSampleValue>>()
+function setValueEditor(index:number, editor:unknown) {
+  if (editor) valueEditors.set(index, editor as InstanceType<typeof TemplateSampleValue>)
+  else valueEditors.delete(index)
+}
+async function editSample(index:number) {
+  await nextTick()
+  if (!props.loading) await valueEditors.get(index)?.edit()
+}
+defineExpose({ editSample })
 const timeErrors = ref(new Set<number>())
 const invalid = computed(() => timeErrors.value.size > 0 || props.facts.samples.some(sample => sample.value == null))
-watch(invalid, value => emit('invalid', value), { immediate: true, flush: 'sync' })
-const axis = computed(() => props.times || simulationTimes(props.facts.samples, []))
-const lanes = computed(() => {
-  const columns = new Map(axis.value.map((time, index) => [time, index + 2]))
-  const result = new Map<string, Map<number, { time: number; column: number; entries: { sample: SimulationSample; index: number }[] }>>()
+watch(invalid, value => emit('invalid', value), { immediate:true, flush:'sync' })
+const inputName = (id:string) => props.template.inputDefinitions.find(input => input.id === id)?.name || id
+const moments = computed(() => {
+  type Entry = { sample:SimulationSample; index:number; input:MetricTemplateInput }
+  const inputTimes = new Set(props.facts.samples.map(sampleExecutionTime))
+  const groups = new Map<number, Entry[]>((props.times || []).map(time => [time, []]))
   props.facts.samples.forEach((sample, index) => {
-    const id = sampleInput(props.template, props.facts, sample)
-    if (!id || sample.eventTime === undefined) return
-    const cells = result.get(id) || new Map()
-    const cell = cells.get(sample.eventTime) || { time: sample.eventTime, column: columns.get(sample.eventTime)!, entries: [] }
-    cell.entries.push({ sample, index }); cells.set(sample.eventTime, cell); result.set(id, cells)
+    const id = props.selectedInput && sampleInputs(props.template, props.facts, sample).includes(props.selectedInput)
+      ? props.selectedInput : sampleInput(props.template, props.facts, sample)
+    const input = props.template.inputDefinitions.find(input => input.id === id)
+    const time = sampleExecutionTime(sample)
+    if (!input || time === undefined || props.selectedInput && props.selectedInput !== id) return
+    const entries = groups.get(time) || []
+    entries.push({ sample, index, input }); groups.set(time, entries)
   })
-  return new Map([...result].map(([id, cells]) => [id, [...cells.values()]]))
+  return [...groups].sort(([a], [b]) => a - b).map(([time, entries]) => ({ time, entries, hasInput:inputTimes.has(time) }))
 })
-function patch(index: number, fields: Partial<SimulationSample>) { if (!props.loading) emit('change', patchSimulationSample(props.facts, index, fields)) }
-function changeTime(index: number, value: string) {
+function patch(index:number, fields:Partial<SimulationSample>) { if (!props.loading) emit('change', patchSimulationSample(props.facts, index, fields)) }
+function changeTime(index:number, value:string) {
   if (props.loading) return
   const time = new Date(value).getTime()
   if (!Number.isFinite(time)) timeErrors.value.add(index)
   else timeErrors.value.delete(index)
-  if (Number.isFinite(time)) patch(index, { eventTime: time })
+  if (Number.isFinite(time)) patch(index, { eventTime:time })
 }
-function add(id: string) {
+async function addAt(time:number, id:string) {
   if (props.loading) return
-  let last: number | undefined
-  for (const sample of props.facts.samples) if (sampleInput(props.template, props.facts, sample) === id && sample.eventTime !== undefined) last = Math.max(last ?? sample.eventTime, sample.eventTime)
-  const first = props.facts.samples[0]?.eventTime
-  emit('change', addSimulationSample(props.template, props.facts, id, last === undefined ? first ?? Date.now() : last + 60_000))
+  const index = props.facts.samples.length
+  emit('change', addSimulationSample(props.template, props.facts, id, time)); emit('select-time', time)
+  if (props.selectedInput && props.selectedInput !== id) emit('clear-input')
+  await editSample(index)
 }
-function remove(index: number) {
+function add(id:string) {
+  let last:number | undefined
+  for (const sample of props.facts.samples) { const time = sampleExecutionTime(sample); if (time !== undefined) last = Math.max(last ?? time, time) }
+  addAt(last === undefined ? Date.now() : last + 60_000, id)
+}
+function remove(index:number) {
   if (props.loading) return
   timeErrors.value = new Set([...timeErrors.value].filter(position => position !== index).map(position => position > index ? position - 1 : position))
-  emit('change', { ...props.facts, samples: props.facts.samples.filter((_, position) => position !== index) })
+  emit('change', { ...props.facts, samples:props.facts.samples.filter((_, position) => position !== index) })
 }
 </script>
 <style scoped>
-.sample-editor { display:grid; gap:var(--space-3,12px) }
-.sample-editor__row { display:grid; gap:4px; padding:8px 4px; background:var(--panel-background); min-width:0; position:relative }
-.sample-editor__tools { display:flex; justify-content:center; align-items:center; min-width:0 }
-.sample-editor__time.ant-btn { height:24px; padding:0 4px; font-size:11px; font-variant-numeric:tabular-nums; color:var(--ink-3) }
-.sample-editor__time.ant-btn-dangerous { color:var(--error-color,#ff4d4f) }
-.sample-editor__remove.ant-btn { width:20px; height:24px; padding:0; opacity:0 }
-.sample-editor__row:hover .sample-editor__remove,.sample-editor__row:focus-within .sample-editor__remove { opacity:1 }
-.sample-editor__value { display:flex; gap:6px; align-items:center; border:1px solid var(--line); border-radius:24px; padding:4px 12px; min-height:40px; background:var(--panel-background) }
-.sample-editor__value:focus-within { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft) }
-.sample-editor__row.incomplete .sample-editor__value { border-style:dashed }
-.sample-editor__value > :last-child { min-width:0; flex:1 }
-.sample-editor__value :deep(.ant-input-number),.sample-editor__value :deep(.ant-input),.sample-editor__value .ant-select { width:100%; min-width:0; border:0; box-shadow:none; background:transparent }
-.sample-editor__value :deep(.ant-input-number-handler-wrap) { display:none }
-.sample-editor__value :deep(.ant-input-number-input) { padding:0 4px; font-size:16px; font-weight:500; font-variant-numeric:tabular-nums }
-.sample-editor__value :deep(.ant-select-selector) { border:0; background:transparent; box-shadow:none !important }
-.sample-editor__add { align-self:center; justify-self:start; margin:0 8px; color:var(--accent) }
-@media(hover:none) { .sample-editor__remove.ant-btn { opacity:1 } }
+.sample-editor { min-width:0 }
+.sample-editor__moment { position:relative; margin:0 0 8px; padding:0 0 10px 20px; min-width:0 }
+.sample-editor__moment::before { content:''; position:absolute; left:5px; top:18px; bottom:-8px; width:1px; background:var(--line) }
+.sample-editor__moment:last-of-type::before { display:none }
+.sample-editor__moment::after { content:''; position:absolute; left:1px; top:13px; width:9px; height:9px; border:1px solid var(--ink-3); background:var(--panel-background); border-radius:50% }
+.sample-editor__moment.selected::after { border-color:var(--accent); background:var(--accent) }
+.sample-editor__moment-time { display:flex; align-items:center; flex-wrap:wrap; gap:6px; width:100%; min-height:34px; padding:0; border:0; background:transparent; color:var(--ink-3); cursor:pointer; font-size:12px; text-align:left; font-variant-numeric:tabular-nums }
+.sample-editor__moment-time[aria-pressed=true] { color:var(--accent) }
+.sample-editor__sentence { display:flex; align-items:center; flex-wrap:wrap; gap:2px; min-height:34px; min-width:0; font-size:12px }
+.sample-editor__sentence > :first-child { max-width:100%; overflow-wrap:anywhere }
+.sample-editor__is,.sample-editor small { color:var(--ink-3); font-size:11px }
+.sample-editor__value { min-width:44px; max-width:100%; color:var(--accent); font-size:13px }
+.sample-editor__value :deep(.editable-field) { max-width:130px; min-width:40px }
+.sample-editor__value :deep(.ant-select) { min-width:76px; max-width:160px }
+.sample-editor__row.incomplete .sample-editor__value { border-bottom:1px dashed var(--accent) }
+.sample-editor__action.ant-btn { padding:0 3px; height:24px; color:var(--ink-3); opacity:0 }
+.sample-editor__row:hover .sample-editor__action,.sample-editor__row:focus-within .sample-editor__action { opacity:1 }
+.sample-editor__data-time { display:block }
+.sample-editor__at-add.ant-btn { height:24px; padding:0; font-size:11px; color:var(--ink-3) }
+.sample-editor__add.ant-btn { padding-left:0; color:var(--accent); font-size:12px }
+.sample-editor__filter { display:flex; align-items:center; gap:6px; margin-bottom:12px; font-size:12px; color:var(--ink-3) }
+@media(hover:none) { .sample-editor__action.ant-btn { opacity:1 } }
 </style>

@@ -1,10 +1,12 @@
-import type { MetricTemplate } from '../types'
+import type { MetricCalculatorSpec, MetricTemplate } from '../types'
 import type { TemplateWindow } from './window'
+import { expressionTokens } from './expressionTokens'
 
 export type TemplateNodeKind = 'input' | 'rule' | 'output'
 export interface TemplateNode { kind: TemplateNodeKind; index: number }
 export interface TemplateRule extends Record<string, unknown> {
   id?: string
+  name?: string
   dependsOn?: string[]
   sourceMetric?: string
   inputs?: { id?: string; metricId?: string; [key: string]: unknown }[]
@@ -15,7 +17,8 @@ export interface TemplateRule extends Record<string, unknown> {
   aggregation?: string
   window?: TemplateWindow
   qualityPolicy?: Record<string, unknown> & { expectedCount?: number }
-  calculator?: { provider?: string; providerVersion?: string; parameters?: Record<string, unknown>; [key: string]: unknown }
+  calculator?: MetricCalculatorSpec
+  stateTracking?: { maxNoData: string }
   temporalCondition?: { enterExpression?: string; exitExpression?: string; dwell?: string; recovery?: string; maxNoData?: string; [key: string]: unknown }
 }
 export const nodeKey = (node: TemplateNode) => `${node.kind}-${node.index}`
@@ -29,14 +32,40 @@ export function nodeLabel(template: MetricTemplate, node: TemplateNode): string 
   if (node.kind === 'input') { const item = template.inputDefinitions[node.index]; return item.name || item.id }
   if (node.kind === 'output') { const item = template.outputs[node.index]; return item.label || item.metricId }
   const rule = template.definitions[node.index] as TemplateRule
-  return template.outputs.find(item => item.metricId === rule.id)?.label || rule.id || ''
+  return template.outputs.find(item => item.metricId === rule.id)?.label || rule.name || rule.id || ''
 }
 export function ruleDependencies(rule: TemplateRule): string[] {
   return [...new Set([...(rule.sourceMetric ? [rule.sourceMetric] : []), ...(rule.dependsOn || []), ...(rule.inputs || []).filter(item => !item.source).map(item => item.metricId).filter((id): id is string => !!id)])]
 }
 
-/** 图只读取声明的引用。拓扑分层允许前向声明；循环和未知引用仍交由编译器报告。 */
+export const templateGraphLayout = { nodeWidth: 208, nodeHeight: 120, gap: 24, levelHeight: 176, headingHeight: 40 } as const
+
+/** 分别追溯上游和下游，避免沿共享输入绕入无关分支；循环草稿也能终止。 */
+export function relatedGraphEdges(edges: readonly { key:string; source:string; target:string }[], selected?: string): Set<string> {
+  if (!selected) return new Set()
+  const incoming = new Map<string, string[]>(), outgoing = new Map<string, string[]>()
+  for (const edge of edges) {
+    if (!incoming.has(edge.target)) incoming.set(edge.target, [])
+    if (!outgoing.has(edge.source)) outgoing.set(edge.source, [])
+    incoming.get(edge.target)!.push(edge.source)
+    outgoing.get(edge.source)!.push(edge.target)
+  }
+  const related = new Set([selected])
+  for (const direction of [incoming, outgoing]) {
+    const visited = new Set<string>(), pending = [selected]
+    while (pending.length) {
+      const key = pending.pop()!
+      if (visited.has(key)) continue
+      visited.add(key); related.add(key)
+      pending.push(...(direction.get(key) || []))
+    }
+  }
+  return new Set(edges.filter(edge => related.has(edge.source) && related.has(edge.target)).map(edge => edge.key))
+}
+
+/** 上下布局只读取声明引用；层表示依赖深度，不能解释为经过的时间。 */
 export function templateGraph(template: MetricTemplate) {
+  const { nodeWidth, nodeHeight, gap, levelHeight, headingHeight } = templateGraphLayout
   const inputColumns = new Map(template.inputDefinitions.map(item => [item.id, 0]))
   const ruleIds = new Set(template.definitions.map(item => item.id))
   const dependenciesByRule = template.definitions.map(rule => ruleDependencies(rule as TemplateRule))
@@ -58,10 +87,19 @@ export function templateGraph(template: MetricTemplate) {
   const lastColumn = Math.max(1, ...columns.values()) + 1
   const counts = new Map<number, number>()
   const nodes = nodeList(template).map(node => {
-    const column = node.kind === 'input' ? 0 : node.kind === 'output' ? lastColumn : columns.get(node.index) || 1
-    const row = counts.get(column) || 0
-    counts.set(column, row + 1)
-    return { ...node, key: nodeKey(node), label: nodeLabel(template, node), column, x: column * 200 + 8, y: row * 68 + 38 }
+    const level = node.kind === 'input' ? 0 : node.kind === 'output' ? (inputColumns.get(template.outputs[node.index].metricId) ?? lastColumn - 1) + 1 : columns.get(node.index) || 1
+    const slot = counts.get(level) || 0
+    counts.set(level, slot + 1)
+    return { ...node, key: nodeKey(node), label: nodeLabel(template, node), level, slot, x: 0, y: 0 }
+  })
+  const width = Math.max(1, ...counts.values()) * (nodeWidth + gap) + 8
+  for (const node of nodes) node.x = (width - ((counts.get(node.level) || 1) * (nodeWidth + gap) - gap)) / 2 + node.slot * (nodeWidth + gap)
+  nodes.sort((a, b) => a.level - b.level || a.slot - b.slot)
+  const levels = [...counts.keys()].sort((a, b) => a - b).map((level, index) => {
+    const peers = nodes.filter(node => node.level === level)
+    const kinds = new Set(peers.map(node => node.kind))
+    for (const node of peers) node.y = index * levelHeight + headingHeight
+    return { level, y: index * levelHeight, kind: kinds.size === 1 ? [...kinds][0] : 'mixed' as const }
   })
   const sources = new Map<string, typeof nodes[number]>()
   for (const node of nodes) {
@@ -75,24 +113,30 @@ export function templateGraph(template: MetricTemplate) {
       const candidate = sources.get(id)
       const source = candidate?.key === target.key ? nodes.find(node => node.kind === 'input' && template.inputDefinitions[node.index].id === id) : candidate
       if (!source) return []
-      const x = source.x + 164; const y = source.y + 22; const endX = target.x; const endY = target.y + 22
-      return [{ key: `${source.key}:${target.key}`, path: `M${x},${y} C${x + 24},${y} ${endX - 24},${endY} ${endX},${endY}` }]
+      const x = source.x + nodeWidth / 2; const y = source.y + nodeHeight; const endX = target.x + nodeWidth / 2; const endY = target.y
+      const middle = (y + endY) / 2
+      return [{ key: `${source.key}:${target.key}`, source: source.key, target: target.key, path: `M${x},${y} C${x},${middle} ${endX},${middle} ${endX},${endY}` }]
     })
   })
-  return { nodes, edges, width: (lastColumn + 1) * 200, height: Math.max(1, ...counts.values()) * 68 + 42, lastColumn }
+  return { nodes, edges, levels, width, height: Math.max(1, levels.length) * levelHeight }
 }
 
 /** 仅替换已声明变量的显示名，保留原表达式，不另建计算语言。 */
 export function expressionLabel(template: MetricTemplate, expression?: string, names?: ReadonlyMap<string, string>): string {
   const labels = new Map(template.inputDefinitions.map(item => [item.id.replace(/[^a-zA-Z0-9_]/g, '_'), item.name || item.id]))
+  for (const rule of template.definitions as TemplateRule[]) if (rule.id && rule.name) labels.set(rule.id, rule.name)
   for (const output of template.outputs) labels.set(output.metricId, output.label || output.metricId)
   for (const [id, label] of names || []) labels.set(id.replace(/[^a-zA-Z0-9_]/g, '_'), label)
+  const paths = [...(names?.keys() || [])].filter(key => /[.\[]/.test(key)).sort((a,b) => b.length - a.length)
+    .map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const tokens = paths.length ? new RegExp(`(?:#?(?:${paths.join('|')})(?![\\w$]))|${expressionTokens.source}`, 'g') : expressionTokens
   // 字符串字面量保持原样；只替换独立引用，不把对象的属性名当成输入别名。
-  return (expression || '').replace(/#sample\.getTags\(\)\[['"]parameters['"]\]\[['"]([^'"]+)['"]\]|#?params(?:\.([a-zA-Z_][\w]*)|\['((?:[^']|'')*)'\])|'(?:[^']|'')*'|"(?:[^"]|"")*"|#?[a-zA-Z_][\w]*/g,
+  return (expression || '').replace(tokens,
     (token, legacy: string, property: string, key: string, offset: number, source: string) => {
+      if (token.startsWith("'") || token.startsWith('"') || source[offset - 1] === '.') return token
+      if (names?.has(token.replace(/^#/, ''))) return names.get(token.replace(/^#/, ''))!
       const parameter = legacy ?? property ?? key?.replaceAll("''", "'")
       if (parameter !== undefined) return names?.get(`params.${parameter}`) || template.parameterDefinitions.find(item => item.id === parameter)?.name || token
-      if (token.startsWith("'") || token.startsWith('"') || source[offset - 1] === '.') return token
       return labels.get(token.replace(/^#/, '')) || token
     })
 }
