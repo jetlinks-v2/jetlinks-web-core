@@ -48,48 +48,47 @@ function harness(t, parameters = []) {
   const app = renderer.createApp({ setup: () => () => vue.h(Operations, { ...props, onInvoke: value => events.push(value) }) })
   const shell = name => vue.defineComponent({ inheritAttrs: true, setup: (_props, { slots }) => () => vue.h(name, Object.values(slots).flatMap(slot => slot?.())) })
   app.component('AForm', Form)
-  for (const name of ['ASelect','AInput','ATextarea','AFormItem','AButton','ADescriptions','ADescriptionsItem','ASpin','AAlert','AEmpty','AResult','AIcon']) app.component(name, shell(name))
+  for (const name of ['ASelect','AInput','ATextarea','AFormItem','AButton','ATooltip','ASpin','AAlert','AEmpty','AResult','AIcon']) app.component(name, shell(name))
   app.component('AModal', vue.defineComponent({ props: ['open'], setup: (props, { slots }) => () => props.open ? vue.h('dialog', slots.default?.()) : null }))
   app.mount(target); t.after(() => app.unmount())
   const all = (root = target) => [root, ...root.children.flatMap(all)]
   const find = type => all().find(node => node.type === type)
   const text = (root = target) => root.type === '#comment' ? '' : root.text + root.children.map(text).join('')
-  async function choose() { const select = find('ASelect'); select.props['onUpdate:value']('inspect(' + signature.join(', ') + ')'); select.props.onChange(); await flush() }
+  async function choose(key = 'inspect(' + signature.join(', ') + ')') { all().find(node => node.type === 'AButton' && text(node) === key).props.onClick(); await flush() }
   async function submit() { find('form').props.onSubmit({ preventDefault() {}, stopPropagation() {} }); await flush() }
   return { props, events, find, text, choose, submit }
 }
 
-test('real Ant Form without a model opens confirmation on native submit and does not execute before confirmation', async t => {
+test('real Ant Form submits directly without a confirmation dialog; choosing a method never executes it', async t => {
   const h = harness(t)
-  await h.choose(); await h.submit()
-  assert.ok(h.find('dialog'), 'native form submit must open the confirmation dialog')
-  assert.equal(h.events.length, 0)
-  h.find('dialog').props.onCancel(); await flush()
+  await h.choose()
   assert.equal(h.find('dialog'), undefined)
   assert.equal(h.events.length, 0)
   await h.submit()
-  h.find('dialog').props.onOk(); await flush()
+  assert.equal(h.find('dialog'), undefined)
   assert.equal(h.events.length, 1)
   assert.deepEqual(h.events[0].args, [])
 })
 
-test('parameter validation remains before confirmation and current arguments retain metadata order', async t => {
+test('direct submission validates arguments and retains metadata order', async t => {
   const h = harness(t, [{ name: 'limit', type: 'int' }, { name: 'options', type: 'java.util.Map' }])
   await h.choose(); await h.submit()
   assert.equal(h.find('dialog'), undefined)
   assert.equal(h.find('AAlert').props.message, 'runtimeDiagnostics.required')
+  assert.equal(h.events.length, 0)
   h.find('AInput').props['onUpdate:value']('1'); h.find('ATextarea').props['onUpdate:value']('{bad}')
   await h.submit()
   assert.equal(h.find('AAlert').props.message, 'runtimeDiagnostics.invalid')
+  assert.equal(h.events.length, 0)
   h.find('ATextarea').props['onUpdate:value']('{"enabled":true}')
-  await h.submit(); assert.ok(h.find('dialog'))
-  h.find('dialog').props.onOk(); await flush()
+  await h.submit(); assert.equal(h.find('dialog'), undefined)
+  assert.equal(h.events.length, 1)
   assert.deepEqual(h.events[0].args, [{ name: 'limit', value: '1' }, { name: 'options', value: { enabled: true } }])
 })
 
-test('confirmed results render as formatted JSON below the form, including empty, null and false values', async t => {
+test('direct invocation renders formatted JSON below the form, including empty, null and false values', async t => {
   const h = harness(t)
-  await h.choose(); await h.submit(); h.find('dialog').props.onOk(); await flush()
+  await h.choose(); await h.submit()
   for (const value of [[{ name: 'one', count: 2 }], [], null, 0, false]) {
     h.props.result = value; h.props.resultState = { status: 'ready' }; await flush()
     assert.equal(h.text(h.find('pre')), typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value))
@@ -99,12 +98,33 @@ test('confirmed results render as formatted JSON below the form, including empty
   assert.equal(h.find('pre'), undefined)
 })
 
-test('permission loss and target changes cancel pending confirmations without invoking a different object', async t => {
+test('permission, busy and missing targets prevent direct execution; target changes clear selection and results', async t => {
   const h = harness(t)
-  await h.choose(); await h.submit(); assert.ok(h.find('dialog'))
+  await h.choose()
   h.props.invokeAccess = { allowed: false }; await flush()
-  assert.equal(h.find('dialog'), undefined); assert.equal(h.events.length, 0)
-  h.props.invokeAccess = { allowed: true }; await flush(); await h.submit(); assert.ok(h.find('dialog'))
+  await h.submit(); assert.equal(h.events.length, 0)
+  h.props.invokeAccess = { allowed: true }; h.props.busy = true; await flush()
+  await h.submit(); assert.equal(h.events.length, 0)
+  h.props.busy = false; h.props.target = ''; await flush(); await h.choose()
+  await h.submit(); assert.equal(h.events.length, 0)
   h.props.target = 'node-b'; await flush()
-  assert.equal(h.find('dialog'), undefined); assert.equal(h.events.length, 0)
+  assert.equal(h.find('form'), undefined); assert.equal(h.events.length, 0)
+  await h.choose(); await h.submit()
+  h.props.result = { node: 'node-b' }; await flush(); assert.ok(h.find('pre'))
+  h.props.invokeAccess = { allowed: false }; await flush(); assert.equal(h.find('pre'), undefined)
+})
+
+test('overloaded methods keep full signatures; switching methods clears arguments and old results', async t => {
+  const h = harness(t, [{ name: 'value', type: 'int' }])
+  const other = { name: 'inspect', signature: ['java.lang.String'], parameters: [{ name: 'value', type: 'java.lang.String' }], returnType: 'java.lang.String' }
+  h.props.bean.operations.push(other); await flush()
+  await h.choose(); h.find('AInput').props['onUpdate:value']('1'); await h.submit()
+  assert.deepEqual(h.events[0].operation.signature, ['int'])
+  h.props.result = 1; await flush(); assert.ok(h.find('pre'))
+  await h.choose('inspect(java.lang.String)'); assert.equal(h.find('pre'), undefined)
+  await h.submit(); assert.equal(h.events.length, 1, 'previous numeric argument must not carry over')
+  h.find('AInput').props['onUpdate:value'](''); await h.choose('inspect(java.lang.String)'); await h.submit()
+  assert.equal(h.events.length, 2, 'reselecting the current method must not clear its input')
+  assert.deepEqual(h.events[1].operation.signature, ['java.lang.String'])
+  assert.deepEqual(h.events[1].args, [{ name: 'value', value: '' }])
 })
