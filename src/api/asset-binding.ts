@@ -1,16 +1,9 @@
 import { request } from '@jetlinks-web/core'
 
-/** 提供方显式维护声明；不代替原绑定入口的功能权限及两端资产权限。 */
-export interface AssetRelationMaintenance {
-  relation: string
-  requestRelation?: string | null
-  bind: boolean
-  unbind: boolean
-}
 export interface AssetBindingSettings {
+  source: string
   multiple: boolean
   permissionSupported: boolean
-  maintenance?: AssetRelationMaintenance
 }
 export interface AssetBindingRequest {
   assetIdList: string[]
