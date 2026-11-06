@@ -1,5 +1,6 @@
 export const collectionMessages = {
   zh: {
+    collectionHint:'查看每个成员的结果',distributionHint:'按状态统计对象数量',averageHint:'对有效对象的读数取平均',minHint:'查看有效对象中的最低读数',maxHint:'查看有效对象中的最高读数',sumHint:'合计已声明互不重叠的贡献',ratioHint:'合并分子与分母后计算比例',
     cardVariant:'{version} · 修订{revision} · 口径{index}',templatePicker:'选择指标模板',allTemplates:'全部模板',templatesSelected:'已选 {count} 个模板',templateSelectionHint:'按模板查看汇总；点击卡片中的查看成员可追溯单个对象。',backOverview:'返回指标概览',noAggregationPolicy:'此输出仅提供成员结果',noAggregateRecords:'所选时段尚无可聚合记录',memberValuesAvailable:'可查看成员的当前结果与来源记录',
     outputsSelected:'已选 {count} 项输出',searchOutputs:'搜索模板或输出',selectCategory:'全选本类',apply:'应用',cancel:'取消',resetAll:'显示全部',selectionHint:'按模板选择输出；多选仅展示成员结果。',selectionLimit:'最多选择 128 项输出，或显示全部',noMatches:'没有匹配的输出',
     unknown:'未确认',
@@ -20,6 +21,7 @@ export const collectionMessages = {
     operationHint:'切换统计会改变结果含义，切换列表/对比只改变展示。', pageHint:'仅对比本页；汇总数字覆盖全部可见结果。',
   },
   en: {
+    collectionHint:'Inspect each member result',distributionHint:'Count objects in each state',averageHint:'Mean of valid object readings',minHint:'Lowest valid object reading',maxHint:'Highest valid object reading',sumHint:'Sum declared exclusive contributions',ratioHint:'Combine numerator and denominator facts',
     cardVariant:'{version} · r{revision} · variant {index}',templatePicker:'Select metric templates',allTemplates:'All templates',templatesSelected:'{count} templates selected',templateSelectionHint:'View summaries by template. Open members from a card to inspect individual objects.',backOverview:'Back to overview',noAggregationPolicy:'Individual results are available for this output',noAggregateRecords:'No comparable records in this period',memberValuesAvailable:'View members for current results and source records',
     outputsSelected:'{count} outputs selected',searchOutputs:'Find a template or output',selectCategory:'Select category',apply:'Apply',cancel:'Cancel',resetAll:'Show all',selectionHint:'Select outputs by template. Multiple outputs show member results only.',selectionLimit:'Choose up to 128 outputs, or show all',noMatches:'No matching outputs',
     unknown:'Unconfirmed',

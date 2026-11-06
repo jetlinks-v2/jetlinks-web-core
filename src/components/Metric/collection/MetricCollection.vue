@@ -4,7 +4,7 @@
     <header class="metric-collection__tools">
       <MetricCollectionPicker :groups="result?.groups || []" :value="selectedGroups" @change="selectGroups" />
       <div class="metric-collection__actions">
-      <a-dropdown v-if="!selection && activeGroup && activeGroup.operations.length > 1" :trigger="['click']"><a-button type="text" size="small"><AIcon :type="operationIcon(operation)" />{{ t(operation) }} <AIcon type="DownOutlined" /></a-button><template #overlay><a-menu :selected-keys="[operation]" @click="selectOperation($event.key as ReadOperation)"><a-menu-item v-for="item in activeGroup.operations" :key="item"><SelectOption :label="t(item)" :icon="operationIcon(item)" :description="t(item === 'collection' ? 'readOnly' : 'operationHint')" /></a-menu-item></a-menu></template></a-dropdown>
+      <a-dropdown v-if="!selection && activeGroup && activeGroup.operations.length > 1" :trigger="['click']"><a-button type="text" size="small"><AIcon :type="readOperationPresentation(operation).icon" />{{ t(operation) }} <AIcon type="DownOutlined" /></a-button><template #overlay><a-menu :selected-keys="[operation]" @click="selectOperation($event.key as ReadOperation)"><a-menu-item v-for="item in activeGroup.operations" :key="item"><SelectOption :label="t(item)" :icon="readOperationPresentation(item).icon" :description="t(readOperationPresentation(item).description)" /></a-menu-item></a-menu></template></a-dropdown>
       <a-button v-if="scope.tree" type="text" size="small" :class="{ 'is-active':descendants }" :aria-pressed="descendants" @click="changeDepth(!descendants)"><AIcon type="BranchesOutlined" />{{ t(descendants ? 'descendants' : 'direct') }}</a-button>
       <a-tooltip :title="t('refresh')"><a-button type="text" size="small" :loading="loading" :aria-label="t('refresh')" @click="refresh"><AIcon type="ReloadOutlined" /></a-button></a-tooltip>
       </div>
@@ -60,6 +60,7 @@ import { metricOutputPresentation } from '../outputPresentation'
 import { useMetricCollection } from './useMetricCollection'
 import { useMetricCollectionDetail } from './useMetricCollectionDetail'
 import { collectionMessages } from './messages'
+import { readOperationPresentation } from './aggregationPolicy'
 import type { MetricContext } from '../types'
 import type { MetricCollectionRow, MetricCollectionSelection, MetricReadScopeOption, ReadOperation } from './types'
 const props = defineProps<{ context:MetricContext; scope:MetricReadScopeOption; selection?:MetricCollectionSelection }>()
@@ -80,7 +81,6 @@ const groupFor = (row:MetricCollectionRow) => result.value?.groups.find(item => 
 const rawState = (key:string) => activeGroup.value?.stateLabels?.find(item => String(item.value) === key)?.value ?? key
 const appearance = (key:string) => stateAppearance(rawState(key), activeGroup.value?.stateLabels)
 const stateName = (key:string) => stateLabel(rawState(key), activeGroup.value?.stateLabels || [], String(locale.value))
-const operationIcon = (value:ReadOperation) => ({ collection:'UnorderedListOutlined', distribution:'PieChartOutlined', average:'CalculatorOutlined', min:'ArrowDownOutlined', max:'ArrowUpOutlined', sum:'PlusOutlined', ratio:'PercentageOutlined' })[value]
 </script>
 <style scoped>
 .metric-collection { min-width:0; padding:var(--space-4,16px) }

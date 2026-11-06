@@ -6,7 +6,7 @@ import { createMetricLoader, createMetricRenderer, flush, walk, textContent } fr
 const load = createMetricLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key }) } })
 const Editable = load('components/Editable/InputEditable.vue').default
 
-test('图文选项只用于显式元数据，选中态保持简短名称且值类型不变', async () => {
+test('图文选项只用于显式元数据，选中态保留图标和简短名称且值类型不变', async () => {
   const Choice = load('components/SelectOption/index.vue').default
   const control = defineComponent({ inheritAttrs:false, setup:(_, { attrs, slots }) => () => h('select-control', attrs,
     attrs.options?.flatMap(option => slots.option?.(option) || []) || []) })
@@ -24,7 +24,8 @@ test('图文选项只用于显式元数据，选中态保持简短名称且值�
   app.component('AIcon', defineComponent({ setup:(_, { attrs }) => () => h('icon', attrs) }))
   app.config.warnHandler = () => {}; app.mount(root)
   try {
-    assert.equal(textContent(walk(root, node => node.props.role === 'button')[0]), '最新值')
+    assert.equal(textContent(walk(root, node => node.props.role === 'button')[0]).trim(), '最新值')
+    assert.equal(walk(walk(root, node => node.props.role === 'button')[0],node=>node.type==='icon')[0].props.type,'ThunderboltOutlined')
     walk(root, node => node.props.role === 'button')[0].props.onClick(); await flush()
     const field = walk(root, node => node.type === 'select-control')[0]
     assert.equal(field.props['dropdown-match-select-width'], false)
@@ -32,7 +33,8 @@ test('图文选项只用于显式元数据，选中态保持简短名称且值�
     assert.equal(walk(root, node => node.type === 'icon')[0].props.type, 'ThunderboltOutlined')
     field.props['onUpdate:value'](1); field.props.onChange(); await flush()
     assert.equal(props.value, 1)
-    assert.equal(textContent(walk(root, node => node.props.role === 'button')[0]), '历史序列')
+    assert.equal(textContent(walk(root, node => node.props.role === 'button')[0]).trim(), '历史序列')
+    assert.equal(walk(walk(root, node => node.props.role === 'button')[0],node=>node.type==='icon')[0].props.type,'HistoryOutlined')
     props.componentProps.options = [{ value:1, label:'普通选项' }]; await flush()
     walk(root, node => node.props.role === 'button')[0].props.onClick(); await flush()
     assert.equal(walk(root, node => node.type === 'small').length, 0)

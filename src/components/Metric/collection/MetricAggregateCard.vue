@@ -3,7 +3,7 @@
     <template #actions><small v-if="variantLabel" class="aggregate-card__variant">{{ variantLabel }}</small></template>
     <div class="aggregate-card__body">
       <div class="aggregate-card__output"><MetricOutputSwitch :outputs="groups.map(item=>item.output)" :output="group.output" :output-id="group.output.metricId" @change="selectOutput" />
-        <a-dropdown v-if="group.operations.length>1" :trigger="['click']"><a-button type="text" size="small">{{ t(operation) }}<AIcon type="DownOutlined" /></a-button><template #overlay><a-menu :selected-keys="[operation]" @click="selectOperation($event.key as ReadOperation)"><a-menu-item v-for="item in group.operations" :key="item">{{ t(item) }}</a-menu-item></a-menu></template></a-dropdown><small v-else-if="group.operations.length">{{ t(operation) }}</small>
+        <a-dropdown v-if="group.operations.length>1" :trigger="['click']"><a-button type="text" size="small"><AIcon :type="readOperationPresentation(operation).icon" />{{ t(operation) }}<AIcon type="DownOutlined" /></a-button><template #overlay><a-menu :selected-keys="[operation]" @click="selectOperation($event.key as ReadOperation)"><a-menu-item v-for="item in group.operations" :key="item"><SelectOption :label="t(item)" :icon="readOperationPresentation(item).icon" :description="t(readOperationPresentation(item).description)" /></a-menu-item></a-menu></template></a-dropdown><small v-else-if="group.operations.length"><AIcon :type="readOperationPresentation(operation).icon" /> {{ t(operation) }}</small>
       </div>
       <div v-if="group.availability" class="aggregate-card__missing"><strong>—</strong><span>{{ t(group.availability==='unsupported' ? 'noAggregationPolicy' : 'noAggregateRecords') }}</span></div>
       <div v-else-if="operation==='distribution'" class="aggregate-card__states">
@@ -22,6 +22,7 @@ import {computed,ref,watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import MetricCardShell from '../MetricCardShell.vue'
 import IconValueView from '../../IconValue/IconValueView.vue'
+import SelectOption from '../../SelectOption/index.vue'
 import MetricAggregateTrend from './MetricAggregateTrend.vue'
 import MetricOutputSwitch from '../MetricOutputSwitch.vue'
 import {formatMetricValue} from '../extensions/presentationSettings'
@@ -30,6 +31,7 @@ import {metricMessages} from '../messages'
 import {metricOutputPresentation} from '../outputPresentation'
 import {stateAppearance,stateLabel} from '../stateIntervals'
 import {aggregateValue} from './aggregatePresentation'
+import {readOperationPresentation} from './aggregationPolicy'
 import {collectionMessages} from './messages'
 import type {MetricAggregateGroup,ReadOperation} from './types'
 const props=defineProps<{groups:MetricAggregateGroup[];bounds:[number,number];interval:number;visible:boolean;preferenceKey?:string;variantLabel?:string}>()

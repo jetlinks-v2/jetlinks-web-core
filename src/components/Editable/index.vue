@@ -17,6 +17,7 @@
     </span>
     <span :class="['text', { disabled, editing: isEdit }]" :role="disabled || isEdit ? undefined : 'button'" :tabindex="disabled || isEdit ? undefined : 0" :aria-hidden="isEdit || undefined" :aria-label="componentProps['aria-label'] as string | undefined" @click="enterEdit">
       <slot :value="isEdit ? value : _value">
+        <AIcon v-if="selectedOption?.icon" :type="selectedOption.icon" />
         {{ __value ?? componentProps.placeholder ?? $t('comm.table.empty') }}
       </slot>
     </span>
@@ -53,12 +54,13 @@ const selectTypes = ['select', 'date', 'time', 'dateRange', 'timeRange']
 const disabled = computed(() => !!props.componentProps?.disabled)
 // 仅声明展示元数据的选项启用图文布局，保持其他原位编辑的默认行为。
 const richOptions = computed(() => Array.isArray(props.componentProps.options) && props.componentProps.options.some(item => item.icon || item.description))
+const selectedOption = computed(() => props.type === 'select' && Array.isArray(props.componentProps.options)
+  ? props.componentProps.options.find(item => item.value === (isEdit.value ? props.value : _value.value)) : undefined)
 
 const __value = computed(() => {
   const value = isEdit.value ? props.value : _value.value
   if (props.type === 'select') {
-    const options = props.componentProps.options
-    return (Array.isArray(options) ? options : []).find(item => item.value === value)?.label
+    return selectedOption.value?.label
   }
   return value ?? undefined
 })

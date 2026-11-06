@@ -8,7 +8,7 @@
       <a-checkbox v-if="policy.semantic === 'quantity'" :checked="policy.exclusiveContributions" :disabled="disabled" @change="changeExclusive($event.target.checked)">{{ t('exclusive') }}</a-checkbox>
       <small v-if="policy.semantic === 'quantity'">{{ t('exclusiveHint') }}</small>
       <div class="read-policy__operations"><button v-for="item in compatible" :key="item" type="button" :disabled="disabled || item === 'collection'" :class="{ active:policy.operations.includes(item) }" :aria-pressed="policy.operations.includes(item)" @click="toggleOperation(item)"><AIcon :type="policy.operations.includes(item) ? 'CheckOutlined' : 'PlusOutlined'" />{{ t(item) }}</button></div>
-      <TemplateClause icon="CalculatorOutlined" :title="t('defaultOperation')"><Editable type="select" :value="policy.defaultOperation" :component-props="{ options:policy.operations.map(value => ({ value, label:t(value), icon:'CalculatorOutlined', description:t('operationHint') })), disabled, bordered:false, dropdownMatchSelectWidth:false }" @change="patch({ defaultOperation:$event as ReadOperation })" /></TemplateClause>
+      <TemplateClause :icon="readOperationPresentation(policy.defaultOperation).icon" :title="t('defaultOperation')"><Editable type="select" :value="policy.defaultOperation" :component-props="{ options:policy.operations.map(value => ({ value, label:t(value), icon:readOperationPresentation(value).icon, description:t(readOperationPresentation(value).description) })), disabled, bordered:false, dropdownMatchSelectWidth:false }" @change="patch({ defaultOperation:$event as ReadOperation })" /></TemplateClause>
       <TemplateClause icon="BarChartOutlined" :title="t('defaultView')"><Editable type="select" :value="policy.defaultView" :component-props="{ options:['list','bars'].map(value => ({ value, label:t(value), icon:value === 'list' ? 'UnorderedListOutlined' : 'BarChartOutlined', description:t('readOnly') })), disabled, bordered:false }" @change="patch({ defaultView:$event as 'list' | 'bars' })" /></TemplateClause>
     </template>
   </details>
@@ -19,7 +19,7 @@ import { useI18n } from 'vue-i18n'
 import Editable from '../../Editable/index.vue'
 import TemplateClause from '../template/TemplateClause.vue'
 import { collectionMessages } from './messages'
-import { compatibleReadOperations, readPolicy, suggestedReadSemantic, updateReadPolicy } from './aggregationPolicy'
+import { compatibleReadOperations, readPolicy, readOperationPresentation, suggestedReadSemantic, updateReadPolicy } from './aggregationPolicy'
 import type { MetricTemplateOutput } from '../types'
 import type { MetricReadAggregation, ReadOperation, ReadSemantic } from './types'
 const props = defineProps<{ output:MetricTemplateOutput; disabled?:boolean }>()

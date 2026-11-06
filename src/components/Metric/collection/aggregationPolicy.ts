@@ -1,6 +1,14 @@
 import type { MetricTemplateOutput } from '../types'
 import type { MetricReadAggregation, ReadOperation, ReadSemantic } from './types'
 
+const operationPresentations:Record<ReadOperation,{icon:string;description:string}>={
+  collection:{icon:'UnorderedListOutlined',description:'collectionHint'},distribution:{icon:'PieChartOutlined',description:'distributionHint'},
+  average:{icon:'CalculatorOutlined',description:'averageHint'},min:{icon:'ArrowDownOutlined',description:'minHint'},max:{icon:'ArrowUpOutlined',description:'maxHint'},
+  sum:{icon:'PlusOutlined',description:'sumHint'},ratio:{icon:'PercentageOutlined',description:'ratioHint'},
+}
+/** Shared icon and explanatory copy for menus, inline editors and selected read operations. */
+export function readOperationPresentation(operation:ReadOperation) { return operationPresentations[operation] }
+
 /** Suggestions are based on declared meaning and type; algorithm IDs never grant summation. */
 export function suggestedReadSemantic(output: MetricTemplateOutput): ReadSemantic {
   if (['boolean','enum','string'].includes(output.valueType || '') || ['boolean','level','state'].includes(output.metricKind || '')) return 'state'

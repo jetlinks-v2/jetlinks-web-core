@@ -1,6 +1,6 @@
 <template>
   <a-dropdown v-if="outputs.length > 1" :trigger="['click']">
-    <button type="button" class="metric-output-switch" :aria-label="t('allOutputs')">{{ name }}<AIcon type="DownOutlined" /></button>
+    <button type="button" class="metric-output-switch" :aria-label="t('allOutputs')"><AIcon :type="metricOutputPresentation(selectedOutput,{template}).icon" />{{ name }}<AIcon type="DownOutlined" /></button>
     <template #overlay><a-menu :selected-keys="[outputId]" :aria-label="t('allOutputs')" @click="emit('change',String($event.key))">
       <a-menu-item v-for="item in outputs" :key="item.metricId"><SelectOption :label="metricOutputName(item,template) || t('unnamedOutput')" :icon="metricOutputPresentation(item,{template}).icon" /></a-menu-item>
     </a-menu></template>
@@ -19,6 +19,7 @@ const props=defineProps<{ template?:MetricTemplate; outputs?:MetricTemplateOutpu
 const emit=defineEmits<{ (event:'change',id:string):void }>()
 const { t }=useI18n({useScope:'local',messages:metricMessages})
 const outputs=computed(()=>props.outputs || props.template?.outputs || [])
+const selectedOutput=computed(()=>props.output || outputs.value.find(item=>item.metricId===props.outputId))
 const name=computed(()=>metricOutputName(props.output,props.template) || t('unnamedOutput'))
 </script>
 <style scoped>

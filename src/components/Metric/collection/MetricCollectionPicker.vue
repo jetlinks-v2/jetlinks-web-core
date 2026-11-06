@@ -1,7 +1,7 @@
 <template>
   <a-popover v-model:open="open" :trigger="['click']" placement="bottomLeft" :overlay-style="{maxWidth:'calc(100vw - 24px)'}">
     <button type="button" class="collection-picker__trigger" :aria-label="t(templates ? 'templatePicker' : 'output')" :aria-expanded="open">
-      <AIcon :type="active ? metricOutputPresentation(active.output,{labels:active.stateLabels}).icon : 'UnorderedListOutlined'" />
+      <AIcon :type="templates ? 'AppstoreOutlined' : active ? metricOutputPresentation(active.output,{labels:active.stateLabels}).icon : 'UnorderedListOutlined'" />
       <span>{{ active?.output.label || active?.output.metricId || (value?.length ? t(templates ? 'templatesSelected' : 'outputsSelected',{count:value.length}) : t(templates ? 'allTemplates' : 'all')) }}<small v-if="active && !templates">{{ active.templateName }}</small></span><AIcon type="DownOutlined" />
     </button>
     <template #content>
@@ -13,7 +13,7 @@
             <header><strong>{{ section.name }}</strong><a-checkbox :checked="categoryChecked(section.items)" :indeterminate="categoryPartial(section.items)" @change="toggleCategory(section.items)">{{ t('selectCategory') }}</a-checkbox></header>
             <div class="collection-picker__options">
               <a-checkbox v-for="item in section.items" :key="item.id" :checked="isChecked(item.id)" @change="toggle(item.id)">
-                <span class="collection-picker__option"><AIcon :type="metricOutputPresentation(item.output,{labels:item.stateLabels}).icon" /><span>{{ item.output.label || item.output.metricId }}<small v-if="section.duplicates.has(item.output.metricId)">v{{ item.version }}<template v-if="item.revision != null"> · r{{ item.revision }}</template></small></span><small v-if="item.output.unit">{{ item.output.unit }}</small></span>
+                <span class="collection-picker__option"><AIcon :type="templates ? 'AppstoreOutlined' : metricOutputPresentation(item.output,{labels:item.stateLabels}).icon" /><span>{{ item.output.label || item.output.metricId }}<small v-if="section.duplicates.has(item.output.metricId)">v{{ item.version }}<template v-if="item.revision != null"> · r{{ item.revision }}</template></small></span><small v-if="item.output.unit && !templates">{{ item.output.unit }}</small></span>
               </a-checkbox>
             </div>
           </section>
@@ -37,7 +37,7 @@ const { t } = useI18n({useScope:'local',messages:collectionMessages})
 const simpleImage = Empty.PRESENTED_IMAGE_SIMPLE
 const open=ref(false),search=ref(''),draft=ref<string[]>()
 const searchInput=ref<{focus():void}>()
-const choices=computed(()=>props.templates ? [...new Map(props.groups.map(item=>[item.templateId,{...item,id:item.templateId,output:{metricId:item.templateId,label:item.templateName}}])).values()] : props.groups)
+const choices=computed(()=>props.templates ? [...new Map(props.groups.map(item=>[item.templateId,{...item,id:item.templateId,output:{...item.output,metricId:item.templateId,label:item.templateName}}])).values()] : props.groups)
 const active=computed(()=>props.value?.length===1 ? choices.value.find(item=>item.id===props.value![0]) : undefined)
 const checked=computed(()=>new Set(draft.value || choices.value.map(item=>item.id)))
 const invalid=computed(()=>!!draft.value && (!draft.value.length || draft.value.length>128))
