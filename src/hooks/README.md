@@ -96,6 +96,8 @@ const { hasSearch, showEmptyCreate } = useEmptyCreateState(() => submittedTerms.
 
 ## 布局、主题与响应式
 
+`useContentFit({ viewport, content, minSize, maxSize })` 根据实际可用宽度返回 `fontSize` 和 `refresh()`，从根入口导出。内容保持自然宽度并使用返回字号，视口保持受约束宽度并允许滚动；不使用 transform，不接管编辑选区或生成另一份渲染。内容变化后调用 refresh，容器／内容尺寸和字体加载自动触发合并测量。字号到达下限后由宿主保留横向查看途径；隐藏时跳过测量，卸载断开观察并取消布局帧。无浏览器测量能力时保留最大字号。
+
 | 能力 | 入口文件 | 根入口 | 适用场景 |
 | --- | --- | --- | --- |
 | `useHeaderTheme` | `useHeaderTheme.ts` | 是 | 计算页面头部主题状态 |

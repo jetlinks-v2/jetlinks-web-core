@@ -1,8 +1,13 @@
 <template>
   <span
     class="i18n-input-trigger-wrapper"
+    role="button"
+    tabindex="0"
+    :aria-label="$t('I18n.configure')"
     @mousedown.stop
     @click.stop="emit('configure')"
+    @keydown.enter.stop.prevent="emit('configure')"
+    @keydown.space.stop.prevent="emit('configure')"
   >
     <a-tooltip :title="$t('I18n.configure')">
       <AIcon class="i18n-input-trigger" type="GlobalOutlined" />

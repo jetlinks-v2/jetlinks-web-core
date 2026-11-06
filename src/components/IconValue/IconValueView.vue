@@ -1,7 +1,7 @@
 <template>
   <div
     class="icon-value-view"
-    :class="{ 'icon-value-view--round': round }"
+    :class="{ 'icon-value-view--round': round, 'icon-value-view--indicator': indicator }"
     :style="boxCss"
     aria-hidden="true"
   >
@@ -11,7 +11,7 @@
       class="icon-value-view__solid"
       :style="{ background: parsed.color }"
     >
-      <span :style="solidTextStyle">{{ solidText }}</span>
+      <span v-if="!indicator" :style="solidTextStyle">{{ solidText }}</span>
     </div>
     <div v-else-if="parsed.kind === 'font'" class="icon-value-view__font">
       <AIcon :type="parsed.iconType" />
@@ -36,6 +36,8 @@ const props = withDefaults(
      * 当纯色未配置标签、或其它类型需要缩写时，用于生成色块/头像上的文字（如名称）。
      */
     fallbackText?: string
+    /** 标签已在外部展示时，纯色显示小圆点，字体图标去底色；图片保留原样。 */
+    indicator?: boolean
     round?: boolean
     borderRadius?: number
   }>(),
@@ -113,6 +115,10 @@ const boxCss = computed(() => ({
   background: color-mix(in srgb, var(--ink-1) 4%, transparent);
   box-sizing: border-box;
 }
+.icon-value-view--indicator { display:flex; align-items:center; justify-content:center; background:transparent }
+.icon-value-view--indicator .icon-value-view__solid { width:min(8px,100%); height:min(8px,100%); border-radius:50% }
+.icon-value-view--indicator .icon-value-view__font { background:transparent }
+.icon-value-view--indicator .icon-value-view__font :deep(.anticon) { font-size:var(--ivv-size) }
 .icon-value-view__img {
   width: 100%;
   height: 100%;

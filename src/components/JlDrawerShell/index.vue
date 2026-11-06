@@ -68,6 +68,8 @@ const props = withDefaults(
     open: boolean
     /** 抽屉宽度上限（默认 540） */
     width?: number
+    /** 图形编排工作区使用整个视口；普通详情仍按 width 限宽。 */
+    fullscreen?: boolean
     contentWrapperStyle?: CSSProperties
     /** 头部图标（Ant Design icon type）；slot=icon 也可直接覆盖 */
     icon?: string
@@ -92,6 +94,7 @@ const emit = defineEmits<{
 const viewportWidth = ref<number>(typeof window === 'undefined' ? 0 : window.innerWidth)
 
 const drawerWidth = computed(() => {
+  if (props.fullscreen && viewportWidth.value) return viewportWidth.value
   const maxWidth = Math.max(props.width, 320)
   if (!viewportWidth.value) return maxWidth
   return Math.min(maxWidth, Math.max(viewportWidth.value - 32, 320))

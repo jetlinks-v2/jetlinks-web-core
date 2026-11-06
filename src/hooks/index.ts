@@ -6,6 +6,7 @@ export * from './useRegistryComponentsMerge';
 export * from './useHeaderTheme';
 export * from './useProjectRouter';
 export * from './useResponsiveLayoutDimensions';
+export * from './useContentFit';
 export * from './useResponsiveAntdToken';
 export * from './useMenuAssetPermissionEditor';
 export * from './menuAssetPermissionEditor.types';

@@ -1,4 +1,5 @@
 import type { BaseMenuExport, MenuItem, ModuleExport, ResolvedModuleExport } from '@jetlinks-web-core/types/module'
+import { mergeModuleMenuCatalog } from './module-menu-layout'
 
 type ModuleGlobMap = Record<string, ModuleExport>
 type FilterableModuleExport = {
@@ -72,7 +73,7 @@ export const getModulesMenu = () => {
       }
   })
 
-  return menus
+  return mergeModuleMenuCatalog(menus)
 }
 
 export const registerModule = () => {
