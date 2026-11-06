@@ -29,7 +29,6 @@ import {
 } from './vite.setting'
 import { moduleFilterPlugin } from './configs/plugin/moduleFilterPlugin'
 import { hasMenuPlugin } from './configs/plugin/has-menu'
-import mkcert from 'vite-plugin-mkcert'
 
 export default defineConfig(async ({ mode, command }) => {
   const envDir = path.resolve(__dirname, '..')
@@ -127,7 +126,6 @@ export default defineConfig(async ({ mode, command }) => {
       ...loadViteModulesPlugins(),
       federation(getFederationSetting(moduleName, envDir)),
       // sharpOptimize()
-        mkcert(),
     ],
     server: {
       host: '0.0.0.0',
