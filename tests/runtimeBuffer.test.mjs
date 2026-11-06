@@ -314,6 +314,44 @@ test('native queue legend restores old single selection and limits display to cu
   } finally { h.scope.stop() }
 })
 
+test('compact overview aggregates all queues without overwriting saved detailed selections', async () => {
+  const names = ['a', 'b', 'c', 'd', 'e', 'f']
+  const h = chartHarness({ visibleObjectNames: ['a'] }, names)
+  try {
+    const saved = structuredClone(vue.toRaw(h.props.config))
+    h.props.compact = true
+    h.props.queues[1].dead = 2
+    h.props.history = [1000, 2000].map((at, index) => sample(at, ...names.map(name => queue(name, String(10 + index * 3), String(9 + index * 2), { pending: 1, dead: name === 'b' ? 2 : 0 }))))
+    await vue.nextTick()
+    assert.equal(h.chart.perQueue.value, false)
+    assert.deepEqual(h.chart.scopeNames.value, names)
+    assert.equal(h.chart.pending.value, 6)
+    assert.equal(h.chart.dead.value, 2, 'failures in unselected detail queues remain visible in the overview')
+    assert.equal(h.chart.currentRate.value.writtenRate, 18)
+    assert.equal(h.chart.currentRate.value.attemptedRate, 12)
+    const [throughput, backlog] = h.chart.compactCharts.value
+    assert.equal(throughput.series.length, 2)
+    assert.equal(backlog.series.length, 2)
+    assert.deepEqual(throughput.series.map(series => JSON.parse(series.key)[1]), ['writtenRate', 'attemptedRate'])
+    assert.deepEqual(backlog.series.map(series => JSON.parse(series.key)[1]), ['pending', 'dead'])
+    assert.deepEqual(backlog.series[0].samples.map(point => point.value), [6, 6])
+    assert.ok(throughput.series.every(series => !series.label.includes(' · ')))
+    assert.deepEqual(h.chart.selection.value.visibleObjectNames, ['a'])
+    assert.deepEqual(h.props.config, saved)
+    assert.equal(h.events.length, 0)
+
+    h.props.compact = false
+    await vue.nextTick()
+    assert.equal(h.chart.perQueue.value, true)
+    assert.deepEqual(h.chart.scopeNames.value, ['a'])
+    assert.equal(h.chart.pending.value, 1)
+    assert.equal(h.chart.currentRate.value.writtenRate, 3)
+    assert.match(h.chart.tooltip([{ axisValue: 2000 }]), /title="a"/)
+    assert.doesNotMatch(h.chart.tooltip([{ axisValue: 2000 }]), /title="b"/)
+    assert.equal(h.events.length, 0)
+  } finally { h.scope.stop() }
+})
+
 test('queue reading changes preserve chart options and selection while topology or history changes update them', async () => {
   const h = chartHarness()
   try {

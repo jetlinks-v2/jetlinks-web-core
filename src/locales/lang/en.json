@@ -1,4 +1,8 @@
 {
+  "runtimeDiagnostics.lessMetrics": "Show fewer metrics",
+  "runtimeDiagnostics.moreMetrics": "Show more metrics",
+  "runtimeDiagnostics.sampleCoverageSeconds": "Sample coverage: {seconds}s",
+  "runtimeDiagnostics.systemResources": "System resources",
   "runtimeDiagnostics.bean.QpsSnapshot": "QPS window snapshot",
   "runtimeDiagnostics.mbeanSummary.qpsWaiting": "Waiting for first window",
   "runtimeDiagnostics.mbeanSummary.qpsReady": "Ready",

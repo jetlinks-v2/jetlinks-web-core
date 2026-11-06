@@ -4,6 +4,7 @@ export const SamplingIntervalControl = defineAsyncComponent(() => import('./Samp
 export { diagnosticSamplingIntervals, defaultDiagnosticSamplingInterval, isDiagnosticSamplingInterval, normalizeDiagnosticSamplingInterval } from './samplingInterval'
 export type { DiagnosticSamplingInterval } from './samplingInterval'
 export const RuntimeMetricsPanel = defineAsyncComponent(() => import('./RuntimeMetricsPanel.vue'))
+export const HistoryMetricCharts = defineAsyncComponent(() => import('./history/HistoryMetricCharts.vue'))
 export const RuntimeMBeanOverview = defineAsyncComponent(() => import('./RuntimeMBeanOverview.vue'))
 export const BufferObservationHistory = defineAsyncComponent(() => import('./buffer/BufferObservationHistory.vue'))
 export const BufferQueueDetail = defineAsyncComponent(() => import('./buffer/BufferQueueDetail.vue'))

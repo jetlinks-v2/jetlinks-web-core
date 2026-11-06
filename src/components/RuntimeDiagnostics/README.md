@@ -21,7 +21,8 @@ import type { MBeanDescriptor, MBeanInvocation, ViewState, ActionAccess }
 | 组件 | 主要 props | 事件 / 插槽 |
 | --- | --- | --- |
 | SamplingIntervalControl | value、open?、disabled?、showInterval?、label? | change、update:open；footer 插槽。集群与设备连接共用 1 / 2 / 5 / 10 / 30 / 60 秒选项、时钟按钮及单次选择弹层，支持 Esc 回焦 |
-| RuntimeMetricsPanel | metrics、samples、charts、range、activeMetric、options、state、historyState | refresh、metric、range-change(TimeWindow)；快捷范围携带 relativeSeconds，由宿主在查询时解析到当前时间；自定义 / 缩放只含 from/to，恢复缩放保留原范围语义；metrics / summary / time / default 插槽 |
+| RuntimeMetricsPanel | metrics、samples、charts、range、activeMetric、options、state、historyState；可选 compact、initialChartKeys、chartCapacity、expanded | refresh、metric、range-change(TimeWindow)、update:expanded；快捷范围携带 relativeSeconds，由宿主在查询时解析到当前时间；自定义 / 缩放只含 from/to，恢复缩放保留原范围语义；metrics / summary / time / default（expanded）插槽；compact 默认 false，initialChartKeys 只收起未选图表，不新增请求。可选 chartCapacity 由宿主按空间增加前 N 张已有图表，保留 initialChartKeys 与手动展开；未传时行为不变。未传 expanded 时组件自管展开状态 |
+| HistoryMetricCharts | charts、range；可选 compact、tooltipFormatter | range-change(TimeWindow)；readings 插槽；只读趋势、同组游标和缩放，末点缺测保持未知。MetricChart.formatTime 可保留节点时区；compact 按组件实际宽度自动单 / 双列，采样通过 dataOption 提交，视口外延迟绘制；系列身份变化才重建实例 |
 | RuntimeMBeanOverview | beans、state、config、history?、showLifetime?、resetAccess?、resetState? | refresh、inspect(ObjectName)、update:config、reset(ObjectName)；启动时间 / 时长、Buffer 累计计数与近 5 分钟趋势 |
 | JvmDiagnosticPanel | nodeId、threads、threadState、snapshot、samplingState、access、activeTab、platformPrefixes | 实时分析 / 诊断快照两个页签；sample、start、stop、export-html、capture-jfr、heap-dump({live})、update:activeTab；memory 操作插槽 |
 | FlameGraphViewer | snapshot、platformPrefixes、embedded? | 搜索、平台帧标记、操作分组、库调用展开、缩放与全屏；embedded 缩短图高并默认收起热点明细 |

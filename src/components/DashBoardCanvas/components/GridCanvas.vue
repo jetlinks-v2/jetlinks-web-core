@@ -17,6 +17,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import { useResizeObserver } from '@vueuse/core'
 import { GridItem, GridLayout } from 'vue3-grid-layout-next'
 import 'vue3-grid-layout-next/dist/style.css'
 import { toGridLayout } from '../utils/layout'
@@ -40,6 +41,15 @@ const host = ref<HTMLElement>()
 const layoutRef = ref<InstanceType<typeof GridLayout>>()
 const gridItemRefs = ref<InstanceType<typeof GridItem>[]>([])
 const layoutJSON = ref<DashboardLayoutItem[]>([])
+
+// 容器滚动条或侧栏变化未必触发 window.resize，补齐网格公开宽度状态的同步。
+// 使用观察器给出的尺寸，不重建网格、业务组件或个人坐标。
+useResizeObserver(computed(() => layoutRef.value?.$el as HTMLElement | undefined), ([entry]) => {
+  if (!entry) return
+  const width = Math.round(entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width)
+  const layout = layoutRef.value
+  if (layout && width > 0 && layout.width !== width) layout.width = width
+}, { box: 'border-box' })
 
 // Retain LoadingBoard's negative margins: the first/last cells align with the viewport edges.
 const gridLayoutStyle = computed(() => ({

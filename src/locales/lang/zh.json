@@ -1,4 +1,8 @@
 {
+  "runtimeDiagnostics.lessMetrics": "收起更多指标",
+  "runtimeDiagnostics.moreMetrics": "展开更多指标",
+  "runtimeDiagnostics.sampleCoverageSeconds": "采样跨度 {seconds} 秒",
+  "runtimeDiagnostics.systemResources": "系统资源",
   "runtimeDiagnostics.bean.QpsSnapshot": "QPS 窗口快照",
   "runtimeDiagnostics.mbeanSummary.qpsWaiting": "等待首个窗口",
   "runtimeDiagnostics.mbeanSummary.qpsReady": "已就绪",

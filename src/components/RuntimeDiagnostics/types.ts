@@ -30,7 +30,9 @@ export interface MetricSample { timestamp: number; value?: number }
 export interface MetricChart {
   key: string; label: string; description?: string; unit?: string
   max?: number; minInterval?: number; formatValue?: (value: number) => string
-  series: Array<{ key: string; label: string; samples: MetricSample[]; color?: string }>
+  /** 节点历史可保留节点时区；未提供时沿用图表默认时间格式。 */
+  formatTime?: (timestamp: number) => string
+  series: Array<{ key: string; label: string; samples: MetricSample[]; color?: string; lineType?: 'solid' | 'dashed' | 'dotted' }>
 }
 export interface ThreadSnapshot {
   id: string; name: string; state: string; stack: string; lock?: string; sampledAt: number

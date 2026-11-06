@@ -1,7 +1,9 @@
 <template>
-  <section class="buffer-overview-chart" :style="{ '--buffer-error': token.colorError }">
+  <section class="buffer-overview-chart" :class="{ 'buffer-overview-chart--compact': compact }" :style="{ '--buffer-error': token.colorError }">
     <header class="buffer-chart-heading">
       <div class="buffer-chart-title"><strong>{{ t('runtimeDiagnostics.bufferQueues') }}</strong><a-tooltip :overlay-style="{ maxWidth: 'min(360px, calc(100vw - 24px))' }" :trigger="['hover', 'focus']"><template #title><div class="buffer-help"><p>{{ t('runtimeDiagnostics.bufferCollectionInfo') }}</p><p>{{ t('runtimeDiagnostics.bufferBacklogInfo') }}</p><p>{{ t('runtimeDiagnostics.bufferThroughputInfo') }}</p><p>{{ t('runtimeDiagnostics.bufferStatsInfo') }}</p><p>{{ scopeLabel }} · {{ coverage }}</p></div></template><InfoCircleOutlined tabindex="0" :aria-label="t('runtimeDiagnostics.bufferCollectionInfo')" /></a-tooltip></div>
+      <span v-if="compact" class="buffer-compact-scope">{{ scopeLabel }}</span>
+      <template v-else>
       <div class="buffer-reading"><span>{{ t('runtimeDiagnostics.queue.pending') }}</span><strong>{{ numberText(pending) }}</strong><small>{{ t('runtimeDiagnostics.items') }}</small></div>
       <div class="buffer-reading"><span>{{ t('runtimeDiagnostics.bufferWriteShort') }}</span><strong>{{ numberText(currentRate?.writtenRate) }}</strong><small>{{ t('runtimeDiagnostics.bufferItemsPerSecond') }}</small></div>
       <div class="buffer-reading"><span>{{ t('runtimeDiagnostics.bufferAttemptShort') }}</span><strong>{{ numberText(currentRate?.attemptedRate) }}</strong><small>{{ t('runtimeDiagnostics.bufferItemsPerSecond') }}</small></div>
@@ -9,13 +11,15 @@
       <div v-if="currentRate?.outRowsRate !== undefined" class="buffer-reading"><span>{{ t('runtimeDiagnostics.bufferObservation.OutRowsRate') }}</span><strong>{{ numberText(currentRate.outRowsRate) }}</strong><small>{{ t('runtimeDiagnostics.bufferRowsPerSecond') }}</small></div>
       <div v-if="rowGap !== undefined" class="buffer-reading" :title="t('runtimeDiagnostics.bufferRowGapInfo')"><span>{{ t('runtimeDiagnostics.bufferRowGap') }}</span><strong>{{ numberText(rowGap) }}</strong><small>{{ t('runtimeDiagnostics.bufferRowsPerSecond') }}</small></div>
       <span v-if="dead !== undefined && dead > 0" class="buffer-retained">{{ t('runtimeDiagnostics.bufferRetainedCount', { count: numberText(dead) }) }}</span>
+      </template>
       <div class="buffer-heading-actions">
-        <a-segmented size="small" :value="rateUnit" :options="rateOptions" :aria-label="t('runtimeDiagnostics.bufferRateUnit')" @change="selectRateUnit" />
+        <template v-if="compact"><span class="buffer-compact-scope">{{ t('runtimeDiagnostics.sampleCoverageSeconds', { seconds: Math.max(0, Math.round(((points.at(-1)?.sampledAt ?? 0) - (points[0]?.sampledAt ?? 0)) / 1000)) }) }}</span><slot name="details" /></template>
+        <a-segmented v-else size="small" :value="rateUnit" :options="rateOptions" :aria-label="t('runtimeDiagnostics.bufferRateUnit')" @change="selectRateUnit" />
         <a-popover ref="optionsPopover" :open="optionsOpen" placement="bottomRight" trigger="click" @open-change="setOptionsOpen">
           <template #content>
             <div class="buffer-chart-options" tabindex="-1" @keydown.esc.stop="closeOptions(true)">
-              <a-segmented size="small" :value="selection.grouping" :options="groupingOptions" :aria-label="t('runtimeDiagnostics.bufferGrouping')" @change="selectGrouping" />
-              <a-divider />
+              <template v-if="compact"><a-segmented size="small" :value="rateUnit" :options="rateOptions" :aria-label="t('runtimeDiagnostics.bufferRateUnit')" @change="selectRateUnit" /><a-divider /></template>
+              <template v-if="!compact"><a-segmented size="small" :value="selection.grouping" :options="groupingOptions" :aria-label="t('runtimeDiagnostics.bufferGrouping')" @change="selectGrouping" /><a-divider /></template>
               <a-tooltip :title="t('runtimeDiagnostics.bufferScaleInfo')"><a-segmented size="small" :value="selection.scale" :options="scaleOptions" @change="selectScale" /></a-tooltip>
               <a-divider />
               <a-space direction="vertical" :size="2">
@@ -29,10 +33,14 @@
       </div>
     </header>
     <div v-if="['loading', 'error', 'forbidden', 'unsupported'].includes(resetState.status)" class="buffer-reset-status" :class="{ 'is-error': resetState.status !== 'loading' }" role="status">{{ resetState.status === 'loading' ? t('runtimeDiagnostics.bufferResetting') : resetState.message || t('runtimeDiagnostics.failed') }}</div>
-    <div class="buffer-history-chart"><div class="buffer-series-key"><span v-for="metric in seriesMetrics" :key="metric.key"><i :class="{ 'is-dashed': metric.lineType === 'dashed', 'is-dotted': metric.lineType === 'dotted', 'has-area': metric.key === 'pending' }" :style="{ color: perQueue && metric.key !== 'dead' ? undefined : metricColor(metric.key) }" />{{ metric.label }}</span></div><Echarts :key="chartKey" class="buffer-chart-canvas" :option="option" :data-option="dataOption" defer-offscreen :events="chartEvents" :library="library" renderer="svg" /><span v-if="!hasData || !hasLine" class="buffer-history-waiting" :class="{ 'is-collecting': hasData }" role="status"><ClockCircleOutlined v-if="scopeNames.length" />{{ t(!scopeNames.length ? 'runtimeDiagnostics.bufferNoQueuesSelected' : hasData ? 'runtimeDiagnostics.bufferCollectingSamples' : 'runtimeDiagnostics.waitingBufferSamples') }}</span></div>
+    <HistoryMetricCharts v-if="compact" :key="chartKey" :charts="compactCharts" compact><template #readings="{ chart }">
+      <template v-if="chart.key === 'throughput'"><span><b>{{ numberText(rateUnit === 'rows' ? currentRate?.inRowsRate : currentRate?.writtenRate) }}</b><small>{{ t(rateUnit === 'rows' ? 'runtimeDiagnostics.bufferObservation.InRowsRate' : 'runtimeDiagnostics.bufferWriteShort') }}</small></span><span><b>{{ numberText(rateUnit === 'rows' ? currentRate?.outRowsRate : currentRate?.attemptedRate) }}</b><small>{{ t(rateUnit === 'rows' ? 'runtimeDiagnostics.bufferObservation.OutRowsRate' : 'runtimeDiagnostics.bufferAttemptShort') }}</small></span></template>
+      <template v-else><span><b>{{ numberText(pending) }}</b><small>{{ t('runtimeDiagnostics.queue.pending') }}</small></span><span v-if="dead !== undefined && dead > 0" class="buffer-retained"><b>{{ numberText(dead) }}</b><small>{{ t('runtimeDiagnostics.bufferRetainedFailures') }}</small></span></template>
+    </template></HistoryMetricCharts>
+    <div v-else class="buffer-history-chart"><div class="buffer-series-key"><span v-for="metric in seriesMetrics" :key="metric.key"><i :class="{ 'is-dashed': metric.lineType === 'dashed', 'is-dotted': metric.lineType === 'dotted', 'has-area': metric.key === 'pending' }" :style="{ color: perQueue && metric.key !== 'dead' ? undefined : metricColor(metric.key) }" />{{ metric.label }}</span></div><Echarts :key="chartKey" class="buffer-chart-canvas" :option="option" :data-option="dataOption" defer-offscreen :events="chartEvents" :library="library" renderer="svg" /><span v-if="!hasData || !hasLine" class="buffer-history-waiting" :class="{ 'is-collecting': hasData }" role="status"><ClockCircleOutlined v-if="scopeNames.length" />{{ t(!scopeNames.length ? 'runtimeDiagnostics.bufferNoQueuesSelected' : hasData ? 'runtimeDiagnostics.bufferCollectingSamples' : 'runtimeDiagnostics.waitingBufferSamples') }}</span></div>
     <small v-if="rateUnit === 'rows' && !hasRowRates && scopeNames.length" class="buffer-axis-key">{{ t('runtimeDiagnostics.bufferRowsUnavailable') }}</small>
-    <small class="buffer-axis-key">{{ t('runtimeDiagnostics.bufferSeparatedAxes', { items: t('runtimeDiagnostics.items'), rate: t(rateUnit === 'rows' ? 'runtimeDiagnostics.bufferRowsPerSecond' : 'runtimeDiagnostics.bufferItemsPerSecond') }) }}</small>
-    <slot name="details"><BufferQueueDetails :queues="queues" :history="history" :projection="historyProjection" :scope-key="selectionKey" :coverage="coverage" :reset-access="resetAccess" :reset-state="resetState" @inspect="value => emit('inspect', value)" @reset="value => emit('reset', value)" /></slot>
+    <small v-if="!compact" class="buffer-axis-key">{{ t('runtimeDiagnostics.bufferSeparatedAxes', { items: t('runtimeDiagnostics.items'), rate: t(rateUnit === 'rows' ? 'runtimeDiagnostics.bufferRowsPerSecond' : 'runtimeDiagnostics.bufferItemsPerSecond') }) }}</small>
+    <slot v-if="!compact || !$slots.details" name="details"><BufferQueueDetails :queues="queues" :history="history" :projection="historyProjection" :scope-key="selectionKey" :coverage="coverage" :reset-access="resetAccess" :reset-state="resetState" @inspect="value => emit('inspect', value)" @reset="value => emit('reset', value)" /></slot>
   </section>
 </template>
 <script setup lang="ts">
@@ -44,7 +52,8 @@ import { LineChart } from 'echarts/charts'
 import { AxisPointerComponent, GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { escape } from 'lodash-es'
 import Echarts from '../../Echarts/Echarts.vue'
-import type { ActionAccess, BufferDisplayConfig, BufferHistorySample, ViewState } from '../types'
+import HistoryMetricCharts from '../history/HistoryMetricCharts.vue'
+import type { ActionAccess, BufferDisplayConfig, BufferHistorySample, MetricChart, ViewState } from '../types'
 import type { runtimeBeanOverview } from '../utils'
 import { createVisiblePopupFocus } from '../popupFocus'
 import BufferQueueDetails from './BufferQueueDetails.vue'
@@ -53,7 +62,7 @@ import { bufferAxisValue, bufferPlotValue, bufferQuantityTotal, normalizeBufferC
 type BufferQueue = ReturnType<typeof runtimeBeanOverview>['buffers'][number]
 type BufferMetric = 'pending' | 'writtenRate' | 'attemptedRate' | 'inRowsRate' | 'outRowsRate' | 'dead'
 interface SeriesMetric { key: BufferMetric; label: string; axis: number; lineType: 'solid' | 'dotted' | 'dashed' }
-const props = defineProps({ queues: { type: Array as PropType<BufferQueue[]>, default: () => [] }, history: { type: Array as PropType<BufferHistorySample[]>, default: () => [] }, config: { type: Object as PropType<BufferDisplayConfig>, default: undefined }, resetAccess: { type: Object as PropType<ActionAccess>, default: () => ({ allowed: false }) }, resetState: { type: Object as PropType<ViewState>, default: () => ({ status: 'ready' }) } })
+const props = defineProps({ queues: { type: Array as PropType<BufferQueue[]>, default: () => [] }, history: { type: Array as PropType<BufferHistorySample[]>, default: () => [] }, config: { type: Object as PropType<BufferDisplayConfig>, default: undefined }, resetAccess: { type: Object as PropType<ActionAccess>, default: () => ({ allowed: false }) }, resetState: { type: Object as PropType<ViewState>, default: () => ({ status: 'ready' }) }, compact: { type: Boolean, default: false } })
 const emit = defineEmits<{ (event: 'update:config', value: BufferDisplayConfig): void; (event: 'reset' | 'inspect', objectName: string): void; (event: 'settings'): void }>()
 const { t } = useI18n(), { token } = theme.useToken()
 const library = [LineChart, GridComponent, TooltipComponent, LegendComponent, AxisPointerComponent]
@@ -81,7 +90,8 @@ function configure(patch: Partial<BufferDisplayConfig>) {
 watch(queueNames, names => {
   if (!explicitSelection.value) selection.value = normalizeBufferConfig({ ...selection.value, objectName: undefined, visibleObjectNames: undefined }, names)
 })
-const perQueue = computed(() => selection.value.grouping === 'queues')
+// 概览固定展示完整汇总；详细图的分组和选择偏好仍原样保留。
+const perQueue = computed(() => !props.compact && selection.value.grouping === 'queues')
 const visibleQueues = computed(() => props.queues.filter(queue => !perQueue.value || selection.value.visibleObjectNames?.includes(queue.objectName)))
 const scopeNames = computed(() => queueNames.value.filter(name => !perQueue.value || selection.value.visibleObjectNames?.includes(name)))
 // 滚动图例优先显示已选队列；仅改变排列，不改变完整身份、颜色或选择范围。
@@ -155,6 +165,19 @@ const hasLine = computed(() => queuePoints.value.some(queue => (!perQueue.value 
 // ECharts 默认合并系列，身份或分组改变时重建以移除旧系列；采样和刻度仍保留实例。
 const chartKey = computed(() => JSON.stringify([rateUnit.value, selection.value.grouping, [...queueNames.value].sort(), hasFailures.value, [...failureQueues.value].sort()]))
 function metricColor(key: BufferMetric) { return key === 'pending' ? token.value.colorPrimary : key === 'dead' ? token.value.colorError : key === 'outRowsRate' ? token.value.cyan : token.value.colorSuccess }
+const compactFormatValue = (value: number) => bufferAxisValue(value, selection.value.scale).toLocaleString(undefined, { maximumFractionDigits: 2, notation: 'compact' })
+/** 两个概览面板共享汇总历史，各自只展示本图指标，不重新读取队列。 */
+const compactCharts = computed<MetricChart[]>(() => [1, 0].map(axis => ({
+  key: axis ? 'throughput' : 'backlog', label: t(axis ? 'runtimeDiagnostics.bufferThroughput' : 'runtimeDiagnostics.bufferBacklog'),
+  unit: t(axis ? rateUnit.value === 'rows' ? 'runtimeDiagnostics.bufferRowsPerSecond' : 'runtimeDiagnostics.bufferItemsPerSecond' : 'runtimeDiagnostics.items'),
+  minInterval: !axis && selection.value.scale !== 'compressed' ? 1 : undefined,
+  formatValue: compactFormatValue,
+  series: queuePoints.value.filter(queue => !perQueue.value || scopeNames.value.includes(queue.name)).flatMap(queue => seriesMetrics.value.filter(metric => metric.axis === axis && (metric.key !== 'dead' || failureQueues.value.includes(queue.name))).map(metric => ({
+    key: JSON.stringify([queue.name, metric.key]), label: perQueue.value ? `${bufferObjectLabel(queue.name)} · ${metric.label}` : metric.label,
+    color: metric.key === 'dead' ? token.value.colorError : perQueue.value ? queueColors.value.get(queue.name) : metric.lineType === 'dashed' ? token.value.colorSuccess : token.value.colorPrimary,
+    lineType: metric.lineType, samples: queue.points.map(point => ({ timestamp: point.sampledAt, value: bufferPlotValue(point[metric.key], selection.value.scale) ?? undefined })),
+  }))),
+})))
 function tooltip(params: unknown) {
   const first: unknown = Array.isArray(params) ? params[0] : params
   if (!first || typeof first !== 'object' || !('axisValue' in first) || typeof first.axisValue !== 'number') return ''
@@ -203,5 +226,6 @@ const dataOption = computed(() => ({
 .buffer-axis-key { display:block; margin-top:6px; color:var(--ink-2); font-size:var(--fs-caption,12px); line-height:20px; }
 .buffer-history-chart { display:flex; flex-direction:column; height:300px; margin-top:8px; min-width:0; position:relative; }.buffer-chart-canvas { flex:1 1 0; min-height:0; }.buffer-history-waiting { display:flex; justify-content:center; align-items:center; gap:6px; position:absolute; inset:46px 0 0; pointer-events:none; color:var(--ink-3); font-size:var(--fs-caption,12px); }
 .buffer-history-waiting.is-collecting { inset:auto 0 8px; }.buffer-help p { margin:0 0 8px; }.buffer-help p:last-child { margin:0; }
+.buffer-compact-scope { color:var(--ink-3); font-size:11px; }.buffer-overview-chart--compact .buffer-heading-actions { margin-bottom:6px; }
 @container (max-width:600px) { .buffer-chart-heading { gap:6px 12px; }.buffer-heading-actions { gap:2px; } }
 </style>
