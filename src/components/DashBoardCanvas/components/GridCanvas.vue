@@ -1,8 +1,8 @@
 <template>
-  <div ref="host" class="dashboard-grid" @dragover="drag.onDragOver" @drop="drag.onDrop">
+  <div ref="host" class="dashboard-grid" :class="{ 'dashboard-grid--initializing': !layoutReady }" @dragover="drag.onDragOver" @drop="drag.onDrop">
     <GridLayout ref="layoutRef" v-model:layout="layoutJSON" :col-num="settings.columns"
       :row-height="settings.rowHeight" :margin="settings.margin" :style="gridLayoutStyle"
-      :is-draggable="layoutEditable" :is-resizable="layoutEditable">
+      :is-draggable="layoutEditable" :is-resizable="layoutEditable" @layout-ready="finishInitialLayout">
       <GridItem v-for="item in layoutJSON" :key="item.i" ref="gridItemRefs"
         v-bind="item" :static="item.static || (!editable && !layoutEditable)"
         :is-draggable="layoutEditable && !item.static" :is-resizable="layoutEditable && !item.static"
@@ -41,6 +41,13 @@ const host = ref<HTMLElement>()
 const layoutRef = ref<InstanceType<typeof GridLayout>>()
 const gridItemRefs = ref<InstanceType<typeof GridItem>[]>([])
 const layoutJSON = ref<DashboardLayoutItem[]>([])
+const layoutReady = ref(false)
+
+// 子组件读取尺寸可能提前计算默认布局；首次定位完成前不从该布局做位移动画。
+function finishInitialLayout() {
+  (layoutRef.value?.$el as HTMLElement | undefined)?.getBoundingClientRect()
+  layoutReady.value = true
+}
 
 // 容器滚动条或侧栏变化未必触发 window.resize，补齐网格公开宽度状态的同步。
 // 使用观察器给出的尺寸，不重建网格、业务组件或个人坐标。
@@ -87,6 +94,7 @@ async function onLayoutEnd() {
 
 <style scoped lang="less">
 .dashboard-grid { position: relative; width: 100%; min-height: 100%; }
+.dashboard-grid--initializing :deep(.vue-grid-item) { transition:none; }
 :deep(.vue-grid-item) {
   &.resizing { opacity: .9; }
   .vue-resizable-handle {

@@ -7,6 +7,7 @@
 固定排版的页面可从同一入口导入 `DashboardWidgetRenderer`，传入 `widget`、`definition` 与 `previewMode`，复用组件注入、错误隔离和重试，不创建拖拽网格或个人坐标缓存。宿主负责布局，可将渲染器的 `height` 设为 `auto` 以随内容撑高。需要个人拖拽、缩放和本地布局保存的页面应使用 `DashBoardCanvas`；`editable=false`、`layoutEditable=true`、`previewMode=false` 可在保持业务实时取数的同时只开放位置和尺寸调整。
 
 网格使用容器尺寸观察同步宽度，侧栏、滚动条变化无需触发窗口 resize；相同宽度不重复提交，尺寸变化不重建业务组件或改写个人坐标。KeepAlive 缓存画布重新激活时，在绘制前恢复当前容器宽度，避免从隐藏期间的零宽度过渡。
+首次布局完成前关闭卡片位移动画，收到网格 `layout-ready` 后提交最终几何样式并恢复动画，避免从默认宽度滑动到实际位置；正常拖动与缩放仍保留动画。
 
 ## 自动发现
 
