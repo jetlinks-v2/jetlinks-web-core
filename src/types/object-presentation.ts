@@ -41,6 +41,20 @@ export interface ObjectPresentationField {
 export interface ObjectPresentation {
   typeId: string
   fields: ObjectPresentationField[]
+  /** Query configuration/formatting belongs to its owner; the host retains execution and persistence. */
+  queries?: Record<
+    string,
+    {
+      icon?: string
+      nodeField?: string
+      parameters?: Component<{
+        subject?: { typeId: string; id: string }
+        parameters: Record<string, unknown>
+        disabled?: boolean
+      }>
+      format?: (value: unknown) => { text: string; tone?: 'success' | 'warning' | 'error' | 'neutral' }
+    }
+  >
   /** Secondary directory text from the authorized row; an empty result hides the subtitle. */
   directorySubtitle?: (object: { id: string; [key: string]: unknown }) => string | undefined
   directory?: { mode: 'tree'; load: () => Promise<ObjectDirectoryNode[]> }
