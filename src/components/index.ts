@@ -231,7 +231,7 @@ export { DeviceSessionViewer } from './RuntimeDiagnostics'
 export type { DeviceSessionInfo, DeviceSessionConnection, DeviceSessionDeviceOption } from './RuntimeDiagnostics'
 export type { MBeanDescriptor, MBeanInvocation, MBeanRenderer, MBeanRendererContext, MBeanInvocationOutcome, MBeanQueryId, MBeanQuerySnapshot } from './RuntimeDiagnostics'
 export type { SvgIconType } from './SvgIcon/icons'
-export { createAssetOwnershipField, toAssetOwnershipFilterTerm } from './AssetOwnershipCondition'
+export { createAssetOwnershipField, toAssetOwnershipFilterTerm, resolveAssetDimensionFilter, onAssetDimensionFiltersChange, AssetDimensionPicker } from './AssetOwnershipCondition'
 export type {
     AssetOwnershipOptions, AssetOwnershipTerm, AssetOwnershipSelection, AssetOwnershipDisplay,
     AssetDimensionFilter, AssetDimensionSelector, AssetDimensionOperator, AssetDimensionOption,
