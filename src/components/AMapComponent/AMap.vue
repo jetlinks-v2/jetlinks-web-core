@@ -29,7 +29,8 @@
                     <div v-else-if="!error.code && !error.info && !error.message" class="amap-error-detail">
                         {{ $t('AMapComponent.AMap.unknownError') }}
                     </div>
-                    <div>{{ $t('AMapComponent.AMap.errorGuide') }}</div>
+                    <div>{{ $t(isRecycledKey ? 'AMapComponent.AMap.recycledKeyGuide' : 'AMapComponent.AMap.errorGuide') }}</div>
+                    <AMapConfigAction v-if="isRecycledKey" />
                 </template>
             </Result>
         </div>
@@ -37,7 +38,9 @@
             <Spin />
             <span>{{ $t('AMapComponent.AMap.loading') }}</span>
         </div>
-        <CloudEmpty v-else-if="!amapKey" :description="$t('AMapComponent.AMap.059194-0')" style="padding: 20%" />
+        <CloudEmpty v-else-if="!amapKey" :description="$t('AMapComponent.AMap.059194-0')" style="padding: 20%">
+            <AMapConfigAction />
+        </CloudEmpty>
     </div>
 </template>
 
@@ -49,6 +52,8 @@ import { ExclamationCircleOutlined } from '@ant-design/icons-vue';
 import { useI18n } from 'vue-i18n';
 import '@vuemap/vue-amap/dist/style.css';
 import { useAMapLifecycle } from './useAMapLifecycle';
+import { isRecycledAMapKey } from './errors';
+import AMapConfigAction from './AMapConfigAction.vue';
 
 const emit = defineEmits(['init']);
 const props = defineProps({
@@ -67,6 +72,7 @@ const {
 const errorTitle = computed(() => t(error.value?.kind === 'timeout'
     ? 'AMapComponent.AMap.timeoutTitle'
     : error.value?.kind === 'ui' ? 'AMapComponent.AMap.uiErrorTitle' : 'AMapComponent.AMap.errorTitle'));
+const isRecycledKey = computed(() => isRecycledAMapKey(error.value));
 
 defineExpose({ setBounds });
 </script>
