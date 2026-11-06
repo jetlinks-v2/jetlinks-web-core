@@ -1,5 +1,6 @@
 export const collectionMessages = {
   zh: {
+    cardVariant:'{version} · 修订{revision} · 口径{index}',templatePicker:'选择指标模板',allTemplates:'全部模板',templatesSelected:'已选 {count} 个模板',templateSelectionHint:'按模板查看汇总；点击卡片中的查看成员可追溯单个对象。',backOverview:'返回指标概览',noAggregationPolicy:'此输出仅提供成员结果',noAggregateRecords:'所选时段尚无可聚合记录',memberValuesAvailable:'可查看成员的当前结果与来源记录',
     outputsSelected:'已选 {count} 项输出',searchOutputs:'搜索模板或输出',selectCategory:'全选本类',apply:'应用',cancel:'取消',resetAll:'显示全部',selectionHint:'按模板选择输出；多选仅展示成员结果。',selectionLimit:'最多选择 128 项输出，或显示全部',noMatches:'没有匹配的输出',
     unknown:'未确认',
     overview:'指标概览',membersTab:'成员明细',aggregateStored:'已有数据汇总',aggregateHint:'按所选时段已记录的对象统计，不新增计算。',aggregateHistoryHint:'每个桶按对象取最后一条记录后汇总；空桶表示没有记录，不延续旧值。',aggregateEmpty:'所选范围暂无支持汇总的指标记录',
@@ -12,13 +13,14 @@ export const collectionMessages = {
     scope:'{count} 个成员', valid:'有效结果 {valid} / {total}', missing:'无有效结果 {count}', empty:'此范围没有可见成员',
     descendants:'包含全部下级', direct:'仅本级归属', refresh:'刷新', failed:'读取范围结果失败', retry:'重试',
     detail:'查看来源与记录', noValue:'暂无有效结果', default:'恢复模板默认', policy:'上级如何查看此输出',
-    policyHint:'声明跨对象可用的统计方式；不会创建上级计算任务。', legacy:'仅展示明细', enable:'声明汇总口径',
+    policyHint:'默认按输出类型选择统计；声明可限制或扩展允许的方式，不会创建上级计算任务。', legacy:'按输出类型自动选择', enable:'声明汇总口径',
     semantic:'结果含义', state:'状态', score:'评分', duration:'当前持续时间', quantity:'可加数量', numeric:'数值',
     exclusive:'确认每个对象的贡献互不重叠', exclusiveHint:'父级汇总和下级明细同时出现时，仍会禁用求和。',
     defaultOperation:'默认统计', defaultView:'默认视图', ranking:'排名', unsupported:'当前范围不可使用模板默认统计，已展示明细。',
     operationHint:'切换统计会改变结果含义，切换列表/对比只改变展示。', pageHint:'仅对比本页；汇总数字覆盖全部可见结果。',
   },
   en: {
+    cardVariant:'{version} · r{revision} · variant {index}',templatePicker:'Select metric templates',allTemplates:'All templates',templatesSelected:'{count} templates selected',templateSelectionHint:'View summaries by template. Open members from a card to inspect individual objects.',backOverview:'Back to overview',noAggregationPolicy:'Individual results are available for this output',noAggregateRecords:'No comparable records in this period',memberValuesAvailable:'View members for current results and source records',
     outputsSelected:'{count} outputs selected',searchOutputs:'Find a template or output',selectCategory:'Select category',apply:'Apply',cancel:'Cancel',resetAll:'Show all',selectionHint:'Select outputs by template. Multiple outputs show member results only.',selectionLimit:'Choose up to 128 outputs, or show all',noMatches:'No matching outputs',
     unknown:'Unconfirmed',
     overview:'Overview',membersTab:'Members',aggregateStored:'Stored results',aggregateHint:'Summarizes recorded objects in the selected period without new calculations.',aggregateHistoryHint:'Each bucket summarizes the last recorded value per object. Empty buckets are not filled with older values.',aggregateEmpty:'No aggregatable metric records in this scope and period',
@@ -31,7 +33,7 @@ export const collectionMessages = {
     scope:'{count} members', valid:'Valid results {valid} / {total}', missing:'{count} without valid results', empty:'No visible members in this scope',
     descendants:'Include all descendants', direct:'Direct membership', refresh:'Refresh', failed:'Could not read scope results', retry:'Retry',
     detail:'View source and records', noValue:'No valid result', default:'Restore template defaults', policy:'How parents view this output',
-    policyHint:'Declare cross-object summaries without creating parent calculations.', legacy:'Individual results only', enable:'Declare summary semantics',
+    policyHint:'Types provide defaults. Declare allowed operations without creating parent calculations.', legacy:'Choose automatically by output type', enable:'Declare summary semantics',
     semantic:'Result meaning', state:'State', score:'Score', duration:'Current duration', quantity:'Additive quantity', numeric:'Number',
     exclusive:'Each object contributes a mutually exclusive quantity', exclusiveHint:'Sum remains unavailable when parent totals overlap child details.',
     defaultOperation:'Default summary', defaultView:'Default view', ranking:'Ranking', unsupported:'Template default is unavailable in this scope. Showing individual results.',

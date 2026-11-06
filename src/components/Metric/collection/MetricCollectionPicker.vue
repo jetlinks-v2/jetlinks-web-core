@@ -1,12 +1,12 @@
 <template>
   <a-popover v-model:open="open" :trigger="['click']" placement="bottomLeft" :overlay-style="{maxWidth:'calc(100vw - 24px)'}">
-    <button type="button" class="collection-picker__trigger" :aria-label="t('output')" :aria-expanded="open">
+    <button type="button" class="collection-picker__trigger" :aria-label="t(templates ? 'templatePicker' : 'output')" :aria-expanded="open">
       <AIcon :type="active ? metricOutputPresentation(active.output,{labels:active.stateLabels}).icon : 'UnorderedListOutlined'" />
-      <span>{{ active?.output.label || active?.output.metricId || (value?.length ? t('outputsSelected',{count:value.length}) : t('all')) }}<small v-if="active">{{ active.templateName }}</small></span><AIcon type="DownOutlined" />
+      <span>{{ active?.output.label || active?.output.metricId || (value?.length ? t(templates ? 'templatesSelected' : 'outputsSelected',{count:value.length}) : t(templates ? 'allTemplates' : 'all')) }}<small v-if="active && !templates">{{ active.templateName }}</small></span><AIcon type="DownOutlined" />
     </button>
     <template #content>
-      <section class="collection-picker" role="dialog" :aria-label="t('output')" @keydown.esc.stop="open=false">
-        <header><strong>{{ t('output') }}</strong><a-input ref="searchInput" v-model:value="search" allow-clear :placeholder="t('searchOutputs')" :aria-label="t('searchOutputs')"><template #prefix><AIcon type="SearchOutlined" /></template></a-input></header>
+      <section class="collection-picker" role="dialog" :aria-label="t(templates ? 'templatePicker' : 'output')" @keydown.esc.stop="open=false">
+        <header><strong>{{ t(templates ? 'templatePicker' : 'output') }}</strong><a-input ref="searchInput" v-model:value="search" allow-clear :placeholder="t('searchOutputs')" :aria-label="t('searchOutputs')"><template #prefix><AIcon type="SearchOutlined" /></template></a-input></header>
         <div class="collection-picker__body">
           <a-empty v-if="!sections.length" :description="t('noMatches')" :image="simpleImage" />
           <section v-for="section in sections" :key="section.id" class="collection-picker__category">
@@ -18,8 +18,8 @@
             </div>
           </section>
         </div>
-        <footer><a-button type="text" size="small" @click="draft=undefined">{{ t('resetAll') }}</a-button><small>{{ draft ? t('outputsSelected',{count:draft.length}) : t('all') }}</small><a-button size="small" @click="open=false">{{ t('cancel') }}</a-button><a-button type="primary" size="small" :disabled="invalid" @click="apply">{{ t('apply') }}</a-button></footer>
-        <p :role="draft && draft.length > 128 ? 'alert' : undefined">{{ t(draft && draft.length > 128 ? 'selectionLimit' : 'selectionHint') }}</p>
+        <footer><a-button type="text" size="small" @click="draft=undefined">{{ t('resetAll') }}</a-button><small>{{ draft ? t(templates ? 'templatesSelected' : 'outputsSelected',{count:draft.length}) : t(templates ? 'allTemplates' : 'all') }}</small><a-button size="small" @click="open=false">{{ t('cancel') }}</a-button><a-button type="primary" size="small" :disabled="invalid" @click="apply">{{ t('apply') }}</a-button></footer>
+        <p :role="draft && draft.length > 128 ? 'alert' : undefined">{{ t(draft && draft.length > 128 ? 'selectionLimit' : templates ? 'templateSelectionHint' : 'selectionHint') }}</p>
       </section>
     </template>
   </a-popover>
@@ -31,22 +31,24 @@ import { useI18n } from 'vue-i18n'
 import { metricOutputPresentation } from '../outputPresentation'
 import { collectionMessages } from './messages'
 import type { MetricCollectionGroup } from './types'
-const props = defineProps<{ groups:MetricCollectionGroup[]; value?:string[] }>()
+const props = defineProps<{ groups:MetricCollectionGroup[]; value?:string[]; templates?:boolean }>()
 const emit = defineEmits<{(event:'change',value?:string[]):void}>()
 const { t } = useI18n({useScope:'local',messages:collectionMessages})
 const simpleImage = Empty.PRESENTED_IMAGE_SIMPLE
 const open=ref(false),search=ref(''),draft=ref<string[]>()
 const searchInput=ref<{focus():void}>()
-const active=computed(()=>props.value?.length===1 ? props.groups.find(item=>item.id===props.value![0]) : undefined)
-const checked=computed(()=>new Set(draft.value || props.groups.map(item=>item.id)))
+const choices=computed(()=>props.templates ? [...new Map(props.groups.map(item=>[item.templateId,{...item,id:item.templateId,output:{metricId:item.templateId,label:item.templateName}}])).values()] : props.groups)
+const active=computed(()=>props.value?.length===1 ? choices.value.find(item=>item.id===props.value![0]) : undefined)
+const checked=computed(()=>new Set(draft.value || choices.value.map(item=>item.id)))
 const invalid=computed(()=>!!draft.value && (!draft.value.length || draft.value.length>128))
 const sections=computed(()=>{
   const query=search.value.trim().toLocaleLowerCase()
   const templates=new Map<string,{id:string;name:string;items:MetricCollectionGroup[];duplicates:Set<string>;seen:Set<string>}>()
-  for(const item of props.groups) {
+  for(const item of choices.value) {
     if(query && !`${item.templateName} ${item.output.label || ''} ${item.output.metricId}`.toLocaleLowerCase().includes(query))continue
-    let section=templates.get(item.templateId)
-    if(!section){section={id:item.templateId,name:item.templateName,items:[],duplicates:new Set(),seen:new Set()};templates.set(item.templateId,section)}
+    const key=props.templates ? 'templates' : item.templateId
+    let section=templates.get(key)
+    if(!section){section={id:key,name:props.templates ? t('allTemplates') : item.templateName,items:[],duplicates:new Set(),seen:new Set()};templates.set(key,section)}
     if(section.seen.has(item.output.metricId))section.duplicates.add(item.output.metricId)
     section.seen.add(item.output.metricId)
     section.items.push(item)
@@ -58,7 +60,7 @@ const categoryChecked=(items:MetricCollectionGroup[])=>items.every(item=>isCheck
 const categoryPartial=(items:MetricCollectionGroup[])=>!categoryChecked(items) && items.some(item=>isChecked(item.id))
 function toggle(id:string){const next=new Set(checked.value);next.has(id)?next.delete(id):next.add(id);draft.value=[...next]}
 function toggleCategory(items:MetricCollectionGroup[]){const next=new Set(checked.value);const remove=categoryChecked(items);items.forEach(item=>remove?next.delete(item.id):next.add(item.id));draft.value=[...next]}
-function apply(){if(invalid.value)return;const allowed=new Set(props.groups.map(item=>item.id));const ids=draft.value?.filter(id=>allowed.has(id));if(ids && !ids.length)return;emit('change',ids?.length===props.groups.length ? undefined : ids);open.value=false}
+function apply(){if(invalid.value)return;const allowed=new Set(choices.value.map(item=>item.id));const ids=draft.value?.filter(id=>allowed.has(id));if(ids && !ids.length)return;emit('change',ids?.length===choices.value.length ? undefined : ids);open.value=false}
 watch(open,async value=>{if(value){draft.value=props.value ? [...props.value] : undefined;search.value='';await nextTick();searchInput.value?.focus()}})
 </script>
 <style scoped>

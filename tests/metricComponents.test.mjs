@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { defineComponent, h, onUnmounted, reactive, ref, nextTick } from 'vue'
 import { useEventListener } from '@vueuse/core'
-import { theme } from 'ant-design-vue'
+import { theme, Empty } from 'ant-design-vue'
 import { resolve } from 'node:path'
 import { createMetricLoader, createMetricRenderer, flush, walk, textContent, sourceRoot } from './helpers/metricRuntime.mjs'
 const api = {}
@@ -12,8 +12,8 @@ const load = createMetricLoader({
   '@vueuse/core': { useEventListener, useElementSize: () => ({ width:workspaceWidth, height:ref(800) }) },
   '@jetlinks-web/vite/dist/dynamic-remote': { dynamicRemoteManager: {} },
   '@jetlinks-web-core/utils/consts': { isSubApp: false },
-  'vue-i18n': { useI18n: () => ({ t: key => key, locale: { value: 'zh' } }) },
-  'ant-design-vue': { theme, Modal: { confirm: value => { confirmations.push(value);return { destroy() {} } } } },
+  'vue-i18n': { useI18n: () => ({ t: key => key, locale: ref('zh') }) },
+  'ant-design-vue': { theme, Empty, Modal: { confirm: value => { confirmations.push(value);return { destroy() {} } } } },
   [resolve(sourceRoot, 'components/Editable/index.vue')]: { __esModule:true, default:defineComponent({ setup:(_, { attrs, slots, expose }) => { expose({ edit:async () => {} }); return () => h('external-shell', attrs, Object.values(slots).flatMap(slot => slot?.())) } }) },
   [resolve(sourceRoot, 'components/Metric/api.ts')]: { metricApi: api },
   [resolve(sourceRoot, 'components/ConditionFilter/index.ts')]: { __esModule:true, default:defineComponent({ props:['modelValue','fields'], setup:(props,{emit})=>()=>h('condition-filter',{...props,'onUpdate:modelValue':value=>emit('update:modelValue',value)}) }) },
@@ -23,6 +23,8 @@ const { moduleRegistry } = load('utils/module-registry.ts')
 const Workspace = load('components/Metric/workspace/MetricWorkspace.vue').default
 const WorkspaceNavigation = load('components/Metric/workspace/MetricWorkspaceNavigation.vue').default
 const Panel = load('components/Metric/MetricPanel.vue').default
+const AggregateCard = load('components/Metric/collection/MetricAggregateCard.vue').default
+const Collection = load('components/Metric/collection/MetricCollection.vue').default
 const Editor = load('components/Metric/MetricConfigEditor.vue').default
 const Manager = load('components/Metric/template/MetricTemplateManager.vue').default
 const DisplayFields = load('components/Metric/extensions/MetricDisplayFields.vue').default
@@ -55,6 +57,56 @@ function defaults() {
     history: async () => [value], selectable: async () => [{ id: 't', name: 'Power', available: true, released: true, template }],
     saveConfig: async next => ({ ...next, revision: next.revision + 1 }), queryTemplates: async () => ({ data: [], total: 0 }) })
 }
+
+test('模板聚合与设备卡片共享标题外壳，缺少聚合记录时不显示伪造数值', async () => {
+  const groups=[{id:'summary',cardId:'template',templateId:'t',templateName:'Communication',version:'1',revision:1,
+    output:{metricId:'score',label:'Score',valueType:'double'},operations:['average'],defaultOperation:'average',
+    availability:'noRecords',latest:{valid:0,observed:0,distribution:{}},points:[]}]
+  const view=mount(AggregateCard,{groups,bounds:[0,3000],interval:1000,visible:false})
+  try {
+    assert.equal(textContent(walk(view.root,node=>node.props.class==='metric-card-shell__title')[0]),'Communication')
+    assert.match(textContent(view.root),/noAggregateRecords/)
+    assert.equal(walk(view.root,node=>node.props.class==='aggregate-card__value').length,0)
+    assert.ok(findText(view.root,'a-button','viewMembers'))
+  } finally {view.close()}
+})
+
+test('模板成员钻取按设备合并多项结果，翻页仍请求成员分页且不混算输出', async () => {
+  const calls=[],target={type:'device',id:'a',name:'Gateway A'}
+  const groups=['score','uptime'].map(id=>({id,cardId:'shared',templateId:'t',templateName:'Communication',version:'1',output:{metricId:id,label:id},operations:['collection','average']}))
+  api.collection=async query=>{calls.push(query);return {readTime:1,visibleMembers:2,total:2,groups,data:groups.map(group=>({kind:'metric',key:group.id,group:group.id,target,configId:'c',ownerType:'device',ownerId:'a',output:group.output,value:{value:20,quality:{valid:true}}}))}}
+  const view=mount(Collection,{context:{ownerType:'product',ownerId:'p'},scope:{memberType:'device',icon:'DesktopOutlined'},selection:{templateId:'t'}})
+  try {
+    await flush()
+    assert.equal(calls[0].pageByMember,true);assert.equal(calls[0].operation,'collection')
+    assert.equal(walk(view.root,node=>node.props.class==='metric-collection__member').length,1)
+    assert.equal(walk(view.root,node=>node.props.class==='metric-collection__value').length,2)
+    nodes(view.root,'a-pagination')[0].props.onChange(2);await flush()
+    assert.equal(calls.at(-1).pageIndex,1);assert.equal(calls.at(-1).pageByMember,true)
+  } finally {view.close()}
+})
+
+test('聚合卡片切换只保存浏览器偏好，恢复需符合输出允许操作且不跨身份',async()=>{
+  const previousStorage=globalThis.localStorage,stored=new Map()
+  globalThis.localStorage={getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)}
+  const props=reactive({groups:['score','uptime'].map(id=>({id,cardId:'t',templateId:'t',templateName:'Communication',version:'1',revision:1,
+    output:{metricId:id,label:id,valueType:'double'},operations:['average','min','max'],defaultOperation:'average',latest:{time:1,observed:2,valid:2,sum:30,min:10,max:20,distribution:{}},points:[]})),bounds:[0,3000],interval:1000,visible:false,preferenceKey:'user-a'})
+  let view=mount(AggregateCard,props)
+  try {
+    nodes(view.root,'a-menu').find(node=>!node.props['aria-label']).props.onClick({key:'max'});await flush()
+    assert.equal(JSON.parse(stored.get('user-a')).operations.score,'max')
+    const outputMenu=nodes(view.root,'a-menu').find(node=>node.props['aria-label']==='allOutputs')
+    outputMenu.props.onClick({key:'uptime'});await flush()
+    assert.equal(JSON.parse(stored.get('user-a')).output,'uptime')
+    view.close();view=mount(AggregateCard,props);await flush()
+    assert.match(textContent(view.root),/uptime/)
+    nodes(view.root,'a-menu').find(node=>!node.props['aria-label']).props.onClick({key:'sum'});await flush()
+    assert.equal(JSON.parse(stored.get('user-a')).operations.uptime,undefined,'browser state cannot grant sum')
+    props.preferenceKey='user-b';await flush()
+    assert.equal(stored.has('user-b'),false)
+    assert.ok(findText(view.root,'button','score'))
+  } finally {view.close();globalThis.localStorage=previousStorage}
+})
 
 test('维度入口显示业务注册图标，旧扩展回退通用图标并保持选择事件', async () => {
   const navigator = defineComponent({ setup: () => () => h('navigator') })
@@ -278,11 +330,11 @@ test('卡片与编辑使用配置名称和模板图标，实时值类型变化�
   api.configTemplate = async () => declared
   api.latest = async ids => ids.map(configId => ({ configId, outputs:{ value:current } }))
   const view = mount(Panel, { context:{ ownerType:'line', ownerId:'a', editable:true } })
-  const header = () => walk(view.root, node => node.props.class === 'metric-panel__card-head')[0]
+  const header = () => walk(view.root, node => node.props.class === 'metric-card-shell__head')[0]
   const icon = () => walk(header(), node => node.props.type === 'DashboardOutlined')[0]
   try {
     await flush()
-    assert.equal(textContent(walk(header(), node => node.props.class === 'metric-panel__name')[0]), 'Room')
+    assert.equal(textContent(walk(header(), node => node.props.class === 'metric-card-shell__title')[0]), 'Room')
     assert.ok(icon())
     const card = nodes(view.root, 'button').find(node => node.props.class?.includes('metric-panel__card'))
     assert.equal(card.props['aria-label'], 'Room')

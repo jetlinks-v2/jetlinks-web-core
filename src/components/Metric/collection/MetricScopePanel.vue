@@ -1,13 +1,12 @@
 <template>
   <div class="metric-scope-panel">
     <nav v-if="context.readScopes?.length" class="metric-scope-panel__nav" :aria-label="t('source')">
-      <button type="button" :class="{active:mode === 'overview'}" @click="mode='overview'"><AIcon type="AppstoreOutlined" />{{ t('overview') }}</button>
-      <button type="button" :class="{active:mode === 'members'}" @click="mode='members'"><AIcon type="UnorderedListOutlined" />{{ t('membersTab') }}</button>
+      <button type="button" :class="{active:!!mode}" @click="mode='overview'"><AIcon type="AppstoreOutlined" />{{ t('overview') }}</button>
       <button type="button" :class="{ active:mode === '' }" @click="mode = ''"><AIcon type="SettingOutlined" />{{ t('own') }}</button>
     </nav>
     <nav v-if="mode && context.readScopes && context.readScopes.length>1" class="metric-scope-panel__nav"><button v-for="scope in context.readScopes" :key="scope.memberType" type="button" :class="{active:scopeType===scope.memberType}" @click="scopeType=scope.memberType"><AIcon :type="scope.icon" />{{ scope.label }}</button></nav>
     <KeepAlive :max="1"><MetricAggregateOverview v-if="mode==='overview' && activeScope" :key="context.ownerType + ':' + context.ownerId + ':' + activeScope.memberType" :context="context" :scope="activeScope" @members="openMembers" /></KeepAlive>
-    <MetricCollection v-if="mode==='members' && activeScope" :key="context.ownerType + ':' + context.ownerId + ':' + activeScope.memberType" :context="context" :scope="activeScope" :selection="selection" @clear-selection="selection = undefined" />
+    <MetricCollection v-if="mode==='members' && activeScope" :key="context.ownerType + ':' + context.ownerId + ':' + activeScope.memberType" :context="context" :scope="activeScope" :selection="selection" @clear-selection="mode='overview';selection=undefined" />
     <MetricPanel v-if="!mode || !activeScope" :context="context" :pick-source="pickSource" :initial-reference="initialReference" :detail-link-label="detailLinkLabel" @inspect-scope="inspectScope" @open-detail-link="$emit('openDetailLink', $event)"><template #object-actions><slot name="object-actions" /></template></MetricPanel>
   </div>
 </template>

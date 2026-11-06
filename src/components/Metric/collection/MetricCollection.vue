@@ -1,11 +1,10 @@
 <template>
   <section class="metric-collection">
-    <a-tag v-if="selection" closable @close="emit('clearSelection')">{{ t('templateFilter') }}</a-tag>
+    <div v-if="selection" class="metric-collection__breadcrumb"><a-button type="text" size="small" @click="emit('clearSelection')"><AIcon type="ArrowLeftOutlined" />{{ t('backOverview') }}</a-button><strong>{{ result?.groups[0]?.templateName || t('membersTab') }}</strong></div>
     <header class="metric-collection__tools">
       <MetricCollectionPicker :groups="result?.groups || []" :value="selectedGroups" @change="selectGroups" />
       <div class="metric-collection__actions">
-      <a-dropdown v-if="activeGroup && activeGroup.operations.length > 1" :trigger="['click']"><a-button type="text" size="small"><AIcon :type="operationIcon(operation)" />{{ t(operation) }} <AIcon type="DownOutlined" /></a-button><template #overlay><a-menu :selected-keys="[operation]" @click="selectOperation($event.key as ReadOperation)"><a-menu-item v-for="item in activeGroup.operations" :key="item"><SelectOption :label="t(item)" :icon="operationIcon(item)" :description="t(item === 'collection' ? 'readOnly' : 'operationHint')" /></a-menu-item></a-menu></template></a-dropdown>
-      <a-tooltip v-if="group && canCompare" :title="t(view === 'list' ? 'bars' : 'list')"><a-button type="text" size="small" :aria-label="t(view === 'list' ? 'bars' : 'list')" @click="changeView(view === 'list' ? 'bars' : 'list')"><AIcon :type="view === 'list' ? 'BarChartOutlined' : 'AppstoreOutlined'" /></a-button></a-tooltip>
+      <a-dropdown v-if="!selection && activeGroup && activeGroup.operations.length > 1" :trigger="['click']"><a-button type="text" size="small"><AIcon :type="operationIcon(operation)" />{{ t(operation) }} <AIcon type="DownOutlined" /></a-button><template #overlay><a-menu :selected-keys="[operation]" @click="selectOperation($event.key as ReadOperation)"><a-menu-item v-for="item in activeGroup.operations" :key="item"><SelectOption :label="t(item)" :icon="operationIcon(item)" :description="t(item === 'collection' ? 'readOnly' : 'operationHint')" /></a-menu-item></a-menu></template></a-dropdown>
       <a-button v-if="scope.tree" type="text" size="small" :class="{ 'is-active':descendants }" :aria-pressed="descendants" @click="changeDepth(!descendants)"><AIcon type="BranchesOutlined" />{{ t(descendants ? 'descendants' : 'direct') }}</a-button>
       <a-tooltip :title="t('refresh')"><a-button type="text" size="small" :loading="loading" :aria-label="t('refresh')" @click="refresh"><AIcon type="ReloadOutlined" /></a-button></a-tooltip>
       </div>
@@ -28,28 +27,18 @@
     </div>
     <a-spin :spinning="loading">
       <a-empty v-if="!loading && !result?.data.length && !error" :description="t('empty')" />
-      <ResponsiveGrid v-else min="min(100%, 280px)" :gap="12" class="metric-collection__grid">
-        <EntityCard v-for="record in result?.data || []" :key="record.key" :title="record.target.name || record.target.id" class="metric-collection__card" :class="{ 'is-unconfigured':record.kind === 'unconfigured' }">
-          <template #icon><AIcon :type="scope.icon" /></template>
-          <template #subtitle><span :title="record.target.id">{{ record.target.path || scope.label }}</span></template>
-          <template #body>
-            <div v-if="record.kind === 'unconfigured'" class="metric-collection__placeholder"><AIcon type="AppstoreAddOutlined" /><span>{{ t('notConfigured') }}</span></div>
-            <template v-else>
-              <div class="metric-collection__metric"><span>{{ record.output.label || record.output.metricId }}</span><small>{{ record.configName || groupFor(record)?.templateName }}</small></div>
-              <MetricStateDuration v-if="record.value?.state" :value="record.value" :labels="groupFor(record)?.stateLabels" :disabled="record.configState === 'disabled'" compact />
-              <MetricValueView v-else :value="record.value" :output="record.output" :unit="record.output.unit" :disabled="record.configState === 'disabled'" :settings="groupFor(record)?.displaySettings" :labels="groupFor(record)?.stateLabels" compact summary hide-quality />
-              <div v-if="record.highlights?.length" class="metric-collection__highlights"><div v-for="item in record.highlights" :key="item.output.metricId"><span>{{ item.output.label || item.output.metricId }}</span><MetricValueView :value="item.value" :output="item.output" :unit="item.output.unit" :settings="groupFor(record)?.displaySettings" :disabled="record.configState === 'disabled'" inline hide-quality /></div></div>
-              <div v-if="view === 'bars' && typeof record.value?.value === 'number' && groupFor(record)?.policy?.semantic !== 'state' && record.configState !== 'disabled'" class="metric-collection__bar"><i :style="{ width:`${barWidth(record)}%` }" /></div>
-            </template>
-          </template>
-          <template #footer>
-            <span v-if="record.kind === 'unconfigured'">{{ t('member') }}</span>
-            <template v-else><span>{{ record.configState === 'disabled' ? t('stopped') : !record.value ? t('noData') : '' }}</span><a-button type="link" size="small" @click="selected = record">{{ t('detail') }}<AIcon type="RightOutlined" /></a-button></template>
-          </template>
-        </EntityCard>
-      </ResponsiveGrid>
+      <div v-else class="metric-collection__members">
+        <section v-for="member in memberRows" :key="member.key" class="metric-collection__member">
+          <header><AIcon :type="scope.icon" /><strong>{{ member.target.name || member.target.id }}</strong><small v-if="member.target.path">{{ member.target.path }}</small></header>
+          <div v-if="!member.outputs.length" class="metric-collection__placeholder"><AIcon type="AppstoreAddOutlined" /><span>{{ t('notConfigured') }}</span></div>
+          <div v-else class="metric-collection__values"><button v-for="record in member.outputs" :key="record.key" type="button" class="metric-collection__value" @click="selected=record">
+            <span><AIcon :type="metricOutputPresentation(record.output,{labels:groupFor(record)?.stateLabels}).icon" />{{ record.output.label || record.output.metricId }}<AIcon type="RightOutlined" /></span>
+            <MetricValueView :value="record.value" :output="record.output" :unit="record.output.unit" :disabled="record.configState === 'disabled'" :settings="groupFor(record)?.displaySettings" :labels="groupFor(record)?.stateLabels" inline hide-quality />
+          </button></div>
+        </section>
+      </div>
     </a-spin>
-    <footer v-if="result?.total" class="metric-collection__footer"><small v-if="view === 'bars'">{{ t('pageHint') }}</small><a-pagination :current="page" :total="result.total" :page-size="20" :show-size-changer="false" @change="changePage" /></footer>
+    <footer v-if="result?.total" class="metric-collection__footer"><a-pagination :current="page" :total="result.total" :page-size="20" :show-size-changer="false" @change="changePage" /></footer>
     <JlDrawerShell :open="!!selected" :title="selected?.configName || detail.template.value?.name" :sub="selected?.target.name" :width="860" @update:open="!$event && (selected = undefined)">
       <a-alert v-if="detail.error.value" type="error" :message="detail.error.value" />
       <a-spin :spinning="detail.loading.value"><MetricResult v-if="selected && detail.template.value" :key="selected.key" :reference="{ configId:selected.configId, outputId:detail.outputId.value, targetType:selected.target.type, targetId:selected.target.id }" :context="{ ownerType:selected.ownerType, ownerId:selected.ownerId, targetType:selected.target.type, targetId:selected.target.id, editable:false }" :output="detail.output.value" :template="detail.template.value" @select-output="detail.selectOutput" /></a-spin>
@@ -62,14 +51,12 @@ import { useI18n } from 'vue-i18n'
 import SelectOption from '../../SelectOption/index.vue'
 import IconValueView from '../../IconValue/IconValueView.vue'
 import JlDrawerShell from '../../JlDrawerShell/index.vue'
-import EntityCard from '../../EntityCard/index.vue'
-import ResponsiveGrid from '../../ResponsiveGrid/index.vue'
 import MetricValueView from '../MetricValue.vue'
-import MetricStateDuration from '../MetricStateDuration.vue'
 import MetricResult from '../MetricResult.vue'
 import { formatMetricValue } from '../extensions/presentationSettings'
 import MetricCollectionPicker from './MetricCollectionPicker.vue'
-import { isStateOutput, stateAppearance, stateLabel } from '../stateIntervals'
+import { stateAppearance, stateLabel } from '../stateIntervals'
+import { metricOutputPresentation } from '../outputPresentation'
 import { useMetricCollection } from './useMetricCollection'
 import { useMetricCollectionDetail } from './useMetricCollectionDetail'
 import { collectionMessages } from './messages'
@@ -78,19 +65,36 @@ import type { MetricCollectionRow, MetricCollectionSelection, MetricReadScopeOpt
 const props = defineProps<{ context:MetricContext; scope:MetricReadScopeOption; selection?:MetricCollectionSelection }>()
 const emit = defineEmits<{(event:'clearSelection'):void}>()
 const { t, locale } = useI18n({ useScope:'local', messages:collectionMessages })
-const { result, loading, error, group, selectedGroups, operation, page, descendants, view, fallback, activeGroup, selected, refresh, selectGroups, selectOperation, changePage, changeDepth, changeView } = useMetricCollection(toRef(props,'context'), toRef(props,'scope'), undefined, toRef(props,'selection'))
+const { result, loading, error, selectedGroups, operation, page, descendants, fallback, activeGroup, selected, refresh, selectGroups, selectOperation, changePage, changeDepth } = useMetricCollection(toRef(props,'context'), toRef(props,'scope'), undefined, toRef(props,'selection'))
 const detail = useMetricCollectionDetail(selected)
-const canCompare = computed(() => !!activeGroup.value && !isStateOutput(activeGroup.value.output,activeGroup.value.stateLabels) && activeGroup.value.output.valueType !== 'boolean')
+const memberRows=computed(()=>{
+  const members=new Map<string,{key:string;target:MetricCollectionRow['target'];outputs:MetricCollectionRow[]}>()
+  for(const row of result.value?.data || []) {
+    const key=JSON.stringify([row.target.type,row.target.id])
+    if(!members.has(key))members.set(key,{key,target:row.target,outputs:[]})
+    if(row.kind!=='unconfigured')members.get(key)!.outputs.push(row)
+  }
+  return [...members.values()]
+})
 const groupFor = (row:MetricCollectionRow) => result.value?.groups.find(item => item.id === row.group)
 const rawState = (key:string) => activeGroup.value?.stateLabels?.find(item => String(item.value) === key)?.value ?? key
 const appearance = (key:string) => stateAppearance(rawState(key), activeGroup.value?.stateLabels)
 const stateName = (key:string) => stateLabel(rawState(key), activeGroup.value?.stateLabels || [], String(locale.value))
-const maxValue = computed(() => Math.max(1, ...(result.value?.data || []).map(row => row.kind !== 'unconfigured' && row.configState !== 'disabled' && typeof row.value?.value === 'number' ? Math.abs(row.value.value) : 0)))
-const barWidth = (row:MetricCollectionRow) => typeof row.value?.value === 'number' ? Math.abs(row.value.value) / maxValue.value * 100 : 0
 const operationIcon = (value:ReadOperation) => ({ collection:'UnorderedListOutlined', distribution:'PieChartOutlined', average:'CalculatorOutlined', min:'ArrowDownOutlined', max:'ArrowUpOutlined', sum:'PlusOutlined', ratio:'PercentageOutlined' })[value]
 </script>
 <style scoped>
 .metric-collection { min-width:0; padding:var(--space-4,16px) }
+.metric-collection__breadcrumb{display:flex;align-items:center;gap:12px;margin-bottom:12px;font-size:14px}
+.metric-collection__breadcrumb .ant-btn{padding-left:0;color:var(--ink-3)}
+.metric-collection__member{border-bottom:1px solid var(--line);padding:16px 0}
+.metric-collection__member>header{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:12px}
+.metric-collection__member>header small{font-size:11px;color:var(--ink-3);font-weight:400}
+.metric-collection__values{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px 16px}
+.metric-collection__value{display:flex;flex-direction:column;align-items:stretch;gap:8px;min-width:0;padding:8px 0;border:0;background:none;text-align:left;font:inherit;cursor:pointer}
+.metric-collection__value>span{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2)}
+.metric-collection__value>span>.anticon:last-child{margin-left:auto;opacity:0}
+.metric-collection__value:hover>span>.anticon:last-child,.metric-collection__value:focus-visible>span>.anticon:last-child{opacity:1}
+.metric-collection__value :deep(.metric-value--inline){justify-content:flex-start}
 .metric-collection__tools { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 20px }
 .metric-collection__actions { display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin-left:auto }
 .metric-collection__actions :deep(.ant-btn) { color:var(--ink-2) }
@@ -105,17 +109,6 @@ const operationIcon = (value:ReadOperation) => ({ collection:'UnorderedListOutli
 .metric-collection__number { display:flex; align-items:center; gap:20px }
 .metric-collection__number strong { font-size:28px; font-variant-numeric:tabular-nums }
 .metric-collection__number small { font-size:12px; color:var(--ink-3); margin-left:6px }
-.metric-collection__card { min-height:220px }
-.metric-collection__card :deep(.ec-subtitle) { display:block; font-size:11px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis }
-.metric-collection__card :deep(.ec-body) { border:0; padding:4px 0 12px }
-.metric-collection__card :deep(.ec-footer) { color:var(--ink-3); font-size:11px; min-height:34px }
-.metric-collection__metric { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--ink-2); margin-bottom:8px }
-.metric-collection__metric small { color:var(--ink-3); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .metric-collection__placeholder { display:flex; align-items:center; gap:8px; min-height:96px; color:var(--ink-3); font-size:12px }
-.metric-collection__bar { height:4px; background:var(--bg-2); border-radius:2px; overflow:hidden; margin-top:12px }
-.metric-collection__bar i { display:block; height:100%; background:var(--accent) }
-.metric-collection__highlights { display:grid; gap:6px; margin-top:12px; font-size:12px; color:var(--ink-3) }
-.metric-collection__highlights>div { display:flex; justify-content:space-between; align-items:center; gap:12px }
 .metric-collection__footer { display:flex; align-items:center; justify-content:flex-end; gap:16px; padding-top:16px }
-.metric-collection__footer small { color:var(--ink-3); margin-right:auto }
 </style>

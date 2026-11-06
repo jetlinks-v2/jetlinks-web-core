@@ -29,7 +29,8 @@ export function useMetricCollection(context: Ref<MetricContext>, scope: Ref<Metr
     if (!api.collection) { error.value = 'Metric collection capability unavailable'; return }
     loading.value = true; error.value = ''
     const query: MetricCollectionQuery = { rootType:context.value.ownerType, rootId:context.value.ownerId, memberType:scope.value.memberType,
-      depth:depth.value, group:group.value, ...(selectedGroups.value && selectedGroups.value.length > 1 ? {groups:selectedGroups.value} : {}), templateId:selection.value?.templateId, operation:operation.value, pageIndex:page.value - 1, pageSize:20, includeUnconfigured:true }
+      depth:depth.value, group:group.value, ...(selectedGroups.value && selectedGroups.value.length > 1 ? {groups:selectedGroups.value} : {}), templateId:selection.value?.templateId,
+      ...(selection.value?.templateId ? {pageByMember:true} : {}), operation:selection.value ? 'collection' : operation.value, pageIndex:page.value - 1, pageSize:20, includeUnconfigured:true }
     try {
       const next = await api.collection(query)
       if (stopped || current !== sequence) return
@@ -40,11 +41,11 @@ export function useMetricCollection(context: Ref<MetricContext>, scope: Ref<Metr
         const primary = next.groups.filter(item => item.displaySettings?.primaryOutput === item.output.metricId)
         const saved = Array.isArray(preference?.groups) ? new Set(preference.groups.filter(id => typeof id === 'string').slice(0,128)) : undefined
         const restored = saved && next.groups.filter(item => saved.has(item.id)).map(item => item.id)
-        const initial = selection.value ? next.groups.find(item=>item.id === selection.value?.group) || primary[0] || next.groups[0]
+        const initial = selection.value ? next.groups.find(item=>item.id === selection.value?.group)
           : preference?.groups === null || saved ? undefined : primary[0] || next.groups[0]
         selectedGroups.value = initial ? [initial.id] : restored?.length ? restored : undefined
         const chosen = next.groups.find(item => item.id === group.value)
-        if (chosen) {
+        if (chosen && !selection.value) {
           const preferred = preference?.operation || chosen.policy?.defaultOperation || 'collection'
           fallback.value = !chosen.operations.includes(preferred)
           operation.value = fallback.value ? 'collection' : preferred
@@ -65,7 +66,7 @@ export function useMetricCollection(context: Ref<MetricContext>, scope: Ref<Metr
     selectedGroups.value = nextIds?.length ? nextIds : undefined; page.value = 1; fallback.value = false
     const next = activeGroup.value
     const preferred = next?.policy?.defaultOperation || 'collection'
-    operation.value = next?.operations.includes(preferred) ? preferred : 'collection'
+    operation.value = !selection.value && next?.operations.includes(preferred) ? preferred : 'collection'
     view.value = next?.policy?.defaultView === 'bars' ? 'bars' : 'list'
     savePreference(); void refresh()
   }

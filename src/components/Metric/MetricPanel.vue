@@ -16,14 +16,12 @@
         <a-button v-if="context.editable" type="primary" @click="openEditor()">{{ t('add') }}</a-button>
       </a-empty>
       <div v-else class="metric-panel__grid">
-        <article v-for="card in cardGroups" :key="card.reference.configId" class="metric-panel__group" :class="{ 'is-selected': reference?.configId === card.reference.configId, 'is-stopped': card.config.state === 'disabled', 'is-boolean': typeof outputs[card.reference.configId]?.[card.reference.outputId]?.value === 'boolean' || card.output.valueType === 'boolean' }">
-        <header class="metric-panel__card-head">
-          <span class="metric-panel__output-icon"><AIcon :type="metricConfigurationIcon(templates[card.reference.configId], card.config)" /></span>
-          <span class="metric-panel__name" :title="configName(card.config)">{{ configName(card.config) }}</span>
+        <MetricCardShell v-for="card in cardGroups" :key="card.reference.configId" :title="configName(card.config)" :icon="metricConfigurationIcon(templates[card.reference.configId], card.config)" class="metric-panel__group" :class="{ 'is-selected': reference?.configId === card.reference.configId, 'is-stopped': card.config.state === 'disabled', 'is-boolean': typeof outputs[card.reference.configId]?.[card.reference.outputId]?.value === 'boolean' || card.output.valueType === 'boolean' }">
+        <template #actions>
           <span v-if="!canManage(card.config) && card.config.scope === 'children'" class="metric-panel__inherited" :title="t('scopeManaged')"><AIcon type="LinkOutlined" />{{ t('inherited') }}</span>
           <a-button v-if="canManage(card.config)" type="text" size="small" class="metric-panel__edit" :aria-label="t('edit')" :title="t('edit')" @click="openEditor(card.config)"><AIcon type="EditOutlined" /></a-button>
           <MetricConfigActions v-if="canManage(card.config)" class="metric-panel__actions" :configuration="card.config" :busy="busyId === card.config.id" @edit="openEditor(card.config)" @toggle="toggleConfig(card.config)" @remove="confirmRemove(card.config)" />
-        </header>
+        </template>
         <MetricScopeSummary v-if="scopeDefinition(card.config)" :ref="element => setScopeElement(card.reference.configId, element)" :state="scopeOverview.state(card.config)" @refresh="scopeOverview.refresh" @inspect="emit('inspectScope', { memberType:card.config.targetType || context.inheritance?.targetType || '', templateId:card.config.templateId, group:$event })" />
         <button v-else type="button"
           :ref="element => setPrimaryElement(card.reference, element)"
@@ -50,7 +48,7 @@
           </button>
           <button v-if="!card.secondary.length" type="button" class="metric-panel__details" :disabled="inaccessibleIds.includes(card.reference.configId) || !!error || !!latestErrors[card.reference.configId]" @click="select(card.reference.configId, card.reference.outputId)">{{ t(tracksStateIntervals(templates[card.reference.configId], card.reference.outputId) ? 'viewRecords' : 'viewTrend') }}<AIcon type="RightOutlined" /></button>
         </div>
-        </article>
+        </MetricCardShell>
         <a-alert v-for="config in configurations.filter(item => item.id && itemErrors[item.id])" :key="config.id" class="metric-panel__failure"
           type="error" show-icon :message="configName(config)" :description="t('missingTemplate') + ': ' + itemErrors[config.id!]">
           <template v-if="canManage(config)" #action><a-space><a-button size="small" @click="openEditor(config)">{{ t('edit') }}</a-button><a-button danger size="small" :loading="busyId === config.id" @click="confirmRemove(config)">{{ t('deleteMetric') }}</a-button></a-space></template>
@@ -82,6 +80,7 @@ import MetricResult from './MetricResult.vue'
 import MetricTimeRange from './MetricTimeRange.vue'
 import MetricConfigActions from './MetricConfigActions.vue'
 import MetricCardContent from './extensions/MetricCardContent.vue'
+import MetricCardShell from './MetricCardShell.vue'
 import MetricScopeSummary from './collection/MetricScopeSummary.vue'
 import { useMetricScopeOverview } from './collection/useMetricScopeOverview'
 import MetricValueView from './MetricValue.vue'
@@ -174,13 +173,10 @@ function openDetailLink() {
 .metric-panel__section-title { font-weight:600; font-size:var(--fs-14,14px) }
 .metric-panel__section-title small { color:var(--ink-2); font-size:var(--fs-12,12px); font-weight:400; margin-left:8px }
 .metric-panel__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:1fr; gap:var(--space-4,16px) }
-.metric-panel__group { display:flex; flex-direction:column; min-width:0; min-height:288px; border:1px solid var(--line); border-radius:var(--r-3,8px); background:var(--panel-background); overflow:hidden }
+.metric-panel__group { min-width:0 }
 .metric-panel__group:hover,.metric-panel__group.is-selected { border-color:var(--accent) }
 .metric-panel__group.is-stopped { background:var(--bg-sunken) }
-.metric-panel__card-head { display:flex; align-items:center; gap:6px; padding:12px 12px 0 16px; min-width:0; min-height:44px }
 .metric-panel__inherited { margin-left:auto; display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--ink-3); white-space:nowrap }
-.metric-panel__output-icon { display:grid; place-items:center; background:var(--accent-soft); color:var(--accent); width:26px; height:26px; border-radius:6px; flex-shrink:0 }
-.metric-panel__card-head .metric-panel__name { min-width:0; font-size:var(--fs-14,14px) }
 .metric-panel__edit { color:var(--ink-2); flex-shrink:0 }
 .metric-panel__actions { margin-left:auto; flex-shrink:0 }
 .metric-panel__drawer-title { display:flex; align-items:center; gap:6px }
@@ -201,7 +197,6 @@ function openDetailLink() {
 .metric-panel__secondary:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
 .metric-panel__secondary:hover,.metric-panel__secondary[aria-pressed=true] { color:var(--accent) }
 .metric-panel__secondary:disabled { cursor:default }
-.metric-panel__name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .metric-panel__unavailable { display:flex; flex-direction:column; align-items:flex-start; gap:var(--space-2,8px) }
 .metric-panel__unavailable strong { font-size:var(--fs-24,24px) }
 .metric-panel__failure { grid-column:1/-1 }

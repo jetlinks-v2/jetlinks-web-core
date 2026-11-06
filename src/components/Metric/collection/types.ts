@@ -1,11 +1,11 @@
 import type { MetricTemplateOutput, MetricValue, MetricStateLabel } from '../types'
 export type ReadOperation = 'collection' | 'distribution' | 'average' | 'min' | 'max' | 'sum' | 'ratio'
 export type ReadSemantic = 'state' | 'score' | 'duration' | 'quantity' | 'ratio' | 'numeric'
-export interface MetricAggregateQuery { rootType:string;rootId:string;memberType:string;depth:'self'|'children'|'descendants';from:number;to:number;interval:number }
+export interface MetricAggregateQuery { rootType:string;rootId:string;memberType:string;depth:'self'|'children'|'descendants';from:number;to:number;interval:number;templateIds?:string[] }
 export interface MetricAggregatePoint { time:number;observed:number;valid:number;sum?:number;min?:number;max?:number;distribution:Record<string,number> }
 export interface MetricAggregateGroup {
   id:string;cardId:string;templateId:string;templateName:string;version:string;revision:number;output:MetricTemplateOutput;displaySettings?:Record<string,unknown>
-  operations:ReadOperation[];defaultOperation:ReadOperation;stateLabels?:MetricStateLabel[];latest:MetricAggregatePoint;points:MetricAggregatePoint[]
+  operations:ReadOperation[];defaultOperation:ReadOperation;stateLabels?:MetricStateLabel[];latest:MetricAggregatePoint;points:MetricAggregatePoint[];availability?:'noRecords'|'unsupported'
 }
 export interface MetricAggregateResult { readTime:number;from:number;to:number;interval:number;groups:MetricAggregateGroup[] }
 export interface MetricReadAggregation {
@@ -25,6 +25,7 @@ export interface MetricCollectionQuery {
   groups?: string[]
   templateId?:string
   includeUnconfigured?: boolean
+  pageByMember?: boolean
 }
 export interface MetricCollectionSelection { templateId:string; group?:string }
 export interface MetricScopeOverviewRequest {
@@ -39,7 +40,7 @@ export interface MetricScopeTemplateOverview {
   outputs:Array<{ group:MetricCollectionGroup; summary?:MetricCollectionResult['summary']; validResults:number; expectedResults:number; readFailures:number; incompatiblePeriod:boolean }>
 }
 export interface MetricCollectionGroup {
-  id: string; templateId: string; templateName: string; version: string; revision?: number
+  id: string; cardId?:string; templateId: string; templateName: string; version: string; revision?: number
   output: MetricTemplateOutput; policy?: MetricReadAggregation; operations: ReadOperation[]; total: number
   stateLabels?: MetricStateLabel[]; displaySettings?: Record<string, unknown>
 }
