@@ -43,6 +43,9 @@
         <button type="button" :class="{ enabled:output.publish === true }" :disabled="disabled" :aria-pressed="output.publish === true" @click="toggleOutput('publish')"><AIcon type="SendOutlined" />{{ t('outputEvents') }}<AIcon v-if="output.publish === true" type="CheckOutlined" /></button>
       </div>
       <ReadAggregationEditor :output="output" :disabled="disabled || published" @patch="emit('patch', $event)" />
+      <TemplateClause icon="ProfileOutlined" :title="t('evidenceRecord')" :hint="t('evidenceRecordHint')">
+        <a-switch :checked="output.options?.explain === true" :disabled="disabled" :aria-label="t('evidenceRecord')" @change="emit('patch', { options:{ ...output.options, explain:$event } })" />
+      </TemplateClause>
       <details><summary>{{ t('moreSettings') }}</summary>
         <TemplateClause v-if="!output.unit" icon="FontSizeOutlined" :title="t('unit')"><Editable class="node-editor__unit-value" :value="output.unit" :component-props="{ disabled:disabled || published, bordered:false, 'aria-label':t('unit') }" @change="emit('patch', { unit:$event })" /></TemplateClause>
         <TemplateClause icon="NumberOutlined" :title="t('property')"><Editable class="node-editor__source" :value="output.property" :component-props="{ disabled:disabled || published, bordered:false, 'aria-label':t('property') }" @change="emit('patch', { property:$event })" /></TemplateClause>

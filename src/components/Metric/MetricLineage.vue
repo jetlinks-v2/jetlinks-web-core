@@ -1,5 +1,9 @@
 <template>
-  <div class="metric-lineage">
+  <div class="metric-lineage-shell">
+    <MetricExecutionEvidence :value="value" :template="template" :output="output" />
+    <details class="metric-lineage-definition"><summary><AIcon type="BranchesOutlined" /> {{ t('evidenceDefinition') }}</summary>
+    <small>{{ t('evidenceDefinitionHint') }}</small>
+    <div class="metric-lineage">
     <section>
       <h4><AIcon type="ImportOutlined" /> {{ t('algorithmDataStage') }}</h4>
       <div v-for="node in sources" :key="node.key" class="metric-lineage__source">
@@ -22,6 +26,8 @@
       <strong>{{ metricOutputName(output, template) || t('unnamedOutput') }}</strong>
       <div class="metric-lineage__uses"><span v-if="output.persist"><AIcon type="HistoryOutlined" /> {{ t('outputHistory') }}</span><span v-if="output.publish"><AIcon type="SendOutlined" /> {{ t('outputEvents') }}</span></div>
     </section>
+    </div>
+    </details>
   </div>
 </template>
 <script setup lang="ts">
@@ -32,8 +38,9 @@ import { metricOutputName } from './presentation'
 import { templateGraph, type TemplateNode, type TemplateRule } from './template/designer'
 import { graphNodeSummary } from './template/graphPresentation'
 import TemplateFormulaDisplay from './template/formula/TemplateFormulaDisplay.vue'
-import type { MetricConfig, MetricContext, MetricTemplate, MetricTemplateOutput } from './types'
-const props = defineProps<{ configuration: MetricConfig; template: MetricTemplate; output: MetricTemplateOutput; context?: MetricContext }>()
+import MetricExecutionEvidence from './MetricExecutionEvidence.vue'
+import type { MetricConfig, MetricContext, MetricTemplate, MetricTemplateOutput, MetricValue } from './types'
+const props = defineProps<{ configuration: MetricConfig; template: MetricTemplate; output: MetricTemplateOutput; context?: MetricContext; value?:MetricValue }>()
 const { t } = useI18n({ useScope: 'local', messages: metricMessages })
 /** 只沿已声明依赖反向展开，不把模板中的其他输入或未查询的下游当成当前输出的引用。 */
 const ancestors = computed(() => {
@@ -62,6 +69,10 @@ function sourceLabel(index: number) {
 }
 </script>
 <style scoped>
+.metric-lineage-shell { display:grid; gap:20px; min-width:0 }
+.metric-lineage-definition { border-top:1px solid var(--line); padding-top:12px }
+.metric-lineage-definition > summary { cursor:pointer; color:var(--ink-2); font-size:12px }
+.metric-lineage-definition > small { display:block; margin:8px 0 16px; color:var(--ink-3); font-size:12px }
 .metric-lineage { display:grid; gap:var(--space-5,20px); padding-left:22px; border-left:1px solid var(--line); margin-left:8px }
 .metric-lineage section { position:relative; min-width:0 }
 .metric-lineage section::before { position:absolute; content:''; top:7px; left:-27px; width:8px; height:8px; border:2px solid var(--accent); background:var(--panel-background); border-radius:50% }

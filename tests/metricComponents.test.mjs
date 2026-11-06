@@ -32,6 +32,8 @@ const Trend = load('components/Metric/MetricTrend.vue').default
 const OutputSwitch = load('components/Metric/MetricOutputSwitch.vue').default
 const Graph = load('components/Metric/template/TemplateGraph.vue').default
 const Lineage = load('components/Metric/MetricLineage.vue').default
+const ExecutionEvidence = load('components/Metric/MetricExecutionEvidence.vue').default
+const { evidenceValue, evidenceGroups } = load('components/Metric/evidence.ts')
 const template = { id: 'power', version: '1', name: 'Power', outputs: [{ metricId: 'value', label: 'Consumption', unit: 'kW', publish: true }], inputDefinitions: [], parameterDefinitions: [{ id: 'factor', expands: { editable: true } }], parameters: { factor: 1 }, definitions: [], options: { presentation: { provider: 'line/status', settings: { decimals: 2, warning: true } } } }
 const config = { id: 'c', name: 'Room', ownerType: 'line', ownerId: 'a', targetType: 'line', targetId: 'a', slot: 'c', templateId: 'power', templateVersion: '1', inputMappings: {}, parameters: {}, presentation: { decimals: 0, warning: false, unknown: 7 }, state: 'enabled', revision: 2, dataVersion: 'same' }
 const value = { metricId: 'value', value: 5.815, unit: 'kW', eventTime: 1000, quality: { valid: true } }
@@ -304,6 +306,49 @@ test('来源详情仅展示当前输出实际引用的输入与计算，不夹�
     assert.ok(text.includes('Mac / CPU')); assert.ok(text.includes('Pressure')); assert.ok(text.includes('outputHistory'))
     assert.equal(text.includes('Unrelated sensor'), false); assert.equal(text.includes('Other result'), false)
   } finally { view.close() }
+})
+
+test('结果解释展示执行快照、输入时间与默认值，当前参数变化不替换历史依据', async () => {
+  const spec = { ...template, parameters:{ limit:999 }, parameterDefinitions:[{ id:'limit',name:'Threshold',valueType:{type:'int'} }],
+    inputDefinitions:[{ id:'cpu',name:'CPU' }], definitions:[{id:'score',inputs:[{id:'reading',metricId:'cpu'}]}] }
+  const result = {metricId:'score',evaluationTime:2000,evidence:{
+    inputs:[{inputId:'reading',count:2,cutoff:2000,inputTimeStart:1000,inputTimeEnd:1500}],
+    execution:{truncated:false,values:[{kind:'input',id:'reading',path:'/value',type:'number',value:'7',state:'defaulted'},
+      {kind:'parameter',id:'limit',path:'',type:'number',value:'12',state:'available'}]},
+    facts:[{code:'rule',text:'Recorded evidence'}]}}
+  const view = mount(ExecutionEvidence,{template:spec,output:{metricId:'score'},value:result})
+  try {
+    const text=textContent(view.root)
+    assert.match(text,/CPU/);assert.match(text,/Threshold/);assert.match(text,/12/)
+    assert.match(text,/evidenceInput_defaulted/);assert.match(text,/evidenceSamples/);assert.match(text,/Recorded evidence/)
+    assert.equal(text.includes('999'),false);assert.equal(text.includes('evidenceNotRecorded'),false)
+  } finally { view.close() }
+})
+
+test('旧结果只展示已记录时间与算法事实，不从当前输入或参数倒推', async () => {
+  const spec={...template,inputDefinitions:[{id:'cpu',name:'CPU'}],parameters:{limit:999}}
+  const view=mount(ExecutionEvidence,{template:spec,output:{metricId:'score'},value:{metricId:'score',evidence:{inputs:[{inputId:'cpu',count:1,cutoff:2000,inputTimeStart:1000,inputTimeEnd:1000}],facts:[{code:'old',text:'Existing provider fact'}]}}})
+  try {
+    const text=textContent(view.root)
+    assert.match(text,/evidenceNotRecorded/);assert.match(text,/evidenceValuesMissing/);assert.match(text,/Existing provider fact/)
+    assert.equal(text.includes('999'),false)
+  } finally {view.close()}
+})
+
+test('证据复用状态、时长及对象字段语义，保留大整数与空值区别', () => {
+  const spec={...template,inputDefinitions:[{id:'status',name:'Connection',valueType:{type:'enum',elements:[{value:1,text:'Online'}]}}],definitions:[]}
+  const item={kind:'input',id:'status',path:'/value',type:'number',value:'1',state:'available'}
+  assert.equal(evidenceValue(item,'status',spec,'en',key=>key).text,'Online')
+  assert.equal(evidenceValue({...item,value:'9223372036854775807'},'unknown',spec,'en',key=>key).text,'9223372036854775807')
+  assert.equal(evidenceValue({...item,type:'null',value:null},'status',spec,'en',key=>key).text,'evidenceNull')
+  assert.equal(evidenceValue({...item,type:'string',value:''},'unknown',spec,'en',key=>key).text,'evidenceEmptyString')
+  assert.equal(evidenceValue({...item,type:'unavailable',state:'expired'},'status',spec,'en',key=>key).text,'evidenceInput_expired')
+  const duration=evidenceValue({...item,path:'/state/duration',value:'60'},'unknown',spec,'en',key=>key)
+  assert.equal(duration.label,'evidenceStateDuration');assert.notEqual(duration.text,'60')
+  const aliases={...spec,definitions:[{id:'first',inputs:[{id:'same',metricId:'wrong'}]},{id:'second',inputs:[{id:'same',metricId:'status'}]}]}
+  assert.equal(evidenceGroups({execution:{values:[{...item,id:'same'}],truncated:false}},aliases,'input','second')[0].name,'Connection')
+  const family={...spec,definitions:[{id:'family',inputs:[{id:'sample',metricId:'status'}],windowFamily:{ranges:[{outputs:[{id:'max'}]}]}}]}
+  assert.equal(evidenceGroups({execution:{values:[{...item,id:'sample'}],truncated:false}},family,'input','max')[0].name,'Connection')
 })
 
 test('历史读取失败保留最新值，避免同时展示无历史的误导空态；重试恢复', async () => {

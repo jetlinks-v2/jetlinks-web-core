@@ -364,6 +364,26 @@ test('输入数据要求保留零和false默认值，已发布限制与只读沿
   } finally { app.unmount() }
 })
 
+test('已发布输出可通过兼容修订开启计算依据，保留扩展并沿用编辑权限', async () => {
+  const { renderer, root } = createMetricRenderer()
+  const value = template()
+  value.outputs[0].options = { custom:false }
+  const props = reactive({ template:value, node:{kind:'output',index:0}, published:true, disabled:false })
+  let patch
+  const app = renderer.createApp({setup:()=>()=>h(NodeEditor,{...props,onPatch:fields=>{patch=fields}})})
+  app.config.warnHandler = () => {}; app.mount(root)
+  try {
+    const setting = () => walk(root,node=>node.props?.['aria-label']==='evidenceRecord')[0]
+    assert.equal(setting().props.disabled,false)
+    assert.equal(setting().props.checked,false)
+    setting().props.onChange(true); await flush()
+    assert.deepEqual(patch,{options:{custom:false,explain:true}})
+    assert.deepEqual(value.outputs[0].options,{custom:false})
+    props.disabled=true; await flush()
+    assert.equal(setting().props.disabled,true)
+  } finally { app.unmount() }
+})
+
 test('窗口统计通过来源/时长/统计方式组装真实规则；切回公式无残留字段', async () => {
   const editor = mountRule({ id: 'average', type: 'composite', expression: 'temperature', dependsOn: ['temperature'], window: { mode: 'none' } })
   try {

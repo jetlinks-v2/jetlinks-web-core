@@ -77,7 +77,7 @@ export interface MetricTemplateOutput {
   latestOnly?: boolean
   publish?: boolean
   valueType?: string
-  options?: Record<string, unknown> & { readAggregation?: import('./collection/types').MetricReadAggregation }
+  options?: Record<string, unknown> & { readAggregation?: import('./collection/types').MetricReadAggregation; explain?: boolean }
   [key: string]: unknown
 }
 export interface MetricTemplate {
@@ -181,7 +181,25 @@ export interface MetricValue {
   dataVersion?: string
   temporal?: MetricTemporalResult
   state?: MetricStateResult
+  evidence?: MetricEvidence
   [key: string]: unknown
+}
+/** Frozen execution facts. Absence means no evidence was recorded, never permission to read latest inputs. */
+export interface MetricEvidence {
+  inputs?: { inputId:string; metricId?:string; thingType?:string; thingId?:string; cutoff:number; count:number; inputTimeStart:number; inputTimeEnd:number }[]
+  facts?: { code:string; inputId?:string; text?:string; amount?:number }[]
+  contributions?: { inputId:string; amount?:number }[]
+  uncertainty?: { method:string; lower?:number; upper?:number; confidenceLevel?:number }
+  execution?: { values:MetricSnapshotValue[]; truncated:boolean }
+}
+export interface MetricSnapshotValue {
+  kind:'input' | 'parameter' | 'calculatorParameter'
+  id:string
+  /** JSON Pointer, rooted at /value or /state for input values. */
+  path:string
+  type:'number' | 'boolean' | 'string' | 'null' | 'unavailable' | 'omitted'
+  value?:string | null
+  state:'available' | 'defaulted' | 'missing' | 'expired' | 'invalid'
 }
 export interface MetricLatest {
   configId: string

@@ -28,7 +28,7 @@
       <details v-if="current && !intervals && !recordHistory" class="metric-result__facts"><summary>{{ t('dataDetails') }}</summary><MetricValueView :value="current" :output="output" :unit="output?.unit" :settings="settings" :labels="labels" /></details>
       <details class="metric-result__facts"><summary>{{ t('runtimeDiagnostics') }}</summary><MetricRuntimeFeedback :runtime="runtime" :has-value="!!current" :disabled="configuration?.state === 'disabled'" /></details>
       </template>
-      <MetricLineage v-else-if="configuration && template && output" :configuration="configuration" :template="template" :output="output" :context="context" />
+      <MetricLineage v-else-if="configuration && template && output" :configuration="configuration" :template="template" :output="output" :context="context" :value="current" />
     </div>
   </div>
 </template>
