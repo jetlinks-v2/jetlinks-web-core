@@ -49,6 +49,8 @@ const { catalog, loading, errors, reload } = useDashboardCatalog(dashboardSource
 
 ## 个人布局缓存
 
+拖拽及缩放时使用 `vue3-grid-layout-next` 自带的落点占位块，仅以轻阴影标识目标区域，背景透明且不增加边框；拖动中的卡片保持原有外观。占位轮廓位于拖动卡片上方且不拦截指针，不扩大网格尺寸。移动、碰撞和压紧继续由网格引擎负责，`useDashboardPlaceholder` 在布局更新后将引擎最终坐标同步到其公开占位对象，避免预览落后于实际落点。
+
 `storageKey` 使用调用方提供的固定标识；布局恢复、保存、组件集合校验和历史 key 迁移均由画布负责。可选 `legacyStorageKeys` 按优先顺序声明历史 key，默认不迁移其他 key。已有有效固定缓存优先，否则读取第一个有效历史布局，成功写入固定 key 后才清理声明的旧 key。页面不直接操作 localStorage。存储不可用时继续使用默认布局。
 
 ## 接入

@@ -7,6 +7,12 @@ export interface AMapError {
     message?: string;
 }
 
+/** 高德明确返回 Key 被删除时，提示管理员重新配置；其他失败保留原诊断。 */
+export function isRecycledAMapKey(error?: AMapError): boolean {
+    return Boolean(error && (error.kind === 'sdk' || error.kind === 'map')
+        && (error.code === '10013' || error.info?.trim().toUpperCase() === 'USER_KEY_RECYCLED'));
+}
+
 const asRecord = (value: unknown): Record<string, unknown> | undefined =>
     value !== null && typeof value === 'object' ? value as Record<string, unknown> : undefined;
 

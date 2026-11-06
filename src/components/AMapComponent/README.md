@@ -33,7 +33,10 @@
 #### 高德异常提示
 
 - SDK 加载失败、地图 `error` 事件、AMapUI 加载失败时，在地图区域居中展示异常图标、标题和可获取的详细信息，不提供刷新按钮。
-- 错误码优先读取 `infocode` / `errcode` / `code`；其下展示实际返回的 `info` 原文（如 `INVALID_REQUEST`），为空时隐藏。原始 `message` 与 `info` 不同时另行展示。所有错误都提示“请前往高德地图官网查看错误码说明。”，不会根据 `1013` 等错误码硬编码 `info`。
+- SDK 或地图返回 `10013` / `USER_KEY_RECYCLED` 时，提示 Key 已被删除，并引导有权限的管理员在基础配置中更新 JS API Key；其他错误沿用原错误信息与说明。
+- 缺少 Key 或设备地图所需密钥、以及 Key 被删除时，共用 `AMapConfigAction` 配置入口。该组件从 `@jetlinks-web-core/components` 和地图目录入口公开导出，供外层配置空态复用。
+- 拥有 `system/Basis` 菜单时显示入口，通过现有菜单导航；无菜单时提示联系管理员。导航不要求更新权限，配置页保存操作继续检查其编辑权限。入口跳转到基础配置页，不自动定位到具体分组。
+- 错误码优先读取 `infocode` / `errcode` / `code`；其下展示实际返回的 `info` 原文（如 `INVALID_REQUEST`），为空时隐藏。原始 `message` 与 `info` 不同时另行展示。除已识别的 Key 删除错误外，其余错误提示前往高德官网查看说明，不根据 `1013` 等错误码硬编码 `info`。
 - 地图 SDK、底图 `complete` 事件和可选 AMapUI 均就绪后结束加载；15 秒仍未完成则显示超时提示。迟到的正常加载可以消除超时提示，明确的 SDK 错误持续显示。
 - 保留 `init`、图层插槽和 `setBounds`；AMapUI 默认加载，兼容 `modules/device-manager-ui/views/device/Instance/Detail/Running/Property/Detail/PropertyAMap.vue` 中的既有轨迹用法。多个地图共用 SDK / AMapUI 脚本，各自维护异常、超时和卸载状态。
 - 未配置 Key 时保留原有空态，正常无点位不视为异常。此能力由共享组件维护，设备地图、设备详情和坐标选择器等调用方继承相同反馈；不改变 GeoJSON 请求、Token、权限和点位聚合。
