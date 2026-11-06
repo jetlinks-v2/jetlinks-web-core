@@ -409,7 +409,6 @@
   "runtimeDiagnostics.attributeSearch": "查找属性名称、类型或说明",
   "runtimeDiagnostics.batches": "批",
   "runtimeDiagnostics.executionResult": "执行结果",
-  "runtimeDiagnostics.noParameters": "此方法无需参数",
   "runtimeDiagnostics.returnType": "返回",
   "runtimeDiagnostics.fromTime": "开始时间",
   "runtimeDiagnostics.hasFailures": "有失败",

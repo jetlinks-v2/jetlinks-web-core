@@ -48,15 +48,15 @@ function harness(t, parameters = []) {
   const app = renderer.createApp({ setup: () => () => vue.h(Operations, { ...props, onInvoke: value => events.push(value) }) })
   const shell = name => vue.defineComponent({ inheritAttrs: true, setup: (_props, { slots }) => () => vue.h(name, Object.values(slots).flatMap(slot => slot?.())) })
   app.component('AForm', Form)
-  for (const name of ['ASelect','AInput','ATextarea','AFormItem','AButton','ATooltip','ASpin','AAlert','AEmpty','AResult','AIcon']) app.component(name, shell(name))
+  for (const name of ['ADropdown','AMenu','AMenuItem','ASelect','AInput','ATextarea','AButton','ATooltip','ASpin','AAlert','AEmpty','AResult','AIcon']) app.component(name, shell(name))
   app.component('AModal', vue.defineComponent({ props: ['open'], setup: (props, { slots }) => () => props.open ? vue.h('dialog', slots.default?.()) : null }))
   app.mount(target); t.after(() => app.unmount())
   const all = (root = target) => [root, ...root.children.flatMap(all)]
   const find = type => all().find(node => node.type === type)
   const text = (root = target) => root.type === '#comment' ? '' : root.text + root.children.map(text).join('')
-  async function choose(key = 'inspect(' + signature.join(', ') + ')') { find('ASelect').props.onChange(key); await flush() }
+  async function choose(key = 'inspect(' + signature.join(', ') + ')') { find('AMenu').props.onClick({ key }); await flush() }
   async function submit() { find('form').props.onSubmit({ preventDefault() {}, stopPropagation() {} }); await flush() }
-  return { props, events, find, text, choose, submit }
+  return { props, events, all, find, text, choose, submit }
 }
 
 test('real Ant Form submits directly without a confirmation dialog; choosing a method never executes it', async t => {
@@ -71,7 +71,7 @@ test('real Ant Form submits directly without a confirmation dialog; choosing a m
 })
 
 test('direct submission validates arguments and retains metadata order', async t => {
-  const h = harness(t, [{ name: 'limit', type: 'int' }, { name: 'options', type: 'java.util.Map' }])
+  const h = harness(t, [{ name: 'limit', type: 'int' }, { name: 'options', type: 'java.util.Map' }, { name: 'enabled', type: 'boolean' }])
   await h.choose(); await h.submit()
   assert.equal(h.find('dialog'), undefined)
   assert.equal(h.find('AAlert').props.message, 'runtimeDiagnostics.required')
@@ -81,9 +81,10 @@ test('direct submission validates arguments and retains metadata order', async t
   assert.equal(h.find('AAlert').props.message, 'runtimeDiagnostics.invalid')
   assert.equal(h.events.length, 0)
   h.find('ATextarea').props['onUpdate:value']('{"enabled":true}')
+  h.find('ASelect').props['onUpdate:value']('false')
   await h.submit(); assert.equal(h.find('dialog'), undefined)
   assert.equal(h.events.length, 1)
-  assert.deepEqual(h.events[0].args, [{ name: 'limit', value: '1' }, { name: 'options', value: { enabled: true } }])
+  assert.deepEqual(h.events[0].args, [{ name: 'limit', value: '1' }, { name: 'options', value: { enabled: true } }, { name: 'enabled', value: 'false' }])
 })
 
 test('direct invocation renders formatted JSON below the form, including empty, null and false values', async t => {
@@ -108,7 +109,7 @@ test('permission, busy and missing targets prevent direct execution; target chan
   h.props.busy = false; h.props.target = ''; await flush(); await h.choose()
   await h.submit(); assert.equal(h.events.length, 0)
   h.props.target = 'node-b'; await flush()
-  assert.equal(h.find('ASelect').props.value, undefined); assert.equal(h.find('AButton'), undefined); assert.equal(h.events.length, 0)
+  assert.deepEqual(h.find('AMenu').props['selected-keys'], []); assert.equal(h.all().some(node => node.type === 'AButton' && node.props['html-type'] === 'submit'), false); assert.equal(h.events.length, 0)
   await h.choose(); await h.submit()
   h.props.result = { node: 'node-b' }; await flush(); assert.ok(h.find('pre'))
   h.props.invokeAccess = { allowed: false }; await flush(); assert.equal(h.find('pre'), undefined)
@@ -118,7 +119,7 @@ test('overloaded methods keep full signatures; switching methods clears argument
   const h = harness(t, [{ name: 'value', type: 'int' }])
   const other = { name: 'inspect', signature: ['java.lang.String'], parameters: [{ name: 'value', type: 'java.lang.String' }], returnType: 'java.lang.String' }
   h.props.bean.operations.push(other); await flush()
-  assert.deepEqual(h.find('ASelect').props.options.map(option => option.label), ['inspect(int)', 'inspect(java.lang.String)'])
+  assert.deepEqual(h.all().filter(node => node.type === 'AMenuItem').map(node => h.text(node)), ['inspect(int)', 'inspect(java.lang.String)'])
   await h.choose(); h.find('AInput').props['onUpdate:value']('1'); await h.submit()
   assert.deepEqual(h.events[0].operation.signature, ['int'])
   h.props.result = 1; await flush(); assert.ok(h.find('pre'))

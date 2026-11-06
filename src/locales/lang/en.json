@@ -409,7 +409,6 @@
   "runtimeDiagnostics.attributeSearch": "Find attributes, types or descriptions",
   "runtimeDiagnostics.batches": "batches",
   "runtimeDiagnostics.executionResult": "Execution result",
-  "runtimeDiagnostics.noParameters": "No parameters required",
   "runtimeDiagnostics.returnType": "Returns",
   "runtimeDiagnostics.fromTime": "From",
   "runtimeDiagnostics.hasFailures": "With failures",
