@@ -54,7 +54,7 @@ function harness(t, parameters = []) {
   const all = (root = target) => [root, ...root.children.flatMap(all)]
   const find = type => all().find(node => node.type === type)
   const text = (root = target) => root.type === '#comment' ? '' : root.text + root.children.map(text).join('')
-  async function choose(key = 'inspect(' + signature.join(', ') + ')') { all().find(node => node.type === 'AButton' && text(node) === key).props.onClick(); await flush() }
+  async function choose(key = 'inspect(' + signature.join(', ') + ')') { find('ASelect').props.onChange(key); await flush() }
   async function submit() { find('form').props.onSubmit({ preventDefault() {}, stopPropagation() {} }); await flush() }
   return { props, events, find, text, choose, submit }
 }
@@ -108,7 +108,7 @@ test('permission, busy and missing targets prevent direct execution; target chan
   h.props.busy = false; h.props.target = ''; await flush(); await h.choose()
   await h.submit(); assert.equal(h.events.length, 0)
   h.props.target = 'node-b'; await flush()
-  assert.equal(h.find('form'), undefined); assert.equal(h.events.length, 0)
+  assert.equal(h.find('ASelect').props.value, undefined); assert.equal(h.find('AButton'), undefined); assert.equal(h.events.length, 0)
   await h.choose(); await h.submit()
   h.props.result = { node: 'node-b' }; await flush(); assert.ok(h.find('pre'))
   h.props.invokeAccess = { allowed: false }; await flush(); assert.equal(h.find('pre'), undefined)
@@ -118,6 +118,7 @@ test('overloaded methods keep full signatures; switching methods clears argument
   const h = harness(t, [{ name: 'value', type: 'int' }])
   const other = { name: 'inspect', signature: ['java.lang.String'], parameters: [{ name: 'value', type: 'java.lang.String' }], returnType: 'java.lang.String' }
   h.props.bean.operations.push(other); await flush()
+  assert.deepEqual(h.find('ASelect').props.options.map(option => option.label), ['inspect(int)', 'inspect(java.lang.String)'])
   await h.choose(); h.find('AInput').props['onUpdate:value']('1'); await h.submit()
   assert.deepEqual(h.events[0].operation.signature, ['int'])
   h.props.result = 1; await flush(); assert.ok(h.find('pre'))
