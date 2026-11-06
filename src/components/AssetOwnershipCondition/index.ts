@@ -1,5 +1,7 @@
 export { default } from './index.vue'
 export * from './types'
+export { resolveAssetDimensionFilter, onAssetDimensionFiltersChange } from './registry'
+export { default as AssetDimensionPicker } from './AssetDimensionPicker.vue'
 export * from './condition'
 export type { AssetOwnershipDisplay } from './useAssetOwnershipCondition'
 export { createAssetOwnershipField, toAssetOwnershipFilterTerm } from './field'

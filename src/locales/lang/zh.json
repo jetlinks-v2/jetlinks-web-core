@@ -2299,5 +2299,6 @@
   "PersonalToken.permissionMode.selectActions": "请至少选择一项权限操作。",
   "PersonalToken.empty.title": "还没有个人令牌",
   "PersonalToken.empty.description": "调用开放 API 时，可使用个人令牌代替账号密码。令牌权限受你的账号权限限制，完整令牌仅在创建或刷新后显示一次。",
-  "PersonalToken.empty.create": "新建令牌"
+  "PersonalToken.empty.create": "新建令牌",
+  "Editable.edit": "编辑"
 }

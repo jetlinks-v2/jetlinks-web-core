@@ -1,6 +1,12 @@
 # `@jetlinks-web-core` 能力文档导航
 
+`ObjectPresentation.directorySubtitle` 是所属模块声明的目录次行文本函数，只接收宿主已授权读取的行，不执行查询；返回空值时隐藏次行，未声明时由宿主采用默认展示。用户目录的生产用法见运行时身份模块 `objectPresentations.ts`。
+
+`ObjectPresentation.directory` 可声明 `{ mode: 'tree', load }`，由所属模块按需返回完整、已授权的 `ObjectDirectoryNode[]`（id/name/children 及业务属性），消费者负责搜索保留路径、虚拟滚动、展开与选择，不按对象类型猜测树结构。未声明的类型继续使用宿主列表查询。`fields[].surface` 默认为 `summary`，`detail`/`both` 才属于补充详情；详情字段不占卡片布局。模块也可通过 `detail.component` / `detail.available` 提供只读业务详情，接收 `ObjectDetailPresentationProps`。`lineage` 为显式追踪声明，默认关闭，不能单独作为打开详情的依据。多模块对同一类型的字段按 key 合并，目录/详情/导航声明保留到对应消费入口。
+
 本目录是 JetLinks 前端 core 层的能力入口。本文只做分类导航；具体 Props、参数、返回值、状态和副作用以分类索引、源码导出和生产用法为准。
+
+对象展示扩展见 `types/object-presentation.ts`：业务模块通过 `objectPresentations` 提供关注字段、业务导航及可选记录组件。记录组件接收 `ObjectRecordPresentationProps`（已授权记录、来源对象、类型、列表/详情/原位展开模式，可选 expanded 状态），宿主维护查询、展开与导航；`record.itemHeight` 声明固定摘要行高，原位详情使用 VirtualScroll 的 expandedItem 插槽实测高度。组件不依赖本体模块，缺省展示由消费者提供。
 
 ## 阅读顺序
 

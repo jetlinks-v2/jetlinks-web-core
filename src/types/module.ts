@@ -4,10 +4,12 @@ import type { DataCapabilityProviderManifest } from '../data-capability/types'
 import type { ContentPanelOverrides } from './content-panel'
 import type { AgentConversationProviderManifest } from '../layout/components/AiChat/agentConversationContracts'
 import type { AssetDimensionFilter } from '../components/AssetOwnershipCondition/types'
+import type { ObjectPresentation } from './object-presentation'
+import type { AssetRelationBinding } from '../utils/asset-relation-binding'
 
 export type ModuleResourceRecord<T = unknown> = Record<string, T>
 
-export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders' | 'agentConversationProviders' | 'assetDimensionFilters'
+export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders' | 'agentConversationProviders' | 'assetDimensionFilters' | 'assetRelationBindings'
 export type ModuleResourceType = KnownModuleResourceType | (string & {})
 
 export interface ModuleResource {
@@ -21,6 +23,8 @@ export interface ModuleResource {
   dataCapabilityProviders?: DataCapabilityProviderManifest
   agentConversationProviders?: AgentConversationProviderManifest
   assetDimensionFilters?: ModuleResourceRecord<AssetDimensionFilter>
+  assetRelationBindings?: ModuleResourceRecord<AssetRelationBinding[]>
+  objectPresentations?: ModuleResourceRecord<ObjectPresentation>
   [resourceType: string]: ModuleResourceRecord | string | undefined
 }
 

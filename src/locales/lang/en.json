@@ -2299,5 +2299,6 @@
   "PersonalToken.permissionMode.selectActions": "Select at least one permission action.",
   "PersonalToken.empty.title": "No personal tokens yet",
   "PersonalToken.empty.description": "Use a personal token instead of your account password when calling APIs. Its access is limited by your account permissions. The full token is shown only when created or refreshed.",
-  "PersonalToken.empty.create": "Create token"
+  "PersonalToken.empty.create": "Create token",
+  "Editable.edit": "Edit"
 }
