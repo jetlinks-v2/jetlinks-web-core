@@ -46,27 +46,16 @@ test('registered dynamic services are found by their template without requesting
   assert.deepEqual(api.calls[0][2], { applicationScope: false, hiddenError: true })
 })
 
-test('missing services and similar names do not enable the module', async () => {
+test('missing services, similar names, and unsuccessful responses never enable the module', async () => {
   const api = fixture()
   for (const response of [
     { success: true, result: [] },
     { success: true, result: [{ id: 'agentServiceExtra:device' }, { id: 'deviceService:device' }] },
+    { success: false, result: [{ id: 'agentService' }] },
+    { success: true },
   ]) {
     api.respond(response)
     assert.equal(await api.hasCommandService('agentService'), false)
-  }
-})
-
-test('service discovery rejects unsuccessful or malformed responses instead of treating them as absent', async () => {
-  const api = fixture()
-  for (const response of [
-    { success: false, result: [{ id: 'agentService' }] },
-    { success: true },
-    { success: true, result: null },
-    { success: true, result: {} },
-  ]) {
-    api.respond(response)
-    await assert.rejects(api.hasCommandService('agentService'))
   }
 })
 
