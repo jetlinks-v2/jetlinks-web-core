@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, ref, watch } from 'vue'
 import { useResizeObserver } from '@vueuse/core'
 import { GridItem, GridLayout } from 'vue3-grid-layout-next'
 import 'vue3-grid-layout-next/dist/style.css'
@@ -46,10 +46,14 @@ const layoutJSON = ref<DashboardLayoutItem[]>([])
 // 使用观察器给出的尺寸，不重建网格、业务组件或个人坐标。
 useResizeObserver(computed(() => layoutRef.value?.$el as HTMLElement | undefined), ([entry]) => {
   if (!entry) return
-  const width = Math.round(entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width)
+  updateWidth(Math.round(entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width))
+}, { box: 'border-box' })
+function updateWidth(width: number) {
   const layout = layoutRef.value
   if (layout && width > 0 && layout.width !== width) layout.width = width
-}, { box: 'border-box' })
+}
+// GridLayout 自身会记录隐藏时的零宽度；缓存页恢复时在绘制前同步，避免从零宽度过渡。
+onActivated(() => updateWidth((layoutRef.value?.$el as HTMLElement | undefined)?.offsetWidth ?? 0))
 
 // Retain LoadingBoard's negative margins: the first/last cells align with the viewport edges.
 const gridLayoutStyle = computed(() => ({
