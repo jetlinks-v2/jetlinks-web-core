@@ -8,6 +8,7 @@ const root = resolve(import.meta.dirname, '../src/components/RuntimeDiagnostics'
 const components = [
   'JvmDiagnosticPanel.vue', 'ThreadViewer.vue', 'FlameGraphViewer.vue', 'AllocationRanking.vue',
   'MBeanBrowser.vue', 'MBeanAttributes.vue', 'MBeanSummary.vue', 'mbean/MBeanOperations.vue', 'buffer/BufferQueueDetail.vue',
+  'buffer/BufferObservationStats.vue', 'buffer/BufferObservationHistory.vue',
 ]
 
 test('JVM and MBean presentation components compile with compact local modes', () => {

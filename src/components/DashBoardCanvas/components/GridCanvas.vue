@@ -1,8 +1,8 @@
 <template>
-  <div ref="host" class="dashboard-grid" @dragover="drag.onDragOver" @drop="drag.onDrop">
+  <div ref="host" class="dashboard-grid" :class="{ 'dashboard-grid--initializing': !layoutReady }" @dragover="drag.onDragOver" @drop="drag.onDrop">
     <GridLayout ref="layoutRef" v-model:layout="layoutJSON" :col-num="settings.columns"
       :row-height="settings.rowHeight" :margin="settings.margin" :style="gridLayoutStyle"
-      :is-draggable="layoutEditable" :is-resizable="layoutEditable">
+      :is-draggable="layoutEditable" :is-resizable="layoutEditable" @layout-ready="finishInitialLayout">
       <GridItem v-for="item in layoutJSON" :key="item.i" ref="gridItemRefs"
         v-bind="item" :static="item.static || (!editable && !layoutEditable)"
         :is-draggable="layoutEditable && !item.static" :is-resizable="layoutEditable && !item.static"
@@ -16,7 +16,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, ref, watch } from 'vue'
+import { useResizeObserver } from '@vueuse/core'
 import { GridItem, GridLayout } from 'vue3-grid-layout-next'
 import 'vue3-grid-layout-next/dist/style.css'
 import { toGridLayout } from '../utils/layout'
@@ -40,6 +41,26 @@ const host = ref<HTMLElement>()
 const layoutRef = ref<InstanceType<typeof GridLayout>>()
 const gridItemRefs = ref<InstanceType<typeof GridItem>[]>([])
 const layoutJSON = ref<DashboardLayoutItem[]>([])
+const layoutReady = ref(false)
+
+// 子组件读取尺寸可能提前计算默认布局；首次定位完成前不从该布局做位移动画。
+function finishInitialLayout() {
+  (layoutRef.value?.$el as HTMLElement | undefined)?.getBoundingClientRect()
+  layoutReady.value = true
+}
+
+// 容器滚动条或侧栏变化未必触发 window.resize，补齐网格公开宽度状态的同步。
+// 使用观察器给出的尺寸，不重建网格、业务组件或个人坐标。
+useResizeObserver(computed(() => layoutRef.value?.$el as HTMLElement | undefined), ([entry]) => {
+  if (!entry) return
+  updateWidth(Math.round(entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width))
+}, { box: 'border-box' })
+function updateWidth(width: number) {
+  const layout = layoutRef.value
+  if (layout && width > 0 && layout.width !== width) layout.width = width
+}
+// GridLayout 自身会记录隐藏时的零宽度；缓存页恢复时在绘制前同步，避免从零宽度过渡。
+onActivated(() => updateWidth((layoutRef.value?.$el as HTMLElement | undefined)?.offsetWidth ?? 0))
 
 // Retain LoadingBoard's negative margins: the first/last cells align with the viewport edges.
 const gridLayoutStyle = computed(() => ({
@@ -73,6 +94,7 @@ async function onLayoutEnd() {
 
 <style scoped lang="less">
 .dashboard-grid { position: relative; width: 100%; min-height: 100%; }
+.dashboard-grid--initializing :deep(.vue-grid-item) { transition:none; }
 :deep(.vue-grid-item) {
   &.resizing { opacity: .9; }
   .vue-resizable-handle {

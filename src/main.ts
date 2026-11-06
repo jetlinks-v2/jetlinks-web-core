@@ -14,13 +14,14 @@ import '@jetlinks-web-core/style.css'
 import 'vue3-json-viewer/dist/index.css'
 import '@jetlinks-web-core/style/global.less'
 import 'dayjs/locale/zh-cn'
+import 'dayjs/locale/ja'
 import microApp from '@micro-zoe/micro-app'
 import { registerModule, getPackageConfig } from '@jetlinks-web-core/utils/modules'
 import { openRelogin } from './views/relogin'
 import { consumeApplicationAccessBootstrap } from '@jetlinks-web-core/utils/application-access'
 import { setToken } from '@jetlinks-web/utils'
 
-dayjs.locale('zh-cn')
+dayjs.locale(i18n.global.locale.value === 'ja' ? 'ja' : 'zh-cn')
 
 const applicationBootstrap = consumeApplicationAccessBootstrap()
 if (applicationBootstrap.status === 'applied' && applicationBootstrap.projectStorage.token) {

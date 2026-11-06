@@ -1,5 +1,5 @@
 import globalI18n from '@jetlinks-web-core/locales'
-import { computed, onBeforeUnmount, reactive, ref, toRaw } from 'vue'
+import { onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { encrypt } from '@jetlinks-web/utils'
 import { useLoginConfig } from './useLoginConfig'
@@ -15,10 +15,6 @@ import {
 } from '@jetlinks-web-core/api/login'
 import { useRequest } from '@jetlinks-web/hooks'
 
-interface UseLoginOptions {
-  shouldAutoLoadVerifyCode?: () => boolean
-}
-
 /** `/authorize/login/configs` 返回的登录加密配置。 */
 interface LoginEncryptionConfig {
   encrypt?: {
@@ -31,7 +27,7 @@ interface LoginEncryptionConfig {
 /** 后端开启登录加密时，公钥有效期有限，按旧登录页逻辑定期刷新。 */
 const ENCRYPTION_REFRESH_INTERVAL = 3 * 60 * 1000
 
-export function useLogin(config: Ref<any>, options: UseLoginOptions = {}) {
+export function useLogin(config: Ref<any>) {
   const { providers, loading: configLoading } = useLoginConfig()
   const { captchaOpen, openCaptcha, onCaptchaSuccess } = useCaptchaVerify<CaptchaValidationSuccess>()
   const { handleLoginSuccess } = useLoginSuccess()
@@ -212,7 +208,7 @@ export function useLogin(config: Ref<any>, options: UseLoginOptions = {}) {
   }
 
   watch(() => config.value?.enabled && config.value?.type === 'image', (enabled) => {
-    if (enabled && (options.shouldAutoLoadVerifyCode?.() ?? true)) {
+    if (enabled) {
       getVerifyCode()
     }
   })

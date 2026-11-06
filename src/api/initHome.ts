@@ -1,4 +1,5 @@
 import { request } from '@jetlinks-web/core'
+import { getMenuGrantDetail } from './system/menu'
 
 // 更新全部菜单
 export const updateMenus = (data: any,owner: string = 'iot') => request.patch(`/menu/${owner}/_all`, data)
@@ -24,8 +25,8 @@ export const updateRoleMenu = (id: string, data: any) => request.put(`/menu/role
 // 添加角色
 export const addRole = (data: any) => request.post(`/role`, data)
 
-//更新权限菜单
-export const getRoleMenu = (id: string) => request.get(`/menu/role/${id}/_grant/tree`)
+// 初始化角色读取完整授权详情，菜单树位于 result.menus。
+export const getRoleMenu = (id: string) => getMenuGrantDetail('role', id)
 
 //添加角色分组
 export const addRoleGroup = (data:any) => request.patch('/role/group',data)

@@ -6,6 +6,9 @@
 
 固定排版的页面可从同一入口导入 `DashboardWidgetRenderer`，传入 `widget`、`definition` 与 `previewMode`，复用组件注入、错误隔离和重试，不创建拖拽网格或个人坐标缓存。宿主负责布局，可将渲染器的 `height` 设为 `auto` 以随内容撑高。需要个人拖拽、缩放和本地布局保存的页面应使用 `DashBoardCanvas`；`editable=false`、`layoutEditable=true`、`previewMode=false` 可在保持业务实时取数的同时只开放位置和尺寸调整。
 
+网格使用容器尺寸观察同步宽度，侧栏、滚动条变化无需触发窗口 resize；相同宽度不重复提交，尺寸变化不重建业务组件或改写个人坐标。KeepAlive 缓存画布重新激活时，在绘制前恢复当前容器宽度，避免从隐藏期间的零宽度过渡。
+首次布局完成前关闭卡片位移动画，收到网格 `layout-ready` 后提交最终几何样式并恢复动画，避免从默认宽度滑动到实际位置；正常拖动与缩放仍保留动画。
+
 ## 自动发现
 
 采用 **共享懒加载来源 → 每处按范围取组件 → 生成 catalog → 画布渲染**。复用 `discovery` 的来源整理、加载缓存和 catalog 装配；同目录的 `dashboard-sources.ts` 作为可选宿主目录适配器，保持独立导入，通过 Vite 原生 `import.meta.glob` 发现以下目录：
@@ -111,6 +114,7 @@ const dashboard = ref<DashboardValue>({ canvas: {}, components: [] })
 | `previewMode?: boolean` | 默认 `false`；传给业务组件的 `isEdit`，与布局编辑权限独立 |
 | `resolveImage?: (fileId: string) => string` | 调用方解析背景资源地址；已提供的背景 URL 优先 |
 | `update:modelValue` | 返回完整配置快照；移动/缩放结束、增删、配置应用时触发，调用方决定保存方式 |
+| `widget` 插槽 | 可选，接收 `widget`、`definition`、`previewMode`；宿主可直接给已有展示组件传入共享运行态。默认仍由 `WidgetRenderer` 渲染；采样数据不要放入持久化配置 |
 
 旧数据可将画布与组件列表分别映射到 `canvas`、`components`。组件 `id` 必须唯一，`type` 对应 `catalog.components` 的键；网格位置保存在 `componentProps.gridItem`。`visible: false` 的组件不渲染，`isLocked: true` 的组件禁止调整；未注入的组件显示占位并保留配置。组件加载失败显示重试入口，原始错误写入控制台。
 

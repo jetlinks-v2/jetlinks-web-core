@@ -11,7 +11,7 @@ const summaryFields: Record<string, Record<string, string[]>> = {
     GarbageCollector: ['CollectionCount', 'CollectionTime'], Runtime: ['StartTime', 'Uptime', 'VmName', 'VmVersion'],
   },
   'org.jetlinks': {
-    PersistenceBuffer: ['Remainder', 'DeadSize', 'Wip', 'WriterPending', 'WriterFallback'],
+    PersistenceBuffer: ['Remainder', 'DeadSize', 'Wip', 'WriterPending', 'WriterFallback', 'ObservationSnapshot'],
     Tracing: ['Enabled', 'Size', 'SizeInMemory', 'SizeInMemoryBytes', 'MaxInMemoryBytes', 'StoreBytes'],
     NettyAllocator: ['Metrics'],
     ReactiveSqlExecutor: ['PendingSize'],
