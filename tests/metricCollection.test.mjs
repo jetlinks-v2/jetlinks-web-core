@@ -74,18 +74,43 @@ test('member overview defaults to a declared primary output, retains coverage an
 
 test('depth preferences apply before the first scope request even without groups and do not leak across owners', async () => {
   const priorStorage = globalThis.localStorage
-  const stored = new Map([['metric-collection:space:preferred:space',JSON.stringify({descendants:false})]])
+  const stored = new Map([['metric-collection:["user-project","space","preferred","space"]',JSON.stringify({descendants:false})]])
   globalThis.localStorage = {getItem:key=>stored.get(key) ?? null,setItem:(key,value)=>stored.set(key,value)}
   const calls = []
   const api = { collection: async query => { calls.push({...query}); return { readTime:1, visibleMembers:0, total:0, groups:[], data:[] } } }
-  const context = ref({ownerType:'space',ownerId:'preferred'})
+  const context = ref({preferenceScope:'user-project',ownerType:'space',ownerId:'preferred'})
   const {renderer,root} = createMetricRenderer(); let app
   try {
     app = renderer.createApp(defineComponent({setup(){ useMetricCollection(context,ref({memberType:'space',tree:true}),api);return()=>h('div') }}))
     app.mount(root); await flush()
     assert.equal(calls.length,1,'a saved direct scope must not first scan every descendant')
     assert.equal(calls[0].depth,'children')
-    context.value = {ownerType:'space',ownerId:'another'}; await flush()
+    context.value = {preferenceScope:'user-project',ownerType:'space',ownerId:'another'}; await flush()
     assert.equal(calls.at(-1).depth,'descendants','the next owner uses its own default')
   } finally { app?.unmount(); globalThis.localStorage = priorStorage }
+})
+
+test('multiple outputs use one paginated request, persist per identity and restore only currently visible groups', async () => {
+  const priorStorage=globalThis.localStorage,stored=new Map(),calls=[]
+  globalThis.localStorage={getItem:key=>stored.get(key) ?? null,setItem:(key,value)=>stored.set(key,value)}
+  let catalog=['a','b','c']
+  const api={collection:async query=>{calls.push({...query});return {readTime:1,visibleMembers:2,total:4,groups:catalog.map(id=>({id,output:{metricId:id},operations:['collection','average']})),data:[]}}}
+  const context=ref({preferenceScope:'user-a/project',ownerType:'product',ownerId:'p'})
+  let state,app
+  const mount=()=>{const {renderer,root}=createMetricRenderer();app=renderer.createApp(defineComponent({setup(){state=useMetricCollection(context,ref({memberType:'device'}),api);return()=>h('div')}}));app.mount(root)}
+  try {
+    mount();await flush();calls.length=0
+    state.selectGroups(['a','b']);await flush()
+    assert.equal(calls.length,1);assert.deepEqual(calls[0].groups,['a','b']);assert.equal(calls[0].group,undefined);assert.equal(calls[0].operation,'collection')
+    state.changePage(2);await flush();assert.equal(calls.at(-1).pageIndex,1);assert.deepEqual(calls.at(-1).groups,['a','b'])
+    app.unmount();calls.length=0;mount();await flush()
+    assert.equal(calls.length,2);assert.equal(calls[0].groups,undefined,'saved IDs are validated against the authorized catalog first')
+    assert.deepEqual(state.selectedGroups.value,['a','b'])
+    app.unmount();catalog=['a','c'];calls.length=0;mount();await flush()
+    assert.deepEqual(state.selectedGroups.value,['a']);assert.equal(calls.at(-1).group,'a')
+    context.value={...context.value,preferenceScope:'user-b/project'};await flush()
+    assert.equal(state.selectedGroups.value.length,1,'another user does not inherit the prior multi-selection')
+    state.selectGroups();await flush();assert.equal(state.group.value,undefined);assert.equal(calls.at(-1).groups,undefined)
+    assert.equal(JSON.parse(stored.get('metric-collection:["user-a/project","product","p","device"]')).groups[0],'a')
+  } finally {app?.unmount();globalThis.localStorage=priorStorage}
 })

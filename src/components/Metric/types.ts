@@ -198,6 +198,8 @@ export interface MetricRuntime {
   errorCode?: string
 }
 export interface MetricContext {
+  /** Caller-supplied user/project/tenant identity for browser preferences. Omit to disable persistence. */
+  preferenceScope?: string
   ownerType: string
   ownerId: string
   targetType?: string

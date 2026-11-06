@@ -1,5 +1,6 @@
 export const collectionMessages = {
   zh: {
+    outputsSelected:'已选 {count} 项输出',searchOutputs:'搜索模板或输出',selectCategory:'全选本类',apply:'应用',cancel:'取消',resetAll:'显示全部',selectionHint:'按模板选择输出；多选仅展示成员结果。',selectionLimit:'最多选择 128 项输出，或显示全部',noMatches:'没有匹配的输出',
     unknown:'未确认',
     overview:'指标概览',membersTab:'成员明细',aggregateStored:'已有数据汇总',aggregateHint:'按所选时段已记录的对象统计，不新增计算。',aggregateHistoryHint:'每个桶按对象取最后一条记录后汇总；空桶表示没有记录，不延续旧值。',aggregateEmpty:'所选范围暂无支持汇总的指标记录',
     templateFilter:'仅查看此模板',
@@ -18,6 +19,7 @@ export const collectionMessages = {
     operationHint:'切换统计会改变结果含义，切换列表/对比只改变展示。', pageHint:'仅对比本页；汇总数字覆盖全部可见结果。',
   },
   en: {
+    outputsSelected:'{count} outputs selected',searchOutputs:'Find a template or output',selectCategory:'Select category',apply:'Apply',cancel:'Cancel',resetAll:'Show all',selectionHint:'Select outputs by template. Multiple outputs show member results only.',selectionLimit:'Choose up to 128 outputs, or show all',noMatches:'No matching outputs',
     unknown:'Unconfirmed',
     overview:'Overview',membersTab:'Members',aggregateStored:'Stored results',aggregateHint:'Summarizes recorded objects in the selected period without new calculations.',aggregateHistoryHint:'Each bucket summarizes the last recorded value per object. Empty buckets are not filled with older values.',aggregateEmpty:'No aggregatable metric records in this scope and period',
     templateFilter:'This template only',

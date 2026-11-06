@@ -2,10 +2,7 @@
   <section class="metric-collection">
     <a-tag v-if="selection" closable @close="emit('clearSelection')">{{ t('templateFilter') }}</a-tag>
     <header class="metric-collection__tools">
-      <a-dropdown :trigger="['click']" class="metric-collection__output-menu"><button type="button" class="metric-collection__heading"><AIcon :type="activeGroup ? metricOutputPresentation(activeGroup.output,{labels:activeGroup.stateLabels}).icon : 'UnorderedListOutlined'" /><span>{{ activeGroup?.output.label || activeGroup?.output.metricId || t('all') }}<small v-if="activeGroup">{{ activeGroup.templateName }}</small></span><AIcon type="DownOutlined" /></button><template #overlay><a-menu :selected-keys="[group || '']" :aria-label="t('output')" @click="selectGroup($event.key ? String($event.key) : undefined)">
-        <a-menu-item key=""><SelectOption :label="t('all')" icon="UnorderedListOutlined" :description="t('readOnly')" /></a-menu-item>
-        <a-menu-item v-for="item in result?.groups || []" :key="item.id"><SelectOption :label="item.output.label || item.output.metricId" :icon="metricOutputPresentation(item.output,{labels:item.stateLabels}).icon" :description="item.templateName" /></a-menu-item>
-      </a-menu></template></a-dropdown>
+      <MetricCollectionPicker :groups="result?.groups || []" :value="selectedGroups" @change="selectGroups" />
       <div class="metric-collection__actions">
       <a-dropdown v-if="activeGroup && activeGroup.operations.length > 1" :trigger="['click']"><a-button type="text" size="small"><AIcon :type="operationIcon(operation)" />{{ t(operation) }} <AIcon type="DownOutlined" /></a-button><template #overlay><a-menu :selected-keys="[operation]" @click="selectOperation($event.key as ReadOperation)"><a-menu-item v-for="item in activeGroup.operations" :key="item"><SelectOption :label="t(item)" :icon="operationIcon(item)" :description="t(item === 'collection' ? 'readOnly' : 'operationHint')" /></a-menu-item></a-menu></template></a-dropdown>
       <a-tooltip v-if="group && canCompare" :title="t(view === 'list' ? 'bars' : 'list')"><a-button type="text" size="small" :aria-label="t(view === 'list' ? 'bars' : 'list')" @click="changeView(view === 'list' ? 'bars' : 'list')"><AIcon :type="view === 'list' ? 'BarChartOutlined' : 'AppstoreOutlined'" /></a-button></a-tooltip>
@@ -71,7 +68,7 @@ import MetricValueView from '../MetricValue.vue'
 import MetricStateDuration from '../MetricStateDuration.vue'
 import MetricResult from '../MetricResult.vue'
 import { formatMetricValue } from '../extensions/presentationSettings'
-import { metricOutputPresentation } from '../outputPresentation'
+import MetricCollectionPicker from './MetricCollectionPicker.vue'
 import { isStateOutput, stateAppearance, stateLabel } from '../stateIntervals'
 import { useMetricCollection } from './useMetricCollection'
 import { useMetricCollectionDetail } from './useMetricCollectionDetail'
@@ -81,7 +78,7 @@ import type { MetricCollectionRow, MetricCollectionSelection, MetricReadScopeOpt
 const props = defineProps<{ context:MetricContext; scope:MetricReadScopeOption; selection?:MetricCollectionSelection }>()
 const emit = defineEmits<{(event:'clearSelection'):void}>()
 const { t, locale } = useI18n({ useScope:'local', messages:collectionMessages })
-const { result, loading, error, group, operation, page, descendants, view, fallback, activeGroup, selected, refresh, selectGroup, selectOperation, changePage, changeDepth, changeView } = useMetricCollection(toRef(props,'context'), toRef(props,'scope'), undefined, toRef(props,'selection'))
+const { result, loading, error, group, selectedGroups, operation, page, descendants, view, fallback, activeGroup, selected, refresh, selectGroups, selectOperation, changePage, changeDepth, changeView } = useMetricCollection(toRef(props,'context'), toRef(props,'scope'), undefined, toRef(props,'selection'))
 const detail = useMetricCollectionDetail(selected)
 const canCompare = computed(() => !!activeGroup.value && !isStateOutput(activeGroup.value.output,activeGroup.value.stateLabels) && activeGroup.value.output.valueType !== 'boolean')
 const groupFor = (row:MetricCollectionRow) => result.value?.groups.find(item => item.id === row.group)
@@ -95,14 +92,9 @@ const operationIcon = (value:ReadOperation) => ({ collection:'UnorderedListOutli
 <style scoped>
 .metric-collection { min-width:0; padding:var(--space-4,16px) }
 .metric-collection__tools { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 20px }
-.metric-collection__heading { display:flex; align-items:center; gap:10px; background:none; border:0; padding:0; min-width:0; text-align:left; cursor:pointer; color:var(--ink-1); max-width:100%; font:inherit }
-.metric-collection__heading>span:not(.anticon) { display:grid; gap:3px; min-width:0; font-size:15px; font-weight:600; overflow-wrap:anywhere }
-.metric-collection__heading small { font-size:11px; font-weight:400; color:var(--ink-3) }
-.metric-collection__heading>.anticon { color:var(--ink-3); font-size:12px }
 .metric-collection__actions { display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin-left:auto }
 .metric-collection__actions :deep(.ant-btn) { color:var(--ink-2) }
 .metric-collection__actions :deep(.is-active) { color:var(--accent) }
-.metric-collection__heading:focus-visible { outline:2px solid var(--accent); outline-offset:4px; border-radius:4px }
 .metric-collection__scope { display:flex; flex-wrap:wrap; gap:6px 12px; color:var(--ink-3); font-size:11px; padding:8px 0 12px; margin-bottom:12px; border-bottom:1px solid var(--line) }
 .metric-collection__scope time { margin-left:auto }
 .metric-collection__scope strong { font-weight:500; color:var(--ink-2) }

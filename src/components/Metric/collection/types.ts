@@ -22,6 +22,7 @@ export interface MetricCollectionQuery {
   rootType: string; rootId: string; memberType: string
   depth: 'self' | 'children' | 'descendants'
   group?: string; operation: ReadOperation; pageIndex: number; pageSize: number
+  groups?: string[]
   templateId?:string
   includeUnconfigured?: boolean
 }
