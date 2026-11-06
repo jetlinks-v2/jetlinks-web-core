@@ -3,7 +3,8 @@
     <a-empty v-if="!bean.operations.length" :description="t('runtimeDiagnostics.noOperations')" />
     <template v-else>
       <a-select v-model:value="operationKey" :options="options" :placeholder="t('runtimeDiagnostics.selectOperation')" class="operation-select" @change="resetArguments" />
-      <a-form v-if="operation" layout="vertical" @finish="prepare">
+      <!-- 参数按 MBean 元数据独立校验；无 model 的 Form 不触发 finish。 -->
+      <a-form v-if="operation" layout="vertical" @submit="prepare">
         <p v-if="operation.description" class="operation-description">{{ operation.description }}</p>
         <a-form-item v-for="(parameter, index) in operation.parameters" :key="index" :label="`${parameter.name || `arg${index}`} · ${parameter.type}`" :required="true" :extra="parameter.description">
           <a-select v-if="/^(boolean|java\.lang\.Boolean)$/.test(parameter.type)" v-model:value="values[index]" :options="[{ value: 'true', label: 'true' }, { value: 'false', label: 'false' }]" />
@@ -14,7 +15,7 @@
         <a-button html-type="submit" type="primary" :disabled="!invokeAccess.allowed || busy || !target" :loading="busy" :title="invokeAccess.reason">{{ t('runtimeDiagnostics.invoke') }}</a-button>
       </a-form>
       <DiagnosticsState v-if="lastInvocationKey === operationKey && lastInvocationKey !== undefined" :state="resultState">
-        <div v-if="result !== undefined" class="operation-result"><strong>{{ t('runtimeDiagnostics.executionResult') }}</strong><CodeBlock :content="formatValue(result)" variant="light" /></div>
+        <CodeBlock v-if="result !== undefined" class="operation-result" :label="t('runtimeDiagnostics.executionResult')" :content="formatValue(result)" variant="light" copyable />
       </DiagnosticsState>
     </template>
     <a-modal :open="!!pending" :title="t('runtimeDiagnostics.invoke')" :confirm-loading="busy" :ok-button-props="{ disabled: !invokeAccess.allowed || busy }" @ok="confirm" @cancel="pending = undefined">
