@@ -1,30 +1,22 @@
-import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
-import { expressionLabel, type TemplateRule } from '../designer'
-import { expressionToDisplayFormula, formulaMacros, ruleFormulaReferences } from '../formula'
-import type { MetricTemplate } from '../../types'
+import { computed, inject } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { expressionLabel, ruleExpression, type TemplateRule } from '../designer'
+import { expressionToTree, formulaReferencePath, ruleFormulaReferences } from '../formula'
+import type { MetricCalculatorDescriptor, MetricTemplate } from '../../types'
+import { metricCalculatorsKey } from '../../calculatorContext'
+import { useExpressionFunctions } from '../../../Expression/useExpressionFunctions'
+import { metricValueLabels } from '../../valueSemantics'
 
-export function useFormulaDisplay(props: { template: MetricTemplate; rule: TemplateRule; expression: string }) {
-  const references = computed(() => ruleFormulaReferences(props.template, props.rule))
+/** 反显与编辑使用同一引用目录；不能完整投影的旧脚本保持原有文本。 */
+export function useFormulaDisplay(props: { template: MetricTemplate; rule: TemplateRule; expression: string; calculators?: MetricCalculatorDescriptor[]; semanticOnly?: boolean }) {
+  const shared = inject(metricCalculatorsKey, undefined)
+  const {locale}=useI18n()
+  const { functions } = useExpressionFunctions()
+  const references = computed(() => ruleFormulaReferences(props.template, props.rule, props.calculators || shared?.value,String(locale.value)))
+  const tree = computed(() => (!props.expression || props.expression === ruleExpression(props.rule)) && props.rule.expressionTree || expressionToTree(props.expression,references.value))
+  const context = computed(() => ({ references:references.value.map(item=>({...formulaReferencePath(item),label:item.label,displayLabel:item.displayLabel,schema:item.schema,unit:item.unit})), functions:functions.value,
+    resultLabels:(!props.expression || props.expression === ruleExpression(props.rule)) ? metricValueLabels(props.template,props.rule.id || '').map(item=>({value:item.value,label:item.name})) : undefined }))
   const label = computed(() => expressionLabel(props.template, props.expression,
     new Map(references.value.filter(item => item.group === 'data').map(item => [item.expression, item.label]))))
-  const latex = computed(() => expressionToDisplayFormula(props.expression, references.value))
-  const render = shallowRef<typeof import('mathlive').convertLatexToMarkup>()
-  let loading = false
-  let disposed = false
-  onBeforeUnmount(() => { disposed = true })
-  onMounted(() => watch(latex, async value => {
-    if (!value || loading || render.value) return
-    loading = true
-    try {
-      const [mathlive] = await Promise.all([import('mathlive'), import('mathlive/static.css')])
-      if (!disposed) render.value = mathlive.convertLatexToMarkup
-    } catch { /* The readable expression remains available if resources fail to load. */ }
-  }, { immediate: true }))
-  const markup = computed(() => {
-    if (!latex.value || !render.value) return ''
-    // Only the restricted AST and escaped reference macros reach the HTML renderer.
-    try { return render.value(latex.value, { macros: formulaMacros(references.value), defaultMode: 'math' }) }
-    catch { return '' }
-  })
-  return { label, markup }
+  return { label, tree, context }
 }

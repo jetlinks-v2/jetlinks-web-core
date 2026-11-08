@@ -729,6 +729,7 @@
   "PersonalToken.TokenDialog.editTitle": "编辑令牌",
   "PersonalToken.TokenDialog.viewTitle": "查看令牌",
   "I18n.configure": "国际化配置",
+  "Editable.edit": "编辑",
   "I18n.chinese": "中文",
   "I18n.english": "English",
   "I18n.placeholder": "请输入{language}",

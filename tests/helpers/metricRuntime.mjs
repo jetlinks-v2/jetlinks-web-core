@@ -14,6 +14,11 @@ const instrumented = '/private/tmp/device-metric-stage2-core/instrumented'
 
 /** Run real TS/SFC modules with only external UI, browser and transport boundaries replaced. */
 export function createMetricLoader(stubs = {}) {
+  stubs={
+    // 公共函数目录的传输边界；业务解析、保存和编辑组件仍执行真实代码。
+    [resolve(sourceRoot,'api/expression.ts')]:{expressionFunctions:async()=>['abs','min','max','round','sqrt'].map(name=>({id:`math.${name}`,name,description:name,parameters:[{id:'value',name:'value',valueType:'number'}],returnType:'number',minimumArguments:1,maximumArguments:name === 'round' ? 2 : name === 'min' || name === 'max' ? 16 : 1}))},
+    ...stubs,
+  }
   const cache = new Map()
   const load = filename => {
     if (cache.has(filename)) return cache.get(filename).exports
@@ -48,10 +53,11 @@ export function createMetricLoader(stubs = {}) {
       if (id === 'vue') return vue
       if (!id.startsWith('.') && !id.startsWith('@jetlinks-web-core/')) return require(id)
       const base = id.startsWith('.') ? resolve(dirname(filename), id) : resolve(sourceRoot, id.slice('@jetlinks-web-core/'.length))
+      if(base.endsWith('.css?inline'))return readFileSync(base.slice(0,-'?inline'.length),'utf8')
       const target = [base, `${base}.ts`, `${base}.vue`, resolve(base, 'index.ts')].find(item => existsSync(item) && /\.(ts|vue)$/.test(item))
       if (Object.hasOwn(stubs, target)) return stubs[target]
       if (!target) throw new Error(`Unresolved test import ${id} from ${filename}`)
-      if (target.endsWith('.vue') && !target.includes('/components/Metric/')) return { default: passthrough('external-shell'), __esModule: true }
+      if (target.endsWith('.vue') && !target.includes('/components/Metric/') && !target.includes('/components/Expression/')) return { default: passthrough('external-shell'), __esModule: true }
       return load(target)
     }
     loaded._compile(code, output)
@@ -66,7 +72,17 @@ export const flush = async () => { await vue.nextTick(); await new Promise(resol
 export function createMetricRenderer() {
   class TestButton { focus(options) { this.focused = options } get isConnected() { return !!this.parent } get disabled() { return !!this.props.disabled } }
   globalThis.HTMLButtonElement = TestButton
-  const node = (type, text = '') => Object.assign(type === 'button' ? new TestButton() : {}, { type, text, props: {}, style: {}, children: [], parent: null })
+  const node = (type, text = '') => Object.assign(type === 'button' ? new TestButton() : {}, {
+    type, text, props: {}, style: {}, children: [], parent: null,
+    focus(options) { this.focused = options },
+    addEventListener(type, listener) { (this.listeners ||= new Map()).set(type,listener) },
+    removeEventListener(type, listener) { if (this.listeners?.get(type) === listener) this.listeners.delete(type) },
+    // 原位编辑的 DOM 边界：仅模拟实际使用的可聚焦输入查找。
+    querySelector() { return walk(this, item => ['input','textarea'].includes(item.type) || item.props.tabindex != null && item.props.tabindex !== '-1')[0] || null },
+    querySelectorAll(selector) { return selector === '[data-expression-reference]' ? walk(this,item=>item.props['data-expression-reference'] != null) : [] },
+    get dataset() { return { expressionReference:this.props['data-expression-reference'] } },
+    classList:{toggle() {}},
+  })
   const renderer = vue.createRenderer({
     createElement: type => node(type), createText: text => node('#text', text), createComment: text => node('#comment', text),
     insert(child, parent, anchor) { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = parent; const at = anchor ? parent.children.indexOf(anchor) : -1; at < 0 ? parent.children.push(child) : parent.children.splice(at, 0, child) },
@@ -78,4 +94,4 @@ export function createMetricRenderer() {
   return { renderer, root: node('root') }
 }
 export function walk(node, predicate) { return [node, ...node.children.flatMap(child => walk(child, predicate))].filter(predicate) }
-export const textContent = node => node.text + node.children.map(textContent).join('')
+export const textContent = node => node.type === '#comment' ? '' : node.text + node.children.map(textContent).join('')

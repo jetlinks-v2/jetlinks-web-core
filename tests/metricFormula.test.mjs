@@ -3,6 +3,7 @@ import test from 'node:test'
 import { createMetricLoader } from './helpers/metricRuntime.mjs'
 
 const { expressionToFormula, expressionToDisplayFormula, formulaToExpression, formulaMacros, referenceMacro, ruleFormulaReferences } = createMetricLoader()('components/Metric/template/formula.ts')
+const { expressionLabel } = createMetricLoader()('components/Metric/template/designer.ts')
 const references = [
   { key: 'winding', metricId: 'temperature', label: '绕组温度', expression: '#t' },
   { key: 'ambient', metricId: 'ambient', label: '环境温度', expression: '#ambient' },
@@ -96,9 +97,35 @@ test('编辑与回显共用声明引用、显式别名、前置计算及参数�
     outputs: [{ metricId: 'average', label: '平均温度' }], parameterDefinitions: [{ id: 'factor', name: '修正系数' }, { id: "factor-'key", name: '特殊参数' }] }
   const before = JSON.stringify(template)
   const refs = ruleFormulaReferences(template, rule)
-  assert.deepEqual(refs.map(item => [item.expression, item.label]), [
+  assert.deepEqual(refs.filter(item=>!item.referenceId).map(item => [item.expression, item.label]), [
     ['t_air', '温度'], ['average', '平均温度'], ['remote', 'remote'], ['params.factor', '修正系数'], ["params['factor-''key']", '特殊参数'],
   ])
+  assert.deepEqual(refs.find(item=>item.key === 'system:processTime').path,['processTime'])
+  assert.deepEqual(refs.find(item=>item.key === 'metadata:temperature:inputTimeStart').path,['t-air','inputTimeStart'])
   assert.ok(expressionToDisplayFormula('t_air / average * params.factor', refs)?.includes('\\frac'))
   assert.equal(JSON.stringify(template), before)
+})
+
+test('前向引用与对象字段使用声明或当前语言元数据名称，表达式和字符串常量保持原样', () => {
+  const rule = { id:'result', expression:"stats['activeDuration'] / 60", dependsOn:['stats'] }
+  const statistics = { id:'stats', calculator:{ provider:'state', providerVersion:'1', outputType:{ type:'object', properties:[{ id:'activeDuration', valueType:{ type:'double' } }] } } }
+  const spec = { inputDefinitions:[], definitions:[rule,statistics], outputs:[], parameterDefinitions:[] }
+  const before = JSON.stringify(spec)
+  const descriptor = name => [{ name, configuration:{ provider:'state', providerVersion:'1', outputType:{ type:'object', properties:[{ id:'activeDuration', name:name === 'State duration' ? 'Active seconds' : '运行秒数', valueType:{ type:'double' } }] } } }]
+  for (const [name,field] of [['状态时长','运行秒数'],['State duration','Active seconds']]) {
+    const refs = ruleFormulaReferences(spec,rule,descriptor(name))
+    const names = new Map(refs.map(item=>[item.expression,item.label]))
+    assert.equal(refs.find(item=>item.expression === "stats['activeDuration']").label, `${name} · ${field}`)
+    assert.equal(refs.find(item=>item.expression === "stats['activeDuration']").displayLabel,field)
+    assert.ok(expressionToDisplayFormula(rule.expression, refs)?.includes('\\frac'))
+    assert.equal(expressionLabel(spec,rule.expression,names),`${name} · ${field} / 60`)
+    assert.equal(expressionLabel(spec,`"stats['activeDuration']"`,names),`"stats['activeDuration']"`)
+    assert.equal(expressionLabel(spec,"object.stats['activeDuration']",names),"object.stats['activeDuration']")
+  }
+  statistics.calculator.outputType.properties[0].name = 'activeDuration'
+  assert.ok(ruleFormulaReferences(spec,rule,descriptor('State duration')).some(item=>item.displayLabel === 'Active seconds'))
+  statistics.calculator.outputType.properties[0].name = 'Custom duration'
+  assert.ok(ruleFormulaReferences(spec,rule,descriptor('State duration')).some(item=>item.label.endsWith('Custom duration')))
+  delete statistics.calculator.outputType.properties[0].name
+  assert.equal(JSON.stringify(spec), before)
 })

@@ -12,8 +12,51 @@ const { moduleRegistry } = load('utils/module-registry.ts')
 const { useMetricPresentation } = load('components/Metric/extensions/useMetricPresentation.ts')
 const { useMetricEditor } = load('components/Metric/useMetricEditor.ts')
 const { useMetricTemplates } = load('components/Metric/template/useMetricTemplates.ts')
+const { formatMetricValue } = load('components/Metric/extensions/presentationSettings.ts')
+const { metricOutputPresentation } = load('components/Metric/outputPresentation.ts')
+const { metricDurationText } = load('components/Metric/presentation.ts')
 const template = { id: 'power', version: '1', name: 'Power', outputs: [{ metricId: 'value', unit: 'kW' }], inputDefinitions: [], parameterDefinitions: [{ id: 'factor', expands: { editable: true } }], parameters: { factor: 1 }, definitions: [], options: { presentation: { provider: 'line/status', settings: { decimals: 2, warning: true } } } }
 const config = { id: 'c', ownerType: 'line', ownerId: 'a', targetType: 'line', targetId: 'a', slot: 'c', templateId: 'power', templateVersion: '1', inputMappings: {}, parameters: {}, presentation: { decimals: 0, warning: false, unknown: 9 }, state: 'enabled', revision: 2, dataVersion: 'same' }
+
+test('short protocol durations retain millisecond precision without changing stored seconds',()=>{
+  const t=(key,{count})=>`${key}:${count}`
+  assert.equal(metricDurationText(0.025,'s',t),'intervalMilliseconds:25')
+  assert.equal(metricDurationText(0.000025,'s',t),'intervalMilliseconds:0.025')
+  assert.equal(metricDurationText(0,'s',t),'intervalSeconds:0')
+  assert.equal(metricDurationText(61,'s',t),'intervalMinutes:1 intervalSeconds:1')
+})
+
+test('输出语义统一菜单与历史类型，数值状态、条件和持续区间不混用', () => {
+  const output = { metricId:'v',valueType:'int' }
+  const table = [
+    [{...output,metricKind:'state'},'SwitcherOutlined','state'],
+    [{...output,valueType:'enum'},'SwitcherOutlined','state'],
+    [{...output,valueType:'boolean'},'CheckSquareOutlined','boolean'],
+    [{...output,metricKind:'score'},'DashboardOutlined','number'],
+    [{...output,unit:'%'},'PercentageOutlined','number'],
+    [{...output,unit:'s'},'ClockCircleOutlined','number'],
+    [{...output,metricKind:'quantity'},'NumberOutlined','number'],
+    [output,'LineChartOutlined','number'],
+    [{...output,valueType:'string',unit:'s'},'FontSizeOutlined','records'],
+    [{...output,valueType:'object'},'ProfileOutlined','records'],
+    [{metricId:'v'},'FileUnknownOutlined','auto'],
+  ]
+  for (const [definition,icon,history] of table) assert.deepEqual(metricOutputPresentation(definition),{icon,history})
+  assert.equal(metricOutputPresentation({...output,options:{readAggregation:{semantic:'state'}}}).history,'state')
+  assert.equal(metricOutputPresentation(output,{labels:[{value:1,name:'在线',icon:'img:/online.png'}]}).history,'state')
+  const tracked = {...template,definitions:[{id:'v',stateTracking:{}}]}
+  assert.deepEqual(metricOutputPresentation(output,{template:tracked}),{icon:'FieldTimeOutlined',history:'interval'})
+  assert.equal(metricOutputPresentation(output,{template:{...template,definitions:[{id:'v',temporalCondition:{}}]}}).history,'boolean')
+  assert.equal(metricOutputPresentation({...output,label:'在线时长',metricId:'connectionState'}).history,'number','names and IDs do not define semantics')
+})
+
+test('score presentation uses a compact default while preserving explicit precision and raw values', () => {
+  const score = {metricId:'health',options:{readAggregation:{semantic:'score'}}}
+  assert.equal(formatMetricValue(96.66666666,{},score),'96.7')
+  assert.equal(formatMetricValue(96.66666666,{decimals:2},score),'96.67')
+  assert.equal(formatMetricValue(96.66666666,{decimals:0},score),'97')
+  assert.equal(formatMetricValue(0.000001,{}),'0.000001')
+})
 
 test('展示解析响应卸载与恢复，缺失提供者保留设置并禁止专用编辑保存', async () => {
   moduleRegistry.clear()
@@ -115,7 +158,7 @@ test('模板同一DTO在表单和JSON间往返，发布/新版本/可选性与�
     view.switchMode('form'); await view.save(); assert.equal(saved.options.presentation.settings.decimals, 0)
     failSave = true; await view.save(); assert.equal(view.error.value, 'Save denied'); failSave = false
     failRelease = true; await view.release(); assert.equal(view.error.value, 'Release denied'); failRelease = false
-    await view.release(); assert.equal(released, 2); assert.equal(view.readOnly.value, true)
+    await view.release(); assert.equal(released, 2); assert.equal(view.readOnly.value, false, 'published versions allow compatible edits')
     await view.setAvailable(true); assert.equal(available, true)
     view.newVersion(); assert.equal(view.draft.value.version, ''); assert.equal(view.selected.value, undefined)
     await view.simulate(); assert.equal(view.simulationResults.value[0].value, 0); assert.deepEqual(samples.samples, [])

@@ -1,0 +1,78 @@
+.expression-workspace,.expression-workspace__content,.expression-document,.expression-composer {
+  --expression-reference-ink:color-mix(in srgb,var(--accent) 48%,var(--ink-2));
+  --expression-reference-bg:color-mix(in srgb,var(--accent-soft) 42%,var(--bg));
+  --expression-parameter-ink:color-mix(in srgb,#8863b8 75%,var(--ink-1));
+  --expression-parameter-bg:color-mix(in srgb,#8863b8 8%,var(--bg));
+  --expression-special-ink:color-mix(in srgb,#ae7650 70%,var(--ink-1));
+  --expression-function-ink:color-mix(in srgb,#9270ca 75%,var(--ink-1));
+}
+.expression-document,.expression-composer .cm-editor { font-family:inherit; font-size:14px; line-height:24px; color:var(--ink-2); font-weight:400; font-variant-numeric:tabular-nums; tab-size:2 }
+.expression-document { display:block; white-space:pre-wrap; overflow-wrap:anywhere; min-width:0; text-align:left }
+.expression-document.is-compact { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:12px; line-height:1.65 }
+.expression-token { border-radius:4px; box-decoration-break:clone; -webkit-box-decoration-break:clone }
+.expression-token.is-reference { display:inline-block; max-width:100%; vertical-align:baseline; line-height:18px; color:var(--expression-reference-ink); background:var(--expression-reference-bg); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 9%,transparent); padding:2px 5px; white-space:normal; font-size:13px; font-weight:400; outline:none }
+.expression-token.is-reference.is-parameter { color:var(--expression-parameter-ink); background:var(--expression-parameter-bg); box-shadow:inset 0 0 0 1px color-mix(in srgb,#8863b8 16%,transparent) }
+.expression-token.is-reference.is-related,.expression-token.is-reference:focus-visible { box-shadow:0 0 0 1px var(--accent); background:var(--accent-soft) }
+.expression-token__icon { display:inline-block; color:currentColor; font-size:12px; margin-right:4px; vertical-align:0; line-height:1 }
+.expression-token.is-function { color:var(--expression-function-ink); font-weight:500 }
+.expression-token.is-function>.expression-token__icon,.expression-token__icon.is-function { color:var(--expression-function-ink) }
+.expression-token.is-keyword { color:var(--ink-2); font-size:13px; font-weight:500; padding-right:2px; white-space:nowrap }
+.expression-token.is-literal { color:var(--ink-1); font-weight:500; word-break:keep-all }
+.expression-token.has-meaning { display:inline-flex; align-items:baseline; gap:5px; color:var(--ink-1); font-weight:500; white-space:nowrap }
+.expression-token__code { color:var(--ink-3); font-size:11px; font-weight:400; margin-left:5px; font-variant-numeric:tabular-nums }
+.expression-token.is-operator { color:var(--ink-2); padding:0 2px }
+.expression-token.is-skipped { opacity:.4 }
+.expression-branches { display:grid; gap:4px; white-space:normal }
+.expression-branch { display:flex; align-items:baseline; gap:7px; padding:4px 7px; margin-left:calc(min(var(--branch-depth),3) * 12px); border-radius:5px; min-width:0 }
+.expression-branch__formula { flex:1; min-width:0; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; line-height:25px }
+.expression-branch__condition { flex:0 1 auto; min-width:0 }
+.expression-branch__result { display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:4px; min-width:0 }
+.expression-branch__keyword { display:inline-block; margin:0 3px; font-size:12px; color:var(--ink-3); font-weight:400 }
+.expression-branch__keyword:first-child { margin-left:0 }
+.expression-branch__value { display:inline-flex; align-items:center; gap:5px; margin-left:7px; font-size:14px; font-weight:600; color:var(--accent,#1677ff) }
+.expression-branch__value .anticon { font-size:11px; color:var(--ink-3) }
+.expression-branch.is-selected { background:color-mix(in srgb,var(--accent,#1677ff) 7%,var(--bg)); box-shadow:inset 2px 0 var(--accent,#1677ff) }
+.expression-branch.is-selected .expression-branch__result { color:var(--accent,#1677ff); font-weight:600 }
+.expression-branch.is-selected .expression-branch__result .expression-token.is-literal { color:inherit; font-weight:600 }
+.expression-branch.is-false { color:var(--ink-3) }
+.expression-branch.is-false .expression-branch__result { opacity:.5 }
+.expression-branch.is-skipped { opacity:.45 }
+.expression-branch.is-skipped .expression-token.is-skipped { opacity:1 }
+.expression-outcome { flex:none; width:12px; font-size:11px; line-height:1; color:var(--ink-3) }
+.expression-outcome.is-true { color:var(--accent,#1677ff) }
+.expression-outcome.is-unknown { color:var(--warning,#d89614) }
+.expression-outcome.is-inline { display:inline-block; width:auto; margin-left:3px; vertical-align:1px; font-size:9px }
+.expression-branches__toggle.ant-btn { justify-self:start; height:auto; padding:2px 7px; font-size:12px; color:var(--ink-3) }
+.expression-document.expression-branches.is-compact { display:grid; max-height:96px; overflow:hidden }
+.expression-token__value { margin-left:5px; padding-left:5px; border-left:1px solid color-mix(in srgb,currentColor 20%,transparent); font-size:12px; color:var(--ink-1); font-weight:500 }
+.expression-token.is-reference.has-value { display:inline-flex; align-items:baseline; flex-wrap:wrap; gap:5px; background:color-mix(in srgb,var(--ink-3) 6%,var(--bg)); color:var(--expression-reference-ink); box-shadow:none }
+.expression-token.is-reference.has-value.is-parameter { color:var(--expression-parameter-ink) }
+.expression-token.has-value>.expression-token__value { order:-1; font-size:14px; line-height:18px; font-weight:500; margin:0; padding:0; border:0; color:var(--ink-1) }
+.expression-token.has-value>.expression-token__label { font-size:12px; font-weight:500; color:inherit }
+.expression-token.has-value>.expression-token__icon { font-size:11px; margin:0 -2px 0 0; color:var(--ink-3) }
+.expression-token.is-reference.has-value.is-related,.expression-token.is-reference.has-value:focus-visible { box-shadow:0 0 0 1px var(--accent); background:var(--accent-soft) }
+.expression-document.is-compact .expression-token { border-radius:3px }
+.expression-document.is-compact .expression-token.is-reference { padding:1px 4px }
+.expression-document.is-compact .expression-token__icon { font-size:10px; margin-right:3px }
+.expression-composer { min-width:0; padding:2px 0 }
+.expression-composer .cm-editor.cm-focused { outline:none }
+.expression-composer .cm-content { padding:0; caret-color:var(--accent) }
+.expression-composer .cm-line { padding:3px 0; text-indent:0 }
+.expression-composer .cm-gutters { background:none; border:0; color:var(--ink-3); font-size:12px }
+.expression-composer .cm-foldGutter { width:13px }
+.expression-composer .cm-foldGutter .cm-gutterElement { padding:0 3px 0 0; cursor:pointer }
+.expression-composer .cm-foldPlaceholder { background:var(--bg-sunken,var(--bg-secondary)); border:0; color:var(--ink-3); padding:0 4px; border-radius:3px }
+.expression-composer .cm-scroller { font-family:inherit; line-height:inherit; overflow:auto; max-height:320px; min-height:54px }
+.expression-workspace__content.is-expanded .expression-composer .cm-scroller { max-height:60vh }
+.expression-workspace-modal .ant-modal-body { padding:12px 0 0 }
+.expression-workspace-modal .ant-modal-title { font-size:14px; font-weight:500 }
+@media(max-width:720px) { .expression-workspace-modal .ant-modal-content { padding:16px } }
+.expression-composer .cm-cursor { border-left-color:var(--accent) }
+.expression-composer .cm-selectionBackground { background:var(--accent-soft) !important }
+.expression-composer .cm-tooltip { z-index:var(--z-popover,1060); border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink-1); font-family:inherit; font-size:13px; box-shadow:0 6px 20px #00000012; overflow:hidden }
+.expression-composer .cm-tooltip.cm-tooltip-autocomplete>ul { width:min(360px,calc(100vw - 48px)); max-width:none; min-width:0; max-height:min(280px,40vh); font-family:inherit; padding:4px; box-sizing:border-box }
+.expression-composer .cm-tooltip.cm-tooltip-autocomplete>ul>li { padding:6px 8px; border-radius:4px; white-space:normal; line-height:20px }
+.expression-composer .cm-tooltip.cm-tooltip-autocomplete>ul>li[aria-selected] { color:var(--accent); background:var(--accent-soft) }
+.expression-composer .cm-completionDetail { color:var(--ink-3); font-size:11px; margin-left:10px }
+.expression-composer .cm-completionIcon { color:var(--accent); opacity:1; margin-right:5px }
+.expression-composer .expression-invalid { text-decoration:underline wavy var(--danger,#d4380d); text-underline-offset:4px }
