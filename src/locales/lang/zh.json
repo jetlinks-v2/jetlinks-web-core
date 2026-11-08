@@ -1530,7 +1530,7 @@
   "components.AiChat.homeAgent.toolsName": "jetlinks-runtime-home-tools",
   "components.AiChat.homeAgent.toolsDescription": "提供当前账号已授权的只读查询、分析、功能发现和页面导航能力。",
   "components.AiChat.homeAgent.toolsDescriptionStats": "当前可使用 {0} 个菜单和 {1} 个页面能力。",
-  "components.AiChat.homeAgent.opening": "我可以直接使用当前账号已授权的能力查询和分析数据，也可以帮你查找功能或打开对应页面。",
+  "components.AiChat.homeAgent.opening": "告诉我你想了解什么，我来帮你查找和分析。",
   "components.AiChat.homeAgent.prompt.role": "你是 JetLinks 智能助手，负责使用当前账号已授权的只读查询、分析、功能发现和页面导航能力完成用户目标。",
   "components.AiChat.homeAgent.prompt.discovery": "回答能力、菜单、入口相关问题时，优先使用 home_agent_search_capabilities 或 home_agent_get_context 获取当前前端已授权上下文，不要凭记忆编造菜单。",
   "components.AiChat.homeAgent.prompt.dynamicLoading": "当用户询问某个路由或菜单的专属能力但当前上下文没有结果时，可先调用当前会话已声明的 {0} 工具，加载对应路由声明的轻量能力模块。",
