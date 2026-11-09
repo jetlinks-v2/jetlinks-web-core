@@ -3,6 +3,7 @@
     <header class="node-editor__identity">
       <I18nTextEditable class="node-editor__name" size="small" :value="name" :placeholder="displayName" :field="nameKey" :label="t('label')" :i18n-messages="templateMessages(template)" :disabled="disabled"
         @update:value="emit('patch', { [node.kind === 'output' ? 'label' : 'name']: $event })" @update:i18n-messages="emit('messages', $event)" />
+      <slot v-if="node.kind === 'input'" name="input-reference" />
       <div v-if="node.kind === 'rule'" class="node-editor__method">
         <a-dropdown :trigger="['click']" :disabled="disabled || ruleInvalid">
           <a-button type="text" :disabled="disabled || ruleInvalid" :aria-label="t('calculationMethod')"><AIcon :type="methods.find(item => item.value === kind)?.icon" />{{ t(kind) }}<AIcon type="DownOutlined" /></a-button>

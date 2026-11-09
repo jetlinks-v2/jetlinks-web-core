@@ -2,7 +2,7 @@ export const metricMessages = {
   zh: {
     sourceCapability_subscribe:'新数据到达时更新',sourceCapability_current:'计算时可读取当前值',sourceCapability_history:'支持读取历史',
     valueCreateObject:'填写对象字段',valueCreateArray:'填写数组',valueAddElement:'添加一项',valueSetNull:'设为空值',valueUnset:'不提供此字段',valueDeclareFields:'请先声明对象字段',
-    inputSourceHints:'建议来源',inputSourceHintsHelp:'可多选；留空时显示全部来源。仅辅助选择。',inputImport:'从数据声明导入',inputImportFailed:'无法读取数据声明，请重试',bindingList:'绑定数据',bindingGraph:'计算关系',bindingExpected:'需要的值',bindingActual:'真实来源',bindingFields:'包含字段',
+    inputSourceHints:'建议来源',inputSourceHintsHelp:'可多选；留空时显示全部来源。仅辅助选择。',inputReference:'参考已有数据',inputReferenceFailed:'无法读取参考声明，请重试',inputReferenceOverwrite:'参考数据将替换当前类型和单位，保留已填写的名称与标识。',inputReferenceApply:'使用参考声明',bindingList:'绑定数据',bindingGraph:'计算关系',bindingExpected:'需要的值',bindingActual:'真实来源',bindingFields:'包含字段',
     structuredExpression:'结构化编辑',functionCatalogRetry:'函数目录读取失败，重试',
     executionRoundMissing:'该次结果未保留计算过程。', executionProcess:'计算过程', executionSelectRecord:'请选择一条计算记录', executionFollowLatest:'最新结果',
     issueReferenceNotice:'参考项', issueContinued:'已继续计算',
@@ -221,7 +221,7 @@ export const metricMessages = {
   en: {
     sourceCapability_subscribe:'Updates on new data',sourceCapability_current:'Current reads available',sourceCapability_history:'Historical reads available',
     valueCreateObject:'Fill object fields',valueCreateArray:'Fill array',valueAddElement:'Add item',valueSetNull:'Set to null',valueUnset:'Leave field absent',valueDeclareFields:'Declare object fields first',
-    inputSourceHints:'Suggested sources',inputSourceHintsHelp:'Select any; leave empty to show all sources. Selection guidance only.',inputImport:'Import data declaration',inputImportFailed:'Unable to read data declaration. Retry.',bindingList:'Bind data',bindingGraph:'Calculation graph',bindingExpected:'Required value',bindingActual:'Data source',bindingFields:'Fields',
+    inputSourceHints:'Suggested sources',inputSourceHintsHelp:'Select any; leave empty to show all sources. Selection guidance only.',inputReference:'Reference existing data',inputReferenceFailed:'Unable to read the reference declaration. Retry.',inputReferenceOverwrite:'Replace the current type and unit while keeping your name and identifier.',inputReferenceApply:'Use reference declaration',bindingList:'Bind data',bindingGraph:'Calculation graph',bindingExpected:'Required value',bindingActual:'Data source',bindingFields:'Fields',
     structuredExpression:'Structured editor',functionCatalogRetry:'Function catalog unavailable. Retry',
     executionRoundMissing:'The calculation process was not retained for this result.', executionProcess:'Calculation', executionSelectRecord:'Select a calculation record', executionFollowLatest:'Latest result',
     issueReferenceNotice:'Reference', issueContinued:'Calculation continued',

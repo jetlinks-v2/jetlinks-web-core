@@ -249,8 +249,8 @@ export interface MetricDataTarget { targetType: string; targetId: string }
 export interface MetricSourceSelection {
   mapping: MetricInputMapping
   label?: string
-  /** 模板导入只取声明，真实对象身份留在应用绑定。 */
-  declaration?: Pick<MetricTemplateInput, 'name' | 'unit' | 'valueType'>
+  /** 参考只复制声明；建议标识可避重，真实来源仍在应用时绑定。 */
+  declaration?: Pick<MetricTemplateInput, 'name' | 'unit' | 'valueType'> & { id?:string }
 }
 export interface MetricInputHint { sources?: string[] }
 export interface MetricTemplateReference { id:string; version:string }

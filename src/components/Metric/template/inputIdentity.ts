@@ -5,6 +5,16 @@ import type { ExpressionNode, StructuredExpression } from '../../Expression/type
 
 const alias = (id:string) => id.replace(/[^a-zA-Z0-9_]/g, '_')
 
+/** 参考标识与输入、计算及其表达式别名共同避重。 */
+export function referenceInputId(template:MetricTemplate,index:number,suggested:string):string {
+  const base = suggested.trim()
+  if (!base) return template.inputDefinitions[index].id
+  const used = new Set([...template.inputDefinitions.filter((_,i)=>i !== index),...template.definitions].map(item=>alias(String(item.id))))
+  let next = base, suffix = 2
+  while (used.has(alias(next))) next = `${base}${suffix++}`
+  return inputIdentityIssue(template,index,next) ? template.inputDefinitions[index].id : next
+}
+
 /** 身份校验只保护命名冲突和无法安全改写的脚本；业务名称可独立修改。 */
 export function inputIdentityIssue(template:MetricTemplate, index:number, next:string):string | undefined {
   const previous = template.inputDefinitions[index].id

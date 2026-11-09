@@ -3,10 +3,8 @@
     <div class="template-designer__flow">
       <nav class="template-designer__create" :aria-label="t('templateProperties')">
         <a-button v-for="kind in addKinds" :key="kind" size="small" @click="addNode(kind)"><AIcon type="PlusOutlined" />{{ t(kind === 'input' ? 'inputs' : kind === 'rule' ? 'calculation' : 'outputs') }}</a-button>
-        <a-button v-if="pickSource && addKinds.includes('input')" size="small" :loading="importing" @click="importInput"><AIcon type="ImportOutlined" />{{ t('inputImport') }}</a-button>
         <span class="template-designer__counts"><button v-for="kind in ['input','rule','output'] as const" :key="kind" type="button" @click="locateKind(kind)">{{ t(kind === 'input' ? 'inputs' : kind === 'rule' ? 'calculation' : 'outputs') }} {{ nodes.filter(node=>node.kind===kind).length }}</button></span>
       </nav>
-      <a-alert v-if="importError" type="error" show-icon :message="t('inputImportFailed')" closable @close="importError = false" />
       <TemplateGraph ref="graph" :template="displayView" :selected="selection" :preview="referenceNode" :calculators="calculators" :add-kinds="addKinds" :simulation-preview="trial?.preview" @select="selectNode" @add="addNode" @background="selectTemplate" @request-remove="requestRemove">
         <template v-if="trial" #clock><TemplateSimulationClock :trial="trial" /></template>
         <template v-if="trial" #input-sample="{ node }"><TemplateSimulationInput :template="displayView" :input="displayView.inputDefinitions[node.index]" :snapshot="trial.preview.nodes[nodeKey(node)]" :trial="trial" :disabled="disabled || invalid" @details="showSamples(node, $event)" /></template>
@@ -21,12 +19,18 @@
         <a-button class="template-designer__toggle" type="text" size="small" :aria-label="t(propertiesVisible ? 'collapseProperties' : 'expandProperties')" :title="t(propertiesVisible ? 'collapseProperties' : 'expandProperties')" :aria-expanded="propertiesVisible" :aria-controls="panelId" @click="togglePanel"><AIcon :type="propertiesVisible ? 'MenuFoldOutlined' : 'MenuUnfoldOutlined'" /></a-button>
       </header>
       <div v-show="propertiesVisible" :id="panelId" class="template-designer__panel-content">
+        <component v-if="referencing && pickSource?.editor" :is="pickSource.editor" />
+        <template v-else>
         <div v-if="selection" class="template-designer__navigation">
           <a-button type="text" size="small" :disabled="position <= 0 || invalid" :aria-label="t('previousNode')" :title="t('previousNode')" @click="move(-1)"><AIcon type="LeftOutlined" /></a-button>
           <span>{{ position + 1 }} / {{ nodes.length }}</span>
           <a-button type="text" size="small" :disabled="position >= nodes.length - 1 || invalid" :aria-label="t('nextNode')" :title="t('nextNode')" @click="move(1)"><AIcon type="RightOutlined" /></a-button>
         </div>
-        <TemplateNodeEditor v-if="selection" :key="`${nodeKey(selection)}-${editorVersion}`" :template="view" :node="selection" :disabled="disabled" :published="published" :calculators="calculators" @patch="patch" @invalid="invalid = $event" @messages="setMessages" />
+        <a-alert v-if="referenceError" type="error" show-icon :message="t('inputReferenceFailed')" closable @close="referenceError = false" />
+        <TemplateNodeEditor v-if="selection" :key="`${nodeKey(selection)}-${editorVersion}`" :template="view" :node="selection" :disabled="disabled" :published="published" :calculators="calculators" @patch="patch" @invalid="invalid = $event" @messages="setMessages">
+          <template v-if="pickSource && !published && selection.kind === 'input'" #input-reference><a-button type="link" size="small" :disabled="disabled || invalid" :loading="referencing" @click="referenceInput"><AIcon type="CopyOutlined" />{{ t('inputReference') }}</a-button></template>
+        </TemplateNodeEditor>
+        <div v-if="pendingReference" class="template-designer__reference-confirm" role="status"><span>{{ t('inputReferenceOverwrite') }}</span><a-button size="small" type="primary" :disabled="disabled || invalid" @click="confirmReference">{{ t('inputReferenceApply') }}</a-button><a-button size="small" @click="pendingReference = undefined">{{ t('cancel') }}</a-button></div>
         <section v-if="selection?.kind === 'input' && pickSource?.sourceOptions?.length" class="template-designer__setting">
           <h4>{{ t('inputSourceHints') }}</h4>
           <a-select mode="multiple" :value="view.options?.inputHints?.[view.inputDefinitions[selection.index].id]?.sources || []" :options="pickSource.sourceOptions" :disabled="disabled || published" :placeholder="t('inputSourceHints')" style="width:100%" @change="setHint($event as string[])" />
@@ -58,6 +62,7 @@
           </a-dropdown>
         </footer>
         <TemplateSimulation v-if="trial" ref="simulationPanel" :template="displayView" :trial="trial" :selected="selection" :error="simulationError" :disabled="disabled || invalid" @clear-selection="selectTemplate"><template #advancedTools><slot name="advancedTools" /></template></TemplateSimulation>
+        </template>
       </div>
     </aside>
     <a-button class="template-designer__mobile-back" type="text" size="small" :aria-label="t('backToGraph')" @click="hidePanel"><AIcon type="ArrowLeftOutlined" />{{ t('backToGraph') }}</a-button>
@@ -87,14 +92,14 @@ import TemplateSimulationClock from './TemplateSimulationClock.vue'
 import type { TemplateSimulationState } from './useTemplateSimulation'
 import { metricMessages } from '../messages'
 import { metricCalculatorsKey } from '../calculatorContext'
-import type { MetricCalculatorDescriptor, MetricContext, MetricSourcePicker, MetricTemplate } from '../types'
+import type { MetricCalculatorDescriptor, MetricContext, MetricSourcePicker, MetricSourceSelection, MetricTemplate } from '../types'
 const props = defineProps<{ template: MetricTemplate; disabled: boolean; published?: boolean; calculators?: MetricCalculatorDescriptor[]; categories?: TemplateCategory[]; categoriesLoading?: boolean; categoryError?: string; trial?:TemplateSimulationState; simulationError?:string; pickSource?:MetricSourcePicker; sourceContext?:MetricContext }>()
 const emit = defineEmits<{ (event: 'update:template', value: MetricTemplate): void; (event: 'editing', value: boolean): void; (event:'reload-categories'):void }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const inheritedCalculators = inject(metricCalculatorsKey, undefined)
 // 编辑、图节点和试算解释共享同一语言目录，不在浮层重复请求或猜测字段名。
 provide(metricCalculatorsKey, computed(() => props.calculators || inheritedCalculators?.value || []))
-const { view, selection, nodes, position, invalid, editorVersion, select, move, patch, add, remove, revert, setMessages, update } = useTemplateDesigner(toRef(props, 'template'), toRef(props, 'disabled'), value => emit('update:template', value), (previous,next) => {
+const { view, selection, nodes, position, invalid, editorVersion, select, move, patch, add, remove, revert, setMessages, update, applyInputReference } = useTemplateDesigner(toRef(props, 'template'), toRef(props, 'disabled'), value => emit('update:template', value), (previous,next) => {
   props.trial?.renameInput(previous,next)
 })
 const { requestRemove } = useTemplateNodeRemoval(() => {
@@ -163,25 +168,30 @@ function setHint(sources:string[]) {
   else delete inputHints[id]
   update({ ...view.value,options:{ ...view.value.options,inputHints } })
 }
-const importing = ref(false), importError = ref(false)
-let importVersion = 0
-watch([() => props.template.id,() => props.template.version],() => { importVersion++; importing.value = false; props.pickSource?.cancel?.() })
-onScopeDispose(() => { importVersion++; props.pickSource?.cancel?.() })
-/** 导入只复制类型声明，不把样例对象身份或运行映射写入模板。 */
-async function importInput() {
-  if (!props.pickSource || importing.value || !addKinds.value.includes('input')) return
-  const version = ++importVersion
-  importing.value = true; importError.value = false
+const referencing = ref(false), referenceError = ref(false)
+const pendingReference = ref<NonNullable<MetricSourceSelection['declaration']>>()
+let referenceVersion = 0
+function cancelReference() { referenceVersion++; referencing.value = false; pendingReference.value = undefined; referenceError.value = false; props.pickSource?.cancel?.() }
+watch([() => props.template.id,() => props.template.version,selection,editorVersion,() => props.disabled,() => props.published],cancelReference,{flush:'sync'})
+onScopeDispose(cancelReference)
+function confirmReference() { if (pendingReference.value && applyInputReference(pendingReference.value,true) === 'applied') pendingReference.value = undefined }
+/** 在当前输入侧栏参考声明，不复制对象身份、绑定参数或触发规则。 */
+async function referenceInput() {
+  if (!props.pickSource || referencing.value || props.disabled || props.published || invalid.value || selection.value?.kind !== 'input') return
+  const version = ++referenceVersion
+  referencing.value = true; referenceError.value = false; pendingReference.value = undefined
   try {
     const context = props.sourceContext || { ownerType:'device',ownerId:'',targetType:'device' }
-    const result = await props.pickSource({ context,input:{id:'input'},purpose:'declaration',session:`${sourceSession}:${props.template.version}` })
-    if (!result || version !== importVersion || !addKinds.value.includes('input')) return
+    const input = view.value.inputDefinitions[selection.value.index]
+    const result = await props.pickSource({ context,input,purpose:'declaration',inline:!!props.pickSource.editor,session:`${sourceSession}:${props.template.id}:${props.template.version}` })
+    if (!result || version !== referenceVersion) return
     const declaration = result.declaration || (await props.pickSource.describe?.(context,{ input:result.mapping }))?.input
     if (!declaration?.valueType || 'error' in declaration && declaration.error) throw new Error('Missing source schema')
-    if (version !== importVersion || !addKinds.value.includes('input')) return
-    if (add('input')) { patch({ name:result.declaration?.name || result.label,valueType:declaration.valueType,...(declaration.unit ? { unit:declaration.unit } : {}) }); revealPanel() }
-  } catch { if (version === importVersion) importError.value = true }
-  finally { if (version === importVersion) importing.value = false }
+    if (version !== referenceVersion) return
+    const reference = {id:result.declaration?.id || result.mapping.id,name:result.declaration?.name || result.label,valueType:declaration.valueType,unit:declaration.unit}
+    if (applyInputReference(reference) === 'confirm') pendingReference.value = reference
+  } catch { if (version === referenceVersion) referenceError.value = true }
+  finally { if (version === referenceVersion) referencing.value = false }
 }
 function setText(field: 'description' | 'notes', value: { value: string; i18nMessages: Record<string, Record<string, string>> }) {
   update({ ...view.value, options: { ...view.value.options, [field]: value.value, i18nMessages: value.i18nMessages } })
@@ -202,6 +212,8 @@ function setCategory(value: string) { if (!props.categoriesLoading && !props.cat
 .template-designer__toggle { margin-left:auto }
 .template-designer__panel-content { min-height:0; overflow:auto; padding:12px 16px; overflow-wrap:anywhere }
 .template-designer__navigation { display:flex; justify-content:space-between; align-items:center; gap:8px; height:28px; margin-bottom:8px; color:var(--ink-3); font-size:12px }
+.template-designer__reference-confirm { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0 16px; padding:8px; background:var(--bg-sunken,#f7f8fa); border-radius:var(--r-2,4px); font-size:12px }
+.template-designer__reference-confirm > span { flex-basis:100%; color:var(--ink-2) }
 .template-designer__setting { padding-bottom:16px; margin:0 0 16px; border-bottom:1px solid var(--line) }
 .template-designer__setting h4,.template-designer__setting summary { display:flex; align-items:center; gap:8px; margin:0 0 8px; color:var(--ink-3); font-size:12px; font-weight:400; line-height:24px }
 .template-designer__setting summary { cursor:pointer }

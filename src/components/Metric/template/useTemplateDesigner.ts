@@ -2,8 +2,8 @@ import { computed, ref, watch, type Ref } from 'vue'
 import { copy } from '../service'
 import { nextNodeId, nodeKey, nodeList, type TemplateNode } from './designer'
 import { templateMessages } from './text'
-import { inputIdentityIssue, renameTemplateInput } from './inputIdentity'
-import type { MetricTemplate } from '../types'
+import { inputIdentityIssue, referenceInputId, renameTemplateInput } from './inputIdentity'
+import type { MetricSourceSelection, MetricTemplate } from '../types'
 
 /** 属性面板直接更新页面草稿；检查点只负责撤回当前项，不承担持久化。 */
 export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref<boolean>, commit: (value: MetricTemplate) => void, onInputRename?:(previous:string,next:string)=>void) {
@@ -16,6 +16,7 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
   const items = (value: MetricTemplate, node: TemplateNode) => node.kind === 'input' ? value.inputDefinitions : node.kind === 'rule' ? value.definitions : value.outputs
   let checkpoint: MetricTemplate | undefined
   let created = false
+  let generatedInputId:string | undefined
   const messageKeys = new Set<string>()
   function renameMessageKeys(previous:string,next:string) {
     const prefix = `input.${previous}.`
@@ -35,6 +36,7 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
     selection.value = node
     checkpoint = node ? copy(view.value) : undefined
     created = false
+    generatedInputId = undefined
     messageKeys.clear()
     return true
   }
@@ -58,6 +60,16 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
       if (JSON.stringify(current[key]) !== JSON.stringify(messages[key])) messageKeys.add(key)
     }
     update({ ...view.value, options: { ...view.value.options, i18nMessages: messages } })
+  }
+  /** 参考当前输入的声明，手填身份保持；覆盖已有类型或单位前由界面确认。 */
+  function applyInputReference(declaration:NonNullable<MetricSourceSelection['declaration']>,confirmed=false):'applied' | 'confirm' | 'unavailable' {
+    if (disabled.value || invalid.value || selection.value?.kind !== 'input' || !declaration.valueType) return 'unavailable'
+    const index = selection.value.index, input = view.value.inputDefinitions[index]
+    const changesType = input.valueType && JSON.stringify(input.valueType) !== JSON.stringify(declaration.valueType)
+    const changesUnit = input.unit && input.unit !== declaration.unit
+    if (!confirmed && (changesType || changesUnit)) return 'confirm'
+    const id = created && input.id === generatedInputId && declaration.id ? referenceInputId(view.value,index,declaration.id) : input.id
+    return patch({id,name:input.name || declaration.name,valueType:copy(declaration.valueType),unit:declaration.unit}) ? 'applied' : 'unavailable'
   }
   /** 错误文本留在当前编辑器；显式撤回才重建编辑器，其他节点和模板设置不回滚。 */
   function revert() {
@@ -111,6 +123,7 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
     update(value)
     select({ kind, index })
     created = true
+    generatedInputId = kind === 'input' ? value.inputDefinitions[index].id : undefined
     return true
   }
   function remove() {
@@ -142,5 +155,5 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
     created = false
     messageKeys.clear()
   }, { flush: 'sync' })
-  return { selection, invalid, editorVersion, view, nodes, position, select, move, patch, add, remove, revert, setMessages, update }
+  return { selection, invalid, editorVersion, view, nodes, position, select, move, patch, add, remove, revert, setMessages, update, applyInputReference }
 }
