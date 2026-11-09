@@ -5,10 +5,12 @@ export { default as MetricConfigEditor } from './MetricConfigEditor.vue'
 export { default as MetricTemplateManager } from './template/MetricTemplateManager.vue'
 export { default as MetricWorkspace } from './workspace/MetricWorkspace.vue'
 export { metricApi } from './api'
+export { default as MetricParameterValue } from './MetricParameterValue.vue'
+export { metricSourceSchema, metricSourceField } from './sourceSchema'
 export { structureMetricTemplate } from './template/structureExpressions'
 export type {
   MetricContext, MetricSourcePicker, MetricSourceSelection, MetricSourceDescription, MetricSourceRequest, MetricAlarmReference, MetricReference,
-  MetricConfig, MetricTemplate, MetricTemplateEntity, MetricTemplateInput, MetricTemplateOutput, MetricTemplateStarter,
+  MetricConfig, MetricTemplate, MetricTemplateReference, MetricTemplateEntity, MetricTemplateInput, MetricTemplateOutput, MetricTemplateStarter,
   MetricInputMapping, MetricSourceReference, MetricProviderSourceDescription, MetricScopeStatistics, MetricBuiltinItem, MetricParameter, MetricValue, MetricLatest, MetricRuntime, MetricApi, MetricCalculatorDescriptor, MetricCalculatorSpec
 } from './types'
 export type {

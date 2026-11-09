@@ -35,7 +35,7 @@
         <header class="metric-template-manager__editor-head">
           <TemplateIdentity v-model:template="draft" :disabled="!canEditIdentity || updates.applying.value" :published="selected?.released" :revision="selected?.revision" :pending="!!selected?.draft" />
           <span v-if="hasChanges" class="metric-template-manager__dirty" role="status">{{ t('unsavedChanges') }}</span>
-          <a-button v-if="editable && tab === 'design'" :loading="simulating" :disabled="editing || trial.invalid || saving || updates.applying.value" @click="runSimulation"><AIcon type="PlayCircleOutlined" />{{ t('simulate') }}</a-button>
+          <a-button v-if="editable && tab === 'design'" class="metric-template-manager__simulate" :loading="simulating" :disabled="editing || trial.invalid || saving || updates.applying.value" @click="runSimulation"><AIcon type="PlayCircleOutlined" />{{ t('simulate') }}</a-button>
           <a-button v-if="!readOnly && (tab === 'design' || hasChanges)" :type="tab === 'design' ? 'primary' : 'default'" :loading="saving" :disabled="editing || simulating || updates.applying.value" @click="save">{{ t('save') }}</a-button>
           <a-button type="text" class="metric-template-manager__close" :aria-label="t('close')" :title="t('close')" :disabled="saving || updates.applying.value" @click="requestClose"><AIcon type="CloseOutlined" /></a-button>
         </header>
@@ -52,13 +52,14 @@
           <a-tab-pane key="design" :tab="t('design')" :disabled="editing || simulating || updates.applying.value" />
           <a-tab-pane key="publication" :tab="t('release')" :disabled="editing || saving || simulating">
             <TemplatePublication :template="displayTemplate!" :entity="selected" :editable="editable" :pending="hasChanges || !!selected?.draft" :saving="saving" :updates="updates" @release="publish">
+            <a-button v-if="applyTemplate && selected?.released && selected.available" :disabled="saving || updates.applying.value" @click="applyTemplate(selected.template)"><AIcon type="LinkOutlined" />{{ t('applyToObject') }}</a-button>
             <a-dropdown v-if="editable && selected?.released" :trigger="['click']" :disabled="saving || updates.applying.value"><a-button type="text" size="small"><AIcon type="MoreOutlined" />{{ t('publicationMore') }}</a-button><template #overlay><a-menu><a-menu-item key="version" @click="newVersion"><AIcon type="BranchesOutlined" />{{ t('newVersion') }}</a-menu-item><a-menu-item key="availability" @click="setAvailable(!selected.available)"><AIcon :type="selected.available ? 'StopOutlined' : 'CheckCircleOutlined'" />{{ t(selected.available ? 'unavailableAction' : 'available') }}</a-menu-item></a-menu></template></a-dropdown>
             </TemplatePublication>
           </a-tab-pane>
         </a-tabs>
         <div v-show="tab !== 'publication'" class="metric-template-manager__workspace">
           <a-alert v-if="calculatorError && tab === 'design'" type="warning" :message="t('algorithmCatalogFailed')" :description="calculatorError" show-icon><template #action><a-button size="small" @click="loadCalculators">{{ t('retry') }}</a-button></template></a-alert>
-          <TemplateDesigner v-show="mode === 'form'" :key="selected?.id || draft.id" v-model:template="draft" :disabled="locked" :trial="editable ? trial : undefined" :simulation-error="simulationError" :published="selected?.released" :calculators="calculators" :categories="categories" :categories-loading="categoriesLoading" :category-error="categoryError" @reload-categories="loadCategories" @editing="editing = $event">
+          <TemplateDesigner v-show="mode === 'form'" :key="selected?.id || draft.id" v-model:template="draft" :disabled="locked" :trial="editable ? trial : undefined" :simulation-error="simulationError" :published="selected?.released" :calculators="calculators" :categories="categories" :categories-loading="categoriesLoading" :category-error="categoryError" :pick-source="pickSource" :source-context="sourceContext" @reload-categories="loadCategories" @editing="editing = $event">
             <template #advancedTools><a-select :value="format" :disabled="simulating || saving" :options="formats" :dropdown-match-select-width="false" @update:value="(value: unknown) => switchFormat(value as ConfigurationFormat)"><template #option="option"><SelectOption :label="option.label" :icon="option.icon" :description="option.description" /></template></a-select></template>
           </TemplateDesigner>
           <MonacoEditor v-if="mode === 'full' && tab === 'design'" v-model="fullText" :language="format" :read-only="locked" theme="vs" class="metric-template-manager__full-code" :options="editorOptions" />
@@ -101,8 +102,8 @@ import SelectOption from '../../SelectOption/index.vue'
 import { useMetricTemplates } from './useMetricTemplates'
 import { useTemplateLeaveGuard } from './useTemplateLeaveGuard'
 import type { ConfigurationFormat } from './configurationText'
-import type { MetricTemplateEntity, MetricTemplateStarter } from '../types'
-const props = withDefaults(defineProps<{ editable?: boolean; starters?: MetricTemplateStarter[] }>(), { editable: false, starters: () => [] })
+import type { MetricContext, MetricSourcePicker, MetricTemplateEntity, MetricTemplateStarter, MetricTemplateReference } from '../types'
+const props = withDefaults(defineProps<{ editable?: boolean; starters?: MetricTemplateStarter[]; pickSource?:MetricSourcePicker; sourceContext?:MetricContext; applyTemplate?:(template:MetricTemplateReference)=>void }>(), { editable: false, starters: () => [] })
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const { categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, entities, selected, draft, mode, format, fullText, simulationText,
   simulationResults, simulationResponse, error, simulationError, loading, saving, simulating, readOnly, hasChanges, load, open, close,
@@ -197,6 +198,10 @@ onMounted(() => { refresh(); loadCalculators() })
   .metric-template-manager__editor-head { gap:8px }
 }
 @container metric-template (max-width:440px) {
+  .metric-template-manager__editor-head { flex-wrap:wrap }
+  .metric-template-manager__editor-head > .template-identity { flex:1 1 calc(100% - 40px) }
+  .metric-template-manager__editor-head > :deep(.ant-btn:not(.metric-template-manager__close)) { order:2 }
+  .metric-template-manager__simulate { margin-left:auto }
   .metric-template-manager__editor-tools { padding-left:4px; gap:4px }
   .metric-template-manager__editor-tools :deep(.ant-btn) { max-width:100px; padding:0 4px }
   .metric-template-manager__actions { flex-wrap:wrap }

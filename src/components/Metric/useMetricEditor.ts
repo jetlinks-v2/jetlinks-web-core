@@ -103,7 +103,7 @@ export function useMetricEditor(
       const version = templateKey({ id: draft.value.templateId, version: draft.value.templateVersion })
       const selection = await picker.value({ context: { ...context.value, scope: draft.value.scope,
         targetType: draft.value.targetType, targetId: draft.value.targetId }, configId:draft.value.id, input, mapping: draft.value.inputMappings[input.id],
-        scheduled:!!selectedTemplate.value && supportsSnapshotSource(selectedTemplate.value, input), inline:inline && !!picker.value.editor })
+        hint:selectedTemplate.value?.options?.inputHints?.[input.id], scheduled:!!selectedTemplate.value && supportsSnapshotSource(selectedTemplate.value, input), inline:inline && !!picker.value.editor })
       if (context.value.editable && selection && choice === choiceVersion && token === generation && version === templateKey({ id: draft.value.templateId, version: draft.value.templateVersion })) {
         draft.value.inputMappings[input.id] = copy(selection.mapping)
         sourceLabels.value[input.id] = selection.label || ''

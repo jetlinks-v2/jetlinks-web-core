@@ -8,7 +8,7 @@
     <nav v-if="mode && context.readScopes && context.readScopes.length>1" class="metric-scope-panel__nav"><button v-for="scope in context.readScopes" :key="scope.memberType" type="button" :class="{active:scopeType===scope.memberType}" @click="scopeType=scope.memberType"><AIcon :type="scope.icon" />{{ scope.label }}</button></nav>
     <KeepAlive :max="1"><MetricAggregateOverview v-if="mode==='overview' && activeScope" :key="context.ownerType + ':' + context.ownerId + ':' + activeScope.memberType" :context="context" :scope="activeScope" @members="openMembers" /></KeepAlive>
     <MetricCollection v-if="mode==='members' && activeScope" :key="context.ownerType + ':' + context.ownerId + ':' + activeScope.memberType" :context="context" :scope="activeScope" :selection="selection" @clear-selection="mode='overview';selection=undefined" />
-    <MetricPanel v-if="!mode || !activeScope" :context="context" :pick-source="pickSource" :initial-reference="initialReference" :detail-link-label="detailLinkLabel" :hide-identity="!!context.readScopes?.length && !!$slots['object-heading']" @inspect-scope="inspectScope" @open-detail-link="$emit('openDetailLink', $event)"><template v-if="!context.readScopes?.length && $slots['object-heading']" #object-heading><slot name="object-heading" /></template><template #object-actions><slot v-if="!context.readScopes?.length" name="object-actions" /></template></MetricPanel>
+    <MetricPanel v-if="!mode || !activeScope" :context="context" :pick-source="pickSource" :initial-reference="initialReference" :initial-template="initialTemplate" @apply-started="$emit('applyStarted')" :detail-link-label="detailLinkLabel" :hide-identity="!!context.readScopes?.length && !!$slots['object-heading']" @inspect-scope="inspectScope" @open-detail-link="$emit('openDetailLink', $event)"><template v-if="!context.readScopes?.length && $slots['object-heading']" #object-heading><slot name="object-heading" /></template><template #object-actions><slot v-if="!context.readScopes?.length" name="object-actions" /></template></MetricPanel>
   </div>
 </template>
 <script setup lang="ts">
@@ -19,13 +19,14 @@ import MetricCollection from './MetricCollection.vue'
 import MetricAggregateOverview from './MetricAggregateOverview.vue'
 import { collectionMessages } from './messages'
 import { metricSourcePickerKey } from '../useMetricSourceTemplate'
-import type { MetricAlarmReference, MetricContext, MetricReference, MetricSourcePicker } from '../types'
+import type { MetricAlarmReference, MetricTemplateReference, MetricContext, MetricReference, MetricSourcePicker } from '../types'
 import type { MetricCollectionSelection } from './types'
-const props = defineProps<{ context:MetricContext; pickSource?:MetricSourcePicker; initialReference?:MetricReference; detailLinkLabel?:string }>()
+const props = defineProps<{ context:MetricContext; pickSource?:MetricSourcePicker; initialReference?:MetricReference; initialTemplate?:MetricTemplateReference; detailLinkLabel?:string }>()
 provide(metricSourcePickerKey, toRef(props,'pickSource'))
-defineEmits<{ (event:'openDetailLink', reference:MetricAlarmReference):void }>()
+defineEmits<{ (event:'applyStarted'):void; (event:'openDetailLink', reference:MetricAlarmReference):void }>()
 const { t } = useI18n({ useScope:'local', messages:collectionMessages })
 const mode = ref('')
+watch(()=>props.initialTemplate,value=>{if (value) mode.value=''}, {immediate:true})
 const scopeType=ref('')
 const selection = ref<MetricCollectionSelection>()
 function inspectScope(value:MetricCollectionSelection & {memberType:string}) {

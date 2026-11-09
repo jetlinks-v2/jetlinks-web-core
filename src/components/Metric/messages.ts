@@ -1,5 +1,8 @@
 export const metricMessages = {
   zh: {
+    sourceCapability_subscribe:'新数据到达时更新',sourceCapability_current:'计算时可读取当前值',sourceCapability_history:'支持读取历史',
+    valueCreateObject:'填写对象字段',valueCreateArray:'填写数组',valueAddElement:'添加一项',valueSetNull:'设为空值',valueUnset:'不提供此字段',valueDeclareFields:'请先声明对象字段',
+    inputSourceHints:'建议来源',inputSourceHintsHelp:'可多选；留空时显示全部来源。仅辅助选择。',inputImport:'从数据声明导入',inputImportFailed:'无法读取数据声明，请重试',bindingList:'绑定数据',bindingGraph:'计算关系',bindingExpected:'需要的值',bindingActual:'真实来源',bindingFields:'包含字段',
     structuredExpression:'结构化编辑',functionCatalogRetry:'函数目录读取失败，重试',
     executionRoundMissing:'该次结果未保留计算过程。', executionProcess:'计算过程', executionSelectRecord:'请选择一条计算记录', executionFollowLatest:'最新结果',
     issueReferenceNotice:'参考项', issueContinued:'已继续计算',
@@ -56,6 +59,9 @@ export const metricMessages = {
     onEventHint:'任一依赖数据更新时重新计算', onScheduleHint:'按设定间隔触发计算', unitSecondsHint:'1 秒', unitMinutesHint:'60 秒', unitHoursHint:'60 分钟', unitDaysHint:'24 小时',
     inputTriggerHint:'回看时长决定取数范围；何时读取，由使用它的计算节点决定。',
     inputAvailable:'可用于计算', inputValue:'取值', inputDateType:'日期时间', inputUndeclaredType:'未声明类型', inputUnknownType:'未知类型',
+    inputFloatType:'单精度数值', inputFloatHint:'与来源的单精度小数类型一致', inputDateHint:'日期与时刻，例如上报或确认时间',
+    applyToObject:'应用到对象', readCurrentSample:'读取当前样本', sampleReadEmpty:'来源尚无当前值，未添加样本。', sampleReadFailed:'读取失败，请检查来源后重试。',
+    inputPublishedType:'已发布的输入类型已固定；如需更改，请创建新版本。',
     inputDataType:'数据类型', inputChooseType:'选择数据类型', inputConfigureChoices:'配置选项', inputConfigureFields:'配置字段', inputAddField:'添加字段', inputElementType:'数组元素', inputCodeType:'编码类型',
     inputBindingHint:'此处声明需要的值；应用模板时选择具体的数据来源。', inputIdRequired:'请填写输入标识', inputIdDuplicate:'标识与已有输入或计算重复', inputIdScript:'此输入被高级脚本隐式引用；请保留标识，或先改为结构化公式。',
     inputChoiceRequired:'请添加选项并填写编码', inputChoiceDuplicate:'选项编码不能重复', inputFieldRequired:'请填写字段标识', inputFieldDuplicate:'同级字段标识不能重复',
@@ -213,6 +219,9 @@ export const metricMessages = {
     discardEdits: '离开后将放弃未保存的修改，是否继续？', continue: '继续', rangeStart: '开始时间', rangeEnd: '结束时间'
   },
   en: {
+    sourceCapability_subscribe:'Updates on new data',sourceCapability_current:'Current reads available',sourceCapability_history:'Historical reads available',
+    valueCreateObject:'Fill object fields',valueCreateArray:'Fill array',valueAddElement:'Add item',valueSetNull:'Set to null',valueUnset:'Leave field absent',valueDeclareFields:'Declare object fields first',
+    inputSourceHints:'Suggested sources',inputSourceHintsHelp:'Select any; leave empty to show all sources. Selection guidance only.',inputImport:'Import data declaration',inputImportFailed:'Unable to read data declaration. Retry.',bindingList:'Bind data',bindingGraph:'Calculation graph',bindingExpected:'Required value',bindingActual:'Data source',bindingFields:'Fields',
     structuredExpression:'Structured editor',functionCatalogRetry:'Function catalog unavailable. Retry',
     executionRoundMissing:'The calculation process was not retained for this result.', executionProcess:'Calculation', executionSelectRecord:'Select a calculation record', executionFollowLatest:'Latest result',
     issueReferenceNotice:'Reference', issueContinued:'Calculation continued',
@@ -269,6 +278,9 @@ export const metricMessages = {
     onEventHint:'Recalculate when any dependency updates', onScheduleHint:'Calculate at the configured interval', unitSecondsHint:'1 second', unitMinutesHint:'60 seconds', unitHoursHint:'60 minutes', unitDaysHint:'24 hours',
     inputTriggerHint:'Lookback sets the data range. The calculations using this input decide when to read it.',
     inputAvailable:'Available to calculations', inputValue:'Value', inputDateType:'Date and time', inputUndeclaredType:'Type not declared', inputUnknownType:'Unknown type',
+    inputFloatType:'Single-precision number', inputFloatHint:'Match a source that uses single-precision decimals', inputDateHint:'A date and time, such as a report or confirmation time',
+    applyToObject:'Apply to object', readCurrentSample:'Read current sample', sampleReadEmpty:'No current value is available. No sample was added.', sampleReadFailed:'Unable to read. Check the source and retry.',
+    inputPublishedType:'Published input types are fixed. Create a new version to change them.',
     inputDataType:'Data type', inputChooseType:'Choose a data type', inputConfigureChoices:'Configure choices', inputConfigureFields:'Configure fields', inputAddField:'Add field', inputElementType:'Array element', inputCodeType:'Code type',
     inputBindingHint:'Declare the required value here. Choose its actual source when applying the template.', inputIdRequired:'Enter an input identifier', inputIdDuplicate:'This identifier conflicts with an input or calculation', inputIdScript:'An advanced script uses this input implicitly. Keep its identifier or first use a structured formula.',
     inputChoiceRequired:'Add choices and enter their codes', inputChoiceDuplicate:'Choice codes must be unique', inputFieldRequired:'Enter a field identifier', inputFieldDuplicate:'Sibling field identifiers must be unique',

@@ -1,9 +1,9 @@
 <template>
   <div class="input-editor">
-    <section v-if="!published && !disabled" class="input-editor__schema">
-      <TemplateInputSchema :model-value="input.valueType" :unit-editable="false" @update:model-value="updateSchema" />
+    <section class="input-editor__schema">
+      <TemplateInputSchema :model-value="input.valueType" :disabled="disabled || published" :unit-editable="false" @update:model-value="updateSchema" />
       <p v-if="schemaIssue" class="input-editor__error" role="alert">{{ t(schemaIssue) }}</p>
-      <p class="input-editor__binding">{{ t('inputBindingHint') }}</p>
+      <p class="input-editor__binding">{{ t(published ? 'inputPublishedType' : 'inputBindingHint') }}</p>
     </section>
     <section class="input-editor__reading">
       <div class="input-editor__sentence">
@@ -106,12 +106,13 @@ function setReadMode(mode:string) {
 }
 </script>
 <style scoped>
-.input-editor { min-width:0; font-size:13px; line-height:1.8 }
-.input-editor__reading { padding-bottom:12px; border-bottom:1px solid var(--line) }
-.input-editor__schema { padding-bottom:10px; margin-bottom:8px; border-bottom:1px solid var(--line) }
+.input-editor { display:grid; min-width:0; font-size:13px; line-height:1.6 }
+.input-editor > section { padding:10px 0; border-bottom:1px solid var(--line) }
+.input-editor > section:first-child { padding-top:0 }
+.input-editor__schema { margin:0 }
 .input-editor__binding { margin:4px 0 0; font-size:12px; color:var(--ink-3); line-height:1.6 }
 .input-editor__error { margin:4px 0; color:var(--ant-error-color,#ff4d4f); font-size:12px }
-.input-editor__sentence { display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px; min-height:40px; min-width:0 }
+.input-editor__sentence { display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px; min-height:32px; min-width:0 }
 .input-editor__sentence > .anticon { flex:none; width:16px; color:var(--ink-3) }
 .input-editor__sentence > span:not(.editable-field):not(.template-duration) { flex:none }
 .input-editor__continuation { padding-left:24px }
@@ -120,8 +121,6 @@ function setReadMode(mode:string) {
 .input-editor__presence { width:120px; color:var(--accent) }
 .input-editor__unit,.input-editor__amount { width:96px; color:var(--accent) }
 .input-editor__default { width:128px; max-width:100% }
-.input-editor__requirements { padding:12px 0 }
-.input-editor__execution,.input-editor__available { padding:12px 0; border-bottom:1px solid var(--line) }
 .input-editor h4 { display:flex; align-items:center; gap:8px; margin:0; font-size:13px; font-weight:500 }
 .input-editor h4 > .anticon { width:16px; color:var(--ink-3) }
 .input-editor__available dl { margin:6px 0 0 24px; font-size:12px; line-height:1.6 }
@@ -135,7 +134,6 @@ function setReadMode(mode:string) {
 .input-editor__consumer { display:flex; align-items:baseline; gap:12px; padding:4px 0 4px 24px; font-size:12px }
 .input-editor__consumer > :first-child { flex:1; min-width:0; overflow-wrap:anywhere }
 .input-editor__consumer > span { flex:0 1 50%; color:var(--ink-2); text-align:right }
-.input-editor__advanced { border-top:1px solid var(--line) }
-.input-editor__advanced > summary { padding:12px 0; font-size:12px; color:var(--ink-3); cursor:pointer }
+.input-editor__advanced > summary { padding:10px 0; font-size:12px; color:var(--ink-3); cursor:pointer }
 .input-editor :deep(.ant-input-number) { width:128px; max-width:100% }
 </style>

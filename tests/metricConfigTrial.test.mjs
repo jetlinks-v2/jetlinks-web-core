@@ -26,6 +26,21 @@ function samples(view, cpu = 20, memory = 60) {
   view.trial.updateFacts({ ...view.trial.facts, endAt:2000 })
 }
 
+test('显式读取当前样本保留原始时间与0，空值不伪造样本，绑定换代丢弃迟到响应',async()=>{
+  const {scope,config,view}=setup({simulateConfig:async()=>response(0)})
+  try {
+    view.active.value=true
+    await view.readSample('cpu',async()=>({value:0,eventTime:1000,ingestTime:1100,processTime:1200,unit:'%'}))
+    assert.deepEqual(view.trial.facts.samples.map(({value,eventTime,ingestTime,processTime})=>({value,eventTime,ingestTime,processTime})),[{value:0,eventTime:1000,ingestTime:1100,processTime:1200}])
+    await view.readSample('cpu',async()=>undefined)
+    assert.equal(view.trial.facts.samples.length,1);assert.equal(view.sampleReadError.value,'sampleReadEmpty')
+    let finish
+    const pending=view.readSample('cpu',()=>new Promise(resolve=>{finish=resolve}))
+    config.value.inputMappings.cpu.id='newSource';finish({value:99,eventTime:2000});await pending
+    assert.equal(view.trial.facts.samples.length,0)
+  } finally {scope.stop()}
+})
+
 test('业务试算提交当前固定模板引用与显式样本，使用后端结果且不保存配置', async () => {
   const requests = []
   const { scope, config, view } = setup({ simulateConfig:async value => { requests.push(value); return response(40) } })

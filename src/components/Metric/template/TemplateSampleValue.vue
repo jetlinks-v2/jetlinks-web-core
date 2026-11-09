@@ -25,7 +25,7 @@ const props = defineProps<{ input:MetricTemplateInput; value:unknown; template?:
 const emit = defineEmits<{ (event:'change', value:unknown):void }>()
 const { t, locale } = useI18n({ useScope:'local', messages:metricMessages })
 const { root, editable, labels, text, unknown, type, hint, name, open, raw, select, commit, edit, editRaw } = useSampleValue(props,() => String(locale.value),t,value => emit('change',value))
-const simple = computed(() => !['boolean','object','array','enum'].includes(String(props.input.valueType?.type)))
+const simple = computed(() => !['boolean','object','array','enum','date'].includes(String(props.input.valueType?.type)))
 const appearance = computed(() => stateAppearance(props.value,labels.value))
 const booleanOptions = computed(() => [{ value:'true', label:t('conditionTrue'), icon:'CheckCircleOutlined', description:'true' }, { value:'false', label:t('conditionFalse'), icon:'CloseCircleOutlined', description:'false' }])
 defineExpose({ edit })

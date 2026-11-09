@@ -55,9 +55,9 @@
         <slot v-if="node.kind === 'input'" name="input-sample" :node="node"><span>{{ previewValue(node) }}</span></slot>
         <template v-else><b :title="previewValue(node)">{{ previewValue(node) }}</b><small>{{ previewUnit(node) }}</small><small class="template-graph__state" :title="previewState(node.key)">{{ previewState(node.key) }}</small><small v-if="(simulationPreview.nodes[node.key]?.alternatives.length || 0) > 1">+{{ simulationPreview.nodes[node.key].alternatives.length - 1 }}</small></template>
       </div>
-      <a-dropdown v-if="node.kind !== 'output' && nextActions.length" :trigger="['click']" @open-change="openNode = $event ? node.key : undefined">
+      <a-dropdown v-if="node.kind !== 'output' && actionsForNode(node).length" :trigger="['click']" @open-change="openNode = $event ? node.key : undefined">
         <button type="button" class="template-graph__node-add" :data-add-from="node.key" :aria-label="t('addAfterNode', { name:node.label || t('unnamedOutput') })" :title="t('addAfterNode', { name:node.label || t('unnamedOutput') })" @click="rememberAddTrigger"><AIcon type="PlusOutlined" /></button>
-        <template #overlay><a-menu @click="addFromNode(node, $event)"><a-menu-item v-for="action in nextActions" :key="action.kind"><AIcon :type="action.icon" />{{ t(action.label) }}</a-menu-item></a-menu></template>
+        <template #overlay><a-menu @click="addFromNode(node, $event)"><a-menu-item v-for="action in actionsForNode(node)" :key="action.kind"><AIcon :type="action.icon" />{{ t(action.label) }}</a-menu-item></a-menu></template>
       </a-dropdown>
       </div>
     </div>
@@ -98,6 +98,7 @@ const nextActions = computed(() => [
   { kind: 'rule' as const, icon: 'FunctionOutlined', label: 'addNextCalculation' },
   { kind: 'output' as const, icon: 'ExportOutlined', label: 'addOutput' },
 ].filter(action => props.addKinds.includes(action.kind)))
+function actionsForNode(node:TemplateNode) { return node.kind === 'input' ? nextActions.value.filter(action=>action.kind === 'rule') : nextActions.value }
 // 滚动经过节点不切换连线；选中、键盘焦点和显式引用预览保留各自反馈。
 const active = computed(() => openNode.value || focused.value || (props.selected && nodeKey(props.selected)))
 const relatedEdges = computed(() => relatedGraphEdges(props.overlay?.edges ? graph.value.edges.filter(edge=>props.overlay!.edges!.has(edge.key)) : graph.value.edges, props.overlay?.focus || (props.selected && nodeKey(props.selected))))
@@ -145,7 +146,7 @@ function clickBackground(event: MouseEvent) {
 }
 function addFromNode(node: TemplateNode, { key }: { key: string | number }) {
   const kind = key as TemplateNode['kind']
-  if (addTrigger && props.addKinds.includes(kind)) emit('add', kind, addTrigger, { kind:node.kind, index:node.index })
+  if (addTrigger && actionsForNode(node).some(action=>action.kind === kind)) emit('add', kind, addTrigger, { kind:node.kind, index:node.index })
 }
 /** 显式定位只滚动图的内部视口，不移动页面和右侧属性。 */
 function locate(node: TemplateNode) {

@@ -1,7 +1,7 @@
 <template>
   <div class="node-editor">
     <header class="node-editor__identity">
-      <I18nTextEditable class="node-editor__name" :value="name" :placeholder="displayName" :field="nameKey" :label="t('label')" :i18n-messages="templateMessages(template)" :disabled="disabled"
+      <I18nTextEditable class="node-editor__name" size="small" :value="name" :placeholder="displayName" :field="nameKey" :label="t('label')" :i18n-messages="templateMessages(template)" :disabled="disabled"
         @update:value="emit('patch', { [node.kind === 'output' ? 'label' : 'name']: $event })" @update:i18n-messages="emit('messages', $event)" />
       <div v-if="node.kind === 'rule'" class="node-editor__method">
         <a-dropdown :trigger="['click']" :disabled="disabled || ruleInvalid">
@@ -73,7 +73,7 @@ import TemplateReference from './TemplateReference.vue'
 import TemplateFormulaDisplay from './formula/TemplateFormulaDisplay.vue'
 import { graphNodeSummary } from './graphPresentation'
 import type { MetricCalculatorDescriptor, MetricTemplate, MetricTemplateInput } from '../types'
-import { nodeLabel, type TemplateNode, type TemplateRule } from './designer'
+import { nodeLabel, ruleMetricIds, type TemplateNode, type TemplateRule } from './designer'
 import { calculationKind, calculationFields, type CalculationKind } from './window'
 const props = defineProps<{ template: MetricTemplate; node: TemplateNode; disabled?: boolean; published?: boolean; calculators?: MetricCalculatorDescriptor[] }>()
 const emit = defineEmits<{ (event: 'patch', fields: Record<string, unknown>): void; (event: 'invalid', value: boolean): void; (event: 'messages', value: Record<string, Record<string, string>>): void }>()
@@ -102,7 +102,7 @@ const name = computed(() => String(props.node.kind === 'input' ? input.value.nam
 const displayName = computed(() => nodeLabel(localizedTemplate(props.template, String(locale.value)), props.node))
 const nameKey = computed(() => props.node.kind === 'output' ? `output.${output.value.metricId}.label` : `${props.node.kind}.${props.node.kind === 'input' ? input.value.id : rule.value.id}.name`)
 const displayTemplate = computed(() => localizedTemplate(props.template, String(locale.value)))
-const sources = computed(() => [...displayTemplate.value.inputDefinitions.map(item => ({ id:item.id, label:item.name || item.id })), ...displayTemplate.value.definitions.map((item, index) => ({ id:String(item.id), label:String(item.name || nodeLabel(displayTemplate.value, { kind:'rule', index })) }))].map(item => referenceChoice(displayTemplate.value, item, t)))
+const sources = computed(() => displayTemplate.value.definitions.flatMap((item, index) => ruleMetricIds(item as TemplateRule).map(id => ({ id,label:id === item.id ? String(item.name || nodeLabel(displayTemplate.value,{kind:'rule',index})) : id }))).map(item => referenceChoice(displayTemplate.value,item,t)))
 const sourceNode = computed<TemplateNode | undefined>(() => {
   if (props.node.kind !== 'output') return
   const input = props.template.inputDefinitions.findIndex(item => item.id === output.value.metricId)
@@ -122,7 +122,7 @@ function chooseKind({ key }: { key: string | number }) { changeKind(key as Calcu
 <style scoped>
 .node-editor__identity-error { grid-column:1/-1; margin:4px 0; font-size:12px; color:var(--ant-error-color,#ff4d4f); line-height:1.6 }
 .node-editor { min-width:0; font-size:var(--fs-14,14px) }
-.node-editor__identity { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 12px; margin-bottom:var(--space-4,16px) }
+.node-editor__identity { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:0 12px; margin-bottom:8px }
 .node-editor__name { min-width:0 }
 .node-editor__method { width:120px; height:32px; color:var(--ink-3) }
 .node-editor__method > .ant-btn { width:100%; height:32px; font-size:12px; color:var(--ink-3); padding:0 8px }
@@ -148,7 +148,7 @@ function chooseKind({ key }: { key: string | number }) { changeKind(key as Calcu
 .node-editor :deep(.template-clause__body) { display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-height:32px }
 .node-editor :deep(.template-clause__title) { margin:0; font-size:13px }
 .node-editor > details > summary { padding:8px 0; color:var(--ink-3); font-size:12px; cursor:pointer }
-.node-editor__id { grid-column:1/-1; min-height:22px; line-height:22px; font-size:12px; color:var(--ink-3); min-width:0; user-select:text }
-.node-editor__id :deep(.text) { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.node-editor__id { grid-column:1/-1; height:24px; min-height:24px; line-height:24px; font-size:12px; color:var(--ink-3); min-width:0; user-select:text }
+.node-editor__id :deep(.text) { display:block; height:24px; line-height:24px; padding-inline:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 @media(max-width:380px) { .node-editor__name { grid-column:1/-1 } .node-editor__method { grid-row:3; grid-column:1/-1 } }
 </style>

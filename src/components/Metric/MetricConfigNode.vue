@@ -4,6 +4,7 @@
     <template v-if="input">
       <button type="button" class="config-node__source" :disabled="disabled || !picker" @click="emit('choose', input)"><AIcon :type="description?.error ? 'ExclamationCircleOutlined' : mapping?.kind === 'metric' ? 'NodeIndexOutlined' : mapping?.kind === 'builtin' ? 'ThunderboltOutlined' : mapping?.id === '$online' ? 'PoweroffOutlined' : mapping ? 'DatabaseOutlined' : 'PlusOutlined'" /><span class="config-node__source-copy"><span>{{ description?.error || sourceLabel || t(mapping ? 'configBound' : 'chooseSource') }}</span><small v-if="mapping">{{ t('configChangeSource') }}</small></span><AIcon type="RightOutlined" /></button>
       <p v-if="description?.detail">{{ description.detail }}</p>
+      <p v-if="description?.capabilities?.length">{{ description.capabilities.map(capability=>t(`sourceCapability_${capability}`)).join(t('sentenceList')) }}</p>
       <p v-if="mapping?.statistics" class="config-node__fixed">{{ t('statisticsSimulationHint') }}</p>
       <p v-if="sourceScheduleMissing(template, input, mapping)" role="alert" class="config-node__warning"><AIcon type="ClockCircleOutlined" />{{ t('sourceScheduleRequired') }}</p>
       <p>{{ input.source?.lookback ? t('configReadHistory', { duration:simulationDuration(input.source.lookback, t) }) : t('latestReadingHint') }}</p>

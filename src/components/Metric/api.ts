@@ -18,6 +18,7 @@ export const metricApi: MetricApi = {
   collection: async query => result(await http.post<import('./collection/types').MetricCollectionResult>('/metric/configs/_collection', query, options)),
   builtinSources: async (type, objectId) => result(await http.get<MetricBuiltinItem[]>(`/metric/configs/sources/builtin/${id(type)}/${id(objectId)}`, undefined, options)),
   describeSource: async source => result(await http.post<import('./types').MetricProviderSourceDescription>('/metric/configs/sources/_describe', source, options)),
+  readSource: async source => result(await http.post<MetricValue | undefined>('/metric/configs/sources/_read', source, options)),
   templateCategories: async () => {
     const items = result(await http.get<{ value:string; text:string; ordinal?:number }[]>('/dictionary/metric-template-category/items', undefined, options))
     return [...items].sort((a,b) => (a.ordinal || 0) - (b.ordinal || 0)).map(item => ({ value:item.value, label:item.text }))

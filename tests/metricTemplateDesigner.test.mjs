@@ -22,6 +22,16 @@ const template = () => ({ id: 'rise', version: '1', name: '温升',
   parameterDefinitions: [{ id: 'limit', name: '限值', valueType: { type: 'double' } }], parameters: { limit: 0 }, options: { unknown: false },
 })
 
+test('输出候选只包含计算结果及窗口族结果',()=>{
+  const spec={...template(),definitions:[{id:'stats',windowFamily:{ranges:[{outputs:[{id:'maximum'}]}]}}],outputs:[{metricId:'maximum'}]}
+  const {renderer,root}=createMetricRenderer(),app=renderer.createApp({setup:()=>()=>h(NodeEditor,{template:spec,node:{kind:'output',index:0}})})
+  app.config.warnHandler=()=>{};app.mount(root)
+  try {
+    const source=walk(root,node=>node.props.class==='node-editor__output-choice')[0]
+    assert.deepEqual(source.props['component-props'].options.map(item=>item.value),['stats','maximum'])
+  } finally {app.unmount()}
+})
+
 test('窗口族输出复用生产节点，依赖排序、连线与独立公开输出一致',()=>{
   const spec={...template(),definitions:[{id:'consumer',dependsOn:['maximum']},{id:'statistics',sourceMetric:'temperature',windowFamily:{ranges:[{outputs:[{id:'minimum'},{id:'maximum'}]}]}}],outputs:[{metricId:'maximum'}]}
   const graph=templateGraph(spec)
@@ -117,8 +127,8 @@ test('从图中节点接续计算和输出采用所选来源，取消不残留�
     assert.equal(view.view.value.definitions.at(-1).expression, '')
     assert.deepEqual(view.view.value.definitions[0].dependsOn, ['temperature'])
     view.revert(); assert.equal(JSON.stringify(value.value), before)
-    view.add('output', { kind:'input', index:0 })
-    assert.equal(value.value.outputs.at(-1).metricId, 'temperature')
+    assert.equal(view.add('output', { kind:'input', index:0 }), false)
+    assert.equal(JSON.stringify(value.value), before)
     view.add('rule', { kind:'rule', index:0 }); view.patch({ expression:'#rise * 2' })
     assert.deepEqual(value.value.definitions.at(-1).dependsOn, ['rise'])
     view.add('output', { kind:'rule', index:0 })

@@ -33,7 +33,8 @@ const props = defineProps<{modelValue?:Record<string,unknown>;disabled?:boolean;
 const emit = defineEmits<{(event:'update:modelValue',value:Record<string,unknown>):void}>()
 const {t} = useI18n({useScope:'local',messages:metricMessages})
 const expanded = ref(false)
-const types = computed(()=>[...Object.entries(parameterTypeKeys).map(([value,key])=>({value,label:value==='float' ? `${t(key)} (float)` : t(key)})),{value:'date',label:t('inputDateType')}])
+const typeIcons:Record<string,string> = { double:'NumberOutlined',float:'NumberOutlined',int:'NumberOutlined',long:'NumberOutlined',string:'FontSizeOutlined',boolean:'PoweroffOutlined',enum:'UnorderedListOutlined',object:'CodeOutlined',array:'BarsOutlined',date:'CalendarOutlined' }
+const types = computed(()=>[...Object.entries(parameterTypeKeys).map(([value,key])=>({value,label:t(value === 'float' ? 'inputFloatType' : key),icon:typeIcons[value],description:t(value === 'float' ? 'inputFloatHint' : `${key}Hint`)})),{value:'date',label:t('inputDateType'),icon:typeIcons.date,description:t('inputDateHint')}])
 const scalarTypes = computed(()=>types.value.filter(item=>['double','string','boolean'].includes(item.value)))
 const scalarType = (value:unknown) => typeof value === 'number' ? 'double' : typeof value === 'boolean' ? 'boolean' : 'string'
 const elements = computed(()=>Array.isArray(props.modelValue?.elements) ? props.modelValue.elements as Record<string,unknown>[] : [])
@@ -55,7 +56,7 @@ function addElement() { let value=0; while(elements.value.some(item=>item.value=
 function addProperty() { let n=1; while(properties.value.some(item=>item.id===`field${n}`)) n++; set('properties',[...properties.value,{id:`field${n}`,name:'',valueType:{type:'double'}}]) }
 </script>
 <style scoped>
-.input-schema { min-width:0; font-size:12px }
+.input-schema { min-width:0; font-size:13px }
 .input-schema__line { display:flex; align-items:center; gap:8px; min-height:32px; min-width:0 }
 .input-schema__line > :first-child { flex:1; min-width:0 }
 .input-schema__line > :deep(.editable-field) { flex:1; min-width:60px; color:var(--accent) }

@@ -7,7 +7,7 @@
       <template #right>
         <main class="metric-workspace__results">
           <MetricWorkspaceScope v-if="context && dimension" :key="JSON.stringify([scopeKey, dimension.moduleId, context.ownerType, context.ownerId])"
-            :provider="dimension.provider" :context="context" :initial-reference="initialReference" :detail-link-label="businessRoute ? t('openBusiness') : undefined" @open-detail-link="reference => businessRoute && emit('toBusiness', businessRoute, reference)">
+            :provider="dimension.provider" :context="context" :initial-reference="initialReference" :initial-template="initialTemplate" @apply-started="emit('applyStarted')" :detail-link-label="businessRoute ? t('openBusiness') : undefined" @open-detail-link="reference => businessRoute && emit('toBusiness', businessRoute, reference)">
             <template #object-heading>
               <div class="metric-workspace__object-heading">
                 <a-button v-if="compact" ref="objectTrigger" type="text" size="small" :aria-label="t('selectObject')" :title="t('selectObject')" :aria-expanded="navigationOpen" @click="navigationOpen = true"><AIcon type="MenuUnfoldOutlined" /></a-button>
@@ -37,12 +37,12 @@ import { useI18n } from 'vue-i18n'
 import type { RouteLocationRaw } from 'vue-router'
 import EqualHeightColumns from '../../EqualHeightColumns/index.vue'
 import { metricMessages } from '../messages'
-import type { MetricObjectSelection, MetricReference, MetricSelectionOrigin, MetricWorkspaceSelection } from '../types'
+import type { MetricObjectSelection, MetricReference, MetricTemplateReference, MetricSelectionOrigin, MetricWorkspaceSelection } from '../types'
 import { useMetricWorkspace } from './useMetricWorkspace'
 import MetricWorkspaceScope from './MetricWorkspaceScope.vue'
 import MetricWorkspaceNavigation from './MetricWorkspaceNavigation.vue'
-const props = withDefaults(defineProps<{ scopeKey: string; selection?: MetricWorkspaceSelection; initialReference?: MetricReference; editable?: boolean }>(), { editable: false })
-const emit = defineEmits<{ (event: 'update:selection', value: MetricWorkspaceSelection | undefined): void; (event: 'toBusiness', route: RouteLocationRaw, reference: MetricReference | undefined): void }>()
+const props = withDefaults(defineProps<{ scopeKey: string; selection?: MetricWorkspaceSelection; initialReference?: MetricReference; initialTemplate?:MetricTemplateReference; editable?: boolean }>(), { editable: false })
+const emit = defineEmits<{ (event:'applyStarted'):void; (event: 'update:selection', value: MetricWorkspaceSelection | undefined): void; (event: 'toBusiness', route: RouteLocationRaw, reference: MetricReference | undefined): void }>()
 const { t } = useI18n({ useScope: 'local', messages: metricMessages })
 const root = ref<HTMLElement>()
 const { width } = useElementSize(root)

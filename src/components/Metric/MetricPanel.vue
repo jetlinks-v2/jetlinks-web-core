@@ -76,7 +76,7 @@
           <MetricConfigActions v-if="selected && canManage(selected)" :configuration="selected" :busy="busyId === selected.id" @edit="openEditor(selected)" @toggle="toggleConfig(selected)" @remove="confirmRemove(selected)" />
         </a-space>
       </template>
-      <MetricConfigEditor v-if="editorOpen" ref="configEditor" :context="context" :configuration="editing" :pick-source="pickSource" @saved="saved" @cancel="closeDrawer" />
+      <MetricConfigEditor v-if="editorOpen" ref="configEditor" :context="context" :configuration="editing" :initial-template="!editing ? applyingTemplate : undefined" :pick-source="pickSource" @saved="saved" @cancel="closeDrawer" />
       <template v-else-if="reference">
         <a-alert v-if="error || latestErrors[selectedId]" type="warning" show-icon :message="t('readFailed')" :description="error || latestErrors[selectedId]"><template #action><a-button size="small" @click="refreshAll">{{ t('retry') }}</a-button></template></a-alert>
         <MetricResult :key="metricResultKey(selected, reference.outputId)" :reference="reference" :latest="selectedLatest" :output="selectedOutput" :context="context" :template="templates[selectedId]" @select-output="select(reference.configId, $event)" @edit-source="editSource" />
@@ -111,9 +111,9 @@ import { metricResultKey, metricDataTarget } from './service'
 import { metricOutputName } from './presentation'
 import { localizedTemplate } from './template/text'
 import { metricMessages } from './messages'
-import type { MetricAlarmReference, MetricConfig, MetricContext, MetricReference, MetricSourcePicker } from './types'
-const props = defineProps<{ context: MetricContext; pickSource?: MetricSourcePicker; initialReference?: MetricReference; detailLinkLabel?: string; hideIdentity?: boolean }>()
-const emit = defineEmits<{ (event: 'openDetailLink', reference: MetricAlarmReference): void; (event:'inspectScope', selection:{memberType:string;templateId:string;group?:string}):void }>()
+import type { MetricAlarmReference, MetricTemplateReference, MetricConfig, MetricContext, MetricReference, MetricSourcePicker } from './types'
+const props = defineProps<{ context: MetricContext; pickSource?: MetricSourcePicker; initialReference?: MetricReference; initialTemplate?:MetricTemplateReference; detailLinkLabel?: string; hideIdentity?: boolean }>()
+const emit = defineEmits<{ (event:'applyStarted'):void; (event: 'openDetailLink', reference: MetricAlarmReference): void; (event:'inspectScope', selection:{memberType:string;templateId:string;group?:string}):void }>()
 const configEditor = ref<InstanceType<typeof MetricConfigEditor>>()
 async function requestDismiss() { if (!editorOpen.value || await configEditor.value?.canLeave()) dismissDrawer() }
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
@@ -128,6 +128,12 @@ const cardFormulas = computed(() => Object.fromEntries(cardGroups.value.flatMap(
   const expression = rule && ruleExpression(rule)
   return rule && (expression || rule.expressionTree) ? [[card.reference.configId, { rule, expression: expression || '' }]] : []
 })))
+const applyingTemplate = ref<MetricTemplateReference>()
+watch(()=>props.initialTemplate,value=>{
+  if (!value || !props.context.editable) return
+  applyingTemplate.value = {...value}; openEditor(); emit('applyStarted')
+},{immediate:true})
+watch(editorOpen,open=>{if (!open) applyingTemplate.value=undefined})
 const trendTargets = computed(() => error.value ? [] : configurations.value.flatMap(config => {
   const id = config.id, template = id ? rawTemplates.value[id] : undefined
   if (!id || !template || inaccessibleIds.value.includes(id) || latestErrors.value[id] || scopeDefinition(config)) return []

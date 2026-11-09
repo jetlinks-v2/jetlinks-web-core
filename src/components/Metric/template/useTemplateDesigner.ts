@@ -64,11 +64,13 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
     if (!selection.value || !checkpoint || disabled.value) return
     const node = selection.value
     let value = copy(view.value)
-    if (created) items(value, node).splice(node.index, 1)
+    if (created) { clearHint(value,node); items(value, node).splice(node.index, 1) }
     else if (node.kind === 'input') {
       const previous = value.inputDefinitions[node.index].id, next = checkpoint.inputDefinitions[node.index].id
       if (previous !== next) { value = renameTemplateInput(value,node.index,next); renameMessageKeys(previous,next); onInputRename?.(previous,next) }
       value.inputDefinitions[node.index] = copy(checkpoint.inputDefinitions[node.index])
+      if (checkpoint.options?.inputHints?.[next]) value.options = { ...value.options,inputHints:{ ...value.options?.inputHints,[next]:copy(checkpoint.options.inputHints[next]) } }
+      else clearHint(value,node)
     }
     else if (node.kind === 'rule') value.definitions[node.index] = copy(checkpoint.definitions[node.index])
     else value.outputs[node.index] = copy(checkpoint.outputs[node.index])
@@ -92,6 +94,8 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
   /** 从图中节点接续时只预置依赖／来源，原节点和已有分支保持不变。 */
   function add(kind: TemplateNode['kind'], source?: TemplateNode) {
     if (disabled.value || invalid.value) return false
+    // 公开输出只能引用计算结果；输入先通过计算节点参与处理。
+    if (kind === 'output' && (source?.kind === 'input' || !view.value.definitions.length)) return false
     const value = copy(view.value)
     const sourceId = source?.kind === 'input' ? value.inputDefinitions[source.index]?.id
       : source?.kind === 'rule' ? value.definitions[source.index]?.id : undefined
@@ -101,7 +105,7 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
     } else if (kind === 'rule') {
       index = value.definitions.push({ id: nextNodeId(value, 'result'), type: 'composite', dependsOn: sourceId ? [String(sourceId)] : [], expression: '' }) - 1
     } else {
-      const id = sourceId || value.definitions.at(-1)?.id || value.inputDefinitions.at(-1)?.id || ''
+      const id = sourceId || value.definitions.at(-1)?.id || ''
       index = value.outputs.push({ metricId: String(id), persist: true, publish: false }) - 1
     }
     update(value)
@@ -113,12 +117,14 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
     if (!selection.value || disabled.value || invalid.value) return
     const previousPosition = position.value
     const value = copy(view.value)
+    clearHint(value,selection.value)
     items(value, selection.value).splice(selection.value.index, 1)
     // 删除不静默级联改写引用；服务端编译会报告仍被引用的标识。
     update(value)
     selection.value = undefined
     select(nodes.value[Math.min(previousPosition, nodes.value.length - 1)])
   }
+  function clearHint(value:MetricTemplate,node:TemplateNode) { if (node.kind === 'input' && value.options?.inputHints) delete value.options.inputHints[value.inputDefinitions[node.index].id] }
   watch(template, value => {
     if (value === view.value) return
     const replaced = value.id !== view.value.id || value.version !== view.value.version

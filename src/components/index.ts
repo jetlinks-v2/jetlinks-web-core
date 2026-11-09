@@ -285,4 +285,5 @@ export type {
     MatrixGridRowSlotScope,
 } from './MatrixGrid/types'
 export * from './Metric'
+export { default as SelectOption } from './SelectOption/index.vue'
 export { default as PanelResizeHandle } from './PanelResizeHandle/index.vue'

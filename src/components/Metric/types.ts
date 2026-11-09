@@ -103,7 +103,7 @@ export interface MetricTemplate {
   parameters: Record<string, unknown>
   definitions: Record<string, unknown>[]
   outputs: MetricTemplateOutput[]
-  options?: Record<string, unknown> & { category?: string; presentation?: MetricTemplatePresentation | null }
+  options?: Record<string, unknown> & { category?: string; presentation?: MetricTemplatePresentation | null; inputHints?: Record<string, MetricInputHint> }
   enabled?: boolean
 }
 export interface MetricTemplateEntity {
@@ -249,12 +249,17 @@ export interface MetricDataTarget { targetType: string; targetId: string }
 export interface MetricSourceSelection {
   mapping: MetricInputMapping
   label?: string
+  /** 模板导入只取声明，真实对象身份留在应用绑定。 */
+  declaration?: Pick<MetricTemplateInput, 'name' | 'unit' | 'valueType'>
 }
+export interface MetricInputHint { sources?: string[] }
+export interface MetricTemplateReference { id:string; version:string }
 export interface MetricSourceDescription {
   label?: string
   detail?: string
   unit?: string
   valueType?: Record<string, unknown>
+  capabilities?: ('subscribe'|'current'|'history')[]
   error?: string
 }
 export interface MetricSourceRequest {
@@ -265,13 +270,20 @@ export interface MetricSourceRequest {
   inline?: boolean
   /** 内置快照及成员统计只适用于直接下游均为定时计算的最新输入。 */
   scheduled?: boolean
+  /** 仅辅助 UI 选择，不参与运行准入。 */
+  hint?: MetricInputHint
+  purpose?: 'binding' | 'declaration'
+  /** 当前编辑器的短期选择身份；只用于复用已选对象，不保存到模板或绑定。 */
+  session?: string
 }
 /** 旧 picker 仍可独立使用；有内嵌编辑器的业务模块在同一属性面板完成来源选择。 */
 export interface MetricSourcePicker {
   (request: MetricSourceRequest): Promise<MetricSourceSelection | undefined>
   editor?: Component
   cancel?: () => void
+  sourceOptions?: { value:string; label:string }[]
   describe?: (context: MetricContext, mappings: Record<string, MetricInputMapping>) => Promise<Record<string, MetricSourceDescription>>
+  readCurrent?: (context:MetricContext, mapping:MetricInputMapping) => Promise<MetricValue | undefined>
 }
 export interface MetricReference { configId: string; outputId: string; targetType?: string; targetId?: string }
 export interface MetricAlarmReference extends MetricReference { ownerType: string; ownerId: string }
@@ -389,6 +401,7 @@ export interface MetricApi {
   collection?(query: import('./collection/types').MetricCollectionQuery): Promise<import('./collection/types').MetricCollectionResult>
   builtinSources(type: string, id: string): Promise<MetricBuiltinItem[]>
   describeSource?(source: {id:string;provider:string;sourceType:string;thingType:string;configuration:Record<string,unknown>}): Promise<MetricProviderSourceDescription>
+  readSource?(source: {id:string;provider:string;sourceType:string;thingType:string;configuration:Record<string,unknown>}): Promise<MetricValue | undefined>
   templateCategories(): Promise<MetricTemplateCategory[]>
   calculators(): Promise<MetricCalculatorDescriptor[]>
   simulateConfig(request: MetricConfigSimulationRequest): Promise<MetricSimulationResponse>
@@ -424,6 +437,7 @@ export interface MetricBuiltinItem {
   valueType?: string
   icon?: string
   configurationRequired?: boolean
+  group?: string
 }
 
 export type MetricLabel = string | (() => string)

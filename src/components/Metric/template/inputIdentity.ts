@@ -42,6 +42,10 @@ export function renameTemplateInput(template:MetricTemplate, index:number, next:
   if (previous === next) return template
   const value = copy(template)
   value.inputDefinitions[index].id = next
+  if (value.options?.inputHints?.[previous]) {
+    value.options.inputHints[next] = value.options.inputHints[previous]
+    delete value.options.inputHints[previous]
+  }
   for (const rule of value.definitions as TemplateRule[]) {
     const bound = rule.inputs?.some(input=>input.id === alias(previous) || !input.source && input.metricId === previous)
     if (!bound) for (const tree of [rule.expressionTree,rule.applicabilityTree,rule.contextKeyTree,rule.temporalCondition?.enterTree,rule.temporalCondition?.exitTree]) renameTree(tree,previous,next)
