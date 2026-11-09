@@ -20,6 +20,25 @@ const provider = (dataSource, extra = {}) => ({ code: 'business', props: {
   ...extra,
 } })
 
+test('optional capabilities filter disabled providers and preserve ordinary notifications', async () => {
+  let supported = false
+  const source = { isSupported: async () => supported }
+  const { filterSupportedNoticeProviders } = load([provider(source)])
+  assert.deepEqual(await filterSupportedNoticeProviders(['business', 'alarm', 'business']), ['alarm'])
+  supported = true
+  assert.deepEqual(await filterSupportedNoticeProviders(['business', 'alarm']), ['business', 'alarm'])
+})
+
+test('a failed capability probe only excludes that provider and is retried on the next load', async () => {
+  let attempt = 0
+  const { filterSupportedNoticeProviders } = load([provider({ isSupported: async () => {
+    if (++attempt === 1) throw Error('network')
+    return true
+  } })])
+  assert.deepEqual(await filterSupportedNoticeProviders(['business', 'alarm']), ['alarm'])
+  assert.deepEqual(await filterSupportedNoticeProviders(['business', 'alarm']), ['business', 'alarm'])
+})
+
 test('registered reception metadata supplies its category without channel configurations', () => {
   const { mergeRegisteredNoticeProviders } = load([provider({})])
   const expected = [{ provider: 'business', name: 'Business', type: { id: 'business', name: 'Business' } }]
