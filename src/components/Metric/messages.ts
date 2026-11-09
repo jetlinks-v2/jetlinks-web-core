@@ -77,7 +77,7 @@ export const metricMessages = {
     parameterMinimum:'至少', parameterMaximum:'至多', parameterPrecision:'保留小数位', parameterBetween:'允许 {min} 至 {max} {unit}', parameterAtLeast:'至少 {min} {unit}', parameterAtMost:'至多 {max} {unit}', parameterDecimalPlaces:'保留 {scale} 位小数',
     parameterChoices:'可选：{choices}', parameterChoiceLabel:'选项名称', parameterChoiceCode:'选项编码', parameterAddChoice:'添加选项', parameterPublishedContract:'已发布的类型、约束与选项编码保持不变。',
     parameterUsedBy:'用于', parameterAdd:'添加参数', parameterCurrentValue:'使用值', parameterOverridden:'已调整', parameterFollowing:'跟随模板', parameterRestoreDefault:'恢复模板默认值',
-    addAfterNode: '从“{name}”继续添加', addNextCalculation: '添加后续计算',
+    addAfterNode: '从“{name}”继续添加', addNextCalculation: '继续计算',
     sentenceUseAlgorithm: '使用', sentenceAlgorithm: '算法', sentenceAs: '，作为', sentenceSettings: '其中，', sentenceValue: '为', sentenceComma: '，', sentenceList: '、', sentenceEnd: '。', sentenceSemicolon: '；',
     sentenceHistory: '的历史数据', sentenceLatest: '的最新数据', sentenceWithin: '最近 {duration}', sentenceWhen: '当', sentenceAgain: '当', sentenceNoDataFor: '无新数据超过', sentenceInterrupted: '时视为中断', sentenceTakeFrom: '读取', sentenceForStatistic: '，计算其', sentenceLatestWindow: '最新一条数据', sentenceTimeWindow: '最近', sentenceCountWindow: '最近', sentenceReadings: '条数据',
     graphCalculationAndOutput: '计算与输出', graphEvery: '每 {duration} 计算一次', graphWindowClose: '窗口关闭时输出', graphDwellRecovery: '持续 {dwell} 成立 · {recovery} 恢复',

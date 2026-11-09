@@ -1614,7 +1614,7 @@ test('模板设计器向图与试算后代共享当前语言目录，目录更�
 test('图中接续计算即时进入草稿且可撤回；发布及只读限制不暴露结构操作', async () => {
   const Designer = load('components/Metric/template/TemplateDesigner.vue').default
   const value = { ...template, inputDefinitions:[{ id:'a', name:'A' },{ id:'b', name:'B' }],
-    definitions:[{ id:'value', expression:'#a', dependsOn:['a'] }], outputs:[{ metricId:'value' }] }
+    definitions:[{ id:'value', expression:'#a', dependsOn:['a'] }], outputs:[] }
   const commits = []
   const props = reactive({ template:value, disabled:false, published:false,
     'onUpdate:template': next => { commits.push(next); props.template = next } })
@@ -1622,7 +1622,9 @@ test('图中接续计算即时进入草稿且可撤回；发布及只读限制�
   const plus = id => nodes(view.root,'button').find(node => node.props['data-add-from'] === id)
   const open = async (id, kind) => {
     const button = plus(id); button.props.onClick({ currentTarget:button })
-    nodes(button.parent,'a-menu')[0].props.onClick({ key:kind }); await flush()
+    const menu = nodes(button.parent,'a-menu')[0]
+    if (menu) menu.props.onClick({ key:kind })
+    await flush()
   }
   try {
     await open('input-1','rule')
@@ -1632,12 +1634,19 @@ test('图中接续计算即时进入草稿且可撤回；发布及只读限制�
     await open('input-1','rule')
     assert.equal(commits.length, 3); assert.deepEqual(props.template.definitions.at(-1).dependsOn, ['b'])
     assert.equal(props.template.definitions[0].expression, '#a')
+    await open('rule-0','output')
+    assert.equal(props.template.outputs[0].metricId,'value')
+    assert.equal(nodes(view.root,'button').find(node=>node.props['data-node']==='output-0').props['aria-pressed'],true)
+    await click(findText(view.root,'a-button','revertNode'))
+    assert.deepEqual(props.template.outputs,[])
+    assert.equal(props.template.definitions.length,2)
     props.published = true; await flush()
     assert.equal(walk(view.root,node => node.props['data-add-root'] === 'input').length, 0)
     assert.equal(nodes(view.root,'a-menu-item').filter(node => textContent(node).includes('addOutput')).length, 0)
-    const stale = nodes(plus('rule-0').parent,'a-menu')[0].props.onClick
-    props.disabled = true; await flush(); stale({ key:'rule' }); await flush()
-    assert.equal(plus('rule-0'), undefined); assert.equal(commits.length, 3)
+    assert.equal(nodes(plus('rule-0').parent,'a-menu').length,0)
+    const staleButton = plus('rule-0'),stale = staleButton.props.onClick
+    props.disabled = true; await flush(); stale({ currentTarget:staleButton }); await flush()
+    assert.equal(plus('rule-0'), undefined); assert.equal(commits.length, 5)
   } finally { view.close() }
 })
 

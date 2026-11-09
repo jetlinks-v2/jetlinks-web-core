@@ -29,7 +29,7 @@
         <path v-for="edge in graph.edges" :key="edge.key" class="template-graph__edge" :class="{ active: !overlay && (edge.source === active || edge.target === active), linked: relatedEdges.has(edge.key), referenced: edge.source === previewKey || edge.target === previewKey, 'is-muted': overlay && (overlay.edges ? !overlay.edges.has(edge.key) : overlay.nodes[edge.source] === 'inactive' || overlay.nodes[edge.target] === 'inactive'), 'is-unfocused': overlay && selected && !relatedEdges.has(edge.key) }" :d="edge.path" :marker-end="`url(#${arrowId}${relatedEdges.has(edge.key) ? '-selected' : ''})`" />
         <path v-for="edge in selectedEdges" :key="`flow-${edge.key}`" class="template-graph__flow" :d="edge.path" />
       </svg>
-      <div v-for="node in graph.nodes" :key="node.key" class="template-graph__item" :class="{ 'menu-open': openNode === node.key }" :style="{ left: `${node.x}px`, top: `${node.y}px` }"
+      <div v-for="node in graph.nodes" :key="node.key" class="template-graph__item" :class="{ 'menu-open': openNode === node.key, 'is-selected': selected && nodeKey(selected) === node.key }" :style="{ left: `${node.x}px`, top: `${node.y}px` }"
         @focusin="focused = node.key" @focusout="focused = undefined">
       <button type="button" :data-node="node.key"
         class="template-graph__node" :class="[node.kind, { selected: selected && nodeKey(selected) === node.key, referenced: node.key === previewKey, 'is-muted': overlay?.nodes[node.key] === 'inactive', 'is-incomplete':overlay?.nodes[node.key] === 'incomplete', 'is-unfocused':overlay && selected && !relatedNodes.has(node.key) }]"
@@ -50,10 +50,11 @@
         <slot v-if="node.kind === 'input'" name="input-sample" :node="node"><span>{{ previewValue(node) }}</span></slot>
         <template v-else><b :title="previewValue(node)">{{ previewValue(node) }}</b><small>{{ previewUnit(node) }}</small><small class="template-graph__state" :title="previewState(node.key)">{{ previewState(node.key) }}</small><small v-if="(simulationPreview.nodes[node.key]?.alternatives.length || 0) > 1">+{{ simulationPreview.nodes[node.key].alternatives.length - 1 }}</small></template>
       </div>
-      <a-dropdown v-if="node.kind !== 'output' && actionsForNode(node).length" :trigger="['click']" @open-change="openNode = $event ? node.key : undefined">
-        <button type="button" class="template-graph__node-add" :data-add-from="node.key" :aria-label="t('addAfterNode', { name:node.label || t('unnamedOutput') })" :title="t('addAfterNode', { name:node.label || t('unnamedOutput') })" @click="rememberAddTrigger"><AIcon type="PlusOutlined" /></button>
-        <template #overlay><a-menu @click="addFromNode(node, $event)"><a-menu-item v-for="action in actionsForNode(node)" :key="action.kind"><AIcon :type="action.icon" />{{ t(action.label) }}</a-menu-item></a-menu></template>
+      <a-dropdown v-if="actionsForNode(node).length > 1" :open="openNode === node.key" :trigger="['click']" @open-change="openNode = $event ? node.key : undefined">
+        <button type="button" class="template-graph__node-add" :data-add-from="node.key" :aria-label="t('addAfterNode', { name:node.label || t('unnamedOutput') })" :title="t('addAfterNode', { name:node.label || t('unnamedOutput') })" @click="rememberAddTrigger" @keydown.esc="closeAddition"><AIcon type="PlusOutlined" /></button>
+        <template #overlay><a-menu @click="addFromNode(node, $event)" @keydown.esc="closeAddition"><a-menu-item v-for="action in actionsForNode(node)" :key="action.kind"><AIcon :type="action.icon" />{{ t(action.label) }}</a-menu-item></a-menu></template>
       </a-dropdown>
+      <button v-else-if="actionsForNode(node).length === 1" type="button" class="template-graph__node-add" :data-add-from="node.key" :aria-label="t('addAfterNode', { name:node.label || t('unnamedOutput') })" :title="t(actionsForNode(node)[0].label)" @click="addSingle(node, $event)"><AIcon type="PlusOutlined" /></button>
       </div>
     </div>
     </div>
@@ -93,7 +94,8 @@ const nextActions = computed(() => [
   { kind: 'rule' as const, icon: 'FunctionOutlined', label: 'addNextCalculation' },
   { kind: 'output' as const, icon: 'ExportOutlined', label: 'addOutput' },
 ].filter(action => props.addKinds.includes(action.kind)))
-function actionsForNode(node:TemplateNode) { return node.kind === 'input' ? nextActions.value.filter(action=>action.kind === 'rule') : nextActions.value }
+function actionsForNode(node:TemplateNode) { return node.kind === 'output' ? [] : node.kind === 'input' ? nextActions.value.filter(action=>action.kind === 'rule') : nextActions.value }
+watch(nextActions, () => { openNode.value = undefined })
 // 滚动经过节点不切换连线；选中、键盘焦点和显式引用预览保留各自反馈。
 const active = computed(() => openNode.value || focused.value || (props.selected && nodeKey(props.selected)))
 const relatedEdges = computed(() => relatedGraphEdges(props.overlay?.edges ? graph.value.edges.filter(edge=>props.overlay!.edges!.has(edge.key)) : graph.value.edges, props.overlay?.focus || (props.selected && nodeKey(props.selected))))
@@ -134,13 +136,27 @@ function previewState(key:string) {
   return snapshot?.previous ? `${t('trialPrevious')} · ${sampleDate(snapshot.entry?.time).slice(11)}` : t(snapshot?.state || 'awaitSimulation')
 }
 function rememberAddTrigger(event: Event) { addTrigger = event.currentTarget as HTMLButtonElement }
+function closeAddition(event:KeyboardEvent) {
+  if (!openNode.value) return
+  event.preventDefault(); event.stopPropagation()
+  openNode.value = undefined
+  addTrigger?.focus({preventScroll:true})
+}
 /** 只响应图内空白；节点、添加入口和菜单不改变属性面板上下文。 */
 function clickBackground(event: MouseEvent) {
   if (!(event.target as Element).closest('button, [role="menu"], .template-graph__item')) { viewport.value?.focus({ preventScroll:true }); emit('background') }
 }
-function addFromNode(node: TemplateNode, { key }: { key: string | number }) {
+/** 一个合法动作直接执行，多个动作由菜单选择；两条路径复用相同来源与能力判断。 */
+function addSingle(node:TemplateNode,event:MouseEvent) {
+  const actions = actionsForNode(node)
+  if (actions.length === 1) addFromNode(node,{ key:actions[0].kind },event.currentTarget as HTMLButtonElement)
+}
+function addFromNode(node: TemplateNode, { key }: { key: string | number }, trigger = addTrigger) {
   const kind = key as TemplateNode['kind']
-  if (addTrigger && actionsForNode(node).some(action=>action.kind === kind)) emit('add', kind, addTrigger, { kind:node.kind, index:node.index })
+  if (trigger && actionsForNode(node).some(action=>action.kind === kind)) {
+    openNode.value = undefined
+    emit('add', kind, trigger, { kind:node.kind, index:node.index })
+  }
 }
 /** 显式定位只滚动图的内部视口，不移动页面和右侧属性。 */
 function locate(node: TemplateNode) {
@@ -194,8 +210,8 @@ defineExpose({ locate })
 .template-graph__node-action { position:absolute; right:8px; top:29px }
 .is-replay .template-graph__node small { color:var(--ink-2) }
 .is-replay .template-graph__toolbar { gap:6px }
-.template-graph__node-add { position:absolute; top:100%; left:calc(50% - 12px); display:grid; place-items:center; width:24px; height:24px; padding:0; border:1px solid var(--line); border-radius:50%; background:var(--panel-background); color:var(--ink-3); cursor:pointer; opacity:0; pointer-events:none }
-.template-graph__item:hover .template-graph__node-add,.template-graph__item:focus-within .template-graph__node-add,.template-graph__item.menu-open .template-graph__node-add { opacity:1; pointer-events:auto }
+.template-graph__node-add { position:absolute; z-index:1; top:100%; left:calc(50% - 16px); display:grid; place-items:center; box-sizing:border-box; width:32px; height:32px; padding:0; border:1px solid var(--line); border-radius:50%; background:var(--panel-background); color:var(--ink-3); cursor:pointer; opacity:0; pointer-events:none }
+.template-graph__item.is-selected .template-graph__node-add,.template-graph__item:hover .template-graph__node-add,.template-graph__item:focus-within .template-graph__node-add,.template-graph__item.menu-open .template-graph__node-add { opacity:1; pointer-events:auto }
 .template-graph__node-add:hover,.template-graph__node-add:focus-visible { color:var(--accent); border-color:var(--accent); outline:2px solid var(--accent-soft) }
 @media(hover:none) { .template-graph__node-add { opacity:1; pointer-events:auto } }
 .template-graph__name { display:flex; align-items:center; gap:var(--space-2,8px); min-width:0; width:100%; height:20px }

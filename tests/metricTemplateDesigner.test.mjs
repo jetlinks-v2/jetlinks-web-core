@@ -160,10 +160,10 @@ test('从图中节点接续计算和输出采用所选来源，取消不残留�
   } finally { scope.stop() }
 })
 
-test('图中添加使用独立按钮和上下文菜单，发布与只读能力由父级限定', async () => {
+test('节点单动作直接接续，多动作菜单可输出，候选换代与只读边界一致', async () => {
   const Graph = load('components/Metric/template/TemplateGraph.vue').default
   const { renderer, root } = createMetricRenderer(); const additions = [], selections = [], blanks = []
-  const props = reactive({ template:template(), addKinds:['input','rule','output'],
+  const props = reactive({ template:template(), selected:{kind:'input',index:1}, addKinds:['input','rule','output'],
     onAdd: (...args) => additions.push(args), onSelect:(...args) => selections.push(args), onBackground:() => blanks.push(true) })
   const app = renderer.createApp({ setup: () => () => h(Graph, props) })
   for (const type of ['a-button','a-dropdown','a-menu','a-menu-item']) app.component(type, defineComponent({ inheritAttrs:false,
@@ -176,10 +176,25 @@ test('图中添加使用独立按钮和上下文菜单，发布与只读能力�
     const node = walk(root, n => n.props['data-node'] === 'input-1')[0]
     assert.equal(walk(node.parent, n => n === button).length, 1)
     assert.equal(walk(button, n => n.type === 'button').length, 1)
+    assert.equal(node.parent.props.class.includes('is-selected'),true)
+    assert.equal(walk(node.parent,n=>n.type==='a-menu').length,0)
+    const staleSingle = button.props.onClick
     button.props.onClick({ currentTarget:button })
-    const menu = walk(button.parent, n => n.type === 'a-menu')[0]
-    menu.props.onClick({ key:'rule' }); await flush()
+    await flush()
     assert.deepEqual(additions[0], ['rule',button,{ kind:'input', index:1 }]); assert.equal(selections.length, 0)
+    const ruleButton = plus('rule-0');let restoredFocus=0
+    ruleButton.focus=()=>{restoredFocus++}
+    ruleButton.props.onClick({currentTarget:ruleButton})
+    const menu = walk(ruleButton.parent,n=>n.type==='a-menu')[0]
+    assert.deepEqual(walk(menu,n=>n.type==='a-menu-item').map(textContent),['addNextCalculation','addOutput'])
+    assert.equal(additions.length,1)
+    ruleButton.parent.props.onOpenChange(true);await flush()
+    assert.equal(ruleButton.parent.props.open,true)
+    let stopped=0
+    menu.props.onKeydown({key:'Escape',preventDefault(){},stopPropagation(){stopped++}});await flush()
+    assert.equal(ruleButton.parent.props.open,false);assert.equal(stopped,1);assert.equal(restoredFocus,1)
+    menu.props.onClick({key:'output'});await flush()
+    assert.deepEqual(additions[1],['output',ruleButton,{kind:'rule',index:0}])
     const background = walk(root, n => n.props.class === 'template-graph')[0]
     background.props.onClick({ target:{ closest:() => button } }); assert.equal(blanks.length, 0)
     background.props.onClick({ target:{ closest:() => null } }); assert.equal(blanks.length, 1)
@@ -187,9 +202,13 @@ test('图中添加使用独立按钮和上下文菜单，发布与只读能力�
     props.addKinds = ['rule']; await flush()
     assert.equal(walk(root, n => n.props['data-add-root'] === 'input').length, 0)
     assert.equal(walk(root, n => n.type === 'a-menu-item' && textContent(n).includes('addOutput')).length, 0)
-    stale({ key:'output' }); assert.equal(additions.length, 1)
+    stale({ key:'output' }); assert.equal(additions.length, 2)
+    const ruleSingle = plus('rule-0')
+    assert.equal(walk(ruleSingle.parent,n=>n.type==='a-menu').length,0)
+    ruleSingle.props.onClick({currentTarget:ruleSingle});await flush()
+    assert.deepEqual(additions[2],['rule',ruleSingle,{kind:'rule',index:0}])
     props.addKinds = []; await flush(); assert.equal(plus('input-1'), undefined)
-    stale({ key:'rule' }); assert.equal(additions.length, 1)
+    stale({ key:'rule' });staleSingle({currentTarget:button});assert.equal(additions.length, 3)
     props.template.inputDefinitions = []; props.template.definitions = []; props.template.outputs = []
     props.addKinds = ['input','rule','output']; await flush()
     assert.equal(walk(root, n => n.props['data-add-root']).length,0)
