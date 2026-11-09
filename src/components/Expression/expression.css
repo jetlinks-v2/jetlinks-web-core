@@ -64,7 +64,7 @@
 .expression-composer .cm-foldPlaceholder { background:var(--bg-sunken,var(--bg-secondary)); border:0; color:var(--ink-3); padding:0 4px; border-radius:3px }
 .expression-composer .cm-scroller { font-family:inherit; line-height:inherit; overflow:auto; max-height:320px; min-height:54px }
 .expression-workspace__content.is-expanded .expression-composer .cm-scroller { max-height:60vh }
-.expression-workspace-modal .ant-modal-body { padding:12px 0 0 }
+.expression-workspace-modal .ant-modal-body { padding:12px 0 0; max-height:calc(100vh - 180px); overflow:auto }
 .expression-workspace-modal .ant-modal-title { font-size:14px; font-weight:500 }
 @media(max-width:720px) { .expression-workspace-modal .ant-modal-content { padding:16px } }
 .expression-composer .cm-cursor { border-left-color:var(--accent) }

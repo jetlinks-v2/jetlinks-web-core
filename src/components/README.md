@@ -141,6 +141,8 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 
 `MetricPanel`、`MetricResult`、`MetricWorkspace` 与指标类型从 `@jetlinks-web-core/components` 具名导出；业务模块提供已授权对象与来源选择，通用层统一维护配置、批量 latest 与输出质量展示，见 `Metric/index.ts`。
 
+公式编辑、只读反显和计算过程共用 `Expression` 的数学投影。`MathExpressionView` 按公式自然高度布局，只对超宽内容提供横向滚动；`ExpressionWorkspace` 的放大预览在达到窗口可用高度后才整体纵向滚动，避免公式内部产生独立纵向滚动条。
+
 来源诊断消费后端有界的 `quality.attributes.inputIssues/inputIssueCount`，按当前计算的输入别名解析直接输入和上游计算名称。卡片显示一条具体原因，摘要仅显示简短状态，“查看原因”进入现有结果详情并展开问题及对应处理建议；只有可定位的直接输入提供检查来源动作。缺数、过期、上游失败分别解释，未知原因保持“未能取得有效数据”，不推断离线、绑定错误或读取失败；不为解释原因再次请求来源，也不按具体模板改写状态名称。
 
 成员输出由 `MetricCollectionPicker` 按模板分组，支持搜索、多列多选和统一应用；草稿选择不发请求。范围概览复用 `MetricCardShell`，按兼容模板口径展示聚合卡片，卡内切换输出和后端允许的统计，查看成员时按设备分页并合并其多个输出。多输出由同一集合请求筛选后分页，单输出才允许合法统计。模板/输出选择及卡内统计偏好只保存在浏览器，按 `MetricContext.preferenceScope`（宿主提供用户/项目/租户身份）、根对象和成员类型隔离，缺少身份不保存；恢复时与本轮授权目录及允许操作取交集，记忆不授予数据访问权限。
