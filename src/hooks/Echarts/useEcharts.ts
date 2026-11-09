@@ -3,6 +3,7 @@ import { type Ref, nextTick, onActivated, onDeactivated, onMounted, onUnmounted,
 import { cloneDeep, debounce } from 'lodash-es'
 import { createMeasuredEchartsLayout } from './measuredLayout'
 import type { EchartsLayoutProfile } from './geometryDefaults'
+import { composeStreamOption } from './streamOption'
 
 export type { EchartsLayoutProfile } from './geometryDefaults'
 
@@ -19,6 +20,10 @@ export interface EchartsLifecycleOptions {
 
 export interface EchartsProps {
   option?: echarts.EChartsCoreOption
+  /** Immutable complete data snapshot; shallow-watched and coalesced, with stable component ids. */
+  dataOption?: echarts.EChartsCoreOption
+  /** Retain only the latest pending snapshot outside the viewport. */
+  deferOffscreen?: boolean
   library?: Parameters<typeof echarts.use>[0]
   layoutProfile?: EchartsLayoutProfile
   renderer?: EchartsRenderer
@@ -34,11 +39,17 @@ export const useEcharts = (
 ) => {
   let echartsInstance: echarts.ECharts | null = null  // echarts实例
   let resizeObserver: ResizeObserver | null = null
+  let intersectionObserver: IntersectionObserver | undefined
   let measuredLayout: ReturnType<typeof createMeasuredEchartsLayout> | undefined
   let inactive = false, hidden = false, disposed = false
   let pendingOption: echarts.EChartsCoreOption | undefined
+  let pendingData = false, offscreen = false
   let boundEvents: EchartsEvents = {}
   let ready = false
+  let measuredSize: { width: number; height: number } | undefined
+  let renderedSize: { width: number; height: number } | undefined
+  let optionFrame: number | undefined
+  let mounted = false
 
   function notifyReady() {
     if (!echartsInstance || ready) return
@@ -58,12 +69,34 @@ export const useEcharts = (
     for (const [event, handler] of Object.entries(boundEvents)) echartsInstance.on(event, handler)
   }
 
-  function size() {
+  /** Layout is measured on mount/resize/restore, never between successive chart writes. */
+  function measureSize() {
     const element = unref(el)
-    if (inactive || !element) return undefined
+    if (inactive || !element) { measuredSize = undefined; return }
     // 使用未变换的布局尺寸；rect包含祖先transform，交给ECharts会再次缩放画布。
     const width = element.clientWidth, height = element.clientHeight
-    return width > 0 && height > 0 ? { width, height } : undefined
+    measuredSize = width > 0 && height > 0 ? { width, height } : undefined
+    return measuredSize
+  }
+
+  const size = () => inactive ? undefined : measuredSize
+  function cancelOptionFrame() {
+    if (optionFrame !== undefined) window.cancelAnimationFrame(optionFrame)
+    optionFrame = undefined
+  }
+
+  /** Streaming changes in the same paint frame share one write of the latest canonical option. */
+  function scheduleOption(option?: echarts.EChartsCoreOption) {
+    if (disposed) return
+    if (option) pendingOption = option
+    else pendingData = true
+    if (!size() || inactive || offscreen) return
+    if (typeof window.requestAnimationFrame !== 'function') { flushPending(); return }
+    if (optionFrame !== undefined) return
+    optionFrame = window.requestAnimationFrame(() => {
+      optionFrame = undefined
+      flushPending()
+    })
   }
 
   const reportError = (error: unknown, stage: EchartsRenderErrorStage) => {
@@ -74,6 +107,7 @@ export const useEcharts = (
     const instance = echartsInstance
     if (instance) releaseEvents(instance)
     echartsInstance = null
+    renderedSize = undefined
     ready = false
     if (instance) lifecycle.onDispose?.(instance)
     measuredLayout?.dispose()
@@ -101,6 +135,7 @@ export const useEcharts = (
     if (!measured) { hidden = true; return false }
     try {
       echartsInstance = echarts.init(_el, undefined, { renderer: props.renderer ?? 'canvas', ...measured })
+      renderedSize = measured
       bindEvents()
       measuredLayout = createMeasuredEchartsLayout(echartsInstance, echarts, props.layoutProfile === 'presentation')
       return true
@@ -112,13 +147,33 @@ export const useEcharts = (
 
   // 配置option
   function setOption(option: echarts.EChartsCoreOption) {
+    return renderOption(option, false)
+  }
+
+  function flushPending(force = false) {
+    if (pendingOption || !echartsInstance) return renderOption(pendingOption ?? props.option ?? {}, false, force)
+    if (pendingData && props.dataOption) return renderOption(props.dataOption, true, force)
+    pendingData = false
+    return true
+  }
+
+  function renderOption(option: echarts.EChartsCoreOption, dataOnly: boolean, force = false) {
     if (disposed) return false
-    if (!size()) { pendingOption = option; hidden = true; return false }
+    cancelOptionFrame()
+    // Explicit calls before mount still initialize an already available element.
+    if (!mounted && !size()) measureSize()
+    if (!size() || offscreen && !force) {
+      if (dataOnly) pendingData = true; else pendingOption = option
+      hidden = !size()
+      return false
+    }
     if (!echartsInstance && !init()) return false
     try {
       pendingOption = undefined
-      const renderOption = props.layoutProfile === 'presentation' ? cloneDeep(option || {}) : option || {}
-      measuredLayout?.prepare(renderOption)
+      pendingData = false
+      const composed = dataOnly ? option : composeStreamOption(option, props.dataOption)
+      const renderOption = props.layoutProfile === 'presentation' && !dataOnly ? cloneDeep(composed) : composed
+      if (!dataOnly) measuredLayout?.prepare(renderOption)
       echartsInstance?.setOption(renderOption)
       measuredLayout?.apply()
       notifyReady()
@@ -133,6 +188,8 @@ export const useEcharts = (
 
   function getDataURL(options?: Parameters<echarts.ECharts['getDataURL']>[0]) {
     try {
+      // An export requested before the next paint must include the latest streaming option.
+      if ((pendingOption || pendingData) && size()) flushPending(true)
       return echartsInstance?.getDataURL(options)
     } catch (error) {
       reportError(error, 'export')
@@ -142,14 +199,18 @@ export const useEcharts = (
 
   // 更新大小
   function resizeNow() {
-    const measured = size()
+    const measured = measureSize()
     if (!measured) { hidden = true; return }
+    if (offscreen) return
     try {
       hidden = false
-      if (!echartsInstance) { const option = pendingOption ?? props.option; if (option) setOption(option); else if (init()) notifyReady(); return }
-      echartsInstance.resize?.({ ...measured, animation: { duration: 0 } })
-      measuredLayout?.apply()
-      if (pendingOption) setOption(pendingOption)
+      if (!echartsInstance) { if (pendingOption || props.option || props.dataOption) flushPending(); else if (init()) notifyReady(); return }
+      if (measured.width !== renderedSize?.width || measured.height !== renderedSize?.height) {
+        echartsInstance.resize?.({ ...measured, animation: { duration: 0 } })
+        renderedSize = measured
+        measuredLayout?.apply()
+      }
+      if (pendingOption || pendingData) flushPending()
     } catch (error) {
       disposeInstance()
       reportError(error, 'resize')
@@ -160,12 +221,33 @@ export const useEcharts = (
   // 释放资源
   function dispose() {
     disposed = true
+    cancelOptionFrame()
     echartsResize.cancel()
     resizeObserver?.disconnect()
     resizeObserver = null
+    intersectionObserver?.disconnect()
+    intersectionObserver = undefined
     disposeInstance()
   }
 
+  function watchVisibility() {
+    intersectionObserver?.disconnect()
+    intersectionObserver = undefined
+    offscreen = !!props.deferOffscreen && typeof IntersectionObserver !== 'undefined'
+    const element = unref(el)
+    if (offscreen && element) {
+      const observer = new IntersectionObserver(entries => {
+        if (disposed || intersectionObserver !== observer) return
+        const entry = entries.find(item => item.target === element)
+        if (!entry) return
+        offscreen = !entry.isIntersecting
+        if (offscreen) { cancelOptionFrame(); echartsResize.cancel() }
+        else if (!inactive) resizeNow()
+      })
+      intersectionObserver = observer
+      observer.observe(element)
+    }
+  }
   // 监听元素大小变化
   function watchEl() {
     const _el = unref(el)
@@ -178,18 +260,22 @@ export const useEcharts = (
     }
 
     resizeObserver = new ResizeObserver(() => {
-      if (!size()) { hidden = true; echartsResize.cancel(); return }
+      const measured = measureSize()
+      if (!measured) { hidden = true; echartsResize.cancel(); cancelOptionFrame(); return }
       // display:none/KeepAlive恢复在本次布局帧修正；不能先绘出被压成零的旧画布。
       if (hidden || !echartsInstance) { echartsResize.cancel(); resizeNow() }
-      else echartsResize()
+      else if (measured.width !== renderedSize?.width || measured.height !== renderedSize?.height) echartsResize()
     })
     resizeObserver.observe(_el)
   }
 
 
   onMounted(() => {
-    if (props.option) setOption(props.option)
-    else if (init()) notifyReady()
+    mounted = true
+    measureSize()
+    watchVisibility()
+    if (props.option || props.dataOption) setOption(props.option ?? {})
+    else if (!offscreen && init()) notifyReady()
     window.addEventListener('resize', echartsResize)
     watchEl()
   })
@@ -198,17 +284,19 @@ export const useEcharts = (
     window.removeEventListener('resize', echartsResize)
     dispose()
   })
-  onDeactivated(() => { inactive = true; hidden = true; echartsResize.cancel() })
-  onActivated(async () => { inactive = false; await nextTick(); if (!disposed && size()) { echartsResize.cancel(); resizeNow() } })
+  onDeactivated(() => { inactive = true; hidden = true; measuredSize = undefined; cancelOptionFrame(); echartsResize.cancel() })
+  onActivated(async () => { inactive = false; await nextTick(); if (!disposed) { echartsResize.cancel(); resizeNow() } })
 
   // 监听 props.option 变化时更新
   watch(
     () => props.option,
     (newVal) => {
-      if (newVal) setOption(newVal)
+      if (newVal) scheduleOption(newVal)
     },
-    { deep: true }
+    { deep: true, flush: 'post' }
   )
+  watch(() => props.dataOption, () => scheduleOption(), { flush: 'post' })
+  watch(() => props.deferOffscreen, () => { if (mounted) { watchVisibility(); if (!offscreen) resizeNow() } })
 
   // Event replacement changes listeners without replaying source data or resetting interactions.
   watch(() => props.events, bindEvents, { deep: true })
@@ -228,6 +316,8 @@ export const useEcharts = (
 
   // Renderer变更需重建实例；getOption保留用户缩放、图例选择等当前交互状态。
   watch(() => props.renderer, () => {
+    if (!echartsInstance) return
+    if (pendingOption || pendingData) flushPending(true)
     if (!echartsInstance) return
     const option = echartsInstance.getOption()
     disposeInstance()

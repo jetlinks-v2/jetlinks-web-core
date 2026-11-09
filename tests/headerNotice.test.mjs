@@ -19,6 +19,7 @@ const stubs = {
   '@jetlinks-web-core/api/account/notificationSubscription': 'export const getTypeList_api=()=>globalThis.__notice.types()',
   '@jetlinks-web-core/utils/components-registry': 'export const componentsRegistry={getRegistry:key=>key==="notification-provider:default"?globalThis.__notice.registrations:[]}',
   './noticeListHandler': `
+    export const filterSupportedNoticeProviders=providers=>globalThis.__notice.filterProviders(providers);
     export const queryNoticeUnreadSummary=async(_providers,params)=>{const response=await globalThis.__notice.count(params);if(response?.success===false)return response;return {status:200,success:true,result:{total:response.result?.total || response.result}}};
     export const queryNoticeRecordsNoPaging=(_providers,params)=>globalThis.__notice.list(params);
     export const changeNoticeReadState=(...args)=>globalThis.__notice.mark(...args);
@@ -49,6 +50,7 @@ const channelResult = {status: 200, result: [
 function fixture(t, overrides = {}, listProps) {
   const state = {user: reactive({alarmUpdateCount: 0, unreadNoticeCount: 0, other: {}, updateAlarm() {this.alarmUpdateCount++}}),
     tips: [], subscriptions: [], navigations: [], registrations: [], route: reactive({path: '/devices'}), actions: 0,
+    filterProviders: async providers => providers,
     channels: async () => channelResult, types: async () => ({result: []}), list: async () => ({result: []}),
     count: async () => ({result: {count: 42}}), mark: async () => ({status: 200}), ...overrides}
   globalThis.__notice = state
@@ -271,4 +273,33 @@ test('announcement dropdown queries effective unread records without appending r
   assert.deepEqual(model.list.value, [])
   assert.equal(historyQueries, 0)
   assert.equal(model.failed.value, false)
+})
+
+
+test('disabled announcements are filtered even when both type catalog and registry still declare them', async t => {
+  const { state, model } = fixture(t, {
+    channels: async () => ({ result: [] }),
+    types: async () => ({ result: [{ id: 'bulletin', name: 'Bulletin' }] }),
+    registrations: [{ code: 'bulletin', props: { messageCategory: 'announcement' } }],
+    filterProviders: async providers => providers.filter(id => id !== 'bulletin'),
+    count: () => assert.fail('disabled provider must not query unread count'),
+  })
+  await setImmediate()
+  assert.deepEqual(model.tabs.value.map(tab => [tab.key, tab.type]), [['notification', []]])
+  assert.equal(model.total.value, 0)
+  assert.deepEqual(state.subscriptions, [])
+})
+
+test('filtering an optional announcement retains ordinary notifications and their counts', async t => {
+  const counted = []
+  const { model } = fixture(t, {
+    registrations: [{ code: 'bulletin', props: { messageCategory: 'announcement' } }],
+    filterProviders: async providers => providers.filter(id => id !== 'bulletin'),
+    count: async params => { counted.push(params); return { result: { count: 3 } } },
+  })
+  await setImmediate()
+  assert.deepEqual(model.tabs.value.map(tab => tab.type), [['a', 'b']])
+  assert.equal(model.total.value, 3)
+  assert.ok(counted.length > 0)
+  assert.ok(counted.every(params => !JSON.stringify(params).includes('bulletin')))
 })

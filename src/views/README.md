@@ -19,6 +19,12 @@
 | 校验弹窗/页面 | `verify/index.vue` | 二次身份校验 | 通常由请求错误链路触发，不单独复制请求逻辑 |
 | 错误页 | `Error/403.vue`、`Error/404.vue` | 无权限和路由不存在反馈 | 使用统一错误态和回退约定 |
 
+## 初始化角色授权
+
+初始化角色的菜单查询与角色详情共用 `src/api/system/menu.ts#getMenuGrantDetail`，通过 `/menu/role/{roleId}/_grant/detail` 读取。`init-home/Role/index.vue` 从 `result.menus` 匹配预置菜单，缺少菜单数组时不提交授权；顶层 `assetAccesses` 是已保存策略，不作为菜单树或预置授权候选。保留初始化角色原有的预置权限及保存载荷。
+
+验证：`runtime-ui/modules/authentication-manager-ui` 中 `node --test tests/roleGrantDetail.test.mjs` 的 6 项回归通过，包含初始化角色的真实 setup/API 调用与预置菜单 ID 匹配；改动 API 的定向类型检查、权限模块生产构建和差异检查通过。未执行真实初始化写入、独立 lint 或全量 core 类型/构建检查；初始化页面仍需本地环境验收，全量复核命令为 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 与 `pnpm build`。
+
 ## 页面说明约定
 
 新增或稳定调整的 core 页面，建议在页面目录增加 `README.md`，并在本索引挂载入口。至少说明：目标用户、进入后的第一任务、成功标准、入口/路由、关键 API 或数据源、Store/Hook、权限与回跳边界，以及不应借鉴的页面模式。

@@ -50,6 +50,8 @@ export interface NoticeProviderMetadata {
 
 /** 接收数据源独立于发送通道配置，普通通知继续使用原收件箱接口。 */
 export interface NoticeDataSource {
+  /** 可选业务能力判定；未声明则沿用原行为，关闭时不进入接收分类或实时订阅。 */
+  isSupported?: () => Promise<boolean>
   query: (params: Record<string, any>) => Promise<any>
   queryNoPaging?: (params: Record<string, any>) => Promise<any>
   count?: (params: Record<string, any>) => Promise<any>
@@ -70,6 +72,20 @@ export interface NoticeDataSource {
 const getProviderRegistration = (provider: string) => componentsRegistry
   .getRegistry('notification-provider:default')
   .find(item => item.code === provider)
+
+/** 合并通道、类型与业务注册项后统一过滤；单项探测失败不影响其他通知，下次可重试。 */
+export const filterSupportedNoticeProviders = async (providers: readonly string[]): Promise<string[]> => {
+  const unique = [...new Set(providers.filter(Boolean))]
+  const supported = await Promise.all(unique.map(async provider => {
+    try {
+      const source = getProviderRegistration(provider)?.props?.dataSource as NoticeDataSource | undefined
+      return source?.isSupported ? await source.isSupported() : true
+    } catch {
+      return false
+    }
+  }))
+  return unique.filter((_provider, index) => supported[index])
+}
 
 export const getNoticeDataSource = (providers: readonly string[]): NoticeDataSource | undefined => {
   const unique = [...new Set(providers.filter(Boolean))]

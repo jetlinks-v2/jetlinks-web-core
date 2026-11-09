@@ -16,7 +16,6 @@
               @getCode="getCode"
               @submit="onPasswordSubmit"
               @forgot="onForgotPassword"
-              @subAccount="switchMode('subAccount')"
           />
 
           <div v-else-if="activeMode === 'wechat'" class="wechat-panel">
@@ -49,7 +48,6 @@
       />
 
       <LoginMethodActions
-          v-if="activeMode !== 'subAccount'"
           :title="t('Login.otherMethods')"
           :more-label="t('Login.moreSsoMethods')"
           :methods="availableMethods"
@@ -70,8 +68,7 @@ import { useRouter } from 'vue-router'
 import { Checkbox, message } from 'ant-design-vue'
 import i18n from '@jetlinks-web-core/locales'
 import Captcha from '@jetlinks-web-core/components/Captcha'
-import { isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storage'
-import { getProjectCodeFromLocation } from '@jetlinks-web-core/utils/project-runtime'
+import { isPrivateDeployment } from '@jetlinks-web-core/utils/deployment'
 import { captchaConfig } from '@jetlinks-web-core/api/login'
 import { useRequest } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
@@ -81,16 +78,14 @@ import { resolveSsoIcon } from '@jetlinks-web-core/utils/sso-icon'
 import DefaultImage from '@jetlinks-web-core/assets/login/default.png'
 import EmailImage from '@jetlinks-web-core/assets/login/email.png'
 import PhoneImage from '@jetlinks-web-core/assets/login/phone.png'
-import { clearLoginRedirect, toHashHref } from '../utils/redirect'
 import CodeLogin from './CodeLogin.vue'
 import LoginMethodActions from './LoginMethodActions.vue'
 import LoginPanelHeader from './LoginPanelHeader.vue'
 import MobileWechatLogin from './MobileWechatLogin.vue'
 import PasswordLogin from './PasswordLogin.vue'
-import SubAccountLogin from './SubAccountLogin.vue'
 import WechatScanLogin from './WechatScanLogin.vue'
 
-type LoginMode = 'password' | 'wechat' | 'mobile' | 'email' | 'subAccount'
+type LoginMode = 'password' | 'wechat' | 'mobile' | 'email'
 type LoginMethodAction = {
   key: string
   label: string
@@ -100,16 +95,12 @@ type LoginMethodAction = {
 const router = useRouter()
 const t = i18n.global.t
 const defaultMode: LoginMode = 'password'
-// 子账号登录与 project storage 共用同一开关，避免独立包进入 SaaS 登录链路。
-const subAccountLoginEnabled = isProjectStorageEnabled()
+const privateDeployment = isPrivateDeployment()
 
 const { data: captchaConfigData } = useRequest(captchaConfig)
 const agreePrivacy = ref(true)
 const activeMode = ref<LoginMode>(defaultMode)
 const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
-const skipDefaultModeVerifyCode = ref(
-  subAccountLoginEnabled && !!getProjectCodeFromLocation()
-)
 const {
   bindings,
   ensureLoaded: ensureBindInfoLoaded,
@@ -126,9 +117,7 @@ const {
   onCaptchaSuccess,
   handleSendCode,
   handleLogin
-} = useLogin(captchaConfigData, {
-  shouldAutoLoadVerifyCode: () => !skipDefaultModeVerifyCode.value
-})
+} = useLogin(captchaConfigData)
 
 const showPhone = computed(() => providers.value.some(item => item.id === 'mobile'))
 const showEmail = computed(() => providers.value.some(item => item.id === 'email'))
@@ -150,15 +139,11 @@ const panelMeta = computed<Record<LoginMode, { title: string; description: strin
   email: {
     title: t('Login.emailTitle'),
     description: t('Login.emailDescription')
-  },
-  subAccount: {
-    title: t('Login.subAccountTitle'),
-    description: t('Login.subAccountDescription')
   }
 }))
 
 const panelTitle = computed(() => panelMeta.value[activeMode.value].title)
-const panelDescription = computed(() => activeMode.value === 'password' && !subAccountLoginEnabled
+const panelDescription = computed(() => activeMode.value === 'password' && privateDeployment
   ? ''
   : panelMeta.value[activeMode.value].description)
 
@@ -207,16 +192,12 @@ const selectMethod = (key: string) => {
   } else if (key.startsWith('sso:')) {
     const record = bindings.value.find(item => item.id === key.slice(4))
     if (record) openSsoLogin(record)
-  } else {
+  } else if (key === 'password' || key === 'mobile' || key === 'email') {
     switchMode(key)
   }
 }
 
-const switchMode = (mode: string) => {
-  const nextMode = mode as LoginMode
-  if (nextMode === 'subAccount' && !subAccountLoginEnabled) {
-    return
-  }
+const switchMode = (nextMode: LoginMode) => {
   if (nextMode === 'wechat' && !selectedWechatRecord.value) {
     return
   }
@@ -227,24 +208,14 @@ const switchMode = (mode: string) => {
     return
   }
 
-  if (nextMode === defaultMode && !skipDefaultModeVerifyCode.value && !imageUrl.value) {
+  if (nextMode === defaultMode && !imageUrl.value) {
     getCode()
   }
   activeMode.value = nextMode
-  if (nextMode !== defaultMode) {
-    skipDefaultModeVerifyCode.value = false
-  }
 }
 
 const resetToDefault = () => {
-  if (subAccountLoginEnabled && getProjectCodeFromLocation()) {
-    // 切换为普通登录必须重建根路由，否则 useRoute 仍会保留项目 redirect。
-    clearLoginRedirect()
-    window.location.replace(toHashHref('/login'))
-    return
-  }
-
-  activeMode.value = defaultMode
+  switchMode(defaultMode)
 }
 
 const onOpen = (url: string) => {
@@ -279,21 +250,10 @@ const onForgotPassword = () => {
   message.info(t('Login.forgotPasswordTip'))
 }
 
-const syncProjectSubAccountMode = () => {
-  const projectCode = subAccountLoginEnabled ? getProjectCodeFromLocation() : ''
-  if (projectCode && activeMode.value !== 'subAccount') {
-    activeMode.value = 'subAccount'
-    skipDefaultModeVerifyCode.value = true
-  } else if (!projectCode && activeMode.value === 'subAccount') {
-    resetToDefault()
-  }
-}
-
 onMounted(() => {
   updateIsMobile()
   window.addEventListener('resize', updateIsMobile)
   ensureBindInfoLoaded()
-  syncProjectSubAccountMode()
 })
 
 onBeforeUnmount(() => {
@@ -302,7 +262,6 @@ onBeforeUnmount(() => {
 
 watch(() => router.currentRoute.value.fullPath, () => {
   ensureBindInfoLoaded()
-  syncProjectSubAccountMode()
 })
 </script>
 <style scoped lang="less" src="./Login.less"></style>

@@ -64,6 +64,29 @@ export interface ModuleDefinition {
    * 壳层是否包裹面板。代码侧声明，改完随代码生效，不需要重新初始化菜单。
    */
   getContentPanelOverrides?: () => ContentPanelOverrides
+  /**
+   * 声明本模块为业务应用提供的外壳（自带 DOM 布局与全局样式）。
+   *
+   * 绑定关系完全写在模块代码里，不依赖应用模板、`configuration` 或管理界面字段。
+   * 命中后宿主在 `application` 运行态挂载该组件；未命中时回落默认 `ApplicationLayoutPage`。
+   */
+  getApplicationShell?: () => ApplicationShellDeclaration | undefined
+}
+
+/** 应用外壳匹配上下文，只在菜单已加载后求值。 */
+export interface ApplicationShellContext {
+  /** 当前应用运行态 ID（`getApplicationRuntimeEntry().applicationId`）。 */
+  applicationId?: string
+  /** 同一页面可能出现的菜单标识：菜单 code、`componentCode`、`routeName`、路由路径。 */
+  hasMenu: (code: string) => boolean
+}
+
+/** 模块声明的应用外壳。 */
+export interface ApplicationShellDeclaration {
+  /** 外壳根组件，内部必须渲染一次页面路由出口。 */
+  component: () => Promise<Component>
+  /** 命中条件；缺省表示不参与自动匹配。 */
+  match?: (context: ApplicationShellContext) => boolean
 }
 
 export interface ModuleExport {

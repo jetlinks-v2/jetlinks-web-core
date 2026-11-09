@@ -1,10 +1,28 @@
 import { request } from '@jetlinks-web/core'
+import type { AxiosResponseRewrite } from '@jetlinks-web/types'
+import type { AssetAccessPolicy, MenuPermissionNode } from '../../hooks/menuAssetPermissionEditor.types'
 import {
   APPLICATION_SCOPE_HEADER,
   getApplicationScopeHeader,
   isProjectApplicationScope,
   type MenuApplicationScope,
 } from '@jetlinks-web-core/utils/application-scope'
+
+export interface MenuGrantDetail {
+  menus: MenuPermissionNode[]
+  assetAccesses: AssetAccessPolicy[]
+}
+
+/** 按授权目标读取菜单候选与独立资产策略，保留两组数据各自的结构。 */
+export const getMenuGrantDetail = (
+  targetType: string,
+  targetId: string,
+  query?: Record<string, unknown>,
+): Promise<AxiosResponseRewrite<MenuGrantDetail> & { message?: string }> =>
+  request.get(
+    `/menu/${encodeURIComponent(targetType)}/${encodeURIComponent(targetId)}/_grant/detail`,
+    query,
+  )
 
 // /**
 //  * 获取当前用户可访问菜单
