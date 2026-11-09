@@ -1572,7 +1572,7 @@ test('数值趋势框选只改变时间视口，保留真实点和缺数，返�
   } finally {view.close()}
 })
 
-test('详情手动刷新保留图表实例，主动切换查询时段才重置交互身份', async () => {
+test('详情刷新和切换时段均保留图表实例，主动切换时段原位重置视图', async () => {
   defaults()
   const Result=load('components/Metric/MetricResult.vue').default
   const at=Date.now()-1000
@@ -1586,7 +1586,8 @@ test('详情手动刷新保留图表实例，主动切换查询时段才重置�
     await click(findText(view.root,'a-button','refresh'))
     assert.strictEqual(nodes(view.root,'chart')[0],initial,'refresh is data replacement, not a new inspection scope')
     await click(nodes(view.root,'button').find(node=>textContent(node)==='day'))
-    assert.notStrictEqual(nodes(view.root,'chart')[0],initial,'a deliberate time query starts a new inspection scope')
+    assert.strictEqual(nodes(view.root,'chart')[0],initial,'a deliberate query updates the existing chart')
+    assert.ok(initial.props.option.xAxis.min < at-23*3600000,'the new query restores its full time range')
   } finally {view.close()}
 })
 
@@ -1810,4 +1811,46 @@ test('真实详情接受较新面板快照，迟到拒权不锁死刷新；真�
     assert.equal(denied(), false); assert.equal(Number(shownValue()), 4)
     assert.ok(findText(view.root, 'a-button', 'refresh'))
   } finally { view.close(); moduleRegistry.clear() }
+})
+
+test('部分结果显示服务端覆盖率且保留真实零值；具体异常和缺少覆盖率不推断', async () => {
+  const Value=load('components/Metric/MetricValue.vue').default
+  const props=reactive({summary:true,value:{metricId:'count',value:0,status:'partial',quality:{valid:true,coverage:.43}}})
+  const view=mount(Value,props)
+  try {
+    assert.equal(textContent(nodes(view.root,'strong')[0]),'0')
+    assert.equal(textContent(nodes(view.root,'a-tag')[0]),'coverage 43%')
+    assert.equal(nodes(view.root,'a-tag')[0].props.title,'coveragePartialHint')
+    props.value={...props.value,reason:'inputExpired'};await flush()
+    assert.equal(textContent(nodes(view.root,'a-tag')[0]),'inputExpired')
+    props.value={...props.value,reason:undefined,quality:{valid:true}};await flush()
+    assert.equal(textContent(nodes(view.root,'a-tag')[0]),'optionalInputMissing')
+  } finally {view.close()}
+})
+
+test('详情切换时段保留图表实例和当前数据，完成后原位更新；迟到查询不回填', async () => {
+  defaults();moduleRegistry.clear()
+  const Result=load('components/Metric/MetricResult.vue').default
+  const pending=[]
+  const sample={...value,evaluationTime:Date.now()-1000}
+  let hold=false
+  api.history=()=>hold ? new Promise(resolve=>pending.push(resolve)) : Promise.resolve([sample])
+  const view=mount(Result,{reference:{configId:'c',outputId:'value'},output:template.outputs[0],template})
+  try {
+    await flush()
+    const chart=nodes(view.root,'chart')[0]
+    assert.ok(chart)
+    hold=true
+    await click(findText(view.root,'button','day'))
+    assert.strictEqual(nodes(view.root,'chart')[0],chart)
+    assert.ok(nodes(view.root,'a-spin').some(node=>node.props.spinning))
+    assert.equal(chart.props.option.series[0].data[0][1],value.value)
+    await click(findText(view.root,'button','hour'))
+    pending[0]([{...sample,value:99}]);await flush()
+    assert.strictEqual(nodes(view.root,'chart')[0],chart)
+    assert.equal(chart.props.option.series[0].data[0][1],value.value)
+    pending[1]([{...sample,value:8}]);await flush()
+    assert.strictEqual(nodes(view.root,'chart')[0],chart)
+    assert.equal(chart.props.option.series[0].data[0][1],8)
+  } finally {view.close();moduleRegistry.clear()}
 })

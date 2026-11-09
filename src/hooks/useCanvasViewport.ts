@@ -37,11 +37,12 @@ export function useCanvasViewport(root:Ref<HTMLElement | undefined>, size:Ref<Si
     await nextTick()
     if (current === revision && root.value === element) { element.scrollLeft = left; element.scrollTop = top }
   }
-  async function fit() {
+  // Automatic layout may preserve a readable minimum; explicit fit and keyboard 0 retain the full overview.
+  async function fit(minimum = options.minimumScale) {
     const element = root.value
     if (!element) return
-    await zoom(canvasFit(size.value, { width:element.clientWidth, height:element.clientHeight },options.minimumScale))
-    element.scrollLeft = 0; element.scrollTop = 0
+    await zoom(canvasFit(size.value, { width:element.clientWidth, height:element.clientHeight },minimum))
+    element.scrollLeft = Math.max(0,(size.value.width * scale.value - element.clientWidth) / 2); element.scrollTop = 0
   }
   function keydown(event:KeyboardEvent) {
     const element = root.value

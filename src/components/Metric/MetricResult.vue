@@ -10,15 +10,15 @@
         <template v-else><div class="metric-result__reading"><MetricOutputSwitch :template="template" :output="output" :output-id="reference.outputId" @change="emit('selectOutput',$event)" /><MetricValueView v-if="processValue || configuration?.state === 'disabled' || runtime?.state === 'loaded'" summary :hide-feedback="sourceFeedback && configuration?.state !== 'disabled'" :hide-quality="processValue?.quality?.valid === true" :value="processValue" :template="template" :output="output" :unit="output?.unit" :disabled="configuration?.state === 'disabled'" :settings="settings" :labels="labels" /><strong v-else>—</strong></div><small v-if="summaryTime" class="metric-result__stamp" :title="t('updatedAtHint')">{{ t('updatedAt') }} <time>{{ time(summaryTime) }}</time></small></template>
       </div>
       <a-alert v-if="missing || extensionFailed" type="warning" show-icon :message="t(missing ? 'presentationMissing' : 'presentationFailed')" />
-      <a-spin :spinning="loading && !values.length && !current">
+      <a-spin :spinning="loading" :delay="150">
       <template v-if="provider?.detail && context && configuration && template && output">
       <div class="metric-result__tools"><MetricTimeRange v-model:range="range" v-model:custom-range="customRange" /><a-button type="text" size="small" :aria-label="t('refresh')" @click="refresh"><AIcon type="ReloadOutlined" />{{ t('refresh') }}</a-button></div>
       <MetricExtension :content="provider.detail"
         :content-props="{ context, configuration, template, output, value: processValue, settings, values, loading, error }" @failed="extensionFailed = true">
-        <template #fallback><component :is="intervals ? MetricStateHistory : MetricTrend" :key="historyQueryKey" v-bind="intervals ? {} : { output,stateOutput,unit:output.unit,sampleInterval,selectedValue:pinned ? processValue : undefined }" integrated :reset-selection="selectionReset" :values="values" :current="current" :labels="labels" :bounds="bounds" :limited="limited" :unavailable="!!error || loading" @select="selectHistory" /></template>
+        <template #fallback><component :is="intervals ? MetricStateHistory : MetricTrend" :key="historyScope" v-bind="intervals ? {} : { output,stateOutput,unit:output.unit,sampleInterval,selectedValue:pinned ? processValue : undefined }" integrated :reset-selection="selectionReset" :values="values" :current="current" :labels="labels" :bounds="bounds" :limited="limited" :unavailable="!!error || loading" @select="selectHistory" /></template>
       </MetricExtension>
       </template>
-      <component :is="intervals ? MetricStateHistory : MetricTrend" v-else :key="historyQueryKey" v-bind="intervals ? {} : { output,stateOutput,unit:output?.unit,sampleInterval,selectedValue:pinned ? processValue : undefined }" integrated :reset-selection="selectionReset" :values="values" :current="current" :bounds="bounds" :limited="limited" :labels="labels" :unavailable="!!error || loading" @select="selectHistory"><template #tools><MetricTimeRange v-model:range="range" v-model:custom-range="customRange" /><a-button type="text" size="small" :aria-label="t('refresh')" :title="t('refresh')" @click="refresh"><AIcon type="ReloadOutlined" />{{ t('refresh') }}</a-button></template></component>
+      <component :is="intervals ? MetricStateHistory : MetricTrend" v-else :key="historyScope" v-bind="intervals ? {} : { output,stateOutput,unit:output?.unit,sampleInterval,selectedValue:pinned ? processValue : undefined }" integrated :reset-selection="selectionReset" :values="values" :current="current" :bounds="bounds" :limited="limited" :labels="labels" :unavailable="!!error || loading" @select="selectHistory"><template #tools><MetricTimeRange v-model:range="range" v-model:custom-range="customRange" /><a-button type="text" size="small" :aria-label="t('refresh')" :title="t('refresh')" @click="refresh"><AIcon type="ReloadOutlined" />{{ t('refresh') }}</a-button></template></component>
       </a-spin>
       <section v-if="configuration && sourceTemplate && output" class="metric-result__process">
         <MetricExecutionProcess :template="sourceTemplate" :output="output" :value="processValue" :observation="execution">
@@ -27,8 +27,8 @@
         <MetricSourceIssues :value="processValue" :template="sourceTemplate" :configuration="configuration" :disabled="configuration.state === 'disabled'" :editable="canEdit" @edit-source="emit('editSource',$event)" />
         <MetricLineage definitions-only :configuration="configuration" :template="sourceTemplate" :output="output" :context="context" :value="processValue" />
       </section>
-      <details v-if="processValue && !intervals && !recordHistory" class="metric-result__facts"><summary>{{ t('dataDetails') }}</summary><MetricValueView :value="processValue" :output="output" :unit="output?.unit" :settings="settings" :labels="labels" /></details>
-      <details class="metric-result__facts"><summary>{{ t('runtimeDiagnostics') }}</summary><MetricRuntimeFeedback :runtime="runtime" :has-value="!!current" :disabled="configuration?.state === 'disabled'" /></details>
+      <details v-if="processValue && !intervals && !recordHistory" class="metric-result__facts"><summary><AIcon type="RightOutlined" class="metric-result__chevron" /><AIcon type="DatabaseOutlined" />{{ t('dataDetails') }}</summary><MetricValueView :value="processValue" :output="output" :unit="output?.unit" :settings="settings" :labels="labels" /></details>
+      <details class="metric-result__facts"><summary><AIcon type="RightOutlined" class="metric-result__chevron" /><AIcon type="DashboardOutlined" />{{ t('runtimeDiagnostics') }}</summary><MetricRuntimeFeedback :runtime="runtime" :has-value="!!current" :disabled="configuration?.state === 'disabled'" /></details>
     </div>
   </div>
 </template>
@@ -93,7 +93,8 @@ const sourceTemplate = useMetricSourceTemplate(toRef(props,'template'),configura
 watch(provider, () => { extensionFailed.value = false })
 </script>
 <style scoped>
-.metric-result { display:grid; gap:8px }
+.metric-result { display:grid; gap:8px; min-width:0 }
+.metric-result > div { min-width:0 }
 .metric-result__tools { display:flex; align-items:center; gap:var(--space-2,8px); flex-wrap:wrap; margin:8px 0 }
 .metric-result small { color:var(--ink-2) }
 .metric-result__summary { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px 8px; margin:0 0 8px }
@@ -102,9 +103,12 @@ watch(provider, () => { extensionFailed.value = false })
 .metric-result__summary > small { font-size:var(--fs-12,12px); line-height:1.7; color:var(--ink-3) }
 .metric-result__stamp time { font-variant-numeric:tabular-nums; white-space:nowrap }
 .metric-result__tools { justify-content:space-between }
-.metric-result__facts { margin-top:8px; padding-top:6px; border-top:1px solid var(--line) }
-.metric-result__facts summary { font-size:var(--fs-12,12px); color:var(--ink-2); cursor:pointer }
-.metric-result__facts[open] summary { margin-bottom:8px }
+.metric-result__facts { margin-top:8px; border-top:1px solid var(--line) }
+.metric-result__facts summary { display:flex; align-items:center; gap:6px; min-height:32px; list-style:none; font-size:var(--fs-12,12px); color:var(--ink-2); cursor:pointer }
+.metric-result__facts summary::-webkit-details-marker { display:none }
+.metric-result__chevron { font-size:10px; color:var(--ink-3); transition:transform .15s }
+.metric-result__facts[open] .metric-result__chevron { transform:rotate(90deg) }
+.metric-result__facts[open] summary { margin-bottom:4px }
 .metric-result__process { border-top:1px solid var(--line); padding-top:6px; display:grid; gap:6px; min-width:0 }
 .metric-result__process strong { font-size:13px; font-weight:500; color:var(--ink-2) }
 </style>

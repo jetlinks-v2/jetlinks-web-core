@@ -110,13 +110,14 @@ export function useMetricTrends(targets: Ref<MetricTrendTarget[]>, selected: Ref
     }
     drain()
   }
-  function refresh(id?: string) {
+  function refresh(id?: string, restart = false) {
     const end = Date.now()
     bounds = customRange.value || [end - range.value, end]
     const next = { ...entries.value }
     for (const target of targets.value) {
       const key = target.id, previous = next[key]
-      if ((!id || id === key) && admitted.value.has(key) && previous && !previous.loading) {
+      if (restart && !admitted.value.has(key)) { delete next[key]; continue }
+      if ((!id || id === key) && admitted.value.has(key) && previous && (restart || !previous.loading)) {
         const state = { ...previous, bounds: [...bounds] as [number, number], loading: true, error: '' }
         next[key] = state
         queued.set(key, { target, state })
@@ -128,7 +129,8 @@ export function useMetricTrends(targets: Ref<MetricTrendTarget[]>, selected: Ref
   watch(targets, reconcile, { immediate: true })
   watch(admitted, reconcile)
   watch(snapshot, () => refresh())
-  watch([range, customRange], () => { queued.clear(); entries.value = {}; refresh() })
+  // 同一对象切换查询时保留已显示的样本；新状态身份隔离旧请求，避免清空图表造成页面跳变。
+  watch([range, customRange], () => { queued.clear(); refresh(undefined,true) })
   onDeactivated(() => { active = false; queued.clear(); entries.value = {} })
   onActivated(() => { if (!active) { active = true; refresh() } })
   onScopeDispose(() => { active = false; observer?.disconnect(); queued.clear(); elements.clear(); entries.value = {} })

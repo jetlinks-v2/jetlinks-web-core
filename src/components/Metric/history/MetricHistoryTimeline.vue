@@ -34,7 +34,7 @@ const { t, locale } = useI18n({ useScope:'local', messages:metricMessages })
 const { axis, fullAxis, groups, visible, filter, pinned, selected, detail, missing, position, chooseFilter, choose, move, clear, keydown, hover, setZoom, focus } = useHistoryTimeline(toRef(props, 'entries'), toRef(props, 'bounds'))
 // 悬停不查询过程；同一区间实时延长也不替换已固定的计算身份。
 watch([pinned,()=>selected.value?.key],()=>emit('select',selected.value,pinned.value))
-watch(()=>props.resetSelection,clear)
+watch(()=>props.resetSelection,()=>{ chooseFilter();clear();setZoom() })
 defineExpose({move,clear})
 const hint = computed(() => `${t(props.intervals ? 'historyIntervalHint' : 'discreteStatesHint')}${props.limited ? ` ${t(props.intervals ? 'historyIntervalLimitHint' : 'resultsLimit')}` : ''}`)
 const label = (entry:HistoryEntry) => entry.kind === 'interval' ? stateLabel(entry.interval.value, props.labels || [], String(locale.value))

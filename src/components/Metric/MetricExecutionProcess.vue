@@ -7,10 +7,12 @@
       <TemplateGraph :template="template" :selected="chosen" :visible-nodes="visibleNodes" fit-content :overlay="{nodes:graph.nodes,edges:graph.edges,focus:focusKey}" @select="select" @background="clearSelection">
         <template #clock><div class="metric-process__tools">
         <slot name="selection"><time>{{ t('evidenceComputedAt') }} {{ time(snapshot.evaluationTime) }}</time></slot>
-        <a-button v-if="unusedCount" type="text" size="small" :aria-expanded="showUnused" @click="showUnused = !showUnused"><AIcon :type="showUnused ? 'EyeInvisibleOutlined' : 'EyeOutlined'" />{{ t(showUnused ? 'executionHideUnused' : 'executionShowUnused',{count:unusedCount}) }}</a-button>
-        <a-button type="text" size="small" :title="t('refresh')" :aria-label="t('refresh')" @click="observation?.refresh"><AIcon type="ReloadOutlined" /></a-button>
         <small v-if="snapshot.truncated">{{ t('executionIncomplete') }}</small>
         </div></template>
+        <template #tools>
+        <a-button v-if="unusedCount" type="text" size="small" :aria-expanded="showUnused" @click="showUnused = !showUnused"><AIcon :type="showUnused ? 'EyeInvisibleOutlined' : 'EyeOutlined'" />{{ t(showUnused ? 'executionHideUnused' : 'executionShowUnused',{count:unusedCount}) }}</a-button>
+        <a-button type="text" size="small" :title="t('refresh')" :aria-label="t('refresh')" @click="observation?.refresh"><AIcon type="ReloadOutlined" /></a-button>
+        </template>
         <template #node-summary="{node}">
           <b class="metric-process__reading">{{ reading(node) }}</b>
           <small>{{ caption(node) }}</small>

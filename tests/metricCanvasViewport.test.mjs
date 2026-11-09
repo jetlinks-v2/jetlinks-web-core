@@ -52,6 +52,22 @@ test('仅图内空白和节点拥有快捷键；嵌套编辑器、组合输入�
   } finally {scope.stop()}
 })
 
+test('自动适应可保留可读比例；显式适应和快捷键仍能查看全图', async () => {
+  const scope=effectScope(),element=viewport()
+  const view=scope.run(() => useCanvasViewport(ref(element),ref({width:1600,height:800}),{clear() {},remove() {},blocked:()=>false},{minimumScale:.05}))
+  try {
+    await view.fit(.85)
+    assert.equal(view.scale.value,.85)
+    assert.equal(element.scrollLeft,430); assert.equal(element.scrollTop,0)
+    await view.fit()
+    assert.equal(view.scale.value,canvasFit({width:1600,height:800},{width:500,height:400},.05))
+    await view.fit(.85)
+    view.keydown({key:'0',target:element,preventDefault() {},stopPropagation() {}})
+    await flush()
+    assert.ok(view.scale.value<.85)
+  } finally {scope.stop()}
+})
+
 test('修饰滚轮只在已聚焦画布内缩放，普通滚轮、输入区域和图外焦点保留默认行为', async () => {
   const scope=effectScope(),element=viewport()
   const state=scope.run(() => useCanvasViewport(ref(element),ref({width:1000,height:800}),{clear() {},remove() {},blocked:()=>false}))

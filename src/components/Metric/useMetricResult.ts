@@ -62,7 +62,7 @@ export function useMetricResult(reference: Ref<MetricReference | undefined>, api
     }
     finally { if (token === generation) loading.value = false }
   }
-  watch(() => [reference.value?.configId, reference.value?.outputId, reference.value?.targetType, reference.value?.targetId, range.value, customRange.value, intervalsOnly?.value], () => {
+  watch(() => [reference.value?.configId, reference.value?.outputId, reference.value?.targetType, reference.value?.targetId, intervalsOnly?.value], () => {
     generation++
     values.value = []
     current.value = undefined
@@ -71,6 +71,8 @@ export function useMetricResult(reference: Ref<MetricReference | undefined>, api
     inaccessible.value = false
     void refresh()
   }, { immediate: true })
+  // 查询时段不改变对象身份，保留结果和配置直至新查询返回；切换对象仍清理旧数据。
+  watch([range,customRange], () => { void refresh() })
   // 接受面板现有轮询的快照；手动详情刷新仍可用自己的 latest 响应更新当前值。
   if (snapshot) watch(snapshot, value => {
     const selected = reference.value

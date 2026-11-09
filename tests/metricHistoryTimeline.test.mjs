@@ -196,7 +196,7 @@ test('区间与记录共用详情交互，范围裁剪不裁短持续时长，�
     const bands = chart(view.root).props.option.series[0].data
     assert.equal(bands.length,1); assert.deepEqual(bands[0].value,[0,200,0])
     chart(view.root).props.events.click({seriesId:'facts',dataIndex:0});await flush()
-    assert.ok(textContent(view.root).includes('起点未知')); assert.ok(textContent(view.root).includes('至少'))
+    assert.ok(textContent(view.root).includes('开始记录')); assert.ok(textContent(view.root).includes('至少'))
     assert.ok(textContent(view.root).includes('运行'))
     assert.ok(textContent(view.root).includes('查询已达上限'))
     assert.ok(nodes(view.root,'a-tooltip').some(node=>node.props.title?.includes('状态区间按标识去重')))
@@ -269,6 +269,24 @@ test('24小时内短状态区间有独立可点击标记和时间语义，图例
     const focus=nodes(view.root,'a-button').find(node=>node.props['aria-label']==='框选放大')
     focus.props.onClick();await flush()
     assert.equal(chart(view.root).props.option.toolbox.feature.restore.title,'返回完整范围')
+  } finally {view.close()}
+})
+
+test('查询重置原位清理筛选、缩放和固定记录，不重新固定到末条', async () => {
+  const selected=[]
+  const props=reactive({entries:historyRecords([row('a',100,false),row('b',900,true)]),bounds:[0,1000],resetSelection:0,onSelect:(entry,pinned)=>selected.push({entry,pinned})})
+  const view=mount(props)
+  try {
+    const initial=chart(view.root)
+    initial.props.events.click({seriesId:'facts',dataIndex:0});await flush()
+    assert.ok(byClass(view.root,'history-record').length)
+    initial.props.events.datazoom({startValue:50,endValue:500});await flush()
+    props.resetSelection++;await flush()
+    assert.strictEqual(chart(view.root),initial)
+    assert.equal(byClass(view.root,'history-record').length,0)
+    assert.equal(selected.at(-1).pinned,false)
+    assert.equal(initial.props.option.xAxis.min,0)
+    assert.equal(initial.props.option.xAxis.max,1000)
   } finally {view.close()}
 })
 

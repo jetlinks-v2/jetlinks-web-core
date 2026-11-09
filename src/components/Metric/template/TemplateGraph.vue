@@ -3,11 +3,14 @@
   <div class="template-graph__toolbar">
     <div class="template-graph__time"><slot name="clock"><small v-if="simulationPreview?.time !== undefined" role="status"><AIcon type="ClockCircleOutlined" />{{ t('flowTime') }} · {{ sampleDate(simulationPreview?.time).replace('T',' ') }}</small></slot></div>
     <nav :aria-label="t('canvasTools')">
+      <div v-if="$slots.tools" class="template-graph__actions"><slot name="tools" /></div>
+      <div class="template-graph__zoom">
       <a-button type="text" size="small" :disabled="scale <= minimumScale" :title="t('canvasZoomOut')" :aria-label="t('canvasZoomOut')" @click="zoom(scale / 1.2)"><AIcon type="MinusOutlined" /></a-button>
       <a-button type="text" size="small" class="template-graph__percent" :title="t('canvasReset')" @click="zoom(1)">{{ percent }}</a-button>
       <a-button type="text" size="small" :disabled="scale >= 2" :title="t('canvasZoomIn')" :aria-label="t('canvasZoomIn')" @click="zoom(scale * 1.2)"><AIcon type="PlusOutlined" /></a-button>
-      <a-button type="text" size="small" :title="t('canvasFit')" :aria-label="t('canvasFit')" @click="fit"><AIcon type="CompressOutlined" /></a-button>
+      <a-button type="text" size="small" :title="t('canvasFit')" :aria-label="t('canvasFit')" @click="fit()"><AIcon type="CompressOutlined" /></a-button>
       <a-tooltip :title="t(overlay ? 'canvasReadOnlyShortcuts' : 'canvasShortcuts')"><a-button type="text" size="small" :aria-label="t(overlay ? 'canvasReadOnlyShortcuts' : 'canvasShortcuts')"><AIcon type="QuestionCircleOutlined" /></a-button></a-tooltip>
+      </div>
     </nav>
   </div>
   <div ref="viewport" class="template-graph" :style="contentStyle" :class="{ 'is-grabbable':space, 'is-dragging':dragging }" tabindex="0" :aria-label="t('relations')" aria-keyshortcuts="Delete Backspace Escape + - 0 1" @click.capture="captureClick" @click="clickBackground" @keydown="keydown" @focusout="focusout" @pointerdown.capture="down" @pointermove="pan" @pointerup="end" @pointercancel="cancel" @lostpointercapture="end">
@@ -103,17 +106,19 @@ const selectedEdges = computed(() => props.overlay ? [] : graph.value.edges.filt
 const previewKey = computed(() => props.preview && nodeKey(props.preview))
 const viewport = ref<HTMLElement>()
 const minimumScale = props.overlay ? .05 : .2
+const readableScale = .85
 const { scale,percent,space,dragging,zoom,fit,keydown,down,move:pan,end,cancel,click:captureClick,focusout } = useCanvasViewport(viewport,graph,{ clear:() => emit('background'),remove:() => emit('request-remove'),blocked:() => !!openNode.value },{minimumScale})
-const { width,height } = useElementSize(viewport)
-// 按适应宽度后的内容估高，不依赖当前缩放，避免 fit 与容器高度相互反馈。
+// 滚动条显隐不改变外框尺寸，不能触发自动适应并覆盖用户主动缩放。
+const { width,height } = useElementSize(viewport,undefined,{box:'border-box'})
+// 按可读比例估高，不依赖当前缩放，避免 fit 与容器高度相互反馈。
 const contentStyle = computed(() => props.fitContent ? {
-  height:`${Math.max(150,Math.min(400,graph.value.height * Math.min(1,Math.max(1,(width.value || graph.value.width) - 32) / graph.value.width) + 16))}px`,
+  height:`${Math.max(150,Math.min(400,graph.value.height * Math.min(1,Math.max(readableScale,((width.value || graph.value.width) - 32) / graph.value.width)) + 24))}px`,
   maxHeight:'48vh',flex:'none',
 } : undefined)
-// 可见后首次适应全图；播放选中变化不移动视口，保留用户缩放和平移。
+// 自动适应保留可读比例，超宽时滚动；记录刷新或选中变化不移动视口。
 const geometry = computed(()=>JSON.stringify([graph.value.width,graph.value.height,graph.value.nodes.map(node=>[node.key,node.x,node.y])]))
 watch([width,height,geometry],([w,h,next],[beforeW,beforeH,beforeGeometry]) => {
-  if (props.overlay && w > 0 && h > 0 && (w !== beforeW || h !== beforeH || next !== beforeGeometry)) void fit()
+  if (props.overlay && w > 0 && h > 0 && (w !== beforeW || h !== beforeH || next !== beforeGeometry)) void fit(readableScale)
 },{flush:'post'})
 const overflow = computed(() => width.value > 0 && graph.value.width * scale.value > width.value)
 function previewValue(node:TemplateNode) {
@@ -165,9 +170,11 @@ defineExpose({ locate })
 .template-graph.is-grabbable,.template-graph.is-grabbable :deep(*) { cursor:grab !important; user-select:none }
 .template-graph.is-dragging,.template-graph.is-dragging :deep(*) { cursor:grabbing !important }
 .template-graph__toolbar { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:32px; flex:none; flex-wrap:wrap }
-.template-graph__toolbar nav { display:flex; align-items:center; margin-left:auto }
-.template-graph__toolbar :deep(.ant-btn) { color:var(--ink-3); padding-inline:6px; font-size:11px }
-.template-graph__percent { min-width:52px; font-variant-numeric:tabular-nums }
+.template-graph__toolbar nav { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:4px 8px; margin-left:auto }
+.template-graph__actions,.template-graph__zoom { display:flex; align-items:center }
+.template-graph__actions { gap:2px; padding-right:8px; border-right:1px solid var(--line) }
+.template-graph__toolbar :deep(.ant-btn) { display:inline-flex; align-items:center; justify-content:center; height:28px; min-width:28px; padding-inline:6px; color:var(--ink-3); font-size:12px; line-height:20px }
+.template-graph__percent { min-width:44px; font-variant-numeric:tabular-nums }
 .template-graph-shell { display:flex; flex:1; flex-direction:column; min-width:0; min-height:0 }
 .template-graph__time { display:block; min-width:0; font-size:11px; color:var(--ink-3) }
 .template-graph__scroll-hint { display:flex; align-items:center; justify-content:flex-end; gap:6px; padding-top:6px; color:var(--ink-3); font-size:var(--fs-12,12px) }

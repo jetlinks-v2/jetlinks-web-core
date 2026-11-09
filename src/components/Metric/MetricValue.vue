@@ -7,8 +7,8 @@
     </div>
     <template v-if="!hideFeedback">
     <p v-if="summary && !disabled && issueCaption" class="metric-value__issue" :title="issueCaption"><AIcon type="ExclamationCircleOutlined" />{{ issueCaption }}</p>
-    <span v-else-if="inline && !disabled && !['valid', 'unknownQuality', 'waiting', 'noValue'].includes(state.key)" class="metric-value__inline-issue" :title="issueCaption || t(state.key)">{{ t(state.tone === 'error' ? 'issueNoResult' : 'issuePartial') }}</span>
-    <a-tag v-else-if="!inline && (!hideQuality || !['valid', 'unknownQuality'].includes(state.key))" :color="state.tone === 'default' ? undefined : state.tone">{{ !disabled && issueCaption || t(state.key) }}</a-tag>
+    <span v-else-if="inline && !disabled && !['valid', 'unknownQuality', 'waiting', 'noValue'].includes(state.key)" class="metric-value__inline-issue" :title="issueCaption || feedback">{{ t(state.tone === 'error' ? 'issueNoResult' : 'issuePartial') }}</span>
+    <a-tag v-else-if="!inline && (!hideQuality || !['valid', 'unknownQuality'].includes(state.key))" :color="state.tone === 'default' ? undefined : state.tone" :title="!issueCaption && partialCoverage !== undefined ? t('coveragePartialHint') : undefined">{{ !disabled && issueCaption || feedback }}</a-tag>
     </template>
     <MetricValueFields v-if="meaning && renderable && value?.value && typeof value.value === 'object' && !Array.isArray(value.value)" :value="value.value" :schema="meaning.schema" />
     <div v-if="!summary && !inline && compact && value && !disabled" class="metric-value__facts">
@@ -53,6 +53,9 @@ const evaluated = computed(() => props.value && resultTime(props.value))
 // 后端原始时间字段为 long；0 表示尚无来源事实，不能反显为 epoch 日期。
 const hasTime = (value?: number): value is number => value !== undefined && Number.isFinite(value) && value > 0
 const percentage = (value: number) => new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 1 }).format(value)
+// 只展示服务端已有覆盖率，不把未知时段补为正常，也不覆盖具体来源诊断。
+const partialCoverage = computed(()=>{ const coverage=props.value?.quality?.coverage;return state.value.key === 'optionalInputMissing' && typeof coverage === 'number' && Number.isFinite(coverage) && coverage >= 0 && coverage < 1 ? coverage : undefined })
+const feedback = computed(()=>partialCoverage.value !== undefined ? `${t('coverage')} ${percentage(partialCoverage.value)}` : t(state.value.key))
 </script>
 <style scoped>
 .metric-value__main { display:flex; align-items:baseline; flex-wrap:wrap; gap:var(--space-2, 8px) }

@@ -37,7 +37,7 @@
   </template>
 </template>
 <script setup lang="ts">
-import { computed, ref, toRef } from 'vue'
+import { computed, ref, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Echarts from '../Echarts'
 import IconValueView from '../IconValue/IconValueView.vue'
@@ -106,6 +106,7 @@ const sparkline = computed(() => metricSparkline(numericPoints.value, timeBounds
 const pointer = ref<number>()
 const numericZoom=ref<[number,number]>()
 const zoom = useTimeZoom(timeBounds,numericZoom,value => { numericZoom.value=value },t,true)
+watch(()=>props.resetSelection,()=>zoom.controls.reset())
 const inspected = computed(() => pointer.value === undefined ? undefined : metricSparklinePoint(numericPoints.value, pointer.value, timeBounds.value))
 const reading = (value:number) => `${durationLabel(value)}${duration.value || !props.unit ? '' : ` ${props.unit}`}`
 /** 悬停只定位已读取的样本，不插值、不查历史；提示覆盖图层，不参与卡片排版。 */

@@ -28,10 +28,10 @@ function setDates(value: [string, string] | [Dayjs, Dayjs] | null) { emit('updat
 </script>
 <style scoped>
 .metric-time-range { display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:var(--space-2,8px); min-width:0 }
-.metric-time-range__label,.metric-time-range small { color:var(--ink-2); font-size:var(--fs-12,12px) }
+.metric-time-range__label,.metric-time-range small { display:inline-flex; align-items:center; gap:4px; color:var(--ink-2); font-size:var(--fs-12,12px); line-height:20px }
 .metric-time-range small { max-width:22rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-.metric-time-range__choices { display:flex; align-items:center; gap:2px; padding:3px; background:var(--bg-sunken); border-radius:var(--r-2,6px) }
-.metric-time-range button { border:0; background:transparent; color:var(--ink-2); border-radius:4px; padding:4px 8px; font:inherit; font-size:var(--fs-12,12px); cursor:pointer; white-space:nowrap }
+.metric-time-range__choices { display:flex; align-items:center; gap:2px; height:28px; padding:2px; box-sizing:border-box; background:var(--bg-sunken); border-radius:var(--r-2,6px) }
+.metric-time-range button { display:inline-flex; align-items:center; justify-content:center; height:24px; min-width:24px; border:0; background:transparent; color:var(--ink-2); border-radius:4px; padding:2px 8px; font:inherit; font-size:var(--fs-12,12px); line-height:20px; cursor:pointer; white-space:nowrap }
 .metric-time-range button[aria-pressed=true] { color:var(--accent); background:var(--panel-background) }
 .metric-time-range button:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
 @media(max-width:600px) { .metric-time-range__label { display:none } }

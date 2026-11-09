@@ -43,6 +43,42 @@ test('概览、详情与辅助输出共享同一配置历史，不重复 latest/
   } finally { f.close() }
 })
 
+test('切换时段保留共享历史与最新值，旧请求不能覆盖新时段', async () => {
+  const pending=[]
+  let hold=false
+  const f=fixture({ history:()=>hold ? new Promise(resolve=>pending.push(resolve)) : Promise.resolve([result('score',7)]) })
+  try {
+    f.trends.observe('a',{});f.selected.value={configId:'a',outputId:'score'};await flush()
+    hold=true;f.trends.customRange.value=[10,20];await flush()
+    assert.equal(f.details.loading.value,true)
+    assert.equal(f.details.values.value[0].value,7)
+    assert.equal(f.details.current.value.value,0)
+    f.trends.customRange.value=[30,40];await flush()
+    pending[0]([result('score',99)]);await flush()
+    assert.equal(f.details.values.value[0].value,7)
+    assert.equal(f.details.loading.value,true)
+    pending[1]([result('score',8)]);await flush()
+    assert.equal(f.details.values.value[0].value,8)
+    assert.equal(f.details.loading.value,false)
+    assert.deepEqual(f.details.bounds.value,[30,40])
+  } finally { f.close() }
+})
+
+test('隐藏卡片切换时段后再次可见时按新范围查询', async () => {
+  const calls=[]
+  const f=fixture({history:async(_id,request)=>{calls.push(request);return [result('score',7)]}})
+  try {
+    f.trends.observe('a',{});await flush()
+    f.trends.observe('a',null);await flush()
+    f.trends.customRange.value=[30,40];await flush()
+    assert.equal(calls.length,1)
+    assert.equal(f.trends.entries.value.a,undefined)
+    f.trends.observe('a',{});await flush()
+    assert.equal(calls.length,2)
+    assert.deepEqual(calls[1].query.terms[0].value,[30,40])
+  } finally {f.close()}
+})
+
 test('历史最多三个并发；切换范围时旧任务占用并发但不能回填新状态', async () => {
   const pending = [], calls = []; let running = 0, maximum = 0
   const f = fixture({ history: (id, request) => {
