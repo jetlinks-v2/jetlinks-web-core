@@ -232,6 +232,32 @@ test('真实反显默认只显示一个最终值，零值不丢；宿主已有�
   }finally{app.unmount()}
 })
 
+test('原公式模式保留冻结的命中分支和最终值，往返不重新计算或替换定义',async()=>{
+  const {defineComponent,h,shallowRef,reactive}=await import('vue')
+  const {createMetricRenderer,flush,sourceRoot}=await import('./helpers/metricRuntime.mjs')
+  const {resolve}=await import('node:path')
+  let projection
+  const local=createMetricLoader({'vue-i18n':{useI18n:()=>({t})},[resolve(sourceRoot,'components/Expression/useMathMarkup.ts')]:{useMathMarkup(value){projection=value;return {markup:shallowRef('<span>math</span>')}}}})
+  const View=local('components/Expression/ExpressionView.vue').default
+  const explanation={kind:'condition',state:'available',value:2,path:[],children:[
+    {kind:'operator',operation:'>=',state:'available',value:true,path:[],children:[{kind:'read',state:'available',value:90,path:['temperature'],children:[]},{kind:'literal',state:'available',value:80,path:[],children:[]}]},
+    {kind:'literal',state:'available',value:2,path:[],children:[]},{kind:'unsupported',state:'skipped',value:null,path:[],children:[]}]}
+  const original=JSON.stringify(branch),props=reactive({node:branch,context,explanation,format:item=>({text:String(item.value)}),substitute:true})
+  const {renderer,root}=createMetricRenderer(),app=renderer.createApp(defineComponent({setup:()=>()=>h(View,props)}))
+  app.config.warnHandler=()=>{};app.mount(root)
+  try{
+    const recorded=projection.value.latex
+    assert.match(recorded,/is-recorded.*text\{90\}/)
+    props.substitute=false;await flush()
+    assert.doesNotMatch(projection.value.latex,/is-recorded/)
+    assert.match(projection.value.latex,/JLa/);assert.match(projection.value.latex,/checkmark/)
+    assert.equal(projection.value.result,'2')
+    props.substitute=true;await flush()
+    assert.equal(projection.value.latex,recorded)
+    assert.equal(JSON.stringify(props.node),original,'the projection never writes a replacement expression')
+  }finally{app.unmount()}
+})
+
 test('原位放大切换浏览器 top layer，不移动内容；收起恢复焦点',async()=>{
   const {useExpressionWorkspace}=loader('components/Expression/useExpressionWorkspace.ts')
   const scope=effectScope(),model=scope.run(()=>useExpressionWorkspace({node:branch,context,stationary:true},t)),events=[]

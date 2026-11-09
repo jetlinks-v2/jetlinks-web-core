@@ -43,7 +43,8 @@ import Echarts from '../Echarts'
 import IconValueView from '../IconValue/IconValueView.vue'
 import { stateAppearance, stateLabel } from './stateIntervals'
 import MetricValueView from './MetricValue.vue'
-import { metricBooleanMarks, metricBooleanPoints, metricChartPoints, metricDurationText, metricResultReference, metricSparkline, metricSparklinePoint, metricValueText, resultTime } from './presentation'
+import { metricBooleanMarks, metricBooleanPoints, metricChartPoints, metricDurationText, metricResultReference, metricSparkline, metricSparklinePoint, resultTime } from './presentation'
+import { formatMetricValue } from './extensions/presentationSettings'
 import { useTimeZoom } from '../../hooks/Echarts/useTimeZoom'
 import MetricHistoryTimeline from './history/MetricHistoryTimeline.vue'
 import MetricChartTools from './history/MetricChartTools.vue'
@@ -88,7 +89,7 @@ const chartEvents = computed(()=>({...zoom.events,click:(raw:unknown)=>{
   if (value) selectValue(value)
 }}))
 const duration = computed(() => metricDurationText(0, props.unit, t) !== undefined)
-const durationLabel = (value: unknown) => metricDurationText(value, props.unit, t) ?? metricValueText(value)
+const durationLabel = (value: unknown) => metricDurationText(value, props.unit, t) ?? formatMetricValue(value,undefined,props.output)
 const booleanPoints = computed(() => metricBooleanPoints(props.values))
 const ordered = computed(() => [...props.values].sort((a, b) => (resultTime(b) || 0) - (resultTime(a) || 0)))
 const timeBounds = computed<[number, number] | undefined>(() => {
@@ -125,10 +126,11 @@ const stateMarks = computed(() => metricBooleanMarks(booleanPoints.value,timeBou
 const option = computed(() => ({
   ...zoom.option.value,
   grid: { left: duration.value ? 88 : 60, right: 24, top: 16, bottom: zoom.controls.overview.value ? 60 : 32 },
-  tooltip: { trigger: 'axis' as const, confine: true, renderMode: 'richText' as const, ...(duration.value ? { valueFormatter: durationLabel } : {}) },
+  tooltip: { trigger: 'axis' as const, confine: true, renderMode: 'richText' as const, valueFormatter:(value:unknown) => duration.value ? durationLabel(value) : `${formatMetricValue(value,undefined,props.output)}${props.unit ? ' '+props.unit : ''}` },
   xAxis: { type: 'time' as const, min: zoom.extent.value?.[0], max: zoom.extent.value?.[1] },
   yAxis: { type: 'value' as const, name: duration.value ? '' : props.unit || '', scale: true, ...(duration.value ? { axisLabel: { formatter: durationLabel } } : {}) },
-  series: [{ type: 'line' as const, showSymbol: numericPoints.value.filter(point => point[1] !== null).length === 1, connectNulls: false, data: numericPoints.value,
+  // A gap can isolate several valid readings; hiding every symbol would erase those facts.
+  series: [{ type: 'line' as const, showSymbol: numericPoints.value.some((point,index,points)=>point[1]!==null && (index===0 || points[index-1][1]===null) && (index===points.length-1 || points[index+1][1]===null)), connectNulls: false, data: numericPoints.value,
     markPoint: props.selectedValue && Number.isFinite(Number(props.selectedValue.value)) ? {silent:true,symbol:'circle',symbolSize:8,label:{show:false},data:[{coord:[resultTime(props.selectedValue),Number(props.selectedValue.value)]}]} : {data:[]} }]
 }))
 </script>

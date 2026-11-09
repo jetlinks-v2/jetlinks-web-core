@@ -7,7 +7,10 @@
     <component :is="stationary ? 'dialog' : Teleport" ref="stableDialog" :to="stationary ? undefined : modalHost" :disabled="!expanded || !modalHost" :class="stationary ? ['expression-workspace__stable',{'is-expanded':expanded}] : undefined" :role="stationary ? expanded ? 'dialog' : 'group' : undefined" :aria-label="stationary ? t('calculationFormula') : undefined" @cancel.prevent="expanded=false">
       <header v-if="stationary && expanded" class="expression-workspace__modal-heading"><strong>{{ t('calculationFormula') }}</strong><a-button type="text" :aria-label="t('close')" @click="expanded=false"><AIcon type="CloseOutlined" /></a-button></header>
       <div ref="content" class="expression-workspace__content" :class="{'is-expanded':expanded,'has-data':!!explanation && !!rows.length}" @pointerover="track" @pointerleave="highlight()" @focusin="track" @focusout="highlight()">
-        <div class="expression-workspace__formula"><slot /></div>
+        <div class="expression-workspace__formula">
+          <a-segmented v-if="expanded && explanation && !editable" v-model:value="view" class="expression-workspace__view" size="small" :aria-label="t('formulaView')" :options="[{label:t('originalFormula'),value:'original'},{label:t('recordedFormula'),value:'recorded'}]" />
+          <slot :substitute="view==='recorded'" />
+        </div>
         <aside v-if="expanded && explanation && rows.length" class="expression-workspace__data" :aria-label="t('operand')">
           <h4><AIcon type="DatabaseOutlined" />{{ t('operand') }}<small>{{ rows.length }}</small></h4>
           <p v-if="!rows.length" class="expression-workspace__empty">{{ t('noReferences') }}</p>
@@ -27,7 +30,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { watch, Teleport } from 'vue'
+import { ref, watch, Teleport } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ExpressionNode,ExpressionExplanation } from './types'
 import type { ExpressionEditorContext } from './editor'
@@ -37,6 +40,7 @@ import { editorMessages } from './editorMessages'
 const props=defineProps<{node:ExpressionNode;context:ExpressionEditorContext;explanation?:ExpressionExplanation;format?:ExplanationFormatter;editable?:boolean;stationary?:boolean}>()
 const emit=defineEmits<{(event:'expandedChange',value:boolean):void}>()
 const {t}=useI18n({useScope:'local',messages:editorMessages})
+const view=ref('recorded')
 const {expanded,content,modalHost,stableDialog,trigger,rows,highlight,track,restoreFocus}=useExpressionWorkspace(props,t)
 watch(expanded,value=>emit('expandedChange',value),{flush:'sync'})
 </script>
@@ -56,6 +60,7 @@ watch(expanded,value=>emit('expandedChange',value),{flush:'sync'})
 .expression-workspace__content { min-width:0; color:var(--ink-1); font-family:inherit }
 .expression-workspace__content.is-expanded.has-data { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,.48fr); gap:24px; align-items:start }
 .expression-workspace__formula { min-width:0 }
+.expression-workspace__view { margin-bottom:10px; font-size:12px }
 .expression-workspace__data { min-width:0; border-left:1px solid var(--line); padding-left:20px; max-height:65vh; overflow:auto }
 .expression-workspace__data h4 { display:flex; align-items:center; gap:6px; margin:0 0 10px; color:var(--ink-2); font-size:13px; line-height:22px; font-weight:500 }
 .expression-workspace__data h4>.anticon { font-size:12px; color:var(--ink-3) }

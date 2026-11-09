@@ -104,6 +104,11 @@ export function metricBooleanMarks(points:Array<[number,boolean | null]>,bounds?
   return booleanRows.map(({state,y})=>({state,path:points.filter(([time,value])=>value===state && time>=start && time<=end)
     .map(([time])=>`M${x(time).toFixed(2)},${y}v8`).join(' ')})).filter(mark=>mark.path)
 }
+/** Do not magnify a few floating-point rounding bits into a full-height trend. Source values remain intact. */
+function sparklineY(value:number,low:number,high:number) {
+  const span=high-low
+  return span<=Math.max(Math.abs(low),Math.abs(high))*Number.EPSILON*8 ? 28 : 48-(value-low)/span*40
+}
 /** 轻量缩略图保留空值断点，固定坐标只承担几何缩放，文字使用页面字号。 */
 export function metricSparkline(points: Array<[number, number | null]>, bounds?: [number, number]) {
   const start = bounds?.[0] ?? points[0]?.[0], end = bounds?.[1] ?? points[points.length - 1]?.[0]
@@ -117,7 +122,7 @@ export function metricSparkline(points: Array<[number, number | null]>, bounds?:
   for (const [time, value] of points) {
     if (value === null || time < start || time > end) { if (isolated) markers.push(isolated); isolated = undefined; connected = false; continue }
     const x = end === start ? 150 : 4 + (time - start) / (end - start) * 292
-    const y = high === low ? 28 : 48 - (value - low) / (high - low) * 40
+    const y = sparklineY(value,low,high)
     if (!peak || value > peak.value) peak = { time, value, x, y }
     isolated = connected ? undefined : [x, y]
     path += `${connected ? 'L' : 'M'}${x.toFixed(2)},${y.toFixed(2)} `
@@ -141,5 +146,5 @@ export function metricSparklinePoint(points:Array<[number, number | null]>, x:nu
   }
   if (!nearest || nearest[1] === null) return
   return { time:nearest[0], value:nearest[1], x:end === start ? 150 : 4 + (nearest[0] - start) / (end - start) * 292,
-    y:high === low ? 28 : 48 - (nearest[1] - low) / (high - low) * 40 }
+    y:sparklineY(nearest[1],low,high) }
 }

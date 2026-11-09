@@ -35,3 +35,10 @@ export function aggregateValue(point:MetricAggregatePoint,operation:ReadOperatio
   if(operation==='max')return point.max ?? undefined
   if(operation==='sum')return point.sum ?? undefined
 }
+
+/** Distribution keys are strings; restore declared scalar types before resolving labels and icons. */
+export function aggregateStateValue(group:MetricAggregateGroup,key:string):unknown {
+  const declared=group.stateLabels?.find(item=>String(item.value)===key)
+  if(declared)return declared.value
+  return group.output.valueType==='boolean' && (key==='true' || key==='false') ? key==='true' : key
+}

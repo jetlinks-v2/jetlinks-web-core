@@ -10,27 +10,26 @@
         <span v-for="(count,key) in group.latest.distribution" :key="key"><IconValueView v-if="appearance(String(key)).icon" :value="appearance(String(key)).icon" :size="14" indicator /><i v-else :style="{background:appearance(String(key)).color}" />{{ label(String(key)) }}<strong>{{ count }}</strong></span>
         <span v-if="group.latest.observed>group.latest.valid"><AIcon type="QuestionCircleOutlined" />{{ t('unknown') }}<strong>{{ group.latest.observed-group.latest.valid }}</strong></span>
       </div>
-      <div v-else class="aggregate-card__value">{{ duration ?? formatMetricValue(value,undefined,group.output) }}<small v-if="duration===undefined">{{ group.output.unit }}</small></div>
+      <MetricValueView v-else :value="{metricId:group.output.metricId,value}" :output="group.output" :unit="group.output.unit" summary hide-feedback />
       <p v-if="!group.availability" class="aggregate-card__coverage">{{ t('valid',{valid:group.latest.valid,total:group.latest.observed}) }}<span v-if="group.latest.observed>group.latest.valid"> · {{ t('missing',{count:group.latest.observed-group.latest.valid}) }}</span></p>
       <div class="aggregate-card__trend"><MetricAggregateTrend v-if="visible && !group.availability" :key="group.id" v-model:view="views[group.id]" :group="group" :operation="operation" :bounds="bounds" :interval="interval" compact /><span v-else-if="group.availability">{{ t('memberValuesAvailable') }}</span></div>
     </div>
-    <footer class="aggregate-card__footer"><div class="aggregate-card__highlights"><span v-for="item in highlights" :key="item.id">{{ item.output.label || item.output.metricId }}<strong>{{ formatMetricValue(aggregateValue(item.latest,item.defaultOperation),undefined,item.output) }}</strong><small>{{ item.output.unit }}</small></span></div><a-button type="link" size="small" @click="$emit('members')">{{ t('viewMembers') }}<AIcon type="RightOutlined" /></a-button></footer>
+    <footer class="aggregate-card__footer"><div class="aggregate-card__highlights"><div v-for="item in highlights" :key="item.id">{{ item.output.label || item.output.metricId }}<MetricValueView :value="{metricId:item.output.metricId,value:aggregateValue(item.latest,item.defaultOperation)}" :output="item.output" :unit="item.output.unit" inline hide-feedback /></div></div><a-button type="link" size="small" @click="$emit('members')">{{ t('viewMembers') }}<AIcon type="RightOutlined" /></a-button></footer>
   </MetricCardShell>
 </template>
 <script setup lang="ts">
 import {computed,ref,watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 import MetricCardShell from '../MetricCardShell.vue'
+import MetricValueView from '../MetricValue.vue'
 import IconValueView from '../../IconValue/IconValueView.vue'
 import SelectOption from '../../SelectOption/index.vue'
 import MetricAggregateTrend from './MetricAggregateTrend.vue'
 import MetricOutputSwitch from '../MetricOutputSwitch.vue'
-import {formatMetricValue} from '../extensions/presentationSettings'
-import {metricDurationText} from '../presentation'
 import {metricMessages} from '../messages'
 import {metricOutputPresentation} from '../outputPresentation'
-import {stateAppearance,stateLabel} from '../stateIntervals'
-import {aggregateValue} from './aggregatePresentation'
+import {stateAppearance,recordedStateLabel} from '../stateIntervals'
+import {aggregateValue,aggregateStateValue} from './aggregatePresentation'
 import {readOperationPresentation} from './aggregationPolicy'
 import {collectionMessages} from './messages'
 import type {MetricAggregateGroup,ReadOperation} from './types'
@@ -62,9 +61,8 @@ const highlights=computed(()=>{
   return Array.isArray(ids) ? ids.flatMap(id=>props.groups.filter(item=>item.output.metricId===id && item.id!==group.value.id && !item.availability && item.defaultOperation!=='distribution')).slice(0,2) : []
 })
 const value=computed(()=>aggregateValue(group.value.latest,operation.value))
-const duration=computed(()=>metricDurationText(value.value,group.value.output.unit,t))
-const raw=(key:string)=>group.value.stateLabels?.find(item=>String(item.value)===key)?.value ?? key
-const label=(key:string)=>stateLabel(raw(key),group.value.stateLabels || [],String(locale.value))
+const raw=(key:string)=>aggregateStateValue(group.value,key)
+const label=(key:string)=>recordedStateLabel(raw(key),group.value.stateLabels || [],String(locale.value),t)
 const appearance=(key:string)=>stateAppearance(raw(key),group.value.stateLabels)
 </script>
 <style scoped>
@@ -72,8 +70,6 @@ const appearance=(key:string)=>stateAppearance(raw(key),group.value.stateLabels)
 .aggregate-card__variant{font-size:10px;color:var(--ink-3);flex:none}
 .aggregate-card__output{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:26px;color:var(--ink-2)}
 .aggregate-card__output small{font-size:11px;color:var(--ink-3);flex:none}
-.aggregate-card__value {font-size:28px;font-weight:600;line-height:46px;font-variant-numeric:tabular-nums;color:var(--ink-1)}
-.aggregate-card__value small{font-size:12px;font-weight:400;color:var(--ink-3);margin-left:6px}
 .aggregate-card__coverage{font-size:11px;color:var(--ink-3);margin:4px 0 0;min-height:18px}
 .aggregate-card__states{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;min-height:48px}
 .aggregate-card__states>span{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2)}
@@ -81,9 +77,8 @@ const appearance=(key:string)=>stateAppearance(raw(key),group.value.stateLabels)
 .aggregate-card__states i{width:7px;height:7px;border-radius:50%}
 .aggregate-card__footer{display:flex;gap:12px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:8px 16px;min-height:60px}
 .aggregate-card__highlights{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:11px;color:var(--ink-3)}
-.aggregate-card__highlights span{display:flex;align-items:baseline;gap:4px}
-.aggregate-card__highlights strong{color:var(--ink-2);font-weight:500;font-variant-numeric:tabular-nums}
-.aggregate-card__trend{height:86px;flex:none;margin-top:auto;color:var(--ink-3);font-size:11px;display:grid;align-items:center}
+.aggregate-card__highlights>div{display:flex;align-items:baseline;gap:4px}
+.aggregate-card__trend{height:72px;flex:none;margin-top:auto;color:var(--ink-3);font-size:11px;display:grid;align-items:center}
 .aggregate-card__missing{display:flex;align-items:center;gap:12px;color:var(--ink-2);font-size:12px;min-height:46px}
 .aggregate-card__missing strong{font-size:28px;color:var(--ink-1)}
 </style>

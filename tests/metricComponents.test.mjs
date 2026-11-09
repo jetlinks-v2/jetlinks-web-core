@@ -25,6 +25,7 @@ const Workspace = load('components/Metric/workspace/MetricWorkspace.vue').defaul
 const WorkspaceNavigation = load('components/Metric/workspace/MetricWorkspaceNavigation.vue').default
 const Panel = load('components/Metric/MetricPanel.vue').default
 const AggregateCard = load('components/Metric/collection/MetricAggregateCard.vue').default
+const AggregateTrend = load('components/Metric/collection/MetricAggregateTrend.vue').default
 const Collection = load('components/Metric/collection/MetricCollection.vue').default
 const Editor = load('components/Metric/MetricConfigEditor.vue').default
 const Manager = load('components/Metric/template/MetricTemplateManager.vue').default
@@ -38,6 +39,7 @@ const Lineage = load('components/Metric/MetricLineage.vue').default
 const ExecutionEvidence = load('components/Metric/MetricExecutionEvidence.vue').default
 const ExecutionProcess = load('components/Metric/MetricExecutionProcess.vue').default
 const Explanation = load('components/Expression/ExpressionExplanation.vue').default
+const FormulaWorkspace = load('components/Expression/ExpressionWorkspace.vue').default
 const { evidenceValue, evidenceGroups } = load('components/Metric/evidence.ts')
 const template = { id: 'power', version: '1', name: 'Power', outputs: [{ metricId: 'value', label: 'Consumption', unit: 'kW', publish: true }], inputDefinitions: [], parameterDefinitions: [{ id: 'factor', expands: { editable: true } }], parameters: { factor: 1 }, definitions: [], options: { presentation: { provider: 'line/status', settings: { decimals: 2, warning: true } } } }
 const config = { id: 'c', name: 'Room', ownerType: 'line', ownerId: 'a', targetType: 'line', targetId: 'a', slot: 'c', templateId: 'power', templateVersion: '1', inputMappings: {}, parameters: {}, presentation: { decimals: 0, warning: false, unknown: 7 }, state: 'enabled', revision: 2, dataVersion: 'same' }
@@ -64,6 +66,123 @@ const inspectNode = async node => {
   assert.deepEqual(popover.props.trigger,['hover','focus'])
   popover.props.onOpenChange(true);await flush()
 }
+
+test('公式放大时可切换原公式与代入值，切换保持同一公式内容与参与数据',async()=>{
+  const node={type:'reference',id:'value',path:[]},context={references:[{...node,label:'Reading'}],functions:[]}
+  const wrapper=defineComponent({setup:()=>()=>h(FormulaWorkspace,{node,context,stationary:true,explanation:{kind:'read',path:['value'],state:'available',value:25,children:[]},format:item=>({text:String(item.value)})},{default:({substitute})=>h('formula-mode',{substitute})})})
+  const view=mount(wrapper)
+  try{
+    assert.equal(nodes(view.root,'formula-mode')[0].props.substitute,true)
+    await click(nodes(view.root,'a-button').find(node=>node.props['aria-expanded']===false))
+    const toggle=nodes(view.root,'a-segmented')[0]
+    assert.ok(toggle);assert.deepEqual(toggle.props.options.map(item=>item.value),['original','recorded'])
+    toggle.props['onUpdate:value']('original');await flush()
+    assert.equal(nodes(view.root,'formula-mode')[0].props.substitute,false)
+    assert.match(textContent(view.root),/25/,'the recorded data sidebar remains available')
+    toggle.props['onUpdate:value']('recorded');await flush()
+    assert.equal(nodes(view.root,'formula-mode')[0].props.substitute,true)
+    assert.equal(nodes(view.root,'formula-mode').length,1)
+  }finally{view.close()}
+})
+
+test('聚合数值趋势保留独立点与空桶，零值和单点不消失',()=>{
+  const group={output:{metricId:'score',metricKind:'score'},points:[
+    {time:123,observed:2,valid:2,sum:0,min:0,max:0,distribution:{}},
+    {time:2123,observed:2,valid:2,sum:193.161,min:96,max:97.161,distribution:{}},
+  ]}
+  const props=reactive({group,operation:'average',bounds:[123,4123],interval:1000,compact:false})
+  const view=mount(AggregateTrend,props)
+  try{
+    const option=nodes(view.root,'chart')[0].props.option,series=option.series[0]
+    assert.deepEqual(series.data,[[123,0],[1123,null],[2123,96.5805]])
+    assert.equal(series.showSymbol,true)
+    assert.equal(series.connectNulls,false,'missing time must not become a continuous result')
+    assert.equal(option.tooltip.valueFormatter(96.5805),'96.6')
+  }finally{view.close()}
+})
+
+test('聚合数值缩略图复用单个指标的几何、峰值、时间与评分读数',async()=>{
+  const points=[{time:1000,observed:1,valid:1,sum:90,distribution:{}},{time:3000,observed:1,valid:1,sum:96.58,distribution:{}}]
+  const output={metricId:'score',metricKind:'score'},bounds=[1000,4000]
+  const aggregate=mount(AggregateTrend,{group:{output,points},operation:'average',bounds,interval:1000,compact:true})
+  const direct=mount(Trend,{values:points.map(point=>({metricId:'score',value:point.sum,evaluationTime:point.time})),output,bounds,sampleInterval:1000,compact:true})
+  try{
+    assert.equal(nodes(aggregate.root,'chart').length,0,'compact numeric summaries share the existing lightweight trend')
+    assert.deepEqual(nodes(aggregate.root,'path').map(node=>node.props.d),nodes(direct.root,'path').map(node=>node.props.d))
+    assert.deepEqual(nodes(aggregate.root,'time').map(textContent),nodes(direct.root,'time').map(textContent))
+    for(const view of [aggregate,direct]){
+      const plot=walk(view.root,node=>node.props.class==='metric-trend-mini__plot')[0]
+      assert.equal(nodes(view.root,'circle').length,2,'both isolated samples remain visible')
+      plot.props.onPointermove({clientX:199,currentTarget:{getBoundingClientRect:()=>({left:0,width:300})}});await flush()
+      assert.match(textContent(walk(view.root,node=>node.props.role==='tooltip')[0]),/96\.6/)
+    }
+  }finally{direct.close();aggregate.close()}
+})
+
+test('数值聚合操作与时长使用同一读数格式，保留原始单位数据',()=>{
+  const point={time:1000,observed:2,valid:2,sum:240,min:60,max:180,distribution:{}}
+  for(const [operation,expected] of [['average',120],['min',60],['max',180],['sum',240]]){
+    const view=mount(AggregateTrend,{group:{output:{metricId:'duration',unit:'s'},points:[point]},operation,bounds:[1000,3000],interval:1000})
+    try{
+      const option=nodes(view.root,'chart')[0].props.option
+      assert.deepEqual(option.series[0].data,[[1000,expected]])
+      assert.equal(option.tooltip.valueFormatter(expected),'intervalMinutes')
+      assert.equal(option.yAxis.axisLabel.formatter(expected),'intervalMinutes')
+    }finally{view.close()}
+  }
+  const view=mount(AggregateTrend,{group:{output:{metricId:'power',unit:'kW'},points:[point]},operation:'max',bounds:[1000,3000],interval:1000})
+  try{assert.equal(nodes(view.root,'chart')[0].props.option.tooltip.valueFormatter(180),'180 kW')}finally{view.close()}
+})
+
+test('枚举与布尔聚合显示业务状态和对象数，未确认不变成零',()=>{
+  for(const [output,stateLabels,distribution,names] of [
+    [{metricId:'state',valueType:'enum'},[{value:0,name:'Offline'},{value:1,name:'Online'}],{'0':1,'1':1},['Offline','Online']],
+    [{metricId:'alarm',valueType:'boolean'},[],{false:1,true:1},['conditionFalse','conditionTrue']],
+  ]){
+    const group={output,stateLabels,points:[{time:1000,observed:3,valid:2,distribution}]}
+    const view=mount(AggregateTrend,{group,operation:'distribution',bounds:[1000,3000],interval:1000})
+    try{
+      const option=nodes(view.root,'chart')[0].props.option
+      assert.deepEqual(option.series.map(item=>item.name),[...names,'unknown'])
+      for(const series of option.series){assert.equal(series.type,'bar');assert.deepEqual(series.data,[[1000,1],[2000,null]])}
+      assert.equal(option.yAxis.minInterval,1)
+    }finally{view.close()}
+  }
+})
+
+test('无有效数值趋势显示空态，状态全无效时仍保留未确认数量',async()=>{
+  const props=reactive({group:{output:{metricId:'value'},points:[]},operation:'average',bounds:[1000,3000],interval:1000,compact:true})
+  const view=mount(AggregateTrend,props)
+  try{
+    assert.equal(nodes(view.root,'chart').length,0);assert.match(textContent(view.root),/noTrendPoints/)
+    props.group.points=[{time:1000,observed:2,valid:0,distribution:{}}];await flush()
+    assert.equal(nodes(view.root,'chart').length,0)
+    props.operation='distribution';await flush()
+    assert.deepEqual(nodes(view.root,'chart')[0].props.option.series[0].data,[[1000,2],[2000,null]])
+    props.operation='average';props.group.points=[{time:1000,observed:1,valid:1,sum:0,distribution:{}}];await flush()
+    assert.equal(nodes(view.root,'chart').length,0)
+    assert.equal(nodes(view.root,'circle').length,1,'a valid zero uses the same single-point sparkline as an individual metric')
+  }finally{view.close()}
+})
+
+test('布尔聚合卡片沿用声明名称，未声明时显示本地化真伪',()=>{
+  const group={id:'alarm',templateName:'Alarm',output:{metricId:'alarm',valueType:'boolean'},operations:['distribution'],defaultOperation:'distribution',latest:{time:1000,observed:2,valid:2,distribution:{false:1,true:1}},points:[]}
+  for(const [stateLabels,expected] of [[[],/conditionFalse.*conditionTrue/],[[{value:false,name:'No alarm'},{value:true,name:'Alarm detected'}],/No alarm.*Alarm detected/]]){
+    const view=mount(AggregateCard,{groups:[{...group,stateLabels}],bounds:[1000,3000],interval:1000,visible:false})
+    try{assert.match(textContent(view.root),expected)}finally{view.close()}
+  }
+})
+
+test('聚合主值与摘要复用单个指标的时长和评分展示',()=>{
+  const duration={id:'duration',templateName:'Duration',output:{metricId:'duration',unit:'s',metricKind:'duration'},operations:['max'],defaultOperation:'max',displaySettings:{summaryOutputs:['score']},latest:{time:1000,observed:2,valid:2,max:180,distribution:{}},points:[]}
+  const score={...duration,id:'score',output:{metricId:'score',metricKind:'score'},defaultOperation:'average',latest:{time:1000,observed:2,valid:2,sum:193.161,distribution:{}}}
+  const view=mount(AggregateCard,{groups:[duration,score],bounds:[1000,3000],interval:1000,visible:false})
+  try{
+    assert.ok(nodes(view.root,'strong').some(node=>textContent(node)==='intervalMinutes'))
+    assert.ok(nodes(view.root,'strong').some(node=>textContent(node)==='96.6'))
+    assert.equal(nodes(view.root,'span').some(node=>textContent(node)==='s'),false,'formatted durations must not repeat their source unit')
+  }finally{view.close()}
+})
 
 test('发布引用以业务名称展示，单项更新与批量选择独立，历史修订可切换且清除旧选择',async()=>{
   moduleRegistry.clear()

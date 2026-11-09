@@ -7,6 +7,18 @@ const load = createMetricLoader({ './api': { metricApi: {} } })
 const { useMetricTrends } = load('components/Metric/useMetricTrends.ts')
 const { useMetricResult } = load('components/Metric/useMetricResult.ts')
 const { metricBooleanPoints, metricChartPoints, metricHistoryKind, metricSparkline, metricSparklinePoint } = load('components/Metric/presentation.ts')
+
+test('缩略图不放大浮点尾差，仍保留真实小幅变化与原始读数',()=>{
+  const points=[[100,96.58053333333334],[200,null],[300,96.58053333333336]]
+  const plot=metricSparkline(points,[100,300])
+  assert.deepEqual(plot.points.map(point=>point[1]),[28,28])
+  assert.equal(metricSparklinePoint(points,296,[100,300]).y,28)
+  assert.equal(metricSparklinePoint(points,296,[100,300]).value,points[2][1])
+  for(const readings of [[[100,96],[200,96.0000001]],[[100,1e-100],[200,2e-100]],[[100,-2],[200,-1]]]){
+    const sparkline=metricSparkline(readings)
+    assert.match(sparkline.path,/48\.00.*8\.00/,'representable changes still retain their shape')
+  }
+})
 const { useMetricCalculators } = load('components/Metric/useMetricCalculators.ts')
 const target = (id, key = 'v1') => ({ id, key, outputs: ['score', 'condition'] })
 const result = (metricId, value, time = 1000) => ({ metricId, value, evaluationTime: time, quality: { valid: true } })

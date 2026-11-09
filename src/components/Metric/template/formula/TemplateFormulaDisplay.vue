@@ -8,8 +8,8 @@
       <AIcon type="ExpandAltOutlined" class="template-formula-summary__inspect" :title="t('expandFormula')" />
     </span></slot>
   </a-popover>
-  <ExpressionWorkspace v-else-if="tree && !compact" :node="tree.root" :context="context" :explanation="explanation" :format="format" @expanded-change="emit('expandedChange',$event)">
-    <ExpressionView :node="tree.root" :context="context" :explanation="explanation" :format="format" :show-result="showResult" />
+  <ExpressionWorkspace v-else-if="tree && !compact" v-slot="{substitute}" :node="tree.root" :context="context" :explanation="explanation" :format="format" @expanded-change="emit('expandedChange',$event)">
+    <ExpressionView :node="tree.root" :context="context" :explanation="explanation" :format="format" :show-result="showResult" :substitute="substitute" />
   </ExpressionWorkspace>
   <ExpressionView v-else-if="tree" :node="tree.root" :context="context" compact :explanation="explanation" :format="format" />
   <span v-else-if="!semanticOnly" class="template-formula-source" :class="{'is-compact':compact}">{{ label }}</span>

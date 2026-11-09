@@ -7,6 +7,9 @@
 .expression-math.is-replay .expression-math-reference.is-recorded { font-weight:600; font-variant-numeric:tabular-nums }
 /* 函数沿用MathLive正体名称和括号，不向公式添加装饰性字形或改变字距。 */
 :host .expression-math-constant:hover { border-radius:2px; background:color-mix(in srgb,var(--accent,#1677ff) 7%,transparent) }
-/* 原生texttip默认向下偏移3em，会压住相邻公式；编辑和静态反显都在值上方展示。 */
+/* Remove MathLive's transformed containing block so fixed hints escape formula scrolling and clipping. */
+.expression-math .ML__tooltip-container,:host .ML__tooltip-container { transform:none }
+.expression-math .ML__tooltip-content,:host .ML__tooltip-content { transition:none }
+/* 编辑和静态反显共用不透明的上方说明，不让相邻公式穿透提示。 */
 .expression-math .ML__tooltip-container:hover .ML__tooltip-content,
-:host .ML__tooltip-container:hover .ML__tooltip-content { transform:translate(0,calc(-100% - 8px)); max-width:min(280px,calc(100vw - 32px)); padding:4px 8px; font-size:12px; line-height:20px; pointer-events:none }
+:host .ML__tooltip-container:hover .ML__tooltip-content { transform:translate(0,calc(-100% - 8px)); max-width:min(280px,calc(100vw - 32px)); padding:4px 8px; font-size:12px; line-height:20px; pointer-events:none; background:var(--bg,#fff); color:var(--ink-1,#1f2329); border:1px solid var(--line,#e5e6eb); border-radius:6px; box-shadow:0 4px 12px #0002; opacity:1; z-index:var(--z-popover,1070) }

@@ -35,11 +35,15 @@ const {markup}=useMathMarkup(projection,element)
 .expression-math .expression-math-caption .expression-math-reference { color:var(--ink-3) }
 .expression-math-result { display:inline-flex; flex:none; align-items:baseline; gap:8px; max-width:40%; overflow-wrap:anywhere; font-size:18px; font-weight:600; color:var(--accent) }
 .expression-math-result>span { font-size:16px; font-weight:400; color:var(--ink-3) }
+/* MathLive's empty layout spans can cover glyphs; only semantic anchors need pointer hit testing. */
+.expression-math .ML__strut,.expression-math .ML__pstrut,.expression-math .ML__vlist { pointer-events:none }
+.expression-math [data-expression-inspect],.expression-math .expression-math-constant { pointer-events:auto }
 .expression-math [data-expression-inspect] { border-radius:3px; cursor:help }
-.expression-math [data-expression-inspect]:hover,.expression-math [data-expression-inspect]:focus-visible { background:var(--accent-soft); outline:1px dashed var(--accent); outline-offset:2px }
+.expression-math [data-expression-inspect]:hover,.expression-math [data-expression-inspect]:focus-visible,.expression-math [data-expression-reference].is-related { background:var(--accent-soft); outline:1px dashed var(--accent); outline-offset:2px }
 .expression-math .expression-math-fold { color:var(--ink-3) }
 .expression-math-toggle.ant-btn { height:24px; padding:0 2px; color:var(--ink-3); font-size:12px }
-.expression-math .expression-math-fact.is-skipped { opacity:.35 }
+/* Tone down skipped text, never its whole layer: descendant hints must remain opaque. */
+.expression-math .expression-math-fact.is-skipped { color:var(--ink-3); --expression-reference-ink:var(--ink-3); --expression-parameter-ink:var(--ink-3); --expression-special-ink:var(--ink-3) }
 .expression-math .expression-math-fact.is-selected { font-weight:500 }
 .expression-math .expression-math-fact.is-false { color:var(--ink-3) }
 .expression-math .expression-math-fact.is-unknown { color:var(--warning,#d89614) }
