@@ -1,4 +1,7 @@
 {
+  "components.ModelConfig.unsavedChangesTitle": "修改尚未保存",
+  "components.ModelConfig.unsavedChangesMessage": "是否保存本次修改？丢弃后将恢复编辑前的内容。",
+  "components.ModelConfig.discard": "丢弃",
   "runtimeDiagnostics.bean.QpsSnapshot": "QPS 窗口快照",
   "runtimeDiagnostics.mbeanSummary.qpsWaiting": "等待首个窗口",
   "runtimeDiagnostics.mbeanSummary.qpsReady": "已就绪",

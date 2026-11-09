@@ -28,10 +28,11 @@ const options: SlantedTabOption[] = [
 | --- | --- | --- |
 | `options` | `SlantedTabOption[]` | `key` 唯一，支持字符串/数字；`label`、可选 `count`、`disabled`。0 正常显示，省略数量则隐藏。 |
 | `activeKey` | `string \| number` | 支持 `v-model:activeKey`；不传时组件内部维护选择。 |
+| `preserveDisabledActive` | `boolean` | 默认 `false`。开启后保留当前被禁用项的选中态，仍禁止用户选择禁用项；适用于活动状态必须与外部内容一致的受控导航。 |
 | `state` | `SlantedTabsState` | 可选 `loading`、`error`、`emptyText`，状态优先级为加载、错误、空选项、内容。 |
 | `update:activeKey` / `change` | `(key) => void` | 仅有效的新选择触发；加载时禁止切换。 |
 
-选中项被移除、禁用或传入无效 key 时，显示首个未禁用项，不自动 emit；全部禁用时无选中项。异步数量、请求和错误恢复由调用方 hook/service 管理。组件不修改路由、store 或父级数据。
+选中项被移除、禁用或传入无效 key 时，默认显示首个未禁用项，不自动 emit；全部禁用时无选中项。仅在 `preserveDisabledActive=true` 时，已有的禁用活动项继续选中，避免受控内容与标签高亮分离。异步数量、请求和错误恢复由调用方 hook/service 管理。组件不修改路由、store 或父级数据。
 
 | 插槽 | 参数 | 说明 |
 | --- | --- | --- |

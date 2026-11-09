@@ -1,12 +1,13 @@
 <template>
   <div class="model-parameter-editor">
-    <a-tabs v-model:activeKey="activeTab" class="model-parameter-editor__tabs">
-      <a-tab-pane key="config" :tab="locale.parameterConfig" />
-      <a-tab-pane key="targetInference" :tab="locale.targetInference" />
-      <a-tab-pane key="realtime" :tab="locale.realtime" />
-      <a-tab-pane key="image" :tab="locale.imageTest" />
-      <a-tab-pane key="others" :tab="locale.others" />
-    </a-tabs>
+    <div class="model-parameter-editor__toolbar">
+      <a-segmented v-model:value="activeTab" :options="tabOptions" class="model-parameter-editor__tabs">
+        <template #label="{ payload, value }">
+          <span class="model-parameter-editor__tab-label" :class="{ 'is-active': activeTab === value }">{{ payload.title }}</span>
+        </template>
+      </a-segmented>
+      <div v-if="$slots.actions" class="model-parameter-editor__actions"><slot name="actions" /></div>
+    </div>
 
     <div class="model-parameter-editor__body">
       <div v-show="activeTab === 'config'">
@@ -19,7 +20,6 @@
           @update:preview="commit"
         />
       </div>
-
       <div v-show="activeTab === 'targetInference'">
         <TargetInferenceEditor
           ref="targetInferenceEditorRef"
@@ -30,7 +30,6 @@
           @update:target-inference="updateTargetInference"
         />
       </div>
-
       <div v-show="activeTab === 'realtime' || activeTab === 'image'">
         <ParameterScenePanel
           :scene="activeScene"
@@ -50,7 +49,6 @@
           @update:defaults="updateSceneDefaults(activeScene, $event)"
         />
       </div>
-
       <div v-show="activeTab === 'others'">
         <ParameterOthersPanel
           :value="asRecord(localDefinition.others)"
@@ -62,11 +60,10 @@
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import { computed, ref, watch } from 'vue'
-import { cloneDeep } from 'lodash-es'
+import { cloneDeep, isEqual, omit } from 'lodash-es'
 import ParameterConfigTable from './ParameterConfigTable.vue'
 import ParameterOthersPanel from './ParameterOthersPanel.vue'
 import ParameterScenePanel from './ParameterScenePanel.vue'
@@ -99,13 +96,9 @@ import type {
 } from './types'
 
 type ParameterTab = 'config' | 'realtime' | 'image' | 'targetInference' | 'others'
-
-interface ParameterConfigTableExpose {
-  prepareForSave: () => ParameterRecord | undefined
-}
-
-interface TargetInferenceEditorExpose {
-  prepareForSave: () => TargetInferenceEditorValue | undefined
+interface DraftEditorExpose<T> {
+  prepareForSave: () => T | undefined
+  hasChanges: () => boolean
 }
 
 const props = defineProps({
@@ -132,12 +125,20 @@ const emit = defineEmits<{
 }>()
 
 const activeTab = ref<ParameterTab>('config')
-const parameterConfigTableRef = ref<ParameterConfigTableExpose>()
-const targetInferenceEditorRef = ref<TargetInferenceEditorExpose>()
+const parameterConfigTableRef = ref<DraftEditorExpose<ParameterRecord>>()
+const targetInferenceEditorRef = ref<DraftEditorExpose<TargetInferenceEditorValue>>()
 const localDefinition = ref<ParameterRecord>({})
+const editStartDefinition = ref<ParameterRecord>({})
 const imageUserInvalidProperties = ref<string[]>([])
 
 const locale = computed(() => ({ ...defaultModelParameterLocale, ...props.locale }))
+const tabOptions = computed(() => [
+  { value: 'config', payload: { title: locale.value.parameterConfig } },
+  { value: 'targetInference', payload: { title: locale.value.targetInference } },
+  { value: 'realtime', payload: { title: locale.value.realtime } },
+  { value: 'image', payload: { title: locale.value.imageTest } },
+  { value: 'others', payload: { title: locale.value.others } }
+])
 const allProperties = computed(() => normalizeParameterProperties(localDefinition.value))
 const properties = computed(() => allProperties.value.filter(property => (
   !isTargetInferenceProperty(property.property)
@@ -174,8 +175,9 @@ watch(() => props.definition, value => {
 }, { immediate: true, deep: true })
 
 watch(() => props.editing, () => {
+  if (props.editing) editStartDefinition.value = cloneDeep(localDefinition.value)
   imageUserInvalidProperties.value = []
-})
+}, { immediate: true })
 
 function isApplicable(source: ModelParameterDefinitionSource, property: ModelParameterProperty) {
   return Boolean(source === 'params' ? property.paramsDefinition : property.testParamsDefinition)
@@ -284,6 +286,15 @@ function commit(next: ParameterRecord) {
   emit('update:definition', cloneDeep(next))
 }
 
-defineExpose({ prepareForSave })
+// 参数定义由行草稿判断，其余配置直接比较；不把预览自动补齐字段当作用户修改。
+defineExpose({
+  prepareForSave,
+  hasChanges: () => Boolean(
+    parameterConfigTableRef.value?.hasChanges()
+    || targetInferenceEditorRef.value?.hasChanges()
+    || Object.values(sceneDefaults.sceneDefaultInvalids.value).some(Boolean)
+    || !isEqual(omit(localDefinition.value, ['params', 'testParams']), omit(editStartDefinition.value, ['params', 'testParams']))
+  )
+})
 </script>
 <style src="./style.less" scoped lang="less"></style>

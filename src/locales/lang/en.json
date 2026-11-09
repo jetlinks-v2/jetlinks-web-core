@@ -1,4 +1,7 @@
 {
+  "components.ModelConfig.unsavedChangesTitle": "Unsaved changes",
+  "components.ModelConfig.unsavedChangesMessage": "Save your changes? Discarding restores the content from before editing.",
+  "components.ModelConfig.discard": "Discard",
   "runtimeDiagnostics.bean.QpsSnapshot": "QPS window snapshot",
   "runtimeDiagnostics.mbeanSummary.qpsWaiting": "Waiting for first window",
   "runtimeDiagnostics.mbeanSummary.qpsReady": "Ready",
