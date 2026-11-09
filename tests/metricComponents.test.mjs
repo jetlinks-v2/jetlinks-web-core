@@ -85,6 +85,34 @@ test('公式放大时可切换原公式与代入值，切换保持同一公式�
   }finally{view.close()}
 })
 
+test('同一聚合卡片切换最高最低与平均值同步更新主值和趋势，刷新保留方式',async()=>{
+  const first={time:1000,observed:2,valid:2,sum:80,min:20,max:60,distribution:{}}
+  const latest={time:2000,observed:2,valid:2,sum:240,min:60,max:180,distribution:{}}
+  const group={id:'g',templateName:'Readings',output:{metricId:'value',label:'Reading'},operations:['average','min','max'],defaultOperation:'average',latest,points:[first,latest]}
+  const props=reactive({groups:[group],bounds:[1000,3000],interval:1000,visible:true})
+  const view=mount(AggregateCard,props)
+  const main=()=>textContent(nodes(walk(view.root,node=>node.props.class==='aggregate-card__body')[0],'strong')[0])
+  async function expectReading(value) {
+    assert.equal(main(),String(value))
+    const plot=walk(view.root,node=>node.props.class==='metric-trend-mini__plot')[0]
+    plot.props.onPointermove({clientX:150,currentTarget:{getBoundingClientRect:()=>({left:0,width:300})}});await flush()
+    assert.equal(textContent(nodes(walk(view.root,node=>node.props.role==='tooltip')[0],'b')[0]),String(value))
+  }
+  async function choose(key) {
+    nodes(view.root,'a-menu')[0].props.onClick({key});await flush()
+    assert.match(textContent(nodes(view.root,'a-button').find(node=>textContent(node).includes(key))),new RegExp(key))
+  }
+  try{
+    await expectReading(120)
+    await choose('max');await expectReading(180)
+    await choose('min');await expectReading(60)
+    const refreshed={...latest,sum:300,min:100,max:200}
+    props.groups=[{...group,latest:refreshed,points:[first,refreshed]}];await flush()
+    await expectReading(100)
+    await choose('average');await expectReading(150)
+  }finally{view.close()}
+})
+
 test('聚合数值趋势保留独立点与空桶，零值和单点不消失',()=>{
   const group={output:{metricId:'score',metricKind:'score'},points:[
     {time:123,observed:2,valid:2,sum:0,min:0,max:0,distribution:{}},

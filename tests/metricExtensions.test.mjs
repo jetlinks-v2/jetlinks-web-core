@@ -12,6 +12,35 @@ const { normalizePresentation, presentationSettings, formatMetricValue, applyMet
 const { useMetricWorkspace } = load('components/Metric/workspace/useMetricWorkspace.ts')
 const dimension = ownerType => ({ ownerType, label: ownerType, navigator: { render() {} }, useSourcePicker: () => ({ pickSource: async () => undefined }) })
 
+test('首次工作区按授权维度排序预选，显式路由和历史选择优先，对象仍需授权确认', () => {
+  moduleRegistry.clear()
+  moduleRegistry.register('objects', { metricDimensions: {
+    blocked:{...dimension('blocked'),order:-1,available:()=>false},
+    product:{...dimension('product'),order:30},
+    sensor:{...dimension('sensor'),order:0},
+  } })
+  for (const [initial,saved,expected] of [
+    [undefined,undefined,{ownerType:'sensor',ownerId:''}],
+    [{ownerType:'product',ownerId:'linked'},undefined,{ownerType:'product',ownerId:'linked'}],
+    [undefined,{ownerType:'product',ownerIds:{product:'remembered'}},{ownerType:'product',ownerId:'remembered'}],
+  ]) {
+    const scope=effectScope()
+    try {
+      const view=scope.run(()=>useMetricWorkspace(ref('fresh'),ref(initial),ref(true),()=>{}, {
+        getItem:()=>saved ? JSON.stringify(saved) : null,setItem(){},removeItem(){},
+      }))
+      assert.deepEqual(view.selection.value,expected)
+      assert.equal(view.context.value,undefined,'preselecting a dimension does not authorize an object')
+    } finally {scope.stop()}
+  }
+  const scope=effectScope()
+  try {
+    const view=scope.run(()=>useMetricWorkspace(ref('fresh'),ref({ownerType:'missing',ownerId:'x'}),ref(true),()=>{}))
+    assert.equal(view.selection.value,undefined)
+    assert.equal(view.unavailable.value,true,'an unavailable explicit dimension never falls through to another')
+  } finally {scope.stop();moduleRegistry.clear()}
+})
+
 test('第五业务维度和模块限定界面可注册；冲突隔离，卸载和替换可见', () => {
   moduleRegistry.clear()
   moduleRegistry.registerResource('test-line', 'metricDimensions', { line: dimension('line') })

@@ -24,7 +24,9 @@ export function useMetricWorkspace(scopeKey: Ref<string>, initial: Ref<MetricWor
   function remembered(ownerType = readMemory().ownerType): MetricWorkspaceSelection | undefined {
     return ownerType ? { ownerType, ownerId: readMemory().ownerIds[ownerType] || '' } : undefined
   }
-  const selection = shallowRef<MetricWorkspaceSelection | undefined>(initial.value || remembered())
+  // A first visit uses the authorized provider order; the navigator still confirms every object.
+  const firstDimension = resources.value.dimensions[0]?.provider.ownerType
+  const selection = shallowRef<MetricWorkspaceSelection | undefined>(initial.value || remembered() || (firstDimension ? { ownerType:firstDimension, ownerId:'' } : undefined))
   const dimension = computed(() => resources.value.dimensions.find(item => item.provider.ownerType === selection.value?.ownerType))
   const context = computed<MetricContext | undefined>(() => {
     const object = confirmed.value
