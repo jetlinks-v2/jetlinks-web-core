@@ -41,15 +41,10 @@ export const useAIStore = defineStore('ai', () => {
     bubbleUnreadCount.value = Math.min(99, bubbleUnreadCount.value + Math.max(1, step))
   }
 
-  // 隐藏按钮
+  // 释放助手时同时清除宿主输入，避免隐藏会话继续刷新已撤销的工具目录。
   const hideAiButton = () => {
     queryVersion += 1
-    activeClientId.value = ''
-    pendingClientId.value = ''
-    showAiButton.value = false
-    showAiDrawer.value = false
-    bubbleConfig.value = {}
-    clearBubbleUnread()
+    resetAgentState()
   }
 
   const resetAgentState = (clearClient = true) => {

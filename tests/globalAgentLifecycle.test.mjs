@@ -137,6 +137,100 @@ test('same pending deployment query is single-flight and applies the latest cont
   assert.equal(h.store.parameters.currentView, 'b')
 })
 
+test('closing the drawer preserves context, releasing its owner removes the revoked catalog', async t => {
+  const h = storeHarness(t)
+  const controller = new AbortController()
+  const tool = { id: 'device_read', _meta: { executionSignal: controller.signal } }
+  await h.store.queryAgent('page', { subjectId: 'device', clientTools: [tool] })
+  h.store.setDrawer(true)
+  const list = h.store.agentList
+  const parameters = h.store.parameters
+
+  h.store.setDrawer(false)
+  assert.equal(h.store.agentList, list)
+  assert.equal(h.store.parameters, parameters)
+  assert.equal(h.store.activeClientId, 'page')
+  h.store.setDrawer(true)
+  h.store.bubbleUnreadCount = 2
+
+  // Page teardown revokes tools before releasing the shared conversation host.
+  controller.abort()
+  h.store.releaseAgentConversation('page')
+  assert.deepEqual(h.store.agentList, [])
+  assert.deepEqual(h.store.parameters, {})
+  assert.equal(h.store.activeClientId, '')
+  assert.equal(h.store.pendingClientId, '')
+  assert.equal(h.store.showAiButton, false)
+  assert.equal(h.store.showAiDrawer, false)
+  assert.equal(h.store.bubbleUnreadCount, 0)
+
+  await h.store.queryAgent('global', { subjectId: 'project', clientTools: [] })
+  h.store.releaseAgentConversation('page')
+  assert.equal(h.store.activeClientId, 'global', 'late release cannot clear the replacement owner')
+  assert.equal(h.store.parameters.subjectId, 'project')
+  assert.equal(h.store.agentList.length, 1)
+})
+
+test('hiding the assistant clears its context and fences a pending deployment response', async t => {
+  const result = deferred()
+  const h = storeHarness(t, () => result.promise)
+  const pending = h.store.queryAgent('page', { subjectId: 'device' })
+  await h.flush()
+  h.store.hideAiButton()
+  result.resolve({ success: true, result: [{ agentId: 'late-agent' }] })
+  await pending
+  assert.deepEqual(h.store.agentList, [])
+  assert.deepEqual(h.store.parameters, {})
+  assert.equal(h.store.activeClientId, '')
+  assert.equal(h.store.pendingClientId, '')
+  assert.equal(h.store.showAiButton, false)
+})
+
+test('page release unmounts the conversation before a revoked catalog refresh can report expiry', async t => {
+  const h = storeHarness(t)
+  const load = createLoader({})
+  const { createClientToolInvalidationRefresh } = load(resolve(src,
+    '../../modules/jetlinks-ai-agent-ui/components/AgentConversation/initContractRefreshPolicy.ts'))
+  const controller = new AbortController()
+  const errors = []
+  let pending
+  let disposed = false
+  const Conversation = vue.defineComponent({
+    setup() {
+      // Model the UI provider's nextTick refresh and unmount guard using the production policy.
+      const refresh = createClientToolInvalidationRefresh({
+        blockCalls: () => {}, hasActiveTurn: () => false,
+        cancelTurn: async () => { assert.fail('idle conversation must not cancel a turn') },
+        refresh: async () => {
+          await vue.nextTick()
+          if (disposed) return
+          if (controller.signal.aborted) throw new DOMException('Client tool catalog expired', 'AbortError')
+        },
+        disposed: () => disposed,
+        failed: error => errors.push(error.message),
+      })
+      const invalidate = () => { pending = refresh.invalidate() }
+      controller.signal.addEventListener('abort', invalidate)
+      vue.onUnmounted(() => {
+        disposed = true
+        controller.signal.removeEventListener('abort', invalidate)
+      })
+      return () => vue.h('div')
+    },
+  })
+  await h.store.queryAgent('page', { clientTools: [{ id: 'device_read', _meta: { executionSignal: controller.signal } }] })
+  const app = renderer().createApp({
+    setup: () => () => h.store.agentList.length ? vue.h(Conversation) : null,
+  })
+  app.mount({ children: [] })
+  h.flush.onCleanup(() => app.unmount())
+  controller.abort()
+  h.store.releaseAgentConversation('page')
+  await pending
+  assert.equal(disposed, true)
+  assert.deepEqual(errors, [])
+})
+
 test('late deployment response cannot reclaim a released or replaced page owner', async t => {
   const result = deferred()
   const h = storeHarness(t, (type, client) => client === 'global'
