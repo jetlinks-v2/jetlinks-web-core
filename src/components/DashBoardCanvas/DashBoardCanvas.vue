@@ -10,8 +10,9 @@
             :draggable="layoutEditable && !widgetsById[id].isLocked"
             :configurable="Boolean(catalog.components[widgetsById[id].type]?.configs.length)"
             @configure="openWidgetConfig(id)" @remove="state.removeWidget(id)">
-            <WidgetRenderer :widget="widgetsById[id]" :definition="catalog.components[widgetsById[id].type]"
-              :preview-mode="previewMode" />
+            <slot name="widget" :widget="widgetsById[id]" :definition="catalog.components[widgetsById[id].type]" :preview-mode="previewMode">
+              <WidgetRenderer :widget="widgetsById[id]" :definition="catalog.components[widgetsById[id].type]" :preview-mode="previewMode" />
+            </slot>
           </WidgetFrame>
         </template>
       </GridCanvas>

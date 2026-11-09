@@ -47,6 +47,7 @@ export function useLinkedHistoryCharts(charts: Ref<MetricChart[]>, range: Ref<Ti
       const x = instance.convertToPixel({ xAxisIndex: 0 }, value)
       const bottom = instance.convertToPixel({ yAxisIndex: 0 }, 0)
       if (typeof x !== 'number' || typeof bottom !== 'number' || !Number.isFinite(x) || !Number.isFinite(bottom)) continue
+      // 各图以同一时间游标展示自身指标摘要，沿用本图格式和单位。
       dispatch(instance, { type: 'updateAxisPointer', x, y: bottom - 1, axesInfo: [{ axisDim: 'x', axisIndex: 0, value }] })
     }
   }

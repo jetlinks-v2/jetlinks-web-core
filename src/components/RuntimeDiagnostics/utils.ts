@@ -1,5 +1,6 @@
 import type { MBeanDescriptor, MBeanOperation, Nanoseconds, TraceRow, TraceSpan } from './types'
 import { bufferMonitorCounters } from './buffer/counters'
+import { readBufferObservation } from './buffer/observation'
 export const formatValue = (value: unknown): string => value === undefined ? '—' : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)
 export const operationId = (operation: MBeanOperation) => `${operation.name}(${operation.signature.join(', ')})`
 
@@ -21,12 +22,16 @@ export function runtimeBeanOverview(beans: MBeanDescriptor[]) {
     return raw.trim() && raw.trim() !== 'nil' ? raw : ''
   }
   const runtime = beans.find(bean => bean.domain === 'java.lang' && bean.type === 'Runtime')
-  const buffers = beans.filter(bean => bean.domain === 'org.jetlinks' && bean.type === 'PersistenceBuffer').map(bean => ({
+  const buffers = beans.filter(bean => bean.domain === 'org.jetlinks' && bean.type === 'PersistenceBuffer').map(bean => {
+    const observation = readBufferObservation(value(bean, 'ObservationSnapshot'))
+    const legacy = bufferMonitorCounters(value(bean, 'Monitor'))
+    return {
     objectName: bean.objectName, name: bean.name,
     pending: count(bean, 'Remainder'), dead: count(bean, 'DeadSize'), wip: count(bean, 'Wip'), writerPending: count(bean, 'WriterPending'),
-    ...bufferMonitorCounters(value(bean, 'Monitor')),
+    written: observation?.written ?? legacy.written, attempted: observation?.attempted ?? legacy.attempted,
+    observation,
     error: bufferError(bean),
-  })).sort((left, right) => (right.dead ?? -1) - (left.dead ?? -1) || (right.pending ?? -1) - (left.pending ?? -1) || left.name.localeCompare(right.name))
+  }}).sort((left, right) => (right.dead ?? -1) - (left.dead ?? -1) || (right.pending ?? -1) - (left.pending ?? -1) || left.name.localeCompare(right.name))
   return { startTime: count(runtime, 'StartTime'), uptime: count(runtime, 'Uptime'), buffers }
 }
 
