@@ -1,12 +1,20 @@
 <template>
   <div class="metric-panel">
-    <header v-if="!hideIdentity || context.editable && configurations.length" class="metric-panel__head" :class="{ 'metric-panel__head--actions':hideIdentity }">
+    <header v-if="!hideIdentity" class="metric-panel__head">
       <div v-if="!hideIdentity" class="metric-panel__identity"><slot name="object-heading"><span class="metric-panel__object-icon"><AIcon type="DashboardOutlined" /></span><h3 :title="context.label">{{ context.label || t('title') }}</h3></slot><slot name="object-actions" /></div>
-      <a-space>
-        <a-button v-if="context.editable && configurations.length" type="primary" size="small" @click="openEditor()"><AIcon type="PlusOutlined" /> {{ t('add') }}</a-button>
-      </a-space>
     </header>
-    <div v-if="configurations.length" class="metric-panel__tools"><div class="metric-panel__section-title">{{ t('currentResults') }} <small>{{ t('metricCount', { count: configurations.length }) }}</small></div><div class="metric-panel__time"><MetricTimeRange v-model:range="trends.range.value" v-model:custom-range="trends.customRange.value" /><a-dropdown :trigger="['click']"><a-button type="text" size="small" :title="t('realtime')"><AIcon type="ClockCircleOutlined" />{{ refreshInterval ? t('refreshSeconds', { seconds: refreshInterval / 1000 }) : t('realtimeFull') }}</a-button><template #overlay><a-menu :selected-keys="[String(refreshInterval)]" @click="changeRefreshInterval"><a-menu-item v-for="interval in [1000, 5000, 15000]" :key="String(interval)"><AIcon :type="interval ? 'ClockCircleOutlined' : 'ThunderboltOutlined'" /> {{ interval ? t('refreshSeconds', { seconds: interval / 1000 }) : t('realtimeFull') }}</a-menu-item></a-menu></template></a-dropdown><a-button type="text" size="small" :aria-label="t('refresh')" :title="t('refresh')" :loading="loading" @click="refreshAll"><AIcon type="ReloadOutlined" /></a-button></div></div>
+    <div v-if="configurations.length" class="metric-panel__tools">
+      <div class="metric-panel__section-title">{{ t('currentResults') }} <small>{{ t('metricCount', { count: configurations.length }) }}</small></div>
+      <div class="metric-panel__time">
+        <MetricTimeRange v-model:range="trends.range.value" v-model:custom-range="trends.customRange.value" />
+        <a-dropdown :trigger="['click']">
+          <a-button type="text" size="small" :title="t('realtime')"><AIcon type="ClockCircleOutlined" />{{ refreshInterval ? t('refreshSeconds', { seconds: refreshInterval / 1000 }) : t('realtimeFull') }}</a-button>
+          <template #overlay><a-menu :selected-keys="[String(refreshInterval)]" @click="changeRefreshInterval"><a-menu-item v-for="interval in [1000, 5000, 15000]" :key="String(interval)"><AIcon :type="interval ? 'ClockCircleOutlined' : 'ThunderboltOutlined'" /> {{ interval ? t('refreshSeconds', { seconds: interval / 1000 }) : t('realtimeFull') }}</a-menu-item></a-menu></template>
+        </a-dropdown>
+        <a-button type="text" size="small" :aria-label="t('refresh')" :title="t('refresh')" :loading="loading" @click="refreshAll"><AIcon type="ReloadOutlined" /></a-button>
+        <a-button v-if="context.editable" type="primary" size="small" @click="openEditor()"><AIcon type="PlusOutlined" /> {{ t('add') }}</a-button>
+      </div>
+    </div>
     <a-alert v-if="error" type="error" show-icon :message="t('readFailed')" :description="error">
       <template #action><a-button size="small" @click="refreshAll">{{ t('retry') }}</a-button></template>
     </a-alert>
@@ -183,7 +191,6 @@ function openDetailLink() {
 .metric-panel__detail-shell :deep(.head-icon) { width:32px; height:32px; border-radius:8px }
 .metric-panel__detail-shell :deep(.drawer-body) { padding:10px 12px; gap:8px }
 .metric-panel__head { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3,12px) }
-.metric-panel__head--actions { justify-content:flex-end }
 .metric-panel__head h3 { font-size:var(--fs-16,16px); margin:0 }
 .metric-panel__identity { display:flex; align-items:center; gap:12px; min-width:0 }
 .metric-panel__identity h3 { font-size:var(--fs-20,20px); min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
