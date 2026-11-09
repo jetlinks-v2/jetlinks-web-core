@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createMetricLoader } from './helpers/metricRuntime.mjs'
 
-const { expressionToFormula, expressionToDisplayFormula, formulaToExpression, formulaMacros, referenceMacro, ruleFormulaReferences } = createMetricLoader()('components/Metric/template/formula.ts')
+const { expressionToFormula, expressionToDisplayFormula, formulaToExpression, formulaMacros, referenceMacro, ruleFormulaReferences, dataFormulaReferences } = createMetricLoader()('components/Metric/template/formula.ts')
 const { expressionLabel } = createMetricLoader()('components/Metric/template/designer.ts')
 const references = [
   { key: 'winding', metricId: 'temperature', label: '绕组温度', expression: '#t' },
@@ -104,6 +104,32 @@ test('编辑与回显共用声明引用、显式别名、前置计算及参数�
   assert.deepEqual(refs.find(item=>item.key === 'metadata:temperature:inputTimeStart').path,['t-air','inputTimeStart'])
   assert.ok(expressionToDisplayFormula('t_air / average * params.factor', refs)?.includes('\\frac'))
   assert.equal(JSON.stringify(template), before)
+})
+
+test('输入说明与公式候选共用声明，历史读取不改变字段、枚举合法值与时间引用', () => {
+  const input = { id:'gateway-state', name:'网关状态', valueType:{type:'object',properties:[
+    {id:'connection',name:'连接',valueType:{type:'enum',elements:[{value:0,text:'离线'},{value:1,text:'在线'},{value:false,text:'未确认'}]}},
+    {id:'statistics',name:'统计',valueType:{type:'object',properties:[{id:'duration',name:'时长',valueType:{type:'double',unit:'s'}}]}},
+  ]} }
+  const spec = { inputDefinitions:[input], definitions:[], outputs:[], parameterDefinitions:[] }
+  const before = JSON.stringify(spec)
+  const refs = dataFormulaReferences(spec,{id:input.id,label:input.name})
+  assert.deepEqual(ruleFormulaReferences(spec,{id:'result'}).filter(item=>item.metricId === input.id),refs)
+  assert.deepEqual(refs.map(item=>item.path),[undefined,['connection'],['statistics'],['statistics','duration'],[input.id,'inputTimeStart'],[input.id,'inputTimeEnd']])
+  assert.deepEqual(refs[1].schema.elements.map(item=>item.value),[0,1,false])
+  assert.equal(refs[3].unit,'s')
+  const historical = {...spec,inputDefinitions:[{...input,source:{lookback:'PT2H'}}]}
+  assert.deepEqual(dataFormulaReferences(historical,{id:input.id,label:input.name}),refs)
+  const alias = "state-'key"
+  const mapped = ruleFormulaReferences(spec,{id:'result',inputs:[{id:alias,metricId:input.id}]},[],'en')
+  const field = mapped.find(item=>item.path?.join('.') === 'statistics.duration')
+  assert.equal(field.expression,"state__key['statistics']['duration']")
+  assert.deepEqual(field.schema,refs[3].schema)
+  const time = mapped.find(item=>item.key === `metadata:${input.id}:inputTimeStart`)
+  assert.equal(time.displayLabel,'Input interval start')
+  assert.deepEqual(time.path,[alias,'inputTimeStart'])
+  assert.equal(time.expression,"metricValues['state-''key'].getInputTimeStart()")
+  assert.equal(JSON.stringify(spec),before)
 })
 
 test('前向引用与对象字段使用声明或当前语言元数据名称，表达式和字符串常量保持原样', () => {

@@ -18,10 +18,12 @@
           </template>
         </a-dropdown>
       </div>
-      <small class="node-editor__id" :title="declarationId" :aria-label="t('declarationId')">{{ declarationId }}</small>
+      <Editable v-if="node.kind === 'input'" class="node-editor__id" :value="declarationId" :component-props="{ disabled:disabled || published, bordered:false, 'aria-label':t('declarationId') }" @change="changeInputId(String($event ?? '').trim())" />
+      <small v-else class="node-editor__id" :title="declarationId" :aria-label="t('declarationId')">{{ declarationId }}</small>
+      <p v-if="identityIssue" class="node-editor__identity-error" role="alert">{{ t(identityIssue) }}</p>
     </header>
     <TemplateRuleEditor v-if="node.kind === 'rule'" :template="template" :rule="rule" :disabled="disabled" :calculators="calculators" @patch="emit('patch', $event)" @invalid="setRuleInvalid" />
-    <TemplateInputEditor v-if="node.kind === 'input'" :input="input" :template="displayTemplate" :disabled="disabled" :published="published" @patch="emit('patch', $event)" />
+    <TemplateInputEditor v-if="node.kind === 'input'" :input="input" :template="displayTemplate" :disabled="disabled" :published="published" @patch="emit('patch', $event)" @invalid="inputInvalid = $event" />
     <template v-else-if="node.kind === 'output'">
       <div class="node-editor__output-source">
         <span>{{ t('outputTake') }}</span>
@@ -54,7 +56,8 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { inputIdentityIssue } from './inputIdentity'
 import ReadAggregationEditor from '../collection/ReadAggregationEditor.vue'
 import { useI18n } from 'vue-i18n'
 import { metricMessages } from '../messages'
@@ -79,6 +82,14 @@ const input = computed(() => props.template.inputDefinitions[props.node.index] a
 const output = computed(() => props.template.outputs[props.node.index])
 const rule = computed(() => props.template.definitions[props.node.index] as TemplateRule)
 const ruleInvalid = ref(false)
+const identityIssue = ref<string>()
+const inputInvalid = ref(false)
+watch([identityIssue,inputInvalid],()=>{ if (props.node.kind === 'input') emit('invalid',!!identityIssue.value || inputInvalid.value) },{immediate:true})
+function changeInputId(value:string) {
+  if (props.disabled || props.published) return
+  identityIssue.value = inputIdentityIssue(props.template,props.node.index,value)
+  if (!identityIssue.value) emit('patch',{id:value})
+}
 const kind = computed(() => props.node.kind === 'rule' ? calculationKind(rule.value) : 'expression')
 const methods = computed(() => [
   { value: 'expression', label: t('expression'), icon: 'FunctionOutlined', description: t('expressionMethodHint') },
@@ -109,6 +120,7 @@ function changeKind(value: CalculationKind) { if (!props.disabled && !ruleInvali
 function chooseKind({ key }: { key: string | number }) { changeKind(key as CalculationKind) }
 </script>
 <style scoped>
+.node-editor__identity-error { grid-column:1/-1; margin:4px 0; font-size:12px; color:var(--ant-error-color,#ff4d4f); line-height:1.6 }
 .node-editor { min-width:0; font-size:var(--fs-14,14px) }
 .node-editor__identity { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 12px; margin-bottom:var(--space-4,16px) }
 .node-editor__name { min-width:0 }
@@ -136,6 +148,7 @@ function chooseKind({ key }: { key: string | number }) { changeKind(key as Calcu
 .node-editor :deep(.template-clause__body) { display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-height:32px }
 .node-editor :deep(.template-clause__title) { margin:0; font-size:13px }
 .node-editor > details > summary { padding:8px 0; color:var(--ink-3); font-size:12px; cursor:pointer }
-.node-editor__id { grid-column:1/-1; height:18px; line-height:18px; font-size:12px; color:var(--ink-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; user-select:text }
+.node-editor__id { grid-column:1/-1; min-height:22px; line-height:22px; font-size:12px; color:var(--ink-3); min-width:0; user-select:text }
+.node-editor__id :deep(.text) { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 @media(max-width:380px) { .node-editor__name { grid-column:1/-1 } .node-editor__method { grid-row:3; grid-column:1/-1 } }
 </style>

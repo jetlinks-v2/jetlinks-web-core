@@ -61,6 +61,14 @@ export function useTemplateSimulation(options: {
     if (text === options.text.value) return
     options.text.value = text; automatic?.schedule()
   }
+  /** 只迁移逻辑映射键，样本仍属于原来的物理来源，不能改写报文身份。 */
+  function renameInput(previous:string,next:string) {
+    const value = facts.value
+    if (!value || !Object.hasOwn(value.configuration.inputMappings,previous)) return
+    const inputMappings = {...value.configuration.inputMappings,[next]:value.configuration.inputMappings[previous]}
+    delete inputMappings[previous]
+    updateFacts({...value,configuration:{...value.configuration,inputMappings}})
+  }
   function selectTime(value:number) { timeSelected.value = true; time.value = value; selectedEntry.value = undefined }
   function setSampleInvalid(value:boolean) {
     const previous = sampleInvalid.value
@@ -93,7 +101,7 @@ export function useTemplateSimulation(options: {
   }
   return reactive({ facts, advanced, sampleInvalid, endAtInvalid, invalid, time, selectedEntry, index, position, preview,
     loading:options.loading, format:options.format, text:options.text, results:options.results, response:options.response,
-    updateFacts, selectTime, setSampleInvalid, changeEndAt, addSample, patchValue, reset,
+    updateFacts, renameInput, selectTime, setSampleInvalid, changeEndAt, addSample, patchValue, reset,
     run:() => automatic?.run() || Promise.resolve(), schedule:() => automatic?.schedule(), cancel:() => automatic?.cancel() })
 }
 export type TemplateSimulationState = ReturnType<typeof useTemplateSimulation>

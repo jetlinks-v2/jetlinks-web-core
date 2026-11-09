@@ -29,13 +29,11 @@ export function ruleDataReferences(template: MetricTemplate, rule: TemplateRule)
   ]
 }
 
-/** Editing and read-only display use the same backend input aliases and parameter paths. */
-export function ruleFormulaReferences(template: MetricTemplate, rule: TemplateRule, calculators: MetricCalculatorDescriptor[] = [], locale = 'zh'): FormulaReference[] {
+const dataAlias = (id: string) => id.replace(/[^a-zA-Z0-9_]/g, '_')
+
+/** 输入说明与公式候选共用声明投影；别名仅改变访问路径，不改变字段与类型。 */
+export function dataFormulaReferences(template: MetricTemplate, item: { id:string; label:string }, calculators: MetricCalculatorDescriptor[] = [], locale = 'zh', alias = item.id): FormulaReference[] {
   const system = (zh:string,en:string) => locale.startsWith('en') ? en : zh
-  const dataAlias = (id: string) => id.replace(/[^a-zA-Z0-9_]/g, '_')
-  const references = ruleDataReferences(template, rule)
-  const inputAlias = (id: string) => rule.inputs?.find(input => !input.source && input.metricId === id)?.id || id
-  const dataExpression = (id: string) => dataAlias(inputAlias(id))
   function fields(type: Record<string, unknown> | undefined, metricId: string, label: string, expression: string, fallback?: Record<string, unknown>, keys:string[] = []): FormulaReference[] {
     if (type?.type !== 'object' || !Array.isArray(type.properties)) return []
     return type.properties.flatMap(property => {
@@ -46,30 +44,34 @@ export function ruleFormulaReferences(template: MetricTemplate, rule: TemplateRu
       return [{ key: `${metricId}:${path}`, expression: path, label: name, displayLabel:property.name || defaults?.name || property.id, metricId, group: 'data' as const, path:nested, schema:property.valueType,unit:property.valueType?.unit }, ...fields(property.valueType, metricId, name, path, defaults?.valueType,nested)]
     })
   }
+  const definition = template.definitions.find(definition => definition.id === item.id) as TemplateRule | undefined
+  const spec = definition?.calculator
+  const descriptor = calculators.find(value => value.configuration.provider === spec?.provider && value.configuration.providerVersion === spec?.providerVersion
+    && value.configuration.parameters?.operation === spec?.parameters?.operation)
+  const type = metricValueSchema(template, item.id, calculators)
+  const label = item.label === item.id ? descriptor?.name || item.label : item.label
+  const labels = metricValueLabels(template,item.id)
+  const schema = type?.type === 'enum' ? type : labels.length ? {type:'enum',valueType:type,elements:labels.map(item=>({value:item.value,text:item.name}))} : type
+  const metadata = [
+    {path:['inputTimeStart'],name:system('输入区间开始','Input interval start'),schema:{type:'date'},suffix:'getInputTimeStart()'},
+    {path:['inputTimeEnd'],name:system('输入区间结束','Input interval end'),schema:{type:'date'},suffix:'getInputTimeEnd()'},
+    ...(definition?.stateTracking ? [{path:['state','duration'],name:system('本次状态时长','Current state duration'),schema:{type:'double',unit:'s'},suffix:'getState().getDuration()'}] : []),
+  ].map(field=>({key:`metadata:${item.id}:${field.path.join('.')}`,label:`${label} · ${field.name}`,displayLabel:field.name,metricId:item.id,group:'data' as const,
+    expression:`metricValues['${alias.replaceAll("'", "''")}'].${field.suffix}`,referenceId:'metricValues',path:[alias,...field.path],schema:field.schema,unit:'unit' in field.schema ? field.schema.unit : undefined,
+    ...(field.path[0] === 'state' ? {semantic:'stateDuration' as const} : {})}))
+  return [{ key: item.id, label, metricId: item.id, group: 'data' as const, expression: dataAlias(alias), schema,unit:String(type?.unit || template.inputDefinitions.find(input=>input.id === item.id)?.unit || '') },
+    ...fields(type, item.id, label, dataAlias(alias), descriptor?.configuration.outputType),...metadata]
+}
+
+/** Editing and read-only display use the same backend input aliases and parameter paths. */
+export function ruleFormulaReferences(template: MetricTemplate, rule: TemplateRule, calculators: MetricCalculatorDescriptor[] = [], locale = 'zh'): FormulaReference[] {
+  const inputAlias = (id: string) => rule.inputs?.find(input => !input.source && input.metricId === id)?.id || id
   return [
-    ...references.flatMap(item => {
-      const definition = template.definitions.find(definition => definition.id === item.id) as TemplateRule | undefined
-      const spec = definition?.calculator
-      const descriptor = calculators.find(value => value.configuration.provider === spec?.provider && value.configuration.providerVersion === spec?.providerVersion
-        && value.configuration.parameters?.operation === spec?.parameters?.operation)
-      const type = metricValueSchema(template, item.id, calculators)
-      const label = item.label === item.id ? descriptor?.name || item.label : item.label
-      const labels = metricValueLabels(template,item.id)
-      const schema = type?.type === 'enum' ? type : labels.length ? {type:'enum',valueType:type,elements:labels.map(item=>({value:item.value,text:item.name}))} : type
-      const metadata = [
-        {path:['inputTimeStart'],name:system('输入区间开始','Input interval start'),schema:{type:'date'},suffix:'getInputTimeStart()'},
-        {path:['inputTimeEnd'],name:system('输入区间结束','Input interval end'),schema:{type:'date'},suffix:'getInputTimeEnd()'},
-        ...(definition?.stateTracking ? [{path:['state','duration'],name:system('本次状态时长','Current state duration'),schema:{type:'double',unit:'s'},suffix:'getState().getDuration()'}] : []),
-      ].map(field=>({key:`metadata:${item.id}:${field.path.join('.')}`,label:`${label} · ${field.name}`,displayLabel:field.name,metricId:item.id,group:'data' as const,
-        expression:`metricValues['${inputAlias(item.id).replaceAll("'", "''")}'].${field.suffix}`,referenceId:'metricValues',path:[inputAlias(item.id),...field.path],schema:field.schema,unit:'unit' in field.schema ? field.schema.unit : undefined,
-        ...(field.path[0] === 'state' ? {semantic:'stateDuration' as const} : {})}))
-      return [{ key: item.id, label, metricId: item.id, group: 'data' as const, expression: dataExpression(item.id), schema,unit:String(type?.unit || template.inputDefinitions.find(input=>input.id === item.id)?.unit || '') },
-        ...fields(type, item.id, label, dataExpression(item.id), descriptor?.configuration.outputType),...metadata]
-    }),
+    ...ruleDataReferences(template, rule).flatMap(item => dataFormulaReferences(template, item, calculators, locale, inputAlias(item.id))),
     ...(rule.inputs || []).flatMap(item => item.source && item.id ? [{ key: `source:${item.id}`, label: item.id, group: 'data' as const, expression: dataAlias(item.id) }] : []),
     ...template.parameterDefinitions.map(item => ({ key: `parameter:${item.id}`, label: item.name || item.id, group: 'parameter' as const,
       expression: /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(item.id) ? `params.${item.id}` : `params['${item.id.replaceAll("'", "''")}']`, schema:item.valueType })),
-    {key:'system:processTime',referenceId:'sample',path:['processTime'],label:system('计算时间','Calculation time'),group:'data' as const,expression:'sample.getProcessTime()',schema:{type:'date'}},
+    {key:'system:processTime',referenceId:'sample',path:['processTime'],label:locale.startsWith('en') ? 'Calculation time' : '计算时间',group:'data' as const,expression:'sample.getProcessTime()',schema:{type:'date'}},
   ]
 }
 

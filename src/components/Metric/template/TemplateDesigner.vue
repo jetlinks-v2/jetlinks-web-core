@@ -83,7 +83,9 @@ const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const inheritedCalculators = inject(metricCalculatorsKey, undefined)
 // 编辑、图节点和试算解释共享同一语言目录，不在浮层重复请求或猜测字段名。
 provide(metricCalculatorsKey, computed(() => props.calculators || inheritedCalculators?.value || []))
-const { view, selection, nodes, position, invalid, editorVersion, select, move, patch, add, remove, revert, setMessages, update } = useTemplateDesigner(toRef(props, 'template'), toRef(props, 'disabled'), value => emit('update:template', value))
+const { view, selection, nodes, position, invalid, editorVersion, select, move, patch, add, remove, revert, setMessages, update } = useTemplateDesigner(toRef(props, 'template'), toRef(props, 'disabled'), value => emit('update:template', value), (previous,next) => {
+  props.trial?.renameInput(previous,next)
+})
 const { requestRemove } = useTemplateNodeRemoval(() => {
   const node = selection.value
   const item = node && (node.kind === 'input' ? view.value.inputDefinitions : node.kind === 'rule' ? view.value.definitions : view.value.outputs)[node.index]

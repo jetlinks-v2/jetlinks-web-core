@@ -376,6 +376,59 @@ test('未完成输入关联仍可更换计算方式，避免困在算法编辑�
   } finally { editor.close() }
 })
 
+test('输入侧栏展示枚举合法选项和区间时间，读取模式切换不改变候选且不产生额外修改', async () => {
+  const { renderer, root } = createMetricRenderer()
+  const value = template()
+  value.inputDefinitions[0].valueType = {type:'enum',elements:[{value:0,text:'离线'},{value:1,text:'在线'},{value:false,text:'未确认'}]}
+  const props = reactive({template:value,node:{kind:'input',index:0}})
+  const patches = []
+  const app = renderer.createApp({setup:()=>()=>h(NodeEditor,{...props,onPatch:fields=>patches.push(fields)})})
+  app.config.warnHandler = () => {}; app.mount(root)
+  const available = () => walk(root,node=>node.props['aria-label'] === 'inputAvailable')[0]
+  try {
+    const text = textContent(available())
+    assert.ok(text.includes('parameterEnum'))
+    assert.ok(text.includes('离线0')); assert.ok(text.includes('在线1')); assert.ok(text.includes('未确认false'))
+    assert.ok(text.includes('输入区间开始inputDateType')); assert.ok(text.includes('输入区间结束inputDateType'))
+    assert.equal(walk(available(),node=>['button','input','external-shell'].includes(node.type)).length,0)
+    assert.deepEqual(patches,[])
+    inlineField(root,'readMode').props.onChange('history'); await flush()
+    assert.deepEqual(patches,[{source:{lookback:'PT1H'}}])
+    props.template.inputDefinitions[0].source = patches[0].source
+    await flush()
+    assert.equal(textContent(available()),text)
+    assert.equal(props.template.inputDefinitions[0].valueType.type,'enum')
+  } finally { app.unmount() }
+})
+
+test('输入侧栏只读展示嵌套对象字段和单位，不从默认值推断未知类型', async () => {
+  const { renderer, root } = createMetricRenderer()
+  const value = template()
+  value.inputDefinitions[0] = {...value.inputDefinitions[0],valueType:{type:'object',properties:[
+    {id:'zone',name:'防火分区',valueType:{type:'string'}},
+    {id:'statistics',name:'统计',valueType:{type:'object',properties:[{id:'elapsed',name:'持续时间',valueType:{type:'double',unit:'s'}}]}},
+  ]}}
+  const props = reactive({template:value,node:{kind:'input',index:0},disabled:true,published:true})
+  const patches = []
+  const app = renderer.createApp({setup:()=>()=>h(NodeEditor,{...props,onPatch:fields=>patches.push(fields)})})
+  app.config.warnHandler = () => {}; app.mount(root)
+  const available = () => walk(root,node=>node.props['aria-label'] === 'inputAvailable')[0]
+  try {
+    let text = textContent(available())
+    assert.ok(text.includes('inputValueparameterObject')); assert.ok(text.includes('防火分区parameterText'))
+    assert.ok(text.includes('统计 · 持续时间parameterNumber · s'))
+    props.template.inputDefinitions[0] = {...props.template.inputDefinitions[0],valueType:undefined,defaultValue:123}
+    await flush()
+    text = textContent(available())
+    assert.ok(text.includes('inputUndeclaredType')); assert.ok(!text.includes('parameterNumber')); assert.ok(!text.includes('parameterText'))
+    props.template.inputDefinitions[0].valueType = {type:'vendor-specific'}; await flush()
+    assert.ok(textContent(available()).includes('inputUnknownType'))
+    props.template.inputDefinitions[0].valueType = {type:'date'}; await flush()
+    assert.ok(textContent(available()).includes('inputValueinputDateType'))
+    assert.deepEqual(patches,[])
+  } finally { app.unmount() }
+})
+
 test('历史输入切回最新值同步移除序列约束，其它来源扩展和输入约束保留', async () => {
   const { renderer, root } = createMetricRenderer(); const value = template(); let patch
   value.inputDefinitions[0] = { ...value.inputDefinitions[0], source: { lookback: 'PT1H', maxPoints: 128, extra: false }, minSamples: 2, maxGap: 'PT30M' }

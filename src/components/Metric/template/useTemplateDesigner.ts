@@ -2,10 +2,11 @@ import { computed, ref, watch, type Ref } from 'vue'
 import { copy } from '../service'
 import { nextNodeId, nodeKey, nodeList, type TemplateNode } from './designer'
 import { templateMessages } from './text'
+import { inputIdentityIssue, renameTemplateInput } from './inputIdentity'
 import type { MetricTemplate } from '../types'
 
 /** 属性面板直接更新页面草稿；检查点只负责撤回当前项，不承担持久化。 */
-export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref<boolean>, commit: (value: MetricTemplate) => void) {
+export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref<boolean>, commit: (value: MetricTemplate) => void, onInputRename?:(previous:string,next:string)=>void) {
   const view = ref(template.value)
   const selection = ref<TemplateNode>()
   const invalid = ref(false)
@@ -16,6 +17,13 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
   let checkpoint: MetricTemplate | undefined
   let created = false
   const messageKeys = new Set<string>()
+  function renameMessageKeys(previous:string,next:string) {
+    const prefix = `input.${previous}.`
+    for (const key of [...messageKeys]) if (key.startsWith(prefix)) {
+      messageKeys.delete(key)
+      messageKeys.add(`input.${next}.${key.slice(prefix.length)}`)
+    }
+  }
   function update(value: MetricTemplate) {
     if (disabled.value) return
     view.value = value
@@ -32,10 +40,16 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
   }
   function move(offset: number) { const node = nodes.value[position.value + offset]; if (node) select(node) }
   function patch(fields: Record<string, unknown>) {
-    if (!selection.value || disabled.value) return
-    const value = copy(view.value)
+    if (!selection.value || disabled.value) return false
+    const node = selection.value
+    const previous = node.kind === 'input' ? view.value.inputDefinitions[node.index].id : undefined
+    const next = previous !== undefined && typeof fields.id === 'string' ? fields.id.trim() : previous
+    if (next !== previous && inputIdentityIssue(view.value,node.index,next!)) return false
+    const value = next !== previous ? renameTemplateInput(view.value,node.index,next!) : copy(view.value)
     Object.assign(items(value, selection.value)[selection.value.index], fields)
+    if (next !== previous) { value.inputDefinitions[node.index].id = next!; renameMessageKeys(previous!,next!); onInputRename?.(previous!,next!) }
     update(value)
+    return true
   }
   function setMessages(messages: Record<string, Record<string, string>>) {
     if (!selection.value || disabled.value) return
@@ -49,9 +63,13 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
   function revert() {
     if (!selection.value || !checkpoint || disabled.value) return
     const node = selection.value
-    const value = copy(view.value)
+    let value = copy(view.value)
     if (created) items(value, node).splice(node.index, 1)
-    else if (node.kind === 'input') value.inputDefinitions[node.index] = copy(checkpoint.inputDefinitions[node.index])
+    else if (node.kind === 'input') {
+      const previous = value.inputDefinitions[node.index].id, next = checkpoint.inputDefinitions[node.index].id
+      if (previous !== next) { value = renameTemplateInput(value,node.index,next); renameMessageKeys(previous,next); onInputRename?.(previous,next) }
+      value.inputDefinitions[node.index] = copy(checkpoint.inputDefinitions[node.index])
+    }
     else if (node.kind === 'rule') value.definitions[node.index] = copy(checkpoint.definitions[node.index])
     else value.outputs[node.index] = copy(checkpoint.outputs[node.index])
     if (messageKeys.size) {
