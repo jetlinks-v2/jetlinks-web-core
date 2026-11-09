@@ -5,8 +5,8 @@ import { configurationObject, configurationSnapshot, encodeConfiguration, type C
 import type { ValueTranslate } from '../valueSemantics'
 import type { MetricApi, MetricCalculatorDescriptor, MetricConfig, MetricSimulationRequest, MetricSimulationResponse, MetricTemplate, MetricTemplateCategory, MetricTemplateEntity, MetricTemplateStarter } from '../types'
 
-const emptyTemplate = (): MetricTemplate => ({
-  id: '', version: '1', name: '', enabled: true, inputDefinitions: [], parameterDefinitions: [],
+const emptyTemplate = (withInput:boolean): MetricTemplate => ({
+  id: '', version: '1', name: '', enabled: true, inputDefinitions: withInput ? [{id:'input1',presence:'required'}] : [], parameterDefinitions: [],
   parameters: {}, definitions: [], outputs: [], options: {}
 })
 export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metricApi, t: ValueTranslate = key => key) {
@@ -84,7 +84,8 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
     simulationGeneration++
     simulating.value = false
     selected.value = entity ? copy(entity) : undefined
-    draft.value = entity ? copy(entity.draft || entity.template) : starter ? { ...copy(starter.template), id: `${starter.template.id}-${crypto.randomUUID().slice(0, 8)}` } : emptyTemplate()
+    // 默认输入只属于空白新建，不推断已存模板、业务起点或只读内容。
+    draft.value = entity ? copy(entity.draft || entity.template) : starter ? { ...copy(starter.template), id: `${starter.template.id}-${crypto.randomUUID().slice(0, 8)}` } : emptyTemplate(editable.value)
     if (!entity && starter) draft.value.options = { ...draft.value.options, ...(starter.groupId ? { category:starter.groupId } : {}), ...(starter.icon ? { icon:starter.icon } : {}) }
     fullText.value = encodeConfiguration(draft.value, format.value)
     savedText.value = configurationSnapshot(draft.value)

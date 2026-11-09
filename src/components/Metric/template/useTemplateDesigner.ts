@@ -6,7 +6,7 @@ import { inputIdentityIssue, referenceInputId, renameTemplateInput } from './inp
 import type { MetricSourceSelection, MetricTemplate } from '../types'
 
 /** 属性面板直接更新页面草稿；检查点只负责撤回当前项，不承担持久化。 */
-export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref<boolean>, commit: (value: MetricTemplate) => void, onInputRename?:(previous:string,next:string)=>void) {
+export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref<boolean>, commit: (value: MetricTemplate) => void, onInputRename?:(previous:string,next:string)=>void, initialInput=false) {
   const view = ref(template.value)
   const selection = ref<TemplateNode>()
   const invalid = ref(false)
@@ -155,5 +155,11 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
     created = false
     messageKeys.clear()
   }, { flush: 'sync' })
+  // 新建边界已生成输入；按刚添加的节点编辑，参考与撤回仍沿用同一套规则。
+  if (initialInput && !disabled.value && view.value.inputDefinitions.length) {
+    select({kind:'input',index:0})
+    created = true
+    generatedInputId = view.value.inputDefinitions[0].id
+  }
   return { selection, invalid, editorVersion, view, nodes, position, select, move, patch, add, remove, revert, setMessages, update, applyInputReference }
 }

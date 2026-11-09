@@ -59,7 +59,7 @@
         </a-tabs>
         <div v-show="tab !== 'publication'" class="metric-template-manager__workspace">
           <a-alert v-if="calculatorError && tab === 'design'" type="warning" :message="t('algorithmCatalogFailed')" :description="calculatorError" show-icon><template #action><a-button size="small" @click="loadCalculators">{{ t('retry') }}</a-button></template></a-alert>
-          <TemplateDesigner v-show="mode === 'form'" :key="selected?.id || draft.id" v-model:template="draft" :disabled="locked" :trial="editable ? trial : undefined" :simulation-error="simulationError" :published="selected?.released" :calculators="calculators" :categories="categories" :categories-loading="categoriesLoading" :category-error="categoryError" :pick-source="pickSource" :source-context="sourceContext" @reload-categories="loadCategories" @editing="editing = $event">
+          <TemplateDesigner v-show="mode === 'form'" :key="selected?.id || draft.id" v-model:template="draft" :initial-input="initialInput" :disabled="locked" :trial="editable ? trial : undefined" :simulation-error="simulationError" :published="selected?.released" :calculators="calculators" :categories="categories" :categories-loading="categoriesLoading" :category-error="categoryError" :pick-source="pickSource" :source-context="sourceContext" @vue:mounted="initialInput = false" @reload-categories="loadCategories" @editing="editing = $event">
             <template #advancedTools><a-select :value="format" :disabled="simulating || saving" :options="formats" :dropdown-match-select-width="false" @update:value="(value: unknown) => switchFormat(value as ConfigurationFormat)"><template #option="option"><SelectOption :label="option.label" :icon="option.icon" :description="option.description" /></template></a-select></template>
           </TemplateDesigner>
           <MonacoEditor v-if="mode === 'full' && tab === 'design'" v-model="fullText" :language="format" :read-only="locked" theme="vs" class="metric-template-manager__full-code" :options="editorOptions" />
@@ -116,6 +116,7 @@ const trial = useTemplateSimulation({ template:draft, text:simulationText, forma
     autoEnabled:() => !!draft.value && tab.value === 'design' && mode.value === 'form' } })
 watch(editing, value => { if (value) invalidateSimulation() }, { flush:'sync' })
 const choosingStarter = ref(false)
+const initialInput = ref(false)
 const catalog = computed(() => templateCatalog(entities.value, categories.value, String(locale.value), t('otherCategory')))
 const directory = useTemplateCatalog(catalog, t)
 const starterGroups = computed(() => starterCatalog(props.starters, String(locale.value), categories.value, t('otherCategory')))
@@ -144,6 +145,8 @@ async function requestClose() {
 async function requestOpen(entity?: MetricTemplateEntity, starter?: MetricTemplateStarter) {
   if (editing.value || saving.value || updates.applying.value) return
   if (!await canLeave()) return
+  // 初始选择只消费一次，身份编辑或保存后的重建不能再次视为默认新输入。
+  initialInput.value = !entity && !starter && props.editable
   open(entity, starter); trial.reset(); choosingStarter.value = false; tab.value = 'design'
 }
 function runSimulation() {

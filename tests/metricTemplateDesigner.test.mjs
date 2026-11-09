@@ -22,6 +22,28 @@ const template = () => ({ id: 'rise', version: '1', name: '温升',
   parameterDefinitions: [{ id: 'limit', name: '限值', valueType: { type: 'double' } }], parameters: { limit: 0 }, options: { unknown: false },
 })
 
+test('仅空白新建预置一个未配置输入，初始不脏；参考和撤回复用普通新输入规则',()=>{
+  const scope=effectScope(),editable=ref(true)
+  try {
+    const model=scope.run(()=>useMetricTemplates(editable))
+    model.open()
+    assert.deepEqual(model.draft.value.inputDefinitions,[{id:'input1',presence:'required'}])
+    assert.deepEqual(model.draft.value.definitions,[]);assert.deepEqual(model.draft.value.outputs,[])
+    assert.equal(model.hasChanges.value,false)
+    const editor=scope.run(()=>useTemplateDesigner(model.draft,ref(false),value=>{model.draft.value=value},undefined,true))
+    assert.deepEqual(editor.selection.value,{kind:'input',index:0})
+    assert.equal(editor.applyInputReference({id:'temperature',name:'温度',valueType:{type:'double'}}),'applied')
+    assert.equal(model.draft.value.inputDefinitions[0].id,'temperature')
+    editor.revert();assert.deepEqual(model.draft.value.inputDefinitions,[])
+    const empty={...template(),inputDefinitions:[],definitions:[],outputs:[]}
+    model.open({id:'saved',released:false,template:empty});assert.deepEqual(model.draft.value.inputDefinitions,[])
+    model.open({id:'published',released:true,template:empty});assert.deepEqual(model.draft.value.inputDefinitions,[])
+    model.open(undefined,{id:'starter',name:'起点',template:empty});assert.deepEqual(model.draft.value.inputDefinitions,[])
+    model.open(undefined,{id:'rise',name:'温升',template:template()});assert.equal(model.draft.value.inputDefinitions.length,2)
+    editable.value=false;model.open();assert.deepEqual(model.draft.value.inputDefinitions,[])
+  } finally {scope.stop()}
+})
+
 test('输出候选只包含计算结果及窗口族结果',()=>{
   const spec={...template(),definitions:[{id:'stats',windowFamily:{ranges:[{outputs:[{id:'maximum'}]}]}}],outputs:[{metricId:'maximum'}]}
   const {renderer,root}=createMetricRenderer(),app=renderer.createApp({setup:()=>()=>h(NodeEditor,{template:spec,node:{kind:'output',index:0}})})
@@ -170,8 +192,8 @@ test('图中添加使用独立按钮和上下文菜单，发布与只读能力�
     stale({ key:'rule' }); assert.equal(additions.length, 1)
     props.template.inputDefinitions = []; props.template.definitions = []; props.template.outputs = []
     props.addKinds = ['input','rule','output']; await flush()
-    const start = walk(root, n => n.props['data-add-root'] === 'input')[0]
-    start.props.onClick({ currentTarget:start }); assert.equal(additions.at(-1)[0], 'input')
+    assert.equal(walk(root, n => n.props['data-add-root']).length,0)
+    assert.equal(walk(root,n=>n.type==='a-empty')[0].props.description,'emptyDesign')
   } finally { app.unmount() }
 })
 

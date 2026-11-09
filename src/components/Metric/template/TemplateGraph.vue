@@ -14,16 +14,11 @@
     </nav>
   </div>
   <div ref="viewport" class="template-graph" :style="contentStyle" :class="{ 'is-grabbable':space, 'is-dragging':dragging }" tabindex="0" :aria-label="t('relations')" aria-keyshortcuts="Delete Backspace Escape + - 0 1" @click.capture="captureClick" @click="clickBackground" @keydown="keydown" @focusout="focusout" @pointerdown.capture="down" @pointermove="pan" @pointerup="end" @pointercancel="cancel" @lostpointercapture="end">
-    <div v-if="!template.inputDefinitions.length || !template.definitions.length" class="template-graph__start">
-      <a-button v-if="!template.inputDefinitions.length && addKinds.includes('input')" data-add-root="input" type="text" size="small" @click="addRoot('input', $event)"><AIcon type="PlusOutlined" />{{ t('addInput') }}</a-button>
-      <a-button v-if="!template.definitions.length && addKinds.includes('rule')" data-add-root="rule" type="text" size="small" @click="addRoot('rule', $event)"><AIcon type="PlusOutlined" />{{ t('addCalculation') }}</a-button>
-    </div>
     <a-empty v-if="!graph.nodes.length" :description="t('emptyDesign')" />
     <div v-else class="template-graph__extent" :style="{ width: `${graph.width * scale}px`, height: `${graph.height * scale}px` }">
     <div class="template-graph__canvas" :style="{ width: `${graph.width}px`, height: `${graph.height}px`, transform:`scale(${scale})` }">
       <div v-for="level in graph.levels" :key="level.level" class="template-graph__heading" :style="{ top: `${level.y}px` }">
         <span>{{ t(level.kind === 'input' ? 'inputs' : level.kind === 'output' ? 'outputs' : level.kind === 'mixed' ? 'graphCalculationAndOutput' : 'calculation') }}</span>
-        <a-button v-if="level.kind === 'input' && addKinds.includes('input') || (level.kind === 'rule' || level.kind === 'mixed') && addKinds.includes('rule')" class="template-graph__root-add" :data-add-root="level.kind === 'input' ? 'input' : 'rule'" type="text" size="small" :aria-label="t(level.kind === 'input' ? 'addInput' : 'addCalculation')" :title="t(level.kind === 'input' ? 'addInput' : 'addCalculation')" @click="addRoot(level.kind === 'input' ? 'input' : 'rule', $event)"><AIcon type="PlusOutlined" /></a-button>
       </div>
       <div v-for="group in groups" :key="group.key" class="template-graph__time-group" :style="{ left: `${group.x}px`, top: `${group.y}px`, width: `${group.width}px` }"><span><AIcon type="ClockCircleOutlined" /> {{ group.label }}</span></div>
       <svg class="template-graph__connections" :viewBox="`0 0 ${graph.width} ${graph.height}`" aria-hidden="true">
@@ -138,7 +133,6 @@ function previewState(key:string) {
   const snapshot = props.simulationPreview?.nodes[key]
   return snapshot?.previous ? `${t('trialPrevious')} · ${sampleDate(snapshot.entry?.time).slice(11)}` : t(snapshot?.state || 'awaitSimulation')
 }
-function addRoot(kind: TemplateNode['kind'], event: Event) { emit('add', kind, event.currentTarget as HTMLButtonElement) }
 function rememberAddTrigger(event: Event) { addTrigger = event.currentTarget as HTMLButtonElement }
 /** 只响应图内空白；节点、添加入口和菜单不改变属性面板上下文。 */
 function clickBackground(event: MouseEvent) {
@@ -181,8 +175,6 @@ defineExpose({ locate })
 .template-graph__scroll-hint { display:flex; align-items:center; justify-content:flex-end; gap:6px; padding-top:6px; color:var(--ink-3); font-size:var(--fs-12,12px) }
 .template-graph__extent { position:relative; margin:0 auto }
 .template-graph__canvas { position:absolute; left:0; top:0; transform-origin:0 0 }
-.template-graph__start { display:flex; align-items:center; gap:8px }
-.template-graph__start :deep(.ant-btn) { color:var(--ink-3); font-size:12px }
 .template-graph__connections { position:absolute; inset:0; width:100%; height:100%; pointer-events:none }
 .template-graph__edge,.template-graph__connections marker path { fill:none; stroke:var(--ink-4); stroke-width:1.3 }
 .template-graph__edge.active { stroke:var(--accent); stroke-width:2 }
@@ -194,7 +186,6 @@ defineExpose({ locate })
 @media(prefers-reduced-motion:reduce) { .template-graph__flow { display:none } .template-graph__edge.linked { stroke-opacity:.8 } }
 .template-graph__heading { position:absolute; left:0; right:0; display:flex; align-items:center; gap:var(--space-3,12px); color:var(--ink-3); font-size:var(--fs-12,12px); pointer-events:none }
 .template-graph__heading::after { content:''; flex:1; border-top:1px solid var(--line) }
-.template-graph__root-add { width:24px; height:24px; padding:0; color:var(--ink-3); pointer-events:auto }
 .template-graph__time-group { position:absolute; height:calc(var(--metric-node-height) + 26px); border:1px dashed var(--line); border-radius:var(--r-2,6px); pointer-events:none }
 .template-graph__time-group>span { position:absolute; top:-9px; left:8px; padding:0 4px; background:var(--bg-sunken); color:var(--ink-3); font-size:var(--fs-12,12px); line-height:18px }
 .template-graph__item { position:absolute; width:var(--metric-node-width); height:var(--metric-node-height) }

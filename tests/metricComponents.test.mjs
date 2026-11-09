@@ -1409,6 +1409,31 @@ test('已有模板时首页只展示模板，空库才显示场景创建引导�
   } finally { view.close() }
 })
 
+test('空白新建直接选中输入，单一添加菜单随能力变化，修改模板身份不重复初始化',async()=>{
+  defaults();moduleRegistry.clear();api.queryTemplates=async()=>({data:[],total:0})
+  const view=mount(Manager,{editable:true})
+  const input=()=>nodes(view.root,'button').find(node=>node.props['data-node']==='input-0')
+  const toolbar=()=>nodes(view.root,'a-button').filter(node=>node.props['aria-label']==='canvasAdd')
+  const menu=()=>toolbar()[0].parent
+  try {
+    await flush();await click(findText(view.root,'a-button','newTemplate'))
+    assert.equal(input().props['aria-pressed'],true)
+    assert.equal(toolbar().length,1)
+    assert.equal(nodes(view.root,'button').filter(node=>node.props['data-add-root']).length,0)
+    assert.equal(textContent(view.root).includes('unsavedChanges'),false)
+    assert.equal(nodes(view.root,'span').some(node=>node.props.class==='template-designer__counts'),false)
+    nodes(view.root,'external-shell').find(node=>node.props.class==='template-identity__id').props['onUpdate:value']('fresh-template');await flush()
+    assert.equal(nodes(view.root,'button').filter(node=>node.props['data-node']?.startsWith('input-')).length,1)
+    assert.equal(input().props['aria-pressed'],false)
+    const rootMenu=nodes(menu(),'a-menu')[0]
+    assert.deepEqual(nodes(rootMenu,'a-menu-item').map(textContent),['addInput','addCalculation'])
+    rootMenu.props.onClick({key:'output'});await flush();assert.equal(nodes(view.root,'button').some(node=>node.props['data-node']==='output-0'),false)
+    rootMenu.props.onClick({key:'rule'});await flush()
+    assert.ok(nodes(view.root,'a-menu-item').some(node=>textContent(node)==='addOutput'))
+    assert.equal(nodes(view.root,'button').find(node=>node.props['data-node']==='rule-0').props['aria-pressed'],true)
+  } finally {view.close();moduleRegistry.clear()}
+})
+
 test('真实模板编辑器选择展示提供者及默认值，表单和完整配置保存同一DTO', async () => {
   defaults(); moduleRegistry.clear()
   const entity = { id: 'draft', name: 'Power', released: false, available: false, template: { ...template, options: { keep: 9, presentation: { settings: { unknown: false } } } } }

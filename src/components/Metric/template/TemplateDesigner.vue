@@ -1,11 +1,10 @@
 <template>
   <div ref="root" class="template-designer" :style="{ '--properties-width': `${panelWidth}px` }" :class="{ 'is-collapsed': collapsed, 'is-narrow': narrow, 'show-properties': propertiesVisible }">
     <div class="template-designer__flow">
-      <nav class="template-designer__create" :aria-label="t('templateProperties')">
-        <a-button v-for="kind in addKinds" :key="kind" size="small" @click="addNode(kind)"><AIcon type="PlusOutlined" />{{ t(kind === 'input' ? 'inputs' : kind === 'rule' ? 'calculation' : 'outputs') }}</a-button>
-        <span class="template-designer__counts"><button v-for="kind in ['input','rule','output'] as const" :key="kind" type="button" @click="locateKind(kind)">{{ t(kind === 'input' ? 'inputs' : kind === 'rule' ? 'calculation' : 'outputs') }} {{ nodes.filter(node=>node.kind===kind).length }}</button></span>
-      </nav>
       <TemplateGraph ref="graph" :template="displayView" :selected="selection" :preview="referenceNode" :calculators="calculators" :add-kinds="addKinds" :simulation-preview="trial?.preview" @select="selectNode" @add="addNode" @background="selectTemplate" @request-remove="requestRemove">
+        <template v-if="addKinds.length" #tools>
+          <a-dropdown :trigger="['click']"><a-button type="text" size="small" :aria-label="t('canvasAdd')"><AIcon type="PlusOutlined" />{{ t('canvasAdd') }}<AIcon type="DownOutlined" /></a-button><template #overlay><a-menu @click="addNode($event.key as TemplateNode['kind'])"><a-menu-item v-for="kind in addKinds" :key="kind"><AIcon :type="kind === 'input' ? 'ImportOutlined' : kind === 'rule' ? 'FunctionOutlined' : 'ExportOutlined'" />{{ t(kind === 'input' ? 'addInput' : kind === 'rule' ? 'addCalculation' : 'addOutput') }}</a-menu-item></a-menu></template></a-dropdown>
+        </template>
         <template v-if="trial" #clock><TemplateSimulationClock :trial="trial" /></template>
         <template v-if="trial" #input-sample="{ node }"><TemplateSimulationInput :template="displayView" :input="displayView.inputDefinitions[node.index]" :snapshot="trial.preview.nodes[nodeKey(node)]" :trial="trial" :disabled="disabled || invalid" @details="showSamples(node, $event)" /></template>
         <template v-if="trial" #node-action="{node}"><TemplateSimulationInspect :template="displayView" :node="node" :entry="trial.preview.nodes[nodeKey(node)]?.entry" /></template>
@@ -93,7 +92,7 @@ import type { TemplateSimulationState } from './useTemplateSimulation'
 import { metricMessages } from '../messages'
 import { metricCalculatorsKey } from '../calculatorContext'
 import type { MetricCalculatorDescriptor, MetricContext, MetricSourcePicker, MetricSourceSelection, MetricTemplate } from '../types'
-const props = defineProps<{ template: MetricTemplate; disabled: boolean; published?: boolean; calculators?: MetricCalculatorDescriptor[]; categories?: TemplateCategory[]; categoriesLoading?: boolean; categoryError?: string; trial?:TemplateSimulationState; simulationError?:string; pickSource?:MetricSourcePicker; sourceContext?:MetricContext }>()
+const props = defineProps<{ template: MetricTemplate; disabled: boolean; published?: boolean; initialInput?:boolean; calculators?: MetricCalculatorDescriptor[]; categories?: TemplateCategory[]; categoriesLoading?: boolean; categoryError?: string; trial?:TemplateSimulationState; simulationError?:string; pickSource?:MetricSourcePicker; sourceContext?:MetricContext }>()
 const emit = defineEmits<{ (event: 'update:template', value: MetricTemplate): void; (event: 'editing', value: boolean): void; (event:'reload-categories'):void }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const inheritedCalculators = inject(metricCalculatorsKey, undefined)
@@ -101,7 +100,7 @@ const inheritedCalculators = inject(metricCalculatorsKey, undefined)
 provide(metricCalculatorsKey, computed(() => props.calculators || inheritedCalculators?.value || []))
 const { view, selection, nodes, position, invalid, editorVersion, select, move, patch, add, remove, revert, setMessages, update, applyInputReference } = useTemplateDesigner(toRef(props, 'template'), toRef(props, 'disabled'), value => emit('update:template', value), (previous,next) => {
   props.trial?.renameInput(previous,next)
-})
+},props.initialInput && !props.published)
 const { requestRemove } = useTemplateNodeRemoval(() => {
   const node = selection.value
   const item = node && (node.kind === 'input' ? view.value.inputDefinitions : node.kind === 'rule' ? view.value.definitions : view.value.outputs)[node.index]
@@ -142,7 +141,7 @@ provide(templateReferenceKey, {
 const { width } = useElementSize(root)
 const narrow = computed(() => width.value > 0 && width.value < 680)
 const collapsed = ref(false)
-const mobileProperties = ref(false)
+const mobileProperties = ref(!!selection.value)
 const propertiesVisible = computed(() => !collapsed.value && (!narrow.value || mobileProperties.value))
 const panelId = `metric-properties-${useId()}`
 const sourceSession = useId()
@@ -159,7 +158,6 @@ function showTemplate() { if (select()) revealPanel() }
 function addNode(kind: TemplateNode['kind'], _element?: HTMLButtonElement, source?: TemplateNode) {
   if (addKinds.value.includes(kind) && add(kind, source)) revealPanel()
 }
-function locateKind(kind:TemplateNode['kind']) { const node = nodes.value.find(item=>item.kind === kind); if (node) selectNode(node); else addNode(kind) }
 function setHint(sources:string[]) {
   if (props.disabled || props.published || selection.value?.kind !== 'input') return
   const id = view.value.inputDefinitions[selection.value.index].id
@@ -202,9 +200,6 @@ function setCategory(value: string) { if (!props.categoriesLoading && !props.cat
 .template-designer { display:grid; grid-template-columns:minmax(0,1fr) var(--properties-width,360px); flex:1; min-width:0; min-height:0; width:100%; overflow:hidden; border:1px solid var(--line); border-radius:var(--r-3,8px); box-sizing:border-box }
 .template-designer.is-collapsed { grid-template-columns:minmax(0,1fr) 40px }
 .template-designer__flow { display:flex; flex-direction:column; gap:8px; min-width:0; min-height:0; overflow:hidden; padding:12px 16px; background:var(--bg-sunken,#f7f8fa) }
-.template-designer__create { display:flex; align-items:center; flex-wrap:wrap; gap:6px; flex:none }
-.template-designer__counts { display:flex; flex-wrap:wrap; margin-left:auto; gap:8px }
-.template-designer__counts button { border:0; background:transparent; padding:2px 0; color:var(--ink-3); font-size:11px; cursor:pointer }
 .template-designer__panel { grid-column:2; grid-row:1; display:flex; flex-direction:column; min-width:0; min-height:0; border-left:1px solid var(--line); background:var(--panel-background) }
 .template-designer__panel-head { display:flex; align-items:center; flex:none; gap:6px; height:44px; padding:0 8px; border-bottom:1px solid var(--line); color:var(--ink-3); font-size:12px }
 .template-designer__panel-head > span { flex:1 }

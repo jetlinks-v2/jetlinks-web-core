@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { defineComponent, effectScope, h, reactive, ref } from 'vue'
 import { createMetricLoader, createMetricRenderer, flush, walk, textContent, sourceRoot, passthrough } from './helpers/metricRuntime.mjs'
 
-const boundary = defineComponent({inheritAttrs:false,setup:(_, {attrs,slots})=>()=>h('boundary',attrs,[slots.default?.(),slots['input-reference']?.()])})
+const boundary = defineComponent({inheritAttrs:false,setup:(_, {attrs,slots})=>()=>h('boundary',attrs,[slots.default?.(),slots.tools?.(),slots['input-reference']?.()])})
 const load = createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key,locale:ref('zh')})},'@vueuse/core':{useElementSize:()=>({width:ref(1000)})},
   ...Object.fromEntries(['TemplateGraph','TemplateNodeEditor','TemplateSimulation','TemplateParameters','TemplatePresentation'].map(file=>[resolve(sourceRoot,`components/Metric/template/${file}.vue`),{default:boundary,__esModule:true}])),
   [resolve(sourceRoot,'components/Metric/api.ts')]:{metricApi:{}}})
@@ -64,10 +64,10 @@ test('从空模板创建输入后在侧栏参考，仅复制声明，迟到选�
   const pickSource=Object.assign(()=>new Promise(resolve=>{finish=resolve}),{cancel(){}})
   const props=reactive({template:empty(),disabled:false,pickSource,'onUpdate:template':value=>{props.template=value}})
   const {renderer,root}=createMetricRenderer(), app=renderer.createApp({setup:()=>()=>h(Designer,props)})
-  app.config.warnHandler=()=>{};app.mount(root)
+  app.component('a-dropdown',passthrough('a-dropdown'));app.config.warnHandler=()=>{};app.mount(root)
   try {
     assert.equal(walk(root,node=>node.type==='a-button' && textContent(node).includes('inputImport')).length,0)
-    walk(root,node=>node.type==='a-button' && textContent(node)==='inputs')[0].props.onClick();await flush()
+    walk(root,node=>node.type==='a-menu')[0].props.onClick({key:'input'});await flush()
     const click=()=>walk(root,node=>node.type==='a-button' && textContent(node).includes('inputReference'))[0].props.onClick()
     const pending=click();finish({mapping:{kind:'provider',thingId:'gateway-1',id:'alarm',providerSource:{provider:'device-events',sourceType:'event',configuration:{}}},label:'网关 / 火警',declaration:{name:'火警',valueType:{type:'object',properties:[{id:'value',valueType:{type:'int'}}]}}});await pending;await flush()
     assert.equal(props.template.inputDefinitions.length,1)
@@ -114,13 +114,13 @@ test('内嵌参考切换输入或禁用即取消，迟到结果不写入另一�
   const pickSource=Object.assign(next=>{request=next;return new Promise(resolve=>{finish=resolve})},{cancel(){cancels++},editor:defineComponent({setup:()=>()=>h('reference-catalog','catalog')})})
   const props=reactive({template:empty(),disabled:false,pickSource,'onUpdate:template':value=>{props.template=value}})
   const {renderer,root}=createMetricRenderer(),app=renderer.createApp({setup:()=>()=>h(Designer,props)})
-  app.config.warnHandler=()=>{};app.mount(root)
+  app.component('a-dropdown',passthrough('a-dropdown'));app.config.warnHandler=()=>{};app.mount(root)
   try {
     const button=label=>walk(root,node=>node.type==='a-button' && textContent(node)===label)[0]
-    button('inputs').props.onClick();await flush()
+    walk(root,node=>node.type==='a-menu')[0].props.onClick({key:'input'});await flush()
     const pending=button('inputReference').props.onClick();await flush()
     assert.equal(request.inline,true);assert.equal(request.input.id,'input1');assert.equal(walk(root,node=>node.type==='reference-catalog').length,1)
-    button('inputs').props.onClick();await flush()
+    walk(root,node=>node.type==='a-menu')[0].props.onClick({key:'input'});await flush()
     assert.ok(cancels>0);assert.equal(walk(root,node=>node.type==='reference-catalog').length,0)
     finish({mapping:{id:'late'},declaration:{name:'迟到',valueType:{type:'double'}}});await pending;await flush()
     assert.deepEqual(props.template.inputDefinitions.map(item=>item.id),['input1','input2'])
