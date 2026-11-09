@@ -18,6 +18,9 @@
       <div v-else class="metric-panel__grid">
         <MetricCardShell v-for="card in cardGroups" :key="card.reference.configId" :title="configName(card.config)" :icon="metricConfigurationIcon(templates[card.reference.configId], card.config)" class="metric-panel__group" :class="{ 'is-selected': reference?.configId === card.reference.configId, 'is-stopped': card.config.state === 'disabled', 'is-boolean': typeof outputs[card.reference.configId]?.[card.reference.outputId]?.value === 'boolean' || card.output.valueType === 'boolean' }">
         <template #actions>
+          <TemplateFormulaDisplay v-if="cardFormulas[card.reference.configId] && !scopeDefinition(card.config)" :template="templates[card.reference.configId]" :rule="cardFormulas[card.reference.configId].rule" :expression="cardFormulas[card.reference.configId].expression" summary>
+            <template #trigger><a-button type="text" size="small" class="metric-panel__formula" :aria-label="t('formula')" :title="t('formula')">ƒx</a-button></template>
+          </TemplateFormulaDisplay>
           <span v-if="!canManage(card.config) && card.config.scope === 'children'" class="metric-panel__inherited" :title="t('scopeManaged')"><AIcon type="LinkOutlined" />{{ t('inherited') }}</span>
           <a-button v-if="canManage(card.config)" type="text" size="small" class="metric-panel__edit" :aria-label="t('edit')" :title="t('edit')" @click="openEditor(card.config)"><AIcon type="EditOutlined" /></a-button>
           <MetricConfigActions v-if="canManage(card.config)" class="metric-panel__actions" :configuration="card.config" :busy="busyId === card.config.id" @edit="openEditor(card.config)" @toggle="toggleConfig(card.config)" @remove="confirmRemove(card.config)" />
@@ -36,8 +39,8 @@
           </div>
           <MetricCardContent v-else :context="context" :configuration="card.config" :template="templates[card.reference.configId]" :output="card.output" :value="outputs[card.reference.configId]?.[card.reference.outputId]" :runtime="runtimes[card.reference.configId]" />
         </button>
-        <div v-if="!scopeDefinition(card.config)" class="metric-panel__secondary-outputs">
-          <button v-for="secondary in card.secondary" :key="secondary.reference.outputId" type="button" class="metric-panel__secondary" :class="{ 'is-score':secondary.output.metricKind === 'score' || secondary.output.options?.readAggregation?.semantic === 'score' }"
+        <div v-if="!scopeDefinition(card.config)" class="metric-panel__secondary-outputs" :class="{ 'is-link': card.config.state === 'disabled' || !card.secondary.length }">
+          <button v-for="secondary in card.config.state === 'disabled' ? [] : card.secondary" :key="secondary.reference.outputId" type="button" class="metric-panel__secondary" :class="{ 'is-score':secondary.output.metricKind === 'score' || secondary.output.options?.readAggregation?.semantic === 'score' }"
             :ref="element => setCardElement(secondary.reference, element)"
             :disabled="inaccessibleIds.includes(card.reference.configId) || !!error || !!latestErrors[card.reference.configId]"
             :aria-pressed="reference?.configId === secondary.reference.configId && reference?.outputId === secondary.reference.outputId"
@@ -46,7 +49,7 @@
             <span v-if="inaccessibleIds.includes(card.reference.configId) || error || latestErrors[card.reference.configId]">— <a-tag>{{ t(error || latestErrors[card.reference.configId] ? 'readFailed' : 'noAccess') }}</a-tag></span>
             <MetricValueView v-else :value="outputs[card.reference.configId]?.[secondary.reference.outputId]" :template="templates[card.reference.configId]" :output="secondary.output" :unit="secondary.output.unit" :settings="card.settings" :disabled="card.config.state === 'disabled'" hide-quality inline />
           </button>
-          <button v-if="!card.secondary.length" type="button" class="metric-panel__details" :disabled="inaccessibleIds.includes(card.reference.configId) || !!error || !!latestErrors[card.reference.configId]" @click="select(card.reference.configId, card.reference.outputId)">{{ t(tracksStateIntervals(templates[card.reference.configId], card.reference.outputId) ? 'viewRecords' : 'viewTrend') }}<AIcon type="RightOutlined" /></button>
+          <button v-if="card.config.state === 'disabled' || !card.secondary.length" type="button" class="metric-panel__details" :disabled="inaccessibleIds.includes(card.reference.configId) || !!error || !!latestErrors[card.reference.configId]" @click="select(card.reference.configId, card.reference.outputId)">{{ t(tracksStateIntervals(templates[card.reference.configId], card.reference.outputId) ? 'viewRecords' : 'viewTrend') }}<AIcon type="RightOutlined" /></button>
         </div>
         </MetricCardShell>
         <a-alert v-for="config in configurations.filter(item => item.id && itemErrors[item.id])" :key="config.id" class="metric-panel__failure"
@@ -84,6 +87,8 @@ import MetricTimeRange from './MetricTimeRange.vue'
 import MetricConfigActions from './MetricConfigActions.vue'
 import MetricCardContent from './extensions/MetricCardContent.vue'
 import MetricCardShell from './MetricCardShell.vue'
+import TemplateFormulaDisplay from './template/formula/TemplateFormulaDisplay.vue'
+import { ruleExpression, type TemplateRule } from './template/designer'
 import MetricScopeSummary from './collection/MetricScopeSummary.vue'
 import { useMetricScopeOverview } from './collection/useMetricScopeOverview'
 import MetricValueView from './MetricValue.vue'
@@ -109,6 +114,12 @@ provide(metricSourcePickerKey, toRef(props,'pickSource'))
 const { configurations, templates: rawTemplates, outputs, runtimes, selectedLatest, itemErrors, inaccessibleIds, latestErrors, actionError, loading, error, busyId, selectedId, selected,
   selectedOutput, reference, cardGroups, select, editorOpen, editing, openEditor, closeDrawer, dismissDrawer, takeFocusReference, saved, refresh, setEnabled, remove, canManage, refreshInterval } = useMetricPanel(toRef(props, 'context'), undefined, toRef(props, 'initialReference'))
 const templates = computed(() => Object.fromEntries(Object.entries(rawTemplates.value).map(([id, template]) => [id, localizedTemplate(template, String(locale.value))])))
+// 公式仅在独立标题入口展示，主结果按钮保持单一点击目标；投影仍由模板共用组件负责。
+const cardFormulas = computed(() => Object.fromEntries(cardGroups.value.flatMap(card => {
+  const rule = templates.value[card.reference.configId]?.definitions.find(rule => rule.id === card.output.metricId) as TemplateRule | undefined
+  const expression = rule && ruleExpression(rule)
+  return rule && (expression || rule.expressionTree) ? [[card.reference.configId, { rule, expression: expression || '' }]] : []
+})))
 const trendTargets = computed(() => error.value ? [] : configurations.value.flatMap(config => {
   const id = config.id, template = id ? rawTemplates.value[id] : undefined
   if (!id || !template || inaccessibleIds.value.includes(id) || latestErrors.value[id] || scopeDefinition(config)) return []
@@ -181,12 +192,13 @@ function openDetailLink() {
 .metric-panel__tools,.metric-panel__time { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap }
 .metric-panel__section-title { font-weight:600; font-size:var(--fs-14,14px) }
 .metric-panel__section-title small { color:var(--ink-2); font-size:var(--fs-12,12px); font-weight:400; margin-left:8px }
-.metric-panel__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:1fr; gap:var(--space-4,16px) }
+.metric-panel__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--space-3,12px) }
 .metric-panel__group { min-width:0 }
 .metric-panel__group:hover,.metric-panel__group.is-selected { border-color:var(--accent) }
 .metric-panel__group.is-stopped { background:var(--bg-sunken) }
 .metric-panel__inherited { margin-left:auto; display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--ink-3); white-space:nowrap }
 .metric-panel__edit { color:var(--ink-2); flex-shrink:0 }
+.metric-panel__formula { color:var(--ink-2); font:italic 14px Georgia,serif; flex:none }
 .metric-panel__actions { margin-left:auto; flex-shrink:0 }
 .metric-panel__drawer-title { display:flex; align-items:center; gap:6px; line-height:22px }
 .metric-panel__drawer-subtitle { margin:0; font-size:12px; line-height:18px; color:var(--ink-3) }
@@ -195,7 +207,8 @@ function openDetailLink() {
 .metric-panel__card:disabled { cursor:default }
 .metric-panel__card:disabled:hover { border-color:var(--line) }
 .metric-panel__card.is-stopped { background:var(--bg-sunken); color:var(--ink-2) }
-.metric-panel__secondary-outputs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:center; flex:none; height:60px; gap:12px; padding:8px var(--space-4,16px); border-top:1px solid var(--line) }
+.metric-panel__secondary-outputs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:center; flex:none; gap:8px 12px; padding:8px var(--space-4,16px); border-top:1px solid var(--line) }
+.metric-panel__secondary-outputs.is-link { padding-block:6px }
 .metric-panel__details { grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; border:0; background:transparent; padding:0; color:var(--ink-3); font:inherit; font-size:var(--fs-12,12px); cursor:pointer }
 .metric-panel__details:hover { color:var(--accent) }
 .metric-panel__details:focus-visible { outline:2px solid var(--accent); outline-offset:2px }

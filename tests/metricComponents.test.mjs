@@ -697,6 +697,29 @@ test('卡片与编辑使用配置名称和模板图标，实时值类型变化�
   } finally { view.close(); moduleRegistry.clear() }
 })
 
+test('卡片公式独立于结果按钮，保留原公式；停用且无历史时收起空趋势与等待提示', async () => {
+  defaults(); moduleRegistry.clear()
+  api.configTemplate = async () => ({ ...template, definitions:[{ id:'value', expression:'sample / 60', inputs:[{id:'sample',metricId:'sample'}] }],
+    inputDefinitions:[{id:'sample',name:'Duration',valueType:{type:'double'}}] })
+  api.byOwner = async () => [{...config,state:'disabled'}]
+  api.latest = async () => [{configId:'c',outputs:{}}]
+  api.history = async () => []
+  const view = mount(Panel,{context:{ownerType:'line',ownerId:'a'}})
+  try {
+    await flush()
+    const header=walk(view.root,node=>node.props.class==='metric-card-shell__head')[0]
+    const trigger=findText(header,'a-button','formula')
+    assert.equal(textContent(trigger),'ƒx')
+    assert.deepEqual(nodes(header,'a-popover')[0].props.trigger,['hover','focus','click'])
+    const card=nodes(view.root,'button').find(node=>node.props.class?.includes('metric-panel__card'))
+    assert.equal(nodes(card,'a-popover').length,0,'formula action is outside the result button')
+    assert.equal(walk(card,node=>node.props.class==='metric-card-content__trend').length,0)
+    assert.equal(textContent(card).includes('waiting'),false)
+    await click(trigger)
+    assert.equal(nodes(view.root,'external-shell').some(node=>node.props.open),false,'formula does not open result details')
+  } finally {view.close()}
+})
+
 test('关系图选中与键盘焦点控制连线，重绘后保留节点和内部滚动位置', async () => {
   const model = reactive({ template:{ ...template, inputDefinitions:[{ id:'input', name:'Input' }], definitions:[{ id:'value', expression:'input * 2', dependsOn:['input'] }] }, selected:{ kind:'rule', index:0 } })
   const view = mount(Graph, model)

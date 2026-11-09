@@ -12,7 +12,7 @@
 defineProps<{title:string;icon?:string}>()
 </script>
 <style scoped>
-.metric-card-shell{display:flex;flex-direction:column;min-width:0;min-height:288px;height:100%;border:1px solid var(--line);border-radius:var(--r-3,8px);background:var(--panel-background);overflow:hidden}
+.metric-card-shell{display:flex;flex-direction:column;min-width:0;height:100%;border:1px solid var(--line);border-radius:var(--r-3,8px);background:var(--panel-background);overflow:hidden}
 .metric-card-shell:hover{border-color:var(--accent)}
 .metric-card-shell__head{display:flex;align-items:center;gap:6px;padding:12px 12px 0 16px;min-width:0;min-height:44px}
 .metric-card-shell__icon{display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);width:26px;height:26px;border-radius:6px;flex:none}

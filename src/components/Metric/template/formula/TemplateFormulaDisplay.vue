@@ -1,12 +1,12 @@
 <template>
-  <a-popover v-if="summary" :trigger="['hover','focus']" placement="top" :get-popup-container="summaryPopupContainer">
+  <a-popover v-if="summary" :trigger="$slots.trigger ? ['hover','focus','click'] : ['hover','focus']" placement="top" :get-popup-container="summaryPopupContainer">
     <template #content><div class="template-formula-preview"><ExpressionView v-if="tree" :node="tree.root" :context="context" :show-result="false" /><span v-else class="template-formula-source">{{ label }}</span><small v-if="conditionCount">{{ t('order') }}</small></div></template>
-    <span class="template-formula-summary" :aria-label="conditionCount ? t('conditionalSummary',{count:conditionCount}) : label">
+    <slot name="trigger"><span class="template-formula-summary" :aria-label="conditionCount ? t('conditionalSummary',{count:conditionCount}) : label">
       <span v-if="conditionCount" class="template-formula-summary__cases"><AIcon type="BranchesOutlined" />{{ t('conditionalSummary',{count:conditionCount}) }}</span>
       <ExpressionView v-else-if="tree" :node="tree.root" :context="context" compact :show-result="false" />
       <span v-else class="template-formula-summary__source">{{ label }}</span>
       <AIcon type="ExpandAltOutlined" class="template-formula-summary__inspect" :title="t('expandFormula')" />
-    </span>
+    </span></slot>
   </a-popover>
   <ExpressionWorkspace v-else-if="tree && !compact" :node="tree.root" :context="context" :explanation="explanation" :format="format" @expanded-change="emit('expandedChange',$event)">
     <ExpressionView :node="tree.root" :context="context" :explanation="explanation" :format="format" :show-result="showResult" />

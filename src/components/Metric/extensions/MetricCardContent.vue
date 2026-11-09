@@ -9,15 +9,14 @@
     </template>
   </MetricValueView>
   <strong v-else class="metric-card-empty">—</strong>
-  <div v-if="!intervals && !stateOutput" class="metric-card-content__description" :title="description"><TemplateFormulaDisplay v-if="rule && ruleSummary?.expression" :template="template" :rule="rule" :expression="ruleSummary.expression" compact /><span v-else>{{ description }}</span></div>
-  <div class="metric-card-content__trend">
+  <div v-if="configuration.state !== 'disabled' || historyValues.length" class="metric-card-content__trend">
     <span v-if="history?.error" class="metric-card-content__error">{{ t('historyFailed') }}</span>
     <span v-else-if="!history || history.loading && !history.values.length" class="metric-card-content__pending">{{ t('loadingHistory') }}</span>
     <MetricStateHistory v-else-if="intervals" :labels="labels" :values="historyValues" :current="value" :bounds="history.bounds" compact />
     <MetricTrend v-else :values="historyValues" :current="value" :output="output" :sample-interval="metricSampleInterval(template,output.metricId)" :state-output="stateOutput" :bounds="history.bounds" :unit="output.unit" :limited="history.values.length >= 200" :labels="labels" compact />
   </div>
   <footer class="metric-card-content__footer">
-    <a-tooltip v-if="observedTime && observedTime > 0" :title="timeHint" :trigger="['hover', 'click']"><time @click.stop>{{ t(timeLabel) }} {{ shortTime }}</time></a-tooltip><span v-else-if="runtime?.state !== 'failed'">{{ t('waiting') }}</span>
+    <a-tooltip v-if="observedTime && observedTime > 0" :title="timeHint" :trigger="['hover', 'click']"><time @click.stop>{{ t(timeLabel) }} {{ shortTime }}</time></a-tooltip><span v-else-if="configuration.state !== 'disabled' && (!runtime || runtime.state === 'loaded')">{{ t('waiting') }}</span>
     <span v-if="configuration.state !== 'disabled' && metricInputDiagnostics(value).total" class="metric-card-content__inspect">{{ t('issueDetails') }}<AIcon type="RightOutlined" /></span>
   </footer>
   <MetricRuntimeFeedback v-if="runtime && runtime.state !== 'loaded'" :runtime="runtime" :has-value="!!value" :disabled="configuration.state === 'disabled'" compact />
@@ -40,10 +39,6 @@ import { metricMessages } from '../messages'
 import { metricState, metricSampleInterval, resultTime } from '../presentation'
 import { metricInputDiagnostics } from '../sourceDiagnostics'
 import { metricHistoryKey } from '../useMetricTrends'
-import { metricCalculatorsKey } from '../calculatorContext'
-import { graphNodeSummary } from '../template/graphPresentation'
-import TemplateFormulaDisplay from '../template/formula/TemplateFormulaDisplay.vue'
-import type { TemplateRule } from '../template/designer'
 import type { MetricConfig, MetricContext, MetricRuntime, MetricTemplate, MetricTemplateOutput, MetricValue } from '../types'
 // 与现有 SFC 一样内联宏结构，兼容 setup-name-support 的匿名预编译；领域类型仍复用共享契约。
 const props = defineProps<{ context: MetricContext; configuration: MetricConfig; template: MetricTemplate; output: MetricTemplateOutput; value?: MetricValue; runtime?: MetricRuntime }>()
@@ -56,7 +51,6 @@ const stateOutput = computed(() => presentation.value.history === 'state' || pre
 const intervals = computed(() => presentation.value.history === 'interval' && !provider.value?.card)
 watch(provider, () => { failed.value = false })
 const shared = inject(metricHistoryKey, undefined)
-const calculators = inject(metricCalculatorsKey, undefined)
 const history = computed(() => props.configuration.id ? shared?.entries.value[props.configuration.id] : undefined)
 const historyValues = computed(() => history.value?.values.filter(value => value.metricId === props.output.metricId) || [])
 const state = computed(() => intervals.value && stateIntervalSummary(props.value).state === 'unknown' ? { key:'inputExpired', tone:'warning' } : metricState(props.value))
@@ -66,21 +60,13 @@ const fullTime = computed(() => observedTime.value ? new Date(observedTime.value
 const shortTime = computed(() => observedTime.value ? new Date(observedTime.value).toLocaleString(String(locale.value), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '')
 const timeLabel = computed(() => props.value?.state?.readView ? 'readAt' : evaluated.value ? 'updatedAt' : 'sourceTime')
 const timeHint = computed(() => `${fullTime.value} · ${t(`${timeLabel.value}Hint`)} · ${t(state.value.key)}`)
-const ruleIndex = computed(() => props.template.definitions.findIndex(rule => rule.id === props.output.metricId))
-const rule = computed(() => props.template.definitions[ruleIndex.value] as TemplateRule | undefined)
-const ruleSummary = computed(() => rule.value ? graphNodeSummary(props.template, { kind: 'rule', index: ruleIndex.value }, t, calculators?.value) : undefined)
-const description = computed(() => ruleSummary.value ? rule.value?.temporalCondition ? `${ruleSummary.value.text} · ${ruleSummary.value.detail}` : ruleSummary.value.text : '')
 </script>
 <style scoped>
 .metric-card-empty { display:flex; align-items:center; min-height:46px; font-size:var(--fs-24,24px) }
 .metric-card-content { display:flex; flex:1; flex-direction:column; min-height:0; min-width:0; gap:var(--space-1,4px) }
 .metric-card-content :deep(.metric-value--summary .metric-value__main) { min-height:46px }
 .has-intervals .metric-card-content__trend { height:40px }
-/* 与模板共用数学排版，描述区由公式撑高，保留分式和分支的完整结构。 */
-.metric-card-content__description { display:flex; align-items:center; color:var(--ink-2); font-size:var(--fs-12,12px); margin:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-height:26px; flex-shrink:0 }
-.metric-card-content__description > span { overflow:hidden; text-overflow:ellipsis }
-.metric-card-content__description :deep(.template-formula) { overflow:hidden; pointer-events:none }
-.metric-card-content__trend { height:72px; flex:none; margin-top:auto }
+.metric-card-content__trend { height:64px; flex:none; margin-top:auto }
 .metric-card-content__pending,.metric-card-content__error { display:flex; align-items:center; justify-content:center; height:100%; font-size:var(--fs-12,12px); color:var(--ink-2) }
 .metric-card-content__error { color:var(--jet-theme-error-color,var(--ink-2)) }
 .metric-card-content__footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; color:var(--ink-3); font-size:11px; padding-top:6px }
