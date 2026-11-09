@@ -171,7 +171,7 @@ test('closing the drawer preserves context, releasing its owner removes the revo
   assert.equal(h.store.agentList.length, 1)
 })
 
-test('hiding the assistant clears its context and fences a pending deployment response', async t => {
+test('hiding the launcher preserves its context and fences a pending deployment response', async t => {
   const result = deferred()
   const h = storeHarness(t, () => result.promise)
   const pending = h.store.queryAgent('page', { subjectId: 'device' })
@@ -184,6 +184,63 @@ test('hiding the assistant clears its context and fences a pending deployment re
   assert.equal(h.store.activeClientId, '')
   assert.equal(h.store.pendingClientId, '')
   assert.equal(h.store.showAiButton, false)
+})
+
+test('hiding the launcher does not clear an existing deployment or its tool handlers', async t => {
+  const h = storeHarness(t)
+  const tool = { id: 'read', execute: () => ({ ok: true }) }
+  await h.store.queryAgent('page', { clientTools: [tool] })
+  const list = h.store.agentList
+  const parameters = h.store.parameters
+  h.store.hideAiButton()
+  assert.equal(h.store.agentList, list)
+  assert.equal(h.store.parameters, parameters)
+  assert.equal(h.store.parameters.clientTools[0].execute, tool.execute)
+})
+
+test('a hidden conversation completes an in-flight tool and accepts subsequent tool calls', async t => {
+  const h = storeHarness(t)
+  const load = createLoader({
+    '../../utils/agentWebSocketUrl': { createAgentWebSocketUrl: () => 'ws://test' },
+    '@jetlinks-web-core/layout/components/AiChat/clientTools': { guardAiClientToolResult: result => result },
+    './utils': { isSemanticConfirmOptionId: () => false, resolveConfirmOptionApproved: () => true },
+  })
+  const { AgentConversationSocketAdapter } = load(resolve(src,
+    '../../modules/jetlinks-ai-agent-ui/components/AgentConversation/adapter.ts'))
+  const adapter = new AgentConversationSocketAdapter()
+  const response = deferred()
+  const frames = []
+  const signals = []
+  let disposed = false
+  adapter.sendRaw = frame => frames.push(frame)
+  adapter.onClientToolCall(call => {
+    signals.push(call.signal)
+    return signals.length === 1 ? response.promise : { ok: true }
+  })
+  await h.store.queryAgent('page', { clientTools: [{ id: 'read' }] })
+  h.store.setDrawer(true)
+  const Conversation = vue.defineComponent({
+    setup() {
+      vue.onUnmounted(() => { disposed = true; void adapter.dispose() })
+      return () => vue.h('div')
+    },
+  })
+  const app = renderer().createApp({ setup: () => () => h.store.agentList.length ? vue.h(Conversation) : null })
+  app.mount({ children: [] })
+  h.flush.onCleanup(() => app.unmount())
+  const active = adapter.handleClientToolCall({ id: 'before-hide', params: { toolName: 'read' } })
+  h.store.setDrawer(false)
+  await vue.nextTick()
+  assert.equal(disposed, false)
+  assert.equal(signals[0].aborted, false)
+  await adapter.handleClientToolCall({ id: 'while-hidden', params: { toolName: 'read' } })
+  response.resolve({ ok: true })
+  await active
+  assert.equal(signals.length, 2)
+  assert.deepEqual(frames.map(frame => frame.id).sort(), ['before-hide', 'while-hidden'])
+  h.store.setDrawer(true)
+  await vue.nextTick()
+  assert.equal(disposed, false)
 })
 
 test('page release unmounts the conversation before a revoked catalog refresh can report expiry', async t => {
