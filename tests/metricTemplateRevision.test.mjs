@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 import { createMetricLoader, flush, sourceRoot } from './helpers/metricRuntime.mjs'
 const load = createMetricLoader({ [resolve(sourceRoot, 'components/Metric/api.ts')]: { metricApi: {} } })
 const { useTemplateUpdates } = load('components/Metric/template/useTemplateUpdates.ts')
+const { useTemplateReferenceLabels } = load('components/Metric/template/useTemplateReferenceLabels.ts')
 const { useMetricTemplates } = load('components/Metric/template/useMetricTemplates.ts')
 const { localizedTemplate } = load('components/Metric/template/text.ts')
 const template = { id: 'power', version: '1', name: '能耗', inputDefinitions: [{ id: 'reading', name: '读数' }],
@@ -16,6 +17,53 @@ function setup(api) {
   const scope = effectScope(), selected = ref(entity), editable = ref(true)
   return { scope, selected, editable, updates: scope.run(() => useTemplateUpdates(selected, editable, api)) }
 }
+
+test('单项更新显式选择目标，保留其他批量选择并沿用修订和CAS', async () => {
+  const writes = []
+  const state = setup({
+    templateRevisions: async () => [], templateReferences: async () => [config('a'), config('b')],
+    applyTemplateRevision: async (id, revision, expected) => { writes.push([id, revision, expected]); return { ...config(id), templateRevision: revision, revision: expected + 1 } },
+    latest: async () => [],
+  })
+  try {
+    await state.updates.load(); state.updates.selectedIds.value = ['b']
+    await state.updates.apply(false, ['a'])
+    assert.deepEqual(writes, [['a', 2, 3]])
+    assert.deepEqual(state.updates.selectedIds.value, ['b'])
+    state.editable.value = false
+    await state.updates.apply(false, ['b']); assert.equal(writes.length, 1)
+  } finally { state.scope.stop() }
+})
+
+test('引用名称按类型去重分页，追加引用只读取新增对象，拒绝非请求名称', async () => {
+  const scope = effectScope(), refs = ref(Array.from({ length: 35 }, (_, i) => ({ ownerType: 'device', ownerId: String(i) }))), calls = []
+  refs.value.push(refs.value[0], { ownerType: 'product', ownerId: 'p' })
+  const provider = ownerType => ({ ownerType, resolveObjects: async ids => { calls.push([ownerType, ids]); return [...ids.map(id => ({ ownerId: id, label: `${ownerType}-${id}` })), { ownerId: 'not-requested', label: 'Hidden' }] } })
+  const dimensions = ref([provider('device'), provider('product')])
+  const name = scope.run(() => useTemplateReferenceLabels(refs, dimensions))
+  try {
+    await flush()
+    assert.deepEqual(calls.filter(([type]) => type === 'device').map(([, ids]) => ids.length), [32, 3])
+    assert.equal(name(refs.value[34]), 'device-34'); assert.equal(name({ownerType:'device',ownerId:'not-requested'}), 'not-requested')
+    refs.value.push({ownerType:'device',ownerId:'new'}); await flush()
+    assert.deepEqual(calls.at(-1), ['device', ['new']])
+    dimensions.value = [{ownerType:'device',resolveObjects:async () => { throw Error('denied') }}]; await flush()
+    assert.equal(name(refs.value[0]), '0')
+  } finally { scope.stop() }
+})
+
+test('名称异步返回不能覆盖切换后对象，卸载停止后续分页', async () => {
+  const scope = effectScope(), refs = ref([{ownerType:'device',ownerId:'old'}]), pending = []
+  const dimensions = ref([{ownerType:'device',resolveObjects:ids => new Promise(resolve => pending.push({ids,resolve}))}])
+  const name = scope.run(() => useTemplateReferenceLabels(refs, dimensions))
+  refs.value = [{ownerType:'device',ownerId:'new'}]; await flush()
+  pending[1].resolve([{ownerId:'new',label:'New'}]); await flush()
+  pending[0].resolve([{ownerId:'old',label:'Old'}]); await flush()
+  assert.equal(name(refs.value[0]), 'New'); assert.equal(name({ownerType:'device',ownerId:'old'}), 'old')
+  refs.value = Array.from({length:40}, (_,i) => ({ownerType:'device',ownerId:`next-${i}`})); await flush()
+  scope.stop(); pending[2].resolve(pending[2].ids.map(id => ({ownerId:id,label:'Late'}))); await flush()
+  assert.equal(pending.length, 3); assert.equal(name(refs.value[0]), 'next-0')
+})
 
 test('语言切换仅生成展示视图，公式和来源标识保留且原模板可往返', () => {
   const before = JSON.stringify(template)

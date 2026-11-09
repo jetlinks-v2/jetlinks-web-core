@@ -58,6 +58,7 @@ export function useTemplateUpdates(entity: Ref<MetricTemplateEntity | undefined>
       if (token !== generation) return
       const index = references.value.findIndex(item => item.id === saved.id)
       if (index >= 0) references.value.splice(index, 1, saved)
+      selectedIds.value = selectedIds.value.filter(id => id !== saved.id)
       summary.value.saved++
       // 批量更新只保存可见行反馈和总计，避免为每个隐藏实例常驻结果对象。
       if (index >= 0) {
@@ -79,7 +80,7 @@ export function useTemplateUpdates(entity: Ref<MetricTemplateEntity | undefined>
       } else error.value = `${config.name || config.id}: ${errorText(cause)}`
     }
   }
-  async function apply(all: boolean) {
+  async function apply(all: boolean, ids: readonly string[] = selectedIds.value) {
     if (!editable.value || !entity.value?.released || applying.value) return
     const key = entity.value.id
     const revision = targetRevision.value
@@ -98,7 +99,7 @@ export function useTemplateUpdates(entity: Ref<MetricTemplateEntity | undefined>
           cursor = batch.at(-1)?.id
         }
       } else {
-        const selected = new Set(selectedIds.value)
+        const selected = new Set(ids)
         for (const config of references.value.filter(item => item.id && selected.has(item.id))) {
           if (token !== generation || !editable.value) break
           await applyOne(config, revision, token)

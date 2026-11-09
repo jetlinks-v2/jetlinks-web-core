@@ -1,7 +1,7 @@
 <template>
   <div class="metric-lineage-shell">
     <MetricExecutionProcess v-if="!definitionsOnly" :observation="observation" :value="value" :template="template" :output="output" />
-    <details class="metric-lineage-definition"><summary><AIcon type="BranchesOutlined" /> {{ t('evidenceDefinition') }}</summary>
+    <MetricDisclosure class="metric-lineage-definition" :title="t('evidenceDefinition')" icon="BranchesOutlined">
     <small>{{ t('evidenceDefinitionHint') }}</small>
     <div class="metric-lineage">
     <section>
@@ -27,7 +27,7 @@
       <div class="metric-lineage__uses"><span v-if="output.persist"><AIcon type="HistoryOutlined" /> {{ t('outputHistory') }}</span><span v-if="output.publish"><AIcon type="SendOutlined" /> {{ t('outputEvents') }}</span></div>
     </section>
     </div>
-    </details>
+    </MetricDisclosure>
   </div>
 </template>
 <script setup lang="ts">
@@ -39,6 +39,7 @@ import { templateGraph, type TemplateNode, type TemplateRule } from './template/
 import { graphNodeSummary } from './template/graphPresentation'
 import TemplateFormulaDisplay from './template/formula/TemplateFormulaDisplay.vue'
 import MetricExecutionProcess from './MetricExecutionProcess.vue'
+import MetricDisclosure from './MetricDisclosure.vue'
 import type { MetricConfig, MetricContext, MetricExecutionView, MetricTemplate, MetricTemplateOutput, MetricValue } from './types'
 const props = defineProps<{ configuration: MetricConfig; template: MetricTemplate; output: MetricTemplateOutput; context?: MetricContext; value?:MetricValue; observation?:MetricExecutionView; definitionsOnly?:boolean }>()
 const { t } = useI18n({ useScope: 'local', messages: metricMessages })
@@ -70,9 +71,7 @@ function sourceLabel(index: number) {
 </script>
 <style scoped>
 .metric-lineage-shell { display:grid; gap:20px; min-width:0 }
-.metric-lineage-definition { border-top:1px solid var(--line); padding-top:12px }
-.metric-lineage-definition > summary { cursor:pointer; color:var(--ink-2); font-size:12px }
-.metric-lineage-definition > small { display:block; margin:8px 0 16px; color:var(--ink-3); font-size:12px }
+.metric-lineage-definition :deep(.metric-disclosure__content > small) { display:block; margin:0 0 12px; color:var(--ink-3); font-size:12px }
 .metric-lineage { display:grid; gap:var(--space-5,20px); padding-left:22px; border-left:1px solid var(--line); margin-left:8px }
 .metric-lineage section { position:relative; min-width:0 }
 .metric-lineage section::before { position:absolute; content:''; top:7px; left:-27px; width:8px; height:8px; border:2px solid var(--accent); background:var(--panel-background); border-radius:50% }

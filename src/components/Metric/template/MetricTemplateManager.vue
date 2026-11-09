@@ -36,7 +36,7 @@
           <TemplateIdentity v-model:template="draft" :disabled="!canEditIdentity || updates.applying.value" :published="selected?.released" :revision="selected?.revision" :pending="!!selected?.draft" />
           <span v-if="hasChanges" class="metric-template-manager__dirty" role="status">{{ t('unsavedChanges') }}</span>
           <a-button v-if="editable && tab === 'design'" :loading="simulating" :disabled="editing || trial.invalid || saving || updates.applying.value" @click="runSimulation"><AIcon type="PlayCircleOutlined" />{{ t('simulate') }}</a-button>
-          <a-button v-if="!readOnly" type="primary" :loading="saving" :disabled="editing || simulating || updates.applying.value" @click="save">{{ t('save') }}</a-button>
+          <a-button v-if="!readOnly && (tab === 'design' || hasChanges)" :type="tab === 'design' ? 'primary' : 'default'" :loading="saving" :disabled="editing || simulating || updates.applying.value" @click="save">{{ t('save') }}</a-button>
           <a-button type="text" class="metric-template-manager__close" :aria-label="t('close')" :title="t('close')" :disabled="saving || updates.applying.value" @click="requestClose"><AIcon type="CloseOutlined" /></a-button>
         </header>
         <a-alert v-if="error" type="error" show-icon :message="t('templateOperationFailed')" :description="error" />
@@ -52,10 +52,7 @@
           <a-tab-pane key="design" :tab="t('design')" :disabled="editing || simulating || updates.applying.value" />
           <a-tab-pane key="publication" :tab="t('release')" :disabled="editing || saving || simulating">
             <TemplatePublication :template="displayTemplate!" :entity="selected" :editable="editable" :pending="hasChanges || !!selected?.draft" :saving="saving" :updates="updates" @release="publish">
-            <a-space v-if="editable && selected?.released">
-              <a-button type="text" :disabled="saving || updates.applying.value" @click="newVersion">{{ t('newVersion') }}</a-button>
-              <a-button type="text" :disabled="updates.applying.value" :loading="saving" @click="setAvailable(!selected.available)">{{ t(selected.available ? 'unavailableAction' : 'available') }}</a-button>
-            </a-space>
+            <a-dropdown v-if="editable && selected?.released" :trigger="['click']" :disabled="saving || updates.applying.value"><a-button type="text" size="small"><AIcon type="MoreOutlined" />{{ t('publicationMore') }}</a-button><template #overlay><a-menu><a-menu-item key="version" @click="newVersion"><AIcon type="BranchesOutlined" />{{ t('newVersion') }}</a-menu-item><a-menu-item key="availability" @click="setAvailable(!selected.available)"><AIcon :type="selected.available ? 'StopOutlined' : 'CheckCircleOutlined'" />{{ t(selected.available ? 'unavailableAction' : 'available') }}</a-menu-item></a-menu></template></a-dropdown>
             </TemplatePublication>
           </a-tab-pane>
         </a-tabs>

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { defineComponent, h, inject, provide, onUnmounted, reactive, ref, nextTick } from 'vue'
+import { defineComponent, effectScope, h, inject, provide, onUnmounted, reactive, ref, nextTick } from 'vue'
 import { useEventListener, onClickOutside } from '@vueuse/core'
 import { theme, Empty } from 'ant-design-vue'
 import { resolve } from 'node:path'
@@ -28,6 +28,8 @@ const AggregateCard = load('components/Metric/collection/MetricAggregateCard.vue
 const Collection = load('components/Metric/collection/MetricCollection.vue').default
 const Editor = load('components/Metric/MetricConfigEditor.vue').default
 const Manager = load('components/Metric/template/MetricTemplateManager.vue').default
+const Publication = load('components/Metric/template/TemplatePublication.vue').default
+const { useTemplateUpdates } = load('components/Metric/template/useTemplateUpdates.ts')
 const DisplayFields = load('components/Metric/extensions/MetricDisplayFields.vue').default
 const Trend = load('components/Metric/MetricTrend.vue').default
 const OutputSwitch = load('components/Metric/MetricOutputSwitch.vue').default
@@ -62,6 +64,44 @@ const inspectNode = async node => {
   assert.deepEqual(popover.props.trigger,['hover','focus'])
   popover.props.onOpenChange(true);await flush()
 }
+
+test('发布引用以业务名称展示，单项更新与批量选择独立，历史修订可切换且清除旧选择',async()=>{
+  moduleRegistry.clear()
+  const scope=effectScope(),writes=[],updates=scope.run(()=>useTemplateUpdates(ref({id:'key',released:true,revision:2}),ref(true),{
+    templateReferences:async()=>[
+      {id:'a',ownerType:'device',ownerId:'d',slot:'internal-slot',revision:3,templateRevision:1},
+      {id:'b',name:'Usage',ownerType:'device',ownerId:'e',revision:4,templateRevision:2},
+    ],
+    templateRevisions:async()=>[{revision:2,publishedAt:2000},{revision:1,publishedAt:1000}],
+    applyTemplateRevision:async(id,revision,expected)=>{writes.push([id,revision,expected]);return {...updates.references.value.find(item=>item.id===id),templateRevision:revision}},
+    latest:async()=>[],
+  }))
+  moduleRegistry.register('devices',{metricDimensions:{device:{ownerType:'device',label:'Device',icon:'DesktopOutlined',
+    navigator:{},useSourcePicker:()=>({}),resolveObjects:async ids=>ids.map(ownerId=>({ownerId,label:ownerId==='d'?'Gateway':'Meter'}))}}})
+  await updates.load()
+  const view=mount(Publication,{template,entity:{id:'key',released:true,revision:2},editable:true,pending:true,saving:false,updates})
+  try{
+    await flush()
+    assert.match(textContent(view.root),/Gateway/);assert.doesNotMatch(textContent(view.root),/internal-slot/)
+    assert.equal(nodes(view.root,'a-button').filter(node=>node.props.type==='primary').length,1)
+    const rows=()=>nodes(view.root,'article')
+    assert.match(textContent(rows()[0]),/Power/)
+    assert.equal(nodes(rows()[1],'a-checkbox')[0].props.disabled,true)
+    nodes(rows()[0],'a-checkbox')[0].props['onUpdate:checked'](true);await flush()
+    assert.ok(findText(view.root,'a-button','applySelected'))
+    await click(findText(rows()[0],'a-button','publicationUpdate'))
+    assert.deepEqual(writes,[['a',2,3]])
+    assert.deepEqual(updates.selectedIds.value,[])
+    updates.outcomes.value.a={error:'Load failed'};await flush()
+    assert.equal(findText(rows()[0],'a-button','retry').props.disabled,false,'an applied revision can retry failed load feedback')
+    updates.outcomes.value={};await flush()
+    await click(nodes(view.root,'a-button').find(node=>textContent(node)==='publicationChooseRevision'&&!node.props.disabled))
+    assert.equal(updates.targetRevision.value,1);assert.deepEqual(updates.selectedIds.value,[])
+    assert.ok(findText(view.root,'a-button','publicationLatest'))
+    assert.ok(findText(rows()[1],'a-button','publicationApplyRevision'))
+    await click(findText(view.root,'a-button','publicationLatest'));assert.equal(updates.targetRevision.value,2)
+  }finally{view.close();scope.stop();moduleRegistry.clear()}
+})
 function defaults() {
   Object.assign(api, { templateCategories: async () => [], calculators: async () => [], byOwner: async () => [config], configTemplate: async () => template,
     latest: async ids => ids.map(configId => ({ configId, outputs: { value } })), getConfig: async () => config,

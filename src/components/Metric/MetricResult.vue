@@ -27,8 +27,8 @@
         <MetricSourceIssues :value="processValue" :template="sourceTemplate" :configuration="configuration" :disabled="configuration.state === 'disabled'" :editable="canEdit" @edit-source="emit('editSource',$event)" />
         <MetricLineage definitions-only :configuration="configuration" :template="sourceTemplate" :output="output" :context="context" :value="processValue" />
       </section>
-      <details v-if="processValue && !intervals && !recordHistory" class="metric-result__facts"><summary><AIcon type="RightOutlined" class="metric-result__chevron" /><AIcon type="DatabaseOutlined" />{{ t('dataDetails') }}</summary><MetricValueView :value="processValue" :output="output" :unit="output?.unit" :settings="settings" :labels="labels" /></details>
-      <details class="metric-result__facts"><summary><AIcon type="RightOutlined" class="metric-result__chevron" /><AIcon type="DashboardOutlined" />{{ t('runtimeDiagnostics') }}</summary><MetricRuntimeFeedback :runtime="runtime" :has-value="!!current" :disabled="configuration?.state === 'disabled'" /></details>
+      <MetricDisclosure v-if="processValue && !intervals && !recordHistory" :title="t('dataDetails')" icon="DatabaseOutlined"><MetricValueView :value="processValue" :output="output" :unit="output?.unit" :settings="settings" :labels="labels" /></MetricDisclosure>
+      <MetricDisclosure :title="t('runtimeDiagnostics')" icon="DashboardOutlined"><MetricRuntimeFeedback :runtime="runtime" :has-value="!!current" :disabled="configuration?.state === 'disabled'" /></MetricDisclosure>
     </div>
   </div>
 </template>
@@ -38,6 +38,7 @@ import { useI18n } from 'vue-i18n'
 import MetricValueView from './MetricValue.vue'
 import MetricOutputSwitch from './MetricOutputSwitch.vue'
 import MetricRuntimeFeedback from './MetricRuntimeFeedback.vue'
+import MetricDisclosure from './MetricDisclosure.vue'
 import MetricSourceIssues from './MetricSourceIssues.vue'
 import MetricTrend from './MetricTrend.vue'
 import MetricStateDuration from './MetricStateDuration.vue'
@@ -97,18 +98,14 @@ watch(provider, () => { extensionFailed.value = false })
 .metric-result > div { min-width:0 }
 .metric-result__tools { display:flex; align-items:center; gap:var(--space-2,8px); flex-wrap:wrap; margin:8px 0 }
 .metric-result small { color:var(--ink-2) }
-.metric-result__summary { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px 8px; margin:0 0 8px }
-.metric-result__reading { display:flex; align-items:center; flex-wrap:wrap; gap:8px 20px; min-width:0 }
-.metric-result__reading :deep(.metric-value--summary .metric-value__main strong) { font-size:var(--fs-24,24px); letter-spacing:0 }
+.metric-result__summary { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:2px 8px; min-height:32px; margin:0 0 4px }
+.metric-result__reading { display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; min-width:0 }
+.metric-result__reading :deep(.metric-value--summary .metric-value__main) { min-height:28px; align-items:center; gap:6px }
+.metric-result__reading :deep(.metric-value--summary .metric-value__main strong) { font-size:var(--fs-20,20px); line-height:1.4; letter-spacing:0 }
+.metric-result__reading :deep(.metric-value--summary) { gap:4px 8px }
 .metric-result__summary > small { font-size:var(--fs-12,12px); line-height:1.7; color:var(--ink-3) }
 .metric-result__stamp time { font-variant-numeric:tabular-nums; white-space:nowrap }
 .metric-result__tools { justify-content:space-between }
-.metric-result__facts { margin-top:8px; border-top:1px solid var(--line) }
-.metric-result__facts summary { display:flex; align-items:center; gap:6px; min-height:32px; list-style:none; font-size:var(--fs-12,12px); color:var(--ink-2); cursor:pointer }
-.metric-result__facts summary::-webkit-details-marker { display:none }
-.metric-result__chevron { font-size:10px; color:var(--ink-3); transition:transform .15s }
-.metric-result__facts[open] .metric-result__chevron { transform:rotate(90deg) }
-.metric-result__facts[open] summary { margin-bottom:4px }
 .metric-result__process { border-top:1px solid var(--line); padding-top:6px; display:grid; gap:6px; min-width:0 }
 .metric-result__process strong { font-size:13px; font-weight:500; color:var(--ink-2) }
 </style>
