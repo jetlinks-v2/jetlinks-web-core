@@ -76,7 +76,8 @@ const description = computed(() => ruleSummary.value ? rule.value?.temporalCondi
 .metric-card-content { display:flex; flex:1; flex-direction:column; min-height:0; min-width:0; gap:var(--space-1,4px) }
 .metric-card-content :deep(.metric-value--summary .metric-value__main) { min-height:46px }
 .has-intervals .metric-card-content__trend { height:40px }
-.metric-card-content__description { display:flex; align-items:center; color:var(--ink-2); font-size:var(--fs-12,12px); margin:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; height:26px; flex-shrink:0 }
+/* 与模板共用数学排版，描述区由公式撑高，保留分式和分支的完整结构。 */
+.metric-card-content__description { display:flex; align-items:center; color:var(--ink-2); font-size:var(--fs-12,12px); margin:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-height:26px; flex-shrink:0 }
 .metric-card-content__description > span { overflow:hidden; text-overflow:ellipsis }
 .metric-card-content__description :deep(.template-formula) { overflow:hidden; pointer-events:none }
 .metric-card-content__trend { height:72px; flex:none; margin-top:auto }

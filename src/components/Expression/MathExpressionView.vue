@@ -28,7 +28,7 @@ const {markup}=useMathMarkup(projection,element)
 .expression-math-shell { display:block; min-width:0; max-width:100% }
 .expression-math-equation { display:flex; align-items:center; gap:12px; min-width:0; max-width:100% }
 .expression-math { display:block; min-width:0; max-width:100%; overflow:auto; padding:8px 2px; font-size:16px; line-height:1.5; color:var(--ink-1); scrollbar-width:thin }
-.expression-math-shell.is-compact .expression-math { font-size:14px; max-height:100px; padding:3px 0 }
+.expression-math-shell.is-compact .expression-math { font-size:14px; padding:3px 0 }
 .expression-math .expression-math-caption,.expression-math .expression-math-meaning { color:var(--ink-3); font-family:inherit; font-weight:400 }
 .expression-math .expression-math-meaning { font-size:.72em }
 .expression-math .expression-math-caption .expression-math-reference { color:var(--ink-3) }
