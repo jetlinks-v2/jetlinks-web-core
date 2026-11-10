@@ -46,12 +46,13 @@ const summaryPopupContainer=(trigger:HTMLElement)=>trigger.closest('dialog') || 
 <style scoped>
 .template-formula-source { display:block; font-size:13px; line-height:1.85; white-space:pre-wrap; overflow-wrap:anywhere }
 .template-formula-source.is-compact { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:12px }
-.template-formula-summary { display:flex; align-items:center; gap:8px; width:100%; min-width:0; height:28px }
+.template-formula-summary { display:flex; align-items:center; gap:8px; width:100%; min-width:0; height:32px }
 .template-formula-summary>:first-child { flex:1; min-width:0; overflow:hidden }
 .template-formula-summary__cases { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-2) }
 .template-formula-summary__inspect { flex:none; font-size:12px; color:var(--ink-3) }
 .template-formula-summary__source { text-overflow:ellipsis; white-space:nowrap }
-.template-formula-summary :deep(.expression-math) { overflow:hidden; max-height:28px; padding:0; font-size:12px }
+/* 单层分式在 12px 字号下约 31px；保留完整基线空间，不裁掉分母。 */
+.template-formula-summary :deep(.expression-math) { overflow:hidden; max-height:32px; padding:0; font-size:12px }
 .template-formula-preview { max-width:min(560px,80vw); max-height:55vh; overflow:auto }
 .template-formula-preview small { display:block; margin-top:8px; font-size:12px; color:var(--ink-3) }
 </style>

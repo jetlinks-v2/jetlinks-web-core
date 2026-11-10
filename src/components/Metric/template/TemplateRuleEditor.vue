@@ -23,7 +23,7 @@
     <section class="rule-editor__execution" :aria-label="t('calculationTrigger')">
     <h4><AIcon type="ThunderboltOutlined" />{{ t('calculationTrigger') }}</h4>
     <div v-if="kind !== 'statistics' && !rule.windowFamily && (!rule.window?.mode || rule.window.mode === 'none')" class="rule-editor__timing">
-      <AIcon type="ClockCircleOutlined" /><Editable class="rule-editor__trigger" :class="{ 'rule-editor__trigger--scheduled': rule.window?.emitPolicy === 'onSchedule' }" type="select" :value="rule.window?.emitPolicy || 'onEvent'" :component-props="{ disabled, bordered:false, defaultOpen:true, 'aria-label':t('calculationTrigger'), options:timings }" @change="changeTiming($event as 'onEvent' | 'onSchedule')" />
+      <AIcon :type="ruleTriggerIcon(rule)" /><Editable class="rule-editor__trigger" :class="{ 'rule-editor__trigger--scheduled': rule.window?.emitPolicy === 'onSchedule' }" type="select" :value="rule.window?.emitPolicy || 'onEvent'" :component-props="{ disabled, bordered:false, defaultOpen:true, 'aria-label':t('calculationTrigger'), options:timings }" @change="changeTiming($event as 'onEvent' | 'onSchedule')" />
       <TemplateDuration v-if="rule.window?.emitPolicy === 'onSchedule'" :model-value="rule.window.emitInterval" :min="1" :disabled="disabled" @update:model-value="emit('patch', { window: { ...rule.window, emitInterval: $event } })" />
       <span v-if="rule.window?.emitPolicy === 'onSchedule'">{{ t('calculate') }}</span>
     </div>
@@ -72,7 +72,7 @@ import { localizedTemplate } from './text'
 import { calculationKind } from './window'
 import { metricMessages } from '../messages'
 import { metricValueLabels } from '../valueSemantics'
-import { ruleTriggerSummary } from './graphPresentation'
+import { ruleTriggerIcon, ruleTriggerSummary } from './graphPresentation'
 import type { MetricCalculatorDescriptor, MetricTemplate } from '../types'
 const props = defineProps<{ template: MetricTemplate; rule: TemplateRule; disabled?: boolean; calculators?: MetricCalculatorDescriptor[] }>()
 const emit = defineEmits<{ (event: 'patch', fields: Partial<TemplateRule>): void; (event: 'invalid', value: boolean): void }>()
@@ -82,7 +82,7 @@ const temporalPhases = [
   { key: 'enter', field: 'enterExpression', duration: 'dwell', icon: 'ThunderboltOutlined', label: 'enterCondition', result: 'conditionBecomesTrue' },
   { key: 'exit', field: 'exitExpression', duration: 'recovery', icon: 'CheckCircleOutlined', label: 'exitCondition', result: 'thenRecover' },
 ] as const
-const timings = computed(() => [{ value:'onEvent', label:t('calculateOnEvent'), icon:'ThunderboltOutlined', description:t('onEventHint') }, { value:'onSchedule', label:t('calculateEvery'), icon:'ClockCircleOutlined', description:t('onScheduleHint') }])
+const timings = computed(() => [{ value:'onEvent', label:t('calculateOnEvent'), icon:ruleTriggerIcon({window:{emitPolicy:'onEvent'}}), description:t('onEventHint') }, { value:'onSchedule', label:t('calculateEvery'), icon:ruleTriggerIcon({window:{emitPolicy:'onSchedule'}}), description:t('onScheduleHint') }])
 const displayTemplate = computed(() => localizedTemplate(props.template, String(locale.value)))
 const resultLabels = computed(() => metricValueLabels(displayTemplate.value,props.rule.id || '').map(item=>({value:item.value,label:item.name})))
 const references = computed(() => ruleDataReferences(displayTemplate.value, props.rule))

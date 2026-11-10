@@ -8,6 +8,7 @@
           <AIcon :type="item.icon" class="template-catalog__icon" />
           <b>{{ item.template.name }}</b>
           <a-tag v-if="item.kind === 'template'" :color="item.entity.released ? 'blue' : undefined">{{ t(item.entity.released ? 'published' : 'draft') }}</a-tag>
+          <a-tag v-else>{{ t('builtinExamples') }}</a-tag>
           <AIcon type="ArrowRightOutlined" class="template-catalog__open" />
         </span>
         <span class="template-catalog__description">{{ item.template.options?.description }}</span>
@@ -15,7 +16,8 @@
         <span v-if="item.kind === 'template'" class="template-catalog__metadata">
           <span v-if="flat">{{ group.label }}</span>
           <span>{{ t('version') }} {{ item.template.version }}</span>
-          <span v-if="item.entity.draft">{{ t('pendingChanges') }}</span>
+          <span v-if="reference && item.entity.revision">{{ t('referenceRevision', {revision:item.entity.revision}) }}</span>
+          <span v-else-if="!reference && item.entity.draft">{{ t('pendingChanges') }}</span>
           <span v-if="!item.entity.available">{{ t('notSelectable') }}</span>
         </span>
       </button>
@@ -28,7 +30,7 @@ import { useI18n } from 'vue-i18n'
 import { metricMessages } from '../messages'
 import type { TemplateCatalogGroup, TemplateCatalogItem } from './templateCatalog'
 import TemplateOverview from './TemplateOverview.vue'
-defineProps<{ groups: TemplateCatalogGroup[]; flat?: boolean }>()
+defineProps<{ groups: TemplateCatalogGroup[]; flat?: boolean; reference?:boolean }>()
 const emit = defineEmits<{ (event: 'select', item: TemplateCatalogItem): void }>()
 const { t } = useI18n({ useScope: 'local', messages: metricMessages })
 </script>

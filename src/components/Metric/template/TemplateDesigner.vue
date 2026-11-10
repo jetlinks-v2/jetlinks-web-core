@@ -60,7 +60,7 @@
             <template #overlay><a-menu><a-menu-item @click="requestRemove"><AIcon type="DeleteOutlined" /> {{ t('remove') }}</a-menu-item></a-menu></template>
           </a-dropdown>
         </footer>
-        <TemplateSimulation v-if="trial" ref="simulationPanel" :template="displayView" :trial="trial" :selected="selection" :error="simulationError" :disabled="disabled || invalid" @clear-selection="selectTemplate"><template #advancedTools><slot name="advancedTools" /></template></TemplateSimulation>
+        <TemplateSimulation v-if="trial" ref="simulationPanel" :template="displayView" :trial="trial" :selected="selection" :error="simulationError" :disabled="disabled || invalid" @clear-selection="selectTemplate"><template #sampleTools><slot name="sampleTools" /></template><template #advancedTools><slot name="advancedTools" /></template></TemplateSimulation>
         </template>
       </div>
     </aside>

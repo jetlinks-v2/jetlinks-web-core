@@ -34,6 +34,7 @@
       <main v-if="draft" class="metric-template-manager__detail" :class="{ 'is-publication':tab === 'publication' }">
         <header class="metric-template-manager__editor-head">
           <TemplateIdentity v-model:template="draft" :disabled="!canEditIdentity || updates.applying.value" :published="selected?.released" :revision="selected?.revision" :pending="!!selected?.draft" />
+          <span v-if="reference" class="metric-template-manager__reference" :title="t('independentReference')"><AIcon :type="reference.builtin ? 'ExperimentOutlined' : 'CopyOutlined'" /><span>{{ t('referencedFrom', {name:referenceName,version:reference.version}) }}<template v-if="reference.revision"> · {{ t('referenceRevision', {revision:reference.revision}) }}</template></span></span>
           <span v-if="hasChanges" class="metric-template-manager__dirty" role="status">{{ t('unsavedChanges') }}</span>
           <a-button v-if="editable && tab === 'design'" class="metric-template-manager__simulate" :loading="simulating" :disabled="editing || trial.invalid || saving || updates.applying.value" @click="runSimulation"><AIcon type="PlayCircleOutlined" />{{ t('simulate') }}</a-button>
           <a-button v-if="!readOnly && (tab === 'design' || hasChanges)" :type="tab === 'design' ? 'primary' : 'default'" :loading="saving" :disabled="editing || simulating || updates.applying.value" @click="save">{{ t('save') }}</a-button>
@@ -60,6 +61,7 @@
         <div v-show="tab !== 'publication'" class="metric-template-manager__workspace">
           <a-alert v-if="calculatorError && tab === 'design'" type="warning" :message="t('algorithmCatalogFailed')" :description="calculatorError" show-icon><template #action><a-button size="small" @click="loadCalculators">{{ t('retry') }}</a-button></template></a-alert>
           <TemplateDesigner v-show="mode === 'form'" :key="selected?.id || draft.id" v-model:template="draft" :initial-input="initialInput" :disabled="locked" :trial="editable ? trial : undefined" :simulation-error="simulationError" :published="selected?.released" :calculators="calculators" :categories="categories" :categories-loading="categoriesLoading" :category-error="categoryError" :pick-source="pickSource" :source-context="sourceContext" @vue:mounted="initialInput = false" @reload-categories="loadCategories" @editing="editing = $event">
+            <template #sampleTools><a-checkbox v-model:checked="keepExample" :disabled="locked || simulating" :title="t('saveExampleHint')">{{ t('saveExample') }}</a-checkbox></template>
             <template #advancedTools><a-select :value="format" :disabled="simulating || saving" :options="formats" :dropdown-match-select-width="false" @update:value="(value: unknown) => switchFormat(value as ConfigurationFormat)"><template #option="option"><SelectOption :label="option.label" :icon="option.icon" :description="option.description" /></template></a-select></template>
           </TemplateDesigner>
           <MonacoEditor v-if="mode === 'full' && tab === 'design'" v-model="fullText" :language="format" :read-only="locked" theme="vs" class="metric-template-manager__full-code" :options="editorOptions" />
@@ -74,8 +76,10 @@
         </StickyActionBar>
       </main>
     </a-drawer>
-    <JlDrawerShell :open="choosingStarter" :title="t('newTemplate')" :sub="t('startWithScenario')" icon="AppstoreOutlined" :width="760" @update:open="choosingStarter = $event">
-      <TemplateCatalog :groups="starterGroups" @select="selectCard" />
+    <JlDrawerShell :open="choosingStarter" :title="t('newTemplate')" :sub="t('independentReference')" icon="AppstoreOutlined" :width="760" @update:open="choosingStarter = $event">
+      <a-tabs v-model:active-key="referenceKind"><a-tab-pane key="templates" :tab="t('publishedReferences')" /><a-tab-pane v-if="starters.length" key="examples" :tab="t('builtinExamples')" /></a-tabs>
+      <ConditionFilter v-model="references.terms.value" :fields="references.fields.value.filter(field => field.dataIndex !== 'released')" :common-fields="['name']" :placeholder="t('searchTemplates')" />
+      <a-spin :spinning="loading"><TemplateCatalog v-if="references.visible.value.length" :groups="references.visible.value" reference @select="selectReference" /><a-empty v-else :description="t(error ? 'readFailed' : referenceCatalog.length ? 'noMatchingTemplates' : 'noPublishedReferences')"><a-button v-if="error" @click="load">{{ t('retry') }}</a-button><a-button v-else-if="referenceCatalog.length" @click="references.clear">{{ t('clearFilters') }}</a-button></a-empty></a-spin>
       <template #foot><a-button @click="requestOpen()"><AIcon type="PlusOutlined" />{{ t('startBlank') }}</a-button></template>
     </JlDrawerShell>
   </div>
@@ -88,6 +92,8 @@ import TemplateIdentity from './TemplateIdentity.vue'
 import TemplatePublication from './TemplatePublication.vue'
 import { useTemplateUpdates } from './useTemplateUpdates'
 import { localizedTemplate } from './text'
+import { i18nText } from '../../I18n/text'
+import { templateAuthoring, templateReferenceStarter } from './templateAuthoring'
 import { starterCatalog, templateCatalog, type TemplateCatalogItem } from './templateCatalog'
 import { useTemplateCatalog } from './useTemplateCatalog'
 import ConditionFilter from '../../ConditionFilter'
@@ -105,7 +111,7 @@ import type { ConfigurationFormat } from './configurationText'
 import type { MetricContext, MetricSourcePicker, MetricTemplateEntity, MetricTemplateStarter, MetricTemplateReference } from '../types'
 const props = withDefaults(defineProps<{ editable?: boolean; starters?: MetricTemplateStarter[]; pickSource?:MetricSourcePicker; sourceContext?:MetricContext; applyTemplate?:(template:MetricTemplateReference)=>void }>(), { editable: false, starters: () => [] })
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
-const { categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, entities, selected, draft, mode, format, fullText, simulationText,
+const { categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, entities, selected, draft, mode, format, fullText, simulationText, keepExample,
   simulationResults, simulationResponse, error, simulationError, loading, saving, simulating, readOnly, hasChanges, load, open, close,
   switchMode, switchFormat, save, release, newVersion, setAvailable, removeDraft, discardDraft, simulate, invalidateSimulation } = useMetricTemplates(toRef(props, 'editable'), undefined, t)
 const tab = ref('design')
@@ -120,6 +126,12 @@ const initialInput = ref(false)
 const catalog = computed(() => templateCatalog(entities.value, categories.value, String(locale.value), t('otherCategory')))
 const directory = useTemplateCatalog(catalog, t)
 const starterGroups = computed(() => starterCatalog(props.starters, String(locale.value), categories.value, t('otherCategory')))
+const referenceKind = ref('templates')
+const referenceCatalog = computed(() => referenceKind.value === 'examples' ? starterGroups.value : templateCatalog(entities.value.filter(entity => entity.released && entity.available),categories.value,String(locale.value),t('otherCategory')))
+const references = useTemplateCatalog(referenceCatalog,t)
+const reference = computed(() => draft.value && templateAuthoring(draft.value).reference)
+const referenceName = computed(() => reference.value ? i18nText(reference.value.name,reference.value.nameI18n,String(locale.value)) : '')
+watch(referenceKind, () => references.clear())
 watch(locale, loadCategories)
 const locked = computed(() => readOnly.value || saving.value || updates.applying.value)
 const canEditIdentity = computed(() => !locked.value && !editing.value && mode.value === 'form')
@@ -134,10 +146,13 @@ const canLeave = useTemplateLeaveGuard(computed(() => hasChanges.value || editin
 }))
 function startCreating() {
   if (updates.applying.value) return
-  if (props.starters.length) choosingStarter.value = true
-  else requestOpen()
+  if (!loading.value && !props.starters.length && !entities.value.some(entity => entity.released && entity.available)) return requestOpen()
+  referenceKind.value = entities.value.some(entity => entity.released && entity.available) ? 'templates' : props.starters.length ? 'examples' : 'templates'
+  references.clear()
+  choosingStarter.value = true
 }
 function selectCard(item: TemplateCatalogItem) { return item.kind === 'template' ? requestOpen(item.entity) : requestOpen(undefined, item.starter) }
+function selectReference(item:TemplateCatalogItem) { return requestOpen(undefined,item.kind === 'template' ? templateReferenceStarter(item.entity) : item.starter) }
 async function requestClose() {
   if (!await canLeave()) return
   close(); editing.value = false; tab.value = 'design'
@@ -182,6 +197,8 @@ onMounted(() => { refresh(); loadCalculators() })
 .metric-template-manager__editor-head > .template-identity { flex:1 }
 .metric-template-manager__editor-head > :deep(.ant-btn) { flex:none }
 .metric-template-manager__dirty { flex:none; color:var(--ink-3); font-size:var(--fs-12,12px) }
+.metric-template-manager__reference { display:inline-flex; align-items:center; gap:6px; max-width:240px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; color:var(--ink-3); font-size:var(--fs-12,12px) }
+.metric-template-manager__reference > span { min-width:0; overflow:hidden; text-overflow:ellipsis }
 .metric-template-manager__close { width:32px; padding:0; color:var(--ink-3) }
 .metric-template-manager__detail > :deep(.ant-tabs) { flex:none; min-height:0; margin-top:var(--space-3,12px) }
 .metric-template-manager__detail.is-publication > :deep(.ant-tabs) { flex:1 }
@@ -198,9 +215,11 @@ onMounted(() => { refresh(); loadCalculators() })
 .metric-template-manager__actions { flex-shrink:0; margin-top:var(--space-3,12px); padding:var(--space-3,12px) 0 0; box-shadow:none }
 @container metric-template (max-width:760px) {
   .metric-template-manager__dirty { display:none }
+  .metric-template-manager__reference { max-width:160px }
   .metric-template-manager__editor-head { gap:8px }
 }
 @container metric-template (max-width:440px) {
+  .metric-template-manager__reference { order:2; max-width:100%; flex:1 1 100% }
   .metric-template-manager__editor-head { flex-wrap:wrap }
   .metric-template-manager__editor-head > .template-identity { flex:1 1 calc(100% - 40px) }
   .metric-template-manager__editor-head > :deep(.ant-btn:not(.metric-template-manager__close)) { order:2 }

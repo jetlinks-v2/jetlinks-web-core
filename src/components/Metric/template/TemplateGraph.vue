@@ -42,7 +42,7 @@
           <TemplateFormulaDisplay v-if="summaries[node.key].expression" :template="template" :rule="template.definitions[node.index] as TemplateRule" :expression="summaries[node.key].expression!" :calculators="calculators" compact summary />
           <span v-else :title="summaries[node.key].text">{{ summaries[node.key].text }}</span>
         </span>
-        <small :title="summaries[node.key].detail">{{ summaries[node.key].detail }}</small>
+        <small class="template-graph__detail" :title="summaries[node.key].detail"><AIcon v-if="summaries[node.key].detailIcon" :type="summaries[node.key].detailIcon" /><span>{{ summaries[node.key].detail }}</span></small>
         </slot>
       </button>
       <div v-if="$slots['node-action']" class="template-graph__node-action"><slot name="node-action" :node="node" /></div>
@@ -205,7 +205,7 @@ defineExpose({ locate })
 .template-graph__time-group { position:absolute; height:calc(var(--metric-node-height) + 26px); border:1px dashed var(--line); border-radius:var(--r-2,6px); pointer-events:none }
 .template-graph__time-group>span { position:absolute; top:-9px; left:8px; padding:0 4px; background:var(--bg-sunken); color:var(--ink-3); font-size:var(--fs-12,12px); line-height:18px }
 .template-graph__item { position:absolute; width:var(--metric-node-width); height:var(--metric-node-height) }
-.template-graph__node { width:100%; height:100%; display:flex; flex-direction:column; gap:2px; border:1px solid var(--line); border-radius:var(--r-2,6px); background:var(--panel-background); color:var(--ink-2); padding:8px 12px 40px; cursor:pointer; text-align:left; box-sizing:border-box }
+.template-graph__node { width:100%; height:100%; display:flex; flex-direction:column; gap:2px; border:1px solid var(--line); border-radius:var(--r-2,6px); background:var(--panel-background); color:var(--ink-2); padding:8px 12px 38px; cursor:pointer; text-align:left; box-sizing:border-box }
 .is-replay .template-graph__node { padding:8px 12px }
 .template-graph__node-action { position:absolute; right:8px; top:29px }
 .is-replay .template-graph__node small { color:var(--ink-2) }
@@ -217,13 +217,16 @@ defineExpose({ locate })
 .template-graph__name { display:flex; align-items:center; gap:var(--space-2,8px); min-width:0; width:100%; height:20px }
 .template-graph__name b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; font-size:var(--fs-13,13px) }
 .template-graph__name>:first-child { flex:none; color:var(--ink-3) }
-.template-graph__meaning { display:flex; align-items:center; width:100%; height:30px; min-width:0; overflow:hidden; font-size:var(--fs-12,12px) }
+.template-graph__meaning { display:flex; flex:none; align-items:center; width:100%; height:34px; min-width:0; overflow:hidden; font-size:var(--fs-12,12px) }
 .template-graph__meaning>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .template-graph__trial { position:absolute; left:1px; right:1px; bottom:1px; display:flex; align-items:center; gap:5px; height:32px; padding:0 10px; border-top:1px solid var(--line); font-variant-numeric:tabular-nums; color:var(--ink-2) }
 .template-graph__trial b { flex:none; max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; font-weight:500 }
 .template-graph__trial small { color:var(--ink-3); font-size:10px }
 .template-graph__state { margin-left:auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .template-graph__node small { display:block; width:100%; min-height:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink-3); font-size:var(--fs-12,12px); line-height:14px }
+.template-graph__node .template-graph__detail { display:flex; align-items:center; gap:4px }
+.template-graph__detail :deep(.anticon) { flex:none; font-size:11px }
+.template-graph__detail > span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis }
 .template-graph__node.rule { background:var(--accent-soft) }
 .template-graph__node.output { border-width:2px }
 .template-graph__node:hover,.template-graph__node.selected,.template-graph__node:focus-visible { border-color:var(--accent); outline:2px solid var(--accent-soft) }

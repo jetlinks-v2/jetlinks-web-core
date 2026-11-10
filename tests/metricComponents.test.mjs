@@ -1434,6 +1434,28 @@ test('空白新建直接选中输入，单一添加菜单随能力变化，修�
   } finally {view.close();moduleRegistry.clear()}
 })
 
+test('创建参考只展示可选发布模板，复制发布快照为新草稿并保留完整参数',async()=>{
+  defaults()
+  const published={id:'reference',released:true,available:true,revision:3,template:{...template,name:'Published reference'},draft:{...template,name:'Pending draft'}}
+  api.queryTemplates=async()=>({data:[published,{id:'unreleased',released:false,available:true,template:{...template,name:'Unreleased'}},{id:'unavailable',released:true,available:false,template:{...template,name:'Unavailable'}}]})
+  let saved
+  api.saveTemplate=async value=>{saved=value;return {id:'new-reference',template:value,released:false,editRevision:1}}
+  const view=mount(Manager,{editable:true})
+  try {
+    await flush();await click(findText(view.root,'a-button','newTemplate'))
+    const cards=()=>nodes(view.root,'button').filter(node=>node.props.class==='template-catalog__item')
+    assert.equal(cards().filter(node=>node.props['aria-label']==='Unreleased').length,1,'unreleased exists only in the management gallery')
+    assert.equal(cards().filter(node=>node.props['aria-label']==='Published reference').length,2,'published reference is also offered during creation')
+    await click(cards().filter(node=>node.props['aria-label']==='Published reference').at(-1))
+    await click(findText(view.root,'a-button','save'))
+    assert.notEqual(saved.id,template.id)
+    assert.equal(saved.name,'Published reference')
+    assert.deepEqual(saved.parameterDefinitions,template.parameterDefinitions)
+    assert.equal(saved.options.authoring.reference.revision,3)
+    assert.equal(published.draft.name,'Pending draft')
+  } finally {view.close()}
+})
+
 test('真实模板编辑器选择展示提供者及默认值，表单和完整配置保存同一DTO', async () => {
   defaults(); moduleRegistry.clear()
   const entity = { id: 'draft', name: 'Power', released: false, available: false, template: { ...template, options: { keep: 9, presentation: { settings: { unknown: false } } } } }

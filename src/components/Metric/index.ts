@@ -8,6 +8,7 @@ export { metricApi } from './api'
 export { default as MetricParameterValue } from './MetricParameterValue.vue'
 export { metricSourceSchema, metricSourceField } from './sourceSchema'
 export { structureMetricTemplate } from './template/structureExpressions'
+export { metricTemplateTextEntries } from './template/text'
 export type {
   MetricContext, MetricSourcePicker, MetricSourceSelection, MetricSourceDescription, MetricSourceRequest, MetricAlarmReference, MetricReference,
   MetricConfig, MetricTemplate, MetricTemplateReference, MetricTemplateEntity, MetricTemplateInput, MetricTemplateOutput, MetricTemplateStarter,

@@ -3,6 +3,7 @@ import { metricApi } from '../api'
 import { copy, errorText } from '../service'
 import { configurationObject, configurationSnapshot, encodeConfiguration, type ConfigurationFormat } from './configurationText'
 import type { ValueTranslate } from '../valueSemantics'
+import { captureTemplateExample, exampleFacts, templateAuthoring } from './templateAuthoring'
 import type { MetricApi, MetricCalculatorDescriptor, MetricConfig, MetricSimulationRequest, MetricSimulationResponse, MetricTemplate, MetricTemplateCategory, MetricTemplateEntity, MetricTemplateStarter } from '../types'
 
 const emptyTemplate = (withInput:boolean): MetricTemplate => ({
@@ -22,6 +23,7 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
   const format = ref<ConfigurationFormat>('yaml')
   const fullText = ref('')
   const simulationText = ref('')
+  const keepExample = ref(false)
   const simulationResponse = ref<MetricSimulationResponse>()
   const simulationResults = computed(() => simulationResponse.value?.results || [])
   const error = ref('')
@@ -87,23 +89,23 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
     // 默认输入只属于空白新建，不推断已存模板、业务起点或只读内容。
     draft.value = entity ? copy(entity.draft || entity.template) : starter ? { ...copy(starter.template), id: `${starter.template.id}-${crypto.randomUUID().slice(0, 8)}` } : emptyTemplate(editable.value)
     if (!entity && starter) draft.value.options = { ...draft.value.options, ...(starter.groupId ? { category:starter.groupId } : {}), ...(starter.icon ? { icon:starter.icon } : {}) }
-    fullText.value = encodeConfiguration(draft.value, format.value)
-    savedText.value = configurationSnapshot(draft.value)
+    if (!entity && starter && !templateAuthoring(draft.value).reference) {
+      draft.value.options = { ...draft.value.options,authoring:{ ...templateAuthoring(draft.value),reference:{ id:starter.template.id,version:starter.template.version,
+        name:starter.template.name,nameI18n:(starter.template.options?.i18nMessages as Record<string,Record<string,string>> | undefined)?.name,builtin:true } } }
+    }
     mode.value = 'form'
     error.value = ''
     simulationResponse.value = undefined
     simulationError.value = ''
     const template = draft.value
-    const configuration: MetricConfig = {
-      ownerType: 'simulation', ownerId: 'simulation', slot: 'simulation',
-      targetType: template.thingType || 'simulation', targetId: 'simulation',
-      templateId: template.id, templateVersion: template.version, state: 'disabled', revision: 0,
-      inputMappings: {}, parameters: {}
-    }
-    const facts = starter?.simulation ? copy(starter.simulation) : { configuration, samples: [] }
+    const example = templateAuthoring(template).example
+    const facts = starter?.simulation ? copy(starter.simulation) : exampleFacts(template,example)
     facts.configuration.templateId = template.id
     facts.configuration.templateVersion = template.version
     simulationText.value = encodeConfiguration(facts, format.value)
+    keepExample.value = !!example || !!starter?.simulation && !!captureTemplateExample(template,facts)
+    fullText.value = encodeConfiguration(prepared(), format.value)
+    savedText.value = configurationSnapshot(prepared())
   }
   function prepared(): MetricTemplate {
     if (!draft.value) throw new Error(t('templateRequired'))
@@ -124,9 +126,20 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
       if (selected.value?.released && (result.id !== selected.value.template.id || result.version !== selected.value.template.version)) {
         throw new Error(t('publishedTemplateIdentityLocked'))
       }
-      return result
+      return withAuthoring(result)
     }
-    return copy(draft.value)
+    return withAuthoring(copy(draft.value))
+  }
+  /** 开关与样本共享保存/脏状态；无效高级样本不能静默丢失。 */
+  function withAuthoring(template:MetricTemplate):MetricTemplate {
+    const authoring = { ...templateAuthoring(template) }
+    if (keepExample.value) {
+      const example = captureTemplateExample(template,configurationObject(simulationText.value,format.value))
+      if (!example) throw new Error(t('completeSample'))
+      authoring.example = example
+    } else delete authoring.example
+    if (Object.keys(authoring).length || template.options?.authoring) template.options = { ...template.options,authoring }
+    return template
   }
   /** 关闭编辑会话同时作废迟到的试算反馈，首页列表及滚动容器保持不变。 */
   function close() {
@@ -228,6 +241,9 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
       const entity = await api.discardTemplateDraft(selected.value.id, selected.value.editRevision || 0)
       selected.value = entity
       draft.value = copy(entity.template)
+      const example = templateAuthoring(draft.value).example
+      keepExample.value = !!example
+      simulationText.value = encodeConfiguration(exampleFacts(draft.value,example),format.value)
       fullText.value = encodeConfiguration(draft.value, format.value)
       savedText.value = configurationSnapshot(draft.value)
       await load()
@@ -244,6 +260,8 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
     try {
       const facts = configurationObject(simulationText.value, format.value)
       const template = prepared()
+      // 编辑参考资料不随每轮试算传输，也不参与执行。
+      if (template.options) delete template.options.authoring
       const response = await api.simulate({ ...facts, template, configuration: { ...(facts.configuration as MetricConfig), templateId: template.id, templateVersion: template.version }, includeIntermediate: true, includeRecords: true } as unknown as MetricSimulationRequest)
       if (token === simulationGeneration) {
         simulationResponse.value = response
@@ -253,7 +271,7 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
     finally { if (request === simulationRequest) simulating.value = false }
   }
   onScopeDispose(() => { generation++; categoryGeneration++; simulationGeneration++; calculatorGeneration++ })
-  return { categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, entities, selected, draft, mode, format, fullText, simulationText,
+  return { categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, entities, selected, draft, mode, format, fullText, simulationText, keepExample,
     simulationResults, simulationResponse, error, simulationError, loading, saving, simulating, readOnly, hasChanges,
     load, open, close, switchMode, switchFormat, save, release, newVersion, setAvailable, removeDraft, discardDraft, simulate, invalidateSimulation }
 }

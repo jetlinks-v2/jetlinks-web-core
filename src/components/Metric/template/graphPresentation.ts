@@ -8,7 +8,13 @@ import type { MetricCalculatorDescriptor, MetricTemplate } from '../types'
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
 type Graph = ReturnType<typeof templateGraph>
-interface NodeSummary { icon: string; text: string; detail: string; description?:string; expression?: string; condition?: string }
+interface NodeSummary { icon: string; text: string; detail: string; detailIcon?:string; description?:string; expression?: string; condition?: string }
+
+/** 图与编辑选项共用触发语义，不根据显示文案猜测图标。 */
+export function ruleTriggerIcon(rule:Pick<TemplateRule,'window'|'temporalCondition'>):string {
+  return rule.temporalCondition ? 'FieldTimeOutlined' : rule.window?.emitPolicy === 'onSchedule' ? 'ClockCircleOutlined'
+    : rule.window?.emitPolicy === 'onWindowClose' ? 'HistoryOutlined' : 'ThunderboltOutlined'
+}
 
 /** 触发频率与取数窗口独立，供图与属性面板共享。 */
 export function ruleTriggerSummary(rule:TemplateRule,t:Translate):string {
@@ -32,15 +38,16 @@ export function graphNodeSummary(template: MetricTemplate, node: TemplateNode, t
   const conditionSource=ruleExpression(rule,'applicabilityExpression'),source=ruleExpression(rule)
   const condition = conditionSource ? expressionLabel(template, conditionSource, names) : undefined
   const timing = ruleTriggerSummary(rule,t)
-  if (rule.temporalCondition) return { icon: 'ClockCircleOutlined', expression: ruleExpression(rule,'enterExpression'), condition,
+  const detailIcon = ruleTriggerIcon(rule)
+  if (rule.temporalCondition) return { icon: 'ClockCircleOutlined', expression: ruleExpression(rule,'enterExpression'), condition,detailIcon,
     text: expressionLabel(template, ruleExpression(rule,'enterExpression'), names) || t('temporal'), detail: t('graphDwellRecovery', { dwell: simulationDuration(rule.temporalCondition.dwell, t), recovery: simulationDuration(rule.temporalCondition.recovery, t) }) }
   if (rule.calculator) {
     const descriptor=findCalculator(rule.calculator,calculators),operation=simulationOperation(rule,t)
     return {icon:calculatorIcon(descriptor),expression:undefined,condition,
-      text:descriptor?.name || expressionLabel(template,operation,names),detail:timing,
+      text:descriptor?.name || expressionLabel(template,operation,names),detail:timing,detailIcon,
       description:operation !== rule.calculator.provider ? expressionLabel(template,operation,names) : descriptor?.description}
   }
-  return { icon: kind === 'statistics' ? 'BarChartOutlined' : 'FunctionOutlined', expression: source, condition,
+  return { icon: kind === 'statistics' ? 'BarChartOutlined' : 'FunctionOutlined', expression: source, condition,detailIcon,
     text: kind === 'statistics' ? simulationOperation(rule, t) : expressionLabel(template, source, names) || t('expression'),
     detail: kind === 'statistics' && source ? `${simulationOperation(rule, t)} · ${timing}` : timing }
 }

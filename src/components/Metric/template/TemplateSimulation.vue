@@ -3,6 +3,7 @@
     <details ref="samplesSection" class="template-simulation__samples" :open="samplesOpen" @toggle="samplesOpen = ($event.target as HTMLDetailsElement).open">
       <summary><AIcon type="ExperimentOutlined" />{{ t('simulationInput') }}<small>{{ trial.facts?.samples.length || '' }}</small><AIcon type="DownOutlined" /></summary>
       <div class="template-simulation__tools">
+        <slot name="sampleTools" />
         <a-popover v-if="trial.facts" trigger="click" placement="bottom">
           <template #content>
             <a-input type="datetime-local" :value="sampleDate(typeof trial.facts.endAt === 'number' ? trial.facts.endAt : undefined)" :disabled="disabled" :aria-label="t('observeUntil')" step="1" @change="trial.changeEndAt($event.target.value)" />
