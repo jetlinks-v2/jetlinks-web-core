@@ -1,4 +1,7 @@
 {
+  "components.ModelConfig.unsavedChangesTitle": "Unsaved changes",
+  "components.ModelConfig.unsavedChangesMessage": "Save your changes? Discarding restores the content from before editing.",
+  "components.ModelConfig.discard": "Discard",
   "runtimeDiagnostics.lessMetrics": "Show fewer metrics",
   "runtimeDiagnostics.moreMetrics": "Show more metrics",
   "runtimeDiagnostics.sampleCoverageSeconds": "Sample coverage: {seconds}s",

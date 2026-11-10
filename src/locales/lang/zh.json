@@ -1,4 +1,7 @@
 {
+  "components.ModelConfig.unsavedChangesTitle": "修改尚未保存",
+  "components.ModelConfig.unsavedChangesMessage": "是否保存本次修改？丢弃后将恢复编辑前的内容。",
+  "components.ModelConfig.discard": "丢弃",
   "runtimeDiagnostics.lessMetrics": "收起更多指标",
   "runtimeDiagnostics.moreMetrics": "展开更多指标",
   "runtimeDiagnostics.sampleCoverageSeconds": "采样跨度 {seconds} 秒",

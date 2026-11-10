@@ -139,6 +139,10 @@ const props = defineProps({
     type: Object as PropType<SlantedTabsState>,
     default: () => ({}),
   },
+  preserveDisabledActive: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits<SlantedTabsEmits>()

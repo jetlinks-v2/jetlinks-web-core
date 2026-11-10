@@ -54,7 +54,7 @@ export const defaultModelParameterLocale: ModelParameterLocale = {
   viewConfiguration: '查看配置',
   deleteTargetLabel: '删除目标',
   deletePartLabel: '删除附属目标',
-  noTargetInference: '暂无二次推理配置，可新增目标标签。',
+  noTargetInference: '暂无二次推理配置，点击编辑新增',
   targetLabelRequired: '请输入目标标签',
   targetLabelDuplicate: '目标标签不能重复',
   partLabelRequired: '请输入附属标签',

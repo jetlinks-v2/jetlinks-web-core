@@ -10,106 +10,98 @@
       </a-button>
     </div>
 
-    <div
+    <!-- 行键沿用草稿 rowId；无排序和分页，单元格按表格行索引读取同一份草稿。 -->
+    <a-table
       v-if="rows.length"
-      :class="[
-        'model-parameter-config__matrix',
-        { 'model-parameter-config__matrix--editing': editing }
-      ]"
+      row-key="rowId"
+      size="small"
+      :columns="columns"
+      :data-source="rows"
+      :pagination="false"
+      :scroll="{ x: editing ? 960 : 896 }"
     >
-      <div class="model-parameter-config__matrix-head">
-        <span>{{ locale.parameterName }}</span>
-        <span>{{ locale.parameterPath }}</span>
-        <span>{{ locale.parameterType }}</span>
-        <span>{{ locale.parameterDescription }}</span>
-        <span>{{ locale.realtime }}</span>
-        <span>{{ locale.imageTest }}</span>
-        <span v-if="editing">{{ locale.actions }}</span>
-      </div>
-      <div
-        v-for="property in rows"
-        :key="property.rowId"
-        class="model-parameter-config__matrix-row"
-      >
-        <div class="model-parameter-config__name" :title="property.name">
+      <template #bodyCell="{ column, index: rowIndex }">
+        <div v-if="column.key === 'name'" class="model-parameter-config__name" :title="rows[rowIndex].name">
           <a-input
             v-if="editing"
-            :value="property.name"
+            :value="rows[rowIndex].name"
             :placeholder="locale.parameterName"
-            :status="hasValidationError(property, 'name') ? 'error' : undefined"
+            :status="hasValidationError(rows[rowIndex], 'name') ? 'error' : undefined"
             allow-clear
-            @update:value="updateProperty(property, 'name', $event)"
+            @update:value="updateProperty(rows[rowIndex], 'name', $event)"
           />
-          <template v-else>{{ property.name }}</template>
+          <template v-else>{{ rows[rowIndex].name }}</template>
         </div>
-        <div class="model-parameter-config__path" :title="property.property">
+        <div v-else-if="column.key === 'property'" class="model-parameter-config__path" :title="rows[rowIndex].property">
           <a-input
             v-if="editing"
-            :value="property.property"
+            :value="rows[rowIndex].property"
             :placeholder="locale.parameterPath"
-            :status="hasValidationError(property, 'property') ? 'error' : undefined"
-            @update:value="updateProperty(property, 'property', $event)"
+            :status="hasValidationError(rows[rowIndex], 'property') ? 'error' : undefined"
+            @update:value="updateProperty(rows[rowIndex], 'property', $event)"
           />
-          <template v-else>{{ property.property }}</template>
+          <template v-else>{{ rows[rowIndex].property }}</template>
         </div>
-        <div class="model-parameter-config__type" :title="property.typeName">
+        <div v-else-if="column.key === 'type'" class="model-parameter-config__type" :title="rows[rowIndex].typeName">
           <a-select
             v-if="editing"
-            :value="property.typeName"
+            :value="rows[rowIndex].typeName"
             :options="parameterTypeOptions"
-            :status="hasValidationError(property, 'type') ? 'error' : undefined"
+            :status="hasValidationError(rows[rowIndex], 'type') ? 'error' : undefined"
             style="width: 100%"
-            @update:value="updateProperty(property, 'type', $event)"
+            @update:value="updateProperty(rows[rowIndex], 'type', $event)"
           />
-          <template v-else>{{ property.typeName }}</template>
+          <template v-else>{{ rows[rowIndex].typeName }}</template>
         </div>
-        <div class="model-parameter-config__description" :title="property.description">
+        <div v-else-if="column.key === 'description'" class="model-parameter-config__description" :title="rows[rowIndex].description">
           <a-input
             v-if="editing"
-            :value="property.description"
+            :value="rows[rowIndex].description"
             :placeholder="locale.parameterDescription"
             allow-clear
-            @update:value="updateProperty(property, 'description', $event)"
+            @update:value="updateProperty(rows[rowIndex], 'description', $event)"
           />
-          <template v-else>{{ property.description }}</template>
+          <template v-else>{{ rows[rowIndex].description }}</template>
         </div>
         <div
+          v-else-if="column.key === 'params'"
           :class="{
-            'model-parameter-config__checkbox--error': hasValidationError(property, 'applicability')
+            'model-parameter-config__checkbox--error': hasValidationError(rows[rowIndex], 'applicability')
           }"
         >
           <a-checkbox
-            :checked="isApplicable('params', property)"
-            :disabled="!editing || !property.property"
-            @change="toggleApplicability('params', property, $event)"
+            :checked="isApplicable('params', rows[rowIndex])"
+            :disabled="!editing || !rows[rowIndex].property"
+            @change="toggleApplicability('params', rows[rowIndex], $event)"
           />
         </div>
         <div
+          v-else-if="column.key === 'testParams'"
           :class="{
-            'model-parameter-config__checkbox--error': hasValidationError(property, 'applicability')
+            'model-parameter-config__checkbox--error': hasValidationError(rows[rowIndex], 'applicability')
           }"
         >
           <a-checkbox
-            :checked="isApplicable('testParams', property)"
-            :disabled="!editing || !property.property"
-            @change="toggleApplicability('testParams', property, $event)"
+            :checked="isApplicable('testParams', rows[rowIndex])"
+            :disabled="!editing || !rows[rowIndex].property"
+            @change="toggleApplicability('testParams', rows[rowIndex], $event)"
           />
         </div>
-        <div v-if="editing" class="model-parameter-config__actions">
+        <div v-else-if="column.key === 'actions'" class="model-parameter-config__actions">
           <a-tooltip :title="locale.deleteParameter">
             <a-button
               type="text"
               danger
               size="small"
               :aria-label="locale.deleteParameter"
-              @click="removeParameter(property)"
+              @click="removeParameter(rows[rowIndex])"
             >
               <AIcon type="DeleteOutlined" />
             </a-button>
           </a-tooltip>
         </div>
-      </div>
-    </div>
+      </template>
+    </a-table>
     <CloudEmpty v-else :description="locale.noParameters" />
   </div>
 </template>
@@ -117,7 +109,8 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import { computed, ref, watch } from 'vue'
-import { cloneDeep } from 'lodash-es'
+import { cloneDeep, isEqual } from 'lodash-es'
+import type { TableColumnsType } from 'ant-design-vue'
 import type { ParameterRecord } from './modelParameterUtils'
 import type {
   ModelParameterDefinitionSource,
@@ -162,6 +155,7 @@ const emit = defineEmits<{
 
 const editableRows = ref<ParameterRow[]>([])
 const initialRows = ref<ParameterRow[]>([])
+const editStartRows = ref<ParameterRow[]>([])
 const validationErrors = ref<Record<string, ParameterValidationErrors>>({})
 let draftSequence = 0
 
@@ -169,10 +163,21 @@ const rows = computed<ParameterRow[]>(() => props.editing
   ? editableRows.value
   : props.properties.map(toEditableRow))
 
+const columns = computed<TableColumnsType<ParameterRow>>(() => [
+  { title: props.locale.parameterName, key: 'name', width: 180 },
+  { title: props.locale.parameterPath, key: 'property', width: 200 },
+  { title: props.locale.parameterType, key: 'type', width: 104 },
+  { title: props.locale.parameterDescription, key: 'description' },
+  { title: props.locale.realtime, key: 'params', width: 112, align: 'center' },
+  { title: props.locale.imageTest, key: 'testParams', width: 112, align: 'center' },
+  ...(props.editing ? [{ title: props.locale.actions, key: 'actions', width: 64, align: 'center' as const }] : [])
+])
+
 watch(() => props.editing, value => {
   if (value) {
     editableRows.value = props.properties.map(toEditableRow)
     initialRows.value = cloneDeep(editableRows.value)
+    editStartRows.value = initialRows.value
   } else {
     editableRows.value = []
     initialRows.value = []
@@ -276,7 +281,8 @@ function clearRowValidation(rowId: string) {
   validationErrors.value = nextErrors
 }
 
-defineExpose({ prepareForSave })
+// 空白行可能不进入 definition 预览；编辑起点不随保存前校验更新。
+defineExpose({ prepareForSave, hasChanges: () => props.editing && !isEqual(editableRows.value, editStartRows.value) })
 </script>
 
 <style src="./parameterConfigTable.less" lang="less"></style>
