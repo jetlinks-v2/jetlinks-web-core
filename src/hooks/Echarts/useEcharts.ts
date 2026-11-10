@@ -1,9 +1,10 @@
 import echarts from "./library"
-import { type Ref, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, unref, watch } from 'vue'
+import { type Ref, inject, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, unref, watch } from 'vue'
 import { cloneDeep, debounce } from 'lodash-es'
 import { createMeasuredEchartsLayout } from './measuredLayout'
 import type { EchartsLayoutProfile } from './geometryDefaults'
 import { composeStreamOption } from './streamOption'
+import { ECHARTS_PIXEL_RATIO_KEY } from './pixelRatio'
 
 export type { EchartsLayoutProfile } from './geometryDefaults'
 
@@ -37,6 +38,7 @@ export const useEcharts = (
   props: EchartsProps = {},
   lifecycle: EchartsLifecycleOptions = {}
 ) => {
+  const pixelRatio = inject(ECHARTS_PIXEL_RATIO_KEY, undefined)
   let echartsInstance: echarts.ECharts | null = null  // echarts实例
   let resizeObserver: ResizeObserver | null = null
   let intersectionObserver: IntersectionObserver | undefined
@@ -134,7 +136,11 @@ export const useEcharts = (
     const measured = size()
     if (!measured) { hidden = true; return false }
     try {
-      echartsInstance = echarts.init(_el, undefined, { renderer: props.renderer ?? 'canvas', ...measured })
+      echartsInstance = echarts.init(_el, undefined, {
+        renderer: props.renderer ?? 'canvas',
+        devicePixelRatio: pixelRatio?.value,
+        ...measured
+      })
       renderedSize = measured
       bindEvents()
       measuredLayout = createMeasuredEchartsLayout(echartsInstance, echarts, props.layoutProfile === 'presentation')
@@ -314,8 +320,8 @@ export const useEcharts = (
     }
   })
 
-  // Renderer变更需重建实例；getOption保留用户缩放、图例选择等当前交互状态。
-  watch(() => props.renderer, () => {
+  // Renderer / 像素密度变更需重建实例；保留用户缩放、图例选择等当前交互状态。
+  watch([() => props.renderer, () => props.renderer === 'svg' ? undefined : pixelRatio?.value], () => {
     if (!echartsInstance) return
     if (pendingOption || pendingData) flushPending(true)
     if (!echartsInstance) return

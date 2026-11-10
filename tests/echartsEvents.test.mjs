@@ -31,6 +31,7 @@ test('optional ECharts events replace listeners once and release them on rendere
     if (id === 'vue') return { ...vue, onMounted: callback => mounted.push(callback), onUnmounted: callback => unmounted.push(callback), onActivated() {}, onDeactivated() {} }
     if (id === './streamOption') return { composeStreamOption }
     if (id === './library') return { __esModule: true, default: chart }
+    if (id === './pixelRatio') return { ECHARTS_PIXEL_RATIO_KEY: Symbol('echarts-pixel-ratio') }
     if (id === './measuredLayout') return { createMeasuredEchartsLayout: () => ({ prepare() {}, apply() {}, setEnabled() {}, dispose() {} }) }
     return require(id)
   }, module, module.exports)

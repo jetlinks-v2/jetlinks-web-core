@@ -31,6 +31,7 @@ test('streaming options coalesce per frame without layout reads, and deferred wo
     if (id === 'vue') return { ...vue, onMounted: cb => mounted.push(cb), onUnmounted: cb => unmounted.push(cb), onActivated: cb => activated.push(cb), onDeactivated: cb => deactivated.push(cb) }
     if (id === './streamOption') return { composeStreamOption }
     if (id === './library') return { __esModule: true, default: chart }
+    if (id === './pixelRatio') return { ECHARTS_PIXEL_RATIO_KEY: Symbol('echarts-pixel-ratio') }
     if (id === './measuredLayout') return { createMeasuredEchartsLayout: () => ({ prepare() {}, apply() {}, dispose() {}, setEnabled() {} }) }
     return require(id)
   }, module, module.exports)

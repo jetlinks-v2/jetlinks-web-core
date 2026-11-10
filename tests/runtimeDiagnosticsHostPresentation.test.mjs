@@ -74,6 +74,7 @@ test('ECharts defaults to canvas and optional renderer replacement preserves the
     if (id === 'vue') return { ...vue, onMounted: callback => mounted.push(callback), onUnmounted: callback => unmounted.push(callback) }
     if (id === './streamOption') return { composeStreamOption }
     if (id === './library') return { __esModule: true, default: chart }
+    if (id === './pixelRatio') return { ECHARTS_PIXEL_RATIO_KEY: Symbol('echarts-pixel-ratio') }
     if (id === './measuredLayout') return { createMeasuredEchartsLayout: () => ({ prepare() {}, apply() {}, setEnabled() {}, dispose() {} }) }
     return require(id)
   }, module, module.exports)
@@ -114,6 +115,7 @@ test('hidden charts defer initialization, skip zero-size resize and restore imme
     if (id === 'vue') return { ...vue, onMounted: callback => mounted.push(callback), onUnmounted: callback => unmounted.push(callback), onActivated: callback => activated.push(callback), onDeactivated: callback => deactivated.push(callback) }
     if (id === './streamOption') return { composeStreamOption }
     if (id === './library') return { __esModule: true, default: chart }
+    if (id === './pixelRatio') return { ECHARTS_PIXEL_RATIO_KEY: Symbol('echarts-pixel-ratio') }
     if (id === './measuredLayout') return { createMeasuredEchartsLayout: () => ({ prepare() {}, apply() {}, setEnabled() {}, dispose() {} }) }
     return require(id)
   }, module, module.exports)
