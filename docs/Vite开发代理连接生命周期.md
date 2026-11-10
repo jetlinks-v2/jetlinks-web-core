@@ -98,3 +98,5 @@ Owning module 为 `runtime-ui/jetlinks-web-core`，修复边界为开发服务�
 - 使用真实工作区分别加载 `serve/development` 与 `build/production` 配置，监听插件接线、`apply: serve`、既有代理钩子均通过断言，未加入轮询配置。模块插件加载仍出现原有提示，未改变该机制。
 - 已将同一份实现同步到当前开发目录，Vite 自动重载配置。首页、`/@vite/client`、代理配置接口与后端直连全部 200，采样约 11–19ms；实际 Vite CPU 回到 0.0%。Codex 内置浏览器打开概览页，菜单、资源概况及统计数据正常显示。
 - 当前未经历与原故障相同持续时间的开发和并行构建；以上证明已复现的重复注册路径及生命周期分支通过验收，不能排除其他独立故障。
+
+监听修复提交：[27bcb84281db120a968396a72cf34fcb52382bf0](https://github.com/jetlinks-v2/jetlinks-web-core/commit/27bcb84281db120a968396a72cf34fcb52382bf0)，沿用上述 PR #228。
