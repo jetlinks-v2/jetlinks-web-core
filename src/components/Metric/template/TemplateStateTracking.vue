@@ -62,6 +62,7 @@ function setCode(index:number, text:string) {
 .state-tracking__sentence :deep(.ant-switch) { margin-inline-start:auto }
 .state-tracking__details { display:grid; gap:8px; padding-inline-start:18px; min-width:0 }
 .state-tracking__limit { color:var(--ink-2); line-height:28px }
+.state-tracking__limit > span:last-child { white-space:nowrap }
 .state-tracking__limit :deep(.template-duration) { width:112px; height:28px }
 .state-tracking__limit :deep(.template-duration__unit) { width:64px }
 .state-tracking__labels { display:grid; min-width:0 }

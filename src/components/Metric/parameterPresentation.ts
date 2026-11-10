@@ -37,6 +37,7 @@ export function parameterConstraints(parameter: MetricParameter, t: (key: string
     return [bounds, format].filter(Boolean).join(t('sentenceComma'))
   }
   if (type === 'enum') return t('parameterChoices', { choices:parameterElements(parameter).map(item => item.text ?? item.label ?? item.value).join(t('sentenceList')) })
+  if (type === 'date') return t('inputDateType')
   return t(parameterTypeKeys[type] || 'parameterText')
 }
 /** 仅完整且有效的双边界画刻度；超界旧值不伪装成合法位置。 */
