@@ -49,8 +49,12 @@ export function useExpressionWorkspace(props:{node:ExpressionNode;context:Expres
     highlight(target?.dataset.expressionReference)
   }
   watch(()=>[props.node,props.explanation],()=>highlight())
+  function expand(event?:Event) {
+    if(event?.currentTarget)trigger.value={$el:event.currentTarget as HTMLElement}
+    expanded.value=true
+  }
   async function restoreFocus() {await nextTick();trigger.value?.$el?.focus()}
-  return {expanded,active,content,modalHost,stableDialog,trigger,rows,highlight,track,restoreFocus}
+  return {expanded,expand,active,content,modalHost,stableDialog,trigger,rows,highlight,track,restoreFocus}
 }
 
 /** 类型名只用于用户辨认数据，保持与公式插入目录相同的角色。 */

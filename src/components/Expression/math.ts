@@ -33,7 +33,7 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
     const short=reference.displayLabel
     const display=short && context.references.filter(item=>(item.displayLabel || item.label) === short).length === 1 ? short : name
     references.set(referenceKey(node),macro)
-    macros[macro]={def:`\\class{expression-math-reference${node.id === 'params' ? ' is-parameter' : ''}}{${label(display)}}`,expand:false,captureSelection:true}
+    macros[macro]={def:`\\htmlData{expression-reference-index=${index}}{\\class{expression-math-reference${node.id === 'params' ? ' is-parameter' : ''}}{${label(display)}}}`,expand:false,captureSelection:true}
   }
   macros.JLotherwise={def:`\\class{expression-math-default}{${label(t('otherwise'))}}`,expand:false,captureSelection:true}
   for(const [macro,key] of Object.entries({JLmissing:'missing',JLpresent:'present',JLemptyValue:'emptyValue',JLemptyResult:'noValue',JLtrue:'yes',JLfalse:'no'})) {

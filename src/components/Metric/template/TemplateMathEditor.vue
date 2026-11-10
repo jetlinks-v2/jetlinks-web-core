@@ -21,6 +21,8 @@
       <ExpressionFunctionMenu v-if="functionSelection" class="formula-editor__function-picker" :style="pickerStyle" :functions="availableFunctions" :selected-id="functionSelection.id" @choose="chooseFunction" @close="closeReferences(true)" />
     </div>
     <div class="formula-editor__toolbar">
+      <div class="formula-editor__actions">
+      <span class="formula-editor__symbol" :title="t('calculationFormula')" :aria-label="t('calculationFormula')" role="img"><AIcon type="FunctionOutlined" /></span>
       <a-button type="text" size="small" :disabled="disabled || mode === 'visual' && (!ready || !canInsertValue) || !references.length" :aria-label="t('insertVariable')" @mousedown.prevent @click="openReferences()"><AIcon type="FieldStringOutlined" />{{ t('formulaVariables') }}<AIcon type="DownOutlined" class="formula-editor__caret" /></a-button>
       <template v-if="mode === 'visual'">
         <a-dropdown :trigger="['click']" :disabled="disabled || !ready" :get-popup-container="popupContainer">
@@ -31,17 +33,21 @@
           <a-button type="text" size="small" :disabled="disabled || !ready || !canInsertValue" :aria-label="t('insertFunction')" @mousedown.prevent="refreshInsertion"><AIcon type="FunctionOutlined" />{{ t('formulaFunctions') }}<AIcon type="DownOutlined" class="formula-editor__caret" /></a-button>
           <template #overlay><ExpressionFunctionMenu :functions="availableFunctions" :error="functionsError" @choose="chooseFunction" @retry="refreshFunctions" @close="closeReferences(true)"><template #error>{{ t('functionCatalogRetry') }}</template></ExpressionFunctionMenu></template>
         </a-dropdown>
-        <span class="formula-editor__separator" />
-        <div class="formula-editor__operators"><a-button v-for="item in operators" :key="item.label" type="text" size="small" :disabled="disabled || !ready || item.disabled" @mousedown.prevent @click="insert(item)">{{ item.label }}</a-button></div>
         <a-dropdown v-if="conditions" :trigger="['click']" :disabled="disabled || !ready" :get-popup-container="popupContainer">
           <a-button type="text" size="small" :disabled="disabled || !ready" :aria-label="t('conditionOperators')" @mousedown.prevent="refreshInsertion"><AIcon type="BranchesOutlined" />{{ t('formulaConditions') }}<AIcon type="DownOutlined" class="formula-editor__caret" /></a-button>
           <template #overlay><a-menu @click="chooseConditionOperator"><a-menu-item key="branch" :disabled="!canAddBranch && !canInsertValue"><SelectOption icon="BranchesOutlined" :label="t(canAddBranch ? 'addFormulaBranch' : 'conditionalFunction')" :description="t('enterFormulaBranch')" /></a-menu-item><a-menu-divider /><a-menu-item v-for="(item, index) in conditionOperators" :key="index" :disabled="item.disabled"><SelectOption icon="BranchesOutlined" :label="item.label" :description="t(item.hint)" /></a-menu-item></a-menu></template>
         </a-dropdown>
       </template>
       <slot name="tools" />
+      </div>
+      <div v-if="mode === 'visual'" class="formula-editor__operators"><a-button v-for="item in operators" :key="item.label" type="text" size="small" :disabled="disabled || !ready || item.disabled" @mousedown.prevent @click="insert(item)">{{ item.label }}</a-button></div>
+      <div v-if="$slots['view-tools']" class="formula-editor__view-tools"><slot name="view-tools" /></div>
     </div>
     </div>
-    <p class="formula-editor__feedback" :class="{ 'formula-editor__error': invalid || loadError }" :role="invalid || loadError ? 'alert' : undefined" :title="feedback">{{ feedback }}</p>
+    <div class="formula-editor__footer">
+      <p class="formula-editor__feedback" :class="{ 'formula-editor__error': invalid || loadError }" :role="invalid || loadError ? 'alert' : undefined" :title="feedback">{{ feedback }}</p>
+      <a-popover v-if="mode === 'visual' && ready && !disabled" :trigger="['hover','focus','click']" :title="t('formulaEditingHelp')" :get-popup-container="popupContainer"><template #content><ul class="formula-editor__hints"><li v-for="key in conditions ? ['formulaBranchesHint','formulaReplaceHint','formulaNavigateHint','formulaUndoHint'] : ['formulaReplaceHint','formulaNavigateHint','formulaUndoHint']" :key="key">{{ t(key) }}</li></ul></template><a-button class="formula-editor__help" type="text" size="small" :aria-label="t('formulaEditingHelp')"><AIcon type="InfoCircleOutlined" /></a-button></a-popover>
+    </div>
   </section>
 </template>
 <script setup lang="ts">

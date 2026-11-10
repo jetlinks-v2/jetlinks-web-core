@@ -2,7 +2,8 @@
   <main class="expression-preview">
     <header><h1>数学公式验收</h1><a-button @click="reset">恢复示例</a-button><a-button @click="disabled=!disabled">{{ disabled ? '开启编辑' : '只读' }}</a-button><a-button @click="narrow=!narrow">窄栏</a-button><a-button @click="dark=!dark">主题</a-button></header>
     <nav><a-button v-for="(_,name) in scenes" :key="name" @click="select(name)">{{ name }}</a-button></nav>
-    <section :style="narrow ? {width:'360px',maxWidth:'100%'} : {}"><h2>编辑</h2><ExpressionWorkspace :node="node" :context="context" :editable="!disabled" stationary><TemplateMathEditor model-value="" :tree="{version:1,root:node}" :references="references" :functions="context.functions" :result-labels="context.resultLabels" :disabled="disabled" conditions hide-mode @change="node=$event.expressionTree!.root;changes++" @invalid="invalid=$event" /></ExpressionWorkspace><p role="status">{{ invalid ? '未完成输入，不能试算' : '可试算' }} · 已修改 {{ changes }} 次</p></section>
+    <section :style="narrow ? {width:'360px',maxWidth:'100%'} : {}"><h2>编辑</h2><ExpressionWorkspace v-slot="{expand,expanded}" :node="node" :context="context" :editable="!disabled" stationary hide-heading><TemplateMathEditor model-value="" :tree="{version:1,root:node}" :references="references" :functions="context.functions" :result-labels="context.resultLabels" :disabled="disabled" conditions hide-mode @change="node=$event.expressionTree!.root;changes++" @invalid="invalid=$event"><template #view-tools><a-button v-show="!expanded" type="text" size="small" aria-label="放大编辑" title="放大编辑" @click="expand"><AIcon type="ExpandAltOutlined" /></a-button></template></TemplateMathEditor></ExpressionWorkspace><p role="status">{{ invalid ? '未完成输入，不能试算' : '可试算' }} · 已修改 {{ changes }} 次</p></section>
+    <section :style="narrow ? {width:'360px',maxWidth:'100%'} : {}"><h2>状态记录</h2><TemplateStateTracking :rule="stateRule" :disabled="disabled" @patch="stateRule={...stateRule,...$event}" /></section>
     <section><h2>反显</h2><ExpressionView :node="node" :context="context" /></section>
     <section><h2>记录的数据</h2><ExpressionWorkspace :node="scenes['条件与函数']" :context="context" :explanation="explanation" :format="format"><ExpressionView :node="scenes['条件与函数']" :context="context" :explanation="explanation" :format="format" /></ExpressionWorkspace></section>
     <details><summary>保存契约（测试数据）</summary><pre>{{ JSON.stringify(node,null,2) }}</pre></details>
@@ -11,6 +12,8 @@
 <script setup lang="ts">
 import { computed,ref,shallowRef,watchEffect } from 'vue'
 import TemplateMathEditor from '../src/components/Metric/template/TemplateMathEditor.vue'
+import TemplateStateTracking from '../src/components/Metric/template/TemplateStateTracking.vue'
+import type { TemplateRule } from '../src/components/Metric/template/designer'
 import ExpressionView from '../src/components/Expression/ExpressionView.vue'
 import ExpressionWorkspace from '../src/components/Expression/ExpressionWorkspace.vue'
 import type { ExpressionNode,ExpressionExplanation } from '../src/components/Expression/types'
@@ -26,6 +29,7 @@ const scenes:Record<string,ExpressionNode>={
   '多分支状态':{type:'conditional',condition:{type:'binary',operator:'eq',left:reading,right:{type:'literal',valueType:'null',value:null}},whenTrue:literal('5'),whenFalse:{type:'conditional',condition:{type:'binary',operator:'eq',left:reading,right:literal('0')},whenTrue:literal('1'),whenFalse:{type:'conditional',condition:{type:'binary',operator:'gt',left:reading,right:literal('20')},whenTrue:literal('3'),whenFalse:literal('0')}}},
 }
 const scene=ref('条件与函数'),node=shallowRef(scenes['条件与函数']),disabled=ref(false),invalid=ref(false),changes=ref(0),narrow=ref(false),dark=ref(false)
+const stateRule=ref<TemplateRule>({id:'connection',stateTracking:{maxNoData:'PT20M'},options:{stateLabels:[{value:0,name:'离线'},{value:1,name:'在线'}]}})
 watchEffect(()=>document.documentElement.dataset.previewTheme=dark.value ? 'dark' : 'light')
 const context=computed(()=>({disabled:disabled.value,references:[{id:'reading',path:[],label:'测量值',schema:{type:'double'}},{id:'backup',path:[],label:'备用测量值',schema:{type:'double'}},{id:'params',path:['weight'],label:'CPU权重',schema:{type:'decimal'}},{id:'stats',path:[],label:'近1小时连接统计',schema:{type:'object'}},{id:'stats',path:['onlineDuration'],label:'近1小时连接统计 · 在线持续时间',schema:{type:'long'},unit:'ms'},{id:'stats',path:['offlineDuration'],label:'近1小时连接统计 · 离线持续时间',schema:{type:'long'},unit:'ms'}],
   functions:[...['max','min','floor'].map((id,index)=>({id:`math.${id}`,name:['最大值','最小值','向下取整'][index],description:['取参与数据中的最大值','取参与数据中的最小值','返回不大于输入值的整数'][index],returnType:'number',parameters:[{id:'value',name:'数据',valueType:'number'}],minimumArguments:1,maximumArguments:id==='floor' ? 1 : 16})),{id:'stats.avg',name:'数据均值',description:'数值或数值集合的算术平均值；空数据返回0',returnType:'number',parameters:[{id:'values',name:'数值或数值集合',valueType:'any'}],minimumArguments:1,maximumArguments:16}],

@@ -1,8 +1,9 @@
 <template>
   <section class="template-formula">
-    <ExpressionWorkspace v-if="tree && !advanced" :node="tree.root" :context="context" :editable="!disabled" stationary>
+    <ExpressionWorkspace v-if="tree && !advanced" v-slot="{expand,expanded}" :node="tree.root" :context="context" :editable="!disabled" stationary hide-heading>
       <TemplateMathEditor :model-value="modelValue" :tree="tree" :empty="empty" :references="references" :functions="functions" :result-labels="resultLabels" :disabled="disabled" :conditions="true" hide-mode @change="changeMath" @invalid="setInvalid">
         <template #tools><FormulaTools :disabled="disabled || invalid" :advanced="false" :can-advance="true" @advanced="advanced = true" /></template>
+        <template #view-tools><a-button v-show="!expanded" type="text" size="small" :aria-label="t('expandEdit')" :title="t('expandEdit')" @click="expand"><AIcon type="ExpandAltOutlined" /></a-button></template>
       </TemplateMathEditor>
     </ExpressionWorkspace>
     <ContinuousExpressionEditor v-else-if="tree" :node="tree.root" :empty="empty" :context="context" @change="changeTree" @invalid="setInvalid">

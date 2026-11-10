@@ -1,6 +1,6 @@
 <template>
   <section class="expression-workspace">
-    <header class="expression-workspace__heading">
+    <header v-if="!hideHeading" class="expression-workspace__heading">
       <span>{{ t('calculationFormula') }}</span>
       <a-button ref="trigger" type="text" size="small" :aria-expanded="expanded" @click="expanded=true"><AIcon type="ExpandAltOutlined" />{{ t(editable ? 'expandEdit' : explanation ? 'inspectValues' : 'expandFormula') }}</a-button>
     </header>
@@ -9,7 +9,7 @@
       <div ref="content" class="expression-workspace__content" :class="{'is-expanded':expanded,'has-data':!!explanation && !!rows.length}" @pointerover="track" @pointerleave="highlight()" @focusin="track" @focusout="highlight()">
         <div class="expression-workspace__formula">
           <a-segmented v-if="expanded && explanation && !editable" v-model:value="view" class="expression-workspace__view" size="small" :aria-label="t('formulaView')" :options="[{label:t('originalFormula'),value:'original'},{label:t('recordedFormula'),value:'recorded'}]" />
-          <slot :substitute="view==='recorded'" />
+          <slot :substitute="view==='recorded'" :expand="expand" :expanded="expanded" />
         </div>
         <aside v-if="expanded && explanation && rows.length" class="expression-workspace__data" :aria-label="t('operand')">
           <h4><AIcon type="DatabaseOutlined" />{{ t('operand') }}<small>{{ rows.length }}</small></h4>
@@ -37,11 +37,11 @@ import type { ExpressionEditorContext } from './editor'
 import type { ExplanationFormatter } from './explanation'
 import { useExpressionWorkspace } from './useExpressionWorkspace'
 import { editorMessages } from './editorMessages'
-const props=defineProps<{node:ExpressionNode;context:ExpressionEditorContext;explanation?:ExpressionExplanation;format?:ExplanationFormatter;editable?:boolean;stationary?:boolean}>()
+const props=defineProps<{node:ExpressionNode;context:ExpressionEditorContext;explanation?:ExpressionExplanation;format?:ExplanationFormatter;editable?:boolean;stationary?:boolean;hideHeading?:boolean}>()
 const emit=defineEmits<{(event:'expandedChange',value:boolean):void}>()
 const {t}=useI18n({useScope:'local',messages:editorMessages})
 const view=ref('recorded')
-const {expanded,content,modalHost,stableDialog,trigger,rows,highlight,track,restoreFocus}=useExpressionWorkspace(props,t)
+const {expanded,expand,content,modalHost,stableDialog,trigger,rows,highlight,track,restoreFocus}=useExpressionWorkspace(props,t)
 watch(expanded,value=>emit('expandedChange',value),{flush:'sync'})
 </script>
 <style src="./expression.css" />

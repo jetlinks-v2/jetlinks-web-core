@@ -1,6 +1,8 @@
 /* 编辑和反显共用语义墨色；不添加角标、底色或额外原子，保持字号及选区一致。 */
 .expression-math-reference { color:var(--expression-reference-ink,var(--accent,#1677ff)); font-family:inherit }
 .expression-math-reference.is-parameter { color:var(--expression-parameter-ink,#7655a4); font-weight:500 }
+/* 数学分式/分支的排版盒可能覆盖文本命中区，让声明的交互原子接收指针。 */
+:host [data-expression-reference-index] { position:relative; z-index:1 }
 .expression-math-constant,.expression-math-predicate,.expression-math-logic { color:var(--expression-special-ink,#8b624c); font-weight:500 }
 .expression-math-constant.is-text { font-weight:400 }
 .expression-math-default { color:var(--ink-3,#7b8492) }

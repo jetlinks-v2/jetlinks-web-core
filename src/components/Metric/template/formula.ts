@@ -83,7 +83,7 @@ export function referenceMacro(index: number): string {
 }
 export function formulaMacros(references: FormulaReference[]) {
   return Object.fromEntries(references.map((item, index) => [referenceMacro(index), {
-    def: `\\text{${item.label.replace(/[\\{}%$&#_^~]/g, ' ')}}`, captureSelection: true, expand: false,
+    def: `\\htmlData{expression-reference-index=${index}}{\\text{${item.label.replace(/[\\{}%$&#_^~]/g, ' ')}}}`, captureSelection: true, expand: false,
   }]))
 }
 

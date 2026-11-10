@@ -4,6 +4,27 @@ import { defineComponent, h, reactive } from 'vue'
 import { createMetricLoader, createMetricRenderer, flush, walk, textContent } from './helpers/metricRuntime.mjs'
 
 const FormulaEditor = createMetricLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key }) } })('components/Metric/template/TemplateMathEditor.vue').default
+test('公式图标和放大入口收进输入框；放大及关闭保留同一编辑实例',async()=>{
+  const Workspace=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key})}})('components/Expression/ExpressionWorkspace.vue').default
+  const {renderer,root}=createMetricRenderer()
+  const app=renderer.createApp({setup:()=>()=>h(Workspace,{node:{type:'literal',valueType:'int',value:1},context:{references:[],functions:[]},stationary:true,hideHeading:true,editable:true},{default:({expand})=>[h('a-button',{'aria-label':'expandEdit',onClick:expand}),h('math-field')]})})
+  app.component('a-button',defineComponent({inheritAttrs:false,setup:(_,{attrs,slots})=>()=>h('a-button',attrs,slots.default?.())}))
+  app.config.warnHandler=()=>{};app.mount(root)
+  const find=predicate=>walk(root,predicate)[0]
+  try {
+    await flush()
+    const editor=find(node=>node.type==='math-field')
+    assert.equal(find(node=>node.props.class==='expression-workspace__heading'),undefined)
+    const expand=find(node=>node.props['aria-label']==='expandEdit')
+    assert.ok(expand);assert.equal(textContent(expand),'')
+    expand.props.onClick();await flush()
+    assert.equal(find(node=>node.type==='math-field'),editor)
+    assert.ok(find(node=>node.props.class==='expression-workspace__modal-heading'))
+    find(node=>node.props['aria-label']==='close').props.onClick();await flush()
+    assert.equal(find(node=>node.type==='math-field'),editor)
+    assert.ok(find(node=>node.props['aria-label']==='expandEdit'))
+  } finally {app.unmount()}
+})
 test('模板接线默认以同一数学编辑器反显算术和分支，查看不写回，编辑保存树及依赖',async()=>{
   const {resolve}=await import('node:path')
   const {sourceRoot}=await import('./helpers/metricRuntime.mjs')
@@ -126,9 +147,24 @@ test('变量浮窗恢复原生选区替换；取消、外部更新、引用变�
   try {
     await flush()
     const canvas = findClass('formula-editor__canvas')
-    canvas.props.onPointermove({ clientX:40, clientY:20, composedPath:() => [field] })
+    let liveBounds={left:20,right:80,top:10,bottom:30}
+    const target={dataset:{expressionReferenceIndex:'0'},getBoundingClientRect:()=>liveBounds}
+    const hover=(x=40,y=20)=>canvas.props.onPointermove({clientX:x,clientY:y,composedPath:()=>[target,field]})
+    hover()
     assert.equal(previews.at(-1), 'temperature')
     await flush();assert.ok(findClass('formula-editor__hover-reference'))
+    // MathLive still reports its old viewport bounds: use the live semantic target
+    // after scrolling/reflow, including repeated references with the same native offset.
+    liveBounds={left:30,right:110,top:35,bottom:55}
+    hover(50,45);await flush()
+    assert.deepEqual(findClass('formula-editor__hover-reference').props.style,{left:'29px',top:'35px',width:'82px',height:'20px'})
+    canvas.offsetWidth=200;canvas.offsetHeight=80
+    canvas.getBoundingClientRect=()=>({left:10,top:20,width:100,height:40})
+    liveBounds={left:30,right:70,top:35,bottom:45}
+    hover(50,40);await flush()
+    assert.deepEqual(findClass('formula-editor__hover-reference').props.style,{left:'39px',top:'30px',width:'82px',height:'20px'})
+    canvas.offsetWidth=undefined;canvas.offsetHeight=undefined
+    canvas.getBoundingClientRect=()=>({left:0,top:0,width:200,bottom:64})
     canvas.props.onPointerleave();await flush();assert.equal(findClass('formula-editor__hover-reference'),undefined)
     for(const latex of ['\\JLemptyResult','\\begin{cases}0&1\\\\1&2\\end{cases}','\\dfrac{1}{2}']) {
       field.elementLatex=latex
@@ -136,6 +172,9 @@ test('变量浮窗恢复原生选区替换；取消、外部更新、引用变�
       assert.equal(findClass('formula-editor__hover-reference'),undefined)
     }
     field.elementLatex=undefined
+    const number={textContent:'100.0',getBoundingClientRect:()=>({left:20,right:60,top:10,bottom:30})}
+    canvas.props.onPointermove({clientX:40,clientY:20,composedPath:()=>[number,field]});await flush()
+    assert.ok(findClass('formula-editor__hover-reference'));assert.equal(previews.at(-1),undefined)
     canvas.props.onKeyup(); assert.equal(previews.at(-1), 'temperature')
     canvas.props.onPointermove({ clientX:0, clientY:0, composedPath:() => [field] }); assert.equal(previews.at(-1), undefined)
     canvas.props.onPointermove({ clientX:40, clientY:20, composedPath:() => [] }); assert.equal(previews.at(-1), undefined)

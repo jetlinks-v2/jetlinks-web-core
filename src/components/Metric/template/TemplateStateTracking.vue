@@ -1,21 +1,24 @@
 <template>
   <section class="state-tracking">
     <div class="state-tracking__sentence"><AIcon type="HistoryOutlined" /><span>{{ t('intervalTrackSentence') }}</span><a-switch size="small" :checked="!!rule.stateTracking" :disabled="disabled" :aria-label="t('intervalTrackSentence')" @change="toggle(!!$event)" /></div>
-    <template v-if="rule.stateTracking">
-      <div class="state-tracking__sentence"><span>{{ t('stateSampleNoDataFor') }}</span><TemplateDuration :model-value="rule.stateTracking.maxNoData" :disabled="disabled" @update:model-value="emit('patch', { stateTracking: { maxNoData: $event || 'PT20M' } })" /><span>{{ t('sentenceInterrupted') }}{{ t('sentenceEnd') }}</span></div>
+    <div v-if="rule.stateTracking" class="state-tracking__details">
+      <div class="state-tracking__limit"><span>{{ t('stateSampleNoDataFor') }}</span><TemplateDuration :model-value="rule.stateTracking.maxNoData" :disabled="disabled" @update:model-value="emit('patch', { stateTracking: { maxNoData: $event || 'PT20M' } })" /><span>{{ t('sentenceInterrupted') }}{{ t('sentenceEnd') }}</span></div>
       <div class="state-tracking__labels">
+        <div class="state-tracking__columns" aria-hidden="true"><span>{{ t('stateCode') }}</span><span>{{ t('stateName') }}</span></div>
         <div v-for="(item,index) in labels" :key="index" class="state-tracking__label">
-          <a-popover v-if="!disabled" trigger="click" placement="leftTop" :overlay-style="{ maxWidth:'calc(100vw - 32px)' }"><template #content><div class="state-tracking__appearance"><IconValueEditor :model-value="item.icon" :preview-fallback="stateLabel(item.value,labels,String(locale))" :preview-size="28" @update:model-value="setLabel(index,{ ...item,icon:$event })" /></div></template><button type="button" class="state-tracking__icon" :aria-label="t('stateAppearanceFor',{ name:stateLabel(item.value,labels,String(locale)) })"><IconValueView :value="item.icon" :size="24" :fallback-text="stateLabel(item.value,labels,String(locale))" /></button></a-popover>
-          <IconValueView v-else :value="item.icon" :size="24" :fallback-text="stateLabel(item.value,labels,String(locale))" />
-          <Editable :value="typeof item.value === 'string' ? JSON.stringify(item.value) : String(item.value)" :component-props="{ disabled, bordered:false, 'aria-label':`${t('stateCode')}: ${String(item.value)}` }" @change="setCode(index, String($event))" /><span>→</span>
-          <I18nTextEditable :value="item.name" field="name" :label="t('stateName')" :i18n-messages="{ name:item.nameI18n || {} }" :disabled="disabled" @change="setLabel(index, { ...item, name:$event.value, nameI18n:$event.i18nMessages.name })" />
+          <a-popover v-if="!disabled" trigger="click" placement="leftTop" :overlay-style="{ maxWidth:'calc(100vw - 32px)' }"><template #content><div class="state-tracking__appearance"><IconValueEditor :model-value="item.icon" :preview-fallback="stateLabel(item.value,labels,String(locale))" :preview-size="28" @update:model-value="setLabel(index,{ ...item,icon:$event })" /></div></template><button type="button" class="state-tracking__icon" :aria-label="t('stateAppearanceFor',{ name:stateLabel(item.value,labels,String(locale)) })"><IconValueView :value="item.icon" :size="20" :fallback-text="stateLabel(item.value,labels,String(locale))" /></button></a-popover>
+          <IconValueView v-else :value="item.icon" :size="20" :fallback-text="stateLabel(item.value,labels,String(locale))" />
+          <Editable :value="typeof item.value === 'string' ? JSON.stringify(item.value) : String(item.value)" :component-props="{ disabled, bordered:false, 'aria-label':`${t('stateCode')}: ${String(item.value)}` }" @change="setCode(index, String($event))" /><span class="state-tracking__arrow">→</span>
+          <I18nTextEditable :value="item.name" field="name" size="small" :label="t('stateName')" :i18n-messages="{ name:item.nameI18n || {} }" :disabled="disabled" @change="setLabel(index, { ...item, name:$event.value, nameI18n:$event.i18nMessages.name })" />
           <a-button v-if="!disabled" type="text" size="small" :aria-label="t('removeState', { name:stateLabel(item.value, labels, String(locale)) })" @click="saveLabels(labels.filter((_, i) => i !== index))"><AIcon type="CloseOutlined" /></a-button>
         </div>
-        <a-button v-if="!disabled" type="text" size="small" @click="saveLabels([...labels, { value:`state${labels.length + 1}`, name:'' }])"><AIcon type="PlusOutlined" />{{ t('addState') }}</a-button>
+        <a-button v-if="!disabled" class="state-tracking__add" type="text" size="small" @click="saveLabels([...labels, { value:`state${labels.length + 1}`, name:'' }])"><AIcon type="PlusOutlined" />{{ t('addState') }}</a-button>
       </div>
+      <div class="state-tracking__hints">
       <small>{{ t('stateTrackingHint') }}</small>
       <small>{{ t('stateChangeValidityHint') }}</small>
-    </template>
+      </div>
+    </div>
   </section>
 </template>
 <script setup lang="ts">
@@ -54,14 +57,28 @@ function setCode(index:number, text:string) {
 }
 </script>
 <style scoped>
-.state-tracking { display:grid; gap:10px; padding:14px 0; border-top:1px solid var(--line); margin-top:14px }
+.state-tracking { display:grid; gap:8px; padding:12px 0; border-top:1px solid var(--line); margin-top:12px; font-size:var(--fs-12,12px) }
 .state-tracking__sentence { display:flex; align-items:center; flex-wrap:wrap; gap:6px; color:var(--ink-2); font-size:var(--fs-12,12px) }
-.state-tracking__labels { display:grid; gap:6px }
-.state-tracking__label { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; background:var(--bg-2); min-width:0 }
-.state-tracking__label > .editable-field { flex:0 0 64px; min-width:0 }
+.state-tracking__sentence :deep(.ant-switch) { margin-inline-start:auto }
+.state-tracking__details { display:grid; gap:8px; padding-inline-start:18px; min-width:0 }
+.state-tracking__limit { color:var(--ink-2); line-height:28px }
+.state-tracking__limit :deep(.template-duration) { width:112px; height:28px }
+.state-tracking__limit :deep(.template-duration__unit) { width:64px }
+.state-tracking__labels { display:grid; min-width:0 }
+.state-tracking__columns,.state-tracking__label { display:grid; grid-template-columns:20px minmax(40px,.6fr) 12px minmax(0,1fr) 24px; align-items:center; column-gap:4px; min-width:0 }
+.state-tracking__columns { min-height:22px; color:var(--ink-3); font-size:11px; border-bottom:1px solid var(--line) }
+.state-tracking__columns > :first-child { grid-column:2 }
+.state-tracking__columns > :last-child { grid-column:4 }
+.state-tracking__label { min-height:32px; border-bottom:1px solid var(--line) }
+.state-tracking__label > .editable-field { min-width:0 }
+.state-tracking__arrow { color:var(--ink-3) }
+.state-tracking :deep(.editable-field),.state-tracking :deep(.editable-field > .text) { height:28px; line-height:28px }
+.state-tracking__label :deep(.ant-btn) { width:24px; height:24px; padding:0; color:var(--ink-3) }
+.state-tracking__add { justify-self:start; height:28px; padding:0 2px; color:var(--ink-2); font-size:12px }
 .state-tracking__icon { border:0; padding:0; background:transparent; cursor:pointer; flex:none }
 .state-tracking__icon:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:4px }
 .state-tracking__appearance { width:280px; max-width:calc(100vw - 56px) }
-.state-tracking__label :deep(.i18n-text-editable) { flex:1; min-width:0 }
-.state-tracking small { color:var(--ink-3); line-height:1.6 }
+.state-tracking__label :deep(.i18n-text-editable) { min-width:0 }
+.state-tracking__hints { display:grid; gap:4px }
+.state-tracking small { color:var(--ink-3); font-size:11px; line-height:18px }
 </style>

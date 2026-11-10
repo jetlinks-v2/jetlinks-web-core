@@ -83,7 +83,6 @@ let lastEmitted: string | undefined
 const lastRoot=shallowRef<StructuredExpression['root']>()
 let disposed = false
 let loading = false
-let hoveredOffset:number|undefined
 const currentRoot=computed(()=>lastRoot.value || props.tree?.root || expressionToTree(sourceText.value,props.references)?.root || {type:'literal' as const,valueType:'null' as const,value:null})
 const parser=computed(()=>createMathParser(currentRoot.value,context.value,t))
 const insertion=useMathInsertion({field:()=>field,context:()=>context.value,root:()=>currentRoot.value,parser:()=>parser.value,commit:onInput,disabled:()=>!!props.disabled,conditions:()=>!!props.conditions})
@@ -107,7 +106,6 @@ function closeReferences(focus = false) {
   referenceSelection.value = undefined
   referenceFrame.value=undefined
   hoverFrame.value=undefined
-  hoveredOffset=undefined
   sourcePickerOpen.value = false
   if (focus) { if (mode.value === 'source') sourceElement?.focus(); else field?.focus() }
 }
@@ -118,13 +116,12 @@ function focusFormula() {
 /** Keep MathLive's native range while the select temporarily owns keyboard focus. */
 async function openReferences(bounds?: DOMRect, selection?: Selection, replace = false) {
   if (disposed || props.disabled || !props.references.length || mode.value === 'visual' && !field) return
-  const area = canvas.value!.getBoundingClientRect()
-  const anchor = bounds || (mode.value === 'visual' ? field?.getElementInfo(field.position)?.bounds : undefined)
+  const anchor = localBounds(bounds || (mode.value === 'visual' ? field?.getElementInfo(field.position)?.bounds : undefined))
   // 仅框住本次原生原子，不高亮同名的其他读取；不向 MathLive 插入装饰或历史记录。
-  referenceFrame.value=replace && bounds ? {left:`${bounds.left-area.left-1}px`,top:`${bounds.top-area.top}px`,width:`${bounds.right-bounds.left+2}px`,height:`${bounds.bottom-bounds.top}px`} : undefined
+  referenceFrame.value=replace && bounds ? frameStyle(bounds) : undefined
   pickerStyle.value = {
-    left: `clamp(0px, ${(anchor?.left ?? area.left) - area.left}px, max(0px, calc(100% - 260px)))`,
-    top: `${Math.max(0, (anchor?.bottom ?? area.bottom) - area.top) + 4}px`,
+    left: `clamp(0px, ${anchor?.left ?? 0}px, max(0px, calc(100% - 260px)))`,
+    top: `${Math.max(0, anchor?.bottom ?? canvas.value!.clientHeight ?? 0) + 4}px`,
   }
   if (mode.value === 'source') sourcePickerOpen.value = true
   else if (field) {
@@ -145,8 +142,8 @@ function chooseAtPoint(event: MouseEvent) {
   const fn=insertion.functionAtPoint(event.clientX,event.clientY)
   if(fn) {
     event.preventDefault();event.stopPropagation()
-    const area=canvas.value!.getBoundingClientRect()
-    pickerStyle.value={left:`clamp(0px, ${fn.bounds.left-area.left}px, max(0px, calc(100% - 360px)))`,top:`${fn.bounds.bottom-area.top+4}px`}
+    const anchor=localBounds(fn.bounds)!
+    pickerStyle.value={left:`clamp(0px, ${anchor.left}px, max(0px, calc(100% - 360px)))`,top:`${anchor.bottom+4}px`}
     functionSelection.value=fn
     insertion.refresh({ranges:[fn.range]});field.position=fn.range[1];field.blur()
     return
@@ -161,8 +158,9 @@ function chooseAtPoint(event: MouseEvent) {
   const start = field.getOffsetFromPoint(event.clientX, event.clientY, { bias: -1 })
   const end = field.getOffsetFromPoint(event.clientX, event.clientY, { bias: 1 })
   const info = field.getElementInfo(end)
-  const bounds = info?.bounds
-  if (!bounds || event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) return
+  const referenceTarget=referenceAtPoint(event)
+  const bounds = referenceTarget && info?.latex === `\\${referenceMacro(referenceTarget.index)}` ? referenceTarget.bounds : info?.bounds
+  if (!info || !bounds || event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) return
   const reference = props.references.some((_item,index)=>info.latex === `\\${referenceMacro(index)}`)
   if (reference || info.latex?.startsWith('\\placeholder') && props.references.length) open(bounds, { ranges: [[start, end]] }, reference)
   else if (['\\JLemptyValue','\\JLemptyResult','\\JLtrue','\\JLfalse'].includes(info.latex || '')) {
@@ -170,25 +168,42 @@ function chooseAtPoint(event: MouseEvent) {
     event.preventDefault();event.stopPropagation();field.focus();field.selection={ranges:[[start,end]]}
   }
 }
-function clearPreview() {hoverFrame.value=undefined;hoveredOffset=undefined;referenceContext?.preview()}
-/** 复用MathLive原生原子定位，仅变量指向声明；参数不伪造图节点。 */
+function clearPreview() {hoverFrame.value=undefined;referenceContext?.preview()}
+/** 视口边界转换为画布本地坐标，兼容祖先缩放；不缓存布局坐标。 */
+function localBounds(bounds?: DOMRect) {
+  const element=canvas.value
+  if(!element || !bounds)return
+  const area=element.getBoundingClientRect()
+  const scaleX=element.offsetWidth ? area.width/element.offsetWidth : 1
+  const scaleY=element.offsetHeight ? area.height/element.offsetHeight : 1
+  return {left:(bounds.left-area.left)/scaleX,top:(bounds.top-area.top)/scaleY,right:(bounds.right-area.left)/scaleX,bottom:(bounds.bottom-area.top)/scaleY}
+}
+function frameStyle(bounds:DOMRect) {
+  const local=localBounds(bounds)
+  return local ? {left:`${local.left-1}px`,top:`${local.top}px`,width:`${local.right-local.left+2}px`,height:`${local.bottom-local.top}px`} : undefined
+}
+/** 只识别投影自身声明的标记，不依赖 MathLive 的私有节点、层级或坐标缓存。 */
+function referenceAtPoint(event:MouseEvent) {
+  for(const target of event.composedPath()) {
+    const element=target as HTMLElement
+    const marker=element.dataset?.expressionReferenceIndex
+    if(marker === undefined)continue
+    const index=Number(marker)
+    if(Number.isInteger(index) && props.references[index])return {index,bounds:element.getBoundingClientRect()}
+  }
+}
 function previewAtPoint(event: PointerEvent) {
   if (!field || props.disabled || referenceSelection.value || functionSelection.value || event.buttons || field.selection.ranges.some(([start,end])=>start !== end) || !event.composedPath().includes(field)) {clearPreview();return}
-  const offset = field.getOffsetFromPoint(event.clientX, event.clientY, { bias:1 })
-  const info = field.getElementInfo(offset)
-  const bounds = info?.bounds
-  const inside = bounds && event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom
-  if(inside && hoveredOffset === offset && hoverFrame.value)return
-  const area=canvas.value?.getBoundingClientRect()
-  const index = inside ? props.references.findIndex((_item,index) => info.latex === `\\${referenceMacro(index)}`) : -1
-  // 原生定位可能返回整列/容器；只为引用及单个数字描边，常量保留自己的角标提示。
-  const atomic=index >= 0 || /^\d+(?:\.\d+)?$/.test(info?.latex || '')
-  hoverFrame.value=inside && area && atomic ? {left:`${bounds.left-area.left-1}px`,top:`${bounds.top-area.top}px`,width:`${bounds.right-bounds.left+2}px`,height:`${bounds.bottom-bounds.top}px`} : undefined
-  hoveredOffset=hoverFrame.value ? offset : undefined
-  referenceContext?.preview(props.references[index]?.metricId)
+  const reference=referenceAtPoint(event)
+  // 数字只描边实际命中的文字元素，避免把分式、分支容器当成单个值。
+  const number=reference ? undefined : event.composedPath().find(target=>/^\d+(?:\.\d+)?$/.test((target as HTMLElement).textContent || '') && typeof (target as HTMLElement).getBoundingClientRect === 'function') as HTMLElement|undefined
+  const bounds=reference?.bounds || number?.getBoundingClientRect()
+  const inside=bounds && event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom
+  hoverFrame.value=inside ? frameStyle(bounds) : undefined
+  referenceContext?.preview(inside && reference ? props.references[reference.index]?.metricId : undefined)
 }
 function previewSelection() {
-  hoverFrame.value=undefined;hoveredOffset=undefined
+  hoverFrame.value=undefined
   if (!referenceContext || !field) return
   const latex = field.getElementInfo(field.position)?.latex
   referenceContext.preview(props.references.find((_item,index) => latex === `\\${referenceMacro(index)}`)?.metricId)
