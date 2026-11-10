@@ -1,6 +1,6 @@
 <template>
   <section class="state-tracking">
-    <div class="state-tracking__sentence"><AIcon type="HistoryOutlined" /><span>{{ t('intervalTrackSentence') }}</span><a-switch size="small" :checked="!!rule.stateTracking" :disabled="disabled" :aria-label="t('intervalTrackSentence')" @change="toggle(!!$event)" /></div>
+    <div class="state-tracking__sentence"><AIcon type="HistoryOutlined" /><span :title="t('intervalTrackSentence')">{{ t('stateRecording') }}</span><a-switch size="small" :checked="!!rule.stateTracking" :disabled="disabled" :aria-label="t('intervalTrackSentence')" @change="toggle(!!$event)" /></div>
     <div v-if="rule.stateTracking" class="state-tracking__details">
       <div class="state-tracking__limit"><span>{{ t('stateSampleNoDataFor') }}</span><TemplateDuration :model-value="rule.stateTracking.maxNoData" :disabled="disabled" @update:model-value="emit('patch', { stateTracking: { maxNoData: $event || 'PT20M' } })" /><span>{{ t('sentenceInterrupted') }}{{ t('sentenceEnd') }}</span></div>
       <div class="state-tracking__labels">
@@ -57,10 +57,11 @@ function setCode(index:number, text:string) {
 }
 </script>
 <style scoped>
-.state-tracking { display:grid; gap:8px; padding:12px 0; border-top:1px solid var(--line); margin-top:12px; font-size:var(--fs-12,12px) }
-.state-tracking__sentence { display:flex; align-items:center; flex-wrap:wrap; gap:6px; color:var(--ink-2); font-size:var(--fs-12,12px) }
+.state-tracking { display:grid; gap:8px; padding:0; margin:0 0 16px; font-size:13px }
+.state-tracking__sentence { display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-height:32px; color:var(--ink-2); font-size:13px; font-weight:500 }
+.state-tracking__sentence > .anticon { width:16px; color:var(--ink-3) }
 .state-tracking__sentence :deep(.ant-switch) { margin-inline-start:auto }
-.state-tracking__details { display:grid; gap:8px; padding-inline-start:18px; min-width:0 }
+.state-tracking__details { display:grid; gap:8px; min-width:0 }
 .state-tracking__limit { color:var(--ink-2); line-height:28px }
 .state-tracking__limit > span:last-child { white-space:nowrap }
 .state-tracking__limit :deep(.template-duration) { width:112px; height:28px }

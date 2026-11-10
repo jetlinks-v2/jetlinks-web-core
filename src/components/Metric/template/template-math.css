@@ -9,6 +9,8 @@
 .formula-editor__actions > * { flex:none }
 .formula-editor__symbol { display:inline-flex; align-items:center; justify-content:center; width:22px; color:var(--ink-3); font-size:12px }
 .formula-editor__view-tools { grid-column:3; display:flex; align-items:center }
+.formula-editor__clipboard-panel { display:grid; gap:8px; padding:8px; border-top:1px solid var(--line) }
+.formula-editor__clipboard-panel > div { display:flex; justify-content:flex-end; gap:4px }
 .formula-editor__view-tools :deep(.ant-btn) { width:28px; padding:0; color:var(--ink-3) }
 .formula-editor__operators { display:flex; align-items:center; min-width:0; overflow-x:auto; scrollbar-width:thin }
 .formula-editor__operators :deep(.ant-btn) { min-width:28px; flex:none }
@@ -22,7 +24,8 @@
   .formula-editor__toolbar :deep(.ant-btn > span) { margin-inline-start:0 }
   .formula-editor__caret { display:none }
 }
-.formula-editor__field { display:flex; align-items:center; min-width:0; min-height:80px; max-height:min(360px,var(--expression-editor-max-height,360px)); overflow:auto; scrollbar-width:thin }
+/* Keep MathLive's positioned selection/accessibility layers inside the formula scroller. */
+.formula-editor__field { position:relative; display:flex; align-items:center; min-width:0; min-height:80px; max-height:min(360px,var(--expression-editor-max-height,360px)); overflow:auto; scrollbar-width:thin }
 .formula-editor__canvas { position:relative; min-width:0; min-height:80px }
 .formula-editor__source { min-height:112px; resize:vertical; font-size:14px; padding:12px; box-shadow:none }
 .formula-editor__picker { position:absolute; width:min(260px,100%); z-index:2 }

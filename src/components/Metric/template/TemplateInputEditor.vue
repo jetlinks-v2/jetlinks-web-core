@@ -1,22 +1,27 @@
 <template>
   <div class="input-editor">
-    <section class="input-editor__schema">
-      <TemplateInputSchema :model-value="input.valueType" :disabled="disabled || published" :unit-editable="false" @update:model-value="updateSchema" />
+    <section class="input-editor__schema" :aria-label="t('inputDataType')">
+      <TemplateInputSchema :model-value="input.valueType" :disabled="disabled || published" :unit-editable="false" hide-type-label @update:model-value="updateSchema">
+        <template #prefix><span class="input-editor__type-label"><AIcon type="TagOutlined" />{{ t('inputDataType') }}</span></template>
+        <template #suffix><span class="input-editor__unit-inline"><span>{{ t('unit') }}</span><Editable :value="input.unit" :component-props="{ disabled:disabled || published, bordered:false, placeholder:t('noUnit'), 'aria-label':t('unit') }" @change="emit('patch', { unit:$event })" /></span><a-tooltip :trigger="['hover','focus']" :title="t(published ? 'inputPublishedType' : 'inputBindingHint')"><button type="button" class="input-editor__help" :aria-label="t(published ? 'inputPublishedType' : 'inputBindingHint')"><AIcon :type="published ? 'LockOutlined' : 'InfoCircleOutlined'" /></button></a-tooltip></template>
+      </TemplateInputSchema>
       <p v-if="schemaIssue" class="input-editor__error" role="alert">{{ t(schemaIssue) }}</p>
-      <p class="input-editor__binding">{{ t(published ? 'inputPublishedType' : 'inputBindingHint') }}</p>
     </section>
-    <section class="input-editor__reading">
+    <TemplateClause stacked icon="DatabaseOutlined" :title="t('readMode')" class="input-editor__reading">
+      <template #title>{{ t('readMode') }}<a-tooltip :trigger="['hover','focus']" :title="t(input.source?.lookback ? 'inputHistoryTiming' : 'inputLatestTiming')"><button type="button" class="input-editor__help" :aria-label="t('inputReadTiming')"><AIcon type="InfoCircleOutlined" /></button></a-tooltip></template>
       <div class="input-editor__sentence">
-        <AIcon type="DatabaseOutlined" /><span>{{ t('inputRead') }}</span>
         <Editable class="input-editor__mode" type="select" :value="input.source?.lookback ? 'history' : 'latest'" :component-props="{ disabled, bordered:false, defaultOpen:true, dropdownMatchSelectWidth:false, 'aria-label':t('readMode'), options:readModes }" @change="setReadMode($event as string)" />
       </div>
       <div v-if="input.source?.lookback" class="input-editor__sentence input-editor__continuation">
         <span>{{ t('inputLookback') }}</span><TemplateDuration :model-value="input.source.lookback" :disabled="disabled" @update:model-value="sourceField('lookback', $event)" />
       </div>
-      <div class="input-editor__sentence input-editor__continuation input-editor__muted">
-        <span>{{ t('inputUnit') }}</span><Editable class="input-editor__unit" :value="input.unit" :component-props="{ disabled:disabled || published, bordered:false, placeholder:t('noUnit'), 'aria-label':t('unit') }" @change="emit('patch', { unit:$event })" />
-      </div>
-    </section>
+    </TemplateClause>
+    <TemplateClause stacked icon="SafetyOutlined" :title="t('inputRequirements')" class="input-editor__requirements">
+      <div class="input-editor__sentence"><span>{{ t('maxAge') }}</span><TemplateDuration :model-value="input.maxAge" :empty-label="t('unlimited')" :disabled="disabled" @update:model-value="emit('patch', { maxAge:$event })" /></div>
+      <div class="input-editor__sentence"><span>{{ t('inputPresence') }}</span><Editable class="input-editor__presence" type="select" :value="input.presence || 'required'" :component-props="{ disabled:disabled || published, bordered:false, defaultOpen:true, dropdownMatchSelectWidth:false, 'aria-label':t('inputPresence'), options:presenceOptions }" @change="emit('patch', { presence:$event })" /></div>
+      <div v-if="input.presence === 'defaultValue'" class="input-editor__sentence"><span>{{ t('defaultValue') }}</span><span class="input-editor__default"><MetricParameterValue inline :disabled="disabled" :parameter="defaultParameter" :model-value="input.defaultValue" @update:model-value="emit('patch', { defaultValue:$event })" /></span></div>
+    </TemplateClause>
+    <details class="input-editor__advanced"><summary><AIcon type="SettingOutlined" />{{ t('moreSettings') }}</summary>
     <section v-if="available.length" class="input-editor__available" :aria-label="t('inputAvailable')">
       <h4><AIcon type="FunctionOutlined" />{{ t('inputAvailable') }}</h4>
       <dl>
@@ -37,28 +42,18 @@
         <span>{{ consumer.timing }}</span>
       </div>
     </section>
-    <section class="input-editor__requirements">
-      <div class="input-editor__sentence">
-        <AIcon type="ClockCircleOutlined" /><span>{{ t('maxAge') }}</span><TemplateDuration :model-value="input.maxAge" :empty-label="t('unlimited')" :disabled="disabled" @update:model-value="emit('patch', { maxAge:$event })" />
-      </div>
-      <div class="input-editor__sentence">
-        <AIcon type="SafetyOutlined" /><span>{{ t('inputPresence') }}</span>
-        <Editable class="input-editor__presence" type="select" :value="input.presence || 'required'" :component-props="{ disabled:disabled || published, bordered:false, defaultOpen:true, dropdownMatchSelectWidth:false, 'aria-label':t('inputPresence'), options:presenceOptions }" @change="emit('patch', { presence:$event })" />
-      </div>
-      <div v-if="input.presence === 'defaultValue'" class="input-editor__sentence input-editor__continuation">
-        <span>{{ t('defaultValue') }}</span><span class="input-editor__default"><MetricParameterValue inline :disabled="disabled" :parameter="defaultParameter" :model-value="input.defaultValue" @update:model-value="emit('patch', { defaultValue:$event })" /></span>
-      </div>
-    </section>
-    <details v-if="input.source?.lookback" class="input-editor__advanced"><summary>{{ t('moreSettings') }}</summary>
+    <template v-if="input.source?.lookback">
       <div class="input-editor__sentence"><AIcon type="DotChartOutlined" /><span>{{ t('minSamples') }}</span><Editable class="input-editor__amount" type="number" :value="input.minSamples" :component-props="{ disabled, min:1, controls:false, bordered:false, 'aria-label':t('minSamples') }" @change="emit('patch', { minSamples:$event ?? undefined })" /></div>
       <div class="input-editor__sentence"><AIcon type="DatabaseOutlined" /><span>{{ t('maxPoints') }}</span><Editable class="input-editor__amount" type="number" :value="input.source.maxPoints" :component-props="{ disabled, min:1, controls:false, bordered:false, 'aria-label':t('maxPoints') }" @change="sourceField('maxPoints', $event ?? undefined)" /></div>
       <div class="input-editor__sentence"><AIcon type="DisconnectOutlined" /><span>{{ t('maxGap') }}</span><TemplateDuration :model-value="input.maxGap" :empty-label="t('unlimited')" :disabled="disabled" @update:model-value="emit('patch', { maxGap:$event })" /></div>
+    </template>
     </details>
   </div>
 </template>
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import TemplateInputSchema from './TemplateInputSchema.vue'
+import TemplateClause from './TemplateClause.vue'
 import { inputSchemaIssue } from './inputSchema'
 import { useI18n } from 'vue-i18n'
 import Editable from '../../Editable/index.vue'
@@ -107,15 +102,18 @@ function setReadMode(mode:string) {
 </script>
 <style scoped>
 .input-editor { display:grid; min-width:0; font-size:13px; line-height:1.6 }
-.input-editor > section { padding:10px 0; border-bottom:1px solid var(--line) }
-.input-editor > section:first-child { padding-top:0 }
-.input-editor__schema { margin:0 }
-.input-editor__binding { margin:4px 0 0; font-size:12px; color:var(--ink-3); line-height:1.6 }
+.input-editor__schema { margin:0 0 16px }
+.input-editor__type-label { display:inline-flex; align-items:center; gap:8px; color:var(--ink-3); font-size:12px }
+.input-editor__type-label > .anticon { width:16px; font-size:14px }
+.input-editor__unit-inline { display:inline-flex; align-items:center; gap:6px; color:var(--ink-3); font-size:12px; min-width:0; max-width:100% }
+.input-editor__unit-inline :deep(.editable-field) { max-width:100px; color:var(--accent) }
+.input-editor__help { display:inline-flex; align-items:center; justify-content:center; flex:none; width:20px; height:24px; border:0; padding:0; color:var(--ink-3); background:transparent; cursor:help }
+.input-editor__help:focus-visible { outline:2px solid var(--accent); border-radius:3px }
 .input-editor__error { margin:4px 0; color:var(--ant-error-color,#ff4d4f); font-size:12px }
 .input-editor__sentence { display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px; min-height:32px; min-width:0 }
 .input-editor__sentence > .anticon { flex:none; width:16px; color:var(--ink-3) }
 .input-editor__sentence > span:not(.editable-field):not(.template-duration) { flex:none }
-.input-editor__continuation { padding-left:24px }
+.input-editor__continuation { padding-left:0 }
 .input-editor__muted { color:var(--ink-3) }
 .input-editor__mode { width:104px; color:var(--accent) }
 .input-editor__presence { width:120px; color:var(--accent) }
@@ -134,6 +132,7 @@ function setReadMode(mode:string) {
 .input-editor__consumer { display:flex; align-items:baseline; gap:12px; padding:4px 0 4px 24px; font-size:12px }
 .input-editor__consumer > :first-child { flex:1; min-width:0; overflow-wrap:anywhere }
 .input-editor__consumer > span { flex:0 1 50%; color:var(--ink-2); text-align:right }
-.input-editor__advanced > summary { padding:10px 0; font-size:12px; color:var(--ink-3); cursor:pointer }
+.input-editor__advanced > summary { display:flex; align-items:center; gap:8px; padding:8px 0; font-size:13px; color:var(--ink-3); cursor:pointer }
+.input-editor__advanced > section { margin:8px 0 16px }
 .input-editor :deep(.ant-input-number) { width:128px; max-width:100% }
 </style>

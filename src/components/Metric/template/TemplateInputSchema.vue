@@ -1,6 +1,6 @@
 <template>
   <div class="input-schema">
-    <div class="input-schema__line"><span>{{ t('inputDataType') }}</span><Editable type="select" :value="modelValue?.type" :component-props="{ disabled, bordered:false, defaultOpen:true, placeholder:t('inputChooseType'), 'aria-label':t('inputDataType'), options:types }" @change="changeType(String($event))" /></div>
+    <div class="input-schema__line" :class="{ 'is-compact':$slots.prefix || $slots.suffix }"><slot name="prefix"><span v-if="!hideTypeLabel">{{ t('inputDataType') }}</span></slot><Editable type="select" :value="modelValue?.type" :component-props="{ disabled, bordered:false, defaultOpen:true, placeholder:t('inputChooseType'), 'aria-label':t('inputDataType'), options:types }" @change="changeType(String($event))" /><slot name="suffix" /></div>
     <details v-if="modelValue?.type === 'enum'" :open="expanded">
       <summary>{{ t('inputConfigureChoices') }} · {{ elements.length }}</summary>
       <div v-for="(element,index) in elements" :key="index" class="input-schema__entry">
@@ -27,14 +27,13 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Editable from '../../Editable/index.vue'
 import MetricParameterValue from '../MetricParameterValue.vue'
-import { parameterTypeKeys } from '../parameterPresentation'
+import { metricTypeOptions } from '../parameterPresentation'
 import { metricMessages } from '../messages'
-const props = defineProps<{modelValue?:Record<string,unknown>;disabled?:boolean;unitEditable?:boolean}>()
+const props = defineProps<{modelValue?:Record<string,unknown>;disabled?:boolean;unitEditable?:boolean;hideTypeLabel?:boolean}>()
 const emit = defineEmits<{(event:'update:modelValue',value:Record<string,unknown>):void}>()
 const {t} = useI18n({useScope:'local',messages:metricMessages})
 const expanded = ref(false)
-const typeIcons:Record<string,string> = { double:'NumberOutlined',float:'NumberOutlined',int:'NumberOutlined',long:'NumberOutlined',string:'FontSizeOutlined',boolean:'PoweroffOutlined',enum:'UnorderedListOutlined',object:'CodeOutlined',array:'BarsOutlined',date:'CalendarOutlined' }
-const types = computed(()=>[...Object.entries(parameterTypeKeys).map(([value,key])=>({value,label:t(value === 'float' ? 'inputFloatType' : key),icon:typeIcons[value],description:t(value === 'float' ? 'inputFloatHint' : `${key}Hint`)})),{value:'date',label:t('inputDateType'),icon:typeIcons.date,description:t('inputDateHint')}])
+const types = computed(()=>metricTypeOptions(t))
 const scalarTypes = computed(()=>types.value.filter(item=>['double','string','boolean'].includes(item.value)))
 const scalarType = (value:unknown) => typeof value === 'number' ? 'double' : typeof value === 'boolean' ? 'boolean' : 'string'
 const elements = computed(()=>Array.isArray(props.modelValue?.elements) ? props.modelValue.elements as Record<string,unknown>[] : [])
@@ -60,6 +59,9 @@ function addProperty() { let n=1; while(properties.value.some(item=>item.id===`f
 .input-schema__line { display:flex; align-items:center; gap:8px; min-height:32px; min-width:0 }
 .input-schema__line > :first-child { flex:1; min-width:0 }
 .input-schema__line > :deep(.editable-field) { flex:1; min-width:60px; color:var(--accent) }
+.input-schema__line.is-compact { flex-wrap:wrap; gap:4px 8px }
+.input-schema__line.is-compact > :first-child { flex:none }
+.input-schema__line.is-compact > :deep(.editable-field) { flex:0 1 auto; min-width:0 }
 .input-schema summary { cursor:pointer; color:var(--ink-3); line-height:28px }
 .input-schema__entry { margin:4px 0 8px; padding-left:12px; border-left:1px solid var(--line) }
 .input-schema__entry > :deep(.editable-field) { max-width:100%; color:var(--ink-3) }

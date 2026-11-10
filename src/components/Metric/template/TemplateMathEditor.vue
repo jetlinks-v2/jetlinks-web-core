@@ -41,11 +41,21 @@
       <slot name="tools" />
       </div>
       <div v-if="mode === 'visual'" class="formula-editor__operators"><a-button v-for="item in operators" :key="item.label" type="text" size="small" :disabled="disabled || !ready || item.disabled" @mousedown.prevent @click="insert(item)">{{ item.label }}</a-button></div>
-      <div v-if="$slots['view-tools']" class="formula-editor__view-tools"><slot name="view-tools" /></div>
+      <div class="formula-editor__view-tools">
+        <template v-if="mode === 'visual'">
+          <a-tooltip :title="t('formulaCopyLatex')" :get-popup-container="popupContainer"><a-button type="text" size="small" :disabled="!ready" :aria-label="t('formulaCopyLatex')" @mousedown.prevent @click="clipboard.copy"><AIcon type="CopyOutlined" /></a-button></a-tooltip>
+          <a-tooltip :title="t('formulaPasteLatex')" :get-popup-container="popupContainer"><a-button type="text" size="small" :disabled="disabled || !ready" :aria-label="t('formulaPasteLatex')" @mousedown.prevent @click="clipboard.paste"><AIcon type="SnippetsOutlined" /></a-button></a-tooltip>
+        </template>
+        <slot name="view-tools" />
+      </div>
+    </div>
+    <div v-if="clipboard.manualOpen.value" class="formula-editor__clipboard-panel">
+      <a-textarea v-model:value="clipboard.manualText.value" :rows="3" :disabled="disabled" :placeholder="t('formulaPasteManualHint')" :aria-label="t('formulaPasteLatex')" />
+      <div><a-button type="text" size="small" @click="clipboard.cancelManual">{{ t('cancel') }}</a-button><a-button type="primary" size="small" :disabled="disabled || !clipboard.manualText.value.trim()" @click="clipboard.confirmManual">{{ t('formulaInsertLatex') }}</a-button></div>
     </div>
     </div>
     <div class="formula-editor__footer">
-      <p class="formula-editor__feedback" :class="{ 'formula-editor__error': invalid || loadError }" :role="invalid || loadError ? 'alert' : undefined" :title="feedback">{{ feedback }}</p>
+      <p class="formula-editor__feedback" :class="{ 'formula-editor__error': invalid || loadError || clipboard.error.value }" :role="invalid || loadError || clipboard.error.value ? 'alert' : 'status'" :title="feedback">{{ feedback }}</p>
       <a-popover v-if="mode === 'visual' && ready && !disabled" :trigger="['hover','focus','click']" :title="t('formulaEditingHelp')" :get-popup-container="popupContainer"><template #content><ul class="formula-editor__hints"><li v-for="key in conditions ? ['formulaBranchesHint','formulaReplaceHint','formulaNavigateHint','formulaUndoHint'] : ['formulaReplaceHint','formulaNavigateHint','formulaUndoHint']" :key="key">{{ t(key) }}</li></ul></template><a-button class="formula-editor__help" type="text" size="small" :aria-label="t('formulaEditingHelp')"><AIcon type="InfoCircleOutlined" /></a-button></a-popover>
     </div>
   </section>
@@ -60,6 +70,6 @@ import type { ExpressionResultLabel } from '../../Expression/editor'
 import type { FormulaReference } from './formula'
 const props=defineProps<{modelValue:string;tree?:StructuredExpression;references:FormulaReference[];disabled?:boolean;conditions?:boolean;functions?:ExpressionFunction[];functionsError?:boolean;forceSource?:boolean;hideMode?:boolean;empty?:boolean;resultLabels?:ExpressionResultLabel[]}>()
 const emit=defineEmits<{(event:'change',value:FormulaChange):void;(event:'invalid',value:boolean):void;(event:'retryFunctions'):void}>()
-const {t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,referenceFrame,hoverFrame,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}=useTemplateMathEditor(props,emit)
+const {clipboard,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,referenceFrame,hoverFrame,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}=useTemplateMathEditor(props,emit)
 </script>
 <style src="./template-math.css" scoped />

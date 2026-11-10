@@ -2,6 +2,7 @@ import type { MetricTemplate, MetricValue, MetricActionRecord } from '../types'
 import { templateGraph, ruleDependencies, ruleExpression, type TemplateRule } from './designer'
 import { calculationKind, durationParts } from './window'
 import { metricValueText } from '../presentation'
+import { durationUnitText } from './durationPresentation'
 
 export const simulationShape = (index: number) => ['circle', 'square', 'diamond', 'triangle'][index % 4]
 export const evaluationTime = (value: MetricValue) => value.evaluationTime ?? value.eventTime ?? value.timestamp
@@ -42,7 +43,7 @@ export function simulationNodeRecords(records: MetricActionRecord[], definitionI
 }
 export function simulationDuration(value: string | undefined, t: Translate): string {
   const duration = durationParts(value)
-  return duration ? `${duration.amount} ${t(duration.unit)}` : value || '—'
+  return duration ? `${duration.amount} ${durationUnitText(duration.unit, duration.amount, t)}` : value || '—'
 }
 
 /** 文案读取实际规则；不在前端复制公式、窗口或算法计算。 */

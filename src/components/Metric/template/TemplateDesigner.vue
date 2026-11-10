@@ -1,7 +1,7 @@
 <template>
   <div ref="root" class="template-designer" :style="{ '--properties-width': `${panelWidth}px` }" :class="{ 'is-collapsed': collapsed, 'is-narrow': narrow, 'show-properties': propertiesVisible }">
     <div class="template-designer__flow">
-      <TemplateGraph ref="graph" :template="displayView" :selected="selection" :preview="referenceNode" :calculators="calculators" :add-kinds="addKinds" :simulation-preview="trial?.preview" @select="selectNode" @add="addNode" @background="selectTemplate" @request-remove="requestRemove">
+      <TemplateGraph ref="graph" :template="displayView" :selected="selection" :preview="referenceNode" :calculators="calculators" :add-kinds="addKinds" :output-locked="published" :simulation-preview="trial?.preview" @select="selectNode" @add="addNode" @background="selectTemplate" @request-remove="requestRemove">
         <template v-if="addKinds.length" #tools>
           <a-dropdown :trigger="['click']"><a-button type="text" size="small" :aria-label="t('canvasAdd')"><AIcon type="PlusOutlined" />{{ t('canvasAdd') }}<AIcon type="DownOutlined" /></a-button><template #overlay><a-menu @click="addNode($event.key as TemplateNode['kind'])"><a-menu-item v-for="kind in addKinds" :key="kind"><AIcon :type="kind === 'input' ? 'ImportOutlined' : kind === 'rule' ? 'FunctionOutlined' : 'ExportOutlined'" />{{ t(kind === 'input' ? 'addInput' : kind === 'rule' ? 'addCalculation' : 'addOutput') }}</a-menu-item></a-menu></template></a-dropdown>
         </template>
@@ -15,24 +15,34 @@
       <header class="template-designer__panel-head">
         <a-button v-if="propertiesVisible" type="text" size="small" :disabled="invalid" :aria-label="t('templateProperties')" :title="t('templateProperties')" @click="showTemplate"><AIcon type="AppstoreOutlined" /></a-button>
         <span v-if="propertiesVisible">{{ selection ? t(selection.kind === 'input' ? 'inputs' : selection.kind === 'rule' ? 'calculation' : 'outputs') : t('templateProperties') }}</span>
+        <div v-if="propertiesVisible && selection" class="template-designer__navigation">
+          <a-button type="text" size="small" :disabled="position <= 0 || invalid" :aria-label="t('previousNode')" :title="t('previousNode')" @click="move(-1)"><AIcon type="LeftOutlined" /></a-button>
+          <span>{{ position + 1 }} / {{ nodes.length }}</span>
+          <a-button type="text" size="small" :disabled="position >= nodes.length - 1 || invalid" :aria-label="t('nextNode')" :title="t('nextNode')" @click="move(1)"><AIcon type="RightOutlined" /></a-button>
+        </div>
+        <a-dropdown v-if="propertiesVisible && selection && !disabled" :trigger="['click']">
+          <a-button type="text" size="small" :aria-label="t('nodeActions')"><AIcon type="EllipsisOutlined" /></a-button>
+          <template #overlay><a-menu>
+            <a-menu-item @click="revert"><AIcon type="UndoOutlined" />{{ t('revertNode') }}</a-menu-item>
+            <template v-if="!published || selection.kind === 'rule'"><a-menu-divider /><a-menu-item danger :disabled="invalid" @click="requestRemove"><AIcon type="DeleteOutlined" />{{ t('remove') }}</a-menu-item></template>
+          </a-menu></template>
+        </a-dropdown>
         <a-button class="template-designer__toggle" type="text" size="small" :aria-label="t(propertiesVisible ? 'collapseProperties' : 'expandProperties')" :title="t(propertiesVisible ? 'collapseProperties' : 'expandProperties')" :aria-expanded="propertiesVisible" :aria-controls="panelId" @click="togglePanel"><AIcon :type="propertiesVisible ? 'MenuFoldOutlined' : 'MenuUnfoldOutlined'" /></a-button>
       </header>
       <div v-show="propertiesVisible" :id="panelId" class="template-designer__panel-content">
         <component v-if="referencing && pickSource?.editor" :is="pickSource.editor" />
         <template v-else>
-        <div v-if="selection" class="template-designer__navigation">
-          <a-button type="text" size="small" :disabled="position <= 0 || invalid" :aria-label="t('previousNode')" :title="t('previousNode')" @click="move(-1)"><AIcon type="LeftOutlined" /></a-button>
-          <span>{{ position + 1 }} / {{ nodes.length }}</span>
-          <a-button type="text" size="small" :disabled="position >= nodes.length - 1 || invalid" :aria-label="t('nextNode')" :title="t('nextNode')" @click="move(1)"><AIcon type="RightOutlined" /></a-button>
-        </div>
         <a-alert v-if="referenceError" type="error" show-icon :message="t('inputReferenceFailed')" closable @close="referenceError = false" />
         <TemplateNodeEditor v-if="selection" :key="`${nodeKey(selection)}-${editorVersion}`" :template="view" :node="selection" :disabled="disabled" :published="published" :calculators="calculators" @patch="patch" @invalid="invalid = $event" @messages="setMessages">
           <template v-if="pickSource && !published && selection.kind === 'input'" #input-reference><a-button type="link" size="small" :disabled="disabled || invalid" :loading="referencing" @click="referenceInput"><AIcon type="CopyOutlined" />{{ t('inputReference') }}</a-button></template>
         </TemplateNodeEditor>
         <div v-if="pendingReference" class="template-designer__reference-confirm" role="status"><span>{{ t('inputReferenceOverwrite') }}</span><a-button size="small" type="primary" :disabled="disabled || invalid" @click="confirmReference">{{ t('inputReferenceApply') }}</a-button><a-button size="small" @click="pendingReference = undefined">{{ t('cancel') }}</a-button></div>
         <section v-if="selection?.kind === 'input' && pickSource?.sourceOptions?.length" class="template-designer__setting">
-          <h4>{{ t('inputSourceHints') }}</h4>
-          <a-select mode="multiple" :value="view.options?.inputHints?.[view.inputDefinitions[selection.index].id]?.sources || []" :options="pickSource.sourceOptions" :disabled="disabled || published" :placeholder="t('inputSourceHints')" style="width:100%" @change="setHint($event as string[])" />
+          <h4><AIcon type="CompassOutlined" />{{ t('inputSourceHints') }}</h4>
+          <a-select mode="multiple" :value="view.options?.inputHints?.[view.inputDefinitions[selection.index].id]?.sources || []" :options="pickSource.sourceOptions" :disabled="disabled || published" :placeholder="t('inputSourceHintsPlaceholder')" :aria-label="t('inputSourceHints')" option-filter-prop="label" style="width:100%" @change="setHint($event as string[])">
+            <template #option="option"><SelectOption :label="option.label" :icon="option.icon" :description="option.description" /></template>
+            <template #tagRender="{value,label,closable,onClose}"><a-tag :closable="closable" @close="onClose"><AIcon v-if="pickSource.sourceOptions.find(option=>option.value === value)?.icon" :type="pickSource.sourceOptions.find(option=>option.value === value)?.icon" /> {{ label }}</a-tag></template>
+          </a-select>
           <small class="template-designer__category-hint">{{ t('inputSourceHintsHelp') }}</small>
         </section>
         <div v-if="!selection" class="template-designer__settings">
@@ -53,13 +63,6 @@
           <details class="template-designer__setting"><summary><AIcon type="SlidersOutlined" />{{ t('parameterSettings') }}</summary><TemplateParameters :template="view" :disabled="disabled" :published="published" @update:template="update" /></details>
           <details class="template-designer__setting"><summary><AIcon type="AppstoreOutlined" />{{ t('displaySettings') }}</summary><TemplatePresentation :template="view" :disabled="disabled" @update:template="update" /></details>
         </div>
-        <footer v-if="selection && !disabled" class="template-designer__node-actions">
-          <a-button type="text" size="small" :title="t('revertNode')" @click="revert"><AIcon type="UndoOutlined" />{{ t('revertNode') }}</a-button>
-          <a-dropdown v-if="!published || selection.kind === 'rule'" :trigger="['click']" :disabled="invalid">
-            <a-button type="text" size="small" :disabled="invalid" :aria-label="t('moreSettings')"><AIcon type="EllipsisOutlined" /></a-button>
-            <template #overlay><a-menu><a-menu-item @click="requestRemove"><AIcon type="DeleteOutlined" /> {{ t('remove') }}</a-menu-item></a-menu></template>
-          </a-dropdown>
-        </footer>
         <TemplateSimulation v-if="trial" ref="simulationPanel" :template="displayView" :trial="trial" :selected="selection" :error="simulationError" :disabled="disabled || invalid" @clear-selection="selectTemplate"><template #sampleTools><slot name="sampleTools" /></template><template #advancedTools><slot name="advancedTools" /></template></TemplateSimulation>
         </template>
       </div>
@@ -73,6 +76,7 @@ import { useElementSize } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import I18nTextEditable from '../../I18n/I18nTextEditable.vue'
 import Editable from '../../Editable/index.vue'
+import SelectOption from '../../SelectOption/index.vue'
 import PanelResizeHandle from '../../PanelResizeHandle/index.vue'
 import type { TemplateCategory } from './templateCatalog'
 import { localizedTemplate, templateMessages } from './text'
@@ -206,7 +210,7 @@ function setCategory(value: string) { if (!props.categoriesLoading && !props.cat
 .template-designer__panel-head :deep(.ant-btn) { padding:0 4px; color:var(--ink-3) }
 .template-designer__toggle { margin-left:auto }
 .template-designer__panel-content { min-height:0; overflow:auto; padding:12px 16px; overflow-wrap:anywhere }
-.template-designer__navigation { display:flex; justify-content:space-between; align-items:center; gap:8px; height:28px; margin-bottom:8px; color:var(--ink-3); font-size:12px }
+.template-designer__navigation { display:flex; flex:none; align-items:center; gap:4px; height:28px; color:var(--ink-3); font-size:12px }
 .template-designer__reference-confirm { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0 16px; padding:8px; background:var(--bg-sunken,#f7f8fa); border-radius:var(--r-2,4px); font-size:12px }
 .template-designer__reference-confirm > span { flex-basis:100%; color:var(--ink-2) }
 .template-designer__setting { padding-bottom:16px; margin:0 0 16px; border-bottom:1px solid var(--line) }
@@ -217,8 +221,6 @@ function setCategory(value: string) { if (!props.categoriesLoading && !props.cat
 .template-designer__category-error { color:var(--ink-3); font-size:12px }
 .template-designer__setting summary::after { content:'›'; margin-left:auto; transform:rotate(0) }
 .template-designer__setting[open] > summary::after { transform:rotate(90deg) }
-.template-designer__node-actions { display:flex; justify-content:space-between; gap:8px; margin-top:16px; padding-top:8px; border-top:1px solid var(--line) }
-.template-designer__node-actions :deep(.ant-btn:not(.ant-btn-dangerous)) { color:var(--ink-3) }
 .template-designer__mobile-back { display:none }
 .template-designer.is-narrow { grid-template-columns:minmax(0,1fr) 40px }
 .template-designer.is-narrow.show-properties { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) 36px }

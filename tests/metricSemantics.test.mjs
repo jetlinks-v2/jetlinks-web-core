@@ -127,3 +127,28 @@ test('状态选择保留原类型、异常样本入口可用、只读不写入�
     assert.deepEqual(changes,[1,2]); assert.equal(props.value,2)
   } finally { app.unmount() }
 })
+
+test('日期样本以格式化文本进入完整日期时间编辑，提交毫秒并遵守禁用状态', async () => {
+  const Sample = createMetricLoader({ 'vue-i18n':{ useI18n:() => ({ locale:ref('zh'),t:translate('zh') }) } })('components/Metric/template/TemplateSampleValue.vue').default
+  const time = new Date(2030,0,2,3,4,5).valueOf(), changes = [], sample = ref()
+  const props = reactive({ input:{ id:'measuredAt', name:'采集时间', valueType:{ type:'date' } }, value:time, disabled:false })
+  const { renderer,root } = createMetricRenderer()
+  const app = renderer.createApp({ setup:() => () => h(Sample,{ ...props,ref:sample,onChange:value => changes.push(value) }) })
+  app.component('APopover',passthrough('a-popover'))
+  app.component('ADatePicker',defineComponent({ inheritAttrs:false,setup:(_, { attrs }) => () => h('date-control',attrs) }))
+  app.config.warnHandler = () => {}; app.mount(root)
+  try {
+    assert.match(textContent(root),/2030-01-02 03:04:05/)
+    await sample.value.edit(); await flush()
+    assert.equal(walk(root,node=>node.type === 'a-popover')[0].props.open,true)
+    const field = walk(root,node=>node.type === 'date-control')[0]
+    assert.equal(field.props.value.valueOf(),time)
+    const next = field.props.value.add(1,'second')
+    field.props.onChange(next); await flush()
+    assert.deepEqual(changes,[time+1000]); assert.equal(typeof changes[0],'number')
+    field.props.onChange(undefined); assert.deepEqual(changes,[time+1000,null])
+    props.disabled = true; await flush(); await sample.value.edit(); field.props.onChange(next)
+    assert.equal(walk(root,node=>node.type === 'a-popover')[0].props.open,false)
+    assert.deepEqual(changes,[time+1000,null])
+  } finally { app.unmount() }
+})

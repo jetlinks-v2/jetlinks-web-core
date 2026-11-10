@@ -88,6 +88,24 @@ test('固定图节点用分支摘要，悬浮预览保留完整公式及默认�
   }finally{view.close()}
 })
 
+test('画布缩略预览保留原条件公式，完整浮层与普通卡片摘要各自保持语义',async()=>{
+  const view=mount('a == null ? null : (a > 0 ? a / quantityA : 0)')
+  try {
+    Object.assign(view.props,{summary:true,compact:true,thumbnail:true})
+    const before=JSON.stringify(view.props);await flush()
+    const summary=walk(view.root,item=>item.props.class==='test-summary')[0]
+    assert.doesNotMatch(textContent(summary),/项判断/)
+    assert.match(textContent(summary),/产线A耗电/)
+    assert.match(textContent(summary),/产线A产量/)
+    assert.ok(walk(summary,item=>item.props.class?.includes('expression-document')).length)
+    assert.match(textContent(walk(view.root,item=>item.props.class==='test-full-formula')[0]),/产线A产量/)
+    assert.equal(walk(view.root,item=>item.type==='button' || item.type==='math-field').length,0)
+    assert.equal(JSON.stringify(view.props),before)
+    view.props.thumbnail=false;await flush()
+    assert.match(textContent(summary),/条件公式 · 2 项判断/)
+  }finally{view.close()}
+})
+
 test('回放只展示后端记录值及采用分支，未知记录保留引用，不重算结果',async()=>{
   const view=mount('a > 0 ? a : 0')
   try {

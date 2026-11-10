@@ -67,3 +67,25 @@ test('公式适配保留字号下限，容器变宽与内容缩短会恢复字�
     fit.refresh(); assert.equal(queue.size, 0)
   } finally { if (!closed) app.unmount(); Object.assign(globalThis, saved) }
 })
+
+test('固定高度缩略图同时适配宽高，复杂分支缩小且内容变短后恢复',async()=>{
+  const keys=['requestAnimationFrame','cancelAnimationFrame','ResizeObserver','getComputedStyle','document']
+  const saved=Object.fromEntries(keys.map(key=>[key,globalThis[key]])),queue=new Map()
+  let id=0,fit,height=10
+  globalThis.requestAnimationFrame=callback=>{queue.set(++id,callback);return id}
+  globalThis.cancelAnimationFrame=id=>queue.delete(id)
+  globalThis.ResizeObserver=undefined;globalThis.document=undefined
+  globalThis.getComputedStyle=()=>({fontSize:String(fit.fontSize.value),paddingLeft:'0',paddingRight:'0'})
+  const viewport=ref({clientWidth:182,clientHeight:50})
+  // 视口坐标模拟画布已放大两倍；字号必须仅根据未缩放的布局尺寸计算。
+  const content=ref({get scrollWidth(){return fit.fontSize.value*8},get scrollHeight(){return fit.fontSize.value*height},get offsetWidth(){return fit.fontSize.value*8},get offsetHeight(){return fit.fontSize.value*height},getBoundingClientRect:()=>({width:fit.fontSize.value*16,height:fit.fontSize.value*height*2})})
+  const {renderer,root}=createMetricRenderer()
+  const app=renderer.createApp({setup(){fit=createMetricLoader()('hooks/useContentFit.ts').useContentFit({viewport,content,minSize:4,maxSize:12,axis:'both'});return()=>h('div')}})
+  const settle=async()=>{await flush();for(let step=0;queue.size && step<8;step++){const work=[...queue.values()];queue.clear();work.forEach(callback=>callback());await flush()}}
+  try {
+    app.mount(root);await settle();assert.equal(fit.fontSize.value,4.8)
+    height=3;fit.refresh();await settle();assert.equal(fit.fontSize.value,12)
+    viewport.value.clientWidth=50;fit.refresh();await settle();assert.equal(fit.fontSize.value,6)
+    height=30;fit.refresh();await settle();assert.equal(fit.fontSize.value,4)
+  }finally{app.unmount();Object.assign(globalThis,saved)}
+})

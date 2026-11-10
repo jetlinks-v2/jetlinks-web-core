@@ -281,7 +281,7 @@ export interface MetricSourcePicker {
   (request: MetricSourceRequest): Promise<MetricSourceSelection | undefined>
   editor?: Component
   cancel?: () => void
-  sourceOptions?: { value:string; label:string }[]
+  sourceOptions?: { value:string; label:string; icon?:string; description?:string }[]
   describe?: (context: MetricContext, mappings: Record<string, MetricInputMapping>) => Promise<Record<string, MetricSourceDescription>>
   readCurrent?: (context:MetricContext, mapping:MetricInputMapping) => Promise<MetricValue | undefined>
 }

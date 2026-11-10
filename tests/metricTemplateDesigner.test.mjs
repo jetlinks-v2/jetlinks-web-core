@@ -209,11 +209,34 @@ test('节点单动作直接接续，多动作菜单可输出，候选换代与�
     assert.deepEqual(additions[2],['rule',ruleSingle,{kind:'rule',index:0}])
     props.addKinds = []; await flush(); assert.equal(plus('input-1'), undefined)
     stale({ key:'rule' });staleSingle({currentTarget:button});assert.equal(additions.length, 3)
+    props.addKinds=['rule'];props.outputLocked=true;await flush()
+    const lockedButton=plus('rule-0')
+    lockedButton.props.onClick({currentTarget:lockedButton})
+    const lockedMenu=walk(lockedButton.parent,n=>n.type==='a-menu')[0]
+    const lockedOutput=walk(lockedMenu,n=>n.type==='a-menu-item' && n.props.disabled)[0]
+    assert.match(textContent(lockedOutput),/addOutput.*publishedOutputLocked/)
+    lockedMenu.props.onClick({key:'output'});assert.equal(additions.length,3)
+    props.outputLocked=false
     props.template.inputDefinitions = []; props.template.definitions = []; props.template.outputs = []
     props.addKinds = ['input','rule','output']; await flush()
     assert.equal(walk(root, n => n.props['data-add-root']).length,0)
     assert.equal(walk(root,n=>n.type==='a-empty')[0].props.description,'emptyDesign')
   } finally { app.unmount() }
+})
+
+test('同一图标的计算方式与定时语义合并展示，悬浮仍保留两种说明',()=>{
+  const Graph=load('components/Metric/template/TemplateGraph.vue').default
+  const spec=template()
+  spec.definitions[0]={id:'rise',calculator:{provider:'state',providerVersion:'1',parameters:{duration:'PT1H',maxHold:'PT2M'}},window:{mode:'none',emitPolicy:'onSchedule',emitInterval:'PT1M'}}
+  const {renderer,root}=createMetricRenderer(),app=renderer.createApp({setup:()=>()=>h(Graph,{template:spec,calculators:[{id:'duration',name:'状态时长',configuration:spec.definitions[0].calculator}]})})
+  app.component('a-tooltip',defineComponent({inheritAttrs:false,setup:(_,{attrs,slots})=>()=>h('hint',attrs,slots.default?.())}))
+  app.config.warnHandler=()=>{};app.mount(root)
+  try {
+    const node=walk(root,n=>n.props['data-node']==='rule-0')[0]
+    const hints=walk(node,n=>n.type==='hint' && String(n.props.title).includes('状态时长'))
+    assert.equal(hints.length,1)
+    assert.match(hints[0].props.title,/状态时长\ngraphEvery/)
+  } finally {app.unmount()}
 })
 
 test('撤回当前节点的翻译不会覆盖模板名称翻译及先前节点修改', () => {
@@ -539,6 +562,66 @@ test('已发布输出可通过兼容修订开启计算依据，保留扩展并�
   } finally { app.unmount() }
 })
 
+test('输出类型与单位显式编辑，汇总往返只修改读取策略并保留结果用途',async()=>{
+  const {renderer,root}=createMetricRenderer(),value=template(),invalid=[],patches=[]
+  value.outputs[0].options={custom:false,explain:true}
+  const props=reactive({template:value,node:{kind:'output',index:0},disabled:false,published:false})
+  const app=renderer.createApp({setup:()=>()=>h(NodeEditor,{...props,onInvalid:value=>invalid.push(value),onPatch:fields=>{patches.push(fields);Object.assign(props.template.outputs[0],fields)}})})
+  app.config.warnHandler=()=>{};app.mount(root)
+  const mode=()=>walk(root,node=>node.type==='a-switch' && node.props['aria-label']==='policyMode')[0]
+  try {
+    assert.equal(inlineField(root,'outputDataType').props.value,undefined)
+    assert.equal(inlineField(root,'unit').props.value,undefined)
+    assert.equal(mode().props.disabled,true)
+    mode().props.onChange(true);await flush();assert.equal(patches.length,0)
+    assert.equal(props.template.outputs[0].valueType,undefined)
+    assert.ok(textContent(root).includes('typeRequired'))
+    const types=inlineField(root,'outputDataType').props['component-props'].options
+    assert.ok(types.every(item=>item.icon && item.description && item.label));assert.ok(types.some(item=>item.value==='date'))
+    inlineField(root,'outputDataType').props.onChange('double');await flush()
+    inlineField(root,'unit').props.onChange('Cel');await flush()
+    assert.equal(mode().props.disabled,false)
+    mode().props.onChange(true);await flush()
+    assert.deepEqual(Object.keys(patches.at(-1)),['options'])
+    assert.equal(props.template.outputs[0].options.readAggregation.defaultOperation,'average')
+    assert.equal(props.template.outputs[0].valueType,'double');assert.equal(props.template.outputs[0].unit,'Cel')
+    assert.equal(props.template.outputs[0].persist,false);assert.equal(props.template.outputs[0].publish,true)
+    assert.equal(invalid.at(-1),false)
+    mode().props.onChange(false);await flush()
+    assert.deepEqual(props.template.outputs[0].options,{custom:false,explain:true})
+    inlineField(root,'outputDataType').props.onChange('enum');await flush()
+    mode().props.onChange(true);await flush()
+    assert.equal(props.template.outputs[0].options.readAggregation.semantic,'state')
+    assert.equal(props.template.outputs[0].options.readAggregation.defaultOperation,'distribution')
+    inlineField(root,'outputDataType').props.onChange('object');await flush()
+    assert.equal(invalid.at(-1),true);assert.ok(textContent(root).includes('typeIncompatible'))
+    assert.equal(walk(root,node=>node.type==='details' && node.props.class==='read-policy')[0].props.open,true,'类型与策略冲突时自动展开，不把修正入口藏在折叠区')
+    mode().props.onChange(false);await flush();assert.equal(invalid.at(-1),false)
+    assert.equal(mode().props.disabled,true);assert.equal(props.template.outputs[0].valueType,'object')
+    inlineField(root,'outputDataType').props.onChange(undefined);await flush()
+    assert.equal(props.template.outputs[0].valueType,undefined);assert.equal(invalid.at(-1),false)
+  } finally {app.unmount()}
+})
+
+test('已发布输出类型和汇总只读，未声明类型的旧输出不会被回填',async()=>{
+  const {renderer,root}=createMetricRenderer(),value=template(),patches=[]
+  const props=reactive({template:value,node:{kind:'output',index:0},published:true,disabled:false})
+  const app=renderer.createApp({setup:()=>()=>h(NodeEditor,{...props,onPatch:fields=>patches.push(fields)})})
+  app.config.warnHandler=()=>{};app.mount(root)
+  const mode=()=>walk(root,node=>node.type==='a-switch' && node.props['aria-label']==='policyMode')[0]
+  try {
+    await flush();assert.equal(patches.length,0);assert.equal(value.outputs[0].valueType,undefined)
+    assert.equal(inlineField(root,'outputDataType').props['component-props'].disabled,true)
+    assert.equal(inlineField(root,'unit').props['component-props'].disabled,true)
+    assert.equal(mode().props.disabled,true)
+    props.template.outputs[0]={...props.template.outputs[0],valueType:'double'};await flush()
+    mode().props.onChange(true);await flush();assert.equal(patches.length,0)
+    props.published=false;props.disabled=true;await flush()
+    assert.equal(inlineField(root,'outputDataType').props['component-props'].disabled,true)
+    assert.equal(mode().props.disabled,true)
+  } finally {app.unmount()}
+})
+
 test('窗口统计通过来源/时长/统计方式组装真实规则；切回公式无残留字段', async () => {
   const editor = mountRule({ id: 'average', type: 'composite', expression: 'temperature', dependsOn: ['temperature'], window: { mode: 'none' } })
   try {
@@ -597,17 +680,20 @@ test('附加条件按需编辑和清除，不丢手动依赖，时间要求保�
   } finally { editor.close() }
 })
 
-test('节点名称后方选择计算方式，声明标识顶部只读，类型切换沿用已有字段收敛', async () => {
+test('节点名称与标识首行，计算方式归入用途标题，类型切换沿用已有字段收敛', async () => {
   const editor = mountRule({ id: 'ratio', name: '单位产量能耗', expression: 'temperature', dependsOn: ['temperature'] })
   try {
     const identity = walk(editor.root, node => node.type === 'header')[0]
     const id = walk(identity, node => node.props['aria-label'] === 'declarationId')[0]
     assert.equal(textContent(id), 'ratio')
     assert.equal(id.props['aria-label'], 'declarationId')
-    const method = walk(identity, node => node.type === 'a-button')[0]
+    assert.equal(walk(identity,node=>node.props['aria-label']==='calculationMethod').length,0)
+    const method = walk(editor.root, node => node.props['aria-label']==='calculationMethod')[0]
     assert.equal(method.props['aria-label'], 'calculationMethod')
-    assert.equal(walk(identity, node => node.type === 'a-menu-item').length, 4)
-    assert.equal(walk(identity, node => node.props.description && node.props.icon).length, 4, 'all method choices reuse the icon and description component')
+    const methodTitle=walk(editor.root,node=>node.props.class==='template-clause__title' && walk(node,item=>item === method).length)[0]
+    assert.ok(methodTitle)
+    assert.equal(walk(editor.root, node => node.type === 'a-menu-item').length, 4)
+    assert.equal(walk(editor.root, node => node.props.description && node.props.icon).length, 4, 'all method choices reuse the icon and description component')
     const count = editor.patches.length
     switchKind(editor, 'expression'); await flush()
     assert.equal(editor.patches.length, count)

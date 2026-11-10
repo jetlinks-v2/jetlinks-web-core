@@ -35,24 +35,36 @@
         class="template-graph__node" :class="[node.kind, { selected: selected && nodeKey(selected) === node.key, referenced: node.key === previewKey, 'is-muted': overlay?.nodes[node.key] === 'inactive', 'is-incomplete':overlay?.nodes[node.key] === 'incomplete', 'is-unfocused':overlay && selected && !relatedNodes.has(node.key) }]"
         :aria-label="`${t(node.kind === 'input' ? 'inputs' : node.kind === 'rule' ? 'calculation' : 'outputs')} · ${node.label || t('unnamedOutput')} · ${summaries[node.key].text} · ${simulationPreview ? previewValue(node) + ' · ' + previewState(node.key) : summaries[node.key].detail}`"
         :aria-pressed="!!selected && nodeKey(selected) === node.key"
+        :title="simulationPreview && node.kind !== 'input' ? `${previewValue(node)} ${previewUnit(node)} · ${previewState(node.key)}` : undefined"
         @click="emit('select', node, $event.currentTarget as HTMLButtonElement)">
-        <span class="template-graph__name"><AIcon :type="summaries[node.key].icon" /><b :title="node.label || t('unnamedOutput')">{{ node.label || t('unnamedOutput') }}</b><AIcon v-if="summaries[node.key].condition" type="FilterOutlined" :title="`${t('applicability')}：${summaries[node.key].condition}`" /></span>
+        <span class="template-graph__name"><b :title="node.label || t('unnamedOutput')">{{ node.label || t('unnamedOutput') }}</b><span class="template-graph__semantics">
+          <a-tooltip v-for="hint in summaries[node.key].hints" :key="hint.icon" :title="hint.label" :trigger="['hover','focus']"><span tabindex="0" role="img" :aria-label="hint.label"><AIcon :type="hint.icon" /></span></a-tooltip>
+        </span></span>
         <slot name="node-summary" :node="node" :summary="summaries[node.key]">
         <span class="template-graph__meaning">
-          <TemplateFormulaDisplay v-if="summaries[node.key].expression" :template="template" :rule="template.definitions[node.index] as TemplateRule" :expression="summaries[node.key].expression!" :calculators="calculators" compact summary />
-          <span v-else :title="summaries[node.key].text">{{ summaries[node.key].text }}</span>
+          <TemplateFormulaDisplay v-if="summaries[node.key].expression" :template="template" :rule="template.definitions[node.index] as TemplateRule" :expression="summaries[node.key].expression!" :calculators="calculators" compact summary thumbnail />
+          <span v-else class="template-graph__declaration">
+            <span :title="summaries[node.key].typeText || summaries[node.key].text">{{ summaries[node.key].typeText || summaries[node.key].text }}</span>
+            <a-popover v-if="summaries[node.key].choices?.length" :trigger="['hover','focus']" placement="bottomLeft">
+              <template #content><div class="template-graph__choice-list" role="list" :aria-label="t('semanticStateOptions')"><span v-for="(choice,index) in summaries[node.key].choices" :key="index" role="listitem"><IconValueView v-if="choice.icon" :value="choice.icon" :size="14" indicator /><span>{{ choice.name }}</span><code>{{ String(choice.value) }}</code></span></div></template>
+              <span class="template-graph__choices" tabindex="0" :aria-label="`${t('semanticStateOptions')} · ${summaries[node.key].preview}`">
+                <span v-for="(choice,index) in summaries[node.key].choices!.slice(0,2)" :key="index" class="template-graph__choice"><IconValueView v-if="choice.icon" :value="choice.icon" :size="12" indicator /><span>{{ choice.name }}</span></span>
+                <span v-if="summaries[node.key].choices!.length > 2" class="template-graph__choice-count">+{{ summaries[node.key].choices!.length - 2 }}</span>
+              </span>
+            </a-popover>
+            <small v-else-if="summaries[node.key].preview || summaries[node.key].description" :title="summaries[node.key].preview || summaries[node.key].description">{{ summaries[node.key].preview || summaries[node.key].description }}</small>
+          </span>
         </span>
-        <small class="template-graph__detail" :title="summaries[node.key].detail"><AIcon v-if="summaries[node.key].detailIcon" :type="summaries[node.key].detailIcon" /><span>{{ summaries[node.key].detail }}</span></small>
         </slot>
       </button>
       <div v-if="$slots['node-action']" class="template-graph__node-action"><slot name="node-action" :node="node" /></div>
       <div v-if="simulationPreview" class="template-graph__trial" :style="{ pointerEvents:node.kind === 'input' ? 'auto' : 'none' }">
         <slot v-if="node.kind === 'input'" name="input-sample" :node="node"><span>{{ previewValue(node) }}</span></slot>
-        <template v-else><b :title="previewValue(node)">{{ previewValue(node) }}</b><small>{{ previewUnit(node) }}</small><small class="template-graph__state" :title="previewState(node.key)">{{ previewState(node.key) }}</small><small v-if="(simulationPreview.nodes[node.key]?.alternatives.length || 0) > 1">+{{ simulationPreview.nodes[node.key].alternatives.length - 1 }}</small></template>
+        <template v-else><span class="template-graph__reading"><b>{{ previewValue(node) }}</b><small>{{ previewUnit(node) }}</small></span><small class="template-graph__state">{{ previewState(node.key) }}</small><small v-if="(simulationPreview.nodes[node.key]?.alternatives.length || 0) > 1">+{{ simulationPreview.nodes[node.key].alternatives.length - 1 }}</small></template>
       </div>
       <a-dropdown v-if="actionsForNode(node).length > 1" :open="openNode === node.key" :trigger="['click']" @open-change="openNode = $event ? node.key : undefined">
         <button type="button" class="template-graph__node-add" :data-add-from="node.key" :aria-label="t('addAfterNode', { name:node.label || t('unnamedOutput') })" :title="t('addAfterNode', { name:node.label || t('unnamedOutput') })" @click="rememberAddTrigger" @keydown.esc="closeAddition"><AIcon type="PlusOutlined" /></button>
-        <template #overlay><a-menu @click="addFromNode(node, $event)" @keydown.esc="closeAddition"><a-menu-item v-for="action in actionsForNode(node)" :key="action.kind"><AIcon :type="action.icon" />{{ t(action.label) }}</a-menu-item></a-menu></template>
+        <template #overlay><a-menu @click="addFromNode(node, $event)" @keydown.esc="closeAddition"><a-menu-item v-for="action in actionsForNode(node)" :key="action.kind" :disabled="action.disabled" :title="action.disabled ? t('publishedOutputLocked') : undefined"><AIcon :type="action.icon" />{{ t(action.label) }}<small v-if="action.disabled" class="template-graph__add-hint">{{ t('publishedOutputLocked') }}</small></a-menu-item></a-menu></template>
       </a-dropdown>
       <button v-else-if="actionsForNode(node).length === 1" type="button" class="template-graph__node-add" :data-add-from="node.key" :aria-label="t('addAfterNode', { name:node.label || t('unnamedOutput') })" :title="t(actionsForNode(node)[0].label)" @click="addSingle(node, $event)"><AIcon type="PlusOutlined" /></button>
       </div>
@@ -71,13 +83,14 @@ import { metricMessages } from '../messages'
 import { nodeKey, relatedGraphEdges, templateGraph, templateGraphLayout, type TemplateNode, type TemplateRule } from './designer'
 import { graphNodeSummary, graphTimeGroups } from './graphPresentation'
 import TemplateFormulaDisplay from './formula/TemplateFormulaDisplay.vue'
+import IconValueView from '../../IconValue/IconValueView.vue'
 import { metricDurationText } from '../presentation'
 import { sampleDate } from './simulation'
 import { simulationMeaning, type SimulationPreview } from './simulationPreview'
 import { semanticValueText } from '../valueSemantics'
 import type { MetricCalculatorDescriptor, MetricTemplate } from '../types'
 import { metricCalculatorsKey } from '../calculatorContext'
-const props = withDefaults(defineProps<{ template: MetricTemplate; selected?: TemplateNode; preview?: TemplateNode; calculators?: MetricCalculatorDescriptor[]; addKinds?: TemplateNode['kind'][]; simulationPreview?:SimulationPreview; overlay?:{nodes:Record<string,string>;edges?:ReadonlySet<string>;focus?:string}; visibleNodes?:ReadonlySet<string>; fitContent?:boolean }>(), { addKinds: () => [] })
+const props = withDefaults(defineProps<{ template: MetricTemplate; selected?: TemplateNode; preview?: TemplateNode; calculators?: MetricCalculatorDescriptor[]; addKinds?: TemplateNode['kind'][]; outputLocked?:boolean; simulationPreview?:SimulationPreview; overlay?:{nodes:Record<string,string>;edges?:ReadonlySet<string>;focus?:string}; visibleNodes?:ReadonlySet<string>; fitContent?:boolean }>(), { addKinds: () => [] })
 const emit = defineEmits<{ (event: 'select', node: TemplateNode, trigger: HTMLButtonElement): void; (event: 'add', kind: TemplateNode['kind'], trigger: HTMLButtonElement, source?: TemplateNode): void; (event: 'background'): void; (event:'request-remove'):void }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const arrowId = `metric-arrow-${useId()}`
@@ -86,14 +99,29 @@ const layout = computed(() => replay.value ? {...templateGraphLayout,nodeHeight:
 const graph = computed(() => templateGraph(props.template,layout.value,props.visibleNodes))
 const sharedCalculators = inject(metricCalculatorsKey, undefined)
 const groups = computed(() => graphTimeGroups(props.template, graph.value, t))
-const summaries = computed(() => Object.fromEntries(graph.value.nodes.map(node => [node.key, graphNodeSummary(props.template, node, t, props.calculators || sharedCalculators?.value)])))
+const summaries = computed(() => Object.fromEntries(graph.value.nodes.map(node => {
+  const summary = graphNodeSummary(props.template, node, t, props.calculators || sharedCalculators?.value, locale.value)
+  const candidates = [
+    {icon:'FilterOutlined',label:summary.condition ? `${t('applicability')}：${summary.condition}` : undefined},
+    {icon:summary.icon,label:summary.method},
+    {icon:summary.detailIcon || summary.icon,label:node.kind === 'input' ? summary.text : summary.detail},
+  ].filter(item=>item.label)
+  // One symbol may describe both the calculation and its trigger; keep both meanings in one tooltip.
+  const grouped=new Map<string,Set<string>>()
+  for(const hint of candidates) {
+    if(!grouped.has(hint.icon))grouped.set(hint.icon,new Set())
+    grouped.get(hint.icon)!.add(hint.label!)
+  }
+  const hints=Array.from(grouped,([icon,labels])=>({icon,label:[...labels].join('\n')}))
+  return [node.key,{...summary,hints}]
+})))
 const focused = ref<string>()
 const openNode = ref<string>()
 let addTrigger: HTMLButtonElement | undefined
 const nextActions = computed(() => [
-  { kind: 'rule' as const, icon: 'FunctionOutlined', label: 'addNextCalculation' },
-  { kind: 'output' as const, icon: 'ExportOutlined', label: 'addOutput' },
-].filter(action => props.addKinds.includes(action.kind)))
+  { kind: 'rule' as const, icon: 'FunctionOutlined', label: 'addNextCalculation', disabled:false },
+  { kind: 'output' as const, icon: 'ExportOutlined', label: 'addOutput', disabled:!props.addKinds.includes('output') },
+].filter(action => props.addKinds.includes(action.kind) || action.kind === 'output' && props.outputLocked && props.addKinds.includes('rule')))
 function actionsForNode(node:TemplateNode) { return node.kind === 'output' ? [] : node.kind === 'input' ? nextActions.value.filter(action=>action.kind === 'rule') : nextActions.value }
 watch(nextActions, () => { openNode.value = undefined })
 // 滚动经过节点不切换连线；选中、键盘焦点和显式引用预览保留各自反馈。
@@ -129,7 +157,7 @@ function previewValue(node:TemplateNode) {
 function previewUnit(node:TemplateNode) {
   const entry = props.simulationPreview?.nodes[nodeKey(node)]?.entry
   const unit = simulationMeaning(props.template,node,entry,props.calculators || sharedCalculators?.value).unit
-  return metricDurationText(entry?.value?.value, unit, t) === undefined ? unit : ''
+  return metricDurationText(entry?.value?.value, unit, t) === undefined ? unit || '' : ''
 }
 function previewState(key:string) {
   const snapshot = props.simulationPreview?.nodes[key]
@@ -153,7 +181,7 @@ function addSingle(node:TemplateNode,event:MouseEvent) {
 }
 function addFromNode(node: TemplateNode, { key }: { key: string | number }, trigger = addTrigger) {
   const kind = key as TemplateNode['kind']
-  if (trigger && actionsForNode(node).some(action=>action.kind === kind)) {
+  if (trigger && actionsForNode(node).some(action=>action.kind === kind && !action.disabled)) {
     openNode.value = undefined
     emit('add', kind, trigger, { kind:node.kind, index:node.index })
   }
@@ -213,20 +241,34 @@ defineExpose({ locate })
 .template-graph__node-add { position:absolute; z-index:1; top:100%; left:calc(50% - 16px); display:grid; place-items:center; box-sizing:border-box; width:32px; height:32px; padding:0; border:1px solid var(--line); border-radius:50%; background:var(--panel-background); color:var(--ink-3); cursor:pointer; opacity:0; pointer-events:none }
 .template-graph__item.is-selected .template-graph__node-add,.template-graph__item:hover .template-graph__node-add,.template-graph__item:focus-within .template-graph__node-add,.template-graph__item.menu-open .template-graph__node-add { opacity:1; pointer-events:auto }
 .template-graph__node-add:hover,.template-graph__node-add:focus-visible { color:var(--accent); border-color:var(--accent); outline:2px solid var(--accent-soft) }
+.template-graph__add-hint { display:block; padding-left:22px; color:var(--ink-3); font-size:12px; font-weight:400 }
 @media(hover:none) { .template-graph__node-add { opacity:1; pointer-events:auto } }
-.template-graph__name { display:flex; align-items:center; gap:var(--space-2,8px); min-width:0; width:100%; height:20px }
-.template-graph__name b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; font-size:var(--fs-13,13px) }
-.template-graph__name>:first-child { flex:none; color:var(--ink-3) }
-.template-graph__meaning { display:flex; flex:none; align-items:center; width:100%; height:34px; min-width:0; overflow:hidden; font-size:var(--fs-12,12px) }
-.template-graph__meaning>span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.template-graph__name { display:flex; flex:none; align-items:center; gap:var(--space-2,8px); min-width:0; width:100%; height:20px }
+.template-graph__name b { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; font-size:var(--fs-13,13px) }
+.template-graph__semantics { display:flex; flex:none; align-items:center; gap:6px; color:var(--ink-3); font-size:12px }
+.template-graph__semantics > span { display:inline-flex; align-items:center; justify-content:center; min-width:16px; height:20px }
+.template-graph__meaning { display:flex; flex:1; align-items:center; width:100%; min-height:0; min-width:0; overflow:hidden; font-size:var(--fs-12,12px) }
+.template-graph__declaration { display:flex; flex-direction:column; gap:2px; min-width:0; width:100%; line-height:16px }
+.template-graph__declaration>span:not(.template-graph__choices) { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.template-graph__choices { display:flex; align-items:center; gap:4px; min-width:0; max-width:100%; height:22px; overflow:hidden; border-radius:3px }
+.template-graph__choices:focus-visible { outline:2px solid var(--accent); outline-offset:-2px }
+.template-graph__choice { display:inline-flex; align-items:center; gap:3px; min-width:0; padding:1px 5px; border:1px solid var(--line); border-radius:4px; line-height:16px; color:var(--ink-2); background:var(--panel-background) }
+.template-graph__choice > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.template-graph__choice :deep(.icon-value-view) { flex:none }
+.template-graph__choice-count { flex:none; color:var(--ink-3); font-size:11px; font-variant-numeric:tabular-nums }
+.template-graph__choice-list { display:grid; gap:8px; max-width:min(320px,calc(100vw - 56px)); max-height:280px; overflow:auto; color:var(--ink-2); font-size:12px }
+.template-graph__choice-list > span { display:flex; align-items:center; gap:8px }
+.template-graph__choice-list > span > span { flex:1; min-width:0; overflow-wrap:anywhere }
+.template-graph__choice-list :deep(.icon-value-view),.template-graph__choice-list code { flex:none }
+.template-graph__choice-list code { margin-left:auto; color:var(--ink-3); font-size:11px; overflow-wrap:anywhere }
+.template-graph__node .template-graph__declaration small { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; white-space:normal; overflow-wrap:anywhere; line-height:16px; min-height:0 }
 .template-graph__trial { position:absolute; left:1px; right:1px; bottom:1px; display:flex; align-items:center; gap:5px; height:32px; padding:0 10px; border-top:1px solid var(--line); font-variant-numeric:tabular-nums; color:var(--ink-2) }
-.template-graph__trial b { flex:none; max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; font-weight:500 }
+.template-graph__reading { display:flex; align-items:baseline; gap:4px; flex:1; min-width:0 }
+.template-graph__trial b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; font-weight:500 }
+.template-graph__reading small { flex:none; white-space:nowrap }
 .template-graph__trial small { color:var(--ink-3); font-size:10px }
-.template-graph__state { margin-left:auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.template-graph__state { margin-left:auto; flex:0 1 auto; max-width:44%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .template-graph__node small { display:block; width:100%; min-height:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink-3); font-size:var(--fs-12,12px); line-height:14px }
-.template-graph__node .template-graph__detail { display:flex; align-items:center; gap:4px }
-.template-graph__detail :deep(.anticon) { flex:none; font-size:11px }
-.template-graph__detail > span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis }
 .template-graph__node.rule { background:var(--accent-soft) }
 .template-graph__node.output { border-width:2px }
 .template-graph__node:hover,.template-graph__node.selected,.template-graph__node:focus-visible { border-color:var(--accent); outline:2px solid var(--accent-soft) }
@@ -234,7 +276,7 @@ defineExpose({ locate })
 /* 全局视角优先读名称和取值，省略重复状态文字；放大后恢复完整节点。 */
 .is-overview .template-graph__name { height:auto; min-height:20px; line-height:1.2 }
 .is-overview .template-graph__name b { font-size:clamp(13px,calc(11px / var(--metric-graph-scale)),32px) }
-.is-overview .template-graph__name > :first-child,.is-overview .template-graph__node small { display:none }
+.is-overview .template-graph__semantics,.is-overview .template-graph__node small { display:none }
 .is-overview .template-graph__node :deep(.metric-process__reading) { font-size:clamp(15px,calc(12px / var(--metric-graph-scale)),36px); line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .is-overview .template-graph__heading { font-size:clamp(12px,calc(10px / var(--metric-graph-scale)),28px) }
 </style>

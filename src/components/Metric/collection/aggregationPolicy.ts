@@ -17,6 +17,11 @@ export function suggestedReadSemantic(output: MetricTemplateOutput): ReadSemanti
   if (output.metricKind === 'rate') return 'ratio'
   return 'numeric'
 }
+/** 自定义汇总沿用服务端声明类型约束，不从样本或计算方法推断结果类型。 */
+export function supportedReadSemantics(valueType?:string):ReadSemantic[] {
+  if (['byte','short','int','integer','long','float','double','number','decimal'].includes(valueType || '')) return ['state','score','duration','quantity','ratio','numeric']
+  return ['boolean','string','enum'].includes(valueType || '') ? ['state'] : []
+}
 export function compatibleReadOperations(semantic: ReadSemantic, exclusive = false): ReadOperation[] {
   if (semantic === 'state') return ['collection','distribution']
   if (semantic === 'ratio') return ['collection']

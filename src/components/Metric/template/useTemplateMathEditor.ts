@@ -14,6 +14,7 @@ import { metricMessages } from '../messages'
 import { templateReferenceKey } from './templateReference'
 import semanticStyles from '../../Expression/math-semantic.css?inline'
 import { useMathInsertion, type MathInsertion, type FunctionTarget } from './formula/useMathInsertion'
+import { useMathClipboard } from './formula/useMathClipboard'
 
 export interface TemplateMathEditorProps { modelValue:string; tree?:StructuredExpression; references:FormulaReference[]; disabled?:boolean; conditions?:boolean; functions?:ExpressionFunction[]; functionsError?:boolean; forceSource?:boolean; hideMode?:boolean; empty?:boolean; resultLabels?:ExpressionResultLabel[] }
 export type FormulaChange={expression:string;expressionTree?:StructuredExpression;metricIds?:string[]}
@@ -56,7 +57,7 @@ const invalid = ref(false)
 const ready = ref(false)
 const loadError = ref(false)
 const canVisualize = computed(() => visualFormula(sourceText.value) !== undefined)
-const feedback = computed(() => invalid.value ? t('incompleteFormula') : loadError.value ? t('formulaLoadFailed') : mode.value === 'source' && !canVisualize.value ? t('advancedFormulaHint') : mode.value === 'visual' && ready.value && !props.disabled ? canAddBranch.value ? t('formulaBranchesHint') : !canInsertValue.value ? t('chooseInsertionTarget') : props.conditions ? t('enterFormulaBranch') : '' : '')
+const feedback = computed(() => clipboard.feedback.value || (invalid.value ? t('incompleteFormula') : loadError.value ? t('formulaLoadFailed') : mode.value === 'source' && !canVisualize.value ? t('advancedFormulaHint') : mode.value === 'visual' && ready.value && !props.disabled ? canAddBranch.value ? t('formulaBranchesHint') : !canInsertValue.value ? t('chooseInsertionTarget') : props.conditions ? t('enterFormulaBranch') : '' : ''))
 const operators = computed(() => [
   ...['+','-','\\times','\\dfrac{#@}{#?}'].map((latex,index)=>({label:['+','−','×','÷'][index],latex,kind:'arithmetic' as const})),
   {label:'( )',latex:'\\left(#0\\right)',kind:'group' as const},
@@ -85,6 +86,7 @@ let disposed = false
 let loading = false
 const currentRoot=computed(()=>lastRoot.value || props.tree?.root || expressionToTree(sourceText.value,props.references)?.root || {type:'literal' as const,valueType:'null' as const,value:null})
 const parser=computed(()=>createMathParser(currentRoot.value,context.value,t))
+const clipboard=useMathClipboard({field:()=>field,root:()=>currentRoot.value,context:()=>context.value,parser:()=>parser.value,disabled:()=>!!props.disabled,commit:onInput,t})
 const insertion=useMathInsertion({field:()=>field,context:()=>context.value,root:()=>currentRoot.value,parser:()=>parser.value,commit:onInput,disabled:()=>!!props.disabled,conditions:()=>!!props.conditions})
 const canInsertValue=insertion.canInsertValue
 const canAddBranch=insertion.canAddBranch
@@ -220,6 +222,7 @@ function chooseReference(index: number) {
 }
 function onInput() {
   if (!field || props.disabled) return
+  clipboard.clear()
   closeReferences()
   try {
     const next=parser.value(field.getValue('latex')),tree={version:1 as const,root:next}
@@ -245,6 +248,7 @@ async function mountField() {
     field.setAttribute('aria-label', t(props.conditions ? 'conditionExpression' : 'formula'))
     field.readOnly = !!props.disabled
     field.value = visualFormula(sourceText.value) || ''
+    clipboard.attach(field)
     field.addEventListener('input', onInput)
     field.addEventListener('selection-change',refreshInsertion)
     field.addEventListener('keydown',insertion.onKeydown,true)
@@ -329,7 +333,7 @@ watch(() => props.disabled, value => { closeReferences(); if (field) field.readO
 // 插槽或按需面板可能晚于组件mounted才提供宿主；同一字段由mountField的守卫保证只初始化一次。
 watch(host,()=>mountField(),{flush:'post'})
 onMounted(mountField)
-onBeforeUnmount(() => { disposed = true; referenceContext?.preview(); closeReferences(); field?.removeEventListener('input', onInput);field?.removeEventListener('selection-change',refreshInsertion);field?.removeEventListener('keydown',insertion.onKeydown,true); field?.remove() })
+onBeforeUnmount(() => { disposed = true; clipboard.dispose(); referenceContext?.preview(); closeReferences(); field?.removeEventListener('input', onInput);field?.removeEventListener('selection-change',refreshInsertion);field?.removeEventListener('keydown',insertion.onKeydown,true); field?.remove() })
 
-return {t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,referenceFrame,hoverFrame,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,referenceContext,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
+return {clipboard,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,referenceFrame,hoverFrame,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,referenceContext,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
 }

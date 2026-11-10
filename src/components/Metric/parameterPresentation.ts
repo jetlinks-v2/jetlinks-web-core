@@ -5,6 +5,11 @@ export const parameterTypeKeys: Record<string, string> = {
   double:'parameterNumber', float:'parameterNumber', int:'parameterInteger', long:'parameterLong', string:'parameterText',
   boolean:'parameterBoolean', enum:'parameterEnum', object:'parameterObject', array:'parameterArray',
 }
+/** 输入与输出共用类型名称、图标和说明；声明结构仍由各自编辑器负责。 */
+export function metricTypeOptions(t:(key:string)=>string) {
+  const icons:Record<string,string> = { double:'NumberOutlined',float:'NumberOutlined',int:'NumberOutlined',long:'NumberOutlined',string:'FontSizeOutlined',boolean:'PoweroffOutlined',enum:'UnorderedListOutlined',object:'CodeOutlined',array:'BarsOutlined',date:'CalendarOutlined' }
+  return [...Object.entries(parameterTypeKeys).map(([value,key])=>({value,label:t(value === 'float' ? 'inputFloatType' : key),icon:icons[value],description:t(value === 'float' ? 'inputFloatHint' : `${key}Hint`)})),{value:'date',label:t('inputDateType'),icon:icons.date,description:t('inputDateHint')}]
+}
 export function numericParameter(parameter: MetricParameter) { return numericParameterTypes.includes(parameter.valueType?.type || '') }
 export function parameterNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined

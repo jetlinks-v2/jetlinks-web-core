@@ -1,5 +1,7 @@
 <template>
   <div class="rule-editor">
+    <TemplateClause stacked :icon="methodIcon" :title="t(kind)">
+    <template #title><slot name="method">{{ t(kind) }}</slot></template>
     <template v-if="kind === 'statistics'">
       <TemplateWindowEditor :rule="rule" :disabled="disabled" @patch="emit('patch', $event)">
         <template #source><TemplateReference :metric-id="rule.sourceMetric || ruleDependencies(rule)[0]"><Editable class="rule-editor__inline-source" type="select" :value="rule.sourceMetric || ruleDependencies(rule)[0]" :component-props="{ disabled, bordered:false, defaultOpen:true, options:referenceOptions, 'aria-label':t('statisticSource'), placeholder:t('chooseSource'), dropdownMatchSelectWidth:false }" @change="setStatisticSource($event as string)" /></TemplateReference></template>
@@ -8,7 +10,6 @@
     <template v-else-if="kind === 'expression'">
       <TemplateFormulaEditor :model-value="rule.expression || ''" :tree="rule.expressionTree" :references="formulaReferences" :result-labels="resultLabels" :disabled="disabled"
         @change="updateFormula" @invalid="setFormulaInvalid" />
-      <TemplateStateTracking :rule="rule" :disabled="disabled" @patch="emit('patch', $event)" />
     </template>
     <template v-else-if="kind === 'temporal'">
       <section v-for="phase in temporalPhases" :key="phase.field" class="rule-editor__phase">
@@ -20,21 +21,23 @@
     </template>
     <TemplateAlgorithmEditor v-else :template="template" :rule="rule" :disabled="disabled" :calculators="calculators"
       @patch="emit('patch', $event)" @invalid="setCalculatorInvalid" />
+    </TemplateClause>
+    <TemplateStateTracking v-if="kind === 'expression'" :rule="rule" :disabled="disabled" @patch="emit('patch', $event)" />
     <section class="rule-editor__execution" :aria-label="t('calculationTrigger')">
-    <h4><AIcon type="ThunderboltOutlined" />{{ t('calculationTrigger') }}</h4>
+    <h4><AIcon type="ClockCircleOutlined" />{{ t('calculationTrigger') }}</h4>
     <div v-if="kind !== 'statistics' && !rule.windowFamily && (!rule.window?.mode || rule.window.mode === 'none')" class="rule-editor__timing">
-      <AIcon :type="ruleTriggerIcon(rule)" /><Editable class="rule-editor__trigger" :class="{ 'rule-editor__trigger--scheduled': rule.window?.emitPolicy === 'onSchedule' }" type="select" :value="rule.window?.emitPolicy || 'onEvent'" :component-props="{ disabled, bordered:false, defaultOpen:true, 'aria-label':t('calculationTrigger'), options:timings }" @change="changeTiming($event as 'onEvent' | 'onSchedule')" />
+      <Editable class="rule-editor__trigger" type="select" :value="rule.window?.emitPolicy || 'onEvent'" :component-props="{ disabled, bordered:false, defaultOpen:true, 'aria-label':t('calculationTrigger'), options:timings }" @change="changeTiming($event as 'onEvent' | 'onSchedule')">{{ t(rule.window?.emitPolicy === 'onSchedule' ? 'calculateEvery' : 'calculateOnEvent') }}</Editable>
       <TemplateDuration v-if="rule.window?.emitPolicy === 'onSchedule'" :model-value="rule.window.emitInterval" :min="1" :disabled="disabled" @update:model-value="emit('patch', { window: { ...rule.window, emitInterval: $event } })" />
-      <span v-if="rule.window?.emitPolicy === 'onSchedule'">{{ t('calculate') }}</span>
+      <span v-if="rule.window?.emitPolicy === 'onSchedule' && t('scheduleSuffix')">{{ t('scheduleSuffix') }}</span>
     </div>
     <p v-else class="rule-editor__timing">{{ ruleTriggerSummary(rule,t) }}</p>
     <small>{{ t(rule.window?.emitPolicy === 'onSchedule' ? 'scheduledCalculationHint' : rule.window?.emitPolicy === 'onWindowClose' ? 'windowCloseCalculationHint' : 'dependencyCalculationHint') }}</small>
     </section>
     <section class="rule-editor__condition" :aria-label="t('applicability')">
+      <h4><AIcon type="FilterOutlined" />{{ t('applicability') }}</h4>
       <div class="rule-editor__condition-summary">
-        <AIcon type="FilterOutlined" />
         <span v-if="!hasCondition" class="rule-editor__muted">{{ t('noExtraCondition') }}</span>
-        <template v-else><span>{{ t('calculateOnlyWhen') }}</span><TemplateFormulaDisplay :template="displayTemplate" :rule="rule" :expression="ruleExpression(rule,'applicabilityExpression')" :calculators="calculators" compact /><span>{{ t('thenCalculate') }}</span></template>
+        <template v-else><span>{{ t('calculateOnlyWhen') }}</span><TemplateFormulaDisplay class="rule-editor__condition-formula" :template="displayTemplate" :rule="rule" :expression="ruleExpression(rule,'applicabilityExpression')" :calculators="calculators" compact /><span>{{ t('thenCalculate') }}</span></template>
         <a-button v-if="hasCondition || !disabled" type="text" size="small" :disabled="invalidConditions.has('applicability')" :aria-expanded="conditionEditing" @click="conditionEditing = !conditionEditing"><AIcon v-if="!hasCondition && !conditionEditing" type="PlusOutlined" />{{ t(conditionEditing ? 'collapseEditor' : hasCondition ? disabled ? 'review' : 'editCondition' : 'addCondition') }}</a-button>
       </div>
       <div v-if="conditionEditing" class="rule-editor__condition-body">
@@ -43,7 +46,7 @@
       </div>
     </section>
     <details class="rule-editor__requirements">
-      <summary>{{ t('moreRequirements') }}<small v-if="rule.maxInputSkew"> · {{ t('inputSkewSummary', { duration: simulationDuration(rule.maxInputSkew, t) }) }}</small></summary>
+      <summary><AIcon type="SettingOutlined" />{{ t('moreSettings') }}<small v-if="rule.maxInputSkew"> · {{ t('inputSkewSummary', { duration: simulationDuration(rule.maxInputSkew, t) }) }}</small></summary>
       <TemplateClause icon="SwapOutlined" :title="t('maxInputSkew')"><TemplateDuration :model-value="rule.maxInputSkew" :disabled="disabled" @update:model-value="emit('patch', { maxInputSkew: $event })" /></TemplateClause>
       <div class="rule-editor__dependencies"><AIcon type="BranchesOutlined" /><span><template v-if="dependencyLabels"><TemplateReference v-for="(id,index) in ruleDependencies(rule)" :key="id" :metric-id="id">{{ index ? '、' : '' }}{{ references.find(item => item.id === id)?.label || id }}</TemplateReference></template><template v-else>{{ t('noDependencies') }}</template></span><a-button v-if="!disabled" type="text" size="small" :aria-label="t('dependencies')" :aria-expanded="dependenciesEditing" @click="dependenciesEditing = !dependenciesEditing">{{ t(dependenciesEditing ? 'collapseEditor' : dependencyLabels ? 'adjustDependencies' : 'addDependencies') }}</a-button></div>
       <a-select v-if="dependenciesEditing" class="rule-editor__source" mode="tags" :value="ruleDependencies(rule)" :disabled="disabled" :bordered="false" :aria-label="t('dependencies')" :options="referenceOptions" option-filter-prop="label" @update:value="updateDependencies"><template #option="option"><TemplateReference :metric-id="option.value"><SelectOption :label="option.label" :icon="option.icon || 'BranchesOutlined'" :description="option.description || String(option.value)" /></TemplateReference></template></a-select>
@@ -78,6 +81,7 @@ const props = defineProps<{ template: MetricTemplate; rule: TemplateRule; disabl
 const emit = defineEmits<{ (event: 'patch', fields: Partial<TemplateRule>): void; (event: 'invalid', value: boolean): void }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const kind = computed(() => calculationKind(props.rule))
+const methodIcon=computed(()=>({expression:'FunctionOutlined',statistics:'BarChartOutlined',temporal:'ClockCircleOutlined',calculator:'CalculatorOutlined'})[kind.value])
 const temporalPhases = [
   { key: 'enter', field: 'enterExpression', duration: 'dwell', icon: 'ThunderboltOutlined', label: 'enterCondition', result: 'conditionBecomesTrue' },
   { key: 'exit', field: 'exitExpression', duration: 'recovery', icon: 'CheckCircleOutlined', label: 'exitCondition', result: 'thenRecover' },
@@ -144,21 +148,22 @@ function changeTiming(value: 'onEvent' | 'onSchedule') {
 .rule-editor__phase-title { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px }
 .rule-editor__phase-title small { margin-left:auto; color:var(--ink-3); font-size:12px }
 .rule-editor__timing { display:flex; align-items:center; gap:var(--space-2,8px); flex-wrap:wrap; margin:var(--space-3,12px) 0 }
-.rule-editor__timing > .rule-editor__trigger { width:190px; max-width:100%; color:var(--accent) }
-.rule-editor__timing > .rule-editor__trigger--scheduled { width:54px }
-.rule-editor__timing > :first-child,.rule-editor__condition-summary > :first-child,.rule-editor__dependencies > :first-child { color:var(--ink-3); flex:none }
-.rule-editor__execution { margin:12px 0; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line) }
-.rule-editor__execution h4 { display:flex; align-items:center; gap:8px; margin:0; font-size:13px; font-weight:500 }
-.rule-editor__execution h4 > .anticon { color:var(--ink-3) }
+.rule-editor__timing > .rule-editor__trigger { width:auto; flex:0 1 auto; max-width:100%; color:var(--accent) }
+.rule-editor__timing > .anticon,.rule-editor__condition-summary > :first-child,.rule-editor__dependencies > :first-child { color:var(--ink-3); flex:none }
+.rule-editor__execution,.rule-editor__condition { margin:0 0 16px; padding:0 }
+.rule-editor h4 { display:flex; align-items:center; gap:8px; min-height:32px; margin:0 0 8px; font-size:13px; font-weight:500 }
+.rule-editor h4 > .anticon { width:16px; color:var(--ink-3) }
+.rule-editor :deep(.template-formula .formula-editor__symbol) { display:none }
 .rule-editor__execution .rule-editor__timing { margin:6px 0 }
 .rule-editor__execution > small { display:block; color:var(--ink-3); font-size:12px; line-height:1.6 }
-.rule-editor__condition-summary { display:flex; align-items:center; gap:6px; min-width:0; min-height:32px; font-size:13px }
-.rule-editor__condition-summary > .template-formula { flex:0 1 auto; min-width:0; overflow:hidden }
+.rule-editor__condition-summary { display:flex; align-items:center; flex-wrap:wrap; gap:6px; min-width:0; min-height:32px; font-size:13px }
+.rule-editor__condition-summary > span { flex:none }
+.rule-editor__condition-summary > .rule-editor__condition-formula { flex:0 1 auto; min-width:0; max-width:100%; overflow:hidden }
 .rule-editor__condition-summary > .ant-btn { flex:none; margin-left:auto; color:var(--ink-3); font-size:12px }
 .rule-editor__condition-body { padding-top:8px }
 .rule-editor__muted { color:var(--ink-3) }
-.rule-editor__requirements { margin-top:var(--space-3,12px); font-size:13px }
-.rule-editor__requirements > summary { padding:8px 0; color:var(--ink-3); cursor:pointer }
+.rule-editor__requirements { margin-top:16px; font-size:13px }
+.rule-editor__requirements > summary { display:flex; align-items:center; gap:8px; padding:8px 0; color:var(--ink-3); cursor:pointer }
 .rule-editor__requirements > summary small { font-size:12px }
 .rule-editor__dependencies { display:flex; align-items:center; gap:8px; min-height:32px }
 .rule-editor__dependencies > span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }

@@ -62,6 +62,11 @@ export function visibleAlgorithmParameters(descriptor: MetricCalculatorDescripto
     return !condition || typeof condition !== 'object' || Object.entries(condition).every(([key, value]) => spec.parameters?.[key] === value)
   }).map(parameter => algorithmParameter(parameter, spec))
 }
+/** 编辑与图例共用默认值来源；依赖输入类型的状态值必须由用户明确填写。 */
+export function algorithmParameterValue(parameter: MetricParameter, spec: MetricCalculatorSpec, descriptor?: MetricCalculatorDescriptor): unknown {
+  const inherited = parameter.expands?.typeFromInput ? undefined : descriptor?.configuration.parameters?.[parameter.id] ?? parameter.expands?.defaultValue
+  return spec.parameters?.[parameter.id] ?? inherited
+}
 /** 输出沿用实际类型；已有声明没有展示名称时只借用描述名称，不修改执行类型。 */
 export function algorithmOutputFields(spec: MetricCalculatorSpec, descriptor?: MetricCalculatorDescriptor) {
   const properties = spec.outputType?.properties

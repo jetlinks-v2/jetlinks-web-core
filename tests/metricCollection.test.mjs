@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import { createMetricLoader, createMetricRenderer, flush, sourceRoot } from './helpers/metricRuntime.mjs'
 const api = {}
 const load = createMetricLoader({ [resolve(sourceRoot,'components/Metric/api.ts')]:{ metricApi:api } })
-const { readPolicy, compatibleReadOperations, updateReadPolicy, suggestedReadSemantic } = load('components/Metric/collection/aggregationPolicy.ts')
+const { readPolicy, compatibleReadOperations, updateReadPolicy, suggestedReadSemantic, supportedReadSemantics } = load('components/Metric/collection/aggregationPolicy.ts')
 const { useMetricCollection } = load('components/Metric/collection/useMetricCollection.ts')
 
 test('aggregation suggestions never infer addition from a numeric type or algorithm', () => {
@@ -18,6 +18,12 @@ test('aggregation suggestions never infer addition from a numeric type or algori
   const fields = updateReadPolicy(output,readPolicy('score'))
   assert.deepEqual(fields.options.custom,{kept:true}); assert.equal(output.options.readAggregation,undefined)
   assert.equal(updateReadPolicy({...output,...fields}).options.readAggregation,undefined)
+})
+
+test('custom summaries require declared compatible types without changing unknown or structured outputs',()=>{
+  for (const type of ['byte','short','int','integer','long','float','double','number','decimal']) assert.deepEqual(supportedReadSemantics(type),['state','score','duration','quantity','ratio','numeric'])
+  for (const type of ['boolean','string','enum']) assert.deepEqual(supportedReadSemantics(type),['state'])
+  for (const type of [undefined,'','object','array','date','vendor-type']) assert.deepEqual(supportedReadSemantics(type),[])
 })
 
 test('scope reads use one request and a stale previous page cannot replace a newer page', async () => {

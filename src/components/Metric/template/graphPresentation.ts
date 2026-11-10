@@ -4,11 +4,40 @@ import { expressionLabel, ruleExpression, templateGraphLayout, type TemplateNode
 import { ruleFormulaReferences } from './formula'
 import { findCalculator } from './algorithm'
 import { calculatorIcon } from './calculatorPresentation'
-import type { MetricCalculatorDescriptor, MetricTemplate } from '../types'
+import { parameterConstraints, parameterTypeKeys } from '../parameterPresentation'
+import { metricValueLabels, metricValueSchema, metricValueUnit, schemaValueLabels, type ValueSchema } from '../valueSemantics'
+import { i18nText } from '../../I18n/text'
+import type { MetricCalculatorDescriptor, MetricStateLabel, MetricTemplate } from '../types'
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
 type Graph = ReturnType<typeof templateGraph>
-interface NodeSummary { icon: string; text: string; detail: string; detailIcon?:string; description?:string; expression?: string; condition?: string }
+interface NodeSummary { icon: string; text: string; detail: string; detailIcon?:string; method?:string; typeText?:string; preview?:string; choices?:MetricStateLabel[]; description?:string; expression?: string; condition?: string }
+
+/** 画布标签与完整说明共用声明选项，保留编码类型及业务图标。 */
+const localizedChoices = (labels:MetricStateLabel[],locale:string) => labels.map(item=>({...item,name:i18nText(item.name,item.nameI18n,locale)}))
+
+/** 类型只来自声明；与属性面板使用同一翻译，单位不代替类型推断。 */
+function typeSummary(type:unknown,unit:string | undefined,t:Translate):string {
+  const key = typeof type === 'string' ? type : ''
+  return [t(key ? key === 'date' ? 'inputDateType' : parameterTypeKeys[key] || 'inputUnknownType' : 'inputUndeclaredType'),unit].filter(Boolean).join(' · ')
+}
+
+/** 摘要只读取声明的选项、字段及约束；不采样、不推断值或结果类型。 */
+function schemaSummary(schema:ValueSchema | undefined,t:Translate,locale:string):string {
+  if (!schema) return ''
+  if (schema.type === 'enum' && Array.isArray(schema.elements)) return schema.elements.map(item => {
+    const name = i18nText(item.text ?? item.label,item.textI18n,locale)
+    return name ? `${name} ${item.value}` : String(item.value)
+  }).join(' · ')
+  if (schema.type === 'object' && Array.isArray(schema.properties)) return schema.properties.map(item =>
+    i18nText(item.name,item.nameI18n,locale) || item.id).join(' · ')
+  if (schema.type === 'array') return typeSummary((schema.elementType as ValueSchema | undefined)?.type,undefined,t)
+  if (schema.type === 'date') return typeof schema.format === 'string' ? schema.format : ''
+  if (['int','long','float','double'].includes(String(schema.type)) && ['min','max','scale'].some(key=>schema[key] !== undefined)) {
+    return parameterConstraints({id:'',valueType:schema as {type:string}},t)
+  }
+  return ''
+}
 
 /** 图与编辑选项共用触发语义，不根据显示文案猜测图标。 */
 export function ruleTriggerIcon(rule:Pick<TemplateRule,'window'|'temporalCondition'>):string {
@@ -23,14 +52,23 @@ export function ruleTriggerSummary(rule:TemplateRule,t:Translate):string {
 }
 
 /** 图摘要只解释已有配置，不推断时间对齐、采样或计算结果。 */
-export function graphNodeSummary(template: MetricTemplate, node: TemplateNode, t: Translate, calculators: MetricCalculatorDescriptor[] = []): NodeSummary {
+export function graphNodeSummary(template: MetricTemplate, node: TemplateNode, t: Translate, calculators: MetricCalculatorDescriptor[] = [], locale = 'zh'): NodeSummary {
   if (node.kind === 'input') {
     const input = template.inputDefinitions[node.index]
-    return { icon: 'ImportOutlined', text: input.source?.lookback ? `${t('recentDuration')} ${simulationDuration(input.source.lookback, t)}` : t('latestReading'), detail: input.unit || '', expression: undefined }
+    return { icon: 'ImportOutlined', text: input.source?.lookback ? `${t('historySeries')} · ${t('recentDuration')} ${simulationDuration(input.source.lookback, t)}` : t('latestReading'),
+      detail: input.unit || '',detailIcon:input.source?.lookback ? 'HistoryOutlined' : 'ThunderboltOutlined',
+      typeText:typeSummary(input.valueType?.type,input.unit || (typeof input.valueType?.unit === 'string' ? input.valueType.unit : undefined),t),preview:schemaSummary(input.valueType,t,locale),choices:localizedChoices(schemaValueLabels(input.valueType),locale),expression: undefined }
   }
   if (node.kind === 'output') {
     const output = template.outputs[node.index]
-    return { icon: 'ExportOutlined', text: output.unit || '', detail: t('output'), expression: undefined }
+    const schema = metricValueSchema(template,output.metricId,calculators)
+    const declaredLabels = metricValueLabels(template,output.metricId)
+    const labels = localizedChoices(declaredLabels.length ? declaredLabels : schemaValueLabels(schema),locale)
+    const source = template.inputDefinitions.find(item=>item.id === output.metricId) || template.definitions.find(item=>item.id === output.metricId) as TemplateRule | undefined
+    const preview = labels.length ? labels.map(item=>`${item.name} ${item.value}`).join(' · ')
+      : schemaSummary(schema,t,locale) || (source ? `${t('outputFrom')} ${source.name || source.id}` : '')
+    return { icon: 'ExportOutlined', text: output.unit || '', detail: t('output'),detailIcon:'ExportOutlined',
+      typeText:typeSummary(output.valueType || schema?.type,output.unit || metricValueUnit(template,output.metricId,calculators),t),preview,choices:labels,expression: undefined }
   }
   const rule = template.definitions[node.index] as TemplateRule
   const kind = calculationKind(rule)
@@ -39,15 +77,15 @@ export function graphNodeSummary(template: MetricTemplate, node: TemplateNode, t
   const condition = conditionSource ? expressionLabel(template, conditionSource, names) : undefined
   const timing = ruleTriggerSummary(rule,t)
   const detailIcon = ruleTriggerIcon(rule)
-  if (rule.temporalCondition) return { icon: 'ClockCircleOutlined', expression: ruleExpression(rule,'enterExpression'), condition,detailIcon,
+  if (rule.temporalCondition) return { icon: 'ClockCircleOutlined', method:t('temporal'), expression: ruleExpression(rule,'enterExpression'), condition,detailIcon,
     text: expressionLabel(template, ruleExpression(rule,'enterExpression'), names) || t('temporal'), detail: t('graphDwellRecovery', { dwell: simulationDuration(rule.temporalCondition.dwell, t), recovery: simulationDuration(rule.temporalCondition.recovery, t) }) }
   if (rule.calculator) {
     const descriptor=findCalculator(rule.calculator,calculators),operation=simulationOperation(rule,t)
-    return {icon:calculatorIcon(descriptor),expression:undefined,condition,
+    return {icon:calculatorIcon(descriptor),method:descriptor?.name || t('calculator'),expression:undefined,condition,
       text:descriptor?.name || expressionLabel(template,operation,names),detail:timing,detailIcon,
       description:operation !== rule.calculator.provider ? expressionLabel(template,operation,names) : descriptor?.description}
   }
-  return { icon: kind === 'statistics' ? 'BarChartOutlined' : 'FunctionOutlined', expression: source, condition,detailIcon,
+  return { icon: kind === 'statistics' ? 'BarChartOutlined' : 'FunctionOutlined', method:t(kind === 'statistics' ? 'statistics' : 'expression'), expression: source, condition,detailIcon,
     text: kind === 'statistics' ? simulationOperation(rule, t) : expressionLabel(template, source, names) || t('expression'),
     detail: kind === 'statistics' && source ? `${simulationOperation(rule, t)} · ${timing}` : timing }
 }

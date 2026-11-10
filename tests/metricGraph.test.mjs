@@ -11,10 +11,43 @@ const template = (definitions = []) => ({ id: 'test', version: '1', name: 'Test'
   outputs: definitions.length ? [{ metricId: definitions.at(-1).id, label: '结果' }] : [], parameterDefinitions: [], parameters: {} })
 const statistic = (id, size, extra = {}) => ({ id, sourceMetric: 'temperature', aggregation: 'avg', window: { mode: 'time', size, timeMode: 'event', emitPolicy: 'onEvent', ...extra } })
 
+test('输入预览保留枚举值类型、日期格式、对象字段和单位；没有声明时不推断',()=>{
+  const value=template()
+  const summary=()=>graphNodeSummary(value,{kind:'input',index:0},t,[],'en-US')
+  value.inputDefinitions[0].valueType={type:'enum',elements:[{value:0,text:'离线',textI18n:{en:'Offline'},icon:'color:#888888'},{value:'1',text:'在线',textI18n:{en:'Online'}},{value:false}]}
+  assert.equal(summary().preview,'Offline 0 · Online 1 · false')
+  assert.equal(summary().typeText,'parameterEnum')
+  assert.deepEqual(summary().choices.map(({name,value,icon})=>({name,value,icon})),[{name:'Offline',value:0,icon:'color:#888888'},{name:'Online',value:'1',icon:undefined},{name:'false',value:false,icon:undefined}])
+  value.inputDefinitions[0].valueType={type:'date',format:'yyyy-MM-dd HH:mm:ss'}
+  assert.equal(summary().typeText,'inputDateType');assert.equal(summary().preview,'yyyy-MM-dd HH:mm:ss')
+  value.inputDefinitions[0].valueType={type:'object',properties:[{id:'state',name:'状态',nameI18n:{en:'State'}},{id:'time',name:'时间',nameI18n:{en:'Time'}}]}
+  assert.equal(summary().preview,'State · Time')
+  value.inputDefinitions[0].valueType={type:'double',unit:'℃',min:0,max:100}
+  assert.equal(summary().typeText,'parameterNumber · ℃');assert.match(summary().preview,/parameterBetween/)
+  delete value.inputDefinitions[0].valueType
+  assert.equal(summary().typeText,'inputUndeclaredType');assert.equal(summary().preview,'')
+})
+
+test('输出优先展示显式状态含义，否则展示真实来源；摘要不改写模板',()=>{
+  const value=template([{id:'status',name:'设备判断',expression:'temperature',options:{stateLabels:[{value:0,name:'正常',nameI18n:{en:'Normal'},icon:'font:CheckCircleOutlined'},{value:1,name:'异常',nameI18n:{en:'Abnormal'}}]}}])
+  value.outputs[0].valueType='int'
+  const before=JSON.stringify(value)
+  assert.equal(graphNodeSummary(value,{kind:'output',index:0},t,[],'en').preview,'Normal 0 · Abnormal 1')
+  assert.deepEqual(graphNodeSummary(value,{kind:'output',index:0},t,[],'en').choices.map(({name,value,icon})=>({name,value,icon})),[{name:'Normal',value:0,icon:'font:CheckCircleOutlined'},{name:'Abnormal',value:1,icon:undefined}])
+  assert.equal(JSON.stringify(value),before)
+  delete value.definitions[0].options
+  assert.equal(graphNodeSummary(value,{kind:'output',index:0},t).preview,'outputFrom 设备判断')
+  value.outputs[0]={metricId:'temperature'}
+  assert.equal(graphNodeSummary(value,{kind:'output',index:0},t).preview,'outputFrom 温度')
+  value.definitions[0]={id:'status',calculator:{provider:'custom',providerVersion:'1',outputType:{type:'enum',elements:[{value:'ready',text:'就绪',textI18n:{en:'Ready'},icon:'color:#008800'}]}}}
+  value.outputs[0]={metricId:'status',valueType:'enum'}
+  assert.deepEqual(graphNodeSummary(value,{kind:'output',index:0},t,[],'en').choices,[{value:'ready',name:'Ready',nameI18n:{en:'Ready'},icon:'color:#008800'}])
+})
+
 test('取数范围不决定计算间隔，属性说明与图节点共用实际触发策略',()=>{
   const event=statistic('event','PT2H'),scheduled={...event,window:{...event.window,emitPolicy:'onSchedule',emitInterval:'PT1M'}}
   assert.equal(ruleTriggerSummary(event,t),'onEvent')
-  assert.equal(ruleTriggerSummary(scheduled,t),t('graphEvery',{duration:'1 minutes'}))
+  assert.equal(ruleTriggerSummary(scheduled,t),t('graphEvery',{duration:'1 minutesSingular'}))
   assert.equal(ruleTriggerSummary({...event,window:{...event.window,emitPolicy:'onWindowClose'}},t),'graphWindowClose')
   assert.equal(graphNodeSummary(template([scheduled]),{kind:'rule',index:0},t).detail,ruleTriggerSummary(scheduled,t))
 })

@@ -2,14 +2,21 @@
   <section class="expression-workspace">
     <header v-if="!hideHeading" class="expression-workspace__heading">
       <span>{{ t('calculationFormula') }}</span>
+      <div class="expression-workspace__heading-tools">
+      <a-button v-if="!editable" type="text" size="small" :title="t('formulaCopyLatex')" :aria-label="t('formulaCopyLatex')" @click="copyFormula"><AIcon type="CopyOutlined" /></a-button>
       <a-button ref="trigger" type="text" size="small" :aria-expanded="expanded" @click="expanded=true"><AIcon type="ExpandAltOutlined" />{{ t(editable ? 'expandEdit' : explanation ? 'inspectValues' : 'expandFormula') }}</a-button>
+      </div>
     </header>
     <component :is="stationary ? 'dialog' : Teleport" ref="stableDialog" :to="stationary ? undefined : modalHost" :disabled="!expanded || !modalHost" :class="stationary ? ['expression-workspace__stable',{'is-expanded':expanded}] : undefined" :role="stationary ? expanded ? 'dialog' : 'group' : undefined" :aria-label="stationary ? t('calculationFormula') : undefined" @cancel.prevent="expanded=false">
       <header v-if="stationary && expanded" class="expression-workspace__modal-heading"><strong>{{ t('calculationFormula') }}</strong><a-button type="text" :aria-label="t('close')" @click="expanded=false"><AIcon type="CloseOutlined" /></a-button></header>
       <div ref="content" class="expression-workspace__content" :class="{'is-expanded':expanded,'has-data':!!explanation && !!rows.length}" @pointerover="track" @pointerleave="highlight()" @focusin="track" @focusout="highlight()">
         <div class="expression-workspace__formula">
-          <a-segmented v-if="expanded && explanation && !editable" v-model:value="view" class="expression-workspace__view" size="small" :aria-label="t('formulaView')" :options="[{label:t('originalFormula'),value:'original'},{label:t('recordedFormula'),value:'recorded'}]" />
+          <div v-if="expanded && !editable" class="expression-workspace__heading-tools">
+            <a-segmented v-if="explanation" v-model:value="view" class="expression-workspace__view" size="small" :aria-label="t('formulaView')" :options="[{label:t('originalFormula'),value:'original'},{label:t('recordedFormula'),value:'recorded'}]" />
+            <a-button type="text" size="small" :title="t('formulaCopyLatex')" :aria-label="t('formulaCopyLatex')" @click="copyFormula"><AIcon type="CopyOutlined" /></a-button>
+          </div>
           <slot :substitute="view==='recorded'" :expand="expand" :expanded="expanded" />
+          <p v-if="copyFeedback" class="expression-workspace__copy-feedback" :class="{'is-error':copyFailed}" :role="copyFailed ? 'alert' : 'status'">{{ copyFeedback }}</p>
         </div>
         <aside v-if="expanded && explanation && rows.length" class="expression-workspace__data" :aria-label="t('operand')">
           <h4><AIcon type="DatabaseOutlined" />{{ t('operand') }}<small>{{ rows.length }}</small></h4>
@@ -41,12 +48,15 @@ const props=defineProps<{node:ExpressionNode;context:ExpressionEditorContext;exp
 const emit=defineEmits<{(event:'expandedChange',value:boolean):void}>()
 const {t}=useI18n({useScope:'local',messages:editorMessages})
 const view=ref('recorded')
-const {expanded,expand,content,modalHost,stableDialog,trigger,rows,highlight,track,restoreFocus}=useExpressionWorkspace(props,t)
+const {copyFormula,copyFeedback,copyFailed,expanded,expand,content,modalHost,stableDialog,trigger,rows,highlight,track,restoreFocus}=useExpressionWorkspace(props,t)
 watch(expanded,value=>emit('expandedChange',value),{flush:'sync'})
 </script>
 <style src="./expression.css" />
 <style scoped>
 .expression-workspace { min-width:0 }
+.expression-workspace__heading-tools { display:flex; align-items:center; justify-content:flex-end; gap:4px; min-width:0 }
+.expression-workspace__copy-feedback { margin:4px 0; color:var(--ink-3); font-size:12px }
+.expression-workspace__copy-feedback.is-error { color:var(--danger,#ff4d4f) }
 .expression-workspace__stable { position:static; width:100%; max-width:none; max-height:none; margin:0; padding:0; border:0; background:transparent; color:inherit; overflow:visible }
 .expression-workspace__stable.is-expanded { position:fixed; inset:0; width:min(1040px,calc(100vw - 32px)); max-height:calc(100vh - 48px); margin:auto; padding:20px 24px; overflow:visible; border-radius:8px; background:var(--bg); color:var(--ink-1); box-shadow:0 12px 48px #0003; box-sizing:border-box }
 .expression-workspace__stable.is-expanded { --expression-editor-max-height:calc(100vh - 216px) }

@@ -54,7 +54,9 @@ export function schemaValueLabels(schema?:ValueSchema):MetricStateLabel[] {
   return schema.elements.flatMap(value => {
     const item = record(value)
     if (!item || !['string','number','boolean'].includes(typeof item.value)) return []
-    return [{ value:item.value as MetricStateLabel['value'], name:String(item.text ?? item.label ?? item.value) }]
+    return [{ value:item.value as MetricStateLabel['value'], name:String(item.text ?? item.label ?? item.value),
+      ...(record(item.textI18n) ? { nameI18n:Object.fromEntries(Object.entries(item.textI18n as ValueSchema).filter((entry):entry is [string,string]=>typeof entry[1] === 'string')) } : {}),
+      ...(typeof item.icon === 'string' ? { icon:item.icon } : {}) }]
   })
 }
 

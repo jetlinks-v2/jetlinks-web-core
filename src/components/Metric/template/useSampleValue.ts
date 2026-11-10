@@ -16,7 +16,7 @@ export function useSampleValue(props:{ input:MetricTemplateInput; value:unknown;
     return own.length ? own : metricValueLabels(props.template,props.input.id)
   })
   const unknown = computed(() => props.value != null && labels.value.length > 0 && !labels.value.some(item => item.value === props.value))
-  const text = computed(() => semanticValueText(props.value, { labels:labels.value, locale:locale() }, t))
+  const text = computed(() => semanticValueText(props.value, { labels:labels.value, schema:props.input.valueType, locale:locale() }, t))
   const name = (item:MetricStateLabel) => i18nText(item.name,item.nameI18n,locale())
   const type = computed(() => props.input.valueType?.type === 'string' || props.input.valueType?.type === 'enum' && labels.value.every(item => typeof item.value === 'string') ? 'string' : 'number')
   const hint = computed(() => parameterConstraints({ ...props.input, valueType:{ ...props.input.valueType, type:String(props.input.valueType?.type || 'string') } },t))
@@ -27,7 +27,7 @@ export function useSampleValue(props:{ input:MetricTemplateInput; value:unknown;
   }
   async function edit() {
     if (props.disabled) return
-    if (labels.value.length && !raw.value) { open.value = true; await nextTick(); root.value?.querySelector<HTMLElement>('button')?.focus({ preventScroll:true }) }
+    if (labels.value.length && !raw.value || props.input.valueType?.type === 'date') { open.value = true; await nextTick(); root.value?.querySelector<HTMLElement>('button')?.focus({ preventScroll:true }) }
     else if (editable.value) await editable.value.edit()
     else { await nextTick(); root.value?.querySelector<HTMLElement>('input, textarea, [role="combobox"], button, [tabindex]:not([tabindex="-1"])')?.focus({ preventScroll:true }) }
   }

@@ -4,9 +4,11 @@ import { defineComponent, effectScope, h, reactive, ref } from 'vue'
 import { resolve } from 'node:path'
 import { createMetricLoader, createMetricRenderer, flush, walk, textContent, sourceRoot } from './helpers/metricRuntime.mjs'
 
-const load = createMetricLoader({ '@jetlinks-web/core': { request: {} }, [resolve(sourceRoot,'utils/ndjson.ts')]: { createRuntimeNdJson:()=>({}) }, 'vue-i18n': { useI18n: () => ({ t: (key, values) => values?.name ? `${key} · ${values.name}` : key, locale:{ value:'zh' } }) } })
+const load = createMetricLoader({ '@jetlinks-web/core': { request: {} }, [resolve(sourceRoot,'utils/ndjson.ts')]: { createRuntimeNdJson:()=>({}) },
+  [resolve(sourceRoot,'components/Metric/template/TemplateAlgorithmGuide.vue')]: { default:defineComponent({inheritAttrs:false,setup:(_,{attrs})=>()=>h('algorithm-guide',attrs)}),__esModule:true },
+  'vue-i18n': { useI18n: () => ({ t: (key, values) => values?.name ? `${key} · ${values.name}` : key, locale:{ value:'zh' } }) } })
 const { algorithmSuggestions, bindAlgorithmInput, calculatorKey, chooseAlgorithm, findCalculator, interactiveCalculator } = load('components/Metric/template/algorithm.ts')
-const { calculatorIcon, calculatorOption } = load('components/Metric/template/calculatorPresentation.ts')
+const { calculatorGuide, calculatorIcon, calculatorOption } = load('components/Metric/template/calculatorPresentation.ts')
 const { metricMessages } = load('components/Metric/messages.ts')
 const { ruleFormulaReferences, expressionToFormula, formulaToExpression } = load('components/Metric/template/formula.ts')
 const Editor = load('components/Metric/template/TemplateAlgorithmEditor.vue').default
@@ -71,6 +73,9 @@ test('算法配置按来源、计算、结果分层，来源块复用真实引�
 })
 
 test('算法图标按真实操作区分，未知算法使用通用图标且不推断名称或能力', () => {
+  assert.equal(calculatorGuide(state.configuration),'stateDuration')
+  assert.equal(calculatorGuide({...state.configuration,providerVersion:'2'}),undefined)
+  assert.equal(calculatorGuide(meter.configuration),'increase')
   assert.equal(calculatorIcon(state), 'ClockCircleOutlined')
   assert.equal(calculatorIcon(meter), 'RiseOutlined')
   assert.equal(calculatorIcon({ ...meter, id:'integral' }), 'AreaChartOutlined')
@@ -91,6 +96,19 @@ test('算法图标按真实操作区分，未知算法使用通用图标且不�
     assert.equal(builtin.description, `Counter change · ${locale === 'zh' ? '版本 1' : 'Version 1'}`)
   }
   assert.equal(JSON.stringify(opaque), original)
+})
+
+test('算法图例与画布共用模板字典翻译，不改写枚举原编码与颜色',()=>{
+  const {template,rule}=fixture()
+  template.inputDefinitions[0].valueType={type:'enum',elements:[{value:1,text:'Raw online',icon:'color:#22c55e'},{value:0,text:'Raw offline'}]}
+  template.options={i18nMessages:{'input.operating.enum.1':{zh:'运行中'},'input.operating.enum.0':{zh:'已停止'},'rule.statistics.output.field.activeDuration.name':{zh:'已运行时间'}}}
+  const original=JSON.stringify(template),view=mount({template,rule})
+  try {
+    const guide=nodes(view,'algorithm-guide')[0]
+    assert.deepEqual(guide.props.labels,[{value:1,name:'运行中',icon:'color:#22c55e'},{value:0,name:'已停止'}])
+    assert.ok(textContent(view.root).includes('已运行时间'))
+    assert.equal(JSON.stringify(template),original)
+  } finally {view.close()}
 })
 
 test('常用菜单依据可视描述筛选起点，扩展算法与同名版本仍按精确身份选择', async () => {

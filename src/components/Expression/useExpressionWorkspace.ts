@@ -4,12 +4,19 @@ import type { ExpressionEditorContext } from './editor'
 import type { ExplanationFormatter } from './explanation'
 import { expressionDocument, referenceKey, type ExpressionTranslate } from './document'
 import { documentParts, explanationFacts, referenceIcon } from './presentation'
+import { expressionLatex } from './mathTransfer'
 
 /** 对照仅投影公式引用与已记录事实；展开移动原编辑器，保留草稿及撤销历史。 */
 export function useExpressionWorkspace(props:{node:ExpressionNode;context:ExpressionEditorContext;explanation?:ExpressionExplanation;format?:ExplanationFormatter;stationary?:boolean},t:ExpressionTranslate) {
   const expanded=ref(false),active=ref<string>(),content=ref<HTMLElement>(),modalHost=ref<HTMLElement>()
   const trigger=ref<{ $el:HTMLElement }>()
   const stableDialog=ref<HTMLDialogElement>()
+  const copyFeedback=ref(''),copyFailed=ref(false)
+  async function copyFormula() {
+    try {await navigator.clipboard.writeText(expressionLatex(props.node,props.context,t));copyFeedback.value=t('formulaCopied');copyFailed.value=false}
+    catch {copyFeedback.value=t('formulaCopyFailed');copyFailed.value=true}
+  }
+  watch(()=>props.node,()=>{copyFeedback.value='';copyFailed.value=false})
   // 自定义元素在 reparent 时会销毁内部会话；原位原生 dialog 进入 top layer，保留选区与撤销。
   watch([expanded,stableDialog],([open,dialog],previous)=>{
     if(!props.stationary || typeof dialog?.showModal !== 'function')return
@@ -54,7 +61,7 @@ export function useExpressionWorkspace(props:{node:ExpressionNode;context:Expres
     expanded.value=true
   }
   async function restoreFocus() {await nextTick();trigger.value?.$el?.focus()}
-  return {expanded,expand,active,content,modalHost,stableDialog,trigger,rows,highlight,track,restoreFocus}
+  return {copyFormula,copyFeedback,copyFailed,expanded,expand,active,content,modalHost,stableDialog,trigger,rows,highlight,track,restoreFocus}
 }
 
 /** 类型名只用于用户辨认数据，保持与公式插入目录相同的角色。 */

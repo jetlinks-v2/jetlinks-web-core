@@ -44,6 +44,7 @@
         <MonacoEditor :model-value="yamlText" language="yaml" theme="vs" :read-only="disabled" :blur-format="false" :init="initializeYaml" :options="{ minimap: { enabled:false }, wordWrap:'on', automaticLayout:true, scrollBeyondLastLine:false }" class="algorithm-editor__yaml" @update:model-value="updateYaml" />
         <p v-if="yamlError" class="algorithm-editor__error" role="alert">{{ yamlError }}</p>
       </template>
+      <TemplateAlgorithmGuide :key="guide" :spec="spec" :descriptor="descriptor" :labels="guideLabels" :invalid="!!yamlError" />
     </div>
     <template v-if="spec.outputType?.type">
       <div class="algorithm-editor__output algorithm-editor__stage">
@@ -66,8 +67,9 @@ import Editable from '../../Editable/index.vue'
 import MetricParameterValue from '../MetricParameterValue.vue'
 import TemplateDuration from './TemplateDuration.vue'
 import TemplateReference from './TemplateReference.vue'
-import { calculatorIcon, calculatorOption } from './calculatorPresentation'
-import { algorithmOutputFields, algorithmSources, algorithmSuggestions, bindAlgorithmInput, calculatorKey, chooseAlgorithm, findCalculator, interactiveCalculator, visibleAlgorithmParameters } from './algorithm'
+import TemplateAlgorithmGuide from './TemplateAlgorithmGuide.vue'
+import { calculatorGuide, calculatorIcon, calculatorOption } from './calculatorPresentation'
+import { algorithmOutputFields, algorithmParameterValue, algorithmSources, algorithmSuggestions, bindAlgorithmInput, calculatorKey, chooseAlgorithm, findCalculator, interactiveCalculator, visibleAlgorithmParameters } from './algorithm'
 import { configurationObject, encodeConfiguration } from './configurationText'
 import { nodeLabel, ruleDependencies, type TemplateRule } from './designer'
 import { localizedTemplate } from './text'
@@ -76,12 +78,14 @@ import { errorText } from '../service'
 import { metricMessages } from '../messages'
 import { referenceChoice } from './choices'
 import { parameterTypeKeys } from '../parameterPresentation'
+import { metricValueLabels } from '../valueSemantics'
 import type { MetricCalculatorDescriptor, MetricCalculatorSpec, MetricParameter, MetricTemplate } from '../types'
 
 const props = withDefaults(defineProps<{ template: MetricTemplate; rule: TemplateRule; calculators?: MetricCalculatorDescriptor[]; disabled?: boolean }>(), { calculators: () => [] })
 const emit = defineEmits<{ (event: 'patch', fields: Partial<TemplateRule>): void; (event: 'invalid', value: boolean): void }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const spec = computed(() => props.rule.calculator || {})
+const guide = computed(() => calculatorGuide(spec.value))
 const descriptor = computed(() => findCalculator(spec.value, props.calculators))
 const canVisualize = computed(() => interactiveCalculator(spec.value, descriptor.value))
 const mode = ref<'visual' | 'yaml'>(canVisualize.value ? 'visual' : 'yaml')
@@ -100,7 +104,7 @@ const sourceOptions = computed(() => sources.value.map(item => referenceChoice(d
 const aliases = computed(() => Object.keys(spec.value.inputTypes || {}))
 const parameters = computed(() => visibleAlgorithmParameters(descriptor.value, spec.value, false))
 const advancedParameters = computed(() => visibleAlgorithmParameters(descriptor.value, spec.value, true))
-const outputFields = computed(() => algorithmOutputFields(spec.value, descriptor.value))
+const outputFields = computed(() => algorithmOutputFields(displayTemplate.value.definitions.find(item=>item.id === props.rule.id)?.calculator as MetricCalculatorSpec || spec.value, descriptor.value))
 function parameterEditor(parameter: MetricParameter): { type: 'select' | 'number' | 'string'; props: Record<string, unknown> } {
   const type = parameter.valueType?.type
   if (type === 'boolean') return { type:'select', props:{ defaultOpen:true, showArrow:false, dropdownMatchSelectWidth:false, options:[{ value:'true', label:t('conditionTrue'), icon:'CheckCircleOutlined', description:'true' }, { value:'false', label:t('conditionFalse'), icon:'CloseCircleOutlined', description:'false' }] } }
@@ -112,15 +116,14 @@ function parameterEditor(parameter: MetricParameter): { type: 'select' | 'number
 }
 // Select 使用字符串键，计算配置仍保留原生布尔值和未选择态。
 function parameterValue(parameter: MetricParameter) {
-  // 与算法描述中的默认配置一致；仅回显继承值，不向规则写入隐式覆盖。
-  const inherited = parameter.expands?.typeFromInput ? undefined : descriptor.value?.configuration.parameters?.[parameter.id] ?? parameter.expands?.defaultValue
-  const value = spec.value.parameters?.[parameter.id] ?? inherited
+  const value = algorithmParameterValue(parameter, spec.value, descriptor.value)
   return parameter.valueType?.type === 'boolean' && typeof value === 'boolean' ? String(value) : value
 }
 function updateInteractiveParameter(parameter: MetricParameter, value: unknown) {
   updateParameter(parameter.id, parameter.valueType?.type === 'boolean' && value != null ? value === 'true' : value)
 }
 const binding = (alias: string) => props.rule.inputs?.find(input => input.id === alias)
+const guideLabels = computed(() => metricValueLabels(displayTemplate.value, binding('state')?.metricId || inheritedBinding('state') || ''))
 const inheritedBinding = (alias: string) => !props.rule.inputs?.length && ruleDependencies(props.rule).includes(alias) ? alias : undefined
 const history = (alias: string) => sources.value.find(item => item.id === (binding(alias)?.metricId || inheritedBinding(alias)))?.lookback
 const missingSource = (alias: string) => !binding(alias)?.source && !binding(alias)?.metricId && !inheritedBinding(alias)
