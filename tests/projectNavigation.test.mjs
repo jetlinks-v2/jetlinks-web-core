@@ -220,6 +220,37 @@ test('application primary menus have no expandable sidebar groups', t => {
   assert.deepEqual(c.state.openKeys, [])
 })
 
+test('application menus follow the authorized parent after regrouping pages with legacy URLs', async t => {
+  const menus = [
+    { path: '/charging/finance', children: [{ path: '/charging/finance/subjects' }] },
+    { path: '/charging/configuration', children: [
+      { path: '/charging/finance/companies' },
+      { path: '/charging/finance/taxes' },
+      { path: '/charging/finance/arrears' },
+    ] },
+  ]
+  const { controller: c, route, pushes } = harness(t, {
+    variant: 'application', menus, path: '/charging/finance/companies',
+  })
+  for (const page of ['companies', 'taxes', 'arrears']) {
+    route.path = `/charging/finance/${page}`
+    await vue.nextTick()
+    assert.equal(c.activePrimaryKey.value, '/charging/configuration')
+    c.handlePrimaryMenuClick({ key: '/charging/configuration' })
+  }
+  assert.deepEqual(pushes, [])
+  route.path = '/charging/finance/subjects'
+  await vue.nextTick()
+  assert.equal(c.activePrimaryKey.value, '/charging/finance')
+  route.path = '/charging/finance/companies/details/1'
+  await vue.nextTick()
+  assert.equal(c.activePrimaryKey.value, '/charging/configuration')
+  route.path = '/detail/1'
+  route.meta = { breadcrumbCache: [{ path: '/charging/finance/companies' }] }
+  await vue.nextTick()
+  assert.equal(c.activePrimaryKey.value, '/charging/configuration')
+})
+
 test('disabled and coming-soon children are skipped', t => {
   const menus = menuTree()
   menus[1].children[0].children.unshift(

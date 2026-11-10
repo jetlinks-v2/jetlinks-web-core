@@ -286,6 +286,7 @@ export const useBasicLayoutController = (
   })
 
   return {
+    activePrimaryKey,
     businessApplicationRuntime,
     config,
     enterSettings,

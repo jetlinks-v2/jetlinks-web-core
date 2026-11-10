@@ -125,22 +125,6 @@ const stripMenuChildren = (menu: LayoutMenuRouteRecord): LayoutMenuRouteRecord =
   { ...menu, children: undefined } as LayoutMenuRouteRecord
 )
 
-const containsRouteContext = (
-  menu: ProjectNavigationRoute,
-  routeKeys: string[],
-  currentPath: string,
-): boolean => {
-  const menuKey = getLayoutMenuKey(menu)
-  const currentRouteMatched = !!menuKey && (
-    routeKeys.includes(menuKey)
-    || currentPath === menuKey
-    || (menuKey !== '/' && currentPath.startsWith(`${menuKey}/`))
-  )
-
-  return currentRouteMatched || (menu.children || [])
-    .some(child => containsRouteContext(child, routeKeys, currentPath))
-}
-
 const findMenuByKey = (
   menus: RouteRecordRaw[],
   targetKey: string,
@@ -167,6 +151,7 @@ const isNavigationItemActive = (
 )
 
 const {
+  activePrimaryKey,
   config,
   goBack,
   headerScrolled,
@@ -201,14 +186,8 @@ const applicationConfig = computed(() => ({
 const routeContextKeys = computed(() => getBreadcrumbPaths(route))
 const currentRoutePath = computed(() => normalizeMenuKey(route.path))
 const activePrimaryMenu = computed(() => (
-  menuStore.siderMenus.find(menu => containsRouteContext(
-    menu as ProjectNavigationRoute,
-    routeContextKeys.value,
-    currentRoutePath.value,
-  ))
-))
-const activePrimaryKey = computed(() => (
-  activePrimaryMenu.value ? getLayoutMenuKey(activePrimaryMenu.value as ProjectNavigationRoute) : ''
+  // 与导航控制器共享授权树归属，避免旧页面地址的前缀抢先命中其他分组。
+  menuStore.siderMenus.find(menu => getLayoutMenuKey(menu) === activePrimaryKey.value)
 ))
 const visibleActivePrimaryMenu = computed(() => (
   applicationPrimarySourceMenus.value.find(menu => getLayoutMenuKey(menu) === activePrimaryKey.value)
