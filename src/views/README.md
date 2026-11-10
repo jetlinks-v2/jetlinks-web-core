@@ -77,6 +77,8 @@
 - 本次验证：messageCenterView.test.mjs 与 personalCenterFlows.test.mjs 共 42 项通过；3 个改动 Vue/TypeScript 文件的脚本、模板、样式与词条检查、差异空白检查通过。当前 9200 登录态已确认统一页签、默认空条件和宽屏空表无横向条。另用真实页面/表格/筛选组件及隔离的 registry/HTTP 响应完成 13 项检查：空表及长标题有数据时宽度均为 1328/1328px；切换分类、返回原分类与主动清除均不带隐含状态条件；390px 窄屏无整页横向溢出，表格内按需滚动。不执行全量 lint/typecheck/build，真实消息批量写入沿用既有边界，未在本轮操作；发布只更新运行时前端资源。
 - 未实现：现有当前用户消息查询没有可靠的标题与正文联合搜索或消息删除能力；页面不展示这些原型操作。
 
+待接入辅助逻辑：`account/center/components/StationMessage/components/NotificationRecord/components/useNotificationDetail.ts` 收拢详情加载、扩展组件就绪、确认及卸载后的迟到响应保护。现有 `ViewDialog.vue` 尚未引用此 hook，当前详情和已读行为保持原实现；接入时需验证加载失败、关闭弹窗、注册详情就绪与确认失败的边界，不能将文件入库视为功能已启用。当前完成 TypeScript 语法转译和差异检查，未执行该 hook 的行为回归、完整类型检查或构建。
+
 ### 通知设置接收方式
 
 - 类型名称：内置 provider 使用 components/data.ts 既有语言目录派生 displayName，例如 system-event 在中文显示“系统运行异常”，随界面语言切换；未知业务 provider 保留接口名称。不依赖英文文案匹配、不新增类型或额外查询，原始 name 及订阅保存数据保留。此次为名称展示修复，按用户要求直接修改，未运行页面复现、检查或构建；无需重启后端。

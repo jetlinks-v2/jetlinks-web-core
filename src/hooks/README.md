@@ -18,6 +18,12 @@
 | `useRegistryOptions` / `useRegistryVNodeMerge` | `useRegistryComponentsMerge.ts` | 是 | 合并基础配置与运行时注册项，支持节点插入/替换 |
 | `useMenuAssetPermissionEditor` | `useMenuAssetPermissionEditor.ts` | 是 | 菜单资产权限编辑器的状态和动作编排 |
 
+### 待接入的通知配置导航
+
+`useNotificationConfigNavigation.ts` 提供按实际菜单路径在新标签打开 `notice/template`、返回后刷新候选资源的辅助逻辑，尚未从 hooks 根入口导出。当前仅被规则引擎待接入的 `useSceneNotification.ts` 引用，生产页面尚未启用；不代表现有通知入口已有跨标签刷新能力。
+
+接入前需补齐 `PersonalCenter.notificationPopupBlocked` 多语言文案，并验证目标页对 `topicProvider/channelProvider` 的定位、浏览器焦点 / 可见性回传及项目路径。当前仅完成 TypeScript 语法转译和差异检查，未完成浏览器交互、完整类型检查或构建验收。
+
 `useTabSaveSuccess` 保留历史 `isSaaS` 地址分支。仅非微应用的固定项目部署，或启用项目存储且经 `isProjectRuntime()` 确认的项目入口，复用 `utils/project-runtime.ts` 生成新 Tab 地址。普通独立部署目录、云端边缘代理、租户端和微应用保持历史跳转规则；菜单参数、`sourceId` 和保存回传保持现有契约。历史依据为 `d4dd389`（修复 SaaS 可视化跳转）；后续项目上下文改为从 pathname 获取，而 cloud 项目入口不能继续只依赖 `isSaaS` 判断。
 
 项目编码为空的跳转修复：`VITE_APP_RUNTIME_SCOPE=project` 且未配置 `VITE_APP_PROJECT_CODE` 时，新标签优先使用配置编码，为空则从当前 pathname 读取项目编码，避免编辑器素材库引导丢失 `/<项目编码>/` 后进入根登录页。修改入口为 `useTabSaveSuccess.ts`，继续复用 `createProjectRuntimeHref` 的部署路径规则。组件、模型空态和图片、模板面板的已有调用共用此修复。
