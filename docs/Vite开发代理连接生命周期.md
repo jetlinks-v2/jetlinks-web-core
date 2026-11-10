@@ -53,3 +53,5 @@ Owning module 为 `runtime-ui/jetlinks-web-core`，修复边界为开发服务�
 - 实际运行实例：页面、`/@vite/client`、代理 `/api/system/config/front` 和后端直连均返回 200，采样耗时约 11–28ms。Codex 内置浏览器打开 `http://127.0.0.1:9200/#/overview`，概览页、资源统计和菜单正常显示。
 
 剩余风险：尚未经历与原故障相同持续时间的热更新与构建，也未捕获原始故障现场；当前验证证明已复现的代理泄漏和响应挂起分支被修复，不能排除其他独立的构建或后端阻塞原因。
+
+实现提交：[61614422f562d9b31c4c5cdbd25058ed2affb938](https://github.com/jetlinks-v2/jetlinks-web-core/commit/61614422f562d9b31c4c5cdbd25058ed2affb938)。Pull Request：[jetlinks-web-core #228](https://github.com/jetlinks-v2/jetlinks-web-core/pull/228)，目标分支 `2.20`。
