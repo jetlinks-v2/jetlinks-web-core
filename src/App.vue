@@ -15,7 +15,8 @@ import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import enUs from 'ant-design-vue/es/locale/en_US'
 import jaJP from 'ant-design-vue/es/locale/ja_JP'
-import { theme as antdTheme } from 'ant-design-vue'
+import { Modal, theme as antdTheme } from 'ant-design-vue'
+import { useI18n } from 'vue-i18n'
 import componentsZhCN from '@jetlinks-web/components/es/locale/zh-CN'
 import componentsEnUS from '@jetlinks-web/components/es/locale/en-US'
 import componentsJa from './locales/componentsJa'
@@ -43,6 +44,7 @@ import CloudEmpty from '@jetlinks-web-core/components/CloudEmpty/index.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const systemStore = useSystemStore()
 
@@ -109,14 +111,35 @@ if (import.meta.env.DEV) {
   localStorage.setItem(LOCAL_BASE_API, getBaseApi())
 }
 
-window.addEventListener('vite:preloadError', (event: Event) => {
+let resourceLoadDialog: ReturnType<typeof Modal.warning> | undefined
+
+// 只提示资源加载失败，保留原异常传播，让路由错误处理正常结束加载状态。
+const handleResourceLoadError = (event: Event) => {
   const error = (event as Event & { payload?: unknown }).payload
   const message = error instanceof Error ? error.message : String(error || '')
-  const isResourceLoadError = /Failed to fetch dynamically imported module|Importing a module script failed|Unable to preload CSS|Loading CSS chunk/i.test(message)
+  const isResourceLoadError = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Unable to preload CSS|Loading CSS chunk/i.test(message)
 
-  if (isResourceLoadError) {
-    console.error('资源版本不对，请清除浏览器缓存')
-  }
+  // 一次导航可能同时加载多个资源，避免失败提示叠加。
+  if (!isResourceLoadError || resourceLoadDialog) return
+
+  resourceLoadDialog = Modal.warning({
+    title: t('app.resourceLoadError.title'),
+    content: h('div', { style: { whiteSpace: 'pre-line' } }, t('app.resourceLoadError.content')),
+    okText: t('app.resourceLoadError.refresh'),
+    centered: true,
+    closable: false,
+    maskClosable: false,
+    keyboard: false,
+    onOk: () => window.location.reload(),
+    afterClose: () => { resourceLoadDialog = undefined }
+  })
+}
+
+window.addEventListener('vite:preloadError', handleResourceLoadError)
+
+onUnmounted(() => {
+  window.removeEventListener('vite:preloadError', handleResourceLoadError)
+  resourceLoadDialog?.destroy()
 })
 
 const parseHashQuery = (): Record<string, string> => {

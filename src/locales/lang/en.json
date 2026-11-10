@@ -1,4 +1,7 @@
 {
+  "app.resourceLoadError.title": "Please refresh the page",
+  "app.resourceLoadError.content": "Some page resources could not be loaded. The system may have been updated. Please refresh the page to continue.\nNote: Refreshing will discard any unsaved changes!",
+  "app.resourceLoadError.refresh": "Refresh page",
   "runtimeDiagnostics.bean.QpsSnapshot": "QPS window snapshot",
   "runtimeDiagnostics.mbeanSummary.qpsWaiting": "Waiting for first window",
   "runtimeDiagnostics.mbeanSummary.qpsReady": "Ready",

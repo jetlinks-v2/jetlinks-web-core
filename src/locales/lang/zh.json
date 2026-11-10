@@ -1,4 +1,7 @@
 {
+  "app.resourceLoadError.title": "请刷新页面",
+  "app.resourceLoadError.content": "页面资源加载失败，可能是系统已更新。请刷新页面后继续操作。\n注意：刷新会清除尚未保存的内容！",
+  "app.resourceLoadError.refresh": "刷新页面",
   "runtimeDiagnostics.bean.QpsSnapshot": "QPS 窗口快照",
   "runtimeDiagnostics.mbeanSummary.qpsWaiting": "等待首个窗口",
   "runtimeDiagnostics.mbeanSummary.qpsReady": "已就绪",

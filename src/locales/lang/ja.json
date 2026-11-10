@@ -1,4 +1,7 @@
 {
+  "app.resourceLoadError.title": "ページを再読み込みしてください",
+  "app.resourceLoadError.content": "ページの読み込みに失敗しました。システムが更新された可能性があります。続行するにはページを再読み込みしてください。\n注意：再読み込みすると、保存されていない内容は失われます！",
+  "app.resourceLoadError.refresh": "再読み込み",
   "PersonalToken.index.loadFailed": "トークンの読み込みに失敗しました。もう一度お試しください",
   "PersonalToken.PermissionList.loadFailed": "権限の読み込みに失敗しました。もう一度お試しください",
   "PersonalToken.TokenDialog.refreshDescription": "保存すると新しいトークンが生成され、元のトークンは無効になります。API呼び出しには新しいトークンを使用してください。",

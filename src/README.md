@@ -29,6 +29,12 @@
 
 历史交付入口：退出菜单提交 `aebcab1`，构建内存配置提交 `1def30c`；PR https://github.com/jetlinks-v2/jetlinks-web-core/pull/164。
 
+## 页面资源加载失败
+
+`App.vue` 的 `vite:preloadError` 监听识别动态 JS/CSS 加载失败，复用 Ant Design Vue 警告弹窗；同一时间仅展示一个弹窗，只提供“刷新页面”按钮，点击后重新加载当前地址。关闭图标、遮罩关闭和 Esc 关闭均禁用。文案位于 `locales/lang/zh.json`、`en.json`、`ja.json`，说明可能发生系统更新，并单独换行显示“注意：刷新会清除尚未保存的内容！”；原始异常继续传播，供路由错误处理结束加载状态。组件卸载时移除监听并销毁弹窗。该能力只调整运营端 core 的失败反馈，不包含版本轮询、自动刷新或部署配置变更，也不能覆盖入口脚本自身尚未加载成功的情况。
+
+验证：Vue SFC 编译、新增错误处理的定向严格类型检查、三种语言资源、样式门禁与差异空白检查通过；在 Chromium 中使用实际错误处理代码、Vue、vue-i18n 和 Ant Design Vue，验证单按钮、并发错误去重、非资源错误忽略、关闭限制、真实整页刷新与卸载清理通过。生产构建在加载 Vite 配置时因当前环境缺少 `vite-plugin-mkcert` 中止，尚未验证完整应用构建及线上发布后的真实资源失效场景。当前无独立 lint 脚本；补齐依赖后，在 `ui/` 重跑 `pnpm build`，并在生产预览中模拟旧 JS/CSS 404 验证完整路由恢复。隔离验证脚本、截图及构建日志位于 `/tmp/jetlinks-resource-dialog.7t5BBH/`。
+
 ## 顶部用户菜单
 
 运行时 `layout/components/LayoutSidebarUser.vue` 使用 264px（16.5rem）紧凑纵向下拉：顶部以头像配合姓名、内联角色徽章与账号两行现代身份卡片呈现，首个角色作为胶囊标签紧随姓名同行展示，多角色以 `+N` 胶囊结合气泡 Tooltip 展开全部角色清单，账号弱化为副文本并带完整 title 提示；下方依次提供个人中心、消息中心、个人令牌（带对应线性图标），退出登录独立分隔并提供悬浮警示色。复用 Ant Design Vue 下拉、标签、按钮和角标与主题 token，保留 `sidebarUserMenu` 扩展位，长账号与角色名称单行省略。
