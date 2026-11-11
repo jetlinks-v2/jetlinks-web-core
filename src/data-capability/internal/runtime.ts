@@ -43,6 +43,7 @@ import { DataSourceRunner } from './source-runner'
 export class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   private disposedState = false
   private readonly dynamicSources = new Map<string, DataSourceDefinition>()
+  private readonly dynamicOperations = new Map<string, OperationDefinition>()
   private readonly bindingResolver: BindingResolver
   private readonly parameters: Record<string, unknown>
   private readonly contexts = new Map<string, unknown>()
@@ -70,11 +71,16 @@ export class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   async ensureReady(capabilityId: string, signal?: AbortSignal): Promise<void> {
     const context = this.toRuntimeContext(signal)
     await this.registry.ensureReady(context, capabilityId)
-    const source = await this.registry.resolveDynamicSource(capabilityId, context)
+    const [source, operation] = await Promise.all([
+      this.registry.resolveDynamicSource(capabilityId, context),
+      this.registry.resolveDynamicOperation(capabilityId, context),
+    ])
     this.assertActive()
     if (signal?.aborted) return
     if (source) this.dynamicSources.set(capabilityId, source)
     else this.dynamicSources.delete(capabilityId)
+    if (operation) this.dynamicOperations.set(capabilityId, operation)
+    else this.dynamicOperations.delete(capabilityId)
   }
 
   connect<T = unknown>(request: DataConnectionRequest): DataConnection<T> {
@@ -150,6 +156,7 @@ export class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
     await this.sourceRunner.dispose()
     await this.operationRunner.dispose()
     this.dynamicSources.clear()
+    this.dynamicOperations.clear()
     this.contexts.clear()
     this.outputs.clear()
   }
@@ -256,7 +263,7 @@ export class DefaultDataCapabilityRuntime implements DataCapabilityRuntime {
   }
 
   requireOperation(ref: { capabilityId: string; version: number }): OperationDefinition {
-    const definition = this.registry.operations.get(ref.capabilityId)
+    const definition = this.dynamicOperations.get(ref.capabilityId) || this.registry.operations.get(ref.capabilityId)
     if (!definition) {
       throw createCapabilityError('operation.not_found', `Operation ${ref.capabilityId} is not registered`, {
         capabilityId: ref.capabilityId,

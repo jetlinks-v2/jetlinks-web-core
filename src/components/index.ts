@@ -219,7 +219,7 @@ export {
 export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlacement } from './TableActions'
 export { default as ObjectTypeIcon } from './IconValue/ObjectTypeIcon.vue'
 export { getObjectTypeIcon, objectTypeIcons } from './IconValue/objectTypeIcons'
-export { I18nTextField, I18nTextDialog, I18nInputTrigger, i18nText } from './I18n'
+export { I18nTextField, I18nTextDialog, I18nInputTrigger, I18nTextEditable, i18nText } from './I18n'
 export type { I18nMessages, I18nTextMessages, I18nTextFieldProps, I18nTextDialogProps } from './I18n'
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
 export { RuntimeMetricsPanel, RuntimeMBeanOverview, ThreadViewer, JvmDiagnosticPanel, FlameGraphViewer, MBeanBrowser, TraceViewer, LogViewer, registerMBeanRenderer, createFlameGraphHtml, nanosText, nanosBetween, traceRows } from './RuntimeDiagnostics'
@@ -231,6 +231,9 @@ export { DeviceSessionViewer } from './RuntimeDiagnostics'
 export type { DeviceSessionInfo, DeviceSessionConnection, DeviceSessionDeviceOption } from './RuntimeDiagnostics'
 export type { MBeanDescriptor, MBeanInvocation, MBeanRenderer, MBeanRendererContext, MBeanInvocationOutcome, MBeanQueryId, MBeanQuerySnapshot } from './RuntimeDiagnostics'
 export type { SvgIconType } from './SvgIcon/icons'
+export { RelationSelector } from './RelationSelector'
+export type { RelationSelectorOptions, RelationSelectorOrigin, ObjectSpec, VariableObjectSpec, RelationSpec } from './RelationSelector'
+export * from './ObjectOverview'
 export { createAssetOwnershipField, toAssetOwnershipFilterTerm, resolveAssetDimensionFilter, onAssetDimensionFiltersChange, AssetDimensionPicker } from './AssetOwnershipCondition'
 export type {
     AssetOwnershipOptions, AssetOwnershipTerm, AssetOwnershipSelection, AssetOwnershipDisplay,

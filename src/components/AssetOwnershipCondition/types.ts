@@ -32,6 +32,8 @@ export interface AssetDimensionSelector {
   /** 自定义编辑器接收 value、options、config（封装后的 optionPanel）；通过 update:value、submit、options-change 输出。 */
   component?: Component
   componentProps?: Record<string, unknown>
+  /** 支持 option-extra({ option })、selectedOnly、reviewValues、focusValue、view-change 及 options-visible(ids)；仅报告当前有界结果供宿主读取关联状态。 */
+  supportsOptionExtra?: boolean
 }
 
 /** 以 dimensionType 为键注册到模块的 assetDimensionFilters 资源。 */

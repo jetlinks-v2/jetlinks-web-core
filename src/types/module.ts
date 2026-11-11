@@ -6,10 +6,11 @@ import type { AgentConversationProviderManifest } from '../layout/components/AiC
 import type { AssetDimensionFilter } from '../components/AssetOwnershipCondition/types'
 import type { ObjectPresentation } from './object-presentation'
 import type { AssetRelationBinding } from '../utils/asset-relation-binding'
+import type { ObjectRelationMaintainer } from './object-relation'
 
 export type ModuleResourceRecord<T = unknown> = Record<string, T>
 
-export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders' | 'agentConversationProviders' | 'assetDimensionFilters' | 'assetRelationBindings'
+export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders' | 'agentConversationProviders' | 'assetDimensionFilters' | 'assetRelationBindings' | 'objectRelationMaintainers'
 export type ModuleResourceType = KnownModuleResourceType | (string & {})
 
 export interface ModuleResource {
@@ -25,6 +26,7 @@ export interface ModuleResource {
   assetDimensionFilters?: ModuleResourceRecord<AssetDimensionFilter>
   assetRelationBindings?: ModuleResourceRecord<AssetRelationBinding[]>
   objectPresentations?: ModuleResourceRecord<ObjectPresentation>
+  objectRelationMaintainers?: ModuleResourceRecord<ObjectRelationMaintainer>
   [resourceType: string]: ModuleResourceRecord | string | undefined
 }
 

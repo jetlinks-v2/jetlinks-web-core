@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { ObjectMemberPresentation } from '../object-capability/types'
 
 /** An owning module supplies the complete authorized hierarchy, never inferred from graph relations. */
 export interface ObjectDirectoryNode {
@@ -41,6 +42,8 @@ export interface ObjectPresentationField {
 export interface ObjectPresentation {
   typeId: string
   fields: ObjectPresentationField[]
+  /** Optional member-specific visuals; loading and execution remain with the host runtime. */
+  members?: ObjectMemberPresentation[]
   /** Query configuration/formatting belongs to its owner; the host retains execution and persistence. */
   queries?: Record<
     string,

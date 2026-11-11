@@ -3,6 +3,7 @@
   "private": true,
   "version": "2.12.0",
   "scripts": {
+    "test:object-overview": "node --test tests/objectOverview.test.mjs",
     "test:asset-ownership": "node --test tests/assetOwnershipCondition.test.mjs",
     "dev": "vite",
     "dev:force": "vite --force",
