@@ -2,6 +2,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
+import { useBasicLayoutVariant } from '@jetlinks-web-core/layout/hooks/useBasicLayoutVariant'
 import { getPasswordChangeSetting_api } from '@jetlinks-web-core/api/account/center'
 import type { AccountCardProfile } from '../../types'
 import { useSsoBindings, type SsoBinding } from '../BindThirdAccount/useSsoBindings'
@@ -24,7 +25,12 @@ export function useLoginMethods(profile: () => AccountCardProfile) {
   const { t } = useI18n()
   const sso = useSsoBindings()
   const menu = useMenuStore()
-  const canManageSso = computed(() => menu.hasMenu('system/ThirdPartyLogin'))
+  const layoutVariant = useBasicLayoutVariant()
+  // 运营端与项目/应用端分别维护登录入口，文案和权限跳转使用同一个菜单配置。
+  const ssoSettings = computed(() => layoutVariant.value === 'tenant'
+    ? { code: 'system/Apply', label: t('PersonalCenter.ssoSettingsNameOperations') }
+    : { code: 'system/ThirdPartyLogin', label: t('PersonalCenter.ssoSettingsName') })
+  const canManageSso = computed(() => menu.hasMenu(ssoSettings.value.code))
   const passwordTime = ref<number>()
   let disposed = false
   const passwordAgeDays = computed(() => passwordTime.value
@@ -56,7 +62,7 @@ export function useLoginMethods(profile: () => AccountCardProfile) {
 
   /** 菜单由当前用户权限生成；无权访问时不提供配置跳转。 */
   function openSsoSettings() {
-    if (canManageSso.value) return menu.jumpPage('system/ThirdPartyLogin')
+    if (canManageSso.value) return menu.jumpPage(ssoSettings.value.code)
   }
   const entries = computed<LoginMethodEntry[]>(() => {
     const contactEntries: LoginMethodEntry[] = (['mobile', 'email'] as const).map(kind => {
@@ -100,5 +106,5 @@ export function useLoginMethods(profile: () => AccountCardProfile) {
   })
   onMounted(loadPasswordTime)
   onUnmounted(() => { disposed = true })
-  return { ...sso, entries, canManageSso, openSsoSettings }
+  return { ...sso, entries, ssoSettings, canManageSso, openSsoSettings }
 }
