@@ -1,106 +1,131 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 import Unsubscribe from './components/Unsubscribe.vue'
-import { useNotificationSettings, type NotificationProvider } from './useNotificationSettings'
+import { useNotificationSettings } from './useNotificationSettings'
 import type { AccountEditTarget } from '../../types'
 
 defineProps<{ canEditProfile?: boolean }>()
 const emit = defineEmits<{ (event: 'edit-contact', target: AccountEditTarget): void }>()
-const { t } = useI18n()
+const channelTooltipStyle = { maxWidth: 'min(360px, calc(100vw - 24px))' }
 const {
-  providers, channelTypes, loading, failed, saving, pendingBinding, recipientsFailed, recipientsLoading,
-  profile, load, loadRecipients, toggle, bindingComplete, receiverSummary, channelUnavailable, unavailableType, channelChecked,
-  canBindReceiver, beginReceiverBinding,
+  providers, loading, failed, saving, pendingBinding, recipientsFailed, recipientsLoading,
+  load, loadRecipients, bindingComplete, receiverSummary, receiverStatus, unavailableType,
+  beginReceiverBinding, channelHeaderAction, openChannelSettings, displayedTypes, tableColumns, matrixRowNames, channelLabel, channelIcon, matrixCells, toggleMatrixChannel,
 } = useNotificationSettings()
-const channelsFor = (row: NotificationProvider, type: string) => row.channels.filter(channel => channel.channelProvider === type)
-const channelNames: Record<string, string> = {
-  'notifier-dingTalk': 'PersonalCenter.dingtalk', 'notifier-weixin': 'PersonalCenter.notificationWechat',
-  'notifier-email': 'PersonalCenter.notificationEmail', 'notifier-voice': 'PersonalCenter.voice',
-  'notifier-sms': 'PersonalCenter.sms', 'notifier-webhook': 'PersonalCenter.notificationWebhook',
-}
-const columns = computed(() => [
-  { key: 'topic', title: t('NotificationRecord.index.803553-4'), width: 240 },
-  ...channelTypes.value.map(type => ({ key: type, title: t(channelNames[type]), width: 160 })),
-])
 </script>
 
 <template>
   <div class="notification-settings">
-    <p>{{ $t('PersonalCenter.deliveryHint') }}</p>
     <a-alert v-if="failed" type="error" show-icon :message="$t('PersonalCenter.notificationFailed')">
       <template #action><a-button type="link" :disabled="!!saving" @click="load">{{ $t('AccountCenter.retry') }}</a-button></template>
     </a-alert>
     <a-alert v-if="recipientsFailed" type="warning" show-icon :message="$t('PersonalCenter.notificationRecipientsFailed')">
       <template #action><a-button type="link" :loading="recipientsLoading" @click="loadRecipients">{{ $t('AccountCenter.retry') }}</a-button></template>
     </a-alert>
-    <a-table :columns="columns" :data-source="providers" :loading="loading" :pagination="false" size="middle" row-key="provider" table-layout="fixed" :scroll="{ x: 240 + channelTypes.length * 160 }">
-      <template #emptyText>
-        <CloudEmpty :description="$t('PersonalCenter.notificationNoEnabledTypes')">
-          <a-button :loading="loading" @click="load">{{ $t('AccountCenter.retry') }}</a-button>
-        </CloudEmpty>
-      </template>
-      <template #headerCell="{ column }">
-        <span>{{ column.title }}</span>
-        <div v-if="column.key !== 'topic' && receiverSummary(column.key)" class="notification-settings__receiver">
-          <j-ellipsis>{{ receiverSummary(column.key) }}</j-ellipsis>
-        </div>
-        <a-button
-          v-if="canEditProfile && column.key === 'notifier-email' && !profile.email"
-          type="link" size="small" class="notification-settings__link"
-          @click="emit('edit-contact', 'email-section')"
-        >{{ $t('PersonalCenter.notificationFillContact') }}</a-button>
-        <a-button
-          v-else-if="canEditProfile && ['notifier-sms', 'notifier-voice'].includes(column.key) && !profile.telephone"
-          type="link" size="small" class="notification-settings__link"
-          @click="emit('edit-contact', 'phone-section')"
-        >{{ $t('PersonalCenter.notificationFillContact') }}</a-button>
-        <a-button
-          v-else-if="canBindReceiver(column.key) && !recipientsFailed"
-          type="link" size="small" class="notification-settings__link"
-          :disabled="!!saving || recipientsLoading"
-          @click="beginReceiverBinding(column.key)"
-        >{{ $t('PersonalCenter.notificationBindReceiver') }}</a-button>
-      </template>
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'topic'">
-          <span class="notification-settings__name">{{ record.displayName }}</span>
-          <div v-if="record.description" class="notification-settings__description">{{ record.description }}</div>
-        </template>
-        <template v-else>
-          <div v-if="channelsFor(record, column.key).length" class="notification-settings__channels">
-            <div v-for="channel in channelsFor(record, column.key)" :key="channel.id">
-              <a-tooltip :title="channelUnavailable(channel) || channel.name">
-                <span>
-                  <a-switch
+
+    <p class="notification-settings__intro-text">{{ $t('PersonalCenter.deliveryHint') }}</p>
+
+    <div class="notification-settings__card">
+      <a-spin :spinning="loading">
+        <!-- 公共表格会缓存插槽名；异步渠道改变列结构时重新建立动态列插槽。 -->
+        <j-pro-table
+          :key="displayedTypes.join('|')"
+          mode="TABLE"
+          row-key="provider"
+          :columns="tableColumns"
+          :data-source="providers"
+          :no-pagination="true"
+          :body-style="{ padding: 0 }"
+          :scroll="{ x: 220 + displayedTypes.length * 130, y: false }"
+          class="notification-settings__table"
+        >
+          <template #headerCell="{ column }">
+            <span v-if="column.key === 'topic'" class="notification-settings__topic-title">{{ $t('PersonalCenter.messageType') }}</span>
+            <a-tooltip v-else :title="column.key === 'inside-mail' ? undefined : receiverSummary(column.key)" :overlay-style="channelTooltipStyle">
+              <div class="notification-settings__column-name">
+                <span class="notification-settings__channel-title">
+                  <span class="notification-settings__channel-icon" aria-hidden="true"><AIcon :type="channelIcon(column.key)" /></span>
+                  <span>{{ channelLabel(column.key) }}</span>
+                </span>
+                <div class="notification-settings__channel-meta">
+                  <a-button
+                    v-if="channelHeaderAction(column.key) === 'configure'"
+                    type="link"
                     size="small"
-                    :checked="channelChecked(record, channel)"
-                    :loading="saving === record.provider + ':' + channel.id"
-                    :disabled="!!saving || !!channelUnavailable(channel)"
-                    :aria-label="record.displayName + ' · ' + column.title"
-                    @change="toggle(record, channel, !!$event)"
+                    class="notification-settings__channel-action"
+                    @click.stop="openChannelSettings(column.key)"
+                  >{{ $t('PersonalCenter.goConfigure') }}</a-button>
+                  <a-button
+                    v-else-if="canEditProfile && channelHeaderAction(column.key) === 'email'"
+                    type="link"
+                    size="small"
+                    class="notification-settings__channel-action"
+                    @click.stop="emit('edit-contact', 'email-section')"
+                  >{{ $t('PersonalCenter.notificationFillContact') }}</a-button>
+                  <a-button
+                    v-else-if="canEditProfile && channelHeaderAction(column.key) === 'phone'"
+                    type="link"
+                    size="small"
+                    class="notification-settings__channel-action"
+                    @click.stop="emit('edit-contact', 'phone-section')"
+                  >{{ $t('PersonalCenter.notificationFillContact') }}</a-button>
+                  <a-button
+                    v-else-if="channelHeaderAction(column.key) === 'bind'"
+                    type="link"
+                    size="small"
+                    class="notification-settings__channel-action"
+                    :disabled="!!saving || recipientsLoading"
+                    @click.stop="beginReceiverBinding(column.key)"
+                  >{{ $t('PersonalCenter.notificationBindReceiver') }}</a-button>
+                  <span v-else class="notification-settings__status-ready">
+                    <span class="notification-settings__status-dot" />
+                    {{ receiverStatus(column.key) }}
+                  </span>
+                </div>
+              </div>
+            </a-tooltip>
+          </template>
+          <template #topic="record">
+            <span class="notification-settings__topic-name">{{ matrixRowNames[record.provider] }}</span>
+          </template>
+          <template v-for="type in displayedTypes" :key="type" #[type]="record">
+            <div class="notification-settings__cell">
+              <div v-for="cell in matrixCells(record.provider, type)" :key="cell.channel.id" class="notification-settings__checkbox-wrapper">
+                <a-tooltip :title="cell.unavailable || cell.channel.name" :overlay-style="channelTooltipStyle">
+                  <span>
+                    <a-spin size="small" :spinning="cell.saving">
+                      <a-checkbox
+                        :checked="cell.checked"
+                        :disabled="!!saving || !!cell.unavailable"
+                        :aria-label="matrixRowNames[record.provider] + ' · ' + channelLabel(type)"
+                        @change="toggleMatrixChannel(record.provider, cell.channel, !!$event.target.checked)"
+                      />
+                    </a-spin>
+                  </span>
+                </a-tooltip>
+              </div>
+              <a-tooltip v-if="!matrixCells(record.provider, type).length" :title="unavailableType(type)" :overlay-style="channelTooltipStyle">
+                <span class="notification-settings__checkbox-wrapper">
+                  <a-checkbox
+                    disabled
+                    :checked="false"
+                    :aria-label="matrixRowNames[record.provider] + ' · ' + channelLabel(type)"
                   />
                 </span>
               </a-tooltip>
-              <div v-if="channelsFor(record, column.key).length > 1" class="notification-settings__description">{{ channel.name }}</div>
             </div>
-          </div>
-          <a-tooltip v-else :title="unavailableType(column.key)">
-            <span><a-switch size="small" disabled :checked="false" :aria-label="record.displayName + ' · ' + column.title" /></span>
-          </a-tooltip>
-        </template>
-      </template>
-    </a-table>
+          </template>
+          <template #emptyText><CloudEmpty v-if="!failed" :image-style="{ height: '64px' }" :description="$t('PersonalCenter.notificationNoEnabledTypes')"><a-button :loading="loading" @click="load">{{ $t('AccountCenter.retry') }}</a-button></CloudEmpty></template>
+        </j-pro-table>
+      </a-spin>
+
+      <div class="notification-settings__card-footer">
+        <AIcon type="InfoCircleOutlined" class="notification-settings__footer-icon" />
+        <span class="notification-settings__footer-text">{{ $t('PersonalCenter.channelUnavailableNote') }}</span>
+      </div>
+    </div>
+
     <Unsubscribe v-if="pendingBinding" :data="pendingBinding.provider" :current="pendingBinding.channel" @close="pendingBinding = undefined" @save="bindingComplete" />
   </div>
 </template>
 
-<style scoped>
-.notification-settings { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
-.notification-settings > p { color: var(--text-color-secondary); margin: 0; font-size: var(--fs-13); }
-.notification-settings__name { font-weight: 500; }
-.notification-settings__description, .notification-settings__receiver { margin-top: var(--space-1); color: var(--text-color-secondary); font-size: var(--fs-12); font-weight: 400; }
-.notification-settings__receiver { max-width: 9rem; }
-.notification-settings__channels { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
-.notification-settings__link { height: auto; padding: 0; }
-</style>
+<style scoped lang="less" src="./subscribeMatrix.less"></style>

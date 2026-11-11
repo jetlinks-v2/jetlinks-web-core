@@ -42,8 +42,8 @@ export const useContactInfo = () => {
   }))
 
   /** 独立校验和保存当前字段，串行提交避免完整资料快照相互覆盖。 */
-  const saveContact = async (field: ContactField): Promise<void> => {
-    if (savingContact.value || !contactChanged.value[field]) return
+  const saveContact = async (field: ContactField): Promise<boolean> => {
+    if (savingContact.value || !contactChanged.value[field]) return false
     savingContact.value = field
     try {
       contactForm[field] = contactForm[field].trim()
@@ -51,19 +51,25 @@ export const useContactInfo = () => {
         await validate([field])
       } catch {
         // 校验错误由对应表单项展示，不发起保存请求。
-        return
+        return false
       }
+      const previous = profile.value[field]
       const response = await updateMeInfo_api({ ...user.userInfo, [field]: contactForm[field] })
-      if (response.status === 200 || response.success) {
+      if (response.success !== false && (response.status === 200 || response.success === true)) {
         await user.getUserInfo()
-        onlyMessage(t('AccountInfo.saveSuccess'), 'success')
+        const messageKey = !contactForm[field] ? 'AccountInfo.saveSuccess' : field === 'telephone'
+          ? previous ? 'PersonalCenter.prototype.phoneChanged' : 'PersonalCenter.prototype.phoneBound'
+          : previous ? 'PersonalCenter.prototype.emailChanged' : 'PersonalCenter.prototype.emailBound'
+        onlyMessage(t(messageKey), 'success')
+        return true
       }
+      return false
     } catch {
-
+      return false
     } finally {
       savingContact.value = undefined
     }
   }
 
-  return { contactFields, contactForm, contactChanged, savingContact, validateInfos, saveContact }
+  return { contactFields, contactForm, contactChanged, savingContact, validateInfos, saveContact, profile }
 }

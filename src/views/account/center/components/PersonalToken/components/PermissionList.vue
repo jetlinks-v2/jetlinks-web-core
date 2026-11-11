@@ -12,7 +12,6 @@
       </a-radio-button>
     </a-radio-group>
     <p v-if="custom && initialized && !selectedCount" class="permission-selection-hint">{{ $t('PersonalToken.permissionMode.selectActions') }}</p>
-    <p v-if="!showPermissionRows && initialized" class="permission-count">{{ $t('PersonalToken.permissions.scopeCount', { count: selectedCount }) }}</p>
     <div v-if="showPermissionRows" class="permission-toolbar">
       <a-input-search
         v-model:value="searchKeyword" allow-clear :disabled="loading || busy"

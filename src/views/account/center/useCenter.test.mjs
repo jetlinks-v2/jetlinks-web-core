@@ -101,15 +101,15 @@ const mountCenter = async (t, options = {}) => {
   return { center, context, user, calls, unmount }
 }
 
-test('默认基本信息，六个功能入口独立切换', async t => {
+test('默认基本信息，四个功能入口独立切换', async t => {
   const { center, user } = await mountCenter(t)
   assert.equal(center.activeKey.value, 'BasicInfo')
   assert.equal(user.tabKey, 'BasicInfo')
   assert.equal(center.accountInfoVisible.value, false)
-  assert.deepEqual(center.profile.value.items.map(item => item.key), ['id', 'username', 'roles', 'orgs', 'mobile', 'email'])
-  assert.deepEqual(center.segments.value.map(item => item.value), ['BasicInfo', 'Security', 'Sso', 'PersonalToken', 'StationMessage', 'Subscribe'])
+  assert.deepEqual(center.profile.value.items.map(item => item.key), ['id', 'username', 'roles', 'orgs', 'mobile', 'email', 'positions', 'createTime'])
+  assert.deepEqual(center.segments.value.map(item => item.value), ['BasicInfo', 'PersonalToken', 'StationMessage', 'Subscribe'])
   assert.deepEqual(center.navigationGroups.value.map(group => ({ key: group.key, items: group.items.map(item => item.value) })), [
-    { key: 'account', items: ['BasicInfo', 'Security', 'Sso', 'PersonalToken'] },
+    { key: 'account', items: ['BasicInfo', 'PersonalToken'] },
     { key: 'messages', items: ['StationMessage', 'Subscribe'] },
   ])
   center.selectContent('StationMessage')
@@ -121,6 +121,28 @@ test('默认基本信息，六个功能入口独立切换', async t => {
   center.selectContent('unknown')
   await flush()
   assert.equal(center.activeKey.value, 'BasicInfo')
+})
+
+test('角色、部门和职位空值使用原型中的具体称谓', async t => {
+  const { center, user } = await mountCenter(t)
+  user.userInfo.roleList = []
+  user.userInfo.orgList = []
+  user.userInfo.positions = []
+  const fields = Object.fromEntries(center.profile.value.items.map(item => [item.key, item.value]))
+  assert.equal(fields.roles, 'zh:PersonalCenter.unassignedRole')
+  assert.equal(fields.orgs, 'zh:PersonalCenter.unassignedDepartment')
+  assert.equal(fields.positions, 'zh:PersonalCenter.unassignedPosition')
+  assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), ['roles', 'orgs', 'positions'])
+  user.userInfo.roleList = [{ name: '管理员' }]
+  assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), ['orgs', 'positions'])
+  user.userInfo.orgList = [{ name: '研发' }]
+  assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), ['positions'])
+  user.userInfo.positions = [{ name: '值班员' }]
+  assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), [])
+  user.userInfo.roleList = [{ name: 'zh:PersonalCenter.unassignedRole' }]
+  assert.equal(center.profile.value.items.find(item => item.key === 'roles').unassigned, false)
+  user.userInfo.orgList = [{ name: '   ' }, null]
+  assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), ['orgs'])
 })
 
 test('路由指定订阅页且慢速用户加载完成后仍保持手动选择', async t => {
@@ -264,10 +286,10 @@ test('社区版保持原账户能力边界，文案跟随语言切换', async t 
 
 test('URL 页签优先并支持刷新恢复，旧入口重复导航会覆盖手动选择', async t => {
   const { center, context } = await mountCenter(t, { query: { tab: 'Security' }, params: { tabKey: 'PersonalToken' } })
-  assert.equal(center.activeKey.value, 'Security')
+  assert.equal(center.activeKey.value, 'BasicInfo')
   center.selectContent('Sso')
   await flush()
-  assert.equal(context.route.query.tab, 'Sso')
+  assert.equal(context.route.query.tab, 'BasicInfo')
   context.params.value = { tabKey: 'PersonalToken' }
   await flush()
   assert.equal(center.activeKey.value, 'PersonalToken')
@@ -304,4 +326,35 @@ test('基本信息单点绑定摘要兼容接口直接返回数组', async t => 
     { id: 'direct', name: '直接返回', provider: 'oauth', bound: true, features: [] },
   ] })
   assert.deepEqual(center.profile.value.thirdAccounts.map(item => item.key), ['direct'])
+})
+
+test('旧安全与单点登录 URL 收敛基本信息，验证身份不会被资料联系方式冒充', async t => {
+  const { center, context } = await mountCenter(t)
+  assert.equal(center.profile.value.contacts.mobile.verified, true)
+  assert.equal(center.profile.value.contacts.email.verified, true)
+  assert.equal(center.profile.value.contacts.mobile.notificationSeparate, true)
+  assert.equal(center.profile.value.contacts.mobile.notificationValue, '138****9999')
+  assert.equal(center.profile.value.contacts.email.notificationSeparate, true)
+  assert.equal(center.profile.value.contacts.email.notificationValue, 'fallback@example.test')
+  center.selectContent('PersonalToken')
+  context.route.query = { tab: 'Sso' }
+  await flush()
+  assert.equal(center.activeKey.value, 'BasicInfo')
+  assert.equal(context.route.query.tab, 'BasicInfo')
+  const fallback = await mountCenter(t, { identitySupported: false })
+  assert.equal(fallback.center.profile.value.contacts.mobile.value, '138****9999')
+  assert.equal(fallback.center.profile.value.contacts.mobile.verified, false)
+  assert.equal(fallback.center.profile.value.contacts.email.verified, false)
+})
+
+test('只有登录身份与通知资料不一致时才提示单独的通知接收地址', async t => {
+  const { center, user } = await mountCenter(t, { identitiesRequest: () => ({ result: [
+    { provider: 'mobile', identity: '13800009999', isPrimary: true },
+    { provider: 'email', identity: 'fallback@example.test', isPrimary: true },
+  ] }) })
+  assert.equal(center.profile.value.contacts.mobile.notificationSeparate, false)
+  assert.equal(center.profile.value.contacts.email.notificationSeparate, false)
+  user.userInfo.telephone = ''
+  assert.equal(center.profile.value.contacts.mobile.notificationSeparate, true)
+  assert.equal(center.profile.value.contacts.mobile.notificationValue, '')
 })

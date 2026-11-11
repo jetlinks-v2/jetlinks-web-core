@@ -10,7 +10,9 @@ import { createRenderer, h, nextTick, reactive, ref } from 'vue'
 const require = createRequire(import.meta.url)
 const directory = fileURLToPath(new URL('.', import.meta.url))
 const source = [
-  "export {useSecuritySettings} from './components/useSecuritySettings'",
+  "export {useLoginMethods} from './components/LoginMethods/useLoginMethods'",
+  "export {usePasswordValidation} from './components/EditPassword/usePasswordValidation'",
+  "export {usePersonalToken} from './components/PersonalToken/usePersonalToken'",
   "export {useSsoBindings} from './components/BindThirdAccount/useSsoBindings'",
   "export {useNotificationSettings} from './components/Subscribe/useNotificationSettings'",
   "export {useIdentityBinding} from './components/ContactDialog/useIdentityBinding'",
@@ -18,20 +20,27 @@ const source = [
   "export {useStationMessage} from './components/StationMessage/useStationMessage'",
   "export {useNotificationRecords} from './components/StationMessage/components/NotificationRecord/useNotificationRecords'",
   "export {buildQueryFilter} from '../../../components/ConditionFilter/utils'",
-  "export {tokenStatus,tokenDate,permissionCount} from './components/PersonalToken/tokenPresentation'",
+  "export {tokenStatus,tokenDate,tokenExpiryDays,permissionCount} from './components/PersonalToken/tokenPresentation'",
 ].join('\n')
 const contextKey = '__personalCenterFlowTest'
 const stubs = {
   '@jetlinks-web/constants': 'export const BASE_API="/api"',
   '@jetlinks-web-core/assets/notice': 'export const DingTalk="";export const WeixinCorp=""',
   '@jetlinks-web-core/assets/apply': 'export const InternalStandalone="";export const ThirdParty=""',
-  'vue-i18n': 'export const useI18n=()=>({t:key=>key,locale:ctx.locale})',
+  'vue-i18n': 'export const useI18n=()=>({t:(key,params)=>key==="EditPassword.currentPasswordNotVerified"?`${key}: ${params.reason}`:key,locale:ctx.locale})',
   '@jetlinks-web/utils': 'export const onlyMessage=(...args)=>ctx.messages.push(args);export const randomString=()=>"fixture"',
   '@jetlinks-web-core/locales': 'export default {global:{t:key=>key}}',
-  '@jetlinks-web-core/store/menu': 'export const useMenuStore=()=>({isGranted:()=>true})',
+  '@jetlinks-web-core/store/menu': 'export const useMenuStore=()=>ctx.menu',
+  '@jetlinks-web-core/api/login': 'export const getIdentityProviders=(...args)=>ctx.request("getIdentityProviders",args)',
   '@jetlinks-web-core/store/user': 'export const useUserStore=()=>ctx.user',
   '@jetlinks-web-core/store': 'export const useSystemStore=()=>({language:"zh"});export const useUserStore=()=>ctx.user',
-  '@jetlinks-web/hooks': 'export const useRouterParams=()=>({params:ctx.params,clear:()=>{ctx.params.value={}}})',
+  '@jetlinks-web/hooks': `import {ref,onMounted} from 'vue';
+    export const useRouterParams=()=>({params:ctx.params,clear:()=>{ctx.params.value={}}});
+    export const useRequest=(request,options)=>{
+      const loading=ref(false);
+      const reload=async()=>{loading.value=true;try{const response=await request(options.defaultParams);options.onSuccess?.(response)}catch(error){options.onError?.(error)}finally{loading.value=false}};
+      onMounted(reload);return {reload,loading};
+    }`,
   '@jetlinks-web-core/utils/components-registry': 'export const componentsRegistry={getRegistry:()=>ctx.registeredProviders}',
   '@jetlinks-web-core/layout/components/noticeTextResolver': 'export const resolveNoticeTexts=async records=>records',
   '@jetlinks-web-core/layout/components/noticeListHandler': `
@@ -45,8 +54,8 @@ const stubs = {
   `,
   '@jetlinks-web-core/api/account/notificationRecord': ['getList_api','changeStatus_api','changeAllStatus','getUnreadSummary_api'].map(name => 'export const '+name+'=(...args)=>ctx.request('+JSON.stringify(name)+',args)').join('\n'),
   '@jetlinks-web-core/api/account/center': [
-    'getSelfLoginRecords_api', 'getPasswordChangeSetting_api', 'getAllNotice', 'getSsoBinds_api', 'unBind_api', 'getSelfIdentities_api', 'requestIdentityValidation_api',
-    'confirmIdentityValidation_api', 'unbindIdentity_api', 'updateMeInfo_api',
+    'getCreatedPersonalTokens_api', 'deletePersonalToken_api', 'getPasswordChangeSetting_api', 'getAllNotice', 'getSsoBinds_api', 'unBind_api', 'getSelfIdentities_api', 'requestIdentityValidation_api',
+    'confirmIdentityValidation_api', 'unbindIdentity_api', 'updateMeInfo_api', 'checkOldPassword_api', 'validateField_api',
   ].map(name => 'export const '+name+'=(...args)=>ctx.request('+JSON.stringify(name)+',args)').join('\n') +
     '\nexport const getReceivedNoticeProviders=(...args)=>ctx.request("getAllNotice",args)' +
     '\nexport const getSsoBindingEvents_api=id=>{ctx.calls.push({method:"binding.start",args:[id]});const stream=ctx.newStream();return stream}',
@@ -85,7 +94,8 @@ async function mount(t, name, args = [], overrides = {}) {
     updateAlarm() { this.alarmUpdateCount += 1 },
   })
   const responses = {
-    getSelfLoginRecords_api: () => ({ data: [] }),
+    getCreatedPersonalTokens_api: () => [],
+    deletePersonalToken_api: () => true,
     getPasswordChangeSetting_api: () => ({ content: "" }),
     getAllNotice: () => [row],
     getTypeList_api: () => [],
@@ -101,6 +111,9 @@ async function mount(t, name, args = [], overrides = {}) {
     unBind_api: () => true,
     getNoticeList_api: () => ({ data: [] }),
     getSelfIdentities_api: () => [],
+    getIdentityProviders: () => [],
+    checkOldPassword_api: () => ({ passed: true }),
+    validateField_api: () => ({ passed: true }),
     getIsBindThird: () => [],
     requestIdentityValidation_api: () => ({ requestId: 'challenge', token: 'test-only', intervalSeconds: 0 }),
     confirmIdentityValidation_api: () => true,
@@ -112,6 +125,7 @@ async function mount(t, name, args = [], overrides = {}) {
   const ctx = {
     user, calls, messages, params: ref(overrides.__params || {}), locale: ref('zh'), streams: [],
     filterProviders: overrides.__filterProviders,
+    menu: { isGranted: () => true, hasMenu: key => (overrides.__menus || []).includes(key), jumpPage: (...args) => calls.push({ method: 'jumpPage', args }) },
     registeredProviders: overrides.__registeredProviders ?? [{ code: 'bulletin', props: { messageCategory: 'announcement' } }],
     newStream() { const stream = new Subject(); this.streams.push(stream); return stream },
     window: { addEventListener() {}, removeEventListener() {}, open() {} },
@@ -252,6 +266,29 @@ test('任意渠道均按后端接收策略决定是否显示，支持但未配�
   assert.deepEqual(hook.providers.value[0].channels.map(item => item.channelProvider), ['inside-mail'])
 })
 
+test('接收设置沿用通知渠道定义名称及国际化标识，配置入口仍定位同一渠道', async t => {
+  let definitions = [
+    { id: 'notifier-weixin', name: '微信', receiverPolicy: 'subscriber' },
+    { id: 'notifier-email', name: '邮件', i18nName: 'channel.email.displayName', receiverPolicy: 'subscriber' },
+    { id: 'notifier-dingTalk', receiverPolicy: 'subscriber' },
+  ]
+  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
+    __menus: ['notice/channel'],
+    getNotificationChannelDefinitions_api: () => definitions,
+  })
+  assert.equal(hook.channelLabel('notifier-weixin'), '微信')
+  assert.equal(hook.tableColumns.value.find(column => column.key === 'notifier-weixin').title, '微信')
+  assert.equal(hook.channelLabel('notifier-email'), 'channel.email.displayName')
+  assert.equal(hook.channelLabel('notifier-dingTalk'), 'PersonalCenter.dingtalk')
+  hook.openChannelSettings('notifier-weixin')
+  assert.deepEqual(ctx.calls.at(-1), {
+    method: 'jumpPage', args: ['notice/channel', { query: { channelProvider: 'notifier-weixin' } }],
+  })
+  definitions = [{ id: 'notifier-weixin', name: 'WeChat', receiverPolicy: 'subscriber' }]
+  await hook.load()
+  assert.equal(hook.channelLabel('notifier-weixin'), 'WeChat')
+})
+
 test('渠道接收策略查询失败时禁用无法确认的外部开关，重试后恢复', async t => {
   let failing = true
   const definitions = [
@@ -385,6 +422,12 @@ test('验证码对应原始身份，改地址后不能用旧验证码确认', as
   assert.equal(ctx.calls.some(call => call.method === 'confirmIdentityValidation_api'), false)
   await hook.sendCode()
   hook.code.value = '123456'
+  const request = ctx.request
+  ctx.request = async (method, args) => method === 'confirmIdentityValidation_api' ? { success: false, status: 200 } : request(method, args)
+  await hook.confirm()
+  assert.equal(hook.failed.value, true)
+  assert.ok(hook.validation.value)
+  ctx.request = request
   await hook.confirm()
   assert.equal(ctx.calls.filter(call => call.method === 'confirmIdentityValidation_api').length, 1)
   assert.equal(hook.validation.value, undefined)
@@ -422,6 +465,14 @@ test('资料编辑保留其他字段，失败可重新保存并支持恢复默�
   await hook.saveAvatar('')
   assert.equal(ctx.calls.at(-1).args[0].avatar, '')
 })
+
+test('资料更新显式失败时保留失败状态，不误报保存成功', async t => {
+  const { hook, ctx } = await mount(t, 'useBasicProfile', [() => ({ canEdit: true, items: [] })])
+  ctx.request = async () => ({ success: false, status: 200 })
+  assert.equal(await hook.saveName('New name'), false)
+  assert.equal(hook.saveError.value, true)
+  assert.deepEqual(ctx.messages, [])
+})
 test('消息按实际 provider 分为通知和公告，顶部定位与手动切换互不覆盖', async t => {
   const second = { ...row, provider: 'task', type: { id: 'task', name: '任务' } }
   const bulletin = { ...row, provider: 'bulletin', type: { id: 'bulletin', name: '公告' } }
@@ -453,8 +504,11 @@ test('消息按实际 provider 分为通知和公告，顶部定位与手动切�
   assert.equal(hook.requestedType.value.id, 'task')
   assert.equal(await hook.markAllRead(), true)
   assert.deepEqual(ctx.calls.find(call => call.method === 'changeAllStatus').args, [
-    '_read', ['alarm', 'task', 'bulletin'],
+    '_read', ['alarm', 'task'],
   ])
+  hook.selectCategory('announcement')
+  assert.equal(await hook.markAllRead(), true)
+  assert.deepEqual(ctx.calls.filter(call => call.method === 'changeAllStatus').at(-1).args, ['_read', ['bulletin']])
 })
 
 test('没有通知通道时用真实类型目录补齐候选，筛选与表头都叫类型', async t => {
@@ -685,6 +739,17 @@ test('令牌状态包含永久、临期、过期与缺失日期，不显示虚�
   assert.equal(model.tokenDate(null), '—')
 })
 
+test('令牌临期天数按自然日计算，区分今天和跨日到期', async t => {
+  const { exports: model } = await mount(t, 'useNotificationSettings')
+  const now = dayjs('2026-11-10T10:00:00')
+  assert.equal(model.tokenExpiryDays(now.add(1, 'hour').valueOf(), now.valueOf()), 0)
+  assert.equal(model.tokenExpiryDays(now.add(1, 'day').startOf('day').valueOf(), now.valueOf()), 1)
+  assert.equal(model.tokenExpiryDays(String(now.add(7, 'day').valueOf()), now.valueOf()), 7)
+  for (const expires of [null, undefined, '', -1, '0', 'invalid']) {
+    assert.equal(model.tokenExpiryDays(expires, now.valueOf()), null)
+  }
+})
+
 test('扫码绑定必须等待绑定记录读回，成功事件本身不代表绑定完成', async t => {
   let bound = false
   const { hook, ctx } = await mount(t, 'useSsoBindings', [], {
@@ -820,47 +885,177 @@ test('单点绑定列表兼容接口直接返回的数组', async t => {
   assert.equal(hook.bindings.value[0].bound, true)
 })
 
-test('安全设置读取登录记录与真实密码更新时间，结果缺失不猜成功', async t => {
-  const { hook } = await mount(t, 'useSecuritySettings', [], {
-    getSelfLoginRecords_api: () => ({ data: [
-      { id: 'ok', createTime: 1700000000000, ip: '192.0.2.1', exception: '' },
-      { id: 'failed', createTime: 1690000000000, exception: 'Authentication failed' },
-      { id: 'legacy', createTime: 1680000000000 },
-    ] }),
-    getPasswordChangeSetting_api: () => ({ content: '1700000000000' }),
-  })
-  assert.equal(hook.records.value.length, 3)
-  assert.equal(hook.resultOf(hook.records.value[0]), 'success')
-  assert.equal(hook.resultOf(hook.records.value[1]), 'failure')
-  assert.equal(hook.resultOf(hook.records.value[2]), 'unknown')
-  assert.match(hook.passwordChangedAt.value, /^\d{4}-\d{2}-\d{2} /)
-  assert.equal(hook.formatTime(undefined), '—')
+
+test('公共条件筛选组合状态和内容，contains 只转换一次且保留来源范围', async t => {
+  const saved = []
+  const { hook, exports: model } = await mount(t, 'useNotificationRecords', [
+    { category: 'notification', children: [row] }, state => saved.push(state),
+  ])
+  const raw = [{ column: 'message', termType: 'like', value: '温度 50%' }]
+  hook.filterTerms.value = raw
+  const filter = model.buildQueryFilter(raw, hook.filterFields.value)
+  hook.onFilterChange({ terms: filter.terms, filter, where: '' })
+  const contains = hook.queryParams.value.terms[0].value
+  const stateTerm = { column: 'state', termType: 'eq', value: 'unread' }
+  hook.filterTerms.value = [...raw, stateTerm]
+  const withState = model.buildQueryFilter(hook.filterTerms.value, hook.filterFields.value)
+  hook.onFilterChange({ terms: hook.filterTerms.value, filter: withState, where: '' })
+  assert.equal(hook.queryParams.value.terms[0].value, contains)
+  assert.equal(hook.queryParams.value.terms[1].value, 'unread')
+  assert.deepEqual(hook.defaultParams.value.terms[0].value, ['alarm'])
+  hook.filterTerms.value = raw
+  hook.onFilterChange({ terms: raw, filter: model.buildQueryFilter(raw, hook.filterFields.value), where: '' })
+  assert.equal(hook.queryParams.value.terms.length, 1)
+  assert.equal(hook.queryParams.value.terms[0].column, 'message')
+  hook.filterTerms.value = []
+  hook.onFilterChange({ terms: [], filter: { terms: [] }, where: '' })
+  assert.deepEqual(saved.at(-1).params.terms, [])
 })
-test('日志与密码信息独立失败、保留旧值并可重试，迟到响应不覆盖新结果', async t => {
-  let fail = false
-  let pending
-  const { hook } = await mount(t, 'useSecuritySettings', [], {
-    getSelfLoginRecords_api: () => {
-      if (pending) { const result = pending; pending = undefined; return result.promise }
-      if (fail) throw Error('unavailable')
-      return { data: [{ id: 'latest', exception: '' }] }
-    },
-    getPasswordChangeSetting_api: () => ({ content: '1700000000000' }),
+
+test('公共矩阵只操作实际存在的接收渠道', async t => {
+  const { hook, ctx } = await mount(t, 'useNotificationSettings')
+  assert.equal(hook.providers.value[0].provider, row.provider)
+  assert.deepEqual(hook.tableColumns.value.map(column => column.key), ['topic', ...hook.displayedTypes.value])
+  assert.equal(hook.matrixCells(row.provider, 'inside-mail')[0].checked, true)
+  assert.deepEqual(hook.matrixCells('missing', 'inside-mail'), [])
+  await hook.toggleMatrixChannel('missing', channel, false)
+  assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
+  await hook.toggleMatrixChannel(row.provider, channel, false)
+  assert.equal(hook.matrixCells(row.provider, 'inside-mail')[0].checked, false)
+})
+
+test('接收渠道摘要区分可用、未配置与未绑定，并保留实际站内信状态', async t => {
+  const { hook, ctx } = await mount(t, 'useNotificationSettings')
+  assert.equal(hook.receiverStatus('inside-mail'), 'PersonalCenter.channelEnabled')
+  assert.equal(hook.receiverStatus('notifier-email'), 'test@example.test')
+  ctx.user.userInfo.email = ''
+  assert.equal(hook.receiverStatus('notifier-email'), 'PersonalCenter.notificationNoEmail')
+  assert.equal(hook.channelHeaderAction('notifier-email'), 'email')
+  assert.equal(hook.receiverStatus('notifier-dingTalk'), 'PersonalCenter.channelUnconfiguredAdmin')
+  assert.equal(hook.channelHeaderAction('notifier-dingTalk'), undefined)
+  const admin = await mount(t, 'useNotificationSettings', [], { __menus: ['notice/channel'] })
+  assert.equal(admin.hook.channelHeaderAction('notifier-dingTalk'), 'configure')
+  admin.hook.openChannelSettings('notifier-dingTalk')
+  assert.deepEqual(admin.ctx.calls.at(-1), { method: 'jumpPage', args: ['notice/channel', { query: { channelProvider: 'notifier-dingTalk' } }] })
+})
+
+test('密码校验区分错误原因、显式失败、异常及确认不一致', async t => {
+  const { hook, ctx } = await mount(t, 'usePasswordValidation', [ref({ newPassword: 'new-secret' })])
+  await hook.old({}, 'old-secret')
+  const request = ctx.request
+  ctx.request = async () => ({ success: true, status: 200, result: { passed: false, reason: '当前密码错误' } })
+  await assert.rejects(hook.old({}, 'wrong'), /currentPasswordNotVerified: 当前密码错误/)
+  ctx.request = async () => ({ success: false, status: 200, result: { passed: true } })
+  await assert.rejects(hook.old({}, 'wrong'), /validationUnavailable/)
+  ctx.request = async () => ({ success: true, status: 200 })
+  await assert.rejects(hook.new({}, 'new-secret'), /validationUnavailable/)
+  ctx.request = async () => { throw new Error('offline') }
+  await assert.rejects(hook.new({}, 'new-secret'), /validationUnavailable/)
+  ctx.request = request
+  const before = ctx.calls.length
+  await assert.rejects(hook.confirm({}, 'different'), /010161-18/)
+  assert.equal(ctx.calls.length, before)
+  await hook.confirm({}, 'new-secret')
+  assert.deepEqual(ctx.messages, [])
+})
+
+test('登录方式保持原型的单列表顺序与说明，不按后端登录配置拆分页面', async t => {
+  const { hook, ctx } = await mount(t, 'useLoginMethods', [() => ({ contacts: {} })], {
+    getIdentityProviders: () => { throw Error('not configured') },
   })
-  fail = true
-  await hook.load()
-  assert.equal(hook.recordsFailed.value, true)
-  assert.equal(hook.records.value[0].id, 'latest')
-  assert.notEqual(hook.passwordChangedAt.value, '')
+  assert.equal(hook.entries.value.find(entry => entry.kind === 'mobile').descriptionKey, 'PersonalCenter.phoneLoginHint')
+  assert.equal(hook.entries.value.find(entry => entry.kind === 'email').descriptionKey, 'PersonalCenter.emailLoginHint')
+  assert.deepEqual(hook.entries.value.map(entry => entry.kind), ['password', 'mobile', 'email', 'sso'])
+  assert.equal(ctx.calls.some(call => call.method === 'getIdentityProviders'), false)
+})
+
+test('登录方式只将已验证身份标为绑定，第三方能力复用真实提供商', async t => {
+  const profile = () => ({ contacts: { mobile: { value: '138****0000', verified: false }, email: { value: 'user@example.test', verified: true } } })
+  const { hook } = await mount(t, 'useLoginMethods', [profile])
+  assert.equal(hook.entries.value.find(entry => entry.kind === 'mobile').state, undefined)
+  assert.equal(hook.entries.value.find(entry => entry.kind === 'email').state.bound, true)
+  assert.equal(hook.entries.value.find(entry => entry.kind === 'email').state.text, 'PersonalCenter.verified')
+  assert.equal(hook.entries.value.find(entry => entry.kind === 'sso').binding.id, 'wechat')
+  assert.equal(hook.entries.value.filter(entry => entry.kind === 'sso').length, 1)
+})
+
+test('仅按真实密码修改时间展示原型提醒，缺失时不猜测初始密码', async t => {
+  const old = await mount(t, 'useLoginMethods', [() => ({ contacts: {} })], {
+    getPasswordChangeSetting_api: () => ({ content: String(dayjs().subtract(91, 'day').valueOf()) }),
+  })
+  const oldPassword = old.hook.entries.value.find(entry => entry.kind === 'password')
+  assert.match(oldPassword.value, /PersonalCenter.passwordChangedAt/)
+  assert.equal(oldPassword.state.status, 'warning')
+  assert.equal(oldPassword.state.text, 'PersonalCenter.passwordChangeRecommended')
+  const recent = await mount(t, 'useLoginMethods', [() => ({ contacts: {} })], {
+    getPasswordChangeSetting_api: () => ({ content: String(dayjs().subtract(10, 'day').valueOf()) }),
+  })
+  assert.equal(recent.hook.entries.value.find(entry => entry.kind === 'password').state.text, 'PersonalCenter.configured')
+  const missing = await mount(t, 'useLoginMethods', [() => ({ contacts: {} })])
+  assert.equal(missing.hook.entries.value.find(entry => entry.kind === 'password').state, undefined)
+  assert.equal(missing.hook.entries.value.find(entry => entry.kind === 'password').value, '')
+})
+
+test('第三方登录查询失败时不把错误展示为没有登录入口', async t => {
+  const { hook } = await mount(t, 'useLoginMethods', [() => ({ contacts: {} })], { getSsoBinds_api: () => { throw Error('offline') } })
+  assert.equal(hook.failed.value, true)
+  assert.equal(hook.entries.value.some(entry => entry.kind === 'sso'), false)
+})
+
+test('未配置第三方登录入口时不额外创建不可操作的占位行', async t => {
+  const { hook } = await mount(t, 'useLoginMethods', [() => ({ contacts: {} })], { getSsoBinds_api: () => [] })
+  assert.equal(hook.failed.value, false)
+  assert.equal(hook.entries.value.some(entry => entry.kind === 'sso'), false)
+  assert.deepEqual(hook.entries.value.map(entry => entry.kind), ['password', 'mobile', 'email'])
+})
+
+test('第三方解绑和令牌撤销明确失败时不误报成功', async t => {
+  const binding = await mount(t, 'useSsoBindings')
+  const bindingRequest = binding.ctx.request
+  binding.ctx.request = async (method, args) => method === 'unBind_api'
+    ? { success: false, status: 200 }
+    : bindingRequest(method, args)
+  const before = binding.ctx.calls.filter(call => call.method === 'getSsoBinds_api').length
+  await binding.hook.unbind('wechat')
+  assert.equal(binding.hook.failed.value, true)
+  assert.equal(binding.ctx.calls.filter(call => call.method === 'getSsoBinds_api').length, before)
+  const token = { id: 'forever', expires: 0 }
+  const tokens = await mount(t, 'usePersonalToken', [], { getCreatedPersonalTokens_api: () => [token] })
+  const tokenRequest = tokens.ctx.request
+  tokens.ctx.request = async (method, args) => method === 'deletePersonalToken_api'
+    ? { success: false, status: 200 }
+    : tokenRequest(method, args)
+  await tokens.hook.handleDelete(token)
+  assert.equal(tokens.hook.deleteError.value, true)
+  assert.deepEqual(tokens.hook.tokenList.value, [token])
+  assert.deepEqual(tokens.ctx.messages, [])
+})
+
+test('令牌按有效期和停用状态分区，撤销失败保留记录并可重试', async t => {
+  const now = Date.now()
+  let tokens = [
+    { id: 'forever', expires: -1 },
+    { id: 'soon', expires: now + 3600000 },
+    { id: 'expired', expires: now - 1000 },
+    { id: 'disabled', expires: now + 86400000, status: 'disabled' },
+    { id: 'unknown', expires: null },
+  ]
+  let fail = true
+  const { hook } = await mount(t, 'usePersonalToken', [], {
+    getCreatedPersonalTokens_api: () => tokens,
+    deletePersonalToken_api: id => { if (fail) throw Error('network'); tokens = tokens.filter(token => token.id !== id); return true },
+  })
+  assert.deepEqual(hook.tokenGroups.value.active.map(token => token.id), ['forever', 'soon'])
+  assert.deepEqual(hook.tokenGroups.value.inactive.map(token => token.id), ['expired', 'disabled'])
+  assert.deepEqual(hook.tokenGroups.value.unknown.map(token => token.id), ['unknown'])
+  await hook.handleDelete(tokens[0])
+  assert.equal(hook.deleteError.value, true)
+  assert.equal(hook.tokenList.value.length, 5)
   fail = false
-  pending = deferred()
-  const old = pending
-  const first = hook.load()
-  await hook.load()
-  old.resolve({ data: [{ id: 'old', exception: '' }] })
-  await first
-  assert.equal(hook.records.value[0].id, 'latest')
-  assert.equal(hook.recordsFailed.value, false)
+  await hook.handleDelete(tokens[0])
+  await flush()
+  assert.equal(hook.deleteError.value, false)
+  assert.deepEqual(hook.tokenGroups.value.active.map(token => token.id), ['soon'])
 })
 
 
