@@ -13,6 +13,9 @@ const emptyTemplate = (withInput:boolean): MetricTemplate => ({
 export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metricApi, t: ValueTranslate = key => key) {
   const entities = ref<MetricTemplateEntity[]>([])
   const categories = ref<MetricTemplateCategory[]>([])
+  const discoveredStarters = ref<MetricTemplateStarter[]>([])
+  const startersLoading = ref(false)
+  const starterError = ref('')
   const categoriesLoading = ref(false)
   const categoryError = ref('')
   const calculators = ref<MetricCalculatorDescriptor[]>([])
@@ -39,6 +42,7 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
     catch { return true }
   })
   let generation = 0
+  let starterGeneration = 0
   let categoryGeneration = 0
   let calculatorGeneration = 0
   let simulationGeneration = 0
@@ -60,6 +64,18 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
       if (token === generation) entities.value = result.data
     } catch (cause) { if (token === generation) error.value = errorText(cause) }
     finally { if (token === generation) loading.value = false }
+  }
+  /** 目录只读且独立于用户草稿；失败清空发现结果，不能回落为过时内置代码。 */
+  async function loadStarters() {
+    const token = ++starterGeneration
+    startersLoading.value = true
+    starterError.value = ''
+    try {
+      const values = await api.templateStarters?.() || []
+      if (token === starterGeneration) discoveredStarters.value = values
+    } catch (cause) {
+      if (token === starterGeneration) { discoveredStarters.value = []; starterError.value = errorText(cause) }
+    } finally { if (token === starterGeneration) startersLoading.value = false }
   }
   /** 字典维护和语言切换后重新读取；失败不覆盖分类，更不重置编辑中的模板。 */
   async function loadCategories() {
@@ -91,7 +107,8 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
     if (!entity && starter) draft.value.options = { ...draft.value.options, ...(starter.groupId ? { category:starter.groupId } : {}), ...(starter.icon ? { icon:starter.icon } : {}) }
     if (!entity && starter && !templateAuthoring(draft.value).reference) {
       draft.value.options = { ...draft.value.options,authoring:{ ...templateAuthoring(draft.value),reference:{ id:starter.template.id,version:starter.template.version,
-        name:starter.template.name,nameI18n:(starter.template.options?.i18nMessages as Record<string,Record<string,string>> | undefined)?.name,builtin:true } } }
+        name:starter.template.name,nameI18n:(starter.template.options?.i18nMessages as Record<string,Record<string,string>> | undefined)?.name,builtin:true,
+        ...(starter.providerId ? {providerId:starter.providerId,providerName:starter.providerName} : {}) } } }
     }
     mode.value = 'form'
     error.value = ''
@@ -270,8 +287,8 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
     } catch (cause) { if (token === simulationGeneration) simulationError.value = errorText(cause) }
     finally { if (request === simulationRequest) simulating.value = false }
   }
-  onScopeDispose(() => { generation++; categoryGeneration++; simulationGeneration++; calculatorGeneration++ })
-  return { categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, entities, selected, draft, mode, format, fullText, simulationText, keepExample,
+  onScopeDispose(() => { generation++; categoryGeneration++; simulationGeneration++; calculatorGeneration++; starterGeneration++ })
+  return { discoveredStarters, startersLoading, starterError, loadStarters, categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, entities, selected, draft, mode, format, fullText, simulationText, keepExample,
     simulationResults, simulationResponse, error, simulationError, loading, saving, simulating, readOnly, hasChanges,
     load, open, close, switchMode, switchFormat, save, release, newVersion, setAvailable, removeDraft, discardDraft, simulate, invalidateSimulation }
 }

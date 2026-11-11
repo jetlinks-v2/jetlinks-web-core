@@ -305,11 +305,18 @@ export interface MetricSimulationRequest {
 export type MetricConfigSimulationRequest = Omit<MetricSimulationRequest, 'template'>
 /** 业务模块提供创建起点；复制后仍使用普通模板与真实试算契约。 */
 export interface MetricTemplateStarter {
+  /** 提供模块命名空间；独立宿主显式注入时可省略。 */
+  providerId?: string
+  providerName?: string
+  providerNameI18n?: Record<string,string>
   id: string
   name: string
   description: string
   /** 起点的默认分类编码；显示名称和可选项来自平台字典。 */
   groupId?: string
+  groupName?: string
+  groupNameI18n?: Record<string,string>
+  industries?: {id:string;name:string;nameI18n?:Record<string,string>}[]
   icon?: string
   template: MetricTemplate
   simulation?: Omit<MetricSimulationRequest, 'template' | 'includeIntermediate' | 'includeRecords'>
@@ -403,6 +410,8 @@ export interface MetricApi {
   describeSource?(source: {id:string;provider:string;sourceType:string;thingType:string;configuration:Record<string,unknown>}): Promise<MetricProviderSourceDescription>
   readSource?(source: {id:string;provider:string;sourceType:string;thingType:string;configuration:Record<string,unknown>}): Promise<MetricValue | undefined>
   templateCategories(): Promise<MetricTemplateCategory[]>
+  /** 显式定制 API 的发现入口；默认 API 不配置，内置参考由 starters 注入。 */
+  templateStarters?(): Promise<MetricTemplateStarter[]>
   calculators(): Promise<MetricCalculatorDescriptor[]>
   simulateConfig(request: MetricConfigSimulationRequest): Promise<MetricSimulationResponse>
   getConfig(id: string, target?: MetricDataTarget): Promise<MetricConfig>

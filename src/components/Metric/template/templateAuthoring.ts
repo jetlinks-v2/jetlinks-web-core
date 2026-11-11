@@ -11,7 +11,7 @@ export interface TemplateExample {
   endAt?: number
 }
 export interface TemplateAuthoring {
-  reference?: { id:string; version:string; revision?:number; name:string; nameI18n?:I18nTextMessages; builtin?:boolean }
+  reference?: { id:string; version:string; revision?:number; name:string; nameI18n?:I18nTextMessages; builtin?:boolean; providerId?:string; providerName?:string }
   example?: TemplateExample
 }
 export const templateAuthoring = (template:MetricTemplate) => (template.options?.authoring || {}) as TemplateAuthoring

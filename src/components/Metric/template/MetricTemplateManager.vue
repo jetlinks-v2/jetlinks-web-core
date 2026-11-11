@@ -3,12 +3,13 @@
     <header class="metric-template-manager__head">
       <ConditionFilter v-if="entities.length" v-model="directory.terms.value" :fields="directory.fields.value" :common-fields="['name']" :placeholder="t('searchTemplates')" class="metric-template-manager__search" />
       <a-space :size="8" class="metric-template-manager__main-actions">
-        <a-button type="text" size="small" :aria-label="t('refresh')" :title="t('refresh')" :loading="loading || categoriesLoading" @click="refresh"><AIcon type="ReloadOutlined" /></a-button>
+        <a-button type="text" size="small" :aria-label="t('refresh')" :title="t('refresh')" :loading="loading || categoriesLoading || startersLoading" @click="refresh"><AIcon type="ReloadOutlined" /></a-button>
         <a-button v-if="editable" type="primary" @click="startCreating"><AIcon type="PlusOutlined" />{{ t('newTemplate') }}</a-button>
       </a-space>
     </header>
     <a-alert v-if="error && !draft" type="error" show-icon :message="t('readFailed')" :description="error" />
     <a-alert v-if="categoryError && !draft" type="warning" show-icon :message="t('categoryLoadFailed')" :description="categoryError"><template #action><a-button size="small" :loading="categoriesLoading" @click="loadCategories">{{ t('retry') }}</a-button></template></a-alert>
+    <a-alert v-if="catalogError" type="warning" show-icon :message="t('starterCatalogFailed')" :description="catalogError"><template #action><a-button size="small" :loading="startersLoading" @click="loadStarters">{{ t('retry') }}</a-button></template></a-alert>
     <nav v-if="entities.length" class="metric-template-manager__categories" :aria-label="t('templateCategory')">
       <button type="button" :aria-pressed="directory.category.value === undefined" @click="directory.selectCategory()">{{ t('allCategories') }}<small>{{ entities.length }}</small></button>
       <button v-for="group in catalog" :key="group.id" type="button" :aria-pressed="directory.category.value === group.id" @click="directory.selectCategory(group.id)">{{ group.label }}<small>{{ group.items.length }}</small></button>
@@ -20,7 +21,7 @@
           <a-empty v-else :description="t('noMatchingTemplates')"><a-button @click="directory.clear">{{ t('clearFilters') }}</a-button></a-empty>
         </template>
         <section v-else-if="!loading && !error" class="metric-template-manager__empty">
-          <template v-if="editable && starters.length">
+          <template v-if="editable && allStarters.length">
             <h3>{{ t('startWithScenario') }}</h3>
             <TemplateCatalog :groups="starterGroups" @select="selectCard" />
             <a-button type="text" @click="requestOpen()"><AIcon type="PlusOutlined" />{{ t('startBlank') }}</a-button>
@@ -60,7 +61,7 @@
         </a-tabs>
         <div v-show="tab !== 'publication'" class="metric-template-manager__workspace">
           <a-alert v-if="calculatorError && tab === 'design'" type="warning" :message="t('algorithmCatalogFailed')" :description="calculatorError" show-icon><template #action><a-button size="small" @click="loadCalculators">{{ t('retry') }}</a-button></template></a-alert>
-          <TemplateDesigner v-show="mode === 'form'" :key="selected?.id || draft.id" v-model:template="draft" :initial-input="initialInput" :disabled="locked" :trial="editable ? trial : undefined" :simulation-error="simulationError" :published="selected?.released" :calculators="calculators" :categories="categories" :categories-loading="categoriesLoading" :category-error="categoryError" :pick-source="pickSource" :source-context="sourceContext" @vue:mounted="initialInput = false" @reload-categories="loadCategories" @editing="editing = $event">
+          <TemplateDesigner v-show="mode === 'form'" :key="selected?.id || draft.id" v-model:template="draft" :initial-input="initialInput" :disabled="locked" :trial="editable ? trial : undefined" :simulation-error="simulationError" :published="selected?.released" :calculators="calculators" :categories="catalogCategories" :categories-loading="categoriesLoading" :category-error="categoryError" :pick-source="pickSource" :source-context="sourceContext" @vue:mounted="initialInput = false" @reload-categories="loadCategories" @editing="editing = $event">
             <template #sampleTools><a-checkbox v-model:checked="keepExample" :disabled="locked || simulating" :title="t('saveExampleHint')">{{ t('saveExample') }}</a-checkbox></template>
             <template #advancedTools><a-select :value="format" :disabled="simulating || saving" :options="formats" :dropdown-match-select-width="false" @update:value="(value: unknown) => switchFormat(value as ConfigurationFormat)"><template #option="option"><SelectOption :label="option.label" :icon="option.icon" :description="option.description" /></template></a-select></template>
           </TemplateDesigner>
@@ -77,9 +78,10 @@
       </main>
     </a-drawer>
     <JlDrawerShell :open="choosingStarter" :title="t('newTemplate')" :sub="t('independentReference')" icon="AppstoreOutlined" :width="760" @update:open="choosingStarter = $event">
-      <a-tabs v-model:active-key="referenceKind"><a-tab-pane key="templates" :tab="t('publishedReferences')" /><a-tab-pane v-if="starters.length" key="examples" :tab="t('builtinExamples')" /></a-tabs>
+      <a-tabs v-model:active-key="referenceKind"><a-tab-pane key="templates" :tab="t('publishedReferences')" /><a-tab-pane v-if="allStarters.length || startersLoading || catalogError" key="examples" :tab="t('builtinExamples')" /></a-tabs>
+      <a-alert v-if="catalogError && referenceKind === 'examples'" type="warning" show-icon :message="t('starterCatalogFailed')" :description="catalogError"><template #action><a-button size="small" :loading="startersLoading" @click="loadStarters">{{ t('retry') }}</a-button></template></a-alert>
       <ConditionFilter v-model="references.terms.value" :fields="references.fields.value.filter(field => field.dataIndex !== 'released')" :common-fields="['name']" :placeholder="t('searchTemplates')" />
-      <a-spin :spinning="loading"><TemplateCatalog v-if="references.visible.value.length" :groups="references.visible.value" reference @select="selectReference" /><a-empty v-else :description="t(error ? 'readFailed' : referenceCatalog.length ? 'noMatchingTemplates' : 'noPublishedReferences')"><a-button v-if="error" @click="load">{{ t('retry') }}</a-button><a-button v-else-if="referenceCatalog.length" @click="references.clear">{{ t('clearFilters') }}</a-button></a-empty></a-spin>
+      <a-spin :spinning="loading || referenceKind === 'examples' && startersLoading"><TemplateCatalog v-if="references.visible.value.length" :groups="references.visible.value" reference @select="selectReference" /><a-empty v-else :description="t(error ? 'readFailed' : referenceCatalog.length ? 'noMatchingTemplates' : 'noPublishedReferences')"><a-button v-if="error" @click="load">{{ t('retry') }}</a-button><a-button v-else-if="referenceCatalog.length" @click="references.clear">{{ t('clearFilters') }}</a-button></a-empty></a-spin>
       <template #foot><a-button @click="requestOpen()"><AIcon type="PlusOutlined" />{{ t('startBlank') }}</a-button></template>
     </JlDrawerShell>
   </div>
@@ -94,7 +96,7 @@ import { useTemplateUpdates } from './useTemplateUpdates'
 import { localizedTemplate } from './text'
 import { i18nText } from '../../I18n/text'
 import { templateAuthoring, templateReferenceStarter } from './templateAuthoring'
-import { starterCatalog, templateCatalog, type TemplateCatalogItem } from './templateCatalog'
+import { mergeTemplateStarters, starterCategories, starterCatalog, templateCatalog, type TemplateCatalogItem } from './templateCatalog'
 import { useTemplateCatalog } from './useTemplateCatalog'
 import ConditionFilter from '../../ConditionFilter'
 import StickyActionBar from '../../StickyActionBar/index.vue'
@@ -111,7 +113,7 @@ import type { ConfigurationFormat } from './configurationText'
 import type { MetricContext, MetricSourcePicker, MetricTemplateEntity, MetricTemplateStarter, MetricTemplateReference } from '../types'
 const props = withDefaults(defineProps<{ editable?: boolean; starters?: MetricTemplateStarter[]; pickSource?:MetricSourcePicker; sourceContext?:MetricContext; applyTemplate?:(template:MetricTemplateReference)=>void }>(), { editable: false, starters: () => [] })
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
-const { categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, entities, selected, draft, mode, format, fullText, simulationText, keepExample,
+const { discoveredStarters, startersLoading, starterError, loadStarters, categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, entities, selected, draft, mode, format, fullText, simulationText, keepExample,
   simulationResults, simulationResponse, error, simulationError, loading, saving, simulating, readOnly, hasChanges, load, open, close,
   switchMode, switchFormat, save, release, newVersion, setAvailable, removeDraft, discardDraft, simulate, invalidateSimulation } = useMetricTemplates(toRef(props, 'editable'), undefined, t)
 const tab = ref('design')
@@ -123,11 +125,15 @@ const trial = useTemplateSimulation({ template:draft, text:simulationText, forma
 watch(editing, value => { if (value) invalidateSimulation() }, { flush:'sync' })
 const choosingStarter = ref(false)
 const initialInput = ref(false)
-const catalog = computed(() => templateCatalog(entities.value, categories.value, String(locale.value), t('otherCategory')))
+const mergedStarters = computed(() => mergeTemplateStarters(discoveredStarters.value,props.starters))
+const allStarters = computed(() => mergedStarters.value.items)
+const catalogError = computed(() => starterError.value || (mergedStarters.value.conflicts.length ? t('starterCatalogConflict',{items:mergedStarters.value.conflicts.join(', ')}) : ''))
+const catalogCategories = computed(() => starterCategories(categories.value,allStarters.value,String(locale.value)))
+const catalog = computed(() => templateCatalog(entities.value, catalogCategories.value, String(locale.value), t('otherCategory')))
 const directory = useTemplateCatalog(catalog, t)
-const starterGroups = computed(() => starterCatalog(props.starters, String(locale.value), categories.value, t('otherCategory')))
+const starterGroups = computed(() => starterCatalog(allStarters.value, String(locale.value), catalogCategories.value, t('otherCategory')))
 const referenceKind = ref('templates')
-const referenceCatalog = computed(() => referenceKind.value === 'examples' ? starterGroups.value : templateCatalog(entities.value.filter(entity => entity.released && entity.available),categories.value,String(locale.value),t('otherCategory')))
+const referenceCatalog = computed(() => referenceKind.value === 'examples' ? starterGroups.value : templateCatalog(entities.value.filter(entity => entity.released && entity.available),catalogCategories.value,String(locale.value),t('otherCategory')))
 const references = useTemplateCatalog(referenceCatalog,t)
 const reference = computed(() => draft.value && templateAuthoring(draft.value).reference)
 const referenceName = computed(() => reference.value ? i18nText(reference.value.name,reference.value.nameI18n,String(locale.value)) : '')
@@ -146,8 +152,8 @@ const canLeave = useTemplateLeaveGuard(computed(() => hasChanges.value || editin
 }))
 function startCreating() {
   if (updates.applying.value) return
-  if (!loading.value && !props.starters.length && !entities.value.some(entity => entity.released && entity.available)) return requestOpen()
-  referenceKind.value = entities.value.some(entity => entity.released && entity.available) ? 'templates' : props.starters.length ? 'examples' : 'templates'
+  if (!loading.value && !startersLoading.value && !catalogError.value && !allStarters.value.length && !entities.value.some(entity => entity.released && entity.available)) return requestOpen()
+  referenceKind.value = entities.value.some(entity => entity.released && entity.available) ? 'templates' : allStarters.value.length || startersLoading.value || catalogError.value ? 'examples' : 'templates'
   references.clear()
   choosingStarter.value = true
 }
@@ -175,7 +181,7 @@ function changeTab(value: string | number) {
   if (value !== 'design' && mode.value === 'full') { switchMode('form'); if (mode.value === 'full') return }
   tab.value = String(value)
 }
-function refresh() { load(); loadCategories() }
+function refresh() { load(); loadCategories(); loadStarters() }
 onMounted(() => { refresh(); loadCalculators() })
 </script>
 <style scoped>

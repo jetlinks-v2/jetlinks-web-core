@@ -4,6 +4,7 @@ import { createMetricLoader } from './helpers/metricRuntime.mjs'
 import { resolve } from 'node:path'
 import { sourceRoot } from './helpers/metricRuntime.mjs'
 import { Observable } from 'rxjs'
+import { effectScope, ref } from 'vue'
 const precision = createMetricLoader()('utils/json/index.ts')
 const httpOptions = { hiddenError:true, transformResponse:[precision.parseJsonResponseWithPrecision] }
 const calls = []; let status = 200; let payload = []
@@ -21,6 +22,17 @@ const createRuntimeNdJson = () => ({ post:(path, body) => new Observable(observe
 }) })
 const { metricApi } = createMetricLoader({ '@jetlinks-web/core': { request, wsClient }, [resolve(sourceRoot,'utils/json/index.ts')]:precision,
   [resolve(sourceRoot, 'utils/ndjson.ts')]: { createRuntimeNdJson } })('components/Metric/api.ts')
+
+test('default template references do not depend on a backend discovery request',async()=>{
+  const { useMetricTemplates } = createMetricLoader({ [resolve(sourceRoot,'components/Metric/api.ts')]:{ metricApi } })('components/Metric/template/useMetricTemplates.ts')
+  const scope=effectScope(),model=scope.run(()=>useMetricTemplates(ref(true))),before=calls.length
+  try {
+    await model.loadStarters()
+    assert.equal(calls.length,before)
+    assert.equal(model.starterError.value,'')
+    assert.equal(model.startersLoading.value,false)
+  } finally { scope.stop() }
+})
 
 test('指标HTTP响应使用公共精确数值解析，试算和历史取值不丢失精度',async()=>{
   for (const action of [()=>metricApi.simulate({}),()=>metricApi.history('config',{}),()=>metricApi.execution('config','output',{})]) {
