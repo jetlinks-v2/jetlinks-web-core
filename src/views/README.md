@@ -47,12 +47,13 @@
 
 ## 账号中心
 
-运行时个人中心提供“基本信息 / 个人令牌 / 消息中心 / 通知设置”四个入口。路由为 `/account/center?tab=<key>`，入口为 `account/center/index.vue`；SaaS 的 `modules/saas-runtime-ui/views/PersonCenter/index.vue` 复用同一页面。
+个人中心提供“基本信息 / 个人令牌 / 消息中心 / 通知设置”四个入口。路由为 `/account/center?tab=<key>`，入口为 `account/center/index.vue`；运营端 `ui/modules/saas-manager-ui/views/personalCenter/index.vue` 与运行时 `runtime-ui/modules/saas-runtime-ui/views/PersonCenter/index.vue` 均复用各自工作区的 core 页面。
 
 ### 导航与布局
 
 - `useCenter.ts` 负责当前用户资料、四页导航和辅助弹窗。`query.tab`、Store 页签和顶部消息定位保持兼容；旧 `Security`、`Sso`、`BindThirdAccount` 链接回到基本信息，`HomeView` 继续遵循应用用户限制。
 - 优先通过 `useOptionalProjectSecondaryMenu` 注册“个人中心 / 消息”两组菜单；无框架菜单时使用 `ProjectSecondaryMenu`。分组使用 Ant `Menu/SubMenu`，一级使用用户和消息图标，二级使用系统 `icon-yuandian`，展开、选中与悬停继承公共菜单样式。
+- 分组菜单通过公共 `--layout-menu-item-active-line-width` 变量关闭旧紧凑菜单的侧边选中线，选中背景、文字和图标沿用公共样式。
 - 四页共用 `centerLayout.less` 的内容宽度、左右边距和响应式规则。基本信息与个人令牌共用摘要布局及本地插图，插图延伸到摘要边缘并由右向左渐隐；窄屏隐藏装饰图。
 - `FullPage` 监听异步 `PageChrome` 的高度变化，消息页签出现后重新计算可用内容高度，避免额外外层滚动条。
 
@@ -64,7 +65,7 @@
 | 个人令牌 | `components/PersonalToken/` | API 请求头与安全说明、有效令牌列表、默认收起的失效分组；不展示 API 请求地址。详情、新建、编辑、重新生成及撤销复用既有接口 |
 | 消息中心 | `components/StationMessage/` | 依真实 provider 和注册数据源分为通知/公告；通过 `ConditionFilter` 筛选内容、类型、状态和时间，支持详情、行操作及批量已读/未读 |
 | 通知设置 | `components/Subscribe/` | 按真实消息类型和接收渠道显示勾选矩阵；列头显示渠道图标与配置入口，勾选即时保存，失败保留原选择并允许重试 |
-| 联系方式 | `components/ContactDialog/`、既有 `AccountInfo/useContactInfo.ts` | 资料手机号/邮箱独立保存；后端支持身份服务时，保留验证码绑定、已绑定身份与解绑操作；资料联系方式与验证身份分别管理 |
+| 联系方式 | `components/ContactDialog/`、既有 `AccountInfo/useContactInfo.ts` | 手机号/邮箱各使用一个输入框；配置身份服务时复用同一值发送与确认验证码，统一由弹窗底部提交；未配置时沿用资料保存 |
 | 安全设置 | `components/SecuritySettings.vue`、`useSecuritySettings.ts` | 复用原密码流程与服务端校验；读取真实密码更新时间，并通过当前用户操作日志接口展示最近 10 条已记录的账号登录 |
 | 单点登录 | `components/BindThirdAccount/` | 列表显示接口返回的入口、绑定状态、绑定时间；保留微信/钉钉扫码绑定、其他入口跳转绑定与解绑 API，页面卸载清理授权订阅及窗口监听 |
 
@@ -87,8 +88,9 @@
 ### 公共组件与交互契约
 
 - 姓名使用公共 `InputEditable` 的文字入口：Enter 或失焦保存、Esc 取消，异步保存失败保留输入。资料和头像通过 `PUT /user/detail` 保存；头像复用 `ImageUpload` 的 `value/update:value` 与 `cropperProps`，执行 1:1 裁剪。
-- 登录方式使用 Ant 列表和按钮。手机号、邮箱资料不等于已验证登录身份；只有 `/user/identity/_me` 返回身份时才显示已验证。联系方式修改弹窗复用 `AccountInfo/useContactInfo.ts`，身份验证逻辑保留在 `ContactDialog/useIdentityBinding.ts`。
+- 登录方式使用 Ant 列表和按钮。手机号、邮箱资料不等于已验证登录身份；只有 `/user/identity/_me` 返回身份时才显示已验证。`ContactDialog/useContactDialog.ts` 组合资料与验证逻辑，共用一个联系方式字段和一组底部操作；验证码只用于发起验证的原始地址，验证或保存失败不关闭弹窗。身份确认成功后资料保存失败，重试只补存资料，不重复消费验证码。旧身份管理保留在既有账号资料页，绑定弹窗不再叠加独立身份管理表单。
 - 第三方账号由 `useSsoBindings.ts` 加载，`BindThirdAccount/SsoAuthorization.vue` 承接授权弹层。扫码绑定后读回真实状态；卸载时清理订阅和监听。配置链接遵循当前用户菜单权限，缺失状态和时间不推断补齐。
+- 登录配置入口按 `useBasicLayoutVariant` 区分：运营端显示“系统管理 › 应用管理”并跳转 `system/Apply`，项目/应用端显示“开放与集成 › 单点登录”并跳转 `system/ThirdPartyLogin`；无对应菜单权限时仅显示说明文字，中、英、日资源同步。
 - 密码弹窗复用公共表单与页脚，`EditPassword/usePasswordValidation.ts` 区分当前密码校验失败与请求失败；强度和实际提交仍由现有服务端契约决定。
 - 令牌权限保留跟随账号、只读和自定义模式，以及原 Scope、dimensions、attributes、ID/sourceId。编辑不轮换凭证；独立“重新生成”入口确认后使用 `revokeAccessTokens=true`，保留原名称、说明和 Scope，仅更新有效期。新建及重新生成支持预设、自定义时间和永不过期。
 - 有效与失效令牌复用 `TokenCard.vue`。说明为空或只有空白时显示“未配置说明”；临期天数按本地自然日计算，未知状态不伪装为有效。完整凭证只在创建或重新生成后的成功弹窗展示，撤销失败保留记录。
@@ -100,12 +102,12 @@
 
 - 当前未实现原型中的“最多 10 个有效令牌”限制。失效分区只能展示查询接口仍返回的过期/停用记录；撤销接口直接删除记录，无法提供已撤销历史、撤销时间、令牌尾号或最近使用记录。
 - 告警严重/一般过滤和免打扰缺少已确认的个人偏好持久化与投递契约，页面不提供不能实际生效的偏好开关。未声明个人订阅支持的 WebHook 等渠道继续由服务端策略决定。
-- 手机号/邮箱弹窗当前保存用户资料，尚未串联原型中的验证码绑定流程。完整流程需要运行环境提供 mobile/email 验证提供商，并统一身份验证、旧身份替换与联系方式资料同步；现有身份确认只写入身份记录。密码修改后的跨设备下线仍需真实账号联调。
+- 手机号/邮箱弹窗在配置 mobile/email 验证提供商时先确认身份，再保存用户资料；两个请求无法形成服务端原子事务，保存失败时保留已确认状态供重试。既有登录身份不自动解绑，原子替换旧身份仍需统一后端契约。密码修改后的跨设备下线仍需真实账号联调。
 
 ### 验证与部署
 
 静态引用核对和差异检查通过；按用户要求，本次未重新运行测试、lint、类型检查、构建或浏览器验收。相关用例保留在 `account/center/*.test.mjs`、联系方式和令牌组件的相邻测试中，由后续验收执行。
 
-发布需要更新运行时前端静态资源；无新增后端服务重启或数据迁移要求。完整检查可在 `runtime-ui/` 执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 与 `pnpm build`；当前 core 未配置独立 lint 脚本。
+发布需要更新使用该 core 的前端静态资源；无新增后端服务重启或数据迁移要求。完整检查可在对应的 `ui/` 或 `runtime-ui/` 工作区执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 与 `pnpm build`；当前 core 未配置独立 lint 脚本。
 
-改版与清理的实现提交：`d18caf91`；交付入口：[PR #232](https://github.com/jetlinks-v2/jetlinks-web-core/pull/232)，目标分支 `2.20`。
+四页改版与清理的实现提交：`d18caf91`，入口为 [PR #232](https://github.com/jetlinks-v2/jetlinks-web-core/pull/232)；运营端配置入口、菜单和联系方式绑定修复的实现提交：`a666b910`，入口为 [PR #233](https://github.com/jetlinks-v2/jetlinks-web-core/pull/233)。目标分支均为 `2.20`。

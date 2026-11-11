@@ -31,6 +31,7 @@ const stubs = {
   '@jetlinks-web/utils': 'export const onlyMessage=(...args)=>ctx.messages.push(args);export const randomString=()=>"fixture"',
   '@jetlinks-web-core/locales': 'export default {global:{t:key=>key}}',
   '@jetlinks-web-core/store/menu': 'export const useMenuStore=()=>ctx.menu',
+  '@jetlinks-web-core/layout/hooks/useBasicLayoutVariant': 'export const useBasicLayoutVariant=()=>ctx.layoutVariant',
   '@jetlinks-web-core/api/login': 'export const getIdentityProviders=(...args)=>ctx.request("getIdentityProviders",args)',
   '@jetlinks-web-core/store/user': 'export const useUserStore=()=>ctx.user',
   '@jetlinks-web-core/store': 'export const useSystemStore=()=>({language:"zh"});export const useUserStore=()=>ctx.user',
@@ -124,6 +125,7 @@ async function mount(t, name, args = [], overrides = {}) {
   }
   const ctx = {
     user, calls, messages, params: ref(overrides.__params || {}), locale: ref('zh'), streams: [],
+    layoutVariant: ref(overrides.__layoutVariant || 'project'),
     filterProviders: overrides.__filterProviders,
     menu: { isGranted: () => true, hasMenu: key => (overrides.__menus || []).includes(key), jumpPage: (...args) => calls.push({ method: 'jumpPage', args }) },
     registeredProviders: overrides.__registeredProviders ?? [{ code: 'bulletin', props: { messageCategory: 'announcement' } }],

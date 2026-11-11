@@ -102,7 +102,9 @@ export const useCenter = () => {
     const positions = dimensionNames(info.positions)
     const getIdentity = (provider: string) => {
       const list = identities.value.filter(item => item.provider === provider)
-      return (list.find(item => item.isPrimary) || list[0])?.identity
+      // 多个验证身份并存时，优先展示与当前资料联系方式对应的已验证值。
+      const contact = provider === 'mobile' ? info.telephone : info.email
+      return (list.find(item => item.identity === contact) || list.find(item => item.isPrimary) || list[0])?.identity
     }
     return {
       name: info.name || info.username || i18n.global.t('comm.table.empty'),
