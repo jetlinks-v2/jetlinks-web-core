@@ -17,11 +17,13 @@ import { FileTextOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import LogEntryDetails from './LogEntryDetails.vue'
 import type { ActionAccess, LogEntry } from '../types'
-import { logHighlight, logMessagePreview, logPresentation, logTimeLabel } from './presentation'
-const props = defineProps({ entry: { type: Object as PropType<LogEntry>, required: true }, query: { type: String, default: '' }, wrap: { type: Boolean, default: true }, expanded: { type: Boolean, default: false }, activeMatch: { type: Boolean, default: false }, traceAccess: { type: Object as PropType<ActionAccess>, default: () => ({ allowed: false }) } })
-const emit = defineEmits<{ (event: 'trace', traceId: string): void; (event: 'inspect' | 'reading'): void }>()
+import { logHighlight, logMessagePreview, logPresentation, logTimeLabel, type LogEntryExpansion } from './presentation'
+const props = defineProps({ entry: { type: Object as PropType<LogEntry>, required: true }, query: { type: String, default: '' }, wrap: { type: Boolean, default: true }, expanded: { type: Boolean, default: false }, activeMatch: { type: Boolean, default: false }, expansion: { type: Object as PropType<LogEntryExpansion>, default: undefined }, traceAccess: { type: Object as PropType<ActionAccess>, default: () => ({ allowed: false }) } })
+const emit = defineEmits<{ (event: 'trace', traceId: string): void; (event: 'inspect' | 'reading'): void; (event: 'expansion', value: LogEntryExpansion): void }>()
 const { t } = useI18n()
-const stackOpen = ref(false), messageOpen = ref(false)
+const localExpansion = ref<LogEntryExpansion>({ message: false, stack: false })
+const messageOpen = computed(() => (props.expansion ?? localExpansion.value).message)
+const stackOpen = computed(() => (props.expansion ?? localExpansion.value).stack)
 const view = computed(() => logPresentation(props.entry))
 const preview = computed(() => logMessagePreview(view.value.message, messageOpen.value))
 const levelClass = computed(() => /^(ERROR|FATAL)$/.test(props.entry.level ?? '') ? 'log-level-error' : props.entry.level === 'WARN' ? 'log-level-warning' : props.entry.level === 'INFO' ? 'log-level-info' : '')
@@ -29,11 +31,13 @@ const parts = computed(() => logHighlight(preview.value.text, props.query))
 const stackParts = computed(() => logHighlight(view.value.stack, props.query))
 watch([() => props.query, () => props.activeMatch], ([query, active]) => {
   if (!active || !query) return
-  if (view.value.stack.toLowerCase().includes(query.toLowerCase())) stackOpen.value = true
-  if (view.value.message.toLowerCase().includes(query.toLowerCase())) messageOpen.value = true
+  const search = query.toLowerCase()
+  setExpansion({ message: messageOpen.value || view.value.message.toLowerCase().includes(search), stack: stackOpen.value || view.value.stack.toLowerCase().includes(search) })
 }, { immediate: true })
-function toggleStack() { emit('reading'); stackOpen.value = !stackOpen.value }
-function toggleMessage() { emit('reading'); messageOpen.value = !messageOpen.value }
+/** 宿主按记录保存展开状态，虚拟行卸载后重新进入视口仍可继续阅读。 */
+function setExpansion(patch: Partial<LogEntryExpansion>) { const value = { message: messageOpen.value, stack: stackOpen.value, ...patch }; localExpansion.value = value; emit('expansion', value) }
+function toggleStack() { emit('reading'); setExpansion({ stack: !stackOpen.value }) }
+function toggleMessage() { emit('reading'); setExpansion({ message: !messageOpen.value }) }
 function trace() { if (props.traceAccess.allowed && props.entry.traceId) emit('trace', props.entry.traceId) }
 </script>
 <style scoped>
