@@ -85,6 +85,8 @@
 
 ### 验证与部署
 
-本次整理仅做静态引用和差异检查，按用户要求未重新运行测试、lint、类型检查、构建或浏览器验收。相关用例保留在 `account/center/*.test.mjs`、联系方式和令牌组件的相邻测试中，由后续验收执行。
+静态引用核对和差异检查通过；按用户要求，本次未重新运行测试、lint、类型检查、构建或浏览器验收。相关用例保留在 `account/center/*.test.mjs`、联系方式和令牌组件的相邻测试中，由后续验收执行。
 
 发布需要更新运行时前端静态资源；无新增后端服务重启或数据迁移要求。完整检查可在 `runtime-ui/` 执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 与 `pnpm build`；当前 core 未配置独立 lint 脚本。
+
+改版与清理的实现提交：`d18caf91`；交付入口：[PR #232](https://github.com/jetlinks-v2/jetlinks-web-core/pull/232)，目标分支 `2.20`。
