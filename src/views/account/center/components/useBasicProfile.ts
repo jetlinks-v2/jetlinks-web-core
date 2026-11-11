@@ -30,29 +30,32 @@ export function useBasicProfile(profile: () => AccountCardProfile) {
     }
     return items
   })
-  async function save(patch: { name?: string; avatar?: string }) {
-    if (saving.value || !profile().canEdit) return
+  async function save(patch: { name?: string; avatar?: string }, messageKey: string): Promise<boolean> {
+    if (saving.value || !profile().canEdit) return false
     saving.value = true
     saveError.value = false
     try {
       const response = await updateMeInfo_api({ ...user.userInfo, ...patch })
-      if (!response.success && response.status !== 200) throw new Error('Profile update failed')
+      if (response.success === false || (response.success !== true && response.status !== 200)) throw new Error('Profile update failed')
       await user.getUserInfo()
-      onlyMessage(t('AccountInfo.saveSuccess'), 'success')
+      onlyMessage(t(messageKey), 'success')
+      return true
     } catch {
       saveError.value = true
+      return false
     } finally {
       saving.value = false
     }
   }
-  function saveName(value: string) {
+  async function saveName(value: string): Promise<boolean> {
     const name = value.trim()
     if (!name) {
       onlyMessage(t('AccountInfo.basicNamePlaceholder'), 'warning')
-      return
+      return false
     }
-    if (name !== user.userInfo.name) return save({ name })
+    if (name !== user.userInfo.name) return save({ name }, 'PersonalCenter.prototype.nameChanged')
+    return true
   }
-  function saveAvatar(avatar: string) { return save({ avatar }) }
+  function saveAvatar(avatar: string) { return save({ avatar }, avatar ? 'PersonalCenter.prototype.avatarChanged' : 'PersonalCenter.prototype.avatarReset') }
   return { saving, saveError, fields, accountType, userType, saveName, saveAvatar }
 }

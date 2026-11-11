@@ -2,11 +2,11 @@
 import { computed, type PropType } from 'vue'
 import JlDrawerShell from '@jetlinks-web-core/components/JlDrawerShell/index.vue'
 import PermissionList from './PermissionList.vue'
-import { tokenDate, tokenStatus } from '../tokenPresentation'
+import { tokenDate, tokenStatus, isUnlimitedExpiry } from '../tokenPresentation'
 import { copyTokenScope, permissionModeLabel } from '../permissionMode'
 import type { PersonalToken } from '../types'
 const props = defineProps({ token: { type: Object as PropType<PersonalToken>, required: true } })
-defineEmits<{ (event: 'close'): void; (event: 'edit', token: PersonalToken): void }>()
+defineEmits<{ (event: 'close'): void; (event: 'edit', token: PersonalToken): void; (event: 'regenerate', token: PersonalToken): void }>()
 const status = computed(() => tokenStatus(props.token))
 const scope = computed(() => copyTokenScope(props.token.scope))
 </script>
@@ -21,20 +21,19 @@ const scope = computed(() => copyTokenScope(props.token.scope))
     </template>
     <a-descriptions :column="1" size="small" class="token-details-metadata">
       <a-descriptions-item :label="$t('PersonalToken.TokenCard.515931-5')">{{ token.description || $t('PersonalToken.details.emptyDescription') }}</a-descriptions-item>
-      <a-descriptions-item :label="$t('PersonalToken.TokenCard.515931-0')">{{ token.sourceTypeName || token.sourceType }}</a-descriptions-item>
-      <a-descriptions-item :label="$t('PersonalToken.TokenCard.515931-3')">{{ Number(token.expires) === -1 ? $t('PersonalToken.TokenCard.515931-4') : tokenDate(token.expires) }}</a-descriptions-item>
+      <a-descriptions-item :label="$t('PersonalToken.TokenCard.515931-3')">{{ isUnlimitedExpiry(token.expires) ? $t('PersonalToken.TokenCard.515931-4') : tokenDate(token.expires) }}</a-descriptions-item>
       <a-descriptions-item :label="$t('PersonalCenter.createdAt')">{{ tokenDate(token.createTime) }}</a-descriptions-item>
-      <a-descriptions-item :label="$t('PersonalToken.permissionMode.label')">{{ $t(permissionModeLabel(token.scope)) }}</a-descriptions-item>
     </a-descriptions>
     <section class="token-details-permissions">
-      <h3>{{ $t('PersonalToken.dialog.permissionScope') }}</h3>
+      <h3>{{ $t('PersonalCenter.permissions') }} <a-typography-text type="secondary">{{ $t(permissionModeLabel(token.scope)) }}</a-typography-text></h3>
       <PermissionList :value="scope.permissions" disabled presentation="list" />
     </section>
     <template #foot>
-      <a-button class="token-details-edit" type="default" @click="$emit('edit', token)">
+      <a-button class="token-details-edit" type="primary" @click="$emit('edit', token)">
         <template #icon><AIcon type="EditOutlined" /></template>
         {{ $t('PersonalToken.TokenCard.515931-7') }}
       </a-button>
+      <a-button @click="$emit('regenerate', token)">{{ $t('PersonalToken.prototype.regenerate') }}</a-button>
     </template>
   </JlDrawerShell>
 </template>

@@ -159,7 +159,7 @@ test('新建默认跟随账号，提交通配范围与模式，不保存当前�
   assert.deepEqual(ctx.dialog.formData.value.scope.permissions, inherited)
   await flush()
   assert.equal(ctx.row('device'), undefined)
-  assert.match(textContent(ctx.root), /PersonalToken.permissions.scopeCount:6/)
+  assert.doesNotMatch(textContent(ctx.root), /PersonalToken.permissions.scopeCount/)
   assert.equal(ctx.dialog.canSubmit.value, true)
   await ctx.dialog.handleOk()
   const data = ctx.fixture.posts[0][1]

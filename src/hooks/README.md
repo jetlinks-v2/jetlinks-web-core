@@ -98,7 +98,7 @@ const { hasSearch, showEmptyCreate } = useEmptyCreateState(() => submittedTerms.
 
 `useDiagnosticQuery<T>()` 返回 `data`、`state`、`run(loader, allowed, options?)` 和 `clear()`。options 的 isEmpty / errorState 由宿主解释空值与 HTTP 失败状态。每轮调用先清理旧数据，拒绝授权时不调用 loader；loader 接收 AbortSignal。新请求、clear、deactivate 或 scope dispose 后旧响应不落地。宿主负责 activate 后恢复、流订阅与阅读缓存；transport 不支持 signal 时仍保证响应隔离，但不能承诺实际网络取消或服务端诊断停止。
 
-`useRetainedScroll(elementRef, active?)` 绑定一个明确的滚动容器；将容器的 scroll 事件交给返回的 `onScroll`，正文身份改变或权限清理时调用 `reset()`。位置只保存在当前组件内存，支持 KeepAlive 与 v-show 隐藏，恢复等待有效布局；旧恢复帧与隐藏零值不能覆盖位置。它不访问路由、存储或接口，也不自动扫描其他 DOM；`visible()` 供日志跟随等可见性动作使用。
+`useRetainedScroll(elementRef, active?)` 绑定一个明确的滚动容器；将容器的 scroll 事件交给返回的 `onScroll`，正文身份改变或权限清理时调用 `reset()`。位置只保存在当前组件内存，通过滚动事件与停用边界保存，普通组件更新不读取布局尺寸。支持 KeepAlive 与 v-show 隐藏，恢复等待有效布局；旧恢复帧与隐藏零值不能覆盖位置。它不访问路由、存储或接口，也不自动扫描其他 DOM；`visible()` 供日志跟随等可见性动作使用。
 
 ## 布局、主题与响应式
 

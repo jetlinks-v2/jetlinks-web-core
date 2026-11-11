@@ -5,6 +5,7 @@ export type SubscriptionState = 'enabled' | 'disabled'
 export interface NotificationChannelDefinition {
   id: string
   name?: string
+  i18nName?: string
   receiverPolicy?: string | { value?: string }
 }
 

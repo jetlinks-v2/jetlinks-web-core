@@ -29,6 +29,8 @@ import {
 } from './vite.setting'
 import { moduleFilterPlugin } from './configs/plugin/moduleFilterPlugin'
 import { hasMenuPlugin } from './configs/plugin/has-menu'
+import { configureProxyLifecycle } from './configs/proxy'
+import { dedupeWatchPlugin } from './configs/plugin/dedupe-watch'
 
 export default defineConfig(async ({ mode, command }) => {
   const envDir = path.resolve(__dirname, '..')
@@ -86,6 +88,7 @@ export default defineConfig(async ({ mode, command }) => {
       }
     },
     plugins: [
+      dedupeWatchPlugin(),
       tailwindcss(),
       hasMenuPlugin(),
       vue(),
@@ -145,6 +148,7 @@ export default defineConfig(async ({ mode, command }) => {
           target: backendUrl || env.VITE_APP_DEV_PROXY_URL,
           ws: true,
           changeOrigin: true,
+          configure: configureProxyLifecycle,
           rewrite: (path) => path.replace(new RegExp(`^${env.VITE_APP_BASE_API}`), '')
         }
       }

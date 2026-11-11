@@ -13,6 +13,9 @@
 </template>
 
 <script setup lang="ts" name="FullPage">
+import { useResizeObserver } from '@vueuse/core'
+import { usePageChromeTarget } from './hooks/usePageChromeTarget'
+
 const props = defineProps({
 	extraHeight: {
 		type: Number,
@@ -45,6 +48,7 @@ const props = defineProps({
 })
 
 const fullPage = ref<HTMLElement | null>(null)
+const chromeTarget = usePageChromeTarget()
 const MinHeight = ref(`0`)
 
 const styles = computed(() => {
@@ -105,6 +109,9 @@ const handleResize = () => {
 	window.cancelAnimationFrame(resizeFrame)
 	resizeFrame = window.requestAnimationFrame(updateHeight)
 }
+
+// 面板外页签可能在异步加载后才出现，头部高度变化时重新计算页面可用高度。
+if (chromeTarget) useResizeObserver(chromeTarget, handleResize)
 
 onMounted(() => {
 	mountTimer = window.setTimeout(updateHeight, 10)
