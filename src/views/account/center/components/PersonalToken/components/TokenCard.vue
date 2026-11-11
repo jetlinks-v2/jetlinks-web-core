@@ -1,238 +1,91 @@
-﻿<template>
-  <div class="token-card">
-    <div class="token-card-left">
-      <div class="token-icon">
-        <img src="@jetlinks-web-core/assets/personal-token/img.png" alt=""/>
-      </div>
-      <div class="token-card-info">
-        <div class="token-card-header">
-          <div class="token-name">{{ token.name }}</div>
-          <div :class="['status-tag', getStatusConfig(token).className]">
-            {{ getStatusConfig(token).text }}
-          </div>
-        </div>
-        <div class="token-card-content">
-          <div class="token-field">
-            <div class="field-label">{{ $t('PersonalToken.TokenCard.515931-0') }}</div>
-            <div class="field-value">{{ token.sourceTypeName || token.sourceType }}</div>
-          </div>
+<script setup lang="ts">
+import { computed, type PropType } from 'vue'
+import { useI18n } from 'vue-i18n'
+import type { PersonalToken } from '../types'
+import { tokenStatus, tokenDate, tokenExpiryDays, permissionCount, isUnlimitedExpiry } from '../tokenPresentation'
+import { permissionModeLabel, resolvePermissionMode } from '../permissionMode'
 
-          <div class="token-field">
-            <div class="field-label">{{ $t('PersonalToken.TokenCard.515931-1') }}</div>
-            <div class="field-value">{{ token.creatorName }}</div>
-          </div>
-
-          <div class="token-field">
-            <div class="field-label">{{ $t('PersonalToken.TokenCard.515931-2') }}</div>
-            <div class="field-value"><j-ellipsis>{{ formatDate(token.createTime) }}</j-ellipsis></div>
-          </div>
-
-          <div class="token-field">
-            <div class="field-label">{{ $t('PersonalToken.TokenCard.515931-3') }}</div>
-            <div class="field-value">
-              <j-ellipsis>{{ token.expires !== -1 ? formatDate(token.expires) : $t('PersonalToken.TokenCard.515931-4') }}</j-ellipsis>
-            </div>
-          </div>
-
-          <div class="token-field">
-            <div class="field-label">{{ $t('PersonalToken.TokenCard.515931-5') }}</div>
-            <div class="field-value">
-              <j-ellipsis>
-                {{ token.description || $t('comm.table.empty') }}
-              </j-ellipsis>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="token-card-actions">
-      <a-space>
-        <a-button @click="emit('view', token)" type="link">
-          <template #icon>
-            <AIcon type="EyeOutlined"/>
-          </template>
-          {{ $t('PersonalToken.TokenCard.515931-6') }}
-        </a-button>
-
-        <a-button
-            @click="emit('edit', token)"
-            type="link"
-        >
-          <template #icon>
-            <AIcon type="EditOutlined"/>
-          </template>
-          {{ $t('PersonalToken.TokenCard.515931-7') }}
-        </a-button>
-
-        <j-permission-button
-            danger
-            :popConfirm="{
-              title: $t('PersonalToken.TokenCard.515931-8'),
-              onConfirm: () => {
-                emit('delete', token)
-              }
-            }"
-        >
-          <template #icon>
-            <AIcon type="DeleteOutlined"/>
-          </template>
-          {{ $t('PersonalToken.TokenCard.515931-9') }}
-        </j-permission-button>
-      </a-space>
-    </div>
-  </div>
-</template>
-
-<script setup>
-import dayjs from 'dayjs'
-import {useI18n} from 'vue-i18n'
-
-const {t: $t} = useI18n()
 const props = defineProps({
-  token: {
-    type: Object,
-    required: true
-  }
+  token: { type: Object as PropType<PersonalToken>, required: true },
+  busy: { type: Boolean, default: false },
 })
-
-const emit = defineEmits(['view', 'edit', 'delete'])
-
-const getStatusConfig = (token) => {
-  if (token.status === 'disabled') {
-    return {
-      className: 'status-tag--error',
-      text: $t('PersonalToken.TokenCard.515931-10'),
-      icon: 'StopOutlined'
-    }
+defineEmits<{ (event: 'view', token: PersonalToken): void; (event: 'delete', token: PersonalToken): void }>()
+const { t } = useI18n()
+const status = computed(() => tokenStatus(props.token))
+const active = computed(() => ['PersonalCenter.valid', 'PersonalCenter.expiring'].includes(status.value.key))
+const permissionSummary = computed(() => t(permissionModeLabel(props.token.scope))
+  + (resolvePermissionMode(props.token.scope) === 'follow' ? '' : ' · ' + t('PersonalCenter.permissionCount', { count: permissionCount(props.token) })))
+const description = computed(() => props.token.description?.trim() || t('PersonalToken.descriptionNotConfigured'))
+const expiry = computed(() => {
+  if (status.value.key === 'PersonalCenter.disabled') return t('PersonalCenter.disabled')
+  if (status.value.key === 'PersonalCenter.expired') return t('PersonalCenter.expired') + ' ' + tokenDate(props.token.expires, 'YYYY-MM-DD')
+  if (isUnlimitedExpiry(props.token.expires)) return t('PersonalToken.TokenCard.515931-4')
+  const date = tokenDate(props.token.expires, 'YYYY-MM-DD')
+  if (status.value.key === 'PersonalCenter.expiring') {
+    const days = tokenExpiryDays(props.token.expires)
+    if (days === 0) return t('PersonalToken.prototype.expireToday', { date })
+    if (days !== null && days > 0) return t('PersonalToken.prototype.expireInDays', { date, count: days })
   }
-  if (token.expires === -1) {
-    return {
-      className: 'status-tag--success',
-      text: $t('PersonalToken.TokenCard.515931-4'),
-      icon: 'CheckCircleOutlined'
-    }
-  }
-
-  const now = dayjs()
-  const expireTime = token.expires ? dayjs(token.expires) : null
-
-  if (expireTime.isBefore(now)) {
-    return {
-      className: 'status-tag--error',
-      text: $t('PersonalToken.TokenCard.515931-15'),
-      icon: 'ExclamationCircleOutlined'
-    }
-  }
-
-  const diffDays = expireTime.diff(now, 'day')
-  const diffHours = expireTime.diff(now, 'hour', true)
-
-  if (diffDays >= 1) {
-    return {
-      className: 'status-tag--secondary',
-      text: $t('PersonalToken.TokenCard.515931-13', [diffDays]),
-      icon: 'ClockCircleOutlined'
-    }
-  } else {
-    const _diffHours = diffHours > 1 ? diffHours.toFixed(0) : diffHours.toFixed(2)
-    return {
-      className: 'status-tag--primary',
-      text: $t('PersonalToken.TokenCard.515931-14', [_diffHours]),
-      icon: 'ClockCircleOutlined'
-    }
-  }
-}
-
-const formatDate = (dateStr) => {
-  return dayjs(dateStr).format('YYYY-MM-DD HH:mm:ss')
-}
+  return date === '—' ? date : t('PersonalToken.prototype.expireOn', { date })
+})
 </script>
 
-<style lang="less" scoped>
-.token-card {
-  border: 1px solid var(--jet-theme-border-secondary);
-  padding: var(--space-4);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-6);
+<template>
+  <a-list-item class="personal-token-row" :class="{ 'personal-token-row--inactive': !active }">
+    <a-list-item-meta class="personal-token-row__meta">
+      <template #avatar>
+        <a-avatar :size="38" shape="square" class="personal-token-row__icon">
+          <template #icon><AIcon type="KeyOutlined" /></template>
+        </a-avatar>
+      </template>
+      <template #title>
+        <div class="personal-token-row__heading">
+          <a-button type="link" class="personal-token-row__name" :title="token.name" @click="$emit('view', token)">{{ token.name || $t('comm.table.empty') }}</a-button>
+          <a-tag :bordered="false" class="personal-token-row__permissions">{{ permissionSummary }}</a-tag>
+        </div>
+      </template>
+      <template #description>
+        <div class="personal-token-row__expiry" :class="{ 'personal-token-row__expiry--soon': status.key === 'PersonalCenter.expiring' }">{{ expiry }}</div>
+        <div class="personal-token-row__description">
+          <j-ellipsis :title="description">{{ description }}</j-ellipsis>
+        </div>
+      </template>
+    </a-list-item-meta>
+    <template v-if="active" #actions>
+      <j-permission-button
+        danger :has-permission="true" :loading="busy"
+        :pop-confirm="{ title: $t('PersonalToken.prototype.revokeTitle', { name: token.name || '' }), content: $t('PersonalToken.prototype.revokeDescription'), okText: $t('PersonalCenter.tokenRevoke'), cancelText: $t('PersonalToken.TokenDialog.168178-0'), onConfirm: () => $emit('delete', token) }"
+      >{{ $t('PersonalCenter.tokenRevoke') }}</j-permission-button>
+    </template>
+  </a-list-item>
+</template>
 
-  &-left {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    gap: var(--space-4);
-    align-items: center;
-
-    .token-icon {
-      width: 3rem;
-      height: 3rem;
-      border-radius: var(--r-2);
-      background: var(--jet-theme-primary-soft);
-      display: flex;
-      font-size: var(--fs-20);
-      align-items: center;
-      justify-content: center;
-      color: var(--jet-theme-primary);
-      flex-shrink: 0;
-    }
-
-    .token-card-info {
-      flex: 1;
-      min-width: 0;
-
-      .token-card-header {
-        display: flex;
-        gap: var(--space-4);
-        margin-bottom: var(--space-4);
-
-        .token-name {
-          font-size: var(--fs-16);
-          font-weight: 500;
-        }
-      }
-    }
-
-    .token-card-content {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: var(--space-4);
-
-      .token-field {
-        .field-label {
-          color: var(--jet-theme-text-secondary);
-          margin-bottom: var(--space-2);
-        }
-
-        .field-value {
-          color: var(--ink-1);
-        }
-      }
-    }
-  }
+<style scoped>
+.personal-token-row.ant-list-item { align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-5); transition: background 0.15s; }
+.personal-token-row.ant-list-item:hover { background: color-mix(in srgb, var(--accent-soft) 20%, var(--bg-elev)); }
+.personal-token-row .personal-token-row__meta { align-items: center; min-width: 0; }
+.personal-token-row :deep(.ant-list-item-meta-content) { min-width: 0; }
+.personal-token-row :deep(.ant-list-item-action) { flex: none; margin-inline-start: var(--space-4); }
+.personal-token-row :deep(.ant-list-item-action > li) { padding: 0; }
+.personal-token-row :deep(.ant-list-item-action .ant-btn) { min-width: 4rem; }
+.personal-token-row__icon { border-radius: var(--r-3); background: var(--accent-soft); color: var(--accent); }
+.personal-token-row__heading { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); min-width: 0; line-height: var(--lh-normal); }
+.personal-token-row__name { min-width: 0; max-width: 100%; height: auto; padding: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-color); font-size: var(--fs-16); font-weight: 600; text-align: start; }
+.personal-token-row__name:hover, .personal-token-row__name:focus-visible { color: var(--accent); }
+.personal-token-row__permissions { margin: 0; color: var(--text-color-secondary); font-size: var(--fs-12); font-weight: 400; border-radius: var(--r-1); }
+.personal-token-row__expiry { color: var(--text-color-secondary); font-size: var(--fs-13); line-height: var(--lh-relaxed); }
+.personal-token-row__expiry--soon { color: var(--jet-theme-warning, #b25900); }
+.personal-token-row__description { display: flex; align-items: center; min-width: 0; min-height: 1.25rem; margin-top: var(--space-1); color: color-mix(in srgb, var(--text-color-secondary) 80%, var(--bg-elev)); font-size: var(--fs-13); line-height: var(--lh-relaxed); }
+.personal-token-row__description :deep(.j-ellipsis) { font-size: inherit; line-height: inherit; }
+.personal-token-row--inactive .personal-token-row__icon { background: var(--bg-2); color: var(--text-color-secondary); }
+.personal-token-row--inactive .personal-token-row__name { color: var(--text-color-secondary); }
+.personal-token-row--inactive .personal-token-row__name:hover { color: var(--accent); }
+@container personal-token (max-width: 38rem) {
+  .personal-token-row.ant-list-item { padding: var(--space-3) var(--space-4); flex-wrap: wrap; gap: var(--space-3); }
+  .personal-token-row .personal-token-row__meta { flex-basis: 100%; }
+  .personal-token-row :deep(.ant-list-item-action) { margin: 0 0 0 auto; }
 }
-
-.status-tag {
-  &--primary {
-    color: var(--jet-theme-primary);
-  }
-
-  &--success {
-    color: var(--jet-theme-success);
-  }
-
-  &--error {
-    color: var(--jet-theme-error);
-  }
-
-  &--secondary {
-    color: var(--jet-theme-text-secondary);
-  }
+@media (prefers-reduced-motion: reduce) {
+  .personal-token-row.ant-list-item { transition: none; }
 }
-
-.token-card-actions {
-  .ant-btn {
-    background-color: var(--line-strong) !important;
-    border: none;
-  }
-}</style>
+</style>

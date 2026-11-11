@@ -1,66 +1,67 @@
 <template>
   <a-modal
-    :open="visible" :title="dialogTitle" :width="720" centered
+    :open="visible" :title="dialogTitle" :width="mode === 'regenerate' ? 520 : 720" centered
     :body-style="{ maxHeight: 'calc(100vh - 12rem)', overflowY: 'auto' }"
     :mask-closable="!loading"
     :footer="mode === 'view' ? null : undefined"
-    @cancel="handleCancel" @ok="handleOk()"
+    @cancel="handleCancel" @ok="handleOk(mode !== 'edit')"
   >
     <template v-if="mode !== 'view'" #footer>
       <div class="token-dialog-actions">
         <a-button :disabled="loading" @click="handleCancel">{{ $t('PersonalToken.TokenDialog.168178-0') }}</a-button>
-        <a-tooltip v-if="mode === 'edit'" :title="$t('PersonalToken.TokenDialog.keepDescription')">
-          <a-button :disabled="!canSubmit || loading" :loading="loading && !savingWithRefresh" @click="handleOk(false)">
-            {{ $t('PersonalToken.dialog.saveOnly') }}
+          <a-button type="primary" :disabled="!canSubmit || loading" :loading="loading" @click="handleOk(mode !== 'edit')">
+            {{ $t(mode === 'add' ? 'PersonalToken.dialog.create' : mode === 'regenerate' ? 'PersonalToken.prototype.regenerate' : 'PersonalToken.TokenDialog.168178-2') }}
           </a-button>
-        </a-tooltip>
-        <a-tooltip :title="mode === 'edit' ? $t('PersonalToken.TokenDialog.refreshDescription') : undefined">
-          <a-button type="primary" :disabled="!canSubmit || loading" :loading="loading && savingWithRefresh" @click="handleOk(true)">
-            {{ $t(mode === 'add' ? 'PersonalToken.dialog.create' : 'PersonalToken.dialog.saveAndRefresh') }}
-          </a-button>
-        </a-tooltip>
       </div>
     </template>
+    <a-alert v-if="mode === 'regenerate'" type="warning" show-icon :message="$t('PersonalToken.prototype.regenerateWarning')" class="token-dialog-warning" />
     <a-form ref="formRef" :model="formData" :rules="rules" layout="vertical" class="token-dialog-form">
       <a-descriptions v-if="mode === 'view' && token" :column="1" size="small">
         <a-descriptions-item :label="$t('PersonalToken.TokenDialog.168178-7')">{{ token.name }}</a-descriptions-item>
         <a-descriptions-item :label="$t('PersonalToken.TokenCard.515931-0')">{{ token.sourceTypeName || token.sourceType }}</a-descriptions-item>
         <a-descriptions-item :label="$t('PersonalToken.TokenCard.515931-1')">{{ token.creatorName }}</a-descriptions-item>
         <a-descriptions-item :label="$t('PersonalCenter.createdAt')">{{ tokenDate(token.createTime) }}</a-descriptions-item>
-        <a-descriptions-item :label="$t('PersonalToken.TokenCard.515931-3')">{{ Number(token.expires) === -1 ? $t('PersonalToken.TokenCard.515931-4') : tokenDate(token.expires) }}</a-descriptions-item>
+        <a-descriptions-item :label="$t('PersonalToken.TokenCard.515931-3')">{{ isUnlimitedExpiry(token.expires) ? $t('PersonalToken.TokenCard.515931-4') : tokenDate(token.expires) }}</a-descriptions-item>
         <a-descriptions-item :label="$t('PersonalToken.TokenCard.515931-5')">{{ token.description || $t('PersonalToken.details.emptyDescription') }}</a-descriptions-item>
       </a-descriptions>
       <template v-else>
-        <a-form-item :label="$t('PersonalToken.TokenDialog.168178-7')" name="name">
-          <a-input v-model:value="formData.name" :placeholder="$t('PersonalToken.TokenDialog.168178-8')" :maxlength="64" show-count :disabled="loading" />
+        <a-form-item v-if="mode !== 'regenerate'" :label="$t('PersonalToken.TokenDialog.168178-7')" name="name" :extra="$t('PersonalToken.prototype.nameHelp')" :validate-status="nameDuplicate ? 'error' : undefined" :help="nameDuplicate ? $t('PersonalToken.prototype.nameDuplicate', { name: formData.name.trim() }) : undefined">
+          <a-input v-model:value="formData.name" :placeholder="$t('PersonalToken.prototype.namePlaceholder')" :maxlength="32" :disabled="loading" />
         </a-form-item>
-        <a-form-item :label="$t('PersonalToken.TokenDialog.168178-18')" name="description">
-          <a-textarea v-model:value="formData.description" :placeholder="$t('PersonalToken.TokenDialog.168178-19')" :maxlength="200" :auto-size="{ minRows: 2, maxRows: 4 }" show-count :disabled="loading" />
+        <a-form-item v-if="mode !== 'regenerate'" :label="$t('PersonalToken.TokenDialog.168178-18')" name="description" :extra="$t('PersonalToken.prototype.descriptionHelp')">
+          <a-input v-model:value="formData.description" :placeholder="$t('PersonalToken.prototype.descriptionPlaceholder')" :maxlength="100" :disabled="loading" />
         </a-form-item>
-        <a-form-item :label="$t('PersonalToken.dialog.validity')">
+        <a-form-item v-if="mode === 'add' || mode === 'regenerate'" :label="$t('PersonalToken.dialog.validity')">
           <a-select v-model:value="expireType" :placeholder="$t('PersonalToken.TokenDialog.168178-10')" :disabled="loading" @change="handleExpireTypeChange">
-            <a-select-option :value="7">{{ $t('PersonalToken.TokenDialog.168178-11') }}</a-select-option>
             <a-select-option :value="30">{{ $t('PersonalToken.TokenDialog.168178-12') }}</a-select-option>
-            <a-select-option :value="60">{{ $t('PersonalToken.TokenDialog.168178-13') }}</a-select-option>
             <a-select-option :value="90">{{ $t('PersonalToken.TokenDialog.168178-14') }}</a-select-option>
+            <a-select-option :value="180">{{ $t('PersonalToken.prototype.days180') }}</a-select-option>
             <a-select-option value="custom">{{ $t('PersonalToken.TokenDialog.168178-15') }}</a-select-option>
             <a-select-option :value="-1">{{ $t('PersonalToken.TokenDialog.168178-16') }}</a-select-option>
           </a-select>
+          <template #extra>
+            <a-typography-text v-if="expireType === -1" type="warning">{{ $t('PersonalToken.prototype.neverHelp') }}</a-typography-text>
+            <span v-else-if="expireType === 'custom' && !customExpires">{{ $t('PersonalToken.TokenDialog.customExpiryHelp') }}</span>
+            <span v-else>{{ $t('PersonalToken.prototype.expiryHelp', { date: tokenDate(formData.expires, expireType === 'custom' ? 'YYYY-MM-DD HH:mm:ss' : 'YYYY-MM-DD') }) }}</span>
+          </template>
         </a-form-item>
-        <a-form-item v-if="expireType === 'custom'" :label="$t('PersonalToken.TokenDialog.168178-15')" name="expires">
+        <a-form-item v-if="(mode === 'add' || mode === 'regenerate') && expireType === 'custom'" :label="$t('PersonalToken.TokenDialog.168178-15')" name="expires">
           <a-date-picker
             :value="customExpires" @change="handleCustomExpireChange" show-time value-format="x"
             :placeholder="$t('PersonalToken.TokenDialog.168178-17')" class="token-dialog-date"
             :disabled-date="disabledDate" :disabled-time="disabledTime" :disabled="loading"
           />
         </a-form-item>
+        <a-form-item v-if="mode === 'edit'" :label="$t('PersonalToken.TokenCard.515931-3')" :extra="$t('PersonalToken.prototype.editExpiryHelp')">
+          {{ isUnlimitedExpiry(formData.expires) ? $t('PersonalToken.TokenCard.515931-4') : tokenDate(formData.expires, 'YYYY-MM-DD') }}
+        </a-form-item>
       </template>
-      <section class="token-dialog-permissions">
-        <h3>{{ $t('PersonalToken.dialog.permissionScope') }}</h3>
+      <section v-if="mode !== 'regenerate'" class="token-dialog-permissions">
+        <h3>{{ $t('PersonalCenter.permissions') }}</h3>
         <PermissionSelector v-model:value="formData.scope" :disabled="mode === 'view'" :busy="loading" @ready-change="permissionsReady = $event" />
       </section>
     </a-form>
-    <Success v-if="showSuccessModal" :token="generatedToken" @close="handleSuccessClose" />
+    <Success v-if="showSuccessModal" :token="generatedToken" :name="formData.name" :regenerated="mode === 'regenerate'" @close="handleSuccessClose" />
   </a-modal>
 </template>
 
@@ -69,25 +70,27 @@ import type { PropType } from 'vue'
 import PermissionSelector from './PermissionSelector.vue'
 import Success from './Success.vue'
 import { useTokenDialog } from './useTokenDialog'
-import { tokenDate } from '../tokenPresentation'
+import { tokenDate, isUnlimitedExpiry } from '../tokenPresentation'
 import type { TokenDialogProps, PersonalToken } from '../types'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
-  mode: { type: String as PropType<TokenDialogProps['mode']>, default: 'add', validator: (value: string) => ['add', 'edit', 'view'].includes(value) },
+  mode: { type: String as PropType<TokenDialogProps['mode']>, default: 'add', validator: (value: string) => ['add', 'edit', 'view', 'regenerate'].includes(value) },
   token: { type: Object as PropType<PersonalToken | null>, default: () => null },
+  existingNames: { type: Array as PropType<string[]>, default: () => [] },
 })
 const emit = defineEmits(['close', 'save'])
 const {
-  canSubmit, permissionsReady, customExpires, dialogTitle, disabledDate, disabledTime, expireType,
+  canSubmit, nameDuplicate, permissionsReady, customExpires, dialogTitle, disabledDate, disabledTime, expireType,
   formData, formRef, generatedToken, handleCancel, handleCustomExpireChange,
   handleExpireTypeChange, handleOk, handleSuccessClose, loading, rules,
-  savingWithRefresh, showSuccessModal, visible,
+  showSuccessModal, visible,
 } = useTokenDialog(props, emit)
 </script>
 
 <style lang="less" scoped>
 .token-dialog-form { min-width: 0; }
+.token-dialog-warning { margin-bottom: var(--space-4); }
 .token-dialog-form :deep(.ant-form-item) { margin-bottom: var(--space-4); }
 .token-dialog-date { width: 100%; }
 .token-dialog-permissions { border-top: 1px solid var(--line); padding-top: var(--space-4); margin-top: var(--space-2); }

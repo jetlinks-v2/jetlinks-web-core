@@ -1,4 +1,5 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import dayjs from 'dayjs'
 import { useRoute, useRouter } from 'vue-router'
 import { useRouterParams } from '@jetlinks-web/hooks'
 import { useUserStore, type UserInfo } from '@jetlinks-web-core/store/user'
@@ -30,17 +31,16 @@ type CenterUserInfo = Partial<UserInfo> & {
   email?: string
 }
 
-/** 六个功能入口独立呈现，旧页签 key 继续兼容头像和通知入口。 */
+/** 四个可见入口使用稳定 key，安全设置与第三方登录的旧链接统一回到基本信息。 */
 const isContentKey = (key: unknown): key is CenterContentKey =>
-  key === 'BasicInfo' || key === 'Security' || key === 'Sso' || key === 'StationMessage' || key === 'Subscribe' || key === 'PersonalToken'
+  key === 'BasicInfo' || key === 'StationMessage' || key === 'Subscribe' || key === 'PersonalToken'
 
 /** Store 的组织、角色、职位是 unknown[]，展示前只接受带名称的条目。 */
-const formatDimensions = (items: unknown[] | undefined, emptyText: string): string => {
-  const names = (items || []).flatMap(item => {
+const dimensionNames = (items: unknown[] | undefined): string[] => {
+  return (items || []).flatMap(item => {
     if (!item || typeof item !== 'object' || !('name' in item)) return []
-    return typeof item.name === 'string' ? [item.name] : []
+    return typeof item.name === 'string' && item.name.trim() ? [item.name.trim()] : []
   })
-  return names.join('、') || emptyText
 }
 
 /** 联系方式卡片沿用参考页的脱敏方式，详细编辑仍显示原绑定信息。 */
@@ -71,21 +71,19 @@ export const useCenter = () => {
   let loadVersion = 0
 
   const segments = computed(() => [
-    { label: i18n.global.t('PersonalCenter.basic'), value: 'BasicInfo', icon: 'IdcardOutlined', group: 'account' },
-    { label: i18n.global.t('PersonalCenter.security'), value: 'Security', icon: 'SafetyCertificateOutlined', group: 'account' },
-    { label: i18n.global.t('PersonalCenter.sso'), value: 'Sso', icon: 'LinkOutlined', group: 'account' },
-    { label: i18n.global.t('center.data.756829-4'), value: 'PersonalToken', icon: 'KeyOutlined', group: 'account' },
-    { label: i18n.global.t('AccountCenter.messageCenter'), value: 'StationMessage', icon: 'MessageOutlined', group: 'messages' },
-    // 通知设置菜单暂时隐藏，页面实现和订阅配置继续保留。
+    { label: i18n.global.t('PersonalCenter.basic'), value: 'BasicInfo', icon: 'icon-yuandian', group: 'account' },
+    { label: i18n.global.t('center.data.756829-4'), value: 'PersonalToken', icon: 'icon-yuandian', group: 'account' },
+    { label: i18n.global.t('AccountCenter.messageCenter'), value: 'StationMessage', icon: 'icon-yuandian', group: 'messages' },
+    { label: i18n.global.t('PersonalCenter.notifications'), value: 'Subscribe', icon: 'icon-yuandian', group: 'messages' },
   ])
   const navigationGroups = computed(() => [
-    { key: 'account', label: i18n.global.t('components.LayoutSidebarUser.accountCenter'), items: segments.value.filter(item => item.group === 'account') },
-    { key: 'messages', label: i18n.global.t('PersonalCenter.messagesGroup'), items: segments.value.filter(item => item.group === 'messages') },
+    { key: 'account', icon: 'UserOutlined', label: i18n.global.t('components.LayoutSidebarUser.accountCenter'), items: segments.value.filter(item => item.group === 'account') },
+    { key: 'messages', icon: 'MessageOutlined', label: i18n.global.t('PersonalCenter.messagesGroup'), items: segments.value.filter(item => item.group === 'messages') },
   ])
   const activeGroupTitle = computed(() => navigationGroups.value.find(group => group.items.some(item => item.value === activeKey.value))?.label)
   const activeTitle = computed(() => segments.value.find(item => item.value === activeKey.value)?.label)
   const frameworkItems = computed(() => navigationGroups.value.map(group => ({
-    key: group.key, label: group.label,
+    key: group.key, label: group.label, icon: group.icon,
     children: group.items.map(item => ({ key: item.value, label: item.label, icon: item.icon })),
   })))
   // 个人中心仅注册菜单；布局与选中样式交给已有框架，分组为显式启用。
@@ -99,6 +97,9 @@ export const useCenter = () => {
 
   const profile = computed<AccountCardProfile>(() => {
     const info: CenterUserInfo = user.userInfo
+    const roles = dimensionNames(info.roleList)
+    const departments = dimensionNames(info.orgList)
+    const positions = dimensionNames(info.positions)
     const getIdentity = (provider: string) => {
       const list = identities.value.filter(item => item.provider === provider)
       return (list.find(item => item.isPrimary) || list[0])?.identity
@@ -110,13 +111,29 @@ export const useCenter = () => {
       canEdit: isNoCommunity,
       canConfigureHome: !user.isApplicationUser,
       items: [
-        { key: 'id', label: i18n.global.t('AccountCenter.accountId'), value: info.id || i18n.global.t('comm.table.empty') },
-        { key: 'username', label: i18n.global.t('AccountInfo.basicUsername'), value: info.username || i18n.global.t('comm.table.empty') },
-        { key: 'roles', label: i18n.global.t('AccountInfo.roles'), value: formatDimensions(info.roleList, i18n.global.t('PersonalCenter.unassigned')) },
-        { key: 'orgs', label: i18n.global.t('AccountInfo.orgs'), value: formatDimensions(info.orgList, i18n.global.t('PersonalCenter.unassigned')) },
+        { key: 'id', label: i18n.global.t('PersonalCenter.accountIdLabel'), value: info.id || i18n.global.t('comm.table.empty') },
+        { key: 'username', label: i18n.global.t('PersonalCenter.account'), value: info.username || i18n.global.t('comm.table.empty') },
+        { key: 'roles', label: i18n.global.t('AccountInfo.roles'), value: roles.join('、') || i18n.global.t('PersonalCenter.unassignedRole'), tags: roles, unassigned: !roles.length },
+        { key: 'orgs', label: i18n.global.t('PersonalCenter.department'), value: departments.join('、') || i18n.global.t('PersonalCenter.unassignedDepartment'), tags: departments, unassigned: !departments.length },
         { key: 'mobile', label: i18n.global.t('AccountInfo.basicPhone'), value: maskIdentity(getIdentity('mobile') || info.telephone, 'mobile'), editTarget: isNoCommunity ? 'phone-section' : undefined },
         { key: 'email', label: i18n.global.t('AccountInfo.basicEmail'), value: maskIdentity(getIdentity('email') || info.email, 'email'), editTarget: isNoCommunity ? 'email-section' : undefined },
+        { key: 'positions', label: i18n.global.t('AccountInfo.positions'), value: positions.join('、') || i18n.global.t('PersonalCenter.unassignedPosition'), unassigned: !positions.length },
+        ...(info.createTime && dayjs(info.createTime).isValid() ? [{ key: 'createTime', label: i18n.global.t('PersonalCenter.createdAt'), value: dayjs(info.createTime).format('YYYY-MM-DD HH:mm:ss') }] : []),
       ],
+      contacts: {
+        // 登录身份与通知资料可能不同；只在两者不同时补充真实的通知接收地址。
+        mobile: {
+          value: getIdentity('mobile') || info.telephone ? maskIdentity(getIdentity('mobile') || info.telephone, 'mobile') : '',
+          verified: !!getIdentity('mobile'),
+          notificationValue: info.telephone ? maskIdentity(info.telephone, 'mobile') : '',
+          notificationSeparate: !!getIdentity('mobile') && getIdentity('mobile') !== info.telephone,
+        },
+        email: {
+          value: getIdentity('email') || info.email || '', verified: !!getIdentity('email'),
+          notificationValue: info.email || '',
+          notificationSeparate: !!getIdentity('email') && getIdentity('email') !== info.email,
+        },
+      },
       thirdAccounts: thirdAccounts.value.map(item => ({
         key: item.id,
         label: item.name,
@@ -216,7 +233,7 @@ export const useCenter = () => {
     if (params?.tabKey) applyLegacyTab(params.tabKey)
   })
   watch(() => route.query.tab, key => {
-    if (isContentKey(key) && key !== activeKey.value) selectContent(key)
+    if (key && key !== activeKey.value) applyLegacyTab(key)
   })
   watch(() => route.query.anchor, anchor => {
     if (anchor === 'email-section' || anchor === 'phone-section') openAccountInfo(anchor)
