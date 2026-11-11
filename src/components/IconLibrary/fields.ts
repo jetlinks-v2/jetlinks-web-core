@@ -1,5 +1,4 @@
 import * as AntdIcons from '@ant-design/icons-vue';
-import iconfontJson from '@jetlinks-web-core/assets/icons/iconfont.json'
 
 const all = Object.keys(AntdIcons)
   .map(n => n.replace(/(Outlined|Filled|TwoTone)$/, ''))
@@ -203,12 +202,7 @@ const logo = [
   'Sketch',
 ];
 
-// const iconfontJson = import('./icons/iconfont.json')
-// .then(module => module.default);
-
-const iconfont = iconfontJson.glyphs.map((item: any) => `${iconfontJson.css_prefix_text}${item.font_class}`)
-
-const datum = [...direction, ...suggestion, ...editor, ...data, ...logo,...iconfont];
+const datum = [...direction, ...suggestion, ...editor, ...data, ...logo];
 const filterArr = [
   'AlipaySquare',
   'AmazonCircle',
@@ -257,8 +251,7 @@ export const categories = {
   editor,
   data,
   logo,
-  other,
-  iconfont
+  other
 }
 
 export default categories;
