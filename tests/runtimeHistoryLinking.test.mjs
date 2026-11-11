@@ -75,6 +75,29 @@ test('zoom aligns all ready and late-ready charts immediately and submits the fi
   t.mock.timers.tick(1); assert.deepEqual(linked.changes, [{ from: 2000, to: 4000 }])
 })
 
+test('linked cursors keep each chart tooltip available in both directions and clear it on leave', t => {
+  const linked = workspace(t), cpu = chart(t), memory = chart(t)
+  linked.register('cpu', cpu); linked.register('memory', memory)
+  const actions = t.mock.method(memory, 'dispatchAction'), sourceActions = t.mock.method(cpu, 'dispatchAction')
+  hover(cpu, 2500)
+  const mirrored = actions.mock.calls.map(call => call.arguments[0]).find(action => action.type === 'updateAxisPointer')
+  assert.equal(mirrored.tooltipOption, undefined, 'the linked chart must display its own summary')
+  assert.ok(actions.mock.calls.every(call => call.arguments[0].type !== 'hideTip'))
+  assert.equal(memory.getOption().xAxis[0].axisPointer.status, 'show')
+  assert.equal(memory.getOption().tooltip[0].showContent, true)
+  hover(memory, 3500)
+  const direct = actions.mock.calls.at(-1).arguments[0]
+  assert.equal(direct.tooltipOption, undefined)
+  const reversed = sourceActions.mock.calls.map(call => call.arguments[0])
+  assert.equal(reversed.at(-1).type, 'updateAxisPointer')
+  assert.equal(reversed.at(-1).tooltipOption, undefined)
+  assert.ok(reversed.every(action => action.type !== 'hideTip'))
+  assert.ok(Math.abs(cpu.getOption().xAxis[0].axisPointer.value - 3500) < 1)
+  memory.dispatchAction({ type: 'updateAxisPointer', currTrigger: 'leave' })
+  assert.equal(sourceActions.mock.calls.at(-1).arguments[0].type, 'hideTip')
+  assert.equal(cpu.getOption().xAxis[0].axisPointer.status, 'hide')
+})
+
 test('same-name legends, other node workspaces and unregistered near-realtime charts stay independent', t => {
   const linked = workspace(t), other = workspace(t), cpu = chart(t), memory = chart(t), otherCpu = chart(t), buffer = chart(t)
   linked.register('cpu', cpu); linked.register('memory', memory); other.register('cpu', otherCpu)

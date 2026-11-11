@@ -1,6 +1,6 @@
 import type { PermissionScope } from './components/data'
 
-export type TokenDialogMode = 'add' | 'edit' | 'view'
+export type TokenDialogMode = 'add' | 'edit' | 'view' | 'regenerate'
 export type TokenPermissionMode = 'follow' | 'readonly' | 'custom'
 
 export interface StoredTokenScope {
@@ -42,6 +42,7 @@ export interface TokenDialogProps {
   visible: boolean
   mode: TokenDialogMode
   token: PersonalToken | null
+  existingNames?: readonly string[]
 }
 
 export type TokenDialogEmit = (event: 'close' | 'save', data?: TokenFormData, revokeAccessTokens?: boolean) => void

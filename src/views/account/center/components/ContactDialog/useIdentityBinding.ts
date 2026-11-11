@@ -30,6 +30,7 @@ export function useIdentityBinding(provider: IdentityProvider, enabled: boolean)
     loading.value = true
     try {
       const response = await getSelfIdentities_api()
+      if (response?.success === false || !Array.isArray(response?.result)) throw new Error('Identity query failed')
       if (current === version) {
         identities.value = (response.result || []).filter(item => item.provider === provider)
         failed.value = false
@@ -46,6 +47,7 @@ export function useIdentityBinding(provider: IdentityProvider, enabled: boolean)
     try {
       const response = await requestIdentityValidation_api({ provider, identity: target })
       if (current !== version) return
+      if (response?.success === false || (response?.success !== true && response?.status !== 200)) throw new Error('Identity challenge failed')
       if (!response.result?.requestId || !response.result?.token) throw new Error('Missing validation challenge')
       validation.value = { ...response.result, identity: target }
       code.value = ''
@@ -67,7 +69,7 @@ export function useIdentityBinding(provider: IdentityProvider, enabled: boolean)
       const response = await confirmIdentityValidation_api(provider, {
         requestId: state.requestId, token: state.token, context: state.context, params: { code: code.value.trim() },
       })
-      if (!response.success && response.status !== 200) throw new Error('Identity confirmation failed')
+      if (response?.success === false || (response?.success !== true && response?.status !== 200)) throw new Error('Identity confirmation failed')
       validation.value = undefined
       identity.value = ''
       code.value = ''
@@ -83,7 +85,7 @@ export function useIdentityBinding(provider: IdentityProvider, enabled: boolean)
     failed.value = false
     try {
       const response = await unbindIdentity_api(provider, [id])
-      if (!response.success && response.status !== 200) throw new Error('Identity removal failed')
+      if (response?.success === false || (response?.success !== true && response?.status !== 200)) throw new Error('Identity removal failed')
       await load()
     } catch { failed.value = true }
     finally { busy.value = false }

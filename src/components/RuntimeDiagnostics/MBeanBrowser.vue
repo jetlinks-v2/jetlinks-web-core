@@ -84,7 +84,7 @@ const genericValue = shallowRef<unknown>(), genericOutcome = shallowRef<ViewStat
 let genericIssued = false
 const genericResult = computed(() => queries.resultSource.value === 'generic' ? genericValue.value : undefined)
 const genericState = computed<ViewState>(() => queries.resultSource.value === 'generic' ? genericOutcome.value : { status: 'ready' })
-/** 原通用确认表单继续走事件；独立保存结果来源，不能显示先前的摘要查询返回值。 */
+/** 通用方法继续走事件；独立保存结果来源，不能显示先前的摘要查询返回值。 */
 function invokeGeneric(value: MBeanInvocation) {
   if (!props.active || !props.invokeAccess.allowed || queryContext.busy.value || !props.target) return
   queries.beginGenericInvocation(); genericIssued = true; genericValue.value = undefined; genericOutcome.value = { status: 'ready' }
@@ -122,7 +122,7 @@ const expanded = computed(() => search.value ? tree.value.flatMap(domain => [dom
 function updateConfig(patch: Partial<MBeanDisplayConfig>) { const next = { ...display.value, ...patch }; localConfig.value = next; emit('update:config', next) }
 function expand(keys: (string | number)[]) { if (!search.value) updateConfig({ expandedKeys: keys.map(String) }) }
 function changeSection(value: string | number) { if (value === 'summary' || value === 'attributes' || value === 'operations') updateConfig({ section: value }) }
-/** 专用摘要只请求切换现有页签；方法执行仍经过独立动作权限和确认。 */
+/** 专用摘要只请求切换现有页签；方法执行仍经过独立动作权限检查。 */
 function requestSection(value: unknown) { if (value === 'attributes' || value === 'summary' && renderer.value || value === 'operations' && bean.value?.operations.length) changeSection(String(value)) }
 /** 只隐藏现有目录实例，保留搜索、展开和双轴阅读位置；键盘返回当前对象入口。 */
 async function closeDirectory() {
@@ -131,7 +131,7 @@ async function closeDirectory() {
   await nextTick()
   directoryEntry.value?.querySelector<HTMLButtonElement>('button')?.focus()
 }
-/** Esc 覆盖入口、搜索及树；详情方法表单仍保有自身的取消行为。 */
+/** Esc 仅收起目录入口、搜索及树，不拦截详情方法表单的按键。 */
 function onDirectoryEscape(event: KeyboardEvent) {
   if (!compact.value || !directoryOpen.value) return
   const path = event.composedPath()

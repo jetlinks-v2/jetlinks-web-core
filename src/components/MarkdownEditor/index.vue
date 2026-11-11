@@ -31,6 +31,10 @@
     >
       <input ref="fileInputRef" type="file" multiple class="j-md-editor__file-input" tabindex="-1" aria-hidden="true" style="display: none" @change="handleFileInputChange" />
 
+      <div v-if="isDisabled && slots['toolbar-right']" class="j-md-editor__readonly-toolbar">
+        <slot name="toolbar-right" />
+      </div>
+
       <CloudEmpty v-if="isDisabled && !text.trim()" :description="mergedTexts.emptyDescription" class="j-md-editor__empty" />
 
       <MdPreview
@@ -48,7 +52,7 @@
         v-else
         ref="editorRef"
         v-model="text"
-        class="j-md-editor__inner"
+        :class="slots['toolbar-right'] ? 'j-md-editor__inner has-toolbar-right' : 'j-md-editor__inner'"
         :style="{ height: editorHeight }"
         :placeholder="placeholder"
         :language="editorLanguage"
@@ -71,6 +75,9 @@
               <AIcon type="PaperClipOutlined" />
             </span>
           </NormalToolbar>
+          <div v-if="slots['toolbar-right']" class="j-md-editor__toolbar-right">
+            <slot name="toolbar-right" />
+          </div>
         </template>
       </MdEditor>
 
@@ -230,7 +237,14 @@ const sectionTemplates = computed(() => props.sectionTemplates ?? [])
 const domainHint = computed(() => props.domainHint?.trim() ?? '')
 const hasAddonToolbar = computed(() => !!sectionTemplates.value.length || !!domainHint.value || !!slots['toolbar-actions'])
 const editorHeight = computed(() => `${Math.max((props.rows ?? 12) * 24 + 120, 360)}px`)
-const mergedToolbars = computed(() => props.toolbars?.length ? props.toolbars : defaultToolbars)
+// 自定义工具栏索引 0 留给文件上传，1 承载右侧插槽；未传插槽时保持原配置。
+const mergedToolbars = computed(() => {
+  const toolbars = props.toolbars?.length ? props.toolbars : defaultToolbars
+  if (!slots['toolbar-right'] || toolbars.includes(1)) return toolbars
+  const divider = toolbars.indexOf('=')
+  if (divider < 0) return [...toolbars, '=', 1] satisfies ToolbarNames[]
+  return [...toolbars.slice(0, divider + 1), 1, ...toolbars.slice(divider + 1)] satisfies ToolbarNames[]
+})
 const mergedTexts = computed<MarkdownEditorTexts>(() => ({
   ...defaultTexts.value,
   ...(props.texts || {}),
@@ -462,6 +476,37 @@ async function handleDrop(event: DragEvent) {
   flex-wrap: wrap;
 }
 
+.j-md-editor__toolbar-right {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-inline-end: var(--space-2);
+}
+
+/* 附加操作固定在右侧，窄屏时仅格式工具区横向滚动。 */
+.j-md-editor__inner.has-toolbar-right :deep(.md-editor-toolbar-left) {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.j-md-editor__inner.has-toolbar-right :deep(.md-editor-toolbar-left::-webkit-scrollbar) {
+  display: none;
+}
+
+.j-md-editor__inner.has-toolbar-right :deep(.md-editor-toolbar-right) {
+  flex-shrink: 0;
+}
+
+.j-md-editor__readonly-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 2rem;
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--ink-1) 6%, transparent);
+}
+
 .j-md-editor__bar-label,
 .j-md-editor__domain-hint {
   color: var(--ink-4);
@@ -590,5 +635,5 @@ async function handleDrop(event: DragEvent) {
   align-items: center;
   justify-content: center;
   font-size: var(--fs-16);
-}</style>
-
+}
+</style>

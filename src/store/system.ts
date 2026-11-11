@@ -4,7 +4,7 @@ import { getTagsColor } from '@jetlinks-web-core/api/system/calendar'
 import { getToken, LocalStore } from '@jetlinks-web/utils'
 import { langKey, isSubApp } from '@jetlinks-web-core/utils/consts'
 import { withModuleStoreOverride } from './module-override'
-import { getThemeStyle_api } from '@jetlinks-web-core/api/account/center'
+import { getThemeStyle_api } from '@jetlinks-web-core/api/account/theme'
 import { applyThemeColor, getInitialThemeColor, persistThemeColor } from '@jetlinks-web-core/utils/theme-color'
 import {
   applyThemeStyle,

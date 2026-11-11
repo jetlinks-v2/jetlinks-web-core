@@ -11,6 +11,8 @@ import {
   useNoticeDataSourceChanges,
 } from '@jetlinks-web-core/layout/components/noticeListHandler'
 import { resolveNoticeTexts } from '@jetlinks-web-core/layout/components/noticeTextResolver'
+import { buildQueryFilter } from '@jetlinks-web-core/components/ConditionFilter/utils'
+import type { BatchActionsType } from '@jetlinks-web-core/components/BatchDropdown/types'
 import type { ConditionFilterChangePayload, ConditionFilterField, ConditionFilterTerm } from '@jetlinks-web-core/components/ConditionFilter'
 import type { MessageTypeRequest } from '../../useStationMessage'
 
@@ -51,12 +53,14 @@ export function useNotificationRecords(
   const selectedIds = ref<string[]>([])
   const updating = ref(false)
   const failed = ref(false)
+  const listFailed = ref(false)
   const viewVisible = ref(false)
   const viewItem = ref<NoticeRecord>()
   const providerIds = computed(() => props.children.map(item => item.provider))
   const contentTypeFilter = computed(() => getNoticeDataSource(providerIds.value)?.typeFilter)
   const typeFilterKey = computed(() => contentTypeFilter.value?.column || 'topicProvider')
   let disposed = false
+  let requestVersion = 0
   let incomingId = ''
 
   const providerGroups = computed(() => {
@@ -128,12 +132,18 @@ export function useNotificationRecords(
     saveFilter({ terms: filterTerms.value.map(term => ({ ...term })), params: queryParams.value })
   }
 
+  const rowClassName = (record: NoticeRecord) => stateOf(record) === 'unread' ? 'notification-record--unread' : ''
+  const batchActions = computed<BatchActionsType[]>(() => [
+    { key: 'read', text: t('NotificationRecord.index.803553-2'), icon: 'CheckOutlined', disabled: !selectedIds.value.length || updating.value, onClick: () => markSelected('_read') },
+    { key: 'unread', text: t('NotificationRecord.index.803553-1'), icon: 'MailOutlined', disabled: !selectedIds.value.length || updating.value, onClick: () => markSelected('_unread') },
+  ])
+
   const columns = computed(() => [
-    { title: t('NotificationRecord.index.803553-7'), dataIndex: 'state', key: 'state', scopedSlots: true, width: 100 },
-    { title: t('NotificationRecord.index.803553-4'), dataIndex: 'topicProvider', key: 'topicProvider', scopedSlots: true, width: 150 },
+    { title: t('NotificationRecord.index.803553-7'), dataIndex: 'state', key: 'state', scopedSlots: true, width: 90 },
+    { title: t('NotificationRecord.index.803553-4'), dataIndex: 'topicProvider', key: 'topicProvider', scopedSlots: true, width: 110 },
     { title: t('PersonalCenter.messageTitle'), dataIndex: 'message', key: 'message', scopedSlots: true, ellipsis: true },
-    { title: t('NotificationRecord.index.803553-6'), dataIndex: 'notifyTime', key: 'notifyTime', scopedSlots: true, width: 180 },
-    { title: t('NotificationRecord.index.803553-10'), dataIndex: 'action', key: 'action', scopedSlots: true, width: 170 },
+    { title: t(props.category === 'announcement' ? 'PersonalCenter.messagePublishDate' : 'PersonalCenter.messageTime'), dataIndex: 'notifyTime', key: 'notifyTime', scopedSlots: true, width: 172 },
+    { title: t('NotificationRecord.index.803553-10'), dataIndex: 'action', key: 'action', scopedSlots: true, width: 100 },
   ])
 
   const defaultParams = computed(() => ({
@@ -142,21 +152,32 @@ export function useNotificationRecords(
   }))
 
   const rowSelection = computed(() => ({
+    columnWidth: 40,
     selectedRowKeys: selectedIds.value,
     onChange: (keys: Array<string | number>) => { selectedIds.value = keys.map(String) },
   }))
 
   async function requestNotifications(params: Record<string, unknown>) {
+    const current = ++requestVersion
     // 没有可访问的 provider 时不能发出无范围的消息查询。
     if (!providerIds.value.length) {
+      listFailed.value = false
       return { success: true, status: 200, result: { data: [], total: 0, pageIndex: params.pageIndex, pageSize: params.pageSize } }
     }
-    const response = await queryNoticeRecords(providerIds.value, params)
-    const result = response?.result
-    const records = Array.isArray(result) ? result : result?.data
-    if (!Array.isArray(records)) return response
-    const resolved = await resolveNoticeTexts(records)
-    return { ...response, result: Array.isArray(result) ? resolved : { ...result, data: resolved } }
+    try {
+      const response = await queryNoticeRecords(providerIds.value, params)
+      const result = response?.result
+      const records = Array.isArray(result) ? result : result?.data
+      if (response?.success === false || !Array.isArray(records)) throw new Error('Notification query failed')
+      const resolved = await resolveNoticeTexts(records)
+      if (!disposed && current === requestVersion) {
+        listFailed.value = false
+      }
+      return { ...response, result: Array.isArray(result) ? resolved : { ...result, data: resolved } }
+    } catch (error) {
+      if (!disposed && current === requestVersion) listFailed.value = true
+      throw error
+    }
   }
 
   function parseDetail(record: NoticeRecord) {
@@ -214,7 +235,7 @@ export function useNotificationRecords(
 
   function formatTime(value?: string | number) {
     if (!value || !dayjs(value).isValid()) return t('comm.table.empty-2')
-    return dayjs(value).format('YYYY-MM-DD HH:mm:ss')
+    return dayjs(value).format('YYYY-MM-DD HH:mm')
   }
 
   function refresh() { tableRef.value?.reload?.() }
@@ -293,10 +314,10 @@ export function useNotificationRecords(
   watch(() => router.params.value?.row, acceptIncoming, { immediate: true })
   watch(() => user.userInfo?.id, refresh)
   useNoticeDataSourceChanges(() => providerIds.value, refresh)
-  onUnmounted(() => { disposed = true })
+  onUnmounted(() => { disposed = true; requestVersion++ })
 
   return {
-    tableRef, filterTerms, queryParams, selectedIds, updating, failed, viewVisible, viewItem,
+    tableRef, batchActions, rowClassName, filterTerms, queryParams, selectedIds, updating, failed, listFailed, viewVisible, viewItem,
     filterFields, typeFilterKey, columns, defaultParams, rowSelection, onFilterChange, requestNotifications,
     titleOf, summaryOf, typeOf, stateOf, stateText, formatTime, refresh, markSelected, toggleRead, view,
     confirmDetail,

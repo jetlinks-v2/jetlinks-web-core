@@ -18,7 +18,7 @@ const messages = Object.fromEntries(['zh', 'en'].map(locale => [locale,
     JSON.parse(readFileSync(new URL(`../src/locales/lang/${locale}.json`, import.meta.url), 'utf8')),
 ]));
 
-async function render(error, { locale = 'zh', key = 'test', loading = false, mapProps = {}, onUiOption = () => {} } = {}) {
+async function render(error, { locale = 'zh', key = 'test', loading = false, mapProps = {}, onUiOption = () => {}, guideSlot } = {}) {
     const module = { exports: {} };
     const state = {
         error: ref(error), loading: ref(loading), amapKey: ref(key), sdkReady: ref(false),
@@ -29,7 +29,7 @@ async function render(error, { locale = 'zh', key = 'test', loading = false, map
         if (id === './useAMapLifecycle') return { useAMapLifecycle: ui => { onUiOption(ui()); return state; } };
         return require(id);
     }, module, module.exports);
-    const app = createSSRApp(module.exports.default, { style: { height: '320px' }, ...mapProps });
+    const app = createSSRApp({ render: () => h(module.exports.default, { style: { height: '320px' }, ...mapProps }, guideSlot ? { 'error-guide': guideSlot } : {}) });
     app.use(createI18n({ legacy: false, locale, messages, flatJson: true, missingWarn: false }));
     app.component('ElAmap', { setup: (_, { slots }) => () => h('div', slots.default?.()) });
     app.component('CloudEmpty', { props: ['description'], setup: props => () => h('div', props.description) });
@@ -80,4 +80,13 @@ test('existing trajectory callers retain default AMapUI loading and explicit fal
     await render(undefined, { onUiOption: value => values.push(value) });
     await render(undefined, { mapProps: { AMapUI: false }, onUiOption: value => values.push(value) });
     assert.deepEqual(values, [true, false]);
+});
+
+test('error-guide slot receives the actual error and replaces only the guide', async () => {
+    const error = { kind: 'map', code: '10013', info: 'USER_KEY_RECYCLED' };
+    const html = await render(error, { guideSlot: ({ error }) => h('span', `custom ${error.code}`) });
+    assert.match(html, /错误码：10013/);
+    assert.match(html, /info：USER_KEY_RECYCLED/);
+    assert.match(html, /custom 10013/);
+    assert.doesNotMatch(html, /请前往高德地图官网查看错误码说明/);
 });

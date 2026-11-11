@@ -18,5 +18,7 @@ export interface SlantedTabsState {
 export interface SlantedTabsProps {
   options: SlantedTabOption[]
   activeKey?: SlantedTabKey
+  /** 保留当前被禁用项的选中态；仍阻止用户选择禁用项，默认关闭。 */
+  preserveDisabledActive?: boolean
   state: SlantedTabsState
 }

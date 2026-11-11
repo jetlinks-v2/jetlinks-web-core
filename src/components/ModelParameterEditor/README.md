@@ -10,21 +10,71 @@ definition fields remain unchanged.
 
 ## Section Navigation
 
-Presentation: retain the existing Ant Design Vue Tabs and all active-tab, validation,
-draft, and save bindings. In `style.less`, group the 28px items in a compact, lightly
-bordered neutral track with 4px inner spacing and a white active item. Remove the
-navigation baseline and ink bar, and leave 12px before the section description/content.
-Remove the editor's duplicate horizontal padding so the navigation track and content
-share the enclosing `ModelConfig` title's left edge. The primary tabs keep their original
-styling. Limit the track to the available width; tab overflow and keyboard navigation
-remain owned by Ant Design Vue. No additional navigation component or data state is
-introduced.
+Use the device data page's Ant Design Vue `Segmented` for section navigation, retaining
+the original tab keys and all validation, draft, and save bindings. Labels use the same
+minimum width, bold weight and active primary color as the device control. The toolbar
+keeps the optional sibling `actions` slot, adds the device toolbar's bottom divider and
+spacing, and wraps actions when space is limited. The segmented control scrolls within
+its available width; the body still fills and scrolls within the remaining height.
+The editor stays transparent so the enclosing `ContentPanel` owns the background.
 
-Verification: scoped LESS compilation and `git diff --check` passed. SHA-256 checks
-confirmed `index.vue`, `modelParameterUtils.ts`, `targetInferenceUtils.ts`, and
-`useSceneParameterDefaults.ts` are unchanged from before the navigation styling work.
-This localized presentation change does not add tests or repeat full lint/typecheck/build;
-browser rendering remains to be verified.
+Parameter definitions use the same `a-table` with `size="small"` as the gateway firmware
+task panel. Keep pagination off, use the existing stable `rowId` as the row key, and
+retain the current input/select/checkbox events, read-only state and error indicators.
+The existing row drafts, preview, `prepareForSave()` and empty state are unchanged.
+No requests, sorting, filters, fallback fields or tests are added. Both core checkouts
+receive this presentation update, including callers without an actions slot.
+
+Ownership: `index.vue` / `style.less` own navigation and separation;
+`ParameterConfigTable.vue` / `parameterConfigTable.less` own table presentation.
+The table has no sorting or pagination, so its cell index reads the same ordered draft
+array supplied as its data source; the stable row key stays independent of path edits.
+
+Verification: targeted `vue-tsc --noEmit` in both workspaces, SFC/script/template/LESS
+compilation, the existing `check:ui-style` gate and `git diff --check` passed. Script
+comparison found only localized navigation options and table columns added; all draft,
+validation, preview and save functions remain unchanged. Parameter input/select/checkbox
+event bindings match the previous template. The Vue entries are 297 and 285 lines.
+In the running frontend, both 869px and 1935px client widths were verified: narrow
+actions wrap, wide actions stay beside navigation, and horizontal table overflow stays
+inside the content. The device/model table headers share their background, 14px size,
+600 weight, 8px padding and divider; the toolbar uses the device's 12px bottom padding
+and 16px content gap. All five sections and model files switch normally. Local add,
+delete, path edit and applicability changes preview correctly across inference sections;
+exiting edit restores the original 23 rows and read-only controls. Model testing retains
+its disabled state. No server save, new unit tests or full production build was run.
+The operator caller's browser flow remains unverified; its scoped type checks passed,
+and its existing full-build dependency blocker is recorded in `../ModelConfig/README.md`.
+
+## Unsaved Changes On Primary Tab Switch
+
+Approved scope: only `ModelConfig` primary tabs guard unsaved changes. All five
+parameter sections continue to share one definition draft and switch freely, without
+prompts or validation on navigation. Save validation still selects its owning section
+and scene mode directly.
+
+Expose a side-effect-free `hasChanges()` query for local parameter row drafts,
+target-inference drafts and invalid scene-default JSON, including edits that do not
+change the serialized preview. The default editor compares parameter definitions through
+their row drafts and other definition fields against the edit-start snapshot. It does
+not treat fields automatically rebuilt by parameter previews as user changes, so
+restoring an edited value does not cause a false prompt. JSON, custom slots and file
+editors retain their own edit-start comparison. Dirty observation never runs validation
+or applies save-time normalization; tab/mode/collapse UI state does not make the configuration dirty.
+Existing edit cancellation resets child drafts through their current editing watchers.
+
+Reuse the existing components and hooks; this change adds no parameter-editor files
+or new directory level. Keep the public entry, standalone behavior, validators and
+serialized business fields unchanged, and the Vue entries within 300 lines. The
+workspace owns the dialog's 保存 / 丢弃 / 取消 actions, actual save result and primary
+target switch; see `../ModelConfig/README.md`. Both core checkouts have matching
+implementations. Scoped type checks, SFC/template/LESS checks and the existing UI style
+gate passed; changed Vue files remain within 300 lines. Runtime browser checks covered
+free secondary navigation, draft preservation, cancel/discard, unchanged/restored values,
+blank parameter rows, incomplete target groups and invalid default JSON. Validation
+returned to the owning section and default mode without applying the pending primary
+switch. No new unit tests or business API changes. Real save requests and the operator
+browser flow were not exercised; the original host completion callbacks were reviewed.
 
 ## ROI Form
 
@@ -138,7 +188,11 @@ Row actions use icon-only buttons with localized tooltips and accessible names: 
 configuration uses an eye, configure uses a gear, add-part uses a plus, and delete uses
 a trash icon. Add Target keeps its plus icon and text in a full-width dashed button.
 When editing an empty target list, show this add entry without a redundant empty-state
-illustration; read-only empty lists retain the existing empty state.
+illustration; read-only empty lists retain the existing empty state. Center `CloudEmpty`
+in the remaining content height below the introduction, using its existing `style` prop.
+The Chinese guidance reads 暂无二次推理配置，点击编辑新增; shared defaults and the
+machine-vision host's Chinese/English/Japanese locale overrides stay aligned. This
+presentation update preserves all draft, validation and save bindings.
 
 Part sections use a clear heading and compact part-label tags instead of a full-width
 gray strip. The localized model summary label includes its colon. Selectable-parameter

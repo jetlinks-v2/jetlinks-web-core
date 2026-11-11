@@ -995,7 +995,7 @@
 
   &__name {
     min-width: 0;
-    max-width: 6.5rem;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1041,6 +1041,14 @@
     min-width: 0;
     display: flex;
     margin-top: 2px;
+  }
+
+  &__roles-row {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
   }
 
   &__account {

@@ -1,0 +1,61 @@
+.model-config {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.model-config__primary-tabs {
+  flex: 0 0 auto;
+  --slanted-tabs-background: transparent;
+}
+
+.model-config__body {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-top-left-radius: 0;
+  overflow: hidden;
+}
+
+.model-config__configuration,
+.model-config__extra-content {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-4);
+  overflow: hidden;
+}
+
+.model-config__configuration {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.model-config__configuration-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.model-config__definition-content {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.model-config__editor {
+  flex: 1 1 0;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  overflow: hidden;
+}
