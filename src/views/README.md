@@ -110,4 +110,4 @@
 
 发布需要更新使用该 core 的前端静态资源；无新增后端服务重启或数据迁移要求。完整检查可在对应的 `ui/` 或 `runtime-ui/` 工作区执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 与 `pnpm build`；当前 core 未配置独立 lint 脚本。
 
-改版与清理的实现提交：`d18caf91`；交付入口：[PR #232](https://github.com/jetlinks-v2/jetlinks-web-core/pull/232)，目标分支 `2.20`。
+四页改版与清理的实现提交：`d18caf91`，入口为 [PR #232](https://github.com/jetlinks-v2/jetlinks-web-core/pull/232)；运营端配置入口、菜单和联系方式绑定修复的实现提交：`a666b910`，入口为 [PR #233](https://github.com/jetlinks-v2/jetlinks-web-core/pull/233)。目标分支均为 `2.20`。
