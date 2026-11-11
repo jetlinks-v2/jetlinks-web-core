@@ -58,6 +58,7 @@ const {
     </FullPage>
     <ContactDialog
       v-if="accountInfoVisible"
+      :key="contactTarget"
       :provider="contactTarget === 'phone-section' ? 'mobile' : 'email'"
       :identity-enabled="editableProviders.includes(contactTarget === 'phone-section' ? 'mobile' : 'email')"
       @close="closeAccountInfo"

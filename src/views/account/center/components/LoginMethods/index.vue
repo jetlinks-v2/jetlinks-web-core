@@ -7,7 +7,7 @@ import { useLoginMethods } from './useLoginMethods'
 
 const props = defineProps({ profile: { type: Object as PropType<AccountCardProfile>, required: true } })
 const emit = defineEmits<{ (event: 'edit', target: AccountEditTarget): void; (event: 'password'): void; (event: 'notification-settings'): void }>()
-const { entries, loading, failed, unbinding, load, canBindSso, bind, unbind, binding, authorizationUrl, bindingState, closeBinding, canManageSso, openSsoSettings } = useLoginMethods(() => props.profile)
+const { entries, loading, failed, unbinding, load, canBindSso, bind, unbind, binding, authorizationUrl, bindingState, closeBinding, ssoSettings, canManageSso, openSsoSettings } = useLoginMethods(() => props.profile)
 </script>
 
 <template>
@@ -16,8 +16,8 @@ const { entries, loading, failed, unbinding, load, canBindSso, bind, unbind, bin
     <div class="login-methods__note">
         {{ $t('PersonalCenter.loginMethodsNoteBoth') }}<i18n-t keypath="PersonalCenter.loginMethodsSsoNote" tag="span">
           <template #settings>
-            <a-typography-link v-if="canManageSso" @click="openSsoSettings">{{ $t('PersonalCenter.ssoSettingsName') }}</a-typography-link>
-            <span v-else>{{ $t('PersonalCenter.ssoSettingsName') }}</span>
+            <a-typography-link v-if="canManageSso" @click="openSsoSettings">{{ ssoSettings.label }}</a-typography-link>
+            <span v-else>{{ ssoSettings.label }}</span>
           </template>
         </i18n-t>
     </div>
