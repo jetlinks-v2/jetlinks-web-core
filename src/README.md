@@ -61,6 +61,12 @@
 
 业务模块还可在 `notification-provider:default` 注册项中提供 `metadata()` 和 `dataSource`，为不写入通用通知收件箱的消息提供独立接收入口。`dataSource` 负责查询、未读统计、状态确认、全部确认以及可选的本地状态/实时订阅；`layout/components/noticeListHandler.ts` 将铃铛、个人中心和角标请求分派到对应数据源，未注册分类继续使用原通知接口。共享 core 不保存业务确认数据，也不识别具体公告接口、Topic 或存储键。
 
+未读汇总以 `queryNoticeUnreadSummary(providers, params)` 的 `providers` 为路由范围，调用方不应通过 `params.terms` 另行限制 provider；函数按注册关系递归移除旧 provider 条件、为每路生成唯一范围，并保留其他筛选分组、排序和分页。普通接口只接收本路 provider 的响应，每个分类仅采用一个计数；独立分类只采用自身数据源的计数，即使旧后端仍返回历史公告，也不重复累计。任一路失败或数量非法时抛出错误，由铃铛和消息中心保留上次成功数量。入口为 `layout/components/noticeListHandler.ts`，不改后端或公告本地确认规则。
+
+修复提交：`d47a9c68f1976ba05780f4758caa6a24c006fe49`；交付入口：[PR #234](https://github.com/jetlinks-v2/jetlinks-web-core/pull/234)，目标分支 `2.20`。
+
+验证：在 core 目录执行 `node --test tests/noticeDataSource.test.mjs tests/headerNotice.test.mjs tests/noticeUtils.test.mjs src/views/account/center/personalCenterFlows.test.mjs`，最新 `2.20` 基线的交付分支 94 项通过，覆盖实际铃铛 hook 与汇总函数组合、历史公告混入、3 条通知与 1 条公告从 4 降至 3、失败保留及重试、99+、条件隔离和非法响应。实现阶段原工作区的 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json --pretty false` 有 606 项诊断，与原版源码基线逐条一致，改动文件无诊断；原工作区公告模块生产构建通过（11194 个模块，2m27s，通过临时 `.mjs` 调用原 Vite `build()` API 传递模块参数），交付分支的修复代码和两个改动测试文件与该验证版本 SHA-256 一致，复用该构建及类型证据。没有独立 lint 脚本，改动文件 `git diff --check` 通过。修复没有 SaaS 条件分支，项目内及私有化须更新到包含该修复的 Core 后重新构建发布主应用资源；仅更新公告业务模块不足以更新宿主铃铛。测试使用模拟接口，真实后端及三种部署页面未验收，部署后须复验接收新通知/公告、确认公告、刷新及全部已读。
+
 独立数据源可声明 `confirmOnDetail: true`，让原详情确认按钮在成功写入业务确认状态后关闭；关闭或取消不确认。`subscribe` 与 `subscribeRealtime` 都必须返回释放函数，分类变化、账号变化或 Vue Scope 销毁时由 core 取消监听。接收分类通过 `metadata()` 合并，不要求当前用户拥有对应发送通道配置；订阅设置仍只读取真实通道。
 
 本次按现有顶部消息弹层做局部改版：保留铃铛、当前用户消息接口、实时订阅和详情接管，内容按“消息标题与未读摘要 / 通知与公告 / 紧凑摘要列表 / 进入消息中心”组织。沿用 Ant Design Tabs、Dropdown、Button 和主题色、圆角、边框；不改导航框架或后端通知规则。
