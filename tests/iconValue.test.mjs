@@ -87,6 +87,7 @@ test('编辑器回显存量裸图标，图标库再次选择后输出带 font: �
   })
   const Editor = component('IconValueEditor.vue', {
     './iconValue': values,
+    './IconValueColorEditor.vue': { __esModule: true, default: component('IconValueColorEditor.vue', { './iconValue': values }) },
     './IconValueView.vue': { __esModule: true, default: View },
     '../IconLibrary/index.vue': { __esModule: true, default: Library },
     '../Upload/Image/ImageUpload.vue': { __esModule: true, default: {} },
@@ -104,4 +105,38 @@ test('编辑器回显存量裸图标，图标库再次选择后输出带 font: �
   assert.equal(selectedIcon, 'StepBackwardOutlined')
   assert.deepEqual(emitted, ['font:StepForwardOutlined'])
   assert.deepEqual(parseIconValue(emitted[0]), { kind: 'font', iconType: 'StepForwardOutlined' })
+})
+
+test('默认颜色编辑器回显颜色与标签，调用方可通过插槽替换颜色交互', async () => {
+  const ColorEditor = component('IconValueColorEditor.vue', { './iconValue': values })
+  const Editor = component('IconValueEditor.vue', {
+    './iconValue': values,
+    './IconValueView.vue': { __esModule: true, default: View },
+    './IconValueColorEditor.vue': { __esModule: true, default: ColorEditor },
+    '../IconLibrary/index.vue': { __esModule: true, default: {} },
+    '../Upload/Image/ImageUpload.vue': { __esModule: true, default: {} },
+    'vue-i18n': { useI18n: () => ({ t: key => key }) },
+  })
+  const passthrough = defineComponent({ setup: (_, { slots }) => () => h('div', slots.default?.()) })
+  const register = app => {
+    for (const name of ['ATabs', 'ATabPane', 'AButton']) app.component(name, passthrough)
+    app.component('AInput', { props: ['value'], setup: props => () => h('input', { value: props.value }) })
+    app.component('AIcon', AIcon)
+    return app
+  }
+  const html = await renderToString(register(createSSRApp(Editor, { modelValue: 'color:#1890ff:APP', enableCropUpload: false })))
+  assert.match(html, /value="#1890ff"/)
+  assert.match(html, /value="APP"/)
+  assert.match(html, /components.IconValueEditor.applyColor/)
+  const updates = []
+  const custom = await renderToString(register(createSSRApp({ render: () => h(Editor, {
+    modelValue: 'color:#1890ff:APP', enableCropUpload: false, 'onUpdate:modelValue': value => updates.push(value),
+  }, { color: ({ value, updateValue }) => {
+    assert.equal(value, 'color:#1890ff:APP')
+    updateValue('color:#ff7875:APP')
+    return h('span', 'custom palette')
+  } }) })))
+  assert.match(custom, /custom palette/)
+  assert.doesNotMatch(custom, /components.IconValueEditor.applyColor/)
+  assert.deepEqual(updates, ['color:#ff7875:APP'])
 })

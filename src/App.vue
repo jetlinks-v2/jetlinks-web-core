@@ -22,8 +22,9 @@ import componentsJa from './locales/componentsJa'
 import theme from '@theme-config'
 import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
-import {initPackages} from "@jetlinks-web-core/package";
-import { setToken, removeToken} from "@jetlinks-web/utils";
+import {initPackages, clearVerifyCache} from "@jetlinks-web-core/package";
+import { setToken } from "@jetlinks-web/utils";
+import { consumeLogoutLoginEntry, LOGOUT_AUTH_QUERY_KEYS } from '@jetlinks-web-core/router/login-session'
 import { installEdgeImageProxy } from '@jetlinks-web-core/utils/edge-image-proxy'
 import {
   getBaseApi,
@@ -173,6 +174,14 @@ watch(() => JSON.stringify(route.query || {}), () => {
   const routeQuery = route.query || {}
   const query = Object.keys(routeQuery).length ? routeQuery : parseHashQuery()
 
+  // 兼容文档内进入清理地址；启动阶段已消费的退出原因不会再次清掉新 token。
+  if (consumeLogoutLoginEntry(clearVerifyCache)) {
+    const nextQuery = { ...query }
+    for (const key of LOGOUT_AUTH_QUERY_KEYS) delete nextQuery[key]
+    router.replace({ query: nextQuery, hash: route.hash })
+    return
+  }
+
   Object.entries(query).forEach(([key, value]) => {
     if (value === undefined) return
 
@@ -189,10 +198,6 @@ watch(() => JSON.stringify(route.query || {}), () => {
 
   if (query.token || query.from) {
     clearUrlAuthQuery()
-  }
-
-  if (query.clearToken === 'true') {
-    removeToken()
   }
 
   if (query.token && query.pName && query.pRuntime && query.pCode) {
