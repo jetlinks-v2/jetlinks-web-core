@@ -1,5 +1,5 @@
 <template>
-  <aside class="appearance-preview" :aria-label="t('PlatformSettings.preview')">
+  <aside class="appearance-preview" :class="{ 'appearance-preview--compact': hidden.includes('background') }" :aria-label="t('PlatformSettings.preview')">
     <div class="appearance-preview__header">
       <strong>{{ t('PlatformSettings.preview') }}</strong>
       <a-segmented v-model:value="view" :options="views" size="small" />
@@ -36,6 +36,7 @@ const mark = (key: string) => ({ 'preview-active': props.active === key })
 </script>
 <style scoped>
 .appearance-preview { background: var(--bg-sunken); border-radius: var(--panel-radius); padding: var(--space-4); min-width: 0; align-self: stretch; }
+.appearance-preview--compact { align-self: start; }
 .appearance-preview__header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; font-size: var(--fs-13); }
 .preview-browser { border: 1px solid var(--line); border-radius: var(--r-4); overflow: hidden; background: var(--jet-theme-bg-container); box-shadow:var(--shadow-lifted); }
 .preview-tabbar { display: flex; align-items: flex-end; gap: var(--space-2); padding: var(--space-2) var(--space-3) 0; background: var(--bg-sunken); }
@@ -50,5 +51,6 @@ const mark = (key: string) => ({ 'preview-active': props.active === key })
 .preview-tab__close { flex: none; margin-left: var(--space-1); font-size: var(--fs-12); color: var(--text-color-secondary); }
 .preview-new-tab { display: flex; align-items: center; justify-content: center; flex: none; width: 1.5rem; height: 2rem; color: var(--text-color-secondary); font-size: var(--fs-12); }
 .preview-viewport { position: relative; aspect-ratio: 8 / 5; overflow: hidden; background: var(--bg-sunken); }
+.appearance-preview--compact .preview-viewport { aspect-ratio: 12 / 5; }
 .preview-active { outline: 2px solid var(--jet-theme-primary); outline-offset: -2px; }
 </style>

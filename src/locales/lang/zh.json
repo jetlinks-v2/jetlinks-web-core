@@ -2452,7 +2452,7 @@
   "PlatformSettings.save": "保存",
   "PlatformSettings.saving": "保存中…",
   "PlatformSettings.cancel": "取消",
-  "PlatformSettings.modify": "修改",
+  "PlatformSettings.modify": "编辑",
   "PlatformSettings.clear": "清除配置",
   "PlatformSettings.map": "高德地图",
   "PlatformSettings.mapHint": "Web 端 Key 与安全密钥需成对配置；Web 服务 Key 用于服务端地理服务。",

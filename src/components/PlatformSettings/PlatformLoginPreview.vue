@@ -35,7 +35,7 @@ import type { PlatformSettingKey, PlatformSettingsAssets, PlatformSettingsModel 
 const props = defineProps<{ model: PlatformSettingsModel; assets: PlatformSettingsAssets; hidden: readonly string[]; active?: string }>()
 const emit = defineEmits<{ locate: [key: PlatformSettingKey] }>()
 const { t } = useI18n()
-const previewSize = { width: 1440, height: 900 }
+const previewSize = computed(() => ({ width: 1440, height: props.hidden.includes('background') ? 600 : 900 }))
 const viewport = ref<HTMLElement>()
 const { width } = useElementSize(viewport)
 const mark = (key: string) => ({ 'preview-active': props.active === key })
@@ -43,10 +43,10 @@ const canvasStyle = computed(() => {
   const image = `url(${JSON.stringify(props.assets.background || defaultLoginBackground)})`
   return {
     // Keep the login page's proportions when the settings card becomes narrower.
-    '--login-viewport-width': `${previewSize.width}px`, '--login-viewport-height': `${previewSize.height}px`,
+    '--login-viewport-width': `${previewSize.value.width}px`, '--login-viewport-height': `${previewSize.value.height}px`,
     '--login-bg-image': props.model.background && !props.hidden.includes('background')
       ? image : `var(--jet-login-bg-image, ${image})`,
-    transform: `scale(${width.value / previewSize.width})`,
+    transform: `scale(${width.value / previewSize.value.width})`,
   }
 })
 </script>

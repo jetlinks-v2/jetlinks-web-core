@@ -34,7 +34,9 @@
         <span class="map-key">{{ saved.secretKey ? (showSecret ? saved.secretKey : '••••••••') : t('PlatformSettings.notConfigured') }}</span>
         <template #action><a-button v-if="saved.secretKey" type="text" :aria-label="t(showSecret ? 'PlatformSettings.hideSecret' : 'PlatformSettings.showSecret')" @click="showSecret = !showSecret"><AIcon :type="showSecret ? 'EyeInvisibleOutlined' : 'EyeOutlined'" /></a-button></template>
       </PlatformSettingRow>
-      <PlatformTextSetting key="webKey" v-bind="props" field-key="webKey" icon="KeyOutlined" :label="t('PlatformSettings.webKey')" :hint="t('PlatformSettings.webKeyHint')" @change="emit('change', $event)" />
+      <PlatformSettingRow key="webKey" field="webKey" icon="KeyOutlined" :label="t('PlatformSettings.webKey')" :description="t('PlatformSettings.webKeyHint')">
+        <span class="map-key">{{ saved.webKey || t('PlatformSettings.notConfigured') }}</span>
+      </PlatformSettingRow>
     </PlatformSettingsFields>
     <a-modal :open="pairOpen" :title="t('PlatformSettings.editMapPair')" :confirm-loading="busy" :cancel-button-props="{ disabled: busy }" :closable="!busy" :mask-closable="false" :keyboard="!busy" @ok="savePair" @cancel="cancelPair">
       <a-form layout="vertical">
@@ -52,7 +54,6 @@ import { useI18n } from 'vue-i18n'
 import ContentPanel from '../ContentPanel/index.vue'
 import PlatformSettingsFields from './PlatformSettingsFields'
 import PlatformSettingRow from './PlatformSettingRow.vue'
-import PlatformTextSetting from './PlatformTextSetting.vue'
 import { sectionProps } from './sectionProps'
 import type { PlatformSettingsPatch } from './types'
 const props = defineProps(sectionProps)
@@ -85,6 +86,7 @@ async function clear() {
 }
 </script>
 <style scoped>
+.platform-card :deep(.settings-row__icon) { width: 2.375rem; height: 2.375rem; border-radius: var(--r-3); background: var(--accent-soft); color: var(--accent); font-size: var(--fs-20); }
 .map-first-form { max-width: 40rem; padding-top: var(--space-4); }
 .map-key { display: inline-block; max-width: 100%; overflow-wrap: anywhere; font-family: monospace; }
 </style>

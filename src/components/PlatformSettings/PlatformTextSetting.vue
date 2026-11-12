@@ -42,5 +42,6 @@ defineExpose({ edit })
 <style scoped>
 .setting-failure { margin: var(--space-1) 0 0; color: var(--jet-theme-error); font-size: var(--fs-12); }
 .setting-edit-button { min-width: 4rem; }
+.platform-text-setting--button :deep(.settings-row__action) { align-self: start; }
 .platform-text-setting--button :deep(.inline-edit-field__value), .platform-text-setting--button :deep(.inline-edit-field__editor .ant-input) { font-size: var(--fs-16); font-weight: 600; }
 </style>
