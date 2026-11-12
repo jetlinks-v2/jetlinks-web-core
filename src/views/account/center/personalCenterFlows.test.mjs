@@ -30,11 +30,13 @@ const stubs = {
   'vue-i18n': 'export const useI18n=()=>({t:(key,params)=>key==="EditPassword.currentPasswordNotVerified"?`${key}: ${params.reason}`:key,locale:ctx.locale})',
   '@jetlinks-web/utils': 'export const onlyMessage=(...args)=>ctx.messages.push(args);export const randomString=()=>"fixture"',
   '@jetlinks-web-core/locales': 'export default {global:{t:key=>key}}',
+  '@jetlinks-web-core/hooks/useNotificationConfigNavigation': `import {computed} from 'vue'; export const useNotificationConfigNavigation=refresh=>{ctx.refreshNotificationConfiguration=refresh;return {available:computed(()=>ctx.menu.hasMenu('system/MessageNotification/Templates')),open:(...args)=>ctx.calls.push({method:'openTemplate',args})}}`,
   '@jetlinks-web-core/store/menu': 'export const useMenuStore=()=>ctx.menu',
   '@jetlinks-web-core/api/login': 'export const getIdentityProviders=(...args)=>ctx.request("getIdentityProviders",args)',
   '@jetlinks-web-core/store/user': 'export const useUserStore=()=>ctx.user',
   '@jetlinks-web-core/store': 'export const useSystemStore=()=>({language:"zh"});export const useUserStore=()=>ctx.user',
   '@jetlinks-web/hooks': `import {ref,onMounted} from 'vue';
+    export const usePermission=code=>({hasPerm:ref(ctx.permissions ? ctx.permissions(code.value) : true)});
     export const useRouterParams=()=>({params:ctx.params,clear:()=>{ctx.params.value={}}});
     export const useRequest=(request,options)=>{
       const loading=ref(false);
@@ -124,7 +126,7 @@ async function mount(t, name, args = [], overrides = {}) {
   }
   const ctx = {
     user, calls, messages, params: ref(overrides.__params || {}), locale: ref('zh'), streams: [],
-    filterProviders: overrides.__filterProviders,
+    filterProviders: overrides.__filterProviders, permissions: overrides.__permissions,
     menu: { isGranted: () => true, hasMenu: key => (overrides.__menus || []).includes(key), jumpPage: (...args) => calls.push({ method: 'jumpPage', args }) },
     registeredProviders: overrides.__registeredProviders ?? [{ code: 'bulletin', props: { messageCategory: 'announcement' } }],
     newStream() { const stream = new Subject(); this.streams.push(stream); return stream },
@@ -273,17 +275,15 @@ test('接收设置沿用通知渠道定义名称及国际化标识，配置入�
     { id: 'notifier-dingTalk', receiverPolicy: 'subscriber' },
   ]
   const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
-    __menus: ['notice/channel'],
+    __menus: ['system/MessageNotification/Templates'],
     getNotificationChannelDefinitions_api: () => definitions,
   })
   assert.equal(hook.channelLabel('notifier-weixin'), '微信')
   assert.equal(hook.tableColumns.value.find(column => column.key === 'notifier-weixin').title, '微信')
   assert.equal(hook.channelLabel('notifier-email'), 'channel.email.displayName')
   assert.equal(hook.channelLabel('notifier-dingTalk'), 'PersonalCenter.dingtalk')
-  hook.openChannelSettings('notifier-weixin')
-  assert.deepEqual(ctx.calls.at(-1), {
-    method: 'jumpPage', args: ['notice/channel', { query: { channelProvider: 'notifier-weixin' } }],
-  })
+  hook.checkTemplate(hook.providers.value[0], 'notifier-weixin')
+  assert.deepEqual(ctx.calls.at(-1), { method: 'openTemplate', args: ['alarm', 'notifier-weixin'] })
   definitions = [{ id: 'notifier-weixin', name: 'WeChat', receiverPolicy: 'subscriber' }]
   await hook.load()
   assert.equal(hook.channelLabel('notifier-weixin'), 'WeChat')
@@ -931,12 +931,12 @@ test('接收渠道摘要区分可用、未配置与未绑定，并保留实际�
   ctx.user.userInfo.email = ''
   assert.equal(hook.receiverStatus('notifier-email'), 'PersonalCenter.notificationNoEmail')
   assert.equal(hook.channelHeaderAction('notifier-email'), 'email')
-  assert.equal(hook.receiverStatus('notifier-dingTalk'), 'PersonalCenter.channelUnconfiguredAdmin')
+  assert.equal(hook.receiverStatus('notifier-dingTalk'), 'PersonalCenter.notificationUnavailableAdmin')
   assert.equal(hook.channelHeaderAction('notifier-dingTalk'), undefined)
-  const admin = await mount(t, 'useNotificationSettings', [], { __menus: ['notice/channel'] })
+  const admin = await mount(t, 'useNotificationSettings', [], { __menus: ['system/MessageNotification/Templates'] })
   assert.equal(admin.hook.channelHeaderAction('notifier-dingTalk'), 'configure')
-  admin.hook.openChannelSettings('notifier-dingTalk')
-  assert.deepEqual(admin.ctx.calls.at(-1), { method: 'jumpPage', args: ['notice/channel', { query: { channelProvider: 'notifier-dingTalk' } }] })
+  admin.hook.checkTemplate(admin.hook.providers.value[0], 'notifier-dingTalk')
+  assert.deepEqual(admin.ctx.calls.at(-1), { method: 'openTemplate', args: ['alarm', 'notifier-dingTalk'] })
 })
 
 test('密码校验区分错误原因、显式失败、异常及确认不一致', async t => {
@@ -957,6 +957,46 @@ test('密码校验区分错误原因、显式失败、异常及确认不一致',
   assert.equal(ctx.calls.length, before)
   await hook.confirm({}, 'new-secret')
   assert.deepEqual(ctx.messages, [])
+})
+
+test('五类接收方式按具体业务记录进入模板页，只读和旧菜单不提供管理入口', async t => {
+  const business = { ...row, id: 'scope-specific-business', channels: [channel] }
+  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
+    __menus: ['system/MessageNotification/Templates'], getAllNotice: () => [business],
+  })
+  for (const type of ['email', 'dingTalk', 'weixin', 'voice', 'sms']) {
+    hook.checkTemplate(hook.providers.value[0], `notifier-${type}`)
+    assert.deepEqual(ctx.calls.at(-1), { method: 'openTemplate', args: [business.id, `notifier-${type}`] })
+  }
+  assert.equal(hook.canCheckTemplate(business, 'notifier-webhook'), false)
+  for (const overrides of [{ __menus: ['notice/channel'] }, { __menus: ['system/MessageNotification/Templates'], __permissions: code => code.endsWith(':query') }]) {
+    const readonly = await mount(t, 'useNotificationSettings', [], overrides)
+    readonly.hook.checkTemplate(readonly.hook.providers.value[0], 'notifier-dingTalk')
+    assert.equal(readonly.ctx.calls.some(call => call.method === 'openTemplate'), false)
+    assert.equal(readonly.hook.unavailableType('notifier-dingTalk'), 'PersonalCenter.notificationUnavailableAdmin')
+  }
+})
+
+test('返回模板配置后重读业务和订阅，多个资产范围按记录定位且不写入默认订阅', async t => {
+  let channels = [channel]
+  let subscriptions = []
+  const business = id => ({ ...row, id, channels })
+  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
+    __menus: ['system/MessageNotification/Templates'],
+    getAllNotice: () => [business('scope-a'), business('scope-b')], getNoticeList_api: () => subscriptions,
+  })
+  hook.checkTemplate(hook.providers.value[1], 'notifier-email')
+  assert.deepEqual(ctx.calls.at(-1), { method: 'openTemplate', args: ['scope-b', 'notifier-email'] })
+  channels = [channel, mail]
+  subscriptions = [{ topicProvider: row.provider, notifyChannels: ['mail'], state: 'enabled' }]
+  await ctx.refreshNotificationConfiguration()
+  assert.equal(hook.matrixCells('scope-b', 'notifier-email')[0].checked, true)
+  assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
+  ctx.request = async () => { throw new Error('offline') }
+  await hook.load()
+  assert.equal(hook.canCheckTemplate(hook.providers.value[0], 'notifier-email'), false)
+  await hook.toggleMatrixChannel('scope-b', mail, false)
+  assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
 })
 
 test('登录方式保持原型的单列表顺序与说明，不按后端登录配置拆分页面', async t => {
@@ -1082,4 +1122,19 @@ test('消息中心等待公告能力再创建分类，开启时保留公告入�
   probe.resolve(['alarm', 'bulletin'])
   await flush()
   assert.deepEqual(hook.tabs.value.map(group => group.key), ['notification', 'announcement'])
+})
+
+
+test('原表头配置入口只在唯一业务时定位具体记录，多范围时要求目录选择', async t => {
+  let records = [{ ...row, id: 'scope-a', channels: [channel] }]
+  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
+    __menus: ['system/MessageNotification/Templates'], getAllNotice: () => records,
+  })
+  assert.equal(hook.channelHeaderAction('notifier-email'), 'configure')
+  hook.openChannelSettings('notifier-email')
+  assert.deepEqual(ctx.calls.at(-1), { method: 'openTemplate', args: ['scope-a', 'notifier-email'] })
+  records = [...records, { ...records[0], id: 'scope-b' }]
+  await hook.load()
+  hook.openChannelSettings('notifier-email')
+  assert.deepEqual(ctx.calls.at(-1), { method: 'openTemplate', args: ['', 'notifier-email'] })
 })

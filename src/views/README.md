@@ -84,6 +84,10 @@
 
 ### 通知设置接收方式
 
+`account/center/components/Subscribe/useNotificationSettings.ts` 继续通过 `/notify/channel/all` 与个人订阅接口读取可用渠道和选择；未返回的渠道提示“该消息类型暂无可用的此类通知”。模板新增或编辑权限且有查询权限的账号，沿用原表头配置入口，在独立标签打开模板菜单；仅有一个可定位业务时携带真实记录 ID，多业务或多资产范围时由用户在模板目录选择具体记录。通知设置原有样式、布局和表头操作位置保持不变，不新增单元格按钮。无管理权限则联系管理员。复用 `src/hooks/useNotificationConfigNavigation.ts` 的返回刷新，重新读取渠道、订阅和接收账号；不以通知器凭证列表替代订阅数据。保存保留原邮箱、手机号、第三方接收账号校验。验证（2026-11-11）：`personalCenterFlows.test.mjs`、`notificationSettingsView.test.mjs`、`tests/notificationConfigNavigation.test.mjs` 合计 60/60 通过，覆盖原表头入口、具体记录与多资产范围、返回刷新、无管理权限、账号校验、查询失败和保存重试。core `vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 维持 532 项既有诊断，忽略行号比较无新增；定向样式检查和通知模块构建通过。当前未取得登录态，`/api/notify/channel/all` 返回 401；同一真实账号下的保存绑定、可用性与订阅刷新验证仍待执行，不以隔离测试替代。发布时同步模板菜单权限并刷新登录态。详细命令与模块验证见 `modules/notify-manager-ui/README.md` 的“业务模板绑定与个人订阅联动”。
+
+公共 `src/hooks/useNotificationConfigNavigation.ts` 引导进入新模板菜单，保留 `topicProvider/channelProvider` 与返回时刷新候选的流程；接收页按真实业务绑定解析模板。迁移边界、权限与验证见 [通知模块说明](../../../modules/notify-manager-ui/README.md#旧菜单退役与个人中心入口统一)。
+
 ### 公共组件与交互契约
 
 - 姓名使用公共 `InputEditable` 的文字入口：Enter 或失焦保存、Esc 取消，异步保存失败保留输入。资料和头像通过 `PUT /user/detail` 保存；头像复用 `ImageUpload` 的 `value/update:value` 与 `cropperProps`，执行 1:1 裁剪。

@@ -2239,7 +2239,7 @@
   "PersonalCenter.notificationWebhook": "WebHook",
   "PersonalCenter.notificationTemplateManaged": "Managed by message templates",
   "PersonalCenter.notificationPersonalSubscriptionUnsupported": "This channel is sent centrally through message templates and does not support personal subscription settings.",
-  "PersonalCenter.notificationChannelNotConfigured": "This channel is not configured for this type. Contact an administrator.",
+  "PersonalCenter.notificationChannelNotConfigured": "This message type has no available notification through this channel",
   "PersonalCenter.notificationChannelInfoUnavailable": "Channel information is unavailable. Please try again.",
   "PersonalCenter.notificationNoEnabledTypes": "No notification types are available. Ask an administrator to enable message templates and grant access.",
   "PersonalCenter.notificationReceivingMethods": "Delivery methods",
@@ -2329,7 +2329,7 @@
   "PersonalCenter.tokenRevokeFailed": "Could not revoke the token. Try again.",
   "PersonalCenter.messageAll": "All",
   "PersonalCenter.messageTime": "Time",
-  "PersonalCenter.channelUnavailableNote": "Grey checkboxes indicate unavailable channels. Link a receiving account or configure the channel to enable it.",
+  "PersonalCenter.channelUnavailableNote": "Availability depends on the business, template, channel state and access permissions. Receiving accounts must be bound separately.",
   "PersonalCenter.channelEnabled": "Enabled",
   "PersonalCenter.channelBound": "Linked",
   "PersonalCenter.channelUnbound": "Not linked",
@@ -2416,5 +2416,7 @@
   "PersonalToken.prototype.expireInDays": "Expires {date} ({count} day remaining) | Expires {date} ({count} days remaining)",
   "PersonalToken.apiUsage": "API usage",
   "PersonalToken.myTokens": "My tokens",
-  "PersonalToken.descriptionNotConfigured": "Description not configured"
+  "PersonalToken.descriptionNotConfigured": "Description not configured",
+  "PersonalCenter.notificationUnavailableAdmin": "No notification is available through this channel for this message type. Ask an administrator to check its template",
+  "PersonalCenter.checkNotificationTemplate": "Check notification template"
 }

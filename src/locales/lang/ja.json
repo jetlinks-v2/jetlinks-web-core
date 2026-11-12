@@ -2190,7 +2190,7 @@
   "PersonalCenter.notificationWebhook": "WebHook",
   "PersonalCenter.notificationTemplateManaged": "メッセージテンプレートから一括送信",
   "PersonalCenter.notificationPersonalSubscriptionUnsupported": "このチャンネルはメッセージテンプレートで統一的に送信され、個人購読設定はサポートされていません。",
-  "PersonalCenter.notificationChannelNotConfigured": "このタイプはまだこのチャンネルが設定されていません。管理者にご連絡ください。",
+  "PersonalCenter.notificationChannelNotConfigured": "このメッセージ種別には、このチャネルで利用可能な通知がありません",
   "PersonalCenter.notificationChannelInfoUnavailable": "チャンネル情報は現在利用できません。再度お試しください。",
   "PersonalCenter.notificationNoEnabledTypes": "現在、受信できない通知タイプがありますので、管理者にメッセージテンプレートの有効化と許可を依頼してください。",
   "PersonalCenter.notificationReceivingMethods": "受信方式",
@@ -2280,7 +2280,7 @@
   "PersonalCenter.tokenRevokeFailed": "トークンを取り消せませんでした。再試行してください。",
   "PersonalCenter.messageAll": "すべて",
   "PersonalCenter.messageTime": "日時",
-  "PersonalCenter.channelUnavailableNote": "灰色のチェックボックスは利用できないチャネルです。受信アカウントの連携またはチャネル設定後に有効にできます。",
+  "PersonalCenter.channelUnavailableNote": "通知の利用可否は業務、テンプレート、チャネル状態とアクセス権限によります。受信アカウントは別途連携が必要です。",
   "PersonalCenter.channelEnabled": "有効",
   "PersonalCenter.channelBound": "連携済み",
   "PersonalCenter.channelUnbound": "未連携",
@@ -2367,5 +2367,7 @@
   "PersonalToken.prototype.expireInDays": "{date} に失効（残り {count} 日）",
   "PersonalToken.apiUsage": "API の利用方法",
   "PersonalToken.myTokens": "自分のトークン",
-  "PersonalToken.descriptionNotConfigured": "説明未設定"
+  "PersonalToken.descriptionNotConfigured": "説明未設定",
+  "PersonalCenter.notificationUnavailableAdmin": "このメッセージ種別には利用可能な通知がありません。管理者にテンプレートの確認を依頼してください",
+  "PersonalCenter.checkNotificationTemplate": "通知テンプレートを確認"
 }

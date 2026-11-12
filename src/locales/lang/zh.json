@@ -2239,7 +2239,7 @@
   "PersonalCenter.notificationWebhook": "WebHook",
   "PersonalCenter.notificationTemplateManaged": "由消息模板统一发送",
   "PersonalCenter.notificationPersonalSubscriptionUnsupported": "该渠道由消息模板统一发送，不支持个人订阅设置",
-  "PersonalCenter.notificationChannelNotConfigured": "该类型尚未配置此渠道，请联系管理员",
+  "PersonalCenter.notificationChannelNotConfigured": "该消息类型暂无可用的此类通知",
   "PersonalCenter.notificationChannelInfoUnavailable": "渠道信息暂不可用，请重试",
   "PersonalCenter.notificationNoEnabledTypes": "暂无可接收的通知类型，请联系管理员启用消息模板并授权",
   "PersonalCenter.notificationReceivingMethods": "接收方式",
@@ -2329,7 +2329,7 @@
   "PersonalCenter.tokenRevokeFailed": "令牌撤销失败，请重试",
   "PersonalCenter.messageAll": "全部",
   "PersonalCenter.messageTime": "时间",
-  "PersonalCenter.channelUnavailableNote": "灰色勾选框表示渠道不可用，完成接收账号绑定或渠道配置后可启用。",
+  "PersonalCenter.channelUnavailableNote": "通知是否可选取决于业务、模板、渠道启停和访问权限；接收账号仍需单独绑定。",
   "PersonalCenter.channelEnabled": "已启用",
   "PersonalCenter.channelBound": "已绑定",
   "PersonalCenter.channelUnbound": "未绑定",
@@ -2416,5 +2416,7 @@
   "PersonalToken.prototype.expireInDays": "{date} 过期（还剩 {count} 天）",
   "PersonalToken.apiUsage": "API 使用方式",
   "PersonalToken.myTokens": "我的令牌",
-  "PersonalToken.descriptionNotConfigured": "未配置说明"
+  "PersonalToken.descriptionNotConfigured": "未配置说明",
+  "PersonalCenter.notificationUnavailableAdmin": "该消息类型暂无可用的此类通知，请联系管理员检查通知模板",
+  "PersonalCenter.checkNotificationTemplate": "检查通知模板"
 }
