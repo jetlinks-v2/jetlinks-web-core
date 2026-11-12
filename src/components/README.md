@@ -63,6 +63,10 @@ import {
 
 ## 场景映射
 
+### 平台基础配置
+
+[`PlatformSettings`](PlatformSettings/README.md) 通过根入口和目录入口导出共享配置组合、外观设置/预览及地图区块。`detail` 模式逐项保存，`form` 模式仅更新草稿并向宿主暴露统一提交；复用 `ContentPanel`、`InlineEditForm` 和上传裁剪组件。运行时设置页、初始化页共用；SaaS 域名流程归业务模块。
+
 ### 运行诊断
 
 [`RuntimeDiagnostics`](RuntimeDiagnostics/README.md) 提供指标趋势、MBean / Buffer、JVM 诊断、线程、实时火焰图、集群链路与日志组件，以及 `registerMBeanRenderer` 和安全 HTML 导出工具。组件有根入口具名导出，类型及纯数据工具通过目录公开入口导入。宿主注入数据、权限、偏好、传输与导航；MBean 共用对象树，已识别对象自动匹配专用内容，未知对象回退属性表。完整 API 与数据语义见目录说明。
