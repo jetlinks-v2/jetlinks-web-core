@@ -1,4 +1,5 @@
 {
+  "DetailMetaItem.copyTooltip": "Click to copy: {id}",
   "components.ModelConfig.unsavedChangesTitle": "Unsaved changes",
   "components.ModelConfig.unsavedChangesMessage": "Save your changes? Discarding restores the content from before editing.",
   "components.ModelConfig.discard": "Discard",

@@ -1,4 +1,5 @@
 {
+  "DetailMetaItem.copyTooltip": "点击复制：{id}",
   "components.ModelConfig.unsavedChangesTitle": "修改尚未保存",
   "components.ModelConfig.unsavedChangesMessage": "是否保存本次修改？丢弃后将恢复编辑前的内容。",
   "components.ModelConfig.discard": "丢弃",

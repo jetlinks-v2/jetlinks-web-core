@@ -1,5 +1,11 @@
 <template>
-  <header class='cloud-detail-header'>
+  <header class='cloud-detail-header' :class="{ 'cloud-detail-header--summary': variant === 'summary' }">
+    <div v-if="variant === 'summary' && slots.leading" class="cloud-detail-header__leading">
+      <slot name="leading" />
+    </div>
+    <div v-if="variant === 'summary' && slots.icon" class="cloud-detail-header__icon">
+      <slot name="icon" />
+    </div>
     <div class='cloud-detail-header__main'>
       <div class='cloud-detail-header__title-row'>
         <a-button
@@ -14,7 +20,7 @@
 
         <div class='cloud-detail-header__title-wrap'>
           <div class='cloud-detail-header__title-main'>
-            <h1 class='cloud-detail-header__title'>
+            <h1 class='cloud-detail-header__title' :title="variant === 'summary' ? title : undefined">
               <slot name='title'>
                 {{ title }}
               </slot>
@@ -23,10 +29,20 @@
               <slot name='titleExtra' />
             </div>
           </div>
-          <div v-if='slots.description' class='cloud-detail-header__description'>
+          <div v-if="slots.description && variant !== 'summary'" class='cloud-detail-header__description'>
             <slot name='description' />
           </div>
         </div>
+      </div>
+
+      <div v-if="variant === 'summary' && slots.meta" class="cloud-detail-header__meta">
+        <slot name="meta" />
+      </div>
+      <div v-if="variant === 'summary' && slots.description" class="cloud-detail-header__description">
+        <slot name="description" />
+      </div>
+      <div v-if="variant === 'summary' && slots.extra" class="cloud-detail-header__extra">
+        <slot name="extra" />
       </div>
 
       <div v-if='slots.info || slots.default' class='cloud-detail-header__info'>
@@ -34,9 +50,13 @@
           <slot />
         </slot>
       </div>
+
+      <div v-if="variant === 'summary' && slots.actions" class="cloud-detail-header__actions">
+        <slot name="actions" />
+      </div>
     </div>
 
-    <div v-if='slots.actions' class='cloud-detail-header__actions'>
+    <div v-if="variant !== 'summary' && slots.actions" class='cloud-detail-header__actions'>
       <slot name='actions' />
     </div>
   </header>
@@ -56,10 +76,13 @@ const props = withDefaults(
     title: string
     showBack?: boolean
     backTitle?: string
+    /** 摘要模式只负责布局，由外层 ContentPanel 提供卡片边界。 */
+    variant?: 'default' | 'summary'
   }>(),
   {
     showBack: false,
-    backTitle: undefined
+    backTitle: undefined,
+    variant: 'default'
   }
 )
 
@@ -188,3 +211,5 @@ const handleBack = () => {
   }
 }
 </style>
+
+<style scoped src="./summary.css"></style>

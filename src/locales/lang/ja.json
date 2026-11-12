@@ -1,4 +1,5 @@
 {
+  "DetailMetaItem.copyTooltip": "クリックしてコピー：{id}",
   "PersonalToken.index.loadFailed": "トークンの読み込みに失敗しました。もう一度お試しください",
   "PersonalToken.PermissionList.loadFailed": "権限の読み込みに失敗しました。もう一度お試しください",
   "PersonalToken.TokenDialog.refreshDescription": "保存すると新しいトークンが生成され、元のトークンは無効になります。API呼び出しには新しいトークンを使用してください。",

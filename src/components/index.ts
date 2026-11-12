@@ -71,8 +71,10 @@ import ModelParameterEditor from './ModelParameterEditor/index.vue'
 import MenuAssetPermissionEditor from './MenuAssetPermissionEditor/index.vue'
 import StatusTag from './StatusTag/index.vue'
 import DetailHeader from './DetailHeader/index.vue'
+import DetailMetaItem from './DetailMetaItem'
 import PageHeader from './PageHeader/index.vue'
 import PageChrome from './PageChrome/index.vue'
+import PageBack from './PageBack/index.vue'
 import MetricCards from './MetricCards/index.vue'
 import MarketplaceInstallStream from './MarketplaceInstallStream/index.vue'
 import StatusPill from './StatusPill/index.vue'
@@ -162,8 +164,10 @@ export default {
           .component('MenuAssetPermissionEditor', MenuAssetPermissionEditor)
           .component('StatusTag', StatusTag)
           .component('DetailHeader', DetailHeader)
+          .component('DetailMetaItem', DetailMetaItem)
           .component('PageHeader', PageHeader)
           .component('PageChrome', PageChrome)
+          .component('PageBack', PageBack)
           .component('MetricCards', MetricCards)
           .component('MarketplaceInstallStream', MarketplaceInstallStream)
           .component('StatusPill', StatusPill)
@@ -202,8 +206,10 @@ export {
     MenuAssetPermissionEditor,
     ModelParameterEditor,
     DetailHeader,
+    DetailMetaItem,
     PageHeader,
     PageChrome,
+    PageBack,
     MetricCards,
     MarketplaceInstallStream,
     MatrixGrid,
@@ -243,6 +249,7 @@ export type {
 } from './AssetOwnershipCondition'
 export type { SegmentPanelOption, SegmentPanelValue } from './SegmentPanel'
 export type { SlantedTabKey, SlantedTabOption, SlantedTabsState } from './SlantedTabs'
+export type { DetailMetaKind } from './DetailMetaItem'
 export type { SwitchGroupOption, SwitchGroupValue } from './SwitchGroup'
 export type {
     CardBoxAction,
