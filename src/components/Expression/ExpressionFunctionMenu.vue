@@ -1,6 +1,6 @@
 <template>
   <div class="expression-functions">
-    <div class="expression-functions__search"><a-input v-model:value="query" autofocus allow-clear :placeholder="t('search')" :aria-label="t('search')" @keydown.enter.prevent="first && emit('choose',{key:first.id})" @keydown.esc.prevent="emit('close')" @keydown.stop><template #prefix><AIcon type="SearchOutlined" /></template></a-input></div>
+    <div class="expression-functions__search"><a-input v-model:value="query" autofocus allow-clear :placeholder="t('search')" :aria-label="t('search')" @keydown="searchKeydown"><template #prefix><AIcon type="SearchOutlined" /></template></a-input></div>
     <a-menu class="expression-functions__list" :selected-keys="selectedId ? [selectedId] : []" @click="emit('choose',{key:$event.key})">
       <a-menu-item-group v-for="group in groups" :key="group.id" :title="group.label">
         <a-menu-item v-for="item in group.items" :key="item.id" :disabled="item.disabled"><SelectOption :icon="item.icon || group.icon" :label="item.name" :description="item.description" /></a-menu-item>
@@ -16,6 +16,11 @@ import { useExpressionFunctionMenu, type FunctionOption } from './useExpressionF
 const props=defineProps<{functions:FunctionOption[];selectedId?:string;error?:boolean}>()
 const emit=defineEmits<{(event:'choose',value:{key:string|number}):void;(event:'retry'):void;(event:'close'):void}>()
 const {t,query,groups,first}=useExpressionFunctionMenu(props)
+function searchKeydown(event: KeyboardEvent) {
+  event.stopPropagation()
+  if (event.key === 'Enter') { event.preventDefault(); if (first.value) emit('choose',{key:first.value.id}) }
+  else if (event.key === 'Escape') { event.preventDefault(); emit('close') }
+}
 </script>
 <style scoped>
 .expression-functions { width:min(360px,calc(100vw - 32px)); padding:6px; border:1px solid var(--line); border-radius:8px; background:var(--bg,#fff); box-shadow:0 6px 20px rgb(0 0 0 / 10%) }

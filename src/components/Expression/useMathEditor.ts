@@ -45,6 +45,7 @@ const referencePicker = ref<{ focus(): void }>()
 const referenceSelection = ref<Selection>()
 const functionSelection=shallowRef<FunctionTarget>()
 const functionMenuOpen=ref(false)
+let functionInsertionSelection: Selection | undefined
 const referenceFrame=ref<{left:string;top:string;width:string;height:string}>()
 const hoverFrame=ref<{left:string;top:string;width:string;height:string}>()
 const sourcePickerOpen = ref(false)
@@ -100,7 +101,8 @@ const addBranch=insertion.addBranch
 const refreshInsertion=()=>insertion.refresh(functionSelection.value ? {ranges:[functionSelection.value.range]} : referenceSelection.value)
 
 function setInvalid(value: boolean) { invalid.value = value; emit('invalid', value) }
-const popupContainer=(trigger:HTMLElement):HTMLElement=>trigger.closest('dialog') || trigger.parentElement!
+// Keep dropdowns outside toolbar scrollers; native fullscreen dialogs still own their overlays.
+const popupContainer=(trigger:HTMLElement):HTMLElement=>trigger.closest('dialog') || trigger.ownerDocument.body
 function referenceVisibilityChanged(visible: boolean) {
   if (visible) return
   // MathLive can complete a pending focus after the picker opened. Explicit
@@ -110,6 +112,7 @@ function referenceVisibilityChanged(visible: boolean) {
 }
 function closeReferences(focus = false) {
   const selection=referenceSelection.value || (functionSelection.value ? {ranges:[functionSelection.value.range]} : undefined)
+  functionInsertionSelection=undefined
   functionSelection.value=undefined
   functionMenuOpen.value=false
   referenceSelection.value = undefined
@@ -316,6 +319,14 @@ async function mountField() {
   finally { loading = false }
 }
 function insert(item:MathInsertion,selection?:Selection) {insertion.insert(item,selection)}
+/** Toolbar menus retain the native range while scrolling or their search input owns focus. */
+function functionMenuVisibilityChanged(open: boolean) {
+  if (open && field) {
+    functionInsertionSelection={ranges:field.selection.ranges.map(([start,end])=>[start,end])}
+    insertion.refresh(functionInsertionSelection)
+  }
+  functionMenuOpen.value=open
+}
 function insertFunction(name: string) {
   if(name === 'IF') {insert({kind:'value',latex:'\\begin{cases}#?&#?\\\\#?&\\JLotherwise\\end{cases}'});return}
   if(name === 'IFS') {insert({kind:'value',latex:'\\begin{cases}#?&#?\\\\#?&#?\\\\#?&\\JLotherwise\\end{cases}'});return}
@@ -328,9 +339,9 @@ function insertFunction(name: string) {
   if(selected && descriptor && selected.count>descriptor.maximumArguments)return
   const argumentsLatex=selected ? selected.argumentsLatex.replace(/\\right\)$/,(selected.count<descriptor.minimumArguments ? ','+Array.from({length:descriptor.minimumArguments-selected.count},()=>'\\placeholder{}').join(',') : '')+'\\right)') : '\\left('+Array.from({length:descriptor.minimumArguments},()=>'#?').join(',')+'\\right)'
   const latex=name === 'math.sqrt' ? `\\sqrt{${argumentsLatex.slice(6,-7)}}` : '\\operatorname{'+label+'}'+argumentsLatex
-  if(label)insert({kind:'value',valueType:descriptor.returnType,latex},selected ? {ranges:[selected.range]} : undefined)
+  if(label)insert({kind:'value',valueType:descriptor.returnType,latex},selected ? {ranges:[selected.range]} : functionInsertionSelection)
 }
-function chooseFunction({ key }: { key: string | number }) { functionMenuOpen.value=false;if (key === 'retry') refreshFunctions(); else insertFunction(String(key)) }
+function chooseFunction({ key }: { key: string | number }) { functionMenuOpen.value=false;if (key === 'retry') refreshFunctions(); else insertFunction(String(key));functionInsertionSelection=undefined }
 function chooseConditionOperator({ key }: { key: string | number }) {
   if(key === 'branch') {if(canAddBranch.value)addBranch();else insertion.startBranch();return}
   const item=conditionOperators.value[Number(key)];if(item)insert(item)
@@ -391,5 +402,5 @@ watch(host,()=>mountField(),{flush:'post'})
 onMounted(mountField)
 onBeforeUnmount(() => { disposed = true; clipboard.dispose(); emit('referenceHover',undefined); closeReferences(); field?.removeEventListener('input', onInput);field?.removeEventListener('beforeinput',onBeforeInput);field?.removeEventListener('selection-change',refreshInsertion);field?.removeEventListener('keydown',onEditorKeydown,true); field?.remove() })
 
-return {blurCommit,finish,clipboard,inputNotice,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,referenceFrame,hoverFrame,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
+return {blurCommit,finish,clipboard,inputNotice,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,referenceFrame,hoverFrame,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
 }
