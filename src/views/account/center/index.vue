@@ -14,7 +14,7 @@ const EditPassword = defineAsyncComponent(() => import('./components/EditPasswor
 
 const {
   activeKey, activeTitle, frameworkItems, hasFrameworkNavigation,
-  profile, loading, loadError, editableProviders, contactTarget,
+  profile, loading, loadError, contactVerificationState, contactTarget, confirmedContactValue,
   accountInfoVisible, homeViewVisible, editPasswordVisible,
   selectContent, loadAccount, openAccountInfo, closeAccountInfo,
 } = useCenter()
@@ -43,7 +43,7 @@ const {
         <PageHeader
           v-if="activeKey === 'BasicInfo' || activeKey === 'Subscribe'"
           variant="plain"
-          :class="{ 'personal-center__summary-header': activeKey === 'BasicInfo' }"
+          :class="{ 'personal-center__basic-header': activeKey === 'BasicInfo' }"
           :title="activeKey === 'Subscribe' ? $t('PersonalCenter.notificationReceivingMethods') : (activeTitle || '')"
         />
         <a-alert v-if="loadError && activeKey === 'BasicInfo'" type="warning" show-icon :message="$t('AccountCenter.loadError')">
@@ -59,10 +59,12 @@ const {
     <ContactDialog
       v-if="accountInfoVisible"
       :key="contactTarget"
+      v-model:confirmed-value="confirmedContactValue"
       :provider="contactTarget === 'phone-section' ? 'mobile' : 'email'"
-      :identity-enabled="editableProviders.includes(contactTarget === 'phone-section' ? 'mobile' : 'email')"
+      :verification-state="contactVerificationState"
       @close="closeAccountInfo"
       @notification-settings="selectContent('Subscribe')"
+      @retry-verification="loadAccount"
     />
     <a-modal v-if="homeViewVisible" open :title="$t('center.data.756829-2')" width="64rem" :footer="null" @cancel="homeViewVisible = false">
       <HomeView />

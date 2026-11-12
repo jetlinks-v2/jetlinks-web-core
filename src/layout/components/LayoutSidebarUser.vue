@@ -32,8 +32,8 @@
                 </span>
               </div>
               <div v-if="primaryRole" class="layout-sidebar-user__roles-row">
-                <a-tag class="layout-sidebar-user__role-tag" :bordered="false" :title="primaryRole">
-                  {{ primaryRole }}
+                <a-tag class="layout-sidebar-user__role-tag" :bordered="false">
+                  <j-ellipsis class="layout-sidebar-user__role-name">{{ primaryRole }}</j-ellipsis>
                 </a-tag>
                 <a-tooltip v-if="extraRoleCount > 0" placement="bottom">
                   <template #title>
