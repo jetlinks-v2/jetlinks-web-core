@@ -16,6 +16,8 @@ export interface InlineEditFieldDefinition {
   error?: string
   required?: boolean
   readonly?: boolean
+  /** Manual triggers render a static value; the host opens the editor through editField(key). */
+  editTrigger?: 'value' | 'manual'
   fullWidth?: boolean
   secretSet?: boolean
   options?: InlineEditOption[]

@@ -1,5 +1,5 @@
 <template>
-  <div class="setting-image">
+  <div class="setting-image" :class="{ 'setting-image--background': kind === 'background' }">
     <FileUpload v-if="kind === 'ico' && !disabled" :size="1" :disabled="busy || imageBusy" accept=".ico,image/x-icon,image/vnd.microsoft.icon" :multiple="false" :max-count="1" :before-upload="checkIcon" @upload-change="iconChanged">
       <PlatformImageTrigger v-bind="triggerProps" :loading="fileUploading" :style="imageStyle" />
     </FileUpload>
@@ -31,7 +31,7 @@ const fileUploading = ref(false)
 const imageBusy = computed(() => cropOpen.value || processing.value || fileUploading.value)
 watch(imageBusy, value => emit('busyChange', value))
 onBeforeUnmount(() => emit('busyChange', false))
-const imageStyle = computed(() => ({ width: props.kind === 'background' ? '9rem' : '3rem', height: '3rem', padding: 0 }))
+const imageStyle = computed(() => ({ width: props.kind === 'background' ? '100%' : '3rem', height: props.kind === 'background' ? '100%' : '3rem', padding: 0 }))
 const triggerProps = computed(() => ({
   src: props.src,
   label: t(`PlatformSettings.${props.kind === 'ico' ? 'icon' : props.kind}`),
@@ -56,6 +56,11 @@ function iconChanged(event: UploadChangeParam) {
 <style scoped>
 .setting-image { display: flex; align-items: center; gap: var(--space-2); max-width: 100%; flex-wrap: wrap; }
 .setting-image > img { width: 2rem; height: 2rem; object-fit: contain; border-radius: var(--r-2); }
-.setting-image > img.setting-image__background { width: 4rem; height: 2.25rem; object-fit: cover; }
 .setting-image :deep(.ant-upload-select) { margin: 0 !important; padding: 0; width: auto !important; height: auto !important; border: 0 !important; background: transparent; }
+.setting-image--background { flex-direction: column; flex-wrap: nowrap; align-items: stretch; align-self: stretch; width: 100%; min-height: 5.0625rem; }
+.setting-image--background :deep(.upload-image-warp) { position: relative; flex: 1; min-height: 5.0625rem; height: auto; }
+.setting-image--background :deep(.upload-image-border) { position: absolute; inset: 0; }
+.setting-image--background :deep(.ant-upload-select) { width: 100% !important; height: 100% !important; }
+.setting-image--background :deep(.platform-image-trigger img) { object-fit: cover; }
+.setting-image > img.setting-image__background { flex: 1; width: 100%; height: 0; min-height: 5.0625rem; object-fit: cover; }
 </style>

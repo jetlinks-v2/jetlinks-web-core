@@ -2,11 +2,31 @@
 
 运行时 `/system/Basis` 与 `/init-home` 共用的配置区块。提供平台名称、Logo、页签图标、登录背景、备案信息、高德地图和接口基础地址；不承载 SaaS 域名开通流程。
 
-图片上传入口调整：由 `PlatformImageSetting.vue` 复用同一图片按钮，统一 Logo 与页签图标的尺寸、边框和空态，移除“更换”文字及上传区内边距。Logo 保留 JPG / PNG、4 MB 与裁剪，ICO 保留 1 MB 与原文件上传；只调整本配置区块的展示，保存、权限及通用上传默认样式保持原约定。完成后验证组件编译、现有配置测试及浏览器中的尺寸、空态和上传入口。
+外观左侧布局：`PlatformAppearanceSection.vue` 参考账户中心 `src/views/Account/center/components/LoginMethods/LoginMethodRow.vue` 的列表行、蓝底圆角图标、名称 / 说明和右侧操作区。平台名称改由右侧“修改”按钮开启原位编辑，名称值从 14px 调整为 16px / 600 字重；名称文本不再直接触发编辑。`PlatformTextSetting.vue` 通过 `InlineEditForm` 的手动触发字段选项和既有 `editField()` 保留草稿、权限、Enter / 失焦保存、Esc 取消及失败重试；初始化仍直接填写，外观以外的配置行保持现有样式。备案行右侧移除“显示备案号”的可见文案，保留开关的无障碍名称、保存与失败重试行为。
+
+左侧布局与名称编辑验证（2026-11-12）：core 中 `node --test tests/platformSettings.test.mjs tests/inlineEditForm.test.mjs` 的 23 项测试及 `../node_modules/.bin/vue-tsc --noEmit -p tests/tsconfig.inline-edit-form.json` 通过，三个变更 Vue 文件的样式检查与外观区块入口定向 Vite 生产构建通过（保留上传组件既有 CSS 注释提示，构建外置运行时注册服务）。真实组件配合模拟接口完成设置 / 初始化 × 私有化 / SaaS × 1440 / 390px 八组检查及两个宽度的只读检查，共 10 组通过；覆盖文本 / 标签点击不编辑、右侧按钮开启并聚焦输入、64 字名称、预览草稿同步、Esc 取消、Enter / 失焦仅保存一次、失败重试、16px / 600 字重和无横向溢出。未执行真实后端写入或全量类型检查，必要时在运行时工作区执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json`；参考页面在独立浏览器中需要登录，样式依据用户截图与对应组件源码确认。移除备案开关可见文案后，23 项测试、组件样式检查及外观入口定向构建再次通过；1440 / 390px 模拟接口浏览器检查确认文案已隐藏、无障碍名称保留、开关双向保存正常且无横向溢出，本次未重跑全量构建和类型检查。
+
+图片上传入口：`PlatformImageSetting.vue` 通过 `PlatformImageTrigger.vue` 统一 Logo 与页签图标的 3rem 方形图片按钮、边框与加号空态，移除“更换”文字，按钮及本区块的上传容器均无内边距。保留图片比例、无障碍名称与忙碌状态；Logo 保留 JPG / PNG、4 MB 与裁剪，ICO 保留 1 MB 与原文件上传，背景图片继续使用宽幅按钮。保存、权限及通用上传默认样式保持原约定。
+
+登录背景高度：在 `PlatformAppearanceSection.vue` 中让背景行吸收左侧列表剩余高度，与右侧预览底部对齐；`PlatformImageSetting.vue` 的背景上传框跟随行高伸展，保留无内边距和 16:9 裁剪。窄屏堆叠时按内容高度显示，背景字段隐藏时列表保持自然高度。验证覆盖桌面伸展、窄屏、只读及裁剪取消，Logo / ICO 尺寸保持 48×48px。
+
+背景高度验证（2026-11-12）：23 项配置 / 行内编辑测试、两个变更组件的样式检查与外观区块入口定向 Vite 生产构建通过（保留既有 CSS 注释提示）。真实组件配合模拟接口完成设置 / 初始化 / 只读 / SaaS × 1440 / 1920 / 390px 共 12 组浏览器检查：桌面列表与预览等高，背景框填满行内操作区，窄屏无横向溢出；背景隐藏时不拉伸列表，Logo / ICO 仍为 48×48px 且 padding 为 0，选择背景图片后的裁剪取消不写入配置。未执行真实后端上传、全量构建及全量类型检查；必要时在运行时工作区执行 `pnpm build`、`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json`。
+
+上传入口验证（2026-11-12）：core 中 `node --test tests/platformSettings.test.mjs tests/inlineEditForm.test.mjs` 的 23 项通过；运行时工作区执行 `node ../ui/scripts/check-ui-style.mjs --files jetlinks-web-core/src/components/PlatformSettings/PlatformImageSetting.vue jetlinks-web-core/src/components/PlatformSettings/PlatformImageTrigger.vue` 通过；`pnpm -F jetlinks-web-core build --outDir /private/tmp/jetlinks-basis-upload-build -- --module-name authentication-manager-ui` 通过（28.18 秒），保留既有 CSS 注释与大包提示。真实组件配合模拟接口完成设置页 / 初始化页 × 私有化 / SaaS × 1440 / 390px 共 8 组浏览器检查，确认两个按钮均为 48×48px、边框一致、padding 为 0、无“更换”文字、Logo 点击打开裁剪且取消不写入；另 4 组 ICO 上传检查覆盖保存失败重试与初始化仅更新草稿，只读入口不显示上传按钮。没有提交真实后端请求；真实环境上传持久化仍待联调。工作区无独立 lint 脚本，本次未重跑全量类型检查，需要时执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json`。
 
 平台外观未配置登录背景时，预览沿用当前登录页的默认图规则：优先使用模块的 `--jet-login-bg-image`，私有化兜底 `public/images/login/login.png`，SaaS 兜底 `src/assets/login/login-bg.png`。私有化已配置的背景优先显示；SaaS 继续隐藏背景字段并忽略其历史配置。默认背景仅用于展示，不回填到配置草稿。
 
 登录预览与实际登录页共享 `src/views/login/components/LoginPageLayout.vue` 的左侧登录区、顶部品牌及语言入口、右侧背景和底部备案布局，并复用 `LoginPanelHeader`、`PasswordLogin` 的展示。预览按桌面登录页比例缩放，保留名称、Logo、背景和备案的定位事件；表单与语言操作不可交互，不挂载登录请求、验证码或 SSO 流程。真实登录页只迁移展示布局，认证行为保持原有入口。
+
+浏览器外框：`PlatformAppearancePreview.vue` 保留窗口控制点与活动页签，去掉 URL 地址栏所在的整行工具栏及站点地址读取，登录页与顶栏共用 8:5 的页面视口。名称和页签图标沿用草稿及字段定位；浏览器装饰不触发导航或配置写入。页签及顶栏的长名称省略显示，窄屏切换预览时保持窗口尺寸；真实登录页和保存契约保持原约定。
+
+顶栏预览：`PlatformTopbarPreview.vue` 仅展示左侧品牌与右侧搜索、语言、通知和头像，删除模拟菜单行、菜单配置、专用样式与三语文案，沿用 `src/assets/layout/workbench-background.svg` 与 Ant Design 组件。工具区仅作展示，品牌继续读取草稿并发出字段定位事件；不接入真实菜单、路由及消息服务。
+
+顶栏可读性：使用 960×600 画布，文字、Logo 与工具图标保持最初 1920×1200 画布的两倍显示尺寸。品牌与工具区保持同排，移除菜单后不保留空导航行；浏览器外框、无 URL 栏与登录预览比例保持现状。验证重点为菜单移除、双倍显示、桌面 / 窄屏布局、长名称与品牌定位。
+
+顶栏预览验证（2026-11-12）：移除菜单后 23 项配置 / 行内编辑测试、样式检查与预览入口 Vite 生产打包通过；1440 / 390px 浏览器检查确认无菜单和空导航行、双倍尺寸保留、右侧工具完整、品牌定位有效、切换窗口尺寸稳定，无横向溢出和配置写入。未重跑全量构建及类型检查，必要时在运行时工作区执行 `pnpm build`、`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json`；浏览器验证使用真实组件与模拟接口，不执行真实后端写入。
+
+浏览器外框验证（2026-11-12）：23 项配置 / 行内编辑测试、`node ../ui/scripts/check-ui-style.mjs --files jetlinks-web-core/src/components/PlatformSettings/PlatformAppearancePreview.vue` 与预览组件入口的 Vite 生产打包通过。模拟接口下，设置页 / 初始化页 × 私有化 / SaaS × 1440 / 1280 / 390px 共 12 组浏览器回归通过，覆盖登录比例、草稿联动、字段定位和只读登录控件；另在 1440 / 390 / 320px 验证 64 字名称省略、切换视图尺寸稳定、无横向溢出及装饰控件不导航、不额外写配置。后续移除 URL 栏后，23 项测试、样式检查、预览入口构建及差异空白检查再次通过，未重复浏览器回归。未重跑全量构建和类型检查，需要时在运行时工作区执行 `pnpm build`、`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json`。
 
 高德地图修改弹窗统一编辑 Web 端 Key、安全密钥和 Web 服务 Key，回显已保存值并一起提交；取消恢复已保存值，保存失败保留草稿以便重试。Web 服务 Key 同时保留逐行单独修改入口，沿用 Web 端 Key 与安全密钥成对、两类 Key 不同的校验。
 

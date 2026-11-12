@@ -18,6 +18,10 @@
 
 `editor` 支持 `text/number/select/password/textarea/custom`；选项值为字符串或数字，其他后端类型由宿主转换。`fullWidth` 让字段占整行，默认两列、窄屏一列；详情态标签与提示使用较浅文字色，下拉文本和图标采用独立元素水平居中；`readonly` 仅展示。无变化不提交。取消恢复 `initialValue`，同时发出 `change` 和 `cancel(key)`，宿主可据此恢复关联字段。`focus(key)` 可联动帮助；实例方法 `editField(key)` 可打开关联编辑器，并遵循权限 / pending 锁。
 
+字段可设置 `editTrigger: 'manual'`，详情值以静态文本呈现，由宿主的独立编辑按钮调用 `editField(key)` 开启编辑；默认 `value` 保持点击值编辑。该选项仅改变触发入口，不改变保存、取消、失败保留、权限或首次填写行为。
+
+手动入口已通过既有 8 项测试与独立严格类型检查；平台外观的浏览器验证覆盖静态值点击、外部按钮聚焦、Enter / 失焦保存、Esc 取消、失败重试、只读与首次填写，结果见 `../PlatformSettings/README.md`。
+
 密码使用 `editor: 'password'`、空的 `initialValue` 与 `secretSet`，只展示固定掩码。`value` 只能传编辑草稿，不能传已保存明文；密码留空不提交。凭据保留、掩码过滤和有效载荷合并仍由宿主负责。
 
 `editor` 插槽仅用于 `custom` 字段，接收 `field/value/update/commit/cancel/blur/disabled/loading`；内部编辑器必须使用 `update` 回传，遵循 `disabled`，不能隐式请求或改写数据。复杂值以独立副本编辑；将 `blur` 绑定到复合编辑器根节点的 `focusout`，离开区域后整体提交。使用弹窗 / 浮层的编辑器应绑定自身完成事件到 `commit`，避免打开弹窗时误判为离开。`display` 插槽可按字段扩展只读内容；不要在插槽中泄露凭据。
