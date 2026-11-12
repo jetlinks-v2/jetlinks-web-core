@@ -51,8 +51,8 @@ defineExpose({ refresh })
           <a-button v-if="category === 'notification' && !queryParams.terms.length" @click="emit('notification-settings')">{{ $t('PersonalCenter.notifications') }}</a-button>
         </CloudEmpty>
       </template>
-      <template #state="record"><j-badge-status :status="stateOf(record)" :text="stateText(record)" :status-names="{ unread: 'processing', read: 'default' }" /></template>
-      <template #topicProvider="record">{{ typeOf(record) || $t('comm.table.empty') }}</template>
+      <template #state="record"><j-badge-status class="notification-record-container__status" :status="stateOf(record)" :text="stateText(record)" :status-names="{ unread: 'processing', read: 'default' }" /></template>
+      <template #topicProvider="record"><j-ellipsis>{{ typeOf(record) || $t('comm.table.empty') }}</j-ellipsis></template>
       <template #message="record">
         <div class="notification-record-container__content">
           <a-button type="link" class="notification-record-container__title" @click="view(record)"><j-ellipsis>{{ titleOf(record) || $t('comm.table.empty') }}</j-ellipsis></a-button>
@@ -76,6 +76,7 @@ defineExpose({ refresh })
 <style scoped>
 .notification-record-container { min-width: 0; }
 .notification-record-container__filter { min-width: 0; width: 26.25rem; max-width: 100%; }
+.notification-record-container__status { white-space: nowrap; }
 
 .notification-record-container__content { display: flex; flex-direction: column; min-width: 0; gap: var(--space-1); }
 .notification-record-container__title { padding: 0; height: auto; max-width: 100%; text-align: left; }
