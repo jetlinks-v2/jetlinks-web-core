@@ -30,7 +30,9 @@ export interface MetricSample { timestamp: number; value?: number }
 export interface MetricChart {
   key: string; label: string; description?: string; unit?: string
   max?: number; minInterval?: number; formatValue?: (value: number) => string
-  series: Array<{ key: string; label: string; samples: MetricSample[]; color?: string }>
+  /** 节点历史可保留节点时区；未提供时沿用图表默认时间格式。 */
+  formatTime?: (timestamp: number) => string
+  series: Array<{ key: string; label: string; samples: MetricSample[]; color?: string; lineType?: 'solid' | 'dashed' | 'dotted' }>
 }
 export interface ThreadSnapshot {
   id: string; name: string; state: string; stack: string; lock?: string; sampledAt: number
@@ -62,7 +64,10 @@ export interface MBeanRendererContext {
   snapshot: Readonly<ShallowRef<MBeanQuerySnapshot | undefined>>
   query(id: MBeanQueryId, values: readonly (string | undefined)[]): Promise<void>
 }
-export interface MBeanRenderer { id: string; match: (bean: MBeanDescriptor) => boolean; component: Component }
+/** 概览只声明精确属性读取；采集时机、权限及节点隔离由宿主控制。 */
+export interface MBeanOverviewSource { name: string; attributes: string[]; titleKey: string }
+export interface MBeanRenderer { id: string; match: (bean: MBeanDescriptor) => boolean; component: Component; overview?: MBeanOverviewSource }
+export interface MBeanOverviewEntry { id: string; bean?: MBeanDescriptor; state: ViewState }
 export interface MBeanDisplayConfig { expandedKeys: string[]; section: 'summary' | 'attributes' | 'operations' }
 export interface BufferDisplayConfig {
   filter: 'all' | 'failed' | 'pending'
@@ -82,6 +87,8 @@ export interface BufferHistorySample {
     written?: string; attempted?: string
     /** 宿主在统计重置后递增；不同 epoch 之间不计算速率。 */
     counterEpoch?: number
+    /** 节点采样速率；只复制数值视图，不在每个页面历史点重复保存今日峰值。 */
+    observation?: Pick<import('./buffer/observation').BufferObservation, 'generation' | 'sampledAt' | 'windowMillis' | 'fresh' | 'values'>
   }>
 }
 export interface LogDisplayConfig { level: string; wrap: boolean }

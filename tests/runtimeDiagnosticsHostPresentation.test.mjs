@@ -1,3 +1,4 @@
+import { composeStreamOption } from './echartsStreamFixture.mjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
@@ -71,6 +72,7 @@ test('ECharts defaults to canvas and optional renderer replacement preserves the
   } }
   new Function('require', 'module', 'exports', code)(id => {
     if (id === 'vue') return { ...vue, onMounted: callback => mounted.push(callback), onUnmounted: callback => unmounted.push(callback) }
+    if (id === './streamOption') return { composeStreamOption }
     if (id === './library') return { __esModule: true, default: chart }
     if (id === './measuredLayout') return { createMeasuredEchartsLayout: () => ({ prepare() {}, apply() {}, setEnabled() {}, dispose() {} }) }
     return require(id)
@@ -110,6 +112,7 @@ test('hidden charts defer initialization, skip zero-size resize and restore imme
   } }
   new Function('require', 'module', 'exports', code)(id => {
     if (id === 'vue') return { ...vue, onMounted: callback => mounted.push(callback), onUnmounted: callback => unmounted.push(callback), onActivated: callback => activated.push(callback), onDeactivated: callback => deactivated.push(callback) }
+    if (id === './streamOption') return { composeStreamOption }
     if (id === './library') return { __esModule: true, default: chart }
     if (id === './measuredLayout') return { createMeasuredEchartsLayout: () => ({ prepare() {}, apply() {}, setEnabled() {}, dispose() {} }) }
     return require(id)

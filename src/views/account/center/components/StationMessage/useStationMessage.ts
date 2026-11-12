@@ -9,6 +9,7 @@ import {
   markNoticeProvidersRead,
   queryNoticeUnreadSummary,
   useNoticeDataSourceChanges,
+  filterSupportedNoticeProviders,
 } from '@jetlinks-web-core/layout/components/noticeListHandler'
 import {
   BADGE_OVERFLOW_COUNT, createTabCountMap, createUnreadQueryParams, toBadgeCount,
@@ -27,9 +28,14 @@ export function useStationMessage() {
   const user = useUserStore()
   const router = useRouterParams()
   const tabs = ref<MessageGroup[]>([])
+  const records = ref<{ refresh: () => void }>()
+  const tabOptions = computed(() => tabs.value.map(tab => {
+    const count = countFor(tab.key)
+    return { key: tab.key, label: t(tab.nameKey), count: count ? count > 99 ? '99+' : count : undefined }
+  }))
   const activeKey = ref<MessageCategory>('notification')
   const activeGroup = computed(() => tabs.value.find(item => item.key === activeKey.value))
-  const hasProviders = computed(() => tabs.value.some(item => item.children.length > 0))
+  const hasProviders = computed(() => !!activeGroup.value?.children.length)
   const loading = ref(false)
   const failed = ref(false)
   const operationFailed = ref(false)
@@ -107,17 +113,22 @@ export function useStationMessage() {
     }
     const registeredAnnouncements = componentsRegistry.getRegistry('notification-provider:default')
       .filter(item => item.props?.messageCategory === 'announcement')
+    const supported = await filterSupportedNoticeProviders([
+      ...providers.map(item => item.provider), ...registeredAnnouncements.map(item => item.code),
+    ])
+    if (disposed) return
     const announcementIds = new Set(registeredAnnouncements.map(item => item.code))
     const groups: Record<MessageCategory, MessageGroup> = {
       notification: { key: 'notification', nameKey: 'PersonalCenter.messageNotification', children: [] },
       announcement: { key: 'announcement', nameKey: 'PersonalCenter.messageAnnouncement', children: [] },
     }
     for (const provider of providers) {
-      if (!provider?.provider) continue
+      if (!provider?.provider || !supported.includes(provider.provider)) continue
       groups[announcementIds.has(provider.provider) ? 'announcement' : 'notification'].children.push(provider)
     }
     // 公告收件箱与订阅通道是不同能力；通道缺失不代表当前用户没有历史公告。
     for (const item of registeredAnnouncements) {
+      if (!supported.includes(item.code)) continue
       if (groups.announcement.children.some(provider => provider.provider === item.code)) continue
       const name = t('PersonalCenter.messageAnnouncement')
       groups.announcement.children.push({
@@ -133,7 +144,8 @@ export function useStationMessage() {
   }
 
   async function markAllRead() {
-    const providers = [...new Set(tabs.value.flatMap(item => item.children.map(child => child.provider)))]
+    // 仅处理当前页签，避免标记通知时同时改变公告的已读状态。
+    const providers = [...new Set((activeGroup.value?.children || []).map(child => child.provider))]
     if (!providers.length || markingAll.value) return false
     markingAll.value = true
     operationFailed.value = false
@@ -149,6 +161,11 @@ export function useStationMessage() {
     } finally {
       if (!disposed) markingAll.value = false
     }
+  }
+
+  /** 全部确认后只刷新当前列表；角标继续由原有消息更新链路同步。 */
+  async function readAll() {
+    if (await markAllRead()) records.value?.refresh()
   }
 
   watch(() => router.params.value?.other?.tabKey, key => { if (key) selectCategory(key) }, { immediate: true })
@@ -168,7 +185,7 @@ export function useStationMessage() {
     router.clear?.()
   })
   return {
-    user, tabs, activeKey, activeGroup, hasProviders, loading, failed, operationFailed, markingAll,
+    user, records, readAll, tabOptions, tabs, activeKey, activeGroup, hasProviders, loading, failed, operationFailed, markingAll,
     countFor, load, selectCategory, markAllRead, requestedType, clearRequestedType,
   }
 }

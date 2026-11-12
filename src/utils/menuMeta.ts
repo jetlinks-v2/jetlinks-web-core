@@ -1,6 +1,7 @@
 import type { RouteMeta } from 'vue-router'
 import type { MenuButton, MenuItem } from '@jetlinks-web-core/types/module'
 import { isComingSoonMenuMeta } from './menuBadge'
+import { getMenuLocaleText } from './menuLocale'
 
 export const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
   const _meta = {
@@ -13,8 +14,8 @@ export const handleMeta = (item: MenuItem, isApp: boolean): RouteMeta => {
     routeTarget: item.options?.routeTarget,
     id: item.id,
     icon: item.icon,
-    desc: item.i18nDescribe || item.describe,
-    title: item.i18nName || item.name,
+    desc: getMenuLocaleText(item, 'describe'),
+    title: getMenuLocaleText(item),
     hideInMenu: _meta.hideInMenu === true || _meta.options?.show === false || item.options?.show === false, // 隐藏菜单
     isApp
   }

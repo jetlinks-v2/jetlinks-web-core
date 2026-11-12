@@ -50,6 +50,8 @@ export interface NoticeProviderMetadata {
 
 /** 接收数据源独立于发送通道配置，普通通知继续使用原收件箱接口。 */
 export interface NoticeDataSource {
+  /** 可选业务能力判定；未声明则沿用原行为，关闭时不进入接收分类或实时订阅。 */
+  isSupported?: () => Promise<boolean>
   query: (params: Record<string, any>) => Promise<any>
   queryNoPaging?: (params: Record<string, any>) => Promise<any>
   count?: (params: Record<string, any>) => Promise<any>
@@ -70,6 +72,20 @@ export interface NoticeDataSource {
 const getProviderRegistration = (provider: string) => componentsRegistry
   .getRegistry('notification-provider:default')
   .find(item => item.code === provider)
+
+/** 合并通道、类型与业务注册项后统一过滤；单项探测失败不影响其他通知，下次可重试。 */
+export const filterSupportedNoticeProviders = async (providers: readonly string[]): Promise<string[]> => {
+  const unique = [...new Set(providers.filter(Boolean))]
+  const supported = await Promise.all(unique.map(async provider => {
+    try {
+      const source = getProviderRegistration(provider)?.props?.dataSource as NoticeDataSource | undefined
+      return source?.isSupported ? await source.isSupported() : true
+    } catch {
+      return false
+    }
+  }))
+  return unique.filter((_provider, index) => supported[index])
+}
 
 export const getNoticeDataSource = (providers: readonly string[]): NoticeDataSource | undefined => {
   const unique = [...new Set(providers.filter(Boolean))]
@@ -159,10 +175,43 @@ export const markNoticeProvidersRead = async (providers: readonly string[]) => {
   return responses.find(response => response?.status !== 200) || { status: 200, success: true }
 }
 
-const withNoticeProviders = (params: Record<string, any>, providers: string[]) => ({
-  ...params,
-  terms: [...(params.terms || []), { column: 'topicProvider', termType: 'in', value: providers }],
+interface NoticeQueryTerm {
+  column?: string
+  terms?: NoticeQueryTerm[]
+  [key: string]: unknown
+}
+
+const withoutNoticeProviders = (terms: NoticeQueryTerm[]): NoticeQueryTerm[] => terms.flatMap(term => {
+  if (term.column === 'topicProvider' || term.column === 'topic_provider') return []
+  if (!term.terms?.length) return [{ ...term }]
+  const nested = withoutNoticeProviders(term.terms)
+  return nested.length || term.column ? [{ ...term, terms: nested }] : []
 })
+
+/** provider 入参是统计路由的唯一来源；替换旧条件，避免后端收集并集时重新纳入其他接收源。 */
+const withNoticeProviders = (params: Record<string, any>, providers: string[]) => {
+  const terms = withoutNoticeProviders(params.terms || [])
+  return {
+    ...params,
+    terms: [
+      ...(terms.length ? [{ type: 'and', terms }] : []),
+      { type: 'and', column: 'topicProvider', termType: 'in', value: providers },
+    ],
+  }
+}
+
+const readUnreadResult = (response: { status?: number; success?: boolean; result?: unknown } | undefined): unknown => {
+  if (!response || response.success === false || (response.status !== undefined && response.status >= 400)
+    || response.result == null) throw new Error('Unread count unavailable')
+  return response.result
+}
+
+const readUnreadCount = (value: unknown): CappedUnreadCount => {
+  const count = value as CappedUnreadCount | undefined
+  if (!count || typeof count.count !== 'number' || !Number.isSafeInteger(count.count) || count.count < 0
+    || (count.overflow !== undefined && typeof count.overflow !== 'boolean')) throw new Error('Invalid unread count')
+  return count
+}
 
 /** 各接收源分别统计，普通收件箱排除已接管分类，避免已物化记录重复计数。 */
 export const queryNoticeUnreadSummary = async (
@@ -178,11 +227,23 @@ export const queryNoticeUnreadSummary = async (
       : Promise.resolve(undefined),
     Promise.all(registered.map(async provider => {
       const response = await getNoticeDataSource([provider])!.unreadCount(withNoticeProviders(params, [provider]))
-      return { ...response.result, topicProvider: provider } as CappedUnreadCount
+      return { ...readUnreadCount(readUnreadResult(response)), topicProvider: provider }
     })),
   ])
-  const topics: CappedUnreadCount[] = [...(defaultResponse?.result?.topics || []), ...registeredCounts]
-  const total = topics.reduce((sum, topic) => sum + Number(topic.count || 0), 0)
+  // 兼容旧后端返回已接管分类：普通接口只接收本路 provider，每个分类仅采用一个权威计数。
+  const counts = new Map<string, CappedUnreadCount>()
+  if (ordinary.length) {
+    const result = readUnreadResult(defaultResponse) as UnreadSummary
+    if (!Array.isArray(result.topics)) throw new Error('Invalid unread summary')
+    for (const topic of result.topics) {
+      if (topic?.topicProvider && ordinary.includes(topic.topicProvider)) {
+        counts.set(topic.topicProvider, readUnreadCount(topic))
+      }
+    }
+  }
+  for (const topic of registeredCounts) counts.set(topic.topicProvider, topic)
+  const topics = [...counts.values()]
+  const total = topics.reduce((sum, topic) => sum + (topic.count || 0), 0)
   const limit = Number(params.pageSize || 99)
   return {
     status: 200,

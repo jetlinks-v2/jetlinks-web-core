@@ -1,7 +1,9 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { onlyMessage } from '@jetlinks-web/utils'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useSystemStore } from '@jetlinks-web-core/store'
+import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import { getAllNotice } from '@jetlinks-web-core/api/account/center'
 import { resolveNotificationProviderName } from '../data'
 import { getNoticeList_api, getIsBindThird, getNotificationChannelDefinitions_api, save_api, type NotificationChannelDefinition } from '@jetlinks-web-core/api/account/notificationSubscription'
@@ -32,6 +34,13 @@ const templateChannels = [
   'notifier-dingTalk', 'notifier-weixin', 'notifier-email',
   'notifier-voice', 'notifier-sms', 'notifier-webhook',
 ] as const
+
+// 与通知渠道管理页使用相同的渠道图标语义。
+const channelIcons: Record<string, string> = {
+  'inside-mail': 'InboxOutlined', 'notifier-email': 'MailOutlined',
+  'notifier-dingTalk': 'DingdingOutlined', 'notifier-weixin': 'WechatOutlined',
+  'notifier-voice': 'PhoneOutlined', 'notifier-sms': 'MessageOutlined', 'notifier-webhook': 'ApiOutlined',
+}
 const stateValue = (state?: ChannelState) => typeof state === 'string' ? state : state?.value
 const requiresThirdParty = (channel: DeliveryChannel) => ['notifier-dingTalk', 'notifier-weixin'].includes(channel.channelProvider)
 
@@ -52,6 +61,7 @@ export function useNotificationSettings() {
   const { t } = useI18n()
   const user = useUserStore()
   const system = useSystemStore()
+  const menu = useMenuStore()
   const channelProviders = ref<NotificationProvider[]>([])
   const channelDefinitions = ref<NotificationChannelDefinition[]>([])
   const definitionsReady = ref(false)
@@ -76,6 +86,42 @@ export function useNotificationSettings() {
   // 沿用消息模板顺序，只展示后端明确支持个人订阅的渠道；未配置不等于不支持。
   const channelTypes = computed(() => templateChannels.filter(type => receiverPolicy(type) === 'subscriber'))
   const profile = computed(() => user.userInfo as { email?: string; telephone?: string; name?: string; username?: string })
+
+  const channelNames: Record<string, string> = {
+    'inside-mail': 'PersonalCenter.insideMail', 'notifier-dingTalk': 'PersonalCenter.dingtalk',
+    'notifier-weixin': 'PersonalCenter.wechat', 'notifier-email': 'PersonalCenter.notificationEmail',
+    'notifier-voice': 'PersonalCenter.voice', 'notifier-sms': 'PersonalCenter.sms', 'notifier-webhook': 'PersonalCenter.notificationWebhook',
+  }
+  // 矩阵只适配真实接收渠道；可用性与保存仍由原订阅逻辑决定。
+  const displayedTypes = computed(() => [
+    'inside-mail', 'notifier-email', 'notifier-dingTalk', 'notifier-weixin', 'notifier-voice', 'notifier-sms', 'notifier-webhook',
+  ].filter(type => type === 'inside-mail'
+    ? providers.value.some(row => row.channels.some(channel => channel.channelProvider === type))
+    : channelTypes.value.some(value => value === type)))
+  const matrixRowNames = computed(() => Object.fromEntries(providers.value.map(row => [row.provider, row.displayName])))
+  // 与通知渠道页共用渠道定义的名称，避免同一渠道在两个入口显示不同名称。
+  const channelLabel = (type: string) => {
+    const definition = channelDefinitions.value.find(item => item.id === type)
+    return t(definition?.i18nName || definition?.name || channelNames[type] || type)
+  }
+  const channelIcon = (type: string) => channelIcons[type] || 'NotificationOutlined'
+  const tableColumns = computed(() => [
+    { key: 'topic', dataIndex: 'topic', title: t('PersonalCenter.messageType'), width: 200, scopedSlots: true },
+    ...displayedTypes.value.map(type => ({ key: type, dataIndex: type, title: channelLabel(type), align: 'center' as const, scopedSlots: true })),
+  ])
+
+  /** 给公共矩阵提供展示快照，不在模板中重复派生订阅状态或修改接口模型。 */
+  function matrixCells(provider: string, type: string) {
+    const row = providers.value.find(item => item.provider === provider)
+    return row ? row.channels.filter(channel => channel.channelProvider === type).map(channel => ({
+      channel, checked: channelChecked(row, channel), unavailable: channelUnavailable(channel),
+      saving: saving.value === provider + ':' + channel.id,
+    })) : []
+  }
+  function toggleMatrixChannel(provider: string, channel: DeliveryChannel, enabled: boolean) {
+    const row = providers.value.find(item => item.provider === provider)
+    if (row) return toggle(row, channel, enabled)
+  }
 
   function selected(row: NotificationProvider) {
     const subscription = subscriptions.value.find(item => item.topicProvider === row.provider)
@@ -106,6 +152,38 @@ export function useNotificationSettings() {
     const names = providers.value.flatMap(row => row.channels)
       .filter(channel => channel.channelProvider === type).map(receiverFor).filter(Boolean)
     return [...new Set(names)].join('、') || t('PersonalCenter.notificationUnboundReceiver')
+  }
+
+  /** 表头只展示渠道与接收账号的真实状态，不以单点登录的绑定状态代替。 */
+  function receiverStatus(type: string) {
+    const channels = providers.value.flatMap(row => row.channels).filter(channel => channel.channelProvider === type)
+    if (type !== 'inside-mail' && !definitionsReady.value) return t('PersonalCenter.notificationChannelInfoUnavailable')
+    if (channels.length && channels.every(channel => stateValue(channel.state) === 'disabled')) return t('PersonalCenter.notificationChannelDisabled')
+    if (!channels.length || channels.every(channel => !!channelUnavailable(channel))) {
+      return t(menu.hasMenu('notice/channel') ? 'PersonalCenter.channelUnconfigured' : 'PersonalCenter.channelUnconfiguredAdmin')
+    }
+    if (type === 'inside-mail') return t('PersonalCenter.channelEnabled')
+    if (recipientsFailed.value && channels.some(requiresThirdParty)) return t('PersonalCenter.notificationReceiverUnavailable')
+    if (type === 'notifier-email') return profile.value.email || t('PersonalCenter.notificationNoEmail')
+    if (['notifier-sms', 'notifier-voice'].includes(type)) return profile.value.telephone ? receiverSummary(type) : t('PersonalCenter.notificationNoPhone')
+    return t(channels.some(channel => !!receiverFor(channel)) ? 'PersonalCenter.channelBound' : 'PersonalCenter.channelUnbound')
+  }
+
+  /** 配置缺失优先；接收账号与第三方登录身份分别处理。 */
+  function channelHeaderAction(type: string): 'configure' | 'email' | 'phone' | 'bind' | undefined {
+    if (type === 'inside-mail' || loading.value || failed.value || !definitionsReady.value) return
+    const channels = providers.value.flatMap(row => row.channels).filter(channel => channel.channelProvider === type)
+    if (!channels.length || channels.every(channel => !!channelUnavailable(channel))) {
+      return menu.hasMenu('notice/channel') ? 'configure' : undefined
+    }
+    if (type === 'notifier-email' && !profile.value.email) return 'email'
+    if (['notifier-sms', 'notifier-voice'].includes(type) && !profile.value.telephone) return 'phone'
+    if (!recipientsFailed.value && canBindReceiver(type)) return 'bind'
+  }
+
+  /** 复用菜单权限和渠道页现有的 channelProvider 定位参数。 */
+  function openChannelSettings(type: string) {
+    if (channelHeaderAction(type) === 'configure') return menu.jumpPage('notice/channel', { query: { channelProvider: type } })
   }
 
   function receiverPolicy(type: string) {
@@ -218,6 +296,7 @@ export function useNotificationSettings() {
         const persisted = result && typeof result === 'object' ? result : {}
         subscriptions.value = [...subscriptions.value.filter(item => item.topicProvider !== row.provider), { ...next, ...persisted }]
         pendingBinding.value = undefined
+        onlyMessage(t('PersonalCenter.prototype.saved'), 'success')
       }
     } catch { if (!disposed) failed.value = true }
     finally { if (!disposed) saving.value = '' }
@@ -268,6 +347,6 @@ export function useNotificationSettings() {
   return {
     providers, channelTypes, loading, failed, saving, pendingBinding, recipientsFailed, recipientsLoading,
     profile, load, loadRecipients, selected, toggle, bindingComplete, receiverSummary, channelUnavailable, unavailableType, channelChecked,
-    canBindReceiver, beginReceiverBinding,
+    canBindReceiver, beginReceiverBinding, receiverStatus, channelHeaderAction, openChannelSettings, displayedTypes, tableColumns, matrixRowNames, channelLabel, channelIcon, matrixCells, toggleMatrixChannel,
   }
 }

@@ -1,4 +1,14 @@
 import type { BufferDisplayConfig } from '../types'
+import type { BufferObservationMetric } from './observation'
+
+/** 历史与 MBean 摘要使用相同单位；条目、行、次数、批次和请求不能混用。 */
+export function bufferObservationUnitKey(key: BufferObservationMetric): string {
+  if (key === 'InRowsRate' || key === 'OutRowsRate') return 'runtimeDiagnostics.bufferRowsPerSecond'
+  if (key === 'ErrorRate') return 'runtimeDiagnostics.bufferErrorsPerSecond'
+  if (key.endsWith('Rate')) return 'runtimeDiagnostics.bufferItemsPerSecond'
+  if (key === 'PendingBytes') return 'runtimeDiagnostics.bufferBytes'
+  return `runtimeDiagnostics.${key === 'Wip' ? 'batches' : key === 'WriterPending' ? 'requests' : 'items'}`
+}
 
 /** 保存用户期望的完整身份，不能用暂时为空 / 部分到达的快照销毁偏好；空数组为主动全关。 */
 export function normalizeBufferConfig(config: BufferDisplayConfig | undefined, objectNames: readonly string[]): BufferDisplayConfig {

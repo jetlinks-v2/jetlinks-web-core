@@ -3,16 +3,19 @@
   "private": true,
   "version": "2.12.0",
   "scripts": {
+    "test:auto-tree": "node --test tests/autoTree.test.mjs && vue-tsc --noEmit -p tests/tsconfig.auto-tree.json",
+    "test:auto-tree-browser": "node tests/autoTree.browser.mjs",
     "test:asset-ownership": "node --test tests/assetOwnershipCondition.test.mjs",
     "dev": "vite",
     "dev:force": "vite --force",
-    "build": "node --max_old_space_size=8192 --max-semi-space-size=64 ../node_modules/vite/bin/vite.js build",
+    "build": "node --max_old_space_size=81920 --max-semi-space-size=64 ../node_modules/vite/bin/vite.js build",
     "preview": "vite preview",
     "clean": "pnpm rimraf node_modules && pnpm rimraf dist && pnpm rimraf .turbo",
     "test": "playwright test",
     "test:has-menu": "node --test configs/plugin/has-menu/index.test.mjs",
     "test:captcha-verify": "node --test tests/captchaVerify.test.mjs",
     "test:application-runtime": "node scripts/test-application-runtime.mjs",
+    "test:application-shell": "node --test tests/applicationShell.test.mjs",
     "test:data-capability": "node scripts/test-data-capability.mjs",
     "typecheck:data-capability": "vue-tsc -p tsconfig.data-capability.json --noEmit",
     "micro": "node scripts/start-micro.js",
@@ -37,6 +40,7 @@
     "xgplayer-hls": "^3.0.24"
   },
   "devDependencies": {
+    "c8": "^10.1.3",
     "@types/crypto-js": "^4.2.2",
     "@types/node": "24.3.0",
     "vite-plugin-monaco-editor": "^1.1.0",

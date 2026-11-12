@@ -87,6 +87,7 @@ import SelectableListCard from './SelectableListCard'
 import ContentPanel from './ContentPanel/index.vue'
 import { TableActions, TableActionsItem } from './TableActions'
 import BasisSection from './BasisSection/index.vue'
+import AutoTree from './AutoTree'
 
 export default {
     install(app: App) {
@@ -178,6 +179,7 @@ export default {
           .component('TableActions', TableActions)
           .component('TableActionsItem', TableActionsItem)
           .component('BasisSection', BasisSection)
+          .component('AutoTree', AutoTree)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
@@ -216,12 +218,18 @@ export {
     TableActionsItem,
     BasisSection
 }
+export { AutoTree }
+export { InlineEditForm } from './InlineEditForm'
+export type { InlineEditFieldDefinition, InlineEditGroup, InlineEditMessages, InlineEditResult, InlineEditSubmit } from './InlineEditForm'
+export type { AutoTreeProps, AutoTreeInstance } from './AutoTree'
 export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlacement } from './TableActions'
 export { I18nTextField, I18nTextDialog, I18nInputTrigger } from './I18n'
 export type { I18nMessages, I18nTextMessages, I18nTextFieldProps, I18nTextDialogProps } from './I18n'
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
 export { RuntimeMetricsPanel, RuntimeMBeanOverview, ThreadViewer, JvmDiagnosticPanel, FlameGraphViewer, MBeanBrowser, TraceViewer, LogViewer, registerMBeanRenderer, createFlameGraphHtml, nanosText, nanosBetween, traceRows } from './RuntimeDiagnostics'
 export { useMBeanRendererContext } from './RuntimeDiagnostics'
+export { RuntimeMBeanExtensions, mbeanOverviewRenderers } from './RuntimeDiagnostics'
+export type { MBeanOverviewSource, MBeanOverviewEntry } from './RuntimeDiagnostics'
 export { SamplingIntervalControl } from './RuntimeDiagnostics'
 export { DeviceSessionViewer } from './RuntimeDiagnostics'
 export type { DeviceSessionInfo, DeviceSessionConnection, DeviceSessionDeviceOption } from './RuntimeDiagnostics'

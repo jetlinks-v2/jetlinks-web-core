@@ -137,6 +137,157 @@ test('same pending deployment query is single-flight and applies the latest cont
   assert.equal(h.store.parameters.currentView, 'b')
 })
 
+test('closing the drawer preserves context, releasing its owner removes the revoked catalog', async t => {
+  const h = storeHarness(t)
+  const controller = new AbortController()
+  const tool = { id: 'device_read', _meta: { executionSignal: controller.signal } }
+  await h.store.queryAgent('page', { subjectId: 'device', clientTools: [tool] })
+  h.store.setDrawer(true)
+  const list = h.store.agentList
+  const parameters = h.store.parameters
+
+  h.store.setDrawer(false)
+  assert.equal(h.store.agentList, list)
+  assert.equal(h.store.parameters, parameters)
+  assert.equal(h.store.activeClientId, 'page')
+  h.store.setDrawer(true)
+  h.store.bubbleUnreadCount = 2
+
+  // Page teardown revokes tools before releasing the shared conversation host.
+  controller.abort()
+  h.store.releaseAgentConversation('page')
+  assert.deepEqual(h.store.agentList, [])
+  assert.deepEqual(h.store.parameters, {})
+  assert.equal(h.store.activeClientId, '')
+  assert.equal(h.store.pendingClientId, '')
+  assert.equal(h.store.showAiButton, false)
+  assert.equal(h.store.showAiDrawer, false)
+  assert.equal(h.store.bubbleUnreadCount, 0)
+
+  await h.store.queryAgent('global', { subjectId: 'project', clientTools: [] })
+  h.store.releaseAgentConversation('page')
+  assert.equal(h.store.activeClientId, 'global', 'late release cannot clear the replacement owner')
+  assert.equal(h.store.parameters.subjectId, 'project')
+  assert.equal(h.store.agentList.length, 1)
+})
+
+test('hiding the launcher preserves its context and fences a pending deployment response', async t => {
+  const result = deferred()
+  const h = storeHarness(t, () => result.promise)
+  const pending = h.store.queryAgent('page', { subjectId: 'device' })
+  await h.flush()
+  h.store.hideAiButton()
+  result.resolve({ success: true, result: [{ agentId: 'late-agent' }] })
+  await pending
+  assert.deepEqual(h.store.agentList, [])
+  assert.deepEqual(h.store.parameters, {})
+  assert.equal(h.store.activeClientId, '')
+  assert.equal(h.store.pendingClientId, '')
+  assert.equal(h.store.showAiButton, false)
+})
+
+test('hiding the launcher does not clear an existing deployment or its tool handlers', async t => {
+  const h = storeHarness(t)
+  const tool = { id: 'read', execute: () => ({ ok: true }) }
+  await h.store.queryAgent('page', { clientTools: [tool] })
+  const list = h.store.agentList
+  const parameters = h.store.parameters
+  h.store.hideAiButton()
+  assert.equal(h.store.agentList, list)
+  assert.equal(h.store.parameters, parameters)
+  assert.equal(h.store.parameters.clientTools[0].execute, tool.execute)
+})
+
+test('a hidden conversation completes an in-flight tool and accepts subsequent tool calls', async t => {
+  const h = storeHarness(t)
+  const load = createLoader({
+    '../../utils/agentWebSocketUrl': { createAgentWebSocketUrl: () => 'ws://test' },
+    '@jetlinks-web-core/layout/components/AiChat/clientTools': { guardAiClientToolResult: result => result },
+    './utils': { isSemanticConfirmOptionId: () => false, resolveConfirmOptionApproved: () => true },
+  })
+  const { AgentConversationSocketAdapter } = load(resolve(src,
+    '../../modules/jetlinks-ai-agent-ui/components/AgentConversation/adapter.ts'))
+  const adapter = new AgentConversationSocketAdapter()
+  const response = deferred()
+  const frames = []
+  const signals = []
+  let disposed = false
+  adapter.sendRaw = frame => frames.push(frame)
+  adapter.onClientToolCall(call => {
+    signals.push(call.signal)
+    return signals.length === 1 ? response.promise : { ok: true }
+  })
+  await h.store.queryAgent('page', { clientTools: [{ id: 'read' }] })
+  h.store.setDrawer(true)
+  const Conversation = vue.defineComponent({
+    setup() {
+      vue.onUnmounted(() => { disposed = true; void adapter.dispose() })
+      return () => vue.h('div')
+    },
+  })
+  const app = renderer().createApp({ setup: () => () => h.store.agentList.length ? vue.h(Conversation) : null })
+  app.mount({ children: [] })
+  h.flush.onCleanup(() => app.unmount())
+  const active = adapter.handleClientToolCall({ id: 'before-hide', params: { toolName: 'read' } })
+  h.store.setDrawer(false)
+  await vue.nextTick()
+  assert.equal(disposed, false)
+  assert.equal(signals[0].aborted, false)
+  await adapter.handleClientToolCall({ id: 'while-hidden', params: { toolName: 'read' } })
+  response.resolve({ ok: true })
+  await active
+  assert.equal(signals.length, 2)
+  assert.deepEqual(frames.map(frame => frame.id).sort(), ['before-hide', 'while-hidden'])
+  h.store.setDrawer(true)
+  await vue.nextTick()
+  assert.equal(disposed, false)
+})
+
+test('page release unmounts the conversation before a revoked catalog refresh can report expiry', async t => {
+  const h = storeHarness(t)
+  const load = createLoader({})
+  const { createClientToolInvalidationRefresh } = load(resolve(src,
+    '../../modules/jetlinks-ai-agent-ui/components/AgentConversation/initContractRefreshPolicy.ts'))
+  const controller = new AbortController()
+  const errors = []
+  let pending
+  let disposed = false
+  const Conversation = vue.defineComponent({
+    setup() {
+      // Model the UI provider's nextTick refresh and unmount guard using the production policy.
+      const refresh = createClientToolInvalidationRefresh({
+        blockCalls: () => {}, hasActiveTurn: () => false,
+        cancelTurn: async () => { assert.fail('idle conversation must not cancel a turn') },
+        refresh: async () => {
+          await vue.nextTick()
+          if (disposed) return
+          if (controller.signal.aborted) throw new DOMException('Client tool catalog expired', 'AbortError')
+        },
+        disposed: () => disposed,
+        failed: error => errors.push(error.message),
+      })
+      const invalidate = () => { pending = refresh.invalidate() }
+      controller.signal.addEventListener('abort', invalidate)
+      vue.onUnmounted(() => {
+        disposed = true
+        controller.signal.removeEventListener('abort', invalidate)
+      })
+      return () => vue.h('div')
+    },
+  })
+  await h.store.queryAgent('page', { clientTools: [{ id: 'device_read', _meta: { executionSignal: controller.signal } }] })
+  const app = renderer().createApp({
+    setup: () => () => h.store.agentList.length ? vue.h(Conversation) : null,
+  })
+  app.mount({ children: [] })
+  h.flush.onCleanup(() => app.unmount())
+  controller.abort()
+  h.store.releaseAgentConversation('page')
+  await pending
+  assert.equal(disposed, true)
+  assert.deepEqual(errors, [])
+})
+
 test('late deployment response cannot reclaim a released or replaced page owner', async t => {
   const result = deferred()
   const h = storeHarness(t, (type, client) => client === 'global'
@@ -165,7 +316,7 @@ test('failed deployment requests can be retried without a permanent negative cac
   assert.equal(h.store.activeClientId, 'global')
 })
 
-function globalHarness(t, { project = true, loading = Promise.resolve(), queryAgentList } = {}) {
+function globalHarness(t, { project = true, loading = Promise.resolve(), queryAgentList, runtimeParameters = {} } = {}) {
   const h = storeHarness(t, queryAgentList)
   const route = vue.reactive({ path: '/a', fullPath: '/a', name: 'a', meta: {} })
   const menu = vue.reactive({ initialized: true, siderMenus: [{ name: 'a' }] })
@@ -179,7 +330,7 @@ function globalHarness(t, { project = true, loading = Promise.resolve(), queryAg
       subscribeClientTools: () => () => {},
       refreshContext() {
         refreshes += 1
-        this.parameters = { subjectId: project ? 'project' : 'iotHome', currentView: route.name }
+        this.parameters = { ...runtimeParameters, subjectId: project ? 'project' : 'iotHome', currentView: route.name }
         this.clientTools = [{ name: route.name }]
         this.clientToolsVersion += 1
       },
@@ -240,6 +391,22 @@ for (const project of [true, false]) {
     assert.equal(h.queries(), 1)
   })
 }
+
+test('home limits processing tools while preserving charts, reports, file access and deployment restrictions', async t => {
+  const disabled = ['dataset', 'json', 'media', 'validate', 'script', 'skill', 'memory']
+  const runtimeParameters = Object.fromEntries([...disabled, 'fs', 'chart', 'document', 'tools', 'session'].map(group => [`builtinToolGroup.${group}.enabled`, true]))
+  for (const project of [false, true]) {
+    const h = globalHarness(t, { project, runtimeParameters })
+    await h.flush()
+    for (const group of disabled) assert.equal(h.store.parameters[`builtinToolGroup.${group}.enabled`], project)
+    for (const group of ['fs', 'chart', 'document', 'tools', 'session']) assert.equal(h.store.parameters[`builtinToolGroup.${group}.enabled`], true)
+    assert.equal(h.store.parameters.sessionFilesEnabled, undefined)
+    h.unmount()
+  }
+  const h = globalHarness(t, { project: false, runtimeParameters: { 'builtinToolGroup.document.enabled': false } })
+  await h.flush()
+  assert.equal(h.store.parameters['builtinToolGroup.document.enabled'], false)
+})
 
 test('page-specific ownership and returning to the global assistant reuse the same runtime', async t => {
   const h = globalHarness(t)

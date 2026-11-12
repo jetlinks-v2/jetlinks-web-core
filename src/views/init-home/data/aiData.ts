@@ -150,38 +150,6 @@ export const agentData = [
   },
   {
     clientType: 'pagePoint',
-    clientId: 'viewBigScreen',
-    name: i18n.global.t('data.aiData.viewBigScreen.name'),
-    description: i18n.global.t('data.aiData.viewBigScreen.description'),
-    searchCode: i18n.global.t('data.aiData.viewBigScreen.searchCode'),
-    maxAgentSize: 1,
-    expands: {
-      menuName: i18n.global.t('data.aiData.viewBigScreen.menuName'),
-      type: 'chatBubbles'
-    },
-    metadata: {
-      menuCode: 'view/bigscreen',
-      path: '/view/bigscreen'
-    }
-  },
-  {
-    clientType: 'pagePoint',
-    clientId: 'viewDesigner',
-    name: i18n.global.t('data.aiData.viewDesigner.name'),
-    description: i18n.global.t('data.aiData.viewDesigner.description'),
-    searchCode: i18n.global.t('data.aiData.viewDesigner.searchCode'),
-    maxAgentSize: 1,
-    expands: {
-      menuName: i18n.global.t('data.aiData.viewDesigner.menuName'),
-      type: 'chatBubbles'
-    },
-    metadata: {
-      menuCode: 'view/bigscreen',
-      path: '/view/bigscreen'
-    }
-  },
-  {
-    clientType: 'pagePoint',
     clientId: 'knowledgeAISearch',
     name: i18n.global.t('data.aiData.knowledgeAISearch.name'),
     description: i18n.global.t('data.aiData.knowledgeAISearch.description'),

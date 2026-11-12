@@ -13,7 +13,7 @@ export function useSlantedTabs(props: SlantedTabsProps, emit: SelectionEmitter) 
   const visitedKeys = ref(new Set<SlantedTabKey>())
   const selectedKey = computed(() => {
     const key = props.activeKey ?? localKey.value
-    return props.options.find(option => option.key === key && !option.disabled)?.key
+    return props.options.find(option => option.key === key && (!option.disabled || props.preserveDisabledActive))?.key
       ?? props.options.find(option => !option.disabled)?.key
   })
 

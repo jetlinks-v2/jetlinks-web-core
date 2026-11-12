@@ -55,7 +55,7 @@ export function useMBeanQueryContext(options: QueryContextOptions) {
   watch(options.execute, () => invalidate(true), { flush: 'sync' })
   watch(availableQueries, ids => { if (snapshot.value && !ids.includes(snapshot.value.queryId)) invalidate(true) }, { flush: 'sync' })
   onScopeDispose(() => invalidate(true))
-  /** 普通方法仍由原确认表单执行，其返回值不能被摘要查询消费，反之亦然。 */
+  /** 普通方法由通用表单执行，其返回值不能被摘要查询消费，反之亦然。 */
   function beginGenericInvocation() { invalidate(false); resultSource.value = 'generic' }
   return { context, resultSource, beginGenericInvocation }
 }

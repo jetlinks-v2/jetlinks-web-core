@@ -9,7 +9,7 @@
           :options="formatOptions"
           :placeholder="locale.selectFormat"
           size="small"
-          @update:value="emit('update:selectedFormat', $event)"
+          @update:value="emit('update:selectedFormat', $event as string)"
         />
       </div>
     </div>
@@ -45,7 +45,7 @@
         expand-action="doubleclick"
         :field-names="{ title: 'title', key: 'key', children: 'children' }"
         block-node
-        @update:selectedKeys="emit('update:selectedKeys', $event)"
+        @update:selectedKeys="emit('update:selectedKeys', $event as string[])"
         @select="forwardSelection"
         @expand="setExpandedKeys"
       >
@@ -101,7 +101,7 @@
         :description="isSearching ? locale.noMatchingFiles : locale.noFiles"
       />
     </a-spin>
-    <div class="model-config__footer">
+    <div v-if="showModelManagement" class="model-config__footer">
       <a-button
         block
         class="model-config__config-entry"
@@ -133,6 +133,7 @@ const props = defineProps({
   locale: { type: Object as PropType<FileDirectorySource['locale']>, required: true },
   filesLoading: { type: Boolean, default: false },
   showAddFile: { type: Boolean, default: true },
+  showModelManagement: { type: Boolean, default: true },
   modelConfigActive: { type: Boolean, default: false }
 })
 
@@ -155,8 +156,9 @@ const {
   getFileTreeTags
 } = useModelFileDirectory(props)
 
-function forwardSelection(keys: string[], info: { node?: TreeNode }) {
-  emit('select', keys, info)
+// 目录和架构选项的 key 均由上游定义为字符串，在此收窄通用控件的事件类型。
+function forwardSelection(keys: Array<string | number>, info: { node?: unknown }) {
+  emit('select', keys as string[], info as { node?: TreeNode })
 }
 </script>
 

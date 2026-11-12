@@ -133,8 +133,51 @@ import {
   type ClientToolConsumedResource,
 } from '../src/layout/components/AiChat/clientToolDefinition'
 import { aiClientToolRegistry } from '../src/layout/components/AiChat/clientToolRegistry'
+import { defineClientToolFactory } from '../src/layout/components/AiChat/clientToolApi'
+import { createAiClientToolRuntime } from '../src/layout/components/AiChat/clientTools'
 import { createClientToolSnapshotController } from '../src/layout/components/AiChat/clientToolSnapshot'
 import { createDomainAgentScopeContract } from '../src/layout/components/AiChat/clientToolScope'
+
+test('explicit string bounds survive serialization without requiring optional inputs or dropping alternatives', () => {
+  const definition = defineClientTool({
+    id: 'bounded_resource_test', description: { text: 'Read an optional resource', capabilities: ['resource.read'] }, effect: { kind: 'READ' },
+    inputs: [
+      { id: 'resource', valueType: { type: 'string', minLength: 1 } },
+      { id: 'ordinary', valueType: 'string' },
+      { id: 'nested', valueType: { type: 'object', properties: [
+        { id: 'refs', valueType: { type: 'array', elementType: { type: 'string', minLength: 2, maxLength: 12 } } },
+        { id: 'mode', valueType: { type: 'enum', elements: [{ value: 'allowed' }] } },
+      ] } },
+      { id: 'rows', valueType: { type: 'array', elementType: { type: 'object', properties: [
+        { id: 'ref', valueType: { type: 'string', minLength: 1 } },
+        { id: 'mode', valueType: { type: 'enum', elements: [{ value: 'allowed' }] } },
+      ] } } },
+    ],
+    inputAlternatives: [{ required: [] }],
+    execute: async () => ({}),
+    output: clientToolOutput.detail({ name: 'resource-detail', shape: 'resource.detail', select: value => value }),
+  })
+  const wire = toAiClientToolSessionDefinition(definition) as Record<string, any>
+  assert.equal(wire.expands._schema.properties, undefined, 'partial fields must not replace the server-owned metadata schema')
+  assert.deepEqual(wire.expands._schema.allOf, [{ properties: {
+    resource: { type: 'string', minLength: 1 },
+    nested: { type: 'object', properties: { refs: { type: 'array', items: { type: 'string', minLength: 2, maxLength: 12 } } } },
+    rows: { type: 'array', items: { type: 'object', properties: { ref: { type: 'string', minLength: 1 } } } },
+  } }])
+  const nested = wire.inputs.find((input: any) => input.id === 'nested').valueType
+  const rows = wire.inputs.find((input: any) => input.id === 'rows').valueType.elementType
+  assert.equal(nested.properties.find((property: any) => property.id === 'mode').valueType.elements[0].value, 'allowed')
+  assert.equal(rows.properties.find((property: any) => property.id === 'mode').valueType.elements[0].value, 'allowed')
+  assert.deepEqual(wire.expands._schema.oneOf[0].required, [])
+  assert.equal(wire.inputs.find((input: any) => input.id === 'resource').expands?.required, undefined)
+  for (const valueType of [{ type: 'integer', minLength: 1 }, { type: 'string', minLength: -1 },
+    { type: 'string', minLength: 4, maxLength: 2 }]) {
+    assert.throws(() => defineClientTool({ id: 'invalid_string_bounds', description: { text: 'Invalid bounds', capabilities: ['resource.read'] },
+      inputs: [{ id: 'resource', valueType }], effect: { kind: 'READ' }, execute: async () => ({}),
+      output: clientToolOutput.detail({ name: 'resource-detail', shape: 'resource.detail', select: value => value }),
+    }), /invalid string bounds/)
+  }
+})
 
 const createSeriesContract = () => defineAiClientToolContract({
   routingKind: 'aggregate',
@@ -678,10 +721,9 @@ test('bounded analytical fields enforce physical type and display-format compati
     },
   )
 
-  const incompatible = createAnonymousBoundedTool([3, 2, 1], 'top_n', {
+  assert.throws(() => createAnonymousBoundedTool([3, 2, 1], 'top_n', {
     valueField: { type: 'number', format: 'integer' },
-  }).tool as any
-  assert.equal(incompatible.routing?.analyticalCapability, undefined)
+  }), /Client tool analytical declaration is invalid/)
 
   const runtimeFields = [
     { name: 'physical_group', type: 'string', role: 'dimension' },
@@ -893,44 +935,44 @@ test('standard trend authoring requires exact canonical time-axis and measure bi
   )
 
   const malformedCases = [
-    createTrend('unknown_axis', validFields.map(field => (
+    () => createTrend('unknown_axis', validFields.map(field => (
       field.name === 'observed_at' ? { ...field, axis: 'unknown-axis' } : field
     ))),
-    createTrend('duplicate_axis', [
+    () => createTrend('duplicate_axis', [
       ...validFields,
       { name: 'secondTime', type: 'timestamp', role: 'temporal_dimension', axis: 'time', encoding: 'epoch-millis' },
     ]),
-    createTrend('legacy_implicit_axis', [
+    () => createTrend('legacy_implicit_axis', [
       { name: 'observed_at', semanticRole: 'timestamp' },
       {
         name: 'metricValue', semanticRole: 'number', measure: 'sample_rate',
         aggregation: 'avg', unit: 'percent',
       },
     ]),
-    createTrend('missing_measure', [validFields[0]]),
-    createTrend('duplicate_measure', [
+    () => createTrend('missing_measure', [validFields[0]]),
+    () => createTrend('duplicate_measure', [
       ...validFields,
       {
         name: 'duplicateValue', type: 'number', role: 'measure', measure: 'sample_rate',
         aggregation: 'avg', unit: 'percent',
       },
     ]),
-    createTrend('unit_mismatch', validFields.map(field => (
+    () => createTrend('unit_mismatch', validFields.map(field => (
       field.name === 'metricValue' ? { ...field, unit: 'count' } : field
     ))),
-    createTrend('aggregation_mismatch', validFields.map(field => (
+    () => createTrend('aggregation_mismatch', validFields.map(field => (
       field.name === 'metricValue' ? { ...field, aggregation: 'sum' } : field
     ))),
-    createTrend('output_mismatch', validFields, { output: 'foreign-series' }),
-    createTrend('ordering_mismatch', validFields, {
+    () => createTrend('output_mismatch', validFields, { output: 'foreign-series' }),
+    () => createTrend('ordering_mismatch', validFields, {
       ordering: {
         keys: [{ field: 'observed_at', direction: 'desc' }],
         producerGuaranteed: true,
       },
     }),
   ]
-  for (const tool of malformedCases) {
-    assert.equal(tool.routing?.analyticalCapability, undefined, tool.id)
+  for (const compile of malformedCases) {
+    assert.throws(compile, /Client tool analytical declaration is invalid/)
   }
   assert.equal(valid.routing.analyticalCapability.semanticIntentBindings, undefined)
 })
@@ -1294,13 +1336,13 @@ test('execution-authored analytical authoring rejects non-optional or structural
   )
 
   const malformed = [
-    createTool('execution_fields_required_output', { optional: false }),
-    createTool('execution_fields_missing_resolver', { resolveFields: undefined }),
-    createTool('execution_fields_non_exact_record_path', { recordPath: '$.series[*]' }),
-    createTool('execution_fields_dynamic_order', {
+    () => createTool('execution_fields_required_output', { optional: false }),
+    () => createTool('execution_fields_missing_resolver', { resolveFields: undefined }),
+    () => createTool('execution_fields_non_exact_record_path', { recordPath: '$.series[*]' }),
+    () => createTool('execution_fields_dynamic_order', {
       ordering: { keys: [{ field: 'observed_at', direction: 'desc' }], producerGuaranteed: true },
     }),
-    createTool('execution_fields_static_measure', {
+    () => createTool('execution_fields_static_measure', {
       fields: [
         temporalField,
         {
@@ -1309,12 +1351,12 @@ test('execution-authored analytical authoring rejects non-optional or structural
         },
       ],
     }),
-    createTool('execution_fields_unknown_mode', {}, 'runtime-inferred'),
+    () => createTool('execution_fields_unknown_mode', {}, 'runtime-inferred'),
   ]
-  malformed.forEach((tool) => assert.equal(tool.routing?.analyticalCapability, undefined, tool.id))
+  malformed.forEach(compile => assert.throws(compile, /Client tool analytical declaration is invalid/))
   assert.throws(
     () => createTool('execution_fields_missing_record_path', { recordPath: undefined }),
-    /canonical client tool output fields require an explicit recordPath/i,
+    /Client tool analytical declaration is invalid/,
   )
 })
 
@@ -1585,8 +1627,10 @@ test('typed semantic intent bindings stay declaration-local and fail closed on c
     [{ intent: primaryIntent, criterion: 'trend', measures: ['rate_value'] }],
   ]
   for (const [index, bindings] of malformedBindings.entries()) {
-    const malformed = createTool(`malformed_semantic_intent_${index}`, bindings)
-    assert.equal(malformed.routing?.analyticalCapability, undefined, malformed.id)
+    assert.throws(
+      () => createTool(`malformed_semantic_intent_${index}`, bindings),
+      /Client tool analytical declaration is invalid/,
+    )
   }
 
   const legacy = createTool('legacy_semantic_intent_absent', undefined)
@@ -1923,22 +1967,22 @@ test('typed semantic intents reference one closed scope binding without granting
   assert.equal(noBindingSibling.routing.analyticalCapability.argumentBindings, undefined)
 
   const malformedCases = [
-    createTool('scope_selection_missing_binding', scopeSelection, { includeScope: false }),
-    createTool('scope_selection_foreign_binding', { ...scopeSelection, binding: 'temporal' }),
-    createTool('scope_selection_unknown_mode', { ...scopeSelection, modes: ['project', 'automatic'] }),
-    createTool('scope_selection_duplicate_mode', { ...scopeSelection, modes: ['project', 'project'] }),
-    createTool('scope_selection_reversed_modes', { ...scopeSelection, modes: ['explicit', 'project'] }),
-    createTool('scope_selection_schema_drift', scopeSelection, {
+    () => createTool('scope_selection_missing_binding', scopeSelection, { includeScope: false }),
+    () => createTool('scope_selection_foreign_binding', { ...scopeSelection, binding: 'temporal' }),
+    () => createTool('scope_selection_unknown_mode', { ...scopeSelection, modes: ['project', 'automatic'] }),
+    () => createTool('scope_selection_duplicate_mode', { ...scopeSelection, modes: ['project', 'project'] }),
+    () => createTool('scope_selection_reversed_modes', { ...scopeSelection, modes: ['explicit', 'project'] }),
+    () => createTool('scope_selection_schema_drift', scopeSelection, {
       inputs: baseScope.inputs.map(input => input.id === 'scopeAlpha'
         ? { ...input, valueType: { type: 'integer' } }
         : input),
     }),
-    createTool('scope_selection_cross_sibling_intent', scopeSelection, {
+    () => createTool('scope_selection_cross_sibling_intent', scopeSelection, {
       intents: ['different declaration intent'],
     }),
   ]
-  for (const tool of malformedCases) {
-    assert.equal(tool.routing?.analyticalCapability, undefined, tool.id)
+  for (const compile of malformedCases) {
+    assert.throws(compile, /Client tool analytical declaration is invalid/)
   }
 
   const duplicateScopeRouting = {
@@ -2008,34 +2052,34 @@ test('standard scalar summaries require exact canonical measure bindings and iso
   assert.deepEqual(valid._meta.resultBindings[0].fields, validFields)
 
   const malformedCases = [
-    createSummary('summary_missing_measure', [validFields[0]]),
-    createSummary('summary_without_measure_fields', [{
+    () => createSummary('summary_missing_measure', [validFields[0]]),
+    () => createSummary('summary_without_measure_fields', [{
       name: 'summaryLabel', type: 'string', role: 'label', label: 'Summary',
     }]),
-    createSummary('summary_wrong_measure_type', validFields.map(field => (
+    () => createSummary('summary_wrong_measure_type', validFields.map(field => (
       field.name === 'eventCount' ? { ...field, type: 'string' } : field
     ))),
-    createSummary('summary_duplicate_measure', [
+    () => createSummary('summary_duplicate_measure', [
       ...validFields,
       { ...validFields[0], name: 'duplicateCount' },
     ]),
-    createSummary('summary_undeclared_measure', [
+    () => createSummary('summary_undeclared_measure', [
       ...validFields,
       {
         name: 'foreignCount', type: 'integer', role: 'measure', label: 'Foreign count',
         measure: 'foreign_count', aggregation: 'sum', unit: 'record',
       },
     ]),
-    createSummary('summary_unlabelled_measure', validFields.map(field => (
+    () => createSummary('summary_unlabelled_measure', validFields.map(field => (
       field.name === 'eventCount' ? { ...field, label: undefined } : field
     ))),
-    createSummary('summary_unit_mismatch', validFields.map(field => (
+    () => createSummary('summary_unit_mismatch', validFields.map(field => (
       field.name === 'eventRate' ? { ...field, unit: 'record' } : field
     ))),
-    createSummary('summary_output_mismatch', validFields, 'foreign-summary'),
+    () => createSummary('summary_output_mismatch', validFields, 'foreign-summary'),
   ]
-  for (const tool of malformedCases) {
-    assert.equal(tool.routing?.analyticalCapability, undefined, tool.id)
+  for (const compile of malformedCases) {
+    assert.throws(compile, /Client tool analytical declaration is invalid/)
   }
   assert.ok(valid.routing.analyticalCapability)
 })
@@ -2080,13 +2124,20 @@ test('standard analytical scalar formats are type-compatible and malformed produ
   ]
   validCases.forEach(tool => assert.ok(tool.routing.analyticalCapability, tool.id))
 
-  const numberAsInteger = createSummary('number_integer', 'number', 'integer', 'count')
-  const ratioAsPercent = createSummary('ratio_percent', 'number', 'percent', 'ratio')
-  assert.equal(numberAsInteger.routing?.analyticalCapability, undefined)
-  assert.equal(ratioAsPercent.routing?.analyticalCapability, undefined)
+  const invalid = () => createSummary('number_integer', 'number', 'integer', 'count')
+  assert.throws(invalid, /Client tool analytical declaration is invalid/)
+  assert.throws(
+    () => createSummary('ratio_percent', 'number', 'percent', 'ratio'),
+    /Client tool analytical declaration is invalid/,
+  )
 
-  const [, sibling] = toAiClientToolSessionDefinitions([numberAsInteger, validCases[0]]) as any[]
+  const runtime = createAiClientToolRuntime([
+    defineClientToolFactory('number_integer', invalid), validCases[0],
+  ])
+  const sibling = runtime.clientTools.find(tool => tool.id === validCases[0].id) as any
+  assert.equal(runtime.clientTools.some(tool => tool.id === 'number_integer'), false)
   assert.ok(sibling.expands['x-ai-routing'].analyticalCapability)
+  runtime.dispose()
 })
 
 test('catalog consumer authoring and non-analytical temporal scope share one canonical routing owner', () => {
@@ -2531,31 +2582,31 @@ test('scope authoring rejects missing provenance, malformed branches and target 
     ? { ...branch, alsoWhen: [] }
     : branch)
   const malformedCases = [
-    createCase('scope_missing_source_port', base.scope, base.inputs, [base.consumes[0]]),
-    createCase(
+    () => createCase('scope_missing_source_port', base.scope, base.inputs, [base.consumes[0]]),
+    () => createCase(
       'scope_non_string_argument',
       base.scope,
       base.inputs.map(input => input.id === 'scopeAlpha'
         ? { ...input, valueType: { type: 'integer' } }
         : input),
     ),
-    createCase('scope_branch_mismatch', base.scope, base.inputs, base.consumes, mismatchedBranch),
-    createCase('scope_open_mode_branch', base.scope, base.inputs, base.consumes, openModeBranch),
-    createCase(
+    () => createCase('scope_branch_mismatch', base.scope, base.inputs, base.consumes, mismatchedBranch),
+    () => createCase('scope_open_mode_branch', base.scope, base.inputs, base.consumes, openModeBranch),
+    () => createCase(
       'scope_mode_default',
       base.scope,
       base.inputs.map(input => input.id === 'scopeMode' ? { ...input, defaultValue: 'project' } : input),
     ),
-    createCase(
+    () => createCase(
       'scope_mode_open_value',
       base.scope,
       base.inputs.map(input => input.id === 'scopeMode' ? { ...input, valueType: { type: 'string' } } : input),
     ),
-    createCase('scope_target_collision', colliding),
-    createCase('scope_unregistered_authoring', Object.freeze({}) as any),
+    () => createCase('scope_target_collision', colliding),
+    () => createCase('scope_unregistered_authoring', Object.freeze({}) as any),
   ]
-  for (const tool of malformedCases) {
-    assert.equal(tool.routing?.analyticalCapability, undefined, tool.id)
+  for (const compile of malformedCases) {
+    assert.throws(compile, /Client tool analytical declaration is invalid/)
   }
 
   const validSibling = createCase('scope_valid_sibling')
@@ -2602,10 +2653,10 @@ test('temporal authoring fails closed for unresolved, ambiguous, incompatible an
     ...overrides,
   } as any)
   const malformedCases = [
-    createCase('temporal_missing_argument', temporal({ endArgument: 'absentAt' })),
-    createCase('temporal_duplicate_argument', temporal({ endArgument: 'openedAt' })),
-    createCase('temporal_custom_value_missing', temporal({ customValue: 'not-declared' })),
-    createCase(
+    () => createCase('temporal_missing_argument', temporal({ endArgument: 'absentAt' })),
+    () => createCase('temporal_duplicate_argument', temporal({ endArgument: 'openedAt' })),
+    () => createCase('temporal_custom_value_missing', temporal({ customValue: 'not-declared' })),
+    () => createCase(
       'temporal_custom_required_incomplete',
       temporal(),
       baseTime.inputs,
@@ -2614,23 +2665,23 @@ test('temporal authoring fails closed for unresolved, ambiguous, incompatible an
         when: { input: 'windowMode', equals: 'bounded' },
       }],
     ),
-    createCase(
+    () => createCase(
       'temporal_non_date_endpoint',
       temporal(),
       baseTime.inputs.map(input => input.id === 'openedAt'
         ? { ...input, valueType: { type: 'string' } }
         : input),
     ),
-    createCase(
+    () => createCase(
       'temporal_ambiguous_base_custom_branch',
       temporal(),
       baseTime.inputs,
       [...baseTime.inputAlternatives, { ...baseTime.inputAlternatives[1], title: 'duplicate' }],
     ),
-    createCase('temporal_unregistered_authoring', Object.freeze({}) as any),
+    () => createCase('temporal_unregistered_authoring', Object.freeze({}) as any),
   ]
-  for (const tool of malformedCases) {
-    assert.equal(tool.routing?.analyticalCapability, undefined, tool.id)
+  for (const compile of malformedCases) {
+    assert.throws(compile, /Client tool analytical declaration is invalid/)
   }
 
   const boundedBase = anonymousBoundedDefinition('anonymous.temporal-conflict', 'top_n')
@@ -2638,7 +2689,7 @@ test('temporal authoring fails closed for unresolved, ambiguous, incompatible an
     ...boundedBase,
     boundedBy: 'windowMode',
   })
-  const conflicting = defineClientTool({
+  assert.throws(() => defineClientTool({
     id: 'temporal_conflicting_limit_target',
     description: { text: 'Reject one input with two semantic owners', capabilities: ['generic.rank'] },
     inputs: baseTime.inputs,
@@ -2659,8 +2710,7 @@ test('temporal authoring fails closed for unresolved, ambiguous, incompatible an
       ],
     }),
     execute: () => clientToolResult.success([]),
-  })
-  assert.equal(conflicting.routing?.analyticalCapability, undefined)
+  }), /Client tool analytical declaration is invalid/)
 
   const validSibling = createCase('temporal_valid_sibling', baseTime.temporal)
   assert.ok(validSibling.routing?.analyticalCapability)
@@ -2745,6 +2795,7 @@ test('bounded authoring rejects ambiguous semantics and never guesses physical f
     second?: number
     coordinateAxis?: string
   }
+  let executions = 0
   const executeCase = async (
     id: string,
     definition: Record<string, unknown>,
@@ -2761,7 +2812,10 @@ test('bounded authoring rejects ambiguous semantics and never guesses physical f
       analytical,
       effect: { kind: 'READ' },
       output,
-      execute: () => clientToolResult.success([{ physical_group: 'a', physical_score: 2 }]),
+      execute: () => {
+        executions += 1
+        return clientToolResult.success([{ physical_group: 'a', physical_score: 2 }])
+      },
     })
     return tool.execute(args, {}, {
       id,
@@ -2781,19 +2835,19 @@ test('bounded authoring rejects ambiguous semantics and never guesses physical f
     ],
   })
   const cases = [
-    await executeCase(
+    () => executeCase(
       'bounded_ambiguous_criteria',
       { ...anonymousBoundedDefinition('anonymous.ambiguous-criteria', 'top_n'), criterion: ['top_n', 'bottom_n'] },
       [{ id: 'requestedCount', valueType: 'number' }],
       output(),
     ),
-    await executeCase(
+    () => executeCase(
       'bounded_missing_explicit_input',
       anonymousBoundedDefinition('anonymous.missing-input', 'top_n'),
       [{ id: 'first', valueType: 'number' }],
       output(),
     ),
-    await executeCase(
+    () => executeCase(
       'bounded_unmapped_semantic_axis',
       {
         ...anonymousBoundedDefinition('anonymous.unmapped-axis', 'top_n'),
@@ -2806,7 +2860,7 @@ test('bounded authoring rejects ambiguous semantics and never guesses physical f
       [{ id: 'first', valueType: 'number' }, { id: 'second', valueType: 'number' }],
       output(),
     ),
-    await executeCase(
+    () => executeCase(
       'bounded_axis_without_typed_enum_schema',
       {
         ...anonymousBoundedDefinition('anonymous.untyped-axis', 'top_n'),
@@ -2822,7 +2876,7 @@ test('bounded authoring rejects ambiguous semantics and never guesses physical f
       ],
       output(),
     ),
-    await executeCase(
+    () => executeCase(
       'bounded_axis_schema_incompatible_with_dimensions',
       {
         ...anonymousBoundedDefinition('anonymous.incompatible-axis', 'top_n'),
@@ -2841,7 +2895,7 @@ test('bounded authoring rejects ambiguous semantics and never guesses physical f
       ],
       output(),
     ),
-    await executeCase(
+    () => executeCase(
       'bounded_physical_field_not_guessed_from_semantic_measure',
       {
         ...anonymousBoundedDefinition('anonymous.no-field-guess', 'top_n'),
@@ -2853,7 +2907,7 @@ test('bounded authoring rejects ambiguous semantics and never guesses physical f
       [{ id: 'requestedCount', valueType: 'number' }],
       output(),
     ),
-    await executeCase(
+    () => executeCase(
       'bounded_missing_explicit_output',
       { ...anonymousBoundedDefinition('anonymous.missing-output', 'top_n'), output: 'not-declared' },
       [{ id: 'requestedCount', valueType: 'number' }],
@@ -2868,14 +2922,12 @@ test('bounded authoring rejects ambiguous semantics and never guesses physical f
     ),
   ]
 
-  for (const result of cases) {
-    assert.equal(result.complete, false)
-    assert.equal(result.truncated, false)
-    assert.equal(result.evidence.displayTruncated, false)
-    assert.equal(result.evidence.limitReason, 'analytical_scope_unproven')
+  for (const compileAndExecute of cases) {
+    await assert.rejects(compileAndExecute, /Client tool analytical declaration is invalid/)
   }
+  assert.equal(executions, 0)
 
-  const unregistered = defineClientTool<Args, Record<string, unknown>, number[]>({
+  assert.throws(() => defineClientTool<Args, Record<string, unknown>, number[]>({
     id: 'bounded_unregistered_authoring',
     description: { text: 'Reject an unregistered authoring object', capabilities: ['generic.rank'] },
     inputs: [{ id: 'requestedCount', valueType: 'number', required: true }],
@@ -2884,15 +2936,12 @@ test('bounded authoring rejects ambiguous semantics and never guesses physical f
     output: clientToolOutput.recordSet<number[]>({
       name: 'ranked-records', shape: 'generic.ranked-records', recordPath: '$',
     }),
-    execute: () => clientToolResult.success([2, 1]),
-  })
-  const unregisteredResult = await unregistered.execute({ requestedCount: 2 }, {}, {
-    id: 'bounded-unregistered',
-    toolName: unregistered.id,
-  }) as any
-  assert.equal(unregistered.routing?.analyticalCapability, undefined)
-  assert.equal(unregisteredResult.complete, false)
-  assert.equal(unregisteredResult.evidence.limitReason, 'analytical_scope_unproven')
+    execute: () => {
+      executions += 1
+      return clientToolResult.success([2, 1])
+    },
+  }), /Client tool analytical declaration is invalid/)
+  assert.equal(executions, 0)
 
   const explicitlyMapped = await executeCase(
     'bounded_explicit_physical_mapping',
@@ -4037,10 +4086,12 @@ test('migrated business authoring uses the stable facade and internal imports st
 
   const retainedLegacyImports = new Set([
     'modules/device-manager-ui/agentCapabilities/deviceAnalysis/deviceProperty.service.ts',
+    // This remote runtime executes serialized bindings; it does not author business tool contracts.
+    'modules/rule-engine-manager-ui/views/Instance/RuleEditor/toolRuntime.ts',
   ])
   const collectSourceFiles = (directory: string): string[] => readdirSync(directory, { withFileTypes: true })
     .flatMap((entry) => {
-      if (['node_modules', 'dist', 'coverage'].includes(entry.name) || entry.isSymbolicLink()) return []
+      if (['node_modules', 'dist', 'coverage', 'tests', '__tests__'].includes(entry.name) || entry.isSymbolicLink()) return []
       const absolutePath = path.join(directory, entry.name)
       if (entry.isDirectory()) return collectSourceFiles(absolutePath)
       return /\.(?:ts|tsx|vue)$/.test(entry.name) ? [absolutePath] : []
@@ -5675,8 +5726,9 @@ test('filter bindings compile fixed scalar, fixed array and dynamic wire metadat
   )
 })
 
-test('unbound filter authoring drops only analytical authority and keeps the direct tool', () => {
-  const tool = defineClientTool({
+test('unbound filter authoring rejects invalid authority before execution', () => {
+  let executions = 0
+  assert.throws(() => defineClientTool({
     id: 'anonymous_unbound_filter',
     description: { text: 'Read records directly', capabilities: ['generic.records'] },
     inputs: [{ id: 'status', valueType: 'string' }],
@@ -5698,14 +5750,12 @@ test('unbound filter authoring drops only analytical authority and keeps the dir
       name: 'unbound-filter-records',
       shape: 'anonymous.unbound-filter-records',
     }),
-    execute: () => clientToolResult.success([]),
-  }) as any
-
-  assert.equal(tool.id, 'anonymous_unbound_filter')
-  assert.equal(tool.routing.analyticalCapability, undefined)
-  const session = toAiClientToolSessionDefinition(tool) as any
-  assert.equal(session.expands['x-ai-routing'].analyticalCapability, undefined)
-  assert.equal(session.expands.effect, 'READ')
+    execute: () => {
+      executions += 1
+      return clientToolResult.success([])
+    },
+  }), /Client tool analytical declaration is invalid/)
+  assert.equal(executions, 0)
 })
 
 test('filter binding schema proof rejects coercion, duplicate pairs and target collisions per tool', () => {

@@ -11,7 +11,7 @@ const summaryFields: Record<string, Record<string, string[]>> = {
     GarbageCollector: ['CollectionCount', 'CollectionTime'], Runtime: ['StartTime', 'Uptime', 'VmName', 'VmVersion'],
   },
   'org.jetlinks': {
-    PersistenceBuffer: ['Remainder', 'DeadSize', 'Wip', 'WriterPending', 'WriterFallback'],
+    PersistenceBuffer: ['Remainder', 'DeadSize', 'Wip', 'WriterPending', 'WriterFallback', 'ObservationSnapshot'],
     Tracing: ['Enabled', 'Size', 'SizeInMemory', 'SizeInMemoryBytes', 'MaxInMemoryBytes', 'StoreBytes'],
     NettyAllocator: ['Metrics'],
     ReactiveSqlExecutor: ['PendingSize'],
@@ -45,6 +45,11 @@ export function registerMBeanRenderer(renderer: MBeanRenderer) {
   if (previous >= 0) renderers.splice(previous, 1)
   renderers.unshift(renderer)
   return () => { const index = renderers.indexOf(renderer); if (index >= 0) renderers.splice(index, 1) }
+}
+
+/** 复用同一注册表为节点概览声明轻量数据源；不在 core 发起请求或设置周期。 */
+export function mbeanOverviewRenderers() {
+  return renderers.filter((renderer): renderer is MBeanRenderer & { overview: NonNullable<MBeanRenderer['overview']> } => !!renderer.overview)
 }
 
 /** 匹配器失败时继续回退，保证未知或版本不匹配的对象仍可读取。 */

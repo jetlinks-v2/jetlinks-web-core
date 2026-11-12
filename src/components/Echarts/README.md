@@ -7,6 +7,8 @@ ECharts Vue 封装与注册插件，提供图表配置、按需 library 注册�
 | 参数 | 说明 | 类型 | 默认值 |
 | --- | --- | --- | --- |
 | `option` | ECharts 配置 | `object` | - |
+| `data-option` | 不可变的完整动态数据快照，替换引用触发更新 | `EChartsCoreOption` | - |
+| `defer-offscreen` | 视口外暂缓绘制，恢复时提交最新快照 | `boolean` | `false` |
 | `library` | 需要注册的图表/组件列表 | `unknown[]` | [] |
 | `layout-profile` | 可选渲染布局策略，普通页面默认使用原生布局 | `EchartsLayoutProfile` | `native` |
 
@@ -26,6 +28,18 @@ ECharts Vue 封装与注册插件，提供图表配置、按需 library 注册�
 
 - 图表容器默认撑满父元素，尺寸由外层容器控制。
 - 组件实例通过 expose 提供 getDataURL()；图表类型注册由 library 与 Echarts/library.ts 共同决定。
+
+#### 实时数据
+
+`option` 保留深监听，承载系列类型、颜色、图例、缩放和布局等配置。可选 `data-option` 使用浅监听，只承载完整的 `series` 数据、`dataset` 数据或动态 `xAxis` / `yAxis` 范围和可见性；每次采样替换整个快照，不能依赖逐次累加的局部补丁。系列和多轴采用与 `option` 一致的稳定 `id`，未设 id 的轴按索引对应。系列增删仍由调用方更新配置并管理实例重建。
+
+同一帧只提交最新快照；初始化和配置变化组合配置与最新数据，常规采样仅提交动态字段，保留当前图例选择和 dataZoom。数据数组整体替换，不按元素合并。不要在 `data-option` 中声明主题、布局、图例、缩放或 `media`，这些字段属于 `option`。
+
+`defer-offscreen` 使用 IntersectionObserver；浏览器不支持时沿用即时绘制。隐藏、KeepAlive 暂停或视口外仅保留一个待提交快照，继续由宿主管理采集；恢复时按实际尺寸绘制。`getDataURL()` 在容器尺寸有效时同步提交最新数据，即使图表位于视口外。卸载会取消调度并释放观察器和实例。
+
+~~~vue
+<Echarts :option="configuration" :data-option="latestData" defer-offscreen />
+~~~
 
 #### Presentation 布局
 

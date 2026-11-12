@@ -29,7 +29,9 @@
                     <div v-else-if="!error.code && !error.info && !error.message" class="amap-error-detail">
                         {{ $t('AMapComponent.AMap.unknownError') }}
                     </div>
-                    <div>{{ $t('AMapComponent.AMap.errorGuide') }}</div>
+                    <slot name="error-guide" :error="error">
+                        <div>{{ $t('AMapComponent.AMap.errorGuide') }}</div>
+                    </slot>
                 </template>
             </Result>
         </div>

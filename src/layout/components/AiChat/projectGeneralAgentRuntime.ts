@@ -16,6 +16,8 @@ import { getProjectStorage } from '@jetlinks-web-core/utils/project-storage'
 type ProjectMenu = Record<string, any> & { children?: ProjectMenu[] }
 
 export interface ProjectGeneralAgentRuntimeOptions {
+  /** Keep the default discovery host, or assemble only the currently loaded business capabilities. */
+  capabilityDiscovery?: boolean
   route: RouteLocationNormalizedLoaded
   router: Router
   projectId: string
@@ -144,13 +146,15 @@ export const createProjectGeneralAgentRuntime = (
     || options.projectId
 
   const runtime = createGeneralAgentRuntime({
+    capabilityDiscovery: options.capabilityDiscovery,
     currentView: () => String(options.route.name || options.route.path || ''),
     contextAdapter: createProjectContextAdapter(options.menus, options.router),
     subjectType: PROJECT_GENERAL_AGENT_SUBJECT_TYPE,
     subjectId: options.projectId,
     subjectName: i18n.global.t('ProjectGeneralAgent.subjectName', [projectName]),
     conversationTitle: i18n.global.t('data.aiData.projectAiSearchHub.name'),
-    extraTools: () => [createGeneralAgentExtensionLoaderTool(options.onCapabilitiesLoaded)],
+    extraTools: () => options.capabilityDiscovery === false
+      ? [] : [createGeneralAgentExtensionLoaderTool(options.onCapabilitiesLoaded)],
     getLatestUserMessage: options.getLatestUserMessage,
     onConversationMessage: options.onConversationMessage,
     systemPromptLines: [i18n.global.t('ProjectGeneralAgent.scopePrompt', [projectName])],

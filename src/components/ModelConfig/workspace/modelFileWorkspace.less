@@ -1,0 +1,131 @@
+.model-config__files {
+  display: grid;
+  grid-template-columns: var(--model-config-sider-width, 17.5rem) 1px minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.model-config__files--resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.model-config__property {
+  min-height: 0;
+  background: var(--bg);
+  border-right: 1px solid var(--line);
+  padding: var(--space-4);
+  overflow: hidden auto;
+}
+
+.model-config__resize {
+  position: relative;
+  min-width: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.model-config__resize::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--line);
+  transform: translateX(-50%);
+  opacity: 0.65;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.model-config__resize:hover::before,
+.model-config__resize:focus-visible::before,
+.model-config__files--resizing .model-config__resize::before {
+  opacity: 1;
+  background: var(--primary-color);
+}
+
+.model-config__property {
+  width: 20rem;
+  min-width: 0;
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+
+.model-config__content-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.model-config__main {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--bg);
+}
+
+
+.model-config__content-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.model-config__content-title {
+  font-weight: 600;
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
+}
+
+
+.model-config__editor-wrap {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  padding: var(--space-4);
+}
+
+
+.model-config__editor {
+  height: 100%;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  overflow: hidden;
+}
+
+.model-config__preview {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-2);
+  background: var(--bg-sunken);
+}
+
+@media (max-width: 1100px) {
+  .model-config__files {
+    grid-template-columns: 14rem minmax(0, 1fr);
+  }
+
+  .model-config__resize {
+    display: none;
+  }
+
+  .model-config__property {
+    grid-column: 1 / -1;
+    width: auto;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}

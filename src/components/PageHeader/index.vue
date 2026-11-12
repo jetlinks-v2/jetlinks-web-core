@@ -1,5 +1,5 @@
 <template>
-  <header class="cloud-page-header">
+  <header class="cloud-page-header" :class="{ 'cloud-page-header--plain': variant === 'plain' }">
     <div class="cloud-page-header__content">
       <div class="cloud-page-header__left">
         <AButton
@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts" name="CloudPageHeader">
-import ContentPanel from '../ContentPanel/index.vue'
+import type { PropType } from 'vue'
 /**
  * 跨模块页面标题栏：保留返回事件优先、路由回退兜底的既有交互契约。
  */
@@ -55,7 +55,9 @@ defineProps({
   showBack: {
     type: Boolean,
     default: false
-  }
+  },
+  /** 内容区内的轻量标题，不额外套一层背景卡片。 */
+  variant: { type: String as PropType<'default' | 'plain'>, default: 'default' },
 })
 
 const emit = defineEmits(['back'])
@@ -159,5 +161,22 @@ const handleBack = () => {
   .cloud-page-header__description {
     white-space: normal;
   }
+}
+
+.cloud-page-header--plain {
+  padding: 0 0 var(--space-3);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+.cloud-page-header--plain .cloud-page-header__content {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.cloud-page-header--plain .cloud-page-header__title {
+  font-size: var(--fs-18);
+  line-height: 26px;
 }
 </style>
