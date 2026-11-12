@@ -81,7 +81,7 @@ test('姓名复用公共就地编辑的提交取消行为，头像仍接入公�
   const saves = []
   const names = []
   const profile = reactive({ name: '测试用户', username: 'tester', avatar: '/avatar.png', canEdit: true, items: [{ key: 'id', value: 'fixture-id' }] })
-  globalThis[fixtureKey] = { saving: ref(false), saveError: ref(false), saveName: async value => { names.push(value); await new Promise(setImmediate); profile.name = value; return true }, saveAvatar: value => saves.push(value) }
+  globalThis[fixtureKey] = { saving: ref(false), saveError: ref(false), fields: ref([]), saveName: async value => { names.push(value); await new Promise(setImmediate); profile.name = value; return true }, saveAvatar: value => saves.push(value) }
   const root = node('root')
   const i18n = createI18n({ legacy: false, locale: 'zh', messages: locales })
   const app = renderer.createApp({ render: () => h(mod.exports.BasicInfo, { profile }) })
@@ -108,7 +108,8 @@ test('姓名复用公共就地编辑的提交取消行为，头像仍接入公�
   assert.equal(all(root, item => item.type === 'upload-boundary').length, 0)
   globalThis[fixtureKey].saving.value = false
   await nextTick()
-  all(root, item => item.type === 'button').find(item => text(item).trim() === '测试用户').props.onClick()
+  const nameEditButton = () => all(root, item => item.type === 'button').find(item => item.props['aria-label'] === '编辑姓名')
+  nameEditButton().props.onClick()
   await nextTick()
   let input = all(root, item => item.type === 'input')[0]
   input.props.input('取消草稿')
@@ -116,7 +117,7 @@ test('姓名复用公共就地编辑的提交取消行为，头像仍接入公�
   await nextTick()
   assert.deepEqual(names, [])
   assert.equal(all(root, item => item.type === 'input').length, 0)
-  all(root, item => item.type === 'button').find(item => text(item).trim() === '测试用户').props.onClick()
+  nameEditButton().props.onClick()
   await nextTick()
   input = all(root, item => item.type === 'input')[0]
   input.props.input('')
@@ -139,12 +140,12 @@ test('姓名复用公共就地编辑的提交取消行为，头像仍接入公�
   assert.equal(all(root, item => item.type === 'avatar-boundary')[0].props.src, '/avatar.png')
 })
 
-test('组织缺项提示覆盖角色、部门和职位的组合，并随语言切换', async t => {
+test('组织缺项提示只包含角色与组织，并随语言切换', async t => {
   const root = node('root')
-  const missing = ref(7)
-  const fields = [['roles', 'AccountInfo.roles'], ['orgs', 'PersonalCenter.department'], ['positions', 'AccountInfo.positions']]
+  const missing = ref(3)
+  const fields = [['roles', 'AccountInfo.roles'], ['orgs', 'AccountInfo.orgs']]
   const i18n = createI18n({ legacy: false, locale: 'zh', messages: locales })
-  globalThis[fixtureKey] = { saving: ref(false), saveError: ref(false), saveName() {}, saveAvatar() {} }
+  globalThis[fixtureKey] = { saving: ref(false), saveError: ref(false), fields: ref([]), saveName() {}, saveAvatar() {} }
   const app = renderer.createApp({ render: () => h(mod.exports.BasicInfo, { profile: {
     name: '用户', username: 'user', canEdit: false,
     items: fields.map(([key, label], index) => ({ key, label: i18n.global.t(label), value: '值', unassigned: !!(missing.value & (1 << index)) })),
@@ -154,7 +155,7 @@ test('组织缺项提示覆盖角色、部门和职位的组合，并随语言�
   app.mount(root)
   t.after(() => { app.unmount(); delete globalThis[fixtureKey] })
   const note = () => text(all(root, item => item.props.class === 'account-basic__item-hint account-basic__organization-note')[0])
-  const combinations = ['', '角色', '所属部门', '角色和所属部门', '职位', '角色和职位', '所属部门和职位', '角色、所属部门和职位']
+  const combinations = ['', '角色', '组织', '角色和组织']
   for (let mask = 0; mask < combinations.length; mask++) {
     missing.value = mask
     await nextTick()
@@ -162,14 +163,14 @@ test('组织缺项提示覆盖角色、部门和职位的组合，并随语言�
   }
   i18n.global.locale.value = 'en'
   await nextTick()
-  assert.equal(note(), 'Not assigned: Roles, Department, and Positions. Contact an administrator for assignment.')
+  assert.equal(note(), 'Not assigned: Roles and Organizations. Contact an administrator for assignment.')
   missing.value = 2
   await nextTick()
-  assert.equal(note(), 'Not assigned: Department. Contact an administrator for assignment.')
+  assert.equal(note(), 'Not assigned: Organizations. Contact an administrator for assignment.')
   i18n.global.locale.value = 'ja'
-  missing.value = 7
+  missing.value = 3
   await nextTick()
-  assert.equal(note(), 'ロール、所属部署、役職がまだ割り当てられていません。管理者に割り当てを依頼してください。')
+  assert.equal(note(), 'ロール、組織がまだ割り当てられていません。管理者に割り当てを依頼してください。')
 })
 
 test('公共编辑器默认图标入口保留原提交事件，禁用时不能进入编辑', async t => {

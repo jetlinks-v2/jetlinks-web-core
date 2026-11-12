@@ -31,11 +31,11 @@
 
 ## 顶部用户菜单
 
-运行时 `layout/components/LayoutSidebarUser.vue` 使用 264px（16.5rem）紧凑纵向下拉：顶部摘要按姓名、账号、角色三行排列，首个角色及多角色 `+N` 提示在账号下方并与账号左对齐；无角色时不渲染角色行。姓名使用摘要内容列宽度，`style/layout.less` 的 `layout-sidebar-user__roles-row` 使用主题间距。复用现有 Ant Design Vue 标签和 Tooltip，保留长文本省略、菜单入口及角色权限逻辑，运营端 `ui/` 不在本次范围内。
+运行时 `layout/components/LayoutSidebarUser.vue` 使用 264px（16.5rem）紧凑纵向下拉：顶部摘要按姓名、账号、角色三行排列，首个角色及多角色 `+N` 提示在账号下方并与账号左对齐；无角色时不渲染角色行。姓名使用摘要内容列宽度，`style/layout.less` 的 `layout-sidebar-user__roles-row` 使用主题间距。首个角色通过公共 `j-ellipsis` 截断并查看完整名称，数量标签保留独立空间；多角色列表复用 Tooltip。保留菜单入口及角色权限逻辑，运营端 `ui/` 不在本次范围内。页面效果待用户验收。
 
 角色换行验证：实际 Vue 脚本/模板、布局 Less 及组件预览 bundle 编译通过，`git diff --check` 通过。使用实际菜单组件、布局样式、Ant Design Vue 与隔离账号数据，在浏览器确认姓名、账号、角色纵向排列且左边界一致，单角色、多角色、无角色及长账号场景均无横向溢出，浏览器未报告错误或警告。当前登录页未提供可用会话，真实登录菜单待通过 `pnpm dev` 验收；本次未运行全量 typecheck/build，工作区无独立 lint 脚本，发布前执行本节下方命令。
 
-账号判断复用 `/user/detail` 返回的 `type.id` 及 `store/user.ts` 的 `isSubAccount`，顶部菜单不展示主/子账号及 `type.name` 用户类型标签。姓名、账号及角色内容保持相同左边界；角色按接口实际数据去重，首个角色以标签展示，多角色以 `+N` 标签结合 Tooltip 展开全部角色清单。长姓名、账号及角色单行省略并保留完整 title 提示。此调整仅影响顶部菜单摘要，账号类型和角色权限保持现有业务规则。后端接口与权限规则无需调整。
+账号判断复用 `/user/detail` 返回的 `type.id` 及 `store/user.ts` 的 `isSubAccount`，顶部菜单不展示主/子账号及 `type.name` 用户类型标签。姓名、账号及角色内容保持相同左边界；角色按接口实际数据去重，首个角色以标签展示，多角色以 `+N` 标签结合 Tooltip 展开全部角色清单。长姓名、账号及角色单行省略并保留完整内容提示。此调整仅影响顶部菜单摘要，账号类型和角色权限保持现有业务规则。后端接口与权限规则无需调整。
 
 `layout/components/useLayoutSidebarUser.ts` 承接展示派生、入口导航和退出状态；消息角标复用 `useHeaderNotice.ts` 写入 `store/user.ts` 的未读结果，不另建查询或实时订阅。入口沿用 `account/center` 路由及 `CenterTabKey`，每次导航同时携带规范化的 query.tab 与兼容旧入口的 params.tabKey；BindThirdAccount 映射为 BasicInfo。内容及 Store 由个人中心的 URL 监听统一同步，避免同页导航清空 query 后被框架侧栏恢复为默认页，也避免 Store 与路由竞争更新。项目覆盖页复用 core 个人中心，显式导航继续清除旧通知上下文。按用户要求，本次直接修复，未重复复现或运行检查/构建。
 
@@ -60,6 +60,12 @@
 登录通知扩展计划：`layout/components/noticeLoginHandler.ts` 提供业务中立的 `notification-login:handlers` 注册消费入口；`useHeaderNotice.ts` 在通知通道首次初始化成功后按 provider 顺序执行一次，并只传递 provider 集合、应用上下文和刷新回调。具体公告查询、弹窗文案、详情组件和已读写入仍由业务模块负责，core 不识别 `SystemBulletin` 或调用公告接口。该扩展不在通道重试、铃铛展开或实时通知刷新时重复执行。
 
 业务模块还可在 `notification-provider:default` 注册项中提供 `metadata()` 和 `dataSource`，为不写入通用通知收件箱的消息提供独立接收入口。`dataSource` 负责查询、未读统计、状态确认、全部确认以及可选的本地状态/实时订阅；`layout/components/noticeListHandler.ts` 将铃铛、个人中心和角标请求分派到对应数据源，未注册分类继续使用原通知接口。共享 core 不保存业务确认数据，也不识别具体公告接口、Topic 或存储键。
+
+未读汇总以 `queryNoticeUnreadSummary(providers, params)` 的 `providers` 为路由范围，调用方不应通过 `params.terms` 另行限制 provider；函数按注册关系递归移除旧 provider 条件、为每路生成唯一范围，并保留其他筛选分组、排序和分页。普通接口只接收本路 provider 的响应，每个分类仅采用一个计数；独立分类只采用自身数据源的计数，即使旧后端仍返回历史公告，也不重复累计。任一路失败或数量非法时抛出错误，由铃铛和消息中心保留上次成功数量。入口为 `layout/components/noticeListHandler.ts`，不改后端或公告本地确认规则。
+
+修复提交：`d47a9c68f1976ba05780f4758caa6a24c006fe49`；交付入口：[PR #234](https://github.com/jetlinks-v2/jetlinks-web-core/pull/234)，目标分支 `2.20`。
+
+验证：在 core 目录执行 `node --test tests/noticeDataSource.test.mjs tests/headerNotice.test.mjs tests/noticeUtils.test.mjs src/views/account/center/personalCenterFlows.test.mjs`，最新 `2.20` 基线的交付分支 94 项通过，覆盖实际铃铛 hook 与汇总函数组合、历史公告混入、3 条通知与 1 条公告从 4 降至 3、失败保留及重试、99+、条件隔离和非法响应。实现阶段原工作区的 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json --pretty false` 有 606 项诊断，与原版源码基线逐条一致，改动文件无诊断；原工作区公告模块生产构建通过（11194 个模块，2m27s，通过临时 `.mjs` 调用原 Vite `build()` API 传递模块参数），交付分支的修复代码和两个改动测试文件与该验证版本 SHA-256 一致，复用该构建及类型证据。没有独立 lint 脚本，改动文件 `git diff --check` 通过。修复没有 SaaS 条件分支，项目内及私有化须更新到包含该修复的 Core 后重新构建发布主应用资源；仅更新公告业务模块不足以更新宿主铃铛。测试使用模拟接口，真实后端及三种部署页面未验收，部署后须复验接收新通知/公告、确认公告、刷新及全部已读。
 
 独立数据源可声明 `confirmOnDetail: true`，让原详情确认按钮在成功写入业务确认状态后关闭；关闭或取消不确认。`subscribe` 与 `subscribeRealtime` 都必须返回释放函数，分类变化、账号变化或 Vue Scope 销毁时由 core 取消监听。接收分类通过 `metadata()` 合并，不要求当前用户拥有对应发送通道配置；订阅设置仍只读取真实通道。
 

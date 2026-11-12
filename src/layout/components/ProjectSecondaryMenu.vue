@@ -67,5 +67,6 @@ const handleGroupedClick = ({ key }: { key: string | number }) => handleClick(ke
 </script>
 
 <style scoped>
+.project-secondary-menu--grouped { --layout-menu-item-active-line-width: 0px; }
 .project-secondary-menu__tab { display: inline-flex; min-width: 0; align-items: center; gap: var(--space-1); }
 </style>

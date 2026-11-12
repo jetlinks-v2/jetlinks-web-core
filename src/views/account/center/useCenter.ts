@@ -8,8 +8,9 @@ import { getIdentityProviders_api, getSelfIdentities_api, getSsoBinds_api } from
 import i18n from '@jetlinks-web-core/locales'
 import { isNoCommunity } from '@jetlinks-web-core/utils'
 import { tabList } from './data'
+import { maskContactValue } from './contactPresentation'
 import { useOptionalProjectSecondaryMenu } from '@jetlinks-web-core/layout/hooks/useProjectSecondaryMenu'
-import type { AccountCardProfile, AccountEditTarget, CenterContentKey } from './types'
+import type { AccountCardProfile, AccountEditTarget, CenterContentKey, ContactVerificationState } from './types'
 
 interface IdentityItem {
   provider: string
@@ -35,7 +36,7 @@ type CenterUserInfo = Partial<UserInfo> & {
 const isContentKey = (key: unknown): key is CenterContentKey =>
   key === 'BasicInfo' || key === 'StationMessage' || key === 'Subscribe' || key === 'PersonalToken'
 
-/** Store 的组织、角色、职位是 unknown[]，展示前只接受带名称的条目。 */
+/** Store 的组织、角色是 unknown[]，展示前只接受带名称的条目。 */
 const dimensionNames = (items: unknown[] | undefined): string[] => {
   return (items || []).flatMap(item => {
     if (!item || typeof item !== 'object' || !('name' in item)) return []
@@ -43,12 +44,9 @@ const dimensionNames = (items: unknown[] | undefined): string[] => {
   })
 }
 
-/** 联系方式卡片沿用参考页的脱敏方式，详细编辑仍显示原绑定信息。 */
+/** 展示值统一脱敏；缺失联系方式沿用未绑定占位。 */
 const maskIdentity = (value: string | undefined, provider: 'mobile' | 'email'): string => {
-  if (!value) return i18n.global.t('AccountInfo.unbound')
-  return provider === 'mobile'
-    ? value.replace(/^(.{3}).*(.{4})$/, '$1****$2')
-    : value.replace(/^([^@]{1,2})[^@]*(@.*)$/, '$1****$2')
+  return maskContactValue(value, provider) || i18n.global.t('AccountInfo.unbound')
 }
 
 /** Core 个人中心的数据加载、弹窗及通知/历史页签联动；不依赖项目覆盖模块。 */
@@ -60,6 +58,12 @@ export const useCenter = () => {
   const initialTab = route.query.tab || routerParams.params.value?.tabKey || user.tabKey
   const activeKey = ref<CenterContentKey>('BasicInfo')
   const contactTarget = ref<AccountEditTarget>('email-section')
+  // 只在当前页面内保留已验证但资料未保存的新值，关闭重开弹窗也能补存；不写入浏览器存储。
+  const pendingContactConfirmations = ref<Partial<Record<AccountEditTarget, string>>>({})
+  const confirmedContactValue = computed({
+    get: () => pendingContactConfirmations.value[contactTarget.value] || '',
+    set: (value: string) => { pendingContactConfirmations.value[contactTarget.value] = value },
+  })
   const accountInfoVisible = ref(false)
   const homeViewVisible = ref(false)
   const editPasswordVisible = ref(false)
@@ -67,6 +71,12 @@ export const useCenter = () => {
   const loadError = ref(false)
   const identities = ref<IdentityItem[]>([])
   const editableProviders = ref<string[]>([])
+  const identityLoadState = ref<'loading' | 'ready' | 'failed'>('loading')
+  const contactVerificationState = computed<ContactVerificationState>(() => {
+    if (identityLoadState.value !== 'ready') return identityLoadState.value
+    const provider = contactTarget.value === 'phone-section' ? 'mobile' : 'email'
+    return editableProviders.value.includes(provider) ? 'ready' : 'unavailable'
+  })
   const thirdAccounts = ref<ThirdAccount[]>([])
   let loadVersion = 0
 
@@ -98,11 +108,12 @@ export const useCenter = () => {
   const profile = computed<AccountCardProfile>(() => {
     const info: CenterUserInfo = user.userInfo
     const roles = dimensionNames(info.roleList)
-    const departments = dimensionNames(info.orgList)
-    const positions = dimensionNames(info.positions)
+    const organizations = dimensionNames(info.orgList)
     const getIdentity = (provider: string) => {
       const list = identities.value.filter(item => item.provider === provider)
-      return (list.find(item => item.isPrimary) || list[0])?.identity
+      // 多个验证身份并存时，优先展示与当前资料联系方式对应的已验证值。
+      const contact = provider === 'mobile' ? info.telephone : info.email
+      return (list.find(item => item.identity === contact) || list.find(item => item.isPrimary) || list[0])?.identity
     }
     return {
       name: info.name || info.username || i18n.global.t('comm.table.empty'),
@@ -114,10 +125,9 @@ export const useCenter = () => {
         { key: 'id', label: i18n.global.t('PersonalCenter.accountIdLabel'), value: info.id || i18n.global.t('comm.table.empty') },
         { key: 'username', label: i18n.global.t('PersonalCenter.account'), value: info.username || i18n.global.t('comm.table.empty') },
         { key: 'roles', label: i18n.global.t('AccountInfo.roles'), value: roles.join('、') || i18n.global.t('PersonalCenter.unassignedRole'), tags: roles, unassigned: !roles.length },
-        { key: 'orgs', label: i18n.global.t('PersonalCenter.department'), value: departments.join('、') || i18n.global.t('PersonalCenter.unassignedDepartment'), tags: departments, unassigned: !departments.length },
+        { key: 'orgs', label: i18n.global.t('AccountInfo.orgs'), value: organizations.join('、') || i18n.global.t('PersonalCenter.unassignedOrganization'), tags: organizations, unassigned: !organizations.length },
         { key: 'mobile', label: i18n.global.t('AccountInfo.basicPhone'), value: maskIdentity(getIdentity('mobile') || info.telephone, 'mobile'), editTarget: isNoCommunity ? 'phone-section' : undefined },
         { key: 'email', label: i18n.global.t('AccountInfo.basicEmail'), value: maskIdentity(getIdentity('email') || info.email, 'email'), editTarget: isNoCommunity ? 'email-section' : undefined },
-        { key: 'positions', label: i18n.global.t('AccountInfo.positions'), value: positions.join('、') || i18n.global.t('PersonalCenter.unassignedPosition'), unassigned: !positions.length },
         ...(info.createTime && dayjs(info.createTime).isValid() ? [{ key: 'createTime', label: i18n.global.t('PersonalCenter.createdAt'), value: dayjs(info.createTime).format('YYYY-MM-DD HH:mm:ss') }] : []),
       ],
       contacts: {
@@ -129,8 +139,8 @@ export const useCenter = () => {
           notificationSeparate: !!getIdentity('mobile') && getIdentity('mobile') !== info.telephone,
         },
         email: {
-          value: getIdentity('email') || info.email || '', verified: !!getIdentity('email'),
-          notificationValue: info.email || '',
+          value: maskContactValue(getIdentity('email') || info.email, 'email'), verified: !!getIdentity('email'),
+          notificationValue: maskContactValue(info.email, 'email'),
           notificationSeparate: !!getIdentity('email') && getIdentity('email') !== info.email,
         },
       },
@@ -150,10 +160,16 @@ export const useCenter = () => {
     const supported = response === true || (
       !!response && typeof response === 'object' && 'result' in response && response.result === true
     )
-    if (!supported) return unsupported
+    if (!supported) {
+      if (response === false || (!!response && typeof response === 'object' && 'result' in response && response.result === false)) return unsupported
+      throw new Error('Identity capability query failed')
+    }
     const [result, providers] = await Promise.all([getSelfIdentities_api(), getIdentityProviders_api()])
-    const providerItems: { id: string }[] = providers.result || []
-    return { identities: result.result || [], providers: providerItems.map(item => item.id) }
+    if (result.success === false || providers.success === false || !Array.isArray(result.result) || !Array.isArray(providers.result)) {
+      throw new Error('Identity configuration query failed')
+    }
+    const providerItems: { id: string }[] = providers.result
+    return { identities: result.result, providers: providerItems.map(item => item.id) }
   }
 
   /** 保留接口返回的应用及绑定状态，基本信息只展示其中已绑定的账号。 */
@@ -171,12 +187,16 @@ export const useCenter = () => {
   const loadAccount = async () => {
     const version = ++loadVersion
     loading.value = true
+    identityLoadState.value = 'loading'
     const results = await Promise.allSettled([user.getUserInfo(), loadIdentities(), loadThirdAccounts()])
     if (version !== loadVersion) return
     const [, identityResult, thirdResult] = results
     if (identityResult.status === 'fulfilled') {
       identities.value = identityResult.value.identities
       editableProviders.value = identityResult.value.providers
+      identityLoadState.value = 'ready'
+    } else {
+      identityLoadState.value = 'failed'
     }
     if (thirdResult.status === 'fulfilled') thirdAccounts.value = thirdResult.value
     loadError.value = results.some(result => result.status === 'rejected')
@@ -227,6 +247,8 @@ export const useCenter = () => {
     void loadAccount()
   }
 
+  watch(() => user.userInfo?.id, () => { pendingContactConfirmations.value = {} })
+
   // 同步处理 Store 页签，避免排队的回声关闭随后打开的锚点弹窗；外部通知仍可关闭辅助视图。
   watch(() => user.tabKey, applyLegacyTab, { flush: 'sync' })
   watch(() => routerParams.params.value, params => {
@@ -263,7 +285,7 @@ export const useCenter = () => {
   })
 
   return {
-    activeKey, activeTitle, activeGroupTitle, segments, navigationGroups, frameworkItems, hasFrameworkNavigation, profile, loading, loadError, editableProviders, contactTarget,
+    activeKey, activeTitle, activeGroupTitle, segments, navigationGroups, frameworkItems, hasFrameworkNavigation, profile, loading, loadError, editableProviders, contactVerificationState, contactTarget, confirmedContactValue,
     accountInfoVisible, homeViewVisible, editPasswordVisible,
     selectContent, loadAccount, openAccountInfo, openHomeView, closeAccountInfo,
   }

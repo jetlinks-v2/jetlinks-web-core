@@ -4,8 +4,16 @@
       <span>{{ t('dashboardCanvas.componentFailed', { name }) }}</span>
       <a-button size="small" @click="retry">{{ t('dashboardCanvas.retry') }}</a-button>
     </div>
-    <component v-else-if="definition" :is="definition.component" :key="version"
-      :info="widget" :is-edit="previewMode" />
+    <Suspense v-else-if="definition" :timeout="0">
+      <component :is="definition.component" :key="version" :info="widget" :is-edit="previewMode" />
+      <template #fallback>
+        <slot name="loading">
+          <div class="widget-loading" aria-busy="true">
+            <Skeleton active :title="false" :paragraph="{ rows: 3 }" />
+          </div>
+        </slot>
+      </template>
+    </Suspense>
     <div v-else class="widget-state" role="status">
       {{ t('dashboardCanvas.componentMissing', { name }) }}
     </div>
@@ -14,7 +22,7 @@
 
 <script setup lang="ts">
 import { computed, onErrorCaptured, ref, watch } from 'vue'
-import { Button as AButton } from 'ant-design-vue'
+import { Button as AButton, Skeleton } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import type { DashboardComponentDefinition, DashboardWidget } from '../types'
 
@@ -27,6 +35,7 @@ const { t } = useI18n()
 const failed = ref(false)
 const version = ref(0)
 const name = computed(() => props.widget.name || props.definition?.defaultConfig.name || t('dashboardCanvas.component'))
+// 错误重试会重建独立的异步边界，不让单张卡片等待外层路由或影响其他卡片。
 function retry() { failed.value = false; version.value += 1 }
 // Layout saves replace the widget object; only a new identity or implementation needs a remount.
 watch([() => props.widget.id, () => props.widget.type, () => props.definition?.component], retry)
@@ -40,6 +49,7 @@ onErrorCaptured(error => {
 
 <style scoped lang="less">
 .dashboard-widget-renderer { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.widget-loading { height: 100%; box-sizing: border-box; overflow: hidden; padding: var(--space-4); background: var(--bg); }
 .widget-state {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: var(--space-2); height: 100%; padding: var(--space-3); box-sizing: border-box;

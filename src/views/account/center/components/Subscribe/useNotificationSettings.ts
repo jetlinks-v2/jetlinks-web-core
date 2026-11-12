@@ -7,6 +7,7 @@ import { usePermission } from '@jetlinks-web/hooks'
 import { useNotificationConfigNavigation } from '@jetlinks-web-core/hooks/useNotificationConfigNavigation'
 import { getAllNotice } from '@jetlinks-web-core/api/account/center'
 import { resolveNotificationProviderName } from '../data'
+import { maskContactValue } from '../../contactPresentation'
 import { getNoticeList_api, getIsBindThird, getNotificationChannelDefinitions_api, save_api, type NotificationChannelDefinition } from '@jetlinks-web-core/api/account/notificationSubscription'
 
 type ChannelState = string | { value: string; text?: string }
@@ -146,11 +147,9 @@ export function useNotificationSettings() {
 
   function receiverSummary(type: string) {
     if (type === 'inside-mail') return profile.value.name || profile.value.username || ''
-    if (type === 'notifier-email') return profile.value.email || t('PersonalCenter.notificationNoEmail')
+    if (type === 'notifier-email') return maskContactValue(profile.value.email, 'email') || t('PersonalCenter.notificationNoEmail')
     if (['notifier-sms', 'notifier-voice'].includes(type)) {
-      return profile.value.telephone
-        ? profile.value.telephone.replace(/^(.{3}).*(.{4})$/, '$1****$2')
-        : t('PersonalCenter.notificationNoPhone')
+      return maskContactValue(profile.value.telephone, 'mobile') || t('PersonalCenter.notificationNoPhone')
     }
     if (type === 'notifier-webhook') return t('PersonalCenter.notificationTemplateManaged')
     if (!providers.value.some(row => row.channels.some(channel => channel.channelProvider === type))) return ''
@@ -170,7 +169,7 @@ export function useNotificationSettings() {
     }
     if (type === 'inside-mail') return t('PersonalCenter.channelEnabled')
     if (recipientsFailed.value && channels.some(requiresThirdParty)) return t('PersonalCenter.notificationReceiverUnavailable')
-    if (type === 'notifier-email') return profile.value.email || t('PersonalCenter.notificationNoEmail')
+    if (type === 'notifier-email') return receiverSummary(type)
     if (['notifier-sms', 'notifier-voice'].includes(type)) return profile.value.telephone ? receiverSummary(type) : t('PersonalCenter.notificationNoPhone')
     return t(channels.some(channel => !!receiverFor(channel)) ? 'PersonalCenter.channelBound' : 'PersonalCenter.channelUnbound')
   }

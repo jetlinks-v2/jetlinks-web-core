@@ -139,8 +139,8 @@ export function useNotificationRecords(
   ])
 
   const columns = computed(() => [
-    { title: t('NotificationRecord.index.803553-7'), dataIndex: 'state', key: 'state', scopedSlots: true, width: 90 },
-    { title: t('NotificationRecord.index.803553-4'), dataIndex: 'topicProvider', key: 'topicProvider', scopedSlots: true, width: 110 },
+    { title: t('NotificationRecord.index.803553-7'), dataIndex: 'state', key: 'state', scopedSlots: true, width: 112 },
+    { title: t('NotificationRecord.index.803553-4'), dataIndex: 'topicProvider', key: 'topicProvider', scopedSlots: true, width: 110, ellipsis: true },
     { title: t('PersonalCenter.messageTitle'), dataIndex: 'message', key: 'message', scopedSlots: true, ellipsis: true },
     { title: t(props.category === 'announcement' ? 'PersonalCenter.messagePublishDate' : 'PersonalCenter.messageTime'), dataIndex: 'notifyTime', key: 'notifyTime', scopedSlots: true, width: 172 },
     { title: t('NotificationRecord.index.803553-10'), dataIndex: 'action', key: 'action', scopedSlots: true, width: 100 },

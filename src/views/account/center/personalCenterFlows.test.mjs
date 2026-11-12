@@ -32,6 +32,7 @@ const stubs = {
   '@jetlinks-web-core/locales': 'export default {global:{t:key=>key}}',
   '@jetlinks-web-core/hooks/useNotificationConfigNavigation': `import {computed} from 'vue'; export const useNotificationConfigNavigation=refresh=>{ctx.refreshNotificationConfiguration=refresh;return {available:computed(()=>ctx.menu.hasMenu('system/MessageNotification/Templates')),open:(...args)=>ctx.calls.push({method:'openTemplate',args})}}`,
   '@jetlinks-web-core/store/menu': 'export const useMenuStore=()=>ctx.menu',
+  '@jetlinks-web-core/layout/hooks/useBasicLayoutVariant': 'export const useBasicLayoutVariant=()=>ctx.layoutVariant',
   '@jetlinks-web-core/api/login': 'export const getIdentityProviders=(...args)=>ctx.request("getIdentityProviders",args)',
   '@jetlinks-web-core/store/user': 'export const useUserStore=()=>ctx.user',
   '@jetlinks-web-core/store': 'export const useSystemStore=()=>({language:"zh"});export const useUserStore=()=>ctx.user',
@@ -127,6 +128,7 @@ async function mount(t, name, args = [], overrides = {}) {
   const ctx = {
     user, calls, messages, params: ref(overrides.__params || {}), locale: ref('zh'), streams: [],
     filterProviders: overrides.__filterProviders, permissions: overrides.__permissions,
+    layoutVariant: ref(overrides.__layoutVariant || 'project'),
     menu: { isGranted: () => true, hasMenu: key => (overrides.__menus || []).includes(key), jumpPage: (...args) => calls.push({ method: 'jumpPage', args }) },
     registeredProviders: overrides.__registeredProviders ?? [{ code: 'bulletin', props: { messageCategory: 'announcement' } }],
     newStream() { const stream = new Subject(); this.streams.push(stream); return stream },
@@ -340,7 +342,7 @@ test('通知接收账号只匹配对应通知器，表头绑定成功不自动�
     getAllNotice: () => [configured],
     getIsBindThird: () => bindings,
   })
-  assert.equal(hook.receiverSummary('notifier-email'), 'test@example.test')
+  assert.equal(hook.receiverSummary('notifier-email'), 'te****@example.test')
   assert.equal(hook.receiverSummary('notifier-dingTalk'), 'PersonalCenter.notificationUnboundReceiver')
   assert.equal(hook.canBindReceiver('notifier-dingTalk'), true)
   hook.beginReceiverBinding('notifier-dingTalk')
@@ -426,6 +428,7 @@ test('验证码对应原始身份，改地址后不能用旧验证码确认', as
   ctx.request = async (method, args) => method === 'confirmIdentityValidation_api' ? { success: false, status: 200 } : request(method, args)
   await hook.confirm()
   assert.equal(hook.failed.value, true)
+  assert.equal(hook.errorMessage.value, 'PersonalCenter.identityConfirmFailed')
   assert.ok(hook.validation.value)
   ctx.request = request
   await hook.confirm()
@@ -443,6 +446,9 @@ test('验证码请求失败后保留输入并支持重试', async t => {
   hook.identity.value = '13800001234'
   await hook.sendCode()
   assert.equal(hook.failed.value, true)
+  assert.equal(hook.errorMessage.value, 'PersonalCenter.identitySendFailed')
+  assert.equal(hook.countdown.value, 0)
+  assert.equal(hook.validation.value, undefined)
   assert.equal(hook.identity.value, '13800001234')
   failed = false
   await hook.sendCode()
@@ -927,7 +933,7 @@ test('公共矩阵只操作实际存在的接收渠道', async t => {
 test('接收渠道摘要区分可用、未配置与未绑定，并保留实际站内信状态', async t => {
   const { hook, ctx } = await mount(t, 'useNotificationSettings')
   assert.equal(hook.receiverStatus('inside-mail'), 'PersonalCenter.channelEnabled')
-  assert.equal(hook.receiverStatus('notifier-email'), 'test@example.test')
+  assert.equal(hook.receiverStatus('notifier-email'), 'te****@example.test')
   ctx.user.userInfo.email = ''
   assert.equal(hook.receiverStatus('notifier-email'), 'PersonalCenter.notificationNoEmail')
   assert.equal(hook.channelHeaderAction('notifier-email'), 'email')
