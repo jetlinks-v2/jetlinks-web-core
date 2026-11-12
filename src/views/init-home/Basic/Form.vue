@@ -141,7 +141,7 @@
   </a-form>
 </template>
 
-<script lang="ts" name="BasicForm" setup>
+<script lang="ts" setup>
 import {reactive, ref} from 'vue'
 import {save_api} from '@jetlinks-web-core/api/system/basis';
 import {useSystemStore} from '@jetlinks-web-core/store/system';
@@ -151,6 +151,8 @@ import {omit} from "lodash-es";
 import { useI18n } from 'vue-i18n';
 import { type ThemeStyleKey } from '@jetlinks-web-core/utils';
 import { useHeaderTheme } from '@jetlinks-web-core/hooks';
+
+defineOptions({ name: 'BasicForm' })
 
 const { t: $t } = useI18n();
 const props = defineProps({

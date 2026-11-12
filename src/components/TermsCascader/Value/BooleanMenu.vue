@@ -1,4 +1,7 @@
-<script setup name="BooleanMenu">
+<script setup>
+
+defineOptions({ name: 'BooleanMenu' })
+
 const props = defineProps({
   options: {
     type: Array,

@@ -1,10 +1,12 @@
-﻿<script setup lang="ts" name="TermsCascaderGroup">
+﻿<script setup lang="ts">
 import TermsGroupItem from './TermsGroupItem.vue'
 import { ValueProps } from './Value/utils'
 import { randomString } from '@jetlinks-web/utils'
 import { typeOptions } from './utils'
 import DropdownMenu from './DropdownMenu.vue'
 import { omit } from 'lodash-es'
+
+defineOptions({ name: 'TermsCascaderGroup' })
 
 interface TermItem {
   column?: string

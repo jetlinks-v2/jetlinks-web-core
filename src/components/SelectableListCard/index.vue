@@ -17,7 +17,10 @@
   </div>
 </template>
 
-<script setup lang="ts" name="SelectableListCard">
+<script setup lang="ts">
+
+defineOptions({ name: 'SelectableListCard' })
+
 const props = defineProps({
   active: {
     type: Boolean,

@@ -42,10 +42,12 @@
   </header>
 </template>
 
-<script setup lang='ts' name='CloudDetailHeader'>
+<script setup lang='ts'>
 import { computed, getCurrentInstance, useSlots } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+
+defineOptions({ name: 'CloudDetailHeader' })
 
 const { t: $t } = useI18n()
 

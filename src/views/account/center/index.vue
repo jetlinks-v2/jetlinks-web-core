@@ -1,9 +1,11 @@
-<script setup lang="ts" name="Center">
+<script setup lang="ts">
 import { defineAsyncComponent } from 'vue'
 import FullPage from '@jetlinks-web-core/layout/FullPage.vue'
 import ProjectSecondaryMenu from '@jetlinks-web-core/layout/components/ProjectSecondaryMenu.vue'
 import BasicInfo from './components/BasicInfo.vue'
 import { useCenter } from './useCenter'
+
+defineOptions({ name: 'Center' })
 
 const StationMessage = defineAsyncComponent(() => import('./components/StationMessage/index.vue'))
 const Subscribe = defineAsyncComponent(() => import('./components/Subscribe/index.vue'))

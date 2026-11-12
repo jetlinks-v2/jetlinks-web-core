@@ -26,11 +26,13 @@
   </div>
 </template>
 
-<script setup lang="ts" name="MenuAssetPermissionEditor">
+<script setup lang="ts">
 import EqualHeightColumns from '../EqualHeightColumns/index.vue'
 import AssetPermissionPane from './AssetPermissionPane.vue'
 import MenuPermissionPane from './MenuPermissionPane.vue'
 import type { MenuAssetPermissionEditorContext } from '../../hooks/menuAssetPermissionEditor.types'
+
+defineOptions({ name: 'MenuAssetPermissionEditor' })
 
 const props = withDefaults(defineProps<{
   context: MenuAssetPermissionEditorContext

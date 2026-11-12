@@ -21,11 +21,13 @@
   </div>
 </template>
 
-<script setup lang="ts" name="ProjectSecondaryMenu">
+<script setup lang="ts">
 import { ref, watch, type PropType } from 'vue'
 import i18n from '@jetlinks-web-core/locales'
 import { COMING_SOON_MENU_BADGE_TYPE, DEFAULT_COMING_SOON_MENU_BADGE_I18N_KEY } from '@jetlinks-web-core/utils/menuBadge'
 import type { ProjectNavigationItem } from '../hooks/useProjectNavigation'
+
+defineOptions({ name: 'ProjectSecondaryMenu' })
 const props = defineProps({
   items: { type: Array as PropType<ProjectNavigationItem[]>, default: () => [] },
   selectedKey: { type: String, default: '' },

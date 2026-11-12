@@ -1,10 +1,12 @@
-﻿<script setup name="FilterItem">
+﻿<script setup>
 import { useI18n } from 'vue-i18n'
 import Column from './Column.vue';
 import TermType from './TermType.vue';
 import Value from './Value.vue';
 import { useEngines } from './hooks/useSearchEngine'
 import { isArrayTermType } from './setting'
+
+defineOptions({ name: 'FilterItem' })
 
 const props = defineProps({
   column: {

@@ -17,7 +17,7 @@
   </div>
 </template>
 
-<script setup lang="ts" name="CloudEmpty">
+<script setup lang="ts">
 import type { PropType, StyleValue } from 'vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -25,6 +25,8 @@ import { useEmptyCreateState } from '../../hooks/useEmptyCreateState'
 import type { EmptyCreateSearch } from '../../hooks/useEmptyCreateState'
 import emptyImg from '@jetlinks-web-core/assets/components/empty.svg'
 import bigEmptyImg from '@jetlinks-web-core/assets/components/big-empty.svg'
+
+defineOptions({ name: 'CloudEmpty' })
 
 type CloudEmptyType = 'default' | 'page'
 

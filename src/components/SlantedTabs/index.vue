@@ -111,7 +111,7 @@
   </div>
 </template>
 
-<script setup lang="ts" name="SlantedTabs">
+<script setup lang="ts">
 import type { PropType } from 'vue'
 import { Alert, Button, Dropdown, Empty, Menu, MenuItem, Spin } from 'ant-design-vue'
 import { EllipsisOutlined } from '@ant-design/icons-vue'
@@ -120,6 +120,8 @@ import { useI18n } from 'vue-i18n'
 import type { SlantedTabKey, SlantedTabOption, SlantedTabsState } from './types'
 import { useSlantedTabs } from './useSlantedTabs'
 import { useSlantedTabsOverflow } from './useSlantedTabsOverflow'
+
+defineOptions({ name: 'SlantedTabs' })
 
 interface SlantedTabsEmits {
   (event: 'update:activeKey', key: SlantedTabKey): void
