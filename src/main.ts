@@ -7,7 +7,7 @@ import JetLinksComponents from '@jetlinks-web/components'
 import components from './components'
 import directive from '@jetlinks-web-core/directive'
 import dayjs from 'dayjs'
-import { loadMicroApp, initAxios } from '@jetlinks-web-core/package'
+import { loadMicroApp, initAxios, clearVerifyCache } from '@jetlinks-web-core/package'
 import andtv from 'ant-design-vue'
 import '@jetlinks-web-core/style.css'
 
@@ -20,9 +20,12 @@ import { registerModule, getPackageConfig } from '@jetlinks-web-core/utils/modul
 import { openRelogin } from './views/relogin'
 import { consumeApplicationAccessBootstrap } from '@jetlinks-web-core/utils/application-access'
 import { setToken } from '@jetlinks-web/utils'
+import { consumeLogoutLoginEntry } from '@jetlinks-web-core/router/login-session'
 
 dayjs.locale(i18n.global.locale.value === 'ja' ? 'ja' : 'zh-cn')
 
+// 先消费退出参数，避免路由、验证码请求或应用入口恢复上一账号的凭证。
+consumeLogoutLoginEntry(clearVerifyCache)
 const applicationBootstrap = consumeApplicationAccessBootstrap()
 if (applicationBootstrap.status === 'applied' && applicationBootstrap.projectStorage.token) {
   // Cross-Origin tabs have no tenant session yet; router startup still needs the copied project token.
