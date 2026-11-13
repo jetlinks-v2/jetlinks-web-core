@@ -18,6 +18,7 @@ import type { ObjectMemberSelection, ObjectReference } from '../../object-capabi
 import type { VariableObjectSpec } from '../../types/relation'
 
 const props = withDefaults(defineProps<{ object?: ObjectReference; store?: ObjectViewStore; viewId?: string; active?: boolean }>(), { active: true })
+defineEmits<{ open: [object: ObjectReference] }>()
 const { t } = useI18n({ useScope: 'local', messages: objectOverviewMessages })
 const selected = shallowRef<string[]>([])
 const capability = useObjectCapabilities(toRef(props, 'object'), { selected })
@@ -130,7 +131,7 @@ function removeSelection(widget: ObjectContentWidget, selection: ObjectMemberSel
       <div v-if="canvasHeight || view.editing.value" class="object-overview__canvas" :class="{ 'object-overview__canvas--editing': view.editing.value }" :style="{ height: `${canvasHeight}px` }">
         <DashBoardCanvas :model-value="view.value.value" :catalog="catalog" :editable="view.editing.value" :layout-editable="view.editing.value" :preview-mode="view.editing.value" @update:model-value="update">
           <template #widget="{ widget }">
-            <ObjectContentGroup v-if="catalog.components[widget.type]" :title="widget.name" :entries="entries(widget)" :preview="view.editing.value || !active" :runtime="capability.getRuntime" @retry="capability.refresh" @add="openPicker" />
+            <ObjectContentGroup v-if="catalog.components[widget.type]" :title="widget.name" :entries="entries(widget)" :preview="view.editing.value || !active" :runtime="capability.getRuntime" @retry="capability.refresh" @add="openPicker" @open="$emit('open', $event)" />
             <a-alert v-else type="warning" :message="t('unavailable')" />
             <div v-if="view.editing.value" class="object-overview__selection-tools"><a-tag v-for="entry in entries(widget)" :key="selectionKey(entry.selection)" closable @close="removeSelection(widget, entry.selection)">{{ entry.member?.name || entry.selection.member.id }}</a-tag></div>
           </template>

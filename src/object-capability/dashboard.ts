@@ -2,6 +2,7 @@ import type { DashboardValue, DashboardWidget } from '../components/DashBoardCan
 import { getGridSettings, toGridLayout } from '../components/DashBoardCanvas/utils/layout'
 import type { ObjectMember, ObjectMemberSelection } from './types'
 import { objectCapabilityId } from './metadata'
+import { defaultObjectMembers } from './references'
 
 export interface ObjectContentWidget extends DashboardWidget {
   componentProps: DashboardWidget['componentProps'] & { selections?: ObjectMemberSelection[] }
@@ -29,6 +30,7 @@ export function objectDashboardHeight(value: DashboardValue): number {
   return rows ? rows * settings.rowHeight + (rows - 1) * settings.margin[1] : 0
 }
 export function objectDefaultDashboard(members: ObjectMember[], labels: { data: string; actions: string }): DashboardValue {
+  members = defaultObjectMembers(members)
   const sources = [...new Set(members.map(member => member.ref.providerId))]
     .map(id => members.filter(member => member.ref.providerId === id && member.ref.kind === 'property'))
   const data = Array.from({ length: Math.max(0, ...sources.map(source => source.length)) }, (_, index) => sources.flatMap(source => source[index] || []))

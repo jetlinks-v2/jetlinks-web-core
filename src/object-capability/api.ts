@@ -14,6 +14,13 @@ export function objectCapabilitiesApi(context: CapabilityContext) {
   }
   const root = (object: ObjectReference) => `/relation/objects/${part(object.type)}/${part(object.id)}`
   return {
+    /** Existing source query applies its own asset scope; do not add a provider access preflight. */
+    objects: async (type: string, ids: string[], signal?: AbortSignal) => {
+      const page = await read<{ data: Array<{ id: string; name?: string }> }>(http.post('/relation/objects/_query', {
+        type, query: { paging: true, pageIndex: 0, pageSize: ids.length, terms: [{ column: 'id', termType: 'in', value: ids }] },
+      }, { signal, hiddenError: true }))
+      return page.data
+    },
     models: (type: string, id?: string, signal?: AbortSignal) => read<ObjectProviderModel[]>(http.get(
       `/relation/objects/${part(type)}${id === undefined ? '' : `/${part(id)}`}/providers`, undefined, { signal, hiddenError: true })),
     properties: (object: ObjectReference, providerId: string, keys: string[], signal?: AbortSignal) =>

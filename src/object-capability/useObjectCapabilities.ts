@@ -4,9 +4,10 @@ import { useDataCapabilityRequest } from '../data-capability/request'
 import type { DataCapabilityRequest, DataCapabilityRuntime } from '../data-capability/types'
 import { objectCapabilitiesApi } from './api'
 import { objectCapabilityId, objectMembers } from './metadata'
-import type { ObjectCapabilityValue, ObjectMember, ObjectReference } from './types'
+import { referencePropertyKeys, referenceValue, resolveReferenceNames } from './references'
+import type { ObjectCapabilityValue, ObjectMember, ObjectReference, ObjectReferenceValue } from './types'
 
-export interface ObjectMemberState { status: 'loading' | 'ready' | 'failed'; value?: unknown }
+export interface ObjectMemberState { status: 'loading' | 'ready' | 'failed'; value?: unknown; references?: ObjectReferenceValue }
 
 /** Instance-local model/data lifetime. A slow old request cannot update the next object. */
 export function useObjectCapabilities(object: Readonly<Ref<ObjectReference | undefined>>, options: {
@@ -36,21 +37,34 @@ export function useObjectCapabilities(object: Readonly<Ref<ObjectReference | und
       if (member.ref.kind === 'property') groups.set(member.ref.providerId, [...(groups.get(member.ref.providerId) || []), member])
     }
     values.value = next
+    const references: Array<{ key: string; value: ObjectReferenceValue }> = []
     await Promise.all([...groups].map(async ([provider, entries]) => {
       try {
         const data = []
-        for (let offset = 0; offset < entries.length; offset += 128) {
+        const keys = [...new Set(entries.flatMap(referencePropertyKeys))]
+        for (let offset = 0; offset < keys.length; offset += 128) {
           if (stale()) return
-          data.push(...await api.properties(target, provider, entries.slice(offset, offset + 128).map(member => member.ref.id), signal))
+          data.push(...await api.properties(target, provider, keys.slice(offset, offset + 128), signal))
         }
         if (stale()) return
         const result = { ...values.value }
-        for (const member of entries) result[objectCapabilityId(member.ref)] = { status: 'ready', value: data.find(value => value.property === member.ref.id)?.value }
+        const properties = new Map(data.map(row => [row.property, row.value]))
+        for (const member of entries) {
+          const key = objectCapabilityId(member.ref), value = properties.get(member.ref.id)
+          const reference = referenceValue(member, value, properties)
+          result[key] = { status: reference ? 'loading' : 'ready', value }
+          if (reference) references.push({ key, value: reference })
+        }
         values.value = result
       } catch {
         if (!stale()) values.value = { ...values.value, ...Object.fromEntries(entries.map(member => [objectCapabilityId(member.ref), { status: 'failed' }])) }
       }
     }))
+    if (stale()) return
+    const resolved = await resolveReferenceNames(references.map(item => item.value), (type, ids) => api.objects(type, ids, signal))
+    if (stale()) return
+    values.value = { ...values.value, ...Object.fromEntries(references.map((item, index) => [item.key,
+      { ...values.value[item.key], status: 'ready', references: resolved[index] }])) }
     for (const member of selected.filter(value => value.ref.kind === 'query')) {
       if (stale()) return
       const key = objectCapabilityId(member.ref)

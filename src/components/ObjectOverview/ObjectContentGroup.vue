@@ -3,12 +3,13 @@ import { computed, onErrorCaptured, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ThunderboltOutlined, InfoCircleOutlined } from '@ant-design/icons-vue'
 import ObjectDataView from './ObjectDataView.vue'
+import ObjectReferenceDisplay from './ObjectReferenceDisplay.vue'
 import ObjectOperationPanel from './ObjectOperationPanel.vue'
 import { objectOverviewMessages } from './messages'
 import { selectionKey } from '../../object-capability/dashboard'
 import type { DataCapabilityRuntime, PersistedOperationBinding } from '../../data-capability/types'
 import type { ObjectMemberState } from '../../object-capability/useObjectCapabilities'
-import type { ObjectCapabilityValue, ObjectFunctionMetadata, ObjectMember, ObjectMemberPresentation, ObjectMemberSelection, ObjectPropertyMetadata } from '../../object-capability/types'
+import type { ObjectCapabilityValue, ObjectFunctionMetadata, ObjectMember, ObjectMemberPresentation, ObjectMemberSelection, ObjectPropertyMetadata, ObjectReference } from '../../object-capability/types'
 
 export interface ObjectContentEntry {
   selection: ObjectMemberSelection
@@ -18,7 +19,7 @@ export interface ObjectContentEntry {
   related?: boolean
 }
 const props = defineProps<{ title?: string; entries: ObjectContentEntry[]; preview?: boolean; runtime: () => DataCapabilityRuntime | undefined }>()
-defineEmits<{ retry: []; add: [] }>()
+defineEmits<{ retry: []; add: []; open: [object: ObjectReference] }>()
 const { t } = useI18n({ useScope: 'local', messages: objectOverviewMessages })
 const active = ref<string>()
 const renderFailed = ref(false)
@@ -40,6 +41,7 @@ const values = (entry: ObjectContentEntry) => (entry.state.value as ObjectCapabi
           <a-tooltip v-if="entry.member" :title="entry.member.description || t('source', { name: entry.member.sourceName })"><InfoCircleOutlined /></a-tooltip>
         </div>
         <a-button v-if="entry.member?.ref.kind === 'action'" :disabled="preview || entry.state.status === 'failed'" @click="active = selectionKey(entry.selection)"><ThunderboltOutlined />{{ entry.member.name }}</a-button>
+        <ObjectReferenceDisplay v-else-if="entry.state.status === 'ready' && entry.state.references" :value="entry.state.references" :disabled="preview" @open="$emit('open', $event)" />
         <component v-else-if="entry.presentation?.component" :is="entry.presentation.component" :member="entry.member" :value="entry.state.value" :state="entry.state.status" />
         <div v-else-if="entry.related && entry.state.status === 'ready'" class="object-content-group__related">
           <span v-if="!values(entry).length" class="object-content-group__muted">{{ t('unknown') }}</span>

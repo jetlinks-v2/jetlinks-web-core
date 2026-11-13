@@ -27,11 +27,18 @@ defineProps<{ store: ObjectViewStore }>()
 | --- | --- |
 | `ObjectOverview` | 单页承载、内容选择、布局、视图和草稿 |
 | `ObjectDataView` | 数值/单位、布尔、枚举、日期、结构及有界集合；不发请求 |
+| `ObjectReferenceDisplay` | 统一显示目标名称、类型图标和进入入口；仅发出 `open`，不请求或跳转 |
 | `ObjectCapabilityPicker` | 原关系路径及来源成员选择，输出原持久 binding |
 | `ObjectOperationPanel` | 输入、确认目标快照、执行、展示原回执 |
 | `useObjectCapabilities` | 页面内模型发现及按来源批读；对象切换取消旧请求 |
 
 纯布局变化不重复读取数据。属性请求按来源分组，每批最多 128 项；关系解析沿原 `ObjectSpec`，最多返回 20 个目标并标记截断。动作要求唯一目标，执行使用确认时的目标，不自动批量派发或重试。请求完成不代表设备或其他业务已生效。
+
+来源在属性 `expands.reference` 声明 `{ targetType, relationId?, reverse?, labelProperty? }`。例如工单的 `project` 指向 `project` 类型，设备的 `productId` 指向 `product` 类型；字段名及 `modelId` 本身不暗示引用。`relationId` 只定位既有关系，不创建第二条图谱边。原字符串或数组继续供计算和筛选使用。
+
+同来源的 `labelProperty` 是公开的名称快照；缺少名称时沿当前请求上下文批量查找目标，按类型去重、每批最多 128 个。引用字段最多读 20 项、首屏显示 3 项，其余就近展开；不把预览数当总数。缺失或读取失败保留标识并提示暂不可查看，不推断删除或越权。名称快照不保证目标仍可打开，进入后仍由目标来源读取。
+
+`ObjectContentGroup` 和 `ObjectOverview` 将 `open({ type, id, name? })` 交给宿主处理，宿主沿原导航及离开保护进入对象；编辑布局时禁止进入。默认内容排除 identity 来源的 `semanticRole=identity` 以及引用的同来源名称字段，已有保存布局保持原样。`identifier` 业务编号及非身份来源的记录 ID 继续作为数据展示。
 
 ## 业务表现扩展
 

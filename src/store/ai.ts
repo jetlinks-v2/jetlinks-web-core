@@ -41,7 +41,7 @@ export const useAIStore = defineStore('ai', () => {
     bubbleUnreadCount.value = Math.min(99, bubbleUnreadCount.value + Math.max(1, step))
   }
 
-  // 隐藏按钮
+  // 隐藏入口保留现有会话输入；真正释放由 releaseAgentConversation 清理。
   const hideAiButton = () => {
     queryVersion += 1
     activeClientId.value = ''
@@ -117,7 +117,9 @@ export const useAIStore = defineStore('ai', () => {
       pendingClientId.value = ''
     }
     if (activeClientId.value === nextClientId) {
-      hideAiButton()
+      // 仅释放匹配 owner，避免隐藏窗口误卸载仍在执行的会话。
+      queryVersion += 1
+      resetAgentState()
     }
   }
 

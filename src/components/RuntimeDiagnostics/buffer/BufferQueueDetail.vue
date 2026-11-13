@@ -9,6 +9,10 @@
     </div>
     <div v-if="buffer.dead !== undefined && buffer.dead > 0" class="buffer-failure"><strong>{{ buffer.dead }}</strong><span>{{ t('runtimeDiagnostics.failedItems') }}</span><a-button v-if="showOperations" type="link" size="small" @click="emit('request-section', 'operations')">{{ t('runtimeDiagnostics.viewOperations') }}</a-button></div>
     <p class="buffer-stage-note">{{ t('runtimeDiagnostics.bufferIndependentStages') }}</p>
+    <a-descriptions :column="{ xs: 1, sm: 2, lg: 3 }" size="small">
+      <a-descriptions-item v-for="counter in counters" :key="counter.key" :label="t(counter.label)">{{ counterText(counter.value) }} {{ t(counter.unit) }}</a-descriptions-item>
+    </a-descriptions>
+    <BufferObservationStats v-if="buffer.observation && showObservation" :observation="buffer.observation" />
     <div class="buffer-last-error" :class="{ 'has-error': !!buffer.error, 'is-clear': buffer.error === '' }">
       <template v-if="buffer.error"><div class="buffer-error-heading"><WarningOutlined /><strong>{{ t('runtimeDiagnostics.recentError') }}</strong></div><pre class="buffer-error-message">{{ errorMessage }}</pre><a-button v-if="hasStack" type="link" size="small" :aria-expanded="stackOpen" @click="stackOpen = !stackOpen">{{ t(stackOpen ? 'runtimeDiagnostics.collapseStack' : 'runtimeDiagnostics.expandErrorStack') }}</a-button><CodeBlock v-if="hasStack && stackOpen" :content="buffer.error" variant="light" wrap /></template>
       <a-tag v-else-if="buffer.error === ''" color="success"><CheckCircleOutlined /> {{ t('runtimeDiagnostics.noError') }}</a-tag>
@@ -22,9 +26,11 @@ import { theme } from 'ant-design-vue'
 import { CheckCircleOutlined, QuestionCircleOutlined, RightOutlined, WarningOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import CodeBlock from '../../CodeBlock/index.vue'
+import BufferObservationStats from './BufferObservationStats.vue'
+import { bufferCounterText } from './counters'
 import type { runtimeBeanOverview } from '../utils'
 type BufferView = ReturnType<typeof runtimeBeanOverview>['buffers'][number]
-const props = defineProps({ buffer: { type: Object as PropType<BufferView>, required: true }, showOperations: { type: Boolean, default: false } })
+const props = defineProps({ buffer: { type: Object as PropType<BufferView>, required: true }, showOperations: { type: Boolean, default: false }, showObservation: { type: Boolean, default: true } })
 const emit = defineEmits<{ (event: 'request-section', section: 'operations'): void }>()
 const { t } = useI18n(), { token } = theme.useToken()
 const stackOpen = ref(false)
@@ -33,6 +39,22 @@ const stages = computed(() => [
   { key: 'pending', value: props.buffer.pending, unit: 'items' },
   { key: 'wip', value: props.buffer.wip, unit: 'batches' },
 ])
+const counters = computed(() => {
+  const snapshot = props.buffer.observation
+  return [
+    { key: 'written', label: 'runtimeDiagnostics.bufferWritten', value: props.buffer.written, unit: 'runtimeDiagnostics.items' },
+    { key: 'attempted', label: 'runtimeDiagnostics.bufferTotalAttempted', value: props.buffer.attempted, unit: 'runtimeDiagnostics.items' },
+    ...(snapshot?.rowsEnabled ? [
+      { key: 'inRows', label: 'runtimeDiagnostics.bufferTotalInRows', value: snapshot.inRows, unit: 'runtimeDiagnostics.bufferRows' },
+      { key: 'outRows', label: 'runtimeDiagnostics.bufferTotalOutRows', value: snapshot.outRows, unit: 'runtimeDiagnostics.bufferRows' },
+    ] : []),
+    ...(snapshot ? [
+      { key: 'errors', label: 'runtimeDiagnostics.bufferTotalErrors', value: snapshot.errors, unit: 'runtimeDiagnostics.bufferErrorCountUnit' },
+      { key: 'dropped', label: 'runtimeDiagnostics.bufferTotalDropped', value: snapshot.dropped, unit: 'runtimeDiagnostics.items' },
+    ] : []),
+  ]
+})
+const counterText = (value: string | undefined) => { const count = bufferCounterText(value); return count === undefined ? '—' : BigInt(count).toLocaleString() }
 // 展开时展示实际错误原文；不为单行错误拼造堆栈，也不把未读取视为正常。
 const errorMessage = computed(() => props.buffer.error?.split(/\r?\n/).find(line => line.trim()) ?? '')
 const hasStack = computed(() => !!props.buffer.error?.trim().includes('\n'))

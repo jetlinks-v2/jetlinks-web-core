@@ -19,7 +19,7 @@ function load(filename, overrides = {}, cache = new Map()) {
   new Function('require', 'module', 'exports', code)(id => {
     if (id in overrides) return overrides[id]
     if (id === 'vue-i18n') return { useI18n: () => ({ t: key => key }) }
-    if (id === '@ant-design/icons-vue') return Object.fromEntries(['ThunderboltOutlined', 'InfoCircleOutlined', 'PlusOutlined', 'EditOutlined', 'ReloadOutlined', 'MoreOutlined'].map(key => [key, () => null]))
+    if (id === '@ant-design/icons-vue') return Object.fromEntries(['ThunderboltOutlined', 'InfoCircleOutlined', 'PlusOutlined', 'EditOutlined', 'ReloadOutlined', 'MoreOutlined', 'ArrowRightOutlined'].map(key => [key, () => null]))
     if (id === './ObjectInputValue.vue') return { __esModule: true, default: () => null }
     if (id.startsWith('.')) return load(resolve(dirname(filename), id.endsWith('.vue') ? id : `${id}.ts`), overrides, cache)
     return require(id)
@@ -27,6 +27,20 @@ function load(filename, overrides = {}, cache = new Map()) {
   cache.set(filename, module.exports); return module.exports
 }
 const Content = load(resolve(root, 'ObjectContentGroup.vue')).default
+test('reference display overrides a plain value presentation and forwards target identity without writing', async t => {
+  const opened = [], preview = vue.ref(false)
+  const member = { ref: { type: 'workOrder', providerId: 'identity', kind: 'property', id: 'project' }, name: 'Project', sourceName: 'Work orders', metadata: { id: 'project', valueType: { type: 'string' } } }
+  const h = render(t, () => () => vue.h(Content, {
+    entries: [{ selection: { member: member.ref }, member, presentation: { component: () => vue.h('span', 'RAW-ID') }, state: { status: 'ready', value: 'P1', references: { items: [{ type: 'project', id: 'P1', name: 'Water supply' }, { type: 'project', id: 'removed', unavailable: true }], limited: false } } }],
+    preview: preview.value, runtime: () => undefined, onOpen: object => opened.push(object),
+  }))
+  assert.ok(!h.text().includes('RAW-ID'))
+  h.button('Water supply').props.onClick()
+  assert.deepEqual(opened, [{ type: 'project', id: 'P1', name: 'Water supply' }])
+  assert.equal(h.button('removed').props.disabled, true)
+  preview.value = true; await flush()
+  assert.equal(h.button('Water supply').props.disabled, true, 'layout editing retains the reference label and disables navigation')
+})
 const flush = async () => { await vue.nextTick(); await Promise.resolve(); await vue.nextTick() }
 function render(t, setup) {
   const node = (type, text = '') => ({ type, text, props: {}, children: [], parent: null })
@@ -41,7 +55,7 @@ function render(t, setup) {
   const target = node('root')
   const app = renderer.createApp({ setup })
   const shell = name => vue.defineComponent({ inheritAttrs: true, setup: (_props, { slots }) => () => vue.h(name, Object.values(slots).flatMap(slot => slot?.())) })
-  for (const name of ['AButton', 'ATooltip', 'AAlert', 'AEmpty', 'ATag', 'ASpace', 'ASpin', 'AForm', 'ASelect', 'ASelectOption', 'ASkeleton', 'AInput', 'ADropdown', 'AMenu', 'AMenuItem']) app.component(name, shell(name))
+  for (const name of ['AButton', 'ATooltip', 'APopover', 'AIcon', 'AAlert', 'AEmpty', 'ATag', 'ASpace', 'ASpin', 'AForm', 'ASelect', 'ASelectOption', 'ASkeleton', 'AInput', 'ADropdown', 'AMenu', 'AMenuItem']) app.component(name, shell(name))
   app.component('AModal', vue.defineComponent({ props: ['open'], emits: ['cancel'], setup: (props, { slots, emit }) => () => props.open ? vue.h('dialog', { onClose: () => emit('cancel') }, slots.default?.()) : null }))
   app.mount(target); t.after(() => app.unmount())
   const all = (root = target) => [root, ...root.children.flatMap(all)]

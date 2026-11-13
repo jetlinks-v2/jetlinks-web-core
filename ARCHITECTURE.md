@@ -438,3 +438,10 @@ pnpm -F jetlinks-web-core build -- --module-name <module-name>
 ```
 
 For documentation-only changes, prefer link and fact checks. For contract or runtime changes, run the narrowest relevant build first, then the full build when feasible.
+
+
+## 可选通知数据源能力
+
+`NoticeDataSource` 提供可选异步 `isSupported()`，未声明时保留原行为。`filterSupportedNoticeProviders` 在铃铛及消息中心合并通道、类型目录与注册分类后过滤不支持的 provider；失败仅排除本次 provider，允许下次重试，不能回退到普通通知数据源或阻断其他通知。业务模块负责能力探测与缓存，Core 不持有公告服务标识或环境变量。公告等接收能力应读取服务声明，不能将按用户权限过滤的命令元数据存在性等同于部署能力。命令能力、数据源、铃铛及个人中心定向回归两端各 75/75 通过，覆盖关闭/开启、探测失败重试、普通通知兼容和异步销毁保护。
+
+交付引用：实现提交 `c6880463e42dd82b42d07dd65fa69ec15dd24802`，[PR #226](https://github.com/jetlinks-v2/jetlinks-web-core/pull/226)。

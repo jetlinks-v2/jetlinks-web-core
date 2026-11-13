@@ -6,6 +6,9 @@
 
 固定排版的页面可从同一入口导入 `DashboardWidgetRenderer`，传入 `widget`、`definition` 与 `previewMode`，复用组件注入、错误隔离和重试，不创建拖拽网格或个人坐标缓存。宿主负责布局，可将渲染器的 `height` 设为 `auto` 以随内容撑高。需要个人拖拽、缩放和本地布局保存的页面应使用 `DashBoardCanvas`；`editable=false`、`layoutEditable=true`、`previewMode=false` 可在保持业务实时取数的同时只开放位置和尺寸调整。
 
+网格使用容器尺寸观察同步宽度，侧栏、滚动条变化无需触发窗口 resize；相同宽度不重复提交，尺寸变化不重建业务组件或改写个人坐标。KeepAlive 缓存画布重新激活时，在绘制前恢复当前容器宽度，避免从隐藏期间的零宽度过渡。
+首次布局完成前关闭卡片位移动画，收到网格 `layout-ready` 后提交最终几何样式并恢复动画，避免从默认宽度滑动到实际位置；正常拖动与缩放仍保留动画。
+
 ## 自动发现
 
 采用 **共享懒加载来源 → 每处按范围取组件 → 生成 catalog → 画布渲染**。复用 `discovery` 的来源整理、加载缓存和 catalog 装配；同目录的 `dashboard-sources.ts` 作为可选宿主目录适配器，保持独立导入，通过 Vite 原生 `import.meta.glob` 发现以下目录：
@@ -48,6 +51,8 @@ const { catalog, loading, errors, reload } = useDashboardCatalog(dashboardSource
 验证：共享适配器迁入画布目录后，四组 glob 匹配文件与迁移前完全一致，旧导入路径已清理；discovery 与共享适配器的定向 strict TypeScript 检查通过；现有 Vite 开发服务将共享适配器转换为 141 个懒加载入口。临时检查通过来源整理零执行、完整入口 ID 匹配、模块/目录/分组/入口范围交集、空范围、并发缓存复用、独立 catalog、失败重试、重复类型拒绝、入口条件响应式变化和过期结果丢弃；未在仓库新增测试文件或依赖。当前没有实际业务页面调用；遵循机器性能约束不执行全项目 lint/typecheck/build。后续接入需验证组件运行依赖和页面交互，可执行宿主 `pnpm build` 补充生产构建验证。本次不新增依赖、不修改 Vite 配置，无需重启后端服务。
 
 ## 个人布局缓存
+
+拖拽及缩放时使用 `vue3-grid-layout-next` 自带的落点占位块，仅以轻阴影标识目标区域，背景透明且不增加边框；拖动中的卡片保持原有外观。占位轮廓位于拖动卡片上方且不拦截指针，不扩大网格尺寸。移动、碰撞和压紧继续由网格引擎负责，`useDashboardPlaceholder` 在布局更新后将引擎最终坐标同步到其公开占位对象，避免预览落后于实际落点。
 
 `storageKey` 使用调用方提供的固定标识；布局恢复、保存、组件集合校验和历史 key 迁移均由画布负责。可选 `legacyStorageKeys` 按优先顺序声明历史 key，默认不迁移其他 key。已有有效固定缓存优先，否则读取第一个有效历史布局，成功写入固定 key 后才清理声明的旧 key。页面不直接操作 localStorage。存储不可用时继续使用默认布局。
 
@@ -111,6 +116,7 @@ const dashboard = ref<DashboardValue>({ canvas: {}, components: [] })
 | `previewMode?: boolean` | 默认 `false`；传给业务组件的 `isEdit`，与布局编辑权限独立 |
 | `resolveImage?: (fileId: string) => string` | 调用方解析背景资源地址；已提供的背景 URL 优先 |
 | `update:modelValue` | 返回完整配置快照；移动/缩放结束、增删、配置应用时触发，调用方决定保存方式 |
+| `widget` 插槽 | 可选，接收 `widget`、`definition`、`previewMode`；宿主可直接给已有展示组件传入共享运行态。默认仍由 `WidgetRenderer` 渲染；采样数据不要放入持久化配置 |
 
 旧数据可将画布与组件列表分别映射到 `canvas`、`components`。组件 `id` 必须唯一，`type` 对应 `catalog.components` 的键；网格位置保存在 `componentProps.gridItem`。`visible: false` 的组件不渲染，`isLocked: true` 的组件禁止调整；未注入的组件显示占位并保留配置。组件加载失败显示重试入口，原始错误写入控制台。
 

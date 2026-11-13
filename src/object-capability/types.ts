@@ -4,6 +4,18 @@ import type { VariableObjectSpec } from '../types/relation'
 
 export interface ObjectReference { type: string; id: string; name?: string }
 
+/** The original ID value refers to another object; it is not a second relation definition. */
+export interface PropertyReferenceMapping {
+  targetType: string
+  relationId?: string
+  reverse?: boolean
+  labelProperty?: string
+}
+export interface ObjectReferenceValue {
+  items: Array<ObjectReference & { unavailable?: boolean }>
+  limited: boolean
+}
+
 /** Original metadata projection. Execution Schema is derived once, never used to replace it. */
 export interface ObjectValueType {
   type: string
@@ -20,7 +32,7 @@ export interface ObjectPropertyMetadata {
   name?: string
   description?: string
   valueType: ObjectValueType
-  expands?: Record<string, unknown>
+  expands?: Record<string, unknown> & { semanticRole?: string; reference?: PropertyReferenceMapping }
 }
 export interface ObjectFunctionMetadata {
   id: string
@@ -43,6 +55,7 @@ export interface ObjectMember {
   ref: ObjectMemberRef
   name: string
   sourceName: string
+  identitySource?: boolean
   description?: string
   metadata: ObjectPropertyMetadata | ObjectFunctionMetadata
   schema?: CapabilitySchema

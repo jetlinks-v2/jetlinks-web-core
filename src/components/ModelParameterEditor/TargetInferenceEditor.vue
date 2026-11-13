@@ -30,13 +30,18 @@
       />
     </div>
 
-    <CloudEmpty v-else-if="!editing" :description="locale.noTargetInference" />
+    <CloudEmpty
+      v-else-if="!editing"
+      :description="locale.noTargetInference"
+      :style="{ flex: '1 1 0', minHeight: 0, display: 'grid', placeItems: 'center' }"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import { ref, watch } from 'vue'
+import { cloneDeep, isEqual } from 'lodash-es'
 import TargetInferenceGroup from './TargetInferenceGroup.vue'
 import type { ModelParameterFile, ModelParameterLocale } from './types'
 import type { ParameterRecord } from './modelParameterUtils'
@@ -55,6 +60,7 @@ import { validateTargetInference } from './targetInferenceValidation'
 
 interface TargetInferenceEditorExpose {
   prepareForSave: () => TargetInferenceEditorValue | undefined
+  hasChanges: () => boolean
 }
 
 const props = defineProps({
@@ -81,6 +87,7 @@ const emit = defineEmits<{
 }>()
 
 const groups = ref<TargetInferenceGroupDraft[]>([])
+const editStartGroups = ref<TargetInferenceGroupDraft[]>([])
 const validationErrors = ref<TargetInferenceValidationErrors>({})
 
 watch(() => props.editing, resetDraft, { immediate: true })
@@ -93,6 +100,7 @@ function resetDraft() {
     getTargetInference(props.definition),
     props.definition
   )
+  editStartGroups.value = cloneDeep(groups.value)
   validationErrors.value = {}
 }
 
@@ -229,7 +237,7 @@ function prepareForSave() {
   return serializeTargetInferenceEditorValue(groups.value)
 }
 
-defineExpose<TargetInferenceEditorExpose>({ prepareForSave })
+defineExpose<TargetInferenceEditorExpose>({ prepareForSave, hasChanges: () => props.editing && !isEqual(groups.value, editStartGroups.value) })
 </script>
 
 <style scoped lang="less">

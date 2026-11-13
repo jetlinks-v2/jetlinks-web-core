@@ -1,4 +1,5 @@
 const zh = {
+  referenceUnavailable: '暂时无法查看此对象（{id}）', referenceMore: '另 {count} 项',
   dataLoadFailed: '对象数据暂时无法读取', viewLoadFailed: '保存的页面暂时无法读取，请重试', viewUpdateFailed: '页面设置未更新，请重试',
   target: '操作对象',
   empty: '暂无可展示的数据', loadFailed: '暂时无法读取，请重试', retry: '重试', loading: '读取中', unknown: '暂无数据',
@@ -10,6 +11,7 @@ const zh = {
   preview: '预览', limited: '仅展示部分数据', data: '数据', currentObject: '当前对象', continueEditing: '继续调整', unavailable: '此内容暂不可用，配置已保留', actionWarning: '请求已返回，请核对结果后确认业务状态',
 }
 const en = {
+  referenceUnavailable: 'This object is currently unavailable ({id})', referenceMore: '{count} more',
   dataLoadFailed: 'Object data could not be loaded', viewLoadFailed: 'Your saved pages could not be loaded. Please retry.', viewUpdateFailed: 'Page settings were not updated. Please retry.',
   target: 'Target',
   empty: 'No data to display', loadFailed: 'Unable to load. Please retry.', retry: 'Retry', loading: 'Loading', unknown: 'No data',
@@ -21,6 +23,7 @@ const en = {
   preview: 'Preview', limited: 'Partial data shown', data: 'Data', currentObject: 'Current object', continueEditing: 'Keep editing', unavailable: 'Content unavailable. Configuration is kept.', actionWarning: 'Response received. Check the result and business state.',
 }
 const tw: typeof zh = {
+  referenceUnavailable: '暫時無法查看此物件（{id}）', referenceMore: '另 {count} 項',
   dataLoadFailed: '物件資料暫時無法讀取', viewLoadFailed: '儲存的頁面暫時無法讀取，請重試', viewUpdateFailed: '頁面設定未更新，請重試',
   target: '操作物件',
   empty: '暫無可展示的資料', loadFailed: '暫時無法讀取，請重試', retry: '重試', loading: '讀取中', unknown: '暫無資料',
@@ -32,6 +35,7 @@ const tw: typeof zh = {
   preview: '預覽', limited: '僅展示部分資料', data: '資料', currentObject: '目前物件', continueEditing: '繼續調整', unavailable: '此內容暫不可用，設定已保留', actionWarning: '請求已回傳，請核對結果後確認業務狀態',
 }
 const ja: typeof zh = {
+  referenceUnavailable: '現在この対象を表示できません（{id}）', referenceMore: 'ほか {count} 件',
   dataLoadFailed: '対象のデータを読み込めません', viewLoadFailed: '保存したページを読み込めません。再試行してください', viewUpdateFailed: 'ページの設定を更新できませんでした。再試行してください',
   target: '操作対象',
   empty: '表示するデータがありません', loadFailed: '読み込めません。再試行してください', retry: '再試行', loading: '読み込み中', unknown: 'データなし',
