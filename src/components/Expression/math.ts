@@ -164,9 +164,17 @@ export function createMathParser(root:ExpressionNode,context:ExpressionEditorCon
     if(depth)throw new Error('incomplete')
     return content
   }
-  function read(end?:string):string {
+  /** TeX 参数可以是花括号组或单个 token；MathLive 会将单个数字序列化为 \sqrt9、\frac12。 */
+  function argument():string {
+    skip()
+    if(latex[at] === '{') {at++;return read('}')}
+    const value=read(undefined,true)
+    if(!value)throw new Error('incomplete')
+    return value
+  }
+  function read(end?:string,single=false):string {
     let output=''
-    while(at<latex.length) {
+    while(at<latex.length && (!single || !output)) {
       skip()
       if(at>=latex.length)break
       if(end && latex.startsWith(end,at)) {at+=end.length;return output}
@@ -178,6 +186,7 @@ export function createMathParser(root:ExpressionNode,context:ExpressionEditorCon
       if(!command)throw new Error('unsupportedExpression')
       at+=command[0].length
       const name=command[0],reference=references.get(name)
+      if(name === 'placeholder')throw new Error('incomplete')
       if(reference) {output+=`[${JSON.stringify(reference)}]`;continue}
       const enumeration=enumValues.get(name)
       if(enumeration){output+=enumeration.valueType === 'string' ? JSON.stringify(enumeration.value) : String(enumeration.value);continue}
@@ -200,15 +209,14 @@ export function createMathParser(root:ExpressionNode,context:ExpressionEditorCon
       const signs:Record<string,string>={times:'*',cdot:'*',div:'/',bmod:'%',land:'&&',wedge:'&&',lor:'||',vee:'||',lnot:'!',neg:'!',ne:'!=',neq:'!=',le:'<=',leq:'<=',ge:'>=',geq:'>=',lt:'<',gt:'>'}
       if(signs[name]) {output+=signs[name];continue}
       if(['frac','dfrac','tfrac'].includes(name)) {
-        skip();if(latex[at++] !== '{')throw new Error('incomplete');const numerator=read('}')
-        skip();if(latex[at++] !== '{')throw new Error('incomplete');const denominator=read('}')
+        const numerator=argument(),denominator=argument()
         output+=`((${numerator})/(${denominator}))`;continue
       }
       if(name === 'mathord') {skip();if(latex[at++] !== '{')throw new Error('incomplete');output+=`(${read('}')})`;continue}
       if(name === 'sqrt') {
         const alias=Array.from(document.functions).find(([,id])=>id === 'math.sqrt')?.[0]
         if(!alias)throw new Error('unknownFunction')
-        skip();if(latex[at++] !== '{')throw new Error('incomplete');output+=`${alias}(${read('}')})`;continue
+        output+=`${alias}(${argument()})`;continue
       }
       if(name === 'operatorname' || name === 'mathrm') {
         const content=group().replace(/^\\mathrm\{(.+)\}$/,'$1')

@@ -29,7 +29,7 @@ const functions=computed(()=>props.context.functions)
 const format=(tree:StructuredExpression)=>props.source?.format(tree) ?? expressionText(tree)
 const modelSource=computed(()=>props.source?.text ?? (props.modelValue ? format(props.modelValue) : ''))
 const refreshFunctions=()=>emit('retryFunctions')
-const availableFunctions=computed(()=>functions.value.map(item=>({...item,disabled:!insertion.applicable({kind:'value',latex:'',valueType:item.returnType}) || !!functionSelection.value && functionSelection.value.count>item.maximumArguments})))
+const availableFunctions=computed(()=>functions.value.map(item=>({...item,disabled:!insertion.applicable({kind:'value',latex:'',valueType:item.returnType}) || !!functionSelection.value && functionSelection.value.count>item.maximumArguments || !acceptsFunctionSelection(item)})))
 const enumValues=computed(()=>mathEnumChoices(context.value))
 const sourceTree=(source:string)=>source === modelSource.value && props.modelValue ? props.modelValue : props.source?.parse(source)
 const projection=(source:string)=>{
@@ -69,14 +69,13 @@ const feedback = computed(() => inputNotice.value || clipboard.feedback.value ||
 const operators = computed(() => [
   ...['+','-','\\times','\\dfrac{#@}{#?}'].map((latex,index)=>({label:['+','−','×','÷'][index],latex,kind:'arithmetic' as const})),
   {label:'( )',latex:'\\left(#0\\right)',kind:'group' as const},
-  ...(props.conditions ? [{label:'>',latex:'>'},{label:'≥',latex:'\\ge'},{label:'<',latex:'<'},{label:'≤',latex:'\\le'},{label:'=',latex:'='},{label:'≠',latex:'\\ne'}].map(item=>({...item,kind:'comparison' as const})).filter(item=>insertion.applicable(item)) : []),
+  ...(props.conditions ? [{label:'>',latex:'>'},{label:'≥',latex:'\\ge'},{label:'<',latex:'<'},{label:'≤',latex:'\\le'},{label:'=',latex:'='},{label:'≠',latex:'\\ne'}].map(item=>({...item,kind:'comparison' as const})) : []),
   ...(props.conditions ? [{label:t('emptyValue'),latex:'\\JLemptyValue',kind:'value' as const,valueType:'null'},{label:t('conditionAnd'),latex:'\\JLand ',kind:'logical' as const},{label:t('conditionOr'),latex:'\\JLor ',kind:'logical' as const}] : []),
 ].map(item=>({...item,disabled:!insertion.applicable(item)})))
 const conditionOperators = computed(() => [
-  { label:'>', latex:'>', hint:'operatorHint_0' }, { label:'<', latex:'<', hint:'operatorHint_1' }, { label:'≥', latex:'\\ge', hint:'operatorHint_2' }, { label:'≤', latex:'\\le', hint:'operatorHint_3' },
-  { label:'=', latex:'=', hint:'operatorHint_4' }, { label:'≠', latex:'\\ne', hint:'operatorHint_5' }, { label:t('conditionAnd'), latex:'\\JLand ', hint:'operatorHint_6' }, { label:t('conditionOr'), latex:'\\JLor ', hint:'operatorHint_7' }, { label:t('conditionNot'), latex:'\\JLnot ', hint:'operatorHint_8' },
-  { label:t('missing'), latex:'\\JLmissing', hint:'missing' }, { label:t('present'), latex:'\\JLpresent', hint:'present' },
-].map((item,index)=>({...item,kind:(index < 6 ? 'comparison' : index < 8 ? 'logical' : index === 8 ? 'not' : 'predicate') as MathInsertion['kind']})).map(item=>({...item,disabled:!insertion.applicable(item)})))
+  { label:t('conditionNot'), latex:'\\JLnot ', hint:'operatorHint_8' },
+  { label:t('missing'), latex:'\\JLmissing', hint:'missingConditionHint' }, { label:t('present'), latex:'\\JLpresent', hint:'presentConditionHint' },
+].map((item,index)=>({...item,kind:(index === 0 ? 'not' : 'predicate') as MathInsertion['kind']})).map(item=>({...item,disabled:!insertion.applicable(item)})))
 const literalValues=computed(()=>[
   ...(insertion.valueChoices.value?.flatMap((item,index)=>{const choice=enumValues.value.find(candidate=>candidate.label === item.label && JSON.stringify(candidate.node) === JSON.stringify(item.node));return choice ? [{key:`enum:${index}`,icon:'TagOutlined',label:item.label,latex:`\\${choice.macro}`,valueType:item.node.valueType}] : []}) || []),
   ...(insertion.valueChoices.value ? [] : [
@@ -370,6 +369,16 @@ function functionMenuVisibilityChanged(open: boolean) {
   }
   functionMenuOpen.value=open
 }
+/** 只包装显式选区；光标旁的隐式替换目标和函数名替换仍沿用原有语义。 */
+function selectedFunctionArgument() {
+  const node=insertion.target.value?.node
+  const selection=functionInsertionSelection || field?.selection
+  return !functionSelection.value && selection?.ranges.length === 1 && selection.ranges[0][0] !== selection.ranges[0][1] ? node : undefined
+}
+function acceptsFunctionSelection(descriptor:ExpressionFunction) {
+  const argument=selectedFunctionArgument()
+  return !argument || descriptor.maximumArguments > 0 && !validateExpressionTypes({type:'call',function:descriptor.id,arguments:[argument]},context.value,false)
+}
 function insertFunction(name: string) {
   if(name === 'IF') {insert({kind:'value',latex:'\\begin{cases}#?&#?\\\\#?&\\JLotherwise\\end{cases}'});return}
   if(name === 'IFS') {insert({kind:'value',latex:'\\begin{cases}#?&#?\\\\#?&#?\\\\#?&\\JLotherwise\\end{cases}'});return}
@@ -380,13 +389,24 @@ function insertFunction(name: string) {
   const selected=functionSelection.value
   if(selected?.id === name) {closeReferences(true);return}
   if(selected && descriptor && selected.count>descriptor.maximumArguments)return
-  const argumentsLatex=selected ? selected.argumentsLatex.replace(/\\right\)$/,(selected.count<descriptor.minimumArguments ? ','+Array.from({length:descriptor.minimumArguments-selected.count},()=>'\\placeholder{}').join(',') : '')+'\\right)') : '\\left('+Array.from({length:descriptor.minimumArguments},()=>'#?').join(',')+'\\right)'
+  insertion.refresh(selected ? {ranges:[selected.range]} : functionInsertionSelection)
+  if(!acceptsFunctionSelection(descriptor))return
+  const argument=selectedFunctionArgument()
+  let argumentsLatex:string
+  if(selected) {
+    const missing=Array.from({length:Math.max(0,descriptor.minimumArguments-selected.count)},()=>'\\placeholder{}')
+    argumentsLatex=selected.argumentsLatex.replace(/\\right\)$/,(missing.length ? ','+missing.join(',') : '')+'\\right)')
+  } else {
+    const args=Array.from({length:Math.max(descriptor.minimumArguments,argument ? 1 : 0)},(_item,index)=>index === 0 && argument ? '#0' : '#?')
+    argumentsLatex=`\\left(${args.join(',')}\\right)`
+  }
   const latex=name === 'math.sqrt' ? `\\sqrt{${argumentsLatex.slice(6,-7)}}` : '\\operatorname{'+label+'}'+argumentsLatex
   if(label)insert({kind:'value',valueType:descriptor.returnType,latex},selected ? {ranges:[selected.range]} : functionInsertionSelection)
 }
 function chooseFunction({ key }: { key: string | number }) { functionMenuOpen.value=false;if (key === 'retry') refreshFunctions(); else insertFunction(String(key));functionInsertionSelection=undefined }
 function chooseConditionOperator({ key }: { key: string | number }) {
   if(key === 'branch') {if(canAddBranch.value)addBranch();else insertion.startBranch();return}
+  if(key === 'nested') {insertion.startBranch(true);return}
   const item=conditionOperators.value[Number(key)];if(item)insert(item)
 }
 function chooseLiteral({key}:{key:string|number}) {

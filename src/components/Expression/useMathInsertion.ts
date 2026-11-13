@@ -10,7 +10,7 @@ type ValueType='number'|'boolean'|'string'|'object'|'array'|'null'|'unknown'
 type Range=[number,number]
 type Atom={offset:number;depth:number;latex:string}
 export type MathInsertion={latex:string;kind:'value'|'arithmetic'|'comparison'|'logical'|'predicate'|'not'|'group';valueType?:string}
-type Target={range:Range;node?:ExpressionNode;expected:ValueType;choices?:ExpressionValueChoice[];segment?:{range:Range;node:ExpressionNode;expected:ValueType}}
+type Target={range:Range;node?:ExpressionNode;expected:ValueType;operator?:'arithmetic'|'comparison'|'logical';choices?:ExpressionValueChoice[];segment?:{range:Range;node:ExpressionNode;expected:ValueType}}
 export type FunctionTarget={range:Range;id:string;count:number;argumentsLatex:string;bounds:DOMRect}
 const comparison=(operator:string)=>['eq','ne','gt','ge','lt','le'].includes(operator)
 const normalize=normalizeExpressionType
@@ -37,6 +37,10 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     return parsed.get(latex)
   }
   const infer=(node:ExpressionNode):ValueType=>expressionNodeType(node,options.context())
+  const resultType=():ValueType=>{
+    const types=[...new Set(options.context().resultTypes?.filter(type=>type !== 'null').map(normalize))]
+    return types.length === 1 ? types[0] : 'unknown'
+  }
   function expected(node:ExpressionNode):ValueType {
     const wanted=text(node),types:ValueType[]=[],context=options.context()
     if(expectedTypes.has(wanted))return expectedTypes.get(wanted)!
@@ -53,7 +57,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
         item.arguments.forEach((child,index)=>visit(child,normalize(parameters[Math.min(index,parameters.length-1)]?.valueType)))
       }
     }
-    visit(options.root())
+    visit(options.root(),resultType())
     const type=types.length && types.every(type=>type === types[0]) ? types[0] : 'unknown'
     expectedTypes.set(wanted,type)
     return type
@@ -86,11 +90,11 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
   }
   const parseFunction=(latex:string)=>parse(latex.replace(/\\placeholder\{[^{}]*\}/g,'0'))
   function functionParameter(range:Range,{group,previous,depth}:{group:Atom;previous?:Atom;depth:number}) {
-    const node=group.latex.startsWith('\\sqrt{') ? parseFunction(group.latex)
+    const node=/^\\sqrt(?![a-zA-Z])/.test(group.latex) ? parseFunction(group.latex)
       : group.latex.startsWith('\\left(') && previous?.latex.startsWith('\\operatorname') ? parseFunction(previous.latex+group.latex) : undefined
     const descriptor=node?.type === 'call' ? options.context().functions.find(item=>item.id === node.function) : undefined
     if(!descriptor)return
-    const index=group.latex.startsWith('\\sqrt{') ? 0 : atoms.slice((previous?.offset ?? 0)+1,range[0]+1).filter(item=>item.depth === depth+1 && item.latex === ',').length
+    const index=/^\\sqrt(?![a-zA-Z])/.test(group.latex) ? 0 : atoms.slice((previous?.offset ?? 0)+1,range[0]+1).filter(item=>item.depth === depth+1 && item.latex === ',').length
     return {descriptor,index,parameter:descriptor.parameters[Math.min(index,descriptor.parameters.length-1)]}
   }
   function enclosingFunction(range:Range) {
@@ -105,12 +109,13 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
       const fn=functionParameter(range,container)
       if(fn)return normalize(fn.parameter?.valueType)
       const {group,previous,depth}=container
+      if(/^\\(?:dfrac|frac|tfrac)(?![a-zA-Z])/.test(group.latex))return 'number'
       if(condition && group.latex.startsWith('\\begin{cases}')) {
         const cells=atoms.slice(previous?.offset ?? 0,range[0]+1).filter(item=>item.depth === depth+1 && !item.latex)
         if(cells.length%2 === 0)return 'boolean'
       }
     }
-    return 'unknown'
+    return resultType()
   }
   function current(selection?:Selection):Target|undefined {
     const field=options.field()
@@ -194,7 +199,19 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
       if(/^(?:[+\-*/<>]|\\(?:times|div|ge|le))\s*$/.test(left))type='number'
       if(/^\\(?:JLand|JLor|JLnot)\s*$/.test(left))type='boolean'
     }
-    return {range,node,expected:type,choices,segment}
+    // 中间切换同类运算符保留已有两侧；不把数值运算符换成比较而破坏外层类型。
+    let operator:Target['operator']
+    if(ranges[0][0] === ranges[0][1]) {
+      const cursor=ranges[0][0],peers=siblings(cursor)
+      for(const item of [peers.find(atom=>atom.offset === cursor),peers.find(atom=>atom.offset>cursor)]) {
+        const latex=item?.latex.trim()
+        if(latex && /^(?:[+\-*/]|\\(?:times|cdot|div))$/.test(latex))operator='arithmetic'
+        else if(latex && /^(?:[=<>]|\\(?:ge|le|ne))$/.test(latex))operator='comparison'
+        else if(latex && /^\\JL(?:and|or)$/.test(latex))operator='logical'
+        if(operator)break
+      }
+    }
+    return {range,node,expected:type,operator,choices,segment}
   }
   function caseAt(selection?:Selection) {
     const field=options.field(),ranges=(selection || field?.selection)?.ranges
@@ -202,6 +219,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     const [start,end]=ranges[0].slice().sort((a,b)=>a-b)
     for(const group of atoms.slice(end)) {
       if(!group.latex.startsWith('\\begin{cases}'))continue
+      if((atoms[end]?.depth ?? 0)>group.depth+1)continue
       let before=group.offset-1
       while(before>0 && atoms[before].depth > group.depth)before--
       if(start < before)continue
@@ -231,12 +249,12 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
       const node=parseFunction(name.latex+args.latex)
       if(node?.type === 'call')return {range:[start,args.offset],id:node.function,count:node.arguments.length,argumentsLatex:args.latex,bounds}
     }
-    for(const root of atoms.filter(item=>item.latex.startsWith('\\sqrt{'))) {
+    for(const root of atoms.filter(item=>/^\\sqrt(?![a-zA-Z])/.test(item.latex))) {
       const bounds=field.getElementInfo(root.offset)?.bounds
       if(!bounds || x<bounds.left || x>bounds.left+12 || y<bounds.top || y>bounds.bottom)continue
       let start=root.offset-1
       while(start>0 && atoms[start].depth>root.depth)start--
-      return {range:[start,root.offset],id:'math.sqrt',count:1,argumentsLatex:`\\left(${root.latex.slice(6,-1)}\\right)`,bounds}
+      return {range:[start,root.offset],id:'math.sqrt',count:1,argumentsLatex:`\\left(${root.latex.slice(5)}\\right)`,bounds}
     }
   }
   /** 参数提示命中实际原子，优先最内层容器，不覆盖 MathLive 原生输入及选区。 */
@@ -299,15 +317,25 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     changeRows(place,place.cells.length/2-1)
     return true
   }
-  /** 单行整体成为首个分支的结果，不按光标位置拆开算式；未填条件保留为草稿。 */
-  function startBranch() {
+  /** 当前同层参数整体成为首个结果；逗号及原生组边界隔开函数参数、分子和分母。 */
+  function startBranch(selectedValue=false) {
     const field=options.field()
     if(!field || options.disabled() || options.conditions?.() === false || field.selection.ranges.length !== 1)return false
-    current()
-    const latex=field.getValue('latex')
-    if(atoms.some(item=>item.latex.startsWith('\\begin{cases}')) || latex && !parse(latex))return false
-    field.focus();field.selection={ranges:[[0,field.lastOffset]]}
-    field.insert(`\\begin{cases}${latex || '\\placeholder{}'}&\\placeholder{}\\\\\\placeholder{}&\\JLotherwise\\end{cases}`,{selectionMode:'placeholder',silenceNotifications:true})
+    const target=current()
+    if(selectedValue && !target)return false
+    const [start,end]=field.selection.ranges[0].slice().sort((a,b)=>a-b)
+    const peers=siblings(end)
+    const separator=peers.findIndex(item=>item.offset>end && item.latex === ',')
+    const first=peers.filter(item=>item.offset<=start && (!item.latex || item.latex === ',')).pop()
+    const rangeStart=first?.offset ?? Math.max(0,(peers[0]?.offset ?? 1)-1)
+    const rangeEnd=separator<0 ? peers.at(-1)?.offset ?? end : peers[separator-1].offset
+    const range:Range=selectedValue && target ? target.range : [rangeStart,rangeEnd]
+    if(start<range[0] || end>range[1])return false
+    const latex=field.getValue(...range,'latex')
+    const empty=!latex || /^\\placeholder\{[^{}]*\}$/.test(latex)
+    if(!empty && !parse(latex))return false
+    field.focus();field.selection={ranges:[range]}
+    field.insert(`\\begin{cases}${empty ? '\\placeholder{}' : latex}&\\placeholder{}\\\\\\placeholder{}&\\JLotherwise\\end{cases}`,{selectionMode:'placeholder',silenceNotifications:true})
     options.commit();refresh()
     return true
   }
@@ -335,6 +363,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
   }
   function applicable(item:MathInsertion,place=target.value) {
     if(!place)return false
+    if(place.operator && ['arithmetic','comparison','logical'].includes(item.kind))return item.kind === place.operator
     const actual=place.node ? infer(place.node) : 'unknown'
     // A blank condition can begin with a scalar operand and become a comparison as editing continues.
     if(item.kind === 'value')return compatible(place.expected,normalize(item.valueType))
