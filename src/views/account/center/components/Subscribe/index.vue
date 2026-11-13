@@ -7,7 +7,7 @@ defineProps<{ canEditProfile?: boolean }>()
 const emit = defineEmits<{ (event: 'edit-contact', target: AccountEditTarget): void }>()
 const channelTooltipStyle = { maxWidth: 'min(360px, calc(100vw - 24px))' }
 const {
-  providers, loading, failed, saving, pendingBinding, recipientsFailed, recipientsLoading,
+  providers, loading, failed, configsFailed, saving, pendingBinding, recipientsFailed, recipientsLoading,
   load, loadRecipients, bindingComplete, receiverSummary, receiverStatus, unavailableType,
   beginReceiverBinding, channelHeaderAction, openChannelSettings, displayedTypes, tableColumns, matrixRowNames, channelLabel, channelIcon, matrixCells, toggleMatrixChannel,
 } = useNotificationSettings()
@@ -15,7 +15,7 @@ const {
 
 <template>
   <div class="notification-settings">
-    <a-alert v-if="failed" type="error" show-icon :message="$t('PersonalCenter.notificationFailed')">
+    <a-alert v-if="failed || configsFailed" type="error" show-icon :message="$t('PersonalCenter.notificationFailed')">
       <template #action><a-button type="link" :disabled="!!saving" @click="load">{{ $t('AccountCenter.retry') }}</a-button></template>
     </a-alert>
     <a-alert v-if="recipientsFailed" type="warning" show-icon :message="$t('PersonalCenter.notificationRecipientsFailed')">
@@ -53,7 +53,7 @@ const {
                     size="small"
                     class="notification-settings__channel-action"
                     @click.stop="openChannelSettings(column.key)"
-                  >{{ $t('PersonalCenter.goConfigure') }}</a-button>
+                  >{{ $t('PersonalCenter.notificationGoBind') }}</a-button>
                   <a-button
                     v-else-if="canEditProfile && channelHeaderAction(column.key) === 'email'"
                     type="link"
