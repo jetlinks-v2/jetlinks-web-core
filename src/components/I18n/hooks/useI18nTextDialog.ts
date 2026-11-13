@@ -1,63 +1,56 @@
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { FormInstance } from 'ant-design-vue'
-import type { Rule } from 'ant-design-vue/es/form'
+import { useMediaQuery } from '@vueuse/core'
+import { resolveI18nText } from '../text'
 import type { I18nTextDialogEmits, I18nTextDialogProps, I18nTextMessages } from '../types'
 
-/** 管理独立弹窗草稿，校验通过后提交；取消不会修改调用方数据。 */
+/** 独立翻译草稿：切换语言不提交，应用一次回写，关闭丢弃本次输入。 */
 export function useI18nTextDialog(props: Readonly<I18nTextDialogProps>, emit: I18nTextDialogEmits) {
   const { t, locale } = useI18n()
-  const formRef = ref<FormInstance>()
+  const mobile = useMediaQuery('(max-width: 600px)')
+  const editor = ref<{ focus: () => void }>()
   const formData = reactive<I18nTextMessages>({})
-  const languages = computed(() => [
-    { code: 'zh', label: t('I18n.chinese') },
-    { code: 'en', label: t('I18n.english') },
-  ])
-  const currentLanguage = computed(() => String(locale.value || 'zh').replace('_', '-').split('-')[0])
-  const rules = computed<Record<string, Rule[]>>(() => ({
-    zh: [{ max: props.maxLength, message: t('I18n.maxLength', { max: props.maxLength }), trigger: 'blur' }],
-    en: [{ max: props.maxLength, message: t('I18n.maxLength', { max: props.maxLength }), trigger: 'blur' }],
-  }))
+  const activeLanguage = ref('zh')
+  const attempted = ref(false)
+  let trigger: HTMLElement | null = null
+  const currentLanguage = computed(() => {
+    const current = String(locale.value || 'zh').replace(/_/g, '-').toLowerCase()
+    return [...Object.keys(props.data ?? {}), ...Object.keys(props.fallbackMessages ?? {})].find(key => key.replace(/_/g, '-').toLowerCase() === current) ?? current.split('-')[0]
+  })
+  const languages = computed(() => [...new Set(['zh', 'en', ...Object.keys(props.data ?? {}), ...Object.keys(props.fallbackMessages ?? {}), currentLanguage.value])].map(code => ({
+    code, label: code === 'zh' ? t('I18n.chinese') : code === 'en' ? t('I18n.english') : code,
+  })))
+  const invalidLanguage = computed(() => languages.value.find(language => (formData[language.code]?.length ?? 0) > (props.maxLength ?? 200))?.code)
+  const error = computed(() => attempted.value && invalidLanguage.value ? t('I18n.maxLength', { max: props.maxLength ?? 200 }) : '')
+  const defaultText = computed(() => resolveI18nText(props.displayValue, props.fallbackMessages, activeLanguage.value))
+  const preview = computed(() => resolveI18nText(defaultText.value, formData, activeLanguage.value))
+  const focusEditor = () => nextTick(() => editor.value?.focus())
 
-  /** 每次打开重建草稿，并保留未提供编辑控件的语言；缺少当前语言时回填展示值。 */
-  function initFormData() {
-    Object.keys(formData).forEach((language) => delete formData[language])
+  // 只在打开时初始化；保留额外语言，宿主刷新不会覆盖当前翻译草稿。
+  watch(() => props.visible, visible => {
+    if (!visible) return
+    trigger = typeof document === 'undefined' ? null : document.activeElement as HTMLElement | null
+    Object.keys(formData).forEach(language => delete formData[language])
     Object.assign(formData, props.data ?? {})
-    languages.value.forEach((language) => {
-      formData[language.code] = props.data?.[language.code] || ''
-    })
-    if (!formData[currentLanguage.value] && props.displayValue) {
-      formData[currentLanguage.value] = props.displayValue
-    }
-  }
-
-  watch(() => props.visible, (visible) => {
-    if (visible) initFormData()
+    activeLanguage.value = currentLanguage.value
+    if (!props.fallbackMessages && !formData[activeLanguage.value] && props.displayValue) formData[activeLanguage.value] = props.displayValue
+    attempted.value = false
   }, { immediate: true })
+  watch(activeLanguage, focusEditor)
+  watch(editor, focusEditor, { flush: 'post' })
 
-  /** 取消只关闭并重置表单，不发出确认事件。 */
-  function handleCancel() {
+  function close() {
     emit('update:visible', false)
-    formRef.value?.resetFields()
+    // 调用方可能在确认事件中卸载面板；在DOM更新后归还到仍存在的触发项。
+    nextTick(() => { if (trigger?.isConnected) trigger.focus({ preventScroll: true }) })
   }
-
-  /** 校验失败由表单显示错误并保持打开，成功时提交去空白后的文本。 */
-  async function handleOk() {
-    if (!formRef.value) return
-    try {
-      await formRef.value.validate()
-    } catch (error) {
-      if (error && typeof error === 'object' && 'errorFields' in error) return
-      throw error
-    }
-    const result: I18nTextMessages = {}
-    Object.entries(formData).forEach(([language, value]) => {
-      const text = value?.trim()
-      if (text) result[language] = text
-    })
+  function handleCancel() { close() }
+  function handleOk() {
+    attempted.value = true
+    if (invalidLanguage.value) { activeLanguage.value = invalidLanguage.value; focusEditor(); return }
+    const result = Object.fromEntries(Object.entries(formData).flatMap(([language, value]) => value.trim() ? [[language, value.trim()]] : []))
     emit('confirm', result)
-    emit('update:visible', false)
+    close()
   }
-
-  return { formRef, formData, languages, rules, handleCancel, handleOk }
+  return { t, mobile, editor, formData, languages, activeLanguage, defaultText, preview, error, handleCancel, handleOk, focusEditor }
 }

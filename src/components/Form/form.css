@@ -1,0 +1,48 @@
+/* 同一信息页的动作层级；不改变平台存量按钮或依赖全局组件注册。 */
+:is(.fw-renderer, .fw-designer, .fw-settings, .fw-picker, .fw-library, .fw-example, .fw-value-drawer) .ant-btn {
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  box-shadow: none;
+}
+:is(.fw-renderer, .fw-designer, .fw-settings, .fw-picker, .fw-example) .ant-btn-text:not(.ant-btn-dangerous, .fw-change, .fw-add-field) {
+  color: var(--jet-theme-text-secondary, #697586);
+}
+:is(.fw-renderer, .fw-designer, .fw-settings, .fw-picker, .fw-example) .ant-btn-text:not(.ant-btn-dangerous, .fw-change, .fw-add-field):hover {
+  color: var(--jet-theme-primary, #1677ff);
+  background: var(--jet-theme-primary-bg, #f0f6ff);
+}
+:is(.fw-renderer, .fw-designer, .fw-settings) .ant-btn[disabled] { opacity: .45; }
+.fw-value-drawer .ant-drawer-content { border-radius: 12px 12px 0 0; }
+.fw-value-drawer .ant-drawer-header { padding: 12px 20px; }
+.fw-value-drawer .ant-drawer-title { font-size: 14px; }
+.fw-value-popover .ant-popover-inner { padding: 0; overflow: hidden; border: 1px solid var(--line, #e5e9ef); border-radius: 10px; box-shadow: 0 12px 40px #213c5b26; }
+.fw-select-popup { max-width: calc(100vw - 24px); padding: 5px; border: 1px solid var(--line, #e5e9ef); border-radius: 8px; }
+.fw-select-popup .ant-select-item { padding: 8px 10px; min-height: 36px; font-size: 12px; border-radius: 5px; }
+.fw-select-popup .ant-select-item-option-selected:not(.ant-select-item-option-disabled) { background: var(--jet-theme-primary-bg, #f0f6ff); font-weight: 500; }
+.fw-select-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.fw-select-option small { color: var(--jet-theme-text-secondary, #697586); font-size: 11px; font-weight: 400; }
+.fw-select-popup .ant-select-item-option-content { display: flex; align-items: center; gap: 8px; }
+.fw-select-popup .ant-select-item-option-content > .fw-select-option { flex: 1; }
+.fw-select-popup .ant-select-item-option-selected .ant-select-item-option-content::after { content: '✓'; margin-left: auto; color: var(--jet-theme-primary, #1677ff); }
+.fw-setting-select.ant-select .ant-select-selector { border-color: var(--line, #e5e9ef); border-radius: 6px; font-size: 12px; box-shadow: none; }
+.fw-setting-select.ant-select-focused .ant-select-selector { border-color: var(--jet-theme-primary, #1677ff); }
+.fw-value-drawer .ant-drawer-close { width: 44px; height: 44px; display: grid; place-items: center; }
+.fw-designer-toolbar .ant-btn { border-color: transparent; padding-inline: 9px; }
+.fw-designer-toolbar .fw-add-field { color: var(--jet-theme-primary, #1677ff); background: var(--jet-theme-primary-bg, #f0f6ff); }
+@media (pointer: coarse) {
+  :is(.fw-actions, .fw-picker-actions, .example-actions) > .ant-btn { min-height: 44px; }
+  .fw-select-popup .ant-select-item, .fw-setting-select.ant-select .ant-select-selector { min-height: 44px; align-items: center; }
+}
+@media (max-width: 600px) {
+  .fw-select-popup .ant-select-item, .fw-setting-select.ant-select .ant-select-selector { min-height: 44px; align-items: center; }
+  /* 短屏无法在字段上下容纳日历，沿用原生面板，在视口底部承载。 */
+  .fw-date-popup.ant-picker-dropdown { position: fixed !important; inset: auto 12px max(12px, env(safe-area-inset-bottom)) !important; display: flex; justify-content: center; }
+  .fw-date-popup .ant-picker-panel-container { max-width: calc(100vw - 24px); max-height: 65dvh; overflow: auto; overscroll-behavior: contain; }
+  .fw-date-popup .ant-picker-datetime-panel { flex-direction: column; }
+  .fw-date-popup .ant-picker-time-panel { border-inline-start: 0; border-top: 1px solid var(--line, #edf0f3); }
+  .fw-date-popup .ant-picker-time-panel .ant-picker-content { height: 120px; }
+  .fw-date-popup .ant-picker-time-panel-column { max-height: 120px; }
+  .fw-date-popup .ant-picker-footer { position: sticky; bottom: 0; background: var(--bg, #fff); }
+  .fw-date-popup .ant-picker-footer .ant-btn { min-height: 44px; }
+}

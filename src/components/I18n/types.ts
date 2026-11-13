@@ -21,6 +21,8 @@ export interface I18nTextDialogProps {
   title: string
   data?: I18nTextMessages
   displayValue?: string
+  /** 有继承来源时只编辑覆盖值，默认翻译用于占位和预览，不复制到草稿。 */
+  fallbackMessages?: I18nTextMessages
   maxLength?: number
   textarea?: boolean
 }
