@@ -22,7 +22,6 @@ export function usePlatformSettingsSection(
   const disabled = computed(() => !editing.value || !!props.disabled || !!props.busy || saving.value)
   const actionsDisabled = computed(() => !!props.disabled || !!props.busy || saving.value || uploads.size > 0)
   const configured = computed(() => keys.value.some(key => !!props.saved[key]))
-  const hasValues = computed(() => keys.value.some(key => !!props.model[key]))
 
   const pick = (source: PlatformSettingsPatch): PlatformSettingsPatch => Object.fromEntries(
     keys.value.filter(key => Object.hasOwn(source, key)).map(key => [key, source[key]]),
@@ -79,5 +78,5 @@ export function usePlatformSettingsSection(
     emitUploading?.(key, busy)
   }
 
-  return { editing, disabled, actionsDisabled, saving, failure, configured, hasValues, start, cancel, change, save, uploading }
+  return { editing, disabled, actionsDisabled, saving, failure, configured, start, cancel, change, save, uploading }
 }

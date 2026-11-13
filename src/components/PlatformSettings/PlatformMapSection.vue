@@ -18,9 +18,6 @@
           </a-form-item>
         </PlatformSettingRow>
       </PlatformSettingsFields>
-      <a-popconfirm v-if="mode === 'detail' && editing && !disabled && hasValues" :title="t('PlatformSettings.clearMapConfirm')" :disabled="actionsDisabled" @confirm="change({ apiKey: '', secretKey: '', webKey: '' })">
-        <a-button type="text" danger :disabled="actionsDisabled">{{ t('PlatformSettings.clear') }}</a-button>
-      </a-popconfirm>
     </a-form>
   </ContentPanel>
 </template>
@@ -36,7 +33,7 @@ import type { PlatformSettingsPatch } from './types'
 const props = defineProps(sectionProps)
 const emit = defineEmits<{ change: [patch: PlatformSettingsPatch] }>()
 const { t } = useI18n()
-const { editing, disabled: controlsDisabled, actionsDisabled, saving, failure, configured, hasValues, start, cancel, change, save } = usePlatformSettingsSection(
+const { editing, disabled: controlsDisabled, actionsDisabled, saving, failure, configured, start, cancel, change, save } = usePlatformSettingsSection(
   props, 'amap', patch => emit('change', patch),
 )
 const fields = [
