@@ -21,7 +21,7 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
   const inspections:Array<{title:string;reference?:string}>=[]
   let skipped=0
   const inspect=(value:string,title:string,reference?:string)=>{
-    if(!facts.size)return value
+    if(!facts.size && !meanings)return value
     const index=inspections.push({title,reference})-1
     return `\\htmlData{expression-inspect=${index}}{${value}}`
   }
@@ -36,12 +36,6 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
     macros[macro]={def:`\\htmlData{expression-reference-index=${index}}{\\class{expression-math-reference${node.id === 'params' ? ' is-parameter' : ''}}{${label(display)}}}`,expand:false,captureSelection:true}
   }
   macros.JLotherwise={def:`\\class{expression-math-default}{${label(t('otherwise'))}}`,expand:false,captureSelection:true}
-  for(const [macro,key] of Object.entries({JLmissing:'missing',JLpresent:'present',JLemptyValue:'emptyValue',JLemptyResult:'noValue',JLtrue:'yes',JLfalse:'no'})) {
-    const kind=macro === 'JLtrue' || macro === 'JLfalse' ? 'constant is-boolean' : macro === 'JLmissing' || macro === 'JLpresent' ? 'predicate' : 'constant is-empty'
-    const content=`\\class{expression-math-${kind}}{${label(t(key))}}`
-    const hint=macro === 'JLemptyResult' ? 'noValueHint' : macro === 'JLemptyValue' ? 'emptyValueHint' : kind.includes('boolean') ? 'booleanValue' : undefined
-    macros[macro]={def:hint ? `\\texttip{${content}}{${escape(t(hint))}}` : content,expand:false,captureSelection:true}
-  }
   for(const [macro,key] of Object.entries({JLand:'and',JLor:'or',JLnot:'not'}))macros[macro]={def:`\\mathbin{\\class{expression-math-logic}{${label(t(key))}}}`,expand:false,captureSelection:true}
   context.resultLabels?.forEach((item,index)=>{macros[`JLmeaning${mathReferenceMacro(index).slice(2)}`]={def:`\\class{expression-math-meaning}{\\scriptsize ${label(item.label)}}`,expand:false,captureSelection:true}})
   const functions=new Map(Array.from(document.functions,([alias,id])=>[id,alias]))
@@ -71,7 +65,7 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
         value=`\\${references.get(referenceKey(node))}`
         const reference=context.references.find(item=>referenceKey(item) === referenceKey(node))
         if(fact?.state === 'available' && fact.text)value=`\\class{expression-math-reference is-recorded${node.id === 'params' ? ' is-parameter' : ''}}{${label(fact.text)}}`
-        value=inspect(value,[reference?.label || node.id,fact?.state === 'skipped' ? t('notUsed') : fact?.state === 'available' ? fact.text : t('valueNotRecorded')].filter(Boolean).join('\n'),referenceKey(node))
+        value=inspect(value,[reference?.label || node.id,reference?.description,reference?.unit,facts.size ? fact?.state === 'skipped' ? t('notUsed') : fact?.state === 'available' ? fact.text : t('valueNotRecorded') : undefined].filter(Boolean).join('\n'),referenceKey(node))
         break
       }
       case 'unary': value=`${{positive:'+',negate:'-',not:'\\JLnot '}[node.operator]}\\left(${child(node.operand,'operand')}\\right)`;break
@@ -86,7 +80,7 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
         if(!alias)throw new Error('unknownFunction')
         value=node.function === 'math.sqrt' && node.arguments.length === 1 ? `\\sqrt{${render(node.arguments[0],[...path,'arguments',0])}}` : `\\operatorname{${alias}}\\left(${node.arguments.map((item,index)=>render(item,[...path,'arguments',index])).join(',')}\\right)`
         // 中间结果仅放在悬浮说明，完整算式始终保留；不在浏览器执行函数。
-        value=inspect(value,[context.functions.find(item=>item.id === node.function)?.name || alias,fact?.state === 'skipped' ? t('notUsed') : fact?.state === 'available' && fact.resultText ? `${t('result')}: ${fact.resultText}` : t('valueNotRecorded')].join('\n'))
+        value=inspect(value,[context.functions.find(item=>item.id === node.function)?.name || alias,context.functions.find(item=>item.id === node.function)?.description,facts.size ? fact?.state === 'skipped' ? t('notUsed') : fact?.state === 'available' && fact.resultText ? `${t('result')}: ${fact.resultText}` : t('valueNotRecorded') : undefined].filter(Boolean).join('\n'))
         break
       }
       case 'conditional': {
@@ -123,6 +117,13 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
     return priority(node) < required ? `\\left(${value}\\right)` : value
   }
   const latex=render(root,[],0,true),result=facts.get('[]')
+  // 先登记实际公式的说明，常量宏不能抢占引用或函数的悬浮标记。
+  for(const [macro,key] of Object.entries({JLmissing:'missing',JLpresent:'present',JLemptyValue:'emptyValue',JLemptyResult:'noValue',JLtrue:'yes',JLfalse:'no'})) {
+    const kind=macro === 'JLtrue' || macro === 'JLfalse' ? 'constant is-boolean' : macro === 'JLmissing' || macro === 'JLpresent' ? 'predicate' : 'constant is-empty'
+    const content=`\\class{expression-math-${kind}}{${label(t(key))}}`
+    const hint=macro === 'JLemptyResult' ? 'noValueHint' : macro === 'JLemptyValue' ? 'emptyValueHint' : kind.includes('boolean') ? 'booleanValue' : undefined
+    macros[macro]={def:hint ? inspect(content,t(hint)) : content,expand:false,captureSelection:true}
+  }
   return {latex,macros,document,inspections,skipped,result:result?.state === 'available' ? result.resultText : undefined}
 }
 
@@ -163,9 +164,17 @@ export function createMathParser(root:ExpressionNode,context:ExpressionEditorCon
     if(depth)throw new Error('incomplete')
     return content
   }
-  function read(end?:string):string {
+  /** TeX 参数可以是花括号组或单个 token；MathLive 会将单个数字序列化为 \sqrt9、\frac12。 */
+  function argument():string {
+    skip()
+    if(latex[at] === '{') {at++;return read('}')}
+    const value=read(undefined,true)
+    if(!value)throw new Error('incomplete')
+    return value
+  }
+  function read(end?:string,single=false):string {
     let output=''
-    while(at<latex.length) {
+    while(at<latex.length && (!single || !output)) {
       skip()
       if(at>=latex.length)break
       if(end && latex.startsWith(end,at)) {at+=end.length;return output}
@@ -177,6 +186,7 @@ export function createMathParser(root:ExpressionNode,context:ExpressionEditorCon
       if(!command)throw new Error('unsupportedExpression')
       at+=command[0].length
       const name=command[0],reference=references.get(name)
+      if(name === 'placeholder')throw new Error('incomplete')
       if(reference) {output+=`[${JSON.stringify(reference)}]`;continue}
       const enumeration=enumValues.get(name)
       if(enumeration){output+=enumeration.valueType === 'string' ? JSON.stringify(enumeration.value) : String(enumeration.value);continue}
@@ -185,6 +195,11 @@ export function createMathParser(root:ExpressionNode,context:ExpressionEditorCon
       if(name === 'JLtrue' || name === 'JLfalse') {output+=name === 'JLtrue' ? 'true' : 'false';continue}
       if(name === 'JLand' || name === 'JLor' || name === 'JLnot') {output+={JLand:'&&',JLor:'||',JLnot:'!'}[name];continue}
       if(name === 'JLmissing' || name === 'JLpresent') {output+=name === 'JLmissing' ? '==null' : '!=null';continue}
+      // 只忽略自身生成的说明编号；内容仍经过受控解析，任意 HTML 属性不放行。
+      if(name === 'htmlData') {
+        if(!/^expression-inspect=\d+$/.test(group()))throw new Error('unsupportedExpression')
+        skip();if(latex[at++] !== '{')throw new Error('incomplete');output+=read('}');continue
+      }
       if(name === 'class') {
         if(group() !== 'expression-math-constant is-text')throw new Error('unsupportedExpression')
         skip();if(latex[at++] !== '{')throw new Error('incomplete');output+=read('}');continue
@@ -194,15 +209,14 @@ export function createMathParser(root:ExpressionNode,context:ExpressionEditorCon
       const signs:Record<string,string>={times:'*',cdot:'*',div:'/',bmod:'%',land:'&&',wedge:'&&',lor:'||',vee:'||',lnot:'!',neg:'!',ne:'!=',neq:'!=',le:'<=',leq:'<=',ge:'>=',geq:'>=',lt:'<',gt:'>'}
       if(signs[name]) {output+=signs[name];continue}
       if(['frac','dfrac','tfrac'].includes(name)) {
-        skip();if(latex[at++] !== '{')throw new Error('incomplete');const numerator=read('}')
-        skip();if(latex[at++] !== '{')throw new Error('incomplete');const denominator=read('}')
+        const numerator=argument(),denominator=argument()
         output+=`((${numerator})/(${denominator}))`;continue
       }
       if(name === 'mathord') {skip();if(latex[at++] !== '{')throw new Error('incomplete');output+=`(${read('}')})`;continue}
       if(name === 'sqrt') {
         const alias=Array.from(document.functions).find(([,id])=>id === 'math.sqrt')?.[0]
         if(!alias)throw new Error('unknownFunction')
-        skip();if(latex[at++] !== '{')throw new Error('incomplete');output+=`${alias}(${read('}')})`;continue
+        output+=`${alias}(${argument()})`;continue
       }
       if(name === 'operatorname' || name === 'mathrm') {
         const content=group().replace(/^\\mathrm\{(.+)\}$/,'$1')
@@ -240,7 +254,7 @@ export function createMathParser(root:ExpressionNode,context:ExpressionEditorCon
   // 数学等号和逻辑符号只在这里正规化；字符串与引用名称不参与字符替换。
   const normalized=source.replace(/"(?:\\.|[^"\\])*"|\["(?:\\.|[^"\\])*"\]|(?<![=!<>])=(?!=)/g,token=>token === '=' ? '==' : token)
   const parsed=parseExpressionDocument(normalized,{...document,spans:[],tokens:[]},context,root,t)
-  if(!parsed.node)throw new Error(parsed.error?.key || 'incomplete')
+  if(!parsed.node)throw Object.assign(new Error(parsed.error?.key || 'incomplete'),parsed.error)
   return parsed.node
   }
 }

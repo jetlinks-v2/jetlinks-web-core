@@ -3,11 +3,18 @@ import test from 'node:test'
 import { createMetricLoader } from './helpers/metricRuntime.mjs'
 
 const load=createMetricLoader()
-const {useMathInsertion}=load('components/Metric/template/formula/useMathInsertion.ts')
+const {useMathInsertion}=load('components/Expression/useMathInsertion.ts')
+const {unsupportedMathKey}=load('components/Expression/mathInput.ts')
+test('可视输入限制未声明运算，保留比较、快捷键字符与文本常量',()=>{
+  for(const key of ['》','《','≫','^','_','\\'])assert.equal(unsupportedMathKey(key,''),true,key)
+  assert.equal(unsupportedMathKey('>','>'),true)
+  for(const key of ['>','<','=','!','+','-','*','/','a','1'])assert.equal(unsupportedMathKey(key,''),false,key)
+  assert.equal(unsupportedMathKey('》','',true),false)
+})
 const {parseMathExpression,createMathParser}=load('components/Expression/math.ts')
 const literal=value=>({type:'literal',valueType:'int',value:String(value)})
 const reading={type:'reference',id:'reading',path:[]}
-const context={references:[{...reading,label:'测量值',schema:{type:'double'}},{id:'dynamic',path:[],label:'动态值'},{id:'object',path:[],label:'统计对象',schema:{type:'object'}}],functions:[{id:'math.max',name:'最大值',returnType:'number',parameters:[{id:'value',valueType:'number'}],minimumArguments:1,maximumArguments:16}]}
+const context={references:[{...reading,label:'测量值',schema:{type:'double'}},{id:'dynamic',path:[],label:'动态值'},{id:'object',path:[],label:'统计对象',schema:{type:'object'}}],functions:[{id:'math.max',name:'最大值',returnType:'number',parameters:[{id:'value',valueType:'number'}],minimumArguments:2,maximumArguments:16}]}
 const value=(latex,valueType)=>({kind:'value',latex,valueType})
 const plus={kind:'arithmetic',latex:'+'},and={kind:'logical',latex:'\\JLand '}
 /** 替身只实现公开原子偏移与原生insert契约；嵌套排版和撤销在真实MathLive浏览器走查。 */
@@ -111,6 +118,57 @@ test('数字加法一次插入带右侧占位，不连续追加运算符',()=>{
   assert.equal(state.insertion.insert(plus),false)
   assert.equal(state.field.inserts.length,1)
 })
+test('中间插入运算符复用右侧内容，仅在缺少左值时补空位；显式选择仍包裹选区',()=>{
+  const state=setup(new Field(['\\JLa','3','2']))
+  state.field.selection={ranges:[[1,1]]}
+  assert.equal(state.insertion.insert({kind:'comparison',latex:'>'}),true)
+  assert.equal(state.field.getValue(),'\\JLa>32')
+  assert.deepEqual(state.field.inserts[0],{latex:'>',options:{selectionMode:'after',silenceNotifications:true},range:[1,1]})
+  const number=setup(new Field(['3','2']),literal(32))
+  number.field.selection={ranges:[[1,1]]};number.insertion.insert(plus)
+  assert.equal(number.field.getValue(),'3+2')
+  const divide=setup(new Field(['\\JLa','3','2']))
+  divide.field.selection={ranges:[[1,1]]};divide.insertion.insert({kind:'arithmetic',latex:'\\dfrac{#@}{#?}'})
+  assert.equal(divide.field.getValue(),'\\JLa\\div 32')
+  assert.equal(parseMathExpression(divide.field.getValue(),reading,context,key=>key).operator,'divide')
+  const start=setup(new Field(['3','2']),literal(32))
+  start.field.selection={ranges:[[0,0]]};start.insertion.insert(plus)
+  assert.equal(start.field.getValue(),'\\placeholder{}+32')
+  const selected=setup(new Field(['3','2']),literal(32))
+  selected.field.selection={ranges:[[0,2]]};selected.insertion.insert(plus)
+  assert.equal(selected.field.getValue(),'32+\\placeholder{}')
+})
+test('原有运算符就地切换，不叠加空位或影响相邻内容',()=>{
+  const root={type:'binary',operator:'add',left:reading,right:literal(32)}
+  for(const cursor of [1,2]) {
+    const state=setup(new Field(['\\JLa','+','3','2']),root)
+    state.field.selection={ranges:[[cursor,cursor]]};state.insertion.insert({kind:'arithmetic',latex:'\\times '})
+    assert.equal(state.field.getValue(),'\\JLa\\times 32')
+  }
+  const blank=setup(new Field(['\\JLa','\\placeholder{}']))
+  blank.field.selection={ranges:[[1,1]]};blank.insertion.insert(plus)
+  assert.equal(blank.field.getValue(),'\\JLa+\\placeholder{}')
+})
+test('中间比较符同类切换保留已有两侧，候选遵守整式及参数结果类型',()=>{
+  const numericContext={...context,resultTypes:['number','null']}
+  const state=setup(new Field(['2']),literal(2),numericContext)
+  assert.equal(state.insertion.applicable(value('\\JLtrue','boolean')),false)
+  assert.equal(state.insertion.applicable({kind:'comparison',latex:'>'}),false)
+  assert.equal(state.insertion.applicable(value('3','number')),true)
+  assert.equal(state.insertion.applicable(value('\\JLemptyResult','null')),true)
+  const condition={type:'binary',operator:'gt',left:reading,right:literal(20)}
+  const root={type:'conditional',condition,whenTrue:literal(1),whenFalse:literal(0)}
+  for(const cursor of [1,2]) {
+    const field=new Field(['\\JLa','>','2','0']),editor=setup(field,root,numericContext)
+    field.selection={ranges:[[cursor,cursor]]};editor.insertion.refresh()
+    assert.equal(editor.insertion.applicable({kind:'comparison',latex:'\\ge'}),true)
+    assert.equal(editor.insertion.applicable(plus),false,'比较位置不能改成四则运算破坏条件')
+    assert.equal(editor.insertion.insert({kind:'comparison',latex:'\\ge'}),true)
+    assert.equal(field.getValue(),'\\JLa\\ge20')
+    assert.deepEqual(field.inserts[0].range,[1,2])
+    assert.equal(field.inserts[0].latex.includes('#?'),false)
+  }
+})
 test('逻辑连接覆盖完整比较式；数值参数不能改成布尔值或比较式',()=>{
   const condition={type:'binary',operator:'gt',left:reading,right:literal(20)}
   const state=setup(new Field(['\\JLa','>','2','0']),condition)
@@ -143,7 +201,9 @@ test('新函数的后续占位参数仍读取函数目录类型；新分段的�
   assert.equal(fn.insertion.applicable(value('\\JLtrue','boolean')),false)
   const cases=new Field(['','\\placeholder{}','','\\placeholder{}','','\\placeholder{}','','\\JLotherwise','\\begin{cases}\\placeholder{}&\\placeholder{}\\\\\\placeholder{}&\\JLotherwise\\end{cases}'],[0,1,1,1,1,1,1,1,1,0])
   cases.selection={ranges:[[3,4]]};const branch=setup(cases)
-  assert.equal(branch.insertion.applicable(value('2','number')),false)
+  assert.equal(branch.insertion.applicable(value('2','number')),true,'空条件可从数值操作数开始，再补充比较')
+  assert.equal(branch.insertion.applicable(value('\\JLa','double')),true,'数值变量可用来构造条件')
+  assert.equal(branch.insertion.applicable(value('\\JLc','object')),false)
   assert.equal(branch.insertion.applicable(value('\\JLtrue','boolean')),true)
   cases.selection={ranges:[[1,2]]};branch.insertion.refresh()
   assert.equal(branch.insertion.applicable(value('2','number')),true)
@@ -166,6 +226,13 @@ test('空条件允许插入比较式骨架；比较两侧的候选恢复为操�
   operands.field.selection={ranges:[[0,1]]};operands.insertion.refresh()
   assert.equal(operands.insertion.applicable(value('2','number')),true)
   assert.equal(operands.insertion.applicable(value('\\JLtrue','boolean')),false)
+})
+test('新条件中的变量即使也用于结果运算，仍按原生条件槽允许比较与替换',()=>{
+  const field=new Field(['','1','','\\JLa','','0','','\\JLotherwise','\\begin{cases}1&\\JLa\\\\0&\\JLotherwise\\end{cases}'],[0,1,1,1,1,1,1,1,1,0])
+  field.selection={ranges:[[3,4]]}
+  const state=setup(field,{type:'binary',operator:'add',left:reading,right:literal(1)})
+  assert.equal(state.insertion.applicable({kind:'comparison',latex:'>'}),true)
+  assert.equal(state.insertion.applicable(value('\\JLa','double')),true)
 })
 test('跨分支选区即使能被序列化成数字也拒绝；完整子表达式保留替换',()=>{
   const field=new Field(['','2','','3'],[0,1,1,1,1]),state=setup(field,literal(23))
@@ -222,6 +289,9 @@ test('单行回车保留整条算式为首个结果并创建条件草稿；非�
 test('回车续写分支，默认行前插入；组合键和输入法不被拦截',()=>{
   const field=branchField(),commands=[],state=setup(field)
   field.executeCommand=name=>{commands.push({name,position:field.position});return true}
+  const original=structuredClone(field.selection)
+  assert.deepEqual(state.insertion.branchRange(false,{ranges:[[1,2]]}),[5,5],'续写分支预览为默认结果前的插入光标')
+  assert.deepEqual(field.selection,original,'解析预览范围不改变原生选区或历史')
   field.selection={ranges:[[1,2]]};state.insertion.onKeydown(key('Enter'))
   assert.equal(commands[0].name,'moveToGroupStart')
   assert.equal(field.inserts[0].latex,'\\begin{cases}\\placeholder{}&\\placeholder{}\\\\\\placeholder{}&\\placeholder{}\\\\0&\\JLotherwise\\end{cases}')
@@ -232,6 +302,51 @@ test('回车续写分支，默认行前插入；组合键和输入法不被拦�
     const event={...key('Enter'),[option]:true};state.insertion.onKeydown(event);assert.equal(event.prevented,false)
   }
   state.disable();state.insertion.onKeydown(key('Enter'));assert.equal(commands.length,1)
+})
+test('参数内回车只包装当前完整参数，分子、分母和根式由原生组隔开',()=>{
+  for(const [tokens,depths,range,expected] of [
+    [['','8','','\\placeholder{}','\\frac8{\\placeholder{}}'],[0,1,1,1,1,0],[3,4],'\\placeholder{}'],
+    [['','8','','2','\\frac82'],[0,1,1,1,1,0],[1,2],'8'],
+    [['','9','\\sqrt9'],[0,1,1,0],[1,2],'9'],
+    [['\\operatorname{最大值}','','2','+','3',',','9','\\left(2+3,9\\right)'],[0,0,1,1,1,1,1,1,0],[3,3],'2+3'],
+    [['\\operatorname{最大值}','','2',',','9','\\left(2,9\\right)'],[0,0,1,1,1,1,0],[4,5],'9'],
+  ]) {
+    const field=new Field(tokens,depths),state=setup(field)
+    field.selection={ranges:[range]};const event=key('Enter');state.insertion.onKeydown(event)
+    assert.equal(event.prevented,true)
+    assert.equal(field.inserts.length,1)
+    assert.equal(field.inserts[0].latex,`\\begin{cases}${expected}&\\placeholder{}\\\\\\placeholder{}&\\JLotherwise\\end{cases}`)
+    assert.ok(field.inserts[0].range[0]>0,'外围算式或函数保留')
+  }
+})
+test('已有分支结果中的嵌套函数参数回车不续写外层分支',()=>{
+  const field=new Field(['','\\operatorname{最大值}','','2',',','9','\\left(2,9\\right)','','\\JLtrue','','0','','\\JLotherwise','\\begin{cases}\\operatorname{最大值}\\left(2,9\\right)&\\JLtrue\\\\0&\\JLotherwise\\end{cases}'],[0,1,1,2,2,2,2,1,1,1,1,1,1,1,0])
+  const state=setup(field)
+  field.selection={ranges:[[3,4]]};state.insertion.onKeydown(key('Enter'))
+  assert.equal(field.inserts.length,1)
+  assert.deepEqual(field.inserts[0].range,[3,4])
+  assert.equal(field.inserts[0].latex,'\\begin{cases}2&\\placeholder{}\\\\\\placeholder{}&\\JLotherwise\\end{cases}')
+})
+test('显式嵌套分支只包裹选中内容或当前值，保留外层分支和其余算式',()=>{
+  const field=new Field(['','1','+','2','','\\JLtrue','','0','','\\JLotherwise','\\begin{cases}1+2&\\JLtrue\\\\0&\\JLotherwise\\end{cases}'],[0,1,1,1,1,1,1,1,1,1,1,0])
+  const state=setup(field)
+  field.selection={ranges:[[4,4]]}
+  assert.equal(state.insertion.startBranch(true),true)
+  assert.deepEqual(field.inserts[0].range,[3,4])
+  assert.equal(field.inserts[0].latex,'\\begin{cases}2&\\placeholder{}\\\\\\placeholder{}&\\JLotherwise\\end{cases}')
+  const selected=setup(new Field(['','1','+','2','','\\JLtrue','','0','','\\JLotherwise','\\begin{cases}1+2&\\JLtrue\\\\0&\\JLotherwise\\end{cases}'],[0,1,1,1,1,1,1,1,1,1,1,0]))
+  selected.field.selection={ranges:[[1,4]]}
+  assert.equal(selected.insertion.startBranch(true),true)
+  assert.deepEqual(selected.field.inserts[0].range,[1,4])
+  assert.equal(selected.field.inserts[0].latex,'\\begin{cases}1+2&\\placeholder{}\\\\\\placeholder{}&\\JLotherwise\\end{cases}')
+})
+test('内层分支回车只续写内层，不扩展外层条件',()=>{
+  const inner='\\begin{cases}2&\\JLtrue\\\\5&\\JLotherwise\\end{cases}'
+  const field=new Field(['','','2','','\\JLtrue','','5','','\\JLotherwise',inner,'','\\JLtrue','','4','','\\JLotherwise',`\\begin{cases}${inner}&\\JLtrue\\\\4&\\JLotherwise\\end{cases}`],[0,1,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,0])
+  const state=setup(field)
+  field.selection={ranges:[[6,7]]};state.insertion.onKeydown(key('Enter'))
+  assert.deepEqual(field.inserts[0].range,[1,10])
+  assert.equal(field.inserts[0].latex,'\\begin{cases}2&\\JLtrue\\\\\\placeholder{}&\\placeholder{}\\\\5&\\JLotherwise\\end{cases}')
 })
 test('空分支退格收敛为默认结果；有内容或默认行不能被整行删除',()=>{
   const field=branchField(),state=setup(field)

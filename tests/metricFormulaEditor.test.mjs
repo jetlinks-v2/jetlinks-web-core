@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { defineComponent, h, reactive } from 'vue'
+import { defineComponent, h, reactive, ref } from 'vue'
 import { createMetricLoader, createMetricRenderer, flush, walk, textContent } from './helpers/metricRuntime.mjs'
 
-const FormulaEditor = createMetricLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key }) } })('components/Metric/template/TemplateMathEditor.vue').default
+const FormulaEditor = createMetricLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key,locale:ref('zh') }) } })('components/Metric/template/TemplateMathEditor.vue').default
 test('公式图标和放大入口收进输入框；放大及关闭保留同一编辑实例',async()=>{
-  const Workspace=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key})}})('components/Expression/ExpressionWorkspace.vue').default
+  const Workspace=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key,locale:ref('zh')})}})('components/Expression/ExpressionWorkspace.vue').default
   const {renderer,root}=createMetricRenderer()
   const app=renderer.createApp({setup:()=>()=>h(Workspace,{node:{type:'literal',valueType:'int',value:1},context:{references:[],functions:[]},stationary:true,hideHeading:true,editable:true},{default:({expand})=>[h('a-button',{'aria-label':'expandEdit',onClick:expand}),h('math-field')]})})
   app.component('a-button',defineComponent({inheritAttrs:false,setup:(_,{attrs,slots})=>()=>h('a-button',attrs,slots.default?.())}))
@@ -25,25 +25,33 @@ test('公式图标和放大入口收进输入框；放大及关闭保留同一�
     assert.ok(find(node=>node.props['aria-label']==='expandEdit'))
   } finally {app.unmount()}
 })
-test('模板接线默认以同一数学编辑器反显算术和分支，查看不写回，编辑保存树及依赖',async()=>{
+test('指标适配公共编辑器：查看不写回，编辑保存结构树、字段路径及依赖',async()=>{
   const {resolve}=await import('node:path')
   const {sourceRoot}=await import('./helpers/metricRuntime.mjs')
-  const boundary=defineComponent({props:['tree','empty','disabled'],emits:['change','invalid'],setup:(props,{emit})=>()=>h('math-editor',{node:props.tree.root,disabled:props.disabled,empty:props.empty,commit:value=>emit('change',{expression:'',expressionTree:{version:1,root:value}}),invalid:value=>emit('invalid',value)})})
-  const loader=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key})},[resolve(sourceRoot,'components/Metric/template/TemplateMathEditor.vue')]:{default:boundary,__esModule:true}})
+  const boundary=defineComponent({props:['modelValue','context','source','empty','disabled','hideMode'],emits:['change','invalid','reference-hover'],setup:(props,{emit})=>()=>h('math-editor',{
+    hideMode:props.hideMode,node:props.modelValue?.root,context:props.context,disabled:props.disabled,empty:props.empty,
+    commit:root=>emit('change',{expression:props.source.format({version:1,root}),expressionTree:{version:1,root}}),
+    invalid:value=>emit('invalid',value)})})
+  const loader=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key,locale:ref('zh')})},
+    [resolve(sourceRoot,'components/Expression/MathExpressionEditor.vue')]:{default:boundary,__esModule:true}})
   const Editor=loader('components/Metric/template/TemplateFormulaEditor.vue').default
-  const changes=[],props=reactive({modelValue:'input1 / 2',references:[{key:'input1',label:'测量值',expression:'input1',metricId:'input1'}],
-    onChange(value){changes.push(value);props.tree=value.expressionTree;props.modelValue=value.expression}})
+  const changes=[],invalid=[],props=reactive({modelValue:'input1 / 2',references:[{key:'input1',label:'测量值',expression:'input1',metricId:'input1',group:'data'},
+    {key:'limit',label:'阈值',expression:'limit',group:'parameter'}],
+    onInvalid:value=>invalid.push(value),onChange(value){changes.push(value);props.tree=value.expressionTree;props.modelValue=value.expression}})
   const {renderer,root}=createMetricRenderer(),app=renderer.createApp({setup:()=>()=>h(Editor,props)})
   app.config.warnHandler=()=>{};app.mount(root)
   const editor=()=>walk(root,n=>n.type==='math-editor')[0]
   try {
     await flush();assert.equal(changes.length,0)
-    assert.equal(editor().props.node.operator,'divide')
+    assert.equal(editor().props.node.operator,'divide');assert.equal(editor().props.hideMode,true)
+    assert.equal(editor().props.context.references[0].label,'测量值')
+    assert.notEqual(editor().props.context.references[0].group,editor().props.context.references[1].group)
     const current=editor().props.node
     const branch={type:'conditional',condition:{type:'literal',valueType:'boolean',value:true},whenTrue:current,whenFalse:{type:'literal',valueType:'null',value:null}}
     editor().props.commit(branch);await flush()
     assert.deepEqual(props.tree.root,branch);assert.deepEqual(changes[0].metricIds,['input1'])
     assert.deepEqual(editor().props.node.whenTrue,current)
+    editor().props.invalid(true);assert.equal(invalid.at(-1),true)
     props.tree=undefined;props.modelValue='';await flush()
     assert.equal(editor().props.empty,true);assert.equal(changes.length,1)
     editor().props.commit(current);await flush()
@@ -52,31 +60,18 @@ test('模板接线默认以同一数学编辑器反显算术和分支，查看�
     assert.equal(editor().props.disabled,true)
   } finally {app.unmount()}
 })
-test('表达式模式复用变量浮窗，在原选区替换并恢复光标；取消与只读不改表达式', async () => {
-  const { renderer, root } = createMetricRenderer(); const changes = []
-  const props = reactive({ modelValue: '#a > 10 ? 1 : 0', forceSource:true, references: [{ key:'a', label:'温度', expression:'#a' }, { key:'b', label:'湿度', expression:'#b' }], disabled:false,
-    onChange: value => { changes.push(value); props.modelValue = value.expression } })
-  const app = renderer.createApp({ setup: () => () => h(FormulaEditor, props) })
-  for (const type of ['a-button', 'a-select', 'a-textarea']) app.component(type, defineComponent({ inheritAttrs:false, setup: (_props, { attrs, slots, expose }) => {
-    expose({ focus() {} }); return () => h(type, attrs, Object.entries(slots).flatMap(([name,slot]) => name === 'option' ? [] : slot?.()))
-  } }))
-  app.config.warnHandler = () => {}; app.mount(root)
-  const find = predicate => walk(root, predicate)[0]
-  find(node => node.props.class === 'formula-editor__canvas').getBoundingClientRect = () => ({ left:0, top:0, bottom:112 })
-  const source = () => find(node => node.type === 'a-textarea')
-  const picker = () => find(node => node.props.class === 'formula-editor__picker')
-  const open = async () => { find(node => node.props['aria-label'] === 'insertVariable').props.onClick(); await flush() }
-  const textarea = { selectionStart:0, selectionEnd:2, focus() { this.focused = true }, setSelectionRange(start,end) { this.range = [start,end] } }
-  try {
-    source().props.onSelect({ target:textarea }); await open()
-    picker().props.onSelect(1); await flush()
-    assert.equal(props.modelValue, '#b > 10 ? 1 : 0'); assert.deepEqual(textarea.range, [2,2]); assert.equal(textarea.focused, true)
-    await open(); picker().props.onKeydown({ key:'Escape', stopPropagation() {}, preventDefault() {} }); await flush()
-    assert.equal(picker(), undefined); assert.equal(changes.length, 1)
-    await open(); const pendingSelect = picker().props.onSelect; props.disabled = true; await flush(); pendingSelect(0); await flush()
-    assert.equal(props.modelValue, '#b > 10 ? 1 : 0'); assert.equal(changes.length, 1)
-  } finally { app.unmount() }
+
+test('指标引用保留字段路径、数据类型、单位和参数分组，显示不改变身份',()=>{
+  const {templateExpressionReferences}=createMetricLoader()('components/Metric/template/useTemplateMathEditor.ts')
+  const references=[{key:'temperature',label:'温度',expression:'temperature',metricId:'temperature',group:'data',schema:{type:'double'},unit:'℃'},
+    {key:'limit',label:'上界',expression:'limit',group:'parameter',schema:{type:'int'}}]
+  const zh=templateExpressionReferences(references,'zh'),en=templateExpressionReferences(references,'en')
+  assert.equal(zh[0].schema.type,'double');assert.equal(zh[0].unit,'℃')
+  assert.equal(zh[0].metricId,en[0].metricId);assert.deepEqual(zh[0].path,en[0].path)
+  assert.notEqual(zh[0].group,en[0].group);assert.notEqual(zh[0].group,zh[1].group)
+  assert.notEqual(zh[0].icon,zh[1].icon)
 })
+
 test('真实公式组件保留高级原文；只切换模式不改源码；禁用期间不接受编辑', async () => {
   const changes = []; const invalid = []
   const props = reactive({ modelValue: '  #t.toString()  ', references: [{ key: 'temperature', label: '温度', expression: '#t' }], disabled: false,
@@ -108,149 +103,10 @@ test('真实公式组件保留高级原文；只切换模式不改源码；禁�
   } finally { app.unmount() }
 })
 
-test('变量浮窗恢复原生选区替换；取消、外部更新、引用变化和只读清除待选内容', async () => {
-  const previousDocument = globalThis.document
-  globalThis.document = {}
-  let field
-  const changes = []
-  class Mathfield {
-    constructor() { field = this; this.selection = { ranges: [[3, 3]] }; this.position = 3; this.inserts = [] }
-    setAttribute() {} addEventListener() {} removeEventListener() {} remove() {}
-    focus() { this.focused = true } blur() { this.focused = false }
-    getValue() { return this.value }
-    getOffsetFromPoint(_x, _y, { bias }) { return bias === -1 ? 1 : 7 }
-    getElementInfo() { return { latex: this.elementLatex || '\\JLa', bounds: { left: 20, right: 80, top: 10, bottom: 30 } } }
-    insert(latex, options) { this.inserts.push({ latex, options, selection: this.selection }); this.value = '\\mathord{\\JLb}' }
-  }
-  const formulaLoader = createMetricLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key }) },
-    mathlive: { MathfieldElement: Mathfield }, 'mathlive/fonts.css': {} })
-  const Editor = formulaLoader('components/Metric/template/TemplateMathEditor.vue').default
-  const props = reactive({ modelValue: '#a', references: [{ key: 'a', label: '温度', expression: '#a', metricId:'temperature' }, { key: 'b', label: '湿度', expression: '#b' }], disabled: false,
-    onChange(value) { changes.push(value); props.modelValue = value.expression } })
-  const { renderer, root } = createMetricRenderer()
-  const app = renderer.createApp({ setup: () => () => h(Editor, props) })
-  const previews = []
-  const { templateReferenceKey } = formulaLoader('components/Metric/template/templateReference.ts')
-  app.provide(templateReferenceKey, { preview:id => previews.push(id), locate() {} })
-  for (const type of ['a-radio-group', 'a-radio-button', 'a-button', 'a-select', 'a-textarea', 'a-alert']) {
-    app.component(type, defineComponent({ inheritAttrs: false, setup: (_props, { attrs, slots, expose }) => {
-      expose({ focus() {} }); return () => h(type, attrs, Object.entries(slots).flatMap(([name,slot]) => name === 'option' ? [] : slot?.()))
-    } }))
-  }
-  app.config.warnHandler = () => {}; app.mount(root)
-  const findClass = name => walk(root, node => node.props.class === name)[0]
-  findClass('formula-editor__field').appendChild = () => {}
-  findClass('formula-editor__canvas').getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, bottom: 64 })
-  const picker = () => findClass('formula-editor__picker')
-  const clickVariable = () => findClass('formula-editor__canvas').props.onPointerdownCapture({ button: 0, clientX: 40, clientY: 20,
-    composedPath: () => [field], preventDefault() {}, stopPropagation() {} })
-  try {
-    await flush()
-    const canvas = findClass('formula-editor__canvas')
-    let liveBounds={left:20,right:80,top:10,bottom:30}
-    const target={dataset:{expressionReferenceIndex:'0'},getBoundingClientRect:()=>liveBounds}
-    const hover=(x=40,y=20)=>canvas.props.onPointermove({clientX:x,clientY:y,composedPath:()=>[target,field]})
-    hover()
-    assert.equal(previews.at(-1), 'temperature')
-    await flush();assert.ok(findClass('formula-editor__hover-reference'))
-    // MathLive still reports its old viewport bounds: use the live semantic target
-    // after scrolling/reflow, including repeated references with the same native offset.
-    liveBounds={left:30,right:110,top:35,bottom:55}
-    hover(50,45);await flush()
-    assert.deepEqual(findClass('formula-editor__hover-reference').props.style,{left:'29px',top:'35px',width:'82px',height:'20px'})
-    canvas.offsetWidth=200;canvas.offsetHeight=80
-    canvas.getBoundingClientRect=()=>({left:10,top:20,width:100,height:40})
-    liveBounds={left:30,right:70,top:35,bottom:45}
-    hover(50,40);await flush()
-    assert.deepEqual(findClass('formula-editor__hover-reference').props.style,{left:'39px',top:'30px',width:'82px',height:'20px'})
-    canvas.offsetWidth=undefined;canvas.offsetHeight=undefined
-    canvas.getBoundingClientRect=()=>({left:0,top:0,width:200,bottom:64})
-    canvas.props.onPointerleave();await flush();assert.equal(findClass('formula-editor__hover-reference'),undefined)
-    for(const latex of ['\\JLemptyResult','\\begin{cases}0&1\\\\1&2\\end{cases}','\\dfrac{1}{2}']) {
-      field.elementLatex=latex
-      canvas.props.onPointermove({clientX:40,clientY:20,composedPath:()=>[field]});await flush()
-      assert.equal(findClass('formula-editor__hover-reference'),undefined)
-    }
-    field.elementLatex=undefined
-    const number={textContent:'100.0',getBoundingClientRect:()=>({left:20,right:60,top:10,bottom:30})}
-    canvas.props.onPointermove({clientX:40,clientY:20,composedPath:()=>[number,field]});await flush()
-    assert.ok(findClass('formula-editor__hover-reference'));assert.equal(previews.at(-1),undefined)
-    canvas.props.onKeyup(); assert.equal(previews.at(-1), 'temperature')
-    canvas.props.onPointermove({ clientX:0, clientY:0, composedPath:() => [field] }); assert.equal(previews.at(-1), undefined)
-    canvas.props.onPointermove({ clientX:40, clientY:20, composedPath:() => [] }); assert.equal(previews.at(-1), undefined)
-    clickVariable(); await flush()
-    assert.ok(picker())
-    assert.deepEqual(findClass('formula-editor__active-reference').props.style,{left:'19px',top:'10px',width:'62px',height:'20px'})
-    assert.deepEqual(picker().props.options.map(item => item.label), ['formulaData'])
-    assert.deepEqual(picker().props.options.flatMap(item => item.options).map(item => item.label), ['温度', '湿度'])
-    props.references[1].group = 'parameter'; await flush()
-    clickVariable(); await flush()
-    assert.deepEqual(picker().props.options.map(item => item.label), ['formulaData', 'formulaParameters'])
-    assert.deepEqual(picker().props.options.flatMap(item => item.options).map(item => item.value), [0, 1])
-    globalThis.document.activeElement = field
-    picker().props.onDropdownVisibleChange(false); await flush(); assert.ok(picker())
-    globalThis.document.activeElement = undefined
-    field.selection = { ranges: [[99, 99]] }
-    picker().props.onSelect(1); await flush()
-    assert.deepEqual(field.inserts[0].selection, { ranges: [[1, 7]] })
-    assert.equal(field.inserts[0].latex, '\\JLb')
-    assert.equal(props.modelValue, '#b'); assert.equal(picker(), undefined)
-    assert.equal(findClass('formula-editor__active-reference'),undefined)
-    clickVariable(); await flush()
-    picker().props.onKeydown({ key: 'Escape', stopPropagation() {}, preventDefault() {} }); await flush()
-    assert.equal(picker(), undefined); assert.equal(changes.length, 1)
-    assert.equal(findClass('formula-editor__active-reference'),undefined)
-    clickVariable(); await flush(); props.modelValue = '#a + 2'; await flush()
-    assert.equal(picker(), undefined)
-    clickVariable(); await flush(); props.references[0].label = '进水温度'; await flush()
-    assert.equal(picker(), undefined)
-    clickVariable(); await flush(); const staleSelect = picker().props.onSelect
-    props.disabled = true; await flush(); staleSelect(0); clickVariable(); await flush()
-    assert.equal(picker(), undefined); assert.equal(field.readOnly, true); assert.equal(changes.length, 1)
-    canvas.props.onPointermove({clientX:40,clientY:20,composedPath:()=>[field]});await flush();assert.equal(findClass('formula-editor__hover-reference'),undefined)
-  } finally { app.unmount(); globalThis.document = previousDocument }
-})
 
-test('无变量时也能选择单个常量并由值菜单替换；Shift、只读与未完成输入保留边界',async()=>{
-  const previousDocument=globalThis.document;globalThis.document={}
-  let field,model,input
-  class Mathfield {
-    constructor(){field=this;this.selection={ranges:[[0,0]]};this.position=0;this.atom='\\JLemptyResult'}
-    setAttribute(){} removeEventListener(){} remove(){} focus(){} blur(){}
-    addEventListener(name,handler){if(name==='input')input=handler}
-    getValue(){return this.value}
-    getOffsetFromPoint(_x,_y,{bias}){return bias === -1 ? 1 : 2}
-    getElementInfo(){return {latex:this.atom,bounds:{left:10,right:90,top:10,bottom:30}}}
-    insert(latex){this.value=latex.replace('#?','\\placeholder{}')}
-  }
-  const local=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key})},mathlive:{MathfieldElement:Mathfield},'mathlive/fonts.css':{}})
-  const {useTemplateMathEditor}=local('components/Metric/template/useTemplateMathEditor.ts')
-  const changes=[],props=reactive({modelValue:'null',references:[],conditions:true,disabled:false})
-  const {renderer,root}=createMetricRenderer(),app=renderer.createApp(defineComponent({setup(){
-    model=useTemplateMathEditor(props,(event,value)=>{if(event==='change')changes.push(value)})
-    return()=>h('div',{ref:model.canvas})
-  }}))
+test('指标只提供公式编辑，无法投影的历史源码保留且不开放表达式输入',async()=>{
+  const Editor=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key,locale:ref('zh')})}})('components/Metric/template/TemplateFormulaEditor.vue').default
+  const changes=[],{renderer,root}=createMetricRenderer(),app=renderer.createApp(Editor,{modelValue:'#old.method()',references:[],onChange:value=>changes.push(value)})
   app.config.warnHandler=()=>{};app.mount(root)
-  const event=extra=>({button:0,clientX:20,clientY:20,composedPath:()=>[field],preventDefault(){this.prevented=true},stopPropagation(){},...extra})
-  try {
-    await flush()
-    assert.equal(field,undefined)
-    model.host.value={appendChild(){}}
-    await flush();assert.ok(field)
-    const click=event();model.chooseAtPoint(click)
-    assert.equal(click.prevented,true);assert.deepEqual(field.selection,{ranges:[[1,2]]})
-    assert.equal(model.referenceSelection.value,undefined)
-    field.selection={ranges:[[0,0]]};model.chooseAtPoint(event({shiftKey:true}));assert.deepEqual(field.selection,{ranges:[[0,0]]})
-    model.chooseLiteral({key:'true'});assert.equal(changes.at(-1).expressionTree.root.value,true)
-    model.chooseLiteral({key:'false'});assert.equal(changes.at(-1).expressionTree.root.value,false)
-    model.chooseLiteral({key:'null'});assert.equal(changes.at(-1).expressionTree.root.value,null)
-    const count=changes.length
-    model.chooseLiteral({key:'number'});assert.equal(model.invalid.value,true);assert.equal(changes.length,count)
-    field.value='23';input();assert.equal(model.invalid.value,false);assert.equal(changes.at(-1).expressionTree.root.value,'23')
-    model.chooseLiteral({key:'text'});assert.equal(model.invalid.value,true)
-    field.value="\\text{''hello''}";input();assert.equal(changes.at(-1).expressionTree.root.value,'hello')
-    assert.deepEqual(model.operators.value.slice(-3).map(item=>item.latex),['\\JLemptyValue','\\JLand ','\\JLor '])
-    props.disabled=true;await flush();const before=changes.length;model.chooseLiteral({key:'null'});model.chooseAtPoint(event())
-    assert.equal(changes.length,before);assert.equal(field.readOnly,true)
-  }finally{app.unmount();globalThis.document=previousDocument}
+  try{await flush();assert.equal(walk(root,node=>node.type==='a-textarea').length,0);assert.equal(walk(root,node=>node.type==='a-alert')[0].props.message,'formulaVisualUnavailable');assert.deepEqual(changes,[])}finally{app.unmount()}
 })

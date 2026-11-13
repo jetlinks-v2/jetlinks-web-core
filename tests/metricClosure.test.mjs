@@ -143,7 +143,7 @@ test('枚举选择保留混合编码的真实类型，已发布类型可见且�
   const Input=load('components/Metric/template/TemplateInputEditor.vue').default
   const second=createMetricRenderer(),locked=second.renderer.createApp({setup:()=>()=>h(Input,{input:{id:'state',valueType:{type:'enum',elements:[{value:0,text:'离线'}]}},published:true})})
   locked.config.warnHandler=()=>{};locked.mount(second.root)
-  try {assert.match(textContent(second.root),/inputDataType/);assert.match(textContent(second.root),/inputPublishedType/)} finally {locked.unmount()}
+  try {assert.match(textContent(second.root),/inputDataType/);assert.ok(walk(second.root,node=>node.props['aria-label']==='inputPublishedType').length)} finally {locked.unmount()}
 })
 
 test('没有计算时不创建无法被编译的输出',()=>{

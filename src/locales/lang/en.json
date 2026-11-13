@@ -1,4 +1,7 @@
 {
+  "components.ModelConfig.unsavedChangesTitle": "Unsaved changes",
+  "components.ModelConfig.unsavedChangesMessage": "Save your changes? Discarding restores the content from before editing.",
+  "components.ModelConfig.discard": "Discard",
   "runtimeDiagnostics.lessMetrics": "Show fewer metrics",
   "runtimeDiagnostics.moreMetrics": "Show more metrics",
   "runtimeDiagnostics.sampleCoverageSeconds": "Sample coverage: {seconds}s",
@@ -729,7 +732,6 @@
   "PersonalToken.TokenDialog.editTitle": "Edit Token",
   "PersonalToken.TokenDialog.viewTitle": "View Token",
   "I18n.configure": "Internationalization settings",
-  "Editable.edit": "Edit",
   "I18n.chinese": "Chinese",
   "I18n.english": "English",
   "I18n.placeholder": "Enter {language}",
@@ -2300,5 +2302,6 @@
   "PersonalToken.permissionMode.selectActions": "Select at least one permission action.",
   "PersonalToken.empty.title": "No personal tokens yet",
   "PersonalToken.empty.description": "Use a personal token instead of your account password when calling APIs. Its access is limited by your account permissions. The full token is shown only when created or refreshed.",
-  "PersonalToken.empty.create": "Create token"
+  "PersonalToken.empty.create": "Create token",
+  "Editable.edit": "Edit"
 }

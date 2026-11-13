@@ -91,7 +91,7 @@ export function expressionDocument(root:ExpressionNode,context:ExpressionEditorC
         // 简称仅改变显示；重名使用完整来源，复制与补全仍使用无歧义别名。
         const short=reference?.displayLabel
         const label=short && names.get(short)?.size === 1 ? short : alias
-        token(`[${JSON.stringify(alias)}]`,label,'reference',node,path,[reference?.label,reference?.unit].filter(Boolean).join(' · '));break
+        token(`[${JSON.stringify(alias)}]`,label,'reference',node,path,[reference?.label,reference?.unit,reference?.description].filter(Boolean).join(' · '));break
       }
       case 'unary': token({positive:'+',negate:'-',not:'!'}[node.operator],{positive:'+',negate:'-',not:'!'}[node.operator],'operator',node,path);append('(');child(node.operand,'operand');append(')');break
       case 'binary': child(node.left,'left',level);append(' ');token(sourceSigns[node.operator] || node.operator,sourceSigns[node.operator] || node.operator,'operator',node,path);append(' ');child(node.right,'right',level+1);break

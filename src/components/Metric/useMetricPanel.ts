@@ -1,7 +1,7 @@
 import { computed, onActivated, onDeactivated, onMounted, onScopeDispose, ref, watch, type Ref } from 'vue'
 import { metricApi } from './api'
 import { copy, errorText, outputId, metricDataTarget, metricValueMatches, newerMetricValue } from './service'
-import { loadMetricLatest } from './extensions/latestBatch'
+import { loadMetricLatest, metricLatestBatches } from './extensions/latestBatch'
 import { presentationSettings, primaryMetricOutput, summaryMetricOutputs } from './extensions/presentationSettings'
 import type { MetricApi, MetricConfig, MetricContext, MetricLatest, MetricReference, MetricRuntime, MetricTemplate, MetricValue } from './types'
 
@@ -147,11 +147,13 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
     error.value = ''
     try {
       const configs = await api.byOwner(owner.ownerType, owner.ownerId)
+      if (token !== generation) return
       const metadata: Record<string, MetricTemplate> = {}
       const errors: Record<string, string> = {}
       const cache = new Map(configurations.value.flatMap(config => config.id && templates.value[config.id]
         ? [[templateRevisionKey(config), templates.value[config.id]] as const] : []))
       for (const config of configs) {
+        if (token !== generation) return
         if (!config.id) continue
         const key = templateRevisionKey(config)
         try {
@@ -160,23 +162,12 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
           metadata[config.id] = template
         } catch (cause) { errors[config.id] = errorText(cause) }
       }
-      const ids = configs.flatMap(config => config.id ? [config.id] : [])
-      const targetApi: Pick<MetricApi, 'latest'> = { latest: async batchIds => {
-        const groups = new Map<string, { target: ReturnType<typeof metricDataTarget>; ids: string[] }>()
-        for (const id of batchIds) {
-          const config = configs.find(item => item.id === id)!
-          const target = metricDataTarget(config, owner), key = JSON.stringify(target)
-          const group = groups.get(key)
-          if (group) group.ids.push(id)
-          else groups.set(key, { target, ids: [id] })
-        }
-        const values: MetricLatest[] = []
-        for (const group of groups.values()) values.push(...await api.latest(group.ids, group.target))
-        return values
-      } }
+      if (token !== generation) return
+      const targets = new Map(configs.flatMap(config => config.id ? [[config.id, metricDataTarget(config, owner)] as const] : []))
+      const ids = [...targets.keys()]
       // 持续流更新当前值；低频同步只刷新配置，不重复读取最新值或重建有效订阅。
       const latest = readValues || !api.watchLatest || !subscriptions.size || Object.keys(latestErrors.value).length || inaccessibleIds.value.length
-        ? await loadMetricLatest(targetApi, ids, outputs.value, inaccessibleIds.value, () => token === generation, runtimes.value)
+        ? await loadMetricLatest(api, ids, outputs.value, inaccessibleIds.value, () => token === generation, runtimes.value, targets)
         : { outputs: Object.fromEntries(ids.map(id => [id, outputs.value[id] || {}])),
           runtimes: Object.fromEntries(ids.filter(id => runtimes.value[id]).map(id => [id, runtimes.value[id]])),
           inaccessibleIds: inaccessibleIds.value.filter(id => ids.includes(id)), errors: { ...latestErrors.value } }
@@ -236,22 +227,13 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
   function stopSubscriptions() { subscriptions.forEach(stop => stop()); subscriptions.clear() }
   function synchronizeSubscriptions() {
     if (!api.watchLatest || !active || document.hidden || error.value) { stopSubscriptions(); return }
-    const groups = new Map<string, { target: ReturnType<typeof metricDataTarget>; ids: string[] }>()
+    const byId = new Map<string, ReturnType<typeof metricDataTarget>>()
     for (const config of configurations.value) {
       if (!config.id || config.state !== 'enabled' || inaccessibleIds.value.includes(config.id) || latestErrors.value[config.id]) continue
-      const target = metricDataTarget(config, context.value), key = JSON.stringify(target) || ''
-      const group = groups.get(key)
-      if (group) group.ids.push(config.id)
-      else groups.set(key, { target, ids: [config.id] })
+      byId.set(config.id, metricDataTarget(config, context.value))
     }
-    const targets = new Map<string, { target: ReturnType<typeof metricDataTarget>; ids: string[] }>()
-    for (const group of groups.values()) {
-      group.ids.sort()
-      for (let start = 0; start < group.ids.length; start += 128) {
-        const ids = group.ids.slice(start, start + 128)
-        targets.set(JSON.stringify([group.target, ids]), { target: group.target, ids })
-      }
-    }
+    const targets = new Map(metricLatestBatches([...byId.keys()].sort(), byId)
+      .map(batch => [JSON.stringify([batch.target, batch.ids]), batch]))
     for (const [key, stop] of subscriptions) if (!targets.has(key)) { stop(); subscriptions.delete(key) }
     for (const [key, { target, ids }] of targets) {
       if (subscriptions.has(key)) continue

@@ -16,7 +16,7 @@ const instrumented = '/private/tmp/device-metric-stage2-core/instrumented'
 export function createMetricLoader(stubs = {}) {
   stubs={
     // 公共函数目录的传输边界；业务解析、保存和编辑组件仍执行真实代码。
-    [resolve(sourceRoot,'api/expression.ts')]:{expressionFunctions:async()=>['abs','min','max','round','sqrt'].map(name=>({id:`math.${name}`,name,description:name,parameters:[{id:'value',name:'value',valueType:'number'}],returnType:'number',minimumArguments:1,maximumArguments:name === 'round' ? 2 : name === 'min' || name === 'max' ? 16 : 1}))},
+    [resolve(sourceRoot,'components/Metric/expressionApi.ts')]:{metricExpressionFunctions:async()=>['abs','min','max','round','sqrt'].map(name=>({id:`math.${name}`,name,description:name,parameters:[{id:'value',name:'value',valueType:'number'}],returnType:'number',minimumArguments:name === 'min' || name === 'max' ? 2 : 1,maximumArguments:name === 'round' ? 2 : name === 'min' || name === 'max' ? 16 : 1}))},
     ...stubs,
   }
   const cache = new Map()

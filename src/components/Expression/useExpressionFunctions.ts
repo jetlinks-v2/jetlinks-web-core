@@ -1,17 +1,31 @@
-import { onMounted, shallowRef } from 'vue'
-import { expressionFunctions } from '../../api/expression'
+import { watch, shallowRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { ExpressionFunction } from './types'
 
-const functions=shallowRef<ExpressionFunction[]>([]),error=shallowRef(false)
-let loaded=false,pending:Promise<void>|undefined
-/** 同页多个公式共享目录及并发请求；键入和局部展开不重新请求。 */
-async function refresh() {
-  if (pending) return pending
-  error.value=false
-  pending=expressionFunctions().then(result=>{functions.value=result;loaded=true},()=>{error.value=true}).finally(()=>{pending=undefined})
-  return pending
+type Loader = () => Promise<ExpressionFunction[]>
+const catalogs = new WeakMap<Loader, ReturnType<typeof createCatalog>>()
+function createCatalog() {
+  return { functions: shallowRef<ExpressionFunction[]>([]), error: shallowRef(false),
+    loadedLocale: undefined as string | undefined, pending: undefined as Promise<void> | undefined }
 }
-export function useExpressionFunctions() {
-  onMounted(()=>{if (!loaded && !error.value) void refresh()})
-  return {functions,error,refresh}
+/** 使用者声明目录来源；同一来源共享请求，业务之间不共享声明或权限结果。 */
+export function useExpressionFunctions(load: Loader) {
+  let catalog = catalogs.get(load)
+  if (!catalog) { catalog = createCatalog(); catalogs.set(load, catalog) }
+  const state = catalog
+  const {locale}=useI18n()
+  async function refresh(language: string) {
+    while (state.pending) {
+      await state.pending
+      if (locale.value !== language) return
+      if (state.loadedLocale === language) return
+    }
+    state.error.value = false
+    state.pending = load().then(result => {
+      if (locale.value === language) { state.functions.value = result; state.loadedLocale = language }
+    }, () => { if (locale.value === language) state.error.value = true }).finally(() => { state.pending = undefined })
+    return state.pending
+  }
+  watch(locale, language => { if (state.loadedLocale !== language) void refresh(language) }, { immediate: true })
+  return { functions: state.functions, error: state.error, refresh: () => refresh(locale.value) }
 }

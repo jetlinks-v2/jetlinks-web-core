@@ -1,19 +1,19 @@
 import { computed, shallowRef } from 'vue'
 import type { MathfieldElement, Selection } from 'mathlive'
-import type { ExpressionEditorContext, ExpressionValueChoice } from '../../../Expression/editor'
-import { enumChoices, expressionValueChoices } from '../../../Expression/editor'
-import type { ExpressionNode } from '../../../Expression/types'
-import { expressionText } from '../../../Expression/display'
-import { referenceKey } from '../../../Expression/document'
+import type { ExpressionEditorContext, ExpressionValueChoice } from './editor'
+import { enumChoices, expressionValueChoices,expressionNodeType,normalizeExpressionType } from './editor'
+import type { ExpressionNode } from './types'
+import { expressionText } from './display'
+import { referenceKey } from './document'
 
 type ValueType='number'|'boolean'|'string'|'object'|'array'|'null'|'unknown'
 type Range=[number,number]
 type Atom={offset:number;depth:number;latex:string}
 export type MathInsertion={latex:string;kind:'value'|'arithmetic'|'comparison'|'logical'|'predicate'|'not'|'group';valueType?:string}
-type Target={range:Range;node?:ExpressionNode;expected:ValueType;choices?:ExpressionValueChoice[];segment?:{range:Range;node:ExpressionNode;expected:ValueType}}
+type Target={range:Range;node?:ExpressionNode;expected:ValueType;operator?:'arithmetic'|'comparison'|'logical';choices?:ExpressionValueChoice[];segment?:{range:Range;node:ExpressionNode;expected:ValueType}}
 export type FunctionTarget={range:Range;id:string;count:number;argumentsLatex:string;bounds:DOMRect}
 const comparison=(operator:string)=>['eq','ne','gt','ge','lt','le'].includes(operator)
-const normalize=(value:unknown):ValueType=>typeof value !== 'string' ? 'unknown' : ['int','long','float','double','decimal','bigint','number','date'].includes(value) ? 'number' : ['boolean','string','object','array','null'].includes(value) ? value as ValueType : 'unknown'
+const normalize=normalizeExpressionType
 const schemaType=(schema?:Record<string,unknown>):ValueType=>schema?.type === 'enum' ? normalize(typeof schema.valueType === 'object' ? (schema.valueType as Record<string,unknown>)?.type : schema.valueType) : normalize(schema?.type)
 const compatible=(expected:ValueType,actual:ValueType)=>expected === 'unknown' || actual === 'unknown' || actual === 'null' || expected === actual
 const text=(node:ExpressionNode)=>expressionText({version:1,root:node})
@@ -36,15 +36,10 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     if(!parsed.has(latex)) {try{parsed.set(latex,parser!(latex))}catch{parsed.set(latex,undefined)}}
     return parsed.get(latex)
   }
-  const infer=(node:ExpressionNode):ValueType=>{
-    const context=options.context()
-    if(node.type === 'literal')return normalize(node.valueType)
-    if(node.type === 'reference')return schemaType(context.references.find(item=>referenceKey(item) === referenceKey(node))?.schema)
-    if(node.type === 'logical' || node.type === 'unary' && node.operator === 'not' || node.type === 'binary' && comparison(node.operator))return 'boolean'
-    if(node.type === 'binary' || node.type === 'unary')return 'number'
-    if(node.type === 'call')return normalize(context.functions.find(item=>item.id === node.function)?.returnType)
-    const a=infer(node.whenTrue),b=infer(node.whenFalse)
-    return a === 'null' ? b : b === 'null' || a === b ? a : 'unknown'
+  const infer=(node:ExpressionNode):ValueType=>expressionNodeType(node,options.context())
+  const resultType=():ValueType=>{
+    const types=[...new Set(options.context().resultTypes?.filter(type=>type !== 'null').map(normalize))]
+    return types.length === 1 ? types[0] : 'unknown'
   }
   function expected(node:ExpressionNode):ValueType {
     const wanted=text(node),types:ValueType[]=[],context=options.context()
@@ -62,7 +57,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
         item.arguments.forEach((child,index)=>visit(child,normalize(parameters[Math.min(index,parameters.length-1)]?.valueType)))
       }
     }
-    visit(options.root())
+    visit(options.root(),resultType())
     const type=types.length && types.every(type=>type === types[0]) ? types[0] : 'unknown'
     expectedTypes.set(wanted,type)
     return type
@@ -81,8 +76,8 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     while(end+1<atoms.length && atoms[end+1].depth >= depth && !(atoms[end+1].depth === depth && !atoms[end+1].latex))end++
     return atoms.slice(start,end+1).filter(item=>item.depth === depth)
   }
-  /** 新函数/分支仍含占位时，按公开容器及同层分隔定位槽位；未知草稿不强猜类型。 */
-  function enclosingType(range:Range,condition:boolean):ValueType {
+  /** 使用公开容器深度定位所属函数；识别时临时替换空位，不修改编辑草稿。 */
+  function* enclosingGroups(range:Range) {
     let depth=Math.min(...atoms.slice(range[0]+1,range[1]+1).map(item=>item.depth),atoms[range[1]]?.depth ?? 0)
     for(let offset=range[1]+1;offset<atoms.length;offset++) {
       const group=atoms[offset]
@@ -90,18 +85,37 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
       depth=group.depth
       let previous:Atom|undefined
       for(let index=offset-1;index>=0;index--)if(atoms[index].depth === depth) {previous=atoms[index];break}
-      if(group.latex.startsWith('\\left(') && previous?.latex.startsWith('\\operatorname')) {
-        const node=parse((previous.latex+group.latex).replace(/\\placeholder\{[^{}]*\}/g,'0'))
-        const descriptor=node?.type === 'call' ? options.context().functions.find(item=>item.id === node.function) : undefined
-        const index=atoms.slice(previous.offset+1,range[0]+1).filter(item=>item.depth === depth+1 && item.latex === ',').length
-        if(descriptor)return normalize(descriptor.parameters[Math.min(index,descriptor.parameters.length-1)]?.valueType)
-      }
+      yield {group,previous,depth}
+    }
+  }
+  const parseFunction=(latex:string)=>parse(latex.replace(/\\placeholder\{[^{}]*\}/g,'0'))
+  function functionParameter(range:Range,{group,previous,depth}:{group:Atom;previous?:Atom;depth:number}) {
+    const node=/^\\sqrt(?![a-zA-Z])/.test(group.latex) ? parseFunction(group.latex)
+      : group.latex.startsWith('\\left(') && previous?.latex.startsWith('\\operatorname') ? parseFunction(previous.latex+group.latex) : undefined
+    const descriptor=node?.type === 'call' ? options.context().functions.find(item=>item.id === node.function) : undefined
+    if(!descriptor)return
+    const index=/^\\sqrt(?![a-zA-Z])/.test(group.latex) ? 0 : atoms.slice((previous?.offset ?? 0)+1,range[0]+1).filter(item=>item.depth === depth+1 && item.latex === ',').length
+    return {descriptor,index,parameter:descriptor.parameters[Math.min(index,descriptor.parameters.length-1)]}
+  }
+  function enclosingFunction(range:Range) {
+    for(const group of enclosingGroups(range)) {
+      const fn=functionParameter(range,group)
+      if(fn)return fn
+    }
+  }
+  /** 新函数/分支仍含占位时，按同层分隔定位槽位；未知草稿不强猜类型。 */
+  function enclosingType(range:Range,condition:boolean):ValueType {
+    for(const container of enclosingGroups(range)) {
+      const fn=functionParameter(range,container)
+      if(fn)return normalize(fn.parameter?.valueType)
+      const {group,previous,depth}=container
+      if(/^\\(?:dfrac|frac|tfrac)(?![a-zA-Z])/.test(group.latex))return 'number'
       if(condition && group.latex.startsWith('\\begin{cases}')) {
         const cells=atoms.slice(previous?.offset ?? 0,range[0]+1).filter(item=>item.depth === depth+1 && !item.latex)
         if(cells.length%2 === 0)return 'boolean'
       }
     }
-    return 'unknown'
+    return resultType()
   }
   function current(selection?:Selection):Target|undefined {
     const field=options.field()
@@ -138,7 +152,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
         if(/^[\d.]$/.test(at.latex)) {
           while(first>0 && /^[\d.]$/.test(peers[first-1].latex))first--
           while(last+1<peers.length && /^[\d.]$/.test(peers[last+1].latex))last++
-          if(first>0 && /^[+-]$/.test(peers[first-1].latex) && (first<2 || !peers[first-2].latex || /^(?:[+\-*/,=<>]|\\(?:times|ge|le|ne|JLand|JLor))\s*$/.test(peers[first-2].latex)))first--
+          if(first>0 && /^[+-]$/.test(peers[first-1].latex) && (first<2 || !peers[first-2].latex || /^(?:[+\-*/,=<>]|\\(?:times|div|ge|le|ne|JLand|JLor))\s*$/.test(peers[first-2].latex)))first--
         }
         start=first ? peers[first-1].offset : Math.max(0,peers[first].offset-1)
         end=peers[last].offset
@@ -149,7 +163,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
         }
         node=parse(field.getValue(start,end,'latex'))
         if(!node && !/^\\placeholder/.test(at.latex))return
-      } else if(at?.latex && !/^(?:[+\-*/,=<>]|\\(?:times|ge|le|ne|JLand|JLor|JLnot|JLmissing|JLpresent))\s*$/.test(at.latex))return
+      } else if(at?.latex && !/^(?:[+\-*/,=<>]|\\(?:times|div|ge|le|ne|JLand|JLor|JLnot|JLmissing|JLpresent))\s*$/.test(at.latex))return
       // 逻辑连接作用于完整比较式，不能只连接比较右边的数字。
       const cell=peers.filter(item=>item.latex)
       const before=cell.filter(item=>item.offset <= end)
@@ -167,7 +181,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     const range:Range=[start,end]
     let type=node ? expected(node) : 'unknown'
     const peers=siblings(end),before=peers.filter(item=>item.offset <= start).pop(),after=peers.find(item=>item.offset>end)
-    const adjacent=[before,after].find(item=>/^(?:[=<>+\-*/]|\\(?:ge|le|ne|times|JLand|JLor|JLnot))\s*$/.test(item?.latex || ''))
+    const adjacent=[before,after].find(item=>/^(?:[=<>+\-*/]|\\(?:ge|le|ne|times|div|JLand|JLor|JLnot))\s*$/.test(item?.latex || ''))
     // 新比较仍有空槽时，直接依据另一侧完整引用提供枚举，不能退回任意数字。
     let choices:ExpressionValueChoice[]|undefined
     if(adjacent && /^(?:=|\\ne)\s*$/.test(adjacent.latex)) {
@@ -178,12 +192,26 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     if(type === 'unknown' && adjacent)type=/^\\JL(?:and|or|not)/.test(adjacent.latex) ? 'boolean' : /^(?:=|\\ne)\s*$/.test(adjacent.latex) ? 'unknown' : 'number'
     if(!node && type === 'unknown' && pending?.latex === latex && pending.range[0] === start && pending.range[1] === end)type=pending.expected
     if(type === 'unknown')type=enclosingType(range,!node && !adjacent)
+    // A new branch is not yet in the last valid AST. Its native cell position defines the condition slot.
+    if(!adjacent && enclosingType(range,true) === 'boolean')type='boolean'
     if(!node && type === 'unknown') {
       const left=atoms[start]?.latex || ''
-      if(/^(?:[+\-*/<>]|\\(?:times|ge|le))\s*$/.test(left))type='number'
+      if(/^(?:[+\-*/<>]|\\(?:times|div|ge|le))\s*$/.test(left))type='number'
       if(/^\\(?:JLand|JLor|JLnot)\s*$/.test(left))type='boolean'
     }
-    return {range,node,expected:type,choices,segment}
+    // 中间切换同类运算符保留已有两侧；不把数值运算符换成比较而破坏外层类型。
+    let operator:Target['operator']
+    if(ranges[0][0] === ranges[0][1]) {
+      const cursor=ranges[0][0],peers=siblings(cursor)
+      for(const item of [peers.find(atom=>atom.offset === cursor),peers.find(atom=>atom.offset>cursor)]) {
+        const latex=item?.latex.trim()
+        if(latex && /^(?:[+\-*/]|\\(?:times|cdot|div))$/.test(latex))operator='arithmetic'
+        else if(latex && /^(?:[=<>]|\\(?:ge|le|ne))$/.test(latex))operator='comparison'
+        else if(latex && /^\\JL(?:and|or)$/.test(latex))operator='logical'
+        if(operator)break
+      }
+    }
+    return {range,node,expected:type,operator,choices,segment}
   }
   function caseAt(selection?:Selection) {
     const field=options.field(),ranges=(selection || field?.selection)?.ranges
@@ -191,6 +219,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     const [start,end]=ranges[0].slice().sort((a,b)=>a-b)
     for(const group of atoms.slice(end)) {
       if(!group.latex.startsWith('\\begin{cases}'))continue
+      if((atoms[end]?.depth ?? 0)>group.depth+1)continue
       let before=group.offset-1
       while(before>0 && atoms[before].depth > group.depth)before--
       if(start < before)continue
@@ -217,16 +246,27 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
       if(!args?.latex.startsWith('\\left('))continue
       let start=name.offset-1
       while(start>0 && atoms[start].depth>name.depth)start--
-      const node=parse(name.latex+args.latex)
+      const node=parseFunction(name.latex+args.latex)
       if(node?.type === 'call')return {range:[start,args.offset],id:node.function,count:node.arguments.length,argumentsLatex:args.latex,bounds}
     }
-    for(const root of atoms.filter(item=>item.latex.startsWith('\\sqrt{'))) {
+    for(const root of atoms.filter(item=>/^\\sqrt(?![a-zA-Z])/.test(item.latex))) {
       const bounds=field.getElementInfo(root.offset)?.bounds
       if(!bounds || x<bounds.left || x>bounds.left+12 || y<bounds.top || y>bounds.bottom)continue
       let start=root.offset-1
       while(start>0 && atoms[start].depth>root.depth)start--
-      return {range:[start,root.offset],id:'math.sqrt',count:1,argumentsLatex:`\\left(${root.latex.slice(6,-1)}\\right)`,bounds}
+      return {range:[start,root.offset],id:'math.sqrt',count:1,argumentsLatex:`\\left(${root.latex.slice(5)}\\right)`,bounds}
     }
+  }
+  /** 参数提示命中实际原子，优先最内层容器，不覆盖 MathLive 原生输入及选区。 */
+  function parameterAtPoint(x:number,y:number) {
+    current()
+    const field=options.field()
+    if(!field || options.disabled())return
+    const offset=field.getOffsetFromPoint(x,y,{bias:1})
+    const bounds=field.getElementInfo(offset)?.bounds
+    if(!bounds || x<bounds.left || x>bounds.right || y<bounds.top || y>bounds.bottom)return
+    const fn=enclosingFunction([Math.max(0,offset-1),offset])
+    if(fn)return {...fn,bounds}
   }
   /** 短行的列内留白按行定位；实际文字继续交给原生选区，不改变拖选与Shift扩选。 */
   function placeInBlank(x:number,y:number) {
@@ -247,7 +287,10 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
       const column=x<divider ? 0 : 1
       const match=cells.find((box,index)=>index%2 === column && y>=Math.min(box.top,cells[index%2 ? index-1 : index+1].top)-3 && y<=Math.max(box.bottom,cells[index%2 ? index-1 : index+1].bottom)+3)
       if(!match)continue
-      field.focus();field.position=match.cell.end;refresh()
+      field.focus()
+      if(match.cell.empty)field.selection={ranges:[[match.cell.start,match.cell.end]]}
+      else field.position=match.cell.end
+      refresh()
       return true
     }
     return false
@@ -274,15 +317,39 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     changeRows(place,place.cells.length/2-1)
     return true
   }
-  /** 单行整体成为首个分支的结果，不按光标位置拆开算式；未填条件保留为草稿。 */
-  function startBranch() {
+  /** 当前同层参数整体成为首个结果；逗号及原生组边界隔开函数参数、分子和分母。 */
+  function startBranchTarget(selectedValue=false,selection?:Selection) {
     const field=options.field()
-    if(!field || options.disabled() || options.conditions?.() === false || field.selection.ranges.length !== 1)return false
-    current()
-    const latex=field.getValue('latex')
-    if(atoms.some(item=>item.latex.startsWith('\\begin{cases}')) || latex && !parse(latex))return false
-    field.focus();field.selection={ranges:[[0,field.lastOffset]]}
-    field.insert(`\\begin{cases}${latex || '\\placeholder{}'}&\\placeholder{}\\\\\\placeholder{}&\\JLotherwise\\end{cases}`,{selectionMode:'placeholder',silenceNotifications:true})
+    const ranges=(selection || field?.selection)?.ranges
+    if(!field || options.disabled() || options.conditions?.() === false || ranges?.length !== 1)return
+    const target=current(selection)
+    if(selectedValue && !target)return
+    const [start,end]=ranges[0].slice().sort((a,b)=>a-b)
+    const peers=siblings(end)
+    const separator=peers.findIndex(item=>item.offset>end && item.latex === ',')
+    const first=peers.filter(item=>item.offset<=start && (!item.latex || item.latex === ',')).pop()
+    const rangeStart=first?.offset ?? Math.max(0,(peers[0]?.offset ?? 1)-1)
+    const rangeEnd=separator<0 ? peers.at(-1)?.offset ?? end : peers[separator-1].offset
+    const range:Range=selectedValue && target ? target.range : [rangeStart,rangeEnd]
+    if(start<range[0] || end>range[1])return
+    const latex=field.getValue(...range,'latex')
+    const empty=!latex || /^\\placeholder\{[^{}]*\}$/.test(latex)
+    if(!empty && !parse(latex))return
+    return {range,latex,empty}
+  }
+  /** Existing cases add a row before the default; new/nested cases wrap the same range used by execution. */
+  function branchRange(nested=false,selection?:Selection):Range|undefined {
+    current(selection)
+    const place=nested ? undefined : caseAt(selection)
+    const fallback=place?.cells.at(-2)
+    return fallback ? [fallback.start,fallback.start] : startBranchTarget(nested,selection)?.range
+  }
+  function startBranch(selectedValue=false) {
+    const field=options.field(),target=startBranchTarget(selectedValue)
+    if(!field || !target)return false
+    const {range,latex,empty}=target
+    field.focus();field.selection={ranges:[range]}
+    field.insert(`\\begin{cases}${empty ? '\\placeholder{}' : latex}&\\placeholder{}\\\\\\placeholder{}&\\JLotherwise\\end{cases}`,{selectionMode:'placeholder',silenceNotifications:true})
     options.commit();refresh()
     return true
   }
@@ -310,8 +377,11 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
   }
   function applicable(item:MathInsertion,place=target.value) {
     if(!place)return false
+    if(place.operator && ['arithmetic','comparison','logical'].includes(item.kind))return item.kind === place.operator
     const actual=place.node ? infer(place.node) : 'unknown'
+    // A blank condition can begin with a scalar operand and become a comparison as editing continues.
     if(item.kind === 'value')return compatible(place.expected,normalize(item.valueType))
+      || place.expected === 'boolean' && ['unknown','number','string'].includes(actual) && ['number','string'].includes(normalize(item.valueType))
     if(!place.node)return ['comparison','logical','not'].includes(item.kind) && ['boolean','unknown'].includes(place.expected)
     if(item.kind === 'logical' || item.kind === 'not')return ['boolean','unknown'].includes(infer(place.segment?.node || place.node)) && compatible(place.segment?.expected ?? place.expected,'boolean')
     if(item.kind === 'arithmetic')return ['number','unknown'].includes(actual)
@@ -328,6 +398,26 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
       const candidate=parse(item.latex)
       if(choices && (!candidate || candidate.type !== 'literal' || !choices.some(choice=>String(choice.node.value) === String(candidate.value) && choice.node.valueType === candidate.valueType)))return false
     }
+    // Inserting between existing operands reuses the right-hand content instead of adding a blank before it.
+    // Native cell boundaries keep an operand from another condition/function argument out of this decision.
+    const original=(selection || field.selection).ranges[0]
+    if(original[0] === original[1] && ['arithmetic','comparison','logical'].includes(item.kind)) {
+      const cursor=original[0],peers=siblings(cursor),left=peers.find(atom=>atom.offset === cursor),right=peers.find(atom=>atom.offset > cursor)
+      const operator=(atom?:Atom)=>/^(?:[+\-*/=<>]|\\(?:times|div|ge|le|ne|JLand|JLor))\s*$/.test(atom?.latex || '')
+      const operand=(atom?:Atom)=>Boolean(atom?.latex && (parse(atom.latex) || /^\\placeholder\{[^{}]*\}$/.test(atom.latex)))
+      let range:Range|undefined,latex=item.latex === '\\dfrac{#@}{#?}' ? '\\div ' : item.latex
+      if(operand(right)) {
+        if(operator(left))range=[peers[peers.indexOf(left!)-1]?.offset ?? Math.max(0,cursor-1),cursor]
+        else if(operand(left))range=[cursor,cursor]
+        else if(!left?.latex){range=[cursor,cursor];latex='#?'+latex}
+      } else if(operator(right) && operand(peers[peers.indexOf(right!)+1]))range=[cursor,right!.offset]
+      if(range) {
+        field.focus();field.selection={ranges:[range]}
+        field.insert(latex,{selectionMode:latex.includes('#?') ? 'placeholder' : 'after',silenceNotifications:true})
+        options.commit();refresh()
+        return true
+      }
+    }
     let range=place!.range
     if(item.kind === 'logical' || item.kind === 'not')range=place!.segment?.range || range
     const left=(item.kind === 'logical' ? place.segment?.node : place.node)?.type
@@ -339,5 +429,5 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     options.commit();refresh()
     return true
   }
-  return {refresh,insert,applicable,valueChoices,canInsertValue:computed(()=>!!target.value),canAddBranch:computed(()=>!!branch.value),addBranch,startBranch,onKeydown,placeInBlank,functionAtPoint,target}
+  return {refresh,insert,applicable,valueChoices,canInsertValue:computed(()=>!!target.value),canAddBranch:computed(()=>!!branch.value),addBranch,startBranch,branchRange,onKeydown,placeInBlank,functionAtPoint,parameterAtPoint,target}
 }

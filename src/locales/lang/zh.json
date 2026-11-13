@@ -1,4 +1,7 @@
 {
+  "components.ModelConfig.unsavedChangesTitle": "修改尚未保存",
+  "components.ModelConfig.unsavedChangesMessage": "是否保存本次修改？丢弃后将恢复编辑前的内容。",
+  "components.ModelConfig.discard": "丢弃",
   "runtimeDiagnostics.lessMetrics": "收起更多指标",
   "runtimeDiagnostics.moreMetrics": "展开更多指标",
   "runtimeDiagnostics.sampleCoverageSeconds": "采样跨度 {seconds} 秒",
@@ -729,7 +732,6 @@
   "PersonalToken.TokenDialog.editTitle": "编辑令牌",
   "PersonalToken.TokenDialog.viewTitle": "查看令牌",
   "I18n.configure": "国际化配置",
-  "Editable.edit": "编辑",
   "I18n.chinese": "中文",
   "I18n.english": "English",
   "I18n.placeholder": "请输入{language}",
@@ -2300,5 +2302,6 @@
   "PersonalToken.permissionMode.selectActions": "请至少选择一项权限操作。",
   "PersonalToken.empty.title": "还没有个人令牌",
   "PersonalToken.empty.description": "调用开放 API 时，可使用个人令牌代替账号密码。令牌权限受你的账号权限限制，完整令牌仅在创建或刷新后显示一次。",
-  "PersonalToken.empty.create": "新建令牌"
+  "PersonalToken.empty.create": "新建令牌",
+  "Editable.edit": "编辑"
 }

@@ -28,12 +28,14 @@ const stubs = {
   'vue-i18n': 'export const useI18n=()=>({t:key=>key,locale:ctx.locale})',
   '@jetlinks-web/utils': 'export const onlyMessage=(...args)=>ctx.messages.push(args);export const randomString=()=>"fixture"',
   '@jetlinks-web-core/locales': 'export default {global:{t:key=>key}}',
+  '@jetlinks-web-core/store/menu': 'export const useMenuStore=()=>({isGranted:()=>true})',
   '@jetlinks-web-core/store/user': 'export const useUserStore=()=>ctx.user',
   '@jetlinks-web-core/store': 'export const useSystemStore=()=>({language:"zh"});export const useUserStore=()=>ctx.user',
   '@jetlinks-web/hooks': 'export const useRouterParams=()=>({params:ctx.params,clear:()=>{ctx.params.value={}}})',
   '@jetlinks-web-core/utils/components-registry': 'export const componentsRegistry={getRegistry:()=>ctx.registeredProviders}',
   '@jetlinks-web-core/layout/components/noticeTextResolver': 'export const resolveNoticeTexts=async records=>records',
   '@jetlinks-web-core/layout/components/noticeListHandler': `
+    export const filterSupportedNoticeProviders=async providers=>ctx.filterProviders?ctx.filterProviders(providers):providers;
     export const queryNoticeRecords=(_providers,params)=>ctx.request('getList_api',[params]);
     export const changeNoticeReadState=(_providers,state,ids)=>ctx.request('changeStatus_api',[state,ids]);
     export const getNoticeDataSource=()=>undefined;
@@ -109,6 +111,7 @@ async function mount(t, name, args = [], overrides = {}) {
   }
   const ctx = {
     user, calls, messages, params: ref(overrides.__params || {}), locale: ref('zh'), streams: [],
+    filterProviders: overrides.__filterProviders,
     registeredProviders: overrides.__registeredProviders ?? [{ code: 'bulletin', props: { messageCategory: 'announcement' } }],
     newStream() { const stream = new Subject(); this.streams.push(stream); return stream },
     window: { addEventListener() {}, removeEventListener() {}, open() {} },
@@ -858,4 +861,30 @@ test('日志与密码信息独立失败、保留旧值并可重试，迟到响�
   await first
   assert.equal(hook.records.value[0].id, 'latest')
   assert.equal(hook.recordsFailed.value, false)
+})
+
+
+test('消息中心过滤关闭的公告分类，并保留普通通知', async t => {
+  const { hook, ctx } = await mount(t, 'useStationMessage', [], {
+    getTypeList_api: () => [{ id: 'bulletin', name: 'Bulletin' }],
+    __filterProviders: providers => providers.filter(id => id !== 'bulletin'),
+  })
+  assert.deepEqual(hook.tabs.value.map(group => group.key), ['notification'])
+  assert.deepEqual(hook.tabs.value[0].children.map(item => item.provider), ['alarm'])
+  const counts = ctx.calls.filter(call => call.method === 'getUnreadSummary_api')
+  assert.ok(counts.length > 0)
+  assert.ok(counts.every(call => !JSON.stringify(call.args).includes('bulletin')))
+  await hook.markAllRead()
+  assert.deepEqual(ctx.calls.find(call => call.method === 'changeAllStatus').args, ['_read', ['alarm']])
+})
+
+test('消息中心等待公告能力再创建分类，开启时保留公告入口', async t => {
+  const probe = deferred()
+  const { hook } = await mount(t, 'useStationMessage', [], {
+    __filterProviders: () => probe.promise,
+  })
+  assert.deepEqual(hook.tabs.value, [])
+  probe.resolve(['alarm', 'bulletin'])
+  await flush()
+  assert.deepEqual(hook.tabs.value.map(group => group.key), ['notification', 'announcement'])
 })

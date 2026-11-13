@@ -31,7 +31,10 @@ test('场景卡片按业务分段，点击直接选择原起点，概览不引�
     buttons[1].props.onClick()
     await flush()
     assert.equal(selected.length,1)
-    assert.equal(selected[0].starter,starters[1])
+    assert.equal(selected[0].starter.id,starters[1].id)
+    assert.equal(selected[0].starter.template.name,starters[1].template.name)
+    assert.deepEqual(selected[0].starter.template.outputs,starters[1].template.outputs)
+    assert.equal(starters[1].providerName,undefined)
     assert.equal(walk(view.root,node=>node.type==='a-modal').length,0)
     assert.ok(textContent(view.root).includes('B purpose'))
   } finally { view.app.unmount() }

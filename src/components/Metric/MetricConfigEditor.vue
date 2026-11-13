@@ -34,8 +34,18 @@
           <a-button class="config-properties__back" type="text" size="small" @click="showProperties = false"><AIcon type="ArrowLeftOutlined" />{{ t('returnToDiagram') }}</a-button>
           <component :is="pickSource.editor" v-if="choosing && pickSource?.editor" :key="choosing" />
           <template v-else>
-            <MetricConfigNode v-if="selected" :template="selectedTemplate" :configuration="draft" :node="selected" :source-label="selectedInput ? sourceText(selectedInput.id) : undefined" :description="selectedInput && sourceDescriptions[selectedInput.id]" :picker="pickSource" :provider="presentationProvider" :disabled="saving || !context.editable" @choose="chooseInline" @locate="locate" @display="draft.presentation = $event" @failed="extensionFailed = true" />
-            <div v-else class="config-properties__subject"><b>{{ t('configSubject') }}</b><p>{{ selectedTemplate.options?.description || selectedTemplate.name }}</p><span>{{ t('produces') }}</span><button v-for="(output,index) in selectedTemplate.outputs" :key="output.metricId" type="button" @click="selectNode({ kind:'output', index })"><AIcon type="ExportOutlined" />{{ metricOutputName(output, selectedTemplate) }}<small>{{ output.unit }}</small></button></div>
+            <a-button v-if="selected" class="config-properties__subject-link" type="text" size="small" @click="background"><AIcon type="SettingOutlined" />{{ t('configSubject') }}</a-button>
+            <MetricConfigNode v-if="selected" :template="selectedTemplate" :configuration="draft" :node="selected" :source-label="selectedInput ? sourceText(selectedInput.id) : undefined" :description="selectedInput && sourceDescriptions[selectedInput.id]" :picker="pickSource" :disabled="saving || !context.editable" @choose="chooseInline" @locate="locate" />
+            <div v-else class="config-properties__subject">
+              <b>{{ t('configSubject') }}</b>
+              <p>{{ selectedTemplate.options?.description || selectedTemplate.name }}</p>
+              <section class="config-properties__display" :aria-label="t('cardDisplay')">
+                <h4><AIcon type="LayoutOutlined" />{{ t('cardDisplay') }}</h4>
+                <MetricDisplayFields :model-value="normalizePresentation(draft.presentation)" :template="selectedTemplate" :defaults="normalizePresentation(selectedTemplate.options?.presentation?.settings)" :provider="presentationProvider" :disabled="saving || !context.editable" @update:model-value="draft.presentation = $event" @failed="extensionFailed = true" />
+              </section>
+              <span>{{ t('produces') }}</span>
+              <button v-for="(output,index) in selectedTemplate.outputs" :key="output.metricId" type="button" @click="selectNode({ kind:'output', index })"><AIcon type="ExportOutlined" />{{ metricOutputName(output, selectedTemplate) }}<small>{{ output.unit }}</small></button>
+            </div>
             <a-alert v-if="sourcesLoading" type="info" :message="t('configResolvingSources')" />
             <a-button v-else-if="selectedInput && sourceDescriptions[selectedInput.id]?.error" type="link" size="small" @click="refreshSources">{{ t('retry') }}</a-button>
             <MetricExtension v-if="presentationProvider?.configFields && !selected" :content="presentationProvider.configFields" :content-props="{ context, template:selectedTemplate, draft:readonly(draft), pickSource }" @change="changeConfigFields" @failed="extensionFailed = true"><template #fallback><a-alert type="error" show-icon :message="t('presentationFailed')" /></template></MetricExtension>
@@ -79,6 +89,7 @@ import MetricConfigNode from './MetricConfigNode.vue'
 import PanelResizeHandle from '../PanelResizeHandle/index.vue'
 import MetricParameters from './MetricParameters.vue'
 import MetricExtension from './extensions/MetricExtension.vue'
+import MetricDisplayFields from './extensions/MetricDisplayFields.vue'
 import TemplateGraph from './template/TemplateGraph.vue'
 import TemplateFormulaDisplay from './template/formula/TemplateFormulaDisplay.vue'
 import TemplateSimulation from './template/TemplateSimulation.vue'
@@ -91,7 +102,7 @@ import { useMetricEditor } from './useMetricEditor'
 import { useMetricConfigTrial } from './useMetricConfigTrial'
 import { metricOutputName } from './presentation'
 import { metricMessages } from './messages'
-import { applyMetricConfigFields, metricConfigurationIcon } from './extensions/presentationSettings'
+import { applyMetricConfigFields, metricConfigurationIcon, normalizePresentation } from './extensions/presentationSettings'
 import type { MetricConfig, MetricConfigFieldsPatch, MetricContext, MetricSourcePicker, MetricTemplateInput, MetricTemplateReference } from './types'
 const props = defineProps<{ context:MetricContext; configuration?:MetricConfig; initialTemplate?:MetricTemplateReference; pickSource?:MetricSourcePicker }>()
 const emit = defineEmits<{ (event:'saved', configuration:MetricConfig):void; (event:'cancel'):void }>()
@@ -202,10 +213,13 @@ defineExpose({ canLeave, locate })
 .config-diagram__source.missing { color:var(--accent) }
 .config-properties { grid-column:2; grid-row:1; min-height:0; min-width:0; overflow:auto; overscroll-behavior:contain; padding:16px; border-left:1px solid var(--line); background:var(--panel-background); scrollbar-gutter:stable }
 .config-properties__back { display:none }
+.config-properties__subject-link { margin-bottom:12px; padding:0; color:var(--ink-3) }
 .config-properties__subject { display:grid; gap:12px; font-size:12px }
 .config-properties__subject p { color:var(--ink-3); margin:0; line-height:1.8 }
 .config-properties__subject>button { display:flex; align-items:center; gap:6px; border:0; border-radius:4px; background:var(--bg-sunken); padding:8px; color:var(--ink-2); text-align:left; cursor:pointer }
-.config-properties__subject small { margin-left:auto; color:var(--ink-3) }
+.config-properties__subject>button small { margin-left:auto; color:var(--ink-3) }
+.config-properties__display { border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding-top:12px; min-width:0 }
+.config-properties__display h4 { display:flex; align-items:center; gap:6px; margin:0; font-size:12px; font-weight:500 }
 .config-properties__parameters { border-top:1px solid var(--line); margin-top:16px; padding-top:12px }
 .config-properties__parameters h4 { display:flex; align-items:center; gap:6px; margin:0 0 12px; font-size:12px; font-weight:500 }
 .config-footer { flex:none; margin-top:auto }

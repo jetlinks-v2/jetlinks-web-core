@@ -64,6 +64,10 @@ export function createMathTransfer(root:ExpressionNode,context:ExpressionEditorC
       if(!command)throw new Error('unsupportedExpression')
       at+=command.length
       if(direction === 'copy') {
+        if(command === 'htmlData') {
+          if(!/^expression-inspect=\d+$/.test(group()))throw new Error('unsupportedExpression')
+          output+=convert(group(),direction);continue
+        }
         const ref=refs.get(command),enumeration=enums.get(command)
         if(ref) {output+=`\\mathrm{${escapeText(ref.id)}}${ref.path.map(part=>`\\left[\\text{${escapeText(JSON.stringify(part))}}\\right]`).join('')}`;continue}
         if(enumeration){output+=literal(enumeration);continue}

@@ -6,13 +6,27 @@ import { createMetricLoader } from './helpers/metricRuntime.mjs'
 const load=createMetricLoader()
 const {createMathTransfer}=load('components/Expression/mathTransfer.ts')
 const {expressionMath,createMathParser}=load('components/Expression/math.ts')
-const {useMathClipboard}=load('components/Metric/template/formula/useMathClipboard.ts')
+const {useMathClipboard}=load('components/Expression/useMathClipboard.ts')
 const t=key=>key
 const ref=(id,path=[])=>({type:'reference',id,path})
 const value=(value,valueType='int')=>({type:'literal',valueType,value})
 const binary=(operator,left,right)=>({type:'binary',operator,left,right})
 const context={references:[{...ref('input'),label:'同名'},{...ref('params',['factor']),label:'同名'},{...ref('group',['nested','value']),label:'字段'}],functions:[{id:'math.max',name:'最大值',minimumArguments:1,maximumArguments:16}]}
 const node=binary('multiply',ref('input'),ref('params',['factor']))
+
+test('工业函数及短路空值函数通过宿主声明完成数学反显与LaTeX往返',async()=>{
+  const specifications=[['math.mapRange',5,5],['math.clamp',3,3],['math.trunc',1,2],['math.wrap',3,3],['math.bitTest',2,2],['data.coalesce',2,16],['data.nullif',2,2]]
+  const ctx={references:[{...ref('value'),label:'当前值',schema:{type:'double'}}],functions:specifications.map(([id,min,max])=>({id,name:id,icon:'text:ƒ',minimumArguments:min,maximumArguments:max}))}
+  const {convertLatexToMarkup}=await import('mathlive/ssr')
+  for(const [id,count] of specifications) {
+    const root={type:'call',function:id,arguments:[ref('value'),...Array.from({length:count-1},(_,i)=>value(String(i+1)))]}
+    const projection=expressionMath(root,ctx,t)
+    const portable=createMathTransfer(root,ctx,t).copy(projection.latex)
+    const restored=createMathTransfer(root,ctx,t).paste(portable)
+    assert.deepEqual(createMathParser(root,ctx,t)(restored),root,id)
+    assert.doesNotMatch(convertLatexToMarkup(portable),/ML__error/,id)
+  }
+})
 
 test('剪贴板以稳定输入标识、字段路径和函数标识交换，重排／重名／切换语言不串值',async()=>{
   const root={type:'call',function:'math.max',arguments:[node,ref('group',['nested','value'])]}

@@ -57,7 +57,7 @@ watch(expanded,value=>emit('expandedChange',value),{flush:'sync'})
 .expression-workspace__heading-tools { display:flex; align-items:center; justify-content:flex-end; gap:4px; min-width:0 }
 .expression-workspace__copy-feedback { margin:4px 0; color:var(--ink-3); font-size:12px }
 .expression-workspace__copy-feedback.is-error { color:var(--danger,#ff4d4f) }
-.expression-workspace__stable { position:static; width:100%; max-width:none; max-height:none; margin:0; padding:0; border:0; background:transparent; color:inherit; overflow:visible }
+.expression-workspace__stable { position:relative; width:100%; max-width:none; max-height:none; margin:0; padding:0; border:0; background:transparent; color:inherit; overflow:visible }
 .expression-workspace__stable.is-expanded { position:fixed; inset:0; width:min(1040px,calc(100vw - 32px)); max-height:calc(100vh - 48px); margin:auto; padding:20px 24px; overflow:visible; border-radius:8px; background:var(--bg); color:var(--ink-1); box-shadow:0 12px 48px #0003; box-sizing:border-box }
 .expression-workspace__stable.is-expanded { --expression-editor-max-height:calc(100vh - 216px) }
 .expression-workspace__stable::backdrop { background:#0006 }

@@ -14,6 +14,7 @@ import {
   queryNoticeUnreadSummary,
   useNoticeDataSourceChanges,
   useNoticeDataSourceRealtime,
+  filterSupportedNoticeProviders,
 } from './noticeListHandler'
 import {
   BADGE_OVERFLOW_COUNT, createNoticeCategoryTabs, createUnreadQueryParams, toBadgeCount,
@@ -149,9 +150,12 @@ export function useHeaderNotice() {
       const merged = new Map<string, NoticeProvider>()
       for (const provider of [...typeProviders, ...channelProviders]) if (provider.provider) merged.set(provider.provider, provider)
       const announcements = componentsRegistry.getRegistry('notification-provider:default').filter(item => item.props?.messageCategory === 'announcement')
-      tabs.value = createNoticeCategoryTabs([...merged.keys()], announcements.map(item => item.code))
+      const supported = await filterSupportedNoticeProviders([...merged.keys(), ...announcements.map(item => item.code)])
+      if (disposed || current !== catalogRequestId) return
+      const enabledAnnouncements = announcements.filter(item => supported.includes(item.code))
+      tabs.value = createNoticeCategoryTabs(supported, enabledAnnouncements.map(item => item.code))
       providerNames.value = Object.fromEntries([...merged].map(([id, provider]) => [id, provider.type?.name || provider.name || '']))
-      for (const item of announcements) providerNames.value[item.code] ||= t('PersonalCenter.messageAnnouncement')
+      for (const item of enabledAnnouncements) providerNames.value[item.code] ||= t('PersonalCenter.messageAnnouncement')
       if (tabs.value.some(item => item.type.length) && !subscribed) {
         send('notification', '/notifications', {})
         subscribed = true
@@ -201,7 +205,6 @@ export function useHeaderNotice() {
 
 interface NoticeInfoProps { tabs: NoticeTabItem[] }
 const DROPDOWN_PAGE_SIZE = 12
-
 /** 列表、详情接管及消息中心跳转共用现有流程，展示组件只派发语义事件。 */
 export function useNoticeInfo(props: NoticeInfoProps, action: () => void) {
   const { locale } = useI18n()

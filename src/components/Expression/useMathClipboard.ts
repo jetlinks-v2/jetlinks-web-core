@@ -1,10 +1,11 @@
 import { computed, ref } from 'vue'
 import type { MathfieldElement, Selection } from 'mathlive'
-import type { ExpressionEditorContext } from '../../../Expression/editor'
-import type { ExpressionNode } from '../../../Expression/types'
-import type { ExpressionTranslate } from '../../../Expression/document'
-import { createMathTransfer } from '../../../Expression/mathTransfer'
-import { expressionMath } from '../../../Expression/math'
+import type { ExpressionEditorContext } from './editor'
+import type { ExpressionNode } from './types'
+import type { ExpressionTranslate } from './document'
+import { createMathTransfer } from './mathTransfer'
+import { expressionMath } from './math'
+import { validateExpressionTypes,expressionValidationMessage } from './validation'
 
 interface ClipboardOptions {
   field:()=>MathfieldElement|undefined
@@ -57,14 +58,19 @@ export function useMathClipboard(options:ClipboardOptions) {
       probe.selection=copySelection(saved.selection)
       const insertion={format:'latex' as const,mode:'math' as const,selectionMode:'after' as const,silenceNotifications:true,focus:false}
       if(!probe.insert(latex,insertion))throw new Error('incomplete')
-      options.parser()(probe.getValue('latex'))
+      const issue=validateExpressionTypes(options.parser()(probe.getValue('latex')),options.context())
+      if(issue)throw issue
       saved.field.selection=copySelection(saved.selection)
       if(!saved.field.insert(latex,insertion))throw new Error('incomplete')
       clear();manualOpen.value=false;target=undefined
       options.commit();saved.field.focus()
       return true
     } catch(cause) {
-      const key=cause instanceof Error ? cause.message : ''
+      const issue=cause as {key?:string;message?:string}
+      const key=issue.key || issue.message || ''
+      if(['numericOperand','booleanOperand','comparisonOperands','functionArgumentType','resultTypeMismatch'].includes(key)) {
+        feedback.value=expressionValidationMessage(issue,options.t);error.value=true;return false
+      }
       message(key === 'unknownReference' ? 'formulaPasteReferenceMissing' : key === 'unknownFunction' ? 'formulaPasteFunctionMissing' : key === 'invalidEnumValue' ? 'formulaPasteEnumInvalid' : key === 'expressionTooLong' ? key : 'formulaPasteInvalid',true)
       return false
     } finally {probe?.remove()}

@@ -21,6 +21,8 @@ test('当前文档的解析目录可复用，失败输入不污染后续解析�
   assert.throws(()=>parse('\\JLa+'),/incomplete|unsupported/)
   assert.deepEqual(parse(expressionMath(root,context,t).latex),root)
   assert.deepEqual(parse('\\JLa'),read)
+  assert.throws(()=>parse('\\htmlData{onclick=alert}{\\JLa}'),/unsupported/)
+  assert.throws(()=>parse('\\htmlData{expression-inspect=0}{\\href{unsafe}{1}}'),/unsupported/)
   const other={type:'reference',id:'other',path:[]}
   const otherParser=createMathParser(other,{references:[{...other,label:'其他数据'}],functions:[]},t)
   assert.deepEqual(otherParser('\\JLa'),other)

@@ -39,4 +39,3 @@ java/**
 !java/module_config.properties
 !java/*/pom.xml
 package-lock.json
-output/

@@ -3,6 +3,8 @@
   "private": true,
   "version": "2.12.0",
   "scripts": {
+    "test:auto-tree": "node --test tests/autoTree.test.mjs && vue-tsc --noEmit -p tests/tsconfig.auto-tree.json",
+    "test:auto-tree-browser": "node tests/autoTree.browser.mjs",
     "test:asset-ownership": "node --test tests/assetOwnershipCondition.test.mjs",
     "dev": "vite",
     "dev:force": "vite --force",

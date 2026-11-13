@@ -1539,7 +1539,7 @@ test('真实模板管理页属性连续编辑进入父草稿，统一保存及�
     assert.equal(findText(view.root, 'a-button', 'save').props.disabled, false)
     await click(nodes(view.root, 'a-button').find(node => node.props['aria-label'] === 'nextNode'))
     nodes(view.root, 'external-shell').find(node => node.props.value === 'Ambient').props['onUpdate:value']('Room'); await flush()
-    await click(findText(view.root, 'a-button', 'revertNode')); assert.ok(findText(view.root, 'button', 'Changed')); assert.equal(saves, 0)
+    await click(findText(view.root, 'a-menu-item', 'revertNode')); assert.ok(findText(view.root, 'button', 'Changed')); assert.equal(saves, 0)
     await selectInput(); nodes(view.root, 'external-shell').find(node => node.props.value === 'Changed').props['onUpdate:value']('New winding'); await flush()
     await click(findText(view.root, 'a-button', 'save'))
     assert.equal(stored.inputDefinitions[0].name, 'New winding'); assert.equal(stored.inputDefinitions[1].name, 'Ambient'); assert.equal(stored.outputs[0].persist, false); assert.equal(saves, 1)
@@ -1610,9 +1610,9 @@ test('指标枚举显示 canonical text，保持真实值与原始元数据', as
   const parameter = { id: 'policy', valueType: { type: 'enum', elements: [{ value: 'reject', text: '判为异常' }] } }
   const view = mount(Value, { parameter, modelValue: 'reject' })
   try {
-    const item = nodes(view.root, 'external-shell')[0].props.item
-    assert.equal(item.valueType.elements[0].label, '判为异常')
-    assert.equal(item.valueType.elements[0].value, 'reject')
+    const select = nodes(view.root, 'a-select')[0]
+    assert.equal(select.props.options[0].label, '判为异常')
+    assert.equal(select.props.value, select.props.options[0].value)
     assert.equal(parameter.valueType.elements[0].label, undefined)
   } finally { view.close() }
 })
@@ -1651,7 +1651,7 @@ test('图中接续计算即时进入草稿且可撤回；发布及只读限制�
   try {
     await open('input-1','rule')
     assert.equal(nodes(view.root,'button').filter(node => node.props['data-node']?.startsWith('rule')).length, 2)
-    await click(findText(view.root,'a-button','revertNode'))
+    await click(findText(view.root,'a-menu-item','revertNode'))
     assert.equal(commits.length, 2); assert.equal(props.template.definitions.length, 1)
     await open('input-1','rule')
     assert.equal(commits.length, 3); assert.deepEqual(props.template.definitions.at(-1).dependsOn, ['b'])
@@ -1659,13 +1659,13 @@ test('图中接续计算即时进入草稿且可撤回；发布及只读限制�
     await open('rule-0','output')
     assert.equal(props.template.outputs[0].metricId,'value')
     assert.equal(nodes(view.root,'button').find(node=>node.props['data-node']==='output-0').props['aria-pressed'],true)
-    await click(findText(view.root,'a-button','revertNode'))
+    await click(findText(view.root,'a-menu-item','revertNode'))
     assert.deepEqual(props.template.outputs,[])
     assert.equal(props.template.definitions.length,2)
     props.published = true; await flush()
     assert.equal(walk(view.root,node => node.props['data-add-root'] === 'input').length, 0)
-    assert.equal(nodes(view.root,'a-menu-item').filter(node => textContent(node).includes('addOutput')).length, 0)
-    assert.equal(nodes(plus('rule-0').parent,'a-menu').length,0)
+    assert.equal(nodes(view.root,'a-menu-item').filter(node => textContent(node).includes('addOutput') && node.props.disabled !== true).length, 0)
+    assert.ok(nodes(plus('rule-0').parent,'a-menu-item').some(node=>textContent(node).includes('addNextCalculation') && node.props.disabled !== true))
     const staleButton = plus('rule-0'),stale = staleButton.props.onClick
     props.disabled = true; await flush(); stale({ currentTarget:staleButton }); await flush()
     assert.equal(plus('rule-0'), undefined); assert.equal(commits.length, 5)
@@ -1695,7 +1695,7 @@ test('常驻属性面板保留错误YAML，折叠不卸载，空白切换受保�
     assert.equal(yaml(), field, '错误未修正时保留当前编辑器')
     await click(action('expandProperties'))
     assert.equal(yaml().props['model-value'], '{')
-    await click(findText(view.root,'a-button','revertNode'))
+    await click(findText(view.root,'a-menu-item','revertNode'))
     assert.notEqual(yaml(), field); assert.equal(states.at(-1), false)
     assert.equal(props.template.definitions[0].calculator.parameters.flag, false)
     await blank(); assert.ok(textContent(view.root).includes('scopeAndReference'))

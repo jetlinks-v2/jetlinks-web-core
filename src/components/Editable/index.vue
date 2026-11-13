@@ -1,5 +1,5 @@
 <template>
-  <span class="editable-field" @keydown="onKeydown">
+  <span class="editable-field" :class="{ 'editable-field--number': type === 'number' }" @keydown="onKeydown">
     <span v-if="isEdit" ref="inputRef" class="editable-field__control">
       <component
         ref="componentRef"
@@ -149,6 +149,8 @@ defineExpose({ edit: enterEdit })
 
 <style lang="less" scoped>
 .editable-field { position:relative; display:inline-block; vertical-align:middle; height:32px; min-width:0; max-width:100%; font:inherit }
+// 阅读与编辑共用可用数字槽位，避免步进按钮挤掉数值或控件遮住相邻语句。
+.editable-field--number { min-width:4.5rem }
 // 展示文本继续占位，编辑控件只覆盖同一槽位，避免句子重新换行。
 .editable-field__control { position:absolute; inset:0; display:block; width:100%; height:100%; min-width:0 }
 .editable-field__control :deep(.ant-input),.editable-field__control :deep(.ant-input-number-input) { padding-inline:6px }

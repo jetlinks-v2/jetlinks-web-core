@@ -22,6 +22,7 @@ import { GridItem, GridLayout } from 'vue3-grid-layout-next'
 import 'vue3-grid-layout-next/dist/style.css'
 import { toGridLayout } from '../utils/layout'
 import { useDashboardDrag } from '../composables/useDashboardDrag'
+import { useDashboardPlaceholder } from '../composables/useDashboardPlaceholder'
 import type { DashboardGridItem, DashboardGridSettings, DashboardLayoutItem, DashboardWidget } from '../types'
 
 const props = defineProps<{
@@ -41,6 +42,7 @@ const host = ref<HTMLElement>()
 const layoutRef = ref<InstanceType<typeof GridLayout>>()
 const gridItemRefs = ref<InstanceType<typeof GridItem>[]>([])
 const layoutJSON = ref<DashboardLayoutItem[]>([])
+useDashboardPlaceholder(layoutRef, layoutJSON)
 const layoutReady = ref(false)
 
 // 子组件读取尺寸可能提前计算默认布局；首次定位完成前不从该布局做位移动画。
@@ -128,12 +130,23 @@ async function onLayoutEnd() {
   }
   &:hover .vue-resizable-handle, &.resizing .vue-resizable-handle { opacity: 1; }
 }
-:deep(.vue-grid-item.vue-grid-placeholder),
 :deep(.vue-grid-item.vue-draggable-dragging),
 :deep(.vue-grid-item.resizing) {
-  background: var(--accent-soft);
   border-radius: var(--r-3, 8px) !important;
   clip-path: inset(0 round var(--r-3, 8px));
   overflow: hidden;
+}
+/* 透明占位仅用阴影标出落点；不裁切自身阴影，也不覆盖卡片内容。 */
+:deep(.vue-grid-item.vue-grid-placeholder) {
+  box-sizing: border-box;
+  border-radius: var(--r-3, 8px);
+  background: transparent;
+  box-shadow: var(--shadow-lifted, 0 .375rem 1.25rem rgb(0 0 0 / 6%));
+  z-index: var(--dashboard-placeholder-z-index, 4);
+  opacity: 1;
+  pointer-events: none;
+}
+:deep(.vue-grid-item.vue-draggable-dragging) {
+  cursor: grabbing;
 }
 </style>

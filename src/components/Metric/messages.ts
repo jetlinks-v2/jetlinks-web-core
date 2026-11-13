@@ -1,5 +1,7 @@
 export const metricMessages = {
   zh: {
+    formulaVisualUnavailable: '此历史公式暂不支持可视化编辑，请在完整配置中查看。',
+    cardDisplay:'卡片展示',
     secondsSingular:'秒',minutesSingular:'分钟',hoursSingular:'小时',daysSingular:'天',scheduleSuffix:'计算',
     inputSourceHintsPlaceholder:'选择建议的数据来源（可多选）',
     inputReadTiming:'何时读取与如何处理新数据',
@@ -231,6 +233,8 @@ export const metricMessages = {
     discardEdits: '离开后将放弃未保存的修改，是否继续？', continue: '继续', rangeStart: '开始时间', rangeEnd: '结束时间'
   },
   en: {
+    formulaVisualUnavailable: 'This legacy formula cannot be edited visually. View it in the full configuration.',
+    cardDisplay:'Card display',
     secondsSingular:'second',minutesSingular:'minute',hoursSingular:'hour',daysSingular:'day',scheduleSuffix:'',
     inputSourceHintsPlaceholder:'Suggest data sources (select any)',
     inputReadTiming:'Read timing and new data',

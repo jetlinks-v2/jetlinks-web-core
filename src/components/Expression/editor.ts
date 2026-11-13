@@ -2,9 +2,11 @@ import type { ExpressionNode, ExpressionFunction } from './types'
 
 export type ExpressionPath = (string | number)[]
 export interface ExpressionValueMeaning { schema?:Record<string,unknown>; unit?:string }
-export interface ExpressionReference extends ExpressionValueMeaning { id:string; path:string[]; label:string; displayLabel?:string }
+export interface ExpressionReference extends ExpressionValueMeaning { id:string; path:string[]; label:string; displayLabel?:string; icon?:string; description?:string;group?:string }
 export interface ExpressionResultLabel { value:string|number|boolean; label:string }
-export interface ExpressionEditorContext { references:ExpressionReference[]; functions:ExpressionFunction[]; resultLabels?:ExpressionResultLabel[]; disabled?:boolean }
+export interface ExpressionEditorContext { references:ExpressionReference[]; functions:ExpressionFunction[]; resultLabels?:ExpressionResultLabel[]; resultTypes?:import('./validation').ExpressionValueType[]; disabled?:boolean }
+export { expressionNodeType,normalizeExpressionType } from './validation'
+export type { ExpressionValueType } from './validation'
 export interface ExpressionValueChoice { label:string; node:Extract<ExpressionNode,{type:'literal'}> }
 
 /** 枚举的底层标量类型保持不变，显示名称不参与比较或保存。 */

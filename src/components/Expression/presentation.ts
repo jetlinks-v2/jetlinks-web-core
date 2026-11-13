@@ -11,7 +11,9 @@ export const outcomeLabels:Record<ExpressionOutcome,string>={true:'conditionTrue
 
 export function referenceIcon(token:ExpressionToken,context:ExpressionEditorContext):string {
   if (token.node.type !== 'reference') return 'FunctionOutlined'
-  const schema=context.references.find(item=>referenceKey(item) === referenceKey(token.node as Extract<ExpressionNode,{type:'reference'}>))?.schema
+  const reference=context.references.find(item=>referenceKey(item) === referenceKey(token.node as Extract<ExpressionNode,{type:'reference'}>))
+  if(reference?.icon)return reference.icon
+  const schema=reference?.schema
   const type=String(schema?.type || '')
   return ['date','datetime','timestamp'].includes(type) ? 'CalendarOutlined' : ['int','long','bigint','double','float','number','decimal'].includes(type) ? 'NumberOutlined' : ['boolean','enum'].includes(type) ? 'CheckSquareOutlined' : type === 'object' ? 'ApartmentOutlined' : 'FieldStringOutlined'
 }

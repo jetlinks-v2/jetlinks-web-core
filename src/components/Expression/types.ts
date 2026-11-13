@@ -10,6 +10,8 @@ export type ExpressionNode =
   | { type:'call'; function:string; arguments:ExpressionNode[] }
 
 export interface ExpressionFunction {
+  /** Host icon name, or text: followed by a short mathematical symbol. Rendered as plain text. */
+  icon?:string
   id:string; name:string; description:string; returnType:string
   parameters:{id:string;name:string;valueType:string}[]
   minimumArguments:number; maximumArguments:number
@@ -20,3 +22,5 @@ export interface ExpressionExplanation {
   kind:string; expression?:string; operation?:string; state:string; value:unknown
   path:string[]; children:ExpressionExplanation[]
 }
+export interface ExpressionEvaluation { value:unknown; explanation:ExpressionExplanation; error?:string|null }
+export interface ExpressionEvaluationRequest { expression:StructuredExpression; variables:Record<string,unknown>; variableTypes:Record<string,string>; numeric?:boolean; resultType?:Record<string,unknown> }

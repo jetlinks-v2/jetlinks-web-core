@@ -16,4 +16,5 @@ export * from './useCaptchaVerify';
 export * from './useEmptyCreateState';
 export { useDiagnosticQuery } from './useDiagnosticQuery'
 export { useRetainedScroll } from './useRetainedScroll'
+export { useValueUnit } from './useValueUnit'
 export type { DiagnosticQueryOptions } from './useDiagnosticQuery'

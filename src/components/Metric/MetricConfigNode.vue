@@ -28,10 +28,9 @@
       <small class="config-node__fixed"><AIcon type="LockOutlined" />{{ t('configRuleFixed') }}</small>
     </template>
     <template v-else-if="output">
-      <p class="config-node__meaning">{{ output.unit || t('configNoUnit') }}</p>
-      <p><AIcon type="HistoryOutlined" />{{ t(output.persist && !output.latestOnly ? 'outputHistory' : 'configLatestOnly') }}</p>
-      <p><AIcon type="ThunderboltOutlined" />{{ t(output.publish ? 'outputEvent' : 'configNoEvent') }}</p>
-      <MetricDisplayFields :model-value="normalizePresentation(configuration.presentation)" :template="template" :defaults="normalizePresentation(template.options?.presentation?.settings)" :provider="provider" :disabled="disabled" @update:model-value="emit('display', $event)" @failed="emit('failed')" />
+      <p class="config-node__fixed"><AIcon type="FontSizeOutlined" />{{ output.unit || t('noUnit') }}</p>
+      <p><AIcon type="HistoryOutlined" />{{ t(output.persist !== false && !output.latestOnly ? 'outputHistory' : 'configLatestOnly') }}</p>
+      <p><AIcon type="ThunderboltOutlined" />{{ t(output.publish ? 'outputEvents' : 'configNoEvent') }}</p>
     </template>
   </section>
 </template>
@@ -40,17 +39,15 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { i18nText } from '../I18n/text'
 import TemplateFormulaDisplay from './template/formula/TemplateFormulaDisplay.vue'
-import MetricDisplayFields from './extensions/MetricDisplayFields.vue'
-import { normalizePresentation } from './extensions/presentationSettings'
 import { metricMessages } from './messages'
 import { metricValueText } from './presentation'
 import { nodeLabel, nodeList, ruleDependencies, type TemplateNode, type TemplateRule } from './template/designer'
 import { graphNodeSummary } from './template/graphPresentation'
 import { simulationDuration } from './template/simulationFlow'
 import { sourceScheduleMissing } from './sourcePolicy'
-import type { MetricConfig, MetricPresentationProvider, MetricSourceDescription, MetricSourcePicker, MetricStateLabel, MetricTemplate, MetricTemplateInput } from './types'
-const props = defineProps<{ template:MetricTemplate; configuration:MetricConfig; node?:TemplateNode; sourceLabel?:string; description?:MetricSourceDescription; picker?:MetricSourcePicker; provider?:MetricPresentationProvider; disabled?:boolean }>()
-const emit = defineEmits<{ (event:'choose', input:MetricTemplateInput):void; (event:'locate', id:string):void; (event:'display', value:Record<string,unknown>):void; (event:'failed'):void }>()
+import type { MetricConfig, MetricSourceDescription, MetricSourcePicker, MetricStateLabel, MetricTemplate, MetricTemplateInput } from './types'
+const props = defineProps<{ template:MetricTemplate; configuration:MetricConfig; node?:TemplateNode; sourceLabel?:string; description?:MetricSourceDescription; picker?:MetricSourcePicker; disabled?:boolean }>()
+const emit = defineEmits<{ (event:'choose', input:MetricTemplateInput):void; (event:'locate', id:string):void }>()
 const { t, locale } = useI18n({ useScope:'local', messages:metricMessages })
 const input = computed(() => props.node?.kind === 'input' ? props.template.inputDefinitions[props.node.index] : undefined)
 const mapping = computed(() => input.value && props.configuration.inputMappings[input.value.id])
