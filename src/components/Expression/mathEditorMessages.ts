@@ -1,5 +1,14 @@
 export const mathEditorMessages={
   "zh": {
+    "searchFunctions": "搜索函数",
+    "searchValues": "搜索值",
+    "searchConditions": "搜索条件",
+    "noFunction": "没有匹配的函数",
+    "noCandidate": "没有匹配的选项",
+    "functionGroup_math": "数值处理",
+    "functionGroup_stats": "数据统计",
+    "functionGroup_data": "集合与转换",
+    "functionGroup_other": "其他函数",
     "selectAll": "全选",
     "formulaMore": "更多操作",
     "unsupportedOperator": "不支持此运算符，请使用工具栏中的运算或比较符号",
@@ -48,6 +57,15 @@ export const mathEditorMessages={
     "formulaUndoHint": "⌘ / Ctrl + Z 撤销上一步编辑"
   },
   "en": {
+    "searchFunctions": "Search functions",
+    "searchValues": "Search values",
+    "searchConditions": "Search conditions",
+    "noFunction": "No matching functions",
+    "noCandidate": "No matching options",
+    "functionGroup_math": "Numeric",
+    "functionGroup_stats": "Statistics",
+    "functionGroup_data": "Sets and conversion",
+    "functionGroup_other": "Other functions",
     "selectAll": "Select all",
     "formulaMore": "More actions",
     "unsupportedOperator": "This operator is not supported. Use an arithmetic or comparison operator from the toolbar",

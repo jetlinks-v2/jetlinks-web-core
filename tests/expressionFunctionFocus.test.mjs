@@ -17,6 +17,7 @@ for (const [id, count] of [['math.abs', 1], ['math.min', 2]]) {
       addEventListener() {}
       removeEventListener() {}
       focus() {}
+      blur() {}
       remove() {}
       executeCommand() { return true }
       insert(latex) { this.inserts.push({ latex, selection: structuredClone(this.selection) }); this.value = latex; return true }
@@ -80,11 +81,11 @@ async function withSelection({tokens,root:expression,range,depths},run) {
   globalThis.document={}
   let field,editor
   class Field {
-    constructor(){field=this;this.tokens=['',...tokens];this.selection={ranges:[range]};this.inserts=[]}
+    constructor(){field=this;this.tokens=['',...tokens];this.selection={ranges:[range]};this.inserts=[];this.attributes={}}
     get lastOffset(){return this.tokens.length-1}
     getValue(start,end){return typeof start === 'number' ? this.tokens.slice(start+1,end+1).join('') : this.tokens.slice(1).join('')}
     getElementInfo(offset){return {latex:this.tokens[offset],depth:depths?.[offset] ?? 0}}
-    setAttribute(){} addEventListener(){} removeEventListener(){} focus(){} remove(){}
+    setAttribute(name,value){this.attributes[name]=value} addEventListener(){} removeEventListener(){} focus(){} blur(){} remove(){} canUndo(){return false} canRedo(){return false}
     insert(latex) {
       const [start,end]=this.selection.ranges[0],selected=this.getValue(start,end)
       this.inserts.push({latex,range:[start,end]})
@@ -94,12 +95,12 @@ async function withSelection({tokens,root:expression,range,depths},run) {
   }
   const {useMathEditor}=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key})},'@vueuse/core':{onClickOutside(){}},mathlive:{MathfieldElement:Field},'mathlive/fonts.css':{},'./math-semantic.css?inline':{__esModule:true,default:''}})('components/Expression/useMathEditor.ts')
   const changes=[],{renderer,root}=createMetricRenderer()
-  const app=renderer.createApp({setup(){editor=useMathEditor({modelValue:{version:1,root:expression},context:{references:[{...reference,label:'value',schema:{type:'number'}}],functions}},(...event)=>changes.push(event));editor.host.value={appendChild(){}};return()=>h('div')}})
+  const app=renderer.createApp({setup(){editor=useMathEditor({modelValue:{version:1,root:expression},conditions:true,context:{references:[{...reference,label:'value',schema:{type:'number'}}],functions}},(...event)=>changes.push(event));editor.host.value={appendChild(){}};return()=>h('div')}})
   try {app.mount(root);await flush();await run({field,editor,changes})}
   finally {app.unmount();if(previousDocument===undefined)delete globalThis.document;else globalThis.document=previousDocument}
 }
 
-test('变量切换到函数时关闭旧候选，保留原选区并忽略旧菜单关闭事件',()=>withSelection({tokens:['\\JLa','+','1','+','2'],root:{type:'binary',operator:'add',left:plus,right:literal(2)},range:[0,3]},async({field,editor})=>{
+test('变量切换到函数时关闭旧候选，保留原选区',()=>withSelection({tokens:['\\JLa','+','1','+','2'],root:{type:'binary',operator:'add',left:plus,right:literal(2)},range:[0,3]},async({field,editor})=>{
   editor.canvas.value={clientHeight:40}
   field.blur=()=>{}
   await editor.openReferences()
@@ -108,8 +109,7 @@ test('变量切换到函数时关闭旧候选，保留原选区并忽略旧菜�
   editor.functionMenuVisibilityChanged(true)
   assert.equal(editor.referenceSelection.value,undefined)
   assert.equal(editor.functionMenuOpen.value,true)
-  editor.referenceVisibilityChanged(false)
-  assert.equal(editor.functionMenuOpen.value,true,'旧变量菜单的关闭不能关闭新函数菜单')
+  assert.equal(editor.functionMenuOpen.value,true,'切换后只保留新函数菜单')
   editor.chooseFunction({key:'math.abs'})
   assert.deepEqual(field.inserts[0].range,[0,3])
 }))
@@ -145,6 +145,69 @@ test('函数切换到变量时使用原选区，变量切换到其他菜单时�
   editor.prepareToolbarMenu(true)
   assert.equal(editor.referenceSelection.value,undefined)
   assert.deepEqual(field.selection.ranges,[[0,3]])
+}))
+
+for(const kind of ['function','literal','condition']) {
+  test(`${kind} 候选显示实际替换目标，获得焦点不提交；取消恢复原光标`,()=>withSelection({tokens:['1','2','3'],root:literal(123),range:[2,2]},({field,editor,changes})=>{
+    editor.openInsertionMenu(kind)
+    assert.deepEqual(field.selection.ranges,[[0,3]])
+    assert.equal(field.attributes['data-insertion-target'],'true')
+    editor.blurCommit()
+    assert.deepEqual(changes,[])
+    assert.equal(editor.functionMenuOpen.value || !!editor.insertionMenu.value,true)
+    editor.closeReferences(true)
+    assert.deepEqual(field.selection.ranges,[[2,2]])
+    assert.equal(field.attributes['data-insertion-target'],'false')
+    assert.equal(field.inserts.length,0,'打开或取消候选不产生编辑历史')
+  }))
+  test(`${kind} 在空公式显示插入光标`,()=>withSelection({tokens:[],root:literal(0),range:[0,0]},({field,editor})=>{
+    editor.openInsertionMenu(kind)
+    assert.deepEqual(field.selection.ranges,[[0,0]])
+    assert.equal(field.attributes['data-insertion-target'],'true')
+    assert.equal(field.inserts.length,0)
+  }))
+}
+test('变量候选选中实际隐式替换范围；变量切换到值时保留同一目标',()=>withSelection({tokens:['\\JLa','+','1','2','3'],root:{type:'binary',operator:'add',left:reference,right:literal(123)},range:[3,3]},async({field,editor})=>{
+  await editor.openReferences()
+  assert.deepEqual(field.selection.ranges,[[2,5]])
+  assert.deepEqual(editor.referenceSelection.value.ranges,[[3,3]],'保留原光标语义，不将预览选区当作用户选区')
+  editor.openInsertionMenu('literal')
+  assert.equal(editor.insertionMenu.value,'literal')
+  field.selection={ranges:[[0,1]]}
+  editor.chooseLiteral({key:'null'})
+  assert.deepEqual(field.inserts[0].range,[2,5])
+  assert.equal(field.getValue(),'\\JLa+\\JLemptyResult')
+}))
+test('函数的隐式替换预览不冒充显式选区参数',()=>withSelection({tokens:['1','2','3'],root:literal(123),range:[2,2]},({field,editor})=>{
+  editor.openInsertionMenu('function')
+  assert.deepEqual(field.selection.ranges,[[0,3]])
+  editor.chooseFunction({key:'math.abs'})
+  assert.deepEqual(field.inserts[0].range,[0,3])
+  assert.ok(field.inserts[0].latex.includes('#?'))
+  assert.ok(!field.inserts[0].latex.includes('#0'))
+}))
+test('条件候选复用实际分支范围和完整比较式，预览不改变最终操作范围',()=>withSelection({tokens:['\\JLa','>','1'],root:{type:'binary',operator:'gt',left:reference,right:literal(1)},range:[3,3]},({field,editor})=>{
+  editor.openInsertionMenu('condition')
+  assert.deepEqual(field.selection.ranges,[[0,3]],'新分支包装当前完整算式')
+  editor.previewConditionTarget(0)
+  assert.deepEqual(field.selection.ranges,[[0,3]],'逻辑非作用于完整比较式')
+  field.selection={ranges:[[0,0]]}
+  editor.chooseConditionOperator({key:'0'})
+  assert.deepEqual(field.inserts[0].range,[0,3])
+  assert.ok(field.getValue().startsWith('\\JLnot'))
+}))
+test('右键快捷入口保留原选区，复用函数参数限制与就地候选',()=>withSelection({tokens:['\\JLa','+','1','+','2'],root:{type:'binary',operator:'add',left:plus,right:literal(2)},range:[0,3]},({field,editor})=>{
+  editor.openContextMenu({clientX:0,clientY:0,composedPath:()=>[field],preventDefault(){},stopPropagation(){}})
+  assert.equal(editor.availableFunctions.value.find(item=>item.id === 'math.constant').disabled,true,'无参函数不能吞掉选中算式')
+  field.selection={ranges:[[5,5]]}
+  editor.contextAction({key:'function'})
+  assert.equal(editor.contextMenuOpen.value,false)
+  assert.equal(editor.functionMenuOpen.value,true)
+  assert.deepEqual(field.selection.ranges,[[0,3]])
+  editor.chooseFunction({key:'math.abs'})
+  assert.deepEqual(field.inserts[0].range,[0,3])
+  assert.ok(field.inserts[0].latex.includes('#0'))
+  assert.ok(field.getValue().endsWith('+2'))
 }))
 
 for(const id of ['math.abs','math.sqrt','math.min','math.mapRange','math.optional']) {

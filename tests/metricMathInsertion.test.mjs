@@ -289,6 +289,9 @@ test('单行回车保留整条算式为首个结果并创建条件草稿；非�
 test('回车续写分支，默认行前插入；组合键和输入法不被拦截',()=>{
   const field=branchField(),commands=[],state=setup(field)
   field.executeCommand=name=>{commands.push({name,position:field.position});return true}
+  const original=structuredClone(field.selection)
+  assert.deepEqual(state.insertion.branchRange(false,{ranges:[[1,2]]}),[5,5],'续写分支预览为默认结果前的插入光标')
+  assert.deepEqual(field.selection,original,'解析预览范围不改变原生选区或历史')
   field.selection={ranges:[[1,2]]};state.insertion.onKeydown(key('Enter'))
   assert.equal(commands[0].name,'moveToGroupStart')
   assert.equal(field.inserts[0].latex,'\\begin{cases}\\placeholder{}&\\placeholder{}\\\\\\placeholder{}&\\placeholder{}\\\\0&\\JLotherwise\\end{cases}')

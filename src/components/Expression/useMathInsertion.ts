@@ -318,22 +318,36 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     return true
   }
   /** 当前同层参数整体成为首个结果；逗号及原生组边界隔开函数参数、分子和分母。 */
-  function startBranch(selectedValue=false) {
+  function startBranchTarget(selectedValue=false,selection?:Selection) {
     const field=options.field()
-    if(!field || options.disabled() || options.conditions?.() === false || field.selection.ranges.length !== 1)return false
-    const target=current()
-    if(selectedValue && !target)return false
-    const [start,end]=field.selection.ranges[0].slice().sort((a,b)=>a-b)
+    const ranges=(selection || field?.selection)?.ranges
+    if(!field || options.disabled() || options.conditions?.() === false || ranges?.length !== 1)return
+    const target=current(selection)
+    if(selectedValue && !target)return
+    const [start,end]=ranges[0].slice().sort((a,b)=>a-b)
     const peers=siblings(end)
     const separator=peers.findIndex(item=>item.offset>end && item.latex === ',')
     const first=peers.filter(item=>item.offset<=start && (!item.latex || item.latex === ',')).pop()
     const rangeStart=first?.offset ?? Math.max(0,(peers[0]?.offset ?? 1)-1)
     const rangeEnd=separator<0 ? peers.at(-1)?.offset ?? end : peers[separator-1].offset
     const range:Range=selectedValue && target ? target.range : [rangeStart,rangeEnd]
-    if(start<range[0] || end>range[1])return false
+    if(start<range[0] || end>range[1])return
     const latex=field.getValue(...range,'latex')
     const empty=!latex || /^\\placeholder\{[^{}]*\}$/.test(latex)
-    if(!empty && !parse(latex))return false
+    if(!empty && !parse(latex))return
+    return {range,latex,empty}
+  }
+  /** Existing cases add a row before the default; new/nested cases wrap the same range used by execution. */
+  function branchRange(nested=false,selection?:Selection):Range|undefined {
+    current(selection)
+    const place=nested ? undefined : caseAt(selection)
+    const fallback=place?.cells.at(-2)
+    return fallback ? [fallback.start,fallback.start] : startBranchTarget(nested,selection)?.range
+  }
+  function startBranch(selectedValue=false) {
+    const field=options.field(),target=startBranchTarget(selectedValue)
+    if(!field || !target)return false
+    const {range,latex,empty}=target
     field.focus();field.selection={ranges:[range]}
     field.insert(`\\begin{cases}${empty ? '\\placeholder{}' : latex}&\\placeholder{}\\\\\\placeholder{}&\\JLotherwise\\end{cases}`,{selectionMode:'placeholder',silenceNotifications:true})
     options.commit();refresh()
@@ -415,5 +429,5 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     options.commit();refresh()
     return true
   }
-  return {refresh,insert,applicable,valueChoices,canInsertValue:computed(()=>!!target.value),canAddBranch:computed(()=>!!branch.value),addBranch,startBranch,onKeydown,placeInBlank,functionAtPoint,parameterAtPoint,target}
+  return {refresh,insert,applicable,valueChoices,canInsertValue:computed(()=>!!target.value),canAddBranch:computed(()=>!!branch.value),addBranch,startBranch,branchRange,onKeydown,placeInBlank,functionAtPoint,parameterAtPoint,target}
 }

@@ -14,6 +14,7 @@ import { useMathInsertion, type MathInsertion, type FunctionTarget } from './use
 import { useMathClipboard } from './useMathClipboard'
 import { unsupportedMathKey } from './mathInput'
 import { validateExpressionTypes,expressionValidationMessage } from './validation'
+import type { CandidateGroup } from './useExpressionCandidateMenu'
 
 /** 旧源码只由宿主适配；可视编辑仅提交结构树。 */
 export interface ExpressionSourceAdapter { text:string; parse:(source:string)=>StructuredExpression|undefined; format:(tree:StructuredExpression)=>string }
@@ -42,25 +43,21 @@ const mode = ref<'visual' | 'source'>(props.forceSource || initial === undefined
 const host = ref<HTMLElement>()
 const canvas = ref<HTMLElement>()
 const popupContent = ref<HTMLElement>()
-onClickOutside(canvas,()=>{if(functionSelection.value || functionMenuOpen.value || contextMenuOpen.value)closeReferences()},{ignore:[popupContent]})
-const referencePicker = ref<{ focus(): void }>()
+onClickOutside(canvas,()=>{if(referenceSelection.value || sourcePickerOpen.value || functionSelection.value || functionMenuOpen.value || insertionMenu.value || contextMenuOpen.value)closeReferences()},{ignore:[popupContent]})
 const referenceSelection = ref<Selection>()
 const functionSelection=shallowRef<FunctionTarget>()
 const functionMenuOpen=ref(false)
+const insertionMenu=ref<'literal'|'condition'>()
 const contextMenuOpen=ref(false)
 const contextCanUndo=ref(false),contextCanRedo=ref(false)
-let functionInsertionSelection: Selection | undefined
+// Keep the user's range separate from the resolved replacement shown while a picker owns focus.
+let pickerSelection: Selection | undefined
 let contextSelection: Selection | undefined
-const referenceFrame=ref<{left:string;top:string;width:string;height:string}>()
 const hoverFrame=ref<{left:string;top:string;width:string;height:string}>()
 const hoverHint=shallowRef<{name:string;type?:string;description?:string;context?:string;style:ReturnType<typeof frameStyle>}>()
 const sourcePickerOpen = ref(false)
 const pickerStyle = ref({ left: '0px', top: '0px' })
-const referenceOptions=computed(()=>{
-  const options=references.value.flatMap((item,value)=>mode.value === 'source' || insertion.applicable({kind:'value',latex:'',valueType:String(item.schema?.type || 'unknown')}) ? [{value,label:item.displayLabel || item.label,icon:item.icon || 'DatabaseOutlined',description:item.description}] : [])
-  if(!references.value.some(item=>item.group))return options
-  return [...new Set(references.value.map(item=>item.group || ''))].map(group=>({label:group,options:options.filter(option=>(references.value[option.value].group || '') === group)})).filter(group=>group.options.length)
-})
+const referenceOptions=computed(()=>references.value.flatMap((item,value)=>mode.value === 'source' || insertion.applicable({kind:'value',latex:'',valueType:String(item.schema?.type || 'unknown')}) ? [{value,label:item.displayLabel || item.label,icon:item.icon || 'DatabaseOutlined',description:item.description}] : []))
 let replacingReference = false
 const sourceText = ref(modelSource.value)
 const invalid = ref(false)
@@ -90,6 +87,16 @@ const literalValues=computed(()=>[
   ]),
   {key:'null',icon:'StopOutlined',label:t('noValue'),description:t('noValueHint'),latex:'\\JLemptyResult'},
 ].map(item=>({...item,description:'description' in item ? item.description : undefined,kind:'value' as const,valueType:'valueType' in item ? String(item.valueType) : item.key === 'true' || item.key === 'false' ? 'boolean' : item.key === 'text' ? 'string' : item.key,disabled:!insertion.applicable({kind:'value',latex:item.latex,valueType:'valueType' in item ? String(item.valueType) : item.key === 'true' || item.key === 'false' ? 'boolean' : item.key === 'text' ? 'string' : item.key})})))
+const candidateKind=computed(()=>referenceSelection.value || sourcePickerOpen.value ? 'variable' : functionSelection.value || functionMenuOpen.value ? 'function' : insertionMenu.value)
+const candidatePlaceholder=computed(()=>t(candidateKind.value === 'variable' ? 'chooseVariable' : candidateKind.value === 'function' ? 'searchFunctions' : candidateKind.value === 'literal' ? 'searchValues' : 'searchConditions'))
+const candidateEmpty=computed(()=>t(candidateKind.value === 'variable' ? 'noVariable' : candidateKind.value === 'function' ? 'noFunction' : 'noCandidate'))
+const candidateGroups=computed<CandidateGroup[]>(()=>{
+  if(candidateKind.value === 'variable')return [...new Set(references.value.map(item=>item.group || ''))].map(group=>({id:group,label:group || undefined,items:referenceOptions.value.filter(item=>(references.value[item.value].group || '') === group).map(item=>({...item,id:item.value,name:item.label}))}))
+  if(candidateKind.value === 'function')return ['math','stats','data','other'].map(group=>({id:group,label:t('functionGroup_'+group),icon:group === 'stats' ? 'BarChartOutlined' : group === 'data' ? 'GroupOutlined' : 'FunctionOutlined',items:availableFunctions.value.filter(item=>group === 'other' ? !['math.','stats.','data.'].some(prefix=>item.id.startsWith(prefix)) : item.id.startsWith(group+'.'))}))
+  if(candidateKind.value === 'literal')return [{id:'values',items:literalValues.value.map(item=>({...item,id:item.key,name:item.label}))}]
+  return [{id:'branches',items:[{id:'branch',name:t(canAddBranch.value ? 'addFormulaBranch' : 'conditionalFunction'),description:t('enterFormulaBranch'),icon:'BranchesOutlined',disabled:!canAddBranch.value && !canInsertValue.value},...(canAddBranch.value ? [{id:'nested',name:t('nestFormulaBranch'),description:t('nestFormulaBranchHint'),icon:'BranchesOutlined',disabled:!canInsertValue.value}] : [])]},
+    {id:'conditions',items:conditionOperators.value.map((item,index)=>({id:index,name:item.label,description:t(item.hint),icon:'BranchesOutlined',disabled:item.disabled}))}]
+})
 let field: MathfieldElement | undefined
 let baseShortcuts: MathfieldElement['inlineShortcuts'] = {}
 let sourceElement: HTMLTextAreaElement | undefined
@@ -114,61 +121,48 @@ const insertion=useMathInsertion({field:()=>field,context:()=>context.value,root
 const canInsertValue=insertion.canInsertValue
 const canAddBranch=insertion.canAddBranch
 const addBranch=insertion.addBranch
-const refreshInsertion=()=>insertion.refresh(functionSelection.value ? {ranges:[functionSelection.value.range]} : referenceSelection.value)
+const refreshInsertion=()=>insertion.refresh(functionSelection.value ? {ranges:[functionSelection.value.range]} : referenceSelection.value || pickerSelection || contextSelection)
 
 function setInvalid(value: boolean) { invalid.value = value; emit('invalid', value) }
-// Resolve from the mounted canvas: a newly created Select trigger may still be detached.
+// Resolve from the mounted canvas before the new popup anchor is connected.
 const popupContainer=(trigger?:HTMLElement):HTMLElement=>{
   const anchor=canvas.value || trigger!
   return anchor.closest<HTMLElement>('dialog:modal, [role="dialog"], [role="alertdialog"]') || anchor.ownerDocument.body
 }
-function referenceVisibilityChanged(visible: boolean) {
-  if (visible || !referenceSelection.value && !sourcePickerOpen.value) return
-  // MathLive can complete a pending focus after the picker opened. Explicit
-  // pointer actions in the formula already discard the saved selection.
-  if (referenceSelection.value && document.activeElement === field) referencePicker.value?.focus()
-  else closeReferences()
-}
 function closeReferences(focus = false) {
-  const selection=referenceSelection.value || (functionSelection.value ? {ranges:[functionSelection.value.range]} : undefined)
-  functionInsertionSelection=undefined
+  const selection=referenceSelection.value || pickerSelection || (functionSelection.value ? {ranges:[functionSelection.value.range]} : undefined)
+  pickerSelection=undefined
   functionSelection.value=undefined
   functionMenuOpen.value=false
+  insertionMenu.value=undefined
   contextMenuOpen.value=false
   contextSelection=undefined
   referenceSelection.value = undefined
-  referenceFrame.value=undefined
   hoverFrame.value=undefined
   hoverHint.value=undefined
   sourcePickerOpen.value = false
+  if(field) {field.setAttribute('data-insertion-target','false');if(selection)field.selection=selection}
   if (focus) { if (mode.value === 'source') sourceElement?.focus(); else if(field){field.focus();if(selection)field.selection=selection} }
 }
 function focusFormula() {
   field?.focus()
 }
-/** Keep MathLive's native range while the select temporarily owns keyboard focus. */
+/** Keep MathLive's native range while the shared candidate panel owns keyboard focus. */
 async function openReferences(bounds?: DOMRect, selection?: Selection, replace = false) {
   if (disposed || props.disabled || !references.value.length || mode.value === 'visual' && !field) return
-  const current = selection || referenceSelection.value || functionInsertionSelection || field?.selection
+  const current = selection || referenceSelection.value || pickerSelection || contextSelection || field?.selection
   closeReferences()
-  const anchor = localBounds(bounds || (mode.value === 'visual' ? field?.getElementInfo(field.position)?.bounds : undefined))
-  // 仅框住本次原生原子，不高亮同名的其他读取；不向 MathLive 插入装饰或历史记录。
-  referenceFrame.value=replace && bounds ? frameStyle(bounds) : undefined
-  pickerStyle.value = {
-    left: `clamp(0px, ${anchor?.left ?? 0}px, max(0px, calc(100% - 260px)))`,
-    top: `${Math.max(0, anchor?.bottom ?? canvas.value!.clientHeight ?? 0) + 4}px`,
-  }
   if (mode.value === 'source') sourcePickerOpen.value = true
   else if (field) {
     const selected=current || field.selection
     referenceSelection.value = { ...selected, ranges: selected.ranges.map(([start, end]) => [start, end]) }
+    pickerSelection=referenceSelection.value
     insertion.refresh(referenceSelection.value)
     replacingReference = replace
-    field.position=Math.max(...selected.ranges[0])
+    showInsertionTarget()
     field.blur()
   }
-  await nextTick()
-  referencePicker.value?.focus()
+  positionPicker(bounds)
 }
 function chooseAtPoint(event: MouseEvent) {
   if (!field || props.disabled || event.button !== 0 || event.shiftKey || !event.composedPath().includes(field)) return
@@ -177,10 +171,9 @@ function chooseAtPoint(event: MouseEvent) {
   const fn=insertion.functionAtPoint(event.clientX,event.clientY)
   if(fn) {
     event.preventDefault();event.stopPropagation()
-    const anchor=localBounds(fn.bounds)!
-    pickerStyle.value={left:`clamp(0px, ${anchor.left}px, max(0px, calc(100% - 360px)))`,top:`${anchor.bottom+4}px`}
     functionSelection.value=fn
-    insertion.refresh({ranges:[fn.range]});field.position=fn.range[1];field.blur()
+    pickerSelection={ranges:[fn.range]}
+    insertion.refresh(pickerSelection);showInsertionTarget();positionPicker(fn.bounds);field.blur()
     return
   }
   // A variable click belongs to the picker. Do not start MathLive's deferred focus.
@@ -222,9 +215,32 @@ function frameStyle(bounds:DOMRect) {
   return local ? {left:`${local.left-1}px`,top:`${local.top}px`,width:`${local.right-local.left+2}px`,height:`${local.bottom-local.top}px`} : undefined
 }
 /** Toolbar and token clicks open candidate pickers beside the native caret. */
-function positionPicker(bounds?:DOMRect,width=260) {
+function positionPicker(bounds?:DOMRect,width?:number) {
   const anchor=localBounds(bounds || (mode.value === 'visual' ? field?.getElementInfo(field.position)?.bounds : undefined))
-  pickerStyle.value={left:'clamp(0px, '+(anchor?.left ?? 0)+'px, max(0px, calc(100% - '+width+'px)))',top:Math.max(0,anchor?.bottom ?? canvas.value?.clientHeight ?? 0)+4+'px'}
+  const panelWidth=width ? width+'px' : 'var(--formula-candidate-width,296px)'
+  pickerStyle.value={left:'clamp(0px, '+(anchor?.left ?? 0)+'px, max(0px, calc(100% - '+panelWidth+')))',top:Math.max(0,anchor?.bottom ?? canvas.value?.clientHeight ?? 0)+4+'px'}
+}
+/** Show MathLive's actual replacement range, or its native caret for an insertion, without changing undo history. */
+function showInsertionTarget() {
+  if(!field)return
+  const range=functionSelection.value?.range || insertion.target.value?.range
+  if(range)field.selection={ranges:[[...range]]}
+  field.setAttribute('data-insertion-target','true')
+}
+function previewConditionTarget(key:string|number) {
+  if(!field || insertionMenu.value !== 'condition')return
+  insertion.refresh(pickerSelection)
+  const target=insertion.target.value
+  const item=conditionOperators.value[Number(key)]
+  const range=key === 'branch' || key === 'nested' ? insertion.branchRange(key === 'nested',pickerSelection)
+    : item?.kind === 'not' ? target?.segment?.range || target?.range : target?.range
+  if(range)field.selection={ranges:[[...range]]}
+}
+function chooseCandidate(item:{key:string|number}) {
+  if(candidateKind.value === 'variable')chooseReference(Number(item.key))
+  else if(candidateKind.value === 'function')chooseFunction(item)
+  else if(candidateKind.value === 'literal')chooseLiteral(item)
+  else chooseConditionOperator(item)
 }
 /** 只识别投影自身声明的标记，不依赖 MathLive 的私有节点、层级或坐标缓存。 */
 function referenceAtPoint(event:MouseEvent) {
@@ -314,7 +330,7 @@ function onInput() {
 function finish() {if(mode.value === 'visual')onInput();return mode.value === 'source' ? !invalid.value : ready.value && !invalid.value && !loadError.value}
 function blurCommit() {
   // Menu focusout precedes its item click; committing here would dismiss the pending insertion.
-  if(!referenceSelection.value && !functionSelection.value && !functionMenuOpen.value)finish()
+  if(!referenceSelection.value && !functionSelection.value && !functionMenuOpen.value && !insertionMenu.value && !contextMenuOpen.value)finish()
 }
 function onBeforeInput(event:InputEvent) {
   if(!props.disabled && event.data && unsupportedMathKey(event.data,'',field?.mode === 'text')) {
@@ -372,11 +388,15 @@ async function mountField() {
   } catch { loadError.value = true }
   finally { loading = false }
 }
-function insert(item:MathInsertion,selection?:Selection) {insertion.insert(item,selection)}
+function insert(item:MathInsertion,selection?:Selection) {
+  const original=selection || pickerSelection
+  closeReferences()
+  insertion.insert(item,original)
+}
 /** Switching toolbar menus dismisses the old picker without losing its native range. */
 function prepareToolbarMenu(open: boolean) {
   if (!open || !field) return
-  const current=referenceSelection.value || functionInsertionSelection || field.selection
+  const current=referenceSelection.value || pickerSelection || (functionSelection.value ? {ranges:[functionSelection.value.range]} : contextSelection || field.selection)
   const selection:Selection={ranges:current.ranges.map(([start,end])=>[start,end])}
   closeReferences()
   field.selection=selection
@@ -384,10 +404,20 @@ function prepareToolbarMenu(open: boolean) {
   return selection
 }
 function functionMenuVisibilityChanged(open: boolean) {
-  if(open)positionPicker(undefined,360)
-  const selection=prepareToolbarMenu(open)
-  if(selection)functionInsertionSelection=selection
-  functionMenuOpen.value=open
+  if(open)openInsertionMenu('function')
+  else closeReferences(true)
+}
+/** All content-producing menus share the same caret anchor, selection snapshot and dismissal. */
+function openInsertionMenu(kind:'function'|'literal'|'condition') {
+  if(props.disabled || !field)return
+  if(kind === 'function' && functionMenuOpen.value || kind === insertionMenu.value) {closeReferences(true);return}
+  pickerSelection=prepareToolbarMenu(true)
+  functionMenuOpen.value=kind === 'function'
+  insertionMenu.value=kind === 'function' ? undefined : kind
+  showInsertionTarget()
+  if(kind === 'condition')previewConditionTarget('branch')
+  positionPicker()
+  field.blur()
 }
 /** Only formula content owns this menu; search inputs retain normal text editing. */
 function openContextMenu(event:MouseEvent) {
@@ -403,14 +433,16 @@ function contextAction({key}:{key:string|number}) {
   closeReferences()
   if(!field)return
   field.focus();if(selection)field.selection=selection
-  if(key === 'copy')void clipboard.copy()
+  if(key === 'variable')void openReferences()
+  else if(key === 'function' || key === 'literal' || key === 'condition')openInsertionMenu(key)
+  else if(key === 'copy')void clipboard.copy()
   else if(key === 'paste' && !props.disabled)void clipboard.paste()
   else if(key === 'selectAll' || (key === 'undo' || key === 'redo') && !props.disabled)field.executeCommand(key)
 }
 /** 只包装显式选区；光标旁的隐式替换目标和函数名替换仍沿用原有语义。 */
 function selectedFunctionArgument() {
   const node=insertion.target.value?.node
-  const selection=functionInsertionSelection || field?.selection
+  const selection=pickerSelection || contextSelection || field?.selection
   return !functionSelection.value && selection?.ranges.length === 1 && selection.ranges[0][0] !== selection.ranges[0][1] ? node : undefined
 }
 function acceptsFunctionSelection(descriptor:ExpressionFunction) {
@@ -427,7 +459,7 @@ function insertFunction(name: string) {
   const selected=functionSelection.value
   if(selected?.id === name) {closeReferences(true);return}
   if(selected && descriptor && selected.count>descriptor.maximumArguments)return
-  insertion.refresh(selected ? {ranges:[selected.range]} : functionInsertionSelection)
+  insertion.refresh(selected ? {ranges:[selected.range]} : pickerSelection)
   if(!acceptsFunctionSelection(descriptor))return
   const argument=selectedFunctionArgument()
   let argumentsLatex:string
@@ -439,10 +471,14 @@ function insertFunction(name: string) {
     argumentsLatex=`\\left(${args.join(',')}\\right)`
   }
   const latex=name === 'math.sqrt' ? `\\sqrt{${argumentsLatex.slice(6,-7)}}` : '\\operatorname{'+label+'}'+argumentsLatex
-  if(label)insert({kind:'value',valueType:descriptor.returnType,latex},selected ? {ranges:[selected.range]} : functionInsertionSelection)
+  if(label)insert({kind:'value',valueType:descriptor.returnType,latex},selected ? {ranges:[selected.range]} : pickerSelection)
 }
-function chooseFunction({ key }: { key: string | number }) { functionMenuOpen.value=false;if (key === 'retry') refreshFunctions(); else insertFunction(String(key));functionInsertionSelection=undefined }
+function chooseFunction({ key }: { key: string | number }) { if (key === 'retry') refreshFunctions(); else insertFunction(String(key)) }
 function chooseConditionOperator({ key }: { key: string | number }) {
+  const selection=pickerSelection
+  closeReferences()
+  if(field && selection)field.selection=selection
+  insertion.refresh(selection)
   if(key === 'branch') {if(canAddBranch.value)addBranch();else insertion.startBranch();return}
   if(key === 'nested') {insertion.startBranch(true);return}
   const item=conditionOperators.value[Number(key)];if(item)insert(item)
@@ -504,5 +540,5 @@ watch(host,()=>mountField(),{flush:'post'})
 onMounted(mountField)
 onBeforeUnmount(() => { disposed = true; if(typeof document !== 'undefined')document.fonts?.removeEventListener('loadingdone',refreshSelectionLayout); if(selectionLayoutFrame !== undefined)cancelAnimationFrame(selectionLayoutFrame); clipboard.dispose(); emit('referenceHover',undefined); closeReferences(); field?.removeEventListener('input', onInput);field?.removeEventListener('beforeinput',onBeforeInput);field?.removeEventListener('selection-change',refreshInsertion);field?.removeEventListener('keydown',onEditorKeydown,true); field?.remove() })
 
-return {blurCommit,finish,clipboard,inputNotice,t,host,canvas,popupContent,contextMenuOpen,contextCanUndo,contextCanRedo,openContextMenu,contextAction,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,prepareToolbarMenu,referenceFrame,hoverFrame,hoverHint,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
+return {blurCommit,finish,clipboard,inputNotice,t,host,canvas,popupContent,contextMenuOpen,contextCanUndo,contextCanRedo,openContextMenu,contextAction,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,candidateKind,candidateGroups,candidatePlaceholder,candidateEmpty,chooseCandidate,functionMenuVisibilityChanged,insertionMenu,openInsertionMenu,previewConditionTarget,prepareToolbarMenu,hoverFrame,hoverHint,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
 }
