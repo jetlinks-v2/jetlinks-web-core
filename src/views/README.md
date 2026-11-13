@@ -23,7 +23,7 @@
 
 登录外观预览通过 `PlatformLoginPreview.vue` 复用实际登录页的 `login/components/LoginPageLayout.vue`、标题和账号表单，并按桌面比例缩放。真实登录与预览共用布局样式；预览不启动认证流程。此次布局对齐的验证见 [PlatformSettings 文档](../components/PlatformSettings/README.md)。
 
-运行时 `/system/Basis` 与 `/init-home` 共享纵向卡片、逐行配置和登录页 / 顶栏草稿预览。设置页逐项保存，初始化页统一校验提交；窄屏外观字段与预览上下排列。SaaS 支持修改页签图标，隐藏备案信息、登录背景和 `base-path`，私有化将 `base-path` 标为“接口基础地址”。主题及菜单布局不再作为本页编辑项，已有配置原样保留。组件契约见 [PlatformSettings](../components/PlatformSettings/README.md)。
+运行时 `/system/Basis` 与 `/init-home` 共享纵向卡片、逐行配置和登录页 / 顶栏草稿预览。设置页逐项保存，初始化页统一校验提交；窄屏外观字段与预览上下排列。SaaS 支持修改页签图标，仅对平台 `admin` 超管开放备案信息和登录背景，`base-path` 始终隐藏；私有化将 `base-path` 标为“接口基础地址”。主题及菜单布局不再作为本页编辑项，已有配置原样保留。组件契约见 [PlatformSettings](../components/PlatformSettings/README.md)。
 
 Owning modules：`runtime-ui/jetlinks-web-core` 的 `src/components/PlatformSettings`、`src/hooks/usePlatformSettings.ts`、`src/hooks/useSystemPlatformSettings.ts`、`src/views/init-home`；`runtime-ui/modules/authentication-manager-ui/views/system/Basis`；`runtime-ui/modules/saas-runtime-ui/components/Tenant`。字段注册契约移到 core 公共入口，原入口兼容转导出；core 不导入 SaaS 业务。保存沿用 `front` / `amap` / `paths`，合并当前变更，保留隐藏字段、未知字段、主题和布局；失败保留草稿，成功后回读失败只刷新，不重复写入。
 

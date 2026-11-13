@@ -29,7 +29,7 @@ import LoginPageLayout from '../../views/login/components/LoginPageLayout.vue'
 import LoginPanelHeader from '../../views/login/components/LoginPanelHeader.vue'
 import LoginHeaderActions from '../../views/login/components/LoginHeaderActions.vue'
 import PasswordLogin from '../../views/login/components/PasswordLogin.vue'
-import defaultLoginBackground from '@jetlinks-web-core/assets/login/login-bg.png'
+import { resolveLoginBackground } from '@jetlinks-web-core/utils/login-background'
 import type { PlatformSettingKey, PlatformSettingsAssets, PlatformSettingsModel } from './types'
 
 const props = defineProps<{ model: PlatformSettingsModel; assets: PlatformSettingsAssets; hidden: readonly string[]; active?: string }>()
@@ -40,12 +40,11 @@ const viewport = ref<HTMLElement>()
 const { width } = useElementSize(viewport)
 const mark = (key: string) => ({ 'preview-active': props.active === key })
 const canvasStyle = computed(() => {
-  const image = `url(${JSON.stringify(props.assets.background || defaultLoginBackground)})`
+  const background = resolveLoginBackground(props.hidden.includes('background') ? '' : props.model.background)
   return {
     // Keep the login page's proportions when the settings card becomes narrower.
     '--login-viewport-width': `${previewSize.value.width}px`, '--login-viewport-height': `${previewSize.value.height}px`,
-    '--login-bg-image': props.model.background && !props.hidden.includes('background')
-      ? image : `var(--jet-login-bg-image, ${image})`,
+    ...background.style,
     transform: `scale(${width.value / previewSize.value.width})`,
   }
 })

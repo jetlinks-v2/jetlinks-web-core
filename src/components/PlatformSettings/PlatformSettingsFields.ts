@@ -1,7 +1,7 @@
 import { defineComponent, type PropType } from 'vue'
 import { componentsRegistry } from '../../utils/components-registry'
 import { useRegistryVNodeMerge } from '../../hooks/useRegistryComponentsMerge'
-import { BASIS_FORM_MODULE_CODE, BASIS_FORM_PAGE_CODE } from './fieldRegistry'
+import { BASIS_FORM_MODULE_CODE, BASIS_FORM_PAGE_CODE, resolveBasisFormFieldActions } from './fieldRegistry'
 
 const groups = {
   appearance: ['title', 'logo', 'ico', 'background', 'showRecordNumber'],
@@ -17,7 +17,7 @@ export default defineComponent({
   setup(props, { slots, attrs }) {
     const nodes = useRegistryVNodeMerge(
       () => slots.default?.() || [],
-      () => componentsRegistry.getRegistry(`${BASIS_FORM_PAGE_CODE}:${BASIS_FORM_MODULE_CODE}`).filter(item =>
+      () => resolveBasisFormFieldActions(componentsRegistry.getRegistry(`${BASIS_FORM_PAGE_CODE}:${BASIS_FORM_MODULE_CODE}`)).filter(item =>
         groups[props.group].includes(String(item.target))
         || props.group === 'address' && !known.includes(String(item.target))),
       () => attrs,

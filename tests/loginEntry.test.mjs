@@ -40,7 +40,7 @@ const storage = () => {
 }
 
 // Mount the production login, password form and login hooks; replace HTTP and component-library primitives.
-const fixture = async (t, { pathname = '/ht_device/', environment = 'saas' } = {}) => {
+const fixture = async (t, { pathname = '/ht_device/', environment = 'saas', page = false, front = {}, base = '/' } = {}) => {
   const previous = Object.fromEntries(['window', 'location', 'localStorage', 'sessionStorage'].map(key => [key, globalThis[key]]))
   const location = { origin: 'https://runtime.example.com', pathname, hash: '#/login', replace: () => assert.fail('login must preserve its entry URL') }
   globalThis.location = location
@@ -51,6 +51,10 @@ const fixture = async (t, { pathname = '/ht_device/', environment = 'saas' } = {
   const route = Vue.ref({ fullPath: '/login' })
   const calls = [], successes = [], cache = new Map()
   const response = result => Promise.resolve({ success: true, result })
+  const system = Vue.reactive({
+    layout: { title: 'Platform', logo: '/logo.png' }, systemInfo: { front }, language: 'zh',
+    querySingleInfo: () => response(front),
+  })
   const api = {
     captchaConfig: () => response({ enabled: true, type: 'image', loginWithVerify: false }),
     encryptionConfig: () => response({ encrypt: { enabled: false } }),
@@ -78,6 +82,8 @@ const fixture = async (t, { pathname = '/ht_device/', environment = 'saas' } = {
     vue: Vue, 'vue-router': { useRouter: () => ({ currentRoute: route }) }, 'ant-design-vue': ui,
     '@jetlinks-web-core/locales': { global: { t: key => messages[key] || key } },
     '@jetlinks-web-core/api/login': api,
+    '@jetlinks-web-core/store/system': { useSystemStore: () => system },
+    '@jetlinks-web-core/utils/consts': { langKey: 'lang', ruleEditorKey: 'rule-lang' },
     '@jetlinks-web/utils': { encrypt: value => value, onlyMessage() {}, LocalStore: { set() {} } },
     '@jetlinks-web-core/utils/project-runtime': { getProjectCodeFromLocation: () => environment ? pathname.split('/').filter(Boolean)[0] || '' : '' },
     '@jetlinks-web-core/utils/sso-icon': { resolveSsoIcon: () => '/sso.svg' },
@@ -103,7 +109,7 @@ const fixture = async (t, { pathname = '/ht_device/', environment = 'saas' } = {
       assert.deepEqual(errors, [])
       source = compileScript(descriptor, { id: 'login-entry-test', inlineTemplate: true }).content
     }
-    const { code } = transformSync(source, { loader: 'ts', format: 'cjs', define: { 'import.meta.env': JSON.stringify({ VITE_APP_ENVIRONMENT: environment, VITE_APP_BASE_API: '/api' }) } })
+    const { code } = transformSync(source, { loader: 'ts', format: 'cjs', define: { 'import.meta.env': JSON.stringify({ VITE_APP_ENVIRONMENT: environment, VITE_APP_BASE_API: '/api', BASE_URL: base }) } })
     const module = { exports: {} }
     cache.set(filename, module.exports)
     new Function('require', 'module', 'exports', code)(name => {
@@ -120,8 +126,10 @@ const fixture = async (t, { pathname = '/ht_device/', environment = 'saas' } = {
     return module.exports
   }
   const container = node('root')
-  const app = renderer.createApp(load(resolve(root, 'src/views/login/components/Login.vue')).default)
+  const app = renderer.createApp(load(resolve(root, page ? 'src/views/login/index.vue' : 'src/views/login/components/Login.vue')).default)
   app.component('AIcon', box('icon'))
+  app.component('a-button', ui.Button)
+  app.component('a-popover', ui.Popover)
   t.after(() => {
     app.unmount()
     for (const [key, value] of Object.entries(previous)) {
@@ -131,7 +139,26 @@ const fixture = async (t, { pathname = '/ht_device/', environment = 'saas' } = {
   })
   app.mount(container)
   await flush()
-  return { container, calls, successes, route, all: () => descendants(container), redirect: () => sessionStorage.getItem('saas-manager-ui:login-redirect') }
+  return { container, calls, successes, route, system, all: () => descendants(container), redirect: () => sessionStorage.getItem('saas-manager-ui:login-redirect') }
+}
+
+for (const environment of ['saas', '']) {
+  for (const background of ['', 'images/login/login.png', '/images/login/login.png', 'https://files.example/custom.png']) {
+    test(`${environment || 'private'} login renders configured background or the compatible default: ${background || 'unset'}`, async t => {
+      const f = await fixture(t, { environment, page: true, base: '/runtime/', front: { background, recordNumber: '粤ICP备12345678号', showRecordNumber: true } })
+      const layout = () => f.all().find(element => element.props.class?.includes('login-container'))
+      const style = layout().props.style['--login-bg-image']
+      const custom = background.startsWith('https:') || !environment && !!background
+      assert.equal(style.includes('var(--jet-login-bg-image'), !custom)
+      assert.ok(style.includes(background.startsWith('https:') ? background : environment ? '/login-image.png' : '/runtime/images/login/login.png'), style)
+      assert.ok(f.all().some(element => element.props.class === 'login-record' && element.text.includes('粤ICP备12345678号')))
+      f.system.systemInfo.front = { background: '/api/upload/new.png', recordNumber: 'hidden', showRecordNumber: false }
+      await flush()
+      assert.equal(layout().props.style['--login-bg-image'], 'url("/api/upload/new.png")')
+      assert.equal(f.all().some(element => element.props.class === 'login-record'), false)
+      assert.equal(f.calls.some(call => call.type === 'login'), false)
+    })
+  }
 }
 
 for (const entry of [
