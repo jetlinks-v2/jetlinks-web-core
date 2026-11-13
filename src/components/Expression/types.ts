@@ -10,6 +10,7 @@ export type ExpressionNode =
   | { type:'call'; function:string; arguments:ExpressionNode[] }
 
 export interface ExpressionFunction {
+  /** Host icon name, or text: followed by a short mathematical symbol. Rendered as plain text. */
   icon?:string
   id:string; name:string; description:string; returnType:string
   parameters:{id:string;name:string;valueType:string}[]

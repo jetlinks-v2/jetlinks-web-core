@@ -101,8 +101,8 @@ const addBranch=insertion.addBranch
 const refreshInsertion=()=>insertion.refresh(functionSelection.value ? {ranges:[functionSelection.value.range]} : referenceSelection.value)
 
 function setInvalid(value: boolean) { invalid.value = value; emit('invalid', value) }
-// Keep dropdowns outside toolbar scrollers; native fullscreen dialogs still own their overlays.
-const popupContainer=(trigger:HTMLElement):HTMLElement=>trigger.closest('dialog') || trigger.ownerDocument.body
+// Only modal dialogs need a top-layer popup host; inline menus align to the page viewport.
+const popupContainer=(trigger:HTMLElement):HTMLElement=>trigger.closest<HTMLDialogElement>('dialog:modal') || trigger.ownerDocument.body
 function referenceVisibilityChanged(visible: boolean) {
   if (visible) return
   // MathLive can complete a pending focus after the picker opened. Explicit
