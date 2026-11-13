@@ -10,6 +10,10 @@
 | `useMircoAppData` | `useMircoApp.ts` | 否 | 读取微应用宿主传入的数据；使用深层路径前核验生产导入 |
 | `useProjectRouter` | `useProjectRouter.ts` | 是 | 项目运行态下解析项目 ID、路径和跳转 |
 
+## 基础配置草稿与保存
+
+`usePlatformSettings` 从 hooks 根入口导出，接收类型化 `source.load/save`、`detail | form` 模式和权限函数，返回草稿/基线、加载/保存状态、逐项保存及统一提交；只合并当前变更并保留未知配置，写入成功但回读失败时仅提示刷新。`useSystemPlatformSettings` 通过 `hooks/useSystemPlatformSettings` 文件入口导入，接入当前 system store、设置页权限及上传状态，阻止图片裁剪或上传期间提交初始化。组件及生产入口见 [PlatformSettings](../components/PlatformSettings/README.md)。
+
 ## 页面回传、注册与权限
 
 | 能力 | 入口文件 | 根入口 | 适用场景 |

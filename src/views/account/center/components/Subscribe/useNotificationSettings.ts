@@ -3,9 +3,11 @@ import { useI18n } from 'vue-i18n'
 import { onlyMessage } from '@jetlinks-web/utils'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useSystemStore } from '@jetlinks-web-core/store'
-import { useMenuStore } from '@jetlinks-web-core/store/menu'
+import { usePermission } from '@jetlinks-web/hooks'
+import { useNotificationConfigNavigation } from '@jetlinks-web-core/hooks/useNotificationConfigNavigation'
 import { getAllNotice } from '@jetlinks-web-core/api/account/center'
 import { resolveNotificationProviderName } from '../data'
+import { maskContactValue } from '../../contactPresentation'
 import { getNoticeList_api, getIsBindThird, getNotificationChannelDefinitions_api, save_api, type NotificationChannelDefinition } from '@jetlinks-web-core/api/account/notificationSubscription'
 
 type ChannelState = string | { value: string; text?: string }
@@ -61,7 +63,11 @@ export function useNotificationSettings() {
   const { t } = useI18n()
   const user = useUserStore()
   const system = useSystemStore()
-  const menu = useMenuStore()
+  const templateNavigation = useNotificationConfigNavigation(load)
+  const { hasPerm: templateQuery } = usePermission(ref('system/MessageNotification/Templates:query'))
+  const { hasPerm: templateAdd } = usePermission(ref('system/MessageNotification/Templates:add'))
+  const { hasPerm: templateUpdate } = usePermission(ref('system/MessageNotification/Templates:update'))
+  const canManageTemplates = computed(() => templateNavigation.available.value && templateQuery.value && (templateAdd.value || templateUpdate.value))
   const channelProviders = ref<NotificationProvider[]>([])
   const channelDefinitions = ref<NotificationChannelDefinition[]>([])
   const definitionsReady = ref(false)
@@ -69,7 +75,7 @@ export function useNotificationSettings() {
   const providers = computed(() => channelProviders.value
     .filter(row => stateValue(row.state) !== 'disabled')
     .map(row => ({
-      ...row,
+      ...row, matrixKey: row.id || row.provider,
       // 展示名称随界面语言变化；保留原始 name，保存订阅时不改写接口名称。
       displayName: resolveNotificationProviderName(row.provider, row.name),
     })))
@@ -77,6 +83,7 @@ export function useNotificationSettings() {
   const recipients = ref<ThirdPartyRecipient[]>([])
   const loading = ref(false)
   const failed = ref(false)
+  const queryFailed = ref(false)
   const recipientsFailed = ref(false)
   const recipientsLoading = ref(false)
   const saving = ref('')
@@ -98,7 +105,7 @@ export function useNotificationSettings() {
   ].filter(type => type === 'inside-mail'
     ? providers.value.some(row => row.channels.some(channel => channel.channelProvider === type))
     : channelTypes.value.some(value => value === type)))
-  const matrixRowNames = computed(() => Object.fromEntries(providers.value.map(row => [row.provider, row.displayName])))
+  const matrixRowNames = computed(() => Object.fromEntries(providers.value.map(row => [row.matrixKey, row.displayName])))
   // 与通知渠道页共用渠道定义的名称，避免同一渠道在两个入口显示不同名称。
   const channelLabel = (type: string) => {
     const definition = channelDefinitions.value.find(item => item.id === type)
@@ -112,14 +119,14 @@ export function useNotificationSettings() {
 
   /** 给公共矩阵提供展示快照，不在模板中重复派生订阅状态或修改接口模型。 */
   function matrixCells(provider: string, type: string) {
-    const row = providers.value.find(item => item.provider === provider)
+    const row = providers.value.find(item => item.matrixKey === provider)
     return row ? row.channels.filter(channel => channel.channelProvider === type).map(channel => ({
       channel, checked: channelChecked(row, channel), unavailable: channelUnavailable(channel),
-      saving: saving.value === provider + ':' + channel.id,
+      saving: saving.value === row.provider + ':' + channel.id,
     })) : []
   }
   function toggleMatrixChannel(provider: string, channel: DeliveryChannel, enabled: boolean) {
-    const row = providers.value.find(item => item.provider === provider)
+    const row = providers.value.find(item => item.matrixKey === provider)
     if (row) return toggle(row, channel, enabled)
   }
 
@@ -140,11 +147,9 @@ export function useNotificationSettings() {
 
   function receiverSummary(type: string) {
     if (type === 'inside-mail') return profile.value.name || profile.value.username || ''
-    if (type === 'notifier-email') return profile.value.email || t('PersonalCenter.notificationNoEmail')
+    if (type === 'notifier-email') return maskContactValue(profile.value.email, 'email') || t('PersonalCenter.notificationNoEmail')
     if (['notifier-sms', 'notifier-voice'].includes(type)) {
-      return profile.value.telephone
-        ? profile.value.telephone.replace(/^(.{3}).*(.{4})$/, '$1****$2')
-        : t('PersonalCenter.notificationNoPhone')
+      return maskContactValue(profile.value.telephone, 'mobile') || t('PersonalCenter.notificationNoPhone')
     }
     if (type === 'notifier-webhook') return t('PersonalCenter.notificationTemplateManaged')
     if (!providers.value.some(row => row.channels.some(channel => channel.channelProvider === type))) return ''
@@ -160,11 +165,11 @@ export function useNotificationSettings() {
     if (type !== 'inside-mail' && !definitionsReady.value) return t('PersonalCenter.notificationChannelInfoUnavailable')
     if (channels.length && channels.every(channel => stateValue(channel.state) === 'disabled')) return t('PersonalCenter.notificationChannelDisabled')
     if (!channels.length || channels.every(channel => !!channelUnavailable(channel))) {
-      return t(menu.hasMenu('notice/channel') ? 'PersonalCenter.channelUnconfigured' : 'PersonalCenter.channelUnconfiguredAdmin')
+      return unavailableType(type)
     }
     if (type === 'inside-mail') return t('PersonalCenter.channelEnabled')
     if (recipientsFailed.value && channels.some(requiresThirdParty)) return t('PersonalCenter.notificationReceiverUnavailable')
-    if (type === 'notifier-email') return profile.value.email || t('PersonalCenter.notificationNoEmail')
+    if (type === 'notifier-email') return receiverSummary(type)
     if (['notifier-sms', 'notifier-voice'].includes(type)) return profile.value.telephone ? receiverSummary(type) : t('PersonalCenter.notificationNoPhone')
     return t(channels.some(channel => !!receiverFor(channel)) ? 'PersonalCenter.channelBound' : 'PersonalCenter.channelUnbound')
   }
@@ -174,16 +179,30 @@ export function useNotificationSettings() {
     if (type === 'inside-mail' || loading.value || failed.value || !definitionsReady.value) return
     const channels = providers.value.flatMap(row => row.channels).filter(channel => channel.channelProvider === type)
     if (!channels.length || channels.every(channel => !!channelUnavailable(channel))) {
-      return menu.hasMenu('notice/channel') ? 'configure' : undefined
+      return canManageTemplates.value ? 'configure' : undefined
     }
     if (type === 'notifier-email' && !profile.value.email) return 'email'
     if (['notifier-sms', 'notifier-voice'].includes(type) && !profile.value.telephone) return 'phone'
     if (!recipientsFailed.value && canBindReceiver(type)) return 'bind'
   }
 
-  /** 复用菜单权限和渠道页现有的 channelProvider 定位参数。 */
+  /** Only a concrete visible business supplies guidance; /all remains the subscription authority. */
+  function canCheckTemplate(row: NotificationProvider, type: string) {
+    return canManageTemplates.value && !loading.value && !failed.value && !saving.value
+      && receiverPolicy(type) === 'subscriber' && type !== 'inside-mail'
+      && (!row.channels.some(channel => channel.channelProvider === type)
+        || row.channels.some(channel => channel.channelProvider === type && !!channelUnavailable(channel)))
+  }
+  function checkTemplate(row: NotificationProvider, type: string) {
+    if (canCheckTemplate(row, type)) templateNavigation.open(row.id || row.provider, type)
+  }
+
+  /** Keep the existing header action. Multiple business scopes must be selected in the template directory. */
   function openChannelSettings(type: string) {
-    if (channelHeaderAction(type) === 'configure') return menu.jumpPage('notice/channel', { query: { channelProvider: type } })
+    if (channelHeaderAction(type) !== 'configure') return
+    const candidates = providers.value.filter(row => canCheckTemplate(row, type))
+    const owner = candidates.length === 1 ? candidates[0] : undefined
+    templateNavigation.open(owner ? owner.id || owner.provider : '', type)
   }
 
   function receiverPolicy(type: string) {
@@ -212,7 +231,7 @@ export function useNotificationSettings() {
   function unavailableType(type: string) {
     return receiverPolicy(type) === 'explicit'
       ? t('PersonalCenter.notificationPersonalSubscriptionUnsupported')
-      : t('PersonalCenter.notificationChannelNotConfigured')
+      : t(canManageTemplates.value ? 'PersonalCenter.notificationChannelNotConfigured' : 'PersonalCenter.notificationUnavailableAdmin')
   }
 
   function channelChecked(row: NotificationProvider, channel: DeliveryChannel) {
@@ -267,13 +286,14 @@ export function useNotificationSettings() {
       channelDefinitions.value = readList<NotificationChannelDefinition>(definitions.value)
       definitionsReady.value = true
     } catch { loadFailed = true }
+    queryFailed.value = loadFailed
     failed.value = loadFailed
     await loadRecipients()
     if (!disposed) loading.value = false
   }
 
   async function save(row: NotificationProvider, channel: DeliveryChannel, enabled: boolean) {
-    if (saving.value || channelUnavailable(channel)) return
+    if (loading.value || queryFailed.value || saving.value || channelUnavailable(channel)) return
     saving.value = row.provider + ':' + channel.id
     failed.value = false
     try {
@@ -303,7 +323,7 @@ export function useNotificationSettings() {
   }
 
   async function toggle(row: NotificationProvider, channel: DeliveryChannel, enabled: boolean) {
-    if (saving.value || channelUnavailable(channel)) return
+    if (loading.value || queryFailed.value || saving.value || channelUnavailable(channel)) return
     if (!enabled || channel.channelProvider === 'inside-mail') return save(row, channel, enabled)
     if (requiresThirdParty(channel)) {
       saving.value = row.provider + ':' + channel.id
@@ -347,6 +367,6 @@ export function useNotificationSettings() {
   return {
     providers, channelTypes, loading, failed, saving, pendingBinding, recipientsFailed, recipientsLoading,
     profile, load, loadRecipients, selected, toggle, bindingComplete, receiverSummary, channelUnavailable, unavailableType, channelChecked,
-    canBindReceiver, beginReceiverBinding, receiverStatus, channelHeaderAction, openChannelSettings, displayedTypes, tableColumns, matrixRowNames, channelLabel, channelIcon, matrixCells, toggleMatrixChannel,
+    canBindReceiver, beginReceiverBinding, receiverStatus, channelHeaderAction, openChannelSettings, canCheckTemplate, checkTemplate, displayedTypes, tableColumns, matrixRowNames, channelLabel, channelIcon, matrixCells, toggleMatrixChannel,
   }
 }

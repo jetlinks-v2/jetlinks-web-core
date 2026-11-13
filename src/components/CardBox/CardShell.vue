@@ -21,8 +21,10 @@
   </div>
 </template>
 
-<script setup lang="ts" name="CardShell">
+<script setup lang="ts">
 import { cardAppearanceProps, useCardAppearanceStyle } from './appearance'
+
+defineOptions({ name: 'CardShell' })
 
 const props = defineProps({
   ...cardAppearanceProps,

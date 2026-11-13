@@ -223,6 +223,7 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
         }
       })
     }
+    return resp
   }
 
   const querySingleInfo = async (__keys: string) => {

@@ -7,8 +7,10 @@
   />
 </template>
 
-<script setup name="ProjectLayoutPage" lang="ts">
+<script setup lang="ts">
 import BasicLayoutShell from './BasicLayoutShell.vue'
+
+defineOptions({ name: 'ProjectLayoutPage' })
 </script>
 
 <style scoped lang="less" src="./ProjectLayoutPage.less"></style>

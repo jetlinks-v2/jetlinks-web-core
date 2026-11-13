@@ -24,10 +24,12 @@
   </ContentPanel>
 </template>
 
-<script setup lang="ts" name="SegmentPanel">
+<script setup lang="ts">
 import type { PropType } from 'vue'
 import ContentPanel from '../ContentPanel/index.vue'
 import type { SegmentPanelOption, SegmentPanelValue } from './types'
+
+defineOptions({ name: 'SegmentPanel' })
 
 const props = defineProps({
   title: {

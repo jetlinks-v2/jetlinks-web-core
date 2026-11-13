@@ -70,7 +70,7 @@ test('通知设置使用复选框，动态渠道图标、禁用状态和保存�
   const checked = ref(true)
   const saving = ref('')
   globalThis[fixtureKey] = {
-    providers: ref([{ provider: 'alarm' }]), displayedTypes: ref(types), tableColumns: ref([{ key: 'topic' }, ...types.map(key => ({ key }))]),
+    providers: ref([{ provider: 'alarm', matrixKey: 'alarm' }]), displayedTypes: ref(types), tableColumns: ref([{ key: 'topic' }, ...types.map(key => ({ key }))]),
     loading: ref(false), failed: ref(false), saving, pendingBinding: ref(), recipientsFailed: ref(false), recipientsLoading: ref(false),
     matrixRowNames: ref({ alarm: '告警' }), channelLabel: type => type, channelIcon: type => icons[type], receiverSummary: type => type, receiverStatus: () => '状态',
     channelHeaderAction: type => type === 'notifier-email' ? 'email' : type === 'notifier-dingTalk' ? 'configure' : undefined,
