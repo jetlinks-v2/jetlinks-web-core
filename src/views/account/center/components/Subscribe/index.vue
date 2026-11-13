@@ -30,7 +30,7 @@ const {
         <j-pro-table
           :key="displayedTypes.join('|')"
           mode="TABLE"
-          row-key="provider"
+          row-key="matrixKey"
           :columns="tableColumns"
           :data-source="providers"
           :no-pagination="true"
@@ -85,30 +85,30 @@ const {
             </a-tooltip>
           </template>
           <template #topic="record">
-            <span class="notification-settings__topic-name">{{ matrixRowNames[record.provider] }}</span>
+            <span class="notification-settings__topic-name">{{ matrixRowNames[record.matrixKey] }}</span>
           </template>
           <template v-for="type in displayedTypes" :key="type" #[type]="record">
             <div class="notification-settings__cell">
-              <div v-for="cell in matrixCells(record.provider, type)" :key="cell.channel.id" class="notification-settings__checkbox-wrapper">
+              <div v-for="cell in matrixCells(record.matrixKey, type)" :key="cell.channel.id" class="notification-settings__checkbox-wrapper">
                 <a-tooltip :title="cell.unavailable || cell.channel.name" :overlay-style="channelTooltipStyle">
                   <span>
                     <a-spin size="small" :spinning="cell.saving">
                       <a-checkbox
                         :checked="cell.checked"
                         :disabled="!!saving || !!cell.unavailable"
-                        :aria-label="matrixRowNames[record.provider] + ' · ' + channelLabel(type)"
-                        @change="toggleMatrixChannel(record.provider, cell.channel, !!$event.target.checked)"
+                        :aria-label="matrixRowNames[record.matrixKey] + ' · ' + channelLabel(type)"
+                        @change="toggleMatrixChannel(record.matrixKey, cell.channel, !!$event.target.checked)"
                       />
                     </a-spin>
                   </span>
                 </a-tooltip>
               </div>
-              <a-tooltip v-if="!matrixCells(record.provider, type).length" :title="unavailableType(type)" :overlay-style="channelTooltipStyle">
+              <a-tooltip v-if="!matrixCells(record.matrixKey, type).length" :title="unavailableType(type)" :overlay-style="channelTooltipStyle">
                 <span class="notification-settings__checkbox-wrapper">
                   <a-checkbox
                     disabled
                     :checked="false"
-                    :aria-label="matrixRowNames[record.provider] + ' · ' + channelLabel(type)"
+                    :aria-label="matrixRowNames[record.matrixKey] + ' · ' + channelLabel(type)"
                   />
                 </span>
               </a-tooltip>

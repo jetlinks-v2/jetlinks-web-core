@@ -25,12 +25,14 @@
   </div>
 </template>
 
-<script setup lang="ts" name="Notice">
+<script setup lang="ts">
 import type { PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
 import NoticeInfo from './NoticeInfo.vue'
 import { BADGE_OVERFLOW_COUNT } from './noticeUtils'
 import { useHeaderNotice } from './useHeaderNotice'
+
+defineOptions({ name: 'Notice' })
 
 type NoticePlacement = 'top' | 'bottom' | 'topLeft' | 'topRight' | 'topCenter' | 'bottomLeft' | 'bottomRight' | 'bottomCenter'
 type NoticePopupContainer = (triggerNode: HTMLElement) => HTMLElement

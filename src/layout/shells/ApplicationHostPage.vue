@@ -8,12 +8,14 @@
   <ApplicationLayoutPage v-else />
 </template>
 
-<script setup name="ApplicationHostPage" lang="ts">
+<script setup lang="ts">
 import { computed, defineAsyncComponent, type Component } from 'vue'
 import { getApplicationRuntimeEntry } from '@jetlinks-web-core/utils/project-runtime'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import { resolveApplicationShell, type ResolvedApplicationShell } from '../runtime/applicationShell'
 import ApplicationLayoutPage from './ApplicationLayoutPage.vue'
+
+defineOptions({ name: 'ApplicationHostPage' })
 
 /**
  * 应用端外壳分派。

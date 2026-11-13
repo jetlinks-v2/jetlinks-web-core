@@ -49,7 +49,7 @@
   </Teleport>
 </template>
 
-<script setup lang="ts" name="ImageUpload">
+<script setup lang="ts">
 import { onlyMessage, getBase64ByImg } from "@jetlinks-web/utils";
 import type { CSSProperties, PropType } from "vue";
 import type { UploadChangeParam } from 'ant-design-vue';
@@ -58,6 +58,8 @@ import { useI18n } from "vue-i18n";
 import i18n from "@jetlinks-web-core/locales";
 import { uploadByRequest } from '../utils'
 import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
+
+defineOptions({ name: 'ImageUpload' })
 
 const { t: $t } = useI18n();
 const props = defineProps({

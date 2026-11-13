@@ -165,7 +165,7 @@
   </section>
 </template>
 
-<script setup lang="ts" name="MatrixGrid">
+<script setup lang="ts">
 import { computed, ref, type CSSProperties } from 'vue'
 import CloudEmpty from '../CloudEmpty/index.vue'
 import type {
@@ -175,6 +175,8 @@ import type {
   MatrixGridRow,
 } from './types'
 import { useMatrixGridLayout } from './useMatrixGridLayout'
+
+defineOptions({ name: 'MatrixGrid' })
 
 const props = withDefaults(defineProps<{
   rows: MatrixGridRow<unknown>[]

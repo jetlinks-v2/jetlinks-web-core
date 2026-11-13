@@ -75,7 +75,7 @@
   </div>
 </template>
 
-<script setup lang='ts' name='Oauth'>
+<script setup lang='ts'>
 import { TOKEN_KEY } from '@jetlinks-web/constants'
 import { captchaConfig, codeUrl, getOAuth2, initApplication, authLogin, encryptionConfig } from '@jetlinks-web-core/api/login'
 import { settingDetail } from '@jetlinks-web-core/api/system/basis'
@@ -84,6 +84,8 @@ import { getToken, encrypt } from '@jetlinks-web/utils'
 import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
 import { ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+defineOptions({ name: 'Oauth' })
 
 const { t: $t } = useI18n()
 

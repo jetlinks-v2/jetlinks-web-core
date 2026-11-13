@@ -37,11 +37,11 @@
 
 ## 顶部用户菜单
 
-运行时 `layout/components/LayoutSidebarUser.vue` 使用 264px（16.5rem）紧凑纵向下拉：顶部摘要按姓名、账号、角色三行排列，首个角色及多角色 `+N` 提示在账号下方并与账号左对齐；无角色时不渲染角色行。姓名使用摘要内容列宽度，`style/layout.less` 的 `layout-sidebar-user__roles-row` 使用主题间距。复用现有 Ant Design Vue 标签和 Tooltip，保留长文本省略、菜单入口及角色权限逻辑，运营端 `ui/` 不在本次范围内。
+运行时 `layout/components/LayoutSidebarUser.vue` 使用 264px（16.5rem）紧凑纵向下拉：顶部摘要按姓名、账号、角色三行排列，首个角色及多角色 `+N` 提示在账号下方并与账号左对齐；无角色时不渲染角色行。姓名使用摘要内容列宽度，`style/layout.less` 的 `layout-sidebar-user__roles-row` 使用主题间距。首个角色通过公共 `j-ellipsis` 截断并查看完整名称，数量标签保留独立空间；多角色列表复用 Tooltip。保留菜单入口及角色权限逻辑，运营端 `ui/` 不在本次范围内。页面效果待用户验收。
 
 角色换行验证：实际 Vue 脚本/模板、布局 Less 及组件预览 bundle 编译通过，`git diff --check` 通过。使用实际菜单组件、布局样式、Ant Design Vue 与隔离账号数据，在浏览器确认姓名、账号、角色纵向排列且左边界一致，单角色、多角色、无角色及长账号场景均无横向溢出，浏览器未报告错误或警告。当前登录页未提供可用会话，真实登录菜单待通过 `pnpm dev` 验收；本次未运行全量 typecheck/build，工作区无独立 lint 脚本，发布前执行本节下方命令。
 
-账号判断复用 `/user/detail` 返回的 `type.id` 及 `store/user.ts` 的 `isSubAccount`，顶部菜单不展示主/子账号及 `type.name` 用户类型标签。姓名、账号及角色内容保持相同左边界；角色按接口实际数据去重，首个角色以标签展示，多角色以 `+N` 标签结合 Tooltip 展开全部角色清单。长姓名、账号及角色单行省略并保留完整 title 提示。此调整仅影响顶部菜单摘要，账号类型和角色权限保持现有业务规则。后端接口与权限规则无需调整。
+账号判断复用 `/user/detail` 返回的 `type.id` 及 `store/user.ts` 的 `isSubAccount`，顶部菜单不展示主/子账号及 `type.name` 用户类型标签。姓名、账号及角色内容保持相同左边界；角色按接口实际数据去重，首个角色以标签展示，多角色以 `+N` 标签结合 Tooltip 展开全部角色清单。长姓名、账号及角色单行省略并保留完整内容提示。此调整仅影响顶部菜单摘要，账号类型和角色权限保持现有业务规则。后端接口与权限规则无需调整。
 
 `layout/components/useLayoutSidebarUser.ts` 承接展示派生、入口导航和退出状态；消息角标复用 `useHeaderNotice.ts` 写入 `store/user.ts` 的未读结果，不另建查询或实时订阅。入口沿用 `account/center` 路由及 `CenterTabKey`，每次导航同时携带规范化的 query.tab 与兼容旧入口的 params.tabKey；BindThirdAccount 映射为 BasicInfo。内容及 Store 由个人中心的 URL 监听统一同步，避免同页导航清空 query 后被框架侧栏恢复为默认页，也避免 Store 与路由竞争更新。项目覆盖页复用 core 个人中心，显式导航继续清除旧通知上下文。按用户要求，本次直接修复，未重复复现或运行检查/构建。
 

@@ -36,7 +36,10 @@
     </div>
 </template>
 
-<script setup lang="ts" name="SelectAMap">
+<script setup lang="ts">
+
+defineOptions({ name: 'SelectAMap' })
+
 interface EmitProps {
     (e: 'update:point', data: string): void;
     (e: 'change', data: string): void;

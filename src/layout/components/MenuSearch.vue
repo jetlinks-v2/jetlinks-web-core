@@ -45,8 +45,10 @@
   </div>
 </template>
 
-<script setup lang="ts" name="MenuSearch">
+<script setup lang="ts">
 import { useMenuSearch } from '../hooks/useMenuSearch'
+
+defineOptions({ name: 'MenuSearch' })
 
 const { keyword, open, rootRef, groups, highlightTitle, close, handleSelect } = useMenuSearch()
 </script>

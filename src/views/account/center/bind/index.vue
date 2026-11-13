@@ -134,7 +134,7 @@
   </div>
 </template>
 
-<script lang="ts" name="AccountBind" setup>
+<script lang="ts" setup>
 import { onlyMessage, LocalStore, encrypt } from "@jetlinks-web/utils";
 import { TOKEN_KEY } from "@jetlinks-web/constants";
 import { Form } from "ant-design-vue";
@@ -149,6 +149,8 @@ import internalStandaloneImg from "@jetlinks-web-core/assets/apply/internal-stan
 import wechatImg from "@jetlinks-web-core/assets/bindPage/wechat-webapp.png";
 import dingtalkImg from "@jetlinks-web-core/assets/bindPage/dingtalk.png";
 import thirdPartyImg from "@jetlinks-web-core/assets/apply/third-party.png";
+
+defineOptions({ name: 'AccountBind' })
 
 const { t: $t } = useI18n();
 
