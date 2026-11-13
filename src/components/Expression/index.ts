@@ -1,0 +1,11 @@
+export { default as MathExpressionEditor } from './MathExpressionEditor.vue'
+export { default as ExpressionTrial } from './ExpressionTrial.vue'
+export { default as MathExpressionView } from './MathExpressionView.vue'
+export { expressionText,expressionReferences } from './display'
+export { default as ExpressionProcess } from './ExpressionProcess.vue'
+export { useExpressionFunctions } from './useExpressionFunctions'
+export type { StructuredExpression,ExpressionNode,ExpressionFunction,ExpressionEvaluation,ExpressionEvaluationRequest,ExpressionExplanation } from './types'
+export type { ExpressionEditorContext,ExpressionReference } from './editor'
+
+export { expressionNodeType,normalizeExpressionType,validateExpressionTypes } from './validation'
+export type { ExpressionValueType,ExpressionTypeIssue } from './validation'
