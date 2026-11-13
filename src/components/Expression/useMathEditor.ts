@@ -113,11 +113,10 @@ const addBranch=insertion.addBranch
 const refreshInsertion=()=>insertion.refresh(functionSelection.value ? {ranges:[functionSelection.value.range]} : referenceSelection.value)
 
 function setInvalid(value: boolean) { invalid.value = value; emit('invalid', value) }
-// Only modal dialogs need a top-layer popup host; inline menus align to the page viewport.
+// Resolve from the mounted canvas: a newly created Select trigger may still be detached.
 const popupContainer=(trigger?:HTMLElement):HTMLElement=>{
-  // A controlled tooltip can mount before Ant Design supplies its trigger.
-  const anchor=trigger || canvas.value!
-  return anchor.closest<HTMLDialogElement>('dialog:modal') || anchor.ownerDocument.body
+  const anchor=canvas.value || trigger!
+  return anchor.closest<HTMLElement>('dialog:modal, [role="dialog"], [role="alertdialog"]') || anchor.ownerDocument.body
 }
 function referenceVisibilityChanged(visible: boolean) {
   if (visible) return

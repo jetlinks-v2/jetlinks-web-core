@@ -14,7 +14,7 @@
         <span class="formula-editor__hint-anchor" :style="hoverHint.style" aria-hidden="true" />
       </a-tooltip>
       <span v-if="referenceFrame || hoverFrame" :class="referenceFrame ? 'formula-editor__active-reference' : 'formula-editor__hover-reference'" :style="referenceFrame || hoverFrame" aria-hidden="true" />
-      <a-select v-if="referenceSelection || sourcePickerOpen" ref="referencePicker" class="formula-editor__picker" :style="pickerStyle"
+      <a-select v-if="referenceSelection || sourcePickerOpen" :key="'reference-'+expanded" ref="referencePicker" class="formula-editor__picker" :style="pickerStyle"
         :value="undefined" :open="true" show-search :options="referenceOptions" option-filter-prop="label"
         dropdown-class-name="formula-editor__reference-menu" :dropdown-match-select-width="false" :dropdown-align="{...popupAlign,offset:[0,-1]}"
         :placeholder="t('chooseVariable')" :aria-label="t('chooseVariable')" :not-found-content="t('noVariable')"
