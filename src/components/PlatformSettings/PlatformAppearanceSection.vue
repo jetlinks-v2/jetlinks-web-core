@@ -16,7 +16,10 @@
           </PlatformSettingRow>
           <PlatformTextSetting key="showRecordNumber" v-bind="section" field-key="recordNumber" :label="t('PlatformSettings.record')" :hint="t('PlatformSettings.recordHint')" icon="SafetyCertificateOutlined" :active="active === 'recordNumber'" @mouseenter="active = 'recordNumber'" @focusin="active = 'recordNumber'" @change="change">
             <template #action>
-              <span class="record-switch"><a-switch :checked="model.showRecordNumber" :disabled="controlsDisabled || !model.recordNumber.trim()" :aria-label="t('PlatformSettings.showRecord')" @change="change({ showRecordNumber: $event === true })" /></span>
+              <span class="record-switch">
+                <a-switch v-if="editing && !disabled" :checked="model.showRecordNumber" :disabled="controlsDisabled || !model.recordNumber.trim()" :aria-label="t('PlatformSettings.showRecord')" @change="change({ showRecordNumber: $event === true })" />
+                <span v-else>{{ t(saved.showRecordNumber ? 'PlatformSettings.recordShown' : 'PlatformSettings.recordHidden') }}</span>
+              </span>
             </template>
           </PlatformTextSetting>
         </PlatformSettingsFields>
@@ -49,7 +52,8 @@ const { editing, disabled: controlsDisabled, actionsDisabled, saving, failure, s
 )
 const section = computed(() => {
   const { assets, ...section } = props
-  return { ...section, mode: 'form' as const, disabled: controlsDisabled.value }
+  const readonly = !editing.value || !!props.disabled
+  return { ...section, mode: readonly ? 'detail' as const : 'form' as const, readonly, disabled: controlsDisabled.value }
 })
 const images = [
   { key: 'logo', label: 'PlatformSettings.logo', hint: 'PlatformSettings.logoHint', icon: 'PictureOutlined' },

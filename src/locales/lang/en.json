@@ -2448,6 +2448,8 @@
   "PlatformSettings.record": "ICP registration",
   "PlatformSettings.recordHint": "Enter your ICP registration to display it on the login page.",
   "PlatformSettings.showRecord": "Show registration",
+  "PlatformSettings.recordShown": "Shown",
+  "PlatformSettings.recordHidden": "Hidden",
   "PlatformSettings.preview": "Appearance preview",
   "PlatformSettings.loginPage": "Login page",
   "PlatformSettings.topbar": "Header",

@@ -2448,6 +2448,8 @@
   "PlatformSettings.record": "备案号",
   "PlatformSettings.recordHint": "填写备案号后，可在登录页底部显示。",
   "PlatformSettings.showRecord": "显示备案号",
+  "PlatformSettings.recordShown": "已显示",
+  "PlatformSettings.recordHidden": "已隐藏",
   "PlatformSettings.preview": "外观预览",
   "PlatformSettings.loginPage": "登录页",
   "PlatformSettings.topbar": "顶栏",

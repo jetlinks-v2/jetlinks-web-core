@@ -12,7 +12,8 @@
       <PlatformSettingsFields group="map">
         <PlatformSettingRow v-for="field in fields" :key="field.key" :field="field.key" :icon="field.icon">
           <a-form-item :label="t(field.label)" :validate-status="errors?.[field.key] ? 'error' : undefined" :help="errors?.[field.key] || t(field.hint)">
-            <a-input-password v-if="field.key === 'secretKey'" :key="String(editing)" :value="model.secretKey" :disabled="controlsDisabled" :aria-label="t(field.label)" autocomplete="new-password" @update:value="change({ secretKey: $event })" />
+            <span v-if="!editing || disabled" class="map-value">{{ saved[field.key] ? (field.key === 'secretKey' ? '••••••••' : saved[field.key]) : t('PlatformSettings.notConfigured') }}</span>
+            <a-input-password v-else-if="field.key === 'secretKey'" :value="model.secretKey" :disabled="controlsDisabled" :aria-label="t(field.label)" autocomplete="new-password" @update:value="change({ secretKey: $event })" />
             <a-input v-else :value="model[field.key]" :disabled="controlsDisabled" :aria-label="t(field.label)" @update:value="change({ [field.key]: $event })" />
           </a-form-item>
         </PlatformSettingRow>
@@ -47,4 +48,5 @@ const fields = [
 <style scoped>
 .platform-card :deep(.settings-row__icon) { width: 2.375rem; height: 2.375rem; border-radius: var(--r-3); background: var(--accent-soft); color: var(--accent); font-size: var(--fs-20); }
 .map-form :deep(.ant-form-item) { max-width: 40rem; margin-bottom: 0; }
+.map-value { display: block; overflow-wrap: anywhere; white-space: pre-wrap; }
 </style>
