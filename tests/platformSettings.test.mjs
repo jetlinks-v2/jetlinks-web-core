@@ -21,6 +21,7 @@ const load = (file, imports = {}) => {
   return module.exports
 }
 const model = load('components/PlatformSettings/model.ts')
+const sectionHooks = load('components/PlatformSettings/usePlatformSettingsSection.ts', { './model': model })
 const registry = load('components/PlatformSettings/fieldRegistry.ts')
 const user = vue.reactive({ userInfo: {} })
 const saas = load('../../modules/saas-runtime-ui/index.ts', {
@@ -51,7 +52,7 @@ async function mount(t, mode = 'detail', options = {}) {
   user.userInfo = options.user || {}
   actions = options.saas ? saas.getRegisterComponents().filter(action => action.targetPage === registry.BASIS_FORM_PAGE_CODE)
     : (options.hidden || []).map(target => ({ mode: 'hide', target }))
-  let data = { front: { title: 'Saved', ico: '/original.ico', headerTheme: 'dark', layout: 'side', layoutVariant: 'application', extra: { flag: 1 }, ...options.front }, amap: { apiKey: 'web', secretKey: 'secret', webKey: 'service', unknown: 8 }, paths: { 'base-path': 'https://test.example/api', external: true } }
+  let data = { front: { title: 'Saved', ico: '/original.ico', headerTheme: 'dark', layout: 'side', layoutVariant: 'application', extra: { flag: 1 }, ...options.front }, amap: { apiKey: 'web', secretKey: 'secret', webKey: 'service', unknown: 8, ...options.amap }, paths: { 'base-path': 'https://test.example/api', external: true } }
   const writes = []
   const source = {
     load: async () => clone(data),
@@ -62,6 +63,174 @@ async function mount(t, mode = 'detail', options = {}) {
   app.mount({}); t.after(() => app.unmount()); await tick()
   return { state, source, writes, current: () => data }
 }
+
+async function mountSections(t, mode = 'detail', options = {}) {
+  const v = await mount(t, mode, options)
+  const props = {
+    mode, model: v.state.model,
+    get saved() { return v.state.saved.value },
+    get hidden() { return v.state.hidden.value },
+    get disabled() { return v.state.disabled.value },
+    get busy() { return v.state.busy.value },
+    submit: v.state.persist,
+  }
+  let appearance, map
+  const app = renderer.createApp({ setup() {
+    appearance = sectionHooks.usePlatformSettingsSection(props, 'front', v.state.change)
+    map = sectionHooks.usePlatformSettingsSection(props, 'amap', v.state.change)
+    return () => null
+  } })
+  app.mount({}); t.after(() => app.unmount())
+  return { ...v, appearance, map }
+}
+
+test('section editing stages appearance and map changes; cancel restores only its own values and errors', async t => {
+  const v = await mountSections(t)
+  assert.equal(v.appearance.disabled.value, true)
+  assert.equal(v.map.disabled.value, true)
+  v.appearance.change({ title: 'Blocked' })
+  assert.equal(v.state.model.title, 'Saved')
+  v.appearance.start(); v.map.start()
+  v.appearance.change({ title: 'Draft', ico: '/draft.ico', background: '/draft.png', recordNumber: '备案', showRecordNumber: true })
+  v.map.change({ apiKey: 'map-draft', secretKey: '' })
+  assert.equal(v.writes.length, 0)
+  assert.equal(v.state.assets.value.ico, '/draft.ico')
+  assert.equal(await v.map.save(), false)
+  assert.ok(v.state.errors.value.apiKey)
+  v.appearance.cancel()
+  assert.equal(v.state.model.title, 'Saved')
+  assert.equal(v.state.assets.value.ico, '/original.ico')
+  assert.equal(v.state.model.background, '')
+  assert.equal(v.state.model.showRecordNumber, false)
+  assert.equal(v.state.model.apiKey, 'map-draft')
+  assert.ok(v.state.errors.value.apiKey)
+  v.map.cancel()
+  assert.equal(v.state.model.apiKey, 'web')
+  assert.deepEqual(v.state.errors.value, {})
+  assert.equal(v.map.failure.value, '')
+  assert.equal(v.map.disabled.value, true)
+  assert.equal(v.writes.length, 0)
+})
+
+test('saving a section preserves other drafts and validation errors, hidden fields, and extension settings', async t => {
+  const v = await mountSections(t, 'detail', { hidden: ['background', 'showRecordNumber'] })
+  v.appearance.start(); v.map.start()
+  v.appearance.change({ title: 'Appearance', background: '/hidden.png' })
+  v.map.change({ apiKey: 'new-map', secretKey: '' })
+  assert.equal(await v.map.save(), false)
+  assert.equal(await v.appearance.save(), true)
+  assert.deepEqual(v.writes[0].map(item => item.scope), ['front'])
+  assert.equal(v.writes[0][0].properties.background, undefined)
+  assert.equal(v.writes[0][0].properties.showRecordNumber, undefined)
+  assert.equal(v.writes[0][0].properties.headerTheme, 'dark')
+  assert.deepEqual(v.writes[0][0].properties.extra, { flag: 1 })
+  assert.equal(v.appearance.editing.value, false)
+  assert.equal(v.map.editing.value, true)
+  assert.equal(v.state.model.apiKey, 'new-map')
+  assert.ok(v.state.errors.value.apiKey)
+  v.map.change({ secretKey: 'new-secret' })
+  assert.equal(await v.map.save(), true)
+  assert.deepEqual(v.writes[1].map(item => item.scope), ['amap'])
+  assert.equal(v.current().amap.unknown, 8)
+  assert.equal(v.current().front.title, 'Appearance')
+})
+
+test('failed section saves keep drafts for retry, while unchanged saves and map clear cancellations never write', async t => {
+  const v = await mountSections(t)
+  v.appearance.start()
+  assert.equal(await v.appearance.save(), true)
+  assert.equal(v.writes.length, 0)
+  v.map.start(); v.map.change({ apiKey: '', secretKey: '', webKey: '' }); v.map.cancel()
+  assert.equal(v.writes.length, 0)
+  assert.equal(v.map.configured.value, true)
+  v.map.start(); v.map.change({ apiKey: '', secretKey: '', webKey: '' })
+  const save = v.source.save
+  v.source.save = async () => { throw new Error('offline') }
+  assert.equal(await v.map.save(), false)
+  assert.equal(v.map.editing.value, true)
+  assert.equal(v.map.saving.value, false)
+  assert.equal(v.state.model.apiKey, '')
+  assert.equal(v.state.saved.value.apiKey, 'web')
+  assert.ok(v.map.failure.value)
+  v.source.save = save
+  assert.equal(await v.map.save(), true)
+  assert.equal(v.map.configured.value, false)
+  assert.equal(v.map.editing.value, false)
+  assert.equal(v.current().amap.unknown, 8)
+})
+
+test('upload and crop locks prevent appearance save and cancel; pending writes reject repeated submissions', async t => {
+  const v = await mountSections(t)
+  v.appearance.start(); v.appearance.change({ title: 'Changed' })
+  v.appearance.uploading('logo', true); v.appearance.uploading('background', true)
+  assert.equal(v.appearance.actionsDisabled.value, true)
+  assert.equal(await v.appearance.save(), false)
+  v.appearance.cancel()
+  assert.equal(v.appearance.editing.value, true)
+  v.appearance.uploading('logo', false)
+  assert.equal(v.appearance.actionsDisabled.value, true)
+  v.appearance.change({ background: '/uploaded.png' })
+  v.appearance.uploading('background', false)
+  let done, calls = 0
+  v.source.save = async () => { calls++; return new Promise(resolve => { done = resolve }) }
+  const pending = v.appearance.save()
+  assert.equal(v.appearance.saving.value, true)
+  assert.equal(await v.appearance.save(), false)
+  v.appearance.cancel()
+  assert.equal(v.appearance.editing.value, true)
+  assert.equal(calls, 1)
+  done({ success: true }); await pending
+  assert.equal(v.appearance.saving.value, false)
+  assert.equal(v.appearance.editing.value, false)
+})
+
+test('an in-flight appearance upload can finish during a map write without losing its draft on readback', async t => {
+  const v = await mountSections(t)
+  v.appearance.start(); v.map.start()
+  v.appearance.uploading('logo', true)
+  v.map.change({ webKey: 'updated-service' })
+  const save = v.source.save
+  let done
+  v.source.save = async patch => { await new Promise(resolve => { done = resolve }); return save(patch) }
+  const pending = v.map.save()
+  assert.equal(v.state.busy.value, true)
+  v.appearance.change({ logo: '/finished-upload.png' })
+  v.appearance.uploading('logo', false)
+  done(); await pending
+  assert.equal(v.state.model.logo, '/finished-upload.png')
+  assert.notEqual(v.state.saved.value.logo, '/finished-upload.png')
+  assert.deepEqual(v.writes[0].map(item => item.scope), ['amap'])
+  v.source.save = save
+  assert.equal(await v.appearance.save(), true)
+  assert.equal(v.current().front.logo, '/finished-upload.png')
+})
+
+test('unconfigured maps require explicit editing, read-only sections reject changes, and initialization still submits once', async t => {
+  const emptyMap = { apiKey: '', secretKey: '', webKey: '' }
+  const v = await mountSections(t, 'detail', { amap: emptyMap })
+  assert.equal(v.map.configured.value, false)
+  assert.equal(v.map.disabled.value, true)
+  v.map.start(); v.map.change({ apiKey: 'first', secretKey: 'secret' })
+  assert.equal(v.writes.length, 0)
+  assert.equal(await v.map.save(), true)
+  const readonly = await mountSections(t, 'detail', { editable: false })
+  readonly.appearance.start(); readonly.appearance.change({ title: 'Forbidden' })
+  assert.equal(readonly.appearance.editing.value, false)
+  assert.equal(await readonly.appearance.save(), false)
+  assert.equal(readonly.writes.length, 0)
+  const form = await mountSections(t, 'form')
+  assert.equal(form.appearance.disabled.value, false)
+  form.appearance.change({ title: 'Initial', logo: '/initial.png' })
+  form.map.change({ apiKey: 'initial-key', secretKey: 'initial-secret' })
+  assert.equal(await form.appearance.save(), false)
+  form.appearance.cancel()
+  assert.equal(form.state.model.title, 'Initial')
+  assert.equal(form.writes.length, 0)
+  assert.equal(await form.state.submitAll(), true)
+  assert.equal(form.writes.length, 1)
+  assert.equal(form.current().front.logo, '/initial.png')
+  assert.equal(form.current().amap.apiKey, 'initial-key')
+})
 
 test('a field save merges only its scope and preserves hidden, unknown, theme and layout values', async t => {
   const v = await mount(t, 'detail', { hidden: ['ico', 'background', 'showRecordNumber', 'base-path'] })

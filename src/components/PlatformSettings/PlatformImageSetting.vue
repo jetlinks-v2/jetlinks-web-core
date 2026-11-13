@@ -41,6 +41,8 @@ const checkIcon: UploadProps['beforeUpload'] = file => /\.ico$/i.test(file.name)
 async function uploaded(value: string) {
   const patch = { [props.kind]: value }
   emit('change', patch)
+  // 表单及区块编辑只更新图片草稿，统一保存时才写入配置。
+  if (props.mode === 'form') return
   const result = await props.submit(patch)
   failed.value = !result.ok
 }

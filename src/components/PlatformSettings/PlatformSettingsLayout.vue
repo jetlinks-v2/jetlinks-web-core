@@ -35,5 +35,6 @@ const section = computed(() => ({ model: props.model, saved: props.saved, mode: 
 .platform-settings { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 .platform-settings__loading { padding: var(--space-6); text-align: center; }
 .platform-settings :deep(.platform-card) { height: auto; flex: none; min-width: 0; overflow: visible; }
+.platform-settings :deep(.platform-card > .content-panel__header) { flex-wrap: wrap; gap: var(--space-3); }
 .platform-settings :deep(.platform-card__description) { color: var(--text-color-secondary); font-size: var(--fs-12); margin: 0 0 var(--space-3); line-height: 1.7; }
 </style>

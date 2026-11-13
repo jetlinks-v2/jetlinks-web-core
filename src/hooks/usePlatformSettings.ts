@@ -42,7 +42,8 @@ export function usePlatformSettings(source: PlatformSettingsSource, mode: Platfo
   }))
 
   function change(patch: PlatformSettingsPatch) {
-    if (busy.value || disabled.value) return
+    // 写入互斥由 persist 控制；另一块写入期间仍须接收已经开始的图片上传结果。
+    if (disabled.value) return
     for (const key of Object.keys(patch) as PlatformSettingKey[]) {
       if (keys.value.includes(key)) Object.assign(model, { [key]: patch[key] })
       delete errors.value[key]
@@ -77,8 +78,11 @@ export function usePlatformSettings(source: PlatformSettingsSource, mode: Platfo
     const allowed = Object.fromEntries(Object.entries(patch).filter(([key]) => keys.value.includes(key as PlatformSettingKey))) as PlatformSettingsPatch
     const changedKeys = Object.keys(allowed) as PlatformSettingKey[]
     const next = { ...(mode === 'detail' ? saved.value : model), ...allowed }
-    errors.value = validateSettings(next, changedKeys, t)
-    if (Object.keys(errors.value).length) return { ok: false, error: Object.values(errors.value)[0] }
+    const validation = validateSettings(next, changedKeys, t)
+    // 只更新本次提交字段的错误，保留另一编辑区块的校验结果。
+    for (const key of changedKeys) delete errors.value[key]
+    Object.assign(errors.value, validation)
+    if (Object.keys(validation).length) return { ok: false, error: Object.values(validation)[0] }
     Object.assign(model, allowed)
     if (mode === 'form') return { ok: true }
     return write(allowed)
