@@ -3,6 +3,9 @@
   "private": true,
   "version": "2.12.0",
   "scripts": {
+    "test:form": "node --test tests/formSession.test.mjs tests/formBundle.test.mjs tests/i18nText.test.mjs && vue-tsc --noEmit -p tests/tsconfig.form.json",
+    "dev:form": "vite --config tests/vite.form.config.ts --open /tests/form-workspace-preview.html",
+    "build:form": "vite build --config tests/vite.form.config.ts",
     "test:auto-tree": "node --test tests/autoTree.test.mjs && vue-tsc --noEmit -p tests/tsconfig.auto-tree.json",
     "test:auto-tree-browser": "node tests/autoTree.browser.mjs",
     "test:asset-ownership": "node --test tests/assetOwnershipCondition.test.mjs",
