@@ -23,7 +23,7 @@
 
 登录外观预览通过 `PlatformLoginPreview.vue` 复用实际登录页的 `login/components/LoginPageLayout.vue`、标题和账号表单，并按桌面比例缩放。真实登录与预览共用布局样式；预览不启动认证流程。此次布局对齐的验证见 [PlatformSettings 文档](../components/PlatformSettings/README.md)。
 
-运行时 `/system/Basis` 与 `/init-home` 共享纵向卡片、逐行配置和登录页 / 顶栏草稿预览。设置页逐项保存，初始化页统一校验提交；窄屏外观字段与预览上下排列。SaaS 支持修改页签图标，隐藏备案信息、登录背景和 `base-path`，私有化将 `base-path` 标为“接口基础地址”。主题及菜单布局不再作为本页编辑项，已有配置原样保留。组件契约见 [PlatformSettings](../components/PlatformSettings/README.md)。
+运行时 `/system/Basis` 与 `/init-home` 共享纵向卡片、逐行配置和登录页 / 顶栏草稿预览。设置页逐项保存，初始化页统一校验提交；窄屏外观字段与预览上下排列。SaaS 支持修改页签图标，仅对平台 `admin` 超管开放备案信息和登录背景，`base-path` 始终隐藏；私有化将 `base-path` 标为“接口基础地址”。主题及菜单布局不再作为本页编辑项，已有配置原样保留。组件契约见 [PlatformSettings](../components/PlatformSettings/README.md)。
 
 Owning modules：`runtime-ui/jetlinks-web-core` 的 `src/components/PlatformSettings`、`src/hooks/usePlatformSettings.ts`、`src/hooks/useSystemPlatformSettings.ts`、`src/views/init-home`；`runtime-ui/modules/authentication-manager-ui/views/system/Basis`；`runtime-ui/modules/saas-runtime-ui/components/Tenant`。字段注册契约移到 core 公共入口，原入口兼容转导出；core 不导入 SaaS 业务。保存沿用 `front` / `amap` / `paths`，合并当前变更，保留隐藏字段、未知字段、主题和布局；失败保留草稿，成功后回读失败只刷新，不重复写入。
 
@@ -105,9 +105,15 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 通知设置接收方式
 
-`account/center/components/Subscribe/useNotificationSettings.ts` 继续通过 `/notify/channel/all` 与个人订阅接口读取可用渠道和选择；未返回的渠道提示“该消息类型暂无可用的此类通知”。模板新增或编辑权限且有查询权限的账号，沿用原表头配置入口，在独立标签打开模板菜单；仅有一个可定位业务时携带真实记录 ID，多业务或多资产范围时由用户在模板目录选择具体记录。通知设置原有样式、布局和表头操作位置保持不变，不新增单元格按钮。无管理权限则联系管理员。复用 `src/hooks/useNotificationConfigNavigation.ts` 的返回刷新，重新读取渠道、订阅和接收账号；不以通知器凭证列表替代订阅数据。保存保留原邮箱、手机号、第三方接收账号校验。验证（2026-11-11）：`personalCenterFlows.test.mjs`、`notificationSettingsView.test.mjs`、`tests/notificationConfigNavigation.test.mjs` 合计 60/60 通过，覆盖原表头入口、具体记录与多资产范围、返回刷新、无管理权限、账号校验、查询失败和保存重试。core `vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 维持 532 项既有诊断，忽略行号比较无新增；定向样式检查和通知模块构建通过。当前未取得登录态，`/api/notify/channel/all` 返回 401；同一真实账号下的保存绑定、可用性与订阅刷新验证仍待执行，不以隔离测试替代。发布时同步模板菜单权限并刷新登录态。详细命令与模块验证见 `modules/notify-manager-ui/README.md` 的“业务模板绑定与个人订阅联动”。
+Owning module 为 `runtime-ui/jetlinks-web-core`，入口为 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}`。渠道或消息模板未配置时，表头统一显示“去绑定”，空单元格及不完整配置的提示同步使用该文案，中、英、日资源保持一致；移除原不可用通知文案及管理员变体。不增加无权限按钮的禁用或提示逻辑，沿用现有菜单导航；邮箱、手机号与第三方接收账号绑定继续使用原流程。
 
-公共 `src/hooks/useNotificationConfigNavigation.ts` 引导进入新模板菜单，保留 `topicProvider/channelProvider` 与返回时刷新候选的流程；接收页按真实业务绑定解析模板。迁移边界、权限与验证见 [通知模块说明](../../../modules/notify-manager-ui/README.md#旧菜单退役与个人中心入口统一)。
+可用渠道及订阅选择仍以 `/notify/channel/all` 和个人订阅接口为准。`src/api/account/notificationSubscription.ts#getNotificationNotifierConfigs_api` 通过现有 `/notifier/config/_query/no-paging` 只查询 `id/type/provider`，用于区分渠道和模板缺失，不读取通知器凭据或替代订阅数据。渠道缺失进入 `system/MessageNotification/Channels`，渠道已配置但模板缺失进入 `system/MessageNotification/Templates`，通过 `channel=type:provider` 定位对应页面。钉钉/微信个人接收使用工作通知，群机器人/服务号不能冒充；已有业务绑定优先使用真实通知器提供商。渠道查询失败保留重试反馈，不按空配置跳转，也不阻断已加载订阅的保存。
+
+公共 `src/hooks/useNotificationConfigNavigation.ts` 保留独立标签打开及返回刷新。模板入口仅有一个待配置业务时携带真实记录 ID，多业务或多资产范围时进入模板目录选择；继续传递 `topicProvider/channelProvider`。不修改后端接口、订阅保存契约、通知发送、通知模块或运营端 `ui/`，不新增单元格按钮。模板接收页及迁移边界见 [通知模块说明](../../../modules/notify-manager-ui/README.md)。
+
+验证（2026-11-13）：core 中执行 `node --test src/views/account/center/personalCenterFlows.test.mjs src/views/account/center/notificationSettingsView.test.mjs`，65/65 通过，覆盖五类渠道缺失、仅模板缺失、具体业务/多范围、接收账号绑定、真实提供商及枚举字段、查询失败/无效响应、返回刷新和保存重试。浏览器使用真实 Vue、公共表格、Ant Design、页面、API 封装及导航 hook，验证五类渠道各自的渠道/模板共 10 次实际新标签跳转、返回刷新、联系方式事件、查询字段及三语文案；接口使用隔离响应，无脚本错误或真实业务网络请求。截图及报告位于 `/tmp/notification-binding-browser/`，本轮未将完整移动端布局作为验收项。
+
+在 `runtime-ui/` 执行 `pnpm build --outDir /tmp/notification-binding-build` 通过（1 分 54 秒，包含 visualization player），保留已有资源路径、循环分块、CSS 注释和包体积警告。`pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 修改前后均为 513 项既有诊断，忽略行列后完全一致，无新增；全量类型检查尚未通过，修复既有问题后需重跑该命令。工作区无独立 lint 脚本，变更差异空白检查通过。真实登录账号与后端未联调；通过 `pnpm dev` 在 `/account/center?tab=Subscribe` 复验渠道配置、模板配置及个人接收账号绑定后的返回刷新。
 
 ### 公共组件与交互契约
 

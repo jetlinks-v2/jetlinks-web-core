@@ -15,25 +15,43 @@ const load = (file, imports = {}) => {
     if (name in imports) return imports[name]
     throw new Error(`Unmocked import ${name}`)
   }
-  new Function('require', 'module', 'exports', transformSync(readFileSync(resolve(root, file), 'utf8'), { loader: 'ts', format: 'cjs' }).code)(require, module, module.exports)
+  new Function('require', 'module', 'exports', 'glob', transformSync(readFileSync(resolve(root, file), 'utf8'), {
+    loader: 'ts', format: 'cjs', define: { 'import.meta.glob': 'glob' },
+  }).code)(require, module, module.exports, () => ({}))
   return module.exports
 }
 const model = load('components/PlatformSettings/model.ts')
 const registry = load('components/PlatformSettings/fieldRegistry.ts')
+const user = vue.reactive({ userInfo: {} })
+const saas = load('../../modules/saas-runtime-ui/index.ts', {
+  '@jetlinks-web-core/locales': { global: { t: key => key } },
+  '@jetlinks-web-core/store': { handleSiderBreadcrumb: value => value },
+  '@jetlinks-web-core/store/user': { useUserStore: () => user },
+  '@jetlinks-web-core/router/types': { RouteSecurityLevel: {} },
+  '@jetlinks-web-core/components/PlatformSettings': registry,
+}).default
+const backgrounds = load('utils/login-background.ts', {
+  '@jetlinks-web-core/assets/login/login-bg.png': '/default-saas.png',
+  './deployment': { isPrivateDeployment: () => false },
+  './public-asset': { resolvePublicAssetUrl: value => value || '' },
+})
 const hooks = load('hooks/usePlatformSettings.ts', {
   '../components/PlatformSettings/model': model, '../components/PlatformSettings/fieldRegistry': registry,
-  '@jetlinks-web-core/utils/components-registry': { componentsRegistry: { getRegistry: () => hidden.map(target => ({ mode: 'hide', target })) } },
+  '@jetlinks-web-core/utils/components-registry': { componentsRegistry: { getRegistry: () => actions } },
   '@jetlinks-web-core/utils/public-asset': { resolvePublicAssetUrl: value => value },
+  '@jetlinks-web-core/utils/login-background': backgrounds,
 })
 const init = load('views/init-home/useInitialization.ts')
 const renderer = vue.createRenderer({ createElement: () => ({}), createText: () => ({}), createComment: () => ({}), insert() {}, remove() {}, setText() {}, setElementText() {}, patchProp() {}, parentNode: () => null, nextSibling: () => null })
 const clone = value => JSON.parse(JSON.stringify(value))
 const tick = async () => { await new Promise(resolve => setImmediate(resolve)); await vue.nextTick() }
-let hidden = []
+let actions = []
 globalThis.window = { location: { origin: 'https://test.example' } }
 async function mount(t, mode = 'detail', options = {}) {
-  hidden = options.hidden || []
-  let data = { front: { title: 'Saved', ico: '/original.ico', headerTheme: 'dark', layout: 'side', layoutVariant: 'application', extra: { flag: 1 } }, amap: { apiKey: 'web', secretKey: 'secret', webKey: 'service', unknown: 8 }, paths: { 'base-path': 'https://test.example/api', external: true } }
+  user.userInfo = options.user || {}
+  actions = options.saas ? saas.getRegisterComponents().filter(action => action.targetPage === registry.BASIS_FORM_PAGE_CODE)
+    : (options.hidden || []).map(target => ({ mode: 'hide', target }))
+  let data = { front: { title: 'Saved', ico: '/original.ico', headerTheme: 'dark', layout: 'side', layoutVariant: 'application', extra: { flag: 1 }, ...options.front }, amap: { apiKey: 'web', secretKey: 'secret', webKey: 'service', unknown: 8 }, paths: { 'base-path': 'https://test.example/api', external: true } }
   const writes = []
   const source = {
     load: async () => clone(data),
@@ -149,6 +167,90 @@ test('read-only settings reject draft changes and persistence', async t => {
   assert.equal(v.writes.length, 0)
 })
 
+for (const mode of ['detail', 'form']) {
+  test(`SaaS platform admin can save background and record settings in ${mode} mode`, async t => {
+    const v = await mount(t, mode, { saas: true, user: { username: 'admin' } })
+    assert.deepEqual(v.state.hidden.value, ['base-path'])
+    const patch = { background: '/uploaded-background.png', recordNumber: '粤ICP备12345678号', showRecordNumber: true }
+    v.state.change(patch)
+    assert.equal(v.state.assets.value.background, patch.background)
+    assert.equal((await v.state.persist({ ...patch, 'base-path': 'invalid' })).ok, true)
+    if (mode === 'form') {
+      assert.equal(v.writes.length, 0)
+      assert.equal(await v.state.submitAll(), true)
+    }
+    assert.equal(v.writes.length, 1)
+    for (const [key, value] of Object.entries(patch)) {
+      assert.equal(v.current().front[key], value)
+      assert.equal(v.state.saved.value[key], value)
+    }
+    assert.deepEqual(v.current().front.extra, { flag: 1 })
+    assert.equal(v.writes[0].some(item => item.scope === 'paths'), false)
+  })
+}
+
+for (const identity of [
+  { username: 'manager', type: { id: 'projectManager' } },
+  { username: 'owner', type: { id: 'projectOwner' } },
+  { username: 'operator' }, {},
+]) {
+  test(`SaaS ${identity.username || 'unloaded identity'} cannot edit background or record settings`, async t => {
+    const front = { background: '/saved.png', recordNumber: 'saved record', showRecordNumber: true }
+    const v = await mount(t, 'detail', { saas: true, user: identity, front })
+    const forbidden = { background: '/forbidden.png', recordNumber: 'forbidden', showRecordNumber: false }
+    v.state.change(forbidden)
+    assert.equal(v.state.model.background, '')
+    await v.state.persist(forbidden)
+    assert.equal(v.writes.length, 0)
+    await v.state.persist({ title: 'Allowed', ...forbidden })
+    for (const [key, value] of Object.entries(front)) assert.equal(v.current().front[key], value)
+  })
+}
+
+test('late admin identity reveals saved fields and revocation prevents both per-field and unified writes', async t => {
+  const v = await mount(t, 'form', { saas: true, front: { background: '/saved.png', recordNumber: 'saved record', showRecordNumber: true } })
+  const render = createFieldRenderer(actions)
+  const fields = ['title', 'background', 'showRecordNumber']
+  assert.deepEqual(render('appearance', fields), ['title'])
+  v.state.change({ title: 'Unsaved title' })
+  user.userInfo = { username: 'admin' }
+  assert.deepEqual(v.state.hidden.value, ['base-path'])
+  assert.deepEqual(render('appearance', fields), fields)
+  assert.equal(v.state.model.background, '/saved.png')
+  assert.equal(v.state.model.recordNumber, 'saved record')
+  assert.equal(v.state.model.title, 'Unsaved title')
+  v.state.change({ background: '/new.png', recordNumber: '' })
+  assert.equal(await v.state.submitAll(), false)
+  assert.equal(v.state.errors.value.recordNumber, 'PlatformSettings.recordRequired')
+  user.userInfo = { username: 'owner', type: { id: 'projectOwner' } }
+  assert.deepEqual(render('appearance', fields), ['title'])
+  assert.equal(v.state.errors.value.recordNumber, undefined)
+  assert.equal(await v.state.submitAll(), true)
+  assert.equal(v.current().front.background, '/saved.png')
+  assert.equal(v.current().front.recordNumber, 'saved record')
+  assert.equal(v.current().front.title, 'Unsaved title')
+  await v.state.persist({ background: '/forbidden.png' })
+  assert.equal(v.writes.length, 1)
+})
+
+test('admin record validation, toggle, and failed background save retain the existing retry behavior', async t => {
+  const v = await mount(t, 'detail', { saas: true, user: { username: 'admin' } })
+  assert.equal((await v.state.persist({ showRecordNumber: true, recordNumber: '' })).ok, false)
+  assert.equal(v.writes.length, 0)
+  assert.equal((await v.state.persist({ recordNumber: 'record', showRecordNumber: true })).ok, true)
+  assert.equal((await v.state.persist({ showRecordNumber: false })).ok, true)
+  assert.equal(v.current().front.showRecordNumber, false)
+  const save = v.source.save
+  v.source.save = async () => ({ success: false })
+  v.state.change({ background: '/uploaded.png' })
+  assert.equal((await v.state.persist({ background: '/uploaded.png' })).ok, false)
+  assert.equal(v.state.model.background, '/uploaded.png')
+  assert.equal(v.state.saved.value.background, '')
+  v.source.save = save
+  assert.equal((await v.state.persist({ background: '/uploaded.png' })).ok, true)
+  assert.equal(v.state.saved.value.background, '/uploaded.png')
+})
+
 test('initialization follows the complete order and stops at every false or thrown stage', async () => {
   const order = ['basic', 'menu', 'role', 'roleGroup', 'data', 'finish']
   for (const failAt of [-1, 0, 1, 2, 3, 4, 5]) {
@@ -228,13 +330,7 @@ test('real initial-data hook stops at each failed API, including activation, wit
   }
 })
 
-test('field extensions stay with their owning card and unanchored extensions render exactly once', () => {
-  const actions = [
-    { code: 'extra-title', target: 'title', mode: 'after', component: { render: () => null } },
-    { code: 'extra-map', target: 'webKey', mode: 'replace', component: { render: () => null } },
-    { code: 'append', mode: 'append', component: { render: () => null } },
-    { code: 'hidden', target: 'ico', mode: 'hide' },
-  ]
+function createFieldRenderer(actions) {
   const componentsRegistry = { getRegistry: () => actions }
   const merge = load('hooks/useRegistryComponentsMerge.ts', {
     '@jetlinks-web-core/utils/components-registry': { componentsRegistry },
@@ -243,7 +339,16 @@ test('field extensions stay with their owning card and unanchored extensions ren
   const fields = load('components/PlatformSettings/PlatformSettingsFields.ts', {
     '../../utils/components-registry': { componentsRegistry }, '../../hooks/useRegistryComponentsMerge': merge, './fieldRegistry': registry,
   }).default
-  const render = (group, keys) => fields.setup({ group }, { slots: { default: () => keys.map(key => vue.h('div', { key })) }, attrs: {} })().map(node => node.key)
+  return (group, keys) => fields.setup({ group }, { slots: { default: () => keys.map(key => vue.h('div', { key })) }, attrs: {} })().map(node => node.key)
+}
+
+test('field extensions stay with their owning card and unanchored extensions render exactly once', () => {
+  const render = createFieldRenderer([
+    { code: 'extra-title', target: 'title', mode: 'after', component: { render: () => null } },
+    { code: 'extra-map', target: 'webKey', mode: 'replace', component: { render: () => null } },
+    { code: 'append', mode: 'append', component: { render: () => null } },
+    { code: 'hidden', target: 'ico', mode: 'hide' },
+  ])
   assert.deepEqual(render('appearance', ['title', 'ico']), ['title', 'extra-title:title'])
   assert.deepEqual(render('map', ['apiKey', 'webKey']), ['apiKey', 'extra-map:webKey'])
   assert.deepEqual(render('address', ['base-path']), ['base-path', 'append:append'])

@@ -63,7 +63,7 @@ withDefaults(defineProps<{ preview?: boolean }>(), { preview: false })
 
 <style scoped lang="less">
 .login-container {
-  /* 模块通过 --jet-login-bg-image 设置默认图，私有化基础配置由行内样式优先覆盖。 */
+  /* 模块通过 --jet-login-bg-image 设置默认图，平台配置的背景由行内样式优先覆盖。 */
   --login-bg-image: var(--jet-login-bg-image, url('@jetlinks-web-core/assets/login/login-bg.png'));
 
   position: relative;

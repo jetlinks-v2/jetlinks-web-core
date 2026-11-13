@@ -2,6 +2,16 @@
 
 运行时 `/system/Basis` 与 `/init-home` 共用的配置区块。提供平台名称、Logo、页签图标、登录背景、备案信息、高德地图和接口基础地址；不承载 SaaS 域名开通流程。
 
+超管编辑范围：SaaS 平台外观仅对当前用户 `username === 'admin'` 开放登录背景、备案号及显示开关，继续沿用 `system/Basis:update` 编辑权限；`projectManager` / `projectOwner` 和普通账号仍隐藏这两项，接口基础地址继续对所有 SaaS 账号隐藏。不能以包含项目负责人的 `useUserStore().isAdmin` 代替平台超管身份。设置页逐项保存，初始化页随统一提交保存，后端仍使用现有 `front.background`、`front.recordNumber`、`front.showRecordNumber` 字段。
+
+实现入口：`runtime-ui/modules/saas-runtime-ui/index.ts` 使用 `createHiddenBasisFormFields(fields, shouldHide)` 注册条件隐藏；core 的 `fieldRegistry.ts` 在消费时解析条件，`PlatformSettingsFields.ts` 和 `src/hooks/usePlatformSettings.ts` 共用该结果，保持配置行、预览、校验和提交过滤一致。身份晚于配置加载时回显新开放字段的已保存值，身份失去编辑资格后再次提交会过滤这些字段；隐藏字段及未知配置继续原样保留。运营端、后端接口、菜单和登录认证不变。
+
+登录背景由 `src/utils/login-background.ts` 统一解析，供 `src/views/login/index.vue`、`PlatformLoginPreview.vue` 和上传缩略图复用。SaaS 超管配置的自定义背景在实际登录页生效；未配置及历史 `images/login/login.png` 占位图仍采用模块／SaaS 默认图，私有化保持原回退规则。
+
+超管开放验证：core 中执行 `node --test tests/platformSettings.test.mjs tests/inlineEditForm.test.mjs tests/loginEntry.test.mjs`，46 项通过，覆盖实际 SaaS 注册、超管／项目负责人／项目管理员／普通账号／未加载身份、两种保存模式、身份晚加载及收回后的字段保护、备案必填与开关、背景保存失败重试，以及实际登录组件的自定义背景、旧默认图及备案显示。运行时工作区执行完整 `pnpm build --outDir /private/tmp/jetlinks-superadmin-appearance.sEtOG7/build` 通过（宿主 1 分 58 秒，包含 709 个播放器资源文件），保留既有资源路径、依赖及分块体积提示。全量 `pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 修改前后均为 513 条诊断，忽略行号后完全一致，无新增诊断；需修复既有类型问题后重跑。无独立 lint 脚本，Vue／样式编译随定向测试通过，变更文件差异空白检查通过。
+
+真实组件与实际 SaaS 字段注册配合模拟接口完成 4 类账号 × 1440／390px 共 8 组 Chromium 检查：超管背景选择、16:9 裁剪、上传保存、预览联动、备案编辑及开关双向保存通过；项目负责人、项目管理员和普通账号继续隐藏相关字段，接口基础地址始终隐藏，全部场景无脚本异常及横向溢出。尚未写入真实后端；需在运行时工作区执行 `pnpm dev`，以平台 `admin` 登录 `/system/Basis`，复验实际文件上传、保存后刷新回显及退出后的登录页背景／备案显示。
+
 外观左侧布局：`PlatformAppearanceSection.vue` 参考账户中心 `src/views/Account/center/components/LoginMethods/LoginMethodRow.vue` 的列表行、蓝底圆角图标、名称 / 说明和右侧操作区。平台名称改由右侧“编辑”按钮开启原位编辑，名称值从 14px 调整为 16px / 600 字重；名称文本不再直接触发编辑。`PlatformTextSetting.vue` 通过 `InlineEditForm` 的手动触发字段选项和既有 `editField()` 保留草稿、权限、Enter / 失焦保存、Esc 取消及失败重试；初始化仍直接填写，外观以外的配置行保持现有样式。备案行右侧移除“显示备案号”的可见文案，保留开关的无障碍名称、保存与失败重试行为。
 
 名称编辑行调整：`PlatformTextSetting.vue` 让右侧按钮与输入框顶部对齐，避免下方说明或保存失败提示把按钮向下推；`src/locales/lang/zh.json` 的 `PlatformSettings.modify` 统一显示“编辑”。23 项配置 / 行内编辑回归、行内编辑组件类型检查、目标样式检查及外观入口定向 Vite 构建通过；保留上传组件既有 CSS 注释提示。真实组件配合模拟接口验证 1920 / 1440 / 900px 输入框与按钮顶部一致，保存失败后仍对齐，390px 沿用原堆叠布局且无溢出；编辑、Esc 取消、Enter 保存、初始化和只读入口正常。无独立 lint 脚本，未运行完整应用构建、全量类型检查或真实后端写入；需要时在运行时工作区执行 `pnpm build`、`pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json` 并验收登录环境。
@@ -16,7 +26,7 @@
 
 上传入口验证（2026-11-12）：core 中 `node --test tests/platformSettings.test.mjs tests/inlineEditForm.test.mjs` 的 23 项通过；运行时工作区执行 `node ../ui/scripts/check-ui-style.mjs --files jetlinks-web-core/src/components/PlatformSettings/PlatformImageSetting.vue jetlinks-web-core/src/components/PlatformSettings/PlatformImageTrigger.vue` 通过；`pnpm -F jetlinks-web-core build --outDir /private/tmp/jetlinks-basis-upload-build -- --module-name authentication-manager-ui` 通过（28.18 秒），保留既有 CSS 注释与大包提示。真实组件配合模拟接口完成设置页 / 初始化页 × 私有化 / SaaS × 1440 / 390px 共 8 组浏览器检查，确认两个按钮均为 48×48px、边框一致、padding 为 0、无“更换”文字、Logo 点击打开裁剪且取消不写入；另 4 组 ICO 上传检查覆盖保存失败重试与初始化仅更新草稿，只读入口不显示上传按钮。没有提交真实后端请求；真实环境上传持久化仍待联调。工作区无独立 lint 脚本，本次未重跑全量类型检查，需要时执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json`。
 
-平台外观未配置登录背景时，预览沿用当前登录页的默认图规则：优先使用模块的 `--jet-login-bg-image`，私有化兜底 `public/images/login/login.png`，SaaS 兜底 `src/assets/login/login-bg.png`。私有化已配置的背景优先显示；SaaS 继续隐藏背景字段并忽略其历史配置。默认背景仅用于展示，不回填到配置草稿。
+平台外观未配置登录背景时，预览沿用当前登录页的默认图规则：优先使用模块的 `--jet-login-bg-image`，私有化兜底 `public/images/login/login.png`，SaaS 兜底 `src/assets/login/login-bg.png`。可编辑背景字段时优先显示已配置的自定义图，SaaS 历史默认占位图按未配置处理；非超管仍隐藏背景字段。默认背景仅用于展示，不回填到配置草稿。
 
 登录预览与实际登录页共享 `src/views/login/components/LoginPageLayout.vue` 的左侧登录区、顶部品牌及语言入口、右侧背景和底部备案布局，并复用 `LoginPanelHeader`、`PasswordLogin` 的展示。预览按桌面登录页比例缩放，保留名称、Logo、背景和备案的定位事件；表单与语言操作不可交互，不挂载登录请求、验证码或 SSO 流程。真实登录页只迁移展示布局，认证行为保持原有入口。
 
@@ -53,7 +63,7 @@ defineExpose({ submitBasic: () => settings.value?.submit() })
 
 `usePlatformSettings` 管理草稿、字段校验、请求互斥和 `front` / `amap` / `paths` 的增量合并；`useSystemPlatformSettings` 接入 system store、权限、图片上传状态和初始化默认布局。存储请求仍使用现有接口，成功后回读更新全局外观；回读失败独立提示，刷新不会再次写入。未提交、隐藏、未知字段及主题/布局配置保留。初始化请求失败由宿主中止后续步骤；表单组件不写菜单或初始化标记。
 
-字段扩展继续使用 `BASIS_FORM_PAGE_CODE = 'system/Basis'`、`BASIS_FORM_MODULE_CODE = 'form-fields'`。`BASIS_FORM_FIELD` 和 `createHiddenBasisFormFields` 从本入口导出，原 authentication 模块入口兼容转导出。针对字段的扩展进入所属卡片，无目标扩展在卡片末尾渲染一次。SaaS 允许修改页签图标 `ico`，设置页上传后逐项保存，初始化页只更新草稿并随统一提交保存；继续隐藏 `background`、`showRecordNumber`、`base-path`，备案号随显示开关一并隐藏，不参与校验或写入。设置页外层 `system/basis:basic` 的 `basic` 注册位置保持不变。
+字段扩展继续使用 `BASIS_FORM_PAGE_CODE = 'system/Basis'`、`BASIS_FORM_MODULE_CODE = 'form-fields'`。`BASIS_FORM_FIELD`、`createHiddenBasisFormFields` 和 `resolveBasisFormFieldActions` 从本入口导出，原 authentication 模块入口保留既有标识及注册函数的兼容转导出。针对字段的扩展进入所属卡片，无目标扩展在卡片末尾渲染一次。SaaS 允许修改页签图标 `ico`，设置页上传后逐项保存，初始化页只更新草稿并随统一提交保存；`background`、`showRecordNumber` 仅对平台超管开放，`base-path` 始终隐藏。备案号随显示开关一并控制可见性，隐藏时不参与校验或写入。设置页外层 `system/basis:basic` 的 `basic` 注册位置保持不变。
 
 生产入口：`modules/authentication-manager-ui/views/system/Basis/Form.vue`、`src/views/init-home/Basic/Form.vue`。定向测试：core 中执行 `node --test tests/platformSettings.test.mjs tests/inlineEditForm.test.mjs`。
 
