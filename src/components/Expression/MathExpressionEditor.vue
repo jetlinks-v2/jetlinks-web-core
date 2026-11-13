@@ -85,7 +85,7 @@ import type { StructuredExpression } from './types'
 import type { ExpressionReference } from './editor'
 const props=withDefaults(defineProps<MathEditorProps>(),{conditions:true})
 // Align against the viewport even when the host page has a taller scrollable document.
-const popupAlign={overflow:{adjustX:1,adjustY:1,alwaysByViewport:true}}
+const popupAlign={overflow:{adjustX:true,adjustY:true,alwaysByViewport:true}}
 const fallbackRoot={type:'literal' as const,valueType:'null' as const,value:null}
 const emit=defineEmits<{(event:'change',value:MathEditorChange):void;(event:'update:modelValue',value:StructuredExpression):void;(event:'invalid',value:boolean):void;(event:'retryFunctions'):void;(event:'referenceHover',value:ExpressionReference|undefined):void}>()
 const references=computed(()=>props.context.references)

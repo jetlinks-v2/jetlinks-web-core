@@ -246,7 +246,7 @@ export function createMathParser(root:ExpressionNode,context:ExpressionEditorCon
   // 数学等号和逻辑符号只在这里正规化；字符串与引用名称不参与字符替换。
   const normalized=source.replace(/"(?:\\.|[^"\\])*"|\["(?:\\.|[^"\\])*"\]|(?<![=!<>])=(?!=)/g,token=>token === '=' ? '==' : token)
   const parsed=parseExpressionDocument(normalized,{...document,spans:[],tokens:[]},context,root,t)
-  if(!parsed.node)throw new Error(parsed.error?.key || 'incomplete')
+  if(!parsed.node)throw Object.assign(new Error(parsed.error?.key || 'incomplete'),parsed.error)
   return parsed.node
   }
 }

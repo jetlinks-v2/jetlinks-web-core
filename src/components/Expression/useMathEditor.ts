@@ -13,6 +13,7 @@ import semanticStyles from './math-semantic.css?inline'
 import { useMathInsertion, type MathInsertion, type FunctionTarget } from './useMathInsertion'
 import { useMathClipboard } from './useMathClipboard'
 import { unsupportedMathKey } from './mathInput'
+import { validateExpressionTypes,expressionValidationMessage } from './validation'
 
 /** 旧源码只由宿主适配；可视编辑仅提交结构树。 */
 export interface ExpressionSourceAdapter { text:string; parse:(source:string)=>StructuredExpression|undefined; format:(tree:StructuredExpression)=>string }
@@ -59,11 +60,12 @@ const referenceOptions=computed(()=>{
 let replacingReference = false
 const sourceText = ref(modelSource.value)
 const invalid = ref(false)
+const validationMessage=ref('')
 const ready = ref(false)
 const loadError = ref(false)
 const inputNotice=ref('')
 const canVisualize = computed(() => visualFormula(sourceText.value) !== undefined)
-const feedback = computed(() => inputNotice.value || clipboard.feedback.value || (invalid.value ? t('incompleteFormula') : loadError.value ? t('formulaLoadFailed') : mode.value === 'source' && !canVisualize.value ? t('advancedFormulaHint') : mode.value === 'visual' && ready.value && !props.disabled ? canAddBranch.value ? t('formulaBranchesHint') : !canInsertValue.value ? t('chooseInsertionTarget') : props.conditions ? t('enterFormulaBranch') : '' : ''))
+const feedback = computed(() => inputNotice.value || clipboard.feedback.value || (invalid.value ? validationMessage.value || t('incompleteFormula') : loadError.value ? t('formulaLoadFailed') : mode.value === 'source' && !canVisualize.value ? t('advancedFormulaHint') : mode.value === 'visual' && ready.value && !props.disabled ? canAddBranch.value ? t('formulaBranchesHint') : !canInsertValue.value ? t('chooseInsertionTarget') : props.conditions ? t('enterFormulaBranch') : '' : ''))
 const operators = computed(() => [
   ...['+','-','\\times','\\dfrac{#@}{#?}'].map((latex,index)=>({label:['+','−','×','÷'][index],latex,kind:'arithmetic' as const})),
   {label:'( )',latex:'\\left(#0\\right)',kind:'group' as const},
@@ -262,17 +264,29 @@ function chooseReference(index: number) {
   field.focus(); field.selection = selection
   insert({latex,kind:'value',valueType:String(references.value[index]?.schema?.type || 'unknown')},selection)
 }
+function readField() {
+  const node=parser.value(field!.getValue('latex'))
+  const issue=validateExpressionTypes(node,context.value)
+  if(issue)throw issue
+  return node
+}
+// Revalidate initial/external trees without emitting changes or touching native undo history.
+function checkField() {
+  if(!field || mode.value !== 'visual')return
+  try {readField();validationMessage.value='';if(invalid.value)setInvalid(false)}
+  catch(cause) {validationMessage.value=expressionValidationMessage(cause as {key?:string;message?:string},t);setInvalid(true)}
+}
 function onInput() {
   if (!field || props.disabled) return
   inputNotice.value=''
   clipboard.clear()
   closeReferences()
   try {
-    const next=parser.value(field.getValue('latex')),tree={version:1 as const,root:next}
+    const next=readField(),tree={version:1 as const,root:next}
     const source=format(tree)
     sourceText.value=source;lastEmitted=source;lastRoot.value=next
-    setInvalid(false); emit('update:modelValue',tree); emit('change',{expression:source,expressionTree:tree})
-  } catch { setInvalid(true) }
+    validationMessage.value='';setInvalid(false); emit('update:modelValue',tree); emit('change',{expression:source,expressionTree:tree})
+  } catch(cause) {validationMessage.value=expressionValidationMessage(cause as {key?:string;message?:string},t);setInvalid(true)}
   insertion.refresh()
 }
 function finish() {if(mode.value === 'visual')onInput();return mode.value === 'source' ? !invalid.value : ready.value && !invalid.value && !loadError.value}
@@ -328,6 +342,7 @@ async function mountField() {
     // 稳定标识可直接键入；中文名仍可通过 @ / Ctrl+Space 的可搜索菜单选择。
     refreshShortcuts()
     ready.value = true
+    checkField()
     if(props.autofocus){field.focus();field.executeCommand('moveToMathfieldEnd')}
     insertion.refresh()
   } catch { loadError.value = true }
@@ -385,7 +400,7 @@ async function changeMode(value: 'visual' | 'source') {
   closeReferences(); sourceElement = undefined
   mode.value = value
   await nextTick(); await mountField()
-  if (value === 'visual' && field) { field.value = visualFormula(sourceText.value) || ''; field.focus() }
+  if (value === 'visual' && field) { field.value = visualFormula(sourceText.value) || '';checkField();field.focus() }
 }
 // Parent echo after a valid keystroke must not reset the native cursor/undo history.
 watch(modelSource, value => {
@@ -395,7 +410,7 @@ watch(modelSource, value => {
   sourceText.value = value; setInvalid(false)
   const latex = visualFormula(value)
   if (latex === undefined) mode.value = 'source'
-  else if (field) {field.macros=projection(value)?.macros || {};field.value = latex}
+  else if (field) {field.macros=projection(value)?.macros || {};field.value = latex;checkField()}
   insertion.refresh()
 })
 watch(()=>props.forceSource,async value=>{if (value) {mode.value='source';closeReferences()} else {mode.value=visualFormula(sourceText.value) === undefined ? 'source' : 'visual';await nextTick();await mountField()}})
@@ -409,6 +424,7 @@ watch(() => JSON.stringify(props.context), () => {
     if (latex === undefined) mode.value = 'source'
     else field.value = latex
   }
+  checkField()
   insertion.refresh()
 })
 watch(() => props.disabled, value => { closeReferences(); if (field) field.readOnly = !!value;insertion.refresh() })

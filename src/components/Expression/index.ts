@@ -6,3 +6,6 @@ export { default as ExpressionProcess } from './ExpressionProcess.vue'
 export { useExpressionFunctions } from './useExpressionFunctions'
 export type { StructuredExpression,ExpressionNode,ExpressionFunction,ExpressionEvaluation,ExpressionEvaluationRequest,ExpressionExplanation } from './types'
 export type { ExpressionEditorContext,ExpressionReference } from './editor'
+
+export { expressionNodeType,normalizeExpressionType,validateExpressionTypes } from './validation'
+export type { ExpressionValueType,ExpressionTypeIssue } from './validation'

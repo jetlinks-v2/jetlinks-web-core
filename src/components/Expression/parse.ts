@@ -4,8 +4,9 @@ import type { ExpressionEditorContext } from './editor'
 import type { ExpressionDocument, ExpressionToken, ExpressionTranslate } from './document'
 import { projectExpressionTokens } from './document'
 import { validLiteral,validEnumLiterals } from './editor'
+import { validateExpressionTypes } from './validation'
 
-export interface ExpressionDiagnostic { key:string; from:number; to:number; name?:string }
+export interface ExpressionDiagnostic { key:string; from:number; to:number; name?:string; index?:number; expected?:string }
 type Syntax=ReturnType<typeof parseExpression>
 function logicalParts(node:Syntax):Syntax[] {
   const parts:Syntax[]=[]
@@ -130,6 +131,11 @@ export function parseExpressionDocument(text:string,document:ExpressionDocument,
     if (text.length > 16000) return {error:{key:'expressionTooLong',from:0,to:text.length}}
     const node=convert(parseExpression(text,{createParenthesizedExpressions:true}),previous)
     if(!validEnumLiterals(node,context))fail('invalidEnumValue')
+    const issue=validateExpressionTypes(node,context,false)
+    if(issue) {
+      const span=next.spans.find(item=>item.node === issue.node)
+      return {error:{...issue,from:span?.from ?? 0,to:span?.to ?? text.length}}
+    }
     return {node,document:{...next,tokens:projectExpressionTokens(next,node,context,t).sort((a,b)=>a.from-b.from || a.to-b.to)}}
   } catch(error) {
     const item=error as ExpressionDiagnostic & {pos?:number}

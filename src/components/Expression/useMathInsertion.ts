@@ -1,7 +1,7 @@
 import { computed, shallowRef } from 'vue'
 import type { MathfieldElement, Selection } from 'mathlive'
 import type { ExpressionEditorContext, ExpressionValueChoice } from './editor'
-import { enumChoices, expressionValueChoices } from './editor'
+import { enumChoices, expressionValueChoices,expressionNodeType,normalizeExpressionType } from './editor'
 import type { ExpressionNode } from './types'
 import { expressionText } from './display'
 import { referenceKey } from './document'
@@ -13,7 +13,7 @@ export type MathInsertion={latex:string;kind:'value'|'arithmetic'|'comparison'|'
 type Target={range:Range;node?:ExpressionNode;expected:ValueType;choices?:ExpressionValueChoice[];segment?:{range:Range;node:ExpressionNode;expected:ValueType}}
 export type FunctionTarget={range:Range;id:string;count:number;argumentsLatex:string;bounds:DOMRect}
 const comparison=(operator:string)=>['eq','ne','gt','ge','lt','le'].includes(operator)
-const normalize=(value:unknown):ValueType=>typeof value !== 'string' ? 'unknown' : ['int','long','float','double','decimal','bigint','number','date'].includes(value) ? 'number' : ['boolean','string','object','array','null'].includes(value) ? value as ValueType : 'unknown'
+const normalize=normalizeExpressionType
 const schemaType=(schema?:Record<string,unknown>):ValueType=>schema?.type === 'enum' ? normalize(typeof schema.valueType === 'object' ? (schema.valueType as Record<string,unknown>)?.type : schema.valueType) : normalize(schema?.type)
 const compatible=(expected:ValueType,actual:ValueType)=>expected === 'unknown' || actual === 'unknown' || actual === 'null' || expected === actual
 const text=(node:ExpressionNode)=>expressionText({version:1,root:node})
@@ -36,16 +36,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     if(!parsed.has(latex)) {try{parsed.set(latex,parser!(latex))}catch{parsed.set(latex,undefined)}}
     return parsed.get(latex)
   }
-  const infer=(node:ExpressionNode):ValueType=>{
-    const context=options.context()
-    if(node.type === 'literal')return normalize(node.valueType)
-    if(node.type === 'reference')return schemaType(context.references.find(item=>referenceKey(item) === referenceKey(node))?.schema)
-    if(node.type === 'logical' || node.type === 'unary' && node.operator === 'not' || node.type === 'binary' && comparison(node.operator))return 'boolean'
-    if(node.type === 'binary' || node.type === 'unary')return 'number'
-    if(node.type === 'call')return normalize(context.functions.find(item=>item.id === node.function)?.returnType)
-    const a=infer(node.whenTrue),b=infer(node.whenFalse)
-    return a === 'null' ? b : b === 'null' || a === b ? a : 'unknown'
-  }
+  const infer=(node:ExpressionNode):ValueType=>expressionNodeType(node,options.context())
   function expected(node:ExpressionNode):ValueType {
     const wanted=text(node),types:ValueType[]=[],context=options.context()
     if(expectedTypes.has(wanted))return expectedTypes.get(wanted)!
