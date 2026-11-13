@@ -9,6 +9,10 @@
       <div v-show="mode === 'visual'" ref="host" class="formula-editor__field" @click.self="focusFormula" @focusout="blurCommit" @scroll="closeReferences()" />
       <a-textarea v-if="mode === 'source'" class="formula-editor__source" :value="sourceText" :disabled="disabled" :bordered="false"
         :aria-label="t('advancedExpression')" @update:value="updateSource" @focus="remember" @click="remember" @keyup="remember" @select="remember" />
+      <a-tooltip v-if="hoverHint" :open="true" :trigger="[]" placement="top" :get-popup-container="popupContainer" :overlay-style="{pointerEvents:'none'}">
+        <template #title><div class="formula-editor__hint"><strong>{{ hoverHint.name }}<small v-if="hoverHint.type">{{ hoverHint.type }}</small></strong><span v-if="hoverHint.description">{{ hoverHint.description }}</span><span v-if="hoverHint.context">{{ hoverHint.context }}</span></div></template>
+        <span class="formula-editor__hint-anchor" :style="hoverHint.style" aria-hidden="true" />
+      </a-tooltip>
       <span v-if="referenceFrame || hoverFrame" :class="referenceFrame ? 'formula-editor__active-reference' : 'formula-editor__hover-reference'" :style="referenceFrame || hoverFrame" aria-hidden="true" />
       <a-select v-if="referenceSelection || sourcePickerOpen" ref="referencePicker" class="formula-editor__picker" :style="pickerStyle"
         :value="undefined" :open="true" show-search :options="referenceOptions" option-filter-prop="label"
@@ -85,6 +89,6 @@ const popupAlign={overflow:{adjustX:1,adjustY:1,alwaysByViewport:true}}
 const fallbackRoot={type:'literal' as const,valueType:'null' as const,value:null}
 const emit=defineEmits<{(event:'change',value:MathEditorChange):void;(event:'update:modelValue',value:StructuredExpression):void;(event:'invalid',value:boolean):void;(event:'retryFunctions'):void;(event:'referenceHover',value:ExpressionReference|undefined):void}>()
 const references=computed(()=>props.context.references)
-const {blurCommit,finish,clipboard,inputNotice,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,referenceFrame,hoverFrame,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}=useMathEditor(props,emit)
+const {blurCommit,finish,clipboard,inputNotice,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,referenceFrame,hoverFrame,hoverHint,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}=useMathEditor(props,emit)
 </script>
 <style src="./math-editor.css" scoped />

@@ -48,6 +48,7 @@ const functionMenuOpen=ref(false)
 let functionInsertionSelection: Selection | undefined
 const referenceFrame=ref<{left:string;top:string;width:string;height:string}>()
 const hoverFrame=ref<{left:string;top:string;width:string;height:string}>()
+const hoverHint=shallowRef<{name:string;type?:string;description?:string;context?:string;style:ReturnType<typeof frameStyle>}>()
 const sourcePickerOpen = ref(false)
 const pickerStyle = ref({ left: '0px', top: '0px' })
 const referenceOptions=computed(()=>{
@@ -102,7 +103,11 @@ const refreshInsertion=()=>insertion.refresh(functionSelection.value ? {ranges:[
 
 function setInvalid(value: boolean) { invalid.value = value; emit('invalid', value) }
 // Only modal dialogs need a top-layer popup host; inline menus align to the page viewport.
-const popupContainer=(trigger:HTMLElement):HTMLElement=>trigger.closest<HTMLDialogElement>('dialog:modal') || trigger.ownerDocument.body
+const popupContainer=(trigger?:HTMLElement):HTMLElement=>{
+  // A controlled tooltip can mount before Ant Design supplies its trigger.
+  const anchor=trigger || canvas.value!
+  return anchor.closest<HTMLDialogElement>('dialog:modal') || anchor.ownerDocument.body
+}
 function referenceVisibilityChanged(visible: boolean) {
   if (visible) return
   // MathLive can complete a pending focus after the picker opened. Explicit
@@ -118,6 +123,7 @@ function closeReferences(focus = false) {
   referenceSelection.value = undefined
   referenceFrame.value=undefined
   hoverFrame.value=undefined
+  hoverHint.value=undefined
   sourcePickerOpen.value = false
   if (focus) { if (mode.value === 'source') sourceElement?.focus(); else if(field){field.focus();if(selection)field.selection=selection} }
 }
@@ -183,7 +189,7 @@ function chooseAtPoint(event: MouseEvent) {
     event.preventDefault();event.stopPropagation();field.focus();field.selection={ranges:[[start,end]]}
   }
 }
-function clearPreview() {hoverFrame.value=undefined;emit('referenceHover',undefined)}
+function clearPreview() {hoverFrame.value=undefined;hoverHint.value=undefined;emit('referenceHover',undefined)}
 /** 视口边界转换为画布本地坐标，兼容祖先缩放；不缓存布局坐标。 */
 function localBounds(bounds?: DOMRect) {
   const element=canvas.value
@@ -208,25 +214,31 @@ function referenceAtPoint(event:MouseEvent) {
   }
 }
 function previewAtPoint(event: PointerEvent) {
-  if (!field || props.disabled || referenceSelection.value || functionSelection.value || event.buttons || field.selection.ranges.some(([start,end])=>start !== end) || !event.composedPath().includes(field)) {clearPreview();return}
+  if (!field || props.disabled || referenceSelection.value || functionSelection.value || event.buttons || !event.composedPath().includes(field)) {clearPreview();return}
   const reference=referenceAtPoint(event)
   // 说明附在实际命中的语义原子上，不使用可能漂移的透明浮层。
   for(const target of event.composedPath()) {
     const element=target as HTMLElement,index=element.dataset?.expressionInspect
     if(index !== undefined) {element.title=projection(sourceText.value)?.inspections[Number(index)]?.title || '';break}
   }
-  if(reference) {
-    const item=references.value[reference.index]
-    const element=event.composedPath().find(target=>(target as HTMLElement).dataset?.expressionReferenceIndex !== undefined) as HTMLElement
-    element.title=[item.label,item.description,item.unit].filter(Boolean).join(' · ')
-  } else {
-    const fn=insertion.functionAtPoint(event.clientX,event.clientY)
-    if(fn) {
-      const descriptor=functions.value.find(item=>item.id === fn.id)
-      const target=event.composedPath().find(target=>target instanceof HTMLElement && target !== field) as HTMLElement|undefined
-      if(target)target.title=[descriptor?.name,descriptor?.description].filter(Boolean).join(' · ')
-    }
+  const fn=reference ? undefined : insertion.functionAtPoint(event.clientX,event.clientY)
+  const argument=fn ? undefined : insertion.parameterAtPoint(event.clientX,event.clientY)
+  const target=event.composedPath().find(target=>target instanceof HTMLElement && target !== field) as HTMLElement|undefined
+  hoverHint.value=undefined
+  if(fn) {
+    const descriptor=functions.value.find(item=>item.id === fn.id)
+    if(descriptor)hoverHint.value={name:descriptor.name,description:descriptor.description,context:descriptor.parameters.map(item=>item.name).join(' · '),style:frameStyle(fn.bounds)}
+  } else if(argument?.parameter) {
+    const type=argument.parameter.valueType
+    const label=['int','long','float','double','decimal','bigint','number'].includes(type) ? t('number') : type === 'string' ? t('text') : type === 'boolean' ? t('boolean') : type === 'date' ? t('date') : type === 'object' || type === 'array' ? t('dataGroup') : type
+    hoverHint.value={name:argument.parameter.name,description:reference ? [references.value[reference.index].label,references.value[reference.index].description].filter(Boolean).join(' · ') : undefined,type:label === argument.parameter.name ? undefined : label,context:`${argument.descriptor.name} · ${t('parameter')} ${argument.index+1}`,style:frameStyle(argument.bounds)}
   }
+  // 参数用受控气泡即时反馈，移除原生 title，避免两种提示叠加。
+  if(target) {
+    if(hoverHint.value)target.removeAttribute('title')
+    else if(reference) {const item=references.value[reference.index];target.title=[item.label,item.description,item.unit].filter(Boolean).join(' · ')}
+  }
+  if(field.selection.ranges.some(([start,end])=>start !== end)) {hoverFrame.value=undefined;emit('referenceHover',undefined);return}
   // 数字只描边实际命中的文字元素，避免把分式、分支容器当成单个值。
   const number=reference ? undefined : event.composedPath().find(target=>/^\d+(?:\.\d+)?$/.test((target as HTMLElement).textContent || '') && typeof (target as HTMLElement).getBoundingClientRect === 'function') as HTMLElement|undefined
   const bounds=reference?.bounds || number?.getBoundingClientRect()
@@ -235,7 +247,7 @@ function previewAtPoint(event: PointerEvent) {
   emit('referenceHover',inside && reference ? references.value[reference.index] : undefined)
 }
 function previewSelection() {
-  hoverFrame.value=undefined
+  clearPreview()
   if (!field) return
   const latex=field.getElementInfo(field.position)?.latex
   emit('referenceHover',references.value.find((_item,index) => latex === String.fromCharCode(92)+mathReferenceMacro(index)))
@@ -264,7 +276,10 @@ function onInput() {
   insertion.refresh()
 }
 function finish() {if(mode.value === 'visual')onInput();return mode.value === 'source' ? !invalid.value : ready.value && !invalid.value && !loadError.value}
-function blurCommit() {if(!referenceSelection.value && !functionSelection.value)finish()}
+function blurCommit() {
+  // Menu focusout precedes its item click; committing here would dismiss the pending insertion.
+  if(!referenceSelection.value && !functionSelection.value && !functionMenuOpen.value)finish()
+}
 function onBeforeInput(event:InputEvent) {
   if(!props.disabled && event.data && unsupportedMathKey(event.data,'',field?.mode === 'text')) {
     event.preventDefault();inputNotice.value=t('unsupportedOperator')
@@ -402,5 +417,5 @@ watch(host,()=>mountField(),{flush:'post'})
 onMounted(mountField)
 onBeforeUnmount(() => { disposed = true; clipboard.dispose(); emit('referenceHover',undefined); closeReferences(); field?.removeEventListener('input', onInput);field?.removeEventListener('beforeinput',onBeforeInput);field?.removeEventListener('selection-change',refreshInsertion);field?.removeEventListener('keydown',onEditorKeydown,true); field?.remove() })
 
-return {blurCommit,finish,clipboard,inputNotice,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,referenceFrame,hoverFrame,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
+return {blurCommit,finish,clipboard,inputNotice,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,referenceFrame,hoverFrame,hoverHint,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
 }

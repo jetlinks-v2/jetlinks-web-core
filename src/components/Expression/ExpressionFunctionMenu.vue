@@ -32,7 +32,7 @@ function searchKeydown(event: KeyboardEvent) {
 }
 </script>
 <style scoped>
-.expression-functions { display:flex; flex-direction:column; box-sizing:border-box; width:min(360px,calc(100vw - 32px)); max-height:min(376px,calc(50dvh - 32px)); padding:6px; border:1px solid var(--line); border-radius:8px; background:var(--bg,#fff); box-shadow:0 6px 20px rgb(0 0 0 / 10%) }
+.expression-functions { display:flex; flex-direction:column; box-sizing:border-box; width:min(360px,calc(100vw - 32px)); height:min(376px,calc(50dvh - 32px)); padding:6px; border:1px solid var(--line); border-radius:8px; background:var(--bg,#fff); box-shadow:0 6px 20px rgb(0 0 0 / 10%) }
 .expression-functions__search { flex:none; padding:2px 12px 6px; border-bottom:1px solid var(--line) }
 .expression-functions__search:focus-within { border-bottom-color:var(--accent,#1677ff) }
 /* Search keeps its own input metrics inside inline rule editors and native dialogs. */

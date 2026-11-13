@@ -52,3 +52,10 @@
 .formula-editor__help { flex:none; width:22px; height:22px; padding:0; color:var(--ink-3); font-size:12px }
 .formula-editor__hints { display:grid; gap:6px; max-width:280px; margin:0; padding:0; list-style:none; color:var(--ink-2); font-size:12px; line-height:20px }
 .formula-editor__error { color:var(--danger,#ff4d4f) }
+
+/* A single inert anchor follows the native atom; Tooltip owns viewport avoidance. */
+.formula-editor__hint-anchor { position:absolute; pointer-events:none }
+.formula-editor__hint { display:flex; flex-direction:column; gap:3px; max-width:280px; font-size:12px; line-height:18px }
+.formula-editor__hint strong { font-weight:500; font-size:13px }
+.formula-editor__hint small { margin-inline-start:8px; font-size:12px; font-weight:400; opacity:.72 }
+.formula-editor__hint > span { opacity:.8; overflow-wrap:anywhere }

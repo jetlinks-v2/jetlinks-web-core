@@ -81,8 +81,8 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     while(end+1<atoms.length && atoms[end+1].depth >= depth && !(atoms[end+1].depth === depth && !atoms[end+1].latex))end++
     return atoms.slice(start,end+1).filter(item=>item.depth === depth)
   }
-  /** 新函数/分支仍含占位时，按公开容器及同层分隔定位槽位；未知草稿不强猜类型。 */
-  function enclosingType(range:Range,condition:boolean):ValueType {
+  /** 使用公开容器深度定位所属函数；识别时临时替换空位，不修改编辑草稿。 */
+  function* enclosingGroups(range:Range) {
     let depth=Math.min(...atoms.slice(range[0]+1,range[1]+1).map(item=>item.depth),atoms[range[1]]?.depth ?? 0)
     for(let offset=range[1]+1;offset<atoms.length;offset++) {
       const group=atoms[offset]
@@ -90,12 +90,30 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
       depth=group.depth
       let previous:Atom|undefined
       for(let index=offset-1;index>=0;index--)if(atoms[index].depth === depth) {previous=atoms[index];break}
-      if(group.latex.startsWith('\\left(') && previous?.latex.startsWith('\\operatorname')) {
-        const node=parse((previous.latex+group.latex).replace(/\\placeholder\{[^{}]*\}/g,'0'))
-        const descriptor=node?.type === 'call' ? options.context().functions.find(item=>item.id === node.function) : undefined
-        const index=atoms.slice(previous.offset+1,range[0]+1).filter(item=>item.depth === depth+1 && item.latex === ',').length
-        if(descriptor)return normalize(descriptor.parameters[Math.min(index,descriptor.parameters.length-1)]?.valueType)
-      }
+      yield {group,previous,depth}
+    }
+  }
+  const parseFunction=(latex:string)=>parse(latex.replace(/\\placeholder\{[^{}]*\}/g,'0'))
+  function functionParameter(range:Range,{group,previous,depth}:{group:Atom;previous?:Atom;depth:number}) {
+    const node=group.latex.startsWith('\\sqrt{') ? parseFunction(group.latex)
+      : group.latex.startsWith('\\left(') && previous?.latex.startsWith('\\operatorname') ? parseFunction(previous.latex+group.latex) : undefined
+    const descriptor=node?.type === 'call' ? options.context().functions.find(item=>item.id === node.function) : undefined
+    if(!descriptor)return
+    const index=group.latex.startsWith('\\sqrt{') ? 0 : atoms.slice((previous?.offset ?? 0)+1,range[0]+1).filter(item=>item.depth === depth+1 && item.latex === ',').length
+    return {descriptor,index,parameter:descriptor.parameters[Math.min(index,descriptor.parameters.length-1)]}
+  }
+  function enclosingFunction(range:Range) {
+    for(const group of enclosingGroups(range)) {
+      const fn=functionParameter(range,group)
+      if(fn)return fn
+    }
+  }
+  /** 新函数/分支仍含占位时，按同层分隔定位槽位；未知草稿不强猜类型。 */
+  function enclosingType(range:Range,condition:boolean):ValueType {
+    for(const container of enclosingGroups(range)) {
+      const fn=functionParameter(range,container)
+      if(fn)return normalize(fn.parameter?.valueType)
+      const {group,previous,depth}=container
       if(condition && group.latex.startsWith('\\begin{cases}')) {
         const cells=atoms.slice(previous?.offset ?? 0,range[0]+1).filter(item=>item.depth === depth+1 && !item.latex)
         if(cells.length%2 === 0)return 'boolean'
@@ -219,7 +237,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
       if(!args?.latex.startsWith('\\left('))continue
       let start=name.offset-1
       while(start>0 && atoms[start].depth>name.depth)start--
-      const node=parse(name.latex+args.latex)
+      const node=parseFunction(name.latex+args.latex)
       if(node?.type === 'call')return {range:[start,args.offset],id:node.function,count:node.arguments.length,argumentsLatex:args.latex,bounds}
     }
     for(const root of atoms.filter(item=>item.latex.startsWith('\\sqrt{'))) {
@@ -229,6 +247,17 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
       while(start>0 && atoms[start].depth>root.depth)start--
       return {range:[start,root.offset],id:'math.sqrt',count:1,argumentsLatex:`\\left(${root.latex.slice(6,-1)}\\right)`,bounds}
     }
+  }
+  /** 参数提示命中实际原子，优先最内层容器，不覆盖 MathLive 原生输入及选区。 */
+  function parameterAtPoint(x:number,y:number) {
+    current()
+    const field=options.field()
+    if(!field || options.disabled())return
+    const offset=field.getOffsetFromPoint(x,y,{bias:1})
+    const bounds=field.getElementInfo(offset)?.bounds
+    if(!bounds || x<bounds.left || x>bounds.right || y<bounds.top || y>bounds.bottom)return
+    const fn=enclosingFunction([Math.max(0,offset-1),offset])
+    if(fn)return {...fn,bounds}
   }
   /** 短行的列内留白按行定位；实际文字继续交给原生选区，不改变拖选与Shift扩选。 */
   function placeInBlank(x:number,y:number) {
@@ -366,5 +395,5 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     options.commit();refresh()
     return true
   }
-  return {refresh,insert,applicable,valueChoices,canInsertValue:computed(()=>!!target.value),canAddBranch:computed(()=>!!branch.value),addBranch,startBranch,onKeydown,placeInBlank,functionAtPoint,target}
+  return {refresh,insert,applicable,valueChoices,canInsertValue:computed(()=>!!target.value),canAddBranch:computed(()=>!!branch.value),addBranch,startBranch,onKeydown,placeInBlank,functionAtPoint,parameterAtPoint,target}
 }
