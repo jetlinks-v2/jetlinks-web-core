@@ -6,6 +6,9 @@
 .expression-math-constant,.expression-math-predicate,.expression-math-logic { color:var(--expression-special-ink,#8b624c); font-weight:500 }
 .expression-math-constant.is-text { font-weight:400 }
 .expression-math-default { color:var(--ink-3,#7b8492) }
+/* Search owns focus; keep MathLive's native replacement selection or insertion caret visible. */
+:host([data-insertion-target="true"]) .ML__selection { background:var(--_selection-background-color) }
+:host([data-insertion-target="true"]) :is(.ML__caret,.ML__text-caret,.ML__latex-caret)::after { visibility:visible; animation:none }
 .expression-math.is-replay .expression-math-reference.is-recorded { font-weight:600; font-variant-numeric:tabular-nums }
 /* 函数沿用MathLive正体名称和括号，不向公式添加装饰性字形或改变字距。 */
 :host .expression-math-constant:hover { border-radius:2px; background:color-mix(in srgb,var(--accent,#1677ff) 7%,transparent) }
