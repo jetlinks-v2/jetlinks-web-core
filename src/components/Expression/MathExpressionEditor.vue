@@ -5,7 +5,7 @@
       <div v-if="source && !hideMode" class="formula-editor__mode">
         <a-button type="text" size="small" :disabled="disabled || invalid || forceSource || mode === 'source' && !canVisualize" :aria-label="t(mode === 'visual' ? 'editExpression' : 'backToFormula')" :title="mode === 'source' && !canVisualize ? t('advancedFormulaHint') : undefined" @mousedown.prevent @click="changeMode(mode === 'visual' ? 'source' : 'visual')"><AIcon :type="mode === 'visual' ? 'CodeOutlined' : 'FunctionOutlined'" />{{ t(mode === 'visual' ? 'editExpression' : 'backToFormula') }}</a-button>
       </div>
-    <div ref="canvas" class="formula-editor__canvas" @pointerdown.capture="chooseAtPoint" @pointermove="previewAtPoint" @keyup="previewSelection" @pointerleave="clearPreview" @focusout="clearPreview">
+    <div ref="canvas" class="formula-editor__canvas" @pointerdown.capture="chooseAtPoint" @pointermove="previewAtPoint" @keyup="previewSelection" @pointerleave="clearPreview" @focusout="clearPreview" @contextmenu.capture="openContextMenu">
       <div v-show="mode === 'visual'" ref="host" class="formula-editor__field" @click.self="focusFormula" @focusout="blurCommit" @scroll="closeReferences()" />
       <a-textarea v-if="mode === 'source'" class="formula-editor__source" :value="sourceText" :disabled="disabled" :bordered="false"
         :aria-label="t('advancedExpression')" @update:value="updateSource" @focus="remember" @click="remember" @keyup="remember" @select="remember" />
@@ -23,7 +23,22 @@
         <template #suffixIcon><AIcon type="SearchOutlined" /></template>
         <template #option="option"><SelectOption :label="option.label" :icon="option.icon" :description="option.description" :title="option.description" /></template>
       </a-select>
-      <ExpressionFunctionMenu v-if="functionSelection" class="formula-editor__function-picker" :style="pickerStyle" :functions="availableFunctions" :selected-id="functionSelection.id" @choose="chooseFunction" @close="closeReferences(true)" />
+      <a-dropdown v-if="functionSelection || functionMenuOpen" :open="true" :trigger="[]" :transition-name="''" :get-popup-container="popupContainer" :align="popupAlign">
+        <span class="formula-editor__function-picker" :style="pickerStyle" aria-hidden="true" />
+        <template #overlay><div ref="popupContent"><ExpressionFunctionMenu :functions="availableFunctions" :selected-id="functionSelection?.id" :error="functionsError" @choose="chooseFunction" @retry="refreshFunctions" @close="closeReferences(true)"><template #error>{{ t('functionCatalogRetry') }}</template></ExpressionFunctionMenu></div></template>
+      </a-dropdown>
+      <a-dropdown v-if="contextMenuOpen" :open="true" :trigger="[]" :transition-name="''" :get-popup-container="popupContainer" :align="popupAlign">
+        <span class="formula-editor__function-picker" :style="pickerStyle" aria-hidden="true" />
+        <template #overlay><div ref="popupContent"><a-menu @click="contextAction">
+          <a-menu-item key="undo" :disabled="disabled || !contextCanUndo"><SelectOption icon="UndoOutlined" :label="t('undo')" /></a-menu-item>
+          <a-menu-item key="redo" :disabled="disabled || !contextCanRedo"><SelectOption icon="RedoOutlined" :label="t('redo')" /></a-menu-item>
+          <a-menu-divider />
+          <a-menu-item key="copy"><SelectOption icon="CopyOutlined" :label="t('formulaCopyLatex')" /></a-menu-item>
+          <a-menu-item key="paste" :disabled="disabled"><SelectOption icon="SnippetsOutlined" :label="t('formulaPasteLatex')" /></a-menu-item>
+          <a-menu-divider />
+          <a-menu-item key="selectAll"><SelectOption icon="SelectOutlined" :label="t('selectAll')" /></a-menu-item>
+        </a-menu></div></template>
+      </a-dropdown>
     </div>
     <div class="formula-editor__toolbar">
       <div class="formula-editor__actions">
@@ -34,10 +49,7 @@
           <a-button type="text" size="small" :disabled="disabled || !ready || !canInsertValue" :aria-label="t('insertValue')" @mousedown.prevent="refreshInsertion"><AIcon type="NumberOutlined" />{{ t('value') }}<AIcon type="DownOutlined" class="formula-editor__caret" /></a-button>
           <template #overlay><a-menu @click="chooseLiteral"><a-menu-item v-for="item in literalValues" :key="item.key" :disabled="item.disabled"><SelectOption :icon="item.icon" :label="item.label" :description="item.description" /></a-menu-item></a-menu></template>
         </a-dropdown>
-        <a-dropdown :key="'function-'+expanded" :open="functionMenuOpen" :trigger="['click']" :disabled="disabled || !ready" :transition-name="''" :get-popup-container="popupContainer" :align="popupAlign" @open-change="functionMenuVisibilityChanged">
-          <a-button type="text" size="small" :disabled="disabled || !ready || !canInsertValue" :aria-label="t('insertFunction')" @mousedown.prevent="refreshInsertion"><AIcon type="FunctionOutlined" />{{ t('formulaFunctions') }}<AIcon type="DownOutlined" class="formula-editor__caret" /></a-button>
-          <template #overlay><ExpressionFunctionMenu :functions="availableFunctions" :error="functionsError" @choose="chooseFunction" @retry="refreshFunctions" @close="closeReferences(true)"><template #error>{{ t('functionCatalogRetry') }}</template></ExpressionFunctionMenu></template>
-        </a-dropdown>
+        <a-button type="text" size="small" :disabled="disabled || !ready || !canInsertValue" :aria-label="t('insertFunction')" @mousedown.prevent="refreshInsertion" @click="functionMenuVisibilityChanged(!functionMenuOpen)"><AIcon type="FunctionOutlined" />{{ t('formulaFunctions') }}<AIcon type="DownOutlined" class="formula-editor__caret" /></a-button>
         <a-dropdown v-if="conditions" :key="'condition-'+expanded" :trigger="['click']" :disabled="disabled || !ready" :get-popup-container="popupContainer" :align="popupAlign" @open-change="prepareToolbarMenu">
           <a-button type="text" size="small" :disabled="disabled || !ready" :aria-label="t('conditionOperators')" @mousedown.prevent="refreshInsertion"><AIcon type="BranchesOutlined" />{{ t('formulaConditions') }}<AIcon type="DownOutlined" class="formula-editor__caret" /></a-button>
           <template #overlay><a-menu @click="chooseConditionOperator"><a-menu-item key="branch" :disabled="!canAddBranch && !canInsertValue"><SelectOption icon="BranchesOutlined" :label="t(canAddBranch ? 'addFormulaBranch' : 'conditionalFunction')" :description="t('enterFormulaBranch')" /></a-menu-item><a-menu-item v-if="canAddBranch" key="nested" :disabled="!canInsertValue"><SelectOption icon="BranchesOutlined" :label="t('nestFormulaBranch')" :description="t('nestFormulaBranchHint')" /></a-menu-item><a-menu-divider /><a-menu-item v-for="(item, index) in conditionOperators" :key="index" :disabled="item.disabled"><SelectOption icon="BranchesOutlined" :label="item.label" :description="t(item.hint)" /></a-menu-item></a-menu></template>
@@ -89,6 +101,6 @@ const popupAlign={overflow:{adjustX:true,adjustY:true,alwaysByViewport:true}}
 const fallbackRoot={type:'literal' as const,valueType:'null' as const,value:null}
 const emit=defineEmits<{(event:'change',value:MathEditorChange):void;(event:'update:modelValue',value:StructuredExpression):void;(event:'invalid',value:boolean):void;(event:'retryFunctions'):void;(event:'referenceHover',value:ExpressionReference|undefined):void}>()
 const references=computed(()=>props.context.references)
-const {blurCommit,finish,clipboard,inputNotice,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,prepareToolbarMenu,referenceFrame,hoverFrame,hoverHint,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}=useMathEditor(props,emit)
+const {blurCommit,finish,clipboard,inputNotice,t,host,canvas,popupContent,contextMenuOpen,contextCanUndo,contextCanRedo,openContextMenu,contextAction,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,prepareToolbarMenu,referenceFrame,hoverFrame,hoverHint,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}=useMathEditor(props,emit)
 </script>
 <style src="./math-editor.css" scoped />

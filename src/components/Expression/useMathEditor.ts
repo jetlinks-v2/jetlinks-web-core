@@ -41,12 +41,16 @@ const initial = visualFormula(modelSource.value)
 const mode = ref<'visual' | 'source'>(props.forceSource || initial === undefined ? 'source' : 'visual')
 const host = ref<HTMLElement>()
 const canvas = ref<HTMLElement>()
-onClickOutside(canvas,()=>{if(functionSelection.value)closeReferences()})
+const popupContent = ref<HTMLElement>()
+onClickOutside(canvas,()=>{if(functionSelection.value || functionMenuOpen.value || contextMenuOpen.value)closeReferences()},{ignore:[popupContent]})
 const referencePicker = ref<{ focus(): void }>()
 const referenceSelection = ref<Selection>()
 const functionSelection=shallowRef<FunctionTarget>()
 const functionMenuOpen=ref(false)
+const contextMenuOpen=ref(false)
+const contextCanUndo=ref(false),contextCanRedo=ref(false)
 let functionInsertionSelection: Selection | undefined
+let contextSelection: Selection | undefined
 const referenceFrame=ref<{left:string;top:string;width:string;height:string}>()
 const hoverFrame=ref<{left:string;top:string;width:string;height:string}>()
 const hoverHint=shallowRef<{name:string;type?:string;description?:string;context?:string;style:ReturnType<typeof frameStyle>}>()
@@ -130,6 +134,8 @@ function closeReferences(focus = false) {
   functionInsertionSelection=undefined
   functionSelection.value=undefined
   functionMenuOpen.value=false
+  contextMenuOpen.value=false
+  contextSelection=undefined
   referenceSelection.value = undefined
   referenceFrame.value=undefined
   hoverFrame.value=undefined
@@ -214,6 +220,11 @@ function localBounds(bounds?: DOMRect) {
 function frameStyle(bounds:DOMRect) {
   const local=localBounds(bounds)
   return local ? {left:`${local.left-1}px`,top:`${local.top}px`,width:`${local.right-local.left+2}px`,height:`${local.bottom-local.top}px`} : undefined
+}
+/** Toolbar and token clicks open candidate pickers beside the native caret. */
+function positionPicker(bounds?:DOMRect,width=260) {
+  const anchor=localBounds(bounds || (mode.value === 'visual' ? field?.getElementInfo(field.position)?.bounds : undefined))
+  pickerStyle.value={left:'clamp(0px, '+(anchor?.left ?? 0)+'px, max(0px, calc(100% - '+width+'px)))',top:Math.max(0,anchor?.bottom ?? canvas.value?.clientHeight ?? 0)+4+'px'}
 }
 /** 只识别投影自身声明的标记，不依赖 MathLive 的私有节点、层级或坐标缓存。 */
 function referenceAtPoint(event:MouseEvent) {
@@ -373,9 +384,28 @@ function prepareToolbarMenu(open: boolean) {
   return selection
 }
 function functionMenuVisibilityChanged(open: boolean) {
+  if(open)positionPicker(undefined,360)
   const selection=prepareToolbarMenu(open)
   if(selection)functionInsertionSelection=selection
   functionMenuOpen.value=open
+}
+/** Only formula content owns this menu; search inputs retain normal text editing. */
+function openContextMenu(event:MouseEvent) {
+  if(!field || !event.composedPath().includes(field))return
+  event.preventDefault();event.stopPropagation()
+  contextSelection=prepareToolbarMenu(true)
+  positionPicker(event.clientX || event.clientY ? new DOMRect(event.clientX,event.clientY,0,0) : undefined,220)
+  contextCanUndo.value=field.canUndo();contextCanRedo.value=field.canRedo()
+  contextMenuOpen.value=true
+}
+function contextAction({key}:{key:string|number}) {
+  const selection=contextSelection
+  closeReferences()
+  if(!field)return
+  field.focus();if(selection)field.selection=selection
+  if(key === 'copy')void clipboard.copy()
+  else if(key === 'paste' && !props.disabled)void clipboard.paste()
+  else if(key === 'selectAll' || (key === 'undo' || key === 'redo') && !props.disabled)field.executeCommand(key)
 }
 /** 只包装显式选区；光标旁的隐式替换目标和函数名替换仍沿用原有语义。 */
 function selectedFunctionArgument() {
@@ -474,5 +504,5 @@ watch(host,()=>mountField(),{flush:'post'})
 onMounted(mountField)
 onBeforeUnmount(() => { disposed = true; if(typeof document !== 'undefined')document.fonts?.removeEventListener('loadingdone',refreshSelectionLayout); if(selectionLayoutFrame !== undefined)cancelAnimationFrame(selectionLayoutFrame); clipboard.dispose(); emit('referenceHover',undefined); closeReferences(); field?.removeEventListener('input', onInput);field?.removeEventListener('beforeinput',onBeforeInput);field?.removeEventListener('selection-change',refreshInsertion);field?.removeEventListener('keydown',onEditorKeydown,true); field?.remove() })
 
-return {blurCommit,finish,clipboard,inputNotice,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,prepareToolbarMenu,referenceFrame,hoverFrame,hoverHint,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
+return {blurCommit,finish,clipboard,inputNotice,t,host,canvas,popupContent,contextMenuOpen,contextCanUndo,contextCanRedo,openContextMenu,contextAction,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,prepareToolbarMenu,referenceFrame,hoverFrame,hoverHint,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
 }

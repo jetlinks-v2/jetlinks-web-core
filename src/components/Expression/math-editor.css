@@ -30,7 +30,7 @@
 .formula-editor__source { min-height:112px; resize:vertical; font-size:14px; padding:12px; box-shadow:none }
 /* Composite editors own their picker metrics, independently of a host's inline form controls. */
 .formula-editor .formula-editor__picker.ant-select.ant-select-single { position:absolute; width:min(260px,100%); max-width:100%; height:36px; line-height:36px; z-index:2 }
-.formula-editor__function-picker { position:absolute; z-index:3 }
+.formula-editor__function-picker { position:absolute; width:1px; height:1px; pointer-events:none }
 .formula-editor__active-reference,.formula-editor__hover-reference { position:absolute; z-index:1; pointer-events:none; border:1px solid var(--accent); border-radius:3px; background:color-mix(in srgb,var(--accent) 6%,transparent); box-sizing:border-box }
 .formula-editor__hover-reference { border-color:var(--ink-3); border-style:dashed; background:transparent }
 .formula-editor .formula-editor__picker.ant-select.ant-select-single :deep(.ant-select-selector) { height:36px; padding-inline:10px; line-height:34px; border:1px solid var(--line); border-bottom:0; border-radius:8px 8px 0 0; background:var(--bg,#fff); outline:0; box-shadow:0 -3px 12px rgb(0 0 0 / 5%) !important }

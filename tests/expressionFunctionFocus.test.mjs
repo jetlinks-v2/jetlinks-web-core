@@ -114,6 +114,25 @@ test('变量切换到函数时关闭旧候选，保留原选区并忽略旧菜�
   assert.deepEqual(field.inserts[0].range,[0,3])
 }))
 
+test('公式右键菜单接管原生菜单，执行原生命令前恢复选区；搜索输入不被接管',()=>withSelection({tokens:['\\JLa','+','1'],root:plus,range:[0,3]},({field,editor})=>{
+  editor.canvas.value={clientHeight:40}
+  field.canUndo=()=>true;field.canRedo=()=>false
+  const commands=[]
+  field.executeCommand=command=>{commands.push({command,selection:structuredClone(field.selection)});return true}
+  let prevented=false,stopped=false
+  const event={clientX:0,clientY:0,composedPath:()=>[],preventDefault:()=>prevented=true,stopPropagation:()=>stopped=true}
+  editor.openContextMenu(event)
+  assert.equal(prevented,false)
+  editor.openContextMenu({...event,composedPath:()=>[field]})
+  assert.equal(prevented,true);assert.equal(stopped,true)
+  assert.equal(editor.contextMenuOpen.value,true)
+  assert.equal(editor.contextCanUndo.value,true);assert.equal(editor.contextCanRedo.value,false)
+  field.selection={ranges:[[1,1]]}
+  editor.contextAction({key:'selectAll'})
+  assert.equal(editor.contextMenuOpen.value,false)
+  assert.deepEqual(commands,[{command:'selectAll',selection:{ranges:[[0,3]]}}])
+}))
+
 test('函数切换到变量时使用原选区，变量切换到其他菜单时恢复同一选区',()=>withSelection({tokens:['\\JLa','+','1'],root:plus,range:[0,3]},async({field,editor})=>{
   editor.canvas.value={clientHeight:40}
   field.blur=()=>{}

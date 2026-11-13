@@ -1,5 +1,6 @@
 export const mathEditorMessages={
   "zh": {
+    "selectAll": "全选",
     "formulaMore": "更多操作",
     "unsupportedOperator": "不支持此运算符，请使用工具栏中的运算或比较符号",
     "source": "数据来源",
@@ -47,6 +48,7 @@ export const mathEditorMessages={
     "formulaUndoHint": "⌘ / Ctrl + Z 撤销上一步编辑"
   },
   "en": {
+    "selectAll": "Select all",
     "formulaMore": "More actions",
     "unsupportedOperator": "This operator is not supported. Use an arithmetic or comparison operator from the toolbar",
     "source": "Data source",
