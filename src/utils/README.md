@@ -54,6 +54,7 @@
 | 文件/能力 | 根入口 | 主要用途 |
 | --- | --- | --- |
 | `assetAccess.ts` | 是 | 资产类型、支持项和选择值归一化 |
+| `asset-relation-binding.ts` | 是 | 资产关系来源与绑定适配器公共契约；复用 moduleRegistry，所属模块按资产/维度/来源/角色注册，统一调用原资产接口 |
 | `edge-media.ts` | 是 | 边缘媒体代理、设备媒体路径和媒体 URL |
 | `edge-image-proxy.ts` | 否 | 云端远程边端页面初始化代理上下文后，基于 `getBaseApi()` 统一改写网络图片 URL；覆盖原生 `img`、组件渲染的图片和 `new Image()` |
 | `public-asset.ts` | 是 | 公共资源 URL 解析 |

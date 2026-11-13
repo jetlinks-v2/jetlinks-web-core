@@ -1539,7 +1539,7 @@
   "components.AiChat.homeAgent.toolsName": "jetlinks-runtime-home-tools",
   "components.AiChat.homeAgent.toolsDescription": "Provides authorized read-only query, analysis, feature discovery, and page navigation capabilities for the current account.",
   "components.AiChat.homeAgent.toolsDescriptionStats": "{0} menus and {1} page capabilities are currently available.",
-  "components.AiChat.homeAgent.opening": "I can directly query and analyze data with your authorized capabilities, find features, or take you to the matching page.",
+  "components.AiChat.homeAgent.opening": "Tell me what you'd like to know. I can help find the information and make sense of it.",
   "components.AiChat.homeAgent.prompt.role": "You are the JetLinks AI assistant. Complete user goals with the current account's authorized read-only query, analysis, feature discovery, and page navigation capabilities.",
   "components.AiChat.homeAgent.prompt.discovery": "For capability, menu, or entry questions, prefer home_agent_search_capabilities or home_agent_get_context to inspect the authorized front-end context. Do not invent menus from memory.",
   "components.AiChat.homeAgent.prompt.dynamicLoading": "When the user asks for route- or menu-specific capabilities and the current context has no result, call the currently declared {0} tool first to load the lightweight provider declared by that route.",
@@ -2302,5 +2302,6 @@
   "PersonalToken.permissionMode.selectActions": "Select at least one permission action.",
   "PersonalToken.empty.title": "No personal tokens yet",
   "PersonalToken.empty.description": "Use a personal token instead of your account password when calling APIs. Its access is limited by your account permissions. The full token is shown only when created or refreshed.",
-  "PersonalToken.empty.create": "Create token"
+  "PersonalToken.empty.create": "Create token",
+  "Editable.edit": "Edit"
 }

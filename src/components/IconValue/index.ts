@@ -5,3 +5,5 @@ export {
 } from './fontIconPresetList'
 export { default as IconValueView } from './IconValueView.vue'
 export { default as IconValueEditor } from './IconValueEditor.vue'
+export { default as ObjectTypeIcon } from './ObjectTypeIcon.vue'
+export { getObjectTypeIcon, objectTypeIcons } from './objectTypeIcons'

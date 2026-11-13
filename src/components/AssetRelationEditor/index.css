@@ -1,0 +1,160 @@
+.asset-relation-editor {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  background: var(--bg);
+  color: var(--ink-1);
+}
+.binding-heading,
+.asset-relation-editor > footer,
+.binding-target {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.binding-heading,
+.asset-relation-editor > footer {
+  flex: none;
+  padding: 12px;
+}
+.binding-heading {
+  border-bottom: 1px solid var(--line);
+}
+.binding-title,
+.target-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.binding-title strong,
+.binding-title small,
+.target-copy strong,
+.target-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.binding-title strong {
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 600;
+}
+.binding-title small,
+.asset-relation-editor > footer > span,
+.owner {
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 18px;
+}
+.binding-heading > :deep(.ant-btn) {
+  flex: none;
+  color: var(--ink-3);
+}
+.binding-avatar {
+  flex: none;
+  background: var(--bg-hover);
+  color: var(--ink-3);
+}
+.asset-relation-editor > :deep(.ant-alert) {
+  flex: none;
+  margin: 8px 12px 0;
+}
+.asset-relation-editor > :deep(.ant-spin-nested-loading) {
+  flex: 1;
+  min-height: 0;
+}
+.asset-relation-editor > :deep(.ant-spin-nested-loading > .ant-spin-container) {
+  height: 100%;
+}
+.asset-relation-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  padding: 12px;
+  box-sizing: border-box;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.binding-selector {
+  flex: none;
+}
+.asset-relation-content--inline {
+  overflow: hidden;
+}
+.binding-selector--inline {
+  flex: 1;
+  min-height: 0;
+}
+.binding-selector--inline > :first-child {
+  height: 100%;
+}
+.binding-inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+.binding-changes {
+  min-width: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--ink-3);
+}
+.asset-relation-editor > footer {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.binding-selector > :deep(.ant-select) {
+  width: 100%;
+}
+.selected-bindings {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 80px;
+  border-top: 1px solid var(--line);
+}
+.selected-bindings h3 {
+  flex: none;
+  margin: 0;
+  padding: 10px 0 4px;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+}
+.binding-targets {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.binding-target {
+  min-height: 44px;
+  padding: 6px 0;
+  box-sizing: border-box;
+  border-radius: 6px;
+}
+.target-copy strong {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.target-copy small {
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 14px;
+}
+.asset-relation-editor > footer {
+  justify-content: space-between;
+  min-height: 56px;
+  border-top: 1px solid var(--line);
+}

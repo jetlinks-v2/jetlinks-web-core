@@ -14,6 +14,7 @@ export interface ProviderContractEntry {
   moduleId?: string
   capabilityIds?: Set<string>
   dynamicSourceNamespace?: string
+  dynamicOperationNamespace?: string
 }
 
 export interface ProviderIndexEntry extends ProviderContractEntry {
@@ -99,6 +100,7 @@ export function assertProviderIdentity(provider: DataCapabilityProvider, moduleI
   }
   normalizeCapabilityIds(provider.capabilityIds)
   if (provider.dynamicSources) assertCapabilityId(provider.dynamicSources.namespace)
+  if (provider.dynamicOperations) assertCapabilityId(provider.dynamicOperations.namespace)
 }
 
 export function assertCapabilityDefinition(definition: CapabilityDefinitionBase): void {
@@ -123,6 +125,9 @@ export function assertLoadedProviderContract(
 ): void {
   if (entry.dynamicSourceNamespace !== provider.dynamicSources?.namespace) {
     throw createCapabilityError('provider.manifest_mismatch', 'Dynamic source namespace does not match manifest')
+  }
+  if (entry.dynamicOperationNamespace !== provider.dynamicOperations?.namespace) {
+    throw createCapabilityError('provider.manifest_mismatch', 'Dynamic operation namespace does not match manifest')
   }
   const groups: Array<[keyof DataCapabilityProviderLoadedResult, string]> = [
     ['sources', 'data-source'],
@@ -189,7 +194,8 @@ export function normalizeManifestEntry(
   }
   const capabilityIds = normalizeCapabilityIds(manifest.capabilityIds)
   if (manifest.dynamicSourceNamespace) assertCapabilityId(manifest.dynamicSourceNamespace)
-  if (!capabilityIds?.size && !manifest.dynamicSourceNamespace) {
+  if (manifest.dynamicOperationNamespace) assertCapabilityId(manifest.dynamicOperationNamespace)
+  if (!capabilityIds?.size && !manifest.dynamicSourceNamespace && !manifest.dynamicOperationNamespace) {
     throw createCapabilityError('provider.manifest_invalid', 'Provider manifest must declare capability IDs', {
       details: { moduleId, key },
     })

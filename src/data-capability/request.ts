@@ -1,8 +1,13 @@
 import { inject, getCurrentInstance } from 'vue'
-import { request as defaultRequest } from '@jetlinks-web/core'
 import type { DataCapabilityRequest, CapabilityContext } from './types'
 
 export const dataCapabilityRequestKey = Symbol('data-capability-request')
+
+// Resolve the application client only for actual IO. Importing a capability registry stays side-effect free.
+const defaultRequest: DataCapabilityRequest = {
+  async get(url, params, options) { return (await import('@jetlinks-web/core')).request.get(url, params, options) },
+  async post(url, data, options) { return (await import('@jetlinks-web/core')).request.post(url, data, options) },
+}
 
 /** Keep each runtime's identity separate; never replace the application's global request client. */
 export const getDataCapabilityRequest = (context?: CapabilityContext): DataCapabilityRequest =>

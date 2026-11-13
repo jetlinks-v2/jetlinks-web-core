@@ -37,6 +37,7 @@ export interface RuntimeRegistryAccess {
   readonly optionSources: CapabilityRegistry<OptionSourceDefinition>
   ensureReady(context?: CapabilityContext, capabilityId?: string): Promise<void>
   resolveDynamicSource(capabilityId: string, context: CapabilityContext): Promise<DataSourceDefinition | undefined>
+  resolveDynamicOperation(capabilityId: string, context: CapabilityContext): Promise<OperationDefinition | undefined>
   getDefinitionRegistration(definition: CapabilityDefinitionBase): CapabilityMountStamp | undefined
   isMountActive(
     mount: CapabilityMountStamp | undefined,

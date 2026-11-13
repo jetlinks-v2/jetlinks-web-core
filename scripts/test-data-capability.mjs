@@ -13,6 +13,11 @@ const entries = [
   'tests/unit/dataCapabilityLegacy.spec.ts',
   'tests/unit/dataCapabilityModuleRegistry.spec.ts',
   'tests/unit/dataCapabilityDynamicProvider.spec.ts',
+  'tests/unit/dataCapabilityDynamicOperations.spec.ts',
+  'tests/unit/objectCapabilities.spec.ts',
+  'tests/unit/objectReferences.spec.ts',
+  'tests/unit/objectViews.spec.ts',
+  'tests/unit/objectDataLifetime.spec.ts',
   'tests/unit/dataCapabilityOutput.spec.ts',
   'tests/unit/dataCapabilityOptionSource.spec.ts',
 ]

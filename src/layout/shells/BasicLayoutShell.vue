@@ -33,7 +33,7 @@
             <span class="project-layout__brand-title">{{ layout.title }}</span>
           </div>
           <a-button
-            v-if="variant !== 'project'"
+            v-if="variant !== 'project' || narrow"
             class="project-layout__brand-collapse"
             type="text"
             :aria-label="$t(state.collapsed ? 'components.LayoutSidebarUser.expand' : 'components.LayoutSidebarUser.collapse')"
@@ -183,6 +183,7 @@ const {
   secondaryTabPosition,
   selectVisibleSecondaryItem,
   showMenuSearch,
+  narrow,
   state,
   settingsActive,
   settingsVisible,
