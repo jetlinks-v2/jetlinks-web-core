@@ -99,3 +99,38 @@ test('选中的空参数立即提供气泡，离开后清除；首次挂载使�
     if(previousElement===undefined)delete globalThis.HTMLElement;else globalThis.HTMLElement=previousElement
   }
 })
+
+test('post-layout repaint uses the current native selection and is cancelled on unmount',async()=>{
+  const {h}=await import('vue')
+  const {createMetricRenderer,flush}=await import('./helpers/metricRuntime.mjs')
+  const prior={document:globalThis.document,requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame}
+  const frames=new Map();let next=0,field,editor,selection={ranges:[[0,0]]},repaints=0
+  globalThis.requestAnimationFrame=callback=>{frames.set(++next,callback);return next}
+  globalThis.cancelAnimationFrame=id=>frames.delete(id)
+  const fontEvents=new Map()
+  globalThis.document={fonts:{addEventListener:(type,listener)=>fontEvents.set(type,listener),removeEventListener:type=>fontEvents.delete(type)}}
+  class Field {
+    constructor(){field=this;document.activeElement=this}
+    get selection(){return selection} set selection(value){selection=value;repaints++}
+    get lastOffset(){return 1} getValue(){return '1'}
+    getElementInfo(){return {latex:'1',depth:0}}
+    setAttribute(){} addEventListener(){} removeEventListener(){} remove(){}
+  }
+  const {useMathEditor}=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key})},'@vueuse/core':{onClickOutside(){}},mathlive:{MathfieldElement:Field},'mathlive/fonts.css':{},'./math-semantic.css?inline':{__esModule:true,default:''}})('components/Expression/useMathEditor.ts')
+  const {renderer,root}=createMetricRenderer()
+  const app=renderer.createApp({setup(){editor=useMathEditor({modelValue:{version:1,root:number(1)},context:{references:[],functions:[]}},()=>{});editor.host.value={appendChild(){}};return()=>h('div')}})
+  try {
+    app.mount(root);await flush()
+    editor.finish();editor.finish();assert.equal(frames.size,1,'coalesce edits into one repaint')
+    selection={ranges:[[0,1]]};const current=selection
+    const callback=[...frames.values()][0];frames.clear();callback()
+    assert.equal(repaints,1);assert.equal(selection,current,'do not restore a saved cursor')
+    editor.finish();document.activeElement={};const blurred=[...frames.values()][0];frames.clear();blurred()
+    assert.equal(repaints,1,'do not repaint or focus after opening a menu')
+    document.activeElement=field;fontEvents.get('loadingdone')();assert.equal(frames.size,1,'new math fonts repaint the current selection')
+    app.unmount();assert.equal(frames.size,0);assert.equal(fontEvents.size,0)
+  } finally {
+    app.unmount()
+    for(const [name,value] of Object.entries(prior)){if(value===undefined)delete globalThis[name];else globalThis[name]=value}
+  }
+})

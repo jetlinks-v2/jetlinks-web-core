@@ -46,3 +46,25 @@ test('a failed caller loader can retry without a component or transport replacem
     assert.equal(catalog.error.value, false); assert.equal(catalog.functions.value[0].id, 'ready')
   } finally { app.unmount() }
 })
+
+test('catalog failure shows retry instead of a misleading empty search', async () => {
+  const { passthrough, textContent, walk } = await import('./helpers/metricRuntime.mjs')
+  const { defineComponent } = await import('vue')
+  const { default: Menu } = createMetricLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key }) } })('components/Expression/ExpressionFunctionMenu.vue')
+  const failed = ref(true), retries = []
+  const { renderer, root } = createMetricRenderer()
+  const app = renderer.createApp({ render: () => h(Menu, { functions: [], error: failed.value, onRetry: () => retries.push(true) }, { error: () => 'Retry catalog' }) })
+  for (const name of ['a-menu', 'a-menu-item-group', 'a-input']) app.component(name, passthrough(name))
+  app.component('AIcon', passthrough('icon'))
+  app.component('a-menu-item', defineComponent({ setup: (_props, { slots, attrs }) => () => h('button', attrs, slots.default?.()) }))
+  app.mount(root)
+  try {
+    assert.match(textContent(root), /Retry catalog/)
+    assert.doesNotMatch(textContent(root), /empty/)
+    walk(root, node => node.type === 'button')[0].props.onClick({ stopPropagation() {} })
+    assert.equal(retries.length, 1)
+    failed.value = false; await flush()
+    assert.match(textContent(root), /empty/)
+    assert.doesNotMatch(textContent(root), /Retry catalog/)
+  } finally { app.unmount() }
+})

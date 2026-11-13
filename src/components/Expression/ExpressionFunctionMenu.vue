@@ -16,7 +16,7 @@
       </a-menu-item-group>
       <a-menu-item v-if="error" key="retry" @click.stop="emit('retry')"><slot name="error" /></a-menu-item>
     </a-menu>
-    <p v-if="!groups.length" class="expression-functions__empty">{{ t('empty') }}</p>
+    <p v-if="!groups.length && !error" class="expression-functions__empty">{{ t('empty') }}</p>
   </div>
 </template>
 <script setup lang="ts">

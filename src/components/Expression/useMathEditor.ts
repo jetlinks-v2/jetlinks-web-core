@@ -94,6 +94,16 @@ let lastEmitted: string | undefined
 const lastRoot=shallowRef<StructuredExpression['root']>()
 let disposed = false
 let loading = false
+let selectionLayoutFrame: number | undefined
+/** 原生插入先于宿主布局；用当前选区重绘背景，不回写文档或恢复旧光标。 */
+function refreshSelectionLayout() {
+  if (typeof requestAnimationFrame === 'undefined') return
+  if (selectionLayoutFrame !== undefined) cancelAnimationFrame(selectionLayoutFrame)
+  selectionLayoutFrame = requestAnimationFrame(() => {
+    selectionLayoutFrame = undefined
+    if (!disposed && field && document.activeElement === field) field.selection = field.selection
+  })
+}
 const currentRoot=computed(()=>lastRoot.value || props.modelValue?.root || props.source?.parse(sourceText.value)?.root || {type:'literal' as const,valueType:'null' as const,value:null})
 const parser=computed(()=>createMathParser(currentRoot.value,context.value,t))
 const clipboard=useMathClipboard({field:()=>field,root:()=>currentRoot.value,context:()=>context.value,parser:()=>parser.value,disabled:()=>!!props.disabled,commit:onInput,t})
@@ -288,6 +298,7 @@ function onInput() {
     validationMessage.value='';setInvalid(false); emit('update:modelValue',tree); emit('change',{expression:source,expressionTree:tree})
   } catch(cause) {validationMessage.value=expressionValidationMessage(cause as {key?:string;message?:string},t);setInvalid(true)}
   insertion.refresh()
+  refreshSelectionLayout()
 }
 function finish() {if(mode.value === 'visual')onInput();return mode.value === 'source' ? !invalid.value : ready.value && !invalid.value && !loadError.value}
 function blurCommit() {
@@ -341,6 +352,8 @@ async function mountField() {
     baseShortcuts={'<=':'\\le','>=':'\\ge','!=':'\\ne','==':'=','&&':'\\JLand ','||':'\\JLor ',IF:'\\begin{cases}#?&#0\\\\#?&\\JLotherwise\\end{cases}',IFS:'\\begin{cases}#?&#0\\\\#?&#?\\\\#?&\\JLotherwise\\end{cases}'}
     // 稳定标识可直接键入；中文名仍可通过 @ / Ctrl+Space 的可搜索菜单选择。
     refreshShortcuts()
+    // 分式/大括号可能首次触发新的本地数学字体，字体到齐后原生选区也需重绘。
+    document.fonts?.addEventListener('loadingdone',refreshSelectionLayout)
     ready.value = true
     checkField()
     if(props.autofocus){field.focus();field.executeCommand('moveToMathfieldEnd')}
@@ -431,7 +444,7 @@ watch(() => props.disabled, value => { closeReferences(); if (field) field.readO
 // 插槽或按需面板可能晚于组件mounted才提供宿主；同一字段由mountField的守卫保证只初始化一次。
 watch(host,()=>mountField(),{flush:'post'})
 onMounted(mountField)
-onBeforeUnmount(() => { disposed = true; clipboard.dispose(); emit('referenceHover',undefined); closeReferences(); field?.removeEventListener('input', onInput);field?.removeEventListener('beforeinput',onBeforeInput);field?.removeEventListener('selection-change',refreshInsertion);field?.removeEventListener('keydown',onEditorKeydown,true); field?.remove() })
+onBeforeUnmount(() => { disposed = true; if(typeof document !== 'undefined')document.fonts?.removeEventListener('loadingdone',refreshSelectionLayout); if(selectionLayoutFrame !== undefined)cancelAnimationFrame(selectionLayoutFrame); clipboard.dispose(); emit('referenceHover',undefined); closeReferences(); field?.removeEventListener('input', onInput);field?.removeEventListener('beforeinput',onBeforeInput);field?.removeEventListener('selection-change',refreshInsertion);field?.removeEventListener('keydown',onEditorKeydown,true); field?.remove() })
 
 return {blurCommit,finish,clipboard,inputNotice,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,referenceFrame,hoverFrame,hoverHint,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
 }
