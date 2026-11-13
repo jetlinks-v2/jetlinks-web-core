@@ -119,7 +119,7 @@ const popupContainer=(trigger?:HTMLElement):HTMLElement=>{
   return anchor.closest<HTMLElement>('dialog:modal, [role="dialog"], [role="alertdialog"]') || anchor.ownerDocument.body
 }
 function referenceVisibilityChanged(visible: boolean) {
-  if (visible) return
+  if (visible || !referenceSelection.value && !sourcePickerOpen.value) return
   // MathLive can complete a pending focus after the picker opened. Explicit
   // pointer actions in the formula already discard the saved selection.
   if (referenceSelection.value && document.activeElement === field) referencePicker.value?.focus()
@@ -143,6 +143,8 @@ function focusFormula() {
 /** Keep MathLive's native range while the select temporarily owns keyboard focus. */
 async function openReferences(bounds?: DOMRect, selection?: Selection, replace = false) {
   if (disposed || props.disabled || !references.value.length || mode.value === 'visual' && !field) return
+  const current = selection || referenceSelection.value || functionInsertionSelection || field?.selection
+  closeReferences()
   const anchor = localBounds(bounds || (mode.value === 'visual' ? field?.getElementInfo(field.position)?.bounds : undefined))
   // 仅框住本次原生原子，不高亮同名的其他读取；不向 MathLive 插入装饰或历史记录。
   referenceFrame.value=replace && bounds ? frameStyle(bounds) : undefined
@@ -152,11 +154,11 @@ async function openReferences(bounds?: DOMRect, selection?: Selection, replace =
   }
   if (mode.value === 'source') sourcePickerOpen.value = true
   else if (field) {
-    const current = selection || field.selection
-    referenceSelection.value = { ...current, ranges: current.ranges.map(([start, end]) => [start, end]) }
+    const selected=current || field.selection
+    referenceSelection.value = { ...selected, ranges: selected.ranges.map(([start, end]) => [start, end]) }
     insertion.refresh(referenceSelection.value)
     replacingReference = replace
-    field.position=Math.max(...current.ranges[0])
+    field.position=Math.max(...selected.ranges[0])
     field.blur()
   }
   await nextTick()
@@ -360,12 +362,19 @@ async function mountField() {
   finally { loading = false }
 }
 function insert(item:MathInsertion,selection?:Selection) {insertion.insert(item,selection)}
-/** Toolbar menus retain the native range while scrolling or their search input owns focus. */
+/** Switching toolbar menus dismisses the old picker without losing its native range. */
+function prepareToolbarMenu(open: boolean) {
+  if (!open || !field) return
+  const current=referenceSelection.value || functionInsertionSelection || field.selection
+  const selection:Selection={ranges:current.ranges.map(([start,end])=>[start,end])}
+  closeReferences()
+  field.selection=selection
+  insertion.refresh(selection)
+  return selection
+}
 function functionMenuVisibilityChanged(open: boolean) {
-  if (open && field) {
-    functionInsertionSelection={ranges:field.selection.ranges.map(([start,end])=>[start,end])}
-    insertion.refresh(functionInsertionSelection)
-  }
+  const selection=prepareToolbarMenu(open)
+  if(selection)functionInsertionSelection=selection
   functionMenuOpen.value=open
 }
 /** 只包装显式选区；光标旁的隐式替换目标和函数名替换仍沿用原有语义。 */
@@ -465,5 +474,5 @@ watch(host,()=>mountField(),{flush:'post'})
 onMounted(mountField)
 onBeforeUnmount(() => { disposed = true; if(typeof document !== 'undefined')document.fonts?.removeEventListener('loadingdone',refreshSelectionLayout); if(selectionLayoutFrame !== undefined)cancelAnimationFrame(selectionLayoutFrame); clipboard.dispose(); emit('referenceHover',undefined); closeReferences(); field?.removeEventListener('input', onInput);field?.removeEventListener('beforeinput',onBeforeInput);field?.removeEventListener('selection-change',refreshInsertion);field?.removeEventListener('keydown',onEditorKeydown,true); field?.remove() })
 
-return {blurCommit,finish,clipboard,inputNotice,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,referenceFrame,hoverFrame,hoverHint,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
+return {blurCommit,finish,clipboard,inputNotice,t,host,canvas,referencePicker,mode,invalid,ready,canVisualize,sourceText,referenceSelection,functionSelection,functionMenuOpen,functionMenuVisibilityChanged,prepareToolbarMenu,referenceFrame,hoverFrame,hoverHint,sourcePickerOpen,pickerStyle,referenceOptions,popupContainer,referenceVisibilityChanged,closeReferences,chooseReference,chooseAtPoint,previewAtPoint,previewSelection,clearPreview,availableFunctions,refreshFunctions,functionsError:computed(()=>props.functionsError),feedback,loadError,operators,conditionOperators,literalValues,chooseLiteral,changeMode,updateSource,remember,focusFormula,insert,openReferences,chooseFunction,chooseConditionOperator,canInsertValue,refreshInsertion,canAddBranch,addBranch}
 }

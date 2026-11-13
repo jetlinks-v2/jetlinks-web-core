@@ -99,6 +99,35 @@ async function withSelection({tokens,root:expression,range,depths},run) {
   finally {app.unmount();if(previousDocument===undefined)delete globalThis.document;else globalThis.document=previousDocument}
 }
 
+test('变量切换到函数时关闭旧候选，保留原选区并忽略旧菜单关闭事件',()=>withSelection({tokens:['\\JLa','+','1','+','2'],root:{type:'binary',operator:'add',left:plus,right:literal(2)},range:[0,3]},async({field,editor})=>{
+  editor.canvas.value={clientHeight:40}
+  field.blur=()=>{}
+  await editor.openReferences()
+  assert.deepEqual(editor.referenceSelection.value.ranges,[[0,3]])
+  field.selection={ranges:[[5,5]]}
+  editor.functionMenuVisibilityChanged(true)
+  assert.equal(editor.referenceSelection.value,undefined)
+  assert.equal(editor.functionMenuOpen.value,true)
+  editor.referenceVisibilityChanged(false)
+  assert.equal(editor.functionMenuOpen.value,true,'旧变量菜单的关闭不能关闭新函数菜单')
+  editor.chooseFunction({key:'math.abs'})
+  assert.deepEqual(field.inserts[0].range,[0,3])
+}))
+
+test('函数切换到变量时使用原选区，变量切换到其他菜单时恢复同一选区',()=>withSelection({tokens:['\\JLa','+','1'],root:plus,range:[0,3]},async({field,editor})=>{
+  editor.canvas.value={clientHeight:40}
+  field.blur=()=>{}
+  editor.functionMenuVisibilityChanged(true)
+  field.selection={ranges:[[3,3]]}
+  await editor.openReferences()
+  assert.equal(editor.functionMenuOpen.value,false)
+  assert.deepEqual(editor.referenceSelection.value.ranges,[[0,3]])
+  field.selection={ranges:[[1,1]]}
+  editor.prepareToolbarMenu(true)
+  assert.equal(editor.referenceSelection.value,undefined)
+  assert.deepEqual(field.selection.ranges,[[0,3]])
+}))
+
 for(const id of ['math.abs','math.sqrt','math.min','math.mapRange','math.optional']) {
   test(`选中子表达式后作为 ${id} 的首个参数，其余必填参数留空`,()=>withSelection({tokens:['\\JLa','+','1','+','2'],root:{type:'binary',operator:'add',left:plus,right:literal(2)},range:[0,3]},({field,editor,changes})=>{
     editor.functionMenuVisibilityChanged(true)
