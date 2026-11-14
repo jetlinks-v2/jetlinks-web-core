@@ -18,7 +18,7 @@
           <section v-show="viewMode === 'bindings'" class="config-bindings" :aria-label="t('bindingList')">
             <div class="config-bindings__heading"><span>{{ t('bindingExpected') }}</span><span>{{ t('bindingActual') }}</span></div>
             <div v-for="(input,index) in selectedTemplate.inputDefinitions" :key="input.id" class="config-bindings__row" :class="{ selected:selected?.kind === 'input' && selected.index === index }">
-              <button type="button" @click="selectNode({kind:'input',index})"><b>{{ input.name || input.id }}</b><small>{{ t(parameterTypeKeys[String(input.valueType?.type)] || 'parameterText') }}<template v-if="input.unit"> · {{ input.unit }}</template></small></button>
+              <button type="button" @click="selectNode({kind:'input',index})"><b>{{ input.name || input.id }}</b><small>{{ t(input.valueType?.type === 'date' ? 'inputDateType' : parameterTypeKeys[String(input.valueType?.type)] || 'parameterText') }}<template v-if="input.unit"> · {{ input.unit }}</template></small></button>
               <button type="button" :disabled="!pickSource || saving || !context.editable" @click="bindInput(input,index)"><AIcon :type="unresolvedInputs.some(item=>item.id === input.id) ? 'LinkOutlined' : 'CheckCircleOutlined'" /><span>{{ sourceText(input.id) }}</span><AIcon type="RightOutlined" /></button>
               <details v-if="Array.isArray(input.valueType?.properties)" class="config-bindings__fields"><summary>{{ t('bindingFields') }} · {{ input.valueType.properties.length }}</summary><span v-for="field in input.valueType.properties" :key="field.id">{{ field.name || field.id }}</span></details>
             </div>

@@ -32,8 +32,9 @@ test('仅空白新建预置一个未配置输入，初始不脏；参考和撤�
     assert.equal(model.hasChanges.value,false)
     const editor=scope.run(()=>useTemplateDesigner(model.draft,ref(false),value=>{model.draft.value=value},undefined,true))
     assert.deepEqual(editor.selection.value,{kind:'input',index:0})
-    assert.equal(editor.applyInputReference({id:'temperature',name:'温度',valueType:{type:'double'}}),'applied')
+    assert.equal(editor.applyInputReference({id:'temperature',name:'温度',valueType:{type:'double'},semantics:{semanticId:'urn:temperature'}}),'applied')
     assert.equal(model.draft.value.inputDefinitions[0].id,'temperature')
+    assert.deepEqual(model.draft.value.inputDefinitions[0].semantics,{semanticId:'urn:temperature'})
     editor.revert();assert.deepEqual(model.draft.value.inputDefinitions,[])
     const empty={...template(),inputDefinitions:[],definitions:[],outputs:[]}
     model.open({id:'saved',released:false,template:empty});assert.deepEqual(model.draft.value.inputDefinitions,[])

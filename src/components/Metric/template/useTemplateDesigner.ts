@@ -67,9 +67,10 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
     const index = selection.value.index, input = view.value.inputDefinitions[index]
     const changesType = input.valueType && JSON.stringify(input.valueType) !== JSON.stringify(declaration.valueType)
     const changesUnit = input.unit && input.unit !== declaration.unit
-    if (!confirmed && (changesType || changesUnit)) return 'confirm'
+    const changesSemantics = input.semantics && JSON.stringify(input.semantics) !== JSON.stringify(declaration.semantics)
+    if (!confirmed && (changesType || changesUnit || changesSemantics)) return 'confirm'
     const id = created && input.id === generatedInputId && declaration.id ? referenceInputId(view.value,index,declaration.id) : input.id
-    return patch({id,name:input.name || declaration.name,valueType:copy(declaration.valueType),unit:declaration.unit}) ? 'applied' : 'unavailable'
+    return patch({id,name:input.name || declaration.name,valueType:copy(declaration.valueType),unit:declaration.unit,semantics:declaration.semantics ? copy(declaration.semantics) : undefined}) ? 'applied' : 'unavailable'
   }
   /** 错误文本留在当前编辑器；显式撤回才重建编辑器，其他节点和模板设置不回滚。 */
   function revert() {

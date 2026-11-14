@@ -256,7 +256,7 @@ export interface MetricSourceSelection {
   mapping: MetricInputMapping
   label?: string
   /** 参考只复制声明；建议标识可避重，真实来源仍在应用时绑定。 */
-  declaration?: Pick<MetricTemplateInput, 'name' | 'unit' | 'valueType'> & { id?:string }
+  declaration?: Pick<MetricTemplateInput, 'name' | 'unit' | 'valueType' | 'semantics'> & { id?:string }
 }
 export interface MetricInputHint { sources?: string[] }
 export interface MetricTemplateReference { id:string; version:string }

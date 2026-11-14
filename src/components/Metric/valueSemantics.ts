@@ -4,6 +4,7 @@ import { stateLabels } from './stateIntervals'
 import { metricDateText } from './time'
 import type { MetricCalculatorDescriptor, MetricSourceDescription, MetricStateLabel, MetricTemplate } from './types'
 import type { TemplateRule } from './template/designer'
+import { resolveMetricResultType } from './template/resultTypes'
 
 export type ValueSchema = Record<string, unknown>
 export type ValueTranslate = (key:string, values?:Record<string, unknown>) => string
@@ -25,6 +26,7 @@ export function metricSourceTemplate(template:MetricTemplate, sources:Record<str
 /** 保留自定义名称；旧模板以字段ID占位的名称由当前语言目录补齐。 */
 function mergeSchema(value?:ValueSchema, fallback?:ValueSchema):ValueSchema | undefined {
   if (!value) return fallback
+  if (!fallback) return value
   const properties = Array.isArray(value.properties) ? value.properties : undefined
   const defaults = Array.isArray(fallback?.properties) ? fallback.properties : []
   // 老模板可只声明部分字段；目录补齐其他字段的含义，实际投影仍以返回值为准。
@@ -39,14 +41,12 @@ function mergeSchema(value?:ValueSchema, fallback?:ValueSchema):ValueSchema | un
 }
 
 export function metricValueSchema(template:MetricTemplate, id:string, calculators:MetricCalculatorDescriptor[] = []):ValueSchema | undefined {
-  const input = template.inputDefinitions.find(input => input.id === id)
-  if (input) return input.valueType
   const rule = template.definitions.find(rule => rule.id === id) as TemplateRule | undefined
   const spec = rule?.calculator
   const descriptor = calculators.find(item => item.configuration.provider === spec?.provider
     && item.configuration.providerVersion === spec?.providerVersion
     && item.configuration.parameters?.operation === spec?.parameters?.operation)
-  return mergeSchema(spec?.outputType, descriptor?.configuration.outputType)
+  return mergeSchema(resolveMetricResultType(template,id,calculators).schema, descriptor?.configuration.outputType)
 }
 
 export function schemaValueLabels(schema?:ValueSchema):MetricStateLabel[] {

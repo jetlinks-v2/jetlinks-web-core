@@ -29,6 +29,24 @@ const template = () => ({
   outputs: [{ metricId: 'hourEnergy', property: 'stored_energy', label: '小时电量', unit: 'kWh' }]
 })
 
+test('旧模板缺类型时按已绑定来源声明筛选，不改写模板；失效来源不提供类型', async () => {
+  const scope=effectScope(), requests=[], raw=template()
+  const picker=Object.assign(async request=>{requests.push(request)}, {describe:async()=>({meter:{valueType:{type:'double'}}})})
+  const view=scope.run(()=>useMetricEditor(ref({ownerType:'space',ownerId:'floor2',editable:true}),ref(config()),ref(picker),{
+    selectable:async()=>[],configTemplate:async()=>raw,
+  }))
+  try {
+    await flush();await view.choose(raw.inputDefinitions[0])
+    assert.equal(requests[0].input.valueType.type,'double');assert.equal(raw.inputDefinitions[0].valueType,undefined)
+    view.sourceDescriptions.value.meter.error='denied';await view.choose(raw.inputDefinitions[0])
+    assert.equal(requests[1].input.valueType,undefined)
+    view.sourceDescriptions.value.meter={valueType:{type:'double'}}
+    await view.choose({...raw.inputDefinitions[0],valueType:{type:'boolean'}})
+    assert.equal(requests[2].input.valueType.type,'boolean')
+    await view.choose({id:'unbound'});assert.equal(requests[3].input.valueType,undefined)
+  }finally{scope.stop()}
+})
+
 test('公开输出 ID 与存储属性不同：批量最新值及历史仍用 metricId', async () => {
   const output = template().outputs[0]
   assert.equal(outputId(output), 'hourEnergy')

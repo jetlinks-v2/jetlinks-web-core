@@ -4,6 +4,7 @@ import { copy, createConfig, editableParameters, errorText, MetricActivationErro
 import { useMetricPresentation } from './extensions/useMetricPresentation'
 import { normalizePresentation } from './extensions/presentationSettings'
 import { sourceScheduleMissing, supportsSnapshotSource } from './sourcePolicy'
+import { metricSourceHasInputConstraint } from './sourceSchema'
 import type { MetricApi, MetricConfig, MetricContext, MetricSourceDescription, MetricSourcePicker, MetricTemplateCategory, MetricTemplateEntity, MetricTemplateInput } from './types'
 
 export function useMetricEditor(
@@ -101,8 +102,11 @@ export function useMetricEditor(
     try {
       const token = generation
       const version = templateKey({ id: draft.value.templateId, version: draft.value.templateVersion })
+      // 旧模板未声明类型时，可按已绑定来源的真实声明筛选；不改写模板或猜测类型。
+      const source = sourceDescriptions.value[input.id]
+      const selectableInput = !metricSourceHasInputConstraint(input) && !source?.error && source?.valueType?.type ? {...input,valueType:source.valueType} : input
       const selection = await picker.value({ context: { ...context.value, scope: draft.value.scope,
-        targetType: draft.value.targetType, targetId: draft.value.targetId }, configId:draft.value.id, input, mapping: draft.value.inputMappings[input.id],
+        targetType: draft.value.targetType, targetId: draft.value.targetId }, configId:draft.value.id, input:selectableInput, mapping: draft.value.inputMappings[input.id],
         hint:selectedTemplate.value?.options?.inputHints?.[input.id], scheduled:!!selectedTemplate.value && supportsSnapshotSource(selectedTemplate.value, input), inline:inline && !!picker.value.editor })
       if (context.value.editable && selection && choice === choiceVersion && token === generation && version === templateKey({ id: draft.value.templateId, version: draft.value.templateVersion })) {
         draft.value.inputMappings[input.id] = copy(selection.mapping)
