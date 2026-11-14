@@ -28,3 +28,5 @@
 
 - 输入类控件在 blur 时提交，选择/日期类控件在 change 时提交。
 - componentProps 只透传给对应 Ant Design Vue 控件。
+
+`InputEditable` 保留默认图标编辑入口；`trigger="text"` 使用文字按钮直接进入编辑。两种入口均支持 Enter/失焦提交、Esc 取消和禁用状态。可选 `save(value): boolean | Promise<boolean>` 用于异步提交，返回 `false` 时保留草稿与编辑态，调用方通过 `error` 提供字段错误；未传 `save` 的既有调用仍通过 `update:value/change` 提交。`label` 提供输入和编辑入口的无障碍名称。

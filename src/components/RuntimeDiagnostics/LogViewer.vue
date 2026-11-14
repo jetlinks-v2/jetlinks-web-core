@@ -24,11 +24,13 @@
       <div class="log-reader-window">
         <div v-if="truncated" class="log-window-notice">{{ t(isConsole ? 'runtimeDiagnostics.consoleBoundedLogs' : 'runtimeDiagnostics.boundedLogs') }}</div>
         <div ref="scroller" class="log-stream" role="log" aria-live="off" :aria-label="t('runtimeDiagnostics.logs')" @scroll="onScroll" @pointerdown="readIntent" @wheel.passive="readIntent" @keydown="readIntent">
-          <div v-if="hasPrevious" class="log-load-edge"><a-button type="text" size="small" :loading="loadingDirection === 'backward'" @click="page('previous')">{{ t('runtimeDiagnostics.loadEarlier') }}</a-button></div>
-          <div v-for="(item, index) in visible" :key="item.id" :data-log-id="item.id" class="log-row" :class="{ 'log-active-match': item.id === activeMatch }">
+          <div v-if="hasPrevious" :ref="virtual.leading" class="log-load-edge"><a-button type="text" size="small" :loading="loadingDirection === 'backward'" @click="page('previous')">{{ t('runtimeDiagnostics.loadEarlier') }}</a-button></div>
+          <div aria-hidden="true" :style="{ height: `${virtual.range.value.before}px` }" />
+          <div v-for="{ entry: item, index } in virtual.items.value" :key="item.id" :ref="element => virtual.setRow(item.id, element)" :data-log-id="item.id" class="log-row" :class="{ 'log-active-match': item.id === activeMatch }">
             <span class="log-row-number" aria-hidden="true" :title="t('runtimeDiagnostics.windowRow', { number: index + 1 })">{{ index + 1 }}</span>
-            <LogEntryLine :entry="item" :query="filter.trim()" :wrap="display.wrap" :expanded="detailId === item.id" :active-match="activeMatch === item.id" :trace-access="traceAccess" @inspect="inspect(item.id)" @reading="pause" @trace="openTrace" />
+            <LogEntryLine :entry="item" :query="filter.trim()" :wrap="display.wrap" :expanded="detailId === item.id" :active-match="activeMatch === item.id" :expansion="expansions.get(item.id) || collapsedExpansion" :trace-access="traceAccess" @expansion="value => setExpansion(item.id, value)" @inspect="inspect(item.id)" @reading="pause" @trace="openTrace" />
           </div>
+          <div aria-hidden="true" :style="{ height: `${virtual.range.value.after}px` }" />
           <a-empty v-if="!visible.length" :description="emptyText" :image="Empty.PRESENTED_IMAGE_SIMPLE" />
           <div v-if="hasNext" class="log-load-edge"><a-button type="text" size="small" :loading="loadingDirection === 'forward'" @click="page('next')">{{ t('runtimeDiagnostics.loadLater') }}</a-button></div>
         </div>
@@ -51,7 +53,8 @@ import { Empty, theme } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import DiagnosticsState from './DiagnosticsState.vue'
 import LogEntryLine from './logs/LogEntryLine.vue'
-import { logPresentation, nextLogMatchId } from './logs/presentation'
+import { logPresentation, nextLogMatchId, type LogEntryExpansion } from './logs/presentation'
+import { useLogVirtualWindow } from './logs/useLogVirtualWindow'
 import { createVisiblePopupFocus } from './popupFocus'
 import type { LogDisplayConfig, LogEntry, LogFile, ViewState, ActionAccess } from './types'
 import { useRetainedScroll } from '../../hooks/useRetainedScroll'
@@ -85,6 +88,8 @@ const logColors = computed(() => ({ '--diagnostic-log-highlight': token.value.co
 const levels = computed(() => ['all', 'ERROR', 'FATAL', 'WARN', 'INFO', 'DEBUG', 'TRACE'].map(value => ({ value, label: value === 'all' ? t('runtimeDiagnostics.all') : value })))
 const controlsDisabled = computed(() => ['forbidden', 'unsupported'].includes(props.state.status))
 const visible = computed(() => controlsDisabled.value ? [] : props.entries.filter(entry => display.value.level === 'all' || entry.level === display.value.level))
+const virtual = useLogVirtualWindow(scroller, visible, () => props.active, () => display.value.wrap)
+const expansions = ref(new Map<string, LogEntryExpansion>()), collapsedExpansion: LogEntryExpansion = { message: false, stack: false }
 const emptyText = computed(() => props.entries.length ? t('runtimeDiagnostics.noMatches') : props.emptyDescription || t(!props.fileId ? 'runtimeDiagnostics.selectFile' : 'runtimeDiagnostics.empty'))
 const findVisible = computed(() => findOpen.value || !!props.filter.trim())
 const matches = computed(() => props.filter.trim() ? visible.value.filter(entry => [entry.text, entry.raw, entry.message, entry.stack, entry.thread, entry.traceId].join(' ').toLowerCase().includes(props.filter.trim().toLowerCase())) : [])
@@ -116,11 +121,18 @@ function closeMenus(returnFocus = false) {
   menuFocus.cancel()
   if (returnFocus) void nextTick(() => { if (levelOpen) focusTrigger(levelMenuTrigger); else if (moreOpen) focusTrigger(moreMenuTrigger) })
 }
-function inspect(id: string) { pause(); detailId.value = detailId.value === id ? '' : id }
+function inspect(id: string) { pause(); virtual.invalidate([detailId.value, id]); detailId.value = detailId.value === id ? '' : id }
+/** 展开状态随已加载记录保留，与当前是否挂载对应行无关。 */
+function setExpansion(id: string, value: LogEntryExpansion) {
+  const previous = expansions.value.get(id) ?? collapsedExpansion
+  if (previous.message === value.message && previous.stack === value.stack) return
+  virtual.invalidate([id]); expansions.value.set(id, value)
+}
 function openTrace(traceId: string) { if (props.traceAccess.allowed && props.state.status !== 'forbidden') { pause(); emit('trace', traceId) } }
-function readIntent() { edgeReady = true; pause() }
+function readIntent() { virtual.readIntent(); edgeReady = true; pause() }
 function onScroll() {
-  if (!reading.onScroll()) return
+  const programmatic = virtual.onScroll()
+  if (!reading.onScroll() || programmatic) return
   const element = scroller.value
   if (!element) return
   if (element.scrollHeight - element.scrollTop - element.clientHeight > 36) pause()
@@ -128,7 +140,7 @@ function onScroll() {
   if (element.scrollTop < 48 && props.hasPrevious) page('previous')
   else if (element.scrollHeight - element.scrollTop - element.clientHeight < 48 && props.hasNext) page('next')
 }
-function bottom() { if (scroller.value) scroller.value.scrollTop = scroller.value.scrollHeight }
+function bottom() { virtual.bottom() }
 /** 宿主收到 follow(true) 后加载文件末尾，不把旧窗口底部误认为最新。 */
 function resume() { if (props.fileId && props.state.status !== 'forbidden') { detailId.value = ''; if (props.isConsole) bottom(); emit('follow', true) } }
 /** 查找按匹配条目循环，保留上下文；只在命中折叠内容时展开相应证据。 */
@@ -142,31 +154,23 @@ async function nextMatch(direction: -1 | 1) {
     if (![view.message, view.stack].join('\n').toLowerCase().includes(query)) detailId.value = entry.id
   }
   await nextTick()
-  const row = Array.from(scroller.value?.querySelectorAll<HTMLElement>('[data-log-id]') ?? []).find(element => element.dataset.logId === activeMatch.value)
-  if (row && scroller.value) {
-    const top = row.getBoundingClientRect().top - scroller.value.getBoundingClientRect().top + scroller.value.scrollTop
-    scroller.value.scrollTop = top
-  }
+  virtual.scrollTo(activeMatch.value)
 }
 watch([() => props.filter, () => display.value.level], () => { activeMatch.value = '' })
 watch(() => props.active, active => { if (!active) closeMenus() })
-watch(() => props.fileId, () => { activeMatch.value = ''; detailId.value = ''; closeMenus(); reading.reset() })
-watch(() => props.state.status, value => { if (value === 'forbidden' || value === 'unsupported') reading.reset() }, { flush: 'sync' })
+watch(() => props.fileId, () => { activeMatch.value = ''; detailId.value = ''; expansions.value.clear(); closeMenus(); virtual.reset(); reading.reset() })
+watch(() => props.state.status, value => { if (value === 'forbidden' || value === 'unsupported') { expansions.value.clear(); virtual.reset(); reading.reset() } }, { flush: 'sync' })
 watch(visible, entries => { if (!entries.some(entry => entry.id === detailId.value)) detailId.value = ''; if (!entries.some(entry => entry.id === activeMatch.value)) activeMatch.value = '' })
 onDeactivated(closeMenus)
 onBeforeUnmount(closeMenus)
 // 只跟随新窗口数据；切换 following 不先滚动仍在屏上的旧窗口。
 watch(() => props.entries, async (entries, previous) => {
+  const retained = new Set(entries.map(entry => entry.id))
+  for (const id of expansions.value.keys()) if (!retained.has(id)) expansions.value.delete(id)
   if (!reading.visible()) return
-  const element = scroller.value
-  const rows = Array.from(element?.querySelectorAll?.<HTMLElement>('[data-log-id]') ?? [])
-  const anchor = rows.find(row => row.getBoundingClientRect().bottom > element!.getBoundingClientRect().top)
-  const id = anchor?.dataset.logId, offset = anchor && element ? anchor.getBoundingClientRect().top - element.getBoundingClientRect().top : 0
   await nextTick()
   if (!reading.visible()) return
-  if (props.following || !previous.length && entries.length && !props.isConsole) { bottom(); return }
-  const next = id ? Array.from(scroller.value?.querySelectorAll?.<HTMLElement>('[data-log-id]') ?? []).find(row => row.dataset.logId === id) : undefined
-  if (next && scroller.value) scroller.value.scrollTop += next.getBoundingClientRect().top - scroller.value.getBoundingClientRect().top - offset
+  if (props.following || !previous.length && entries.length && !props.isConsole) bottom()
 }, { flush: 'pre' })
 </script>
 <style scoped>
@@ -181,7 +185,7 @@ watch(() => props.entries, async (entries, previous) => {
 .log-search-toolbar { display:flex; flex:2 1 auto; align-items:center; gap:4px; min-width:0; }.log-search-toolbar--matching { flex-basis:390px; min-width:min(100%,280px); }
 .log-find { display:flex; align-items:center; gap:6px; flex:1 1 120px; min-width:0; }.log-find :deep(.ant-input-search) { flex:1; min-width:100px; }.log-match-count { color:var(--ink-3); font-size:var(--fs-caption,12px); white-space:nowrap; }
 .log-display-controls { display:flex; align-items:center; flex:none; gap:2px; }.log-display-controls :deep(.ant-btn) { display:inline-flex; align-items:center; gap:3px; }.log-more-menu { display:flex; flex-direction:column; gap:4px; min-width:132px; }
-.log-stream { flex:1; min-height:0; overflow:auto; overscroll-behavior-y:contain; background:var(--bg-surface); scrollbar-gutter:stable; }
+.log-stream { flex:1; min-height:0; overflow:auto; overflow-anchor:none; overscroll-behavior-y:contain; background:var(--bg-surface); scrollbar-gutter:stable; }
 .log-row { display:flex; align-items:baseline; min-width:0; padding:5px 10px 5px 6px; border-bottom:1px solid var(--line); }
 .log-row-number { flex:0 0 32px; text-align:end; padding-inline-end:10px; color:var(--ink-3); font:var(--fs-caption,12px)/var(--lh-relaxed,1.65) var(--font-mono,monospace); user-select:none; }
 .log-row:last-child { border-bottom:0; }.log-active-match { background:var(--diagnostic-log-selected); }

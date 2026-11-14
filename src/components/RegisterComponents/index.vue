@@ -1,7 +1,8 @@
-<script setup name="RegisterComponents">
+<script setup>
 import { componentsRegistry } from '@jetlinks-web-core/utils/components-registry'
 
 defineOptions({
+  name: 'RegisterComponents',
   inheritAttrs: false,
 })
 

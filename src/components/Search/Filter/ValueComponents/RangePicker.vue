@@ -1,10 +1,11 @@
-﻿<script setup lang="ts" name="RangePicker">
+﻿<script setup lang="ts">
 import { computed, useAttrs, watch, ref } from 'vue'
 import type { Dayjs } from 'dayjs'
 import { useI18n } from 'vue-i18n'
 import { getDateShortcutOptions, getDateShortcutRange, toDayjsRangeValue, toTimestampRangeValue, type ConditionDateShortcutKey } from './utils'
 
 defineOptions({
+  name: 'RangePicker',
   inheritAttrs: false,
 })
 

@@ -24,12 +24,14 @@
   </a-dropdown>
 </template>
 
-<script setup lang="ts" name="HeaderUser">
+<script setup lang="ts">
 import { computed } from "vue";
 import { jumpLogin } from '@jetlinks-web-core/router'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { logout } from '@jetlinks-web-core/api/login'
 import { clearVerifyCache } from '@jetlinks-web-core/package'
+
+defineOptions({ name: 'HeaderUser' })
 
 const props = defineProps({
   hideHeaderRight: {

@@ -2,10 +2,13 @@
  * 通用「图标值」字符串约定（适用于资源图标、标签、头像等）：
  * - `color:<css 颜色>[:可选标签]` — 标签用于色块上展示文字；无标签时由展示组件用 fallback 生成缩写
  * - `font:AppstoreOutlined` — Ant Design Vue 图标名
+ * - 有效 Ant Design Vue 裸图标名 — 兼容 IconLibrary 保存的旧值
  * - `http(s)://`、`//`、`/`、`data:image...` — 图片地址
  * - `img:<url>` — 图片地址（兼容）
  * - 其它非空字符串可作为「文本缩写」展示（兼容旧数据）
  */
+
+import * as AntdIcons from '@ant-design/icons-vue'
 
 const COLOR_TOKEN = /^color:\s*(.+)$/i
 const FONT_RE = /^font:\s*([^/\s]+)\s*$/i
@@ -106,6 +109,10 @@ export function parseIconValue(icon?: string | null): IconValueParsed {
 
   const fm = FONT_RE.exec(s)
   if (fm) return { kind: 'font', iconType: fm[1].trim() }
+  // 兼容 IconLibrary 输出的裸图标名，仅接受实际图标导出，保留普通文本的缩写语义。
+  if (/(Outlined|Filled|TwoTone)$/.test(s) && Object.hasOwn(AntdIcons, s)) {
+    return { kind: 'font', iconType: s }
+  }
   return { kind: 'text', text: sliceGlyph(s, 2) }
 }
 

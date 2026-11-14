@@ -13,13 +13,15 @@
   </j-page-container>
 </template>
 
-<script setup name="IframePage">
+<script setup>
 import { jumpLogin } from  '@jetlinks-web-core/router'
 import { clearVerifyCache } from '@jetlinks-web-core/package'
 import { useApplication, useMenuStore } from '@jetlinks-web-core/store'
 import { nextTick } from 'vue'
 import { LayoutType } from '@jetlinks-web/components/es/ProLayout/defaultSettings'
 import { normalizeApplicationBaseUrl } from '@jetlinks-web-core/utils/application-scope'
+
+defineOptions({ name: 'IframePage' })
 
 const loading = ref(false)
 const iframeUrl = ref('')

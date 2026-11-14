@@ -2,7 +2,7 @@
   <component :is="layoutComponent" />
 </template>
 
-<script setup name="BasicLayoutPage" lang="ts">
+<script setup lang="ts">
 import { computed, type Component } from 'vue'
 import { provideBasicLayoutController } from './hooks/basicLayoutContext'
 import { useBasicLayoutController } from './hooks/useBasicLayoutController'
@@ -11,6 +11,8 @@ import type { BasicLayoutVariant } from './runtime/layoutVariant'
 import ApplicationHostPage from './shells/ApplicationHostPage.vue'
 import ProjectLayoutPage from './shells/ProjectLayoutPage.vue'
 import TenantLayoutPage from './shells/TenantLayoutPage.vue'
+
+defineOptions({ name: 'BasicLayoutPage' })
 
 const layoutComponents = {
   tenant: TenantLayoutPage, // 租户端

@@ -1,7 +1,9 @@
-<script setup name="Captcha">
+<script setup>
 import { Modal, Spin } from "ant-design-vue"
 import { useCaptcha } from './useCaptha'
 import { onlyMessage } from '@jetlinks-web/utils'
+
+defineOptions({ name: 'Captcha' })
 
 const props = defineProps({
   config: {

@@ -1,9 +1,11 @@
-<script setup name="BaseSubApp">
+<script setup>
 import { getToken } from '@jetlinks-web/utils'
 import app from '@micro-zoe/micro-app'
 import { wsClient } from '@jetlinks-web/core'
 import { useMenuStore } from '@jetlinks-web-core/store'
 import { storeToRefs } from 'pinia'
+
+defineOptions({ name: 'BaseSubApp' })
 
 const route = useRoute()
 const router = useRouter()

@@ -5,8 +5,10 @@
     </div>
 </template>
 
-<script setup lang="ts" name="TitleComponent">
+<script setup lang="ts">
 import type { CSSProperties, PropType } from 'vue';
+
+defineOptions({ name: 'TitleComponent' })
 
 const props = defineProps({
     data: {

@@ -1,16 +1,28 @@
 import { request } from '@jetlinks-web/core'
+import type { AxiosResponseRewrite } from '@jetlinks-web/types'
 
 export type SubscriptionState = 'enabled' | 'disabled'
 
 export interface NotificationChannelDefinition {
   id: string
   name?: string
+  i18nName?: string
   receiverPolicy?: string | { value?: string }
 }
 
 /** 与消息模板共用的通道接收策略，只读元数据，不读取管理端配置。 */
 export const getNotificationChannelDefinitions_api = () =>
   request.get<NotificationChannelDefinition[]>('/notify/channel/providers')
+
+export interface NotificationNotifierConfig {
+  id: string
+  type: string | { value: string }
+  provider: string | { value: string }
+}
+
+/** 仅查询渠道定位所需标识，不读取通知器凭据，也不替代个人订阅的可用渠道。 */
+export const getNotificationNotifierConfigs_api = (): Promise<AxiosResponseRewrite<NotificationNotifierConfig[]>> =>
+  request.post('/notifier/config/_query/no-paging', { includes: ['id', 'type', 'provider'] })
 
 // 获取通知订阅列表
 export const getNoticeList_api = (query: Record<string, unknown> = {}) =>

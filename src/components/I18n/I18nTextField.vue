@@ -37,7 +37,6 @@ import { useI18nTextField } from './hooks/useI18nTextField'
 
 defineOptions({ inheritAttrs: false })
 
-// 保留内联宏类型，兼容当前 setup-name-support 插件的匿名 SFC 预编译。
 const props = withDefaults(defineProps<{
   value?: string
   i18nMessages?: Record<string, Record<string, string>>

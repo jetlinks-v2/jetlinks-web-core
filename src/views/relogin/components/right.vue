@@ -128,13 +128,15 @@
     </div>
   </div>
 </template>
-<script setup lang="ts" name="LoginRight">
+<script setup lang="ts">
 import { Form, FormItem, Button, Divider, Popover, Input, InputPassword } from 'ant-design-vue'
 import Remember from './remember.vue'
 import { rules } from './util'
 import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
 import { ssoIconMap as iconMap, defaultSsoIcon as defaultImg } from '@jetlinks-web-core/utils/sso-icon'
 import { useReloginForm } from './useReloginForm'
+
+defineOptions({ name: 'LoginRight' })
 
 type SsoBinding = { id: string; name?: string; provider: string; logoUrl?: string }
 const props = withDefaults(defineProps<{
