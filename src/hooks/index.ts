@@ -16,3 +16,5 @@ export * from './useEmptyCreateState';
 export { useDiagnosticQuery } from './useDiagnosticQuery'
 export { useRetainedScroll } from './useRetainedScroll'
 export type { DiagnosticQueryOptions } from './useDiagnosticQuery'
+
+export { usePlatformSettings } from './usePlatformSettings'

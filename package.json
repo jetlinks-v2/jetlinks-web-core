@@ -28,6 +28,8 @@
     "dev:proxy": "vite -- --backend-url"
   },
   "dependencies": {
+    "@babel/parser": "7.29.8",
+    "mathlive": "0.110.0",
     "altcha": "3.2.2",
     "crypto-js": "^4.2.0",
     "echarts": "^5.6.0",

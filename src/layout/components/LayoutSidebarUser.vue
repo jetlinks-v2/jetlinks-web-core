@@ -32,8 +32,8 @@
                 </span>
               </div>
               <div v-if="primaryRole" class="layout-sidebar-user__roles-row">
-                <a-tag class="layout-sidebar-user__role-tag" :bordered="false" :title="primaryRole">
-                  {{ primaryRole }}
+                <a-tag class="layout-sidebar-user__role-tag" :bordered="false">
+                  <j-ellipsis class="layout-sidebar-user__role-name">{{ primaryRole }}</j-ellipsis>
                 </a-tag>
                 <a-tooltip v-if="extraRoleCount > 0" placement="bottom">
                   <template #title>
@@ -88,10 +88,12 @@
   </div>
 </template>
 
-<script setup lang="ts" name="LayoutSidebarUser">
+<script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { BADGE_OVERFLOW_COUNT } from './noticeUtils'
 import { useLayoutSidebarUser } from './useLayoutSidebarUser'
+
+defineOptions({ name: 'LayoutSidebarUser' })
 
 defineProps({
   collapsed: {

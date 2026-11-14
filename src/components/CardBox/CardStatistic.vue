@@ -44,11 +44,13 @@
   </CardShell>
 </template>
 
-<script setup lang="ts" name="CardStatistic">
+<script setup lang="ts">
 import { computed, type CSSProperties, type PropType } from 'vue'
 import { cardAppearanceProps } from './appearance'
 import CardShell from './CardShell.vue'
 import type { CardStatisticData, CardStatisticSegment, CardTone } from './types'
+
+defineOptions({ name: 'CardStatistic' })
 
 const props = defineProps({
   ...cardAppearanceProps,

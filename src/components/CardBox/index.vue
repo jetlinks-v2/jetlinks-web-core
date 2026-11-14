@@ -94,13 +94,15 @@
   </div>
 </template>
 
-<script setup lang="ts" name='CardBox'>
+<script setup lang="ts">
 import {getHexColor} from '@jetlinks-web/components/es/BadgeStatus/color';
 import {useSlots, type PropType} from 'vue';
 import i18n from '@jetlinks-web-core/locales';
 import { cardAppearanceProps, useCardAppearanceStyle } from './appearance';
 import CardBoxActions from './CardBoxActions.vue';
 import type { CardBoxAction, CardBoxActionKey, CardBoxActionLayout } from './types';
+
+defineOptions({ name: 'CardBox' })
 
 type EmitProps = {
   // (e: 'update:modelValue', data: Record<string, any>): void;
