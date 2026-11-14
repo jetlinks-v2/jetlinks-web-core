@@ -100,7 +100,7 @@ export function useSsoBindings() {
     unbinding.value = id
     try {
       const response = await unBind_api(id)
-      if (!response.success && response.status !== 200) throw new Error('Unbind failed')
+      if (response.success === false || (response.success !== true && response.status !== 200)) throw new Error('Unbind failed')
       await load()
     } catch { failed.value = true }
     finally { unbinding.value = '' }

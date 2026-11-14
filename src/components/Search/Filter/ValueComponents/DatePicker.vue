@@ -1,10 +1,11 @@
-﻿<script setup lang="ts" name="TimePicker">
+﻿<script setup lang="ts">
 import type { PropType } from 'vue'
 import { computed, ref, useAttrs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getDateShortcutOptions, getDateShortcutRange, toDayjsValue, toTimestampValue, type ConditionDateShortcutKey } from './utils'
 
 defineOptions({
+  name: 'TimePicker',
   inheritAttrs: false,
 })
 

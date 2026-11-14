@@ -207,7 +207,7 @@ function renderMessage(raw: string): string {
   background: var(--accent);
 }
 .jlc-btn-confirm.tone-info:hover {
-  background: var(--ink-1);
+	filter: brightness(0.95);
 }
 .jlc-btn-confirm.tone-warn {
   background: var(--warn);

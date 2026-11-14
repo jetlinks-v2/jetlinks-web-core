@@ -1,5 +1,7 @@
-<script setup name="ValueFixed">
+<script setup>
 import { ValueItem } from '@jetlinks-web/components'
+
+defineOptions({ name: 'ValueFixed' })
 
 const asyncComponents = {
   time: defineAsyncComponent(() => import('./Time.vue')),

@@ -136,6 +136,34 @@ test('共享原位编辑保留操作槽，Enter与失焦只提交一次，Esc和
   } finally { app.unmount() }
 })
 
+test('名称异步保存拒绝时保留文本和错误，重复失焦不重发，文字入口不显示额外图标', async () => {
+  const { renderer, root } = createMetricRenderer(); const changes = [], requests = []
+  let complete
+  const props = reactive({ value:'原名称', trigger:'text', error:'', size:'small',
+    save:value => { requests.push(value); return new Promise(resolve => { complete = resolve }) },
+    'onUpdate:value':value => { changes.push(value); props.value = value } })
+  const app = renderer.createApp({ setup:() => () => h(Editable, props) })
+  app.config.globalProperties.$t = key => key
+  app.component('a-input', defineComponent({ setup:(_props, { attrs, expose }) => {
+    expose({ focus() {} }); return () => h('editable-input', attrs)
+  } }))
+  app.config.warnHandler = () => {}; app.mount(root)
+  const field = () => walk(root, node => node.type === 'editable-input')[0]
+  try {
+    assert.equal(walk(root, node => node.type === 'a-button').length, 0)
+    walk(root, node => node.type === 'button')[0].props.onClick(); await flush()
+    field().props['onUpdate:value']('重复名称')
+    const pending = field().props.onPressEnter(); field().props.onBlur(); await flush()
+    assert.deepEqual(requests, ['重复名称']); assert.equal(field().props.disabled, true)
+    props.error = '名称已存在'; complete(false); await pending; await flush()
+    assert.equal(field().props.value, '重复名称'); assert.deepEqual(changes, [])
+    assert.equal(textContent(walk(root, node => node.props.role === 'alert')[0]), '名称已存在')
+    props.error = ''; field().props['onUpdate:value']('可用名称')
+    const accepted = field().props.onBlur(); complete(true); await accepted; await flush()
+    assert.deepEqual(changes, ['可用名称']); assert.equal(field(), undefined)
+  } finally { app.unmount() }
+})
+
 test('自定义时长在输入中清空或变成有效ISO时仍保留文本控件，离开后才转换', async () => {
   const Duration = load('components/Metric/template/TemplateDuration.vue').default
   const { renderer, root } = createMetricRenderer()

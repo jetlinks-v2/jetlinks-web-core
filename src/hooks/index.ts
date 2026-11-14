@@ -18,3 +18,5 @@ export { useDiagnosticQuery } from './useDiagnosticQuery'
 export { useRetainedScroll } from './useRetainedScroll'
 export { useValueUnit } from './useValueUnit'
 export type { DiagnosticQueryOptions } from './useDiagnosticQuery'
+
+export { usePlatformSettings } from './usePlatformSettings'

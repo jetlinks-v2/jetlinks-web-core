@@ -453,6 +453,25 @@ test('数字枚举状态使用有界的状态采样色带，详情复用离散�
   try {assert.ok(walk(score.root,node => node.props.class === 'metric-trend-mini__plot').length)} finally {score.close()}
 })
 
+test('状态缩略图和详情按真实时间定位不等间隔采样，悬停不按样本数量均分', async () => {
+  const rows=[1000,1100,10000].map((time,index)=>({...value,value:index,evaluationTime:time,resultId:String(index)}))
+  const labels=[{value:0,name:'正常'},{value:1,name:'异常'},{value:2,name:'等待'}]
+  const compact=mount(Trend,{compact:true,values:rows,labels,bounds:[0,20000]})
+  const detail=mount(Trend,{values:rows,labels,bounds:[0,20000]})
+  try {
+    const strip=walk(compact.root,node=>node.props.class==='state-samples__strip')[0]
+    const marks=strip.children.filter(node=>node.type==='span')
+    assert.equal(marks[0].props.style.left,'clamp(2px, 0%, calc(100% - 2px))')
+    assert.ok(marks[1].props.style.left.startsWith('clamp(2px, 1.1111111111111112%'))
+    assert.equal(marks[2].props.style.left,'clamp(2px, 100%, calc(100% - 2px))')
+    strip.props.onPointermove({clientX:30,currentTarget:{getBoundingClientRect:()=>({left:0,width:300})}});await flush()
+    assert.ok(textContent(walk(compact.root,node=>node.props.class==='state-samples__head')[0]).includes('异常'))
+    const option=nodes(detail.root,'chart')[0].props.option
+    assert.deepEqual(option.series[0].data.map(point=>point.value[0]),[1000,1100,10000])
+    assert.equal(option.series[1].data.length,0,'neither view manufactures continuous state intervals')
+  } finally {compact.close();detail.close()}
+})
+
 test('结果切换菜单以语义区分图标，保留当前选中项和切换事件', async () => {
   const outputs = [{metricId:'state',label:'连接状态',metricKind:'state',valueType:'int'},
     {metricId:'score',label:'评分',metricKind:'score'}, {metricId:'ratio',label:'在线率',unit:'%'},

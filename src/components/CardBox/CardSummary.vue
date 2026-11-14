@@ -85,13 +85,15 @@
   </CardShell>
 </template>
 
-<script setup lang="ts" name="CardSummary">
+<script setup lang="ts">
 import type { PropType } from 'vue'
 import StatusTag from '../StatusTag/index.vue'
 import { cardAppearanceProps } from './appearance'
 import CardAvatar from './CardAvatar.vue'
 import CardShell from './CardShell.vue'
 import type { CardSummaryData } from './types'
+
+defineOptions({ name: 'CardSummary' })
 
 const props = defineProps({
   ...cardAppearanceProps,

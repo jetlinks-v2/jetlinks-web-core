@@ -1,4 +1,7 @@
-<script setup name="DropdownMenu">
+<script setup>
+
+defineOptions({ name: 'DropdownMenu' })
+
 
 const emit = defineEmits(['update:value', 'change'])
 const props = defineProps({

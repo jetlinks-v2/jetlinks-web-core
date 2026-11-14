@@ -10,6 +10,10 @@
 | `useMircoAppData` | `useMircoApp.ts` | 否 | 读取微应用宿主传入的数据；使用深层路径前核验生产导入 |
 | `useProjectRouter` | `useProjectRouter.ts` | 是 | 项目运行态下解析项目 ID、路径和跳转 |
 
+## 基础配置草稿与保存
+
+`usePlatformSettings` 从 hooks 根入口导出，接收类型化 `source.load/save`、`detail | form` 模式和权限函数，返回草稿/基线、加载/保存状态、逐项保存及统一提交；只合并当前变更并保留未知配置，写入成功但回读失败时仅提示刷新。`useSystemPlatformSettings` 通过 `hooks/useSystemPlatformSettings` 文件入口导入，接入当前 system store、设置页权限及上传状态，阻止图片裁剪或上传期间提交初始化。组件及生产入口见 [PlatformSettings](../components/PlatformSettings/README.md)。
+
 ## 页面回传、注册与权限
 
 | 能力 | 入口文件 | 根入口 | 适用场景 |
@@ -17,6 +21,12 @@
 | `useTabSaveSuccess` / `useTabSaveSuccessBack` | `useTabSaveSuccess.ts` | 是 | 新开 Tab 保存后回传、保存后返回 |
 | `useRegistryOptions` / `useRegistryVNodeMerge` | `useRegistryComponentsMerge.ts` | 是 | 合并基础配置与运行时注册项，支持节点插入/替换 |
 | `useMenuAssetPermissionEditor` | `useMenuAssetPermissionEditor.ts` | 是 | 菜单资产权限编辑器的状态和动作编排 |
+
+### 待接入的通知配置导航
+
+`useNotificationConfigNavigation.ts` 提供按实际菜单路径在新标签打开 `notice/template`、返回后刷新候选资源的辅助逻辑，尚未从 hooks 根入口导出。当前仅被规则引擎待接入的 `useSceneNotification.ts` 引用，生产页面尚未启用；不代表现有通知入口已有跨标签刷新能力。
+
+接入前需补齐 `PersonalCenter.notificationPopupBlocked` 多语言文案，并验证目标页对 `topicProvider/channelProvider` 的定位、浏览器焦点 / 可见性回传及项目路径。当前仅完成 TypeScript 语法转译和差异检查，未完成浏览器交互、完整类型检查或构建验收。
 
 `useTabSaveSuccess` 保留历史 `isSaaS` 地址分支。仅非微应用的固定项目部署，或启用项目存储且经 `isProjectRuntime()` 确认的项目入口，复用 `utils/project-runtime.ts` 生成新 Tab 地址。普通独立部署目录、云端边缘代理、租户端和微应用保持历史跳转规则；菜单参数、`sourceId` 和保存回传保持现有契约。历史依据为 `d4dd389`（修复 SaaS 可视化跳转）；后续项目上下文改为从 pathname 获取，而 cloud 项目入口不能继续只依赖 `isSaaS` 判断。
 
@@ -92,7 +102,7 @@ const { hasSearch, showEmptyCreate } = useEmptyCreateState(() => submittedTerms.
 
 `useDiagnosticQuery<T>()` 返回 `data`、`state`、`run(loader, allowed, options?)` 和 `clear()`。options 的 isEmpty / errorState 由宿主解释空值与 HTTP 失败状态。每轮调用先清理旧数据，拒绝授权时不调用 loader；loader 接收 AbortSignal。新请求、clear、deactivate 或 scope dispose 后旧响应不落地。宿主负责 activate 后恢复、流订阅与阅读缓存；transport 不支持 signal 时仍保证响应隔离，但不能承诺实际网络取消或服务端诊断停止。
 
-`useRetainedScroll(elementRef, active?)` 绑定一个明确的滚动容器；将容器的 scroll 事件交给返回的 `onScroll`，正文身份改变或权限清理时调用 `reset()`。位置只保存在当前组件内存，支持 KeepAlive 与 v-show 隐藏，恢复等待有效布局；旧恢复帧与隐藏零值不能覆盖位置。它不访问路由、存储或接口，也不自动扫描其他 DOM；`visible()` 供日志跟随等可见性动作使用。
+`useRetainedScroll(elementRef, active?)` 绑定一个明确的滚动容器；将容器的 scroll 事件交给返回的 `onScroll`，正文身份改变或权限清理时调用 `reset()`。位置只保存在当前组件内存，通过滚动事件与停用边界保存，普通组件更新不读取布局尺寸。支持 KeepAlive 与 v-show 隐藏，恢复等待有效布局；旧恢复帧与隐藏零值不能覆盖位置。它不访问路由、存储或接口，也不自动扫描其他 DOM；`visible()` 供日志跟随等可见性动作使用。
 
 ## 布局、主题与响应式
 

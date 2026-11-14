@@ -56,7 +56,7 @@
   </div>
 </template>
 
-<script setup lang="ts" name="EqualHeightColumns">
+<script setup lang="ts">
 import { computed, ref, useAttrs, useId, useSlots, type CSSProperties, type StyleValue } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useColumnToggle } from './useColumnToggle'
@@ -64,6 +64,7 @@ import { useColumnToggle } from './useColumnToggle'
 type SizeValue = number | string
 
 defineOptions({
+  name: 'EqualHeightColumns',
   inheritAttrs: false,
 })
 

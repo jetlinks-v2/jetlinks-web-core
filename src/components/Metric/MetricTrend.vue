@@ -8,7 +8,7 @@
     <span v-if="sparkline.peak" class="metric-trend-mini__peak" role="img" :aria-label="`${t('samplePeak')} · ${time(sparkline.peak.time)} · ${reading(sparkline.peak.value)}`" :title="`${t('samplePeak')} · ${time(sparkline.peak.time)} · ${reading(sparkline.peak.value)}`" :style="{ left:`${sparkline.peak.x / 3}%`, top:`${sparkline.peak.y / 56 * 100}%` }" />
     <span v-if="inspected" class="metric-trend-mini__tooltip" role="tooltip" :style="{ left:`${inspected.x / 3}%`, transform:`translateX(-${inspected.x / 3}%)` }"><time>{{ time(inspected.time) }}</time><b>{{ reading(inspected.value) }}</b><small v-if="inspected.time === sparkline.peak?.time">{{ t('samplePeak') }}</small></span>
     </div>
-    <MetricStateSamples v-else-if="kind === 'state' && records.length" :entries="records" :labels="labels" />
+    <MetricStateSamples v-else-if="kind === 'state' && records.length" :entries="records" :labels="labels" :bounds="timeBounds" />
     <template v-else-if="kind === 'boolean' && booleanPoints.length">
       <div class="metric-trend-mini__legend"><span>{{ t('stateRecords') }}</span><span class="metric-trend-mini__categories"><span v-for="state in [true,false]" :key="String(state)"><IconValueView v-if="appearance(state).icon" :value="appearance(state).icon" :size="10" :fallback-text="stateText(state)" /><i v-else :style="{ background:appearance(state).color }" />{{ stateText(state) }}</span></span></div>
       <svg class="metric-trend-mini__states" viewBox="0 0 300 30" preserveAspectRatio="none" role="img" :aria-label="t('stateRecords')">

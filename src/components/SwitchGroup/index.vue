@@ -18,9 +18,11 @@
   </div>
 </template>
 
-<script setup lang="ts" name="SwitchGroup">
+<script setup lang="ts">
 import type { PropType } from 'vue'
 import type { SwitchGroupOption, SwitchGroupValue } from './types'
+
+defineOptions({ name: 'SwitchGroup' })
 
 const props = defineProps({
   /** 当前选中值；无匹配项时全部选项均为未选中态 */

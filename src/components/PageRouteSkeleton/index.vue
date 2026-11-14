@@ -8,9 +8,11 @@
   </div>
 </template>
 
-<script setup lang="ts" name="PageRouteSkeleton">
+<script setup lang="ts">
 import ContentSkeleton from './ContentSkeleton.vue'
 import LayoutSkeleton from './LayoutSkeleton.vue'
+
+defineOptions({ name: 'PageRouteSkeleton' })
 
 type SkeletonVariant = 'content' | 'layout'
 
