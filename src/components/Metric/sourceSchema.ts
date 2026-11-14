@@ -1,4 +1,14 @@
 import { copy } from './service'
+import type { MetricInputSemantics } from './types'
+
+/** 与后端 MetricInputSemantics 相同，只匹配来源显式声明，不推测名称或同义词。 */
+export function metricSourceMatchesSemantics(required:MetricInputSemantics | undefined, metadata:Record<string,unknown> = {}):boolean {
+  if (!required) return true
+  const types = Array.isArray(metadata.semanticTypes) ? metadata.semanticTypes : []
+  return (!required.semanticId || required.semanticId === metadata.semanticId)
+    && (!required.semanticRole || required.semanticRole === metadata.semanticRole)
+    && (required.semanticTypes || []).every(type=>types.includes(type))
+}
 
 /** 来源目录使用 JSON Schema，编辑器使用平台 valueType；只按声明转换，不猜业务字段含义。 */
 export function metricSourceSchema(schema:Record<string,unknown>):Record<string,unknown> {

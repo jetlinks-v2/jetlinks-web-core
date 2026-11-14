@@ -1,5 +1,6 @@
 export const metricMessages = {
   zh: {
+    intervalStartUnknownHint:'开始时间未知，暂无法计算完整时长',
     formulaVisualUnavailable: '此历史公式暂不支持可视化编辑，请在完整配置中查看。',
     cardDisplay:'卡片展示',
     secondsSingular:'秒',minutesSingular:'分钟',hoursSingular:'小时',daysSingular:'天',scheduleSuffix:'计算',
@@ -92,7 +93,7 @@ export const metricMessages = {
     chooseIcon: '选择图标',
     discardRevision: '撤销待发布修改', discardRevisionConfirm: '撤销计算草稿并恢复当前发布规则？已保存的展示信息保留。',
     applySummary: '已保存 {saved} 项，需处理 {failed} 项',
-    pendingChanges: '待发布修改', publishUpdate: '发布更新', templateUses: '使用此模板', noTemplateUses: '还没有业务指标使用此模板',
+    pendingChanges: '待发布修改', publishUpdate: '发布更新', templateUses: '使用此模板', noTemplateUses: '还没有指标使用此模板',
     revisionPublishBrief:'发布后可选择更新已有指标', publicationOutputs:'{count} 项输出', publicationSelected:'已选 {count} 项', publicationClear:'取消选择', publicationSelectVisible:'选择本页可更新指标', publicationTarget:'将应用修订 r{revision}', publicationLatest:'返回最新修订', publicationApplied:'已使用', publicationDifferent:'待切换', publicationUpdate:'更新', publicationApplyRevision:'应用修订', publicationChooseRevision:'选择此修订', publicationMore:'更多操作',
     revisionPublishHint: '保存展示信息会直接生效；计算修改在发布后供新引用使用，已有指标可在下方选择更新。',
     revisionApplyHint: '更新保留设备绑定和已填写参数，重新建立计算窗口。旧结果保留，默认趋势显示当前口径。可选择旧修订回退。',
@@ -233,6 +234,7 @@ export const metricMessages = {
     discardEdits: '离开后将放弃未保存的修改，是否继续？', continue: '继续', rangeStart: '开始时间', rangeEnd: '结束时间'
   },
   en: {
+    intervalStartUnknownHint:'Start time is unknown; full duration is unavailable',
     formulaVisualUnavailable: 'This legacy formula cannot be edited visually. View it in the full configuration.',
     cardDisplay:'Card display',
     secondsSingular:'second',minutesSingular:'minute',hoursSingular:'hour',daysSingular:'day',scheduleSuffix:'',

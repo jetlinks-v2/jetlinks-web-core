@@ -34,6 +34,17 @@ test('后端当前视图推进同一快照，迟到推送不回退；客户端�
   assert.equal(original.state.duration, 15 * 60)
 })
 
+test('起点未知仍展示已确认状态，完整时长保持未知，过期与坏质量仍停止展示', () => {
+  const observed = value(85, { currentInterval:interval('observed', 70, undefined, { value:0, startKnown:false }), readView:{ time:start + 86 * minute, duration:null } })
+  const summary = stateIntervalSummary(observed)
+  assert.equal(summary.state, 'known')
+  assert.equal(summary.interval.value, 0)
+  assert.equal(summary.duration, undefined)
+  assert.equal(stateIntervalSummary({ ...observed, quality:{ valid:false } }).state, 'unknown')
+  assert.equal(stateIntervalSummary({ ...observed, quality:{ valid:true, stale:true } }).state, 'unknown')
+  assert.equal(stateIntervalSummary({ ...observed, state:{ ...observed.state, readView:{ time:start + 200 * minute, duration:null } } }).state, 'unknown')
+})
+
 test('时间带共用查询时间轴，裁剪边界并保留空隙，不按业务状态或标识特调', () => {
   const rows = [value(30, { closedInterval:interval('a', 0, 20, { value:'standby' }) }), value(60, { closedInterval:interval('b', 40, 60, { value:2 }) })]
   const current = value(85, { currentInterval:interval('c', 70), readView:{ time:start + 90 * minute, duration:20 * 60 } })

@@ -48,11 +48,12 @@ export function stateIntervalSummary(value?: MetricValue) {
   const cutoff = fact?.readView?.time ?? (value && resultTime(value))
   const known = !!current && !!cutoff && current.validUntil > cutoff
     && value?.status !== 'invalid' && value?.quality?.valid !== false && !value?.quality?.stale
-    && (!fact?.readView || fact.readView.duration != null)
+    && (!fact?.readView || fact.readView.duration != null || !current.startKnown)
   const state = !fact ? 'waiting' : !known ? 'unknown' : 'known'
   const interval = known ? current : undefined
+  const seconds = fact?.readView ? fact.readView.duration : fact?.duration
   return { state, interval, last: fact?.previousInterval, cutoff: cutoff || 0,
-    duration: known && fact ? (fact.readView ? fact.readView.duration! * 1000 : fact.duration == null ? undefined : fact.duration * 1000) : undefined }
+    duration: known && seconds != null ? seconds * 1000 : undefined }
 }
 
 export function intervalDuration(interval: MetricStateInterval, cutoff: number) {

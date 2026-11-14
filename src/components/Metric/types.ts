@@ -19,11 +19,12 @@ export interface MetricSourceReference {
   provider: string
   sourceType: string
   configuration: Record<string, unknown>
+  subject?: {type:string;id:string}
 }
 export interface MetricProviderSourceDescription {
   name: string
   schema: Record<string, unknown>
-  capabilities: ('subscribe' | 'current' | 'history')[]
+  capabilities: ('subscribe' | 'current' | 'history' | 'maintainedHistory')[]
 }
 /** 范围内成员公开结果的最新快照统计，来源配置沿用 configId/id。 */
 export interface MetricScopeStatistics {
@@ -48,11 +49,16 @@ export interface MetricTemplateInput {
   maxAge?: string
   minSamples?: number
   maxGap?: string
+  /** 显式事件维护历史窗口的完整对账间隔；来源必须声明可维护的唯一时间戳语义。 */
+  historyReconciliation?: string
   defaultValue?: unknown
   source?: { kind?: MetricInputMapping['kind']; providerSource?: MetricSourceReference; lookback?: string; maxPoints?: number; [key: string]: unknown }
   valueType?: Record<string, unknown>
+  semantics?: MetricInputSemantics
   [key: string]: unknown
 }
+/** 原物模型语义的必要子集；未声明时保持现有候选范围。 */
+export interface MetricInputSemantics { semanticId?:string; semanticTypes?:string[]; semanticRole?:string }
 export interface MetricParameter {
   id: string
   name?: string

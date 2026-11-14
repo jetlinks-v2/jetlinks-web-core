@@ -26,7 +26,7 @@ const entries = computed(() => historyIntervals(props.values, props.current, pro
 const duration = (millis: number) => formatIntervalDuration(millis, t)
 const time = (millis: number) => new Date(millis).toLocaleString(String(locale.value), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 const endLabel = (interval: MetricStateInterval, cutoff: number) => interval.endTime == null && cutoff < interval.validUntil ? t('intervalOngoing') : `${time(interval.endTime ?? interval.validUntil)} ${t(interval.endKnown ? 'intervalEnded' : 'intervalInterrupted')}`
-const description = (interval: MetricStateInterval, cutoff: number) => `${time(interval.startTime)} → ${endLabel(interval, cutoff)} · ${duration(intervalDuration(interval, cutoff))}`
+const description = (interval: MetricStateInterval, cutoff: number) => `${time(interval.startTime)} → ${endLabel(interval, cutoff)} · ${!interval.startKnown || interval.endTime != null && !interval.endKnown ? t('intervalAtLeast') : ''}${duration(intervalDuration(interval, cutoff))}`
 </script>
 <style scoped>
 .interval-history { min-width:0; color:var(--ink-2); font-size:var(--fs-12,12px) }
