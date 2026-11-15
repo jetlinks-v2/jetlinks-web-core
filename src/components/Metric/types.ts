@@ -278,7 +278,7 @@ export interface MetricSourceRequest {
   scheduled?: boolean
   /** 仅辅助 UI 选择，不参与运行准入。 */
   hint?: MetricInputHint
-  purpose?: 'binding' | 'declaration'
+  purpose?: 'binding' | 'declaration' | 'reference'
   /** 当前编辑器的短期选择身份；只用于复用已选对象，不保存到模板或绑定。 */
   session?: string
 }
@@ -409,6 +409,10 @@ export interface MetricSimulationResponse {
   error?: string
 }
 export interface MetricApi {
+  objectBindings?(type:string,id:string,cursor?:string):Promise<MetricObjectBindingPage>
+  bindObjectMetric?(binding:MetricObjectBinding):Promise<MetricObjectBindingView>
+  unbindObjectMetric?(type:string,id:string,bindingId:string):Promise<void>
+  aggregateLinked?(query:MetricLinkedAggregateQuery):Promise<import('./collection/types').MetricAggregateResult>
   collectionOverview?(query: import('./collection/types').MetricScopeOverviewRequest): Promise<import('./collection/types').MetricScopeOverview>
   aggregate?(query: import('./collection/types').MetricAggregateQuery): Promise<import('./collection/types').MetricAggregateResult>
   collection?(query: import('./collection/types').MetricCollectionQuery): Promise<import('./collection/types').MetricCollectionResult>
@@ -441,6 +445,16 @@ export interface MetricApi {
   setAvailable(id: string, available: boolean): Promise<void>
   removeTemplate(id: string): Promise<void>
   simulate(request: MetricSimulationRequest): Promise<MetricSimulationResponse>
+}
+
+/** 关联已有输出，不创建计算配置，也不保存结果副本。 */
+export interface MetricObjectBinding {
+  objectType:string; objectId:string; configId:string; outputId:string; targetType:string; targetId:string
+}
+export interface MetricObjectBindingView { id:string; reference:MetricObjectBinding; pending:boolean; configName?:string }
+export interface MetricObjectBindingPage { items:MetricObjectBindingView[]; nextCursor?:string }
+export interface MetricLinkedAggregateQuery {
+  objectType:string; objectId:string; targetType:string; from:number; to:number; interval:number; templateIds?:string[]
 }
 
 export interface MetricBuiltinItem {

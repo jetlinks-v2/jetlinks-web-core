@@ -1,5 +1,6 @@
 export { default as MetricPanel } from './MetricPanel.vue'
 export { default as MetricScopePanel } from './collection/MetricScopePanel.vue'
+export { default as MetricObjectBindings } from './bindings/MetricObjectBindings.vue'
 export { default as MetricResult } from './MetricResult.vue'
 export { default as MetricConfigEditor } from './MetricConfigEditor.vue'
 export { default as MetricTemplateManager } from './template/MetricTemplateManager.vue'
@@ -11,6 +12,7 @@ export { structureMetricTemplate } from './template/structureExpressions'
 export { metricTemplateTextEntries } from './template/text'
 export type {
   MetricContext, MetricSourcePicker, MetricSourceSelection, MetricSourceDescription, MetricSourceRequest, MetricAlarmReference, MetricReference,
+  MetricObjectBinding, MetricObjectBindingView, MetricObjectBindingPage, MetricLinkedAggregateQuery,
   MetricConfig, MetricTemplate, MetricTemplateReference, MetricTemplateEntity, MetricTemplateInput, MetricTemplateOutput, MetricTemplateStarter,
   MetricInputMapping, MetricInputSemantics, MetricSourceReference, MetricProviderSourceDescription, MetricScopeStatistics, MetricBuiltinItem, MetricParameter, MetricValue, MetricLatest, MetricRuntime, MetricApi, MetricCalculatorDescriptor, MetricCalculatorSpec
 } from './types'

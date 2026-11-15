@@ -14,7 +14,7 @@
       <p v-if="!group.availability" class="aggregate-card__coverage">{{ t('valid',{valid:group.latest.valid,total:group.latest.observed}) }}<span v-if="group.latest.observed>group.latest.valid"> · {{ t('missing',{count:group.latest.observed-group.latest.valid}) }}</span></p>
       <div class="aggregate-card__trend"><MetricAggregateTrend v-if="visible && !group.availability" :key="group.id" v-model:view="views[group.id]" :group="group" :operation="operation" :bounds="bounds" :interval="interval" compact /><span v-else-if="group.availability">{{ t('memberValuesAvailable') }}</span></div>
     </div>
-    <footer class="aggregate-card__footer"><div class="aggregate-card__highlights"><div v-for="item in highlights" :key="item.id">{{ item.output.label || item.output.metricId }}<MetricValueView :value="{metricId:item.output.metricId,value:aggregateValue(item.latest,item.defaultOperation)}" :output="item.output" :unit="item.output.unit" inline hide-feedback /></div></div><a-button type="link" size="small" @click="$emit('members')">{{ t('viewMembers') }}<AIcon type="RightOutlined" /></a-button></footer>
+    <footer v-if="highlights.length || !hideMembers" class="aggregate-card__footer"><div class="aggregate-card__highlights"><div v-for="item in highlights" :key="item.id">{{ item.output.label || item.output.metricId }}<MetricValueView :value="{metricId:item.output.metricId,value:aggregateValue(item.latest,item.defaultOperation)}" :output="item.output" :unit="item.output.unit" inline hide-feedback /></div></div><a-button v-if="!hideMembers" type="link" size="small" @click="$emit('members')">{{ t('viewMembers') }}<AIcon type="RightOutlined" /></a-button></footer>
   </MetricCardShell>
 </template>
 <script setup lang="ts">
@@ -33,7 +33,7 @@ import {aggregateValue,aggregateStateValue} from './aggregatePresentation'
 import {readOperationPresentation} from './aggregationPolicy'
 import {collectionMessages} from './messages'
 import type {MetricAggregateGroup,ReadOperation} from './types'
-const props=defineProps<{groups:MetricAggregateGroup[];bounds:[number,number];interval:number;visible:boolean;preferenceKey?:string;variantLabel?:string}>()
+const props=defineProps<{groups:MetricAggregateGroup[];bounds:[number,number];interval:number;visible:boolean;preferenceKey?:string;variantLabel?:string;hideMembers?:boolean}>()
 defineEmits<{(event:'members'):void}>()
 const {t,locale}=useI18n({useScope:'local',messages:{zh:{...metricMessages.zh,...collectionMessages.zh},en:{...metricMessages.en,...collectionMessages.en}}})
 const selected=ref(props.groups.find(item=>item.output.metricId===item.displaySettings?.primaryOutput)?.output.metricId || props.groups[0].output.metricId)
