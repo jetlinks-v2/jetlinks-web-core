@@ -1,5 +1,8 @@
 export const collectionMessages = {
   zh: {
+    welcomeTitle:'这里还没有指标',welcomeHint:'查看在线时长、通信质量、用量等统计结果，了解对象的运行情况。',
+    newMetricDescription:'选择模板和数据来源，为当前对象开启计算。',existingMetricDescription:'把设备等对象正在计算的指标放到这里，直接查看原来的结果。',
+    linkedDescendants:'包含下级',linkedDescendantsHint:'同时显示下级对象添加的指标',
     addMetric:'添加指标',newMetric:'新建指标',newMetricHint:'选一个模板，为当前对象开始计算',existingMetric:'添加已有指标',existingMetricHint:'把正在计算的指标放到这里查看',manage:'管理指标',finishManage:'完成管理',selectConcrete:'请选择一个具体对象的指标',
     linked:'关联指标',
     collectionHint:'查看每个成员的结果',distributionHint:'按状态统计对象数量',averageHint:'对有效对象的读数取平均',minHint:'查看有效对象中的最低读数',maxHint:'查看有效对象中的最高读数',sumHint:'合计已声明互不重叠的贡献',ratioHint:'合并分子与分母后计算比例',
@@ -24,6 +27,9 @@ export const collectionMessages = {
     operationHint:'切换统计会改变结果含义，切换列表/对比只改变展示。', pageHint:'仅对比本页；汇总数字覆盖全部可见结果。',
   },
   en: {
+    welcomeTitle:'Start with a metric',welcomeHint:'View uptime, communication quality, usage and other statistics to understand how your objects are running.',
+    newMetricDescription:'Choose a template and data sources to start a calculation for this object.',existingMetricDescription:'Show a metric already calculated for a device or another object, using its original results.',
+    linkedDescendants:'Include descendants',linkedDescendantsHint:'Also show metrics added to descendant objects',
     addMetric:'Add metric',newMetric:'Create a metric',newMetricHint:'Choose a template to start calculating for this object',existingMetric:'Add an existing metric',existingMetricHint:'Show a metric that is already being calculated',manage:'Manage metrics',finishManage:'Done',selectConcrete:'Select a metric for a specific object',
     linked:'Linked metrics',
     collectionHint:'Inspect each member result',distributionHint:'Count objects in each state',averageHint:'Mean of valid object readings',minHint:'Lowest valid object reading',maxHint:'Highest valid object reading',sumHint:'Sum declared exclusive contributions',ratioHint:'Combine numerator and denominator facts',

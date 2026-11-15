@@ -418,6 +418,32 @@ test('重新打开配置恢复授权来源名称，映射修改后旧名称与�
   } finally { scope.stop() }
 })
 
+test('未发起来源选择的编辑器初始化和销毁不取消其他入口的选择', async () => {
+  const scope = effectScope(); let cancelled = 0
+  const picker = Object.assign(async () => undefined, { cancel:() => cancelled++ })
+  scope.run(() => useMetricEditor(ref({ ownerType:'space',ownerId:'floor2',editable:true }), ref(config()), ref(picker), {
+    configTemplate:async () => template(), selectable:async () => []
+  }))
+  await flush()
+  assert.equal(cancelled, 0)
+  scope.stop()
+  assert.equal(cancelled, 0)
+})
+
+test('销毁正在选择来源的编辑器取消选择且忽略迟到结果', async () => {
+  const scope = effectScope(); let finish; let cancelled = 0
+  const picker = Object.assign(() => new Promise(resolve => { finish = resolve }), { cancel:() => cancelled++ })
+  const view = scope.run(() => useMetricEditor(ref({ ownerType:'space',ownerId:'floor2',editable:true }), ref(config()), ref(picker), {
+    configTemplate:async () => template(), selectable:async () => []
+  }))
+  await flush()
+  const choosing = view.choose(template().inputDefinitions[0])
+  scope.stop()
+  assert.equal(cancelled, 1)
+  finish({ mapping:{ kind:'property', id:'late' }, label:'迟到来源' }); await choosing
+  assert.equal(view.draft.value.inputMappings.meter.id, 'energy')
+})
+
 test('切换模板取消原位来源选择，迟到选择不能覆盖新模板', async () => {
   const scope = effectScope(); let finish; let cancelled = 0
   const picker = Object.assign(() => new Promise(resolve => { finish = resolve }), { cancel:() => cancelled++, editor:{} })

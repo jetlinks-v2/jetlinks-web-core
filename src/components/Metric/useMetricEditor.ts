@@ -50,7 +50,12 @@ export function useMetricEditor(
   let generation = 0
   let sourceVersion = 0
   let choiceVersion = 0
-  function cancelChoice() { choiceVersion++; picker.value?.cancel?.(); choosing.value = '' }
+  function cancelChoice() {
+    choiceVersion++
+    // 抽屉退出动画期间，其他入口可能已开始选择；只取消当前编辑器发起的选择。
+    if (choosing.value) picker.value?.cancel?.()
+    choosing.value = ''
+  }
   async function refreshSources() {
     const token = ++sourceVersion
     const describe = picker.value?.describe

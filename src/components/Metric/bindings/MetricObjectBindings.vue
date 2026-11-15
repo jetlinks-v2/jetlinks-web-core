@@ -1,6 +1,5 @@
 <template>
   <section class="metric-bindings">
-    <header v-if="context.readScopes?.some(scope=>scope.tree)" class="metric-bindings__tools"><a-checkbox v-model:checked="state.includeDescendants.value">{{ t('descendants') }}</a-checkbox></header>
     <a-alert v-if="error" type="error" show-icon :message="t(state.pendingAdd.value ? 'addFailed' : 'failed')" :description="error"><template #action><template v-if="state.pendingAdd.value"><a-button :loading="state.busy.value" @click="state.retryAdd">{{ t('retryAdd') }}</a-button><a-button :disabled="state.busy.value" @click="state.cancelAdd">{{ t('cancel') }}</a-button></template><a-button v-else @click="refresh">{{ t('retry') }}</a-button></template></a-alert>
     <a-skeleton v-if="state.page.state.value.status==='loading' && !state.page.data.value || results.query.state.value.status==='loading' && !results.query.data.value" active :paragraph="{rows:3}" />
     <div v-else class="metric-bindings__grid"><MetricBindingCard v-for="card in visibleCards" :key="card.key" :card="card" :context="context" :busy="state.busy.value" :managing="managing" @inspect="selected=$event" @remove="state.remove" @manage-location="$emit('manageLocation',$event)" /></div>

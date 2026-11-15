@@ -21,9 +21,11 @@
     <a-alert v-if="actionError" type="error" show-icon :message="t('deleteFailed')" :description="actionError" />
     <a-skeleton v-if="loading && !configurations.length" active :paragraph="{rows:4}" />
     <template v-else>
-      <a-empty v-if="!configurations.length && !error && !suppressEmpty" :description="t('noMetrics')">
-        <a-button v-if="context.editable" type="primary" @click="hideAdd ? emit('addRequested') : openEditor()">{{ t('add') }}</a-button>
-      </a-empty>
+      <template v-if="!configurations.length && !error && !suppressEmpty"><slot name="empty">
+        <a-empty class="metric-panel__empty" :image="hideAdd ? Empty.PRESENTED_IMAGE_SIMPLE : undefined" :description="t('noMetrics')">
+          <a-button v-if="context.editable && !hideAdd" type="primary" @click="openEditor()">{{ t('add') }}</a-button>
+        </a-empty>
+      </slot></template>
       <div v-else class="metric-panel__grid">
         <MetricCardShell v-for="card in cardGroups" :key="card.reference.configId" :title="configName(card.config)" :icon="metricConfigurationIcon(templates[card.reference.configId], card.config)" class="metric-panel__group" :class="{ 'is-selected': reference?.configId === card.reference.configId, 'is-stopped': card.config.state === 'disabled', 'is-boolean': typeof outputs[card.reference.configId]?.[card.reference.outputId]?.value === 'boolean' || card.output.valueType === 'boolean' }">
         <template #actions>
@@ -89,7 +91,7 @@
 <script setup lang="ts">
 import { computed, nextTick, provide, ref, toRef, watch, type ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Modal } from 'ant-design-vue'
+import { Empty, Modal } from 'ant-design-vue'
 import JlDrawerShell from '../JlDrawerShell/index.vue'
 import MetricConfigEditor from './MetricConfigEditor.vue'
 import MetricResult from './MetricResult.vue'
@@ -115,7 +117,7 @@ import { localizedTemplate } from './template/text'
 import { metricMessages } from './messages'
 import type { MetricAlarmReference, MetricTemplateReference, MetricConfig, MetricContext, MetricReference, MetricSourcePicker } from './types'
 const props = defineProps<{ context: MetricContext; pickSource?: MetricSourcePicker; initialReference?: MetricReference; initialTemplate?:MetricTemplateReference; detailLinkLabel?: string; hideIdentity?: boolean; hideAdd?:boolean; suppressEmpty?:boolean; managing?:boolean }>()
-const emit = defineEmits<{ (event:'applyStarted'):void; (event:'addRequested'):void; (event: 'openDetailLink', reference: MetricAlarmReference): void; (event:'inspectScope', selection:{memberType:string;templateId:string;group?:string}):void }>()
+const emit = defineEmits<{ (event:'applyStarted'):void; (event: 'openDetailLink', reference: MetricAlarmReference): void; (event:'inspectScope', selection:{memberType:string;templateId:string;group?:string}):void }>()
 const configEditor = ref<InstanceType<typeof MetricConfigEditor>>()
 async function requestDismiss() { if (!editorOpen.value || await configEditor.value?.canLeave()) dismissDrawer() }
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
@@ -197,6 +199,7 @@ defineExpose({create:()=>openEditor(),async canLeave(){if(editorOpen.value && !a
 </script>
 <style scoped>
 .metric-panel { display:grid; gap:var(--space-4,16px); min-width:0; container:metric-panel / inline-size }
+.metric-panel__empty{margin:var(--space-8,32px) 0}
 .metric-panel__editor-shell :deep(.drawer-body) { display:flex; flex-direction:column; overflow:hidden; padding:0 }
 .metric-panel__detail-shell :deep(.drawer-head) { padding:8px 12px; gap:10px }
 .metric-panel__detail-shell :deep(.head-icon) { width:32px; height:32px; border-radius:8px }
