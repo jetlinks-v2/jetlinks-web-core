@@ -1,26 +1,41 @@
-import {computed,onScopeDispose,ref,watch,type Ref} from 'vue'
+import {computed,onScopeDispose,ref,shallowRef,watch,type Ref} from 'vue'
 import {useDiagnosticQuery} from '../../../hooks/useDiagnosticQuery'
 import {metricApi} from '../api'
 import {errorText} from '../service'
-import {collectMetricResources} from '../extensions/registry'
-import type {MetricApi,MetricContext,MetricObjectBindingPage,MetricSourcePicker} from '../types'
+import type {MetricApi,MetricContext,MetricObjectBinding,MetricObjectBindingPage,MetricSourcePicker} from '../types'
 import type {MetricAggregateResult} from '../collection/types'
 
 /** 对象切换使旧请求失效；关联写入原宿主，汇总只发一个有界数据库请求。 */
 export function useMetricBindings(context:Ref<MetricContext>,picker:Ref<MetricSourcePicker | undefined>,api:MetricApi=metricApi) {
   const page=useDiagnosticQuery<MetricObjectBindingPage>(),aggregate=useDiagnosticQuery<MetricAggregateResult>()
   const busy=ref(false),mutationError=ref(''),targetType=ref(''),range=ref(3600000),customRange=ref<[number,number]>()
+  const includeDescendants=ref(true)
+  const summaryActive=ref(false)
+  const pendingAdd=shallowRef<MetricObjectBinding>()
+  let loadedPages=1,writeGeneration=0,readGeneration=0,timer:ReturnType<typeof setTimeout> | undefined,disposed=false
   const key=computed(()=>JSON.stringify([context.value.ownerType,context.value.ownerId]))
-  const types=computed(()=>[...new Set([...(page.data.value?.items.map(item=>item.reference.targetType) || []),
-    ...(context.value.readScopes?.map(scope=>scope.memberType) || []),
-    ...collectMetricResources().dimensions.map(item=>item.provider.ownerType)])])
+  const types=computed(()=>[...new Set(page.data.value?.items.flatMap(item=>item.reference ? [item.reference.targetType] : []) || [])])
   async function refresh(cursor?:string) {
-    const owner={...context.value},previous=cursor ? page.data.value?.items || [] : []
+    clearTimeout(timer)
+    const token=++readGeneration
+    const owner={...context.value},current=key.value,descendants=includeDescendants.value,previous=cursor ? page.data.value?.items || [] : []
+    const pages=cursor ? 1 : loadedPages
     await page.run(async()=>{
-      const value=await api.objectBindings!(owner.ownerType,owner.ownerId,cursor)
-      return {...value,items:[...previous,...value.items]}
-    },!!owner.ownerId)
+      let next=cursor,items=[...previous]
+      for(let index=0;index<pages;index++){
+        const value=await api.objectBindings!(owner.ownerType,owner.ownerId,next,descendants)
+        items.push(...value.items);next=value.nextCursor
+        if(!next || key.value!==current || token!==readGeneration)break
+      }
+      return {items,nextCursor:next}
+    },!!owner.ownerId,{retainData:true})
+    if(current!==key.value || token!==readGeneration || disposed)return
+    if(page.state.value.status==='error')page.clear({...page.state.value})
+    if(cursor && page.state.value.status==='ready')loadedPages++
+    // 与原结果面板同频重新授权；显式加载的页数有界保留，不因后台刷新丢掉后续页。
+    scheduleRefresh()
   }
+  function scheduleRefresh(){timer=setTimeout(()=>{if(typeof document==='undefined' || !document.hidden)void refresh();else scheduleRefresh()},15000)}
   async function summarize() {
     const owner={...context.value},type=targetType.value,to=customRange.value?.[1] ?? Date.now(),from=customRange.value?.[0] ?? to-range.value
     await aggregate.run(()=>api.aggregateLinked!({objectType:owner.ownerType,objectId:owner.ownerId,targetType:type,from,to,
@@ -36,23 +51,33 @@ export function useMetricBindings(context:Ref<MetricContext>,picker:Ref<MetricSo
     if (value.kind!=='metric' || !value.configId || !value.id || !value.thingType || !value.thingId || value.thingId==='*') {
       mutationError.value=invalidMessage; return
     }
-    await mutate(()=>api.bindObjectMetric!({objectType:owner.ownerType,objectId:owner.ownerId,configId:value.configId!,
-      outputId:value.id,targetType:value.thingType!,targetId:value.thingId!}),current)
+    pendingAdd.value={objectType:owner.ownerType,objectId:owner.ownerId,configId:value.configId!,
+      outputId:value.id,targetType:value.thingType!,targetId:value.thingId!}
+    await retryAdd()
   }
+  /** 添加失败保留已选结果供重试，切换对象或明确取消后失效。 */
+  async function retryAdd(){
+    const request=pendingAdd.value
+    if(!request)return
+    if(await mutate(()=>api.bindObjectMetric!(request)) && pendingAdd.value===request)pendingAdd.value=undefined
+  }
+  function cancelAdd(){pendingAdd.value=undefined;mutationError.value=''}
   async function mutate(action:()=>Promise<unknown>,current=key.value) {
-    if (busy.value) return
+    if (busy.value) return false
+    const token=++writeGeneration
     busy.value=true;mutationError.value=''
-    try {await action();if(current===key.value)await refresh()}
-    catch(error){if(current===key.value)mutationError.value=errorText(error)}
-    finally {busy.value=false}
+    try {await action();if(current===key.value){await refresh();if(summaryActive.value && targetType.value)await summarize()};return true}
+    catch(error){if(current===key.value)mutationError.value=errorText(error);return false}
+    finally {if(token===writeGeneration)busy.value=false}
   }
   function remove(id:string) {
     const owner={...context.value}
     return mutate(()=>api.unbindObjectMetric!(owner.ownerType,owner.ownerId,id))
   }
-  watch(key,()=>{picker.value?.cancel?.();page.clear();aggregate.clear();targetType.value='';mutationError.value='';void refresh()},{immediate:true})
+  watch(key,()=>{picker.value?.cancel?.();page.clear();aggregate.clear();loadedPages=1;writeGeneration++;busy.value=false;summaryActive.value=false;targetType.value='';cancelAdd();void refresh()},{immediate:true})
   watch(types,values=>{if(!values.includes(targetType.value))targetType.value=values[0] || ''})
-  watch([targetType,range,customRange],()=>{aggregate.clear();if(targetType.value)void summarize()})
-  onScopeDispose(()=>picker.value?.cancel?.())
-  return {page,aggregate,busy,mutationError,targetType,types,range,customRange,refresh,summarize,add,remove}
+  watch([targetType,range,customRange,summaryActive],()=>{aggregate.clear();if(summaryActive.value && targetType.value)void summarize()})
+  watch(includeDescendants,()=>{loadedPages=1;page.clear();aggregate.clear();void refresh()})
+  onScopeDispose(()=>{disposed=true;clearTimeout(timer);picker.value?.cancel?.()})
+  return {page,aggregate,busy,mutationError,pendingAdd,retryAdd,cancelAdd,targetType,types,range,customRange,includeDescendants,summaryActive,refresh,summarize,add,remove}
 }

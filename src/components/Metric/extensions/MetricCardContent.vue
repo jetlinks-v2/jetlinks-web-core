@@ -9,7 +9,7 @@
     </template>
   </MetricValueView>
   <strong v-else class="metric-card-empty">—</strong>
-  <div v-if="configuration.state !== 'disabled' || historyValues.length" class="metric-card-content__trend">
+  <div v-if="!hideTrend && output.persist !== false && !output.latestOnly && (configuration.state !== 'disabled' || historyValues.length)" class="metric-card-content__trend">
     <span v-if="history?.error" class="metric-card-content__error">{{ t('historyFailed') }}</span>
     <span v-else-if="!history || history.loading && !history.values.length" class="metric-card-content__pending">{{ t('loadingHistory') }}</span>
     <MetricStateHistory v-else-if="intervals" :labels="labels" :values="historyValues" :current="value" :bounds="history.bounds" compact />
@@ -41,7 +41,7 @@ import { metricInputDiagnostics } from '../sourceDiagnostics'
 import { metricHistoryKey } from '../useMetricTrends'
 import type { MetricConfig, MetricContext, MetricRuntime, MetricTemplate, MetricTemplateOutput, MetricValue } from '../types'
 // 与现有 SFC 一样内联宏结构，兼容 setup-name-support 的匿名预编译；领域类型仍复用共享契约。
-const props = defineProps<{ context: MetricContext; configuration: MetricConfig; template: MetricTemplate; output: MetricTemplateOutput; value?: MetricValue; runtime?: MetricRuntime }>()
+const props = defineProps<{ context: MetricContext; configuration: MetricConfig; template: MetricTemplate; output: MetricTemplateOutput; value?: MetricValue; runtime?: MetricRuntime; hideTrend?:boolean }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const { provider, missing, settings } = useMetricPresentation(toRef(props, 'template'), toRef(props, 'configuration'))
 const failed = ref(false)

@@ -13,7 +13,7 @@ function result<T>(response: { result: T; status?: number; message?: string }): 
   return response.result
 }
 export const metricApi: MetricApi = {
-  objectBindings: async (type, objectId, cursor) => result(await http.get<import('./types').MetricObjectBindingPage>(`/metric/bindings/${id(type)}/${id(objectId)}`, {cursor}, options)),
+  objectBindings: async (type, objectId, cursor, includeDescendants) => result(await http.get<import('./types').MetricObjectBindingPage>(`/metric/bindings/${id(type)}/${id(objectId)}`, {cursor,includeDescendants}, options)),
   bindObjectMetric: async binding => result(await http.post<import('./types').MetricObjectBindingView>('/metric/bindings', binding, options)),
   unbindObjectMetric: async (type, objectId, bindingId) => { result(await http.remove(`/metric/bindings/${id(type)}/${id(objectId)}/${id(bindingId)}`, undefined, options)) },
   aggregateLinked: async query => result(await http.post<import('./collection/types').MetricAggregateResult>('/metric/bindings/_aggregate', query, options)),

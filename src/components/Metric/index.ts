@@ -7,6 +7,7 @@ export { default as MetricTemplateManager } from './template/MetricTemplateManag
 export { default as MetricWorkspace } from './workspace/MetricWorkspace.vue'
 export { metricApi } from './api'
 export { default as MetricParameterValue } from './MetricParameterValue.vue'
+export { default as MetricValueView } from './MetricValue.vue'
 export { metricSourceSchema, metricSourceField, metricSourceMatchesSemantics } from './sourceSchema'
 export { structureMetricTemplate } from './template/structureExpressions'
 export { metricTemplateTextEntries } from './template/text'

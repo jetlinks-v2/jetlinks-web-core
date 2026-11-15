@@ -4,7 +4,7 @@
       <div v-if="!hideIdentity" class="metric-panel__identity"><slot name="object-heading"><span class="metric-panel__object-icon"><AIcon type="DashboardOutlined" /></span><h3 :title="context.label">{{ context.label || t('title') }}</h3></slot><slot name="object-actions" /></div>
     </header>
     <div v-if="configurations.length" class="metric-panel__tools">
-      <div class="metric-panel__section-title">{{ t('currentResults') }} <small>{{ t('metricCount', { count: configurations.length }) }}</small></div>
+      <div v-if="!hideAdd" class="metric-panel__section-title">{{ t('currentResults') }} <small>{{ t('metricCount', { count: configurations.length }) }}</small></div>
       <div class="metric-panel__time">
         <MetricTimeRange v-model:range="trends.range.value" v-model:custom-range="trends.customRange.value" />
         <a-dropdown :trigger="['click']">
@@ -12,16 +12,17 @@
           <template #overlay><a-menu :selected-keys="[String(refreshInterval)]" @click="changeRefreshInterval"><a-menu-item v-for="interval in [1000, 5000, 15000]" :key="String(interval)"><AIcon :type="interval ? 'ClockCircleOutlined' : 'ThunderboltOutlined'" /> {{ interval ? t('refreshSeconds', { seconds: interval / 1000 }) : t('realtimeFull') }}</a-menu-item></a-menu></template>
         </a-dropdown>
         <a-button type="text" size="small" :aria-label="t('refresh')" :title="t('refresh')" :loading="loading" @click="refreshAll"><AIcon type="ReloadOutlined" /></a-button>
-        <a-button v-if="context.editable" type="primary" size="small" @click="openEditor()"><AIcon type="PlusOutlined" /> {{ t('add') }}</a-button>
+        <a-button v-if="context.editable && !hideAdd" type="primary" size="small" @click="openEditor()"><AIcon type="PlusOutlined" /> {{ t('add') }}</a-button>
       </div>
     </div>
     <a-alert v-if="error" type="error" show-icon :message="t('readFailed')" :description="error">
       <template #action><a-button size="small" @click="refreshAll">{{ t('retry') }}</a-button></template>
     </a-alert>
     <a-alert v-if="actionError" type="error" show-icon :message="t('deleteFailed')" :description="actionError" />
-    <a-spin :spinning="loading">
-      <a-empty v-if="!loading && !configurations.length && !error" :description="t('noMetrics')">
-        <a-button v-if="context.editable" type="primary" @click="openEditor()">{{ t('add') }}</a-button>
+    <a-skeleton v-if="loading && !configurations.length" active :paragraph="{rows:4}" />
+    <template v-else>
+      <a-empty v-if="!configurations.length && !error && !suppressEmpty" :description="t('noMetrics')">
+        <a-button v-if="context.editable" type="primary" @click="hideAdd ? emit('addRequested') : openEditor()">{{ t('add') }}</a-button>
       </a-empty>
       <div v-else class="metric-panel__grid">
         <MetricCardShell v-for="card in cardGroups" :key="card.reference.configId" :title="configName(card.config)" :icon="metricConfigurationIcon(templates[card.reference.configId], card.config)" class="metric-panel__group" :class="{ 'is-selected': reference?.configId === card.reference.configId, 'is-stopped': card.config.state === 'disabled', 'is-boolean': typeof outputs[card.reference.configId]?.[card.reference.outputId]?.value === 'boolean' || card.output.valueType === 'boolean' }">
@@ -30,8 +31,8 @@
             <template #trigger><a-button type="text" size="small" class="metric-panel__formula" :aria-label="t('formula')" :title="t('formula')">ƒx</a-button></template>
           </TemplateFormulaDisplay>
           <span v-if="!canManage(card.config) && card.config.scope === 'children'" class="metric-panel__inherited" :title="t('scopeManaged')"><AIcon type="LinkOutlined" />{{ t('inherited') }}</span>
-          <a-button v-if="canManage(card.config)" type="text" size="small" class="metric-panel__edit" :aria-label="t('edit')" :title="t('edit')" @click="openEditor(card.config)"><AIcon type="EditOutlined" /></a-button>
-          <MetricConfigActions v-if="canManage(card.config)" class="metric-panel__actions" :configuration="card.config" :busy="busyId === card.config.id" @edit="openEditor(card.config)" @toggle="toggleConfig(card.config)" @remove="confirmRemove(card.config)" />
+          <a-button v-if="canManage(card.config) && (!hideAdd || managing)" type="text" size="small" class="metric-panel__edit" :aria-label="t('edit')" :title="t('edit')" @click="openEditor(card.config)"><AIcon type="EditOutlined" /></a-button>
+          <MetricConfigActions v-if="canManage(card.config) && (!hideAdd || managing)" class="metric-panel__actions" :configuration="card.config" :busy="busyId === card.config.id" @edit="openEditor(card.config)" @toggle="toggleConfig(card.config)" @remove="confirmRemove(card.config)" />
         </template>
         <MetricScopeSummary v-if="scopeDefinition(card.config)" :ref="element => setScopeElement(card.reference.configId, element)" :state="scopeOverview.state(card.config)" @refresh="scopeOverview.refresh" @inspect="emit('inspectScope', { memberType:card.config.targetType || context.inheritance?.targetType || '', templateId:card.config.templateId, group:$event })" />
         <button v-else type="button"
@@ -65,7 +66,8 @@
           <template v-if="canManage(config)" #action><a-space><a-button size="small" @click="openEditor(config)">{{ t('edit') }}</a-button><a-button danger size="small" :loading="busyId === config.id" @click="confirmRemove(config)">{{ t('deleteMetric') }}</a-button></a-space></template>
         </a-alert>
       </div>
-    </a-spin>
+    </template>
+    <slot :references="visibleReferences" />
     <JlDrawerShell :open="editorOpen || !!reference" :title="editorOpen ? (editing ? t('edit') : t('add')) : selected && configName(selected) || t('unnamedOutput')"
       :sub="editorOpen ? undefined : selected && configName(selected)" :width="860" :fullscreen="editorOpen" :hide-head="editorOpen" :class="{ 'metric-panel__editor-shell':editorOpen, 'metric-panel__detail-shell':!editorOpen }" :icon="editorOpen ? 'SettingOutlined' : 'LineChartOutlined'" @update:open="!$event && requestDismiss()" @after-open-change="restoreCardFocus">
       <template #head><div class="metric-panel__drawer-title"><b>{{ editorOpen ? (editing ? t('edit') : t('add')) : selected && configName(selected) || t('unnamedOutput') }}</b><a-button v-if="!editorOpen && selected && canManage(selected)" type="text" size="small" :aria-label="t('edit')" :title="t('edit')" @click="openEditor(selected)"><AIcon type="EditOutlined" /></a-button></div><p v-if="!editorOpen" class="metric-panel__drawer-subtitle">{{ context.label }}</p></template>
@@ -112,8 +114,8 @@ import { metricOutputName } from './presentation'
 import { localizedTemplate } from './template/text'
 import { metricMessages } from './messages'
 import type { MetricAlarmReference, MetricTemplateReference, MetricConfig, MetricContext, MetricReference, MetricSourcePicker } from './types'
-const props = defineProps<{ context: MetricContext; pickSource?: MetricSourcePicker; initialReference?: MetricReference; initialTemplate?:MetricTemplateReference; detailLinkLabel?: string; hideIdentity?: boolean }>()
-const emit = defineEmits<{ (event:'applyStarted'):void; (event: 'openDetailLink', reference: MetricAlarmReference): void; (event:'inspectScope', selection:{memberType:string;templateId:string;group?:string}):void }>()
+const props = defineProps<{ context: MetricContext; pickSource?: MetricSourcePicker; initialReference?: MetricReference; initialTemplate?:MetricTemplateReference; detailLinkLabel?: string; hideIdentity?: boolean; hideAdd?:boolean; suppressEmpty?:boolean; managing?:boolean }>()
+const emit = defineEmits<{ (event:'applyStarted'):void; (event:'addRequested'):void; (event: 'openDetailLink', reference: MetricAlarmReference): void; (event:'inspectScope', selection:{memberType:string;templateId:string;group?:string}):void }>()
 const configEditor = ref<InstanceType<typeof MetricConfigEditor>>()
 async function requestDismiss() { if (!editorOpen.value || await configEditor.value?.canLeave()) dismissDrawer() }
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
@@ -144,6 +146,8 @@ const trendTargets = computed(() => error.value ? [] : configurations.value.flat
 }))
 function scopeDefinition(config: MetricConfig) { return config.scope === 'children' && config.ownerType === props.context.ownerType && config.ownerId === props.context.ownerId }
 const scopeConfigs = computed(() => configurations.value.filter(scopeDefinition))
+const visibleReferences=computed(()=>cardGroups.value.flatMap(card=>scopeDefinition(card.config) ? [] : [card.reference,...card.secondary.map(item=>item.reference)]
+  .map(reference=>({...reference,...metricDataTarget(card.config,props.context)}))))
 const scopeOverview = useMetricScopeOverview(toRef(props, 'context'), scopeConfigs)
 function setScopeElement(id:string, element:Element | ComponentPublicInstance | null) {
   const root=element && ('$el' in element ? element.$el : element)
@@ -189,6 +193,7 @@ function confirmRemove(config: MetricConfig) {
 function openDetailLink() {
   if (props.detailLinkLabel && reference.value) emit('openDetailLink', { ...reference.value, ownerType: props.context.ownerType, ownerId: props.context.ownerId })
 }
+defineExpose({create:()=>openEditor(),async canLeave(){if(editorOpen.value && !await configEditor.value?.canLeave())return false;dismissDrawer();return true}})
 </script>
 <style scoped>
 .metric-panel { display:grid; gap:var(--space-4,16px); min-width:0; container:metric-panel / inline-size }

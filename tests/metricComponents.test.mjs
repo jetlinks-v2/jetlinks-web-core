@@ -1133,9 +1133,11 @@ test('窄屏聚合、成员和本级视图始终可切换对象，宽窄往返�
     nodes(view.root,'a-drawer')[0].props.onClose();await flush()
   }
   try{
-    await flush();navigators.get('line')({ownerId:'a',label:'Line A'});await ready;await flush()
+    await flush();navigators.get('line')({ownerId:'a',label:'Line A'});await flush()
+    assert.equal(findText(view.root,'a-button','viewMembers'),undefined,'results are the initial task')
+    await openNavigation();await click(findText(view.root,'button','overview'));await ready;await flush()
     assert.ok(findText(view.root,'a-button','viewMembers'));await openNavigation()
-    await click(findText(view.root,'button','own'));await openNavigation()
+    await click(findText(view.root,'button','metric'));await openNavigation()
     await click(findText(view.root,'button','overview'))
     await click(findText(view.root,'a-button','viewMembers'));await openNavigation()
     assert.ok(findText(view.root,'a-button','backOverview'))

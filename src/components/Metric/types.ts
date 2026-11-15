@@ -409,7 +409,7 @@ export interface MetricSimulationResponse {
   error?: string
 }
 export interface MetricApi {
-  objectBindings?(type:string,id:string,cursor?:string):Promise<MetricObjectBindingPage>
+  objectBindings?(type:string,id:string,cursor?:string,includeDescendants?:boolean):Promise<MetricObjectBindingPage>
   bindObjectMetric?(binding:MetricObjectBinding):Promise<MetricObjectBindingView>
   unbindObjectMetric?(type:string,id:string,bindingId:string):Promise<void>
   aggregateLinked?(query:MetricLinkedAggregateQuery):Promise<import('./collection/types').MetricAggregateResult>
@@ -451,7 +451,7 @@ export interface MetricApi {
 export interface MetricObjectBinding {
   objectType:string; objectId:string; configId:string; outputId:string; targetType:string; targetId:string
 }
-export interface MetricObjectBindingView { id:string; reference:MetricObjectBinding; pending:boolean; configName?:string }
+export interface MetricObjectBindingView { id:string; reference?:MetricObjectBinding; pending:boolean; configName?:string; addedAt?:{type:string;id:string}; unavailable?:boolean }
 export interface MetricObjectBindingPage { items:MetricObjectBindingView[]; nextCursor?:string }
 export interface MetricLinkedAggregateQuery {
   objectType:string; objectId:string; targetType:string; from:number; to:number; interval:number; templateIds?:string[]

@@ -7,7 +7,7 @@
       <template #right>
         <main class="metric-workspace__results">
           <MetricWorkspaceScope v-if="context && dimension" :key="JSON.stringify([scopeKey, dimension.moduleId, context.ownerType, context.ownerId])"
-            :provider="dimension.provider" :context="context" :initial-reference="initialReference" :initial-template="initialTemplate" @apply-started="emit('applyStarted')" :detail-link-label="businessRoute ? t('openBusiness') : undefined" @open-detail-link="reference => businessRoute && emit('toBusiness', businessRoute, reference)">
+            :provider="dimension.provider" :context="context" :initial-reference="initialReference" :initial-template="initialTemplate" @apply-started="emit('applyStarted')" :detail-link-label="businessRoute ? t('openBusiness') : undefined" @open-object="openMetricObject" @open-detail-link="reference => businessRoute && emit('toBusiness', businessRoute, reference)">
             <template #object-heading>
               <div class="metric-workspace__object-heading">
                 <a-button v-if="compact" ref="objectTrigger" type="text" size="small" :aria-label="t('selectObject')" :title="t('selectObject')" :aria-expanded="navigationOpen" @click="navigationOpen = true"><AIcon type="MenuUnfoldOutlined" /></a-button>
@@ -57,6 +57,11 @@ const navigationProps = computed(() => ({ scopeKey:props.scopeKey, dimensions:re
 function selectObject(object?: MetricObjectSelection, origin?: MetricSelectionOrigin) {
   confirmObject(object)
   if (object && origin !== 'validation') navigationOpen.value = false
+}
+/** 按添加位置切换同一工作区，名称与读权限仍由目标 navigator 重新确认。 */
+function openMetricObject(value:MetricWorkspaceSelection){
+  if(!resources.value.dimensions.some(item=>item.provider.ownerType===value.ownerType))return
+  chooseDimension(value.ownerType);selection.value={...value};confirmed.value=undefined;emit('update:selection',{...value})
 }
 async function restoreObjectFocus(open: boolean) { if (!open) { await nextTick(); objectTrigger.value?.$el?.focus({ preventScroll:true }) } }
 watch(compact, () => { navigationOpen.value = false })

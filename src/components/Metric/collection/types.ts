@@ -7,7 +7,7 @@ export interface MetricAggregateGroup {
   id:string;cardId:string;templateId:string;templateName:string;version:string;revision:number;output:MetricTemplateOutput;displaySettings?:Record<string,unknown>
   operations:ReadOperation[];defaultOperation:ReadOperation;stateLabels?:MetricStateLabel[];latest:MetricAggregatePoint;points:MetricAggregatePoint[];availability?:'noRecords'|'unsupported'
 }
-export interface MetricAggregateResult { readTime:number;from:number;to:number;interval:number;groups:MetricAggregateGroup[] }
+export interface MetricAggregateResult { readTime:number;from:number;to:number;interval:number;groups:MetricAggregateGroup[];availability?:'available'|'noRecords'|'unsupported' }
 export interface MetricReadAggregation {
   semantic: ReadSemantic
   operations: ReadOperation[]

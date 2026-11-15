@@ -1,11 +1,12 @@
 export const collectionMessages = {
   zh: {
+    addMetric:'添加指标',newMetric:'新建指标',newMetricHint:'选一个模板，为当前对象开始计算',existingMetric:'添加已有指标',existingMetricHint:'把正在计算的指标放到这里查看',manage:'管理指标',finishManage:'完成管理',selectConcrete:'请选择一个具体对象的指标',
     linked:'关联指标',
     collectionHint:'查看每个成员的结果',distributionHint:'按状态统计对象数量',averageHint:'对有效对象的读数取平均',minHint:'查看有效对象中的最低读数',maxHint:'查看有效对象中的最高读数',sumHint:'合计已声明互不重叠的贡献',ratioHint:'合并分子与分母后计算比例',
     cardVariant:'{version} · 修订{revision} · 口径{index}',templatePicker:'选择指标模板',allTemplates:'全部模板',templatesSelected:'已选 {count} 个模板',templateSelectionHint:'按模板查看汇总；点击卡片中的查看成员可追溯单个对象。',backOverview:'返回指标概览',noAggregationPolicy:'此输出仅提供成员结果',noAggregateRecords:'所选时段尚无可聚合记录',memberValuesAvailable:'可查看成员的当前结果与来源记录',
     outputsSelected:'已选 {count} 项输出',searchOutputs:'搜索模板或输出',selectCategory:'全选本类',apply:'应用',cancel:'取消',resetAll:'显示全部',selectionHint:'按模板选择输出；多选仅展示成员结果。',selectionLimit:'最多选择 128 项输出，或显示全部',noMatches:'没有匹配的输出',
     unknown:'未确认',noTrendPoints:'所选时段没有有效趋势点',
-    overview:'指标概览',membersTab:'成员明细',aggregateStored:'已有数据汇总',aggregateHint:'按所选时段已记录的对象统计，不新增计算。',aggregateHistoryHint:'每个桶按对象取最后一条记录后汇总；空桶表示没有记录，不延续旧值。',aggregateEmpty:'所选范围暂无支持汇总的指标记录',
+    overview:'成员汇总',membersTab:'成员明细',aggregateStored:'已有数据汇总',aggregateHint:'查看所选成员已经产生的指标结果。',aggregateHistoryHint:'每个时段使用各对象最后一次结果；没有记录的时段留空。',aggregateEmpty:'这段时间没有结果，可调整时段后重试',aggregateUnsupported:'这些指标暂不支持汇总，可查看成员的单项结果',
     templateFilter:'仅查看此模板',
     effective:'生效覆盖 {count}/{total}', effectiveHint:'按当前可见配置和覆盖优先级统计已启用的成员；不代表已有有效计算结果。', inheritedCount:'继承 {count}', directCount:'设备配置 {count}', disabledCount:'停用 {count}', viewMembers:'查看成员', overviewFailed:'暂无法读取成员汇总', overviewLoading:'正在读取覆盖与结果', readFailures:'读取失败 {count}', moreStates:'更多状态', incompatible:'统计时段不一致，需分别查看', separateGroups:'存在 {count} 种计算口径，需分别查看',
     own:'本级指标配置', readOnly:'读取已有结果 · 不新增计算', output:'选择要对比的输出', all:'全部输出',
@@ -23,12 +24,13 @@ export const collectionMessages = {
     operationHint:'切换统计会改变结果含义，切换列表/对比只改变展示。', pageHint:'仅对比本页；汇总数字覆盖全部可见结果。',
   },
   en: {
+    addMetric:'Add metric',newMetric:'Create a metric',newMetricHint:'Choose a template to start calculating for this object',existingMetric:'Add an existing metric',existingMetricHint:'Show a metric that is already being calculated',manage:'Manage metrics',finishManage:'Done',selectConcrete:'Select a metric for a specific object',
     linked:'Linked metrics',
     collectionHint:'Inspect each member result',distributionHint:'Count objects in each state',averageHint:'Mean of valid object readings',minHint:'Lowest valid object reading',maxHint:'Highest valid object reading',sumHint:'Sum declared exclusive contributions',ratioHint:'Combine numerator and denominator facts',
     cardVariant:'{version} · r{revision} · variant {index}',templatePicker:'Select metric templates',allTemplates:'All templates',templatesSelected:'{count} templates selected',templateSelectionHint:'View summaries by template. Open members from a card to inspect individual objects.',backOverview:'Back to overview',noAggregationPolicy:'Individual results are available for this output',noAggregateRecords:'No comparable records in this period',memberValuesAvailable:'View members for current results and source records',
     outputsSelected:'{count} outputs selected',searchOutputs:'Find a template or output',selectCategory:'Select category',apply:'Apply',cancel:'Cancel',resetAll:'Show all',selectionHint:'Select outputs by template. Multiple outputs show member results only.',selectionLimit:'Choose up to 128 outputs, or show all',noMatches:'No matching outputs',
     unknown:'Unconfirmed',noTrendPoints:'No valid trend points in this period',
-    overview:'Overview',membersTab:'Members',aggregateStored:'Stored results',aggregateHint:'Summarizes recorded objects in the selected period without new calculations.',aggregateHistoryHint:'Each bucket summarizes the last recorded value per object. Empty buckets are not filled with older values.',aggregateEmpty:'No aggregatable metric records in this scope and period',
+    overview:'Member summary',membersTab:'Members',aggregateStored:'Stored results',aggregateHint:'View results already produced by the selected members.',aggregateHistoryHint:'Each period uses the last result per object. Periods without records stay empty.',aggregateEmpty:'No results in this period. Try another period.',aggregateUnsupported:'These metrics do not support summaries. View individual member results.',
     templateFilter:'This template only',
     effective:'Enabled coverage {count}/{total}', effectiveHint:'Members with an enabled visible effective configuration. This does not imply valid calculation results.', inheritedCount:'{count} inherited', directCount:'{count} direct', disabledCount:'{count} disabled', viewMembers:'View members', overviewFailed:'Member summary unavailable', overviewLoading:'Reading coverage and results', readFailures:'{count} reads failed', moreStates:'More states', incompatible:'Periods differ. View results separately.', separateGroups:'{count} calculation groups. View separately.',
     own:'Metrics configured here', readOnly:'Existing results · No new calculations', output:'Select an output to compare', all:'All outputs',

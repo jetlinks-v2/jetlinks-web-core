@@ -8,14 +8,15 @@
     </header>
     <a-alert v-if="error" type="error" show-icon :message="t('failed')" :description="error"><template #action><a-button @click="refresh">{{ t('retry') }}</a-button></template></a-alert>
     <p class="aggregate-overview__note">{{ t('aggregateHint') }}<time v-if="result">{{ t('refreshed',{time:new Date(result.readTime).toLocaleTimeString(String(locale))}) }}</time></p>
-    <a-spin :spinning="loading && !result">
-      <a-empty v-if="!loading && !cards.length && !error" :description="t('aggregateEmpty')" />
+    <a-skeleton v-if="loading && !result" active :paragraph="{rows:5}" />
+    <template v-else>
+      <a-empty v-if="!loading && !cards.length && !error" :description="t(result?.availability==='unsupported' ? 'aggregateUnsupported' : 'aggregateEmpty')" />
       <ResponsiveGrid v-else-if="result" min="min(100%,340px)" :gap="16">
         <div v-for="card in cards" :key="card.id" :ref="element=>observe(card.id,element as Element | null)">
           <MetricAggregateCard :groups="card.groups" :variant-label="card.variant" :preference-key="cardPreferenceKey(card.id)" :bounds="[result!.from,result!.to]" :interval="result!.interval" :visible="isVisible(card.id)" @members="$emit('members',{templateId:card.groups[0].templateId})" />
         </div>
       </ResponsiveGrid>
-    </a-spin>
+    </template>
   </section>
 </template>
 <script setup lang="ts">

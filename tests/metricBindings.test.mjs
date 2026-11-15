@@ -58,3 +58,16 @@ test('links require concrete outputs and failed refreshes clear previously visib
     assert.equal(state.page.data.value,undefined);assert.equal(state.aggregate.data.value,undefined)
   }finally{close()}
 })
+
+test('failed additions retain the selected result for retry and never carry it to another owner',async()=>{
+  const context=ref({ownerType:'zone',ownerId:'z'}),writes=[];let fail=true
+  const {state,close}=mount(context,async()=>({mapping:{kind:'metric',configId:'source',id:'usage',thingType:'device',thingId:'d'}}),{
+    objectBindings:async()=>({items:[]}),bindObjectMetric:async value=>{writes.push(value);if(fail)throw Error('write failed')},
+  })
+  try{
+    await state.add('concrete');assert.equal(state.pendingAdd.value.targetId,'d');assert.equal(state.mutationError.value,'write failed')
+    fail=false;await state.retryAdd();assert.deepEqual(writes[0],writes[1]);assert.equal(state.pendingAdd.value,undefined)
+    fail=true;await state.add('concrete');context.value={ownerType:'zone',ownerId:'another'};await flush()
+    assert.equal(state.pendingAdd.value,undefined);await state.retryAdd();assert.equal(writes.length,3)
+  }finally{close()}
+})
