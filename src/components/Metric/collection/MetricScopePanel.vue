@@ -2,7 +2,7 @@
   <div class="metric-scope-panel">
     <header class="metric-scope-panel__head">
       <div class="metric-scope-panel__identity"><slot name="object-heading"><strong>{{ context.label }}</strong></slot><slot name="object-actions" /></div>
-      <div v-if="context.editable" class="metric-scope-panel__actions">
+      <div v-if="context.editable && mode==='metrics'" class="metric-scope-panel__actions">
         <a-button v-if="mode==='metrics'" type="text" :aria-pressed="managing" @click="managing=!managing"><AIcon :type="managing ? 'CheckOutlined' : 'SettingOutlined'" />{{ t(managing ? 'finishManage' : 'manage') }}</a-button>
         <a-dropdown v-model:open="addOpen" :trigger="['click']" placement="bottomRight">
           <a-button type="primary" :loading="bindings.busy.value"><AIcon type="PlusOutlined" />{{ t('addMetric') }}</a-button>
@@ -19,7 +19,6 @@
       </a-tabs>
       <a-tooltip v-if="mode==='metrics' && context.readScopes.some(scope=>scope.tree)" :title="t('linkedDescendantsHint')"><a-checkbox v-model:checked="bindings.includeDescendants.value" class="metric-scope-panel__range">{{ t('linkedDescendants') }}</a-checkbox></a-tooltip>
     </div>
-    <nav v-if="mode!=='metrics' && context.readScopes && context.readScopes.length>1" class="metric-scope-panel__scopes" :aria-label="t('source')"><a-radio-group v-model:value="scopeType" size="small" @change="selection=undefined;mode='overview'"><a-radio-button v-for="scope in context.readScopes" :key="scope.memberType" :value="scope.memberType"><AIcon :type="scope.icon" /> {{ scope.label }}</a-radio-button></a-radio-group></nav>
     <MetricPanel v-show="mode==='metrics'" ref="panel" :context="context" :pick-source="pickSource" :initial-reference="initialReference" :initial-template="initialTemplate" :detail-link-label="detailLinkLabel" hide-identity hide-add :managing="managing" :suppress-empty="hasLinkedContent" @apply-started="$emit('applyStarted')" @inspect-scope="inspectScope" @open-detail-link="$emit('openDetailLink',$event)">
       <template #empty>
         <section class="metric-scope-panel__welcome">
@@ -33,7 +32,7 @@
       </template>
       <template #default="{references}"><MetricObjectBindings :context="context" :state="bindings" :managing="managing" :exclude="references" @manage-location="$emit('openObject',$event)" /></template>
     </MetricPanel>
-    <KeepAlive :max="1"><MetricAggregateOverview v-if="mode==='overview' && activeScope" :key="context.ownerType+':'+context.ownerId+':'+activeScope.memberType" :context="context" :scope="activeScope" @members="openMembers" /></KeepAlive>
+    <KeepAlive :max="1"><MetricAggregateOverview v-if="mode==='overview' && activeScope" :key="JSON.stringify([context.preferenceScope,context.ownerType,context.ownerId])" :context="context" :scope="activeScope" @scope="scopeType=$event" @members="openMembers" /></KeepAlive>
     <MetricCollection v-if="mode==='members' && activeScope" :key="context.ownerType+':'+context.ownerId+':'+activeScope.memberType" :context="context" :scope="activeScope" :selection="selection" @clear-selection="mode='overview';selection=undefined" />
   </div>
 </template>
@@ -76,20 +75,26 @@ function inspectScope(value:MetricCollectionSelection & {memberType:string}){
   selection.value={templateId:value.templateId,group:value.group};scopeType.value=value.memberType;mode.value='members'
 }
 function openMembers(value:MetricCollectionSelection){selection.value=value;mode.value='members'}
-watch([()=>props.context.ownerType,()=>props.context.ownerId],()=>{
+watch([()=>props.context.preferenceScope,()=>props.context.ownerType,()=>props.context.ownerId],()=>{
   selection.value=undefined;managing.value=false;addOpen.value=false;mode.value='metrics'
-  scopeType.value=(props.context.readScopes?.find(scope=>!scope.tree) || props.context.readScopes?.[0])?.memberType || ''
+  scopeType.value=props.context.readScopes?.[0]?.memberType || ''
 },{immediate:true})
+// 能力热变更后只保留仍可读的范围，避免旧成员明细继续停留在已移除的入口。
+watch(()=>props.context.readScopes,scopes=>{
+  if(scopes?.some(scope=>scope.memberType===scopeType.value))return
+  scopeType.value=scopes?.[0]?.memberType || '';selection.value=undefined
+  if(mode.value!=='metrics')mode.value=scopes?.length ? 'overview' : 'metrics'
+})
 watch([()=>props.initialReference,()=>props.initialTemplate],values=>{if(values.some(Boolean))mode.value='metrics'})
 </script>
 <style scoped>
 .metric-scope-panel{display:flex;flex-direction:column;gap:var(--space-4,16px);min-width:0}.metric-scope-panel__head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:var(--space-3,12px)}
-.metric-scope-panel__identity,.metric-scope-panel__actions{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%}.metric-scope-panel__identity{flex:1 1 180px}.metric-scope-panel__actions{margin-left:auto}
+.metric-scope-panel__identity,.metric-scope-panel__actions{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%}.metric-scope-panel__identity{flex:1 1 180px}.metric-scope-panel__actions{margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
 .metric-scope-panel__views{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;border-bottom:1px solid var(--line)}
 .metric-scope-panel__tabs{flex:1;min-width:180px}.metric-scope-panel__tabs :deep(.ant-tabs-nav){margin:0}.metric-scope-panel__tabs :deep(.ant-tabs-nav::before){border-bottom:0}.metric-scope-panel__tabs :deep(.ant-tabs-content-holder){display:none}
 .metric-scope-panel__range{flex:none;margin:0 0 8px;color:var(--ink-2);font-size:var(--fs-12,12px)}
 .metric-scope-panel :deep(.aggregate-overview),.metric-scope-panel :deep(.metric-collection){padding:0}
-.metric-scope-panel__scopes{min-width:0;overflow:auto}.metric-scope-panel__add{max-width:min(360px,calc(100vw - 32px))}
+.metric-scope-panel__add{max-width:min(360px,calc(100vw - 32px))}
 .metric-scope-panel__welcome{width:100%;max-width:680px;margin-inline:auto;padding-block:var(--space-8,32px)}
 .metric-scope-panel__welcome h3{margin:0;text-align:center;font-size:var(--fs-16,16px);font-weight:600;color:var(--ink-1)}
 .metric-scope-panel__welcome p{max-width:480px;margin:8px auto 24px;text-align:center;font-size:13px;line-height:1.7;color:var(--ink-3)}

@@ -12,7 +12,7 @@ export function useMetricCollection(context: Ref<MetricContext>, scope: Ref<Metr
   const view = ref<'list' | 'bars'>('list'), fallback = ref(false)
   const activeGroup = computed(() => result.value?.groups.find(item => item.id === group.value))
   // 同类型树查看下级节点；跨类型查看当前容器直接绑定的设备，不把当前节点冒充下级。
-  const depth = computed(() => descendants.value ? 'descendants'
+  const depth = computed(() => scope.value.tree && descendants.value ? 'descendants'
     : scope.value.tree && scope.value.memberType === context.value.ownerType ? 'children' : 'self')
   let sequence = 0, stopped = false, initialized = false
   const preferenceKey = () => context.value.preferenceScope ? `metric-collection:${JSON.stringify([context.value.preferenceScope,context.value.ownerType,context.value.ownerId,scope.value.memberType])}` : undefined
@@ -21,6 +21,7 @@ export function useMetricCollection(context: Ref<MetricContext>, scope: Ref<Metr
     try { return key ? JSON.parse(localStorage.getItem(key) || 'null') || undefined : undefined } catch { return undefined }
   }
   function savePreference() {
+    if(selection.value)return
     const key = preferenceKey()
     try { if (key) localStorage.setItem(key, JSON.stringify({ groups:selectedGroups.value ?? null, operation:operation.value, view:view.value, descendants:descendants.value })) } catch { /* Storage is optional. */ }
   }
@@ -37,7 +38,7 @@ export function useMetricCollection(context: Ref<MetricContext>, scope: Ref<Metr
       result.value = next
       if (!initialized) {
         initialized = true
-        const preference = readPreference()
+        const preference = selection.value ? undefined : readPreference()
         const primary = next.groups.filter(item => item.displaySettings?.primaryOutput === item.output.metricId)
         const saved = Array.isArray(preference?.groups) ? new Set(preference.groups.filter(id => typeof id === 'string').slice(0,128)) : undefined
         const restored = saved && next.groups.filter(item => saved.has(item.id)).map(item => item.id)
@@ -54,7 +55,7 @@ export function useMetricCollection(context: Ref<MetricContext>, scope: Ref<Metr
         savePreference()
         if (query.group !== group.value || JSON.stringify(query.groups) !== JSON.stringify(selectedGroups.value && selectedGroups.value.length > 1 ? selectedGroups.value : undefined) || query.operation !== operation.value) await refresh()
       }
-    } catch (cause) { if (current === sequence && !stopped) error.value = errorText(cause) }
+    } catch (cause) { if (current === sequence && !stopped) { error.value = errorText(cause);result.value=undefined;selected.value=undefined } }
     finally { if (current === sequence) loading.value = false }
   }
   function selectGroup(value?: string) {
@@ -76,8 +77,8 @@ export function useMetricCollection(context: Ref<MetricContext>, scope: Ref<Metr
   function changeView(value: 'list' | 'bars') { view.value = value; savePreference() }
   watch([() => context.value.preferenceScope, () => context.value.ownerType, () => context.value.ownerId, () => scope.value.memberType, selection], () => {
     // 首次请求即使用该对象的范围偏好，避免先扫描全部后代，也不继承上一对象的选择。
-    descendants.value = readPreference()?.descendants ?? true
-    initialized = false; selectedGroups.value = selection.value?.group ? [selection.value.group] : undefined; operation.value = 'collection'; page.value = 1; selected.value = undefined; void refresh()
+    descendants.value = selection.value?.descendants ?? readPreference()?.descendants ?? true
+    initialized = false; result.value=undefined;selectedGroups.value = selection.value?.group ? [selection.value.group] : undefined; operation.value = 'collection'; page.value = 1; selected.value = undefined; void refresh()
   }, { immediate:true })
   onBeforeUnmount(() => { stopped = true; sequence++ })
   return { result, loading, error, group, selectedGroups, operation, page, descendants, view, fallback, activeGroup, selected,

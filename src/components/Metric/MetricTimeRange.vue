@@ -1,8 +1,8 @@
 <template>
-  <div class="metric-time-range" :aria-label="t('trendRange')">
+  <div class="metric-time-range" :class="{'is-compact':compact}" :aria-label="t('trendRange')">
     <span class="metric-time-range__label"><AIcon type="ClockCircleOutlined" /> {{ t('trendRange') }}</span>
     <div class="metric-time-range__choices">
-      <button v-for="item in options" :key="item.value" type="button" :aria-pressed="!customRange && range === item.value" @click="choose(item.value)">{{ t(item.label) }}</button>
+      <button v-for="item in options" :key="item.value" type="button" :title="t(item.label)" :aria-label="t(item.label)" :aria-pressed="!customRange && range === item.value" @click="choose(item.value)"><span class="metric-time-range__full">{{ t(item.label) }}</span><span v-if="compact" class="metric-time-range__short" aria-hidden="true">{{ t(item.label+'Compact') }}</span></button>
       <a-popover v-model:open="open" trigger="click" placement="bottomRight">
         <template #content><a-range-picker :value="dates" show-time :placeholder="[t('rangeStart'), t('rangeEnd')]" @change="setDates" /></template>
         <button type="button" :aria-pressed="!!customRange" :title="customLabel || t('custom')" :aria-label="t('custom')"><AIcon type="CalendarOutlined" /></button>
@@ -16,7 +16,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs, { type Dayjs } from 'dayjs'
 import { metricMessages } from './messages'
-const props = defineProps<{ range: number; customRange?: [number, number] }>()
+const props = defineProps<{ range: number; customRange?: [number, number]; compact?:boolean }>()
 const emit = defineEmits<{ (event: 'update:range', value: number): void; (event: 'update:customRange', value: [number, number] | undefined): void }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const options = [{ value: 3600000, label: 'hour' }, { value: 86400000, label: 'day' }]
@@ -34,5 +34,7 @@ function setDates(value: [string, string] | [Dayjs, Dayjs] | null) { emit('updat
 .metric-time-range button { display:inline-flex; align-items:center; justify-content:center; height:24px; min-width:24px; border:0; background:transparent; color:var(--ink-2); border-radius:4px; padding:2px 8px; font:inherit; font-size:var(--fs-12,12px); line-height:20px; cursor:pointer; white-space:nowrap }
 .metric-time-range button[aria-pressed=true] { color:var(--accent); background:var(--panel-background) }
 .metric-time-range button:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
+.metric-time-range__short { display:none }
 @media(max-width:600px) { .metric-time-range__label { display:none } }
+@media(max-width:600px) { .metric-time-range.is-compact .metric-time-range__full { display:none }.metric-time-range.is-compact .metric-time-range__short { display:inline } }
 </style>

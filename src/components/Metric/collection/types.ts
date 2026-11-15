@@ -27,7 +27,8 @@ export interface MetricCollectionQuery {
   includeUnconfigured?: boolean
   pageByMember?: boolean
 }
-export interface MetricCollectionSelection { templateId:string; group?:string }
+/** Current-result drilldown carries the summary scope, never an implied historical time range. */
+export interface MetricCollectionSelection { templateId?:string; group?:string; descendants?:boolean }
 export interface MetricScopeOverviewRequest {
   rootType:string; rootId:string; memberType:string; depth:'self'|'children'|'descendants'; templateIds:string[]
 }

@@ -1,13 +1,13 @@
-import { onActivated,onDeactivated,onScopeDispose,ref,watch,type Ref } from 'vue'
+import { computed,onActivated,onDeactivated,onScopeDispose,ref,watch,type Ref } from 'vue'
 import { metricApi } from '../api'
 import { errorText } from '../service'
 import type { MetricApi,MetricContext } from '../types'
-import type { MetricAggregateResult,MetricCollectionGroup,MetricReadScopeOption } from './types'
+import type { MetricAggregateResult,MetricCollectionGroup,MetricCollectionResult,MetricReadScopeOption } from './types'
 
 /** One bounded scope request, no device fan-out. Keep existing charts mounted while refreshing. */
 export function useMetricAggregate(context:Ref<MetricContext>,scope:Ref<MetricReadScopeOption>,api:MetricApi=metricApi) {
   const result=ref<MetricAggregateResult>(),error=ref(''),loading=ref(false),range=ref(3600000),customRange=ref<[number,number]>(),descendants=ref(true)
-  const directory=ref<MetricCollectionGroup[]>(),selectedTemplates=ref<string[]>()
+  const catalog=ref<MetricCollectionResult>(),directory=computed(()=>catalog.value?.groups),selectedTemplates=ref<string[]>()
   const preferenceKey=()=>context.value.preferenceScope ? 'metric-aggregate:'+JSON.stringify([context.value.preferenceScope,context.value.ownerType,context.value.ownerId,scope.value.memberType]) : undefined
   function restoreTemplates(groups:MetricCollectionGroup[]) {
     const allowed=new Set(groups.map(item=>item.templateId))
@@ -21,9 +21,9 @@ export function useMetricAggregate(context:Ref<MetricContext>,scope:Ref<MetricRe
     selectedTemplates.value=ids?.filter(id=>allowed.has(id)).slice(0,128)
     if(!selectedTemplates.value?.length)selectedTemplates.value=undefined
     try {const key=preferenceKey();if(key)localStorage.setItem(key,JSON.stringify(selectedTemplates.value || null))} catch { /* Optional preference storage. */ }
-    epoch++;void refresh()
+    epoch++;result.value=undefined;error.value='';void refresh()
   }
-  let epoch=0,running=false,pending=false,active=true,disposed=false,timer:ReturnType<typeof setTimeout> | undefined
+  let epoch=0,running=false,pending=false,reloadPending=false,active=true,disposed=false,timer:ReturnType<typeof setTimeout> | undefined
   const visibleGroups=ref(new Set<string>()),elements=new Map<string,Element>()
   const observer=typeof IntersectionObserver==='undefined' ? undefined : new IntersectionObserver(changes=>{
     const next=new Set(visibleGroups.value)
@@ -39,39 +39,46 @@ export function useMetricAggregate(context:Ref<MetricContext>,scope:Ref<MetricRe
   const visible=()=>active && !disposed && (typeof document==='undefined' || !document.hidden)
   function schedule(delay=15000) { if(timer)clearTimeout(timer);timer=undefined;if(visible())timer=setTimeout(()=>{void refresh()},delay) }
   async function refresh(reloadDirectory=false) {
+    reloadPending ||= reloadDirectory
     if(!visible())return
     if(running){pending=true;return}
     running=true;loading.value=true
+    const reload=reloadPending;reloadPending=false
     const current=epoch,to=customRange.value?.[1] ?? Date.now(),from=customRange.value?.[0] ?? to-range.value
     try {
       if(!api.aggregate)throw new Error('Metric aggregation unavailable')
-      const depth=descendants.value ? 'descendants' : scope.value.memberType===context.value.ownerType ? 'children' : 'self'
-      if(api.collection && (!directory.value || reloadDirectory)) {
-        const catalog=await api.collection({rootType:context.value.ownerType,rootId:context.value.ownerId,memberType:scope.value.memberType,depth,
+      const depth=scope.value.tree && descendants.value ? 'descendants' : scope.value.tree && scope.value.memberType===context.value.ownerType ? 'children' : 'self'
+      if(api.collection && (!directory.value || reload)) {
+        const next=await api.collection({rootType:context.value.ownerType,rootId:context.value.ownerId,memberType:scope.value.memberType,depth,
           operation:'collection',pageIndex:0,pageSize:1,includeUnconfigured:true})
         if(current!==epoch || disposed)return
         const initial=!directory.value
-        directory.value=catalog.groups
-        if(initial)restoreTemplates(catalog.groups)
+        catalog.value=next
+        if(initial)restoreTemplates(next.groups)
         else if(selectedTemplates.value) {
-          const allowed=new Set(catalog.groups.map(item=>item.templateId));selectedTemplates.value=selectedTemplates.value.filter(id=>allowed.has(id))
+          const allowed=new Set(next.groups.map(item=>item.templateId));selectedTemplates.value=selectedTemplates.value.filter(id=>allowed.has(id))
           if(!selectedTemplates.value.length)selectedTemplates.value=undefined
         }
       }
       const data=await api.aggregate({rootType:context.value.ownerType,rootId:context.value.ownerId,memberType:scope.value.memberType,
         depth,from,to,interval:Math.max(1000,Math.ceil((to-from)/120)),...(selectedTemplates.value ? {templateIds:selectedTemplates.value} : {})})
       if(current===epoch && !disposed){result.value=data;error.value=''}
-    } catch(cause){if(current===epoch && !disposed)error.value=errorText(cause)}
+    } catch(cause){if(current===epoch && !disposed){
+      error.value=errorText(cause)
+      // 撤权后清掉已读内容；普通网络失败保留上次结果并由页面标注。
+      const failure=cause as {status?:number;response?:{status?:number}} | undefined
+      if([401,403].includes(failure?.response?.status ?? failure?.status ?? 0)){result.value=undefined;catalog.value=undefined}
+    }}
     finally {running=false;if(!disposed){loading.value=false;const queued=pending;pending=false;schedule(queued ? 0 : 15000)}}
   }
-  watch(()=>JSON.stringify([context.value.preferenceScope,context.value.ownerType,context.value.ownerId,scope.value.memberType,descendants.value]),()=>{directory.value=undefined;selectedTemplates.value=undefined})
-  watch(()=>JSON.stringify([context.value.preferenceScope,context.value.ownerType,context.value.ownerId,scope.value.memberType,range.value,customRange.value,descendants.value]),()=>{
+  watch(()=>JSON.stringify([context.value.preferenceScope,context.value.ownerType,context.value.ownerId,scope.value.memberType,scope.value.tree,descendants.value]),()=>{catalog.value=undefined;selectedTemplates.value=undefined})
+  watch(()=>JSON.stringify([context.value.preferenceScope,context.value.ownerType,context.value.ownerId,scope.value.memberType,scope.value.tree,range.value,customRange.value,descendants.value]),()=>{
     epoch++;result.value=undefined;error.value='';schedule(0)
   },{immediate:true})
   const visibility=()=>{if(visible())schedule(0);else if(timer)clearTimeout(timer)}
   if(typeof document!=='undefined')document.addEventListener('visibilitychange',visibility)
-  onActivated(()=>{active=true;schedule(0)})
-  onDeactivated(()=>{active=false;if(timer)clearTimeout(timer)})
+  onActivated(()=>{active=true;reloadPending=true;schedule(0)})
+  onDeactivated(()=>{active=false;epoch++;pending=false;loading.value=false;if(timer)clearTimeout(timer)})
   onScopeDispose(()=>{disposed=true;epoch++;observer?.disconnect();if(timer)clearTimeout(timer);if(typeof document!=='undefined')document.removeEventListener('visibilitychange',visibility)})
-  return {result,directory,selectedTemplates,selectTemplates,error,loading,range,customRange,descendants,refresh,observe,isVisible:(id:string)=>!observer || visibleGroups.value.has(id)}
+  return {result,catalog,directory,selectedTemplates,selectTemplates,error,loading,range,customRange,descendants,refresh,observe,isVisible:(id:string)=>!observer || visibleGroups.value.has(id)}
 }

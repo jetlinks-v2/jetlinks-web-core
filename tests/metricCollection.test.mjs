@@ -120,3 +120,16 @@ test('multiple outputs use one paginated request, persist per identity and resto
     assert.equal(JSON.parse(stored.get('metric-collection:["user-a/project","product","p","device"]')).groups[0],'a')
   } finally {app?.unmount();globalThis.localStorage=priorStorage}
 })
+
+test('summary drilldown uses its explicit depth and never overwrites standalone member preferences',async()=>{
+  const previous=globalThis.localStorage,writes=[],calls=[]
+  globalThis.localStorage={getItem:()=>JSON.stringify({descendants:true,groups:['other']}),setItem:(...args)=>writes.push(args)}
+  const api={collection:async query=>{calls.push(query);return {readTime:1,visibleMembers:2,total:2,groups:[{id:'other',output:{metricId:'other'},operations:['collection']}],data:[]}}}
+  const {renderer,root}=createMetricRenderer();let state
+  const app=renderer.createApp(defineComponent({setup(){state=useMetricCollection(ref({ownerType:'deviceGroup',ownerId:'g',preferenceScope:'u'}),ref({memberType:'deviceGroup',tree:true}),api,ref({templateId:'quality',descendants:false}));return()=>h('div')}}))
+  try {
+    app.mount(root);await flush()
+    assert.equal(calls.length,1);assert.equal(calls[0].depth,'children');assert.equal(calls[0].templateId,'quality');assert.equal(calls[0].group,undefined)
+    assert.equal(state.operation.value,'collection');assert.deepEqual(writes,[])
+  } finally {app.unmount();globalThis.localStorage=previous}
+})

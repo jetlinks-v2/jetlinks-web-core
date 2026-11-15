@@ -78,3 +78,38 @@ test('template preference is authorized before querying storage and scope refres
     assert.equal(calls.at(-1).templateIds,undefined,'identity change must not restore another user selection')
   } finally {app.unmount();globalThis.localStorage=oldStorage}
 })
+
+test('declared depth and authorized catalog facts are retained without treating records as a member count',async()=>{
+  const calls=[],scope=ref({memberType:'device'}),catalog={visibleMembers:23,groups:[],data:[],total:23}
+  const api={collection:async query=>{calls.push(query);return catalog},aggregate:async query=>{calls.push(query);return {readTime:1,groups:[]}}}
+  const {renderer,root}=createMetricRenderer();let state
+  const app=renderer.createApp(defineComponent({setup(){state=useMetricAggregate(ref({ownerType:'product',ownerId:'p'}),scope,api);return()=>h('div')}}))
+  app.mount(root)
+  try {
+    await new Promise(resolve=>setTimeout(resolve,10));await flush()
+    assert.equal(calls[0].depth,'self','non-tree scopes cannot silently expand descendants')
+    assert.equal(state.catalog.value.visibleMembers,23)
+    scope.value={memberType:'product',tree:true};await flush();await new Promise(resolve=>setTimeout(resolve,10));await flush()
+    state.descendants.value=false;await flush();await new Promise(resolve=>setTimeout(resolve,10));await flush()
+    assert.equal(calls.at(-1).depth,'children')
+  } finally {app.unmount()}
+})
+
+test('a queued manual refresh still revalidates the directory and forbidden reads clear prior content',async()=>{
+  const pending=[],catalogs=[];let failure
+  const api={collection:async query=>{catalogs.push(query);return {visibleMembers:2,groups:[]}},aggregate:()=>failure ? Promise.reject(failure) : new Promise(resolve=>pending.push(resolve))}
+  const {renderer,root}=createMetricRenderer();let state
+  const app=renderer.createApp(defineComponent({setup(){state=useMetricAggregate(ref({ownerType:'product',ownerId:'p'}),ref({memberType:'device'}),api);return()=>h('div')}}))
+  app.mount(root)
+  try {
+    await new Promise(resolve=>setTimeout(resolve,10));await flush()
+    await state.refresh(true)
+    pending.shift()({readTime:1,groups:[]});await flush();await new Promise(resolve=>setTimeout(resolve,10));await flush()
+    assert.equal(catalogs.length,2,'reload intent must survive an in-flight aggregate request')
+    pending.shift()({readTime:2,groups:[]});await flush()
+    failure=new Error('network');await state.refresh()
+    assert.equal(state.result.value.readTime,2,'transient failures retain a clearly marked previous result')
+    failure={response:{status:403},message:'forbidden'};await state.refresh()
+    assert.equal(state.result.value,undefined);assert.equal(state.directory.value,undefined)
+  } finally {app.unmount()}
+})

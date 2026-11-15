@@ -30,12 +30,16 @@ test('来源建议随身份变更、撤回及删除，不改变类型、公式�
 
 test('目录按声明转换嵌套对象、数组、枚举和日期，字段路径不猜测业务语义',()=>{
   const schema=metricSourceSchema({type:'object',properties:{status:{enum:[0,false],enumNames:['离线','否']},at:{type:'string',format:'date-time'},samples:{type:'array',items:{type:'number'}}}})
-  assert.deepEqual(metricSourceField(schema,'status'),{type:'enum',elements:[{value:0,text:'离线'},{value:false,text:'否'}]})
+  const status=metricSourceField(schema,'status')
+  assert.equal(status.type,'enum')
+  assert.deepEqual(status.elements,[{value:0,text:'离线'},{value:false,text:'否'}])
+  assert.deepEqual(status.enum,[0,false],'normalization preserves the original source declaration')
   assert.equal(metricSourceField(schema,'at').type,'date')
-  assert.deepEqual(metricSourceField(schema,'samples'),{type:'array',elementType:{type:'double'}})
+  assert.equal(metricSourceField(schema,'samples').type,'array')
+  assert.deepEqual(metricSourceField(schema,'samples').elementType,{type:'double'})
   assert.equal(metricSourceField(schema,'unknown'),undefined)
   assert.equal(metricSourceField(schema,'$'),schema)
-  assert.deepEqual(metricSourceSchema(reactive(schema)),schema)
+  assert.deepEqual(metricSourceSchema(reactive(schema)),JSON.parse(JSON.stringify(schema)),'reactive declarations retain their persisted JSON semantics')
 })
 
 test('真实值控件逐字段编辑并保留缺失、空、0、false、未知字段和空数组',async()=>{

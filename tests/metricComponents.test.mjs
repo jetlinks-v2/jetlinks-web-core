@@ -313,7 +313,7 @@ test('模板聚合与设备卡片共享标题外壳，缺少聚合记录时不�
     assert.equal(textContent(walk(view.root,node=>node.props.class==='metric-card-shell__title')[0]),'Communication')
     assert.match(textContent(view.root),/noAggregateRecords/)
     assert.equal(walk(view.root,node=>node.props.class==='aggregate-card__value').length,0)
-    assert.ok(findText(view.root,'a-button','viewMembers'))
+    assert.ok(findText(view.root,'a-button','viewCurrent'))
   } finally {view.close()}
 })
 
@@ -1134,12 +1134,12 @@ test('窄屏聚合、成员和本级视图始终可切换对象，宽窄往返�
   }
   try{
     await flush();navigators.get('line')({ownerId:'a',label:'Line A'});await flush()
-    assert.equal(findText(view.root,'a-button','viewMembers'),undefined,'results are the initial task')
+    assert.equal(findText(view.root,'a-button','viewCurrent'),undefined,'results are the initial task')
     await openNavigation();nodes(view.root,'a-tabs').find(node=>node.props.class==='metric-scope-panel__tabs').props.onChange('overview');await ready;await flush()
-    assert.ok(findText(view.root,'a-button','viewMembers'));await openNavigation()
+    assert.ok(findText(view.root,'a-button','viewCurrent'));await openNavigation()
     nodes(view.root,'a-tabs').find(node=>node.props.class==='metric-scope-panel__tabs').props.onChange('metrics');await flush();await openNavigation()
     nodes(view.root,'a-tabs').find(node=>node.props.class==='metric-scope-panel__tabs').props.onChange('overview');await flush()
-    await click(findText(view.root,'a-button','viewMembers'));await openNavigation()
+    await click(findText(view.root,'a-button','viewCurrent'));await openNavigation()
     assert.ok(findText(view.root,'a-button','backOverview'))
     workspaceWidth.value=1200;await flush()
     assert.equal(findText(view.root,'a-button','selectObject'),undefined)
