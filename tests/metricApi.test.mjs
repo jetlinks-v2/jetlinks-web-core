@@ -20,13 +20,15 @@ const createRuntimeNdJson = () => ({ post:(path, body) => new Observable(observe
   const stream = { path, body, observer, stopped:false }; sampled.push(stream)
   return () => { stream.stopped = true }
 }) })
-const { metricApi, loadMetricObjectTypes } = createMetricLoader({ '@jetlinks-web/core': { request, wsClient }, [resolve(sourceRoot,'utils/json/index.ts')]:precision,
-  [resolve(sourceRoot, 'utils/ndjson.ts')]: { createRuntimeNdJson } })('components/Metric/api.ts')
+const load = createMetricLoader({ '@jetlinks-web/core': { request, wsClient }, [resolve(sourceRoot,'utils/json/index.ts')]:precision,
+  [resolve(sourceRoot, 'utils/ndjson.ts')]: { createRuntimeNdJson } })
+const { metricApi, loadMetricObjectTypes, metricNdjsonWatchResults } = load('components/Metric/api.ts')
+const { dispatchSocketSubscriptionError } = load('utils/websocket-subscriptions.ts')
 
-test('卡片共用NDJSON请求消费历史和实时帧，取消会释放传输',async()=>{
+test('保留批量NDJSON请求消费同样的历史和实时帧，取消会释放传输',async()=>{
   const received=[],errors=[]
   const query={outputs:['value'],query:{pageSize:200},interval:1000,targetType:'device',targetId:'one'}
-  const stop=metricApi.watchResults('config/one',query,frame=>received.push(frame),error=>errors.push(error.message))
+  const stop=metricNdjsonWatchResults('config/one',query,frame=>received.push(frame),error=>errors.push(error.message))
   await new Promise(resolve=>queueMicrotask(resolve))
   const stream=sampled.at(-1)
   assert.equal(stream.path,'/metric/configs/_watch');assert.deepEqual(stream.body.targets[0].query,query)
@@ -147,4 +149,34 @@ test('模板分类读取平台字典当前文案和顺序，业务失败不伪�
   status = 403
   await assert.rejects(metricApi.templateCategories(), /Denied/)
   status = 200; payload = []
+})
+
+test('可见指标直接增删WebSocket逻辑订阅，其他指标不重建且不发起NDJSON',()=>{
+  const before=sampled.length, received=[], failures=[]
+  const stopA=metricApi.watchResults('one',{outputs:['value'],query:{}},frame=>received.push(['one',frame]),cause=>failures.push(cause.message))
+  const first=streams.at(-1)
+  const stopB=metricApi.watchResults('two',{outputs:['value'],query:{}},frame=>received.push(['two',frame]),cause=>failures.push(cause.message))
+  const second=streams.at(-1)
+  assert.equal(first.topic,'/metric/configs/results');assert.equal(first.parameter.configId,'one')
+  assert.equal(first.parameter.includeHistory,true);assert.equal(sampled.length,before)
+  first.observer.next({payload:{kind:'history',value:{value:1}}})
+  second.observer.next({payload:{kind:'ready'}})
+  stopA();assert.equal(first.stopped,true);assert.equal(second.stopped,false)
+  second.observer.next({payload:{kind:'latest',latest:{configId:'two',outputs:{}}}})
+  assert.deepEqual(received.map(([id,frame])=>[id,frame.kind]),[['one','history'],['two','ready'],['two','latest']])
+  assert.deepEqual(failures,[]);stopB()
+})
+
+test('单项WebSocket协议错误交给原指标并取消它，其他订阅继续，未识别错误返回公共处理',()=>{
+  const failures=[],received=[]
+  const stop=metricApi.watchResults('error',{query:{}},()=>assert.fail('no value'),error=>failures.push(error.message))
+  const failed=streams.at(-1)
+  const otherStop=metricApi.watchResults('other',{query:{}},frame=>received.push(frame),()=>assert.fail('other must stay active'))
+  const other=streams.at(-1)
+  assert.equal(dispatchSocketSubscriptionError({requestId:failed.id,message:'Denied'}),true)
+  assert.deepEqual(failures,['Denied']);assert.equal(failed.stopped,true);assert.equal(other.stopped,false)
+  other.observer.next({payload:{kind:'ready'}});assert.equal(received.length,1)
+  assert.equal(dispatchSocketSubscriptionError({requestId:failed.id,message:'late error'}),false)
+  assert.equal(dispatchSocketSubscriptionError({requestId:'unknown',message:'unknown'}),false)
+  stop();otherStop()
 })

@@ -1,14 +1,15 @@
-import { request, wsClient, type Request } from '@jetlinks-web/core'
+import { request, type Request } from '@jetlinks-web/core'
+import { subscribeSocketTopic } from '../../utils/websocket-subscriptions'
 import { createRuntimeNdJson } from '../../utils/ndjson'
 import { parseJsonResponseWithPrecision } from '../../utils/json'
 import { map } from 'rxjs'
 import { createMetricResultStreams, type MetricWatchFrame } from './resultStreams'
-import type { MetricApi, MetricBuiltinItem, MetricCalculatorDescriptor, MetricConfig, MetricLatest, MetricTemplate, MetricTemplateEntity, MetricTemplateRevision, MetricValue, MetricSimulationResponse } from './types'
+import type { MetricApi, MetricBuiltinItem, MetricCalculatorDescriptor, MetricConfig, MetricLatest, MetricTemplate, MetricTemplateEntity, MetricTemplateRevision, MetricValue, MetricSimulationResponse, MetricResultFrame } from './types'
 
 const options = { hiddenError: true, transformResponse: [parseJsonResponseWithPrecision] }
 const http: Pick<Request, 'get' | 'post' | 'put' | 'remove'> = request
 const id = encodeURIComponent
-const watchResults = createMetricResultStreams((targets, next, error) => {
+export const metricNdjsonWatchResults = createMetricResultStreams((targets, next, error) => {
   const subscription = createRuntimeNdJson().post('/metric/configs/_watch', { targets }).pipe(map((value: unknown) => {
     const envelope = value as { result?: MetricWatchFrame; success?: boolean; status?: number; message?: string }
     if (envelope.success === false || envelope.status && envelope.status >= 400) throw new Error(envelope.message || String(envelope.status))
@@ -52,7 +53,12 @@ export const metricApi: MetricApi = {
   saveConfig: async config => result(await http.post<MetricConfig>('/metric/configs', config, options)),
   removeConfig: async configId => { result(await http.remove(`/metric/configs/${id(configId)}`, undefined, options)) },
   latest: async (configIds, target) => result(await http.post<MetricLatest[]>('/metric/configs/_latest', { configIds, ...target }, options)),
-  watchResults,
+  watchResults: (configId, query, next, error) => {
+    const subscription = subscribeSocketTopic<MetricResultFrame>(`metric-watch-${crypto.randomUUID()}`,
+      '/metric/configs/results', { configId, query, includeHistory: true })
+      .subscribe({ next, error, complete: () => error(new Error('Metric stream closed')) })
+    return () => subscription.unsubscribe()
+  },
   watchLatest: (configIds, target, interval, onValue, onError) => {
     const subscription = createRuntimeNdJson().post('/metric/configs/_latest', { configIds, ...target, interval })
       .pipe(map((value: unknown) => {
@@ -65,9 +71,9 @@ export const metricApi: MetricApi = {
     return () => subscription.unsubscribe()
   },
   subscribe: (target, interval, onValue, onError) => {
-    const subscription = wsClient.getWebSocket(`metric-results-${crypto.randomUUID()}`,
+    const subscription = subscribeSocketTopic<MetricValue>(`metric-results-${crypto.randomUUID()}`,
       `/@${target.targetType}/${target.targetId}/metric/*/*/data`, { interval })
-      .subscribe({ next: message => { if (message.payload) onValue(message.payload as MetricValue) }, error: onError })
+      .subscribe({ next: onValue, error: onError })
     return () => subscription.unsubscribe()
   },
   history: async (configId, query) => result(await http.post<MetricValue[]>(`/metric/configs/${id(configId)}/history`, query, options)),
