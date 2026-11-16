@@ -21,3 +21,5 @@ export * from './application-access'
 export * from './business-application-runtime'
 export * from './service-result'
 export * from './deployment'
+
+export * from './documentHelpRegistry'

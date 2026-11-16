@@ -64,6 +64,8 @@
 
 | 文件/能力 | 根入口 | 主要用途 |
 | --- | --- | --- |
+| `documentHelpRegistry.ts`：`registerDocumentHelpPoints/getDocumentHelpPoints/documentHelpPointId` | 是 | 模块启动注册帮助埋点，管理扫描按 code/key 去重；名称、页面和可选位置标签统一解析为当前语言字符串 |
+| `documentHelpMarkdown.ts`：`sanitizeHelpMarkdown` | 否 | 帮助 Markdown 的 HTML 清洗与新窗口链接隔离，使用深层路径导入 |
 | `module-registry.ts` | 否 | 模块资源注册中心；跨模块调用优先通过公开注册能力 |
 | `components-registry.ts` | 否 | 页面组件/动作注册表 |
 | `concurrency-control.ts`：`ConcurrencyControl` | 是 | 受控并发任务 |

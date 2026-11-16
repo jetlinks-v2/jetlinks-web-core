@@ -16,6 +16,10 @@
 | `update:isCheck` | 批量状态变化 | `(value: boolean)` |
 | `change` | 批量状态变化 | `(value: boolean)` |
 
+#### 插槽
+
+`item-extra` 接收 `{ item }`，在下拉菜单动作按钮旁渲染补充内容。可用于放置 `DocumentHelp`，避免将帮助按钮嵌套在业务按钮内；补充交互应阻止事件冒泡，避免触发菜单动作。
+
 #### 用法
 
 ~~~vue

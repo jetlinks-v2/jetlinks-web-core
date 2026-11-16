@@ -1,5 +1,6 @@
 import type { App, Component, Plugin } from 'vue'
 import TitleComponent from './TitleComponent/index.vue'
+import DocumentHelp from './DocumentHelp'
 import ImageUpload from "./Upload/Image/ImageUpload.vue";
 import CardBox, {
     CardStatistic,
@@ -95,6 +96,7 @@ export default {
     install(app: App) {
 
         app.component('TitleComponent', TitleComponent)
+            .component('DocumentHelp', DocumentHelp)
             .component('ImageUpload', ImageUpload)
             .component('CardBox', CardBox)
             .component('CardSuggestion', CardSuggestion)
@@ -194,6 +196,7 @@ export default {
 }
 
 export {
+    DocumentHelp,
     FileUpload,
     AssetOwnershipCondition,
     CardBox,
