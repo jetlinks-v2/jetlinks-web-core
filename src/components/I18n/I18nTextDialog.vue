@@ -36,7 +36,6 @@
 <script setup lang="ts">
 import { useI18nTextDialog } from './hooks/useI18nTextDialog'
 
-// 保留内联宏类型，兼容当前 setup-name-support 插件的匿名 SFC 预编译。
 const props = withDefaults(defineProps<{
   visible: boolean
   title: string

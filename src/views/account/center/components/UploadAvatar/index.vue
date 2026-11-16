@@ -37,7 +37,7 @@
   />
 </template>
 
-<script lang="ts" setup name="JProUpload">
+<script lang="ts" setup>
 import { UploadChangeParam, UploadProps } from 'ant-design-vue'
 import { FileStaticPath} from '@jetlinks-web-core/api/comm'
 import { getBase64ByImg, onlyMessage } from '@jetlinks-web/utils'
@@ -45,6 +45,8 @@ import { CSSProperties } from 'vue'
 import ImageCropper from '@jetlinks-web-core/components/Upload/Cropper.vue'
 import { useI18n } from 'vue-i18n'
 import { getUploadHeaders } from '@jetlinks-web-core/utils'
+
+defineOptions({ name: 'JProUpload' })
 
 const { t: $t } = useI18n();
 type Emits = {

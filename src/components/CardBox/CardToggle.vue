@@ -61,12 +61,14 @@
   </CardSelect>
 </template>
 
-<script setup lang="ts" name="CardToggle">
+<script setup lang="ts">
 import { CardSelect } from '@jetlinks-web/components'
 import { computed, type PropType } from 'vue'
 import { cardAppearanceProps, useCardAppearanceStyle } from './appearance'
 import CardAvatar from './CardAvatar.vue'
 import type { CardToggleData } from './types'
+
+defineOptions({ name: 'CardToggle' })
 
 const props = defineProps({
   ...cardAppearanceProps,

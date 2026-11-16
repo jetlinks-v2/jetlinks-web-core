@@ -39,7 +39,7 @@
   </header>
 </template>
 
-<script setup lang="ts" name="CloudPageHeader">
+<script setup lang="ts">
 import type { PropType } from 'vue'
 /**
  * 跨模块页面标题栏：保留返回事件优先、路由回退兜底的既有交互契约。
@@ -63,6 +63,7 @@ defineProps({
 const emit = defineEmits(['back'])
 
 defineOptions({
+  name: 'CloudPageHeader',
   inheritAttrs: true
 })
 

@@ -6,9 +6,11 @@
   </Teleport>
 </template>
 
-<script setup lang="ts" name="PageChrome">
+<script setup lang="ts">
 import { computed, onMounted, shallowRef } from 'vue'
 import { usePageChromeTarget } from '@jetlinks-web-core/layout/hooks/usePageChromeTarget'
+
+defineOptions({ name: 'PageChrome' })
 
 /**
  * 页面头部（返回按钮、卡片切换、页签等）容器：把内容送到布局壳层预留的

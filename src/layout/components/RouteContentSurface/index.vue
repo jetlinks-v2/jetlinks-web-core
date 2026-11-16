@@ -22,12 +22,14 @@
   </template>
 </template>
 
-<script setup lang="ts" name="RouteContentSurface">
+<script setup lang="ts">
 import { computed, ref } from 'vue'
 import ContentPanel from '@jetlinks-web-core/components/ContentPanel/index.vue'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import { useRouteContentPanel } from '../../hooks/useRouteContentPanel'
 import { providePageChromeTarget } from '../../hooks/usePageChromeTarget'
+
+defineOptions({ name: 'RouteContentSurface' })
 
 /**
  * 布局壳层的路由内容区：统一给路由页面套 `ContentPanel`，并预留"面板外页面头部"容器。

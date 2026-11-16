@@ -12,7 +12,7 @@
   </j-page-container>
 </template>
 
-<script name="IframePage" setup>
+<script setup>
 import { TOKEN_KEY} from '@jetlinks-web/constants';
 import {LocalStore, getToken} from '@jetlinks-web/utils';
 import { getAppInfo_api } from '@jetlinks-web-core/api/system/apply';
@@ -22,6 +22,8 @@ import {onUnmounted} from "vue";
 import { jumpLogin } from "@jetlinks-web-core/router";
 import { clearVerifyCache } from "@jetlinks-web-core/package";
 import { getBaseApi, normalizeApplicationBaseUrl } from '@jetlinks-web-core/utils'
+
+defineOptions({ name: 'IframePage' })
 
 const iframeUrl = ref('');
 const route = useRoute()

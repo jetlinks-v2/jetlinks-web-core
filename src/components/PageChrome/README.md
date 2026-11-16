@@ -16,6 +16,23 @@
 ```
 
 参考实现：`modules/device-manager-ui/views/device/list/components/IotDeviceDetailView.vue` 的返回按钮。
+
+## 统一返回入口
+
+详情返回使用 `PageBack`，放在摘要卡片上方的独立 `PageChrome` 中。`PageBack` 提供左箭头、文字及统一 hover/focus 样式；必填 `label: string` 由页面提供翻译，点击发出无参数 `back` 事件，由页面执行原返回逻辑。组件不读路由、Store 或接口。通过 `@jetlinks-web-core/components` 具名导出并全局注册，也可从 `@jetlinks-web-core/components/PageBack/index.vue` 单独导入。
+
+```vue
+<PageChrome>
+  <PageBack :label="$t('Product.detail.backToList')" @back="backToProductList" />
+</PageChrome>
+<PageChrome flush>
+  <ContentPanel><!-- 对象摘要 --></ContentPanel>
+  <SlantedTabs :active-key="activeTab" :options="tabs" @change="changeTab" />
+</PageChrome>
+```
+
+设备、网关、产品、业务应用、开放平台应用和接口分组详情共用该模式。旧页面的 `DetailHeader showBack` 保持兼容，接口分组新增表单继续沿用原头部。
+
 ## 为什么用 `Teleport`
 
 `BasicLayoutShell` / `ApplicationLayoutPage` 是页面的祖先，页面模板无法直接填充祖先的具名插槽。

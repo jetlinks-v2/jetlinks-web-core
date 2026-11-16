@@ -1,6 +1,8 @@
-<script setup name="TermType">
+<script setup>
 import { getDefaultTermType, TermTypeOptions } from './setting'
 import { useColumnsMap } from './hooks/useSearchEngine'
+
+defineOptions({ name: 'TermType' })
 
 const props = defineProps({
   column: {

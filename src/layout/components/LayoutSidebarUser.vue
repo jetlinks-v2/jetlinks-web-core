@@ -88,10 +88,12 @@
   </div>
 </template>
 
-<script setup lang="ts" name="LayoutSidebarUser">
+<script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { BADGE_OVERFLOW_COUNT } from './noticeUtils'
 import { useLayoutSidebarUser } from './useLayoutSidebarUser'
+
+defineOptions({ name: 'LayoutSidebarUser' })
 
 defineProps({
   collapsed: {

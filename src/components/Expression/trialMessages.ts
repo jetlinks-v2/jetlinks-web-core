@@ -1,0 +1,4 @@
+export const trialMessages={
+  zh:{trial:'试算',samples:'模拟输入',empty:'未提供（空值）',run:'计算',result:'计算结果',process:'计算过程',failed:'试算失败，请检查输入后重试',unavailable:'暂时无法试算，请稍后重试',retry:'重试',available:'已计算',unknown:'无法计算',skipped:'未执行',conversion:'结果类型转换',literal:'常量',read:'读取',condition:'条件',operator:'运算',call:'函数',clear:'设为空值',simulation:'仅使用模拟输入，不修改实际数据'},
+  en:{trial:'Try formula',samples:'Sample inputs',empty:'Not supplied (null)',run:'Calculate',result:'Result',process:'Calculation process',failed:'Evaluation failed. Check the inputs and try again',unavailable:'Evaluation is temporarily unavailable. Try again later',retry:'Retry',available:'Calculated',unknown:'Unavailable',skipped:'Not executed',conversion:'Result type conversion',literal:'Literal',read:'Read',condition:'Condition',operator:'Operation',call:'Function',clear:'Set to null',simulation:'Uses sample inputs only; actual data is unchanged'},
+}

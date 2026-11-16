@@ -1,4 +1,4 @@
-﻿<script setup lang="ts" name="PropertyFilter">
+﻿<script setup lang="ts">
 import type { PropType } from 'vue'
 import dayjs from 'dayjs'
 import { useI18n } from 'vue-i18n'
@@ -7,6 +7,8 @@ import { useSearchEngine } from './hooks/useSearchEngine'
 import { buildIdToTitle, normalizeOptionTree } from './utils'
 import { TermTypeOptions } from './setting'
 import type { SearchItem, TermsItem } from './typing'
+
+defineOptions({ name: 'PropertyFilter' })
 
 const props = defineProps({
   target: {

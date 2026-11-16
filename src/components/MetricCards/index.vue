@@ -46,9 +46,11 @@
   </div>
 </template>
 
-<script setup lang="ts" name="MetricCards">
+<script setup lang="ts">
 import type { CSSProperties } from 'vue'
 import type { MetricCardItem } from './types'
+
+defineOptions({ name: 'MetricCards' })
 
 /** 统一承载跨模块指标项的展示、选中态与键盘触发契约。 */
 
