@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
 import { useI18n } from 'vue-i18n'
+import useClipboard from 'vue-clipboard3'
 import { onlyMessage } from '@jetlinks-web/utils'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { updateMeInfo_api } from '@jetlinks-web-core/api/account/center'
@@ -10,6 +11,7 @@ import type { AccountCardItem, AccountCardProfile } from '../types'
 export function useBasicProfile(profile: () => AccountCardProfile) {
   const user = useUserStore()
   const { t } = useI18n()
+  const { toClipboard } = useClipboard()
   const saving = ref(false)
   const saveError = ref(false)
   const accountType = computed(() => t(user.isSubAccount
@@ -57,5 +59,15 @@ export function useBasicProfile(profile: () => AccountCardProfile) {
     return true
   }
   function saveAvatar(avatar: string) { return save({ avatar }, avatar ? 'PersonalCenter.prototype.avatarChanged' : 'PersonalCenter.prototype.avatarReset') }
-  return { saving, saveError, fields, accountType, userType, saveName, saveAvatar }
+  /** 使用剪贴板插件复制原始账号 ID，兼容 HTTP 页面。 */
+  async function copyAccountId(accountId: string): Promise<void> {
+    if (!accountId) return
+    try {
+      await toClipboard(accountId)
+      onlyMessage(t('PersonalCenter.copySuccess'), 'success')
+    } catch {
+      onlyMessage(t('PersonalCenter.copyFailed'), 'error')
+    }
+  }
+  return { saving, saveError, fields, accountType, userType, saveName, saveAvatar, copyAccountId }
 }

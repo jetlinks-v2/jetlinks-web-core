@@ -9,6 +9,7 @@ import axios from 'axios'
 import { isFunction, isObject } from 'lodash-es'
 import * as Vue from 'vue'
 import * as Pinia from 'pinia'
+import * as VueRouter from 'vue-router'
 
 const require = createRequire(import.meta.url)
 const root = resolve(import.meta.dirname, '..')
@@ -36,20 +37,25 @@ const unauthorized = config => new axios.AxiosError('Unauthorized', 'ERR_BAD_REQ
 
 // 执行生产 router、退出 API、存储和 Axios 拦截器；仅隔离无关模块、浏览器与网络。
 const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `http://localhost:9201/${projectCode}/#/overview` } = {}) => {
-  let location = new URL(href)
+  let location
   const navigations = []
+  const setLocation = value => {
+    location = new URL(value, location)
+    const currentHref = location.href
+    Object.defineProperty(location, 'href', {
+      get: () => currentHref,
+      set: value => { navigations.push(value) },
+      configurable: true,
+    })
+  }
+  setLocation(href)
   const storage = memoryStorage()
   const sessionStorage = memoryStorage()
   const window = {
     localStorage: storage, sessionStorage,
     get location() { return location },
-    history: { state: { preserved: true }, replaceState(_state, _title, value) { location = new URL(value, location) } },
+    history: { state: { preserved: true }, replaceState(_state, _title, value) { setLocation(value) } },
   }
-  Object.defineProperty(location, 'href', {
-    get: () => href,
-    set: value => { navigations.push(value) },
-    configurable: true,
-  })
   const previous = Object.fromEntries(['window', 'localStorage', 'sessionStorage'].map(key => [key, globalThis[key]]))
   const activePinia = Pinia.getActivePinia()
   Object.assign(globalThis, { window, localStorage: storage, sessionStorage })
@@ -61,13 +67,20 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     }
     Pinia.setActivePinia(activePinia)
   })
-  const currentRoute = Vue.ref({ path: '/overview', fullPath: '/overview?view=all', matched: [], query: {} })
-  const router = { currentRoute, beforeEach() {}, afterEach() {}, onError() {} }
+  let router
   let resets = 0
   const environmentConfig = { VITE_APP_ENVIRONMENT: environment, VITE_APP_RUNTIME_SCOPE: scope, BASE_URL: base }
   const dependencies = {
     vue: Vue, pinia: Pinia, axios, 'lodash-es': { isFunction, isObject },
-    'vue-router': { createRouter: () => router, createWebHashHistory() {} },
+    'vue-router': {
+      ...VueRouter,
+      createWebHashHistory: VueRouter.createMemoryHistory,
+      createRouter(options) {
+        router = VueRouter.createRouter(options)
+        router.currentRoute.value = router.resolve('/overview?view=all')
+        return router
+      },
+    },
     '@jetlinks-web/constants': { TOKEN_KEY: tokenKey, BASE_API: '/api', TOKEN_KEY_URL: 'token' },
     '@jetlinks-web-core/locales': { global: { t: key => key } },
     '@micro-zoe/micro-app': { router: { setBaseAppRouter() {} } },
@@ -82,18 +95,25 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     '@jetlinks-web-core/utils/ai-client-tool-request': { isAiClientToolSilentRequest: () => false },
     '@jetlinks-web-core/utils/module-registry': {},
     '@jetlinks-web-core/utils/json/collector': {},
-    '@jetlinks-web-core/store/route-loading': {}, '@jetlinks-web-core/store/user': {},
+    '@jetlinks-web-core/store/route-loading': { useRouteLoadingStore: () => ({ start() {}, finish() {}, finishNavigation() {}, reset() {} }) },
+    '@jetlinks-web-core/store/user': { useUserStore: () => ({ isSubAccount: false }) },
   }
   const cache = new Map()
   const stubs = {
     [resolve(root, 'src/router/globModules.ts')]: { collectCoreRouteOverrides: () => [] },
     [resolve(root, 'src/router/coreRoutes.ts')]: {
       resolveCoreRoutes: () => ({
-        routes: [{ name: 'Login', path: '/login' }], tokenFilterPaths: ['/login'], menuFilterPaths: [], registry: [],
+        routes: [
+          { name: 'Login', path: '/login', component: {} },
+          { name: 'Overview', path: '/overview', component: {} },
+        ], tokenFilterPaths: ['/login'], menuFilterPaths: [], registry: [],
       }),
     },
     [resolve(root, 'src/router/default-entry.ts')]: { DefaultApplicationEntryError: class extends Error {} },
-    [resolve(root, 'src/router/startup.ts')]: { resetSessionStores: () => { resets++ } },
+    [resolve(root, 'src/router/startup.ts')]: {
+      resetSessionStores: () => { resets++ }, resetRouteStartupState() {},
+      bootstrapSession: async () => false, ensureMenuRoutes: async () => false,
+    },
   }
   const evaluate = (filename, source = readFileSync(filename, 'utf8')) => {
     if (cache.has(filename)) return cache.get(filename)
@@ -125,11 +145,107 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const client = core.getInstance()
   client.defaults.adapter = async config => success(config)
   return {
-    load, storage, window, client, api, verify, packageApi, navigation, navigations, utils, pinia,
+    load, storage, window, client, api, verify, packageApi, navigation, navigations, utils, pinia, router,
     get resets() { return resets },
-    setLocation: value => { location = new URL(value) },
+    setLocation,
   }
 }
+
+for (const entry of ['platform', 'project']) {
+  test(`the same document supports three login/logout cycles at the ${entry} entry`, async t => {
+    const base = `http://localhost:9100/${entry === 'project' ? `${projectCode}/` : ''}`
+    const f = fixture(t, { href: `${base}#/overview` })
+    if (entry === 'project') {
+      f.storage.setItem('pFrom', 'http://localhost:9100')
+      f.storage.setItem(tokenKey, 'independent-platform-session')
+    }
+    let session = 0
+    f.client.defaults.adapter = async config => success(config, { token: `session-${++session}` })
+    for (let cycle = 1; cycle <= 3; cycle++) {
+      const login = await f.api.login({ username: 'fixture-user', password: 'fixture-password' })
+      f.utils.setToken(login.result.token)
+      f.setLocation(`${base}#/overview`)
+      await f.router.push('/overview')
+      const response = await f.api.logout()
+      assert.equal(response.success, true)
+      f.navigation.jumpLogin({ reason: 'logout' })
+      await delay(5)
+      assert.equal(f.navigations.length, cycle, `logout ${cycle} must navigate without reloading the module`)
+      const target = f.navigations.at(-1)
+      assert.equal(target, `${base}#/login?reason=logout${entry === 'project' ? '&clearToken=true' : ''}`)
+      f.setLocation(target)
+      await f.router.push(new URL(target).hash.slice(1))
+      assert.equal(f.router.currentRoute.value.name, 'Login')
+      f.navigation.jumpLogin()
+      await delay(5)
+      assert.equal(f.navigations.length, cycle, 'late failures on the login page must not redirect again')
+      if (entry === 'project') assert.equal(f.storage.getItem(tokenKey), 'independent-platform-session')
+    }
+  })
+}
+
+test('session expiration after logging back in does not inherit the previous logout reason', async t => {
+  const f = fixture(t, { href: 'http://localhost:9100/#/overview' })
+  f.utils.setToken('first-session')
+  await f.api.logout()
+  f.navigation.jumpLogin({ reason: 'logout' })
+  await delay(5)
+  f.setLocation(f.navigations[0])
+  await f.router.push('/login?reason=logout')
+  f.utils.setToken('next-session')
+  f.setLocation('http://localhost:9100/#/overview')
+  await f.router.push('/overview?view=all')
+  f.client.defaults.adapter = async config => { throw unauthorized(config) }
+  await assert.rejects(f.client.get('/user/detail'))
+  await delay(5)
+  assert.deepEqual(f.navigations, [
+    'http://localhost:9100/#/login?reason=logout',
+    'http://localhost:9100/#/login?redirect=%2Foverview%3Fview%3Dall',
+  ])
+})
+
+test('an aborted login navigation cannot release the current transition lock', async t => {
+  const f = fixture(t, { href: 'http://localhost:9100/#/overview' })
+  f.utils.setToken('first-session')
+  await f.api.logout()
+  f.navigation.jumpLogin({ reason: 'logout' })
+  await delay(5)
+  f.router.beforeEach(to => to.name === 'Login' ? false : undefined)
+  const failure = await f.router.push('/login?reason=logout')
+  assert.equal(VueRouter.isNavigationFailure(failure, VueRouter.NavigationFailureType.aborted), true)
+  f.navigation.jumpLogin()
+  await delay(5)
+  assert.equal(f.navigations.length, 1)
+})
+
+test('a pending timer from the previous transition cannot navigate after reaching login', async t => {
+  const f = fixture(t, { href: 'http://localhost:9100/#/overview' })
+  f.navigation.jumpLogin()
+  await f.router.push('/login')
+  await delay(5)
+  assert.deepEqual(f.navigations, [])
+  f.utils.setToken('next-session')
+  await f.router.push('/overview')
+  assert.equal(f.utils.getToken(), 'next-session')
+})
+
+test('a previous logout completion cannot change the next transition count or reason', async t => {
+  const f = fixture(t, { href: 'http://localhost:9100/#/overview' })
+  const { beginLogoutRequest } = f.load('router/login-transition')
+  const previousComplete = beginLogoutRequest()
+  f.navigation.jumpLogin()
+  await f.router.push('/login')
+  f.utils.setToken('next-session')
+  await f.router.push('/overview')
+  const currentComplete = beginLogoutRequest()
+  f.navigation.jumpLogin()
+  previousComplete(true)
+  await delay(5)
+  assert.deepEqual(f.navigations, [], 'only the current logout request may release its queued 401')
+  currentComplete(false)
+  await delay(5)
+  assert.deepEqual(f.navigations, ['http://localhost:9100/#/login?redirect=%2Foverview'])
+})
 
 for (const order of ['401-first', 'logout-first']) {
   test(`project logout keeps the cloud project login and wins ${order}`, async t => {
