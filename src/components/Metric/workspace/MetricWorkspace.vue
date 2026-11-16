@@ -1,8 +1,10 @@
 <template>
   <div ref="root" class="metric-workspace">
     <a-alert v-if="resources.issues.length" type="error" show-icon :message="t('moduleAssemblyFailed')" />
+    <a-skeleton v-if="discoveryLoading" active :paragraph="{ rows:6 }" />
+    <a-alert v-else-if="discoveryError" type="error" show-icon :message="t('objectTypesFailed')" :description="discoveryError"><template #action><a-button size="small" @click="reloadDimensions">{{ t('retry') }}</a-button></template></a-alert>
     <a-alert v-if="unavailable" type="warning" show-icon :message="t('dimensionUnavailable')" />
-    <EqualHeightColumns class="metric-workspace__columns" height="100%" left-width="14rem" gap="24px" :show-left="!compact">
+    <EqualHeightColumns v-if="!discoveryLoading && !discoveryError" class="metric-workspace__columns" height="100%" left-width="14rem" gap="24px" :show-left="!compact">
       <template #left><MetricWorkspaceNavigation v-if="width > 0 && !compact" v-bind="navigationProps" @dimension="chooseDimension" @select="selectObject" /></template>
       <template #right>
         <main class="metric-workspace__results">
@@ -25,7 +27,7 @@
         </main>
       </template>
     </EqualHeightColumns>
-    <a-drawer v-if="compact" :open="navigationOpen" :title="t('selectObject')" placement="left" width="min(320px, calc(100vw - 32px))" :force-render="true" :body-style="{ display:'flex', flexDirection:'column', minHeight:0 }" @close="navigationOpen = false" @after-open-change="restoreObjectFocus">
+    <a-drawer v-if="compact && !discoveryLoading && !discoveryError" :open="navigationOpen" :title="t('selectObject')" placement="left" width="min(320px, calc(100vw - 32px))" :force-render="true" :body-style="{ display:'flex', flexDirection:'column', minHeight:0 }" @close="navigationOpen = false" @after-open-change="restoreObjectFocus">
       <MetricWorkspaceNavigation v-bind="navigationProps" @dimension="chooseDimension" @select="selectObject" />
     </a-drawer>
   </div>
@@ -51,7 +53,7 @@ const navigationOpen = ref(false)
 const objectTrigger = ref<{ $el?: HTMLButtonElement }>()
 let memory: Storage | undefined
 try { memory = typeof window === 'undefined' ? undefined : window.localStorage } catch { /* Restricted browsers may disable preference storage. */ }
-const { resources, selection, dimension, confirmed, context, unavailable, chooseDimension, confirmObject } = useMetricWorkspace(toRef(props, 'scopeKey'), toRef(props, 'selection'), toRef(props, 'editable'), value => emit('update:selection', value), memory)
+const { resources, selection, dimension, confirmed, context, unavailable, discoveryLoading, discoveryError, reloadDimensions, chooseDimension, confirmObject } = useMetricWorkspace(toRef(props, 'scopeKey'), toRef(props, 'selection'), toRef(props, 'editable'), value => emit('update:selection', value), memory)
 const businessRoute = computed(() => confirmed.value && dimension.value?.provider.toBusiness?.(confirmed.value))
 const navigationProps = computed(() => ({ scopeKey:props.scopeKey, dimensions:resources.value.dimensions, dimension:dimension.value, selection:selection.value }))
 function selectObject(object?: MetricObjectSelection, origin?: MetricSelectionOrigin) {

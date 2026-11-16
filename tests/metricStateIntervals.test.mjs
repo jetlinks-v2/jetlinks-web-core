@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ref } from 'vue'
-import { createMetricLoader, createMetricRenderer, flush } from './helpers/metricRuntime.mjs'
+import { h, reactive, ref } from 'vue'
+import { createMetricLoader, createMetricRenderer, flush, walk, textContent } from './helpers/metricRuntime.mjs'
 
 const load = createMetricLoader({ './api': { metricApi: {} } })
 const { intervalDuration, stateIntervalHistory, stateIntervalSummary, stateIntervalSegments, tracksStateIntervals, stateLabel } = load('components/Metric/stateIntervals.ts')
@@ -34,12 +34,15 @@ test('后端当前视图推进同一快照，迟到推送不回退；客户端�
   assert.equal(original.state.duration, 15 * 60)
 })
 
-test('起点未知仍展示已确认状态，完整时长保持未知，过期与坏质量仍停止展示', () => {
+test('起点未知显示从观测起点至服务端截点的时长下界，过期与坏质量仍停止展示', () => {
   const observed = value(85, { currentInterval:interval('observed', 70, undefined, { value:0, startKnown:false }), readView:{ time:start + 86 * minute, duration:null } })
   const summary = stateIntervalSummary(observed)
   assert.equal(summary.state, 'known')
   assert.equal(summary.interval.value, 0)
-  assert.equal(summary.duration, undefined)
+  assert.equal(summary.duration, 16 * minute)
+  assert.equal(summary.interval.startKnown, false)
+  assert.equal(observed.state.readView.duration, null)
+  assert.equal(stateIntervalSummary({...observed,state:{...observed.state,readView:undefined,duration:null}}).duration,15 * minute)
   assert.equal(stateIntervalSummary({ ...observed, quality:{ valid:false } }).state, 'unknown')
   assert.equal(stateIntervalSummary({ ...observed, quality:{ valid:true, stale:true } }).state, 'unknown')
   assert.equal(stateIntervalSummary({ ...observed, state:{ ...observed.state, readView:{ time:start + 200 * minute, duration:null } } }).state, 'unknown')
@@ -139,4 +142,32 @@ test('任意状态历史与名称国际化；数值编码和文字编码不混�
     value((index + 1) * 10, { closedInterval:interval(state, index * 10, (index + 1) * 10, { value:state }) }))
   assert.equal(stateIntervalHistory(records).length, 4)
   assert.equal(stateIntervalHistory(records)[0].interval.value, 'maintenance')
+})
+
+test('单点未知起点从零开始计下界，观测中断后只使用新区间，不拼接上次时长',()=>{
+  const current=interval('new',85,undefined,{startKnown:false})
+  const first=value(85,{currentInterval:current,duration:null,previousInterval:interval('old',0,40,{startKnown:false,endKnown:false}),readView:{time:start+85*minute,duration:null}})
+  assert.equal(stateIntervalSummary(first).duration,0)
+  const next={...first,state:{...first.state,readView:{time:start+87*minute,duration:null}}}
+  assert.equal(stateIntervalSummary(next).duration,2*minute)
+  assert.equal(stateIntervalSummary(next).last.id,'old')
+  assert.equal(first.state.duration,null)
+})
+
+test('卡片与详情显示时长下界，停用不残留至少字样',async()=>{
+  const local=createMetricLoader({'vue-i18n':{useI18n:()=>({locale:ref('zh'),t:(key,values)=>values?.count != null ? `${key}:${values.count}` : key})}})
+  const Component=local('components/Metric/MetricStateDuration.vue').default
+  const {renderer,root}=createMetricRenderer()
+  const props=reactive({value:value(85,{currentInterval:interval('observed',70,undefined,{startKnown:false}),readView:{time:start+86*minute,duration:null}}),disabled:false,detail:false})
+  const app=renderer.createApp({setup:()=>()=>h(Component,props)});app.config.warnHandler=()=>{};app.mount(root)
+  const shown=()=>textContent(walk(root,node=>node.props.class==='state-duration__value')[0])
+  try {
+    assert.ok(shown().includes('intervalAtLeast'))
+    assert.ok(shown().includes('16'))
+    props.detail=true;await flush()
+    assert.ok(shown().includes('intervalAtLeast'))
+    props.disabled=true;await flush()
+    assert.equal(shown().includes('intervalAtLeast'),false)
+    assert.ok(shown().includes('—'))
+  } finally {app.unmount()}
 })

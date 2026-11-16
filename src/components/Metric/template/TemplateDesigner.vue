@@ -63,7 +63,7 @@
           <details class="template-designer__setting"><summary><AIcon type="SlidersOutlined" />{{ t('parameterSettings') }}</summary><TemplateParameters :template="view" :disabled="disabled" :published="published" @update:template="update" /></details>
           <details class="template-designer__setting"><summary><AIcon type="AppstoreOutlined" />{{ t('displaySettings') }}</summary><TemplatePresentation :template="view" :disabled="disabled" @update:template="update" /></details>
         </div>
-        <TemplateSimulation v-if="trial" ref="simulationPanel" :template="displayView" :trial="trial" :selected="selection" :error="simulationError" :disabled="disabled || invalid" @clear-selection="selectTemplate"><template #sampleTools><slot name="sampleTools" /></template><template #advancedTools><slot name="advancedTools" /></template></TemplateSimulation>
+        <TemplateSimulation v-if="trial" ref="simulationPanel" :template="displayView" :trial="trial" :selected="selection" :error="simulationError" :disabled="disabled || invalid"><template #sampleTools><slot name="sampleTools" /></template><template #advancedTools><slot name="advancedTools" /></template></TemplateSimulation>
         </template>
       </div>
     </aside>
@@ -156,7 +156,8 @@ function revealPanel() { collapsed.value = false; mobileProperties.value = true 
 function hidePanel() { collapsed.value = true; mobileProperties.value = false }
 function togglePanel() { if (propertiesVisible.value) hidePanel(); else revealPanel() }
 function selectNode(node: TemplateNode) { if (select(node)) revealPanel() }
-async function showSamples(node:TemplateNode, editValue = false) { if (select(node)) { revealPanel(); await nextTick(); simulationPanel.value?.focusSamples(editValue) } }
+// 模拟数据定位只改变样本区域，保留当前配置节点及其未完成草稿。
+async function showSamples(node:TemplateNode, editValue = false) { revealPanel(); await nextTick(); await simulationPanel.value?.focusSamples(editValue, displayView.value.inputDefinitions[node.index]?.id) }
 function selectTemplate() { select() }
 function showTemplate() { if (select()) revealPanel() }
 function addNode(kind: TemplateNode['kind'], _element?: HTMLButtonElement, source?: TemplateNode) {

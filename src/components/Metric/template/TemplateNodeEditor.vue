@@ -8,11 +8,11 @@
       <p v-if="identityIssue" class="node-editor__identity-error" role="alert">{{ t(identityIssue) }}</p>
       <div v-if="node.kind === 'input' && $slots['input-reference']" class="node-editor__reference"><slot name="input-reference" /></div>
     </header>
-    <TemplateRuleEditor v-if="node.kind === 'rule'" :template="template" :rule="rule" :disabled="disabled" :calculators="calculators" @patch="emit('patch', $event)" @invalid="setRuleInvalid">
+    <TemplateRuleEditor v-if="node.kind === 'rule'" :template="template" :rule="rule" :disabled="disabled" :calculators="calculators" @patch="emit('patch', $event)" @invalid="emit('invalid', $event)">
       <template #method>
       <div class="node-editor__method">
-        <a-dropdown :trigger="['click']" :disabled="disabled || ruleInvalid">
-          <a-button type="text" :disabled="disabled || ruleInvalid" :aria-label="t('calculationMethod')">{{ t(kind) }}<AIcon type="DownOutlined" /></a-button>
+        <a-dropdown :trigger="['click']" :disabled="disabled">
+          <a-button type="text" :disabled="disabled" :aria-label="t('calculationMethod')">{{ t(kind) }}<AIcon type="DownOutlined" /></a-button>
           <template #overlay>
             <a-menu class="node-editor__methods" :selected-keys="[kind]" :aria-label="t('calculationMethod')" @click="chooseKind">
               <a-menu-item v-for="option in methods" :key="option.value" class="node-editor__method-item" :class="{ 'is-current':option.value === kind }" role="menuitemradio" :aria-checked="option.value === kind">
@@ -94,7 +94,6 @@ const types = computed(()=>metricTypeOptions(t))
 const input = computed(() => props.template.inputDefinitions[props.node.index] as MetricTemplateInput & { maxAge?: string; minSamples?: number; defaultValue?: unknown })
 const output = computed(() => props.template.outputs[props.node.index])
 const rule = computed(() => props.template.definitions[props.node.index] as TemplateRule)
-const ruleInvalid = ref(false)
 const identityIssue = ref<string>()
 const inputInvalid = ref(false)
 const outputInvalid = ref(false)
@@ -129,9 +128,8 @@ function toggleOutput(field: 'persist' | 'publish') {
   if (props.disabled || props.published && field === 'persist') return
   emit('patch', { [field]:field === 'persist' ? output.value.persist === false : output.value.publish !== true })
 }
-function setRuleInvalid(value: boolean) { ruleInvalid.value = value; emit('invalid', value) }
 function setOutputInvalid(value:boolean) { outputInvalid.value=value;emit('invalid',value) }
-function changeKind(value: CalculationKind) { if (!props.disabled && !ruleInvalid.value && value !== kind.value) emit('patch', calculationFields(value)) }
+function changeKind(value: CalculationKind) { if (!props.disabled && value !== kind.value) emit('patch', calculationFields(value)) }
 function chooseKind({ key }: { key: string | number }) { changeKind(key as CalculationKind) }
 </script>
 <style scoped>

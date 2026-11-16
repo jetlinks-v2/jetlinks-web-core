@@ -1,6 +1,7 @@
 import type { ExpressionFunction, ExpressionNode } from '../../Expression/types'
 import type { MetricCalculatorDescriptor, MetricTemplate } from '../types'
 import type { TemplateRule } from './designer'
+import { findCalculator } from '../calculatorDescriptor'
 
 export type ResultSchema = Record<string, unknown>
 export interface ResultTypeResolution { schema?:ResultSchema; inferred?:ResultSchema; issue?:'conflict'|'unknown'|'incompatible'; declared:boolean }
@@ -96,7 +97,7 @@ export function resolveMetricResultType(template:MetricTemplate,id:string,calcul
   if (output) inferred=aggregated(resolve(rule.sourceMetric || rule.inputs?.[0]?.metricId || rule.dependsOn?.[0] || ''),output.aggregation || 'last',output.timeAggregation)
   else if (rule.calculator) {
     const spec=rule.calculator
-    inferred=spec.outputType || calculators.find(item=>item.configuration.provider === spec.provider && item.configuration.providerVersion === spec.providerVersion && item.configuration.parameters?.operation === spec.parameters?.operation)?.configuration.outputType
+    inferred=spec.outputType || findCalculator(spec,calculators)?.configuration.outputType
     if (inferred && spec.outputUnit) inferred={...inferred,unit:spec.outputUnit}
   } else if (rule.temporalCondition) inferred=type('boolean')
   else if (rule.expressionTree) inferred=expression(rule.expressionTree.root)

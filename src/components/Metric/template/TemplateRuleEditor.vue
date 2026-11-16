@@ -54,7 +54,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ruleDependencies, ruleExpression, type TemplateRule } from './designer'
 import type {StructuredExpression} from '../../Expression/types'
@@ -103,6 +103,14 @@ function reportInvalid() { emit('invalid', formulaInvalid.value || calculatorInv
 function setCalculatorInvalid(value: boolean) { calculatorInvalid.value = value; reportInvalid() }
 function setFormulaInvalid(value: boolean) { formulaInvalid.value = value; reportInvalid() }
 function setConditionInvalid(key: string, value: boolean) { if (value) invalidConditions.add(key); else invalidConditions.delete(key); reportInvalid() }
+// 更换方式会移除原计算内容，其草稿校验不能继续锁住新方式；共用适用条件仍须保留校验。
+watch(kind, () => {
+  formulaInvalid.value = false
+  calculatorInvalid.value = false
+  invalidConditions.delete('enter')
+  invalidConditions.delete('exit')
+  reportInvalid()
+}, { flush: 'sync' })
 function clearCondition() {
   if (props.disabled) return
   setConditionInvalid('applicability', false)

@@ -5,6 +5,7 @@ import { metricDateText } from './time'
 import type { MetricCalculatorDescriptor, MetricSourceDescription, MetricStateLabel, MetricTemplate } from './types'
 import type { TemplateRule } from './template/designer'
 import { resolveMetricResultType } from './template/resultTypes'
+import { findCalculator } from './calculatorDescriptor'
 
 export type ValueSchema = Record<string, unknown>
 export type ValueTranslate = (key:string, values?:Record<string, unknown>) => string
@@ -43,9 +44,7 @@ function mergeSchema(value?:ValueSchema, fallback?:ValueSchema):ValueSchema | un
 export function metricValueSchema(template:MetricTemplate, id:string, calculators:MetricCalculatorDescriptor[] = []):ValueSchema | undefined {
   const rule = template.definitions.find(rule => rule.id === id) as TemplateRule | undefined
   const spec = rule?.calculator
-  const descriptor = calculators.find(item => item.configuration.provider === spec?.provider
-    && item.configuration.providerVersion === spec?.providerVersion
-    && item.configuration.parameters?.operation === spec?.parameters?.operation)
+  const descriptor = findCalculator(spec, calculators)
   return mergeSchema(resolveMetricResultType(template,id,calculators).schema, descriptor?.configuration.outputType)
 }
 

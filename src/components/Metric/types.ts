@@ -83,6 +83,23 @@ export interface MetricCalculatorDescriptor {
   configuration: MetricCalculatorSpec
   inputNames: Record<string, string>
   parameterDefinitions: MetricParameter[]
+  documentation?: MetricCalculatorDocumentation
+}
+/** 算法版本附带的固定算例，仅作展示；不改变执行声明或代替模板试算。 */
+export interface MetricCalculatorDocumentation {
+  formula?: string
+  symbols: { symbol:string; description:string }[]
+  steps: string[]
+  examples: {
+    name: string
+    parameters: Record<string,unknown>
+    inputs: Record<string,{offsetSeconds:number;value:unknown}[]>
+    cutoffSeconds: number
+    result?: unknown
+    reason?: string
+    estimated?: boolean
+    explanation: string
+  }[]
 }
 export interface MetricTemplateOutput {
   metricId: string

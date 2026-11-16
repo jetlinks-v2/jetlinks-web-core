@@ -22,7 +22,6 @@ test('linked pagination retains the authority cursor even when the visible page 
   const calls=[]
   const {state,close}=mount(ref({ownerType:'zone',ownerId:'z'}),undefined,{
     objectBindings:async(type,id,cursor)=>{calls.push(cursor);return cursor ? {items:[{id:'b',reference}],nextCursor:undefined} : {items:[],nextCursor:'hidden'}},
-    aggregateLinked:async()=>({groups:[]}),
   })
   try{await flush();assert.equal(state.page.data.value.nextCursor,'hidden');await state.refresh('hidden');assert.equal(state.page.data.value.items[0].id,'b');assert.deepEqual(calls,[undefined,'hidden'])}
   finally{close()}
@@ -33,7 +32,7 @@ test('changing the owner invalidates late results and a pending source selection
   let choose
   const {state,close}=mount(context,()=>new Promise(resolve=>{choose=resolve}),{
     objectBindings:async(_type,id)=>id==='old' ? new Promise(resolve=>pending.push(resolve)) : {items:[]},
-    bindObjectMetric:async value=>writes.push(value),aggregateLinked:async()=>({groups:[]}),
+    bindObjectMetric:async value=>writes.push(value),
   })
   try{
     const add=state.add('concrete');await flush();context.value={ownerType:'zone',ownerId:'new'};await flush()
@@ -48,14 +47,13 @@ test('links require concrete outputs and failed refreshes clear previously visib
   const {state,close}=mount(ref({ownerType:'zone',ownerId:'z'}),async()=>({mapping:selected}),{
     objectBindings:async()=>{if(denied)throw new Error('forbidden');return {items:[{id:'b',reference}]}},
     bindObjectMetric:async value=>writes.push(value),
-    aggregateLinked:async()=>{if(denied)throw new Error('forbidden');return {groups:[{id:'group'}]}},
   })
   try{
     await flush();await state.add('concrete');assert.equal(writes.length,0);assert.equal(state.mutationError.value,'concrete')
     selected={...selected,thingId:'d'};await state.add('concrete');assert.equal(writes[0].targetId,'d')
-    await flush();await state.summarize();assert.equal(state.aggregate.data.value.groups.length,1)
-    denied=true;await state.refresh();await state.summarize()
-    assert.equal(state.page.data.value,undefined);assert.equal(state.aggregate.data.value,undefined)
+    await flush();assert.deepEqual(state.types.value,['device'])
+    denied=true;await state.refresh()
+    assert.equal(state.page.data.value,undefined);assert.deepEqual(state.types.value,[])
   }finally{close()}
 })
 

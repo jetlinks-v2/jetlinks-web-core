@@ -2,17 +2,24 @@ import {computed,watch,type Ref} from 'vue'
 import {useDiagnosticQuery} from '../../../hooks/useDiagnosticQuery'
 import {metricApi} from '../api'
 import {collectMetricResources} from '../extensions/registry'
-import {metricOutputName,resultTime} from '../presentation'
+import {metricOutputName} from '../presentation'
 import {localizedTemplate} from '../template/text'
-import type {MetricApi,MetricConfig,MetricLatest,MetricObjectBindingView,MetricTemplate,MetricTemplateOutput,MetricValue} from '../types'
+import {metricValueMatches,newerMetricValue} from '../service'
+import type {MetricApi,MetricConfig,MetricContext,MetricLatest,MetricObjectBindingView,MetricTemplate,MetricTemplateOutput,MetricValue} from '../types'
 
 export interface MetricBindingCard {
   key:string; links:MetricObjectBindingView[]; title:string; source?:string; locations:Record<string,string>
   config?:MetricConfig; template?:MetricTemplate; output?:MetricTemplateOutput; value?:MetricValue
-  runtime?:MetricLatest['runtime']; unavailable?:boolean; failed?:boolean; time?:number
+  runtime?:MetricLatest['runtime']; unavailable?:boolean; failed?:boolean
 }
 export const bindingResultKey=(link:MetricObjectBindingView)=>link.reference ? JSON.stringify([link.reference.configId,link.reference.outputId,link.reference.targetType,link.reference.targetId]) : `unavailable:${link.id}`
 export const bindingLocation=(link:MetricObjectBindingView)=>link.addedAt || (link.reference ? {type:link.reference.objectType,id:link.reference.objectId} : undefined)
+/** 同一配置可在多个实际对象上运行；历史批次按真实目标隔离。 */
+export const bindingHistoryKey=(link:MetricObjectBindingView)=>JSON.stringify([link.reference?.configId,link.reference?.targetType,link.reference?.targetId])
+export function bindingSourceContext(card:MetricBindingCard):MetricContext {
+  const source=card.links[0].reference
+  return {ownerType:source?.targetType || '',ownerId:source?.targetId || '',targetType:source?.targetType,targetId:source?.targetId,label:card.source,editable:false}
+}
 const targetKey=(link:MetricObjectBindingView)=>JSON.stringify([link.reference?.targetType,link.reference?.targetId])
 
 /** 一页内复用配置、模板和名称；同一输出经多个添加位置只展示一次。授权结果只活在当前查询。 */
@@ -20,7 +27,7 @@ export function useMetricBindingResults(links:Ref<MetricObjectBindingView[]>,loc
   const query=useDiagnosticQuery<MetricBindingCard[]>()
   let identity=''
   async function refresh(){
-    const snapshot=[...links.value],language=locale.value
+    const snapshot=[...links.value],language=locale.value,previous=new Map(query.data.value?.map(card=>[card.key,card]))
     const nextIdentity=JSON.stringify(snapshot.map(link=>[link.id,bindingResultKey(link),bindingLocation(link),!!link.unavailable]))
     // 同一批关系刷新时保留布局；对象、来源或授权占位改变时立即清掉旧值。
     const retainData=identity===nextIdentity
@@ -55,7 +62,9 @@ export function useMetricBindingResults(links:Ref<MetricObjectBindingView[]>,loc
                 const output=template.outputs.find(output=>output.metricId===card.links[0].reference!.outputId)
                 if(!output){card.unavailable=true;continue}
                 Object.assign(card,{config,template,output,value:value.outputs[output.metricId],runtime:value.runtime,
-                  title:metricOutputName(output,template),time:value.outputs[output.metricId] && resultTime(value.outputs[output.metricId])})
+                  title:metricOutputName(output,template)})
+                const before=previous.get(card.key)?.value
+                if(card.value && before && metricValueMatches(config,target,before))card.value=newerMetricValue(before,card.value)
                 for(const link of card.links)for(const [type,id] of [[link.reference!.targetType,link.reference!.targetId],[link.reference!.objectType,link.reference!.objectId]]){
                   const set=names.get(type)||new Set<string>();set.add(id);names.set(type,set)
                 }

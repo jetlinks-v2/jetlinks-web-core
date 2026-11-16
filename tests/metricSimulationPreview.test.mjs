@@ -219,3 +219,28 @@ test('模拟区手动展开与收起在样本补全、加载和响应期间保�
     trial.endAtInvalid = false; await flush(); assert.equal(samples().props.open, false, '另一个错误未修正时也尊重手动折叠')
   } finally { app.unmount() }
 })
+
+test('样本定位和清除筛选独立于配置选中项，保留计算详情', async () => {
+  const Simulation=load('components/Metric/template/TemplateSimulation.vue').default
+  const {useTemplateSimulation}=load('components/Metric/template/useTemplateSimulation.ts')
+  const props=reactive({template:template(),text:JSON.stringify(facts(template())),format:'json',results:[],response:undefined,loading:false,selected:{kind:'rule',index:0}})
+  const {renderer,root}=createMetricRenderer();let panel,clears=0
+  const app=renderer.createApp({setup:()=>{
+    const trial=useTemplateSimulation({...Object.fromEntries(['template','text','format','results','response','loading'].map(key=>[key,toRef(props,key)])),invalidate(){}})
+    return ()=>h(Simulation,{ref:value=>{panel=value},template:props.template,selected:props.selected,trial,'onClear-selection':()=>{clears++}})
+  }});app.config.warnHandler=()=>{};app.mount(root)
+  try {
+    await panel.focusSamples(false,'power');await flush()
+    assert.equal(walk(root,node=>node.props.class==='sample-editor__filter').length,1)
+    assert.equal(walk(root,node=>node.props.class==='template-simulation__result').length,1)
+    walk(root,node=>node.props['aria-label']==='trialAllInputs')[0].props.onClick();await flush()
+    assert.equal(walk(root,node=>node.props.class==='sample-editor__filter').length,0)
+    assert.equal(clears,0);assert.equal(props.selected.kind,'rule')
+    assert.equal(walk(root,node=>node.props.class==='template-simulation__result').length,1)
+    props.selected={kind:'input',index:0};await flush()
+    const renamed=JSON.parse(props.text)
+    renamed.configuration.inputMappings={renamed:renamed.configuration.inputMappings.power}
+    props.template.inputDefinitions[0].id='renamed';props.text=JSON.stringify(renamed);await flush()
+    assert.match(textContent(walk(root,node=>node.props.class==='sample-editor__filter')[0]),/功率/,'同一输入重命名后筛选仍指向当前声明')
+  } finally {app.unmount()}
+})

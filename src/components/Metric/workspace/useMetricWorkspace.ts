@@ -1,5 +1,7 @@
 import { computed, ref, shallowRef, watch, type Ref } from 'vue'
 import { useMetricResources } from '../extensions/useMetricResources'
+import { loadMetricObjectTypes } from '../api'
+import { errorText } from '../service'
 import type { MetricContext, MetricObjectSelection, MetricWorkspaceSelection } from '../types'
 
 type Memory = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
@@ -7,7 +9,12 @@ const memoryKey = (scope: string) => `metric-workspace:${scope}`
 
 /** Scope memory contains only IDs. A navigator must confirm every object in its current authorized query. */
 export function useMetricWorkspace(scopeKey: Ref<string>, initial: Ref<MetricWorkspaceSelection | undefined>, editable: Ref<boolean>, changed: (selection: MetricWorkspaceSelection | undefined) => void, memory?: Memory) {
-  const resources = useMetricResources()
+  const installed = useMetricResources()
+  const supportedTypes = shallowRef<Set<string>>()
+  const discoveryLoading = ref(true)
+  const discoveryError = ref('')
+  const discoveryVersion = ref(0)
+  const resources = computed(() => ({ ...installed.value, dimensions:installed.value.dimensions.filter(item => supportedTypes.value?.has(item.provider.ownerType)) }))
   const confirmed = shallowRef<MetricObjectSelection>()
   const unavailable = ref(false)
   function readMemory(): { ownerType?: string; ownerIds: Record<string, string> } {
@@ -24,9 +31,7 @@ export function useMetricWorkspace(scopeKey: Ref<string>, initial: Ref<MetricWor
   function remembered(ownerType = readMemory().ownerType): MetricWorkspaceSelection | undefined {
     return ownerType ? { ownerType, ownerId: readMemory().ownerIds[ownerType] || '' } : undefined
   }
-  // A first visit uses the authorized provider order; the navigator still confirms every object.
-  const firstDimension = resources.value.dimensions[0]?.provider.ownerType
-  const selection = shallowRef<MetricWorkspaceSelection | undefined>(initial.value || remembered() || (firstDimension ? { ownerType:firstDimension, ownerId:'' } : undefined))
+  const selection = shallowRef<MetricWorkspaceSelection | undefined>(initial.value || remembered())
   const dimension = computed(() => resources.value.dimensions.find(item => item.provider.ownerType === selection.value?.ownerType))
   const context = computed<MetricContext | undefined>(() => {
     const object = confirmed.value
@@ -73,9 +78,10 @@ export function useMetricWorkspace(scopeKey: Ref<string>, initial: Ref<MetricWor
     if (value?.ownerType === selection.value?.ownerType && value?.ownerId === selection.value?.ownerId) return
     confirmed.value = undefined; unavailable.value = false; selection.value = value && { ...value }
   }, { flush: 'sync' })
-  watch(scopeKey, () => { confirmed.value = undefined; unavailable.value = false; selection.value = remembered(); changed(selection.value) }, { flush: 'sync' })
+  watch(scopeKey, () => { discoveryLoading.value = true; confirmed.value = undefined; unavailable.value = false; selection.value = remembered(); changed(selection.value) }, { flush: 'sync' })
   watch(() => JSON.stringify(selection.value), () => { confirmed.value = undefined }, { flush: 'sync' })
-  watch(() => [selection.value?.ownerType, dimension.value?.provider] as const, ([type, next], previousValue) => {
+  watch(() => [selection.value?.ownerType, dimension.value?.provider, discoveryLoading.value] as const, ([type, next], previousValue) => {
+    if (discoveryLoading.value || discoveryError.value) return
     const [previousType, previous] = previousValue || []
     if (type && (!next || type === previousType && previous && next !== previous)) {
       confirmed.value = undefined
@@ -85,5 +91,31 @@ export function useMetricWorkspace(scopeKey: Ref<string>, initial: Ref<MetricWor
       changed(undefined)
     }
   }, { flush: 'sync', immediate: true })
-  return { resources, selection, dimension, confirmed, context, unavailable: computed(() => unavailable.value || !!selection.value && !dimension.value), chooseDimension, confirmObject }
+  let firstLoad = true
+  // 每个身份独立发现；目录未确认或已失效时卸载对象面板，不发送无来源的指标请求。
+  watch([scopeKey, discoveryVersion], async (_value, _previous, onCleanup) => {
+    let current = true
+    onCleanup(() => { current = false })
+    discoveryLoading.value = true
+    discoveryError.value = ''
+    confirmed.value = undefined
+    supportedTypes.value = undefined
+    try {
+      const types = await loadMetricObjectTypes()
+      if (!current) return
+      supportedTypes.value = new Set(types.map(type => type.id))
+      if (firstLoad && !selection.value) {
+        const first = resources.value.dimensions[0]?.provider.ownerType
+        if (first) selection.value = {ownerType:first,ownerId:''}
+      }
+      firstLoad = false
+    } catch (cause) {
+      if (current) discoveryError.value = errorText(cause)
+    } finally {
+      if (current) discoveryLoading.value = false
+    }
+  }, {immediate:true,flush:'sync'})
+  return { resources, selection, dimension, confirmed, context, discoveryLoading, discoveryError,
+    reloadDimensions:() => { discoveryVersion.value++ },
+    unavailable: computed(() => !discoveryLoading.value && !discoveryError.value && (unavailable.value || !!selection.value && !dimension.value)), chooseDimension, confirmObject }
 }

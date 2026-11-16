@@ -2,18 +2,15 @@ import type { MetricCalculatorDescriptor, MetricCalculatorSpec, MetricParameter,
 import type { TemplateRule } from './designer'
 import { ruleDataReferences } from './formula'
 import { copy } from '../service'
+import { metricSourceMatchesType } from '../sourceSchema'
 import { encodeConfiguration } from './configurationText'
+import { calculatorInputParameters, calculatorInputsMatch } from '../calculatorDescriptor'
+export { findCalculator } from '../calculatorDescriptor'
+export { calculatorInputParameters } from '../calculatorDescriptor'
 
 export const calculatorKey = (item: MetricCalculatorDescriptor) => JSON.stringify([item.configuration.provider, item.configuration.providerVersion, item.id])
-/** 功能选择同时匹配提供者、精确版本和操作；不能把未知操作误认成默认算法。 */
-export function findCalculator(spec: MetricCalculatorSpec | undefined, items: MetricCalculatorDescriptor[]) {
-  return items.find(item => item.configuration.provider === spec?.provider && item.configuration.providerVersion === spec?.providerVersion
-    && item.configuration.parameters?.operation === spec?.parameters?.operation)
-}
 export function interactiveCalculator(spec: MetricCalculatorSpec | undefined, descriptor?: MetricCalculatorDescriptor) {
-  const aliases = Object.keys(descriptor?.configuration.inputTypes || {})
-  return !!aliases.length && !!spec && aliases.length === Object.keys(spec.inputTypes || {}).length
-    && aliases.every(id => Object.hasOwn(spec.inputTypes || {}, id))
+  return !!spec && !!descriptor && !!Object.keys(descriptor.configuration.inputTypes || {}).length && calculatorInputsMatch(spec, descriptor)
 }
 export function algorithmSources(template: MetricTemplate, rule: TemplateRule) {
   return ruleDataReferences(template, rule).map(item => {
@@ -22,11 +19,58 @@ export function algorithmSources(template: MetricTemplate, rule: TemplateRule) {
     return { ...item, valueType: input?.valueType || calculation?.calculator?.outputType, lookback: input?.source?.lookback }
   })
 }
-/** 显式更换算法时使用提供者的配置起点；只保留名称相同的输入绑定。 */
-export function chooseAlgorithm(rule: TemplateRule, item: MetricCalculatorDescriptor): Partial<TemplateRule> {
+/** 来源候选和算法切换共用角色类型；空元素类型表示由来源声明实际类型。 */
+export function algorithmSourceMatches(spec:MetricCalculatorSpec, alias:string, actual:Record<string,unknown> | undefined, descriptor?:MetricCalculatorDescriptor):boolean {
+  if (!actual?.type) return false
+  const parameter = calculatorInputParameters(descriptor).find(parameter => (spec.parameters?.[parameter.id] || parameter.id) === alias)
+  const required = parameter?.expands?.inputType as Record<string,unknown> | undefined || descriptor?.configuration.inputTypes?.[alias] || spec.inputTypes?.[alias]
+  const element = (type:Record<string,unknown> | undefined) => type?.type === 'array' ? type.elementType as Record<string,unknown> | undefined : type
+  return !!descriptor?.parameterDefinitions.some(parameter => parameter.expands?.typeFromInput === alias)
+    || metricSourceMatchesType(element(required),element(actual))
+}
+/** 优先保留同名输入；只在来源与目标均唯一时迁移别名，不按位置猜测多输入的用途。 */
+export function chooseAlgorithm(rule: TemplateRule, item: MetricCalculatorDescriptor, sources: {id:string;valueType?:Record<string,unknown>}[] = []): Partial<TemplateRule> {
   const calculator = copy(item.configuration)
-  const inputs = (rule.inputs || []).filter(input => input.id && Object.hasOwn(calculator.inputTypes || {}, input.id))
-  return { calculator, inputs, sourceMetric: undefined }
+  // 同一可选输入角色跨算法保留，不要求调用方约定特定别名。
+  for (const parameter of calculatorInputParameters(item)) {
+    const alias = rule.calculator?.parameters?.[parameter.id]
+    const inputType = typeof alias === 'string' ? rule.calculator?.inputTypes?.[alias] : undefined
+    if (inputType && typeof alias === 'string' && !calculator.inputTypes?.[alias]) {
+      calculator.inputTypes = { ...calculator.inputTypes, [alias]:copy(inputType) }
+      calculator.parameters = { ...calculator.parameters, [parameter.id]:alias }
+    }
+  }
+  type Binding = NonNullable<TemplateRule['inputs']>[number]
+  const references = rule.sourceMetric ? [rule.sourceMetric] : [...new Set(rule.dependsOn || [])]
+  const declared = rule.calculator?.inputTypes
+  const controls = declared ? (rule.inputs || []).filter(input => !Object.hasOwn(declared,input.id || '')) : []
+  const bindings = (rule.inputs || []).filter(input => (input.metricId || input.source) && !controls.includes(input))
+  const previous:Binding[] = bindings.length ? bindings : references
+    .filter(metricId => !controls.some(input => input.metricId === metricId))
+    .map(metricId => ({id:metricId,metricId}))
+  const aliases = Object.keys(calculator.inputTypes || {})
+  const sourceType = (input:Binding) => sources.find(source => source.id === input.metricId)?.valueType || rule.calculator?.inputTypes?.[input.id || '']
+  const compatible = (input:Binding, alias:string) => {
+    const actual = sourceType(input)
+    return !actual?.type || algorithmSourceMatches(calculator,alias,actual,item)
+  }
+  const assigned = new Map<string,Binding>()
+  for (const alias of aliases) {
+    const input = previous.find(input => input.id === alias && (input.metricId || input.source))
+    if (input && compatible(input,alias)) assigned.set(alias,input)
+  }
+  const remaining = aliases.filter(alias => !assigned.has(alias))
+  const used = new Set(assigned.values())
+  const unused = previous.filter(input => (input.metricId || input.source) && !used.has(input))
+  if (remaining.length === 1) {
+    const candidates = unused.filter(input => compatible(input,remaining[0]))
+    if (candidates.length === 1) assigned.set(remaining[0],candidates[0])
+  }
+  const inputs = [...assigned].map(([id,input]) => {
+    setAlgorithmInputType(calculator,id,sourceType(input),item)
+    return {...copy(input),id}
+  })
+  return { calculator, inputs:[...inputs,...copy(controls)], sourceMetric: undefined }
 }
 /** 关联来源只修改当前别名，不重写其他节点的历史取数范围。 */
 export function bindAlgorithmInput(rule: TemplateRule, alias: string, metricId: string, valueType?: Record<string, unknown>, descriptor?: MetricCalculatorDescriptor): Partial<TemplateRule> {
@@ -34,6 +78,23 @@ export function bindAlgorithmInput(rule: TemplateRule, alias: string, metricId: 
   const previous = rule.inputs?.find(input => input.id === alias)
   const inputs = (rule.inputs || []).filter(input => input.id !== alias)
   if (metricId) inputs.push({ ...previous, id: alias, metricId, source: undefined })
+  const parameter = calculatorInputParameters(descriptor).find(parameter => (calculator.parameters?.[parameter.id] || parameter.id) === alias)
+  if (parameter) {
+    calculator.parameters = { ...calculator.parameters }
+    calculator.inputTypes = { ...calculator.inputTypes }
+    if (metricId) {
+      calculator.parameters[parameter.id] = alias
+      calculator.inputTypes[alias] ||= copy(parameter.expands!.inputType as Record<string,unknown>)
+    } else {
+      delete calculator.parameters[parameter.id]
+      delete calculator.inputTypes[alias]
+    }
+  }
+  setAlgorithmInputType(calculator,alias,valueType,descriptor)
+  return { calculator, inputs }
+}
+/** 显式绑定和算法切换共用类型投影及依赖输入类型的参数处理。 */
+function setAlgorithmInputType(calculator:MetricCalculatorSpec, alias:string, valueType?:Record<string,unknown>, descriptor?:MetricCalculatorDescriptor) {
   if (valueType && calculator.inputTypes?.[alias]) {
     const expected = calculator.inputTypes[alias]
     calculator.inputTypes[alias] = expected.type === 'array' && valueType.type !== 'array'
@@ -46,7 +107,6 @@ export function bindAlgorithmInput(rule: TemplateRule, alias: string, metricId: 
       }
     }
   }
-  return { calculator, inputs }
 }
 export function algorithmParameter(parameter: MetricParameter, spec: MetricCalculatorSpec): MetricParameter {
   const alias = parameter.expands?.typeFromInput
@@ -57,6 +117,7 @@ export function algorithmParameter(parameter: MetricParameter, spec: MetricCalcu
 }
 export function visibleAlgorithmParameters(descriptor: MetricCalculatorDescriptor | undefined, spec: MetricCalculatorSpec, advanced: boolean) {
   return (descriptor?.parameterDefinitions || []).filter(parameter => {
+    if (parameter.expands?.inputType) return false
     if (!!parameter.expands?.advanced !== advanced) return false
     const condition = parameter.expands?.visibleWhen
     return !condition || typeof condition !== 'object' || Object.entries(condition).every(([key, value]) => spec.parameters?.[key] === value)
@@ -65,7 +126,7 @@ export function visibleAlgorithmParameters(descriptor: MetricCalculatorDescripto
 /** 编辑与图例共用默认值来源；依赖输入类型的状态值必须由用户明确填写。 */
 export function algorithmParameterValue(parameter: MetricParameter, spec: MetricCalculatorSpec, descriptor?: MetricCalculatorDescriptor): unknown {
   const inherited = parameter.expands?.typeFromInput ? undefined : descriptor?.configuration.parameters?.[parameter.id] ?? parameter.expands?.defaultValue
-  return spec.parameters?.[parameter.id] ?? inherited
+  return Object.hasOwn(spec.parameters || {},parameter.id) ? spec.parameters![parameter.id] : inherited
 }
 /** 输出沿用实际类型；已有声明没有展示名称时只借用描述名称，不修改执行类型。 */
 export function algorithmOutputFields(spec: MetricCalculatorSpec, descriptor?: MetricCalculatorDescriptor) {
@@ -93,7 +154,9 @@ export function algorithmSuggestions(prefix: string, spec: MetricCalculatorSpec,
   while (stack.length && stack.at(-1)!.indent >= indent) stack.pop()
   const path = stack.map(item => item.key).join('.')
   const entry = current.trimStart().match(/^([\w-]+):\s*([^#]*)$/)
-  const values = (items: { value: unknown; text?: string }[]) => items.map(item => ({ label: String(item.value), detail: item.text,
+  const values = (items: { value: unknown; text?: string }[]) => items
+    .filter((item,index) => items.findIndex(other => Object.is(other.value,item.value)) === index)
+    .map(item => ({ label: String(item.value), detail: item.text,
     insertText: encodeConfiguration(item.value, 'yaml').trim() }))
   if (entry) {
     if (!path && entry[1] === 'provider') return values([...new Set(descriptors.map(item => item.configuration.provider).filter(Boolean))].map(value => ({ value })))

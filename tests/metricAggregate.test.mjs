@@ -113,3 +113,54 @@ test('a queued manual refresh still revalidates the directory and forbidden read
     assert.equal(state.result.value,undefined);assert.equal(state.directory.value,undefined)
   } finally {app.unmount()}
 })
+
+test('已添加指标复用有界汇总，筛选只改变展示，偏好与相同类型的成员范围隔离',async()=>{
+  const previousStorage=globalThis.localStorage,stored=new Map(),calls=[]
+  globalThis.localStorage={getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)}
+  const scope=ref({kind:'linked',memberType:'device'}),context=ref({ownerType:'space',ownerId:'room',preferenceScope:'u'})
+  const api={
+    collection:async query=>{calls.push(['directory',query]);return {visibleMembers:3,groups:[{templateId:'member'}]}},
+    aggregate:async query=>{calls.push(['members',query]);return {readTime:1,groups:[{templateId:'member'}]}},
+    aggregateLinked:async query=>{calls.push(['linked',query]);return {readTime:1,groups:[{templateId:'a'},{templateId:'b'}]}},
+  }
+  let state
+  const {renderer,root}=createMetricRenderer(),app=renderer.createApp({setup(){state=useMetricAggregate(context,scope,api);return()=>h('div')}})
+  const settle=async()=>{await new Promise(resolve=>setTimeout(resolve,15));await flush()}
+  app.mount(root)
+  try{
+    await settle();assert.equal(calls.length,1);assert.equal(calls[0][0],'linked')
+    const query=calls[0][1]
+    assert.equal(query.objectType,'space');assert.equal(query.objectId,'room');assert.equal(query.targetType,'device')
+    assert.ok((query.to-query.from)/query.interval<=120);assert.equal(query.rootType,undefined)
+    state.selectTemplates(['a','unauthorized']);await flush()
+    assert.deepEqual(state.selectedTemplates.value,['a']);assert.equal(calls.length,1,'filtering a complete linked response must not repeat storage reads')
+    assert.equal(state.result.value.groups.length,2,'retain full server results for resetting the filter')
+    await state.refresh();assert.deepEqual(state.selectedTemplates.value,['a'])
+    scope.value={kind:'members',memberType:'device'};await settle()
+    assert.deepEqual(calls.slice(-2).map(([kind])=>kind),['directory','members'])
+    assert.equal(calls.at(-1)[1].templateIds,undefined)
+    state.selectTemplates(['member']);await flush()
+    scope.value={kind:'linked',memberType:'device'};await settle()
+    assert.equal(calls.at(-1)[0],'linked');assert.deepEqual(state.selectedTemplates.value,['a'])
+  }finally{app.unmount();globalThis.localStorage=previousStorage}
+})
+
+test('切换统计来源隔离迟到结果，普通刷新保持卡片，关联汇总撤权后清理结果',async()=>{
+  const scope=ref({kind:'members',memberType:'device'}),pending=[]
+  let failure
+  const api={aggregate:()=>new Promise(resolve=>pending.push(resolve)),aggregateLinked:async()=>{if(failure)throw failure;return {readTime:2,groups:[{id:'linked',templateId:'t'}]}}}
+  let state
+  const {renderer,root}=createMetricRenderer(),app=renderer.createApp({setup(){state=useMetricAggregate(ref({ownerType:'space',ownerId:'room'}),scope,api);return()=>h('div')}})
+  const settle=async()=>{await new Promise(resolve=>setTimeout(resolve,15));await flush()}
+  app.mount(root)
+  try{
+    await settle();assert.equal(pending.length,1)
+    scope.value={kind:'linked',memberType:'device'};await settle()
+    pending.shift()({readTime:1,groups:[{id:'stale',templateId:'t'}]});await settle()
+    assert.equal(state.result.value.groups[0].id,'linked')
+    failure=new Error('network');await state.refresh()
+    assert.equal(state.result.value.groups[0].id,'linked')
+    failure={response:{status:403},message:'forbidden'};await state.refresh()
+    assert.equal(state.result.value,undefined);assert.equal(state.catalog.value,undefined)
+  }finally{app.unmount()}
+})

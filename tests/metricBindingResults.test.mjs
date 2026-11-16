@@ -53,3 +53,19 @@ test('switching result identities clears prior values before a slow read finishe
     assert.equal(fixture.state.cards.value[0].unavailable,true)
   }finally{fixture.close()}
 })
+
+test('same-source refresh retains cards while waiting and ignores older snapshots only within the same enabled data version',async()=>{
+  let next,finish
+  const config={id:'scope',state:'enabled',dataVersion:'v1',enabledAt:10}
+  const value=time=>({metricId:'usage',value:time,evaluationTime:time,thingType:'device',thingId:'d',dataVersion:'v1',tags:{enabledAt:10,configId:'scope'}})
+  const fixture=mount(ref([link('a','parent')]),{latest:async()=>next ? new Promise(resolve=>{finish=resolve}) : [{configId:'scope',outputs:{usage:value(100)}}],getConfig:async()=>config,configTemplate:async()=>template})
+  try{
+    await flush();const card=fixture.state.cards.value[0]
+    next=true;const refresh=fixture.state.refresh();await flush()
+    assert.strictEqual(fixture.state.cards.value[0],card)
+    finish([{configId:'scope',outputs:{usage:value(50)}}]);await refresh
+    assert.equal(fixture.state.cards.value[0].value.evaluationTime,100)
+    const revoked=fixture.state.refresh();await flush();finish([{configId:'scope',inaccessible:true,outputs:{}}]);await revoked
+    assert.equal(fixture.state.cards.value[0].unavailable,true);assert.equal(fixture.state.cards.value[0].value,undefined)
+  }finally{fixture.close()}
+})

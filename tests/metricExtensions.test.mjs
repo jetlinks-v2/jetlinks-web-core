@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { effectScope, ref, nextTick } from 'vue'
-import { createMetricLoader, flush } from './helpers/metricRuntime.mjs'
+import { resolve } from 'node:path'
+import { createMetricLoader, flush, sourceRoot } from './helpers/metricRuntime.mjs'
 const load = createMetricLoader({
   '@jetlinks-web/vite/dist/dynamic-remote': { dynamicRemoteManager: {} },
   '@jetlinks-web-core/utils/consts': { isSubApp: false },
+  [resolve(sourceRoot,'components/Metric/api.ts')]: { loadMetricObjectTypes:async()=>collectMetricResources().dimensions.map(({provider})=>({id:provider.ownerType})) },
 })
 const { moduleRegistry } = load('utils/module-registry.ts')
 const { collectMetricResources, resolveMetricPresentation } = load('components/Metric/extensions/registry.ts')
@@ -12,7 +14,7 @@ const { normalizePresentation, presentationSettings, formatMetricValue, applyMet
 const { useMetricWorkspace } = load('components/Metric/workspace/useMetricWorkspace.ts')
 const dimension = ownerType => ({ ownerType, label: ownerType, navigator: { render() {} }, useSourcePicker: () => ({ pickSource: async () => undefined }) })
 
-test('首次工作区按授权维度排序预选，显式路由和历史选择优先，对象仍需授权确认', () => {
+test('首次工作区按授权维度排序预选，显式路由和历史选择优先，对象仍需授权确认', async () => {
   moduleRegistry.clear()
   moduleRegistry.register('objects', { metricDimensions: {
     blocked:{...dimension('blocked'),order:-1,available:()=>false},
@@ -29,6 +31,7 @@ test('首次工作区按授权维度排序预选，显式路由和历史选择�
       const view=scope.run(()=>useMetricWorkspace(ref('fresh'),ref(initial),ref(true),()=>{}, {
         getItem:()=>saved ? JSON.stringify(saved) : null,setItem(){},removeItem(){},
       }))
+      await flush()
       assert.deepEqual(view.selection.value,expected)
       assert.equal(view.context.value,undefined,'preselecting a dimension does not authorize an object')
     } finally {scope.stop()}
@@ -36,6 +39,7 @@ test('首次工作区按授权维度排序预选，显式路由和历史选择�
   const scope=effectScope()
   try {
     const view=scope.run(()=>useMetricWorkspace(ref('fresh'),ref({ownerType:'missing',ownerId:'x'}),ref(true),()=>{}))
+    await flush()
     assert.equal(view.selection.value,undefined)
     assert.equal(view.unavailable.value,true,'an unavailable explicit dimension never falls through to another')
   } finally {scope.stop();moduleRegistry.clear()}
@@ -87,6 +91,7 @@ test('工作区路由ID需要导航确认，维护权限取交集，模块退场
     getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key)
   }))
   assert.equal(view.context.value, undefined)
+  await flush()
   view.confirmObject({ ownerId: 'allowed', label: 'Line A' })
   assert.equal(view.context.value.label, 'Line A')
   assert.equal(view.context.value.editable, true)
@@ -143,6 +148,7 @@ test('无效组件/URL、维度钩子异常被隔离，既有维度消失和重�
   moduleRegistry.register('line', { metricDimensions: { line: { ...dimension('line'), canEdit() { throw new Error('permission check') } } } })
   const view = scope.run(() => useMetricWorkspace(ref('scope'), selection, ref(true), value => updates.push(value), { getItem() { throw new Error('storage blocked') }, setItem() { throw new Error('storage blocked') }, removeItem() { throw new Error('storage blocked') } }))
   try {
+    await flush()
     view.confirmObject({ ownerId: 'a', label: 'Line A' }); assert.equal(view.context.value.editable, false)
     view.chooseDimension('unknown'); assert.equal(view.selection.value.ownerId, 'a')
     moduleRegistry.unregister('line'); await flush()
@@ -166,6 +172,7 @@ test('工作区按维度记忆ID，隔离用户项目租户；恢复必须再次
     getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key)
   }))
   try {
+    await flush()
     view.chooseDimension('line'); view.confirmObject({ ownerId: 'A', label: 'Line A' })
     view.chooseDimension('area'); view.confirmObject({ ownerId: 'B', label: 'Area B' })
     view.chooseDimension('line')

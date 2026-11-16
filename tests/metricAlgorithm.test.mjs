@@ -7,8 +7,8 @@ import { createMetricLoader, createMetricRenderer, flush, walk, textContent, sou
 const load = createMetricLoader({ '@jetlinks-web/core': { request: {} }, [resolve(sourceRoot,'utils/ndjson.ts')]: { createRuntimeNdJson:()=>({}) },
   [resolve(sourceRoot,'components/Metric/template/TemplateAlgorithmGuide.vue')]: { default:defineComponent({inheritAttrs:false,setup:(_,{attrs})=>()=>h('algorithm-guide',attrs)}),__esModule:true },
   'vue-i18n': { useI18n: () => ({ t: (key, values) => values?.name ? `${key} · ${values.name}` : key, locale:{ value:'zh' } }) } })
-const { algorithmSuggestions, bindAlgorithmInput, calculatorKey, chooseAlgorithm, findCalculator, interactiveCalculator } = load('components/Metric/template/algorithm.ts')
-const { calculatorGuide, calculatorIcon, calculatorOption } = load('components/Metric/template/calculatorPresentation.ts')
+const { algorithmParameterValue, algorithmSourceMatches, algorithmSuggestions, bindAlgorithmInput, calculatorKey, chooseAlgorithm, findCalculator, interactiveCalculator } = load('components/Metric/template/algorithm.ts')
+const { calculatorIcon, calculatorOption } = load('components/Metric/template/calculatorPresentation.ts')
 const { metricMessages } = load('components/Metric/messages.ts')
 const { ruleFormulaReferences, expressionToFormula, formulaToExpression } = load('components/Metric/template/formula.ts')
 const Editor = load('components/Metric/template/TemplateAlgorithmEditor.vue').default
@@ -30,6 +30,10 @@ const meter = { id: 'increase', name: 'Counter increase', inputNames: { reading:
     outputType: { type: 'double' }, parameters: { operation: 'increase', negativeDelta: 'reject' } },
   parameterDefinitions: [{ id: 'negativeDelta', name: 'Decrease', valueType: { type: 'enum', elements: [{ value: 'reject', text: 'Reject' }, { value: 'rollover', text: 'Rollover' }] } }],
 }
+// 用扩展 provider 和不同参数名验证编辑能力来自描述，而非内置算法判断。
+const contextual = { id:'score', name:'Grouped score', inputNames:{signal:'Signal'},
+  configuration:{provider:'external-analysis',providerVersion:'1',inputTypes:{signal:{type:'array',elementType:{type:'double'}}},outputType:{type:'double'},parameters:{operation:'score'}},
+  parameterDefinitions:[{id:'groupBy',name:'Operating mode',valueType:{type:'string'},expands:{inputType:{type:'array',elementType:{}}}}] }
 const clone = value => JSON.parse(JSON.stringify(value))
 function fixture() {
   const calculator = { ...clone(state.configuration), custom: false, parameters: { ...state.configuration.parameters, extra: 0 } }
@@ -47,7 +51,7 @@ function mount(extra = {}) {
     onPatch: fields => { patches.push(fields); Object.assign(props.rule, fields) }, onInvalid: value => invalid.push(value), ...extra })
   const app = renderer.createApp({ setup: () => () => h(Editor, props) })
   for (const type of ['a-select', 'a-button', 'a-tooltip', 'a-tag', 'a-input', 'a-input-number', 'a-space', 'a-switch']) {
-    app.component(type, defineComponent({ inheritAttrs: false, setup: (_props, { attrs, slots }) => () => h(type, attrs, Object.values(slots).flatMap(slot => slot?.())) }))
+    app.component(type, defineComponent({ inheritAttrs: false, setup: (_props, { attrs, slots }) => () => h(type, attrs, Object.entries(slots).flatMap(([name,slot]) => name === 'option' ? [] : slot?.())) }))
   }
   app.config.warnHandler = () => {}; app.mount(root)
   return { root, props, invalid, patches, close: () => app.unmount() }
@@ -55,6 +59,127 @@ function mount(extra = {}) {
 const nodes = (view, type) => walk(view.root, node => node.type === type)
 const yaml = view => nodes(view, 'external-shell').find(node => node.props.language === 'yaml')
 const mode = view => nodes(view, 'a-button').find(node => ['YAML', 'algorithmInteractive'].includes(node.props['aria-label']))
+
+test('来源候选按算法角色类型过滤，分段输入按声明接受不同状态类型',async()=>{
+  const {rule,template}=fixture();rule.calculator=clone(contextual.configuration);rule.inputs=[{id:'signal',metricId:'operating'}]
+  template.inputDefinitions.push({id:'mode',name:'Mode',valueType:{type:'string'}})
+  const view=mount({rule,template,calculators:[clone(contextual)]})
+  try {
+    const choice=name=>nodes(view,'external-shell').find(node=>node.props['component-props']?.['aria-label']===`source · ${name}`).props['component-props'].options.map(option=>option.value)
+    assert.deepEqual(choice('Signal'),['operating'])
+    assert.deepEqual(choice('Operating mode'),['operating','online','mode'])
+    assert.equal(algorithmSourceMatches(contextual.configuration,'signal',undefined,contextual),false)
+    assert.equal(algorithmSourceMatches(state.configuration,'state',{type:'boolean'},state),true)
+  } finally {view.close()}
+})
+
+test('参数编辑复用通用值控件，原始枚举编码、数值范围和显式空值保持一致',async()=>{
+  const descriptor=clone(meter)
+  descriptor.parameterDefinitions=[{id:'threshold',name:'Threshold',valueType:{type:'double',min:0,max:100}},
+    {id:'mode',name:'Mode',valueType:{type:'enum',elements:[{value:0,text:'Zero'},{value:false,text:'False'}]}}]
+  descriptor.configuration.parameters.threshold=10
+  const {template,rule}=fixture();rule.calculator={...clone(descriptor.configuration),parameters:{...descriptor.configuration.parameters,threshold:null,mode:0}}
+  const view=mount({rule,template,calculators:[descriptor]})
+  try {
+    assert.equal(algorithmParameterValue(descriptor.parameterDefinitions[0],rule.calculator,descriptor),null)
+    const field=name=>nodes(view,'external-shell').find(node=>node.props['component-props']?.['aria-label']===name)
+    assert.equal(field('Threshold').props.value,null)
+    assert.equal(field('Threshold').props['component-props'].min,0)
+    assert.equal(field('Threshold').props['component-props'].max,100)
+    assert.equal(field('Mode').props.value,'0')
+    field('Mode').props.onChange('1');await flush()
+    assert.equal(rule.calculator.parameters.mode,false)
+    assert.equal(view.patches.length,1)
+  } finally {view.close()}
+})
+
+test('外部配置变更到不可视结构时回退显示完整声明，撤回后恢复交互',async()=>{
+  const view=mount()
+  try {
+    const original=clone(view.props.rule.calculator)
+    view.props.rule.calculator={...original,inputTypes:{unknown:{type:'double'}}};await flush()
+    assert.ok(yaml(view))
+    view.props.rule.calculator=original;await flush()
+    assert.equal(yaml(view),undefined)
+  } finally {view.close()}
+})
+
+test('切换算法保留条件依赖，不将其迁移为算法参数',()=>{
+  const rule={calculator:clone(meter.configuration),inputs:[{id:'reading',metricId:'temperature'},{id:'gate',metricId:'enabled'}],applicabilityTree:{version:1,root:{type:'reference',id:'gate'}}}
+  const next=chooseAlgorithm(rule,contextual,[{id:'temperature',valueType:{type:'double'}},{id:'enabled',valueType:{type:'boolean'}}])
+  assert.deepEqual(next.inputs,[{id:'signal',metricId:'temperature'},{id:'gate',metricId:'enabled'}])
+  assert.deepEqual(Object.keys(next.calculator.inputTypes),['signal'])
+  assert.equal(rule.inputs[0].id,'reading')
+  const unbound=chooseAlgorithm({...rule,inputs:[{id:'gate',metricId:'enabled'}],dependsOn:['enabled']},state,[{id:'enabled',valueType:{type:'boolean'}}])
+  assert.deepEqual(unbound.inputs,[{id:'gate',metricId:'enabled'}])
+})
+
+test('可选输入可交互添加、替换、清除，保留原输入和其他参数',async()=>{
+  const {rule,template}=fixture()
+  rule.calculator=clone(contextual.configuration);rule.inputs=[{id:'signal',metricId:'operating'}]
+  template.inputDefinitions.push({id:'mode',name:'Mode',valueType:{type:'string'},source:{lookback:'PT15M'}})
+  const view=mount({rule,template,calculators:[clone(contextual)]})
+  try {
+    assert.equal(yaml(view),undefined)
+    assert.equal(view.invalid.at(-1),false)
+    const select=()=>nodes(view,'external-shell').find(node=>node.props['component-props']?.['aria-label']==='source · Operating mode')
+    assert.equal(select().props['component-props'].allowClear,true)
+    select().props.onChange('mode');await flush()
+    assert.equal(rule.calculator.parameters.groupBy,'groupBy')
+    assert.equal(rule.calculator.inputTypes.groupBy.elementType.type,'string')
+    assert.deepEqual(rule.inputs,[{id:'signal',metricId:'operating'},{id:'groupBy',metricId:'mode',source:undefined}])
+    assert.equal(yaml(view),undefined)
+    select().props.onChange('operating');await flush()
+    assert.equal(rule.calculator.inputTypes.groupBy.elementType.type,'int')
+    select().props.onChange(undefined);await flush()
+    assert.equal(rule.calculator.parameters.groupBy,undefined)
+    assert.equal(rule.calculator.inputTypes.groupBy,undefined)
+    assert.deepEqual(rule.inputs,[{id:'signal',metricId:'operating'}])
+    assert.equal(rule.calculator.parameters.operation,'score')
+    assert.equal(yaml(view),undefined)
+  } finally {view.close()}
+})
+
+test('已配置的可选输入按描述反显并在切换算法时保留，未声明的输入仍回退',()=>{
+  const rule={id:'score',calculator:{...clone(contextual.configuration),inputTypes:{...clone(contextual.configuration.inputTypes),batch:{type:'array',elementType:{type:'string'}}},parameters:{operation:'score',groupBy:'batch'}},inputs:[{id:'signal',metricId:'reading'},{id:'batch',metricId:'mode'}]}
+  assert.equal(interactiveCalculator(rule.calculator,contextual),true)
+  const alternative={...clone(contextual),id:'another',configuration:{...clone(contextual.configuration),parameters:{operation:'another'}}}
+  const next=chooseAlgorithm(rule,alternative)
+  assert.equal(next.calculator.parameters.groupBy,'batch')
+  assert.deepEqual(next.inputs,rule.inputs)
+  assert.equal(interactiveCalculator({...rule.calculator,inputTypes:{...rule.calculator.inputTypes,unknown:{type:'double'}}},contextual),false)
+  assert.equal(interactiveCalculator({...clone(contextual.configuration),parameters:{operation:'score',groupBy:'missing'}},contextual),false)
+  const selected=findCalculator(rule.calculator,[contextual,{...clone(contextual),id:'other-input',configuration:{...clone(contextual.configuration),inputTypes:{other:{type:'double'}}}}])
+  assert.equal(selected,contextual)
+})
+
+test('未选算法时直接展开可搜索候选，选择后显示可视参数且不预写配置', async () => {
+  const {template,rule}=fixture();rule.calculator={provider:''}
+  const before=JSON.stringify(rule),view=mount({template,rule,calculators:[]})
+  try {
+    const choice=()=>nodes(view,'a-select').find(node=>node.props['aria-label']==='chooseAlgorithm')
+    assert.ok(choice());assert.equal(choice().props['default-open'],true)
+    assert.equal(yaml(view),undefined);assert.equal(mode(view),undefined)
+    assert.equal(JSON.stringify(rule),before);assert.equal(view.patches.length,0)
+    view.props.calculators=clone([state,meter]);await flush()
+    assert.equal(choice().props.options.length,2)
+    choice().props.onChange(calculatorKey(meter));await flush()
+    assert.equal(view.props.rule.calculator.provider,'measurement')
+    assert.equal(yaml(view),undefined);assert.equal(choice(),undefined)
+    assert.ok(mode(view));assert.equal(view.patches.length,1)
+  } finally {view.close()}
+})
+
+test('只读空算法仍显示选择入口，但不展开或修改配置', async () => {
+  const {template,rule}=fixture();rule.calculator={provider:''}
+  const view=mount({template,rule,disabled:true})
+  try {
+    const choice=nodes(view,'a-select').find(node=>node.props['aria-label']==='chooseAlgorithm')
+    assert.equal(choice.props.disabled,true);assert.equal(choice.props['default-open'],false)
+    choice.props.onChange(calculatorKey(meter));await flush()
+    assert.equal(view.patches.length,0);assert.equal(yaml(view),undefined)
+  } finally {view.close()}
+})
 
 test('算法配置按来源、计算、结果分层，来源块复用真实引用且选择仍更新原规则', async () => {
   const view = mount()
@@ -73,9 +198,6 @@ test('算法配置按来源、计算、结果分层，来源块复用真实引�
 })
 
 test('算法图标按真实操作区分，未知算法使用通用图标且不推断名称或能力', () => {
-  assert.equal(calculatorGuide(state.configuration),'stateDuration')
-  assert.equal(calculatorGuide({...state.configuration,providerVersion:'2'}),undefined)
-  assert.equal(calculatorGuide(meter.configuration),'increase')
   assert.equal(calculatorIcon(state), 'ClockCircleOutlined')
   assert.equal(calculatorIcon(meter), 'RiseOutlined')
   assert.equal(calculatorIcon({ ...meter, id:'integral' }), 'AreaChartOutlined')
@@ -98,14 +220,15 @@ test('算法图标按真实操作区分，未知算法使用通用图标且不�
   assert.equal(JSON.stringify(opaque), original)
 })
 
-test('算法图例与画布共用模板字典翻译，不改写枚举原编码与颜色',()=>{
+test('算法说明来自精确匹配的描述，结果字段保留模板字典翻译',()=>{
   const {template,rule}=fixture()
   template.inputDefinitions[0].valueType={type:'enum',elements:[{value:1,text:'Raw online',icon:'color:#22c55e'},{value:0,text:'Raw offline'}]}
   template.options={i18nMessages:{'input.operating.enum.1':{zh:'运行中'},'input.operating.enum.0':{zh:'已停止'},'rule.statistics.output.field.activeDuration.name':{zh:'已运行时间'}}}
   const original=JSON.stringify(template),view=mount({template,rule})
   try {
     const guide=nodes(view,'algorithm-guide')[0]
-    assert.deepEqual(guide.props.labels,[{value:1,name:'运行中',icon:'color:#22c55e'},{value:0,name:'已停止'}])
+    assert.equal(guide.props.descriptor.configuration.provider,'state')
+    assert.equal(guide.props.labels,undefined)
     assert.ok(textContent(view.root).includes('已运行时间'))
     assert.equal(JSON.stringify(template),original)
   } finally {view.close()}
@@ -204,8 +327,43 @@ test('algorithm selection pins provider, version and operation; opaque inputs st
   assert.equal(interactiveCalculator({ provider: 'external' }), false)
   const { rule } = fixture()
   const next = chooseAlgorithm(rule, meter)
-  assert.equal(next.calculator.provider, 'measurement'); assert.deepEqual(next.inputs, [])
+  assert.equal(next.calculator.provider, 'measurement'); assert.deepEqual(next.inputs, [{id:'reading',metricId:'operating',presence:'required'}])
   assert.equal(rule.calculator.custom, false); assert.equal(state.configuration.parameters.duration, 'PT1H')
+})
+
+test('窗口来源切换到算法后迁移为输入别名，后续算法切换保留来源与读取约束', () => {
+  const rule={id:'usage',sourceMetric:'temperature',dependsOn:['temperature']}
+  const sources=[{id:'temperature',valueType:{type:'double'}}]
+  const next=chooseAlgorithm(rule,meter,sources)
+  assert.equal(next.sourceMetric,undefined)
+  assert.deepEqual(next.inputs,[{id:'reading',metricId:'temperature'}])
+  assert.deepEqual(chooseAlgorithm({...rule,inputs:[{id:'unbound'}]},meter,sources).inputs,next.inputs)
+  const rebound={...rule,...next,inputs:[{...next.inputs[0],maxAge:'PT10S',presence:'optional',custom:false}]}
+  const signal={...clone(meter),id:'rms',configuration:{provider:'signal',providerVersion:'1',inputTypes:{signal:{type:'array',elementType:{type:'double'}}},parameters:{operation:'rms'}}}
+  const switched=chooseAlgorithm(rebound,signal,sources)
+  assert.deepEqual(switched.inputs,[{id:'signal',metricId:'temperature',maxAge:'PT10S',presence:'optional',custom:false}])
+  assert.equal(rule.sourceMetric,'temperature');assert.equal(rebound.inputs[0].id,'reading')
+})
+
+test('单一依赖和直接来源可无损继承；多来源没有明确对应时不按顺序猜测', () => {
+  assert.deepEqual(chooseAlgorithm({dependsOn:['temperature']},meter).inputs,[{id:'reading',metricId:'temperature'}])
+  const direct={id:'signal',source:{kind:'provider',id:'reading',providerSource:{provider:'objects',sourceType:'query',configuration:{}}},presence:'optional',defaultValue:0}
+  const rule={inputs:[direct],calculator:{inputTypes:{signal:{type:'array',elementType:{type:'double'}}}}}
+  assert.deepEqual(chooseAlgorithm(rule,meter).inputs,[{...direct,id:'reading'}])
+  assert.deepEqual(chooseAlgorithm({dependsOn:['temperature','ambient']},meter).inputs,[])
+  const multi={...clone(meter),configuration:{...clone(meter.configuration),inputTypes:{left:{type:'double'},right:{type:'double'}}}}
+  assert.deepEqual(chooseAlgorithm({inputs:[{id:'a',metricId:'one'},{id:'b',metricId:'two'}]},multi).inputs,[])
+})
+
+test('保留同名输入；明确类型不匹配时要求重选，动态状态输入沿用来源实际类型', () => {
+  const source=[{id:'online',valueType:{type:'boolean'}}]
+  assert.deepEqual(chooseAlgorithm({inputs:[{id:'reading',metricId:'online'}]},meter,source).inputs,[])
+  const next=chooseAlgorithm({inputs:[{id:'reading',metricId:'online'}]},state,source)
+  assert.deepEqual(next.inputs,[{id:'state',metricId:'online'}])
+  assert.equal(next.calculator.inputTypes.state.elementType.type,'boolean')
+  assert.equal(next.calculator.parameters.activeValue,undefined)
+  const rules={inputs:[{id:'reading',metricId:'temperature',maxAge:'PT5S'},{id:'context',metricId:'batch'}]}
+  assert.deepEqual(chooseAlgorithm(rules,meter,[{id:'temperature',valueType:{type:'float'}}]).inputs,[rules.inputs[0]])
 })
 
 test('binding uses declared source types, keeps other bindings and does not alter lookback', () => {
@@ -217,6 +375,29 @@ test('binding uses declared source types, keeps other bindings and does not alte
   assert.equal(next.calculator.parameters.extra, 0); assert.equal(next.calculator.custom, false)
   assert.equal(next.inputs[0].presence, 'optional'); assert.equal(template.inputDefinitions[0].source.lookback, 'PT2H')
   assert.equal(rule.calculator.inputTypes.state.elementType.type, 'int')
+})
+
+test('same operation with different input roles uses the matching variant in editor and formula metadata', () => {
+  const cycle = { ...clone(meter), id:'increaseByCycle', name:'Usage by cycle' }
+  cycle.configuration.inputTypes.cycle = {type:'array',elementType:{type:'string'}}
+  cycle.configuration.parameters.contextInput = 'cycle'
+  for (const descriptors of [[meter,cycle],[cycle,meter]]) {
+    assert.equal(findCalculator(meter.configuration,descriptors),meter)
+    assert.equal(findCalculator(cycle.configuration,descriptors),cycle)
+    assert.equal(interactiveCalculator(cycle.configuration,findCalculator(cycle.configuration,descriptors)),true)
+    const template={inputDefinitions:[],parameterDefinitions:[],outputs:[],definitions:[{id:'usage',name:'usage',calculator:cycle.configuration}]}
+    const references=ruleFormulaReferences(template,{id:'next',type:'composite',dependsOn:['usage']},descriptors)
+    assert.equal(references.find(item=>item.key==='usage')?.label,'Usage by cycle')
+  }
+  assert.equal(calculatorIcon(cycle),'SwapOutlined')
+  assert.equal(findCalculator({...cycle.configuration,inputTypes:{unexpected:{type:'double'}}},[meter,cycle]),undefined)
+  assert.equal(findCalculator(cycle.configuration,[cycle,{...cycle,id:'ambiguous'}]),undefined)
+  const suggestions=algorithmSuggestions('parameters:\n  operation: ',cycle.configuration,cycle,[meter,cycle])
+  assert.equal(suggestions.filter(item=>item.label==='increase').length,1,'one executable operation must not appear twice because of input variants')
+  const bound=bindAlgorithmInput({calculator:cycle.configuration,inputs:[]},'cycle','lastReset',{type:'date'},cycle)
+  assert.equal(bound.calculator.inputTypes.cycle.elementType.type,'date')
+  assert.equal(findCalculator(bound.calculator,[meter,cycle]),cycle)
+  assert.equal(interactiveCalculator(bound.calculator,cycle),true)
 })
 
 test('object result selection roundtrips MathLive aliases and depends on its parent calculation', () => {
@@ -280,14 +461,13 @@ test('boolean state binding requires explicit meanings and preserves false when 
     const hints = () => nodes(view,'span').filter(node => node.props.role === 'status').map(textContent)
     assert.deepEqual(hints(), ['algorithmMissingParameter · Active', 'algorithmMissingParameter · Inactive'])
     assert.equal(view.invalid.at(-1), false)
-    const active = nodes(view, 'external-shell').find(node => node.props['component-props']?.['aria-label'] === 'Active')
-    const inactive = nodes(view, 'external-shell').find(node => node.props['component-props']?.['aria-label'] === 'Inactive')
-    assert.deepEqual(active.props['component-props'].options.map(item => item.value), ['true', 'false'])
-    assert.equal(active.props['component-props']['aria-invalid'], true)
+    const field = name => nodes(view, 'external-shell').find(node => node.props['component-props']?.['aria-label'] === name)
+    assert.deepEqual(field('Active').props['component-props'].options.map(item => item.value), ['true', 'false'])
+    assert.equal(field('Active').props['component-props']['aria-invalid'], true)
     mode(view).props.onClick(); await flush(); assert.ok(yaml(view)); assert.deepEqual(hints(), [])
     mode(view).props.onClick(); await flush()
-    active.props.onChange('true'); await flush(); assert.deepEqual(hints(), ['algorithmMissingParameter · Inactive'])
-    inactive.props.onChange('false'); await flush(); assert.deepEqual(hints(), [])
+    field('Active').props.onChange('true'); await flush(); assert.deepEqual(hints(), ['algorithmMissingParameter · Inactive'])
+    field('Inactive').props.onChange('false'); await flush(); assert.deepEqual(hints(), [])
     assert.equal(view.props.rule.calculator.parameters.inactiveValue, false)
     assert.equal(view.invalid.at(-1), false)
   } finally { view.close() }

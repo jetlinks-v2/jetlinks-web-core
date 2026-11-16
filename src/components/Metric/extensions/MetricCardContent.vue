@@ -38,10 +38,10 @@ import { useMetricPresentation } from './useMetricPresentation'
 import { metricMessages } from '../messages'
 import { metricState, metricSampleInterval, resultTime } from '../presentation'
 import { metricInputDiagnostics } from '../sourceDiagnostics'
-import { metricHistoryKey } from '../useMetricTrends'
+import { metricHistoryKey, type MetricHistoryState } from '../useMetricTrends'
 import type { MetricConfig, MetricContext, MetricRuntime, MetricTemplate, MetricTemplateOutput, MetricValue } from '../types'
 // 与现有 SFC 一样内联宏结构，兼容 setup-name-support 的匿名预编译；领域类型仍复用共享契约。
-const props = defineProps<{ context: MetricContext; configuration: MetricConfig; template: MetricTemplate; output: MetricTemplateOutput; value?: MetricValue; runtime?: MetricRuntime; hideTrend?:boolean }>()
+const props = defineProps<{ context: MetricContext; configuration: MetricConfig; template: MetricTemplate; output: MetricTemplateOutput; value?: MetricValue; runtime?: MetricRuntime; hideTrend?:boolean; history?:MetricHistoryState }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const { provider, missing, settings } = useMetricPresentation(toRef(props, 'template'), toRef(props, 'configuration'))
 const failed = ref(false)
@@ -51,7 +51,7 @@ const stateOutput = computed(() => presentation.value.history === 'state' || pre
 const intervals = computed(() => presentation.value.history === 'interval' && !provider.value?.card)
 watch(provider, () => { failed.value = false })
 const shared = inject(metricHistoryKey, undefined)
-const history = computed(() => props.configuration.id ? shared?.entries.value[props.configuration.id] : undefined)
+const history = computed(() => props.history || (props.configuration.id ? shared?.entries.value[props.configuration.id] : undefined))
 const historyValues = computed(() => history.value?.values.filter(value => value.metricId === props.output.metricId) || [])
 const state = computed(() => intervals.value && stateIntervalSummary(props.value).state === 'unknown' ? { key:'inputExpired', tone:'warning' } : metricState(props.value))
 const evaluated = computed(() => props.value && resultTime(props.value))

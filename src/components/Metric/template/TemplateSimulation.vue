@@ -18,7 +18,7 @@
         <small v-if="!trial.facts">{{ t('sampleTextOnly') }}</small>
         <MonacoEditor :key="trial.format" v-model="trial.text" :language="trial.format" :read-only="disabled" theme="vs" :options="editorOptions" class="template-simulation__code" />
       </section>
-      <TemplateSampleEditor v-show="!trial.advanced" v-if="trial.facts" ref="sampleEditor" class="template-simulation__timeline" :template="template" :facts="trial.facts" :times="trial.index.times" :selected-time="trial.time" :selected-input="selected?.kind === 'input' ? template.inputDefinitions[selected.index]?.id : undefined" :loading="disabled" @change="trial.updateFacts" @invalid="trial.setSampleInvalid" @select-time="trial.selectTime" @clear-input="emit('clear-selection')" />
+      <TemplateSampleEditor v-show="!trial.advanced" v-if="trial.facts" ref="sampleEditor" class="template-simulation__timeline" :template="template" :facts="trial.facts" :times="trial.index.times" :selected-time="trial.time" :selected-input="sampleInput" :loading="disabled" @change="trial.updateFacts" @invalid="trial.setSampleInvalid" @select-time="trial.selectTime" @clear-input="sampleInput = undefined" />
       <small v-if="trial.sampleInvalid || trial.endAtInvalid" role="status">{{ t('completeSample') }}</small>
     </details>
     <a-alert v-if="trial.response?.status === 'failed' && trial.results.length" type="warning" :message="t('partialSimulation')" show-icon />
@@ -42,20 +42,22 @@ import type { TemplateSimulationState } from './useTemplateSimulation'
 import { metricMessages } from '../messages'
 import type { MetricTemplate } from '../types'
 const props = withDefaults(defineProps<{ template:MetricTemplate; trial:TemplateSimulationState; selected?:TemplateNode; error?:string; disabled?:boolean; allowAdvanced?:boolean }>(), { allowAdvanced:true })
-const emit = defineEmits<{ (event:'clear-selection'):void }>()
 const { t } = useI18n({ useScope:'local', messages:metricMessages })
 const samplesSection = ref<HTMLDetailsElement>()
 const sampleEditor = ref<InstanceType<typeof TemplateSampleEditor>>()
 const samplesOpen = ref(false)
+const sampleInput = ref<string>()
 // 只在定位输入或出现新错误时展开；校验恢复与试算刷新不能覆盖手动折叠状态。
-watch(() => props.selected && nodeKey(props.selected), () => {
+watch([() => props.selected && nodeKey(props.selected), () => props.selected?.kind === 'input' ? props.template.inputDefinitions[props.selected.index]?.id : undefined], () => {
+  sampleInput.value = props.selected?.kind === 'input' ? props.template.inputDefinitions[props.selected.index]?.id : undefined
   if (props.selected?.kind === 'input') samplesOpen.value = true
 }, { immediate:true })
 watch([() => props.trial.sampleInvalid, () => props.trial.endAtInvalid], ([sampleInvalid, endAtInvalid], previous) => {
   if (sampleInvalid && !previous?.[0] || endAtInvalid && !previous?.[1]) samplesOpen.value = true
 }, { immediate:true })
 /** 主动定位样本时统一更新展开状态，再滚动并交接新样本的编辑焦点。 */
-async function focusSamples(editValue = false) {
+async function focusSamples(editValue = false, inputId?:string) {
+  sampleInput.value = inputId
   samplesOpen.value = true
   await nextTick()
   if (samplesSection.value) {

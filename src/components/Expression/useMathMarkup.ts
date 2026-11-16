@@ -1,7 +1,7 @@
 import { onMounted, shallowRef, watch, type Ref } from 'vue'
 import type { expressionMath } from './math'
 
-type Projection=ReturnType<typeof expressionMath>
+type Projection=Pick<ReturnType<typeof expressionMath>,'latex'|'macros'> & Partial<Pick<ReturnType<typeof expressionMath>,'inspections'>>
 let renderer:Promise<typeof import('mathlive')>|undefined
 
 /** 复用 MathLive 静态排版；无编辑器实例、求值器或远程资源，刷新只替换排版。 */
@@ -15,7 +15,7 @@ export function useMathMarkup(projection:Ref<Projection|undefined>,element?:Ref<
   // MathLive 提供稳定的数据锚点；原生悬浮说明不增加浮层实例，也不改变数学排版。
   if(element)watch([markup,projection,element],()=>{
     element.value?.querySelectorAll<HTMLElement>('[data-expression-inspect]').forEach(target=>{
-      const item=projection.value?.inspections[Number(target.dataset.expressionInspect)]
+      const item=projection.value?.inspections?.[Number(target.dataset.expressionInspect)]
       if(!item)return
       target.title=item.title;target.tabIndex=0;target.setAttribute('aria-label',item.title)
       if(item.reference)target.setAttribute('data-expression-reference',item.reference)

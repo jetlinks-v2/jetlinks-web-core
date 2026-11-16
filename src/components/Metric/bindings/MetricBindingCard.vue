@@ -1,9 +1,9 @@
 <template>
-  <MetricCardShell :title="card.title || t(card.unavailable ? 'unavailable' : card.failed ? 'failed' : 'title')" icon="LinkOutlined">
+  <MetricCardShell :title="card.title || t(card.unavailable ? 'unavailable' : card.failed ? 'failed' : 'title')" :icon="metricConfigurationIcon(card.template,card.config)">
     <template #actions><template v-if="managing"><a-popconfirm v-for="link in removable" :key="link.id" :title="t('removeConfirm')" @confirm="$emit('remove',link.id)"><a-button type="text" size="small" :disabled="busy" :aria-label="t('remove')" :title="t('remove')"><AIcon type="DeleteOutlined" /></a-button></a-popconfirm></template></template>
     <button type="button" class="binding-card__body" :disabled="card.failed || card.unavailable || !card.output" @click="card.links[0].reference && $emit('inspect',card.links[0].reference)">
       <span v-if="card.failed || card.unavailable" class="binding-card__unavailable">—<small>{{ t(card.unavailable ? 'unavailable' : 'failed') }}</small></span>
-      <MetricCardContent v-else-if="card.config && card.template && card.output" :context="context" :configuration="card.config" :template="card.template" :output="card.output" :value="card.value" :runtime="card.runtime" hide-trend />
+      <MetricCardContent v-else-if="card.config && card.template && card.output" :context="sourceContext" :configuration="card.config" :template="card.template" :output="card.output" :value="card.value" :runtime="card.runtime" :history="history" />
       <span v-else>—</span>
       <span v-if="!card.unavailable && !card.failed" class="binding-card__source">{{ t('from',{name:card.source || t('sourceObject')}) }}<AIcon type="RightOutlined" /></span>
     </button>
@@ -15,15 +15,18 @@ import {computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 import MetricCardShell from '../MetricCardShell.vue'
 import MetricCardContent from '../extensions/MetricCardContent.vue'
+import {metricConfigurationIcon} from '../extensions/presentationSettings'
+import type {MetricHistoryState} from '../useMetricTrends'
 import {bindingMessages} from './messages'
-import {bindingLocation,type MetricBindingCard} from './useMetricBindingResults'
+import {bindingLocation,bindingSourceContext,type MetricBindingCard} from './useMetricBindingResults'
 import type {MetricContext,MetricObjectBinding,MetricObjectBindingView,MetricWorkspaceSelection} from '../types'
-const props=defineProps<{card:MetricBindingCard;context:MetricContext;managing?:boolean;busy?:boolean}>()
+const props=defineProps<{card:MetricBindingCard;context:MetricContext;managing?:boolean;busy?:boolean;history?:MetricHistoryState}>()
 const emit=defineEmits<{(event:'inspect',reference:MetricObjectBinding):void;(event:'remove',id:string):void;(event:'manageLocation',value:MetricWorkspaceSelection):void}>()
 const {t}=useI18n({useScope:'local',messages:bindingMessages})
 const isLocal=(link:MetricObjectBindingView)=>{const location=bindingLocation(link);return location?.type===props.context.ownerType && location.id===props.context.ownerId}
 const removable=computed(()=>props.context.editable ? props.card.links.filter(isLocal) : [])
 const inherited=computed(()=>props.card.links.filter(link=>bindingLocation(link) && !isLocal(link)))
+const sourceContext=computed(()=>bindingSourceContext(props.card))
 function openLocation(link:MetricObjectBindingView){const location=bindingLocation(link);if(location)emit('manageLocation',{ownerType:location.type,ownerId:location.id})}
 </script>
 <style scoped>

@@ -1,4 +1,7 @@
-import type { MetricAggregatePoint,MetricAggregateGroup,MetricCollectionGroup,ReadOperation } from './types'
+import type { MetricAggregatePoint,MetricAggregateGroup,MetricAggregateScope,MetricCollectionGroup,ReadOperation } from './types'
+
+/** 同类型来源也可能属于不同统计范围，选择与偏好不能混用。 */
+export const aggregateScopeKey=(scope:MetricAggregateScope)=>JSON.stringify([scope.kind,scope.memberType])
 
 /** Authorized declarations remain visible without comparable stored rows; missing facts never become zero results. */
 export function aggregateDirectory(records:MetricAggregateGroup[], directory:MetricCollectionGroup[]):MetricAggregateGroup[] {

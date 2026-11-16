@@ -18,6 +18,8 @@ export interface MetricReadAggregation {
   denominator?: string
 }
 export interface MetricReadScopeOption { memberType: string; label: string; icon: string; tree?: boolean }
+/** 汇总入口区分已添加的结果与声明的对象范围；添加指标不会改变对象成员关系。 */
+export interface MetricAggregateScope extends MetricReadScopeOption { kind:'members'|'linked' }
 export interface MetricCollectionQuery {
   rootType: string; rootId: string; memberType: string
   depth: 'self' | 'children' | 'descendants'

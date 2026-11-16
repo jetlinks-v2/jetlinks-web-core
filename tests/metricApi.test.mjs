@@ -20,8 +20,17 @@ const createRuntimeNdJson = () => ({ post:(path, body) => new Observable(observe
   const stream = { path, body, observer, stopped:false }; sampled.push(stream)
   return () => { stream.stopped = true }
 }) })
-const { metricApi } = createMetricLoader({ '@jetlinks-web/core': { request, wsClient }, [resolve(sourceRoot,'utils/json/index.ts')]:precision,
+const { metricApi, loadMetricObjectTypes } = createMetricLoader({ '@jetlinks-web/core': { request, wsClient }, [resolve(sourceRoot,'utils/json/index.ts')]:precision,
   [resolve(sourceRoot, 'utils/ndjson.ts')]: { createRuntimeNdJson } })('components/Metric/api.ts')
+
+test('对象目录读取原relation声明，空目录不补造类型且业务失败保留',async()=>{
+  payload=[{id:'device',name:'Device'}];status=200
+  assert.deepEqual(await loadMetricObjectTypes(),payload)
+  assert.deepEqual(calls.at(-1),['get','/relation/types',undefined,httpOptions])
+  payload=[];assert.deepEqual(await loadMetricObjectTypes(),[])
+  status=503;await assert.rejects(loadMetricObjectTypes(),/Denied/)
+  status=200
+})
 
 test('default template references do not depend on a backend discovery request',async()=>{
   const { useMetricTemplates } = createMetricLoader({ [resolve(sourceRoot,'components/Metric/api.ts')]:{ metricApi } })('components/Metric/template/useMetricTemplates.ts')

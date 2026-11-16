@@ -3,7 +3,7 @@ import { metricApi } from './api'
 import { errorText } from './service'
 import type { MetricApi, MetricConfig, MetricHistoryRequest, MetricReference, MetricValue } from './types'
 
-export interface MetricTrendTarget { id: string; key: string; outputs: string[]; intervalOutputs?: string[]; targetType?: string; targetId?: string }
+export interface MetricTrendTarget { id: string; configId?: string; key: string; outputs: string[]; intervalOutputs?: string[]; targetType?: string; targetId?: string }
 export interface MetricHistoryState {
   values: MetricValue[]
   bounds: [number, number]
@@ -29,39 +29,36 @@ export function metricHistoryRequest(outputs: string[], bounds: [number, number]
 }
 
 /** 一个对象共享历史快照。只读取可见卡片与打开的详情，旧请求不写入新的对象、范围或数据版本。 */
-export function useMetricTrends(targets: Ref<MetricTrendTarget[]>, selected: Ref<MetricReference | undefined>, snapshot: Ref<unknown>, api: MetricApi = metricApi) {
+export function useMetricTrends(targets: Ref<MetricTrendTarget[]>, selected: Ref<MetricReference | undefined>, snapshot: Ref<unknown>, api: MetricApi = metricApi, timeRange?: Pick<MetricHistoryScope,'range'|'customRange'>) {
   const entries = shallowRef<Record<string, MetricHistoryState>>({})
-  const range = ref(3600000)
-  const customRange = ref<[number, number]>()
+  const range = timeRange?.range || ref(3600000)
+  const customRange = timeRange?.customRange || ref<[number, number]>()
   const visible = ref(new Set<string>())
   const elements = new Map<string, Element>()
   const owners = new WeakMap<Element, string>()
+  const intersections = new Set<Element>()
   const queued = new Map<string, { target: MetricTrendTarget; state: MetricHistoryState }>()
   const keys = new Map<string, string>()
   let active = true
   let running = 0
-  let bounds: [number, number] = [Date.now() - range.value, Date.now()]
+  let bounds: [number, number] = customRange.value || [Date.now() - range.value, Date.now()]
   const admitted = computed(() => new Set([...visible.value, ...(selected.value ? [selected.value.configId] : [])]))
   const observer = typeof IntersectionObserver === 'undefined' ? undefined : new IntersectionObserver(changes => {
-    const next = new Set(visible.value)
     for (const change of changes) {
-      const id = owners.get(change.target)
-      if (id) change.isIntersecting ? next.add(id) : next.delete(id)
+      if (owners.has(change.target)) change.isIntersecting ? intersections.add(change.target) : intersections.delete(change.target)
     }
-    visible.value = next
+    updateVisible()
   }, { rootMargin: '80px' })
 
-  function observe(id: string, element: Element | null) {
-    const previous = elements.get(id)
+  function updateVisible() { visible.value = new Set([...intersections].flatMap(element => owners.get(element) || [])) }
+  /** 多张输出卡片可共用一个历史目标，任一卡片可见即可读取。 */
+  function observe(id: string, element: Element | null, slot = id) {
+    const previous = elements.get(slot)
     if (previous === element) return
-    if (previous) { observer?.unobserve(previous); owners.delete(previous) }
-    elements.delete(id)
-    if (element) { elements.set(id, element); owners.set(element, id); observer?.observe(element) }
-    if (!observer || !element) {
-      const next = new Set(visible.value)
-      element ? next.add(id) : next.delete(id)
-      visible.value = next
-    }
+    if (previous) { observer?.unobserve(previous); owners.delete(previous); intersections.delete(previous) }
+    elements.delete(slot)
+    if (element) { elements.set(slot, element); owners.set(element, id); observer?.observe(element); if (!observer) intersections.add(element) }
+    updateVisible()
   }
   function update(id: string, state: MetricHistoryState, patch: Partial<MetricHistoryState>) {
     if (!active || entries.value[id] !== state) return
@@ -85,11 +82,12 @@ export function useMetricTrends(targets: Ref<MetricTrendTarget[]>, selected: Ref
   async function readHistory(target: MetricTrendTarget, state: MetricHistoryState) {
     const intervalOutputs = target.intervalOutputs || []
     const normal = target.outputs.filter(output => !intervalOutputs.includes(output))
+    const configId = target.configId || target.id
     const scope = target.targetType && target.targetId ? { targetType: target.targetType, targetId: target.targetId } : {}
-    const values = normal.length ? await api.history(target.id, { ...metricHistoryRequest(normal, state.bounds), ...scope }) : []
+    const values = normal.length ? await api.history(configId, { ...metricHistoryRequest(normal, state.bounds), ...scope }) : []
     // Serial subqueries retain the panel's three-request limit and discard obsolete follow-ups.
     if (!active || entries.value[target.id] !== state || !intervalOutputs.length) return values
-    return [...values, ...await api.history(target.id, { ...metricHistoryRequest(intervalOutputs, state.bounds, true), ...scope })]
+    return [...values, ...await api.history(configId, { ...metricHistoryRequest(intervalOutputs, state.bounds, true), ...scope })]
   }
   function reconcile() {
     const current = new Map(targets.value.map(target => [target.id, target]))
@@ -133,6 +131,6 @@ export function useMetricTrends(targets: Ref<MetricTrendTarget[]>, selected: Ref
   watch([range, customRange], () => { queued.clear(); refresh(undefined,true) })
   onDeactivated(() => { active = false; queued.clear(); entries.value = {} })
   onActivated(() => { if (!active) { active = true; refresh() } })
-  onScopeDispose(() => { active = false; observer?.disconnect(); queued.clear(); elements.clear(); entries.value = {} })
+  onScopeDispose(() => { active = false; observer?.disconnect(); queued.clear(); elements.clear(); intersections.clear(); entries.value = {} })
   return { entries, range, customRange, observe, refresh }
 }

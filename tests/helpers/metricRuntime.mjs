@@ -67,7 +67,8 @@ export function createMetricLoader(stubs = {}) {
   return file => load(resolve(sourceRoot, file))
 }
 
-export const passthrough = name => vue.defineComponent({ name, inheritAttrs: true, setup: (_props, { slots }) => () => vue.h(name, Object.values(slots).flatMap(slot => slot?.())) })
+// 候选项是由选择器传参调用的 scoped slot，浅层壳不能在没有候选参数时自行调用。
+export const passthrough = name => vue.defineComponent({ name, inheritAttrs: true, setup: (_props, { slots }) => () => vue.h(name, Object.entries(slots).flatMap(([key,slot]) => key === 'option' ? [] : slot?.())) })
 export const flush = async () => { await vue.nextTick(); await new Promise(resolve => setImmediate(resolve)); await vue.nextTick() }
 
 export function createMetricRenderer() {

@@ -28,6 +28,7 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
   const subscriptions = new Map<string, () => void>()
   let focusReturn: MetricReference | undefined
   let initialSelectionPending = true
+  let hasSnapshot = false
   let generation = 0
   let ownerEpoch = 0
   let writeSequence = 0
@@ -143,7 +144,8 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
   async function readSnapshot(readValues: boolean) {
     const token = ++generation
     const owner = copy(context.value)
-    loading.value = !configurations.value.length
+    // 成功的空列表也是快照，后台轮询不能在关联卡片前重新插入首屏骨架。
+    loading.value = !hasSnapshot
     error.value = ''
     try {
       const configs = await api.byOwner(owner.ownerType, owner.ownerId)
@@ -172,6 +174,7 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
           runtimes: Object.fromEntries(ids.filter(id => runtimes.value[id]).map(id => [id, runtimes.value[id]])),
           inaccessibleIds: inaccessibleIds.value.filter(id => ids.includes(id)), errors: { ...latestErrors.value } }
       if (token !== generation || !latest) return
+      hasSnapshot = true
       configurations.value = configs
       templates.value = metadata
       itemErrors.value = errors
@@ -285,6 +288,7 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
     stopSubscriptions()
     invalidateWrites()
     inFlight = undefined
+    hasSnapshot = false
     configurations.value = []
     templates.value = {}
     outputs.value = {}

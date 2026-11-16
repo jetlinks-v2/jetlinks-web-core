@@ -3,11 +3,11 @@
     <header v-if="!hideIdentity" class="metric-panel__head">
       <div v-if="!hideIdentity" class="metric-panel__identity"><slot name="object-heading"><span class="metric-panel__object-icon"><AIcon type="DashboardOutlined" /></span><h3 :title="context.label">{{ context.label || t('title') }}</h3></slot><slot name="object-actions" /></div>
     </header>
-    <div v-if="configurations.length" class="metric-panel__tools">
+    <div v-if="configurations.length || suppressEmpty" class="metric-panel__tools">
       <div v-if="!hideAdd" class="metric-panel__section-title">{{ t('currentResults') }} <small>{{ t('metricCount', { count: configurations.length }) }}</small></div>
       <div class="metric-panel__time">
         <MetricTimeRange v-model:range="trends.range.value" v-model:custom-range="trends.customRange.value" />
-        <a-dropdown :trigger="['click']">
+        <a-dropdown v-if="configurations.length" :trigger="['click']">
           <a-button type="text" size="small" :title="t('realtime')"><AIcon type="ClockCircleOutlined" />{{ refreshInterval ? t('refreshSeconds', { seconds: refreshInterval / 1000 }) : t('realtimeFull') }}</a-button>
           <template #overlay><a-menu :selected-keys="[String(refreshInterval)]" @click="changeRefreshInterval"><a-menu-item v-for="interval in [1000, 5000, 15000]" :key="String(interval)"><AIcon :type="interval ? 'ClockCircleOutlined' : 'ThunderboltOutlined'" /> {{ interval ? t('refreshSeconds', { seconds: interval / 1000 }) : t('realtimeFull') }}</a-menu-item></a-menu></template>
         </a-dropdown>
@@ -117,7 +117,7 @@ import { localizedTemplate } from './template/text'
 import { metricMessages } from './messages'
 import type { MetricAlarmReference, MetricTemplateReference, MetricConfig, MetricContext, MetricReference, MetricSourcePicker } from './types'
 const props = defineProps<{ context: MetricContext; pickSource?: MetricSourcePicker; initialReference?: MetricReference; initialTemplate?:MetricTemplateReference; detailLinkLabel?: string; hideIdentity?: boolean; hideAdd?:boolean; suppressEmpty?:boolean; managing?:boolean }>()
-const emit = defineEmits<{ (event:'applyStarted'):void; (event: 'openDetailLink', reference: MetricAlarmReference): void; (event:'inspectScope', selection:{memberType:string;templateId:string;group?:string}):void }>()
+const emit = defineEmits<{ (event:'applyStarted'):void; (event:'refresh'):void; (event: 'openDetailLink', reference: MetricAlarmReference): void; (event:'inspectScope', selection:{memberType:string;templateId:string;group?:string}):void }>()
 const configEditor = ref<InstanceType<typeof MetricConfigEditor>>()
 async function requestDismiss() { if (!editorOpen.value || await configEditor.value?.canLeave()) dismissDrawer() }
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
@@ -163,7 +163,7 @@ async function editSource(inputId:string) {
 }
 const trends = useMetricTrends(trendTargets, reference, outputs)
 provide(metricHistoryKey, { ...trends, configurations, refreshLatest: refresh })
-async function refreshAll() { await refresh(); trends.refresh(); void scopeOverview.refresh() }
+async function refreshAll() { await refresh(); trends.refresh(); void scopeOverview.refresh(); emit('refresh') }
 function changeRefreshInterval({ key }: { key: string | number }) { refreshInterval.value = Number(key) }
 const cardElements = new Map<string, HTMLButtonElement>()
 function setPrimaryElement(reference: MetricReference, element: Element | ComponentPublicInstance | null) {

@@ -52,8 +52,10 @@ export function stateIntervalSummary(value?: MetricValue) {
   const state = !fact ? 'waiting' : !known ? 'unknown' : 'known'
   const interval = known ? current : undefined
   const seconds = fact?.readView ? fact.readView.duration : fact?.duration
+  // 完整时长未知时，区间起点仍是已确认观测的下界；仅用服务端截点，不使用浏览器时钟外推。
+  const observedDuration = known && current && !current.startKnown ? intervalDuration(current, cutoff || 0) : undefined
   return { state, interval, last: fact?.previousInterval, cutoff: cutoff || 0,
-    duration: known && seconds != null ? seconds * 1000 : undefined }
+    duration: known && seconds != null ? seconds * 1000 : observedDuration }
 }
 
 export function intervalDuration(interval: MetricStateInterval, cutoff: number) {

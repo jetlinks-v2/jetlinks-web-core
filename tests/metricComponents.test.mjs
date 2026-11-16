@@ -8,14 +8,15 @@ import { createMetricLoader, createMetricRenderer, flush, walk, textContent, sou
 const api = {}
 const confirmations = []
 const workspaceWidth = ref(1200)
+let discoverObjectTypes=async()=>[...moduleRegistry.getAllModules().values()].flatMap(module=>Object.keys(module.metricDimensions || {}).map(id=>({id})))
 const componentStubs = {
   '@vueuse/core': { useEventListener, onClickOutside, useElementSize: () => ({ width:workspaceWidth, height:ref(800) }) },
   '@jetlinks-web/vite/dist/dynamic-remote': { dynamicRemoteManager: {} },
   '@jetlinks-web-core/utils/consts': { isSubApp: false },
   'vue-i18n': { useI18n: () => ({ t: key => key, locale: ref('zh') }) },
   'ant-design-vue': { theme, Empty, Modal: { confirm: value => { confirmations.push(value);return { destroy() {} } } } },
-  [resolve(sourceRoot, 'components/Editable/index.vue')]: { __esModule:true, default:defineComponent({ setup:(_, { attrs, slots, expose }) => { expose({ edit:async () => {} }); return () => h('external-shell', attrs, Object.values(slots).flatMap(slot => slot?.())) } }) },
-  [resolve(sourceRoot, 'components/Metric/api.ts')]: { metricApi: api },
+  [resolve(sourceRoot, 'components/Editable/index.vue')]: { __esModule:true, default:defineComponent({ setup:(_, { attrs, slots, expose }) => { expose({ edit:async () => {} }); return () => h('external-shell', attrs, Object.entries(slots).flatMap(([key,slot]) => key === 'option' ? [] : slot?.())) } }) },
+  [resolve(sourceRoot, 'components/Metric/api.ts')]: { metricApi: api, loadMetricObjectTypes:()=>discoverObjectTypes() },
   [resolve(sourceRoot, 'components/ConditionFilter/index.ts')]: { __esModule:true, default:defineComponent({ props:['modelValue','fields'], setup:(props,{emit})=>()=>h('condition-filter',{...props,'onUpdate:modelValue':value=>emit('update:modelValue',value)}) }) },
   [resolve(sourceRoot, 'components/Echarts/index.ts')]: { __esModule: true, default: defineComponent({ props: ['option','events'], setup: props => () => h('chart', { option: props.option, events:props.events }) }) },
 }
@@ -99,11 +100,12 @@ test('同一聚合卡片切换最高最低与平均值同步更新主值和趋�
     assert.equal(textContent(nodes(walk(view.root,node=>node.props.role==='tooltip')[0],'b')[0]),String(value))
   }
   async function choose(key) {
-    nodes(view.root,'a-menu')[0].props.onClick({key});await flush()
-    assert.match(textContent(nodes(view.root,'a-button').find(node=>textContent(node).includes(key))),new RegExp(key))
+    nodes(view.root,'a-segmented')[0].props.onChange(key);await flush()
+    assert.equal(nodes(view.root,'a-segmented')[0].props.value,key)
   }
   try{
     await expectReading(120)
+    assert.deepEqual(nodes(view.root,'a-segmented')[0].props.options.map(item=>item.value),['average','min','max'],'available statistics are directly selectable beside the result')
     await choose('max');await expectReading(180)
     await choose('min');await expectReading(60)
     const refreshed={...latest,sum:300,min:100,max:200}
@@ -339,19 +341,40 @@ test('聚合卡片切换只保存浏览器偏好，恢复需符合输出允许�
     output:{metricId:id,label:id,valueType:'double'},operations:['average','min','max'],defaultOperation:'average',latest:{time:1,observed:2,valid:2,sum:30,min:10,max:20,distribution:{}},points:[]})),bounds:[0,3000],interval:1000,visible:false,preferenceKey:'user-a'})
   let view=mount(AggregateCard,props)
   try {
-    nodes(view.root,'a-menu').find(node=>!node.props['aria-label']).props.onClick({key:'max'});await flush()
+    nodes(view.root,'a-segmented')[0].props.onChange('max');await flush()
     assert.equal(JSON.parse(stored.get('user-a')).operations.score,'max')
     const outputMenu=nodes(view.root,'a-menu').find(node=>node.props['aria-label']==='allOutputs')
     outputMenu.props.onClick({key:'uptime'});await flush()
     assert.equal(JSON.parse(stored.get('user-a')).output,'uptime')
     view.close();view=mount(AggregateCard,props);await flush()
     assert.match(textContent(view.root),/uptime/)
-    nodes(view.root,'a-menu').find(node=>!node.props['aria-label']).props.onClick({key:'sum'});await flush()
+    nodes(view.root,'a-segmented')[0].props.onChange('sum');await flush()
     assert.equal(JSON.parse(stored.get('user-a')).operations.uptime,undefined,'browser state cannot grant sum')
     props.preferenceKey='user-b';await flush()
     assert.equal(stored.has('user-b'),false)
     assert.ok(findText(view.root,'button','score'))
   } finally {view.close();globalThis.localStorage=previousStorage}
+})
+
+test('真实工作区在目录待定或缺少路由类型时不装配该对象，也不发送指标请求',async()=>{
+  defaults();moduleRegistry.clear()
+  const previous=discoverObjectTypes
+  let release,queries=0,navigationMounts=0,pickerMounts=0
+  discoverObjectTypes=()=>new Promise(resolve=>{release=resolve})
+  api.byOwner=async()=>{queries++;return[]}
+  const provider=ownerType=>({ownerType,label:ownerType,
+    navigator:defineComponent({setup:()=>{navigationMounts++;return()=>h('navigator')}}),
+    useSourcePicker:()=>{pickerMounts++;return{pickSource:async()=>undefined}},
+  })
+  moduleRegistry.register('discovery',{metricDimensions:{space:provider('space'),device:provider('device')}})
+  const view=mount(Workspace,{scopeKey:'missing-backend',selection:{ownerType:'space',ownerId:'west-gate'}})
+  try{
+    await flush();assert.equal(navigationMounts,0);assert.equal(pickerMounts,0);assert.equal(queries,0)
+    release([{id:'device'}]);await flush()
+    assert.deepEqual(nodes(view.root,'a-select-option').map(item=>item.props.value),['device'])
+    assert.equal(navigationMounts,0);assert.equal(pickerMounts,0);assert.equal(queries,0)
+    assert.ok(nodes(view.root,'a-alert').some(node=>node.props.message==='dimensionUnavailable'))
+  }finally{view.close();moduleRegistry.clear();discoverObjectTypes=previous}
 })
 
 test('维度入口显示业务注册图标，旧扩展回退通用图标并保持选择事件', async () => {
@@ -1321,7 +1344,7 @@ test('真实Workspace抽屉动作返回第二配置引用；关闭后页头无�
   const view = mount(Workspace, { scopeKey: 'user/project/tenant', selection: { ownerType: 'line', ownerId: 'a' }, initialReference: { configId: 'c', outputId: 'value' },
     onToBusiness: (route, reference) => returned.push({ route, reference }) })
   try {
-    confirm({ ownerId: 'a', label: 'Line A' }); await flush()
+    await flush(); confirm({ ownerId: 'a', label: 'Line A' }); await flush()
     const drawer = () => nodes(view.root, 'external-shell').find(node => node.props.open)
     await click(findText(drawer(), 'a-button', 'openBusiness'))
     assert.equal(returned.at(-1).reference.configId, 'c')
@@ -1591,7 +1614,11 @@ test('融合编辑：图内输入、时间轴、配置与结果共存；改值�
     assert.equal(nodes(view.root,'a-tab-pane').some(node => node.props.tab === 'simulate'), false)
     graph.scrollTop = 127
     const sampleEditor = () => walk(view.root, node => String(node.props.class).split(' ').includes('sample-editor'))[0]
+    await select('rule-0')
+    const ruleName=nodes(view.root,'external-shell').find(node=>node.props.value==='Mean')
     await click(nodes(graphNode('input-0').parent,'button').find(node => node.props.class === 'trial-input__add'))
+    assert.equal(graphNode('rule-0').props['aria-pressed'],true,'添加模拟数据不切换正在编辑的计算节点')
+    assert.equal(nodes(view.root,'external-shell').find(node=>node.props.value==='Mean'),ruleName)
     assert.equal(findText(view.root,'a-button','simulate').props.disabled, true)
     const graphValue = () => nodes(graphNode('input-0').parent,'external-shell').find(node => node.props.type === 'number')
     graphValue().props.onChange(0); await flush()
@@ -1600,8 +1627,12 @@ test('融合编辑：图内输入、时间轴、配置与结果共存；改值�
     assert.equal(walk(view.root,node => node.props.class === 'metric-template-manager__dirty').length,0)
     await select('input-0'); assert.equal(walk(view.root, node => node.props.class === 'sample-editor__filter').length, 1)
     await click(nodes(view.root,'a-button').find(node => node.props['aria-label'] === 'trialAllInputs'))
-    assert.equal(graphNode('input-0').props['aria-pressed'], false)
+    assert.equal(graphNode('input-0').props['aria-pressed'], true,'清除样本筛选不清除配置节点选中状态')
     await select('rule-0')
+    await click(nodes(graphNode('input-0').parent,'button').find(node=>node.props.class==='trial-input__details'))
+    assert.equal(graphNode('rule-0').props['aria-pressed'],true,'查看样本详情不切换配置节点')
+    await click(nodes(view.root,'a-button').find(node=>node.props['aria-label']==='trialAllInputs'))
+    assert.equal(graphNode('rule-0').props['aria-pressed'],true)
     assert.ok(nodes(view.root,'external-shell').some(node => node.props.value === 'Mean'), 'rule remains editable alongside simulation')
     panel().scrollTop = 93
     const run = findText(view.root, 'a-button', 'simulate')

@@ -1,6 +1,6 @@
 <template>
   <Editable v-if="inline && simple" class="metric-parameter-value" :value="editableValue" :type="editorType"
-    :component-props="{ ...editorProps, disabled, bordered:false, placeholder:t('notConfigured'), 'aria-label':parameter.name || parameter.id }" @change="changeInline">{{ display }}</Editable>
+    :component-props="{ ...editorProps, disabled, bordered:false, placeholder:t('notConfigured'), 'aria-label':parameter.name || parameter.id, 'aria-invalid':$attrs['aria-invalid'] }" @change="changeInline">{{ display }}</Editable>
   <details v-else-if="inline" class="metric-parameter-value metric-parameter-value--structured">
     <summary>{{ display }}</summary>
     <pre v-if="disabled">{{ display }}</pre>

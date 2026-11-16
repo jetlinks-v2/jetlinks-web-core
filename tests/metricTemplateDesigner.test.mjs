@@ -414,9 +414,11 @@ test('公式编辑边界复用别名，显式输入与依赖同步，保留输�
     assert.equal(editor.props.rule.inputs[0].maxAge, 'PT10S'); assert.equal(editor.props.rule.inputs[1].metricId, 'ambient')
     formula().props.onInvalid(true); await flush()
     switchKind(editor, 'temporal'); await flush()
-    assert.equal(editor.patches.length, 1); assert.equal(editor.invalid.at(-1), true)
+    assert.equal(editor.patches.length, 2); assert.equal(editor.invalid.at(-1), false)
+    assert.equal(editor.props.rule.expression, undefined)
+    assert.ok(editor.props.rule.temporalCondition)
     formula().props.onInvalid(false)
-    editor.props.disabled = true; await flush(); formula().props.onChange({ expression: '1', metricIds: [] }); await flush(); assert.equal(editor.patches.length, 1)
+    editor.props.disabled = true; await flush(); formula().props.onChange({ expression: '1', metricIds: [] }); await flush(); assert.equal(editor.patches.length, 2)
   } finally { editor.close() }
 })
 test('公式引用沿用后端输入别名清理规则；特殊参数键使用SpEL索引', async () => {
@@ -449,6 +451,59 @@ test('未完成输入关联仍可更换计算方式，避免困在算法编辑�
     await flush()
     assert.equal(editor.props.rule.calculator, undefined)
   } finally { editor.close() }
+})
+
+test('持续条件未完成时仍可切换算法，旧错误清除且引用和共用约束保留', async () => {
+  const editor = mountRule({id:'average',name:'内存一分钟均值',dependsOn:['temperature'],maxInputSkew:'PT10S',
+    temporalCondition:{enterExpression:'',exitExpression:'',dwell:'PT3M',recovery:'PT1M'}})
+  try {
+    const formulas=walk(editor.root,node=>node.type==='formula-boundary')
+    formulas[0].props.onInvalid(true);formulas[1].props.onInvalid(true);await flush()
+    assert.equal(editor.invalid.at(-1),true)
+    const method=walk(editor.root,node=>node.type==='a-button' && node.props['aria-label']==='calculationMethod')[0]
+    assert.equal(method.props.disabled,false)
+    switchKind(editor,'calculator');await flush()
+    assert.equal(editor.props.rule.temporalCondition,undefined)
+    assert.equal(editor.props.rule.calculator.provider,'')
+    assert.equal(editor.invalid.at(-1),false)
+    assert.equal(editor.props.rule.name,'内存一分钟均值')
+    assert.deepEqual(editor.props.rule.dependsOn,['temperature'])
+    assert.equal(editor.props.rule.maxInputSkew,'PT10S')
+    switchKind(editor,'statistics');await flush()
+    assert.equal(editor.props.rule.aggregation,'avg')
+    assert.equal(editor.props.rule.calculator,undefined)
+  } finally {editor.close()}
+})
+
+test('算法YAML无效时可更换计算方式，禁用态仍不能切换', async () => {
+  const editor=mountRule({id:'usage',calculator:{provider:'measurement',providerVersion:'1',parameters:{operation:'increase'}}})
+  try {
+    walk(editor.root,node=>node.type==='external-shell' && node.props.language==='yaml')[0].props['onUpdate:modelValue']('{');await flush()
+    assert.equal(editor.invalid.at(-1),true)
+    switchKind(editor,'statistics');await flush()
+    assert.equal(editor.invalid.at(-1),false)
+    assert.equal(editor.props.rule.calculator,undefined)
+    const count=editor.patches.length
+    editor.props.disabled=true;await flush();switchKind(editor,'temporal');await flush()
+    assert.equal(editor.patches.length,count)
+    assert.equal(editor.props.rule.aggregation,'avg')
+  } finally {editor.close()}
+})
+
+test('更换计算方式不清除仍适用的附加条件草稿错误', async () => {
+  const editor=mountRule({id:'rise',expression:'temperature',applicabilityExpression:'temperature > 0',dependsOn:['temperature']})
+  try {
+    const summary=walk(editor.root,node=>node.props.class==='rule-editor__condition-summary')[0]
+    walk(summary,node=>node.type==='a-button')[0].props.onClick();await flush()
+    const formulas=walk(editor.root,node=>node.type==='formula-boundary')
+    formulas[1].props.onInvalid(true);await flush()
+    switchKind(editor,'statistics');await flush()
+    assert.equal(editor.props.rule.aggregation,'avg')
+    assert.equal(editor.props.rule.applicabilityExpression,'temperature > 0')
+    assert.equal(editor.invalid.at(-1),true)
+    walk(editor.root,node=>node.type==='formula-boundary')[0].props.onInvalid(false);await flush()
+    assert.equal(editor.invalid.at(-1),false)
+  } finally {editor.close()}
 })
 
 test('输入侧栏展示枚举合法选项和区间时间，读取模式切换不改变候选且不产生额外修改', async () => {

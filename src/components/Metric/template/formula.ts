@@ -2,6 +2,7 @@ import type { MetricCalculatorDescriptor, MetricTemplate } from '../types'
 import type { TemplateRule } from './designer'
 import { metricValueSchema,metricValueLabels } from '../valueSemantics'
 import type {ExpressionNode,StructuredExpression} from '../../Expression/types'
+import { findCalculator } from '../calculatorDescriptor'
 
 /** Visual arithmetic and comparison expressions share one AST; other SpEL stays in advanced mode. */
 export interface FormulaReference { key: string; label: string; displayLabel?:string; expression: string; referenceId?:string; metricId?: string; group?: 'data' | 'parameter'; semantic?: 'stateDuration'; path?:string[]; schema?:Record<string,unknown>; unit?:string }
@@ -46,8 +47,7 @@ export function dataFormulaReferences(template: MetricTemplate, item: { id:strin
   }
   const definition = template.definitions.find(definition => definition.id === item.id) as TemplateRule | undefined
   const spec = definition?.calculator
-  const descriptor = calculators.find(value => value.configuration.provider === spec?.provider && value.configuration.providerVersion === spec?.providerVersion
-    && value.configuration.parameters?.operation === spec?.parameters?.operation)
+  const descriptor = findCalculator(spec, calculators)
   const type = metricValueSchema(template, item.id, calculators)
   const label = item.label === item.id ? descriptor?.name || item.label : item.label
   const labels = metricValueLabels(template,item.id)

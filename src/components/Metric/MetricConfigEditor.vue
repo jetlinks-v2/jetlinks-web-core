@@ -52,7 +52,7 @@
             <section v-if="visibleParameters.length" class="config-properties__parameters"><h4><AIcon type="SlidersOutlined" />{{ t('parameters') }}</h4><MetricParameters :definitions="visibleParameters" :values="draft.parameters" :defaults="selectedTemplate.parameters" :disabled="saving || !context.editable" @change="changeParameter" @reset="resetParameter" /></section>
             <a-button v-if="configTrial.active.value && selectedInput && pickSource?.readCurrent && sourceDescriptions[selectedInput.id]?.capabilities?.includes('current')" size="small" :loading="configTrial.readingSample.value" :disabled="saving || !context.editable" @click="readCurrentSample"><AIcon type="DownloadOutlined" />{{ t('readCurrentSample') }}</a-button>
             <a-alert v-if="configTrial.sampleReadError.value" type="warning" show-icon :message="t(configTrial.sampleReadError.value)" />
-            <TemplateSimulation v-if="configTrial.active.value" ref="simulationPanel" :template="selectedTemplate" :selected="selected" :trial="trial" :error="configTrial.error.value" :disabled="saving || !context.editable" :allow-advanced="false" @clear-selection="background" />
+            <TemplateSimulation v-if="configTrial.active.value" ref="simulationPanel" :template="selectedTemplate" :selected="selected" :trial="trial" :error="configTrial.error.value" :disabled="saving || !context.editable" :allow-advanced="false" />
             <a-alert v-if="presentationMissing" type="warning" show-icon :message="t('presentationMissing')" />
           </template>
         </aside>
@@ -145,7 +145,7 @@ watch(locale, refreshSources)
 watch(() => props.configuration, () => { selected.value = undefined; selecting.value = !props.configuration })
 function sourceText(id:string) { return sourceDescriptions.value[id]?.error || sourceLabels.value[id] || (sourcesLoading.value ? t('configResolvingSources') : draft.value.inputMappings[id] ? t('configBound') : t('chooseSource')) }
 function selectNode(node:TemplateNode) { cancelChoice(); selected.value = node; panelOpen.value = true; showProperties.value = true }
-async function showSamples(node:TemplateNode, editValue = false) { selectNode(node); await nextTick(); simulationPanel.value?.focusSamples(editValue) }
+async function showSamples(node:TemplateNode, editValue = false) { panelOpen.value = true; showProperties.value = true; await nextTick(); await simulationPanel.value?.focusSamples(editValue, selectedTemplate.value?.inputDefinitions[node.index]?.id) }
 function background() { cancelChoice(); selected.value = undefined; panelOpen.value = true; showProperties.value = true }
 function showParameters() { background() }
 const pendingLocation = ref<string>()

@@ -9,6 +9,22 @@ const { useMetricPanel } = load('components/Metric/useMetricPanel.ts')
 const config = index => ({ id: `config-${index}`, ownerType: 'line', ownerId: 'a', targetType: 'line', targetId: 'a', templateId: 'test', templateVersion: '1', slot: String(index), inputMappings: {}, parameters: {}, presentation: { unknown: false }, state: 'enabled', revision: 1 })
 const template = { id: 'test', version: '1', name: 'Line metric', outputs: [{ metricId: 'value', label: 'Value' }], inputDefinitions: [], parameterDefinitions: [], parameters: {}, definitions: [] }
 
+test('成功的空配置快照后台刷新不重现骨架，切换对象仍按首屏读取',async()=>{
+  const prior=globalThis.document
+  globalThis.document={hidden:true,addEventListener(){},removeEventListener(){}}
+  const owner=ref({ownerType:'line',ownerId:'a'}),pending=[]
+  let view
+  const {renderer,root}=createMetricRenderer()
+  const app=renderer.createApp({setup(){view=useMetricPanel(owner,{byOwner:()=>new Promise(resolve=>pending.push(resolve)),latest:async()=>[]});return()=>null}})
+  try{
+    app.mount(root)
+    const initial=view.refresh();assert.equal(view.loading.value,true);pending.shift()([]);await initial
+    const background=view.refresh();assert.equal(view.loading.value,false);pending.shift()([]);await background
+    owner.value={ownerType:'line',ownerId:'b'};await flush()
+    const switched=view.refresh();assert.equal(view.loading.value,true);pending.shift()([]);await switched
+  }finally{app.unmount();globalThis.document=prior}
+})
+
 test('149配置按128分批且刷新不重入；失败批次保留错误，不把省略当撤权', async () => {
   const prior = globalThis.document
   globalThis.document = { hidden: true, addEventListener() {}, removeEventListener() {} }

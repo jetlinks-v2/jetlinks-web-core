@@ -23,19 +23,36 @@ const { useMetricCalculators } = load('components/Metric/useMetricCalculators.ts
 const target = (id, key = 'v1') => ({ id, key, outputs: ['score', 'condition'] })
 const result = (metricId, value, time = 1000) => ({ metricId, value, evaluationTime: time, quality: { valid: true } })
 
-function fixture(api, initial = [target('a')]) {
+function fixture(api, initial = [target('a')], timeRange) {
   const targets = ref(initial), selected = ref(), snapshot = ref({}), latest = ref({ configId: 'a', outputs: { score: result('score', 0), condition: result('condition', false) } })
   const configurations = computed(() => targets.value.map(item => ({ id: item.id })))
   const view = createMetricRenderer()
   let trends, details
   const app = view.renderer.createApp({ setup() {
-    trends = useMetricTrends(targets, selected, snapshot, api)
+    trends = useMetricTrends(targets, selected, snapshot, api,timeRange)
     details = useMetricResult(selected, api, latest, { ...trends, configurations, refreshLatest: async () => {} })
     return () => null
   } })
   app.mount(view.root)
   return { targets, selected, snapshot, latest, trends, details, close: () => app.unmount() }
 }
+
+test('同一配置不同来源的历史互相隔离，共用所选时段并保留后台刷新图表',async()=>{
+  const calls=[],pending=[];let hold=false
+  const timeRange={range:ref(3600000),customRange:ref([10,20])}
+  const f=fixture({history:async(id,request)=>{calls.push([id,request]);return hold ? new Promise(resolve=>pending.push(resolve)) : [result('score',request.targetId==='A' ? 1 : 2)]}},
+    ['A','B'].map(id=>({id,configId:'shared',key:id,outputs:['score'],targetType:'device',targetId:id})),timeRange)
+  try{
+    f.trends.observe('A',{});f.trends.observe('B',{});await flush()
+    assert.deepEqual(calls.map(([id,request])=>[id,request.targetId]),[['shared','A'],['shared','B']])
+    assert.equal(f.trends.entries.value.A.values[0].value,1);assert.equal(f.trends.entries.value.B.values[0].value,2)
+    hold=true;timeRange.customRange.value=[30,40];await flush()
+    assert.equal(f.trends.entries.value.A.values[0].value,1);assert.equal(f.trends.entries.value.B.values[0].value,2)
+    assert.deepEqual(calls.at(-1)[1].query.terms[0].value,[30,40])
+    pending[0]([result('score',3)]);pending[1]([result('score',4)]);await flush()
+    assert.equal(f.trends.entries.value.A.values[0].value,3);assert.equal(f.trends.entries.value.B.values[0].value,4)
+  }finally{f.close()}
+})
 
 test('概览、详情与辅助输出共享同一配置历史，不重复 latest/getConfig；趋势范围不改变当前值', async () => {
   const calls = []
@@ -53,6 +70,16 @@ test('概览、详情与辅助输出共享同一配置历史，不重复 latest/
     assert.equal(f.details.current.value.value, false)
     assert.equal(calls[1].request.query.pageSize, 200)
   } finally { f.close() }
+})
+
+test('同一历史目标多个可见输出只读一次，移除一张卡片不阻断另一张刷新',async()=>{
+  let reads=0
+  const f=fixture({history:async()=>{reads++;return[result('score',reads)]}})
+  try{
+    f.trends.observe('a',{},'first');f.trends.observe('a',{},'second');await flush();assert.equal(reads,1)
+    f.trends.observe('a',null,'first');f.snapshot.value={next:true};await flush()
+    assert.equal(reads,2);assert.equal(f.trends.entries.value.a.values[0].value,2)
+  }finally{f.close()}
 })
 
 test('切换时段保留共享历史与最新值，旧请求不能覆盖新时段', async () => {

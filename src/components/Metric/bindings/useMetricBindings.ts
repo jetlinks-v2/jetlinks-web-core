@@ -3,14 +3,12 @@ import {useDiagnosticQuery} from '../../../hooks/useDiagnosticQuery'
 import {metricApi} from '../api'
 import {errorText} from '../service'
 import type {MetricApi,MetricContext,MetricObjectBinding,MetricObjectBindingPage,MetricSourcePicker} from '../types'
-import type {MetricAggregateResult} from '../collection/types'
 
-/** 对象切换使旧请求失效；关联写入原宿主，汇总只发一个有界数据库请求。 */
+/** 对象切换使旧请求失效；关联只负责原宿主上的添加、移除和重新授权读取。 */
 export function useMetricBindings(context:Ref<MetricContext>,picker:Ref<MetricSourcePicker | undefined>,api:MetricApi=metricApi) {
-  const page=useDiagnosticQuery<MetricObjectBindingPage>(),aggregate=useDiagnosticQuery<MetricAggregateResult>()
-  const busy=ref(false),mutationError=ref(''),targetType=ref(''),range=ref(3600000),customRange=ref<[number,number]>()
+  const page=useDiagnosticQuery<MetricObjectBindingPage>()
+  const busy=ref(false),mutationError=ref('')
   const includeDescendants=ref(true)
-  const summaryActive=ref(false)
   const pendingAdd=shallowRef<MetricObjectBinding>()
   let loadedPages=1,writeGeneration=0,readGeneration=0,timer:ReturnType<typeof setTimeout> | undefined,disposed=false
   const key=computed(()=>JSON.stringify([context.value.ownerType,context.value.ownerId]))
@@ -36,11 +34,6 @@ export function useMetricBindings(context:Ref<MetricContext>,picker:Ref<MetricSo
     scheduleRefresh()
   }
   function scheduleRefresh(){timer=setTimeout(()=>{if(typeof document==='undefined' || !document.hidden)void refresh();else scheduleRefresh()},15000)}
-  async function summarize() {
-    const owner={...context.value},type=targetType.value,to=customRange.value?.[1] ?? Date.now(),from=customRange.value?.[0] ?? to-range.value
-    await aggregate.run(()=>api.aggregateLinked!({objectType:owner.ownerType,objectId:owner.ownerId,targetType:type,from,to,
-      interval:Math.max(1000,Math.ceil((to-from)/120))}),!!type)
-  }
   async function add(invalidMessage:string) {
     if (!picker.value || busy.value) return
     const current=key.value,owner={...context.value}
@@ -66,7 +59,7 @@ export function useMetricBindings(context:Ref<MetricContext>,picker:Ref<MetricSo
     if (busy.value) return false
     const token=++writeGeneration
     busy.value=true;mutationError.value=''
-    try {await action();if(current===key.value){await refresh();if(summaryActive.value && targetType.value)await summarize()};return true}
+    try {await action();if(current===key.value)await refresh();return true}
     catch(error){if(current===key.value)mutationError.value=errorText(error);return false}
     finally {if(token===writeGeneration)busy.value=false}
   }
@@ -74,10 +67,8 @@ export function useMetricBindings(context:Ref<MetricContext>,picker:Ref<MetricSo
     const owner={...context.value}
     return mutate(()=>api.unbindObjectMetric!(owner.ownerType,owner.ownerId,id))
   }
-  watch(key,()=>{picker.value?.cancel?.();page.clear();aggregate.clear();loadedPages=1;writeGeneration++;busy.value=false;summaryActive.value=false;targetType.value='';cancelAdd();void refresh()},{immediate:true})
-  watch(types,values=>{if(!values.includes(targetType.value))targetType.value=values[0] || ''})
-  watch([targetType,range,customRange,summaryActive],()=>{aggregate.clear();if(summaryActive.value && targetType.value)void summarize()})
-  watch(includeDescendants,()=>{loadedPages=1;page.clear();aggregate.clear();void refresh()})
+  watch(key,()=>{picker.value?.cancel?.();page.clear();loadedPages=1;writeGeneration++;busy.value=false;cancelAdd();void refresh()},{immediate:true})
+  watch(includeDescendants,()=>{loadedPages=1;page.clear();void refresh()})
   onScopeDispose(()=>{disposed=true;clearTimeout(timer);picker.value?.cancel?.()})
-  return {page,aggregate,busy,mutationError,pendingAdd,retryAdd,cancelAdd,targetType,types,range,customRange,includeDescendants,summaryActive,refresh,summarize,add,remove}
+  return {page,busy,mutationError,pendingAdd,retryAdd,cancelAdd,types,includeDescendants,refresh,add,remove}
 }

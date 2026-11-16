@@ -43,7 +43,7 @@ test('图文选项只用于显式元数据，选中态保留图标和简短名�
     walk(root, node => node.props.role === 'button')[0].props.onClick(); await flush()
     const field = walk(root, node => node.type === 'select-control')[0]
     assert.equal(field.props['dropdown-match-select-width'], false)
-    assert.equal(walk(root, node => node.type === 'small')[0].text, '来源最近的可用值')
+    assert.equal(textContent(walk(root, node => node.type === 'small')[0]), '来源最近的可用值')
     assert.equal(walk(root, node => node.type === 'icon')[0].props.type, 'ThunderboltOutlined')
     field.props['onUpdate:value'](1); field.props.onChange(); await flush()
     assert.equal(props.value, 1)

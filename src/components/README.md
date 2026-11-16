@@ -149,7 +149,7 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 
 `MetricPanel`、`MetricResult`、`MetricWorkspace` 与指标类型从 `@jetlinks-web-core/components` 具名导出；业务模块提供已授权对象与来源选择，通用层统一维护配置、批量 latest 与输出质量展示，见 `Metric/index.ts`。
 
-公式编辑、只读反显和计算过程共用 `Expression` 的数学投影。`MathExpressionView` 按公式自然高度布局，只对超宽内容提供横向滚动；`ExpressionWorkspace` 的放大预览在达到窗口可用高度后才整体纵向滚动，避免公式内部产生独立纵向滚动条。
+公式编辑、只读反显和计算过程共用 `Expression` 的数学投影。静态 LaTeX 说明使用具名导出 `LatexView`，共用 MathLive 静态排版，不创建编辑器或求值。`MathExpressionView` 按公式自然高度布局，只对超宽内容提供横向滚动；`ExpressionWorkspace` 的放大预览在达到窗口可用高度后才整体纵向滚动，避免公式内部产生独立纵向滚动条。
 
 指标概览的“添加指标”与查看时段、刷新控件放在同一工具栏，不单独占用标题行；空列表仍保留居中的创建入口。指标概览卡片以结果与趋势为主，标题旁的 `ƒx` 在悬停、聚焦或点击时展示原公式，不让公式撑高卡片。同一行卡片等高，标题、结果及底部入口对齐；停用且无历史时不叠加空趋势、等待提示或辅助空值，仍保留查看入口。状态起点不明时显示“从某时开始记录”和“至少持续”，说明真实开始时间可能更早，不将记录时间表示为上线时间。
 

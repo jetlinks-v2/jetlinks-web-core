@@ -12,6 +12,13 @@ function result<T>(response: { result: T; status?: number; message?: string }): 
   if (response.status && response.status >= 400) throw new Error(response.message || String(response.status))
   return response.result
 }
+/** 类型目录只声明实际后端来源；前端注册负责呈现，不能补造服务端能力。 */
+export interface MetricObjectType {
+  id:string; name:string; description?:string; icon?:string; i18nName?:string
+  metricSource?:{root:boolean;icon?:string}
+}
+export const loadMetricObjectTypes = async ():Promise<MetricObjectType[]> => result(await http.get<MetricObjectType[]>('/relation/types', undefined, options))
+
 export const metricApi: MetricApi = {
   objectBindings: async (type, objectId, cursor, includeDescendants) => result(await http.get<import('./types').MetricObjectBindingPage>(`/metric/bindings/${id(type)}/${id(objectId)}`, {cursor,includeDescendants}, options)),
   bindObjectMetric: async binding => result(await http.post<import('./types').MetricObjectBindingView>('/metric/bindings', binding, options)),
