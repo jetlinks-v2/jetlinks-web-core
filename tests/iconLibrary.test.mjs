@@ -32,21 +32,24 @@ test('IconLibrary uses the loaded SVG symbols throughout the selection lifecycle
     import AIcon from '@jetlinks-web/components/es/Icon/index.js'
     import ConfigProvider from '@jetlinks-web/components/es/ConfigProvider/index.js'
     import IconLibrary from './src/components/IconLibrary/index.vue'
+    import IconValueView from './src/components/IconValue/IconValueView.vue'
     import zh from './src/locales/lang/zh.json'
     import en from './src/locales/lang/en.json'
     const parameters = new URLSearchParams(location.search)
     const scriptUrl = parameters.has('slow') ? '/slow-icons.js' : parameters.has('custom') ? '/custom-icons.js' : '/icons.js'
-    const state = reactive({ value: '', saved: [], visible: false })
+    const state = reactive({ value: '', saved: [], visible: false, values: parameters.has('values') ? ['icon-tongzhiguanli', 'StepBackwardOutlined', 'icon-unknown', '服务'] : [] })
     window.iconLibraryState = state
     const i18n = createI18n({ legacy: false, locale: 'zh', messages: { zh, en } })
     window.setIconLibraryLocale = locale => { i18n.global.locale.value = locale }
     const Root = defineComponent({ setup: () => () => h(ConfigProvider, { IconConfig: { scriptUrl } }, {
-      default: () => h(IconLibrary, {
+      default: () => [h(IconLibrary, {
         type: state.value,
         'onUpdate:type': value => { state.value = value },
         onChange: value => state.saved.push(value),
         onVisibleChange: visible => { state.visible = visible }
-      })
+      }), h('div', { id: 'value-previews' }, state.values.map((value, index) => h(IconValueView, {
+        key: index, value, 'data-testid': 'preview-' + index
+      })))]
     }) })
     const app = createApp(Root)
     app.use(i18n)
@@ -250,6 +253,60 @@ test('IconLibrary uses the loaded SVG symbols throughout the selection lifecycle
     await open()
     await tab('iconfont')
     await expect(items).toHaveCount(expectedIds.length + 1)
+  })
+
+  const preview = index => page.getByTestId('preview-' + index)
+  const expectGlyph = async (index, id) => {
+    await expect(preview(index).locator('.icon-value-view__font use')).toHaveAttribute('xlink:href', '#' + id)
+    assert.ok(await preview(index).locator('svg').evaluate(svg => {
+      const box = svg.getBBox()
+      return box.width > 0 && box.height > 0
+    }))
+  }
+
+  await t.test('cards render loaded iconfont glyphs and share one observer with the selector until all unmount', async () => {
+    await load('?values')
+    await expectGlyph(0, 'icon-tongzhiguanli')
+    await expect(preview(1).locator('svg')).toHaveAttribute('data-icon', 'step-backward')
+    await expect(preview(2).locator('.icon-value-view__fallback')).toHaveText('IC')
+    await expect(preview(3).locator('.icon-value-view__fallback')).toHaveText('服务')
+    assert.equal(await page.evaluate(() => iconLibraryObservers.size), 1)
+    await page.locator('.ant-modal-close').click()
+    await flush()
+    assert.equal(await page.evaluate(() => iconLibraryObservers.size), 1)
+    await page.evaluate(() => { iconLibraryState.values = ['icon-tongzhiguanli'] })
+    await expectGlyph(0, 'icon-tongzhiguanli')
+    assert.equal(await page.evaluate(() => iconLibraryObservers.size), 1)
+    await page.evaluate(() => { iconLibraryState.values = [] })
+    await expect.poll(() => page.evaluate(() => iconLibraryObservers.size)).toBe(0)
+    await page.evaluate(() => {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      svg.innerHTML = '<symbol id="added-while-unmounted" viewBox="0 0 24 24"><path d="M2 2h20v20H2z" /></symbol>'
+      document.body.prepend(svg)
+      iconLibraryState.values = ['added-while-unmounted']
+    })
+    await expectGlyph(0, 'added-while-unmounted')
+    assert.equal(await page.evaluate(() => iconLibraryObservers.size), 1)
+  })
+
+  await t.test('cards recover after late resource loading and follow symbol renames and removal', async () => {
+    await load('?slow&values')
+    await expect.poll(() => pendingSlow.size).toBe(1)
+    await expect(preview(0).locator('.icon-value-view__fallback')).toHaveText('IC')
+    releaseSlow()
+    await expectGlyph(0, 'icon-tongzhiguanli')
+    await page.evaluate(() => { document.getElementById('icon-tongzhiguanli').id = 'renamed-notification' })
+    await expect(preview(0).locator('.icon-value-view__fallback')).toHaveText('IC')
+    await page.evaluate(() => { iconLibraryState.values[0] = 'renamed-notification' })
+    await expectGlyph(0, 'renamed-notification')
+    await page.evaluate(() => document.getElementById('renamed-notification').remove())
+    await expect(preview(0).locator('.icon-value-view__fallback')).toHaveText('RE')
+  })
+
+  await t.test('cards resolve custom symbol prefixes and IDs ending in Outlined without rewriting the value', async () => {
+    await load('?custom&values')
+    await page.evaluate(ids => { iconLibraryState.values = ids }, customIds)
+    for (const [index, id] of customIds.entries()) await expectGlyph(index, id)
   })
 
   assert.deepEqual(browserErrors, [])

@@ -8,9 +8,9 @@
         <div class="info">
           <div class="info-body">
             <a-avatar
-              :size="86"
+              :size="72"
               :src="user?.avatar || jetlinksLogoImg"
-              style="margin-bottom: 1rem"
+              class="info-body-avatar"
             />
             <div class="info-body-item">
               <span>{{ $t("bind.index.350992-1") }}</span>
@@ -23,17 +23,16 @@
               <j-ellipsis :lineClamp="2">{{ user?.name || "-" }}</j-ellipsis>
             </div>
           </div>
-          <img :src="vectorImg" />
+          <AIcon type="SwapOutlined" class="info-connector" aria-hidden="true" />
           <div class="info-body">
             <a-avatar
-              :size="86"
+              :size="72"
               :src="
                 bindUser.result?.avatar ||
                 iconMap.get(bindUser?.applicationProvider) ||
                 internalStandaloneImg
               "
-              shape="square"
-              style="margin-bottom: 1rem"
+              class="info-body-avatar"
             />
             <div class="info-body-item">
               <span>{{ $t("bind.index.350992-1") }}</span>
@@ -49,7 +48,7 @@
             </div>
           </div>
         </div>
-        <div class="btn">
+        <div class="bind-action">
           <a-button type="primary" @click="handleBind"
             >{{ $t("bind.index.350992-3") }}
           </a-button>
@@ -60,7 +59,7 @@
         <div class="not-login">
           <div class="logo">
             <img :src="jetlinksLogoImg" />
-            <img :src="vectorImg" class="arrow" />
+            <AIcon type="SwapOutlined" class="arrow" aria-hidden="true" />
             <img
               :src="
                 bindUser?.avatar || iconMap.get(bindUser?.applicationProvider)
@@ -144,7 +143,6 @@ import { codeUrl, authLogin, userDetail, encryptionConfig } from "@jetlinks-web-
 import { useSystemStore } from "@jetlinks-web-core/store/system";
 import { useI18n } from "vue-i18n";
 import jetlinksLogoImg from "@jetlinks-web-core/assets/bindPage/jetlinksLogo.png";
-import vectorImg from "@jetlinks-web-core/assets/bindPage/Vector.png";
 import internalStandaloneImg from "@jetlinks-web-core/assets/apply/internal-standalone.png";
 import wechatImg from "@jetlinks-web-core/assets/bindPage/wechat-webapp.png";
 import dingtalkImg from "@jetlinks-web-core/assets/bindPage/dingtalk.png";
@@ -362,43 +360,50 @@ onMounted(() => {
 }
 
 :deep(.ant-form-item-label > label) {
-  font-weight: bold;
+  font-weight: 500;
 }
 
 .page-container {
-  width: 100%;
-  height: 100vh;
-  background: url(/src/assets/bindPage/bindPage.png) 0% 0% / 100% 100% no-repeat;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--space-6);
+  background: var(--jet-theme-bg-layout) url('@jetlinks-web-core/assets/bindPage/bindPage.png') center bottom / cover no-repeat;
 
   .content-bind {
     box-sizing: border-box;
-    width: 58rem;
-    min-height: 31.875rem;
-    background: #fff;
-    border-radius: 1.375rem;
+    width: min(100%, 48rem);
     padding: var(--space-10);
+    border: 1px solid var(--jet-theme-border-secondary);
+    border-radius: var(--r-5);
+    background: var(--jet-theme-bg-container);
+    box-shadow: var(--shadow-pop);
 
     .title {
-      margin-bottom: 1.875rem;
-      color: #333333;
-      font-weight: 400;
-      font-size: var(--fs-22); font-style: normal;
-      line-height: 1.5625rem;
+      margin-bottom: var(--space-8);
+      color: var(--jet-theme-text-title);
+      font-size: var(--fs-20);
+      font-weight: 600;
+      line-height: var(--lh-normal);
       text-align: center;
     }
 
-    // 已登录-绑定三方账号
     .info {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 5.375rem 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr);
+      align-items: stretch;
+      gap: var(--space-5);
 
-      img {
-        width: 4.3125rem;
+      &-connector {
+        align-self: start;
+        justify-self: center;
+        margin-top: calc(var(--space-4) + 1.625rem);
+        color: var(--jet-theme-primary);
+        font-size: var(--fs-20);
       }
 
       &-body {
@@ -406,31 +411,54 @@ onMounted(() => {
         flex-direction: column;
         align-items: center;
         gap: var(--space-2);
-        width: 19.8125rem;
+        min-width: 0;
+        padding: var(--space-4) var(--space-2);
+
+        &-avatar {
+          flex: none;
+          margin-bottom: var(--space-2);
+        }
 
         &-item {
           display: flex;
-          color: #333333;
+          align-items: baseline;
+          justify-content: center;
+          width: 100%;
+          min-width: 0;
+          color: var(--jet-theme-text);
+          font-size: var(--fs-14);
+          line-height: var(--lh-normal);
 
-          span {
-            color: #666666;
+          > span:first-child {
+            flex: none;
+            color: var(--jet-theme-text-secondary);
             white-space: nowrap;
+          }
+
+          :deep(.j-ellipsis) {
+            min-width: 0;
+            overflow-wrap: anywhere;
           }
         }
       }
     }
 
-    .btn {
+    .bind-action {
       display: flex;
       justify-content: center;
-      margin-top: 1.875rem;
+      margin-top: var(--space-8);
+
+      :deep(.ant-btn) {
+        min-width: 10rem;
+        height: 2.5rem;
+      }
     }
 
-    // 未登录
     .not-login {
       display: flex;
       flex-direction: column;
       align-items: center;
+      min-width: 0;
 
       .logo {
         display: flex;
@@ -438,24 +466,46 @@ onMounted(() => {
         gap: var(--space-5);
 
         img {
-          width: 3.125rem;
-          height: 3.125rem;
+          width: 3rem;
+          height: 3rem;
+          object-fit: contain;
         }
 
         .arrow {
-          width: 0.9375rem;
-          height: 0.9375rem;
+          color: var(--jet-theme-primary);
+          font-size: var(--fs-20);
         }
       }
 
       .desc {
-        margin-top: 1.875rem;
-        margin-bottom: 1.875rem;
-        font-size: var(--fs-14); font-style: normal;
-        line-height: 0.875rem;
-        opacity: 0.75;
-        mix-blend-mode: normal;
+        margin: var(--space-6) 0;
+        color: var(--jet-theme-text-secondary);
+        font-size: var(--fs-14);
+        line-height: var(--lh-relaxed);
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
+
+      .login-form {
+        width: min(100%, 24rem);
       }
     }
   }
-}</style>
+}
+
+@media (max-width: 36rem) {
+  .page-container {
+    padding: var(--space-4);
+
+    .content-bind {
+      padding: var(--space-6);
+
+      .title { margin-bottom: var(--space-6); }
+      .info { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+      .info-connector { margin-top: 0; transform: rotate(90deg); }
+      .bind-action { margin-top: var(--space-6); }
+      .bind-action :deep(.ant-btn) { width: 100%; }
+    }
+  }
+}
+</style>

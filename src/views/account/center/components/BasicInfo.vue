@@ -180,6 +180,8 @@ const orgNote = computed(() => {
     &:hover .account-basic__avatar-camera, &:focus-within .account-basic__avatar-camera { opacity: 1; }
   }
   &__avatar { width: var(--account-avatar-size); height: var(--account-avatar-size); line-height: var(--account-avatar-size); background: var(--accent); color: var(--accent-ink); font-size: var(--fs-48); font-weight: 500; flex: none; }
+  &__avatar.ant-avatar-image { background: transparent; overflow: visible; }
+  &__avatar.ant-avatar-image :deep(img) { object-fit: contain; }
   &__avatar-camera { position: absolute; inset: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: color-mix(in srgb, var(--text-color) 45%, transparent); color: var(--bg-elev); font-size: var(--fs-24); opacity: 0; pointer-events: none; transition: opacity 0.15s; }
   &__visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   &__divider.ant-divider-horizontal { margin: var(--space-6) 0; }
