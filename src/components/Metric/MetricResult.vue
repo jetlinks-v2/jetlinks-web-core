@@ -29,6 +29,7 @@
       </section>
       <MetricDisclosure v-if="processValue && !intervals && !recordHistory" :title="t('dataDetails')" icon="DatabaseOutlined"><MetricValueView :value="processValue" :output="output" :unit="output?.unit" :settings="settings" :labels="labels" /></MetricDisclosure>
       <MetricDisclosure :title="t('runtimeDiagnostics')" icon="DashboardOutlined"><MetricRuntimeFeedback :runtime="runtime" :has-value="!!current" :disabled="configuration?.state === 'disabled'" /></MetricDisclosure>
+      <MetricHistoryVersions :reference="reference" :data-version="configuration?.dataVersion" />
     </div>
   </div>
 </template>
@@ -39,6 +40,7 @@ import MetricValueView from './MetricValue.vue'
 import MetricOutputSwitch from './MetricOutputSwitch.vue'
 import MetricRuntimeFeedback from './MetricRuntimeFeedback.vue'
 import MetricDisclosure from './MetricDisclosure.vue'
+import MetricHistoryVersions from './MetricHistoryVersions.vue'
 import MetricSourceIssues from './MetricSourceIssues.vue'
 import MetricTrend from './MetricTrend.vue'
 import MetricStateDuration from './MetricStateDuration.vue'

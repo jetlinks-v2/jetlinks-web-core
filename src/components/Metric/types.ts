@@ -316,7 +316,10 @@ export interface MetricHistoryRequest {
   intervalsOnly?: boolean
   targetType?: string
   targetId?: string
+  dataVersion?: string
 }
+export interface MetricConfigHistory { recordedAt: number; configuration: MetricConfig; template: MetricTemplate }
+export interface MetricConfigHistoryPage { records: MetricConfigHistory[]; nextRevision?: number | null }
 export interface MetricSimulationRequest {
   template: MetricTemplate
   configuration: MetricConfig
@@ -452,6 +455,7 @@ export interface MetricApi {
   watchResults?(id: string, request: MetricHistoryRequest & { intervalOutputs?: string[]; intervalQuery?: Record<string, unknown>; interval: number }, onFrame: (frame: MetricResultFrame) => void, onError: (cause: unknown) => void): () => void
   subscribe?(target: MetricDataTarget, interval: number, onValue: (value: MetricValue) => void, onError: () => void): () => void
   history(id: string, request: MetricHistoryRequest): Promise<MetricValue[]>
+  historyVersions?(id: string, before?: number, target?: { targetType: string; targetId: string }): Promise<MetricConfigHistoryPage>
   execution?(id:string, output:string, query:({resultId:string;executionId?:never} | {executionId:string;resultId?:never}) & Partial<MetricDataTarget>, signal?:AbortSignal):Promise<MetricExecutionSnapshot | undefined>
   queryTemplates(query: Record<string, unknown>): Promise<{ data: MetricTemplateEntity[]; total: number }>
   saveTemplate(template: MetricTemplate, editRevision?: number): Promise<MetricTemplateEntity>

@@ -77,6 +77,7 @@ export const metricApi: MetricApi = {
     return () => subscription.unsubscribe()
   },
   history: async (configId, query) => result(await http.post<MetricValue[]>(`/metric/configs/${id(configId)}/history`, query, options)),
+  historyVersions: async (configId, before, target) => result(await http.get<import('./types').MetricConfigHistoryPage>(`/metric/configs/${id(configId)}/history-versions`, { before, ...target }, options)),
   execution: async (configId, output, query, signal) => result(await http.get<import('./types').MetricExecutionSnapshot | undefined>(`/metric/configs/${id(configId)}/execution/${id(output)}`, query, { ...options, signal })),
   queryTemplates: async query => result(await http.post<{ data: MetricTemplateEntity[]; total: number }>('/metric/templates/_query', query, options)),
   saveTemplate: async (template, editRevision) => result(await http.post<MetricTemplateEntity>(`/metric/templates${editRevision === undefined ? '' : `?editRevision=${editRevision}`}`, template, options)),

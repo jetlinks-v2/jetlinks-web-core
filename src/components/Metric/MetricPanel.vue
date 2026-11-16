@@ -33,7 +33,7 @@
             <template #trigger><a-button type="text" size="small" class="metric-panel__formula" :aria-label="t('formula')" :title="t('formula')">ƒx</a-button></template>
           </TemplateFormulaDisplay>
           <span v-if="!canManage(card.config) && card.config.scope === 'children'" class="metric-panel__inherited" :title="t('scopeManaged')"><AIcon type="LinkOutlined" />{{ t('inherited') }}</span>
-          <a-button v-if="canManage(card.config) && (!hideAdd || managing)" type="text" size="small" class="metric-panel__edit" :aria-label="t('edit')" :title="t('edit')" @click="openEditor(card.config)"><AIcon type="EditOutlined" /></a-button>
+          <a-button v-if="canManage(card.config)" type="text" size="small" class="metric-panel__edit" :aria-label="t('edit')" :title="t('edit')" @click="openEditor(card.config)"><AIcon type="EditOutlined" /></a-button>
           <MetricConfigActions v-if="canManage(card.config) && (!hideAdd || managing)" class="metric-panel__actions" :configuration="card.config" :busy="busyId === card.config.id" @edit="openEditor(card.config)" @toggle="toggleConfig(card.config)" @remove="confirmRemove(card.config)" />
         </template>
         <MetricScopeSummary v-if="scopeDefinition(card.config)" :ref="element => setScopeElement(card.reference.configId, element)" :state="scopeOverview.state(card.config)" @refresh="scopeOverview.refresh" @inspect="emit('inspectScope', { memberType:card.config.targetType || context.inheritance?.targetType || '', templateId:card.config.templateId, group:$event })" />
@@ -66,7 +66,7 @@
         </MetricCardShell>
         <a-alert v-for="config in configurations.filter(item => item.id && itemErrors[item.id])" :key="config.id" class="metric-panel__failure"
           type="error" show-icon :message="configName(config)" :description="t('missingTemplate') + ': ' + itemErrors[config.id!]">
-          <template v-if="canManage(config)" #action><a-space><a-button size="small" @click="openEditor(config)">{{ t('edit') }}</a-button><a-button danger size="small" :loading="busyId === config.id" @click="confirmRemove(config)">{{ t('deleteMetric') }}</a-button></a-space></template>
+          <template v-if="canManage(config)" #action><a-space><a-button size="small" :aria-label="t('edit')" :title="t('edit')" @click="openEditor(config)"><AIcon type="EditOutlined" /></a-button><a-button danger size="small" :loading="busyId === config.id" @click="confirmRemove(config)">{{ t('deleteMetric') }}</a-button></a-space></template>
         </a-alert>
       </div>
     </template>
