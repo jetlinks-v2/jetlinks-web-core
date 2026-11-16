@@ -20,12 +20,13 @@ import {
   type MenuApplicationScope,
 } from '@jetlinks-web-core/utils/application-scope'
 import type { MenuFilterConditions } from '@jetlinks-web-core/types/module'
-import { createMenuStoreRuntime } from './menuRuntime'
+import { createMenuStoreRuntime, type MenuRuntimeContext } from './menuRuntime'
 import { applyModuleMenuFilters } from './menuFilters'
 import { applyMenuRouteTargets } from './menuRouteTarget'
 import {
   getCoreRouteOverrideMenus,
   getFirstMenuPath,
+  hasUserCenterMenu,
   prepareMicroApplicationMenus,
 } from './menuHelpers'
 import { useApplication } from './application'
@@ -159,6 +160,17 @@ const prepareRuntimeMenus = (menus: any[]) => (
     : menus
 )
 
+/** 个人中心复用静态路由，仅在项目没有业务入口且菜单已授权时作为默认页。 */
+const getDefaultMenuPath = (context: Pick<MenuRuntimeContext, 'menuRoutes' | 'sourceMenus'>) => {
+  const firstMenuPath = getFirstMenuPath(context.menuRoutes)
+  if (firstMenuPath || getApplicationRuntimeEntry().type !== 'project' || !hasUserCenterMenu(context.sourceMenus)) {
+    return firstMenuPath
+  }
+
+  // 模块可以隐藏或覆盖个人中心；使用实际注册路径，不重复生成动态路由。
+  return router.getRoutes().find(route => route.name === 'account/center')?.path
+}
+
 export const useMenuStore = defineStore('menu', () => {
   const app = useApplication()
     const rawMenus = ref<ProjectMenuItem[]>([])
@@ -213,7 +225,7 @@ export const useMenuStore = defineStore('menu', () => {
         const defaultRedirect = import.meta.env.VITE_DEFAULT_REDIRECT_PATH || '/account'
         context.menuRoutes.push({
           path: '/',
-          redirect: getFirstMenuPath(context.menuRoutes)
+          redirect: getDefaultMenuPath(context)
             || (isApplicationRuntime() || isSaaS ? '/403' : defaultRedirect),
         })
       }
@@ -290,7 +302,7 @@ export const useMenuStore = defineStore('menu', () => {
         runtime.loading.value = false
         return {
           applied: true,
-          firstMenuPath: getFirstMenuPath(context.menuRoutes),
+          firstMenuPath: getDefaultMenuPath(context),
         }
       }
 

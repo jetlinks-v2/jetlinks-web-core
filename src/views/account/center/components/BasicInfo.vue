@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, type PropType } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onlyMessage } from '@jetlinks-web/utils'
 import { resolvePublicAssetUrl } from '@jetlinks-web-core/utils/public-asset'
 import LoginMethods from './LoginMethods/index.vue'
 import { useBasicProfile } from './useBasicProfile'
@@ -10,7 +9,7 @@ import type { AccountCardItem, AccountCardProfile, AccountEditTarget } from '../
 const props = defineProps({ profile: { type: Object as PropType<AccountCardProfile>, required: true } })
 const emit = defineEmits<{ (event: 'edit', target: AccountEditTarget): void; (event: 'password'): void; (event: 'notification-settings'): void }>()
 const { t, locale } = useI18n()
-const { saving, saveError, saveName, saveAvatar, fields } = useBasicProfile(() => props.profile)
+const { saving, saveError, saveName, saveAvatar, copyAccountId, fields } = useBasicProfile(() => props.profile)
 const nameError = ref('')
 
 async function saveDisplayName(value: string) {
@@ -25,16 +24,6 @@ async function saveDisplayName(value: string) {
 const accountId = computed(() => props.profile.items.find(item => item.key === 'id')?.value || '')
 const shortAccountId = computed(() => accountId.value.length > 10
   ? `${accountId.value.slice(0, 4)}…${accountId.value.slice(-6)}` : accountId.value)
-
-async function copyAccountId() {
-  if (!accountId.value) return
-  try {
-    await navigator.clipboard.writeText(accountId.value)
-    onlyMessage(t('PersonalCenter.copySuccess'), 'success')
-  } catch {
-    onlyMessage(t('PersonalCenter.copyFailed'), 'error')
-  }
-}
 
 const organizationFields = computed<AccountCardItem[]>(() => {
   const items = ['roles', 'orgs', 'createTime'].flatMap(key => {
@@ -87,7 +76,7 @@ const orgNote = computed(() => {
               <div class="account-basic__item-value">
                 <span class="account-basic__mono" :title="accountId">{{ shortAccountId }}</span>
                 <a-tooltip :title="$t('PersonalCenter.copyId')">
-                  <a-button type="text" size="small" class="account-basic__copy-btn" :aria-label="$t('PersonalCenter.copyId')" @click="copyAccountId">
+                  <a-button type="text" size="small" class="account-basic__copy-btn" :aria-label="$t('PersonalCenter.copyId')" @click="copyAccountId(accountId)">
                     <template #icon><AIcon type="CopyOutlined" /></template>
                   </a-button>
                 </a-tooltip>

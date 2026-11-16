@@ -1,6 +1,8 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { getBaseApi, modules } from '@jetlinks-web-core/utils'
+import { USER_CENTER_MENU_CODE } from '@jetlinks-web-core/utils/consts'
 import type { RouteHideInMenuContext } from '@jetlinks-web-core/router/types'
+import type { MenuItem } from '@jetlinks-web-core/types/module'
 
 type MicroApplicationRegistry = {
   appList: unknown[]
@@ -75,6 +77,13 @@ export const getFirstMenuPath = (routes: RouteRecordRaw[]) => {
 
   return findPath(routes)?.replace('/:page*', '')
 }
+
+/** 用户菜单已由服务端裁剪；兼容未返回 granted 的旧数据，显式未授权节点不能作为入口。 */
+export const hasUserCenterMenu = (menus: (MenuItem & { granted?: boolean })[]): boolean => (
+  menus.some(item => item.granted !== false && (
+    item.code === USER_CENTER_MENU_CODE || hasUserCenterMenu(item.children || [])
+  ))
+)
 
 export const prepareMicroApplicationMenus = (
   menuResult: any[],

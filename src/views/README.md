@@ -74,6 +74,10 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 - 分组菜单通过公共 `--layout-menu-item-active-line-width` 变量关闭旧紧凑菜单的侧边选中线，选中背景、文字和图标沿用公共样式。
 - 四页共用 `centerLayout.less` 的内容宽度、左右边距和响应式规则。个人令牌保留摘要插图并向卡片边缘渐隐；基本信息依据原型采用无额外插图区的资料布局。
 - 基本信息采用单对象详情工作区：无需主筛选，首屏为“左侧姓名/账号/账号 ID，右侧头像 → 角色/组织/创建时间/最近登录 → 登录方式列表”。资料使用 `ContentPanel` 和 `Descriptions`，四个资料项使用语义图标，登录方式的普通图标使用统一浅色方形背景；姓名使用 `InputEditable` 就地编辑，头像使用 `ImageUpload` 裁剪，密码与联系方式使用现有弹窗，登录绑定操作在各行右侧；保持中等信息密度和现有侧栏，不增加统计卡或额外侧栏。
+- 运行时账号 ID 复制在 `account/center/components/useBasicProfile.ts` 中使用 `vue-clipboard3` 的 `toClipboard`；`BasicInfo.vue` 将原始完整字符串交给 hook，保留原按钮、缩略显示及成功/失败提示，空 ID 不执行复制。core 声明 `vue-clipboard3@^2.0.0` 直接依赖；使用该 core 的宿主工作区需同步锁文件，本地 `runtime-ui/pnpm-lock.yaml` 已同步，归属宿主仓库。资料 hook 回归脚本优先加载依赖的 `module` 入口，与浏览器构建一致。
+- 个人令牌使用说明通过 `utils/consts.ts#PersonalKey` 展示实际配置的请求头名称（`VITE_PERSONAL_TOKEN_KEY`，当前为 `X-Personal-Token`），提示格式为 `X-Personal-Token: <token>`。
+- 验证：在 core 目录运行 `node --test src/views/account/center/basicInfoView.test.mjs src/views/account/center/personalCenterFlows.test.mjs`，68 项通过，交付时与登录测试合并执行共 111/111 通过。定向类型检查修改前后均为 160 条诊断，除行号外完全一致，两个改动源码文件无诊断；交付时执行 `node --max_old_space_size=8192 ../node_modules/vue-tsc/bin/vue-tsc.js --noEmit -p tsconfig.json --pretty false`，完整检查仍为 512 条既有诊断，归一化行列号后与项目入口修复后的日志完全一致。执行 `node --max_old_space_size=8192 ../node_modules/vite/bin/vite.js build --outDir /tmp/jetlinks-web-core-pr-2.20-build -- --module-name authentication-manager-ui`，定向生产构建通过（1 分 8 秒）；两个改动 SFC 的 script/template/style 编译通过。工作区无独立 lint/样式门禁脚本。9201 HTTP 页面点击后显示“已复制账号 ID”；内置浏览器的虚拟剪贴板未取得插件写入数据，完整粘贴值尚未核验。
+- 安装限制：工作区既有 `patchedDependencies` 引用了缺失的 `patches/ant-design-vue@4.2.6.patch`，`pnpm add` 因此退出。本地已将工作区现有的 `vue-clipboard3@2.0.0` 链接给 core 完成上述验证；干净环境需先补齐该既有补丁，再执行 `pnpm install --frozen-lockfile`。
 - `FullPage` 监听异步 `PageChrome` 的高度变化，消息页签出现后重新计算可用内容高度，避免额外外层滚动条。
 
 ### 页面与数据
