@@ -1,13 +1,14 @@
 import { computed, onScopeDispose, ref, watch, type Ref } from 'vue'
 import { metricApi } from './api'
-import { errorText } from './service'
+import { errorText, metricResultKey, metricValueMatches, newerMetricValue } from './service'
 import { metricChartPoints } from './presentation'
-import { metricHistoryRequest, type MetricHistoryScope } from './useMetricTrends'
+import { metricHistoryRequest, useMetricTrends, type MetricHistoryScope } from './useMetricTrends'
 import type { MetricApi, MetricConfig, MetricLatest, MetricReference, MetricRuntime, MetricValue } from './types'
 
 /** 历史读取服务器当前口径；有界结果不补零，也不跨配置回填旧请求。 */
 export function useMetricResult(reference: Ref<MetricReference | undefined>, api: MetricApi = metricApi, snapshot?: Ref<MetricLatest | undefined>, shared?: MetricHistoryScope, intervalsOnly?: Ref<boolean>) {
   if (shared) return sharedResult(reference, snapshot, shared)
+  if (api.watchResults) return streamingResult(reference, api, intervalsOnly)
   const values = ref<MetricValue[]>([])
   const current = ref<MetricValue>()
   const runtime = ref<MetricRuntime>()
@@ -85,6 +86,57 @@ export function useMetricResult(reference: Ref<MetricReference | undefined>, api
   const bounds = computed<[number, number]>(() => customRange.value || [Date.now() - range.value, Date.now()])
   const limited = computed(() => values.value.length >= 200)
   return { values, current, runtime, configuration, inaccessible, points, latest, loading, error, range, customRange, refresh, bounds, limited }
+}
+
+/** 独立详情与卡片共用结果流；只为当前引用加载配置，不再另读 latest/history。 */
+function streamingResult(reference: Ref<MetricReference | undefined>, api: MetricApi, intervalsOnly?: Ref<boolean>) {
+  const configuration = ref<MetricConfig>()
+  const current = ref<MetricValue>()
+  const runtime = ref<MetricRuntime>()
+  const inaccessible = ref(false)
+  const readError = ref('')
+  const reading = ref(false)
+  let generation = 0
+  const targets = computed(() => {
+    const selected = reference.value, config = configuration.value
+    if (!selected || !config || selected.configId !== config.id) return []
+    return [{ id: selected.configId, key: metricResultKey(config, selected.outputId) + String(intervalsOnly?.value),
+      outputs: [selected.outputId], intervalOutputs: intervalsOnly?.value ? [selected.outputId] : [],
+      targetType: selected.targetType || config.targetType, targetId: selected.targetId || config.targetId }]
+  })
+  const trends = useMetricTrends(targets, reference, api, undefined, { interval: ref(1000), onFrame: (_id, frame) => {
+    if (frame.kind === 'changed') { void loadConfiguration(); return }
+    if (frame.kind === 'reset' || frame.kind === 'inaccessible') {
+      current.value = undefined; runtime.value = undefined; inaccessible.value = frame.kind === 'inaccessible'
+    } else if (frame.kind === 'latest' && frame.latest && configuration.value && reference.value) {
+      const value = frame.latest.outputs[reference.value.outputId], target = targets.value[0]
+      if (value && target?.targetType && target.targetId && metricValueMatches(configuration.value, { targetType: target.targetType, targetId: target.targetId }, value)) current.value = newerMetricValue(current.value, value)
+      runtime.value = frame.latest.runtime || runtime.value
+      inaccessible.value = !!frame.latest.inaccessible
+    }
+  } })
+  const history = computed(() => reference.value && trends.entries.value[reference.value.configId])
+  const values = computed(() => inaccessible.value ? [] : history.value?.values || [])
+  async function loadConfiguration() {
+    const selected = reference.value, token = ++generation
+    if (!selected) return
+    reading.value = true; readError.value = ''
+    try {
+      const config = await api.getConfig(selected.configId, selected.targetType && selected.targetId ? { targetType: selected.targetType, targetId: selected.targetId } : undefined)
+      if (token === generation) configuration.value = config
+    } catch (cause) { if (token === generation) readError.value = errorText(cause) }
+    finally { if (token === generation) reading.value = false }
+  }
+  watch(() => JSON.stringify(reference.value), () => {
+    generation++; configuration.value = undefined; current.value = undefined; runtime.value = undefined; inaccessible.value = false
+    void loadConfiguration()
+  }, { immediate: true })
+  onScopeDispose(() => { generation++ })
+  return { configuration, current, runtime, inaccessible, values, range: trends.range, customRange: trends.customRange,
+    points: computed(() => metricChartPoints(values.value)), latest: computed(() => values.value[0]),
+    loading: computed(() => reading.value || history.value?.loading || false), error: computed(() => readError.value || history.value?.error || ''),
+    bounds: computed<[number, number]>(() => history.value?.bounds || trends.customRange.value || [Date.now() - trends.range.value, Date.now()]),
+    limited: computed(() => values.value.length >= 200), async refresh() { await loadConfiguration(); trends.refresh() } }
 }
 
 /** 面板已持有授权配置和批量最新值，详情只订阅同一历史状态，不重复 latest/getConfig/history。 */

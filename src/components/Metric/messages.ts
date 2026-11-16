@@ -1,5 +1,6 @@
 export const metricMessages = {
   zh: {
+    liveUpdates:'实时更新',
     intervalStartUnknownHint:'开始时间未知，暂无法计算完整时长',
     formulaVisualUnavailable: '此历史公式暂不支持可视化编辑，请在完整配置中查看。',
     cardDisplay:'卡片展示',
@@ -234,6 +235,7 @@ export const metricMessages = {
     discardEdits: '离开后将放弃未保存的修改，是否继续？', continue: '继续', rangeStart: '开始时间', rangeEnd: '结束时间'
   },
   en: {
+    liveUpdates:'Live updates',
     intervalStartUnknownHint:'Start time is unknown; full duration is unavailable',
     formulaVisualUnavailable: 'This legacy formula cannot be edited visually. View it in the full configuration.',
     cardDisplay:'Card display',

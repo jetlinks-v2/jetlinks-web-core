@@ -2,11 +2,20 @@ import { request, wsClient, type Request } from '@jetlinks-web/core'
 import { createRuntimeNdJson } from '../../utils/ndjson'
 import { parseJsonResponseWithPrecision } from '../../utils/json'
 import { map } from 'rxjs'
+import { createMetricResultStreams, type MetricWatchFrame } from './resultStreams'
 import type { MetricApi, MetricBuiltinItem, MetricCalculatorDescriptor, MetricConfig, MetricLatest, MetricTemplate, MetricTemplateEntity, MetricTemplateRevision, MetricValue, MetricSimulationResponse } from './types'
 
 const options = { hiddenError: true, transformResponse: [parseJsonResponseWithPrecision] }
 const http: Pick<Request, 'get' | 'post' | 'put' | 'remove'> = request
 const id = encodeURIComponent
+const watchResults = createMetricResultStreams((targets, next, error) => {
+  const subscription = createRuntimeNdJson().post('/metric/configs/_watch', { targets }).pipe(map((value: unknown) => {
+    const envelope = value as { result?: MetricWatchFrame; success?: boolean; status?: number; message?: string }
+    if (envelope.success === false || envelope.status && envelope.status >= 400) throw new Error(envelope.message || String(envelope.status))
+    return envelope.result || value as MetricWatchFrame
+  })).subscribe({ next, error, complete: () => error(new Error('Metric stream closed')) })
+  return () => subscription.unsubscribe()
+})
 /** API 保留平台请求上下文和授权处理；组件只消费领域结果。 */
 function result<T>(response: { result: T; status?: number; message?: string }): T {
   if (response.status && response.status >= 400) throw new Error(response.message || String(response.status))
@@ -43,6 +52,7 @@ export const metricApi: MetricApi = {
   saveConfig: async config => result(await http.post<MetricConfig>('/metric/configs', config, options)),
   removeConfig: async configId => { result(await http.remove(`/metric/configs/${id(configId)}`, undefined, options)) },
   latest: async (configIds, target) => result(await http.post<MetricLatest[]>('/metric/configs/_latest', { configIds, ...target }, options)),
+  watchResults,
   watchLatest: (configIds, target, interval, onValue, onError) => {
     const subscription = createRuntimeNdJson().post('/metric/configs/_latest', { configIds, ...target, interval })
       .pipe(map((value: unknown) => {

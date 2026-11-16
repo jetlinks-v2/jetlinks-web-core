@@ -3,7 +3,7 @@ import { metricApi } from './api'
 import { copy, errorText, outputId, metricDataTarget, metricValueMatches, newerMetricValue } from './service'
 import { loadMetricLatest, metricLatestBatches } from './extensions/latestBatch'
 import { presentationSettings, primaryMetricOutput, summaryMetricOutputs } from './extensions/presentationSettings'
-import type { MetricApi, MetricConfig, MetricContext, MetricLatest, MetricReference, MetricRuntime, MetricTemplate, MetricValue } from './types'
+import type { MetricApi, MetricConfig, MetricContext, MetricLatest, MetricReference, MetricResultFrame, MetricRuntime, MetricTemplate, MetricValue } from './types'
 
 const templateRevisionKey = (config: MetricConfig) => JSON.stringify([config.templateId, config.templateVersion, config.templateRevision || 1])
 
@@ -47,7 +47,7 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
     configId: reference.value.configId, outputs: outputs.value[reference.value.configId] || {}, runtime: runtimes.value[reference.value.configId]
   } : undefined)
   const cards = computed(() => configurations.value.flatMap(config => config.id
-    ? (templates.value[config.id]?.outputs || []).map(output => ({ config, output, reference: { configId: config.id!, outputId: outputId(output) } })) : []))
+    ? (templates.value[config.id]?.outputs || (api.watchResults && !itemErrors.value[config.id] ? [{ metricId: '' }] : [])).map(output => ({ config, output, reference: { configId: config.id!, outputId: outputId(output) } })) : []))
   const cardGroups = computed(() => {
     const groups = new Map<string, typeof cards.value>()
     for (const card of cards.value) {
@@ -58,6 +58,7 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
     return [...groups.values()].map(group => {
       const first = group[0]
       const template = templates.value[first.reference.configId]
+      if (!template) return { ...first, secondary: [], settings: {} }
       const id = outputId(primaryMetricOutput(template, first.config))
       const primary = group.find(card => card.reference.outputId === id) || first
       const summaryIds = summaryMetricOutputs(template, first.config).map(outputId)
@@ -154,21 +155,32 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
       const errors: Record<string, string> = {}
       const cache = new Map(configurations.value.flatMap(config => config.id && templates.value[config.id]
         ? [[templateRevisionKey(config), templates.value[config.id]] as const] : []))
-      for (const config of configs) {
-        if (token !== generation) return
-        if (!config.id) continue
-        const key = templateRevisionKey(config)
-        try {
-          const template = cache.get(key) || await api.configTemplate(config.id, metricDataTarget(config, owner))
-          cache.set(key, template)
-          metadata[config.id] = template
-        } catch (cause) { errors[config.id] = errorText(cause) }
+      if (api.watchResults) {
+        templates.value = Object.fromEntries(configs.flatMap(config => config.id && cache.has(templateRevisionKey(config)) ? [[config.id, cache.get(templateRevisionKey(config))!]] : []))
+        configurations.value = configs; loading.value = false; itemErrors.value = {}
       }
+      const pending = new Map<string, Promise<MetricTemplate>>()
+      let next = 0
+      await Promise.all(Array.from({ length: Math.min(4, configs.length) }, async () => {
+        while (next < configs.length && token === generation) {
+          const config = configs[next++]
+          if (!config.id) continue
+          const key = templateRevisionKey(config)
+          try {
+            let request = pending.get(key)
+            if (!request) { request = cache.has(key) ? Promise.resolve(cache.get(key)!) : api.configTemplate(config.id, metricDataTarget(config, owner)); pending.set(key, request) }
+            const template = await request
+            if (token !== generation) return
+            metadata[config.id] = template
+            if (api.watchResults) templates.value = { ...templates.value, [config.id]: template }
+          } catch (cause) { if (token === generation) { errors[config.id] = errorText(cause); itemErrors.value = { ...errors } } }
+        }
+      }))
       if (token !== generation) return
       const targets = new Map(configs.flatMap(config => config.id ? [[config.id, metricDataTarget(config, owner)] as const] : []))
       const ids = [...targets.keys()]
       // 持续流更新当前值；低频同步只刷新配置，不重复读取最新值或重建有效订阅。
-      const latest = readValues || !api.watchLatest || !subscriptions.size || Object.keys(latestErrors.value).length || inaccessibleIds.value.length
+      const latest = !api.watchResults && (readValues || !api.watchLatest || !subscriptions.size || Object.keys(latestErrors.value).length || inaccessibleIds.value.length)
         ? await loadMetricLatest(api, ids, outputs.value, inaccessibleIds.value, () => token === generation, runtimes.value, targets)
         : { outputs: Object.fromEntries(ids.map(id => [id, outputs.value[id] || {}])),
           runtimes: Object.fromEntries(ids.filter(id => runtimes.value[id]).map(id => [id, runtimes.value[id]])),
@@ -229,6 +241,7 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
   function stop() { scheduleGeneration++; if (timer) clearTimeout(timer); timer = undefined }
   function stopSubscriptions() { subscriptions.forEach(stop => stop()); subscriptions.clear() }
   function synchronizeSubscriptions() {
+    if (api.watchResults) return
     if (!api.watchLatest || !active || document.hidden || error.value) { stopSubscriptions(); return }
     const byId = new Map<string, ReturnType<typeof metricDataTarget>>()
     for (const config of configurations.value) {
@@ -279,7 +292,36 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
     const scheduleToken = scheduleGeneration
     if (!active || document.hidden) return
     await refresh(false)
-    if (scheduleToken === scheduleGeneration && active && !document.hidden) timer = setTimeout(poll, 15000)
+    if (!api.watchResults && scheduleToken === scheduleGeneration && active && !document.hidden) timer = setTimeout(poll, 15000)
+  }
+  function receiveResult(id: string, frame: MetricResultFrame) {
+    const config = configurations.value.find(item => item.id === id)
+    if (!config) return
+    if (frame.kind === 'changed') {
+      const epoch = ownerEpoch
+      void refreshAfterWrite(() => active && epoch === ownerEpoch)
+      return
+    }
+    if (frame.kind === 'reset' || frame.kind === 'inaccessible') {
+      delete outputs.value[id]; delete runtimes.value[id]; delete latestErrors.value[id]
+      inaccessibleIds.value = inaccessibleIds.value.filter(item => item !== id)
+      if (frame.kind === 'inaccessible') {
+        inaccessibleIds.value.push(id)
+        if (selectedId.value === id || editing.value?.id === id) closeDrawer()
+      }
+    } else if (frame.kind === 'latest' && frame.latest) {
+      const incoming = frame.latest
+      if (incoming.inaccessible) { receiveResult(id, { kind: 'inaccessible' }); return }
+      const values = { ...outputs.value[id] }
+      for (const [output, value] of Object.entries(incoming.outputs)) {
+        if (templates.value[id]?.outputs.some(item => item.metricId === output) && metricValueMatches(config, metricDataTarget(config, context.value), value)) {
+          values[output] = newerMetricValue(values[output], value)
+        }
+      }
+      outputs.value[id] = values
+      if (incoming.runtime) runtimes.value[id] = incoming.runtime
+      inaccessibleIds.value = inaccessibleIds.value.filter(item => item !== id)
+    }
   }
   function visibility() { if (document.hidden) { stop(); stopSubscriptions() } else void poll() }
   watch(refreshInterval, () => { stopSubscriptions(); synchronizeSubscriptions() })
@@ -310,5 +352,5 @@ export function useMetricPanel(context: Ref<MetricContext>, api: MetricApi = met
     await writeConfig(config, () => api.saveConfig({ ...copy(config), name }))
   }
   return { configurations, templates, outputs, runtimes, selectedLatest, itemErrors, inaccessibleIds, latestErrors, actionError, loading, error, busyId, selectedId, selectedOutputId,
-    selected, selectedOutput, reference, cards, cardGroups, select, closeDetail, editorOpen, editing, openEditor, closeDrawer, dismissDrawer, takeFocusReference, saved, refresh, setEnabled, rename, remove, canManage, refreshInterval }
+    selected, selectedOutput, reference, cards, cardGroups, select, closeDetail, editorOpen, editing, openEditor, closeDrawer, dismissDrawer, takeFocusReference, saved, refresh, setEnabled, rename, remove, canManage, refreshInterval, receiveResult }
 }

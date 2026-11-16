@@ -29,7 +29,7 @@ function fixture(api, initial = [target('a')], timeRange) {
   const view = createMetricRenderer()
   let trends, details
   const app = view.renderer.createApp({ setup() {
-    trends = useMetricTrends(targets, selected, snapshot, api,timeRange)
+    trends = useMetricTrends(targets, selected, api,timeRange)
     details = useMetricResult(selected, api, latest, { ...trends, configurations, refreshLatest: async () => {} })
     return () => null
   } })
@@ -78,7 +78,8 @@ test('同一历史目标多个可见输出只读一次，移除一张卡片不�
   try{
     f.trends.observe('a',{},'first');f.trends.observe('a',{},'second');await flush();assert.equal(reads,1)
     f.trends.observe('a',null,'first');f.snapshot.value={next:true};await flush()
-    assert.equal(reads,2);assert.equal(f.trends.entries.value.a.values[0].value,2)
+    assert.equal(reads,1);assert.equal(f.trends.entries.value.a.values[0].value,1)
+    f.trends.refresh();await flush();assert.equal(reads,2)
   }finally{f.close()}
 })
 
@@ -164,7 +165,7 @@ test('单个IntersectionObserver只准入可见卡片与选中详情，隐藏卡
     observer.callback([{ target: first, isIntersecting: true }]); await flush(); assert.deepEqual(calls, ['a'])
     f.selected.value = { configId: 'b', outputId: 'score' }; await flush(); assert.deepEqual(calls, ['a', 'b'])
     observer.callback([{ target: first, isIntersecting: false }]); await flush()
-    f.snapshot.value = {}; await flush(); assert.deepEqual(calls, ['a', 'b', 'b'])
+    f.snapshot.value = {}; await flush(); assert.deepEqual(calls, ['a', 'b'])
   } finally { f.close(); globalThis.IntersectionObserver = before }
   assert.equal(disconnected, true)
 })
@@ -187,7 +188,7 @@ test('500项指标只读取可见与选中配置，采样更新不放大为全�
     for(let index=0;index<500;index++) f.snapshot.value[String(index)]={score:result('score',index)}
     await flush();assert.equal(calls.length,3,'live readings share latest state without one history request per sample')
     f.snapshot.value={...f.snapshot.value};await flush()
-    assert.deepEqual(calls.slice(3).map(call=>call.id),['0','1','499'],'periodic snapshot refresh still excludes 497 hidden configurations')
+    assert.deepEqual(calls.slice(3).map(call=>call.id),[],'快照更新不重读任何历史')
     pending.splice(0).forEach(resolve=>resolve());await flush();assert.equal(maximum,3)
   } finally {f.close();globalThis.IntersectionObserver=before}
 })

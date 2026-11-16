@@ -41,7 +41,7 @@ test('inherited device results update live without editing the product or accept
   const { renderer, root } = createMetricRenderer()
   const app = renderer.createApp({ setup() {
     view = useMetricPanel(context, api)
-    trends = useMetricTrends(ref([{ id:config.id, key:'A', outputs:['duration'], targetType:'device', targetId:'A' }]), view.reference, view.outputs, api)
+    trends = useMetricTrends(ref([{ id:config.id, key:'A', outputs:['duration'], targetType:'device', targetId:'A' }]), view.reference, api)
     trends.observe(config.id, {})
     return () => null
   } })

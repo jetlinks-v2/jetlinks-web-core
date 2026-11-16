@@ -1,6 +1,7 @@
 <template>
   <div class="metric-card-content" :class="{ 'is-boolean': typeof value?.value === 'boolean', 'has-intervals':intervals }">
-  <MetricStateDuration v-if="intervals" :labels="labels" :value="value" :disabled="configuration.state === 'disabled'" compact />
+  <a-skeleton v-if="configuration.state !== 'disabled' && !value && (!history || history.latestLoading)" class="metric-card-content__skeleton" active :title="false" :paragraph="{ rows: 2, width: ['45%', '70%'] }" />
+  <MetricStateDuration v-else-if="intervals" :labels="labels" :value="value" :disabled="configuration.state === 'disabled'" compact />
   <MetricValueView v-else-if="value || configuration.state === 'disabled' || runtime?.state === 'loaded'" compact summary hide-quality :value="value" :template="template" :output="output" :unit="output.unit" :disabled="configuration.state === 'disabled'" :settings="settings" :labels="labels">
     <template v-if="provider?.card" #default="{ text }">
       <MetricExtension :content="provider.card" :content-props="{ context, configuration, template, output, value, settings }" @failed="failed = true">
@@ -11,7 +12,7 @@
   <strong v-else class="metric-card-empty">—</strong>
   <div v-if="!hideTrend && output.persist !== false && !output.latestOnly && (configuration.state !== 'disabled' || historyValues.length)" class="metric-card-content__trend">
     <span v-if="history?.error" class="metric-card-content__error">{{ t('historyFailed') }}</span>
-    <span v-else-if="!history || history.loading && !history.values.length" class="metric-card-content__pending">{{ t('loadingHistory') }}</span>
+    <a-skeleton v-else-if="!history || history.loading && !history.values.length" class="metric-card-content__skeleton" active :title="false" :paragraph="{ rows: 2 }" />
     <MetricStateHistory v-else-if="intervals" :labels="labels" :values="historyValues" :current="value" :bounds="history.bounds" compact />
     <MetricTrend v-else :values="historyValues" :current="value" :output="output" :sample-interval="metricSampleInterval(template,output.metricId)" :state-output="stateOutput" :bounds="history.bounds" :unit="output.unit" :limited="history.values.length >= 200" :labels="labels" compact />
   </div>
@@ -67,6 +68,8 @@ const timeHint = computed(() => `${fullTime.value} · ${t(`${timeLabel.value}Hin
 .metric-card-content :deep(.metric-value--summary .metric-value__main) { min-height:46px }
 .has-intervals .metric-card-content__trend { height:40px }
 .metric-card-content__trend { height:64px; flex:none; margin-top:auto }
+.metric-card-content__skeleton { min-height:46px; padding:4px 0 }
+.metric-card-content__skeleton :deep(.ant-skeleton-paragraph) { margin:0 }
 .metric-card-content__pending,.metric-card-content__error { display:flex; align-items:center; justify-content:center; height:100%; font-size:var(--fs-12,12px); color:var(--ink-2) }
 .metric-card-content__error { color:var(--jet-theme-error-color,var(--ink-2)) }
 .metric-card-content__footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; color:var(--ink-3); font-size:11px; padding-top:6px }

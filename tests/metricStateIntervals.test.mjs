@@ -116,7 +116,7 @@ test('累计快照与区间历史分开分页，但概览与详情仍共享结�
   const renderer = createMetricRenderer()
   let trends
   const app = renderer.renderer.createApp({ setup() {
-    trends = useMetricTrends(targets, ref(), ref({}), { history: async (id, request) => {
+    trends = useMetricTrends(targets, ref(), { history: async (id, request) => {
       calls.push(request)
       return [request.intervalsOnly ? value(40, { closedInterval: interval('a', 0, 40) }) : { metricId: 'total', value: 55 }]
     } })

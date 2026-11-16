@@ -23,6 +23,19 @@ const createRuntimeNdJson = () => ({ post:(path, body) => new Observable(observe
 const { metricApi, loadMetricObjectTypes } = createMetricLoader({ '@jetlinks-web/core': { request, wsClient }, [resolve(sourceRoot,'utils/json/index.ts')]:precision,
   [resolve(sourceRoot, 'utils/ndjson.ts')]: { createRuntimeNdJson } })('components/Metric/api.ts')
 
+test('卡片共用NDJSON请求消费历史和实时帧，取消会释放传输',async()=>{
+  const received=[],errors=[]
+  const query={outputs:['value'],query:{pageSize:200},interval:1000,targetType:'device',targetId:'one'}
+  const stop=metricApi.watchResults('config/one',query,frame=>received.push(frame),error=>errors.push(error.message))
+  await new Promise(resolve=>queueMicrotask(resolve))
+  const stream=sampled.at(-1)
+  assert.equal(stream.path,'/metric/configs/_watch');assert.deepEqual(stream.body.targets[0].query,query)
+  assert.equal(stream.body.targets[0].configId,'config/one')
+  for(const frame of [{kind:'history',value:{value:1}},{kind:'ready'},{kind:'latest',latest:{configId:'config/one',outputs:{}}}])stream.observer.next({success:true,result:{subscriptionId:stream.body.targets[0].subscriptionId,frame}})
+  assert.deepEqual(received.map(frame=>frame.kind),['history','ready','latest']);assert.deepEqual(errors,[])
+  stop();await new Promise(resolve=>queueMicrotask(resolve));assert.equal(stream.stopped,true)
+})
+
 test('对象目录读取原relation声明，空目录不补造类型且业务失败保留',async()=>{
   payload=[{id:'device',name:'Device'}];status=200
   assert.deepEqual(await loadMetricObjectTypes(),payload)

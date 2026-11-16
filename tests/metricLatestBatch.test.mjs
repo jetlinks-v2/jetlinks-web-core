@@ -116,7 +116,7 @@ for (const stage of ['configuration', 'template']) {
         } else { app.unmount(); mounted = false }
         pending.resolve(stage === 'template' ? template : [config('A-first', 'A'), config('A-second', 'A')])
         await old; await flush()
-        assert.equal(templates.filter(id => id.startsWith('A')).length, stage === 'template' ? 1 : 0)
+        assert.equal(templates.filter(id => id.startsWith('A')).length, stage === 'template' ? 2 : 0, '已并发发出的读取可以完成，但不能回填离开的对象')
         assert.ok(latest.flat().every(id => id.startsWith('B')))
         if (leave === 'switch') assert.deepEqual(view.configurations.value.map(item => item.id), ['B-first', 'B-second'])
       } finally { if (mounted) app.unmount(); globalThis.document = before }

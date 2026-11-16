@@ -449,6 +449,7 @@ export interface MetricApi {
   removeConfig(id: string): Promise<void>
   latest(ids: string[], target?: MetricDataTarget): Promise<MetricLatest[]>
   watchLatest?(ids: string[], target: MetricDataTarget | undefined, interval: number, onValue: (value: MetricLatest) => void, onError: (cause: unknown) => void): () => void
+  watchResults?(id: string, request: MetricHistoryRequest & { intervalOutputs?: string[]; intervalQuery?: Record<string, unknown>; interval: number }, onFrame: (frame: MetricResultFrame) => void, onError: (cause: unknown) => void): () => void
   subscribe?(target: MetricDataTarget, interval: number, onValue: (value: MetricValue) => void, onError: () => void): () => void
   history(id: string, request: MetricHistoryRequest): Promise<MetricValue[]>
   execution?(id:string, output:string, query:({resultId:string;executionId?:never} | {executionId:string;resultId?:never}) & Partial<MetricDataTarget>, signal?:AbortSignal):Promise<MetricExecutionSnapshot | undefined>
@@ -462,6 +463,12 @@ export interface MetricApi {
   setAvailable(id: string, available: boolean): Promise<void>
   removeTemplate(id: string): Promise<void>
   simulate(request: MetricSimulationRequest): Promise<MetricSimulationResponse>
+}
+
+export interface MetricResultFrame {
+  kind: 'reset' | 'inaccessible' | 'changed' | 'history' | 'ready' | 'latest'
+  value?: MetricValue
+  latest?: MetricLatest
 }
 
 /** 关联已有输出，不创建计算配置，也不保存结果副本。 */

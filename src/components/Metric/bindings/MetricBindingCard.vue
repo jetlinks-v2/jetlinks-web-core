@@ -4,7 +4,7 @@
     <button type="button" class="binding-card__body" :disabled="card.failed || card.unavailable || !card.output" @click="card.links[0].reference && $emit('inspect',card.links[0].reference)">
       <span v-if="card.failed || card.unavailable" class="binding-card__unavailable">—<small>{{ t(card.unavailable ? 'unavailable' : 'failed') }}</small></span>
       <MetricCardContent v-else-if="card.config && card.template && card.output" :context="sourceContext" :configuration="card.config" :template="card.template" :output="card.output" :value="card.value" :runtime="card.runtime" :history="history" />
-      <span v-else>—</span>
+      <a-skeleton v-else active :title="false" :paragraph="{rows:3}" />
       <span v-if="!card.unavailable && !card.failed" class="binding-card__source">{{ t('from',{name:card.source || t('sourceObject')}) }}<AIcon type="RightOutlined" /></span>
     </button>
     <footer v-if="inherited.length || card.links.some(link=>link.pending)" class="binding-card__locations"><span v-for="link in inherited" :key="link.id">{{ t('addedBy',{name:card.locations[link.id] || t('childObject')}) }}<a-button v-if="managing" type="link" size="small" @click="openLocation(link)">{{ t('openLocation') }}</a-button></span><span v-if="card.links.some(link=>link.pending)"><AIcon type="SyncOutlined" /> {{ t('pending') }}</span></footer>

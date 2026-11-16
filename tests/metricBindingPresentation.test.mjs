@@ -46,7 +46,7 @@ test('关联卡片共用原展示上下文和有界历史，详情隔离宿主�
     const body=walk(root,node=>node.type==='button' && node.props.class==='binding-card__body')[0]
     body.props.onClick();await flush()
     const opened=walk(root,node=>node.type==='detail')[0]
-    assert.ok(opened);assert.equal(opened.props.shared,undefined);assert.equal(opened.props.reference.targetId,'source');assert.equal(opened.props.output.metricId,'usage')
+    assert.ok(opened);assert.notEqual(opened.props.shared,shared);assert.equal(opened.props.shared.entries.value.shared,cards[0].props.history);assert.equal(opened.props.shared.configurations.value[0].id,'shared');assert.equal(opened.props.reference.targetId,'source');assert.equal(opened.props.output.metricId,'usage')
     hold=true;page.value={items:links.map(item=>({...item}))};await flush()
     assert.strictEqual(walk(root,node=>node.type==='card-content')[0],cards[0]);assert.equal(cards[0].props.value.value,7)
     finish([{configId:'shared',inaccessible:true,outputs:{}}]);await flush()

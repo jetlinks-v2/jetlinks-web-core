@@ -8,7 +8,7 @@
       <div class="metric-panel__time">
         <MetricTimeRange v-model:range="trends.range.value" v-model:custom-range="trends.customRange.value" />
         <a-dropdown v-if="configurations.length" :trigger="['click']">
-          <a-button type="text" size="small" :title="t('realtime')"><AIcon type="ClockCircleOutlined" />{{ refreshInterval ? t('refreshSeconds', { seconds: refreshInterval / 1000 }) : t('realtimeFull') }}</a-button>
+          <a-button type="text" size="small" :title="t('realtime')"><AIcon type="ThunderboltOutlined" />{{ t('liveUpdates') }}</a-button>
           <template #overlay><a-menu :selected-keys="[String(refreshInterval)]" @click="changeRefreshInterval"><a-menu-item v-for="interval in [1000, 5000, 15000]" :key="String(interval)"><AIcon :type="interval ? 'ClockCircleOutlined' : 'ThunderboltOutlined'" /> {{ interval ? t('refreshSeconds', { seconds: interval / 1000 }) : t('realtimeFull') }}</a-menu-item></a-menu></template>
         </a-dropdown>
         <a-button type="text" size="small" :aria-label="t('refresh')" :title="t('refresh')" :loading="loading" @click="refreshAll"><AIcon type="ReloadOutlined" /></a-button>
@@ -37,6 +37,7 @@
           <MetricConfigActions v-if="canManage(card.config) && (!hideAdd || managing)" class="metric-panel__actions" :configuration="card.config" :busy="busyId === card.config.id" @edit="openEditor(card.config)" @toggle="toggleConfig(card.config)" @remove="confirmRemove(card.config)" />
         </template>
         <MetricScopeSummary v-if="scopeDefinition(card.config)" :ref="element => setScopeElement(card.reference.configId, element)" :state="scopeOverview.state(card.config)" @refresh="scopeOverview.refresh" @inspect="emit('inspectScope', { memberType:card.config.targetType || context.inheritance?.targetType || '', templateId:card.config.templateId, group:$event })" />
+        <div v-else-if="!templates[card.reference.configId]" class="metric-panel__card metric-panel__placeholder" aria-busy="true"><a-skeleton active :title="false" :paragraph="{ rows: 3 }" /></div>
         <button v-else type="button"
           :ref="element => setPrimaryElement(card.reference, element)"
           class="metric-panel__card" :class="{ 'is-selected': reference?.configId === card.reference.configId && reference?.outputId === card.reference.outputId, 'is-stopped': card.config.state === 'disabled' }"
@@ -50,7 +51,7 @@
           </div>
           <MetricCardContent v-else :context="context" :configuration="card.config" :template="templates[card.reference.configId]" :output="card.output" :value="outputs[card.reference.configId]?.[card.reference.outputId]" :runtime="runtimes[card.reference.configId]" />
         </button>
-        <div v-if="!scopeDefinition(card.config)" class="metric-panel__secondary-outputs" :class="{ 'is-link': card.config.state === 'disabled' || !card.secondary.length }">
+        <div v-if="templates[card.reference.configId] && !scopeDefinition(card.config)" class="metric-panel__secondary-outputs" :class="{ 'is-link': card.config.state === 'disabled' || !card.secondary.length }">
           <button v-for="secondary in card.config.state === 'disabled' ? [] : card.secondary" :key="secondary.reference.outputId" type="button" class="metric-panel__secondary" :class="{ 'is-score':secondary.output.metricKind === 'score' || secondary.output.options?.readAggregation?.semantic === 'score' }"
             :ref="element => setCardElement(secondary.reference, element)"
             :disabled="inaccessibleIds.includes(card.reference.configId) || !!error || !!latestErrors[card.reference.configId]"
@@ -124,7 +125,7 @@ const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 provide(metricCalculatorsKey, useMetricCalculators(locale))
 provide(metricSourcePickerKey, toRef(props,'pickSource'))
 const { configurations, templates: rawTemplates, outputs, runtimes, selectedLatest, itemErrors, inaccessibleIds, latestErrors, actionError, loading, error, busyId, selectedId, selected,
-  selectedOutput, reference, cardGroups, select, editorOpen, editing, openEditor, closeDrawer, dismissDrawer, takeFocusReference, saved, refresh, setEnabled, remove, canManage, refreshInterval } = useMetricPanel(toRef(props, 'context'), undefined, toRef(props, 'initialReference'))
+  selectedOutput, reference, cardGroups, select, editorOpen, editing, openEditor, closeDrawer, dismissDrawer, takeFocusReference, saved, refresh, setEnabled, remove, canManage, refreshInterval, receiveResult } = useMetricPanel(toRef(props, 'context'), undefined, toRef(props, 'initialReference'))
 const templates = computed(() => Object.fromEntries(Object.entries(rawTemplates.value).map(([id, template]) => [id, localizedTemplate(template, String(locale.value))])))
 // 公式仅在独立标题入口展示，主结果按钮保持单一点击目标；投影仍由模板共用组件负责。
 const cardFormulas = computed(() => Object.fromEntries(cardGroups.value.flatMap(card => {
@@ -140,7 +141,7 @@ watch(()=>props.initialTemplate,value=>{
 watch(editorOpen,open=>{if (!open) applyingTemplate.value=undefined})
 const trendTargets = computed(() => error.value ? [] : configurations.value.flatMap(config => {
   const id = config.id, template = id ? rawTemplates.value[id] : undefined
-  if (!id || !template || inaccessibleIds.value.includes(id) || latestErrors.value[id] || scopeDefinition(config)) return []
+  if (!id || !template || scopeDefinition(config)) return []
   const outputs = template.outputs.map(output => output.metricId)
   const intervalOutputs = outputs.filter(output => tracksStateIntervals(template, output))
   const target = metricDataTarget(config, props.context)
@@ -161,7 +162,7 @@ async function editSource(inputId:string) {
   await nextTick()
   configEditor.value?.locate(inputId)
 }
-const trends = useMetricTrends(trendTargets, reference, outputs)
+const trends = useMetricTrends(trendTargets, reference, undefined, undefined, { interval: refreshInterval, onFrame: receiveResult })
 provide(metricHistoryKey, { ...trends, configurations, refreshLatest: refresh })
 async function refreshAll() { await refresh(); trends.refresh(); void scopeOverview.refresh(); emit('refresh') }
 function changeRefreshInterval({ key }: { key: string | number }) { refreshInterval.value = Number(key) }
@@ -215,6 +216,7 @@ defineExpose({create:()=>openEditor(),async canLeave(){if(editorOpen.value && !a
 .metric-panel__section-title small { color:var(--ink-2); font-size:var(--fs-12,12px); font-weight:400; margin-left:8px }
 .metric-panel__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--space-3,12px) }
 .metric-panel__group { min-width:0 }
+.metric-panel__placeholder { min-height:150px }
 .metric-panel__group:hover,.metric-panel__group.is-selected { border-color:var(--accent) }
 .metric-panel__group.is-stopped { background:var(--bg-sunken) }
 .metric-panel__inherited { margin-left:auto; display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--ink-3); white-space:nowrap }

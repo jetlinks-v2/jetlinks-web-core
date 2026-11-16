@@ -5,7 +5,7 @@ import {collectMetricResources} from '../extensions/registry'
 import {metricOutputName} from '../presentation'
 import {localizedTemplate} from '../template/text'
 import {metricValueMatches,newerMetricValue} from '../service'
-import type {MetricApi,MetricConfig,MetricContext,MetricLatest,MetricObjectBindingView,MetricTemplate,MetricTemplateOutput,MetricValue} from '../types'
+import type {MetricApi,MetricConfig,MetricContext,MetricLatest,MetricObjectBindingView,MetricResultFrame,MetricTemplate,MetricTemplateOutput,MetricValue} from '../types'
 
 export interface MetricBindingCard {
   key:string; links:MetricObjectBindingView[]; title:string; source?:string; locations:Record<string,string>
@@ -32,8 +32,17 @@ export function useMetricBindingResults(links:Ref<MetricObjectBindingView[]>,loc
     // 同一批关系刷新时保留布局；对象、来源或授权占位改变时立即清掉旧值。
     const retainData=identity===nextIdentity
     identity=nextIdentity
-    await query.run(async()=>{
+    await query.run(async signal=>{
       const cards=new Map<string,MetricBindingCard>(),targets=new Map<string,MetricObjectBindingView[]>()
+      const publish=()=>{
+        if(!api.watchResults || signal.aborted)return
+        const current=new Map(query.data.value?.map(card=>[card.key,card]))
+        query.data.value=[...cards.values()].map(card=>{
+          const before=current.get(card.key)
+          return {...card,...(before?.value && card.config && metricValueMatches(card.config,card.links[0].reference,before.value)
+            ? {value:card.value ? newerMetricValue(before.value,card.value) : before.value,runtime:before.runtime || card.runtime} : {})}
+        })
+      }
       for(const link of snapshot){
         const key=bindingResultKey(link),card=cards.get(key)
         if(card)card.links.push(link)
@@ -41,6 +50,7 @@ export function useMetricBindingResults(links:Ref<MetricObjectBindingView[]>,loc
         if(!link.reference)continue
         const target=targetKey(link);targets.set(target,[...(targets.get(target)||[]),link])
       }
+      publish()
       const jobs=[...targets.values()]
       const names=new Map<string,Set<string>>()
       await Promise.all(Array.from({length:Math.min(4,jobs.length)},async()=>{
@@ -48,28 +58,29 @@ export function useMetricBindingResults(links:Ref<MetricObjectBindingView[]>,loc
           const group=jobs.shift()!,target={targetType:group[0].reference!.targetType,targetId:group[0].reference!.targetId}
           const ids=[...new Set(group.map(link=>link.reference!.configId))]
           const latest=new Map<string,MetricLatest>();let readFailed=false
-          for(let offset=0;offset<ids.length;offset+=128){
+          for(let offset=0;!api.watchResults && offset<ids.length;offset+=128){
             try{for(const item of await api.latest(ids.slice(offset,offset+128),target))latest.set(item.configId,item)}catch{readFailed=true}
           }
           for(const id of ids){
             const matching=[...cards.values()].filter(card=>card.links[0].reference?.configId===id && targetKey(card.links[0])===targetKey(group[0]))
             const value=latest.get(id)
-            if(readFailed || !value || value.inaccessible){for(const card of matching){card.failed=readFailed;card.unavailable=!readFailed};continue}
+            if(readFailed || !api.watchResults && (!value || value.inaccessible)){for(const card of matching){card.failed=readFailed;card.unavailable=!readFailed};continue}
             try{
               const [config,raw]=await Promise.all([api.getConfig(id,target),api.configTemplate(id,target)])
               const template=localizedTemplate(raw,language)
               for(const card of matching){
                 const output=template.outputs.find(output=>output.metricId===card.links[0].reference!.outputId)
                 if(!output){card.unavailable=true;continue}
-                Object.assign(card,{config,template,output,value:value.outputs[output.metricId],runtime:value.runtime,
+                Object.assign(card,{config,template,output,value:value?.outputs[output.metricId],runtime:value?.runtime,
                   title:metricOutputName(output,template)})
                 const before=previous.get(card.key)?.value
-                if(card.value && before && metricValueMatches(config,target,before))card.value=newerMetricValue(before,card.value)
+                if(before && metricValueMatches(config,target,before))card.value=card.value ? newerMetricValue(before,card.value) : before
                 for(const link of card.links)for(const [type,id] of [[link.reference!.targetType,link.reference!.targetId],[link.reference!.objectType,link.reference!.objectId]]){
                   const set=names.get(type)||new Set<string>();set.add(id);names.set(type,set)
                 }
               }
             }catch{for(const card of matching)card.failed=true}
+            publish()
           }
         }
       }))
@@ -88,9 +99,21 @@ export function useMetricBindingResults(links:Ref<MetricObjectBindingView[]>,loc
         card.source=resolved.get(JSON.stringify([source.targetType,source.targetId]))
         for(const link of card.links){const location=bindingLocation(link);card.locations[link.id]=resolved.get(JSON.stringify([location?.type,location?.id])) || ''}
       }
-      return [...cards.values()]
+      publish()
+      return api.watchResults ? query.data.value || [] : [...cards.values()]
     },true,{retainData})
   }
+  function receiveResult(id:string,frame:MetricResultFrame){
+    if(frame.kind==='changed'){void refresh();return}
+    query.data.value=query.data.value?.map(card=>{
+      if(bindingHistoryKey(card.links[0])!==id || !card.config || !card.output)return card
+      if(frame.kind==='reset' || frame.kind==='inaccessible')return {...card,value:undefined,runtime:undefined,unavailable:frame.kind==='inaccessible'}
+      if(frame.kind!=='latest' || !frame.latest)return card
+      const value=frame.latest.outputs[card.output.metricId]
+      const accepted=value && metricValueMatches(card.config,card.links[0].reference,value)
+      return {...card,unavailable:!!frame.latest.inaccessible,value:accepted ? newerMetricValue(card.value,value) : card.value,runtime:frame.latest.runtime || card.runtime}
+    })
+  }
   watch([links,locale],refresh,{immediate:true})
-  return {query,cards:computed(()=>query.data.value||[]),refresh}
+  return {query,cards:computed(()=>query.data.value||[]),refresh,receiveResult}
 }
