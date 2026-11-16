@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import test from 'node:test'
 import { transformSync } from 'esbuild'
-import { createSSRApp, defineComponent, h } from 'vue'
+import { createSSRApp, defineComponent, h, shallowRef } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import { compileScript, parse } from 'vue/compiler-sfc'
 
@@ -17,10 +17,14 @@ const evaluate = (source, dependencies = {}) => {
   )
   return module.exports
 }
+const symbolHook = evaluate(readFileSync(resolve(directory, '../IconLibrary/useIconfontSymbols.ts'), 'utf8'))
 const component = (name, dependencies) => {
   const filename = resolve(directory, name)
   const { descriptor } = parse(readFileSync(filename, 'utf8'), { filename })
-  return evaluate(compileScript(descriptor, { id: name, inlineTemplate: true }).content, dependencies).default
+  return evaluate(compileScript(descriptor, { id: name, inlineTemplate: true }).content, {
+    '../IconLibrary/useIconfontSymbols': symbolHook,
+    ...dependencies,
+  }).default
 }
 const values = evaluate(readFileSync(resolve(directory, 'iconValue.ts'), 'utf8'))
 const { parseIconValue } = values
@@ -50,6 +54,20 @@ test('普通文本、未知图标及非图标导出保持文本缩写', () => {
   assert.deepEqual(parseIconValue('基础服务'), { kind: 'text', text: '基础' })
 })
 
+test('裸 iconfont 名称仅匹配已加载的 symbol ID，不依赖前缀或 Ant Design 后缀', () => {
+  const symbols = ['icon-tongzhiguanli', 'vendor-radar', 'powerCustom', 'custom-iconOutlined']
+  for (const iconType of symbols) {
+    assert.deepEqual(parseIconValue(` ${iconType} `, symbols), { kind: 'font', iconType })
+    assert.deepEqual(parseIconValue(`font:${iconType}`), { kind: 'font', iconType })
+  }
+  assert.deepEqual(parseIconValue('icon-tongzhiguanli'), { kind: 'text', text: 'IC' })
+  assert.deepEqual(parseIconValue('icon-missing', symbols), { kind: 'text', text: 'IC' })
+  assert.deepEqual(parseIconValue('VENDOR-RADAR', symbols), { kind: 'text', text: 'VE' })
+  assert.deepEqual(parseIconValue('Service', symbols), { kind: 'text', text: 'SE' })
+  assert.deepEqual(parseIconValue('#abc', ['#abc']), { kind: 'color', color: '#abc' })
+  assert.deepEqual(parseIconValue('/icon.png', ['/icon.png']), { kind: 'image', url: '/icon.png' })
+})
+
 test('已有颜色、图片、显式字体和空值格式保持原语义', () => {
   assert.deepEqual(parseIconValue('color:#1677ff:服务'), { kind: 'color', color: '#1677ff', label: '服务' })
   assert.deepEqual(parseIconValue('#abc'), { kind: 'color', color: '#abc' })
@@ -73,38 +91,41 @@ test('卡片展示组件将新旧两种图标值渲染为真实 SVG，不再展�
   assert.match(await renderView('服务'), /服务/)
 })
 
-test('编辑器回显存量裸图标，图标库再次选择后输出带 font: 前缀的存储值', async () => {
-  const emitted = []
-  let selectedIcon
-  const Library = defineComponent({
-    props: ['type'],
-    emits: ['update:type'],
-    setup(props, { emit }) {
-      selectedIcon = props.type
-      emit('update:type', 'StepForwardOutlined')
-      return () => null
-    },
-  })
-  const Editor = component('IconValueEditor.vue', {
-    './iconValue': values,
-    './IconValueColorEditor.vue': { __esModule: true, default: component('IconValueColorEditor.vue', { './iconValue': values }) },
-    './IconValueView.vue': { __esModule: true, default: View },
-    '../IconLibrary/index.vue': { __esModule: true, default: Library },
-    '../Upload/Image/ImageUpload.vue': { __esModule: true, default: {} },
-    'vue-i18n': { useI18n: () => ({ t: key => key }) },
-  })
-  const app = createSSRApp(Editor, {
-    modelValue: 'StepBackwardOutlined',
-    enableCropUpload: false,
-    'onUpdate:modelValue': value => emitted.push(value),
-  })
-  const slotComponent = defineComponent({ setup: (_, { slots }) => () => h('div', slots.default?.()) })
-  for (const name of ['ATabs', 'ATabPane', 'AInput', 'AButton']) app.component(name, slotComponent)
-  app.component('AIcon', AIcon)
-  await renderToString(app)
-  assert.equal(selectedIcon, 'StepBackwardOutlined')
-  assert.deepEqual(emitted, ['font:StepForwardOutlined'])
-  assert.deepEqual(parseIconValue(emitted[0]), { kind: 'font', iconType: 'StepForwardOutlined' })
+test('编辑器回显 Ant Design 和 iconfont 裸图标，再次选择后输出 font: 存储值', async () => {
+  for (const original of ['StepBackwardOutlined', 'icon-tongzhiguanli', 'vendor-radar']) {
+    const emitted = []
+    let selectedIcon
+    const Library = defineComponent({
+      props: ['type'],
+      emits: ['update:type'],
+      setup(props, { emit }) {
+        selectedIcon = props.type
+        emit('update:type', 'StepForwardOutlined')
+        return () => null
+      },
+    })
+    const Editor = component('IconValueEditor.vue', {
+      './iconValue': values,
+      '../IconLibrary/useIconfontSymbols': { useIconfontSymbols: () => shallowRef(['icon-tongzhiguanli', 'vendor-radar']) },
+      './IconValueColorEditor.vue': { __esModule: true, default: component('IconValueColorEditor.vue', { './iconValue': values }) },
+      './IconValueView.vue': { __esModule: true, default: View },
+      '../IconLibrary/index.vue': { __esModule: true, default: Library },
+      '../Upload/Image/ImageUpload.vue': { __esModule: true, default: {} },
+      'vue-i18n': { useI18n: () => ({ t: key => key }) },
+    })
+    const app = createSSRApp(Editor, {
+      modelValue: original,
+      enableCropUpload: false,
+      'onUpdate:modelValue': value => emitted.push(value),
+    })
+    const slotComponent = defineComponent({ setup: (_, { slots }) => () => h('div', slots.default?.()) })
+    for (const name of ['ATabs', 'ATabPane', 'AInput', 'AButton']) app.component(name, slotComponent)
+    app.component('AIcon', AIcon)
+    await renderToString(app)
+    assert.equal(selectedIcon, original)
+    assert.deepEqual(emitted, ['font:StepForwardOutlined'])
+    assert.deepEqual(parseIconValue(emitted[0]), { kind: 'font', iconType: 'StepForwardOutlined' })
+  }
 })
 
 test('默认颜色编辑器回显颜色与标签，调用方可通过插槽替换颜色交互', async () => {
