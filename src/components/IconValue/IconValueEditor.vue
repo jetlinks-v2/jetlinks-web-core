@@ -67,6 +67,7 @@ import type { CSSProperties } from 'vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IconLibrary from '../IconLibrary/index.vue'
+import { useIconfontSymbols } from '../IconLibrary/useIconfontSymbols'
 import ImageUpload from '../Upload/Image/ImageUpload.vue'
 import { DEFAULT_SAFE_COLORS, formatIconValueFont, parseIconValue } from './iconValue'
 import IconValueView from './IconValueView.vue'
@@ -185,13 +186,15 @@ const model = computed({
 
 const activeTab = ref<'color' | 'font' | 'image'>('color')
 const imageUrl = ref('')
+const iconfontSymbols = useIconfontSymbols()
 const selectedFontType = computed(() => {
-  const p = parseIconValue(model.value)
+  const p = parseIconValue(model.value, iconfontSymbols.value)
   return p.kind === 'font' ? p.iconType : ''
 })
 
+/** 外部值或图标资源变化时同步编辑字段，资源加载本身不触发存储值变更。 */
 function syncFromModel(v: string) {
-  const p = parseIconValue(v)
+  const p = parseIconValue(v, iconfontSymbols.value)
   if (p.kind === 'image') {
     imageUrl.value = p.url
   } else if (p.kind !== 'font' && p.kind !== 'color') {
@@ -199,8 +202,8 @@ function syncFromModel(v: string) {
   }
 }
 watch(
-  () => props.modelValue,
-  (v) => {
+  [() => props.modelValue, iconfontSymbols],
+  ([v]) => {
     syncFromModel(v == null ? '' : String(v))
   },
   { immediate: true },
