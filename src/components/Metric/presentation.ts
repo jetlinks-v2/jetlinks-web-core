@@ -4,6 +4,8 @@ export type MetricTone = 'success' | 'warning' | 'error' | 'default'
 export function metricState(value?: MetricValue): { key: string; tone: MetricTone } {
   if (!value) return { key: 'waiting', tone: 'default' }
   if (value.reason === 'notApplicable') return { key: 'notApplicable', tone: 'default' }
+  // noValue 表示本轮没有可用结果；invalid 还承担阻止空值参与后续计算的职责。
+  if (value.reason === 'noValue') return { key: 'noValue', tone: 'default' }
   if (value.status === 'invalid' || value.quality?.valid === false) return { key: value.reason || 'inputInvalid', tone: 'error' }
   if (value.quality?.stale || value.reason === 'inputExpired') return { key: 'inputExpired', tone: 'warning' }
   if (value.value === undefined || value.value === null) return { key: 'noValue', tone: 'default' }

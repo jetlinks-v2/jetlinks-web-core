@@ -57,7 +57,7 @@ import { useMetricExecution } from './useMetricExecution'
 import { useMetricSourceTemplate } from './useMetricSourceTemplate'
 import { metricMessages } from './messages'
 import { metricInputDiagnostics } from './sourceDiagnostics'
-import { resultTime, metricSampleInterval } from './presentation'
+import { resultTime, metricSampleInterval, metricState } from './presentation'
 import { metricDateText as time } from './time'
 import { useHistoryKind } from './history/useHistoryTimeline'
 import MetricExtension from './extensions/MetricExtension.vue'
@@ -71,7 +71,7 @@ const presentation = computed(() => metricOutputPresentation(props.output,{templ
 const intervals = computed(() => presentation.value.history === 'interval')
 const { current, runtime, configuration, inaccessible, values, loading, error, range, customRange, refresh, bounds, limited } = useMetricResult(toRef(props, 'reference'), undefined, toRef(props, 'latest'), inject(metricHistoryKey, undefined), intervals)
 const canEdit = computed(()=>!!props.context?.editable && configuration.value?.ownerType === props.context.ownerType && configuration.value?.ownerId === props.context.ownerId)
-const sourceFeedback = computed(()=>!!metricInputDiagnostics(processValue.value).total || processValue.value?.status === 'invalid' || processValue.value?.quality?.valid === false)
+const sourceFeedback = computed(()=>!!metricInputDiagnostics(processValue.value).total || metricState(processValue.value).tone === 'error')
 const historyScope = computed(() => JSON.stringify([props.reference.configId, props.reference.outputId, props.reference.targetType, props.reference.targetId]))
 // Query intent resets interactions; rolling response bounds and latest samples do not.
 const historyQueryKey = computed(() => JSON.stringify([historyScope.value,range.value,customRange.value]))

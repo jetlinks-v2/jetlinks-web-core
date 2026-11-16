@@ -5,6 +5,7 @@ import { createMetricLoader, createMetricRenderer, flush, textContent, walk } fr
 const load=createMetricLoader()
 const {metricInputDiagnostics,metricIssueCaption,metricIssueReason,metricIssueInputId,metricIssueNextStep}=load('components/Metric/sourceDiagnostics.ts')
 const {metricMessages}=load('components/Metric/messages.ts')
+const {metricState,metricChartPoints}=load('components/Metric/presentation.ts')
 test('source diagnostics preserve bounded required and optional facts, without inventing a device state',()=>{
   const issues=Array.from({length:10},(_,i)=>({inputId:`i${i}`,reason:i ? 'optionalInputMissing' : 'inputExpired',required:!i,eventTime:123}))
   const value={quality:{attributes:{inputIssues:issues,inputIssueCount:10}}}
@@ -42,6 +43,28 @@ function mount(component,props) {
   app.mount(root)
   return {root,close:()=>app.unmount()}
 }
+
+test('an absent result is neutral in cards and details, while input and calculation failures remain errors',async()=>{
+  const localLoad=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>metricMessages.zh[key],locale:{value:'zh'}})}})
+  for(const reason of ['noValue','notApplicable','inputInvalid','calculationFailed']) {
+    const value={metricId:'score',value:null,status:'invalid',reason,evaluationTime:123,quality:{valid:false}}
+    const abnormal=['inputInvalid','calculationFailed'].includes(reason)
+    assert.equal(metricState(value).tone,abnormal ? 'error' : 'default')
+    assert.deepEqual(metricChartPoints([value]),[[123,null]],'an absent result remains a gap, never a zero or a previous value')
+    const views=[
+      mount(localLoad('components/Metric/MetricValue.vue').default,{value,summary:true,hideQuality:true}),
+      mount(localLoad('components/Metric/MetricValue.vue').default,{value,inline:true,hideQuality:true}),
+      mount(localLoad('components/Metric/MetricSourceIssues.vue').default,{value}),
+    ]
+    try {
+      await flush()
+      assert.equal(textContent(views[0].root).includes('未能计算'),abnormal)
+      assert.equal(textContent(views[1].root).includes('未能计算'),abnormal)
+      assert.equal(walk(views[2].root,node=>node.type==='details').length,abnormal ? 1 : 0)
+      if (!abnormal) assert.match(textContent(views[0].root),/—/)
+    } finally { views.forEach(view=>view.close()) }
+  }
+})
 
 test('primary cards explain one cause while secondary outputs use a short status and keep the cause in their title',async()=>{
   const localLoad=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>metricMessages.zh[key],locale:{value:'zh'}})}})

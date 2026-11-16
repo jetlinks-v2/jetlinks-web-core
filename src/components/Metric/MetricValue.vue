@@ -46,7 +46,7 @@ const issueCaption = computed(()=>metricIssueCaption(props.value,props.template,
 const appearance = computed(() => stateAppearance(props.value?.value,props.meaning?.labels || props.labels))
 const renderable = computed(() => !props.disabled && props.value?.status !== 'invalid' && props.value?.quality?.valid !== false)
 const duration = computed(() => renderable.value ? metricDurationText(props.value?.value, props.value?.unit || props.unit, t) : undefined)
-const text = computed(() => !renderable.value ? props.summary && !props.disabled ? t('issueNoResult') : '—' : props.meaning ? semanticValueText(props.value?.value,{ ...props.meaning, locale:String(locale.value), unit:props.value?.unit || props.unit },t)
+const text = computed(() => !renderable.value ? props.summary && !props.disabled && state.value.tone === 'error' ? t('issueNoResult') : '—' : props.meaning ? semanticValueText(props.value?.value,{ ...props.meaning, locale:String(locale.value), unit:props.value?.unit || props.unit },t)
   : props.labels?.some(item=>item.value===props.value?.value) ? stateLabel(props.value?.value,props.labels,String(locale.value))
     : duration.value ?? (typeof props.value?.value === 'boolean' ? t(props.value.value ? 'conditionTrue' : 'conditionFalse') : formatMetricValue(props.value?.value, props.settings, props.output)))
 const evaluated = computed(() => props.value && resultTime(props.value))

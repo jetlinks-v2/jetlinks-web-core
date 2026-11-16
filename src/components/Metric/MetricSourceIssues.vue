@@ -15,13 +15,14 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { metricMessages } from './messages'
+import { metricState } from './presentation'
 import { metricInputDiagnostics, metricIssueInputId, metricIssueName, metricIssueReason, metricIssueNextStep, type MetricInputIssue } from './sourceDiagnostics'
 import type { MetricConfig, MetricTemplate, MetricValue } from './types'
 const props=defineProps<{value?:MetricValue;template?:MetricTemplate;configuration?:MetricConfig;editable?:boolean;disabled?:boolean}>()
 const emit=defineEmits<{(event:'editSource',inputId:string):void}>()
 const {t,locale}=useI18n({useScope:'local',messages:metricMessages})
 const diagnostics=computed(()=>metricInputDiagnostics(props.value))
-const abnormal=computed(()=>props.value?.status === 'invalid' || props.value?.quality?.valid === false)
+const abnormal=computed(()=>metricState(props.value).tone === 'error')
 // 省略/截断的诊断不能被当作可选项；只弱化明确可缺省且已有结果的提示。
 const optionalOnly=computed(()=>diagnostics.value.total > 0 && diagnostics.value.total === diagnostics.value.issues.length
   && diagnostics.value.issues.every(issue=>issue.required === false))
