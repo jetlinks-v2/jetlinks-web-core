@@ -957,6 +957,15 @@
     font-weight: 600;
   }
 
+  &__avatar.ant-avatar-image {
+    background: transparent;
+    overflow: visible;
+
+    > img {
+      object-fit: contain;
+    }
+  }
+
   &__menu {
     box-sizing: border-box;
     width: 16.5rem;
