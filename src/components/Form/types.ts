@@ -21,6 +21,8 @@ export interface FormOption {
   label: string
   i18nMessages?: I18nMessages
   color?: string
+  /** 已选值可保留或移除；移除后不可重新加入。 */
+  disabled?: boolean
 }
 
 /** 只保存界面配置，不复制字段定义、数据或当前用户权限。 */
@@ -52,6 +54,7 @@ export interface FormLayout {
 }
 
 export type FormValues = Record<string, unknown>
+export type FormSubmission = 'full' | 'patch'
 export type FormAccess = Partial<Record<string, 'write' | 'read' | 'denied' | 'hidden'>>
 export interface FormSubmitResult {
   /** 可选的服务端规范化字段值，仍以字段 key 索引。 */

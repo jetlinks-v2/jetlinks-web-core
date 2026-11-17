@@ -6,7 +6,7 @@ import type { FormAccess, FormField, FormLayout, FormSubmit, FormValidate, FormV
 
 interface RendererProps {
   fields: FormField[]; layout: FormLayout; values: FormValues; access?: FormAccess
-  readonly: boolean; submit?: FormSubmit; validate?: FormValidate
+  readonly: boolean; submit?: FormSubmit; validate?: FormValidate; submission?: 'full' | 'patch'
 }
 interface RendererEvents {
   change: (values: FormValues) => void
@@ -26,6 +26,7 @@ export function useFormRenderer(props: RendererProps, slots: Slots, events: Rend
   const session = useFormSession({
     fields: () => props.fields, layout: () => props.layout, values: () => props.values, access: () => props.access,
     readonly: () => props.readonly, submit: () => props.submit, validate: () => props.validate,
+    submission: () => props.submission ?? 'full',
     requiredMessage: () => t('required'), failedMessage: () => t('failed'),
     change: events.change, saved: events.saved, externalChange: events.externalChange,
   })

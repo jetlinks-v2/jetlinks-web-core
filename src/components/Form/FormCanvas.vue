@@ -10,6 +10,7 @@
           <div class="fw-label"><slot name="label" v-bind="entry">{{ label(entry.field, entry.item) }}</slot></div>
           <div class="fw-value"><slot name="value" v-bind="entry" :value="Object.hasOwn(values, entry.field.key) ? values[entry.field.key] : undefined" /></div>
           <div v-if="$slots['field-actions']" class="fw-field-tools"><slot name="field-actions" v-bind="entry" /></div>
+          <slot name="field-overlay" v-bind="entry" />
         </div>
       </div>
       <slot v-if="!section.entries.length" name="empty-section" :section="section" />

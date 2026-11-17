@@ -21,10 +21,10 @@
             <template v-if="field.type === 'enum' || field.type === 'boolean'">
               <Input.Search v-if="options.length > 8" v-model:value="query" class="fw-option-search" :placeholder="t('searchOptions')" :aria-label="t('searchOptions')" allow-clear />
               <Checkbox.Group v-if="field.multiple" class="fw-option-list" :class="{ 'fw-option-tags': editorStyle === 'tags' }" :value="Array.isArray(selection) ? selection : []" :aria-label="label(field, item)" @change="selectValue($event.map(String))">
-                <Checkbox v-for="option in visibleOptions" :key="option.value" :value="option.value"><FormValue :field="{ ...field, type: 'enum', multiple: false, options: [option.option] }" :item="{ ...item, display: 'tags' }" :value="option.option.value" /></Checkbox>
+                <Checkbox v-for="option in visibleOptions" :key="option.value" :value="option.value" :disabled="option.disabled"><FormValue :field="{ ...field, type: 'enum', multiple: false, options: [option.option] }" :item="{ ...item, display: 'tags' }" :value="option.option.value" /><small v-if="option.option.disabled" class="fw-option-unavailable">{{ t('unavailableOption') }}</small></Checkbox>
               </Checkbox.Group>
               <Radio.Group v-else class="fw-option-list" :class="{ 'fw-option-tags': editorStyle === 'tags' }" :value="selection" :name="radioName" :aria-label="label(field, item)" @change="selectValue($event.target.value)">
-                <Radio v-for="option in visibleOptions" :key="option.value" :value="option.value"><FormValue :field="field.type === 'boolean' ? field : { ...field, multiple: false, options: [option.option] }" :item="{ ...item, display: 'tags' }" :value="option.option.value" /></Radio>
+                <Radio v-for="option in visibleOptions" :key="option.value" :value="option.value" :disabled="option.disabled"><FormValue :field="field.type === 'boolean' ? field : { ...field, multiple: false, options: [option.option] }" :item="{ ...item, display: 'tags' }" :value="option.option.value" /><small v-if="option.option.disabled" class="fw-option-unavailable">{{ t('unavailableOption') }}</small></Radio>
               </Radio.Group>
               <span v-if="!visibleOptions.length" class="fw-no-options">{{ t('noOptions') }}</span>
             </template>
@@ -94,6 +94,7 @@ const dateFormat = computed(() => props.field.type === 'datetime' ? 'YYYY.MM.DD 
 .fw-option-tags :deep(.ant-checkbox-wrapper), .fw-option-tags :deep(.ant-radio-wrapper) { max-width: 100%; border-color: var(--line, #e5e9ef); gap: 10px; }
 .fw-option-tags :deep(.ant-checkbox-wrapper-checked), .fw-option-tags :deep(.ant-radio-wrapper-checked) { border-color: var(--jet-theme-primary-border, #91bfff); }
 .fw-no-options { display: block; padding: 16px; color: var(--jet-theme-text-secondary, #697586); text-align: center; font-size: 12px; }
+.fw-option-unavailable { font-size: 11px; color: var(--jet-theme-text-secondary, #697586); }
 .fw-date-editor { display: inline-block; position: relative; vertical-align: top; max-width: 100%; }
 .fw-date-size { display: block; visibility: hidden; overflow: hidden; white-space: pre; padding-inline-end: 36px; line-height: 26px; }
 .fw-date-editor :deep(.ant-picker) { position: absolute; inset: 0; padding: 0; height: 26px; width: 100%; background: transparent; border-radius: 0; box-shadow: inset 0 -1px var(--jet-theme-primary, #1677ff); }

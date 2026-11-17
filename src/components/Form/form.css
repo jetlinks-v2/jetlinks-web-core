@@ -17,6 +17,8 @@
 .fw-value-drawer .ant-drawer-header { padding: 12px 20px; }
 .fw-value-drawer .ant-drawer-title { font-size: 14px; }
 .fw-value-popover .ant-popover-inner { padding: 0; overflow: hidden; border: 1px solid var(--line, #e5e9ef); border-radius: 10px; box-shadow: 0 12px 40px #213c5b26; }
+.fw-settings-popover.ant-tooltip { max-width: none; }
+.fw-settings-popover .ant-tooltip-inner { padding: 0; overflow: hidden; background: var(--bg, #fff); border: 1px solid var(--line, #e5e9ef); border-radius: 10px; box-shadow: var(--shadow-2, 0 10px 32px #1a25301a); }
 .fw-select-popup { max-width: calc(100vw - 24px); padding: 5px; border: 1px solid var(--line, #e5e9ef); border-radius: 8px; }
 .fw-select-popup .ant-select-item { padding: 8px 10px; min-height: 36px; font-size: 12px; border-radius: 5px; }
 .fw-select-popup .ant-select-item-option-selected:not(.ant-select-item-option-disabled) { background: var(--jet-theme-primary-bg, #f0f6ff); font-weight: 500; }

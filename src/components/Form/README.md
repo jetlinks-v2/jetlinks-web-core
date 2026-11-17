@@ -44,10 +44,41 @@ const submit: FormSubmit = async changes => {
 | `readonly?: boolean` | 整页只读；进入只读或撤权清理不可写草稿。 |
 | `validate?: FormValidate` | 同步纯函数返回错误文字或undefined；必填使用组件基础规则，不另建校验语言。 |
 | `submit?: FormSubmit` | Promise回调，只接收已确认且可写的差异；未提供时仍可本地试填并消费change，默认保存按钮不显示。 |
+| `submission?: 'full' \| 'patch'` | 默认 full，保存前校验所有可写字段；patch 仅校验已修改字段，适合动态字段的部分更新。提交回调始终只接收差异。 |
 
 内置类型：`text/textarea/number/date/datetime/enum/boolean`；复杂JSON、图片、图表、关系选择等使用 `custom` 与宿主插槽。数值为空时提交null；多选为空时提交[]。`0/false/''/null/[]` 保留各自语义，未修改字段不进入差异。日期值为 `YYYY-MM-DD`，日期时间编辑产生本地 `YYYY-MM-DDTHH:mm:ss`；时区和其他日期协议由宿主适配。超过JavaScript安全精度的数字请声明为text或自定义编辑器。选项只支持string/number/boolean，按原类型稳定值匹配；未知选项保留到用户明确移除。
 
 字段key和分区id须唯一，布局为可信的已校验配置，不提供任意JSON或脚本执行能力。字段定义失效的引用暂不渲染，布局本身保留引用。发布、版本管理、配置持久化、路由离开确认和跨对象切换属于宿主。
+
+## 可选元数据适配
+
+适配层统一枚举对象和枚举数组的标量投影，保留响应文案；宿主按 binding 声明本次 create/update，与会话授权和列能力取交集。不把来源查询或记录存在性判断放入渲染器。
+
+`createMetadataForm` 是纯适配函数，接受原 `PropertyMetadata` 的结构投影、宿主稳定 key、精确路径数组及当前会话能力；不请求接口、不查询字典、不引入本体或动态扩展模块。原模型与引用/观测相对路径保留在返回的 `bindings` 中，不复制进布局。单独使用渲染器仍无需此适配层。
+
+```ts
+const form = createMetadataForm([
+  { key: 'device/name', property: nameProperty, path: ['name'] },
+  { key: 'device/maintenance/height', property, path: ['customFields', 'maintenance', 'height'] },
+  // 宿主已确认依附记录尚未创建；即使主对象在更新，此来源首次写入仍为 create。
+  { key: 'device/inspection/initialNote', property: initialNoteProperty,
+    path: ['customFields', 'inspection', 'initialNote'], operation: 'create' },
+], row, {
+  access: { 'device/name': 'write', 'device/maintenance/height': 'write', 'device/inspection/initialNote': 'write' },
+  operation: 'update',
+  message: (issue, params) => t(issue, params ?? {}),
+})
+// FormRenderer: fields/values/access/validate 使用 form 对应属性，submission="patch"。
+const submit: FormSubmit = changes => saveInformation(form.toPatch(changes))
+```
+
+适配层默认只读；显式会话授权与 `writable/insertable/updatable/readOnly` 取交集，列能力不能赋权。`denied/hidden` 的值不进入投影或 patch；字段缺失不能推断为拒权。含点字段名作为路径中的一个完整段传入，多来源同名字段由宿主分配不同 key。页面仍可以直接声明 `FormField[]`，两种方式共用相同组件。
+
+`binding.operation` 优先于整张表单的 `options.operation`（缺省 update）。宿主按来源记录的实际写入阶段，为同来源字段传入相同 operation；页面可同时更新主对象、创建首次填写的依附记录、更新已有依附记录。不从空值或缺失字段推断记录存在性，通用组件不额外查询。阶段变化后宿主使用最新状态重新适配；服务端仍按真实记录和仓储列能力执行。
+
+`numericRepresentation: 'decimal'` 和 long 使用字符串编辑，并通过现有 `lossless-json` 精确比较数值约束。HTTP 入口应使用项目已有 `parseJsonResponseWithPrecision`，普通 JSON.parse 已丢失的精度无法事后恢复。动态 DATE 保留日期字符串，DATETIME 从 ISO instant 转成本地编辑值、提交时恢复 UTC，保留毫秒；声明式 timestamp 使用毫秒时间戳。自定义日期协议/时区由 binding 的 `decode/encode` 显式转换，数字和日期空字符串回写 null。
+
+枚举从原 elements 和 optionSource 的国际化描述投影；宿主也可传已解析的字典 options。`enum`/`enum.multi` 与 `array<enum>` 共用单选/多选控件；标量与 `{value,text}` 响应都转成内部标量，响应 text 优先显示，比较与 patch 使用选项声明的 value。平台 EnumType 使用字符串代码，数字 EnumDict 的响应也按该代码归一化；宿主显式 typed options 保持严格身份，不合并数字和同名字符串。未知对象项保留 text 并标记不可新增，不把响应项扩大为可选目录。`selectableOptions` 限制新选择，停用/未知历史选项保持显示、允许移除，移除后编辑器不可再次选择；服务端核对旧值后才允许保留。原 `reference` 只选择 reference 插槽提示，关系查询与编辑器由宿主提供，不自动创建关系或写命令。其他数组和复杂结构继续使用 custom 插槽。
 
 ## 编辑与提交
 
@@ -83,6 +114,8 @@ Vue组件、插槽与函数属于宿主，JSON只引用稳定key；不要把组�
 
 布局缩略选项、类型配置和颜色按需出现；桌面浮层与手机底部面板覆盖画布，打开配置不改变字段布局。按钮统一圆角与字体；保存/发布为主动作，编排工具和取消为文字动作，字段还原徽标保持固定尺寸。手机单列、面板内部滚动、触屏主要动作至少44px；不是将桌面表单简单缩窄。
 
+展示设置以当前选中字段为锚点，桌面优先在字段下方左对齐展开，切换字段与画布滚动时跟随；空间不足由 Ant 浮层自动翻转、避让视口边界。Popover 未导出重定位方法，使用其底层 Tooltip 的公开 forcePopupAlign API 跟随内部滚动，不自写坐标和边界算法。移除固定在画布顶部的左右切换逻辑。窄容器仍使用原底部面板，设置内容共用 FormSettings，不挤动字段布局。集中验证左右字段切换、滚动、画布宽度变化、下拉及手机操作。
+
 枚举由字段定义决定单选/多选，布局`editor`支持`auto/list/tags`，自动模式在选项不超过5项时使用标签；显示可选择文字/标签。`optionColors`按原类型的稳定value绑定，清除覆盖即继承宿主选项颜色；布尔状态同样支持true/false配色。数字的精度、千分位、单位和日期格式仅影响显示，不改变提交值。
 
 ## 配置文案国际化
@@ -112,7 +145,7 @@ const item = { key: field.key, i18nMessages: { label: { en: 'Mounting height' } 
 
 ## 示例与验证
 
-`examples/FormWorkspaceExample.vue`直接引用两个公开组件，包含对象详情/工作流、本地草稿/模拟发布、布局JSON往返、只读/拒权/隐藏、自定义采样控件、失败重试与业务payload映射。没有第二套HTML渲染器或后端依赖。
+`examples/FormWorkspaceExample.vue`直接引用两个公开组件，包含对象详情/工作流、本地草稿/模拟发布、布局JSON往返、只读/拒权/隐藏、自定义采样控件、失败重试与业务payload映射。对象详情采用原模型适配，展示精确小数、停用枚举和日期；工作流保留宿主直接声明，示例无需后端运行。
 
 在runtime-ui目录：
 
@@ -123,3 +156,7 @@ pnpm -F jetlinks-web-core build:form
 ```
 
 入口：`http://127.0.0.1:8767/tests/form-workspace-preview.html`。示例的草稿和发布只在本次页面会话中生效。
+
+协议联动验证可设置 `FORM_BACKEND_CONTRACT=/path/entity-form-contract.json` 后运行 `npm run test:form`，输入来自 components 的 `ExtensionObjectSupportIntegrationTest` 实际输出（`-Dform.contract.output=...`），覆盖动态数字/日期、声明式字符串/数字 EnumDict 及枚举数组。同一批还执行会话、国际化、渲染器独立打包检查和 vue-tsc；`npm run build:form` 验证示例构建。普通运行没有后端输出时仅跳过该跨仓库用例。
+
+审查修复后使用真实后端输出验证 35 项全部通过，0 跳过，vue-tsc 与示例构建通过；包含声明式 EnumDict/枚举数组、数字代码、无关字段 full 保存、历史项和逐绑定操作能力。构建仍有示例依赖的大 chunk 提示，Form 无独立 lint 脚本，空白检查通过。桌面精确小数差异保存、390/360px 无横向溢出、日期回填、44px 选项操作、停用项移除后禁选及拒权过滤复用前阶段交互证据，本轮未重跑视觉。宿主的真实接口授权、页面持久化与发布需在业务接入时另行验证。评审入口：[web-core #239](https://github.com/jetlinks-v2/jetlinks-web-core/pull/239)，后端契约对应 [components #1707](https://github.com/jetlinks-v2/jetlinks-components/pull/1707)。

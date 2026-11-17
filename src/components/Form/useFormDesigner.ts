@@ -18,7 +18,6 @@ interface DesignerOptions {
 /** 编排只持有选择、布局撤销和指针状态，不保存字段定义或业务值。 */
 export function useFormDesigner(options: DesignerOptions, root: Ref<HTMLElement | undefined>) {
   const selected = ref<string>()
-  const settingsSide = ref<'left' | 'right'>('right')
   const sectionId = ref<string>()
   const titleKey = ref<string>()
   const titleDraft = ref('')
@@ -69,12 +68,8 @@ export function useFormDesigner(options: DesignerOptions, root: Ref<HTMLElement 
     sectionId.value = options.layout().sections.find(section => section.items.some(item => item.key === key))?.id
     nextTick(() => {
       const node = root.value
-      if (!node) return
+      if (!node || node.clientWidth > 600) return
       const cell = [...node.querySelectorAll<HTMLElement>('[data-field-key]')].find(cell => cell.dataset.fieldKey === key)
-      if (node.clientWidth > 600) {
-        settingsSide.value = cell && cell.getBoundingClientRect().left > node.getBoundingClientRect().left + node.clientWidth / 2 ? 'left' : 'right'
-        return
-      }
       const scroller = node.querySelector<HTMLElement>('.fw-designer-scroll')
       const panel = node.querySelector<HTMLElement>('.fw-settings')
       if (scroller && cell && panel && cell.getBoundingClientRect().bottom > panel.getBoundingClientRect().top - 16) {
@@ -221,5 +216,5 @@ export function useFormDesigner(options: DesignerOptions, root: Ref<HTMLElement 
   }
   onScopeDispose(clearPointer)
 
-  return { selected, settingsSide, sectionId, selectedField, selectedItem, titleKey, titleDraft, editingSection, sectionDraft, translationTarget, translationSource, translationLabel, translationDefault, translationFallback, libraryOpen, preview, previewValues, history, available, drop, dragging, update, undo, select, addField, addSection, editSection, finishSection, removeSection, patchItem, remove, editTitle, finishTitle, titleKeydown, editTranslations, saveTranslations, togglePreview, closeSettings, canvasClick, shift, moveToSection, keydown, pointerDown, pointerMove, pointerUp, clearPointer }
+  return { selected, sectionId, selectedField, selectedItem, titleKey, titleDraft, editingSection, sectionDraft, translationTarget, translationSource, translationLabel, translationDefault, translationFallback, libraryOpen, preview, previewValues, history, available, drop, dragging, update, undo, select, addField, addSection, editSection, finishSection, removeSection, patchItem, remove, editTitle, finishTitle, titleKeydown, editTranslations, saveTranslations, togglePreview, closeSettings, canvasClick, shift, moveToSection, keydown, pointerDown, pointerMove, pointerUp, clearPointer }
 }

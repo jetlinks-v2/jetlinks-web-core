@@ -11,6 +11,7 @@ interface SessionOptions {
   readonly: () => boolean
   submit: () => FormSubmit | undefined
   validate: () => FormValidate | undefined
+  submission?: () => 'full' | 'patch'
   requiredMessage: () => string
   failedMessage: () => string
   change: (changes: FormValues) => void
@@ -89,7 +90,8 @@ export function useFormSession(options: SessionOptions) {
   async function save() {
     const submit = options.submit()
     if (saving.value || !dirty.value || !submit) return
-    errors.value = Object.fromEntries([...writable.value.keys()].flatMap(key => {
+    const keys = options.submission?.() === 'patch' ? Object.keys(changes.value) : [...writable.value.keys()]
+    errors.value = Object.fromEntries(keys.flatMap(key => {
       const error = validate(key, value(key))
       return error ? [[key, error]] : []
     }))

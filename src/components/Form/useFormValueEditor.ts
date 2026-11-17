@@ -27,11 +27,15 @@ export function useFormValueEditor(props: { field: FormField; item?: FormLayoutI
     const pool = [...(props.field.options ?? [])]
     const values = props.field.multiple ? (Array.isArray(props.value) ? props.value : []) : [props.value]
     for (const value of values) {
-      if (['string', 'number', 'boolean'].includes(typeof value) && !pool.some(option => Object.is(option.value, value))) pool.push({ value: value as FormOption['value'], label: String(value) })
+      if (['string', 'number', 'boolean'].includes(typeof value) && !pool.some(option => Object.is(option.value, value))) pool.push({ value: value as FormOption['value'], label: String(value), disabled: true })
     }
     return pool
   })
-  const options = computed(() => optionPool.value.map((option, index) => ({ value: String(index), option, label: formText(option, 'label', locale()) })))
+  const selectedValues = () => props.field.multiple ? (Array.isArray(props.value) ? props.value : []) : [props.value]
+  const options = computed(() => optionPool.value.map((option, index) => ({
+    value: String(index), option, label: formText(option, 'label', locale()),
+    disabled: !!option.disabled && !selectedValues().some(value => Object.is(value, option.value)),
+  })))
   const query = ref('')
   const visibleOptions = computed(() => options.value.filter(option => option.label.toLocaleLowerCase(locale()).includes(query.value.trim().toLocaleLowerCase(locale()))))
   const editorStyle = computed(() => props.item?.editor && props.item.editor !== 'auto' ? props.item.editor : options.value.length <= 5 ? 'tags' : 'list')
@@ -71,13 +75,14 @@ export function useFormValueEditor(props: { field: FormField; item?: FormLayoutI
     const keys = Array.isArray(value) ? value : value === undefined ? [] : [value]
     const values = keys.flatMap(key => {
       const option = optionPool.value[Number(key)]
-      return option ? [option.value] : []
+      return option && (!option.disabled || selectedValues().some(value => Object.is(value, option.value))) ? [option.value] : []
     })
     events.update(props.field.multiple ? values : values[0] ?? null)
   }
   function setDate(value: Dayjs | string | null | (Dayjs | string)[]) {
     // 日期直接采用DatePicker的选择/输入结果；日期时间沿用控件内置的确认。
-    events.update(value && !Array.isArray(value) ? dayjs(value).format(props.field.type === 'datetime' ? 'YYYY-MM-DDTHH:mm:ss' : 'YYYY-MM-DD') : null)
+    const time = value && !Array.isArray(value) ? dayjs(value) : undefined
+    events.update(time ? time.format(props.field.type === 'datetime' ? time.millisecond() ? 'YYYY-MM-DDTHH:mm:ss.SSS' : 'YYYY-MM-DDTHH:mm:ss' : 'YYYY-MM-DD') : null)
     events.confirm()
   }
   return { root, inline, text, mobile, overlayProps, editorStyle, options, visibleOptions, query, selection, date, onKeydown, onBlur, selectValue, setDate }

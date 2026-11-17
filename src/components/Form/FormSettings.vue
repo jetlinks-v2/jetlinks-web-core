@@ -83,7 +83,7 @@ function setColor(value: FormOption['value'], color?: string) {
 </script>
 
 <style scoped>
-.fw-settings { display: flex; flex-direction: column; position: absolute; right: 12px; top: 60px; width: 292px; max-height: calc(100% - 76px); border: 1px solid var(--line, #e5e9ef); border-radius: 10px; background: var(--bg, #fff); box-shadow: var(--shadow-2, 0 10px 32px #1a25301a); z-index: 5; color: var(--jet-theme-text, #1f2429); }
+.fw-settings { display: flex; flex-direction: column; width: 292px; max-width: calc(100vw - 24px); max-height: min(480px, calc(100dvh - 120px)); background: var(--bg, #fff); color: var(--jet-theme-text, #1f2429); }
 header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line, #edf0f3); }
 .fw-rename.ant-btn { display: block; max-width: 215px; height: auto; padding: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; font-weight: 600; }
 .fw-rename .anticon { color: var(--jet-theme-text-secondary, #697586); margin-left: 4px; }
@@ -119,9 +119,8 @@ summary { cursor: pointer; font-size: 12px; color: var(--jet-theme-text-secondar
 .fw-mobile-move { display: none; }
 .fw-move-actions { display: flex; gap: 8px; }
 .fw-move-actions .ant-btn { flex: 1; }
-@container fw-designer (min-width: 601px) { .fw-settings-left { left: 12px; right: auto; } }
 @container fw-designer (max-width: 600px) {
-  .fw-settings { top: auto; bottom: 0; right: 0; width: 100%; max-height: 48%; border-radius: 12px 12px 0 0; }
+  .fw-settings { position: absolute; bottom: 0; right: 0; width: 100%; max-width: none; max-height: 48%; border: 1px solid var(--line, #e5e9ef); border-radius: 12px 12px 0 0; box-shadow: var(--shadow-2, 0 10px 32px #1a25301a); z-index: 5; }
   .fw-settings-body { padding: 12px 16px 0; }
   .fw-setting { margin-bottom: 16px; }
   .fw-mobile-move { display: block; }

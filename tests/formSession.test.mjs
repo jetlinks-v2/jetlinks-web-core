@@ -22,7 +22,7 @@ function mount(overrides = {}) {
   const state = reactive({ fields, layout, values: { amount: 1.2345, enabled: false, 'custom.height': '' }, access: {}, readonly: false, ...overrides })
   const events = []
   const scope = effectScope()
-  const session = scope.run(() => useFormSession({ fields: () => state.fields, layout: () => state.layout, values: () => state.values, access: () => state.access, readonly: () => state.readonly, submit: () => state.submit, validate: () => state.validate, requiredMessage: () => 'required', failedMessage: () => 'failed', change: value => events.push(['change', value]), saved: value => events.push(['saved', value]), externalChange: keys => events.push(['external', keys]) }))
+const session = scope.run(() => useFormSession({ fields: () => state.fields, layout: () => state.layout, values: () => state.values, access: () => state.access, readonly: () => state.readonly, submit: () => state.submit, validate: () => state.validate, submission: () => state.submission ?? 'full', requiredMessage: () => 'required', failedMessage: () => 'failed', change: value => events.push(['change', value]), saved: value => events.push(['saved', value]), externalChange: keys => events.push(['external', keys]) }))
   return { state, session, events, stop: () => scope.stop() }
 }
 test('0, false, null and opaque dotted keys survive editing, restoration and normalized saves', async t => {
@@ -39,6 +39,21 @@ test('0, false, null and opaque dotted keys survive editing, restoration and nor
   assert.equal(session.dirty.value, 0)
   session.commit('amount', 99); session.restore('amount')
   assert.equal(session.value('amount'), 0)
+})
+
+test('patch mode validates changes while full submission still requires all visible required fields', async t => {
+  let submitted
+  const overrides = { fields: [{ ...fields[0], required: true }, ...fields.slice(1)], values: { enabled: true }, submit: async changes => { submitted = changes } }
+  const patch = mount({ ...overrides, submission: 'patch' }); t.after(patch.stop)
+  patch.session.commit('enabled', false)
+  await patch.session.save()
+  assert.deepEqual(submitted, { enabled: false })
+  assert.equal(patch.session.commit('amount', null), false)
+  const full = mount(overrides); t.after(full.stop)
+  full.session.commit('enabled', false)
+  await full.session.save()
+  assert.equal(full.session.errors.value.amount, 'required')
+  assert.equal(full.session.dirty.value, 1)
 })
 test('access intersection and revocation remove pending patches, errors and invalid layout entries', async t => {
   const view = mount(); t.after(view.stop)

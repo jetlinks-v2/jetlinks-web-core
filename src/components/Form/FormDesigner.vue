@@ -10,7 +10,7 @@
       <span class="fw-toolbar-spacer" />
       <Button type="text" @click="designer.togglePreview">{{ t(designer.preview.value ? 'design' : 'preview') }} →</Button>
     </div>
-    <div class="fw-designer-scroll" @click="designer.canvasClick">
+    <div class="fw-designer-scroll" @click="designer.canvasClick" @scroll="alignSettings">
       <slot name="header" />
       <FormRenderer v-if="designer.preview.value" :fields="fields" :layout="layout" :values="designer.previewValues.value" @change="emit('sample-change', $event)">
         <template v-for="name in Object.keys($slots).filter(name => name.startsWith('value-') || name.startsWith('editor-'))" #[name]="scope"><slot :name="name" v-bind="scope || {}" /></template>
@@ -35,17 +35,24 @@
           <Button type="text" class="fw-field-tool" :aria-label="`${t('settings')} · ${label(field, item)}`" :title="t('settings')" @click.stop="designer.select(field.key)"><SettingOutlined /></Button>
           <Button v-if="designer.selected.value === field.key" type="text" class="fw-field-tool fw-remove-field" :aria-label="t('remove')" :title="t('remove')" @click.stop="designer.remove"><CloseOutlined /></Button>
         </template>
+        <template #field-overlay="{ field }">
+          <Tooltip v-if="!narrow && designer.selected.value === field.key" ref="settingsPopup" :open="true" :trigger="[]" placement="bottomLeft" :arrow="false" overlay-class-name="fw-settings-popover" :get-popup-container="() => root!">
+            <template #title><FormSettings v-bind="settingsProps" v-on="settingsEvents" /></template>
+            <span class="fw-settings-anchor" aria-hidden="true" />
+          </Tooltip>
+        </template>
         <template #empty-section="{ section }"><div class="fw-drop-empty" :class="{ 'fw-drop-active': designer.drop.value?.section === section.id }" @click="designer.sectionId.value = section.id; designer.libraryOpen.value = true">{{ t('emptySection') }}</div></template>
       </FormCanvas>
     </div>
-    <FormSettings v-if="!designer.preview.value && designer.selectedField.value && designer.selectedItem.value" :key="designer.selected.value" :class="{ 'fw-settings-left': designer.settingsSide.value === 'left' }" :field="designer.selectedField.value" :item="designer.selectedItem.value" :value="sampleValues[designer.selected.value!]" :section-id="designer.sectionId.value" :sections="layout.sections" @update="designer.patchItem" @rename="designer.editTitle(designer.selected.value!)" @close="designer.closeSettings" @shift="designer.shift" @move="designer.moveToSection" />
+    <FormSettings v-if="narrow && !designer.preview.value && designer.selectedField.value && designer.selectedItem.value" :key="designer.selected.value" v-bind="settingsProps" v-on="settingsEvents" />
     <I18nTextDialog v-if="designer.translationTarget.value && designer.translationSource.value" visible :title="designer.translationLabel.value" :data="designer.translationSource.value.i18nMessages?.label" :display-value="designer.translationDefault.value" :fallback-messages="designer.translationFallback.value" @update:visible="!$event && (designer.translationTarget.value = undefined)" @confirm="designer.saveTranslations" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, type PropType } from 'vue'
-import { Button, Input, Popover } from 'ant-design-vue'
+import { computed, nextTick, ref, watch, type PropType } from 'vue'
+import { useElementSize } from '@vueuse/core'
+import { Button, Input, Popover, Tooltip } from 'ant-design-vue'
 import { CloseOutlined, HolderOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import FormCanvas from './FormCanvas.vue'
 import FormValue from './FormValue.vue'
@@ -69,6 +76,15 @@ const emit = defineEmits<{
 const root = ref<HTMLElement>()
 const { t, locale, text, label } = useFormLocale()
 const designer = useFormDesigner({ fields: () => props.fields, layout: () => props.layout, sampleValues: () => props.sampleValues, update: layout => emit('update:layout', layout), locale: () => locale.value, sectionLabel: () => ({ label: t('newSection'), i18nMessages: { label: { zh: t('newSection', {}, { locale: 'zh' }), en: t('newSection', {}, { locale: 'en' }) } } }) }, root)
+// 与画布容器断点一致；桌面锚定与手机面板共用设置内容和事件。
+const { width } = useElementSize(root)
+const narrow = computed(() => width.value <= 600)
+const settingsPopup = ref<{ forcePopupAlign: () => void }>()
+// Popover 未导出重定位方法，复用其底层公开 Tooltip 浮层 API；不维护坐标或自写边界算法。
+function alignSettings() { settingsPopup.value?.forcePopupAlign() }
+watch(width, () => nextTick(alignSettings))
+const settingsProps = computed(() => ({ field: designer.selectedField.value!, item: designer.selectedItem.value!, value: props.sampleValues[designer.selected.value!], sectionId: designer.sectionId.value, sections: props.layout.sections }))
+const settingsEvents = { update: designer.patchItem, rename: () => designer.editTitle(designer.selected.value!), close: designer.closeSettings, shift: designer.shift, move: designer.moveToSection }
 </script>
 
 <style scoped>
@@ -91,6 +107,7 @@ const designer = useFormDesigner({ fields: () => props.fields, layout: () => pro
 .fw-title-size > span { display: block; visibility: hidden; white-space: pre; padding-right: 3px; }
 .fw-title-size :deep(.fw-title-input) { position: absolute; inset: 0; padding: 0; min-height: 0; height: 22px; width: 100%; min-width: 0; border: 0; border-radius: 0; background: transparent; color: var(--jet-theme-text, #1f2429); font: inherit; line-height: inherit; box-shadow: inset 0 -1px var(--primary-color, #1677ff); }
 .fw-design-target { cursor: grab; position: relative; min-height: 26px; outline-offset: 4px; }
+.fw-settings-anchor { position: absolute; inset: 0; pointer-events: none; }
 .fw-design-target[data-drop]::before { content: ''; position: absolute; top: -25px; bottom: -8px; width: 2px; background: var(--primary-color, #1677ff); }
 .fw-design-target[data-drop="before"]::before { left: -14px; }
 .fw-design-target[data-drop="after"]::before { right: -14px; }

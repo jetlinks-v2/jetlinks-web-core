@@ -1,21 +1,24 @@
 import { computed, ref, shallowRef } from 'vue'
 import { cloneDeep } from 'lodash-es'
 import { useFormExampleLocale } from './locale'
+import { createMetadataForm } from '../metadata'
+import type { FormMetadataBinding } from '../metadata'
 import type { FormAccess, FormField, FormLayout, FormSubmit, FormValues } from '../types'
 
-const objectFields: FormField[] = [
-  { key: 'name', label: '设备名称', i18nMessages: { label: { zh: '设备名称', en: 'Device name' } }, type: 'text', required: true },
-  { key: 'code', label: '设备编号', i18nMessages: { label: { zh: '设备编号', en: 'Device code' } }, type: 'text', readonly: true },
-  { key: 'maintenance.height', label: '安装高度', type: 'number', unit: 'm', description: '相对地面的安装高度', i18nMessages: { label: { zh: '安装高度', en: 'Installation height' }, description: { zh: '相对地面的安装高度', en: 'Height above ground' }, unit: { zh: 'm', en: 'm' } } },
-  { key: 'installedOn', label: '安装日期', i18nMessages: { label: { zh: '安装日期', en: 'Installation date' } }, type: 'date' },
-  { key: 'location', label: '安装位置', i18nMessages: { label: { zh: '安装位置', en: 'Location' } }, type: 'textarea' },
-  { key: 'protection', label: '防护等级', i18nMessages: { label: { zh: '防护等级', en: 'Protection rating' } }, type: 'enum', options: [{ value: 'IP65', label: 'IP65', color: 'blue' }, { value: 'IP67', label: 'IP67', color: 'green' }] },
-  { key: 'features', label: '功能特性', i18nMessages: { label: { zh: '功能特性', en: 'Features' } }, type: 'enum', multiple: true, options: [{ value: 1, label: '远程维护', i18nMessages: { label: { zh: '远程维护', en: 'Remote maintenance' } } }, { value: 2, label: '状态上报', i18nMessages: { label: { zh: '状态上报', en: 'Status reporting' } } }, { value: 3, label: '离线缓存', i18nMessages: { label: { zh: '离线缓存', en: 'Offline cache' } } }] },
-  { key: 'enabled', label: '自动巡检', i18nMessages: { label: { zh: '自动巡检', en: 'Automatic inspection' } }, type: 'boolean' },
-  { key: 'settings', label: '采样策略', i18nMessages: { label: { zh: '采样策略', en: 'Sampling policy' } }, type: 'custom', renderer: 'sampling' },
-  { key: 'cost', label: '采购成本', type: 'number', unit: '元', i18nMessages: { label: { zh: '采购成本', en: 'Purchase cost' }, unit: { zh: '元', en: 'CNY' } } },
-  { key: 'internalNote', label: '内部备注', i18nMessages: { label: { zh: '内部备注', en: 'Internal note' } }, type: 'text' },
-  { key: 'notes', label: '补充说明', i18nMessages: { label: { zh: '补充说明', en: 'Additional notes' } }, type: 'textarea' },
+// 宿主提供原属性模型和精确路径；基础字段、动态字段及自定义编辑器共用一个页面。
+const objectBindings: FormMetadataBinding[] = [
+  { key: 'name', path: ['name'], property: { id: 'name', name: '设备名称', valueType: { type: 'string' }, expands: { required: true, i18nMessages: { name: { zh: '设备名称', en: 'Device name' } } } } },
+  { key: 'code', path: ['code'], property: { id: 'code', name: '设备编号', valueType: { type: 'string' }, expands: { writable: false, i18nMessages: { name: { zh: '设备编号', en: 'Device code' } } } } },
+  { key: 'maintenance.height', path: ['customFields', 'maintenance', 'height'], property: { id: 'customFields.maintenance.height', name: '安装高度', description: '相对地面的安装高度', valueType: { type: 'double' }, expands: { numericRepresentation: 'decimal', minimum: '0', unit: 'm', semanticRole: 'result', i18nMessages: { name: { zh: '安装高度', en: 'Installation height' }, description: { zh: '相对地面的安装高度', en: 'Height above ground' }, unit: { zh: 'm', en: 'm' } } } } },
+  { key: 'installedOn', path: ['installedOn'], property: { id: 'installedOn', name: '安装日期', valueType: { type: 'date', format: 'yyyy-MM-dd' }, expands: { i18nMessages: { name: { zh: '安装日期', en: 'Installation date' } } } } },
+  { key: 'location', path: ['location'], property: { id: 'location', name: '安装位置', valueType: { type: 'string' }, expands: { fieldType: 'TEXT', i18nMessages: { name: { zh: '安装位置', en: 'Location' } } } } },
+  { key: 'protection', path: ['protection'], options: [{ value: 'IP65', label: 'IP65', color: 'blue' }, { value: 'IP67', label: 'IP67', color: 'green' }], property: { id: 'protection', name: '防护等级', valueType: { type: 'enum' }, expands: { i18nMessages: { name: { zh: '防护等级', en: 'Protection rating' } } } } },
+  { key: 'features', path: ['features'], options: [{ value: 'remote', label: '远程维护', i18nMessages: { label: { zh: '远程维护', en: 'Remote maintenance' } } }, { value: 'report', label: '状态上报', i18nMessages: { label: { zh: '状态上报', en: 'Status reporting' } } }, { value: 'cache', label: '离线缓存', i18nMessages: { label: { zh: '离线缓存', en: 'Offline cache' } } }], property: { id: 'features', name: '功能特性', valueType: { type: 'array', elementType: { type: 'enum' } }, expands: { selectableOptions: ['report', 'cache'], i18nMessages: { name: { zh: '功能特性', en: 'Features' } } } } },
+  { key: 'enabled', path: ['enabled'], property: { id: 'enabled', name: '自动巡检', valueType: { type: 'boolean' }, expands: { i18nMessages: { name: { zh: '自动巡检', en: 'Automatic inspection' } } } } },
+  { key: 'settings', path: ['settings'], renderer: 'sampling', property: { id: 'settings', name: '采样策略', valueType: { type: 'object' }, expands: { i18nMessages: { name: { zh: '采样策略', en: 'Sampling policy' } } } } },
+  { key: 'cost', path: ['cost'], property: { id: 'cost', name: '采购成本', valueType: { type: 'double' }, expands: { numericRepresentation: 'decimal', unit: '元', i18nMessages: { name: { zh: '采购成本', en: 'Purchase cost' }, unit: { zh: '元', en: 'CNY' } } } } },
+  { key: 'internalNote', path: ['internalNote'], property: { id: 'internalNote', name: '内部备注', valueType: { type: 'string' }, expands: { i18nMessages: { name: { zh: '内部备注', en: 'Internal note' } } } } },
+  { key: 'notes', path: ['notes'], property: { id: 'notes', name: '补充说明', valueType: { type: 'string' }, expands: { fieldType: 'TEXT', i18nMessages: { name: { zh: '补充说明', en: 'Additional notes' } } } } },
 ]
 const workflowFields: FormField[] = [
   { key: 'title', label: '申请事项', i18nMessages: { label: { zh: '申请事项', en: 'Request title' } }, type: 'text', required: true },
@@ -50,25 +53,26 @@ export function useFormExample() {
   const json = ref('')
   const jsonError = ref('')
   const lastPayload = ref('')
-  const entity = ref({ name: '一号车间环境传感器', code: 'TH-2026-0916', maintenance: { height: 12.523345 }, installedOn: '2026-09-16', location: '一号车间 · A 区', protection: 'IP65', features: [1, 2], enabled: true, settings: { interval: 30 }, cost: 16800, internalNote: '定期核对标定值', notes: '' })
+  const entity = ref<FormValues>({ name: '一号车间环境传感器', code: 'TH-2026-0916', customFields: { maintenance: { height: '12.523345000000000001' } }, installedOn: '2026-09-16', location: '一号车间 · A 区', protection: { value: 'IP65', text: 'IP65' }, features: ['remote', 'report'], enabled: true, settings: { interval: 30 }, cost: '16800.00', internalNote: '定期核对标定值', notes: '' })
   const workflow = ref<FormValues>({ title: '传感器检修申请', priority: 0, reason: '更换过滤组件并复核安装位置。', budget: 0, deadline: '2026-11-20T14:00:00', approved: false })
-  const fields = computed(() => scene.value === 'object' ? objectFields : workflowFields)
-  const access = computed<FormAccess>(() => scene.value === 'object' ? { cost: restricted.value ? 'denied' : 'write', internalNote: restricted.value ? 'hidden' : 'write', 'maintenance.height': revoke.value ? 'read' : 'write' } : {})
-  const values = computed<FormValues>(() => {
-    const all = scene.value === 'object' ? { ...entity.value, 'maintenance.height': entity.value.maintenance.height } : workflow.value
-    return Object.fromEntries(fields.value.filter(field => access.value[field.key] !== 'denied' && access.value[field.key] !== 'hidden').map(field => [field.key, all[field.key as keyof typeof all]]))
-  })
+  const objectForm = computed(() => createMetadataForm(objectBindings, entity.value, {
+    message: (issue, params) => t(issue, params ?? {}),
+    access: { ...Object.fromEntries(objectBindings.map(binding => [binding.key, 'write' as const])), cost: restricted.value ? 'denied' : 'write', internalNote: restricted.value ? 'hidden' : 'write', 'maintenance.height': revoke.value ? 'read' : 'write' },
+  }))
+  const fields = computed(() => scene.value === 'object' ? objectForm.value.fields : workflowFields)
+  const access = computed<FormAccess>(() => scene.value === 'object' ? objectForm.value.access : {})
+  const values = computed<FormValues>(() => scene.value === 'object' ? objectForm.value.values : workflow.value)
   const submit: FormSubmit = async changes => {
     const requestedEpoch = epoch.value
     await new Promise(resolve => setTimeout(resolve, 350))
     if (requestedEpoch !== epoch.value) return
     if (failNext.value) { failNext.value = false; throw new Error(t('failed')) }
-    if (typeof changes['maintenance.height'] === 'number' && changes['maintenance.height'] < 0) return { errors: { 'maintenance.height': t('heightError') } }
     if (scene.value === 'object') {
-      const payload = Object.fromEntries(Object.entries(changes).filter(([key]) => key !== 'maintenance.height'))
-      if (Object.hasOwn(changes, 'maintenance.height')) payload.maintenance = { height: changes['maintenance.height'] }
+      const payload = objectForm.value.toPatch(changes)
       lastPayload.value = JSON.stringify(payload, null, 2)
-      entity.value = { ...entity.value, ...payload, maintenance: { ...entity.value.maintenance, ...(payload.maintenance as object ?? {}) } }
+      const original = entity.value.customFields as { maintenance: FormValues }
+      const patch = payload.customFields as { maintenance?: FormValues } | undefined
+      entity.value = { ...entity.value, ...payload, customFields: { ...original, maintenance: { ...original.maintenance, ...patch?.maintenance } } }
     } else {
       workflow.value = { ...workflow.value, ...changes }
       lastPayload.value = JSON.stringify(changes, null, 2)
@@ -100,6 +104,6 @@ export function useFormExample() {
   }
   const bindings = computed(() => mode.value === 'design'
     ? { fields: fields.value, layout: layout.value, sampleValues: values.value }
-    : { fields: fields.value, layout: published.value, values: values.value, access: access.value, readonly: readonly.value, submit })
+    : { fields: fields.value, layout: published.value, values: values.value, access: access.value, readonly: readonly.value, submission: scene.value === 'object' ? 'patch' as const : 'full' as const, validate: scene.value === 'object' ? objectForm.value.validate : undefined, submit })
   return { t, scene, mode, epoch, layout, draft, restricted, revoke, failNext, readonly, dirty, status, json, jsonError, lastPayload, fields, values, bindings, switchScene, setMode, saveDraft, restoreDraft, publish, importJson }
 }

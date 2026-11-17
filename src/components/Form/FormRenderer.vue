@@ -54,6 +54,7 @@ const props = defineProps({
   readonly: Boolean,
   submit: Function as PropType<FormSubmit>,
   validate: Function as PropType<FormValidate>,
+  submission: { type: String as PropType<'full' | 'patch'>, default: 'full' },
 })
 const emit = defineEmits<{
   (event: 'change' | 'saved', values: FormValues): void
