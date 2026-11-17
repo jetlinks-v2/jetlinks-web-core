@@ -1,4 +1,6 @@
 import type { App, Component, Plugin } from 'vue'
+export { FormDesigner, FormRenderer } from './Form'
+export type * from './Form/types'
 import TitleComponent from './TitleComponent/index.vue'
 import ImageUpload from "./Upload/Image/ImageUpload.vue";
 import CardBox, {
