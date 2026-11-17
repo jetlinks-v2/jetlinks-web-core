@@ -47,6 +47,25 @@ test('只加载可视卡片，历史逐条展示；最新变化不重读历史�
   } finally { f.close() }
 })
 
+test('实时更新保留零合并间隔，切换时取消旧订阅并继续接收新结果', async () => {
+  const f = fixture(['a'])
+  try {
+    f.visible(['a']); await flush()
+    const previous = f.calls[0]
+    previous.frame({ kind: 'ready' })
+    f.interval.value = 0; await flush()
+    assert.equal(previous.stopped, true)
+    const current = f.calls.at(-1)
+    assert.equal(current.request.interval, 0)
+    current.frame({ kind: 'ready' })
+    const time = Date.now() - 10
+    for (const number of [1, 2, 3]) current.frame({ kind: 'latest', latest: { configId: 'a', outputs: { value: value(number, time + number) } } })
+    assert.deepEqual(f.received.filter(([, frame]) => frame.kind === 'latest').map(([, frame]) => frame.latest.outputs.value.value), [1, 2, 3])
+    assert.deepEqual(f.model.entries.value.a.values.map(item => item.value), [3, 2, 1])
+    assert.equal(f.calls.length, 2)
+  } finally { f.close() }
+})
+
 test('初始历史最多三个在途，长连接不占已完成历史的队列额度', async () => {
   const f = fixture()
   try {

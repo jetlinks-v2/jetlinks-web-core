@@ -3,7 +3,7 @@
     <header class="aggregate-overview__tools">
       <div class="aggregate-overview__filters">
         <div class="aggregate-overview__field"><span>{{ t('summaryObjects') }}</span>
-          <a-select v-if="scopes.length>1" :value="aggregateScopeKey(scope)" :aria-label="t('summaryObjects')" :dropdown-match-select-width="false" @change="$emit('scope',String($event))">
+          <a-select v-if="scopes.length>1" :value="aggregateScopeKey(scope)" :aria-label="t('summaryObjects')" :bordered="false" size="small" :dropdown-match-select-width="false" @change="$emit('scope',String($event))">
             <a-select-option v-for="item in scopes" :key="aggregateScopeKey(item)" :value="aggregateScopeKey(item)" :label="item.label"><SelectOption :label="item.label" :icon="item.icon" :description="t(item.kind==='linked' ? 'addedScopeOptionHint' : 'memberScopeOptionHint')" /></a-select-option>
             <template #suffixIcon><AIcon type="DownOutlined" /></template>
           </a-select>

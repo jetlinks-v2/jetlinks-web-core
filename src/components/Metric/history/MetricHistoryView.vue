@@ -2,13 +2,13 @@
   <div class="metric-history-view">
     <div class="metric-history-view__tools">
       <slot name="tools" />
-      <a-select v-if="available" :value="aggregate.operation.value" :aria-label="t('historyAggregation')" :loading="aggregate.loading.value" size="small" @dropdownVisibleChange="($event:boolean) => $event && aggregate.describe()" @change="aggregate.operation.value = $event">
-        <a-select-option value="">{{ t('historyRaw') }}</a-select-option>
-        <a-select-option v-for="option in aggregate.operations.value" :key="option.id" :value="option.id"><AIcon :type="option.icon" /> {{ option.name }}</a-select-option>
+      <a-select v-if="available" :value="aggregate.operation.value" :aria-label="t('historyAggregation')" :loading="aggregate.loading.value" :bordered="false" :dropdown-match-select-width="false" :virtual="false" :list-height="320" size="small" @keydown.esc.stop @dropdownVisibleChange="($event:boolean) => $event && aggregate.describe()" @change="aggregate.operation.value = $event">
+        <a-select-option value="" :label="t('historyRaw')"><SelectOption icon="HistoryOutlined" :label="t('historyRaw')" :description="t('historyRawHint')" /></a-select-option>
+        <a-select-option v-for="option in aggregate.operations.value" :key="option.id" :value="option.id" :label="option.name"><SelectOption :icon="option.icon" :label="option.name" :description="t('historyOperationHint_'+option.id)" /></a-select-option>
       </a-select>
-      <a-select v-if="aggregate.operation.value" v-model:value="aggregate.interval.value" :aria-label="t('historyBucket')" size="small">
-        <a-select-option :value="0">{{ t('historyBucketAuto') }}</a-select-option>
-        <a-select-option v-for="option in intervals" :key="option.value" :value="option.value" :disabled="!bounds || option.value > bounds[1]-bounds[0] || Math.ceil((bounds[1]-bounds[0])/option.value)>256">{{ t('historyBucketEvery',{value:t(option.label)}) }}</a-select-option>
+      <a-select v-if="aggregate.operation.value" v-model:value="aggregate.interval.value" :aria-label="t('historyBucket')" :bordered="false" :dropdown-match-select-width="false" :virtual="false" :list-height="320" size="small" @keydown.esc.stop>
+        <a-select-option :value="0" :label="t('historyBucketAuto')"><SelectOption icon="CompressOutlined" :label="t('historyBucketAuto')" :description="t('historyBucketAutoHint')" /></a-select-option>
+        <a-select-option v-for="option in intervals" :key="option.value" :value="option.value" :label="t('historyBucketEvery',{value:t(option.label)})" :disabled="!bounds || option.value > bounds[1]-bounds[0] || Math.ceil((bounds[1]-bounds[0])/option.value)>256"><SelectOption icon="ClockCircleOutlined" :label="t('historyBucketEvery',{value:t(option.label)})" :description="t('historyBucketHint')" /></a-select-option>
       </a-select>
     </div>
     <a-alert v-if="aggregate.error.value" type="error" show-icon :message="t('readFailed')" :description="aggregate.error.value"><template #action><a-button size="small" @click="aggregate.refresh">{{ t('retry') }}</a-button></template></a-alert>
@@ -23,6 +23,7 @@
 import { computed, toRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MetricTrend from '../MetricTrend.vue'
+import SelectOption from '../../SelectOption/index.vue'
 import { metricMessages } from '../messages'
 import { metricOutputPresentation } from '../outputPresentation'
 import { useMetricHistoryAggregate } from './useMetricHistoryAggregate'

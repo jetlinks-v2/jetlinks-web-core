@@ -8,8 +8,8 @@
       <div class="metric-panel__time">
         <MetricTimeRange v-model:range="trends.range.value" v-model:custom-range="trends.customRange.value" />
         <a-dropdown v-if="configurations.length" :trigger="['click']">
-          <a-button type="text" size="small" :title="t('realtime')"><AIcon type="ThunderboltOutlined" />{{ t('liveUpdates') }}</a-button>
-          <template #overlay><a-menu :selected-keys="[String(refreshInterval)]" @click="changeRefreshInterval"><a-menu-item v-for="interval in [1000, 5000, 15000]" :key="String(interval)"><AIcon :type="interval ? 'ClockCircleOutlined' : 'ThunderboltOutlined'" /> {{ interval ? t('refreshSeconds', { seconds: interval / 1000 }) : t('realtimeFull') }}</a-menu-item></a-menu></template>
+          <a-button type="text" size="small" :title="t('realtime')"><AIcon :type="refreshInterval ? 'ClockCircleOutlined' : 'ThunderboltOutlined'" />{{ refreshInterval ? t('updateSeconds', { seconds: refreshInterval / 1000 }) : t('liveUpdates') }}<AIcon type="DownOutlined" /></a-button>
+          <template #overlay><a-menu :selected-keys="[String(refreshInterval)]" @click="changeRefreshInterval"><a-menu-item v-for="interval in [0, 1000, 5000, 15000]" :key="String(interval)"><SelectOption :icon="interval ? 'ClockCircleOutlined' : 'ThunderboltOutlined'" :label="interval ? t('updateSeconds', { seconds: interval / 1000 }) : t('liveUpdates')" :description="interval ? t('updateSecondsHint', { seconds: interval / 1000 }) : t('liveUpdatesHint')" /></a-menu-item></a-menu></template>
         </a-dropdown>
         <a-button type="text" size="small" :aria-label="t('refresh')" :title="t('refresh')" :loading="loading" @click="refreshAll"><AIcon type="ReloadOutlined" /></a-button>
         <a-button v-if="context.editable && !hideAdd" type="primary" size="small" @click="openEditor()"><AIcon type="PlusOutlined" /> {{ t('add') }}</a-button>
@@ -94,6 +94,7 @@ import { computed, nextTick, provide, ref, toRef, watch, type ComponentPublicIns
 import { useI18n } from 'vue-i18n'
 import { Empty, Modal } from 'ant-design-vue'
 import JlDrawerShell from '../JlDrawerShell/index.vue'
+import SelectOption from '../SelectOption/index.vue'
 import MetricConfigEditor from './MetricConfigEditor.vue'
 import MetricResult from './MetricResult.vue'
 import MetricTimeRange from './MetricTimeRange.vue'

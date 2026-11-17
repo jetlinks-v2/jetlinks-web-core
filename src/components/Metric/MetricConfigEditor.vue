@@ -19,7 +19,7 @@
             <div class="config-bindings__heading"><span>{{ t('bindingExpected') }}</span><span>{{ t('bindingActual') }}</span></div>
             <div v-for="(input,index) in selectedTemplate.inputDefinitions" :key="input.id" class="config-bindings__row" :class="{ selected:selected?.kind === 'input' && selected.index === index }">
               <button type="button" @click="selectNode({kind:'input',index})"><b>{{ input.name || input.id }}</b><small>{{ t(input.valueType?.type === 'date' ? 'inputDateType' : parameterTypeKeys[String(input.valueType?.type)] || 'parameterText') }}<template v-if="input.unit"> · {{ input.unit }}</template></small></button>
-              <button type="button" :disabled="!pickSource || saving || !context.editable" @click="bindInput(input,index)"><AIcon :type="unresolvedInputs.some(item=>item.id === input.id) ? 'LinkOutlined' : 'CheckCircleOutlined'" /><span>{{ sourceText(input.id) }}</span><AIcon type="RightOutlined" /></button>
+              <button type="button" :disabled="!pickSource || saving || !context.editable" @click="bindInput(input,index)"><AIcon :type="unresolvedInputs.some(item=>item.id === input.id) ? 'LinkOutlined' : 'CheckCircleOutlined'" /><span class="config-bindings__source-text">{{ sourceText(input.id) }}</span><AIcon type="RightOutlined" /></button>
               <details v-if="Array.isArray(input.valueType?.properties)" class="config-bindings__fields"><summary>{{ t('bindingFields') }} · {{ input.valueType.properties.length }}</summary><span v-for="field in input.valueType.properties" :key="field.id">{{ field.name || field.id }}</span></details>
             </div>
           </section>
@@ -206,7 +206,8 @@ defineExpose({ canLeave, locate })
 .config-bindings__row>button:first-child { display:grid; gap:2px }
 .config-bindings__row b { font-weight:500 }
 .config-bindings__row small { color:var(--ink-3); font-size:11px }
-.config-bindings__row>button>span { flex:1; overflow-wrap:anywhere }
+.config-bindings__source-text { flex:1; min-width:0; overflow-wrap:anywhere; line-height:1.5 }
+.config-bindings__row>button>.anticon { flex:none }
 .config-bindings__row>button:disabled { cursor:default }
 .config-bindings__fields { grid-column:1/-1; color:var(--ink-3); font-size:11px }
 .config-bindings__fields summary { cursor:pointer }
