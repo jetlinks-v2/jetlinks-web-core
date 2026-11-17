@@ -18,15 +18,15 @@ import PlatformSettingRow from './PlatformSettingRow.vue'
 import { sectionProps } from './sectionProps'
 import type { PropType } from 'vue'
 import type { PlatformSettingKey, PlatformSettingsPatch } from './types'
-const props = defineProps({ ...sectionProps, fieldKey: { type: String as PropType<PlatformSettingKey>, required: true }, label: { type: String, required: true }, hint: String, icon: { type: String, required: true }, active: Boolean, editButton: Boolean })
+const props = defineProps({ ...sectionProps, fieldKey: { type: String as PropType<PlatformSettingKey>, required: true }, label: { type: String, required: true }, hint: String, icon: { type: String, required: true }, active: Boolean, editButton: Boolean, readonly: Boolean })
 const emit = defineEmits<{ change: [patch: PlatformSettingsPatch]; cancel: [key: PlatformSettingKey] }>()
 const { t } = useI18n()
 const editor = ref<InstanceType<typeof InlineEditForm>>()
 const failure = ref('')
-const showEditButton = computed(() => props.editButton && props.mode === 'detail' && !props.disabled)
+const showEditButton = computed(() => props.editButton && props.mode === 'detail' && !props.disabled && !props.readonly)
 const groups = computed<InlineEditGroup[]>(() => [{ key: props.fieldKey, fields: [{
   key: props.fieldKey, label: props.label, hint: props.hint, value: props.model[props.fieldKey], initialValue: props.saved[props.fieldKey],
-  error: props.errors?.[props.fieldKey], fullWidth: true, maxLength: props.fieldKey === 'title' ? 64 : undefined,
+  error: props.errors?.[props.fieldKey], readonly: props.readonly, fullWidth: true, maxLength: props.fieldKey === 'title' ? 64 : undefined,
   editTrigger: props.editButton ? 'manual' : 'value',
 }] }])
 const messages = computed(() => ({ save: t('PlatformSettings.save'), cancel: t('PlatformSettings.cancel'), empty: t('PlatformSettings.notConfigured'), saving: t('PlatformSettings.saving'), failed: t('PlatformSettings.saveFailed') }))

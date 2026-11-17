@@ -5,7 +5,7 @@ import { createPinia, setActivePinia } from 'pinia'
 // Load memory routing before installing the location fixture, so Vue Router stays in SSR mode.
 import 'vue-router'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -42,6 +42,11 @@ const apps = [
   { id: 'application-b', name: '应用 B', projectId: 'project', templateId: 'template' },
 ]
 const menu = { id: 'menu', code: 'overview', name: '概览', url: '/overview', owner: 'app' }
+const personalCenterMenu = {
+  id: '19a1f2c763e1231f1e1', code: 'account-center', name: '个人中心',
+  url: '/account/center', owner: 'iot', sortIndex: 9999, granted: true,
+  options: { show: true }, buttons: [{ id: 'view', enabled: true, granted: true }],
+}
 let scenarios = 0
 
 // Keep production entry, store, router, menu generation and interceptors intact. Only HTTP,
@@ -86,7 +91,7 @@ const fixtures = {
   '@jetlinks-web/hooks': `export const setParamsValue = () => {};`,
   '@micro-zoe/micro-app': `export default { router: { setBaseAppRouter() {} }, setGlobalData() {} }`,
   'ant-design-vue': `export const notification = { error() {} }; export default {}`,
-  '@jetlinks-web-core/locales': `export default { global: { t: key => key } }`,
+  '@jetlinks-web-core/locales': `export default { global: { t: key => key, locale: { value: 'zh' } } }`,
   '@jetlinks-web-core/utils': `
     export * from '${source('utils/project-runtime.ts')}'
     export * from '${source('utils/request-context.ts')}'
@@ -119,6 +124,7 @@ const fixtures = {
   '@jetlinks-web-core/router/globModules': `export const collectCoreRouteOverrides = () => []; export const getGlobModules = () => ({ overview: async () => ({}), ...globalThis.__applicationRuntimeTest.asyncRoutes })`,
   '@jetlinks-web-core/router/extraMenu': `export const getExtraRouters = () => ({})`,
   'basic-routes': `
+    export { USER_CENTER_ROUTE } from '${source('router/basic.ts')}'
     export const Login = { path: '/login', name: 'Login', component: {} }
     export const Forbidden = { path: '/403', name: 'Forbidden', component: {}, meta: { skipMenuFetch: true } }
   `,
@@ -183,6 +189,11 @@ const bundle = async (environment, runtimeScope = 'project', subApp = false) => 
     plugins: [{
       name: 'external-boundaries',
       setup(builder) {
+        // Vite 的菜单资源发现属于模块扫描边界；保留生产语言解析及菜单生成逻辑。
+        builder.onLoad({ filter: /[/\\]menuLocale\.ts$/ }, async args => ({
+          contents: (await readFile(args.path, 'utf8')).replace(/import\.meta\.glob\([^\n]+\)/, '{}'),
+          loader: 'ts', resolveDir: path.dirname(args.path),
+        }))
         builder.onResolve({ filter: /.*/ }, args => {
           const importer = args.importer.replaceAll('\\', '/')
           if (args.path === 'vue-router-real') return { path: 'vue-router', external: true }
@@ -218,6 +229,19 @@ const reset = (api, url = applicationUrl) => {
   api.initAxios()
   api.startup.resetRouteStartupState()
   setActivePinia(createPinia())
+}
+
+// 旧子账号守卫发起整页跳转后不会完成当前导航；回归必须显式失败，不能悬挂。
+const withNavigationDeadline = async promise => {
+  let timer
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('navigation did not finish')), 1000) }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 try {
@@ -802,6 +826,107 @@ try {
     assert.equal(api.context.getRequestHeaders()[api.scope.APPLICATION_SCOPE_HEADER], undefined)
     await api.useMenuStore().queryMenus()
     assert.equal(globalThis.__applicationRuntimeTest.requests.at(-1).headers[api.scope.APPLICATION_SCOPE_HEADER], undefined)
+    scenarios++
+  }
+
+  for (const [environment, runtimeScope] of [['', 'project'], ['saas', 'project'], ['saas', 'auto']]) {
+    const cases = [
+      { name: 'login', login: true },
+      { name: 'sub-account login', login: true, subAccount: true },
+      { name: 'project root refresh' },
+      { name: 'sub-account direct center', subAccount: true, target: '/account/center' },
+      { name: 'hidden static center', subAccount: true, overridePath: 'center' },
+      { name: 'overridden static path', subAccount: true, overridePath: 'profile', expected: '/account/profile' },
+      { name: 'business menu takes priority', subAccount: true, menus: [personalCenterMenu, { ...menu, owner: 'iot' }], expected: '/overview' },
+      { name: 'legacy user-owned menu without granted', menus: [{ ...personalCenterMenu, granted: undefined }] },
+      ...(environment ? [
+        { name: 'empty project menu', menus: [], expected: '/403', noEntry: true },
+        { name: 'explicitly denied personal center', menus: [{ ...personalCenterMenu, granted: false }], expected: '/403', noEntry: true },
+        { name: 'removed static center', removeCenter: true, expected: '/403', noEntry: true },
+      ] : []),
+    ]
+
+    for (const scenario of cases) {
+      const api = await bundle(environment, runtimeScope)
+      reset(api, `http://localhost:9200/project/#/${scenario.login ? 'login' : ''}`)
+      const state = globalThis.__applicationRuntimeTest
+      state.user.isAdmin = false
+      state.user.isSubAccount = Boolean(scenario.subAccount)
+      state.menus = scenario.menus || [personalCenterMenu]
+      if (scenario.removeCenter) api.router.removeRoute('Account')
+      if (scenario.overridePath) {
+        // 模块可将个人中心隐藏或使用相对 child path；入口必须取注册后的实际路径。
+        api.router.addRoute({
+          path: '/account', name: 'Account', component: {}, meta: { hideInMenu: true },
+          children: [{ path: scenario.overridePath, name: 'account/center', component: {}, meta: { hideInMenu: true } }],
+        })
+      }
+      const store = api.useMenuStore()
+      const queryResults = []
+      store.$onAction(({ name, after }) => {
+        if (name === 'queryMenus') after(result => queryResults.push(result))
+      })
+      if (scenario.login) await api.useLoginSuccess().handleLoginSuccess('new-token')
+      const expected = scenario.expected || '/account/center'
+      const label = `${environment || 'private'}/${runtimeScope}: ${scenario.name}`
+      const originalHref = window.location.href
+      await withNavigationDeadline(api.router.push(scenario.target || '/'))
+      assert.equal(api.router.currentRoute.value.path, expected, label)
+      assert.equal(window.location.href, originalHref, `${label}: no full-page redirect loop`)
+      assert.equal(queryResults.at(-1).firstMenuPath, scenario.noEntry ? undefined : expected, label)
+      assert.equal(api.router.getRoutes().find(route => route.path === '/')?.redirect, expected, label)
+      assert.equal(api.router.hasRoute('account-center'), false, `${label}: reuse the static route`)
+      assert.ok(state.requests.filter(request => request.url === '/menu/user-own/tree').every(request => (
+        request.data.terms[0]?.value === 'iot' && !request.headers[api.scope.APPLICATION_SCOPE_HEADER]
+      )), label)
+      if (!scenario.noEntry) {
+        store.init()
+        api.startup.resetRouteStartupState()
+        await withNavigationDeadline(api.router.replace('/'))
+        assert.equal(api.router.currentRoute.value.path, expected, `${label}: reload project menus`)
+        assert.equal(queryResults.at(-1).firstMenuPath, expected, label)
+      }
+      scenarios++
+    }
+
+    for (const menus of [[], [{ ...personalCenterMenu, owner: 'app' }]]) {
+      const api = await bundle(environment, runtimeScope)
+      reset(api)
+      globalThis.__applicationRuntimeTest.menus = menus
+      await api.startup.bootstrapSession()
+      await assert.rejects(api.startup.ensureMenuRoutes(api.router, false), api.scope.ApplicationEntryUnavailableError)
+      assert.equal(api.router.getRoutes().find(route => route.path === '/')?.redirect, '/403')
+      await withNavigationDeadline(api.router.push('/'))
+      assert.equal(api.router.currentRoute.value.path, '/403')
+      scenarios++
+    }
+  }
+
+  // 个人中心例外仅属于项目；租户子账号仍然拒绝进入，其他旧租户路径仍返回项目根入口。
+  {
+    const api = await bundle('saas', 'tenant')
+    reset(api, 'http://localhost:9200/#/account/center')
+    globalThis.__applicationRuntimeTest.user.isSubAccount = true
+    globalThis.__applicationRuntimeTest.menus = [personalCenterMenu]
+    await withNavigationDeadline(api.router.push('/account/center'))
+    assert.equal(api.router.currentRoute.value.path, '/403')
+    scenarios++
+  }
+  {
+    const api = await bundle('saas', 'project')
+    reset(api, 'http://localhost:9200/project/#/account/legacy')
+    globalThis.__applicationRuntimeTest.user.isSubAccount = true
+    const redirected = new Promise(resolve => {
+      window.location = new Proxy(window.location, {
+        set(target, key, value) {
+          const changed = Reflect.set(target, key, value, target)
+          if (key === 'href') resolve(target.href)
+          return changed
+        },
+      })
+    })
+    void api.router.push('/account/legacy')
+    assert.equal(await withNavigationDeadline(redirected), 'http://localhost:9200/project/#/')
     scenarios++
   }
 

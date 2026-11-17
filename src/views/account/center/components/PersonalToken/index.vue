@@ -4,6 +4,7 @@ import TokenDialog from './components/TokenDialog.vue'
 import TokenDetails from './components/TokenDetails.vue'
 import TokenCard from './components/TokenCard.vue'
 import { usePersonalToken } from './usePersonalToken'
+import {PersonalKey} from "@/utils/consts";
 const {
   tokenList, tokenGroups, deleting, deleteError, dialogVisible, dialogMode, selectedToken, loading, loadError, reload,
   handleAdd, handleView, handleEdit, handleRegenerate, handleDelete, handleDialogOk,
@@ -19,7 +20,7 @@ const expanded = ref<string[]>([])
         <div class="personal-token__usage-block">
           <h2 class="personal-token__usage-title">{{ $t('PersonalToken.apiUsage') }}</h2>
           <a-typography-paragraph class="personal-token__usage-hint">
-            <i18n-t keypath="PersonalCenter.tokenAuthorizationHint" tag="span"><template #header><a-typography-text code>Authorization: Bearer &lt;token&gt;</a-typography-text></template><template #lineBreak><wbr /></template></i18n-t>
+            <i18n-t keypath="PersonalCenter.tokenAuthorizationHint" tag="span"><template #header><a-typography-text code>{{PersonalKey}}: &lt;token&gt;</a-typography-text></template><template #lineBreak><wbr /></template></i18n-t>
           </a-typography-paragraph>
           <a-typography-paragraph type="secondary" class="personal-token__secret-hint">{{ $t('PersonalCenter.tokenSecretHint') }}</a-typography-paragraph>
         </div>
