@@ -122,6 +122,8 @@ Vue组件、插槽与函数属于宿主，JSON只引用稳定key；不要把组�
 
 字段、选项、分区和布局项复用`I18nMessages`，普通字符串继续可用。字段名称、说明、单位、选项名称由宿主提供，设计器只修改分区名和布局展示名称，不回写字段定义。
 
+元数据适配读取枚举类型 `expands.i18nMessages` 中按稳定选项值组织的多语言文案，数组枚举使用 `elementType` 的相同配置；已有选项来源和宿主配置继续优先。响应的 EnumDict `text` 作为默认展示文案，不覆盖选项译文，使跨服务元数据在切换语言时仍可使用。
+
 ```ts
 const field: FormField = {
   key: 'maintenance.height', label: '安装高度', type: 'number', unit: 'm',
@@ -157,6 +159,6 @@ pnpm -F jetlinks-web-core build:form
 
 入口：`http://127.0.0.1:8767/tests/form-workspace-preview.html`。示例的草稿和发布只在本次页面会话中生效。
 
-协议联动验证可设置 `FORM_BACKEND_CONTRACT=/path/entity-form-contract.json` 后运行 `npm run test:form`，输入来自 components 的 `ExtensionObjectSupportIntegrationTest` 实际输出（`-Dform.contract.output=...`），覆盖动态数字/日期、声明式字符串/数字 EnumDict 及枚举数组。同一批还执行会话、国际化、渲染器独立打包检查和 vue-tsc；`npm run build:form` 验证示例构建。普通运行没有后端输出时仅跳过该跨仓库用例。
+协议联动验证可设置 `FORM_BACKEND_CONTRACT=/path/entity-form-contract.json` 后运行 `npm run test:form`，输入来自 components 的 `ExtensionObjectSupportIntegrationTest` 实际输出（`-Dform.contract.output=...`），覆盖动态数字/日期、声明式字符串/数字 EnumDict 及枚举数组。另以 `FORM_I18N_CONTRACT=/path/entity-form-i18n-contract.json` 接入 `DeclaredExtensionClusterTest` 的实际 RPC 输出（`-Dform.i18n.contract.output=...`），验证无业务消息源消费者的字段和枚举语言切换。同一批还执行会话、国际化、渲染器独立打包检查和 vue-tsc；`npm run build:form` 验证示例构建。未提供对应后端输出时跳过相应的跨仓库用例。
 
-审查修复后使用真实后端输出验证 35 项全部通过，0 跳过，vue-tsc 与示例构建通过；包含声明式 EnumDict/枚举数组、数字代码、无关字段 full 保存、历史项和逐绑定操作能力。构建仍有示例依赖的大 chunk 提示，Form 无独立 lint 脚本，空白检查通过。桌面精确小数差异保存、390/360px 无横向溢出、日期回填、44px 选项操作、停用项移除后禁选及拒权过滤复用前阶段交互证据，本轮未重跑视觉。宿主的真实接口授权、页面持久化与发布需在业务接入时另行验证。评审入口：[web-core #239](https://github.com/jetlinks-v2/jetlinks-web-core/pull/239)，后端契约对应 [components #1707](https://github.com/jetlinks-v2/jetlinks-components/pull/1707)。
+使用真实后端和双节点 RPC 输出验证 37 项全部通过，0 跳过，vue-tsc 与示例构建通过；包含声明式 EnumDict/枚举数组、数字代码、无关字段 full 保存、历史项、逐绑定操作能力和跨服务国际化。构建仍有示例依赖的大 chunk 提示，Form 无独立 lint 脚本，空白检查通过。桌面精确小数差异保存、390/360px 无横向溢出、日期回填、44px 选项操作、停用项移除后禁选及拒权过滤复用前阶段交互证据，本轮未重跑视觉。宿主的真实接口授权、页面持久化与发布需在业务接入时另行验证。评审入口：[web-core #239](https://github.com/jetlinks-v2/jetlinks-web-core/pull/239)，后端契约对应 [components #1707](https://github.com/jetlinks-v2/jetlinks-components/pull/1707)。

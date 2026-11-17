@@ -107,20 +107,24 @@ function field(binding: FormMetadataBinding, operation: 'create' | 'update', val
   const renderer = binding.renderer ?? (attributes.reference ? 'reference' : undefined)
   if (renderer) type = 'custom'
   const source = attributes.optionSource as { items?: Array<{ value: FormOption['value']; text: string; i18nMessages?: unknown }> } | undefined
+  const enumMessages = enumType?.expands as { i18nMessages?: I18nMessages } | undefined
   const selectable = Array.isArray(attributes.selectableOptions) ? attributes.selectableOptions : undefined
   const pool: FormOption[] | undefined = binding.options ?? enumType?.elements?.map(option => {
     const original = source?.items?.find(item => Object.is(item.value, option.value))
-    return { value: option.value, label: option.text, i18nMessages: messages(original?.i18nMessages, 'text') }
+    const inherited = enumMessages?.i18nMessages?.[String(option.value)]
+    const configured = messages(original?.i18nMessages, 'text')
+    return { value: option.value, label: option.text, i18nMessages: configured || inherited
+      ? { ...configured, label: { ...inherited, ...configured?.label } } : undefined }
   })
   const options = pool?.map(option => ({ ...option, disabled: !!option.disabled || !!selectable && !selectable.some(value => Object.is(value, option.value)) }))
-  // EnumDict 响应的当前语言文案优先；未知历史项只能保留或移除，不能变成新的可选项。
+  // EnumDict text 仅更新默认文案，保留多语言选项；未知历史项只能保留或移除。
   const enumOptions = options ?? []
   if (type === 'enum') for (const item of optionValues(value, multiple)) {
     if (!item || typeof item !== 'object' || !('value' in item) || !('text' in item) || typeof item.text !== 'string') continue
     const identity = enumValue(binding, item)
     if (typeof identity !== 'string' && typeof identity !== 'number' && typeof identity !== 'boolean') continue
     const existing = enumOptions.find(option => Object.is(option.value, identity))
-    if (existing) { existing.label = item.text; existing.i18nMessages = undefined }
+    if (existing) existing.label = item.text
     else enumOptions.push({ value: identity, label: item.text, disabled: true })
   }
   return {

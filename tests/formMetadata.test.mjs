@@ -15,6 +15,7 @@ function load(path) {
 const { createMetadataForm } = load('../src/components/Form/metadata.ts')
 const { useFormSession } = load('../src/components/Form/useFormSession.ts')
 const { selectedOptions } = load('../src/components/Form/model.ts')
+const { formText } = load('../src/components/Form/text.ts')
 const { parseJsonWithPrecision } = load('../src/utils/json/index.ts')
 const message = (issue, params) => params ? issue + ':' + params.value : issue
 const binding = (id, type = 'string', expands = {}) => ({
@@ -105,6 +106,32 @@ test('historical enum values remain removable but unknown or newly selected reti
   assert.equal(form.validate(['active'], form.fields[0], form.values), undefined)
   assert.equal(form.validate(['never'], form.fields[0], form.values), 'invalidOption')
   assert.equal(form.validate(['unknown'], form.fields[0], form.values), 'invalidOption')
+})
+
+test('synchronized enum messages survive response text, regional fallback and explicit overrides', () => {
+  const items = [binding('state', 'enum'), binding('flags')]
+  const enumeration = { type: 'enum', elements: [{ value: '0', text: '默认' }],
+    expands: { i18nMessages: { '0': { zh: '普通', en: 'Routine' } } } }
+  items[0].property.valueType = enumeration
+  items[1].property.valueType = { type: 'array', elementType: enumeration }
+  const row = { customFields: { maintenance: { state: { value: 0, text: '响应文本' }, flags: [{ value: 0, text: '响应文本' }] } } }
+  const form = createMetadataForm(items, row, { message })
+  for (const field of form.fields) {
+    const option = field.options[0]
+    assert.equal(option.label, '响应文本')
+    assert.equal(formText(option, 'label', 'en-US'), 'Routine')
+    assert.equal(formText(option, 'label', 'zh-CN'), '普通')
+    assert.equal(formText(option, 'label', 'fr'), '响应文本')
+  }
+  items[0].property.expands.optionSource = { items: [{ value: '0', text: '配置', i18nMessages: { text: { zh: '配置译文' } } }] }
+  const configured = createMetadataForm(items, row, { message }).fields[0].options[0]
+  assert.equal(formText(configured, 'label', 'zh'), '配置译文')
+  assert.equal(formText(configured, 'label', 'en'), 'Routine')
+  items[0].options = [{ value: 0, label: '宿主', i18nMessages: { label: { en: 'Host choice' } } }]
+  const explicit = createMetadataForm(items, row, { message }).fields[0].options[0]
+  assert.equal(formText(explicit, 'label', 'en'), 'Host choice')
+  assert.equal(explicit.value, 0)
+  assert.equal(enumeration.elements[0].text, '默认')
 })
 
 test('EnumDict responses and enum arrays share scalar editing, history and full saves', async t => {
@@ -223,4 +250,21 @@ test('actual backend metadata and JSON values preserve precision, dates, enums a
   await view.save()
   assert.equal(view.dirty.value, 0)
   assert.deepEqual(view.errors.value, {})
+})
+
+test('actual RPC metadata keeps enum translations when the consumer has no business resources', { skip: !process.env.FORM_I18N_CONTRACT }, () => {
+  const contract = parseJsonWithPrecision(readFileSync(process.env.FORM_I18N_CONTRACT, 'utf8'))
+  const items = contract.properties.map(property => {
+    const [container, schema, ...field] = property.id.split('.')
+    return { key: property.id, property, path: [container, schema, field.join('.')] }
+  })
+  const form = createMetadataForm(items, contract.row, { message })
+  const state = form.fields.find(field => field.key === 'customFields.maintenance.state')
+  const flags = form.fields.find(field => field.key === 'customFields.maintenance.flags')
+  assert.equal(formText(selectedOptions(state, form.values[state.key])[0], 'label', 'en-US'), 'Pending')
+  assert.equal(formText(selectedOptions(state, form.values[state.key])[0], 'label', 'zh-CN'), '待处理')
+  assert.deepEqual(selectedOptions(flags, form.values[flags.key]).map(option => formText(option, 'label', 'en')), ['Pending', 'Completed'])
+  const height = form.fields.find(field => field.key === 'customFields.maintenance.height')
+  assert.equal(formText(height, 'label', 'en'), 'Installation height')
+  assert.equal(formText(height, 'label', 'zh'), '高度')
 })
