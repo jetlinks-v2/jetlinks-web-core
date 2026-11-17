@@ -23,3 +23,4 @@ export * from './service-result'
 export * from './deployment'
 
 export * from './documentHelpRegistry'
+export * from './documentHelpContent'

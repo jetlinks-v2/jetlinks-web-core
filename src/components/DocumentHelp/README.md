@@ -6,11 +6,19 @@
 
 清理验证：`node --test tests/documentHelp.test.mjs` 11 项通过，覆盖静态说明、链接、插槽、点位注册、配置读取、取消与错误重试；auth `tests/documentCenter.test.mjs` 9 项通过。旧搜索请求及 hook 无残留引用，三语 JSON 与差异空白检查通过。模块构建 `pnpm -F jetlinks-web-core build -- --module-name authentication-manager-ui` 通过；`pnpm exec vue-tsc --noEmit -p modules/authentication-manager-ui/tsconfig.json --pretty false` 仍有 577 项工作区诊断，修改的帮助组件及 API 无诊断。未配置独立 lint 脚本；服务未重启，真实页面待部署后复验。
 
-当前改造：业务模块启动时注册 `{ code, key, name, page }` 点位，文档管理通过注册表列出未打开页面的埋点；`name/page` 可使用函数读取当前语言。页面使用 `<DocumentHelp code="project/Overview" help-key="quickGuide.device" />`，挂载或切换点位时预加载既有 `GET /system/config/document-help` 返回的配置 Map，按 code/key 匹配 `{ code, key, content, enabled }`，只有说明非空且启用才显示问号。未配置或禁用不渲染业务入口，但注册表始终保留点位供管理扫描。说明以 Markdown 保存并在原帮助气泡展示，链接直接写在说明内，不再额外配置文档地址。管理列表和持久化由 auth 模块提供。
+当前改造：业务模块启动时注册 `{ code, key, name, page }` 点位，文档管理通过注册表列出未打开页面的埋点；`name/page` 可使用函数读取当前语言。页面使用 `<DocumentHelp code="project/Overview" help-key="quickGuide.device" />`，挂载或切换点位时预加载既有 `GET /system/config/document-help` 返回的配置 Map，按 code/key 匹配 `{ code, key, content, enabled, i18nMessages? }`，只有当前语言解析后的说明非空且启用才显示问号。未配置或禁用不渲染业务入口，但注册表始终保留点位供管理扫描。说明以 Markdown 保存并在原帮助气泡展示，链接直接写在说明内，不再额外配置文档地址。管理列表和持久化由 auth 模块提供。
 
 管理保存成功后调用 `hooks/useConfiguredDocumentHelp.ts` 的 `notifyDocumentHelpConfigurationChanged()`，刷新已挂载的帮助；KeepAlive 页面返回时重新读取，首次激活不重复请求。请求失败隐藏业务入口，后续保存通知、页面重进或刷新可重试。悬停和关闭不清空已准备正文，MarkdownPreview 静态引入，避免首次打开时下载组件及加载短文案引起弹层高度跳动；保留 Ant Design Vue 原有动效。静态说明和管理 `#content` 草稿预览不受 enabled 限制。
 
 实现范围：`utils/documentHelpRegistry.ts`、`hooks/useConfiguredDocumentHelp.ts`、`api/document.ts` 和本组件。预览共用 `MarkdownPreview.vue`，HTML 经 `utils/documentHelpMarkdown.ts` 清洗，链接保留蓝色且在新窗口打开；管理编辑器通过新增可选 `sanitize` 属性使用同一清洗函数。`description/document/#content` 保持兼容，显式内容插槽优先。
+
+### 中文、英文与日文正文
+
+配置沿用平台多语言字段结构 `i18nMessages.content.{zh,en,ja}`，顶层 `content` 保留为默认正文。`utils/documentHelpContent.ts` 的 `resolveDocumentHelpContent(configuration, locale)` 先取当前 locale 的翻译，再取主语言（例如 `zh-CN/zh_CN` 对应 `zh`），空白或缺译时只回退默认正文；不跨语言选取其他翻译，不推定旧正文的语言。Markdown 原文保持不变，渲染时继续净化 HTML。
+
+`useConfiguredDocumentHelp` 根据界面语言解析已加载配置，语言变化直接切换缓存正文，不重复请求。只有其他语言有内容时，该点位仍属于已配置，但当前语言缺译且默认正文为空时不显示业务帮助入口。`hasDocumentHelpContent(configuration)` 统一检查默认正文和所有翻译，供管理列表、保存和批量启禁判定配置状态；启禁仍按点位统一控制。两个纯函数均从 `@jetlinks-web-core/utils` 导出，亦可使用 `@jetlinks-web-core/utils/documentHelpContent`。
+
+三语回归：`node --test tests/documentHelp.test.mjs` 16 项、认证文档管理/概览/文档中心 38 项通过，覆盖三语及区域 locale、缺译回退、仅有翻译的配置、语言切换不重复请求、禁用翻译与保存刷新，并保留原静态说明、预加载、竞态与 KeepAlive 回归。认证模块目标生产构建通过（34.26 秒）；认证及关联 core 类型检查仍有 543 项工作区诊断，本次帮助边界无诊断。通用系统配置支持嵌套 Map 的结论已通过本地 2.20 依赖源码核实；真实浏览器及部署服务保存回读仍待验收，保持 Draft。
 
 
 目标：功能标题或字段旁显示问号，悬停、聚焦或点击后显示说明气泡。配置文章时展示“帮助文档”链接，通过公共打开命令交给 auth 顶栏文档浮窗；未配置时只展示说明。支持自定义图标、颜色及内容插槽中的内联文档链接。复用 Ant Design Vue Popover/Button 与当前主题，不额外创建 iframe。

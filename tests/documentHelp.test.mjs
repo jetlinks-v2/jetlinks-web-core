@@ -4,9 +4,9 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { test } from 'node:test'
 import { transformSync } from 'esbuild'
-import { createRenderer, defineComponent, effectScope, h, nextTick, ref, watch } from 'vue'
+import { createRenderer, defineComponent, effectScope, getCurrentInstance, h, nextTick, ref, watch } from 'vue'
 import { compileScript, parse } from 'vue/compiler-sfc'
-import { createI18n } from 'vue-i18n'
+import { createI18n, useI18n } from 'vue-i18n'
 
 const require = createRequire(import.meta.url)
 const root = resolve(import.meta.dirname, '..')
@@ -22,8 +22,11 @@ const { descriptor } = parse(readFileSync(resolve(root, 'src/components/Document
 const script = compileScript(descriptor, { id: 'document-help-test', inlineTemplate: true })
 let configuredCalls = []
 let configuredResponse = async () => ({ success: true, result: { content: '' } })
+const documentHelpContent = evaluate(readFileSync(resolve(root, 'src/utils/documentHelpContent.ts'), 'utf8'))
 const configuredHook = evaluate(readFileSync(resolve(root, 'src/hooks/useConfiguredDocumentHelp.ts'), 'utf8'), {
   '@jetlinks-web-core/api/document': { getDocumentHelpContent: (...args) => { configuredCalls.push(args); return configuredResponse(...args) } },
+  '@jetlinks-web-core/utils/documentHelpContent': documentHelpContent,
+  'vue-i18n': { useI18n: () => getCurrentInstance() ? useI18n() : { locale: ref('zh') } },
 })
 const component = evaluate(script.content, {
   '@jetlinks-web-core/hooks/useDocumentHelp': hook,
@@ -221,8 +224,62 @@ test('configured help preloads before showing its trigger and hover does not rel
   assert.match(view.text(), /新的帮助说明/)
 })
 
+test('document content resolves all three languages and regional locales without changing Markdown or legacy fallback', () => {
+  const { resolveDocumentHelpContent, hasDocumentHelpContent } = documentHelpContent
+  const configuration = { content: '**默认正文**\n', i18nMessages: { content: { zh: '中文', en: 'English', ja: '日本語', 'en-gb': 'British English' } } }
+  assert.equal(resolveDocumentHelpContent(configuration, 'zh'), '中文')
+  assert.equal(resolveDocumentHelpContent(configuration, 'ZH_CN'), '中文')
+  assert.equal(resolveDocumentHelpContent(configuration, 'en-US'), 'English')
+  assert.equal(resolveDocumentHelpContent(configuration, 'en_GB'), 'British English')
+  assert.equal(resolveDocumentHelpContent(configuration, 'ja-JP'), '日本語')
+  assert.equal(resolveDocumentHelpContent(configuration, 'fr'), configuration.content)
+  assert.equal(resolveDocumentHelpContent({ content: '旧正文' }, 'ja'), '旧正文')
+  assert.equal(resolveDocumentHelpContent({ content: '保留默认', i18nMessages: { content: { en: '   ' } } }, 'en'), '保留默认')
+  assert.equal(resolveDocumentHelpContent(undefined, 'zh'), '')
+  assert.equal(hasDocumentHelpContent(configuration), true)
+  assert.equal(hasDocumentHelpContent({ content: '', i18nMessages: { content: { ja: '日本語' } } }), true)
+  assert.equal(hasDocumentHelpContent({ content: ' ', i18nMessages: { content: { zh: '', en: ' ', ja: '\n' } } }), false)
+  assert.equal(hasDocumentHelpContent(undefined), false)
+})
+
+test('configured help uses the current locale and switches cached translations without another request', async t => {
+  configuredCalls = []
+  configuredResponse = async () => ({ success: true, result: {
+    content: '默认说明', enabled: true, i18nMessages: { content: { zh: '中文说明', en: 'English help', ja: '日本語の説明' } },
+  } })
+  const view = mountHelp({ code: 'overview', helpKey: 'device' })
+  t.after(() => view.app.unmount())
+  await flush()
+  view.popover.emit('update:open', true); await flush()
+  assert.match(view.text(), /中文说明/)
+  for (const [locale, content] of [['en-US', 'English help'], ['ja_JP', '日本語の説明'], ['fr', '默认说明']]) {
+    view.i18n.global.locale.value = locale; await flush()
+    assert.equal(view.find('button').length, 1)
+    assert.equal(view.find('markdown-preview')[0].text, content)
+  }
+  assert.equal(configuredCalls.length, 1)
+})
+
+test('translation-only help stays hidden when the current language has no content and appears in its configured language', async t => {
+  configuredCalls = []
+  configuredResponse = async () => ({ success: true, result: {
+    content: '', enabled: true, i18nMessages: { content: { ja: '日本語のみ' } },
+  } })
+  const view = mountHelp({ code: 'overview', helpKey: 'device' })
+  t.after(() => view.app.unmount())
+  await flush()
+  assert.equal(view.find('button').length, 0)
+  view.i18n.global.locale.value = 'ja'; await flush()
+  assert.equal(view.find('button').length, 1)
+  view.popover.emit('update:open', true); await flush()
+  assert.equal(view.find('markdown-preview')[0].text, '日本語のみ')
+  view.i18n.global.locale.value = 'en'; await flush()
+  assert.equal(view.find('button').length, 0)
+  assert.equal(configuredCalls.length, 1)
+})
+
 test('empty, disabled and failed configuration hide triggers while draft slots still preview', async t => {
-  for (const result of [{ content: '', enabled: false }, { content: '已禁用的说明', enabled: false }, { content: '   ', enabled: true }]) {
+  for (const result of [{ content: '', enabled: false }, { content: '已禁用的说明', enabled: false }, { content: '   ', enabled: true }, { content: '', enabled: false, i18nMessages: { content: { zh: '已禁用的翻译' } } }]) {
     configuredResponse = async () => ({ success: true, result })
     const view = mountHelp({ code: 'overview', helpKey: 'device' })
     await flush()
@@ -249,7 +306,7 @@ test('saved configuration refreshes mounted helpers; disabled or cleared help di
   await flush()
   assert.equal(view.find('button').length, 1)
   view.popover.emit('update:open', true); await flush()
-  configuredResponse = async () => ({ success: true, result: { content: '保存后的说明', enabled: true } })
+  configuredResponse = async () => ({ success: true, result: { content: '兼容默认正文', enabled: true, i18nMessages: { content: { zh: '保存后的说明' } } } })
   configuredHook.notifyDocumentHelpConfigurationChanged(); await flush()
   assert.equal(view.find('button').length, 1)
   view.popover.emit('update:open', true); await flush()
@@ -294,6 +351,8 @@ test('KeepAlive first activation does not duplicate preloading and returning rel
   const keepAliveHook = evaluate(readFileSync(resolve(root, 'src/hooks/useConfiguredDocumentHelp.ts'), 'utf8'), {
     vue: { ...require('vue'), getCurrentInstance: () => ({}), onActivated: callback => { lifecycle.activate = callback }, onDeactivated: callback => { lifecycle.deactivate = callback } },
     '@jetlinks-web-core/api/document': { getDocumentHelpContent: async (...args) => { calls.push(args); return { success: true, result: { ...response } } } },
+    '@jetlinks-web-core/utils/documentHelpContent': documentHelpContent,
+    'vue-i18n': { useI18n: () => ({ locale: ref('zh') }) },
   })
   const scope = effectScope(), open = ref(false)
   const state = scope.run(() => keepAliveHook.useConfiguredDocumentHelp(open, () => ({ code: 'overview', key: 'device' })))
@@ -314,11 +373,13 @@ test('KeepAlive first activation does not duplicate preloading and returning rel
 
 test('configured API reads existing system config without project or tenant context', async () => {
   const calls = []
+  const configuration = { code: 'overview', key: 'device', content: '', enabled: true, i18nMessages: { content: { zh: '中文', en: 'English', ja: '日本語' } } }
   const api = evaluate(readFileSync(resolve(root, 'src/api/document.ts'), 'utf8'), {
-    '@jetlinks-web/core': { request: { get: (...args) => { calls.push(args); return Promise.resolve({ success: true }) } } },
+    '@jetlinks-web/core': { request: { get: (...args) => { calls.push(args); return Promise.resolve({ success: true, result: { legacy: configuration } }) } } },
   })
   const signal = new AbortController().signal
-  await api.getDocumentHelpContent({ code: 'overview', key: 'device' }, signal)
+  const response = await api.getDocumentHelpContent({ code: 'overview', key: 'device' }, signal)
+  assert.deepEqual(response.result, configuration)
   assert.deepEqual(calls, [['/system/config/document-help', {}, {
     signal, hiddenError: true, projectContext: false, tenantDomain: false,
   }]])

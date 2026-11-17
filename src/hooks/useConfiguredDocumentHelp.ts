@@ -1,5 +1,7 @@
-import { computed, getCurrentInstance, onActivated, onDeactivated, onScopeDispose, ref, watch, type Ref } from 'vue'
-import { getDocumentHelpContent } from '@jetlinks-web-core/api/document'
+import { computed, getCurrentInstance, onActivated, onDeactivated, onScopeDispose, ref, shallowRef, watch, type Ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { getDocumentHelpContent, type DocumentHelpConfiguration } from '@jetlinks-web-core/api/document'
+import { resolveDocumentHelpContent } from '@jetlinks-web-core/utils/documentHelpContent'
 
 const configurationRevision = ref(0)
 
@@ -10,10 +12,13 @@ export function notifyDocumentHelpConfigurationChanged() {
 
 /** 先加载配置再显示入口；悬停复用已准备的正文，避免弹层从加载提示跳到正文。 */
 export function useConfiguredDocumentHelp(open: Ref<boolean>, getPoint: () => { code: string; key: string } | undefined) {
-  const content = ref('')
+  const { locale } = useI18n()
+  const configuration = shallowRef<DocumentHelpConfiguration>()
   const loading = ref(false)
   const failed = ref(false)
   const enabled = ref(false)
+  // 语言切换只重新解析已加载配置，不触发重复请求，也不跨语言选取正文。
+  const content = computed(() => enabled.value ? resolveDocumentHelpContent(configuration.value, locale.value) : '')
   const active = ref(true)
   const visible = computed(() => !loading.value && !failed.value && enabled.value && Boolean(content.value.trim()))
   let sequence = 0
@@ -23,7 +28,7 @@ export function useConfiguredDocumentHelp(open: Ref<boolean>, getPoint: () => { 
     const current = ++sequence
     controller?.abort()
     controller = undefined
-    content.value = ''
+    configuration.value = undefined
     enabled.value = false
     loading.value = false
     failed.value = false
@@ -37,7 +42,7 @@ export function useConfiguredDocumentHelp(open: Ref<boolean>, getPoint: () => { 
       if (current !== sequence) return
       if (!response.success || typeof response.result?.content !== 'string') throw new Error('Invalid document help configuration')
       enabled.value = response.result.enabled !== false
-      content.value = enabled.value ? response.result.content : ''
+      configuration.value = response.result
     } catch {
       if (current === sequence) failed.value = true
     } finally {

@@ -1,10 +1,12 @@
 import { request } from '@jetlinks-web/core'
 import type { AxiosResponseRewrite } from '@jetlinks-web/types'
+import type { I18nMessages } from '../components/I18n/types'
 
 export interface DocumentHelpConfiguration {
   code: string
   key: string
   content: string
+  i18nMessages?: I18nMessages
   enabled?: boolean
 }
 export type DocumentHelpSettings = Record<string, DocumentHelpConfiguration>
