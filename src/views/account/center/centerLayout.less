@@ -1,0 +1,90 @@
+.personal-center { min-width: 0; }
+.personal-center__content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1200px;
+  min-width: 0;
+  margin-inline: auto;
+  padding: var(--space-4);
+
+  &--full {
+    max-width: 100%;
+    margin-inline: 0;
+    padding: 0;
+  }
+
+  &--stretch {
+    max-width: 100%;
+    margin-inline: 0;
+  }
+}
+.personal-center__content .cloud-page-header--plain { margin-bottom: var(--space-2); }
+.personal-center__content--summary .cloud-page-header--plain {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.personal-center__content--stretch .cloud-page-header--plain {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.personal-center__content .personal-center__basic-header.cloud-page-header--plain .cloud-page-header__title,
+.personal-center__content .personal-center__summary-header.cloud-page-header--plain .cloud-page-header__title {
+  font-size: var(--fs-22);
+}
+.personal-center__content .personal-center__summary-header.cloud-page-header--plain .cloud-page-header__title {
+  line-height: var(--lh-snug);
+}
+
+// 正文保留统一内边距，装饰插图区延伸到卡片边缘，由卡片圆角裁切。
+.personal-center__content .content-panel.personal-center-summary {
+  --personal-center-summary-padding: var(--space-6);
+  --personal-center-summary-illustration-width: 15rem;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--personal-center-summary-padding);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-5);
+  background: linear-gradient(110deg, var(--bg-elev), color-mix(in srgb, var(--accent-soft) 28%, var(--bg-elev)) 52%, color-mix(in srgb, var(--accent-soft) 65%, var(--bg-elev)));
+}
+.personal-center-summary__illustration {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  margin-block: calc(-1 * var(--personal-center-summary-padding));
+  margin-inline-end: calc(-1 * var(--personal-center-summary-padding));
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+
+  img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: right center;
+    mix-blend-mode: multiply;
+    // 右侧主体保留完整，只向左侧正文方向逐渐融入摘要背景。
+    mask-image: linear-gradient(to left, black 0%, black 55%, transparent 100%);
+  }
+}
+@container personal-center-summary (max-width: 64rem) {
+  .personal-center__content .content-panel.personal-center-summary {
+    --personal-center-summary-padding: var(--space-5);
+    --personal-center-summary-illustration-width: 11.25rem;
+  }
+}
+@container personal-center-summary (max-width: 54rem) {
+  .personal-center-summary__illustration { display: none; }
+}
+@container personal-center-summary (max-width: 25rem) {
+  .personal-center__content .content-panel.personal-center-summary { --personal-center-summary-padding: var(--space-4); }
+}
+@media (max-width: 48rem) {
+  .personal-center__content { padding: var(--space-2); }
+  .personal-center__content--full { padding: 0; }
+  .personal-center__content--stretch { padding: var(--space-2); }
+}

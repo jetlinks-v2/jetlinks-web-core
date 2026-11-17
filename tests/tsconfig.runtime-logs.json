@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "include": [
+    "../src/components/RuntimeDiagnostics/LogViewer.vue",
+    "../src/components/RuntimeDiagnostics/logs/**/*",
+    "../src/hooks/useRetainedScroll.ts",
+    "../src/auto-imports.d.ts",
+    "../src/env.d.ts"
+  ]
+}

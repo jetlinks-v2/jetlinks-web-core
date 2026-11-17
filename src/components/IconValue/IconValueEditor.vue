@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="ive">
     <div class="ive__preview">
       <IconValueView
@@ -11,34 +11,9 @@
 
     <a-tabs v-model:activeKey="activeTab" size="small" class="ive__tabs">
       <a-tab-pane key="color" :tab="mergedTexts.tabColor">
-        <div class="ive__pane">
-          <div v-if="mergedSwatches.length" class="ive__swatches-title">{{ mergedTexts.colorSwatches }}</div>
-          <div v-if="mergedSwatches.length" class="ive__swatches">
-            <button
-              v-for="c in mergedSwatches"
-              :key="c"
-              type="button"
-              class="ive__swatch"
-              :style="{ background: c }"
-              :aria-label="c"
-              :title="c"
-              @click="pickPreset(c)"
-            />
-          </div>
-          <div class="ive__row">
-            <span class="ive__label">{{ mergedTexts.colorPicker }}</span>
-            <input v-model="colorHex" class="ive__native-color" type="color" @input="onNativeColorInput" />
-          </div>
-          <a-input v-model:value="colorText" :placeholder="mergedTexts.colorPlaceholder" @change="onColorTextSyncHex" />
-          <a-input
-            v-model:value="colorLabel"
-            :placeholder="mergedTexts.colorBlockLabel"
-            allow-clear
-          />
-          <a-button type="primary" block class="ive__apply" @click="applyColorFromInputs">
-            {{ mergedTexts.applyColor }}
-          </a-button>
-        </div>
+        <slot name="color" :value="model" :update-value="updateColorValue">
+          <IconValueColorEditor :value="model" :swatches="mergedSwatches" :texts="mergedTexts" @update:value="updateColorValue" />
+        </slot>
       </a-tab-pane>
 
       <a-tab-pane key="font" :tab="mergedTexts.tabFont">
@@ -93,8 +68,9 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IconLibrary from '../IconLibrary/index.vue'
 import ImageUpload from '../Upload/Image/ImageUpload.vue'
-import { DEFAULT_SAFE_COLORS, formatIconValueColor, formatIconValueFont, parseIconValue } from './iconValue'
+import { DEFAULT_SAFE_COLORS, formatIconValueFont, parseIconValue } from './iconValue'
 import IconValueView from './IconValueView.vue'
+import IconValueColorEditor from './IconValueColorEditor.vue'
 
 type IconValueEditorTexts = {
   tabColor: string
@@ -208,9 +184,6 @@ const model = computed({
 })
 
 const activeTab = ref<'color' | 'font' | 'image'>('color')
-const colorHex = ref('#1677ff')
-const colorText = ref('#1677ff')
-const colorLabel = ref('')
 const imageUrl = ref('')
 const selectedFontType = computed(() => {
   const p = parseIconValue(model.value)
@@ -219,13 +192,9 @@ const selectedFontType = computed(() => {
 
 function syncFromModel(v: string) {
   const p = parseIconValue(v)
-  if (p.kind === 'color') {
-    colorText.value = p.color
-    colorHex.value = toHexOrFallback(p.color, colorHex.value)
-    colorLabel.value = p.label ?? ''
-  } else if (p.kind === 'image') {
+  if (p.kind === 'image') {
     imageUrl.value = p.url
-  } else if (p.kind !== 'font') {
+  } else if (p.kind !== 'font' && p.kind !== 'color') {
     imageUrl.value = ''
   }
 }
@@ -237,34 +206,7 @@ watch(
   { immediate: true },
 )
 
-function toHexOrFallback(css: string, fb: string): string {
-  const s = String(css || '').trim()
-  const m = /^#([0-9A-Fa-f]{6})$/.exec(s)
-  if (m) return `#${m[1]}`
-  return fb
-}
-
-function pickPreset(c: string) {
-  colorHex.value = c
-  colorText.value = c
-  emit('update:modelValue', formatIconValueColor(c, colorLabel.value.trim() || undefined))
-}
-
-function onNativeColorInput() {
-  colorText.value = colorHex.value
-  emit('update:modelValue', formatIconValueColor(colorHex.value, colorLabel.value.trim() || undefined))
-}
-
-function applyColorFromInputs() {
-  const raw = String(colorText.value || colorHex.value || '').trim()
-  if (!raw) return
-  emit('update:modelValue', formatIconValueColor(raw, colorLabel.value.trim() || undefined))
-}
-
-function onColorTextSyncHex() {
-  const raw = String(colorText.value || '').trim()
-  if (/^#([0-9A-Fa-f]{6})$/.test(raw)) colorHex.value = raw
-}
+const updateColorValue = (value: string) => emit('update:modelValue', value)
 
 function selectLibraryFont(name: string) {
   emit('update:modelValue', formatIconValueFont(name))
@@ -300,47 +242,6 @@ function onCropUploadResult(url: string) {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-.ive__swatches-title {
-  font-size: var(--fs-12);
-  color: var(--ink-4);
-}
-.ive__swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-1);
-}
-.ive__swatch {
-  width: 1.625rem;
-  height: 1.625rem;
-  border-radius: var(--r-2);
-  border: 1px solid color-mix(in srgb, var(--ink-1) 12%, transparent);
-  cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
-}
-.ive__row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.ive__label {
-  font-size: var(--fs-14);
-  color: var(--ink-2);
-  white-space: nowrap;
-}
-.ive__native-color {
-  width: 2.75rem;
-  height: 1.75rem;
-  padding: 0;
-  border: 1px solid color-mix(in srgb, var(--ink-1) 15%, transparent);
-  border-radius: var(--r-1);
-  cursor: pointer;
-  background: transparent;
-}
-.ive__apply {
-  margin-top: var(--space-1);
 }
 .ive__library-picker {
   display: flex;

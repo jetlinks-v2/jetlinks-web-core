@@ -1,0 +1,139 @@
+.cloud-detail-header--summary {
+  gap: var(--space-4);
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cloud-detail-header__leading {
+  flex: none;
+  color: var(--jet-theme-text-secondary);
+}
+
+.cloud-detail-header__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  overflow: hidden;
+  border-radius: var(--r-3);
+  background: var(--jet-theme-primary-soft);
+  color: var(--jet-theme-primary);
+  font-size: var(--fs-24);
+}
+
+.cloud-detail-header__icon :deep(.ant-image),
+.cloud-detail-header__icon :deep(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cloud-detail-header--summary .cloud-detail-header__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-4);
+}
+
+.cloud-detail-header--summary .cloud-detail-header__title-row {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+/* 操作区只占名称行，摘要和标签使用图标右侧的完整宽度。 */
+.cloud-detail-header__meta,
+.cloud-detail-header__extra,
+.cloud-detail-header--summary .cloud-detail-header__description,
+.cloud-detail-header--summary .cloud-detail-header__info {
+  grid-column: 1 / -1;
+}
+
+.cloud-detail-header--summary .cloud-detail-header__title {
+  font-size: var(--fs-20);
+  font-weight: 600;
+  max-width: 100%;
+}
+
+.cloud-detail-header--summary .cloud-detail-header__title-main {
+  flex-wrap: wrap;
+}
+
+.cloud-detail-header--summary .cloud-detail-header__title-extra {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.cloud-detail-header--summary .cloud-detail-header__title-extra :deep(.app-tag) {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cloud-detail-header--summary .cloud-detail-header__title-extra :deep(.status-tag) {
+  flex: none;
+}
+
+.cloud-detail-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-6);
+  min-width: 0;
+  font-size: var(--fs-14);
+}
+
+/* 说明与标识字段共享一行；空间不足时整项换行，标签仍由 extra 独立承载。 */
+.cloud-detail-header__meta :deep(.detail-meta-item--multiline) {
+  flex: 1 1 16rem;
+  width: auto;
+}
+
+.cloud-detail-header__extra,
+.cloud-detail-header--summary .cloud-detail-header__description {
+  min-width: 0;
+  color: var(--jet-theme-text-secondary);
+  font-size: var(--fs-14);
+}
+
+.cloud-detail-header--summary .cloud-detail-header__actions {
+  grid-column: 2;
+  grid-row: 1;
+  flex-wrap: wrap;
+  max-width: none;
+}
+
+/* 默认头部的换行断点不改变摘要中的图标/内容两列。 */
+@media (max-width: 73.75rem) {
+  .cloud-detail-header--summary {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .cloud-detail-header--summary .cloud-detail-header__actions {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
+  }
+
+  .cloud-detail-header--summary .cloud-detail-header__main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cloud-detail-header--summary .cloud-detail-header__actions :deep(.ant-btn) {
+    max-width: 100%;
+    height: auto;
+    min-height: 2rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .cloud-detail-header--summary .cloud-detail-header__actions :deep(.ant-space) {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+}

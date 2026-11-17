@@ -5,7 +5,6 @@ import tailwindcss from '@tailwindcss/vite'
 import Components from 'unplugin-vue-components/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import { VueAmapResolver } from '@vuemap/unplugin-resolver'
-import VueSetupExtend from 'vite-plugin-vue-setup-extend'
 import svgLoader from 'vite-svg-loader'
 import monacoEditorPlugin from './configs/plugin/monaco-editor'
 import progress from 'vite-plugin-progress'
@@ -109,7 +108,6 @@ export default defineConfig(async ({ mode, command }) => {
         },
       }),
       vueJsx(),
-      VueSetupExtend(),
       monacoEditorPlugin({
         languageWorkers: ['editorWorkerService', 'json', 'typescript']
       }),

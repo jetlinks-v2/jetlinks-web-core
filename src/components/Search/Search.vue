@@ -16,10 +16,12 @@
   </div>
 </template>
 
-<script setup lang='ts' name='ProSearch'>
+<script setup lang='ts'>
 import { PropType } from 'vue'
 import { saveSearchHistory, getSearchHistory, deleteSearchHistory } from '@jetlinks-web-core/api/comm'
 import {isObject} from "lodash-es";
+
+defineOptions({ name: 'ProSearch' })
 
 interface Emit {
   (e: 'search', data: any): void

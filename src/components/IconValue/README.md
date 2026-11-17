@@ -2,6 +2,8 @@
 
 统一图标值展示与编辑：IconValueView 用于展示，IconValueEditor 支持颜色、字体图标和图片。
 
+颜色扩展：`IconValueEditor` 提供 `color` 插槽（`value`、`updateValue`），允许调用方接入已有调色板；未提供插槽时沿用默认颜色输入。默认颜色区独立为 `IconValueColorEditor.vue`，维护颜色与色块文字草稿，字体、图片和持久化契约不变。应用模板的新增／编辑是该插槽的使用入口。
+
 #### Props
 
 | 参数 | 说明 | 类型 | 默认值 |
@@ -33,3 +35,11 @@
 
 - IconValueEditor 的图片上传会使用统一上传契约和裁剪配置。
 - 业务状态、权限和持久化由调用方负责。
+
+#### 值格式与兼容
+
+- 字体图标使用 `font:<图标名>`，例如 `font:StepBackwardOutlined`；配套的 `IconValueEditor` 通过 `v-model` 输出该格式。
+- `iconValue.ts` 兼容 `IconLibrary` 输出的有效 Ant Design 裸图标名，例如 `StepBackwardOutlined`。兼容范围限定为当前图标包实际导出的 `Outlined`、`Filled`、`TwoTone` 图标，已有数据无需迁移。
+- 颜色使用 `color:<颜色>[:标签]`，图片使用 URL 或 `img:<URL>`；普通文本及未知图标名继续显示缩写。
+- 在 `jetlinks-web-core/` 下执行 `node --test tests/iconValue.test.mjs`：6 项回归通过，覆盖格式分类、真实图标 SVG 渲染、编辑器裸图标回显与选择后输出 `font:` 值、默认颜色和标签回显以及自定义颜色插槽。
+- `iconValue.ts` 定向严格类型检查通过：`pnpm exec tsc --target ES2022 --module ESNext --moduleResolution Bundler --lib ES2022,DOM --strict --skipLibCheck --noEmit --types node src/components/IconValue/iconValue.ts`。显式限定 Node 类型，避免工作区隐式加载缺失的 `uts` 类型。

@@ -19,6 +19,7 @@
 <script setup lang="ts">
 import { Button, Drawer, Input, Modal, Tabs } from 'ant-design-vue'
 import { useI18nTextDialog } from './hooks/useI18nTextDialog'
+
 const props = withDefaults(defineProps<{
   visible: boolean
   title: string

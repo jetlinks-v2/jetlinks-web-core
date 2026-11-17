@@ -74,7 +74,9 @@ test('个人中心注册两组菜单，框架点击与页面页签双向同步',
   const { ctx, host, center } = await mount(t, { params: { tabKey: 'PersonalToken' } })
   assert.equal(center.hasFrameworkNavigation, true)
   assert.equal(host.grouped.value, true)
-  assert.deepEqual(host.items.value.map(group => group.children.length), [4, 2])
+  assert.deepEqual(host.items.value.map(group => group.children.length), [2, 2])
+  assert.deepEqual(host.items.value.map(group => group.icon), ['UserOutlined', 'MessageOutlined'])
+  assert.ok(host.items.value.flatMap(group => group.children).every(item => item.icon === 'icon-yuandian'))
   assert.equal(center.activeKey.value, 'PersonalToken')
   assert.equal(host.selectedKey.value, 'PersonalToken')
   host.select('Subscribe')
@@ -83,7 +85,7 @@ test('个人中心注册两组菜单，框架点击与页面页签双向同步',
   assert.equal(center.activeKey.value, 'Subscribe')
   center.selectContent('Security')
   await flush()
-  assert.equal(host.selectedKey.value, 'Security')
+  assert.equal(host.selectedKey.value, 'BasicInfo')
 })
 test('离开个人中心或卸载后，不向其他页面遗留分组菜单', async t => {
   const { ctx, host, visible } = await mount(t)
@@ -105,4 +107,16 @@ test('现有平铺注册调用保持默认模式、原 query key 和选中行为
   assert.equal(ctx.route.query.active, 'track')
   assert.equal(center.activeKey.value, 'track')
   assert.equal(ctx.route.query.tab, undefined)
+})
+
+test('四页均可从 URL 恢复，旧安全和单点登录链接不会产生隐藏选中项', async t => {
+  for (const tab of ['BasicInfo', 'PersonalToken', 'StationMessage', 'Subscribe', 'Security', 'Sso']) {
+    const { ctx, host, center, visible } = await mount(t, { query: { tab } })
+    const expected = ['Security', 'Sso'].includes(tab) ? 'BasicInfo' : tab
+    assert.equal(center.activeKey.value, expected)
+    assert.equal(host.selectedKey.value, expected)
+    assert.equal(ctx.route.query.tab, expected)
+    visible.value = false
+    await flush()
+  }
 })

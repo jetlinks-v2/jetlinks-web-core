@@ -72,7 +72,7 @@
   </div>
 </template>
 
-<script setup name="ApplicationLayoutPage" lang="ts">
+<script setup lang="ts">
 import { computed, watchEffect } from 'vue'
 import { useRoute, useRouter, type RouteRecordRaw } from 'vue-router'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
@@ -97,6 +97,8 @@ import {
   type ProjectNavigationItem,
   type ProjectNavigationRoute,
 } from '../hooks/useProjectNavigation'
+
+defineOptions({ name: 'ApplicationLayoutPage' })
 
 type LayoutMenuRouteRecord = RouteRecordRaw & {
   key?: string

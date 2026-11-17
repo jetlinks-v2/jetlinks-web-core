@@ -1,4 +1,4 @@
-import { computed, nextTick, onActivated, onBeforeUpdate, onDeactivated, onScopeDispose, toValue, watch, type MaybeRefOrGetter, type Ref } from 'vue'
+import { computed, nextTick, onActivated, onDeactivated, onScopeDispose, toValue, watch, type MaybeRefOrGetter, type Ref } from 'vue'
 
 /** 只在组件内存保留显式滚动容器的双轴位置；停用、隐藏和恢复期间的零值不能覆盖阅读位置。 */
 export function useRetainedScroll(element: Ref<HTMLElement | undefined>, active: MaybeRefOrGetter<boolean> = true) {
@@ -41,7 +41,7 @@ export function useRetainedScroll(element: Ref<HTMLElement | undefined>, active:
     // 由状态容器移除再创建的同一正文也需要恢复；首次布局从0开始。
     if (current && visible()) void restore()
   }, { flush: 'post' })
-  onBeforeUpdate(() => { if (enabled.value) remember() })
+  // 滚动事件和失活边界已保存位置；普通组件更新不测量布局，避免浮层开关强制重算整片正文。
   onDeactivated(() => { if (enabled.value) remember(); activated = false; cancel() })
   onActivated(() => { activated = true; void restore() })
   onScopeDispose(() => { cancel(); observer?.disconnect() })

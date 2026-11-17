@@ -118,7 +118,7 @@ import type {
 import { useModelConfigWorkspace } from './workspace/useModelConfigWorkspace'
 
 const props = defineProps(modelConfigProps)
-// 保留内联事件声明，兼容构建中按匿名 SFC 解析宏的 setup-name-support 插件。
+
 const emit = defineEmits<{
   (e: 'load-files', payload: LoadFilesPayload): void
   (e: 'save-config', payload: SaveConfigPayload): void

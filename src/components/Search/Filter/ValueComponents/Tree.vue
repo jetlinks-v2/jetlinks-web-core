@@ -1,4 +1,7 @@
-<script setup name="ValueTree">
+<script setup>
+
+defineOptions({ name: 'ValueTree' })
+
 
 const props = defineProps({
   value: {

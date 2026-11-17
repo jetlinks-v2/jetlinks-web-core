@@ -1,6 +1,8 @@
-<script setup name="TermTypeSelect">
+<script setup>
 import { useTermsEvent, useTermsParse, useTermsValue } from './hooks'
 import { complexKey, doubleParamsKey } from '@jetlinks-web-core/components/TermsCascader/utils'
+
+defineOptions({ name: 'TermTypeSelect' })
 
 const props = defineProps({
   value: String,

@@ -14,13 +14,13 @@ const contactFields = [
 ] as const
 
 /** 编辑个人资料联系方式；登录身份仍由原验证码绑定流程维护。 */
-export const useContactInfo = () => {
+export const useContactInfo = (options: { prefill?: boolean } = {}) => {
   const user = useUserStore()
   const { t } = useI18n()
   const profile = computed(() => user.userInfo as Partial<ContactValues>)
   const contactForm = reactive<ContactValues>({
-    telephone: profile.value.telephone || '',
-    email: profile.value.email || '',
+    telephone: options.prefill === false ? '' : profile.value.telephone || '',
+    email: options.prefill === false ? '' : profile.value.email || '',
   })
   const savingContact = ref<ContactField>()
   const contactRules = computed(() => ({
@@ -29,10 +29,10 @@ export const useContactInfo = () => {
   }))
   const { validate, validateInfos } = Form.useForm(contactForm, contactRules)
 
-  // 分字段同步，保存一个字段后刷新资料时保留另一个尚未提交的输入。
+  // 新值弹窗不回填旧联系方式；原资料表单按字段同步，保留另一字段的草稿。
   contactFields.forEach(({ key }) => {
     watch(() => profile.value[key], value => {
-      contactForm[key] = value || ''
+      if (options.prefill !== false) contactForm[key] = value || ''
     }, { immediate: true })
   })
 
@@ -42,8 +42,8 @@ export const useContactInfo = () => {
   }))
 
   /** 独立校验和保存当前字段，串行提交避免完整资料快照相互覆盖。 */
-  const saveContact = async (field: ContactField): Promise<void> => {
-    if (savingContact.value || !contactChanged.value[field]) return
+  const saveContact = async (field: ContactField): Promise<boolean> => {
+    if (savingContact.value || !contactChanged.value[field]) return false
     savingContact.value = field
     try {
       contactForm[field] = contactForm[field].trim()
@@ -51,19 +51,25 @@ export const useContactInfo = () => {
         await validate([field])
       } catch {
         // 校验错误由对应表单项展示，不发起保存请求。
-        return
+        return false
       }
+      const previous = profile.value[field]
       const response = await updateMeInfo_api({ ...user.userInfo, [field]: contactForm[field] })
-      if (response.status === 200 || response.success) {
+      if (response.success !== false && (response.status === 200 || response.success === true)) {
         await user.getUserInfo()
-        onlyMessage(t('AccountInfo.saveSuccess'), 'success')
+        const messageKey = !contactForm[field] ? 'AccountInfo.saveSuccess' : field === 'telephone'
+          ? previous ? 'PersonalCenter.prototype.phoneChanged' : 'PersonalCenter.prototype.phoneBound'
+          : previous ? 'PersonalCenter.prototype.emailChanged' : 'PersonalCenter.prototype.emailBound'
+        onlyMessage(t(messageKey), 'success')
+        return true
       }
+      return false
     } catch {
-
+      return false
     } finally {
       savingContact.value = undefined
     }
   }
 
-  return { contactFields, contactForm, contactChanged, savingContact, validateInfos, saveContact }
+  return { contactFields, contactForm, contactChanged, savingContact, validateInfos, saveContact, profile }
 }

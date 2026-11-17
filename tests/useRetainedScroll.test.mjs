@@ -59,3 +59,19 @@ test('reset while hidden or waiting for a frame cannot resurrect previous object
     h.scope.stop(); assert.ok(h.observers.every(observer => observer.disconnected))
   } finally { h.scope.stop() }
 })
+
+test('ordinary component updates never measure layout to save a reading position', async t => {
+  const h = harness(t)
+  try {
+    await flush(); h.frame()
+    let reads = 0
+    Object.defineProperty(h.element.value, 'clientWidth', { get: () => { reads++; return 248 } })
+    Object.defineProperty(h.element.value, 'clientHeight', { get: () => { reads++; return 300 } })
+    for (let index = 0; index < 20; index++) h.lifecycle('beforeUpdate')
+    assert.equal(reads, 0, 'opening a toolbar popup does not force the log/MBean subtree to layout')
+    h.element.value.scrollTop = 180; h.view.onScroll()
+    h.active.value = false; h.element.value.scrollTop = 0; h.active.value = true
+    await flush(); h.frame()
+    assert.equal(h.element.value.scrollTop, 180, 'scroll events remain the source of the saved position')
+  } finally { h.scope.stop() }
+})

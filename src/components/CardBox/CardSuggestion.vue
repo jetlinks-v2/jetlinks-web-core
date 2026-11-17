@@ -25,11 +25,13 @@
   </CardShell>
 </template>
 
-<script setup lang="ts" name="CardSuggestion">
+<script setup lang="ts">
 import type { PropType } from 'vue'
 import { cardAppearanceProps } from './appearance'
 import CardShell from './CardShell.vue'
 import type { CardSuggestionData } from './types'
+
+defineOptions({ name: 'CardSuggestion' })
 
 const props = defineProps({
   ...cardAppearanceProps,

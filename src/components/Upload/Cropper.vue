@@ -28,11 +28,13 @@
   </a-modal>
 </template>
 
-<script setup lang="ts" name="UploadCropper">
+<script setup lang="ts">
 import 'vue-cropper/dist/index.css'
 import { VueCropper } from 'vue-cropper';
 import { fileUpload } from '@jetlinks-web-core/api/comm';
 import i18n from '@jetlinks-web-core/locales';
+
+defineOptions({ name: 'UploadCropper' })
 
 const props = defineProps({
   img: {

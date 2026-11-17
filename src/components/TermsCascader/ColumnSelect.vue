@@ -1,7 +1,9 @@
-<script setup name="ColumnSelect">
+<script setup>
 import { useTermsEvent, useTermsParse, useTermsValue } from './hooks'
 import { computed } from 'vue'
 import { initValueByTermType } from './utils'
+
+defineOptions({ name: 'ColumnSelect' })
 
 const props = defineProps({
   options: {
