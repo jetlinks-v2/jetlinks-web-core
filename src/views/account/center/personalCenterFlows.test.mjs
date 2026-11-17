@@ -68,7 +68,7 @@ const stubs = {
 }
 const bundle = await build({
   stdin: { contents: source, resolveDir: directory, loader: 'ts' },
-  bundle: true, write: false, platform: 'node', format: 'cjs', external: ['vue', 'dayjs'],
+  bundle: true, write: false, platform: 'node', format: 'cjs', mainFields: ['module', 'main'], external: ['vue', 'dayjs'],
   plugins: [{ name: 'flow-boundaries', setup(builder) {
     builder.onResolve({ filter: /^@jetlinks-web-core\/layout\/components\/noticeUtils$/ }, () => ({ path: fileURLToPath(new URL('../../../layout/components/noticeUtils.ts', import.meta.url)) }))
     builder.onResolve({ filter: /^@jetlinks-web-core\/components\/ConditionFilter\/utils$/ }, () => ({ path: fileURLToPath(new URL('../../../components/ConditionFilter/utils.ts', import.meta.url)) }))

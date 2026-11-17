@@ -41,7 +41,7 @@ import {
   createLoginNavigationHref,
   type LoginNavigationReason,
 } from './login-navigation'
-import { requestLoginNavigation } from './login-transition'
+import { completeLoginNavigation, requestLoginNavigation } from './login-transition'
 
 const FORBIDDEN_PATH = '/403'
 const NOT_FOUND_PATH = '/404'
@@ -172,6 +172,11 @@ const getSubAccountRedirect = (to: RouteLocationNormalized) => {
   }
 
   if (isProjectRuntime()) {
+    // 当前个人中心是项目内的静态路由，不能按旧租户 /account 页面送回根入口。
+    if (getApplicationRuntimeEntry().type === 'project' && to.name === 'account/center') {
+      return
+    }
+
     if (!isProjectTenantSemanticRoute(to)) {
       return
     }
@@ -340,7 +345,10 @@ router.beforeEach((to, from, next) => {
   }
 })
 
-router.afterEach(() => {
+router.afterEach((to, _from, failure) => {
+  if (!failure && to.name === 'Login') {
+    completeLoginNavigation()
+  }
   useRouteLoadingStore().finishNavigation()
 })
 
