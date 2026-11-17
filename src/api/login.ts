@@ -1,4 +1,5 @@
 import { Request, ndJson, request, type NdJsonRequestConfig } from '@jetlinks-web/core'
+import { beginLogoutRequest } from '@jetlinks-web-core/router/login-transition'
 
 // 登录前尚未确认项目身份，URL 中的应用 ID 不能作为租户域名发送。
 const loginRequestConfig = { projectContext: false, tenantDomain: false } as const
@@ -11,9 +12,19 @@ const loginRequestConfig = { projectContext: false, tenantDomain: false } as con
 export const login = (data: any) => request.post('/authorize/login', data, loginRequestConfig)
 
 /**
- * 退出登录
+ * 退出登录；请求期间暂缓并发 401 回跳，失败后恢复原有会话失效处理。
  */
-export const logout = () => request.get('/user-token/reset')
+export const logout = async () => {
+  const complete = beginLogoutRequest()
+  try {
+    const response = await request.get('/user-token/reset')
+    complete(response.success === true)
+    return response
+  } catch (error) {
+    complete(false)
+    throw error
+  }
+}
 
 /**
  * 获取验证码

@@ -11,7 +11,7 @@
         :aria-expanded="open ? 'true' : 'false'"
         :aria-label="$t('components.LayoutSidebarUser.accountCenter')"
       >
-        <a-avatar :size="30" :src="avatar" class="layout-sidebar-user__avatar">
+        <a-avatar :size="36" :src="avatar" class="layout-sidebar-user__avatar">
           <template #icon><span>{{ avatarText }}</span></template>
         </a-avatar>
       </a-button>
@@ -19,7 +19,7 @@
       <template #overlay>
         <div class="layout-sidebar-user__menu">
           <div class="layout-sidebar-user__summary">
-            <a-avatar :size="40" :src="avatar" class="layout-sidebar-user__avatar layout-sidebar-user__summary-avatar">
+            <a-avatar :size="48" :src="avatar" class="layout-sidebar-user__avatar layout-sidebar-user__summary-avatar">
               <template #icon><span>{{ avatarText }}</span></template>
             </a-avatar>
             <div class="layout-sidebar-user__summary-content">
@@ -32,8 +32,8 @@
                 </span>
               </div>
               <div v-if="primaryRole" class="layout-sidebar-user__roles-row">
-                <a-tag class="layout-sidebar-user__role-tag" :bordered="false" :title="primaryRole">
-                  {{ primaryRole }}
+                <a-tag class="layout-sidebar-user__role-tag" :bordered="false">
+                  <j-ellipsis class="layout-sidebar-user__role-name">{{ primaryRole }}</j-ellipsis>
                 </a-tag>
                 <a-tooltip v-if="extraRoleCount > 0" placement="bottom">
                   <template #title>
@@ -88,10 +88,12 @@
   </div>
 </template>
 
-<script setup lang="ts" name="LayoutSidebarUser">
+<script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { BADGE_OVERFLOW_COUNT } from './noticeUtils'
 import { useLayoutSidebarUser } from './useLayoutSidebarUser'
+
+defineOptions({ name: 'LayoutSidebarUser' })
 
 defineProps({
   collapsed: {

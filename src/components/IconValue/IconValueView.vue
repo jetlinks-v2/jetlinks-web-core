@@ -24,11 +24,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useIconfontSymbols } from '../IconLibrary/useIconfontSymbols'
 import { parseIconValue } from './iconValue'
 
 const props = withDefaults(
   defineProps<{
-    /** 存储值：color: / font: / URL */
+    /** 存储值：color: / font: / 裸图标名 / URL */
     value?: string | null
     /** 边长（px） */
     size?: number
@@ -48,7 +49,8 @@ const props = withDefaults(
   },
 )
 
-const parsed = computed(() => parseIconValue(props.value))
+const iconfontSymbols = useIconfontSymbols()
+const parsed = computed(() => parseIconValue(props.value, iconfontSymbols.value))
 
 /** 色块上文字：优先 color 内嵌标签，否则用 fallback 取前 2 个 Unicode 字符 */
 const solidText = computed(() => {

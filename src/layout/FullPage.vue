@@ -12,9 +12,11 @@
 	</div>
 </template>
 
-<script setup lang="ts" name="FullPage">
+<script setup lang="ts">
 import { useResizeObserver } from '@vueuse/core'
 import { usePageChromeTarget } from './hooks/usePageChromeTarget'
+
+defineOptions({ name: 'FullPage' })
 
 const props = defineProps({
 	extraHeight: {

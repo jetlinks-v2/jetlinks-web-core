@@ -9,5 +9,9 @@
     "noEmit": true,
     "types": []
   },
-  "include": ["../src/components/IconLibrary/SelectModal.vue", "../src/components/IconLibrary/*.ts"]
+  "include": [
+    "../src/components/IconLibrary/SelectModal.vue",
+    "../src/components/IconLibrary/*.ts",
+    "../src/components/IconValue/IconValueView.vue"
+  ]
 }

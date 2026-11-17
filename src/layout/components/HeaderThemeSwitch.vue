@@ -41,13 +41,15 @@
   </a-tooltip>
 </template>
 
-<script setup lang="ts" name="HeaderThemeSwitch">
+<script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { useHeaderTheme } from '@jetlinks-web-core/hooks'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { saveThemeStyle_api } from '@jetlinks-web-core/api/account/center'
 import type { ThemeStyleKey } from '@jetlinks-web-core/utils'
 import { useI18n } from 'vue-i18n'
+
+defineOptions({ name: 'HeaderThemeSwitch' })
 
 type ThemeMode = ThemeStyleKey
 

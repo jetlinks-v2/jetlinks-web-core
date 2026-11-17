@@ -49,13 +49,15 @@
     </div>
 </template>
 
-<script lang="ts" setup name="BatchDropdown">
+<script lang="ts" setup>
 import { PropType } from 'vue';
 import { BatchActionsType } from './types';
 import { defineExpose } from 'vue';
 import { AIcon } from '@jetlinks-web/components'
 import {omit} from "lodash-es";
 import { useAuthStore } from '@jetlinks-web-core/store'
+
+defineOptions({ name: 'BatchDropdown' })
 
 const props = defineProps({
     actions: {

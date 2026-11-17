@@ -14,7 +14,10 @@
  </div>
 </template>
 
-<script lang="ts" name="ServerList" setup>
+<script lang="ts" setup>
+
+defineOptions({ name: 'ServerList' })
+
 
 const props = defineProps({
  options: {

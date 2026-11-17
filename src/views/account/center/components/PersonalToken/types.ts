@@ -36,6 +36,8 @@ export type PersonalToken = Partial<Omit<TokenFormData, 'scope'>> & {
   creatorName?: string
   createTime?: number | string
   status?: string
+  /** 服务端生成的密钥脱敏标识；旧记录或旧版本接口可能没有。 */
+  accessTokenHint?: string | null
 }
 
 export interface TokenDialogProps {

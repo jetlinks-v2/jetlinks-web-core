@@ -106,7 +106,8 @@ test('默认基本信息，四个功能入口独立切换', async t => {
   assert.equal(center.activeKey.value, 'BasicInfo')
   assert.equal(user.tabKey, 'BasicInfo')
   assert.equal(center.accountInfoVisible.value, false)
-  assert.deepEqual(center.profile.value.items.map(item => item.key), ['id', 'username', 'roles', 'orgs', 'mobile', 'email', 'positions', 'createTime'])
+  assert.equal(center.contactVerificationState.value, 'ready')
+  assert.deepEqual(center.profile.value.items.map(item => item.key), ['id', 'username', 'roles', 'orgs', 'mobile', 'email', 'createTime'])
   assert.deepEqual(center.segments.value.map(item => item.value), ['BasicInfo', 'PersonalToken', 'StationMessage', 'Subscribe'])
   assert.deepEqual(center.navigationGroups.value.map(group => ({ key: group.key, items: group.items.map(item => item.value) })), [
     { key: 'account', items: ['BasicInfo', 'PersonalToken'] },
@@ -123,21 +124,21 @@ test('默认基本信息，四个功能入口独立切换', async t => {
   assert.equal(center.activeKey.value, 'BasicInfo')
 })
 
-test('角色、部门和职位空值使用原型中的具体称谓', async t => {
+test('角色和组织提示实际缺项，历史职位字段保留但不展示', async t => {
   const { center, user } = await mountCenter(t)
   user.userInfo.roleList = []
   user.userInfo.orgList = []
-  user.userInfo.positions = []
+  user.userInfo.positions = [{ name: '值班员' }]
   const fields = Object.fromEntries(center.profile.value.items.map(item => [item.key, item.value]))
   assert.equal(fields.roles, 'zh:PersonalCenter.unassignedRole')
-  assert.equal(fields.orgs, 'zh:PersonalCenter.unassignedDepartment')
-  assert.equal(fields.positions, 'zh:PersonalCenter.unassignedPosition')
-  assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), ['roles', 'orgs', 'positions'])
+  assert.equal(fields.orgs, 'zh:PersonalCenter.unassignedOrganization')
+  assert.equal(center.profile.value.items.find(item => item.key === 'orgs').label, 'zh:AccountInfo.orgs')
+  assert.equal(fields.positions, undefined)
+  assert.deepEqual(user.userInfo.positions, [{ name: '值班员' }])
+  assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), ['roles', 'orgs'])
   user.userInfo.roleList = [{ name: '管理员' }]
-  assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), ['orgs', 'positions'])
+  assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), ['orgs'])
   user.userInfo.orgList = [{ name: '研发' }]
-  assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), ['positions'])
-  user.userInfo.positions = [{ name: '值班员' }]
   assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), [])
   user.userInfo.roleList = [{ name: 'zh:PersonalCenter.unassignedRole' }]
   assert.equal(center.profile.value.items.find(item => item.key === 'roles').unassigned, false)
@@ -223,6 +224,7 @@ test('主身份优先、无身份服务时回退账户联系方式，并保留�
   assert.equal(center.profile.value.items.find(item => item.key === 'email').editTarget, 'email-section')
   assert.deepEqual(center.profile.value.thirdAccounts.map(item => item.key), ['supported', 'unsupported'])
   const fallback = await mountCenter(t, { identitySupported: false })
+  assert.equal(fallback.center.contactVerificationState.value, 'unavailable')
   assert.equal(fallback.calls.identities, 0)
   assert.equal(fallback.center.profile.value.items.find(item => item.key === 'mobile').value, '138****9999')
   assert.equal(fallback.center.profile.value.items.find(item => item.key === 'mobile').editTarget, 'phone-section')
@@ -335,7 +337,7 @@ test('旧安全与单点登录 URL 收敛基本信息，验证身份不会被资
   assert.equal(center.profile.value.contacts.mobile.notificationSeparate, true)
   assert.equal(center.profile.value.contacts.mobile.notificationValue, '138****9999')
   assert.equal(center.profile.value.contacts.email.notificationSeparate, true)
-  assert.equal(center.profile.value.contacts.email.notificationValue, 'fallback@example.test')
+  assert.equal(center.profile.value.contacts.email.notificationValue, 'fa****@example.test')
   center.selectContent('PersonalToken')
   context.route.query = { tab: 'Sso' }
   await flush()

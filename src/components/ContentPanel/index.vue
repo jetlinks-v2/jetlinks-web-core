@@ -19,8 +19,10 @@
   </section>
 </template>
 
-<script setup lang="ts" name="ContentPanel">
+<script setup lang="ts">
 import { computed, useSlots } from 'vue'
+
+defineOptions({ name: 'ContentPanel' })
 
 const props = defineProps({
   title: {

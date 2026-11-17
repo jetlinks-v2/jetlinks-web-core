@@ -39,9 +39,11 @@
       </j-page-container>
 </template>
 
-<script setup name="Demo" lang="ts">
+<script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
+
+defineOptions({ name: 'Demo' })
 
 const router = useRouter()
 const list = ref([])

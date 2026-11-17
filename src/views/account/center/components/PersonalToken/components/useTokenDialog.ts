@@ -158,7 +158,12 @@ export const useTokenDialog = (props: TokenDialogProps, emit: TokenDialogEmit) =
         emit('save', submitData, false)
         return
       }
-      generatedToken.value = res.result.accessToken
+      const accessToken = res.result.accessToken
+      if (!accessToken) {
+        onlyMessage(globalI18n.global.t('PersonalToken.TokenDialog.saveFailed'), 'error')
+        return
+      }
+      generatedToken.value = accessToken
       showSuccessModal.value = true
       visible.value = false
     } catch {

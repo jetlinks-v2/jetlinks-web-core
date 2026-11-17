@@ -3,6 +3,7 @@
  * - `color:<css 颜色>[:可选标签]` — 标签用于色块上展示文字；无标签时由展示组件用 fallback 生成缩写
  * - `font:AppstoreOutlined` — Ant Design Vue 图标名
  * - 有效 Ant Design Vue 裸图标名 — 兼容 IconLibrary 保存的旧值
+ * - 已加载的 iconfont symbol ID — 与 IconLibrary 使用相同资源
  * - `http(s)://`、`//`、`/`、`data:image...` — 图片地址
  * - `img:<url>` — 图片地址（兼容）
  * - 其它非空字符串可作为「文本缩写」展示（兼容旧数据）
@@ -89,7 +90,8 @@ export type IconValueParsed =
 /** @deprecated 使用 IconValueParsed */
 export type MarketplaceIconParsed = IconValueParsed
 
-export function parseIconValue(icon?: string | null): IconValueParsed {
+/** 裸 iconfont ID 仅匹配调用方提供的已加载资源，避免把未知名称或普通文本误判为图标。 */
+export function parseIconValue(icon?: string | null, iconfontSymbols: readonly string[] = []): IconValueParsed {
   if (!icon || typeof icon !== 'string') return { kind: 'none' }
   const s = icon.trim()
   if (!s) return { kind: 'none' }
@@ -109,8 +111,8 @@ export function parseIconValue(icon?: string | null): IconValueParsed {
 
   const fm = FONT_RE.exec(s)
   if (fm) return { kind: 'font', iconType: fm[1].trim() }
-  // 兼容 IconLibrary 输出的裸图标名，仅接受实际图标导出，保留普通文本的缩写语义。
-  if (/(Outlined|Filled|TwoTone)$/.test(s) && Object.hasOwn(AntdIcons, s)) {
+  // 兼容 IconLibrary 的裸值；Ant Design 图标及当前已加载的 symbol 都保留原始名称。
+  if ((/(Outlined|Filled|TwoTone)$/.test(s) && Object.hasOwn(AntdIcons, s)) || iconfontSymbols.includes(s)) {
     return { kind: 'font', iconType: s }
   }
   return { kind: 'text', text: sliceGlyph(s, 2) }

@@ -1,4 +1,6 @@
 import type { ProjectRuntimeConfig } from '@jetlinks-web-core/utils/project-runtime'
+import { createProjectPathRuntimeHref } from '@jetlinks-web-core/utils/project-path'
+import { isPrivateDeployment } from '@jetlinks-web-core/utils/deployment'
 
 export const LOGIN_REASON_QUERY_KEY = 'reason'
 export const ACTIVE_LOGOUT_LOGIN_REASON = 'logout'
@@ -24,8 +26,8 @@ export interface CreateLoginNavigationHrefOptions {
 /**
  * 创建登录页地址。
  *
- * 会话失效保留当前运行域以便恢复原页面；主动退出则离开 SaaS 项目域，
- * 防止下一次普通登录继续读取项目 token 与子账号登录上下文。
+ * 会话失效保留原页面回跳；从云平台进入的项目主动退出后返回其项目登录入口，
+ * 由目标站点清理上一会话凭证，项目编码仅作为下一次登录的定位上下文。
  */
 export const createLoginNavigationHref = ({
   currentPath,
@@ -34,14 +36,18 @@ export const createLoginNavigationHref = ({
   loginPath,
   reason,
   runtimeConfig,
-    origin
+  origin
 }: CreateLoginNavigationHrefOptions) => {
-  let _origin = origin || location.origin
+  const _origin = origin || location.origin
   if (reason === ACTIVE_LOGOUT_LOGIN_REASON) {
     let loginQuery = `${LOGIN_REASON_QUERY_KEY}=${ACTIVE_LOGOUT_LOGIN_REASON}`
 
     if (origin) {
       loginQuery += `&clearToken=true`
+    }
+
+    if (origin && projectRuntime && runtimeConfig.projectCode && !isPrivateDeployment()) {
+      return `${_origin}${createProjectPathRuntimeHref(runtimeConfig.projectCode, `${loginPath}?${loginQuery}`)}`
     }
 
     if (runtimeConfig.fixedProject) {

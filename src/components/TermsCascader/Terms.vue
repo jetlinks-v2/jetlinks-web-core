@@ -1,4 +1,4 @@
-<script setup name="Terms">
+<script setup>
 import ColumnSelect from './ColumnSelect.vue'
 import TermTypeSelect from './TermTypeSelect.vue'
 import ValueItem from './Value/index.vue'
@@ -8,6 +8,8 @@ import { ValueProps } from './Value/utils'
 import { omit } from 'lodash-es'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+defineOptions({ name: 'Terms' })
 
 const { t: $t } = useI18n()
 const emit = defineEmits(['change', 'update:value'])

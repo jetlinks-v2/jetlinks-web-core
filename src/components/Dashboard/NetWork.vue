@@ -61,12 +61,14 @@
   </a-spin>
 </template>
 
-<script lang="ts" setup name="Network">
+<script lang="ts" setup>
 import { dashboard } from '@jetlinks-web-core/api/Dashboard/index'
 import { getTimeByType, typeDataLine, areaStyle, colorNetwork, networkParams, arrayReverse } from './components/tools'
 import dayjs from 'dayjs'
 import ServerList from './components/ServerList.vue'
 import Echarts from './components/EchartsTime.vue'
+
+defineOptions({ name: 'Network' })
 
 const props = defineProps({
   configData: {

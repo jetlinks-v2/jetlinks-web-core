@@ -1,4 +1,4 @@
-﻿<script setup name="TermsCascaderValue">
+﻿<script setup>
 import { ref, computed, watch } from 'vue'
 import Fixed from './Fixed.vue'
 import Builtin from './BuiltInParameters.vue'
@@ -6,6 +6,8 @@ import { useTermsEvent, useTermsParse, useTermsValue, useValueOptions } from '..
 import { complexKey } from '../utils'
 import { ValueProps } from './utils'
 import { useI18n } from 'vue-i18n'
+
+defineOptions({ name: 'TermsCascaderValue' })
 
 const { t: $t } = useI18n()
 const props = defineProps({

@@ -14,13 +14,13 @@ const contactFields = [
 ] as const
 
 /** 编辑个人资料联系方式；登录身份仍由原验证码绑定流程维护。 */
-export const useContactInfo = () => {
+export const useContactInfo = (options: { prefill?: boolean } = {}) => {
   const user = useUserStore()
   const { t } = useI18n()
   const profile = computed(() => user.userInfo as Partial<ContactValues>)
   const contactForm = reactive<ContactValues>({
-    telephone: profile.value.telephone || '',
-    email: profile.value.email || '',
+    telephone: options.prefill === false ? '' : profile.value.telephone || '',
+    email: options.prefill === false ? '' : profile.value.email || '',
   })
   const savingContact = ref<ContactField>()
   const contactRules = computed(() => ({
@@ -29,10 +29,10 @@ export const useContactInfo = () => {
   }))
   const { validate, validateInfos } = Form.useForm(contactForm, contactRules)
 
-  // 分字段同步，保存一个字段后刷新资料时保留另一个尚未提交的输入。
+  // 新值弹窗不回填旧联系方式；原资料表单按字段同步，保留另一字段的草稿。
   contactFields.forEach(({ key }) => {
     watch(() => profile.value[key], value => {
-      contactForm[key] = value || ''
+      if (options.prefill !== false) contactForm[key] = value || ''
     }, { immediate: true })
   })
 

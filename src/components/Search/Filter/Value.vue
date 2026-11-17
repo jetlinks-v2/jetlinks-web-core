@@ -1,8 +1,10 @@
-<script setup name="FilterValue">
+<script setup>
 import { buildIdToTitle, normalizeOptionTree } from './utils'
 import { useColumnItemOptions, useColumnsMap } from './hooks/useSearchEngine'
 import ValueItem from './ValueItem.vue'
 import { toDayjsValue } from './ValueComponents/utils'
+
+defineOptions({ name: 'FilterValue' })
 
 const props = defineProps({
   column: {

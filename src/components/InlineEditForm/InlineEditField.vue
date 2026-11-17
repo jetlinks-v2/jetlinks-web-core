@@ -1,7 +1,7 @@
 <template>
   <div class="inline-edit-field" :class="{ 'inline-edit-field--wide': field.fullWidth, 'inline-edit-field--detail': mode === 'detail' }" @focusin="emit('focus', field.key)">
     <label :for="inputId" class="inline-edit-field__label"><span v-if="mode === 'form' && field.required" class="inline-edit-field__required">*</span>{{ field.label }}</label>
-    <div v-if="field.readonly" class="inline-edit-field__value"><slot name="display" :field="field">{{ display }}</slot></div>
+    <div v-if="field.readonly || (!active && field.editTrigger === 'manual')" :id="inputId" ref="trigger" class="inline-edit-field__value" :tabindex="field.readonly ? undefined : -1"><slot name="display" :field="field">{{ display }}</slot></div>
     <button v-else-if="!active" :id="inputId" ref="trigger" type="button" class="inline-edit-field__trigger" :disabled="locked" :aria-label="field.label" @click="begin">
       <span class="inline-edit-field__display"><slot name="display" :field="field">{{ display }}</slot></span><DownOutlined v-if="field.editor === 'select'" class="inline-edit-field__arrow" aria-hidden="true" />
     </button>
@@ -36,7 +36,7 @@ const props = defineProps({
 })
 const emit = defineEmits<{ (event: 'change', key: string, value: unknown): void; (event: 'focus' | 'cancel', key: string): void }>()
 const { value, active, pending, locked, error, display, begin, update, cancel, commit, blur, keydown } = useInlineEditField(props, (key, next) => emit('change', key, next), key => emit('cancel', key))
-const trigger = ref<HTMLButtonElement>()
+const trigger = ref<HTMLElement>()
 const inputId = useId()
 const editor = ref<HTMLElement>()
 const textValue = computed(() => typeof value.value === 'string' ? value.value : '')

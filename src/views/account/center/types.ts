@@ -2,6 +2,7 @@ import type { CenterTabKey } from './data'
 
 export type CenterContentKey = Exclude<CenterTabKey, 'HomeView' | 'BindThirdAccount'> | 'BasicInfo'
 export type AccountEditTarget = 'email-section' | 'phone-section'
+export type ContactVerificationState = 'loading' | 'ready' | 'unavailable' | 'failed'
 
 export interface AccountContact {
   value: string
