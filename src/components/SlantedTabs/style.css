@@ -101,7 +101,6 @@
 
 .slanted-tabs__tab {
   position: relative;
-  z-index: var(--tab-layer);
   display: flex;
   flex: 0 0 auto;
   box-sizing: border-box;
@@ -122,7 +121,7 @@
   appearance: none;
 }
 
-.slanted-tabs__tab + .slanted-tabs__tab {
+.slanted-tabs__item + .slanted-tabs__item {
   margin-left: calc(-1 * var(--slanted-tabs-overlap));
 }
 
@@ -193,3 +192,7 @@
   padding: var(--space-6, 24px);
   text-align: center;
 }
+
+.slanted-tabs__item { position: relative; z-index: var(--tab-layer); flex: none; }
+.slanted-tabs__item:has(.slanted-tabs__extra button) > .slanted-tabs__tab { padding-right: 3em; }
+.slanted-tabs__extra { position: absolute; right: 1em; top: 50%; transform: translateY(-50%); z-index: 1; color: var(--ink-3, #8793a3); }

@@ -1,5 +1,5 @@
 <template>
-  <a-popover v-if="$slots.content || !configuredPoint || configured.visible.value" v-model:open="open" :trigger="['hover', 'focus', 'click']" :placement="placement">
+  <a-popover v-if="$slots.content || !configuredPoint || configured.visible.value" v-model:open="open" :trigger="['hover', 'focus', 'click']" :placement="placement" :z-index="2147483647">
     <template #content>
       <div class="document-help__content" :style="contentStyle" @click.stop @keydown.stop @keyup.stop @keydown.esc="open = false">
         <div v-if="$slots.content" class="document-help__body"><slot name="content" :openDocument="openDocument" :close="close" /></div>
