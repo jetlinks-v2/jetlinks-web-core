@@ -42,6 +42,7 @@ import {
   type LoginNavigationReason,
 } from './login-navigation'
 import { completeLoginNavigation, requestLoginNavigation } from './login-transition'
+import { routeScrollBehavior } from './scrollBehavior'
 
 const FORBIDDEN_PATH = '/403'
 const NOT_FOUND_PATH = '/404'
@@ -72,9 +73,7 @@ const router = createRouter({
   routes: [
     ...coreRoutes
   ],
-  scrollBehavior(to, from, savedPosition) {
-    return savedPosition || { top: 0 }
-  },
+  scrollBehavior: routeScrollBehavior,
 })
 
 microApp.router.setBaseAppRouter(router)
