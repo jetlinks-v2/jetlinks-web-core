@@ -111,12 +111,16 @@ function sparklineY(value:number,low:number,high:number) {
   const span=high-low
   return span<=Math.max(Math.abs(low),Math.abs(high))*Number.EPSILON*8 ? 28 : 48-(value-low)/span*40
 }
+function sparklineDomain(low:number,high:number,baseline?:'centered'|'zero'):[number,number] {
+  if (baseline==='centered') { const extent=Math.max(Math.abs(low),Math.abs(high));return [-extent,extent] }
+  return baseline==='zero' ? [Math.min(0,low),Math.max(0,high)] : [low,high]
+}
 /** 轻量缩略图保留空值断点，固定坐标只承担几何缩放，文字使用页面字号。 */
-export function metricSparkline(points: Array<[number, number | null]>, bounds?: [number, number]) {
+export function metricSparkline(points: Array<[number, number | null]>, bounds?: [number, number], baseline?:'centered'|'zero'):{path:string;points:Array<[number,number]>;peak:SparklinePoint|undefined;zero?:number} {
   const start = bounds?.[0] ?? points[0]?.[0], end = bounds?.[1] ?? points[points.length - 1]?.[0]
   const values = points.flatMap(([time, value]) => value === null || time < start || time > end ? [] : [value])
   if (!values.length) return { path: '', points: [] as Array<[number, number]>, peak: undefined as SparklinePoint | undefined }
-  const low = Math.min(...values), high = Math.max(...values)
+  const [low,high] = sparklineDomain(Math.min(...values),Math.max(...values),baseline)
   let path = '', connected = false
   const markers: Array<[number, number]> = []
   let isolated: [number, number] | undefined
@@ -131,11 +135,11 @@ export function metricSparkline(points: Array<[number, number | null]>, bounds?:
     connected = true
   }
   if (isolated) markers.push(isolated)
-  return { path: path.trim(), points: markers, peak }
+  return { path: path.trim(), points: markers, peak, ...(baseline ? {zero:sparklineY(0,low,high)} : {}) }
 }
 interface SparklinePoint { time:number; value:number; x:number; y:number }
 /** 悬停选取最近的真实样本；空值仍是断点，不推导中间值。输入沿用已排序的有界历史。 */
-export function metricSparklinePoint(points:Array<[number, number | null]>, x:number, bounds?:[number, number]):SparklinePoint | undefined {
+export function metricSparklinePoint(points:Array<[number, number | null]>, x:number, bounds?:[number, number], baseline?:'centered'|'zero'):SparklinePoint | undefined {
   if (!points.length) return
   const [start,end] = bounds || [points[0][0], points[points.length - 1][0]]
   const time = start + Math.max(0, Math.min(1, (x - 4) / 292)) * (end - start)
@@ -147,6 +151,7 @@ export function metricSparklinePoint(points:Array<[number, number | null]>, x:nu
     if (point[1] !== null) { low = Math.min(low, point[1]); high = Math.max(high, point[1]) }
   }
   if (!nearest || nearest[1] === null) return
+  ;[low,high]=sparklineDomain(low,high,baseline)
   return { time:nearest[0], value:nearest[1], x:end === start ? 150 : 4 + (nearest[0] - start) / (end - start) * 292,
     y:sparklineY(nearest[1],low,high) }
 }

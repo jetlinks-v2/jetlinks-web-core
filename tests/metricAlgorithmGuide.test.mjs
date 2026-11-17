@@ -10,7 +10,8 @@ const load=createMetricLoader({
   'vue-i18n':{useI18n:({messages})=>({locale:ref('zh'),t:key=>messages.zh[key] || key})},
 })
 const Guide=load('components/Metric/template/TemplateAlgorithmGuide.vue').default
-const {calculatorOption}=load('components/Metric/template/calculatorPresentation.ts')
+const {calculatorOption,calculatorIcon}=load('components/Metric/template/calculatorPresentation.ts')
+const {visibleAlgorithmParameters,interactiveCalculator}=load('components/Metric/template/algorithm.ts')
 function mount(descriptor,invalid=false) {
   const {renderer,root}=createMetricRenderer(),props=reactive({descriptor:structuredClone(descriptor),invalid})
   const app=renderer.createApp({setup:()=>()=>h(Guide,props)})
@@ -24,13 +25,33 @@ function mount(descriptor,invalid=false) {
 
 test('真实后端描述的所有公式和符号均能由共享 MathLive 排版',async()=>{
   const {convertLatexToMarkup}=await import('mathlive/ssr')
-  assert.equal(descriptors.length,19)
-  assert.equal(descriptors.flatMap(item=>item.documentation.examples).length,25)
+  assert.equal(descriptors.length,26)
+  assert.equal(descriptors.flatMap(item=>item.documentation.examples).length,33)
   for(const descriptor of descriptors) {
     const {documentation}=descriptor
     assert.doesNotMatch(convertLatexToMarkup(documentation.formula),/ML__error/,descriptor.id)
     for(const item of documentation.symbols)assert.doesNotMatch(convertLatexToMarkup(item.symbol),/ML__error/,descriptor.id)
     assert.equal(calculatorOption(descriptor,key=>key).formula,documentation.formula)
+  }
+})
+
+test('新增监测描述复用交互编辑、双输入与模式切换，序列预算可显式配置',()=>{
+  for(const id of ['cusum','correlation','align','hampel','spectrum']) {
+    const descriptor=descriptors.find(item=>item.id===id)
+    assert.ok(interactiveCalculator(descriptor.configuration,descriptor),id)
+    assert.notEqual(calculatorIcon(descriptor),'FunctionOutlined',id)
+  }
+  const correlation=descriptors.find(item=>item.id==='correlation')
+  assert.deepEqual(Object.keys(correlation.configuration.inputTypes).sort(),['reference','signal'])
+  assert.deepEqual(correlation.configuration.outputType.properties.map(item=>item.id),['correlation','pairs'])
+  const ewma=descriptors.find(item=>item.id==='ewma'),spec=structuredClone(ewma.configuration)
+  const ids=()=>visibleAlgorithmParameters(ewma,spec,false).map(item=>item.id)
+  assert.ok(ids().includes('alpha'));assert.ok(!ids().includes('timeConstant'))
+  spec.parameters.smoothing='time'
+  assert.ok(!ids().includes('alpha'));assert.ok(ids().includes('timeConstant'))
+  for(const id of ['ewma','align','hampel','spectrum']) {
+    const descriptor=descriptors.find(item=>item.id===id)
+    assert.ok(visibleAlgorithmParameters(descriptor,descriptor.configuration,true).some(item=>item.id==='maxOutputBytes'),id)
   }
 })
 

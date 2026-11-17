@@ -381,6 +381,8 @@ test('same operation with different input roles uses the matching variant in edi
   const cycle = { ...clone(meter), id:'increaseByCycle', name:'Usage by cycle' }
   cycle.configuration.inputTypes.cycle = {type:'array',elementType:{type:'string'}}
   cycle.configuration.parameters.contextInput = 'cycle'
+  const switched=chooseAlgorithm({sourceMetric:'memory',dependsOn:['memory']},cycle,[{id:'memory',valueType:{type:'double'}}])
+  assert.deepEqual(switched.inputs,[{id:'reading',metricId:'memory'}],'双输入算法保留唯一匹配的数值来源，新增周期输入仍待选择')
   for (const descriptors of [[meter,cycle],[cycle,meter]]) {
     assert.equal(findCalculator(meter.configuration,descriptors),meter)
     assert.equal(findCalculator(cycle.configuration,descriptors),cycle)

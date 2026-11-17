@@ -7,7 +7,8 @@ const icons: Record<string, Record<string, string>> = {
   signal:{ rms:'DashboardOutlined', mad:'DotChartOutlined', rate:'LineChartOutlined', ewma:'SlidersOutlined', difference:'SwapOutlined',
     crestFactor:'StockOutlined', shapeFactor:'RadarChartOutlined', impulseFactor:'ThunderboltOutlined',
     skewness:'BarChartOutlined', excessKurtosis:'AreaChartOutlined', percentile:'PercentageOutlined',
-    zScore:'DotChartOutlined', robustZScore:'RadarChartOutlined', linearTrend:'LineChartOutlined', timeToThreshold:'FieldTimeOutlined' },
+    zScore:'DotChartOutlined', robustZScore:'RadarChartOutlined', linearTrend:'LineChartOutlined', timeToThreshold:'FieldTimeOutlined',
+    cusum:'RiseOutlined', correlation:'NodeIndexOutlined', align:'AlignCenterOutlined', hampel:'FilterOutlined', spectrum:'BarChartOutlined' },
 }
 
 export function calculatorIcon(item?: MetricCalculatorDescriptor): string {

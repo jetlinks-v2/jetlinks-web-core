@@ -3,6 +3,7 @@
     <div v-if="aliases.length" class="algorithm-editor__sources algorithm-editor__stage">
       <div class="algorithm-editor__stage-title"><AIcon type="DatabaseOutlined" />{{ t('algorithmDataStage') }}</div>
       <div v-for="alias in aliases" :key="alias" class="algorithm-editor__source">
+        <label class="algorithm-editor__source-label">{{ inputName(alias) }}<small v-if="inputParameter(alias)"> · {{ t('inputOptional') }}</small></label>
         <span v-if="binding(alias)?.source" class="algorithm-editor__source-chip"><AIcon type="ImportOutlined" />{{ t('algorithmDirectSource') }}</span>
         <TemplateReference v-else class="algorithm-editor__source-chip" :class="{ 'algorithm-editor__source-chip--missing':missingSource(alias) }" :metric-id="binding(alias)?.metricId || inheritedBinding(alias)">
           <AIcon type="ImportOutlined" /><Editable class="algorithm-editor__input" type="select" :value="binding(alias)?.metricId || inheritedBinding(alias)" :component-props="{ options:sourceOptions(alias), allowClear:!!inputParameter(alias), 'aria-label':`${t('source')} · ${inputName(alias)}`, 'aria-invalid':missingSource(alias), placeholder:t('chooseSource'), disabled:disabled || !!yamlError, bordered:false, defaultOpen:true }" @change="bind(alias, $event as string)" />
@@ -210,6 +211,8 @@ onBeforeUnmount(() => completion?.dispose())
 .algorithm-editor__stage-title { display:flex; align-items:center; gap:6px; color:var(--ink-3); font-size:11px; line-height:24px; font-weight:400 }
 .algorithm-editor__stage-title > :deep(.anticon) { position:absolute; top:4px; left:0; display:grid; place-items:center; width:16px; height:16px; background:var(--bg-base,#fff) }
 .algorithm-editor__source { margin-top:6px; min-width:0 }
+.algorithm-editor__source-label { display:block; color:var(--ink-2); font-size:12px; line-height:1.6; margin-bottom:4px }
+.algorithm-editor__source-label small { color:var(--ink-3) }
 .algorithm-editor__source-chip { display:inline-flex; align-items:center; gap:4px; min-width:100px; max-width:100%; min-height:34px; padding:0 6px; border:1px solid var(--line); border-radius:var(--r-2,6px); background:var(--bg-sunken,#f7f8fa); color:var(--accent) }
 .algorithm-editor__source-chip:hover,.algorithm-editor__source-chip:focus-within { border-color:var(--accent); background:var(--bg-selected,#eaf3ff) }
 .algorithm-editor__source-chip--missing { border-style:dashed; border-color:var(--danger-color,#ff4d4f) }

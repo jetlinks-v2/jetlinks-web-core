@@ -273,7 +273,7 @@ test('时序流程按实际依赖排序；异步输入和同一时刻多个结�
   const cells = simulationResultCells(steps[1].values, new Map(times.map((time, index) => [time, index + 2])))
   assert.equal(cells.length, 1); assert.equal(cells[0].column, 4); assert.deepEqual(cells[0].values.map(item => item.value.value), [110, 121])
   assert.deepEqual(simulationSteps(value, [])[0].values, [], 'no intermediate values are calculated in the browser')
-  assert.match(simulationOperation(value.definitions[1], key => key), /15 minutes.*statistic_avg/)
+  assert.match(simulationOperation(value.definitions[1], key => key), /15 minutes.*avg/)
 })
 
 test('窗口族展开真实输出；参数和无#别名显示业务名称但字符串及对象属性保持原文', () => {

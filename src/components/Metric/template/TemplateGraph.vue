@@ -89,7 +89,7 @@ import { sampleDate } from './simulation'
 import { simulationMeaning, type SimulationPreview } from './simulationPreview'
 import { semanticValueText } from '../valueSemantics'
 import type { MetricCalculatorDescriptor, MetricTemplate } from '../types'
-import { metricCalculatorsKey } from '../calculatorContext'
+import { metricCalculatorsKey, metricAggregationsKey } from '../calculatorContext'
 const props = withDefaults(defineProps<{ template: MetricTemplate; selected?: TemplateNode; preview?: TemplateNode; calculators?: MetricCalculatorDescriptor[]; addKinds?: TemplateNode['kind'][]; outputLocked?:boolean; simulationPreview?:SimulationPreview; overlay?:{nodes:Record<string,string>;edges?:ReadonlySet<string>;focus?:string}; visibleNodes?:ReadonlySet<string>; fitContent?:boolean }>(), { addKinds: () => [] })
 const emit = defineEmits<{ (event: 'select', node: TemplateNode, trigger: HTMLButtonElement): void; (event: 'add', kind: TemplateNode['kind'], trigger: HTMLButtonElement, source?: TemplateNode): void; (event: 'background'): void; (event:'request-remove'):void }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
@@ -98,9 +98,10 @@ const replay = computed(() => !!props.overlay)
 const layout = computed(() => replay.value ? {...templateGraphLayout,nodeHeight:84,levelHeight:112,headingHeight:24} : templateGraphLayout)
 const graph = computed(() => templateGraph(props.template,layout.value,props.visibleNodes))
 const sharedCalculators = inject(metricCalculatorsKey, undefined)
+const aggregations = inject(metricAggregationsKey,undefined)
 const groups = computed(() => graphTimeGroups(props.template, graph.value, t))
 const summaries = computed(() => Object.fromEntries(graph.value.nodes.map(node => {
-  const summary = graphNodeSummary(props.template, node, t, props.calculators || sharedCalculators?.value, locale.value)
+  const summary = graphNodeSummary(props.template, node, t, props.calculators || sharedCalculators?.value, locale.value,aggregations?.value)
   const candidates = [
     {icon:'FilterOutlined',label:summary.condition ? `${t('applicability')}：${summary.condition}` : undefined},
     {icon:summary.icon,label:summary.method},

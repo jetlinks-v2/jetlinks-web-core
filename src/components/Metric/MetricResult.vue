@@ -9,17 +9,20 @@
         <MetricStateDuration v-if="intervals" detail :labels="labels" :value="processValue" :disabled="configuration?.state === 'disabled'"><template #label><MetricOutputSwitch :template="template" :output="output" :output-id="reference.outputId" @change="emit('selectOutput',$event)" /></template></MetricStateDuration>
         <template v-else><div class="metric-result__reading"><MetricOutputSwitch :template="template" :output="output" :output-id="reference.outputId" @change="emit('selectOutput',$event)" /><MetricValueView v-if="processValue || configuration?.state === 'disabled' || runtime?.state === 'loaded'" summary :hide-feedback="sourceFeedback && configuration?.state !== 'disabled'" :hide-quality="processValue?.quality?.valid === true" :value="processValue" :template="template" :output="output" :unit="output?.unit" :disabled="configuration?.state === 'disabled'" :settings="settings" :labels="labels" /><strong v-else>—</strong></div><small v-if="summaryTime" class="metric-result__stamp" :title="t('updatedAtHint')">{{ t('updatedAt') }} <time>{{ time(summaryTime) }}</time></small></template>
       </div>
+      <MetricStatisticSummary :output="output" />
       <a-alert v-if="missing || extensionFailed" type="warning" show-icon :message="t(missing ? 'presentationMissing' : 'presentationFailed')" />
+      <MetricHistoryView ref="historyView" :reference="reference" :output="output" :bounds="bounds" :inaccessible="inaccessible" :state-output="stateOutput" :data-version="configuration?.dataVersion" :query-key="historyQueryKey">
+      <template #tools><MetricTimeRange v-model:range="range" v-model:custom-range="customRange" /><a-button type="text" size="small" :aria-label="t('refresh')" @click="refresh"><AIcon type="ReloadOutlined" />{{ t('refresh') }}</a-button></template>
       <a-spin :spinning="loading" :delay="150">
       <template v-if="provider?.detail && context && configuration && template && output">
-      <div class="metric-result__tools"><MetricTimeRange v-model:range="range" v-model:custom-range="customRange" /><a-button type="text" size="small" :aria-label="t('refresh')" @click="refresh"><AIcon type="ReloadOutlined" />{{ t('refresh') }}</a-button></div>
       <MetricExtension :content="provider.detail"
         :content-props="{ context, configuration, template, output, value: processValue, settings, values, loading, error }" @failed="extensionFailed = true">
         <template #fallback><component :is="intervals ? MetricStateHistory : MetricTrend" :key="historyScope" v-bind="intervals ? {} : { output,stateOutput,unit:output.unit,sampleInterval,selectedValue:pinned ? processValue : undefined }" integrated :reset-selection="selectionReset" :values="values" :current="current" :labels="labels" :bounds="bounds" :limited="limited" :unavailable="!!error || loading" @select="selectHistory" /></template>
       </MetricExtension>
       </template>
-      <component :is="intervals ? MetricStateHistory : MetricTrend" v-else :key="historyScope" v-bind="intervals ? {} : { output,stateOutput,unit:output?.unit,sampleInterval,selectedValue:pinned ? processValue : undefined }" integrated :reset-selection="selectionReset" :values="values" :current="current" :bounds="bounds" :limited="limited" :labels="labels" :unavailable="!!error || loading" @select="selectHistory"><template #tools><MetricTimeRange v-model:range="range" v-model:custom-range="customRange" /><a-button type="text" size="small" :aria-label="t('refresh')" :title="t('refresh')" @click="refresh"><AIcon type="ReloadOutlined" />{{ t('refresh') }}</a-button></template></component>
+      <component :is="intervals ? MetricStateHistory : MetricTrend" v-else :key="historyScope" v-bind="intervals ? {} : { output,stateOutput,unit:output?.unit,sampleInterval,selectedValue:pinned ? processValue : undefined }" integrated :reset-selection="selectionReset" :values="values" :current="current" :bounds="bounds" :limited="limited" :labels="labels" :unavailable="!!error || loading" @select="selectHistory"></component>
       </a-spin>
+      </MetricHistoryView>
       <section v-if="configuration && sourceTemplate && output" class="metric-result__process">
         <MetricExecutionProcess :template="sourceTemplate" :output="output" :value="processValue" :observation="execution">
           <template #selection><strong>{{ t('executionProcess') }}</strong><time v-if="processValue">{{ t('evidenceComputedAt') }} {{ time(resultTime(processValue)) }}</time><small v-else>{{ t('executionSelectRecord') }}</small><a-button v-if="pinned" type="text" size="small" @click="followLatest"><AIcon type="UndoOutlined" />{{ t('executionFollowLatest') }}</a-button></template>
@@ -43,6 +46,7 @@ import MetricDisclosure from './MetricDisclosure.vue'
 import MetricHistoryVersions from './MetricHistoryVersions.vue'
 import MetricSourceIssues from './MetricSourceIssues.vue'
 import MetricTrend from './MetricTrend.vue'
+import MetricStatisticSummary from './MetricStatisticSummary.vue'
 import MetricStateDuration from './MetricStateDuration.vue'
 import MetricStateHistory from './MetricStateHistory.vue'
 import { stateLabels } from './stateIntervals'
@@ -60,6 +64,7 @@ import { metricInputDiagnostics } from './sourceDiagnostics'
 import { resultTime, metricSampleInterval, metricState } from './presentation'
 import { metricDateText as time } from './time'
 import { useHistoryKind } from './history/useHistoryTimeline'
+import MetricHistoryView from './history/MetricHistoryView.vue'
 import MetricExtension from './extensions/MetricExtension.vue'
 import { useMetricPresentation } from './extensions/useMetricPresentation'
 import type { MetricContext, MetricLatest, MetricReference, MetricTemplate, MetricTemplateOutput } from './types'
@@ -69,7 +74,9 @@ const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const labels = computed(() => props.output ? stateLabels(props.template, props.output.metricId) : [])
 const presentation = computed(() => metricOutputPresentation(props.output,{template:props.template}))
 const intervals = computed(() => presentation.value.history === 'interval')
-const { current, runtime, configuration, inaccessible, values, loading, error, range, customRange, refresh, bounds, limited } = useMetricResult(toRef(props, 'reference'), undefined, toRef(props, 'latest'), inject(metricHistoryKey, undefined), intervals)
+const { current, runtime, configuration, inaccessible, values, loading, error, range, customRange, refresh:refreshRaw, bounds, limited } = useMetricResult(toRef(props, 'reference'), undefined, toRef(props, 'latest'), inject(metricHistoryKey, undefined), intervals)
+const historyView = ref<InstanceType<typeof MetricHistoryView>>()
+function refresh() { void refreshRaw(); historyView.value?.refresh() }
 const canEdit = computed(()=>!!props.context?.editable && configuration.value?.ownerType === props.context.ownerType && configuration.value?.ownerId === props.context.ownerId)
 const sourceFeedback = computed(()=>!!metricInputDiagnostics(processValue.value).total || metricState(processValue.value).tone === 'error')
 const historyScope = computed(() => JSON.stringify([props.reference.configId, props.reference.outputId, props.reference.targetType, props.reference.targetId]))

@@ -69,11 +69,11 @@ const inspectNode = async node => {
 }
 
 test('公式放大时可切换原公式与代入值，切换保持同一公式内容与参与数据',async()=>{
-  const node={type:'reference',id:'value',path:[]},context={references:[{...node,label:'Reading'}],functions:[]}
+  const node={type:'reference',id:'value',path:[]},context={references:[{...node,label:'Reading',schema:{type:'double'}}],functions:[]}
   const wrapper=defineComponent({setup:()=>()=>h(FormulaWorkspace,{node,context,stationary:true,explanation:{kind:'read',path:['value'],state:'available',value:25,children:[]},format:item=>({text:String(item.value)})},{default:({substitute})=>h('formula-mode',{substitute})})})
   const view=mount(wrapper)
   try{
-    assert.equal(nodes(view.root,'formula-mode')[0].props.substitute,true)
+    assert.equal(nodes(view.root,'formula-mode')[0].props.substitute,false)
     await click(nodes(view.root,'a-button').find(node=>node.props['aria-expanded']===false))
     const toggle=nodes(view.root,'a-segmented')[0]
     assert.ok(toggle);assert.deepEqual(toggle.props.options.map(item=>item.value),['original','recorded'])
@@ -258,7 +258,7 @@ function defaults() {
     saveConfig: async next => ({ ...next, revision: next.revision + 1 }), queryTemplates: async () => ({ data: [], total: 0 }) })
 }
 
-test('公共公式在原位显示分支图标、命中返回值与可展开的未参与项，未知不高亮默认分支',async()=>{
+test('公共公式在原位显示分支状态文字、命中返回值与可展开的未参与项，未知不高亮默认分支',async()=>{
   const View=load('components/Expression/ExpressionView.vue').default
   const lit=value=>({type:'literal',valueType:'int',value})
   const recorded=value=>({kind:'literal',state:'available',value,children:[]})
@@ -271,7 +271,7 @@ test('公共公式在原位显示分支图标、命中返回值与可展开的�
   try {
     await flush()
     assert.equal(rows().length,1);assert.match(textContent(selected()[0]),/10/)
-    assert.ok(walk(view.root,node=>node.props.role==='img' && node.props['aria-label']==='conditionTrue').length)
+    assert.ok(walk(view.root,node=>node.props['aria-label']==='conditionTrue' && textContent(node)==='outcomeMet').length)
     const toggle=nodes(view.root,'a-button').find(node=>node.props.class==='expression-branches__toggle')
     assert.equal(toggle.props['aria-expanded'],false);await click(toggle)
     assert.equal(rows().length,3);assert.equal(toggle.props['aria-expanded'],true)
@@ -282,7 +282,7 @@ test('公共公式在原位显示分支图标、命中返回值与可展开的�
     props.explanation=undefined;await flush()
     assert.equal(rows().length,0,'ordinary formulas use the same native syntax without inferred decisions')
     assert.equal(selected().length,0)
-    assert.equal(walk(view.root,node=>node.props.role==='img' && node.props['aria-label']==='conditionUnknown').length,0)
+    assert.equal(walk(view.root,node=>node.props['aria-label']==='conditionUnknown').length,0)
     assert.match(textContent(view.root),/20/)
   }finally{view.close()}
 })
@@ -669,7 +669,7 @@ test('结构化解释沿字段类型展示名称，已记录对象不会冒充�
 
 test('过程公式复用编辑引用目录，计算时间和来源日期使用一致格式，数字不猜测为日期',()=>{
   const time=1794102526000
-  const spec={...template,inputDefinitions:[{id:'lastCommunication',name:'最近通信时间',valueType:{type:'date'}}],
+  const spec={...template,inputDefinitions:[{id:'lastCommunication',name:'最近通信时间',valueType:{type:'date',format:'timestamp'}}],
     definitions:[{id:'age',expression:'sample.getProcessTime() - last',dependsOn:['lastCommunication'],inputs:[{id:'last',metricId:'lastCommunication'}]}],outputs:[{metricId:'age'}]}
   const explanation={kind:'operator',operation:'-',state:'available',value:34,path:[],children:[
     {kind:'read',state:'available',path:['sample','processTime'],value:time+34,children:[]},
@@ -1003,6 +1003,35 @@ test('同一配置聚合主辅输出，辅助值仍有独立详情与关闭回�
   } finally { view.close() }
 })
 
+test('附加输出复用状态语义与图标，保留完整名称、零值、布尔和日期',async()=>{
+  defaults();moduleRegistry.clear()
+  const at=new Date(2026,10,17,14,21,19).getTime()
+  const multi={...template,options:{presentation:{settings:{primaryOutput:'duration'}}},
+    definitions:[{id:'status',options:{stateLabels:[{value:4,name:'待观察',icon:'text:待观'}]}}],
+    inputDefinitions:[{id:'stamp',valueType:{type:'date',format:'timestamp'}}],
+    outputs:[{metricId:'duration',label:'Runtime',unit:'min'},{metricId:'status',label:'完整的附加状态结果名称',valueType:'int'},
+      {metricId:'count',label:'次数',valueType:'long'},{metricId:'enabled',label:'成立',valueType:'boolean'},{metricId:'stamp',label:'通信时间',valueType:'date'}]}
+  api.configTemplate=async()=>multi
+  api.latest=async ids=>ids.map(configId=>({configId,outputs:Object.fromEntries([['duration',5],['status',4],['count',0],['enabled',false],['stamp',at]]
+    .map(([metricId,value])=>[metricId,{metricId,value,status:'success',quality:{valid:true}}]))}))
+  const view=mount(Panel,{context:{ownerType:'line',ownerId:'a'}})
+  try {
+    await flush()
+    const secondary=nodes(view.root,'button').filter(node=>node.props.class==='metric-panel__secondary')
+    assert.equal(secondary.length,2)
+    assert.match(textContent(secondary[0]),/完整的附加状态结果名称.*待观察/)
+    assert.equal(secondary[0].children.find(node=>node.type==='span').props.title,'完整的附加状态结果名称')
+    assert.ok(walk(secondary[0],node=>node.type==='external-shell' && node.props.value==='text:待观').length)
+    assert.match(textContent(secondary[1]),/次数0/)
+    assert.equal(textContent(secondary[0]).includes('4'),false,'状态编码不代替名称')
+  }finally{view.close()}
+  const Value=load('components/Metric/MetricValue.vue').default
+  for(const [metricId,value,text] of [['enabled',false,'conditionFalse'],['stamp',at,'2026-11-17 14:21:19']]) {
+    const item=mount(Value,{template:multi,output:multi.outputs.find(output=>output.metricId===metricId),value:{metricId,value},inline:true})
+    try{assert.ok(textContent(item.root).includes(text))}finally{item.close()}
+  }
+})
+
 test('主要结果编辑保留已有显示扩展与数值精度', async () => {
   const changes = []
   const view = mount(DisplayFields, { modelValue: { decimals: 0, custom: false }, template: { ...template, outputs: [...template.outputs, { metricId: 'quality', label: 'Quality' }] },
@@ -1253,6 +1282,33 @@ test('真实Editor专用表单只改绑定和可编辑参数；显示覆盖单�
     assert.deepEqual(stored.parameters, { factor: 0 }); assert.equal(stored.revision, 2)
     assert.deepEqual(stored.presentation, config.presentation); assert.equal(savedEvents, 1)
   } finally { view.close(); moduleRegistry.clear() }
+})
+
+test('配置空白区返回指标设置并取消来源选择，试算及定位都打开计算关系',async()=>{
+  defaults();moduleRegistry.clear();let cancelled=0
+  api.configTemplate=async()=>({...template,inputDefinitions:[{id:'reading',name:'Reading',valueType:{type:'double'}}],options:{}})
+  const picker=Object.assign(()=>new Promise(()=>{}),{cancel:()=>cancelled++,editor:defineComponent({setup:()=>()=>h('source-picker')})})
+  const view=mount(Editor,{context:{ownerType:'line',ownerId:'a',editable:true},configuration:{...config,inputMappings:{}},pickSource:picker})
+  try{
+    await flush()
+    const subject=()=>walk(view.root,node=>node.props.class==='config-properties__subject')
+    const main=nodes(view.root,'main').find(node=>node.props.class==='config-diagram')
+    const binding=walk(view.root,node=>String(node.props.class).includes('config-bindings__row'))[0]
+    await click(nodes(binding,'button')[1]);assert.equal(nodes(view.root,'source-picker').length,1)
+    main.props.onClick({target:main,currentTarget:main});await flush()
+    assert.equal(nodes(view.root,'source-picker').length,0);assert.equal(subject().length,1);assert.equal(cancelled,1)
+    await click(findText(view.root,'a-button','simulate'))
+    assert.equal(findText(view.root,'button','bindingGraph').props['aria-pressed'],true)
+    await click(findText(view.root,'button','bindingList'))
+    const viewport=walk(view.root,node=>String(node.props.class).split(' ').includes('template-graph'))[0]
+    viewport.getBoundingClientRect=()=>({left:0,top:0,width:600,height:400})
+    viewport.scrollBy=()=>{}
+    const graphNode=walk(viewport,node=>node.props['data-node']==='input-0')[0]
+    graphNode.getBoundingClientRect=()=>({left:20,top:20,width:160,height:60})
+    viewport.querySelector=()=>graphNode
+    await click(findText(view.root,'button','configMissingSources'))
+    assert.equal(findText(view.root,'button','bindingGraph').props['aria-pressed'],true)
+  }finally{view.close()}
 })
 
 test('真实Editor恢复参数默认值后保存不携带覆盖，继续跟随绑定模板', async () => {

@@ -8,9 +8,10 @@ export interface TemplateWindow extends Record<string, unknown> {
   emitInterval?: string
   expectedCount?: number
   maxEntries?: number
+  timeUnit?: string
+  maxGap?: string
 }
 export type CalculationKind = 'expression' | 'statistics' | 'temporal' | 'calculator'
-export const aggregations = ['avg', 'max', 'min', 'sum', 'count', 'first', 'last'] as const
 
 /** 只解析可视时长，其他后端支持的文本原样保留。 */
 export function durationSeconds(value?: string): number | undefined {
@@ -26,7 +27,7 @@ export function durationParts(value?: string): { amount: number; unit: string } 
   return { amount: seconds / scale, unit }
 }
 export function calculationKind(rule: TemplateRule): CalculationKind {
-  return rule.calculator ? 'calculator' : rule.temporalCondition ? 'temporal' : rule.aggregation || rule.type === 'raw' ? 'statistics' : 'expression'
+  return rule.calculator ? 'calculator' : rule.temporalCondition ? 'temporal' : rule.aggregation || rule.timeAggregation || rule.type === 'raw' ? 'statistics' : 'expression'
 }
 /** 显式切换计算方式时清除互斥字段，其余引用、质量策略与扩展字段不变。 */
 export function calculationFields(kind: CalculationKind): Partial<TemplateRule> {
@@ -39,5 +40,6 @@ export function calculationFields(kind: CalculationKind): Partial<TemplateRule> 
 /** 范围切换只重置相关字段，不把定时策略带入普通窗口。 */
 export function windowFields(window: TemplateWindow | undefined, mode: TemplateWindow['mode']): TemplateWindow {
   return { ...window, mode, size: mode === 'none' ? undefined : mode === window?.mode ? window?.size : mode === 'latestN' ? '5' : 'PT15M',
-    step: undefined, allowedLateness: undefined, timeMode: window?.timeMode || 'event', emitPolicy: 'onEvent', emitInterval: undefined }
+    step: undefined, allowedLateness: undefined, timeMode: window?.timeMode || 'event', emitPolicy: 'onEvent', emitInterval: undefined,
+    timeUnit:mode === 'time' ? window?.timeUnit : undefined, maxGap:mode === 'time' ? window?.maxGap : undefined }
 }

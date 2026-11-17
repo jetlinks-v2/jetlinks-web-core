@@ -11,11 +11,11 @@
     <a-spin v-if="loading" class="config-loading" :spinning="true" />
     <MetricConfigCatalog v-else-if="selecting || !selectedTemplate" :templates="templates" :categories="categories" @select="selectTemplate" />
     <template v-else>
-      <div class="config-tools"><span>{{ t('sourcesAndCalculation') }}</span><a-button v-if="parameters.length" type="text" size="small" @click="showParameters">{{ t('parameters') }} · {{ parameters.length }}</a-button><a-tooltip :title="!configTrial.supported.value ? t('configTrialUnsupported') : t('configTrialHint')"><a-button type="text" size="small" :aria-pressed="configTrial.active.value" :disabled="!configTrial.supported.value || saving" @click="configTrial.active.value = !configTrial.active.value"><AIcon type="ExperimentOutlined" />{{ t('simulate') }}</a-button></a-tooltip><a-button type="text" size="small" :aria-label="t(panelOpen ? 'configCollapse' : 'configExpand')" @click="panelOpen = !panelOpen"><AIcon :type="panelOpen ? 'MenuFoldOutlined' : 'MenuUnfoldOutlined'" /></a-button></div>
+      <div class="config-tools"><span>{{ t('sourcesAndCalculation') }}</span><a-button v-if="parameters.length" type="text" size="small" @click="showParameters">{{ t('parameters') }} · {{ parameters.length }}</a-button><a-tooltip :title="!configTrial.supported.value ? t('configTrialUnsupported') : t('configTrialHint')"><a-button type="text" size="small" :aria-pressed="configTrial.active.value" :disabled="!configTrial.supported.value || saving" @click="toggleTrial"><AIcon type="ExperimentOutlined" />{{ t('simulate') }}</a-button></a-tooltip><a-button type="text" size="small" :aria-label="t(panelOpen ? 'configCollapse' : 'configExpand')" @click="panelOpen = !panelOpen"><AIcon :type="panelOpen ? 'MenuFoldOutlined' : 'MenuUnfoldOutlined'" /></a-button></div>
       <div ref="workspace" class="config-workspace" :style="{ '--properties-width': `${panelWidth}px` }" :class="{ 'panel-open':panelOpen, 'show-properties':showProperties }">
-        <main class="config-diagram">
+        <main class="config-diagram" @click.self="background">
           <nav class="config-view" :aria-label="t('sourcesAndCalculation')"><button v-for="mode in ['bindings','graph'] as const" :key="mode" type="button" :aria-pressed="viewMode === mode" @click="viewMode = mode">{{ t(mode === 'bindings' ? 'bindingList' : 'bindingGraph') }}</button></nav>
-          <section v-show="viewMode === 'bindings'" class="config-bindings" :aria-label="t('bindingList')">
+          <section v-show="viewMode === 'bindings'" class="config-bindings" :aria-label="t('bindingList')" @click.self="background">
             <div class="config-bindings__heading"><span>{{ t('bindingExpected') }}</span><span>{{ t('bindingActual') }}</span></div>
             <div v-for="(input,index) in selectedTemplate.inputDefinitions" :key="input.id" class="config-bindings__row" :class="{ selected:selected?.kind === 'input' && selected.index === index }">
               <button type="button" @click="selectNode({kind:'input',index})"><b>{{ input.name || input.id }}</b><small>{{ t(input.valueType?.type === 'date' ? 'inputDateType' : parameterTypeKeys[String(input.valueType?.type)] || 'parameterText') }}<template v-if="input.unit"> · {{ input.unit }}</template></small></button>
@@ -147,13 +147,17 @@ function sourceText(id:string) { return sourceDescriptions.value[id]?.error || s
 function selectNode(node:TemplateNode) { cancelChoice(); selected.value = node; panelOpen.value = true; showProperties.value = true }
 async function showSamples(node:TemplateNode, editValue = false) { panelOpen.value = true; showProperties.value = true; await nextTick(); await simulationPanel.value?.focusSamples(editValue, selectedTemplate.value?.inputDefinitions[node.index]?.id) }
 function background() { cancelChoice(); selected.value = undefined; panelOpen.value = true; showProperties.value = true }
+function toggleTrial() {
+  configTrial.active.value = !configTrial.active.value
+  if (configTrial.active.value) { cancelChoice(); viewMode.value = 'graph'; panelOpen.value = true }
+}
 function showParameters() { background() }
 const pendingLocation = ref<string>()
 function locate(id:string) {
   const template = selectedTemplate.value
   if (!template) { pendingLocation.value=id; return }
   const node = nodeList(template).find(item => item.kind === 'input' ? template.inputDefinitions[item.index].id === id : item.kind === 'rule' && template.definitions[item.index].id === id)
-  if (node) { selectNode(node); graph.value?.locate(node) }
+  if (node) { viewMode.value = 'graph'; selectNode(node); void nextTick(() => graph.value?.locate(node)) }
 }
 watch(selectedTemplate,async template=>{ if (template && pendingLocation.value) { const id=pendingLocation.value;pendingLocation.value=undefined;await nextTick();locate(id) } })
 function selectMissing() { const input = unresolvedInputs.value[0]; if (input) locate(input.id) }

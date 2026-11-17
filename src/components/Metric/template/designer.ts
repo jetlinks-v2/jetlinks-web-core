@@ -21,6 +21,7 @@ export interface TemplateRule extends Record<string, unknown> {
   maxInputSkew?: string
   type?: string
   aggregation?: string
+  timeAggregation?: string
   window?: TemplateWindow
   qualityPolicy?: Record<string, unknown> & { expectedCount?: number }
   calculator?: MetricCalculatorSpec

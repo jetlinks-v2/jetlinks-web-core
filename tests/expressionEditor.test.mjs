@@ -309,3 +309,28 @@ test('复合条件按记录展示每项判断；跳过项不显示为否或补�
   assert.ok(marked.some(part=>part.outcome==='skipped'))
   assert.equal(marked.filter(part=>!part.outcome).map(part=>part.text).join(''),parts.map(part=>part.text).join(''),'markers do not change formula order or grouping')
 })
+
+test('多项逻辑匹配SpEL二叉解释，保留短路和混合条件，不错配引用或运算',()=>{
+  const read=(id,value)=>({kind:'read',state:'available',path:[id],value,children:[]})
+  const skipped={kind:'unsupported',state:'skipped',children:[]}
+  const logical=(operation,value,...children)=>({kind:'operator',operation,state:'available',value,children})
+  const format=item=>({text:String(item.value)})
+  for(const operator of ['and','or']) {
+    const node={type:'logical',operator,operands:['a','b','c'].map(id=>reference(id))}
+    const result=operator==='or'
+    const record=logical(operator,result,logical(operator,result,read('a',result),skipped),skipped)
+    const before=JSON.stringify([node,record]),facts=explanationFacts(node,record,format)
+    assert.equal(facts.get('["operands",0]').text,String(result))
+    assert.equal(facts.get('["operands",1]').state,'skipped')
+    assert.equal(facts.get('["operands",2]').state,'skipped')
+    assert.equal(facts.get('[]').resultText,String(result))
+    assert.equal(JSON.stringify([node,record]),before)
+    assert.equal(explanationFacts(node,logical(operator,result,read('a',result),read('wrong',result),skipped),format).size,0)
+    assert.equal(explanationFacts(node,logical(operator,result,logical(operator==='and'?'or':'and',result,read('a',result),skipped),skipped),format).size,0)
+  }
+  const node={type:'logical',operator:'or',operands:[reference('a'),{type:'logical',operator:'and',operands:[reference('b'),reference('c')]},reference('d')]}
+  const record=logical('or',true,logical('or',true,read('a',false),logical('and',true,read('b',true),read('c',true))),skipped)
+  const facts=explanationFacts(node,record,format)
+  assert.equal(facts.get('["operands",1,"operands",1]').text,'true')
+  assert.equal(facts.get('["operands",2]').state,'skipped')
+})

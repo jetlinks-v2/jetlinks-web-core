@@ -15,8 +15,9 @@
       <h4><AIcon type="FunctionOutlined" /> {{ t('algorithmProcessStage') }}</h4>
       <article v-for="node in rules" :key="node.key" class="metric-lineage__rule">
         <strong>{{ node.label }}</strong>
+        <TemplateWindowDescription v-if="isStatistics(node)" :rule="rule(node.index)" :catalog="aggregations" :source="windowSourceLabel(template,rule(node.index),t('sentenceList'))" />
         <TemplateFormulaDisplay v-if="summary(node).expression" :template="template" :rule="rule(node.index)" :expression="summary(node).expression!" />
-        <p v-else>{{ summary(node).text }}</p><small>{{ summary(node).detail }}</small>
+        <p v-else-if="!isStatistics(node)">{{ summary(node).text }}</p><small><AIcon :type="summary(node).detailIcon || 'ThunderboltOutlined'" /> {{ summary(node).detail }}</small>
         <p v-if="summary(node).condition" class="metric-lineage__condition">{{ t('applicability') }} {{ summary(node).condition }}</p>
       </article>
       <small v-if="!rules.length">{{ t('noDependencies') }}</small>
@@ -31,18 +32,24 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { metricMessages } from './messages'
 import { metricOutputName } from './presentation'
 import { templateGraph, type TemplateNode, type TemplateRule } from './template/designer'
 import { graphNodeSummary } from './template/graphPresentation'
+import { calculationKind } from './template/window'
+import { windowSourceLabel } from './template/windowPresentation'
+import TemplateWindowDescription from './template/TemplateWindowDescription.vue'
+import { metricCalculatorsKey, metricAggregationsKey } from './calculatorContext'
 import TemplateFormulaDisplay from './template/formula/TemplateFormulaDisplay.vue'
 import MetricExecutionProcess from './MetricExecutionProcess.vue'
 import MetricDisclosure from './MetricDisclosure.vue'
 import type { MetricConfig, MetricContext, MetricExecutionView, MetricTemplate, MetricTemplateOutput, MetricValue } from './types'
 const props = defineProps<{ configuration: MetricConfig; template: MetricTemplate; output: MetricTemplateOutput; context?: MetricContext; value?:MetricValue; observation?:MetricExecutionView; definitionsOnly?:boolean }>()
-const { t } = useI18n({ useScope: 'local', messages: metricMessages })
+const { t,locale } = useI18n({ useScope: 'local', messages: metricMessages })
+const calculators=inject(metricCalculatorsKey,computed(()=>[]))
+const aggregations=inject(metricAggregationsKey,computed(()=>[]))
 /** 只沿已声明依赖反向展开，不把模板中的其他输入或未查询的下游当成当前输出的引用。 */
 const ancestors = computed(() => {
   const graph = templateGraph(props.template)
@@ -55,8 +62,9 @@ const ancestors = computed(() => {
 })
 const sources = computed(() => ancestors.value.filter(node => node.kind === 'input'))
 const rules = computed(() => ancestors.value.filter(node => node.kind === 'rule'))
-const summaries = computed(() => new Map(rules.value.map(node => [node.key, graphNodeSummary(props.template, node, t)])))
+const summaries = computed(() => new Map(rules.value.map(node => [node.key, graphNodeSummary(props.template, node, t,calculators.value,String(locale.value),aggregations.value)])))
 const rule = (index: number) => props.template.definitions[index] as TemplateRule
+const isStatistics=(node:TemplateNode)=>calculationKind(rule(node.index)) === 'statistics'
 const summary = (node: TemplateNode) => summaries.value.get(`${node.kind}-${node.index}`)!
 function mappingDetail(index: number) {
   const mapping = props.configuration.inputMappings[props.template.inputDefinitions[index].id]

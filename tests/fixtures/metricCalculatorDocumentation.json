@@ -31,7 +31,8 @@
       "result" : 13.0,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "(15 − 10) + (23 − 15) = 13。"
+      "explanation" : "(15 − 10) + (23 − 15) = 13。",
+      "visualization" : null
     }, {
       "name" : "读数下降",
       "parameters" : { },
@@ -54,7 +55,8 @@
       "result" : null,
       "reason" : "inputInvalid",
       "estimated" : false,
-      "explanation" : "85→10 是负增量；拒绝策略返回无值，不把异常算成 0。"
+      "explanation" : "85→10 是负增量；拒绝策略返回无值，不把异常算成 0。",
+      "visualization" : null
     }, {
       "name" : "复位后从零累计",
       "parameters" : {
@@ -79,12 +81,13 @@
       "result" : 55.0,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "25 + 10 + 20 = 55；下降段按当前读数 10 计入。"
+      "explanation" : "25 + 10 + 20 = 55；下降段按当前读数 10 计入。",
+      "visualization" : null
     }, {
       "name" : "满量程回绕",
       "parameters" : {
-        "modulus" : 100.0,
-        "negativeDelta" : "rollover"
+        "negativeDelta" : "rollover",
+        "modulus" : 100.0
       },
       "inputs" : {
         "reading" : [ {
@@ -105,7 +108,8 @@
       "result" : 70.0,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "满量程 100，下降段为 100 − 85 + 10 = 25；总增量 25 + 25 + 20 = 70。"
+      "explanation" : "满量程 100，下降段为 100 − 85 + 10 = 25；总增量 25 + 25 + 20 = 70。",
+      "visualization" : null
     }, {
       "name" : "小幅读数回退",
       "parameters" : {
@@ -127,7 +131,8 @@
       "result" : 1.0,
       "reason" : null,
       "estimated" : true,
-      "explanation" : "99.9 在容差 0.2 内，仍保留高水位 100；恢复至 101 只计 1，避免重复累计。"
+      "explanation" : "99.9 在容差 0.2 内，仍保留高水位 100；恢复至 101 只计 1，避免重复累计。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -147,11 +152,11 @@
     },
     "outputUnit" : null,
     "parameters" : {
+      "negativeTolerance" : 0.0,
       "operation" : "increase",
       "negativeDelta" : "reject",
       "multiplier" : 1.0,
-      "maxRate" : 0.0,
-      "negativeTolerance" : 0.0
+      "maxRate" : 0.0
     },
     "predictionHorizon" : null
   },
@@ -159,55 +164,55 @@
     "reading" : "累计读数"
   },
   "parameterDefinitions" : [ {
-    "id" : "negativeDelta",
     "name" : "读数下降时",
     "valueType" : {
       "type" : "enum",
       "elements" : [ {
-        "value" : "reject",
-        "text" : "判为异常"
+        "text" : "判为异常",
+        "value" : "reject"
       }, {
-        "value" : "resetToZero",
-        "text" : "视为清零后读数"
+        "text" : "视为清零后读数",
+        "value" : "resetToZero"
       }, {
-        "value" : "rollover",
-        "text" : "按模数回卷"
+        "text" : "按模数回卷",
+        "value" : "rollover"
       }, {
-        "value" : "signed",
-        "text" : "保留有符号变化"
+        "text" : "保留有符号变化",
+        "value" : "signed"
       } ]
-    }
+    },
+    "id" : "negativeDelta"
   }, {
-    "id" : "modulus",
     "name" : "回卷模数",
     "valueType" : {
       "type" : "double"
     },
+    "id" : "modulus",
     "expands" : {
       "visibleWhen" : {
         "negativeDelta" : "rollover"
       }
     }
   }, {
-    "id" : "negativeTolerance",
     "name" : "允许回退误差（读数单位）",
     "valueType" : {
       "type" : "double",
       "min" : 0
-    }
+    },
+    "id" : "negativeTolerance"
   }, {
-    "id" : "maxRate",
     "name" : "最大变化速率（读数单位/秒，0不限）",
     "valueType" : {
       "type" : "double",
       "min" : 0
-    }
+    },
+    "id" : "maxRate"
   }, {
-    "id" : "multiplier",
     "name" : "倍率",
     "valueType" : {
       "type" : "double"
-    }
+    },
+    "id" : "multiplier"
   } ]
 }, {
   "id" : "increaseByCycle",
@@ -227,6 +232,13 @@
       "name" : "更换计量周期",
       "parameters" : { },
       "inputs" : {
+        "cycle" : [ {
+          "offsetSeconds" : 0,
+          "value" : "A"
+        }, {
+          "offsetSeconds" : 2,
+          "value" : "B"
+        } ],
         "reading" : [ {
           "offsetSeconds" : 0,
           "value" : 60.0
@@ -239,20 +251,14 @@
         }, {
           "offsetSeconds" : 3,
           "value" : 30.0
-        } ],
-        "cycle" : [ {
-          "offsetSeconds" : 0,
-          "value" : "A"
-        }, {
-          "offsetSeconds" : 2,
-          "value" : "B"
         } ]
       },
       "cutoffSeconds" : 3,
       "result" : 45.0,
       "reason" : null,
       "estimated" : true,
-      "explanation" : "A 周期 85 − 60 = 25，B 周期 30 − 10 = 20，合计 45；85→10 的跨周期间隔不计，结果标为估算。"
+      "explanation" : "A 周期 85 − 60 = 25，B 周期 30 − 10 = 20，合计 45；85→10 的跨周期间隔不计，结果标为估算。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -260,16 +266,16 @@
     "providerVersion" : "1",
     "modelVersion" : null,
     "inputTypes" : {
-      "reading" : {
-        "type" : "array",
-        "elementType" : {
-          "type" : "double"
-        }
-      },
       "cycle" : {
         "type" : "array",
         "elementType" : {
           "type" : "string"
+        }
+      },
+      "reading" : {
+        "type" : "array",
+        "elementType" : {
+          "type" : "double"
         }
       }
     },
@@ -278,83 +284,83 @@
     },
     "outputUnit" : null,
     "parameters" : {
+      "operation" : "increase",
+      "maxRate" : 0.0,
+      "contextInput" : "cycle",
       "multiplier" : 1.0,
       "identityChange" : "rebase",
       "negativeDelta" : "reject",
-      "negativeTolerance" : 0.0,
-      "operation" : "increase",
-      "maxRate" : 0.0,
-      "contextInput" : "cycle"
+      "negativeTolerance" : 0.0
     },
     "predictionHorizon" : null
   },
   "inputNames" : {
-    "reading" : "累计读数",
-    "cycle" : "计数周期／仪表标识"
+    "cycle" : "计数周期／仪表标识",
+    "reading" : "累计读数"
   },
   "parameterDefinitions" : [ {
-    "id" : "negativeDelta",
     "name" : "读数下降时",
     "valueType" : {
       "type" : "enum",
       "elements" : [ {
-        "value" : "reject",
-        "text" : "判为异常"
+        "text" : "判为异常",
+        "value" : "reject"
       }, {
-        "value" : "resetToZero",
-        "text" : "视为清零后读数"
+        "text" : "视为清零后读数",
+        "value" : "resetToZero"
       }, {
-        "value" : "rollover",
-        "text" : "按模数回卷"
+        "text" : "按模数回卷",
+        "value" : "rollover"
       }, {
-        "value" : "signed",
-        "text" : "保留有符号变化"
+        "text" : "保留有符号变化",
+        "value" : "signed"
       } ]
-    }
+    },
+    "id" : "negativeDelta"
   }, {
-    "id" : "modulus",
     "name" : "回卷模数",
     "valueType" : {
       "type" : "double"
     },
+    "id" : "modulus",
     "expands" : {
       "visibleWhen" : {
         "negativeDelta" : "rollover"
       }
     }
   }, {
-    "id" : "negativeTolerance",
     "name" : "允许回退误差（读数单位）",
     "valueType" : {
       "type" : "double",
       "min" : 0
-    }
+    },
+    "id" : "negativeTolerance"
   }, {
-    "id" : "maxRate",
     "name" : "最大变化速率（读数单位/秒，0不限）",
     "valueType" : {
       "type" : "double",
       "min" : 0
-    }
+    },
+    "id" : "maxRate"
   }, {
-    "id" : "multiplier",
     "name" : "倍率",
     "valueType" : {
       "type" : "double"
-    }
+    },
+    "id" : "multiplier"
   }, {
-    "id" : "identityChange",
     "name" : "周期变化时",
     "valueType" : {
       "type" : "enum",
       "elements" : [ {
-        "value" : "reject",
-        "text" : "判为异常"
+        "text" : "判为异常",
+        "value" : "reject"
       }, {
-        "value" : "rebase",
-        "text" : "从新周期首条读数起算"
+        "text" : "从新周期首条读数起算",
+        "value" : "rebase"
       } ]
-    }
+    },
+    "id" : "identityChange"
   } ]
 }, {
   "id" : "integral",
@@ -394,7 +400,8 @@
       "result" : 6.0,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "每段 1 秒，时间单位 1 秒：2 × 1 + 4 × 1 = 6。"
+      "explanation" : "每段 1 秒，时间单位 1 秒：2 × 1 + 4 × 1 = 6。",
+      "visualization" : null
     }, {
       "name" : "梯形积分",
       "parameters" : {
@@ -417,7 +424,8 @@
       "result" : 8.0,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "(2 + 4) ÷ 2 + (4 + 6) ÷ 2 = 8。"
+      "explanation" : "(2 + 4) ÷ 2 + (4 + 6) ÷ 2 = 8。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -437,10 +445,10 @@
     },
     "outputUnit" : null,
     "parameters" : {
-      "timeUnit" : "PT1H",
-      "multiplier" : 1.0,
       "integration" : "left",
-      "operation" : "integral"
+      "operation" : "integral",
+      "timeUnit" : "PT1H",
+      "multiplier" : 1.0
     },
     "predictionHorizon" : null
   },
@@ -448,33 +456,33 @@
     "reading" : "累计读数"
   },
   "parameterDefinitions" : [ {
-    "id" : "integration",
     "name" : "积分方式",
     "valueType" : {
       "type" : "enum",
       "elements" : [ {
-        "value" : "left",
-        "text" : "前值保持"
+        "text" : "前值保持",
+        "value" : "left"
       }, {
-        "value" : "trapezoid",
-        "text" : "梯形积分"
+        "text" : "梯形积分",
+        "value" : "trapezoid"
       } ]
-    }
+    },
+    "id" : "integration"
   }, {
-    "id" : "timeUnit",
     "name" : "时间基准",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "timeUnit",
     "expands" : {
       "editor" : "duration"
     }
   }, {
-    "id" : "multiplier",
     "name" : "倍率",
     "valueType" : {
       "type" : "double"
-    }
+    },
+    "id" : "multiplier"
   } ]
 }, {
   "id" : "duration",
@@ -493,8 +501,8 @@
     "examples" : [ {
       "name" : "有效期与未知时段",
       "parameters" : {
-        "duration" : "PT1M",
-        "maxHold" : "PT20S"
+        "maxHold" : "PT20S",
+        "duration" : "PT1M"
       },
       "inputs" : {
         "state" : [ {
@@ -510,16 +518,17 @@
       },
       "cutoffSeconds" : 60,
       "result" : {
-        "coverage" : 0.6666666666666666,
-        "inactiveCount" : 1,
         "activeDuration" : 30.0,
         "activeCount" : 1,
         "unknownDuration" : 20.0,
-        "inactiveDuration" : 10.0
+        "inactiveDuration" : 10.0,
+        "coverage" : 0.6666666666666666,
+        "inactiveCount" : 1
       },
       "reason" : null,
       "estimated" : true,
-      "explanation" : "1 保持 0–10 秒及 20–40 秒，0 保持 10–20 秒；40–60 秒已过期，计为未知。"
+      "explanation" : "1 保持 0–10 秒及 20–40 秒，0 保持 10–20 秒；40–60 秒已过期，计为未知。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -537,52 +546,52 @@
     "outputType" : {
       "type" : "object",
       "properties" : [ {
-        "id" : "activeDuration",
         "name" : "运行时长",
         "valueType" : {
           "type" : "double",
           "unit" : "s"
-        }
+        },
+        "id" : "activeDuration"
       }, {
-        "id" : "inactiveDuration",
         "name" : "停机时长",
         "valueType" : {
           "type" : "double",
           "unit" : "s"
-        }
+        },
+        "id" : "inactiveDuration"
       }, {
-        "id" : "unknownDuration",
         "name" : "未知时长",
         "valueType" : {
           "type" : "double",
           "unit" : "s"
-        }
+        },
+        "id" : "unknownDuration"
       }, {
-        "id" : "activeCount",
         "name" : "启动次数",
         "valueType" : {
           "type" : "double"
-        }
+        },
+        "id" : "activeCount"
       }, {
-        "id" : "inactiveCount",
         "name" : "停止次数",
         "valueType" : {
           "type" : "double"
-        }
+        },
+        "id" : "inactiveCount"
       }, {
-        "id" : "coverage",
         "name" : "时间覆盖率",
         "valueType" : {
           "type" : "double"
-        }
+        },
+        "id" : "coverage"
       } ]
     },
     "outputUnit" : null,
     "parameters" : {
-      "maxHold" : "PT20M",
       "duration" : "PT1H",
       "activeValue" : 1,
-      "inactiveValue" : 0
+      "inactiveValue" : 0,
+      "maxHold" : "PT20M"
     },
     "predictionHorizon" : null
   },
@@ -590,40 +599,220 @@
     "state" : "状态记录"
   },
   "parameterDefinitions" : [ {
-    "id" : "duration",
     "name" : "统计范围",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "duration",
     "expands" : {
       "editor" : "duration"
     }
   }, {
-    "id" : "maxHold",
     "name" : "状态有效期",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxHold",
     "expands" : {
       "editor" : "duration"
     }
   }, {
-    "id" : "activeValue",
     "name" : "运行值",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "activeValue",
     "expands" : {
       "typeFromInput" : "state"
     }
   }, {
-    "id" : "inactiveValue",
     "name" : "停机值",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "inactiveValue",
     "expands" : {
       "typeFromInput" : "state"
+    }
+  } ]
+}, {
+  "id" : "continuousEwma",
+  "name" : "连续平滑",
+  "description" : "逐条更新当前平滑值，不保留原始窗口；数据中断后重新开始。",
+  "documentation" : {
+    "formula" : "\\textstyle s_t=(1-e^{-\\Delta t/\\tau})x_t+e^{-\\Delta t/\\tau}s_{t-1}",
+    "symbols" : [ {
+      "symbol" : "x_t",
+      "description" : "第 i 个数值；n 为样本数"
+    }, {
+      "symbol" : "t",
+      "description" : "相对时间，单位为秒"
+    } ],
+    "steps" : [ "按来源时间接收新值，重复及旧值不累加", "按时间常数更新平滑值，长间隔后重新开始" ],
+    "examples" : [ {
+      "name" : "逐次平滑",
+      "parameters" : {
+        "timeConstant" : "PT1S"
+      },
+      "inputs" : {
+        "signal" : [ {
+          "offsetSeconds" : 0,
+          "value" : 0.0
+        }, {
+          "offsetSeconds" : 1,
+          "value" : 10.0
+        }, {
+          "offsetSeconds" : 2,
+          "value" : 20.0
+        } ]
+      },
+      "cutoffSeconds" : 2,
+      "result" : 14.967852755919449,
+      "reason" : null,
+      "estimated" : false,
+      "explanation" : "只保存上次时间和平滑状态，曲线读取结果历史",
+      "visualization" : null
+    } ]
+  },
+  "configuration" : {
+    "provider" : "signal",
+    "providerVersion" : "1",
+    "modelVersion" : null,
+    "inputTypes" : {
+      "signal" : {
+        "type" : "double",
+        "scale" : 12
+      }
+    },
+    "outputType" : {
+      "type" : "double",
+      "scale" : 12
+    },
+    "outputUnit" : null,
+    "parameters" : {
+      "operation" : "continuousEwma",
+      "timeConstant" : "PT5S",
+      "maxGap" : "PT5M"
+    },
+    "predictionHorizon" : null
+  },
+  "inputNames" : {
+    "signal" : "信号数据"
+  },
+  "parameterDefinitions" : [ {
+    "name" : "时间常数",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "timeConstant",
+    "expands" : {
+      "editor" : "duration"
+    }
+  }, {
+    "name" : "最大数据间隔",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "maxGap",
+    "expands" : {
+      "editor" : "duration"
+    }
+  } ]
+}, {
+  "id" : "continuousCusum",
+  "name" : "连续偏移监测",
+  "description" : "逐条累积相对固定基准的偏移；数据中断或工况变化后重新开始。",
+  "documentation" : {
+    "formula" : "\\textstyle C_t^\\pm=\\max(0,C_{t-1}^\\pm\\pm(x_t-\\mu_0)/\\sigma_0-k)",
+    "symbols" : [ {
+      "symbol" : "x_t",
+      "description" : "第 i 个数值；n 为样本数"
+    }, {
+      "symbol" : "\\mu_0,\\sigma_0,k",
+      "description" : "固定基准均值、标准差与允许偏移；不以当前样本训练基准"
+    } ],
+    "steps" : [ "用固定均值与标准差标准化新值", "更新正负偏移；间隔过长或工况切换时归零" ],
+    "examples" : [ {
+      "name" : "持续偏移累积",
+      "parameters" : { },
+      "inputs" : {
+        "signal" : [ {
+          "offsetSeconds" : 0,
+          "value" : 1.0
+        }, {
+          "offsetSeconds" : 1,
+          "value" : 2.0
+        }, {
+          "offsetSeconds" : 2,
+          "value" : 3.0
+        }, {
+          "offsetSeconds" : 3,
+          "value" : 4.0
+        } ]
+      },
+      "cutoffSeconds" : 3,
+      "result" : 8.0,
+      "reason" : null,
+      "estimated" : false,
+      "explanation" : "重复及旧值不重复累计，同时间修订通过隔离补算处理",
+      "visualization" : null
+    } ]
+  },
+  "configuration" : {
+    "provider" : "signal",
+    "providerVersion" : "1",
+    "modelVersion" : null,
+    "inputTypes" : {
+      "signal" : {
+        "type" : "double",
+        "scale" : 12
+      }
+    },
+    "outputType" : {
+      "type" : "double",
+      "scale" : 12
+    },
+    "outputUnit" : null,
+    "parameters" : {
+      "allowance" : 0.5,
+      "maxGap" : "PT5M",
+      "operation" : "continuousCusum",
+      "referenceMean" : 0.0,
+      "referenceDeviation" : 1.0
+    },
+    "predictionHorizon" : null
+  },
+  "inputNames" : {
+    "signal" : "信号数据"
+  },
+  "parameterDefinitions" : [ {
+    "name" : "基准均值",
+    "valueType" : {
+      "type" : "double"
+    },
+    "id" : "referenceMean"
+  }, {
+    "name" : "基准标准差",
+    "valueType" : {
+      "type" : "double",
+      "min" : 0
+    },
+    "id" : "referenceDeviation"
+  }, {
+    "name" : "允许偏移（标准差倍数）",
+    "valueType" : {
+      "type" : "double",
+      "min" : 0
+    },
+    "id" : "allowance"
+  }, {
+    "name" : "最大数据间隔",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "maxGap",
+    "expands" : {
+      "editor" : "duration"
     }
   } ]
 }, {
@@ -659,7 +848,8 @@
       "result" : 2.7386127875258306,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "√((1² + 2² + 3² + 4²) ÷ 4) ≈ 2.7386。"
+      "explanation" : "√((1² + 2² + 3² + 4²) ÷ 4) ≈ 2.7386。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -687,11 +877,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -699,21 +889,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -751,7 +941,8 @@
       "result" : 1.0,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "中位数 2.5；绝对偏差为 1.5、0.5、0.5、1.5，中位数为 1。"
+      "explanation" : "中位数 2.5；绝对偏差为 1.5、0.5、0.5、1.5，中位数为 1。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -779,11 +970,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -791,21 +982,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -846,7 +1037,8 @@
       "result" : 1.0,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "(4 − 3) ÷ (3 − 2) = 1/秒；更早的点不参与这个速率。"
+      "explanation" : "(4 − 3) ÷ (3 − 2) = 1/秒；更早的点不参与这个速率。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -874,11 +1066,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -886,21 +1078,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -910,7 +1102,7 @@
   "name" : "指数平滑",
   "description" : "按平滑系数处理历史序列，输出平滑后的序列。",
   "documentation" : {
-    "formula" : "\\textstyle y_i=\\alpha x_i+(1-\\alpha)y_{i-1},\\quad y_1=x_1",
+    "formula" : "\\textstyle y_i=\\alpha_i x_i+(1-\\alpha_i)y_{i-1},\\quad \\alpha_i=\\alpha\\;\\mathrm{or}\\;1-e^{-\\Delta t_i/\\tau}",
     "symbols" : [ {
       "symbol" : "x_i",
       "description" : "第 i 个数值；n 为样本数"
@@ -941,7 +1133,35 @@
       "result" : [ 1.0, 1.2, 1.56, 2.048 ],
       "reason" : null,
       "estimated" : false,
-      "explanation" : "α=0.2：1 → 1.2 → 1.56 → 2.048；输出完整平滑序列。"
+      "explanation" : "α=0.2：1 → 1.2 → 1.56 → 2.048；输出完整平滑序列。",
+      "visualization" : null
+    }, {
+      "name" : "按一秒时间常数平滑",
+      "parameters" : {
+        "smoothing" : "time",
+        "timeConstant" : "PT1S"
+      },
+      "inputs" : {
+        "signal" : [ {
+          "offsetSeconds" : 0,
+          "value" : 1.0
+        }, {
+          "offsetSeconds" : 1,
+          "value" : 2.0
+        }, {
+          "offsetSeconds" : 2,
+          "value" : 3.0
+        }, {
+          "offsetSeconds" : 3,
+          "value" : 4.0
+        } ]
+      },
+      "cutoffSeconds" : 3,
+      "result" : [ 1.0, 1.6321205588285577, 2.496785275591945, 3.446998207224081 ],
+      "reason" : null,
+      "estimated" : false,
+      "explanation" : "平滑系数由相邻观测的实际间隔与时间常数决定；超过最大间隔后重新建立起点。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -965,7 +1185,9 @@
     "outputUnit" : null,
     "parameters" : {
       "operation" : "ewma",
-      "alpha" : 0.2
+      "alpha" : 0.2,
+      "smoothing" : "sample",
+      "timeConstant" : "PT5S"
     },
     "predictionHorizon" : null
   },
@@ -973,17 +1195,47 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "alpha",
+    "name" : "平滑方式",
+    "valueType" : {
+      "type" : "enum",
+      "elements" : [ {
+        "text" : "按样本系数",
+        "value" : "sample"
+      }, {
+        "text" : "按实际时间",
+        "value" : "time"
+      } ]
+    },
+    "id" : "smoothing"
+  }, {
     "name" : "平滑系数",
     "valueType" : {
       "type" : "double"
+    },
+    "id" : "alpha",
+    "expands" : {
+      "visibleWhen" : {
+        "smoothing" : "sample"
+      }
     }
   }, {
-    "id" : "contextInput",
+    "name" : "时间常数",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "timeConstant",
+    "expands" : {
+      "visibleWhen" : {
+        "smoothing" : "time"
+      },
+      "editor" : "duration"
+    }
+  }, {
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -991,21 +1243,30 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
+    "expands" : {
+      "advanced" : true
+    }
+  }, {
+    "name" : "结果大小上限（字节）",
+    "valueType" : {
+      "type" : "int"
+    },
+    "id" : "maxOutputBytes",
     "expands" : {
       "advanced" : true
     }
@@ -1043,7 +1304,8 @@
       "result" : [ 1.0, 1.0, 1.0 ],
       "reason" : null,
       "estimated" : false,
-      "explanation" : "2−1、3−2、4−3，得到三个差值；不保留首点。"
+      "explanation" : "2−1、3−2、4−3，得到三个差值；不保留首点。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -1074,11 +1336,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -1086,21 +1348,30 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
+    "expands" : {
+      "advanced" : true
+    }
+  }, {
+    "name" : "结果大小上限（字节）",
+    "valueType" : {
+      "type" : "int"
+    },
+    "id" : "maxOutputBytes",
     "expands" : {
       "advanced" : true
     }
@@ -1141,7 +1412,8 @@
       "result" : 1.4605934866804429,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "4 ÷ √7.5 ≈ 1.4606；零分母无结果。"
+      "explanation" : "4 ÷ √7.5 ≈ 1.4606；零分母无结果。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -1169,11 +1441,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -1181,21 +1453,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -1236,7 +1508,8 @@
       "result" : 1.0954451150103321,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "√7.5 ÷ 2.5 ≈ 1.0954。"
+      "explanation" : "√7.5 ÷ 2.5 ≈ 1.0954。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -1264,11 +1537,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -1276,21 +1549,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -1328,7 +1601,8 @@
       "result" : 1.6,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "4 ÷ 2.5 = 1.6。"
+      "explanation" : "4 ÷ 2.5 = 1.6。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -1356,11 +1630,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -1368,21 +1642,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -1423,7 +1697,8 @@
       "result" : 0.0,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "1、2、3、4 关于 2.5 对称，样本修正偏度为 0；常量序列不提供偏度。"
+      "explanation" : "1、2、3、4 关于 2.5 对称，样本修正偏度为 0；常量序列不提供偏度。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -1451,11 +1726,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -1463,21 +1738,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -1518,7 +1793,8 @@
       "result" : -1.2,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "样本修正后的超额峰度为 −1.2；不是正态参考值为 3 的 Pearson 峰度。"
+      "explanation" : "样本修正后的超额峰度为 −1.2；不是正态参考值为 3 的 Pearson 峰度。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -1546,11 +1822,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -1558,21 +1834,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -1613,7 +1889,8 @@
       "result" : 3.85,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "h=1+3×0.95=3.85，在第 3、4 个值之间插值，得到 3.85。"
+      "explanation" : "h=1+3×0.95=3.85，在第 3、4 个值之间插值，得到 3.85。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -1642,19 +1919,19 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "percentile",
     "name" : "百分位（0–100）",
     "valueType" : {
       "type" : "double",
       "min" : 0,
       "max" : 100
-    }
+    },
+    "id" : "percentile"
   }, {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -1662,21 +1939,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -1720,7 +1997,8 @@
       "result" : 2.0,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "基线 [1,2,3] 的均值 2、样本标准差 1；末点 4 的分数为 2。"
+      "explanation" : "基线 [1,2,3] 的均值 2、样本标准差 1；末点 4 的分数为 2。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -1748,11 +2026,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -1760,21 +2038,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -1815,7 +2093,8 @@
       "result" : 1.3489815189531904,
       "reason" : null,
       "estimated" : false,
-      "explanation" : "基线 [1,2,3] 的中位数 2、MAD=1；(4−2) ÷ 1.4826 ≈ 1.349。"
+      "explanation" : "基线 [1,2,3] 的中位数 2、MAD=1；(4−2) ÷ 1.4826 ≈ 1.349。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -1843,11 +2122,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -1855,21 +2134,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -1911,13 +2190,14 @@
       },
       "cutoffSeconds" : 3,
       "result" : {
+        "valueAtCutoff" : 4.0,
         "slope" : 1.0,
-        "rSquared" : 1.0,
-        "valueAtCutoff" : 4.0
+        "rSquared" : 1.0
       },
       "reason" : null,
       "estimated" : true,
-      "explanation" : "每秒增长 1；3 秒时拟合值为 4，R²=1。拟合值属于估算。"
+      "explanation" : "每秒增长 1；3 秒时拟合值为 4，R²=1。拟合值属于估算。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -1935,23 +2215,23 @@
     "outputType" : {
       "type" : "object",
       "properties" : [ {
-        "id" : "slope",
         "name" : "每秒变化率",
         "valueType" : {
           "type" : "double"
-        }
+        },
+        "id" : "slope"
       }, {
-        "id" : "valueAtCutoff",
         "name" : "当前拟合值",
         "valueType" : {
           "type" : "double"
-        }
+        },
+        "id" : "valueAtCutoff"
       }, {
-        "id" : "rSquared",
         "name" : "拟合优度R²",
         "valueType" : {
           "type" : "double"
-        }
+        },
+        "id" : "rSquared"
       } ]
     },
     "outputUnit" : null,
@@ -1964,11 +2244,11 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -1976,21 +2256,21 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
     "expands" : {
       "advanced" : true
     }
@@ -2037,7 +2317,8 @@
       "result" : 96.0,
       "reason" : null,
       "estimated" : true,
-      "explanation" : "截止值 4、斜率 1/秒、阈值 100，预计还需 96 秒；已越限为 0，方向不符或超出跨度无值。"
+      "explanation" : "截止值 4、斜率 1/秒、阈值 100，预计还需 96 秒；已越限为 0，方向不符或超出跨度无值。",
+      "visualization" : null
     }, {
       "name" : "超出预测跨度",
       "parameters" : {
@@ -2062,7 +2343,8 @@
       "result" : null,
       "reason" : "inputInvalid",
       "estimated" : false,
-      "explanation" : "预计还需 96 秒，超过配置的 10 秒跨度，返回无值。"
+      "explanation" : "预计还需 96 秒，超过配置的 10 秒跨度，返回无值。",
+      "visualization" : null
     } ]
   },
   "configuration" : {
@@ -2083,9 +2365,9 @@
     "outputUnit" : "s",
     "parameters" : {
       "operation" : "timeToThreshold",
+      "threshold" : 100.0,
       "direction" : "rising",
-      "maxHorizon" : "P7D",
-      "threshold" : 100.0
+      "maxHorizon" : "P7D"
     },
     "predictionHorizon" : null
   },
@@ -2093,39 +2375,39 @@
     "signal" : "信号数据"
   },
   "parameterDefinitions" : [ {
-    "id" : "threshold",
     "name" : "阈值",
     "valueType" : {
       "type" : "double"
-    }
+    },
+    "id" : "threshold"
   }, {
-    "id" : "direction",
     "name" : "越限方向",
     "valueType" : {
       "type" : "enum",
       "elements" : [ {
-        "value" : "rising",
-        "text" : "向上越限"
+        "text" : "向上越限",
+        "value" : "rising"
       }, {
-        "value" : "falling",
-        "text" : "向下越限"
+        "text" : "向下越限",
+        "value" : "falling"
       } ]
-    }
+    },
+    "id" : "direction"
   }, {
-    "id" : "maxHorizon",
     "name" : "最大预测跨度",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxHorizon",
     "expands" : {
       "editor" : "duration"
     }
   }, {
-    "id" : "contextInput",
     "name" : "工况／分段来源",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "contextInput",
     "expands" : {
       "inputType" : {
         "type" : "array",
@@ -2133,21 +2415,649 @@
       }
     }
   }, {
-    "id" : "maxGap",
     "name" : "最大数据间隔",
     "valueType" : {
       "type" : "string"
     },
+    "id" : "maxGap",
     "expands" : {
-      "editor" : "duration",
-      "advanced" : true
+      "advanced" : true,
+      "editor" : "duration"
     }
   }, {
-    "id" : "maxPoints",
     "name" : "最多参与点数",
     "valueType" : {
       "type" : "int"
     },
+    "id" : "maxPoints",
+    "expands" : {
+      "advanced" : true
+    }
+  } ]
+}, {
+  "id" : "cusum",
+  "name" : "持续偏移（CUSUM）",
+  "description" : "按已标定的固定均值和标准差累积双侧偏移；输出当前较大累计量，窗口或工况段开始时从零计算。阈值由持续条件配置。",
+  "documentation" : {
+    "formula" : "\\textstyle C_i^\\pm=\\max(0,C_{i-1}^\\pm\\pm z_i-k),\\quad z_i=(x_i-\\mu_0)/\\sigma_0",
+    "symbols" : [ {
+      "symbol" : "x_i",
+      "description" : "第 i 个数值；n 为样本数"
+    }, {
+      "symbol" : "\\mu_0,\\sigma_0,k",
+      "description" : "固定基准均值、标准差与允许偏移；不以当前样本训练基准"
+    } ],
+    "steps" : [ "用固定基准标准化当前工况段的样本", "分别累积正负偏移，返回当前较大累计量" ],
+    "examples" : [ {
+      "name" : "固定基准上的连续偏移",
+      "parameters" : { },
+      "inputs" : {
+        "signal" : [ {
+          "offsetSeconds" : 0,
+          "value" : 1.0
+        }, {
+          "offsetSeconds" : 1,
+          "value" : 2.0
+        }, {
+          "offsetSeconds" : 2,
+          "value" : 3.0
+        }, {
+          "offsetSeconds" : 3,
+          "value" : 4.0
+        } ]
+      },
+      "cutoffSeconds" : 3,
+      "result" : 8.0,
+      "reason" : null,
+      "estimated" : false,
+      "explanation" : "基准均值 0、标准差 1、允许偏移 0.5；样本 1、2、3、4 的当前累计量为 8。该基准仅为算例，需按工况标定。",
+      "visualization" : null
+    } ]
+  },
+  "configuration" : {
+    "provider" : "signal",
+    "providerVersion" : "1",
+    "modelVersion" : null,
+    "inputTypes" : {
+      "signal" : {
+        "type" : "array",
+        "elementType" : {
+          "type" : "double"
+        }
+      }
+    },
+    "outputType" : {
+      "type" : "double"
+    },
+    "outputUnit" : null,
+    "parameters" : {
+      "operation" : "cusum",
+      "allowance" : 0.5,
+      "referenceMean" : 0.0,
+      "referenceDeviation" : 1.0
+    },
+    "predictionHorizon" : null
+  },
+  "inputNames" : {
+    "signal" : "信号数据"
+  },
+  "parameterDefinitions" : [ {
+    "name" : "基准均值",
+    "valueType" : {
+      "type" : "double"
+    },
+    "id" : "referenceMean"
+  }, {
+    "name" : "基准标准差",
+    "valueType" : {
+      "type" : "double",
+      "min" : 0
+    },
+    "id" : "referenceDeviation"
+  }, {
+    "name" : "允许偏移（标准差倍数）",
+    "valueType" : {
+      "type" : "double",
+      "min" : 0
+    },
+    "id" : "allowance"
+  }, {
+    "name" : "工况／分段来源",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "contextInput",
+    "expands" : {
+      "inputType" : {
+        "type" : "array",
+        "elementType" : { }
+      }
+    }
+  }, {
+    "name" : "最大数据间隔",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "maxGap",
+    "expands" : {
+      "advanced" : true,
+      "editor" : "duration"
+    }
+  }, {
+    "name" : "最多参与点数",
+    "valueType" : {
+      "type" : "int"
+    },
+    "id" : "maxPoints",
+    "expands" : {
+      "advanced" : true
+    }
+  } ]
+}, {
+  "id" : "correlation",
+  "name" : "双测点相关性",
+  "description" : "按时间顺序在容差内一对一配对，返回 Pearson 相关系数及配对数；不插值，不重复使用同一源观测。恒定输入不可判定，相关性高不代表无偏差。",
+  "documentation" : {
+    "formula" : "\\textstyle r=\\frac{\\sum_i(x_i-\\bar x)(y_i-\\bar y)}{\\sqrt{\\sum_i(x_i-\\bar x)^2\\sum_i(y_i-\\bar y)^2}}",
+    "symbols" : [ {
+      "symbol" : "x_i,y_i",
+      "description" : "时间容差内一对一匹配的两个测点"
+    } ],
+    "steps" : [ "按时间顺序一对一配对，不插值", "计算 Pearson 系数，同时返回有效配对数" ],
+    "examples" : [ {
+      "name" : "线性相关但有固定偏移",
+      "parameters" : { },
+      "inputs" : {
+        "reference" : [ {
+          "offsetSeconds" : 0,
+          "value" : 12.0
+        }, {
+          "offsetSeconds" : 1,
+          "value" : 14.0
+        }, {
+          "offsetSeconds" : 2,
+          "value" : 16.0
+        }, {
+          "offsetSeconds" : 3,
+          "value" : 18.0
+        } ],
+        "signal" : [ {
+          "offsetSeconds" : 0,
+          "value" : 1.0
+        }, {
+          "offsetSeconds" : 1,
+          "value" : 2.0
+        }, {
+          "offsetSeconds" : 2,
+          "value" : 3.0
+        }, {
+          "offsetSeconds" : 3,
+          "value" : 4.0
+        } ]
+      },
+      "cutoffSeconds" : 3,
+      "result" : {
+        "correlation" : 1.0,
+        "pairs" : 4
+      },
+      "reason" : null,
+      "estimated" : false,
+      "explanation" : "两路样本完全线性相关，系数为 1，共 4 对；参考值有固定偏移，不能据此判为测量无误差。",
+      "visualization" : null
+    } ]
+  },
+  "configuration" : {
+    "provider" : "signal",
+    "providerVersion" : "1",
+    "modelVersion" : null,
+    "inputTypes" : {
+      "reference" : {
+        "type" : "array",
+        "elementType" : {
+          "type" : "double"
+        }
+      },
+      "signal" : {
+        "type" : "array",
+        "elementType" : {
+          "type" : "double"
+        }
+      }
+    },
+    "outputType" : {
+      "type" : "object",
+      "properties" : [ {
+        "name" : "相关系数",
+        "valueType" : {
+          "type" : "double"
+        },
+        "id" : "correlation"
+      }, {
+        "name" : "有效配对数",
+        "valueType" : {
+          "type" : "int"
+        },
+        "id" : "pairs"
+      } ]
+    },
+    "outputUnit" : null,
+    "parameters" : {
+      "alignmentTolerance" : "PT0.1S",
+      "operation" : "correlation"
+    },
+    "predictionHorizon" : null
+  },
+  "inputNames" : {
+    "reference" : "参考测点",
+    "signal" : "信号数据"
+  },
+  "parameterDefinitions" : [ {
+    "name" : "配对时间容差",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "alignmentTolerance",
+    "expands" : {
+      "editor" : "duration"
+    }
+  }, {
+    "name" : "工况／分段来源",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "contextInput",
+    "expands" : {
+      "inputType" : {
+        "type" : "array",
+        "elementType" : { }
+      }
+    }
+  }, {
+    "name" : "最大数据间隔",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "maxGap",
+    "expands" : {
+      "advanced" : true,
+      "editor" : "duration"
+    }
+  }, {
+    "name" : "最多参与点数",
+    "valueType" : {
+      "type" : "int"
+    },
+    "id" : "maxPoints",
+    "expands" : {
+      "advanced" : true
+    }
+  } ]
+}, {
+  "id" : "align",
+  "name" : "等间隔重采样",
+  "description" : "按截止时间生成等间隔坐标，在有效间隔内保持最近观测；缺测保留为空，不补零。",
+  "documentation" : {
+    "formula" : "\\textstyle y(t)=x(t_j),\\quad t_j=\\max\\{t_i:t_i\\le t\\}",
+    "symbols" : [ {
+      "symbol" : "x_i",
+      "description" : "第 i 个数值；n 为样本数"
+    } ],
+    "steps" : [ "按采样间隔生成截止时间内的坐标", "只在最大间隔内保持最近观测" ],
+    "examples" : [ {
+      "name" : "同间隔样本保持原值",
+      "parameters" : { },
+      "inputs" : {
+        "signal" : [ {
+          "offsetSeconds" : 0,
+          "value" : 1.0
+        }, {
+          "offsetSeconds" : 1,
+          "value" : 2.0
+        }, {
+          "offsetSeconds" : 2,
+          "value" : 3.0
+        }, {
+          "offsetSeconds" : 3,
+          "value" : 4.0
+        } ]
+      },
+      "cutoffSeconds" : 3,
+      "result" : [ 1.0, 2.0, 3.0, 4.0 ],
+      "reason" : null,
+      "estimated" : false,
+      "explanation" : "每秒采样 1、2、3、4，重采样后数值不变；展示数值序列，运行结果另保留时间与质量。",
+      "visualization" : null
+    } ]
+  },
+  "configuration" : {
+    "provider" : "signal",
+    "providerVersion" : "1",
+    "modelVersion" : null,
+    "inputTypes" : {
+      "signal" : {
+        "type" : "array",
+        "elementType" : {
+          "type" : "double"
+        }
+      }
+    },
+    "outputType" : {
+      "type" : "object",
+      "properties" : [ {
+        "name" : "时序点",
+        "valueType" : {
+          "type" : "array",
+          "elementType" : {
+            "type" : "object"
+          }
+        },
+        "id" : "points"
+      } ]
+    },
+    "outputUnit" : null,
+    "parameters" : {
+      "step" : "PT1S",
+      "duration" : "PT3S",
+      "operation" : "align",
+      "maxGap" : "PT2S"
+    },
+    "predictionHorizon" : null
+  },
+  "inputNames" : {
+    "signal" : "信号数据"
+  },
+  "parameterDefinitions" : [ {
+    "name" : "采样间隔",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "step",
+    "expands" : {
+      "editor" : "duration"
+    }
+  }, {
+    "name" : "统计范围",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "duration",
+    "expands" : {
+      "editor" : "duration"
+    }
+  }, {
+    "name" : "最大数据间隔",
+    "valueType" : {
+      "type" : "string"
+    },
+    "id" : "maxGap",
+    "expands" : {
+      "editor" : "duration"
+    }
+  }, {
+    "name" : "最多参与点数",
+    "valueType" : {
+      "type" : "int"
+    },
+    "id" : "maxPoints",
+    "expands" : {
+      "advanced" : true
+    }
+  }, {
+    "name" : "结果大小上限（字节）",
+    "valueType" : {
+      "type" : "int"
+    },
+    "id" : "maxOutputBytes",
+    "expands" : {
+      "advanced" : true
+    }
+  } ]
+}, {
+  "id" : "hampel",
+  "name" : "Hampel 去毛刺",
+  "description" : "使用前序窗口的中位数与 MAD 标记毛刺；替换需显式开启并标记为估算。",
+  "documentation" : {
+    "formula" : "\\textstyle |x_i-\\operatorname{med}(B_i)|>\\max(\\epsilon,1.4826\\sigma\\operatorname{MAD}(B_i))",
+    "symbols" : [ {
+      "symbol" : "x_i",
+      "description" : "第 i 个数值；n 为样本数"
+    } ],
+    "steps" : [ "使用前序样本的中位数与 MAD 建立局部基准", "标记偏离，只有明确开启时才替换" ],
+    "examples" : [ {
+      "name" : "平稳递增不被替换",
+      "parameters" : { },
+      "inputs" : {
+        "signal" : [ {
+          "offsetSeconds" : 0,
+          "value" : 1.0
+        }, {
+          "offsetSeconds" : 1,
+          "value" : 2.0
+        }, {
+          "offsetSeconds" : 2,
+          "value" : 3.0
+        }, {
+          "offsetSeconds" : 3,
+          "value" : 4.0
+        } ]
+      },
+      "cutoffSeconds" : 3,
+      "result" : [ 1.0, 2.0, 3.0, 4.0 ],
+      "reason" : null,
+      "estimated" : false,
+      "explanation" : "前 3 点用于预热；第 4 点未超过偏离倍数，原值保留。启用替换后修改的点会标为估算。",
+      "visualization" : null
+    } ]
+  },
+  "configuration" : {
+    "provider" : "signal",
+    "providerVersion" : "1",
+    "modelVersion" : null,
+    "inputTypes" : {
+      "signal" : {
+        "type" : "array",
+        "elementType" : {
+          "type" : "double"
+        }
+      }
+    },
+    "outputType" : {
+      "type" : "object",
+      "properties" : [ {
+        "name" : "时序点",
+        "valueType" : {
+          "type" : "array",
+          "elementType" : {
+            "type" : "object"
+          }
+        },
+        "id" : "points"
+      } ]
+    },
+    "outputUnit" : null,
+    "parameters" : {
+      "windowSize" : 3,
+      "replace" : false,
+      "sigma" : 3.0,
+      "operation" : "hampel",
+      "tolerance" : 0.0
+    },
+    "predictionHorizon" : null
+  },
+  "inputNames" : {
+    "signal" : "信号数据"
+  },
+  "parameterDefinitions" : [ {
+    "name" : "前序样本数",
+    "valueType" : {
+      "type" : "int",
+      "min" : 2,
+      "max" : 4096
+    },
+    "id" : "windowSize"
+  }, {
+    "name" : "偏离倍数",
+    "valueType" : {
+      "type" : "double"
+    },
+    "id" : "sigma"
+  }, {
+    "name" : "绝对容差",
+    "valueType" : {
+      "type" : "double"
+    },
+    "id" : "tolerance"
+  }, {
+    "name" : "替换毛刺",
+    "valueType" : {
+      "type" : "boolean"
+    },
+    "id" : "replace"
+  }, {
+    "name" : "最多参与点数",
+    "valueType" : {
+      "type" : "int"
+    },
+    "id" : "maxPoints",
+    "expands" : {
+      "advanced" : true
+    }
+  }, {
+    "name" : "结果大小上限（字节）",
+    "valueType" : {
+      "type" : "int"
+    },
+    "id" : "maxOutputBytes",
+    "expands" : {
+      "advanced" : true
+    }
+  } ]
+}, {
+  "id" : "spectrum",
+  "name" : "幅值频谱",
+  "description" : "对带采样率的完整等间隔波形帧计算单侧幅值谱；点数须为 2 的幂。这不是功率谱或故障诊断。",
+  "documentation" : {
+    "formula" : "\\textstyle A_k=\\frac{c_k|\\operatorname{FFT}(wx)_k|}{\\sum_iw_i}",
+    "symbols" : [ {
+      "symbol" : "A_k",
+      "description" : "单侧幅值，内部频率系数为 2，直流和 Nyquist 系数为 1"
+    } ],
+    "steps" : [ "读取完整波形帧及其采样率", "应用窗函数并按幅值修正，输出单侧谱" ],
+    "examples" : [ {
+      "name" : "单位幅值的 1 Hz 正弦",
+      "parameters" : { },
+      "inputs" : {
+        "signal" : [ {
+          "offsetSeconds" : 0,
+          "value" : {
+            "sampleRateHz" : 4.0,
+            "samples" : [ 0.0, 1.0, 0.0, -1.0 ]
+          }
+        } ]
+      },
+      "cutoffSeconds" : 0,
+      "result" : {
+        "frequencies" : [ 0.0, 1.0, 2.0 ],
+        "amplitudes" : [ 0.0, 1.0, 0.0 ]
+      },
+      "reason" : null,
+      "estimated" : false,
+      "explanation" : "4 Hz 采样的 0、1、0、−1，在矩形窗下于 1 Hz 得到幅值 1；幅值不能直接平方相加当成功率。",
+      "visualization" : null
+    } ]
+  },
+  "configuration" : {
+    "provider" : "signal",
+    "providerVersion" : "1",
+    "modelVersion" : null,
+    "inputTypes" : {
+      "signal" : {
+        "type" : "object",
+        "properties" : [ {
+          "name" : "波形样本",
+          "valueType" : {
+            "type" : "array",
+            "elementType" : {
+              "type" : "double"
+            }
+          },
+          "id" : "samples"
+        }, {
+          "name" : "采样率（Hz）",
+          "valueType" : {
+            "type" : "double"
+          },
+          "id" : "sampleRateHz"
+        } ]
+      }
+    },
+    "outputType" : {
+      "type" : "object",
+      "properties" : [ {
+        "name" : "频率（Hz）",
+        "valueType" : {
+          "type" : "array",
+          "elementType" : {
+            "type" : "double"
+          }
+        },
+        "id" : "frequencies"
+      }, {
+        "name" : "幅值",
+        "valueType" : {
+          "type" : "array",
+          "elementType" : {
+            "type" : "double"
+          }
+        },
+        "id" : "amplitudes"
+      } ]
+    },
+    "outputUnit" : null,
+    "parameters" : {
+      "operation" : "spectrum",
+      "removeMean" : true,
+      "window" : "RECTANGULAR"
+    },
+    "predictionHorizon" : null
+  },
+  "inputNames" : {
+    "signal" : "信号数据"
+  },
+  "parameterDefinitions" : [ {
+    "name" : "窗函数",
+    "valueType" : {
+      "type" : "enum",
+      "elements" : [ {
+        "text" : "矩形窗",
+        "value" : "RECTANGULAR"
+      }, {
+        "text" : "周期 Hann 窗",
+        "value" : "HANN_PERIODIC"
+      } ]
+    },
+    "id" : "window"
+  }, {
+    "name" : "移除直流分量",
+    "valueType" : {
+      "type" : "boolean"
+    },
+    "id" : "removeMean"
+  }, {
+    "name" : "最多参与点数",
+    "valueType" : {
+      "type" : "int"
+    },
+    "id" : "maxPoints",
+    "expands" : {
+      "advanced" : true
+    }
+  }, {
+    "name" : "结果大小上限（字节）",
+    "valueType" : {
+      "type" : "int"
+    },
+    "id" : "maxOutputBytes",
     "expands" : {
       "advanced" : true
     }

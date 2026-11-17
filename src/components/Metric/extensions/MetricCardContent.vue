@@ -10,6 +10,7 @@
     </template>
   </MetricValueView>
   <strong v-else class="metric-card-empty">—</strong>
+  <MetricStatisticSummary v-if="!provider?.card" :output="output" />
   <div v-if="!hideTrend && output.persist !== false && !output.latestOnly && (configuration.state !== 'disabled' || historyValues.length)" class="metric-card-content__trend">
     <span v-if="history?.error" class="metric-card-content__error">{{ t('historyFailed') }}</span>
     <a-skeleton v-else-if="!history || history.loading && !history.values.length" class="metric-card-content__skeleton" active :title="false" :paragraph="{ rows: 2 }" />
@@ -28,6 +29,7 @@
 import { computed, inject, ref, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MetricValueView from '../MetricValue.vue'
+import MetricStatisticSummary from '../MetricStatisticSummary.vue'
 import MetricRuntimeFeedback from '../MetricRuntimeFeedback.vue'
 import MetricTrend from '../MetricTrend.vue'
 import MetricStateDuration from '../MetricStateDuration.vue'

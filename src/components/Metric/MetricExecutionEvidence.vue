@@ -8,14 +8,14 @@
     </div>
     <component :is="isCalculator ? 'details' : 'div'" v-if="rule && !inputId" class="metric-evidence__method">
       <summary v-if="isCalculator">{{ t('evidenceTemplateMethod') }}</summary>
-      <TemplateFormulaDisplay v-if="formulaTree" :template="template" :rule="rule" :expression="method?.expression || ''" :calculators="calculators" :explanation="explanation" :format="explanationReading" :show-result="false" @expanded-change="emit('expandedChange',$event)" />
+      <TemplateFormulaDisplay v-if="formulaTree" :template="template" :rule="rule" :expression="method?.expression || ''" :calculators="calculators" :explanation="explanation" :format="explanationReading" @expanded-change="emit('expandedChange',$event)" />
       <template v-else-if="explanation"><ExpressionExplanation :explanation="explanation" :format="explanationReading" /></template>
       <template v-else-if="substitution">
         <h4>{{ t('executionSubstitution') }}</h4>
         <dl v-if="substitution.branches" class="metric-evidence__branches"><template v-for="(branch,index) in substitution.branches" :key="index"><dt><small>{{ t(branch.condition ? 'semanticWhen' : 'semanticOtherwise') }}</small> {{ branch.condition }}</dt><dd>{{ branch.value }}</dd></template></dl>
         <p v-else class="metric-evidence__formula">{{ substitution.text }}</p>
       </template>
-      <template v-else><h4><AIcon :type="method?.icon || 'FunctionOutlined'" /> {{ t('executionMethod') }}</h4><TemplateFormulaDisplay v-if="method?.expression" :template="template" :rule="rule" :expression="method.expression" :calculators="calculators" /><p v-else>{{ method?.text }}<small v-if="method?.detail"> · {{ method.detail }}</small></p><p v-if="method?.description && method.description !== method.text">{{ method.description }}</p></template>
+      <template v-else><h4><AIcon :type="method?.icon || 'FunctionOutlined'" /> {{ t('executionMethod') }}</h4><TemplateWindowDescription v-if="isStatistics" :rule="rule" :catalog="aggregations" :source="windowSourceLabel(template,rule,t('sentenceList'))" /><TemplateFormulaDisplay v-if="method?.expression" :template="template" :rule="rule" :expression="method.expression" :calculators="calculators" /><p v-else-if="!isStatistics">{{ method?.text }}<small v-if="method?.detail"> · {{ method.detail }}</small></p><p v-if="method?.description && method.description !== method.text">{{ method.description }}</p></template>
     </component>
     <p v-if="!value?.evidence?.execution" class="metric-evidence__notice">{{ t('evidenceNotRecorded') }}</p>
     <p v-else-if="value.evidence.execution.truncated" class="metric-evidence__notice">{{ t('evidenceTruncated') }}</p>
@@ -54,11 +54,14 @@ import MetricValueFields from './MetricValueFields.vue'
 import { findCalculator } from './template/algorithm'
 import { localizedTemplate } from './template/text'
 import { evidenceGroups, evidenceValue } from './evidence'
-import { metricDateText as time } from './time'
-import { metricCalculatorsKey } from './calculatorContext'
+import { metricDateText as time, metricDateFormat } from './time'
+import { metricCalculatorsKey, metricAggregationsKey } from './calculatorContext'
 import { executionFormula } from './template/formula/execution'
 import { expressionToTree,formulaReferencePath,ruleFormulaReferences } from './template/formula'
 import { graphNodeSummary } from './template/graphPresentation'
+import { calculationKind } from './template/window'
+import { windowSourceLabel } from './template/windowPresentation'
+import TemplateWindowDescription from './template/TemplateWindowDescription.vue'
 import { metricValueFields, metricValueLabels, metricValueSchema, metricValueUnit, schemaValueLabels, semanticValueText } from './valueSemantics'
 import TemplateFormulaDisplay from './template/formula/TemplateFormulaDisplay.vue'
 import type { TemplateRule } from './template/designer'
@@ -68,9 +71,11 @@ const emit=defineEmits<{(event:'expandedChange',value:boolean):void}>()
 const { t,locale } = useI18n({ useScope:'local',messages:metricMessages })
 const template = computed(()=>localizedTemplate(props.template,String(locale.value)))
 const calculators = inject(metricCalculatorsKey,computed(()=>[]))
+const aggregations = inject(metricAggregationsKey,computed(()=>[]))
 const ruleIndex = computed(()=>template.value.definitions.findIndex(item=>item.id === props.output.metricId || (item.windowFamily as {ranges?:{outputs?:{id:string}[]}[]} | undefined)?.ranges?.some(range=>range.outputs?.some(output=>output.id === props.output.metricId))))
 const rule = computed(()=>template.value.definitions[ruleIndex.value] as TemplateRule | undefined)
-const method = computed(()=>rule.value ? graphNodeSummary(template.value,{kind:'rule',index:ruleIndex.value},t,calculators.value) : undefined)
+const method = computed(()=>rule.value ? graphNodeSummary(template.value,{kind:'rule',index:ruleIndex.value},t,calculators.value,String(locale.value),aggregations.value) : undefined)
+const isStatistics = computed(()=>!!rule.value && calculationKind(rule.value)==='statistics')
 const isCalculator = computed(()=>!!rule.value?.calculator)
 const calculator = computed(()=>findCalculator(rule.value?.calculator,calculators.value))
 const schema = computed(()=>metricValueSchema(template.value,props.output.metricId,calculators.value))
@@ -94,8 +99,8 @@ function explanationReading(node:ExplanationNode, relative?:ExplanationNode) {
     return value.id === path[0] && JSON.stringify(value.path) === JSON.stringify(path.slice(1))
   })
   // 公式会计算毫秒差；未指定显示格式的日期保留毫秒，避免两端看似相同却产生非零差值。
-  const referenceSchema = reference?.schema?.type === 'date' && !reference.schema.format
-    ? {...reference.schema,format:'YYYY-MM-DD HH:mm:ss.SSS'} : reference?.schema
+  const referenceSchema = reference?.schema?.type === 'date'
+    ? {...reference.schema,format:metricDateFormat(reference.schema.format) || 'YYYY-MM-DD HH:mm:ss.SSS'} : reference?.schema
   if (reference) return {label:node.kind === 'read' ? reference.label : undefined,
     text:node.state === 'unknown' ? t('evidenceValuesMissing') : semanticValueText(node.value,{schema:referenceSchema,unit:reference.unit,
       labels:schemaValueLabels(reference.schema),locale:String(locale.value)},t)}

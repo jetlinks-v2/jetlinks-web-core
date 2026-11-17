@@ -4,7 +4,7 @@ import { copy, errorText } from '../service'
 import { configurationObject, configurationSnapshot, encodeConfiguration, type ConfigurationFormat } from './configurationText'
 import type { ValueTranslate } from '../valueSemantics'
 import { captureTemplateExample, exampleFacts, templateAuthoring } from './templateAuthoring'
-import type { MetricApi, MetricCalculatorDescriptor, MetricConfig, MetricSimulationRequest, MetricSimulationResponse, MetricTemplate, MetricTemplateCategory, MetricTemplateEntity, MetricTemplateStarter } from '../types'
+import type { MetricApi, MetricCalculatorDescriptor, MetricAggregationDescriptor, MetricConfig, MetricSimulationRequest, MetricSimulationResponse, MetricTemplate, MetricTemplateCategory, MetricTemplateEntity, MetricTemplateStarter } from '../types'
 
 const emptyTemplate = (withInput:boolean): MetricTemplate => ({
   id: '', version: '1', name: '', enabled: true, inputDefinitions: withInput ? [{id:'input1',presence:'required'}] : [], parameterDefinitions: [],
@@ -20,6 +20,8 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
   const categoryError = ref('')
   const calculators = ref<MetricCalculatorDescriptor[]>([])
   const calculatorError = ref('')
+  const aggregations = ref<MetricAggregationDescriptor[]>([])
+  const aggregationError = ref('')
   const selected = ref<MetricTemplateEntity>()
   const draft = ref<MetricTemplate>()
   const mode = ref<'form' | 'full'>('form')
@@ -45,6 +47,7 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
   let starterGeneration = 0
   let categoryGeneration = 0
   let calculatorGeneration = 0
+  let aggregationGeneration = 0
   let simulationGeneration = 0
   let simulationRequest = 0
   // 规则或样本变化即作废旧结果，也截断已发出的试算响应。
@@ -96,6 +99,14 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
       const values = await api.calculators()
       if (token === calculatorGeneration) calculators.value = values
     } catch (cause) { if (token === calculatorGeneration) calculatorError.value = errorText(cause) }
+  }
+  async function loadAggregations() {
+    const token = ++aggregationGeneration
+    aggregationError.value = ''
+    try {
+      const values = await api.aggregations()
+      if (token === aggregationGeneration) aggregations.value = values
+    } catch (cause) { if (token === aggregationGeneration) aggregationError.value = errorText(cause) }
   }
   function open(entity?: MetricTemplateEntity, starter?: MetricTemplateStarter) {
     if (saving.value) return
@@ -287,8 +298,8 @@ export function useMetricTemplates(editable: Ref<boolean>, api: MetricApi = metr
     } catch (cause) { if (token === simulationGeneration) simulationError.value = errorText(cause) }
     finally { if (request === simulationRequest) simulating.value = false }
   }
-  onScopeDispose(() => { generation++; categoryGeneration++; simulationGeneration++; calculatorGeneration++; starterGeneration++ })
-  return { discoveredStarters, startersLoading, starterError, loadStarters, categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, entities, selected, draft, mode, format, fullText, simulationText, keepExample,
+  onScopeDispose(() => { generation++; categoryGeneration++; simulationGeneration++; calculatorGeneration++; aggregationGeneration++; starterGeneration++ })
+  return { discoveredStarters, startersLoading, starterError, loadStarters, categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, aggregations, aggregationError, loadAggregations, entities, selected, draft, mode, format, fullText, simulationText, keepExample,
     simulationResults, simulationResponse, error, simulationError, loading, saving, simulating, readOnly, hasChanges,
     load, open, close, switchMode, switchFormat, save, release, newVersion, setAvailable, removeDraft, discardDraft, simulate, invalidateSimulation }
 }

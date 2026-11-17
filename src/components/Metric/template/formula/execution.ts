@@ -8,7 +8,7 @@ import type { ValueTranslate } from '../../valueSemantics'
 export interface ExecutionFormula { text:string; branches?:{condition?:string;value:string}[] }
 export function executionFormula(template:MetricTemplate,rule:TemplateRule,value:MetricValue,calculators:MetricCalculatorDescriptor[],t:ValueTranslate):ExecutionFormula | undefined {
   const expression=ruleExpression(rule)
-  if (!expression || rule.aggregation || rule.windowFamily || rule.calculator || rule.temporalCondition) return undefined
+  if (!expression || rule.aggregation || rule.timeAggregation || rule.windowFamily || rule.calculator || rule.temporalCondition) return undefined
   const references = displayReferences(template,rule,calculators,t)
   const tree = parseDisplayExpression(expression,references)
   if (!tree) return undefined

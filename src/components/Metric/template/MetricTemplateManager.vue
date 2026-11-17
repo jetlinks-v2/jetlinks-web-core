@@ -61,6 +61,7 @@
         </a-tabs>
         <div v-show="tab !== 'publication'" class="metric-template-manager__workspace">
           <a-alert v-if="calculatorError && tab === 'design'" type="warning" :message="t('algorithmCatalogFailed')" :description="calculatorError" show-icon><template #action><a-button size="small" @click="loadCalculators">{{ t('retry') }}</a-button></template></a-alert>
+          <a-alert v-if="aggregationError && tab === 'design'" type="warning" :message="t('aggregationCatalogFailed')" :description="aggregationError" show-icon><template #action><a-button size="small" @click="loadAggregations">{{ t('retry') }}</a-button></template></a-alert>
           <TemplateDesigner v-show="mode === 'form'" :key="selected?.id || draft.id" v-model:template="draft" :initial-input="initialInput" :disabled="locked" :trial="editable ? trial : undefined" :simulation-error="simulationError" :published="selected?.released" :calculators="calculators" :categories="catalogCategories" :categories-loading="categoriesLoading" :category-error="categoryError" :pick-source="pickSource" :source-context="sourceContext" @vue:mounted="initialInput = false" @reload-categories="loadCategories" @editing="editing = $event">
             <template #sampleTools><a-checkbox v-model:checked="keepExample" :disabled="locked || simulating" :title="t('saveExampleHint')">{{ t('saveExample') }}</a-checkbox></template>
             <template #advancedTools><a-select :value="format" :disabled="simulating || saving" :options="formats" :dropdown-match-select-width="false" @update:value="(value: unknown) => switchFormat(value as ConfigurationFormat)"><template #option="option"><SelectOption :label="option.label" :icon="option.icon" :description="option.description" /></template></a-select></template>
@@ -87,7 +88,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, ref, toRef, watch } from 'vue'
+import { computed, onMounted, provide, ref, toRef, watch } from 'vue'
 import { Modal } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import TemplateIdentity from './TemplateIdentity.vue'
@@ -108,14 +109,16 @@ import TemplateCatalog from './TemplateCatalog.vue'
 import { metricMessages } from '../messages'
 import SelectOption from '../../SelectOption/index.vue'
 import { useMetricTemplates } from './useMetricTemplates'
+import { metricAggregationsKey } from '../calculatorContext'
 import { useTemplateLeaveGuard } from './useTemplateLeaveGuard'
 import type { ConfigurationFormat } from './configurationText'
 import type { MetricContext, MetricSourcePicker, MetricTemplateEntity, MetricTemplateStarter, MetricTemplateReference } from '../types'
 const props = withDefaults(defineProps<{ editable?: boolean; starters?: MetricTemplateStarter[]; pickSource?:MetricSourcePicker; sourceContext?:MetricContext; applyTemplate?:(template:MetricTemplateReference)=>void }>(), { editable: false, starters: () => [] })
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
-const { discoveredStarters, startersLoading, starterError, loadStarters, categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, entities, selected, draft, mode, format, fullText, simulationText, keepExample,
+const { discoveredStarters, startersLoading, starterError, loadStarters, categories, categoriesLoading, categoryError, loadCategories, calculators, calculatorError, loadCalculators, aggregations, aggregationError, loadAggregations, entities, selected, draft, mode, format, fullText, simulationText, keepExample,
   simulationResults, simulationResponse, error, simulationError, loading, saving, simulating, readOnly, hasChanges, load, open, close,
   switchMode, switchFormat, save, release, newVersion, setAvailable, removeDraft, discardDraft, simulate, invalidateSimulation } = useMetricTemplates(toRef(props, 'editable'), undefined, t)
+provide(metricAggregationsKey,aggregations)
 const tab = ref('design')
 const editing = ref(false)
 const updates = useTemplateUpdates(selected, toRef(props, 'editable'))
@@ -138,7 +141,7 @@ const references = useTemplateCatalog(referenceCatalog,t)
 const reference = computed(() => draft.value && templateAuthoring(draft.value).reference)
 const referenceName = computed(() => reference.value ? i18nText(reference.value.name,reference.value.nameI18n,String(locale.value)) : '')
 watch(referenceKind, () => references.clear())
-watch(locale, loadCategories)
+watch(locale, () => { loadCategories(); loadCalculators(); loadAggregations() })
 const locked = computed(() => readOnly.value || saving.value || updates.applying.value)
 const canEditIdentity = computed(() => !locked.value && !editing.value && mode.value === 'form')
 const displayTemplate = computed(() => draft.value ? localizedTemplate(draft.value, String(locale.value)) : undefined)
@@ -182,7 +185,7 @@ function changeTab(value: string | number) {
   tab.value = String(value)
 }
 function refresh() { load(); loadCategories(); loadStarters() }
-onMounted(() => { refresh(); loadCalculators() })
+onMounted(() => { refresh(); loadCalculators(); loadAggregations() })
 </script>
 <style scoped>
 /* 首页滚动容器常驻；抽屉编辑、关闭不重建卡片或改变滚动位置。 */

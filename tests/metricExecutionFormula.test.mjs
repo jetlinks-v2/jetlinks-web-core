@@ -57,6 +57,8 @@ test('日期按类型与声明格式展示，零与非法时间不反显epoch，
   const spec={...template,inputDefinitions:[{id:'date',valueType:{type:'date',format:'yyyy-MM-dd HH:mm:ss'}},{id:'raw',valueType:{type:'long'}}]}
   assert.equal(evidenceValue(leaf('date',String(time)),'date',spec,'zh',t).text,'2026-11-07 07:26:36')
   assert.equal(metricDateText(time,'HH:mm:ss'),'07:26:36')
+  assert.equal(metricDateText(time,'timestamp'),'2026-11-07 07:26:36','存储标识不能按dayjs格式模板解释')
+  assert.equal(evidenceValue(leaf('date',String(time)),'date',{...spec,inputDefinitions:[{id:'date',valueType:{type:'date',format:'timestamp'}}]},'zh',t).text,'2026-11-07 07:26:36')
   for(const input of [0,undefined,null,NaN,Infinity,-1,'','invalid']) assert.equal(metricDateText(input),'—')
   assert.equal(evidenceValue(leaf('date','0'),'date',spec,'zh',t).text,'—')
   assert.notEqual(evidenceValue(leaf('raw',String(time)),'raw',spec,'zh',t).text,metricDateText(time))

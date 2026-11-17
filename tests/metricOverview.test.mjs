@@ -19,7 +19,7 @@ test('缩略图不放大浮点尾差，仍保留真实小幅变化与原始读�
     assert.match(sparkline.path,/48\.00.*8\.00/,'representable changes still retain their shape')
   }
 })
-const { useMetricCalculators } = load('components/Metric/useMetricCalculators.ts')
+const { useMetricCalculators,useMetricAggregations } = load('components/Metric/useMetricCalculators.ts')
 const target = (id, key = 'v1') => ({ id, key, outputs: ['score', 'condition'] })
 const result = (metricId, value, time = 1000) => ({ metricId, value, evaluationTime: time, quality: { valid: true } })
 
@@ -220,10 +220,10 @@ test('缩略图峰值与悬停均基于范围内真实样本，保留零和断�
   assert.equal(metricSparkline([[100,-5],[200,-5]]).peak.value,-5)
 })
 
-test('算法元数据按面板和语言共享，迟到响应与卸载不能覆盖当前语言', async () => {
+for (const [method,hook] of [['calculators',useMetricCalculators],['aggregations',useMetricAggregations]]) test(`${method} 元数据按面板和语言共享，迟到响应与卸载不能覆盖当前语言`, async () => {
   const locale = ref('zh'), requests = [], view = createMetricRenderer()
   let calculators
-  const app = view.renderer.createApp({ setup() { calculators = useMetricCalculators(locale, { calculators:() => new Promise(resolve => requests.push(resolve)) }); return () => null } })
+  const app = view.renderer.createApp({ setup() { calculators = hook(locale, { [method]:() => new Promise(resolve => requests.push(resolve)) }); return () => null } })
   app.mount(view.root)
   try {
     assert.equal(requests.length,1)

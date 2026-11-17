@@ -1,4 +1,5 @@
-import type { MetricTemplate, MetricValue, MetricActionRecord } from '../types'
+import type { MetricTemplate, MetricValue, MetricActionRecord, MetricAggregationDescriptor } from '../types'
+import { aggregationName } from './aggregationPresentation'
 import { templateGraph, ruleDependencies, ruleExpression, type TemplateRule } from './designer'
 import { calculationKind, durationParts } from './window'
 import { metricValueText } from '../presentation'
@@ -22,8 +23,8 @@ export function simulationSteps(template: MetricTemplate, results: MetricValue[]
   const nodes = templateGraph(template).nodes.filter(node => node.kind === 'rule')
   return nodes.flatMap(node => {
     const rule = template.definitions[node.index] as TemplateRule
-    const family = rule.windowFamily as { ranges?: { size?: string; mode?: string; outputs?: { id?: string; aggregation?: string }[] }[] } | undefined
-    const outputs = family ? (family.ranges || []).flatMap(range => (range.outputs || []).map(output => ({ id: output.id, rule: { ...rule, windowFamily: undefined, window: { ...rule.window, mode: range.mode, size: range.size }, aggregation: output.aggregation } as TemplateRule })))
+    const family = rule.windowFamily as { ranges?: { size?: string; mode?: string; timeMode?:string; timeUnit?:string; maxGap?:string; outputs?: { id?: string; aggregation?: string; timeAggregation?:TemplateRule['timeAggregation'] }[] }[] } | undefined
+    const outputs = family ? (family.ranges || []).flatMap(range => (range.outputs || []).map(output => ({ id: output.id, rule: { ...rule, windowFamily: undefined, window: { ...rule.window, mode: range.mode, size: range.size, timeMode:range.timeMode, timeUnit:range.timeUnit, maxGap:range.maxGap }, aggregation: output.aggregation, timeAggregation:output.timeAggregation } as TemplateRule })))
       : [{ id: rule.id, rule }]
     return outputs.map((output, index) => ({ id: output.id || '', rule: output.rule, index: node.index,
       shape: simulationShape(template.inputDefinitions.length + node.index + index),
@@ -47,12 +48,12 @@ export function simulationDuration(value: string | undefined, t: Translate): str
 }
 
 /** 文案读取实际规则；不在前端复制公式、窗口或算法计算。 */
-export function simulationOperation(rule: TemplateRule, t: Translate): string {
+export function simulationOperation(rule: TemplateRule, t: Translate, aggregations:MetricAggregationDescriptor[] = []): string {
   const kind = calculationKind(rule)
   if (kind === 'statistics') {
     const range = rule.window?.mode === 'time' ? `${t('recentDuration')} ${simulationDuration(rule.window.size, t)}`
       : rule.window?.mode === 'latestN' ? `${t('recentDuration')} ${rule.window.size} ${t('readings')}` : t('latestReading')
-    return rule.window?.mode === 'none' || rule.type === 'raw' ? range : `${range} · ${t(`statistic_${rule.aggregation || 'avg'}`)}`
+    return rule.window?.mode === 'none' || rule.type === 'raw' ? range : `${range} · ${aggregationName(rule.timeAggregation || rule.aggregation || 'avg',aggregations)}`
   }
   if (rule.temporalCondition) return `${ruleExpression(rule,'enterExpression') || '—'} · ${t('dwell')} ${simulationDuration(rule.temporalCondition.dwell, t)} · ${t('recovery')} ${simulationDuration(rule.temporalCondition.recovery, t)}`
   const parameters = rule.calculator?.parameters || {}

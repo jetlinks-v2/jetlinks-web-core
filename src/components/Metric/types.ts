@@ -85,6 +85,35 @@ export interface MetricCalculatorDescriptor {
   parameterDefinitions: MetricParameter[]
   documentation?: MetricCalculatorDocumentation
 }
+export interface MetricAggregationDescriptor {
+  id:string
+  name:string
+  description:string
+  icon:string
+  resultSemantics?:MetricStatisticSemantics
+  aggregation?:string
+  timeAggregation?:string
+  windowModes:string[]
+  timeModes:string[]
+  windowDefaults:Record<string,unknown>
+  parameterDefinitions:MetricParameter[]
+  inputNames:Record<string,string>
+  documentation?:MetricCalculatorDocumentation
+}
+/** 后端声明统计方法；不包含前端图表组件名或跨对象求和策略。 */
+export interface MetricStatisticSemantics {
+  procedure:string
+  characteristic:'level'|'total'|'count'|'extent'|'variance'|'deviation'|'rate'
+  unitRule:'source'|'difference'|'squared'|'perTime'|'count'
+}
+export interface MetricOutputSemantics {
+  statistic:MetricStatisticSemantics
+  sourceMetric:string
+  observedProperty?:MetricInputSemantics | null
+  unit?:string | null
+  timeUnit?:string | null
+  window:{mode:string;size?:string;timeMode:string;emitPolicy:string}
+}
 /** 算法版本附带的固定算例，仅作展示；不改变执行声明或代替模板试算。 */
 export interface MetricCalculatorDocumentation {
   formula?: string
@@ -99,6 +128,14 @@ export interface MetricCalculatorDocumentation {
     reason?: string
     estimated?: boolean
     explanation: string
+    visualization?: {
+      timeLabel:string
+      valueLabel:string
+      style:'line'|'step'|'bar'|'points'
+      samples:{offsetSeconds:number;value:unknown}[]
+      endSeconds?:number | null
+      guides:{fromTime:number;fromValue:number;toTime:number;toValue:number;label?:string | null}[]
+    }
   }[]
 }
 export interface MetricTemplateOutput {
@@ -108,6 +145,7 @@ export interface MetricTemplateOutput {
   labelI18nKey?: string
   unit?: string
   metricKind?: string
+  resultSemantics?:MetricOutputSemantics | null
   persist?: boolean
   latestOnly?: boolean
   publish?: boolean
@@ -318,6 +356,17 @@ export interface MetricHistoryRequest {
   targetId?: string
   dataVersion?: string
 }
+export type MetricHistoryOperation = 'avg' | 'min' | 'max' | 'last'
+export interface MetricHistoryAggregate {
+  operations: { id:MetricHistoryOperation; name:string; icon:string }[]
+  operation?:MetricHistoryOperation
+  interval:number
+  buckets:{ from:number; to:number; value?:number | null }[]
+}
+export interface MetricHistoryAggregateQuery {
+  output:string; targetType?:string; targetId?:string; dataVersion?:string
+  from:number; to:number; interval:number; operation?:MetricHistoryOperation
+}
 export interface MetricConfigHistory { recordedAt: number; configuration: MetricConfig; template: MetricTemplate }
 export interface MetricConfigHistoryPage { records: MetricConfigHistory[]; nextRevision?: number | null }
 export interface MetricSimulationRequest {
@@ -443,6 +492,7 @@ export interface MetricApi {
   /** 显式定制 API 的发现入口；默认 API 不配置，内置参考由 starters 注入。 */
   templateStarters?(): Promise<MetricTemplateStarter[]>
   calculators(): Promise<MetricCalculatorDescriptor[]>
+  aggregations(): Promise<MetricAggregationDescriptor[]>
   simulateConfig(request: MetricConfigSimulationRequest): Promise<MetricSimulationResponse>
   getConfig(id: string, target?: MetricDataTarget): Promise<MetricConfig>
   byOwner(type: string, id: string): Promise<MetricConfig[]>
@@ -455,6 +505,7 @@ export interface MetricApi {
   watchResults?(id: string, request: MetricHistoryRequest & { intervalOutputs?: string[]; intervalQuery?: Record<string, unknown>; interval: number }, onFrame: (frame: MetricResultFrame) => void, onError: (cause: unknown) => void): () => void
   subscribe?(target: MetricDataTarget, interval: number, onValue: (value: MetricValue) => void, onError: () => void): () => void
   history(id: string, request: MetricHistoryRequest): Promise<MetricValue[]>
+  aggregateHistory?(id:string, query:MetricHistoryAggregateQuery, signal?:AbortSignal):Promise<MetricHistoryAggregate>
   historyVersions?(id: string, before?: number, target?: { targetType: string; targetId: string }): Promise<MetricConfigHistoryPage>
   execution?(id:string, output:string, query:({resultId:string;executionId?:never} | {executionId:string;resultId?:never}) & Partial<MetricDataTarget>, signal?:AbortSignal):Promise<MetricExecutionSnapshot | undefined>
   queryTemplates(query: Record<string, unknown>): Promise<{ data: MetricTemplateEntity[]; total: number }>

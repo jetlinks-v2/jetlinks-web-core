@@ -67,7 +67,8 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
+import { metricAggregationsKey } from '../calculatorContext'
 import { inputIdentityIssue } from './inputIdentity'
 import ReadAggregationEditor from '../collection/ReadAggregationEditor.vue'
 import { useI18n } from 'vue-i18n'
@@ -90,6 +91,7 @@ import { calculationKind, calculationFields, type CalculationKind } from './wind
 const props = defineProps<{ template: MetricTemplate; node: TemplateNode; disabled?: boolean; published?: boolean; calculators?: MetricCalculatorDescriptor[] }>()
 const emit = defineEmits<{ (event: 'patch', fields: Record<string, unknown>): void; (event: 'invalid', value: boolean): void; (event: 'messages', value: Record<string, Record<string, string>>): void }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
+const aggregations = inject(metricAggregationsKey,undefined)
 const types = computed(()=>metricTypeOptions(t))
 const input = computed(() => props.template.inputDefinitions[props.node.index] as MetricTemplateInput & { maxAge?: string; minSamples?: number; defaultValue?: unknown })
 const output = computed(() => props.template.outputs[props.node.index])
@@ -123,7 +125,7 @@ const sourceNode = computed<TemplateNode | undefined>(() => {
   const rule = props.template.definitions.findIndex(item => item.id === output.value.metricId)
   if (rule >= 0) return { kind:'rule', index:rule }
 })
-const sourceSummary = computed(() => sourceNode.value && graphNodeSummary(displayTemplate.value, sourceNode.value, t, props.calculators))
+const sourceSummary = computed(() => sourceNode.value && graphNodeSummary(displayTemplate.value, sourceNode.value, t, props.calculators,locale.value,aggregations?.value))
 function toggleOutput(field: 'persist' | 'publish') {
   if (props.disabled || props.published && field === 'persist') return
   emit('patch', { [field]:field === 'persist' ? output.value.persist === false : output.value.publish !== true })
@@ -168,7 +170,7 @@ function chooseKind({ key }: { key: string | number }) { changeKind(key as Calcu
 .node-editor :deep(.template-clause.is-stacked) { padding:0; margin-bottom:16px }
 .node-editor :deep(.template-clause.is-stacked > .template-clause__icon) { margin:0 }
 .node-editor :deep(.template-clause.is-stacked > .template-clause__body) { display:contents }
-.node-editor :deep(.template-clause.is-stacked .template-clause__content) { display:block }
+.node-editor :deep(.template-clause.is-stacked > .template-clause__body > .template-clause__content) { display:block }
 .node-editor :deep(.template-clause__body > small) { grid-column:1/-1; margin:0; font-size:12px; line-height:1.6 }
 .node-editor > details > summary { display:flex; align-items:center; gap:8px; padding:8px 0; color:var(--ink-3); font-size:13px; cursor:pointer }
 .node-editor__id { height:24px; min-height:24px; line-height:24px; font-size:12px; color:var(--ink-3); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; user-select:text; text-align:right }

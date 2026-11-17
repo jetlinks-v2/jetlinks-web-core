@@ -4,10 +4,11 @@ import { expressionLabel, ruleExpression, templateGraphLayout, type TemplateNode
 import { ruleFormulaReferences } from './formula'
 import { findCalculator } from './algorithm'
 import { calculatorIcon } from './calculatorPresentation'
+import { aggregationIcon } from './aggregationPresentation'
 import { parameterConstraints, parameterTypeKeys } from '../parameterPresentation'
 import { metricValueLabels, metricValueSchema, metricValueUnit, schemaValueLabels, type ValueSchema } from '../valueSemantics'
 import { i18nText } from '../../I18n/text'
-import type { MetricCalculatorDescriptor, MetricStateLabel, MetricTemplate } from '../types'
+import type { MetricCalculatorDescriptor, MetricStateLabel, MetricTemplate, MetricAggregationDescriptor } from '../types'
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
 type Graph = ReturnType<typeof templateGraph>
@@ -52,7 +53,7 @@ export function ruleTriggerSummary(rule:TemplateRule,t:Translate):string {
 }
 
 /** 图摘要只解释已有配置，不推断时间对齐、采样或计算结果。 */
-export function graphNodeSummary(template: MetricTemplate, node: TemplateNode, t: Translate, calculators: MetricCalculatorDescriptor[] = [], locale = 'zh'): NodeSummary {
+export function graphNodeSummary(template: MetricTemplate, node: TemplateNode, t: Translate, calculators: MetricCalculatorDescriptor[] = [], locale = 'zh', aggregations:MetricAggregationDescriptor[] = []): NodeSummary {
   if (node.kind === 'input') {
     const input = template.inputDefinitions[node.index]
     return { icon: 'ImportOutlined', text: input.source?.lookback ? `${t('historySeries')} · ${t('recentDuration')} ${simulationDuration(input.source.lookback, t)}` : t('latestReading'),
@@ -85,9 +86,9 @@ export function graphNodeSummary(template: MetricTemplate, node: TemplateNode, t
       text:descriptor?.name || expressionLabel(template,operation,names),detail:timing,detailIcon,
       description:operation !== rule.calculator.provider ? expressionLabel(template,operation,names) : descriptor?.description}
   }
-  return { icon: kind === 'statistics' ? 'BarChartOutlined' : 'FunctionOutlined', method:t(kind === 'statistics' ? 'statistics' : 'expression'), expression: source, condition,detailIcon,
-    text: kind === 'statistics' ? simulationOperation(rule, t) : expressionLabel(template, source, names) || t('expression'),
-    detail: kind === 'statistics' && source ? `${simulationOperation(rule, t)} · ${timing}` : timing }
+  return { icon: kind === 'statistics' ? aggregationIcon(rule.timeAggregation || rule.aggregation,aggregations) : 'FunctionOutlined', method:t(kind === 'statistics' ? 'statistics' : 'expression'), expression: source, condition,detailIcon,
+    text: kind === 'statistics' ? simulationOperation(rule, t,aggregations) : expressionLabel(template, source, names) || t('expression'),
+    detail: kind === 'statistics' && source ? `${simulationOperation(rule, t,aggregations)} · ${timing}` : timing }
 }
 
 /** 只合并相邻、同层且统计时间口径一致的节点；分组不成为执行容器。 */
@@ -108,7 +109,7 @@ export function graphTimeGroups(template: MetricTemplate, graph: Graph, t: Trans
   for (const node of graph.nodes) {
     const rule = node.kind === 'rule' ? template.definitions[node.index] as TemplateRule : undefined
     const window = rule?.window
-    const key = rule && !rule.windowFamily && rule.aggregation && (window?.mode === 'time' || window?.mode === 'latestN')
+    const key = rule && !rule.windowFamily && (rule.aggregation || rule.timeAggregation) && (window?.mode === 'time' || window?.mode === 'latestN')
       ? JSON.stringify([node.level, window.mode, window.mode === 'time' ? durationSeconds(window.size) ?? window.size : window.size,
         window.timeMode || 'processing', window.emitPolicy || 'onEvent', window.emitInterval, window.step, window.allowedLateness]) : ''
     if (!key || key !== previous) flush()

@@ -4,22 +4,21 @@
     <div class="algorithm-guide__content">
       <p v-if="invalid" class="algorithm-guide__warning" role="status">{{ t('guideInvalid') }}</p>
       <template v-else>
-        <CalculatorFormula v-if="documentation.formula" class="algorithm-guide__formula" :formula="documentation.formula" :description="descriptor?.description" :symbols="documentation.symbols" />
-        <ol v-if="documentation.steps?.length" class="algorithm-guide__steps"><li v-for="step in documentation.steps" :key="step">{{ step }}</li></ol>
         <section v-if="example" class="algorithm-guide__example" :aria-label="t('guideExample')">
           <div class="algorithm-guide__heading">
             <span>{{ t('guideExample') }}</span>
             <a-select v-if="documentation.examples.length > 1" :value="exampleIndex" size="small" :aria-label="t('guideChooseExample')" :options="documentation.examples.map((item,index)=>({value:index,label:item.name}))" @change="selectExample" />
             <strong v-else>{{ example.name }}</strong>
           </div>
-          <div v-for="(samples,alias) in example.inputs" :key="alias" class="algorithm-guide__input">
-            <span class="algorithm-guide__label">{{ descriptor?.inputNames[alias] || alias }}</span>
+          <ExamplePlot v-if="example.visualization" :plot="example.visualization" :label="example.name" />
+          <template v-else><div v-for="(samples,alias) in example.inputs" :key="alias" class="algorithm-guide__input">
+            <span class="algorithm-guide__label">{{ descriptor?.inputNames?.[alias] || alias }}</span>
             <ol class="algorithm-guide__samples"><li v-for="(sample,index) in samples" :key="index"><strong>{{ format(sample.value) }}</strong><small>{{ sample.offsetSeconds }}s</small></li></ol>
-          </div>
+          </div></template>
           <div class="algorithm-guide__result">
             <span class="algorithm-guide__label">{{ t('guideResult') }}</span>
             <dl v-if="resultFields.length" class="algorithm-guide__fields"><div v-for="field in resultFields" :key="field.id"><dt>{{ field.name }}</dt><dd>{{ format(field.value) }}<small v-if="field.unit"> {{ field.unit }}</small></dd></div></dl>
-            <strong v-else>{{ example.reason ? t('guideNoValue') : format(example.result) }}<small v-if="!example.reason && descriptor?.configuration.outputUnit"> {{ descriptor.configuration.outputUnit }}</small></strong>
+            <strong v-else>{{ example.reason ? t('guideNoValue') : format(example.result) }}<small v-if="!example.reason && descriptor?.configuration?.outputUnit"> {{ descriptor.configuration.outputUnit }}</small></strong>
             <span v-if="example.estimated" class="algorithm-guide__estimated">{{ t('guideEstimated') }}</span>
           </div>
           <p class="algorithm-guide__explanation">{{ example.explanation }}</p>
@@ -28,6 +27,11 @@
             <dl><div v-for="item in parameters" :key="item.id"><dt>{{ item.name }}</dt><dd>{{ item.value }}</dd></div><div><dt>{{ t('guideCutoff') }}</dt><dd>{{ example.cutoffSeconds }}s</dd></div></dl>
           </details>
         </section>
+        <details v-if="documentation.formula || documentation.steps?.length" class="algorithm-guide__reference">
+          <summary>{{ t('guideFormula') }}</summary>
+          <CalculatorFormula v-if="documentation.formula" class="algorithm-guide__formula" :formula="documentation.formula" :description="descriptor?.description" :symbols="documentation.symbols" />
+          <ol v-if="documentation.steps?.length" class="algorithm-guide__steps"><li v-for="step in documentation.steps" :key="step">{{ step }}</li></ol>
+        </details>
       </template>
     </div>
   </details>
@@ -36,11 +40,12 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CalculatorFormula from './CalculatorFormula.vue'
+import ExamplePlot from './ExamplePlot.vue'
 import type { MetricCalculatorDescriptor } from '../types'
 import { metricMessages } from '../messages'
 import { algorithmGuideMessages } from './algorithmGuideMessages'
 
-const props = defineProps<{ descriptor?:MetricCalculatorDescriptor; invalid?:boolean }>()
+const props = defineProps<{ descriptor?:Pick<MetricCalculatorDescriptor,'description'|'documentation'> & Partial<Pick<MetricCalculatorDescriptor,'configuration'|'inputNames'|'parameterDefinitions'>>; invalid?:boolean }>()
 const { t, locale } = useI18n({ useScope:'local', messages:{ zh:{...metricMessages.zh,...algorithmGuideMessages.zh}, en:{...metricMessages.en,...algorithmGuideMessages.en} } })
 const documentation = computed(() => props.descriptor?.documentation)
 const exampleIndex = ref(0)
@@ -58,7 +63,7 @@ function format(value:unknown):string {
 const resultFields = computed(() => {
   const value=example.value?.result
   if(!value || typeof value !== 'object' || Array.isArray(value))return []
-  const fields=props.descriptor?.configuration.outputType?.properties
+  const fields=props.descriptor?.configuration?.outputType?.properties
   return Object.entries(value).map(([id,value])=>{
     const field=Array.isArray(fields) ? fields.find(item=>item.id === id) : undefined
     return {id,name:field?.name || id,unit:field?.valueType?.unit,value}
@@ -67,7 +72,7 @@ const resultFields = computed(() => {
 const parameters = computed(() => {
   const descriptor=props.descriptor
   const definitions=descriptor?.parameterDefinitions || []
-  return Object.entries({...descriptor?.configuration.parameters,...example.value?.parameters})
+  return Object.entries({...descriptor?.configuration?.parameters,...example.value?.parameters})
     .filter(([id])=>definitions.some(item=>item.id === id))
     .map(([id,value])=>{
       const field=definitions.find(item=>item.id === id)!
@@ -87,7 +92,7 @@ const parameters = computed(() => {
 .algorithm-guide__content { padding-top:4px; overflow-wrap:anywhere }
 .algorithm-guide__formula { padding:6px 0 }
 .algorithm-guide__steps { margin:4px 0 12px; padding-left:18px; color:var(--ink-3) }
-.algorithm-guide__example { border-top:1px solid var(--line); padding-top:10px }
+.algorithm-guide__example { padding-top:4px }
 .algorithm-guide__heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; color:var(--ink-3) }
 .algorithm-guide__heading strong { font-weight:500; color:var(--ink-2) }
 .algorithm-guide__heading .ant-select { min-width:0; max-width:70% }
@@ -108,5 +113,7 @@ const parameters = computed(() => {
 .algorithm-guide__parameters { color:var(--ink-3); font-size:11px }
 .algorithm-guide__parameters summary { cursor:pointer }
 .algorithm-guide__parameters dl { margin:6px 0 0 }
+.algorithm-guide__reference { margin-top:10px; color:var(--ink-3); font-size:12px }
+.algorithm-guide__reference > summary { cursor:pointer; padding:4px 0 }
 .algorithm-guide__warning { margin:0; color:var(--warning,#ad6800) }
 </style>

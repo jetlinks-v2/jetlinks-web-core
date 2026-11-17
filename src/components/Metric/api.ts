@@ -4,7 +4,7 @@ import { createRuntimeNdJson } from '../../utils/ndjson'
 import { parseJsonResponseWithPrecision } from '../../utils/json'
 import { map } from 'rxjs'
 import { createMetricResultStreams, type MetricWatchFrame } from './resultStreams'
-import type { MetricApi, MetricBuiltinItem, MetricCalculatorDescriptor, MetricConfig, MetricLatest, MetricTemplate, MetricTemplateEntity, MetricTemplateRevision, MetricValue, MetricSimulationResponse, MetricResultFrame } from './types'
+import type { MetricApi, MetricBuiltinItem, MetricCalculatorDescriptor, MetricAggregationDescriptor, MetricConfig, MetricLatest, MetricTemplate, MetricTemplateEntity, MetricTemplateRevision, MetricValue, MetricSimulationResponse, MetricResultFrame } from './types'
 
 const options = { hiddenError: true, transformResponse: [parseJsonResponseWithPrecision] }
 const http: Pick<Request, 'get' | 'post' | 'put' | 'remove'> = request
@@ -45,6 +45,7 @@ export const metricApi: MetricApi = {
     return [...items].sort((a,b) => (a.ordinal || 0) - (b.ordinal || 0)).map(item => ({ value:item.value, label:item.text }))
   },
   calculators: async () => result(await http.get<MetricCalculatorDescriptor[]>('/metric/templates/calculators', undefined, options)),
+  aggregations: async () => result(await http.get<MetricAggregationDescriptor[]>('/metric/templates/aggregations', undefined, options)),
   simulateConfig: async simulation => result(await http.post<MetricSimulationResponse>('/metric/configs/simulate', simulation, options)),
   getConfig: async (configId, target) => result(await http.get<MetricConfig>(`/metric/configs/${id(configId)}`, target, options)),
   byOwner: async (type, ownerId) => result(await http.get<MetricConfig[]>(`/metric/configs/owner/${id(type)}/${id(ownerId)}`, undefined, options)),
@@ -77,6 +78,7 @@ export const metricApi: MetricApi = {
     return () => subscription.unsubscribe()
   },
   history: async (configId, query) => result(await http.post<MetricValue[]>(`/metric/configs/${id(configId)}/history`, query, options)),
+  aggregateHistory: async (configId, query, signal) => result(await http.post<import('./types').MetricHistoryAggregate>(`/metric/configs/${id(configId)}/history/aggregate`, query, { ...options, signal })),
   historyVersions: async (configId, before, target) => result(await http.get<import('./types').MetricConfigHistoryPage>(`/metric/configs/${id(configId)}/history-versions`, { before, ...target }, options)),
   execution: async (configId, output, query, signal) => result(await http.get<import('./types').MetricExecutionSnapshot | undefined>(`/metric/configs/${id(configId)}/execution/${id(output)}`, query, { ...options, signal })),
   queryTemplates: async query => result(await http.post<{ data: MetricTemplateEntity[]; total: number }>('/metric/templates/_query', query, options)),

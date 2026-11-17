@@ -17,10 +17,11 @@
     </template>
     <template v-else-if="rule">
       <p v-if="dependencies.length" class="config-node__dependencies"><span>{{ t('configUses') }}</span><button v-for="item in dependencies" :key="item.id" type="button" @click="emit('locate', item.id)"><AIcon type="LinkOutlined" />{{ item.label }}</button></p>
+      <TemplateWindowDescription v-if="isStatistics" :rule="rule" :catalog="aggregations" :source="windowSourceLabel(template,rule,t('sentenceList'))" />
       <TemplateFormulaDisplay v-if="summary.expression" :template="template" :rule="rule" :expression="summary.expression" />
-      <p v-else class="config-node__meaning">{{ summary.text }}</p>
+      <p v-else-if="!isStatistics" class="config-node__meaning">{{ summary.text }}</p>
       <p><AIcon type="ClockCircleOutlined" />{{ summary.detail }}</p>
-      <p v-if="rule.window?.size">{{ t('configWindow') }} · {{ rule.window.mode === 'latestN' ? t('configMinSamples', { count:rule.window.size }) : simulationDuration(rule.window.size, t) }}</p>
+      <p v-if="!isStatistics && rule.window?.size">{{ t('configWindow') }} · {{ rule.window.mode === 'latestN' ? t('configMinSamples', { count:rule.window.size }) : simulationDuration(rule.window.size, t) }}</p>
       <p v-if="rule.maxInputSkew">{{ t('configSkew', { duration:simulationDuration(rule.maxInputSkew, t) }) }}</p>
       <div v-if="rule.applicabilityExpression" class="config-node__condition"><small>{{ t('applicability') }}</small><TemplateFormulaDisplay :template="template" :rule="rule" :expression="rule.applicabilityExpression" compact /></div>
       <p v-if="rule.stateTracking">{{ t('configStateGap', { duration:simulationDuration(rule.stateTracking.maxNoData, t) }) }}</p>
@@ -35,7 +36,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { i18nText } from '../I18n/text'
 import TemplateFormulaDisplay from './template/formula/TemplateFormulaDisplay.vue'
@@ -43,6 +44,10 @@ import { metricMessages } from './messages'
 import { metricValueText } from './presentation'
 import { nodeLabel, nodeList, ruleDependencies, type TemplateNode, type TemplateRule } from './template/designer'
 import { graphNodeSummary } from './template/graphPresentation'
+import { metricCalculatorsKey, metricAggregationsKey } from './calculatorContext'
+import { calculationKind } from './template/window'
+import { windowSourceLabel } from './template/windowPresentation'
+import TemplateWindowDescription from './template/TemplateWindowDescription.vue'
 import { simulationDuration } from './template/simulationFlow'
 import { sourceScheduleMissing } from './sourcePolicy'
 import type { MetricConfig, MetricSourceDescription, MetricSourcePicker, MetricStateLabel, MetricTemplate, MetricTemplateInput } from './types'
@@ -53,7 +58,10 @@ const input = computed(() => props.node?.kind === 'input' ? props.template.input
 const mapping = computed(() => input.value && props.configuration.inputMappings[input.value.id])
 const rule = computed(() => props.node?.kind === 'rule' ? props.template.definitions[props.node.index] as TemplateRule : undefined)
 const output = computed(() => props.node?.kind === 'output' ? props.template.outputs[props.node.index] : undefined)
-const summary = computed(() => graphNodeSummary(props.template, props.node!, t))
+const calculators=inject(metricCalculatorsKey,computed(()=>[]))
+const aggregations=inject(metricAggregationsKey,computed(()=>[]))
+const summary = computed(() => graphNodeSummary(props.template, props.node!, t,calculators.value,String(locale.value),aggregations.value))
+const isStatistics=computed(()=>!!rule.value && calculationKind(rule.value)==='statistics')
 const dependencies = computed(() => rule.value ? ruleDependencies(rule.value).map(id => {
   const node = nodeList(props.template).find(node => node.kind === 'input' ? props.template.inputDefinitions[node.index].id === id : node.kind === 'rule' && props.template.definitions[node.index].id === id)
   return { id, label:node ? nodeLabel(props.template,node) : id }

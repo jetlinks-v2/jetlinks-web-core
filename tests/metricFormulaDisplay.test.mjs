@@ -125,3 +125,29 @@ test('回放只展示后端记录值及采用分支，未知记录保留引用�
     assert.match(view.text(),/产线A耗电/)
   } finally {view.close()}
 })
+
+test('三项逻辑条件的二叉解释仍代入已记录数据，并标记实际采用结果',async()=>{
+  const view=mount('a > 0 && quantityA > 0 && quantityB > 0 ? a : 0')
+  const read=(id,value)=>({kind:'read',state:'available',path:[id],value,children:[]})
+  const skipped={kind:'unsupported',state:'skipped',children:[]}
+  const positive=(id,value)=>({kind:'operator',operation:'>',state:'available',value:value>0,children:[read(id,value),{kind:'literal',state:'available',value:0,children:[]}]})
+  try {
+    view.props.explanation={kind:'condition',state:'available',value:0,children:[
+      {kind:'operator',operation:'and',state:'available',value:false,children:[
+        {kind:'operator',operation:'and',state:'available',value:false,children:[positive('a',12),positive('quantityA',0)]},skipped]},
+      skipped,{kind:'literal',state:'available',value:0,children:[]}]}
+    view.props.format=node=>({text:String(node.value)})
+    view.props.rule.options={stateLabels:[{value:0,name:'未成立'}]}
+    await flush()
+    const reads=walk(view.root,node=>node.props.class?.includes('has-value'))
+    assert.equal(reads.length,2)
+    assert.ok(reads.some(node=>textContent(node).includes('12')))
+    const selected=walk(view.root,node=>node.props.class?.includes('is-selected'))
+    assert.equal(selected.length,1)
+    assert.match(textContent(selected[0]),/0/)
+    assert.match(textContent(view.root),/不成立/)
+    view.props.explanation=undefined;await flush()
+    assert.equal(walk(view.root,node=>node.props.class?.includes('has-value')).length,0)
+    assert.equal(walk(view.root,node=>node.props.class==='expression-branch__value').length,0)
+  }finally{view.close()}
+})

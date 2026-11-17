@@ -57,7 +57,7 @@
             :disabled="inaccessibleIds.includes(card.reference.configId) || !!error || !!latestErrors[card.reference.configId]"
             :aria-pressed="reference?.configId === secondary.reference.configId && reference?.outputId === secondary.reference.outputId"
             aria-haspopup="dialog" @click="select(secondary.reference.configId, secondary.reference.outputId)">
-            <span>{{ metricOutputName(secondary.output, templates[card.reference.configId]) || t('unnamedOutput') }}</span>
+            <span :title="metricOutputName(secondary.output, templates[card.reference.configId]) || t('unnamedOutput')">{{ metricOutputName(secondary.output, templates[card.reference.configId]) || t('unnamedOutput') }}</span>
             <span v-if="inaccessibleIds.includes(card.reference.configId) || error || latestErrors[card.reference.configId]">— <a-tag>{{ t(error || latestErrors[card.reference.configId] ? 'readFailed' : 'noAccess') }}</a-tag></span>
             <MetricValueView v-else :value="outputs[card.reference.configId]?.[secondary.reference.outputId]" :template="templates[card.reference.configId]" :output="secondary.output" :unit="secondary.output.unit" :settings="card.settings" :disabled="card.config.state === 'disabled'" hide-quality inline />
           </button>
@@ -109,9 +109,9 @@ import { useMetricPanel } from './useMetricPanel'
 import { metricHistoryKey, useMetricTrends } from './useMetricTrends'
 import { tracksStateIntervals } from './stateIntervals'
 import { metricConfigurationIcon } from './extensions/presentationSettings'
-import { metricCalculatorsKey } from './calculatorContext'
+import { metricCalculatorsKey, metricAggregationsKey } from './calculatorContext'
 import { metricSourcePickerKey } from './useMetricSourceTemplate'
-import { useMetricCalculators } from './useMetricCalculators'
+import { useMetricCalculators, useMetricAggregations } from './useMetricCalculators'
 import { metricResultKey, metricDataTarget } from './service'
 import { metricOutputName } from './presentation'
 import { localizedTemplate } from './template/text'
@@ -123,6 +123,7 @@ const configEditor = ref<InstanceType<typeof MetricConfigEditor>>()
 async function requestDismiss() { if (!editorOpen.value || await configEditor.value?.canLeave()) dismissDrawer() }
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 provide(metricCalculatorsKey, useMetricCalculators(locale))
+provide(metricAggregationsKey, useMetricAggregations(locale))
 provide(metricSourcePickerKey, toRef(props,'pickSource'))
 const { configurations, templates: rawTemplates, outputs, runtimes, selectedLatest, itemErrors, inaccessibleIds, latestErrors, actionError, loading, error, busyId, selectedId, selected,
   selectedOutput, reference, cardGroups, select, editorOpen, editing, openEditor, closeDrawer, dismissDrawer, takeFocusReference, saved, refresh, setEnabled, remove, canManage, refreshInterval, receiveResult } = useMetricPanel(toRef(props, 'context'), undefined, toRef(props, 'initialReference'))
@@ -230,15 +231,19 @@ defineExpose({create:()=>openEditor(),async canLeave(){if(editorOpen.value && !a
 .metric-panel__card:disabled { cursor:default }
 .metric-panel__card:disabled:hover { border-color:var(--line) }
 .metric-panel__card.is-stopped { background:var(--bg-sunken); color:var(--ink-2) }
-.metric-panel__secondary-outputs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:center; flex:none; gap:8px 12px; padding:8px var(--space-4,16px); border-top:1px solid var(--line) }
+.metric-panel__secondary-outputs { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr)); align-content:start; flex:none; gap:12px 20px; padding:12px var(--space-4,16px); border-top:1px solid var(--line) }
 .metric-panel__secondary-outputs.is-link { padding-block:6px }
 .metric-panel__details { grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; border:0; background:transparent; padding:0; color:var(--ink-3); font:inherit; font-size:var(--fs-12,12px); cursor:pointer }
 .metric-panel__details:hover { color:var(--accent) }
 .metric-panel__details:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
 .metric-panel__details:disabled { cursor:default }
 .metric-panel__secondary { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:4px; min-width:0; padding:0; border:0; background:transparent; color:var(--ink-2); text-align:left; font:inherit; font-size:var(--fs-12,12px); cursor:pointer }
-.metric-panel__secondary > span { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-.metric-panel__secondary :deep(.metric-value--inline) { justify-content:flex-start; gap:4px }
+.metric-panel__secondary > span { min-width:0; max-width:100%; overflow-wrap:anywhere; color:var(--ink-3); line-height:1.5 }
+.metric-panel__secondary :deep(.metric-value) { min-width:0; max-width:100% }
+.metric-panel__secondary :deep(.metric-value__main strong) { white-space:normal; overflow-wrap:anywhere }
+.metric-panel__secondary :deep(.metric-value--inline) { justify-content:flex-start; gap:4px 8px; line-height:1.5 }
+.metric-panel__secondary :deep(.metric-value__main) { align-items:center; gap:6px; min-height:22px }
+.metric-panel__secondary :deep(.metric-value__inline-issue) { flex-basis:100%; line-height:1.5 }
 .metric-panel__secondary.is-score :deep(.metric-value__main strong) { color:var(--ink-1); font-size:18px; line-height:20px }
 .metric-panel__secondary:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
 .metric-panel__secondary:hover,.metric-panel__secondary[aria-pressed=true] { color:var(--accent) }

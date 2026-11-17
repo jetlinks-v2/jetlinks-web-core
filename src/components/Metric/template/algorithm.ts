@@ -5,6 +5,7 @@ import { copy } from '../service'
 import { metricSourceMatchesType } from '../sourceSchema'
 import { encodeConfiguration } from './configurationText'
 import { calculatorInputParameters, calculatorInputsMatch } from '../calculatorDescriptor'
+import { resolveMetricResultType } from './resultTypes'
 export { findCalculator } from '../calculatorDescriptor'
 export { calculatorInputParameters } from '../calculatorDescriptor'
 
@@ -15,8 +16,7 @@ export function interactiveCalculator(spec: MetricCalculatorSpec | undefined, de
 export function algorithmSources(template: MetricTemplate, rule: TemplateRule) {
   return ruleDataReferences(template, rule).map(item => {
     const input = template.inputDefinitions.find(input => input.id === item.id)
-    const calculation = template.definitions.find(definition => definition.id === item.id) as TemplateRule | undefined
-    return { ...item, valueType: input?.valueType || calculation?.calculator?.outputType, lookback: input?.source?.lookback }
+    return { ...item, valueType: resolveMetricResultType(template,item.id).schema, lookback: input?.source?.lookback }
   })
 }
 /** 来源候选和算法切换共用角色类型；空元素类型表示由来源声明实际类型。 */
@@ -28,7 +28,7 @@ export function algorithmSourceMatches(spec:MetricCalculatorSpec, alias:string, 
   return !!descriptor?.parameterDefinitions.some(parameter => parameter.expands?.typeFromInput === alias)
     || metricSourceMatchesType(element(required),element(actual))
 }
-/** 优先保留同名输入；只在来源与目标均唯一时迁移别名，不按位置猜测多输入的用途。 */
+/** 优先保留同名输入；只迁移类型对应唯一的角色，不按位置猜测多输入的用途。 */
 export function chooseAlgorithm(rule: TemplateRule, item: MetricCalculatorDescriptor, sources: {id:string;valueType?:Record<string,unknown>}[] = []): Partial<TemplateRule> {
   const calculator = copy(item.configuration)
   // 同一可选输入角色跨算法保留，不要求调用方约定特定别名。
@@ -59,12 +59,18 @@ export function chooseAlgorithm(rule: TemplateRule, item: MetricCalculatorDescri
     const input = previous.find(input => input.id === alias && (input.metricId || input.source))
     if (input && compatible(input,alias)) assigned.set(alias,input)
   }
-  const remaining = aliases.filter(alias => !assigned.has(alias))
-  const used = new Set(assigned.values())
-  const unused = previous.filter(input => (input.metricId || input.source) && !used.has(input))
-  if (remaining.length === 1) {
-    const candidates = unused.filter(input => compatible(input,remaining[0]))
-    if (candidates.length === 1) assigned.set(remaining[0],candidates[0])
+  let progress = true
+  while (progress) {
+    progress = false
+    const remaining = aliases.filter(alias => !assigned.has(alias))
+    const used = new Set(assigned.values())
+    const unused = previous.filter(input => (input.metricId || input.source) && !used.has(input))
+    for (const alias of remaining) {
+      const candidates = unused.filter(input => compatible(input,alias))
+      if (candidates.length === 1 && remaining.filter(role => compatible(candidates[0],role)).length === 1) {
+        assigned.set(alias,candidates[0]); progress = true
+      }
+    }
   }
   const inputs = [...assigned].map(([id,input]) => {
     setAlgorithmInputType(calculator,id,sourceType(input),item)
