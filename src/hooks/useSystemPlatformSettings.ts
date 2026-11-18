@@ -14,8 +14,7 @@ export function useSystemPlatformSettings(mode: PlatformSettingsMode, save: Plat
   const user = useUserStore()
   const { t } = useI18n()
   const uploads = reactive(new Set<string>())
-  // 按账号而不是运行模式授权；isAdmin 也包含项目负责人。
-  const canConfigureLanguages = () => user.userInfo.username === 'admin'
+  const canConfigureLanguages = () => user.isSuperAdmin
   const state = usePlatformSettings({
     async load() {
       const response = await system.queryInfo()

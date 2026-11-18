@@ -24,7 +24,10 @@ const languageOptions = load('locales/languageOptions.ts')
 const model = load('components/PlatformSettings/model.ts', { '../../locales/languageOptions': languageOptions })
 const sectionHooks = load('components/PlatformSettings/usePlatformSettingsSection.ts', { './model': model })
 const registry = load('components/PlatformSettings/fieldRegistry.ts')
-const user = vue.reactive({ userInfo: {} })
+const user = vue.reactive({
+  userInfo: {},
+  get isSuperAdmin() { return this.userInfo.username === 'admin' },
+})
 const saas = load('../../modules/saas-runtime-ui/index.ts', {
   '@jetlinks-web-core/locales': { global: { t: key => key } },
   '@jetlinks-web-core/store': { handleSiderBreadcrumb: value => value },

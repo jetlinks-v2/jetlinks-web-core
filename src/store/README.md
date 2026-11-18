@@ -33,6 +33,7 @@
 - 运营端 `useSystemStore` 在单域或批量读取 `front` 成功后应用 `front.languages`，统一提供 `languageOptions` 和 `selectLanguage`。实际请求语言与手动偏好分别缓存；项目、应用、微应用不读取该策略。
 - 菜单 `code`/`url` 标识路由，`meta.componentCode` 或 `options.meta.componentCode` 定位复用的页面组件。项目端规范化保留组件定位，只清理废弃的 `authCode`/`authCodes`；`handleMenus` 对一级页面也按同一组件定位规则包裹布局。发布菜单无需新增公开路由或修改权限映射。
 - `useAuthStore.hasOnlyApplicationRoles()` 使用禁用应用 Scope 的认证维度，仅在有效角色非空且全部带有应用 ID 时返回 true；结果和并发查询只属于当前会话，`init()` 清空缓存并拒绝旧会话迟到结果。默认入口分流由 `router/default-entry.ts` 消费，不改变菜单按钮权限的既有设置方式。
+- `useUserStore().isSuperAdmin` 仅表示当前登录账号的用户名是 `admin`，不持久化；`getUserInfo()` 和消防运行时经 `setUserInfo()` 更新，清空用户信息时一并归零。`isAdmin` 还包含 `projectManager` 与 `projectOwner`，不能替代超管判定。
 - 新增或稳定调整 Store 时同步更新本索引，说明状态范围、action、副作用和持久化边界。
 
 `useAIStore.queryAgent` 复用同一 active client 的部署、合并同一有效 pending 查询，只刷新页面参数；`prepare/release` 或切换 owner 后的旧响应不会生效。部署结果不跨权限作用域持久缓存，失败后的后续调用仍可重试。

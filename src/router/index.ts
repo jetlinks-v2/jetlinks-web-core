@@ -142,11 +142,13 @@ const handleApplicationStartupError = (
 }
 
 const getAdministratorRouteRedirect = (to: RouteLocationNormalized) => {
-  const requiresAdministrator = to.matched.some(
-    record => record.meta.security === RouteSecurityLevel.ADMINISTRATOR
-  )
+  const user = useUserStore()
+  const denied = to.matched.some(({ meta }) => (
+    (meta.security === RouteSecurityLevel.SUPER_ADMIN && !user.isSuperAdmin)
+    || (meta.security === RouteSecurityLevel.ADMINISTRATOR && !user.isAdmin)
+  ))
 
-  if (!requiresAdministrator || useUserStore().isAdmin) {
+  if (!denied) {
     return
   }
 

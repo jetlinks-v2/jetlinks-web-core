@@ -41,6 +41,8 @@ export interface UserInfo {
 
 export const useUserStore = defineStore('user', () => {
   const userInfo = ref<Partial<UserInfo>>({})
+  // 仅内置 admin 账号；isAdmin 还包含项目管理员和项目所有者。
+  const isSuperAdmin = ref(false)
   const isAdmin = ref(false)
   const isApplicationUser = ref(false)
   const isSubAccount = computed(() => userInfo.value?.type?.id === 'subAccount')
@@ -58,6 +60,7 @@ export const useUserStore = defineStore('user', () => {
    */
   const setUserInfo = (data: Partial<UserInfo>) => {
     userInfo.value = data
+    isSuperAdmin.value = data.username === 'admin'
   }
 
   /**
@@ -68,7 +71,7 @@ export const useUserStore = defineStore('user', () => {
     if (resp.success) {
       const userInfo = pick(resp.result, ['id', 'username', 'name', 'avatar'])
       setUserInfo(resp.result)
-      isAdmin.value = resp.result.username === 'admin' || ['projectManager', 'projectOwner'].includes(resp.result?.type?.id)
+      isAdmin.value = isSuperAdmin.value || ['projectManager', 'projectOwner'].includes(resp.result?.type?.id)
       isApplicationUser.value = resp.result.type?.id === 'application'
       LocalStore.set('userId', resp.result?.id)
       LocalStore.set('user_info', userInfo)
@@ -79,7 +82,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const init = () => {
-    userInfo.value = {}
+    setUserInfo({})
     isAdmin.value = false
     isApplicationUser.value = false
     tabKey.value = tabList?.[0]?.key || 'HomeView'
@@ -98,6 +101,7 @@ export const useUserStore = defineStore('user', () => {
     userInfo,
     alarmUpdateCount,
     unreadNoticeCount,
+    isSuperAdmin,
     isAdmin,
     isApplicationUser,
     isSubAccount,

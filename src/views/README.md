@@ -39,6 +39,20 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 构建与静态检查：`pnpm build`、`pnpm build:standalone` 通过；根目录、runtime、core 和 authentication 模块的 `git diff --check` 通过。分别执行 `pnpm exec vue-tsc --noEmit -p jetlinks-web-core/tsconfig.json`、`pnpm exec vue-tsc --noEmit -p modules/authentication-manager-ui/tsconfig.json`、`pnpm exec vue-tsc --noEmit -p modules/saas-runtime-ui/tsconfig.json`，全量检查仍分别有 511、540、382 条既有诊断（包括旧播放器、表格及路由类型）；本次共享组件、配置/初始化 hooks、页面适配器和域名组件没有诊断。全量类型检查尚未通过，需修复既有问题后重跑上述命令。运行时未配置独立 lint 或 `check:ui-style` 脚本；构建仍提示既有大包、三张资源图片解析警告及 visualization player 未构建（部署导出不可用）。本次不新增后端接口或迁移；按用户要求提交到当前分支，不推送或部署。
 
+## 初始化页与超管账号判定
+
+`runtime-ui/jetlinks-web-core/src/store/user.ts` 提供 `isSuperAdmin`，仅当前会话账号的 `username === 'admin'` 时为 `true`。`getUserInfo()` 成功时通过 `setUserInfo()` 更新，退出和切换会话时随用户信息清空；`modules/fire-control-saas-ui/runtime/store/user.ts` 的独立刷新与重置也走同一入口。通用 `isAdmin` 继续包含 `projectManager`、`projectOwner`。
+
+- **初始化页**：`src/router/basic.ts` 将 `/init-home` 标记为 `SUPER_ADMIN`，`src/router/index.ts` 会话恢复后读取 `isSuperAdmin`。非 `admin` 命中路由守卫时转 `/404`，未登录仍转登录页；`src/views/login/hooks/useLoginSuccess.ts`、`src/views/relogin/components/useReloginForm.ts` 只对 `admin` 检查初始化标记并按需跳转。
+- **既有超管控件**：`src/hooks/useSystemPlatformSettings.ts` 的平台可用语言设置、`modules/saas-runtime-ui/index.ts` 的登录背景和备案设置、`modules/authentication-manager-ui/views/system/Menu/index.vue` 的菜单配置按钮统一读 `isSuperAdmin`，保留各处已有菜单和操作权限。
+- **边界**：不批量替换其他 `isAdmin`。被编辑的 `admin` 账号保护、成员候选过滤和设备首页默认视图保持原逻辑；运营端 `ui/`、其他路由及后端接口授权不变。
+
+验证：core `pnpm test:application-runtime` 243 个场景通过，包含实际 Store、路由守卫、登录及重登录逻辑在模拟 HTTP 下的四类账号矩阵、未登录跳转、已初始化不自动跳转、会话清理。core `node --test tests/platformSettings.test.mjs tests/loginNavigation.test.mjs` 在提交快照中 54 项通过；消防 `node --test tests/project-manager-tenant-context.test.cjs tests/fire-runtime-role-layout.test.cjs` 9 项通过；菜单配置按钮的 SFC 编译验证通过。运行 `tests/relogin.test.mjs` 和认证模块 `tests/menuSettingOwners.test.mjs` 时，旧夹具分别缺少 `router/login-session`、`utils/application-scope`，未通过；修复夹具后以 `node --test` 重跑对应文件。未使用真实登录账号或调用真实初始化接口。
+
+构建与静态检查：`git diff --check` 通过，未发现独立 lint 脚本。从 `runtime-ui` 以 `pnpm exec vue-tsc --noEmit -p <目录>/tsconfig.json` 检查 core、认证、SaaS、消防，分别仍有 511、538、385、1599 条诊断，本次改动行未出现诊断。全量构建在 10 GB Node 堆上限下内存不足；相关三模块定向构建被设备模板页引用的 `@device-manager-ui/assets` 未导出 `device` 阻塞。修复资源导出并使用足够的 Node 堆后，在 `runtime-ui` 重跑 `pnpm build` 与各模块类型检查。
+
+关联模块提交：`authentication-manager-ui` `fa7c349`；`fire-control-saas-ui` `037b289`。
+
 ## 初始化角色授权
 
 初始化角色的菜单查询与角色详情共用 `src/api/system/menu.ts#getMenuGrantDetail`，通过 `/menu/role/{roleId}/_grant/detail` 读取。`init-home/Role/useInitializationRoles.ts` 从 `result.menus` 匹配预置菜单，缺少菜单数组时不提交授权；顶层 `assetAccesses` 是已保存策略，不作为菜单树或预置授权候选。保留初始化角色原有的预置权限及保存载荷。

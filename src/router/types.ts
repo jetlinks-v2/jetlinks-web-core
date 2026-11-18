@@ -8,8 +8,10 @@ export enum RouteSecurityLevel {
   PUBLIC = 'public',
   /** Token required, menu permission not required. */
   AUTHENTICATED = 'authenticated',
-  /** Platform administrator required. */
+  /** Administrator identity, including project administrators and project owners. */
   ADMINISTRATOR = 'administrator',
+  /** Only the built-in admin account is allowed. */
+  SUPER_ADMIN = 'super-admin',
   /** Token and menu permission required (default). */
   AUTHORIZED = 'authorized'
 }

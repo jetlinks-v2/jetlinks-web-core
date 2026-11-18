@@ -32,7 +32,7 @@
 
 清除按钮移除验证：`PlatformMapSection.vue` 删除按钮及确认弹窗，`usePlatformSettingsSection.ts` 移除仅服务该按钮的 `hasValues`，同步清理中英日专用文案。上述 37 项测试、地图组件样式检查和差异空白检查通过；未重跑浏览器、全量类型检查和完整构建，需完整验收时使用上述命令。
 
-超管编辑范围：SaaS 平台外观仅对当前用户 `username === 'admin'` 开放登录背景、备案号及显示开关，继续沿用 `system/Basis:update` 编辑权限；`projectManager` / `projectOwner` 和普通账号仍隐藏这两项，接口基础地址继续对所有 SaaS 账号隐藏。不能以包含项目负责人的 `useUserStore().isAdmin` 代替平台超管身份。设置页随所在区块保存，初始化页随统一提交保存，后端仍使用现有 `front.background`、`front.recordNumber`、`front.showRecordNumber` 字段。
+超管编辑范围：SaaS 平台外观通过 `useUserStore().isSuperAdmin` 仅对当前登录的 `admin` 账号开放登录背景、备案号及显示开关，继续沿用 `system/Basis:update` 编辑权限；`projectManager` / `projectOwner` 和普通账号仍隐藏这两项，接口基础地址继续对所有 SaaS 账号隐藏。不能以包含项目负责人的 `useUserStore().isAdmin` 代替平台超管身份。设置页随所在区块保存，初始化页随统一提交保存，后端仍使用现有 `front.background`、`front.recordNumber`、`front.showRecordNumber` 字段。
 
 实现入口：`runtime-ui/modules/saas-runtime-ui/index.ts` 使用 `createHiddenBasisFormFields(fields, shouldHide)` 注册条件隐藏；core 的 `fieldRegistry.ts` 在消费时解析条件，`PlatformSettingsFields.ts` 和 `src/hooks/usePlatformSettings.ts` 共用该结果，保持配置行、预览、校验和提交过滤一致。身份晚于配置加载时回显新开放字段的已保存值，身份失去编辑资格后再次提交会过滤这些字段；隐藏字段及未知配置继续原样保留。运营端、后端接口、菜单和登录认证不变。
 

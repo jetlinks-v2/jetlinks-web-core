@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { build } from 'esbuild'
 import { AxiosHeaders } from 'axios'
+import { createRenderer } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 // Load memory routing before installing the location fixture, so Vue Router stays in SSR mode.
 import 'vue-router'
@@ -67,6 +68,9 @@ const fixtures = {
         if (state().authorizationWait) await state().authorizationWait
         return state().authorizationResponse || { success: true, result: { dimensions: state().dimensions } }
       }
+      if (url === '/user/detail' && state().identity) return { success: true, result: state().identity }
+      if (url === '/user/settings/init' && state().initSettings) return { success: true, result: state().initSettings }
+      if (url === '/authorize/login' && state().loginResponse) return state().loginResponse
       if (url === '/menu/user-own/tree') return { success: true, result: state().menus }
       return { success: true, result: {} }
     }
@@ -78,17 +82,29 @@ const fixtures = {
     export const crateAxios = settings => { state().axios = settings }
     export const getInstance = () => ({ defaults: {} })
     export const ndJson = { create: settings => { state().ndjson = settings } }
-    export const wsClient = { initWebSocket() {}, connect() {} }
+    export const wsClient = { setOptions() {}, initWebSocket() {}, connect() {} }
   `,
   '@jetlinks-web/constants': `export const BASE_API = '/api'; export const TOKEN_KEY = 'X-Access-Token'; export const TOKEN_KEY_URL = 'token';`,
   '@jetlinks-web/utils': `
     export const getToken = () => localStorage.getItem('X-Access-Token')
     export const setToken = token => localStorage.setItem('X-Access-Token', token)
     export const removeToken = () => {}
+    export const encrypt = value => value
     export const onlyMessage = (...args) => globalThis.__applicationRuntimeTest.messages.push(args)
-    export const LocalStore = { get: key => localStorage.getItem(key), set() {}, remove() {} }
+    export const LocalStore = {
+      get: key => localStorage.getItem(key),
+      set: (key, value) => localStorage.setItem(key, value),
+      remove: key => localStorage.removeItem(key),
+    }
   `,
-  '@jetlinks-web/hooks': `export const setParamsValue = () => {};`,
+  '@jetlinks-web/hooks': `
+    import { ref } from 'vue'
+    export const setParamsValue = () => {}
+    export const useRequest = (request, { onSuccess } = {}) => ({
+      data: ref(), loading: ref(false),
+      run: data => { globalThis.__applicationRuntimeTest.pendingRelogin = request(data).then(onSuccess) },
+    })
+  `,
   '@micro-zoe/micro-app': `export default { router: { setBaseAppRouter() {} }, setGlobalData() {} }`,
   'ant-design-vue': `export const notification = { error() {} }; export default {}`,
   '@jetlinks-web-core/locales': `export default { global: { t: key => key, locale: { value: 'zh' } } }`,
@@ -109,6 +125,7 @@ const fixtures = {
   '@jetlinks-web-core/store/application': `
     export const useApplication = () => globalThis.__applicationRuntimeTest.microApplication
   `,
+  '@jetlinks-web-core/views/account/center/data': `export const tabList = []`,
   '@jetlinks-web-core/store/user': `export const useUserStore = () => globalThis.__applicationRuntimeTest.user`,
   '@jetlinks-web-core/store/system': `export const useSystemStore = () => globalThis.__applicationRuntimeTest.system`,
   '@jetlinks-web-core/store': `
@@ -124,7 +141,7 @@ const fixtures = {
   '@jetlinks-web-core/router/globModules': `export const collectCoreRouteOverrides = () => []; export const getGlobModules = () => ({ overview: async () => ({}), ...globalThis.__applicationRuntimeTest.asyncRoutes })`,
   '@jetlinks-web-core/router/extraMenu': `export const getExtraRouters = () => ({})`,
   'basic-routes': `
-    export { USER_CENTER_ROUTE } from '${source('router/basic.ts')}'
+    export { USER_CENTER_ROUTE, INIT_HOME } from '${source('router/basic.ts')}'
     export const Login = { path: '/login', name: 'Login', component: {} }
     export const Forbidden = { path: '/403', name: 'Forbidden', component: {}, meta: { skipMenuFetch: true } }
   `,
@@ -169,6 +186,8 @@ const bundle = async (environment, runtimeScope = 'project', subApp = false) => 
         export { useMenuStore } from '${source('store/menu.ts')}'
         export { useAuthStore } from '${source('store/auth.ts')}'
         export { useLoginSuccess } from '${source('views/login/hooks/useLoginSuccess.ts')}'
+        export { useReloginForm } from '${source('views/relogin/components/useReloginForm.ts')}'
+        export { useUserStore as useSessionUserStore } from '${source('store/user.ts')}'
         export { DefaultApplicationEntryError } from '${source('router/default-entry.ts')}'
         export { useBasicLayoutVariant } from '${source('layout/hooks/useBasicLayoutVariant.ts')}'
         export { initAxios } from '${source('package.ts')}'
@@ -782,6 +801,76 @@ try {
       assert.equal(runtime.isApplicationRuntime(), false)
       scenarios++
     }
+  }
+
+  // Real user store, route guard, and login/relogin flows; only the HTTP and UI boundaries are fixtures.
+  {
+    const api = await bundle('', 'tenant')
+    const initRequests = state => state.requests.filter(({ url }) => url === '/user/settings/init').length
+    const renderer = createRenderer({ createComment: () => ({}), insert() {}, remove() {} })
+    const identities = [
+      ['admin', 'user', true, true],
+      ['manager', 'projectManager', false, true],
+      ['owner', 'projectOwner', false, true],
+      ['member', 'user', false, false],
+    ]
+    for (const [username, type, superAdmin, administrator] of identities) {
+      reset(api, 'http://localhost:9200/#/')
+      const state = globalThis.__applicationRuntimeTest
+      state.user = api.useSessionUserStore()
+      state.identity = { id: username, username, type: { id: type } }
+      state.initSettings = []
+      await withNavigationDeadline(api.router.push(`/init-home?identity=${username}`))
+      assert.equal(api.router.currentRoute.value.path, superAdmin ? '/init-home' : '/404', username)
+      assert.equal(state.user.isSuperAdmin, superAdmin, username)
+      assert.equal(state.user.isAdmin, administrator, username)
+      scenarios++
+
+      await api.useLoginSuccess().handleLoginSuccess('login-token')
+      assert.equal(window.location.hash === '#/init-home', superAdmin, username)
+      assert.equal(initRequests(state), Number(superAdmin), username)
+      scenarios++
+
+      // Simulate a different account using the relogin modal, including a stale admin session for denied users.
+      state.user.setUserInfo({ id: 'previous', username: 'admin' })
+      localStorage.setItem('userId', 'previous')
+      state.loginResponse = { success: true, result: { token: 'relogin-token', userId: username } }
+      window.location = browserLocation('http://localhost:9200/#/')
+      document.location = window.location
+      let relogin
+      const app = renderer.createApp({ setup() {
+        relogin = api.useReloginForm({ type: 'relogin' }, () => {})
+        return () => null
+      } })
+      app.mount({})
+      try {
+        relogin.submit({ password: 'fixture' })
+        await state.pendingRelogin
+        assert.equal(window.location.hash === '#/init-home', superAdmin, username)
+        assert.equal(initRequests(state), 2 * Number(superAdmin), username)
+        assert.equal(state.user.isSuperAdmin, superAdmin, username)
+      } finally {
+        app.unmount()
+      }
+      api.startup.resetSessionStores()
+      assert.equal(state.user.isSuperAdmin, false, username)
+      scenarios++
+    }
+    reset(api, 'http://localhost:9200/#/')
+    const state = globalThis.__applicationRuntimeTest
+    state.user = api.useSessionUserStore()
+    state.identity = { id: 'admin', username: 'admin', type: { id: 'user' } }
+    state.initSettings = [{ name: 'init' }]
+    await api.useLoginSuccess().handleLoginSuccess('login-token')
+    assert.equal(initRequests(state), 1)
+    assert.notEqual(window.location.hash, '#/init-home', 'initialized admin does not automatically reopen setup')
+    scenarios++
+
+    reset(api, 'http://localhost:9200/#/')
+    localStorage.removeItem('X-Access-Token')
+    await withNavigationDeadline(api.router.push('/init-home'))
+    assert.equal(api.router.currentRoute.value.path, '/login')
+    scenarios++
   }
 
   // A fresh router must stop on 403 after a discovery failure, without redirecting to 403 repeatedly.
