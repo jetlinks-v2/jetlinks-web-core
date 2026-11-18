@@ -46,6 +46,7 @@
         :theme="theme"
         :preview-theme="previewTheme"
         :code-theme="codeTheme"
+        :sanitize="sanitize"
       />
 
       <MdEditor
@@ -63,6 +64,7 @@
         :show-toolbar-name="false"
         :preview-theme="previewTheme"
         :code-theme="codeTheme"
+        :sanitize="sanitize"
         :on-upload-img="handleUploadImages"
       >
         <template #defToolbars>
@@ -176,6 +178,7 @@ const props = withDefaults(
     readonly?: boolean
     sectionTemplates?: SectionTemplate[]
     domainHint?: string
+    sanitize?: (html: string) => string
   }>(),
   {
     modelValue: '',

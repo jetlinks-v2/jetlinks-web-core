@@ -1988,7 +1988,7 @@
   "components.BusinessApplicationSwitcher.headerLabel": "应用",
   "components.BusinessApplicationSwitcher.quickEntry": "快速进入应用",
   "layout.menuBadge.comingSoon": "敬请期待",
-  "layout.menuSearch.placeholder": "搜索菜单",
+  "layout.menuSearch.placeholder": "搜索功能",
   "layout.menuSearch.empty": "未找到匹配菜单",
   "layout.project.settings": "设置",
   "components.TableActions.more": "更多操作",
@@ -2500,5 +2500,11 @@
   "PlatformSettings.initFailed": "「{step}」未完成，后续步骤已停止。请检查后重试。",
   "PlatformSettings.initialize": "确认并初始化",
   "PlatformSettings.initialization": "完成初始化",
-  "PlatformSettings.basic": "基础配置"
+  "PlatformSettings.basic": "基础配置",
+  "components.DocumentHelp.help": "功能说明",
+  "components.DocumentHelp.document": "帮助文档",
+  "components.DocumentHelp.loading": "正在加载文档",
+  "components.DocumentHelp.failed": "文档加载失败",
+  "components.DocumentHelp.unconfigured": "暂未配置帮助说明",
+  "components.DocumentHelp.retry": "重试"
 }

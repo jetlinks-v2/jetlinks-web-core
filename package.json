@@ -30,6 +30,7 @@
   "dependencies": {
     "@babel/parser": "7.29.8",
     "mathlive": "0.110.0",
+    "dompurify": "^3.3.1",
     "altcha": "3.2.2",
     "crypto-js": "^4.2.0",
     "echarts": "^5.6.0",

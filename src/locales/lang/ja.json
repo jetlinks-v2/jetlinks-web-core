@@ -1212,7 +1212,7 @@
   "components.BusinessApplicationSwitcher.headerLabel": "アプリケーション",
   "components.BusinessApplicationSwitcher.quickEntry": "アプリケーションへのクイックアクセス",
   "layout.menuBadge.comingSoon": "近日公開",
-  "layout.menuSearch.placeholder": "メニューを検索",
+  "layout.menuSearch.placeholder": "機能を検索",
   "layout.menuSearch.empty": "一致するメニューがありません",
   "layout.project.settings": "設定",
   "components.TableActions.more": "その他の操作",
@@ -2451,5 +2451,11 @@
   "PlatformSettings.initFailed": "「{step}」が完了しませんでした。後続の処理を停止しました。確認して再試行してください。",
   "PlatformSettings.initialize": "確認して初期化",
   "PlatformSettings.initialization": "初期化の完了",
-  "PlatformSettings.basic": "基本設定"
+  "PlatformSettings.basic": "基本設定",
+  "components.DocumentHelp.help": "機能の説明",
+  "components.DocumentHelp.document": "ヘルプドキュメント",
+  "components.DocumentHelp.loading": "ドキュメントを読み込み中",
+  "components.DocumentHelp.failed": "ドキュメントを読み込めませんでした",
+  "components.DocumentHelp.unconfigured": "ヘルプの説明は未設定です",
+  "components.DocumentHelp.retry": "再試行"
 }
