@@ -7,7 +7,7 @@
       class="language-switch"
     >
       <AIcon type="GlobalOutlined" />
-      <span>{{ currentLanguageLabel }}</span>
+      <span>{{ systemStore.languageLabel }}</span>
     </div>
 
     <template #overlay>
@@ -17,7 +17,7 @@
         @click="handleChangeLanguage"
       >
         <a-menu-item
-          v-for="item in languageOptions"
+          v-for="item in systemStore.languageOptions"
           :key="item.value"
         >
           {{ item.label }}
@@ -28,46 +28,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { LocalStore } from '@jetlinks-web/utils'
-import { useSystemStore } from '@jetlinks-web-core/store'
-import { langKey, ruleEditorKey } from '@jetlinks-web-core/utils/consts'
-
-type MenuClickEvent = {
-  key: string | number
-}
+import { useSystemStore } from '@jetlinks-web-core/store/system'
 
 const systemStore = useSystemStore()
-
-const languageOptions = [
-  {
-    label: '中文',
-    value: 'zh'
-  },
-  {
-    label: 'English',
-    value: 'en'
-  },
-  {
-    label: '日本語',
-    value: 'ja'
-  }
-]
-
-const currentLanguageLabel = computed(() => (
-  languageOptions.find(item => item.value === systemStore.language)?.label || languageOptions[0].label
-))
-
-const handleChangeLanguage = ({ key }: MenuClickEvent) => {
-  const option = languageOptions.find(item => item.value === String(key))
-  if (!option || option.value === systemStore.language) return
-
-  systemStore.language = option.value
-  LocalStore.set(langKey, option.value)
-  // 规则编辑器使用独立缓存，必须与全局语言保持同步。
-  LocalStore.set(ruleEditorKey, option.value)
-  window.location.reload()
-}
+const handleChangeLanguage = ({ key }: { key: string | number }) => systemStore.selectLanguage(key)
 </script>
 
 <style scoped lang="less">

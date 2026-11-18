@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
+import { reactive, ref } from 'vue'
 import { getDetails_api, preprocessorExists, settingDetail, systemVersion } from '@jetlinks-web-core/api/system/basis'
 import { getTagsColor } from '@jetlinks-web-core/api/system/calendar'
 import { getToken, LocalStore } from '@jetlinks-web/utils'
-import { langKey, isSubApp } from '@jetlinks-web-core/utils/consts'
+import { isSubApp } from '@jetlinks-web-core/utils/consts'
+import { createFrontLanguageState } from '@jetlinks-web-core/locales/frontLanguage'
 import { withModuleStoreOverride } from './module-override'
 import { getThemeStyle_api } from '@jetlinks-web-core/api/account/theme'
 import { applyThemeColor, getInitialThemeColor, persistThemeColor } from '@jetlinks-web-core/utils/theme-color'
@@ -113,7 +115,9 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     ['workday', 'rgba(105,177,255)']
   ])
   const showThreshold = ref(true)
-  const language = ref(LocalStore.get(langKey) || 'zh')
+  const supportsFrontLanguagePolicy = () => !isSubApp && !isProjectRuntime() && !isApplicationRuntime()
+  const { language, languageOptions, languageLabel, selectLanguage, applyFrontLanguages } =
+    createFrontLanguageState(supportsFrontLanguagePolicy)
   const sessionInitializedUserKey = ref('')
 
   const layout = reactive<LayoutType>({
@@ -197,6 +201,7 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
   }
 
   const handleFront = (_value: any, userThemeStyle?: ThemeStyleKey) => {
+    applyFrontLanguages(_value?.languages)
     if (!_value) return
     const title = resolveLayoutTitle(_value.title)
     layout.title = title
@@ -293,6 +298,10 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     calendarTagColor,
     showThreshold,
     language,
+    languageOptions,
+    languageLabel,
+    selectLanguage,
+    supportsFrontLanguagePolicy,
     microApp,
     changeTheme,
     changeThemeStyle,
