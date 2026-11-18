@@ -7,6 +7,8 @@
       :placeholder="$t('layout.menuSearch.placeholder')"
       @focus="open = true"
       @keydown.esc="close"
+      @compositionstart="composing = true"
+      @compositionend="composing = false"
     >
       <template #prefix>
         <AIcon type="SearchOutlined" />
@@ -41,15 +43,22 @@
       <div v-else class="menu-search__empty">
         {{ $t('layout.menuSearch.empty') }}
       </div>
+      <RegistryComponent
+        pageCode="layout" code="menuSearch"
+        :keyword="keyword" :composing="composing" @select="close"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+import RegistryComponent from '../../components/RegisterComponents'
 import { useMenuSearch } from '../hooks/useMenuSearch'
 
 defineOptions({ name: 'MenuSearch' })
 
+const composing = ref(false)
 const { keyword, open, rootRef, groups, highlightTitle, close, handleSelect } = useMenuSearch()
 </script>
 
@@ -99,9 +108,11 @@ const { keyword, open, rootRef, groups, highlightTitle, close, handleSelect } = 
     top: calc(100% + var(--space-1));
     right: 0;
     z-index: var(--z-drawer);
-    width: 28rem;
+    width: 40rem;
     max-width: calc(100vw - var(--space-8));
-    padding: var(--space-1);
+    padding: var(--space-3);
+    max-height: min(42rem, calc(100vh - 6rem));
+    overflow-y: auto;
     border: 1px solid var(--jet-theme-border-secondary);
     border-radius: var(--r-3);
     background: var(--jet-theme-bg-container);

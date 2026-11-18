@@ -18,3 +18,4 @@ export { useRetainedScroll } from './useRetainedScroll'
 export type { DiagnosticQueryOptions } from './useDiagnosticQuery'
 
 export { usePlatformSettings } from './usePlatformSettings'
+export { documentRequest, openDocument, useDocumentHelp } from './useDocumentHelp'

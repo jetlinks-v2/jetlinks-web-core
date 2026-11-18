@@ -19,24 +19,25 @@
           @scroll="onScroll"
         >
           <div ref="listRef" class="slanted-tabs__list">
-            <button
-              v-for="(option, index) in options"
-              :id="tabId(option.key)"
-              :key="option.key"
-              type="button"
-              role="tab"
-              class="slanted-tabs__tab"
-              :class="{ 'is-active': option.key === selectedKey }"
-              :style="{ '--tab-layer': option.key === selectedKey ? options.length + 1 : options.length - index }"
-              :aria-selected="option.key === selectedKey"
-              :aria-controls="$slots.default ? panelId(option.key) : undefined"
-              :tabindex="option.key === selectedKey ? 0 : -1"
-              :disabled="option.disabled || state.loading"
-              @click="select(option.key)"
-              @keydown="onKeydown($event, option.key)"
-            >
-              <span class="slanted-tabs__label"><TabLabel :option="option" /></span>
-            </button>
+            <div v-for="(option, index) in options" :key="option.key" class="slanted-tabs__item"
+              :style="{ '--tab-layer': option.key === selectedKey ? options.length + 1 : options.length - index }">
+              <button
+                :id="tabId(option.key)"
+                type="button"
+                role="tab"
+                class="slanted-tabs__tab"
+                :class="{ 'is-active': option.key === selectedKey }"
+                :aria-selected="option.key === selectedKey"
+                :aria-controls="$slots.default ? panelId(option.key) : undefined"
+                :tabindex="option.key === selectedKey ? 0 : -1"
+                :disabled="option.disabled || state.loading"
+                @click="select(option.key)"
+                @keydown="onKeydown($event, option.key)"
+              >
+                <span class="slanted-tabs__label"><TabLabel :option="option" /></span>
+              </button>
+            <span v-if="$slots['tab-extra']" class="slanted-tabs__extra"><slot name="tab-extra" :option="option" /></span>
+            </div>
           </div>
         </div>
       </div>
@@ -75,7 +76,7 @@
                 :disabled="option.disabled || state.loading"
                 @click="selectOverflow(option.key)"
               >
-                <span class="slanted-tabs__menu-label"><TabLabel :option="option" /></span>
+                <span class="slanted-tabs__menu-label"><TabLabel :option="option" /><slot name="tab-extra" :option="option" /></span>
               </MenuItem>
             </Menu>
           </div>

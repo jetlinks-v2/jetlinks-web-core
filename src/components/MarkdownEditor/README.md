@@ -17,6 +17,7 @@ Markdown 编辑/预览组件，支持图片与文件拖拽、粘贴、上传和�
 | `showUploadFileToolbar` | 显示文件上传工具 | `boolean` | true |
 | `sectionTemplates` | 章节模板 | `SectionTemplate[]` | [] |
 | `domainHint` | 领域提示 | `string` | - |
+| `sanitize` | 编辑预览与只读预览共用的 HTML 清洗函数 | `(html: string) => string` | 编辑器默认行为 |
 
 #### 事件
 

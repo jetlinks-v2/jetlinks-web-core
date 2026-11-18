@@ -19,8 +19,9 @@
             <template #overlay>
                 <a-menu @click="handleMenuClick">
                     <a-menu-item v-for="item in actions" :key="item.key" :disabled="item.disabled">
+                        <a-flex class="batch-dropdown__item" align="center" gap="small">
                         <j-permission-button
-                            style="width: 100%"
+                            style="flex: 1; min-width: 0"
                             :hasPermission="item.permission || true "
                             v-bind="omit(item, 'icon')"
                             :popConfirm="
@@ -42,6 +43,8 @@
                             /></template>
                             {{ item.text }}
                         </j-permission-button>
+                        <slot name="item-extra" :item="item" />
+                        </a-flex>
                     </a-menu-item>
                 </a-menu>
             </template>
@@ -112,4 +115,15 @@ defineExpose({
 })
 </script>
 
-<style scoped></style>
+<style scoped lang="less">
+.batch-dropdown__item:has(> .document-help__trigger) {
+    position: relative;
+    :deep(> .ant-btn:first-child) { padding-right: 36px; }
+    :deep(> .document-help__trigger) {
+        position: absolute;
+        right: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+}
+</style>
