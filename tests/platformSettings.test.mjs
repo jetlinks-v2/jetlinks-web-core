@@ -20,7 +20,8 @@ const load = (file, imports = {}) => {
   }).code)(require, module, module.exports, () => ({}))
   return module.exports
 }
-const model = load('components/PlatformSettings/model.ts')
+const languageOptions = load('locales/languageOptions.ts')
+const model = load('components/PlatformSettings/model.ts', { '../../locales/languageOptions': languageOptions })
 const sectionHooks = load('components/PlatformSettings/usePlatformSettingsSection.ts', { './model': model })
 const registry = load('components/PlatformSettings/fieldRegistry.ts')
 const user = vue.reactive({ userInfo: {} })
@@ -54,14 +55,33 @@ async function mount(t, mode = 'detail', options = {}) {
     : (options.hidden || []).map(target => ({ mode: 'hide', target }))
   let data = { front: { title: 'Saved', ico: '/original.ico', headerTheme: 'dark', layout: 'side', layoutVariant: 'application', extra: { flag: 1 }, ...options.front }, amap: { apiKey: 'web', secretKey: 'secret', webKey: 'service', unknown: 8, ...options.amap }, paths: { 'base-path': 'https://test.example/api', external: true } }
   const writes = []
+  const appliedLanguages = []
   const source = {
     load: async () => clone(data),
     save: async patch => { writes.push(clone(patch)); patch.forEach(({ scope, properties }) => { data[scope] = clone(properties) }); return { success: true } },
   }
+  const system = {
+    async queryInfo() { system.systemInfo = await source.load(); return { success: true } },
+    systemInfo: {},
+    supportsFrontLanguagePolicy: () => options.platformContext !== false,
+    applySavedFrontLanguages: value => { appliedLanguages.push(clone(value)) },
+  }
+  const useSystemPlatformSettings = load('hooks/useSystemPlatformSettings.ts', {
+    './usePlatformSettings': hooks,
+    '@jetlinks-web-core/store/system': { useSystemStore: () => system },
+    '@jetlinks-web-core/store/auth': { useAuthStore: () => ({ hasPermission: code => code === 'system/Basis:update' && options.editable !== false }) },
+    '@jetlinks-web-core/store/user': { useUserStore: () => user },
+    '@jetlinks-web-core/api/system/basis': { save_api: payload => source.save(payload) },
+  }).useSystemPlatformSettings
   let state
-  const app = renderer.createApp({ setup() { state = hooks.usePlatformSettings(source, mode, () => options.editable !== false); return () => null } })
+  const app = renderer.createApp({ setup() {
+    state = options.systemBinding || options.saas
+      ? useSystemPlatformSettings(mode)
+      : hooks.usePlatformSettings(source, mode, () => options.editable !== false)
+    return () => null
+  } })
   app.mount({}); t.after(() => app.unmount()); await tick()
-  return { state, source, writes, current: () => data }
+  return { state, source, writes, appliedLanguages, current: () => data }
 }
 
 async function mountSections(t, mode = 'detail', options = {}) {
@@ -521,4 +541,139 @@ test('field extensions stay with their owning card and unanchored extensions ren
   assert.deepEqual(render('appearance', ['title', 'ico']), ['title', 'extra-title:title'])
   assert.deepEqual(render('map', ['apiKey', 'webKey']), ['apiKey', 'extra-map:webKey'])
   assert.deepEqual(render('address', ['base-path']), ['base-path', 'append:append'])
+})
+
+
+test('platform appearance preserves language order, stages drafts, cancels, and clears to defaults', async t => {
+  const v = await mountSections(t, 'detail', {
+    systemBinding: true, user: { username: 'admin' }, front: { languages: ['ja', 'en'] },
+  })
+  assert.equal(v.state.hidden.value.includes('languages'), false)
+  assert.deepEqual(v.state.saved.value.languages, ['ja', 'en'])
+
+  v.appearance.start()
+  v.appearance.change({ languages: ['en', 'ja'] })
+  assert.deepEqual(v.state.model.languages, ['en', 'ja'])
+  assert.deepEqual(v.current().front.languages, ['ja', 'en'])
+  assert.deepEqual(v.writes, [])
+  v.appearance.cancel()
+  assert.deepEqual(v.state.model.languages, ['ja', 'en'])
+
+  v.appearance.start()
+  v.appearance.change({ languages: ['ja', 'en'] })
+  assert.equal(await v.appearance.save(), true)
+  assert.deepEqual(v.writes, [])
+
+  v.appearance.start()
+  v.appearance.change({ languages: ['en', 'ja'] })
+  assert.equal(await v.appearance.save(), true)
+  assert.deepEqual(v.writes[0][0].properties.languages, ['en', 'ja'])
+  assert.equal(v.current().front.title, 'Saved')
+  assert.equal(v.current().front.ico, '/original.ico')
+  assert.deepEqual(v.current().front.extra, { flag: 1 })
+
+  v.appearance.start()
+  v.appearance.change({ languages: [] })
+  assert.equal(await v.appearance.save(), true)
+  assert.deepEqual(v.writes[1][0].properties.languages, [])
+  assert.deepEqual(v.state.saved.value.languages, [])
+})
+
+test('language draft survives saving a different section and untouched invalid config is preserved', async t => {
+  const saved = ['ja', 'unknown', 'en', 'ja']
+  const v = await mountSections(t, 'detail', { systemBinding: true, user: { username: 'admin' }, front: { languages: saved } })
+  assert.deepEqual(v.state.saved.value.languages, ['ja', 'en'])
+  v.appearance.start()
+  v.appearance.change({ title: 'Updated' })
+  assert.equal(await v.appearance.save(), true)
+  assert.deepEqual(v.writes[0][0].properties.languages, saved)
+
+  v.appearance.start()
+  v.appearance.change({ languages: ['en'] })
+  v.map.start()
+  v.map.change({ webKey: 'changed' })
+  assert.equal(await v.map.save(), true)
+  assert.deepEqual(v.state.model.languages, ['en'])
+  assert.deepEqual(v.writes[1].map(entry => entry.scope), ['amap'])
+  assert.deepEqual(v.current().front.languages, saved)
+})
+
+test('platform initialization only writes languages when an actual selection was made', async t => {
+  const v = await mountSections(t, 'form', { systemBinding: true, user: { username: 'admin' } })
+  assert.equal(v.state.hidden.value.includes('languages'), false)
+  assert.deepEqual(v.state.model.languages, [])
+  v.appearance.change({ title: 'Initialize' })
+  assert.equal(await v.state.submit(), true)
+  assert.equal(Object.hasOwn(v.writes[0][0].properties, 'languages'), false)
+  v.appearance.change({ languages: ['ja', 'en'] })
+  assert.equal(v.writes.length, 1)
+  assert.equal(await v.state.submit(), true)
+  assert.deepEqual(v.writes[1][0].properties.languages, ['ja', 'en'])
+})
+
+test('admin can configure languages in project deployment in both page modes', async t => {
+  for (const mode of ['detail', 'form']) {
+    const v = await mountSections(t, mode, {
+      systemBinding: true, user: { username: 'admin' }, platformContext: false, front: { languages: ['zh'] },
+    })
+    assert.equal(v.state.hidden.value.includes('languages'), false)
+    assert.deepEqual(v.state.model.languages, ['zh'])
+    if (mode === 'detail') v.appearance.start()
+    v.appearance.change({ languages: ['ja', 'en'] })
+    assert.equal(await (mode === 'detail' ? v.appearance.save() : v.state.submit()), true)
+    assert.deepEqual(v.current().front.languages, ['ja', 'en'])
+  }
+})
+
+for (const [identity, userInfo] of [
+  ['project manager', { username: 'manager', type: { id: 'projectManager' } }],
+  ['project owner', { username: 'owner', type: { id: 'projectOwner' } }],
+  ['project member', { username: 'member' }],
+]) {
+  test(`${identity} cannot submit platform languages in detail or initialization mode`, async t => {
+    for (const mode of ['detail', 'form']) {
+      const v = await mountSections(t, mode, { systemBinding: true, user: userInfo, platformContext: false, front: { languages: ['ja', 'en'] } })
+      assert.ok(v.state.hidden.value.includes('languages'))
+      v.state.change({ title: 'Allowed field', languages: ['zh'] })
+      assert.deepEqual(v.state.model.languages, [])
+      if (mode === 'form') {
+        assert.equal(await v.state.submit(), true)
+      } else {
+        assert.equal((await v.state.persist({ title: 'Allowed field', languages: ['zh'] })).ok, true)
+      }
+      assert.deepEqual(v.current().front.languages, ['ja', 'en'])
+      assert.equal(v.current().front.title, 'Allowed field')
+    }
+  })
+}
+
+test('platform admin still needs the existing Basis update permission in detail mode', async t => {
+  const v = await mountSections(t, 'detail', { systemBinding: true, user: { username: 'admin' }, editable: false })
+  assert.equal(v.state.disabled.value, true)
+  assert.equal((await v.state.persist({ languages: ['ja', 'en'] })).ok, false)
+  assert.deepEqual(v.writes, [])
+})
+
+
+test('only successful language writes notify the active store, even when the config readback fails', async t => {
+  const v = await mountSections(t, 'detail', { systemBinding: true, user: { username: 'admin' }, front: { languages: ['zh'] } })
+  const save = v.source.save
+
+  v.appearance.start()
+  v.appearance.change({ title: 'Branding only' })
+  assert.equal(await v.appearance.save(), true)
+  assert.deepEqual(v.appliedLanguages, [])
+
+  v.appearance.start()
+  v.appearance.change({ languages: ['en', 'ja'] })
+  assert.deepEqual(v.appliedLanguages, [])
+  v.source.save = async () => ({ success: false })
+  assert.equal(await v.appearance.save(), false)
+  assert.deepEqual(v.appliedLanguages, [])
+
+  v.source.save = save
+  v.source.load = async () => { throw new Error('readback unavailable') }
+  assert.equal(await v.appearance.save(), true)
+  assert.deepEqual(v.appliedLanguages, [['en', 'ja']])
+  assert.equal(v.state.warning.value, 'PlatformSettings.refreshFailed')
 })

@@ -2,6 +2,20 @@
 
 运行时 `/system/Basis` 与 `/init-home` 共用的配置区块。提供平台名称、Logo、页签图标、登录背景、备案信息、高德地图和接口基础地址；不承载 SaaS 域名开通流程。
 
+## 平台可选语言
+
+平台初始化和「基础配置 → 平台外观」共用可选语言多选。列表按选择顺序保存到 `front.languages`；已有手动偏好和浏览器语言都不匹配时，使用列表首项。移除后重新选择可调整顺序；清空恢复中、英、日，不配置也可初始化。初始化随整页提交，日常随平台外观保存，草稿不改变当前语言。
+
+影响范围：`runtime-ui/` 的表单按账号名 `admin` 显示可选语言，不按 `project` 等运行模式隐藏；`projectManager`、`projectOwner` 等其他账号不可编辑。日常保存仍要求 `system/Basis:update`。复用 `PlatformSettingsEditor.vue`、`useSystemPlatformSettings.ts` 与既有配置接口；运行端的普通项目模式也应用 `front.languages`；独立应用和微应用仍不应用。不改变后端权限或项目配置。
+
+保存同步：`front.languages` 保存成功后立即更新右上角列表和界面语言，当前语言仍可用时保持不变，否则用列表首项；刷新或首次进入仍按手动偏好、浏览器语言、列表首项选择。草稿和失败的保存不影响当前语言，重新读取同一配置不覆盖刚完成的切换。
+
+实现入口：`PlatformLanguageSetting.vue` 复用 `src/locales/languageOptions.ts` 的语言选项及解析；`useSystemPlatformSettings.ts` 判断平台身份，`usePlatformSettings.ts` 使用同一条件过滤表单读写。主动清空写入 `[]`；未配置且未编辑时不写入。未修改后端，也未写入任何真实环境配置。
+
+验证：`node --test jetlinks-web-core/tests/platformSettings.test.mjs` 的 38 项、`frontLanguage.test.mjs` 适用于运行端的 10 项通过。覆盖项目模式下 `admin` 可以配置、其他账号不可编辑，以及成功保存后即时同步、失败不切换、回读失败仍保留切换。另有 3 项既有用例依赖本工作区没有的 `saas-manager-ui` 登录页。Chromium 使用运行端真实「基础配置」页面和模拟 API 验证：在 `project` 模式从中文保存 `["en", "ja"]` 后不刷新当前页面，设置文案、顶栏语言和请求语言切到英文，菜单只显示 English、日本語。`pnpm build` 和差异空白检查通过；`pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 仍有相同的 511 条既有诊断，无新增；工作区无独立 lint 脚本。
+
+发布前仍须在隔离环境验证平台管理员能保存并回读，以及项目管理员和普通项目成员不能通过 `POST /system/config/front` 或 `POST /system/config/scope/_save` 修改平台 `front`。本次仅验证前端表单边界，不能替代后端鉴权；若项目身份可写，应先收紧授权。
+
 ## 区块编辑
 
 运行时设置页的平台外观和高德地图按区块编辑：各区块标题右侧提供“编辑”，点击后显示本区块输入控件并切换为“取消 / 保存”。非编辑态及无编辑权限时只展示已保存文案，空值显示“未配置”，安全密钥使用固定掩码，备案显示开关以状态文案展示；图片保持缩略图。地图三个字段直接在卡片内编辑，首次配置也遵循该流程，不再提供独立的“清除配置”按钮。外观名称、图片、备案信息和开关只更新草稿，预览跟随草稿；取消恢复本区块已保存值，保存成功后退出编辑，失败保留草稿。两个区块分别提交，保留其他区块草稿、隐藏字段和扩展配置。保存期间保留当前控件并临时锁定，初始化仍直接显示可填写控件。

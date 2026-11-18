@@ -2,6 +2,7 @@ import { reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { useAuthStore } from '@jetlinks-web-core/store/auth'
+import { useUserStore } from '@jetlinks-web-core/store/user'
 import { save_api } from '@jetlinks-web-core/api/system/basis'
 import { usePlatformSettings } from './usePlatformSettings'
 import type { PlatformSettingsMode, PlatformSettingsScopes, PlatformSettingsSource } from '../components/PlatformSettings/types'
@@ -10,8 +11,11 @@ import type { PlatformSettingsMode, PlatformSettingsScopes, PlatformSettingsSour
 export function useSystemPlatformSettings(mode: PlatformSettingsMode, save: PlatformSettingsSource['save'] = save_api) {
   const system = useSystemStore()
   const auth = useAuthStore()
+  const user = useUserStore()
   const { t } = useI18n()
   const uploads = reactive(new Set<string>())
+  // 按账号而不是运行模式授权；isAdmin 也包含项目负责人。
+  const canConfigureLanguages = () => user.userInfo.username === 'admin'
   const state = usePlatformSettings({
     async load() {
       const response = await system.queryInfo()
@@ -24,7 +28,10 @@ export function useSystemPlatformSettings(mode: PlatformSettingsMode, save: Plat
       } satisfies PlatformSettingsScopes
     },
     save,
-  }, mode, () => mode === 'form' || auth.hasPermission('system/Basis:update'))
+    onSaved({ languages }) {
+      if (languages !== undefined) system.applySavedFrontLanguages(languages)
+    },
+  }, mode, () => mode === 'form' || auth.hasPermission('system/Basis:update'), canConfigureLanguages)
 
   function uploading(key: string, busy: boolean) {
     if (busy) uploads.add(key)

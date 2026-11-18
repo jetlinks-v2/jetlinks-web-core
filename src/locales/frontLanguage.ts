@@ -2,31 +2,19 @@ import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
 import { langKey, ruleEditorKey } from '@jetlinks-web-core/utils/consts'
 import i18n from './index'
-
-const labels = { zh: '中文', en: 'English', ja: '日本語' }
+import { defaultFrontLanguages, frontLanguageLabels, isFrontLanguage, parseFrontLanguages, type FrontLanguage } from './languageOptions'
 const dateLocales = { zh: 'zh-cn', en: 'en', ja: 'ja' }
-const defaultLanguages = ['zh', 'en', 'ja'] as const
 // Accept-Language 缓存的是实际请求语言；单独记录手动偏好，避免把自动回退当作用户选择。
 const preferenceKey = 'jetlinks-front-language-preference'
-
-type FrontLanguage = keyof typeof labels
-
-const isFrontLanguage = (value: unknown): value is FrontLanguage => (
-  typeof value === 'string' && Object.hasOwn(labels, value)
-)
-
-const parseLanguages = (value: unknown): FrontLanguage[] => (
-  Array.isArray(value) ? [...new Set(value.filter(isFrontLanguage))] : []
-)
 
 export const createFrontLanguageState = (supportsPolicy: () => boolean) => {
   const storage = window.localStorage
   const cached = storage.getItem(langKey)
   const language = ref<FrontLanguage>(isFrontLanguage(cached) ? cached : 'zh')
-  const configured = ref<FrontLanguage[]>([])
-  const available = computed(() => configured.value.length ? configured.value : defaultLanguages)
-  const languageOptions = computed(() => available.value.map(value => ({ value, label: labels[value] })))
-  const languageLabel = computed(() => labels[language.value])
+  const configured = ref<FrontLanguage[]>()
+  const available = computed(() => configured.value?.length ? configured.value : defaultFrontLanguages)
+  const languageOptions = computed(() => available.value.map(value => ({ value, label: frontLanguageLabels[value] })))
+  const languageLabel = computed(() => frontLanguageLabels[language.value])
   const browserLocale = (navigator.language || 'en').toLocaleLowerCase()
 
   const syncLanguage = (value: FrontLanguage) => {
@@ -37,9 +25,12 @@ export const createFrontLanguageState = (supportsPolicy: () => boolean) => {
     storage.setItem(ruleEditorKey, value)
   }
 
-  const applyFrontLanguages = (value: unknown) => {
+  const applyFrontLanguages = (value: unknown, source: 'read' | 'save' = 'read') => {
     if (!supportsPolicy()) return
-    const languages = parseLanguages(value)
+    const languages = parseFrontLanguages(value)
+    const previous = configured.value
+    // 保存后回读同一列表时，不用浏览器语言重新覆盖刚切换的语言。
+    if (previous && previous.length === languages.length && previous.every((language, index) => language === languages[index])) return
     const storedPreference = storage.getItem(preferenceKey)
     const preferred = storedPreference ?? storage.getItem(langKey)
     configured.value = languages
@@ -62,9 +53,11 @@ export const createFrontLanguageState = (supportsPolicy: () => boolean) => {
     }
 
     const browserLanguage = browserLocale.split(/[-_]/)[0]
-    const next = isFrontLanguage(preferred) && languages.includes(preferred) ? preferred
-      : isFrontLanguage(browserLanguage) && languages.includes(browserLanguage) ? browserLanguage
-      : languages[0]
+    const next = source === 'save'
+      ? (languages.includes(language.value) ? language.value : languages[0])
+      : isFrontLanguage(preferred) && languages.includes(preferred) ? preferred
+        : isFrontLanguage(browserLanguage) && languages.includes(browserLanguage) ? browserLanguage
+          : languages[0]
 
     storage.setItem(preferenceKey, isFrontLanguage(preferred) ? preferred : '')
     i18n.global.fallbackLocale.value = languages

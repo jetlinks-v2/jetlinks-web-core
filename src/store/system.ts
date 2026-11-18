@@ -115,9 +115,10 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     ['workday', 'rgba(105,177,255)']
   ])
   const showThreshold = ref(true)
-  const supportsFrontLanguagePolicy = () => !isSubApp && !isProjectRuntime() && !isApplicationRuntime()
+  const supportsFrontLanguagePolicy = () => !isSubApp && !isApplicationRuntime()
   const { language, languageOptions, languageLabel, selectLanguage, applyFrontLanguages } =
     createFrontLanguageState(supportsFrontLanguagePolicy)
+  const applySavedFrontLanguages = (value: unknown) => applyFrontLanguages(value, 'save')
   const sessionInitializedUserKey = ref('')
 
   const layout = reactive<LayoutType>({
@@ -302,6 +303,7 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     languageLabel,
     selectLanguage,
     supportsFrontLanguagePolicy,
+    applySavedFrontLanguages,
     microApp,
     changeTheme,
     changeThemeStyle,

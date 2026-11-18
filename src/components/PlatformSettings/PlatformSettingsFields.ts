@@ -4,7 +4,7 @@ import { useRegistryVNodeMerge } from '../../hooks/useRegistryComponentsMerge'
 import { BASIS_FORM_MODULE_CODE, BASIS_FORM_PAGE_CODE, resolveBasisFormFieldActions } from './fieldRegistry'
 
 const groups = {
-  appearance: ['title', 'logo', 'ico', 'background', 'showRecordNumber'],
+  appearance: ['title', 'languages', 'logo', 'ico', 'background', 'showRecordNumber'],
   map: ['apiKey', 'secretKey', 'webKey'],
   address: ['base-path'],
 }

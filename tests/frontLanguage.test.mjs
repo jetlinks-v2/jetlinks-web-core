@@ -239,8 +239,48 @@ test('missing or invalid config restores defaults; legacy untouched cache is ret
   assert.deepEqual(f.store.languageOptions.map(option => option.label), defaults)
 })
 
-test('project, application and micro-app stores ignore the front language policy', async () => {
-  for (const context of [{ project: true }, { application: true }, { micro: true }]) {
+test('project runtime reads the saved language list before showing the language menu', async t => {
+  const f = fixture({ project: true, cache: new Map([[langKey, 'zh']]) })
+  const page = f.mount(t, resolve(core, 'layout/components/Language.vue'))
+  f.respond(async () => ({ languages: ['en', 'ja'] }))
+  await f.store.queryInfo()
+  await vue.nextTick()
+  assert.deepEqual(page.options(), ['English', '日本語'])
+  assert.equal(f.store.languageLabel, 'English')
+  assert.equal(f.i18n.global.locale.value, 'en')
+})
+
+test('a successful project language save chooses the first allowed language and survives readback', async t => {
+  const f = fixture({ project: true, browser: 'ja-JP', cache: new Map([[langKey, 'zh']]) })
+  const page = f.mount(t, resolve(core, 'layout/components/Language.vue'))
+  f.respond(async () => ({}))
+  await f.store.queryInfo()
+  assert.equal(f.store.language, 'zh')
+
+  const languages = ['en', 'ja']
+  f.store.applySavedFrontLanguages(languages)
+  await vue.nextTick()
+  assert.deepEqual(page.options(), ['English', '日本語'])
+  assert.equal(f.store.languageLabel, 'English')
+  assert.equal(f.i18n.global.locale.value, 'en')
+  assert.equal(dayjs.locale(), 'en')
+  assert.equal(f.storage.getItem(langKey), 'en')
+  assert.equal(f.storage.getItem(ruleEditorKey), 'en')
+  assert.equal(f.reloads(), 0)
+
+  f.respond(async () => ({ languages }))
+  await f.store.queryInfo()
+  assert.equal(f.store.language, 'en')
+
+  // Keeping English enabled preserves it even when Japanese becomes the first option.
+  f.store.applySavedFrontLanguages(['ja', 'en'])
+  await vue.nextTick()
+  assert.deepEqual(page.options(), ['日本語', 'English'])
+  assert.equal(f.store.language, 'en')
+})
+
+test('application and micro-app stores ignore the front language policy', async () => {
+  for (const context of [{ application: true }, { micro: true }]) {
     const f = fixture(context)
     await f.store.queryInfo()
     assert.deepEqual(f.store.languageOptions.map(option => option.label), defaults)

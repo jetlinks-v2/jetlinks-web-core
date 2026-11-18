@@ -1,8 +1,9 @@
+import { parseFrontLanguages } from '../../locales/languageOptions'
 import type { PlatformSettingKey, PlatformSettingsErrors, PlatformSettingsModel, PlatformSettingsPatch, PlatformSettingsScopes, SettingsTranslate } from './types'
 
 const strings = (value: unknown, fallback = '') => typeof value === 'string' ? value : fallback
 export const settingsFieldScopes: Record<PlatformSettingKey, keyof PlatformSettingsScopes> = {
-  title: 'front', logo: 'front', ico: 'front', background: 'front', recordNumber: 'front', showRecordNumber: 'front',
+  title: 'front', languages: 'front', logo: 'front', ico: 'front', background: 'front', recordNumber: 'front', showRecordNumber: 'front',
   apiKey: 'amap', webKey: 'amap', secretKey: 'amap', 'base-path': 'paths',
 }
 
@@ -10,12 +11,19 @@ export const settingsFieldScopes: Record<PlatformSettingKey, keyof PlatformSetti
 export function toSettingsModel(scopes: PlatformSettingsScopes, baseUrl: string): PlatformSettingsModel {
   const { front, amap, paths } = scopes
   return {
-    title: strings(front.title), logo: strings(front.logo, 'images/login/logo.png'),
+    title: strings(front.title), languages: parseFrontLanguages(front.languages), logo: strings(front.logo, 'images/login/logo.png'),
     ico: strings(front.ico, 'favicon.ico'), background: strings(front.background),
     recordNumber: strings(front.recordNumber), showRecordNumber: front.showRecordNumber === true,
     apiKey: strings(amap.apiKey), webKey: strings(amap.webKey), secretKey: strings(amap.secretKey),
     'base-path': strings(paths['base-path'], baseUrl),
   }
+}
+
+/** 顺序决定语言回退，因此数组按内容及顺序比较，不按引用比较。 */
+export function sameSettingValue(left: PlatformSettingsModel[PlatformSettingKey], right: PlatformSettingsModel[PlatformSettingKey]) {
+  return Array.isArray(left) && Array.isArray(right)
+    ? left.length === right.length && left.every((value, index) => value === right[index])
+    : left === right
 }
 
 export function visibleSettingsKeys(hidden: readonly string[]): PlatformSettingKey[] {
