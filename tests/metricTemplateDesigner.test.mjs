@@ -104,6 +104,30 @@ function designer() {
   return { scope, value, disabled, commits, view }
 }
 
+test('算法单位修改同步直接输出，清除、切换与撤回保持其他输出和展示配置', () => {
+  const { scope, value, view } = designer()
+  try {
+    const calculator = { provider:'calibration', providerVersion:'1', outputType:{type:'double'}, outputUnit:'L' }
+    value.value.definitions[0].calculator = calculator
+    value.value.outputs[0].unit = 'L'
+    value.value.outputs.push({metricId:'other',unit:'kPa'})
+    const original = JSON.stringify(value.value)
+    view.select({kind:'rule',index:0})
+    view.patch({calculator:{...calculator,outputUnit:'m³'}})
+    assert.equal(value.value.outputs[0].unit,'m³')
+    assert.equal(value.value.outputs[1].unit,'kPa')
+    assert.deepEqual(value.value.outputs[0].custom,{x:0})
+    view.patch({calculator:{...calculator,outputUnit:''}})
+    assert.equal(value.value.outputs[0].unit,undefined)
+    view.revert()
+    assert.equal(JSON.stringify(value.value),original)
+    view.patch({calculator:{provider:'filter',outputType:{type:'boolean'}}})
+    assert.equal(value.value.outputs[0].unit,undefined)
+    view.revert()
+    assert.equal(value.value.outputs[0].unit,'L')
+  } finally {scope.stop()}
+})
+
 test('属性修改直接进入页面草稿，切换保留，撤回仅影响当前项并保留扩展及0/false', () => {
   const { scope, value, commits, view } = designer()
   try {
@@ -229,7 +253,7 @@ test('同一图标的计算方式与定时语义合并展示，悬浮仍保留�
   const Graph=load('components/Metric/template/TemplateGraph.vue').default
   const spec=template()
   spec.definitions[0]={id:'rise',calculator:{provider:'state',providerVersion:'1',parameters:{duration:'PT1H',maxHold:'PT2M'}},window:{mode:'none',emitPolicy:'onSchedule',emitInterval:'PT1M'}}
-  const {renderer,root}=createMetricRenderer(),app=renderer.createApp({setup:()=>()=>h(Graph,{template:spec,calculators:[{id:'duration',name:'状态时长',configuration:spec.definitions[0].calculator}]})})
+  const {renderer,root}=createMetricRenderer(),app=renderer.createApp({setup:()=>()=>h(Graph,{template:spec,calculators:[{id:'duration',name:'状态时长',icon:'ClockCircleOutlined',configuration:spec.definitions[0].calculator}]})})
   app.component('a-tooltip',defineComponent({inheritAttrs:false,setup:(_,{attrs,slots})=>()=>h('hint',attrs,slots.default?.())}))
   app.config.warnHandler=()=>{};app.mount(root)
   try {

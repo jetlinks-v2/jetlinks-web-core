@@ -1,19 +1,8 @@
-import type { MetricCalculatorDescriptor, MetricCalculatorSpec } from '../types'
-
-// 内置操作的图标只承担展示职责，不能用于识别能力或推断执行声明。
-const icons: Record<string, Record<string, string>> = {
-  measurement:{ increase:'RiseOutlined', increaseByCycle:'SwapOutlined', integral:'AreaChartOutlined' },
-  state:{ duration:'ClockCircleOutlined' },
-  signal:{ rms:'DashboardOutlined', mad:'DotChartOutlined', rate:'LineChartOutlined', ewma:'SlidersOutlined', difference:'SwapOutlined',
-    crestFactor:'StockOutlined', shapeFactor:'RadarChartOutlined', impulseFactor:'ThunderboltOutlined',
-    skewness:'BarChartOutlined', excessKurtosis:'AreaChartOutlined', percentile:'PercentageOutlined',
-    zScore:'DotChartOutlined', robustZScore:'RadarChartOutlined', linearTrend:'LineChartOutlined', timeToThreshold:'FieldTimeOutlined',
-    cusum:'RiseOutlined', correlation:'NodeIndexOutlined', align:'AlignCenterOutlined', hampel:'FilterOutlined', spectrum:'BarChartOutlined' },
-}
+import type { MetricCalculatorDescriptor } from '../types'
 
 export function calculatorIcon(item?: MetricCalculatorDescriptor): string {
   if (!item) return 'CalculatorOutlined'
-  return icons[item.configuration.provider || '']?.[item.id]
+  return item.icon
     || (Object.keys(item.configuration.inputTypes || {}).length ? 'CalculatorOutlined' : 'CodeOutlined')
 }
 

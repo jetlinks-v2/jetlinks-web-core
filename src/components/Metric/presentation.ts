@@ -25,7 +25,7 @@ export function metricDurationText(value: unknown, unit: string | undefined, t: 
   if (factor === undefined || typeof value !== 'number' || !Number.isFinite(value) || value < 0) return undefined
   const duration = value * factor
   if (duration > 0 && duration < 1) return t('intervalMilliseconds', {count:Number((duration * 1000).toPrecision(3))})
-  if (unit === 'ms' && duration < 60 && duration > 0) return t('intervalSeconds',{count:duration})
+  if (duration < 60 && duration > 0) return t('intervalSeconds',{count:Number(duration.toPrecision(8))})
   const seconds = Math.floor(duration)
   const parts = [
     ['intervalDays', Math.floor(seconds / 86400)], ['intervalHours', Math.floor(seconds % 86400 / 3600)],

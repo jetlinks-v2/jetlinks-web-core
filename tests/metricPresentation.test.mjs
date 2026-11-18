@@ -22,6 +22,9 @@ test('short protocol durations retain millisecond precision without changing sto
   const t=(key,{count})=>`${key}:${count}`
   assert.equal(metricDurationText(0.025,'s',t),'intervalMilliseconds:25')
   assert.equal(metricDurationText(0.000025,'s',t),'intervalMilliseconds:0.025')
+  assert.equal(metricDurationText(8.6 / 3,'s',t),'intervalSeconds:2.8666667')
+  assert.equal(metricDurationText(8600 / 3,'ms',t),'intervalSeconds:2.8666667')
+  assert.equal(metricDurationText(8.6 / 180,'min',t),'intervalSeconds:2.8666667')
   assert.equal(metricDurationText(0,'s',t),'intervalSeconds:0')
   assert.equal(metricDurationText(61,'s',t),'intervalMinutes:1 intervalSeconds:1')
 })

@@ -64,7 +64,7 @@ test('时间带共用查询时间轴，裁剪边界并保留空隙，不按业�
 
 test('秒数只在显示时换算；分钟历史保留声明单位，非时间值不转换', () => {
   const t = (key, { count }) => `${count}${({ intervalDays:'d', intervalHours:'h', intervalMinutes:'m', intervalSeconds:'s' })[key]}`
-  for (const [seconds, text] of [[0,'0s'], [45,'45s'], [59.9,'59s'], [60,'1m'], [200,'3m 20s'], [8100,'2h 15m'], [90000,'1d 1h']]) assert.equal(metricDurationText(seconds, 's', t), text)
+  for (const [seconds, text] of [[0,'0s'], [45,'45s'], [59.9,'59.9s'], [60,'1m'], [200,'3m 20s'], [8100,'2h 15m'], [90000,'1d 1h']]) assert.equal(metricDurationText(seconds, 's', t), text)
   assert.equal(metricDurationText(2.5, 'min', t), '2m 30s')
   assert.equal(metricDurationText(2.5, 'h', t), '2h 30m')
   for (const [value, unit] of [[5,'kW'], [null,'s'], [true,'s'], ['60','s'], [NaN,'s'], [-1,'s']]) assert.equal(metricDurationText(value, unit, t), undefined)

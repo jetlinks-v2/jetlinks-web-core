@@ -11,7 +11,7 @@
         <p v-if="missingSource(alias)" class="algorithm-editor__missing" role="status">{{ t('algorithmMissingSource', { name:inputName(alias) }) }}</p>
         <div class="algorithm-editor__source-detail">
           <template v-if="inputType(alias)?.type === 'array'"><span v-if="history(alias)">{{ t('sentenceWithin', { duration:simulationDuration(history(alias), t) }) }} · </span><span>{{ t('algorithmHistoryData') }}</span><a-tooltip v-if="!history(alias)" :title="t('algorithmHistoryHint')"><AIcon type="InfoCircleOutlined" /></a-tooltip></template>
-          <span v-else>{{ t('latestReading') }}</span><span> · {{ t('algorithmInputAs', { name:inputName(alias) }) }}<template v-if="inputParameter(alias)"> · {{ t('inputOptional') }}</template></span>
+          <span v-else>{{ t('latestReading') }}</span><span v-if="inputUnit(alias)"> · {{ inputUnit(alias) }}</span><span> · {{ t('algorithmInputAs', { name:inputName(alias) }) }}<template v-if="inputParameter(alias)"> · {{ t('inputOptional') }}</template></span>
         </div>
       </div>
     </div>
@@ -28,13 +28,13 @@
         <template v-for="(group, index) in [parameters, advancedParameters]" :key="index">
           <component :is="index ? 'details' : 'div'" v-if="group.length" :class="index ? 'algorithm-editor__advanced' : 'algorithm-editor__parameters'">
             <summary v-if="index"><AIcon type="SettingOutlined" /><span>{{ t('moreSettings') }}</span><AIcon class="algorithm-editor__advanced-chevron" type="DownOutlined" /></summary>
-            <span v-if="!index">{{ t('sentenceSettings') }}</span>
-            <span v-for="(parameter, position) in group" :key="parameter.id" class="algorithm-editor__parameter">
+            <span v-if="!index && group.some(parameter => parameter.expands?.editor !== 'table')">{{ t('sentenceSettings') }}</span>
+            <span v-for="(parameter, position) in group" :key="parameter.id" class="algorithm-editor__parameter" :class="{ 'algorithm-editor__parameter--table':parameter.expands?.editor === 'table' }">
               <span class="algorithm-editor__parameter-content" :class="{ 'algorithm-editor__parameter-content--missing':!index && missingParameter(parameter) }">
-                <span :title="typeof parameter.description === 'string' ? parameter.description : undefined">{{ parameter.name || parameter.id }}{{ t('sentenceValue') }}</span>
+                <span :title="typeof parameter.description === 'string' ? parameter.description : undefined">{{ parameter.name || parameter.id }}<template v-if="parameter.expands?.editor !== 'table'">{{ t('sentenceValue') }}</template></span>
                 <TemplateDuration v-if="parameter.expands?.editor === 'duration'" :model-value="parameterValue(parameter) as string | undefined" :disabled="disabled" :min="1" @update:model-value="updateParameter(parameter.id, $event)" />
                 <MetricParameterValue v-else inline class="algorithm-editor__value" :class="{ 'algorithm-editor__value--complex':['object','array'].includes(String(parameter.valueType?.type)) }" :parameter="parameter" :disabled="disabled" :model-value="parameterValue(parameter)" :aria-invalid="!index && missingParameter(parameter)" @update:model-value="updateParameter(parameter.id, $event)" />
-                {{ t(position === group.length - 1 ? 'sentenceEnd' : 'sentenceComma') }}
+                <template v-if="parameter.expands?.editor !== 'table'">{{ t(position === group.length - 1 ? 'sentenceEnd' : 'sentenceComma') }}</template>
               </span>
               <span v-if="!index && missingParameter(parameter)" class="algorithm-editor__missing" role="status">{{ t('algorithmMissingParameter', { name:parameter.name || parameter.id }) }}</span>
             </span>
@@ -50,7 +50,7 @@
     <template v-if="spec.outputType?.type">
       <div class="algorithm-editor__output algorithm-editor__stage">
         <div class="algorithm-editor__stage-title"><AIcon type="ExportOutlined" />{{ t('algorithmResultStage') }}</div>
-        <strong>{{ resultName }}</strong><small v-if="spec.outputUnit"> · {{ spec.outputUnit }}</small>
+        <strong>{{ resultName }}</strong><small v-if="numericOutput"> · <Editable :value="spec.outputUnit" :component-props="{ disabled, bordered:false, placeholder:t('noUnit'), 'aria-label':t('outputUnit') }" @change="updateOutputUnit" /></small>
         <div class="algorithm-editor__result-detail">
           <template v-if="outputFields.length"><span v-for="(output, index) in outputFields" :key="output.id">{{ output.name }}<small v-if="output.valueType?.unit"> ({{ output.valueType.unit }})</small>{{ t(index === outputFields.length - 1 ? 'sentenceEnd' : 'sentenceList') }}</span></template>
           <span v-else>{{ t(parameterTypeKeys[String(spec.outputType.type)] || 'algorithmValue') }}</span>
@@ -80,13 +80,14 @@ import { simulationDuration } from './simulationFlow'
 import { errorText } from '../service'
 import { metricMessages } from '../messages'
 import { referenceChoice } from './choices'
-import { parameterTypeKeys } from '../parameterPresentation'
+import { numericParameter, parameterTypeKeys } from '../parameterPresentation'
 import type { MetricCalculatorDescriptor, MetricCalculatorSpec, MetricParameter, MetricTemplate } from '../types'
 
 const props = withDefaults(defineProps<{ template: MetricTemplate; rule: TemplateRule; calculators?: MetricCalculatorDescriptor[]; disabled?: boolean }>(), { calculators: () => [] })
 const emit = defineEmits<{ (event: 'patch', fields: Partial<TemplateRule>): void; (event: 'invalid', value: boolean): void }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const spec = computed(() => props.rule.calculator || {})
+const numericOutput = computed(() => numericParameter({ id:'result', valueType:{ type:String(spec.value.outputType?.type || '') } }))
 const descriptor = computed(() => findCalculator(spec.value, props.calculators))
 const canVisualize = computed(() => interactiveCalculator(spec.value, descriptor.value))
 // 尚未选择算法时先选择起点；仅已有且无法可视编辑的配置回退到 YAML。
@@ -108,6 +109,7 @@ const inputAlias = (parameter:MetricParameter) => String(spec.value.parameters?.
 const inputParameter = (alias:string) => inputParameters.value.find(parameter => inputAlias(parameter) === alias)
 const inputName = (alias:string) => descriptor.value?.inputNames[alias] || inputParameter(alias)?.name || alias
 const inputType = (alias:string) => spec.value.inputTypes?.[alias] || inputParameter(alias)?.expands?.inputType as Record<string,unknown> | undefined
+const inputUnit = (alias:string) => sources.value.find(item => item.id === (binding(alias)?.metricId || inheritedBinding(alias)))?.valueType?.unit || inputType(alias)?.unit
 const aliases = computed(() => [...new Set([...Object.keys(spec.value.inputTypes || {}), ...inputParameters.value.map(inputAlias)])])
 const parameters = computed(() => visibleAlgorithmParameters(descriptor.value, spec.value, false))
 const advancedParameters = computed(() => visibleAlgorithmParameters(descriptor.value, spec.value, true))
@@ -161,6 +163,9 @@ function updateParameter(id: string, value: unknown) {
   if (value === undefined) delete calculator.parameters[id]
   else calculator.parameters[id] = value
   patch({ calculator })
+}
+function updateOutputUnit(value:unknown) {
+  patch({calculator:{...spec.value, outputUnit:typeof value === 'string' ? value : undefined}})
 }
 function changeMode(value: 'visual' | 'yaml') {
   if (yamlError.value || value === 'visual' && !canVisualize.value) return
@@ -231,6 +236,9 @@ onBeforeUnmount(() => completion?.dispose())
 .algorithm-editor__missing { margin:2px 0 4px; color:var(--danger-color,#ff4d4f); font-size:11px; line-height:1.7; overflow-wrap:anywhere }
 .algorithm-editor__value { width:auto; min-width:28px; max-width:180px; color:var(--accent) }
 .algorithm-editor__value--complex { display:inline-block; width:180px; overflow:auto }
+.algorithm-editor__parameter--table { display:flex; width:100%; margin:4px 0 10px }
+.algorithm-editor__parameter--table .algorithm-editor__parameter-content { display:flex; flex-wrap:wrap; width:100%; gap:4px }
+.algorithm-editor__parameter--table .algorithm-editor__value { width:100%; max-width:none; overflow:visible }
 .algorithm-editor__parameter :deep(.template-duration) { width:auto }
 .algorithm-editor__parameter :deep(.template-duration__amount) { width:auto; min-width:28px; flex:0 1 auto }
 .algorithm-editor__parameter :deep(.template-duration__unit) { width:auto; min-width:40px }

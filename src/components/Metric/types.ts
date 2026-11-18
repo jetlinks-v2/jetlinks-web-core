@@ -73,6 +73,7 @@ export interface MetricCalculatorSpec {
   providerVersion?: string
   inputTypes?: Record<string, Record<string, unknown>>
   outputType?: Record<string, unknown>
+  outputUnit?: string
   parameters?: Record<string, unknown>
   [key: string]: unknown
 }
@@ -80,6 +81,7 @@ export interface MetricCalculatorDescriptor {
   id: string
   name: string
   description?: string
+  icon?: string
   configuration: MetricCalculatorSpec
   inputNames: Record<string, string>
   parameterDefinitions: MetricParameter[]

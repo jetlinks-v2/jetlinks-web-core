@@ -1,6 +1,6 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import { copy } from '../service'
-import { nextNodeId, nodeKey, nodeList, type TemplateNode } from './designer'
+import { nextNodeId, nodeKey, nodeList, type TemplateNode, type TemplateRule } from './designer'
 import { templateMessages } from './text'
 import { inputIdentityIssue, referenceInputId, renameTemplateInput } from './inputIdentity'
 import type { MetricSourceSelection, MetricTemplate } from '../types'
@@ -41,6 +41,17 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
     return true
   }
   function move(offset: number) { const node = nodes.value[position.value + offset]; if (node) select(node) }
+  /** 直接输出与计算节点共享单位；撤回时恢复原声明，不重建其他展示设置。 */
+  function replaceRule(value:MetricTemplate, index:number, rule:TemplateRule, originalOutputs?:MetricTemplate['outputs']) {
+    const previous = value.definitions[index] as TemplateRule
+    value.definitions[index] = rule
+    if (previous.calculator?.outputUnit === rule.calculator?.outputUnit) return
+    for (const output of value.outputs.filter(item => item.metricId === rule.id)) {
+      const unit = originalOutputs ? originalOutputs.find(item => item.metricId === output.metricId)?.unit : rule.calculator?.outputUnit
+      if (unit) output.unit = unit
+      else delete output.unit
+    }
+  }
   function patch(fields: Record<string, unknown>) {
     if (!selection.value || disabled.value) return false
     const node = selection.value
@@ -48,7 +59,8 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
     const next = previous !== undefined && typeof fields.id === 'string' ? fields.id.trim() : previous
     if (next !== previous && inputIdentityIssue(view.value,node.index,next!)) return false
     const value = next !== previous ? renameTemplateInput(view.value,node.index,next!) : copy(view.value)
-    Object.assign(items(value, selection.value)[selection.value.index], fields)
+    if (node.kind === 'rule') replaceRule(value, node.index, { ...value.definitions[node.index], ...fields } as TemplateRule)
+    else Object.assign(items(value, node)[node.index], fields)
     if (next !== previous) { value.inputDefinitions[node.index].id = next!; renameMessageKeys(previous!,next!); onInputRename?.(previous!,next!) }
     update(value)
     return true
@@ -85,7 +97,7 @@ export function useTemplateDesigner(template: Ref<MetricTemplate>, disabled: Ref
       if (checkpoint.options?.inputHints?.[next]) value.options = { ...value.options,inputHints:{ ...value.options?.inputHints,[next]:copy(checkpoint.options.inputHints[next]) } }
       else clearHint(value,node)
     }
-    else if (node.kind === 'rule') value.definitions[node.index] = copy(checkpoint.definitions[node.index])
+    else if (node.kind === 'rule') replaceRule(value, node.index, copy(checkpoint.definitions[node.index]) as TemplateRule, checkpoint.outputs)
     else value.outputs[node.index] = copy(checkpoint.outputs[node.index])
     if (messageKeys.size) {
       const messages = { ...templateMessages(value) }

@@ -25,13 +25,15 @@ function mount(descriptor,invalid=false) {
 
 test('真实后端描述的所有公式和符号均能由共享 MathLive 排版',async()=>{
   const {convertLatexToMarkup}=await import('mathlive/ssr')
-  assert.equal(descriptors.length,26)
-  assert.equal(descriptors.flatMap(item=>item.documentation.examples).length,33)
+  assert.equal(descriptors.length,32)
+  assert.equal(descriptors.flatMap(item=>item.documentation.examples).length,39)
   for(const descriptor of descriptors) {
     const {documentation}=descriptor
     assert.doesNotMatch(convertLatexToMarkup(documentation.formula),/ML__error/,descriptor.id)
     for(const item of documentation.symbols)assert.doesNotMatch(convertLatexToMarkup(item.symbol),/ML__error/,descriptor.id)
     assert.equal(calculatorOption(descriptor,key=>key).formula,documentation.formula)
+    assert.ok(descriptor.icon,descriptor.id)
+    assert.equal(calculatorIcon(descriptor),descriptor.icon,descriptor.id)
   }
 })
 

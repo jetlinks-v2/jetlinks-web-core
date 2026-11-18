@@ -1,5 +1,15 @@
 <template>
-  <Editable v-if="inline && simple" class="metric-parameter-value" :value="editableValue" :type="editorType"
+  <div v-if="tableFields.length" class="metric-value-table" role="table" :aria-label="parameter.name || parameter.id">
+    <div class="metric-value-table__row metric-value-table__head" role="row" :style="tableStyle">
+      <span v-for="field in tableFields" :key="field.id" role="columnheader">{{ field.name || field.id }}</span><span v-if="!disabled" role="columnheader" :aria-label="t('remove')" />
+    </div>
+    <div v-for="(row,index) in arrayValue" :key="index" class="metric-value-table__row" role="row" :style="tableStyle">
+      <div v-for="field in tableFields" :key="field.id" role="cell"><MetricParameterValue :parameter="field" :model-value="row && typeof row === 'object' ? (row as Record<string,unknown>)[field.id] : undefined" :disabled="disabled" @update:model-value="changeRow(index,field.id,$event)" /></div>
+      <div v-if="!disabled" role="cell"><a-button type="text" size="small" :disabled="arrayValue.length <= minItems" :aria-label="t('remove')" @click="change(arrayValue.filter((_,i)=>i!==index))"><AIcon type="MinusOutlined" /></a-button></div>
+    </div>
+    <a-button v-if="!disabled" type="dashed" size="small" block :disabled="arrayValue.length >= maxItems" @click="change([...arrayValue,{}])"><AIcon type="PlusOutlined" />{{ t('valueAddRow') }}</a-button>
+  </div>
+  <Editable v-else-if="inline && simple" class="metric-parameter-value" :value="editableValue" :type="editorType"
     :component-props="{ ...editorProps, disabled, bordered:false, placeholder:t('notConfigured'), 'aria-label':parameter.name || parameter.id, 'aria-invalid':$attrs['aria-invalid'] }" @change="changeInline">{{ display }}</Editable>
   <details v-else-if="inline" class="metric-parameter-value metric-parameter-value--structured">
     <summary>{{ display }}</summary>
@@ -55,6 +65,16 @@ const fields = computed<MetricParameter[]>(() => Array.isArray(props.parameter.v
 const element = computed<MetricParameter>(() => ({ id:props.parameter.id, valueType:{ type:'string', ...props.parameter.valueType?.elementType as Record<string,unknown> } }))
 const objectValue = computed<Record<string,unknown>>(() => props.modelValue && typeof props.modelValue === 'object' && !Array.isArray(props.modelValue) ? props.modelValue as Record<string,unknown> : {})
 const arrayValue = computed<unknown[]>(() => Array.isArray(props.modelValue) ? props.modelValue : [])
+const tableFields = computed<MetricParameter[]>(() => props.parameter.expands?.editor === 'table' && type.value === 'array' && Array.isArray(element.value.valueType?.properties) ? element.value.valueType.properties : [])
+const tableStyle = computed(() => ({ gridTemplateColumns:`repeat(${tableFields.value.length}, minmax(0, 1fr))${props.disabled ? '' : ' 28px'}` }))
+const minItems = computed(() => Number(props.parameter.expands?.minItems || 0))
+const maxItems = computed(() => Number(props.parameter.expands?.maxItems || Infinity))
+function changeRow(index:number,id:string,value:unknown) {
+  const row = arrayValue.value[index]
+  const next = { ...(row && typeof row === 'object' ? row as Record<string,unknown> : {}) }
+  if (value === undefined) delete next[id]; else next[id] = value
+  change(arrayValue.value.map((item,i) => i === index ? next : item))
+}
 const dateValue = computed(() => props.modelValue == null || props.modelValue === '' ? undefined : dayjs(props.modelValue as string | number))
 /** 字段未提供和显式空值分别保留；编辑一个字段不重建或丢弃其他来源字段。 */
 function changeField(id:string,value:unknown) { const next = { ...objectValue.value }; if (value === undefined) delete next[id]; else next[id] = value; change(next) }
@@ -91,6 +111,11 @@ function formatNumber(value: string | number | undefined, info: { userTyping: bo
 </script>
 <style scoped>
 .metric-parameter-value { min-width:64px; max-width:100%; vertical-align:middle }
+.metric-value-table { width:100%; min-width:0; display:grid; gap:6px; font-size:12px }
+.metric-value-table__row { display:grid; gap:6px; align-items:center; min-width:0 }
+.metric-value-table__head { color:var(--ink-3); line-height:24px }
+.metric-value-table__row > * { min-width:0 }
+.metric-value-table__row :deep(.ant-input-number) { min-width:0; width:100% }
 .metric-parameter-value--structured { min-width:0; width:100%; overflow:hidden }
 .metric-parameter-value--structured summary { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; line-height:32px }
 .metric-parameter-value--structured pre { max-height:180px; overflow:auto; white-space:pre-wrap; font-size:12px }

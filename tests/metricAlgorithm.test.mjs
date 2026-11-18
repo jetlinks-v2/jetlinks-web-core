@@ -14,7 +14,7 @@ const { ruleFormulaReferences, expressionToFormula, formulaToExpression } = load
 const Editor = load('components/Metric/template/TemplateAlgorithmEditor.vue').default
 const { useMetricTemplates } = load('components/Metric/template/useMetricTemplates.ts')
 const state = {
-  id: 'duration', name: 'State duration', inputNames: { state: 'State' },
+  id: 'duration', name: 'State duration', icon: 'ClockCircleOutlined', inputNames: { state: 'State' },
   configuration: { provider: 'state', providerVersion: '1', inputTypes: { state: { type: 'array', elementType: { type: 'int' } } },
     outputType: { type: 'object', properties: [{ id: 'activeDuration', name: 'Runtime', valueType: { type: 'double', unit: 's' } }] },
     parameters: { duration: 'PT1H', maxHold: 'PT20M', activeValue: 1, inactiveValue: 0 } },
@@ -25,7 +25,7 @@ const state = {
     { id: 'inactiveValue', name: 'Inactive', valueType: { type: 'int' }, expands: { typeFromInput: 'state' } },
   ],
 }
-const meter = { id: 'increase', name: 'Counter increase', inputNames: { reading: 'Reading' },
+const meter = { id: 'increase', name: 'Counter increase', icon: 'RiseOutlined', inputNames: { reading: 'Reading' },
   configuration: { provider: 'measurement', providerVersion: '1', inputTypes: { reading: { type: 'array', elementType: { type: 'double' } } },
     outputType: { type: 'double' }, parameters: { operation: 'increase', negativeDelta: 'reject' } },
   parameterDefinitions: [{ id: 'negativeDelta', name: 'Decrease', valueType: { type: 'enum', elements: [{ value: 'reject', text: 'Reject' }, { value: 'rollover', text: 'Rollover' }] } }],
@@ -71,6 +71,19 @@ test('来源候选按算法角色类型过滤，分段输入按声明接受不�
     assert.equal(algorithmSourceMatches(contextual.configuration,'signal',undefined,contextual),false)
     assert.equal(algorithmSourceMatches(state.configuration,'state',{type:'boolean'},state),true)
   } finally {view.close()}
+})
+
+test('观测序列与数组来源分开匹配，切换算法仍保留已知的单次观测类型', () => {
+  const scalar = { id:'median', configuration:{provider:'filter',providerVersion:'1',inputTypes:{signal:{type:'double'}},outputType:{type:'double'},parameters:{operation:'median'}}, parameterDefinitions:[] }
+  const array = {type:'array',elementType:{type:'double'}}
+  assert.equal(algorithmSourceMatches(scalar.configuration,'signal',array,scalar),false)
+  assert.equal(algorithmSourceMatches(meter.configuration,'reading',array,meter),false)
+  assert.equal(algorithmSourceMatches(meter.configuration,'reading',{type:'double'},meter),true)
+  const previous={inputs:[{id:'reading',metricId:'sensor'}],calculator:clone(meter.configuration)}
+  assert.deepEqual(chooseAlgorithm(previous,scalar).inputs,[{id:'signal',metricId:'sensor'}])
+  assert.deepEqual(chooseAlgorithm(previous,scalar,[{id:'sensor',valueType:array}]).inputs,[])
+  const selected=bindAlgorithmInput({calculator:clone(state.configuration)},'state','vectors',array,state)
+  assert.deepEqual(selected.calculator.inputTypes.state,{type:'array',elementType:array})
 })
 
 test('参数编辑复用通用值控件，原始枚举编码、数值范围和显式空值保持一致',async()=>{
@@ -197,13 +210,14 @@ test('算法配置按来源、计算、结果分层，来源块复用真实引�
   } finally { view.close() }
 })
 
-test('算法图标按真实操作区分，未知算法使用通用图标且不推断名称或能力', () => {
+test('算法图标直接使用描述声明，不按内置名称或 Provider 推断', () => {
   assert.equal(calculatorIcon(state), 'ClockCircleOutlined')
   assert.equal(calculatorIcon(meter), 'RiseOutlined')
-  assert.equal(calculatorIcon({ ...meter, id:'integral' }), 'AreaChartOutlined')
-  assert.equal(calculatorIcon({ ...meter, id:'rms', configuration:{ provider:'signal' } }), 'DashboardOutlined')
-  assert.equal(calculatorIcon({ ...meter, id:'future' }), 'CalculatorOutlined')
-  assert.equal(calculatorIcon({ ...meter, configuration:{ ...meter.configuration, provider:'third-party' } }), 'CalculatorOutlined')
+  assert.equal(calculatorIcon({ ...meter, id:'integral', icon:'AreaChartOutlined' }), 'AreaChartOutlined')
+  assert.equal(calculatorIcon({ ...meter, id:'rms', icon:'DashboardOutlined', configuration:{ provider:'signal' } }), 'DashboardOutlined')
+  assert.equal(calculatorIcon({ ...meter, icon:undefined }), 'CalculatorOutlined')
+  assert.equal(calculatorIcon({ ...meter, icon:'', id:'future' }), 'CalculatorOutlined')
+  assert.equal(calculatorIcon({ ...meter, icon:'ExperimentOutlined', configuration:{ ...meter.configuration, provider:'third-party' } }), 'ExperimentOutlined')
   assert.equal(calculatorIcon(), 'CalculatorOutlined')
   const opaque = { id:'custom', name:'Custom model', configuration:{ provider:'custom', providerVersion:'v7' } }
   const original = JSON.stringify(opaque)
@@ -218,6 +232,27 @@ test('算法图标按真实操作区分，未知算法使用通用图标且不�
     assert.equal(builtin.description, `Counter change · ${locale === 'zh' ? '版本 1' : 'Version 1'}`)
   }
   assert.equal(JSON.stringify(opaque), original)
+})
+
+test('数值算法显示来源单位并可单独修改结果单位，保留绑定与参数', async () => {
+  const view = mount()
+  try {
+    view.props.rule.calculator = clone(meter.configuration)
+    view.props.rule.inputs = [{ id:'reading', metricId:'operating' }]
+    view.props.template.inputDefinitions[0].unit = 'kWh'
+    await flush()
+    assert.ok(textContent(view.root).includes('kWh'))
+    const unit = nodes(view,'external-shell').find(node => node.props['component-props']?.['aria-label'] === 'outputUnit')
+    assert.ok(unit)
+    unit.props.onChange('L'); await flush()
+    assert.equal(view.props.rule.calculator.outputUnit,'L')
+    assert.deepEqual(view.props.rule.inputs,[{ id:'reading', metricId:'operating' }])
+    assert.equal(view.props.rule.calculator.parameters.negativeDelta,'reject')
+    unit.props.onChange(undefined); await flush()
+    assert.equal(view.props.rule.calculator.outputUnit,undefined)
+    view.props.rule.calculator.outputType = { type:'boolean' }; await flush()
+    assert.ok(!nodes(view,'external-shell').some(node => node.props['component-props']?.['aria-label'] === 'outputUnit'))
+  } finally { view.close() }
 })
 
 test('算法说明来自精确匹配的描述，结果字段保留模板字典翻译',()=>{
@@ -347,12 +382,25 @@ test('窗口来源切换到算法后迁移为输入别名，后续算法切换�
 
 test('单一依赖和直接来源可无损继承；多来源没有明确对应时不按顺序猜测', () => {
   assert.deepEqual(chooseAlgorithm({dependsOn:['temperature']},meter).inputs,[{id:'reading',metricId:'temperature'}])
+  assert.deepEqual(chooseAlgorithm({dependsOn:['']},meter).inputs,[])
   const direct={id:'signal',source:{kind:'provider',id:'reading',providerSource:{provider:'objects',sourceType:'query',configuration:{}}},presence:'optional',defaultValue:0}
   const rule={inputs:[direct],calculator:{inputTypes:{signal:{type:'array',elementType:{type:'double'}}}}}
   assert.deepEqual(chooseAlgorithm(rule,meter).inputs,[{...direct,id:'reading'}])
   assert.deepEqual(chooseAlgorithm({dependsOn:['temperature','ambient']},meter).inputs,[])
   const multi={...clone(meter),configuration:{...clone(meter.configuration),inputTypes:{left:{type:'double'},right:{type:'double'}}}}
   assert.deepEqual(chooseAlgorithm({inputs:[{id:'a',metricId:'one'},{id:'b',metricId:'two'}]},multi).inputs,[])
+})
+
+test('多个独立类型的唯一对应一次迁移，同类型的歧义角色仍需明确选择', () => {
+  const descriptor = { ...clone(meter), configuration:{ ...clone(meter.configuration),
+    inputTypes:{ reading:{type:'double'}, enabled:{type:'boolean'}, batch:{type:'string'} } } }
+  const inputs = [{id:'mode',metricId:'lot'}, {id:'active',metricId:'switch'}, {id:'signal',metricId:'sensor'}]
+  const sources = [{id:'lot',valueType:{type:'string'}}, {id:'switch',valueType:{type:'boolean'}}, {id:'sensor',valueType:{type:'double'}}]
+  const expected = [{id:'reading',metricId:'sensor'}, {id:'enabled',metricId:'switch'}, {id:'batch',metricId:'lot'}]
+  assert.deepEqual(chooseAlgorithm({inputs},descriptor,sources).inputs,expected)
+  assert.deepEqual(chooseAlgorithm({inputs:inputs.toReversed()},descriptor,sources).inputs,expected)
+  descriptor.configuration.inputTypes.secondReading = {type:'double'}
+  assert.deepEqual(chooseAlgorithm({inputs},descriptor,sources).inputs,expected.slice(1))
 })
 
 test('保留同名输入；明确类型不匹配时要求重选，动态状态输入沿用来源实际类型', () => {
@@ -378,7 +426,7 @@ test('binding uses declared source types, keeps other bindings and does not alte
 })
 
 test('same operation with different input roles uses the matching variant in editor and formula metadata', () => {
-  const cycle = { ...clone(meter), id:'increaseByCycle', name:'Usage by cycle' }
+  const cycle = { ...clone(meter), id:'increaseByCycle', name:'Usage by cycle', icon:'SwapOutlined' }
   cycle.configuration.inputTypes.cycle = {type:'array',elementType:{type:'string'}}
   cycle.configuration.parameters.contextInput = 'cycle'
   const switched=chooseAlgorithm({sourceMetric:'memory',dependsOn:['memory']},cycle,[{id:'memory',valueType:{type:'double'}}])

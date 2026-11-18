@@ -24,9 +24,10 @@ export function algorithmSourceMatches(spec:MetricCalculatorSpec, alias:string, 
   if (!actual?.type) return false
   const parameter = calculatorInputParameters(descriptor).find(parameter => (spec.parameters?.[parameter.id] || parameter.id) === alias)
   const required = parameter?.expands?.inputType as Record<string,unknown> | undefined || descriptor?.configuration.inputTypes?.[alias] || spec.inputTypes?.[alias]
-  const element = (type:Record<string,unknown> | undefined) => type?.type === 'array' ? type.elementType as Record<string,unknown> | undefined : type
+  // 数组角色声明观测序列；来源类型始终描述一次观测，不能再拆掉来源自身的数组。
+  const expected = required?.type === 'array' ? required.elementType as Record<string,unknown> | undefined : required
   return !!descriptor?.parameterDefinitions.some(parameter => parameter.expands?.typeFromInput === alias)
-    || metricSourceMatchesType(element(required),element(actual))
+    || metricSourceMatchesType(expected,actual)
 }
 /** 优先保留同名输入；只迁移类型对应唯一的角色，不按位置猜测多输入的用途。 */
 export function chooseAlgorithm(rule: TemplateRule, item: MetricCalculatorDescriptor, sources: {id:string;valueType?:Record<string,unknown>}[] = []): Partial<TemplateRule> {
@@ -49,7 +50,11 @@ export function chooseAlgorithm(rule: TemplateRule, item: MetricCalculatorDescri
     .filter(metricId => !controls.some(input => input.metricId === metricId))
     .map(metricId => ({id:metricId,metricId}))
   const aliases = Object.keys(calculator.inputTypes || {})
-  const sourceType = (input:Binding) => sources.find(source => source.id === input.metricId)?.valueType || rule.calculator?.inputTypes?.[input.id || '']
+  const sourceType = (input:Binding) => {
+    const actual = sources.find(source => source.id === input.metricId)?.valueType
+    const previous = rule.calculator?.inputTypes?.[input.id || '']
+    return actual || (previous?.type === 'array' ? previous.elementType as Record<string,unknown> | undefined : previous)
+  }
   const compatible = (input:Binding, alias:string) => {
     const actual = sourceType(input)
     return !actual?.type || algorithmSourceMatches(calculator,alias,actual,item)
@@ -59,17 +64,14 @@ export function chooseAlgorithm(rule: TemplateRule, item: MetricCalculatorDescri
     const input = previous.find(input => input.id === alias && (input.metricId || input.source))
     if (input && compatible(input,alias)) assigned.set(alias,input)
   }
-  let progress = true
-  while (progress) {
-    progress = false
-    const remaining = aliases.filter(alias => !assigned.has(alias))
-    const used = new Set(assigned.values())
-    const unused = previous.filter(input => (input.metricId || input.source) && !used.has(input))
-    for (const alias of remaining) {
-      const candidates = unused.filter(input => compatible(input,alias))
-      if (candidates.length === 1 && remaining.filter(role => compatible(candidates[0],role)).length === 1) {
-        assigned.set(alias,candidates[0]); progress = true
-      }
+  const remaining = aliases.filter(alias => !assigned.has(alias))
+  const used = new Set(assigned.values())
+  const unused = previous.filter(input => (input.metricId || input.source) && !used.has(input))
+  // 只迁移双方唯一对应的角色；这些匹配相互独立，无需循环消解歧义。
+  for (const alias of remaining) {
+    const candidates = unused.filter(input => compatible(input,alias))
+    if (candidates.length === 1 && remaining.filter(role => compatible(candidates[0],role)).length === 1) {
+      assigned.set(alias,candidates[0])
     }
   }
   const inputs = [...assigned].map(([id,input]) => {
@@ -103,7 +105,7 @@ export function bindAlgorithmInput(rule: TemplateRule, alias: string, metricId: 
 function setAlgorithmInputType(calculator:MetricCalculatorSpec, alias:string, valueType?:Record<string,unknown>, descriptor?:MetricCalculatorDescriptor) {
   if (valueType && calculator.inputTypes?.[alias]) {
     const expected = calculator.inputTypes[alias]
-    calculator.inputTypes[alias] = expected.type === 'array' && valueType.type !== 'array'
+    calculator.inputTypes[alias] = expected.type === 'array'
       ? { ...expected, elementType: copy(valueType) } : copy(valueType)
     // 输入类型改变后，不能把旧数字悄悄显示为一个布尔开关值。要求用户明确选定新的状态含义。
     if (valueType.type === 'boolean') {
