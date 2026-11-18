@@ -37,6 +37,7 @@ import {
 import { getProjectStorage, removeProjectStorage } from '@jetlinks-web-core/utils/project-storage'
 import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 import { useUserStore } from '@jetlinks-web-core/store/user'
+import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import {
   createLoginNavigationHref,
   type LoginNavigationReason,
@@ -174,8 +175,8 @@ const getSubAccountRedirect = (to: RouteLocationNormalized) => {
   }
 
   if (isProjectRuntime()) {
-    // 当前个人中心是项目内的静态路由，不能按旧租户 /account 页面送回根入口。
-    if (getApplicationRuntimeEntry().type === 'project' && to.name === 'account/center') {
+    // 项目和应用都复用这个静态账户页；其他旧租户路径仍返回根入口。
+    if (to.name === 'account/center') {
       return
     }
 
@@ -234,6 +235,15 @@ const getRoutesByServer = async (
     if (hasAddedMenuRoutes) {
       // 按路径重新匹配，避免沿用菜单加载前命中的 error 路由名而继续显示 404。
       next({ path: to.path, query: to.query, hash: to.hash, replace: true })
+      return
+    }
+
+    // 应用无业务路由时，个人中心可用不代表模块预注册的业务页也已授权。
+    if (getApplicationRuntimeEntry().type === 'application' && to.name !== 'account/center'
+      && to.path !== NOT_FOUND_PATH && !shouldSkipMenuFetch(to) && !isPublicRoute(to)
+      && (to.meta.security ?? RouteSecurityLevel.AUTHORIZED) === RouteSecurityLevel.AUTHORIZED
+      && !useMenuStore().hasRouteMenu()) {
+      next({ path: FORBIDDEN_PATH, query: to.query, replace: true })
       return
     }
 

@@ -97,6 +97,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     '@jetlinks-web-core/utils/json/collector': {},
     '@jetlinks-web-core/store/route-loading': { useRouteLoadingStore: () => ({ start() {}, finish() {}, finishNavigation() {}, reset() {} }) },
     '@jetlinks-web-core/store/user': { useUserStore: () => ({ isSubAccount: false }) },
+    '@jetlinks-web-core/store/menu': { useMenuStore: () => ({ hasRouteMenu: () => true }) },
   }
   const cache = new Map()
   const stubs = {

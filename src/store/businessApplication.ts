@@ -7,7 +7,7 @@ import {
   getMyBusinessApplications,
   type BusinessApplicationEntity,
 } from '@jetlinks-web-core/api/application'
-import { hasOwnBusinessApplicationMenu } from '@jetlinks-web-core/api/system/menu'
+import { preflightBusinessApplicationMenus } from '@jetlinks-web-core/api/system/menu'
 import {
   ApplicationEntryUnavailableError,
   APPLICATION_SCOPE_QUERY_KEY,
@@ -214,13 +214,8 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     nextApplication: BusinessApplicationEntry,
     options: EnterApplicationOptions = {},
   ) => {
-    // 先预检目标 Scope 的菜单，避免切换后清空当前路由再落入 403。
-    if (!await hasOwnBusinessApplicationMenu(nextApplication.id)) {
-      onlyMessage($t('components.BusinessApplicationSwitcher.notConfigured', {
-        name: nextApplication.name,
-      }), 'warning')
-      return false
-    }
+    // 请求失败时保留当前应用；成功但无菜单时仍进入目标应用，由其根路由选择个人中心。
+    await preflightBusinessApplicationMenus(nextApplication.id)
 
     const customDomain = typeof nextApplication.configuration?.customDomain === 'string'
       ? nextApplication.configuration.customDomain

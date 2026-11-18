@@ -71,7 +71,10 @@ const fixtures = {
       if (url === '/user/detail' && state().identity) return { success: true, result: state().identity }
       if (url === '/user/settings/init' && state().initSettings) return { success: true, result: state().initSettings }
       if (url === '/authorize/login' && state().loginResponse) return state().loginResponse
-      if (url === '/menu/user-own/tree') return { success: true, result: state().menus }
+      if (url === '/menu/user-own/tree') {
+        if (state().menuError) throw state().menuError
+        return state().menuResponse || { success: true, result: state().menus }
+      }
       return { success: true, result: {} }
     }
     export const request = {
@@ -538,6 +541,7 @@ try {
       localStorage.setItem('project_project', JSON.stringify({ ...storage, scope: undefined }))
     }
     await startup.bootstrapSession()
+    globalThis.__applicationRuntimeTest.menus = []
     assert.equal(await api.useBusinessApplicationStore().switchApplication('application-b'), true)
     const target = new URL(globalThis.__applicationRuntimeTest.assignedUrl)
     assert.equal(target.pathname, '/application-b/')
@@ -550,7 +554,7 @@ try {
     assert.equal(await api.useBusinessApplicationStore().switchApplication(scope.PROJECT_APPLICATION_SCOPE), true)
     const projectTarget = new URL(globalThis.__applicationRuntimeTest.assignedUrl, window.location.origin)
     assert.equal(projectTarget.pathname, environment ? '/project/' : '/')
-    assert.equal(projectTarget.hash.includes('applicationScope'), false)
+    assert.equal(projectTarget.hash, '#/account/center')
     window.location = projectTarget
     assert.equal(runtime.isApplicationRuntime(), false)
     assert.equal(context.getRequestHeaders()[scope.APPLICATION_SCOPE_HEADER], undefined)
@@ -640,12 +644,13 @@ try {
       scenarios++
     }
 
-    for (const failure of ['authorization-network', 'authorization-result', 'empty-applications', 'empty-first-menu', 'application-network']) {
+    for (const failure of ['authorization-network', 'authorization-result', 'empty-applications', 'menu-response', 'menu-network', 'application-network']) {
       const state = prepareProject([applicationRole])
       if (failure === 'authorization-network') state.authorizationError = new Error('authorization network failed')
       if (failure === 'authorization-result') state.authorizationResponse = { success: false }
       if (failure === 'empty-applications') state.applications = []
-      if (failure === 'empty-first-menu') state.menus = []
+      if (failure === 'menu-response') state.menuResponse = { success: false, result: [] }
+      if (failure === 'menu-network') state.menuError = new Error('menu request failed')
       if (failure === 'application-network') state.applicationError = new Error('application network failed')
       const originalError = console.error
       try {
@@ -658,12 +663,13 @@ try {
       assert.equal(state.assignedUrl, undefined, failure)
       assert.ok(state.messages.length > 0, failure)
       assert.equal(state.requests.some(request => request.url === '/menu/user-own/tree' && request.data.terms[0]?.value !== 'app'), false, failure)
-      if (failure !== 'empty-first-menu') assert.equal(state.requests.some(request => request.url === '/menu/user-own/tree'), false, failure)
+      assert.equal(state.requests.some(request => request.url === '/menu/user-own/tree'), failure.startsWith('menu-'), failure)
       scenarios++
     }
 
     for (const onlyApplications of [false, true]) {
       const state = prepareProject(onlyApplications ? [applicationRole] : [applicationRole, projectRole])
+      state.menus = []
       await api.useLoginSuccess().handleLoginSuccess('new-token')
       const menuRequests = state.requests.filter(request => request.url === '/menu/user-own/tree')
       if (onlyApplications) {
@@ -725,16 +731,17 @@ try {
       scenarios++
     }
 
-    for (const failure of ['missing', 'empty-menu', 'endpoint-missing', 'network']) {
+    for (const failure of ['missing', 'invalid-menu-response', 'endpoint-missing', 'network']) {
       reset(api)
       const state = globalThis.__applicationRuntimeTest
       if (failure === 'missing') state.applications = []
-      if (failure === 'empty-menu') state.menus = []
+      if (failure === 'invalid-menu-response') state.menus = null
       if (failure === 'endpoint-missing') state.applicationError = { status: 404 }
       if (failure === 'network') state.applicationError = new Error('network unavailable')
-      if (failure === 'empty-menu') {
+      if (failure === 'invalid-menu-response') {
         await startup.bootstrapSession()
-        await assert.rejects(startup.ensureMenuRoutes(api.router, false), scope.ApplicationEntryUnavailableError)
+        await assert.rejects(startup.ensureMenuRoutes(api.router, false), /Failed to load menus/)
+        assert.equal(api.useMenuStore().initialized, false)
       } else {
         await assert.rejects(startup.bootstrapSession())
         await assert.rejects(startup.ensureMenuRoutes(api.router, false), scope.ApplicationEntryUnavailableError)
@@ -761,27 +768,41 @@ try {
     assert.equal(runtime.isApplicationRuntime(), true)
     scenarios++
 
-    for (const failure of ['missing', 'empty-menu', 'network']) {
+    for (const failure of ['missing', 'empty-menu', 'menu-request', 'network']) {
       reset(api)
       const state = globalThis.__applicationRuntimeTest
       if (failure === 'missing') state.applications = []
       if (failure === 'empty-menu') state.menus = []
+      if (failure === 'menu-request') state.menuResponse = { success: false, result: [], message: 'menu unavailable' }
       if (failure === 'network') state.applicationError = new Error('network unavailable')
       const errors = []
       const originalError = console.error
       try {
         console.error = (...args) => errors.push(args)
-        await api.router.push(`/invalid?applicationScope=${applicationId}`)
+        const path = failure === 'menu-request' ? '/' : failure === 'missing' ? '/account/center' : '/invalid'
+        await api.router.push(`${path}?applicationScope=${applicationId}`)
       } finally {
         console.error = originalError
       }
-      assert.equal(errors.length, 1)
-      assert.ok(failure === 'network'
-        ? errors[0][1] === state.applicationError
-        : errors[0][1] instanceof scope.ApplicationEntryUnavailableError)
+      if (failure === 'empty-menu') {
+        // The missing deep link is forbidden, but application admission and the menu request succeeded.
+        assert.equal(errors.length, 0)
+        const removeRoute = api.router.addRoute({ name: 'module-business-page', path: '/module-business-page', component: {} })
+        try {
+          await withNavigationDeadline(api.router.push('/module-business-page'))
+          assert.equal(api.router.currentRoute.value.path, '/403', 'pre-registered business routes still require menu access')
+        } finally {
+          removeRoute()
+        }
+      } else {
+        assert.equal(errors.length, 1)
+        if (failure === 'network') assert.equal(errors[0][1], state.applicationError)
+        else if (failure === 'menu-request') assert.equal(errors[0][1].message, 'menu unavailable')
+        else assert.ok(errors[0][1] instanceof scope.ApplicationEntryUnavailableError)
+      }
       assert.equal(api.router.currentRoute.value.path, '/403')
       assert.equal(state.requests.some(request => request.url === '/menu/user-own/tree' && request.data.terms[0].value === 'iot'), false)
-      if (failure === 'network') assert.equal(state.messages.at(-1)[0], 'components.BusinessApplicationSwitcher.loadFailed')
+      if (failure === 'network' || failure === 'menu-request') assert.equal(state.messages.at(-1)[0], 'components.BusinessApplicationSwitcher.loadFailed')
       scenarios++
     }
 
@@ -928,70 +949,68 @@ try {
       { name: 'overridden static path', subAccount: true, overridePath: 'profile', expected: '/account/profile' },
       { name: 'business menu takes priority', subAccount: true, menus: [personalCenterMenu, { ...menu, owner: 'iot' }], expected: '/overview' },
       { name: 'legacy user-owned menu without granted', menus: [{ ...personalCenterMenu, granted: undefined }] },
-      ...(environment ? [
-        { name: 'empty project menu', menus: [], expected: '/403', noEntry: true },
-        { name: 'explicitly denied personal center', menus: [{ ...personalCenterMenu, granted: false }], expected: '/403', noEntry: true },
-        { name: 'removed static center', removeCenter: true, expected: '/403', noEntry: true },
-      ] : []),
+      { name: 'empty menu login', menus: [], login: true, subAccount: true },
+      { name: 'explicitly denied center menu', menus: [{ ...personalCenterMenu, granted: false }] },
+      { name: 'hidden page only', menus: [{ ...menu, options: { show: false } }] },
+      { name: 'placeholder in a directory', menus: [{ code: 'group', url: '/group', children: [
+        { ...menu, meta: { menuBadge: { type: 'comingSoon' } } },
+      ] }] },
+      { name: 'removed static center', menus: [], removeCenter: true, expected: '/403', noEntry: true },
     ]
 
-    for (const scenario of cases) {
-      const api = await bundle(environment, runtimeScope)
-      reset(api, `http://localhost:9200/project/#/${scenario.login ? 'login' : ''}`)
-      const state = globalThis.__applicationRuntimeTest
-      state.user.isAdmin = false
-      state.user.isSubAccount = Boolean(scenario.subAccount)
-      state.menus = scenario.menus || [personalCenterMenu]
-      if (scenario.removeCenter) api.router.removeRoute('Account')
-      if (scenario.overridePath) {
-        // 模块可将个人中心隐藏或使用相对 child path；入口必须取注册后的实际路径。
-        api.router.addRoute({
-          path: '/account', name: 'Account', component: {}, meta: { hideInMenu: true },
-          children: [{ path: scenario.overridePath, name: 'account/center', component: {}, meta: { hideInMenu: true } }],
+    for (const application of [false, true]) {
+      for (const scenario of cases) {
+        const api = await bundle(environment, runtimeScope)
+        const page = scenario.login ? 'login' : ''
+        reset(api, application
+          ? `http://localhost:9200/${applicationId}/#/${page}?applicationScope=${applicationId}`
+          : `http://localhost:9200/project/#/${page}`)
+        const state = globalThis.__applicationRuntimeTest
+        state.user.isAdmin = false
+        state.user.isSubAccount = Boolean(scenario.subAccount)
+        state.menus = (scenario.menus || [personalCenterMenu]).map(item => ({ ...item, owner: application ? 'app' : 'iot' }))
+        if (scenario.removeCenter) api.router.removeRoute('Account')
+        if (scenario.overridePath) {
+          // 模块可将个人中心隐藏或使用相对 child path；入口必须取注册后的实际路径。
+          api.router.addRoute({
+            path: '/account', name: 'Account', component: {}, meta: { hideInMenu: true },
+            children: [{ path: scenario.overridePath, name: 'account/center', component: {}, meta: { hideInMenu: true } }],
+          })
+        }
+        const store = api.useMenuStore()
+        const queryResults = []
+        store.$onAction(({ name, after }) => {
+          if (name === 'queryMenus') after(result => queryResults.push(result))
         })
+        if (scenario.login) await api.useLoginSuccess().handleLoginSuccess('new-token')
+        const expected = scenario.expected || '/account/center'
+        const label = `${environment || 'private'}/${runtimeScope}/${application ? 'application' : 'project'}: ${scenario.name}`
+        const originalHref = window.location.href
+        await withNavigationDeadline(api.router.push(scenario.target || '/'))
+        assert.equal(api.router.currentRoute.value.path, expected, label)
+        assert.equal(window.location.href, originalHref, `${label}: no full-page redirect loop`)
+        assert.equal(queryResults.at(-1).firstMenuPath, scenario.noEntry ? undefined : expected, label)
+        assert.equal(api.router.getRoutes().find(route => route.path === '/')?.redirect, expected, label)
+        assert.equal(api.router.hasRoute('account-center'), false, `${label}: reuse the static route`)
+        const menuRequests = state.requests.filter(request => request.url === '/menu/user-own/tree')
+        assert.ok(menuRequests.length, label)
+        assert.ok(menuRequests.every(request => request.data.terms[0]?.value === (application ? 'app' : 'iot')
+          && request.headers[api.scope.APPLICATION_SCOPE_HEADER] === (application ? `business_application:${applicationId}` : undefined)), label)
+        if (application) assert.equal(api.router.currentRoute.value.query.applicationScope, applicationId, label)
+        if (!state.menus.length) assert.deepEqual(api.useAuthStore().permissions, {}, label)
+        if (!scenario.noEntry) {
+          store.init()
+          api.startup.resetRouteStartupState()
+          await withNavigationDeadline(api.router.replace('/'))
+          assert.equal(api.router.currentRoute.value.path, expected, `${label}: reload menus`)
+          assert.equal(queryResults.at(-1).firstMenuPath, expected, label)
+        }
+        scenarios++
       }
-      const store = api.useMenuStore()
-      const queryResults = []
-      store.$onAction(({ name, after }) => {
-        if (name === 'queryMenus') after(result => queryResults.push(result))
-      })
-      if (scenario.login) await api.useLoginSuccess().handleLoginSuccess('new-token')
-      const expected = scenario.expected || '/account/center'
-      const label = `${environment || 'private'}/${runtimeScope}: ${scenario.name}`
-      const originalHref = window.location.href
-      await withNavigationDeadline(api.router.push(scenario.target || '/'))
-      assert.equal(api.router.currentRoute.value.path, expected, label)
-      assert.equal(window.location.href, originalHref, `${label}: no full-page redirect loop`)
-      assert.equal(queryResults.at(-1).firstMenuPath, scenario.noEntry ? undefined : expected, label)
-      assert.equal(api.router.getRoutes().find(route => route.path === '/')?.redirect, expected, label)
-      assert.equal(api.router.hasRoute('account-center'), false, `${label}: reuse the static route`)
-      assert.ok(state.requests.filter(request => request.url === '/menu/user-own/tree').every(request => (
-        request.data.terms[0]?.value === 'iot' && !request.headers[api.scope.APPLICATION_SCOPE_HEADER]
-      )), label)
-      if (!scenario.noEntry) {
-        store.init()
-        api.startup.resetRouteStartupState()
-        await withNavigationDeadline(api.router.replace('/'))
-        assert.equal(api.router.currentRoute.value.path, expected, `${label}: reload project menus`)
-        assert.equal(queryResults.at(-1).firstMenuPath, expected, label)
-      }
-      scenarios++
-    }
-
-    for (const menus of [[], [{ ...personalCenterMenu, owner: 'app' }]]) {
-      const api = await bundle(environment, runtimeScope)
-      reset(api)
-      globalThis.__applicationRuntimeTest.menus = menus
-      await api.startup.bootstrapSession()
-      await assert.rejects(api.startup.ensureMenuRoutes(api.router, false), api.scope.ApplicationEntryUnavailableError)
-      assert.equal(api.router.getRoutes().find(route => route.path === '/')?.redirect, '/403')
-      await withNavigationDeadline(api.router.push('/'))
-      assert.equal(api.router.currentRoute.value.path, '/403')
-      scenarios++
     }
   }
 
-  // 个人中心例外仅属于项目；租户子账号仍然拒绝进入，其他旧租户路径仍返回项目根入口。
+  // 租户子账号仍然拒绝进入，其他旧租户路径仍返回项目根入口。
   {
     const api = await bundle('saas', 'tenant')
     reset(api, 'http://localhost:9200/#/account/center')

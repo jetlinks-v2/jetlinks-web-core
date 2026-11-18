@@ -4,13 +4,12 @@ import router from '@jetlinks-web-core/router'
 import { setParamsValue } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
 import {
-  isApplicationRuntime,
   getApplicationRuntimeEntry,
   isFromCloud,
   isProjectRuntime,
   normalizeProjectRuntimePath,
 } from '@jetlinks-web-core/utils'
-import { getOwnMenuThree } from '@jetlinks-web-core/api/system/menu'
+import { getOwnMenuThree, readOwnMenuTree } from '@jetlinks-web-core/api/system/menu'
 import { getGlobModules } from '@jetlinks-web-core/router/globModules'
 import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
 import i18n from '@jetlinks-web-core/locales'
@@ -26,7 +25,6 @@ import { applyMenuRouteTargets } from './menuRouteTarget'
 import {
   getCoreRouteOverrideMenus,
   getFirstMenuPath,
-  hasUserCenterMenu,
   prepareMicroApplicationMenus,
 } from './menuHelpers'
 import { useApplication } from './application'
@@ -160,14 +158,13 @@ const prepareRuntimeMenus = (menus: any[]) => (
     : menus
 )
 
-/** 个人中心复用静态路由，仅在项目没有业务入口且菜单已授权时作为默认页。 */
-const getDefaultMenuPath = (context: Pick<MenuRuntimeContext, 'menuRoutes' | 'sourceMenus'>) => {
-  const firstMenuPath = getFirstMenuPath(context.menuRoutes)
-  if (firstMenuPath || getApplicationRuntimeEntry().type !== 'project' || !hasUserCenterMenu(context.sourceMenus)) {
-    return firstMenuPath
-  }
+/** 项目和应用使用业务页优先；静态个人中心不依赖角色菜单，也不写入业务权限。 */
+const getDefaultMenuPath = ({ menuRoutes }: Pick<MenuRuntimeContext, 'menuRoutes'>) => {
+  const runtimeHome = getApplicationRuntimeEntry().type !== 'tenant'
+  const firstMenuPath = getFirstMenuPath(menuRoutes, runtimeHome)
+  if (firstMenuPath || !runtimeHome) return firstMenuPath
 
-  // 模块可以隐藏或覆盖个人中心；使用实际注册路径，不重复生成动态路由。
+  // 按已注册的名称取路径，兼容模块覆盖；未注册时交给根路由的无权限回退。
   return router.getRoutes().find(route => route.name === 'account/center')?.path
 }
 
@@ -226,7 +223,7 @@ export const useMenuStore = defineStore('menu', () => {
         context.menuRoutes.push({
           path: '/',
           redirect: getDefaultMenuPath(context)
-            || (isApplicationRuntime() || isSaaS ? '/403' : defaultRedirect),
+            || (getApplicationRuntimeEntry().type !== 'tenant' || isSaaS ? '/403' : defaultRedirect),
         })
       }
 
@@ -269,44 +266,39 @@ export const useMenuStore = defineStore('menu', () => {
     try {
       const resp = await requestMenus(hasTerms ?? true, resolvedApplicationScope || false)
 
-      const menuResult = Array.isArray(resp.result) ? resp.result : []
-
       // An older response must never replace the routes and permissions of the latest application.
       if (requestId !== menuRequestId) return { applied: false }
 
-      if (resp.success) {
-        // Module filters run before route generation so filtered menus never enter routes or permissions.
-        const filteredMenuResult = await applyModuleMenuFilters(menuResult, {
-          applicationScope: resolvedApplicationScope,
-          conditions: queryOptions.conditions,
-        })
-        if (requestId !== menuRequestId) return { applied: false }
+      const menuResult = readOwnMenuTree(resp)
+      // Module filters run before route generation so filtered menus never enter routes or permissions.
+      const filteredMenuResult = await applyModuleMenuFilters(menuResult, {
+        applicationScope: resolvedApplicationScope,
+        conditions: queryOptions.conditions,
+      })
+      if (requestId !== menuRequestId) return { applied: false }
 
-        const targetedMenus = applyMenuRouteTargets(filteredMenuResult)
-        targetedMenus.issues.forEach((issue) => {
-          console.warn(
-            `[Menu Route Target] Keep "${issue.sourceCode}" in place: ${issue.type} "${issue.target}".`,
-          )
-        })
-
-        prepareMicroApplicationMenus(targetedMenus.menus, app)
-
-        const context = await runtime.createRoutes(
-          targetedMenus.menus,
-          () => requestId === menuRequestId,
+      const targetedMenus = applyMenuRouteTargets(filteredMenuResult)
+      targetedMenus.issues.forEach((issue) => {
+        console.warn(
+          `[Menu Route Target] Keep "${issue.sourceCode}" in place: ${issue.type} "${issue.target}".`,
         )
-        if (!context) return { applied: false }
+      })
 
-        runtime.menuResultCache.value = JSON.parse(JSON.stringify(targetedMenus.menus))
-        runtime.hasResponeMenu.value = !!targetedMenus.menus.length
-        runtime.loading.value = false
-        return {
-          applied: true,
-          firstMenuPath: getDefaultMenuPath(context),
-        }
+      prepareMicroApplicationMenus(targetedMenus.menus, app)
+
+      const context = await runtime.createRoutes(
+        targetedMenus.menus,
+        () => requestId === menuRequestId,
+      )
+      if (!context) return { applied: false }
+
+      runtime.menuResultCache.value = JSON.parse(JSON.stringify(targetedMenus.menus))
+      runtime.hasResponeMenu.value = !!targetedMenus.menus.length
+      runtime.loading.value = false
+      return {
+        applied: true,
+        firstMenuPath: getDefaultMenuPath(context),
       }
-
-      throw new Error(resp.message || 'Failed to load menus')
     } catch (error) {
       if (requestId === menuRequestId) runtime.loading.value = false
       throw error

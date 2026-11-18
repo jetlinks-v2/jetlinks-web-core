@@ -95,16 +95,13 @@ export const ensureMenuRoutes = async (
     }
 
     // 项目和租户菜单显式禁用应用 Scope，应用菜单只使用已确认的目标。
-    const result = await menuStore.queryMenus(entry.applicationId || false)
-    if (entry.type === 'application' && result?.applied && !result.firstMenuPath) {
-      throw new ApplicationEntryUnavailableError()
-    }
+    await menuStore.queryMenus(entry.applicationId || false)
 
     if (menuStore.initialized) {
       addFallbackRoute(router)
     }
 
-    // Empty application menus still register a root redirect to 403 and must rematch the route.
+    // 即使没有业务菜单也已注册根入口，需重新匹配到本次选择的首页。
     return menuStore.initialized
   })()
 

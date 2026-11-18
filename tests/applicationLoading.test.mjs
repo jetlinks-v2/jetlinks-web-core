@@ -278,15 +278,15 @@ for (const [name, invalidState] of [
   });
 }
 
-test('an applied application menu without an accessible first route rejects the application entry', async t => {
+test('an applied empty menu still rematches routes after application admission', async t => {
   const e = environment(t, { businessRuntime: true });
   const startup = e.startup();
   await startup.bootstrapSession();
   e.state.queryMenus = async () => ({ applied: true });
   const routes = [];
-  await assert.rejects(startup.ensureMenuRoutes({ hasRoute: () => false, addRoute: route => routes.push(route) }, false), e.scope.ApplicationEntryUnavailableError);
+  assert.equal(await startup.ensureMenuRoutes({ hasRoute: () => false, addRoute: route => routes.push(route) }, false), true);
   assert.deepEqual(e.calls.menuScopes, ['application-42']);
-  assert.deepEqual(routes, []);
+  assert.deepEqual(routes.map(route => route.name), ['error']);
 });
 
 test('project entry disables application menu scope even when a selected application is retained', async t => {
