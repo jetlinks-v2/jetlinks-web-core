@@ -14,6 +14,7 @@ const stubSources = {
   '@jetlinks-web/hooks': 'export const useRouterParams = () => ({ params: context.params })',
   'vue-router': 'export const useRoute = () => context.route; export const useRouter = () => context.router',
   '@jetlinks-web-core/api/login': 'export const queryModal = (...args) => context.queryModal(...args)',
+  '@jetlinks-web-core/api/auth': 'export const getMe_api = (...args) => context.getAuthorization(...args)',
   '@jetlinks-web-core/api/account/center': 'export const getSelfIdentities_api = () => context.getIdentities(); export const getSsoBinds_api = () => context.getThirdAccounts(); export const getIdentityProviders_api = () => context.getProviders()',
   '@jetlinks-web-core/locales': "export default { global: { t: (key) => context.language.value + ':' + key } }",
   '@jetlinks-web-core/utils': 'export const isNoCommunity = context.isNoCommunity',
@@ -48,7 +49,7 @@ const deferred = () => {
 
 // 挂载真实 composable 与 Vue 生命周期，只替换 Store、路由和 API 边界。
 const mountCenter = async (t, options = {}) => {
-  const calls = { identities: 0, thirdAccounts: 0, support: 0, user: 0 }
+  const calls = { identities: 0, thirdAccounts: 0, support: 0, user: 0, authorization: [] }
   const user = reactive({
     userInfo: {
       id: 'fixture-user', name: '账户测试', username: 'fixture', createTime: 1600000000000,
@@ -66,6 +67,10 @@ const mountCenter = async (t, options = {}) => {
     user, calls, isNoCommunity: options.community !== true, language: ref('zh'),
     params: ref(options.params || {}), route: reactive({ query: options.query || {} }),
     async queryModal() { calls.support += 1; return { result: options.identitySupported !== false } },
+    async getAuthorization(config) {
+      calls.authorization.push(config)
+      return options.authorizationRequest?.() || { success: true, result: { user: { id: user.userInfo.id }, dimensions: [] } }
+    },
     async getProviders() { return { result: [{ id: 'mobile' }, { id: 'email' }] } },
     async getIdentities() {
       calls.identities += 1
@@ -144,6 +149,99 @@ test('角色和组织提示实际缺项，历史职位字段保留但不展示',
   assert.equal(center.profile.value.items.find(item => item.key === 'roles').unassigned, false)
   user.userInfo.orgList = [{ name: '   ' }, null]
   assert.deepEqual(center.profile.value.items.filter(item => item.unassigned).map(item => item.key), ['orgs'])
+})
+
+const roleAuthorization = (userId = 'fixture-user', applicationName = '应用A') => ({
+  success: true,
+  result: {
+    user: { id: userId },
+    dimensions: [
+      { id: 'global', name: '全局管理员', type: 'role' },
+      { id: 'app-a', name: applicationName, type: { id: 'business_application' } },
+      { id: 'app-b', name: '应用B', type: 'business_application' },
+      { id: 'role-a', type: { id: 'role' }, options: { applicationId: 'app-a' } },
+      { id: 'role-b', type: 'role', options: { applicationId: 'app-b' } },
+      { id: 'missing', type: 'role', options: { applicationId: 'unavailable-app' } },
+      { id: 'extra', name: '额外角色', type: 'role', options: { applicationId: 'app-a' } },
+    ],
+  },
+})
+const namedRoles = () => [
+  { id: 'global', name: '管理员' }, { id: 'role-a', name: '管理员' },
+  { id: 'role-b', name: '管理员' }, { id: 'missing', name: '历史角色' },
+]
+const roleField = center => center.profile.value.items.find(item => item.key === 'roles')
+
+test('个人中心角色摘要和完整标签使用应用名称，保留原角色集合与全局角色名', async t => {
+  const { center, user, calls } = await mountCenter(t, {
+    loadUser: user => { user.userInfo.roleList = namedRoles() },
+    authorizationRequest: () => roleAuthorization(),
+  })
+  assert.deepEqual(calls.authorization, [{ applicationScope: false, hiddenError: true }])
+  assert.deepEqual(roleField(center).tags, ['管理员', '应用A-管理员', '应用B-管理员', '历史角色'])
+  assert.equal(roleField(center).value, '管理员、应用A-管理员、应用B-管理员、历史角色')
+  assert.deepEqual(user.userInfo.roleList, namedRoles())
+  assert.deepEqual(user.userInfo.orgList, [{ name: '研发' }])
+})
+
+test('授权名称查询失败回退角色原名，重试恢复展示且不保留过期前缀', async t => {
+  let response = () => roleAuthorization()
+  const { center } = await mountCenter(t, {
+    loadUser: user => { user.userInfo.roleList = namedRoles() },
+    authorizationRequest: () => response(),
+  })
+  for (const fail of [() => Promise.reject(new Error('unavailable')), () => ({ success: false }), () => ({ result: {} })]) {
+    response = fail
+    await center.loadAccount()
+    assert.equal(center.loadError.value, true)
+    assert.deepEqual(roleField(center).tags, namedRoles().map(role => role.name))
+    response = () => roleAuthorization()
+    await center.loadAccount()
+    assert.equal(center.loadError.value, false)
+    assert.equal(roleField(center).tags[1], '应用A-管理员')
+  }
+})
+
+test('账号变化后立即停用旧应用名称，旧账号迟到响应不会补入当前角色', async t => {
+  let response = () => roleAuthorization()
+  const { center, user } = await mountCenter(t, {
+    loadUser: user => { user.userInfo.roleList = namedRoles() },
+    authorizationRequest: () => response(),
+  })
+  const pending = deferred()
+  response = () => pending.promise
+  const loading = center.loadAccount()
+  user.userInfo.id = 'other-user'
+  assert.equal(roleField(center).tags[1], '管理员')
+  pending.resolve(roleAuthorization())
+  await loading
+  assert.equal(roleField(center).tags[1], '管理员')
+  response = () => roleAuthorization('other-user', '当前应用')
+  await center.loadAccount()
+  assert.equal(roleField(center).tags[1], '当前应用-管理员')
+})
+
+test('新请求优先且卸载后不回填迟到的角色应用名称', async t => {
+  let response = () => roleAuthorization()
+  const { center, unmount } = await mountCenter(t, {
+    loadUser: user => { user.userInfo.roleList = namedRoles() },
+    authorizationRequest: () => response(),
+  })
+  const pending = deferred()
+  response = () => pending.promise
+  const earlier = center.loadAccount()
+  response = () => roleAuthorization('fixture-user', '最新应用')
+  await center.loadAccount()
+  pending.resolve(roleAuthorization('fixture-user', '过期应用'))
+  await earlier
+  assert.equal(roleField(center).tags[1], '最新应用-管理员')
+  const afterUnmount = deferred()
+  response = () => afterUnmount.promise
+  const loading = center.loadAccount()
+  unmount()
+  afterUnmount.resolve(roleAuthorization('fixture-user', '卸载后应用'))
+  await loading
+  assert.equal(roleField(center).tags[1], '最新应用-管理员')
 })
 
 test('路由指定订阅页且慢速用户加载完成后仍保持手动选择', async t => {

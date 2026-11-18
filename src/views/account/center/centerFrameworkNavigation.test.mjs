@@ -18,6 +18,7 @@ const stubs = {
   '@jetlinks-web-core/utils/project-runtime': 'export const normalizeProjectRuntimePath=value=>value',
   '@jetlinks-web-core/utils/menuBadge': 'export const isComingSoonMenuMeta=()=>false',
   '@jetlinks-web-core/api/login': 'export const queryModal=async()=>({result:false})',
+  '@jetlinks-web-core/api/auth': 'export const getMe_api=async()=>({success:true,result:{dimensions:[]}})',
   '@jetlinks-web-core/api/account/center': 'export const getSsoBinds_api=async()=>({result:[]});export const getSelfIdentities_api=async()=>({result:[]});export const getIdentityProviders_api=async()=>({result:[]})',
 }
 const bundle = await build({

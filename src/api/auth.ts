@@ -2,6 +2,8 @@ import { request } from '@jetlinks-web/core'
 import type { AxiosResponseRewrite } from '@jetlinks-web/types'
 
 export interface AuthorizationDimension {
+  id?: string
+  name?: string
   type: string | { id: string }
   options?: {
     applicationId?: string
@@ -10,11 +12,11 @@ export interface AuthorizationDimension {
 }
 
 export interface CurrentAuthorization {
-  user?: { name?: string }
+  user?: { id?: string; name?: string }
   dimensions: AuthorizationDimension[]
 }
 
-/** 默认入口判断必须禁用应用 Scope，避免把已裁剪的角色误认为完整身份。 */
+/** 默认入口与账号资料读取时禁用应用 Scope，取得当前账号完整的角色和应用维度。 */
 export const getMe_api = (options: { applicationScope?: false; hiddenError?: boolean; signal?: AbortSignal } = {}): Promise<AxiosResponseRewrite<CurrentAuthorization>> => (
   request.get('/authorize/me', undefined, options)
 )

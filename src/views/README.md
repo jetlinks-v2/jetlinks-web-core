@@ -67,6 +67,14 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 个人中心提供“基本信息 / 个人令牌 / 消息中心 / 通知设置”四个入口。路由为 `/account/center?tab=<key>`，入口为 `account/center/index.vue`；运营端 `ui/modules/saas-manager-ui/views/personalCenter/index.vue` 与运行时 `runtime-ui/modules/saas-runtime-ui/views/PersonCenter/index.vue` 均复用各自工作区的 core 页面。
 
+### 应用角色名称展示
+
+已完成的局部展示调整仅位于 `runtime-ui/jetlinks-web-core`：个人中心基本信息中的应用角色显示为“应用名称-角色名称”，全局角色保持原名。入口为 `src/views/account/center/useCenter.ts`，使用 `src/api/auth.ts` 已有 `/authorize/me` 查询并关闭应用 Scope，将角色维度 `options.applicationId` 与 `business_application` 维度名称关联；保留用户资料的角色集合、顺序和原始数据，名称缺失或读取失败时回退原名。角色摘要标签及完整弹层共用该展示结果，不增加角色管理权限要求，不修改角色绑定、后端或运营端。授权读取失败沿用个人中心错误提示和重试；返回账号 ID 不匹配时不使用其名称，新请求和卸载保护沿用个人中心加载版本。
+
+验证：core 内执行 `node --test src/views/account/center/useCenter.test.mjs src/views/account/center/centerFrameworkNavigation.test.mjs src/views/account/center/basicInfoView.test.mjs src/views/account/center/personalCenterFlows.test.mjs`，95/95 通过；覆盖跨应用同名角色、全局角色、名称缺失、失败重试、账号切换、迟到响应与既有个人中心流程。HTTP 与账号数据使用替身，真实登录页面及后端返回内容待验收。`node ../node_modules/vue-tsc/bin/vue-tsc.js --noEmit --pretty false -p tsconfig.json` 修改前后均为 513 条既有诊断，忽略行号后完全一致；全量类型检查仍未通过，需清理既有问题后重跑。工作区无独立 lint 脚本，本次无样式修改；本次范围 `git diff --check` 通过。
+
+运行时宿主完整构建 `pnpm build --outDir /tmp/jetlinks-center-role-check.Oeq5XF/build` 通过（30,963 个模块）；保留既有资源路径、循环分块及包体积等提示。未向真实后端写入。
+
 ### 导航与布局
 
 - `useCenter.ts` 负责当前用户资料、四页导航和辅助弹窗。`query.tab`、Store 页签和顶部消息定位保持兼容；旧 `Security`、`Sso`、`BindThirdAccount` 链接回到基本信息，`HomeView` 继续遵循应用用户限制。
