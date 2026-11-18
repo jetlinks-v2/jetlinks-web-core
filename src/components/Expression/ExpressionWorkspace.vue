@@ -12,10 +12,10 @@
       <div ref="content" class="expression-workspace__content" :class="{'is-expanded':expanded,'has-data':!!explanation && !!rows.length}" @pointerover="track" @pointerleave="highlight()" @focusin="track" @focusout="highlight()">
         <div class="expression-workspace__formula">
           <div v-if="expanded && !editable" class="expression-workspace__heading-tools">
-            <a-segmented v-if="explanation" v-model:value="view" class="expression-workspace__view" size="small" :aria-label="t('formulaView')" :options="[{label:t('originalFormula'),value:'original'},{label:t('recordedFormula'),value:'recorded'}]" />
+            <a-segmented v-if="explanation && numeric" v-model:value="view" class="expression-workspace__view" size="small" :aria-label="t('formulaView')" :options="[{label:t('originalFormula'),value:'original'},{label:t('recordedFormula'),value:'recorded'}]" />
             <a-button type="text" size="small" :title="t('formulaCopyLatex')" :aria-label="t('formulaCopyLatex')" @click="copyFormula"><AIcon type="CopyOutlined" /></a-button>
           </div>
-          <slot :substitute="view==='recorded'" :expand="expand" :expanded="expanded" />
+          <slot :substitute="numeric && view==='recorded'" :expand="expand" :expanded="expanded" />
           <p v-if="copyFeedback" class="expression-workspace__copy-feedback" :class="{'is-error':copyFailed}" :role="copyFailed ? 'alert' : 'status'">{{ copyFeedback }}</p>
         </div>
         <aside v-if="expanded && explanation && rows.length" class="expression-workspace__data" :aria-label="t('operand')">
@@ -37,17 +37,19 @@
   </section>
 </template>
 <script setup lang="ts">
-import { ref, watch, Teleport } from 'vue'
+import { computed, ref, watch, Teleport } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ExpressionNode,ExpressionExplanation } from './types'
 import type { ExpressionEditorContext } from './editor'
 import type { ExplanationFormatter } from './explanation'
 import { useExpressionWorkspace } from './useExpressionWorkspace'
 import { editorMessages } from './editorMessages'
+import { canSubstituteNumbers } from './presentation'
 const props=defineProps<{node:ExpressionNode;context:ExpressionEditorContext;explanation?:ExpressionExplanation;format?:ExplanationFormatter;editable?:boolean;stationary?:boolean;hideHeading?:boolean}>()
 const emit=defineEmits<{(event:'expandedChange',value:boolean):void}>()
 const {t}=useI18n({useScope:'local',messages:editorMessages})
-const view=ref('recorded')
+const view=ref('original')
+const numeric=computed(()=>canSubstituteNumbers(props.node,props.context))
 const {copyFormula,copyFeedback,copyFailed,expanded,expand,content,modalHost,stableDialog,trigger,rows,highlight,track,restoreFocus}=useExpressionWorkspace(props,t)
 watch(expanded,value=>emit('expandedChange',value),{flush:'sync'})
 </script>

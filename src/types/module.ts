@@ -4,10 +4,11 @@ import type { DataCapabilityProviderManifest } from '../data-capability/types'
 import type { ContentPanelOverrides } from './content-panel'
 import type { AgentConversationProviderManifest } from '../layout/components/AiChat/agentConversationContracts'
 import type { AssetDimensionFilter } from '../components/AssetOwnershipCondition/types'
+import type { MetricDimensionProvider, MetricPresentationProvider, MetricTemplateStarter } from '../components/Metric/types'
 
 export type ModuleResourceRecord<T = unknown> = Record<string, T>
 
-export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders' | 'agentConversationProviders' | 'assetDimensionFilters'
+export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders' | 'agentConversationProviders' | 'assetDimensionFilters' | 'metricDimensions' | 'metricPresentations' | 'metricTemplateStarters'
 export type ModuleResourceType = KnownModuleResourceType | (string & {})
 
 export interface ModuleResource {
@@ -21,6 +22,9 @@ export interface ModuleResource {
   dataCapabilityProviders?: DataCapabilityProviderManifest
   agentConversationProviders?: AgentConversationProviderManifest
   assetDimensionFilters?: ModuleResourceRecord<AssetDimensionFilter>
+  metricDimensions?: ModuleResourceRecord<MetricDimensionProvider>
+  metricPresentations?: ModuleResourceRecord<MetricPresentationProvider>
+  metricTemplateStarters?: ModuleResourceRecord<() => MetricTemplateStarter[]>
   [resourceType: string]: ModuleResourceRecord | string | undefined
 }
 

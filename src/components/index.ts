@@ -229,7 +229,7 @@ export { InlineEditForm } from './InlineEditForm'
 export type { InlineEditFieldDefinition, InlineEditGroup, InlineEditMessages, InlineEditResult, InlineEditSubmit } from './InlineEditForm'
 export type { AutoTreeProps, AutoTreeInstance } from './AutoTree'
 export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlacement } from './TableActions'
-export { I18nTextField, I18nTextDialog, I18nInputTrigger } from './I18n'
+export { I18nTextField, I18nTextDialog, I18nInputTrigger, I18nTextEditable, i18nText } from './I18n'
 export type { I18nMessages, I18nTextMessages, I18nTextFieldProps, I18nTextDialogProps } from './I18n'
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
 export { RuntimeMetricsPanel, RuntimeMBeanOverview, ThreadViewer, JvmDiagnosticPanel, FlameGraphViewer, MBeanBrowser, TraceViewer, LogViewer, registerMBeanRenderer, createFlameGraphHtml, nanosText, nanosBetween, traceRows } from './RuntimeDiagnostics'
@@ -297,5 +297,8 @@ export type {
     MatrixGridRowKind,
     MatrixGridRowSlotScope,
 } from './MatrixGrid/types'
+export * from './Metric'
+export { default as SelectOption } from './SelectOption/index.vue'
+export { default as PanelResizeHandle } from './PanelResizeHandle/index.vue'
 export * from './Expression'
 export * from './PlatformSettings'

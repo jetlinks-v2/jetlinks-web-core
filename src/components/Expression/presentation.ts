@@ -6,8 +6,36 @@ import type { ExplanationFormatter } from './explanation'
 export type ExpressionOutcome = 'true'|'false'|'unknown'|'skipped'
 export interface ExpressionFact { text:string; state:string; title?:string; selected?:boolean; outcome?:ExpressionOutcome; resultText?:string }
 export interface ExpressionPart { text:string; token?:ExpressionToken; fact?:ExpressionFact; outcome?:ExpressionOutcome }
-export const outcomeIcons:Record<ExpressionOutcome,string>={true:'CheckOutlined',false:'CloseOutlined',unknown:'QuestionCircleOutlined',skipped:'EllipsisOutlined'}
 export const outcomeLabels:Record<ExpressionOutcome,string>={true:'conditionTrue',false:'conditionFalse',unknown:'conditionUnknown',skipped:'notUsed'}
+export const outcomeText:Record<ExpressionOutcome,string>={true:'outcomeMet',false:'outcomeNotMet',unknown:'outcomeUnknown',skipped:'outcomeSkipped'}
+
+/** 数值代入只用于声明明确的纯数值算式；条件、状态、日期等始终保留业务名称。 */
+export function canSubstituteNumbers(node:ExpressionNode,context:ExpressionEditorContext):boolean {
+  const numeric=(type:unknown)=>['int','long','bigint','double','float','number','decimal'].includes(String(type))
+  switch(node.type) {
+    case 'literal':return numeric(node.valueType)
+    case 'reference':return numeric(context.references.find(item=>referenceKey(item) === referenceKey(node))?.schema?.type)
+    case 'unary':return node.operator !== 'not' && canSubstituteNumbers(node.operand,context)
+    case 'binary':return ['add','subtract','multiply','divide','mod'].includes(node.operator) && canSubstituteNumbers(node.left,context) && canSubstituteNumbers(node.right,context)
+    case 'call':return numeric(context.functions.find(item=>item.id === node.function)?.returnType) && node.arguments.every(item=>canSubstituteNumbers(item,context))
+    default:return false
+  }
+}
+
+/** 就近取值与展开对照使用同一份冻结事实；重复引用合并，短路项不伪造取值。 */
+export function recordedReadings(parts:ExpressionPart[],path:(string|number)[]=[]) {
+  const readings=new Map<string,{key:string;label:string;text:string;title?:string}>()
+  for(const part of parts) {
+    const token=part.token
+    if(token?.node.type !== 'reference' || part.fact?.state !== 'available' || !path.every((key,index)=>token.path[index] === key))continue
+    const key=referenceKey(token.node),text=part.fact.text
+    // 未记录项由悬浮说明与展开数据区表达；空值有格式化后的明确文本。
+    if(!text)continue
+    const identity=JSON.stringify([key,text])
+    if(!readings.has(identity))readings.set(identity,{key,label:token.label,text,title:part.fact.title || token.title})
+  }
+  return [...readings.values()]
+}
 
 export function referenceIcon(token:ExpressionToken,context:ExpressionEditorContext):string {
   if (token.node.type !== 'reference') return 'FunctionOutlined'
@@ -57,7 +85,7 @@ export function explanationFacts(root:ExpressionNode,explanation:ExpressionExpla
       if(JSON.stringify([node.id,...node.path]) !== JSON.stringify(record.path))return false
       const value=format(record);facts.set(key,{...fact(),text:value.text,title:value.label});return true
     }
-    let children:Array<[ExpressionNode,(string|number)[]]>=[]
+    let children:Array<[ExpressionNode,(string|number)[]]>=[],childRecords=record.children
     if(['binary','logical','unary'].includes(node.type)) {
       const expected=(node as Extract<ExpressionNode,{operator:unknown}>).operator,actual=operators[record.operation || ''] || record.operation
       if(actual !== expected && !(node.type === 'unary' && (expected === 'positive' && record.operation === '+' || expected === 'negate' && record.operation === '-')))return false
@@ -67,12 +95,25 @@ export function explanationFacts(root:ExpressionNode,explanation:ExpressionExpla
       children=[[node.condition,[...path,'condition']],[node.whenTrue,[...path,'whenTrue']],[node.whenFalse,[...path,'whenFalse']]]
     }
     else if(node.type === 'binary' && record.kind === 'operator') children=[[node.left,[...path,'left']],[node.right,[...path,'right']]]
-    else if(node.type === 'logical' && record.kind === 'operator') children=node.operands.map((item,index)=>[item,[...path,'operands',index]])
+    else if(node.type === 'logical' && record.kind === 'operator') {
+      // 编辑树使用多项逻辑，SpEL 解释使用二叉树；只展开同一运算，保留顺序和短路事实。
+      const operands:Array<[ExpressionNode,(string|number)[]]>=[],records:ExpressionExplanation[]=[]
+      const collectNode=(item:ExpressionNode,itemPath:(string|number)[])=>{
+        if(item.type === 'logical' && item.operator === node.operator) item.operands.forEach((child,index)=>collectNode(child,[...itemPath,'operands',index]))
+        else operands.push([item,itemPath])
+      }
+      const collectRecord=(item:ExpressionExplanation)=>{
+        if(item.kind === 'operator' && (operators[item.operation || ''] || item.operation) === node.operator && item.children.length) item.children.forEach(collectRecord)
+        else records.push(item)
+      }
+      collectNode(node,path);collectRecord(record)
+      children=operands;childRecords=records
+    }
     else if(node.type === 'unary' && record.kind === 'operator') children=[[node.operand,[...path,'operand']]]
     else if(node.type === 'call' && record.kind === 'call') children=node.arguments.map((item,index)=>[item,[...path,'arguments',index]])
     else if(!(node.type === 'literal' && record.kind === 'literal')) return false
-    if(children.length !== record.children.length) return false
-    if(!children.every(([child,childPath],index)=>visit(child,record.children[index],childPath)))return false
+    if(children.length !== childRecords.length) return false
+    if(!children.every(([child,childPath],index)=>visit(child,childRecords[index],childPath)))return false
     facts.set(key,fact())
     if(node.type === 'conditional') {
       const condition=record.children[0]

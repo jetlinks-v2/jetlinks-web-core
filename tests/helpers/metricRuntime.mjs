@@ -16,7 +16,8 @@ const instrumented = '/private/tmp/device-metric-stage2-core/instrumented'
 export function createMetricLoader(stubs = {}) {
   stubs={
     // 公共函数目录的传输边界；业务解析、保存和编辑组件仍执行真实代码。
-    [resolve(sourceRoot,'api/expression.ts')]:{expressionFunctions:async()=>['abs','min','max','round','sqrt'].map(name=>({id:`math.${name}`,name,description:name,parameters:[{id:'value',name:'value',valueType:'number'}],returnType:'number',minimumArguments:1,maximumArguments:name === 'round' ? 2 : name === 'min' || name === 'max' ? 16 : 1}))},
+    [resolve(sourceRoot,'components/Metric/expressionApi.ts')]:{metricExpressionFunctions:async()=>['abs','min','max','round','sqrt'].map(name=>({id:`math.${name}`,name,description:name,parameters:[{id:'value',name:'value',valueType:'number'}],returnType:'number',minimumArguments:name === 'min' || name === 'max' ? 2 : 1,maximumArguments:name === 'round' ? 2 : name === 'min' || name === 'max' ? 16 : 1}))},
+    [resolve(sourceRoot,'api/expression.ts')]:{expressionFunctions:async()=>['abs','min','max','round','sqrt'].map(name=>({id:`math.${name}`,name,description:name,parameters:[{id:'value',name:'value',valueType:'number'}],returnType:'number',minimumArguments:name === 'min' || name === 'max' ? 2 : 1,maximumArguments:name === 'round' ? 2 : name === 'min' || name === 'max' ? 16 : 1}))},
     ...stubs,
   }
   const cache = new Map()
@@ -66,7 +67,8 @@ export function createMetricLoader(stubs = {}) {
   return file => load(resolve(sourceRoot, file))
 }
 
-export const passthrough = name => vue.defineComponent({ name, inheritAttrs: true, setup: (_props, { slots }) => () => vue.h(name, Object.values(slots).flatMap(slot => slot?.())) })
+// 候选项是由选择器传参调用的 scoped slot，浅层壳不能在没有候选参数时自行调用。
+export const passthrough = name => vue.defineComponent({ name, inheritAttrs: true, setup: (_props, { slots }) => () => vue.h(name, Object.entries(slots).flatMap(([key,slot]) => key === 'option' ? [] : slot?.())) })
 export const flush = async () => { await vue.nextTick(); await new Promise(resolve => setImmediate(resolve)); await vue.nextTick() }
 
 export function createMetricRenderer() {

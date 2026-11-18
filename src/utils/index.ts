@@ -1,4 +1,5 @@
 export * from './menu'
+export * from './module-menu-layout'
 export * from './comm'
 export * from './validate'
 export * from './regular'

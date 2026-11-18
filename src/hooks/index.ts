@@ -6,6 +6,7 @@ export * from './useRegistryComponentsMerge';
 export * from './useHeaderTheme';
 export * from './useProjectRouter';
 export * from './useResponsiveLayoutDimensions';
+export * from './useContentFit';
 export * from './useResponsiveAntdToken';
 export * from './useMenuAssetPermissionEditor';
 export * from './menuAssetPermissionEditor.types';
@@ -15,6 +16,7 @@ export * from './useCaptchaVerify';
 export * from './useEmptyCreateState';
 export { useDiagnosticQuery } from './useDiagnosticQuery'
 export { useRetainedScroll } from './useRetainedScroll'
+export { useValueUnit } from './useValueUnit'
 export type { DiagnosticQueryOptions } from './useDiagnosticQuery'
 
 export { usePlatformSettings } from './usePlatformSettings'

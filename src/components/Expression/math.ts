@@ -3,15 +3,18 @@ import type { ExpressionEditorContext } from './editor'
 import { enumChoices,expressionValueChoiceLookup } from './editor'
 import { expressionDocument, referenceKey, type ExpressionTranslate } from './document'
 import { parseExpressionDocument } from './parse'
-import type { ExpressionFact } from './presentation'
+import { canSubstituteNumbers, documentParts, recordedReadings, outcomeText, type ExpressionFact } from './presentation'
 
 export function mathEnumChoices(context:ExpressionEditorContext) {
   return context.references.flatMap(ref=>enumChoices(ref.schema) || []).map((item,index)=>({...item,macro:`JLenum${mathReferenceMacro(index).slice(2)}`}))
 }
 
 /** 数学编辑和回放共用同一投影；LaTeX 仅作输入/排版，保存和执行仍使用原树。 */
-export function expressionMath(root:ExpressionNode,context:ExpressionEditorContext,t:ExpressionTranslate,facts=new Map<string,ExpressionFact>(),meanings=true,options:{showSkipped?:boolean}={}) {
+export function expressionMath(root:ExpressionNode,context:ExpressionEditorContext,t:ExpressionTranslate,facts=new Map<string,ExpressionFact>(),meanings=true,options:{showSkipped?:boolean;substitute?:boolean;compact?:boolean}={}) {
   const document=expressionDocument(root,context,t)
+  const substitute=!!options.substitute && canSubstituteNumbers(root,context)
+  const parts=facts.size ? documentParts(document,facts) : []
+  const annotated=new Set<string>()
   const escape=(value:string)=>value.replace(/[\\{}%$&#_^~]/g,char=>`\\${char}`)
   const label=(value:string)=>`\\text{${escape(value)}}`
   const macros:Record<string,{def:string;expand:boolean;captureSelection:boolean}>={}
@@ -64,7 +67,7 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
       case 'reference': {
         value=`\\${references.get(referenceKey(node))}`
         const reference=context.references.find(item=>referenceKey(item) === referenceKey(node))
-        if(fact?.state === 'available' && fact.text)value=`\\class{expression-math-reference is-recorded${node.id === 'params' ? ' is-parameter' : ''}}{${label(fact.text)}}`
+        if(substitute && fact?.state === 'available' && fact.text)value=`\\class{expression-math-reference is-recorded${node.id === 'params' ? ' is-parameter' : ''}}{${label(fact.text)}}`
         value=inspect(value,[reference?.label || node.id,reference?.description,reference?.unit,facts.size ? fact?.state === 'skipped' ? t('notUsed') : fact?.state === 'available' ? fact.text : t('valueNotRecorded') : undefined].filter(Boolean).join('\n'),referenceKey(node))
         break
       }
@@ -87,8 +90,8 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
         const rows:string[]=[],branches:Array<{value:ExpressionNode;path:(string|number)[];condition?:ExpressionNode;conditionPath?:(string|number)[];skipped:boolean}>=[]
         let branch:ExpressionNode=node,branchPath=path
         const outcome=(path:(string|number)[])=>{
-          const fact=factAt(path),symbol=fact?.state === 'skipped' ? '\\cdots' : fact?.outcome === 'true' ? '\\checkmark' : fact?.outcome === 'false' ? '\\times' : fact?.outcome === 'unknown' ? '?' : ''
-          return symbol ? `\\;\\class{expression-math-outcome is-${fact?.outcome || 'skipped'}}{${symbol}}` : ''
+          const fact=factAt(path),state=fact?.state === 'skipped' ? 'skipped' : fact?.outcome
+          return state ? `\\;\\class{expression-math-outcome is-${state}}{\\scriptsize ${label(t(outcomeText[state]))}}` : ''
         }
         while(branch.type === 'conditional') {
           branches.push({value:branch.whenTrue,path:[...branchPath,'whenTrue'],condition:branch.condition,conditionPath:[...branchPath,'condition'],skipped:factAt(branchPath)?.state === 'skipped'})
@@ -103,7 +106,18 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
             folding=true;continue
           }
           folding=false
-          const condition=row.condition ? `${render(row.condition,row.conditionPath!)}${outcome(row.conditionPath!)}` : `\\JLotherwise${facts.get(JSON.stringify(row.path))?.selected ? '\\;\\class{expression-math-outcome is-true}{\\checkmark}' : ''}`
+          const marker=row.condition ? outcome(row.conditionPath!) : ''
+          let condition=row.condition ? `${render(row.condition,row.conditionPath!)}${marker ? `\\quad ${marker}` : ''}` : '\\JLotherwise'
+          const readings=row.condition && !options.compact ? recordedReadings(parts,row.conditionPath!) : []
+          if(readings.length) {
+            const lines=readings.map(reading=>{
+              annotated.add(JSON.stringify([reading.key,reading.text]))
+              const full=`${reading.label}: ${reading.text}`,characters=Array.from(full)
+              const text=characters.length > 64 ? `${characters.slice(0,63).join('')}…` : full
+              return inspect(`\\class{expression-math-reading}{\\scriptsize ${label(`${t('thisReading')}: ${text}`)}}`,[full,reading.title].filter(Boolean).join('\n'),reading.key)
+            })
+            condition=`\\begin{array}{l}${condition}\\\\${lines.join('\\\\')}\\end{array}`
+          }
           rows.push(`${render(row.value,row.path,0,true)} & ${condition}`)
         }
         value=`\\begin{cases}${rows.join('\\\\')}\\end{cases}`
@@ -112,6 +126,7 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
     }
     if(facts.size) {
       const state=fact?.state === 'skipped' ? 'is-skipped' : fact?.selected ? 'is-selected' : fact?.outcome === 'false' ? 'is-false' : fact && fact.state !== 'available' ? 'is-unknown' : ''
+      if(fact?.selected && node.type !== 'conditional')value=`\\underline{${value}}`
       if(state)value=`\\class{expression-math-fact ${state}}{${value}}`
     }
     return priority(node) < required ? `\\left(${value}\\right)` : value
@@ -124,7 +139,8 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
     const hint=macro === 'JLemptyResult' ? 'noValueHint' : macro === 'JLemptyValue' ? 'emptyValueHint' : kind.includes('boolean') ? 'booleanValue' : undefined
     macros[macro]={def:hint ? inspect(content,t(hint)) : content,expand:false,captureSelection:true}
   }
-  return {latex,macros,document,inspections,skipped,result:result?.state === 'available' ? result.resultText : undefined}
+  const readings=substitute || options.compact ? [] : recordedReadings(parts).filter(reading=>!annotated.has(JSON.stringify([reading.key,reading.text])))
+  return {latex,macros,document,inspections,skipped,readings,result:result?.state === 'available' ? result.resultText : undefined}
 }
 
 function fail():never {throw new Error('unsupportedExpression')}
