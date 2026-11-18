@@ -4,7 +4,7 @@
       <strong>{{ $t('components.MenuAssetPermissionEditor.menuPermission') }}</strong>
       <slot name="header-extra" />
     </header>
-    <a-tabs v-if="groups.length > 1" v-model:activeKey="activeOwner" class="owner-tabs">
+    <a-tabs v-if="groups.length && (groups.length > 1 || context.showMenuGroups?.value)" v-model:activeKey="activeOwner" class="owner-tabs">
       <a-tab-pane v-for="group in groups" :key="group.key" :tab="ownerLabel(group)" />
     </a-tabs>
     <div class="table-holder">

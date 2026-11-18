@@ -1,5 +1,7 @@
 import { cloneDeep } from 'lodash-es'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, toRaw } from 'vue'
+import { projectMenuPermissionGroups } from './menuPermissionGroups'
+import type { MenuPermissionProjection } from './menuPermissionGroups'
 import type {
   AssetAccessPolicy,
   GrantableAssetSupport,
@@ -8,6 +10,8 @@ import type {
   MenuAssetPermissionResetOptions,
   MenuPermissionButton,
   MenuPermissionNode,
+  MenuPermissionGroupDefinition,
+  MenuPermissionScope,
   SelectionState,
 } from './menuAssetPermissionEditor.types'
 
@@ -73,6 +77,10 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   const buttonBatchValues = ref<string[]>([])
   const loading = ref(false)
   const menuMap = new Map<string, MenuPermissionNode>()
+  const menuGroups = ref<MenuPermissionGroupDefinition[]>()
+  const projections = new WeakMap<MenuPermissionNode, MenuPermissionProjection>()
+  const editableMenus = new Map<string, MenuPermissionScope>()
+  const explicitMenuGrants = new Set<string>()
   const assetDefinitions = reactive(new Map<string, AssetDefinition>())
   const assetNames = reactive(new Map<string, string>())
   const assetDrafts = reactive(new Map<string, string>())
@@ -106,7 +114,10 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
       const some = states.some(state => state.selected)
       menu._granted = all
       menu.indeterminate = !all && some
-      menu.granted = all || some
+      // 分组外节点只参与层级回显，不能因子菜单勾选而获得新的菜单权限。
+      if (!menuGroups.value || editableMenus.has(menu.id)) {
+        menu.granted = all || some || explicitMenuGrants.has(menu.id)
+      }
     } else {
       menu._granted = !!menu.granted
       menu.indeterminate = false
@@ -144,6 +155,27 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     })
     ;(menu.children || []).forEach(child => setNodeState(child, checked))
     recomputeNode(menu)
+  }
+
+  const scopeOf = (menu: MenuPermissionNode) => {
+    const projection = projections.get(toRaw(menu))
+    return projection ? projection.scope : editableMenus.get(menu.id)
+  }
+
+  /** 仅把当前视图允许的动作写回真实节点，不递归操作被其他模板隐藏的兄弟或按钮。 */
+  const setScopedNodeState = (view: MenuPermissionNode, checked: boolean) => {
+    const menu = menuMap.get(view.id)
+    const scope = scopeOf(view)
+    if (menu && scope && !(isProtectedMenu(menu) && !checked)) {
+      menu.granted = checked
+      explicitMenuGrants.delete(menu.id)
+      if (checked && !scope.buttonIds.length && !view.children?.length) explicitMenuGrants.add(menu.id)
+      const allowed = new Set(scope.buttonIds)
+      buttonsOf(menu).forEach(button => {
+        if (allowed.has(button.id)) button.granted = isProtectedButton(menu, button) || checked
+      })
+    }
+    ;(view.children || []).forEach(child => setScopedNodeState(child, checked))
   }
 
   const selectedMenus = () => flatMenus.value.filter(menu => !!menu.granted)
@@ -211,14 +243,27 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   const toggleMenu = (menu: MenuPermissionNode, checked: boolean) => {
     if (isProtectedMenu(menu) && !checked) return
     const previousVisible = new Set(visibleAssetIds())
-    setNodeState(menu, checked)
-    recomputeAncestors(menu.parentId)
+    if (menuGroups.value) {
+      setScopedNodeState(menu, checked)
+      recomputeTree(menuTree.value)
+    } else {
+      setNodeState(menu, checked)
+      recomputeAncestors(menu.parentId)
+    }
     buttonBatchValues.value = []
     if (checked) prependNewlyVisibleAssets(previousVisible, [menu])
     ensureVisibleDrafts()
   }
 
   const toggleButton = (menu: MenuPermissionNode, button: MenuPermissionButton, checked: boolean) => {
+    if (menuGroups.value) {
+      if (!scopeOf(menu)?.buttonIds.includes(button.id)) return
+      const source = menuMap.get(menu.id)
+      const sourceButton = source?.buttons?.find(item => item.id === button.id)
+      if (!source || !sourceButton) return
+      menu = source
+      button = sourceButton
+    }
     if (isProtectedButton(menu, button) && !checked) return
     const previousVisible = new Set(visibleAssetIds())
     button.granted = checked
@@ -231,7 +276,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
 
   const setMenusChecked = (menus: MenuPermissionNode[], checked: boolean) => {
     const previousVisible = new Set(visibleAssetIds())
-    menus.forEach(menu => setNodeState(menu, checked))
+    menus.forEach(menu => menuGroups.value ? setScopedNodeState(menu, checked) : setNodeState(menu, checked))
     recomputeTree(menuTree.value)
     buttonBatchValues.value = []
     if (checked) prependNewlyVisibleAssets(previousVisible, menus)
@@ -270,10 +315,15 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   const applyButtonBatch = (buttonIds: string[], menus: MenuPermissionNode[] = menuTree.value) => {
     const previousVisible = new Set(visibleAssetIds())
     const selected = new Set(buttonIds || [])
-    const targetMenus = Array.from(new Map(flatten(menus).map(menu => [menu.id, menu])).values())
-    targetMenus.forEach(menu => buttonsOf(menu).forEach(button => {
-      button.granted = isProtectedButton(menu, button) || selected.has(button.id)
-    }))
+    const targetMenus = flatten(menus)
+    targetMenus.forEach(view => {
+      const menu = menuGroups.value ? menuMap.get(view.id) : view
+      if (!menu) return
+      const allowed = menuGroups.value ? new Set(scopeOf(view)?.buttonIds || []) : undefined
+      buttonsOf(menu).forEach(button => {
+        if (!allowed || allowed.has(button.id)) button.granted = isProtectedButton(menu, button) || selected.has(button.id)
+      })
+    })
     recomputeTree(menuTree.value)
     buttonBatchValues.value = [...selected]
     prependNewlyVisibleAssets(previousVisible, targetMenus)
@@ -281,6 +331,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   }
 
   const ownerGroups = computed(() => {
+    if (menuGroups.value) return projectMenuPermissionGroups(menuTree.value, menuGroups.value, projections)
     const groups = new Map<string, MenuPermissionNode[]>()
     menuTree.value.forEach(menu => {
       const owner = String(menu.owner || 'default')
@@ -475,9 +526,20 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
 
   const reset = (input: MenuAssetPermissionResetOptions) => {
     menuMap.clear()
+    editableMenus.clear()
+    explicitMenuGrants.clear()
+    menuGroups.value = input.menuGroups
+    input.menuGroups?.forEach(group => group.menus.forEach(scope => {
+      const previous = editableMenus.get(scope.id)
+      editableMenus.set(scope.id, { id: scope.id, buttonIds: [...new Set([...(previous?.buttonIds || []), ...scope.buttonIds])] })
+    }))
     buttonBatchValues.value = []
     menuTree.value = mergeGrantedMenus(input.menus || [], input.grantedMenus)
     flatMenus.value.forEach(menu => menuMap.set(menu.id, menu))
+    if (input.menuGroups) flatMenus.value.forEach(menu => {
+      if (menu.granted && !(menu.buttons || []).some(button => button.granted)
+        && !(menu.children || []).some(child => child.granted)) explicitMenuGrants.add(menu.id)
+    })
     recomputeTree(menuTree.value)
     initializeAssetOrder(input)
     rebuildAssetDefinitions(input)
@@ -517,6 +579,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     menuTree,
     flatMenus,
     ownerGroups,
+    showMenuGroups: computed(() => menuGroups.value !== undefined),
     visibleAssets,
     batchAssetOptions,
     batchAssetValue,

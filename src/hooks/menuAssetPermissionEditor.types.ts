@@ -66,6 +66,20 @@ export interface MenuAssetPermissionResetOptions {
   assetAccesses?: AssetAccessPolicy[]
   grantableAssets?: GrantableAssetType[]
   assetTypes?: AssetTypeName[]
+  /** 仅约束展示和编辑范围，未列出的原始菜单仍保留在授权草稿中。 */
+  menuGroups?: MenuPermissionGroupDefinition[]
+}
+
+export interface MenuPermissionScope {
+  id: string
+  buttonIds: string[]
+}
+
+/** 同一菜单可属于多个分组；菜单和按钮仍共享一份真实授权状态。 */
+export interface MenuPermissionGroupDefinition {
+  key: string
+  label: string
+  menus: MenuPermissionScope[]
 }
 
 export interface MenuOwnerGroup {
@@ -83,6 +97,8 @@ export interface MenuAssetPermissionEditorContext {
   menuTree: Ref<MenuPermissionNode[]>
   flatMenus: ComputedRef<MenuPermissionNode[]>
   ownerGroups: ComputedRef<MenuOwnerGroup[]>
+  /** 显式分组即使只有一组也显示名称，普通 owner 分组保留原来的单组隐藏行为。 */
+  showMenuGroups?: ComputedRef<boolean>
   visibleAssets: ComputedRef<VisibleAssetPermission[]>
   batchAssetOptions: ComputedRef<Array<{ label: string; value: string }>>
   batchAssetValue: ComputedRef<string | undefined>

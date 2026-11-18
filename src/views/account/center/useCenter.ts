@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useRouterParams } from '@jetlinks-web/hooks'
 import { useUserStore, type UserInfo } from '@jetlinks-web-core/store/user'
 import { queryModal } from '@jetlinks-web-core/api/login'
+import { getMe_api, type CurrentAuthorization } from '@jetlinks-web-core/api/auth'
 import { getIdentityProviders_api, getSelfIdentities_api, getSsoBinds_api } from '@jetlinks-web-core/api/account/center'
 import i18n from '@jetlinks-web-core/locales'
 import { isNoCommunity } from '@jetlinks-web-core/utils'
@@ -37,10 +38,12 @@ const isContentKey = (key: unknown): key is CenterContentKey =>
   key === 'BasicInfo' || key === 'StationMessage' || key === 'Subscribe' || key === 'PersonalToken'
 
 /** Store 的组织、角色是 unknown[]，展示前只接受带名称的条目。 */
-const dimensionNames = (items: unknown[] | undefined): string[] => {
+const dimensionNames = (items: unknown[] | undefined, prefixes?: ReadonlyMap<string, string>): string[] => {
   return (items || []).flatMap(item => {
     if (!item || typeof item !== 'object' || !('name' in item)) return []
-    return typeof item.name === 'string' && item.name.trim() ? [item.name.trim()] : []
+    if (typeof item.name !== 'string' || !item.name.trim()) return []
+    const prefix = 'id' in item && typeof item.id === 'string' ? prefixes?.get(item.id) : undefined
+    return [prefix ? `${prefix}-${item.name.trim()}` : item.name.trim()]
   })
 }
 
@@ -78,7 +81,27 @@ export const useCenter = () => {
     return editableProviders.value.includes(provider) ? 'ready' : 'unavailable'
   })
   const thirdAccounts = ref<ThirdAccount[]>([])
+  const authorization = ref<CurrentAuthorization>()
   let loadVersion = 0
+
+  /** 仅补充当前账号已有角色的应用名称，避免个人中心依赖角色/应用管理查询权限。 */
+  const roleApplicationNames = computed(() => {
+    const prefixes = new Map<string, string>()
+    if (!user.userInfo.id || authorization.value?.user?.id !== user.userInfo.id) return prefixes
+    const dimensions = authorization.value.dimensions
+    const typeOf = (dimension: CurrentAuthorization['dimensions'][number]) =>
+      typeof dimension.type === 'string' ? dimension.type : dimension.type.id
+    const applications = new Map(dimensions.flatMap(dimension => (
+      typeOf(dimension) === 'business_application' && dimension.id && dimension.name?.trim()
+        ? [[dimension.id, dimension.name.trim()] as const] : []
+    )))
+    dimensions.forEach(dimension => {
+      if (typeOf(dimension) !== 'role' || !dimension.id) return
+      const applicationName = applications.get(dimension.options?.applicationId || '')
+      if (applicationName) prefixes.set(dimension.id, applicationName)
+    })
+    return prefixes
+  })
 
   const segments = computed(() => [
     { label: i18n.global.t('PersonalCenter.basic'), value: 'BasicInfo', icon: 'icon-yuandian', group: 'account' },
@@ -107,7 +130,7 @@ export const useCenter = () => {
 
   const profile = computed<AccountCardProfile>(() => {
     const info: CenterUserInfo = user.userInfo
-    const roles = dimensionNames(info.roleList)
+    const roles = dimensionNames(info.roleList, roleApplicationNames.value)
     const organizations = dimensionNames(info.orgList)
     const getIdentity = (provider: string) => {
       const list = identities.value.filter(item => item.provider === provider)
@@ -183,14 +206,24 @@ export const useCenter = () => {
     return result
   }
 
+  const loadAuthorization = async (): Promise<CurrentAuthorization> => {
+    const response = await getMe_api({ applicationScope: false, hiddenError: true })
+    if (response.success === false || !Array.isArray(response.result?.dimensions)) {
+      throw new Error('Current authorization query failed')
+    }
+    return response.result
+  }
+
   /** 独立加载账户各区块；部分请求失败时保留可用数据并提供重试，不阻塞消息区。 */
   const loadAccount = async () => {
     const version = ++loadVersion
     loading.value = true
     identityLoadState.value = 'loading'
-    const results = await Promise.allSettled([user.getUserInfo(), loadIdentities(), loadThirdAccounts()])
+    const results = await Promise.allSettled([user.getUserInfo(), loadIdentities(), loadThirdAccounts(), loadAuthorization()])
     if (version !== loadVersion) return
-    const [, identityResult, thirdResult] = results
+    const [, identityResult, thirdResult, authorizationResult] = results
+    // 名称读取失败时回退资料原名；响应中的账号 ID 必须匹配，旧账号数据不能污染当前展示。
+    authorization.value = authorizationResult.status === 'fulfilled' ? authorizationResult.value : undefined
     if (identityResult.status === 'fulfilled') {
       identities.value = identityResult.value.identities
       editableProviders.value = identityResult.value.providers
