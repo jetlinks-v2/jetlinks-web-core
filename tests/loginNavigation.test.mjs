@@ -39,14 +39,20 @@ const unauthorized = config => new axios.AxiosError('Unauthorized', 'ERR_BAD_REQ
 const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `http://localhost:9201/${projectCode}/#/overview` } = {}) => {
   let location
   const navigations = []
+  const tokensAtNavigation = []
+  const reloads = []
   const setLocation = value => {
     location = new URL(value, location)
     const currentHref = location.href
     Object.defineProperty(location, 'href', {
       get: () => currentHref,
-      set: value => { navigations.push(value) },
+      set: value => {
+        navigations.push(value)
+        tokensAtNavigation.push(utils.getToken())
+      },
       configurable: true,
     })
+    location.reload = () => reloads.push({ href: location.href, token: utils.getToken() })
   }
   setLocation(href)
   const storage = memoryStorage()
@@ -146,7 +152,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const client = core.getInstance()
   client.defaults.adapter = async config => success(config)
   return {
-    load, storage, window, client, api, verify, packageApi, navigation, navigations, utils, pinia, router,
+    load, storage, window, client, api, verify, packageApi, navigation, navigations, tokensAtNavigation, reloads, utils, pinia, router,
     get resets() { return resets },
     setLocation,
   }
@@ -280,6 +286,72 @@ for (const order of ['401-first', 'logout-first']) {
     assert.equal(f.utils.getProjectStorage(projectCode), undefined)
   })
 }
+
+test('a successful self reset returns to the full source page despite a concurrent 401', async t => {
+  const f = fixture(t)
+  const source = 'https://platform.example.test/workbench/?tab=mine#/projects?view=grid'
+  f.storage.setItem('pFrom', source)
+  f.utils.setToken('project-session')
+  f.storage.setItem(tokenKey, 'root-session')
+  f.load('utils/project-storage').setProjectStorage('p_other', { token: 'another-project-session' })
+  f.client.defaults.adapter = async config => { throw unauthorized(config) }
+
+  const complete = f.load('router/login-transition').beginLogoutRequest()
+  await assert.rejects(f.client.get('/user/detail'))
+  await delay(5)
+  assert.deepEqual(f.navigations, [], '401 must wait for the self reset result')
+  f.navigation.jumpLogin({ reason: 'logout', destination: 'source-page' })
+  complete(true)
+  await assert.rejects(f.client.get('/user/detail'))
+  await delay(5)
+
+  assert.deepEqual(f.navigations, [source])
+  assert.equal(f.tokensAtNavigation.length, 1)
+  assert.equal(f.tokensAtNavigation[0], undefined)
+  assert.equal(f.resets, 1)
+  assert.equal(f.storage.getItem(tokenKey), 'root-session')
+  assert.equal(f.utils.getProjectStorage('p_other')?.token, 'another-project-session')
+})
+
+for (const [name, source] of [
+  ['no', null], ['blank', '  '], ['malformed', 'https://['], ['non-web', 'javascript:void(0)'],
+]) {
+  test(`a self reset with ${name} pFrom enters the current project login without a redirect`, async t => {
+    const f = fixture(t, { href: `http://localhost:9201/${projectCode}/?config=old#/overview` })
+    if (source !== null) f.storage.setItem('pFrom', source)
+    f.utils.setToken('project-session')
+    f.storage.setItem(tokenKey, 'root-session')
+
+    f.navigation.jumpLogin({ reason: 'logout', destination: 'source-page' })
+    await delay(5)
+
+    assert.deepEqual(f.navigations, [`http://localhost:9201/${projectCode}/#/login?reason=logout`])
+    assert.equal(f.tokensAtNavigation[0], undefined)
+    f.setLocation(f.navigations[0])
+    f.load('router/login-session').consumeLogoutLoginEntry(f.packageApi.clearVerifyCache)
+    assert.equal(f.storage.getItem(tokenKey), 'root-session')
+  })
+}
+
+test('a self reset without pFrom keeps the private deployment base path', async t => {
+  const f = fixture(t, { environment: '', scope: 'project', base: '/iot/', href: 'http://localhost:9201/iot/#/overview' })
+  f.utils.setToken('private-session')
+  f.navigation.jumpLogin({ reason: 'logout', destination: 'source-page' })
+  await delay(5)
+  assert.deepEqual(f.navigations, ['http://localhost:9201/iot/#/login?reason=logout'])
+  assert.equal(f.utils.getToken(), null)
+})
+
+test('a self reset returns to a same-document source with a fresh document', async t => {
+  const f = fixture(t, { href: 'http://localhost:9201/#/overview' })
+  const source = 'http://localhost:9201/#/workbench?view=mine'
+  f.storage.setItem('pFrom', source)
+  f.utils.setToken('platform-session')
+  f.navigation.jumpLogin({ reason: 'logout', destination: 'source-page' })
+  await delay(5)
+  assert.deepEqual(f.navigations, [])
+  assert.deepEqual(f.reloads, [{ href: source, token: null }])
+})
 
 for (const failure of ['network-error', 'unsuccessful-response']) {
   test(`logout ${failure} releases a waiting session-expired navigation`, async t => {

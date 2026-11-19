@@ -62,6 +62,20 @@ export const createLoginNavigationHref = ({
   return `${_origin}${location.pathname}${hashPrefix}${loginPath}?redirect=${encodeURIComponent(currentPath)}`
 }
 
+/** pFrom 在本人重置密码后是完整页面，而非用于拼接登录地址的 origin。 */
+export const resolveLoginSourcePage = (value: string | null) => {
+  const source = value?.trim()
+  if (!source || !/^https?:\/\//i.test(source)) return
+
+  try {
+    const url = new URL(source)
+    if (url.username || url.password) return
+    return url
+  } catch {
+    return
+  }
+}
+
 export const isActiveLogoutLoginReason = (value: unknown) => {
   return Array.isArray(value)
     ? value.includes(ACTIVE_LOGOUT_LOGIN_REASON)

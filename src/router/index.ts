@@ -38,8 +38,12 @@ import { getProjectStorage, removeProjectStorage } from '@jetlinks-web-core/util
 import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
+import { clearLoginTransientState } from '@jetlinks-web-core/views/login/utils/redirect'
 import {
+  ACTIVE_LOGOUT_LOGIN_REASON,
   createLoginNavigationHref,
+  LOGIN_REASON_QUERY_KEY,
+  resolveLoginSourcePage,
   type LoginNavigationReason,
 } from './login-navigation'
 import { completeLoginNavigation, requestLoginNavigation } from './login-transition'
@@ -371,6 +375,24 @@ router.onError(() => {
 
 export interface JumpLoginOptions {
   reason?: LoginNavigationReason
+  destination?: 'source-page'
+}
+
+const navigateToSourcePageOrLogin = (loginPath: string) => {
+  const { location, history } = window
+  const source = resolveLoginSourcePage(localStorage.getItem('pFrom'))
+  clearLoginTransientState()
+
+  if (!source) {
+    // 保留当前入口路径，避免登录页清除独立的平台主账号会话。
+    location.href = `${location.origin}${location.pathname}#${loginPath}?${LOGIN_REASON_QUERY_KEY}=${ACTIVE_LOGOUT_LOGIN_REASON}`
+  } else if (source.origin === location.origin && source.pathname === location.pathname && source.search === location.search) {
+    // 仅改变 hash 不会重建文档；离开旧会话时不能让当前路由接管来源页。
+    history.replaceState(null, '', source.href)
+    location.reload()
+  } else {
+    location.href = source.href
+  }
 }
 
 export const jumpLogin = (options: JumpLoginOptions = {}) => {
@@ -401,6 +423,10 @@ export const jumpLogin = (options: JumpLoginOptions = {}) => {
     const loginRoute = coreRoutes.find(r => r.name === 'Login')
     const loginPath = loginRoute?.path || '/login'
     if (currentRoute.path !== loginPath) {
+      if (reason === 'logout' && options.destination === 'source-page') {
+        navigateToSourcePageOrLogin(loginPath)
+        return
+      }
       window.location.href = createLoginNavigationHref({
         currentPath: currentRoute.fullPath,
         isProjectRuntime: projectRuntime,
