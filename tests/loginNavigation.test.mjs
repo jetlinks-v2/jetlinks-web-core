@@ -78,6 +78,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const environmentConfig = { VITE_APP_ENVIRONMENT: environment, VITE_APP_RUNTIME_SCOPE: scope, BASE_URL: base }
   const dependencies = {
     vue: Vue, pinia: Pinia, axios, 'lodash-es': { isFunction, isObject },
+    'vue-i18n': { useI18n: () => ({ t: key => key }) },
     'vue-router': {
       ...VueRouter,
       createWebHashHistory: VueRouter.createMemoryHistory,
@@ -159,6 +160,32 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
 }
 
 for (const entry of ['platform', 'project']) {
+  test(`the ${entry} user menu returns to login without a reset request when the current token is missing`, async t => {
+    const isProject = entry === 'project'
+    const base = `http://localhost:9100/${isProject ? `${projectCode}/` : ''}`
+    const f = fixture(t, { environment: 'cloud', href: `${base}#/overview` })
+    if (isProject) {
+      f.storage.setItem('pFrom', 'http://localhost:9100')
+      f.storage.setItem(tokenKey, 'independent-platform-session')
+    }
+    f.storage.setItem('jetlinks_verify_cache', JSON.stringify({ key: 'previous-key', token: 'previous-verification' }))
+    let requests = 0
+    f.client.defaults.adapter = async config => {
+      requests++
+      return success(config)
+    }
+    const { handleLogout } = f.load('layout/components/useLayoutSidebarUser').useLayoutSidebarUser()
+
+    assert.ok(!f.utils.getToken())
+    await handleLogout()
+    await delay(5)
+
+    assert.equal(requests, 0)
+    assert.deepEqual(f.navigations, [`${base}#/login?reason=logout${isProject ? '&clearToken=true' : ''}`])
+    assert.equal(f.storage.getItem('jetlinks_verify_cache'), null)
+    if (isProject) assert.equal(f.storage.getItem(tokenKey), 'independent-platform-session')
+  })
+
   test(`the same document supports three login/logout cycles at the ${entry} entry`, async t => {
     const base = `http://localhost:9100/${entry === 'project' ? `${projectCode}/` : ''}`
     const f = fixture(t, { href: `${base}#/overview` })
@@ -167,7 +194,14 @@ for (const entry of ['platform', 'project']) {
       f.storage.setItem(tokenKey, 'independent-platform-session')
     }
     let session = 0
-    f.client.defaults.adapter = async config => success(config, { token: `session-${++session}` })
+    const resetTokens = []
+    f.client.defaults.adapter = async config => {
+      if (config.url === '/user-token/reset') {
+        resetTokens.push(config.headers[tokenKey])
+        return success(config)
+      }
+      return success(config, { token: `session-${++session}` })
+    }
     for (let cycle = 1; cycle <= 3; cycle++) {
       const login = await f.api.login({ username: 'fixture-user', password: 'fixture-password' })
       f.utils.setToken(login.result.token)
@@ -188,6 +222,7 @@ for (const entry of ['platform', 'project']) {
       assert.equal(f.navigations.length, cycle, 'late failures on the login page must not redirect again')
       if (entry === 'project') assert.equal(f.storage.getItem(tokenKey), 'independent-platform-session')
     }
+    assert.deepEqual(resetTokens, ['session-1', 'session-2', 'session-3'])
   })
 }
 
