@@ -1,5 +1,9 @@
 <template>
-  <a-popover v-if="$slots.content || !configuredPoint || configured.visible.value" v-model:open="open" :trigger="['hover', 'focus', 'click']" :placement="placement" :z-index="2147483647">
+  <a-popover
+    v-if="$slots.content || !configuredPoint || configured.visible.value" v-model:open="open"
+    :trigger="['hover', 'focus', 'click']" :placement="placement" :z-index="2147483647"
+    transition-name="document-help-fade" :overlay-style="{ paddingInline: 'var(--space-3, 12px)' }"
+  >
     <template #content>
       <div class="document-help__content" :style="contentStyle" @click.stop @keydown.stop @keyup.stop @keydown.esc="open = false">
         <div v-if="$slots.content" class="document-help__body"><slot name="content" :openDocument="openDocument" :close="close" /></div>
@@ -59,5 +63,28 @@ const contentStyle = computed(() => ({ width: typeof props.width === 'number' ? 
   &__action { display: inline; }
   &__footer { display: block; margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--jet-theme-border-secondary); }
   &__link { height: auto; padding: 0; margin-left: var(--space-1); font-size: inherit; }
+}
+
+:global(.document-help-fade-enter-active),
+:global(.document-help-fade-appear-active) {
+  animation: document-help-fade-in 120ms ease-out both;
+}
+:global(.document-help-fade-leave-active) {
+  animation: document-help-fade-out 120ms ease-in both;
+}
+@keyframes document-help-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes document-help-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :global(.document-help-fade-enter-active),
+  :global(.document-help-fade-appear-active),
+  :global(.document-help-fade-leave-active) {
+    animation: none;
+  }
 }
 </style>
