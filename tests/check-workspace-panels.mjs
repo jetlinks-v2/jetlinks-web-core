@@ -1,6 +1,6 @@
 import { mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
@@ -11,7 +11,7 @@ try {
   symlinkSync(realpathSync(join(repository, 'node_modules')), join(temporary, 'node_modules'), 'junction')
   const config = join(temporary, 'tsconfig.json')
   writeFileSync(config, JSON.stringify({
-    extends: join(repository, 'tests/tsconfig.workspace-panels.json'),
+    extends: resolve(repository, process.argv[2] || 'tests/tsconfig.workspace-panels.json'),
     vueCompilerOptions: { globalTypesPath: 'vue-global-types.d.ts' },
   }))
   const result = spawnSync(process.execPath, [join(repository, 'node_modules/vue-tsc/bin/vue-tsc.js'), '-p', config], { stdio: 'inherit' })

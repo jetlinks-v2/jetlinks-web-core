@@ -46,6 +46,18 @@ test('Enter then blur issues one write, and a failed write keeps editable input 
   assert.equal(view.state.active.value, false)
 })
 
+test('a thrown write keeps the draft and exposes a retryable error until explicit cancellation', async t => {
+  const view = mount({}, async () => { throw new Error('transport failure') }); t.after(() => view.app.unmount())
+  view.state.begin(); view.state.update('unsaved'); await view.state.commit()
+  assert.equal(view.state.error.value, messages.failed)
+  assert.equal(view.state.value.value, 'unsaved')
+  assert.equal(view.state.active.value, true)
+  assert.equal(view.state.pending.value, false)
+  view.state.cancel()
+  assert.equal(view.state.value.value, 'saved')
+  assert.equal(view.state.error.value, undefined)
+})
+
 test('cancel and unchanged/empty-secret edits never submit; creation only emits local draft changes', async t => {
   let calls = 0
   const view = mount({}, async () => { calls++; return { ok: true } }); t.after(() => view.app.unmount())

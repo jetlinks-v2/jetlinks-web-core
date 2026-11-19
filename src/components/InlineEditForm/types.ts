@@ -44,6 +44,21 @@ export interface InlineEditMessages {
 export interface InlineEditResult { ok: boolean; error?: string }
 export type InlineEditSubmit = (key: string, value: unknown) => Promise<InlineEditResult>
 
+export interface InlineEditEditorScope {
+  field: InlineEditFieldDefinition
+  value: unknown
+  update: (value: unknown) => void
+  commit: () => Promise<void>
+  cancel: () => void
+  blur: (event: FocusEvent) => Promise<void>
+  disabled: boolean
+  loading: boolean
+  inputId: string
+  labelId: string
+  describedBy?: string
+  error?: string
+}
+
 export interface InlineEditFieldProps {
   field: InlineEditFieldDefinition
   mode: 'detail' | 'form'

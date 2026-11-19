@@ -226,7 +226,7 @@ export {
 }
 export { AutoTree }
 export { InlineEditForm } from './InlineEditForm'
-export type { InlineEditFieldDefinition, InlineEditGroup, InlineEditMessages, InlineEditResult, InlineEditSubmit } from './InlineEditForm'
+export type { InlineEditEditorScope, InlineEditFieldDefinition, InlineEditGroup, InlineEditMessages, InlineEditResult, InlineEditSubmit } from './InlineEditForm'
 export type { AutoTreeProps, AutoTreeInstance } from './AutoTree'
 export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlacement } from './TableActions'
 export { I18nTextField, I18nTextDialog, I18nInputTrigger } from './I18n'
