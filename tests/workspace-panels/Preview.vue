@@ -11,10 +11,12 @@
     <section ref="frame" class="fixture-workspace" aria-label="设备工作区">
       <EqualHeightColumns :collapsed="collapsed" :collapsible="collapsible" :show-left="!compact"
         left-width="13rem" gap="var(--space-4)" @update:collapsed="requestCollapse">
-        <template v-if="mode === 'left'" #left-header>对象空间</template>
+        <template v-if="mode === 'search' || mode === 'left'" #left-header>
+          <a-input v-if="mode === 'search'" v-model:value="navigationDraft" aria-label="导航草稿" placeholder="搜索空间" allow-clear />
+          <span v-else>对象空间</span>
+        </template>
         <template #left>
           <div class="navigation">
-            <a-input v-model:value="navigationDraft" aria-label="导航草稿" placeholder="搜索空间" allow-clear />
             <a-menu v-model:selected-keys="selectedSpace" :items="spaces" />
           </div>
         </template>
@@ -83,8 +85,8 @@ import { useElementSize } from '@vueuse/core'
 import EqualHeightColumns from '../../src/components/EqualHeightColumns/index.vue'
 import PanelResizeHandle from '../../src/components/PanelResizeHandle/index.vue'
 
-const mode = ref('toolbar')
-const modes = [{ label: '默认轨道', value: 'default' }, { label: '右侧工具栏', value: 'toolbar' }, { label: '左侧标题', value: 'left' }]
+const mode = ref('search')
+const modes = [{ label: '左侧搜索', value: 'search' }, { label: '无头部回退', value: 'default' }, { label: '右侧工具栏', value: 'toolbar' }, { label: '左侧标题', value: 'left' }]
 const collapsed = ref(false), collapsible = ref(true), acceptRequests = ref(true), lastRequest = ref('无')
 function requestCollapse(next: boolean) {
   lastRequest.value = `${next ? '收起' : '展开'}${acceptRequests.value ? ' · 已接受' : ' · 已拒绝'}`
@@ -120,7 +122,7 @@ body { margin: 0; background: var(--canvas); color: var(--ink-1); font-family: v
 .fixture-workspace { height: calc(100dvh - 130px); min-height: 400px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-3); overflow: hidden; }
 .fixture-state { display: block; margin-top: var(--space-2); color: var(--ink-2); font-size: var(--fs-12); }
 .navigation { padding: var(--space-3); height: 100%; overflow: auto; }
-.navigation .ant-menu { border-inline-end: 0; margin-top: var(--space-3); background: transparent; }
+.navigation .ant-menu { border-inline-end: 0; background: transparent; }
 .content-toolbar { display: flex; align-items: center; gap: var(--space-3); }
 .content-toolbar .ant-input-affix-wrapper { max-width: 26rem; }
 .content-toolbar--body { padding: var(--space-3) var(--space-4); justify-content: space-between; }

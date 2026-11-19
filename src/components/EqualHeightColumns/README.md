@@ -23,20 +23,23 @@
 
 ## 插槽与入口
 
-- `right-header`：主区已有标题／搜索工具栏。唯一折叠入口始终位于主区工具栏前部，随主区起点移动；收起后左列归零，`right` 填满工具栏下方空间。
-- `left-header`：左分区标题。没有 `right-header` 时按钮位于标题前，收起后保留窄入口。
-- `left` / `right`：两列内容。都未提供头部插槽时，工作区起始边缘增加 `2rem` 控制轨道，顶部放轻量图标按钮；展开、收起前后按钮位置不变，不覆盖内容，也不占用整条页头。`collapsible=false` 时不占该轨道。
+- `left-header`：左区的真实标题或搜索控件。折叠图标位于内容前，同一顶行使用 `var(--space-3)` 内距和 `2rem` 按钮，插槽内容为 `flex: 1; min-width: 0`，可直接放 `a-input`。同时存在 `right-header` 时仍只在左区显示入口。
+- `right-header`：主区标题／搜索工具栏。只有未提供 `left-header` 时，折叠入口才位于该工具栏前部，随主区起点移动；收起后左列归零，`right` 填满工具栏下方空间。
+- `left` / `right`：两列内容。都未提供头部插槽时，左区内部增加仅含折叠按钮的紧凑顶行，不生成标题、不覆盖内容；`collapsible=false` 时不增加这条空顶行。
+
+左区入口模式收起后，保留同样内距和按钮所需的窄区，展开、收起前后按钮坐标稳定。没有独立于左区的额外控制列。
 
 ```vue
 <EqualHeightColumns v-model:collapsed="navigationCollapsed" left-width="15rem">
+  <template #left-header><a-input v-model:value="navigationSearch" placeholder="搜索对象" /></template>
   <template #left>对象导航</template>
   <template #right-header>搜索与当前范围</template>
   <template #right>当前对象内容</template>
 </EqualHeightColumns>
 ```
 
-折叠保持左列内容实例、输入及滚动位置；隐藏内容退出焦点顺序和辅助技术阅读。焦点原在被隐藏左区时才移回折叠入口，右区焦点不受影响。展开状态与控制关系沿真实按钮提供，不依赖 hover。
+折叠保持左列内容及左头部控件的实例、输入和滚动位置；隐藏内容退出焦点顺序和辅助技术阅读。焦点原在被隐藏的左区正文或头部控件时才移回折叠入口，右区焦点不受影响。展开状态与被控制区域沿真实按钮关联，不依赖 hover。
 
 `showLeft=false` 与折叠不同：左列被卸载，草稿／选择等必要状态由宿主持有；宿主还须提供窄屏对象选择入口及相应焦点恢复。切回 `true` 时恢复此前折叠偏好。不要把临时窄屏模式直接写回 `collapsed`。
 
-默认外观由原居中中缝按钮改为顶部控制轨道；原 props、内容插槽和点击事件仍兼容。已有头部插槽时不再占默认轨道，也不重复显示入口。需要调宽时组合 `PanelResizeHandle` 等适用能力，折叠按钮不显示拖动光标；布局过渡尊重减少动态效果偏好。
+原 props、内容插槽和点击事件仍兼容，入口按头部插槽归属唯一呈现。需要调宽时组合 `PanelResizeHandle` 等适用能力，折叠按钮不显示拖动光标；布局过渡尊重减少动态效果偏好。

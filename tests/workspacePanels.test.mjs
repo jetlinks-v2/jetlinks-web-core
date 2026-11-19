@@ -5,6 +5,7 @@ import { createDashboardLoader } from './helpers/dashboardRuntime.mjs'
 
 const flush = async () => { await nextTick(); await nextTick() }
 const walk = (node, predicate) => [node, ...node.children.flatMap(child => walk(child, predicate))].filter(predicate)
+const hasClass = (node, name) => String(node.props.class ?? '').split(' ').includes(name)
 
 // Only DOM and the Ant rendering boundary are replaced; component state and handlers run unchanged.
 function createTestRenderer() {
@@ -43,13 +44,13 @@ function createTestRenderer() {
 
 function mountColumns(mode = 'default', extra = {}, accept = true) {
   const Columns = createDashboardLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key }) } })('components/EqualHeightColumns/index.vue').default
-  const props = reactive(extra), requests = [], changes = [], draft = ref('待处理对象'), currentMode = ref(mode)
+  const props = reactive(extra), requests = [], changes = [], draft = ref('待处理对象'), headerDraft = ref('搜索草稿'), currentMode = ref(mode)
   let mounts = 0
   const Left = defineComponent({ setup() { onMounted(() => mounts++); return () => h('input', { 'aria-label': 'left', value: draft.value }) } })
   const state = createTestRenderer()
   const slots = () => ({
     left: () => h(Left), right: () => h('input', { 'aria-label': 'right' }),
-    ...(currentMode.value === 'left' || currentMode.value === 'both' ? { 'left-header': () => '对象' } : {}),
+    ...(currentMode.value === 'left' || currentMode.value === 'both' ? { 'left-header': () => h('input', { 'aria-label': 'left-search', value: headerDraft.value }) } : {}),
     ...(currentMode.value === 'toolbar' || currentMode.value === 'both' ? { 'right-header': () => h('input', { 'aria-label': 'search' }) } : {}),
   })
   const app = state.register(state.renderer.createApp({ setup: () => () => h(Columns, {
@@ -58,17 +59,16 @@ function mountColumns(mode = 'default', extra = {}, accept = true) {
     onCollapseChange: value => changes.push(value),
   }, slots()) }))
   app.mount(state.root)
-  return { ...state, app, props, requests, changes, draft, mode: currentMode, mounts: () => mounts,
+  return { ...state, app, props, requests, changes, draft, headerDraft, mode: currentMode, mounts: () => mounts,
     buttons: () => walk(state.root, node => node.type === 'button'),
     field: label => walk(state.root, node => node.props['aria-label'] === label)[0],
-    body: () => { const id = walk(state.root, node => node.type === 'button')[0]?.props['aria-controls']; return walk(state.root, node => node.props.id === id)[0] },
+    body: () => { const id = walk(state.root, node => node.type === 'button')[0]?.props['aria-controls']?.split(' ')[0]; return walk(state.root, node => node.props.id === id)[0] },
   }
 }
 
 test('dynamic toolbar/default/left/both slots preserve content and update the unique entry without empty headers', async () => {
   const state = mountColumns('toolbar')
   const left = state.field('left'), right = state.field('right'), body = state.body()
-  const hasClass = (node, name) => String(node.props.class ?? '').split(' ').includes(name)
   try {
     state.draft.value = '切换布局仍保留的草稿'
     for (const mode of ['default', 'left', 'both', 'toolbar', 'default']) {
@@ -78,11 +78,14 @@ test('dynamic toolbar/default/left/both slots preserve content and update the un
       assert.equal(state.field('left'), left); assert.equal(state.field('right'), right)
       assert.equal(left.props.value, '切换布局仍保留的草稿'); assert.equal(state.mounts(), 1)
       assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__toolbar')).length, ['toolbar', 'both'].includes(mode) ? 1 : 0)
-      assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__header')).length, ['left', 'both'].includes(mode) ? 1 : 0)
-      assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__control-rail')).length, mode === 'default' ? 1 : 0)
+      assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__header')).length, mode === 'toolbar' ? 0 : 1)
+      assert.equal(state.root.children[0].children.filter(node => node.type === 'div').length, 2, 'the layout contains only its two panes')
+      const button = state.buttons()[0]
+      assert.ok(hasClass(button.parent.parent, mode === 'toolbar' ? 'equal-height-columns__pane--right' : 'equal-height-columns__pane--left'), 'both headers prefer the left entry')
+      if (mode === 'both') assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__toolbar'))[0].contains(button), false)
       state.buttons()[0].props.onClick(); await flush()
       const style = state.root.children[0].props.style
-      assert.equal(style['--equal-height-columns-left-width'], mode === 'left' ? 'var(--equal-height-columns-header-rail)' : '0px')
+      assert.equal(style['--equal-height-columns-left-width'], mode === 'toolbar' ? '0px' : 'var(--equal-height-columns-collapsed-width)')
       state.buttons()[0].props.onClick(); await flush()
     }
   } finally { state.app.unmount() }
@@ -92,7 +95,7 @@ for (const mode of ['default', 'toolbar', 'left', 'both']) {
   test(`${mode}: unique disclosure retains its instance, input and control relation`, async () => {
     const state = mountColumns(mode)
     try {
-      const button = state.buttons()[0], field = state.field('left'), body = state.body()
+      const button = state.buttons()[0], field = state.field('left'), body = state.body(), headerInput = state.field('left-search')
       assert.equal(state.buttons().length, 1)
       assert.ok(body)
       assert.equal(button.props['aria-expanded'], true)
@@ -100,10 +103,18 @@ for (const mode of ['default', 'toolbar', 'left', 'both']) {
       button.props.onClick(); await flush()
       assert.equal(button.props['aria-expanded'], false)
       assert.equal(state.field('left'), field)
-      assert.equal(mode === 'default' ? body.props.inert : body.style.display === 'none', true)
+      assert.equal(body.props.inert, true); assert.equal(body.style.display, 'none')
+      if (headerInput) {
+        assert.equal(state.field('left-search'), headerInput)
+        assert.equal(headerInput.parent.style.display, 'none')
+        assert.equal(headerInput.parent.props.inert, true)
+        assert.equal(headerInput.parent.props['aria-hidden'], true)
+        assert.ok(button.props['aria-controls'].split(' ').includes(headerInput.parent.props.id))
+      }
       button.props.onClick(); await flush()
       assert.equal(state.buttons()[0], button)
       assert.equal(field.props.value, '保留的草稿')
+      if (headerInput) assert.equal(headerInput.props.value, '搜索草稿')
       assert.equal(state.mounts(), 1)
       assert.deepEqual(state.requests, [true, false]); assert.deepEqual(state.changes, [true, false])
     } finally { state.app.unmount() }
@@ -140,6 +151,7 @@ test('controlled acceptance, structural visibility and disabled collapse retain 
     assert.equal(state.props.collapsed, true)
     state.props.collapsible = false; await flush()
     assert.equal(state.buttons().length, 0)
+    assert.equal(walk(state.root, node => node.type === 'header').length, 0, 'non-collapsible fallback adds no empty header')
     assert.equal(state.field('left').parent.props.inert, undefined)
     assert.equal(state.props.collapsed, true)
     state.props.collapsible = true; await flush()
@@ -154,17 +166,22 @@ test('controlled acceptance, structural visibility and disabled collapse retain 
   } finally { state.app.unmount() }
 })
 
-test('collapse relocates only focus inside the hidden pane, never an unrelated main input', async () => {
-  for (const mode of ['default', 'toolbar', 'left']) {
+test('collapse relocates hidden header/body focus without stealing main or toolbar focus', async () => {
+  for (const mode of ['default', 'toolbar', 'left', 'both']) {
     const state = mountColumns(mode, { collapsed: false })
     try {
-      state.field('left').focus()
-      state.props.collapsed = true; await flush()
-      assert.equal(state.document.activeElement, state.buttons()[0])
-      state.props.collapsed = false; await flush()
-      state.field('right').focus()
-      state.props.collapsed = true; await flush()
-      assert.equal(state.document.activeElement, state.field('right'))
+      for (const label of ['left', 'left-search'].filter(label => state.field(label))) {
+        state.props.collapsed = false; await flush()
+        state.field(label).focus()
+        state.props.collapsed = true; await flush()
+        assert.equal(state.document.activeElement, state.buttons()[0], `${mode}: hidden ${label} returns to its entry`)
+      }
+      for (const label of ['right', 'search'].filter(label => state.field(label))) {
+        state.props.collapsed = false; await flush()
+        state.field(label).focus()
+        state.props.collapsed = true; await flush()
+        assert.equal(state.document.activeElement, state.field(label), `${mode}: visible ${label} keeps focus`)
+      }
     } finally { state.app.unmount() }
   }
 })

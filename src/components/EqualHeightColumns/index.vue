@@ -3,35 +3,27 @@
     v-bind="rootAttrs()"
     class="equal-height-columns"
     :class="[attrs.class, {
-      'equal-height-columns--rail': showLeft && collapsible && !hasHeader(),
-      'equal-height-columns--header': hasHeader(),
-      'equal-height-columns--toolbar': hasToolbar(),
       'equal-height-columns--collapsed': isCollapsed,
       'equal-height-columns--single': !showLeft,
     }]"
     :style="[attrs.style as StyleValue, rootStyle()]"
   >
-    <div v-if="showLeft && collapsible && !hasHeader()" class="equal-height-columns__control-rail">
-      <a-button ref="toggleRef" type="text" size="small" class="equal-height-columns__header-toggle"
-        :title="toggleText" :aria-label="toggleText" :aria-expanded="!isCollapsed" :aria-controls="bodyId" @click="toggleCollapse">
-        <AIcon :type="isCollapsed ? 'MenuUnfoldOutlined' : 'MenuFoldOutlined'" />
-      </a-button>
-    </div>
     <div v-if="showLeft" ref="leftPaneRef" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
-      <header v-if="slots['left-header']" class="equal-height-columns__header">
-        <a-button v-if="collapsible && !hasToolbar()" ref="toggleRef" type="text" size="small" class="equal-height-columns__header-toggle"
-          :title="toggleText" :aria-label="toggleText" :aria-expanded="!isCollapsed" :aria-controls="bodyId" @click="toggleCollapse">
+      <header v-if="hasLeftHeader() || (collapsible && !hasToolbar())" class="equal-height-columns__header">
+        <a-button v-if="collapsible && usesLeftToggle()" ref="toggleRef" type="text" size="small" class="equal-height-columns__header-toggle"
+          :title="toggleText" :aria-label="toggleText" :aria-expanded="!isCollapsed" :aria-controls="controlledIds()" @click="toggleCollapse">
           <AIcon :type="isCollapsed ? 'MenuUnfoldOutlined' : 'MenuFoldOutlined'" />
         </a-button>
-        <div v-show="!isCollapsed" class="equal-height-columns__header-title"><slot name="left-header" /></div>
+        <div v-if="hasLeftHeader()" v-show="!isCollapsed" :id="headerId" class="equal-height-columns__header-content"
+          :inert="isCollapsed ? true : undefined" :aria-hidden="isCollapsed ? true : undefined"><slot name="left-header" /></div>
       </header>
       <div v-show="!isCollapsed" :id="bodyId" class="equal-height-columns__body"
         :inert="isCollapsed ? true : undefined" :aria-hidden="isCollapsed ? true : undefined"><slot name="left" /></div>
     </div>
-    <div class="equal-height-columns__pane equal-height-columns__pane--right" :class="{ 'equal-height-columns__pane--toolbar': hasToolbar() }" :style="rightStyle">
+    <div class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
       <header v-if="hasToolbar()" class="equal-height-columns__toolbar">
-        <a-button v-if="showLeft && collapsible" ref="toggleRef" type="text" size="small" class="equal-height-columns__header-toggle"
-          :title="toggleText" :aria-label="toggleText" :aria-expanded="!isCollapsed" :aria-controls="bodyId" @click="toggleCollapse">
+        <a-button v-if="showLeft && collapsible && !usesLeftToggle()" ref="toggleRef" type="text" size="small" class="equal-height-columns__header-toggle"
+          :title="toggleText" :aria-label="toggleText" :aria-expanded="!isCollapsed" :aria-controls="controlledIds()" @click="toggleCollapse">
           <AIcon :type="isCollapsed ? 'MenuUnfoldOutlined' : 'MenuFoldOutlined'" />
         </a-button>
         <div class="equal-height-columns__toolbar-content"><slot name="right-header" /></div>
@@ -57,8 +49,11 @@ const attrs = useAttrs()
 const slots = useSlots()
 // useSlots 的键由渲染更新；每次读取，避免把动态插槽形态缓存为初次结果。
 const hasToolbar = () => !!slots['right-header']
-const hasHeader = () => !!slots['left-header'] || hasToolbar()
+const hasLeftHeader = () => !!slots['left-header']
+const usesLeftToggle = () => hasLeftHeader() || !hasToolbar()
 const bodyId = `column-body-${useId()}`
+const headerId = `${bodyId}-header`
+const controlledIds = () => hasLeftHeader() ? `${bodyId} ${headerId}` : bodyId
 const { t: $t } = useI18n()
 const leftPaneRef = ref<HTMLElement>()
 
@@ -117,11 +112,11 @@ const toGridTrack = (value: SizeValue, collapsed = false) => {
 
 const rootStyle = (): Record<string, string> => ({
   '--equal-height-columns-height': toCssValue(props.height),
-  // 收起时同时去掉左列宽度和列间距，右列才能真正占满整行
+  // 左侧入口保留自身顶行宽度；只有右工具栏入口时左列才完全归零。
   '--equal-height-columns-gap': isCollapsed.value ? '0px' : toCssValue(props.gap),
   '--equal-height-columns-align': props.align,
-  '--equal-height-columns-left-width': isCollapsed.value && hasHeader() && !hasToolbar()
-    ? 'var(--equal-height-columns-header-rail)' : toGridTrack(props.leftWidth, isCollapsed.value),
+  '--equal-height-columns-left-width': isCollapsed.value && usesLeftToggle()
+    ? 'var(--equal-height-columns-collapsed-width)' : toGridTrack(props.leftWidth, isCollapsed.value),
   '--equal-height-columns-right-width': toGridTrack(props.rightWidth),
 })
 
