@@ -14,7 +14,7 @@ const dependencies = {
   'vue-i18n': { useI18n: () => ({ t: key => key }) },
   '@jetlinks-web/utils': { randomString: () => `key-${++nextKey}` },
   '@jetlinks-web/core': { request: { get: () => { throw new Error('Unexpected remote request') } } },
-  '@jetlinks-web-core/locales': { default: { global: { t: key => key, te: () => false } } },
+  '@jetlinks-web-core/locales': { __esModule: true, default: { global: { t: key => key, te: () => false } } },
 }
 
 // Run the real SFC setup and local query transforms with Vue's reactive scheduler.
@@ -104,6 +104,56 @@ const mountFilter = (initialProps = {}) => {
 }
 
 const url = value => ({ column: 'url', termType: 'eq', value, type: 'and' })
+
+for (const prop of ['fields', 'columns']) {
+  test(`${prop}: only an unrenamed primary key omits null operators by default`, async () => {
+    const field = (dataIndex, search = {}) => ({ title: dataIndex, dataIndex, search: { type: 'string', ...search } })
+    const h = mountFilter({ fields: [], [prop]: [field('id'), field('parentId'), field('alias', { rename: 'id' })] })
+    const options = key => h.state.getTermTypeOptions(h.state.columnsMap[key]).map(option => option.value)
+    const textOps = ['like', 'nlike', 'eq', 'not']
+    const allTextOps = [...textOps, 'isnull', 'notnull']
+    try {
+      assert.deepEqual(options('id'), textOps)
+      assert.deepEqual(options('parentId'), allTextOps)
+      assert.deepEqual(options('alias'), allTextOps)
+      for (const [search, expected] of [
+        [{ rename: 'id', termFilter: ['nlike'] }, ['like', 'eq', 'not']],
+        [{ type: 'number' }, ['eq', 'not', 'gt', 'gte', 'lt', 'lte']],
+        [{ type: 'select' }, ['in', 'nin', 'eq', 'not']],
+        [{ rename: 'parentId' }, allTextOps],
+        [{ termTypeOptions: ['eq', 'isnull'] }, ['eq', 'isnull']],
+        [{ type: 'select', termOptions: [{ value: 'knowledge-tag-bind', label: '任意标签' }] }, ['knowledge-tag-bind']],
+      ]) {
+        h.props[prop] = [field('id', search)]
+        await vue.nextTick()
+        assert.deepEqual(options('id'), expected)
+      }
+    } finally { h.stop() }
+  })
+}
+
+test('restored ID null checks still execute, but switching from a nullable field cannot create one', async () => {
+  const h = mountFilter({ fields: [
+    { dataIndex: 'id', title: 'ID', search: { type: 'string' } },
+    { dataIndex: 'remark', title: '备注', search: { type: 'string' } },
+  ] })
+  try {
+    for (const [termType, label] of [['isnull', '为空'], ['notnull', '不为空']]) {
+      h.api.setTerms([{ column: 'id', termType }])
+      assert.equal(h.state.getTermTypeReadableText(termType, h.state.columnsMap.id), label)
+      assert.deepEqual(h.api.getFilter().terms, [{ column: 'id', termType, value: 1 }])
+      h.api.setTerms([{ column: 'remark', termType }])
+      h.state.applyFieldSelection(h.state.termsModel[0].key, 'id')
+      assert.equal(h.state.termsModel[0].termType, 'eq')
+      assert.deepEqual(h.api.getFilter().terms, [])
+    }
+    for (const [termType, expected] of [['like', '%dev-42%'], ['eq', 'dev-42']]) {
+      h.api.setTerms([{ column: 'id', termType, value: 'dev-42' }])
+      assert.deepEqual(h.api.getFilter().terms, [{ column: 'id', termType, value: expected }])
+    }
+    await vue.nextTick()
+  } finally { h.stop() }
+})
 
 test('tree option labels include the full ancestor path without changing submitted values', async () => {
   const assetValue = id => JSON.stringify({ assetType: 'product', targets: [{ type: 'org', id }] })
