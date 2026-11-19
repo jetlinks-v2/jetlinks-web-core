@@ -8,7 +8,7 @@
 
 当前改造：业务模块启动时注册 `{ code, key, name, page }` 点位，文档管理通过注册表列出未打开页面的埋点；`name/page` 可使用函数读取当前语言。页面使用 `<DocumentHelp code="project/Overview" help-key="quickGuide.device" />`，挂载或切换点位时预加载既有 `GET /system/config/document-help` 返回的配置 Map，按 code/key 匹配 `{ code, key, content, enabled, i18nMessages? }`，只有当前语言解析后的说明非空且启用才显示问号。未配置或禁用不渲染业务入口，但注册表始终保留点位供管理扫描。说明以 Markdown 保存并在原帮助气泡展示，链接直接写在说明内，不再额外配置文档地址。管理列表和持久化由 auth 模块提供。
 
-管理保存成功后调用 `hooks/useConfiguredDocumentHelp.ts` 的 `notifyDocumentHelpConfigurationChanged()`，刷新已挂载的帮助；KeepAlive 页面返回时重新读取，首次激活不重复请求。请求失败隐藏业务入口，后续保存通知、页面重进或刷新可重试。悬停和关闭不清空已准备正文，MarkdownPreview 静态引入，避免首次打开时下载组件及加载短文案引起弹层高度跳动；保留 Ant Design Vue 原有动效。静态说明和管理 `#content` 草稿预览不受 enabled 限制。
+管理保存成功后调用 `hooks/useConfiguredDocumentHelp.ts` 的 `notifyDocumentHelpConfigurationChanged()`，刷新已挂载的帮助；KeepAlive 页面返回时重新读取，首次激活不重复请求。请求失败隐藏业务入口，后续保存通知、页面重进或刷新可重试。悬停和关闭不清空已准备正文，MarkdownPreview 静态引入，避免首次打开时下载组件及加载短文案引起弹层高度跳动。帮助气泡使用独立的透明度淡入淡出，不使用缩放动画；弹层左右增加 `--space-3` 安全留白并计入原有边界定位，避免靠右气泡退场重新定位时越界、触发滚动条闪现。减少动态效果偏好下不播放动画，仅影响帮助气泡，不修改页面滚动规则、其他 Popover 或已保存正文。静态说明和管理 `#content` 草稿预览不受 enabled 限制。
 
 实现范围：`utils/documentHelpRegistry.ts`、`hooks/useConfiguredDocumentHelp.ts`、`api/document.ts` 和本组件。预览共用 `MarkdownPreview.vue`，HTML 经 `utils/documentHelpMarkdown.ts` 清洗，链接保留蓝色且在新窗口打开；管理编辑器通过新增可选 `sanitize` 属性使用同一清洗函数。`description/document/#content` 保持兼容，显式内容插槽优先。
 
