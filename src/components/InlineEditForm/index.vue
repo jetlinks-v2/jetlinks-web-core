@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { ref, type PropType } from 'vue'
 import InlineEditField from './InlineEditField.vue'
-import type { InlineEditGroup, InlineEditMessages, InlineEditSubmit } from './types'
+import type { InlineEditEditorScope, InlineEditFieldDefinition, InlineEditGroup, InlineEditMessages, InlineEditSubmit } from './types'
 defineProps({
   groups: { type: Array as PropType<InlineEditGroup[]>, required: true },
   mode: { type: String as PropType<'detail' | 'form'>, default: 'detail' },
@@ -26,6 +26,7 @@ defineProps({
   submit: { type: Function as PropType<InlineEditSubmit>, default: undefined },
 })
 const emit = defineEmits<{ (event: 'change', key: string, value: unknown): void; (event: 'focus' | 'cancel', key: string): void }>()
+defineSlots<{ editor?: (scope: InlineEditEditorScope) => unknown; display?: (scope: { field: InlineEditFieldDefinition }) => unknown; default?: () => unknown }>()
 const fields = ref<InstanceType<typeof InlineEditField>[]>([])
 /** Open a related field through the same permission and pending guards as a user click. */
 function editField(key: string) { fields.value.find(field => field.$props.field.key === key)?.begin() }
@@ -33,9 +34,9 @@ defineExpose({ editField })
 </script>
 
 <style scoped>
-.inline-edit-form { min-width: 0; }
+.inline-edit-form { min-width: 0; container: inline-edit-form / inline-size; }
 .inline-edit-form__section + .inline-edit-form__section { margin-top: var(--space-6); }
 .inline-edit-form__section h3 { margin: 0 0 var(--space-4); color: var(--jet-theme-text-title); font-size: var(--fs-14); font-weight: 500; }
 .inline-edit-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) var(--space-6); }
-@media (max-width: 48rem) { .inline-edit-form__grid { grid-template-columns: minmax(0, 1fr); } }
+@container inline-edit-form (max-width: 48rem) { .inline-edit-form__grid { grid-template-columns: minmax(0, 1fr); } }
 </style>
