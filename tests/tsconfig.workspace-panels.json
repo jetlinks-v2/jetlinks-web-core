@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "types": []
+  },
+  "include": [
+    "../src/components/EqualHeightColumns/**/*.vue",
+    "../src/components/EqualHeightColumns/**/*.ts",
+    "../src/components/PanelResizeHandle/**/*.vue",
+    "../src/components/PanelResizeHandle/**/*.ts",
+    "./workspace-panels/**/*.vue",
+    "./workspace-panels/**/*.ts"
+  ]
+}

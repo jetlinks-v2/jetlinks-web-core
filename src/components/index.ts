@@ -299,3 +299,4 @@ export type {
 } from './MatrixGrid/types'
 export * from './Expression'
 export * from './PlatformSettings'
+export { default as PanelResizeHandle } from './PanelResizeHandle/index.vue'
