@@ -79,6 +79,8 @@ export interface MenuPermissionScope {
 export interface MenuPermissionGroupDefinition {
   key: string
   label: string
+  /** 限制投影节点的 owner；其他 owner 的祖先只保留在原始授权树。 */
+  visibleOwner?: string
   menus: MenuPermissionScope[]
 }
 

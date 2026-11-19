@@ -18,8 +18,9 @@ export function projectMenuPermissionGroups(
   return definitions.map(group => {
     const scopes = new Map(group.menus.map(scope => [scope.id, scope]))
     const visit = (items: MenuPermissionNode[]): MenuPermissionNode[] => items.flatMap(menu => {
-      const scope = scopes.get(menu.id)
       const children = visit(menu.children || [])
+      if (group.visibleOwner !== undefined && menu.owner !== group.visibleOwner) return children
+      const scope = scopes.get(menu.id)
       if (!scope && !children.length) return []
       const allowedButtons = new Set(scope?.buttonIds || [])
       const buttons = (menu.buttons || []).filter(button => allowedButtons.has(button.id))
