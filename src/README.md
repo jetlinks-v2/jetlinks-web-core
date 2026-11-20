@@ -37,7 +37,9 @@
 
 ## 顶部用户菜单
 
-运行时 `layout/components/LayoutSidebarUser.vue` 使用 264px（16.5rem）紧凑纵向下拉：顶部摘要按姓名、账号、角色三行排列，首个角色及多角色 `+N` 提示在账号下方并与账号左对齐；无角色时不渲染角色行。姓名使用摘要内容列宽度，`style/layout.less` 的 `layout-sidebar-user__roles-row` 使用主题间距。首个角色通过公共 `j-ellipsis` 截断并查看完整名称，数量标签保留独立空间；多角色列表复用 Tooltip。保留菜单入口及角色权限逻辑，运营端 `ui/` 不在本次范围内。页面效果待用户验收。
+运行时 `layout/components/LayoutSidebarUser.vue` 使用 264px（16.5rem）紧凑纵向下拉：顶部摘要按姓名、账号、角色三行排列，首个角色及多角色 `+N` 提示在账号下方并与账号左对齐；无角色时不渲染角色行。姓名使用摘要内容列宽度，`style/layout.less` 的 `layout-sidebar-user__roles-row` 使用主题间距。`layout-sidebar-user__role-name` 允许角色名换行，由公共 `j-ellipsis` 将超长角色名限制为一行并显示省略号，悬停可查看完整名称。数量标签保留独立空间，多角色列表复用 Tooltip。保留菜单入口及角色权限逻辑，运营端 `ui/` 不在本次范围内。
+
+长角色省略通过 Vite 组件定向构建和浏览器验证。隔离账号数据覆盖中英文长名称、短名称、无角色、`+N` 标签和悬停查看完整名称。已在本地个人中心的登录态下确认样式生效。
 
 角色换行验证：实际 Vue 脚本/模板、布局 Less 及组件预览 bundle 编译通过，`git diff --check` 通过。使用实际菜单组件、布局样式、Ant Design Vue 与隔离账号数据，在浏览器确认姓名、账号、角色纵向排列且左边界一致，单角色、多角色、无角色及长账号场景均无横向溢出，浏览器未报告错误或警告。当前登录页未提供可用会话，真实登录菜单待通过 `pnpm dev` 验收；本次未运行全量 typecheck/build，工作区无独立 lint 脚本，发布前执行本节下方命令。
 
