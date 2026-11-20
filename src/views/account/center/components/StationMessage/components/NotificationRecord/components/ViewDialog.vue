@@ -83,6 +83,12 @@
         </a-descriptions-item>
       </a-descriptions>
     </template>
+    <AlarmNotificationSummary
+      v-else-if="isAlarm"
+      :record="data"
+      :detail="_data"
+      :levels="levelList"
+    />
     <template v-else>
       <a-descriptions
         :column="2"
@@ -153,6 +159,8 @@ import {
   getWorkflowNotice,
   queryLevel as queryLevel_api,
 } from '@jetlinks-web-core/api/account/notificationRecord'
+import AlarmNotificationSummary from './AlarmNotificationSummary.vue'
+import { isAlarmNotification, readNotificationDetail } from './alarmNotificationSummary'
 
 const emits = defineEmits(['update:visible'])
 const props = defineProps<{
@@ -180,10 +188,10 @@ const levelList = ref<any[]>([])
 //工作流详情的值
 const workFlowData = ref()
 
-const _data = computed(() => {
-  if (props.data.detailJson) return JSON.parse(props.data.detailJson)
-  else return props.data?.detail || props.data
-})
+// 历史通知的 detailJson 可能损坏，解析失败时回退到通知记录本身
+const _data = computed(() => readNotificationDetail(props.data))
+
+const isAlarm = computed(() => isAlarmNotification(props.data?.topicProvider, _data.value))
 
 const notificationTitle = computed(() => {
   const messages = _data.value?.i18nMessages?.title
