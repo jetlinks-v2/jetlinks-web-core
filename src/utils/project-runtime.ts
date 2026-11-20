@@ -86,7 +86,8 @@ export const getProjectCodeFromLocation = () => getProjectRuntimeConfig().projec
 
 export const isProjectRuntime = () => {
   const runtimeConfig = getProjectRuntimeConfig()
-  return runtimeConfig.fixedProject
+  // SaaS 固定项目构建也承载根路径的后台入口；无项目编码时仍属于后台。
+  return (runtimeConfig.fixedProject && (isPrivateDeployment() || !!runtimeConfig.projectCode))
     || (runtimeConfig.scope === 'auto' && !isFromCloud() && !!runtimeConfig.projectCode)
 }
 
