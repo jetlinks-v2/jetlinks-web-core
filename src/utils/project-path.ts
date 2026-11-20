@@ -9,7 +9,12 @@ export const normalizeProjectHashPath = (path = '') => {
   return `${normalizedPath}${search ? `?${search}` : ''}`
 }
 
+export const isRuntimeRootPath = (pathname = window.location.pathname) => (
+  pathname === '/' || pathname === '/index.html'
+)
+
 export const getProjectCodeFromPathname = (pathname = window.location.pathname) => {
+  if (isRuntimeRootPath(pathname)) return ''
   const [first] = pathname.split('/').filter(Boolean)
   return normalizeSegment(first)
 }

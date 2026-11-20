@@ -18,6 +18,10 @@
 
 项目编码由 `project-runtime.ts#getProjectRuntimeConfig` 统一解析：`project` 模式优先使用有效的 `VITE_APP_PROJECT_CODE`；仅非私有化部署在编码为空时从 pathname 读取项目编码，避免 SaaS 的 `/ht_device/` 被资源用量页误判为缺少上下文。私有化安装目录不作为项目编码，`tenant` / `auto`、菜单、请求头和接口保持原有规则。项目编码用于会话和回跳，不再选择独立子账号登录模式。实际配置、路径解析与页面请求的回归覆盖及验证限制见[资源用量说明](../../../modules/saas-runtime-ui/docs/project-usage-resource-view.md)。
 
+入口判定约定：`project-path.ts` 将根 `/index.html` 与 `/` 同等处理，`/<项目编码>/index.html` 仍属于该项目。`project-runtime.ts` 在 SaaS `project` 和 `auto` 模式按 pathname 排除云端边缘代理入口，不依赖 `terminal` 是否已写入；私有化固定项目仍不依赖路径。
+
+入口修复验证：`projectRuntimeScope` 与 `loginNavigation` 共 32 项通过，项目跳转 108 个断言和应用运行态 291 个场景通过。无头 Chrome 实测后台、边缘代理、项目及应用四类 URL 的入口类型符合预期；未连接真实 SaaS 网关。`runtime-ui` 根 `pnpm exec vue-tsc --noEmit -p tsconfig.json` 和 core 生产构建通过；未配置 lint 脚本。`applicationLoading.test.mjs` 仍有 3 项启动顺序相关失败，修改前的同一 HEAD 在相同依赖下亦失败。
+
 构建环境约定：`runtime-ui/package.json` 的 `dev:standalone`、`build:standalone` 显式传入 `--VITE_APP_ENVIRONMENT=`，覆盖根 `.env.production` 的 `saas`。`src/utils/deployment.ts` 以空值判断私有化，`src/utils/project-storage.ts` 以空值关闭项目存储；SaaS 构建保持 `saas`，云端业务环境保持 `cloud`。所有部署统一使用 core 新登录页，登录模式不再与 project storage 绑定；项目会话及 `用户名@项目编码` 仍由既有登录成功流程处理，详见[项目独立登录收口](../../docs/业务应用切换与菜单上下文.md)。部署类型切换需要重新构建前端，不涉及后端重启。
 
 验证：本次在 core 目录运行 `node scripts/test-project-runtime-href.mjs`，`saas`、`cloud` 与空字符串的 6 种配置共 108 个断言通过，覆盖项目切换、空项目、中文编码、旧 hash 转换、私有化根路径与子路径；相关 Git 差异检查通过。此前可视化模块的需求创建及任务展示定向测试共 38 项通过，本次未重跑。未运行全量 lint/typecheck/build 或浏览器验证；如需全量检查，在 runtime-ui 执行 `pnpm exec vue-tsc --noEmit --project tsconfig.json` 和 `pnpm build:standalone`。已有开发服务刷新即可使用代码变更；部署类型的切换仍需重新构建，不涉及后端重启。

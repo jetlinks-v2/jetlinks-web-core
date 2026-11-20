@@ -271,6 +271,15 @@ try {
     const api = await bundle(environment, runtimeScope)
     const { scope, runtime, context, startup } = api
 
+    // 固定项目构建可以在没有项目业务上下文的根后台渲染项目壳层。
+    for (const entry of ['/', '/index.html']) {
+      reset(api, `http://localhost:9200${entry}#/account/center?tab=Subscribe`)
+      assert.equal(api.useBasicLayoutVariant().value, runtimeScope === 'project' ? 'project' : 'tenant')
+      assert.equal(runtime.isProjectRuntime(), !environment)
+      assert.equal(context.getRequestHeaders()[scope.APPLICATION_SCOPE_HEADER], undefined)
+      scenarios++
+    }
+
     // 发布菜单身份唯一，但复用一个播放器；项目规范化和应用一级布局不能丢失组件定位。
     for (const owner of ['iot', 'app']) {
       reset(api, owner === 'app' ? applicationUrl : 'http://localhost:9200/project/#/')
@@ -508,6 +517,7 @@ try {
     // Remote edge pages rewrite relative URLs only after normal header injection.
     for (const terminal of ['cloud', 'cloud-pc']) {
       reset(api, 'http://localhost:9200/api/ui/edge/cloud/default/#/overview')
+      if (environment) assert.equal(api.useBasicLayoutVariant().value, 'tenant')
       localStorage.setItem('terminal', terminal)
       localStorage.setItem('thingType', 'device')
       localStorage.setItem('thingId', 'gateway-1')
@@ -931,6 +941,11 @@ try {
 
   for (const [runtimeScope, subApp] of [['tenant', false], ['project', true]]) {
     const api = await bundle('', runtimeScope, subApp)
+    if (runtimeScope === 'tenant') {
+      reset(api, 'http://localhost:9200/#/account/center?tab=Subscribe')
+      assert.equal(api.useBasicLayoutVariant().value, 'tenant')
+      scenarios++
+    }
     reset(api)
     assert.equal(api.runtime.isApplicationRuntime(), false)
     assert.equal(api.context.getRequestHeaders()[api.scope.APPLICATION_SCOPE_HEADER], undefined)
