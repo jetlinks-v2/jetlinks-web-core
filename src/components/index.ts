@@ -1,4 +1,5 @@
 import type { App, Component, Plugin } from 'vue'
+export { default as SelectionSummary } from './SelectionSummary'
 import TitleComponent from './TitleComponent/index.vue'
 import DocumentHelp from './DocumentHelp'
 import ImageUpload from "./Upload/Image/ImageUpload.vue";
