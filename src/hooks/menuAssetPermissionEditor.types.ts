@@ -52,6 +52,8 @@ export interface AssetAccessPolicy {
 }
 
 export interface VisibleAssetPermission extends GrantableAssetType {
+  fixedScope?: 'tenant' | 'all'
+  previousScopeLabels?: string[]
   selectedSupportId?: string
 }
 
@@ -65,6 +67,8 @@ export interface MenuAssetPermissionResetOptions {
   grantedMenus?: MenuPermissionNode[]
   assetAccesses?: AssetAccessPolicy[]
   grantableAssets?: GrantableAssetType[]
+  /** 固定范围单独使用的可授权目录；空数组表示不可授权，不回退到菜单候选。 */
+  fixedAssetGrantable?: GrantableAssetType[]
   assetTypes?: AssetTypeName[]
   /** 仅约束展示和编辑范围，未列出的原始菜单仍保留在授权草稿中。 */
   menuGroups?: MenuPermissionGroupDefinition[]
@@ -119,4 +123,6 @@ export interface MenuAssetPermissionEditorContext {
   isProtectedMenu: (menu: MenuPermissionNode) => boolean
   isProtectedButton: (menu: MenuPermissionNode, button: MenuPermissionButton) => boolean
   getSnapshot: () => MenuAssetPermissionSnapshot
+  /** 存在已选但无法授予固定范围的资产时，不生成可提交载荷。 */
+  getGrantSnapshot: (currentFixedGrantable?: GrantableAssetType[]) => MenuAssetPermissionSnapshot | undefined
 }
