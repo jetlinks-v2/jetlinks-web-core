@@ -2,14 +2,18 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 import { transform } from 'esbuild'
+import { createSSRApp, ref, computed, onMounted } from 'vue'
+import { renderToString } from 'vue/server-renderer'
+import dayjs from 'dayjs'
 import { parse, compileScript, compileTemplate } from 'vue/compiler-sfc'
 
 const base = new URL('./components/StationMessage/components/NotificationRecord/components/', import.meta.url)
 const source = readFileSync(new URL('alarmNotificationSummary.ts', base), 'utf8')
-const { code } = await transform(source, { loader: 'ts', format: 'esm' })
-const { buildAlarmNotificationSummary, isAlarmNotification, readNotificationDetail } =
-  await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))
+const require = createRequire(import.meta.url)
+const model = require(fileURLToPath(new URL('alarmNotificationSummary.ts', base)))
+const { buildAlarmNotificationSummary, isAlarmNotification, readNotificationDetail } = model
 
 const build = (topicProvider, detail, record = {}) =>
   buildAlarmNotificationSummary({ topicProvider, detail, ...record })
@@ -129,6 +133,52 @@ test('告警识别不只依赖 alarm- 前缀，非告警通知不受影响', () 
   assert.equal(isAlarmNotification('custom-provider', { alarmConfigId: 'a1' }), true)
   assert.equal(isAlarmNotification('system-bulletin', { title: '公告' }), false)
   assert.equal(isAlarmNotification(undefined, undefined), false)
+})
+
+test('兼容详情在不同时刻打开同一条通知，只展示记录里的有效时间', async t => {
+  const file = fileURLToPath(new URL('ViewDialog.vue', base))
+  const { descriptor } = parse(readFileSync(file, 'utf8'), { filename: file })
+  const script = compileScript(descriptor, { id: 'notification-detail', inlineTemplate: true })
+  const { code } = await transform(script.content, { loader: 'ts', format: 'cjs' })
+  const module = { exports: {} }
+  // 实际弹窗和数据解析参与渲染，隔离注册中心、接口与第三方 UI。
+  const imports = id => {
+    if (id === './alarmNotificationSummary') return model
+    if (id === '@jetlinks-web-core/utils/components-registry') return { componentsRegistry: { getRegistry: () => [] } }
+    if (id === 'vue3-json-viewer') return { JsonViewer: () => null }
+    if (id === 'vue' || id === 'dayjs') return require(id)
+    return {}
+  }
+  new Function('require', 'module', 'exports', 'ref', 'computed', 'onMounted', code)(
+    imports, module, module.exports, ref, computed, onMounted,
+  )
+  async function open(record) {
+    const app = createSSRApp(module.exports.default, { visible: true, type: 'notification', data: record })
+    app.config.globalProperties.$t = key => key
+    for (const tag of ['a-modal', 'a-descriptions', 'a-descriptions-item', 'j-ellipsis', 'j-scrollbar', 'a-button']) {
+      app.component(tag, (_props, { slots }) => slots.default?.())
+    }
+    return renderToString(app)
+  }
+  const notifyTime = 1700000000000
+  const alarmTime = notifyTime - 60000
+  const cases = [
+    [{}, String(notifyTime), notifyTime],
+    [{ alarmTime: String(alarmTime) }, notifyTime, alarmTime],
+    [{ alarmTime: dayjs(alarmTime).toISOString() }, notifyTime, alarmTime],
+    [{ alarmTime: 'invalid' }, notifyTime, notifyTime],
+    [{ alarmTime: null }, 'invalid', undefined],
+    [{}, undefined, undefined],
+  ]
+  t.mock.timers.enable({ apis: ['Date'], now: notifyTime + 86400000 })
+  for (const [detail, storedTime, expected] of cases) {
+    const record = { topicProvider: 'legacy', detailJson: JSON.stringify(detail), notifyTime: storedTime }
+    const first = await open(record)
+    t.mock.timers.tick(60000)
+    assert.equal(await open(record), first)
+    if (expected) assert.ok(first.includes(dayjs(expected).format('YYYY-MM-DD HH:mm:ss')))
+    else assert.doesNotMatch(first, /\d{4}-\d{2}-\d{2}|Invalid Date/)
+  }
 })
 
 test('展示组件可编译，使用到的文案在中英日资源中齐全', () => {

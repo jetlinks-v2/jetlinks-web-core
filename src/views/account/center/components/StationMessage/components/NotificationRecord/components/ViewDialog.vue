@@ -115,8 +115,8 @@
             {{ _data?.alarmName || _data?.alarmConfigName || '' }}
           </j-ellipsis>
         </a-descriptions-item>
-        <a-descriptions-item :label="$t('components.ViewDialog.411617-11')"
-          >{{ dayjs(_data?.alarmTime).format('YYYY-MM-DD HH:mm:ss') }}
+        <a-descriptions-item v-if="alarmTime !== undefined" :label="$t('components.ViewDialog.411617-11')">
+          {{ dayjs(alarmTime).format('YYYY-MM-DD HH:mm:ss') }}
         </a-descriptions-item>
         <a-descriptions-item :label="$t('components.ViewDialog.411617-12')"
           >{{ (levelList.length > 0 && getLevelLabel(_data.level)) || '' }}
@@ -160,7 +160,7 @@ import {
   queryLevel as queryLevel_api,
 } from '@jetlinks-web-core/api/account/notificationRecord'
 import AlarmNotificationSummary from './AlarmNotificationSummary.vue'
-import { isAlarmNotification, readNotificationDetail } from './alarmNotificationSummary'
+import { isAlarmNotification, readNotificationDetail, resolveAlarmNotificationTime } from './alarmNotificationSummary'
 
 const emits = defineEmits(['update:visible'])
 const props = defineProps<{
@@ -191,6 +191,7 @@ const workFlowData = ref()
 // 历史通知的 detailJson 可能损坏，解析失败时回退到通知记录本身
 const _data = computed(() => readNotificationDetail(props.data))
 
+const alarmTime = computed(() => resolveAlarmNotificationTime(_data.value.alarmTime, props.data?.notifyTime))
 const isAlarm = computed(() => isAlarmNotification(props.data?.topicProvider, _data.value))
 
 const notificationTitle = computed(() => {

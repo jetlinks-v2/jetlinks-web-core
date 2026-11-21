@@ -1,3 +1,5 @@
+import dayjs from 'dayjs'
+
 /**
  * 告警通知详情的展示模型。
  *
@@ -93,8 +95,17 @@ function firstText(...values: unknown[]): string {
 }
 
 function timestamp(value: unknown): number | undefined {
-  const result = typeof value === 'string' && value.trim() ? Number(value) : value
-  return typeof result === 'number' && Number.isFinite(result) && result > 0 ? result : undefined
+  if (typeof value !== 'number' && typeof value !== 'string') return undefined
+  const raw = typeof value === 'string' ? value.trim() : value
+  // 数字字符串是毫秒时间戳；带年月日的历史文本保留原来的日期解析方式。
+  const date = typeof raw === 'string' && /^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(raw) ? raw : Number(raw)
+  const millis = dayjs(date).valueOf()
+  return millis > 0 ? millis : undefined
+}
+
+/** 历史通知可能缺少告警时间，只用已记录的通知时间兜底，不能取查看时间。 */
+export function resolveAlarmNotificationTime(alarmTime: unknown, notifyTime: unknown): number | undefined {
+  return timestamp(alarmTime) ?? timestamp(notifyTime)
 }
 
 /** 通知详情：优先 detailJson，其次 detail，最后回退到通知记录本身。 */
@@ -221,7 +232,7 @@ export function buildAlarmNotificationSummary(
     level: Number.isFinite(level) && level > 0 ? level : undefined,
     levelText: text(detail.levelText),
     relieved,
-    time: timestamp(detail.alarmTime) ?? timestamp(record?.notifyTime),
+    time: resolveAlarmNotificationTime(detail.alarmTime, record?.notifyTime),
     reasons,
     fields,
   }

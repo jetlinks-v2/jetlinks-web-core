@@ -121,10 +121,11 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 **告警通知详情**：Owning module 为 `runtime-ui/jetlinks-web-core`。`account/center/components/StationMessage/components/NotificationRecord/components/ViewDialog.vue` 的告警分支用字段摘要替代「告警流水」JSON，原始数据不再保留入口，完整数据仍在告警记录页查看。沿用已注册详情优先级，不改非告警通知、已读流程、后端接口或通知存储；未识别为告警的其他通知保持原展示。项目端个人中心复用此消息中心，不改 `saas-runtime-ui` 的旧弹窗副本；不新增跳转告警记录的入口。
 
 - 布局：顶部展示级别、触发 / 解除状态、告警名称和告警时间；「触发原因」单独成块，展示触发条件与实际情况；下方为告警对象字段及有内容的告警说明。空字段不占位，`0` 等有效值照常展示。
+- 告警时间：标准摘要与兼容详情统一优先读取记录的 `detail.alarmTime`，缺失或无效时沿用记录的 `notifyTime`；两者均不可用时不展示时间，不使用查看弹窗时的系统时间。组件回归用例用同一条通知在相隔一分钟的模拟时钟下两次打开，覆盖告警时间优先、通知时间兜底、非法值与无时间记录。
 - 对象字段按 `targetType` 优先、`topicProvider` 兜底：设备（名称、ID、所属产品）、产品（名称、ID）、组织、场景（`alarm-other`）、采集器（名称、ID）、AI 安全 / 合规告警（告警对象、所属空间、视频设备、视频通道），其余显示通用「告警对象」。告警来源与对象不同且未重复时再展示来源。
 - 触发原因优先取顶层 `triggerDesc` / `actualDesc`，兼容 `termSpec` 内的同名字段；缺少实际描述时以属性名、格式化值及单位补足，格式化值已带单位时不重复追加。解除通知展示解除时间，并以「恢复值」展示属性读数。字段只按白名单取值，不展开底层消息、条件树或绑定关系。
 - 实现入口：`components/alarmNotificationSummary.ts` 负责识别告警通知并把 `detail` / `detailJson` / 历史 `alarmInfo` 归一成展示模型，损坏的 JSON 不抛错；`components/AlarmNotificationSummary.vue` 只负责渲染；文案位于 `locales/lang/{zh,en,ja}.json` 的 `components.ViewDialog.alarm.*`。
-- 验证：在 core 目录运行 `node --test src/views/account/center/alarmNotificationSummary.test.mjs`，10 项通过，覆盖设备 / 产品 / 组织 / 场景 / 采集器 / 通用 / AI 告警、触发与解除、属性读数兜底、零值、损坏 JSON、非告警识别、组件编译及中英日文案齐全；`messageCenterView.test.mjs` 与 `personalCenterFlows.test.mjs` 回归 66 项通过。完整 `vue-tsc --noEmit` 为 511 条既有诊断，`StationMessage` 目录无诊断。通过 9200 开发服务加载真实组件、文案和样式变量，以样例数据渲染设备触发、设备解除、产品、AI、场景五种告警，布局符合预期。未验证：未登录业务环境，没有在消息中心用真实通知打开弹窗，产品 / 组织 / 采集器 / AI 告警的真实数据字段仍需业务环境确认；未执行生产构建。Commit / PR：pending。
+- 验证：在 core 目录运行 `node --test src/views/account/center/alarmNotificationSummary.test.mjs`，11 项通过，覆盖设备 / 产品 / 组织 / 场景 / 采集器 / 通用 / AI 告警、触发与解除、属性读数兜底、零值、损坏 JSON、非告警识别、组件编译及中英日文案齐全；`messageCenterView.test.mjs` 与 `personalCenterFlows.test.mjs` 回归 66 项通过。完整 `vue-tsc --noEmit` 为 511 条既有诊断，`StationMessage` 目录无诊断。通过 9200 开发服务加载真实组件、文案和样式变量，以样例数据渲染设备触发、设备解除、产品、AI、场景五种告警，布局符合预期。未验证：未登录业务环境，没有在消息中心用真实通知打开弹窗，产品 / 组织 / 采集器 / AI 告警的真实数据字段仍需业务环境确认；本次时间修复已通过详情组件的定向 Vite 生产编译，未运行整包构建（发布前在 `runtime-ui` 执行 `pnpm build`）；core 未配置独立 lint 脚本。
 
 - 方案：保留平台统一 ConditionFilter，补齐原型的消息类型、已读状态和时间选项。消息内容支持“包含”等现有文本条件；时间提供今天、近 7 天、近 30 天，移除对应条件即查询全部。界面继续使用平台现有筛选、列表和详情组件。
 - 列表按真实通知 provider 归组；公告能力通过业务模块注册元数据发现，通道列表为空时也保留公告收件箱，数据继续由当前用户通知接口限定范围。core 不直接依赖公告模块，保留顶部通知跳转与消息详情注册扩展。
