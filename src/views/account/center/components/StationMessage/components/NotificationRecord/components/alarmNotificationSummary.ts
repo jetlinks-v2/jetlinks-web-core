@@ -11,7 +11,7 @@ type Dict = Record<string, any>
 
 export type AlarmTargetKind = 'device' | 'product' | 'organization' | 'scene' | 'collector' | 'ai' | 'other'
 
-export interface AlarmSummaryField {
+export interface SummaryField {
   key: string
   /** i18n key，由展示组件翻译 */
   labelKey: string
@@ -22,23 +22,19 @@ export interface AlarmSummaryField {
   wide?: boolean
 }
 
-export interface AlarmReasonRow {
-  key: 'condition' | 'actual' | 'recovery'
-  labelKey: string
-  value: string
-}
-
-export interface AlarmNotificationSummary {
-  kind: AlarmTargetKind
+/** 两类通知共用排版，但场景执行通知没有告警级别、触发/解除状态或执行结果。 */
+export interface StationSummary {
+  kind: AlarmTargetKind | 'sceneExecution'
+  titleKey: string
   name: string
   level?: number
-  /** 后端已本地化的级别文案，级别字典缺失时兜底 */
-  levelText: string
-  relieved: boolean
-  /** 告警时间（毫秒），缺失时为 undefined */
+  levelText?: string
+  relieved?: boolean
   time?: number
-  reasons: AlarmReasonRow[]
-  fields: AlarmSummaryField[]
+  timeLabelKey: string
+  reasons: SummaryField[]
+  fields: SummaryField[]
+  description?: string
 }
 
 const LABEL = 'components.ViewDialog.alarm.'
@@ -122,7 +118,7 @@ export function readNotificationDetail(record: Dict | null | undefined): Dict {
 export function isAlarmNotification(provider: unknown, detail: Dict | null | undefined): boolean {
   const id = text(provider)
   if (id === 'alarm' || id.startsWith('alarm-') || id in PROVIDER_KINDS) return true
-  return !!detail && !!firstText(detail.alarmConfigId, detail.alarmConfigName, detail.alarmName)
+  return id !== 'scene' && !!detail && !!firstText(detail.alarmConfigId, detail.alarmConfigName, detail.alarmName)
 }
 
 function resolveKind(provider: string, detail: Dict): AlarmTargetKind {
@@ -139,43 +135,50 @@ function propertyReading(detail: Dict): string {
   return name ? `${name} = ${reading}` : reading
 }
 
-function targetFields(kind: AlarmTargetKind, detail: Dict, info: Dict): AlarmSummaryField[] {
+function targetFields(kind: AlarmTargetKind, detail: Dict, info: Dict): SummaryField[] {
   const name = text(detail.targetName)
   const id = text(detail.targetId)
-  const fields: AlarmSummaryField[] = []
-  const push = (key: string, value: string, format?: AlarmSummaryField['format']) => {
+  const fields: SummaryField[] = []
+  const push = (key: string, value: string, format?: SummaryField['format']) => {
     if (value) fields.push({ key, labelKey: LABEL + key, value, format })
+  }
+  // 缺名称时标为对应业务 ID；收件箱自身的 sourceId 不是资产标识。
+  const nameOrId = (nameKey: string, nameValue: string, idKey: string, idValue: string) => {
+    if (nameValue) push(nameKey, nameValue)
+    else push(idKey, idValue, 'mono')
   }
   switch (kind) {
     case 'device':
       push('deviceName', name)
       push('deviceId', id, 'mono')
-      push('ownerProduct', firstText(detail.productName, info.productName))
+      nameOrId('ownerProduct', firstText(detail.productName, info.productName), 'productId', firstText(detail.productId, info.productId))
       break
     case 'product':
       push('productName', name)
       push('productId', id, 'mono')
       break
     case 'organization':
-      push('orgName', name)
+      nameOrId('orgName', name, 'orgId', id)
       break
     case 'scene':
-      push('sceneName', name)
+      nameOrId('sceneName', name, 'sceneId', id)
       break
     case 'collector':
       push('collectorName', name)
       push('collectorId', id, 'mono')
       break
     case 'ai': {
-      const headers = parseDict(info.headers)
-      push('target', name)
-      push('space', firstText(detail.spaceName, info.spaceName, headers.spaceName))
-      push('mediaDevice', firstText(detail.mediaDeviceName, info.mediaDeviceName, headers.mediaDeviceName))
-      push('mediaChannel', firstText(detail.mediaChannelName, info.mediaChannelName, headers.mediaChannelName))
+      const headers = parseDict(detail.headers)
+      const infoHeaders = parseDict(info.headers)
+      const context = (key: string) => firstText(detail[key], info[key], headers[key], infoHeaders[key])
+      nameOrId('target', name, 'id', id)
+      nameOrId('space', context('spaceName'), 'spaceId', context('spaceId'))
+      nameOrId('mediaDevice', context('mediaDeviceName'), 'mediaDeviceId', context('mediaDeviceId'))
+      nameOrId('mediaChannel', context('mediaChannelName'), 'mediaChannelId', context('mediaChannelId'))
       break
     }
     default:
-      push('target', name)
+      nameOrId('target', name, 'id', id)
   }
   return fields
 }
@@ -189,7 +192,7 @@ function targetFields(kind: AlarmTargetKind, detail: Dict, info: Dict): AlarmSum
 export function buildAlarmNotificationSummary(
   record: Dict | null | undefined,
   detail: Dict = readNotificationDetail(record),
-): AlarmNotificationSummary {
+): StationSummary {
   const provider = text(record?.topicProvider)
   // 历史告警把触发数据序列化在 alarmInfo 中，仅作为白名单字段的兜底来源
   const info = parseDict(detail.alarmInfo)
@@ -201,7 +204,7 @@ export function buildAlarmNotificationSummary(
   const condition = firstText(detail.triggerDesc, termSpec.triggerDesc)
   const actual = firstText(detail.actualDesc, termSpec.actualDesc)
   const reading = propertyReading(detail)
-  const reasons: AlarmReasonRow[] = []
+  const reasons: SummaryField[] = []
   if (condition) reasons.push({ key: 'condition', labelKey: LABEL + 'condition', value: condition })
   if (relieved && reading) {
     // 解除通知关心的是恢复后的读数，而不是触发当时的实际情况
@@ -217,23 +220,45 @@ export function buildAlarmNotificationSummary(
   if (source && !sameAsTarget && !fields.some(field => field.value === source)) {
     fields.push({ key: 'source', labelKey: LABEL + 'source', value: source })
   }
-  if (relieveTime) {
-    fields.push({ key: 'relieveTime', labelKey: LABEL + 'relieveTime', value: relieveTime, format: 'time' })
+  const alarmTime = timestamp(detail.alarmTime)
+  const notifyTime = timestamp(record?.notifyTime)
+  // 只有实际有解除时间才标“解除时间”。旧记录的通知时间不是解除或原始告警的时间。
+  const time = relieved ? relieveTime ?? notifyTime ?? alarmTime : alarmTime ?? notifyTime
+  const timeLabelKey = relieved
+    ? (relieveTime ? LABEL + 'relieveTime' : notifyTime ? LABEL + 'notifyTime' : LABEL + 'originalTime')
+    : (alarmTime ? LABEL + 'time' : LABEL + 'notifyTime')
+  if (relieved && alarmTime && (relieveTime || notifyTime)) {
+    reasons.push({ key: 'originalTime', labelKey: LABEL + 'originalTime', value: alarmTime, format: 'time' })
   }
-  const description = text(detail.description)
-  if (description) {
-    fields.push({ key: 'description', labelKey: LABEL + 'description', value: description, wide: true })
-  }
-
+  const titleType = provider === 'aiSecurityAlarm' || provider === 'aiComplianceAlarm' ? provider : kind
   const level = Number(detail.level)
   return {
     kind,
-    name: firstText(detail.alarmName, detail.alarmConfigName),
+    titleKey: 'components.ViewDialog.titles.' + (relieved && kind === 'device' ? 'deviceRelieve' : titleType),
+    name: firstText(detail.alarmName, detail.alarmConfigName, record?.message),
     level: Number.isFinite(level) && level > 0 ? level : undefined,
     levelText: text(detail.levelText),
     relieved,
-    time: resolveAlarmNotificationTime(detail.alarmTime, record?.notifyTime),
+    time,
+    timeLabelKey,
+    description: text(detail.description),
     reasons,
     fields,
+  }
+}
+
+/** 只读取场景通知动作提供的稳定字段，不从“已执行”推断整次运行成功。 */
+export function buildStationSummary(record: Dict, detail = readNotificationDetail(record)): StationSummary | undefined {
+  if (record.topicProvider !== 'scene') {
+    return isAlarmNotification(record.topicProvider, detail) ? buildAlarmNotificationSummary(record, detail) : undefined
+  }
+  const fields: SummaryField[] = []
+  for (const key of ['sceneName', 'triggerType', 'sceneId']) {
+    const value = text(detail[key])
+    if (value) fields.push({ key, labelKey: LABEL + key, value, format: key === 'sceneId' ? 'mono' : undefined, wide: key === 'sceneId' })
+  }
+  return {
+    kind: 'sceneExecution', titleKey: 'components.ViewDialog.titles.sceneExecution', name: text(record.message),
+    time: timestamp(record.notifyTime), timeLabelKey: LABEL + 'notifyTime', fields, reasons: [],
   }
 }

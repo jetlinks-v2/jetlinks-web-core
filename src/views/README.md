@@ -118,14 +118,18 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 消息中心内容与边界
 
-**告警通知详情**：Owning module 为 `runtime-ui/jetlinks-web-core`。`account/center/components/StationMessage/components/NotificationRecord/components/ViewDialog.vue` 的告警分支用字段摘要替代「告警流水」JSON，原始数据不再保留入口，完整数据仍在告警记录页查看。沿用已注册详情优先级，不改非告警通知、已读流程、后端接口或通知存储；未识别为告警的其他通知保持原展示。项目端个人中心复用此消息中心，不改 `saas-runtime-ui` 的旧弹窗副本；不新增跳转告警记录的入口。
+**站内信详情**由 `runtime-ui/jetlinks-web-core` 维护，项目端个人中心复用此页面。入口为 `account/center/components/StationMessage/components/NotificationRecord/components/ViewDialog.vue`；同目录 `alarmNotificationSummary.ts` 负责分类和白名单取值，`StationNotificationSummary.vue` 展示摘要。已注册详情、工作流和系统事件的专属模板优先。列表、已读操作、后端接口和存储不变，不修改 `saas-runtime-ui` 的旧弹窗副本。
 
-- 布局：顶部展示级别、触发 / 解除状态、告警名称和告警时间；「触发原因」单独成块，展示触发条件与实际情况；下方为告警对象字段及有内容的告警说明。空字段不占位，`0` 等有效值照常展示。
-- 告警时间：标准摘要与兼容详情统一优先读取记录的 `detail.alarmTime`，缺失或无效时沿用记录的 `notifyTime`；两者均不可用时不展示时间，不使用查看弹窗时的系统时间。组件回归用例用同一条通知在相隔一分钟的模拟时钟下两次打开，覆盖告警时间优先、通知时间兜底、非法值与无时间记录。
-- 对象字段按 `targetType` 优先、`topicProvider` 兜底：设备（名称、ID、所属产品）、产品（名称、ID）、组织、场景（`alarm-other`）、采集器（名称、ID）、AI 安全 / 合规告警（告警对象、所属空间、视频设备、视频通道），其余显示通用「告警对象」。告警来源与对象不同且未重复时再展示来源。
-- 触发原因优先取顶层 `triggerDesc` / `actualDesc`，兼容 `termSpec` 内的同名字段；缺少实际描述时以属性名、格式化值及单位补足，格式化值已带单位时不重复追加。解除通知展示解除时间，并以「恢复值」展示属性读数。字段只按白名单取值，不展开底层消息、条件树或绑定关系。
-- 实现入口：`components/alarmNotificationSummary.ts` 负责识别告警通知并把 `detail` / `detailJson` / 历史 `alarmInfo` 归一成展示模型，损坏的 JSON 不抛错；`components/AlarmNotificationSummary.vue` 只负责渲染；文案位于 `locales/lang/{zh,en,ja}.json` 的 `components.ViewDialog.alarm.*`。
-- 验证：在 core 目录运行 `node --test src/views/account/center/alarmNotificationSummary.test.mjs`，11 项通过，覆盖设备 / 产品 / 组织 / 场景 / 采集器 / 通用 / AI 告警、触发与解除、属性读数兜底、零值、损坏 JSON、非告警识别、组件编译及中英日文案齐全；`messageCenterView.test.mjs` 与 `personalCenterFlows.test.mjs` 回归 66 项通过。完整 `vue-tsc --noEmit` 为 511 条既有诊断，`StationMessage` 目录无诊断。通过 9200 开发服务加载真实组件、文案和样式变量，以样例数据渲染设备触发、设备解除、产品、AI、场景五种告警，布局符合预期。未验证：未登录业务环境，没有在消息中心用真实通知打开弹窗，产品 / 组织 / 采集器 / AI 告警的真实数据字段仍需业务环境确认；本次时间修复已通过详情组件的定向 Vite 生产编译，未运行整包构建（发布前在 `runtime-ui` 执行 `pnpm build`）；core 未配置独立 lint 脚本。
+| 通知 | 字段来源与展示规则 |
+| --- | --- |
+| 场景执行 `scene` | `SceneNotifyActionProvider` 指定主题；通知服务的 `UserNotificationTaskExecutorProvider#createSceneDetail` 只写 `sceneName/sceneId/triggerType`。显示通知正文、`notifyTime`、场景名称、触发方式、场景 ID，不查告警级别。站内信没有运行 `contextId` 或最终结果，不从“已执行”或附近执行日志推断成功或失败。 |
+| 设备、产品、组织、场景 `alarm-other`、采集器及通用告警 | `AlarmProvider#createNotification` 以 `AlarmHistoryInfo` 提供目标、来源、名称、级别与可选原因。按 `targetType` 优先、provider 兜底展示对应的业务对象；缺名称时展示业务 ID，通用对象只标“ID”，不用收件箱 `sourceId`。目标与来源相同时不重复。告警缺名时显示通知正文；级别依次取字典名称、快照文案、有效数值。 |
+| 设备触发 / 解除 | `MessageNotifyPreprocessor#createDetail` 提供属性、显示值、单位、`event` 及可选解除时间。触发原因读取顶层或 `termSpec` 的 `triggerDesc/actualDesc`，缺实际描述时展示属性读数，保留零值且不重复单位。解除时突出 `relieveTime` 和恢复读数，实际存在的 `alarmTime` 标为“原告警时间”；只有 `notifyTime` 时标“通知时间”，不推断解除时间。 |
+| AI 安全 / 合规 | `AiAggregateTaskNotificationResultHandler#createNotificationDetail` 提供告警目标及可选空间、视频设备、通道；按名称优先、业务 ID 兜底展示，仅取指定字段，不展开识别结果、headers 或绑定。 |
+
+`NotificationInboxEntity#from` 将详情序列化为 `detailJson`；前端也兼容对象形式 `detail` 与旧告警的 `alarmInfo`。损坏 JSON 不阻断阅读，缺失字段不占位；不展示原始流水，也不补当前时间。摘要用中、英、日文案（`components.ViewDialog`）。对象字段在窄弹窗中转为单列，“原告警时间”“采集器名称”等标签不折行，长值可换行。
+
+验证：在 core 运行 `node --test src/views/account/center/*.test.mjs tests/headerNotice.test.mjs`，132/132 通过（含详情、消息中心与个人中心流程 82 项）。覆盖所给 `scene` 消息、真实场景告警、设备触发与解除、资产与 AI 的 ID 兜底、三语渲染、损坏详情、扩展优先和个人中心既有流程。Chrome 在 320px / 736px 宽度用实际 Vue 弹窗与 Ant Design、隔离的 HTTP 和注册中心逐一验证 10 种布局、关闭与无横向溢出；场景不调用级别接口，模拟级别查询失败后仍可看到告警数值级别。`pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 修改前后均为 511 项既有诊断，输出一致；runtime-ui 与 core 无独立 lint 脚本，改动差异空白检查通过。core 的 `pnpm run build --outDir <临时目录>` 生产构建通过，含可视化播放器，仍有既有资源、循环分块及体积提示。未登录目标业务环境，发布后用真实通知在 `/account/center?tab=StationMessage` 复验；产品、组织、采集器及 AI 的运行数据因部署而异。
 
 - 方案：保留平台统一 ConditionFilter，补齐原型的消息类型、已读状态和时间选项。消息内容支持“包含”等现有文本条件；时间提供今天、近 7 天、近 30 天，移除对应条件即查询全部。界面继续使用平台现有筛选、列表和详情组件。
 - 列表按真实通知 provider 归组；公告能力通过业务模块注册元数据发现，通道列表为空时也保留公告收件箱，数据继续由当前用户通知接口限定范围。core 不直接依赖公告模块，保留顶部通知跳转与消息详情注册扩展。
