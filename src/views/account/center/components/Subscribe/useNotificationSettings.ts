@@ -361,17 +361,31 @@ export function useNotificationSettings() {
     finally { if (!disposed) saving.value = '' }
   }
 
+  function requestReceiverBinding(target: BindingTarget) {
+    const { channel } = target
+    if (channel.channelProvider === 'notifier-dingTalk') {
+      channelNavigation.open('', channel.channelProvider, {
+        channel: 'dingTalk:dingTalkMessage', configId: channel.channelConfiguration?.notifierId,
+      })
+      return
+    }
+    pendingBinding.value = target
+  }
+
   async function toggle(row: NotificationProvider, channel: DeliveryChannel, enabled: boolean) {
     if (loading.value || queryFailed.value || saving.value || channelUnavailable(channel)) return
     if (!enabled || channel.channelProvider === 'inside-mail') return save(row, channel, enabled)
-    if (requiresThirdParty(channel)) {
+    // 已确认未绑定的钉钉必须在点击时打开新标签；其余第三方状态仍在保存前复查。
+    const unboundDingTalk = channel.channelProvider === 'notifier-dingTalk'
+      && !recipientsLoading.value && !recipientsFailed.value && !receiverFor(channel)
+    if (requiresThirdParty(channel) && !unboundDingTalk) {
       saving.value = row.provider + ':' + channel.id
       const loaded = await loadRecipients()
       saving.value = ''
       if (!loaded || disposed) return
     }
     if (receiverFor(channel)) return save(row, channel, true)
-    pendingBinding.value = { provider: row, channel, subscribeAfterBinding: true }
+    requestReceiverBinding({ provider: row, channel, subscribeAfterBinding: true })
   }
 
   function canBindReceiver(type: string) {
@@ -385,8 +399,7 @@ export function useNotificationSettings() {
       .filter(channel => channel.channelProvider === type && !channelUnavailable(channel))
       .map(channel => ({ provider, channel })))
     const target = candidates.find(item => !receiverFor(item.channel))
-    // 表头绑定只维护接收账号，开关引导绑定成功后才继续订阅。
-    if (target) pendingBinding.value = { ...target, subscribeAfterBinding: false }
+    if (target) requestReceiverBinding({ ...target, subscribeAfterBinding: false })
   }
 
   async function bindingComplete() {

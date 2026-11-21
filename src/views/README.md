@@ -146,7 +146,7 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 通知设置接收方式
 
-Owning module 为 `runtime-ui/jetlinks-web-core`，入口为 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}`。渠道或消息模板未配置时，表头统一显示“去绑定”，空单元格及不完整配置的提示同步使用该文案，中、英、日资源保持一致；移除原不可用通知文案及管理员变体。不增加无权限按钮的禁用或提示逻辑，沿用现有菜单导航；邮箱、手机号与第三方接收账号绑定继续使用原流程。
+Owning module 为 `runtime-ui/jetlinks-web-core`，入口为 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}`。渠道或消息模板未配置时，表头统一显示“去绑定”，空单元格及不完整配置的提示同步使用该文案，中、英、日资源保持一致；移除原不可用通知文案及管理员变体。不增加无权限按钮的禁用或提示逻辑，沿用现有菜单导航；邮箱、手机号与企业微信接收账号绑定继续使用原流程。钉钉工作通知已有业务渠道但缺少接收账号时，表头“去绑定”和勾选未订阅项均在新标签打开「消息渠道 → 钉钉」并定位该通知器配置，不再弹窗。返回刷新绑定状态，不自动订阅。
 
 可用渠道及订阅选择仍以 `/notify/channel/all` 和个人订阅接口为准。`src/api/account/notificationSubscription.ts#getNotificationNotifierConfigs_api` 通过现有 `/notifier/config/_query/no-paging` 只查询 `id/type/provider`，用于区分渠道和模板缺失，不读取通知器凭据或替代订阅数据。渠道缺失进入 `system/MessageNotification/Channels`，渠道已配置但模板缺失进入 `system/MessageNotification/Templates`，通过 `channel=type:provider` 定位对应页面。钉钉/微信个人接收使用工作通知，群机器人/服务号不能冒充；已有业务绑定优先使用真实通知器提供商。渠道查询失败保留重试反馈，不按空配置跳转，也不阻断已加载订阅的保存。
 
@@ -155,6 +155,8 @@ Owning module 为 `runtime-ui/jetlinks-web-core`，入口为 `account/center/com
 验证（2026-11-13）：core 中执行 `node --test src/views/account/center/personalCenterFlows.test.mjs src/views/account/center/notificationSettingsView.test.mjs`，65/65 通过，覆盖五类渠道缺失、仅模板缺失、具体业务/多范围、接收账号绑定、真实提供商及枚举字段、查询失败/无效响应、返回刷新和保存重试。浏览器使用真实 Vue、公共表格、Ant Design、页面、API 封装及导航 hook，验证五类渠道各自的渠道/模板共 10 次实际新标签跳转、返回刷新、联系方式事件、查询字段及三语文案；接口使用隔离响应，无脚本错误或真实业务网络请求。截图及报告位于 `/tmp/notification-binding-browser/`，本轮未将完整移动端布局作为验收项。
 
 在 `runtime-ui/` 执行 `pnpm build --outDir /tmp/notification-binding-build` 通过（1 分 54 秒，包含 visualization player），保留已有资源路径、循环分块、CSS 注释和包体积警告。`pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 修改前后均为 513 项既有诊断，忽略行列后完全一致，无新增；全量类型检查尚未通过，修复既有问题后需重跑该命令。工作区无独立 lint 脚本，变更差异空白检查通过。真实登录账号与后端未联调；通过 `pnpm dev` 在 `/account/center?tab=Subscribe` 复验渠道配置、模板配置及个人接收账号绑定后的返回刷新。
+
+钉钉跳转验证（2026-11-21）：上述两个个人中心测试文件 66/66 通过。Chrome 隔离数据验证表头与复选框均打开含 `channel=dingTalk:dingTalkMessage` 和对应 `configId` 的新标签，返回刷新后不自动订阅；未使用真实账号修改成员对应。运行时生产构建通过；上述 core 类型检查修改前后均有相同的 511 项既有诊断，未新增。工作区无独立 lint 脚本，差异空白检查通过。
 
 ### 公共组件与交互契约
 
