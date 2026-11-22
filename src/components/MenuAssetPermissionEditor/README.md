@@ -31,14 +31,12 @@
 
 运行时角色页在业务模块负责`iot` 菜单与登录用户有效权限求交集、失败重试和保存前复核，公共编辑器不理解模板、应用实例或接口权限。运营端 core 副本及区域绑定抽屉未接入该扩展。
 
-## 消息渠道与消息模板的数据范围
+## 消息渠道与消息模板的数据范围（方案待确认）
 
-- 运营端与运行时复用 `src/utils/deployment.ts#isPrivateDeployment`：SaaS（含运营端 `cloud`）仅「所在租户」（采用菜单及可授权目录中的 `tenant` / `tenant_member`），私有化仅「全部数据」（现行 `ignore`，兼容候选目录实际提供的 `all`）。固定项只读并跳过范围批量操作；其他资产及模板的 `scopeStrategy` 保持原行为。
-- 两个运行时叶子菜单在 `runtime-ui/modules/notify-manager-ui/baseMenu.json` 关联 `notifyConfig` 并启用数据权限：独立模板查询和业务模板正文按关联渠道鉴权。其他入口已声明的 `notifyTemplate` 也受固定规则约束；通知记录、订阅配置、菜单按钮和后端权限逻辑不变。发布后应在目标环境同步通知菜单的两个叶子节点；前端更新不会迁移已有菜单或授权。
-- `src/hooks/useMenuAssetPermissionEditor.ts` 使用候选菜单和当前入口的可授权数据，区分旧策略与候选。区域服务和运营端模板使用目标运行时菜单目录，普通角色复核当前赋权人目录，项目模板受项目菜单及赋权人目录限制，应用角色再受上游模板策略限制。无固定候选时 `getGrantSnapshot()` 不生成可提交载荷；允许撤销对应菜单授权。旧值仅提示，用户明确保存时才写回合法固定值，菜单兼容字段与独立策略一致。模板接口仍以顶层独立策略为准。
-- 验证：两端 core 的 `node --test tests/fixedNotificationScope.test.mjs` 各 6 项通过；认证模块对角色、模板、继承使用真实编辑器与 HTTP 夹具，两端各 3 项新增通过；运营端 `saas-manager-ui/tests/fixedNotificationGrants.test.mjs` 2 项、通知菜单契约 32 项及消防角色回归 4 项通过。运行时应用角色交集更新后，该模块相关测试 23 项通过；运营端扩展回归仍有既有模板 `space` 继承断言失败，且缺巡检测试所需子模块。定向 UI 样式检查通过，无独立 lint 脚本。
-- 初次实现的两端整站生产构建通过，提交前对齐 `ignore` 后已补跑定向回归；从各自 `jetlinks-web-core` 执行 `node --max-old-space-size=16384 --max-semi-space-size=64 ../node_modules/vite/bin/vite.js build --outDir <隔离目录>` 可复验。两端 core/认证模块和运营端 SaaS 模块的 `pnpm exec vue-tsc --noEmit --pretty false -p <对应目录>/tsconfig.json` 无新增诊断，仍分别有 577/684、511/536 和 870 条既有诊断；待清理基线后重跑。
-- 待联调：未同步真实菜单，未写入真实角色或授权。发布后用可授予/不可授予对应范围的账号验证「保存 → 重开」，同时确认 SaaS 不可访问其他租户渠道或模板。
+- 目标：在运营端与运行时授权编辑器中，消息渠道 `notifyConfig`、消息模板 `notifyTemplate` 的范围按部署环境固定。SaaS 仅「所在租户」，私有化仅「全部数据」；不是两个可切换的选项，也不按前端目录区分环境。其他资产保持原行为。
+- 入口：复用两端 `src/utils/deployment.ts` 的 `isPrivateDeployment()`，在 `src/hooks/useMenuAssetPermissionEditor.ts` 管理显示、单项、批量和保存快照。核对 `runtime-ui/modules/notify-manager-ui/baseMenu.json` 的两个叶子菜单（现为 `unsupported`）与真实授权资产映射；独立模板 CRUD 按关联渠道 `notifyConfig` 鉴权。此次仅调整前端授权配置，不更改后端鉴权、菜单按钮或直接迁移存量授权。
+- 保存与兼容：固定范围须在当前可授权范围内。缺少该范围时提示并阻止保存涉及该资产的授权，不回退、不补授；批量设置不得覆盖固定值。历史范围不符时展示差异，只有用户明确保存后才写回合法固定值，尤其避免私有化静默扩大至 `all`。
+- 验证：两端分别覆盖 SaaS、私有化、缺少固定范围、历史值不符及非通知资产；对照单项、批量、菜单和顶层保存快照、重新打开后的回显，并记录类型检查、构建和交互结果。
 
 ## 验证入口
 

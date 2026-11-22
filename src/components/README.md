@@ -63,6 +63,10 @@ import {
 
 ## 场景映射
 
+### 已选名称摘要
+
+[`SelectionSummary`](SelectionSummary/README.md) 将已选名称显示为标签，宽度不足时显示 `+数量`；只处理展示与尺寸变化。提供根入口具名导出及目录默认导出，不全局注册。物联告警、视觉告警的通知对象共用该组件；资源查询及选择由业务模块负责。
+
 ### 平台基础配置
 
 [`PlatformSettings`](PlatformSettings/README.md) 通过根入口和目录入口导出共享配置组合、外观设置/预览及地图区块。`detail` 模式逐项保存，`form` 模式仅更新草稿并向宿主暴露统一提交；复用 `ContentPanel`、`InlineEditForm` 和上传裁剪组件。运行时设置页、初始化页共用；SaaS 域名流程归业务模块。
