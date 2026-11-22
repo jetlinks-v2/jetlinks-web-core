@@ -2,7 +2,7 @@ import type { RouteMeta } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { isSubApp, OpenMicroApp, USER_CENTER_MENU_CODE } from '@jetlinks-web-core/utils/consts'
 import { handleMeta, isRoutePlaceholderMenu, getMenuAliasCodes, handleAuthMenu } from './menuMeta'
-import { getMenuLocaleText } from './menuLocale'
+import { getMenuLocaleText, retainMenuSourceLabels } from './menuLocale'
 export { handleAuthMenu } from './menuMeta'
 export { routerFallback } from './navigation'
 import type { MenuItem } from '@jetlinks-web-core/types/module'
@@ -262,6 +262,7 @@ export const handleMenus = (
     if (_menu && _menu.length) {
       return _menu.map((item) => {
         const _route = handleRoute(item)
+        _route.meta = retainMenuSourceLabels(_route.meta, item)
         _route.children = isRoutePlaceholderMenu(item) ? [] : siderLoop(item.children || [])
         return _route as RouteRecordRaw
       })

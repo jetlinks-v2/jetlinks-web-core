@@ -48,6 +48,10 @@ export const USER_CENTER_MENU_DATA = {
             permission: 'system_config',
             actions: ['query'],
         },
+        {
+            permission: 'notifier',
+            actions: ['query']
+        }
     ],
     buttons: [
         {

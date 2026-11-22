@@ -1,73 +1,59 @@
 <template>
-  <a-dropdown
+  <a-popover
+    v-model:open="open"
     placement="bottomRight"
-    :trigger="['click']"
+    trigger="click"
+    :overlay-inner-style="{ padding: 'var(--space-1)' }"
   >
-    <div
+    <a-button
       class="language-switch"
+      type="text"
+      translate="no"
+      :aria-label="`${menuLabel}: ${currentLabel}`"
+      :aria-expanded="open"
+      @keydown.esc.stop="open = false"
     >
       <AIcon type="GlobalOutlined" />
-      <span>{{ currentLanguageLabel }}</span>
-    </div>
+      <span>{{ currentLabel }}</span>
+    </a-button>
 
-    <template #overlay>
-      <a-menu
-        class="language-switch__menu"
-        :selectable="false"
-        @click="handleChangeLanguage"
-      >
-        <a-menu-item
-          v-for="item in languageOptions"
-          :key="item.value"
-        >
-          {{ item.label }}
-        </a-menu-item>
-      </a-menu>
+    <template #content>
+      <div class="language-switch__menu" translate="no" @keydown.esc.stop="open = false">
+        <div v-for="item in options" :key="item.value" class="language-switch__row">
+          <a-button
+            class="language-switch__option"
+            type="text"
+            :disabled="item.disabled"
+            :aria-current="selected === item.value ? 'true' : undefined"
+            @click="select(item.value)"
+          >
+            <span>{{ item.label }}</span>
+          </a-button>
+          <a-tooltip v-if="item.model" :title="item.model.label">
+            <span class="language-switch__model">
+              <a-button
+                class="language-switch__model-button"
+                size="small"
+                type="text"
+                :aria-label="item.model.label"
+                :disabled="!item.model.enabled"
+                @click.stop="prepare(item.value)"
+              >
+                <span v-if="item.model.percent !== undefined">{{ item.model.percent }}%</span>
+                <AIcon v-else :type="item.model.icon" aria-hidden="true" />
+              </a-button>
+            </span>
+          </a-tooltip>
+        </div>
+      </div>
     </template>
-  </a-dropdown>
+  </a-popover>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { LocalStore } from '@jetlinks-web/utils'
-import { useSystemStore } from '@jetlinks-web-core/store'
-import { langKey, ruleEditorKey } from '@jetlinks-web-core/utils/consts'
+import { useRuntimeLanguageMenu } from '../hooks/useRuntimeLanguageMenu'
 
-type MenuClickEvent = {
-  key: string | number
-}
-
-const systemStore = useSystemStore()
-
-const languageOptions = [
-  {
-    label: '中文',
-    value: 'zh'
-  },
-  {
-    label: 'English',
-    value: 'en'
-  },
-  {
-    label: '日本語',
-    value: 'ja'
-  }
-]
-
-const currentLanguageLabel = computed(() => (
-  languageOptions.find(item => item.value === systemStore.language)?.label || languageOptions[0].label
-))
-
-const handleChangeLanguage = ({ key }: MenuClickEvent) => {
-  const option = languageOptions.find(item => item.value === String(key))
-  if (!option || option.value === systemStore.language) return
-
-  systemStore.language = option.value
-  LocalStore.set(langKey, option.value)
-  // 规则编辑器使用独立缓存，必须与全局语言保持同步。
-  LocalStore.set(ruleEditorKey, option.value)
-  window.location.reload()
-}
+const { open, options, selected, currentLabel, menuLabel, select, prepare } = useRuntimeLanguageMenu()
 </script>
 
 <style scoped lang="less">
@@ -81,25 +67,45 @@ const handleChangeLanguage = ({ key }: MenuClickEvent) => {
   color: var(--ink-1);
   font-size: var(--fs-14);
   line-height: 1;
-  transition: background 0.16s ease, color 0.16s ease;
-    cursor: pointer;
-
-
-  &__arrow {
-    color: var(--ink-1);
-    font-size: var(--fs-12);
-  }
 
   &__menu {
-    min-width: 6rem;
-    padding: var(--space-1);
-    border-radius: var(--r-3);
+    min-width: 8rem;
+    max-width: min(18rem, calc(100vw - 2rem));
+  }
 
-    :deep(.ant-dropdown-menu-item) {
-      min-height: 2rem;
-      padding: var(--space-2) var(--space-3);
-      font-size: var(--fs-14);
+  &__row {
+    min-height: 2rem;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  &__option {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 2rem;
+    height: auto;
+    align-items: center;
+    padding-inline: var(--space-2);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: start;
+
+    &[aria-current="true"] {
+      font-weight: 600;
     }
+  }
+
+  &__model {
+    flex: none;
+  }
+
+  &__model-button {
+    width: 2.5rem;
+    padding-inline: 0;
+    font-size: var(--fs-12);
+    font-variant-numeric: tabular-nums;
   }
 }
 </style>

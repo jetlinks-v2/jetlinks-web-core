@@ -18,12 +18,12 @@
     <template v-else>
       <div class="tip">{{ $t('components.Unsubscribe.147155-3') }}</div>
     </template>
-    <div class="btn">
-      <a-space>
-        <a-button @click="emit('close')">{{ $t('components.Unsubscribe.147155-4') }}</a-button>
-        <a-button @click="onBind" type="primary">{{ $t('components.Unsubscribe.147155-5') }}</a-button>
-      </a-space>
-    </div>
+	  <a-flex justify="flex-end">
+		  <a-space>
+			  <a-button @click="emit('close')">{{ $t('components.Unsubscribe.147155-4') }}</a-button>
+			  <a-button @click="onBind" type="primary">{{ $t('components.Unsubscribe.147155-5') }}</a-button>
+		  </a-space>
+	  </a-flex>
     <EditInfo
       v-if="editInfoVisible"
       :data="user.userInfo"
@@ -111,7 +111,4 @@ const onBindSave = (cur: any) => {
   justify-content: center;
 }
 
-.btn {
-  display: flex;
-  justify-content: flex-end;
-}</style>
+</style>
