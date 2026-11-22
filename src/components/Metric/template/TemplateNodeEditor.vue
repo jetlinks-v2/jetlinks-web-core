@@ -52,10 +52,10 @@
       </TemplateClause>
       <TemplateClause stacked icon="SendOutlined" :title="t('outputUseFor')">
       <div class="node-editor__output-uses">
-        <button type="button" :class="{ enabled:output.persist !== false }" :disabled="disabled || published" :aria-pressed="output.persist !== false" @click="toggleOutput('persist')"><AIcon type="HistoryOutlined" />{{ t('outputHistory') }}<AIcon v-if="output.persist !== false" type="CheckOutlined" /></button>
         <button type="button" :class="{ enabled:output.publish === true }" :disabled="disabled" :aria-pressed="output.publish === true" @click="toggleOutput('publish')"><AIcon type="SendOutlined" />{{ t('outputEvents') }}<AIcon v-if="output.publish === true" type="CheckOutlined" /></button>
       </div>
       </TemplateClause>
+      <HistoryRecordingEditor :output="output" :disabled="disabled || published" @patch="emit('patch', $event)" />
       <details :open="outputInvalid"><summary><AIcon type="SettingOutlined" />{{ t('moreSettings') }}</summary>
       <ReadAggregationEditor :output="output" :disabled="disabled || published" @patch="emit('patch', $event)" @invalid="setOutputInvalid" />
       <TemplateClause icon="ProfileOutlined" :title="t('evidenceRecord')" :hint="t('evidenceRecordHint')">
@@ -71,6 +71,7 @@ import { computed, inject, ref, watch } from 'vue'
 import { metricAggregationsKey } from '../calculatorContext'
 import { inputIdentityIssue } from './inputIdentity'
 import ReadAggregationEditor from '../collection/ReadAggregationEditor.vue'
+import HistoryRecordingEditor from './HistoryRecordingEditor.vue'
 import { useI18n } from 'vue-i18n'
 import { metricMessages } from '../messages'
 import { metricTypeOptions } from '../parameterPresentation'
@@ -126,9 +127,9 @@ const sourceNode = computed<TemplateNode | undefined>(() => {
   if (rule >= 0) return { kind:'rule', index:rule }
 })
 const sourceSummary = computed(() => sourceNode.value && graphNodeSummary(displayTemplate.value, sourceNode.value, t, props.calculators,locale.value,aggregations?.value))
-function toggleOutput(field: 'persist' | 'publish') {
-  if (props.disabled || props.published && field === 'persist') return
-  emit('patch', { [field]:field === 'persist' ? output.value.persist === false : output.value.publish !== true })
+function toggleOutput(field: 'publish') {
+  if (props.disabled) return
+  emit('patch', { [field]:output.value.publish !== true })
 }
 function setOutputInvalid(value:boolean) { outputInvalid.value=value;emit('invalid',value) }
 function changeKind(value: CalculationKind) { if (!props.disabled && value !== kind.value) emit('patch', calculationFields(value)) }

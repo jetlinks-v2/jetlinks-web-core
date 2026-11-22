@@ -1842,9 +1842,9 @@ test('输出用业务名称和计算摘要表达，来源聚焦仅虚线强调�
     await click(outputEvent()); assert.equal(props.template.outputs[0].publish, true)
     props.published = true; await flush()
     assert.equal(field().props['component-props'].disabled, true)
-    const history = nodes(view.root,'button').find(node => textContent(node).includes('outputHistory'))
-    assert.equal(history.props.disabled, true)
-    await click(history); assert.equal(props.template.outputs[0].persist, true)
+    const history = nodes(view.root,'external-shell').find(node => node.props['component-props']?.['aria-label'] === 'historyRecording')
+    assert.equal(history.props['component-props'].disabled, true)
+    history.props.onChange('latest'); assert.equal(props.template.outputs[0].persist, true)
     props.disabled = true; await flush()
     await click(outputEvent()); assert.equal(props.template.outputs[0].publish, true)
   } finally { view.close() }

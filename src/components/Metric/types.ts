@@ -140,6 +140,12 @@ export interface MetricCalculatorDocumentation {
     }
   }[]
 }
+export interface MetricHistoryPolicy {
+  mode:'all'|'onChange'|'interval'
+  deadband:number
+  intervalMillis:number
+  maxIntervalMillis:number
+}
 export interface MetricTemplateOutput {
   metricId: string
   property?: string
@@ -150,6 +156,7 @@ export interface MetricTemplateOutput {
   resultSemantics?:MetricOutputSemantics | null
   persist?: boolean
   latestOnly?: boolean
+  history?:MetricHistoryPolicy
   publish?: boolean
   valueType?: string
   options?: Record<string, unknown> & { readAggregation?: import('./collection/types').MetricReadAggregation; explain?: boolean }
@@ -233,6 +240,7 @@ export interface MetricStateLabel {
   icon?: string
 }
 export interface MetricValue {
+  history?:MetricHistoryPolicy
   resultId?: string
   /** Anonymous execution reference, shared by round outputs; never a sample deduplication key. */
   executionId?: string
