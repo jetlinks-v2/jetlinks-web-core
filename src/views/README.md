@@ -129,6 +129,8 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 `NotificationInboxEntity#from` 将详情序列化为 `detailJson`；前端也兼容对象形式 `detail` 与旧告警的 `alarmInfo`。损坏 JSON 不阻断阅读，缺失字段不占位；不展示原始流水，也不补当前时间。摘要用中、英、日文案（`components.ViewDialog`）。对象字段在窄弹窗中转为单列，“原告警时间”“采集器名称”等标签不折行，长值可换行。
 
+`StationNotificationSummary.vue` 内的状态、名称、时间、分组标题、字段名和字段值统一使用正文主题字号 `--fs-14`，通过字重、颜色和分组区分层级。本地设备告警详情实测为 14px。组件生产编译、定向样式检查与 80 项告警及个人中心回归通过。类型检查仍有 511 项既有诊断。
+
 验证：在 core 运行 `node --test src/views/account/center/*.test.mjs tests/headerNotice.test.mjs`，132/132 通过（含详情、消息中心与个人中心流程 82 项）。覆盖所给 `scene` 消息、真实场景告警、设备触发与解除、资产与 AI 的 ID 兜底、三语渲染、损坏详情、扩展优先和个人中心既有流程。Chrome 在 320px / 736px 宽度用实际 Vue 弹窗与 Ant Design、隔离的 HTTP 和注册中心逐一验证 10 种布局、关闭与无横向溢出；场景不调用级别接口，模拟级别查询失败后仍可看到告警数值级别。`pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 修改前后均为 511 项既有诊断，输出一致；runtime-ui 与 core 无独立 lint 脚本，改动差异空白检查通过。core 的 `pnpm run build --outDir <临时目录>` 生产构建通过，含可视化播放器，仍有既有资源、循环分块及体积提示。未登录目标业务环境，发布后用真实通知在 `/account/center?tab=StationMessage` 复验；产品、组织、采集器及 AI 的运行数据因部署而异。
 
 - 方案：保留平台统一 ConditionFilter，补齐原型的消息类型、已读状态和时间选项。消息内容支持“包含”等现有文本条件；时间提供今天、近 7 天、近 30 天，移除对应条件即查询全部。界面继续使用平台现有筛选、列表和详情组件。
