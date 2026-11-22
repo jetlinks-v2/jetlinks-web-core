@@ -1,0 +1,20 @@
+{
+  "extends":"../tsconfig.base.json",
+  "compilerOptions":{
+    "moduleResolution":"Bundler",
+    "types":["node","vite/client","ant-design-vue/typings/global"],
+    "paths":{
+      "@jetlinks-web-core/*":["jetlinks-web-core/src/*"],
+      "@rule-engine-manager-ui/*":["modules/rule-engine-manager-ui/*"]
+    }
+  },
+  "include":[
+    "src/components/Process/**/*.ts","src/components/Process/**/*.vue",
+    "../modules/rule-engine-manager-ui/api/process.ts",
+    "../modules/rule-engine-manager-ui/hook/useProcessPermissions.ts",
+    "../modules/rule-engine-manager-ui/views/Process/**/*.vue",
+    "../modules/rule-engine-manager-ui/views/ProcessTemplate/**/*.vue",
+    "../modules/rule-engine-manager-ui/components/Process/**/*.vue",
+    "src/env.d.ts","src/auto-imports.d.ts"
+  ]
+}
