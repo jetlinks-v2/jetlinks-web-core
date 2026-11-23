@@ -4,7 +4,7 @@ import TokenDialog from './components/TokenDialog.vue'
 import TokenDetails from './components/TokenDetails.vue'
 import TokenCard from './components/TokenCard.vue'
 import { usePersonalToken } from './usePersonalToken'
-import {PersonalKey} from "@/utils/consts";
+import {PersonalKey} from "@jetlinks-web-core/utils/consts";
 const {
   tokenList, tokenGroups, deleting, deleteError, dialogVisible, dialogMode, selectedToken, loading, loadError, reload,
   handleAdd, handleView, handleEdit, handleRegenerate, handleDelete, handleDialogOk,
