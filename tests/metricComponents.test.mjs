@@ -34,6 +34,7 @@ const Publication = load('components/Metric/template/TemplatePublication.vue').d
 const { useTemplateUpdates } = load('components/Metric/template/useTemplateUpdates.ts')
 const DisplayFields = load('components/Metric/extensions/MetricDisplayFields.vue').default
 const Trend = load('components/Metric/MetricTrend.vue').default
+const StateMatrix = load('components/Metric/history/MetricStateMatrix.vue').default
 const OutputSwitch = load('components/Metric/MetricOutputSwitch.vue').default
 const Graph = load('components/Metric/template/TemplateGraph.vue').default
 const Lineage = load('components/Metric/MetricLineage.vue').default
@@ -67,6 +68,71 @@ const inspectNode = async node => {
   assert.deepEqual(popover.props.trigger,['hover','focus'])
   popover.props.onOpenChange(true);await flush()
 }
+
+test('状态矩阵保留少数异常和不同类型，同桶点击与键盘只下钻范围；刷新清除选择',async()=>{
+  const selected=[]
+  const props=reactive({bounds:[1500,4000],buckets:[{from:1000,to:2000,states:[{state:false,count:500},{state:null,count:1},{state:1,count:1},{state:'1',count:1}]},{from:3000,to:4000,states:[{state:true,count:1}]}],onDrilldown:range=>selected.push(range)})
+  props.labels=[{value:false,name:'未成立',icon:'color:#112233'}]
+  const view=mount(StateMatrix,props)
+  try{
+    const cells=walk(view.root,node=>node.props.class?.split(' ').includes('state-matrix__cell'))
+    assert.equal(cells.length,5)
+    assert.equal(cells[0].props.style.background,'#112233','declared colors are shared by the matrix')
+    assert.equal(walk(view.root,node=>node.props.class==='state-matrix__row').length,5)
+    assert.ok(walk(view.root,node=>node.props.class?.includes('is-unknown')).length)
+    cells[0].props.onPointerenter();await flush()
+    assert.ok(nodes(view.root,'a-tooltip')[0].props.title.includes('stateRecordCount'))
+    assert.ok(textContent(view.root).includes('500'))
+    await click(cells[0]);assert.deepEqual(selected,[[1500,2000]])
+    const body=walk(view.root,node=>node.props.class==='state-matrix__body')[0]
+    const key=key=>body.props.onKeydown({key,preventDefault(){},stopPropagation(){}})
+    key('End');key('Enter');await flush();assert.deepEqual(selected.at(-1),[3000,4000])
+    props.buckets=[];await flush();assert.equal(nodes(view.root,'a-tooltip').length,0)
+    assert.ok(textContent(view.root).includes('noHistory'))
+  }finally{view.close()}
+})
+
+test('布尔状态颜色独立于持续记录，编辑只保存展示映射，禁用时不可修改',async()=>{
+  const StateTracking=load('components/Metric/template/TemplateStateTracking.vue').default,patches=[]
+  const props=reactive({rule:{id:'condition',temporalCondition:{},options:{other:true}},booleanResult:true,labelsOnly:true,disabled:false,onPatch:patch=>patches.push(patch)})
+  const view=mount(StateTracking,props)
+  try{
+    assert.equal(nodes(view.root,'a-switch').length,0)
+    assert.equal(walk(view.root,node=>node.props.class==='state-tracking__label').length,2)
+    const picker=nodes(view.root,'external-shell').find(node=>node.props['preview-size']===28 || node.props.previewSize===28)
+    assert.ok(picker)
+    picker.props['onUpdate:modelValue']('color:#ff9900');await flush()
+    assert.equal(patches.length,1);assert.equal(patches[0].options.other,true)
+    assert.deepEqual(patches[0].options.stateLabels.map(item=>item.value),[true,false])
+    assert.equal(patches[0].options.stateLabels[0].icon,'color:#ff9900')
+    assert.equal(Object.hasOwn(patches[0],'stateTracking'),false)
+    props.disabled=true;await flush();assert.equal(walk(view.root,node=>node.props.class==='state-tracking__icon').length,0)
+  }finally{view.close()}
+})
+
+test('已过期的保留结果明确标为上次结果，新鲜数据恢复后移除标识',async()=>{
+  const Value=load('components/Metric/MetricValue.vue').default
+  const props=reactive({summary:true,value:{metricId:'condition',value:false,status:'success',quality:{stale:true}}})
+  const view=mount(Value,props)
+  try{
+    assert.ok(textContent(view.root).includes('lastKnownResult'))
+    assert.ok(textContent(view.root).includes('conditionFalse'))
+    props.value={...props.value,quality:{valid:true}};await flush()
+    assert.equal(textContent(view.root).includes('lastKnownResult'),false)
+  }finally{view.close()}
+})
+
+test('窄卡片密集采样切换同一矩阵，仍只代表已返回记录',async()=>{
+  const previous=workspaceWidth.value;workspaceWidth.value=240
+  const values=Array.from({length:60},(_,index)=>({metricId:'state',value:index===29 ? null : false,evaluationTime:1000+index*1000}))
+  const view=mount(Trend,{values,output:{metricId:'state',metricKind:'boolean',valueType:'boolean'},compact:true})
+  try{
+    assert.ok(walk(view.root,node=>node.props.class?.split(' ').includes('state-matrix')).length)
+    assert.equal(walk(view.root,node=>node.props.class?.includes('state-samples__point')).length,0)
+    assert.ok(walk(view.root,node=>node.props.class?.includes('is-unknown')).length,'single invalid sample remains visible')
+    assert.ok(textContent(view.root).includes('stateSamples'))
+  }finally{view.close();workspaceWidth.value=previous}
+})
 
 test('公式放大时可切换原公式与代入值，切换保持同一公式内容与参与数据',async()=>{
   const node={type:'reference',id:'value',path:[]},context={references:[{...node,label:'Reading',schema:{type:'double'}}],functions:[]}
@@ -125,9 +191,30 @@ test('聚合数值趋势保留独立点与空桶，零值和单点不消失',()=
   try{
     const option=nodes(view.root,'chart')[0].props.option,series=option.series[0]
     assert.deepEqual(series.data,[[123,0],[1123,null],[2123,96.5805]])
-    assert.equal(series.showSymbol,true)
+    assert.equal(series.showSymbol,false)
+    assert.deepEqual(option.series[1].data,[[123,0],[2123,96.5805]],'only isolated values need persistent markers')
     assert.equal(series.connectNulls,false,'missing time must not become a continuous result')
     assert.equal(option.tooltip.valueFormatter(96.5805),'96.6')
+  }finally{view.close()}
+})
+
+test('孤立点不使相连曲线铺满圆点，孤点仍能选择原始结果',async()=>{
+  const selected=[]
+  const props=reactive({output:{metricId:'value',valueType:'double'},values:[
+    {...value,resultId:'isolated',evaluationTime:1000,value:0},
+    {...value,resultId:'gap',evaluationTime:2000,value:null},
+    {...value,resultId:'a',evaluationTime:3000,value:2},
+    {...value,resultId:'b',evaluationTime:4000,value:3}],onSelect:entry=>selected.push(entry)})
+  const view=mount(Trend,props)
+  try{
+    const chart=nodes(view.root,'chart')[0]
+    assert.equal(chart.props.option.series[0].showSymbol,false)
+    assert.deepEqual(chart.props.option.series[1].data,[[1000,0]])
+    chart.props.events.click({seriesIndex:1,dataIndex:0});await flush()
+    assert.equal(selected[0].value.resultId,'isolated')
+    props.values=Array.from({length:200},(_,index)=>({...value,evaluationTime:1000+index*1000}))
+    await flush();assert.deepEqual(chart.props.option.series[1].data,[])
+    assert.equal(chart.props.option.series[0].connectNulls,false)
   }finally{view.close()}
 })
 
@@ -2248,4 +2335,21 @@ test('详情切换时段保留图表实例和当前数据，完成后原位更�
     assert.strictEqual(nodes(view.root,'chart')[0],chart)
     assert.equal(chart.props.option.series[0].data[0][1],8)
   } finally {view.close();moduleRegistry.clear()}
+})
+
+test('持续条件未填输出类型时仍按模板布尔语义读取完整分布，点击仅切换原始记录时段',async()=>{
+  defaults();moduleRegistry.clear()
+  const Result=load('components/Metric/MetricResult.vue').default
+  const now=Date.now(),calls=[]
+  const output={metricId:'value',label:'Condition'}
+  const definition={...template,outputs:[output],definitions:[{id:'value',temporalCondition:{}}]}
+  api.history=async()=>[{...value,value:false,evaluationTime:now-1000}]
+  api.aggregateHistory=async(_id,query)=>{calls.push(query);return {operations:[{id:'distribution',name:'State records'}],operation:'distribution',interval:1000,buckets:[{from:now-2000,to:now-1000,states:[{state:false,count:501}]}]}}
+  const view=mount(Result,{reference:{configId:'c',outputId:'value'},output,template:definition})
+  try{
+    await flush();assert.equal(calls.length,1);assert.equal(calls[0].operation,'distribution')
+    const cell=walk(view.root,node=>node.props.class?.split(' ').includes('state-matrix__cell'))[0]
+    await click(cell);assert.equal(calls.length,1)
+    assert.ok(nodes(view.root,'chart').length,'drilldown renders the existing original-record timeline')
+  }finally{view.close();delete api.aggregateHistory;moduleRegistry.clear()}
 })

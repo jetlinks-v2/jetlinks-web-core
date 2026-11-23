@@ -1,7 +1,8 @@
 <template>
-  <div class="state-samples">
+  <div ref="element" class="state-samples">
     <div class="state-samples__head">{{ t('stateSamples', { count:samples.length }) }}</div>
-    <div class="state-samples__lanes">
+    <MetricStateMatrix v-if="dense && axis" compact :buckets="buckets" :bounds="axis" :labels="labels" />
+    <div v-else class="state-samples__lanes">
       <div v-for="group in groups" :key="group.key" class="state-samples__row">
         <span class="state-samples__label" :title="label(group.entries[0])">{{ label(group.entries[0]) }}</span>
         <a-tooltip :open="!!inspected && historyGroup(inspected) === group.key" :title="inspected && historyGroup(inspected) === group.key ? `${label(inspected)} · ${time(inspected.time)}` : undefined">
@@ -15,12 +16,14 @@
 </template>
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useElementSize } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { metricMessages } from '../messages'
 import { recordedStateLabel, stateAppearance } from '../stateIntervals'
 import type { MetricStateLabel } from '../types'
 import type { HistoryEntry } from './projection'
-import { historyBounds, historyGroup, STATE_SAMPLE_LIMIT } from './projection'
+import { historyBounds, historyGroup, historyStateBuckets, STATE_SAMPLE_LIMIT } from './projection'
+import MetricStateMatrix from './MetricStateMatrix.vue'
 const props = defineProps<{ entries:HistoryEntry[]; labels?:MetricStateLabel[]; bounds?:[number,number] }>()
 const { t, locale } = useI18n({ useScope:'local', messages:metricMessages })
 // A point is a recorded sample, not inferred uptime. Bound the DOM independently of history query size.
@@ -36,6 +39,10 @@ const groups = computed(() => {
   return [...groups.values()]
 })
 const axis = computed(() => historyBounds(samples.value,props.bounds))
+const element=ref<HTMLElement>(),{width}=useElementSize(element)
+const bucketCount=computed(()=>Math.max(4,Math.floor(width.value/12) || 24))
+const dense=computed(()=>samples.value.length>bucketCount.value)
+const buckets=computed(()=>axis.value ? historyStateBuckets(samples.value,axis.value,bucketCount.value) : [])
 const selectedKey = ref<string>()
 const inspected = computed(() => samples.value.find(entry => entry.key === selectedKey.value))
 const samplePosition = (entry:HistoryEntry) => axis.value ? (entry.time-axis.value[0]) / (axis.value[1]-axis.value[0]) * 100 : 50

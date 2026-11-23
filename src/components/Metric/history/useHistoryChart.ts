@@ -44,6 +44,9 @@ export function useHistoryChart(props:HistoryChartProps, locale:Ref<string>, t:(
     const from = api.coord([api.value(0),api.value(2)]), to = api.coord([api.value(1),api.value(2)])
     const area = params.coordSys as typeof params.coordSys & { x:number;y:number;width:number;height:number }
     const isGap = params.seriesId === 'unconfirmed'
+    if (!props.intervals) {
+      return {type:'circle',shape:{cx:from[0],cy:from[1],r:3},style:{fill:api.visual('color'),opacity:data.value[params.dataIndex]?.itemStyle.opacity ?? 1}}
+    }
     const height = props.intervals ? 28 : 12
     const rect = graphic.clipRectByRect({ x:from[0]-(props.intervals ? 0 : 2),y:from[1]-height/2,width:props.intervals ? Math.max(3,to[0]-from[0]) : 4,height },area)
     if (!rect) return

@@ -1,6 +1,7 @@
 <template>
   <div class="metric-value" :class="{ 'metric-value--compact': compact, 'metric-value--inline': inline, 'metric-value--summary': summary }">
     <div class="metric-value__main">
+      <small v-if="renderable && state.key === 'inputExpired'" class="metric-value__last-known">{{ t('lastKnownResult') }}</small>
       <IconValueView v-if="renderable && appearance.icon" :value="appearance.icon" :size="inline ? 14 : 20" indicator :fallback-text="text" />
       <slot v-if="renderable" :text="text"><strong :title="text">{{ text }}</strong></slot>
       <strong v-else :title="text">{{ text }}</strong><span v-if="renderable && duration === undefined && displayUnit">{{ displayUnit }}</span>
@@ -66,6 +67,7 @@ const feedback = computed(()=>partialCoverage.value !== undefined ? `${t('covera
 <style scoped>
 .metric-value__main { display:flex; align-items:baseline; flex-wrap:wrap; gap:var(--space-2, 8px) }
 .metric-value__main>.icon-value-view { align-self:center }
+.metric-value__last-known { color:var(--ink-3); font-size:12px; font-weight:400 }
 .metric-value__main strong { font-size:var(--fs-20, 20px); font-weight:600; color:var(--ink-1); max-width:26rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .metric-value__main > span { color:var(--ink-2) }
 .metric-value > .ant-tag { margin-top:var(--space-2,8px) }

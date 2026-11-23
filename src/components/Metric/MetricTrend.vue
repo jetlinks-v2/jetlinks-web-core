@@ -35,6 +35,7 @@
 <script setup lang="ts">
 import { computed, ref, toRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { theme } from 'ant-design-vue'
 import Echarts from '../Echarts'
 import MetricValueView from './MetricValue.vue'
 import { metricChartPoints, metricDurationText, metricResultReference, metricSparkline, metricSparklinePoint, resultTime } from './presentation'
@@ -53,6 +54,7 @@ import type { MetricStateLabel, MetricTemplateOutput, MetricValue } from './type
 const props = defineProps<{ values: MetricValue[]; current?:MetricValue; output?:MetricTemplateOutput; unit?: string; compact?: boolean; bounds?: [number, number]; limited?: boolean; labels?:MetricStateLabel[]; stateOutput?:boolean; canInspectSource?:boolean; unavailable?:boolean; sampleInterval?:number;integrated?:boolean;resetSelection?:number;selectedValue?:MetricValue;aggregated?:boolean }>()
 const emit = defineEmits<{ (event:'source'):void;(event:'select',entry:HistoryEntry|undefined,pinned:boolean):void }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: statisticMessages })
+const { token } = theme.useToken()
 const displayUnit=computed(()=>metricStatisticUnit(props.output,t,props.current,props.unit))
 const baseline=computed(()=>metricStatisticBaseline(props.output))
 const observedKind = useHistoryKind(toRef(props, 'values'), toRef(props, 'current'))
@@ -65,6 +67,9 @@ const visibleValues = computed(() => props.values.filter(value => {
 }))
 const records = computed(() => historyRecords(visibleValues.value, undefined, !!declaredState.value))
 const numericPoints = computed(() => metricChartPoints(visibleValues.value,props.sampleInterval))
+// 只有两侧都没有连续读数的孤立点需要常显标记，不能因一个孤点打开整条曲线的标记。
+const isolatedIndexes = computed(() => numericPoints.value.flatMap((point,index,points) => point[1]!==null
+  && (index===0 || points[index-1][1]===null) && (index===points.length-1 || points[index+1][1]===null) ? [index] : []))
 function selectValue(value:MetricValue) {
   if (props.aggregated) return
   const entry = historyRecords([value],undefined,true)[0]
@@ -82,11 +87,12 @@ function navigate(event:KeyboardEvent) {
 }
 const chartEvents = computed(()=>({...zoom.events,click:(raw:unknown)=>{
   const event=raw as {seriesIndex?:number;dataIndex?:number}
-  if (event.seriesIndex !== 0 || event.dataIndex == null) return
-  const point = numericPoints.value[event.dataIndex]
+  if (event.dataIndex == null || event.seriesIndex !== 0 && event.seriesIndex !== 1) return
+  const index = event.seriesIndex === 1 ? isolatedIndexes.value[event.dataIndex] : event.dataIndex
+  const point = numericPoints.value[index]
   if (!point || point[1] === null) return
   // 同时同值的记录仍各有执行身份，按图中实际点序匹配，不能总是选中最后一条。
-  const occurrence = numericPoints.value.slice(0,event.dataIndex).filter(item=>item[0] === point[0] && item[1] === point[1]).length
+  const occurrence = numericPoints.value.slice(0,index).filter(item=>item[0] === point[0] && item[1] === point[1]).length
   const value = visibleValues.value.filter(value=>resultTime(value) === point[0] && metricChartPoints([value])[0]?.[1] === point[1])[occurrence]
   if (value) selectValue(value)
 }}))
@@ -125,16 +131,17 @@ const time = (value: number, short = false) => {
 }
 const option = computed(() => ({
   ...zoom.option.value,
+  color: [token.value.colorPrimary],
   grid: { left: duration.value ? 88 : 60, right: 24, top: displayUnit.value && !duration.value ? 28 : 16, bottom: zoom.controls.overview.value ? 60 : 32 },
   tooltip: { trigger: 'axis' as const, confine: true, renderMode: 'richText' as const, valueFormatter:(value:unknown) => duration.value ? durationLabel(value) : `${durationLabel(value)}${displayUnit.value ? ' '+displayUnit.value : ''}` },
   xAxis: { type: 'time' as const, min: zoom.extent.value?.[0], max: zoom.extent.value?.[1] },
   yAxis: { type: 'value' as const, name: duration.value ? '' : displayUnit.value || '', nameTextStyle:{align:'left' as const}, scale: !baseline.value,
     ...(baseline.value==='centered' ? { min:(range:{min:number;max:number})=>-Math.max(Math.abs(range.min),Math.abs(range.max)) || -1,max:(range:{min:number;max:number})=>Math.max(Math.abs(range.min),Math.abs(range.max)) || 1 } : {}),
     axisLabel: { formatter: duration.value ? durationLabel : axisLabel } },
-  // A gap can isolate several valid readings; hiding every symbol would erase those facts.
-  series: [{ type: 'line' as const, showSymbol: numericPoints.value.some((point,index,points)=>point[1]!==null && (index===0 || points[index-1][1]===null) && (index===points.length-1 || points[index+1][1]===null)), connectNulls: false, data: numericPoints.value,
+  series: [{ type: 'line' as const, showSymbol: false, connectNulls: false, data: numericPoints.value,
     ...(baseline.value==='centered' ? {markLine:{silent:true,symbol:'none',label:{show:false},lineStyle:{type:'dashed',opacity:.35},data:[{yAxis:0}]}} : {}),
-    markPoint: props.selectedValue && Number.isFinite(Number(props.selectedValue.value)) ? {silent:true,symbol:'circle',symbolSize:8,label:{show:false},data:[{coord:[resultTime(props.selectedValue),Number(props.selectedValue.value)]}]} : {data:[]} }]
+    markPoint: props.selectedValue && Number.isFinite(Number(props.selectedValue.value)) ? {silent:true,symbol:'circle',symbolSize:8,label:{show:false},data:[{coord:[resultTime(props.selectedValue),Number(props.selectedValue.value)]}]} : {data:[]} },
+    { type:'scatter' as const, symbolSize:5, tooltip:{show:false}, data:isolatedIndexes.value.map(index=>numericPoints.value[index]) }]
 }))
 </script>
 <style scoped>

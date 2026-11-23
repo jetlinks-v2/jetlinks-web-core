@@ -66,3 +66,30 @@ test('首个部分时间桶仍在所选范围内显示，桶边界保留在来�
     assert.equal(state.values.value[0].tags.historyAggregation.from,1000)
   }finally{scope.stop()}
 })
+
+test('状态分布默认查询完整范围，等待范围就绪，不随实时边界轮询；原始选择与撤权均生效',async()=>{
+  const scope=effectScope(),bounds=ref(),queryKey=ref('1h'),available=ref(true),calls=[]
+  const response={operations:[{id:'distribution',name:'记录分布',icon:'HeatMapOutlined'}],operation:'distribution',interval:1000,buckets:[{from:1000,to:2000,states:[{state:false,count:500},{state:null,count:1}]}]}
+  const state=scope.run(()=>useMetricHistoryAggregate(ref({configId:'C',outputId:'state'}),bounds,available,{aggregateHistory:async(_id,query,signal)=>{calls.push({query,signal});return response}},undefined,queryKey,ref('distribution'),ref(10)))
+  try{
+    await flush();assert.equal(calls.length,0)
+    bounds.value=[1000,11000];await flush();assert.equal(calls.length,1)
+    assert.equal(calls[0].query.operation,'distribution');assert.equal(calls[0].query.interval,1000)
+    assert.equal(state.response.value.buckets[0].states.reduce((sum,entry)=>sum+entry.count,0),501)
+    bounds.value=[2000,12000];await flush();assert.equal(calls.length,1)
+    state.operation.value='';await flush();queryKey.value='custom';await flush();assert.equal(calls.length,1)
+    state.operation.value='distribution';await flush();assert.equal(calls.length,2)
+    available.value=false;await flush();assert.equal(calls[1].signal.aborted,true);assert.equal(state.response.value,undefined);assert.deepEqual(state.operations.value,[])
+    available.value=true;await flush();assert.equal(calls.length,3)
+  }finally{scope.stop()}
+})
+
+test('缩小查看时段后，已不适用的手动桶宽恢复自动间隔',async()=>{
+  const scope=effectScope(),bounds=ref([1000,3601000]),queryKey=ref('hour'),calls=[]
+  const state=scope.run(()=>useMetricHistoryAggregate(ref({configId:'C',outputId:'value'}),bounds,ref(true),{aggregateHistory:async(_id,query)=>{calls.push(query);return result}},undefined,queryKey))
+  try{
+    state.interval.value=60000;state.operation.value='avg';await flush()
+    bounds.value=[1000,11000];queryKey.value='detail';await flush()
+    assert.equal(state.interval.value,0);assert.equal(calls.at(-1).interval,1000)
+  }finally{scope.stop()}
+})

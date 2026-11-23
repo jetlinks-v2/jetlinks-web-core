@@ -147,6 +147,7 @@ export interface MetricHistoryPolicy {
   maxIntervalMillis:number
 }
 export interface MetricTemplateOutput {
+  aggregatable?:boolean
   metricId: string
   property?: string
   label?: string
@@ -366,12 +367,12 @@ export interface MetricHistoryRequest {
   targetId?: string
   dataVersion?: string
 }
-export type MetricHistoryOperation = 'avg' | 'min' | 'max' | 'last'
+export type MetricHistoryOperation = 'avg' | 'min' | 'max' | 'last' | 'distribution'
 export interface MetricHistoryAggregate {
   operations: { id:MetricHistoryOperation; name:string; icon:string }[]
   operation?:MetricHistoryOperation
   interval:number
-  buckets:{ from:number; to:number; value?:number | null }[]
+  buckets:{ from:number; to:number; value?:number | null; states?:{state:string | number | boolean | null;count:number}[] }[]
 }
 export interface MetricHistoryAggregateQuery {
   output:string; targetType?:string; targetId?:string; dataVersion?:string

@@ -1,4 +1,5 @@
 import type { MetricStateInterval, MetricValue } from '../types'
+import type { MetricHistoryAggregate } from '../types'
 import { metricRecordedBoolean, metricRecordedState, metricResultReference, resultTime } from '../presentation'
 import { stateIntervalSegments } from '../stateIntervals'
 
@@ -54,6 +55,21 @@ export function historyEntryState(entry: HistoryEntry) {
 export function historyGroup(entry: HistoryEntry) {
   const value = historyEntryState(entry)
   return JSON.stringify([typeof value, value])
+}
+
+/** 卡片只归并已经读取的样本，不把有限记录推断为完整时段或持续时间。 */
+export function historyStateBuckets(entries:HistoryEntry[], bounds:[number,number], count:number):MetricHistoryAggregate['buckets'] {
+  const width=Math.max(1,(bounds[1]-bounds[0])/Math.max(1,count))
+  const buckets=new Map<number,Map<string,{state:string | number | boolean | null;count:number}>>()
+  for(const entry of entries){
+    if(entry.kind!=='record' || entry.time<bounds[0] || entry.time>bounds[1])continue
+    const from=bounds[0]+Math.min(Math.max(0,count-1),Math.floor((entry.time-bounds[0])/width))*width
+    let bucket=buckets.get(from)
+    if(!bucket){bucket=new Map();buckets.set(from,bucket)}
+    const key=historyGroup(entry),state=bucket.get(key)
+    if(state)state.count++;else bucket.set(key,{state:entry.state,count:1})
+  }
+  return [...buckets].sort(([a],[b])=>a-b).map(([from,states])=>({from,to:Math.min(bounds[1],from+width),states:[...states.values()]}))
 }
 
 export function historyBounds(entries: HistoryEntry[], bounds?: [number, number]): [number, number] | undefined {

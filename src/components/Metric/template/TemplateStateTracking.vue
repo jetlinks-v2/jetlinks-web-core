@@ -1,24 +1,25 @@
 <template>
   <section class="state-tracking">
-    <div class="state-tracking__sentence"><AIcon type="HistoryOutlined" /><span :title="t('intervalTrackSentence')">{{ t('stateRecording') }}</span><a-switch size="small" :checked="!!rule.stateTracking" :disabled="disabled" :aria-label="t('intervalTrackSentence')" @change="toggle(!!$event)" /></div>
-    <div v-if="rule.stateTracking" class="state-tracking__details">
+    <div v-if="!labelsOnly" class="state-tracking__sentence"><AIcon type="HistoryOutlined" /><span :title="t('intervalTrackSentence')">{{ t('stateRecording') }}</span><a-switch size="small" :checked="!!rule.stateTracking" :disabled="disabled" :aria-label="t('intervalTrackSentence')" @change="toggle(!!$event)" /></div>
+    <div v-if="rule.stateTracking && !labelsOnly" class="state-tracking__details">
       <div class="state-tracking__limit"><span>{{ t('stateSampleNoDataFor') }}</span><TemplateDuration :model-value="rule.stateTracking.maxNoData" :disabled="disabled" @update:model-value="emit('patch', { stateTracking: { maxNoData: $event || 'PT20M' } })" /><span>{{ t('sentenceInterrupted') }}{{ t('sentenceEnd') }}</span></div>
+    </div>
+    <div class="state-tracking__sentence"><AIcon type="BgColorsOutlined" /><span>{{ t('stateDisplay') }}</span></div>
       <div class="state-tracking__labels">
-        <div class="state-tracking__columns" aria-hidden="true"><span>{{ t('stateCode') }}</span><span>{{ t('stateName') }}</span></div>
+        <div class="state-tracking__columns" aria-hidden="true"><span>{{ t(booleanResult ? 'output' : 'stateCode') }}</span><span>{{ t('stateName') }}</span></div>
         <div v-for="(item,index) in labels" :key="index" class="state-tracking__label">
           <a-popover v-if="!disabled" trigger="click" placement="leftTop" :overlay-style="{ maxWidth:'calc(100vw - 32px)' }"><template #content><div class="state-tracking__appearance"><IconValueEditor :model-value="item.icon" :preview-fallback="stateLabel(item.value,labels,String(locale))" :preview-size="28" @update:model-value="setLabel(index,{ ...item,icon:$event })" /></div></template><button type="button" class="state-tracking__icon" :aria-label="t('stateAppearanceFor',{ name:stateLabel(item.value,labels,String(locale)) })"><IconValueView :value="item.icon" :size="20" :fallback-text="stateLabel(item.value,labels,String(locale))" /></button></a-popover>
           <IconValueView v-else :value="item.icon" :size="20" :fallback-text="stateLabel(item.value,labels,String(locale))" />
-          <Editable :value="typeof item.value === 'string' ? JSON.stringify(item.value) : String(item.value)" :component-props="{ disabled, bordered:false, 'aria-label':`${t('stateCode')}: ${String(item.value)}` }" @change="setCode(index, String($event))" /><span class="state-tracking__arrow">→</span>
+          <span v-if="booleanResult">{{ t(item.value ? 'conditionTrue' : 'conditionFalse') }}</span><Editable v-else :value="typeof item.value === 'string' ? JSON.stringify(item.value) : String(item.value)" :component-props="{ disabled, bordered:false, 'aria-label':`${t('stateCode')}: ${String(item.value)}` }" @change="setCode(index, String($event))" /><span class="state-tracking__arrow">→</span>
           <I18nTextEditable :value="item.name" field="name" size="small" :label="t('stateName')" :i18n-messages="{ name:item.nameI18n || {} }" :disabled="disabled" @change="setLabel(index, { ...item, name:$event.value, nameI18n:$event.i18nMessages.name })" />
-          <a-button v-if="!disabled" type="text" size="small" :aria-label="t('removeState', { name:stateLabel(item.value, labels, String(locale)) })" @click="saveLabels(labels.filter((_, i) => i !== index))"><AIcon type="CloseOutlined" /></a-button>
+          <a-button v-if="!disabled && !booleanResult" type="text" size="small" :aria-label="t('removeState', { name:stateLabel(item.value, labels, String(locale)) })" @click="saveLabels(labels.filter((_, i) => i !== index))"><AIcon type="CloseOutlined" /></a-button>
         </div>
-        <a-button v-if="!disabled" class="state-tracking__add" type="text" size="small" @click="saveLabels([...labels, { value:`state${labels.length + 1}`, name:'' }])"><AIcon type="PlusOutlined" />{{ t('addState') }}</a-button>
+        <a-button v-if="!disabled && !booleanResult" class="state-tracking__add" type="text" size="small" @click="saveLabels([...labels, { value:`state${labels.length + 1}`, name:'' }])"><AIcon type="PlusOutlined" />{{ t('addState') }}</a-button>
       </div>
-      <div class="state-tracking__hints">
+      <div v-if="rule.stateTracking && !labelsOnly" class="state-tracking__hints">
       <small>{{ t('stateTrackingHint') }}</small>
       <small>{{ t('stateChangeValidityHint') }}</small>
       </div>
-    </div>
   </section>
 </template>
 <script setup lang="ts">
@@ -33,11 +34,15 @@ import { metricMessages } from '../messages'
 import { stateLabel } from '../stateIntervals'
 import IconValueEditor from '../../IconValue/IconValueEditor.vue'
 import IconValueView from '../../IconValue/IconValueView.vue'
-const props = defineProps<{ rule:TemplateRule; disabled?:boolean }>()
+const props = defineProps<{ rule:TemplateRule; disabled?:boolean; booleanResult?:boolean; labelsOnly?:boolean }>()
 const emit = defineEmits<{ (event:'patch', fields:Partial<TemplateRule>):void }>()
 const { t, locale } = useI18n({ useScope:'local', messages:metricMessages })
 const options = computed(() => (props.rule.options || {}) as Record<string, unknown>)
-const labels = computed(() => (options.value.stateLabels || []) as MetricStateLabel[])
+const labels = computed(() => {
+  const declared = (options.value.stateLabels || []) as MetricStateLabel[]
+  return props.booleanResult ? [true,false].map(value => declared.find(item => item.value === value)
+    || { value,name:t(value ? 'conditionTrue' : 'conditionFalse') }) : declared
+})
 function toggle(enabled:boolean) {
   if (props.disabled) return
   emit('patch', { stateTracking:enabled ? { maxNoData:'PT20M' } : undefined,

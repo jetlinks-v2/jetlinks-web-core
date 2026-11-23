@@ -22,7 +22,7 @@
     <TemplateAlgorithmEditor v-else :template="template" :rule="rule" :disabled="disabled" :calculators="calculators"
       @patch="emit('patch', $event)" @invalid="setCalculatorInvalid" />
     </TemplateClause>
-    <TemplateStateTracking v-if="kind === 'expression'" :rule="rule" :disabled="disabled" @patch="emit('patch', $event)" />
+    <TemplateStateTracking v-if="kind === 'expression' || booleanResult || resultLabels.length" :rule="rule" :boolean-result="booleanResult" :labels-only="kind !== 'expression'" :disabled="disabled" @patch="emit('patch', $event)" />
     <section class="rule-editor__execution" :aria-label="t('calculationTrigger')">
     <h4><AIcon type="ClockCircleOutlined" />{{ t('calculationTrigger') }}</h4>
     <div v-if="kind !== 'statistics' && !rule.windowFamily && (!rule.window?.mode || rule.window.mode === 'none')" class="rule-editor__timing">
@@ -74,13 +74,14 @@ import { simulationDuration } from './simulationFlow'
 import { localizedTemplate } from './text'
 import { calculationKind } from './window'
 import { metricMessages } from '../messages'
-import { metricValueLabels } from '../valueSemantics'
+import { metricValueLabels, metricValueSchema } from '../valueSemantics'
 import { ruleTriggerIcon, ruleTriggerSummary } from './graphPresentation'
 import type { MetricCalculatorDescriptor, MetricTemplate } from '../types'
 const props = defineProps<{ template: MetricTemplate; rule: TemplateRule; disabled?: boolean; calculators?: MetricCalculatorDescriptor[] }>()
 const emit = defineEmits<{ (event: 'patch', fields: Partial<TemplateRule>): void; (event: 'invalid', value: boolean): void }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
 const kind = computed(() => calculationKind(props.rule))
+const booleanResult = computed(() => kind.value === 'temporal' || metricValueSchema(props.template,props.rule.id || '',props.calculators)?.type === 'boolean')
 const methodIcon=computed(()=>({expression:'FunctionOutlined',statistics:'BarChartOutlined',temporal:'ClockCircleOutlined',calculator:'CalculatorOutlined'})[kind.value])
 const temporalPhases = [
   { key: 'enter', field: 'enterExpression', duration: 'dwell', icon: 'ThunderboltOutlined', label: 'enterCondition', result: 'conditionBecomesTrue' },

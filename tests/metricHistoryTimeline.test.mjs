@@ -12,7 +12,7 @@ const load = createMetricLoader({ '@vueuse/core':{ useElementSize:() => ({width:
   return text
 } }) } })
 messages = load('components/Metric/messages.ts').metricMessages
-const { historyRecords, historyIntervals, historyBounds, historyGroup, historyGaps } = load('components/Metric/history/projection.ts')
+const { historyRecords, historyIntervals, historyBounds, historyGroup, historyGaps, historyStateBuckets } = load('components/Metric/history/projection.ts')
 const { stateAppearance } = load('components/Metric/stateIntervals.ts')
 const { useHistoryTimeline, useHistoryKind } = load('components/Metric/history/useHistoryTimeline.ts')
 const { useTimeZoom, timeZoomRange } = load('hooks/Echarts/useTimeZoom.ts')
@@ -71,6 +71,17 @@ test('匿名执行引用保持历史选择且同轮不同输出不互相去重',
 test('记录时间0、无效时间与范围外记录按事实投影', () => {
   assert.equal(historyRecords([row('a',0,false)],[0,1000])[0].time,0)
   assert.equal(historyRecords([row('bad',NaN,true),row('outside',1200,true)],[0,1000]).length,0)
+})
+
+test('卡片分格只统计已读取样本，保留类型、稀有状态与结束边界，桶数有界',()=>{
+  const samples=historyRecords([row('outside',-1,false),...Array.from({length:60},(_,index)=>row(String(index),index*10,false)),row('end',600,true),row('n',100,1),row('s',100,'1'),row('bad',100,null)],undefined,true)
+  const buckets=historyStateBuckets(samples,[0,600],10)
+  assert.ok(buckets.length<=10)
+  assert.equal(buckets.flatMap(bucket=>bucket.states).reduce((sum,state)=>sum+state.count,0),64)
+  assert.deepEqual(buckets.at(-1).states.find(state=>state.state===true),{state:true,count:1})
+  assert.equal(buckets.flatMap(bucket=>bucket.states).filter(state=>state.state===1 || state.state==='1').length,2)
+  assert.ok(buckets.every(bucket=>bucket.from>=0 && bucket.to<=600))
+  assert.deepEqual(historyStateBuckets([], [0,1000],10),[])
 })
 
 test('声明的数字与文本状态保留类型、平台外观和未知质量，不被解释为数值趋势或布尔', async () => {

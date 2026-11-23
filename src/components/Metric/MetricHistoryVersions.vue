@@ -9,9 +9,11 @@
       </div>
       <a-empty v-if="!choices.length && !cursor && !error" :description="t('noPastCalculations')" :image="Empty.PRESENTED_IMAGE_SIMPLE" />
       <template v-if="version && output">
-        <MetricTimeRange v-model:range="range" v-model:custom-range="customRange" />
+        <MetricHistoryView :reference="{...reference,outputId}" :output="output" :bounds="bounds" :state-output="states" :intervals="intervals" :labels="labels" :data-version="selected" :query-key="JSON.stringify([range,customRange])" @drilldown="customRange=$event">
+        <template #tools><MetricTimeRange v-model:range="range" v-model:custom-range="customRange" /></template>
         <a-skeleton v-if="loading" active :paragraph="{ rows: 4 }" />
         <component :is="intervals ? MetricStateHistory : MetricTrend" v-else :key="selected + outputId" :values="values" :output="output" :unit="output.unit" :labels="labels" :bounds="bounds" :limited="values.length >= 200" :unavailable="!!error" />
+        </MetricHistoryView>
       </template>
     </template>
     <a-alert v-if="error" type="error" show-icon :message="t('readFailed')" :description="error"><template #action><a-button size="small" @click="selected ? refresh() : loadMore(true)">{{ t('retry') }}</a-button></template></a-alert>
@@ -25,8 +27,10 @@ import MetricDisclosure from './MetricDisclosure.vue'
 import MetricTimeRange from './MetricTimeRange.vue'
 import MetricTrend from './MetricTrend.vue'
 import MetricStateHistory from './MetricStateHistory.vue'
+import MetricHistoryView from './history/MetricHistoryView.vue'
 import { useMetricHistoryVersions } from './useMetricHistoryVersions'
 import { stateLabels } from './stateIntervals'
+import { metricOutputPresentation } from './outputPresentation'
 import { metricDateText } from './time'
 import { metricMessages } from './messages'
 import type { MetricReference } from './types'
@@ -38,6 +42,7 @@ const choices = computed(() => versions.value.filter(item => item.configuration.
   value: item.configuration.dataVersion, label: metricDateText(item.recordedAt) + ' · ' + item.template.name,
 })))
 const labels = computed(() => version.value ? stateLabels(version.value.template, outputId.value) : [])
+const states = computed(() => ['state','boolean'].includes(metricOutputPresentation(output.value,{template:version.value?.template}).history))
 </script>
 <style scoped>
 .metric-history-versions__tools { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px }

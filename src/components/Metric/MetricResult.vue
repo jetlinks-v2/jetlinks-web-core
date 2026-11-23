@@ -11,7 +11,7 @@
       </div>
       <MetricStatisticSummary :output="output" />
       <a-alert v-if="missing || extensionFailed" type="warning" show-icon :message="t(missing ? 'presentationMissing' : 'presentationFailed')" />
-      <MetricHistoryView ref="historyView" :reference="reference" :output="output" :bounds="bounds" :inaccessible="inaccessible" :state-output="stateOutput" :data-version="configuration?.dataVersion" :query-key="historyQueryKey">
+      <MetricHistoryView ref="historyView" :reference="reference" :output="output" :bounds="bounds" :inaccessible="inaccessible || !configuration" :state-output="recordHistory" :intervals="intervals" :labels="labels" :data-version="configuration?.dataVersion" :query-key="historyQueryKey" @drilldown="customRange=$event">
       <template #tools><MetricTimeRange v-model:range="range" v-model:custom-range="customRange" /><a-button type="text" size="small" :aria-label="t('refresh')" @click="refresh"><AIcon type="ReloadOutlined" />{{ t('refresh') }}</a-button></template>
       <a-spin :spinning="loading" :delay="150">
       <template v-if="provider?.detail && context && configuration && template && output">
