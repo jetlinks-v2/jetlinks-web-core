@@ -786,6 +786,7 @@
   "components.MenuAssetPermissionEditor.batchSetting": "批量设置",
   "components.MenuAssetPermissionEditor.selectPermission": "请选择权限范围",
   "components.MenuAssetPermissionEditor.noMenus": "暂无可授权菜单",
+  "components.MenuAssetPermissionEditor.tenant": "租户",
   "components.MenuAssetPermissionEditor.fixedTenant": "所在租户",
   "components.MenuAssetPermissionEditor.fixedAll": "全部数据",
   "components.MenuAssetPermissionEditor.fixedScope": "固定数据范围：{scope}",

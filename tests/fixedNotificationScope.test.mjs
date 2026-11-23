@@ -83,3 +83,37 @@ test('private deployment accepts the all alias only when provided by the server'
   editor.reset({ menus: [menu('notifyTemplate', 'tenant')], assetAccesses: [policy('notifyTemplate', 'ignore')] })
   assert.equal(editor.getGrantSnapshot(), undefined)
 })
+
+for (const [environment, expected] of [['', 'ignore'], ['saas', 'tenant']]) {
+  test(`${environment || 'private'} global role selects its deployment scope on first grant and upgrades legacy values on save`, async () => {
+    const useEditor = await loadEditor(environment)
+    const editor = useEditor({ notificationScopeMode: 'deployment' })
+    const menus = [{ ...menu('notifyConfig'), granted: false }, menu('notifyTemplate', 'creator')]
+    const assetAccesses = [policy('notifyTemplate', 'creator')]
+    editor.reset({ menus, assetAccesses })
+    const draft = () => editor.getGrantSnapshot([])
+    assert.deepEqual(draft().assetAccesses, [policy('notifyTemplate', expected)])
+    assert.deepEqual(editor.visibleAssets.value[0].previousScopeLabels, ['CREATOR'])
+    editor.toggleMenu(editor.flatMenus.value[0], true)
+    assert.deepEqual(editor.visibleAssets.value.map(row => [row.selectedSupportId, row.accesses[0].disabled]),
+      [[expected, true], [expected, true]])
+    const snapshot = draft()
+    assert.deepEqual(snapshot.assetAccesses, [policy('notifyConfig', expected), policy('notifyTemplate', expected)])
+    assert.deepEqual(snapshot.menus.map(item => item.assetAccesses), snapshot.menus.map(item => [access(item.id, expected, { granted: true })]))
+    assert.deepEqual(assetAccesses, [policy('notifyTemplate', 'creator')])
+    editor.reset({ menus, grantedMenus: snapshot.menus, assetAccesses: snapshot.assetAccesses })
+    assert.deepEqual(draft(), snapshot)
+    assert.ok(editor.visibleAssets.value.every(row => !row.previousScopeLabels))
+    editor.toggleMenu(editor.flatMenus.value[0], false)
+    assert.deepEqual(draft().assetAccesses, [policy('notifyTemplate', expected)])
+  })
+}
+
+test('deployment mode preserves a supported tenant alias even with a stale grantable directory', async () => {
+  const useEditor = await loadEditor('saas')
+  const editor = useEditor({ notificationScopeMode: 'deployment' })
+  const menus = [menu('notifyConfig', 'tenant_member')]
+  editor.reset({ menus, fixedAssetGrantable: [], assetAccesses: [policy('notifyConfig', 'creator')] })
+  assert.equal(editor.visibleAssets.value[0].selectedSupportId, 'tenant_member')
+  assert.deepEqual(editor.getGrantSnapshot([])?.assetAccesses, [policy('notifyConfig', 'tenant_member')])
+})

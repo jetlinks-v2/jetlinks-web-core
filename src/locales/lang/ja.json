@@ -64,6 +64,7 @@
   "components.MenuAssetPermissionEditor.batchSetting": "一括設定",
   "components.MenuAssetPermissionEditor.selectPermission": "権限の範囲を選択してください",
   "components.MenuAssetPermissionEditor.noMenus": "権限を付与できるメニューがありません",
+  "components.MenuAssetPermissionEditor.tenant": "テナント",
   "components.MenuAssetPermissionEditor.fixedTenant": "所属テナント",
   "components.MenuAssetPermissionEditor.fixedAll": "すべてのデータ",
   "components.MenuAssetPermissionEditor.fixedScope": "固定のデータ範囲：{scope}",

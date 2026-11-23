@@ -786,6 +786,7 @@
   "components.MenuAssetPermissionEditor.batchSetting": "Batch setting",
   "components.MenuAssetPermissionEditor.selectPermission": "Select a permission scope",
   "components.MenuAssetPermissionEditor.noMenus": "No grantable menus",
+  "components.MenuAssetPermissionEditor.tenant": "Tenant",
   "components.MenuAssetPermissionEditor.fixedTenant": "Current tenant",
   "components.MenuAssetPermissionEditor.fixedAll": "All data",
   "components.MenuAssetPermissionEditor.fixedScope": "Fixed data scope: {scope}",
