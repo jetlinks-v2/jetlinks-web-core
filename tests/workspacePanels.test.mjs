@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createRenderer, defineComponent, h, nextTick, onMounted, reactive, ref } from 'vue'
+import { createRenderer, defineComponent, h, markRaw, nextTick, onMounted, reactive, ref } from 'vue'
 import { createDashboardLoader } from './helpers/dashboardRuntime.mjs'
 
 const flush = async () => { await nextTick(); await nextTick() }
@@ -10,10 +10,14 @@ const hasClass = (node, name) => String(node.props.class ?? '').split(' ').inclu
 // Only DOM and the Ant rendering boundary are replaced; component state and handlers run unchanged.
 function createTestRenderer() {
   const document = { activeElement: undefined }
-  const node = (type, text = '') => ({
+  const node = (type, text = '') => markRaw({
     type, text, children: [], parent: undefined, props: {}, style: {}, ownerDocument: document,
     focus() { document.activeElement = this },
     contains(target) { return walk(this, child => child === target).length > 0 },
+    querySelector(selector) {
+      assert.equal(selector, 'button:not(:disabled)')
+      return walk(this, child => child.type === 'button' && !child.props.disabled)[0]
+    },
     setPointerCapture(id) { this.captured = id },
     hasPointerCapture(id) { return this.captured === id },
     releasePointerCapture(id) { this.captured = undefined; this.props.onLostpointercapture?.({ pointerId: id }) },
@@ -47,7 +51,7 @@ function mountColumns(mode = 'default', extra = {}, accept = true) {
   let measures = 0
   const boundaries = {
     'vue-i18n': { useI18n: () => ({ t: key => key }) },
-    '@vueuse/core': { useElementSize: () => ({ width: measures++ === 0 ? paneWidth : containerWidth }) },
+    '@vueuse/core': { useElementSize: () => ({ width: measures++ === 0 ? paneWidth : containerWidth }), useElementVisibility: () => ref(true) },
   }
   const Handle = createDashboardLoader(boundaries)('components/PanelResizeHandle/index.vue').default
   const Columns = createDashboardLoader({ ...boundaries, '../PanelResizeHandle/index.vue': { default: Handle, __esModule: true } })('components/EqualHeightColumns/index.vue').default
@@ -197,7 +201,7 @@ test('collapse relocates hidden header/body focus without stealing main or toolb
 function mountResize(extra = {}) {
   const width = ref(1000)
   const Handle = createDashboardLoader({
-    '@vueuse/core': { useElementSize: () => ({ width }) },
+    '@vueuse/core': { useElementSize: () => ({ width }), useElementVisibility: () => ref(true) },
     'vue-i18n': { useI18n: () => ({ t: key => key }) },
   })('components/PanelResizeHandle/index.vue').default
   const props = reactive({ modelValue: 360, 'aria-label': '属性面板宽度', 'aria-controls': 'properties', title: '调整属性', class: 'host-handle', style: { opacity: 0.9 }, ...extra }), changes = [], state = createTestRenderer()
@@ -224,7 +228,6 @@ test('resize click controls and keyboard share bounds; semantic attrs remain on 
     assert.equal(state.root.children[0].props.style.opacity, 0.9)
     state.props['aria-label'] = '更新后的属性宽度'; state.props.title = '更新后的标题'; await flush()
     assert.equal(separator.props['aria-label'], '更新后的属性宽度'); assert.equal(separator.props.title, '更新后的标题')
-    assert.equal(walk(state.root, node => node.type === 'button' && node.props['aria-controls']?.startsWith('panel-resize-'))[0].props['aria-label'], '更新后的属性宽度')
     state.button('grow').props.onClick(); await flush(); assert.equal(state.props.modelValue, 376)
     state.button('shrink').props.onClick(); await flush(); assert.equal(state.props.modelValue, 360)
     state.press('End'); await flush(); assert.equal(state.props.modelValue, 640); assert.equal(state.button('grow').props.disabled, true)
@@ -235,6 +238,8 @@ test('resize click controls and keyboard share bounds; semantic attrs remain on 
     state.props.modelValue = 900; await flush(); assert.equal(state.props.modelValue, 640)
     state.width.value = 700; await flush(); assert.equal(state.props.modelValue, 340)
     assert.equal(separator.props['aria-valuemax'], 340); assert.equal(separator.props['aria-valuenow'], 340)
+    state.width.value = 700.5; await flush(); state.press('End'); await flush()
+    assert.equal(state.props.modelValue, 340.5, 'rounding must not cross a fractional container bound')
   } finally { state.app.unmount() }
 })
 
@@ -261,18 +266,145 @@ test('drag commit, Escape, pointer cancel and unexpected capture loss have disti
   } finally { if (!unmounted) state.app.unmount() }
 })
 
-test('Escape closes the resize action popover and restores its trigger focus', async () => {
+test('click actions ignore a completed drag; keyboard opens the menu and Escape returns to the separator', async () => {
   const state = mountResize()
   try {
-    const popover = walk(state.root, node => typeof node.props['onUpdate:open'] === 'function')[0]
-    const trigger = walk(state.root, node => node.type === 'button' && node.props['aria-controls']?.startsWith('panel-resize-'))[0]
-    const group = walk(state.root, node => node.props.role === 'group')[0]
-    popover.props['onUpdate:open'](true); await flush()
-    assert.equal(trigger.props['aria-expanded'], true)
+    const popover = walk(state.root, node => typeof node.props.onOpenChange === 'function')[0]
+    const group = walk(state.root, node => node.props.role === 'dialog')[0]
+    const { separator, pointer } = state
+    separator.props.onPointerdown(pointer(500)); separator.props.onPointermove(pointer(450)); separator.props.onPointerup(pointer(450))
+    popover.props.onOpenChange(true); await flush()
+    assert.equal(popover.props.open, false, 'the generated click after dragging must not open the menu')
+    separator.props.onPointerdown(pointer(450)); separator.props.onPointerup(pointer(450))
+    popover.props.onOpenChange(true); await flush()
+    assert.equal(popover.props.open, true, 'a stationary click can open the actions')
+    state.press('Escape'); await flush()
+    state.press('Enter'); await flush()
+    assert.equal(popover.props.open, true)
+    assert.equal(state.document.activeElement, state.button('shrink'))
     state.button('reset').focus()
     group.props.onKeydown({ key: 'Escape', preventDefault() {}, stopPropagation() {} }); await flush()
-    assert.equal(trigger.props['aria-expanded'], false)
-    assert.equal(state.document.activeElement, trigger)
+    assert.equal(popover.props.open, false)
+    assert.equal(state.document.activeElement, separator)
+  } finally { state.app.unmount() }
+})
+
+function mountSplitter(extra = {}, accept = true) {
+  const paneWidth = ref(240), paneHeight = ref(180), containerWidth = ref(1000), containerHeight = ref(600)
+  let measures = 0, mounts = 0
+  const boundaries = {
+    'vue-i18n': { useI18n: () => ({ t: key => key }) },
+    '@vueuse/core': {
+      useElementSize: () => {
+        const measurement = measures++
+        return measurement === 0 ? { width: paneWidth, height: paneHeight }
+          : measurement === 1 ? { width: containerWidth, height: containerHeight } : { width: ref(0), height: ref(0) }
+      },
+      useElementVisibility: () => ref(true),
+    },
+  }
+  const Handle = createDashboardLoader(boundaries)('components/PanelResizeHandle/index.vue').default
+  const Splitter = createDashboardLoader({ ...boundaries, '../PanelResizeHandle/index.vue': { default: Handle, __esModule: true } })('components/Splitter/index.vue').default
+  const props = reactive(extra), requests = [], collapses = [], draft = ref('保留的输入')
+  const Start = defineComponent({ setup() { onMounted(() => mounts++); return () => h('input', { 'aria-label': 'start', value: draft.value }) } })
+  const state = createTestRenderer()
+  const app = state.register(state.renderer.createApp({ setup: () => () => h(Splitter, {
+    ...props,
+    'onUpdate:size': value => { requests.push(value); if (accept && props.size !== undefined) props.size = value },
+    'onUpdate:collapsed': value => { collapses.push(value); if (accept && props.collapsed !== undefined) props.collapsed = value },
+  }, { start: () => h(Start), end: scope => [h('button', { 'aria-label': 'toggle', onClick: scope.toggle }), h('input', { 'aria-label': 'end' })] }) }))
+  app.mount(state.root)
+  const separator = () => walk(state.root, node => node.props.role === 'separator')[0]
+  const field = label => walk(state.root, node => node.props['aria-label'] === label)[0]
+  field('start').parent.getBoundingClientRect = () => ({ width: paneWidth.value, height: paneHeight.value })
+  const pointer = (x, y = 0) => ({ button: 0, clientX: x, clientY: y, pointerId: 1, currentTarget: separator(), preventDefault() {} })
+  const press = key => separator().props.onKeydown({ key, preventDefault() {} })
+  return { ...state, app, props, requests, collapses, separator, field, pointer, press, draft, containerWidth, containerHeight, paneWidth, paneHeight, mounts: () => mounts }
+}
+
+test('Splitter retains local size, content instances and drafts across collapse and restores its measured initial size', async () => {
+  const state = mountSplitter({ min: 160, max: 480, endMin: 360 })
+  try {
+    const input = state.field('start'), end = state.field('end')
+    const separator = state.separator()
+    assert.equal(separator.props['aria-controls'], input.parent.props.id)
+    separator.props.onPointerdown(state.pointer(240)); separator.props.onPointermove(state.pointer(320)); separator.props.onPointerup(state.pointer(320)); await flush()
+    assert.equal(state.separator().props['aria-valuenow'], 320)
+    assert.match(state.root.children[0].props.style.gridTemplateColumns, /320px/)
+    state.draft.value = '折叠后仍保留'; input.focus()
+    state.field('toggle').props.onClick(); await flush()
+    assert.equal(state.separator(), undefined); assert.equal(input.parent.props.inert, true)
+    assert.match(state.root.children[0].props.style.gridTemplateColumns, /0px/)
+    assert.equal(state.document.activeElement, end.parent)
+    state.field('toggle').props.onClick(); await flush()
+    assert.equal(state.field('start'), input); assert.equal(input.props.value, '折叠后仍保留'); assert.equal(state.mounts(), 1)
+    assert.equal(state.separator().props['aria-valuenow'], 320)
+    state.separator().props.onDblclick(); await flush()
+    assert.equal(state.separator().props['aria-valuenow'], 240)
+    assert.deepEqual(state.requests, [320, 240]); assert.deepEqual(state.collapses, [true, false])
+  } finally { state.app.unmount() }
+})
+
+test('vertical Splitter uses pointer Y and up/down keys, and yields its minimum when the host cannot fit both panes', async () => {
+  const state = mountSplitter({ orientation: 'vertical', min: 100, max: 400, endMin: 180 })
+  try {
+    assert.equal(state.separator().props['aria-orientation'], 'horizontal')
+    state.separator().props.onPointerdown(state.pointer(200, 180)); state.separator().props.onPointermove(state.pointer(900, 240)); state.separator().props.onPointerup(state.pointer(900, 240)); await flush()
+    assert.equal(state.separator().props['aria-valuenow'], 240)
+    state.press('ArrowRight'); await flush(); assert.equal(state.separator().props['aria-valuenow'], 240)
+    state.press('ArrowDown'); await flush(); assert.equal(state.separator().props['aria-valuenow'], 256)
+    state.press('ArrowUp'); await flush(); assert.equal(state.separator().props['aria-valuenow'], 240)
+    assert.match(state.root.children[0].props.style.gridTemplateRows, /240px/)
+    state.containerHeight.value = 220; await flush()
+    assert.equal(state.separator().props['aria-valuenow'], 40); assert.equal(state.separator().props['aria-valuemin'], 40)
+    state.separator().focus(); state.props.resizable = false; await flush()
+    assert.equal(state.separator(), undefined); assert.equal(state.document.activeElement, state.field('end').parent)
+  } finally { state.app.unmount() }
+})
+
+test('controlled Splitter requests can be rejected without changing size or collapse and external changes are not echoed', async () => {
+  const state = mountSplitter({ size: 280, collapsed: false }, false)
+  try {
+    state.press('ArrowRight'); await flush()
+    assert.deepEqual(state.requests, [296]); assert.equal(state.separator().props['aria-valuenow'], 280)
+    state.field('toggle').props.onClick(); await flush()
+    assert.deepEqual(state.collapses, [true]); assert.ok(state.separator()); assert.equal(state.field('start').parent.props.inert, undefined)
+    state.props.size = 320; await flush()
+    assert.equal(state.separator().props['aria-valuenow'], 320); assert.deepEqual(state.requests, [296])
+    state.props.collapsed = true; await flush()
+    assert.equal(state.separator(), undefined); assert.deepEqual(state.collapses, [true])
+  } finally { state.app.unmount() }
+})
+
+test('percentage sizing stays responsive until interaction and a zero-size pane keeps its recovery handle', async () => {
+  const state = mountSplitter()
+  try {
+    state.paneWidth.value = 240.5; await flush()
+    assert.deepEqual(state.requests, [])
+    assert.match(state.root.children[0].props.style.gridTemplateColumns, /30%/)
+    state.containerWidth.value = 100; await flush()
+    state.paneWidth.value = 30; await flush()
+    state.containerWidth.value = 1000; state.paneWidth.value = 300; await flush()
+    assert.deepEqual(state.requests, [], 'automatic container changes must not pin percentage sizing to pixels')
+    assert.equal(state.separator().props['aria-valuenow'], 300)
+    state.press('Home'); await flush()
+    state.paneWidth.value = 0; await flush()
+    assert.ok(state.separator()); assert.equal(state.separator().props['aria-valuenow'], 0)
+    assert.equal(state.field('start').parent.props.inert, true)
+    state.press('ArrowRight'); await flush()
+    assert.equal(state.separator().props['aria-valuenow'], 16)
+  } finally { state.app.unmount() }
+})
+
+test('changing Splitter direction measures the new track before mounting the handle or normalizing stale dimensions', async () => {
+  const state = mountSplitter({ min: 100, max: 480, endMin: 180 })
+  try {
+    state.paneWidth.value = 500; await flush()
+    const previous = [...state.requests]
+    state.props.orientation = 'vertical'; state.props.defaultSize = 180; await flush()
+    assert.equal(state.separator().props['aria-valuenow'], 180)
+    assert.equal(state.separator().props['aria-orientation'], 'horizontal')
+    assert.deepEqual(state.requests, previous)
   } finally { state.app.unmount() }
 })
 

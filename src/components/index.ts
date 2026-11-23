@@ -300,3 +300,4 @@ export type {
 export * from './Expression'
 export * from './PlatformSettings'
 export { default as PanelResizeHandle } from './PanelResizeHandle/index.vue'
+export { default as Splitter } from './Splitter/index.vue'

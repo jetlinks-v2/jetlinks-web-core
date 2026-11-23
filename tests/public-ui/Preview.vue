@@ -3,6 +3,7 @@
     <h1>公共组件交互验收</h1>
     <a-radio-group v-model:value="width" aria-label="内容容器宽度" :options="[390, 700, 1000]" option-type="button" />
     <div class="fixture-container" :style="{ width: `${width}px` }">
+      <SplitterPreview />
       <DetailHeader title="服务资料与负责人" variant="summary">
         <template #icon><AIcon type="ProfileOutlined" /></template>
         <template #description>用于核对长名称、辅助说明与实际容器重排。</template>
@@ -58,6 +59,7 @@ import DetailHeader from '../../src/components/DetailHeader/index.vue'
 import KvGrid from '../../src/components/KvGrid/index.vue'
 import EqualHeightColumns from '../../src/components/EqualHeightColumns/index.vue'
 import SelectOption from '../../src/components/SelectOption/index.vue'
+import SplitterPreview from './SplitterPreview.vue'
 import { InlineEditForm, type InlineEditGroup, type InlineEditSubmit } from '../../src/components/InlineEditForm'
 const width = ref(700)
 const outcome = ref('success')
