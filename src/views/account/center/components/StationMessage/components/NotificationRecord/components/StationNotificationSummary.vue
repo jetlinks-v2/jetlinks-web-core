@@ -74,14 +74,15 @@ const formatTime = (value: number) => dayjs(value).format('YYYY-MM-DD HH:mm:ss')
 
   &__head { display: grid; gap: var(--space-2); }
   &__badges, &__time { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-  &__name { color: inherit; font-size: var(--fs-18); font-weight: 500; overflow-wrap: anywhere; }
-  &__time { color: var(--text-color-secondary); font-size: var(--fs-13); font-variant-numeric: tabular-nums; }
+  &__badges > .status-tag { font-size: inherit; }
+  &__name { color: inherit; font-size: inherit; font-weight: 500; overflow-wrap: anywhere; }
+  &__time { color: var(--text-color-secondary); font-variant-numeric: tabular-nums; }
   &__reason { padding: var(--space-3) var(--space-4); border-radius: var(--jet-theme-radius); background: var(--bg-2); }
   &__target, &__description { padding-top: var(--space-3); border-top: 1px solid var(--line); }
   &__target dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   &__row { display: grid; grid-template-columns: minmax(5.5em, max-content) minmax(0, 1fr); align-items: baseline; gap: var(--space-2); }
   &__row--wide { grid-column: 1 / -1; }
-  &__mono { font-family: var(--font-mono); font-size: var(--fs-13); }
+  &__mono { font-family: var(--font-mono); }
 }
 @container (max-width: 32rem) {
   .notice-summary__target dl { grid-template-columns: minmax(0, 1fr); }
