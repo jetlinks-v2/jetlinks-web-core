@@ -65,7 +65,7 @@ test('面板按目标读取最少批次，一个目标失败不阻塞另一个�
   const { renderer, root } = createMetricRenderer()
   const app = renderer.createApp({ setup() {
     view = useMetricPanel(ref({ ownerType: 'line', ownerId: 'owner' }), {
-      byOwner: async () => configs, configTemplate: async () => template,
+      byOwner: async () => configs, resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate: async () => template,
       latest: async (ids, target) => {
         calls.push([target.targetId, ids.length])
         if (failB && target.targetId === 'B') throw new Error('B timeout')
@@ -100,6 +100,7 @@ for (const stage of ['configuration', 'template']) {
         view = useMetricPanel(owner, {
           byOwner: async (_type, id) => id === 'A' && stage === 'configuration' ? pending.promise
             : [config(`${id}-first`, id), { ...config(`${id}-second`, id), templateId: 'other' }],
+          resultTemplate(...args) { return this.configTemplate(...args) },
           configTemplate: async id => {
             templates.push(id)
             return id === 'A-first' && stage === 'template' ? pending.promise : template

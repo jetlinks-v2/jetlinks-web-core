@@ -68,7 +68,7 @@ test('展示解析响应卸载与恢复，缺失提供者保留设置并禁止�
   const scope = effectScope()
   const context = ref({ ownerType: 'line', ownerId: 'a', editable: true })
   const view = scope.run(() => useMetricEditor(context, ref(config), ref(), {
-    selectable: async () => [], configTemplate: async () => template,
+    selectable: async () => [], resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate: async () => template,
     saveConfig: async value => { saves++; return { ...value, revision: value.revision + 1 } },
   }))
   const presentation = scope.run(() => useMetricPresentation(view.selectedTemplate, view.draft))

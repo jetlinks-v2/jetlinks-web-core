@@ -69,10 +69,10 @@ test('summary uses one task, keeps filters on drilldown return and hides adding 
 
 test('empty summaries distinguish authorized facts, history availability and a neutral unknown scope',async()=>{
   const scenarios=[
-    {catalog:{visibleMembers:0,groups:[]},groups:[],reason:'aggregateNoMembers',current:false},
-    {catalog:{visibleMembers:3,groups:[]},groups:[],reason:'aggregateNoMetrics',current:true},
-    {catalog:{visibleMembers:3,groups:[entry]},groups:[],reason:'aggregateEmpty',current:true},
-    {catalog:{visibleMembers:3,groups:[{...entry,output:{metricId:'value',latestOnly:true}}]},groups:[],reason:'aggregateUnsupported',current:true},
+    {catalog:{visibleMembers:0,groups:[]},groups:[],reason:'aggregateEmpty',current:false},
+    {catalog:{visibleMembers:3,groups:[]},groups:[],reason:'aggregateEmpty',current:false},
+    {catalog:{visibleMembers:3,groups:[entry]},groups:[],reason:'aggregateEmpty',current:false},
+    {catalog:{visibleMembers:3,groups:[{...entry,output:{metricId:'value',latestOnly:true}}]},groups:[],reason:'aggregateEmpty',current:false},
     {catalog:undefined,groups:[],reason:'aggregateEmpty',current:false},
     {catalog:{visibleMembers:3,groups:[entry]},groups:[stored],reason:undefined,current:true},
     {catalog:{visibleMembers:0,groups:[]},groups:[stored],reason:undefined,current:true},

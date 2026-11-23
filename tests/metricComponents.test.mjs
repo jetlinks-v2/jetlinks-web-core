@@ -339,8 +339,8 @@ test('发布引用以业务名称展示，单项更新与批量选择独立，�
   }finally{view.close();scope.stop();moduleRegistry.clear()}
 })
 function defaults() {
-  Object.assign(api, { templateCategories: async () => [], calculators: async () => [], byOwner: async () => [config], configTemplate: async () => template,
-    latest: async ids => ids.map(configId => ({ configId, outputs: { value } })), getConfig: async () => config,
+  Object.assign(api, { templateCategories: async () => [], calculators: async () => [], byOwner: async () => [config], resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate: async () => template,
+    latest: async ids => ids.map(configId => ({ configId, outputs: { value } })), getResultConfig(...args) { return this.getConfig(...args) }, getConfig: async () => config,
     history: async () => [value], selectable: async () => [{ id: 't', name: 'Power', available: true, released: true, template }],
     saveConfig: async next => ({ ...next, revision: next.revision + 1 }), queryTemplates: async () => ({ data: [], total: 0 }) })
 }

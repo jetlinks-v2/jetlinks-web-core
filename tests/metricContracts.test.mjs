@@ -33,7 +33,7 @@ test('旧模板缺类型时按已绑定来源声明筛选，不改写模板；�
   const scope=effectScope(), requests=[], raw=template()
   const picker=Object.assign(async request=>{requests.push(request)}, {describe:async()=>({meter:{valueType:{type:'double'}}})})
   const view=scope.run(()=>useMetricEditor(ref({ownerType:'space',ownerId:'floor2',editable:true}),ref(config()),ref(picker),{
-    selectable:async()=>[],configTemplate:async()=>raw,
+    selectable:async()=>[],resultTemplate(...args) { return this.configTemplate(...args) },configTemplate:async()=>raw,
   }))
   try {
     await flush();await view.choose(raw.inputDefinitions[0])
@@ -54,6 +54,7 @@ test('公开输出 ID 与存储属性不同：批量最新值及历史仍用 met
   const scope = effectScope()
   const value = { metricId: output.metricId, value: 25, evaluationTime: 12000, status: 'success' }
   const api = {
+    getResultConfig(...args) { return this.getConfig(...args) },
     getConfig: async () => config(),
     latest: async ids => { calls.push(['latest', ids]); return [{ configId: 'config-a', outputs: { hourEnergy: value } }] },
     history: async (id, query) => { calls.push(['history', id, query]); return [value] }
@@ -142,6 +143,7 @@ test('未知质量和真实零值保留；不适用、过期和坏质量在趋�
 test('停用结果仍读取历史，空 latest 不冒充历史当前值', async () => {
   const scope = effectScope()
   const view = scope.run(() => useMetricResult(ref({ configId: 'config-a', outputId: 'hourEnergy' }), {
+    getResultConfig(...args) { return this.getConfig(...args) },
     getConfig: async () => config(),
     latest: async () => [{ configId: 'config-a', outputs: {} }],
     history: async () => [{ metricId: 'hourEnergy', value: 25, evaluationTime: 12000 }]
@@ -165,7 +167,7 @@ test('批量 latest 区分有权无值、无权省略和真实存储错误，撤
   let view
   const app = renderer.createApp({ setup() {
     view = useMetricPanel(ref({ ownerType: 'space', ownerId: 'floor2' }), {
-      byOwner: async () => [{...config(),state:'enabled'}], configTemplate: async () => template(),
+      byOwner: async () => [{...config(),state:'enabled'}], resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate: async () => template(),
       latest: async () => { if (failure) throw failure; return response }
     })
     return () => null
@@ -205,6 +207,7 @@ test('返回引用首次定位非首配置及非首输出，轮询尊重后续�
   const app = renderer.createApp({ setup() {
     view = useMetricPanel(ref({ ownerType: 'space', ownerId: 'floor2' }), {
       byOwner: async () => [config(), { ...config(), id: 'config-b' }],
+      resultTemplate(...args) { return this.configTemplate(...args) },
       configTemplate: async () => metadata, latest: async () => { if (failure) throw new Error('temporary failure'); return response }
     }, initial)
     return () => null
@@ -249,7 +252,9 @@ test('默认概览及无效或被撤权的返回引用不打开详情，也不�
       let view
       const api = {
         byOwner: async () => [config(), { ...config(), id: 'config-b' }],
+        resultTemplate(...args) { return this.configTemplate(...args) },
         configTemplate: async id => { requests.push(['template', id]); return metadata },
+        getResultConfig(...args) { return this.getConfig(...args) },
         getConfig: async id => ({ ...config(), id }),
         latest: async () => [{ configId: 'config-a', outputs: {} }],
         history: async (id, query) => { requests.push(['history', id, query.outputs]); return [] }
@@ -275,6 +280,7 @@ test('只读结果被 latest 省略时清除当前值和历史，不继续读取
   let authorized = true
   let historyCalls = 0
   const view = scope.run(() => useMetricResult(ref({ configId: 'config-a', outputId: 'hourEnergy' }), {
+    getResultConfig(...args) { return this.getConfig(...args) },
     getConfig: async () => config(),
     latest: async () => authorized ? [{ configId: 'config-a', outputs: { hourEnergy: { metricId: 'hourEnergy', value: 25 } } }] : [],
     history: async () => { historyCalls++; return [{ metricId: 'hourEnergy', value: 25 }] }
@@ -300,6 +306,7 @@ test('选中配置改口径、启用周期或状态会重建结果；仅改名�
   let view
   const result = { setup() {
     view = useMetricResult(ref({ configId: 'config-a', outputId: 'hourEnergy' }), {
+      getResultConfig(...args) { return this.getConfig(...args) },
       getConfig: async () => JSON.parse(JSON.stringify(selected.value)),
       latest: async () => [{ configId: 'config-a', outputs: selected.value.state === 'enabled' ? { hourEnergy: { metricId: 'hourEnergy', value: selected.value.dataVersion === 'v1' ? 1 : 2 } } : {} }],
       history: async () => { historyCalls++; return [] }
@@ -336,6 +343,7 @@ test('旧结果请求晚到时不能覆盖新对象', async () => {
   const scope = effectScope()
   const reference = ref({ configId: 'old', outputId: 'hourEnergy' })
   const view = scope.run(() => useMetricResult(reference, {
+    getResultConfig(...args) { return this.getConfig(...args) },
     getConfig: async id => ({ ...config(), id }),
     latest: async ids => ids[0] === 'old' ? old : [{ configId: 'new', outputs: { hourEnergy: { metricId: 'hourEnergy', value: 2 } } }],
     history: async id => [{ metricId: 'hourEnergy', value: id === 'new' ? 2 : 1, evaluationTime: 12000 }]
@@ -354,7 +362,7 @@ test('不可选固定版本仍可编辑，所有输入必须绑定来源，prese
   const scope = effectScope()
   const initial = { ...config(), inputMappings: {} }
   const view = scope.run(() => useMetricEditor(ref({ ownerType: 'space', ownerId: 'floor2', editable: true }), ref(initial), ref(undefined), {
-    selectable: async () => [], configTemplate: async () => ({ ...template(), inputDefinitions: [...template().inputDefinitions, {id:'optional', presence:'optional'}] })
+    selectable: async () => [], resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate: async () => ({ ...template(), inputDefinitions: [...template().inputDefinitions, {id:'optional', presence:'optional'}] })
   }))
   await flush()
   assert.equal(view.selectedTemplate.value.version, '1')
@@ -371,8 +379,9 @@ test('不可选固定版本仍可编辑，所有输入必须绑定来源，prese
 test('revision 冲突不覆盖编辑内容，重新读取先保存为比较快照', async () => {
   const scope = effectScope()
   const view = scope.run(() => useMetricEditor(ref({ ownerType: 'space', ownerId: 'floor2', editable: true }), ref(config()), ref(undefined), {
-    selectable: async () => [], configTemplate: async () => template(),
+    selectable: async () => [], resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate: async () => template(),
     saveConfig: async () => { throw new Error('revision conflict') },
+    getResultConfig(...args) { return this.getConfig(...args) },
     getConfig: async () => ({ ...config(), name: '同事已保存', revision: 3 })
   }))
   await flush()
@@ -396,7 +405,7 @@ test('重新打开配置恢复授权来源名称，映射修改后旧名称与�
   let saves = 0
   const context = ref({ ownerType:'space', ownerId:'floor2', editable:true })
   const view = scope.run(() => useMetricEditor(context, ref(config()), ref(picker), {
-    selectable:async () => [], configTemplate:async () => template(), saveConfig:async next => { saves++; return next }
+    selectable:async () => [], resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate:async () => template(), saveConfig:async next => { saves++; return next }
   }))
   try {
     await flush(); assert.equal(reads.length, 1)
@@ -422,6 +431,7 @@ test('未发起来源选择的编辑器初始化和销毁不取消其他入口�
   const scope = effectScope(); let cancelled = 0
   const picker = Object.assign(async () => undefined, { cancel:() => cancelled++ })
   scope.run(() => useMetricEditor(ref({ ownerType:'space',ownerId:'floor2',editable:true }), ref(config()), ref(picker), {
+    resultTemplate(...args) { return this.configTemplate(...args) },
     configTemplate:async () => template(), selectable:async () => []
   }))
   await flush()
@@ -434,6 +444,7 @@ test('销毁正在选择来源的编辑器取消选择且忽略迟到结果', as
   const scope = effectScope(); let finish; let cancelled = 0
   const picker = Object.assign(() => new Promise(resolve => { finish = resolve }), { cancel:() => cancelled++ })
   const view = scope.run(() => useMetricEditor(ref({ ownerType:'space',ownerId:'floor2',editable:true }), ref(config()), ref(picker), {
+    resultTemplate(...args) { return this.configTemplate(...args) },
     configTemplate:async () => template(), selectable:async () => []
   }))
   await flush()
@@ -449,6 +460,7 @@ test('切换模板取消原位来源选择，迟到选择不能覆盖新模板',
   const picker = Object.assign(() => new Promise(resolve => { finish = resolve }), { cancel:() => cancelled++, editor:{} })
   const nextTemplate = { ...template(), id:'next' }
   const view = scope.run(() => useMetricEditor(ref({ ownerType:'space',ownerId:'floor2',editable:true }), ref(config()), ref(picker), {
+    resultTemplate(...args) { return this.configTemplate(...args) },
     configTemplate:async () => template(), selectable:async () => [{ id:'next', template:nextTemplate, released:true, available:true }]
   }))
   try {
@@ -487,7 +499,8 @@ test('卡片详情按需装载；关闭、撤权、owner切换和保存均不重
   const history = []
   const api = {
     byOwner: async () => [config(), { ...config(), id: 'config-b', name: '车间B' }],
-    configTemplate: async () => metadata, getConfig: async id => ({ ...config(), id }),
+    resultTemplate(...args) { return this.configTemplate(...args) },
+    configTemplate: async () => metadata, getResultConfig(...args) { return this.getConfig(...args) }, getConfig: async id => ({ ...config(), id }),
     latest: async ids => ids.filter(id => allowed || id !== 'config-b').map(configId => ({ configId, outputs: {} })),
     history: async (id, request) => { history.push([id, ...request.outputs]); return [] }
   }
@@ -548,6 +561,7 @@ test('详情卸载后的latest晚到不继续发出历史请求', async () => {
   const scope = effectScope()
   let historyCalls = 0
   scope.run(() => useMetricResult(ref({ configId: 'config-a', outputId: 'hourEnergy' }), {
+    getResultConfig(...args) { return this.getConfig(...args) },
     getConfig: async () => config(), latest: async () => pending,
     history: async () => { historyCalls++; return [] }
   }))
@@ -578,6 +592,7 @@ test('已有配置编辑按成功刷新后的可读集合卸载，临时失败�
           if (failure === 'byOwner') throw new Error('temporary owner failure')
           return [config(), ...(!revoked || revokedBy !== 'byOwner' ? [existing] : [])]
         },
+        resultTemplate(...args) { return this.configTemplate(...args) },
         configTemplate: async () => template(), selectable: async () => [],
         latest: async ids => {
           if (failure === 'latest') throw new Error('temporary storage failure')
@@ -644,6 +659,7 @@ test('退场回焦仅消费同对象的可读目标，撤权、切换对象或�
   const app = renderer.createApp({ setup() {
     view = useMetricPanel(owner, {
       byOwner: async () => [config(), ...(included ? [{ ...config(), id: 'config-b' }] : [])],
+      resultTemplate(...args) { return this.configTemplate(...args) },
       configTemplate: async () => ({ ...template(), outputs: [...template().outputs, { metricId: 'dayEnergy', label: '日电量' }] }),
       latest: async ids => ids.filter(id => allowed || id !== target.configId).map(configId => ({ configId, outputs: {} }))
     }, ref(target))
@@ -699,6 +715,7 @@ test('面板批量快照更新详情当前反馈，迟到的详情读取不覆�
   const scope = effectScope()
   const expected = { configId: 'config-a', outputs: { hourEnergy: { metricId: 'hourEnergy', value: 2, quality: { valid: true, stale: true } } }, runtime: { nodeId: 'node-a', state: 'loaded' } }
   const view = scope.run(() => useMetricResult(ref({ configId: 'config-a', outputId: 'hourEnergy' }), {
+    getResultConfig(...args) { return this.getConfig(...args) },
     getConfig: async () => config(),
     latest: async () => { calls++; return calls === 1 ? new Promise(resolve => { finish = resolve }) : [{ ...expected, outputs: { hourEnergy: { metricId: 'hourEnergy', value: 3 } } }] },
     history: async () => { histories++; return [] }
@@ -720,6 +737,7 @@ test('latest授权与值运行反馈共享版本：新拒权清理快照和历�
   const item = { configId: 'config-a', outputs: { hourEnergy: { metricId: 'hourEnergy', value: 1 } }, runtime: { nodeId: 'node-a', state: 'loaded' } }
   const snapshot = ref(item)
   const view = scope.run(() => useMetricResult(ref({ configId: 'config-a', outputId: 'hourEnergy' }), {
+    getResultConfig(...args) { return this.getConfig(...args) },
     getConfig: async () => config(),
     latest: async () => { calls++; return calls === 1 ? new Promise(resolve => { finishOld = resolve }) : [] },
     history: async () => { histories++; return [{ metricId: 'hourEnergy', value: 1 }] }
@@ -745,6 +763,7 @@ test('迟到detail拒权不清理较新panel授权趋势，也不阻断本次合
   const previous = { metricId: 'hourEnergy', value: 11, evaluationTime: 1000 }
   const point = { ...previous, value: 22 }
   const view = scope.run(() => useMetricResult(ref({ configId: 'config-a', outputId: 'hourEnergy' }), {
+    getResultConfig(...args) { return this.getConfig(...args) },
     getConfig: async () => config(),
     latest: async () => { calls++; return calls === 1 ? [expected] : new Promise(resolve => { finishOld = resolve }) },
     history: async (_id, request) => { histories.push(request); return histories.length === 1 ? [previous] : new Promise(resolve => { finishHistory = resolve }) }

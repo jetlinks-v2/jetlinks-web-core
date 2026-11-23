@@ -59,27 +59,27 @@ test('aggregate refresh shares scope requests, keeps old cards mounted and rejec
   assert.equal(state.result.value.groups[0].id,'new');app.unmount()
 })
 
-test('template preference is authorized before querying storage and scope refresh reuses the directory',async()=>{
+test('template preference uses bounded aggregate groups without discovering all members',async()=>{
   const oldStorage=globalThis.localStorage,stored=new Map(),calls=[],catalog=[]
   globalThis.localStorage={getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)}
   stored.set('metric-aggregate:["u/p","product","p","device"]',JSON.stringify(['t','removed']))
-  const api={collection:async query=>{catalog.push(query);return {groups:[{templateId:'t'},{templateId:'other'}]}},aggregate:async query=>{calls.push(query);return {readTime:1,groups:[]}}}
+  const api={collection:async query=>{catalog.push(query);return {groups:[{templateId:'t'},{templateId:'other'}]}},aggregate:async query=>{calls.push(query);return {readTime:1,groups:[{templateId:'t'},{templateId:'other'}]}}}
   const context=ref({ownerType:'product',ownerId:'p',preferenceScope:'u/p'})
   const {renderer,root}=createMetricRenderer();let state
   const app=renderer.createApp(defineComponent({setup(){state=useMetricAggregate(context,ref({memberType:'device'}),api);return()=>h('div')}}))
   app.mount(root)
   try {
     await new Promise(resolve=>setTimeout(resolve,10));await flush()
-    assert.deepEqual(calls[0].templateIds,['t']);assert.equal(catalog.length,1)
-    await state.refresh();assert.equal(catalog.length,1,'regular refresh must not rediscover all members')
-    state.selectTemplates(['other']);await flush();assert.deepEqual(calls.at(-1).templateIds,['other'])
+    assert.equal(calls[0].templateIds,undefined);assert.deepEqual(state.selectedTemplates.value,['t']);assert.equal(catalog.length,0)
+    await state.refresh();assert.equal(catalog.length,0,'aggregate requests must not discover members')
+    state.selectTemplates(['other']);await flush();assert.deepEqual(state.selectedTemplates.value,['other']);assert.equal(calls.length,2)
     assert.deepEqual(JSON.parse(stored.get('metric-aggregate:["u/p","product","p","device"]')),['other'])
     context.value={...context.value,preferenceScope:'another-user'};await flush();await new Promise(resolve=>setTimeout(resolve,10));await flush()
     assert.equal(calls.at(-1).templateIds,undefined,'identity change must not restore another user selection')
   } finally {app.unmount();globalThis.localStorage=oldStorage}
 })
 
-test('declared depth and authorized catalog facts are retained without treating records as a member count',async()=>{
+test('declared depth is preserved and result counts are never used as member counts',async()=>{
   const calls=[],scope=ref({memberType:'device'}),catalog={visibleMembers:23,groups:[],data:[],total:23}
   const api={collection:async query=>{calls.push(query);return catalog},aggregate:async query=>{calls.push(query);return {readTime:1,groups:[]}}}
   const {renderer,root}=createMetricRenderer();let state
@@ -88,14 +88,14 @@ test('declared depth and authorized catalog facts are retained without treating 
   try {
     await new Promise(resolve=>setTimeout(resolve,10));await flush()
     assert.equal(calls[0].depth,'self','non-tree scopes cannot silently expand descendants')
-    assert.equal(state.catalog.value.visibleMembers,23)
+    assert.equal(state.result.value.visibleMembers,undefined);assert.equal(calls.length,1)
     scope.value={memberType:'product',tree:true};await flush();await new Promise(resolve=>setTimeout(resolve,10));await flush()
     state.descendants.value=false;await flush();await new Promise(resolve=>setTimeout(resolve,10));await flush()
     assert.equal(calls.at(-1).depth,'children')
   } finally {app.unmount()}
 })
 
-test('a queued manual refresh still revalidates the directory and forbidden reads clear prior content',async()=>{
+test('a queued refresh rechecks aggregate permissions and forbidden reads clear prior content',async()=>{
   const pending=[],catalogs=[];let failure
   const api={collection:async query=>{catalogs.push(query);return {visibleMembers:2,groups:[]}},aggregate:()=>failure ? Promise.reject(failure) : new Promise(resolve=>pending.push(resolve))}
   const {renderer,root}=createMetricRenderer();let state
@@ -105,7 +105,7 @@ test('a queued manual refresh still revalidates the directory and forbidden read
     await new Promise(resolve=>setTimeout(resolve,10));await flush()
     await state.refresh(true)
     pending.shift()({readTime:1,groups:[]});await flush();await new Promise(resolve=>setTimeout(resolve,10));await flush()
-    assert.equal(catalogs.length,2,'reload intent must survive an in-flight aggregate request')
+    assert.equal(catalogs.length,0,'a queued refresh must not scan member configurations');assert.equal(pending.length,1)
     pending.shift()({readTime:2,groups:[]});await flush()
     failure=new Error('network');await state.refresh()
     assert.equal(state.result.value.readTime,2,'transient failures retain a clearly marked previous result')
@@ -137,7 +137,7 @@ test('已添加指标复用有界汇总，筛选只改变展示，偏好与相�
     assert.equal(state.result.value.groups.length,2,'retain full server results for resetting the filter')
     await state.refresh();assert.deepEqual(state.selectedTemplates.value,['a'])
     scope.value={kind:'members',memberType:'device'};await settle()
-    assert.deepEqual(calls.slice(-2).map(([kind])=>kind),['directory','members'])
+    assert.equal(calls.at(-1)[0],'members');assert.ok(calls.every(([kind])=>kind!=='directory'))
     assert.equal(calls.at(-1)[1].templateIds,undefined)
     state.selectTemplates(['member']);await flush()
     scope.value={kind:'linked',memberType:'device'};await settle()
@@ -161,6 +161,6 @@ test('切换统计来源隔离迟到结果，普通刷新保持卡片，关联�
     failure=new Error('network');await state.refresh()
     assert.equal(state.result.value.groups[0].id,'linked')
     failure={response:{status:403},message:'forbidden'};await state.refresh()
-    assert.equal(state.result.value,undefined);assert.equal(state.catalog.value,undefined)
+    assert.equal(state.result.value,undefined);assert.equal(state.directory.value,undefined)
   }finally{app.unmount()}
 })

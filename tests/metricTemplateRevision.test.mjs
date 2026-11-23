@@ -129,6 +129,7 @@ test('保存或装载失败读取实际配置，重试使用最新CAS且切换�
   const state = setup({
     templateRevisions: async () => [], templateReferences: async () => [config('c')],
     applyTemplateRevision: async (_id, revision, expected) => { applied.push(expected); if (fail) throw new Error('Load failed'); return { ...config('c'), revision: 5, templateRevision: revision } },
+    getResultConfig(...args) { return this.getConfig(...args) },
     getConfig: async () => ({ ...config('c'), revision: 4, templateRevision: 2 }), latest: async () => [],
   })
   try {

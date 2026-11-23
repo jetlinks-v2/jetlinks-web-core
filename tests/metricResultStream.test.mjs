@@ -88,6 +88,7 @@ test('配置列表先展示每个占位卡片，慢模板不阻塞已就绪模�
   const app = view.renderer.createApp({ setup() {
     model = useMetricPanel(ref({ ownerType: 'device', ownerId: 'one' }), {
       byOwner: async () => configs,
+      resultTemplate(...args) { return this.configTemplate(...args) },
       configTemplate: id => id === 'slow' ? new Promise(resolve => { resolveSlow = resolve }) : Promise.resolve({ id, definitions: [], outputs: [{ metricId: 'value' }] }),
       watchResults() {}, latest: () => assert.fail('stream loads values only for visible cards')
     }); return () => null
@@ -116,7 +117,7 @@ test('500项指标只建立可视卡片的流，高频更新保持历史容器�
 test('独立详情走同一结果流，切换时段保留当前值，卸载释放订阅',async()=>{
   const calls=[],view=createMetricRenderer()
   let model
-  const api={getConfig:async()=>({id:'one',state:'enabled',targetType:'device',targetId:'one',dataVersion:'v1',enabledAt:1}),
+  const api={getResultConfig(...args) { return this.getConfig(...args) },getConfig:async()=>({id:'one',state:'enabled',targetType:'device',targetId:'one',dataVersion:'v1',enabledAt:1}),
     latest:()=>assert.fail('no extra latest query'),history:()=>assert.fail('no extra history query'),
     watchResults(id,request,frame){const stream={id,request,frame,stopped:false};calls.push(stream);return()=>{stream.stopped=true}}}
   const app=view.renderer.createApp({setup(){model=useMetricResult(ref({configId:'one',outputId:'value'}),api);return()=>null}})

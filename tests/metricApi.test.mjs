@@ -85,6 +85,10 @@ test('inherited result requests carry the actual target and subscriptions use as
   const target = { targetType:'device', targetId:'pump-1' }
   await metricApi.getConfig('product-config', target)
   assert.deepEqual(calls.at(-1).slice(1,3), ['/metric/configs/product-config', target])
+  await metricApi.getResultConfig('product-config', target)
+  assert.deepEqual(calls.at(-1).slice(1,3), ['/metric/configs/product-config/result', target])
+  await metricApi.resultTemplate('product-config', target)
+  assert.deepEqual(calls.at(-1).slice(1,3), ['/metric/configs/product-config/result/template', target])
   await metricApi.configTemplate('product-config', target)
   assert.deepEqual(calls.at(-1).slice(1,3), ['/metric/configs/product-config/template', target])
   await metricApi.latest(['product-config'], target)

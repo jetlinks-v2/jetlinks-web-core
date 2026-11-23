@@ -31,7 +31,7 @@ export function useMetricCollection(context: Ref<MetricContext>, scope: Ref<Metr
     loading.value = true; error.value = ''
     const query: MetricCollectionQuery = { rootType:context.value.ownerType, rootId:context.value.ownerId, memberType:scope.value.memberType,
       depth:depth.value, group:group.value, ...(selectedGroups.value && selectedGroups.value.length > 1 ? {groups:selectedGroups.value} : {}), templateId:selection.value?.templateId,
-      ...(selection.value?.templateId ? {pageByMember:true} : {}), operation:selection.value ? 'collection' : operation.value, pageIndex:page.value - 1, pageSize:20, includeUnconfigured:true }
+      pageByMember:selection.value ? true : operation.value==='collection', operation:selection.value ? 'collection' : operation.value, pageIndex:page.value - 1, pageSize:20, includeUnconfigured:true }
     try {
       const next = await api.collection(query)
       if (stopped || current !== sequence) return

@@ -506,6 +506,8 @@ export interface MetricApi {
   aggregations(): Promise<MetricAggregationDescriptor[]>
   simulateConfig(request: MetricConfigSimulationRequest): Promise<MetricSimulationResponse>
   getConfig(id: string, target?: MetricDataTarget): Promise<MetricConfig>
+  getResultConfig(id: string, target?: MetricDataTarget): Promise<MetricConfig>
+  resultTemplate(id: string, target?: MetricDataTarget): Promise<MetricTemplate>
   byOwner(type: string, id: string): Promise<MetricConfig[]>
   selectable(): Promise<MetricTemplateEntity[]>
   configTemplate(id: string, target?: MetricDataTarget): Promise<MetricTemplate>

@@ -56,7 +56,7 @@ test('同一配置不同来源的历史互相隔离，共用所选时段并保�
 
 test('概览、详情与辅助输出共享同一配置历史，不重复 latest/getConfig；趋势范围不改变当前值', async () => {
   const calls = []
-  const api = { history: async (id, request) => { calls.push({ id, request }); return [result('score', 0), result('condition', false)] }, latest: () => assert.fail('must share latest'), getConfig: () => assert.fail('must share configuration') }
+  const api = { history: async (id, request) => { calls.push({ id, request }); return [result('score', 0), result('condition', false)] }, latest: () => assert.fail('must share latest'), getResultConfig(...args) { return this.getConfig(...args) }, getConfig: () => assert.fail('must share configuration') }
   const f = fixture(api)
   try {
     f.trends.observe('a', {}); await flush()

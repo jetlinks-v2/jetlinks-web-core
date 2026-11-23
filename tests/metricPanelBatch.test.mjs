@@ -34,7 +34,7 @@ test('149配置按128分批且刷新不重入；失败批次保留错误，不�
   const { renderer, root } = createMetricRenderer()
   const app = renderer.createApp({ setup() {
     view = useMetricPanel(ref({ ownerType: 'line', ownerId: 'a', editable: true }), {
-      byOwner: async () => Array.from({ length: 149 }, (_, index) => config(index)), configTemplate: async () => template,
+      byOwner: async () => Array.from({ length: 149 }, (_, index) => config(index)), resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate: async () => template,
       latest: async ids => { calls.push([...ids]); if (failed && ids[0] === 'config-128') throw new Error('batch storage unavailable'); return ids.filter(id => !failed || id !== 'config-0').map(configId => ({ configId, outputs: { value: { metricId: 'value', value: 0 } } })) }
     })
     return () => null
@@ -64,6 +64,7 @@ test('配置与最新值临时读取失败保留已打开详情，恢复不重�
   const app=renderer.createApp({setup(){
     view=useMetricPanel(ref({ownerType:'line',ownerId:'a'}),{
       byOwner:async()=>{if(failure==='config')throw new Error('config timeout');return[config(1)]},
+      resultTemplate(...args) { return this.configTemplate(...args) },
       configTemplate:async()=>template,
       latest:async ids=>{if(failure==='latest')throw new Error('latest timeout');return denied ? [] : ids.map(configId=>({configId,outputs:{value:{metricId:'value',value:7}}}))},
     });return()=>null
@@ -92,6 +93,7 @@ test('同版本的固定修订分别缓存，升级后读取新修订且保留�
   const app = renderer.createApp({ setup() {
     view = useMetricPanel(ref({ ownerType:'line', ownerId:'a' }), {
       byOwner:async () => items,
+      resultTemplate(...args) { return this.configTemplate(...args) },
       configTemplate:async id => {
         reads.push(id)
         const revision = items.find(item => item.id === id).templateRevision || 1
@@ -129,7 +131,7 @@ test('配置删除失败保留引用与配置，成功后清理并刷新，维�
   const { renderer, root } = createMetricRenderer()
   const app = renderer.createApp({ setup() {
     view = useMetricPanel(owner, {
-      byOwner: async () => items, configTemplate: async () => template,
+      byOwner: async () => items, resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate: async () => template,
       latest: async ids => ids.map(configId => ({ configId, outputs: {} })),
       removeConfig: async () => { removes++; if (failure) throw new Error('Referenced by an enabled rule'); items = [] }
     })
@@ -164,6 +166,7 @@ function initialReferenceFixture(initial, state = {}) {
   const app = renderer.createApp({ setup() {
     view = useMetricPanel(owner, {
       byOwner: async () => options.items,
+      resultTemplate(...args) { return this.configTemplate(...args) },
       configTemplate: async id => {
         if (options.templateFailure === id) throw new Error('Fixed template temporarily unavailable')
         return options.missingOutput ? { ...metadata, outputs: [] } : metadata
@@ -239,7 +242,7 @@ test('批量latest保留运行反馈，成功缺字段和拒权清理旧反馈�
   const { renderer, root } = createMetricRenderer()
   const app = renderer.createApp({ setup() {
     view = useMetricPanel(ref({ ownerType: 'line', ownerId: 'a' }), {
-      byOwner: async () => [config(1)], configTemplate: async () => template,
+      byOwner: async () => [config(1)], resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate: async () => template,
       latest: async ids => { if (fail) throw new Error('temporary'); return denied ? [] : ids.map(configId => ({ configId, outputs: {}, ...(runtime ? { runtime } : {}) })) }
     }); return () => null
   } })
@@ -276,6 +279,7 @@ function panelWriteFixture() {
         if (pending) await pending.promise
         return [1, 2].map(index => ({ ...config(index), ownerId: id, targetId: id }))
       },
+      resultTemplate(...args) { return this.configTemplate(...args) },
       configTemplate: async () => template,
       latest: async ids => ids.map(configId => ({ configId, outputs: {} })),
       saveConfig: request, removeConfig: request,

@@ -25,7 +25,8 @@ test('关联卡片共用原展示上下文和有界历史，详情隔离宿主�
   const template={id:'t',options:{icon:'WifiOutlined'},inputDefinitions:[],parameterDefinitions:[],definitions:[],outputs:[{metricId:'usage',label:'Usage',persist:true},{metricId:'count',label:'Count',persist:true}]}
   Object.assign(api,{
     latest:async()=>hold ? new Promise(resolve=>{finish=resolve}) : [{configId:'shared',outputs:{usage:{value:7},count:{value:2}}}],
-    getConfig:async()=>({id:'shared',state:'enabled',ownerType:'product',ownerId:'product'}),configTemplate:async()=>template,
+    getResultConfig(...args) { return this.getConfig(...args) },
+    getConfig:async()=>({id:'shared',state:'enabled',ownerType:'product',ownerId:'product'}),resultTemplate(...args) { return this.configTemplate(...args) },configTemplate:async()=>template,
     history:async(id,request)=>{calls.push([id,request]);return [{metricId:'usage',value:7},{metricId:'count',value:2}]},
   })
   const page=ref({items:links}),state={page:{data:page,state:ref({status:'ready'})},busy:ref(false),mutationError:ref(''),pendingAdd:ref(),refresh:async()=>{}}

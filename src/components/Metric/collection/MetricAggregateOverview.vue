@@ -12,10 +12,10 @@
         </div>
         <div class="aggregate-overview__field"><span>{{ t('metric') }}</span><MetricCollectionPicker :groups="choices" :value="selectedTemplates" templates @change="selectTemplates" /></div>
       </div>
-      <div class="aggregate-overview__period"><MetricTimeRange v-model:range="range" v-model:custom-range="customRange" compact /><a-tooltip :title="t('refresh')"><a-button type="text" size="small" shape="circle" :loading="loading" :aria-label="t('refresh')" @click="refresh(true)"><AIcon type="ReloadOutlined" /></a-button></a-tooltip><a-tooltip :title="[t(scope.kind==='linked' ? 'addedScopeHint' : 'memberScopeHint'),t('aggregateHistoryHint')].join(' ')"><a-button type="text" size="small" shape="circle" :aria-label="t('summaryRules')"><AIcon type="QuestionCircleOutlined" /></a-button></a-tooltip></div>
+      <div class="aggregate-overview__period"><MetricTimeRange v-model:range="range" v-model:custom-range="customRange" compact /><a-tooltip :title="t('refresh')"><a-button type="text" size="small" shape="circle" :loading="loading" :aria-label="t('refresh')" @click="refresh()"><AIcon type="ReloadOutlined" /></a-button></a-tooltip><a-tooltip :title="[t(scope.kind==='linked' ? 'addedScopeHint' : 'memberScopeHint'),t('aggregateHistoryHint')].join(' ')"><a-button type="text" size="small" shape="circle" :aria-label="t('summaryRules')"><AIcon type="QuestionCircleOutlined" /></a-button></a-tooltip></div>
     </header>
     <div v-if="result" class="aggregate-overview__note"><time>{{ error ? t('previousResults')+' · ' : '' }}{{ t('refreshed',{time:new Date(result.readTime).toLocaleTimeString(String(locale))}) }}</time></div>
-    <a-alert v-if="error" type="error" show-icon :message="t('overviewFailed')" :description="error"><template #action><a-button @click="refresh(true)">{{ t('retry') }}</a-button></template></a-alert>
+    <a-alert v-if="error" type="error" show-icon :message="t('overviewFailed')" :description="error"><template #action><a-button @click="refresh()">{{ t('retry') }}</a-button></template></a-alert>
     <a-skeleton v-if="loading && !result" active :paragraph="{rows:5}" />
     <template v-else>
       <a-empty v-if="emptyReason && !error" class="aggregate-overview__empty" :image="simpleImage" :description="t(emptyReason)">
@@ -41,7 +41,7 @@ import MetricTimeRange from '../MetricTimeRange.vue'
 import MetricAggregateCard from './MetricAggregateCard.vue'
 import MetricCollectionPicker from './MetricCollectionPicker.vue'
 import {useMetricAggregate} from './useMetricAggregate'
-import {aggregateCards,aggregateDirectory,aggregateScopeKey} from './aggregatePresentation'
+import {aggregateCards,aggregateScopeKey} from './aggregatePresentation'
 import {collectionMessages} from './messages'
 import type {MetricContext} from '../types'
 import type {MetricAggregateScope,MetricCollectionSelection} from './types'
@@ -49,27 +49,24 @@ const props=defineProps<{context:MetricContext;scope:MetricAggregateScope;scopes
 const emit=defineEmits<{(event:'members',selection:MetricCollectionSelection):void;(event:'scope',key:string):void;(event:'metrics'):void}>()
 const {t,locale}=useI18n({useScope:'local',messages:collectionMessages})
 const simpleImage=Empty.PRESENTED_IMAGE_SIMPLE
-const {result,catalog,directory,selectedTemplates,selectTemplates,error,loading,range,customRange,descendants,refresh,observe,isVisible}=useMetricAggregate(toRef(props,'context'),toRef(props,'scope'))
+const {result,directory,selectedTemplates,selectTemplates,error,loading,range,customRange,descendants,refresh,observe,isVisible}=useMetricAggregate(toRef(props,'context'),toRef(props,'scope'))
 const depthLabel=(value:boolean)=>t(props.scope.memberType===props.context.ownerType ? value ? 'allChildren' : 'directChildren' : value ? 'descendants' : 'direct')
-const choices=computed(()=>directory.value || (result.value?.groups || []).map(group=>({...group,total:0})))
+const choices=computed(()=>directory.value || [])
 const cards=computed(()=>{
-  const cards=aggregateCards(aggregateDirectory(result.value?.groups || [],directory.value || [])
+  const cards=aggregateCards((result.value?.groups || [])
     .filter(group=>!selectedTemplates.value || selectedTemplates.value.includes(group.templateId)))
   return cards.map(card=>{const group=card.groups[0],variants=cards.filter(item=>item.groups[0].templateId===group.templateId)
     return {...card,variant:variants.length>1 ? t('cardVariant',{index:variants.indexOf(card)+1}) : undefined}
   })
 })
 const hasRecordedResults=computed(()=>cards.value.some(card=>card.groups.some(group=>!group.availability)))
-const canViewCurrent=computed(()=>props.scope.kind==='members' && (hasRecordedResults.value || (catalog.value ? catalog.value.visibleMembers>0 : !!result.value?.groups.length)))
-// 只用已授权目录和历史可用性区分空态，不把记录数量当作成员总数。
+const canViewCurrent=computed(()=>props.scope.kind==='members' && !!result.value?.groups.length)
 const emptyReason=computed(()=>{
   if(!result.value)return undefined
-  // 历史查询比目录新，新增成员的真实结果不能被旧的空目录遮住。
   if(hasRecordedResults.value)return undefined
-  if(catalog.value?.visibleMembers===0)return 'aggregateNoMembers'
   if(!cards.value.length){
     if(selectedTemplates.value)return 'aggregateNoMatch'
-    return catalog.value && !catalog.value.groups.length ? 'aggregateNoMetrics' : result.value.availability==='unsupported' ? 'aggregateUnsupported' : 'aggregateEmpty'
+    return result.value.availability==='unsupported' ? 'aggregateUnsupported' : 'aggregateEmpty'
   }
   const groups=cards.value.flatMap(card=>card.groups)
   if(groups.every(group=>group.availability==='unsupported'))return 'aggregateUnsupported'

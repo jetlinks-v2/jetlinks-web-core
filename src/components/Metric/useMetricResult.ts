@@ -43,7 +43,7 @@ export function useMetricResult(reference: Ref<MetricReference | undefined>, api
     let historyRequested = false
     try {
       const [live, config] = await Promise.all([target ? api.latest([configId], target) : api.latest([configId]),
-        target ? api.getConfig(configId, target) : api.getConfig(configId)])
+        target ? api.getResultConfig(configId, target) : api.getResultConfig(configId)])
       // 抽屉关闭、撤权或切换输出后，不再为已卸载的详情继续发起历史请求。
       if (token !== generation) return
       const authorized = live.find(item => item.configId === configId)
@@ -122,7 +122,7 @@ function streamingResult(reference: Ref<MetricReference | undefined>, api: Metri
     if (!selected) return
     reading.value = true; readError.value = ''
     try {
-      const config = await api.getConfig(selected.configId, selected.targetType && selected.targetId ? { targetType: selected.targetType, targetId: selected.targetId } : undefined)
+      const config = await api.getResultConfig(selected.configId, selected.targetType && selected.targetId ? { targetType: selected.targetType, targetId: selected.targetId } : undefined)
       if (token === generation) configuration.value = config
     } catch (cause) { if (token === generation) readError.value = errorText(cause) }
     finally { if (token === generation) reading.value = false }

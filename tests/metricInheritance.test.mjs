@@ -32,7 +32,7 @@ test('inherited device results update live without editing the product or accept
   const streams = [], targets = []
   let writes = 0, allowed = true, historyReads = 0, view, trends
   const api = {
-    byOwner:async () => [config], configTemplate:async (_id, target) => { targets.push(target); return template },
+    byOwner:async () => [config], resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate:async (_id, target) => { targets.push(target); return template },
     latest:async (ids, target) => allowed ? ids.map(configId => ({ configId, outputs:{ duration:value(target.targetId, target.targetId === 'A' ? 10 : 30, 100) } })) : [],
     saveConfig:async () => { writes++ },
     history:async () => { historyReads++; return [] },
@@ -91,7 +91,7 @@ test('metadata synchronization recovers a failed stream while retaining a health
   const streams = []
   let reads=0, view
   const api = {
-    byOwner:async()=>configs, configTemplate:async()=>template,
+    byOwner:async()=>configs, resultTemplate(...args) { return this.configTemplate(...args) }, configTemplate:async()=>template,
     latest:async(ids,target)=>{ reads++; return ids.map(id=>({configId:id,outputs:{duration:{...value(target.targetId,10,100),tags:{configId:id,enabledAt:1}}}})) },
     watchLatest:(ids,target,interval,next,error)=>{ const stream={ids,next,error,stopped:false}; streams.push(stream); return()=>{stream.stopped=true} },
   }

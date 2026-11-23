@@ -31,7 +31,8 @@ import { useI18n } from 'vue-i18n'
 import { metricOutputPresentation } from '../outputPresentation'
 import { collectionMessages } from './messages'
 import type { MetricCollectionGroup } from './types'
-const props = defineProps<{ groups:MetricCollectionGroup[]; value?:string[]; templates?:boolean }>()
+type PickerGroup = Pick<MetricCollectionGroup, 'id' | 'templateId' | 'templateName' | 'version' | 'revision' | 'output' | 'stateLabels'>
+const props = defineProps<{ groups:PickerGroup[]; value?:string[]; templates?:boolean }>()
 const emit = defineEmits<{(event:'change',value?:string[]):void}>()
 const { t } = useI18n({useScope:'local',messages:collectionMessages})
 const simpleImage = Empty.PRESENTED_IMAGE_SIMPLE
@@ -43,7 +44,7 @@ const checked=computed(()=>new Set(draft.value || choices.value.map(item=>item.i
 const invalid=computed(()=>!!draft.value && (!draft.value.length || draft.value.length>128))
 const sections=computed(()=>{
   const query=search.value.trim().toLocaleLowerCase()
-  const templates=new Map<string,{id:string;name:string;items:MetricCollectionGroup[];duplicates:Set<string>;seen:Set<string>}>()
+  const templates=new Map<string,{id:string;name:string;items:PickerGroup[];duplicates:Set<string>;seen:Set<string>}>()
   for(const item of choices.value) {
     if(query && !`${item.templateName} ${item.output.label || ''} ${item.output.metricId}`.toLocaleLowerCase().includes(query))continue
     const key=props.templates ? 'templates' : item.templateId
@@ -56,10 +57,10 @@ const sections=computed(()=>{
   return [...templates.values()]
 })
 const isChecked=(id:string)=>checked.value.has(id)
-const categoryChecked=(items:MetricCollectionGroup[])=>items.every(item=>isChecked(item.id))
-const categoryPartial=(items:MetricCollectionGroup[])=>!categoryChecked(items) && items.some(item=>isChecked(item.id))
+const categoryChecked=(items:PickerGroup[])=>items.every(item=>isChecked(item.id))
+const categoryPartial=(items:PickerGroup[])=>!categoryChecked(items) && items.some(item=>isChecked(item.id))
 function toggle(id:string){const next=new Set(checked.value);next.has(id)?next.delete(id):next.add(id);draft.value=[...next]}
-function toggleCategory(items:MetricCollectionGroup[]){const next=new Set(checked.value);const remove=categoryChecked(items);items.forEach(item=>remove?next.delete(item.id):next.add(item.id));draft.value=[...next]}
+function toggleCategory(items:PickerGroup[]){const next=new Set(checked.value);const remove=categoryChecked(items);items.forEach(item=>remove?next.delete(item.id):next.add(item.id));draft.value=[...next]}
 function apply(){if(invalid.value)return;const allowed=new Set(choices.value.map(item=>item.id));const ids=draft.value?.filter(id=>allowed.has(id));if(ids && !ids.length)return;emit('change',ids?.length===choices.value.length ? undefined : ids);open.value=false}
 watch(open,async value=>{if(value){draft.value=props.value ? [...props.value] : undefined;search.value='';await nextTick();searchInput.value?.focus()}})
 </script>
