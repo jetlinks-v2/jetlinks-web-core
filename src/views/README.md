@@ -118,13 +118,20 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 消息中心内容与边界
 
-**告警通知详情**：Owning module 为 `runtime-ui/jetlinks-web-core`。`account/center/components/StationMessage/components/NotificationRecord/components/ViewDialog.vue` 的告警分支用字段摘要替代「告警流水」JSON，原始数据不再保留入口，完整数据仍在告警记录页查看。沿用已注册详情优先级，不改非告警通知、已读流程、后端接口或通知存储；未识别为告警的其他通知保持原展示。项目端个人中心复用此消息中心，不改 `saas-runtime-ui` 的旧弹窗副本；不新增跳转告警记录的入口。
+**站内信详情**由 `runtime-ui/jetlinks-web-core` 维护，项目端个人中心复用此页面。入口为 `account/center/components/StationMessage/components/NotificationRecord/components/ViewDialog.vue`；同目录 `alarmNotificationSummary.ts` 负责分类和白名单取值，`StationNotificationSummary.vue` 展示摘要。已注册详情、工作流和系统事件的专属模板优先。列表、已读操作、后端接口和存储不变，不修改 `saas-runtime-ui` 的旧弹窗副本。
 
-- 布局：顶部展示级别、触发 / 解除状态、告警名称和告警时间；「触发原因」单独成块，展示触发条件与实际情况；下方为告警对象字段及有内容的告警说明。空字段不占位，`0` 等有效值照常展示。
-- 对象字段按 `targetType` 优先、`topicProvider` 兜底：设备（名称、ID、所属产品）、产品（名称、ID）、组织、场景（`alarm-other`）、采集器（名称、ID）、AI 安全 / 合规告警（告警对象、所属空间、视频设备、视频通道），其余显示通用「告警对象」。告警来源与对象不同且未重复时再展示来源。
-- 触发原因优先取顶层 `triggerDesc` / `actualDesc`，兼容 `termSpec` 内的同名字段；缺少实际描述时以属性名、格式化值及单位补足，格式化值已带单位时不重复追加。解除通知展示解除时间，并以「恢复值」展示属性读数。字段只按白名单取值，不展开底层消息、条件树或绑定关系。
-- 实现入口：`components/alarmNotificationSummary.ts` 负责识别告警通知并把 `detail` / `detailJson` / 历史 `alarmInfo` 归一成展示模型，损坏的 JSON 不抛错；`components/AlarmNotificationSummary.vue` 只负责渲染；文案位于 `locales/lang/{zh,en,ja}.json` 的 `components.ViewDialog.alarm.*`。
-- 验证：在 core 目录运行 `node --test src/views/account/center/alarmNotificationSummary.test.mjs`，10 项通过，覆盖设备 / 产品 / 组织 / 场景 / 采集器 / 通用 / AI 告警、触发与解除、属性读数兜底、零值、损坏 JSON、非告警识别、组件编译及中英日文案齐全；`messageCenterView.test.mjs` 与 `personalCenterFlows.test.mjs` 回归 66 项通过。完整 `vue-tsc --noEmit` 为 511 条既有诊断，`StationMessage` 目录无诊断。通过 9200 开发服务加载真实组件、文案和样式变量，以样例数据渲染设备触发、设备解除、产品、AI、场景五种告警，布局符合预期。未验证：未登录业务环境，没有在消息中心用真实通知打开弹窗，产品 / 组织 / 采集器 / AI 告警的真实数据字段仍需业务环境确认；未执行生产构建。Commit / PR：pending。
+| 通知 | 字段来源与展示规则 |
+| --- | --- |
+| 场景执行 `scene` | `SceneNotifyActionProvider` 指定主题；通知服务的 `UserNotificationTaskExecutorProvider#createSceneDetail` 只写 `sceneName/sceneId/triggerType`。显示通知正文、`notifyTime`、场景名称、触发方式、场景 ID，不查告警级别。站内信没有运行 `contextId` 或最终结果，不从“已执行”或附近执行日志推断成功或失败。 |
+| 设备、产品、组织、场景 `alarm-other`、采集器及通用告警 | `AlarmProvider#createNotification` 以 `AlarmHistoryInfo` 提供目标、来源、名称、级别与可选原因。按 `targetType` 优先、provider 兜底展示对应的业务对象；缺名称时展示业务 ID，通用对象只标“ID”，不用收件箱 `sourceId`。目标与来源相同时不重复。告警缺名时显示通知正文；级别依次取字典名称、快照文案、有效数值。 |
+| 设备触发 / 解除 | `MessageNotifyPreprocessor#createDetail` 提供属性、显示值、单位、`event` 及可选解除时间。触发原因读取顶层或 `termSpec` 的 `triggerDesc/actualDesc`，缺实际描述时展示属性读数，保留零值且不重复单位。解除时突出 `relieveTime` 和恢复读数，实际存在的 `alarmTime` 标为“原告警时间”；只有 `notifyTime` 时标“通知时间”，不推断解除时间。 |
+| AI 安全 / 合规 | `AiAggregateTaskNotificationResultHandler#createNotificationDetail` 提供告警目标及可选空间、视频设备、通道；按名称优先、业务 ID 兜底展示，仅取指定字段，不展开识别结果、headers 或绑定。 |
+
+`NotificationInboxEntity#from` 将详情序列化为 `detailJson`；前端也兼容对象形式 `detail` 与旧告警的 `alarmInfo`。损坏 JSON 不阻断阅读，缺失字段不占位；不展示原始流水，也不补当前时间。摘要用中、英、日文案（`components.ViewDialog`）。对象字段在窄弹窗中转为单列，“原告警时间”“采集器名称”等标签不折行，长值可换行。
+
+`StationNotificationSummary.vue` 内的状态、名称、时间、分组标题、字段名和字段值统一使用正文主题字号 `--fs-14`，通过字重、颜色和分组区分层级。本地设备告警详情实测为 14px。组件生产编译、定向样式检查与 80 项告警及个人中心回归通过。类型检查仍有 511 项既有诊断。
+
+验证：在 core 运行 `node --test src/views/account/center/*.test.mjs tests/headerNotice.test.mjs`，132/132 通过（含详情、消息中心与个人中心流程 82 项）。覆盖所给 `scene` 消息、真实场景告警、设备触发与解除、资产与 AI 的 ID 兜底、三语渲染、损坏详情、扩展优先和个人中心既有流程。Chrome 在 320px / 736px 宽度用实际 Vue 弹窗与 Ant Design、隔离的 HTTP 和注册中心逐一验证 10 种布局、关闭与无横向溢出；场景不调用级别接口，模拟级别查询失败后仍可看到告警数值级别。`pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 修改前后均为 511 项既有诊断，输出一致；runtime-ui 与 core 无独立 lint 脚本，改动差异空白检查通过。core 的 `pnpm run build --outDir <临时目录>` 生产构建通过，含可视化播放器，仍有既有资源、循环分块及体积提示。未登录目标业务环境，发布后用真实通知在 `/account/center?tab=StationMessage` 复验；产品、组织、采集器及 AI 的运行数据因部署而异。
 
 - 方案：保留平台统一 ConditionFilter，补齐原型的消息类型、已读状态和时间选项。消息内容支持“包含”等现有文本条件；时间提供今天、近 7 天、近 30 天，移除对应条件即查询全部。界面继续使用平台现有筛选、列表和详情组件。
 - 列表按真实通知 provider 归组；公告能力通过业务模块注册元数据发现，通道列表为空时也保留公告收件箱，数据继续由当前用户通知接口限定范围。core 不直接依赖公告模块，保留顶部通知跳转与消息详情注册扩展。
@@ -141,15 +148,17 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 通知设置接收方式
 
-Owning module 为 `runtime-ui/jetlinks-web-core`，入口为 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}`。渠道或消息模板未配置时，表头统一显示“去绑定”，空单元格及不完整配置的提示同步使用该文案，中、英、日资源保持一致；移除原不可用通知文案及管理员变体。不增加无权限按钮的禁用或提示逻辑，沿用现有菜单导航；邮箱、手机号与第三方接收账号绑定继续使用原流程。
+Owning module 为 `runtime-ui/jetlinks-web-core`，入口为 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}`。渠道或消息模板未配置时，表头统一显示“去绑定”，空单元格及不完整配置的提示同步使用该文案，中、英、日资源保持一致；移除原不可用通知文案及管理员变体。不增加无权限按钮的禁用或提示逻辑，沿用现有菜单导航；邮箱、手机号与企业微信接收账号绑定继续使用原流程。钉钉工作通知已有业务渠道但缺少接收账号时，表头“去绑定”和勾选未订阅项均在当前页面跳转到「消息渠道 → 钉钉」并定位对应配置，不弹窗、不新开浏览器标签。缺少渠道或业务模板时仍定位相应配置页，钉钉同样使用页内跳转。浏览器返回通知设置后重新加载绑定状态，不自动订阅。
 
 可用渠道及订阅选择仍以 `/notify/channel/all` 和个人订阅接口为准。`src/api/account/notificationSubscription.ts#getNotificationNotifierConfigs_api` 通过现有 `/notifier/config/_query/no-paging` 只查询 `id/type/provider`，用于区分渠道和模板缺失，不读取通知器凭据或替代订阅数据。渠道缺失进入 `system/MessageNotification/Channels`，渠道已配置但模板缺失进入 `system/MessageNotification/Templates`，通过 `channel=type:provider` 定位对应页面。钉钉/微信个人接收使用工作通知，群机器人/服务号不能冒充；已有业务绑定优先使用真实通知器提供商。渠道查询失败保留重试反馈，不按空配置跳转，也不阻断已加载订阅的保存。
 
-公共 `src/hooks/useNotificationConfigNavigation.ts` 保留独立标签打开及返回刷新。模板入口仅有一个待配置业务时携带真实记录 ID，多业务或多资产范围时进入模板目录选择；继续传递 `topicProvider/channelProvider`。不修改后端接口、订阅保存契约、通知发送、通知模块或运营端 `ui/`，不新增单元格按钮。模板接收页及迁移边界见 [通知模块说明](../../../modules/notify-manager-ui/README.md)。
+其他接收方式的渠道和模板配置入口继续通过公共 `src/hooks/useNotificationConfigNavigation.ts` 使用独立标签及返回刷新。模板入口仅有一个待配置业务时携带真实记录 ID，多业务或多资产范围时进入模板目录选择；继续传递 `topicProvider/channelProvider`。不修改后端接口、订阅保存契约、通知发送、通知模块或运营端 `ui/`，不新增单元格按钮。模板接收页及迁移边界见 [通知模块说明](../../../modules/notify-manager-ui/README.md)。
 
 验证（2026-11-13）：core 中执行 `node --test src/views/account/center/personalCenterFlows.test.mjs src/views/account/center/notificationSettingsView.test.mjs`，65/65 通过，覆盖五类渠道缺失、仅模板缺失、具体业务/多范围、接收账号绑定、真实提供商及枚举字段、查询失败/无效响应、返回刷新和保存重试。浏览器使用真实 Vue、公共表格、Ant Design、页面、API 封装及导航 hook，验证五类渠道各自的渠道/模板共 10 次实际新标签跳转、返回刷新、联系方式事件、查询字段及三语文案；接口使用隔离响应，无脚本错误或真实业务网络请求。截图及报告位于 `/tmp/notification-binding-browser/`，本轮未将完整移动端布局作为验收项。
 
 在 `runtime-ui/` 执行 `pnpm build --outDir /tmp/notification-binding-build` 通过（1 分 54 秒，包含 visualization player），保留已有资源路径、循环分块、CSS 注释和包体积警告。`pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 修改前后均为 513 项既有诊断，忽略行列后完全一致，无新增；全量类型检查尚未通过，修复既有问题后需重跑该命令。工作区无独立 lint 脚本，变更差异空白检查通过。真实登录账号与后端未联调；通过 `pnpm dev` 在 `/account/center?tab=Subscribe` 复验渠道配置、模板配置及个人接收账号绑定后的返回刷新。
+
+钉钉页内跳转验证（2026-11-21）：上述定向测试 66/66 通过。Chrome 使用真实 Vue Router 和隔离数据验证表头与勾选均在同一浏览器标签定位 `channel=dingTalk:dingTalkMessage` 和对应 `configId`；浏览器后退后显示更新的绑定状态，未自动订阅。未使用真实账号修改成员对应。运行时生产构建通过；上述 core 类型检查修改前后均有相同的 511 项既有诊断。无独立 lint 脚本，差异空白检查通过。
 
 ### 公共组件与交互契约
 

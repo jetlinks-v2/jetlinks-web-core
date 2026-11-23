@@ -1,6 +1,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onlyMessage } from '@jetlinks-web/utils'
+import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useSystemStore } from '@jetlinks-web-core/store'
 import { useNotificationConfigNavigation } from '@jetlinks-web-core/hooks/useNotificationConfigNavigation'
@@ -64,13 +65,25 @@ function readList<T>(response: unknown): T[] {
   throw new Error('Invalid notification list')
 }
 
+/** 钉钉在当前菜单内配置；其他接收方式保留独立标签及其返回刷新机制。 */
+function useDeliveryNavigation(menuCode: string, refresh: () => Promise<void>) {
+  const menu = useMenuStore()
+  const { available, open } = useNotificationConfigNavigation(refresh, menuCode)
+  function navigate(...args: Parameters<typeof open>) {
+    const [topicProvider, channelProvider, query] = args
+    if (channelProvider !== 'notifier-dingTalk') return open(...args)
+    if (available.value) return menu.jumpPage(menuCode, { query: { ...query, topicProvider, channelProvider } })
+  }
+  return { available, open: navigate }
+}
+
 /** 只编辑服务端可用渠道；通知接收账号独立于单点登录绑定。 */
 export function useNotificationSettings() {
   const { t } = useI18n()
   const user = useUserStore()
   const system = useSystemStore()
-  const templateNavigation = useNotificationConfigNavigation(load)
-  const channelNavigation = useNotificationConfigNavigation(load, 'system/MessageNotification/Channels')
+  const templateNavigation = useDeliveryNavigation('system/MessageNotification/Templates', load)
+  const channelNavigation = useDeliveryNavigation('system/MessageNotification/Channels', load)
   const channelProviders = ref<NotificationProvider[]>([])
   const channelDefinitions = ref<NotificationChannelDefinition[]>([])
   const definitionsReady = ref(false)
@@ -361,6 +374,17 @@ export function useNotificationSettings() {
     finally { if (!disposed) saving.value = '' }
   }
 
+  function requestReceiverBinding(target: BindingTarget) {
+    const { channel } = target
+    if (channel.channelProvider === 'notifier-dingTalk') {
+      channelNavigation.open('', channel.channelProvider, {
+        channel: 'dingTalk:dingTalkMessage', configId: channel.channelConfiguration?.notifierId,
+      })
+      return
+    }
+    pendingBinding.value = target
+  }
+
   async function toggle(row: NotificationProvider, channel: DeliveryChannel, enabled: boolean) {
     if (loading.value || queryFailed.value || saving.value || channelUnavailable(channel)) return
     if (!enabled || channel.channelProvider === 'inside-mail') return save(row, channel, enabled)
@@ -371,7 +395,7 @@ export function useNotificationSettings() {
       if (!loaded || disposed) return
     }
     if (receiverFor(channel)) return save(row, channel, true)
-    pendingBinding.value = { provider: row, channel, subscribeAfterBinding: true }
+    requestReceiverBinding({ provider: row, channel, subscribeAfterBinding: true })
   }
 
   function canBindReceiver(type: string) {
@@ -385,8 +409,7 @@ export function useNotificationSettings() {
       .filter(channel => channel.channelProvider === type && !channelUnavailable(channel))
       .map(channel => ({ provider, channel })))
     const target = candidates.find(item => !receiverFor(item.channel))
-    // 表头绑定只维护接收账号，开关引导绑定成功后才继续订阅。
-    if (target) pendingBinding.value = { ...target, subscribeAfterBinding: false }
+    if (target) requestReceiverBinding({ ...target, subscribeAfterBinding: false })
   }
 
   async function bindingComplete() {
