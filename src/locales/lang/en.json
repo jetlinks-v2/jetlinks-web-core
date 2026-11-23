@@ -2319,6 +2319,7 @@
   "PersonalCenter.notificationFillContact": "Link ›",
   "PersonalCenter.notificationBindReceiver": "Link ›",
   "PersonalCenter.insideMail": "In-app",
+  "PersonalCenter.dingTalkGroupNotification": "DingTalk group notifications",
   "PersonalCenter.dingtalk": "DingTalk",
   "PersonalCenter.wechat": "WeChat",
   "PersonalCenter.sms": "SMS",

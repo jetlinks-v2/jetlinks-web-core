@@ -32,14 +32,17 @@ interface BindingTarget {
   provider: NotificationProvider; channel: DeliveryChannel; subscribeAfterBinding: boolean
 }
 
+const dingTalk = 'notifier-dingTalk'
+const dingTalkGroupProvider = 'dingTalkRobotWebHook'
+
 const templateChannels = [
-  'notifier-dingTalk', 'notifier-weixin', 'notifier-email',
+  dingTalk, 'notifier-weixin', 'notifier-email',
   'notifier-voice', 'notifier-sms', 'notifier-webhook',
 ] as const
 
-// 个人接收账号使用工作通知，群机器人和服务号配置不能代替此类渠道。
+// 钉钉订阅指向业务已绑定的群，企业微信仍使用个人工作通知。
 const subscriberNotifierProviders: Record<string, string> = {
-  'notifier-email': 'embedded', 'notifier-dingTalk': 'dingTalkMessage',
+  'notifier-email': 'embedded', [dingTalk]: dingTalkGroupProvider,
   'notifier-weixin': 'corpMessage', 'notifier-voice': 'aliyun',
   'notifier-sms': 'aliyunSms', 'notifier-webhook': 'http',
 }
@@ -51,7 +54,7 @@ const channelIcons: Record<string, string> = {
   'notifier-voice': 'PhoneOutlined', 'notifier-sms': 'MessageOutlined', 'notifier-webhook': 'ApiOutlined',
 }
 const stateValue = (state?: ChannelState) => typeof state === 'string' ? state : state?.value
-const requiresThirdParty = (channel: DeliveryChannel) => ['notifier-dingTalk', 'notifier-weixin'].includes(channel.channelProvider)
+const requiresThirdParty = (channel: DeliveryChannel) => channel.channelProvider === 'notifier-weixin'
 
 /** 查询失败不能作为空配置写回，兼容列表接口与分页结果。 */
 function readList<T>(response: unknown): T[] {
@@ -71,8 +74,8 @@ function useDeliveryNavigation(menuCode: string, refresh: () => Promise<void>) {
   const { available, open } = useNotificationConfigNavigation(refresh, menuCode)
   function navigate(...args: Parameters<typeof open>) {
     const [topicProvider, channelProvider, query] = args
-    if (channelProvider !== 'notifier-dingTalk') return open(...args)
-    if (available.value) return menu.jumpPage(menuCode, { query: { ...query, topicProvider, channelProvider } })
+    if (channelProvider !== dingTalk) return open(...args)
+    if (available.value) return menu.jumpPage(menuCode, { query: { channel: `dingTalk:${dingTalkGroupProvider}`, ...query, topicProvider, channelProvider } })
   }
   return { available, open: navigate }
 }
@@ -90,11 +93,24 @@ export function useNotificationSettings() {
   const notifierConfigs = ref<NotificationNotifierConfig[]>([])
   const configsReady = ref(false)
   const configsFailed = ref(false)
+  const groupNotifierIds = computed(() => new Set(notifierConfigs.value
+    .filter(config => stateValue(config.type) === 'dingTalk' && stateValue(config.provider) === dingTalkGroupProvider)
+    .map(config => config.id)))
+  function isGroupChannel(channel: DeliveryChannel) {
+    return configsReady.value && channel.channelProvider === dingTalk
+      && groupNotifierIds.value.has(channel.channelConfiguration?.notifierId || '')
+  }
+  function subscriptionChannels(channels: DeliveryChannel[]) {
+    const groups = channels.filter(isGroupChannel)
+    // 一个告警对应一个群。绑定不唯一时不猜目标，也不把多个群合并成一次订阅。
+    const group = groups.length === 1 ? groups[0] : undefined
+    return channels.filter(channel => channel.channelProvider !== dingTalk || channel === group)
+  }
   // /notify/channel/all 只返回已启用且当前用户可访问的类型，状态缺省遵循该接口契约。
   const providers = computed(() => channelProviders.value
     .filter(row => stateValue(row.state) !== 'disabled')
     .map(row => ({
-      ...row, matrixKey: row.id || row.provider,
+      ...row, matrixKey: row.id || row.provider, channels: subscriptionChannels(row.channels),
       // 展示名称随界面语言变化；保留原始 name，保存订阅时不改写接口名称。
       displayName: resolveNotificationProviderName(row.provider, row.name),
     })))
@@ -114,7 +130,7 @@ export function useNotificationSettings() {
   const profile = computed(() => user.userInfo as { email?: string; telephone?: string; name?: string; username?: string })
 
   const channelNames: Record<string, string> = {
-    'inside-mail': 'PersonalCenter.insideMail', 'notifier-dingTalk': 'PersonalCenter.dingtalk',
+    'inside-mail': 'PersonalCenter.insideMail',
     'notifier-weixin': 'PersonalCenter.wechat', 'notifier-email': 'PersonalCenter.notificationEmail',
     'notifier-voice': 'PersonalCenter.voice', 'notifier-sms': 'PersonalCenter.sms', 'notifier-webhook': 'PersonalCenter.notificationWebhook',
   }
@@ -127,6 +143,7 @@ export function useNotificationSettings() {
   const matrixRowNames = computed(() => Object.fromEntries(providers.value.map(row => [row.matrixKey, row.displayName])))
   // 与通知渠道页共用渠道定义的名称，避免同一渠道在两个入口显示不同名称。
   const channelLabel = (type: string) => {
+    if (type === dingTalk) return t('PersonalCenter.dingTalkGroupNotification')
     const definition = channelDefinitions.value.find(item => item.id === type)
     return t(definition?.i18nName || definition?.name || channelNames[type] || type)
   }
@@ -140,13 +157,14 @@ export function useNotificationSettings() {
   function matrixCells(provider: string, type: string) {
     const row = providers.value.find(item => item.matrixKey === provider)
     return row ? row.channels.filter(channel => channel.channelProvider === type).map(channel => ({
-      channel, checked: channelChecked(row, channel), unavailable: channelUnavailable(channel),
+      channel, label: type === dingTalk ? channelLabel(type) : channel.name, checked: channelChecked(row, channel), unavailable: channelUnavailable(channel),
       saving: saving.value === row.provider + ':' + channel.id,
     })) : []
   }
   function toggleMatrixChannel(provider: string, channel: DeliveryChannel, enabled: boolean) {
     const row = providers.value.find(item => item.matrixKey === provider)
-    if (row) return toggle(row, channel, enabled)
+    const target = row?.channels.find(item => item.id === channel.id)
+    if (row && target) return toggle(row, target, enabled)
   }
 
   function selected(row: NotificationProvider) {
@@ -170,6 +188,7 @@ export function useNotificationSettings() {
     if (['notifier-sms', 'notifier-voice'].includes(type)) {
       return maskContactValue(profile.value.telephone, 'mobile') || t('PersonalCenter.notificationNoPhone')
     }
+    if (type === dingTalk) return '' // 群目标按消息类型确定，表头没有个人接收账号。
     if (type === 'notifier-webhook') return t('PersonalCenter.notificationTemplateManaged')
     if (!providers.value.some(row => row.channels.some(channel => channel.channelProvider === type))) return ''
     if (recipientsFailed.value) return t('PersonalCenter.notificationReceiverUnavailable')
@@ -186,7 +205,7 @@ export function useNotificationSettings() {
     if (!channels.length || channels.every(channel => !!channelUnavailable(channel))) {
       return unavailableType(type)
     }
-    if (type === 'inside-mail') return t('PersonalCenter.channelEnabled')
+    if (type === 'inside-mail' || type === dingTalk) return t('PersonalCenter.channelEnabled')
     if (recipientsFailed.value && channels.some(requiresThirdParty)) return t('PersonalCenter.notificationReceiverUnavailable')
     if (type === 'notifier-email') return receiverSummary(type)
     if (['notifier-sms', 'notifier-voice'].includes(type)) return profile.value.telephone ? receiverSummary(type) : t('PersonalCenter.notificationNoPhone')
@@ -217,7 +236,7 @@ export function useNotificationSettings() {
     if (canCheckTemplate(row, type)) templateNavigation.open(row.id || row.provider, type)
   }
 
-  /** 已绑定的通知器优先；缺少业务模板时只匹配此类个人渠道，避免误用机器人配置。 */
+  /** 已绑定的可见渠道优先，缺少业务模板时回退到此接收方式的提供商。 */
   function notifierFor(type: string) {
     const notifierType = type.replace(/^notifier-/, '')
     const candidates = notifierConfigs.value.filter(config => stateValue(config.type) === notifierType)
@@ -259,6 +278,7 @@ export function useNotificationSettings() {
     if (channel.channelProvider !== 'inside-mail' && (!definitionsReady.value || receiverPolicy(channel.channelProvider) !== 'subscriber')) {
       return t('PersonalCenter.notificationChannelInfoUnavailable')
     }
+    if (channel.channelProvider === dingTalk && !isGroupChannel(channel)) return unavailableType(dingTalk)
     if (templateChannels.some(type => type === channel.channelProvider) && !channel.channelConfiguration?.templateId) {
       return t('PersonalCenter.notificationGoBind')
     }
@@ -269,6 +289,7 @@ export function useNotificationSettings() {
   }
 
   function unavailableType(type: string) {
+    if (type === dingTalk && configsFailed.value) return t('PersonalCenter.notificationChannelInfoUnavailable')
     return receiverPolicy(type) === 'explicit'
       ? t('PersonalCenter.notificationPersonalSubscriptionUnsupported')
       : t('PersonalCenter.notificationGoBind')
@@ -327,7 +348,7 @@ export function useNotificationSettings() {
       channelDefinitions.value = readList<NotificationChannelDefinition>(definitions.value)
       definitionsReady.value = true
     } catch { loadFailed = true }
-    // 渠道查询失败只阻止配置跳转，不把未知状态当作空配置，也不阻断已有订阅保存。
+    // 配置查询失败时无法识别钉钉群，但其他已知渠道仍可独立保存。
     try {
       if (configs.status === 'rejected') throw configs.reason
       const nextConfigs = readList<NotificationNotifierConfig>(configs.value)
@@ -374,20 +395,9 @@ export function useNotificationSettings() {
     finally { if (!disposed) saving.value = '' }
   }
 
-  function requestReceiverBinding(target: BindingTarget) {
-    const { channel } = target
-    if (channel.channelProvider === 'notifier-dingTalk') {
-      channelNavigation.open('', channel.channelProvider, {
-        channel: 'dingTalk:dingTalkMessage', configId: channel.channelConfiguration?.notifierId,
-      })
-      return
-    }
-    pendingBinding.value = target
-  }
-
   async function toggle(row: NotificationProvider, channel: DeliveryChannel, enabled: boolean) {
     if (loading.value || queryFailed.value || saving.value || channelUnavailable(channel)) return
-    if (!enabled || channel.channelProvider === 'inside-mail') return save(row, channel, enabled)
+    if (!enabled || channel.channelProvider === 'inside-mail' || channel.channelProvider === dingTalk) return save(row, channel, enabled)
     if (requiresThirdParty(channel)) {
       saving.value = row.provider + ':' + channel.id
       const loaded = await loadRecipients()
@@ -395,21 +405,21 @@ export function useNotificationSettings() {
       if (!loaded || disposed) return
     }
     if (receiverFor(channel)) return save(row, channel, true)
-    requestReceiverBinding({ provider: row, channel, subscribeAfterBinding: true })
+    pendingBinding.value = { provider: row, channel, subscribeAfterBinding: true }
   }
 
   function canBindReceiver(type: string) {
-    return ['notifier-dingTalk', 'notifier-weixin'].includes(type)
+    return type === 'notifier-weixin'
       && providers.value.some(row => row.channels.some(channel => channel.channelProvider === type && !channelUnavailable(channel) && !receiverFor(channel)))
   }
 
   function beginReceiverBinding(type: string) {
-    if (saving.value) return
+    if (saving.value || type !== 'notifier-weixin') return
     const candidates = providers.value.flatMap(provider => provider.channels
       .filter(channel => channel.channelProvider === type && !channelUnavailable(channel))
       .map(channel => ({ provider, channel })))
     const target = candidates.find(item => !receiverFor(item.channel))
-    if (target) requestReceiverBinding({ ...target, subscribeAfterBinding: false })
+    if (target) pendingBinding.value = { ...target, subscribeAfterBinding: false }
   }
 
   async function bindingComplete() {

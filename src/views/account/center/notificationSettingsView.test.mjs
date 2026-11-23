@@ -72,13 +72,14 @@ test('通知设置使用复选框，动态渠道图标、禁用状态和保存�
   globalThis[fixtureKey] = {
     providers: ref([{ provider: 'alarm', matrixKey: 'alarm' }]), displayedTypes: ref(types), tableColumns: ref([{ key: 'topic' }, ...types.map(key => ({ key }))]),
     loading: ref(false), failed: ref(false), configsFailed: ref(false), saving, pendingBinding: ref(), recipientsFailed: ref(false), recipientsLoading: ref(false),
-    matrixRowNames: ref({ alarm: '告警' }), channelLabel: type => type, channelIcon: type => icons[type], receiverSummary: type => type, receiverStatus: () => '状态',
-    channelHeaderAction: type => type === 'notifier-email' ? 'email' : type === 'notifier-dingTalk' ? 'configure' : undefined,
+    matrixRowNames: ref({ alarm: '告警' }), channelLabel: type => type === 'notifier-dingTalk' ? '钉钉群通知' : type, channelIcon: type => icons[type], receiverSummary: type => type, receiverStatus: () => '状态',
+    channelHeaderAction: type => type === 'notifier-email' ? 'email' : type === 'notifier-sms' ? 'configure' : undefined,
     openChannelSettings: type => calls.push(['configure', type]),
     matrixCells: (provider, type) => {
       if (provider !== 'alarm') return []
-      if (type === 'inside-mail') return [{ channel, checked: checked.value, unavailable: '', saving: saving.value === 'alarm:site' }]
-      if (type === 'notifier-voice') return [{ channel: unavailableChannel, checked: false, unavailable: '渠道不可用', saving: false }]
+      if (type === 'inside-mail') return [{ channel, label: channel.name, checked: checked.value, unavailable: '', saving: saving.value === 'alarm:site' }]
+      if (type === 'notifier-dingTalk') return [{ channel: { id: 'group', name: '钉钉 · 群机器人' }, label: '钉钉群通知', checked: false, saving: false }]
+      if (type === 'notifier-voice') return [{ channel: unavailableChannel, label: unavailableChannel.name, checked: false, unavailable: '渠道不可用', saving: false }]
       return []
     },
     toggleMatrixChannel: (...args) => calls.push(['toggle', ...args]), unavailableType: () => '未配置',
@@ -112,6 +113,10 @@ test('通知设置使用复选框，动态渠道图标、禁用状态和保存�
   assert.equal(checkboxes[0].props.ariaLabel, '告警 · inside-mail')
   assert.equal(checkboxes[1].props.disabled, true)
   assert.equal(checkboxes[4].props.disabled, true)
+  const dingCell = all(root, item => item.type === 'cell' && item.props.column === 'notifier-dingTalk')[0]
+  assert.equal(all(dingCell, item => item.type === 'checkbox-boundary').length, 1)
+  assert.equal(all(dingCell, item => item.type === 'checkbox-boundary')[0].props.ariaLabel, '告警 · 钉钉群通知')
+  assert.equal(all(dingCell, item => item.type === 'tooltip-boundary')[0].props.title, '钉钉群通知')
   const voiceCell = all(root, item => item.type === 'cell' && item.props.column === 'notifier-voice')[0]
   assert.equal(all(voiceCell, item => item.type === 'tooltip-boundary')[0].props.title, '渠道不可用')
   const emailCell = all(root, item => item.type === 'cell' && item.props.column === 'notifier-email')[0]
@@ -136,5 +141,5 @@ test('通知设置使用复选框，动态渠道图标、禁用状态和保存�
   assert.equal(configure.props.disabled, undefined)
   configure.props.onClick({ stopPropagation() {} })
   assert.deepEqual(emitted, ['email-section'])
-  assert.deepEqual(calls[2], ['configure', 'notifier-dingTalk'])
+  assert.deepEqual(calls[2], ['configure', 'notifier-sms'])
 })

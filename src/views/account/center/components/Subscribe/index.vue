@@ -90,7 +90,7 @@ const {
           <template v-for="type in displayedTypes" :key="type" #[type]="record">
             <div class="notification-settings__cell">
               <div v-for="cell in matrixCells(record.matrixKey, type)" :key="cell.channel.id" class="notification-settings__checkbox-wrapper">
-                <a-tooltip :title="cell.unavailable || cell.channel.name" :overlay-style="channelTooltipStyle">
+                <a-tooltip :title="cell.unavailable || cell.label" :overlay-style="channelTooltipStyle">
                   <span>
                     <a-spin size="small" :spinning="cell.saving">
                       <a-checkbox

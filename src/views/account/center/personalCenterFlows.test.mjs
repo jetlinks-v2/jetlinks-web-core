@@ -107,7 +107,7 @@ async function mount(t, name, args = [], overrides = {}) {
       'notifier-voice', 'notifier-sms', 'notifier-webhook',
     ].map(id => ({ id, receiverPolicy: id === 'notifier-webhook' ? 'explicit' : 'subscriber' })),
     getNotificationNotifierConfigs_api: () => [
-      ['email', 'embedded'], ['dingTalk', 'dingTalkMessage'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms'],
+      ['email', 'embedded'], ['dingTalk', 'dingTalkRobotWebHook'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms'],
     ].map(([type, provider]) => ({ id: `${type}-notifier`, type, provider })),
     getUnreadSummary_api: () => ({ topics: [] }),
     getList_api: () => ({ data: [], total: 0 }),
@@ -277,7 +277,7 @@ test('接收设置沿用通知渠道定义名称及国际化标识，配置入�
   let definitions = [
     { id: 'notifier-weixin', name: '微信', receiverPolicy: 'subscriber' },
     { id: 'notifier-email', name: '邮件', i18nName: 'channel.email.displayName', receiverPolicy: 'subscriber' },
-    { id: 'notifier-dingTalk', receiverPolicy: 'subscriber' },
+    { id: 'notifier-dingTalk', name: '钉钉', receiverPolicy: 'subscriber' },
   ]
   const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
     __menus: ['system/MessageNotification/Templates'],
@@ -286,7 +286,7 @@ test('接收设置沿用通知渠道定义名称及国际化标识，配置入�
   assert.equal(hook.channelLabel('notifier-weixin'), '微信')
   assert.equal(hook.tableColumns.value.find(column => column.key === 'notifier-weixin').title, '微信')
   assert.equal(hook.channelLabel('notifier-email'), 'channel.email.displayName')
-  assert.equal(hook.channelLabel('notifier-dingTalk'), 'PersonalCenter.dingtalk')
+  assert.equal(hook.channelLabel('notifier-dingTalk'), 'PersonalCenter.dingTalkGroupNotification')
   hook.checkTemplate(hook.providers.value[0], 'notifier-weixin')
   assert.deepEqual(ctx.calls.at(-1), { method: 'openTemplate', args: ['alarm', 'notifier-weixin'] })
   definitions = [{ id: 'notifier-weixin', name: 'WeChat', receiverPolicy: 'subscriber' }]
@@ -341,36 +341,67 @@ const dingPage = (page, topicProvider = '', query = {}) => ({
   method: 'jumpPage', args: [`system/MessageNotification/${page}`, { query: { ...query, topicProvider, channelProvider: 'notifier-dingTalk' } }],
 })
 
-test('钉钉表头和勾选均在当前页进入工作通知渠道，返回只刷新接收账号', async t => {
-  const ding = { id: 'ding', name: '总部钉钉', channelProvider: 'notifier-dingTalk', channelConfiguration: { notifierId: 'ding-notifier', templateId: 'ding-template' } }
-  const configured = { ...row, channels: [ding, mail] }
-  let bindings = [{ provider: 'unrelated-notifier', providerName: '其他账号' }]
-  const responses = {
-    __menus: ['system/MessageNotification/Channels', 'system/MessageNotification/Templates'],
-    getAllNotice: () => [configured],
-    getIsBindThird: () => bindings,
-  }
-  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], responses)
-  assert.equal(hook.receiverSummary('notifier-email'), 'te****@example.test')
-  assert.equal(hook.receiverSummary('notifier-dingTalk'), 'PersonalCenter.notificationUnboundReceiver')
-  assert.equal(hook.channelHeaderAction('notifier-dingTalk'), 'bind')
-  const target = dingPage('Channels', '', { channel: 'dingTalk:dingTalkMessage', configId: 'ding-notifier' })
-  hook.beginReceiverBinding('notifier-dingTalk')
-  assert.deepEqual(ctx.calls.at(-1), target)
-  assert.equal(hook.pendingBinding.value, undefined)
-  await hook.toggleMatrixChannel(row.provider, ding, true)
-  assert.equal(ctx.calls.filter(call => call.method === 'jumpPage').length, 2)
-  assert.equal(ctx.calls.some(call => call.method === 'openChannel' || call.method === 'openTemplate'), false)
-  assert.deepEqual(ctx.calls.at(-1), target)
-  assert.equal(hook.pendingBinding.value, undefined)
+test('工作通知和群渠道并存时每个告警只显示自己的群，勾选和取消只改这一条订阅', async t => {
+  const type = 'notifier-dingTalk'
+  const ding = (id, notifierId) => ({ id, name: '钉钉 · 群机器人', channelProvider: type, channelConfiguration: { notifierId, templateId: `tpl-${id}` } })
+  const group = ding('group-binding', 'group-config'), other = ding('other-binding', 'other-config'), work = ding('work-binding', 'work-config')
+  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
+    getAllNotice: () => [
+      { ...row, channels: [work, group, mail] }, { ...row, provider: 'security', channels: [other] },
+      { ...row, provider: 'ambiguous', channels: [group, other] },
+    ],
+    getNotificationNotifierConfigs_api: () => [
+      { id: 'work-config', type: 'dingTalk', provider: 'dingTalkMessage' },
+      { id: 'group-config', type: { value: 'dingTalk' }, provider: { value: 'dingTalkRobotWebHook' } },
+      { id: 'other-config', type: 'dingTalk', provider: 'dingTalkRobotWebHook' },
+    ],
+    getNoticeList_api: () => [{ id: 'sub', topicProvider: row.provider, notifyChannels: ['work-binding', 'mail'], topicConfig: { scope: 'current' } }],
+  })
+  const cells = hook.matrixCells(row.provider, type)
+  assert.deepEqual(cells.map(cell => [cell.channel.id, cell.label, cell.checked, cell.unavailable]), [
+    ['group-binding', 'PersonalCenter.dingTalkGroupNotification', false, ''],
+  ])
+  assert.deepEqual(hook.matrixCells('security', type).map(cell => cell.channel.id), ['other-binding'])
+  assert.deepEqual(hook.matrixCells('ambiguous', type), [])
+  await hook.toggleMatrixChannel('ambiguous', group, true)
+  assert.equal(hook.channelHeaderAction(type), undefined)
+  assert.equal(hook.receiverStatus(type), 'PersonalCenter.channelEnabled')
+  await hook.toggleMatrixChannel(row.provider, work, true)
+  await hook.toggleMatrixChannel(row.provider, other, true)
   assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
-  bindings = [...bindings, { provider: 'ding-notifier', providerName: '总部钉钉账号' }]
-  const returned = await mount(t, 'useNotificationSettings', [], responses)
-  assert.equal(returned.hook.receiverSummary('notifier-dingTalk'), '总部钉钉账号')
-  assert.equal(returned.hook.canBindReceiver('notifier-dingTalk'), false)
-  assert.equal(returned.ctx.calls.some(call => call.method === 'save_api'), false)
-  await returned.hook.toggle(configured, ding, true)
-  assert.deepEqual(returned.ctx.calls.find(call => call.method === 'save_api').args[0].notifyChannels, ['site', 'ding'])
+  await hook.toggleMatrixChannel(row.provider, group, true)
+  assert.equal(hook.matrixCells(row.provider, type)[0].checked, true)
+  await hook.toggleMatrixChannel(row.provider, group, false)
+  assert.equal(hook.matrixCells(row.provider, type)[0].checked, false)
+  const saves = ctx.calls.filter(call => call.method === 'save_api').map(call => call.args[0])
+  assert.deepEqual(saves.map(save => save.notifyChannels), [['work-binding', 'mail', 'group-binding'], ['work-binding', 'mail']])
+  assert.ok(saves.every(save => save.id === 'sub' && save.topicConfig.scope === 'current'))
+  assert.equal(hook.pendingBinding.value, undefined)
+  assert.equal(ctx.calls.some(call => ['getIsBindThird', 'jumpPage'].includes(call.method)), false)
+})
+
+test('群配置查询失败时不复用上次的群或退回工作通知，重试后读回原订阅', async t => {
+  const type = 'notifier-dingTalk'
+  const group = { id: 'delivery', name: '值班群', channelProvider: type, channelConfiguration: { notifierId: 'config', templateId: 'tpl' } }
+  let offline = false
+  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
+    getAllNotice: () => [{ ...row, channels: [group] }],
+    getNoticeList_api: () => [{ topicProvider: row.provider, notifyChannels: ['delivery'] }],
+    getNotificationNotifierConfigs_api: () => {
+      if (offline) throw Error('offline')
+      return [{ id: 'config', type: 'dingTalk', provider: 'dingTalkRobotWebHook' }]
+    },
+  })
+  assert.equal(hook.matrixCells(row.provider, type)[0].checked, true)
+  offline = true
+  await hook.load()
+  assert.deepEqual(hook.matrixCells(row.provider, type), [])
+  assert.equal(hook.unavailableType(type), 'PersonalCenter.notificationChannelInfoUnavailable')
+  await hook.toggleMatrixChannel(row.provider, group, false)
+  offline = false
+  await hook.load()
+  assert.equal(hook.matrixCells(row.provider, type)[0].checked, true)
+  assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
 })
 
 test('企业微信仍在当前页弹窗绑定，不跳转钉钉渠道', async t => {
@@ -388,25 +419,25 @@ test('企业微信仍在当前页弹窗绑定，不跳转钉钉渠道', async t 
 })
 
 test('通知接收账号查询失败不冒充未绑定，重试成功后允许继续操作', async t => {
-  const ding = { id: 'ding', name: '钉钉', channelProvider: 'notifier-dingTalk', channelConfiguration: { notifierId: 'ding-notifier', templateId: 'ding-template' } }
-  const configured = { ...row, channels: [ding] }
+  const wechat = { id: 'wechat', name: '企业微信', channelProvider: 'notifier-weixin', channelConfiguration: { notifierId: 'wechat-notifier', templateId: 'wechat-template' } }
+  const configured = { ...row, channels: [wechat] }
   let failed = true
   const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
     getAllNotice: () => [configured],
     getIsBindThird: () => {
       if (failed) throw Error('recipient unavailable')
-      return [{ provider: 'ding-notifier', providerName: '钉钉接收账号' }]
+      return [{ provider: 'wechat-notifier', providerName: '企业微信接收账号' }]
     },
   })
   assert.equal(hook.recipientsFailed.value, true)
-  assert.equal(hook.receiverSummary('notifier-dingTalk'), 'PersonalCenter.notificationReceiverUnavailable')
-  await hook.toggle(configured, ding, true)
+  assert.equal(hook.receiverSummary('notifier-weixin'), 'PersonalCenter.notificationReceiverUnavailable')
+  await hook.toggle(configured, wechat, true)
   assert.equal(hook.pendingBinding.value, undefined)
   assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
   failed = false
   assert.equal(await hook.loadRecipients(), true)
   assert.equal(hook.recipientsFailed.value, false)
-  assert.equal(hook.receiverSummary('notifier-dingTalk'), '钉钉接收账号')
+  assert.equal(hook.receiverSummary('notifier-weixin'), '企业微信接收账号')
 })
 
 test('停用或缺少通知器配置的渠道不发起保存或无效绑定', async t => {
@@ -973,7 +1004,7 @@ test('接收渠道摘要区分可用、未配置与未绑定，并保留实际�
   const admin = await mount(t, 'useNotificationSettings', [], { __menus: ['system/MessageNotification/Templates'] })
   assert.equal(admin.hook.channelHeaderAction('notifier-dingTalk'), 'configure')
   admin.hook.checkTemplate(admin.hook.providers.value[0], 'notifier-dingTalk')
-  assert.deepEqual(admin.ctx.calls.at(-1), dingPage('Templates', 'alarm'))
+  assert.deepEqual(admin.ctx.calls.at(-1), dingPage('Templates', 'alarm', { channel: 'dingTalk:dingTalkRobotWebHook' }))
 })
 
 test('密码校验区分错误原因、显式失败、异常及确认不一致', async t => {
@@ -1004,7 +1035,7 @@ test('五类接收方式按具体业务记录进入模板页，配置入口沿�
   for (const type of ['email', 'dingTalk', 'weixin', 'voice', 'sms']) {
     hook.checkTemplate(hook.providers.value[0], `notifier-${type}`)
     assert.deepEqual(ctx.calls.at(-1), type === 'dingTalk'
-      ? dingPage('Templates', business.id)
+      ? dingPage('Templates', business.id, { channel: 'dingTalk:dingTalkRobotWebHook' })
       : { method: 'openTemplate', args: [business.id, `notifier-${type}`] })
   }
   assert.equal(hook.canCheckTemplate(business, 'notifier-webhook'), false)
@@ -1181,7 +1212,7 @@ test('五类渠道未配置时统一去绑定并定位各自渠道页', async t 
     __menus: ['system/MessageNotification/Channels', 'system/MessageNotification/Templates'],
     getAllNotice: () => [{ ...row, channels: [channel] }], getNotificationNotifierConfigs_api: () => [],
   })
-  for (const [type, provider] of [['email', 'embedded'], ['dingTalk', 'dingTalkMessage'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms']]) {
+  for (const [type, provider] of [['email', 'embedded'], ['dingTalk', 'dingTalkRobotWebHook'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms']]) {
     assert.equal(hook.channelHeaderAction(`notifier-${type}`), 'configure')
     assert.equal(hook.receiverStatus(`notifier-${type}`), 'PersonalCenter.notificationGoBind')
     hook.openChannelSettings(`notifier-${type}`)
@@ -1197,7 +1228,7 @@ test('五类渠道已配置但模板缺失时定位对应业务和模板渠道',
     __menus: ['system/MessageNotification/Templates'], getAllNotice: () => [{ ...row, id: 'scope-a', channels: [channel] }],
     __permissions: () => false,
   })
-  for (const [type, provider] of [['email', 'embedded'], ['dingTalk', 'dingTalkMessage'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms']]) {
+  for (const [type, provider] of [['email', 'embedded'], ['dingTalk', 'dingTalkRobotWebHook'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms']]) {
     assert.equal(hook.channelHeaderAction(`notifier-${type}`), 'configure')
     hook.openChannelSettings(`notifier-${type}`)
     assert.deepEqual(ctx.calls.at(-1), type === 'dingTalk'
@@ -1206,17 +1237,18 @@ test('五类渠道已配置但模板缺失时定位对应业务和模板渠道',
   }
 })
 
-test('群机器人和服务号不能冒充个人工作通知渠道，已有绑定使用真实提供商', async t => {
+test('只有工作通知不能当成群通知，企业微信服务号仍不能当成工作通知', async t => {
   const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
     __menus: ['system/MessageNotification/Channels', 'system/MessageNotification/Templates'],
-    getAllNotice: () => [{ ...row, channels: [channel] }],
+    getAllNotice: () => [{ ...row, channels: [channel, { id: 'work-delivery', name: '钉钉群通知', channelProvider: 'notifier-dingTalk', channelConfiguration: { notifierId: 'work', templateId: 'work-template' } }] }],
     getNotificationNotifierConfigs_api: () => [
-      { id: 'robot', type: 'dingTalk', provider: 'dingTalkRobotWebHook' },
+      { id: 'work', type: 'dingTalk', provider: 'dingTalkMessage' },
       { id: 'official', type: 'weixin', provider: 'officialMessage' },
     ],
   })
+  assert.deepEqual(hook.matrixCells(row.provider, 'notifier-dingTalk'), [])
   hook.openChannelSettings('notifier-dingTalk')
-  assert.deepEqual(ctx.calls.at(-1), dingPage('Channels', '', { channel: 'dingTalk:dingTalkMessage' }))
+  assert.deepEqual(ctx.calls.at(-1), dingPage('Channels', '', { channel: 'dingTalk:dingTalkRobotWebHook' }))
   hook.openChannelSettings('notifier-weixin')
   assert.deepEqual(ctx.calls.at(-1), { method: 'openChannel', args: ['', 'notifier-weixin', { channel: 'weixin:corpMessage' }] })
   const bound = await mount(t, 'useNotificationSettings', [], {
@@ -1245,7 +1277,7 @@ test('配置查询失败不误判未配置，不影响已有订阅保存，重�
   await hook.load()
   assert.equal(hook.configsFailed.value, false)
   hook.openChannelSettings('notifier-dingTalk')
-  assert.deepEqual(ctx.calls.at(-1), dingPage('Channels', '', { channel: 'dingTalk:dingTalkMessage' }))
+  assert.deepEqual(ctx.calls.at(-1), dingPage('Channels', '', { channel: 'dingTalk:dingTalkRobotWebHook' }))
 })
 
 test('返回配置页刷新后依次进入模板和接收账号绑定，不自动订阅', async t => {
