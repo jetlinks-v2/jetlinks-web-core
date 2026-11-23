@@ -91,8 +91,9 @@ export function useNotificationSettings() {
   const configsReady = ref(false)
   const configsFailed = ref(false)
   // /notify/channel/all 只返回已启用且当前用户可访问的类型，状态缺省遵循该接口契约。
+  // 场景执行通知由联动动作配置，个人订阅矩阵只列出可在此配置的主题。
   const providers = computed(() => channelProviders.value
-    .filter(row => stateValue(row.state) !== 'disabled')
+    .filter(row => row.provider !== 'scene' && stateValue(row.state) !== 'disabled')
     .map(row => ({
       ...row, matrixKey: row.id || row.provider,
       // 展示名称随界面语言变化；保留原始 name，保存订阅时不改写接口名称。
