@@ -148,9 +148,13 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 通知设置接收方式
 
-`runtime-ui/jetlinks-web-core` 的 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}` 遵循「一个告警对应一个群」：个人中心的「钉钉」列只展示该消息类型已绑定的群通知，不单列机器人或工作通知。通过业务渠道的 `channelConfiguration.notifierId` 与钉钉群提供商 `dingTalkRobotWebHook` 匹配，不按渠道名称推断。勾选或取消只保存这一条真实渠道 ID 的变动，保留其他订阅；不绑定个人钉钉账号，不合并群，不调整群目标或发送逻辑。
+个人中心的订阅矩阵在 `account/center/components/Subscribe/useNotificationSettings.ts` 按主题标识隐藏场景联动（`scene`），场景告警（`alarm-other`）可在矩阵中配置。场景执行通知可在消息中心查看。
 
-可用业务渠道及订阅仍以 `/notify/channel/all` 和个人订阅接口为准。`src/api/account/notificationSubscription.ts#getNotificationNotifierConfigs_api` 只查询配置的 `id/type/provider`。缺少群配置或模板时，钉钉列保持不可选，表头「去绑定」在当前菜单定位对应群渠道或模板；配置查询失败可重试，不用个人工作通知兜底。邮箱、手机号与企业微信接收账号继续使用原流程。
+本地 9201 页面刷新、个人中心及场景通知相关的 82 项定向测试、运行时独立生产构建均验证通过。在 `runtime-ui/` 执行 `pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json`，修改前后均报告相同的 511 项既有诊断。运行时工作区未配置独立 lint 脚本。
+
+Owning module 为 `runtime-ui/jetlinks-web-core`，入口为 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}`。渠道或消息模板未配置时，表头统一显示“去绑定”，空单元格及不完整配置的提示同步使用该文案，中、英、日资源保持一致；移除原不可用通知文案及管理员变体。不增加无权限按钮的禁用或提示逻辑，沿用现有菜单导航；邮箱、手机号与企业微信接收账号绑定继续使用原流程。钉钉工作通知已有业务渠道但缺少接收账号时，表头“去绑定”和勾选未订阅项均在当前页面跳转到「消息渠道 → 钉钉」并定位对应配置，不弹窗、不新开浏览器标签。缺少渠道或业务模板时仍定位相应配置页，钉钉同样使用页内跳转。浏览器返回通知设置后重新加载绑定状态，不自动订阅。
+
+可用渠道及订阅选择仍以 `/notify/channel/all` 和个人订阅接口为准。`src/api/account/notificationSubscription.ts#getNotificationNotifierConfigs_api` 通过现有 `/notifier/config/_query/no-paging` 只查询 `id/type/provider`，用于区分渠道和模板缺失，不读取通知器凭据或替代订阅数据。渠道缺失进入 `system/MessageNotification/Channels`，渠道已配置但模板缺失进入 `system/MessageNotification/Templates`，通过 `channel=type:provider` 定位对应页面。钉钉/微信个人接收使用工作通知，群机器人/服务号不能冒充；已有业务绑定优先使用真实通知器提供商。渠道查询失败保留重试反馈，不按空配置跳转，也不阻断已加载订阅的保存。
 
 其他接收方式的渠道和模板配置入口继续通过公共 `src/hooks/useNotificationConfigNavigation.ts` 使用独立标签及返回刷新。模板入口仅有一个待配置业务时携带真实记录 ID，多业务或多资产范围时进入模板目录选择；继续传递 `topicProvider/channelProvider`。不修改后端接口、订阅保存契约、通知发送、通知模块或运营端 `ui/`，不新增单元格按钮。模板接收页及迁移边界见 [通知模块说明](../../../modules/notify-manager-ui/README.md)。
 
@@ -159,8 +163,6 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 在 `runtime-ui/` 执行 `pnpm build --outDir /tmp/notification-binding-build` 通过（1 分 54 秒，包含 visualization player），保留已有资源路径、循环分块、CSS 注释和包体积警告。`pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 修改前后均为 513 项既有诊断，忽略行列后完全一致，无新增；全量类型检查尚未通过，修复既有问题后需重跑该命令。工作区无独立 lint 脚本，变更差异空白检查通过。真实登录账号与后端未联调；通过 `pnpm dev` 在 `/account/center?tab=Subscribe` 复验渠道配置、模板配置及个人接收账号绑定后的返回刷新。
 
 钉钉页内跳转验证（2026-11-21）：上述定向测试 66/66 通过。Chrome 使用真实 Vue Router 和隔离数据验证表头与勾选均在同一浏览器标签定位 `channel=dingTalk:dingTalkMessage` 和对应 `configId`；浏览器后退后显示更新的绑定状态，未自动订阅。未使用真实账号修改成员对应。运行时生产构建通过；上述 core 类型检查修改前后均有相同的 511 项既有诊断。无独立 lint 脚本，差异空白检查通过。
-
-钉钉群通知验证（2026-11-23）：在 core 执行 `node --test src/views/account/center/*.test.mjs`，116/116 通过，覆盖同一告警同时返回工作通知与群渠道、两个告警各自的群、单选框与提示文案、勾选/取消的保存载荷及查询失败后重试。运行时生产构建通过；`pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 修改前后均为 511 项既有诊断，逐字比较无新增。无独立 lint 脚本，`git diff --check` 通过。未向真实群发消息；部署后可在 `/account/center?tab=Subscribe` 用已绑定单群的测试告警复验实际投递。
 
 ### 公共组件与交互契约
 
