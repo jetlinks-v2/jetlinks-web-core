@@ -221,6 +221,20 @@ test('通知设置只显示已启用类型，按模板顺序展示个人订阅�
   assert.equal(hook.providers.value.length, 1)
 })
 
+test('通知设置隐藏场景联动，场景告警仍在订阅矩阵中', async t => {
+  const scene = { ...row, id: 'scene-record', provider: 'scene', name: 'Scene Linkage' }
+  const sceneAlarm = { ...row, id: 'scene-alarm-record', provider: 'alarm-other', name: '场景告警' }
+  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
+    getAllNotice: () => [scene, sceneAlarm],
+    getNoticeList_api: () => ({ data: [{ topicProvider: scene.provider, state: 'enabled', notifyChannels: [channel.id] }] }),
+  })
+
+  assert.deepEqual(hook.providers.value.map(item => item.provider), [sceneAlarm.provider])
+  assert.deepEqual(hook.matrixCells(scene.id, 'inside-mail'), [])
+  assert.equal(hook.matrixCells(sceneAlarm.id, 'inside-mail')[0].checked, true)
+  assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
+})
+
 test('只有默认站内信的已启用类型仍展示，可个人订阅渠道不补造配置', async t => {
   const configured = { ...row, id: 'announcement-provider', provider: 'bulletin', channels: [channel] }
   const { hook, ctx } = await mount(t, 'useNotificationSettings', [], { getAllNotice: () => [configured] })

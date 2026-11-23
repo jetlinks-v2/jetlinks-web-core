@@ -148,6 +148,10 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 通知设置接收方式
 
+个人中心的订阅矩阵在 `account/center/components/Subscribe/useNotificationSettings.ts` 按主题标识隐藏场景联动（`scene`），场景告警（`alarm-other`）可在矩阵中配置。场景执行通知可在消息中心查看。
+
+本地 9201 页面刷新、个人中心及场景通知相关的 82 项定向测试、运行时独立生产构建均验证通过。在 `runtime-ui/` 执行 `pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json`，修改前后均报告相同的 511 项既有诊断。运行时工作区未配置独立 lint 脚本。
+
 Owning module 为 `runtime-ui/jetlinks-web-core`，入口为 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}`。渠道或消息模板未配置时，表头统一显示“去绑定”，空单元格及不完整配置的提示同步使用该文案，中、英、日资源保持一致；移除原不可用通知文案及管理员变体。不增加无权限按钮的禁用或提示逻辑，沿用现有菜单导航；邮箱、手机号与企业微信接收账号绑定继续使用原流程。钉钉工作通知已有业务渠道但缺少接收账号时，表头“去绑定”和勾选未订阅项均在当前页面跳转到「消息渠道 → 钉钉」并定位对应配置，不弹窗、不新开浏览器标签。缺少渠道或业务模板时仍定位相应配置页，钉钉同样使用页内跳转。浏览器返回通知设置后重新加载绑定状态，不自动订阅。
 
 可用渠道及订阅选择仍以 `/notify/channel/all` 和个人订阅接口为准。`src/api/account/notificationSubscription.ts#getNotificationNotifierConfigs_api` 通过现有 `/notifier/config/_query/no-paging` 只查询 `id/type/provider`，用于区分渠道和模板缺失，不读取通知器凭据或替代订阅数据。渠道缺失进入 `system/MessageNotification/Channels`，渠道已配置但模板缺失进入 `system/MessageNotification/Templates`，通过 `channel=type:provider` 定位对应页面。钉钉/微信个人接收使用工作通知，群机器人/服务号不能冒充；已有业务绑定优先使用真实通知器提供商。渠道查询失败保留重试反馈，不按空配置跳转，也不阻断已加载订阅的保存。
