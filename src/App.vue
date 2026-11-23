@@ -3,6 +3,7 @@
     :locale="language[systemStore.language]"
     :componentsLocale="componentsLocale[systemStore.language]"
     :IconConfig="iconConfig"
+    :TableConfig="runtimeTableConfig"
     :theme="themeConfig"
     :renderEmpty="renderEmpty"
   >
@@ -11,6 +12,7 @@
 </template>
 <script setup lang="ts">
 import { ConfigProvider } from '@jetlinks-web/components'
+import { paginationThemeComponents, runtimeTableConfig } from './components/CorePagination/defaults'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import enUs from 'ant-design-vue/es/locale/en_US'
@@ -79,6 +81,7 @@ const { hasPermission } = useAuthStore();
 const responsiveAntdToken = useResponsiveAntdToken()
 
 const themeConfig = computed(() => ({
+  components: paginationThemeComponents(responsiveAntdToken.token.value.controlHeight ?? antdTheme.defaultSeed.controlHeight),
   algorithm: systemStore.themeStyle === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
   token: {
     ...theme,

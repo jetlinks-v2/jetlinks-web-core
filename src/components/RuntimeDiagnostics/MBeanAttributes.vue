@@ -1,6 +1,6 @@
 <template>
   <div class="attribute-search"><a-input-search v-model:value="search" size="small" :placeholder="t('runtimeDiagnostics.attributeSearch')" allow-clear /></div>
-  <a-table :columns="columns" :data-source="filtered" row-key="name" size="small" :pagination="{ pageSize: 12, hideOnSinglePage: true, showSizeChanger: false }" :scroll="{ x: 320 }">
+  <a-table :columns="columns" :data-source="filtered" row-key="name" size="small" :pagination="{ size: 'default', pageSize: 12, hideOnSinglePage: true, showSizeChanger: false }" :scroll="{ x: 320 }">
     <template #bodyCell="{ column, record }">
       <div v-if="column.key === 'name'" class="attribute-identity"><a-tooltip :title="record.description"><strong>{{ label(record.name) }}</strong></a-tooltip><small v-if="label(record.name) !== record.name">{{ record.name }}</small><small>{{ record.type }}</small></div>
       <template v-else-if="column.key === 'value'">

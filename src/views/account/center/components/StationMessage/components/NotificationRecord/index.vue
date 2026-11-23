@@ -28,8 +28,7 @@ defineExpose({ refresh })
     <a-alert v-if="listFailed" type="error" show-icon :message="$t('PersonalCenter.messageListFailed')"><template #action><a-button type="link" @click="refresh">{{ $t('AccountCenter.retry') }}</a-button></template></a-alert>
     <j-pro-table ref="tableRef" row-key="id" mode="TABLE" :columns="columns" :request="requestNotifications"
       :params="queryParams" :default-params="defaultParams" :row-selection="rowSelection" :row-class-name="rowClassName"
-      :alert-show="false" :body-style="{ padding: 0 }" :scroll="{ x: 820, y: false }"
-      :pagination="{ defaultPageSize: 7, pageSizeOptions: ['7', '14', '28'], isShowContent: true }">
+      :alert-show="false" :body-style="{ padding: 0 }" :scroll="{ x: 820, y: false }">
       <template #headerLeftRender>
         <ConditionFilter v-model="filterTerms" class="notification-record-container__filter" :placeholder="$t('PersonalCenter.messageFilterPlaceholder')" :fields="filterFields" :common-fields="['message', typeFilterKey, 'state', 'notifyTime']" @change="onFilterChange" />
       </template>
