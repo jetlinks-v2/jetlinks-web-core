@@ -148,7 +148,7 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 通知设置接收方式
 
-`runtime-ui/jetlinks-web-core` 的 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}` 遵循「一个告警对应一个群」：个人中心只展示该消息类型已绑定的「钉钉群通知」，不单列机器人或工作通知。通过业务渠道的 `channelConfiguration.notifierId` 与钉钉群提供商 `dingTalkRobotWebHook` 匹配，不按渠道名称推断。勾选或取消只保存这一条真实渠道 ID 的变动，保留其他订阅；不绑定个人钉钉账号，不合并群，不调整群目标或发送逻辑。
+`runtime-ui/jetlinks-web-core` 的 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}` 遵循「一个告警对应一个群」：个人中心的「钉钉」列只展示该消息类型已绑定的群通知，不单列机器人或工作通知。通过业务渠道的 `channelConfiguration.notifierId` 与钉钉群提供商 `dingTalkRobotWebHook` 匹配，不按渠道名称推断。勾选或取消只保存这一条真实渠道 ID 的变动，保留其他订阅；不绑定个人钉钉账号，不合并群，不调整群目标或发送逻辑。
 
 可用业务渠道及订阅仍以 `/notify/channel/all` 和个人订阅接口为准。`src/api/account/notificationSubscription.ts#getNotificationNotifierConfigs_api` 只查询配置的 `id/type/provider`。缺少群配置或模板时，钉钉列保持不可选，表头「去绑定」在当前菜单定位对应群渠道或模板；配置查询失败可重试，不用个人工作通知兜底。邮箱、手机号与企业微信接收账号继续使用原流程。
 

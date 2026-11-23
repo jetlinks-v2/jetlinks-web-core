@@ -143,7 +143,7 @@ export function useNotificationSettings() {
   const matrixRowNames = computed(() => Object.fromEntries(providers.value.map(row => [row.matrixKey, row.displayName])))
   // 与通知渠道页共用渠道定义的名称，避免同一渠道在两个入口显示不同名称。
   const channelLabel = (type: string) => {
-    if (type === dingTalk) return t('PersonalCenter.dingTalkGroupNotification')
+    if (type === dingTalk) return t('PersonalCenter.dingtalk')
     const definition = channelDefinitions.value.find(item => item.id === type)
     return t(definition?.i18nName || definition?.name || channelNames[type] || type)
   }
@@ -157,7 +157,8 @@ export function useNotificationSettings() {
   function matrixCells(provider: string, type: string) {
     const row = providers.value.find(item => item.matrixKey === provider)
     return row ? row.channels.filter(channel => channel.channelProvider === type).map(channel => ({
-      channel, label: type === dingTalk ? channelLabel(type) : channel.name, checked: channelChecked(row, channel), unavailable: channelUnavailable(channel),
+      channel, label: type === dingTalk ? t('PersonalCenter.dingTalkGroupNotification') : channel.name,
+      checked: channelChecked(row, channel), unavailable: channelUnavailable(channel),
       saving: saving.value === row.provider + ':' + channel.id,
     })) : []
   }

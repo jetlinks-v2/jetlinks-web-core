@@ -286,7 +286,7 @@ test('接收设置沿用通知渠道定义名称及国际化标识，配置入�
   assert.equal(hook.channelLabel('notifier-weixin'), '微信')
   assert.equal(hook.tableColumns.value.find(column => column.key === 'notifier-weixin').title, '微信')
   assert.equal(hook.channelLabel('notifier-email'), 'channel.email.displayName')
-  assert.equal(hook.channelLabel('notifier-dingTalk'), 'PersonalCenter.dingTalkGroupNotification')
+  assert.equal(hook.channelLabel('notifier-dingTalk'), 'PersonalCenter.dingtalk')
   hook.checkTemplate(hook.providers.value[0], 'notifier-weixin')
   assert.deepEqual(ctx.calls.at(-1), { method: 'openTemplate', args: ['alarm', 'notifier-weixin'] })
   definitions = [{ id: 'notifier-weixin', name: 'WeChat', receiverPolicy: 'subscriber' }]

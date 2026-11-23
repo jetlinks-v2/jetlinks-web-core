@@ -72,7 +72,7 @@ test('通知设置使用复选框，动态渠道图标、禁用状态和保存�
   globalThis[fixtureKey] = {
     providers: ref([{ provider: 'alarm', matrixKey: 'alarm' }]), displayedTypes: ref(types), tableColumns: ref([{ key: 'topic' }, ...types.map(key => ({ key }))]),
     loading: ref(false), failed: ref(false), configsFailed: ref(false), saving, pendingBinding: ref(), recipientsFailed: ref(false), recipientsLoading: ref(false),
-    matrixRowNames: ref({ alarm: '告警' }), channelLabel: type => type === 'notifier-dingTalk' ? '钉钉群通知' : type, channelIcon: type => icons[type], receiverSummary: type => type, receiverStatus: () => '状态',
+    matrixRowNames: ref({ alarm: '告警' }), channelLabel: type => type === 'notifier-dingTalk' ? '钉钉' : type, channelIcon: type => icons[type], receiverSummary: type => type, receiverStatus: () => '状态',
     channelHeaderAction: type => type === 'notifier-email' ? 'email' : type === 'notifier-sms' ? 'configure' : undefined,
     openChannelSettings: type => calls.push(['configure', type]),
     matrixCells: (provider, type) => {
@@ -113,9 +113,11 @@ test('通知设置使用复选框，动态渠道图标、禁用状态和保存�
   assert.equal(checkboxes[0].props.ariaLabel, '告警 · inside-mail')
   assert.equal(checkboxes[1].props.disabled, true)
   assert.equal(checkboxes[4].props.disabled, true)
+  const dingHeader = headings.find(item => item.props.column === 'notifier-dingTalk')
+  assert.equal(text(all(dingHeader, item => item.props.class === 'notification-settings__channel-title')[0]), '钉钉')
   const dingCell = all(root, item => item.type === 'cell' && item.props.column === 'notifier-dingTalk')[0]
   assert.equal(all(dingCell, item => item.type === 'checkbox-boundary').length, 1)
-  assert.equal(all(dingCell, item => item.type === 'checkbox-boundary')[0].props.ariaLabel, '告警 · 钉钉群通知')
+  assert.equal(all(dingCell, item => item.type === 'checkbox-boundary')[0].props.ariaLabel, '告警 · 钉钉')
   assert.equal(all(dingCell, item => item.type === 'tooltip-boundary')[0].props.title, '钉钉群通知')
   const voiceCell = all(root, item => item.type === 'cell' && item.props.column === 'notifier-voice')[0]
   assert.equal(all(voiceCell, item => item.type === 'tooltip-boundary')[0].props.title, '渠道不可用')
