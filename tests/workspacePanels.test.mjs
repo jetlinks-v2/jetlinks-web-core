@@ -81,11 +81,11 @@ test('dynamic toolbar/default/left/both slots preserve content and update the un
       assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__header')).length, mode === 'toolbar' ? 0 : 1)
       assert.equal(state.root.children[0].children.filter(node => node.type === 'div').length, 2, 'the layout contains only its two panes')
       const button = state.buttons()[0]
-      assert.ok(hasClass(button.parent.parent, mode === 'toolbar' ? 'equal-height-columns__pane--right' : 'equal-height-columns__pane--left'), 'both headers prefer the left entry')
-      if (mode === 'both') assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__toolbar'))[0].contains(button), false)
+      assert.ok(hasClass(button.parent.parent, ['toolbar', 'both'].includes(mode) ? 'equal-height-columns__pane--right' : 'equal-height-columns__pane--left'), 'a real main toolbar owns the entry even when the left header has search')
+      if (mode === 'both') assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__header'))[0].contains(button), false)
       state.buttons()[0].props.onClick(); await flush()
       const style = state.root.children[0].props.style
-      assert.equal(style['--equal-height-columns-left-width'], mode === 'toolbar' ? '0px' : 'var(--equal-height-columns-collapsed-width)')
+      assert.equal(style['--equal-height-columns-left-width'], ['toolbar', 'both'].includes(mode) ? '0px' : 'var(--equal-height-columns-collapsed-width)')
       state.buttons()[0].props.onClick(); await flush()
     }
   } finally { state.app.unmount() }

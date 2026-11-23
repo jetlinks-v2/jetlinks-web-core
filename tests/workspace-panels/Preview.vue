@@ -20,7 +20,7 @@
             <a-menu v-model:selected-keys="selectedSpace" :items="spaces" />
           </div>
         </template>
-        <template v-if="mode === 'toolbar'" #right-header>
+        <template v-if="mode === 'toolbar' || mode === 'search'" #right-header>
           <div class="content-toolbar">
             <a-input v-model:value="search" aria-label="搜索设备" placeholder="搜索设备" allow-clear />
             <a-button type="primary">新增设备</a-button>
@@ -36,7 +36,7 @@
                 </a-space>
                 <a-button v-if="inspectorInDrawer" @click="inspectorOpen = true"><AIcon type="ProfileOutlined" />设备详情</a-button>
               </div>
-              <div v-if="mode !== 'toolbar'" class="content-toolbar content-toolbar--body">
+              <div v-if="mode !== 'toolbar' && mode !== 'search'" class="content-toolbar content-toolbar--body">
                 <a-input v-model:value="search" aria-label="搜索设备" placeholder="搜索设备" allow-clear />
                 <a-button type="primary">新增设备</a-button>
               </div>
@@ -86,7 +86,7 @@ import EqualHeightColumns from '../../src/components/EqualHeightColumns/index.vu
 import PanelResizeHandle from '../../src/components/PanelResizeHandle/index.vue'
 
 const mode = ref('search')
-const modes = [{ label: '左侧搜索', value: 'search' }, { label: '无头部回退', value: 'default' }, { label: '右侧工具栏', value: 'toolbar' }, { label: '左侧标题', value: 'left' }]
+const modes = [{ label: '双区头部', value: 'search' }, { label: '无头部回退', value: 'default' }, { label: '仅主区工具栏', value: 'toolbar' }, { label: '仅左侧标题', value: 'left' }]
 const collapsed = ref(false), collapsible = ref(true), acceptRequests = ref(true), lastRequest = ref('无')
 function requestCollapse(next: boolean) {
   lastRequest.value = `${next ? '收起' : '展开'}${acceptRequests.value ? ' · 已接受' : ' · 已拒绝'}`

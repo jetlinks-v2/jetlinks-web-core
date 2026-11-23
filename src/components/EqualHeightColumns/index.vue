@@ -50,7 +50,7 @@ const slots = useSlots()
 // useSlots 的键由渲染更新；每次读取，避免把动态插槽形态缓存为初次结果。
 const hasToolbar = () => !!slots['right-header']
 const hasLeftHeader = () => !!slots['left-header']
-const usesLeftToggle = () => hasLeftHeader() || !hasToolbar()
+const usesLeftToggle = () => !hasToolbar()
 const bodyId = `column-body-${useId()}`
 const headerId = `${bodyId}-header`
 const controlledIds = () => hasLeftHeader() ? `${bodyId} ${headerId}` : bodyId

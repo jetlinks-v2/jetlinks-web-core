@@ -45,7 +45,8 @@
         <EqualHeightColumns height="15rem" left-width="10rem" gap="var(--space-3)">
           <template #left-header><a-input v-model:value="search" aria-label="导航搜索" placeholder="搜索分类" /></template>
           <template #left><p>分类与范围内容</p></template>
-          <template #right><p>主区内容</p></template>
+          <template #right-header><strong>主区内容</strong></template>
+          <template #right><p>当前范围下的内容</p></template>
         </EqualHeightColumns>
       </section>
     </div>
