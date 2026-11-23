@@ -43,8 +43,15 @@ function createTestRenderer() {
 }
 
 function mountColumns(mode = 'default', extra = {}, accept = true) {
-  const Columns = createDashboardLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key }) } })('components/EqualHeightColumns/index.vue').default
-  const props = reactive(extra), requests = [], changes = [], draft = ref('待处理对象'), headerDraft = ref('搜索草稿'), currentMode = ref(mode)
+  const paneWidth = ref(240), containerWidth = ref(1000)
+  let measures = 0
+  const boundaries = {
+    'vue-i18n': { useI18n: () => ({ t: key => key }) },
+    '@vueuse/core': { useElementSize: () => ({ width: measures++ === 0 ? paneWidth : containerWidth }) },
+  }
+  const Handle = createDashboardLoader(boundaries)('components/PanelResizeHandle/index.vue').default
+  const Columns = createDashboardLoader({ ...boundaries, '../PanelResizeHandle/index.vue': { default: Handle, __esModule: true } })('components/EqualHeightColumns/index.vue').default
+  const props = reactive(extra), requests = [], changes = [], resizes = [], draft = ref('待处理对象'), headerDraft = ref('搜索草稿'), currentMode = ref(mode)
   let mounts = 0
   const Left = defineComponent({ setup() { onMounted(() => mounts++); return () => h('input', { 'aria-label': 'left', value: draft.value }) } })
   const state = createTestRenderer()
@@ -57,9 +64,10 @@ function mountColumns(mode = 'default', extra = {}, accept = true) {
     ...props,
     'onUpdate:collapsed': value => { requests.push(value); if (accept && props.collapsed !== undefined) props.collapsed = value },
     onCollapseChange: value => changes.push(value),
+    onResize: value => resizes.push(value),
   }, slots()) }))
   app.mount(state.root)
-  return { ...state, app, props, requests, changes, draft, headerDraft, mode: currentMode, mounts: () => mounts,
+  return { ...state, app, props, requests, changes, resizes, paneWidth, containerWidth, draft, headerDraft, mode: currentMode, mounts: () => mounts,
     buttons: () => walk(state.root, node => node.type === 'button'),
     field: label => walk(state.root, node => node.props['aria-label'] === label)[0],
     body: () => { const id = walk(state.root, node => node.type === 'button')[0]?.props['aria-controls']?.split(' ')[0]; return walk(state.root, node => node.props.id === id)[0] },
@@ -186,13 +194,13 @@ test('collapse relocates hidden header/body focus without stealing main or toolb
   }
 })
 
-function mountResize() {
+function mountResize(extra = {}) {
   const width = ref(1000)
   const Handle = createDashboardLoader({
     '@vueuse/core': { useElementSize: () => ({ width }) },
     'vue-i18n': { useI18n: () => ({ t: key => key }) },
   })('components/PanelResizeHandle/index.vue').default
-  const props = reactive({ modelValue: 360, 'aria-label': '属性面板宽度', 'aria-controls': 'properties', title: '调整属性', class: 'host-handle', style: { opacity: 0.9 } }), changes = [], state = createTestRenderer()
+  const props = reactive({ modelValue: 360, 'aria-label': '属性面板宽度', 'aria-controls': 'properties', title: '调整属性', class: 'host-handle', style: { opacity: 0.9 }, ...extra }), changes = [], state = createTestRenderer()
   const app = state.register(state.renderer.createApp({ setup: () => () => h(Handle, {
     ...props,
     'onUpdate:modelValue': value => { changes.push(value); props.modelValue = value },
@@ -265,5 +273,52 @@ test('Escape closes the resize action popover and restores its trigger focus', a
     group.props.onKeydown({ key: 'Escape', preventDefault() {}, stopPropagation() {} }); await flush()
     assert.equal(trigger.props['aria-expanded'], false)
     assert.equal(state.document.activeElement, trigger)
+  } finally { state.app.unmount() }
+})
+
+test('left-side resize follows pointer and arrow direction, shares bounds and cancels to its starting width', async () => {
+  const state = mountResize({ side: 'left' }), { separator, pointer } = state
+  try {
+    state.press('ArrowRight'); await flush(); assert.equal(state.props.modelValue, 376)
+    state.press('ArrowLeft'); await flush(); assert.equal(state.props.modelValue, 360)
+    separator.props.onPointerdown(pointer(300)); separator.props.onPointermove(pointer(400)); await flush()
+    assert.equal(state.props.modelValue, 460)
+    state.press('Escape'); await flush(); assert.equal(state.props.modelValue, 360)
+    separator.props.onPointerdown(pointer(300)); separator.props.onPointermove(pointer(900)); await flush()
+    assert.equal(state.props.modelValue, 640)
+    separator.props.onPointerup(pointer(900)); await flush()
+    separator.props.onDblclick(); await flush(); assert.equal(state.props.modelValue, 360)
+  } finally { state.app.unmount() }
+})
+
+test('resizable columns retain width and input through collapse, reset to their measured initial size and accept an external track', async () => {
+  const state = mountColumns('both', { collapsed: false, resizable: true, leftWidth: '15rem' })
+  const separator = () => walk(state.root, node => node.props.role === 'separator')[0]
+  const toggle = () => walk(state.root, node => hasClass(node, 'equal-height-columns__header-toggle'))[0]
+  const width = () => state.root.children[0].props.style['--equal-height-columns-left-width']
+  const pointer = x => ({ button: 0, clientX: x, pointerId: 1, currentTarget: separator(), preventDefault() {} })
+  try {
+    const input = state.field('left-search')
+    assert.equal(separator().props['aria-valuenow'], 240)
+    assert.ok(separator().props['aria-controls'].includes(state.field('left').parent.props.id))
+    separator().props.onPointerdown(pointer(240)); separator().props.onPointermove(pointer(320)); await flush()
+    separator().props.onPointerup(pointer(320)); await flush()
+    assert.equal(width(), '320px'); assert.deepEqual(state.resizes, [320])
+    state.props.collapsed = true; await flush()
+    assert.equal(separator(), undefined); assert.equal(width(), '0px')
+    assert.equal(state.document.activeElement, toggle())
+    state.props.collapsed = false; await flush()
+    assert.equal(width(), '320px'); assert.equal(separator().props['aria-valuenow'], 320)
+    assert.equal(state.field('left-search'), input)
+    separator().props.onDblclick(); await flush(); assert.equal(width(), '240px')
+    state.props.leftWidth = '20rem'; state.paneWidth.value = 320; await flush()
+    assert.equal(width(), '20rem'); assert.equal(separator().props['aria-valuenow'], 320)
+    state.containerWidth.value = 600; await flush()
+    assert.equal(width(), '240px'); assert.equal(separator().props['aria-valuemax'], 240)
+    separator().focus(); state.props.resizable = false; await flush()
+    assert.equal(separator(), undefined); assert.equal(width(), '240px')
+    assert.equal(state.document.activeElement, toggle())
+    toggle().props.onClick(); await flush()
+    assert.equal(state.document.activeElement, toggle(), 'explicit toggle actions retain focus after the icon changes')
   } finally { state.app.unmount() }
 })

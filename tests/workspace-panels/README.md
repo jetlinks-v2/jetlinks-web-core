@@ -15,4 +15,6 @@ node_modules/.bin/vite --config tests/workspace-panels/vite.config.mjs --configL
 
 缩小窗口后，示例宿主转为单栏并使用标准 Drawer。折叠偏好与输入由宿主持有，恢复宽屏时保留。断点和抽屉属于示例，不固化到公共组件。
 
+导航与主区之间也启用 `EqualHeightColumns` 内置调宽，与右侧详情分界线复用同一拖动逻辑；左右面板的增长方向相反。导航宽度在折叠再展开后保留。
+
 Node 行为测试替换 DOM 和 Ant 渲染边界，用于状态、事件与焦点路径；它不代替浏览器中的布局、真实指针和辅助技术验收。

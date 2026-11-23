@@ -42,7 +42,7 @@
       </section>
       <section class="fixture-section">
         <h2>分区头部与折叠</h2>
-        <EqualHeightColumns height="15rem" left-width="10rem" gap="var(--space-3)">
+        <EqualHeightColumns height="15rem" left-width="10rem" gap="var(--space-3)" resizable>
           <template #left-header><a-input v-model:value="search" aria-label="导航搜索" placeholder="搜索分类" /></template>
           <template #left><p>分类与范围内容</p></template>
           <template #right-header><strong>主区内容</strong></template>

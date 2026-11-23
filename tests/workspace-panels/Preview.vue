@@ -9,7 +9,7 @@
       </a-space>
     </div>
     <section ref="frame" class="fixture-workspace" aria-label="设备工作区">
-      <EqualHeightColumns :collapsed="collapsed" :collapsible="collapsible" :show-left="!compact"
+      <EqualHeightColumns :collapsed="collapsed" :collapsible="collapsible" :show-left="!compact" resizable
         left-width="13rem" gap="var(--space-4)" @update:collapsed="requestCollapse">
         <template v-if="mode === 'search' || mode === 'left'" #left-header>
           <a-input v-if="mode === 'search'" v-model:value="navigationDraft" aria-label="导航草稿" placeholder="搜索空间" allow-clear />

@@ -4,10 +4,11 @@ import { useElementSize } from '@vueuse/core'
 interface PanelResizeOptions {
   modelValue: number
   container?: HTMLElement
+  side?: 'left' | 'right'
   limits?: { min?: number; max?: number; contentMin?: number; initial?: number }
 }
 
-/** 右侧面板分界线：仅维护拖动会话，宽度由使用方持有，不写入业务配置。 */
+/** 面板分界线仅维护拖动会话，宽度由使用方持有，不写入业务配置。 */
 export function usePanelResize(props: PanelResizeOptions, change: (size: number) => void) {
   const { width } = useElementSize(toRef(props, 'container'))
   const min = computed(() => props.limits?.min ?? 320)
@@ -31,7 +32,10 @@ export function usePanelResize(props: PanelResizeOptions, change: (size: number)
     dragging.value = true
   }
   function move(event: PointerEvent) {
-    if (session?.pointer === event.pointerId) setSize(session.size + session.x - event.clientX)
+    if (session?.pointer === event.pointerId) {
+      const delta = event.clientX - session.x
+      setSize(session.size + (props.side === 'left' ? delta : -delta))
+    }
   }
   function finish(event?: PointerEvent) {
     if (event && session?.pointer !== event.pointerId) return

@@ -1,10 +1,12 @@
 <template>
   <div
+    ref="rootRef"
     v-bind="rootAttrs()"
     class="equal-height-columns"
     :class="[attrs.class, {
       'equal-height-columns--collapsed': isCollapsed,
       'equal-height-columns--single': !showLeft,
+      'equal-height-columns--resizable': resizable,
     }]"
     :style="[attrs.style as StyleValue, rootStyle()]"
   >
@@ -20,7 +22,11 @@
       <div v-show="!isCollapsed" :id="bodyId" class="equal-height-columns__body"
         :inert="isCollapsed ? true : undefined" :aria-hidden="isCollapsed ? true : undefined"><slot name="left" /></div>
     </div>
-    <div class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
+    <PanelResizeHandle v-if="resizable && showLeft && !isCollapsed && measuredLeftWidth > 0" ref="resizeRef"
+      class="equal-height-columns__resize" :style="{ justifySelf: 'center', marginLeft: 0 }" side="left"
+      :model-value="resizedWidth ?? measuredLeftWidth" :container="rootRef" :limits="panelLimits"
+      :aria-label="$t('components.EqualHeightColumns.resize')" :aria-controls="controlledIds()" @update:model-value="resizeLeft" />
+    <div ref="rightPaneRef" class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle" tabindex="-1">
       <header v-if="hasToolbar()" class="equal-height-columns__toolbar">
         <a-button v-if="showLeft && collapsible && !usesLeftToggle()" ref="toggleRef" type="text" size="small" class="equal-height-columns__header-toggle"
           :title="toggleText" :aria-label="toggleText" :aria-expanded="!isCollapsed" :aria-controls="controlledIds()" @click="toggleCollapse">
@@ -34,8 +40,10 @@
 </template>
 
 <script setup lang="ts" name="EqualHeightColumns">
-import { computed, ref, useAttrs, useId, useSlots, type CSSProperties, type StyleValue } from 'vue'
+import { computed, nextTick, ref, useAttrs, useId, useSlots, watch, watchEffect, type CSSProperties, type StyleValue } from 'vue'
+import { useElementSize } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
+import PanelResizeHandle from '../PanelResizeHandle/index.vue'
 import { useColumnCollapse } from './useColumnCollapse'
 
 type SizeValue = number | string
@@ -56,6 +64,11 @@ const headerId = `${bodyId}-header`
 const controlledIds = () => hasLeftHeader() ? `${bodyId} ${headerId}` : bodyId
 const { t: $t } = useI18n()
 const leftPaneRef = ref<HTMLElement>()
+const rootRef = ref<HTMLElement>()
+const rightPaneRef = ref<HTMLElement>()
+const resizeRef = ref<InstanceType<typeof PanelResizeHandle>>()
+const resizedWidth = ref<number>()
+const initialWidth = ref<number>()
 
 const props = withDefaults(
   defineProps<{
@@ -70,6 +83,9 @@ const props = withDefaults(
     collapsed?: boolean
     /** 是否显示左列，默认 true；隐藏时右列铺满容器且不显示折叠按钮 */
     showLeft?: boolean
+    /** 允许拖动分割线调整左列宽度；默认保留既有 CSS 轨道布局。 */
+    resizable?: boolean
+    resizeLimits?: { min?: number; max?: number; contentMin?: number }
   }>(),
   {
     height: '100%',
@@ -80,17 +96,36 @@ const props = withDefaults(
     collapsible: true,
     collapsed: undefined,
     showLeft: true,
+    resizable: false,
   }
 )
 
 const emit = defineEmits<{
   (event: 'update:collapsed', collapsed: boolean): void
   (event: 'collapse-change', collapsed: boolean): void
+  (event: 'resize', width: number): void
 }>()
 
 const { isCollapsed, toggleRef, toggleCollapse } = useColumnCollapse(props, leftPaneRef, collapsed => {
   emit('update:collapsed', collapsed)
   emit('collapse-change', collapsed)
+})
+
+const { width: measuredLeftWidth } = useElementSize(computed(() => props.resizable ? leftPaneRef.value : undefined))
+watchEffect(() => {
+  if (resizedWidth.value === undefined && !isCollapsed.value && measuredLeftWidth.value > 0) initialWidth.value = measuredLeftWidth.value
+})
+watch(() => props.leftWidth, () => { resizedWidth.value = undefined })
+const panelLimits = computed(() => ({ min: 160, max: 480, ...props.resizeLimits, initial: initialWidth.value }))
+function resizeLeft(width: number) {
+  resizedWidth.value = width
+  emit('resize', width)
+}
+watch([isCollapsed, () => props.showLeft, () => props.resizable], () => {
+  const handle = resizeRef.value?.$el as HTMLElement | undefined
+  if ((isCollapsed.value || !props.showLeft || !props.resizable) && handle?.contains(handle.ownerDocument.activeElement)) {
+    void nextTick(() => (toggleRef.value?.$el ?? rightPaneRef.value)?.focus({ preventScroll: true }))
+  }
 })
 
 const toggleText = computed(() => (
@@ -116,7 +151,7 @@ const rootStyle = (): Record<string, string> => ({
   '--equal-height-columns-gap': isCollapsed.value ? '0px' : toCssValue(props.gap),
   '--equal-height-columns-align': props.align,
   '--equal-height-columns-left-width': isCollapsed.value && usesLeftToggle()
-    ? 'var(--equal-height-columns-collapsed-width)' : toGridTrack(props.leftWidth, isCollapsed.value),
+    ? 'var(--equal-height-columns-collapsed-width)' : toGridTrack(resizedWidth.value ?? props.leftWidth, isCollapsed.value),
   '--equal-height-columns-right-width': toGridTrack(props.rightWidth),
 })
 

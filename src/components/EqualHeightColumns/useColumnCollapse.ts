@@ -32,6 +32,7 @@ export function useColumnCollapse(
     const next = !isCollapsed.value
     if (props.collapsed === undefined) localCollapsed.value = next
     request(next)
+    void nextTick(() => toggleRef.value?.$el?.focus({ preventScroll: true }))
   }
   return { isCollapsed, toggleRef, toggleCollapse }
 }

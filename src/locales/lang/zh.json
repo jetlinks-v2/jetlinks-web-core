@@ -776,6 +776,7 @@
   "ProjectGeneralAgent.scopePrompt": "当前会话仅处理项目 {0} 的已授权菜单和模块能力。不要跨项目引用对象或上下文。",
   "components.EqualHeightColumns.expand": "展开",
   "components.EqualHeightColumns.collapse": "收起",
+  "components.EqualHeightColumns.resize": "调整左侧区域宽度",
   "components.PanelResizeHandle.resize": "调整面板宽度",
   "components.PanelResizeHandle.shrink": "缩窄面板",
   "components.PanelResizeHandle.grow": "加宽面板",

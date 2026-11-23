@@ -3,7 +3,7 @@
     <div v-bind="separatorAttrs()" class="panel-resize-handle__separator" role="separator" tabindex="0" aria-orientation="vertical"
       :aria-label="accessibleLabel()" :aria-valuemin="min" :aria-valuemax="max" :aria-valuenow="size"
       @pointerdown="start" @pointermove="move" @pointerup="finish" @pointercancel="cancel" @lostpointercapture="cancel"
-      @dblclick="reset()" @keydown.left.prevent="grow" @keydown.right.prevent="shrink"
+      @dblclick="reset()" @keydown.left.prevent="side === 'left' ? shrink() : grow()" @keydown.right.prevent="side === 'left' ? grow() : shrink()"
       @keydown.home.prevent="setSize(min)" @keydown.end.prevent="setSize(max)" @keydown.esc.prevent="cancel()" />
     <a-popover v-model:open="controlsOpen" trigger="click" placement="right">
       <a-button ref="controlsRef" class="panel-resize-handle__controls" type="text" size="small" :aria-label="accessibleLabel()"
@@ -23,7 +23,7 @@ import { nextTick, ref, useAttrs, useId, type StyleValue } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePanelResize } from './usePanelResize'
 defineOptions({ inheritAttrs: false })
-const props = defineProps<{ modelValue: number; container?: HTMLElement; limits?: { min?: number; max?: number; contentMin?: number; initial?: number } }>()
+const props = defineProps<{ modelValue: number; container?: HTMLElement; side?: 'left' | 'right'; limits?: { min?: number; max?: number; contentMin?: number; initial?: number } }>()
 const emit = defineEmits<{ (event: 'update:modelValue', value: number): void }>()
 const attrs = useAttrs()
 const { t } = useI18n()
