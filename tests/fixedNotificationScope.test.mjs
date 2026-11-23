@@ -85,6 +85,28 @@ test('private deployment accepts the all alias only when provided by the server'
 })
 
 for (const [environment, expected] of [['', 'ignore'], ['saas', 'tenant']]) {
+  test(`${environment || 'private'} fixes subscription configuration only for global roles`, async () => {
+    const useEditor = await loadEditor(environment)
+    const type = 'notifySubscriberProvider'
+    const menus = [menu(type, 'creator', 'org'), menu('device', 'creator', 'org')]
+    const history = [policy(type, 'org')]
+    const global = useEditor({ notificationScopeMode: 'deployment' })
+    global.reset({ menus: [{ ...menus[0], granted: false }, menus[1]] })
+    global.toggleMenu(global.flatMenus.value[0], true)
+    assert.equal(global.visibleAssets.value.find(row => row.assetType === type).selectedSupportId, expected)
+    global.reset({ menus, assetAccesses: history })
+    global.applyAssetBatch('org')
+    const row = global.visibleAssets.value.find(row => row.assetType === type)
+    assert.deepEqual(row.accesses.map(option => option.supportId), [expected])
+    const snapshot = global.getGrantSnapshot([])
+    assert.deepEqual(snapshot.assetAccesses, [policy(type, expected), policy('device', 'org')])
+    assert.deepEqual(snapshot.menus[0].assetAccesses, [access(type, expected, { granted: true })])
+    const other = useEditor()
+    other.reset({ menus, assetAccesses: history })
+    assert.equal(other.visibleAssets.value.find(row => row.assetType === type).fixedScope, undefined)
+    assert.deepEqual(other.getGrantSnapshot().assetAccesses[0], history[0])
+  })
+
   test(`${environment || 'private'} global role selects its deployment scope on first grant and upgrades legacy values on save`, async () => {
     const useEditor = await loadEditor(environment)
     const editor = useEditor({ notificationScopeMode: 'deployment' })

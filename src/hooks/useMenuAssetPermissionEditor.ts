@@ -67,6 +67,10 @@ export const getMenuPermissionAssetTypes = (menu: MenuPermissionNode): string[] 
 export const isFixedNotificationAsset = (assetType: string) =>
   assetType === 'notifyConfig' || assetType === 'notifyTemplate'
 
+/** 订阅配置仅随全局角色的部署范围固定，应用角色与模板仍沿用原有策略。 */
+export const isDeploymentFixedNotificationAsset = (assetType: string) =>
+  isFixedNotificationAsset(assetType) || assetType === 'notifySubscriberProvider'
+
 const flatten = (menus: MenuPermissionNode[] = []) => {
   const result: MenuPermissionNode[] = []
   const visit = (items: MenuPermissionNode[]) => items.forEach(item => {
@@ -90,6 +94,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   const defaultSupportIds = options.defaultSupportIds || ['creator']
   const fixedScope = isPrivateDeployment() ? 'all' : 'tenant'
   const useDeploymentScope = options.notificationScopeMode === 'deployment'
+  const isFixedScopeAsset = useDeploymentScope ? isDeploymentFixedNotificationAsset : isFixedNotificationAsset
   const protectedButtonId = options.protectedButtonId || 'view'
   const menuTree = ref<MenuPermissionNode[]>([])
   const buttonBatchValues = ref<string[]>([])
@@ -253,7 +258,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
 
   const ensureVisibleDrafts = () => {
     visibleAssetIds().forEach(assetType => {
-      if (!isFixedNotificationAsset(assetType) && !assetDrafts.has(assetType)) {
+      if (!isFixedScopeAsset(assetType) && !assetDrafts.has(assetType)) {
         const supportId = getDefaultSupport(assetType)
         if (supportId) assetDrafts.set(assetType, supportId)
       }
@@ -361,7 +366,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     return Array.from(groups.entries()).map(([key, menus]) => ({ key, label: key, menus }))
   })
 
-  const selectedSupportOf = (assetType: string) => isFixedNotificationAsset(assetType)
+  const selectedSupportOf = (assetType: string) => isFixedScopeAsset(assetType)
     ? fixedSupports.value.get(assetType)?.supportId
     : assetDrafts.get(assetType)
 
@@ -369,7 +374,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     const definition = assetDefinitions.get(assetType)
     const name = assetNames.get(assetType) || definition?.name || definition?.menuName || assetType
     const selectedSupportId = selectedSupportOf(assetType)
-    if (isFixedNotificationAsset(assetType)) {
+    if (isFixedScopeAsset(assetType)) {
       const support = fixedSupports.value.get(assetType)
       const history = fixedHistory.value.get(assetType)
       const previousScopeLabels = history?.size && (history.size !== 1 || !history.has(selectedSupportId || ''))
@@ -409,7 +414,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   })
 
   const setAssetAccess = (assetType: string, supportId?: string) => {
-    if (supportId && !isFixedNotificationAsset(assetType)) assetDrafts.set(assetType, supportId)
+    if (supportId && !isFixedScopeAsset(assetType)) assetDrafts.set(assetType, supportId)
   }
 
   const applyAssetBatch = (supportId?: string) => {
@@ -537,7 +542,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     const matchingIds = fixedScope === 'all' ? ['ignore', 'all'] : ['tenant', 'tenant_member']
     const recordHistory = (assetType: string, access: unknown) => {
       const id = supportIdOf(access)
-      if (!id || !isFixedNotificationAsset(assetType)) return
+      if (!id || !isFixedScopeAsset(assetType)) return
       const labels = history.get(assetType) || new Map<string, string>()
       // 仅回显旧值，不从旧策略反推新授权的候选。
       labels.set(id, supportNameOf(source.get(assetType)?.get(id) || access))
@@ -545,7 +550,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     }
 
     sourceMenus.forEach(menu => {
-      getMenuPermissionAssetTypes(menu).filter(isFixedNotificationAsset).forEach(assetType => {
+      getMenuPermissionAssetTypes(menu).filter(isFixedScopeAsset).forEach(assetType => {
         const supports = source.get(assetType) || new Map<string, GrantableAssetSupport>()
         ;(menu.assetAccesses || []).forEach(access => {
           const type = valueOf(access.assetType)
