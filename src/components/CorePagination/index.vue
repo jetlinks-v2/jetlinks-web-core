@@ -1,0 +1,55 @@
+<template>
+  <JPagination
+    v-if="total > 0"
+    :class="{ 'core-pagination--unknown-total': !totalKnown }"
+    :page-index="current - 1"
+    :page-size="pageSize"
+    :total="total"
+    :size="size"
+    :disabled="disabled"
+    :page-size-options="pageSizeOptions"
+    :show-size-changer="showSizeChanger"
+    :show-quick-jumper="false"
+    :is-show-content="false"
+    @change="changePage"
+  />
+</template>
+
+<script setup lang="ts">
+/// <reference path="./j-pagination.d.ts" />
+import JPagination from '@jetlinks-web/components/es/ProTable/Pagination.js'
+
+const props = withDefaults(defineProps<{
+  current?: number
+  pageSize?: number
+  total?: number
+  /** 无精确总数的流式接口仍可翻页，但不能将推断的下一页边界显示为总数。 */
+  totalKnown?: boolean
+  pageSizeOptions?: string[]
+  showSizeChanger?: boolean
+  size?: 'default' | 'small'
+  disabled?: boolean
+}>(), {
+  current: 1, pageSize: 12, total: 0, totalKnown: true,
+  pageSizeOptions: () => ['12', '24', '48', '96'], showSizeChanger: true,
+})
+const emit = defineEmits<{
+  'update:current': [page: number]
+  'update:pageSize': [size: number]
+  change: [page: number, size: number]
+}>()
+
+function changePage(page: number, size: number) {
+  // 与 JProTable 一致：换容量回首页，两个模型同步后只发一次业务 change。
+  const next = size === props.pageSize ? page : 1
+  if (size !== props.pageSize) emit('update:pageSize', size)
+  if (next !== props.current) emit('update:current', next)
+  emit('change', next, size)
+}
+</script>
+
+<style scoped>
+.core-pagination--unknown-total :deep(.ant-pagination-total-text) {
+  display: none;
+}
+</style>

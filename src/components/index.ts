@@ -28,6 +28,7 @@ import { TimeSelect } from './Dashboard/components'
 import FullCalendar from './FullCalendar/index.vue'
 import Image from './Image/index.vue'
 import EditDialog from './EditDialog/index.vue'
+import CorePagination from './CorePagination'
 import CrudTable from './CrudTable/index.vue'
 import MetadataValueItem from './MetadataValueItem/index.vue'
 import VirtualScroll from './VirtualScroll/index.vue'
@@ -122,6 +123,7 @@ export default {
           .component('Image', Image)
           .component('EditDialog', EditDialog)
           .component('CrudTable', CrudTable)
+          .component('CorePagination', CorePagination)
           .component('MetadataValueItem', MetadataValueItem)
           .component('VirtualScroll', VirtualScroll)
           .component('TabsCard', TabsCard)
@@ -197,6 +199,7 @@ export default {
 }
 
 export {
+    CorePagination,
     DocumentHelp,
     FileUpload,
     AssetOwnershipCondition,

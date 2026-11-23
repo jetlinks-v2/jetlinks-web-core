@@ -213,17 +213,16 @@
         </div>
 
         <div
-          v-if="showPagination && total > pageSize"
+          v-if="showPagination && total > 0"
           class="mp-res-layout__pager"
         >
-          <a-pagination
+          <CorePagination
             v-model:current="pageIndex"
             :total="total"
-            :page-size="pageSize"
-            show-size-changer
+            v-model:page-size="pageSize"
+            :total-known="totalKnown"
             :page-size-options="pageSizeOptions"
             @change="fetchPage"
-            @showSizeChange="onPageSizeChange"
           />
         </div>
       </div>
@@ -232,6 +231,7 @@
 </template>
 
 <script setup lang="ts">
+import CorePagination from '../CorePagination'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TagFilterChip from './TagFilterChip.vue'
@@ -301,7 +301,6 @@ const props = withDefaults(
     modelValue: undefined,
     defaultKeyword: '',
     pageSize: 12,
-    pageSizeOptions: () => ['12', '24', '48'],
     showPagination: false,
     enableVersionSelect: false,
     version: undefined,
@@ -341,12 +340,13 @@ const mergedLabels = computed(() => ({ ...defaultLabels.value, ...props.labels }
 const activeType = ref('')
 const selectedTagIds = ref<string[]>([])
 const keyword = ref(typeof props.defaultKeyword === 'string' ? props.defaultKeyword.trim() : '')
-/** 分页模式：与 a-pagination 同步，从 1 开始 */
+/** 分页模式：与 CorePagination 同步，从 1 开始 */
 const pageIndex = ref(1)
 /** 滚动加载：请求下一页时使用的 0-based 页码 */
 const pageIndexScroll = ref(0)
 const pageSize = ref(props.pageSize)
 const total = ref(0)
+const totalKnown = ref(false)
 const records = ref<any[]>([])
 const listLoading = ref(false)
 const loadingMore = ref(false)
@@ -426,8 +426,10 @@ async function fetchPage() {
 
     records.value = list
     const pi = pageIndex.value
+    totalKnown.value = list.length > 0 && list.length < pageSize.value
     if (list.length < pageSize.value) {
-      total.value = (pi - 1) * pageSize.value + list.length
+      // 探测到空的下一页时保留返回上一页的入口，不显示推断值。
+      total.value = (pi - 1) * pageSize.value + (pi > 1 ? Math.max(1, list.length) : list.length)
     } else {
       total.value = pi * pageSize.value + 1
     }
@@ -618,13 +620,6 @@ function clearTagFilter() {
 }
 
 function onSearch() {
-  pageIndex.value = 1
-  if (props.showPagination) fetchPage()
-  else fetchList(true)
-}
-
-function onPageSizeChange(_: number, size: number) {
-  pageSize.value = size
   pageIndex.value = 1
   if (props.showPagination) fetchPage()
   else fetchList(true)
