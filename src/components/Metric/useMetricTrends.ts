@@ -1,7 +1,7 @@
 import { computed, onActivated, onDeactivated, onScopeDispose, ref, shallowRef, watch, type InjectionKey, type Ref } from 'vue'
 import { metricApi } from './api'
 import { errorText, newerMetricValue } from './service'
-import type { MetricApi, MetricConfig, MetricHistoryRequest, MetricReference, MetricResultFrame, MetricValue } from './types'
+import type { MetricReadApi, MetricConfig, MetricHistoryRequest, MetricReference, MetricResultFrame, MetricValue } from './types'
 
 export interface MetricTrendTarget { id: string; configId?: string; key: string; outputs: string[]; intervalOutputs?: string[]; targetType?: string; targetId?: string }
 export interface MetricHistoryState {
@@ -30,7 +30,7 @@ export function metricHistoryRequest(outputs: string[], bounds: [number, number]
 }
 
 /** 一个对象共享历史快照。只读取可见卡片与打开的详情，旧请求不写入新的对象、范围或数据版本。 */
-export function useMetricTrends(targets: Ref<MetricTrendTarget[]>, selected: Ref<MetricReference | undefined>, api: MetricApi = metricApi, timeRange?: Pick<MetricHistoryScope,'range'|'customRange'>, stream?: { interval: Ref<number>; onFrame: (id: string, frame: MetricResultFrame) => void }) {
+export function useMetricTrends(targets: Ref<MetricTrendTarget[]>, selected: Ref<MetricReference | undefined>, api: MetricReadApi = metricApi, timeRange?: Pick<MetricHistoryScope,'range'|'customRange'>, stream?: { interval: Ref<number>; onFrame: (id: string, frame: MetricResultFrame) => void }) {
   const entries = shallowRef<Record<string, MetricHistoryState>>({})
   const range = timeRange?.range || ref(3600000)
   const customRange = timeRange?.customRange || ref<[number, number]>()

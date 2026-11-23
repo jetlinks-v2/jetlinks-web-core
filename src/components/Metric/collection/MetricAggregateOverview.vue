@@ -10,7 +10,7 @@
           <strong v-else><AIcon :type="scope.icon" />{{ scope.label }}</strong>
           <a-dropdown v-if="scope.kind==='members' && scope.tree" :trigger="['click']"><a-button type="text" size="small"><AIcon type="BranchesOutlined" />{{ depthLabel(descendants) }}<AIcon type="DownOutlined" /></a-button><template #overlay><a-menu :selected-keys="[String(descendants)]" @click="descendants=$event.key==='true'"><a-menu-item v-for="value in [false,true]" :key="String(value)"><SelectOption :label="depthLabel(value)" icon="BranchesOutlined" /></a-menu-item></a-menu></template></a-dropdown>
         </div>
-        <div class="aggregate-overview__field"><span>{{ t('metric') }}</span><MetricCollectionPicker :groups="choices" :value="selectedTemplates" templates @change="selectTemplates" /></div>
+        <div class="aggregate-overview__field"><span>{{ t('metric') }}</span><MetricCollectionPicker :groups="choices" :value="selectedTemplates" templates @change="selectTemplates" @open="refreshDirectory" /></div>
       </div>
       <div class="aggregate-overview__period"><MetricTimeRange v-model:range="range" v-model:custom-range="customRange" compact /><a-tooltip :title="t('refresh')"><a-button type="text" size="small" shape="circle" :loading="loading" :aria-label="t('refresh')" @click="refresh()"><AIcon type="ReloadOutlined" /></a-button></a-tooltip><a-tooltip :title="[t(scope.kind==='linked' ? 'addedScopeHint' : 'memberScopeHint'),t('aggregateHistoryHint')].join(' ')"><a-button type="text" size="small" shape="circle" :aria-label="t('summaryRules')"><AIcon type="QuestionCircleOutlined" /></a-button></a-tooltip></div>
     </header>
@@ -49,7 +49,7 @@ const props=defineProps<{context:MetricContext;scope:MetricAggregateScope;scopes
 const emit=defineEmits<{(event:'members',selection:MetricCollectionSelection):void;(event:'scope',key:string):void;(event:'metrics'):void}>()
 const {t,locale}=useI18n({useScope:'local',messages:collectionMessages})
 const simpleImage=Empty.PRESENTED_IMAGE_SIMPLE
-const {result,directory,selectedTemplates,selectTemplates,error,loading,range,customRange,descendants,refresh,observe,isVisible}=useMetricAggregate(toRef(props,'context'),toRef(props,'scope'))
+const {result,directory,selectedTemplates,selectTemplates,error,loading,range,customRange,descendants,refresh,refreshDirectory,observe,isVisible}=useMetricAggregate(toRef(props,'context'),toRef(props,'scope'))
 const depthLabel=(value:boolean)=>t(props.scope.memberType===props.context.ownerType ? value ? 'allChildren' : 'directChildren' : value ? 'descendants' : 'direct')
 const choices=computed(()=>directory.value || [])
 const cards=computed(()=>{

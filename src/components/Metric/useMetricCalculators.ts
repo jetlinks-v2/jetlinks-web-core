@@ -1,13 +1,13 @@
 import { onScopeDispose, shallowRef, watch, type Ref } from 'vue'
 import { metricApi } from './api'
-import type { MetricApi } from './types'
+import type { MetricReadApi } from './types'
 
 /** 面板共用当前语言的算法元数据，刷新数值不重复加载；过期语言响应不覆盖新语言。 */
-export function useMetricCalculators(locale: Readonly<Ref<string>>, api: MetricApi = metricApi) {
+export function useMetricCalculators(locale: Readonly<Ref<string>>, api: MetricReadApi = metricApi) {
   return useLocalizedCatalog(locale,()=>api.calculators())
 }
 
-export function useMetricAggregations(locale: Readonly<Ref<string>>, api: MetricApi = metricApi) {
+export function useMetricAggregations(locale: Readonly<Ref<string>>, api: MetricReadApi = metricApi) {
   return useLocalizedCatalog(locale,()=>api.aggregations())
 }
 

@@ -2,10 +2,10 @@ import { computed, watch, type Ref } from 'vue'
 import { useDiagnosticQuery } from '../../hooks/useDiagnosticQuery'
 import { metricApi } from './api'
 import { metricResultReference } from './presentation'
-import type { MetricApi, MetricExecutionSnapshot, MetricExecutionView, MetricReference, MetricValue } from './types'
+import type { MetricReadApi, MetricExecutionSnapshot, MetricExecutionView, MetricReference, MetricValue } from './types'
 
 /** 详情按精确结果身份读取；跟随最新或固定历史由调用方选择，切换后取消旧请求。 */
-export function useMetricExecution(reference:Ref<MetricReference>, current:Ref<MetricValue | undefined>, active:Ref<boolean>, api:Pick<MetricApi,'execution'> = metricApi, followLatest?:Ref<boolean>) {
+export function useMetricExecution(reference:Ref<MetricReference>, current:Ref<MetricValue | undefined>, active:Ref<boolean>, api:Pick<MetricReadApi,'execution'> = metricApi, followLatest?:Ref<boolean>) {
   const query = useDiagnosticQuery<{scope:string;value:MetricValue;snapshot?:MetricExecutionSnapshot;following:boolean}>()
   const scope = computed(()=>JSON.stringify([reference.value.configId,reference.value.outputId,reference.value.targetType,reference.value.targetId]))
   const key = computed(()=>active.value && metricResultReference(current.value)

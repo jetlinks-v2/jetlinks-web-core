@@ -1,14 +1,14 @@
 import { onActivated, onDeactivated, onScopeDispose, ref, watch, type Ref } from 'vue'
 import { metricApi } from '../api'
 import { errorText } from '../service'
-import type { MetricApi, MetricConfig, MetricContext } from '../types'
+import type { MetricReadApi, MetricConfig, MetricContext } from '../types'
 import type { MetricScopeTemplateOverview } from './types'
 
 export interface MetricScopeOverviewState { data?:MetricScopeTemplateOverview; readTime?:number; members?:number; error?:string; loading?:boolean }
 const keyOf = (memberType:string, templateId:string) => JSON.stringify([memberType,templateId])
 
 /** One scope discovery per visible batch; summaries never follow the one-second latest stream or overlap requests. */
-export function useMetricScopeOverview(context:Ref<MetricContext>, configs:Ref<MetricConfig[]>, api:MetricApi = metricApi) {
+export function useMetricScopeOverview(context:Ref<MetricContext>, configs:Ref<MetricConfig[]>, api:MetricReadApi = metricApi) {
   const states = ref<Record<string,MetricScopeOverviewState>>({})
   const elements = new Map<string,Element>(), visible = new Set<string>()
   let active=true, disposed=false, generation=0, pending=false, running=false

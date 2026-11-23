@@ -1,6 +1,6 @@
-import type { MetricApi, MetricResultFrame } from './types'
+import type { MetricReadApi, MetricResultFrame } from './types'
 
-type Watch = NonNullable<MetricApi['watchResults']>
+type Watch = NonNullable<MetricReadApi['watchResults']>
 type Entry = { subscriptionId: string; configId: string; query: Parameters<Watch>[1]; ready: boolean; next: Parameters<Watch>[2]; error: Parameters<Watch>[3] }
 export interface MetricWatchTarget { subscriptionId: string; configId: string; query: Parameters<Watch>[1]; includeHistory: boolean }
 export interface MetricWatchFrame { subscriptionId: string; frame?: MetricResultFrame; error?: string }

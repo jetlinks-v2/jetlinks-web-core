@@ -147,7 +147,7 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 
 ### 业务指标
 
-`MetricPanel`、`MetricResult`、`MetricWorkspace` 与指标类型从 `@jetlinks-web-core/components` 具名导出；业务模块提供已授权对象与来源选择，通用层统一维护配置、批量 latest 与输出质量展示，见 `Metric/index.ts`。
+`MetricResult`、`MetricValueView` 与共享指标类型从 `@jetlinks-web-core/components` 具名导出，公共层提供只读计算图、历史与汇总查询。配置管理、模板设计和工作区由 `rule-engine-manager-ui` 提供，业务对象通过模块注册的 `MetricScopePanel` 接入；目录与边界见 `Metric/README.md`。
 
 公式编辑、只读反显和计算过程共用 `Expression` 的数学投影。静态 LaTeX 说明使用具名导出 `LatexView`，共用 MathLive 静态排版，不创建编辑器或求值。`MathExpressionView` 按公式自然高度布局，只对超宽内容提供横向滚动；`ExpressionWorkspace` 的放大预览在达到窗口可用高度后才整体纵向滚动，避免公式内部产生独立纵向滚动条。
 

@@ -1,11 +1,11 @@
 import { computed, onScopeDispose, ref, shallowRef, watch, type Ref } from 'vue'
 import { metricApi } from '../api'
 import { errorText } from '../service'
-import type { MetricApi, MetricHistoryAggregate, MetricHistoryOperation, MetricReference, MetricValue } from '../types'
+import type { MetricReadApi, MetricHistoryAggregate, MetricHistoryOperation, MetricReference, MetricValue } from '../types'
 
 /** 按需查询已存结果；不轮询，不重算，不把时间桶绑定到任意一条执行记录。 */
 export function useMetricHistoryAggregate(reference:Ref<MetricReference>, bounds:Ref<[number,number] | undefined>,
-  available:Ref<boolean>, api:MetricApi = metricApi, dataVersion?:Ref<string | undefined>, queryKey?:Ref<string | undefined>, initialOperation?:Ref<MetricHistoryOperation | ''>, bucketCount?:Ref<number>) {
+  available:Ref<boolean>, api:MetricReadApi = metricApi, dataVersion?:Ref<string | undefined>, queryKey?:Ref<string | undefined>, initialOperation?:Ref<MetricHistoryOperation | ''>, bucketCount?:Ref<number>) {
   const operations = shallowRef<MetricHistoryAggregate['operations']>([])
   const operation = ref<MetricHistoryOperation | ''>(''), interval = ref(0)
   const response = shallowRef<MetricHistoryAggregate>(), loading = ref(false), error = ref('')

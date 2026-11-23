@@ -1,5 +1,5 @@
 import { errorText } from '../service'
-import type { MetricApi, MetricDataTarget, MetricRuntime, MetricValue } from '../types'
+import type { MetricReadApi, MetricDataTarget, MetricRuntime, MetricValue } from '../types'
 
 /** 先按实际目标归组再按接口上限切批；单次读取与持续订阅共用同一请求边界。 */
 export function metricLatestBatches(ids: string[], targets?: ReadonlyMap<string, MetricDataTarget | undefined>) {
@@ -18,7 +18,7 @@ export function metricLatestBatches(ids: string[], targets?: ReadonlyMap<string,
 }
 
 /** Only successful bounded batches may revoke omitted IDs; failed batches retain their prior snapshot. */
-export async function loadMetricLatest(api: Pick<MetricApi, 'latest'>, ids: string[], previous: Record<string, Record<string, MetricValue>>, denied: string[], isCurrent: () => boolean, previousRuntime: Record<string, MetricRuntime> = {}, targets?: ReadonlyMap<string, MetricDataTarget | undefined>) {
+export async function loadMetricLatest(api: Pick<MetricReadApi, 'latest'>, ids: string[], previous: Record<string, Record<string, MetricValue>>, denied: string[], isCurrent: () => boolean, previousRuntime: Record<string, MetricRuntime> = {}, targets?: ReadonlyMap<string, MetricDataTarget | undefined>) {
   const outputs = Object.fromEntries(ids.filter(id => Object.prototype.hasOwnProperty.call(previous, id)).map(id => [id, previous[id]]))
   const runtimes = Object.fromEntries(ids.filter(id => Object.prototype.hasOwnProperty.call(previousRuntime, id)).map(id => [id, previousRuntime[id]]))
   const inaccessible = new Set(denied.filter(id => ids.includes(id)))

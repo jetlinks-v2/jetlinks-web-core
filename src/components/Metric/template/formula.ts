@@ -3,6 +3,14 @@ import type { TemplateRule } from './designer'
 import { metricValueSchema,metricValueLabels } from '../valueSemantics'
 import type {ExpressionNode,StructuredExpression} from '../../Expression/types'
 import { findCalculator } from '../calculatorDescriptor'
+import { metricMessages } from '../messages'
+import type { ExpressionReference } from '../../Expression/editor'
+
+/** 编辑与反显共用引用身份、说明和类型。 */
+export function templateExpressionReferences(references:FormulaReference[],locale:string):ExpressionReference[] {
+  const messages=metricMessages[locale.startsWith('en') ? 'en' : 'zh']
+  return references.map(item=>({...formulaReferencePath(item),label:item.label,displayLabel:item.displayLabel,schema:item.schema,unit:item.unit,icon:item.group === 'parameter' ? 'SlidersOutlined' : 'DatabaseOutlined',group:messages[item.group === 'parameter' ? 'formulaParameters' : 'formulaData']}))
+}
 
 /** Visual arithmetic and comparison expressions share one AST; other SpEL stays in advanced mode. */
 export interface FormulaReference { key: string; label: string; displayLabel?:string; expression: string; referenceId?:string; metricId?: string; group?: 'data' | 'parameter'; semantic?: 'stateDuration'; path?:string[]; schema?:Record<string,unknown>; unit?:string }

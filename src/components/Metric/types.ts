@@ -493,8 +493,10 @@ export interface MetricApi {
   bindObjectMetric?(binding:MetricObjectBinding):Promise<MetricObjectBindingView>
   unbindObjectMetric?(type:string,id:string,bindingId:string):Promise<void>
   aggregateLinked?(query:MetricLinkedAggregateQuery):Promise<import('./collection/types').MetricAggregateResult>
+  aggregateLinkedTemplates?(query:MetricLinkedAggregateQuery):Promise<import('./collection/types').MetricAggregateTemplate[]>
   collectionOverview?(query: import('./collection/types').MetricScopeOverviewRequest): Promise<import('./collection/types').MetricScopeOverview>
   aggregate?(query: import('./collection/types').MetricAggregateQuery): Promise<import('./collection/types').MetricAggregateResult>
+  aggregateTemplates?(query: import('./collection/types').MetricAggregateQuery): Promise<import('./collection/types').MetricAggregateTemplate[]>
   collection?(query: import('./collection/types').MetricCollectionQuery): Promise<import('./collection/types').MetricCollectionResult>
   builtinSources(type: string, id: string): Promise<MetricBuiltinItem[]>
   describeSource?(source: {id:string;provider:string;sourceType:string;thingType:string;configuration:Record<string,unknown>}): Promise<MetricProviderSourceDescription>
@@ -619,3 +621,6 @@ export interface MetricPresentationProvider {
   configFields?: Component<MetricConfigFieldsProps>
   presentationFields?: Component<MetricPresentationFieldsProps>
 }
+
+/** 查询与展示只依赖读取能力；管理请求由业务模块实现。 */
+export type MetricReadApi = Omit<MetricApi, 'applyTemplateRevision' | 'bindObjectMetric' | 'discardTemplateDraft' | 'queryTemplates' | 'releaseTemplate' | 'removeConfig' | 'removeTemplate' | 'saveConfig' | 'saveTemplate' | 'selectable' | 'setAvailable' | 'simulate' | 'simulateConfig' | 'templateReferences' | 'templateRevisions' | 'unbindObjectMetric'>

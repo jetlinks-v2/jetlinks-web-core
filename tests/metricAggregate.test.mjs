@@ -59,20 +59,20 @@ test('aggregate refresh shares scope requests, keeps old cards mounted and rejec
   assert.equal(state.result.value.groups[0].id,'new');app.unmount()
 })
 
-test('template preference uses bounded aggregate groups without discovering all members',async()=>{
-  const oldStorage=globalThis.localStorage,stored=new Map(),calls=[],catalog=[]
+test('template preference is applied before aggregation and uses a lightweight directory',async()=>{
+  const oldStorage=globalThis.localStorage,stored=new Map(),calls=[],catalog=[],directories=[]
   globalThis.localStorage={getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)}
   stored.set('metric-aggregate:["u/p","product","p","device"]',JSON.stringify(['t','removed']))
-  const api={collection:async query=>{catalog.push(query);return {groups:[{templateId:'t'},{templateId:'other'}]}},aggregate:async query=>{calls.push(query);return {readTime:1,groups:[{templateId:'t'},{templateId:'other'}]}}}
+  const api={aggregateTemplates:async query=>{directories.push(query);return [{templateId:'t',templateName:'T'},{templateId:'other',templateName:'Other'}]},collection:async query=>{catalog.push(query);return {groups:[]}},aggregate:async query=>{calls.push(query);return {readTime:1,groups:query.templateIds?.map(templateId=>({templateId})) || [{templateId:'t'},{templateId:'other'}]}}}
   const context=ref({ownerType:'product',ownerId:'p',preferenceScope:'u/p'})
   const {renderer,root}=createMetricRenderer();let state
   const app=renderer.createApp(defineComponent({setup(){state=useMetricAggregate(context,ref({memberType:'device'}),api);return()=>h('div')}}))
   app.mount(root)
   try {
     await new Promise(resolve=>setTimeout(resolve,10));await flush()
-    assert.equal(calls[0].templateIds,undefined);assert.deepEqual(state.selectedTemplates.value,['t']);assert.equal(catalog.length,0)
+    assert.deepEqual(calls[0].templateIds,['t']);assert.deepEqual(state.selectedTemplates.value,['t']);assert.equal(catalog.length,0);assert.equal(directories.length,1)
     await state.refresh();assert.equal(catalog.length,0,'aggregate requests must not discover members')
-    state.selectTemplates(['other']);await flush();assert.deepEqual(state.selectedTemplates.value,['other']);assert.equal(calls.length,2)
+    state.selectTemplates(['other']);await new Promise(resolve=>setTimeout(resolve,10));await flush();assert.deepEqual(state.selectedTemplates.value,['other']);assert.deepEqual(calls.at(-1).templateIds,['other']);assert.equal(state.directory.value.length,2)
     assert.deepEqual(JSON.parse(stored.get('metric-aggregate:["u/p","product","p","device"]')),['other'])
     context.value={...context.value,preferenceScope:'another-user'};await flush();await new Promise(resolve=>setTimeout(resolve,10));await flush()
     assert.equal(calls.at(-1).templateIds,undefined,'identity change must not restore another user selection')

@@ -30,15 +30,15 @@ import { Empty } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import { metricOutputPresentation } from '../outputPresentation'
 import { collectionMessages } from './messages'
-import type { MetricCollectionGroup } from './types'
-type PickerGroup = Pick<MetricCollectionGroup, 'id' | 'templateId' | 'templateName' | 'version' | 'revision' | 'output' | 'stateLabels'>
-const props = defineProps<{ groups:PickerGroup[]; value?:string[]; templates?:boolean }>()
-const emit = defineEmits<{(event:'change',value?:string[]):void}>()
+import type { MetricCollectionGroup, MetricAggregateTemplate } from './types'
+type PickerGroup = Pick<MetricCollectionGroup, 'id' | 'templateId' | 'templateName' | 'output' | 'stateLabels'> & Partial<Pick<MetricCollectionGroup, 'version' | 'revision'>>
+const props = defineProps<{ groups:(PickerGroup | MetricAggregateTemplate)[]; value?:string[]; templates?:boolean }>()
+const emit = defineEmits<{(event:'change',value?:string[]):void;(event:'open'):void}>()
 const { t } = useI18n({useScope:'local',messages:collectionMessages})
 const simpleImage = Empty.PRESENTED_IMAGE_SIMPLE
 const open=ref(false),search=ref(''),draft=ref<string[]>()
 const searchInput=ref<{focus():void}>()
-const choices=computed(()=>props.templates ? [...new Map(props.groups.map(item=>[item.templateId,{...item,id:item.templateId,output:{...item.output,metricId:item.templateId,label:item.templateName}}])).values()] : props.groups)
+const choices=computed<PickerGroup[]>(()=>props.templates ? [...new Map(props.groups.map(item=>[item.templateId,{...item,id:item.templateId,output:{metricId:item.templateId,label:item.templateName}}])).values()] : props.groups.filter((item):item is PickerGroup=>'output' in item))
 const active=computed(()=>props.value?.length===1 ? choices.value.find(item=>item.id===props.value![0]) : undefined)
 const checked=computed(()=>new Set(draft.value || choices.value.map(item=>item.id)))
 const invalid=computed(()=>!!draft.value && (!draft.value.length || draft.value.length>128))
@@ -62,7 +62,7 @@ const categoryPartial=(items:PickerGroup[])=>!categoryChecked(items) && items.so
 function toggle(id:string){const next=new Set(checked.value);next.has(id)?next.delete(id):next.add(id);draft.value=[...next]}
 function toggleCategory(items:PickerGroup[]){const next=new Set(checked.value);const remove=categoryChecked(items);items.forEach(item=>remove?next.delete(item.id):next.add(item.id));draft.value=[...next]}
 function apply(){if(invalid.value)return;const allowed=new Set(choices.value.map(item=>item.id));const ids=draft.value?.filter(id=>allowed.has(id));if(ids && !ids.length)return;emit('change',ids?.length===choices.value.length ? undefined : ids);open.value=false}
-watch(open,async value=>{if(value){draft.value=props.value ? [...props.value] : undefined;search.value='';await nextTick();searchInput.value?.focus()}})
+watch(open,async value=>{if(value){emit('open');draft.value=props.value ? [...props.value] : undefined;search.value='';await nextTick();searchInput.value?.focus()}})
 </script>
 <style scoped>
 .collection-picker__trigger { display:flex; align-items:center; gap:8px; border:0; background:none; padding:4px 0; max-width:100%; color:var(--ink-1); font:inherit; text-align:left; cursor:pointer }

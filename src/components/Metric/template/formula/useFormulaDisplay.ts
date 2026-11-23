@@ -6,7 +6,7 @@ import type { MetricCalculatorDescriptor, MetricTemplate } from '../../types'
 import { metricCalculatorsKey } from '../../calculatorContext'
 import { useExpressionFunctions } from '../../../Expression/useExpressionFunctions'
 import { metricExpressionFunctions } from '../../expressionApi'
-import { templateExpressionReferences } from '../useTemplateMathEditor'
+import { templateExpressionReferences } from '../formula'
 import { metricValueLabels } from '../../valueSemantics'
 
 /** 反显与编辑使用同一引用目录；不能完整投影的旧脚本保持原有文本。 */

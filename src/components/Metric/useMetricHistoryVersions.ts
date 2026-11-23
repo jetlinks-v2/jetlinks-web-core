@@ -3,10 +3,10 @@ import { metricApi } from './api'
 import { errorText } from './service'
 import { metricHistoryRequest } from './useMetricTrends'
 import { metricOutputPresentation } from './outputPresentation'
-import type { MetricApi, MetricConfigHistory, MetricReference, MetricValue } from './types'
+import type { MetricReadApi, MetricConfigHistory, MetricReference, MetricValue } from './types'
 
 /** 旧口径按需读取；不加入实时订阅，不用当前输出定义解释已移除的输出。 */
-export function useMetricHistoryVersions(reference: Ref<MetricReference>, open: Ref<boolean>, api: MetricApi = metricApi) {
+export function useMetricHistoryVersions(reference: Ref<MetricReference>, open: Ref<boolean>, api: MetricReadApi = metricApi) {
   const versions = ref<MetricConfigHistory[]>([]), selected = ref<string>(), outputId = ref('')
   const values = ref<MetricValue[]>([]), loading = ref(false), listing = ref(false), error = ref('')
   const cursor = ref<number>(), range = ref(3600000), customRange = ref<[number, number]>()

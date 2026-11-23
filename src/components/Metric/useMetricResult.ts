@@ -3,10 +3,10 @@ import { metricApi } from './api'
 import { errorText, metricResultKey, metricValueMatches, newerMetricValue } from './service'
 import { metricChartPoints } from './presentation'
 import { metricHistoryRequest, useMetricTrends, type MetricHistoryScope } from './useMetricTrends'
-import type { MetricApi, MetricConfig, MetricLatest, MetricReference, MetricRuntime, MetricValue } from './types'
+import type { MetricReadApi, MetricConfig, MetricLatest, MetricReference, MetricRuntime, MetricValue } from './types'
 
 /** 历史读取服务器当前口径；有界结果不补零，也不跨配置回填旧请求。 */
-export function useMetricResult(reference: Ref<MetricReference | undefined>, api: MetricApi = metricApi, snapshot?: Ref<MetricLatest | undefined>, shared?: MetricHistoryScope, intervalsOnly?: Ref<boolean>) {
+export function useMetricResult(reference: Ref<MetricReference | undefined>, api: MetricReadApi = metricApi, snapshot?: Ref<MetricLatest | undefined>, shared?: MetricHistoryScope, intervalsOnly?: Ref<boolean>) {
   if (shared) return sharedResult(reference, snapshot, shared)
   if (api.watchResults) return streamingResult(reference, api, intervalsOnly)
   const values = ref<MetricValue[]>([])
@@ -89,7 +89,7 @@ export function useMetricResult(reference: Ref<MetricReference | undefined>, api
 }
 
 /** 独立详情与卡片共用结果流；只为当前引用加载配置，不再另读 latest/history。 */
-function streamingResult(reference: Ref<MetricReference | undefined>, api: MetricApi, intervalsOnly?: Ref<boolean>) {
+function streamingResult(reference: Ref<MetricReference | undefined>, api: MetricReadApi, intervalsOnly?: Ref<boolean>) {
   const configuration = ref<MetricConfig>()
   const current = ref<MetricValue>()
   const runtime = ref<MetricRuntime>()

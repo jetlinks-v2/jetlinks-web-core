@@ -1,11 +1,11 @@
 import { computed, onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import { metricApi } from '../api'
 import { errorText } from '../service'
-import type { MetricApi, MetricContext } from '../types'
+import type { MetricReadApi, MetricContext } from '../types'
 import type { MetricCollectionQuery, MetricCollectionResult, MetricCollectionRow, MetricCollectionSelection, MetricReadScopeOption, ReadOperation } from './types'
 
 /** One bounded scope request; stale responses cannot replace a newer scope/page/operation. No per-device requests. */
-export function useMetricCollection(context: Ref<MetricContext>, scope: Ref<MetricReadScopeOption>, api: MetricApi = metricApi, selection:Ref<MetricCollectionSelection | undefined> = ref()) {
+export function useMetricCollection(context: Ref<MetricContext>, scope: Ref<MetricReadScopeOption>, api: MetricReadApi = metricApi, selection:Ref<MetricCollectionSelection | undefined> = ref()) {
   const result = ref<MetricCollectionResult>(), loading = ref(false), error = ref(''), selected = ref<MetricCollectionRow>()
   const selectedGroups = ref<string[]>(), operation = ref<ReadOperation>('collection'), page = ref(1), descendants = ref(true)
   const group = computed(() => selectedGroups.value?.length === 1 ? selectedGroups.value[0] : undefined)

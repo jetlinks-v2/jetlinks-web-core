@@ -2,6 +2,7 @@ import type { MetricTemplateOutput, MetricValue, MetricStateLabel } from '../typ
 export type ReadOperation = 'collection' | 'distribution' | 'average' | 'min' | 'max' | 'sum' | 'ratio'
 export type ReadSemantic = 'state' | 'score' | 'duration' | 'quantity' | 'ratio' | 'numeric'
 export interface MetricAggregateQuery { rootType:string;rootId:string;memberType:string;depth:'self'|'children'|'descendants';from:number;to:number;interval:number;templateIds?:string[] }
+export interface MetricAggregateTemplate { templateId:string;templateName:string }
 export interface MetricAggregatePoint { time:number;observed:number;valid:number;sum?:number;min?:number;max?:number;distribution:Record<string,number> }
 export interface MetricAggregateGroup {
   id:string;cardId:string;templateId:string;templateName:string;version:string;revision:number;output:MetricTemplateOutput;displaySettings?:Record<string,unknown>
