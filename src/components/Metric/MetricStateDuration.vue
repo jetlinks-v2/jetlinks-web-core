@@ -9,15 +9,26 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { metricMessages } from './messages'
 import { formatIntervalDuration, intervalDuration, stateAppearance, stateIntervalSummary, stateLabel } from './stateIntervals'
 import IconValueView from '../IconValue/IconValueView.vue'
 import type { MetricStateLabel, MetricValue } from './types'
-const props = defineProps<{ value?: MetricValue; labels?: MetricStateLabel[]; disabled?: boolean; compact?: boolean; detail?: boolean }>()
+const props = defineProps<{ value?: MetricValue; labels?: MetricStateLabel[]; disabled?: boolean; compact?: boolean; detail?: boolean; live?: boolean }>()
 const { t, locale } = useI18n({ useScope: 'local', messages: metricMessages })
-const summary = computed(() => stateIntervalSummary(props.value))
+const elapsed = ref(0)
+let received = performance.now()
+const clock = useIntervalFn(() => { elapsed.value = performance.now() - received }, 1000, { immediate:false })
+const summary = computed(() => stateIntervalSummary(props.value, props.live ? elapsed.value : 0))
+watch([() => props.value, () => props.live, () => props.disabled], () => {
+  received = performance.now()
+  elapsed.value = 0
+  if (props.live && !props.disabled && summary.value.state === 'known' && summary.value.interval?.endTime == null) clock.resume()
+  else clock.pause()
+}, { immediate:true })
+watch(() => summary.value.state, state => { if (state !== 'known') clock.pause() })
 const appearance = computed(() => stateAppearance(summary.value.interval?.value,props.labels))
 const duration = (millis: number) => formatIntervalDuration(millis, t)
 const time = (millis: number) => new Date(millis).toLocaleString(String(locale.value), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })

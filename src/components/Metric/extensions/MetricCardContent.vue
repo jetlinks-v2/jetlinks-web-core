@@ -1,7 +1,7 @@
 <template>
   <div class="metric-card-content" :class="{ 'is-boolean': typeof value?.value === 'boolean', 'has-intervals':intervals }">
   <a-skeleton v-if="configuration.state !== 'disabled' && !value && (!history || history.latestLoading)" class="metric-card-content__skeleton" active :title="false" :paragraph="{ rows: 2, width: ['45%', '70%'] }" />
-  <MetricStateDuration v-else-if="intervals" :labels="labels" :value="value" :disabled="configuration.state === 'disabled'" compact />
+  <MetricStateDuration v-else-if="intervals" :labels="labels" :value="value" :disabled="configuration.state === 'disabled'" :live="configuration.state === 'enabled'" compact />
   <MetricValueView v-else-if="value || configuration.state === 'disabled' || runtime?.state === 'loaded'" compact summary hide-quality :value="value" :template="template" :output="output" :unit="output.unit" :disabled="configuration.state === 'disabled'" :settings="settings" :labels="labels">
     <template v-if="provider?.card" #default="{ text }">
       <MetricExtension :content="provider.card" :content-props="{ context, configuration, template, output, value, settings }" @failed="failed = true">
@@ -68,8 +68,8 @@ const timeHint = computed(() => `${fullTime.value} · ${t(`${timeLabel.value}Hin
 .metric-card-empty { display:flex; align-items:center; min-height:46px; font-size:var(--fs-24,24px) }
 .metric-card-content { display:flex; flex:1; flex-direction:column; min-height:0; min-width:0; gap:var(--space-1,4px) }
 .metric-card-content :deep(.metric-value--summary .metric-value__main) { min-height:46px }
-.has-intervals .metric-card-content__trend { height:40px }
-.metric-card-content__trend { height:64px; flex:none; margin-top:auto }
+.has-intervals .metric-card-content__trend { height:40px; min-height:40px }
+.metric-card-content__trend { min-height:64px; flex:none; margin-top:auto }
 .metric-card-content__skeleton { min-height:46px; padding:4px 0 }
 .metric-card-content__skeleton :deep(.ant-skeleton-paragraph) { margin:0 }
 .metric-card-content__pending,.metric-card-content__error { display:flex; align-items:center; justify-content:center; height:100%; font-size:var(--fs-12,12px); color:var(--ink-2) }

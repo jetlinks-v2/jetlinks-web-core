@@ -14,7 +14,7 @@
         <TemplateDuration :model-value="duration(output.history?.maxIntervalMillis || 0)" :disabled="disabled" :empty-label="t('historyNoHeartbeat')" @update:model-value="setDuration('maxIntervalMillis',$event)" />
       </template>
     </div>
-    <small v-if="mode === 'interval'">{{ t('historyIntervalHint') }}</small>
+    <small v-if="mode === 'interval'">{{ t('historyRecordingIntervalHint') }}</small>
   </TemplateClause>
 </template>
 <script setup lang="ts">

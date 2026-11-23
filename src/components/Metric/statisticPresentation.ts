@@ -22,7 +22,8 @@ export function metricStatisticUnit(output:MetricTemplateOutput|undefined,t:Tran
   if (meaning.statistic.unitRule==='count') return undefined
   const unit=meaning.unit?.replace(/\bpp\b/g,t('statisticPp'))
   if (meaning.statistic.unitRule==='perTime') {
-    const denominator=statisticDuration(meaning.timeUnit || undefined,t)
+    const time=durationParts(meaning.timeUnit || undefined)
+    const denominator=time?.amount===1 ? durationUnitText(time.unit,1,t) : statisticDuration(meaning.timeUnit || undefined,t)
     return unit && denominator ? `${unit} / ${denominator}` : output?.unit || fallback
   }
   // 无法推导时保留用户明确声明的完整输出单位，不把它再当输入单位变换。

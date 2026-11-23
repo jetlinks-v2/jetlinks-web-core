@@ -24,7 +24,9 @@ function mount(path,props,setup=()=>{}) {
 }
 
 test('结果量纲来自后端绑定语义；原始结果事实、未知量纲与旧模板有明确边界',()=>{
-  assert.equal(metricStatisticUnit(output(),t),'pp / 1 minute')
+  assert.equal(metricStatisticUnit(output(),t),'pp / minute')
+  assert.equal(metricStatisticUnit(output('rate','pp','PT1S'),t),'pp / second')
+  assert.equal(metricStatisticUnit(output('rate','pp','PT5S'),t),'pp / 5 seconds')
   assert.equal(metricStatisticUnit(output('variance','(°C)²'),t),'(°C)²')
   assert.equal(metricStatisticUnit(output('rate',null),t),'old unit','未知输入单位时保留明确的完整输出单位，不再次追加时间单位')
   assert.equal(metricStatisticUnit({...output('rate',null),unit:undefined},t),undefined)
@@ -57,7 +59,7 @@ test('主值展示带符号与时间单位；更换统计口径无需转换或�
   const view=mount('components/Metric/MetricValue.vue',props)
   try {
     assert.match(textContent(view.root),/\+0.3/)
-    assert.match(textContent(view.root),/pp \/ 1 minute/)
+    assert.match(textContent(view.root),/pp \/ minute/)
     props.output=output('variance','(°C)²');await flush()
     assert.doesNotMatch(textContent(view.root),/\+0.3/)
     assert.match(textContent(view.root),/\(°C\)²/)
@@ -72,10 +74,10 @@ test('同一结果在缩略图和详情中使用相同量纲与对称坐标，�
     assert.equal(walk(view.root,node=>node.type==='path' && node.props.class==='metric-trend-mini__zero').length,1)
     props.compact=false;await flush()
     const chart=()=>walk(view.root,node=>node.type==='chart')[0].props.option
-    assert.equal(chart().yAxis.name,'pp / 1 minute')
+    assert.equal(chart().yAxis.name,'pp / minute')
     assert.equal(chart().yAxis.min({min:-2,max:4}),-4)
     assert.equal(chart().yAxis.max({min:-2,max:4}),4)
-    assert.equal(chart().tooltip.valueFormatter(.3),'+0.3 pp / 1 minute')
+    assert.equal(chart().tooltip.valueFormatter(.3),'+0.3 pp / minute')
     assert.equal(chart().series[0].markLine.data[0].yAxis,0)
     assert.equal(chart().yAxis.axisLabel.formatter(.084211755),'0.0842','极值刻度不能展示长尾数字造成裁切')
     assert.equal(chart().yAxis.nameTextStyle.align,'left')

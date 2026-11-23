@@ -94,18 +94,6 @@ export function metricBooleanPoints(values: MetricValue[]): Array<[number, boole
     .map(value => [resultTime(value)!, metricRecordedBoolean(value)] as [number, boolean | null])
     .sort((left, right) => left[0] - right[0])
 }
-/** Card and detail share the same separate rows for discrete boolean facts; no joining or duration inference. */
-const booleanRows = [{state:true,y:2},{state:false,y:20},{state:null,y:11}] as const
-export function metricBooleanRowAt(position:number) {
-  return booleanRows.find(row=>Math.abs(position*30-row.y-4)<=4.5)?.state
-}
-export function metricBooleanMarks(points:Array<[number,boolean | null]>,bounds?:[number,number],width=300) {
-  const start=bounds?.[0] ?? points[0]?.[0],end=bounds?.[1] ?? points.at(-1)?.[0]
-  if(start===undefined || end===undefined)return []
-  const x=(time:number)=>end===start ? width/2 : 4+Math.max(0,Math.min(1,(time-start)/(end-start)))*(width-8)
-  return booleanRows.map(({state,y})=>({state,path:points.filter(([time,value])=>value===state && time>=start && time<=end)
-    .map(([time])=>`M${x(time).toFixed(2)},${y}v8`).join(' ')})).filter(mark=>mark.path)
-}
 /** Do not magnify a few floating-point rounding bits into a full-height trend. Source values remain intact. */
 function sparklineY(value:number,low:number,high:number) {
   const span=high-low

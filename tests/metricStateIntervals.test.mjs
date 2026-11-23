@@ -171,3 +171,27 @@ test('卡片与详情显示时长下界，停用不残留至少字样',async()=>
     assert.ok(shown().includes('—'))
   } finally {app.unmount()}
 })
+
+test('实时持续时长按接收后的单调时间推进，历史固定；过期停止且不改写服务端事实',async context=>{
+  let now=0,tick,active=false
+  context.mock.method(performance,'now',()=>now)
+  const local=createMetricLoader({
+    '@vueuse/core':{useIntervalFn:callback=>{tick=callback;return {resume:()=>{active=true},pause:()=>{active=false}}}},
+    'vue-i18n':{useI18n:()=>({locale:ref('zh'),t:(key,values)=>values?.count != null ? `${key}:${values.count}` : key})},
+  })
+  const Component=local('components/Metric/MetricStateDuration.vue').default
+  const original=value(0,{currentInterval:interval('live',0,undefined,{startKnown:false,validUntil:start+5000}),readView:{time:start,duration:null}})
+  const props=reactive({value:original,live:true})
+  const {renderer,root}=createMetricRenderer()
+  const app=renderer.createApp({setup:()=>()=>h(Component,props)});app.config.warnHandler=()=>{};app.mount(root)
+  const shown=()=>textContent(walk(root,node=>node.props.class==='state-duration__value')[0])
+  try {
+    assert.equal(active,true)
+    now=1234;tick();await flush();assert.match(shown(),/intervalSeconds:1/)
+    props.live=false;await flush();assert.equal(active,false);assert.match(shown(),/intervalSeconds:0/)
+    props.live=true;await flush();assert.equal(active,true)
+    now+=5001;tick();await flush();assert.equal(active,false);assert.match(shown(),/—/)
+    assert.equal(original.state.readView.time,start)
+    assert.equal(original.state.readView.duration,null)
+  } finally {app.unmount()}
+})

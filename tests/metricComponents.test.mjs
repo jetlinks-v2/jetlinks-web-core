@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { defineComponent, effectScope, h, inject, provide, onUnmounted, reactive, ref, nextTick } from 'vue'
-import { useEventListener, onClickOutside } from '@vueuse/core'
+import { useEventListener, onClickOutside, useIntervalFn } from '@vueuse/core'
 import { theme, Empty } from 'ant-design-vue'
 import { resolve } from 'node:path'
 import { createMetricLoader, createMetricRenderer, flush, walk, textContent, sourceRoot } from './helpers/metricRuntime.mjs'
@@ -10,7 +10,7 @@ const confirmations = []
 const workspaceWidth = ref(1200)
 let discoverObjectTypes=async()=>[...moduleRegistry.getAllModules().values()].flatMap(module=>Object.keys(module.metricDimensions || {}).map(id=>({id})))
 const componentStubs = {
-  '@vueuse/core': { useEventListener, onClickOutside, useElementSize: () => ({ width:workspaceWidth, height:ref(800) }) },
+  '@vueuse/core': { useEventListener, onClickOutside, useIntervalFn, useElementSize: () => ({ width:workspaceWidth, height:ref(800) }) },
   '@jetlinks-web/vite/dist/dynamic-remote': { dynamicRemoteManager: {} },
   '@jetlinks-web-core/utils/consts': { isSubApp: false },
   'vue-i18n': { useI18n: () => ({ t: key => key, locale: ref('zh') }) },
@@ -456,16 +456,17 @@ test('缩略趋势悬停展示真实时间与读数，离开后收起；密集�
   } finally { view.close() }
 })
 
-test('数字枚举状态使用有界的状态采样色带，详情复用离散时间轴；普通评分仍用数值趋势', () => {
+test('数字枚举状态使用有界的状态采样点和图例，详情复用离散时间轴；普通评分仍用数值趋势', () => {
   const rows = Array.from({length:200},(_,index) => ({...value,value:index % 3,evaluationTime:1000 + index,resultId:String(index)}))
   const labels = [{value:0,name:'正常',icon:'color:#22c55e'},{value:1,name:'异常',icon:'color:#ff4d4f'},{value:2,name:'等待',icon:'font:ClockCircleOutlined'}]
   const view = mount(Trend,{compact:true,values:rows,bounds:[1,3600000],labels})
   try {
-    const strip = walk(view.root,node => node.props.class === 'state-samples__strip')[0]
-    assert.ok(strip)
-    assert.equal(strip.children.filter(node => node.type === 'span').length,60,'many metrics must not render every historical sample')
+    const marks = walk(view.root,node => node.props.class?.includes('state-samples__point'))
+    assert.equal(marks.length,60,'many metrics must not render every historical sample')
     assert.equal(nodes(view.root,'path').length,0,'numeric state codes are not connected by a numeric line')
-    assert.ok(strip.children.some(node => node.props.style?.background === '#22c55e'))
+    assert.ok(marks.some(node => node.props.style?.color === '#22c55e'))
+    const labelsShown=walk(view.root,node => node.props.class === 'state-samples__label').map(textContent)
+    assert.deepEqual(labelsShown.sort(),labels.map(label => label.name).sort())
   } finally {view.close()}
   const detail = mount(Trend,{values:rows,bounds:[1,3600000],labels})
   try {
@@ -477,18 +478,37 @@ test('数字枚举状态使用有界的状态采样色带，详情复用离散�
 })
 
 test('状态缩略图和详情按真实时间定位不等间隔采样，悬停不按样本数量均分', async () => {
-  const rows=[1000,1100,10000].map((time,index)=>({...value,value:index,evaluationTime:time,resultId:String(index)}))
+  const rows=[1000,1100,10000].map((time,index)=>({...value,value:0,evaluationTime:time,resultId:String(index)}))
   const labels=[{value:0,name:'正常'},{value:1,name:'异常'},{value:2,name:'等待'}]
   const compact=mount(Trend,{compact:true,values:rows,labels,bounds:[0,20000]})
   const detail=mount(Trend,{values:rows,labels,bounds:[0,20000]})
   try {
-    const strip=walk(compact.root,node=>node.props.class==='state-samples__strip')[0]
-    const marks=strip.children.filter(node=>node.type==='span')
-    assert.equal(marks[0].props.style.left,'clamp(2px, 0%, calc(100% - 2px))')
-    assert.ok(marks[1].props.style.left.startsWith('clamp(2px, 1.1111111111111112%'))
-    assert.equal(marks[2].props.style.left,'clamp(2px, 100%, calc(100% - 2px))')
-    strip.props.onPointermove({clientX:30,currentTarget:{getBoundingClientRect:()=>({left:0,width:300})}});await flush()
-    assert.ok(textContent(walk(compact.root,node=>node.props.class==='state-samples__head')[0]).includes('异常'))
+    const plot=walk(compact.root,node=>node.props.class==='state-samples__plot')[0]
+    const marks=walk(plot,node=>node.props.class?.includes('state-samples__point'))
+    assert.equal(marks[0].props.style.left,'clamp(4px, 0%, calc(100% - 4px))')
+    assert.ok(marks[1].props.style.left.startsWith('clamp(4px, 1.1111111111111112%'))
+    assert.equal(marks[2].props.style.left,'clamp(4px, 100%, calc(100% - 4px))')
+    const tooltip=()=>nodes(compact.root,'a-tooltip').find(node=>Object.hasOwn(node.props,'open'))
+    plot.props.onPointermove({clientX:30,currentTarget:{getBoundingClientRect:()=>({left:0,width:300})}});await flush()
+    assert.ok(tooltip().props.title.includes('正常'))
+    assert.equal(tooltip().props.open,true)
+    assert.ok(marks[1].props.class.includes('is-inspected'))
+    plot.props.onPointerleave();await flush()
+    assert.equal(tooltip().props.title,undefined)
+    assert.equal(tooltip().props.open,false)
+    plot.props.onFocus();await flush()
+    assert.ok(marks[2].props.class.includes('is-inspected'))
+    let prevented=false,stopped=false
+    plot.props.onKeydown({key:'ArrowLeft',preventDefault(){prevented=true},stopPropagation(){stopped=true}});await flush()
+    assert.ok(prevented && stopped);assert.ok(marks[1].props.class.includes('is-inspected'))
+    plot.props.onKeydown({key:'Home',preventDefault(){},stopPropagation(){}});await flush()
+    assert.ok(marks[0].props.class.includes('is-inspected'))
+    plot.props.onKeydown({key:'End',preventDefault(){},stopPropagation(){}});await flush()
+    assert.ok(marks[2].props.class.includes('is-inspected'))
+    plot.props.onKeydown({key:'Escape',preventDefault(){},stopPropagation(){}});await flush()
+    assert.equal(tooltip().props.open,false)
+    plot.props.onBlur();await flush()
+    assert.equal(tooltip().props.title,undefined)
     const option=nodes(detail.root,'chart')[0].props.option
     assert.deepEqual(option.series[0].data.map(point=>point.value[0]),[1000,1100,10000])
     assert.equal(option.series[1].data.length,0,'neither view manufactures continuous state intervals')
@@ -534,7 +554,7 @@ test('声明枚举沿用状态图；文本与对象仅展示真实记录，不�
   try {assert.equal(nodes(view.root,'chart')[0].props.option.series[0].type,'custom')} finally {view.close()}
 })
 
-test('查询达到上限时仅缩略图采用返回样本范围，详情保留完整查询范围；布尔样本按状态合并刻度路径', () => {
+test('布尔缩略图复用有界状态采样，详情保留完整查询范围，不推断持续时长', () => {
   const rows = Array.from({ length: 200 }, (_, index) => ({ ...value, value: index > 100, evaluationTime: 1000 + index }))
   const compact = mount(Trend, { compact: true, values: rows, bounds: [1, 3600000], limited: true })
   try {
@@ -548,7 +568,8 @@ test('查询达到上限时仅缩略图采用返回样本范围，详情保留�
     axis.props.onClick({ stopPropagation: () => { stopped = true } })
     assert.ok(stopped, 'opening the range hint must not open the metric drawer')
     assert.equal(nodes(compact.root, 'circle').length, 0)
-    assert.equal(nodes(compact.root, 'path').filter(node => node.props.class?.includes('metric-trend-mini__marks')).length, 2)
+    assert.equal(nodes(compact.root, 'path').length, 0)
+    assert.equal(walk(compact.root,node=>node.props.class?.includes('state-samples__point')).length,60)
     assert.equal(nodes(compact.root, 'time').map(textContent)[1], new Date(1199).toLocaleString('zh', { hour: '2-digit', minute: '2-digit' }))
   } finally { compact.close() }
   const detail = mount(Trend, { values: rows, bounds: [1, 3600000], limited: true })
@@ -561,6 +582,29 @@ test('查询达到上限时仅缩略图采用返回样本范围，详情保留�
     assert.deepEqual(option.series[0].data.map(point=>point.value[0]),rows.map(point=>point.evaluationTime))
     assert.ok(nodes(detail.root, 'a-tooltip').some(node => node.props.title?.includes('resultsLimit')))
   } finally { detail.close() }
+})
+
+test('缩略图和详情只绘制所选时段，旧记录不挤压状态或数值趋势', () => {
+  for(const boolean of [true,false]) {
+    const rows=[{...value,evaluationTime:1,value:boolean ? false : 9999},
+      {...value,evaluationTime:2000,value:boolean ? true : 2},
+      {...value,evaluationTime:3000,value:boolean ? false : 3},
+      {...value,evaluationTime:9000,value:boolean ? true : -9999}]
+    const compact=mount(Trend,{compact:true,values:rows,bounds:[1000,4000],limited:true})
+    const detail=mount(Trend,{values:rows,bounds:[1000,4000]})
+    try {
+      const chart=nodes(detail.root,'chart')[0].props.option
+      assert.deepEqual(chart.series[0].data.map(point=>boolean ? point.value[0] : point[0]),[2000,3000])
+      if(boolean) {
+        const marks=walk(compact.root,node=>node.props.class?.includes('state-samples__point'))
+        assert.equal(marks.length,2)
+        assert.equal(marks.filter(node=>node.props.class?.includes('is-false')).length,1)
+      } else {
+        const peak=walk(compact.root,node=>node.props.class==='metric-trend-mini__peak')[0]
+        assert.ok(peak.props.title.endsWith('3'))
+      }
+    } finally {compact.close();detail.close()}
+  }
 })
 
 test('布尔详情在空刷新帧中保留时间轴和固定身份，恢复后仍展示同一条记录', async () => {
@@ -891,7 +935,7 @@ test('历史读取失败保留最新值，避免同时展示无历史的误导�
     assert.ok(nodes(view.root, 'strong').some(node => textContent(node) === '6'))
     assert.ok(nodes(view.root, 'a-alert').some(node => node.props.description === 'history unavailable'))
     assert.equal(nodes(view.root, 'a-empty').some(node => node.props.description === 'noHistory'), false)
-    api.history = async () => [value]
+    api.history = async () => [{ ...value, evaluationTime:Date.now()-1000 }]
     await click(findText(view.root, 'a-button', 'retry'))
     assert.equal(nodes(view.root, 'a-alert').some(node => node.props.description === 'history unavailable'), false)
     assert.equal(nodes(view.root, 'chart').length, 1)

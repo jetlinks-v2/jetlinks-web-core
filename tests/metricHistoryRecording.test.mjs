@@ -28,7 +28,7 @@ test('历史策略按需展开参数，切换保留输出身份和单位，明�
     assert.equal(view.output.history.deadband, 2)
     choose('interval'); await flush()
     assert.equal(view.output.history.intervalMillis, 60000)
-    assert.ok(textContent(view.root).includes('historyIntervalHint'))
+    assert.ok(textContent(view.root).includes('historyRecordingIntervalHint'))
     assert.equal(view.field('historyDeadband'), undefined)
     choose('latest'); await flush()
     assert.equal(view.output.persist, false); assert.equal(view.output.latestOnly, true)

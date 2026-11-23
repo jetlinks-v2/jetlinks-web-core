@@ -41,21 +41,22 @@ export function stateLabel(value: unknown, labels: MetricStateLabel[], locale: s
   return item ? i18nText(item.name, item.nameI18n, locale) : String(value ?? '—')
 }
 
-/** Latest uses the server read view; history and simulation retain their fixed evaluation cutoff. */
-export function stateIntervalSummary(value?: MetricValue) {
+/** 实时展示可追加接收后的单调时长，仍受服务端有效期约束；历史和试算默认使用固定截点。 */
+export function stateIntervalSummary(value?: MetricValue, elapsed = 0) {
   const fact = value?.state
   const current = fact?.currentInterval
-  const cutoff = fact?.readView?.time ?? (value && resultTime(value))
+  const recordedCutoff = fact?.readView?.time ?? (value && resultTime(value))
+  const cutoff = recordedCutoff == null ? undefined : recordedCutoff + Math.max(0, elapsed)
   const known = !!current && !!cutoff && current.validUntil > cutoff
     && value?.status !== 'invalid' && value?.quality?.valid !== false && !value?.quality?.stale
     && (!fact?.readView || fact.readView.duration != null || !current.startKnown)
   const state = !fact ? 'waiting' : !known ? 'unknown' : 'known'
   const interval = known ? current : undefined
   const seconds = fact?.readView ? fact.readView.duration : fact?.duration
-  // 完整时长未知时，区间起点仍是已确认观测的下界；仅用服务端截点，不使用浏览器时钟外推。
+  // 完整起点未知时，保留已确认观测的下界；实时推进不依赖浏览器墙上时钟。
   const observedDuration = known && current && !current.startKnown ? intervalDuration(current, cutoff || 0) : undefined
   return { state, interval, last: fact?.previousInterval, cutoff: cutoff || 0,
-    duration: known && seconds != null ? seconds * 1000 : observedDuration }
+    duration: known && seconds != null ? seconds * 1000 + Math.max(0, elapsed) : observedDuration }
 }
 
 export function intervalDuration(interval: MetricStateInterval, cutoff: number) {
@@ -93,5 +94,5 @@ export function stateIntervalSegments(values: MetricValue[], current?: MetricVal
 }
 
 export function formatIntervalDuration(millis: number, t: (key: string, values: Record<string, number>) => string) {
-  return metricDurationText(Math.max(0, millis) / 1000, 's', t) || '—'
+  return metricDurationText(Math.floor(Math.max(0, millis) / 1000), 's', t) || '—'
 }

@@ -6,7 +6,7 @@
     <a-alert v-if="inaccessible" type="warning" show-icon :message="t('noAccess')" />
     <div v-else>
       <div class="metric-result__summary">
-        <MetricStateDuration v-if="intervals" detail :labels="labels" :value="processValue" :disabled="configuration?.state === 'disabled'"><template #label><MetricOutputSwitch :template="template" :output="output" :output-id="reference.outputId" @change="emit('selectOutput',$event)" /></template></MetricStateDuration>
+        <MetricStateDuration v-if="intervals" detail :labels="labels" :value="processValue" :disabled="configuration?.state === 'disabled'" :live="!pinned && configuration?.state === 'enabled'"><template #label><MetricOutputSwitch :template="template" :output="output" :output-id="reference.outputId" @change="emit('selectOutput',$event)" /></template></MetricStateDuration>
         <template v-else><div class="metric-result__reading"><MetricOutputSwitch :template="template" :output="output" :output-id="reference.outputId" @change="emit('selectOutput',$event)" /><MetricValueView v-if="processValue || configuration?.state === 'disabled' || runtime?.state === 'loaded'" summary :hide-feedback="sourceFeedback && configuration?.state !== 'disabled'" :hide-quality="processValue?.quality?.valid === true" :value="processValue" :template="template" :output="output" :unit="output?.unit" :disabled="configuration?.state === 'disabled'" :settings="settings" :labels="labels" /><strong v-else>—</strong></div><small v-if="summaryTime" class="metric-result__stamp" :title="t('updatedAtHint')">{{ t('updatedAt') }} <time>{{ time(summaryTime) }}</time></small></template>
       </div>
       <MetricStatisticSummary :output="output" />
