@@ -95,7 +95,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     '@micro-zoe/micro-app': { router: { setBaseAppRouter() {} } },
     'ant-design-vue': { notification: { error() {} } },
     '@jetlinks-web-core/views/verify/index.vue': {},
-    '@jetlinks-web-core/utils/consts': { isSubApp: false, langKey: 'lang' },
+    '@jetlinks-web-core/utils/consts': { isSubApp: false, langKey: 'lang', PersonalToken: { value: 'share-fixture' }, PersonalUrlKey: 'personal-token' },
     '@jetlinks-web-core/utils/request-context': {
       getRequestTenantDomain: flag => flag === false ? '' : projectCode,
       getBaseApi: () => '/api', isFromCloud: () => false, stripEdgeRequestHeaders() {},
@@ -147,7 +147,14 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const utils = evaluate(join(dirname(require.resolve('@jetlinks-web/utils/package.json')), 'src/storage.ts'))
   dependencies['@jetlinks-web/utils'] = { ...utils, randomString: () => Math.random().toString(36), onlyMessage() {} }
   const core = evaluate(join(dirname(require.resolve('@jetlinks-web/core/package.json')), 'src/axios.ts'))
-  dependencies['@jetlinks-web/core'] = { ...core, ndJson: { create() {} } }
+  const socketCalls = []
+  const wsClient = {
+    setOptions() {},
+    initWebSocket: url => socketCalls.push(['init', url]),
+    connect: () => socketCalls.push(['connect']),
+    disconnect: () => socketCalls.push(['disconnect']),
+  }
+  dependencies['@jetlinks-web/core'] = { ...core, wsClient, ndJson: { create() {} } }
   const navigation = load('router/index')
   dependencies['@jetlinks-web-core/router'] = navigation
   const packageApi = load('package')
@@ -158,13 +165,61 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const client = core.getInstance()
   client.defaults.adapter = async config => success(config)
   return {
-    load, storage, window, client, api, verify, packageApi, navigation, navigations, tokensAtNavigation, reloads, utils, pinia, router,
+    load, storage, window, client, api, verify, packageApi, navigation, navigations, tokensAtNavigation, reloads, utils, pinia, router, socketCalls,
     get resets() { return resets },
     get bootstraps() { return bootstraps },
     get routeLoadingFinishes() { return routeLoadingFinishes },
     setLocation,
   }
 }
+
+test('account WebSocket follows matched share and account routes', async t => {
+  const f = fixture(t, { href: 'http://localhost:9201/#/visualization/release/123' })
+  const previousDocument = globalThis.document
+  globalThis.document = { location: { host: 'localhost:9201' } }
+  t.after(() => { globalThis.document = previousDocument })
+  f.utils.setToken('account-fixture')
+  const route = Vue.reactive({ matched: [], meta: {} })
+  const stop = f.packageApi.watchAccountWebSocket(route)
+  t.after(stop)
+  await Vue.nextTick()
+  assert.deepEqual(f.socketCalls, [])
+  route.matched = [{}]
+  route.meta = { security: 'public', shareSession: true }
+  await Vue.nextTick()
+  assert.deepEqual(f.socketCalls, [])
+  route.meta = {}
+  await Vue.nextTick()
+  assert.equal(f.socketCalls[0][0], 'init')
+  assert.ok(f.socketCalls[0][1].includes('account-fixture'))
+  assert.equal(f.socketCalls[0][1].includes('share-fixture'), false)
+  assert.deepEqual(f.socketCalls[1], ['connect'])
+  route.meta = { security: 'public', shareSession: true }
+  await Vue.nextTick()
+  assert.deepEqual(f.socketCalls.slice(2), [['init', ''], ['disconnect']])
+  stop()
+  route.meta = {}
+  await Vue.nextTick()
+  assert.equal(f.socketCalls.length, 4)
+})
+
+test('account WebSocket starts after a cold account route matches', async t => {
+  const f = fixture(t, { href: 'http://localhost:9201/#/overview' })
+  const previousDocument = globalThis.document
+  globalThis.document = { location: { host: 'localhost:9201' } }
+  t.after(() => { globalThis.document = previousDocument })
+  f.utils.setToken('account-fixture')
+  const route = Vue.reactive({ matched: [], meta: {} })
+  const stop = f.packageApi.watchAccountWebSocket(route)
+  t.after(stop)
+  assert.deepEqual(f.socketCalls, [])
+  route.matched = [{}]
+  await Vue.nextTick()
+  assert.equal(f.socketCalls[0][0], 'init')
+  assert.ok(f.socketCalls[0][1].includes('account-fixture'))
+  assert.equal(f.socketCalls[0][1].includes('share-fixture'), false)
+  assert.deepEqual(f.socketCalls[1], ['connect'])
+})
 
 test('share authorization and public release skip account bootstrap while release menu uses it', async t => {
   const f = fixture(t)

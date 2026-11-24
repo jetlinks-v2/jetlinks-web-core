@@ -144,20 +144,14 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     themeStyleToken.value = result.token
   }
 
-  const applyThemeStyleState = (style: string, color?: string, persist = true) => {
+  const changeThemeStyle = (style: string, color?: string, persist = true) => {
     const themeStyleValue = normalizeThemeStyle(style)
-    const resolvedColor = color || getThemeStylePrimaryColor(themeStyleValue) || themeColor.value
-    const result = persist
-      ? persistThemeStyle(themeStyleValue, resolvedColor)
-      : applyThemeStyle(themeStyleValue, resolvedColor)
+    const apply = persist ? persistThemeStyle : applyThemeStyle
+    const result = apply(themeStyleValue, color || getThemeStylePrimaryColor(themeStyleValue) || themeColor.value)
     theme.value = themeStyleValue === 'dark' ? 'dark' : 'light'
     themeStyle.value = result.style
     themeStyleToken.value = result.token
     themeColor.value = result.color
-  }
-
-  const changeThemeStyle = (style: string, color?: string) => {
-    applyThemeStyleState(style, color, true)
   }
 
   const getUserThemeStyle = async () => {
@@ -219,7 +213,7 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     layout.layout = normalizeLayoutMode(_value.layout)
     const frontThemeStyle = userThemeStyle || normalizeThemeStyle(_value.headerTheme)
     // localStorage 只负责接口返回前的首屏主题；登录后用户设置优先，系统设置兜底。
-    applyThemeStyleState(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle), persistPreferences)
+    changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle), persistPreferences)
     changeIco(_value.ico)
     setDocumentTitle()
     changeTitle(title)

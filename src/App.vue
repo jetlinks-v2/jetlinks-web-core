@@ -25,9 +25,7 @@ import componentsJa from './locales/componentsJa'
 import theme from '@theme-config'
 import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
-import {initPackages, clearVerifyCache} from "@jetlinks-web-core/package";
-import { wsClient } from '@jetlinks-web/core'
-import { usesShareSession } from '@jetlinks-web-core/router/types'
+import { clearVerifyCache, watchAccountWebSocket } from '@jetlinks-web-core/package'
 import { setToken } from "@jetlinks-web/utils";
 import { consumeLogoutLoginEntry, LOGOUT_AUTH_QUERY_KEYS } from '@jetlinks-web-core/router/login-session'
 import { installEdgeImageProxy } from '@jetlinks-web-core/utils/edge-image-proxy'
@@ -109,21 +107,7 @@ watch(
 provide(ComponentsEnum.Permission, { hasPermission })
 
 initPersonal()
-
-// 等首次路由匹配后再建连。账号页与公开分享之间切换时，由新入口接管实时连接。
-watch(
-  () => route.matched.length ? usesShareSession(route.meta) : undefined,
-  (shareSession, previous) => {
-    if (shareSession === undefined) return
-    if (!shareSession) {
-      initPackages({ accountOnly: true })
-    } else if (previous === false) {
-      wsClient.initWebSocket('')
-      wsClient.disconnect()
-    }
-  },
-  { immediate: true, flush: 'post' }
-)
+watchAccountWebSocket(route)
 
 componentsRegistry.batchRegister()
 
