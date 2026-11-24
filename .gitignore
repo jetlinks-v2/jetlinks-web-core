@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-process-test
+.vite-process
 *.local
 components.d.ts
 apps
