@@ -38,7 +38,7 @@ const valueType = (value: unknown) => typeof value === 'number' ? 'double' : typ
           <template v-if="kind === 'inputs'">
             <a-form-item :label="t('name')"><a-input :value="modelValue.inputs[key].name" @update:value="name => input(key,{name})" /></a-form-item>
             <div class="process-declarations__row"><a-form-item :label="t('type')"><a-select :value="modelValue.inputs[key].type" :options="types.map(value => ({value,label:t(value)}))" @update:value="value => input(key,{type:value as ProcessInput['type']})" /></a-form-item><a-form-item :label="t('unit')"><a-input :value="modelValue.inputs[key].unit" @update:value="unit => input(key,{unit})" /></a-form-item></div>
-            <a-form-item :label="t('semantics')"><a-select mode="tags" :value="modelValue.inputs[key].semantics?.semanticTypes || []" @update:value="value => input(key,{semantics:{semanticTypes:value as string[]}})" /></a-form-item>
+            <a-form-item :label="t('semantics')"><a-select mode="tags" :value="modelValue.inputs[key].semantics?.semanticTypes || []" @update:value="value => input(key,{semantics:{...modelValue.inputs[key].semantics,semanticTypes:value as string[]}})" /></a-form-item>
           </template>
           <template v-if="kind === 'actions'">
             <a-form-item :label="t('name')"><a-input :value="modelValue.actions[key].name" @update:value="name => action(key,{name})" /></a-form-item>
