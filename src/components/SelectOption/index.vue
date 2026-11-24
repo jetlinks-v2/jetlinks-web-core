@@ -1,7 +1,7 @@
 <template>
   <span class="select-option">
     <slot name="icon"><span v-if="icon" class="select-option__icon" aria-hidden="true"><AIcon :type="icon" /></span></slot>
-    <span class="select-option__text"><span>{{ label }}</span><small v-if="description">{{ description }}</small></span>
+    <span class="select-option__text"><span>{{ label }}</span><small v-if="description || $slots.description"><slot name="description">{{ description }}</slot></small></span>
   </span>
 </template>
 <script setup lang="ts">

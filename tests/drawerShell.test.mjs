@@ -66,6 +66,14 @@ test('shared shell keeps the drawer width during unmasked exit and responsive ch
         state.width = 330
         await vue.nextTick()
         assert.equal(snapshots.at(-1).style.width, '330px')
+        state.fullscreen = true
+        await vue.nextTick()
+        assert.equal(snapshots.at(-1).width, 400)
+        assert.equal(snapshots.at(-1).style.width, '400px')
+        windowStub.innerWidth = 390
+        listeners.get('resize')()
+        await vue.nextTick()
+        assert.equal(snapshots.at(-1).width, 390)
     } finally { app.unmount() }
     assert.equal(listeners.size, 0)
 })

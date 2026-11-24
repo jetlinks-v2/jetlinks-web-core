@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { h,reactive } from 'vue'
-import { createMetricLoader,createMetricRenderer,flush } from './helpers/metricRuntime.mjs'
+import { createComponentLoader,createComponentRenderer,flush } from './helpers/componentRuntime.mjs'
 
-const load=createMetricLoader()
+const load=createComponentLoader()
 const {validateExpressionTypes,expressionValidationMessage}=load('components/Expression/validation.ts')
 const {createMathParser}=load('components/Expression/math.ts')
 const {expressionDocument}=load('components/Expression/document.ts')
@@ -68,10 +68,10 @@ test('初始错误树立即反馈且不提交；完成与目录更新共用整�
     get lastOffset(){return 0} getValue(){return this.value} getElementInfo(){return {latex:'',depth:0}}
     setAttribute(){} addEventListener(){} removeEventListener(){} remove(){} focus(){} executeCommand(){}
   }
-  const loadEditor=createMetricLoader({'vue-i18n':{useI18n:()=>({t})},'@vueuse/core':{onClickOutside(){}},'mathlive':{MathfieldElement:Field},'mathlive/fonts.css':{},'./math-semantic.css?inline':{__esModule:true,default:''}})
+  const loadEditor=createComponentLoader({'vue-i18n':{useI18n:()=>({t})},'@vueuse/core':{onClickOutside(){}},'mathlive':{MathfieldElement:Field},'mathlive/fonts.css':{},'./math-semantic.css?inline':{__esModule:true,default:''}})
   const {useMathEditor}=loadEditor('components/Expression/useMathEditor.ts')
   const changes=[],props=reactive({modelValue:{version:1,root:yes},context,conditions:true})
-  const {renderer,root:host}=createMetricRenderer()
+  const {renderer,root:host}=createComponentRenderer()
   const app=renderer.createApp({setup(){editor=useMathEditor(props,(...args)=>changes.push(args));editor.host.value={appendChild(){}};return ()=>h('div')}})
   try {
     app.mount(host);await flush()
