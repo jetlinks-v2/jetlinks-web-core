@@ -9,7 +9,7 @@ import i18n from '@jetlinks-web-core/locales'
 import microApp from '@micro-zoe/micro-app'
 import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
-import { RouteSecurityLevel } from './types'
+import { RouteSecurityLevel, usesShareSession } from './types'
 import { DefaultApplicationEntryError } from './default-entry'
 import { toValue } from 'vue'
 import {
@@ -283,6 +283,13 @@ const enterNoMenuResult = async (to: RouteLocationNormalized, next: NavigationGu
 
 // ============ 全局守卫 ============
 router.beforeEach((to, from, next) => {
+  // 分享授权和公开播放不继承应用 Scope，也无需装载浏览器当前账号的用户和菜单。
+  if (usesShareSession(to.meta)) {
+    useRouteLoadingStore().finish()
+    next()
+    return
+  }
+
   const entry = getApplicationRuntimeEntry()
   const locationScope = getRouteQueryParam(window.location, APPLICATION_SCOPE_QUERY_KEY)
   const navigationScope = entry.applicationId

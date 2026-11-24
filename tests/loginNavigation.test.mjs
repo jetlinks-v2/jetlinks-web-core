@@ -75,6 +75,8 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   })
   let router
   let resets = 0
+  let bootstraps = 0
+  let routeLoadingFinishes = 0
   const environmentConfig = { VITE_APP_ENVIRONMENT: environment, VITE_APP_RUNTIME_SCOPE: scope, BASE_URL: base }
   const dependencies = {
     vue: Vue, pinia: Pinia, axios, 'lodash-es': { isFunction, isObject },
@@ -102,7 +104,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     '@jetlinks-web-core/utils/ai-client-tool-request': { isAiClientToolSilentRequest: () => false },
     '@jetlinks-web-core/utils/module-registry': {},
     '@jetlinks-web-core/utils/json/collector': {},
-    '@jetlinks-web-core/store/route-loading': { useRouteLoadingStore: () => ({ start() {}, finish() {}, finishNavigation() {}, reset() {} }) },
+    '@jetlinks-web-core/store/route-loading': { useRouteLoadingStore: () => ({ start() {}, finish() { routeLoadingFinishes++ }, finishNavigation() {}, reset() {} }) },
     '@jetlinks-web-core/store/user': { useUserStore: () => ({ isSubAccount: false }) },
     '@jetlinks-web-core/store/menu': { useMenuStore: () => ({ hasRouteMenu: () => true }) },
   }
@@ -114,13 +116,16 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
         routes: [
           { name: 'Login', path: '/login', component: {} },
           { name: 'Overview', path: '/overview', component: {} },
+          { name: 'ShareAuthorize', path: '/share/authorize', component: {}, meta: { security: 'public', shareSession: true } },
+          { name: 'PublicRelease', path: '/visualization/release/:releaseId?', component: {}, meta: { security: 'public', shareSession: true } },
+          { name: 'ReleaseMenu', path: '/visualization/release-page/:releaseId', component: {} },
         ], tokenFilterPaths: ['/login'], menuFilterPaths: [], registry: [],
       }),
     },
     [resolve(root, 'src/router/default-entry.ts')]: { DefaultApplicationEntryError: class extends Error {} },
     [resolve(root, 'src/router/startup.ts')]: {
       resetSessionStores: () => { resets++ }, resetRouteStartupState() {},
-      bootstrapSession: async () => false, ensureMenuRoutes: async () => false,
+      bootstrapSession: async () => { bootstraps++; return false }, ensureMenuRoutes: async () => false,
     },
   }
   const evaluate = (filename, source = readFileSync(filename, 'utf8')) => {
@@ -155,9 +160,25 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   return {
     load, storage, window, client, api, verify, packageApi, navigation, navigations, tokensAtNavigation, reloads, utils, pinia, router,
     get resets() { return resets },
+    get bootstraps() { return bootstraps },
+    get routeLoadingFinishes() { return routeLoadingFinishes },
     setLocation,
   }
 }
+
+test('share authorization and public release skip account bootstrap while release menu uses it', async t => {
+  const f = fixture(t)
+  f.utils.setToken('fixture-account-token')
+  await f.router.push('/share/authorize')
+  assert.equal(f.router.currentRoute.value.path, '/share/authorize')
+  assert.equal(f.routeLoadingFinishes, 1)
+  await f.router.push('/visualization/release/123')
+  assert.equal(f.router.currentRoute.value.path, '/visualization/release/123')
+  assert.equal(f.routeLoadingFinishes, 2)
+  assert.equal(f.bootstraps, 0)
+  await f.router.push('/visualization/release-page/123')
+  assert.equal(f.bootstraps, 1)
+})
 
 for (const entry of ['platform', 'project']) {
   test(`the ${entry} user menu returns to login without a reset request when the current token is missing`, async t => {

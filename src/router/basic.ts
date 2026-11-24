@@ -136,7 +136,8 @@ export const AUTHORIZE_ROUTE: RouteRecordRaw = {
   component: () => import('@jetlinks-web-core/views/share/authorize/index.vue'),
   meta: {
     title: '授权认证',
-    security: RouteSecurityLevel.PUBLIC
+    security: RouteSecurityLevel.PUBLIC,
+    shareSession: true
   }
 }
 
