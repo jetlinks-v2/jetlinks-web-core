@@ -10,17 +10,13 @@ const require = createRequire(import.meta.url)
 const remapping = createRequire(require.resolve('vite/package.json'))('@jridgewell/remapping')
 export const coreRoot = fileURLToPath(new URL('../..', import.meta.url))
 export const sourceRoot = resolve(coreRoot, 'src')
-const instrumented = '/private/tmp/device-metric-stage2-core/instrumented'
+const instrumented = '/private/tmp/jetlinks-component-tests/instrumented'
 
 /** Run real TS/SFC modules with only external UI, browser and transport boundaries replaced. */
-export function createMetricLoader(stubs = {}) {
-  stubs={
-    // 公共函数目录的传输边界；业务解析、保存和编辑组件仍执行真实代码。
-    [resolve(sourceRoot,'api/expression.ts')]:{expressionFunctions:async()=>['abs','min','max','round','sqrt'].map(name=>({id:`math.${name}`,name,description:name,parameters:[{id:'value',name:'value',valueType:'number'}],returnType:'number',minimumArguments:1,maximumArguments:name === 'round' ? 2 : name === 'min' || name === 'max' ? 16 : 1}))},
-    ...stubs,
-  }
+export function createComponentLoader(stubs = {}, resolvePath = path => path) {
   const cache = new Map()
   const load = filename => {
+    filename = resolvePath(filename)
     if (cache.has(filename)) return cache.get(filename).exports
     let source = readFileSync(filename, 'utf8')
     if (Object.hasOwn(stubs, '__metricGlob')) source = source.replaceAll('import.meta.glob', "require('__metricGlob')")
@@ -54,7 +50,7 @@ export function createMetricLoader(stubs = {}) {
       if (!id.startsWith('.') && !id.startsWith('@jetlinks-web-core/')) return require(id)
       const base = id.startsWith('.') ? resolve(dirname(filename), id) : resolve(sourceRoot, id.slice('@jetlinks-web-core/'.length))
       if(base.endsWith('.css?inline'))return readFileSync(base.slice(0,-'?inline'.length),'utf8')
-      const target = [base, `${base}.ts`, `${base}.vue`, resolve(base, 'index.ts')].find(item => existsSync(item) && /\.(ts|vue)$/.test(item))
+      const target = [base, `${base}.ts`, `${base}.vue`, resolve(base, 'index.ts')].map(resolvePath).find(item => existsSync(item) && /\.(ts|vue)$/.test(item))
       if (Object.hasOwn(stubs, target)) return stubs[target]
       if (!target) throw new Error(`Unresolved test import ${id} from ${filename}`)
       if (target.endsWith('.vue') && !target.includes('/components/Metric/') && !target.includes('/components/Expression/')) return { default: passthrough('external-shell'), __esModule: true }
@@ -66,10 +62,11 @@ export function createMetricLoader(stubs = {}) {
   return file => load(resolve(sourceRoot, file))
 }
 
-export const passthrough = name => vue.defineComponent({ name, inheritAttrs: true, setup: (_props, { slots }) => () => vue.h(name, Object.values(slots).flatMap(slot => slot?.())) })
+// 候选项是由选择器传参调用的 scoped slot，浅层壳不能在没有候选参数时自行调用。
+export const passthrough = name => vue.defineComponent({ name, inheritAttrs: true, setup: (_props, { slots }) => () => vue.h(name, Object.entries(slots).flatMap(([key,slot]) => key === 'option' ? [] : slot?.())) })
 export const flush = async () => { await vue.nextTick(); await new Promise(resolve => setImmediate(resolve)); await vue.nextTick() }
 
-export function createMetricRenderer() {
+export function createComponentRenderer() {
   class TestButton { focus(options) { this.focused = options } get isConnected() { return !!this.parent } get disabled() { return !!this.props.disabled } }
   globalThis.HTMLButtonElement = TestButton
   const node = (type, text = '') => Object.assign(type === 'button' ? new TestButton() : {}, {

@@ -6,7 +6,7 @@ import { expressionMath, mathEnumChoices, mathReferenceMacro } from './math'
 const escapeText=(value:string)=>value.replace(/[\\{}%$&#_^~]/g,char=>`\\${char}`)
 const unescapeText=(value:string)=>value.replace(/\\([\\{}%$&#_^~])/g,'$1')
 const constants:Record<string,string>={JLotherwise:'\\operatorname{otherwise}',JLemptyValue:'\\operatorname{null}',JLemptyResult:'\\operatorname{null}',JLtrue:'\\operatorname{true}',JLfalse:'\\operatorname{false}',JLand:'\\land ',JLor:'\\lor ',JLnot:'\\lnot ',JLmissing:'=\\operatorname{null}',JLpresent:'\\ne \\operatorname{null}'}
-const commands=new Set(['left','right',',',';','!',' ','times','cdot','div','bmod','land','wedge','lor','vee','lnot','neg','ne','neq','le','leq','ge','geq','lt','gt','frac','dfrac','tfrac','mathord','sqrt'])
+const commands=new Set(['left','right',',',';','!',' ','times','cdot','div','mod','bmod','land','wedge','lor','vee','lnot','neg','ne','neq','le','leq','ge','geq','lt','gt','frac','dfrac','tfrac','mathord','sqrt'])
 
 /** Only strips the usual math delimiters; arbitrary TeX documents are not an import format. */
 export function unwrapMathLatex(value:string) {
@@ -109,7 +109,7 @@ export function createMathTransfer(root:ExpressionNode,context:ExpressionEditorC
         output+=`\\${command}{cases}`;continue
       }
       if(!commands.has(command))throw new Error('unsupportedExpression')
-      output+=`\\${command}`
+      output+=`\\${command === 'bmod' ? 'mod' : command}`
     }
     return output
   }

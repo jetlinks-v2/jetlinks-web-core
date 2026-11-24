@@ -4,21 +4,39 @@
     v-bind="rootAttrs"
     class="equal-height-columns"
     :class="[attrs.class, {
-      'equal-height-columns--collapsible': showLeft && collapsible,
+      'equal-height-columns--collapsible': showLeft && collapsible && !hasHeader,
+      'equal-height-columns--header': hasHeader,
+      'equal-height-columns--toolbar': hasToolbar,
       'equal-height-columns--collapsed': isCollapsed,
       'equal-height-columns--single': !showLeft,
     }]"
-    :style="[attrs.style, rootStyle]"
+    :style="[attrs.style as StyleValue, rootStyle]"
   >
     <div v-if="showLeft" ref="leftPaneRef" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
-      <slot name="left" />
+      <header v-if="slots['left-header']" class="equal-height-columns__header">
+        <a-button v-if="collapsible && !hasToolbar" type="text" size="small" class="equal-height-columns__header-toggle"
+          :title="toggleText" :aria-label="toggleText" :aria-expanded="!isCollapsed" :aria-controls="bodyId" @click="toggleCollapse">
+          <AIcon :type="isCollapsed ? 'MenuUnfoldOutlined' : 'MenuFoldOutlined'" />
+        </a-button>
+        <div v-show="!isCollapsed" class="equal-height-columns__header-title"><slot name="left-header" /></div>
+      </header>
+      <div v-if="hasHeader" v-show="!isCollapsed" :id="bodyId" class="equal-height-columns__body"><slot name="left" /></div>
+      <slot v-else name="left" />
     </div>
-    <div class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle">
-      <slot name="right" />
+    <div class="equal-height-columns__pane equal-height-columns__pane--right" :class="{ 'equal-height-columns__pane--toolbar': hasToolbar }" :style="rightStyle">
+      <header v-if="hasToolbar" class="equal-height-columns__toolbar">
+        <a-button v-if="showLeft && collapsible" type="text" size="small" class="equal-height-columns__header-toggle"
+          :title="toggleText" :aria-label="toggleText" :aria-expanded="!isCollapsed" :aria-controls="bodyId" @click="toggleCollapse">
+          <AIcon :type="isCollapsed ? 'MenuUnfoldOutlined' : 'MenuFoldOutlined'" />
+        </a-button>
+        <div class="equal-height-columns__toolbar-content"><slot name="right-header" /></div>
+      </header>
+      <div v-if="hasToolbar" class="equal-height-columns__main"><slot name="right" /></div>
+      <slot v-else name="right" />
     </div>
-    <div v-if="showLeft && collapsible" ref="anchorRef" class="equal-height-columns__toggle-anchor" />
+    <div v-if="showLeft && collapsible && !hasHeader" ref="anchorRef" class="equal-height-columns__toggle-anchor" />
     <Teleport
-      v-if="showLeft && collapsible"
+      v-if="showLeft && collapsible && !hasHeader"
       :to="toggleHost || 'body'"
       :disabled="!toggleHost"
     >
@@ -39,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useAttrs, type CSSProperties } from 'vue'
+import { computed, ref, useAttrs, useId, useSlots, type CSSProperties, type StyleValue } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useColumnToggle } from './useColumnToggle'
 
@@ -51,6 +69,10 @@ defineOptions({
 })
 
 const attrs = useAttrs()
+const slots = useSlots()
+const hasToolbar = computed(() => !!slots['right-header'])
+const hasHeader = computed(() => !!slots['left-header'] || hasToolbar.value)
+const bodyId = `column-body-${useId()}`
 const { t: $t } = useI18n()
 const { layoutRef, leftPaneRef, anchorRef, layerRef, toggleHost, togglePosition } = useColumnToggle()
 
@@ -92,7 +114,7 @@ const toggleText = computed(() => (
 /**
  * 切换左列展开状态。
  *
- * 收起后左列轨道与列间距一起归零，按钮贴齐外层面板（无面板时为容器）左边缘。
+ * 工具栏模式在右侧提供入口，左列归零；左标题模式保留窄入口。
  */
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
@@ -115,7 +137,8 @@ const rootStyle = computed<Record<string, string>>(() => ({
   // 收起时同时去掉左列宽度和列间距，右列才能真正占满整行
   '--equal-height-columns-gap': isCollapsed.value ? '0px' : toCssValue(props.gap),
   '--equal-height-columns-align': props.align,
-  '--equal-height-columns-left-width': toGridTrack(props.leftWidth, isCollapsed.value),
+  '--equal-height-columns-left-width': isCollapsed.value && hasHeader.value && !hasToolbar.value
+    ? 'var(--equal-height-columns-header-rail)' : toGridTrack(props.leftWidth, isCollapsed.value),
   '--equal-height-columns-right-width': toGridTrack(props.rightWidth),
 }))
 
@@ -133,162 +156,4 @@ const leftStyle = paneStyle
 const rightStyle = paneStyle
 </script>
 
-<style scoped>
-.equal-height-columns,
-.equal-height-columns__toggle-layer {
-  --equal-height-columns-toggle-height: 2rem;
-}
-
-.equal-height-columns {
-  --equal-height-columns-transition: 0.2s cubic-bezier(0.23, 1, 0.32, 1);
-  position: relative;
-  display: grid;
-  width: 100%;
-  height: var(--equal-height-columns-height);
-  min-height: 0;
-  gap: 0;
-  align-items: var(--equal-height-columns-align);
-  /* 将间距作为独立轨道，按钮和分割线可直接居中，百分比间距也由容器宽度解析。 */
-  grid-template-columns: minmax(0, var(--equal-height-columns-left-width)) var(--equal-height-columns-gap) minmax(0, var(--equal-height-columns-right-width));
-  /* 收起前后保留相同轨道类型，布局、间距和按钮位移使用同一段过渡。 */
-  transition: grid-template-columns var(--equal-height-columns-transition);
-}
-
-/* 中缝分割线随间距轨道同步移动，不单独叠加位移过渡。 */
-.equal-height-columns::before {
-  content: '';
-  grid-area: 1 / 2 / 2 / 3;
-  justify-self: center;
-  align-self: stretch;
-  width: var(--jet-theme-stroke-width);
-  /* 右沿对齐按钮的定位锚点，让上下横边与竖线共用同一条描边。 */
-  margin-right: var(--jet-theme-stroke-width);
-  background: var(--line-strong);
-  pointer-events: none;
-}
-
-/* 仅避开按钮内侧，上下描边处重叠，避免半像素取整造成接缝缺口。 */
-.equal-height-columns--collapsible:not(.equal-height-columns--collapsed)::before {
-  background: linear-gradient(
-    to bottom,
-    var(--line-strong) 0 calc(50% - var(--equal-height-columns-toggle-height) / 2 + var(--jet-theme-stroke-width)),
-    transparent 0 calc(50% + var(--equal-height-columns-toggle-height) / 2 - var(--jet-theme-stroke-width)),
-    var(--line-strong) 0
-  );
-}
-
-/* 左列收起后两栏贴合，中缝已无意义，分割线随之消失。 */
-.equal-height-columns--collapsed::before {
-  background: none;
-}
-
-.equal-height-columns__pane {
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  /* 约束子项高度，让左侧筛选等面板能内部滚动 */
-  overflow: hidden;
-}
-
-/* 两栏显式落在同一行。 */
-.equal-height-columns__pane--left {
-  grid-area: 1 / 1 / 2 / 2;
-}
-
-.equal-height-columns__pane--right {
-  grid-area: 1 / 3 / 2 / 4;
-}
-
-/* 隐藏左列时改为单列，覆盖自定义列宽并移除中缝占位。 */
-.equal-height-columns--single {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-}
-
-.equal-height-columns--single::before {
-  content: none;
-}
-
-.equal-height-columns--single .equal-height-columns__pane--right {
-  grid-area: 1 / 1 / 2 / 2;
-}
-
-.equal-height-columns__toggle-anchor {
-  grid-area: 1 / 2 / 2 / 3;
-  align-self: center;
-  height: 0;
-  pointer-events: none;
-}
-
-/* 挂载到面板后使用实测坐标；没有面板时仍由间距轨道承载。 */
-.equal-height-columns__toggle-layer {
-  position: absolute;
-  grid-area: 1 / 2 / 2 / 3;
-  top: 50%;
-  left: 50%;
-  z-index: 5;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-
-.equal-height-columns__toggle {
-  --equal-height-columns-toggle-width: 0.8rem;
-  position: absolute;
-  /* 使用布局坐标，避免 transform 在缩放时将 1px 描边分摊到相邻像素。 */
-  top: calc(var(--equal-height-columns-toggle-height) / -2);
-  left: calc(0px - var(--equal-height-columns-toggle-width));
-  left: calc(0px - round(var(--equal-height-columns-toggle-width), 1px));
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--equal-height-columns-toggle-width);
-  /* 避免 rem 换算后的小数宽度让左边框因抗锯齿而比竖线更浅。 */
-  width: round(var(--equal-height-columns-toggle-width), 1px);
-  height: var(--equal-height-columns-toggle-height);
-  padding: 0;
-  font-size: var(--fs-12);
-  color: var(--ink-2);
-  border: var(--jet-theme-stroke-width) solid var(--line-strong);
-  /* 右侧贴合左列边缘，贴住的一侧不留圆角，视觉上像挂在面板边上 */
-  border-radius: var(--r-1) 0 0 var(--r-1);
-  box-shadow: none;
-  cursor: pointer;
-  pointer-events: auto;
-  transition:
-    left var(--equal-height-columns-transition),
-    color var(--motion-duration-fast) var(--motion-ease-standard),
-    border-color var(--motion-duration-fast) var(--motion-ease-standard);
-}
-
-/* 分割线位于列间距中点；让按钮右边缘与它重合，避免在左栏边缘留下空隙。 */
-.equal-height-columns__toggle:not(.equal-height-columns__toggle--collapsed) {
-  border-right: none;
-}
-
-.equal-height-columns__toggle:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-/*
- * 收起后抵消组件与面板之间的留白，无面板时偏移量为零；沿用与轨道相同的过渡。
- */
-.equal-height-columns__toggle--collapsed {
-  border-radius: 0 var(--r-1) var(--r-1) 0;
-  left: calc(0px - var(--equal-height-columns-edge-offset, 0px));
-  border-left: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .equal-height-columns {
-    transition: none;
-  }
-
-  .equal-height-columns__toggle {
-    transition:
-      color var(--motion-duration-fast) var(--motion-ease-standard),
-      border-color var(--motion-duration-fast) var(--motion-ease-standard);
-  }
-}
-</style>
+<style scoped src="./index.css" />
