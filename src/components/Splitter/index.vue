@@ -218,7 +218,8 @@ watch(() => props.collapseOnDrag, enabled => { if (!enabled) collapsePreview.val
 .splitter > .panel-resize-handle { width:100%; margin-left:0 }
 .splitter--vertical > .panel-resize-handle { height:100%; margin-top:0 }
 .splitter__restore-handle :deep(.panel-resize-handle__separator::after) { display:none }
-.splitter__restore-handle :deep(.panel-resize-handle__separator::before) { opacity:1; background:var(--ink-2,var(--jet-theme-text-secondary)) }
-.splitter__restore-handle:hover :deep(.panel-resize-handle__separator::before),.splitter__restore-handle:focus-within :deep(.panel-resize-handle__separator::before) { background:var(--accent) }
+.splitter__restore-handle :deep(.panel-resize-handle__separator::before) { opacity:1; background:color-mix(in srgb,var(--ink-1,var(--jet-theme-text)) 55%,var(--bg)) }
+.splitter__restore-handle:hover :deep(.panel-resize-handle__separator::before) { background:color-mix(in srgb,var(--ink-1,var(--jet-theme-text)) 75%,var(--bg)) }
+.splitter__restore-handle:focus-within :deep(.panel-resize-handle__separator::before),.splitter__restore-handle.is-dragging :deep(.panel-resize-handle__separator::before),.splitter__restore-handle.is-controls-open :deep(.panel-resize-handle__separator::before) { background:var(--accent) }
 @media(prefers-reduced-motion:reduce) { .splitter--motion,.splitter__collapse-shadow { transition:none } }
 </style>
