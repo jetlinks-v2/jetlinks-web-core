@@ -204,18 +204,33 @@ function mountResize(extra = {}) {
     '@vueuse/core': { useElementSize: () => ({ width }), useElementVisibility: () => ref(true) },
     'vue-i18n': { useI18n: () => ({ t: key => key }) },
   })('components/PanelResizeHandle/index.vue').default
-  const props = reactive({ modelValue: 360, 'aria-label': '属性面板宽度', 'aria-controls': 'properties', title: '调整属性', class: 'host-handle', style: { opacity: 0.9 }, ...extra }), changes = [], state = createTestRenderer()
+  const props = reactive({ modelValue: 360, 'aria-label': '属性面板宽度', 'aria-controls': 'properties', title: '调整属性', class: 'host-handle', style: { opacity: 0.9 }, ...extra }), changes = [], drags = [], state = createTestRenderer()
   const app = state.register(state.renderer.createApp({ setup: () => () => h(Handle, {
     ...props,
     'onUpdate:modelValue': value => { changes.push(value); props.modelValue = value },
+    onDrag: event => drags.push(event),
   }) }))
   app.mount(state.root)
   const separator = walk(state.root, node => node.props.role === 'separator')[0]
   const button = key => walk(state.root, node => node.type === 'button' && node.children.some(child => child.text === `components.PanelResizeHandle.${key}`))[0]
   const press = key => [].concat(separator.props.onKeydown).forEach(handler => handler({ key, preventDefault() {} }))
   const pointer = (x, id = 1) => ({ button: 0, clientX: x, pointerId: id, currentTarget: separator, preventDefault() {} })
-  return { ...state, app, props, changes, width, separator, button, press, pointer }
+  return { ...state, app, props, changes, drags, width, separator, button, press, pointer }
 }
+
+test('drag reports raw directional sizes and exactly one completion after capture release', async t => {
+  const state = mountResize({ side: 'right' }); t.after(() => state.app.unmount())
+  const { separator, pointer } = state
+  separator.props.onPointerdown(pointer(500)); separator.props.onPointermove(pointer(600)); await flush()
+  assert.equal(state.props.modelValue, 320)
+  separator.props.onPointerup(pointer(600)); await flush()
+  assert.deepEqual(state.drags, [
+    { phase: 'start', initialSize: 360, requestedSize: 360 },
+    { phase: 'move', initialSize: 360, requestedSize: 260 },
+    { phase: 'end', initialSize: 360, requestedSize: 260 },
+  ])
+  assert.equal(separator.captured, undefined)
+})
 
 test('resize click controls and keyboard share bounds; semantic attrs remain on the separator', async () => {
   const state = mountResize()
@@ -289,7 +304,7 @@ test('click actions ignore a completed drag; keyboard opens the menu and Escape 
   } finally { state.app.unmount() }
 })
 
-function mountSplitter(extra = {}, accept = true) {
+function mountSplitter(extra = {}, accept = true, reducedMotion = false) {
   const paneWidth = ref(240), paneHeight = ref(180), containerWidth = ref(1000), containerHeight = ref(600)
   let measures = 0, mounts = 0
   const boundaries = {
@@ -301,6 +316,7 @@ function mountSplitter(extra = {}, accept = true) {
           : measurement === 1 ? { width: containerWidth, height: containerHeight } : { width: ref(0), height: ref(0) }
       },
       useElementVisibility: () => ref(true),
+      useMediaQuery: () => ref(reducedMotion),
     },
   }
   const Handle = createDashboardLoader(boundaries)('components/PanelResizeHandle/index.vue').default
@@ -316,24 +332,145 @@ function mountSplitter(extra = {}, accept = true) {
   app.mount(state.root)
   const separator = () => walk(state.root, node => node.props.role === 'separator')[0]
   const field = label => walk(state.root, node => node.props['aria-label'] === label)[0]
-  field('start').parent.getBoundingClientRect = () => ({ width: paneWidth.value, height: paneHeight.value })
+  const startPane = () => walk(state.root, node => hasClass(node, 'splitter__pane--start'))[0]
+  startPane().getBoundingClientRect = () => ({ width: paneWidth.value, height: paneHeight.value })
   const pointer = (x, y = 0) => ({ button: 0, clientX: x, clientY: y, pointerId: 1, currentTarget: separator(), preventDefault() {} })
   const press = key => separator().props.onKeydown({ key, preventDefault() {} })
-  return { ...state, app, props, requests, collapses, separator, field, pointer, press, draft, containerWidth, containerHeight, paneWidth, paneHeight, mounts: () => mounts }
+  return { ...state, app, props, requests, collapses, separator, field, startPane, pointer, press, draft, containerWidth, containerHeight, paneWidth, paneHeight, mounts: () => mounts }
 }
+
+async function previewCollapse(state) {
+  const separator = state.separator(), initial = separator.props['aria-valuenow'], min = separator.props['aria-valuemin']
+  separator.props.onPointerdown(state.pointer(initial)); separator.props.onPointermove(state.pointer(min)); await flush()
+  separator.props.onPointermove(state.pointer(min / 2 - 1)); await flush()
+  return separator
+}
+
+test('midpoint collapse intent retains capture without jumping the layout or hiding the content', async t => {
+  const state = mountSplitter({ collapseOnDrag: true, min: 160 }); t.after(() => state.app.unmount())
+  const separator = await previewCollapse(state), input = state.field('start')
+  assert.equal(state.separator(), separator); assert.equal(separator.captured, 1)
+  assert.equal(separator.props['aria-valuetext'], 'components.Splitter.releaseToCollapse')
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /160px/)
+  assert.equal(state.startPane().props.inert, undefined); assert.equal(state.mounts(), 1); assert.deepEqual(state.collapses, [])
+  assert.equal(hasClass(state.root.children[0], 'splitter--motion'), false)
+  separator.props.onPointermove(state.pointer(79)); await flush()
+  assert.equal(separator.props['aria-valuetext'], 'components.Splitter.releaseToCollapse')
+  separator.props.onPointermove(state.pointer(80)); await flush()
+  assert.equal(separator.props['aria-valuetext'], undefined); assert.equal(state.startPane().props.inert, undefined)
+  separator.props.onPointerup(state.pointer(80)); await flush()
+  assert.deepEqual(state.collapses, []); assert.equal(separator.props['aria-valuenow'], 160)
+})
+
+test('fast drags across the midpoint still resize to the legal minimum before committing a fold', async t => {
+  const state = mountSplitter({ collapseOnDrag: true, min: 160 }); t.after(() => state.app.unmount())
+  const separator = state.separator()
+  separator.props.onPointerdown(state.pointer(240)); separator.props.onPointermove(state.pointer(79)); await flush()
+  assert.equal(separator.props['aria-valuenow'], 160)
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /160px/)
+  assert.equal(state.startPane().props.inert, undefined)
+  separator.props.onPointerup(state.pointer(79)); await flush()
+  assert.deepEqual(state.requests, [160, 240]); assert.deepEqual(state.collapses, [true])
+})
+
+test('releasing a preview preserves pre-drag size, content and focus in local and controlled layouts', async t => {
+  for (const extra of [{}, { size: 240, collapsed: false }]) {
+    const state = mountSplitter({ collapseOnDrag: true, min: 160, ...extra }); t.after(() => state.app.unmount())
+    const input = state.field('start'); state.draft.value = '自动折叠保留的草稿'; await flush()
+    const separator = await previewCollapse(state)
+    separator.props.onPointerup(state.pointer(79)); await flush()
+    assert.deepEqual(state.collapses, [true]); assert.equal(state.separator(), undefined)
+    assert.equal(separator.captured, undefined); assert.equal(state.document.activeElement, state.field('end').parent)
+    state.field('toggle').props.onClick(); await flush()
+    assert.equal(state.separator().props['aria-valuenow'], 240)
+    assert.equal(state.field('start'), input); assert.equal(input.props.value, '自动折叠保留的草稿'); assert.equal(state.mounts(), 1)
+    assert.deepEqual(state.requests, [160, 240]); assert.deepEqual(state.collapses, [true, false])
+  }
+})
+
+for (const operation of ['Escape', 'onPointercancel', 'onLostpointercapture']) {
+  test(`${operation} cancels preview and restores the drag baseline`, async t => {
+    const state = mountSplitter({ collapseOnDrag: true, min: 160 }); t.after(() => state.app.unmount())
+    const separator = await previewCollapse(state)
+    if (operation === 'Escape') state.press('Escape')
+    else separator.props[operation](state.pointer(79))
+    await flush()
+    assert.equal(state.separator(), separator); assert.equal(separator.captured, undefined)
+    assert.equal(separator.props['aria-valuetext'], undefined); assert.equal(separator.props['aria-valuenow'], 240)
+    assert.deepEqual(state.collapses, []); assert.equal(state.startPane().props.inert, undefined)
+  })
+}
+
+test('controlled rejection restores actual state after preview; unenabled splitters only clamp size', async t => {
+  for (const enabled of [false, true]) {
+    const state = mountSplitter({ collapseOnDrag: enabled, min: 160, size: 280, collapsed: false }, false); t.after(() => state.app.unmount())
+    const separator = await previewCollapse(state)
+    assert.equal(separator.props['aria-valuetext'], enabled ? 'components.Splitter.releaseToCollapse' : undefined)
+    separator.props.onPointerup(state.pointer(79)); await flush()
+    assert.equal(state.separator(), separator); assert.equal(separator.props['aria-valuenow'], 280)
+    assert.equal(state.startPane().props.inert, undefined)
+    assert.deepEqual(state.collapses, enabled ? [true] : [])
+  }
+})
+
+test('vertical collapse follows pointer Y and restores pre-drag height', async t => {
+  const state = mountSplitter({ collapseOnDrag: true, orientation: 'vertical', min: 100 }); t.after(() => state.app.unmount())
+  const separator = state.separator()
+  separator.props.onPointerdown(state.pointer(900, 180)); separator.props.onPointermove(state.pointer(900, 100)); await flush()
+  separator.props.onPointermove(state.pointer(900, 49)); await flush()
+  assert.match(state.root.children[0].props.style.gridTemplateRows, /100px/)
+  separator.props.onPointerup(state.pointer(900, 49)); await flush()
+  assert.deepEqual(state.collapses, [true])
+  state.field('toggle').props.onClick(); await flush()
+  assert.equal(state.separator().props['aria-valuenow'], 180)
+})
+
+test('keyboard sizing, constraint changes, disabling, direction changes and unmount do not commit a pending fold', async t => {
+  for (const operation of ['Home', 'constraints', 'disable', 'direction', 'unmount']) {
+    const state = mountSplitter({ collapseOnDrag: true, min: 160, endMin: 360 })
+    let unmounted = false; t.after(() => { if (!unmounted) state.app.unmount() })
+    const separator = await previewCollapse(state)
+    if (operation === 'Home') state.press('Home')
+    else if (operation === 'constraints') state.containerWidth.value = 500
+    else if (operation === 'disable') state.props.resizable = false
+    else if (operation === 'direction') state.props.orientation = 'vertical'
+    else { state.app.unmount(); unmounted = true }
+    await flush()
+    assert.equal(separator.captured, undefined); assert.deepEqual(state.collapses, [])
+    if (!unmounted && state.separator()) assert.equal(state.separator().props['aria-valuetext'], undefined)
+  }
+})
+
+test('collapse motion freezes content, completes on the root transition and respects reduced motion', async t => {
+  for (const reduced of [false, true]) {
+    const state = mountSplitter({}, true, reduced); t.after(() => state.app.unmount())
+    const root = state.root.children[0]
+    state.field('toggle').props.onClick(); await flush()
+    assert.equal(hasClass(root, 'splitter--motion'), !reduced)
+    if (!reduced) {
+      assert.equal(state.startPane().children[0].props.style.width, '240px')
+      root.props.onTransitionend({ target: root, propertyName: 'grid-template-columns' }); await flush()
+      assert.equal(hasClass(root, 'splitter--motion'), false)
+    }
+    state.field('toggle').props.onClick(); await flush()
+    if (!reduced) root.props.onTransitionend({ target: root, propertyName: 'grid-template-columns' })
+    await flush()
+    assert.equal(state.startPane().props.inert, undefined)
+  }
+})
 
 test('Splitter retains local size, content instances and drafts across collapse and restores its measured initial size', async () => {
   const state = mountSplitter({ min: 160, max: 480, endMin: 360 })
   try {
     const input = state.field('start'), end = state.field('end')
     const separator = state.separator()
-    assert.equal(separator.props['aria-controls'], input.parent.props.id)
+    assert.equal(separator.props['aria-controls'], state.startPane().props.id)
     separator.props.onPointerdown(state.pointer(240)); separator.props.onPointermove(state.pointer(320)); separator.props.onPointerup(state.pointer(320)); await flush()
     assert.equal(state.separator().props['aria-valuenow'], 320)
     assert.match(state.root.children[0].props.style.gridTemplateColumns, /320px/)
     state.draft.value = '折叠后仍保留'; input.focus()
     state.field('toggle').props.onClick(); await flush()
-    assert.equal(state.separator(), undefined); assert.equal(input.parent.props.inert, true)
+    assert.equal(state.separator(), undefined); assert.equal(state.startPane().props.inert, true)
     assert.match(state.root.children[0].props.style.gridTemplateColumns, /0px/)
     assert.equal(state.document.activeElement, end.parent)
     state.field('toggle').props.onClick(); await flush()
@@ -368,7 +505,7 @@ test('controlled Splitter requests can be rejected without changing size or coll
     state.press('ArrowRight'); await flush()
     assert.deepEqual(state.requests, [296]); assert.equal(state.separator().props['aria-valuenow'], 280)
     state.field('toggle').props.onClick(); await flush()
-    assert.deepEqual(state.collapses, [true]); assert.ok(state.separator()); assert.equal(state.field('start').parent.props.inert, undefined)
+    assert.deepEqual(state.collapses, [true]); assert.ok(state.separator()); assert.equal(state.startPane().props.inert, undefined)
     state.props.size = 320; await flush()
     assert.equal(state.separator().props['aria-valuenow'], 320); assert.deepEqual(state.requests, [296])
     state.props.collapsed = true; await flush()
@@ -390,7 +527,7 @@ test('percentage sizing stays responsive until interaction and a zero-size pane 
     state.press('Home'); await flush()
     state.paneWidth.value = 0; await flush()
     assert.ok(state.separator()); assert.equal(state.separator().props['aria-valuenow'], 0)
-    assert.equal(state.field('start').parent.props.inert, true)
+    assert.equal(state.startPane().props.inert, true)
     state.press('ArrowRight'); await flush()
     assert.equal(state.separator().props['aria-valuenow'], 16)
   } finally { state.app.unmount() }

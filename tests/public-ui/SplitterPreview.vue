@@ -5,7 +5,7 @@
       <a-segmented v-model:value="orientation" aria-label="分区方向"
         :options="[{ label: '左右分区', value: 'horizontal' }, { label: '上下分区', value: 'vertical' }]" />
     </div>
-    <Splitter :orientation="orientation" :default-size="orientation === 'vertical' ? 160 : '32%'"
+    <Splitter collapse-on-drag :orientation="orientation" :default-size="orientation === 'vertical' ? 160 : '32%'"
       :min="orientation === 'vertical' ? 100 : 160" :max="360" :end-min="orientation === 'vertical' ? 180 : 240"
       resize-label="调整任务列表尺寸" class="splitter-example__layout">
       <template #start>

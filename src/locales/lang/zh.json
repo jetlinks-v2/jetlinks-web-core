@@ -777,6 +777,7 @@
   "components.EqualHeightColumns.collapse": "收起",
   "components.EqualHeightColumns.resize": "调整左侧区域宽度",
   "components.PanelResizeHandle.resize": "调整面板尺寸",
+  "components.Splitter.releaseToCollapse": "松开收起",
   "components.PanelResizeHandle.shrink": "缩小面板",
   "components.PanelResizeHandle.grow": "放大面板",
   "components.PanelResizeHandle.reset": "恢复默认尺寸",
