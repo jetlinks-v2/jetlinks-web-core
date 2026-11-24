@@ -76,7 +76,7 @@ const functions=[
   {id:'math.optional',name:'optional',returnType:'number',minimumArguments:0,maximumArguments:1},
   {id:'math.constant',name:'constant',returnType:'number',minimumArguments:0,maximumArguments:0},
 ].map(fn=>({...fn,parameters:[{id:'value',name:'value',valueType:'number'}]}))
-async function withSelection({tokens,root:expression,range,depths},run) {
+async function withSelection({tokens,root:expression,range,depths,empty=false,referenceLabel='value'},run) {
   const previousDocument=globalThis.document
   globalThis.document={}
   let field,editor
@@ -95,10 +95,22 @@ async function withSelection({tokens,root:expression,range,depths},run) {
   }
   const {useMathEditor}=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key})},'@vueuse/core':{onClickOutside(){}},mathlive:{MathfieldElement:Field},'mathlive/fonts.css':{},'./math-semantic.css?inline':{__esModule:true,default:''}})('components/Expression/useMathEditor.ts')
   const changes=[],{renderer,root}=createMetricRenderer()
-  const app=renderer.createApp({setup(){editor=useMathEditor({modelValue:{version:1,root:expression},conditions:true,context:{references:[{...reference,label:'value',schema:{type:'number'}}],functions}},(...event)=>changes.push(event));editor.host.value={appendChild(){}};return()=>h('div')}})
+  const app=renderer.createApp({setup(){editor=useMathEditor({modelValue:expression ? {version:1,root:expression} : undefined,empty,conditions:true,context:{references:[{...reference,label:referenceLabel,schema:{type:'number'}}],functions}},(...event)=>changes.push(event));editor.host.value={appendChild(){}};return()=>h('div')}})
   try {app.mount(root);await flush();await run({field,editor,changes})}
   finally {app.unmount();if(previousDocument===undefined)delete globalThis.document;else globalThis.document=previousDocument}
 }
+
+test('空公式在首次插入前注册中文变量与常量宏，不提交占位模型',()=>withSelection({tokens:[],range:[0,0],empty:true,referenceLabel:'温度'},async({field,editor,changes})=>{
+  assert.equal(editor.ready.value,true)
+  assert.equal(field.value,'')
+  assert.match(field.macros.JLa?.def || '',/温度/)
+  assert.ok(field.macros.JLtrue)
+  assert.ok(field.macros.JLemptyValue)
+  assert.equal(changes.some(([event])=>event === 'update:modelValue'),false)
+  await editor.openReferences()
+  editor.chooseReference(0)
+  assert.deepEqual(changes.find(([event])=>event === 'update:modelValue')?.[1],{version:1,root:reference})
+}))
 
 test('变量切换到函数时关闭旧候选，保留原选区',()=>withSelection({tokens:['\\JLa','+','1','+','2'],root:{type:'binary',operator:'add',left:plus,right:literal(2)},range:[0,3]},async({field,editor})=>{
   editor.canvas.value={clientHeight:40}
