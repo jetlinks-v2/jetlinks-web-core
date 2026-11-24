@@ -1,4 +1,7 @@
-import { readonly, ref, shallowRef } from 'vue'
+import { readonly, ref, shallowRef, type InjectionKey } from 'vue'
+
+/** 业务正文和管理预览的 Markdown 卡片关闭当前所属的气泡。 */
+export const closeDocumentHelpKey: InjectionKey<() => void> = Symbol('closeDocumentHelp')
 
 const request = shallowRef<{ url: string }>()
 /** 顶栏文档浮窗订阅此指令，业务组件不依赖 auth 模块内部实现。 */

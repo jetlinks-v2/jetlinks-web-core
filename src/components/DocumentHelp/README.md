@@ -2,6 +2,10 @@
 
 ## 平台管理的帮助说明
 
+业务埋点与文档管理的列表、草稿预览共用同一张帮助卡片。正文首个 Markdown 标题或指南 `header` 用作卡片标题，纯正文沿用“功能说明”。指南里的有序步骤、引用或 `.document-help-guide__note` 提示和 `.document-help-guide__link` 文档入口按内容显示。右上角关闭按钮和 Esc 都可收起气泡。
+
+卡片样式验证（2026-11-24）：帮助组件与文档管理 41 项回归、样式检查和认证模块定向生产构建通过。Chrome 使用示例配置验证了业务气泡、管理预览、显式关闭、键盘收起、320px 视口换行和长内容滚动。认证模块 `vue-tsc` 检查报告 538 项诊断，未指向本次修改文件。
+
 旧文档站关键词及标签搜索已移除；组件保留平台 `code/helpKey` 配置读取、纯说明、静态文章及内容插槽。
 
 清理验证：`node --test tests/documentHelp.test.mjs` 11 项通过，覆盖静态说明、链接、插槽、点位注册、配置读取、取消与错误重试；auth `tests/documentCenter.test.mjs` 9 项通过。旧搜索请求及 hook 无残留引用，三语 JSON 与差异空白检查通过。模块构建 `pnpm -F jetlinks-web-core build -- --module-name authentication-manager-ui` 通过；`pnpm exec vue-tsc --noEmit -p modules/authentication-manager-ui/tsconfig.json --pretty false` 仍有 577 项工作区诊断，修改的帮助组件及 API 无诊断。未配置独立 lint 脚本；服务未重启，真实页面待部署后复验。
@@ -46,7 +50,7 @@
 | `document` | `string`，可选 | 文章路径或同中心完整 URL；未配置或空白时不显示公共链接 |
 | `icon` | `string`，可选 | AIcon 图标名称，默认 `QuestionCircleOutlined` |
 | `iconColor` | `string`，可选 | CSS 颜色，可使用 `var(--主题变量)`；默认沿用次级文字颜色 |
-| `width` | `number \| string`，可选 | 内容宽度，默认 320px，受视口宽度约束 |
+| `width` | `number \| string`，可选 | 配置埋点默认宽 420px，静态说明默认宽 320px；显式宽度优先，受视口宽度约束 |
 | `placement` | Ant Design Vue Popover placement，可选 | 默认 `top` |
 
 交互：鼠标移入气泡后仍可点击链接；问号可用 Tab 聚焦，链接使用按钮原生键盘行为。Esc 关闭气泡。点击问号或链接不会触发父级卡片/行点击；打开文章后气泡关闭。未配置文章时不显示公共链接或底部分隔区，说明仍可查看。组件只发出打开意图，实际地址校验、`embed=1` 与语言参数、浮窗生命周期由 auth 承接。

@@ -130,6 +130,30 @@ test('trigger and popup keyboard/click events do not reach sortable headers or r
   assert.equal(view.popover.props.open, false)
 })
 
+test('management Markdown previews close their own help card and localize the close button', async t => {
+  const source = readFileSync(resolve(root, 'src/components/DocumentHelp/MarkdownPreview.vue'), 'utf8')
+  const { descriptor } = parse(source)
+  const script = compileScript(descriptor, { id: 'markdown-preview-test', inlineTemplate: true })
+  const preview = evaluate(script.content, {
+    'md-editor-v3': { MdPreview: defineComponent({ props: ['modelValue'], setup: props => () => h('p', props.modelValue) }) },
+    'md-editor-v3/lib/style.css': {},
+    '@jetlinks-web-core/utils/documentHelpMarkdown': { sanitizeHelpMarkdown: html => html },
+    '@jetlinks-web-core/hooks/useDocumentHelp': hook,
+  }).default
+  const view = mountHelp({ document: undefined }, { content: () => h(preview, { content: '草稿正文' }) })
+  t.after(() => view.app.unmount())
+  view.popover.emit('update:open', true)
+  await nextTick()
+  const closeButton = () => view.find('button').find(button => button.props.class === 'document-help-article__close')
+  assert.equal(closeButton().props['aria-label'], '关闭功能说明')
+  view.i18n.global.locale.value = 'en'
+  await nextTick()
+  assert.equal(closeButton().props['aria-label'], 'Close feature help')
+  closeButton().props.onClick({ stopPropagation() {} })
+  await nextTick()
+  assert.equal(view.popover.props.open, false)
+})
+
 test('content and trigger slots support a wide table while keeping the common document action', async t => {
   const view = mountHelp({ width: 600, placement: 'bottom' }, {
     default: () => h('span', '接入方式说明'),

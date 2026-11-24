@@ -2,7 +2,8 @@
   <a-popover
     v-if="$slots.content || !configuredPoint || configured.visible.value" v-model:open="open"
     :trigger="['hover', 'focus', 'click']" :placement="placement" :z-index="2147483647"
-    transition-name="document-help-fade" :overlay-style="{ paddingInline: 'var(--space-3, 12px)' }"
+    overlay-class-name="document-help-popover" transition-name="document-help-fade"
+    :overlay-style="{ paddingInline: 'var(--space-3, 12px)' }"
   >
     <template #content>
       <div class="document-help__content" :style="contentStyle" @click.stop @keydown.stop @keyup.stop @keydown.esc="open = false">
@@ -29,10 +30,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useSlots } from 'vue'
+import { computed, provide, useSlots } from 'vue'
 import type { PopoverProps } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
-import { useDocumentHelp } from '@jetlinks-web-core/hooks/useDocumentHelp'
+import { closeDocumentHelpKey, useDocumentHelp } from '@jetlinks-web-core/hooks/useDocumentHelp'
 import { useConfiguredDocumentHelp } from '@jetlinks-web-core/hooks/useConfiguredDocumentHelp'
 import MarkdownPreview from './MarkdownPreview.vue'
 
@@ -45,13 +46,17 @@ const props = withDefaults(defineProps<{
   iconColor?: string
   placement?: PopoverProps['placement']
   width?: number | string
-}>(), { description: '', icon: 'QuestionCircleOutlined', placement: 'top', width: 320 })
+}>(), { description: '', icon: 'QuestionCircleOutlined', placement: 'top' })
 const { t } = useI18n()
 const slots = useSlots()
 const { open, openHelp, openDocument, close } = useDocumentHelp(() => props.document)
+provide(closeDocumentHelpKey, close)
 const configuredPoint = computed(() => props.code && props.helpKey ? { code: props.code, key: props.helpKey } : undefined)
 const configured = useConfiguredDocumentHelp(open, () => slots.content ? undefined : configuredPoint.value)
-const contentStyle = computed(() => ({ width: typeof props.width === 'number' ? `${props.width}px` : props.width }))
+const contentStyle = computed(() => {
+  const width = props.width ?? (configuredPoint.value ? 420 : 320)
+  return { width: typeof width === 'number' ? `${width}px` : width }
+})
 </script>
 
 <style scoped lang="less">
@@ -85,6 +90,24 @@ const contentStyle = computed(() => ({ width: typeof props.width === 'number' ? 
   :global(.document-help-fade-appear-active),
   :global(.document-help-fade-leave-active) {
     animation: none;
+  }
+}
+</style>
+
+<style lang="less">
+// The popover is teleported. Scope the card surface to Markdown help and its previews.
+.document-help-popover:has(.document-help-article) {
+  .ant-popover-inner {
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--jet-theme-primary) 20%, var(--jet-theme-bg-container));
+    border-radius: var(--r-5);
+    background: var(--jet-theme-bg-container);
+  }
+  .ant-popover-arrow::before {
+    background: var(--jet-theme-bg-container);
+  }
+  .document-help__content {
+    max-width: calc(100vw - 2 * var(--space-4));
   }
 }
 </style>

@@ -2563,6 +2563,7 @@
   "PlatformSettings.initialization": "Finalize initialization",
   "PlatformSettings.basic": "Basic settings",
   "components.DocumentHelp.help": "Feature help",
+  "components.DocumentHelp.close": "Close feature help",
   "components.DocumentHelp.document": "Documentation",
   "components.DocumentHelp.loading": "Loading documentation",
   "components.DocumentHelp.failed": "Unable to load documentation",
