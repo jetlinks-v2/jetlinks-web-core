@@ -3,6 +3,10 @@
   "private": true,
   "version": "2.12.0",
   "scripts": {
+    "test:process": "node --test tests/process*.test.mjs",
+    "typecheck:process": "vue-tsc --noEmit -p tsconfig.process.json",
+    "dev:process-preview": "vite --config tests/vite.process.config.ts",
+    "build:process-preview": "vite build --config tests/vite.process.config.ts",
     "test:auto-tree": "node --test tests/autoTree.test.mjs && vue-tsc --noEmit -p tests/tsconfig.auto-tree.json",
     "test:auto-tree-browser": "node tests/autoTree.browser.mjs",
     "test:asset-ownership": "node --test tests/assetOwnershipCondition.test.mjs",

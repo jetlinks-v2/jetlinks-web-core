@@ -21,6 +21,7 @@ import {
   getFederationSetting,
   getThemeConfigPath,
   v3Token,
+  legacyLessVariables,
   getModulesName,
   getProxyUrl,
   federationSharedMap,
@@ -155,16 +156,7 @@ export default defineConfig(async ({ mode, command }) => {
       preprocessorOptions: {
         less: {
           modifyVars: {
-            'root-entry-name': 'variable',
-            'font-gray-900': '#1f2429',
-            'font-gray-600': '#646c73',
-            'font-gray-500': '#8d9399',
-            'font-gray-400': '#c3c7cb',
-            'font-gray-300': '#e4e6e7',
-            'font-gray-200': '#eff0f1',
-            'font-gray-50': '#f8f9fa',
-            'font-gray-0': '#ffffff',
-            'border-base-color': '#d9d9d9',
+            ...legacyLessVariables,
             ...themeV3Token
           },
           javascriptEnabled: true
