@@ -2563,6 +2563,7 @@
   "PlatformSettings.initialization": "完成初始化",
   "PlatformSettings.basic": "基础配置",
   "components.DocumentHelp.help": "功能说明",
+  "components.DocumentHelp.close": "关闭功能说明",
   "components.DocumentHelp.document": "帮助文档",
   "components.DocumentHelp.loading": "正在加载文档",
   "components.DocumentHelp.failed": "文档加载失败",

@@ -2514,6 +2514,7 @@
   "PlatformSettings.initialization": "初期化の完了",
   "PlatformSettings.basic": "基本設定",
   "components.DocumentHelp.help": "機能の説明",
+  "components.DocumentHelp.close": "機能の説明を閉じる",
   "components.DocumentHelp.document": "ヘルプドキュメント",
   "components.DocumentHelp.loading": "ドキュメントを読み込み中",
   "components.DocumentHelp.failed": "ドキュメントを読み込めませんでした",
