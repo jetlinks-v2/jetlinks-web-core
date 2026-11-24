@@ -1,5 +1,5 @@
 <template>
-  <div class="slanted-tabs" :aria-busy="state.loading || undefined">
+  <div class="slanted-tabs" :class="{ 'is-mouse-only': !keyboard }" :aria-busy="state.loading || undefined">
     <DefineTabLabel v-slot="{ option }">
       <slot name="tab" :option="option" :active="option.key === selectedKey">
         <span>{{ option.label }}</span>
@@ -29,9 +29,10 @@
                 :class="{ 'is-active': option.key === selectedKey }"
                 :aria-selected="option.key === selectedKey"
                 :aria-controls="$slots.default ? panelId(option.key) : undefined"
-                :tabindex="option.key === selectedKey ? 0 : -1"
+                :tabindex="keyboard && option.key === selectedKey ? 0 : -1"
                 :disabled="option.disabled || state.loading"
                 @click="select(option.key)"
+                @mousedown="onTabMousedown"
                 @keydown="onKeydown($event, option.key)"
               >
                 <span class="slanted-tabs__label"><TabLabel :option="option" /></span>
@@ -54,6 +55,7 @@
           type="text"
           class="slanted-tabs__more"
           :disabled="state.loading"
+          :tabindex="keyboard ? 0 : -1"
           :aria-label="t('components.SlantedTabs.more')"
           :aria-expanded="moreOpen"
           :aria-controls="moreMenuId"
@@ -92,7 +94,7 @@
           class="slanted-tabs__panel"
           role="tabpanel"
           :aria-labelledby="tabId(option.key)"
-          tabindex="0"
+          :tabindex="keyboard ? 0 : -1"
         >
           <slot :option="option" :active-key="selectedKey" />
         </div>
@@ -146,12 +148,16 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  keyboard: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const emit = defineEmits<SlantedTabsEmits>()
 const { t } = useI18n()
 const [DefineTabLabel, TabLabel] = createReusableTemplate<{ option: SlantedTabOption }>()
-const { selectedKey, visitedKeys, select, onKeydown, tabId, panelId } = useSlantedTabs(props, emit)
+const { selectedKey, visitedKeys, select, onTabMousedown, onKeydown, tabId, panelId } = useSlantedTabs(props, emit)
 const {
   containerRef, scrollRef, listRef, menuRef, hasOverflow, canScrollLeft, canScrollRight,
   hiddenOptions, moreOpen, moreTriggerId, moreMenuId, selectOverflow,

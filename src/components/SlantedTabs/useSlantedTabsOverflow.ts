@@ -114,14 +114,14 @@ export function useSlantedTabsOverflow(
     await nextTick()
     if (disposed) return
     const active = selectedKey.value
-    if (active !== undefined) scrollRef.value?.ownerDocument.getElementById(tabId(active))?.focus({ preventScroll: true })
+    if (props.keyboard !== false && active !== undefined) scrollRef.value?.ownerDocument.getElementById(tabId(active))?.focus({ preventScroll: true })
     scheduleMeasure(true)
   }
 
   /** Escape 关闭菜单后归还触发按钮焦点；鼠标移出时由 Dropdown 处理关闭。 */
   const closeMore = () => {
     moreOpen.value = false
-    scrollRef.value?.ownerDocument.getElementById(moreTriggerId)?.focus({ preventScroll: true })
+    if (props.keyboard !== false) scrollRef.value?.ownerDocument.getElementById(moreTriggerId)?.focus({ preventScroll: true })
   }
 
   const menuItems = () => Array.from(menuRef.value?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])') ?? [])
@@ -143,6 +143,7 @@ export function useSlantedTabsOverflow(
 
   /** 在捕获阶段统一菜单按键，Enter/Space 复用点击入口，避免与菜单内部按键重复触发。 */
   const onMenuKeydown = (event: KeyboardEvent) => {
+    if (props.keyboard === false) return
     if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
@@ -167,6 +168,7 @@ export function useSlantedTabsOverflow(
 
   /** 统一键盘触发方式，阻止原生点击在同一按键后再次切换菜单状态。 */
   const onMoreKeydown = (event: KeyboardEvent) => {
+    if (props.keyboard === false) return
     if (event.key === 'Escape' && moreOpen.value) {
       event.preventDefault()
       event.stopPropagation()
