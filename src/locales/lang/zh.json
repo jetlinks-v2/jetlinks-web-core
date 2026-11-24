@@ -1,4 +1,5 @@
 {
+  "Error403.noMenus": "当前账号暂无可访问的菜单，请联系管理员分配菜单权限。",
   "DetailMetaItem.copyTooltip": "点击复制：{id}",
   "DetailMetaItem.mergedTooltip": "{label}：{value}",
   "components.ModelConfig.unsavedChangesTitle": "修改尚未保存",

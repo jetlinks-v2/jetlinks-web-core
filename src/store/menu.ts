@@ -19,7 +19,7 @@ import {
   type MenuApplicationScope,
 } from '@jetlinks-web-core/utils/application-scope'
 import type { MenuFilterConditions } from '@jetlinks-web-core/types/module'
-import { createMenuStoreRuntime, type MenuRuntimeContext } from './menuRuntime'
+import { createMenuStoreRuntime } from './menuRuntime'
 import { applyModuleMenuFilters } from './menuFilters'
 import { applyMenuRouteTargets } from './menuRouteTarget'
 import {
@@ -28,7 +28,8 @@ import {
   prepareMicroApplicationMenus,
 } from './menuHelpers'
 import { useApplication } from './application'
-import {isSaaS, OWNER_KEY} from '@/utils/consts'
+import { OWNER_KEY } from '@/utils/consts'
+import { forbiddenLocation } from '@jetlinks-web-core/router/forbidden'
 
 type OptionsType = {
   params?: Record<string, any>
@@ -158,16 +159,6 @@ const prepareRuntimeMenus = (menus: any[]) => (
     : menus
 )
 
-/** 项目和应用使用业务页优先；静态个人中心不依赖角色菜单，也不写入业务权限。 */
-const getDefaultMenuPath = ({ menuRoutes }: Pick<MenuRuntimeContext, 'menuRoutes'>) => {
-  const runtimeHome = getApplicationRuntimeEntry().type !== 'tenant'
-  const firstMenuPath = getFirstMenuPath(menuRoutes, runtimeHome)
-  if (firstMenuPath || !runtimeHome) return firstMenuPath
-
-  // 按已注册的名称取路径，兼容模块覆盖；未注册时交给根路由的无权限回退。
-  return router.getRoutes().find(route => route.name === 'account/center')?.path
-}
-
 export const useMenuStore = defineStore('menu', () => {
   const app = useApplication()
     const rawMenus = ref<ProjectMenuItem[]>([])
@@ -219,11 +210,9 @@ export const useMenuStore = defineStore('menu', () => {
       const routerRoutes = router.getRoutes()
 
       if (!router.hasRoute('saas-tenant-root')) {
-        const defaultRedirect = import.meta.env.VITE_DEFAULT_REDIRECT_PATH || '/account'
         context.menuRoutes.push({
           path: '/',
-          redirect: getDefaultMenuPath(context)
-            || (getApplicationRuntimeEntry().type !== 'tenant' || isSaaS ? '/403' : defaultRedirect),
+          redirect: getFirstMenuPath(context.menuRoutes) || (to => forbiddenLocation(to.query, true)),
         })
       }
 
@@ -238,6 +227,9 @@ export const useMenuStore = defineStore('menu', () => {
       context.menus = mergedMenus as RouteRecordRaw[]
     },
   })
+
+  const firstMenuPath = computed(() => getFirstMenuPath(runtime.menu.value))
+  const hasNoAccessibleMenu = computed(() => runtime.initialized.value && !firstMenuPath.value)
 
   let menuRequestId = 0
 
@@ -297,7 +289,7 @@ export const useMenuStore = defineStore('menu', () => {
       runtime.loading.value = false
       return {
         applied: true,
-        firstMenuPath: getDefaultMenuPath(context),
+        firstMenuPath: firstMenuPath.value,
       }
     } catch (error) {
       if (requestId === menuRequestId) runtime.loading.value = false
@@ -340,6 +332,8 @@ export const useMenuStore = defineStore('menu', () => {
     menusMap: runtime.menusMap,
     loading: runtime.loading,
     initialized: runtime.initialized,
+    firstMenuPath,
+    hasNoAccessibleMenu,
     menuResultCache: runtime.menuResultCache,
     hasResponeMenu: runtime.hasResponeMenu,
     hasRouteMenu: runtime.hasRouteMenu,

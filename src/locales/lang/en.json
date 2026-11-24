@@ -1,4 +1,5 @@
 {
+  "Error403.noMenus": "No menus are available for your account. Please contact your administrator to request menu access.",
   "DetailMetaItem.copyTooltip": "Click to copy: {id}",
   "DetailMetaItem.mergedTooltip": "{label}: {value}",
   "components.ModelConfig.unsavedChangesTitle": "Unsaved changes",

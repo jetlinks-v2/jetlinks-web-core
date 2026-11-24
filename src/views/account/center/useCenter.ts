@@ -7,6 +7,7 @@ import { queryModal } from '@jetlinks-web-core/api/login'
 import { getMe_api, type CurrentAuthorization } from '@jetlinks-web-core/api/auth'
 import { getIdentityProviders_api, getSelfIdentities_api, getSsoBinds_api } from '@jetlinks-web-core/api/account/center'
 import i18n from '@jetlinks-web-core/locales'
+import { dimensionNames } from '@jetlinks-web-core/utils/user-dimensions'
 import { isNoCommunity } from '@jetlinks-web-core/utils'
 import { tabList } from './data'
 import { maskContactValue } from './contactPresentation'
@@ -36,16 +37,6 @@ type CenterUserInfo = Partial<UserInfo> & {
 /** 四个可见入口使用稳定 key，安全设置与第三方登录的旧链接统一回到基本信息。 */
 const isContentKey = (key: unknown): key is CenterContentKey =>
   key === 'BasicInfo' || key === 'StationMessage' || key === 'Subscribe' || key === 'PersonalToken'
-
-/** Store 的组织、角色是 unknown[]，展示前只接受带名称的条目。 */
-const dimensionNames = (items: unknown[] | undefined, prefixes?: ReadonlyMap<string, string>): string[] => {
-  return (items || []).flatMap(item => {
-    if (!item || typeof item !== 'object' || !('name' in item)) return []
-    if (typeof item.name !== 'string' || !item.name.trim()) return []
-    const prefix = 'id' in item && typeof item.id === 'string' ? prefixes?.get(item.id) : undefined
-    return [prefix ? `${prefix}-${item.name.trim()}` : item.name.trim()]
-  })
-}
 
 /** 展示值统一脱敏；缺失联系方式沿用未绑定占位。 */
 const maskIdentity = (value: string | undefined, provider: 'mobile' | 'email'): string => {
