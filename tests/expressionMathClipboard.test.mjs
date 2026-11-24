@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { effectScope, reactive } from 'vue'
-import { createMetricLoader } from './helpers/metricRuntime.mjs'
+import { createComponentLoader } from './helpers/componentRuntime.mjs'
 
-const load=createMetricLoader()
+const load=createComponentLoader()
 const {createMathTransfer}=load('components/Expression/mathTransfer.ts')
 const {expressionMath,createMathParser}=load('components/Expression/math.ts')
 const {useMathClipboard}=load('components/Expression/useMathClipboard.ts')

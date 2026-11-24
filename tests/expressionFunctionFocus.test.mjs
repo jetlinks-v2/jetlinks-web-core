@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { h } from 'vue'
-import { createMetricLoader, createMetricRenderer, flush } from './helpers/metricRuntime.mjs'
+import { createComponentLoader, createComponentRenderer, flush } from './helpers/componentRuntime.mjs'
 
 for (const [id, count] of [['math.abs', 1], ['math.min', 2]]) {
   test(`函数菜单接管焦点后仍在原选区插入 ${id}`, async () => {
@@ -23,7 +23,7 @@ for (const [id, count] of [['math.abs', 1], ['math.min', 2]]) {
       insert(latex) { this.inserts.push({ latex, selection: structuredClone(this.selection) }); this.value = latex; return true }
     }
     const changes = []
-    const load = createMetricLoader({
+    const load = createComponentLoader({
       'vue-i18n': { useI18n: () => ({ t: key => key }) },
       '@vueuse/core': { onClickOutside() {} },
       'mathlive': { MathfieldElement: Field },
@@ -31,7 +31,7 @@ for (const [id, count] of [['math.abs', 1], ['math.min', 2]]) {
       './math-semantic.css?inline': { __esModule: true, default: '' },
     })
     const { useMathEditor } = load('components/Expression/useMathEditor.ts')
-    const { renderer, root } = createMetricRenderer()
+    const { renderer, root } = createComponentRenderer()
     const app = renderer.createApp({ setup() {
       editor = useMathEditor({
         modelValue: { version: 1, root: { type: 'literal', valueType: 'int', value: '0' } },
@@ -93,8 +93,8 @@ async function withSelection({tokens,root:expression,range,depths},run) {
       this.selection={ranges:[[start,start+1]]}
     }
   }
-  const {useMathEditor}=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key})},'@vueuse/core':{onClickOutside(){}},mathlive:{MathfieldElement:Field},'mathlive/fonts.css':{},'./math-semantic.css?inline':{__esModule:true,default:''}})('components/Expression/useMathEditor.ts')
-  const changes=[],{renderer,root}=createMetricRenderer()
+  const {useMathEditor}=createComponentLoader({'vue-i18n':{useI18n:()=>({t:key=>key})},'@vueuse/core':{onClickOutside(){}},mathlive:{MathfieldElement:Field},'mathlive/fonts.css':{},'./math-semantic.css?inline':{__esModule:true,default:''}})('components/Expression/useMathEditor.ts')
+  const changes=[],{renderer,root}=createComponentRenderer()
   const app=renderer.createApp({setup(){editor=useMathEditor({modelValue:{version:1,root:expression},conditions:true,context:{references:[{...reference,label:'value',schema:{type:'number'}}],functions}},(...event)=>changes.push(event));editor.host.value={appendChild(){}};return()=>h('div')}})
   try {app.mount(root);await flush();await run({field,editor,changes})}
   finally {app.unmount();if(previousDocument===undefined)delete globalThis.document;else globalThis.document=previousDocument}

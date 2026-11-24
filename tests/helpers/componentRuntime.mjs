@@ -10,16 +10,10 @@ const require = createRequire(import.meta.url)
 const remapping = createRequire(require.resolve('vite/package.json'))('@jridgewell/remapping')
 export const coreRoot = fileURLToPath(new URL('../..', import.meta.url))
 export const sourceRoot = resolve(coreRoot, 'src')
-const instrumented = '/private/tmp/device-metric-stage2-core/instrumented'
+const instrumented = '/private/tmp/jetlinks-component-tests/instrumented'
 
 /** Run real TS/SFC modules with only external UI, browser and transport boundaries replaced. */
-export function createMetricLoader(stubs = {}, resolvePath = path => path) {
-  stubs={
-    // 公共函数目录的传输边界；业务解析、保存和编辑组件仍执行真实代码。
-    [resolve(sourceRoot,'components/Metric/expressionApi.ts')]:{metricExpressionFunctions:async()=>['abs','min','max','round','sqrt'].map(name=>({id:`math.${name}`,name,description:name,parameters:[{id:'value',name:'value',valueType:'number'}],returnType:'number',minimumArguments:name === 'min' || name === 'max' ? 2 : 1,maximumArguments:name === 'round' ? 2 : name === 'min' || name === 'max' ? 16 : 1}))},
-    [resolve(sourceRoot,'api/expression.ts')]:{expressionFunctions:async()=>['abs','min','max','round','sqrt'].map(name=>({id:`math.${name}`,name,description:name,parameters:[{id:'value',name:'value',valueType:'number'}],returnType:'number',minimumArguments:name === 'min' || name === 'max' ? 2 : 1,maximumArguments:name === 'round' ? 2 : name === 'min' || name === 'max' ? 16 : 1}))},
-    ...stubs,
-  }
+export function createComponentLoader(stubs = {}, resolvePath = path => path) {
   const cache = new Map()
   const load = filename => {
     filename = resolvePath(filename)
@@ -72,7 +66,7 @@ export function createMetricLoader(stubs = {}, resolvePath = path => path) {
 export const passthrough = name => vue.defineComponent({ name, inheritAttrs: true, setup: (_props, { slots }) => () => vue.h(name, Object.entries(slots).flatMap(([key,slot]) => key === 'option' ? [] : slot?.())) })
 export const flush = async () => { await vue.nextTick(); await new Promise(resolve => setImmediate(resolve)); await vue.nextTick() }
 
-export function createMetricRenderer() {
+export function createComponentRenderer() {
   class TestButton { focus(options) { this.focused = options } get isConnected() { return !!this.parent } get disabled() { return !!this.props.disabled } }
   globalThis.HTMLButtonElement = TestButton
   const node = (type, text = '') => Object.assign(type === 'button' ? new TestButton() : {}, {

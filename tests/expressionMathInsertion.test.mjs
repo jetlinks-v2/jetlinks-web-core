@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createMetricLoader } from './helpers/metricRuntime.mjs'
+import { createComponentLoader } from './helpers/componentRuntime.mjs'
 
-const load=createMetricLoader()
+const load=createComponentLoader()
 const {useMathInsertion}=load('components/Expression/useMathInsertion.ts')
 const {unsupportedMathKey}=load('components/Expression/mathInput.ts')
 test('可视输入限制未声明运算，保留比较、快捷键字符与文本常量',()=>{

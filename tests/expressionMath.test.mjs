@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createMetricLoader } from './helpers/metricRuntime.mjs'
+import { createComponentLoader } from './helpers/componentRuntime.mjs'
 import { effectScope, nextTick } from 'vue'
-const loader=createMetricLoader()
+const loader=createComponentLoader()
 const {expressionMath,parseMathExpression,createMathParser}=loader('components/Expression/math.ts')
 const {expressionDocument}=loader('components/Expression/document.ts')
 const {parseExpressionDocument}=loader('components/Expression/parse.ts')
@@ -195,10 +195,10 @@ test('函数回放保留完整算式，只突出最终记录值；中间值悬�
 
 test('悬浮锚点保留完整来源，并在刷新后以本次说明覆盖旧值',async()=>{
   const {defineComponent,h,shallowRef}=await import('vue')
-  const {createMetricRenderer,flush}=await import('./helpers/metricRuntime.mjs')
+  const {createComponentRenderer,flush}=await import('./helpers/componentRuntime.mjs')
   const {convertLatexToMarkup}=await import('mathlive/ssr')
   const previousDocument=globalThis.document;globalThis.document={}
-  const local=createMetricLoader({mathlive:{convertLatexToMarkup},'mathlive/fonts.css':{},'mathlive/static.css':{}})
+  const local=createComponentLoader({mathlive:{convertLatexToMarkup},'mathlive/fonts.css':{},'mathlive/static.css':{}})
   const {useMathMarkup}=local('components/Expression/useMathMarkup.ts')
   const make=value=>expressionMath(read,context,t,new Map([['[]',{state:'available',text:String(value),resultText:String(value)}]]))
   const projection=shallowRef(make(25)),attrs={}
@@ -206,7 +206,7 @@ test('悬浮锚点保留完整来源，并在刷新后以本次说明覆盖旧�
   const element=shallowRef({querySelectorAll(){return [target]},contains:anchor=>anchor === target,getBoundingClientRect(){return {left:10,top:20}}})
   let model
   const Component=defineComponent({setup(){model=useMathMarkup(projection,element);return()=>h('span')}})
-  const {renderer,root}=createMetricRenderer(),app=renderer.createApp(Component)
+  const {renderer,root}=createComponentRenderer(),app=renderer.createApp(Component)
   try {
     app.mount(root);await flush();await flush()
     assert.match(model.markup.value,/data-expression-inspect/)
@@ -233,15 +233,15 @@ test('悬浮锚点保留完整来源，并在刷新后以本次说明覆盖旧�
 
 test('真实反显默认只显示一个最终值，零值不丢；宿主已有结果时可以隐藏，折叠可展开',async()=>{
   const {defineComponent,h,shallowRef,reactive}=await import('vue')
-  const {createMetricRenderer,flush,sourceRoot,walk,textContent}=await import('./helpers/metricRuntime.mjs')
+  const {createComponentRenderer,flush,sourceRoot,walk,textContent}=await import('./helpers/componentRuntime.mjs')
   const {resolve}=await import('node:path')
   let projection
-  const local=createMetricLoader({'vue-i18n':{useI18n:()=>({t})},[resolve(sourceRoot,'components/Expression/useMathMarkup.ts')]:{useMathMarkup(value){projection=value;return {markup:shallowRef('<span>rendered math</span>')}}}})
+  const local=createComponentLoader({'vue-i18n':{useI18n:()=>({t})},[resolve(sourceRoot,'components/Expression/useMathMarkup.ts')]:{useMathMarkup(value){projection=value;return {markup:shallowRef('<span>rendered math</span>')}}}})
   const View=local('components/Expression/ExpressionView.vue').default
   const node={type:'conditional',condition:{type:'literal',valueType:'boolean',value:true},whenTrue:literal('0'),whenFalse:literal('7')}
   const explanation={kind:'condition',state:'available',value:0,path:[],children:[{kind:'literal',state:'available',value:true,path:[],children:[]},{kind:'literal',state:'available',value:0,path:[],children:[]},{kind:'unsupported',state:'skipped',value:null,path:[],children:[]}]}
   const props=reactive({node,context,explanation,format:item=>({text:String(item.value)})})
-  const {renderer,root}=createMetricRenderer(),app=renderer.createApp(defineComponent({setup:()=>()=>h(View,props)}))
+  const {renderer,root}=createComponentRenderer(),app=renderer.createApp(defineComponent({setup:()=>()=>h(View,props)}))
   app.config.warnHandler=()=>{};app.mount(root)
   const results=()=>walk(root,item=>item.props.class === 'expression-math-result')
   try {
@@ -255,16 +255,16 @@ test('真实反显默认只显示一个最终值，零值不丢；宿主已有�
 
 test('原公式模式保留冻结的命中分支和最终值，往返不重新计算或替换定义',async()=>{
   const {defineComponent,h,shallowRef,reactive}=await import('vue')
-  const {createMetricRenderer,flush,sourceRoot}=await import('./helpers/metricRuntime.mjs')
+  const {createComponentRenderer,flush,sourceRoot}=await import('./helpers/componentRuntime.mjs')
   const {resolve}=await import('node:path')
   let projection
-  const local=createMetricLoader({'vue-i18n':{useI18n:()=>({t})},[resolve(sourceRoot,'components/Expression/useMathMarkup.ts')]:{useMathMarkup(value){projection=value;return {markup:shallowRef('<span>math</span>')}}}})
+  const local=createComponentLoader({'vue-i18n':{useI18n:()=>({t})},[resolve(sourceRoot,'components/Expression/useMathMarkup.ts')]:{useMathMarkup(value){projection=value;return {markup:shallowRef('<span>math</span>')}}}})
   const View=local('components/Expression/ExpressionView.vue').default
   const explanation={kind:'condition',state:'available',value:2,path:[],children:[
     {kind:'operator',operation:'>=',state:'available',value:true,path:[],children:[{kind:'read',state:'available',value:90,path:['temperature'],children:[]},{kind:'literal',state:'available',value:80,path:[],children:[]}]},
     {kind:'literal',state:'available',value:2,path:[],children:[]},{kind:'unsupported',state:'skipped',value:null,path:[],children:[]}]}
   const original=JSON.stringify(branch),props=reactive({node:branch,context,explanation,format:item=>({text:String(item.value)}),substitute:true})
-  const {renderer,root}=createMetricRenderer(),app=renderer.createApp(defineComponent({setup:()=>()=>h(View,props)}))
+  const {renderer,root}=createComponentRenderer(),app=renderer.createApp(defineComponent({setup:()=>()=>h(View,props)}))
   app.config.warnHandler=()=>{};app.mount(root)
   try{
     const recorded=projection.value.latex

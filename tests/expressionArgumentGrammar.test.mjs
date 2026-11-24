@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {createMetricLoader} from './helpers/metricRuntime.mjs'
+import {createComponentLoader} from './helpers/componentRuntime.mjs'
 
-const load=createMetricLoader()
+const load=createComponentLoader()
 const {parseMathExpression}=load('components/Expression/math.ts')
 const {validateExpressionTypes}=load('components/Expression/validation.ts')
 const number=value=>({type:'literal',valueType:'int',value:String(value)})

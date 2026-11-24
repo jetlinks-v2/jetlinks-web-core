@@ -5,7 +5,7 @@ import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import vm from 'node:vm'
 import ts from 'typescript'
-import { createMetricLoader } from './helpers/metricRuntime.mjs'
+import { createComponentLoader } from './helpers/componentRuntime.mjs'
 
 test('真实共享客户端复用连接，重连只恢复有效订阅，单项失败和取消互不影响', () => {
   const require = createRequire(import.meta.url)
@@ -35,7 +35,7 @@ test('真实共享客户端复用连接，重连只恢复有效订阅，单项�
         setTimeout(callback) { const id = ++sequence; timers.set(id, callback); return id }, clearTimeout(id) { timers.delete(id) } },
     }, { filename: path })
     client = module.exports.wsClient
-    const { subscribeSocketTopic, dispatchSocketSubscriptionError } = createMetricLoader({ '@jetlinks-web/core': { wsClient: client } })('utils/websocket-subscriptions.ts')
+    const { subscribeSocketTopic, dispatchSocketSubscriptionError } = createComponentLoader({ '@jetlinks-web/core': { wsClient: client } })('utils/websocket-subscriptions.ts')
     client.setOptions({ onError: dispatchSocketSubscriptionError }); client.initWebSocket('ws://example.test/messaging'); client.connect()
     const received = [], failures = []
     const a = subscribeSocketTopic('a', '/metric/configs/results', { configId: 'a' }).subscribe(value => received.push(['a', value]))

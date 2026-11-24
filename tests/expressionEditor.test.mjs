@@ -5,8 +5,8 @@ import { effectScope, reactive } from 'vue'
 const require=createRequire(import.meta.url)
 const {ChangeSet,EditorState}=require('@codemirror/state')
 const {history,invertedEffects,undo,redo}=require('@codemirror/commands')
-import { createMetricLoader } from './helpers/metricRuntime.mjs'
-const loader=createMetricLoader()
+import { createComponentLoader } from './helpers/componentRuntime.mjs'
+const loader=createComponentLoader()
 const {expressionDocument,expressionCompletions}=loader('components/Expression/document.ts')
 const {parseExpressionDocument}=loader('components/Expression/parse.ts')
 const {createFormulaState}=loader('components/Expression/editorState.ts')
