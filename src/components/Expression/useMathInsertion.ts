@@ -152,7 +152,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
         if(/^[\d.]$/.test(at.latex)) {
           while(first>0 && /^[\d.]$/.test(peers[first-1].latex))first--
           while(last+1<peers.length && /^[\d.]$/.test(peers[last+1].latex))last++
-          if(first>0 && /^[+-]$/.test(peers[first-1].latex) && (first<2 || !peers[first-2].latex || /^(?:[+\-*/,=<>]|\\(?:times|div|ge|le|ne|JLand|JLor))\s*$/.test(peers[first-2].latex)))first--
+          if(first>0 && /^[+-]$/.test(peers[first-1].latex) && (first<2 || !peers[first-2].latex || /^(?:[+\-*/,=<>]|\\(?:times|mod|bmod|div|ge|le|ne|JLand|JLor))\s*$/.test(peers[first-2].latex)))first--
         }
         start=first ? peers[first-1].offset : Math.max(0,peers[first].offset-1)
         end=peers[last].offset
@@ -163,7 +163,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
         }
         node=parse(field.getValue(start,end,'latex'))
         if(!node && !/^\\placeholder/.test(at.latex))return
-      } else if(at?.latex && !/^(?:[+\-*/,=<>]|\\(?:times|div|ge|le|ne|JLand|JLor|JLnot|JLmissing|JLpresent))\s*$/.test(at.latex))return
+      } else if(at?.latex && !/^(?:[+\-*/,=<>]|\\(?:times|mod|bmod|div|ge|le|ne|JLand|JLor|JLnot|JLmissing|JLpresent))\s*$/.test(at.latex))return
       // 逻辑连接作用于完整比较式，不能只连接比较右边的数字。
       const cell=peers.filter(item=>item.latex)
       const before=cell.filter(item=>item.offset <= end)
@@ -181,7 +181,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     const range:Range=[start,end]
     let type=node ? expected(node) : 'unknown'
     const peers=siblings(end),before=peers.filter(item=>item.offset <= start).pop(),after=peers.find(item=>item.offset>end)
-    const adjacent=[before,after].find(item=>/^(?:[=<>+\-*/]|\\(?:ge|le|ne|times|div|JLand|JLor|JLnot))\s*$/.test(item?.latex || ''))
+    const adjacent=[before,after].find(item=>/^(?:[=<>+\-*/]|\\(?:ge|le|ne|times|mod|bmod|div|JLand|JLor|JLnot))\s*$/.test(item?.latex || ''))
     // 新比较仍有空槽时，直接依据另一侧完整引用提供枚举，不能退回任意数字。
     let choices:ExpressionValueChoice[]|undefined
     if(adjacent && /^(?:=|\\ne)\s*$/.test(adjacent.latex)) {
@@ -196,7 +196,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     if(!adjacent && enclosingType(range,true) === 'boolean')type='boolean'
     if(!node && type === 'unknown') {
       const left=atoms[start]?.latex || ''
-      if(/^(?:[+\-*/<>]|\\(?:times|div|ge|le))\s*$/.test(left))type='number'
+      if(/^(?:[+\-*/<>]|\\(?:times|mod|bmod|div|ge|le))\s*$/.test(left))type='number'
       if(/^\\(?:JLand|JLor|JLnot)\s*$/.test(left))type='boolean'
     }
     // 中间切换同类运算符保留已有两侧；不把数值运算符换成比较而破坏外层类型。
@@ -205,7 +205,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
       const cursor=ranges[0][0],peers=siblings(cursor)
       for(const item of [peers.find(atom=>atom.offset === cursor),peers.find(atom=>atom.offset>cursor)]) {
         const latex=item?.latex.trim()
-        if(latex && /^(?:[+\-*/]|\\(?:times|cdot|div))$/.test(latex))operator='arithmetic'
+        if(latex && /^(?:[+\-*/]|\\(?:times|cdot|mod|bmod|div))$/.test(latex))operator='arithmetic'
         else if(latex && /^(?:[=<>]|\\(?:ge|le|ne))$/.test(latex))operator='comparison'
         else if(latex && /^\\JL(?:and|or)$/.test(latex))operator='logical'
         if(operator)break
@@ -403,7 +403,7 @@ export function useMathInsertion(options:{field:()=>MathfieldElement|undefined;c
     const original=(selection || field.selection).ranges[0]
     if(original[0] === original[1] && ['arithmetic','comparison','logical'].includes(item.kind)) {
       const cursor=original[0],peers=siblings(cursor),left=peers.find(atom=>atom.offset === cursor),right=peers.find(atom=>atom.offset > cursor)
-      const operator=(atom?:Atom)=>/^(?:[+\-*/=<>]|\\(?:times|div|ge|le|ne|JLand|JLor))\s*$/.test(atom?.latex || '')
+      const operator=(atom?:Atom)=>/^(?:[+\-*/=<>]|\\(?:times|mod|bmod|div|ge|le|ne|JLand|JLor))\s*$/.test(atom?.latex || '')
       const operand=(atom?:Atom)=>Boolean(atom?.latex && (parse(atom.latex) || /^\\placeholder\{[^{}]*\}$/.test(atom.latex)))
       let range:Range|undefined,latex=item.latex === '\\dfrac{#@}{#?}' ? '\\div ' : item.latex
       if(operand(right)) {

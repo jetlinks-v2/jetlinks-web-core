@@ -139,9 +139,9 @@ test('中间插入运算符复用右侧内容，仅在缺少左值时补空位�
   assert.equal(selected.field.getValue(),'32+\\placeholder{}')
 })
 test('原有运算符就地切换，不叠加空位或影响相邻内容',()=>{
-  const root={type:'binary',operator:'add',left:reading,right:literal(32)}
-  for(const cursor of [1,2]) {
-    const state=setup(new Field(['\\JLa','+','3','2']),root)
+  for(const operator of ['+','\\mod ','\\bmod '])for(const cursor of [1,2]) {
+    const root={type:'binary',operator:operator === '+' ? 'add' : 'mod',left:reading,right:literal(32)}
+    const state=setup(new Field(['\\JLa',operator,'3','2']),root)
     state.field.selection={ranges:[[cursor,cursor]]};state.insertion.insert({kind:'arithmetic',latex:'\\times '})
     assert.equal(state.field.getValue(),'\\JLa\\times 32')
   }

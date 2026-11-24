@@ -81,11 +81,11 @@ async function withSelection({tokens,root:expression,range,depths},run) {
   globalThis.document={}
   let field,editor
   class Field {
-    constructor(){field=this;this.tokens=['',...tokens];this.selection={ranges:[range]};this.inserts=[];this.attributes={}}
+    constructor(){field=this;this.tokens=['',...tokens];this.selection={ranges:[range]};this.inserts=[];this.attributes={};this.listeners=new Map();this.mode='math'}
     get lastOffset(){return this.tokens.length-1}
     getValue(start,end){return typeof start === 'number' ? this.tokens.slice(start+1,end+1).join('') : this.tokens.slice(1).join('')}
     getElementInfo(offset){return {latex:this.tokens[offset],depth:depths?.[offset] ?? 0}}
-    setAttribute(name,value){this.attributes[name]=value} addEventListener(){} removeEventListener(){} focus(){} blur(){} remove(){} canUndo(){return false} canRedo(){return false}
+    setAttribute(name,value){this.attributes[name]=value} addEventListener(name,listener){this.listeners.set(name,listener)} removeEventListener(name){this.listeners.delete(name)} focus(){} blur(){} remove(){} canUndo(){return false} canRedo(){return false}
     insert(latex) {
       const [start,end]=this.selection.ranges[0],selected=this.getValue(start,end)
       this.inserts.push({latex,range:[start,end]})
@@ -99,6 +99,22 @@ async function withSelection({tokens,root:expression,range,depths},run) {
   try {app.mount(root);await flush();await run({field,editor,changes})}
   finally {app.unmount();if(previousDocument===undefined)delete globalThis.document;else globalThis.document=previousDocument}
 }
+
+test('数学输入百分号形成取模表达式，文本、组合键和输入法合成不被接管',()=>withSelection({tokens:['7'],root:literal(7),range:[1,1]},({field,changes})=>{
+  const event=extra=>({key:'%',isComposing:false,ctrlKey:false,metaKey:false,altKey:false,shiftKey:true,
+    preventDefault(){this.prevented=true},stopImmediatePropagation(){this.stopped=true},...extra})
+  const typed=event()
+  field.listeners.get('keydown')(typed)
+  assert.equal(typed.prevented,true);assert.equal(typed.stopped,true)
+  assert.equal(field.getValue(),'7\\mod ')
+  field.tokens.push('3');field.selection={ranges:[[3,3]]};field.listeners.get('input')()
+  assert.deepEqual(changes.findLast(([name])=>name === 'update:modelValue')[1].root,{type:'binary',operator:'mod',left:literal(7),right:literal(3)})
+  for(const extra of [{isComposing:true},{ctrlKey:true},{metaKey:true},{altKey:true}]) {
+    const ignored=event(extra);field.listeners.get('keydown')(ignored);assert.equal(ignored.prevented,undefined)
+  }
+  field.mode='text';const text=event();field.listeners.get('keydown')(text)
+  assert.equal(text.prevented,undefined);assert.equal(field.inserts.length,1)
+}))
 
 test('变量切换到函数时关闭旧候选，保留原选区',()=>withSelection({tokens:['\\JLa','+','1','+','2'],root:{type:'binary',operator:'add',left:plus,right:literal(2)},range:[0,3]},async({field,editor})=>{
   editor.canvas.value={clientHeight:40}
