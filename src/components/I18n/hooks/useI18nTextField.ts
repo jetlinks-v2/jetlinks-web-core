@@ -27,15 +27,16 @@ export function useI18nTextField(props: Readonly<I18nTextFieldProps>, emit: I18n
     changed?.(nextValue, messages)
   }
 
-  /** 弹窗确认后按当前语言刷新主输入框，缺失时清空以避免残留旧值。 */
-  function saveI18nMessages(messages: I18nTextMessages) {
+  /** 确认后同步当前语言，原位编辑可保留缺失翻译时的回退文本。 */
+  function saveI18nMessages(messages: I18nTextMessages, fallbackValue = '') {
     const allMessages = {
       ...(props.i18nMessages ?? {}),
       [props.field]: messages,
     }
     emit('update:i18nMessages', allMessages)
-    emit('update:value', messages[currentLanguage.value] ?? '')
-    changed?.(messages[currentLanguage.value] ?? '', allMessages)
+    const value = messages[currentLanguage.value] ?? fallbackValue
+    emit('update:value', value)
+    changed?.(value, allMessages)
   }
 
   return { visible, fieldI18nMessages, dialogTitle, handleValueChange, saveI18nMessages }

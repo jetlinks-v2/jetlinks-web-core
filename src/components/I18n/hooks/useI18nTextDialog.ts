@@ -3,21 +3,18 @@ import { useI18n } from 'vue-i18n'
 import type { FormInstance } from 'ant-design-vue'
 import type { Rule } from 'ant-design-vue/es/form'
 import type { I18nTextDialogEmits, I18nTextDialogProps, I18nTextMessages } from '../types'
+import { languageOptions } from '../../../locales/languages'
 
 /** 管理独立弹窗草稿，校验通过后提交；取消不会修改调用方数据。 */
 export function useI18nTextDialog(props: Readonly<I18nTextDialogProps>, emit: I18nTextDialogEmits) {
   const { t, locale } = useI18n()
   const formRef = ref<FormInstance>()
   const formData = reactive<I18nTextMessages>({})
-  const languages = computed(() => [
-    { code: 'zh', label: t('I18n.chinese') },
-    { code: 'en', label: t('I18n.english') },
-  ])
+  const languages = computed(() => languageOptions.map(language => ({ code: language.value, label: language.label })))
   const currentLanguage = computed(() => String(locale.value || 'zh').replace('_', '-').split('-')[0])
-  const rules = computed<Record<string, Rule[]>>(() => ({
-    zh: [{ max: props.maxLength, message: t('I18n.maxLength', { max: props.maxLength }), trigger: 'blur' }],
-    en: [{ max: props.maxLength, message: t('I18n.maxLength', { max: props.maxLength }), trigger: 'blur' }],
-  }))
+  const rules = computed<Record<string, Rule[]>>(() => Object.fromEntries(languages.value.map(language => [
+    language.code, [{ max: props.maxLength, message: t('I18n.maxLength', { max: props.maxLength }), trigger: 'blur' }],
+  ])))
 
   /** 每次打开重建草稿，并保留未提供编辑控件的语言；缺少当前语言时回填展示值。 */
   function initFormData() {

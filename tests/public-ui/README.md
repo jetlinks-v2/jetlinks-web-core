@@ -5,7 +5,7 @@
 从仓库根目录运行：
 
 ```sh
-node --test tests/inlineEditForm.test.mjs
+node --test tests/inlineEditForm.test.mjs tests/inlineEditing.test.mjs
 node --test tests/workspacePanels.test.mjs
 node tests/check-workspace-panels.mjs tests/tsconfig.public-ui.json
 node_modules/.bin/vite build --config tests/public-ui/vite.config.mjs --configLoader runner
@@ -13,6 +13,8 @@ node_modules/.bin/vite --config tests/public-ui/vite.config.mjs --configLoader r
 ```
 
 访问 `http://127.0.0.1:9521/`。保持宽窗口并切换内容容器，核对详情动作及录入列数随容器重排；数组与 slot 字段应具有一致样式。详情编辑分别选择成功、返回字段错误、抛出异常，检查错误只显示一次、输入保留、Esc 取消及重试；用键盘选择负责人，核对实际 combobox 的标签。候选含说明，收起标签保持短名称。折叠入口优先融入主区头部，左区搜索独立；收起后左列归零，入口、焦点及输入保留遵循公共布局契约。
+
+顶部名称与行内名称覆盖公共文字编辑：输入长短内容，核对宽度随动至配置上限、字体与基线不跳动、hover / focus 下划线及 Esc 恢复。多语言入口承接文字草稿，面板按平台支持语言配置显示；取消、外部关闭不提交，确认一次更新文字与翻译。用 Tab 进入多语言按钮并打开面板，检查输入焦点、Esc 关闭及焦点返回。
 
 两区之间的真实分割线已启用调宽：拖动、方向键和点击操作共用边界，Esc 回滚拖动，双击恢复初始宽度。调整后折叠再展开应保留宽度与搜索值；无业务页 CSS 或模拟拖动代码。
 

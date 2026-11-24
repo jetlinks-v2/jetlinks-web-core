@@ -1,0 +1,24 @@
+.inline-edit-trigger {
+  border-radius: 0;
+  box-shadow: inset 0 -1px transparent;
+}
+.inline-edit-trigger:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--bg-sunken, var(--jet-theme-bg-elevated));
+  box-shadow: inset 0 -1px var(--line-strong, var(--jet-theme-border));
+}
+.inline-edit-surface {
+  border-radius: 0;
+  background: transparent;
+  box-shadow: inset 0 -1px var(--line-strong, var(--jet-theme-border));
+}
+.inline-edit-surface:hover:not([aria-disabled="true"]) {
+  background: var(--bg-sunken, var(--jet-theme-bg-elevated));
+}
+.inline-edit-surface:focus-within:not([aria-disabled="true"]) {
+  background: var(--accent-soft, var(--jet-theme-bg-elevated));
+  box-shadow: inset 0 -2px var(--accent, var(--jet-theme-primary));
+}
+.inline-edit-surface[aria-invalid="true"],
+.inline-edit-surface[aria-invalid="true"]:is(:hover, :focus-within) {
+  box-shadow: inset 0 -2px var(--ant-color-error, var(--jet-theme-error));
+}

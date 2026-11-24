@@ -8,6 +8,8 @@ import { useI18nTextDialog } from '../src/components/I18n/hooks/useI18nTextDialo
 import type { I18nTextFieldProps, I18nTextDialogProps, I18nMessages } from '../src/components/I18n/types'
 import zh from '../src/locales/lang/zh.json'
 import en from '../src/locales/lang/en.json'
+import ja from '../src/locales/lang/ja.json'
+import { languageOptions } from '../src/locales/languages'
 
 // 使用 Vue 的公开自定义渲染接口，为 composable 提供真实组件和 i18n 上下文。
 const renderer = createRenderer<object, object>({
@@ -25,7 +27,7 @@ const renderer = createRenderer<object, object>({
 
 function mountHook<T>(locale: string, setup: () => T) {
   let state: T | undefined
-  const i18n = createI18n({ legacy: false, locale, fallbackLocale: 'zh', messages: { zh, en }, missingWarn: false, fallbackWarn: false })
+  const i18n = createI18n({ legacy: false, locale, fallbackLocale: 'zh', messages: { zh, en, ja }, missingWarn: false, fallbackWarn: false })
   const app = renderer.createApp(defineComponent({ setup() {
     state = setup()
     return () => null
@@ -99,7 +101,7 @@ test('standalone dialog isolates drafts, cancels without submitting and reinitia
   const events: unknown[][] = []
   const mounted = mountHook('zh-CN', () => useI18nTextDialog(props, (...args) => { events.push(args) }))
   try {
-    assert.deepEqual(mounted.state.formData, { en: 'Original', zh: '中文' })
+    assert.deepEqual(mounted.state.formData, { en: 'Original', zh: '中文', ja: '' })
     mounted.state.formData.en = 'Unsaved'
     mounted.state.handleCancel()
     assert.deepEqual(events, [['update:visible', false]])
@@ -109,7 +111,7 @@ test('standalone dialog isolates drafts, cancels without submitting and reinitia
     props.data = { zh: 'New source', fr: 'Conservé' }
     props.visible = true
     await nextTick()
-    assert.deepEqual(mounted.state.formData, { zh: 'New source', en: '', fr: 'Conservé' })
+    assert.deepEqual(mounted.state.formData, { zh: 'New source', en: '', ja: '', fr: 'Conservé' })
   } finally {
     mounted.unmount()
   }
@@ -138,17 +140,17 @@ test('dialog submits trimmed nonempty translations only after validation, preser
 })
 
 test('core-only locales provide all labels and validation messages', () => {
-  for (const locale of ['zh', 'en']) {
+  for (const { value: locale } of languageOptions) {
     const mounted = mountHook(locale, () => useI18nTextDialog({ visible: false, title: 'Name', maxLength: 64 }, () => {}))
     try {
       const { t } = mounted.i18n.global
-      for (const key of ['configure', 'chinese', 'english', 'placeholder', 'maxLength']) {
+      for (const key of ['configure', 'chinese', 'english', 'placeholder', 'maxLength', 'cancel', 'confirm', 'fallback']) {
         const code = `I18n.${key}`
-        const value = t(code, { language: 'English', max: 64 })
+        const value = t(code, { language: 'English', max: 64, value: '原文' })
         assert.notEqual(value, code)
         assert.ok(!value.includes('{max}') && !value.includes('{language}'))
       }
-      assert.equal(mounted.state.languages.value.length, 2)
+      assert.deepEqual(mounted.state.languages.value, languageOptions.map(({ value: code, label }) => ({ code, label })))
       assert.match(String(mounted.state.rules.value.en[0].message), /64/)
     } finally {
       mounted.unmount()

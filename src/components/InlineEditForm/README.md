@@ -18,6 +18,8 @@
 
 `editor` 支持 `text/number/select/password/textarea/custom`；选项值为字符串或数字，其他后端类型由宿主转换。`fullWidth` 让字段占整行，默认两列、窄容器一列；标签与提示沿平台次级文字语义；`readonly` 仅展示。无变化不提交。取消恢复 `initialValue`，同时发出 `change` 和 `cancel(key)`，宿主可据此恢复关联字段。`focus(key)` 可联动帮助；实例方法 `editField(key)` 可打开关联编辑器，并遵循权限 / pending 锁。
 
+详情文字编辑复用 `Editable/inline-edit.css` 的 hover、下划线、焦点与错误样式，继承展示区的字体；输入宽度随草稿变化，通过 `--inline-edit-max-width` 限制视觉宽度，默认不超过字段容器。`form` 模式保留完整控件边框，自定义编辑器保留自身外观。
+
 字段可设置 `editTrigger: 'manual'`，详情值以静态文本呈现，由宿主的独立编辑按钮调用 `editField(key)` 开启编辑；默认 `value` 保持点击值编辑。该选项仅改变触发入口，不改变保存、取消、失败保留、权限或首次填写行为。
 
 手动入口已通过既有 8 项测试与独立严格类型检查；平台外观的浏览器验证覆盖静态值点击、外部按钮聚焦、Enter / 失焦保存、Esc 取消、失败重试、只读与首次填写，结果见 `../PlatformSettings/README.md`。
