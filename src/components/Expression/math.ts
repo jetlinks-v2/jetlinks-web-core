@@ -42,7 +42,7 @@ export function expressionMath(root:ExpressionNode,context:ExpressionEditorConte
   for(const [macro,key] of Object.entries({JLand:'and',JLor:'or',JLnot:'not'}))macros[macro]={def:`\\mathbin{\\class{expression-math-logic}{${label(t(key))}}}`,expand:false,captureSelection:true}
   context.resultLabels?.forEach((item,index)=>{macros[`JLmeaning${mathReferenceMacro(index).slice(2)}`]={def:`\\class{expression-math-meaning}{\\scriptsize ${label(item.label)}}`,expand:false,captureSelection:true}})
   const functions=new Map(Array.from(document.functions,([alias,id])=>[id,alias]))
-  const signs:Record<string,string>={add:'+',subtract:'-',multiply:'\\times ',mod:'\\bmod ',eq:'=',ne:'\\ne ',gt:'>',ge:'\\ge ',lt:'<',le:'\\le '}
+  const signs:Record<string,string>={add:'+',subtract:'-',multiply:'\\times ',mod:'\\mod ',eq:'=',ne:'\\ne ',gt:'>',ge:'\\ge ',lt:'<',le:'\\le '}
   const priority=(node:ExpressionNode)=>node.type === 'conditional' ? 0 : node.type === 'logical' ? node.operator === 'or' ? 1 : 2 : node.type === 'binary' ? ['eq','ne','gt','ge','lt','le'].includes(node.operator) ? 3 : ['add','subtract'].includes(node.operator) ? 4 : 5 : 7
   const factAt=(path:(string|number)[])=>{
     const direct=facts.get(JSON.stringify(path))
@@ -222,7 +222,7 @@ export function createMathParser(root:ExpressionNode,context:ExpressionEditorCon
       }
       if(context.resultLabels?.some((_item,index)=>name === `JLmeaning${mathReferenceMacro(index).slice(2)}`))continue
       if(['left','right',',',';','!',' '].includes(name))continue
-      const signs:Record<string,string>={times:'*',cdot:'*',div:'/',bmod:'%',land:'&&',wedge:'&&',lor:'||',vee:'||',lnot:'!',neg:'!',ne:'!=',neq:'!=',le:'<=',leq:'<=',ge:'>=',geq:'>=',lt:'<',gt:'>'}
+      const signs:Record<string,string>={times:'*',cdot:'*',div:'/',mod:'%',bmod:'%',land:'&&',wedge:'&&',lor:'||',vee:'||',lnot:'!',neg:'!',ne:'!=',neq:'!=',le:'<=',leq:'<=',ge:'>=',geq:'>=',lt:'<',gt:'>'}
       if(signs[name]) {output+=signs[name];continue}
       if(['frac','dfrac','tfrac'].includes(name)) {
         const numerator=argument(),denominator=argument()

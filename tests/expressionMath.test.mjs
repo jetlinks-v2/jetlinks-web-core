@@ -58,6 +58,15 @@ test('简单数学运算保留分数、括号、引用、函数与精确数值�
   assert.match(expressionMath(roots[0],context,t).latex,/\\dfrac/)
 })
 
+test('取模与变量宏共存且可编辑，旧取模命令仍可还原',async()=>{
+  const {convertLatexToMarkup}=await import('mathlive/ssr')
+  const root=binary('mod',binary('add',read,literal('7')),literal('3'))
+  const projection=expressionMath(root,context,t)
+  assert.doesNotMatch(convertLatexToMarkup(projection.latex,{macros:projection.macros}),/ML__error|\\bmod/)
+  assert.deepEqual(parseMathExpression(projection.latex,root,context,t),root)
+  assert.deepEqual(parseMathExpression(projection.latex.replace('\\mod','\\bmod'),root,context,t),root)
+})
+
 test('分段数学公式保留先后顺序、默认结果、真分支嵌套及原类型',()=>{
   for(const root of [branch,{...branch,whenTrue:{...branch,whenFalse:literal('9007199254740993','long')}}]) {
     const {latex}=expressionMath(root,context,t)

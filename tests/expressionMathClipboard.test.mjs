@@ -28,6 +28,19 @@ test('工业函数及短路空值函数通过宿主声明完成数学反显与La
   }
 })
 
+test('取模公式在变量宏目录间复制粘贴并保留旧命令兼容',async()=>{
+  const {convertLatexToMarkup}=await import('mathlive/ssr')
+  const root=binary('mod',ref('input'),value('3'))
+  const transfer=createMathTransfer(root,context,t)
+  const projection=expressionMath(root,context,t)
+  const portable=transfer.copy(projection.latex)
+  for(const latex of [portable,portable.replace('\\mod','\\bmod')]) {
+    const pasted=transfer.paste(latex)
+    assert.deepEqual(createMathParser(root,context,t)(pasted),root)
+    assert.doesNotMatch(convertLatexToMarkup(pasted,{macros:projection.macros}),/ML__error|\\bmod/)
+  }
+})
+
 test('剪贴板以稳定输入标识、字段路径和函数标识交换，重排／重名／切换语言不串值',async()=>{
   const root={type:'call',function:'math.max',arguments:[node,ref('group',['nested','value'])]}
   const projection=expressionMath(root,context,t)
