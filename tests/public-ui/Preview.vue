@@ -9,6 +9,14 @@
         <I18nTextEditable v-model:value="localizedName" v-model:i18n-messages="nameTranslations" field="name" label="点位名称" :text-style="{fontSize:'18px',fontWeight:600}" style="--inline-edit-max-width:20rem" />
       </section>
       <section class="fixture-section">
+        <h2>说明与多语言</h2>
+        <I18nTextEditable v-model:value="description" v-model:i18n-messages="descriptionTranslations" field="description" label="内容说明" textarea />
+      </section>
+      <section class="fixture-section">
+        <h2>多语言表单输入</h2>
+        <I18nTextField v-model:value="formDescription" v-model:i18n-messages="formTranslations" field="description" label="表单说明" textarea :auto-size="{ minRows: 3, maxRows: 8 }" aria-label="表单说明" />
+      </section>
+      <section class="fixture-section">
         <h2>行内片段</h2>
         <Editable v-model:value="inlineName" :component-props="{ 'aria-label': '行内名称' }" style="--inline-edit-max-width:20rem" />
       </section>
@@ -69,6 +77,7 @@ import EqualHeightColumns from '../../src/components/EqualHeightColumns/index.vu
 import SelectOption from '../../src/components/SelectOption/index.vue'
 import SplitterPreview from './SplitterPreview.vue'
 import I18nTextEditable from '../../src/components/I18n/I18nTextEditable.vue'
+import I18nTextField from '../../src/components/I18n/I18nTextField.vue'
 import Editable from '../../src/components/Editable/index.vue'
 import { InlineEditForm, type InlineEditGroup, type InlineEditSubmit } from '../../src/components/InlineEditForm'
 const width = ref(700)
@@ -76,6 +85,10 @@ const outcome = ref('success')
 const search = ref('')
 const localizedName = ref('回水温度')
 const nameTranslations = ref({ name: { zh: '回水温度', en: 'Return water temperature' } })
+const description = ref('记录现场设备的运行情况。\n异常时先核对供电与网络，再记录处理结果。')
+const descriptionTranslations = ref({ description: { zh: description.value, en: 'Record the operating conditions on site.\nCheck power and networking before recording the result.' } })
+const formDescription = ref('填写处理过程。\n记录需要继续跟进的事项。')
+const formTranslations = ref({ description: { zh: formDescription.value } })
 const inlineName = ref('回水温度')
 const submissions = ref(0)
 const draft = reactive({ name: '服务资料', person: 'one' })

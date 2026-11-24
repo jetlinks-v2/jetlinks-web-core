@@ -74,7 +74,7 @@ import {
 
 ### 多语言文本输入
 
-`I18nTextField`、`I18nTextDialog`、`I18nInputTrigger` 通过根入口具名导出，不全局注册：
+`I18nTextField`、`I18nTextEditable`、`I18nTextDialog`、`I18nInputTrigger` 通过根入口具名导出，不全局注册：
 
 ```ts
 import { I18nTextField, I18nTextDialog, I18nInputTrigger } from '@jetlinks-web-core/components'
@@ -83,7 +83,9 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 
 `I18nTextField` 同时绑定 `v-model:value` 和 `v-model:i18nMessages`，通过 `field` 指定字段键、`label` 设置弹窗标题；`i18nMessages` 的结构为 `{ [field]: { [language]: text } }`。直接输入会同步当前语言翻译，清空时删除该语言值；弹窗确认后回写当前语言的主输入框值，保留其他字段。`textarea` 切换文本域，`i18nMaxLength` 默认 200，其余输入控件属性透传。
 
-`I18nInputTrigger` 发出 `configure` 事件；独立使用 `I18nTextDialog` 时绑定 `v-model:visible`，提供 `title`、`data` 和可选的 `displayValue`、`maxLength`、`textarea`，通过 `confirm` 接收单字段语言映射。弹窗支持中文、英文编辑，校验失败不关闭，取消不提交，缺少翻译时以当前显示值初始化当前语言。组件不发起请求、不修改全局状态；文案由 core 的 `I18n.*` 翻译键提供。
+`I18nInputTrigger` 发出 `configure` 事件；独立使用 `I18nTextDialog` 时绑定 `v-model:visible`，提供 `title`、`data` 和可选的 `displayValue`、`maxLength`、`textarea`，通过 `confirm` 接收单字段语言映射。支持语言与平台菜单共用 `src/locales/languages.ts`；缺失翻译以 `displayValue` 作回退提示，不自动写入译文。组件不发起请求、不修改全局状态；文案由 core 的 `I18n.*` 翻译键提供。
+
+`I18nTextEditable` 用于原位维护，`I18nTextField` 用于表单录入，两者均通过 `textarea` 选择单行或多行。原位编辑的尺寸与键盘契约见 [Editable](Editable/README.md)。翻译内容由内部 `I18nTextEditor.vue` 统一承载：单行逐语言紧凑排列，多行使用语言 Tabs 与大文本区；默认选中当前支持语言，切换保留全部草稿。Ctrl / Cmd + Enter 或确定统一提交，Esc / 取消丢弃会话；所有语言共同校验，失败定位到对应语言并保留内容，未展示语言和其他字段保持。独立弹窗与就近面板共用这份内容与提交逻辑。
 
 生产用法：SaaS 设备模板保存页，以及应用模板 `TemplateSummary` 中独立组合的触发器和弹窗。
 

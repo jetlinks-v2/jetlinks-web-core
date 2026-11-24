@@ -2311,6 +2311,8 @@
   "PersonalToken.empty.description": "调用开放 API 时，可以用个人令牌代替账号密码放在请求头里。令牌的权限不会超过你自己的账号权限，完整令牌只在新建后显示一次。",
   "PersonalToken.empty.create": "新建令牌",
   "Editable.edit": "编辑",
+  "Editable.save": "保存",
+  "Editable.cancel": "取消",
   "DetailMetaItem.copyTooltip": "点击复制：{id}",
   "app.resourceLoadError.title": "请刷新页面",
   "app.resourceLoadError.content": "页面资源加载失败，可能是系统已更新。请刷新页面后继续操作。\n注意：刷新会清除尚未保存的内容！",

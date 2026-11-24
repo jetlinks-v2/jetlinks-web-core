@@ -28,7 +28,7 @@ export function useI18nTextField(props: Readonly<I18nTextFieldProps>, emit: I18n
   }
 
   /** 确认后同步当前语言，原位编辑可保留缺失翻译时的回退文本。 */
-  function saveI18nMessages(messages: I18nTextMessages, fallbackValue = '') {
+  function saveI18nMessages(messages: I18nTextMessages, fallbackValue = props.value ?? '') {
     const allMessages = {
       ...(props.i18nMessages ?? {}),
       [props.field]: messages,

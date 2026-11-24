@@ -38,3 +38,5 @@
 `Editable` 和 `InputEditable` 的文字输入随草稿增减宽度，保留原字体、字重、行高和基线；通过 `--inline-edit-max-width` 设置视觉宽度上限，默认不超过容器，不限制可提交的文字长度。阅读态 hover 显示浅底与细下划线，编辑态保留下划线，焦点和错误分别使用平台主题色。`InputEditable` 的 `action` 插槽接收 `value/editing/cancel`，焦点在输入与动作间移动时不提交，离开整个字段后才提交。
 
 `I18nTextEditable` 复用上述输入与样式，短译名在就近面板编辑。语言选项和顶部语言菜单共用 `src/locales/languages.ts`；从文字输入进入多语言面板时接续未提交草稿，确认后统一发出值与翻译变更，取消或关闭不提交。缺失翻译仅以回退文案提示，不复制为已填写译文；保存保留未展示语言及其他字段的数据。`I18nTextField` 继续使用独立弹窗，适合表单和长文本。
+
+`InputEditable` 和 `I18nTextEditable` 的 `textarea` 默认关闭；开启后按段落阅读，编辑保持内容区宽度及原有字体，高度随内容增长至 `--inline-edit-max-height`（默认 16rem）后内部滚动。Enter 换行，Ctrl / Cmd + Enter 或就近的保存按钮提交，Esc / 取消恢复基线，普通失焦保留草稿。多语言编辑仍共享同一会话，切换语言不提交。

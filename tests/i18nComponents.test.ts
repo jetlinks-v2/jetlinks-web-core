@@ -70,7 +70,7 @@ for (const [locale, language] of [['zh-CN', 'zh'], ['en-US', 'en'], ['en_US', 'e
         assert.equal(props.value, language === 'zh' ? '中文' : 'English')
         assert.deepEqual(props.i18nMessages?.other, { zh: '其他字段' })
         state.saveI18nMessages({ fr: 'Français' })
-        assert.equal(props.value, '')
+        assert.equal(props.value, language === 'zh' ? '中文' : 'English', 'missing translation keeps its displayed fallback')
       } finally {
         mounted.unmount()
       }
@@ -101,7 +101,8 @@ test('standalone dialog isolates drafts, cancels without submitting and reinitia
   const events: unknown[][] = []
   const mounted = mountHook('zh-CN', () => useI18nTextDialog(props, (...args) => { events.push(args) }))
   try {
-    assert.deepEqual(mounted.state.formData, { en: 'Original', zh: '中文', ja: '' })
+    assert.deepEqual(mounted.state.formData, { en: 'Original', zh: '', ja: '' })
+    assert.equal(mounted.state.activeLanguage.value, 'zh')
     mounted.state.formData.en = 'Unsaved'
     mounted.state.handleCancel()
     assert.deepEqual(events, [['update:visible', false]])
@@ -124,11 +125,12 @@ test('dialog submits trimmed nonempty translations only after validation, preser
   try {
     let validateCalls = 0
     mounted.state.formRef.value = {
-      validate: async () => { validateCalls++; throw { errorFields: [{ name: ['zh'], errors: ['too long'] }] } },
+      validate: async () => { validateCalls++; throw { errorFields: [{ name: ['en'], errors: ['too long'] }] } },
     } as unknown as FormInstance
     assert.equal(mounted.state.rules.value.zh[0].max, 3)
     await mounted.state.handleOk()
     assert.equal(validateCalls, 1)
+    assert.equal(mounted.state.activeLanguage.value, 'en', 'validation reveals the language containing an error')
     assert.deepEqual(events, [], 'invalid form stays open without submitting')
     mounted.state.formRef.value = { validate: async () => ({}) } as unknown as FormInstance
     await mounted.state.handleOk()
@@ -137,6 +139,45 @@ test('dialog submits trimmed nonempty translations only after validation, preser
   } finally {
     mounted.unmount()
   }
+})
+
+test('one confirmation runs at a time and cancelled validation cannot publish into a reopened draft', async () => {
+  const props = reactive<I18nTextDialogProps>({ visible: true, title: 'Description', textarea: true, data: { zh: '原说明' } })
+  const events: unknown[][] = []
+  const mounted = mountHook('ja-JP', () => useI18nTextDialog(props, (...args) => { events.push(args) }))
+  try {
+    let finish!: () => void
+    let calls = 0
+    mounted.state.formRef.value = {
+      validate: () => { calls++; return new Promise<void>(resolve => { finish = resolve }) }, resetFields() {},
+    } as unknown as FormInstance
+    assert.equal(mounted.state.activeLanguage.value, 'ja')
+    const pending = mounted.state.handleOk()
+    await mounted.state.handleOk()
+    assert.equal(calls, 1)
+    mounted.state.handleCancel()
+    props.visible = false
+    await nextTick()
+    props.data = { zh: '另一份草稿' }
+    props.visible = true
+    await nextTick()
+    finish(); await pending
+    assert.deepEqual(events, [['update:visible', false]])
+    assert.equal(mounted.state.formData.zh, '另一份草稿')
+  } finally {
+    mounted.unmount()
+  }
+})
+
+test('unmount invalidates an outstanding translation confirmation', async () => {
+  const events: unknown[][] = []
+  const mounted = mountHook('zh', () => useI18nTextDialog({ visible: true, title: 'Description', textarea: true }, (...args) => { events.push(args) }))
+  let finish!: () => void
+  mounted.state.formRef.value = { validate: () => new Promise<void>(resolve => { finish = resolve }) } as unknown as FormInstance
+  const pending = mounted.state.handleOk()
+  mounted.unmount()
+  finish(); await pending
+  assert.deepEqual(events, [])
 })
 
 test('core-only locales provide all labels and validation messages', () => {
@@ -152,6 +193,7 @@ test('core-only locales provide all labels and validation messages', () => {
       }
       assert.deepEqual(mounted.state.languages.value, languageOptions.map(({ value: code, label }) => ({ code, label })))
       assert.match(String(mounted.state.rules.value.en[0].message), /64/)
+      for (const key of ['Editable.save', 'Editable.cancel']) assert.notEqual(t(key), key)
     } finally {
       mounted.unmount()
     }
