@@ -1,14 +1,16 @@
 <template>
-  <div ref="rootRef" class="splitter" :class="{ 'splitter--vertical': orientation === 'vertical', 'splitter--collapsed': isCollapsed, 'splitter--motion': collapseMotion }" :style="tracks" @transitionend="finishMotion">
+  <div ref="rootRef" class="splitter" :class="{ 'splitter--vertical': orientation === 'vertical', 'splitter--collapsed': isCollapsed, 'splitter--motion': collapseMotion, 'splitter--collapse-preview': collapsePreview, 'splitter--restoring': restoreSize !== undefined }" :style="tracks" @transitionend="finishMotion">
     <div :id="startId" ref="startRef" class="splitter__pane splitter__pane--start"
       :inert="startHidden ? true : undefined" :aria-hidden="startHidden ? true : undefined">
       <div class="splitter__content" :style="contentStyle"><slot name="start" /></div>
     </div>
-    <PanelResizeHandle v-if="resizable && !isCollapsed && !measuring && containerSize > 0" ref="handleRef" side="left"
-      :model-value="handleSize" :orientation="orientation" :limits="limits"
-      :aria-label="resizeLabel" :aria-controls="startId" :inert="collapseMotion || undefined" :aria-valuetext="collapsePreview ? t('components.Splitter.releaseToCollapse') : undefined"
+    <PanelResizeHandle v-if="resizable && (!isCollapsed || collapseOnDrag) && !measuring && gutterSize > 0" ref="handleRef" side="left"
+      :class="{ 'splitter__restore-handle': isCollapsed }"
+      :model-value="restoreSize ?? (isCollapsed ? 0 : handleSize)" :orientation="orientation" :limits="handleLimits"
+      :aria-label="isCollapsed ? t('components.Splitter.dragToExpand') : resizeLabel" :aria-controls="startId" :inert="collapseMotion || undefined" :aria-valuetext="collapsePreview ? t('components.Splitter.releaseToCollapse') : undefined"
       @update:model-value="resize" @drag="drag" />
-    <span v-if="collapsePreview" class="splitter__collapse-preview" role="status">{{ t('components.Splitter.releaseToCollapse') }}</span>
+    <span v-if="collapsePreview" class="splitter__collapse-announcement" role="status">{{ t('components.Splitter.releaseToCollapse') }}</span>
+    <div class="splitter__collapse-shadow" aria-hidden="true" />
     <div ref="endRef" class="splitter__pane splitter__pane--end" tabindex="-1">
       <slot name="end" :collapsed="isCollapsed" :toggle="toggleCollapse" />
     </div>
@@ -49,11 +51,15 @@ const emit = defineEmits<{
 const startId = `splitter-pane-${useId()}`
 const { t } = useI18n()
 const collapsePreview = ref(false)
+const restoreSize = ref<number>()
 const collapseMotion = ref(false)
 const motionExtent = ref(0)
 const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
-const contentStyle = computed<CSSProperties>(() => !collapseMotion.value ? {} : props.orientation === 'vertical'
-  ? { height: `${motionExtent.value}px` } : { width: `${motionExtent.value}px` })
+const contentStyle = computed<CSSProperties>(() => {
+  const extent = restoreSize.value === undefined ? motionExtent.value : Math.max(limits.value.min, restoreSize.value)
+  return !collapseMotion.value && restoreSize.value === undefined ? {} : props.orientation === 'vertical'
+    ? { height: `${extent}px` } : { width: `${extent}px` }
+})
 const rootRef = ref<HTMLElement>()
 const startRef = ref<HTMLElement>()
 const endRef = ref<HTMLElement>()
@@ -68,21 +74,23 @@ const { width, height } = useElementSize(startRef, { width: 0, height: 0 }, { bo
 const { width: containerWidth, height: containerHeight } = useElementSize(rootRef)
 const measuredSize = computed(() => props.orientation === 'vertical' ? height.value : width.value)
 const containerSize = computed(() => props.orientation === 'vertical' ? containerHeight.value : containerWidth.value)
+const gutterSize = computed(() => props.resizable ? Math.min(12, Math.max(0, containerSize.value - props.endMin)) : 0)
 const startHidden = computed(() => isCollapsed.value || collapseMotion.value || (containerSize.value > 0 && measuredSize.value === 0))
 const limits = computed(() => {
-  const available = Math.max(0, containerSize.value - props.endMin)
+  const available = Math.max(0, containerSize.value - props.endMin - gutterSize.value)
   const min = Math.min(props.min, available)
   return { min, max: Math.max(min, Math.min(props.max, available)), contentMin: props.endMin, initial: initialSize.value }
 })
 const handleSize = computed(() => currentSize.value ?? Math.max(limits.value.min,
   Math.min(limits.value.max, initialSize.value ?? measuredSize.value)))
+const handleLimits = computed(() => isCollapsed.value ? { ...limits.value, min: 0 } : limits.value)
 const tracks = computed<CSSProperties>(() => {
   const value = currentSize.value ?? props.defaultSize
   const requested = typeof value === 'number' ? `${value}px` : value
   const max = Number.isFinite(props.max) ? `${props.max}px` : '100%'
-  const start = isCollapsed.value ? '0px'
-    : `min(clamp(${props.min}px, ${requested}, ${max}), max(0px, calc(100% - ${props.endMin}px)))`
-  const track = `minmax(0, ${start}) 0px minmax(0, 1fr)`
+  const start = restoreSize.value !== undefined ? `${restoreSize.value}px` : isCollapsed.value ? '0px'
+    : `min(clamp(${props.min}px, ${requested}, ${max}), max(0px, calc(100% - ${props.endMin}px - ${gutterSize.value}px)))`
+  const track = `minmax(0, ${start}) ${gutterSize.value}px minmax(0, 1fr)`
   return props.orientation === 'vertical'
     ? { gridTemplateRows: track, gridTemplateColumns: 'minmax(0, 1fr)' }
     : { gridTemplateColumns: track, gridTemplateRows: 'minmax(0, 1fr)' }
@@ -96,18 +104,35 @@ watch([() => props.defaultSize, () => props.orientation], () => {
   initialSize.value = props.size
   void measureInitial()
 })
+let motionFocus: HTMLElement | undefined
 watch(isCollapsed, collapsed => {
   // 固定过渡期间的内容尺寸，避免文字在收缩过程中反复重排。
-  motionExtent.value = collapsed ? measuredSize.value : Math.max(limits.value.min, Math.min(limits.value.max, handleSize.value))
-  collapseMotion.value = !reducedMotion.value && motionExtent.value > 0 && containerSize.value > 0
+  const target = collapsed ? 0 : Math.max(limits.value.min, Math.min(limits.value.max, handleSize.value))
+  motionExtent.value = collapsed ? measuredSize.value : target
+  collapseMotion.value = !reducedMotion.value && containerSize.value > 0 && Math.abs(measuredSize.value - target) > 0.5
+  const active = rootRef.value?.ownerDocument.activeElement
+  motionFocus = collapseMotion.value && active && (handleRef.value?.$el as HTMLElement | undefined)?.contains(active)
+    ? active as HTMLElement : undefined
   if (!collapsed && currentSize.value === undefined && !collapseMotion.value) void measureInitial()
 })
 function finishMotion(event: TransitionEvent) {
   if (event.target !== rootRef.value || !['grid-template-columns', 'grid-template-rows'].includes(event.propertyName)) return
   collapseMotion.value = false
+  restoreMotionFocus()
   if (!isCollapsed.value && currentSize.value === undefined) void measureInitial()
 }
-watch(reducedMotion, reduce => { if (reduce) collapseMotion.value = false })
+function restoreMotionFocus() {
+  const target = motionFocus
+  motionFocus = undefined
+  if (!target) return
+  void nextTick(() => {
+    const document = rootRef.value?.ownerDocument
+    if (target.isConnected && document?.activeElement === document?.body) target.focus({ preventScroll: true })
+  })
+}
+watch(reducedMotion, reduce => {
+  if (reduce) { collapseMotion.value = false; restoreMotionFocus() }
+})
 async function measureInitial() {
   if (isCollapsed.value) return
   // CSS 轨道切换后重新测量，避免用上一方向的尺寸触发边界回写。
@@ -127,10 +152,19 @@ watch([startHidden, isCollapsed, () => props.resizable], () => {
   }
 })
 function resize(size: number) {
+  if (restoreSize.value !== undefined) {
+    restoreSize.value = size
+    return
+  }
+  const opening = isCollapsed.value
+  if (opening && size <= 0) return
+  const next = opening ? Math.max(limits.value.min, Math.min(limits.value.max, size)) : size
+  motionFocus = undefined
   collapseMotion.value = false
-  if (props.size === undefined) localSize.value = size
-  emit('update:size', size)
-  emit('resize', size)
+  if (props.size === undefined) localSize.value = next
+  emit('update:size', next)
+  emit('resize', next)
+  if (opening) setCollapsed(false)
 }
 function toggleCollapse() {
   setCollapsed(!isCollapsed.value)
@@ -140,9 +174,22 @@ function setCollapsed(next: boolean) {
   emit('update:collapsed', next)
 }
 function drag(event: PanelResizeDragEvent) {
+  if (event.phase === 'start') {
+    collapseMotion.value = false
+    collapsePreview.value = false
+    if (isCollapsed.value) restoreSize.value = 0
+    return
+  }
+  if (restoreSize.value !== undefined) {
+    if (event.phase === 'move') return
+    const size = restoreSize.value
+    restoreSize.value = undefined
+    if (event.phase === 'end' && size > 0 && size >= limits.value.min / 2) resize(size)
+    return
+  }
   if (event.phase === 'move') {
     if (!props.collapseOnDrag) return
-    collapsePreview.value = event.requestedSize < limits.value.min / 2
+    collapsePreview.value = event.requestedSize < limits.value.min * (collapsePreview.value ? 0.6 : 0.5)
     return
   }
   const collapse = event.phase === 'end' && props.collapseOnDrag && collapsePreview.value
@@ -164,7 +211,14 @@ watch(() => props.collapseOnDrag, enabled => { if (!enabled) collapsePreview.val
 .splitter__content { width:100%; height:100%; min-width:0; min-height:0 }
 .splitter--motion { transition:grid-template-columns var(--motion-duration-fast,0.15s) var(--motion-ease-standard,ease),grid-template-rows var(--motion-duration-fast,0.15s) var(--motion-ease-standard,ease) }
 .splitter--motion > .splitter__pane--start,.splitter--collapsed > .splitter__pane--start { overflow:hidden }
-.splitter__collapse-preview { position:absolute; left:var(--space-3,12px); top:50%; transform:translateY(-50%); padding:var(--space-1,4px) var(--space-2,8px); border:1px solid var(--line-2,var(--line)); border-radius:var(--jet-theme-button-r,4px); background:var(--bg,var(--jet-theme-bg-elevated)); color:var(--ink-2,var(--jet-theme-text)); font-size:var(--fs-12,12px); pointer-events:none; z-index:3 }
-.splitter--vertical > .splitter__collapse-preview { top:var(--space-3,12px); left:50%; transform:translateX(-50%) }
-@media(prefers-reduced-motion:reduce) { .splitter--motion { transition:none } }
+.splitter__collapse-announcement { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0 }
+.splitter__collapse-shadow { grid-area:1 / 1 / 2 / 2; min-width:0; min-height:0; z-index:1; pointer-events:none; opacity:0; background:linear-gradient(to left,color-mix(in srgb,var(--ink,var(--jet-theme-text)) 14%,transparent),color-mix(in srgb,var(--ink,var(--jet-theme-text)) 4%,transparent) 8px,transparent 28px); mask-image:linear-gradient(to bottom,transparent,#000 18%,#000 82%,transparent); transition:opacity var(--motion-duration-fast,0.15s) var(--motion-ease-standard,ease) }
+.splitter--collapse-preview > .splitter__collapse-shadow,.splitter--restoring > .splitter__collapse-shadow { opacity:1 }
+.splitter--vertical > .splitter__collapse-shadow { background:linear-gradient(to top,color-mix(in srgb,var(--ink,var(--jet-theme-text)) 14%,transparent),color-mix(in srgb,var(--ink,var(--jet-theme-text)) 4%,transparent) 8px,transparent 28px); mask-image:linear-gradient(to right,transparent,#000 18%,#000 82%,transparent) }
+.splitter > .panel-resize-handle { width:100%; margin-left:0 }
+.splitter--vertical > .panel-resize-handle { height:100%; margin-top:0 }
+.splitter__restore-handle :deep(.panel-resize-handle__separator::after) { display:none }
+.splitter__restore-handle :deep(.panel-resize-handle__separator::before) { opacity:1; background:var(--ink-2,var(--jet-theme-text-secondary)) }
+.splitter__restore-handle:hover :deep(.panel-resize-handle__separator::before),.splitter__restore-handle:focus-within :deep(.panel-resize-handle__separator::before) { background:var(--accent) }
+@media(prefers-reduced-motion:reduce) { .splitter--motion,.splitter__collapse-shadow { transition:none } }
 </style>

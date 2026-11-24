@@ -357,8 +357,10 @@ test('midpoint collapse intent retains capture without jumping the layout or hid
   separator.props.onPointermove(state.pointer(79)); await flush()
   assert.equal(separator.props['aria-valuetext'], 'components.Splitter.releaseToCollapse')
   separator.props.onPointermove(state.pointer(80)); await flush()
+  assert.equal(separator.props['aria-valuetext'], 'components.Splitter.releaseToCollapse')
+  separator.props.onPointermove(state.pointer(96)); await flush()
   assert.equal(separator.props['aria-valuetext'], undefined); assert.equal(state.startPane().props.inert, undefined)
-  separator.props.onPointerup(state.pointer(80)); await flush()
+  separator.props.onPointerup(state.pointer(96)); await flush()
   assert.deepEqual(state.collapses, []); assert.equal(separator.props['aria-valuenow'], 160)
 })
 
@@ -379,7 +381,8 @@ test('releasing a preview preserves pre-drag size, content and focus in local an
     const input = state.field('start'); state.draft.value = '自动折叠保留的草稿'; await flush()
     const separator = await previewCollapse(state)
     separator.props.onPointerup(state.pointer(79)); await flush()
-    assert.deepEqual(state.collapses, [true]); assert.equal(state.separator(), undefined)
+    assert.deepEqual(state.collapses, [true]); assert.equal(state.separator(), separator)
+    assert.equal(separator.props['aria-valuenow'], 0)
     assert.equal(separator.captured, undefined); assert.equal(state.document.activeElement, state.field('end').parent)
     state.field('toggle').props.onClick(); await flush()
     assert.equal(state.separator().props['aria-valuenow'], 240)
@@ -441,6 +444,119 @@ test('keyboard sizing, constraint changes, disabling, direction changes and unmo
   }
 })
 
+test('a collapsed edge reveals content without publishing and commits one legal size on release', async t => {
+  for (const controlled of [false, true]) {
+    const state = mountSplitter({ collapseOnDrag: true, min: 160, ...(controlled ? { size: 240, collapsed: true } : {}) }, true, true)
+    t.after(() => state.app.unmount())
+    if (!controlled) state.field('toggle').props.onClick()
+    state.paneWidth.value = 0; await flush()
+    state.requests.length = 0; state.collapses.length = 0
+    const separator = state.separator(), input = state.field('start')
+    assert.equal(separator.props['aria-valuenow'], 0)
+    assert.equal(separator.props['aria-valuemin'], 0)
+    assert.equal(separator.props['aria-label'], 'components.Splitter.dragToExpand')
+    separator.props.onPointerdown(state.pointer(0)); separator.props.onPointermove(state.pointer(80)); await flush()
+    assert.match(state.root.children[0].props.style.gridTemplateColumns, /80px/)
+    assert.equal(state.startPane().children[0].props.style.width, '160px')
+    assert.equal(state.startPane().props.inert, true)
+    assert.equal(separator.captured, 1)
+    assert.deepEqual(state.requests, []); assert.deepEqual(state.collapses, [])
+    separator.props.onPointerup(state.pointer(80)); await flush()
+    assert.deepEqual(state.requests, [160]); assert.deepEqual(state.collapses, [false])
+    assert.equal(state.separator(), separator); assert.equal(separator.props['aria-valuenow'], 160)
+    assert.equal(state.field('start'), input); assert.equal(state.mounts(), 1)
+  }
+})
+
+test('reopen cancellation, short drags and lifecycle changes retain the saved expanded size', async t => {
+  for (const operation of ['Escape', 'onPointercancel', 'onLostpointercapture', 'short', 'constraints', 'disable', 'direction', 'unmount']) {
+    const state = mountSplitter({ collapseOnDrag: true, min: 160, size: 240, collapsed: true, endMin: 360 }, true, true)
+    let unmounted = false; t.after(() => { if (!unmounted) state.app.unmount() })
+    const separator = state.separator()
+    separator.props.onPointerdown(state.pointer(0)); separator.props.onPointermove(state.pointer(40)); await flush()
+    if (operation === 'Escape') state.press('Escape')
+    else if (operation.startsWith('on')) separator.props[operation](state.pointer(40))
+    else if (operation === 'short') separator.props.onPointerup(state.pointer(40))
+    else if (operation === 'constraints') state.containerWidth.value = 500
+    else if (operation === 'disable') state.props.resizable = false
+    else if (operation === 'direction') state.props.orientation = 'vertical'
+    else { state.app.unmount(); unmounted = true }
+    await flush()
+    assert.equal(separator.captured, undefined)
+    assert.deepEqual(state.requests, []); assert.deepEqual(state.collapses, [])
+    assert.equal(state.props.size, 240); assert.equal(state.props.collapsed, true)
+    if (!unmounted) assert.equal(hasClass(state.root.children[0], 'splitter--restoring'), false)
+  }
+})
+
+test('controlled rejection closes the reopen preview without changing actual collapsed state', async t => {
+  const state = mountSplitter({ collapseOnDrag: true, min: 160, size: 240, collapsed: true }, false, true)
+  t.after(() => state.app.unmount())
+  const separator = state.separator()
+  separator.props.onPointerdown(state.pointer(0)); separator.props.onPointermove(state.pointer(180)); await flush()
+  separator.props.onPointerup(state.pointer(180)); await flush()
+  assert.deepEqual(state.requests, [180]); assert.deepEqual(state.collapses, [false])
+  assert.equal(state.props.size, 240); assert.equal(state.props.collapsed, true)
+  assert.equal(separator.props['aria-valuenow'], 0)
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /0px/)
+})
+
+test('keyboard sizing and reset can reopen a collapsed edge through the same bounds', async t => {
+  for (const operation of ['ArrowRight', 'End', 'reset']) {
+    const state = mountSplitter({ collapseOnDrag: true, min: 160, max: 360, size: 240, collapsed: true }, true, true)
+    t.after(() => state.app.unmount())
+    if (operation === 'reset') state.separator().props.onDblclick()
+    else state.press(operation)
+    await flush()
+    const expected = operation === 'End' ? 360 : operation === 'reset' ? 240 : 160
+    assert.deepEqual(state.requests, [expected]); assert.deepEqual(state.collapses, [false])
+    assert.equal(state.separator().props['aria-valuenow'], expected)
+  }
+})
+
+test('reopening follows pointer Y and a matching final extent does not wait for a nonexistent transition', async t => {
+  const state = mountSplitter({ collapseOnDrag: true, orientation: 'vertical', min: 100, size: 180, collapsed: true })
+  t.after(() => state.app.unmount())
+  const separator = state.separator()
+  separator.props.onPointerdown(state.pointer(900, 0)); separator.props.onPointermove(state.pointer(900, 180)); await flush()
+  assert.match(state.root.children[0].props.style.gridTemplateRows, /180px/)
+  separator.props.onPointerup(state.pointer(900, 180)); await flush()
+  assert.deepEqual(state.requests, [180]); assert.deepEqual(state.collapses, [false])
+  assert.equal(hasClass(state.root.children[0], 'splitter--motion'), false)
+  assert.equal(separator.props.inert, undefined)
+})
+
+test('the gutter has its own budget and yields space to the end pane in a tight container', async t => {
+  const state = mountSplitter({ min: 160, endMin: 240 }); t.after(() => state.app.unmount())
+  state.containerWidth.value = 390; await flush()
+  state.press('End'); await flush()
+  assert.equal(state.separator().props['aria-valuenow'], 138)
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /\) 12px minmax/)
+  state.containerWidth.value = 245; await flush()
+  assert.equal(state.separator().props['aria-valuemax'], 0)
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /\) 5px minmax/)
+  state.containerWidth.value = 200; await flush()
+  assert.equal(state.separator(), undefined)
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /\) 0px minmax/)
+})
+
+test('reopen settling restores focus lost to inert but does not steal a subsequent focus change', async t => {
+  for (const moved of [false, true]) {
+    const state = mountSplitter({ collapseOnDrag: true, min: 160, size: 240, collapsed: true })
+    t.after(() => state.app.unmount())
+    const separator = state.separator(), root = state.root.children[0]
+    separator.isConnected = true
+    state.document.body = {}
+    separator.props.onPointerdown(state.pointer(0)); separator.props.onPointermove(state.pointer(120)); await flush()
+    state.paneWidth.value = 120
+    separator.props.onPointerup(state.pointer(120)); await flush()
+    assert.equal(hasClass(root, 'splitter--motion'), true)
+    state.document.activeElement = moved ? state.field('end') : state.document.body
+    root.props.onTransitionend({ target: root, propertyName: 'grid-template-columns' }); await flush()
+    assert.equal(state.document.activeElement, moved ? state.field('end') : separator)
+  }
+})
+
 test('collapse motion freezes content, completes on the root transition and respects reduced motion', async t => {
   for (const reduced of [false, true]) {
     const state = mountSplitter({}, true, reduced); t.after(() => state.app.unmount())
@@ -493,7 +609,7 @@ test('vertical Splitter uses pointer Y and up/down keys, and yields its minimum 
     state.press('ArrowUp'); await flush(); assert.equal(state.separator().props['aria-valuenow'], 240)
     assert.match(state.root.children[0].props.style.gridTemplateRows, /240px/)
     state.containerHeight.value = 220; await flush()
-    assert.equal(state.separator().props['aria-valuenow'], 40); assert.equal(state.separator().props['aria-valuemin'], 40)
+    assert.equal(state.separator().props['aria-valuenow'], 28); assert.equal(state.separator().props['aria-valuemin'], 28)
     state.separator().focus(); state.props.resizable = false; await flush()
     assert.equal(state.separator(), undefined); assert.equal(state.document.activeElement, state.field('end').parent)
   } finally { state.app.unmount() }

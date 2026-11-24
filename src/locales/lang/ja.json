@@ -15,6 +15,7 @@
   "PersonalToken.TokenDialog.viewTitle": "トークンの表示",
   "I18n.configure": "多言語",
   "components.Splitter.releaseToCollapse": "離して折りたたむ",
+  "components.Splitter.dragToExpand": "ドラッグしてパネルを展開",
   "Editable.edit": "編集",
   "Editable.save": "保存",
   "Editable.cancel": "キャンセル",

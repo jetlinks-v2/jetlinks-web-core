@@ -35,8 +35,14 @@
 
 分割条复用 [PanelResizeHandle](../PanelResizeHandle/README.md)：默认连续细线，hover 显示轻量把手；拖动结束不会打开菜单。点击、触屏轻触或键盘 Enter / Space 打开标准 Popover 调整尺寸，Esc 关闭并归还焦点；方向键、Home / End、双击重置和拖动取消使用同一边界。
 
-启用 `collapseOnDrag` 后，请求尺寸小于有效最小尺寸的一半时显示“松开收起”；拖动期间面板保持合法最小尺寸，不跳到 0。拖回中点以上撤销意图，松手才通过既有 `update:collapsed` 请求折叠，并保留本次拖动前的展开尺寸。只有确认后的收起 / 展开使用平台快速过渡，普通调宽不加缓动；过渡期间固定内容尺寸以避免文字反复重排，并遵循减少动态效果设置。受控宿主可拒绝请求。Esc、指针取消、捕获丢失和约束变化撤销意图；方向切换或卸载不提交折叠。键盘尺寸操作保留原边界，工具栏提供展开入口。分割条只强调中央把手，整条细线保持弱化。
+启用 `collapseOnDrag` 后，请求尺寸小于有效最小尺寸的一半时，以面板内缘两端渐隐的柔和阴影表达收拢意图；拖动期间保持合法最小尺寸，不跳到 0。回拖到最小尺寸的 60% 时撤销意图，避免临界往返时反复闪烁。松手才请求折叠，并保留拖动前的展开尺寸；辅助技术保留“松开收起”提示。
+
+允许调宽时，分隔器占用独立的 12px 拖拽槽；空间不足时优先保证末端内容区，拖拽槽和起始区随可用空间收紧。折叠后隐藏整条分割线，只保留槽中央的弱化握柄，hover 或键盘聚焦时强调；不会伸出拉片或覆盖内容。向右拖动可揭开左区，上下布局则向下拖动。展开预览可以小于最小尺寸，内容保持至少最小尺寸并裁切，预览期间不发布尺寸 / 折叠状态；拖过半个最小尺寸后松手才确认展开，并应用合法尺寸。距离不足、Esc、指针取消或捕获丢失均返回折叠状态，保留原尺寸和草稿。键盘增大、尺寸菜单及双击复位也可以展开；工具栏展开按钮继续恢复之前保留的尺寸。
+
+只有确认后的收起 / 展开使用平台快速过渡，普通调宽和揭开预览直接跟随指针；过渡与揭开期间固定必要的内容尺寸，避免文字反复重排，并遵循减少动态效果设置。受控宿主可以拒绝请求。约束 / 方向变化、禁用与卸载会取消正在进行的拖动。分割条只强调中央把手，细线保持弱化；阴影不截获输入、不改变两区的尺寸约束。
 
 阈值依据参考 [VS Code SplitView 的半最小尺寸吸附](https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/ui/splitview/splitview.ts) 与 [react-resizable-panels 的默认中点阈值](https://github.com/bvaughn/react-resizable-panels/blob/main/README.md#panel)，折叠过渡参考 [Ant Design Splitter](https://ant.design/components/splitter/)。保留拖动约束、以提示预览意图并在释放时确认，是本组件沿既有提交契约的组合选择。
+
+独立占位参考 [Split.js 的 gutter 布局](https://github.com/nathancahill/split/tree/master/packages/splitjs#gutteralign-default-center)；完全折叠后保留拖动入口的依据见 [react-resizable-panels 折叠示例](https://react-resizable-panels.vercel.app/examples/collapsible-panels)。本组件沿用现有分割把手的 12px 命中宽度，并将其计入布局预算，避免覆盖业务内容。
 
 组件不决定业务断点、不存储用户偏好、不管理抽屉。窄屏切换单栏或抽屉由宿主按任务选择。已有左右头部布局继续使用 `EqualHeightColumns`，它与 Splitter 共用分割条，不需要为替换名称而迁移。

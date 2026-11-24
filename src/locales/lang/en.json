@@ -778,6 +778,7 @@
   "components.EqualHeightColumns.resize": "Adjust left panel width",
   "components.PanelResizeHandle.resize": "Adjust panel size",
   "components.Splitter.releaseToCollapse": "Release to collapse",
+  "components.Splitter.dragToExpand": "Drag to expand panel",
   "components.PanelResizeHandle.shrink": "Reduce panel size",
   "components.PanelResizeHandle.grow": "Enlarge panel size",
   "components.PanelResizeHandle.reset": "Reset panel size",
