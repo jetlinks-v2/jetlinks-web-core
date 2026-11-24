@@ -1,16 +1,28 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import Unsubscribe from './components/Unsubscribe.vue'
 import { useNotificationSettings } from './useNotificationSettings'
 import type { AccountEditTarget } from '../../types'
 
-defineProps<{ canEditProfile?: boolean }>()
+const props = defineProps<{ canEditProfile: boolean }>()
 const emit = defineEmits<{ (event: 'edit-contact', target: AccountEditTarget): void }>()
-const channelTooltipStyle = { maxWidth: 'min(360px, calc(100vw - 24px))' }
 const {
   providers, loading, failed, configsFailed, saving, pendingBinding, recipientsFailed, recipientsLoading,
-  load, loadRecipients, bindingComplete, receiverSummary, receiverStatus, unavailableType,
-  beginReceiverBinding, channelHeaderAction, openChannelSettings, displayedTypes, tableColumns, matrixRowNames, channelLabel, channelIcon, matrixCells, toggleMatrixChannel,
+  load, loadRecipients, bindingComplete, receiverStatus, insideMailEnabled,
+  channelHeaderAction, openChannelSettings, displayedTypes, tableColumns, matrixRowNames,
+  channelLabel, channelIcon, matrixCells, toggleMatrixChannel,
 } = useNotificationSettings()
+
+const headerActions = computed(() => Object.fromEntries(displayedTypes.value.map(type => {
+  const action = channelHeaderAction(type)
+  return [type, action === 'configure' || props.canEditProfile ? action : undefined]
+})))
+
+function handleHeaderAction(type: string) {
+  const action = headerActions.value[type]
+  if (action === 'configure') openChannelSettings(type)
+  else if (action) emit('edit-contact', action)
+}
 </script>
 
 <template>
@@ -40,49 +52,28 @@ const {
         >
           <template #headerCell="{ column }">
             <span v-if="column.key === 'topic'" class="notification-settings__topic-title">{{ $t('PersonalCenter.messageType') }}</span>
-            <a-tooltip v-else :title="column.key === 'inside-mail' ? undefined : receiverSummary(column.key)" :overlay-style="channelTooltipStyle">
-              <div class="notification-settings__column-name">
-                <span class="notification-settings__channel-title">
-                  <span class="notification-settings__channel-icon" aria-hidden="true"><AIcon :type="channelIcon(column.key)" /></span>
-                  <span>{{ channelLabel(column.key) }}</span>
+            <div v-else class="notification-settings__column-name">
+              <span class="notification-settings__channel-title">
+                <span class="notification-settings__channel-icon" aria-hidden="true"><AIcon :type="channelIcon(column.key)" /></span>
+                <span>{{ channelLabel(column.key) }}</span>
+              </span>
+              <div class="notification-settings__channel-meta">
+                <span
+                  class="notification-settings__status"
+                  :class="{ 'notification-settings__status--enabled': column.key === 'inside-mail' && insideMailEnabled }"
+                >
+                  <span v-if="column.key === 'inside-mail' && insideMailEnabled" class="notification-settings__status-dot" aria-hidden="true" />
+                  {{ receiverStatus(column.key) }}
                 </span>
-                <div class="notification-settings__channel-meta">
-                  <a-button
-                    v-if="channelHeaderAction(column.key) === 'configure'"
-                    type="link"
-                    size="small"
-                    class="notification-settings__channel-action"
-                    @click.stop="openChannelSettings(column.key)"
-                  >{{ $t('PersonalCenter.notificationGoBind') }}</a-button>
-                  <a-button
-                    v-else-if="canEditProfile && channelHeaderAction(column.key) === 'email'"
-                    type="link"
-                    size="small"
-                    class="notification-settings__channel-action"
-                    @click.stop="emit('edit-contact', 'email-section')"
-                  >{{ $t('PersonalCenter.notificationFillContact') }}</a-button>
-                  <a-button
-                    v-else-if="canEditProfile && channelHeaderAction(column.key) === 'phone'"
-                    type="link"
-                    size="small"
-                    class="notification-settings__channel-action"
-                    @click.stop="emit('edit-contact', 'phone-section')"
-                  >{{ $t('PersonalCenter.notificationFillContact') }}</a-button>
-                  <a-button
-                    v-else-if="channelHeaderAction(column.key) === 'bind'"
-                    type="link"
-                    size="small"
-                    class="notification-settings__channel-action"
-                    :disabled="!!saving || recipientsLoading"
-                    @click.stop="beginReceiverBinding(column.key)"
-                  >{{ $t('PersonalCenter.notificationBindReceiver') }}</a-button>
-                  <span v-else class="notification-settings__status-ready">
-                    <span class="notification-settings__status-dot" />
-                    {{ receiverStatus(column.key) }}
-                  </span>
-                </div>
+                <a-button
+                  v-if="headerActions[column.key]"
+                  type="link"
+                  size="small"
+                  class="notification-settings__channel-action"
+                  @click.stop="handleHeaderAction(column.key)"
+                >{{ $t(headerActions[column.key] === 'configure' ? 'PersonalCenter.goConfigure' : 'PersonalCenter.notificationFillContact') }}</a-button>
               </div>
-            </a-tooltip>
+            </div>
           </template>
           <template #topic="record">
             <span class="notification-settings__topic-name">{{ matrixRowNames[record.matrixKey] }}</span>
@@ -90,28 +81,21 @@ const {
           <template v-for="type in displayedTypes" :key="type" #[type]="record">
             <div class="notification-settings__cell">
               <div v-for="cell in matrixCells(record.matrixKey, type)" :key="cell.channel.id" class="notification-settings__checkbox-wrapper">
-                <a-tooltip :title="cell.unavailable || cell.label" :overlay-style="channelTooltipStyle">
-                  <span>
-                    <a-spin size="small" :spinning="cell.saving">
-                      <a-checkbox
-                        :checked="cell.checked"
-                        :disabled="!!saving || !!cell.unavailable"
-                        :aria-label="matrixRowNames[record.matrixKey] + ' · ' + channelLabel(type)"
-                        @change="toggleMatrixChannel(record.matrixKey, cell.channel, !!$event.target.checked)"
-                      />
-                    </a-spin>
-                  </span>
-                </a-tooltip>
-              </div>
-              <a-tooltip v-if="!matrixCells(record.matrixKey, type).length" :title="unavailableType(type)" :overlay-style="channelTooltipStyle">
-                <span class="notification-settings__checkbox-wrapper">
+                <a-spin size="small" :spinning="cell.saving">
                   <a-checkbox
-                    disabled
-                    :checked="false"
+                    :checked="cell.checked"
+                    :disabled="!!saving || !!cell.unavailable"
                     :aria-label="matrixRowNames[record.matrixKey] + ' · ' + channelLabel(type)"
+                    @change="toggleMatrixChannel(record.matrixKey, cell.channel, !!$event.target.checked)"
                   />
-                </span>
-              </a-tooltip>
+                </a-spin>
+              </div>
+              <a-checkbox
+                v-if="!matrixCells(record.matrixKey, type).length"
+                disabled
+                :checked="false"
+                :aria-label="matrixRowNames[record.matrixKey] + ' · ' + channelLabel(type)"
+              />
             </div>
           </template>
           <template #emptyText><CloudEmpty v-if="!failed" :image-style="{ height: '64px' }" :description="$t('PersonalCenter.notificationNoEnabledTypes')"><a-button :loading="loading" @click="load">{{ $t('AccountCenter.retry') }}</a-button></CloudEmpty></template>

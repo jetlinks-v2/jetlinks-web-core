@@ -16,6 +16,7 @@ import {
   addFallbackRoute,
   bootstrapSession,
   ensureMenuRoutes,
+  ensureSystemBulletinSubscription,
   resetRouteStartupState,
   resetSessionStores
 } from './startup'
@@ -358,6 +359,7 @@ router.beforeEach((to, from, next) => {
             return
           }
 
+          if (!isPublicRoute(to)) void ensureSystemBulletinSubscription(token)
           getRoutesByServer(to, next)
         })
         .catch(error => {

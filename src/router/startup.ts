@@ -1,4 +1,12 @@
 import type { Router } from 'vue-router'
+import { getToken } from '@jetlinks-web/utils'
+import { getAllNotice } from '@jetlinks-web-core/api/account/center'
+import {
+  getNoticeList_api,
+  save_api,
+  SYSTEM_BULLETIN_PROVIDER,
+  type SubscriptionState,
+} from '@jetlinks-web-core/api/account/notificationSubscription'
 import {
   useApplication,
   useAuthStore,
@@ -13,7 +21,85 @@ import { ApplicationEntryUnavailableError } from '@jetlinks-web-core/utils/appli
 import { isSubApp, OpenMicroApp } from '@jetlinks-web-core/utils/consts'
 import { enterDefaultApplication, initializeBusinessApplicationEntry } from './default-entry'
 
+type StateField = SubscriptionState | { value?: SubscriptionState }
+interface BulletinTopic {
+  id: string
+  name: string
+  provider: string
+  state?: StateField
+  channels?: Array<{ id: string; channelProvider: string; state?: StateField }>
+}
+interface BulletinSubscription {
+  id: string
+  topicProvider: string
+  providerId?: string
+  subscribeName?: string
+  state?: StateField
+  locale?: string
+  notifyChannels?: string[]
+}
+
+const insideMail = 'inside-mail'
+const stateOf = (state?: StateField) => typeof state === 'string' ? state : state?.value
+
 let menuRoutePromise: Promise<boolean> | undefined
+let bulletinSubscriptionCheck: { token: string; userId: string; controller: AbortController } | undefined
+
+/** 合并同一会话的路由检查，会话变化或请求失败后允许重新确认。 */
+export const ensureSystemBulletinSubscription = (token: string) => {
+  const user = useUserStore()
+  const userId = user.userInfo.id
+  if (!token || getToken() !== token || !userId) return
+  if (bulletinSubscriptionCheck?.token === token && bulletinSubscriptionCheck.userId === userId) return
+
+  bulletinSubscriptionCheck?.controller.abort()
+  const check = { token, userId, controller: new AbortController() }
+  bulletinSubscriptionCheck = check
+  const isCurrent = () => bulletinSubscriptionCheck === check && getToken() === token && user.userInfo.id === userId
+  const options = { hiddenError: true, signal: check.controller.signal }
+  const locale = useSystemStore().language
+
+  return (async () => {
+    const catalogue = await getAllNotice(options)
+    if (!isCurrent()) return
+    if (!catalogue.success || !Array.isArray(catalogue.result)) throw new Error('Notification catalogue unavailable')
+    const topics: BulletinTopic[] = catalogue.result
+    const topic = topics.find(item =>
+      item.provider === SYSTEM_BULLETIN_PROVIDER && item.id && stateOf(item.state) !== 'disabled')
+    const channel = topic?.channels?.find(item =>
+      item.channelProvider === insideMail && item.id && stateOf(item.state) !== 'disabled')
+    if (!topic || !channel) return
+
+    const response = await getNoticeList_api({
+      paging: false,
+      terms: [{ column: 'topicProvider', termType: 'eq', value: SYSTEM_BULLETIN_PROVIDER }],
+    }, options)
+    if (!isCurrent()) return
+    const records = Array.isArray(response.result) ? response.result : response.result?.data
+    if (!response.success || !Array.isArray(records)) throw new Error('Bulletin subscription unavailable')
+    const subscriptions: BulletinSubscription[] = records
+    const previous = subscriptions.find(item => item.topicProvider === SYSTEM_BULLETIN_PROVIDER)
+    const channels = previous?.notifyChannels ?? []
+    if (!Array.isArray(channels)) throw new Error('Invalid bulletin subscription channels')
+    if (channels.includes(channel.id) || channels.includes(insideMail)) return
+
+    // 只补站内信，保留原订阅的其他渠道和启停状态。
+    const saved = await save_api({
+      ...previous,
+      topicProvider: SYSTEM_BULLETIN_PROVIDER,
+      providerId: previous?.providerId || topic.id,
+      subscribeName: previous?.subscribeName || topic.name,
+      state: stateOf(previous?.state) ?? 'enabled',
+      locale: previous?.locale || locale,
+      notifyChannels: [...channels, channel.id],
+    }, options)
+    if (!saved.success) throw new Error('Bulletin subscription update failed')
+  })().catch(() => {
+    if (!isCurrent()) return
+    bulletinSubscriptionCheck = undefined
+    console.warn('[Router] 系统公告站内信默认绑定失败')
+  })
+}
 
 export const bootstrapSession = async (resolveDefaultEntry = true) => {
   const userStore = useUserStore()
@@ -114,6 +200,8 @@ export const ensureMenuRoutes = async (
 
 export const resetRouteStartupState = () => {
   menuRoutePromise = undefined
+  bulletinSubscriptionCheck?.controller.abort()
+  bulletinSubscriptionCheck = undefined
 }
 
 export const resetSessionStores = () => {
