@@ -1,5 +1,5 @@
 <template>
-  <span ref="rootRef" class="editable-field" :class="{ 'editable-field--number': type === 'number', 'editable-field--multiple': multiple, 'editable-field--single-select': type === 'select' && !multiple }" @keydown.capture="capturePopupKey" @keydown="onKeydown" @focusout="onFocusout">
+  <span ref="rootRef" class="editable-field" :class="{ 'editable-field--number': type === 'number', 'editable-field--picker': picker, 'editable-field--range': rangePicker, 'editable-field--empty': __value == null || __value === '', 'editable-field--multiple': multiple, 'editable-field--adorned': type === 'select' || picker }" @keydown.capture="capturePopupKey" @keydown="onKeydown" @focusout="onFocusout">
     <span v-if="isEdit" ref="inputRef" class="editable-field__control inline-edit-surface" :aria-disabled="disabled || undefined" :aria-invalid="componentProps.status === 'error' || undefined">
       <label v-if="componentProps['aria-label']" class="editable-field__label" :for="controlId">{{ componentProps['aria-label'] }}</label>
       <component
@@ -8,6 +8,11 @@
         v-model:value="_value"
         style="width: 100%; height:100%"
         :bordered="false"
+        :open="type === 'select' ? popupOpen : undefined"
+        :show-arrow="type === 'select' ? true : undefined"
+        :max-tag-count="multiple ? 0 : undefined"
+        :max-tag-placeholder="multiple ? () => draftLabel : undefined"
+        :separator="rangePicker ? ' — ' : undefined"
         :dropdown-match-select-width="type === 'select' && richOptions ? false : undefined"
         :dropdown-style="type === 'select' ? { minWidth: 'min(160px, calc(100vw - 24px))', maxWidth: 'calc(100vw - 24px)' } : undefined"
         :dropdown-align="type === 'select' ? { overflow: { adjustX: 1, adjustY: 1 } } : undefined"
@@ -19,19 +24,21 @@
         <template v-if="type === 'select' && ($slots.option || richOptions)" #option="option">
           <slot name="option" v-bind="option"><SelectOption :label="option.label" :icon="option.icon" :description="option.description" /></slot>
         </template>
+        <template v-if="multiple" #dropdownRender="{ menuNode }">
+          <component :is="menuNode" />
+          <div class="editable-field__actions" @mousedown.prevent>
+            <a-button size="small" @click="cancel()">{{ $t('Editable.cancel') }}</a-button>
+            <a-button type="primary" size="small" :disabled="disabled" @click="onValueChange()">{{ $t('Editable.save') }}</a-button>
+          </div>
+        </template>
       </component>
     </span>
     <span ref="triggerRef" :class="['text', 'inline-edit-trigger', { disabled, editing: isEdit }]" :aria-disabled="disabled || undefined" :role="disabled || isEdit ? undefined : 'button'" :tabindex="disabled || isEdit ? undefined : 0" :aria-hidden="isEdit || undefined" :aria-label="componentProps['aria-label'] as string | undefined" @click="enterEdit">
-      <template v-if="isEdit && !selectTypes.includes(type)">{{ _value ?? componentProps.placeholder ?? $t('comm.table.empty') }}</template>
-      <slot v-else :value="_value">
+      <slot :value="isEdit ? value : _value">
         <AIcon v-if="selectedOption?.icon" :type="selectedOption.icon" />
         {{ __value ?? componentProps.placeholder ?? $t('comm.table.empty') }}
       </slot>
-      <DownOutlined v-if="type === 'select' && !multiple" class="editable-field__arrow" aria-hidden="true" />
-    </span>
-    <span v-if="multiple && isEdit" class="editable-field__actions">
-      <a-button size="small" @click="cancel()">{{ $t('Editable.cancel') }}</a-button>
-      <a-button type="primary" size="small" :disabled="disabled" @click="onValueChange()">{{ $t('Editable.save') }}</a-button>
+      <component :is="type === 'select' ? DownOutlined : type.startsWith('time') ? ClockCircleOutlined : CalendarOutlined" v-if="type === 'select' || picker" class="editable-field__arrow" aria-hidden="true" />
     </span>
   </span>
 </template>
@@ -39,7 +46,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch, type Component } from 'vue'
 import { DatePicker, Input, InputNumber, Select, TimePicker, TimeRangePicker } from 'ant-design-vue'
-import { DownOutlined } from '@ant-design/icons-vue'
+import { CalendarOutlined, ClockCircleOutlined, DownOutlined } from '@ant-design/icons-vue'
 import SelectOption from '../SelectOption/index.vue'
 
 type EditorType = 'string' | 'number' | 'select' | 'date' | 'time' | 'dateRange' | 'timeRange'
@@ -74,6 +81,8 @@ function capturePopupKey(event: KeyboardEvent) {
 // 定义选择框类型
 const selectTypes = ['select', 'date', 'time', 'dateRange', 'timeRange']
 const multiple = computed(() => props.type === 'select' && ['multiple', 'tags'].includes(String(props.componentProps.mode)))
+const picker = computed(() => ['date', 'time', 'dateRange', 'timeRange'].includes(props.type))
+const rangePicker = computed(() => props.type === 'dateRange' || props.type === 'timeRange')
 const popupContainer = (element: HTMLElement) => rootRef.value ?? element.parentElement ?? element
 const copy = (value: unknown) => Array.isArray(value) ? [...value] : value
 const equal = (left: unknown, right: unknown) => Array.isArray(left) && Array.isArray(right)
@@ -84,12 +93,14 @@ const disabled = computed(() => !!props.componentProps?.disabled)
 const richOptions = computed(() => Array.isArray(props.componentProps.options) && props.componentProps.options.some(item => item.icon || item.description))
 const selectedOption = computed(() => props.type === 'select' && Array.isArray(props.componentProps.options)
   ? props.componentProps.options.find(item => item.value === (isEdit.value ? props.value : _value.value)) : undefined)
+const optionLabel = (value: unknown) => Array.isArray(props.componentProps.options)
+  ? props.componentProps.options.find(option => option.value === value)?.label ?? value : value
+const draftLabel = computed(() => Array.isArray(_value.value) ? _value.value.map(optionLabel).join(', ') : '')
 
 const __value = computed(() => {
   const value = isEdit.value ? props.value : _value.value
   if (props.type === 'select') {
-    if (Array.isArray(value)) return value.map(item => props.componentProps.options instanceof Array
-      ? props.componentProps.options.find(option => option.value === item)?.label ?? item : item).join(', ')
+    if (Array.isArray(value)) return value.map(optionLabel).join(', ')
     return selectedOption.value?.label
   }
   return value ?? undefined
@@ -118,7 +129,7 @@ const enterEdit = async () => {
   }
   const version = ++generation
   _value.value = copy(props.value)
-  popupOpen.value = !!props.componentProps.open || !!props.componentProps.defaultOpen
+  popupOpen.value = !!(props.componentProps.open ?? (multiple.value || props.componentProps.defaultOpen))
   isEdit.value = true
   await nextTick()
   if (version === generation) focusInput()
@@ -211,27 +222,47 @@ onBeforeUnmount(() => { ++generation })
 </script>
 
 <style lang="less" scoped>
-.editable-field { position:relative; display:inline-block; vertical-align:middle; height:32px; min-width:0; max-width:min(100%,var(--inline-edit-max-width,100%)); font:inherit }
+.editable-field { --editable-field-height:32px; position:relative; display:inline-block; vertical-align:middle; height:var(--editable-field-height); min-width:0; max-width:min(100%,var(--inline-edit-max-width,100%)); font:inherit }
 // 阅读与编辑共用可用数字槽位，避免步进按钮挤掉数值或控件遮住相邻语句。
-.editable-field--number { min-width:4.5rem }
-.editable-field--single-select .text { position:relative; padding-inline-end:30px; }
-.editable-field__arrow { position:absolute; inset-inline-end:8px; top:50%; transform:translateY(-50%); color:var(--ink-2); font-size:12px; pointer-events:none; }
+.editable-field--number,.editable-field--empty { min-width:min(4.5rem,100%); }
+.editable-field--number .text { padding-inline-end:28px; }
+// 范围控件平分两端输入宽度；阅读态同步使用等宽数字，避免一端被压缩。
+.editable-field--picker { font-variant-numeric:tabular-nums; }
+.editable-field--picker.editable-field--empty { min-width:min(100%,calc(12ch + 34px)); }
+.editable-field--range.editable-field--empty { min-width:min(100%,calc(24ch + 34px)); }
+.editable-field--adorned .text { position:relative; padding-inline-end:28px; }
+.editable-field__arrow { position:absolute; inset-inline-end:6px; top:50%; transform:translateY(-50%); color:var(--ink-2); font-size:14px; pointer-events:none; }
 // 展示文本继续占位，编辑控件只覆盖同一槽位，避免句子重新换行。
-.editable-field__control { position:absolute; inset:0; display:block; width:100%; height:100%; min-width:0 }
-.editable-field__control :deep(.ant-input),.editable-field__control :deep(.ant-input-number-input) { padding-inline:6px; font:inherit }
-.editable-field__control :deep(.ant-input) { border:0; box-shadow:none }
-.editable-field__control :deep(.ant-select-single .ant-select-selector) { padding-inline:6px }
+.editable-field__control { position:absolute; inset:0; display:block; width:100%; height:100%; min-width:0; line-height:var(--editable-field-height); }
+.editable-field__control :deep(.ant-input),.editable-field__control :deep(.ant-input-number-input) { padding-inline:6px; font:inherit; color:inherit; }
+.editable-field__control :deep(.ant-input) { padding-block:0; border:0; box-shadow:none; }
+.editable-field__control :deep(.ant-select),.editable-field__control :deep(.ant-picker),.editable-field__control :deep(.ant-input-number) { font:inherit; color:inherit; }
+.editable-field__control :deep(.ant-input-number) { border:0; border-radius:0; box-shadow:none; }
+.editable-field__control :deep(.ant-input-number-input-wrap),.editable-field__control :deep(.ant-input-number-input) { height:100%; }
+.editable-field__control :deep(.ant-input-number-input) { padding-inline-end:28px; }
+.editable-field__control :deep(.ant-select .ant-select-selector) { height:100%; padding:0 6px; border:0; border-radius:0; font:inherit; box-shadow:none; overflow:hidden; }
+.editable-field__control :deep(.ant-select-single .ant-select-selection-item) { padding-inline-end:22px; line-height:var(--editable-field-height); color:inherit; }
+.editable-field__control :deep(.ant-select-arrow) { inset-inline-end:6px; width:14px; font-size:14px; color:var(--ink-2); }
+.editable-field__control :deep(.ant-picker) { padding:0 6px; border:0; border-radius:0; box-shadow:none; }
+.editable-field__control :deep(.ant-picker-input > input) { padding:0; font:inherit; color:inherit; }
+.editable-field__control :deep(.ant-picker-suffix) { margin-inline-start:8px; color:var(--ink-2); }
+.editable-field__control :deep(.ant-picker-range-separator) { padding:0; font:inherit; white-space:pre; }
+.editable-field__control :deep(.ant-picker-separator) { width:auto; color:inherit; white-space:pre; }
+.editable-field__control :deep(.ant-select-selection-overflow) { flex-wrap:nowrap; width:100%; height:100%; }
+.editable-field__control :deep(.ant-select-selection-overflow-item-rest),.editable-field__control :deep(.ant-select-selection-overflow-item-suffix) { flex:0 1 auto; min-width:0; max-width:100%; }
+.editable-field__control :deep(.ant-select-multiple .ant-select-selector) { padding-inline-end:28px; }
+.editable-field__control :deep(.ant-select-multiple .ant-select-selection-search),.editable-field__control :deep(.ant-select-multiple .ant-select-selection-search-input) { max-width:100%; }
+.editable-field__control :deep(.ant-select-multiple .ant-select-selection-item) { height:var(--editable-field-height); margin:0; padding:0; border:0; border-radius:0; background:transparent; font:inherit; }
+.editable-field__control :deep(.ant-select-multiple .ant-select-selection-item-content) { margin:0; }
 .editable-field__label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
-.editable-field--multiple { height:auto; min-width:10rem; }
-.editable-field--multiple .editable-field__control { position:relative; height:auto; }
-.editable-field--multiple .text.editing { display:none; }
-.editable-field__actions { display:flex; justify-content:flex-end; gap:var(--space-2); padding-top:var(--space-2); }
+.editable-field--multiple { min-width:min(10rem,100%); }
+.editable-field__actions { display:flex; justify-content:flex-end; gap:var(--space-2); padding:var(--space-2); }
 .text {
   display:block;
   cursor: pointer;
   padding: 0 6px;
-  height:32px;
-  line-height:32px;
+  height:var(--editable-field-height);
+  line-height:var(--editable-field-height);
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
@@ -253,9 +284,7 @@ onBeforeUnmount(() => { ++generation })
   }
 }
 @media (pointer:coarse) {
-  .editable-field { height:44px; }
-  .text { height:44px; line-height:44px; }
-  .editable-field--multiple { height:auto; }
+  .editable-field { --editable-field-height:44px; }
   .editable-field__actions :deep(.ant-btn) { min-width:44px; min-height:44px; }
 }
 </style>

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { defineComponent, h, nextTick, reactive, ref } from 'vue'
 import { createDashboardLoader } from './helpers/dashboardRuntime.mjs'
-import { createComponentRenderer, walk } from './helpers/componentRuntime.mjs'
+import { createComponentRenderer, textContent, walk } from './helpers/componentRuntime.mjs'
 
 const flush = async () => { await nextTick(); await nextTick() }
 const boundaries = {
@@ -41,7 +41,7 @@ test('translation drafts retain their editor across a breakpoint and choose the 
   assert.equal(mobileInput.props.value, '手机草稿')
   assert.deepEqual(view.values, [])
 })
-const Choice = defineComponent({ inheritAttrs: false, setup: (_props, { attrs }) => () => h('input', attrs) })
+const Choice = defineComponent({ inheritAttrs: false, setup: (_props, { attrs, slots }) => () => h('div', [h('input', attrs), slots.dropdownRender?.({ menuNode: h('div') })]) })
 const Editable = createDashboardLoader({ ...boundaries, 'ant-design-vue': {
   Input: Choice, InputNumber: Choice, Select: Choice,
   DatePicker: Object.assign({}, Choice, { RangePicker: Choice }), TimePicker: Choice, TimeRangePicker: Choice,
@@ -256,10 +256,24 @@ test('the blur caused by a pending save cannot automatically retry a failed subm
   assert.ok(view.input())
 })
 
+test('the inline measurement retains its saved text while the editor owns an unconfirmed draft', async t => {
+  for (const type of ['string', 'number', 'select', 'date', 'time', 'dateRange', 'timeRange']) {
+    const view = mount(Editable, { type, value: type.endsWith('Range') ? ['start', 'end'] : 'original' }); t.after(() => view.app.unmount())
+    const trigger = () => view.find(node => String(node.props.class || '').split(' ').includes('text'))
+    const baseline = textContent(trigger())
+    await view.start(); await view.update(type.endsWith('Range') ? ['a much longer draft', 'end'] : 'a much longer draft')
+    assert.equal(textContent(trigger()), baseline)
+    assert.deepEqual(view.values, [])
+  }
+})
+
 test('multi-select and tags keep all choices as one draft until explicit confirmation or cancellation', async t => {
   for (const mode of ['multiple', 'tags']) {
     const view = mount(Editable, { value: ['one'], type: 'select', componentProps: { mode, options: [{ value: 'one', label: 'One' }, { value: 'two', label: 'Two' }] } }); t.after(() => view.app.unmount())
     await view.start(); await view.update(['one', 'two'])
+    assert.equal(view.input().props.open, true)
+    assert.equal(view.input().props['max-tag-count'], 0)
+    assert.equal(view.input().props['max-tag-placeholder'](), 'One, Two')
     view.input().props.onChange(['one', 'two']); await flush()
     assert.deepEqual(view.values, [])
     await view.find(node => node.props.onFocusout).props.onFocusout({})
@@ -267,10 +281,20 @@ test('multi-select and tags keep all choices as one draft until explicit confirm
     await view.pressButton('Editable.save')
     assert.deepEqual(view.values, [['one', 'two']])
     await view.start(); await view.update(['two'])
+    view.input().props.onDropdownVisibleChange(false); await flush()
     view.find(node => node.props.onKeydown).props.onKeydown(keyEvent('Escape')); await flush()
     assert.deepEqual(view.props.value, ['one', 'two'])
-    assert.equal(view.input(), undefined)
+    assert.equal(!!view.input(), false)
   }
+})
+
+test('an explicitly closed multi-select popup leaves Escape available to cancel the field', async t => {
+  const view = mount(Editable, { value: ['one'], type: 'select', componentProps: { mode: 'multiple', open: false, defaultOpen: true } }); t.after(() => view.app.unmount())
+  await view.start()
+  assert.equal(view.input().props.open, false)
+  view.find(node => node.props.onKeydown).props.onKeydown(keyEvent('Escape')); await flush()
+  assert.equal(!!view.input(), false)
+  assert.deepEqual(view.values, [])
 })
 
 test('choice popups own Enter and the first Escape; only native change commits a completed value', async t => {
