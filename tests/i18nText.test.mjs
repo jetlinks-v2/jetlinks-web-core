@@ -13,7 +13,7 @@ function load(path) {
   new Function('require', 'module', 'exports', source)(id => id === 'vue-i18n' ? { useI18n: () => ({ locale, t: key => key }) } : require(id), module, module.exports)
   return module.exports
 }
-const { resolveI18nText, updateI18nText } = load('I18n/text.ts')
+const { i18nText, updateI18nText } = load('I18n/text.ts')
 const { formText, formLabel } = load('Form/text.ts')
 const { useFormDesigner } = load('Form/useFormDesigner.ts')
 const { useI18nTextDialog } = load('I18n/hooks/useI18nTextDialog.ts')
@@ -21,11 +21,11 @@ const { useI18nTextField } = load('I18n/hooks/useI18nTextField.ts')
 
 test('locale resolution uses region, language and default without mutating plain strings or translations', () => {
   const messages = { zh: '名称', 'en-US': 'American name', en: 'Name', ja: '' }
-  assert.equal(resolveI18nText('Default', messages, 'en_US'), 'American name')
-  assert.equal(resolveI18nText('Default', messages, 'en-GB'), 'Name')
-  assert.equal(resolveI18nText('Default', messages, 'ja'), 'Default')
-  assert.equal(resolveI18nText('Default', { en: '  ' }, 'en'), 'Default')
-  assert.equal(resolveI18nText('Default', undefined, 'fr'), 'Default')
+  assert.equal(i18nText('Default', messages, 'en_US'), 'American name')
+  assert.equal(i18nText('Default', messages, 'en-GB'), 'Name')
+  assert.equal(i18nText('Default', messages, 'ja'), 'Default')
+  assert.equal(i18nText('Default', { en: '  ' }, 'en'), 'Default')
+  assert.equal(i18nText('Default', undefined, 'fr'), 'Default')
   assert.deepEqual(updateI18nText(messages, 'en_US', ' Updated '), { ...messages, 'en-US': 'Updated' })
   assert.deepEqual(updateI18nText(messages, 'en-US', ''), { zh: '名称', en: 'Name', ja: '' })
   assert.equal(messages['en-US'], 'American name')
@@ -124,13 +124,19 @@ test('existing shared input retains other fields and languages when editing or c
   const scope = effectScope(); t.after(() => scope.stop())
   const messages = { name: { zh: '名称', en: 'Name', 'en-US': 'US name' }, description: { zh: '说明' } }
   const events = []
-  const field = scope.run(() => useI18nTextField({ field: 'name', value: 'US name', i18nMessages: messages }, (...event) => events.push(event)))
+  const changes = []
+  const field = scope.run(() => useI18nTextField({ field: 'name', value: 'US name', i18nMessages: messages }, (...event) => events.push(event),
+    (value, i18nMessages) => changes.push({ value, i18nMessages })))
   field.handleValueChange('Updated')
   assert.equal(events[1][1].name['en-US'], 'Updated')
   assert.deepEqual(events[1][1].description, messages.description)
+  assert.deepEqual(changes.at(-1), { value: 'Updated', i18nMessages: events[1][1] })
   field.saveI18nMessages({ en: 'Name', ja: '名前' })
   assert.deepEqual(events.at(-1), ['update:value', 'Name'])
+  assert.deepEqual(changes.at(-1), { value: 'Name', i18nMessages: { ...messages, name: { en: 'Name', ja: '名前' } } })
   field.handleValueChange('')
   assert.equal(Object.hasOwn(events.at(-1)[1].name, 'en-US'), false)
+  assert.deepEqual(changes.at(-1), { value: '', i18nMessages: events.at(-1)[1] })
+  assert.equal(changes.length, 3)
   assert.equal(messages.name['en-US'], 'US name')
 })

@@ -13,6 +13,8 @@ The pnpm workspace is defined in `pnpm-workspace.yaml`:
 
 Do not statically deep-import private code from one business module into another module when that module must support independent `--module-name` builds. Put truly shared behavior in `jetlinks-web-core` or another public shared export.
 
+Metric templates, configuration, source discovery, results, history, aggregation, graphs, their APIs and domain types belong to `rule-engine-manager-ui`. The module exposes `metric.ts` and registered components for other modules; core has no metric business imports or `/metric/**` requests. Core retains generic expression/canvas/chart components and object/relation/ontology contracts. Expression consumers supply their variables and function catalogs. Device and space modules own domain context, navigation and source declarations; ontology-specific workflows remain in the ontology module.
+
 ### core 同时被 SaaS 前端与私有化前端复用
 
 `jetlinks-web-core` 不是 `runtime-ui` 独占的：私有化部署是**另一个前端项目**，它同样把 `jetlinks-web-core` 作为基础模块、并挂载自己的 `modules/*` 子模块，区别是**没有 `saas-runtime-ui` 这个模块**。本仓库侧用 `pnpm build:standalone` 构建独立包；该脚本排除 `saas-runtime-ui` 并设置 `VITE_APP_ENVIRONMENT` 为空，供 `src/utils/deployment.ts` 的 `isPrivateDeployment()` 和项目存储开关使用。

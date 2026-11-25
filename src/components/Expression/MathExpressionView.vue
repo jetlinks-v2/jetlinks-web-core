@@ -1,10 +1,17 @@
 <template>
-  <span v-if="markup" class="expression-math-shell" :class="{'is-compact':compact}">
+  <span v-if="markup" ref="element" class="expression-math-shell" :class="{'is-compact':compact}" @pointerover="inspect($event)" @pointerleave="hideHint" @focusin="inspect($event,true)" @focusout="hideHint" @pointerdown="hideHint" @keydown.esc="hideHint" @scroll.capture="hideHint">
     <span class="expression-math-equation" role="math" :aria-label="projection?.document.text">
-      <span ref="element" class="expression-math" :class="{'is-replay':!!facts?.size}" v-html="markup" />
+      <span class="expression-math" :class="{'is-replay':!!facts?.size}" v-html="markup" />
       <strong v-if="projection?.result !== undefined && !compact && showResult !== false" class="expression-math-result"><span>=</span>{{ projection.result }}</strong>
     </span>
+    <div v-if="projection?.readings.length" class="expression-math-readings">
+      <span class="expression-math-readings__label">{{ t('thisReading') }}</span>
+      <a-tooltip v-for="reading in projection.readings" :key="JSON.stringify([reading.key,reading.text])" :title="reading.title" :trigger="['hover','focus']" :mouse-enter-delay="0.1" :get-popup-container="popupContainer"><span class="expression-math-reading" :data-expression-reference="reading.key" tabindex="0"><span>{{ reading.label }}:</span> <b>{{ reading.text }}</b></span></a-tooltip>
+    </div>
     <a-button v-if="projection?.skipped && !compact" type="text" size="small" class="expression-math-toggle" :aria-expanded="expanded" @click="expanded=!expanded"><AIcon type="EllipsisOutlined" />{{ t(expanded ? 'hideUnusedBranches' : 'unusedBranches',{count:projection.skipped}) }}</a-button>
+    <a-tooltip :open="!!hint" :title="hint?.title" :trigger="[]" placement="top" :get-popup-container="popupContainer" :overlay-style="{pointerEvents:'none'}" :overlay-inner-style="{whiteSpace:'pre-line',overflowWrap:'anywhere',fontSize:'12px',lineHeight:'20px'}">
+      <span class="expression-math-hint-anchor" :style="hint?.style" aria-hidden="true" />
+    </a-tooltip>
   </span>
   <slot v-else />
 </template>
@@ -17,15 +24,15 @@ import type { ExpressionFact } from './presentation'
 import { expressionMath } from './math'
 import { editorMessages } from './editorMessages'
 import { useMathMarkup } from './useMathMarkup'
-const props=withDefaults(defineProps<{node:ExpressionNode;context:ExpressionEditorContext;facts?:Map<string,ExpressionFact>;compact?:boolean;showResult?:boolean}>(),{showResult:true})
+const props=withDefaults(defineProps<{node:ExpressionNode;context:ExpressionEditorContext;facts?:Map<string,ExpressionFact>;compact?:boolean;showResult?:boolean;substitute?:boolean}>(),{showResult:true})
 const {t}=useI18n({useScope:'local',messages:editorMessages})
 const expanded=ref(false),element=ref<HTMLElement>()
-const projection=computed(()=>{try{return expressionMath(props.node,props.context,t,props.facts,true,{showSkipped:expanded.value || props.compact})}catch{return undefined}})
-const {markup}=useMathMarkup(projection,element)
+const projection=computed(()=>{try{return expressionMath(props.node,props.context,t,props.facts,true,{showSkipped:expanded.value || props.compact,substitute:props.substitute,compact:props.compact})}catch{return undefined}})
+const {markup,hint,inspect,hideHint,popupContainer}=useMathMarkup(projection,element)
 </script>
 <style src="./math-semantic.css" />
 <style>
-.expression-math-shell { display:block; min-width:0; max-width:100% }
+.expression-math-shell { display:block; position:relative; min-width:0; max-width:100% }
 .expression-math-equation { display:flex; align-items:center; gap:12px; min-width:0; max-width:100% }
 /* 公式自然撑高；MathLive 的基线占位可能溢出一像素，不据此生成内部纵向滚动条。 */
 .expression-math { display:block; min-width:0; max-width:100%; overflow-x:auto; overflow-y:hidden; padding:8px 2px; font-size:16px; line-height:1.5; color:var(--ink-1); scrollbar-width:thin }
@@ -44,10 +51,16 @@ const {markup}=useMathMarkup(projection,element)
 .expression-math-toggle.ant-btn { height:24px; padding:0 2px; color:var(--ink-3); font-size:12px }
 /* Tone down skipped text, never its whole layer: descendant hints must remain opaque. */
 .expression-math .expression-math-fact.is-skipped { color:var(--ink-3); --expression-reference-ink:var(--ink-3); --expression-parameter-ink:var(--ink-3); --expression-special-ink:var(--ink-3) }
-.expression-math .expression-math-fact.is-selected { font-weight:500 }
+.expression-math .expression-math-fact.is-selected { font-weight:500; color:var(--accent) }
 .expression-math .expression-math-fact.is-false { color:var(--ink-3) }
 .expression-math .expression-math-fact.is-unknown { color:var(--warning,#d89614) }
-.expression-math .expression-math-outcome { font-size:.72em; color:var(--ink-3) }
+.expression-math .expression-math-outcome { color:var(--ink-3); font-family:inherit }
 .expression-math .expression-math-outcome.is-true { color:var(--accent) }
 .expression-math .expression-math-outcome.is-unknown { color:var(--warning,#d89614) }
+.expression-math .expression-math-reading { color:var(--ink-3); font-family:inherit; font-weight:400 }
+.expression-math-readings { display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 14px; margin:2px 0 8px; font-size:12px; line-height:20px; color:var(--ink-3) }
+.expression-math-reading { min-width:0; overflow-wrap:anywhere }
+.expression-math-reading b { font-weight:500; color:var(--ink-2) }
+.expression-math-readings [data-expression-reference]:hover,.expression-math-readings [data-expression-reference]:focus-visible,.expression-math-readings .is-related { background:var(--accent-soft); outline:1px dashed var(--accent) }
+.expression-math-hint-anchor { position:absolute; pointer-events:none }
 </style>

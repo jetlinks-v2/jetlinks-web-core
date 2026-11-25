@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { effectScope, reactive } from 'vue'
-import { createMetricLoader } from './helpers/metricRuntime.mjs'
+import { createComponentLoader } from './helpers/componentRuntime.mjs'
 
-const load=createMetricLoader()
+const load=createComponentLoader()
 const {createMathTransfer}=load('components/Expression/mathTransfer.ts')
 const {expressionMath,createMathParser}=load('components/Expression/math.ts')
 const {useMathClipboard}=load('components/Expression/useMathClipboard.ts')
@@ -25,6 +25,19 @@ test('工业函数及短路空值函数通过宿主声明完成数学反显与La
     const restored=createMathTransfer(root,ctx,t).paste(portable)
     assert.deepEqual(createMathParser(root,ctx,t)(restored),root,id)
     assert.doesNotMatch(convertLatexToMarkup(portable),/ML__error/,id)
+  }
+})
+
+test('取模公式在变量宏目录间复制粘贴并保留旧命令兼容',async()=>{
+  const {convertLatexToMarkup}=await import('mathlive/ssr')
+  const root=binary('mod',ref('input'),value('3'))
+  const transfer=createMathTransfer(root,context,t)
+  const projection=expressionMath(root,context,t)
+  const portable=transfer.copy(projection.latex)
+  for(const latex of [portable,portable.replace('\\mod','\\bmod')]) {
+    const pasted=transfer.paste(latex)
+    assert.deepEqual(createMathParser(root,context,t)(pasted),root)
+    assert.doesNotMatch(convertLatexToMarkup(pasted,{macros:projection.macros}),/ML__error|\\bmod/)
   }
 })
 

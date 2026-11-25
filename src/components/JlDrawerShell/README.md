@@ -8,6 +8,7 @@
 | --- | --- | --- | --- |
 | `open` | 是否打开 | `boolean` | 必填 |
 | `width` | 抽屉宽度 | `number` | - |
+| `fullscreen` | 图形编排工作区铺满视口；普通详情仍使用 width | `boolean` | false |
 | `contentWrapperStyle` | 内容容器样式；宽度统一由 `width` 及视口约束确定 | `CSSProperties` | - |
 | `icon` | 头部图标 | `string` | - |
 | `title` | 标题 | `string` | - |

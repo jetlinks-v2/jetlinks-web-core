@@ -1,7 +1,7 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMediaQuery } from '@vueuse/core'
-import { resolveI18nText } from '../text'
+import { i18nText } from '../text'
 import type { I18nTextDialogEmits, I18nTextDialogProps, I18nTextMessages } from '../types'
 
 /** 独立翻译草稿：切换语言不提交，应用一次回写，关闭丢弃本次输入。 */
@@ -22,8 +22,8 @@ export function useI18nTextDialog(props: Readonly<I18nTextDialogProps>, emit: I1
   })))
   const invalidLanguage = computed(() => languages.value.find(language => (formData[language.code]?.length ?? 0) > (props.maxLength ?? 200))?.code)
   const error = computed(() => attempted.value && invalidLanguage.value ? t('I18n.maxLength', { max: props.maxLength ?? 200 }) : '')
-  const defaultText = computed(() => resolveI18nText(props.displayValue, props.fallbackMessages, activeLanguage.value))
-  const preview = computed(() => resolveI18nText(defaultText.value, formData, activeLanguage.value))
+  const defaultText = computed(() => i18nText(props.displayValue, props.fallbackMessages, activeLanguage.value))
+  const preview = computed(() => i18nText(defaultText.value, formData, activeLanguage.value))
   const focusEditor = () => nextTick(() => editor.value?.focus())
 
   // 只在打开时初始化；保留额外语言，宿主刷新不会覆盖当前翻译草稿。

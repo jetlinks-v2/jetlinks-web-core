@@ -11,7 +11,7 @@ export function translatedI18nText(messages: I18nTextMessages | undefined, local
   }
 }
 
-export function resolveI18nText(value: string | undefined, messages: I18nTextMessages | undefined, locale: string) {
+export function i18nText(value: string | undefined, messages: I18nTextMessages | undefined, locale: string): string {
   return translatedI18nText(messages, locale) ?? value ?? ''
 }
 

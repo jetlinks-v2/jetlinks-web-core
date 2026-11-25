@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createMetricLoader } from './helpers/metricRuntime.mjs'
+import { createComponentLoader } from './helpers/componentRuntime.mjs'
 
-const load=createMetricLoader()
+const load=createComponentLoader()
 const {useMathInsertion}=load('components/Expression/useMathInsertion.ts')
 const {createMathParser}=load('components/Expression/math.ts')
 const number=value=>({type:'literal',valueType:'int',value:String(value)})
@@ -59,7 +59,7 @@ test('根式参数复用目录声明',()=>{
 
 test('选中的空参数立即提供气泡，离开后清除；首次挂载使用画布弹层宿主',async()=>{
   const {h}=await import('vue')
-  const {createMetricRenderer,flush}=await import('./helpers/metricRuntime.mjs')
+  const {createComponentRenderer,flush}=await import('./helpers/componentRuntime.mjs')
   const previousDocument=globalThis.document,previousElement=globalThis.HTMLElement
   class Element {dataset={};textContent='▢';removeAttribute() {}}
   globalThis.document={};globalThis.HTMLElement=Element
@@ -73,12 +73,12 @@ test('选中的空参数立即提供气泡，离开后清除；首次挂载使�
     getOffsetFromPoint(){return 3}
     setAttribute(){} addEventListener(){} removeEventListener(){} remove(){}
   }
-  const loadEditor=createMetricLoader({
+  const loadEditor=createComponentLoader({
     'vue-i18n':{useI18n:()=>({t:key=>key})},'@vueuse/core':{onClickOutside(){}},
     mathlive:{MathfieldElement:Field},'mathlive/fonts.css':{},'./math-semantic.css?inline':{__esModule:true,default:''},
   })
   const {useMathEditor}=loadEditor('components/Expression/useMathEditor.ts')
-  const {renderer,root}=createMetricRenderer(),body={}
+  const {renderer,root}=createComponentRenderer(),body={}
   const app=renderer.createApp({setup(){
     editor=useMathEditor({modelValue:{version:1,root:number(0)},context:{references:[],functions:[{id:'math.abs',name:'绝对值',description:'返回绝对值',returnType:'number',minimumArguments:1,maximumArguments:1,parameters:parameters(['待处理数值'])}]}},()=>{})
     editor.host.value={appendChild(){}}
@@ -102,7 +102,7 @@ test('选中的空参数立即提供气泡，离开后清除；首次挂载使�
 
 test('post-layout repaint uses the current native selection and is cancelled on unmount',async()=>{
   const {h}=await import('vue')
-  const {createMetricRenderer,flush}=await import('./helpers/metricRuntime.mjs')
+  const {createComponentRenderer,flush}=await import('./helpers/componentRuntime.mjs')
   const prior={document:globalThis.document,requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame}
   const frames=new Map();let next=0,field,editor,selection={ranges:[[0,0]]},repaints=0
   globalThis.requestAnimationFrame=callback=>{frames.set(++next,callback);return next}
@@ -116,8 +116,8 @@ test('post-layout repaint uses the current native selection and is cancelled on 
     getElementInfo(){return {latex:'1',depth:0}}
     setAttribute(){} addEventListener(){} removeEventListener(){} remove(){}
   }
-  const {useMathEditor}=createMetricLoader({'vue-i18n':{useI18n:()=>({t:key=>key})},'@vueuse/core':{onClickOutside(){}},mathlive:{MathfieldElement:Field},'mathlive/fonts.css':{},'./math-semantic.css?inline':{__esModule:true,default:''}})('components/Expression/useMathEditor.ts')
-  const {renderer,root}=createMetricRenderer()
+  const {useMathEditor}=createComponentLoader({'vue-i18n':{useI18n:()=>({t:key=>key})},'@vueuse/core':{onClickOutside(){}},mathlive:{MathfieldElement:Field},'mathlive/fonts.css':{},'./math-semantic.css?inline':{__esModule:true,default:''}})('components/Expression/useMathEditor.ts')
+  const {renderer,root}=createComponentRenderer()
   const app=renderer.createApp({setup(){editor=useMathEditor({modelValue:{version:1,root:number(1)},context:{references:[],functions:[]}},()=>{});editor.host.value={appendChild(){}};return()=>h('div')}})
   try {
     app.mount(root);await flush()

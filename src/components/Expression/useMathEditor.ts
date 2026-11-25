@@ -338,6 +338,10 @@ function onBeforeInput(event:InputEvent) {
   }
 }
 function onEditorKeydown(event:KeyboardEvent) {
+  if(field && !props.disabled && !event.isComposing && !event.ctrlKey && !event.metaKey && !event.altKey
+    && event.key === '%' && field.mode === 'math') {
+    event.preventDefault();event.stopImmediatePropagation();field.insert('\\mod ',{selectionMode:'after'});return
+  }
   if(!props.disabled && !event.isComposing && (event.key === '@' || event.key === ' ' && (event.ctrlKey || event.metaKey))) {
     event.preventDefault();event.stopImmediatePropagation();void openReferences();return
   }

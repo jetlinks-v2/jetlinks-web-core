@@ -71,9 +71,17 @@ const sortTargetChildren = (
  * Reparents permission-filtered menus through their declared route names.
  * Invalid declarations keep the source in place so a bad menu seed cannot remove navigation.
  */
-export const applyMenuRouteTargets = (sourceMenus: MenuItem[]) => {
+export const applyMenuRouteTargets = (sourceMenus: MenuItem[], scopeByOwner = false) => {
   const menus = cloneMenuTree(sourceMenus)
   const entries = collectMenus(menus)
+  const owners = new Map<MenuItem, string>()
+  const collectOwners = (items: MenuItem[], inherited = '') => items.forEach(item => {
+    const owner = item.owner || inherited
+    owners.set(item, owner)
+    collectOwners(item.children || [], owner)
+  })
+  collectOwners(menus)
+  const targetKey = (item: MenuItem, name: string) => scopeByOwner ? JSON.stringify([owners.get(item), name]) : name
   const sequence = new Map(entries.map((item, index) => [item, index]))
   const targets = new Map<string, MenuItem>()
   const issues: MenuRouteTargetIssue[] = []
@@ -81,14 +89,15 @@ export const applyMenuRouteTargets = (sourceMenus: MenuItem[]) => {
 
   entries.forEach((item) => {
     const routeName = resolveMenuRouteName(item)
-    if (routeName && !targets.has(routeName)) targets.set(routeName, item)
+    const key = targetKey(item, routeName)
+    if (routeName && !targets.has(key)) targets.set(key, item)
   })
 
   entries.forEach((source) => {
     const targetName = normalizeText(source.options?.routeTarget)
     if (!targetName) return
 
-    const target = targets.get(targetName)
+    const target = targets.get(targetKey(source, targetName))
     if (!target) {
       issues.push({ sourceCode: source.code, target: targetName, type: 'missing-target' })
       return

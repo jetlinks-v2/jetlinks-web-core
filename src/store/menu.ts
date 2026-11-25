@@ -22,7 +22,8 @@ import {
 import type { MenuFilterConditions } from '@jetlinks-web-core/types/module'
 import { createMenuStoreRuntime } from './menuRuntime'
 import { applyModuleMenuFilters } from './menuFilters'
-import { applyMenuRouteTargets } from './menuRouteTarget'
+import { reconcileAuthorizedMenuLayout } from '../utils/module-menu-layout'
+import { getModulesMenu } from '../utils/modules'
 import {
   getCoreRouteOverrideMenus,
   getFirstMenuPath,
@@ -270,7 +271,7 @@ export const useMenuStore = defineStore('menu', () => {
         })
         if (requestId !== menuRequestId) return { applied: false }
 
-        const targetedMenus = applyMenuRouteTargets(filteredMenuResult)
+        const targetedMenus = reconcileAuthorizedMenuLayout(filteredMenuResult, getModulesMenu())
         targetedMenus.issues.forEach((issue) => {
           console.warn(
             `[Menu Route Target] Keep "${issue.sourceCode}" in place: ${issue.type} "${issue.target}".`,

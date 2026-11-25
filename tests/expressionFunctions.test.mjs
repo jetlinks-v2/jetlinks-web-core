@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { h, reactive, ref } from 'vue'
-import { createMetricLoader, createMetricRenderer, flush } from './helpers/metricRuntime.mjs'
+import { createComponentLoader, createComponentRenderer, flush } from './helpers/componentRuntime.mjs'
 
 test('shared candidates filter names, identifiers and descriptions, preserving groups and disabled choices', () => {
-  const { useExpressionCandidateMenu } = createMetricLoader()('components/Expression/useExpressionCandidateMenu.ts')
+  const { useExpressionCandidateMenu } = createComponentLoader()('components/Expression/useExpressionCandidateMenu.ts')
   const props = reactive({groups:[{id:'readings',label:'Inputs',items:[{id:'timestamp',name:'采集时间',description:'设备采集时刻',disabled:true},{id:'value',name:'当前值',description:'当前处理节点的数值'}]},{id:'functions',items:[{id:'math.abs',name:'绝对值'}]}]})
   const menu = useExpressionCandidateMenu(props)
   assert.equal(menu.first.value.id,'value','disabled options are not inserted by Enter')
@@ -21,11 +21,11 @@ test('shared candidates filter names, identifiers and descriptions, preserving g
 
 test('function catalogs belong to the caller loader and coalesce initial and locale requests', async () => {
   const locale = ref('en')
-  const { useExpressionFunctions } = createMetricLoader({ 'vue-i18n': { useI18n: () => ({ locale }) } })('components/Expression/useExpressionFunctions.ts')
+  const { useExpressionFunctions } = createComponentLoader({ 'vue-i18n': { useI18n: () => ({ locale }) } })('components/Expression/useExpressionFunctions.ts')
   const pending = [], calls = []
   const loader = () => { calls.push(locale.value); return new Promise(resolve => pending.push(resolve)) }
   let first, second, other
-  const { renderer, root } = createMetricRenderer()
+  const { renderer, root } = createComponentRenderer()
   const app = renderer.createApp({ setup() {
     first = useExpressionFunctions(loader)
     second = useExpressionFunctions(loader)
@@ -48,9 +48,9 @@ test('function catalogs belong to the caller loader and coalesce initial and loc
 
 test('a failed caller loader can retry without a component or transport replacement', async () => {
   const locale = ref('en')
-  const { useExpressionFunctions } = createMetricLoader({ 'vue-i18n': { useI18n: () => ({ locale }) } })('components/Expression/useExpressionFunctions.ts')
+  const { useExpressionFunctions } = createComponentLoader({ 'vue-i18n': { useI18n: () => ({ locale }) } })('components/Expression/useExpressionFunctions.ts')
   let failed = true, catalog
-  const { renderer, root } = createMetricRenderer()
+  const { renderer, root } = createComponentRenderer()
   const app = renderer.createApp({ setup() {
     catalog = useExpressionFunctions(async () => { if (failed) throw Error('offline'); return [{ id: 'ready' }] })
     return () => h('div')
@@ -64,11 +64,11 @@ test('a failed caller loader can retry without a component or transport replacem
 })
 
 test('catalog failure shows retry instead of a misleading empty search', async () => {
-  const { passthrough, textContent, walk } = await import('./helpers/metricRuntime.mjs')
+  const { passthrough, textContent, walk } = await import('./helpers/componentRuntime.mjs')
   const { defineComponent } = await import('vue')
-  const { default: Menu } = createMetricLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key }) } })('components/Expression/ExpressionCandidateMenu.vue')
+  const { default: Menu } = createComponentLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key }) } })('components/Expression/ExpressionCandidateMenu.vue')
   const failed = ref(true), retries = []
-  const { renderer, root } = createMetricRenderer()
+  const { renderer, root } = createComponentRenderer()
   const app = renderer.createApp({ render: () => h(Menu, { groups: [], placeholder: 'Search functions', emptyText: 'empty', error: failed.value, onRetry: () => retries.push(true) }, { error: () => 'Retry catalog' }) })
   for (const name of ['a-menu', 'a-menu-item-group']) app.component(name, passthrough(name))
   const focusOptions=[]
