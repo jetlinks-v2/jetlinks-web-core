@@ -194,7 +194,10 @@ const language = computed(() => locale.value.startsWith('zh') ? 'zh-CN' : 'en-US
       border-block-start: 1px solid var(--jet-theme-border-secondary);
       font-weight: 500;
       text-decoration: none;
-      &:hover { text-decoration: underline; }
+      &:hover {
+        border-block-end: 0;
+        text-decoration: none;
+      }
     }
   }
 }
