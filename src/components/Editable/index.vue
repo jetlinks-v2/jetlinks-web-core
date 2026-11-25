@@ -34,22 +34,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
-import { DatePicker, Input, InputNumber, Select, TimePicker } from 'ant-design-vue'
+import { computed, nextTick, onBeforeUnmount, ref, useId, watch, type Component } from 'vue'
+import { DatePicker, Input, InputNumber, Select, TimePicker, TimeRangePicker } from 'ant-design-vue'
 import SelectOption from '../SelectOption/index.vue'
 
 type EditorType = 'string' | 'number' | 'select' | 'date' | 'time' | 'dateRange' | 'timeRange'
 const props = withDefaults(defineProps<{ value?: unknown; type?: EditorType; componentProps?: Record<string, unknown> }>(), { type: 'string', componentProps: () => ({}) })
 const emit = defineEmits<{ (event: 'update:value' | 'change', value: unknown): void }>()
 
-const componentObj = {
+const componentObj: Record<EditorType, Component> = {
   'string': Input,
   'number': InputNumber,
   'select': Select,
   'date': DatePicker,
   'time': TimePicker,
   'dateRange': DatePicker.RangePicker,
-  'timeRange': TimePicker.RangePicker,
+  'timeRange': TimeRangePicker,
 }
 
 const isEdit = ref(false)

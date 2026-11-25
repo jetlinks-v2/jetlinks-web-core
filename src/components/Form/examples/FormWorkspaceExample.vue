@@ -12,7 +12,7 @@
     <component :is="example.mode.value === 'design' ? FormDesigner : FormRenderer" v-else :key="`${example.scene.value}:${example.mode.value}:${example.epoch.value}`" v-bind="example.bindings.value" class="example-workspace" @update:layout="example.layout.value = $event" @dirty-change="example.dirty.value = $event">
       <template #header><div class="example-summary"><span class="example-avatar">{{ example.scene.value === 'object' ? 'TH' : '申' }}</span><div><strong>{{ example.scene.value === 'object' ? example.values.value.name : example.t('request') }}</strong><div><Tag color="green">{{ example.t(example.scene.value === 'object' ? 'running' : 'pending') }}</Tag><span>{{ example.t(example.scene.value === 'object' ? 'objectContext' : 'workflowContext') }}</span></div></div></div></template>
       <template #value-sampling="{ value }"><span>{{ example.t('sampling', { interval: samplingInterval(value) }) }}</span></template>
-      <template #editor-sampling="{ value, update, confirm, cancel }"><div class="example-custom-editor"><InputNumber :value="samplingInterval(value)" :min="1" :aria-label="example.t('interval')" @change="update({ interval: $event })" /><span>{{ example.t('seconds') }}</span><Button type="text" @click="cancel">{{ example.t('cancel') }}</Button><Button size="small" type="primary" @click="confirm">{{ example.t('confirm') }}</Button></div></template>
+      <template #editor-sampling="{ value, update, confirm, cancel }"><div class="example-custom-editor"><InputNumber :value="samplingInterval(value)" :min="1" :aria-label="example.t('interval')" @change="update({ interval: $event })" /><span>{{ example.t('seconds') }}</span><span class="fw-inline-actions"><Button type="text" size="small" :aria-label="example.t('discardEdit')" :title="example.t('discardEdit')" @click="cancel"><CloseOutlined /></Button><Button type="text" size="small" :aria-label="example.t('finishEdit')" :title="example.t('finishEdit')" @click="confirm"><CheckOutlined /></Button></span></div></template>
     </component>
     <details v-if="example.lastPayload.value" class="example-payload"><summary>{{ example.t('payload') }}</summary><pre>{{ example.lastPayload.value }}</pre></details>
   </main>
@@ -20,6 +20,7 @@
 
 <script setup lang="ts">
 import { Alert, Button, Checkbox, Input, InputNumber, Segmented, Select, Tag } from 'ant-design-vue'
+import { CheckOutlined, CloseOutlined } from '@ant-design/icons-vue'
 import { FormDesigner, FormRenderer } from '../index'
 import { useFormExample } from './useFormExample'
 import { useI18n } from 'vue-i18n'

@@ -44,7 +44,7 @@ test('translation drafts retain their editor across a breakpoint and choose the 
 const Choice = defineComponent({ inheritAttrs: false, setup: (_props, { attrs }) => () => h('input', attrs) })
 const Editable = createDashboardLoader({ ...boundaries, 'ant-design-vue': {
   Input: Choice, InputNumber: Choice, Select: Choice,
-  DatePicker: Object.assign({}, Choice, { RangePicker: Choice }), TimePicker: Object.assign({}, Choice, { RangePicker: Choice }),
+  DatePicker: Object.assign({}, Choice, { RangePicker: Choice }), TimePicker: Choice, TimeRangePicker: Choice,
 } })('components/Editable/index.vue').default
 
 function mount(component, extra = {}, slots = {}, validate = async () => {}) {
@@ -256,19 +256,21 @@ test('the blur caused by a pending save cannot automatically retry a failed subm
   assert.ok(view.input())
 })
 
-test('multi-select keeps all choices as one draft until explicit confirmation or cancellation', async t => {
-  const view = mount(Editable, { value: ['one'], type: 'select', componentProps: { mode: 'multiple', options: [{ value: 'one', label: 'One' }, { value: 'two', label: 'Two' }] } }); t.after(() => view.app.unmount())
-  await view.start(); await view.update(['one', 'two'])
-  view.input().props.onChange(['one', 'two']); await flush()
-  assert.deepEqual(view.values, [])
-  await view.find(node => node.props.onFocusout).props.onFocusout({})
-  assert.ok(view.input())
-  await view.pressButton('Editable.save')
-  assert.deepEqual(view.values, [['one', 'two']])
-  await view.start(); await view.update(['two'])
-  view.find(node => node.props.onKeydown).props.onKeydown(keyEvent('Escape')); await flush()
-  assert.deepEqual(view.props.value, ['one', 'two'])
-  assert.equal(view.input(), undefined)
+test('multi-select and tags keep all choices as one draft until explicit confirmation or cancellation', async t => {
+  for (const mode of ['multiple', 'tags']) {
+    const view = mount(Editable, { value: ['one'], type: 'select', componentProps: { mode, options: [{ value: 'one', label: 'One' }, { value: 'two', label: 'Two' }] } }); t.after(() => view.app.unmount())
+    await view.start(); await view.update(['one', 'two'])
+    view.input().props.onChange(['one', 'two']); await flush()
+    assert.deepEqual(view.values, [])
+    await view.find(node => node.props.onFocusout).props.onFocusout({})
+    assert.ok(view.input())
+    await view.pressButton('Editable.save')
+    assert.deepEqual(view.values, [['one', 'two']])
+    await view.start(); await view.update(['two'])
+    view.find(node => node.props.onKeydown).props.onKeydown(keyEvent('Escape')); await flush()
+    assert.deepEqual(view.props.value, ['one', 'two'])
+    assert.equal(view.input(), undefined)
+  }
 })
 
 test('choice popups own Enter and the first Escape; only native change commits a completed value', async t => {

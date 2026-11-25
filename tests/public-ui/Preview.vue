@@ -1,6 +1,7 @@
 <template>
   <main class="fixture">
     <h1>公共组件交互验收</h1>
+    <p>本页使用固定示例数据，所有保存均为本地模拟，刷新后恢复；不发送真实请求。各示例的草稿和保存结果互相独立。</p>
     <a-radio-group v-model:value="width" aria-label="内容容器宽度" :options="[390, 700, 1000]" option-type="button" />
     <div class="fixture-container" :style="{ width: `${width}px` }">
       <SplitterPreview />
@@ -23,7 +24,6 @@
       <DetailHeader title="服务资料与负责人" variant="summary">
         <template #icon><AIcon type="ProfileOutlined" /></template>
         <template #description>用于核对长名称、辅助说明与实际容器重排。</template>
-        <template #actions><a-button>执行记录</a-button><a-button type="primary">查看资料</a-button></template>
       </DetailHeader>
       <section class="fixture-section">
         <h2>字段阅读</h2>
@@ -33,7 +33,7 @@
         </div>
       </section>
       <section class="fixture-section">
-        <h2>原位编辑</h2>
+        <h2>单字段保存</h2>
         <a-radio-group v-model:value="outcome" aria-label="模拟提交结果" :options="[{label:'成功',value:'success'},{label:'字段失败',value:'rejected'},{label:'请求异常',value:'thrown'}]" />
         <InlineEditForm :groups="groups" :messages="messages" :submit="save" @change="change">
           <template #editor="scope">
@@ -44,18 +44,14 @@
             </a-select>
           </template>
         </InlineEditForm>
-        <p class="fixture-counter">实际提交 {{ submissions }} 次</p>
+        <p class="fixture-counter">模拟字段请求 {{ submissions }} 次（含失败）</p>
       </section>
       <section class="fixture-section">
         <h2>首次录入</h2>
-        <InlineEditForm :groups="groups" mode="form" :messages="messages" @change="change">
-          <template #editor="scope">
-            <a-select :id="scope.inputId" :value="String(scope.value)" :disabled="scope.disabled" :options="people"
-              :status="scope.error ? 'error' : undefined" :aria-describedby="scope.describedBy" option-label-prop="label" @update:value="scope.update">
-              <template #option="option"><SelectOption :label="option.label" :description="option.description" icon="UserOutlined" /></template>
-            </a-select>
-          </template>
-        </InlineEditForm>
+        <p>输入只修改这份新资料的草稿，点击“保存新资料”才接受整组值。</p>
+        <InlineEditForm :groups="creationGroups" mode="form" :messages="messages" @change="changeCreation" />
+        <div class="fixture-actions"><a-button @click="resetCreation">清空草稿</a-button><a-button type="primary" @click="saveCreation">保存新资料</a-button></div>
+        <p class="fixture-counter" role="status">整表模拟保存 {{ creations }} 次；最近接受：{{ created ? `${created.name || '未命名'} / ${people.find(person => person.value === created?.person)?.label || '未配置负责人'}` : '尚未保存' }}</p>
       </section>
       <section class="fixture-section">
         <h2>分区头部与折叠</h2>
@@ -67,6 +63,7 @@
         </EqualHeightColumns>
       </section>
       <InlineEditCases />
+      <AsyncInlineEditCase />
     </div>
   </main>
 </template>
@@ -78,6 +75,7 @@ import EqualHeightColumns from '../../src/components/EqualHeightColumns/index.vu
 import SelectOption from '../../src/components/SelectOption/index.vue'
 import SplitterPreview from './SplitterPreview.vue'
 import InlineEditCases from './InlineEditCases.vue'
+import AsyncInlineEditCase from './AsyncInlineEditCase.vue'
 import I18nTextEditable from '../../src/components/I18n/I18nTextEditable.vue'
 import I18nTextField from '../../src/components/I18n/I18nTextField.vue'
 import Editable from '../../src/components/Editable/index.vue'
@@ -95,12 +93,22 @@ const inlineName = ref('回水温度')
 const submissions = ref(0)
 const draft = reactive({ name: '服务资料', person: 'one' })
 const saved = reactive({ ...draft })
+const creation = reactive({ name: '', person: '' })
+const created = ref<{ name: string; person: string }>()
+const creations = ref(0)
 const people = [{ value: 'one', label: '陈工', description: '运行保障组' }, { value: 'two', label: '林工', description: '技术服务组' }]
 const messages = { save: '保存', cancel: '取消', empty: '未配置', saving: '保存中', failed: '保存失败，请重试' }
 const groups = computed<InlineEditGroup[]>(() => [{ key: 'record', fields: [
   { key: 'name', label: '资料名称', value: draft.name, initialValue: saved.name, hint: '用于辨认这份资料' },
   { key: 'person', label: '负责人', value: draft.person, initialValue: saved.person, editor: 'custom', displayValue: people.find(item => item.value === saved.person)?.label },
 ] }])
+const creationGroups = computed<InlineEditGroup[]>(() => [{ key: 'new-record', fields: [
+  { key: 'name', label: '新资料名称', value: creation.name, initialValue: '' },
+  { key: 'person', label: '新负责人', editor: 'select', options: people, value: creation.person || undefined, initialValue: undefined },
+] }])
+function changeCreation(key: string, value: unknown) { creation[key as keyof typeof creation] = value == null ? '' : String(value) }
+function saveCreation() { created.value = { ...creation }; creations.value++ }
+function resetCreation() { creation.name = ''; creation.person = '' }
 function change(key: string, value: unknown) { draft[key as keyof typeof draft] = String(value) }
 const save: InlineEditSubmit = async (key, value) => {
   submissions.value++
@@ -119,4 +127,5 @@ h2 { font-size: var(--fs-16); margin: 0 0 var(--space-4); }
 .fixture-section > .ant-radio-group { margin-bottom: var(--space-4); }
 .kv-examples { display: grid; gap: var(--space-4); }
 .fixture-counter { color: var(--jet-theme-text-secondary); }
+.fixture-actions { display:flex; flex-wrap:wrap; gap:var(--space-2); margin-top:var(--space-4); }
 </style>

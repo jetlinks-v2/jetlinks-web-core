@@ -5,7 +5,10 @@
       <span class="fw-input-size"><span aria-hidden="true" class="fw-measure">{{ text || ' ' }}</span><Input :value="text" :aria-label="label(field, item)" :inputmode="field.type === 'number' ? 'decimal' : undefined" autocomplete="off" @update:value="emit('update', $event)" /></span>
       <span v-if="localText(field, 'unit') && !item.hideUnit" class="fw-unit">{{ localText(field, 'unit') }}</span>
     </template>
-    <div v-if="field.type === 'textarea'" class="fw-picker-actions"><Button @click="emit('cancel')">{{ t('cancel') }}</Button><Button type="primary" @click="emit('confirm')">{{ t('confirm') }}</Button></div>
+    <div v-if="field.type === 'textarea'" class="fw-inline-actions">
+      <Button type="text" size="small" :aria-label="t('discardEdit')" :title="`${t('discardEdit')} (Esc)`" @click="emit('cancel')"><CloseOutlined /></Button>
+      <Button type="text" size="small" :aria-label="t('finishEdit')" :title="`${t('finishEdit')} (Ctrl / Cmd + Enter)`" @click="emit('confirm')"><CheckOutlined /></Button>
+    </div>
   </div>
   <span v-else-if="!mobile && (field.type === 'date' || field.type === 'datetime')" class="fw-date-editor">
     <label class="fw-control-label" :for="radioName">{{ label(field, item) }}</label>
@@ -42,7 +45,7 @@
 <script setup lang="ts">
 import { computed, getCurrentInstance, type PropType } from 'vue'
 import { Button, Checkbox, DatePicker, Drawer, Input, Popover, Radio } from 'ant-design-vue'
-import { CloseOutlined } from '@ant-design/icons-vue'
+import { CheckOutlined, CloseOutlined } from '@ant-design/icons-vue'
 import { useFormValueEditor } from './useFormValueEditor'
 import FormValue from './FormValue.vue'
 import { useFormLocale } from './locale'
