@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"], "strict": true, "skipLibCheck": true,
+    "noEmit": true, "esModuleInterop": true, "types": ["vite/client"]
+  },
+  "include": ["../src/components/I18n/**/*.ts", "../src/components/I18n/**/*.vue", "../src/components/Form/**/*.ts", "../src/components/Form/**/*.vue", "./form-workspace-preview.ts"]
+}
