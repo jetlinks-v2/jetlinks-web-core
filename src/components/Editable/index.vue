@@ -1,5 +1,5 @@
 <template>
-  <span ref="rootRef" class="editable-field" :class="{ 'editable-field--number': type === 'number', 'editable-field--multiple': multiple }" @keydown.capture="capturePopupKey" @keydown="onKeydown" @focusout="onFocusout">
+  <span ref="rootRef" class="editable-field" :class="{ 'editable-field--number': type === 'number', 'editable-field--multiple': multiple, 'editable-field--single-select': type === 'select' && !multiple }" @keydown.capture="capturePopupKey" @keydown="onKeydown" @focusout="onFocusout">
     <span v-if="isEdit" ref="inputRef" class="editable-field__control inline-edit-surface" :aria-disabled="disabled || undefined" :aria-invalid="componentProps.status === 'error' || undefined">
       <label v-if="componentProps['aria-label']" class="editable-field__label" :for="controlId">{{ componentProps['aria-label'] }}</label>
       <component
@@ -9,6 +9,8 @@
         style="width: 100%; height:100%"
         :bordered="false"
         :dropdown-match-select-width="type === 'select' && richOptions ? false : undefined"
+        :dropdown-style="type === 'select' ? { minWidth: 'min(160px, calc(100vw - 24px))', maxWidth: 'calc(100vw - 24px)' } : undefined"
+        :dropdown-align="type === 'select' ? { overflow: { adjustX: 1, adjustY: 1 } } : undefined"
         :get-popup-container="selectTypes.includes(type) ? popupContainer : undefined"
         v-bind="componentProps"
         :id="controlId"
@@ -25,6 +27,7 @@
         <AIcon v-if="selectedOption?.icon" :type="selectedOption.icon" />
         {{ __value ?? componentProps.placeholder ?? $t('comm.table.empty') }}
       </slot>
+      <DownOutlined v-if="type === 'select' && !multiple" class="editable-field__arrow" aria-hidden="true" />
     </span>
     <span v-if="multiple && isEdit" class="editable-field__actions">
       <a-button size="small" @click="cancel()">{{ $t('Editable.cancel') }}</a-button>
@@ -36,6 +39,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch, type Component } from 'vue'
 import { DatePicker, Input, InputNumber, Select, TimePicker, TimeRangePicker } from 'ant-design-vue'
+import { DownOutlined } from '@ant-design/icons-vue'
 import SelectOption from '../SelectOption/index.vue'
 
 type EditorType = 'string' | 'number' | 'select' | 'date' | 'time' | 'dateRange' | 'timeRange'
@@ -210,6 +214,8 @@ onBeforeUnmount(() => { ++generation })
 .editable-field { position:relative; display:inline-block; vertical-align:middle; height:32px; min-width:0; max-width:min(100%,var(--inline-edit-max-width,100%)); font:inherit }
 // 阅读与编辑共用可用数字槽位，避免步进按钮挤掉数值或控件遮住相邻语句。
 .editable-field--number { min-width:4.5rem }
+.editable-field--single-select .text { position:relative; padding-inline-end:30px; }
+.editable-field__arrow { position:absolute; inset-inline-end:8px; top:50%; transform:translateY(-50%); color:var(--ink-2); font-size:12px; pointer-events:none; }
 // 展示文本继续占位，编辑控件只覆盖同一槽位，避免句子重新换行。
 .editable-field__control { position:absolute; inset:0; display:block; width:100%; height:100%; min-width:0 }
 .editable-field__control :deep(.ant-input),.editable-field__control :deep(.ant-input-number-input) { padding-inline:6px; font:inherit }

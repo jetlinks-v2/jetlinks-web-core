@@ -37,6 +37,8 @@
 
 时间范围复用 Ant Design Vue 具名导出的 `TimeRangePicker`。范围控件有两个输入，宿主应通过其 `placeholder` 数组提供含业务上下文的起止名称；不能只凭外层的字段名称认为两个输入都已命名。可清空值的展示插槽应同时处理 `null` / `undefined`，不要直接对范围值调用 `join`。
 
+单选的阅读槽位保留下拉箭头所需空间，进入编辑后不挤掉已选文字。候选面板沿用平台选项的 160px 最小可读宽度，并受视口边界约束，不随短值缩成窄条；普通选项仍保留原生虚拟滚动。图文选项继续使用 `SelectOption` 的布局。宿主显式传入的 `dropdownStyle/dropdownAlign/dropdownMatchSelectWidth` 仍优先。
+
 键盘确认 / 取消后焦点回到编辑入口，普通失焦提交尊重新的焦点。默认将选择 / 日期浮层挂在编辑区域，`getPopupContainer` 仍可由调用者覆盖；公共浮层开关事件与会话校验共同避免误提交。销毁、取消或重新开始编辑后，旧会话的排队失焦不再提交。
 
 `InputEditable` 保留默认图标编辑入口；`trigger="text"` 使用文字按钮直接进入编辑。两种入口均支持 Enter/失焦提交、Esc 取消和禁用状态。可选 `save(value): boolean | Promise<boolean>` 用于异步提交，返回 `false` 或抛错均保留草稿与编辑态；调用方的 `error` 优先展示，否则使用通用失败信息。提交锁避免重复写入，销毁后的排队提交与迟到结果失效；不能由忽略回执推导服务器已撤销写入。未传 `save` 的既有调用仍通过 `update:value/change` 提交。`label` 提供输入和编辑入口的无障碍名称。
