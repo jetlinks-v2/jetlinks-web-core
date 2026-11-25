@@ -40,7 +40,8 @@
 </template>
 
 <script setup lang="ts">
-import type { PropType } from 'vue'
+import { getCurrentInstance, type PropType } from 'vue'
+import { useRouter } from 'vue-router'
 /**
  * 跨模块页面标题栏：保留返回事件优先、路由回退兜底的既有交互契约。
  */
@@ -68,9 +69,9 @@ defineOptions({
 })
 
 const router = useRouter()
+const instance = getCurrentInstance()
 
 const handleBack = () => {
-    const instance = getCurrentInstance()
     // 事件名转成 on + 首字母大写的形式
     // my-event → onMyEvent
     // customEvent → onCustomEvent

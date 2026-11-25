@@ -1,95 +1,92 @@
 <template>
   <main class="fixture">
-    <h1>公共组件交互验收</h1>
-    <p>本页使用固定示例数据，所有保存均为本地模拟，刷新后恢复；不发送真实请求。各示例的草稿和保存结果互相独立。</p>
-    <a-radio-group v-model:value="width" aria-label="内容容器宽度" :options="[390, 700, 1000]" option-type="button" />
-    <div class="fixture-container" :style="{ width: `${width}px` }">
-      <SplitterPreview />
-      <section class="fixture-section">
-        <h2>名称与多语言</h2>
-        <I18nTextEditable v-model:value="localizedName" v-model:i18n-messages="nameTranslations" field="name" label="点位名称" :text-style="{fontSize:'18px',fontWeight:600}" style="--inline-edit-max-width:20rem" />
-      </section>
-      <section class="fixture-section">
-        <h2>说明与多语言</h2>
-        <I18nTextEditable v-model:value="description" v-model:i18n-messages="descriptionTranslations" field="description" label="内容说明" textarea />
-      </section>
-      <section class="fixture-section">
-        <h2>多语言表单输入</h2>
-        <I18nTextField v-model:value="formDescription" v-model:i18n-messages="formTranslations" field="description" label="表单说明" textarea :auto-size="{ minRows: 3, maxRows: 8 }" aria-label="表单说明" />
-      </section>
-      <section class="fixture-section">
-        <h2>行内片段</h2>
-        <Editable v-model:value="inlineName" :component-props="{ 'aria-label': '行内名称' }" style="--inline-edit-max-width:20rem" />
-      </section>
-      <DetailHeader title="服务资料与负责人" variant="summary">
-        <template #icon><AIcon type="ProfileOutlined" /></template>
-        <template #description>用于核对长名称、辅助说明与实际容器重排。</template>
-      </DetailHeader>
-      <section class="fixture-section">
-        <h2>字段阅读</h2>
-        <div class="kv-examples">
-          <KvGrid :items="[{ label: '负责人', value: '陈工' }]" :cols="1" cell-layout="inline" data-testid="kv-array" />
-          <KvGrid :cols="1" cell-layout="inline" data-testid="kv-slot"><div class="kv-cell"><dt>负责人</dt><dd>陈工</dd></div></KvGrid>
-        </div>
-      </section>
-      <section class="fixture-section">
-        <h2>单字段保存</h2>
-        <a-radio-group v-model:value="outcome" aria-label="模拟提交结果" :options="[{label:'成功',value:'success'},{label:'字段失败',value:'rejected'},{label:'请求异常',value:'thrown'}]" />
-        <InlineEditForm :groups="groups" :messages="messages" :submit="save" @change="change">
-          <template #editor="scope">
-            <a-select :id="scope.inputId" :value="String(scope.value)" :disabled="scope.disabled" :loading="scope.loading"
-              :options="people" :status="scope.error ? 'error' : undefined" :aria-describedby="scope.describedBy"
-              option-label-prop="label" @update:value="scope.update" @change="scope.commit">
-              <template #option="option"><SelectOption :label="option.label" :description="option.description" icon="UserOutlined" /></template>
-            </a-select>
-          </template>
-        </InlineEditForm>
-        <p class="fixture-counter">模拟字段请求 {{ submissions }} 次（含失败）</p>
-      </section>
-      <section class="fixture-section">
-        <h2>首次录入</h2>
-        <p>输入只修改这份新资料的草稿，点击“保存新资料”才接受整组值。</p>
-        <InlineEditForm :groups="creationGroups" mode="form" :messages="messages" @change="changeCreation" />
-        <div class="fixture-actions"><a-button @click="resetCreation">清空草稿</a-button><a-button type="primary" @click="saveCreation">保存新资料</a-button></div>
-        <p class="fixture-counter" role="status">整表模拟保存 {{ creations }} 次；最近接受：{{ created ? `${created.name || '未命名'} / ${people.find(person => person.value === created?.person)?.label || '未配置负责人'}` : '尚未保存' }}</p>
-      </section>
-      <section class="fixture-section">
-        <h2>分区头部与折叠</h2>
-        <EqualHeightColumns height="15rem" left-width="10rem" gap="var(--space-3)" resizable>
-          <template #left-header><a-input v-model:value="search" aria-label="导航搜索" placeholder="搜索分类" /></template>
-          <template #left><p>分类与范围内容</p></template>
-          <template #right-header><strong>主区内容</strong></template>
-          <template #right><p>当前范围下的内容</p></template>
-        </EqualHeightColumns>
-      </section>
-      <InlineEditCases />
-      <AsyncInlineEditCase />
-    </div>
+    <PageHeader title="公共组件交互示例" variant="plain">
+      <template #actions>
+        <label for="fixture-width" class="sr-only">示例最大宽度</label>
+        <a-select id="fixture-width" v-model:value="width" class="fixture-width" :options="[{ value:'auto',label:'跟随窗口' },{ value:390,label:'最大 390px' },{ value:700,label:'最大 700px' },{ value:1000,label:'最大 1000px' }]" />
+      </template>
+    </PageHeader>
+    <p class="fixture-notice">本地模拟数据，刷新后恢复；未接入真实上传与鉴权。</p>
+    <ContentPanel fill class="fixture-panel">
+      <a-tabs v-model:active-key="scene" class="fixture-tabs" :animated="false" :destroy-inactive-tab-pane="false">
+        <template #moreIcon><span role="img" aria-label="更多场景"><AIcon type="EllipsisOutlined" /></span></template>
+        <a-tab-pane key="fields" tab="字段与选择">
+          <div class="fixture-scene" :style="{ width: contentWidth }"><InlineEditCases section="values" /></div>
+        </a-tab-pane>
+        <a-tab-pane key="detail" tab="单字段保存">
+          <div class="fixture-scene" :style="{ width: contentWidth }">
+            <section class="fixture-section">
+              <h2>资料名称与负责人</h2>
+              <div class="fixture-options"><span>模拟响应</span><a-radio-group v-model:value="outcome" aria-label="模拟提交结果" :options="[{label:'成功',value:'success'},{label:'字段失败',value:'rejected'},{label:'请求异常',value:'thrown'}]" /></div>
+              <InlineEditForm :groups="groups" :messages="messages" :submit="save" @change="change">
+                <template #editor="scope">
+                  <a-select :id="scope.inputId" :value="String(scope.value)" :disabled="scope.disabled" :loading="scope.loading"
+                    :options="people" :status="scope.error ? 'error' : undefined" :aria-describedby="scope.describedBy"
+                    option-label-prop="label" @update:value="scope.update" @change="scope.commit">
+                    <template #option="option"><SelectOption :label="option.label" :description="option.description" icon="UserOutlined" /></template>
+                  </a-select>
+                </template>
+              </InlineEditForm>
+              <p class="fixture-counter">模拟字段请求 {{ submissions }} 次（含失败）</p>
+            </section>
+            <InlineEditCases section="fields" />
+          </div>
+        </a-tab-pane>
+        <a-tab-pane key="form" tab="整表保存">
+          <div class="fixture-scene" :style="{ width: contentWidth }"><InlineEditCases section="form" /></div>
+        </a-tab-pane>
+        <a-tab-pane key="create" tab="首次录入">
+          <section class="fixture-section fixture-scene" :style="{ width: contentWidth }">
+            <h2>新建资料</h2>
+            <p class="fixture-hint">字段只修改草稿，保存时接受整组值。</p>
+            <InlineEditForm :groups="creationGroups" mode="form" :messages="messages" @change="changeCreation" />
+            <div class="fixture-actions"><a-button @click="resetCreation">清空草稿</a-button><a-button type="primary" @click="saveCreation">保存新资料</a-button></div>
+            <p class="fixture-counter" role="status">整表模拟保存 {{ creations }} 次；最近接受：<template v-if="created">{{ created.name || '未命名' }} / {{ people.find(person => person.value === created?.person)?.label || '未配置负责人' }}</template><template v-else>尚未保存</template></p>
+          </section>
+        </a-tab-pane>
+        <a-tab-pane key="i18n" tab="多语言">
+          <div class="fixture-scene" :style="{ width: contentWidth }">
+            <section class="fixture-section"><h2>点位名称</h2><I18nTextEditable v-model:value="localizedName" v-model:i18n-messages="nameTranslations" field="name" label="点位名称" :text-style="{fontSize:'18px',fontWeight:600}" style="--inline-edit-max-width:20rem" /></section>
+            <section class="fixture-section"><h2>内容说明</h2><I18nTextEditable v-model:value="description" v-model:i18n-messages="descriptionTranslations" field="description" label="内容说明" textarea /></section>
+            <section class="fixture-section"><h2>表单多语言输入</h2><I18nTextField v-model:value="formDescription" v-model:i18n-messages="formTranslations" field="description" label="表单说明" textarea :auto-size="{ minRows: 3, maxRows: 8 }" aria-label="表单说明" /></section>
+          </div>
+        </a-tab-pane>
+        <a-tab-pane key="async" tab="异步与失败">
+          <div class="fixture-scene" :style="{ width: contentWidth }"><AsyncInlineEditCase /></div>
+        </a-tab-pane>
+        <a-tab-pane key="layouts" tab="分区布局">
+          <div class="fixture-scene" :style="{ width: contentWidth }">
+            <div class="fixture-layout-choice"><a-segmented v-model:value="layoutKind" aria-label="分区组件示例" :options="[{value:'adaptive',label:'自适应分区'},{value:'columns',label:'带头部分栏'}]" /><code>{{ layoutKind === 'adaptive' ? 'ResponsiveSplitter' : 'EqualHeightColumns' }}</code></div>
+            <KeepAlive><component :is="layoutKind === 'adaptive' ? SplitterPreview : ColumnsPreview" /></KeepAlive>
+          </div>
+        </a-tab-pane>
+      </a-tabs>
+    </ContentPanel>
   </main>
 </template>
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import DetailHeader from '../../src/components/DetailHeader/index.vue'
-import KvGrid from '../../src/components/KvGrid/index.vue'
-import EqualHeightColumns from '../../src/components/EqualHeightColumns/index.vue'
 import SelectOption from '../../src/components/SelectOption/index.vue'
 import SplitterPreview from './SplitterPreview.vue'
+import ColumnsPreview from './ColumnsPreview.vue'
+import PageHeader from '../../src/components/PageHeader/index.vue'
+import ContentPanel from '../../src/components/ContentPanel/index.vue'
 import InlineEditCases from './InlineEditCases.vue'
 import AsyncInlineEditCase from './AsyncInlineEditCase.vue'
 import I18nTextEditable from '../../src/components/I18n/I18nTextEditable.vue'
 import I18nTextField from '../../src/components/I18n/I18nTextField.vue'
-import Editable from '../../src/components/Editable/index.vue'
 import { InlineEditForm, type InlineEditGroup, type InlineEditSubmit } from '../../src/components/InlineEditForm'
-const width = ref(700)
+const width = ref<number | 'auto'>('auto')
+const scene = ref('fields')
+const layoutKind = ref('adaptive')
+const contentWidth = computed(() => width.value === 'auto' ? '100%' : `${width.value}px`)
 const outcome = ref('success')
-const search = ref('')
 const localizedName = ref('回水温度')
 const nameTranslations = ref({ name: { zh: '回水温度', en: 'Return water temperature' } })
 const description = ref('记录现场设备的运行情况。\n异常时先核对供电与网络，再记录处理结果。')
 const descriptionTranslations = ref({ description: { zh: description.value, en: 'Record the operating conditions on site.\nCheck power and networking before recording the result.' } })
 const formDescription = ref('填写处理过程。\n记录需要继续跟进的事项。')
 const formTranslations = ref({ description: { zh: formDescription.value } })
-const inlineName = ref('回水温度')
 const submissions = ref(0)
 const draft = reactive({ name: '服务资料', person: 'one' })
 const saved = reactive({ ...draft })
@@ -119,13 +116,24 @@ const save: InlineEditSubmit = async (key, value) => {
 }
 </script>
 <style scoped>
-.fixture { padding: 1rem; background: var(--canvas); min-height: 100vh; }
-h1 { font-size: var(--fs-20); }
-h2 { font-size: var(--fs-16); margin: 0 0 var(--space-4); }
-.fixture-container { max-width: 100%; margin-top: var(--space-4); padding: var(--space-4); background: var(--bg); }
-.fixture-section { margin-top: var(--space-6); }
-.fixture-section > .ant-radio-group { margin-bottom: var(--space-4); }
-.kv-examples { display: grid; gap: var(--space-4); }
-.fixture-counter { color: var(--jet-theme-text-secondary); }
-.fixture-actions { display:flex; flex-wrap:wrap; gap:var(--space-2); margin-top:var(--space-4); }
+.fixture { box-sizing:border-box; height:100dvh; display:flex; flex-direction:column; gap:var(--space-3); padding:var(--space-4); background:var(--canvas); overflow:hidden; }
+.fixture > :deep(.cloud-page-header) { flex:none; margin:0; }
+.fixture-width { width:132px; }
+.fixture-notice { flex:none; margin:0; font-size:var(--fs-12); color:var(--jet-theme-text-secondary); }
+.fixture-panel { min-width:0; min-height:0; }
+.fixture-tabs { flex:1; min-height:0; }
+.fixture-tabs :deep(> .ant-tabs-content-holder) { min-height:0; overflow:auto; }
+.fixture-tabs :deep(> .ant-tabs-nav) { flex:none; margin-bottom:var(--space-5); }
+.fixture-scene { box-sizing:border-box; max-width:100%; padding-bottom:var(--space-4); }
+.fixture-scene :deep(.fixture-section) { margin-top:var(--space-6); }
+.fixture-scene > :deep(.fixture-section:first-child),.fixture-section.fixture-scene { margin-top:0; }
+.fixture :deep(h2) { margin:0 0 var(--space-4); font-size:var(--fs-16); font-weight:600; }
+.fixture-options,.fixture-actions,.fixture-layout-choice { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-3); }
+.fixture-options { margin-bottom:var(--space-4); }
+.fixture-options > span,.fixture-hint { color:var(--jet-theme-text-secondary); font-size:var(--fs-12); }
+.fixture-actions { margin-top:var(--space-4); }
+.fixture :deep(.fixture-counter) { margin:var(--space-3) 0 0; color:var(--jet-theme-text-secondary); font-size:var(--fs-12); }
+.fixture-layout-choice { justify-content:space-between; margin-bottom:var(--space-4); }
+.fixture-layout-choice code { color:var(--jet-theme-text-secondary); font-size:var(--fs-12); }
+@media (max-width:600px) { .fixture { padding:var(--space-3); } .fixture-tabs :deep(> .ant-tabs-nav) { margin-bottom:var(--space-4); } .fixture-actions :deep(.ant-btn) { min-height:44px; } }
 </style>

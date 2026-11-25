@@ -4,7 +4,7 @@ import { defineComponent, h } from 'vue'
 import { createDashboardLoader } from './helpers/dashboardRuntime.mjs'
 import { createComponentRenderer, flush, textContent, walk } from './helpers/componentRuntime.mjs'
 
-function mount(filename) {
+function mount(filename, props) {
   const forms = [], choices = [], inputs = []
   const capture = (records, props) => defineComponent({ props, emits: ['change', 'update:value'], setup(props, { emit, slots }) {
     records.push({ props, emit }); return () => h('div', records === choices ? slots.default?.() : undefined)
@@ -17,13 +17,24 @@ function mount(filename) {
     '../../src/components/Editable/InputEditable.vue': { default: capture(inputs, ['value', 'save']), __esModule: true },
   })(`../tests/public-ui/${filename}.vue`).default
   const { renderer, root } = createComponentRenderer()
-  const app = renderer.createApp(Component)
+  const app = renderer.createApp(Component, props)
   for (const name of ['a-button', 'a-checkbox', 'a-radio-group', 'a-switch', 'a-modal', 'a-input-number', 'a-input', 'a-select', 'AIcon']) app.component(name, defineComponent({ setup: (_props, { attrs, slots }) => () => h(name === 'a-button' ? 'button' : name, attrs, slots.default?.()) }))
   app.mount(root)
   const button = label => walk(root, node => node.type === 'button' && textContent(node) === label)[0]
   const fields = form => form.props.groups.flatMap(group => group.fields)
   return { app, root, forms, choices, inputs, button, fields }
 }
+
+test('each inline scene exposes only its own editing and save boundary', async t => {
+  for (const [section, heading, formCount, choiceCount] of [
+    ['values', '选择与日期', 0, 10], ['fields', '多类型原位编辑', 1, 0], ['form', '通用信息表单', 1, 0],
+  ]) {
+    const view = mount('InlineEditCases', { section }); t.after(() => view.app.unmount()); await flush()
+    assert.deepEqual(walk(view.root, node => node.type === 'h2').map(textContent), [heading])
+    assert.equal(view.forms.length, formCount)
+    assert.equal(view.choices.length, choiceCount)
+  }
+})
 
 test('creation and detail examples keep independent drafts and creation accepts only the whole form', async t => {
   const view = mount('Preview'); t.after(() => view.app.unmount()); await flush()

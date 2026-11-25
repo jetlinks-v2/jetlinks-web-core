@@ -1,8 +1,9 @@
 <template>
-  <section class="fixture-section edit-cases-section">
+  <section v-if="section === 'all' || section === 'values'" class="fixture-section edit-cases-section">
     <h2>选择与日期</h2>
     <p>此组确认只更新本页的值，不模拟请求。弹层选择、输入草稿与最终确认分别保留各自的操作方式。</p>
     <div class="edit-cases">
+      <div><p>来源名称</p><Editable v-model:value="sourceName" :component-props="{ 'aria-label': '来源名称' }" style="--inline-edit-max-width:20rem" /></div>
       <div><p>采样偏移（秒）</p><Editable v-model:value="interval" type="number" :component-props="{ 'aria-label': '采样偏移' }" /></div>
       <div><p>补充短句（可为空）</p><Editable v-model:value="shortNote" :component-props="{ 'aria-label': '补充短句' }" /></div>
       <div><p>任务分组</p><Editable v-model:value="group" type="select" :component-props="{ options, defaultOpen: true, 'aria-label': '任务分组' }" /></div>
@@ -14,7 +15,7 @@
       <div><p>处理时段</p><Editable v-model:value="timeRange" type="timeRange" :component-props="{ valueFormat: 'HH:mm:ss', format: 'HH:mm:ss', placeholder: ['处理开始时间', '处理结束时间'], 'aria-label': '处理时段' }"><span>{{ timeRange?.join(' — ') || '未设置' }}</span></Editable></div>
     </div>
   </section>
-  <section class="fixture-section">
+  <section v-if="section === 'all' || section === 'fields'" class="fixture-section">
     <h2>多类型原位编辑</h2>
     <p>开关和单选代表可直接修改的提醒偏好；范围整体离开后校验，巡检对象在弹窗确认后才接受。此处不执行设备命令。</p>
     <div class="edit-cases__actions"><a-checkbox v-model:checked="disabled">禁用本组编辑（示例）</a-checkbox><a-button :disabled="disabled" @click="details?.editField('manualNote')">编辑维护备注</a-button></div>
@@ -37,7 +38,7 @@
     </InlineEditForm>
     <p class="fixture-counter">分组字段模拟请求 {{ writes }} 次（含范围校验拒绝）</p>
   </section>
-  <section class="fixture-section" aria-label="通用表单编辑验收">
+  <section v-if="section === 'all' || section === 'form'" class="fixture-section" aria-label="通用表单编辑验收">
     <h2>通用信息表单</h2>
     <p>字段内确认只进入表单草稿，顶部“保存”才接受整表修改。</p>
     <a-checkbox v-model:checked="failPublication">模拟下一次整表请求异常</a-checkbox>
@@ -58,6 +59,8 @@ import Editable from '../../src/components/Editable/index.vue'
 import { InlineEditForm, type InlineEditFieldDefinition, type InlineEditGroup, type InlineEditSubmit } from '../../src/components/InlineEditForm'
 import FormRenderer from '../../src/components/Form/FormRenderer.vue'
 import type { FormField, FormLayout, FormSubmit, FormValidate } from '../../src/components/Form/types'
+withDefaults(defineProps<{ section?: 'all' | 'values' | 'fields' | 'form' }>(), { section: 'all' })
+const sourceName = ref('现场运行记录')
 const options = [{ value: 'operations', label: '运行保障' }, { value: 'service', label: '技术服务' }, { value: 'records', label: '资料管理' }]
 const group = ref('operations'), visibleGroups = ref(['operations'])
 const interval = ref(0), shortNote = ref(''), tags = ref(['现场核对'])
