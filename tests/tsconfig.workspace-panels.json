@@ -15,6 +15,7 @@
     "../src/components/EqualHeightColumns/**/*.ts",
     "../src/components/PanelResizeHandle/**/*.vue",
     "../src/components/PanelResizeHandle/**/*.ts",
+    "../src/components/PanelCollapseButton/**/*.vue",
     "../src/components/Splitter/**/*.vue",
     "./workspace-panels/**/*.vue",
     "./workspace-panels/**/*.ts"

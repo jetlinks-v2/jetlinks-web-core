@@ -12,10 +12,8 @@
   >
     <div v-if="showLeft" ref="leftPaneRef" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
       <header v-if="hasLeftHeader() || (collapsible && !hasToolbar())" class="equal-height-columns__header">
-        <a-button v-if="collapsible && usesLeftToggle()" ref="toggleRef" type="text" size="small" class="equal-height-columns__header-toggle"
-          :title="toggleText" :aria-label="toggleText" :aria-expanded="!isCollapsed" :aria-controls="controlledIds()" @click="toggleCollapse">
-          <AIcon :type="isCollapsed ? 'MenuUnfoldOutlined' : 'MenuFoldOutlined'" />
-        </a-button>
+        <PanelCollapseButton v-if="collapsible && usesLeftToggle()" ref="toggleRef" class="equal-height-columns__header-toggle"
+          :collapsed="isCollapsed" :label="toggleText" :aria-controls="controlledIds()" @toggle="toggleCollapse" />
         <div v-if="hasLeftHeader()" v-show="!isCollapsed" :id="headerId" class="equal-height-columns__header-content"
           :inert="isCollapsed ? true : undefined" :aria-hidden="isCollapsed ? true : undefined"><slot name="left-header" /></div>
       </header>
@@ -28,10 +26,8 @@
       :aria-label="$t('components.EqualHeightColumns.resize')" :aria-controls="controlledIds()" @update:model-value="resizeLeft" />
     <div ref="rightPaneRef" class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle" tabindex="-1">
       <header v-if="hasToolbar()" class="equal-height-columns__toolbar">
-        <a-button v-if="showLeft && collapsible && !usesLeftToggle()" ref="toggleRef" type="text" size="small" class="equal-height-columns__header-toggle"
-          :title="toggleText" :aria-label="toggleText" :aria-expanded="!isCollapsed" :aria-controls="controlledIds()" @click="toggleCollapse">
-          <AIcon :type="isCollapsed ? 'MenuUnfoldOutlined' : 'MenuFoldOutlined'" />
-        </a-button>
+        <PanelCollapseButton v-if="showLeft && collapsible && !usesLeftToggle()" ref="toggleRef" class="equal-height-columns__header-toggle"
+          :collapsed="isCollapsed" :label="toggleText" :aria-controls="controlledIds()" @toggle="toggleCollapse" />
         <div class="equal-height-columns__toolbar-content"><slot name="right-header" /></div>
       </header>
       <div class="equal-height-columns__main"><slot name="right" /></div>
@@ -44,6 +40,7 @@ import { computed, nextTick, ref, useAttrs, useId, useSlots, watch, watchEffect,
 import { useElementSize } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import PanelResizeHandle from '../PanelResizeHandle/index.vue'
+import PanelCollapseButton from '../PanelCollapseButton/index.vue'
 import { useColumnCollapse } from './useColumnCollapse'
 
 type SizeValue = number | string

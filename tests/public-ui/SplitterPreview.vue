@@ -1,15 +1,19 @@
 <template>
   <section class="splitter-example" aria-label="Splitter 面板验收">
-    <div class="splitter-example__heading">
-      <h2>处理工作台</h2>
+    <header class="splitter-example__heading">
+      <div class="splitter-example__title">
+        <PanelCollapseButton :collapsed="collapsed" :orientation="orientation" :aria-controls="navigationId"
+          :label="collapsed ? '展开任务列表' : '收起任务列表'" @toggle="collapsed = !collapsed" />
+        <h2>处理工作台</h2>
+      </div>
       <a-segmented v-model:value="orientation" aria-label="分区方向"
         :options="[{ label: '左右分区', value: 'horizontal' }, { label: '上下分区', value: 'vertical' }]" />
-    </div>
-    <Splitter collapse-on-drag :orientation="orientation" :default-size="orientation === 'vertical' ? 160 : '32%'"
+    </header>
+    <Splitter v-model:collapsed="collapsed" collapse-on-drag :orientation="orientation" :default-size="orientation === 'vertical' ? 160 : '32%'"
       :min="orientation === 'vertical' ? 100 : 160" :max="360" :end-min="orientation === 'vertical' ? 180 : 240"
       resize-label="调整任务列表尺寸" class="splitter-example__layout">
       <template #start>
-        <nav class="splitter-example__navigation" aria-label="待处理任务">
+        <nav :id="navigationId" class="splitter-example__navigation" aria-label="待处理任务">
           <a-input v-model:value="search" placeholder="搜索任务" aria-label="搜索任务" allow-clear>
             <template #prefix><AIcon type="SearchOutlined" /></template>
           </a-input>
@@ -24,12 +28,9 @@
           </a-list>
         </nav>
       </template>
-      <template #end="{ collapsed, toggle }">
+      <template #end>
         <article class="splitter-example__detail">
           <header>
-            <a-button type="text" :aria-label="collapsed ? '展开任务列表' : '收起任务列表'" :aria-expanded="!collapsed" @click="toggle">
-              <AIcon :type="collapsed ? 'MenuUnfoldOutlined' : 'MenuFoldOutlined'" />
-            </a-button>
             <h3>{{ activeTask.name }}</h3><a-tag color="processing">处理中</a-tag>
           </header>
           <dl><div><dt>所属分组</dt><dd>{{ activeTask.group }}</dd></div><div><dt>负责人</dt><dd>陈工</dd></div></dl>
@@ -43,9 +44,12 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useId } from 'vue'
 import Splitter from '../../src/components/Splitter/index.vue'
+import PanelCollapseButton from '../../src/components/PanelCollapseButton/index.vue'
 const orientation = ref<'horizontal' | 'vertical'>('horizontal')
+const collapsed = ref(false)
+const navigationId = `task-navigation-${useId()}`
 const search = ref(''), note = ref('已联系现场核对'), selected = ref('connection')
 const tasks = [
   { id: 'connection', name: '连接异常排查', group: '运行保障', icon: 'ApiOutlined' },
@@ -57,6 +61,7 @@ const activeTask = computed(() => tasks.find(item => item.id === selected.value)
 </script>
 <style scoped>
 .splitter-example__heading { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap; margin-bottom:var(--space-4); }
+.splitter-example__title { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
 .splitter-example__heading h2 { margin:0; font-size:var(--fs-16); }
 .splitter-example__layout { height:420px; border:1px solid var(--line); border-radius:var(--r-2); }
 .splitter-example__navigation { padding:var(--space-3); }

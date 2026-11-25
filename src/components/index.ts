@@ -299,6 +299,7 @@ export type {
 } from './MatrixGrid/types'
 export { default as SelectOption } from './SelectOption/index.vue'
 export { default as PanelResizeHandle } from './PanelResizeHandle/index.vue'
+export { default as PanelCollapseButton } from './PanelCollapseButton/index.vue'
 export type { PanelResizeDragEvent } from './PanelResizeHandle/types'
 export * from './Expression'
 export * from './PlatformSettings'

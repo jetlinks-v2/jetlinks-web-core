@@ -21,7 +21,6 @@ export function usePanelResize(props: PanelResizeOptions, change: (size: number)
   const max = computed(() => Math.max(min.value, Math.min(props.limits?.max ?? 640, available.value)))
   const size = computed(() => Math.max(min.value, Math.min(max.value, props.modelValue)))
   const dragging = ref(false)
-  const controlsOpen = ref(false)
   const hasDragged = ref(false)
   const step = 16
   let session: { position: number; size: number; requested: number; pointer: number; target: HTMLElement } | undefined
@@ -33,7 +32,6 @@ export function usePanelResize(props: PanelResizeOptions, change: (size: number)
   function start(event: PointerEvent) {
     if (event.button !== 0 || session) return
     event.preventDefault()
-    controlsOpen.value = false
     hasDragged.value = false
     session = { position: coordinate(event), size: size.value, requested: size.value, pointer: event.pointerId, target: event.currentTarget as HTMLElement }
     session.target.focus({ preventScroll:true })
@@ -65,7 +63,7 @@ export function usePanelResize(props: PanelResizeOptions, change: (size: number)
     const previous = stop('cancel', event)
     if (previous) updateSize(previous.size)
   }
-  function reset() { controlsOpen.value = false; setSize(props.limits?.initial ?? 360) }
+  function reset() { setSize(props.limits?.initial ?? 360) }
   function grow() { setSize(size.value + step) }
   function shrink() { setSize(size.value - step) }
   watch([min, max, () => props.modelValue], () => {
@@ -73,5 +71,5 @@ export function usePanelResize(props: PanelResizeOptions, change: (size: number)
   }, { immediate: true })
   watch([min, max, () => props.side, () => props.orientation], () => cancel())
   onBeforeUnmount(() => stop('cancel'))
-  return { min, max, size, dragging, controlsOpen, hasDragged, start, move, finish, cancel, reset, setSize, grow, shrink }
+  return { min, max, size, dragging, hasDragged, start, move, finish, cancel, reset, setSize, grow, shrink }
 }
