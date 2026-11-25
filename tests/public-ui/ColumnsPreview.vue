@@ -46,6 +46,7 @@ const filteredCategories = computed(() => categories.filter(item => item.name.in
 const activeCategory = computed(() => categories.find(item => item.id === selected.value) ?? categories[0])
 </script>
 <style scoped>
+h2 { margin:0 0 var(--space-4); font-size:var(--fs-16); font-weight:600; }
 .columns-categories { padding:0 var(--space-2); }
 .columns-categories :deep(.ant-list-item) { padding:var(--space-1) 0; border:0; }
 .columns-category.ant-btn { width:100%; height:auto; min-height:44px; text-align:start; white-space:normal; }

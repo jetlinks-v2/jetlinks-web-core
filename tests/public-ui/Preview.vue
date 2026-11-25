@@ -127,7 +127,7 @@ const save: InlineEditSubmit = async (key, value) => {
 .fixture-scene { box-sizing:border-box; max-width:100%; padding-bottom:var(--space-4); }
 .fixture-scene :deep(.fixture-section) { margin-top:var(--space-6); }
 .fixture-scene > :deep(.fixture-section:first-child),.fixture-section.fixture-scene { margin-top:0; }
-.fixture :deep(h2) { margin:0 0 var(--space-4); font-size:var(--fs-16); font-weight:600; }
+.fixture :deep(.fixture-section > h2) { margin:0 0 var(--space-4); font-size:var(--fs-16); font-weight:600; }
 .fixture-options,.fixture-actions,.fixture-layout-choice { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-3); }
 .fixture-options { margin-bottom:var(--space-4); }
 .fixture-options > span,.fixture-hint { color:var(--jet-theme-text-secondary); font-size:var(--fs-12); }
