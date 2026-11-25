@@ -186,7 +186,9 @@ function applyRequestOptions<T extends PackageRequestConfig>(
 /**
  * 初始化package
  */
-export const initPackages = () => {
+export const initPackages = ({ accountOnly = false } = {}) => {
+    // 子应用使用基座提供的连接，生命周期属于基座。
+    if (isSubApp) return
 
     /**
      * 初始化websocket
@@ -196,7 +198,7 @@ export const initPackages = () => {
 
     if (!token) return
 
-    if (PersonalToken.value) {
+    if (!accountOnly && PersonalToken.value) {
         token = PersonalToken.value
         tokenKey = PersonalUrlKey
     }

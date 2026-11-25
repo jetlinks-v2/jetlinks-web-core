@@ -144,9 +144,10 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     themeStyleToken.value = result.token
   }
 
-  const changeThemeStyle = (style: string, color?: string) => {
+  const changeThemeStyle = (style: string, color?: string, persist = true) => {
     const themeStyleValue = normalizeThemeStyle(style)
-    const result = persistThemeStyle(themeStyleValue, color || getThemeStylePrimaryColor(themeStyleValue) || themeColor.value)
+    const apply = persist ? persistThemeStyle : applyThemeStyle
+    const result = apply(themeStyleValue, color || getThemeStylePrimaryColor(themeStyleValue) || themeColor.value)
     theme.value = themeStyleValue === 'dark' ? 'dark' : 'light'
     themeStyle.value = result.style
     themeStyleToken.value = result.token
@@ -201,8 +202,10 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     }
   }
 
-  const handleFront = (_value: any, userThemeStyle?: ThemeStyleKey) => {
-    applyFrontLanguages(_value?.languages)
+  const handleFront = (_value: any, userThemeStyle?: ThemeStyleKey, persistPreferences = true) => {
+    if (persistPreferences) {
+      applyFrontLanguages(_value?.languages)
+    }
     if (!_value) return
     const title = resolveLayoutTitle(_value.title)
     layout.title = title
@@ -210,22 +213,23 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     layout.layout = normalizeLayoutMode(_value.layout)
     const frontThemeStyle = userThemeStyle || normalizeThemeStyle(_value.headerTheme)
     // localStorage 只负责接口返回前的首屏主题；登录后用户设置优先，系统设置兜底。
-    changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle))
+    changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle), persistPreferences)
     changeIco(_value.ico)
     setDocumentTitle()
     changeTitle(title)
   }
 
-  const queryInfo = async () => {
+  // 外链通过作品身份读取系统配置（包括地图 Key），无需读取浏览器账号的个人主题或覆盖本地偏好。
+  const queryInfo = async (readSharedScopes?: SystemConfigSource['queryScopes']) => {
     const _keys = ['front', 'amap', 'paths']
-    const userThemeStyle = await getUserThemeStyle()
-    const resp = await source.queryScopes(_keys)
+    const userThemeStyle = readSharedScopes ? undefined : await getUserThemeStyle()
+    const resp = await (readSharedScopes ?? source.queryScopes)(_keys)
     if (resp.success) {
       _keys.forEach((key: string) => {
         const _value = resp.result.find(item => item.scope === key)?.properties
         systemInfo.value[key] = _value ?? {}
         if (key === 'front') {
-          handleFront(_value, userThemeStyle)
+          handleFront(_value, userThemeStyle, !readSharedScopes)
         }
       })
     }

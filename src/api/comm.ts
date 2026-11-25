@@ -39,19 +39,7 @@ export const deleteSearchHistory = (target: string, id: string) => request.remov
 export const queryDashboard = (data: Record<string, any>) => request.post(`/dashboard/_multi`, data)
 
 export const lowCodeUrl = () => request.get('/system/config/low-code')
-/**
- * 获取认证配置
- * @param tokenId
- */
-export const getTokenConfig = (tokenId: string) => request.get(`/personal/token/${tokenId}/_config`)
-
-/**
- * 获取跳转链接
- * @param tokenId
- * @param data
- */
-export const getTokenRedirect = (tokenId: string, data: any) =>
-    request.post(`/personal/token/${tokenId}/_redirect`, data)
+export { getTokenConfig, getTokenRedirect } from './share-authorization'
 
 export const AI_AGENT_MANAGER_SERVICE_ID = 'aiAgentService:agentManager'
 export const existsAiAgentSupport = () => request.get<boolean>(`/command-supports/service/${AI_AGENT_MANAGER_SERVICE_ID}/exists`)
