@@ -7,7 +7,10 @@
     :theme="themeConfig"
     :renderEmpty="renderEmpty"
   >
-    <PageRouteView :skeleton-variant="routeSkeletonVariant" />
+    <template v-if="!changingSessionDocument">
+      <MicroShareDocument v-if="isSubApp && usesShareSession(route.meta)" :path="route.fullPath" />
+      <PageRouteView v-else :skeleton-variant="routeSkeletonVariant" />
+    </template>
   </ConfigProvider>
 </template>
 <script setup lang="ts">
@@ -25,7 +28,11 @@ import componentsJa from './locales/componentsJa'
 import theme from '@theme-config'
 import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
-import { clearVerifyCache, watchAccountWebSocket } from '@jetlinks-web-core/package'
+import { clearVerifyCache, initPackages } from '@jetlinks-web-core/package'
+import { changingSessionDocument } from '@jetlinks-web-core/router'
+import { usesShareSession } from '@jetlinks-web-core/router/types'
+import { isSubApp } from '@jetlinks-web-core/utils/consts'
+import MicroShareDocument from './views/share/MicroShareDocument.vue'
 import { setToken } from "@jetlinks-web/utils";
 import { consumeLogoutLoginEntry, LOGOUT_AUTH_QUERY_KEYS } from '@jetlinks-web-core/router/login-session'
 import { installEdgeImageProxy } from '@jetlinks-web-core/utils/edge-image-proxy'
@@ -107,7 +114,9 @@ watch(
 provide(ComponentsEnum.Permission, { hasPermission })
 
 initPersonal()
-watchAccountWebSocket(route)
+void router.isReady().then(() => {
+  if (!isSubApp && !changingSessionDocument.value && !usesShareSession(route.meta)) initPackages({ accountOnly: true })
+})
 
 componentsRegistry.batchRegister()
 
@@ -197,6 +206,7 @@ const renderEmpty = () => {
 }
 
 watch(() => JSON.stringify(route.query || {}), () => {
+  if (changingSessionDocument.value || (isSubApp && usesShareSession(route.meta))) return
   const routeQuery = route.query || {}
   const query = Object.keys(routeQuery).length ? routeQuery : parseHashQuery()
 

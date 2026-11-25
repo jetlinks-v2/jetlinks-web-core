@@ -9,6 +9,8 @@
   "runtimeDiagnostics.moreMetrics": "展开更多指标",
   "runtimeDiagnostics.sampleCoverageSeconds": "采样跨度 {seconds} 秒",
   "runtimeDiagnostics.systemResources": "系统资源",
+  "share.openDocument": "在新窗口打开分享",
+  "share.documentTitle": "分享页面",
   "app.resourceLoadError.title": "请刷新页面",
   "app.resourceLoadError.content": "页面资源加载失败，可能是系统已更新。请刷新页面后继续操作。\n注意：刷新会清除尚未保存的内容！",
   "app.resourceLoadError.refresh": "刷新页面",

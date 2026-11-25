@@ -1,6 +1,4 @@
-import { createApp, h, watch } from 'vue'
-import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import { usesShareSession } from './router/types'
+import { createApp, h } from 'vue'
 import { getToken, LocalStore, setToken } from '@jetlinks-web/utils'
 import {BASE_API, TOKEN_KEY, TOKEN_KEY_URL} from '@jetlinks-web/constants'
 import { crateAxios, getInstance, request, wsClient, ndJson } from '@jetlinks-web/core'
@@ -189,6 +187,8 @@ function applyRequestOptions<T extends PackageRequestConfig>(
  * 初始化package
  */
 export const initPackages = ({ accountOnly = false } = {}) => {
+    // 子应用使用基座提供的连接，生命周期属于基座。
+    if (isSubApp) return
 
     /**
      * 初始化websocket
@@ -233,19 +233,6 @@ export const initPackages = ({ accountOnly = false } = {}) => {
     wsClient.initWebSocket(url);
     wsClient.connect()
 };
-
-/** 账号连接随已匹配的路由启动；公开播放的连接由画布自行管理。 */
-export const watchAccountWebSocket = (route: RouteLocationNormalizedLoaded) => watch(
-    () => route.matched.length ? usesShareSession(route.meta) : undefined,
-    (share, previous) => {
-        if (share === false) initPackages({ accountOnly: true })
-        if (share && previous === false) {
-            wsClient.initWebSocket('')
-            wsClient.disconnect()
-        }
-    },
-    { immediate: true, flush: 'post' },
-)
 
 /** 当前校验弹窗 Promise，用于互斥：同一时间只允许一个弹窗，取消后不再自动弹出 */
 let currentVerifyPromise: Promise<{ key: string; token: string; disposable: boolean } | null> | null = null

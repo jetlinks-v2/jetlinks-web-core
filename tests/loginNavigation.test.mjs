@@ -36,7 +36,7 @@ const unauthorized = config => new axios.AxiosError('Unauthorized', 'ERR_BAD_REQ
 })
 
 // 执行生产 router、退出 API、存储和 Axios 拦截器；仅隔离无关模块、浏览器与网络。
-const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `http://localhost:9201/${projectCode}/#/overview` } = {}) => {
+const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', subApp = false, href = `http://localhost:9201/${projectCode}/#/overview` } = {}) => {
   let location
   const navigations = []
   const tokensAtNavigation = []
@@ -59,6 +59,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const sessionStorage = memoryStorage()
   const window = {
     localStorage: storage, sessionStorage,
+    microApp: subApp ? { getGlobalData: () => ({}) } : undefined,
     get location() { return location },
     history: { state: { preserved: true }, replaceState(_state, _title, value) { setLocation(value) } },
   }
@@ -95,7 +96,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     '@micro-zoe/micro-app': { router: { setBaseAppRouter() {} } },
     'ant-design-vue': { notification: { error() {} } },
     '@jetlinks-web-core/views/verify/index.vue': {},
-    '@jetlinks-web-core/utils/consts': { isSubApp: false, langKey: 'lang', PersonalToken: { value: 'share-fixture' }, PersonalUrlKey: 'personal-token' },
+    '@jetlinks-web-core/utils/consts': { isSubApp: subApp, langKey: 'lang', PersonalToken: { value: 'share-fixture' }, PersonalUrlKey: 'personal-token' },
     '@jetlinks-web-core/utils/request-context': {
       getRequestTenantDomain: flag => flag === false ? '' : projectCode,
       getBaseApi: () => '/api', isFromCloud: () => false, stripEdgeRequestHeaders() {},
@@ -173,66 +174,45 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   }
 }
 
-test('account WebSocket follows matched share and account routes', async t => {
-  const f = fixture(t, { href: 'http://localhost:9201/#/visualization/release/123' })
-  const previousDocument = globalThis.document
-  globalThis.document = { location: { host: 'localhost:9201' } }
-  t.after(() => { globalThis.document = previousDocument })
-  f.utils.setToken('account-fixture')
-  const route = Vue.reactive({ matched: [], meta: {} })
-  const stop = f.packageApi.watchAccountWebSocket(route)
-  t.after(stop)
-  await Vue.nextTick()
-  assert.deepEqual(f.socketCalls, [])
-  route.matched = [{}]
-  route.meta = { security: 'public', shareSession: true }
-  await Vue.nextTick()
-  assert.deepEqual(f.socketCalls, [])
-  route.meta = {}
-  await Vue.nextTick()
-  assert.equal(f.socketCalls[0][0], 'init')
-  assert.ok(f.socketCalls[0][1].includes('account-fixture'))
-  assert.equal(f.socketCalls[0][1].includes('share-fixture'), false)
-  assert.deepEqual(f.socketCalls[1], ['connect'])
-  route.meta = { security: 'public', shareSession: true }
-  await Vue.nextTick()
-  assert.deepEqual(f.socketCalls.slice(2), [['init', ''], ['disconnect']])
-  stop()
-  route.meta = {}
-  await Vue.nextTick()
-  assert.equal(f.socketCalls.length, 4)
-})
-
-test('account WebSocket starts after a cold account route matches', async t => {
-  const f = fixture(t, { href: 'http://localhost:9201/#/overview' })
-  const previousDocument = globalThis.document
-  globalThis.document = { location: { host: 'localhost:9201' } }
-  t.after(() => { globalThis.document = previousDocument })
-  f.utils.setToken('account-fixture')
-  const route = Vue.reactive({ matched: [], meta: {} })
-  const stop = f.packageApi.watchAccountWebSocket(route)
-  t.after(stop)
-  assert.deepEqual(f.socketCalls, [])
-  route.matched = [{}]
-  await Vue.nextTick()
-  assert.equal(f.socketCalls[0][0], 'init')
-  assert.ok(f.socketCalls[0][1].includes('account-fixture'))
-  assert.equal(f.socketCalls[0][1].includes('share-fixture'), false)
-  assert.deepEqual(f.socketCalls[1], ['connect'])
-})
-
-test('share authorization and public release skip account bootstrap while release menu uses it', async t => {
+test('an account document commits the share URL then reloads without switching the live socket', async t => {
   const f = fixture(t)
-  f.utils.setToken('fixture-account-token')
+  f.utils.setToken('account-fixture')
+  await f.router.push('/overview?first=1')
+  assert.equal(f.bootstraps, 1)
   await f.router.push('/share/authorize')
   assert.equal(f.router.currentRoute.value.path, '/share/authorize')
-  assert.equal(f.routeLoadingFinishes, 1)
+  assert.equal(f.navigation.changingSessionDocument.value, true)
+  assert.equal(f.reloads.length, 1)
+  assert.deepEqual(f.socketCalls, [])
+})
+
+test('cold share and share-to-share skip account startup; back to a menu requires a new document', async t => {
+  const f = fixture(t)
+  f.utils.setToken('account-fixture')
+  await f.router.push('/share/authorize')
   await f.router.push('/visualization/release/123')
-  assert.equal(f.router.currentRoute.value.path, '/visualization/release/123')
   assert.equal(f.routeLoadingFinishes, 2)
   assert.equal(f.bootstraps, 0)
-  await f.router.push('/visualization/release-page/123')
-  assert.equal(f.bootstraps, 1)
+  assert.equal(f.reloads.length, 0)
+  await f.router.replace('/visualization/release-page/123')
+  assert.equal(f.router.currentRoute.value.path, '/visualization/release-page/123')
+  assert.equal(f.reloads.length, 1)
+  assert.equal(f.bootstraps, 0)
+  assert.equal(f.navigation.changingSessionDocument.value, true)
+})
+
+test('embedded share navigation leaves the host socket and document under host control', async t => {
+  const f = fixture(t, { subApp: true })
+  f.utils.setToken('account-fixture')
+  await f.router.push('/overview?first=1')
+  f.packageApi.initPackages({ accountOnly: true })
+  await f.router.push('/share/authorize')
+  await f.router.push('/visualization/release/123')
+  await f.router.push('/overview')
+  assert.equal(f.bootstraps, 2)
+  assert.equal(f.reloads.length, 0)
+  assert.equal(f.navigation.changingSessionDocument.value, false)
+  assert.deepEqual(f.socketCalls, [])
 })
 
 for (const entry of ['platform', 'project']) {

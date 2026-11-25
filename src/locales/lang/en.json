@@ -9,6 +9,8 @@
   "runtimeDiagnostics.moreMetrics": "Show more metrics",
   "runtimeDiagnostics.sampleCoverageSeconds": "Sample coverage: {seconds}s",
   "runtimeDiagnostics.systemResources": "System resources",
+  "share.openDocument": "Open share in a new window",
+  "share.documentTitle": "Shared page",
   "app.resourceLoadError.title": "Please refresh the page",
   "app.resourceLoadError.content": "Some page resources could not be loaded. The system may have been updated. Please refresh the page to continue.\nNote: Refreshing will discard any unsaved changes!",
   "app.resourceLoadError.refresh": "Refresh page",
