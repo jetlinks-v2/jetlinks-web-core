@@ -315,6 +315,17 @@ test('验证返回的联系方式锚点不会被 Store 回声关闭', async t =>
   assert.equal(center.contactTarget.value, 'phone-section')
 })
 
+test('从通知设置打开手机号弹窗时切换到基本信息并保持弹窗打开', async t => {
+  const { center, context } = await mountCenter(t, { query: { tab: 'Subscribe' } })
+  assert.equal(center.activeKey.value, 'Subscribe')
+  center.openAccountInfo('phone-section')
+  await flush()
+  assert.equal(context.route.query.tab, 'BasicInfo')
+  assert.equal(center.activeKey.value, 'BasicInfo')
+  assert.equal(center.contactTarget.value, 'phone-section')
+  assert.equal(center.accountInfoVisible.value, true)
+})
+
 test('主身份优先、无身份服务时回退账户联系方式，并保留接口返回的绑定状态', async t => {
   const { center } = await mountCenter(t)
   assert.equal(center.profile.value.items.find(item => item.key === 'mobile').value, '139****1234')

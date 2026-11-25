@@ -3,6 +3,13 @@ import type { AxiosResponseRewrite } from '@jetlinks-web/types'
 
 export type SubscriptionState = 'enabled' | 'disabled'
 
+export const SYSTEM_BULLETIN_PROVIDER = 'SystemBulletin'
+
+export interface NotificationSubscriptionRequestOptions {
+  hiddenError?: boolean
+  signal?: AbortSignal
+}
+
 export interface NotificationChannelDefinition {
   id: string
   name?: string
@@ -22,17 +29,18 @@ export interface NotificationNotifierConfig {
 
 /** 仅查询渠道定位所需标识，不读取通知器凭据，也不替代个人订阅的可用渠道。 */
 export const getNotificationNotifierConfigs_api = (): Promise<AxiosResponseRewrite<NotificationNotifierConfig[]>> =>
-  request.post('/notifier/config/_query/no-paging', { includes: ['id', 'type', 'provider'] })
+  request.post('/notifier/config/_query/no-paging', { includes: ['id', 'type', 'provider'] }, { hiddenError: true })
 
 // 获取通知订阅列表
-export const getNoticeList_api = (query: Record<string, unknown> = {}) =>
-  request.post(`/notifications/subscriptions/_query`, query);
+export const getNoticeList_api = (query: Record<string, unknown> = {}, options?: NotificationSubscriptionRequestOptions) =>
+  request.post(`/notifications/subscriptions/_query`, query, options);
 // 保存通知订阅
-export const save_api = (data:any) => request.patch(`/notifications/subscribe`, data);
+export const save_api = (data:any, options?: NotificationSubscriptionRequestOptions) =>
+  request.patch(`/notifications/subscribe`, data, options);
 
 // 修改当前用户订阅状态，保留订阅实体及已选通知渠道
-export const changeSubscriptionState_api = (id: string, state: SubscriptionState) =>
-  request.put(`/notifications/subscription/${encodeURIComponent(id)}/_${state}`, {});
+export const changeSubscriptionState_api = (id: string, state: SubscriptionState, options?: NotificationSubscriptionRequestOptions) =>
+  request.put(`/notifications/subscription/${encodeURIComponent(id)}/_${state}`, {}, options);
 
 export interface NotificationTypeDefinition {
   id: string
