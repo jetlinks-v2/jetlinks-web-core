@@ -148,9 +148,11 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 通知设置接收方式
 
-钉钉列表头在 `account/center/components/Subscribe/useNotificationSettings.ts` 按工作通知配置和本人对应关系显示状态。可见消息已配置钉钉但没有关联个人工作通知时，表头仍使用当前范围的 `dingTalkMessage` 配置 ID 匹配本人的 `dingTalk_dingTalkMessage` 记录；无对应时显示「管理员还没对应你的钉钉账号」。读取失败沿用重试提示，不视为未对应。此判断不改变行内复选框、订阅保存或通知发送。
+个人中心的钉钉列只订阅**工作通知**。`account/center/components/Subscribe/useNotificationSettings.ts` 按每条业务消息的 `channelConfiguration.notifierId` 识别 `dingTalkMessage`；表头汇总可用工作通知的本人绑定，不能用表头的姓名代替某一行的绑定。只有业务通道已启用、有模板、支持订阅，且本人存在同一通知器的 `dingTalk_dingTalkMessage` 成员对应时才能新增订阅。识别为群机器人的配置不参与订阅或配置跳转。
 
-验证：本地 9200 实页确认未对应提示正确，两条消息的钉钉复选框保持禁用，检查时未发起订阅保存。core 执行 `node --test src/views/account/center/*.test.mjs tests/loginNavigation.test.mjs` 通过 156 项；个人中心及通知模块定向生产构建通过。工作区无独立 lint 脚本，`git diff --check` 通过。core 类型检查 `node --max-old-space-size=8192 ../node_modules/vue-tsc/bin/vue-tsc.js --noEmit --pretty false -p tsconfig.json` 仍有 511 项既有诊断，修改前后输出一致。
+普通账号查询通知器管理列表遇到 `403` 时，使用已授权业务通道和同一通知器的本人对应判断，无需额外管理权限。新增前重新读取成员对应；读取失败可重试，不保存。仅成员解绑时仍可取消原订阅。保存只增删本行业务通道 ID，保留其他渠道和原订阅配置，不迁移历史数据。「去配置」定位 `dingTalk:dingTalkMessage`。
+
+验证：core 下执行 `node --test src/views/account/center/*.test.mjs tests/loginNavigation.test.mjs`，161 项通过。隔离 Chrome 使用实际订阅组件和 Ant Design 复选框，分别验证管理查询成功和返回 403 时的勾选、刷新回显、解绑后取消、再刷新，以及其他消息行和渠道不受影响。`node --max-old-space-size=8192 ../node_modules/vite/bin/vite.js build --outDir <临时目录> -- --module-name authentication-manager-ui,notify-manager-ui` 定向生产构建通过。工作区无独立 lint 脚本，`git diff --check` 通过；`node --max-old-space-size=8192 ../node_modules/vue-tsc/bin/vue-tsc.js --noEmit --pretty false -p tsconfig.json` 修改前后均有 511 项既有诊断，输出一致。未修改真实账号订阅或试发消息，真实投递未验收。
 
 系统公告（`SystemBulletin`）由运行时路由守卫为登录账号初始化站内信绑定，通知设置矩阵隐藏该主题。实现入口为 `src/router/index.ts` 和 `src/router/startup.ts`。
 

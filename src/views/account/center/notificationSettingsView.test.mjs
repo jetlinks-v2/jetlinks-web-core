@@ -86,7 +86,7 @@ test('通知设置使用复选框，动态渠道图标、禁用状态和保存�
     matrixCells: (provider, type) => {
       if (provider !== 'alarm') return []
       if (type === 'inside-mail') return [{ channel, checked: checked.value, unavailable: '', saving: saving.value === 'alarm:site' }]
-      if (type === 'notifier-dingTalk') return [{ channel: { id: 'group', name: '钉钉 · 群机器人' }, checked: false, saving: false }]
+      if (type === 'notifier-dingTalk') return [{ channel: { id: 'work', name: '钉钉 · 工作通知' }, checked: false, saving: false }]
       if (type === 'notifier-voice') return [{ channel: unavailableChannel, checked: false, unavailable: '渠道不可用', saving: false }]
       return []
     },

@@ -122,7 +122,7 @@ async function mount(t, name, args = [], overrides = {}) {
       'notifier-voice', 'notifier-sms', 'notifier-webhook',
     ].map(id => ({ id, receiverPolicy: id === 'notifier-webhook' ? 'explicit' : 'subscriber' })),
     getNotificationNotifierConfigs_api: () => [
-      ['email', 'embedded'], ['dingTalk', 'dingTalkRobotWebHook'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms'],
+      ['email', 'embedded'], ['dingTalk', 'dingTalkMessage'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms'],
     ].map(([type, provider]) => ({ id: `${type}-notifier`, type, provider })),
     getUnreadSummary_api: () => ({ topics: [] }),
     getList_api: () => ({ data: [], total: 0 }),
@@ -526,99 +526,107 @@ const dingPage = (page, topicProvider = '', query = {}) => ({
   method: 'jumpPage', args: [`system/MessageNotification/${page}`, { query: { ...query, topicProvider, channelProvider: 'notifier-dingTalk' } }],
 })
 
-test('工作通知和群渠道并存时每个告警只显示自己的群，勾选和取消只改这一条订阅', async t => {
-  const type = 'notifier-dingTalk'
-  const ding = (id, notifierId) => ({ id, name: '钉钉 · 群机器人', channelProvider: type, channelConfiguration: { notifierId, templateId: `tpl-${id}` } })
-  const group = ding('group-binding', 'group-config'), other = ding('other-binding', 'other-config'), work = ding('work-binding', 'work-config')
-  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
-    getAllNotice: () => [
-      { ...row, channels: [work, group, mail] }, { ...row, provider: 'security', channels: [other] },
-      { ...row, provider: 'ambiguous', channels: [group, other] },
-    ],
-    getNotificationNotifierConfigs_api: () => [
-      { id: 'work-config', type: 'dingTalk', provider: 'dingTalkMessage' },
-      { id: 'group-config', type: { value: 'dingTalk' }, provider: { value: 'dingTalkRobotWebHook' } },
-      { id: 'other-config', type: 'dingTalk', provider: 'dingTalkRobotWebHook' },
-    ],
-    getNoticeList_api: () => [{ id: 'sub', topicProvider: row.provider, notifyChannels: ['work-binding', 'mail'], topicConfig: { scope: 'current' } }],
+const dingType = 'notifier-dingTalk'
+const dingChannel = (id, notifierId) => ({ id, name: '钉钉', channelProvider: dingType, channelConfiguration: { notifierId, templateId: `tpl-${id}` } })
+const dingConfig = id => ({ id, type: { value: 'dingTalk' }, provider: { value: 'dingTalkMessage' } })
+const dingMember = provider => ({ type: 'dingTalk_dingTalkMessage', provider, providerName: '钉钉成员', thirdPartyUserId: 'member' })
+
+for (const denied of [false, true]) {
+  test(`仅有工作通知时按本行成员对应订阅，刷新回显，解绑后仍可取消（配置列表 ${denied ? '403' : '200'}）`, async t => {
+    const work = dingChannel('work-delivery', 'work'), other = dingChannel('other-delivery', 'other')
+    let bindings = [dingMember('work'), { ...dingMember('other'), type: 'dingTalk_sso' }]
+    let record = { id: 'sub', topicProvider: row.provider, notifyChannels: ['site', 'mail'], topicConfig: { scope: 'current' } }
+    const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
+      getAllNotice: () => [{ ...row, channels: [channel, mail, work] }, { ...row, provider: 'other-topic', channels: [other] }],
+      getNotificationNotifierConfigs_api: () => {
+        if (denied) throw Object.assign(new Error('forbidden'), { isAxiosError: true, response: { status: 403 } })
+        return [dingConfig('work'), dingConfig('other')]
+      },
+      getIsBindThird: () => bindings, getNoticeList_api: () => [record],
+      save_api: data => { record = data; return [record] },
+    })
+    const cell = () => hook.matrixCells(row.provider, dingType)[0]
+    assert.equal(hook.receiverStatus(dingType), '钉钉成员')
+    assert.equal(cell().channel.id, work.id)
+    assert.equal(cell().unavailable, '')
+    assert.ok(hook.matrixCells('other-topic', dingType)[0].unavailable)
+    await hook.toggleMatrixChannel('other-topic', other, true)
+    await hook.toggleMatrixChannel(row.provider, work, true)
+    assert.deepEqual(record.notifyChannels, ['site', 'mail', work.id])
+    bindings = []
+    await hook.load()
+    assert.equal(cell().checked, true)
+    assert.equal(cell().unavailable, '')
+    await hook.toggleMatrixChannel(row.provider, work, false)
+    await hook.load()
+    assert.equal(cell().checked, false)
+    assert.ok(cell().unavailable)
+    assert.deepEqual(record.notifyChannels, ['site', 'mail'])
+    assert.equal(record.id, 'sub')
+    assert.deepEqual(record.topicConfig, { scope: 'current' })
+    assert.equal(ctx.calls.filter(call => call.method === 'save_api').length, 2)
   })
-  const cells = hook.matrixCells(row.provider, type)
-  assert.deepEqual(cells.map(cell => [cell.channel.id, cell.checked, cell.unavailable]), [
-    ['group-binding', false, ''],
-  ])
-  assert.deepEqual(hook.matrixCells('security', type).map(cell => cell.channel.id), ['other-binding'])
-  assert.deepEqual(hook.matrixCells('ambiguous', type), [])
-  await hook.toggleMatrixChannel('ambiguous', group, true)
-  assert.equal(hook.channelHeaderAction(type), undefined)
-  assert.equal(hook.receiverStatus(type), 'PersonalCenter.notificationDingTalkMemberMissing')
+}
+
+test('停用、缺模板或绑定到旧群机器人的行即使表头有姓名也不能订阅', async t => {
+  const work = dingChannel('ok', 'work'), robot = dingChannel('robot-delivery', 'robot')
+  const disabled = { ...work, id: 'off', state: { value: 'disabled' } }
+  const incomplete = { ...work, id: 'no-template', channelConfiguration: { notifierId: 'work' } }
+  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
+    getAllNotice: () => [work, robot, disabled, incomplete].map(ch => ({ ...row, provider: ch.id, channels: [ch] })),
+    getNotificationNotifierConfigs_api: () => [dingConfig('work'), { id: 'robot', type: 'dingTalk', provider: 'dingTalkRobotWebHook' }],
+    getIsBindThird: () => [dingMember('work')],
+  })
+  assert.equal(hook.receiverStatus(dingType), '钉钉成员')
+  assert.deepEqual(hook.matrixCells(robot.id, dingType), [])
+  assert.equal(hook.matrixCells(disabled.id, dingType)[0].unavailable, 'PersonalCenter.notificationChannelDisabled')
+  assert.equal(hook.matrixCells(incomplete.id, dingType)[0].unavailable, 'PersonalCenter.notificationChannelIncomplete')
+  for (const ch of [robot, disabled, incomplete]) await hook.toggleMatrixChannel(ch.id, ch, true)
+  assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
+})
+
+test('勾选时发现成员已解绑，不按缓存姓名保存或打开扫码绑定', async t => {
+  const work = dingChannel('delivery', 'work')
+  let bindings = [dingMember('work')]
+  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
+    getAllNotice: () => [{ ...row, channels: [work] }],
+    getNotificationNotifierConfigs_api: () => [dingConfig('work')],
+    getIsBindThird: () => bindings,
+  })
+  assert.equal(hook.matrixCells(row.provider, dingType)[0].unavailable, '')
+  bindings = []
   await hook.toggleMatrixChannel(row.provider, work, true)
-  await hook.toggleMatrixChannel(row.provider, other, true)
-  assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
-  await hook.toggleMatrixChannel(row.provider, group, true)
-  assert.equal(hook.matrixCells(row.provider, type)[0].checked, true)
-  await hook.toggleMatrixChannel(row.provider, group, false)
-  assert.equal(hook.matrixCells(row.provider, type)[0].checked, false)
-  const saves = ctx.calls.filter(call => call.method === 'save_api').map(call => call.args[0])
-  assert.deepEqual(saves.map(save => save.notifyChannels), [['work-binding', 'mail', 'group-binding'], ['work-binding', 'mail']])
-  assert.ok(saves.every(save => save.id === 'sub' && save.topicConfig.scope === 'current'))
+  assert.equal(hook.matrixCells(row.provider, dingType)[0].unavailable, 'PersonalCenter.notificationDingTalkMemberMissing')
   assert.equal(hook.pendingBinding.value, undefined)
-  assert.equal(ctx.calls.filter(call => call.method === 'getIsBindThird').length, 1)
-  assert.equal(ctx.calls.some(call => call.method === 'jumpPage'), false)
-})
-
-test('可见消息未使用个人工作通知时，钉钉表头仍显示当前账号的成员对应状态', async t => {
-  const type = 'notifier-dingTalk'
-  const channel = { id: 'delivery', channelProvider: type, channelConfiguration: { notifierId: 'group', templateId: 'template' } }
-  let offline = false
-  const bindings = [
-    { type: 'dingTalk_sso', provider: 'work', thirdPartyUserId: 'login-only' },
-    { type: 'dingTalk_dingTalkMessage', provider: 'other', thirdPartyUserId: 'other-user' },
-  ]
-  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
-    getAllNotice: () => [{ ...row, channels: [channel] }],
-    getNotificationNotifierConfigs_api: () => [
-      { id: 'work', type: { value: 'dingTalk' }, provider: { value: 'dingTalkMessage' } },
-      { id: 'group', type: 'dingTalk', provider: 'dingTalkRobotWebHook' },
-    ],
-    getIsBindThird: () => { if (offline) throw Error('offline'); return bindings },
-  })
-  assert.equal(hook.receiverStatus(type), 'PersonalCenter.notificationDingTalkMemberMissing')
-  assert.equal(ctx.calls.filter(call => call.method === 'getIsBindThird').length, 1)
-  offline = true
-  await hook.loadRecipients()
-  assert.equal(hook.receiverStatus(type), 'PersonalCenter.notificationReceiverUnavailable')
-  offline = false
-  bindings.push({ type: 'dingTalk_dingTalkMessage', provider: 'work', providerName: '钉钉成员', thirdPartyUserId: 'member' })
-  await hook.loadRecipients()
-  assert.equal(hook.receiverStatus(type), '钉钉成员')
-  assert.deepEqual(hook.matrixCells(row.provider, type).map(cell => cell.channel.id), ['delivery'])
   assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
 })
 
-test('群配置查询失败时不复用上次的群或退回工作通知，重试后读回原订阅', async t => {
-  const type = 'notifier-dingTalk'
-  const group = { id: 'delivery', name: '值班群', channelProvider: type, channelConfiguration: { notifierId: 'config', templateId: 'tpl' } }
-  let offline = false
+test('工作通知配置和本人绑定查询失败均不使用旧数据提交，重试后恢复', async t => {
+  const work = dingChannel('delivery', 'work')
+  let failure
   const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
-    getAllNotice: () => [{ ...row, channels: [group] }],
-    getNoticeList_api: () => [{ topicProvider: row.provider, notifyChannels: ['delivery'] }],
-    getNotificationNotifierConfigs_api: () => {
-      if (offline) throw Error('offline')
-      return [{ id: 'config', type: 'dingTalk', provider: 'dingTalkRobotWebHook' }]
-    },
+    getAllNotice: () => [{ ...row, channels: [work] }],
+    getNotificationNotifierConfigs_api: () => { if (failure === 'config') throw Error('offline'); return [dingConfig('work')] },
+    getIsBindThird: () => { if (failure === 'member') throw Error('offline'); return [dingMember('work')] },
   })
-  assert.equal(hook.matrixCells(row.provider, type)[0].checked, true)
-  assert.equal(hook.receiverStatus(type), 'PersonalCenter.channelEnabled')
-  assert.equal(ctx.calls.some(call => call.method === 'getIsBindThird'), false)
-  offline = true
+  failure = 'config'
   await hook.load()
-  assert.deepEqual(hook.matrixCells(row.provider, type), [])
-  assert.equal(hook.unavailableType(type), 'PersonalCenter.notificationChannelInfoUnavailable')
-  await hook.toggleMatrixChannel(row.provider, group, false)
-  offline = false
+  assert.deepEqual(hook.matrixCells(row.provider, dingType), [])
+  assert.equal(hook.receiverStatus(dingType), 'PersonalCenter.notificationChannelInfoUnavailable')
+  await hook.toggleMatrixChannel(row.provider, work, true)
+  failure = undefined
   await hook.load()
-  assert.equal(hook.matrixCells(row.provider, type)[0].checked, true)
+  failure = 'member'
+  await hook.toggleMatrixChannel(row.provider, work, true)
+  assert.ok(hook.recipientsFailed.value)
+  assert.equal(hook.receiverStatus(dingType), 'PersonalCenter.notificationReceiverUnavailable')
+  assert.ok(hook.matrixCells(row.provider, dingType)[0].unavailable)
   assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
+  failure = undefined
+  await hook.loadRecipients()
+  assert.equal(hook.matrixCells(row.provider, dingType)[0].unavailable, '')
+  await hook.toggleMatrixChannel(row.provider, work, true)
+  assert.equal(hook.matrixCells(row.provider, dingType)[0].checked, true)
 })
 
 test('企业微信仍在当前页弹窗绑定，不跳转钉钉渠道', async t => {
@@ -1272,7 +1280,7 @@ test('接收渠道摘要区分可用、未配置与未绑定，联系方式设�
   assert.equal(admin.hook.channelHeaderAction('notifier-dingTalk'), 'configure')
   assert.equal(admin.hook.receiverStatus('notifier-dingTalk'), 'PersonalCenter.channelUnconfigured')
   admin.hook.checkTemplate(admin.hook.providers.value[0], 'notifier-dingTalk')
-  assert.deepEqual(admin.ctx.calls.at(-1), dingPage('Templates', 'alarm', { channel: 'dingTalk:dingTalkRobotWebHook' }))
+  assert.deepEqual(admin.ctx.calls.at(-1), dingPage('Templates', 'alarm', { channel: 'dingTalk:dingTalkMessage' }))
 })
 
 test('密码校验区分错误原因、显式失败、异常及确认不一致', async t => {
@@ -1303,7 +1311,7 @@ test('五类接收方式按具体业务记录进入模板页，配置入口沿�
   for (const type of ['email', 'dingTalk', 'weixin', 'voice', 'sms']) {
     hook.checkTemplate(hook.providers.value[0], `notifier-${type}`)
     assert.deepEqual(ctx.calls.at(-1), type === 'dingTalk'
-      ? dingPage('Templates', business.id, { channel: 'dingTalk:dingTalkRobotWebHook' })
+      ? dingPage('Templates', business.id, { channel: 'dingTalk:dingTalkMessage' })
       : { method: 'openTemplate', args: [business.id, `notifier-${type}`] })
   }
   assert.equal(hook.canCheckTemplate(business, 'notifier-webhook'), false)
@@ -1480,7 +1488,7 @@ test('有配置权限的账号可从五类未配置渠道定位各自渠道页',
     __menus: ['system/MessageNotification/Channels', 'system/MessageNotification/Templates'],
     getAllNotice: () => [{ ...row, channels: [channel] }], getNotificationNotifierConfigs_api: () => [],
   })
-  for (const [type, provider] of [['email', 'embedded'], ['dingTalk', 'dingTalkRobotWebHook'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms']]) {
+  for (const [type, provider] of [['email', 'embedded'], ['dingTalk', 'dingTalkMessage'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms']]) {
     assert.equal(hook.channelHeaderAction(`notifier-${type}`), 'configure')
     assert.equal(hook.receiverStatus(`notifier-${type}`), 'PersonalCenter.channelUnconfigured')
     hook.openChannelSettings(`notifier-${type}`)
@@ -1495,7 +1503,7 @@ test('五类渠道已配置但模板缺失时定位对应业务和模板渠道',
   const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
     __menus: ['system/MessageNotification/Templates'], getAllNotice: () => [{ ...row, id: 'scope-a', channels: [channel] }],
   })
-  for (const [type, provider] of [['email', 'embedded'], ['dingTalk', 'dingTalkRobotWebHook'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms']]) {
+  for (const [type, provider] of [['email', 'embedded'], ['dingTalk', 'dingTalkMessage'], ['weixin', 'corpMessage'], ['voice', 'aliyun'], ['sms', 'aliyunSms']]) {
     assert.equal(hook.channelHeaderAction(`notifier-${type}`), 'configure')
     hook.openChannelSettings(`notifier-${type}`)
     assert.deepEqual(ctx.calls.at(-1), type === 'dingTalk'
@@ -1504,20 +1512,20 @@ test('五类渠道已配置但模板缺失时定位对应业务和模板渠道',
   }
 })
 
-test('只有工作通知不能当成群通知，企业微信服务号仍不能当成工作通知', async t => {
+test('历史群通道不作为个人订阅或配置入口，企业微信服务号不作为工作通知', async t => {
   const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
     __menus: ['system/MessageNotification/Channels', 'system/MessageNotification/Templates'],
-    getAllNotice: () => [{ ...row, channels: [channel, { id: 'work-delivery', name: '钉钉群通知', channelProvider: 'notifier-dingTalk', channelConfiguration: { notifierId: 'work', templateId: 'work-template' } }] }],
+    getAllNotice: () => [{ ...row, channels: [channel, { id: 'legacy-delivery', name: '钉钉群通知', channelProvider: 'notifier-dingTalk', channelConfiguration: { notifierId: 'legacy', templateId: 'legacy-template' } }] }],
     getNotificationNotifierConfigs_api: () => [
-      { id: 'work', type: 'dingTalk', provider: 'dingTalkMessage' },
+      { id: 'legacy', type: 'dingTalk', provider: 'dingTalkRobotWebHook' },
       { id: 'official', type: 'weixin', provider: 'officialMessage' },
     ],
   })
   assert.deepEqual(hook.matrixCells(row.provider, 'notifier-dingTalk'), [])
-  assert.equal(hook.receiverStatus('notifier-dingTalk'), 'PersonalCenter.notificationDingTalkMemberMissing')
-  assert.equal(hook.channelHeaderAction('notifier-dingTalk'), undefined)
+  assert.equal(hook.receiverStatus('notifier-dingTalk'), 'PersonalCenter.channelUnconfigured')
+  assert.equal(hook.channelHeaderAction('notifier-dingTalk'), 'configure')
   hook.openChannelSettings('notifier-dingTalk')
-  assert.equal(ctx.calls.some(call => call.method === 'jumpPage'), false)
+  assert.deepEqual(ctx.calls.at(-1), dingPage('Channels', '', { channel: 'dingTalk:dingTalkMessage' }))
   hook.openChannelSettings('notifier-weixin')
   assert.deepEqual(ctx.calls.at(-1), { method: 'openChannel', args: ['', 'notifier-weixin', { channel: 'weixin:corpMessage' }] })
   const bound = await mount(t, 'useNotificationSettings', [], {
@@ -1546,7 +1554,7 @@ test('配置查询失败不误判未配置，不影响已有订阅保存，重�
   await hook.load()
   assert.equal(hook.configsFailed.value, false)
   hook.openChannelSettings('notifier-dingTalk')
-  assert.deepEqual(ctx.calls.at(-1), dingPage('Channels', '', { channel: 'dingTalk:dingTalkRobotWebHook' }))
+  assert.deepEqual(ctx.calls.at(-1), dingPage('Channels', '', { channel: 'dingTalk:dingTalkMessage' }))
 })
 
 test('返回配置页刷新后定位模板和回显接收邮箱，不自动订阅', async t => {
