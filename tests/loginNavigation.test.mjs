@@ -36,7 +36,7 @@ const unauthorized = config => new axios.AxiosError('Unauthorized', 'ERR_BAD_REQ
 })
 
 // 执行生产 router、退出 API、存储和 Axios 拦截器；仅隔离无关模块、浏览器与网络。
-const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `http://localhost:9201/${projectCode}/#/overview`, realStartup = false } = {}) => {
+const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `http://localhost:9201/${projectCode}/#/overview`, realStartup = false, subApp = false } = {}) => {
   let location
   const navigations = []
   const tokensAtNavigation = []
@@ -59,6 +59,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const sessionStorage = memoryStorage()
   const window = {
     localStorage: storage, sessionStorage,
+    microApp: subApp ? { getGlobalData: () => ({}) } : undefined,
     get location() { return location },
     history: { state: { preserved: true }, replaceState(_state, _title, value) { setLocation(value) } },
   }
@@ -75,6 +76,8 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   })
   let router
   let resets = 0
+  let bootstraps = 0
+  let routeLoadingFinishes = 0
   const user = { userInfo: { id: 'user-1' }, isSubAccount: false }
   const menu = { initialized: true, hasRouteMenu: () => true }
   const environmentConfig = { VITE_APP_ENVIRONMENT: environment, VITE_APP_RUNTIME_SCOPE: scope, BASE_URL: base }
@@ -95,7 +98,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     '@micro-zoe/micro-app': { router: { setBaseAppRouter() {} } },
     'ant-design-vue': { notification: { error() {} } },
     '@jetlinks-web-core/views/verify/index.vue': {},
-    '@jetlinks-web-core/utils/consts': { isSubApp: false, langKey: 'lang' },
+    '@jetlinks-web-core/utils/consts': { isSubApp: subApp, langKey: 'lang', PersonalToken: { value: 'share-fixture' }, PersonalUrlKey: 'personal-token' },
     '@jetlinks-web-core/utils/request-context': {
       getRequestTenantDomain: flag => flag === false ? '' : projectCode,
       getBaseApi: () => '/api', isFromCloud: () => false, stripEdgeRequestHeaders() {},
@@ -104,7 +107,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     '@jetlinks-web-core/utils/ai-client-tool-request': { isAiClientToolSilentRequest: () => false },
     '@jetlinks-web-core/utils/module-registry': {},
     '@jetlinks-web-core/utils/json/collector': {},
-    '@jetlinks-web-core/store/route-loading': { useRouteLoadingStore: () => ({ start() {}, finish() {}, finishNavigation() {}, reset() {} }) },
+    '@jetlinks-web-core/store/route-loading': { useRouteLoadingStore: () => ({ start() {}, finish() { routeLoadingFinishes++ }, finishNavigation() {}, reset() {} }) },
     '@jetlinks-web-core/store/user': { useUserStore: () => user },
     '@jetlinks-web-core/store/menu': { useMenuStore: () => menu },
     '@jetlinks-web-core/store': {
@@ -123,6 +126,9 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
         routes: [
           { name: 'Login', path: '/login', component: {} },
           { name: 'Overview', path: '/overview', component: {} },
+          { name: 'ShareAuthorize', path: '/share/authorize', component: {}, meta: { security: 'public', shareSession: true } },
+          { name: 'PublicRelease', path: '/visualization/release/:releaseId?', component: {}, meta: { security: 'public', shareSession: true } },
+          { name: 'ReleaseMenu', path: '/visualization/release-page/:releaseId', component: {} },
         ], tokenFilterPaths: ['/login'], menuFilterPaths: [], registry: [],
       }),
     },
@@ -134,7 +140,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     ...(!realStartup ? {
       [resolve(root, 'src/router/startup.ts')]: {
         resetSessionStores: () => { resets++ }, resetRouteStartupState() {},
-        bootstrapSession: async () => false, ensureMenuRoutes: async () => false,
+        bootstrapSession: async () => { bootstraps++; return false }, ensureMenuRoutes: async () => false,
         ensureSystemBulletinSubscription() {},
       },
     } : {}),
@@ -158,7 +164,14 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const utils = evaluate(join(dirname(require.resolve('@jetlinks-web/utils/package.json')), 'src/storage.ts'))
   dependencies['@jetlinks-web/utils'] = { ...utils, randomString: () => Math.random().toString(36), onlyMessage() {} }
   const core = evaluate(join(dirname(require.resolve('@jetlinks-web/core/package.json')), 'src/axios.ts'))
-  dependencies['@jetlinks-web/core'] = { ...core, ndJson: { create() {} } }
+  const socketCalls = []
+  const wsClient = {
+    setOptions() {},
+    initWebSocket: url => socketCalls.push(['init', url]),
+    connect: () => socketCalls.push(['connect']),
+    disconnect: () => socketCalls.push(['disconnect']),
+  }
+  dependencies['@jetlinks-web/core'] = { ...core, wsClient, ndJson: { create() {} } }
   const navigation = load('router/index')
   dependencies['@jetlinks-web-core/router'] = navigation
   const packageApi = load('package')
@@ -169,11 +182,54 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const client = core.getInstance()
   client.defaults.adapter = async config => success(config)
   return {
-    load, storage, window, client, api, verify, packageApi, navigation, navigations, tokensAtNavigation, reloads, utils, pinia, router, user,
+    load, storage, window, client, api, verify, packageApi, navigation, navigations, tokensAtNavigation, reloads, utils, pinia, router, user, socketCalls,
     get resets() { return resets },
+    get bootstraps() { return bootstraps },
+    get routeLoadingFinishes() { return routeLoadingFinishes },
     setLocation,
   }
 }
+
+test('an account document commits the share URL then reloads without switching the live socket', async t => {
+  const f = fixture(t)
+  f.utils.setToken('account-fixture')
+  await f.router.push('/overview?first=1')
+  assert.equal(f.bootstraps, 1)
+  await f.router.push('/share/authorize')
+  assert.equal(f.router.currentRoute.value.path, '/share/authorize')
+  assert.equal(f.navigation.changingSessionDocument.value, true)
+  assert.equal(f.reloads.length, 1)
+  assert.deepEqual(f.socketCalls, [])
+})
+
+test('cold share and share-to-share skip account startup; back to a menu requires a new document', async t => {
+  const f = fixture(t)
+  f.utils.setToken('account-fixture')
+  await f.router.push('/share/authorize')
+  await f.router.push('/visualization/release/123')
+  assert.equal(f.routeLoadingFinishes, 2)
+  assert.equal(f.bootstraps, 0)
+  assert.equal(f.reloads.length, 0)
+  await f.router.replace('/visualization/release-page/123')
+  assert.equal(f.router.currentRoute.value.path, '/visualization/release-page/123')
+  assert.equal(f.reloads.length, 1)
+  assert.equal(f.bootstraps, 0)
+  assert.equal(f.navigation.changingSessionDocument.value, true)
+})
+
+test('embedded share navigation leaves the host socket and document under host control', async t => {
+  const f = fixture(t, { subApp: true })
+  f.utils.setToken('account-fixture')
+  await f.router.push('/overview?first=1')
+  f.packageApi.initPackages({ accountOnly: true })
+  await f.router.push('/share/authorize')
+  await f.router.push('/visualization/release/123')
+  await f.router.push('/overview')
+  assert.equal(f.bootstraps, 2)
+  assert.equal(f.reloads.length, 0)
+  assert.equal(f.navigation.changingSessionDocument.value, false)
+  assert.deepEqual(f.socketCalls, [])
+})
 
 const bulletinTopic = {
   id: 'bulletin-config',

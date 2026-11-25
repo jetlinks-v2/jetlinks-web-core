@@ -122,8 +122,7 @@
 </template>
 
 <script setup>
-import { getTokenConfig, getTokenRedirect } from '@jetlinks-web-core/api/comm'
-import { codeUrl } from '@jetlinks-web-core/api/login'
+import { getShareCaptcha, getTokenConfig, getTokenRedirect } from '@jetlinks-web-core/api/share-authorization'
 import { useRequest } from '@jetlinks-web/hooks'
 import { encrypt, LocalStore, onlyMessage } from '@jetlinks-web/utils'
 import { PersonalKey, PersonalUrlKey, PersonalToken, PersonalAIKey } from '@jetlinks-web-core/utils/consts'
@@ -163,7 +162,7 @@ const verifyCodeRules = [
   { len: 4, message: '验证码长度为4位', trigger: 'blur' }
 ]
 
-const { run: refreshVerificationCode } = useRequest(codeUrl, {
+const { run: refreshVerificationCode } = useRequest(getShareCaptcha, {
   immediate: false,
   onSuccess(resp) {
     if (resp.result?.key && showVerificationCode.value) {
@@ -194,10 +193,10 @@ const handleRedirect = async (params) => {
       }
     }
   } catch (error) {
-    if (redirectHost && error instanceof Error && !error.response) {
-      onlyMessage(error.message, 'error')
-    }
-    if (error.status === 401 || error.status === 500) {
+    const status = error.response?.status ?? error.status
+    const message = error.response?.data?.message || error.message
+    if (message) onlyMessage(message, 'error')
+    if (status === 401 || status === 500) {
       isExpired.value = true
     } else {
       if (showVerificationCode.value) {

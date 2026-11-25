@@ -9,9 +9,10 @@ import i18n from '@jetlinks-web-core/locales'
 import microApp from '@micro-zoe/micro-app'
 import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
-import { RouteSecurityLevel } from './types'
+import { RouteSecurityLevel, usesShareSession } from './types'
 import { DefaultApplicationEntryError } from './default-entry'
-import { toValue } from 'vue'
+import { shallowRef, toValue } from 'vue'
+import { isSubApp } from '@jetlinks-web-core/utils/consts'
 import {
   addFallbackRoute,
   bootstrapSession,
@@ -282,8 +283,27 @@ const enterNoMenuResult = async (to: RouteLocationNormalized, next: NavigationGu
   }
 }
 
+// 每份独立文档只承载一种会话。跨身份导航先让路由提交正确的历史记录，再整页加载。
+let documentIsShare: boolean | undefined
+export const changingSessionDocument = shallowRef(false)
+const needsSessionDocument = (to: RouteLocationNormalized) =>
+  !isSubApp && documentIsShare !== undefined && usesShareSession(to.meta) !== documentIsShare
+
 // ============ 全局守卫 ============
 router.beforeEach((to, from, next) => {
+  documentIsShare ??= usesShareSession(to.meta)
+  if (needsSessionDocument(to)) {
+    // 目标组件不会在旧文档挂载；新文档冷启动时正常执行授权、菜单和账号初始化。
+    next()
+    return
+  }
+  // 分享授权和公开播放不继承应用 Scope，也无需装载浏览器当前账号的用户和菜单。
+  if (usesShareSession(to.meta)) {
+    useRouteLoadingStore().finish()
+    next()
+    return
+  }
+
   const entry = getApplicationRuntimeEntry()
   const locationScope = getRouteQueryParam(window.location, APPLICATION_SCOPE_QUERY_KEY)
   const navigationScope = entry.applicationId
@@ -386,6 +406,11 @@ router.beforeEach((to, from, next) => {
 })
 
 router.afterEach((to, _from, failure) => {
+  if (!failure && needsSessionDocument(to)) {
+    changingSessionDocument.value = true
+    window.location.reload()
+    return
+  }
   if (!failure && to.name === 'Login') {
     completeLoginNavigation()
   }
