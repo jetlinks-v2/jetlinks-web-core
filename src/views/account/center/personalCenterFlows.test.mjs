@@ -566,6 +566,35 @@ test('工作通知和群渠道并存时每个告警只显示自己的群，勾�
   assert.equal(ctx.calls.some(call => call.method === 'jumpPage'), false)
 })
 
+test('可见消息未使用个人工作通知时，钉钉表头仍显示当前账号的成员对应状态', async t => {
+  const type = 'notifier-dingTalk'
+  const channel = { id: 'delivery', channelProvider: type, channelConfiguration: { notifierId: 'group', templateId: 'template' } }
+  let offline = false
+  const bindings = [
+    { type: 'dingTalk_sso', provider: 'work', thirdPartyUserId: 'login-only' },
+    { type: 'dingTalk_dingTalkMessage', provider: 'other', thirdPartyUserId: 'other-user' },
+  ]
+  const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
+    getAllNotice: () => [{ ...row, channels: [channel] }],
+    getNotificationNotifierConfigs_api: () => [
+      { id: 'work', type: { value: 'dingTalk' }, provider: { value: 'dingTalkMessage' } },
+      { id: 'group', type: 'dingTalk', provider: 'dingTalkRobotWebHook' },
+    ],
+    getIsBindThird: () => { if (offline) throw Error('offline'); return bindings },
+  })
+  assert.equal(hook.receiverStatus(type), 'PersonalCenter.notificationDingTalkMemberMissing')
+  assert.equal(ctx.calls.filter(call => call.method === 'getIsBindThird').length, 1)
+  offline = true
+  await hook.loadRecipients()
+  assert.equal(hook.receiverStatus(type), 'PersonalCenter.notificationReceiverUnavailable')
+  offline = false
+  bindings.push({ type: 'dingTalk_dingTalkMessage', provider: 'work', providerName: '钉钉成员', thirdPartyUserId: 'member' })
+  await hook.loadRecipients()
+  assert.equal(hook.receiverStatus(type), '钉钉成员')
+  assert.deepEqual(hook.matrixCells(row.provider, type).map(cell => cell.channel.id), ['delivery'])
+  assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
+})
+
 test('群配置查询失败时不复用上次的群或退回工作通知，重试后读回原订阅', async t => {
   const type = 'notifier-dingTalk'
   const group = { id: 'delivery', name: '值班群', channelProvider: type, channelConfiguration: { notifierId: 'config', templateId: 'tpl' } }

@@ -148,6 +148,10 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 通知设置接收方式
 
+钉钉列表头在 `account/center/components/Subscribe/useNotificationSettings.ts` 按工作通知配置和本人对应关系显示状态。可见消息已配置钉钉但没有关联个人工作通知时，表头仍使用当前范围的 `dingTalkMessage` 配置 ID 匹配本人的 `dingTalk_dingTalkMessage` 记录；无对应时显示「管理员还没对应你的钉钉账号」。读取失败沿用重试提示，不视为未对应。此判断不改变行内复选框、订阅保存或通知发送。
+
+验证：本地 9200 实页确认未对应提示正确，两条消息的钉钉复选框保持禁用，检查时未发起订阅保存。core 执行 `node --test src/views/account/center/*.test.mjs tests/loginNavigation.test.mjs` 通过 156 项；个人中心及通知模块定向生产构建通过。工作区无独立 lint 脚本，`git diff --check` 通过。core 类型检查 `node --max-old-space-size=8192 ../node_modules/vue-tsc/bin/vue-tsc.js --noEmit --pretty false -p tsconfig.json` 仍有 511 项既有诊断，修改前后输出一致。
+
 系统公告（`SystemBulletin`）由运行时路由守卫为登录账号初始化站内信绑定，通知设置矩阵隐藏该主题。实现入口为 `src/router/index.ts` 和 `src/router/startup.ts`。
 
 会话就绪后先通过 `GET /notify/channel/all` 检查当前账号可用的公告主题及站内信，再按主题查询 `POST /notifications/subscriptions/_query`。缺少站内信时使用 `PATCH /notifications/subscribe` 补绑，补绑保留已有订阅 ID、其他接收渠道及状态。同一会话合并重复导航的检查，退出时取消旧会话请求，失败后可随下一次登录态导航重试。

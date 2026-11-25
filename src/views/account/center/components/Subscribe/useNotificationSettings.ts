@@ -234,9 +234,8 @@ export function useNotificationSettings() {
   }
 
   /** 通讯录对应按通知器 ID 和对应类型匹配，单点登录记录不参与通知接收。 */
-  function memberFor(channel: DeliveryChannel) {
-    const id = channel.channelConfiguration?.notifierId
-    const type = workNotifications[channel.channelProvider]?.bindingType
+  function memberFor(channelType: string, id?: string) {
+    const type = workNotifications[channelType]?.bindingType
     if (!id || !type) return
     const member = recipients.value.find(item => item.provider === id && item.type === type && item.thirdPartyUserId)
     return member?.providerName || member?.thirdPartyUserId
@@ -247,7 +246,7 @@ export function useNotificationSettings() {
     const target = contactTargets[channel.channelProvider]
     if (target === 'email-section') return profile.value.email
     if (target === 'phone-section') return profile.value.telephone
-    return memberFor(channel)
+    return memberFor(channel.channelProvider, channel.channelConfiguration?.notifierId)
   }
 
   function isWorkNotification(channel: DeliveryChannel) {
@@ -270,6 +269,17 @@ export function useNotificationSettings() {
     })
   }
 
+  function headerMemberNotifierIds(type: string, channels = configuredChannels(type)): string[] {
+    const work = workNotifications[type]
+    if (!work || !channels.length) return []
+    const ids = channels.filter(isWorkNotification)
+      .map(channel => channel.channelConfiguration?.notifierId).filter((id): id is string => !!id)
+    if (ids.length || type !== dingTalk) return ids
+    // 可见业务行未关联个人工作通知时，表头仍按当前范围的工作通知配置核对本人账号。
+    return notifierConfigs.value.filter(config => stateValue(config.type) === 'dingTalk' && stateValue(config.provider) === work.provider)
+      .map(config => config.id)
+  }
+
   function receiverStatus(type: string) {
     if (loading.value) return ''
     if (queryFailed.value || (type !== 'inside-mail' && !definitionsReady.value)) return t('PersonalCenter.notificationChannelInfoUnavailable')
@@ -286,10 +296,10 @@ export function useNotificationSettings() {
     }
     if (type === 'notifier-webhook') return t('PersonalCenter.notificationTemplateManaged')
     const work = workNotifications[type]
-    const memberChannels = channels.filter(isWorkNotification)
-    if (work && memberChannels.length) {
+    const notifierIds = headerMemberNotifierIds(type, channels)
+    if (work && notifierIds.length) {
       if (recipientsFailed.value) return t('PersonalCenter.notificationReceiverUnavailable')
-      const names = memberChannels.map(memberFor).filter(Boolean)
+      const names = notifierIds.map(id => memberFor(type, id)).filter(Boolean)
       return [...new Set(names)].join('、') || t(work.missing)
     }
     return t('PersonalCenter.channelEnabled')
@@ -381,7 +391,7 @@ export function useNotificationSettings() {
 
   async function loadRecipients() {
     const current = ++recipientVersion
-    if (![dingTalk, weCom].some(type => configuredChannels(type).some(isWorkNotification))) {
+    if (![dingTalk, weCom].some(type => headerMemberNotifierIds(type).length)) {
       recipients.value = []
       recipientsFailed.value = false
       recipientsLoading.value = false
