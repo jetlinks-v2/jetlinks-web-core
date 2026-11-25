@@ -36,7 +36,7 @@ const unauthorized = config => new axios.AxiosError('Unauthorized', 'ERR_BAD_REQ
 })
 
 // 执行生产 router、退出 API、存储和 Axios 拦截器；仅隔离无关模块、浏览器与网络。
-const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', subApp = false, href = `http://localhost:9201/${projectCode}/#/overview` } = {}) => {
+const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `http://localhost:9201/${projectCode}/#/overview`, realStartup = false, subApp = false } = {}) => {
   let location
   const navigations = []
   const tokensAtNavigation = []
@@ -78,6 +78,8 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', subApp =
   let resets = 0
   let bootstraps = 0
   let routeLoadingFinishes = 0
+  const user = { userInfo: { id: 'user-1' }, isSubAccount: false }
+  const menu = { initialized: true, hasRouteMenu: () => true }
   const environmentConfig = { VITE_APP_ENVIRONMENT: environment, VITE_APP_RUNTIME_SCOPE: scope, BASE_URL: base }
   const dependencies = {
     vue: Vue, pinia: Pinia, axios, 'lodash-es': { isFunction, isObject },
@@ -106,8 +108,15 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', subApp =
     '@jetlinks-web-core/utils/module-registry': {},
     '@jetlinks-web-core/utils/json/collector': {},
     '@jetlinks-web-core/store/route-loading': { useRouteLoadingStore: () => ({ start() {}, finish() { routeLoadingFinishes++ }, finishNavigation() {}, reset() {} }) },
-    '@jetlinks-web-core/store/user': { useUserStore: () => ({ isSubAccount: false }) },
-    '@jetlinks-web-core/store/menu': { useMenuStore: () => ({ hasRouteMenu: () => true }) },
+    '@jetlinks-web-core/store/user': { useUserStore: () => user },
+    '@jetlinks-web-core/store/menu': { useMenuStore: () => menu },
+    '@jetlinks-web-core/store': {
+      useUserStore: () => user,
+      useSystemStore: () => ({ language: 'zh', isSessionInitializedFor: () => true }),
+      useApplication: () => ({ appList: [] }),
+      useMenuStore: () => menu,
+    },
+    '@jetlinks-web-core/layout/components/noticeListHandler': {},
   }
   const cache = new Map()
   const stubs = {
@@ -123,11 +132,18 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', subApp =
         ], tokenFilterPaths: ['/login'], menuFilterPaths: [], registry: [],
       }),
     },
-    [resolve(root, 'src/router/default-entry.ts')]: { DefaultApplicationEntryError: class extends Error {} },
-    [resolve(root, 'src/router/startup.ts')]: {
-      resetSessionStores: () => { resets++ }, resetRouteStartupState() {},
-      bootstrapSession: async () => { bootstraps++; return false }, ensureMenuRoutes: async () => false,
+    [resolve(root, 'src/router/default-entry.ts')]: {
+      DefaultApplicationEntryError: class extends Error {},
+      enterDefaultApplication: async () => false,
+      initializeBusinessApplicationEntry: async () => undefined,
     },
+    ...(!realStartup ? {
+      [resolve(root, 'src/router/startup.ts')]: {
+        resetSessionStores: () => { resets++ }, resetRouteStartupState() {},
+        bootstrapSession: async () => { bootstraps++; return false }, ensureMenuRoutes: async () => false,
+        ensureSystemBulletinSubscription() {},
+      },
+    } : {}),
   }
   const evaluate = (filename, source = readFileSync(filename, 'utf8')) => {
     if (cache.has(filename)) return cache.get(filename)
@@ -166,7 +182,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', subApp =
   const client = core.getInstance()
   client.defaults.adapter = async config => success(config)
   return {
-    load, storage, window, client, api, verify, packageApi, navigation, navigations, tokensAtNavigation, reloads, utils, pinia, router, socketCalls,
+    load, storage, window, client, api, verify, packageApi, navigation, navigations, tokensAtNavigation, reloads, utils, pinia, router, user, socketCalls,
     get resets() { return resets },
     get bootstraps() { return bootstraps },
     get routeLoadingFinishes() { return routeLoadingFinishes },
@@ -213,6 +229,127 @@ test('embedded share navigation leaves the host socket and document under host c
   assert.equal(f.reloads.length, 0)
   assert.equal(f.navigation.changingSessionDocument.value, false)
   assert.deepEqual(f.socketCalls, [])
+})
+
+const bulletinTopic = {
+  id: 'bulletin-config',
+  provider: 'SystemBulletin',
+  name: '系统公告',
+  channels: [{ id: 'inside-mail', channelProvider: 'inside-mail' }],
+}
+
+for (const configured of [false, true]) {
+  test(configured ? '已绑定系统公告的账号只查询，不重复保存' : '没有可用系统公告配置时不查询个人订阅', async t => {
+    const f = fixture(t, { realStartup: true })
+    const requests = []
+    f.client.defaults.adapter = async config => {
+      requests.push(config.url)
+      return success(config, config.url === '/notify/channel/all'
+        ? (configured ? [bulletinTopic] : [{ ...bulletinTopic, channels: [] }])
+        : { data: [{ topicProvider: 'SystemBulletin', notifyChannels: ['inside-mail'] }] })
+    }
+
+    await f.router.push('/overview?entry=anonymous')
+    assert.deepEqual(requests, [])
+    f.utils.setToken('bulletin-token')
+    await f.router.push('/overview?entry=authenticated')
+    await delay(0)
+
+    assert.deepEqual(requests, configured
+      ? ['/notify/channel/all', '/notifications/subscriptions/_query']
+      : ['/notify/channel/all'])
+  })
+}
+
+test('登录后的路由守卫依次查配置和绑定，默认只添加站内信且合并并发导航', async t => {
+  const f = fixture(t, { realStartup: true })
+  const pendingCatalogue = deferred()
+  const requests = []
+  f.utils.setToken('bulletin-token')
+  f.client.defaults.adapter = async config => {
+    const body = config.data ? JSON.parse(config.data) : undefined
+    requests.push({ url: config.url, body })
+    if (config.url === '/notify/channel/all') {
+      await pendingCatalogue.promise
+      return success(config, [bulletinTopic])
+    }
+    return success(config, { data: [] })
+  }
+
+  await f.router.push('/overview?navigation=1')
+  await f.router.push('/overview?navigation=2')
+  assert.deepEqual(requests.map(request => request.url), ['/notify/channel/all'])
+  pendingCatalogue.resolve()
+  await delay(0)
+  await f.router.push('/overview?navigation=3')
+  assert.deepEqual(requests, [
+    { url: '/notify/channel/all', body: undefined },
+    { url: '/notifications/subscriptions/_query', body: { paging: false, terms: [{ column: 'topicProvider', termType: 'eq', value: 'SystemBulletin' }] } },
+    { url: '/notifications/subscribe', body: {
+      topicProvider: 'SystemBulletin', providerId: bulletinTopic.id, subscribeName: bulletinTopic.name,
+      locale: 'zh', state: 'enabled', notifyChannels: ['inside-mail'],
+    } },
+  ])
+})
+
+test('默认站内信补绑保留已有订阅，保存失败可在下一次导航重试', async t => {
+  const f = fixture(t, { realStartup: true })
+  const saves = []
+  const subscription = {
+    id: 'current-subscription', topicProvider: 'SystemBulletin', providerId: bulletinTopic.id,
+    subscribeName: '已有订阅', topicConfig: { type: 'notice' }, state: { value: 'disabled' },
+    locale: 'en', notifyChannels: ['email-channel'],
+  }
+  f.utils.setToken('bulletin-token')
+  f.client.defaults.adapter = async config => {
+    if (config.url === '/notify/channel/all') return success(config, [bulletinTopic])
+    if (config.url === '/notifications/subscriptions/_query') return success(config, { data: [subscription] })
+    saves.push(JSON.parse(config.data))
+    return saves.length === 1
+      ? { ...success(config), data: { status: 500, success: false } }
+      : success(config)
+  }
+
+  await f.router.push('/overview?navigation=1')
+  await delay(0)
+  await f.router.push('/overview?navigation=2')
+  await delay(0)
+  const expected = { ...subscription, state: 'disabled', notifyChannels: ['email-channel', 'inside-mail'] }
+  assert.deepEqual(saves, [expected, expected])
+})
+
+test('换号后废弃前一账号的在途订阅查询', async t => {
+  const f = fixture(t, { realStartup: true })
+  const pendingQuery = deferred()
+  let oldSignal
+  const savedFor = []
+  f.utils.setToken('old-bulletin-token')
+  f.client.defaults.adapter = async config => {
+    if (config.url === '/notify/channel/all') return success(config, [bulletinTopic])
+    const token = config.headers.get(tokenKey)
+    if (config.url === '/notifications/subscriptions/_query') {
+      if (token === 'old-bulletin-token') {
+        oldSignal = config.signal
+        await pendingQuery.promise
+      }
+      return success(config, { data: [] })
+    }
+    savedFor.push(token)
+    return success(config)
+  }
+
+  await f.router.push('/overview?account=old')
+  await delay(0)
+  assert.ok(oldSignal)
+  f.utils.removeToken()
+  await f.router.push('/overview?account=anonymous')
+  assert.equal(oldSignal.aborted, true)
+  f.user.userInfo = { id: 'user-2' }
+  f.utils.setToken('new-bulletin-token')
+  await f.router.push('/overview?account=new')
+  pendingQuery.resolve()
+  await delay(0)
+  assert.deepEqual(savedFor, ['new-bulletin-token'])
 })
 
 for (const entry of ['platform', 'project']) {

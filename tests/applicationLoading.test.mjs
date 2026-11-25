@@ -122,6 +122,7 @@ function environment(t, {
       };
       if (id === '@jetlinks-web/utils') return { getToken: () => localStorage.getItem(runtimeEnv.VITE_TOKEN_KEY), onlyMessage() {} };
       if (id === '@jetlinks-web-core/locales') return { default: { global: { t: key => key } } };
+      if (id === '@jetlinks-web-core/api/account/center') return { getAllNotice: async () => response([]) };
       if (id === '@jetlinks-web/core') return { request: { get: async url => {
         assert.equal(url, '/system/resources/ui');
         calls.lists.push(url);

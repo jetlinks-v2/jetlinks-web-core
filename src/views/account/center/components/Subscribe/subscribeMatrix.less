@@ -92,18 +92,28 @@
 
 .notification-settings__channel-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
+  gap: 0 var(--space-1, 4px);
+  max-width: 100%;
   min-height: 20px;
 }
 
-.notification-settings__status-ready {
+.notification-settings__status {
+  max-width: 100%;
+  font-size: var(--fs-12, 12px);
+  color: var(--ant-color-text-secondary, #646a73);
+  line-height: 20px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.notification-settings__status--enabled {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--fs-12, 12px);
-  color: #52c41a;
-  line-height: 20px;
+  color: var(--ant-color-success, #52c41a);
   white-space: nowrap;
 }
 
@@ -111,7 +121,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #52c41a;
+  background: currentColor;
   flex-shrink: 0;
 }
 

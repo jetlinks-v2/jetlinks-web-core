@@ -1,14 +1,24 @@
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { isAxiosError } from 'axios'
 import { onlyMessage } from '@jetlinks-web/utils'
+import { useAuthStore } from '@jetlinks-web-core/store/auth'
 import { useMenuStore } from '@jetlinks-web-core/store/menu'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import { useSystemStore } from '@jetlinks-web-core/store'
 import { useNotificationConfigNavigation } from '@jetlinks-web-core/hooks/useNotificationConfigNavigation'
 import { getAllNotice } from '@jetlinks-web-core/api/account/center'
+import { readOwnMenuTree } from '@jetlinks-web-core/api/system/menu'
+import type { MenuPermissionNode } from '@jetlinks-web-core/hooks/menuAssetPermissionEditor.types'
+import { getApplicationRuntimeEntry, getProjectCodeFromLocation } from '@jetlinks-web-core/utils/project-runtime'
+import { getApplicationAccessContext } from '@jetlinks-web-core/utils/request-context'
 import { resolveNotificationProviderName } from '../data'
-import { maskContactValue } from '../../contactPresentation'
-import { getNoticeList_api, getIsBindThird, getNotificationChannelDefinitions_api, getNotificationNotifierConfigs_api, save_api, type NotificationChannelDefinition, type NotificationNotifierConfig } from '@jetlinks-web-core/api/account/notificationSubscription'
+import type { AccountEditTarget } from '../../types'
+import {
+  changeSubscriptionState_api, getNoticeList_api, getIsBindThird,
+  getNotificationChannelDefinitions_api, getNotificationNotifierConfigs_api, save_api, SYSTEM_BULLETIN_PROVIDER,
+  type NotificationChannelDefinition, type NotificationNotifierConfig, type NotificationSubscriptionRequestOptions,
+} from '@jetlinks-web-core/api/account/notificationSubscription'
 
 type ChannelState = string | { value: string; text?: string }
 export interface DeliveryChannel {
@@ -26,14 +36,35 @@ interface Subscription {
   state?: ChannelState; [key: string]: unknown
 }
 interface ThirdPartyRecipient {
-  provider: string; providerName?: string; thirdPartyUserId?: string
+  type: string; provider: string; providerName?: string; thirdPartyUserId: string
 }
 interface BindingTarget {
-  provider: NotificationProvider; channel: DeliveryChannel; subscribeAfterBinding: boolean
+  provider: NotificationProvider; channel: DeliveryChannel
 }
 
 const dingTalk = 'notifier-dingTalk'
 const dingTalkGroupProvider = 'dingTalkRobotWebHook'
+const weCom = 'notifier-weixin'
+const channelMenu = 'system/MessageNotification/Channels'
+const templateMenu = 'system/MessageNotification/Templates'
+
+const requiredAlarmMenus = new Map([
+  ['alarm-device', 'iot-user/device/alarm'],
+  ['alarm-device-relieve', 'iot-user/device/alarm'],
+  ['aiComplianceAlarm', 'machine-vision/VisualAlarm'],
+  ['aiSecurityAlarm', 'machine-vision/VisualAlarm'],
+])
+
+const workNotifications: Partial<Record<string, { provider: string; bindingType: string; missing: string }>> = {
+  [dingTalk]: { provider: 'dingTalkMessage', bindingType: 'dingTalk_dingTalkMessage', missing: 'PersonalCenter.notificationDingTalkMemberMissing' },
+  [weCom]: { provider: 'corpMessage', bindingType: 'weixin_corpMessage', missing: 'PersonalCenter.notificationWeComMemberMissing' },
+}
+
+const contactTargets: Partial<Record<string, AccountEditTarget>> = {
+  'notifier-email': 'email-section',
+  'notifier-voice': 'phone-section',
+  'notifier-sms': 'phone-section',
+}
 
 const templateChannels = [
   dingTalk, 'notifier-weixin', 'notifier-email',
@@ -55,6 +86,23 @@ const channelIcons: Record<string, string> = {
 }
 const stateValue = (state?: ChannelState) => typeof state === 'string' ? state : state?.value
 const requiresThirdParty = (channel: DeliveryChannel) => channel.channelProvider === 'notifier-weixin'
+
+function hasRequiredMenu(provider: string, menuCodes: ReadonlySet<string>) {
+  const code = requiredAlarmMenus.get(provider)
+  return !code || menuCodes.has(code)
+}
+
+/** 层级补齐的父节点可能标为未授权，其下级菜单仍需检查。 */
+function grantedMenuCodes(menus: MenuPermissionNode[], codes = new Set<string>()): ReadonlySet<string> {
+  for (const menu of menus) {
+    if (!menu || typeof menu.code !== 'string' || (menu.children != null && !Array.isArray(menu.children))) {
+      throw new Error('Invalid authorization menu')
+    }
+    if (menu.granted !== false) codes.add(menu.code)
+    if (menu.children) grantedMenuCodes(menu.children, codes)
+  }
+  return codes
+}
 
 /** 查询失败不能作为空配置写回，兼容列表接口与分页结果。 */
 function readList<T>(response: unknown): T[] {
@@ -83,11 +131,17 @@ function useDeliveryNavigation(menuCode: string, refresh: () => Promise<void>) {
 /** 只编辑服务端可用渠道；通知接收账号独立于单点登录绑定。 */
 export function useNotificationSettings() {
   const { t } = useI18n()
+  const auth = useAuthStore()
   const user = useUserStore()
+  const menu = useMenuStore()
   const system = useSystemStore()
-  const templateNavigation = useDeliveryNavigation('system/MessageNotification/Templates', load)
-  const channelNavigation = useDeliveryNavigation('system/MessageNotification/Channels', load)
+  const templateNavigation = useDeliveryNavigation(templateMenu, load)
+  const channelNavigation = useDeliveryNavigation(channelMenu, load)
+  const canCreateChannel = computed(() => channelNavigation.available.value && auth.hasPermission(channelMenu + ':add'))
+  const canConfigureTemplate = computed(() =>
+    templateNavigation.available.value && auth.hasPermission([templateMenu + ':add', templateMenu + ':update']))
   const channelProviders = ref<NotificationProvider[]>([])
+  const menuCodes = shallowRef<ReadonlySet<string>>(new Set())
   const channelDefinitions = ref<NotificationChannelDefinition[]>([])
   const definitionsReady = ref(false)
   const notifierConfigs = ref<NotificationNotifierConfig[]>([])
@@ -107,9 +161,11 @@ export function useNotificationSettings() {
     return channels.filter(channel => channel.channelProvider !== dingTalk || channel === group)
   }
   // /notify/channel/all 只返回已启用且当前用户可访问的类型，状态缺省遵循该接口契约。
-  // 场景执行通知由联动动作配置，个人订阅矩阵只列出可在此配置的主题。
-  const providers = computed(() => channelProviders.value
-    .filter(row => row.provider !== 'scene' && stateValue(row.state) !== 'disabled')
+  // 场景执行通知由联动动作配置，系统公告站内信由会话初始化绑定。
+  const visibleTopics = computed(() => channelProviders.value
+    .filter(row => row.provider !== 'scene' && row.provider !== SYSTEM_BULLETIN_PROVIDER
+      && stateValue(row.state) !== 'disabled' && hasRequiredMenu(row.provider, menuCodes.value)))
+  const providers = computed(() => visibleTopics.value
     .map(row => ({
       ...row, matrixKey: row.id || row.provider, channels: subscriptionChannels(row.channels),
       // 展示名称随界面语言变化；保留原始 name，保存订阅时不改写接口名称。
@@ -125,6 +181,7 @@ export function useNotificationSettings() {
   const saving = ref('')
   const pendingBinding = ref<BindingTarget>()
   let disposed = false
+  let loadController: AbortController | undefined
   let recipientVersion = 0
   // 沿用消息模板顺序，只展示后端明确支持个人订阅的渠道；未配置不等于不支持。
   const channelTypes = computed(() => templateChannels.filter(type => receiverPolicy(type) === 'subscriber'))
@@ -142,6 +199,7 @@ export function useNotificationSettings() {
     ? providers.value.some(row => row.channels.some(channel => channel.channelProvider === type))
     : channelTypes.value.some(value => value === type)))
   const matrixRowNames = computed(() => Object.fromEntries(providers.value.map(row => [row.matrixKey, row.displayName])))
+  const insideMailEnabled = computed(() => !loading.value && !queryFailed.value && configuredChannels('inside-mail').length > 0)
   // 与通知渠道页共用渠道定义的名称，避免同一渠道在两个入口显示不同名称。
   const channelLabel = (type: string) => {
     if (type === dingTalk) return t('PersonalCenter.dingtalk')
@@ -158,7 +216,7 @@ export function useNotificationSettings() {
   function matrixCells(provider: string, type: string) {
     const row = providers.value.find(item => item.matrixKey === provider)
     return row ? row.channels.filter(channel => channel.channelProvider === type).map(channel => ({
-      channel, label: type === dingTalk ? t('PersonalCenter.dingTalkGroupNotification') : channel.name,
+      channel,
       checked: channelChecked(row, channel), unavailable: channelUnavailable(channel),
       saving: saving.value === row.provider + ':' + channel.id,
     })) : []
@@ -175,61 +233,85 @@ export function useNotificationSettings() {
     return row.defaultSubscribed ? row.defaultNotifyChannels || [] : []
   }
 
-  /** 接收人按通知器 ID 匹配，不拿其他通知器或单点登录的绑定冒充。 */
+  /** 通讯录对应按通知器 ID 和对应类型匹配，单点登录记录不参与通知接收。 */
+  function memberFor(channel: DeliveryChannel) {
+    const id = channel.channelConfiguration?.notifierId
+    const type = workNotifications[channel.channelProvider]?.bindingType
+    if (!id || !type) return
+    const member = recipients.value.find(item => item.provider === id && item.type === type && item.thirdPartyUserId)
+    return member?.providerName || member?.thirdPartyUserId
+  }
+
   function receiverFor(channel: DeliveryChannel): string | undefined {
     if (channel.channelProvider === 'inside-mail') return profile.value.name || profile.value.username || t('PersonalCenter.notificationCurrentAccount')
-    if (channel.channelProvider === 'notifier-email') return profile.value.email
-    if (['notifier-sms', 'notifier-voice'].includes(channel.channelProvider)) return profile.value.telephone
-    const recipient = recipients.value.find(item => item.provider === channel.channelConfiguration?.notifierId)
-    return recipient ? recipient.providerName || recipient.thirdPartyUserId || t('BindThirdAccount.index.483756-0') : undefined
+    const target = contactTargets[channel.channelProvider]
+    if (target === 'email-section') return profile.value.email
+    if (target === 'phone-section') return profile.value.telephone
+    return memberFor(channel)
   }
 
-  function receiverSummary(type: string) {
-    if (type === 'inside-mail') return profile.value.name || profile.value.username || ''
-    if (type === 'notifier-email') return maskContactValue(profile.value.email, 'email') || t('PersonalCenter.notificationNoEmail')
-    if (['notifier-sms', 'notifier-voice'].includes(type)) {
-      return maskContactValue(profile.value.telephone, 'mobile') || t('PersonalCenter.notificationNoPhone')
-    }
-    if (type === dingTalk) return '' // 群目标按消息类型确定，表头没有个人接收账号。
-    if (type === 'notifier-webhook') return t('PersonalCenter.notificationTemplateManaged')
-    if (!providers.value.some(row => row.channels.some(channel => channel.channelProvider === type))) return ''
-    if (recipientsFailed.value) return t('PersonalCenter.notificationReceiverUnavailable')
-    const names = providers.value.flatMap(row => row.channels)
-      .filter(channel => channel.channelProvider === type).map(receiverFor).filter(Boolean)
-    return [...new Set(names)].join('、') || t('PersonalCenter.notificationUnboundReceiver')
+  function isWorkNotification(channel: DeliveryChannel) {
+    const work = workNotifications[channel.channelProvider]
+    if (!work || !channel.channelConfiguration?.notifierId) return false
+    if (channel.channelProvider === dingTalk && configsFailed.value) return false
+    const config = configsReady.value && notifierConfigs.value.find(item => item.id === channel.channelConfiguration?.notifierId)
+    // 普通账号可能只有业务通道查询权限，仍可使用真实通道和本人对应关系显示状态。
+    return !config || stateValue(config.provider) === work.provider
   }
 
-  /** 表头只展示渠道与接收账号的真实状态，不以单点登录的绑定状态代替。 */
+  /** 表头包含可用的工作通知途径，钉钉的复选框继续使用各业务的群通道。 */
+  function configuredChannels(type: string) {
+    return visibleTopics.value.flatMap(row => row.channels).filter(channel => {
+      if (channel.channelProvider !== type || stateValue(channel.state) === 'disabled') return false
+      if (type === 'inside-mail') return true
+      if (!channel.channelConfiguration?.templateId) return false
+      if (type === weCom) return isWorkNotification(channel)
+      return type !== dingTalk || !!channel.channelConfiguration?.notifierId
+    })
+  }
+
   function receiverStatus(type: string) {
-    const channels = providers.value.flatMap(row => row.channels).filter(channel => channel.channelProvider === type)
-    if (type !== 'inside-mail' && !definitionsReady.value) return t('PersonalCenter.notificationChannelInfoUnavailable')
-    if (channels.length && channels.every(channel => stateValue(channel.state) === 'disabled')) return t('PersonalCenter.notificationChannelDisabled')
-    if (!channels.length || channels.every(channel => !!channelUnavailable(channel))) {
-      return unavailableType(type)
+    if (loading.value) return ''
+    if (queryFailed.value || (type !== 'inside-mail' && !definitionsReady.value)) return t('PersonalCenter.notificationChannelInfoUnavailable')
+    if (type === dingTalk && configsFailed.value) return t('PersonalCenter.notificationChannelInfoUnavailable')
+    const channels = configuredChannels(type)
+    if (!channels.length) {
+      if (configsFailed.value) return t('PersonalCenter.notificationChannelInfoUnavailable')
+      return t(channelHeaderAction(type) === 'configure' ? 'PersonalCenter.channelUnconfigured' : 'PersonalCenter.channelUnconfiguredAdmin')
     }
-    if (type === 'inside-mail' || type === dingTalk) return t('PersonalCenter.channelEnabled')
-    if (recipientsFailed.value && channels.some(requiresThirdParty)) return t('PersonalCenter.notificationReceiverUnavailable')
-    if (type === 'notifier-email') return receiverSummary(type)
-    if (['notifier-sms', 'notifier-voice'].includes(type)) return profile.value.telephone ? receiverSummary(type) : t('PersonalCenter.notificationNoPhone')
-    return t(channels.some(channel => !!receiverFor(channel)) ? 'PersonalCenter.channelBound' : 'PersonalCenter.channelUnbound')
+    const target = contactTargets[type]
+    if (target) {
+      const missing = target === 'email-section' ? 'PersonalCenter.notificationNoEmail' : 'PersonalCenter.notificationNoPhone'
+      return receiverFor(channels[0]) || t(missing)
+    }
+    if (type === 'notifier-webhook') return t('PersonalCenter.notificationTemplateManaged')
+    const work = workNotifications[type]
+    const memberChannels = channels.filter(isWorkNotification)
+    if (work && memberChannels.length) {
+      if (recipientsFailed.value) return t('PersonalCenter.notificationReceiverUnavailable')
+      const names = memberChannels.map(memberFor).filter(Boolean)
+      return [...new Set(names)].join('、') || t(work.missing)
+    }
+    return t('PersonalCenter.channelEnabled')
   }
 
-  /** 配置缺失优先；接收账号与第三方登录身份分别处理。 */
-  function channelHeaderAction(type: string): 'configure' | 'email' | 'phone' | 'bind' | undefined {
-    if (type === 'inside-mail' || loading.value || failed.value || !definitionsReady.value) return
-    const channels = providers.value.flatMap(row => row.channels).filter(channel => channel.channelProvider === type)
-    const missingConfiguration = configsReady.value && !notifierFor(type)
-    if (missingConfiguration || !channels.length || channels.every(channel => !!channelUnavailable(channel))) {
+  /** 联系方式入口依据已授权业务通道，渠道配置入口还需校验管理权限。 */
+  function channelHeaderAction(type: string): 'configure' | AccountEditTarget | undefined {
+    if (type === 'inside-mail' || loading.value || queryFailed.value || !definitionsReady.value) return
+    const channel = configuredChannels(type)[0]
+    if (channel) {
+      const target = contactTargets[type]
+      return target && !receiverFor(channel) ? target : undefined
+    }
+    if (failed.value || !configsReady.value) return
+    if (notifierFor(type) ? canConfigureTemplate.value : canCreateChannel.value) {
       return 'configure'
     }
-    if (type === 'notifier-email' && !profile.value.email) return 'email'
-    if (['notifier-sms', 'notifier-voice'].includes(type) && !profile.value.telephone) return 'phone'
-    if (!recipientsFailed.value && canBindReceiver(type)) return 'bind'
   }
 
   /** Only a concrete visible business supplies guidance; /all remains the subscription authority. */
   function canCheckTemplate(row: NotificationProvider, type: string) {
-    return templateNavigation.available.value && !loading.value && !failed.value && !saving.value
+    return canConfigureTemplate.value && !loading.value && !failed.value && !saving.value
       && receiverPolicy(type) === 'subscriber' && type !== 'inside-mail'
       && (!row.channels.some(channel => channel.channelProvider === type)
         || row.channels.some(channel => channel.channelProvider === type && !!channelUnavailable(channel)))
@@ -251,10 +333,6 @@ export function useNotificationSettings() {
   /** 渠道缺失先配置渠道；渠道存在才进入业务模板，返回后沿用原刷新流程。 */
   function openChannelSettings(type: string) {
     if (channelHeaderAction(type) !== 'configure') return
-    if (!configsReady.value) {
-      onlyMessage(t('PersonalCenter.notificationChannelInfoUnavailable'), 'warning')
-      return
-    }
     const config = notifierFor(type)
     const query = { channel: `${type.replace(/^notifier-/, '')}:${config ? stateValue(config.provider) : subscriberNotifierProviders[type]}` }
     if (!config) {
@@ -282,10 +360,10 @@ export function useNotificationSettings() {
     }
     if (channel.channelProvider === dingTalk && !isGroupChannel(channel)) return unavailableType(dingTalk)
     if (templateChannels.some(type => type === channel.channelProvider) && !channel.channelConfiguration?.templateId) {
-      return t('PersonalCenter.notificationGoBind')
+      return t('PersonalCenter.notificationChannelIncomplete')
     }
     if (requiresThirdParty(channel) && !channel.channelConfiguration?.notifierId) {
-      return t('PersonalCenter.notificationGoBind')
+      return t('PersonalCenter.notificationChannelIncomplete')
     }
     return ''
   }
@@ -294,7 +372,7 @@ export function useNotificationSettings() {
     if (type === dingTalk && configsFailed.value) return t('PersonalCenter.notificationChannelInfoUnavailable')
     return receiverPolicy(type) === 'explicit'
       ? t('PersonalCenter.notificationPersonalSubscriptionUnsupported')
-      : t('PersonalCenter.notificationGoBind')
+      : t('PersonalCenter.notificationChannelIncomplete')
   }
 
   function channelChecked(row: NotificationProvider, channel: DeliveryChannel) {
@@ -303,7 +381,7 @@ export function useNotificationSettings() {
 
   async function loadRecipients() {
     const current = ++recipientVersion
-    if (!providers.value.some(row => row.channels.some(requiresThirdParty))) {
+    if (![dingTalk, weCom].some(type => configuredChannels(type).some(isWorkNotification))) {
       recipients.value = []
       recipientsFailed.value = false
       recipientsLoading.value = false
@@ -324,33 +402,70 @@ export function useNotificationSettings() {
     }
   }
 
-  async function load() {
-    if (loading.value) return
-    loading.value = true
+  /** 列表使用当前视图的菜单，写入前以完整项目授权复核可能受影响的订阅。 */
+  async function disableSubscriptionsWithoutMenu(isCurrent: () => boolean, options: NotificationSubscriptionRequestOptions) {
+    const candidates = subscriptions.value.filter((record): record is Subscription & { id: string } =>
+      typeof record?.id === 'string' && !!record.id && stateValue(record.state) === 'enabled'
+      && !hasRequiredMenu(record.topicProvider, menuCodes.value))
+    if (!candidates.length) return true
+
+    let projectMenus: ReadonlySet<string>
+    try {
+      projectMenus = grantedMenuCodes(readOwnMenuTree(await menu.requestMenus(false, false)))
+    } catch {
+      return false
+    }
+
+    let succeeded = true
+    for (const { id, topicProvider } of candidates) {
+      if (!isCurrent()) break
+      if (hasRequiredMenu(topicProvider, projectMenus)) continue
+      try {
+        const response = await changeSubscriptionState_api(id, 'disabled', options)
+        if (response?.success !== true) throw new Error('Subscription state update failed')
+        if (!isCurrent()) break
+        subscriptions.value = subscriptions.value.map(record => record.id === id ? { ...record, state: 'disabled' } : record)
+      } catch {
+        succeeded = false
+      }
+    }
+    return succeeded
+  }
+
+  async function loadSettings(applicationScope: string | false, isCurrent: () => boolean, options: NotificationSubscriptionRequestOptions) {
     const [configuration, definitions, configs] = await Promise.allSettled([
-      Promise.all([getAllNotice(), getNoticeList_api({ paging: false })]),
+      Promise.all([
+        getAllNotice(options),
+        getNoticeList_api({ paging: false }, options),
+        menu.requestMenus(true, applicationScope),
+      ]),
       getNotificationChannelDefinitions_api(),
       getNotificationNotifierConfigs_api(),
     ])
-    if (disposed) return
+    if (!isCurrent()) return false
     let loadFailed = false
     try {
       if (configuration.status === 'rejected') throw configuration.reason
-      const [channels, records] = configuration.value
+      const [channels, records, menus] = configuration.value
+      const nextMenuCodes = grantedMenuCodes(readOwnMenuTree(menus))
       const nextProviders = readList<NotificationProvider>(channels).map(row => ({
         ...row,
         channels: (row.channels || []).map(channel => ({ ...channel, providerId: channel.providerId || row.id })),
       }))
       const nextSubscriptions = readList<Subscription>(records)
+      menuCodes.value = nextMenuCodes
       channelProviders.value = nextProviders
       subscriptions.value = nextSubscriptions
+      if (pendingBinding.value && !hasRequiredMenu(pendingBinding.value.provider.provider, nextMenuCodes)) {
+        pendingBinding.value = undefined
+      }
     } catch { loadFailed = true }
     try {
       if (definitions.status === 'rejected') throw definitions.reason
       channelDefinitions.value = readList<NotificationChannelDefinition>(definitions.value)
       definitionsReady.value = true
     } catch { loadFailed = true }
-    // 配置查询失败时无法识别钉钉群，但其他已知渠道仍可独立保存。
+    // 配置列表的管理权限与接收业务通知的权限不同。
     try {
       if (configs.status === 'rejected') throw configs.reason
       const nextConfigs = readList<NotificationNotifierConfig>(configs.value)
@@ -360,15 +475,56 @@ export function useNotificationSettings() {
       notifierConfigs.value = nextConfigs
       configsReady.value = true
       configsFailed.value = false
-    } catch { configsReady.value = false; configsFailed.value = true }
+    } catch {
+      const denied = configs.status === 'rejected'
+        ? isAxiosError(configs.reason) && configs.reason.response?.status === 403
+        : configs.value?.status === 403
+      notifierConfigs.value = []
+      configsReady.value = false
+      configsFailed.value = !denied
+    }
     queryFailed.value = loadFailed
     failed.value = loadFailed
-    await loadRecipients()
-    if (!disposed) loading.value = false
+    return !loadFailed
+  }
+
+  async function load() {
+    if (loading.value) return
+    const userId = user.userInfo?.id
+    const projectCode = getProjectCodeFromLocation()
+    const applicationScope = getApplicationRuntimeEntry().applicationId || false
+    const access = getApplicationAccessContext()
+    const controller = new AbortController()
+    loadController = controller
+    const options = { hiddenError: true, signal: controller.signal }
+
+    // 只有菜单和订阅都来自当前会话与项目时才允许发出停用请求。
+    const isCurrent = () => {
+      if (disposed || controller.signal.aborted || user.userInfo?.id !== userId
+        || getProjectCodeFromLocation() !== projectCode
+        || (getApplicationRuntimeEntry().applicationId || false) !== applicationScope) return false
+      const current = getApplicationAccessContext()
+      return current.token === access.token && current.apiUrl === access.apiUrl && current.domain === access.domain
+    }
+
+    loading.value = true
+    try {
+      const ready = await loadSettings(applicationScope, isCurrent, options)
+      if (!isCurrent()) return
+      const [synchronized] = await Promise.all([
+        ready && userId && access.token ? disableSubscriptionsWithoutMenu(isCurrent, options) : true,
+        loadRecipients(),
+      ])
+      if (isCurrent() && !synchronized) failed.value = true
+    } finally {
+      loadController = undefined
+      if (!disposed) loading.value = false
+    }
   }
 
   async function save(row: NotificationProvider, channel: DeliveryChannel, enabled: boolean) {
-    if (loading.value || queryFailed.value || saving.value || channelUnavailable(channel)) return
+    if (loading.value || queryFailed.value || saving.value
+      || !hasRequiredMenu(row.provider, menuCodes.value) || channelUnavailable(channel)) return
     saving.value = row.provider + ':' + channel.id
     failed.value = false
     try {
@@ -398,7 +554,8 @@ export function useNotificationSettings() {
   }
 
   async function toggle(row: NotificationProvider, channel: DeliveryChannel, enabled: boolean) {
-    if (loading.value || queryFailed.value || saving.value || channelUnavailable(channel)) return
+    if (loading.value || queryFailed.value || saving.value
+      || !hasRequiredMenu(row.provider, menuCodes.value) || channelUnavailable(channel)) return
     if (!enabled || channel.channelProvider === 'inside-mail' || channel.channelProvider === dingTalk) return save(row, channel, enabled)
     if (requiresThirdParty(channel)) {
       saving.value = row.provider + ':' + channel.id
@@ -407,28 +564,13 @@ export function useNotificationSettings() {
       if (!loaded || disposed) return
     }
     if (receiverFor(channel)) return save(row, channel, true)
-    pendingBinding.value = { provider: row, channel, subscribeAfterBinding: true }
-  }
-
-  function canBindReceiver(type: string) {
-    return type === 'notifier-weixin'
-      && providers.value.some(row => row.channels.some(channel => channel.channelProvider === type && !channelUnavailable(channel) && !receiverFor(channel)))
-  }
-
-  function beginReceiverBinding(type: string) {
-    if (saving.value || type !== 'notifier-weixin') return
-    const candidates = providers.value.flatMap(provider => provider.channels
-      .filter(channel => channel.channelProvider === type && !channelUnavailable(channel))
-      .map(channel => ({ provider, channel })))
-    const target = candidates.find(item => !receiverFor(item.channel))
-    if (target) pendingBinding.value = { ...target, subscribeAfterBinding: false }
+    pendingBinding.value = { provider: row, channel }
   }
 
   async function bindingComplete() {
     const target = pendingBinding.value
     if (!target) return
-    if (target.subscribeAfterBinding) await save(target.provider, target.channel, true)
-    else pendingBinding.value = undefined
+    await save(target.provider, target.channel, true)
     if (requiresThirdParty(target.channel)) await loadRecipients()
     else {
       try { await user.getUserInfo() }
@@ -437,10 +579,15 @@ export function useNotificationSettings() {
   }
 
   onMounted(load)
-  onUnmounted(() => { disposed = true; recipientVersion++ })
+  watch(() => user.userInfo?.id, () => loadController?.abort(), { flush: 'sync' })
+  onUnmounted(() => {
+    disposed = true
+    loadController?.abort()
+    recipientVersion++
+  })
   return {
     providers, channelTypes, loading, failed, configsFailed, saving, pendingBinding, recipientsFailed, recipientsLoading,
-    profile, load, loadRecipients, selected, toggle, bindingComplete, receiverSummary, channelUnavailable, unavailableType, channelChecked,
-    canBindReceiver, beginReceiverBinding, receiverStatus, channelHeaderAction, openChannelSettings, canCheckTemplate, checkTemplate, displayedTypes, tableColumns, matrixRowNames, channelLabel, channelIcon, matrixCells, toggleMatrixChannel,
+    profile, load, loadRecipients, selected, toggle, bindingComplete, channelUnavailable, unavailableType, channelChecked,
+    receiverStatus, channelHeaderAction, openChannelSettings, canCheckTemplate, checkTemplate, displayedTypes, tableColumns, matrixRowNames, insideMailEnabled, channelLabel, channelIcon, matrixCells, toggleMatrixChannel,
   }
 }
