@@ -1,7 +1,7 @@
 <template>
   <section class="micro-share-document">
     <a :href="href" target="_blank" rel="noopener noreferrer">{{ t('share.openDocument') }}</a>
-    <iframe v-if="sameOrigin" :src="href" :title="t('share.documentTitle')" referrerpolicy="no-referrer" allowfullscreen />
+    <iframe v-if="sameOrigin" :src="frameHref" :title="t('share.documentTitle')" referrerpolicy="no-referrer" allowfullscreen />
   </section>
 </template>
 
@@ -15,6 +15,12 @@ const { t } = useI18n()
 const href = computed(() => {
   const url = new URL(window.location.href)
   url.hash = props.path
+  return url.href
+})
+// 基座和子应用可以同址；给原生 iframe 独立的文档地址，避免浏览器拦截递归嵌入。
+const frameHref = computed(() => {
+  const url = new URL(href.value)
+  url.searchParams.set('shareFrame', '1')
   return url.href
 })
 const host = (window as Window & { rawWindow?: Window }).rawWindow
