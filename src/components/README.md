@@ -65,6 +65,8 @@ import {
 
 ## 场景映射
 
+`ResponsiveSplitter` 与 `useResponsivePanel` 从根入口具名导出，前者组合原位分区、临时抽屉、边缘点击／拖动和内容保留；后者供已有布局组合适配与手动折叠偏好，使用契约见 [响应式收放](Splitter/README.md#响应式收放)。两者不全局注册、不读取或持久化业务偏好。
+
 ### 平台基础配置
 
 [`PlatformSettings`](PlatformSettings/README.md) 通过根入口和目录入口导出共享配置组合、外观设置/预览及地图区块。`detail` 模式逐项保存，`form` 模式仅更新草稿并向宿主暴露统一提交；复用 `ContentPanel`、`InlineEditForm` 和上传裁剪组件。运行时设置页、初始化页共用；SaaS 域名流程归业务模块。

@@ -135,3 +135,54 @@ test('a queued blur cannot submit after its record editor is unmounted', async (
   await pending
   assert.equal(calls, 0)
 })
+
+test('textarea keeps its draft on blur and saves only through explicit confirmation', async t => {
+  for (const modifier of ['ctrlKey', 'metaKey']) {
+    let calls = 0
+    const view = mount({ editor: 'textarea' }, async () => { calls++; return { ok: true } }); t.after(() => view.app.unmount())
+    view.state.begin(); view.state.update('first\nsecond')
+    const event = { key: 'Enter', preventDefault() {}, stopPropagation() {} }
+    view.state.keydown(event)
+    await view.state.blur({ currentTarget: { contains: () => false, ownerDocument: { activeElement: null } }, relatedTarget: null })
+    assert.equal(calls, 0); assert.equal(view.state.active.value, true)
+    view.state.keydown({ ...event, [modifier]: true, isComposing: true }); await vue.nextTick()
+    assert.equal(calls, 0)
+    view.state.keydown({ ...event, [modifier]: true }); await vue.nextTick()
+    assert.equal(calls, 1)
+  }
+})
+
+test('select and custom widgets retain native Enter and handled Escape behavior', async t => {
+  for (const editor of ['select', 'custom']) {
+    let calls = 0
+    const view = mount({ editor }, async () => { calls++; return { ok: true } }); t.after(() => view.app.unmount())
+    view.state.begin(); view.state.update('draft')
+    view.state.keydown({ key: 'Enter', preventDefault() {}, stopPropagation() {} })
+    view.state.keydown({ key: 'Escape', defaultPrevented: true, preventDefault() {}, stopPropagation() {} })
+    assert.equal(calls, 0); assert.equal(view.state.active.value, true)
+    await view.state.commit()
+    assert.equal(calls, 1)
+  }
+})
+
+test('a cancelled session cannot submit a newly opened draft through its old queued blur', async t => {
+  let calls = 0
+  const view = mount({}, async () => { calls++; return { ok: true } }); t.after(() => view.app.unmount())
+  view.state.begin(); view.state.update('old')
+  const queued = view.state.blur({ currentTarget: { contains: () => false, ownerDocument: { activeElement: null } }, relatedTarget: null })
+  view.state.cancel(); view.state.begin(); view.state.update('new')
+  await queued
+  assert.equal(calls, 0); assert.equal(view.state.value.value, 'new')
+})
+
+test('a pending-control blur does not turn a failed confirmation into an automatic retry', async t => {
+  let finish, calls = 0
+  const view = mount({}, () => ++calls === 1 ? new Promise(resolve => { finish = resolve }) : Promise.resolve({ ok: false })); t.after(() => view.app.unmount())
+  view.state.begin(); view.state.update('draft')
+  const saved = view.state.commit()
+  finish({ ok: false, error: 'Offline' })
+  const blurred = view.state.blur({ currentTarget: { contains: () => false, ownerDocument: { activeElement: null } }, relatedTarget: null })
+  await Promise.all([saved, blurred])
+  assert.equal(calls, 1)
+  assert.equal(view.state.error.value, 'Offline')
+})

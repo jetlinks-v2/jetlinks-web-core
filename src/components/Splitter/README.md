@@ -49,3 +49,30 @@
 折叠握柄借鉴 [Apple Sheets](https://developer.apple.com/design/human-interface-guidelines/sheets) 用抓手提示可拖动、[Apple Sidebars](https://developer.apple.com/design/human-interface-guidelines/sidebars) 保留恢复入口的原则；此处沿用平台分割条的视觉语言，并非 iOS 原生侧栏样式。
 
 组件不决定业务断点、不存储用户偏好、不管理抽屉。窄屏切换单栏或抽屉由宿主按任务选择。已有左右头部布局继续使用 `EqualHeightColumns`，它与 Splitter 共用分割条，不需要为替换名称而迁移。
+
+## 响应式收放
+
+需要内置抽屉时优先使用根入口具名导出的 `ResponsiveSplitter`。它组合 `Splitter`、公共握柄与 Ant Drawer，按容器主轴的 `min + endMin + 恢复槽` 判断是否能并排展示；`min` 和 `endMin` 必填，由内容确定，不按设备名称硬编码断点。方向、尺寸、折叠模型与 Splitter 一致；`panelTitle` 为已翻译的抽屉标题。
+
+`start` 插槽提供 `{ compact, close }`，选择内容后可调用 `close(target?)` 将焦点交给下一任务；`end` 提供 `{ collapsed, toggle, compact, overlayOpen, startId }`，供宿主放置可见恢复入口。外部工具栏也可通过组件 ref 读取 `collapsed/startId` 并调用 `toggle()`。它不自动生成业务工具栏。
+
+窄容器保留独立边缘恢复槽，鼠标12px、粗指针24px。点击或向内拖动可打开同一内容实例的临时抽屉，拖动中直接跟随指针、松手过半确认、回拉至40%撤销；短拖、Esc、捕获丢失与布局切换可取消。列表区域正常滚动，不绑定全页边缘手势；触屏工具栏与关闭动作保持44px。关闭和选择不修改宽布局偏好，变宽只恢复被自动隐藏的面板及其尺寸。抽屉预览不覆盖业务内容的输入命中区，内容通过 Teleport 转移，不重建表单或列表。
+
+从 core 根入口具名导入 `useResponsivePanel(preference, compact)`，可与 `Splitter` 或 `EqualHeightColumns` 组合。`preference` 是宿主持有的可写折叠偏好 ref（或 writable computed）；`compact` 是只读的空间不足条件。容器尺寸由宿主测量，断点按内容所需空间选择，不在公共组件内硬编码设备宽度。
+
+```ts
+const { inlineCollapsed, collapsed, overlayOpen, setCollapsed, toggle, close } =
+  useResponsivePanel(preference, compact)
+```
+
+- `inlineCollapsed` 控制原位分区：窄容器收起，否则沿用手动偏好。绑定布局的 `collapsed`，用 `@update:collapsed="setCollapsed"` 接收手动操作。
+- `collapsed` 表示内容当前是否可见，供恢复按钮的图标与 `aria-expanded` 使用；窄容器中打开抽屉时为 false。
+- `overlayOpen` 是临时覆盖状态；`toggle` 在宽布局修改偏好，在窄布局只打开 / 关闭临时抽屉。`close` 只关闭覆盖层。
+- `drag(event, extent)` 接收 `PanelResizeHandle` 的归一化事件和抽屉主轴尺寸；`revealSize` 提供临时揭开尺寸，`revealIntent` 表示超过中点的确认意图。回拉到40%撤销，松手才打开覆盖层；取消、关闭和布局切换清除预览。
+- 自动收起、关闭抽屉、选择导航项均不写回手动偏好；变宽后只恢复被自动收起的面板，手动收起仍然有效。每次切换布局都会结束临时覆盖，重新变窄不会自动弹出抽屉。
+
+宿主负责抽屉的标题、位置、关闭、焦点和业务选择事件。使用同一个内容实例在原位分区与抽屉间移动，可通过 Vue Teleport 保留草稿、选中项、滚动和内部状态；避免用 `v-if / v-else` 重建两份内容。窄布局不显示无实际调宽空间的分隔器，可复用折叠握柄作为边缘恢复入口，并将其命中区独立占位，避免覆盖内容。恢复宽布局时保留调宽结果，后台布局变化不抢走主区焦点。
+
+公共验收页直接使用 `ResponsiveSplitter`，临时抽屉只覆盖本工作区。`SplitterPreview.vue` 仅负责业务内容、选择和工具栏位置；内容转移、焦点与原尺寸保留由公共组合组件负责。
+
+设计依据：[Fluent Drawer](https://fluent2.microsoft.design/components/web/react/core/drawer/usage) 区分原位与覆盖式辅助面板及响应式收放；[Fluent Drawer best practices](https://github.com/microsoft/fluentui/blob/master/packages/react-components/react-drawer/stories/src/Drawer/DrawerBestPractices.md) 展示按可用空间切换两种模式；[APG Dialog](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/) 说明弹层焦点、关闭和返回入口的关系。断点、手动偏好保留和具体覆盖范围是结合平台场景的选择。

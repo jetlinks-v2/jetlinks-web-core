@@ -2,24 +2,28 @@
   <span class="i18n-text-editable" :class="{ 'i18n-text-editable--multiline': textarea }">
     <InputEditable :value="display" :label="label" trigger="text" :disabled="disabled" :size="size" :text-style="textStyle" :placeholder="placeholder || label" :max-length="i18nMaxLength" :textarea="textarea" @update:value="changeValue">
       <template v-if="!disabled" #action="scope">
-        <a-popover :open="visible" trigger="click" placement="bottomLeft" :title="label" @open-change="open => openTranslations(open, scope)">
+        <a-popover :open="visible && !mobile" trigger="click" placement="bottomLeft" :title="label" @open-change="(open: boolean) => openTranslations(open, scope)">
           <a-button ref="translationTrigger" class="i18n-text-editable__action" type="text" size="small" :aria-label="t('I18n.configure')" :title="t('I18n.configure')" :aria-expanded="visible" aria-haspopup="dialog" @mousedown.prevent><AIcon type="GlobalOutlined" /></a-button>
           <template #content>
             <div class="i18n-text-editable__panel" :class="{ 'i18n-text-editable__panel--multiline': textarea }" role="dialog" :aria-label="label">
-              <I18nTextEditor :visible="visible" :title="label" :data="messagesSource" :display-value="value" :max-length="i18nMaxLength" :textarea="textarea" @confirm="translationEvent('confirm', $event)" @update:visible="translationEvent('update:visible', $event)" />
+              <I18nTextEditor :visible="visible && !mobile" :title="label" :data="messagesSource" :fallback-messages="{}" :display-value="value" :max-length="i18nMaxLength" :textarea="textarea" @confirm="translationEvent('confirm', $event)" @update:visible="translationEvent('update:visible', $event)" />
             </div>
           </template>
         </a-popover>
       </template>
     </InputEditable>
+    <I18nTextDialog v-if="mobile" :visible="visible" :title="label" :data="messagesSource" :fallback-messages="{}" :display-value="value" :max-length="i18nMaxLength" :textarea="textarea"
+      @confirm="translationEvent('confirm', $event)" @update:visible="translationEvent('update:visible', $event)" />
   </span>
 </template>
 <script setup lang="ts">
 import { computed, nextTick, ref, watch, type CSSProperties } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useMediaQuery } from '@vueuse/core'
 import InputEditable from '../Editable/InputEditable.vue'
 import { useI18nTextField } from './hooks/useI18nTextField'
 import I18nTextEditor from './I18nTextEditor.vue'
+import I18nTextDialog from './I18nTextDialog.vue'
 import { i18nText } from './text'
 import type { I18nTextMessages } from './types'
 const props = withDefaults(defineProps<{
@@ -32,8 +36,12 @@ const emit = defineEmits<{
   (event: 'change', value: { value: string; i18nMessages: Record<string, Record<string, string>> }): void
 }>()
 const { locale, t } = useI18n()
+const narrow = useMediaQuery('(max-width: 600px)')
+const mobile = ref(narrow.value)
 const { visible, fieldI18nMessages, handleValueChange, saveI18nMessages } = useI18nTextField(props, emit,
   (value, i18nMessages) => emit('change', { value, i18nMessages }))
+// 打开期间不更换容器，避免旋转屏幕时重建翻译草稿。
+watch([visible, narrow], ([, value], [wasOpen]) => { if (!wasOpen) mobile.value = value }, { flush: 'sync' })
 const display = computed(() => i18nText(props.value, fieldI18nMessages.value, String(locale.value)))
 function changeValue(value: string) { if (!props.disabled) handleValueChange(value) }
 const translationTrigger = ref<{ $el: HTMLButtonElement }>()
@@ -69,4 +77,5 @@ watch([() => props.disabled, () => props.field], () => { visible.value = false }
 .i18n-text-editable__panel { width:min(22rem, calc(100vw - 48px)); max-height:calc(100dvh - 160px); overflow:auto }
 .i18n-text-editable__panel--multiline { width:min(36rem, calc(100vw - 48px)) }
 @media(hover:none) { .i18n-text-editable__action { opacity:1 } }
+@media(pointer:coarse) { .i18n-text-editable__action { min-width:44px; min-height:44px; } }
 </style>

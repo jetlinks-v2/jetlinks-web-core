@@ -5,8 +5,9 @@
       <span class="fw-input-size"><span aria-hidden="true" class="fw-measure">{{ text || ' ' }}</span><Input :value="text" :aria-label="label(field, item)" :inputmode="field.type === 'number' ? 'decimal' : undefined" autocomplete="off" @update:value="emit('update', $event)" /></span>
       <span v-if="localText(field, 'unit') && !item.hideUnit" class="fw-unit">{{ localText(field, 'unit') }}</span>
     </template>
+    <div v-if="field.type === 'textarea'" class="fw-picker-actions"><Button @click="emit('cancel')">{{ t('cancel') }}</Button><Button type="primary" @click="emit('confirm')">{{ t('confirm') }}</Button></div>
   </div>
-  <span v-else-if="field.type === 'date' || field.type === 'datetime'" class="fw-date-editor">
+  <span v-else-if="!mobile && (field.type === 'date' || field.type === 'datetime')" class="fw-date-editor">
     <label class="fw-control-label" :for="radioName">{{ label(field, item) }}</label>
     <span aria-hidden="true" class="fw-date-size">{{ date?.format(dateFormat) || label(field, item) }}</span>
     <DatePicker :id="radioName" :value="date" :open="true" :autofocus="true" :bordered="false" :format="dateFormat" :placeholder="label(field, item)" :show-time="field.type === 'datetime'" :allow-clear="!field.required" :input-read-only="mobile" popup-class-name="fw-date-popup" @change="setDate" @open-change="!$event && emit('cancel')" />
@@ -15,9 +16,10 @@
     <span v-if="mobile" class="fw-picker-anchor" :style="{ minHeight: `${minHeight}px` }"><FormValue :field="field" :item="item" :value="originalValue" /></span>
     <component :is="mobile ? Drawer : Popover" :open="true" v-bind="overlayProps" @close="emit('cancel')" @open-change="!$event && emit('cancel')">
       <template #[mobile?'default':'content']>
-        <div ref="root" class="fw-picker" @keydown.esc.prevent.stop="emit('cancel')">
+        <div ref="root" class="fw-picker" role="dialog" :aria-label="label(field, item)" :aria-modal="mobile || undefined" @keydown.esc.prevent.stop="emit('cancel')">
           <div v-if="!mobile" class="fw-picker-heading"><strong>{{ label(field, item) }}</strong><Button type="text" :aria-label="t('close')" @click="emit('cancel')"><CloseOutlined /></Button></div>
           <div class="fw-picker-body">
+            <Input v-if="field.type === 'date' || field.type === 'datetime'" :type="field.type === 'datetime' ? 'datetime-local' : 'date'" :step="field.type === 'datetime' ? '0.001' : undefined" :value="text" :aria-label="label(field, item)" @update:value="emit('update', $event || null)" />
             <template v-if="field.type === 'enum' || field.type === 'boolean'">
               <Input.Search v-if="options.length > 8" v-model:value="query" class="fw-option-search" :placeholder="t('searchOptions')" :aria-label="t('searchOptions')" allow-clear />
               <Checkbox.Group v-if="field.multiple" class="fw-option-list" :class="{ 'fw-option-tags': editorStyle === 'tags' }" :value="Array.isArray(selection) ? selection : []" :aria-label="label(field, item)" @change="selectValue($event.map(String))">
@@ -68,7 +70,7 @@ const dateFormat = computed(() => props.field.type === 'datetime' ? 'YYYY.MM.DD 
 
 <style scoped>
 .fw-editor { display: inline-flex; vertical-align: top; align-items: baseline; max-width: 100%; min-height: 26px; font: inherit; line-height: inherit; }
-.fw-textarea-editor { display: flex; width: 100%; }
+.fw-textarea-editor { display: flex; width: 100%; flex-direction:column; align-items:stretch; }
 .fw-number-editor { font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .fw-input-size { display: inline-block; position: relative; min-width: 1ch; max-width: 100%; }
 .fw-measure { display: block; visibility: hidden; white-space: pre; padding-right: 3px; overflow: hidden; }

@@ -7,6 +7,7 @@
 ```sh
 node --test tests/inlineEditForm.test.mjs tests/inlineEditing.test.mjs
 node --test tests/workspacePanels.test.mjs
+node --test tests/responsivePanel.test.mjs tests/responsiveSplitter.test.mjs tests/basicProfileSave.test.mjs
 node tests/check-workspace-panels.mjs tests/tsconfig.public-ui.json
 node_modules/.bin/vite build --config tests/public-ui/vite.config.mjs --configLoader runner
 node_modules/.bin/vite --config tests/public-ui/vite.config.mjs --configLoader runner
@@ -20,6 +21,10 @@ node_modules/.bin/vite --config tests/public-ui/vite.config.mjs --configLoader r
 
 两区之间的真实分割线已启用调宽：拖动、方向键和点击操作共用边界，Esc 回滚拖动，双击恢复初始宽度。调整后折叠再展开应保留宽度与搜索值；无业务页 CSS 或模拟拖动代码。
 
-顶部“处理工作台”直接使用 `Splitter`，可切换左右 / 上下分区；默认尺寸、像素边界和宿主尺寸共同约束布局。分割条默认仅保留连续细线，hover 显示轻量把手，不弹出尺寸菜单。方向键、Home / End 调整尺寸，双击或 Enter / Space 复位；Esc 撤销拖动。折叠后点击握柄或 Enter / Space 恢复原尺寸。折叠入口使用公共 `PanelCollapseButton`，位于布局外的工作区工具栏，与“处理工作台”标题同行；宿主通过 `v-model:collapsed` 管理状态，并关联真实导航区域 ID。折叠前后入口位置稳定，详情标题不再夹带布局操作；图标随布局方向变化，搜索、备注及已调整尺寸在展开后保留。容器切到 390 时核对边界收紧、内部滚动与页面无横向溢出。
+顶部“处理工作台”直接使用 `ResponsiveSplitter`，可切换左右 / 上下分区；默认尺寸、像素边界和宿主尺寸共同约束布局。分割条默认仅保留连续细线，hover 显示轻量把手，不弹出尺寸菜单。方向键、Home / End 调整尺寸，双击或 Enter / Space 复位；Esc 撤销拖动。折叠后点击握柄或 Enter / Space 恢复原尺寸。折叠入口使用公共 `PanelCollapseButton`，位于布局外的工作区工具栏，与“处理工作台”标题同行，关联真实导航区域 ID；图标随布局方向变化。
+
+工作台通过公共 `ResponsiveSplitter` 区分手动偏好与临时适配。左右布局切到 390px 内容容器后自动收起任务列表，主区不再参与双面板调宽，边缘保留独立12px恢复槽；点击入口或向内拖动均可打开本工作区内的临时抽屉。拖动预览跟随指针，超过一半确认，回拉到40%撤销；短拖、Esc、捕获丢失和布局切换均返回隐藏，不写回宽布局偏好。选择任务后关闭并将焦点转到详情标题，Esc / 关闭返回入口。扩大到 700px 时：原先展开的列表恢复，手动收起的仍然收起；临时抽屉不会自动打开。核对搜索草稿、选中项、DOM 实例、原尺寸和滚动位置经过切换仍保留；在抽屉内聚焦搜索时变宽，应保留合理焦点。上下布局按可用高度与最小尺寸预算适配，恢复槽和拖动方向随之旋转。
+
+“选择与日期”覆盖单选、多选、日期与范围：弹层拥有原生 Enter / Esc，只有完整选择发出 change；多选在保存前只维护草稿，普通失焦保留。用键盘和鼠标分别核对第一次 Esc 关闭弹层、下一次取消编辑。“多类型原位编辑”覆盖数字、Select、Switch、复合上下限和多行：复合字段内部移动焦点不写入，非法整体值保留草稿；多行失焦不保存，Ctrl / Cmd + Enter 或按钮确认，取消回退。
 
 工作台已开启拖动折叠。左右分区在 160px 最小宽度处继续拖动，请求尺寸小于 80px 时显示两端渐隐的内缘阴影，面板仍保持 160px；拖回 96px 以上撤销意图，松手才用平台快速过渡收起。分隔器独立占用 12px 拖拽槽，核对展开、折叠和揭开过程中均不覆盖内容；折叠后整条线隐藏，只保留槽中央的握柄。从边缘向右拖会逐步揭开面板，松手后应用合法尺寸，短距离或 Esc 撤销。展开过程中保留搜索草稿，工具栏按钮继续恢复保留的尺寸。上下分区使用同样的 Y 轴交互和独立横槽。减少动态效果时不播放过渡。

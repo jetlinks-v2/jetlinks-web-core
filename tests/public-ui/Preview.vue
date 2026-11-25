@@ -66,6 +66,7 @@
           <template #right><p>当前范围下的内容</p></template>
         </EqualHeightColumns>
       </section>
+      <InlineEditCases />
     </div>
   </main>
 </template>
@@ -76,6 +77,7 @@ import KvGrid from '../../src/components/KvGrid/index.vue'
 import EqualHeightColumns from '../../src/components/EqualHeightColumns/index.vue'
 import SelectOption from '../../src/components/SelectOption/index.vue'
 import SplitterPreview from './SplitterPreview.vue'
+import InlineEditCases from './InlineEditCases.vue'
 import I18nTextEditable from '../../src/components/I18n/I18nTextEditable.vue'
 import I18nTextField from '../../src/components/I18n/I18nTextField.vue'
 import Editable from '../../src/components/Editable/index.vue'

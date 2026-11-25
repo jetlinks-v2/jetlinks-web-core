@@ -37,8 +37,13 @@ export function useBasicProfile(profile: () => AccountCardProfile) {
     try {
       const response = await updateMeInfo_api({ ...user.userInfo, ...patch })
       if (response.success === false || (response.success !== true && response.status !== 200)) throw new Error('Profile update failed')
-      await user.getUserInfo()
-      onlyMessage(t(messageKey), 'success')
+      user.setUserInfo({ ...user.userInfo, ...patch })
+      try {
+        await user.getUserInfo()
+        onlyMessage(t(messageKey), 'success')
+      } catch {
+        onlyMessage(t('PersonalCenter.savedRefreshFailed'), 'warning')
+      }
       return true
     } catch {
       saveError.value = true
@@ -56,6 +61,6 @@ export function useBasicProfile(profile: () => AccountCardProfile) {
     if (name !== user.userInfo.name) return save({ name }, 'PersonalCenter.prototype.nameChanged')
     return true
   }
-  function saveAvatar(avatar: string) { return save({ avatar }, avatar ? 'PersonalCenter.prototype.avatarChanged' : 'PersonalCenter.prototype.avatarReset') }
+  function saveAvatar(avatar: string) { return avatar === user.userInfo.avatar ? Promise.resolve(true) : save({ avatar }, avatar ? 'PersonalCenter.prototype.avatarChanged' : 'PersonalCenter.prototype.avatarReset') }
   return { saving, saveError, fields, accountType, userType, saveName, saveAvatar }
 }

@@ -1,4 +1,4 @@
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
 import dayjs, { type Dayjs } from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import { useElementVisibility, useMediaQuery, watchOnce } from '@vueuse/core'
@@ -15,6 +15,8 @@ interface EditorEvents {
 /** 只适配基础控件事件和原位输入焦点；远端请求、验证与保存属于宿主及会话。 */
 export function useFormValueEditor(props: { field: FormField; item?: FormLayoutItem; value?: unknown }, events: EditorEvents, locale: () => string, booleanLabels: () => string[]) {
   const root = ref<HTMLElement>()
+  let alive = true
+  onScopeDispose(() => { alive = false })
   const inline = computed(() => ['text', 'textarea', 'number'].includes(props.field.type))
   const text = computed(() => props.value === null || props.value === undefined ? '' : String(props.value))
   const mobile = useMediaQuery('(max-width: 600px)')
@@ -63,13 +65,18 @@ export function useFormValueEditor(props: { field: FormField; item?: FormLayoutI
     if (input && (input instanceof HTMLTextAreaElement || input.type === 'text')) input.setSelectionRange(input.value.length, input.value.length)
   }
   function onKeydown(event: KeyboardEvent) {
-    if (event.isComposing || event.keyCode === 229) return
+    if (event.isComposing || event.keyCode === 229 || event.defaultPrevented) return
+    if (event.key === 'Enter' && (event.target as HTMLElement | null)?.closest?.('button')) return
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); events.cancel() }
     if (event.key === 'Enter' && (props.field.type !== 'textarea' || event.ctrlKey || event.metaKey)) { event.preventDefault(); events.confirm() }
-    if (event.key === 'Tab') { event.preventDefault(); events.navigate(event.shiftKey) }
+    if (event.key === 'Tab' && props.field.type !== 'textarea') { event.preventDefault(); events.navigate(event.shiftKey) }
   }
-  function onBlur(event: FocusEvent) {
-    if (!root.value?.contains(event.relatedTarget as Node | null)) events.confirm()
+  async function onBlur(event: FocusEvent) {
+    if (props.field.type === 'textarea') return
+    const node = root.value
+    if (!node || node.contains(event.relatedTarget as Node | null)) return
+    await nextTick()
+    if (alive && !node.contains(node.ownerDocument.activeElement)) events.confirm()
   }
   function selectValue(value: string | string[] | undefined) {
     const keys = Array.isArray(value) ? value : value === undefined ? [] : [value]

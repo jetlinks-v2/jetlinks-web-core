@@ -52,7 +52,7 @@ export function useFormRenderer(props: RendererProps, slots: Slots, events: Rend
   /** 切换字段前确认当前输入；校验失败保留编辑器和输入。 */
   function begin(field: FormField) {
     if (!editable(field) || active.value === field.key || !confirm()) return
-    const cell = [...(root.value?.querySelectorAll<HTMLElement>('[data-field-key]') ?? [])].find(node => node.dataset.fieldKey === field.key)
+    const cell = Array.from(root.value?.querySelectorAll<HTMLElement>('[data-field-key]') ?? []).find(node => node.dataset.fieldKey === field.key)
     editorHeight.value = cell?.querySelector('.fw-value')?.getBoundingClientRect().height ?? 26
     draft.value = cloneDeep(session.value(field.key))
     activationRemote = cloneDeep(props.values[field.key])
@@ -86,13 +86,15 @@ export function useFormRenderer(props: RendererProps, slots: Slots, events: Rend
     event.preventDefault(); event.stopPropagation(); cancel()
   }
   function focusField(key?: string) {
-    const cell = [...(root.value?.querySelectorAll<HTMLElement>('[data-field-key]') ?? [])].find(node => node.dataset.fieldKey === key)
+    const cell = Array.from(root.value?.querySelectorAll<HTMLElement>('[data-field-key]') ?? []).find(node => node.dataset.fieldKey === key)
     cell?.querySelector<HTMLElement>('.fw-value-target > [role="button"], .fw-edit-icon')?.focus({ preventScroll: true })
   }
   /** 显式完成选择后回到字段；原位输入的失焦确认不抢走下一个控件的焦点。 */
   function confirmEditor() {
     const field = props.fields.find(field => field.key === active.value)
-    if (confirm() && field && !['text', 'textarea', 'number'].includes(field.type)) nextTick(() => focusField(field.key))
+    if (confirm() && field) nextTick(() => {
+      if (typeof document !== 'undefined' && document.activeElement === document.body) focusField(field.key)
+    })
   }
   function cancel() {
     const key = active.value

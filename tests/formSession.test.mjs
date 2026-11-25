@@ -201,7 +201,10 @@ test('editor keyboard contract leaves IME and multiline Enter intact, while Tab 
   editor.onKeydown(key('Enter', { ctrlKey: true }))
   editor.onKeydown(key('Tab', { shiftKey: true }))
   editor.onKeydown(key('Escape'))
-  assert.deepEqual(events, ['confirm', 'previous', 'cancel'])
+  assert.deepEqual(events, ['confirm', 'cancel'])
+  state.field.type = 'text'
+  editor.onKeydown(key('Tab', { shiftKey: true }))
+  assert.deepEqual(events, ['confirm', 'cancel', 'previous'])
 })
 
 test('search filters localized options without losing typed or unknown selections; booleans retain false and null', t => {
@@ -239,4 +242,20 @@ test('date adapter only serializes DatePicker results, retains time and confirms
   assert.equal(state.value, '2026-10-21')
   editor.setDate(null)
   assert.equal(state.value, null)
+})
+
+test('multiline focus can reach its actions, while queued inline blur cannot confirm after disposal', async t => {
+  const scope = effectScope(); t.after(() => scope.stop())
+  const props = reactive({ field: { key: 'note', label: 'Note', type: 'textarea' }, value: 'draft' })
+  let confirmations = 0
+  const editor = scope.run(() => useFormValueEditor(props, { update() {}, confirm: () => confirmations++, cancel() {}, navigate() {} }, () => 'en'))
+  const element = { isConnected: true, querySelector: () => null, contains: () => false, ownerDocument: { activeElement: null } }
+  editor.root.value = element
+  await editor.onBlur({ relatedTarget: null })
+  editor.onKeydown({ key: 'Enter', target: { closest: () => ({}) }, preventDefault() { throw new Error('button must keep native activation') } })
+  assert.equal(confirmations, 0)
+  props.field.type = 'text'
+  const blur = editor.onBlur({ relatedTarget: null })
+  scope.stop(); await blur
+  assert.equal(confirmations, 0)
 })

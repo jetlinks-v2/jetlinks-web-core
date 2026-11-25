@@ -34,4 +34,5 @@ const actionLabel = computed(() => props.label || t(props.collapsed
 .panel-collapse-button.ant-btn:not(:disabled):active { background:var(--bg-sunken); }
 .panel-collapse-button__icon { width:20px; height:20px; flex:none; }
 .panel-collapse-button__icon.is-vertical { transform:rotate(90deg); }
+@media (pointer:coarse) { .panel-collapse-button.ant-btn { width:44px; height:44px; } }
 </style>

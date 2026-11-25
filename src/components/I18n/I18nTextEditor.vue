@@ -42,6 +42,8 @@ defineExpose({ confirm: handleOk, cancel: handleCancel, focus: focusEditor })
 .i18n-text-preview p { margin: 6px 0 0; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .i18n-text-error { margin-top: 8px; font-size: 12px; color: var(--jet-theme-error, #cf3535); }
 .i18n-text-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.i18n-text-actions { padding-top:12px; padding-bottom:env(safe-area-inset-bottom); }
 .i18n-text-actions :deep(.ant-btn) { border-radius: 6px; font-size: 12px; box-shadow: none; }
 @media (max-width: 600px) { .i18n-text-actions :deep(.ant-btn) { min-height: 44px; } .i18n-text-workspace { max-height: 55dvh; overflow: auto; } }
+@media (pointer:coarse) { .i18n-text-actions :deep(.ant-btn) { min-width:44px; min-height:44px; } }
 </style>
