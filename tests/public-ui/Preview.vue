@@ -7,14 +7,15 @@
       </template>
     </PageHeader>
     <p class="fixture-notice">本地模拟数据，刷新后恢复；未接入真实上传与鉴权。</p>
-    <ContentPanel fill class="fixture-panel">
-      <a-tabs v-model:active-key="scene" class="fixture-tabs" :animated="false" :destroy-inactive-tab-pane="false">
+    <ContentPanel fill :padding="0" class="fixture-panel" :style="{ width: contentWidth }">
+      <a-tabs v-model:active-key="scene" class="fixture-tabs" :class="{ 'fixture-tabs--layout': scene === 'layouts' }"
+        :tab-bar-style="{ padding: '0 var(--space-4)', margin: 0 }" :animated="false" :destroy-inactive-tab-pane="false">
         <template #moreIcon><span role="img" aria-label="更多场景"><AIcon type="EllipsisOutlined" /></span></template>
         <a-tab-pane key="fields" tab="字段与选择">
-          <div class="fixture-scene" :style="{ width: contentWidth }"><InlineEditCases section="values" /></div>
+          <div class="fixture-scene"><InlineEditCases section="values" /></div>
         </a-tab-pane>
         <a-tab-pane key="detail" tab="单字段保存">
-          <div class="fixture-scene" :style="{ width: contentWidth }">
+          <div class="fixture-scene">
             <section class="fixture-section">
               <h2>资料名称与负责人</h2>
               <div class="fixture-options"><span>模拟响应</span><a-radio-group v-model:value="outcome" aria-label="模拟提交结果" :options="[{label:'成功',value:'success'},{label:'字段失败',value:'rejected'},{label:'请求异常',value:'thrown'}]" /></div>
@@ -33,10 +34,10 @@
           </div>
         </a-tab-pane>
         <a-tab-pane key="form" tab="整表保存">
-          <div class="fixture-scene" :style="{ width: contentWidth }"><InlineEditCases section="form" /></div>
+          <div class="fixture-scene"><InlineEditCases section="form" /></div>
         </a-tab-pane>
         <a-tab-pane key="create" tab="首次录入">
-          <section class="fixture-section fixture-scene" :style="{ width: contentWidth }">
+          <section class="fixture-section fixture-scene">
             <h2>新建资料</h2>
             <p class="fixture-hint">字段只修改草稿，保存时接受整组值。</p>
             <InlineEditForm :groups="creationGroups" mode="form" :messages="messages" @change="changeCreation" />
@@ -45,17 +46,17 @@
           </section>
         </a-tab-pane>
         <a-tab-pane key="i18n" tab="多语言">
-          <div class="fixture-scene" :style="{ width: contentWidth }">
+          <div class="fixture-scene">
             <section class="fixture-section"><h2>点位名称</h2><I18nTextEditable v-model:value="localizedName" v-model:i18n-messages="nameTranslations" field="name" label="点位名称" :text-style="{fontSize:'18px',fontWeight:600}" style="--inline-edit-max-width:20rem" /></section>
             <section class="fixture-section"><h2>内容说明</h2><I18nTextEditable v-model:value="description" v-model:i18n-messages="descriptionTranslations" field="description" label="内容说明" textarea /></section>
             <section class="fixture-section"><h2>表单多语言输入</h2><I18nTextField v-model:value="formDescription" v-model:i18n-messages="formTranslations" field="description" label="表单说明" textarea :auto-size="{ minRows: 3, maxRows: 8 }" aria-label="表单说明" /></section>
           </div>
         </a-tab-pane>
         <a-tab-pane key="async" tab="异步与失败">
-          <div class="fixture-scene" :style="{ width: contentWidth }"><AsyncInlineEditCase /></div>
+          <div class="fixture-scene"><AsyncInlineEditCase /></div>
         </a-tab-pane>
-        <a-tab-pane key="layouts" tab="分区布局">
-          <div class="fixture-scene" :style="{ width: contentWidth }">
+        <a-tab-pane key="layouts" tab="分区布局" style="height:100%">
+          <div class="fixture-layouts">
             <div class="fixture-layout-choice"><a-segmented v-model:value="layoutKind" aria-label="分区组件示例" :options="[{value:'adaptive',label:'自适应分区'},{value:'columns',label:'带头部分栏'}]" /><code>{{ layoutKind === 'adaptive' ? 'ResponsiveSplitter' : 'EqualHeightColumns' }}</code></div>
             <KeepAlive><component :is="layoutKind === 'adaptive' ? SplitterPreview : ColumnsPreview" /></KeepAlive>
           </div>
@@ -120,11 +121,14 @@ const save: InlineEditSubmit = async (key, value) => {
 .fixture > :deep(.cloud-page-header) { flex:none; margin:0; }
 .fixture-width { width:132px; }
 .fixture-notice { flex:none; margin:0; font-size:var(--fs-12); color:var(--jet-theme-text-secondary); }
-.fixture-panel { min-width:0; min-height:0; }
+.fixture-panel { min-width:0; min-height:0; max-width:100%; overflow:hidden; border:1px solid var(--line); }
 .fixture-tabs { flex:1; min-height:0; }
 .fixture-tabs :deep(> .ant-tabs-content-holder) { min-height:0; overflow:auto; }
-.fixture-tabs :deep(> .ant-tabs-nav) { flex:none; margin-bottom:var(--space-5); }
-.fixture-scene { box-sizing:border-box; max-width:100%; padding-bottom:var(--space-4); }
+.fixture-tabs :deep(> .ant-tabs-nav) { flex:none; }
+.fixture-tabs--layout :deep(> .ant-tabs-content-holder) { overflow:hidden; }
+.fixture-tabs--layout :deep(> .ant-tabs-content-holder > .ant-tabs-content) { height:100%; }
+.fixture-scene { box-sizing:border-box; max-width:100%; padding:var(--space-4); }
+.fixture-layouts { display:flex; flex-direction:column; height:100%; min-height:0; }
 .fixture-scene :deep(.fixture-section) { margin-top:var(--space-6); }
 .fixture-scene > :deep(.fixture-section:first-child),.fixture-section.fixture-scene { margin-top:0; }
 .fixture :deep(.fixture-section > h2) { margin:0 0 var(--space-4); font-size:var(--fs-16); font-weight:600; }
@@ -133,7 +137,7 @@ const save: InlineEditSubmit = async (key, value) => {
 .fixture-options > span,.fixture-hint { color:var(--jet-theme-text-secondary); font-size:var(--fs-12); }
 .fixture-actions { margin-top:var(--space-4); }
 .fixture :deep(.fixture-counter) { margin:var(--space-3) 0 0; color:var(--jet-theme-text-secondary); font-size:var(--fs-12); }
-.fixture-layout-choice { justify-content:space-between; margin-bottom:var(--space-4); }
+.fixture-layout-choice { flex:none; justify-content:space-between; padding:var(--space-3) var(--space-4); border-bottom:1px solid var(--line); }
 .fixture-layout-choice code { color:var(--jet-theme-text-secondary); font-size:var(--fs-12); }
-@media (max-width:600px) { .fixture { padding:var(--space-3); } .fixture-tabs :deep(> .ant-tabs-nav) { margin-bottom:var(--space-4); } .fixture-actions :deep(.ant-btn) { min-height:44px; } }
+@media (max-width:600px) { .fixture { padding:var(--space-3); } .fixture-actions :deep(.ant-btn) { min-height:44px; } }
 </style>

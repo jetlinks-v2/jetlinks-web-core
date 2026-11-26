@@ -1,5 +1,11 @@
 # Splitter
 
+## 与内容表面组合
+
+`Splitter` / `ResponsiveSplitter` 负责分区、尺寸和收放，外层表面沿用 [ContentPanel 的连续工作区组合](../ContentPanel/README.md#连续分区工作区)。同一工作区只保留一个背景和外框，分区根不重复设置 border、圆角或外圈 padding；留白放在 `start` / `end` 内容内部。共享头部的结构线接到外沿，分割线从头部下沿贯穿正文；输入与内容卡片的边框保持独立。
+
+宿主约束高度后，布局作为 `flex: 1; min-height: 0` 的正文填满，避免固定示例高度导致短屏溢出或长屏分割线悬空。独立左右头部继续使用 `EqualHeightColumns`；视觉统一不改变调宽、折叠、焦点和响应式状态的 owner。
+
 平台双面板布局，参考 [Ant Design Splitter](https://ant.design/components/splitter-cn/) 的分割条交互，使用 Vue 和平台 token 实现；不是 Ant Design Vue 官方组件。从 core 组件入口具名导入 `Splitter`，不做全局注册。
 
 ```vue

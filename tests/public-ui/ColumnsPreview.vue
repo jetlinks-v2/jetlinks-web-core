@@ -1,7 +1,7 @@
 <template>
-  <section aria-label="带头部分栏示例">
+  <section class="columns-example" aria-label="带头部分栏示例">
     <h2>资料分类</h2>
-    <EqualHeightColumns height="420px" left-width="160px" gap="var(--space-3)" resizable :resize-limits="{ min: 160, max: 280, contentMin: 200 }">
+    <EqualHeightColumns class="columns-example__workspace" left-width="160px" gap="var(--space-3)" resizable :resize-limits="{ min: 160, max: 280, contentMin: 200 }">
       <template #left-header>
         <a-input v-model:value="search" aria-label="搜索资料分类" placeholder="搜索分类" allow-clear>
           <template #prefix><AIcon type="SearchOutlined" /></template>
@@ -46,7 +46,9 @@ const filteredCategories = computed(() => categories.filter(item => item.name.in
 const activeCategory = computed(() => categories.find(item => item.id === selected.value) ?? categories[0])
 </script>
 <style scoped>
-h2 { margin:0 0 var(--space-4); font-size:var(--fs-16); font-weight:600; }
+.columns-example { display:flex; flex:1; flex-direction:column; min-width:0; min-height:0; }
+.columns-example > h2 { flex:none; margin:0; padding:var(--space-3) var(--space-4); border-bottom:1px solid var(--line); font-size:var(--fs-16); font-weight:600; }
+.columns-example__workspace { flex:1; min-height:0; }
 .columns-categories { padding:0 var(--space-2); }
 .columns-categories :deep(.ant-list-item) { padding:var(--space-1) 0; border:0; }
 .columns-category.ant-btn { width:100%; height:auto; min-height:44px; text-align:start; white-space:normal; }
