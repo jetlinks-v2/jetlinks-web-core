@@ -21,7 +21,7 @@ export function createDashboardLoader(stubs = {}) {
     }
     const module = { exports: {} }
     cache.set(filename, module)
-    new Function('require', 'module', 'exports', transformSync(source, { loader: 'ts', format: 'cjs', target: 'es2022' }).code)(id => {
+    new Function('require', 'module', 'exports', transformSync(source, { loader: 'ts', format: 'cjs', target: 'es2022', supported: { 'dynamic-import': false } }).code)(id => {
       if (Object.hasOwn(stubs, id)) return stubs[id]
       if (id === 'vue') return vue
       if (!id.startsWith('.') && !id.startsWith('@jetlinks-web-core/')) return require(id)
