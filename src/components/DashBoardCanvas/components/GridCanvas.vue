@@ -1,6 +1,6 @@
 <template>
   <div ref="host" class="dashboard-grid" :class="{ 'dashboard-grid--initializing': !layoutReady }" @dragover="drag.onDragOver" @drop="drag.onDrop">
-    <GridLayout ref="layoutRef" v-model:layout="layoutJSON" :col-num="settings.columns"
+    <GridLayout :key="geometryKey" ref="layoutRef" v-model:layout="layoutJSON" :col-num="settings.columns"
       :row-height="settings.rowHeight" :margin="settings.margin" :style="gridLayoutStyle"
       :is-draggable="layoutEditable" :is-resizable="layoutEditable" @layout-ready="finishInitialLayout">
       <GridItem v-for="item in layoutJSON" :key="item.i" ref="gridItemRefs"
@@ -30,6 +30,7 @@ const props = defineProps<{
   settings: DashboardGridSettings
   editable: boolean
   layoutEditable: boolean
+  embedded?: boolean
   dragging?: { type: string; gridItem?: Partial<DashboardGridItem> }
 }>()
 const emit = defineEmits<{
@@ -44,6 +45,10 @@ const gridItemRefs = ref<InstanceType<typeof GridItem>[]>([])
 const layoutJSON = ref<DashboardLayoutItem[]>([])
 useDashboardPlaceholder(layoutRef, layoutJSON)
 const layoutReady = ref(false)
+// The grid exposes a snapshot of props to its items. Recreate only when canvas geometry changes;
+// otherwise a view switch can mix old item margins with the new container height.
+const geometryKey = computed(() => [props.settings.columns, props.settings.rowHeight, ...props.settings.margin].join(':'))
+watch(geometryKey, () => { layoutReady.value = false })
 
 // 子组件读取尺寸可能提前计算默认布局；首次定位完成前不从该布局做位移动画。
 function finishInitialLayout() {
@@ -68,8 +73,9 @@ onActivated(() => updateWidth((layoutRef.value?.$el as HTMLElement | undefined)?
 const gridLayoutStyle = computed(() => ({
   marginLeft: `-${props.settings.margin[0]}px`,
   marginRight: `-${props.settings.margin[0]}px`,
-  marginTop: `-${props.settings.margin[1]}px`,
-  marginBottom: `-${props.settings.margin[1]}px`,
+  // Embedded grids keep their vertical outer margins in normal page flow.
+  marginTop: props.embedded ? '0' : `-${props.settings.margin[1]}px`,
+  marginBottom: props.embedded ? '0' : `-${props.settings.margin[1]}px`,
 }))
 const drag = useDashboardDrag({
   host, layoutRef, gridItemRefs, layout: layoutJSON,

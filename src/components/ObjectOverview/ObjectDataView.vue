@@ -3,12 +3,14 @@ import { computed } from 'vue'
 import dayjs from 'dayjs'
 import { useI18n } from 'vue-i18n'
 import { objectOverviewMessages } from './messages'
+import { useValueUnit } from '../../hooks/useValueUnit'
 import type { ObjectValueType } from '../../object-capability/types'
 import type { ObjectMemberState } from '../../object-capability/useObjectCapabilities'
 
 const props = defineProps<{ value?: unknown; metadata?: ObjectValueType; state?: ObjectMemberState['status']; compact?: boolean }>()
 defineEmits<{ retry: [] }>()
 const { t } = useI18n({ useScope: 'local', messages: objectOverviewMessages })
+const unit = useValueUnit(() => props.metadata?.unit)
 const collection = computed(() => Array.isArray(props.value) ? props.value.slice(0, 20) : undefined)
 const enumValue = computed(() => props.metadata?.type === 'enum' && props.value && typeof props.value === 'object' && 'value' in props.value
   ? props.value as { value: unknown; text?: string } : undefined)
@@ -18,7 +20,7 @@ const text = computed(() => {
   if (props.value === null || props.value === undefined) return t('unknown')
   const type = props.metadata
   if (type?.type === 'password') return '••••••'
-  const label = type?.elements?.find(entry => entry.value === (enumValue.value?.value ?? props.value))?.text || enumValue.value?.text
+  const label = type?.elements?.find(entry => String(entry.value) === String(enumValue.value?.value ?? props.value))?.text || enumValue.value?.text
   if (label) return label
   if (typeof props.value === 'boolean') return props.value ? type?.trueText || '✓' : type?.falseText || '—'
   if (type?.type === 'date' && (typeof props.value === 'number' || typeof props.value === 'string')) {
@@ -43,7 +45,7 @@ const text = computed(() => {
     </div>
   </dl>
   <span v-else class="object-value" :class="{ 'object-value--compact': compact, 'object-value__muted': value == null }">
-    {{ text }}<small v-if="metadata?.unit && value != null">{{ metadata.unit }}</small>
+    {{ text }}<small v-if="unit && value != null">{{ unit }}</small>
   </span>
 </template>
 

@@ -15,7 +15,10 @@
   </a-input>
 </template>
 
-<script setup name="LayoutMenuSearch" lang="ts">
+<script setup lang="ts">
+
+defineOptions({ name: 'LayoutMenuSearch' })
+
 const keyword = ref('')
 const searchInputRef = ref<{ focus: () => void }>()
 const emit = defineEmits<{

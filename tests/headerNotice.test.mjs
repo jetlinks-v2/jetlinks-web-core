@@ -29,16 +29,31 @@ const stubs = {
   './noticeLoginHandler': 'export const runRegisteredLoginNoticeHandlers=async()=>{}',
   './noticeRealtimeHandler': 'export const handleRegisteredRealtimeNotice=async(payload,context)=>globalThis.__notice.handler?.(payload,context) ?? false',
 }
-const output = await build({
-  entryPoints: [resolve(root, 'src/layout/components/useHeaderNotice.ts')],
-  bundle: true, write: false, platform: 'node', format: 'cjs', external: ['vue'],
-  plugins: [{ name: 'notice-io', setup(builder) {
-    builder.onResolve({filter: /.*/}, args => stubs[args.path] === undefined ? undefined : {path: args.path, namespace: 'io'})
-    builder.onLoad({filter: /.*/, namespace: 'io'}, args => ({contents: stubs[args.path]}))
-  }}]
+async function loadHeader(overrides = {}) {
+  const io = {...stubs, ...overrides}
+  const output = await build({
+    entryPoints: [resolve(root, 'src/layout/components/useHeaderNotice.ts')],
+    bundle: true, write: false, platform: 'node', format: 'cjs', external: ['vue'],
+    plugins: [{ name: 'notice-io', setup(builder) {
+      builder.onResolve({filter: /.*/}, args => io[args.path] === undefined ? undefined : {path: args.path, namespace: 'io'})
+      builder.onLoad({filter: /.*/, namespace: 'io'}, args => ({contents: io[args.path]}))
+    }}]
+  })
+  const module = {exports: {}}
+  new Function('require', 'module', 'exports', output.outputFiles[0].text)(require, module, module.exports)
+  return module.exports
+}
+const header = await loadHeader()
+const routedHeader = await loadHeader({
+  './noticeListHandler': undefined,
+  '@jetlinks-web-core/api/account/notificationRecord': `
+    export const getUnreadSummary_api=params=>globalThis.__notice.count(params);
+    export const getUnreadNoPagingList_api=params=>globalThis.__notice.list(params);
+    export const getList_api=getUnreadNoPagingList_api;
+    export const changeStatus_api=(...args)=>globalThis.__notice.mark(...args);
+    export const changeAllStatus=changeStatus_api;
+  `,
 })
-const module = {exports: {}}
-new Function('require', 'module', 'exports', output.outputFiles[0].text)(require, module, module.exports)
 const renderer = createRenderer({
   createElement: () => ({}), createText: () => ({}), createComment: () => ({}),
   setText() {}, setElementText() {}, patchProp() {}, insert() {}, remove() {}, parentNode: () => null, nextSibling: () => null
@@ -47,7 +62,7 @@ const channelResult = {status: 200, result: [
   {type: {id: 'alarm', name: 'Alarm'}, provider: 'a'},
   {type: {id: 'alarm', name: 'Alarm'}, provider: 'b'}
 ]}
-function fixture(t, overrides = {}, listProps) {
+function fixture(t, overrides = {}, listProps, implementation = header) {
   const state = {user: reactive({alarmUpdateCount: 0, unreadNoticeCount: 0, other: {}, updateAlarm() {this.alarmUpdateCount++}}),
     tips: [], subscriptions: [], navigations: [], registrations: [], route: reactive({path: '/devices'}), actions: 0,
     filterProviders: async providers => providers,
@@ -55,7 +70,7 @@ function fixture(t, overrides = {}, listProps) {
     count: async () => ({result: {count: 42}}), mark: async () => ({status: 200}), ...overrides}
   globalThis.__notice = state
   let model
-  const app = renderer.createApp(defineComponent({setup() {model = listProps ? module.exports.useNoticeInfo(listProps, () => state.actions++) : module.exports.useHeaderNotice(); return () => h('div')}}))
+  const app = renderer.createApp(defineComponent({setup() {model = listProps ? implementation.useNoticeInfo(listProps, () => state.actions++) : implementation.useHeaderNotice(); return () => h('div')}}))
   app.mount({}); t.after(() => app.unmount())
   return {state, model}
 }
@@ -86,6 +101,48 @@ test('failed unread refresh preserves the last badge and a later retry clears th
   await model.retry()
   assert.equal(model.total.value, 3)
   assert.equal(model.error.value, false)
+})
+
+test('real source routing keeps ordinary notifications while announcement confirmation clears only its badge count', async t => {
+  let unread = 1
+  let failedSource = ''
+  let notifyChange
+  const count = async params => {
+    assert.deepEqual(params.terms.at(-1).value, ['a', 'b'])
+    if (failedSource === 'ordinary') return {status: 503, result: {topics: []}}
+    return {status: 200, result: {topics: [
+      {topicProvider: 'a', count: 2}, {topicProvider: 'b', count: 1},
+      {topicProvider: 'bulletin', count: 1, overflow: true},
+    ]}}
+  }
+  const dataSource = {
+    unreadCount: async params => {
+      assert.deepEqual(params.terms.at(-1).value, ['bulletin'])
+      return failedSource === 'bulletin' ? {success: false} : {result: {count: unread}}
+    },
+    subscribe: listener => { notifyChange = listener; return () => { notifyChange = undefined } },
+  }
+  const {model} = fixture(t, {count, registrations: [
+    {code: 'bulletin', props: {messageCategory: 'announcement', dataSource}},
+  ]}, undefined, routedHeader)
+  await setImmediate()
+  assert.equal(model.total.value, 4)
+  assert.equal(model.error.value, false)
+  unread = 0
+  notifyChange()
+  await setImmediate()
+  assert.equal(model.total.value, 3)
+  for (const source of ['ordinary', 'bulletin']) {
+    failedSource = source
+    notifyChange()
+    await setImmediate()
+    assert.equal(model.total.value, 3, 'a failed source preserves the last complete badge')
+    assert.equal(model.error.value, true)
+    failedSource = ''
+    await model.retry()
+    assert.equal(model.total.value, 3)
+    assert.equal(model.error.value, false)
+  }
 })
 
 test('no configured channels is an empty state without a count query or subscription', async t => {

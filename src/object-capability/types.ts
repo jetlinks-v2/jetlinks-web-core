@@ -16,6 +16,9 @@ export interface ObjectReferenceValue {
   limited: boolean
 }
 
+/** An explicit original action and segmented input path; a declaration never grants write permission. */
+export interface PropertyEditMapping { providerId: string; command: string; inputPath: string[] }
+
 /** Original metadata projection. Execution Schema is derived once, never used to replace it. */
 export interface ObjectValueType {
   type: string
@@ -32,7 +35,7 @@ export interface ObjectPropertyMetadata {
   name?: string
   description?: string
   valueType: ObjectValueType
-  expands?: Record<string, unknown> & { semanticRole?: string; reference?: PropertyReferenceMapping }
+  expands?: Record<string, unknown> & { semanticRole?: string; semanticTypes?: string[]; reference?: PropertyReferenceMapping; edit?: PropertyEditMapping }
 }
 export interface ObjectFunctionMetadata {
   id: string
@@ -43,6 +46,7 @@ export interface ObjectFunctionMetadata {
   expands?: Record<string, unknown>
 }
 export interface ObjectModel {
+  expands?: Record<string, unknown> & { semanticTypes?: string[] }
   properties?: ObjectPropertyMetadata[]
   functions?: ObjectFunctionMetadata[]
   events?: unknown[]
@@ -56,6 +60,8 @@ export interface ObjectMember {
   name: string
   sourceName: string
   identitySource?: boolean
+  /** Classification of this provider's model fragment, not of the whole business object. */
+  sourceSemanticTypes?: string[]
   description?: string
   metadata: ObjectPropertyMetadata | ObjectFunctionMetadata
   schema?: CapabilitySchema

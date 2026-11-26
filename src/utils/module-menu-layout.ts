@@ -45,6 +45,11 @@ export function reconcileAuthorizedMenuLayout(authorized: MenuItem[], catalog: M
       entry.item.i18nName = declaration.i18nName
       if ('i18nMessages' in declaration) Object.assign(entry.item, { i18nMessages: declaration.i18nMessages })
     }
+    // Upgrade declared former defaults without replacing administrator-selected icons.
+    const previousIcons = declaration.options?.previousIcons
+    if (declaration.icon && Array.isArray(previousIcons) && previousIcons.includes(entry.item.icon)) {
+      entry.item.icon = declaration.icon
+    }
     const targetCode = declaration.options?.routeTarget
     if (typeof targetCode !== 'string' || !targetCode || entry.item.children?.length) continue
     const targetKey = identity(entry.owner, targetCode)

@@ -1,4 +1,6 @@
 import type { App, Component, Plugin } from 'vue'
+export { FormDesigner, FormRenderer } from './Form'
+export type * from './Form/types'
 import TitleComponent from './TitleComponent/index.vue'
 import ImageUpload from "./Upload/Image/ImageUpload.vue";
 import CardBox, {
@@ -71,8 +73,10 @@ import ModelParameterEditor from './ModelParameterEditor/index.vue'
 import MenuAssetPermissionEditor from './MenuAssetPermissionEditor/index.vue'
 import StatusTag from './StatusTag/index.vue'
 import DetailHeader from './DetailHeader/index.vue'
+import DetailMetaItem from './DetailMetaItem'
 import PageHeader from './PageHeader/index.vue'
 import PageChrome from './PageChrome/index.vue'
+import PageBack from './PageBack/index.vue'
 import MetricCards from './MetricCards/index.vue'
 import MarketplaceInstallStream from './MarketplaceInstallStream/index.vue'
 import StatusPill from './StatusPill/index.vue'
@@ -162,8 +166,10 @@ export default {
           .component('MenuAssetPermissionEditor', MenuAssetPermissionEditor)
           .component('StatusTag', StatusTag)
           .component('DetailHeader', DetailHeader)
+          .component('DetailMetaItem', DetailMetaItem)
           .component('PageHeader', PageHeader)
           .component('PageChrome', PageChrome)
+          .component('PageBack', PageBack)
           .component('MetricCards', MetricCards)
           .component('MarketplaceInstallStream', MarketplaceInstallStream)
           .component('StatusPill', StatusPill)
@@ -202,8 +208,10 @@ export {
     MenuAssetPermissionEditor,
     ModelParameterEditor,
     DetailHeader,
+    DetailMetaItem,
     PageHeader,
     PageChrome,
+    PageBack,
     MetricCards,
     MarketplaceInstallStream,
     MatrixGrid,
@@ -219,10 +227,10 @@ export {
     BasisSection
 }
 export { AutoTree }
+export { InlineEditForm } from './InlineEditForm'
+export type { InlineEditEditorScope, InlineEditFieldDefinition, InlineEditGroup, InlineEditMessages, InlineEditResult, InlineEditSubmit } from './InlineEditForm'
 export type { AutoTreeProps, AutoTreeInstance } from './AutoTree'
 export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlacement } from './TableActions'
-export { default as ObjectTypeIcon } from './IconValue/ObjectTypeIcon.vue'
-export { getObjectTypeIcon, objectTypeIcons } from './IconValue/objectTypeIcons'
 export { I18nTextField, I18nTextDialog, I18nInputTrigger, I18nTextEditable, i18nText } from './I18n'
 export type { I18nMessages, I18nTextMessages, I18nTextFieldProps, I18nTextDialogProps } from './I18n'
 export { getSvgIcon, svgIconTypes } from './SvgIcon/icons'
@@ -235,9 +243,6 @@ export { DeviceSessionViewer } from './RuntimeDiagnostics'
 export type { DeviceSessionInfo, DeviceSessionConnection, DeviceSessionDeviceOption } from './RuntimeDiagnostics'
 export type { MBeanDescriptor, MBeanInvocation, MBeanRenderer, MBeanRendererContext, MBeanInvocationOutcome, MBeanQueryId, MBeanQuerySnapshot } from './RuntimeDiagnostics'
 export type { SvgIconType } from './SvgIcon/icons'
-export { RelationSelector } from './RelationSelector'
-export type { RelationSelectorOptions, RelationSelectorOrigin, ObjectSpec, VariableObjectSpec, RelationSpec } from './RelationSelector'
-export * from './ObjectOverview'
 export { createAssetOwnershipField, toAssetOwnershipFilterTerm, resolveAssetDimensionFilter, onAssetDimensionFiltersChange, AssetDimensionPicker } from './AssetOwnershipCondition'
 export type {
     AssetOwnershipOptions, AssetOwnershipTerm, AssetOwnershipSelection, AssetOwnershipDisplay,
@@ -246,6 +251,7 @@ export type {
 } from './AssetOwnershipCondition'
 export type { SegmentPanelOption, SegmentPanelValue } from './SegmentPanel'
 export type { SlantedTabKey, SlantedTabOption, SlantedTabsState } from './SlantedTabs'
+export type { DetailMetaKind } from './DetailMetaItem'
 export type { SwitchGroupOption, SwitchGroupValue } from './SwitchGroup'
 export type {
     CardBoxAction,
@@ -293,3 +299,18 @@ export type {
     MatrixGridRowKind,
     MatrixGridRowSlotScope,
 } from './MatrixGrid/types'
+export { default as SelectOption } from './SelectOption/index.vue'
+export { default as PanelResizeHandle } from './PanelResizeHandle/index.vue'
+export { default as PanelCollapseButton } from './PanelCollapseButton/index.vue'
+export type { PanelResizeDragEvent } from './PanelResizeHandle/types'
+export * from './Expression'
+export * from './PlatformSettings'
+export { default as Splitter } from './Splitter/index.vue'
+export { default as ResponsiveSplitter } from './Splitter/ResponsiveSplitter.vue'
+export { useResponsivePanel } from './Splitter/useResponsivePanel'
+
+export { default as ObjectTypeIcon } from './IconValue/ObjectTypeIcon.vue'
+export { getObjectTypeIcon, objectTypeIcons } from './IconValue/objectTypeIcons'
+export { RelationSelector } from './RelationSelector'
+export type { RelationSelectorOptions, RelationSelectorOrigin, ObjectSpec, VariableObjectSpec, RelationSpec } from './RelationSelector'
+export * from './ObjectOverview'

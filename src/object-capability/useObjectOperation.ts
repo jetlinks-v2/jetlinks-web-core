@@ -1,10 +1,10 @@
 import { computed, onBeforeUnmount, shallowRef, watch, type Ref } from 'vue'
 import type { Subscription } from 'rxjs'
-import type { DataCapabilityRuntime, PersistedOperationBinding, PreparedOperation } from '../data-capability/types'
+import type { DataCapabilityRuntime, PersistedOperationBinding, PreparedOperation, OperationEvent } from '../data-capability/types'
 import type { ObjectReference } from './types'
 
 /** Provider snapshots and confirms the target; the UI never re-resolves relations after confirmation. */
-export function useObjectOperation(binding: Readonly<Ref<PersistedOperationBinding | undefined>>, runtime: () => DataCapabilityRuntime | undefined) {
+export function useObjectOperation(binding: Readonly<Ref<PersistedOperationBinding | undefined>>, runtime: () => DataCapabilityRuntime | undefined, onEvent?: (event: OperationEvent) => void) {
   const input = shallowRef<Record<string, unknown>>({}), prepared = shallowRef<PreparedOperation>()
   const busy = shallowRef(false), failed = shallowRef(false), result = shallowRef<unknown>(), completed = shallowRef(false)
   const warning = shallowRef(false)
@@ -34,6 +34,7 @@ export function useObjectOperation(binding: Readonly<Ref<PersistedOperationBindi
         if (event.type === 'result') result.value = event.result
         if (event.type === 'warning') warning.value = true
         if (event.type === 'completed') completed.value = true
+        onEvent?.(event)
       },
       error() { if (current === generation) { failed.value = true; busy.value = false; prepared.value = undefined } },
       complete() { if (current === generation) { busy.value = false; prepared.value = undefined } },

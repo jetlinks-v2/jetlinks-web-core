@@ -1,4 +1,4 @@
-<script setup lang="ts" name="ConditionFilter">
+<script setup lang="ts">
 import type { PropType } from 'vue'
 import dayjs from 'dayjs'
 import { isRef } from 'vue'
@@ -39,6 +39,8 @@ import {
   normalizeInputTerms,
   parseWhereExpression,
 } from './utils'
+
+defineOptions({ name: 'ConditionFilter' })
 
 const slots = useSlots()
 

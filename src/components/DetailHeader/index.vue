@@ -1,5 +1,11 @@
 <template>
-  <header class='cloud-detail-header'>
+  <header class='cloud-detail-header' :class="{ 'cloud-detail-header--summary': variant === 'summary' }">
+    <div v-if="variant === 'summary' && slots.leading" class="cloud-detail-header__leading">
+      <slot name="leading" />
+    </div>
+    <div v-if="variant === 'summary' && slots.icon" class="cloud-detail-header__icon">
+      <slot name="icon" />
+    </div>
     <div class='cloud-detail-header__main'>
       <div class='cloud-detail-header__title-row'>
         <a-button
@@ -14,7 +20,7 @@
 
         <div class='cloud-detail-header__title-wrap'>
           <div class='cloud-detail-header__title-main'>
-            <h1 class='cloud-detail-header__title'>
+            <h1 class='cloud-detail-header__title' :title="variant === 'summary' ? title : undefined">
               <slot name='title'>
                 {{ title }}
               </slot>
@@ -23,10 +29,20 @@
               <slot name='titleExtra' />
             </div>
           </div>
-          <div v-if='slots.description' class='cloud-detail-header__description'>
+          <div v-if="slots.description && variant !== 'summary'" class='cloud-detail-header__description'>
             <slot name='description' />
           </div>
         </div>
+      </div>
+
+      <div v-if="variant === 'summary' && slots.meta" class="cloud-detail-header__meta">
+        <slot name="meta" />
+      </div>
+      <div v-if="variant === 'summary' && slots.description" class="cloud-detail-header__description">
+        <slot name="description" />
+      </div>
+      <div v-if="variant === 'summary' && slots.extra" class="cloud-detail-header__extra">
+        <slot name="extra" />
       </div>
 
       <div v-if='slots.info || slots.default' class='cloud-detail-header__info'>
@@ -34,18 +50,24 @@
           <slot />
         </slot>
       </div>
+
+      <div v-if="variant === 'summary' && slots.actions" class="cloud-detail-header__actions">
+        <slot name="actions" />
+      </div>
     </div>
 
-    <div v-if='slots.actions' class='cloud-detail-header__actions'>
+    <div v-if="variant !== 'summary' && slots.actions" class='cloud-detail-header__actions'>
       <slot name='actions' />
     </div>
   </header>
 </template>
 
-<script setup lang='ts' name='CloudDetailHeader'>
+<script setup lang='ts'>
 import { computed, getCurrentInstance, useSlots } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+
+defineOptions({ name: 'CloudDetailHeader' })
 
 const { t: $t } = useI18n()
 
@@ -54,10 +76,13 @@ const props = withDefaults(
     title: string
     showBack?: boolean
     backTitle?: string
+    /** 摘要模式只负责布局，由外层 ContentPanel 提供卡片边界。 */
+    variant?: 'default' | 'summary'
   }>(),
   {
     showBack: false,
-    backTitle: undefined
+    backTitle: undefined,
+    variant: 'default'
   }
 )
 
@@ -84,6 +109,8 @@ const handleBack = () => {
 <style scoped lang='less'>
 .cloud-detail-header {
   display: flex;
+  flex-wrap: wrap;
+  container: detail-header / inline-size;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4);
@@ -96,7 +123,7 @@ const handleBack = () => {
 
 .cloud-detail-header__main {
   display: flex;
-  flex: 1;
+  flex: 1 1 24rem;
   flex-direction: column;
   min-width: 0;
   gap: var(--space-3);
@@ -152,7 +179,7 @@ const handleBack = () => {
 }
 
 .cloud-detail-header__description {
-  color: var(--jet-theme-text-disabled);
+  color: var(--jet-theme-text-secondary);
   font-size: var(--fs-14);
   line-height: 1.5;
 }
@@ -165,24 +192,17 @@ const handleBack = () => {
 
 .cloud-detail-header__actions {
   display: inline-flex;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
 }
 
-@media (max-width: 73.75rem) {
-  .cloud-detail-header {
-    flex-direction: column;
-  }
-
-  .cloud-detail-header__title-main {
-    flex-wrap: wrap;
-  }
-
-  .cloud-detail-header__actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-}
+.cloud-detail-header__title-main { flex-wrap: wrap; }
+.cloud-detail-header__actions :deep(.ant-btn) { max-width: 100%; height: auto; min-height: 2rem; white-space: normal; overflow-wrap: anywhere; }
+.cloud-detail-header__actions :deep(.ant-space) { flex-wrap: wrap; max-width: 100%; }
 </style>
+
+<style scoped src="./summary.css"></style>

@@ -1,21 +1,20 @@
 <template>
-  <span
+  <Button
+    type="text"
+    size="small"
     class="i18n-input-trigger-wrapper"
-    role="button"
-    tabindex="0"
     :aria-label="$t('I18n.configure')"
+    :title="$t('I18n.configure')"
     @mousedown.stop
     @click.stop="emit('configure')"
-    @keydown.enter.stop.prevent="emit('configure')"
-    @keydown.space.stop.prevent="emit('configure')"
   >
-    <a-tooltip :title="$t('I18n.configure')">
-      <AIcon class="i18n-input-trigger" type="GlobalOutlined" />
-    </a-tooltip>
-  </span>
+    <GlobalOutlined class="i18n-input-trigger" />
+  </Button>
 </template>
 
 <script setup lang="ts">
+import { Button } from 'ant-design-vue'
+import { GlobalOutlined } from '@ant-design/icons-vue'
 const emit = defineEmits<{
   (event: 'configure'): void
 }>()
@@ -24,7 +23,14 @@ const emit = defineEmits<{
 <style scoped lang="less">
 .i18n-input-trigger-wrapper {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 5px;
 }
+@media (pointer: coarse) { .i18n-input-trigger-wrapper::before { content: ''; position: absolute; inset: -10px; display: block; } }
 
 .i18n-input-trigger {
   color: var(--jet-theme-primary);

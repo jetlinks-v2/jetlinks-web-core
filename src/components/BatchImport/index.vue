@@ -67,11 +67,13 @@
   </a-modal>
 </template>
 
-<script setup name="BatchImport">
+<script setup>
 import {FileStaticPath} from "@jetlinks-web-core/api/comm";
 import {downloadFileByUrl, onlyMessage} from "@jetlinks-web/utils";
 import {useI18n} from "vue-i18n";
 import { getUploadHeaders } from '../../utils'
+
+defineOptions({ name: 'BatchImport' })
 
 const props = defineProps({
   beforeUpload: {

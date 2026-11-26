@@ -2,9 +2,11 @@
  <div ref="echartsDom" class="echarts-warp"></div>
 </template>
 
-<script lang="ts" name="Echarts" setup>
+<script lang="ts" setup>
 import * as echarts from 'echarts';
 import {onUnmounted, watch} from "vue";
+
+defineOptions({ name: 'Echarts' })
 
 const props = defineProps({
  options: {

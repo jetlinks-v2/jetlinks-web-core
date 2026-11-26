@@ -27,6 +27,21 @@ function load(filename, overrides = {}, cache = new Map()) {
   cache.set(filename, module.exports); return module.exports
 }
 const Content = load(resolve(root, 'ObjectContentGroup.vue')).default
+test('enum labels accept serialized numeric keys while retaining zero, false and wrapped values', async t => {
+  const Data = load(resolve(root, 'ObjectDataView.vue')).default
+  const value = vue.ref(0)
+  const h = render(t, () => () => vue.h(Data, {
+    value: value.value,
+    metadata: { type: 'enum', elements: [{ value: '0', text: 'Offline' }, { value: false, text: 'Disabled' }] },
+  }))
+  assert.equal(h.text(), 'Offline')
+  value.value = false; await flush()
+  assert.equal(h.text(), 'Disabled')
+  value.value = { value: 0, text: 'fallback' }; await flush()
+  assert.equal(h.text(), 'Offline')
+  value.value = null; await flush()
+  assert.equal(h.text(), 'unknown')
+})
 test('reference display overrides a plain value presentation and forwards target identity without writing', async t => {
   const opened = [], preview = vue.ref(false)
   const member = { ref: { type: 'workOrder', providerId: 'identity', kind: 'property', id: 'project' }, name: 'Project', sourceName: 'Work orders', metadata: { id: 'project', valueType: { type: 'string' } } }
@@ -66,6 +81,7 @@ function render(t, setup) {
 function harness(t) {
   const stream = new Subject()
   let preparations = 0, executions = 0
+  const operationEvents = []
   const binding = { version: 1, operation: { capabilityId: 'object.action.saved', version: 1 } }
   const selection = { member: { type: 'sample', providerId: 'operations', kind: 'action', id: 'apply' }, binding }
   const entries = vue.shallowRef([{ selection, member: { ref: selection.member, name: 'Apply', sourceName: 'Operations', metadata: { id: 'apply', inputs: [] } }, state: { status: 'ready' } }])
@@ -75,7 +91,7 @@ function harness(t) {
     confirmOperation(id) { assert.equal(id, 'prepared'); return { id: 'confirmed' } },
     executeOperation() { executions++; return { events$: stream } },
   }
-  return { ...render(t, () => () => vue.h(Content, { title: 'Actions', entries: entries.value, preview: preview.value, runtime: () => runtime })), entries, preview, stream, preparations: () => preparations, executions: () => executions }
+  return { ...render(t, () => () => vue.h(Content, { title: 'Actions', entries: entries.value, preview: preview.value, runtime: () => runtime, onOperation: event => operationEvents.push(event) })), entries, preview, stream, operationEvents, preparations: () => preparations, executions: () => executions }
 }
 
 test('actual content group opens stable action selection and actual panel prepares, confirms and displays the original receipt', async t => {
@@ -93,6 +109,7 @@ test('actual content group opens stable action selection and actual panel prepar
   h.stream.next({ type: 'result', result: { message: 'device refused' } })
   h.stream.next({ type: 'warning', message: 'Check receipt' }); h.stream.next({ type: 'completed' }); h.stream.complete(); await flush()
   assert.match(h.text(), /device refused/)
+  assert.deepEqual(h.operationEvents.map(event => event.type), ['result', 'warning', 'completed'], 'the host receives original receipt and warning before deciding whether to read back')
   assert.ok(h.all().some(item => item.type === 'AAlert' && item.props.message === 'actionWarning'))
   h.button('run').props.onClick(); await flush()
   assert.doesNotMatch(h.text(), /device refused/, 'a new attempt clears the old receipt')
@@ -169,6 +186,6 @@ test('actual overview retries failed personal views and restores saved content b
   assert.deepEqual(h.alerts(), [])
   assert.ok(h.button('customize'))
   assert.ok(h.all().some(item => item.type === 'dashboard'))
-  assert.equal(h.all().find(item => item.props.class?.includes('object-overview__canvas'))?.props.style.height, '110px')
+  assert.equal(h.all().find(item => item.props.class?.includes('object-overview__canvas'))?.props.style.minHeight, '110px')
   assert.equal(writes, 0, 'recovery never writes a default page over the saved view')
 })

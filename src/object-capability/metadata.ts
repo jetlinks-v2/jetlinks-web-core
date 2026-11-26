@@ -30,7 +30,7 @@ export function objectMembers(type: string, providers: ObjectProviderModel[]): O
     ...(provider.metadata.properties || []).map(metadata => ({
       ref: { type, providerId: provider.providerId, kind: 'property' as const, id: metadata.id },
       name: metadata.name || metadata.id, description: metadata.description, sourceName: provider.name, identitySource: provider.identity,
-      metadata, schema: objectValueSchema(metadata.valueType),
+      metadata, sourceSemanticTypes: provider.metadata.expands?.semanticTypes, schema: objectValueSchema(metadata.valueType),
     })),
     ...(provider.metadata.functions || []).flatMap(metadata => {
       const kind = metadata.expands?.functionKind

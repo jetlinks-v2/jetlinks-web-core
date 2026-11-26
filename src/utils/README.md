@@ -12,6 +12,7 @@
 | `project-runtime.ts` | 是 | 项目运行态识别、路径标准化和跳转地址 |
 | `application-scope.ts` / `application-access.ts` | 是 | 业务应用 Scope、入口参数和访问引导 |
 | `project-path.ts` | 否 | 项目路径解析；使用深层路径前核验生产用法 |
+| `../router/login-session.ts` / `login-transition.ts` | 否 | Core 内部登录入口清理与退出导航协调；项目退出保留主账号 token，项目登录请求隔离其凭证 |
 
 项目新窗口跳转统一由 `createProjectRuntimeHref` 按 `VITE_APP_ENVIRONMENT` 区分部署方式，覆盖可视化卡片设计、预览及需求确认入口。SaaS 保留目标项目路径（即使 `VITE_APP_RUNTIME_SCOPE=project`）；私有化使用 `BASE_URL`，不额外拼接项目 ID。保持现有 hash 路径标准化与查询参数规则。
 

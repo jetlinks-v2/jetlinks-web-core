@@ -1,5 +1,7 @@
 import type { LogEntry } from '../types'
 
+export type LogEntryExpansion = { message: boolean; stack: boolean }
+
 /** 不生成 HTML；关键词按普通文本匹配，日志中的标签和脚本始终显示为文本。 */
 export function logHighlight(text: string, query: string): Array<{ text: string; match: boolean }> {
   if (!query) return [{ text, match: false }]

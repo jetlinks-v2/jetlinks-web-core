@@ -7,7 +7,7 @@
   />
 </template>
 
-<script setup name="TenantLayoutPage" lang="ts">
+<script setup lang="ts">
 import { computed, h, type VNode } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { Menu } from 'ant-design-vue'
@@ -15,6 +15,8 @@ import { AIcon } from '@jetlinks-web/components'
 import i18n from '@jetlinks-web-core/locales'
 import { useBasicLayoutControllerContext } from '../hooks/basicLayoutContext'
 import BasicLayoutShell from './BasicLayoutShell.vue'
+
+defineOptions({ name: 'TenantLayoutPage' })
 
 type TenantMenuRouteRecord = RouteRecordRaw & {
   key?: string

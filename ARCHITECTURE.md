@@ -15,6 +15,8 @@ Do not statically deep-import private code from one business module into another
 
 `moduleRegistry.assetDimensionFilters` 是维度选择器的统一入口；`resolveAssetDimensionFilter` 只在维度唯一注册时返回提供方，冲突或卸载不按加载顺序回退。公共 `AssetDimensionPicker` 复用该选择器的 value/options/config/submit 协议，覆盖单值与多值，不读取业务目录、不授予权限。`api/asset-binding.ts` 沿用原请求上下文及原资产 settings/bind/unbind 接口，维护能力及基数须由资产提供方声明并在保存前重读；选择器注册本身不能把只读关系变为可写。
 
+Metric templates, configuration, source discovery, results, history, aggregation, graphs, their APIs and domain types belong to `rule-engine-manager-ui`. The module exposes `metric.ts` and registered components for other modules; core has no metric business imports or `/metric/**` requests. Core retains generic expression/canvas/chart components and object/relation/ontology contracts. Expression consumers supply their variables and function catalogs. Device and space modules own domain context, navigation and source declarations; ontology-specific workflows remain in the ontology module.
+
 ### core 同时被 SaaS 前端与私有化前端复用
 
 `jetlinks-web-core` 不是 `runtime-ui` 独占的：私有化部署是**另一个前端项目**，它同样把 `jetlinks-web-core` 作为基础模块、并挂载自己的 `modules/*` 子模块，区别是**没有 `saas-runtime-ui` 这个模块**。本仓库侧用 `pnpm build:standalone` 构建独立包；该脚本排除 `saas-runtime-ui` 并设置 `VITE_APP_ENVIRONMENT` 为空，供 `src/utils/deployment.ts` 的 `isPrivateDeployment()` 和项目存储开关使用。

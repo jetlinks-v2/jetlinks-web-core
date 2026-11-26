@@ -32,27 +32,13 @@ import { computed } from 'vue'
 import { LocalStore } from '@jetlinks-web/utils'
 import { useSystemStore } from '@jetlinks-web-core/store'
 import { langKey, ruleEditorKey } from '@jetlinks-web-core/utils/consts'
+import { languageOptions } from '../../locales/languages'
 
 type MenuClickEvent = {
   key: string | number
 }
 
 const systemStore = useSystemStore()
-
-const languageOptions = [
-  {
-    label: '中文',
-    value: 'zh'
-  },
-  {
-    label: 'English',
-    value: 'en'
-  },
-  {
-    label: '日本語',
-    value: 'ja'
-  }
-]
 
 const currentLanguageLabel = computed(() => (
   languageOptions.find(item => item.value === systemStore.language)?.label || languageOptions[0].label

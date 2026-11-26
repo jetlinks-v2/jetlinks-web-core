@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.workspace-panels.json",
+  "include": [
+    "./public-ui/**/*.vue",
+    "./public-ui/**/*.ts",
+    "./workspace-panels/globals.d.ts",
+    "./workspace-panels/icon.d.ts",
+    "../src/components/PlatformSettings/PlatformTextSetting.vue"
+  ]
+}

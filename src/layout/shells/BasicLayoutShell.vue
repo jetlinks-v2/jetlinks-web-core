@@ -103,7 +103,7 @@
   </div>
 </template>
 
-<script setup name="BasicLayoutShell" lang="ts">
+<script setup lang="ts">
 import { watchEffect, type PropType, type VNode } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import type { LayoutMode } from '@jetlinks-web-core/store/system'
@@ -122,6 +122,8 @@ import { useRouteContentPanel } from '../hooks/useRouteContentPanel'
 import { createLayoutMenuItemRenderer } from '../utils/projectMenuRender'
 import type { BasicLayoutVariant } from '../runtime/layoutVariant'
 import MenuSource from '../components/MenuSearch.vue'
+
+defineOptions({ name: 'BasicLayoutShell' })
 
 type LayoutMenuRouteRecord = RouteRecordRaw & {
   key?: string

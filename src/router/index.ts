@@ -4,8 +4,7 @@ import {
   type RouteLocationNormalized,
   type NavigationGuardNext
 } from 'vue-router'
-import { TOKEN_KEY } from '@jetlinks-web/constants'
-import { getToken, LocalStore, removeToken, onlyMessage } from '@jetlinks-web/utils'
+import { getToken, removeToken, onlyMessage } from '@jetlinks-web/utils'
 import i18n from '@jetlinks-web-core/locales'
 import microApp from '@micro-zoe/micro-app'
 import { collectCoreRouteOverrides } from './globModules'
@@ -35,13 +34,14 @@ import {
   isProjectApplicationScope,
   preserveApplicationScopeQuery,
 } from '@jetlinks-web-core/utils/application-scope'
-import { removeProjectStorage } from '@jetlinks-web-core/utils/project-storage'
+import { getProjectStorage, removeProjectStorage } from '@jetlinks-web-core/utils/project-storage'
 import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
 import { useUserStore } from '@jetlinks-web-core/store/user'
 import {
   createLoginNavigationHref,
   type LoginNavigationReason,
 } from './login-navigation'
+import { requestLoginNavigation } from './login-transition'
 
 const FORBIDDEN_PATH = '/403'
 const NOT_FOUND_PATH = '/404'
@@ -359,17 +359,20 @@ export const jumpLogin = (options: JumpLoginOptions = {}) => {
   // 优化: 使用新的公开路由检查
   if (isPublicRoute(currentRoute)) return
 
-  setTimeout(() => {
-    const reason = options.reason || 'session-expired'
+  requestLoginNavigation(options.reason || 'session-expired', (reason) => {
     const projectRuntime = isProjectRuntime()
     const projectCode = projectRuntime ? getProjectCodeFromLocation() : ''
+    const runtimeConfig = getProjectRuntimeConfig()
+    // 应用路径使用应用 ID；返回云平台登录时应读取会话中的真实项目域名。
+    const loginProjectCode = getApplicationRuntimeEntry().type === 'application'
+      ? getProjectStorage(projectCode)?.domain || ''
+      : projectCode
 
     resetSessionStores()
     removeToken()
 
     if (reason === 'logout') {
-      // 主动退出是整段 SaaS 会话的结束，不能只清 pathname 对应的项目 token。
-      LocalStore.remove(TOKEN_KEY)
+      // 项目退出只删除当前项目上下文，保留同站点独立的云平台主账号会话。
       if (projectCode) {
         removeProjectStorage(projectCode)
       }
@@ -384,7 +387,7 @@ export const jumpLogin = (options: JumpLoginOptions = {}) => {
         location: window.location,
         loginPath,
         reason,
-        runtimeConfig: getProjectRuntimeConfig(),
+        runtimeConfig: { ...runtimeConfig, projectCode: loginProjectCode },
         origin: localStorage.getItem('pFrom')
       })
     }

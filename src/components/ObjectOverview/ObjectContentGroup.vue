@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onErrorCaptured, ref, watch } from 'vue'
+import { useResizeObserver } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { ThunderboltOutlined, InfoCircleOutlined } from '@ant-design/icons-vue'
 import ObjectDataView from './ObjectDataView.vue'
@@ -7,7 +8,8 @@ import ObjectReferenceDisplay from './ObjectReferenceDisplay.vue'
 import ObjectOperationPanel from './ObjectOperationPanel.vue'
 import { objectOverviewMessages } from './messages'
 import { selectionKey } from '../../object-capability/dashboard'
-import type { DataCapabilityRuntime, PersistedOperationBinding } from '../../data-capability/types'
+import { objectMemberContentGroup } from '../../object-capability/content'
+import type { DataCapabilityRuntime, PersistedOperationBinding, OperationEvent } from '../../data-capability/types'
 import type { ObjectMemberState } from '../../object-capability/useObjectCapabilities'
 import type { ObjectCapabilityValue, ObjectFunctionMetadata, ObjectMember, ObjectMemberPresentation, ObjectMemberSelection, ObjectPropertyMetadata, ObjectReference } from '../../object-capability/types'
 
@@ -19,7 +21,10 @@ export interface ObjectContentEntry {
   related?: boolean
 }
 const props = defineProps<{ title?: string; entries: ObjectContentEntry[]; preview?: boolean; runtime: () => DataCapabilityRuntime | undefined }>()
-defineEmits<{ retry: []; add: []; open: [object: ObjectReference] }>()
+const emit = defineEmits<{ retry: []; add: []; open: [object: ObjectReference]; operation: [event: OperationEvent]; 'content-height': [height: number] }>()
+const body = ref<HTMLElement>()
+// Natural content excludes the assigned card height, avoiding a resize feedback loop.
+useResizeObserver(body, ([entry]) => { if (entry) emit('content-height', entry.contentRect.height + 34) })
 const { t } = useI18n({ useScope: 'local', messages: objectOverviewMessages })
 const active = ref<string>()
 const renderFailed = ref(false)
@@ -31,7 +36,8 @@ const values = (entry: ObjectContentEntry) => (entry.state.value as ObjectCapabi
 </script>
 <template>
   <section class="object-content-group">
-    <header><strong>{{ title }}</strong><a-tag v-if="preview" :bordered="false">{{ t('preview') }}</a-tag></header>
+    <div ref="body" class="object-content-group__body">
+    <header><strong>{{ title }}</strong></header>
     <a-alert v-if="renderFailed" type="warning" :message="t('unavailable')"><template #action><a-button @click="renderFailed = false">{{ t('retry') }}</a-button></template></a-alert>
     <a-empty v-else-if="!entries.length" :description="t('empty')" :image="undefined"><a-button v-if="preview" type="link" @click="$emit('add')">{{ t('add') }}</a-button></a-empty>
     <div v-else class="object-content-group__items">
@@ -51,18 +57,20 @@ const values = (entry: ObjectContentEntry) => (entry.state.value as ObjectCapabi
           </div>
           <small v-if="(entry.state.value as ObjectCapabilityValue)?.limited">{{ t('limited') }}</small>
         </div>
-        <ObjectDataView v-else :value="entry.state.value" :state="entry.state.status" :metadata="(entry.member?.metadata as ObjectPropertyMetadata)?.valueType" @retry="$emit('retry')" />
+        <ObjectDataView v-else :value="entry.state.value" :state="entry.state.status" :metadata="(entry.member?.metadata as ObjectPropertyMetadata)?.valueType" :compact="objectMemberContentGroup(entry.member) !== 'observations'" @retry="$emit('retry')" />
       </article>
     </div>
+    <slot name="footer" />
     <a-modal :open="Boolean(activeEntry) && !preview && !renderFailed" :title="activeEntry?.member?.name" :footer="null" destroy-on-close @cancel="active = undefined">
-      <component v-if="activeEntry?.member" :is="activeEntry.presentation?.editor || ObjectOperationPanel" :member="activeEntry.member" :binding="activeEntry.selection.binding as PersistedOperationBinding" :runtime="runtime" />
+      <component v-if="activeEntry?.member" :is="activeEntry.presentation?.editor || ObjectOperationPanel" :member="activeEntry.member" :binding="activeEntry.selection.binding as PersistedOperationBinding" :runtime="runtime" @operation="emit('operation', $event)" />
     </a-modal>
+    </div>
   </section>
 </template>
 <style scoped>
-.object-content-group { box-sizing: border-box; height: 100%; overflow: auto; padding: 20px; border: 1px solid var(--ant-color-border-secondary, var(--line)); border-radius: 8px; background: var(--ant-color-bg-container, var(--bg-panel)); }
-.object-content-group > header { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
-.object-content-group__items { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 20px; }
+.object-content-group { box-sizing: border-box; height: 100%; overflow: auto; padding: 16px; border: 1px solid var(--ant-color-border-secondary, var(--line)); border-radius: 8px; background: var(--ant-color-bg-container, var(--bg-panel)); }
+.object-content-group__body > header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.object-content-group__items { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 16px; }
 .object-content-group__label { display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px; color: var(--ant-color-text-secondary, inherit); font-size: 12px; overflow-wrap: anywhere; }
 .object-content-group__label .anticon { color: var(--ant-color-text-tertiary, inherit); }
 .object-content-group__related { display: grid; gap: 10px; }.object-content-group__related small, .object-content-group__muted { color: var(--ant-color-text-tertiary, inherit); }

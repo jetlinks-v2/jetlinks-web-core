@@ -1,10 +1,12 @@
-﻿<script setup lang="ts" name="TermsGroupItem">
+﻿<script setup lang="ts">
 import Terms from './Terms.vue'
 import { ValueProps } from './Value/utils'
 import { randomString } from '@jetlinks-web/utils'
 import DropdownMenu from './DropdownMenu.vue'
 import { typeOptions } from './utils'
 import { omit } from 'lodash-es'
+
+defineOptions({ name: 'TermsGroupItem' })
 
 interface TermItem {
   column?: string

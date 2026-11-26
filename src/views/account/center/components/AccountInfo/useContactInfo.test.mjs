@@ -47,7 +47,7 @@ const mountContacts = t => {
     async update(data) {
       context.calls.push({ ...data })
       await context.beforeUpdate?.()
-      if (context.response.status === 200 || context.response.success) persisted = { ...data }
+      if (context.response.success !== false && (context.response.status === 200 || context.response.success === true)) persisted = { ...data }
       return context.response
     },
   }
@@ -128,6 +128,11 @@ test('联系方式允许清空，失败保留草稿且不重复提示并支持�
   assert.equal(contacts.contactChanged.value.email, true)
   assert.equal(contacts.savingContact.value, undefined)
   // 失败提示由公共请求层负责，Hook 只维护草稿和提交状态。
+  assert.deepEqual(context.messages, [])
+  context.response = { success: false, status: 200 }
+  await contacts.saveContact('email')
+  assert.equal(context.user.userInfo.email, 'old@example.test')
+  assert.equal(contacts.contactChanged.value.email, true)
   assert.deepEqual(context.messages, [])
   context.beforeUpdate = () => Promise.reject(new Error('fixture failure'))
   await contacts.saveContact('email')

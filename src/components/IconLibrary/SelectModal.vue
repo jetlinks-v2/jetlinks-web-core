@@ -13,7 +13,6 @@
       @mousedown.stop
       @mouseup.stop
     >
-      <!-- 搜索和主题选择 -->
       <div class="toolbar">
         <a-input-search
           v-model:value="searchText"
@@ -29,137 +28,24 @@
           </a-tag>
         </div>
       </div>
-
-      <!-- 分类标签 -->
       <a-tabs
         v-model:active-key="activeCategory"
         class="category-tabs"
       >
         <a-tab-pane
-          key="all"
-          :tab="$t('components.IconLibrary.categoryAll')"
+          v-for="category in categoryTabs"
+          :key="category.key"
+          :tab="category.label"
         >
           <div class="icon-grid">
             <div
-              v-for="icon in filteredIcons"
-              :key="icon"
-              :class="['icon-item', { active: selected === getIconName(icon) }]"
+              v-for="icon in getFilteredCategory(category.key)"
+              :key="icon.value"
+              :class="['icon-item', { active: selected === icon.value }]"
               @click="selectIcon(icon)"
             >
-              <AIcon :type="getIconName(icon)" />
-              <div class="icon-name">{{ icon }}</div>
-            </div>
-          </div>
-        </a-tab-pane>
-        <a-tab-pane
-          key="direction"
-          :tab="$t('components.IconLibrary.categoryDirection')"
-        >
-          <div class="icon-grid">
-            <div
-              v-for="icon in getFilteredCategory('direction')"
-              :key="icon"
-              :class="['icon-item', { active: selected === getIconName(icon) }]"
-              @click="selectIcon(icon)"
-            >
-              <AIcon :type="getIconName(icon)" />
-              <div class="icon-name">{{ icon }}</div>
-            </div>
-          </div>
-        </a-tab-pane>
-        <a-tab-pane
-          key="suggestion"
-          :tab="$t('components.IconLibrary.categorySuggestion')"
-        >
-          <div class="icon-grid">
-            <div
-              v-for="icon in getFilteredCategory('suggestion')"
-              :key="icon"
-              :class="['icon-item', { active: selected === getIconName(icon) }]"
-              @click="selectIcon(icon)"
-            >
-              <AIcon :type="getIconName(icon)" />
-              <div class="icon-name">{{ icon }}</div>
-            </div>
-          </div>
-        </a-tab-pane>
-        <a-tab-pane
-          key="editor"
-          :tab="$t('components.IconLibrary.categoryEditor')"
-        >
-          <div class="icon-grid">
-            <div
-              v-for="icon in getFilteredCategory('editor')"
-              :key="icon"
-              :class="['icon-item', { active: selected === getIconName(icon) }]"
-              @click="selectIcon(icon)"
-            >
-              <AIcon :type="getIconName(icon)" />
-              <div class="icon-name">{{ icon }}</div>
-            </div>
-          </div>
-        </a-tab-pane>
-        <a-tab-pane
-          key="data"
-          :tab="$t('components.IconLibrary.categoryData')"
-        >
-          <div class="icon-grid">
-            <div
-              v-for="icon in getFilteredCategory('data')"
-              :key="icon"
-              :class="['icon-item', { active: selected === getIconName(icon) }]"
-              @click="selectIcon(icon)"
-            >
-              <AIcon :type="getIconName(icon)" />
-              <div class="icon-name">{{ icon }}</div>
-            </div>
-          </div>
-        </a-tab-pane>
-        <a-tab-pane
-          key="logo"
-          :tab="$t('components.IconLibrary.categoryLogo')"
-        >
-          <div class="icon-grid">
-            <div
-              v-for="icon in getFilteredCategory('logo')"
-              :key="icon"
-              :class="['icon-item', { active: selected === getIconName(icon) }]"
-              @click="selectIcon(icon)"
-            >
-              <AIcon :type="getIconName(icon)" />
-              <div class="icon-name">{{ icon }}</div>
-            </div>
-          </div>
-        </a-tab-pane>
-        <a-tab-pane
-          key="other"
-          :tab="$t('components.IconLibrary.categoryOther')"
-        >
-          <div class="icon-grid">
-            <div
-              v-for="icon in getFilteredCategory('other')"
-              :key="icon"
-              :class="['icon-item', { active: selected === getIconName(icon) }]"
-              @click="selectIcon(icon)"
-            >
-              <AIcon :type="getIconName(icon)" />
-              <div class="icon-name">{{ icon }}</div>
-            </div>
-          </div>
-        </a-tab-pane>
-        <a-tab-pane
-          key="iconfont"
-          tab="iconfont"
-        >
-          <div class="icon-grid">
-            <div
-              v-for="icon in getFilteredCategory('iconfont')"
-              :key="icon"
-              :class="['icon-item', { active: selected === getIconName(icon) }]"
-              @click="selectIcon(icon, 'iconfont')"
-            >
-              <AIcon :type="getIconName(icon, 'iconfont')" />
-              <div class="icon-name">{{ icon }}</div>
+              <AIcon :type="icon.value" />
+              <div class="icon-name">{{ icon.name }}</div>
             </div>
           </div>
         </a-tab-pane>
@@ -169,60 +55,59 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { categories } from './fields'
+import { useIconfontSymbols } from './useIconfontSymbols'
+
+type IconOption = { name: string; value: string }
 
 const { t: $t } = useI18n()
-
 const emits = defineEmits(['save', 'close'])
-
-const activeCategory = ref<string>('all')
+const activeCategory = ref('all')
 const theme = ref<'Outlined' | 'Filled' | 'TwoTone'>('Outlined')
-const searchText = ref<string>('')
-const selected = ref<string>('')
+const searchText = ref('')
+const selected = ref('')
+const iconfontSymbols = useIconfontSymbols()
 
-// 获取所有图标
-const allIcons = computed(() => {
-  const icons: string[] = []
-  Object.values(categories).forEach((category) => {
-    icons.push(...category)
-  })
-  return [...new Set(icons)]
-})
+// 在生成选项时确定最终值，所有分类的预览、选中态、复制和保存都消费同一个值。
+const iconCategories = computed<Record<string, IconOption[]>>(() => ({
+  ...Object.fromEntries<IconOption[]>(Object.entries(categories).map(([category, names]) => [
+    category,
+    names.map(name => ({ name, value: `${name}${theme.value}` }))
+  ])),
+  iconfont: iconfontSymbols.value.map(name => ({ name, value: name }))
+}))
+const allIcons = computed(() => [...new Map(
+  Object.values(iconCategories.value).flat().map(icon => [icon.value, icon] as const)
+).values()])
+const categoryTabs = computed(() => [
+  { key: 'all', label: $t('components.IconLibrary.categoryAll') },
+  { key: 'direction', label: $t('components.IconLibrary.categoryDirection') },
+  { key: 'suggestion', label: $t('components.IconLibrary.categorySuggestion') },
+  { key: 'editor', label: $t('components.IconLibrary.categoryEditor') },
+  { key: 'data', label: $t('components.IconLibrary.categoryData') },
+  { key: 'logo', label: $t('components.IconLibrary.categoryLogo') },
+  { key: 'other', label: $t('components.IconLibrary.categoryOther') },
+  { key: 'iconfont', label: 'iconfont' }
+])
 
-// 根据搜索和主题过滤图标
-const filteredIcons = computed(() => {
-  let icons = allIcons.value
-  if (searchText.value) {
-    icons = icons.filter((icon) => icon.toLowerCase().includes(searchText.value.toLowerCase()))
-  }
-  return icons
-})
-
-// 获取带主题的图标名称
-const getIconName = (icon: string, type?: string) => {
-  if (type === 'iconfont') {
-    return icon
-  }
-  return `${icon}${theme.value}`
+const getFilteredCategory = (category: string): IconOption[] => {
+  const icons = category === 'all' ? allIcons.value : iconCategories.value[category] || []
+  const keyword = searchText.value.toLowerCase()
+  return icons.filter(icon => icon.name.toLowerCase().includes(keyword))
 }
 
-// 选择图标
-const selectIcon = (icon: string, type?: string) => {
-  const iconName = getIconName(icon, type)
-  selected.value = iconName
-
-  // 复制图标名称到剪贴板
-  copyToClipboard(iconName)
+const selectIcon = (icon: IconOption) => {
+  selected.value = icon.value
+  copyToClipboard(icon.value)
 }
 
-// 复制到剪贴板
 const copyToClipboard = async (text: string) => {
   try {
     await navigator.clipboard.writeText(text)
-    // message.success(`已复制: ${text}`)
-  } catch (err) {
-    // 降级方案：使用传统方法
+  } catch {
+    // 非安全上下文保留传统复制方式。
     const textarea = document.createElement('textarea')
     textarea.value = text
     textarea.style.position = 'fixed'
@@ -231,34 +116,19 @@ const copyToClipboard = async (text: string) => {
     textarea.select()
     try {
       document.execCommand('copy')
-    } catch (e) {
-      console.error('复制失败:', e)
+    } catch (error) {
+      console.error('复制失败:', error)
     }
     document.body.removeChild(textarea)
   }
 }
 
-// 获取过滤后的分类图标
-const getFilteredCategory = (category: keyof typeof categories) => {
-  let icons = categories[category]
-  if (searchText.value) {
-    icons = icons.filter((icon) => icon.toLowerCase().includes(searchText.value.toLowerCase()))
-  }
-  return icons
-}
-
-// 确认选择
 const confirm = () => {
-  if (selected.value) {
-    emits('save', selected.value)
-  }
+  if (selected.value) emits('save', selected.value)
 }
 </script>
 
 <style scoped>
-.icon-selector {
-  height: 80vh;
-}
 .icon-selector .toolbar {
   display: flex;
   justify-content: space-between;

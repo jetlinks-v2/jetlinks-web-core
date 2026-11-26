@@ -33,9 +33,11 @@
   </RouterView>
 </template>
 
-<script setup lang="ts" name="PageRouteView">
+<script setup lang="ts">
 import PageRouteSkeleton from '../PageRouteSkeleton/index.vue'
 import { useRouteLoadingStore } from '@jetlinks-web-core/store/route-loading'
+
+defineOptions({ name: 'PageRouteView' })
 
 type RouteSkeletonVariant = 'content' | 'layout'
 

@@ -21,6 +21,8 @@ const visible = computed(() => members.value.filter(member => `${member.name} ${
 const fields = computed(() => (pending.value?.metadata as ObjectFunctionMetadata | undefined)?.inputs || [])
 type InputValue = string | number | boolean | Record<string, unknown> | unknown[] | undefined
 const fieldValue = (id: string) => input.value[id] as InputValue
+const detail = (member: ObjectMember) => member.description && member.description !== member.ref.id && member.description !== member.name
+  ? member.description : member.sourceName !== member.ref.providerId ? t('source', { name: member.sourceName }) : ''
 function choose(member: ObjectMember) {
   if (member.ref.kind === 'query' && (member.metadata as ObjectFunctionMetadata).inputs?.length) {
     pending.value = member; input.value = {}; return
@@ -44,7 +46,7 @@ function confirmQuery() {
       <div v-else class="object-picker__items">
         <a-button v-for="member in visible" :key="objectCapabilityId(member.ref)" type="text" class="object-picker__item" @click="choose(member)">
           <FieldNumberOutlined v-if="member.ref.kind === 'property'" /><DatabaseOutlined v-else-if="member.ref.kind === 'query'" /><ThunderboltOutlined v-else />
-          <span>{{ member.name }}<small>{{ member.description || t('source', { name: member.sourceName }) }}</small></span>
+          <span>{{ member.name }}<small v-if="detail(member)">{{ detail(member) }}</small></span>
         </a-button>
       </div>
     </a-spin>

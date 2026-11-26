@@ -55,6 +55,8 @@ import {
   MetricCards,
   ModelParameterEditor,
   PageHeader,
+  PanelCollapseButton,
+  PanelResizeHandle,
   StatusPill,
 } from '@jetlinks-web-core/components'
 ```
@@ -63,13 +65,19 @@ import {
 
 ## 场景映射
 
+`ResponsiveSplitter` 与 `useResponsivePanel` 从根入口具名导出，前者组合原位分区、临时抽屉、边缘点击／拖动和内容保留；后者供已有布局组合适配与手动折叠偏好，使用契约见 [响应式收放](Splitter/README.md#响应式收放)。两者不全局注册、不读取或持久化业务偏好。
+
+### 平台基础配置
+
+[`PlatformSettings`](PlatformSettings/README.md) 通过根入口和目录入口导出共享配置组合、外观设置/预览及地图区块。`detail` 模式逐项保存，`form` 模式仅更新草稿并向宿主暴露统一提交；复用 `ContentPanel`、`InlineEditForm` 和上传裁剪组件。运行时设置页、初始化页共用；SaaS 域名流程归业务模块。
+
 ### 运行诊断
 
 [`RuntimeDiagnostics`](RuntimeDiagnostics/README.md) 提供指标趋势、MBean / Buffer、JVM 诊断、线程、实时火焰图、集群链路与日志组件，以及 `registerMBeanRenderer` 和安全 HTML 导出工具。组件有根入口具名导出，类型及纯数据工具通过目录公开入口导入。宿主注入数据、权限、偏好、传输与导航；MBean 共用对象树，已识别对象自动匹配专用内容，未知对象回退属性表。完整 API 与数据语义见目录说明。
 
 ### 多语言文本输入
 
-`I18nTextField`、`I18nTextDialog`、`I18nInputTrigger` 通过根入口具名导出，不全局注册：
+`I18nTextField`、`I18nTextEditable`、`I18nTextDialog`、`I18nInputTrigger` 通过根入口具名导出，不全局注册：
 
 ```ts
 import { I18nTextField, I18nTextDialog, I18nInputTrigger } from '@jetlinks-web-core/components'
@@ -78,7 +86,7 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 
 `I18nTextField` 同时绑定 `v-model:value` 和 `v-model:i18nMessages`，通过 `field` 指定字段键、`label` 设置弹窗标题；`i18nMessages` 的结构为 `{ [field]: { [language]: text } }`。直接输入会同步当前语言翻译，清空时删除该语言值；弹窗确认后回写当前语言的主输入框值，保留其他字段。`textarea` 切换文本域，`i18nMaxLength` 默认 200，其余输入控件属性透传。
 
-`I18nInputTrigger` 发出 `configure` 事件；独立使用 `I18nTextDialog` 时绑定 `v-model:visible`，提供 `title`、`data` 和可选的 `displayValue`、`maxLength`、`textarea`，通过 `confirm` 接收单字段语言映射。弹窗支持中文、英文编辑，校验失败不关闭，取消不提交，缺少翻译时以当前显示值初始化当前语言。组件不发起请求、不修改全局状态；文案由 core 的 `I18n.*` 翻译键提供。
+`I18nInputTrigger` 为可聚焦按钮，发出 `configure` 事件，触屏扩展到44px触达。独立使用 `I18nTextDialog` 时绑定 `v-model:visible`，提供 `title`、`data` 和可选的 `displayValue`、`maxLength`、`textarea`，通过 `confirm` 接收单字段语言映射。桌面紧凑弹窗、手机底部面板，以语言页签切换当前译文并即时预览；提供中英文、保留已有额外语言，区域语言优先匹配。切语言保留草稿，校验失败定位超长语言且不关闭，取消不提交，关闭后焦点返回触发入口。缺少翻译时保留以当前显示值初始化当前语言的行为；传入可选`fallbackMessages`时，默认翻译只作占位与预览，不复制为覆盖值，清空后可继承默认。组件不发起请求、不修改全局状态；文案由 core 的 `I18n.*` 翻译键提供。
 
 生产用法：SaaS 设备模板保存页，以及应用模板 `TemplateSummary` 中独立组合的触发器和弹窗。
 
@@ -90,14 +98,17 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 | --- | --- | --- | --- |
 | 带数量的圆角斜边页签 | `SlantedTabs` | [SlantedTabs](SlantedTabs/README.md) | 具名导出、全局注册：`SlantedTabs` |
 | 页面标题、返回和操作区 | `PageHeader`、`DetailHeader`、`PageActions`、`PageChrome`、`TitleComponent` | [PageHeader](PageHeader/README.md)、[DetailHeader](DetailHeader/README.md)、[PageActions](PageActions/README.md)、[PageChrome](PageChrome/README.md)、[TitleComponent](TitleComponent/README.md) | 具名导出：`PageHeader`、`DetailHeader`；全局注册：`PageActions`、`PageChrome`、`TitleComponent` |
-| 页面容器、区块和布局 | `FullPage`、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`ResponsiveGrid`、`KvGrid` | [HomeView](HomeView/README.md)、[SectionCard](SectionCard/README.md)、[ContentPanel](ContentPanel/README.md)、[AmbientCard](AmbientCard/README.md)、[JlDrawerShell](JlDrawerShell/README.md)、[StickyActionBar](StickyActionBar/README.md)、[EqualHeightColumns](EqualHeightColumns/README.md)、[ResponsiveGrid](ResponsiveGrid/README.md)、[KvGrid](KvGrid/README.md) | `FullPage`（来自 `@jetlinks-web-core/layout`）、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`ResponsiveGrid`、`KvGrid` |
+| 详情摘要字段与语义图标 | `DetailMetaItem` | [DetailMetaItem](DetailMetaItem/README.md) | 全局注册及具名导出，类型 `DetailMetaKind`；配合 `DetailHeader` 摘要模式 |
+| 卡片上方的返回列表入口 | `PageBack` | [PageChrome](PageChrome/README.md#统一返回入口) | 全局注册及具名导出；`label` 文案、`back` 事件；放在独立 `PageChrome` 中 |
+| 页面容器、区块和布局 | `FullPage`、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`Splitter`、`ResponsiveGrid`、`KvGrid`、`PanelCollapseButton`、`PanelResizeHandle` | [HomeView](HomeView/README.md)、[SectionCard](SectionCard/README.md)、[ContentPanel](ContentPanel/README.md)、[AmbientCard](AmbientCard/README.md)、[JlDrawerShell](JlDrawerShell/README.md)、[StickyActionBar](StickyActionBar/README.md)、[EqualHeightColumns](EqualHeightColumns/README.md)、[Splitter](Splitter/README.md)、[ResponsiveGrid](ResponsiveGrid/README.md)、[KvGrid](KvGrid/README.md)、[PanelCollapseButton](PanelCollapseButton/README.md)、[PanelResizeHandle](PanelResizeHandle/README.md) | `FullPage`（来自 `@jetlinks-web-core/layout`）、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`ResponsiveGrid`、`KvGrid`；`Splitter`、`PanelCollapseButton` 与 `PanelResizeHandle` 仅具名导出，不全局注册 |
 | 路由加载和页面空态 | `PageRouteView`、`PageRouteSkeleton`、`CloudEmpty` | [PageRouteView](PageRouteView/README.md)、[PageRouteSkeleton](PageRouteSkeleton/README.md)、[CloudEmpty](CloudEmpty/README.md) | `PageRouteView`、`PageRouteSkeleton`、`CloudEmpty` |
 | 列表、表格和分页 | `CrudTable`、`Search`（全局名 `ProSearch`）、`ConditionFilter`、`QuickFilterSidebar`、`VirtualScroll`、`MatrixGrid`、`SwitchGroup` | [CrudTable](CrudTable/README.md)、[Search](Search/README.md)、[ConditionFilter](ConditionFilter/readme.md)、[QuickFilterSidebar](QuickFilterSidebar/README.md)、[VirtualScroll](VirtualScroll/README.md)、[MatrixGrid](MatrixGrid/README.md)、[SwitchGroup](SwitchGroup/README.md) | `CrudTable`、`ProSearch`、`ConditionFilter`、`QuickFilterSidebar`、`VirtualScroll`、`MatrixGrid`、`SwitchGroup` |
 | 自适应高度与虚拟滚动树 | `AutoTree` | [AutoTree](AutoTree/README.md) | 具名导出、全局注册：`AutoTree`；兼容 Tree 属性、事件和插槽，未指定高度时自动适配 |
 | 资产归属筛选、维度目标及绑定查询 | `AssetOwnershipCondition`、`createAssetOwnershipField` | [AssetOwnershipCondition](AssetOwnershipCondition/README.md) | `AssetOwnershipCondition` |
 | 卡片选择和指标摘要 | `CardBox` 及变体、`CardSelect`、`EntityCard`、`MetricCards`、`IconBadge`、`MetaChip`、`TabsCard` | [CardBox](CardBox/README.md)、[CardSelect](CardSelect/README.md)、[EntityCard](EntityCard/README.md)、[MetricCards](MetricCards/README.md)、[IconBadge](IconBadge/README.md)、[MetaChip](MetaChip/README.md)、[TabsCard](TabsCard/README.md) | CardBox/变体、`MetricCards`、`IconBadge` 具名导出；`CardSelect` 见非根入口 |
 | 状态、标签和轻量展示 | `StatusTag`、`StatusPill`、`AppTag`、`Avatar`、`ChipGroup`、`Image`、`CodeBlock` | [StatusTag](StatusTag/README.md)、[StatusPill](StatusPill/README.md)、[AppTag](AppTag/README.md)、[Avatar](Avatar/README.md)、[ChipGroup](ChipGroup/README.md)、[Image](Image/README.md)、[CodeBlock](CodeBlock/README.md) | `StatusTag`、`StatusPill`、`AppTag`、`Avatar`、`ChipGroup`、`Image`、`CodeBlock` |
-| 表单字段和条件编辑 | `CheckButton`、`CheckboxGroup`、`Editable`、`EditDialog`、`MetadataValueItem`、`OutputSchemaEditor`、`TermsCascader` | [CheckButton](CheckButton/README.md)、[CheckboxGroup](CheckboxGroup/README.md)、[Editable](Editable/README.md)、[EditDialog](EditDialog/README.md)、[MetadataValueItem](MetadataValueItem/README.md)、[OutputSchemaEditor](OutputSchemaEditor/README.md)、[TermsCascader](TermsCascader/readme.md) | `CheckButton`、`CheckboxGroup`、`Editable`、`EditDialog`、`MetadataValueItem`、`OutputSchemaEditor`、`TermsCascader` 及其 Group 变体 |
+| 分组详情与逐字段异步保存 | `InlineEditForm` | [InlineEditForm](InlineEditForm/README.md) | 根入口 / 目录具名导出，不全局注册；支持首次表单、失败恢复、取消与自定义编辑器 |
+| 表单字段和条件编辑 | `FormRenderer`、`FormDesigner`、`CheckButton`、`CheckboxGroup`、`Editable`、`EditDialog`、`MetadataValueItem`、`OutputSchemaEditor`、`TermsCascader` | [Form](Form/README.md)、[CheckButton](CheckButton/README.md)、[CheckboxGroup](CheckboxGroup/README.md)、[Editable](Editable/README.md)、[EditDialog](EditDialog/README.md)、[MetadataValueItem](MetadataValueItem/README.md)、[OutputSchemaEditor](OutputSchemaEditor/README.md)、[TermsCascader](TermsCascader/readme.md) | Form两组件具名导出，设计器按需加载、不全局注册；其余保留既有入口 |
 | 上传、导入和验证码 | `FileUpload`、`ProUpload`、`ImageUpload`、`BatchImport`、`Captcha`、`ChatTextArea` | [Upload](Upload/README.md)、[BatchImport](BatchImport/README.md)、[Captcha](Captcha/README.md)、[ChatTextArea](ChatTextArea/README.md) | `FileUpload` 为根入口具名导出，其余沿用同名全局注册 |
 | 图标和富文本 | `IconLibrary`、`IconValue`、`MarkdownEditor`、`MonacoEditor` | [IconLibrary](IconLibrary/README.md)、[IconValue](IconValue/README.md)、[MarkdownEditor](MarkdownEditor/README.md)、[MonacoEditor](MonacoEditor/README.md) | `IconLibrary`、`MonacoEditor`；`IconValue` 的编辑/展示子组件见非根入口 |
 | 地图、日历和图表 | `AMapComponent`、`SelectAMap`、`FullCalendar`、`Echarts`、`Dashboard`、`MCarousel` | [AMapComponent](AMapComponent/README.md)、[SelectAMap](SelectAMap/README.md)、[FullCalendar](FullCalendar/README.md)、[Echarts](Echarts/README.md)、[Dashboard](Dashboard/README.md)、[MCarousel](MCarousel/README.md) | `AMapComponent`、`SelectAMap`、`FullCalendar`、ECharts 插件、`TimeSelect`、`MCarousel` |
@@ -138,6 +149,26 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 - `Echarts` 通过插件安装，不要把它与普通 `.component()` 注册组件混用；图表实例和按需 library 注册见 [Echarts/README.md](Echarts/README.md)。
 - `CardSelect`、`IconValue`、`MarketplaceResourcePicker` 等目录存在不等于根入口公开；除明确文档化的按需公开入口外，深层能力必须有当前生产代码证据。
 
+### 业务指标
+
+`MetricResult`、`MetricValueView` 与共享指标类型从 `@jetlinks-web-core/components` 具名导出，公共层提供只读计算图、历史与汇总查询。配置管理、模板设计和工作区由 `rule-engine-manager-ui` 提供，业务对象通过模块注册的 `MetricScopePanel` 接入；目录与边界见 `Metric/README.md`。
+
+公式编辑、只读反显和计算过程共用 `Expression` 的数学投影。静态 LaTeX 说明使用具名导出 `LatexView`，共用 MathLive 静态排版，不创建编辑器或求值。`MathExpressionView` 按公式自然高度布局，只对超宽内容提供横向滚动；`ExpressionWorkspace` 的放大预览在达到窗口可用高度后才整体纵向滚动，避免公式内部产生独立纵向滚动条。
+
+指标概览的“添加指标”与查看时段、刷新控件放在同一工具栏，不单独占用标题行；空列表仍保留居中的创建入口。指标概览卡片以结果与趋势为主，标题旁的 `ƒx` 在悬停、聚焦或点击时展示原公式，不让公式撑高卡片。同一行卡片等高，标题、结果及底部入口对齐；停用且无历史时不叠加空趋势、等待提示或辅助空值，仍保留查看入口。状态起点不明时显示“从某时开始记录”和“至少持续”，说明真实开始时间可能更早，不将记录时间表示为上线时间。
+
+指标详情的历史与过程工具栏统一控件尺寸；过程标题和计算时间在左，节点显隐、刷新及缩放在右。过程图自动布局保留可读比例，超宽时在画布内滚动，显式“适应画布”仍可查看全图；刷新同一布局不重置视口。切换历史时段保留已显示的数据和组件，查询期间局部提示加载，新请求完成后替换数据；对象或输出改变时仍隔离旧数据，时段切换重置历史选择与局部缩放。运行诊断沿用详情的折叠区和统一时间格式。
+
+来源诊断消费后端有界的 `quality.attributes.inputIssues/inputIssueCount`，按当前计算的输入别名解析直接输入和上游计算名称。卡片显示一条具体原因，摘要仅显示简短状态，“查看原因”进入现有结果详情并展开问题及对应处理建议；只有可定位的直接输入提供检查来源动作。缺数、过期、上游失败分别解释，未知原因保持“未能取得有效数据”，不推断离线、绑定错误或读取失败；不为解释原因再次请求来源，也不按具体模板改写状态名称。
+
+部分结果没有具体来源诊断、但服务端携带未满的 `quality.coverage` 时，结果质量提示直接展示覆盖率和说明，保留已确认的数值；不将未覆盖部分补成零或正常。没有覆盖率时保留一般缺数提示。
+
+成员输出由 `MetricCollectionPicker` 按模板分组，支持搜索、多列多选和统一应用；草稿选择不发请求。范围概览复用 `MetricCardShell`，按兼容模板口径展示聚合卡片，卡内切换输出和后端允许的统计，查看成员时按设备分页并合并其多个输出。多输出由同一集合请求筛选后分页，单输出才允许合法统计。模板/输出选择及卡内统计偏好只保存在浏览器，按 `MetricContext.preferenceScope`（宿主提供用户/项目/租户身份）、根对象和成员类型隔离，缺少身份不保存；恢复时与本轮授权目录及允许操作取交集，记忆不授予数据访问权限。
+
+`MetricLatest` 的 `{ configId, outputs, runtime? }` 中，`runtime` 是当前节点对当前配置身份的只读装载反馈：`pending` 等待装载、`loaded` 已装载、`failed` 装载失败，缺省表示本节点暂无反馈。它与输出质量独立；已有结果保留原值、质量和来源时间，未装载时另标“上次结果”。只有已装载且没有输出时显示“等待数据”。概览已有值时弱化正常装载反馈，详情展示反馈节点、最近成功/失败时间和安全错误码，具有维护权限的用户可用原配置的保存启用动作重试；不创建新配置。卡片和详情消费同一面板的既有批量轮询，不增加逐卡轮询或客户端 TTL；过期状态只消费服务端 `quality.stale`。 最新值的可读性、数值和运行反馈按同一快照版本接受；迟到详情响应不能撤销较新的授权快照或阻断其合法历史读取，新的拒权会清理当前值和历史。
+
+工作区记忆键继续以调用方提供的用户/项目/租户 `scopeKey` 隔离，只保存所选维度及各 `ownerType` 的对象 ID。恢复 ID 必须经过 navigator 的授权查询确认后才能创建指标上下文；对象失效或维度卸载只清理对应维度的记忆。
+
 ## 与 `@jetlinks-web/components` 的边界
 
 | 能力层 | 适合承载 | 查找入口 |
@@ -161,6 +192,6 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 
 按目录查看每个组件的独立说明：
 
-`AMapComponent` · `AmbientCard` · `AppTag` · `Avatar` · `BatchDropdown` · `BatchImport` · `Captcha` · `CardBox` · `CardSelect` · `ChatTextArea` · `CheckboxGroup` · `CheckButton` · `ChipGroup` · `CloudEmpty` · `CodeBlock` · `ConditionFilter` · `ConfirmModal` · `ContentPanel` · `CrudTable` · `Dashboard` · `DesignerPreview` · `DetailHeader` · `Echarts` · `Editable` · `EditDialog` · `EntityCard` · `EqualHeightColumns` · `FormItem` · `FullCalendar` · `HomeView` · `IconBadge` · `IconLibrary` · `IconValue` · `Image` · `JlConfirmDialog` · `JlDrawerShell` · `KvGrid` · `MarkdownEditor` · `MarketplaceInstallStream` · `MarketplaceResourcePicker` · `MatrixGrid` · `MCarousel` · `MenuAssetPermissionEditor` · `MetaChip` · `MetadataValueItem` · `MetricCards` · `ModelConfig` · `ModelParameterEditor` · `MonacoEditor` · `OutputSchemaEditor` · `PageActions` · `PageChrome` · `PageHeader` · `PageRouteSkeleton` · `PageRouteView` · `Player` · `QuickFilterSidebar` · `RegisterComponents` · `RemoteComponent` · `ResponsiveGrid` · `Search` · `SectionCard` · `SelectAMap` · `StatusPill` · `StatusTag` · `StickyActionBar` · `SwitchGroup` · `TabsCard` · `TagManagerSidebar` · `TermsCascader` · `TitleComponent` · `Upload` · `VirtualScroll`
+`AMapComponent` · `AmbientCard` · `AppTag` · `Avatar` · `BatchDropdown` · `BatchImport` · `Captcha` · `CardBox` · `CardSelect` · `ChatTextArea` · `CheckboxGroup` · `CheckButton` · `ChipGroup` · `CloudEmpty` · `CodeBlock` · `ConditionFilter` · `ConfirmModal` · `ContentPanel` · `CrudTable` · `Dashboard` · `DesignerPreview` · `DetailHeader` · `DetailMetaItem` · `Echarts` · `Editable` · `EditDialog` · `EntityCard` · `EqualHeightColumns` · `FormItem` · `FullCalendar` · `HomeView` · `IconBadge` · `IconLibrary` · `IconValue` · `Image` · `JlConfirmDialog` · `JlDrawerShell` · `KvGrid` · `MarkdownEditor` · `MarketplaceInstallStream` · `MarketplaceResourcePicker` · `MatrixGrid` · `MCarousel` · `MenuAssetPermissionEditor` · `MetaChip` · `MetadataValueItem` · `MetricCards` · `ModelConfig` · `ModelParameterEditor` · `MonacoEditor` · `OutputSchemaEditor` · `PageActions` · `PageBack` · `PageChrome` · `PageHeader` · `PageRouteSkeleton` · `PageRouteView` · `Player` · `QuickFilterSidebar` · `RegisterComponents` · `RemoteComponent` · `ResponsiveGrid` · `Search` · `SectionCard` · `SelectAMap` · `StatusPill` · `StatusTag` · `StickyActionBar` · `SwitchGroup` · `TabsCard` · `TagManagerSidebar` · `TermsCascader` · `TitleComponent` · `Upload` · `VirtualScroll`
 
 - 仪表盘存量业务卡片运行支持：`DashBoardCanvas/runtime`（目录公开导出），提供数据订阅、网格布局、同步图片地址及时间筛选/标题组件，见 [画布说明](DashBoardCanvas/README.md#业务组件运行支持)。

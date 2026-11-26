@@ -17,8 +17,8 @@
 
 | 参数 | 说明 | 类型 | 默认值 |
 | --- | --- | --- | --- |
-| `modelValue` | 图片地址，供图片组件使用 | `string` | - |
-| `value` | 文件 ID 或 Ant Design UploadFile 列表，供 FileUpload 使用 | `string \| UploadFile[]` | - |
+| `value` | ImageUpload 图片地址，使用 `v-model:value` 或 `value/update:value` | `string` | - |
+| `value`（FileUpload） | 文件 ID 或 Ant Design UploadFile 列表，供 FileUpload 使用 | `string \| UploadFile[]` | - |
 | `accept` | 文件选择器接受的后缀或 MIME 类型 | `string` | - |
 | `types` | 允许的 MIME 类型数组 | `string[]` | 图片默认 jpeg/png |
 | `size` | 单文件大小上限 MB | `number` | 2 |
@@ -39,7 +39,7 @@
 
 | 事件 | 说明 | 回调参数 |
 | --- | --- | --- |
-| `update:modelValue/update:value` | 上传结果变化 | `(url \| fileList)` |
+| `update:value` | 上传结果变化 | `(url \| fileList)` |
 | `change` | 上传状态变化 | `(value)` |
 | `remove` | 移除文件 | `(file)` |
 | `uploadChange` | FileUpload 全过程状态，用于上传中禁用提交、失败后恢复等 | `(UploadChangeParam)` |
@@ -58,14 +58,15 @@ const imageUrl = ref('')
 
 <template>
   <FileUpload v-model:value="fileId" accept=".jar,.zip" drag :multiple="false" />
-  <ImageUpload v-model="imageUrl" :size="5" />
+  <ImageUpload v-model:value="imageUrl" :size="5" />
 </template>
 ~~~
 
 #### Rules
 
 - 上传请求、请求头和文件地址转换沿用 core 的统一上传工具。
-- ImageUpload 默认支持图片裁剪；File 上传使用 value 事件，ImageUpload 使用 modelValue。
+- ImageUpload 的 `cropperProps` 透传公共裁剪参数；头像可配置 `{ fixed: true, fixedNumber: [1, 1] }`，继续通过 `update:value` 接收裁剪上传后的地址。
+- ImageUpload 默认支持图片裁剪；File 上传使用 value 事件，ImageUpload 使用 `value/update:value`。
 - 大小限制按 MB 校验，types 优先于 accept 的默认限制。
 - FileUpload 的默认插槽可替换按钮或拖拽区内容。`value` 接收列表时保留调用方提供的文件名、地址与状态；上传成功的 `update:value` 仍返回文件 ID，移除时返回 `undefined`。`change` 保留上传完成时通知的契约；`isUpload=false` 时继续通过 `change` 返回原始文件。
 - `accept` 用于选择器及拖放过滤；业务需要显式校验时提供 `beforeUpload`，可返回 `Upload.LIST_IGNORE` 拒绝文件并保留原列表。默认仍限制 2 MB，确实无前端大小上限的业务可传 `size=Infinity`。

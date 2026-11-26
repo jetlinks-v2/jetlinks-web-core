@@ -1,57 +1,31 @@
 <template>
-  <a-modal
-    :open="visible"
-    :title="title"
-    :width="600"
-    :mask-closable="false"
-    @cancel="handleCancel"
-    @ok="handleOk"
-  >
-    <a-form ref="formRef" :model="formData" :rules="rules" layout="vertical">
-      <a-form-item
-        v-for="language in languages"
-        :key="language.code"
-        :label="language.label"
-        :name="language.code"
-      >
-        <a-textarea
-          v-if="textarea"
-          v-model:value="formData[language.code]"
-          :rows="4"
-          :maxlength="maxLength"
-          :placeholder="$t('I18n.placeholder', { language: language.label })"
-          show-count
-        />
-        <a-input
-          v-else
-          v-model:value="formData[language.code]"
-          :maxlength="maxLength"
-          :placeholder="$t('I18n.placeholder', { language: language.label })"
-        />
-      </a-form-item>
-    </a-form>
-  </a-modal>
+  <component :is="mobile ? Drawer : Modal" :open="visible" :title="title"
+    v-bind="mobile ? { placement: 'bottom', height: 'auto', bodyStyle: { maxHeight: '65dvh', overflow: 'auto' } } : { width: textarea ? 600 : 440, centered: true }"
+    :mask-closable="false" destroy-on-close @cancel="editor?.cancel()" @close="editor?.cancel()" @after-open-change="$event && editor?.focus()">
+    <I18nTextEditor ref="editor" v-bind="props" :actions="mobile" :role="mobile ? 'dialog' : undefined" :aria-label="mobile ? title : undefined" :aria-modal="mobile || undefined" @update:visible="emit('update:visible', $event)" @confirm="emit('confirm', $event)" />
+    <template #footer><div v-if="!mobile" class="i18n-text-dialog__actions"><Button type="text" @click="editor?.cancel()">{{ t('I18n.cancel') }}</Button><Button type="primary" @click="editor?.confirm()">{{ t('I18n.apply') }}</Button></div></template>
+  </component>
 </template>
-
 <script setup lang="ts">
-import { useI18nTextDialog } from './hooks/useI18nTextDialog'
-
-// 保留内联宏类型，兼容当前 setup-name-support 插件的匿名 SFC 预编译。
-const props = withDefaults(defineProps<{
-  visible: boolean
-  title: string
-  data?: Record<string, string>
-  displayValue?: string
-  maxLength?: number
-  textarea?: boolean
-}>(), {
-  data: () => ({}),
-  maxLength: 200,
-  textarea: false,
-})
+import { ref, watch } from 'vue'
+import { useMediaQuery } from '@vueuse/core'
+import { useI18n } from 'vue-i18n'
+import { Button, Drawer, Modal } from 'ant-design-vue'
+import I18nTextEditor from './I18nTextEditor.vue'
+import type { I18nTextDialogProps, I18nTextMessages } from './types'
+const props = withDefaults(defineProps<I18nTextDialogProps>(), { data: () => ({}), maxLength: 200, textarea: false })
 const emit = defineEmits<{
   (event: 'update:visible', value: boolean): void
-  (event: 'confirm', value: Record<string, string>): void
+  (event: 'confirm', value: I18nTextMessages): void
 }>()
-const { formRef, formData, languages, rules, handleCancel, handleOk } = useI18nTextDialog(props, emit)
+const narrow = useMediaQuery('(max-width: 600px)')
+const mobile = ref(narrow.value)
+// 保持当前编辑器实例，下一次打开时再按可用宽度选择容器。
+watch([() => props.visible, narrow], ([, value], [wasOpen]) => { if (!wasOpen) mobile.value = value }, { flush: 'sync' })
+const { t } = useI18n()
+const editor = ref<InstanceType<typeof I18nTextEditor>>()
 </script>
+<style scoped>
+.i18n-text-dialog__actions { display:flex; justify-content:flex-end; gap:var(--space-2); padding-bottom:env(safe-area-inset-bottom); }
+@media (pointer:coarse),(max-width:600px) { .i18n-text-dialog__actions :deep(.ant-btn) { min-width:44px; min-height:44px; } }
+</style>

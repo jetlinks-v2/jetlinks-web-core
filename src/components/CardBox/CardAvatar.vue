@@ -10,9 +10,11 @@
   </a-avatar>
 </template>
 
-<script setup lang="ts" name="CardAvatar">
+<script setup lang="ts">
 import type { PropType } from 'vue'
 import type { CardAvatarData } from './types'
+
+defineOptions({ name: 'CardAvatar' })
 
 defineProps({
   avatar: {

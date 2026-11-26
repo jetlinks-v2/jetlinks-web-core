@@ -4,13 +4,14 @@ import { useI18n } from 'vue-i18n'
 import ObjectInputValue from './ObjectInputValue.vue'
 import ObjectDataView from './ObjectDataView.vue'
 import type { ObjectFunctionMetadata, ObjectMember } from '../../object-capability/types'
-import type { DataCapabilityRuntime, PersistedOperationBinding } from '../../data-capability/types'
+import type { DataCapabilityRuntime, PersistedOperationBinding, OperationEvent } from '../../data-capability/types'
 import { useObjectOperation } from '../../object-capability/useObjectOperation'
 import { objectOverviewMessages } from './messages'
 
 const props = defineProps<{ member: ObjectMember; binding?: PersistedOperationBinding; runtime: () => DataCapabilityRuntime | undefined }>()
+const emit = defineEmits<{ operation: [event: OperationEvent] }>()
 const { t } = useI18n({ useScope: 'local', messages: objectOverviewMessages })
-const { input, prepared, target, busy, failed, warning, result, completed, prepare, execute, reset } = useObjectOperation(toRef(props, 'binding'), () => props.runtime())
+const { input, prepared, target, busy, failed, warning, result, completed, prepare, execute, reset } = useObjectOperation(toRef(props, 'binding'), () => props.runtime(), event => emit('operation', event))
 const fields = computed(() => (props.member.metadata as ObjectFunctionMetadata).inputs || [])
 function setInput(id: string, value: unknown) { input.value = { ...input.value, [id]: value } }
 </script>

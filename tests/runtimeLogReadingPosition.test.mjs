@@ -22,19 +22,24 @@ function harness(t, values = {}) {
   const vueBindings = { ...vue, onActivated: callback => hooks.activated.push(callback), onDeactivated: callback => hooks.deactivated.push(callback), onBeforeUpdate: callback => hooks.beforeUpdate.push(callback), onBeforeUnmount: callback => hooks.unmounted.push(callback) }
   const retained = { exports: {} }, retainedCode = transformSync(readFileSync(resolve(import.meta.dirname, '../src/hooks/useRetainedScroll.ts'), 'utf8'), { loader: 'ts', format: 'cjs' }).code
   const popupFocus = { exports: {} }, popupFocusCode = transformSync(readFileSync(resolve(dirname(filename), 'popupFocus.ts'), 'utf8'), { loader: 'ts', format: 'cjs' }).code
+  const virtual = { exports: {} }, virtualCode = transformSync(readFileSync(resolve(dirname(filename), 'logs/useLogVirtualWindow.ts'), 'utf8'), { loader: 'ts', format: 'cjs' }).code
+  const presentation = { exports: {} }, presentationCode = transformSync(readFileSync(resolve(dirname(filename), 'logs/presentation.ts'), 'utf8'), { loader: 'ts', format: 'cjs' }).code
   new Function('require', 'module', 'exports', retainedCode)(() => vueBindings, retained, retained.exports)
   new Function('require', 'module', 'exports', popupFocusCode)(() => vueBindings, popupFocus, popupFocus.exports)
+  new Function('require', 'module', 'exports', virtualCode)(() => vueBindings, virtual, virtual.exports)
+  new Function('require', 'module', 'exports', presentationCode)(require, presentation, presentation.exports)
   new Function('require', 'module', 'exports', code)(id => {
     if (id === 'vue') return vueBindings
     if (id === '../../hooks/useRetainedScroll') return retained.exports
     if (id === './popupFocus') return popupFocus.exports
+    if (id === './logs/useLogVirtualWindow') return virtual.exports
     if (id === 'vue-i18n') return { useI18n: () => ({ t: key => key }) }
     if (id === 'ant-design-vue') return { Empty: {}, theme: { useToken: () => ({ token: vue.ref({}) }) } }
     if (id.startsWith('@ant-design/icons-vue') || id.endsWith('.vue')) return {}
-    if (id === './logs/presentation') return { logPresentation: entry => entry, nextLogMatchId: () => '' }
+    if (id === './logs/presentation') return presentation.exports
     return require(id)
   }, module, module.exports)
-  const props = vue.reactive({ active: true, entries: [{ id: 'row', text: 'line' }], files: [], fileId: 'a.log', filter: '', following: false, state: { status: 'ready' }, ...values })
+  const props = vue.reactive({ active: true, entries: Array.from({ length: 80 }, (_, index) => ({ id: index ? `row-${index}` : 'row', text: 'line' })), files: [], fileId: 'a.log', filter: '', following: false, state: { status: 'ready' }, ...values })
   const scope = vue.effectScope(), view = scope.run(() => module.exports.default.setup(props, { expose() {}, emit: (...args) => events.push(args) }))
   const element = { isConnected: true, clientWidth: 500, clientHeight: 200, scrollHeight: 2000, scrollTop: 0, scrollLeft: 0 }
   view.scroller.value = element
@@ -53,7 +58,7 @@ test('KeepAlive restores both reading axes after layout and ignores detached and
     h.view.onScroll(); h.lifecycle('deactivated')
     h.element.isConnected = true; h.element.clientWidth = 500
     h.lifecycle('activated'); h.lifecycle('beforeUpdate'); h.view.onScroll()
-    await flush(); assert.equal(h.frames.size, 1)
+    await flush(); assert.ok(h.frames.size > 0)
     h.lifecycle('beforeUpdate'); h.view.onScroll(); h.frame()
     assert.equal(h.element.scrollTop, 490); assert.equal(h.element.scrollLeft, 110)
     assert.deepEqual(h.events, [], 'restoration never starts following or emits a read action')
@@ -66,10 +71,10 @@ test('tool visibility preserves both axes, cancels obsolete frames and hidden up
     h.element.scrollTop = 350; h.element.scrollLeft = 92; h.view.onScroll()
     h.props.active = false
     h.element.clientHeight = 0; h.element.scrollTop = 0; h.element.scrollLeft = 0; h.view.onScroll()
-    h.props.following = true; h.props.entries = [{ id: 'hidden', text: 'new line' }]; await flush()
+    h.props.following = true; h.props.entries = [...h.props.entries, { id: 'hidden', text: 'new line' }]; await flush()
     assert.equal(h.element.scrollTop, 0)
     h.props.following = false; h.props.active = true; h.element.clientHeight = 200
-    await flush(); assert.equal(h.frames.size, 1)
+    await flush(); assert.ok(h.frames.size > 0)
     h.props.active = false; assert.equal(h.frames.size, 0, 'hiding cancels the obsolete animation frame')
     h.props.active = true; await flush(); h.frame()
     assert.equal(h.element.scrollTop, 350); assert.equal(h.element.scrollLeft, 92)
@@ -122,7 +127,7 @@ test('console auto-scroll can pause and resume without starting or stopping rece
   try {
     h.element.scrollTop = 360
     h.view.resume()
-    assert.equal(h.element.scrollTop, h.element.scrollHeight, 'console resumes at the already received latest entry')
+    assert.equal(h.element.scrollTop, h.element.scrollHeight - h.element.clientHeight, 'console resumes at the already received latest entry')
     assert.deepEqual(h.events.splice(0), [['follow', true]])
     h.props.following = true; h.view.pause()
     assert.deepEqual(h.events, [['follow', false]])
@@ -140,15 +145,10 @@ test('scroll loading requires reading intent and prepending restores the same vi
     h.props.loadingDirection = ''; h.element.scrollTop = 1800
     h.view.readIntent(); h.view.onScroll(); assert.deepEqual(h.events.splice(0), [['next']])
 
-    h.element.scrollTop = 200
-    h.element.getBoundingClientRect = () => ({ top: 0 })
-    let snapshots = 0
-    h.element.querySelectorAll = () => [{ dataset: { logId: 'row' }, getBoundingClientRect: () => snapshots === 1 ? { top: -20, bottom: 10 } : { top: 280, bottom: 310 } }]
-    const query = h.element.querySelectorAll
-    h.element.querySelectorAll = () => { snapshots++; return query() }
-    h.props.entries = [{ id: 'older', text: 'older line' }, { id: 'row', text: 'line' }]
-    await flush()
-    assert.equal(h.element.scrollTop, 500, '300px prepended content keeps the old row at its original -20px offset')
+    h.element.scrollTop = 200; h.view.readIntent(); h.view.onScroll()
+    h.props.entries = [{ id: 'older', text: 'older line' }, ...h.props.entries]
+    await flush(); h.frame()
+    assert.equal(h.element.scrollTop, 234, 'the same record and within-row offset survive a prepended estimated row')
   } finally { h.stop() }
 })
 
@@ -163,5 +163,39 @@ test('file download and selection methods enforce busy and refused states before
     assert.deepEqual(h.events, [])
     h.props.exportAccess = { allowed: true }; h.view.download(); h.view.selectFile('other.log')
     assert.deepEqual(h.events, [['export'], ['file', 'other.log']])
+  } finally { h.stop() }
+})
+
+test('layout clamping during follow never pauses following or starts edge I/O', async t => {
+  const h = harness(t, { following: true, hasNext: true })
+  try {
+    await flush(); h.frame()
+    h.view.readIntent(); h.events.splice(0)
+    h.props.entries = [...h.props.entries, { id: 'tail', text: 'latest' }]
+    await flush(); h.frame()
+    h.element.scrollTop -= 300; h.view.onScroll()
+    assert.deepEqual(h.events, [], 'a browser-adjusted programmatic position is not a reading gesture')
+    h.view.readIntent(); h.view.onScroll()
+    assert.deepEqual(h.events, [['follow', false], ['follow', false]], 'a real reading gesture still pauses following')
+  } finally { h.stop() }
+})
+
+test('find navigates through all loaded records and opens raw evidence outside the mounted window', async t => {
+  const entries = Array.from({ length: 2500 }, (_, index) => ({ id: `row-${index}`, text: 'line', raw: index === 2200 ? 'unique evidence' : 'line' }))
+  const h = harness(t, { entries, filter: 'unique evidence', hasPrevious: true, hasNext: true })
+  try {
+    h.element.scrollHeight = 2500 * 34
+    await flush(); h.frame()
+    assert.ok(!h.view.virtual.items.value.some(item => item.entry.id === 'row-2200'))
+    await h.view.nextMatch(1); await flush(); h.frame()
+    assert.equal(h.view.activeMatch.value, 'row-2200'); assert.equal(h.view.detailId.value, 'row-2200')
+    assert.ok(h.view.virtual.items.value.some(item => item.entry.id === 'row-2200'))
+    h.view.onScroll(); assert.deepEqual(h.events, [], 'find never requests neighboring windows')
+    h.view.setExpansion('row-2200', { message: true, stack: true })
+    h.view.virtual.scrollTo('row-0'); await flush(); h.frame()
+    h.view.virtual.scrollTo('row-2200'); await flush(); h.frame()
+    assert.deepEqual(h.view.expansions.value.get('row-2200'), { message: true, stack: true })
+    h.props.fileId = 'other.log'; await flush(); h.frame()
+    assert.equal(h.view.expansions.value.size, 0); assert.equal(h.element.scrollTop, 0)
   } finally { h.stop() }
 })

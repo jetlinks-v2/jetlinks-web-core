@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { QRCode } from 'ant-design-vue'
+import SsoAuthorization from './SsoAuthorization.vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import { useSsoBindings } from './useSsoBindings'
@@ -49,19 +49,7 @@ const columns = computed(() => [
         </template>
       </template>
     </a-table>
-    <a-modal :open="!!binding" :title="binding?.name" :width="440" :footer="null" destroy-on-close @cancel="closeBinding">
-      <div v-if="binding" class="sso-bindings__authorization">
-        <a-spin v-if="bindingState === 'loading' || bindingState === 'checking'" />
-        <template v-else-if="bindingState === 'active'">
-          <QRCode v-if="binding.provider === 'wechat-official-account'" :value="authorizationUrl" :size="240" />
-          <iframe v-else :src="authorizationUrl" :title="binding.name" />
-        </template>
-        <template v-else>
-          <a-alert type="warning" show-icon :message="$t('PersonalCenter.bindingRetry')" />
-          <a-button @click="bind(binding)">{{ $t('AccountCenter.retry') }}</a-button>
-        </template>
-      </div>
-    </a-modal>
+    <SsoAuthorization :binding="binding" :state="bindingState" :url="authorizationUrl" @close="closeBinding" @retry="binding && bind(binding)" />
   </div>
 </template>
 
@@ -69,6 +57,4 @@ const columns = computed(() => [
 .sso-bindings { display: flex; flex-direction: column; gap: var(--space-4); }
 .sso-bindings__hint { margin: 0; color: var(--text-color-secondary); font-size: var(--fs-12); line-height: 1.5; }
 .sso-bindings__detail { margin-top: var(--space-1); color: var(--text-color-secondary); font-size: var(--fs-12); }
-.sso-bindings__authorization { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 16rem; gap: var(--space-4); }
-.sso-bindings__authorization iframe { width: 100%; height: 26rem; border: 0; }
 </style>

@@ -11,7 +11,7 @@ const fieldValue = (id: string) => (props.modelValue as Record<string, unknown> 
 function update(id: string, value: unknown) { emit('update:modelValue', { ...(props.modelValue as Record<string, unknown> || {}), [id]: value }) }
 </script>
 <template>
-  <a-select v-if="field.valueType.type === 'boolean'" :value="booleanValue" style="width:100%" :options="[{value:'true',label:field.valueType.trueText || '是'},{value:'false',label:field.valueType.falseText || '否'}]" @change="value => emit('update:modelValue', booleanValues[value as 'true' | 'false'])" />
+  <a-select v-if="field.valueType.type === 'boolean'" :value="booleanValue" style="width:100%" :options="[{value:'true',label:field.valueType.trueText || '是'},{value:'false',label:field.valueType.falseText || '否'}]" @change="(value: string) => emit('update:modelValue', booleanValues[value as 'true' | 'false'])" />
   <div v-else-if="field.valueType.type === 'object' && field.valueType.properties?.length" class="object-input-fields">
     <label v-for="child in field.valueType.properties" :key="child.id"><span>{{ child.name || child.id }}</span><ObjectInputValue :field="child" :model-value="fieldValue(child.id)" @update:model-value="update(child.id, $event)" /></label>
   </div>

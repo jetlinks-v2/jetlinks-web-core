@@ -3,6 +3,7 @@ import { getToken, LocalStore, setToken } from '@jetlinks-web/utils'
 import {BASE_API, TOKEN_KEY, TOKEN_KEY_URL} from '@jetlinks-web/constants'
 import { crateAxios, getInstance, request, wsClient, ndJson } from '@jetlinks-web/core'
 import { jumpLogin } from '@jetlinks-web-core/router'
+import { isProjectLoginEntry } from '@jetlinks-web-core/router/login-session'
 import { notification } from 'ant-design-vue'
 import { CanceledError, type AxiosError } from 'axios'
 import { isSubApp, langKey, PersonalToken, PersonalUrlKey } from '@jetlinks-web-core/utils/consts'
@@ -34,7 +35,7 @@ import microApp from '@micro-zoe/micro-app'
 import { moduleRegistry } from '@jetlinks-web-core/utils/module-registry'
 import { useVerifyStore } from '@jetlinks-web-core/store/verify'
 import type { VerifyRequiredResult } from '@jetlinks-web-core/api/verify'
-import { deserializeCollectorMessage } from '@jetlinks-web-core/utils/json/collector'
+import { dispatchSocketSubscriptionError } from '@jetlinks-web-core/utils/websocket-subscriptions'
 
 /** 非一次性校验通过后缓存的 key/token，供请求头使用（避免拦截器内 pinia 未就绪） */
 let verifyHeadersCache: { key: string; token: string } | null = null
@@ -149,6 +150,15 @@ function packageRequestOptions<T extends PackageRequestConfig>(config: T): T {
         config.url = config.url.replace(/^\/+/, '') // 清理前缀斜杠
     }
 
+    // 项目登录页显式跳过项目会话的请求，也不能携带主账号的 token 或二次校验凭证。
+    // 仅隔离登录入口；业务页已登录的二次验证仍使用原有身份。
+    if (config.projectContext === false && isProjectLoginEntry()) {
+        const authHeaders = [TOKEN_KEY.toLowerCase(), 'x-verify-key', 'x-verify-token']
+        for (const key of Object.keys(headers)) {
+            if (authHeaders.includes(key.toLowerCase())) delete headers[key]
+        }
+    }
+
     stripEdgeRequestHeaders(headers, config)
     return config
 }
@@ -214,7 +224,9 @@ export const initPackages = () => {
             url = `${api}/messaging/${encodeURIComponent(projectStorage.token)}?${params}`
         }
     }
-    wsClient.setOptions({ deserializer: deserializeCollectorMessage })
+    wsClient.setOptions({ onError: message => {
+        if (!dispatchSocketSubscriptionError(message)) notification.error({ key: 'websocket-error', message: message.message })
+    } })
     if (isFromCloud()) {
         url = `${getCloudWsBaseApi()}/_ws/messaging?${TOKEN_KEY_URL}=${token}`;
     }
@@ -423,11 +435,8 @@ function handleVerifyAndRetry(err: any): Promise<any> {
 /** 登出/跳转登录前清理校验缓存，避免下一用户复用上一用户的 verify key/token */
 export function clearVerifyCache() {
     verifyHeadersCache = null
-    try {
-        useVerifyStore().clearCache()
-    } catch {
-        // ignore (store 可能未就绪)
-    }
+    // 启动阶段 Pinia 尚未安装到 Vue；显式传入同一实例，仍须清掉持久化校验凭证。
+    useVerifyStore(pinia).clearCache()
 }
 
 export const loadMicroApp = () => {

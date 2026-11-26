@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
+import dayjs from 'dayjs'
 
 const moduleRoot = new URL('../../../../../../', import.meta.url)
 const apiPath = fileURLToPath(new URL('src/api/account/center.ts', moduleRoot))
@@ -54,7 +55,7 @@ const token = {
   scope: { permissions: [{ id: 'device', actions: ['query'] }] },
 }
 
-function createDialog(mode = 'edit', post = async () => ({ success: true, result: { accessToken: 'fixture-new-token' } })) {
+function createDialog(mode = 'edit', post = async () => ({ success: true, result: { accessToken: 'fixture-new-token' } }), existingToken = token) {
   const fixture = { calls: [], messages: [] }
   fixture.post = (...args) => {
     fixture.calls.push(args)
@@ -63,7 +64,7 @@ function createDialog(mode = 'edit', post = async () => ({ success: true, result
   globalThis.personalTokenFixture = fixture
   const events = []
   const scope = effectScope()
-  const props = reactive({ visible: true, mode, token: mode === 'add' ? null : structuredClone(token) })
+  const props = reactive({ visible: true, mode, token: mode === 'add' ? null : structuredClone(existingToken) })
   const dialog = scope.run(() => useTokenDialog(props, (...args) => events.push(args)))
   dialog.formRef.value = { validate: async () => {}, clearValidate: () => {} }
   dialog.permissionsReady.value = true
@@ -74,6 +75,25 @@ function createDialog(mode = 'edit', post = async () => ({ success: true, result
   }
   return { dialog, props, events, fixture, dispose: () => scope.stop() }
 }
+
+test('永久有效的零和负数回填不改变原值，当天可选未来时间', async () => {
+  for (const expires of [0, '0', -1, '-1']) {
+    const { dialog, fixture, dispose } = createDialog('edit', async () => ({ success: true }), { ...token, expires })
+    try {
+      assert.equal(dialog.expireType.value, -1)
+      assert.equal(dialog.formData.value.expires, expires)
+      await dialog.handleOk(false)
+      assert.equal(fixture.calls[0][1].expires, expires)
+    } finally { dispose() }
+  }
+  const { dialog, dispose } = createDialog()
+  try {
+    assert.equal(dialog.disabledDate(dayjs().subtract(1, 'day')), true)
+    assert.equal(dialog.disabledDate(dayjs()), false)
+    assert.equal(dialog.disabledDate(dayjs().add(1, 'day')), false)
+    assert.equal(dialog.disabledTime(dayjs().add(1, 'day')).disabledHours, undefined)
+  } finally { dispose() }
+})
 
 test('刷新保存更新原记录，吊销旧凭证并等待用户复制新令牌后刷新列表', async () => {
   const { dialog, events, fixture, dispose } = createDialog()
@@ -117,9 +137,36 @@ test('不刷新保存保留原记录，直接刷新列表并传递原令牌生�
   }
 })
 
-test('新增和共享 API 的既有调用继续使用后端默认值并展示新令牌', async () => {
-  const { dialog, fixture, dispose } = createDialog('add')
+test('独立重新生成只变更有效期并轮换凭证，完整保留原名称、说明和权限范围', async () => {
+  const original = { ...token, scope: { ...token.scope, dimensions: [{ type: 'organization', id: 'original-org' }], attributes: { stored: 'keep' } } }
+  const { dialog, props, fixture, dispose } = createDialog('regenerate', async () => ({ success: true, result: { accessToken: 'isolated-regenerated-token' } }), original)
   try {
+    dialog.permissionsReady.value = false
+    props.existingNames = [original.name]
+    assert.equal(dialog.canSubmit.value, true)
+    assert.equal(dialog.expireType.value, 30)
+    assert.ok(Number(dialog.formData.value.expires) > Date.now())
+    await dialog.handleOk(false)
+    const [, data, options] = fixture.calls[0]
+    assert.equal(data.id, original.id)
+    assert.equal(data.name, original.name)
+    assert.equal(data.description, original.description)
+    assert.equal(data.sourceId, original.sourceId)
+    assert.deepEqual(data.scope, original.scope)
+    assert.deepEqual(options, { params: { revokeAccessTokens: true } })
+    assert.equal(dialog.generatedToken.value, 'isolated-regenerated-token')
+    assert.equal(dialog.showSuccessModal.value, true)
+  } finally { dispose() }
+})
+
+test('新增和共享 API 的既有调用继续使用后端默认值并展示新令牌', async () => {
+  const { dialog, props, fixture, dispose } = createDialog('add')
+  try {
+    props.existingNames = [dialog.formData.value.name]
+    assert.equal(dialog.canSubmit.value, false)
+    await dialog.handleOk()
+    assert.equal(fixture.calls.length, 0)
+    props.existingNames = []
     await dialog.handleOk()
     assert.equal(fixture.calls[0][1].id, undefined)
     assert.equal(fixture.calls[0][2], undefined)
@@ -219,24 +266,29 @@ test('保存反馈中英文资源同步，原令牌提示与新令牌失效说�
   assert.match(zh['PersonalToken.TokenDialog.refreshDescription'], /原令牌失效/)
 })
 
-test('自定义到期时间使用毫秒格式，清空时不能保存', async () => {
-  const { dialog, fixture, dispose } = createDialog()
-  try {
-    dialog.expireType.value = 'custom'
-    dialog.handleExpireTypeChange('custom')
-    assert.equal(dialog.canSubmit.value, false)
-    assert.equal(dialog.customExpires.value, undefined)
-    const expires = String(Date.now() + 86400000)
-    dialog.handleCustomExpireChange(expires)
-    assert.equal(dialog.customExpires.value, expires)
-    assert.equal(dialog.canSubmit.value, true)
-    dialog.handleCustomExpireChange(null)
-    assert.equal(dialog.formData.value.expires, null)
-    assert.equal(dialog.canSubmit.value, false)
-    dialog.handleCustomExpireChange(expires)
-    await dialog.handleOk(false)
-    assert.equal(fixture.calls[0][1].expires, expires)
-  } finally {
-    dispose()
+test('新建和重新生成支持自定义到期时间，按毫秒保存，清空时不能提交', async () => {
+  for (const mode of ['add', 'regenerate']) {
+    const { dialog, fixture, dispose } = createDialog(mode)
+    try {
+      dialog.expireType.value = 'custom'
+      dialog.handleExpireTypeChange('custom')
+      assert.equal(dialog.canSubmit.value, false)
+      assert.equal(dialog.customExpires.value, undefined)
+      const expires = String(Date.now() + 86400000)
+      dialog.handleCustomExpireChange(expires)
+      assert.equal(dialog.customExpires.value, expires)
+      assert.equal(dialog.canSubmit.value, true)
+      dialog.handleCustomExpireChange(null)
+      assert.equal(dialog.formData.value.expires, null)
+      assert.equal(dialog.canSubmit.value, false)
+      await dialog.handleOk(false)
+      assert.equal(fixture.calls.length, 0)
+      dialog.handleCustomExpireChange(expires)
+      await dialog.handleOk(false)
+      assert.equal(fixture.calls[0][1].expires, expires)
+      assert.deepEqual(fixture.calls[0][2], mode === 'regenerate' ? { params: { revokeAccessTokens: true } } : undefined)
+    } finally {
+      dispose()
+    }
   }
 })

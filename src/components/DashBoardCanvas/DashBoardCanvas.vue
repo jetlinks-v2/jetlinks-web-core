@@ -1,7 +1,8 @@
 <template>
-  <div class="dashboard-card-layout">
+  <div class="dashboard-card-layout" :class="{ 'dashboard-card-layout--page': scrollMode === 'page' }">
     <div class="dashboard-card-content" :style="surfaceStyle">
       <GridCanvas :widgets="state.value.value.components" :settings="state.gridSettings.value"
+        :embedded="scrollMode === 'page'"
         :editable="editable" :layout-editable="layoutEditable" :dragging="dragging"
         @change="state.updateLayout" @drop="onDrop"
         @interaction="isDrawerDragging = $event" @drag-end="endDrag">
@@ -87,8 +88,10 @@ const props = withDefaults(defineProps<{
   legacyStorageKeys?: readonly string[]
   /** Business component isEdit; independent from permission to rearrange a live dashboard. */
   previewMode?: boolean
+  /** Embedded canvases let the surrounding page own vertical scrolling. */
+  scrollMode?: 'canvas' | 'page'
   resolveImage?: (fileId: string) => string
-}>(), { editable: false, layoutEditable: false, previewMode: false })
+}>(), { editable: false, layoutEditable: false, previewMode: false, scrollMode: 'canvas' })
 const emit = defineEmits<{ 'update:modelValue': [value: DashboardValue] }>()
 const { t } = useI18n()
 const state = useDashboardState({ value: () => props.modelValue, catalog: () => props.catalog,

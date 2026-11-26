@@ -84,7 +84,7 @@ export const getCreatedPersonalTokens_api = (data:object) => request.post(`/pers
 export const savePersonalToken_api = (
   data: object,
   params?: { revokeAccessTokens: boolean }
-): Promise<{ success: boolean; result: { accessToken: string } }> =>
+): Promise<{ success: boolean; result: { accessToken?: string | null } }> =>
   request.post(`/personal/token/me/_save`, data, params ? { params } : undefined);
 
 /**

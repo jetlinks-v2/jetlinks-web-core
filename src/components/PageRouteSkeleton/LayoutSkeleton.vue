@@ -42,6 +42,8 @@
   </div>
 </template>
 
-<script setup lang="ts" name="PageRouteSkeletonLayout">
+<script setup lang="ts">
 import ContentSkeleton from './ContentSkeleton.vue'
+
+defineOptions({ name: 'PageRouteSkeletonLayout' })
 </script>
