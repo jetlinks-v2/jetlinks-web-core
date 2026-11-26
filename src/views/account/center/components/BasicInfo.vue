@@ -98,7 +98,7 @@ const orgNote = computed(() => {
                 @update:value="saveAvatar"
               >
                 <template #content>
-                  <a-avatar :src="resolvePublicAssetUrl(profile.avatar)" class="account-basic__avatar" aria-hidden="true">{{ profile.name.trim().slice(0, 1) }}</a-avatar>
+                  <a-avatar :src="resolvePublicAssetUrl(profile.avatar)" class="account-basic__avatar" aria-hidden="true" data-no-translate>{{ profile.name.trim().slice(0, 1) }}</a-avatar>
                   <span class="account-basic__avatar-camera" aria-hidden="true"><AIcon type="CameraOutlined" /></span>
                   <span class="account-basic__visually-hidden">{{ $t('PersonalCenter.changeAvatar') }}</span>
                 </template>

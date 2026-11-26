@@ -6,8 +6,9 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { createI18n } from 'vue-i18n'
+import { extraLanguagesFixture } from './pageTranslationLanguageFixture.mjs'
 
-const { outputFiles } = await build({
+const bundleOptions = {
   stdin: {
     resolveDir: fileURLToPath(new URL('..', import.meta.url)),
     contents: `export * from './src/locales/translation/models';
@@ -17,11 +18,16 @@ const { outputFiles } = await build({
   },
   format: 'cjs', platform: 'node', bundle: true, packages: 'external', write: false,
   define: { 'import.meta.url': '"file:///fixture.js"', 'import.meta.env.BASE_URL': '"/"' },
-})
-const module = { exports: {} }
-new Function('module', 'exports', 'require', outputFiles[0].text)(module, module.exports, createRequire(import.meta.url))
+}
+async function loadTranslation(plugins = []) {
+  const { outputFiles } = await build({ ...bundleOptions, plugins })
+  const module = { exports: {} }
+  new Function('module', 'exports', 'require', outputFiles[0].text)(module, module.exports, createRequire(import.meta.url))
+  return module.exports
+}
+
 const { TranslationModels, createTranslationRuntime, translationLanguageKey, PageSourceCatalog,
-  machineLanguageOptions, builtInLanguage, excludedText, usableTranslation } = module.exports
+  builtInLanguageOptions, machineLanguageOptions, builtInLanguage, excludedText, usableTranslation } = await loadTranslation()
 const pair = { sourceLanguage: 'zh', targetLanguage: 'ko' }
 
 function deferred() {
@@ -127,6 +133,7 @@ test('timed out preparation and late translations do not leave a pending UI resu
 })
 
 test('translation uses the visible language, restores the ready prefix and keeps the saved request and editor locale', async t => {
+  const { createTranslationRuntime } = await loadTranslation([extraLanguagesFixture])
   const items = new Map([['Accept-Language', 'ja'], ['editor-language', 'ja']])
   const storage = { getItem: key => items.get(key), setItem: (key, value) => items.set(key, value), removeItem: key => items.delete(key) }
   const downloaded = new Set(['zh:ko'])
@@ -233,7 +240,6 @@ test('source detection respects the starting locale and its mixed text', () => {
   assert.equal(usableTranslation('设备离线', '设备 设备 设备 设备 设备 设备'), false)
   assert.equal(builtInLanguage('en-US'), 'en')
   assert.equal(builtInLanguage('ko-KR'), undefined)
-  assert.ok(machineLanguageOptions.some(option => option.value === 'ko' && option.label === '한국어'))
 })
 
 test('built-in page translation covers unmarked text and respects dictionaries and language hints', () => {
@@ -257,18 +263,26 @@ test('built-in page translation covers unmarked text and respects dictionaries a
   assert.equal(catalog.supplementSource('Gateway', 'en', 'en-US'), undefined)
 })
 
-test('legacy machine preference is checked from the saved built-in language', async t => {
+test('disabled extra languages fall back to the saved built-in language without probing a model', async t => {
+  assert.deepEqual(builtInLanguageOptions.map(option => option.value), ['zh', 'en', 'ja'])
+  assert.deepEqual(machineLanguageOptions, [])
   const inspections = []
-  const storage = { getItem: () => 'ko' }
-  const runtime = createTranslationRuntime('en', storage, () => ({
-    async availability(pair) { inspections.push(pair); return 'downloadable' },
-  }))
-  t.after(runtime.dispose)
-  runtime.resume()
+  for (const preference of ['ko', '["en","ko","zh-Hant"]']) {
+    const runtime = createTranslationRuntime('en', { getItem: () => preference }, () => ({
+      async availability(pair) { inspections.push(pair); return 'downloadable' },
+    }))
+    t.after(runtime.dispose)
+    runtime.resume()
+    for (const language of ['ko', 'zh-Hant']) {
+      runtime.inspect(language)
+      runtime.prepare(language)
+      assert.equal(runtime.select(language), false)
+    }
+    assert.equal(runtime.language.value, 'en')
+    assert.deepEqual(runtime.activePairs.value, [])
+  }
   await delay(0)
-  assert.equal(runtime.language.value, 'en')
-  assert.equal(runtime.state('ko').phase, 'needed')
-  assert.deepEqual(inspections, [{ sourceLanguage: 'en', targetLanguage: 'ko' }])
+  assert.deepEqual(inspections, [])
 })
 
 test('native locale JSON renders language pack feedback without creating a Korean dictionary', async () => {

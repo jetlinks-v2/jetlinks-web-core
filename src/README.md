@@ -37,13 +37,13 @@
 
 ## 浏览器本地页面翻译
 
-运行时顶栏的中、英、日使用现有 i18n JSON。额外语种在 `locales/translation/languages.ts` 的 `machineLanguages` 中登记 BCP 47 代码，当前包含韩语 `ko` 和繁体中文 `zh-Hant`。切到额外语种时，以当前界面语种为源。例如日文切韩语使用 `ja → ko`，继续切繁体中文使用 `ko → zh-Hant`，输入为上一阶段的韩语译文。接口请求的 `Accept-Language` 和规则编辑器的 `editor-language` 使用用户选择的内置语种。
+运行时顶栏提供使用现有 i18n JSON 的中、英、日。额外语种由 `locales/translation/languages.ts` 的 `machineLanguages` 声明，当前清单为空。浏览器保存过韩语或繁体中文偏好时，页面继续使用已选的内置语种。接口请求的 `Accept-Language` 和规则编辑器的 `editor-language` 同样使用内置语种。
 
-平台配置了 `front.languages` 时，顶栏按配置顺序提供内置语种，暂停额外语种的翻译路径。配置保存后，`locales/frontLanguage.ts` 同步内置词库和请求语种，页面翻译随当前词库切换。清空配置后可以再次选择额外语种。
+平台配置了 `front.languages` 时，顶栏按配置顺序提供内置语种。配置保存后，`locales/frontLanguage.ts` 同步内置词库和请求语种，页面翻译随当前词库切换。清空配置后恢复默认的中、英、日选项。
 
 `locales/translation/runtime.ts` 按语言对维护准备状态。语言菜单用加粗标识当前语种，其他机翻选项按当前方向显示下载、进度、就绪或重试。点击目标语言名才切换界面。页面刷新后按保存的语种顺序恢复已就绪的翻译阶段。某一步缺包或不支持时显示上一可用语种。浏览器只持久化语种顺序和模型文件，业务文本和译文留在内存中。连续机翻可能累积误差。
 
-`locales/translation/page/usePageTranslation.ts` 增量处理菜单、表头、列表、按钮、提示和弹层中可见的源语言文本。`store/menu.ts` 提供当前内置词库下的已知菜单文案，使日文标题和子菜单能够直接翻译。混合文案可用 `data-translation-source="ja"` 等标记实际语种。表单值、编号、编辑器、iframe、Canvas 和 `translate="no"` / `data-no-translate` 区域保留原内容。
+`locales/translation/page/usePageTranslation.ts` 增量处理菜单、表头、列表、按钮、提示和弹层中可见的源语言文本。`store/menu.ts` 提供当前内置词库下的已知菜单文案，使日文标题和子菜单能够直接翻译。混合文案可用 `data-translation-source="ja"` 等标记实际语种。表单值、编号、编辑器、iframe、Canvas 和 `translate="no"` / `data-no-translate` 区域保留原内容。平台设置预览和布局中的品牌标题，以及用户菜单与个人中心的名称或头像文字，使用 `data-no-translate` 保留原文。
 
 ### 英语和日语整页翻译
 
@@ -64,7 +64,7 @@
 
 模型准备脚本已验证能校验已有模型并生成清单。
 
-在 `runtime-ui/jetlinks-web-core` 执行 `node --test tests/menuLocale.test.mjs tests/pageTranslation.test.mjs`，17 项通过。`pnpm test:page-translation-browser` 使用可控 Chrome API 验证英日自动下载、下载失败后切换和重试、复判正文和标题、仪表盘文本、动态弹层、跳过标记、中文原文展示及额外语种连续切换。测试编译了语言菜单组件与样式，并验证 360px 视口下英日进度与韩语下载按钮对齐。浏览器测试使用 Playwright，可用 `PAGE_TRANSLATION_PLAYWRIGHT_MODULE` 指向已安装的模块。
+在 `runtime-ui/jetlinks-web-core` 执行 `node --test tests/menuLocale.test.mjs tests/pageTranslation.test.mjs` 验证翻译逻辑及旧语种偏好回退。`pnpm test:page-translation-browser` 使用可控 Chrome API 验证英日自动下载、下载失败后切换和重试、复判正文和标题、仪表盘文本、动态弹层、跳过标记及中文原文展示。连续翻译与额外语种菜单用例在测试构建中启用韩语和繁体中文。浏览器测试使用 Playwright，可用 `PAGE_TRANSLATION_PLAYWRIGHT_MODULE` 指向已安装的模块。
 
 合并 `2.20` 后，上述翻译用例与 `tests/platformSettings.test.mjs`、`tests/frontLanguage.test.mjs` 共有 66 项通过。后者另有 3 项依赖当前工作区缺少的 `saas-manager-ui`，补齐模块后可重跑。Chrome 回归覆盖保存平台语言后的菜单排序、额外语种暂停和恢复，以及当前语言被移除后即时切换词库并重新补译。Firefox 使用真实模型复测通过。
 

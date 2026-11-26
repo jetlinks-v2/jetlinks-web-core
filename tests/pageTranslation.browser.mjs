@@ -7,6 +7,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { compileScript, compileStyleAsync, parse } from 'vue/compiler-sfc'
+import { extraLanguagesFixture } from './pageTranslationLanguageFixture.mjs'
 
 const { chromium, firefox } = await import(process.env.PAGE_TRANSLATION_PLAYWRIGHT_MODULE || 'playwright')
 const native = process.argv.includes('--native')
@@ -25,7 +26,7 @@ const { outputFiles } = await build({
   bundle: true, format: 'iife', platform: 'browser', write: false,
   alias: { '@jetlinks-web-core': join(root, 'src') },
   define: { 'import.meta.env': '{}', 'import.meta.url': 'location.href', 'process.env.NODE_ENV': '"production"', __VUE_OPTIONS_API__: 'true', __VUE_PROD_DEVTOOLS__: 'false' },
-  plugins: [{ name: 'page-translation-fixture', setup(builder) {
+  plugins: [extraLanguagesFixture, { name: 'page-translation-fixture', setup(builder) {
     builder.onResolve({ filter: /^@jetlinks-web-core\/store\/system$/ }, () => ({ path: 'store', namespace: 'fixture' }))
     builder.onResolve({ filter: /^\.\/index$/ }, ({ importer }) => {
       if (importer === join(root, 'src/locales/frontLanguage.ts')) return { path: 'i18n', namespace: 'fixture' }

@@ -6,7 +6,7 @@ export type BuiltInLanguage = FrontLanguage
 export const DEFAULT_LANGUAGE: BuiltInLanguage = 'zh'
 
 // 额外语种只声明 BCP 47 代码，不需要对应的 i18n JSON。
-const machineLanguages: readonly string[] = ['ko', 'zh-Hant']
+const machineLanguages: readonly string[] = []
 
 export function canonicalLanguage(value?: string | null): string | undefined {
   if (!value?.trim()) return undefined
