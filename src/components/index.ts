@@ -228,7 +228,7 @@ export {
 }
 export { AutoTree }
 export { InlineEditForm } from './InlineEditForm'
-export type { InlineEditFieldDefinition, InlineEditGroup, InlineEditMessages, InlineEditResult, InlineEditSubmit } from './InlineEditForm'
+export type { InlineEditEditorScope, InlineEditFieldDefinition, InlineEditGroup, InlineEditMessages, InlineEditResult, InlineEditSubmit } from './InlineEditForm'
 export type { AutoTreeProps, AutoTreeInstance } from './AutoTree'
 export type { TableActionsItemProps, TableActionsItemSlotScope, TableActionsPlacement } from './TableActions'
 export { I18nTextField, I18nTextDialog, I18nInputTrigger, I18nTextEditable, i18nText } from './I18n'
@@ -301,5 +301,10 @@ export type {
 } from './MatrixGrid/types'
 export { default as SelectOption } from './SelectOption/index.vue'
 export { default as PanelResizeHandle } from './PanelResizeHandle/index.vue'
+export { default as PanelCollapseButton } from './PanelCollapseButton/index.vue'
+export type { PanelResizeDragEvent } from './PanelResizeHandle/types'
 export * from './Expression'
 export * from './PlatformSettings'
+export { default as Splitter } from './Splitter/index.vue'
+export { default as ResponsiveSplitter } from './Splitter/ResponsiveSplitter.vue'
+export { useResponsivePanel } from './Splitter/useResponsivePanel'

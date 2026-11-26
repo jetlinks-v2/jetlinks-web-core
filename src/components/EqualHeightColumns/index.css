@@ -1,9 +1,5 @@
-.equal-height-columns,
-.equal-height-columns__toggle-layer {
-  --equal-height-columns-toggle-height: 2rem;
-}
-
 .equal-height-columns {
+  --equal-height-columns-collapsed-width: calc(2rem + var(--space-3) + var(--space-3));
   --equal-height-columns-transition: 0.2s cubic-bezier(0.23, 1, 0.32, 1);
   position: relative;
   display: grid;
@@ -12,158 +8,37 @@
   min-height: 0;
   gap: 0;
   align-items: var(--equal-height-columns-align);
-  /* 将间距作为独立轨道，按钮和分割线可直接居中，百分比间距也由容器宽度解析。 */
   grid-template-columns: minmax(0, var(--equal-height-columns-left-width)) var(--equal-height-columns-gap) minmax(0, var(--equal-height-columns-right-width));
-  /* 收起前后保留相同轨道类型，布局、间距和按钮位移使用同一段过渡。 */
   transition: grid-template-columns var(--equal-height-columns-transition);
 }
 
-/* 中缝分割线随间距轨道同步移动，不单独叠加位移过渡。 */
 .equal-height-columns::before {
   content: '';
   grid-area: 1 / 2 / 2 / 3;
   justify-self: center;
   align-self: stretch;
-  width: var(--jet-theme-stroke-width);
-  /* 右沿对齐按钮的定位锚点，让上下横边与竖线共用同一条描边。 */
-  margin-right: var(--jet-theme-stroke-width);
+  width: var(--jet-theme-stroke-width, 1px);
   background: var(--line-strong);
   pointer-events: none;
 }
 
-/* 仅避开按钮内侧，上下描边处重叠，避免半像素取整造成接缝缺口。 */
-.equal-height-columns--collapsible:not(.equal-height-columns--collapsed)::before {
-  background: linear-gradient(
-    to bottom,
-    var(--line-strong) 0 calc(50% - var(--equal-height-columns-toggle-height) / 2 + var(--jet-theme-stroke-width)),
-    transparent 0 calc(50% + var(--equal-height-columns-toggle-height) / 2 - var(--jet-theme-stroke-width)),
-    var(--line-strong) 0
-  );
-}
-
-/* 左列收起后两栏贴合，中缝已无意义，分割线随之消失。 */
-.equal-height-columns--collapsed:not(.equal-height-columns--header)::before,
-.equal-height-columns--collapsed.equal-height-columns--toolbar::before {
-  background: none;
-}
-
-.equal-height-columns__pane {
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  /* 约束子项高度，让左侧筛选等面板能内部滚动 */
-  overflow: hidden;
-}
-
-/* 两栏显式落在同一行。 */
-.equal-height-columns__pane--left {
-  grid-area: 1 / 1 / 2 / 2;
-}
-
-.equal-height-columns--header { --equal-height-columns-header-rail: 2.5rem; }
-.equal-height-columns--header .equal-height-columns__pane--left { display: flex; flex-direction: column; }
-.equal-height-columns__header { display: flex; flex: none; align-items: center; gap: var(--space-2); min-width: 0; min-height: 3.5rem; padding: var(--space-3) var(--space-1); }
-.equal-height-columns__header-toggle.ant-btn { flex: none; width: 2rem; height: 2rem; padding: 0; color: var(--ink-3); }
-.equal-height-columns__header-title { min-width: 0; overflow: hidden; color: var(--ink-2); font-size: var(--fs-13); text-overflow: ellipsis; white-space: nowrap; }
+.equal-height-columns--collapsed::before { content: none; }
+.equal-height-columns--resizable::before { content: none; }
+.equal-height-columns--resizable { transition: none; }
+.equal-height-columns__pane { min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+.equal-height-columns__pane--left { grid-area: 1 / 1 / 2 / 2; display: flex; flex-direction: column; }
+.equal-height-columns__pane--right { grid-area: 1 / 3 / 2 / 4; display: flex; flex-direction: column; }
+.equal-height-columns__header { display: flex; flex: none; align-items: center; gap: var(--space-2); min-width: 0; min-height: 3.5rem; padding: var(--space-3); }
+.equal-height-columns__header-content { flex: 1; min-width: 0; color: var(--ink-2); font-size: var(--fs-13); }
 .equal-height-columns__body { flex: 1; min-height: 0; overflow: auto; }
-.equal-height-columns__pane--toolbar { display: flex; flex-direction: column; }
 .equal-height-columns__toolbar { display: flex; flex: none; align-items: center; gap: var(--space-2); min-height: 3.5rem; padding: var(--space-3) var(--space-4); }
 .equal-height-columns__toolbar-content { flex: 1; min-width: 0; }
 .equal-height-columns__main { flex: 1; min-height: 0; overflow: hidden; }
 
-.equal-height-columns__pane--right {
-  grid-area: 1 / 3 / 2 / 4;
-}
-
-/* 隐藏左列时改为单列，覆盖自定义列宽并移除中缝占位。 */
-.equal-height-columns--single {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
-}
-
-.equal-height-columns--single::before {
-  content: none;
-}
-
-.equal-height-columns--single .equal-height-columns__pane--right {
-  grid-area: 1 / 1 / 2 / 2;
-}
-
-.equal-height-columns__toggle-anchor {
-  grid-area: 1 / 2 / 2 / 3;
-  align-self: center;
-  height: 0;
-  pointer-events: none;
-}
-
-/* 挂载到面板后使用实测坐标；没有面板时仍由间距轨道承载。 */
-.equal-height-columns__toggle-layer {
-  position: absolute;
-  grid-area: 1 / 2 / 2 / 3;
-  top: 50%;
-  left: 50%;
-  z-index: 5;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-
-.equal-height-columns__toggle {
-  --equal-height-columns-toggle-width: 0.8rem;
-  position: absolute;
-  /* 使用布局坐标，避免 transform 在缩放时将 1px 描边分摊到相邻像素。 */
-  top: calc(var(--equal-height-columns-toggle-height) / -2);
-  left: calc(0px - var(--equal-height-columns-toggle-width));
-  left: calc(0px - round(var(--equal-height-columns-toggle-width), 1px));
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--equal-height-columns-toggle-width);
-  /* 避免 rem 换算后的小数宽度让左边框因抗锯齿而比竖线更浅。 */
-  width: round(var(--equal-height-columns-toggle-width), 1px);
-  height: var(--equal-height-columns-toggle-height);
-  padding: 0;
-  font-size: var(--fs-12);
-  color: var(--ink-2);
-  border: var(--jet-theme-stroke-width) solid var(--line-strong);
-  /* 右侧贴合左列边缘，贴住的一侧不留圆角，视觉上像挂在面板边上 */
-  border-radius: var(--r-1) 0 0 var(--r-1);
-  box-shadow: none;
-  cursor: pointer;
-  pointer-events: auto;
-  transition:
-    left var(--equal-height-columns-transition),
-    color var(--motion-duration-fast) var(--motion-ease-standard),
-    border-color var(--motion-duration-fast) var(--motion-ease-standard);
-}
-
-/* 分割线位于列间距中点；让按钮右边缘与它重合，避免在左栏边缘留下空隙。 */
-.equal-height-columns__toggle:not(.equal-height-columns__toggle--collapsed) {
-  border-right: none;
-}
-
-.equal-height-columns__toggle:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-/*
- * 收起后抵消组件与面板之间的留白，无面板时偏移量为零；沿用与轨道相同的过渡。
- */
-.equal-height-columns__toggle--collapsed {
-  border-radius: 0 var(--r-1) var(--r-1) 0;
-  left: calc(0px - var(--equal-height-columns-edge-offset, 0px));
-  border-left: none;
-}
+.equal-height-columns--single { grid-template-columns: minmax(0, 1fr); }
+.equal-height-columns--single::before { content: none; }
+.equal-height-columns--single .equal-height-columns__pane--right { grid-area: 1 / 1 / 2 / 2; }
 
 @media (prefers-reduced-motion: reduce) {
-  .equal-height-columns {
-    transition: none;
-  }
-
-  .equal-height-columns__toggle {
-    transition:
-      color var(--motion-duration-fast) var(--motion-ease-standard),
-      border-color var(--motion-duration-fast) var(--motion-ease-standard);
-  }
+  .equal-height-columns { transition: none; }
 }

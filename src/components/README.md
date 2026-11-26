@@ -55,6 +55,8 @@ import {
   MetricCards,
   ModelParameterEditor,
   PageHeader,
+  PanelCollapseButton,
+  PanelResizeHandle,
   StatusPill,
 } from '@jetlinks-web-core/components'
 ```
@@ -62,6 +64,8 @@ import {
 `CardStatistic`、`CardStatus`、`CardSuggestion`、`CardToggle` 以及 CardBox 相关类型也由根入口导出；完整列表以 [`index.ts`](index.ts) 为准。不要把目录内的默认导出、内部子组件或类型文件自动当作根入口 API。
 
 ## 场景映射
+
+`ResponsiveSplitter` 与 `useResponsivePanel` 从根入口具名导出，前者组合原位分区、临时抽屉、边缘点击／拖动和内容保留；后者供已有布局组合适配与手动折叠偏好，使用契约见 [响应式收放](Splitter/README.md#响应式收放)。两者不全局注册、不读取或持久化业务偏好。
 
 ### 平台基础配置
 
@@ -73,7 +77,7 @@ import {
 
 ### 多语言文本输入
 
-`I18nTextField`、`I18nTextDialog`、`I18nInputTrigger` 通过根入口具名导出，不全局注册：
+`I18nTextField`、`I18nTextEditable`、`I18nTextDialog`、`I18nInputTrigger` 通过根入口具名导出，不全局注册：
 
 ```ts
 import { I18nTextField, I18nTextDialog, I18nInputTrigger } from '@jetlinks-web-core/components'
@@ -96,7 +100,7 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 | 页面标题、返回和操作区 | `PageHeader`、`DetailHeader`、`PageActions`、`PageChrome`、`TitleComponent` | [PageHeader](PageHeader/README.md)、[DetailHeader](DetailHeader/README.md)、[PageActions](PageActions/README.md)、[PageChrome](PageChrome/README.md)、[TitleComponent](TitleComponent/README.md) | 具名导出：`PageHeader`、`DetailHeader`；全局注册：`PageActions`、`PageChrome`、`TitleComponent` |
 | 详情摘要字段与语义图标 | `DetailMetaItem` | [DetailMetaItem](DetailMetaItem/README.md) | 全局注册及具名导出，类型 `DetailMetaKind`；配合 `DetailHeader` 摘要模式 |
 | 卡片上方的返回列表入口 | `PageBack` | [PageChrome](PageChrome/README.md#统一返回入口) | 全局注册及具名导出；`label` 文案、`back` 事件；放在独立 `PageChrome` 中 |
-| 页面容器、区块和布局 | `FullPage`、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`ResponsiveGrid`、`KvGrid` | [HomeView](HomeView/README.md)、[SectionCard](SectionCard/README.md)、[ContentPanel](ContentPanel/README.md)、[AmbientCard](AmbientCard/README.md)、[JlDrawerShell](JlDrawerShell/README.md)、[StickyActionBar](StickyActionBar/README.md)、[EqualHeightColumns](EqualHeightColumns/README.md)、[ResponsiveGrid](ResponsiveGrid/README.md)、[KvGrid](KvGrid/README.md) | `FullPage`（来自 `@jetlinks-web-core/layout`）、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`ResponsiveGrid`、`KvGrid` |
+| 页面容器、区块和布局 | `FullPage`、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`Splitter`、`ResponsiveGrid`、`KvGrid`、`PanelCollapseButton`、`PanelResizeHandle` | [HomeView](HomeView/README.md)、[SectionCard](SectionCard/README.md)、[ContentPanel](ContentPanel/README.md)、[AmbientCard](AmbientCard/README.md)、[JlDrawerShell](JlDrawerShell/README.md)、[StickyActionBar](StickyActionBar/README.md)、[EqualHeightColumns](EqualHeightColumns/README.md)、[Splitter](Splitter/README.md)、[ResponsiveGrid](ResponsiveGrid/README.md)、[KvGrid](KvGrid/README.md)、[PanelCollapseButton](PanelCollapseButton/README.md)、[PanelResizeHandle](PanelResizeHandle/README.md) | `FullPage`（来自 `@jetlinks-web-core/layout`）、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`ResponsiveGrid`、`KvGrid`；`Splitter`、`PanelCollapseButton` 与 `PanelResizeHandle` 仅具名导出，不全局注册 |
 | 路由加载和页面空态 | `PageRouteView`、`PageRouteSkeleton`、`CloudEmpty` | [PageRouteView](PageRouteView/README.md)、[PageRouteSkeleton](PageRouteSkeleton/README.md)、[CloudEmpty](CloudEmpty/README.md) | `PageRouteView`、`PageRouteSkeleton`、`CloudEmpty` |
 | 列表、表格和分页 | `CrudTable`、`Search`（全局名 `ProSearch`）、`ConditionFilter`、`QuickFilterSidebar`、`VirtualScroll`、`MatrixGrid`、`SwitchGroup` | [CrudTable](CrudTable/README.md)、[Search](Search/README.md)、[ConditionFilter](ConditionFilter/readme.md)、[QuickFilterSidebar](QuickFilterSidebar/README.md)、[VirtualScroll](VirtualScroll/README.md)、[MatrixGrid](MatrixGrid/README.md)、[SwitchGroup](SwitchGroup/README.md) | `CrudTable`、`ProSearch`、`ConditionFilter`、`QuickFilterSidebar`、`VirtualScroll`、`MatrixGrid`、`SwitchGroup` |
 | 自适应高度与虚拟滚动树 | `AutoTree` | [AutoTree](AutoTree/README.md) | 具名导出、全局注册：`AutoTree`；兼容 Tree 属性、事件和插槽，未指定高度时自动适配 |

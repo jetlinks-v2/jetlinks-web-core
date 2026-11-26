@@ -9,6 +9,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 /**
  * KvGrid —— 平台级"键值字段表"（v2.9 · C 阶段抽出）
  *
@@ -71,25 +72,25 @@ const layoutStyle = computed(() => ({
 .cols-3     { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cols-stacked { grid-template-columns: 1fr; }
 
-.kv-cell {
+.kv-cell, :slotted(.kv-cell) {
   min-width: 0;
 }
-.cell-stack .kv-cell dt {
+.cell-stack .kv-cell dt, .cell-stack :slotted(.kv-cell) > dt {
   font-size: var(--fs-12);
-  color: var(--ink-4);
+  color: var(--jet-theme-text-secondary);
   margin-bottom: var(--space-1);
 }
-.cell-stack .kv-cell dd {
+.cell-stack .kv-cell dd, .cell-stack :slotted(.kv-cell) > dd {
   margin: 0;
   font-size: var(--fs-12);
   color: var(--ink-1);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
-.cell-stack .kv-cell dd.mono { font-size: var(--fs-12);
+.cell-stack .kv-cell dd.mono, .cell-stack :slotted(.kv-cell) > dd.mono { font-size: var(--fs-12);
 }
 
-.cell-inline .kv-cell {
+.cell-inline .kv-cell, .cell-inline :slotted(.kv-cell) {
   display: grid;
   grid-template-columns: var(--kv-label-w) minmax(0, 1fr);
   gap: var(--space-2);
@@ -98,28 +99,28 @@ const layoutStyle = computed(() => ({
   line-height: 1.65;
 }
 
-.cell-inline .kv-cell dt {
-  color: var(--ink-4);
+.cell-inline .kv-cell dt, .cell-inline :slotted(.kv-cell) > dt {
+  color: var(--jet-theme-text-secondary);
   font-size: var(--fs-12);
   font-weight: 500;
 }
 
-.cell-inline .kv-cell dd {
+.cell-inline .kv-cell dd, .cell-inline :slotted(.kv-cell) > dd {
   margin: 0;
   color: var(--ink-1);
   overflow-wrap: anywhere;
 }
 
-.cell-inline .kv-cell dd.mono { font-size: var(--fs-12);
+.cell-inline .kv-cell dd.mono, .cell-inline :slotted(.kv-cell) > dd.mono { font-size: var(--fs-12);
   color: var(--ink-2);
 }
 
 /* stacked 模式下 cell 间分隔线（详情段视觉） */
-.cols-stacked .kv-cell {
+.cols-stacked .kv-cell, .cols-stacked :slotted(.kv-cell) {
   padding-bottom: var(--kv-stacked-gap, 0.5rem);
   border-bottom: 1px dashed var(--line);
 }
-.cols-stacked .kv-cell:last-child {
+.cols-stacked .kv-cell:last-child, .cols-stacked :slotted(.kv-cell:last-child) {
   padding-bottom: 0;
   border-bottom: 0;
 }</style>

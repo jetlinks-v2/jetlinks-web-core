@@ -109,6 +109,8 @@ const handleBack = () => {
 <style scoped lang='less'>
 .cloud-detail-header {
   display: flex;
+  flex-wrap: wrap;
+  container: detail-header / inline-size;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4);
@@ -121,7 +123,7 @@ const handleBack = () => {
 
 .cloud-detail-header__main {
   display: flex;
-  flex: 1;
+  flex: 1 1 24rem;
   flex-direction: column;
   min-width: 0;
   gap: var(--space-3);
@@ -177,7 +179,7 @@ const handleBack = () => {
 }
 
 .cloud-detail-header__description {
-  color: var(--jet-theme-text-disabled);
+  color: var(--jet-theme-text-secondary);
   font-size: var(--fs-14);
   line-height: 1.5;
 }
@@ -190,26 +192,17 @@ const handleBack = () => {
 
 .cloud-detail-header__actions {
   display: inline-flex;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
 }
 
-@media (max-width: 73.75rem) {
-  .cloud-detail-header {
-    flex-direction: column;
-  }
-
-  .cloud-detail-header__title-main {
-    flex-wrap: wrap;
-  }
-
-  .cloud-detail-header__actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-}
+.cloud-detail-header__title-main { flex-wrap: wrap; }
+.cloud-detail-header__actions :deep(.ant-btn) { max-width: 100%; height: auto; min-height: 2rem; white-space: normal; overflow-wrap: anywhere; }
+.cloud-detail-header__actions :deep(.ant-space) { flex-wrap: wrap; max-width: 100%; }
 </style>
 
 <style scoped src="./summary.css"></style>

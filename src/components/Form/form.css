@@ -16,6 +16,8 @@
 .fw-value-drawer .ant-drawer-content { border-radius: 12px 12px 0 0; }
 .fw-value-drawer .ant-drawer-header { padding: 12px 20px; }
 .fw-value-drawer .ant-drawer-title { font-size: 14px; }
+.fw-inline-actions { display:inline-flex; align-self:flex-end; align-items:center; justify-content:flex-end; gap:2px; margin-top:4px; flex-shrink:0; }
+.fw-inline-actions > .ant-btn { width:28px; height:28px; padding:0; }
 .fw-value-popover .ant-popover-inner { padding: 0; overflow: hidden; border: 1px solid var(--line, #e5e9ef); border-radius: 10px; box-shadow: 0 12px 40px #213c5b26; }
 .fw-settings-popover.ant-tooltip { max-width: none; }
 .fw-settings-popover .ant-tooltip-inner { padding: 0; overflow: hidden; background: var(--bg, #fff); border: 1px solid var(--line, #e5e9ef); border-radius: 10px; box-shadow: var(--shadow-2, 0 10px 32px #1a25301a); }
@@ -33,10 +35,12 @@
 .fw-designer-toolbar .ant-btn { border-color: transparent; padding-inline: 9px; }
 .fw-designer-toolbar .fw-add-field { color: var(--jet-theme-primary, #1677ff); background: var(--jet-theme-primary-bg, #f0f6ff); }
 @media (pointer: coarse) {
+  .fw-inline-actions > .ant-btn { width:44px; height:44px; }
   :is(.fw-actions, .fw-picker-actions, .example-actions) > .ant-btn { min-height: 44px; }
   .fw-select-popup .ant-select-item, .fw-setting-select.ant-select .ant-select-selector { min-height: 44px; align-items: center; }
 }
 @media (max-width: 600px) {
+  .fw-inline-actions > .ant-btn { width:44px; height:44px; }
   .fw-select-popup .ant-select-item, .fw-setting-select.ant-select .ant-select-selector { min-height: 44px; align-items: center; }
   /* 短屏无法在字段上下容纳日历，沿用原生面板，在视口底部承载。 */
   .fw-date-popup.ant-picker-dropdown { position: fixed !important; inset: auto 12px max(12px, env(safe-area-inset-bottom)) !important; display: flex; justify-content: center; }

@@ -88,7 +88,7 @@ test('姓名复用公共就地编辑的提交取消行为，头像仍接入公�
   app.use(i18n)
   app.component('ContentPanel', Slot).component('KvGrid', Slot).component('a-space', Slot).component('a-tooltip', Slot)
     .component('a-button', Button).component('a-avatar', Avatar).component('ImageUpload', Upload)
-    .component('a-input', Input).component('a-alert', Slot).component('a-divider', Slot).component('AIcon', Slot)
+    .component('a-input', Input).component('a-textarea', Input).component('a-alert', Slot).component('a-divider', Slot).component('AIcon', Slot)
     .component('InputEditable', mod.exports.InputEditable).component('j-ellipsis', Slot)
     .component('a-typography-text', Slot).component('a-descriptions', Descriptions).component('a-descriptions-item', Slot).component('a-tag', Slot)
   app.mount(root)
@@ -178,7 +178,7 @@ test('公共编辑器默认图标入口保留原提交事件，禁用时不能�
   const root = node('root')
   const app = renderer.createApp({ render: () => h(mod.exports.InputEditable, { value: '原名称', disabled: disabled.value, onChange: value => changes.push(value) }) })
   app.use(createI18n({ legacy: false, locale: 'zh', messages: locales }))
-  app.component('a-button', Button).component('a-input', Input).component('j-ellipsis', Slot).component('AIcon', Slot).component('a-typography-text', Slot)
+  app.component('a-button', Button).component('a-input', Input).component('a-textarea', Input).component('j-ellipsis', Slot).component('AIcon', Slot).component('a-typography-text', Slot)
   app.mount(root)
   t.after(() => app.unmount())
   all(root, item => item.type === 'button')[0].props.onClick()
@@ -191,7 +191,9 @@ test('公共编辑器默认图标入口保留原提交事件，禁用时不能�
   const input = all(root, item => item.type === 'input')[0]
   input.props.input('新名称')
   await nextTick()
-  input.props.blur()
+  await all(root, item => item.props.onFocusout)[0].props.onFocusout({
+    currentTarget: { contains: () => false, ownerDocument: { activeElement: null } }, relatedTarget: null,
+  })
   await nextTick()
   assert.deepEqual(changes, ['新名称'])
 })

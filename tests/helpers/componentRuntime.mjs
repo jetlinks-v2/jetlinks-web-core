@@ -67,10 +67,12 @@ export const passthrough = name => vue.defineComponent({ name, inheritAttrs: tru
 export const flush = async () => { await vue.nextTick(); await new Promise(resolve => setImmediate(resolve)); await vue.nextTick() }
 
 export function createComponentRenderer() {
+  const ownerDocument = { activeElement: null, body: null }
   class TestButton { focus(options) { this.focused = options } get isConnected() { return !!this.parent } get disabled() { return !!this.props.disabled } }
   globalThis.HTMLButtonElement = TestButton
   const node = (type, text = '') => Object.assign(type === 'button' ? new TestButton() : {}, {
-    type, text, props: {}, style: {}, children: [], parent: null,
+    type, text, props: {}, style: {}, children: [], parent: null, ownerDocument,
+    contains(target) { return !!target && (target === this || this.children.some(child => child.contains(target))) },
     focus(options) { this.focused = options },
     addEventListener(type, listener) { (this.listeners ||= new Map()).set(type,listener) },
     removeEventListener(type, listener) { if (this.listeners?.get(type) === listener) this.listeners.delete(type) },

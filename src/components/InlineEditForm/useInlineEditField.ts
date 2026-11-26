@@ -25,6 +25,7 @@ export function useInlineEditField(props: InlineEditFieldProps, change: (key: st
 
   function begin() {
     if (locked.value) return
+    ++generation
     editing.value = true
     failure.value = ''
   }
@@ -39,6 +40,7 @@ export function useInlineEditField(props: InlineEditFieldProps, change: (key: st
   /** Cancellation is explicit and never starts a write, including when a failed value is still present. */
   function cancel() {
     if (pending.value || props.busy) return
+    ++generation
     value.value = copy(props.field.initialValue)
     change(props.field.key, copy(props.field.initialValue))
     cancelled?.(props.field.key)
@@ -63,12 +65,13 @@ export function useInlineEditField(props: InlineEditFieldProps, change: (key: st
     } catch {
       if (version === generation) failure.value = props.messages.failed
     } finally {
-      if (version === generation) pending.value = false
+      if (version === generation) { ++generation; pending.value = false }
     }
   }
 
   /** Commit after focus leaves the whole editor, never between controls of a compound value. */
   async function blur(event: FocusEvent) {
+    if (props.field.editor === 'textarea') return
     const scope = event.currentTarget as HTMLElement | null
     if (!scope || scope.contains(event.relatedTarget as Node | null)) return
     const version = generation
@@ -78,9 +81,12 @@ export function useInlineEditField(props: InlineEditFieldProps, change: (key: st
   }
 
   function keydown(event: KeyboardEvent) {
-    if (props.mode === 'form' || event.isComposing) return
+    if (props.mode === 'form' || event.isComposing || event.defaultPrevented) return
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel() }
-    if (event.key === 'Enter' && !explicit.value) { event.preventDefault(); void commit() }
+    if (event.key === 'Enter' && props.field.editor !== 'select' && (!explicit.value || props.field.editor === 'textarea' && (event.ctrlKey || event.metaKey))) {
+      event.preventDefault()
+      void commit()
+    }
   }
 
   watch(() => props.field.value, next => { value.value = copy(next) })

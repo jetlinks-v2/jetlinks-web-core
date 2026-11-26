@@ -4,6 +4,7 @@ import type { FormField, FormLayoutItem } from './types'
 
 const messages = {
   zh: {
+    finishEdit: '完成编辑', discardEdit: '放弃本次修改',
     checkList: '勾选列表', optionList: '选项列表', tagSelection: '标签选择', segmentedOptions: '分段选项', numberFormat: '数值格式', precisionDigits: '{count} 位小数', configureColor: '配置{label}的颜色', blue: '蓝色', green: '绿色', orange: '橙色', red: '红色', purple: '紫色', neutral: '灰色', searchOptions: '查找选项', noOptions: '没有匹配的选项', time: '时间',
     invalidNumber: '请输入有效数字', rename: '在画布中改名', clear: '清空', editor: '编辑方式', list: '列表', paragraph: '段落',
     unavailableOption: '已停用', invalidOption: '请选择可用选项', minimum: '不能小于 {value}', maximum: '不能大于 {value}', maxLength: '最多 {value} 个字符', invalidDate: '请输入有效日期',
@@ -11,6 +12,7 @@ const messages = {
     addField: '加入字段', addSection: '新增分区', newSection: '新分区', design: '编排', preview: '试用', undoLayout: '撤销编排', close: '关闭', settings: '展示设置', label: '展示名称', width: '占用宽度', half: '半行', full: '整行', appearance: '展示方式', auto: '自动', text: '文字', tags: '标签', digits: '小数位数', sourcePrecision: '原始精度', thousands: '千分位', showUnit: '显示单位', dateFormat: '日期格式', readonly: '仅查看', options: '选项配色', inherit: '默认', remove: '移出页面', removeHint: '不会删除字段和值', emptySection: '拖入或加入字段', move: '移动', previous: '前一项', next: '后一项', section: '所在分区', noFields: '所有字段已加入', drag: '拖动{label}，Alt + 方向键调整顺序', removeSection: '移除空分区', nothing: '暂无内容', more: '更多设置', type_text: '文本', type_textarea: '长文本', type_number: '数字', type_date: '日期', type_datetime: '日期时间', type_enum: '单选', type_multiple: '多选', type_boolean: '布尔', type_custom: '自定义',
   },
   en: {
+    finishEdit: 'Finish editing', discardEdit: 'Discard this edit',
     checkList: 'Checklist', optionList: 'Option list', tagSelection: 'Tags', segmentedOptions: 'Segments', numberFormat: 'Number format', precisionDigits: '{count} decimals', configureColor: 'Set color for {label}', blue: 'Blue', green: 'Green', orange: 'Orange', red: 'Red', purple: 'Purple', neutral: 'Gray', searchOptions: 'Find an option', noOptions: 'No matching options', time: 'Time',
     invalidNumber: 'Enter a valid number', rename: 'Rename on canvas', clear: 'Clear', editor: 'Editor', list: 'List', paragraph: 'Paragraph',
     unavailableOption: 'Unavailable', invalidOption: 'Select an available option', minimum: 'Must be at least {value}', maximum: 'Must be at most {value}', maxLength: 'Use at most {value} characters', invalidDate: 'Enter a valid date',

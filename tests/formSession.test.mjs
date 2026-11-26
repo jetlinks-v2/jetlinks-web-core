@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { buildSync } from 'esbuild'
 import { effectScope, nextTick, reactive, ref } from 'vue'
+import { createDashboardLoader } from './helpers/dashboardRuntime.mjs'
 
 const require = createRequire(import.meta.url)
 function load(file) {
@@ -25,6 +26,25 @@ function mount(overrides = {}) {
 const session = scope.run(() => useFormSession({ fields: () => state.fields, layout: () => state.layout, values: () => state.values, access: () => state.access, readonly: () => state.readonly, submit: () => state.submit, validate: () => state.validate, submission: () => state.submission ?? 'full', requiredMessage: () => 'required', failedMessage: () => 'failed', change: value => events.push(['change', value]), saved: value => events.push(['saved', value]), externalChange: keys => events.push(['external', keys]) }))
   return { state, session, events, stop: () => scope.stop() }
 }
+
+test('finishing a field edit keeps a local draft, discarding another activation preserves it, and only Save submits', async t => {
+  const { useFormRenderer } = createDashboardLoader({ './locale': { useFormLocale: () => ({ t: key => key, text: field => field.label, label: field => field.label }) } })('components/Form/useFormRenderer.ts')
+  const writes = []
+  const field = { key: 'notes', label: 'Notes', type: 'textarea' }
+  const props = reactive({ fields: [field], layout: { version: 1, sections: [{ id: 'record', label: 'Record', items: [{ key: 'notes' }] }] }, values: { notes: 'Saved' }, readonly: false,
+    submit: async values => { writes.push(values) } })
+  const scope = effectScope(); t.after(() => scope.stop())
+  const view = scope.run(() => useFormRenderer(props, {}, { change() {}, saved() {}, dirty() {}, externalChange() {} }))
+  view.begin(field); view.updateDraft('Local change'); view.confirmEditor(); await nextTick()
+  assert.deepEqual(writes, [])
+  assert.equal(view.active.value, undefined)
+  assert.equal(view.session.value('notes'), 'Local change')
+  view.begin(field); view.updateDraft('Discard this activation'); view.cancel(); await nextTick()
+  assert.equal(view.session.value('notes'), 'Local change')
+  assert.deepEqual(writes, [])
+  await view.save()
+  assert.deepEqual(writes, [{ notes: 'Local change' }])
+})
 test('0, false, null and opaque dotted keys survive editing, restoration and normalized saves', async t => {
   let submitted
   const view = mount({ submit: async patch => { submitted = patch; return { values: { amount: 0 } } } }); t.after(view.stop)
@@ -201,7 +221,10 @@ test('editor keyboard contract leaves IME and multiline Enter intact, while Tab 
   editor.onKeydown(key('Enter', { ctrlKey: true }))
   editor.onKeydown(key('Tab', { shiftKey: true }))
   editor.onKeydown(key('Escape'))
-  assert.deepEqual(events, ['confirm', 'previous', 'cancel'])
+  assert.deepEqual(events, ['confirm', 'cancel'])
+  state.field.type = 'text'
+  editor.onKeydown(key('Tab', { shiftKey: true }))
+  assert.deepEqual(events, ['confirm', 'cancel', 'previous'])
 })
 
 test('search filters localized options without losing typed or unknown selections; booleans retain false and null', t => {
@@ -239,4 +262,20 @@ test('date adapter only serializes DatePicker results, retains time and confirms
   assert.equal(state.value, '2026-10-21')
   editor.setDate(null)
   assert.equal(state.value, null)
+})
+
+test('multiline focus can reach its actions, while queued inline blur cannot confirm after disposal', async t => {
+  const scope = effectScope(); t.after(() => scope.stop())
+  const props = reactive({ field: { key: 'note', label: 'Note', type: 'textarea' }, value: 'draft' })
+  let confirmations = 0
+  const editor = scope.run(() => useFormValueEditor(props, { update() {}, confirm: () => confirmations++, cancel() {}, navigate() {} }, () => 'en'))
+  const element = { isConnected: true, querySelector: () => null, contains: () => false, ownerDocument: { activeElement: null } }
+  editor.root.value = element
+  await editor.onBlur({ relatedTarget: null })
+  editor.onKeydown({ key: 'Enter', target: { closest: () => ({}) }, preventDefault() { throw new Error('button must keep native activation') } })
+  assert.equal(confirmations, 0)
+  props.field.type = 'text'
+  const blur = editor.onBlur({ relatedTarget: null })
+  scope.stop(); await blur
+  assert.equal(confirmations, 0)
 })
