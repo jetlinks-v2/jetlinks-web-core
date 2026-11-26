@@ -4,7 +4,7 @@ import { getDetails_api, preprocessorExists, settingDetail, systemVersion } from
 import { getTagsColor } from '@jetlinks-web-core/api/system/calendar'
 import { getToken, LocalStore } from '@jetlinks-web/utils'
 import { isSubApp } from '@jetlinks-web-core/utils/consts'
-import { createFrontLanguageState } from '@jetlinks-web-core/locales/frontLanguage'
+import { createFrontLanguageState, type FrontLanguageSource } from '@jetlinks-web-core/locales/frontLanguage'
 import { withModuleStoreOverride } from './module-override'
 import { getThemeStyle_api } from '@jetlinks-web-core/api/account/theme'
 import { applyThemeColor, getInitialThemeColor, persistThemeColor } from '@jetlinks-web-core/utils/theme-color'
@@ -115,7 +115,9 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     ['workday', 'rgba(105,177,255)']
   ])
   const showThreshold = ref(true)
-  const supportsFrontLanguagePolicy = () => !isSubApp && !isApplicationRuntime()
+  // 业务应用只采用登录后按项目身份读取的配置，不能用登录页的公共配置覆盖项目语言。
+  const supportsFrontLanguagePolicy = (source: FrontLanguageSource = 'public') =>
+    !isSubApp && (!isApplicationRuntime() || (source === 'session' && !!getToken()))
   const { language, languageOptions, languageLabel, selectLanguage, applyFrontLanguages } =
     createFrontLanguageState(supportsFrontLanguagePolicy)
   const applySavedFrontLanguages = (value: unknown) => applyFrontLanguages(value, 'save')
@@ -203,9 +205,6 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
   }
 
   const handleFront = (_value: any, userThemeStyle?: ThemeStyleKey, persistPreferences = true) => {
-    if (persistPreferences) {
-      applyFrontLanguages(_value?.languages)
-    }
     if (!_value) return
     const title = resolveLayoutTitle(_value.title)
     layout.title = title
@@ -229,6 +228,7 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
         const _value = resp.result.find(item => item.scope === key)?.properties
         systemInfo.value[key] = _value ?? {}
         if (key === 'front') {
+          if (!readSharedScopes) applyFrontLanguages(_value?.languages, 'session')
           handleFront(_value, userThemeStyle, !readSharedScopes)
         }
       })
@@ -244,6 +244,7 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
       const _value = resp.result
       systemInfo.value[__keys] = _value ?? {}
       if (__keys === 'front') {
+        applyFrontLanguages(_value?.languages, 'public')
         handleFront(_value, userThemeStyle)
       }
     }

@@ -304,8 +304,47 @@ test('a successful project language save chooses the first allowed language and 
   assert.equal(f.store.language, 'en')
 })
 
-test('application and micro-app stores ignore the front language policy', async () => {
-  for (const context of [{ application: true }, { micro: true }]) {
+test('the authenticated application menu follows project languages and remembers an allowed switch', async t => {
+  const cache = new Map([[langKey, 'zh']])
+  const context = { application: true, cache, token: 'application-session' }
+  const f = fixture(context)
+  const page = f.mount(t, resolve(core, 'layout/components/Language.vue'))
+  await f.store.queryInfo()
+  await vue.nextTick()
+  assert.deepEqual(page.options(), ['日本語', 'English'])
+  assert.equal(f.store.languageLabel, '日本語')
+  assert.equal(f.i18n.global.locale.value, 'ja')
+  assert.equal(cache.get(langKey), 'ja')
+  f.store.selectLanguage('zh')
+  assert.equal(f.reloads(), 0)
+  f.store.selectLanguage('en')
+  assert.equal(f.reloads(), 1)
+
+  const reopened = fixture(context)
+  await reopened.store.queryInfo()
+  assert.equal(reopened.store.language, 'en')
+  reopened.respond(async () => ({ languages: [] }))
+  await reopened.store.queryInfo()
+  assert.deepEqual(reopened.store.languageOptions.map(option => option.label), defaults)
+})
+
+test('application public and shared config reads do not apply or replace account languages', async () => {
+  const f = fixture({ application: true, token: 'application-session' })
+  await f.store.querySingleInfo('front')
+  assert.deepEqual(f.store.languageOptions.map(option => option.label), defaults)
+  assert.equal(f.storage.getItem(langKey), null)
+
+  await f.store.queryInfo()
+  const shared = async () => ({ success: true, result: [{ scope: 'front', properties: { languages: ['zh'] } }] })
+  await f.store.queryInfo(shared)
+  f.respond(async () => ({ languages: ['zh'] }))
+  await f.store.querySingleInfo('front')
+  assert.deepEqual(f.store.languageOptions.map(option => option.label), ['日本語', 'English'])
+  assert.equal(f.storage.getItem(langKey), 'ja')
+})
+
+test('unauthenticated applications and embedded micro-apps keep their existing language options', async () => {
+  for (const context of [{ application: true }, { micro: true, token: 'host-session' }, { application: true, micro: true, token: 'host-session' }]) {
     const f = fixture(context)
     await f.store.queryInfo()
     assert.deepEqual(f.store.languageOptions.map(option => option.label), defaults)
