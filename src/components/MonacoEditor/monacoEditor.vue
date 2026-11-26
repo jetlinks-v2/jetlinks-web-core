@@ -27,6 +27,7 @@ const props = defineProps({
   registrationTips: {type: Object, default: () => ({})},
   registrationTypescript: {type: Object, default: () => ({})},
   blurFormat: {type: Boolean, default: true},
+  autoFormat: {type: Boolean, default: true},
   readOnly: {type: Boolean, default: false},
   options: {type: Object, default: () => ({})},
 });
@@ -113,7 +114,7 @@ const editorFormat = () => {
   window.clearTimeout(formatTimer);
   formatTimer = window.setTimeout(() => {
     formatTimer = undefined;
-    instance?.getAction('editor.action.formatDocument')?.run();
+    if (props.autoFormat) instance?.getAction('editor.action.formatDocument')?.run();
   }, 300)
   if (props.hasOwnProperty('readOnly')) {
     window.clearTimeout(readOnlyTimer);
@@ -139,6 +140,7 @@ onMounted(() => {
     tabSize: 2,
     automaticLayout: true,
     scrollBeyondLastLine: false,
+    readOnly: props.readOnly !== false,
     theme: props.theme, // 主题色: vs(默认高亮), vs-dark(黑色), hc-black(高亮黑色)
     formatOnPaste: true,
     ...(omit(props.options, ['readOnly']) || {}),
@@ -164,7 +166,7 @@ onMounted(() => {
     emit('focus');
   });
 
-  if (props.modelValue) {
+  if (props.modelValue && props.autoFormat) {
     initialFormatTimer = window.setTimeout(() => {
       initialFormatTimer = undefined;
       editorFormat();
@@ -200,6 +202,12 @@ const insert = (val, position) => {
     },
   ]);
 };
+
+watch(
+  () => props.readOnly,
+  (value) => instance?.updateOptions({ readOnly: value !== false }),
+  { flush: 'sync' },
+);
 
 watch(
   () => props.modelValue,

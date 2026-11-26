@@ -63,6 +63,10 @@ import {
 
 ## 场景映射
 
+### 已选名称摘要
+
+[`SelectionSummary`](SelectionSummary/README.md) 将已选名称显示为标签，宽度不足时显示 `+数量`；只处理展示与尺寸变化。提供根入口具名导出及目录默认导出，不全局注册。物联告警、视觉告警的通知对象共用该组件；资源查询及选择由业务模块负责。
+
 ### 平台基础配置
 
 [`PlatformSettings`](PlatformSettings/README.md) 通过根入口和目录入口导出共享配置组合、外观设置/预览及地图区块。`detail` 模式逐项保存，`form` 模式仅更新草稿并向宿主暴露统一提交；复用 `ContentPanel`、`InlineEditForm` 和上传裁剪组件。运行时设置页、初始化页共用；SaaS 域名流程归业务模块。
@@ -98,6 +102,7 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 | 卡片上方的返回列表入口 | `PageBack` | [PageChrome](PageChrome/README.md#统一返回入口) | 全局注册及具名导出；`label` 文案、`back` 事件；放在独立 `PageChrome` 中 |
 | 页面容器、区块和布局 | `FullPage`、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`ResponsiveGrid`、`KvGrid` | [HomeView](HomeView/README.md)、[SectionCard](SectionCard/README.md)、[ContentPanel](ContentPanel/README.md)、[AmbientCard](AmbientCard/README.md)、[JlDrawerShell](JlDrawerShell/README.md)、[StickyActionBar](StickyActionBar/README.md)、[EqualHeightColumns](EqualHeightColumns/README.md)、[ResponsiveGrid](ResponsiveGrid/README.md)、[KvGrid](KvGrid/README.md) | `FullPage`（来自 `@jetlinks-web-core/layout`）、`HomeView`、`SectionCard`、`ContentPanel`、`AmbientCard`、`JlDrawerShell`、`StickyActionBar`、`EqualHeightColumns`、`ResponsiveGrid`、`KvGrid` |
 | 路由加载和页面空态 | `PageRouteView`、`PageRouteSkeleton`、`CloudEmpty` | [PageRouteView](PageRouteView/README.md)、[PageRouteSkeleton](PageRouteSkeleton/README.md)、[CloudEmpty](CloudEmpty/README.md) | `PageRouteView`、`PageRouteSkeleton`、`CloudEmpty` |
+| 独立分页 | `CorePagination` | [CorePagination](CorePagination/README.md) | 与 `JProTable` 同源；受控页码从 1 开始，换容量回首页 |
 | 列表、表格和分页 | `CrudTable`、`Search`（全局名 `ProSearch`）、`ConditionFilter`、`QuickFilterSidebar`、`VirtualScroll`、`MatrixGrid`、`SwitchGroup` | [CrudTable](CrudTable/README.md)、[Search](Search/README.md)、[ConditionFilter](ConditionFilter/readme.md)、[QuickFilterSidebar](QuickFilterSidebar/README.md)、[VirtualScroll](VirtualScroll/README.md)、[MatrixGrid](MatrixGrid/README.md)、[SwitchGroup](SwitchGroup/README.md) | `CrudTable`、`ProSearch`、`ConditionFilter`、`QuickFilterSidebar`、`VirtualScroll`、`MatrixGrid`、`SwitchGroup` |
 | 自适应高度与虚拟滚动树 | `AutoTree` | [AutoTree](AutoTree/README.md) | 具名导出、全局注册：`AutoTree`；兼容 Tree 属性、事件和插槽，未指定高度时自动适配 |
 | 资产归属筛选、维度目标及绑定查询 | `AssetOwnershipCondition`、`createAssetOwnershipField` | [AssetOwnershipCondition](AssetOwnershipCondition/README.md) | `AssetOwnershipCondition` |
@@ -168,7 +173,7 @@ import type { I18nMessages } from '@jetlinks-web-core/components'
 
 按目录查看每个组件的独立说明：
 
-`AMapComponent` · `AmbientCard` · `AppTag` · `Avatar` · `BatchDropdown` · `BatchImport` · `Captcha` · `CardBox` · `CardSelect` · `ChatTextArea` · `CheckboxGroup` · `CheckButton` · `ChipGroup` · `CloudEmpty` · `CodeBlock` · `ConditionFilter` · `ConfirmModal` · `ContentPanel` · `CrudTable` · `Dashboard` · `DesignerPreview` · `DetailHeader` · `DetailMetaItem` · `Echarts` · `Editable` · `EditDialog` · `EntityCard` · `EqualHeightColumns` · `FormItem` · `FullCalendar` · `HomeView` · `IconBadge` · `IconLibrary` · `IconValue` · `Image` · `JlConfirmDialog` · `JlDrawerShell` · `KvGrid` · `MarkdownEditor` · `MarketplaceInstallStream` · `MarketplaceResourcePicker` · `MatrixGrid` · `MCarousel` · `MenuAssetPermissionEditor` · `MetaChip` · `MetadataValueItem` · `MetricCards` · `ModelConfig` · `ModelParameterEditor` · `MonacoEditor` · `OutputSchemaEditor` · `PageActions` · `PageBack` · `PageChrome` · `PageHeader` · `PageRouteSkeleton` · `PageRouteView` · `Player` · `QuickFilterSidebar` · `RegisterComponents` · `RemoteComponent` · `ResponsiveGrid` · `Search` · `SectionCard` · `SelectAMap` · `StatusPill` · `StatusTag` · `StickyActionBar` · `SwitchGroup` · `TabsCard` · `TagManagerSidebar` · `TermsCascader` · `TitleComponent` · `Upload` · `VirtualScroll`
+`AMapComponent` · `AmbientCard` · `AppTag` · `Avatar` · `BatchDropdown` · `BatchImport` · `Captcha` · `CardBox` · `CardSelect` · `ChatTextArea` · `CheckboxGroup` · `CheckButton` · `ChipGroup` · `CloudEmpty` · `CodeBlock` · `ConditionFilter` · `ConfirmModal` · `ContentPanel` · `CorePagination` · `CrudTable` · `Dashboard` · `DesignerPreview` · `DetailHeader` · `DetailMetaItem` · `Echarts` · `Editable` · `EditDialog` · `EntityCard` · `EqualHeightColumns` · `FormItem` · `FullCalendar` · `HomeView` · `IconBadge` · `IconLibrary` · `IconValue` · `Image` · `JlConfirmDialog` · `JlDrawerShell` · `KvGrid` · `MarkdownEditor` · `MarketplaceInstallStream` · `MarketplaceResourcePicker` · `MatrixGrid` · `MCarousel` · `MenuAssetPermissionEditor` · `MetaChip` · `MetadataValueItem` · `MetricCards` · `ModelConfig` · `ModelParameterEditor` · `MonacoEditor` · `OutputSchemaEditor` · `PageActions` · `PageBack` · `PageChrome` · `PageHeader` · `PageRouteSkeleton` · `PageRouteView` · `Player` · `QuickFilterSidebar` · `RegisterComponents` · `RemoteComponent` · `ResponsiveGrid` · `Search` · `SectionCard` · `SelectAMap` · `StatusPill` · `StatusTag` · `StickyActionBar` · `SwitchGroup` · `TabsCard` · `TagManagerSidebar` · `TermsCascader` · `TitleComponent` · `Upload` · `VirtualScroll`
 
 - 仪表盘存量业务卡片运行支持：`DashBoardCanvas/runtime`（目录公开导出），提供数据订阅、网格布局、同步图片地址及时间筛选/标题组件，见 [画布说明](DashBoardCanvas/README.md#业务组件运行支持)。
 

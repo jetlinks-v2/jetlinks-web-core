@@ -4,13 +4,12 @@ import router from '@jetlinks-web-core/router'
 import { setParamsValue } from '@jetlinks-web/hooks'
 import { onlyMessage } from '@jetlinks-web/utils'
 import {
-  isApplicationRuntime,
   getApplicationRuntimeEntry,
   isFromCloud,
   isProjectRuntime,
   normalizeProjectRuntimePath,
 } from '@jetlinks-web-core/utils'
-import { getOwnMenuThree } from '@jetlinks-web-core/api/system/menu'
+import { getOwnMenuThree, readOwnMenuTree } from '@jetlinks-web-core/api/system/menu'
 import { getGlobModules } from '@jetlinks-web-core/router/globModules'
 import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
 import i18n from '@jetlinks-web-core/locales'
@@ -22,17 +21,17 @@ import {
   type MenuApplicationScope,
 } from '@jetlinks-web-core/utils/application-scope'
 import type { MenuFilterConditions } from '@jetlinks-web-core/types/module'
-import { createMenuStoreRuntime, type MenuRuntimeContext } from './menuRuntime'
+import { createMenuStoreRuntime } from './menuRuntime'
 import { applyModuleMenuFilters } from './menuFilters'
 import { applyMenuRouteTargets } from './menuRouteTarget'
 import {
   getCoreRouteOverrideMenus,
   getFirstMenuPath,
-  hasUserCenterMenu,
   prepareMicroApplicationMenus,
 } from './menuHelpers'
 import { useApplication } from './application'
-import {isSaaS, OWNER_KEY} from '@/utils/consts'
+import { OWNER_KEY } from '@/utils/consts'
+import { forbiddenLocation } from '@jetlinks-web-core/router/forbidden'
 
 type OptionsType = {
   params?: Record<string, any>
@@ -162,17 +161,6 @@ const prepareRuntimeMenus = (menus: any[]) => (
     : menus
 )
 
-/** 个人中心复用静态路由，仅在项目没有业务入口且菜单已授权时作为默认页。 */
-const getDefaultMenuPath = (context: Pick<MenuRuntimeContext, 'menuRoutes' | 'sourceMenus'>) => {
-  const firstMenuPath = getFirstMenuPath(context.menuRoutes)
-  if (firstMenuPath || getApplicationRuntimeEntry().type !== 'project' || !hasUserCenterMenu(context.sourceMenus)) {
-    return firstMenuPath
-  }
-
-  // 模块可以隐藏或覆盖个人中心；使用实际注册路径，不重复生成动态路由。
-  return router.getRoutes().find(route => route.name === 'account/center')?.path
-}
-
 export const useMenuStore = defineStore('menu', () => {
   const app = useApplication()
     const rawMenus = ref<ProjectMenuItem[]>([])
@@ -223,11 +211,9 @@ export const useMenuStore = defineStore('menu', () => {
       const routerRoutes = router.getRoutes()
 
       if (!router.hasRoute('saas-tenant-root')) {
-        const defaultRedirect = import.meta.env.VITE_DEFAULT_REDIRECT_PATH || '/account'
         context.menuRoutes.push({
           path: '/',
-          redirect: getDefaultMenuPath(context)
-            || (isApplicationRuntime() || isSaaS ? '/403' : defaultRedirect),
+          redirect: getFirstMenuPath(context.menuRoutes) || (to => forbiddenLocation(to.query, true)),
         })
       }
 
@@ -242,6 +228,9 @@ export const useMenuStore = defineStore('menu', () => {
       context.menus = mergedMenus as RouteRecordRaw[]
     },
   })
+
+  const firstMenuPath = computed(() => getFirstMenuPath(runtime.menu.value))
+  const hasNoAccessibleMenu = computed(() => runtime.initialized.value && !firstMenuPath.value)
 
   let menuRequestId = 0
 
@@ -270,44 +259,39 @@ export const useMenuStore = defineStore('menu', () => {
     try {
       const resp = await requestMenus(hasTerms ?? true, resolvedApplicationScope || false)
 
-      const menuResult = Array.isArray(resp.result) ? resp.result : []
-
       // An older response must never replace the routes and permissions of the latest application.
       if (requestId !== menuRequestId) return { applied: false }
 
-      if (resp.success) {
-        // Module filters run before route generation so filtered menus never enter routes or permissions.
-        const filteredMenuResult = await applyModuleMenuFilters(menuResult, {
-          applicationScope: resolvedApplicationScope,
-          conditions: queryOptions.conditions,
-        })
-        if (requestId !== menuRequestId) return { applied: false }
+      const menuResult = readOwnMenuTree(resp)
+      // Module filters run before route generation so filtered menus never enter routes or permissions.
+      const filteredMenuResult = await applyModuleMenuFilters(menuResult, {
+        applicationScope: resolvedApplicationScope,
+        conditions: queryOptions.conditions,
+      })
+      if (requestId !== menuRequestId) return { applied: false }
 
-        const targetedMenus = applyMenuRouteTargets(filteredMenuResult)
-        targetedMenus.issues.forEach((issue) => {
-          console.warn(
-            `[Menu Route Target] Keep "${issue.sourceCode}" in place: ${issue.type} "${issue.target}".`,
-          )
-        })
-
-        prepareMicroApplicationMenus(targetedMenus.menus, app)
-
-        const context = await runtime.createRoutes(
-          targetedMenus.menus,
-          () => requestId === menuRequestId,
+      const targetedMenus = applyMenuRouteTargets(filteredMenuResult)
+      targetedMenus.issues.forEach((issue) => {
+        console.warn(
+          `[Menu Route Target] Keep "${issue.sourceCode}" in place: ${issue.type} "${issue.target}".`,
         )
-        if (!context) return { applied: false }
+      })
 
-        runtime.menuResultCache.value = JSON.parse(JSON.stringify(targetedMenus.menus))
-        runtime.hasResponeMenu.value = !!targetedMenus.menus.length
-        runtime.loading.value = false
-        return {
-          applied: true,
-          firstMenuPath: getDefaultMenuPath(context),
-        }
+      prepareMicroApplicationMenus(targetedMenus.menus, app)
+
+      const context = await runtime.createRoutes(
+        targetedMenus.menus,
+        () => requestId === menuRequestId,
+      )
+      if (!context) return { applied: false }
+
+      runtime.menuResultCache.value = JSON.parse(JSON.stringify(targetedMenus.menus))
+      runtime.hasResponeMenu.value = !!targetedMenus.menus.length
+      runtime.loading.value = false
+      return {
+        applied: true,
+        firstMenuPath: firstMenuPath.value,
       }
-
-      throw new Error(resp.message || 'Failed to load menus')
     } catch (error) {
       if (requestId === menuRequestId) runtime.loading.value = false
       throw error
@@ -355,6 +339,8 @@ export const useMenuStore = defineStore('menu', () => {
     menusMap: runtime.menusMap,
     loading: runtime.loading,
     initialized: runtime.initialized,
+    firstMenuPath,
+    hasNoAccessibleMenu,
     menuResultCache: runtime.menuResultCache,
     hasResponeMenu: runtime.hasResponeMenu,
     hasRouteMenu: runtime.hasRouteMenu,

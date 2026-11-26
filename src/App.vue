@@ -3,14 +3,19 @@
     :locale="language[componentLanguage]"
     :componentsLocale="componentsLocale[componentLanguage]"
     :IconConfig="iconConfig"
+    :TableConfig="runtimeTableConfig"
     :theme="themeConfig"
     :renderEmpty="renderEmpty"
   >
-    <PageRouteView :skeleton-variant="routeSkeletonVariant" />
+    <template v-if="!changingSessionDocument">
+      <MicroShareDocument v-if="isSubApp && usesShareSession(route.meta)" :path="route.fullPath" />
+      <PageRouteView v-else :skeleton-variant="routeSkeletonVariant" />
+    </template>
   </ConfigProvider>
 </template>
 <script setup lang="ts">
 import { ConfigProvider } from '@jetlinks-web/components'
+import { paginationThemeComponents, runtimeTableConfig } from './components/CorePagination/defaults'
 import PageRouteView from '@jetlinks-web-core/components/PageRouteView/index.vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import enUs from 'ant-design-vue/es/locale/en_US'
@@ -23,7 +28,11 @@ import componentsJa from './locales/componentsJa'
 import theme from '@theme-config'
 import { useAuthStore, useMenuStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
-import {initPackages, clearVerifyCache} from "@jetlinks-web-core/package";
+import { clearVerifyCache, initPackages } from '@jetlinks-web-core/package'
+import { changingSessionDocument } from '@jetlinks-web-core/router'
+import { usesShareSession } from '@jetlinks-web-core/router/types'
+import { isSubApp } from '@jetlinks-web-core/utils/consts'
+import MicroShareDocument from './views/share/MicroShareDocument.vue'
 import { setToken } from "@jetlinks-web/utils";
 import { consumeLogoutLoginEntry, LOGOUT_AUTH_QUERY_KEYS } from '@jetlinks-web-core/router/login-session'
 import { installEdgeImageProxy } from '@jetlinks-web-core/utils/edge-image-proxy'
@@ -47,12 +56,16 @@ import { usePageTranslation } from './locales/translation/page/usePageTranslatio
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { locale, t } = useI18n()
 const menuStore = useMenuStore()
-usePageTranslation(() => route.matched.length > 0 && route.name !== 'Login', menuStore.isMenuSourceText)
-
 const systemStore = useSystemStore()
-const componentLanguage = computed(() => builtInLanguage(systemStore.language) ?? DEFAULT_LANGUAGE)
+usePageTranslation(
+  () => route.matched.length > 0 && route.name !== 'Login',
+  () => !systemStore.hasFrontLanguagePolicy,
+  menuStore.isMenuSourceText,
+)
+
+const componentLanguage = computed(() => builtInLanguage(locale.value) ?? DEFAULT_LANGUAGE)
 
 type RouteSkeletonVariant = 'content' | 'layout'
 type AppPackageConfig = {
@@ -84,6 +97,7 @@ const { hasPermission } = useAuthStore();
 const responsiveAntdToken = useResponsiveAntdToken()
 
 const themeConfig = computed(() => ({
+  components: paginationThemeComponents(responsiveAntdToken.token.value.controlHeight ?? antdTheme.defaultSeed.controlHeight),
   algorithm: systemStore.themeStyle === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
   token: {
     ...theme,
@@ -109,7 +123,9 @@ watch(
 provide(ComponentsEnum.Permission, { hasPermission })
 
 initPersonal()
-initPackages()
+void router.isReady().then(() => {
+  if (!isSubApp && !changingSessionDocument.value && !usesShareSession(route.meta)) initPackages({ accountOnly: true })
+})
 
 componentsRegistry.batchRegister()
 
@@ -199,6 +215,7 @@ const renderEmpty = () => {
 }
 
 watch(() => JSON.stringify(route.query || {}), () => {
+  if (changingSessionDocument.value || (isSubApp && usesShareSession(route.meta))) return
   const routeQuery = route.query || {}
   const query = Object.keys(routeQuery).length ? routeQuery : parseHashQuery()
 

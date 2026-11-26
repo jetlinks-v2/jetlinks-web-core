@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia'
+import { reactive, ref } from 'vue'
 import { getDetails_api, preprocessorExists, settingDetail, systemVersion } from '@jetlinks-web-core/api/system/basis'
 import { getTagsColor } from '@jetlinks-web-core/api/system/calendar'
 import { getToken, LocalStore } from '@jetlinks-web/utils'
-import { langKey, isSubApp } from '@jetlinks-web-core/utils/consts'
+import { isSubApp } from '@jetlinks-web-core/utils/consts'
+import { createFrontLanguageState } from '@jetlinks-web-core/locales/frontLanguage'
 import { withModuleStoreOverride } from './module-override'
 import { getThemeStyle_api } from '@jetlinks-web-core/api/account/theme'
 import { applyThemeColor, getInitialThemeColor, persistThemeColor } from '@jetlinks-web-core/utils/theme-color'
@@ -113,7 +115,10 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     ['workday', 'rgba(105,177,255)']
   ])
   const showThreshold = ref(true)
-  const language = ref(LocalStore.get(langKey) || 'zh')
+  const supportsFrontLanguagePolicy = () => !isSubApp && !isApplicationRuntime()
+  const { language, languageOptions, languageLabel, hasFrontLanguagePolicy, selectLanguage, applyFrontLanguages } =
+    createFrontLanguageState(supportsFrontLanguagePolicy)
+  const applySavedFrontLanguages = (value: unknown) => applyFrontLanguages(value, 'save')
   const sessionInitializedUserKey = ref('')
 
   const layout = reactive<LayoutType>({
@@ -139,9 +144,10 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     themeStyleToken.value = result.token
   }
 
-  const changeThemeStyle = (style: string, color?: string) => {
+  const changeThemeStyle = (style: string, color?: string, persist = true) => {
     const themeStyleValue = normalizeThemeStyle(style)
-    const result = persistThemeStyle(themeStyleValue, color || getThemeStylePrimaryColor(themeStyleValue) || themeColor.value)
+    const apply = persist ? persistThemeStyle : applyThemeStyle
+    const result = apply(themeStyleValue, color || getThemeStylePrimaryColor(themeStyleValue) || themeColor.value)
     theme.value = themeStyleValue === 'dark' ? 'dark' : 'light'
     themeStyle.value = result.style
     themeStyleToken.value = result.token
@@ -196,7 +202,10 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     }
   }
 
-  const handleFront = (_value: any, userThemeStyle?: ThemeStyleKey) => {
+  const handleFront = (_value: any, userThemeStyle?: ThemeStyleKey, persistPreferences = true) => {
+    if (persistPreferences) {
+      applyFrontLanguages(_value?.languages)
+    }
     if (!_value) return
     const title = resolveLayoutTitle(_value.title)
     layout.title = title
@@ -204,22 +213,23 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     layout.layout = normalizeLayoutMode(_value.layout)
     const frontThemeStyle = userThemeStyle || normalizeThemeStyle(_value.headerTheme)
     // localStorage 只负责接口返回前的首屏主题；登录后用户设置优先，系统设置兜底。
-    changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle))
+    changeThemeStyle(frontThemeStyle, getThemeStylePrimaryColor(frontThemeStyle), persistPreferences)
     changeIco(_value.ico)
     setDocumentTitle()
     changeTitle(title)
   }
 
-  const queryInfo = async () => {
+  // 外链通过作品身份读取系统配置（包括地图 Key），无需读取浏览器账号的个人主题或覆盖本地偏好。
+  const queryInfo = async (readSharedScopes?: SystemConfigSource['queryScopes']) => {
     const _keys = ['front', 'amap', 'paths']
-    const userThemeStyle = await getUserThemeStyle()
-    const resp = await source.queryScopes(_keys)
+    const userThemeStyle = readSharedScopes ? undefined : await getUserThemeStyle()
+    const resp = await (readSharedScopes ?? source.queryScopes)(_keys)
     if (resp.success) {
       _keys.forEach((key: string) => {
         const _value = resp.result.find(item => item.scope === key)?.properties
         systemInfo.value[key] = _value ?? {}
         if (key === 'front') {
-          handleFront(_value, userThemeStyle)
+          handleFront(_value, userThemeStyle, !readSharedScopes)
         }
       })
     }
@@ -293,6 +303,12 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     calendarTagColor,
     showThreshold,
     language,
+    languageOptions,
+    languageLabel,
+    hasFrontLanguagePolicy,
+    selectLanguage,
+    supportsFrontLanguagePolicy,
+    applySavedFrontLanguages,
     microApp,
     changeTheme,
     changeThemeStyle,

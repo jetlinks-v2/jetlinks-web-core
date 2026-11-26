@@ -1,4 +1,4 @@
-import { Teleport, createApp, defineComponent, h, reactive } from 'vue'
+import { Teleport, computed, createApp, defineComponent, h, reactive } from 'vue'
 import { Button, ConfigProvider, Pagination, Popover, Tooltip } from 'ant-design-vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import enUS from 'ant-design-vue/es/locale/en_US'
@@ -6,35 +6,42 @@ import jaJP from 'ant-design-vue/es/locale/ja_JP'
 import { CheckOutlined, DownloadOutlined, GlobalOutlined, LoadingOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons-vue'
 import Language from '../src/layout/components/Language.vue'
 import { createRuntimeI18n } from '../src/locales/create'
+import { createFrontLanguageState } from '../src/locales/frontLanguage'
 import { builtInLanguage } from '../src/locales/translation/languages'
 import { usePageTranslation } from '../src/locales/translation/page/usePageTranslation'
 import zh from '../src/locales/lang/zh.json'
 import en from '../src/locales/lang/en.json'
 import ja from '../src/locales/lang/ja.json'
 
-const i18n = createRuntimeI18n({
+export const i18n = createRuntimeI18n({
   'zh.json': { default: { ...zh, 'test.heading': '设备管理' } },
   'en.json': { default: { ...en, 'test.heading': 'Device management' } },
   'ja.json': { default: { ...ja, 'test.heading': '機器管理', 'test.count': '{count}件' } },
 })
+const systemStore = reactive(createFrontLanguageState(() => true))
+export const useFixtureSystemStore = () => systemStore
 const state = reactive({
   text: '旧设备文本', review: '复判目标：车辆违停检测。图片中未见任何车辆。',
   modal: false, login: false, mixed: false, exclude: false, foreign: false,
 })
 const componentLocales = { zh: zhCN, en: enUS, ja: jaJP }
-const nativeLocale = builtInLanguage(i18n.global.locale.value) ?? 'zh'
+const nativeLocale = computed(() => builtInLanguage(i18n.global.locale.value) ?? 'zh')
 const menuTitles = { zh: '接入组件', en: 'Access components', ja: '接続コンポーネント' }
-Object.assign(globalThis, { fixtureState: state, fixtureLocales: () => i18n.global.availableLocales })
+Object.assign(globalThis, {
+  fixtureState: state,
+  fixtureLocales: () => i18n.global.availableLocales,
+  fixtureSetFrontLanguages: (languages: string[]) => systemStore.applyFrontLanguages(languages, 'save'),
+})
 
 const App = defineComponent({
   setup() {
-    usePageTranslation(() => !state.login, text => text === menuTitles[nativeLocale])
-    return () => h(ConfigProvider, { locale: componentLocales[nativeLocale] }, {
+    usePageTranslation(() => !state.login, () => !systemStore.hasFrontLanguagePolicy, text => text === menuTitles[nativeLocale.value])
+    return () => h(ConfigProvider, { locale: componentLocales[nativeLocale.value] }, {
       default: () => [
         h('header', { style: 'display:flex;justify-content:flex-end' }, state.login ? [] : [h(Language)]),
         h('main', [
           h('h1', { id: 'heading' }, i18n.global.t('test.heading')),
-          h('nav', { id: 'access-menu' }, menuTitles[nativeLocale]),
+          h('nav', { id: 'access-menu' }, menuTitles[nativeLocale.value]),
           h('p', { id: 'resource-statistic' }, '功耗分布'),
           h('strong', { id: 'review', title: state.review }, state.review),
           h('div', { 'data-no-translate': '' }, h('span', { id: 'gateway', title: '测试网关' }, '测试网关')),

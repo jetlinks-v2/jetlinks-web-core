@@ -1,4 +1,4 @@
-import { computed, inject, onScopeDispose, provide, shallowReactive, shallowRef, type InjectionKey } from 'vue'
+import { computed, inject, onScopeDispose, provide, shallowReactive, shallowRef, unref, type InjectionKey, type MaybeRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { builtInLanguage, DEFAULT_LANGUAGE, machineLanguage, type BuiltInLanguage } from './languages'
 import { TranslationModels, browserTranslator, pairKey, type LanguagePair, type ModelState, type TranslatorApi } from './models'
@@ -29,13 +29,16 @@ function readLanguagePath(base: BuiltInLanguage, storage?: Storage): string[] {
   return [base]
 }
 
-/** 使用已准备的翻译路径驱动界面，持久化内容只有语种。 */
+/** 使用与当前词库匹配的翻译路径。平台限制额外语种时保留偏好，暂停这条路径。 */
 export function createTranslationRuntime(
-  base: BuiltInLanguage,
+  baseLanguage: MaybeRef<BuiltInLanguage>,
   storage = defaultStorage(),
   api?: () => TranslatorApi | undefined,
+  allowsMachineLanguages: () => boolean = () => true,
 ) {
-  const path = shallowRef(readLanguagePath(base, storage))
+  const base = computed(() => unref(baseLanguage))
+  const savedPath = shallowRef(readLanguagePath(base.value, storage))
+  const path = computed(() => allowsMachineLanguages() && savedPath.value[0] === base.value ? savedPath.value : [base.value])
 
   let ownedApi: TranslatorApi | undefined
   const getApi = api ?? (() => ownedApi ??= browserTranslator() ?? createLocalTranslator())
@@ -57,10 +60,11 @@ export function createTranslationRuntime(
     return unavailable === -1 ? pairs.value.length : unavailable
   })
   const activePairs = computed(() => pairs.value.slice(0, readyCount.value))
-  const language = computed(() => activePairs.value.at(-1)?.targetLanguage ?? base)
+  const language = computed(() => activePairs.value.at(-1)?.targetLanguage ?? base.value)
   const translations = new Map<string, string>()
 
   function optionPair(target: string): LanguagePair | undefined {
+    if (!allowsMachineLanguages()) return
     const targetLanguage = machineLanguage(target)
     if (targetLanguage && targetLanguage !== language.value) return { sourceLanguage: language.value, targetLanguage }
   }
@@ -86,9 +90,9 @@ export function createTranslationRuntime(
     if (target === language.value) return true
     const pair = target ? optionPair(target) : undefined
     if (target && (!pair || state(target).phase !== 'ready')) return false
-    path.value = pair ? [...path.value.slice(0, readyCount.value + 1), pair.targetLanguage] : [base]
+    savedPath.value = pair ? [...path.value.slice(0, readyCount.value + 1), pair.targetLanguage] : [base.value]
     try {
-      if (pair) storage?.setItem(translationLanguageKey, JSON.stringify(path.value))
+      if (pair) storage?.setItem(translationLanguageKey, JSON.stringify(savedPath.value))
       else storage?.removeItem(translationLanguageKey)
     } catch { /* 仍允许当前页面切换。 */ }
     return true
@@ -131,8 +135,8 @@ export function createTranslationRuntime(
 
   /** 恢复已保存的语种后，复用页面的真实点击准备已发现的缺失语言对。 */
   function preparePendingSupplements(): void {
-    if (!downloadsAutomatically(base) || getApi()?.downloadWithoutActivation) return
-    const missing = supplementModels(base).filter(({ state }) => state.phase === 'needed')
+    if (!downloadsAutomatically(base.value) || getApi()?.downloadWithoutActivation) return
+    const missing = supplementModels(base.value).filter(({ state }) => state.phase === 'needed')
     const next = missing.find(({ pair }) => pair.sourceLanguage === DEFAULT_LANGUAGE) ?? missing[0]
     if (next) void models.prepare(next.pair)
   }
@@ -142,9 +146,9 @@ export function createTranslationRuntime(
     if (!downloadsAutomatically(target)) return
     const translator = getApi()
     if (!translator) return
-    const current = supplementModels(base)
+    const current = supplementModels(base.value)
     if (translator.downloadWithoutActivation) {
-      if (target !== base) return
+      if (target !== base.value) return
       const retryable = current.filter(({ state }) => state.phase !== 'ready' && state.phase !== 'unsupported')
       if (retryable.length) return Promise.all(retryable.map(async ({ pair }) => {
         await models.inspect(pair, true)
@@ -155,7 +159,7 @@ export function createTranslationRuntime(
 
     // Chrome 会消耗该次点击的激活。优先准备当前页面实际用过的原文语种。
     const visibleSources = current.filter(({ state }) => state.phase === 'ready').map(({ pair }) => pair.sourceLanguage)
-    const sources = new Set([...visibleSources, base, ...current.map(({ pair }) => pair.sourceLanguage)])
+    const sources = new Set([...visibleSources, base.value, ...current.map(({ pair }) => pair.sourceLanguage)])
     for (const sourceLanguage of sources) {
       if (sourceLanguage === target) continue
       const pair = { sourceLanguage, targetLanguage: target }
@@ -206,19 +210,21 @@ export function createTranslationRuntime(
 type TranslationRuntime = ReturnType<typeof createTranslationRuntime>
 const translationRuntimeKey: InjectionKey<TranslationRuntime> = Symbol('pageTranslation')
 
-export function provideTranslationRuntime(): TranslationRuntime {
+/** 监听全局词库，平台配置即时切换语言时复用已准备的模型。 */
+function useLocaleTranslationRuntime(allowsMachineLanguages: () => boolean): TranslationRuntime {
   const { locale } = useI18n({ useScope: 'global' })
-  const runtime = createTranslationRuntime(builtInLanguage(locale.value) ?? DEFAULT_LANGUAGE)
-  provide(translationRuntimeKey, runtime)
+  const base = computed(() => builtInLanguage(locale.value) ?? DEFAULT_LANGUAGE)
+  const runtime = createTranslationRuntime(base, undefined, undefined, allowsMachineLanguages)
   onScopeDispose(runtime.dispose)
   return runtime
 }
 
-export function useTranslationRuntime(): TranslationRuntime {
-  const provided = inject(translationRuntimeKey, undefined)
-  if (provided) return provided
-  const { locale } = useI18n({ useScope: 'global' })
-  const runtime = createTranslationRuntime(builtInLanguage(locale.value) ?? DEFAULT_LANGUAGE)
-  onScopeDispose(runtime.dispose)
+export function provideTranslationRuntime(allowsMachineLanguages: () => boolean): TranslationRuntime {
+  const runtime = useLocaleTranslationRuntime(allowsMachineLanguages)
+  provide(translationRuntimeKey, runtime)
   return runtime
+}
+
+export function useTranslationRuntime(allowsMachineLanguages: () => boolean): TranslationRuntime {
+  return inject(translationRuntimeKey, undefined) ?? useLocaleTranslationRuntime(allowsMachineLanguages)
 }

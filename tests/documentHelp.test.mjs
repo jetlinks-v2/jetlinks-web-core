@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import { test } from 'node:test'
 import { transformSync } from 'esbuild'
 import { createRenderer, defineComponent, effectScope, getCurrentInstance, h, nextTick, ref, watch } from 'vue'
-import { compileScript, parse } from 'vue/compiler-sfc'
+import { compileScript, compileStyleAsync, parse } from 'vue/compiler-sfc'
 import { createI18n, useI18n } from 'vue-i18n'
 
 const require = createRequire(import.meta.url)
@@ -60,7 +60,7 @@ function mountHelp(props = {}, slots = {}) {
   const i18n = createI18n({ legacy: false, locale: 'zh', flatJson: true, messages })
   app.use(i18n)
   app.component('a-popover', defineComponent({
-    props: ['open', 'trigger', 'placement'], emits: ['update:open'],
+    props: ['open', 'trigger', 'placement', 'transitionName', 'overlayStyle'], emits: ['update:open'],
     setup(props, context) {
       popover = { props, ...context }
       return () => h('popover', [context.slots.default?.(), props.open ? context.slots.content?.() : null])
@@ -94,6 +94,22 @@ test('hover/focus/click entry renders localized description and closes after ope
   assert.equal(view.find('button')[0].props['aria-expanded'], false)
 })
 
+test('help popovers reserve edge spacing and fade without changing geometry', async t => {
+  const view = mountHelp()
+  t.after(() => view.app.unmount())
+  assert.equal(view.popover.props.transitionName, 'document-help-fade')
+  assert.deepEqual(view.popover.props.overlayStyle, { paddingInline: 'var(--space-3, 12px)' })
+  const styles = await compileStyleAsync({
+    filename: 'DocumentHelp.vue', source: descriptor.styles[0].content,
+    id: 'data-v-document-help-test', scoped: true, preprocessLang: 'less',
+  })
+  assert.deepEqual(styles.errors, [])
+  assert.match(styles.code, /\.document-help-fade-leave-active\s*\{/)
+  assert.match(styles.code, /@keyframes document-help-fade-out[^{}]*\{[\s\S]*?opacity: 1;[\s\S]*?opacity: 0;/)
+  assert.doesNotMatch(styles.code, /\btransform\s*:/)
+  assert.match(styles.code, /prefers-reduced-motion: reduce/)
+})
+
 test('trigger and popup keyboard/click events do not reach sortable headers or row actions', async t => {
   const view = mountHelp()
   t.after(() => view.app.unmount())
@@ -110,6 +126,30 @@ test('trigger and popup keyboard/click events do not reach sortable headers or r
   assert.equal(clicked, true)
   view.popover.emit('update:open', true); await nextTick()
   invoke(trigger.props.onKeydown, { key: 'Escape', stopPropagation() {} })
+  await nextTick()
+  assert.equal(view.popover.props.open, false)
+})
+
+test('management Markdown previews close their own help card and localize the close button', async t => {
+  const source = readFileSync(resolve(root, 'src/components/DocumentHelp/MarkdownPreview.vue'), 'utf8')
+  const { descriptor } = parse(source)
+  const script = compileScript(descriptor, { id: 'markdown-preview-test', inlineTemplate: true })
+  const preview = evaluate(script.content, {
+    'md-editor-v3': { MdPreview: defineComponent({ props: ['modelValue'], setup: props => () => h('p', props.modelValue) }) },
+    'md-editor-v3/lib/style.css': {},
+    '@jetlinks-web-core/utils/documentHelpMarkdown': { sanitizeHelpMarkdown: html => html },
+    '@jetlinks-web-core/hooks/useDocumentHelp': hook,
+  }).default
+  const view = mountHelp({ document: undefined }, { content: () => h(preview, { content: '草稿正文' }) })
+  t.after(() => view.app.unmount())
+  view.popover.emit('update:open', true)
+  await nextTick()
+  const closeButton = () => view.find('button').find(button => button.props.class === 'document-help-article__close')
+  assert.equal(closeButton().props['aria-label'], '关闭功能说明')
+  view.i18n.global.locale.value = 'en'
+  await nextTick()
+  assert.equal(closeButton().props['aria-label'], 'Close feature help')
+  closeButton().props.onClick({ stopPropagation() {} })
   await nextTick()
   assert.equal(view.popover.props.open, false)
 })

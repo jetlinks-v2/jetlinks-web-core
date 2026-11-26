@@ -9,6 +9,7 @@
       <div class="appearance-fields" @mouseleave="active = ''">
         <PlatformSettingsFields group="appearance">
           <PlatformTextSetting key="title" v-bind="section" field-key="title" :label="t('PlatformSettings.name')" :hint="t('PlatformSettings.nameHint')" icon="TagOutlined" :active="active === 'title'" @mouseenter="active = 'title'" @focusin="active = 'title'" @change="change" />
+          <PlatformLanguageSetting v-if="!hidden?.includes('languages')" key="languages" :value="section.readonly ? saved.languages : model.languages" :editing="!section.readonly" :disabled="controlsDisabled" @change="change({ languages: $event })" />
           <PlatformSettingRow v-for="item in images" :key="item.key" :field="item.key" :label="t(item.label)" :description="t(item.hint)" :icon="item.icon" :active="active === item.key" @mouseenter="active = item.key" @focusin="active = item.key">
             <template #action>
               <PlatformImageSetting :kind="item.key" :value="model[item.key]" :src="assets[item.key]" mode="form" :busy="busy || saving" :disabled="!editing || disabled" :submit="submit" @change="change" @busy-change="uploading(item.key, $event)" />
@@ -36,6 +37,7 @@ import PlatformSettingsFields from './PlatformSettingsFields'
 import PlatformSettingRow from './PlatformSettingRow.vue'
 import PlatformTextSetting from './PlatformTextSetting.vue'
 import PlatformImageSetting from './PlatformImageSetting.vue'
+import PlatformLanguageSetting from './PlatformLanguageSetting.vue'
 import PlatformAppearancePreview from './PlatformAppearancePreview.vue'
 import PlatformSectionActions from './PlatformSectionActions.vue'
 import { usePlatformSettingsSection } from './usePlatformSettingsSection'

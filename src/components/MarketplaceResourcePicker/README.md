@@ -16,7 +16,7 @@
 | `selectionMode` | 选择模式 | `none \| single \| multiple` | none |
 | `modelValue` | 选中的资源 ID | `string \| string[] \| null` | - |
 | `pageSize` | 每页数量 | `number` | 12 |
-| `pageSizeOptions` | 分页选项 | `string[]` | ['12','24','48'] |
+| `pageSizeOptions` | 分页选项 | `string[]` | ['12','24','48','96'] |
 | `showPagination` | 显示分页器 | `boolean` | false |
 | `enableVersionSelect` | 启用版本选择 | `boolean` | false |
 | `version` | 当前版本 | `string \| null` | - |

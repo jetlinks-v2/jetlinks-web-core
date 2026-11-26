@@ -7,7 +7,7 @@ import {
   getMyBusinessApplications,
   type BusinessApplicationEntity,
 } from '@jetlinks-web-core/api/application'
-import { hasOwnBusinessApplicationMenu } from '@jetlinks-web-core/api/system/menu'
+import { preflightBusinessApplicationMenus } from '@jetlinks-web-core/api/system/menu'
 import {
   ApplicationEntryUnavailableError,
   APPLICATION_SCOPE_QUERY_KEY,
@@ -23,11 +23,13 @@ import { createProjectRuntimeHref, getApplicationRuntimeEntry, getProjectCodeFro
 import { getProjectStorage, isProjectStorageEnabled } from '@jetlinks-web-core/utils/project-storage'
 import { getApplicationAccessContext } from '@jetlinks-web-core/utils/request-context'
 import { useMenuStore } from './menu'
+import { FORBIDDEN_PATH, NO_MENU_REASON } from '@jetlinks-web-core/router/forbidden'
 
 const $t = i18n.global.t
 
 type EnterApplicationOptions = {
   currentProjectCode?: string
+  /** @deprecated 无可访问菜单时统一显示 403，不再使用调用方的回退页面。 */
   fallbackPath?: string
   force?: boolean
   silent?: boolean
@@ -201,7 +203,7 @@ export const useBusinessApplicationStore = defineStore('business-application', (
 
     const projectCode = normalizeText(projectEntry.projectCode)
       || getCurrentProjectContext(options.currentProjectCode).projectCode
-    const path = result.firstMenuPath || options.fallbackPath || '/403'
+    const path = result.firstMenuPath || `${FORBIDDEN_PATH}?reason=${NO_MENU_REASON}`
 
     currentApplication.value = projectEntry
     setApplicationScope()
@@ -214,13 +216,8 @@ export const useBusinessApplicationStore = defineStore('business-application', (
     nextApplication: BusinessApplicationEntry,
     options: EnterApplicationOptions = {},
   ) => {
-    // 先预检目标 Scope 的菜单，避免切换后清空当前路由再落入 403。
-    if (!await hasOwnBusinessApplicationMenu(nextApplication.id)) {
-      onlyMessage($t('components.BusinessApplicationSwitcher.notConfigured', {
-        name: nextApplication.name,
-      }), 'warning')
-      return false
-    }
+    // 请求失败时保留当前应用；成功但无菜单时仍进入目标应用，由目标入口确认并显示无菜单提示。
+    await preflightBusinessApplicationMenus(nextApplication.id)
 
     const customDomain = typeof nextApplication.configuration?.customDomain === 'string'
       ? nextApplication.configuration.customDomain

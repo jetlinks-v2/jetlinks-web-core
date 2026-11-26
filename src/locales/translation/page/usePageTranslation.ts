@@ -6,10 +6,14 @@ import { PageTranslationController } from './controller'
 import { PageSourceCatalog } from './source'
 
 /** 保留当前内置词库作为页面原文，并观察 body 以覆盖 Teleport。 */
-export function usePageTranslation(activeRoute: () => boolean, isMenuSourceText?: (text: string) => boolean) {
+export function usePageTranslation(
+  activeRoute: () => boolean,
+  allowsMachineLanguages: () => boolean,
+  isMenuSourceText?: (text: string) => boolean,
+) {
   const { locale, messages } = useI18n({ useScope: 'global' })
-  const base = builtInLanguage(locale.value) ?? DEFAULT_LANGUAGE
-  const runtime = provideTranslationRuntime()
+  const base = computed(() => builtInLanguage(locale.value) ?? DEFAULT_LANGUAGE)
+  const runtime = provideTranslationRuntime(allowsMachineLanguages)
   const pairs = computed(() => activeRoute() ? runtime.activePairs.value : undefined)
   let controller: PageTranslationController | undefined
   let catalog: PageSourceCatalog | undefined
@@ -22,16 +26,16 @@ export function usePageTranslation(activeRoute: () => boolean, isMenuSourceText?
   }
 
   onMounted(() => {
-    if (base !== DEFAULT_LANGUAGE) window.addEventListener('click', prepareOnInteraction)
-    watch(activeRoute, enabled => {
+    window.addEventListener('click', prepareOnInteraction)
+    watch([activeRoute, base, allowsMachineLanguages], ([enabled]) => {
       if (enabled) runtime.resume()
     }, { immediate: true })
     watch(runtime.readyModels, () => controller?.refresh(), { flush: 'post' })
 
-    watch([pairs, messages], ([route, nextMessages]) => {
+    watch([pairs, messages, base], ([route, nextMessages, language]) => {
       controller?.stop()
       controller = undefined
-      if (!route || (!route.length && base === DEFAULT_LANGUAGE)) return
+      if (!route || (!route.length && language === DEFAULT_LANGUAGE)) return
       if (!catalog || dictionaries !== nextMessages) {
         catalog = new PageSourceCatalog(nextMessages, isMenuSourceText)
         dictionaries = nextMessages
@@ -40,9 +44,9 @@ export function usePageTranslation(activeRoute: () => boolean, isMenuSourceText?
       controller = new PageTranslationController({
         root: document.body,
         route: (text, hint) => {
-          if (route.length) return sourceCatalog.isSourceText(text, base, hint) ? route : undefined
-          const sourceLanguage = sourceCatalog.supplementSource(text, base, hint)
-          if (sourceLanguage) return [{ sourceLanguage, targetLanguage: base }]
+          if (route.length) return sourceCatalog.isSourceText(text, language, hint) ? route : undefined
+          const sourceLanguage = sourceCatalog.supplementSource(text, language, hint)
+          if (sourceLanguage) return [{ sourceLanguage, targetLanguage: language }]
         },
         isReady: path => !!route.length || runtime.requireSupplement(path[0]),
         translate: runtime.translate,

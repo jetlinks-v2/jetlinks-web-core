@@ -66,10 +66,12 @@ withDefaults(defineProps<{ preview?: boolean }>(), { preview: false })
   /* 模块通过 --jet-login-bg-image 设置默认图，平台配置的背景由行内样式优先覆盖。 */
   --login-bg-image: var(--jet-login-bg-image, url('@jetlinks-web-core/assets/login/login-bg.png'));
 
+  --login-content-top: clamp(7.5rem, calc(var(--login-viewport-height, 100vh) * 0.205), 14rem);
+
   position: relative;
   display: grid;
   grid-template-columns: minmax(28.5rem, 38.9%) minmax(0, 1fr);
-  width: var(--login-viewport-width, 100vw);
+  width: var(--login-viewport-width, 100%);
   min-height: var(--login-viewport-height, 100vh);
   overflow: hidden;
   background: var(--login-bg-image) no-repeat center center;
@@ -132,7 +134,7 @@ withDefaults(defineProps<{ preview?: boolean }>(), { preview: false })
   min-width: 20rem;
   min-height: auto;
   margin: 0 auto;
-  padding: clamp(7.5rem, calc(var(--login-viewport-height, 100vh) * 0.205), 14rem) 0 var(--space-10);
+  padding: var(--login-content-top) 0 var(--space-10);
 }
 
 .login-scene {
@@ -219,9 +221,35 @@ withDefaults(defineProps<{ preview?: boolean }>(), { preview: false })
   }
 }
 
-@media (max-height: 43.75rem) and (min-width: 48.01rem) {
+@media (min-width: 48.01rem) {
+  .login-container:not(.login-container--preview) .login-side {
+    height: 100vh;
+
+    /* 高屏保留原来的表单位置；空间不足时先收缩留白，至少避开顶栏。 */
+    &::before {
+      content: '';
+      flex: 0 1 var(--login-content-top);
+      min-height: 4.5rem;
+    }
+
+    .login-content {
+      flex: 1 0 auto;
+      padding-top: 0;
+    }
+  }
+}
+
+@media (min-width: 48.01rem) and (max-height: 50rem) {
   .login-container:not(.login-container--preview) .login-content {
-    padding-top: 6.5rem;
+    padding-bottom: var(--space-4);
+
+    :deep(.login-panel-header) {
+      margin-bottom: var(--space-5);
+    }
+
+    :deep(.login-method-actions) {
+      margin-top: var(--space-5);
+    }
   }
 }
 </style>

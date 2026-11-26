@@ -3,7 +3,7 @@
     open
     :title="hasRegisteredDetail
       ? notificationTitle
-      : $t('components.ViewDialog.411617-0')"
+      : $t(summary?.titleKey ?? 'components.ViewDialog.411617-0')"
     :width="754"
     @cancel="emits('update:visible', false)"
     class="view-dialog-container"
@@ -15,13 +15,7 @@
       :active-key="`${data.topicProvider}:append`"
       :data="data"
     />
-    <template
-      v-else-if="
-        ['device-transparent-codec', 'system-event'].includes(
-          data?.topicProvider,
-        )
-      "
-    >
+    <template v-else-if="isRawDetail">
       <div>
         <div class="label">{{ $t('components.ViewDialog.411617-1') }}</div>
         <div style="padding: 0.625rem; background-color: #fafafa">
@@ -31,18 +25,7 @@
         </div>
       </div>
     </template>
-    <template
-      v-else-if="
-        [
-          'workflow-task-cc',
-          'workflow-task-todo',
-          'workflow-task-reject',
-          'workflow-process-finish',
-          'workflow-process-repealed',
-          'workflow-task-transfer-todo',
-        ].includes(data?.topicProvider)
-      "
-    >
+    <template v-else-if="isWorkflow">
       <a-descriptions
         :column="2"
         :contentStyle="{
@@ -83,6 +66,7 @@
         </a-descriptions-item>
       </a-descriptions>
     </template>
+    <StationNotificationSummary v-else-if="summary" :summary="summary" :levels="levelList" />
     <template v-else>
       <a-descriptions
         :column="2"
@@ -109,8 +93,8 @@
             {{ _data?.alarmName || _data?.alarmConfigName || '' }}
           </j-ellipsis>
         </a-descriptions-item>
-        <a-descriptions-item :label="$t('components.ViewDialog.411617-11')"
-          >{{ dayjs(_data?.alarmTime).format('YYYY-MM-DD HH:mm:ss') }}
+        <a-descriptions-item v-if="alarmTime !== undefined" :label="$t('components.ViewDialog.411617-11')">
+          {{ dayjs(alarmTime).format('YYYY-MM-DD HH:mm:ss') }}
         </a-descriptions-item>
         <a-descriptions-item :label="$t('components.ViewDialog.411617-12')"
           >{{ (levelList.length > 0 && getLevelLabel(_data.level)) || '' }}
@@ -153,6 +137,8 @@ import {
   getWorkflowNotice,
   queryLevel as queryLevel_api,
 } from '@jetlinks-web-core/api/account/notificationRecord'
+import StationNotificationSummary from './StationNotificationSummary.vue'
+import { buildStationSummary, readNotificationDetail, resolveAlarmNotificationTime } from './alarmNotificationSummary'
 
 const emits = defineEmits(['update:visible'])
 const props = defineProps<{
@@ -176,14 +162,19 @@ const confirmDetail = async () => {
   }
 }
 
-const levelList = ref<any[]>([])
+const levelList = ref<Array<{ level: number; title: string }>>([])
 //工作流详情的值
 const workFlowData = ref()
 
-const _data = computed(() => {
-  if (props.data.detailJson) return JSON.parse(props.data.detailJson)
-  else return props.data?.detail || props.data
-})
+// 历史通知的 detailJson 可能损坏，解析失败时回退到通知记录本身
+const _data = computed(() => readNotificationDetail(props.data))
+
+const alarmTime = computed(() => resolveAlarmNotificationTime(_data.value.alarmTime, props.data?.notifyTime))
+const isRawDetail = computed(() => ['device-transparent-codec', 'system-event'].includes(props.data?.topicProvider))
+const isWorkflow = computed(() => [
+  'workflow-task-cc', 'workflow-task-todo', 'workflow-task-reject', 'workflow-process-finish',
+  'workflow-process-repealed', 'workflow-task-transfer-todo',
+].includes(props.data?.topicProvider))
 
 const notificationTitle = computed(() => {
   const messages = _data.value?.i18nMessages?.title
@@ -201,10 +192,19 @@ const hasRegisteredDetail = computed(() =>
     .some(item => item.code === props.data?.topicProvider),
 )
 
-const getLevel = () => {
-  queryLevel_api().then((resp: any) => {
-    if (resp.status === 200) levelList.value = resp.result.levels
-  })
+// 注册详情和专属模板优先，不能按载荷中的同名告警字段抢占它们。
+const summary = computed(() => hasRegisteredDetail.value || isRawDetail.value || isWorkflow.value || !props.data
+  ? undefined
+  : buildStationSummary(props.data, _data.value))
+
+// 字典用于补充级别名称；不可用时摘要仍可使用快照文案或数值。
+const getLevel = async () => {
+  try {
+    const resp = await queryLevel_api()
+    if (resp.status === 200 && Array.isArray(resp.result?.levels)) levelList.value = resp.result.levels
+  } catch {
+    levelList.value = []
+  }
 }
 const getLevelLabel = (id: number) => {
   if (levelList.value.length < 1 || !id) return ''
@@ -212,24 +212,10 @@ const getLevelLabel = (id: number) => {
   return obj?.title
 }
 onMounted(() => {
-  if (
-    !hasRegisteredDetail.value &&
-    !['device-transparent-codec', 'system-event'].includes(
-      props?.data?.topicProvider,
-    )
-  ) {
+  if (!hasRegisteredDetail.value && !isRawDetail.value && !isWorkflow.value && props.data?.topicProvider !== 'scene') {
     getLevel()
   }
-  if (
-    [
-      'workflow-task-cc',
-      'workflow-task-todo',
-      'workflow-task-reject',
-      'workflow-process-finish',
-      'workflow-process-repealed',
-      'workflow-task-transfer-todo',
-    ].includes(props?.data?.topicProvider)
-  ) {
+  if (isWorkflow.value) {
     const params = {
       terms: [
         {

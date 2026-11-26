@@ -110,5 +110,4 @@ const onBindSave = (cur: any) => {
   margin-top: 1.875rem;
   justify-content: center;
 }
-
 </style>

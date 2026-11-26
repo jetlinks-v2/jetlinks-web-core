@@ -26,12 +26,15 @@ const { outputFiles } = await build({
   alias: { '@jetlinks-web-core': join(root, 'src') },
   define: { 'import.meta.env': '{}', 'import.meta.url': 'location.href', 'process.env.NODE_ENV': '"production"', __VUE_OPTIONS_API__: 'true', __VUE_PROD_DEVTOOLS__: 'false' },
   plugins: [{ name: 'page-translation-fixture', setup(builder) {
-    builder.onResolve({ filter: /^(@jetlinks-web-core\/store|@jetlinks-web\/utils)$/ }, ({ path }) => ({ path, namespace: 'fixture' }))
+    builder.onResolve({ filter: /^@jetlinks-web-core\/store\/system$/ }, () => ({ path: 'store', namespace: 'fixture' }))
+    builder.onResolve({ filter: /^\.\/index$/ }, ({ importer }) => {
+      if (importer === join(root, 'src/locales/frontLanguage.ts')) return { path: 'i18n', namespace: 'fixture' }
+    })
     builder.onLoad({ filter: /.*/, namespace: 'fixture' }, ({ path }) => ({
       resolveDir: root,
-      contents: path.endsWith('/store')
-        ? 'import { reactive } from "vue"; const state=reactive({language: localStorage.getItem("Accept-Language") || "zh"}); export const useSystemStore=()=>state;'
-        : 'export const LocalStore={ set(key, value) { localStorage.setItem(key, value) } };',
+      contents: path === 'store'
+        ? 'export { useFixtureSystemStore as useSystemStore } from "./tests/pageTranslation.ui.ts"'
+        : 'export { i18n as default } from "./tests/pageTranslation.ui.ts"',
     }))
     builder.onLoad({ filter: /\.vue$/ }, async ({ path: filename }) => {
       const { descriptor, errors } = parse(await readFile(filename, 'utf8'), { filename })
@@ -543,6 +546,11 @@ try {
         await revealHeading()
         await waitText('#heading', '譯: 번역: 機器管理')
         await open()
+        await page.evaluate(() => window.fixtureSetFrontLanguages(['ja', 'en']))
+        await waitText('#heading', '機器管理')
+        assert.deepEqual(await page.locator('.language-switch__option').allTextContents(), ['日本語', 'English'])
+        await page.evaluate(() => window.fixtureSetFrontLanguages([]))
+        await waitText('#heading', '譯: 번역: 機器管理')
       }
       await option.click()
       await waitText('#heading', item.heading)
@@ -560,7 +568,14 @@ try {
     await waitText('#heading', 'Device management')
     assert.equal(await page.evaluate(() => localStorage.getItem('Accept-Language')), 'en')
     assert.equal(await page.evaluate(() => localStorage.getItem('editor-language')), 'en')
-    console.log('Chrome 页面回归通过，覆盖英日自动下载、失败后切换和重试、复判正文与标题补译、跳过标记、连续翻译和刷新。')
+    await page.evaluate(() => {
+      sessionStorage.removeItem('fixture:unsupported')
+      window.fixtureSetFrontLanguages(['ja'])
+    })
+    await waitText('#heading', '機器管理')
+    await waitReview(`zh → ja: ${reviewText}`)
+    assert.equal(await page.evaluate(() => localStorage.getItem('Accept-Language')), 'ja')
+    console.log('Chrome 页面回归通过，覆盖英日自动下载、失败重试、正文与标题补译、跳过标记、连续翻译、刷新和平台语种切换。')
   }
   assert.deepEqual(errors, [])
   assert.deepEqual(external, [])

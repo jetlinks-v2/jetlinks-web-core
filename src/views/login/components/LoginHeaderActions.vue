@@ -42,58 +42,27 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { LocalStore } from '@jetlinks-web/utils'
 import i18n from '@jetlinks-web-core/locales'
 import { useSystemStore } from '@jetlinks-web-core/store/system'
-import { langKey, ruleEditorKey } from '@jetlinks-web-core/utils/consts'
 
-type LoginLanguage = 'zh' | 'en' | 'ja'
-
-type LanguageOption = {
-  label: string
-  value: LoginLanguage
-}
-
+const props = defineProps<{ saas?: boolean }>()
 const systemStore = useSystemStore()
 const t = i18n.global.t
 const languageOpen = ref(false)
+// SaaS 项目等不受运营端配置约束，沿用原登录页仅中英的行为。
+const legacySaas = computed(() => props.saas && !systemStore.supportsFrontLanguagePolicy())
+const currentLanguage = computed(() => legacySaas.value && systemStore.language !== 'en' ? 'zh' : systemStore.language)
+const languageOptions = computed(() => legacySaas.value ? [
+  { value: 'zh', label: t('Login.languageZh') },
+  { value: 'en', label: t('Login.languageEn') },
+] : systemStore.languageOptions)
+const currentLanguageLabel = computed(() => legacySaas.value
+  ? t(currentLanguage.value === 'en' ? 'Login.languageEn' : 'Login.languageZh')
+  : systemStore.languageLabel)
 
-const normalizeLanguage = (language?: string): LoginLanguage => (
-  language === 'en' || language === 'ja' ? language : 'zh'
-)
-
-const currentLanguage = computed(() => normalizeLanguage(systemStore.language))
-
-const languageOptions = computed<LanguageOption[]>(() => [
-  {
-    label: t('Login.languageZh'),
-    value: 'zh'
-  },
-  {
-    label: t('Login.languageEn'),
-    value: 'en'
-  },
-  {
-    label: t('Login.languageJa'),
-    value: 'ja'
-  }
-])
-
-const currentLanguageLabel = computed(() => (
-  languageOptions.value.find(item => item.value === currentLanguage.value)?.label || t('Login.languageZh')
-))
-
-const changeLanguage = (language: LoginLanguage) => {
-  if (language === currentLanguage.value) {
-    languageOpen.value = false
-    return
-  }
-
-  systemStore.language = language
-  LocalStore.set(langKey, language)
-  LocalStore.set(ruleEditorKey, language)
+const changeLanguage = (language: string) => {
   languageOpen.value = false
-  window.location.reload()
+  if (!legacySaas.value || language !== currentLanguage.value) systemStore.selectLanguage(language)
 }
 </script>
 

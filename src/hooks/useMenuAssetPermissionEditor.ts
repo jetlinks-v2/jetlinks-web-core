@@ -1,17 +1,25 @@
 import { cloneDeep } from 'lodash-es'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, toRaw } from 'vue'
+import { isPrivateDeployment } from '../utils/deployment'
+import { projectMenuPermissionGroups } from './menuPermissionGroups'
+import type { MenuPermissionProjection } from './menuPermissionGroups'
 import type {
   AssetAccessPolicy,
   GrantableAssetSupport,
   GrantableAssetType,
   MenuAssetPermissionEditorContext,
+  MenuAssetPermissionSnapshot,
   MenuAssetPermissionResetOptions,
   MenuPermissionButton,
   MenuPermissionNode,
+  MenuPermissionGroupDefinition,
+  MenuPermissionScope,
   SelectionState,
+  VisibleAssetPermission,
 } from './menuAssetPermissionEditor.types'
 
 interface EditorOptions {
+  notificationScopeMode?: 'grantable' | 'deployment'
   defaultSupportIds?: string[]
   protectedMenuCode?: string
   protectedButtonId?: string
@@ -56,6 +64,13 @@ export const getMenuPermissionAssetTypes = (menu: MenuPermissionNode): string[] 
   return Array.from(new Set((menu.assetAccesses || []).map(access => valueOf(access.assetType)).filter(Boolean)))
 }
 
+export const isFixedNotificationAsset = (assetType: string) =>
+  assetType === 'notifyConfig' || assetType === 'notifyTemplate'
+
+/** 订阅配置仅随全局角色的部署范围固定，应用角色与模板仍沿用原有策略。 */
+export const isDeploymentFixedNotificationAsset = (assetType: string) =>
+  isFixedNotificationAsset(assetType) || assetType === 'notifySubscriberProvider'
+
 const flatten = (menus: MenuPermissionNode[] = []) => {
   const result: MenuPermissionNode[] = []
   const visit = (items: MenuPermissionNode[]) => items.forEach(item => {
@@ -66,17 +81,35 @@ const flatten = (menus: MenuPermissionNode[] = []) => {
   return result
 }
 
+export const getFixedNotificationMenus = (menus: MenuPermissionNode[]) => flatten(menus)
+  .filter(menu => getMenuPermissionAssetTypes(menu).some(isFixedNotificationAsset))
+  .map(menu => ({ ...menu, children: null }))
+
+/** 模板保留完整菜单树承载撤销，仅为固定范围补上与独立策略一致的兼容字段。 */
+export const getFixedNotificationMenuAccesses = (snapshot: MenuAssetPermissionSnapshot) =>
+  new Map(snapshot.menus.map(menu => [menu.id, (menu.assetAccesses || [])
+    .filter(access => isFixedNotificationAsset(valueOf(access.assetType)))]))
+
 export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuAssetPermissionEditorContext => {
   const defaultSupportIds = options.defaultSupportIds || ['creator']
+  const fixedScope = isPrivateDeployment() ? 'all' : 'tenant'
+  const useDeploymentScope = options.notificationScopeMode === 'deployment'
+  const isFixedScopeAsset = useDeploymentScope ? isDeploymentFixedNotificationAsset : isFixedNotificationAsset
   const protectedButtonId = options.protectedButtonId || 'view'
   const menuTree = ref<MenuPermissionNode[]>([])
   const buttonBatchValues = ref<string[]>([])
   const loading = ref(false)
   const menuMap = new Map<string, MenuPermissionNode>()
+  const menuGroups = ref<MenuPermissionGroupDefinition[]>()
+  const projections = new WeakMap<MenuPermissionNode, MenuPermissionProjection>()
+  const editableMenus = new Map<string, MenuPermissionScope>()
+  const explicitMenuGrants = new Set<string>()
   const assetDefinitions = reactive(new Map<string, AssetDefinition>())
   const assetNames = reactive(new Map<string, string>())
   const assetDrafts = reactive(new Map<string, string>())
   const assetOrder = ref<string[]>([])
+  const fixedSupports = ref(new Map<string, GrantableAssetSupport>())
+  const fixedHistory = ref(new Map<string, Map<string, string>>())
 
   const flatMenus = computed(() => flatten(menuTree.value))
 
@@ -106,7 +139,10 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
       const some = states.some(state => state.selected)
       menu._granted = all
       menu.indeterminate = !all && some
-      menu.granted = all || some
+      // 分组外节点只参与层级回显，不能因子菜单勾选而获得新的菜单权限。
+      if (!menuGroups.value || editableMenus.has(menu.id)) {
+        menu.granted = all || some || explicitMenuGrants.has(menu.id)
+      }
     } else {
       menu._granted = !!menu.granted
       menu.indeterminate = false
@@ -144,6 +180,27 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     })
     ;(menu.children || []).forEach(child => setNodeState(child, checked))
     recomputeNode(menu)
+  }
+
+  const scopeOf = (menu: MenuPermissionNode) => {
+    const projection = projections.get(toRaw(menu))
+    return projection ? projection.scope : editableMenus.get(menu.id)
+  }
+
+  /** 仅把当前视图允许的动作写回真实节点，不递归操作被其他模板隐藏的兄弟或按钮。 */
+  const setScopedNodeState = (view: MenuPermissionNode, checked: boolean) => {
+    const menu = menuMap.get(view.id)
+    const scope = scopeOf(view)
+    if (menu && scope && !(isProtectedMenu(menu) && !checked)) {
+      menu.granted = checked
+      explicitMenuGrants.delete(menu.id)
+      if (checked && !scope.buttonIds.length && !view.children?.length) explicitMenuGrants.add(menu.id)
+      const allowed = new Set(scope.buttonIds)
+      buttonsOf(menu).forEach(button => {
+        if (allowed.has(button.id)) button.granted = isProtectedButton(menu, button) || checked
+      })
+    }
+    ;(view.children || []).forEach(child => setScopedNodeState(child, checked))
   }
 
   const selectedMenus = () => flatMenus.value.filter(menu => !!menu.granted)
@@ -201,7 +258,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
 
   const ensureVisibleDrafts = () => {
     visibleAssetIds().forEach(assetType => {
-      if (!assetDrafts.has(assetType)) {
+      if (!isFixedScopeAsset(assetType) && !assetDrafts.has(assetType)) {
         const supportId = getDefaultSupport(assetType)
         if (supportId) assetDrafts.set(assetType, supportId)
       }
@@ -211,14 +268,27 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   const toggleMenu = (menu: MenuPermissionNode, checked: boolean) => {
     if (isProtectedMenu(menu) && !checked) return
     const previousVisible = new Set(visibleAssetIds())
-    setNodeState(menu, checked)
-    recomputeAncestors(menu.parentId)
+    if (menuGroups.value) {
+      setScopedNodeState(menu, checked)
+      recomputeTree(menuTree.value)
+    } else {
+      setNodeState(menu, checked)
+      recomputeAncestors(menu.parentId)
+    }
     buttonBatchValues.value = []
     if (checked) prependNewlyVisibleAssets(previousVisible, [menu])
     ensureVisibleDrafts()
   }
 
   const toggleButton = (menu: MenuPermissionNode, button: MenuPermissionButton, checked: boolean) => {
+    if (menuGroups.value) {
+      if (!scopeOf(menu)?.buttonIds.includes(button.id)) return
+      const source = menuMap.get(menu.id)
+      const sourceButton = source?.buttons?.find(item => item.id === button.id)
+      if (!source || !sourceButton) return
+      menu = source
+      button = sourceButton
+    }
     if (isProtectedButton(menu, button) && !checked) return
     const previousVisible = new Set(visibleAssetIds())
     button.granted = checked
@@ -231,7 +301,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
 
   const setMenusChecked = (menus: MenuPermissionNode[], checked: boolean) => {
     const previousVisible = new Set(visibleAssetIds())
-    menus.forEach(menu => setNodeState(menu, checked))
+    menus.forEach(menu => menuGroups.value ? setScopedNodeState(menu, checked) : setNodeState(menu, checked))
     recomputeTree(menuTree.value)
     buttonBatchValues.value = []
     if (checked) prependNewlyVisibleAssets(previousVisible, menus)
@@ -270,10 +340,15 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   const applyButtonBatch = (buttonIds: string[], menus: MenuPermissionNode[] = menuTree.value) => {
     const previousVisible = new Set(visibleAssetIds())
     const selected = new Set(buttonIds || [])
-    const targetMenus = Array.from(new Map(flatten(menus).map(menu => [menu.id, menu])).values())
-    targetMenus.forEach(menu => buttonsOf(menu).forEach(button => {
-      button.granted = isProtectedButton(menu, button) || selected.has(button.id)
-    }))
+    const targetMenus = flatten(menus)
+    targetMenus.forEach(view => {
+      const menu = menuGroups.value ? menuMap.get(view.id) : view
+      if (!menu) return
+      const allowed = menuGroups.value ? new Set(scopeOf(view)?.buttonIds || []) : undefined
+      buttonsOf(menu).forEach(button => {
+        if (!allowed || allowed.has(button.id)) button.granted = isProtectedButton(menu, button) || selected.has(button.id)
+      })
+    })
     recomputeTree(menuTree.value)
     buttonBatchValues.value = [...selected]
     prependNewlyVisibleAssets(previousVisible, targetMenus)
@@ -281,6 +356,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   }
 
   const ownerGroups = computed(() => {
+    if (menuGroups.value) return projectMenuPermissionGroups(menuTree.value, menuGroups.value, projections)
     const groups = new Map<string, MenuPermissionNode[]>()
     menuTree.value.forEach(menu => {
       const owner = String(menu.owner || 'default')
@@ -290,45 +366,60 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     return Array.from(groups.entries()).map(([key, menus]) => ({ key, label: key, menus }))
   })
 
-  const visibleAssets = computed(() => visibleAssetIds().map(assetType => {
+  const selectedSupportOf = (assetType: string) => isFixedScopeAsset(assetType)
+    ? fixedSupports.value.get(assetType)?.supportId
+    : assetDrafts.get(assetType)
+
+  const visibleAssets = computed<VisibleAssetPermission[]>(() => visibleAssetIds().map(assetType => {
     const definition = assetDefinitions.get(assetType)
+    const name = assetNames.get(assetType) || definition?.name || definition?.menuName || assetType
+    const selectedSupportId = selectedSupportOf(assetType)
+    if (isFixedScopeAsset(assetType)) {
+      const support = fixedSupports.value.get(assetType)
+      const history = fixedHistory.value.get(assetType)
+      const previousScopeLabels = history?.size && (history.size !== 1 || !history.has(selectedSupportId || ''))
+        ? Array.from(history.values()) : undefined
+      return { assetType, name, accesses: support ? [{ ...support, disabled: true }] : [],
+        selectedSupportId, fixedScope, previousScopeLabels }
+    }
     const accesses = Array.from(definition?.accesses.values() || []).map(item => ({ ...item }))
-    const selectedSupportId = assetDrafts.get(assetType)
     if (selectedSupportId && !accesses.some(item => item.supportId === selectedSupportId)) {
       accesses.push({ supportId: selectedSupportId, name: selectedSupportId, disabled: true })
     }
     return {
       assetType,
-      name: assetNames.get(assetType) || definition?.name || definition?.menuName || assetType,
+      name,
       accesses,
       selectedSupportId,
     }
   }))
 
+  const editableAssets = computed(() => visibleAssets.value.filter(asset => !asset.fixedScope))
+
   const batchAssetOptions = computed(() => {
-    if (!visibleAssets.value.length) return []
-    const supportSets = visibleAssets.value.map(asset => new Set(
+    if (!editableAssets.value.length) return []
+    const supportSets = editableAssets.value.map(asset => new Set(
       asset.accesses.filter(item => !item.disabled).map(item => item.supportId)
     ))
     if (supportSets.some(set => !set.size)) return []
-    return visibleAssets.value[0].accesses
+    return editableAssets.value[0].accesses
       .filter(item => !item.disabled && supportSets.every(set => set.has(item.supportId)))
       .map(item => ({ label: item.i18nName || item.name || item.supportId, value: item.supportId }))
   })
 
   const batchAssetValue = computed(() => {
-    const values = Array.from(new Set(visibleAssets.value.map(item => item.selectedSupportId).filter(Boolean)))
+    const values = Array.from(new Set(editableAssets.value.map(item => item.selectedSupportId).filter(Boolean)))
     if (values.length !== 1) return undefined
     return batchAssetOptions.value.some(item => item.value === values[0]) ? values[0] : undefined
   })
 
   const setAssetAccess = (assetType: string, supportId?: string) => {
-    if (supportId) assetDrafts.set(assetType, supportId)
+    if (supportId && !isFixedScopeAsset(assetType)) assetDrafts.set(assetType, supportId)
   }
 
   const applyAssetBatch = (supportId?: string) => {
     if (!supportId || !batchAssetOptions.value.some(item => item.value === supportId)) return
-    visibleAssets.value.forEach(asset => assetDrafts.set(asset.assetType, supportId))
+    editableAssets.value.forEach(asset => assetDrafts.set(asset.assetType, supportId))
   }
 
   const mergeGrantedMenus = (menus: MenuPermissionNode[], grantedMenus?: MenuPermissionNode[]) => {
@@ -443,6 +534,74 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     })
   }
 
+  const initializeFixedScopes = (input: MenuAssetPermissionResetOptions) => {
+    const source = new Map<string, Map<string, GrantableAssetSupport>>()
+    const history = new Map<string, Map<string, string>>()
+    const sourceMenus = flatten(input.menus)
+    // AssetsHolder 的现行「全部数据」标识是 ignore；兼容目录实际返回的 all。
+    const matchingIds = fixedScope === 'all' ? ['ignore', 'all'] : ['tenant', 'tenant_member']
+    const recordHistory = (assetType: string, access: unknown) => {
+      const id = supportIdOf(access)
+      if (!id || !isFixedScopeAsset(assetType)) return
+      const labels = history.get(assetType) || new Map<string, string>()
+      // 仅回显旧值，不从旧策略反推新授权的候选。
+      labels.set(id, supportNameOf(source.get(assetType)?.get(id) || access))
+      history.set(assetType, labels)
+    }
+
+    sourceMenus.forEach(menu => {
+      getMenuPermissionAssetTypes(menu).filter(isFixedScopeAsset).forEach(assetType => {
+        const supports = source.get(assetType) || new Map<string, GrantableAssetSupport>()
+        ;(menu.assetAccesses || []).forEach(access => {
+          const type = valueOf(access.assetType)
+          const supportId = supportIdOf(access)
+          if (!supportId || (type && type !== assetType)) return
+          const existing = supports.get(supportId)
+          if (!existing || existing.disabled) {
+            supports.set(supportId, { ...access, supportId, name: supportNameOf(access), disabled: access.disabled === true })
+          }
+        })
+        source.set(assetType, supports)
+      })
+    })
+    input.assetAccesses?.forEach(policy => {
+      const accesses = policy.accesses?.length ? policy.accesses : [policy]
+      accesses.forEach(access => recordHistory(policy.assetType, access))
+    })
+    const sourceById = input.grantedMenus ? new Map(sourceMenus.map(menu => [menu.id, menu])) : undefined
+    const grantedMenus = input.grantedMenus ? flatten(input.grantedMenus) : sourceMenus
+    grantedMenus.forEach(menu => {
+      if (menu.granted === false) return
+      ;(menu.assetAccesses || []).filter(access => access.granted === true).forEach(access => {
+        const type = valueOf(access.assetType)
+        const linked = sourceById?.get(menu.id) ?? menu
+        ;(type ? [type] : getMenuPermissionAssetTypes(linked)).forEach(assetType => recordHistory(assetType, access))
+      })
+    })
+
+    // 候选只取合并回显前的菜单及服务端可授权目录；存量 all 不能让新授权获得 all。
+    const allowed = useDeploymentScope ? undefined : (input.fixedAssetGrantable ?? input.grantableAssets)
+    const fixed = new Map<string, GrantableAssetSupport>()
+    source.forEach((menuSupports, assetType) => {
+      const candidates = allowed === undefined ? [...menuSupports.values()] :
+        (allowed.find(asset => asset.assetType === assetType)?.accesses || [])
+          .filter(access => !menuSupports.size || menuSupports.get(access.supportId)?.disabled === false)
+      const previous = history.get(assetType)
+      const ordered = previous?.size === 1 ? [...previous.keys(), ...matchingIds] : matchingIds
+      for (const id of ordered) {
+        if (!matchingIds.includes(id)) continue
+        const match = candidates.find(access => access.supportId === id && !access.disabled)
+        if (match) { fixed.set(assetType, match); break }
+      }
+      // 全局角色允许升级旧菜单；没有匹配候选时按部署补齐，保存结果由服务端裁决。
+      if (useDeploymentScope && !fixed.has(assetType)) {
+        fixed.set(assetType, { supportId: matchingIds[0] })
+      }
+    })
+    fixedHistory.value = history
+    fixedSupports.value = fixed
+  }
+
   const initializeDrafts = (input: MenuAssetPermissionResetOptions) => {
     assetDrafts.clear()
     ;(input.assetAccesses || []).forEach(policy => {
@@ -475,12 +634,24 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
 
   const reset = (input: MenuAssetPermissionResetOptions) => {
     menuMap.clear()
+    editableMenus.clear()
+    explicitMenuGrants.clear()
+    menuGroups.value = input.menuGroups
+    input.menuGroups?.forEach(group => group.menus.forEach(scope => {
+      const previous = editableMenus.get(scope.id)
+      editableMenus.set(scope.id, { id: scope.id, buttonIds: [...new Set([...(previous?.buttonIds || []), ...scope.buttonIds])] })
+    }))
     buttonBatchValues.value = []
     menuTree.value = mergeGrantedMenus(input.menus || [], input.grantedMenus)
     flatMenus.value.forEach(menu => menuMap.set(menu.id, menu))
+    if (input.menuGroups) flatMenus.value.forEach(menu => {
+      if (menu.granted && !(menu.buttons || []).some(button => button.granted)
+        && !(menu.children || []).some(child => child.granted)) explicitMenuGrants.add(menu.id)
+    })
     recomputeTree(menuTree.value)
     initializeAssetOrder(input)
     rebuildAssetDefinitions(input)
+    initializeFixedScopes(input)
     initializeDrafts(input)
   }
 
@@ -496,7 +667,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
       delete menu.actions
       // 后端仍会校验已授权菜单的菜单级资产权限，独立策略提交期间需同步最小兼容字段。
       menu.assetAccesses = getMenuPermissionAssetTypes(source).flatMap(assetType => {
-        const supportId = assetDrafts.get(assetType)
+        const supportId = selectedSupportOf(assetType)
         return supportId ? [{ assetType, supportId, granted: true }] : []
       })
       delete menu.dataAccesses
@@ -507,16 +678,28 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
       return menu
     })
     const assetAccesses: AssetAccessPolicy[] = visibleAssetIds().flatMap(assetType => {
-      const supportId = assetDrafts.get(assetType)
+      const supportId = selectedSupportOf(assetType)
       return supportId ? [{ assetType, accesses: [{ supportId }] }] : []
     })
     return { menus, assetAccesses }
+  }
+
+  const getGrantSnapshot = (currentFixedGrantable?: GrantableAssetType[]) => {
+    for (const { assetType, fixedScope, selectedSupportId } of visibleAssets.value) {
+      if (!fixedScope) continue
+      if (!selectedSupportId) return undefined
+      if (!useDeploymentScope && currentFixedGrantable && !currentFixedGrantable.find(type => type.assetType === assetType)
+        ?.accesses.some(access => access.supportId === selectedSupportId && !access.disabled)) return undefined
+    }
+    return getSnapshot()
   }
 
   return {
     menuTree,
     flatMenus,
     ownerGroups,
+    fixedScopeAsRadio: useDeploymentScope,
+    showMenuGroups: computed(() => menuGroups.value !== undefined),
     visibleAssets,
     batchAssetOptions,
     batchAssetValue,
@@ -535,5 +718,6 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     isProtectedMenu,
     isProtectedButton,
     getSnapshot,
+    getGrantSnapshot,
   }
 }

@@ -23,7 +23,11 @@
           <div class="asset-name">{{ asset.name || asset.assetType }}</div>
           <slot name="asset-title-extra" :asset="asset" :context="context" />
         </div>
-        <slot name="asset-control" :asset="asset" :context="context">
+        <a-radio-group v-if="asset.fixedScope && context.fixedScopeAsRadio" :value="asset.selectedSupportId" :disabled="readonly" :aria-label="asset.name">
+          <a-radio :value="asset.selectedSupportId">{{ $t(asset.fixedScope === 'all' ? 'components.MenuAssetPermissionEditor.fixedAll' : 'components.MenuAssetPermissionEditor.tenant') }}</a-radio>
+        </a-radio-group>
+        <FixedAssetScope v-else-if="asset.fixedScope" :asset="asset" />
+        <slot v-else name="asset-control" :asset="asset" :context="context">
           <a-radio-group
             :value="asset.selectedSupportId"
             :disabled="readonly"
@@ -46,6 +50,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import FixedAssetScope from './FixedAssetScope.vue'
 import type { MenuAssetPermissionEditorContext } from '../../hooks/menuAssetPermissionEditor.types'
 
 const { t: $t } = useI18n()

@@ -106,7 +106,7 @@ export const INIT_HOME: RouteRecordRaw = {
   component: () => import('@jetlinks-web-core/views/init-home/index.vue'),
   meta: {
     title: '初始化',
-    security: RouteSecurityLevel.ADMINISTRATOR
+    security: RouteSecurityLevel.SUPER_ADMIN
   }
 }
 
@@ -136,7 +136,8 @@ export const AUTHORIZE_ROUTE: RouteRecordRaw = {
   component: () => import('@jetlinks-web-core/views/share/authorize/index.vue'),
   meta: {
     title: '授权认证',
-    security: RouteSecurityLevel.PUBLIC
+    security: RouteSecurityLevel.PUBLIC,
+    shareSession: true
   }
 }
 

@@ -98,7 +98,7 @@ export function useReloginForm(props: { type: string }, emit: ReloginEvents) {
         }
         await userStore.getUserInfo();
         localStorage.removeItem('pFrom') // 清掉来源地址
-        if (userStore.isAdmin) {
+        if (userStore.isSuperAdmin) {
           const initResp = await getInitSet();
           if (initResp.success && !initResp.result?.length) {
             window.location.href = "/#/init-home";

@@ -36,23 +36,30 @@ const unauthorized = config => new axios.AxiosError('Unauthorized', 'ERR_BAD_REQ
 })
 
 // 执行生产 router、退出 API、存储和 Axios 拦截器；仅隔离无关模块、浏览器与网络。
-const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `http://localhost:9201/${projectCode}/#/overview` } = {}) => {
+const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `http://localhost:9201/${projectCode}/#/overview`, realStartup = false, subApp = false } = {}) => {
   let location
   const navigations = []
+  const tokensAtNavigation = []
+  const reloads = []
   const setLocation = value => {
     location = new URL(value, location)
     const currentHref = location.href
     Object.defineProperty(location, 'href', {
       get: () => currentHref,
-      set: value => { navigations.push(value) },
+      set: value => {
+        navigations.push(value)
+        tokensAtNavigation.push(utils.getToken())
+      },
       configurable: true,
     })
+    location.reload = () => reloads.push({ href: location.href, token: utils.getToken() })
   }
   setLocation(href)
   const storage = memoryStorage()
   const sessionStorage = memoryStorage()
   const window = {
     localStorage: storage, sessionStorage,
+    microApp: subApp ? { getGlobalData: () => ({}) } : undefined,
     get location() { return location },
     history: { state: { preserved: true }, replaceState(_state, _title, value) { setLocation(value) } },
   }
@@ -69,9 +76,14 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   })
   let router
   let resets = 0
+  let bootstraps = 0
+  let routeLoadingFinishes = 0
+  const user = { userInfo: { id: 'user-1' }, isSubAccount: false }
+  const menu = { initialized: true, hasRouteMenu: () => true }
   const environmentConfig = { VITE_APP_ENVIRONMENT: environment, VITE_APP_RUNTIME_SCOPE: scope, BASE_URL: base }
   const dependencies = {
     vue: Vue, pinia: Pinia, axios, 'lodash-es': { isFunction, isObject },
+    'vue-i18n': { useI18n: () => ({ t: key => key }) },
     'vue-router': {
       ...VueRouter,
       createWebHashHistory: VueRouter.createMemoryHistory,
@@ -86,7 +98,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     '@micro-zoe/micro-app': { router: { setBaseAppRouter() {} } },
     'ant-design-vue': { notification: { error() {} } },
     '@jetlinks-web-core/views/verify/index.vue': {},
-    '@jetlinks-web-core/utils/consts': { isSubApp: false, langKey: 'lang' },
+    '@jetlinks-web-core/utils/consts': { isSubApp: subApp, langKey: 'lang', PersonalToken: { value: 'share-fixture' }, PersonalUrlKey: 'personal-token' },
     '@jetlinks-web-core/utils/request-context': {
       getRequestTenantDomain: flag => flag === false ? '' : projectCode,
       getBaseApi: () => '/api', isFromCloud: () => false, stripEdgeRequestHeaders() {},
@@ -95,8 +107,16 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     '@jetlinks-web-core/utils/ai-client-tool-request': { isAiClientToolSilentRequest: () => false },
     '@jetlinks-web-core/utils/module-registry': {},
     '@jetlinks-web-core/utils/json/collector': {},
-    '@jetlinks-web-core/store/route-loading': { useRouteLoadingStore: () => ({ start() {}, finish() {}, finishNavigation() {}, reset() {} }) },
-    '@jetlinks-web-core/store/user': { useUserStore: () => ({ isSubAccount: false }) },
+    '@jetlinks-web-core/store/route-loading': { useRouteLoadingStore: () => ({ start() {}, finish() { routeLoadingFinishes++ }, finishNavigation() {}, reset() {} }) },
+    '@jetlinks-web-core/store/user': { useUserStore: () => user },
+    '@jetlinks-web-core/store/menu': { useMenuStore: () => menu },
+    '@jetlinks-web-core/store': {
+      useUserStore: () => user,
+      useSystemStore: () => ({ language: 'zh', isSessionInitializedFor: () => true }),
+      useApplication: () => ({ appList: [] }),
+      useMenuStore: () => menu,
+    },
+    '@jetlinks-web-core/layout/components/noticeListHandler': {},
   }
   const cache = new Map()
   const stubs = {
@@ -106,14 +126,24 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
         routes: [
           { name: 'Login', path: '/login', component: {} },
           { name: 'Overview', path: '/overview', component: {} },
+          { name: 'ShareAuthorize', path: '/share/authorize', component: {}, meta: { security: 'public', shareSession: true } },
+          { name: 'PublicRelease', path: '/visualization/release/:releaseId?', component: {}, meta: { security: 'public', shareSession: true } },
+          { name: 'ReleaseMenu', path: '/visualization/release-page/:releaseId', component: {} },
         ], tokenFilterPaths: ['/login'], menuFilterPaths: [], registry: [],
       }),
     },
-    [resolve(root, 'src/router/default-entry.ts')]: { DefaultApplicationEntryError: class extends Error {} },
-    [resolve(root, 'src/router/startup.ts')]: {
-      resetSessionStores: () => { resets++ }, resetRouteStartupState() {},
-      bootstrapSession: async () => false, ensureMenuRoutes: async () => false,
+    [resolve(root, 'src/router/default-entry.ts')]: {
+      DefaultApplicationEntryError: class extends Error {},
+      enterDefaultApplication: async () => false,
+      initializeBusinessApplicationEntry: async () => undefined,
     },
+    ...(!realStartup ? {
+      [resolve(root, 'src/router/startup.ts')]: {
+        resetSessionStores: () => { resets++ }, resetRouteStartupState() {},
+        bootstrapSession: async () => { bootstraps++; return false }, ensureMenuRoutes: async () => false,
+        ensureSystemBulletinSubscription() {},
+      },
+    } : {}),
   }
   const evaluate = (filename, source = readFileSync(filename, 'utf8')) => {
     if (cache.has(filename)) return cache.get(filename)
@@ -134,7 +164,14 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const utils = evaluate(join(dirname(require.resolve('@jetlinks-web/utils/package.json')), 'src/storage.ts'))
   dependencies['@jetlinks-web/utils'] = { ...utils, randomString: () => Math.random().toString(36), onlyMessage() {} }
   const core = evaluate(join(dirname(require.resolve('@jetlinks-web/core/package.json')), 'src/axios.ts'))
-  dependencies['@jetlinks-web/core'] = { ...core, ndJson: { create() {} } }
+  const socketCalls = []
+  const wsClient = {
+    setOptions() {},
+    initWebSocket: url => socketCalls.push(['init', url]),
+    connect: () => socketCalls.push(['connect']),
+    disconnect: () => socketCalls.push(['disconnect']),
+  }
+  dependencies['@jetlinks-web/core'] = { ...core, wsClient, ndJson: { create() {} } }
   const navigation = load('router/index')
   dependencies['@jetlinks-web-core/router'] = navigation
   const packageApi = load('package')
@@ -145,13 +182,203 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const client = core.getInstance()
   client.defaults.adapter = async config => success(config)
   return {
-    load, storage, window, client, api, verify, packageApi, navigation, navigations, utils, pinia, router,
+    load, storage, window, client, api, verify, packageApi, navigation, navigations, tokensAtNavigation, reloads, utils, pinia, router, user, socketCalls,
     get resets() { return resets },
+    get bootstraps() { return bootstraps },
+    get routeLoadingFinishes() { return routeLoadingFinishes },
     setLocation,
   }
 }
 
+test('an account document commits the share URL then reloads without switching the live socket', async t => {
+  const f = fixture(t)
+  f.utils.setToken('account-fixture')
+  await f.router.push('/overview?first=1')
+  assert.equal(f.bootstraps, 1)
+  await f.router.push('/share/authorize')
+  assert.equal(f.router.currentRoute.value.path, '/share/authorize')
+  assert.equal(f.navigation.changingSessionDocument.value, true)
+  assert.equal(f.reloads.length, 1)
+  assert.deepEqual(f.socketCalls, [])
+})
+
+test('cold share and share-to-share skip account startup; back to a menu requires a new document', async t => {
+  const f = fixture(t)
+  f.utils.setToken('account-fixture')
+  await f.router.push('/share/authorize')
+  await f.router.push('/visualization/release/123')
+  assert.equal(f.routeLoadingFinishes, 2)
+  assert.equal(f.bootstraps, 0)
+  assert.equal(f.reloads.length, 0)
+  await f.router.replace('/visualization/release-page/123')
+  assert.equal(f.router.currentRoute.value.path, '/visualization/release-page/123')
+  assert.equal(f.reloads.length, 1)
+  assert.equal(f.bootstraps, 0)
+  assert.equal(f.navigation.changingSessionDocument.value, true)
+})
+
+test('embedded share navigation leaves the host socket and document under host control', async t => {
+  const f = fixture(t, { subApp: true })
+  f.utils.setToken('account-fixture')
+  await f.router.push('/overview?first=1')
+  f.packageApi.initPackages({ accountOnly: true })
+  await f.router.push('/share/authorize')
+  await f.router.push('/visualization/release/123')
+  await f.router.push('/overview')
+  assert.equal(f.bootstraps, 2)
+  assert.equal(f.reloads.length, 0)
+  assert.equal(f.navigation.changingSessionDocument.value, false)
+  assert.deepEqual(f.socketCalls, [])
+})
+
+const bulletinTopic = {
+  id: 'bulletin-config',
+  provider: 'SystemBulletin',
+  name: '系统公告',
+  channels: [{ id: 'inside-mail', channelProvider: 'inside-mail' }],
+}
+
+for (const configured of [false, true]) {
+  test(configured ? '已绑定系统公告的账号只查询，不重复保存' : '没有可用系统公告配置时不查询个人订阅', async t => {
+    const f = fixture(t, { realStartup: true })
+    const requests = []
+    f.client.defaults.adapter = async config => {
+      requests.push(config.url)
+      return success(config, config.url === '/notify/channel/all'
+        ? (configured ? [bulletinTopic] : [{ ...bulletinTopic, channels: [] }])
+        : { data: [{ topicProvider: 'SystemBulletin', notifyChannels: ['inside-mail'] }] })
+    }
+
+    await f.router.push('/overview?entry=anonymous')
+    assert.deepEqual(requests, [])
+    f.utils.setToken('bulletin-token')
+    await f.router.push('/overview?entry=authenticated')
+    await delay(0)
+
+    assert.deepEqual(requests, configured
+      ? ['/notify/channel/all', '/notifications/subscriptions/_query']
+      : ['/notify/channel/all'])
+  })
+}
+
+test('登录后的路由守卫依次查配置和绑定，默认只添加站内信且合并并发导航', async t => {
+  const f = fixture(t, { realStartup: true })
+  const pendingCatalogue = deferred()
+  const requests = []
+  f.utils.setToken('bulletin-token')
+  f.client.defaults.adapter = async config => {
+    const body = config.data ? JSON.parse(config.data) : undefined
+    requests.push({ url: config.url, body })
+    if (config.url === '/notify/channel/all') {
+      await pendingCatalogue.promise
+      return success(config, [bulletinTopic])
+    }
+    return success(config, { data: [] })
+  }
+
+  await f.router.push('/overview?navigation=1')
+  await f.router.push('/overview?navigation=2')
+  assert.deepEqual(requests.map(request => request.url), ['/notify/channel/all'])
+  pendingCatalogue.resolve()
+  await delay(0)
+  await f.router.push('/overview?navigation=3')
+  assert.deepEqual(requests, [
+    { url: '/notify/channel/all', body: undefined },
+    { url: '/notifications/subscriptions/_query', body: { paging: false, terms: [{ column: 'topicProvider', termType: 'eq', value: 'SystemBulletin' }] } },
+    { url: '/notifications/subscribe', body: {
+      topicProvider: 'SystemBulletin', providerId: bulletinTopic.id, subscribeName: bulletinTopic.name,
+      locale: 'zh', state: 'enabled', notifyChannels: ['inside-mail'],
+    } },
+  ])
+})
+
+test('默认站内信补绑保留已有订阅，保存失败可在下一次导航重试', async t => {
+  const f = fixture(t, { realStartup: true })
+  const saves = []
+  const subscription = {
+    id: 'current-subscription', topicProvider: 'SystemBulletin', providerId: bulletinTopic.id,
+    subscribeName: '已有订阅', topicConfig: { type: 'notice' }, state: { value: 'disabled' },
+    locale: 'en', notifyChannels: ['email-channel'],
+  }
+  f.utils.setToken('bulletin-token')
+  f.client.defaults.adapter = async config => {
+    if (config.url === '/notify/channel/all') return success(config, [bulletinTopic])
+    if (config.url === '/notifications/subscriptions/_query') return success(config, { data: [subscription] })
+    saves.push(JSON.parse(config.data))
+    return saves.length === 1
+      ? { ...success(config), data: { status: 500, success: false } }
+      : success(config)
+  }
+
+  await f.router.push('/overview?navigation=1')
+  await delay(0)
+  await f.router.push('/overview?navigation=2')
+  await delay(0)
+  const expected = { ...subscription, state: 'disabled', notifyChannels: ['email-channel', 'inside-mail'] }
+  assert.deepEqual(saves, [expected, expected])
+})
+
+test('换号后废弃前一账号的在途订阅查询', async t => {
+  const f = fixture(t, { realStartup: true })
+  const pendingQuery = deferred()
+  let oldSignal
+  const savedFor = []
+  f.utils.setToken('old-bulletin-token')
+  f.client.defaults.adapter = async config => {
+    if (config.url === '/notify/channel/all') return success(config, [bulletinTopic])
+    const token = config.headers.get(tokenKey)
+    if (config.url === '/notifications/subscriptions/_query') {
+      if (token === 'old-bulletin-token') {
+        oldSignal = config.signal
+        await pendingQuery.promise
+      }
+      return success(config, { data: [] })
+    }
+    savedFor.push(token)
+    return success(config)
+  }
+
+  await f.router.push('/overview?account=old')
+  await delay(0)
+  assert.ok(oldSignal)
+  f.utils.removeToken()
+  await f.router.push('/overview?account=anonymous')
+  assert.equal(oldSignal.aborted, true)
+  f.user.userInfo = { id: 'user-2' }
+  f.utils.setToken('new-bulletin-token')
+  await f.router.push('/overview?account=new')
+  pendingQuery.resolve()
+  await delay(0)
+  assert.deepEqual(savedFor, ['new-bulletin-token'])
+})
+
 for (const entry of ['platform', 'project']) {
+  test(`the ${entry} user menu returns to login without a reset request when the current token is missing`, async t => {
+    const isProject = entry === 'project'
+    const base = `http://localhost:9100/${isProject ? `${projectCode}/` : ''}`
+    const f = fixture(t, { environment: 'cloud', href: `${base}#/overview` })
+    if (isProject) {
+      f.storage.setItem('pFrom', 'http://localhost:9100')
+      f.storage.setItem(tokenKey, 'independent-platform-session')
+    }
+    f.storage.setItem('jetlinks_verify_cache', JSON.stringify({ key: 'previous-key', token: 'previous-verification' }))
+    let requests = 0
+    f.client.defaults.adapter = async config => {
+      requests++
+      return success(config)
+    }
+    const { handleLogout } = f.load('layout/components/useLayoutSidebarUser').useLayoutSidebarUser()
+
+    assert.ok(!f.utils.getToken())
+    await handleLogout()
+    await delay(5)
+
+    assert.equal(requests, 0)
+    assert.deepEqual(f.navigations, [`${base}#/login?reason=logout${isProject ? '&clearToken=true' : ''}`])
+    assert.equal(f.storage.getItem('jetlinks_verify_cache'), null)
+    if (isProject) assert.equal(f.storage.getItem(tokenKey), 'independent-platform-session')
+  })
+
   test(`the same document supports three login/logout cycles at the ${entry} entry`, async t => {
     const base = `http://localhost:9100/${entry === 'project' ? `${projectCode}/` : ''}`
     const f = fixture(t, { href: `${base}#/overview` })
@@ -160,7 +387,14 @@ for (const entry of ['platform', 'project']) {
       f.storage.setItem(tokenKey, 'independent-platform-session')
     }
     let session = 0
-    f.client.defaults.adapter = async config => success(config, { token: `session-${++session}` })
+    const resetTokens = []
+    f.client.defaults.adapter = async config => {
+      if (config.url === '/user-token/reset') {
+        resetTokens.push(config.headers[tokenKey])
+        return success(config)
+      }
+      return success(config, { token: `session-${++session}` })
+    }
     for (let cycle = 1; cycle <= 3; cycle++) {
       const login = await f.api.login({ username: 'fixture-user', password: 'fixture-password' })
       f.utils.setToken(login.result.token)
@@ -181,6 +415,7 @@ for (const entry of ['platform', 'project']) {
       assert.equal(f.navigations.length, cycle, 'late failures on the login page must not redirect again')
       if (entry === 'project') assert.equal(f.storage.getItem(tokenKey), 'independent-platform-session')
     }
+    assert.deepEqual(resetTokens, ['session-1', 'session-2', 'session-3'])
   })
 }
 
@@ -279,6 +514,72 @@ for (const order of ['401-first', 'logout-first']) {
     assert.equal(f.utils.getProjectStorage(projectCode), undefined)
   })
 }
+
+test('a successful self reset returns to the full source page despite a concurrent 401', async t => {
+  const f = fixture(t)
+  const source = 'https://platform.example.test/workbench/?tab=mine#/projects?view=grid'
+  f.storage.setItem('pFrom', source)
+  f.utils.setToken('project-session')
+  f.storage.setItem(tokenKey, 'root-session')
+  f.load('utils/project-storage').setProjectStorage('p_other', { token: 'another-project-session' })
+  f.client.defaults.adapter = async config => { throw unauthorized(config) }
+
+  const complete = f.load('router/login-transition').beginLogoutRequest()
+  await assert.rejects(f.client.get('/user/detail'))
+  await delay(5)
+  assert.deepEqual(f.navigations, [], '401 must wait for the self reset result')
+  f.navigation.jumpLogin({ reason: 'logout', destination: 'source-page' })
+  complete(true)
+  await assert.rejects(f.client.get('/user/detail'))
+  await delay(5)
+
+  assert.deepEqual(f.navigations, [source])
+  assert.equal(f.tokensAtNavigation.length, 1)
+  assert.equal(f.tokensAtNavigation[0], undefined)
+  assert.equal(f.resets, 1)
+  assert.equal(f.storage.getItem(tokenKey), 'root-session')
+  assert.equal(f.utils.getProjectStorage('p_other')?.token, 'another-project-session')
+})
+
+for (const [name, source] of [
+  ['no', null], ['blank', '  '], ['malformed', 'https://['], ['non-web', 'javascript:void(0)'],
+]) {
+  test(`a self reset with ${name} pFrom enters the current project login without a redirect`, async t => {
+    const f = fixture(t, { href: `http://localhost:9201/${projectCode}/?config=old#/overview` })
+    if (source !== null) f.storage.setItem('pFrom', source)
+    f.utils.setToken('project-session')
+    f.storage.setItem(tokenKey, 'root-session')
+
+    f.navigation.jumpLogin({ reason: 'logout', destination: 'source-page' })
+    await delay(5)
+
+    assert.deepEqual(f.navigations, [`http://localhost:9201/${projectCode}/#/login?reason=logout`])
+    assert.equal(f.tokensAtNavigation[0], undefined)
+    f.setLocation(f.navigations[0])
+    f.load('router/login-session').consumeLogoutLoginEntry(f.packageApi.clearVerifyCache)
+    assert.equal(f.storage.getItem(tokenKey), 'root-session')
+  })
+}
+
+test('a self reset without pFrom keeps the private deployment base path', async t => {
+  const f = fixture(t, { environment: '', scope: 'project', base: '/iot/', href: 'http://localhost:9201/iot/#/overview' })
+  f.utils.setToken('private-session')
+  f.navigation.jumpLogin({ reason: 'logout', destination: 'source-page' })
+  await delay(5)
+  assert.deepEqual(f.navigations, ['http://localhost:9201/iot/#/login?reason=logout'])
+  assert.equal(f.utils.getToken(), null)
+})
+
+test('a self reset returns to a same-document source with a fresh document', async t => {
+  const f = fixture(t, { href: 'http://localhost:9201/#/overview' })
+  const source = 'http://localhost:9201/#/workbench?view=mine'
+  f.storage.setItem('pFrom', source)
+  f.utils.setToken('platform-session')
+  f.navigation.jumpLogin({ reason: 'logout', destination: 'source-page' })
+  await delay(5)
+  assert.deepEqual(f.navigations, [])
+  assert.deepEqual(f.reloads, [{ href: source, token: null }])
+})
 
 for (const failure of ['network-error', 'unsuccessful-response']) {
   test(`logout ${failure} releases a waiting session-expired navigation`, async t => {

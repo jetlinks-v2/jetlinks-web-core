@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { settingsFieldScopes, visibleSettingsKeys } from './model'
+import { sameSettingValue, settingsFieldScopes, visibleSettingsKeys } from './model'
 import type { PlatformSettingKey, PlatformSettingsPatch, PlatformSettingsSectionProps } from './types'
 
 /** 区块只管理编辑事务；持久化、权限和已保存基线仍由配置容器提供。 */
@@ -51,7 +51,7 @@ export function usePlatformSettingsSection(
   async function save() {
     if (props.mode !== 'detail' || !active.value || actionsDisabled.value) return false
     const patch = pick(props.model)
-    if ((Object.keys(patch) as PlatformSettingKey[]).every(key => patch[key] === props.saved[key])) {
+    if ((Object.keys(patch) as PlatformSettingKey[]).every(key => sameSettingValue(props.model[key], props.saved[key]))) {
       cancel()
       return true
     }

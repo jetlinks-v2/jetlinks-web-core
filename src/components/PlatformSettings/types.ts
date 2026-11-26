@@ -1,7 +1,9 @@
 import type { InlineEditResult } from '../InlineEditForm'
+import type { FrontLanguage } from '../../locales/languageOptions'
 
 export interface PlatformSettingsModel {
   title: string
+  languages: FrontLanguage[]
   logo: string
   ico: string
   background: string
@@ -25,6 +27,7 @@ export type SettingsTranslate = (key: string) => string
 export interface PlatformSettingsSource {
   load: () => Promise<PlatformSettingsScopes>
   save: (scopes: PlatformSettingsScope[]) => Promise<{ success: boolean }>
+  onSaved?: (patch: PlatformSettingsPatch) => void
 }
 
 export interface PlatformSettingsSectionProps {

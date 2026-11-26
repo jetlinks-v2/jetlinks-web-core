@@ -136,8 +136,8 @@ export function useLoginSuccess() {
       return
     }
 
-    // 管理员在初始化配置为空时先进入初始化页，避免落到没有任何菜单的空首页。
-    if (userStore.isAdmin) {
+    // 超管在初始化配置为空时先进入初始化页，避免落到没有任何菜单的空首页。
+    if (userStore.isSuperAdmin) {
       const initResp = await getInitSet()
       if (initResp.success && !initResp.result?.length) {
         window.location.href = toRuntimeHashHref('/init-home')

@@ -1,8 +1,6 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { LocalStore } from '@jetlinks-web/utils'
-import { useSystemStore } from '@jetlinks-web-core/store'
-import { langKey, ruleEditorKey } from '@jetlinks-web-core/utils/consts'
+import { useSystemStore } from '@jetlinks-web-core/store/system'
 import { builtInLanguage, builtInLanguageOptions, DEFAULT_LANGUAGE, machineLanguageOptions, type BuiltInLanguage } from '@jetlinks-web-core/locales/translation/languages'
 import type { ModelState } from '@jetlinks-web-core/locales/translation/models'
 import { useTranslationRuntime } from '@jetlinks-web-core/locales/translation/runtime'
@@ -31,7 +29,9 @@ const languageLabel = (value: string) => languageOptions.find(option => option.v
 export function useRuntimeLanguageMenu() {
   const { locale, t } = useI18n({ useScope: 'global' })
   const systemStore = useSystemStore()
-  const runtime = useTranslationRuntime()
+  const allowsMachineLanguages = () => !systemStore.hasFrontLanguagePolicy
+  const runtime = useTranslationRuntime(allowsMachineLanguages)
+  const machineOptions = computed(() => allowsMachineLanguages() ? machineLanguageOptions : [])
   const open = ref(false)
   const pendingLocale = ref<BuiltInLanguage>()
   let selection = 0
@@ -53,7 +53,7 @@ export function useRuntimeLanguageMenu() {
   }
 
   const options = computed<LanguageMenuOption[]>(() => [
-    ...builtInLanguageOptions.map(option => {
+    ...systemStore.languageOptions.map(option => {
       const item = { ...option, disabled: false }
       if (option.value === DEFAULT_LANGUAGE) return item
       const models = runtime.supplementModels(option.value)
@@ -65,7 +65,7 @@ export function useRuntimeLanguageMenu() {
       if (!active) return item
       return { ...item, model: modelStatus(active.state, `${languageLabel(active.pair.sourceLanguage)} → ${option.label}`, true) }
     }),
-    ...machineLanguageOptions.map(option => {
+    ...machineOptions.value.map(option => {
       if (option.value === selected.value) return { ...option, disabled: false }
       const state = runtime.state(option.value)
       return {
@@ -75,17 +75,17 @@ export function useRuntimeLanguageMenu() {
       }
     }),
   ])
-  const currentLabel = computed(() => options.value.find(option => option.value === selected.value)?.label ?? builtInLanguageOptions[0].label)
+  const currentLabel = computed(() => languageLabel(selected.value))
   const menuLabel = computed(() => t('Login.language'))
 
-  watch([open, selected], ([visible]) => {
+  watch([open, selected, machineOptions], ([visible]) => {
     if (!visible) return
-    machineLanguageOptions.forEach(option => runtime.inspect(option.value))
+    machineOptions.value.forEach(option => runtime.inspect(option.value))
     if (selected.value === base.value && base.value !== DEFAULT_LANGUAGE) runtime.inspectSupplements(base.value)
   })
 
   async function select(value: string): Promise<void> {
-    const native = builtInLanguageOptions.find(option => option.value === value)
+    const native = systemStore.languageOptions.find(option => option.value === value)
     if (!native) {
       if (runtime.select(value)) {
         selection++
@@ -103,14 +103,11 @@ export function useRuntimeLanguageMenu() {
       if (request !== selection) return
     }
     pendingLocale.value = undefined
+    // 下载期间保存的平台配置也需要约束这次切换。
+    if (!systemStore.languageOptions.some(option => option.value === native.value)) return
     runtime.select()
     open.value = false
-    if (native.value === systemStore.language && native.value === base.value) return
-    systemStore.language = native.value
-    LocalStore.set(langKey, native.value)
-    // 规则编辑器使用独立缓存，必须与全局语言保持同步。
-    LocalStore.set(ruleEditorKey, native.value)
-    window.location.reload()
+    systemStore.selectLanguage(native.value)
   }
 
   return {

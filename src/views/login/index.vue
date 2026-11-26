@@ -4,7 +4,7 @@
       <img :src="systemStore.layout.logo || '/logo.png'" alt="" class="login-brand__logo" />
       <span class="login-brand__title">{{ systemStore.layout.title || 'JetLinks Cloud' }}</span>
     </template>
-    <template #actions><LoginHeaderActions /></template>
+    <template #actions><LoginHeaderActions v-if="frontReady" /></template>
     <Login />
     <template v-if="frontConfig.showRecordNumber" #record>
       <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" rel="noopener noreferrer" class="login-record">
@@ -14,7 +14,7 @@
   </LoginPageLayout>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import i18n from '@jetlinks-web-core/locales'
 import { useSystemStore } from "@jetlinks-web-core/store/system"
 import { resolveLoginBackground } from '@jetlinks-web-core/utils/login-background'
@@ -30,9 +30,8 @@ const frontConfig = computed<Record<string, any>>(() => systemStore.systemInfo?.
 
 const loginBackgroundStyle = computed(() => resolveLoginBackground(frontConfig.value.background).style)
 
-const applyLoginThemeColor = async () => {
-  await systemStore.querySingleInfo('front')
-}
-
-applyLoginThemeColor()
+const frontReady = ref(false)
+void systemStore.querySingleInfo('front')
+  .catch(() => { /* 配置读取失败时保留默认语言与登录入口。 */ })
+  .finally(() => { frontReady.value = true })
 </script>

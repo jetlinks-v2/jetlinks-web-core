@@ -29,6 +29,14 @@ type MenuRouteDraft = Omit<Partial<RouteRecordRaw>, 'children'> & {
   children?: MenuItem[] | RouteRecordRaw[]
 }
 
+const basicMenuLayout = () => import('../layout/BasicLayoutPage.vue')
+const blankMenuLayout = () => import('../layout/BlankLayoutPage.vue')
+
+/** 纯布局（含一级页面的父壳）可以承载子路由，但本身不是可打开的首页。 */
+export const hasMenuPageComponent = (route: RouteRecordRaw) => (
+  !!route.component && route.component !== basicMenuLayout && route.component !== blankMenuLayout
+)
+
 export const handleRoute = (item: MenuItem, parent?: ParentType): Partial<RouteRecordRaw> => {
   const isApp = !!item.appId
   const meta = handleMeta(item, isApp)
@@ -149,11 +157,11 @@ export const handleMenus = (
     }
 
     if (level === 1) {
-      return () => import('../layout/BasicLayoutPage.vue')
+      return basicMenuLayout
     }
 
     if (level === 2) {
-      return () => import('../layout/BlankLayoutPage.vue')
+      return blankMenuLayout
     }
 
     return undefined
@@ -213,7 +221,7 @@ export const handleMenus = (
         // 为1级菜单添加父级路由
         _route.name = `${item.code}-parent`
         _route.path = `${item.url}/parent`
-        _route.component = () => import('../layout/BasicLayoutPage.vue')
+        _route.component = basicMenuLayout
         _route.children = [item]
         _route.meta = {}
       } else {

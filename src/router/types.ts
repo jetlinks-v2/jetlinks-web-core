@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import type { RouteRecordRaw } from 'vue-router'
+import type { RouteMeta, RouteRecordRaw } from 'vue-router'
 import type { ModuleRouteOverride } from '@jetlinks-web-core/types/module'
 
 /** Route access level */
@@ -8,11 +8,17 @@ export enum RouteSecurityLevel {
   PUBLIC = 'public',
   /** Token required, menu permission not required. */
   AUTHENTICATED = 'authenticated',
-  /** Platform administrator required. */
+  /** Administrator identity, including project administrators and project owners. */
   ADMINISTRATOR = 'administrator',
+  /** Only the built-in admin account is allowed. */
+  SUPER_ADMIN = 'super-admin',
   /** Token and menu permission required (default). */
   AUTHORIZED = 'authorized'
 }
+
+/** 公开分享入口自行授权，与平台账号会话独立。 */
+export const usesShareSession = (meta: RouteMeta) =>
+  meta.security === RouteSecurityLevel.PUBLIC && meta.shareSession === true
 
 export type RouteHideInMenuContext = {
   hasResponeMenu?: boolean
@@ -41,6 +47,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     /** Route access level */
     security?: RouteSecurityLevel
+    /** 公开分享入口由链接提供身份，不启动账号会话。 */
+    shareSession?: boolean
     /** Preserve the original route when redirecting unauthenticated users to login. */
     preserveLoginRedirect?: boolean
     /** Legacy compatibility: skip menu permission check */

@@ -4,9 +4,8 @@ import {
   normalizeProjectHashPath,
 } from './project-path'
 import { getProjectStorage, isProjectStorageEnabled } from './project-storage'
-import { isFromCloud } from './request-context'
 import { isPrivateDeployment } from './deployment'
-import { isSubApp } from './consts'
+import { edgeDefaultUrl, isSubApp } from './consts'
 import { resolveApplicationRuntimeEntry } from './application-scope'
 
 export {
@@ -62,15 +61,15 @@ export const getProjectRuntimeConfig = (): ProjectRuntimeConfig => {
   const scope = normalizeRuntimeScope(import.meta.env.VITE_APP_RUNTIME_SCOPE)
   const fixedProject = scope === 'project'
   const projectStorageEnabled = scope === 'auto' && isProjectStorageEnabled()
-  let projectCode = fixedProject
-    ? normalizeProjectCode(import.meta.env.VITE_APP_PROJECT_CODE)
-    : scope === 'tenant'
-      ? ''
-      : getProjectCodeFromPathnameLocation()
+  const configuredCode = fixedProject ? normalizeProjectCode(import.meta.env.VITE_APP_PROJECT_CODE) : ''
+  let projectCode = ''
 
-  // SaaS 的 project 模式也通过路径选择项目；私有化安装目录不能作为项目编码。
-  if (fixedProject && !projectCode && !isPrivateDeployment()) {
-    projectCode = getProjectCodeFromPathnameLocation()
+  if (fixedProject && isPrivateDeployment()) {
+    // 私有化安装目录不能作为项目编码。
+    projectCode = configuredCode
+  } else if (scope !== 'tenant' && !window.location.pathname.includes(edgeDefaultUrl)) {
+    // 边缘代理与项目共用构建；首次打开代理页时 terminal 可能尚未写入。
+    projectCode = configuredCode || getProjectCodeFromPathnameLocation()
   }
 
   return {
@@ -85,9 +84,8 @@ export const getProjectRuntimeConfig = (): ProjectRuntimeConfig => {
 export const getProjectCodeFromLocation = () => getProjectRuntimeConfig().projectCode
 
 export const isProjectRuntime = () => {
-  const runtimeConfig = getProjectRuntimeConfig()
-  return runtimeConfig.fixedProject
-    || (runtimeConfig.scope === 'auto' && !isFromCloud() && !!runtimeConfig.projectCode)
+  const { fixedProject, projectCode } = getProjectRuntimeConfig()
+  return (fixedProject && isPrivateDeployment()) || !!projectCode
 }
 
 export const normalizeProjectRuntimePath = (path = '') => {

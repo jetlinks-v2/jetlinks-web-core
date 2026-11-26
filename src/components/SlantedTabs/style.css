@@ -150,7 +150,7 @@
   outline: none;
 }
 
-.slanted-tabs__tab:focus-visible .slanted-tabs__label {
+.slanted-tabs:not(.is-mouse-only) .slanted-tabs__tab:focus-visible .slanted-tabs__label {
   outline: calc(2em / 14) solid var(--accent, #1677ff);
   outline-offset: calc(5em / 14);
   border-radius: calc(2em / 14);

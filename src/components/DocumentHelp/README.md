@@ -2,13 +2,19 @@
 
 ## 平台管理的帮助说明
 
+弹层靠近视口边缘时会移动或翻转，箭头沿卡片边缘对准当前帮助入口的中心。
+
+业务埋点与文档管理的列表、草稿预览共用同一张帮助卡片。正文首个 Markdown 标题或指南 `header` 用作卡片标题，纯正文沿用“功能说明”。指南里的有序步骤、引用或 `.document-help-guide__note` 提示和 `.document-help-guide__link` 文档入口按内容显示。右上角关闭按钮和 Esc 都可收起气泡。
+
+卡片样式验证（2026-11-24）：帮助组件与文档管理 41 项回归、样式检查和认证模块定向生产构建通过。Chrome 使用示例配置验证了业务气泡、管理预览、显式关闭、键盘收起、320px 视口换行和长内容滚动。认证模块 `vue-tsc` 检查报告 538 项诊断，未指向本次修改文件。
+
 旧文档站关键词及标签搜索已移除；组件保留平台 `code/helpKey` 配置读取、纯说明、静态文章及内容插槽。
 
 清理验证：`node --test tests/documentHelp.test.mjs` 11 项通过，覆盖静态说明、链接、插槽、点位注册、配置读取、取消与错误重试；auth `tests/documentCenter.test.mjs` 9 项通过。旧搜索请求及 hook 无残留引用，三语 JSON 与差异空白检查通过。模块构建 `pnpm -F jetlinks-web-core build -- --module-name authentication-manager-ui` 通过；`pnpm exec vue-tsc --noEmit -p modules/authentication-manager-ui/tsconfig.json --pretty false` 仍有 577 项工作区诊断，修改的帮助组件及 API 无诊断。未配置独立 lint 脚本；服务未重启，真实页面待部署后复验。
 
 当前改造：业务模块启动时注册 `{ code, key, name, page }` 点位，文档管理通过注册表列出未打开页面的埋点；`name/page` 可使用函数读取当前语言。页面使用 `<DocumentHelp code="project/Overview" help-key="quickGuide.device" />`，挂载或切换点位时预加载既有 `GET /system/config/document-help` 返回的配置 Map，按 code/key 匹配 `{ code, key, content, enabled, i18nMessages? }`，只有当前语言解析后的说明非空且启用才显示问号。未配置或禁用不渲染业务入口，但注册表始终保留点位供管理扫描。说明以 Markdown 保存并在原帮助气泡展示，链接直接写在说明内，不再额外配置文档地址。管理列表和持久化由 auth 模块提供。
 
-管理保存成功后调用 `hooks/useConfiguredDocumentHelp.ts` 的 `notifyDocumentHelpConfigurationChanged()`，刷新已挂载的帮助；KeepAlive 页面返回时重新读取，首次激活不重复请求。请求失败隐藏业务入口，后续保存通知、页面重进或刷新可重试。悬停和关闭不清空已准备正文，MarkdownPreview 静态引入，避免首次打开时下载组件及加载短文案引起弹层高度跳动；保留 Ant Design Vue 原有动效。静态说明和管理 `#content` 草稿预览不受 enabled 限制。
+管理保存成功后调用 `hooks/useConfiguredDocumentHelp.ts` 的 `notifyDocumentHelpConfigurationChanged()`，刷新已挂载的帮助；KeepAlive 页面返回时重新读取，首次激活不重复请求。请求失败隐藏业务入口，后续保存通知、页面重进或刷新可重试。悬停和关闭不清空已准备正文，MarkdownPreview 静态引入，避免首次打开时下载组件及加载短文案引起弹层高度跳动。帮助气泡使用独立的透明度淡入淡出，不使用缩放动画；弹层左右增加 `--space-3` 安全留白并计入原有边界定位，避免靠右气泡退场重新定位时越界、触发滚动条闪现。减少动态效果偏好下不播放动画，仅影响帮助气泡，不修改页面滚动规则、其他 Popover 或已保存正文。静态说明和管理 `#content` 草稿预览不受 enabled 限制。
 
 实现范围：`utils/documentHelpRegistry.ts`、`hooks/useConfiguredDocumentHelp.ts`、`api/document.ts` 和本组件。预览共用 `MarkdownPreview.vue`，HTML 经 `utils/documentHelpMarkdown.ts` 清洗，链接保留蓝色且在新窗口打开；管理编辑器通过新增可选 `sanitize` 属性使用同一清洗函数。`description/document/#content` 保持兼容，显式内容插槽优先。
 
@@ -46,7 +52,7 @@
 | `document` | `string`，可选 | 文章路径或同中心完整 URL；未配置或空白时不显示公共链接 |
 | `icon` | `string`，可选 | AIcon 图标名称，默认 `QuestionCircleOutlined` |
 | `iconColor` | `string`，可选 | CSS 颜色，可使用 `var(--主题变量)`；默认沿用次级文字颜色 |
-| `width` | `number \| string`，可选 | 内容宽度，默认 320px，受视口宽度约束 |
+| `width` | `number \| string`，可选 | 配置埋点默认宽 420px，静态说明默认宽 320px；显式宽度优先，受视口宽度约束 |
 | `placement` | Ant Design Vue Popover placement，可选 | 默认 `top` |
 
 交互：鼠标移入气泡后仍可点击链接；问号可用 Tab 聚焦，链接使用按钮原生键盘行为。Esc 关闭气泡。点击问号或链接不会触发父级卡片/行点击；打开文章后气泡关闭。未配置文章时不显示公共链接或底部分隔区，说明仍可查看。组件只发出打开意图，实际地址校验、`embed=1` 与语言参数、浮窗生命周期由 auth 承接。

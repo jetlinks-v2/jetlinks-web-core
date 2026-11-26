@@ -13,7 +13,7 @@
     <DiagnosticsState :state="state" @retry="sample">
       <div v-if="!threads.length" class="thread-empty"><slot name="empty"><a-button v-if="canSample && !$slots.actions" type="primary" size="large" @click="sample">{{ t('runtimeDiagnostics.sample') }}</a-button><p>{{ t('runtimeDiagnostics.noThreadSnapshot') }}</p></slot></div>
       <a-empty v-else-if="!filtered.length" :description="t('runtimeDiagnostics.noMatchingThreads')" />
-      <a-table v-else class="thread-table" :columns="columns" :data-source="filtered" row-key="id" size="small" :pagination="embedded ? false : { pageSize: 15, showSizeChanger: false }" :scroll="{ x: 480, y: embedded ? '100%' : undefined }" :expand-row-by-click="true">
+      <a-table v-else class="thread-table" :columns="columns" :data-source="filtered" row-key="id" size="small" :pagination="embedded ? false : { size: 'default', pageSize: 15, showSizeChanger: false }" :scroll="{ x: 480, y: embedded ? '100%' : undefined }" :expand-row-by-click="true">
         <template #bodyCell="{ column, record }">
           <span v-if="column.key === 'name'" class="thread-name" :title="record.name">{{ record.name }} <small>#{{ record.id }}</small></span>
           <a-tag v-else-if="column.key === 'state'" :color="record.state === 'BLOCKED' ? 'warning' : record.state === 'RUNNABLE' ? 'processing' : undefined">{{ record.state }}</a-tag>

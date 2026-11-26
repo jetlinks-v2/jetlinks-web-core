@@ -119,12 +119,18 @@ const onFilterChange = ({ filter, where }) => {
 
 ## 默认条件策略
 
+主键 `id` 的默认操作符不包含「为空」「不为空」，其他操作符和顺序不变。规则仅适用于 `dataIndex === 'id'` 且未通过 `search.rename` 改查其他列的字段；不按 `Id` 后缀或显示名称匹配。`fields` 与旧 `columns` 行为一致。显式的 `termOptions` / `termTypeOptions` 仍优先，因此用 `id` 做标签关联查询的字段保留业务操作符。此规则仅限制编辑器提供的选项，不改变已保存条件、分享链接或查询输出。
+
+除上述主键例外，按字段类型推导的默认操作符为：
+
 - `string`：`包含`、`不包含`、`为`、`不为`、`为空`、`不为空`；`包含`和`不包含`会在输出查询参数时自动补齐值两端的 `%`
 - `number`：`为`、`不为`、`大于`、`大于等于`、`小于`、`小于等于`、`为空`、`不为空`
 - `select/tree/treeSelect`：`属于`、`不属于`、`为`、`不为`、`为空`、`不为空`
 - `date/time`：`处于范围`、`大于等于`、`小于等于`、`为`、`为空`、`不为空`
 
 操作符下拉会显示一行用途说明，选中后的操作符 Token 支持悬浮查看完整解释。
+
+主键规则验证：`node --test tests/conditionFilterScheduling.test.mjs` 15 项通过。用设备列表（SaaS、私有化）和产品列表的实际字段配置抽查，`eq`、`like` 输出及旧链接判空回显未变。设备模块生产构建通过；核心工程无 lint 脚本，`pnpm exec vue-tsc -p tsconfig.json --noEmit` 前后均为相同的 511 个既有诊断。全量生产构建在 10 GiB Node 堆上限下内存不足，仍需在内存充足的环境从核心工程执行 `pnpm build`。
 
 ### Search 字段处理兼容
 

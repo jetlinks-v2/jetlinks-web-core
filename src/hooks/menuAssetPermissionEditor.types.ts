@@ -52,6 +52,8 @@ export interface AssetAccessPolicy {
 }
 
 export interface VisibleAssetPermission extends GrantableAssetType {
+  fixedScope?: 'tenant' | 'all'
+  previousScopeLabels?: string[]
   selectedSupportId?: string
 }
 
@@ -65,7 +67,25 @@ export interface MenuAssetPermissionResetOptions {
   grantedMenus?: MenuPermissionNode[]
   assetAccesses?: AssetAccessPolicy[]
   grantableAssets?: GrantableAssetType[]
+  /** 固定范围单独使用的可授权目录；空数组表示不可授权，不回退到菜单候选。 */
+  fixedAssetGrantable?: GrantableAssetType[]
   assetTypes?: AssetTypeName[]
+  /** 仅约束展示和编辑范围，未列出的原始菜单仍保留在授权草稿中。 */
+  menuGroups?: MenuPermissionGroupDefinition[]
+}
+
+export interface MenuPermissionScope {
+  id: string
+  buttonIds: string[]
+}
+
+/** 同一菜单可属于多个分组；菜单和按钮仍共享一份真实授权状态。 */
+export interface MenuPermissionGroupDefinition {
+  key: string
+  label: string
+  /** 限制投影节点的 owner；其他 owner 的祖先只保留在原始授权树。 */
+  visibleOwner?: string
+  menus: MenuPermissionScope[]
 }
 
 export interface MenuOwnerGroup {
@@ -83,6 +103,10 @@ export interface MenuAssetPermissionEditorContext {
   menuTree: Ref<MenuPermissionNode[]>
   flatMenus: ComputedRef<MenuPermissionNode[]>
   ownerGroups: ComputedRef<MenuOwnerGroup[]>
+  /** 显式分组即使只有一组也显示名称，普通 owner 分组保留原来的单组隐藏行为。 */
+  showMenuGroups?: ComputedRef<boolean>
+  /** 按部署固定范围的入口只展示该范围的单选项。 */
+  fixedScopeAsRadio?: boolean
   visibleAssets: ComputedRef<VisibleAssetPermission[]>
   batchAssetOptions: ComputedRef<Array<{ label: string; value: string }>>
   batchAssetValue: ComputedRef<string | undefined>
@@ -101,4 +125,6 @@ export interface MenuAssetPermissionEditorContext {
   isProtectedMenu: (menu: MenuPermissionNode) => boolean
   isProtectedButton: (menu: MenuPermissionNode, button: MenuPermissionButton) => boolean
   getSnapshot: () => MenuAssetPermissionSnapshot
+  /** 部署固定范围无需目录复核；依赖可授权目录的入口若无合法范围则不生成载荷。 */
+  getGrantSnapshot: (currentFixedGrantable?: GrantableAssetType[]) => MenuAssetPermissionSnapshot | undefined
 }

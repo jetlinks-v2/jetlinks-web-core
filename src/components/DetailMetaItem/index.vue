@@ -1,27 +1,45 @@
 <template>
-  <span class="detail-meta-item" :class="{ 'detail-meta-item--multiline': multiline }" :data-semantic="kind">
-    <a-tooltip :title="label">
-      <span class="detail-meta-item__icon">
-        <AIcon :type="detailMetaIcons[kind]" aria-hidden="true" />
-        <span class="detail-meta-item__label">{{ label }}</span>
-      </span>
-    </a-tooltip>
-    <a-tooltip :title="tooltip">
-      <span class="detail-meta-item__value"><slot>{{ value }}</slot></span>
-    </a-tooltip>
-  </span>
+  <OptionalTooltip :title="mergedTitle">
+    <span v-bind="$attrs" class="detail-meta-item" :class="{ 'detail-meta-item--multiline': multiline }" :data-semantic="kind">
+      <OptionalTooltip :title="mergedTooltip ? undefined : label">
+        <span class="detail-meta-item__icon">
+          <AIcon :type="detailMetaIcons[kind]" aria-hidden="true" />
+          <span class="detail-meta-item__label">{{ label }}</span>
+        </span>
+      </OptionalTooltip>
+      <OptionalTooltip :title="mergedTooltip ? undefined : tooltip">
+        <span class="detail-meta-item__value"><slot>{{ value }}</slot></span>
+      </OptionalTooltip>
+    </span>
+  </OptionalTooltip>
 </template>
 
 <script setup lang="ts">
+import { computed, h, resolveComponent, type FunctionalComponent } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { detailMetaIcons, type DetailMetaKind } from './semantics'
 
-defineProps<{
+defineOptions({ inheritAttrs: false })
+
+const props = defineProps<{
   kind: DetailMetaKind
   label: string
   value?: string | number
   tooltip?: string
   multiline?: boolean
+  mergedTooltip?: boolean
 }>()
+
+const { t } = useI18n()
+const mergedTitle = computed(() => {
+  if (!props.mergedTooltip) return undefined
+  const value = props.tooltip || (props.value ?? '')
+  return value === '' ? props.label : t('DetailMetaItem.mergedTooltip', { label: props.label, value })
+})
+
+const OptionalTooltip: FunctionalComponent<{ title?: string }> = ({ title }, { slots }) =>
+  title ? h(resolveComponent('a-tooltip'), { title }, slots) : slots.default?.()[0]
+OptionalTooltip.props = ['title']
 </script>
 
 <style scoped>

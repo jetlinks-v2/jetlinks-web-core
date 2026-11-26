@@ -39,6 +39,8 @@
 
 运行时顶栏的中、英、日使用现有 i18n JSON。额外语种在 `locales/translation/languages.ts` 的 `machineLanguages` 中登记 BCP 47 代码，当前包含韩语 `ko` 和繁体中文 `zh-Hant`。切到额外语种时，以当前界面语种为源。例如日文切韩语使用 `ja → ko`，继续切繁体中文使用 `ko → zh-Hant`，输入为上一阶段的韩语译文。接口请求的 `Accept-Language` 和规则编辑器的 `editor-language` 使用用户选择的内置语种。
 
+平台配置了 `front.languages` 时，顶栏按配置顺序提供内置语种，暂停额外语种的翻译路径。配置保存后，`locales/frontLanguage.ts` 同步内置词库和请求语种，页面翻译随当前词库切换。清空配置后可以再次选择额外语种。
+
 `locales/translation/runtime.ts` 按语言对维护准备状态。语言菜单用加粗标识当前语种，其他机翻选项按当前方向显示下载、进度、就绪或重试。点击目标语言名才切换界面。页面刷新后按保存的语种顺序恢复已就绪的翻译阶段。某一步缺包或不支持时显示上一可用语种。浏览器只持久化语种顺序和模型文件，业务文本和译文留在内存中。连续机翻可能累积误差。
 
 `locales/translation/page/usePageTranslation.ts` 增量处理菜单、表头、列表、按钮、提示和弹层中可见的源语言文本。`store/menu.ts` 提供当前内置词库下的已知菜单文案，使日文标题和子菜单能够直接翻译。混合文案可用 `data-translation-source="ja"` 等标记实际语种。表单值、编号、编辑器、iframe、Canvas 和 `translate="no"` / `data-no-translate` 区域保留原内容。
@@ -56,19 +58,21 @@
 - Chrome 138+ 使用 [Translator API](https://developer.chrome.google.cn/docs/ai/translator-api?hl=zh-cn) 管理语言包，按浏览器报告的方向开放翻译。首次准备依赖 Chrome 的语言包下载服务。
 - Firefox 使用 `locales/translation/local/` 的 Web Worker、Transformers.js 和 ONNX Runtime Web 在本地推理。首次准备从站点下载量化模型和 WASM（约 662 MB），存入浏览器 Cache Storage。英语、日语和韩语等方向共用权重，简体到繁体中文直接使用 OpenCC。模型下载后刷新可复用缓存。清除站点数据后可重新下载。
 - Firefox 尚未缓存模型且站点无法提供模型清单时，语言菜单提示站点模型暂不可用。新检出或本地模型目录被清理后，可重新执行准备命令，再打开语言菜单检查下载状态。
-- 在 `runtime-ui` 安装依赖后，执行 `pnpm prepare:translation-model` 初始化 Firefox 模型。该命令调用 `jetlinks-web-core` 的准备脚本，按固定版本下载并校验权重，将资产放入 `jetlinks-web-core/public/local-translation/`。正式部署时再执行 `pnpm build`，静态资产随 Vite 产物部署到同一站点。准备机器可设置 `TRANSLATION_MODEL_ORIGIN` 指向兼容的模型镜像。内网客户通过部署站点获取文件，页面文本只在客户浏览器内处理。浏览器需要 HTTPS 或本机 `localhost` 安全上下文。
+- 在 `runtime-ui` 更新 core 子模块引用时一并更新 `pnpm-lock.yaml`，记录新增的 Transformers.js 和 OpenCC 依赖。安装依赖后，执行 `pnpm -F jetlinks-web-core prepare:translation-model` 初始化 Firefox 模型。准备脚本按固定版本下载并校验权重，将资产放入 `jetlinks-web-core/public/local-translation/`。正式部署时再执行 `pnpm build`，静态资产随 Vite 产物部署到同一站点。准备机器可设置 `TRANSLATION_MODEL_ORIGIN` 指向兼容的模型镜像。内网客户通过部署站点获取文件，页面文本只在客户浏览器内处理。浏览器需要 HTTPS 或本机 `localhost` 安全上下文。
 
 ### 验证
 
-在 `runtime-ui` 执行 `pnpm prepare:translation-model` 已验证能校验已有模型并生成清单。
+模型准备脚本已验证能校验已有模型并生成清单。
 
 在 `runtime-ui/jetlinks-web-core` 执行 `node --test tests/menuLocale.test.mjs tests/pageTranslation.test.mjs`，17 项通过。`pnpm test:page-translation-browser` 使用可控 Chrome API 验证英日自动下载、下载失败后切换和重试、复判正文和标题、仪表盘文本、动态弹层、跳过标记、中文原文展示及额外语种连续切换。测试编译了语言菜单组件与样式，并验证 360px 视口下英日进度与韩语下载按钮对齐。浏览器测试使用 Playwright，可用 `PAGE_TRANSLATION_PLAYWRIGHT_MODULE` 指向已安装的模块。
+
+合并 `2.20` 后，上述翻译用例与 `tests/platformSettings.test.mjs`、`tests/frontLanguage.test.mjs` 共有 66 项通过。后者另有 3 项依赖当前工作区缺少的 `saas-manager-ui`，补齐模块后可重跑。Chrome 回归覆盖保存平台语言后的菜单排序、额外语种暂停和恢复，以及当前语言被移除后即时切换词库并重新补译。Firefox 使用真实模型复测通过。
 
 在独立 Chrome 158 配置中验证 `zh → en` 和 `zh → ja` 的原生模型准备均达到 100%，刷新后可翻译复判正文和悬浮标题。在运行中的资源仪表盘验证英文界面和列表滚入视口后自动翻译。
 
 准备模型后执行 `pnpm test:page-translation-browser --firefox`，在 Firefox 159 验证英日首次翻译自动准备、复判正文和标题、本地模型复用和切回中文。真实模型通过日文 → 韩语 → 繁体中文的切换验证。阻断页面刷新后的模型下载请求仍能恢复译文。
 
-翻译模块定向严格类型检查和差异空白检查通过。全量 `pnpm exec vue-tsc --noEmit --pretty false -p tsconfig.json` 报告 511 条诊断，翻译相关文件无诊断。工作区未配置独立 lint 命令。整站构建受设备模板和系统菜单引用的 `@jetlinks-web-core/components/CorePagination` 缺失阻塞。修复该依赖后在 `runtime-ui` 重跑 `pnpm build` 验证生产产物。
+合并 `2.20` 后在 `runtime-ui` 执行 `pnpm build --outDir <临时目录>` 通过，产物含翻译 Worker 及完整的 7 个模型和运行时文件。全量 `pnpm exec vue-tsc --noEmit --pretty false -p tsconfig.json` 仍报告 511 条诊断，翻译和语言配置逻辑无诊断。工作区无独立 lint 命令，差异空白检查通过。
 
 ## 顶部用户菜单
 

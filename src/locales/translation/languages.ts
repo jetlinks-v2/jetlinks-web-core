@@ -1,10 +1,7 @@
-export const builtInLanguageOptions = [
-  { value: 'zh', label: '中文' },
-  { value: 'en', label: 'English' },
-  { value: 'ja', label: '日本語' },
-] as const
+import { frontLanguageOptions, type FrontLanguage } from '../languageOptions'
 
-export type BuiltInLanguage = typeof builtInLanguageOptions[number]['value']
+export const builtInLanguageOptions = frontLanguageOptions
+export type BuiltInLanguage = FrontLanguage
 
 export const DEFAULT_LANGUAGE: BuiltInLanguage = 'zh'
 

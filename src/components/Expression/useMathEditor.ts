@@ -34,7 +34,8 @@ const availableFunctions=computed(()=>functions.value.map(item=>({...item,disabl
 const enumValues=computed(()=>mathEnumChoices(context.value))
 const sourceTree=(source:string)=>source === modelSource.value && props.modelValue ? props.modelValue : props.source?.parse(source)
 const projection=(source:string)=>{
-  const root=sourceTree(source)?.root
+  // 空白编辑器也要注册候选宏；此根仅生成排版声明，不写入宿主模型。
+  const root=sourceTree(source)?.root ?? (props.empty && !source ? {type:'literal' as const,valueType:'null' as const,value:null} : undefined)
   try {return root ? expressionMath(root,context.value,t,undefined,false) : undefined}catch {return undefined}
 }
 const visualFormula=(source:string)=>props.empty ? '' : projection(source)?.latex

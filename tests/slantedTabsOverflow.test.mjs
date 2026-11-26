@@ -60,10 +60,10 @@ function wheel(api, delta) {
   return event
 }
 
-function fixture(t, { width = 300, options, activeKey = 'a', echo = true } = {}) {
+function fixture(t, { width = 300, options, activeKey = 'a', echo = true, keyboard = true } = {}) {
   observers = { resize: [], mutation: [] }
   const observation = observers
-  const props = vue.reactive({ options: options ?? 'abcdef'.split('').map(key => ({ key, label: key })), activeKey, state: {} })
+  const props = vue.reactive({ options: options ?? 'abcdef'.split('').map(key => ({ key, label: key })), activeKey, state: {}, keyboard })
   const layout = { width, paddingLeft: 0, paddingRight: 0, lineHeight: 20, widths: new Map() }
   const events = []
   const scope = vue.effectScope()
@@ -403,4 +403,38 @@ test('menu arrows wrap among enabled items and Enter/Space activate the focused 
   assert.equal(activated, 1)
   key(' ')
   assert.equal(activated, 2)
+})
+
+test('mouse-only tabs ignore navigation keys without intercepting F12 or changing selection', async t => {
+  const f = fixture(t, { keyboard: false })
+  await settle()
+  const unexpected = () => assert.fail('mouse-only tabs must not handle keyboard events')
+  for (const key of ['F12', 'ArrowRight', 'ArrowLeft', 'Home', 'End', 'Enter', ' ', 'Escape']) {
+    const event = { key, preventDefault: unexpected, stopPropagation: unexpected }
+    f.selection.onKeydown(event, 'a')
+    f.api.onMoreKeydown(event)
+    f.api.onMenuKeydown(event)
+  }
+  assert.equal(f.selection.selectedKey.value, 'a')
+  assert.equal(f.api.moreOpen.value, false)
+  assert.equal(f.document.activeElement, null)
+  assert.deepEqual(f.events, [])
+})
+
+test('mouse-only mode keeps mouse selection and scrolling without returning focus to tabs', async t => {
+  const f = fixture(t, { keyboard: false })
+  await settle()
+  let prevented = false
+  f.selection.onTabMousedown({ preventDefault() { prevented = true } })
+  assert.equal(prevented, true)
+  f.selection.select('b')
+  assert.equal(f.selection.selectedKey.value, 'b')
+  await f.api.selectOverflow('f')
+  await settle()
+  assert.equal(f.selection.selectedKey.value, 'f')
+  assert.equal(f.document.activeElement, null)
+  assert.equal(f.scroll.scrollLeft, 340)
+  wheel(f.api, { deltaY: -100 })
+  await settle()
+  assert.equal(f.scroll.scrollLeft, 240)
 })
