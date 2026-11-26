@@ -40,7 +40,7 @@ import { OpenMicroApp, OWNER_KEY } from '@jetlinks-web-core/utils/consts'
 import { BASE_API } from '@jetlinks-web/constants'
 import { useApplication } from '@jetlinks-web-core/store'
 import {saveAgentList} from "@jetlinks-web-core/api/comm";
-import {agentData} from "../data/aiData";
+import {getAgentPagePointDeclarations} from '@jetlinks-web-core/utils/agent-page-points';
 import { Menu } from '@jetlinks-web-core/assets/init-home'
 import { useI18n } from 'vue-i18n';
 import { collectExpandedKeys, type MenuFilter, type MenuItem } from './utils'
@@ -226,7 +226,7 @@ const initMenu = async (): Promise<boolean> => {
     }
 
     if(hasAgentPermission.value){
-      const resp = await saveAgentList(agentData)
+      const resp = await saveAgentList(getAgentPagePointDeclarations())
       return resp.success
     }
 

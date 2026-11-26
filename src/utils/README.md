@@ -92,3 +92,9 @@
 - 查询编码、请求上下文、项目 Scope、媒体代理和模块注册都带有运行态边界；使用前必须读源码或对应说明，不能只复制函数名。
 - 工具函数应保持纯函数边界；涉及 localStorage、环境变量、请求头、路由或全局注册的能力，要在调用处明确其副作用。
 - 新增公共工具时同步更新本索引，标注根入口/深层路径、输入输出和副作用；复杂工具可在同目录增加单文件 README。
+
+## AI 页面功能点声明
+
+业务模块通过默认导出的 `getAgentPagePoints(): AgentPagePointDeclaration[]` 声明入口，类型位于 `src/types/agent-page-point.ts`。工厂在同步时读取当前语言文案。
+
+`src/utils/agent-page-points.ts` 中的 `getAgentPagePointDeclarations()` 汇总内置入口与已启用模块的声明。同一 `clientId` 由优先级更高的模块覆盖并记录警告。菜单初始化与部署弹窗通过 `saveAgentList` 增量保存目录条目，智能体部署和授权走各自的接口。

@@ -3,6 +3,7 @@ import {request} from '@jetlinks-web/core'
 import {getToken} from "@jetlinks-web/utils";
 import { TOKEN_KEY_URL} from '@jetlinks-web/constants';
 import { getBaseApi } from '@jetlinks-web-core/utils/request-context'
+import type { AgentPagePointDeclaration } from '@jetlinks-web-core/types/agent-page-point'
 
 export const FileStatic = '/file/upload'
 export const FileStaticPath = () => `${getBaseApi()}${FileStatic}`
@@ -46,7 +47,7 @@ export const existsAiAgentSupport = () => request.get<boolean>(`/command-support
 
 // 查询当前部署智能体
 export const queryAgentList = (clientType: string, clientId: string) => request.get(`/ai/agent/deploy/${clientType}/${clientId}`)
-export const saveAgentList = (data: any) => request.post(`/ai/agent/deploy/client/pagePoint/_save`, data)
+export const saveAgentList = (data: AgentPagePointDeclaration[]) => request.post(`/ai/agent/deploy/client/pagePoint/_save`, data)
 export const getAgentDetailById = (agentId: string) => request.get(`/ai/agent/deploy/${agentId}/_detail`)
 export interface AgentSessionSubjectQuery {
   subjectType?: string;
