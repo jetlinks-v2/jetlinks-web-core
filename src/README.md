@@ -43,15 +43,28 @@
 
 `locales/translation/runtime.ts` 按语言对维护准备状态。语言菜单用加粗标识当前语种，其他机翻选项按当前方向显示下载、进度、就绪或重试。点击目标语言名才切换界面。页面刷新后按保存的语种顺序恢复已就绪的翻译阶段。某一步缺包或不支持时显示上一可用语种。浏览器只持久化语种顺序和模型文件，业务文本和译文留在内存中。连续机翻可能累积误差。
 
-`locales/translation/page/usePageTranslation.ts` 增量处理菜单、表头、列表、按钮、提示和弹层中可见的源语言文本。`store/menu.ts` 提供当前内置词库下的已知菜单文案，使日文标题和子菜单能够直接翻译。混合文案可用 `data-translation-source="ja"` 等标记实际语种。表单值、编号、编辑器、iframe、Canvas 和 `translate="no"` / `data-no-translate` 区域保留原内容。平台设置预览和布局中的品牌标题，以及用户菜单与个人中心的名称或头像文字，使用 `data-no-translate` 保留原文。
+`locales/translation/page/usePageTranslation.ts` 增量处理标记区域内菜单、表头、列表、按钮、提示和弹层的可见源语言文本。`store/menu.ts` 提供当前内置词库下的已知菜单文案，使日文标题和子菜单能够直接翻译。混合文案可用 `data-translation-source="ja"` 等标记实际语种。表单值、编号、编辑器、iframe、Canvas 和 `translate="no"` / `data-no-translate` 区域保留原内容。平台设置预览和布局中的品牌标题，以及用户菜单与个人中心的名称或头像文字，使用 `data-no-translate` 保留原文。
 
-### 英语和日语整页翻译
+### 英语和日语页面翻译
 
-英语和日语使用各自的 i18n 词库，并通过 `locales/translation/page/usePageTranslation.ts` 和额外语种共用整页扫描范围。菜单、表格、卡片、弹窗中的可见正文和 `title` 等展示属性都参与翻译。已是目标语种的文字直接显示。元素及其 DOM 后代可用 `data-no-translate` 保留原文。选择默认中文时直接使用中文词库和接口原文，页面翻译在中文模式下停用。
+英语和日语使用各自的 i18n 词库，并通过 `locales/translation/page/usePageTranslation.ts` 和额外语种共用标记规则。已是目标语种的文字直接显示。选择默认中文时直接使用中文词库和接口原文，页面翻译在中文模式下停用。
 
 - `locales/translation/page/source.ts` 优先使用 `data-translation-source`、词库和字形识别原文。未标记的汉字文案以系统默认中文作为回退，已识别的日文、英文等内容使用实际源语种。
 - Chrome 由 `layout/hooks/useRuntimeLanguageMenu.ts` 复用选择英语或日语的点击，优先准备当前页面所需的语言对。每次有效点击可启动一个缺失语言对的下载，准备结束后刷新切换。其他缺失语言对复用后续正常点击准备。Firefox 在英语或日语界面首次需要翻译时，从站点准备共享模型。菜单把下载进度和状态显示在对应语言右侧，与额外语种的下载按钮对齐。
 - 下载失败时使用目标语种词库和接口原文。模型就绪后，当前及后续进入视口的正文和提示会翻译到所选语种。选回中文时恢复中文词库和页面原文。
+
+### 指定区域翻译
+
+`runtime-ui` 的页面机翻仅处理带 `data-translate` 的元素及其 DOM 后代。`locales/translation/page/dom.ts` 识别标记和排除规则，`locales/translation/page/controller.ts` 处理可见正文、`title`、`placeholder` 和 `aria-label`。移除标记会恢复译前显示的内容。挂载到其他位置的弹层通过自己的 DOM 容器标记。
+
+按需给业务元素添加 `data-translate`。`data-no-translate` 能保留已标记容器中的个别字段。
+
+```html
+<section data-translate>
+  <p title="复判结果">复判结果</p>
+  <span data-no-translate>网关 A-1</span>
+</section>
+```
 
 ### 模型部署
 
@@ -65,6 +78,8 @@
 模型准备脚本已验证能校验已有模型并生成清单。
 
 在 `runtime-ui/jetlinks-web-core` 执行 `node --test tests/menuLocale.test.mjs tests/pageTranslation.test.mjs` 验证翻译逻辑及旧语种偏好回退。`pnpm test:page-translation-browser` 使用可控 Chrome API 验证英日自动下载、下载失败后切换和重试、复判正文和标题、仪表盘文本、动态弹层、跳过标记及中文原文展示。连续翻译与额外语种菜单用例在测试构建中启用韩语和繁体中文。浏览器测试使用 Playwright，可用 `PAGE_TRANSLATION_PLAYWRIGHT_MODULE` 指向已安装的模块。
+
+指定区域规则的 Chrome 回归覆盖未标记文字和标题保留原文、标记增删时翻译与还原，以及嵌套排除的优先级。
 
 合并 `2.20` 后，上述翻译用例与 `tests/platformSettings.test.mjs`、`tests/frontLanguage.test.mjs` 共有 66 项通过。后者另有 3 项依赖当前工作区缺少的 `saas-manager-ui`，补齐模块后可重跑。Chrome 回归覆盖保存平台语言后的菜单排序、额外语种暂停和恢复，以及当前语言被移除后即时切换词库并重新补译。Firefox 使用真实模型复测通过。
 
