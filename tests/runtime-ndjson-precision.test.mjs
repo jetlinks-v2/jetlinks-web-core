@@ -1,17 +1,28 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
+import {dirname,resolve} from 'node:path'
 import {createRequire} from 'node:module'
 import {transformSync} from 'esbuild'
 import {lastValueFrom,firstValueFrom,toArray} from 'rxjs'
 import {parse,isSafeNumber} from 'lossless-json'
-const require=createRequire(import.meta.url),module={exports:{}}
-new Function('require','module','exports',transformSync(readFileSync(new URL('../src/utils/ndjson-precision.ts',import.meta.url),'utf8'),{loader:'ts',format:'cjs'}).code)(id=>{
-  if(id === './request-context')return {getRequestBaseApi:()=>'/api',getRequestHeaders:()=>({'X-Access-Token':'mock','X-Project-Id':'project'})}
-  if(id === './consts')return {langKey:'Accept-Language'}
-  if(id === './json')return {parseJsonWithPrecision:text=>parse(text,undefined,value=>isSafeNumber(value)?Number(value):value)}
-  return require(id)
-},module,module.exports)
+const require=createRequire(import.meta.url)
+const sharedCoreRoot=process.env.JETLINKS_SHARED_CORE_ROOT || dirname(require.resolve('@jetlinks-web/core/package.json'))
+function load(file) {
+  const module={exports:{}}
+  new Function('require','module','exports',transformSync(readFileSync(file,'utf8'),{loader:'ts',format:'cjs'}).code)(id=>{
+    if(id==='./request-context')return {getRequestBaseApi:()=>'/api',getRequestHeaders:()=>({'X-Access-Token':'mock','X-Project-Id':'project'})}
+    if(id==='./json')return {parseJsonWithPrecision:text=>parse(text,undefined,value=>isSafeNumber(value)?Number(value):value)}
+    if(id==='./consts')return {langKey:'Accept-Language'}
+    if(id==='./ndjson')return load(new URL('../src/utils/ndjson.ts',import.meta.url))
+    if(id==='@jetlinks-web/core')return load(resolve(sharedCoreRoot,'src/fetch.ts'))
+    if(id==='@jetlinks-web/constants')return {TOKEN_KEY:'token',BASE_API:'/api',LOCAL_BASE_API:'base'}
+    if(id==='@jetlinks-web/utils')return {getToken:()=>'',randomString:()=> 'test'}
+    return require(id)
+  },module,module.exports)
+  return module.exports
+}
+const module={exports:load(new URL('../src/utils/ndjson-precision.ts',import.meta.url))}
 function setup(t,fetcher){const oldFetch=globalThis.fetch,oldStorage=globalThis.localStorage;globalThis.fetch=fetcher;globalThis.localStorage={getItem:()=> 'zh'};t.after(()=>{globalThis.fetch=oldFetch;globalThis.localStorage=oldStorage})}
 const encoder=new TextEncoder(),headers={'Content-Type':'application/x-ndjson'}
 
@@ -21,7 +32,9 @@ test('stream preserves precision, split UTF8, CRLF and a final line without newl
   setup(t,async(url,options)=>{request={url,options};return new Response(new ReadableStream({start(c){c.enqueue(bytes.slice(0,14));c.enqueue(bytes.slice(14,23));c.enqueue(bytes.slice(23));c.close()}}),{headers})})
   const rows=await lastValueFrom(module.exports.postRuntimeNdJson('/points/_read',['p']).pipe(toArray()))
   assert.equal(rows[0].pointId,'温度');assert.equal(rows[0].parsedData,'9007199254740993');assert.equal(rows[1].parsedData,'0.123456789012345678901')
-  assert.equal(request.url,'/api/points/_read');assert.equal(request.options.headers.get('X-Project-Id'),'project');assert.equal(request.options.headers.get('Accept-Language'),'zh')
+  const sentHeaders=new Headers(request.options.headers)
+  assert.equal(request.url,'/api/points/_read');assert.equal(sentHeaders.get('X-Project-Id'),'project');assert.equal(sentHeaders.get('Accept-Language'),'zh')
+  assert.equal(sentHeaders.get('Content-Type'),'application/json');assert.deepEqual(JSON.parse(request.options.body),['p'])
 })
 
 test('cancellation aborts fetch and cancels the reader after the first result',async t=>{
