@@ -1,7 +1,7 @@
 <template>
   <ConfigProvider
-    :locale="language[systemStore.language]"
-    :componentsLocale="componentsLocale[systemStore.language]"
+    :locale="language[componentLanguage]"
+    :componentsLocale="componentsLocale[componentLanguage]"
     :IconConfig="iconConfig"
     :TableConfig="runtimeTableConfig"
     :theme="themeConfig"
@@ -26,7 +26,7 @@ import componentsZhCN from '@jetlinks-web/components/es/locale/zh-CN'
 import componentsEnUS from '@jetlinks-web/components/es/locale/en-US'
 import componentsJa from './locales/componentsJa'
 import theme from '@theme-config'
-import { useAuthStore, useSystemStore } from '@jetlinks-web-core/store';
+import { useAuthStore, useMenuStore, useSystemStore } from '@jetlinks-web-core/store';
 import { ComponentsEnum, LOCAL_BASE_API } from '@jetlinks-web/constants'
 import { clearVerifyCache, initPackages } from '@jetlinks-web-core/package'
 import { changingSessionDocument } from '@jetlinks-web-core/router'
@@ -51,12 +51,21 @@ import {
 } from '@jetlinks-web-core/utils/theme-style'
 import { useResponsiveAntdToken } from '@jetlinks-web-core/hooks'
 import CloudEmpty from '@jetlinks-web-core/components/CloudEmpty/index.vue'
+import { builtInLanguage, DEFAULT_LANGUAGE } from './locales/translation/languages'
+import { usePageTranslation } from './locales/translation/page/usePageTranslation'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
-
+const { locale, t } = useI18n()
+const menuStore = useMenuStore()
 const systemStore = useSystemStore()
+usePageTranslation(
+  () => route.matched.length > 0 && route.name !== 'Login',
+  () => !systemStore.hasFrontLanguagePolicy,
+  menuStore.isMenuSourceText,
+)
+
+const componentLanguage = computed(() => builtInLanguage(locale.value) ?? DEFAULT_LANGUAGE)
 
 type RouteSkeletonVariant = 'content' | 'layout'
 type AppPackageConfig = {

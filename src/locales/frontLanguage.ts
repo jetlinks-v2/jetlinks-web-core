@@ -12,6 +12,7 @@ export const createFrontLanguageState = (supportsPolicy: () => boolean) => {
   const cached = storage.getItem(langKey)
   const language = ref<FrontLanguage>(isFrontLanguage(cached) ? cached : 'zh')
   const configured = ref<FrontLanguage[]>()
+  const hasFrontLanguagePolicy = computed(() => !!configured.value?.length)
   const available = computed(() => configured.value?.length ? configured.value : defaultFrontLanguages)
   const languageOptions = computed(() => available.value.map(value => ({ value, label: frontLanguageLabels[value] })))
   const languageLabel = computed(() => frontLanguageLabels[language.value])
@@ -69,10 +70,10 @@ export const createFrontLanguageState = (supportsPolicy: () => boolean) => {
     if (supportsPolicy() && storage.getItem(preferenceKey) !== null) {
       storage.setItem(preferenceKey, value)
     }
-    if (value === language.value) return
+    if (value === language.value && value === i18n.global.locale.value) return
     syncLanguage(value)
     window.location.reload()
   }
 
-  return { language, languageOptions, languageLabel, applyFrontLanguages, selectLanguage }
+  return { language, languageOptions, languageLabel, hasFrontLanguagePolicy, applyFrontLanguages, selectLanguage }
 }

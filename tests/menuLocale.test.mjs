@@ -9,7 +9,7 @@ const source = readFileSync(new URL('../src/utils/menuLocale.ts', import.meta.ur
 const compiled = transformSync(source, { loader: 'ts', format: 'cjs' }).code
 const module = { exports: {} }
 new Function('module', 'exports', compiled)(module, module.exports)
-const { createMenuLocaleResolver } = module.exports
+const { createMenuLocaleResolver, retainMenuSourceLabels, getMenuSourceTexts } = module.exports
 const menu = {
   code: 'device/Product', name: '产品列表', describe: '管理产品',
   i18nMessages: { name: { ja: '製品一覧' }, describe: { ja: '製品を管理' } },
@@ -47,4 +47,36 @@ test('Chinese and English retain server localization and the original fallback',
 test('conflicting default definitions do not select an arbitrary translation', () => {
   const resolve = createMenuLocaleResolver([[menu], [{ ...menu, i18nMessages: { name: { ja: '異なる名前' } } }]], () => 'ja_JP')
   assert.equal(resolve({ code: menu.code, name: menu.name }), menu.name)
+})
+
+test('a Japanese menu tree supplies its visible Japanese labels for machine translation', () => {
+  const resolve = createMenuLocaleResolver([[menu]], () => 'ja')
+  const parent = { code: 'link', name: '运维中心', i18nName: '運用保守センター' }
+  const child = {
+    ...menu,
+    i18nName: '製品一覧',
+    i18nDescribe: '製品を管理',
+    i18nMessages: { name: { zh_CN: '产品目录' }, describe: { 'zh-CN': '管理产品资料' } },
+  }
+  const native = [{
+    name: 'link', path: '/infrastructure',
+    meta: retainMenuSourceLabels({ title: resolve(parent), id: '1' }, parent),
+    children: [{
+      name: child.code, path: '/products',
+      meta: retainMenuSourceLabels({ title: resolve(child), desc: resolve(child, 'describe'), disabled: true }, child),
+    }],
+  }]
+  assert.deepEqual([...getMenuSourceTexts(native, 'ja')], ['運用保守センター', '製品一覧', '製品を管理'])
+  assert.equal(getMenuSourceTexts(native, 'zh').size, 0)
+  assert.equal(native[0].children[0].meta.disabled, true)
+  assert.equal(native[0].children[0].name, child.code)
+  assert.equal(native[0].children[0].path, '/products')
+  assert.equal(native[0].meta.title, '運用保守センター')
+  assert.equal(native[0].children[0].meta.title, '製品一覧')
+})
+
+test('untranslated menu labels are only known sources for the Chinese interface', () => {
+  const menu = { path: '/custom', meta: retainMenuSourceLabels({ title: '接入组件' }, { name: '接入组件' }) }
+  assert.equal(getMenuSourceTexts([menu], 'ja').size, 0)
+  assert.deepEqual([...getMenuSourceTexts([menu], 'zh')], ['接入组件'])
 })
