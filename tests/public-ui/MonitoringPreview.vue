@@ -22,17 +22,12 @@
         <template #end>
           <SplitterPane class="device-pane" :padding="0" :scroll="false" aria-label="监测点列表">
             <template #header>
+              <div class="list-heading">
               <div class="heading-identity">
                 <PanelCollapseButton v-if="panel?.collapsed" :collapsed="true" :aria-controls="panel?.startId" label="展开监测分组" @toggle="panel?.toggle()" />
                 <h2><j-ellipsis>{{ groupName }}</j-ellipsis></h2>
               </div>
-              <a-segmented v-model:value="view" aria-label="展示方式" :options="[{ label: '列表', value: 'list' }, { label: '卡片', value: 'cards' }]" />
-            </template>
-            <template #toolbar>
-              <ConditionFilter v-model="terms" :fields="fields" placeholder="筛选点位、所在设备或状态" @change="list.applyTerms($event.terms)" />
-            </template>
-            <div class="list-toolbar">
-              <a-button v-if="countError" type="link" size="small" @click="list.loadCount">数量重试</a-button>
+              <a-button v-if="countError" class="point-distribution" type="link" size="small" @click="list.loadCount">数量重试</a-button>
               <div v-else class="point-distribution" role="group" aria-label="按分组与其余搜索条件统计，点击筛选状态">
                 <a-tooltip v-for="item in countItems" :key="item.key" title="按当前分组及其余搜索条件统计，不含这里选择的状态">
                   <a-button type="text" class="distribution-item" :class="{ 'is-selected': activeDistribution === item.key }" :aria-pressed="activeDistribution === item.key" :aria-label="item.label + '，' + (countLoading ? '数量加载中' : counts ? counts[item.key] + '个点位' : '数量未获取')" @click="list.chooseDistribution(item.key)">
@@ -42,10 +37,15 @@
                   </a-button>
                 </a-tooltip>
               </div>
-            </div>
+              <a-segmented class="view-switch" v-model:value="view" aria-label="展示方式" :options="[{ label: '列表', value: 'list' }, { label: '卡片', value: 'cards' }]" />
+              </div>
+            </template>
+            <template #toolbar>
+              <ConditionFilter v-model="terms" :fields="fields" placeholder="筛选点位、所在设备或状态" @change="list.applyTerms($event.terms)" />
+            </template>
             <div ref="content" class="device-scroll" :class="{ 'device-scroll--cards': view === 'cards' }" tabindex="0" aria-label="监测内容区" @scroll.passive="loadNearEnd">
-              <a-config-provider v-if="view === 'list'" :theme="{ components: { Table: { borderRadiusLG: 0, paddingXS: 16 } } }">
-              <a-table row-key="id" :columns="columns" :data-source="rows" :pagination="false" size="middle" :scroll="{ x: 810 }">
+              <a-config-provider v-if="view === 'list'" :theme="{ components: { Table: { borderRadiusLG: 0, paddingXS: 16, colorBorderSecondary: 'var(--line)' } } }">
+              <a-table row-key="id" :columns="columns" :data-source="rows" :pagination="false" size="middle" :scroll="{ x: 810 }" :sticky="{ getContainer: getTableScrollContainer }">
                 <template #bodyCell="{ column, record: point }">
                 <template v-if="column.dataIndex === 'name'"><div class="row-identity"><AIcon :type="point.icon" /><div><a-button type="link" class="point-name" @click="selected = rows.find(item => item.id === point.id)">{{ point.name }}</a-button><span>{{ point.model }}</span></div></div></template>
                 <template v-else-if="column.dataIndex === 'value'"><span v-if="details[point.id]" class="row-value" :class="{ 'is-attention': attention(point.status) }">{{ valueText(details[point.id]) }} <small>{{ details[point.id].unit }}</small></span><a-skeleton-input v-else active size="small" :style="{ width: '72px', minWidth: '72px' }" /></template>
@@ -105,6 +105,7 @@ import PointTrend from './monitoring/PointTrend.vue'
 const list = useDeviceList()
 const { group, terms, groupName, rows, details, counts, countLoading, countError, groupCounts, groupCountLoading, groupCountError, loading, pendingSlots, ended, error, revision, activeDistribution } = list
 const panel = ref<InstanceType<typeof ResponsiveSplitter>>(), content = ref<HTMLElement>(), selected = ref<Device>()
+const getTableScrollContainer = () => content.value ?? document.body
 const view = ref('list')
 const groupSearch = ref('')
 const filteredGroups = computed(() => groups.filter(item => item.name.includes(groupSearch.value.trim())))
@@ -128,7 +129,7 @@ const columns = [
   { title: '状态', dataIndex: 'state', width: 100 },
   { title: '参考范围', dataIndex: 'range', width: 180 },
   { title: '近 30 分钟', dataIndex: 'trend', width: 160 },
-]
+].map(column => ({ ...column, customHeaderCell: () => ({ style: { borderTop: '1px solid var(--line)' } }) }))
 function loadNearEnd() {
   const element = content.value
   if (element && element.scrollHeight - element.scrollTop - element.clientHeight < 160) void list.loadMore()
@@ -140,6 +141,15 @@ watch(revision, async () => { selected.value = undefined; await nextTick(); cont
 .monitoring-example { display:flex; flex:1; height:100%; min-width:0; min-height:0; }
 .workspace-body { flex:1; min-height:0; }
 .group-pane,.device-pane { display:flex; flex-direction:column; height:100%; min-width:0; min-height:0; }
+.device-pane { container:monitoring-pane / inline-size; }
+.list-heading { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:var(--space-2); width:100%; min-width:0; }
+.list-heading .point-distribution { grid-column:1 / -1; grid-row:2; }
+.view-switch { grid-column:2; grid-row:1; }
+@container monitoring-pane (min-width:720px) {
+  .list-heading { grid-template-columns:minmax(0,1fr) auto auto; }
+  .list-heading .point-distribution { grid-column:2; grid-row:1; }
+  .view-switch { grid-column:3; }
+}
 .group-pane h2,.device-pane h2 { flex:1; min-width:0; margin:0; font-size:var(--fs-16); font-weight:600; }
 .heading-identity { display:flex; flex:1; align-items:center; gap:var(--space-2); min-width:0; }
 .heading-identity h2 { flex:1; }
@@ -151,14 +161,13 @@ watch(revision, async () => { selected.value = undefined; await nextTick(); cont
 .group-count-loading { flex:none; width:24px; }
 .group-count-loading :deep(.ant-skeleton-input) { width:24px; min-width:24px; }
 .group-footnote { display:flex; flex:none; align-items:center; gap:var(--space-2); padding:var(--space-4); color:var(--ink-2); font-size:var(--fs-12); }
-.list-toolbar { display:flex; flex:none; flex-wrap:wrap; align-items:flex-start; gap:var(--space-2); width:100%; min-width:0; padding:var(--space-3) var(--space-4); }
 .point-distribution { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-1); max-width:100%; }
 .distribution-item.ant-btn { display:inline-flex; flex:none; align-items:center; justify-content:center; gap:var(--space-2); padding-inline:var(--space-2); font-size:var(--fs-12); }
 .distribution-item.is-selected { background:var(--accent-soft); color:var(--accent); }
 .distribution-item :deep(.ant-badge-count) { font-variant-numeric:tabular-nums; }
 .distribution-item :deep(.ant-skeleton-input) { width:24px; min-width:24px; max-width:100%; }
 .device-scroll { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; }
-.device-scroll--cards { padding:0 var(--space-4) var(--space-4); }
+.device-scroll--cards { padding:var(--space-4); }
 .device-scroll:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
 .device-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr)); gap:var(--space-4); }
 .point-card { display:flex; flex-direction:column; min-width:0; min-height:248px; border:1px solid var(--line); border-radius:var(--r-2); background:var(--surface); }
