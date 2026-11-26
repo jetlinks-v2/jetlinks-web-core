@@ -88,8 +88,9 @@ const limits = computed(() => {
   const min = Math.min(props.min, available)
   return { min, max: Math.max(min, Math.min(props.max, available)), contentMin: props.endMin, initial: initialSize.value }
 })
-const handleSize = computed(() => currentSize.value ?? Math.max(limits.value.min,
-  Math.min(limits.value.max, initialSize.value ?? measuredSize.value)))
+// Temporary layout constraints change the visible size, not the remembered user preference.
+const handleSize = computed(() => Math.max(limits.value.min,
+  Math.min(limits.value.max, currentSize.value ?? initialSize.value ?? measuredSize.value)))
 const handleLimits = computed(() => isCollapsed.value ? { ...limits.value, min: 0 } : limits.value)
 const tracks = computed<CSSProperties>(() => {
   const value = currentSize.value ?? props.defaultSize

@@ -814,6 +814,21 @@ test('Splitter retains local size, content instances and drafts across collapse 
   } finally { state.app.unmount() }
 })
 
+test('temporary container constraints preserve the confirmed Splitter size and content', async t => {
+  const state = mountSplitter({ min: 160, max: 480, endMin: 360 })
+  t.after(() => state.app.unmount())
+  const field = state.field('start'), handle = state.separator()
+  handle.props.onPointerdown(state.pointer(240)); handle.props.onPointermove(state.pointer(320)); handle.props.onPointerup(state.pointer(320)); await flush()
+  assert.equal(state.separator().props['aria-valuenow'], 320)
+  state.containerWidth.value = 600; await flush()
+  assert.equal(state.separator().props['aria-valuenow'], 240)
+  assert.deepEqual(state.requests, [320], 'automatic clamping is not a new user preference')
+  state.containerWidth.value = 1000; await flush()
+  assert.equal(state.separator().props['aria-valuenow'], 320)
+  assert.equal(state.field('start'), field)
+  assert.deepEqual(state.requests, [320])
+})
+
 test('vertical Splitter uses pointer Y and up/down keys, and yields its minimum when the host cannot fit both panes', async () => {
   const state = mountSplitter({ orientation: 'vertical', min: 100, max: 400, endMin: 180 })
   try {
