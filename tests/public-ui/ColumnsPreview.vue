@@ -1,7 +1,7 @@
 <template>
   <section class="columns-example" aria-label="带头部分栏示例">
     <h2>资料分类</h2>
-    <EqualHeightColumns class="columns-example__workspace" left-width="160px" gap="var(--space-3)" resizable :resize-limits="{ min: 160, max: 280, contentMin: 200 }">
+    <EqualHeightColumns class="columns-example__workspace" left-width="160px" resizable :resize-limits="{ min: 160, max: 280, contentMin: 200 }">
       <template #left-header>
         <a-input v-model:value="search" aria-label="搜索资料分类" placeholder="搜索分类" allow-clear>
           <template #prefix><AIcon type="SearchOutlined" /></template>

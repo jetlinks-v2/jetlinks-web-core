@@ -7,7 +7,7 @@
 | 参数 | 说明 | 默认值 |
 | --- | --- | --- |
 | `height` | 容器高度，`number \| string` | `100%` |
-| `gap` | 列间距，`number \| string` | `var(--space-8)` |
+| `gap` | 列间布局留缝，`number \| string`；默认连续接缝，拖动命中区独立保留 | `0` |
 | `leftWidth` / `rightWidth` | CSS Grid 轨道宽度 | `15rem` / `1fr` |
 | `align` | 纵向 `align-items` | `stretch` |
 | `collapsible` | 允许折叠；设为 `false` 时展开内容并移除入口，不覆盖保存的折叠状态 | `true` |

@@ -667,7 +667,7 @@ test('reopening follows pointer Y and a matching final extent does not wait for 
 })
 
 test('the gutter has its own budget and yields space to the end pane in a tight container', async t => {
-  const state = mountSplitter({ min: 160, endMin: 240 }); t.after(() => state.app.unmount())
+  const state = mountSplitter({ min: 160, endMin: 240, gutter: 12 }); t.after(() => state.app.unmount())
   state.containerWidth.value = 390; await flush()
   state.press('End'); await flush()
   assert.equal(state.separator().props['aria-valuenow'], 138)
@@ -678,6 +678,23 @@ test('the gutter has its own budget and yields space to the end pane in a tight 
   state.containerWidth.value = 200; await flush()
   assert.equal(state.separator(), undefined)
   assert.match(state.root.children[0].props.style.gridTemplateColumns, /\) 0px minmax/)
+})
+
+test('the default layout keeps the seam joined and the keyboard recovery handle through collapse', async t => {
+  const state = mountSplitter({ size: 240, min: 160, endMin: 240, collapseOnDrag: true })
+  t.after(() => state.app.unmount()); await flush()
+  const field = state.field('start')
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /\) 0px minmax/)
+  assert.equal(state.root.children[0].props['data-flush'], true)
+  state.press('ArrowRight'); await flush()
+  assert.equal(state.requests.at(-1), 256)
+  state.field('toggle').props.onClick(); await flush()
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /minmax\(0, 0px\) 0px minmax/)
+  assert.ok(state.separator())
+  state.press('Enter'); await flush()
+  assert.equal(state.collapses.at(-1), false)
+  assert.equal(state.field('start'), field)
+  assert.equal(state.mounts(), 1)
 })
 
 test('reopen settling restores focus lost to inert but does not steal a subsequent focus change', async t => {
@@ -749,7 +766,7 @@ test('vertical Splitter uses pointer Y and up/down keys, and yields its minimum 
     state.press('ArrowUp'); await flush(); assert.equal(state.separator().props['aria-valuenow'], 240)
     assert.match(state.root.children[0].props.style.gridTemplateRows, /240px/)
     state.containerHeight.value = 220; await flush()
-    assert.equal(state.separator().props['aria-valuenow'], 28); assert.equal(state.separator().props['aria-valuemin'], 28)
+    assert.equal(state.separator().props['aria-valuenow'], 40); assert.equal(state.separator().props['aria-valuemin'], 40)
     state.separator().focus(); state.props.resizable = false; await flush()
     assert.equal(state.separator(), undefined); assert.equal(state.document.activeElement, state.field('end').parent)
   } finally { state.app.unmount() }

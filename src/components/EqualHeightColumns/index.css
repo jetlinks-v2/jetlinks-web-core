@@ -18,7 +18,7 @@
   justify-self: center;
   align-self: stretch;
   width: var(--jet-theme-stroke-width, 1px);
-  background: var(--line-strong);
+  background: var(--line);
   pointer-events: none;
 }
 
