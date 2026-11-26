@@ -81,6 +81,18 @@ function mountColumns(mode = 'default', extra = {}, accept = true) {
   }
 }
 
+test('legacy columns keep their layout spacing unless the host explicitly requests a joined seam', async t => {
+  const state = mountColumns(); t.after(() => state.app.unmount()); await flush()
+  const gap = () => state.root.children[0].props.style['--equal-height-columns-gap']
+  assert.equal(gap(), 'var(--space-8)')
+  state.props.gap = 0; await flush()
+  assert.equal(gap(), '0px')
+  state.buttons()[0].props.onClick(); await flush()
+  assert.equal(gap(), '0px')
+  state.buttons()[0].props.onClick(); await flush()
+  assert.equal(gap(), '0px')
+})
+
 test('panel collapse button only requests changes and follows host state, names and control relation', async () => {
   const CollapseButton = createDashboardLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key }) } })('components/PanelCollapseButton/index.vue').default
   const state = createTestRenderer(), props = reactive({ collapsed: false, orientation: 'horizontal', 'aria-controls': 'navigation', label: undefined })
