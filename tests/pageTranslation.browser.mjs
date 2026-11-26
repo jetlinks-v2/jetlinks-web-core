@@ -11,7 +11,7 @@ import { compileScript, compileStyleAsync, parse } from 'vue/compiler-sfc'
 const { chromium, firefox } = await import(process.env.PAGE_TRANSLATION_PLAYWRIGHT_MODULE || 'playwright')
 const native = process.argv.includes('--native')
 const local = process.argv.includes('--firefox')
-const initialLocale = native ? 'en' : local ? 'ja' : 'zh'
+const initialLocale = native ? 'en' : 'zh'
 const chrome = process.env.PAGE_TRANSLATION_CHROME || [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium',
 ].find(existsSync)
@@ -59,13 +59,14 @@ const workerCode = local && (process.env.PAGE_TRANSLATION_WORKER_PATH
   })).outputFiles[0].contents)
 const modelRequests = []
 const assetsRoot = join(root, 'public/local-translation')
+let serveLocalPack = false
 const server = createServer(async (request, response) => {
   if (local && request.url === '/translator.worker.ts') {
     response.setHeader('Content-Type', 'text/javascript')
     response.end(workerCode)
     return
   }
-  if (local && request.url?.startsWith('/local-translation/')) {
+  if (local && serveLocalPack && request.url?.startsWith('/local-translation/')) {
     const asset = resolve(assetsRoot, request.url.slice('/local-translation/'.length))
     const info = asset.startsWith(`${assetsRoot}/`) && await stat(asset).catch(() => undefined)
     if (!info?.isFile()) { response.writeHead(404).end(); return }
@@ -134,24 +135,29 @@ try {
       return
     }
     window.translationCalls = { inspections: [], creates: [], translates: [] }
+    let usedActivation = false
+    document.addEventListener('click', () => { usedActivation = false }, true)
     const key = ({ sourceLanguage, targetLanguage }) => `fixture:${sourceLanguage}:${targetLanguage}`
     const api = {
       async availability(pair) {
         window.translationCalls.inspections.push(pair)
+        if (sessionStorage.getItem('fixture:unsupported')) return 'unavailable'
         return sessionStorage.getItem(key(pair)) ? 'available' : 'downloadable'
       },
       async create(options) {
         const { monitor, sourceLanguage, targetLanguage } = options
         const pair = key(options)
         window.translationCalls.creates.push({ sourceLanguage, targetLanguage, explicit: !!monitor, gesture: navigator.userActivation.isActive })
+        if (sessionStorage.getItem('fixture:unsupported')) throw new DOMException('test unsupported pair', 'NotSupportedError')
         if (!sessionStorage.getItem(pair)) {
-          if (!monitor || !navigator.userActivation.isActive) throw new DOMException('user gesture required', 'NotAllowedError')
+          if (!monitor || !navigator.userActivation.isActive || usedActivation) throw new DOMException('user gesture required', 'NotAllowedError')
+          usedActivation = true
           const events = new EventTarget()
           monitor(events)
           events.dispatchEvent(new ProgressEvent('downloadprogress', { loaded: 37, total: 100 }))
           await new Promise(resolve => setTimeout(resolve, 500))
-          if (sessionStorage.getItem('fixture:fail')) {
-            sessionStorage.removeItem('fixture:fail')
+          if (sessionStorage.getItem(`${pair}:fail`)) {
+            sessionStorage.removeItem(`${pair}:fail`)
             throw new DOMException('test download failure', 'NetworkError')
           }
           sessionStorage.setItem(pair, '1')
@@ -161,13 +167,15 @@ try {
           async translate(text) {
             window.translationCalls.translates.push({ sourceLanguage, targetLanguage, text })
             await new Promise(resolve => setTimeout(resolve, text === '旧设备文本' ? 600 : 15))
-            return targetLanguage === 'ko' ? `번역: ${text}` : `譯: ${text}`
+            if (targetLanguage === 'ko') return `번역: ${text}`
+            if (targetLanguage === 'zh-Hant') return `譯: ${text}`
+            return `${sourceLanguage} → ${targetLanguage}: ${text}`
           },
           destroy() {},
         }
       },
     }
-    Object.defineProperty(window, 'Translator', { value: sessionStorage.getItem('fixture:unsupported') ? undefined : api })
+    Object.defineProperty(window, 'Translator', { value: api })
   }, { useNative: native, useLocal: local, initialLocale })
 
   await page.goto(url)
@@ -178,6 +186,8 @@ try {
   const traditionalDownload = page.locator('.language-switch__row').filter({ has: traditional }).locator('.language-switch__model-button')
   const download = koreanRow.locator('.language-switch__model-button')
   const heading = page.locator('#heading')
+  const review = page.locator('#review')
+  const reviewText = '复判目标：车辆违停检测。图片中未见任何车辆。'
   const open = async () => {
     if (await menu.getAttribute('aria-expanded') !== 'true') await menu.click()
     await korean.waitFor()
@@ -195,6 +205,10 @@ try {
     }
   }
   const waitModel = (text, timeout) => koreanRow.getByRole('button', { name: text }).waitFor({ timeout })
+  const waitReview = async text => {
+    await waitText('#review', text)
+    await page.waitForFunction(value => document.querySelector('#review')?.title === value, text)
+  }
   const waitPagerLabel = title => page.waitForFunction(
     expected => document.querySelector('#pagination .ant-pagination-next')?.getAttribute('title') === expected, title,
   )
@@ -208,34 +222,73 @@ try {
   await open()
   assert.deepEqual(await page.evaluate(() => window.fixtureLocales()), ['en', 'ja', 'zh'])
   const currentOption = page.locator('.language-switch__option[aria-current="true"]')
-  assert.equal(await currentOption.textContent(), native ? 'English' : local ? '日本語' : '中文')
+  assert.equal(await currentOption.textContent(), native ? 'English' : '中文')
   assert.equal(await currentOption.locator('svg').count(), 0)
-  await waitModel(native ? 'Download the English → 한국어 language pack'
-    : local ? '日本語 → 한국어の言語パックをダウンロード' : '下载 中文 → 한국어 语言包')
+  if (local) {
+    // 缺失的静态清单与开发站点相同，返回页面 HTML。重新打开菜单应识别补齐的模型。
+    await waitModel('站点的 中文 → 한국어 翻译模型暂不可用')
+    assert.equal(await download.isDisabled(), true)
+    serveLocalPack = true
+    await menu.click()
+    await open()
+  }
+  await waitModel(native ? 'Download the English → 한국어 language pack' : '下载 中文 → 한국어 语言包')
   assert.equal(await korean.isDisabled(), true)
-  assert.equal(await heading.textContent(), native ? 'Device management' : local ? '機器管理' : '设备管理')
+  assert.equal(await heading.textContent(), native ? 'Device management' : '设备管理')
 
   if (local) {
     assert.equal(await page.evaluate(() => typeof window.Translator), 'undefined')
-    assert.deepEqual(modelRequests.filter(path => !path.endsWith('/pack.json')), [])
-    await download.click()
-    const readyLabel = '日本語 → 한국어の言語パックを使用できます'
-    try {
-      await Promise.race([
-        waitModel(readyLabel, 180_000),
-        waitModel('言語パックをダウンロードできませんでした', 180_000).then(() => assert.fail('Local model preparation failed')),
-      ])
-    } catch (error) {
-      console.error(await page.evaluate(() => ({
-        errors: window.workerErrors,
-        labels: [...document.querySelectorAll('.language-switch__model-button')].map(button => button.getAttribute('aria-label')),
-      })))
-      throw error
+    const downloadedAssets = () => modelRequests.filter(path => !path.endsWith('/pack.json'))
+    assert.deepEqual(downloadedAssets(), [])
+    const waitLocalReview = async expression => {
+      try {
+        await page.waitForFunction(({ pattern, flags, original }) => {
+          const element = document.querySelector('#review')
+          return element && element.textContent !== original && element.title === element.textContent
+            && new RegExp(pattern, flags).test(element.textContent)
+        }, { pattern: expression.source, flags: expression.flags, original: reviewText }, { timeout: 180_000 })
+      } catch (error) {
+        console.error(await page.evaluate(() => ({
+          errors: window.workerErrors,
+          review: document.querySelector('#review')?.textContent,
+          labels: [...document.querySelectorAll('.language-switch__model [aria-label]')].map(element => element.getAttribute('aria-label')),
+        })))
+        throw error
+      }
     }
-    assert.equal(modelRequests.filter(path => !path.endsWith('/pack.json')).length, pack.modelFiles.length + pack.runtimeFiles.length)
+    await page.getByRole('button', { name: 'English', exact: true }).click()
+    await waitText('#heading', 'Device management')
+    await waitLocalReview(/\b(?:vehicle|car|parking)\b/i)
+    assert.equal(await page.locator('#gateway').textContent(), '测试网关')
+    assert.equal(await page.locator('#gateway').getAttribute('title'), '测试网关')
+    const englishReview = await review.textContent()
+    assert.equal(downloadedAssets().length, pack.modelFiles.length + pack.runtimeFiles.length)
+    await open()
+    await page.getByRole('button', { name: '日本語', exact: true }).click()
+    await waitText('#heading', '機器管理')
+    await waitLocalReview(/[\p{Script=Hiragana}\p{Script=Katakana}]/u)
+    const japaneseReview = await review.textContent()
+    assert.equal(downloadedAssets().length, pack.modelFiles.length + pack.runtimeFiles.length)
+    await open()
+    await page.getByRole('button', { name: '中文', exact: true }).click()
+    await waitReview(reviewText)
+    await open()
+    await waitModel('中文 → 한국어 语言包已就绪')
     await korean.click()
     await revealHeading()
-    await page.waitForFunction(() => /[가-힣]/.test(document.querySelector('#heading')?.textContent ?? ''), undefined, { timeout: 60_000 })
+    const waitKoreanHeading = () => page.waitForFunction(() => /[가-힣]/.test(
+      document.querySelector('#heading')?.textContent ?? '',
+    ), undefined, { timeout: 60_000 })
+    await waitKoreanHeading()
+    const translatedFromChinese = await heading.textContent()
+    await open()
+    await page.getByRole('button', { name: '日本語', exact: true }).click()
+    await waitText('#heading', '機器管理')
+    await open()
+    await waitModel('日本語 → 한국어の言語パックを使用できます')
+    await korean.click()
+    await revealHeading()
+    await waitKoreanHeading()
     const koreanHeading = await heading.textContent()
     await page.waitForFunction(() => /[가-힣]/.test(document.querySelector('#access-menu')?.textContent ?? ''), undefined, { timeout: 60_000 })
     await open()
@@ -259,7 +312,12 @@ try {
     await open()
     await page.getByRole('button', { name: '日本語', exact: true }).click()
     await waitText('#heading', '機器管理')
-    console.log(`Firefox 本地模型: 機器管理 → ${koreanHeading} → ${traditionalHeading}，刷新后复用模型缓存`)
+    await open()
+    await page.getByRole('button', { name: '中文', exact: true }).click()
+    await waitReview(reviewText)
+    assert.equal(modelRequests.length, downloaded)
+    console.log(`Firefox 英日自动下载和共用缓存通过。复判译文为 ${englishReview} / ${japaneseReview}`)
+    console.log(`Firefox 连续翻译通过。设备管理 → ${translatedFromChinese}，機器管理 → ${koreanHeading} → ${traditionalHeading}，刷新后复用缓存`)
   } else if (native) {
     assert.ok(await page.evaluate(() => typeof Translator === 'function' && isSecureContext))
     await download.click()
@@ -309,7 +367,7 @@ try {
     console.log(`真实 Chrome 刷新后: ${reopened}`)
   } else {
     assert.deepEqual(await page.evaluate(() => window.translationCalls.creates), [])
-    await page.evaluate(() => sessionStorage.setItem('fixture:fail', '1'))
+    await page.evaluate(() => sessionStorage.setItem('fixture:zh:ko:fail', '1'))
     await download.click()
     await waitModel('37%')
     await waitModel('失败，点击重试')
@@ -382,6 +440,14 @@ try {
     await page.getByRole('button', { name: '中文', exact: true }).click()
     await waitText('#heading', '设备管理')
     assert.equal(await page.evaluate(() => localStorage.getItem('jetlinks.page-translation.language')), null)
+    await page.evaluate(() => { window.fixtureState.foreign = true })
+    await heading.click()
+    await waitText('#foreign-en', 'The gateway is offline.')
+    await waitText('#hinted-ja', '管理')
+    assert.ok(await page.evaluate(() => [...window.translationCalls.inspections, ...window.translationCalls.creates]
+      .every(call => call.targetLanguage !== 'zh')))
+    await page.reload()
+    await waitReview(reviewText)
 
     const builtInCases = [
       { locale: 'en', label: 'English', heading: 'Device management', accessMenu: 'Access components',
@@ -390,13 +456,55 @@ try {
         pager: '次のページ', needed: '日本語 → 한국어の言語パックをダウンロード', ready: '日本語 → 한국어の言語パックを使用できます' },
     ]
     for (const item of builtInCases) {
+      if (item.locale === 'ja') await waitReview(`zh → en: ${reviewText}`)
       await open()
       const option = page.getByRole('button', { name: item.label, exact: true })
-      await option.click()
+      if (item.locale === 'en') await page.evaluate(() => sessionStorage.setItem('fixture:zh:en:fail', '1'))
+      await Promise.all([option.click(), page.waitForFunction(label => {
+        const language = Array.from(document.querySelectorAll('.language-switch__option'))
+          .find(button => button.textContent.trim() === label)
+        const progress = language?.closest('.language-switch__row')?.querySelector('.language-switch__model-button')
+        const downloadButton = Array.from(document.querySelectorAll('.language-switch__model-button'))
+          .find(button => button.getAttribute('aria-label')?.includes('한국어'))
+        if (progress?.textContent.trim() !== '37%' || !progress.disabled || !downloadButton) return false
+        const bounds = progress.getBoundingClientRect()
+        return language.getBoundingClientRect().right <= bounds.left
+          && Math.abs(bounds.right - downloadButton.getBoundingClientRect().right) < 1
+      }, item.label)])
       await waitText('#heading', item.heading)
       await waitText('#access-menu', item.accessMenu)
       await waitPagerLabel(item.pager)
+      if (item.locale === 'en') {
+        // 下载失败仍切换词库。下一次普通点击重试并翻译同一段正文和悬浮标题。
+        assert.equal(await page.evaluate(() => sessionStorage.getItem('fixture:zh:en')), null)
+        await waitReview(reviewText)
+        await page.waitForFunction(() => window.translationCalls.inspections.some(call => call.sourceLanguage === 'zh' && call.targetLanguage === 'en'))
+        await heading.click()
+        await waitReview(`zh → en: ${reviewText}`)
+        const nextReview = '网关离线，无法完成复判。'
+        await page.evaluate(text => { Object.assign(window.fixtureState, { review: text, foreign: true, modal: true }) }, nextReview)
+        await waitReview(`zh → en: ${nextReview}`)
+        await waitText('#modal', 'zh → en: 设备详情')
+        await page.waitForFunction(() => window.translationCalls.inspections.some(call => call.sourceLanguage === 'ja' && call.targetLanguage === 'en'))
+        await heading.click()
+        await waitText('#hinted-zh', 'zh → en: 管理')
+        await waitText('#hinted-ja', 'ja → en: 管理')
+        const calls = await page.evaluate(() => window.translationCalls)
+        for (const source of ['zh', 'ja']) {
+          assert.ok(calls.creates.some(call => call.sourceLanguage === source && call.targetLanguage === 'en'
+            && call.explicit && call.gesture), JSON.stringify(calls.creates))
+        }
+        assert.equal(calls.translates.filter(call => call.text === nextReview).length, 1)
+        assert.equal(await page.locator('#foreign-en').textContent(), 'The gateway is offline.')
+        await page.reload()
+      }
+      await waitReview(`zh → ${item.locale}: ${reviewText}`)
+      await waitText('#resource-statistic', `zh → ${item.locale}: 功耗分布`)
+      await page.waitForFunction(value => document.querySelector('#input')?.placeholder === value, `zh → ${item.locale}: 搜索设备`)
+      assert.equal(await page.locator('#gateway').textContent(), '测试网关')
+      assert.equal(await page.locator('#gateway').getAttribute('title'), '测试网关')
       await open()
+      assert.equal(await option.locator('..').locator('.language-switch__model-button:enabled').count(), 0)
       await waitModel(item.needed)
       await download.click()
       await waitModel(item.ready)
@@ -452,7 +560,7 @@ try {
     await waitText('#heading', 'Device management')
     assert.equal(await page.evaluate(() => localStorage.getItem('Accept-Language')), 'en')
     assert.equal(await page.evaluate(() => localStorage.getItem('editor-language')), 'en')
-    console.log('Chrome 页面回归通过，覆盖按语言对下载、菜单源文本、连续翻译、刷新、动态更新和重试。')
+    console.log('Chrome 页面回归通过，覆盖英日自动下载、失败后切换和重试、复判正文与标题补译、跳过标记、连续翻译和刷新。')
   }
   assert.deepEqual(errors, [])
   assert.deepEqual(external, [])

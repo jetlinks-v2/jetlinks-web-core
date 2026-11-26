@@ -1,9 +1,9 @@
-import { computed, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LocalStore } from '@jetlinks-web/utils'
 import { useSystemStore } from '@jetlinks-web-core/store'
 import { langKey, ruleEditorKey } from '@jetlinks-web-core/utils/consts'
-import { builtInLanguage, builtInLanguageOptions, machineLanguageOptions } from '@jetlinks-web-core/locales/translation/languages'
+import { builtInLanguage, builtInLanguageOptions, DEFAULT_LANGUAGE, machineLanguageOptions, type BuiltInLanguage } from '@jetlinks-web-core/locales/translation/languages'
 import type { ModelState } from '@jetlinks-web-core/locales/translation/models'
 import { useTranslationRuntime } from '@jetlinks-web-core/locales/translation/runtime'
 
@@ -14,6 +14,7 @@ const icons: Record<ModelState['phase'], string> = {
   ready: 'CheckOutlined',
   error: 'ReloadOutlined',
   unsupported: 'StopOutlined',
+  modelUnavailable: 'StopOutlined',
 }
 
 interface LanguageMenuOption {
@@ -23,33 +24,54 @@ interface LanguageMenuOption {
   model?: { icon: string; label: string; enabled: boolean; percent?: number }
 }
 
-/** 内置选项走原有切换；机器选项只切展示偏好，不修改应用、编辑器或请求语言。 */
+const languageOptions = [...builtInLanguageOptions, ...machineLanguageOptions]
+const languageLabel = (value: string) => languageOptions.find(option => option.value === value)?.label ?? value
+
+/** 切换内置词库时保留语言包的下载进度，额外语种使用已准备的翻译路径。 */
 export function useRuntimeLanguageMenu() {
   const { locale, t } = useI18n({ useScope: 'global' })
   const systemStore = useSystemStore()
   const runtime = useTranslationRuntime()
   const open = ref(false)
-  const base = computed(() => builtInLanguage(locale.value) ?? 'zh')
+  const pendingLocale = ref<BuiltInLanguage>()
+  let selection = 0
+  onScopeDispose(() => { selection++ })
+  const base = computed(() => builtInLanguage(locale.value) ?? DEFAULT_LANGUAGE)
   const selected = runtime.language
-  const sourceLabel = computed(() => [...builtInLanguageOptions, ...machineLanguageOptions]
-    .find(option => option.value === selected.value)?.label ?? selected.value)
+  const sourceLabel = computed(() => languageLabel(selected.value))
+  const supplementTarget = computed(() => pendingLocale.value ?? (selected.value === base.value ? base.value : undefined))
+
+  function modelStatus(state: ModelState, language: string, automatic = false): NonNullable<LanguageMenuOption['model']> {
+    const percent = state.phase === 'downloading' ? state.percent : undefined
+    const key = percent !== undefined ? 'progress' : automatic && state.phase === 'error' ? 'supplementError' : state.phase
+    return {
+      icon: icons[state.phase],
+      label: t(`localTranslation.${key}`, { language, percent: percent ?? 0 }),
+      enabled: !automatic && (state.phase === 'needed' || state.phase === 'error'),
+      percent,
+    }
+  }
+
   const options = computed<LanguageMenuOption[]>(() => [
-    ...builtInLanguageOptions.map(option => ({ ...option, disabled: false })),
+    ...builtInLanguageOptions.map(option => {
+      const item = { ...option, disabled: false }
+      if (option.value === DEFAULT_LANGUAGE) return item
+      const models = runtime.supplementModels(option.value)
+      const downloading = models.find(({ state }) => state.phase === 'downloading')
+      const issue = option.value === supplementTarget.value
+        ? models.find(({ state }) => state.phase === 'error' || state.phase === 'unsupported' || state.phase === 'modelUnavailable')
+        : undefined
+      const active = downloading ?? issue
+      if (!active) return item
+      return { ...item, model: modelStatus(active.state, `${languageLabel(active.pair.sourceLanguage)} → ${option.label}`, true) }
+    }),
     ...machineLanguageOptions.map(option => {
       if (option.value === selected.value) return { ...option, disabled: false }
       const state = runtime.state(option.value)
-      const language = `${sourceLabel.value} → ${option.label}`
-      const percent = state.phase === 'downloading' ? state.percent : undefined
-      const key = percent === undefined ? state.phase : 'progress'
       return {
         ...option,
         disabled: state.phase !== 'ready',
-        model: {
-          icon: icons[state.phase],
-          label: t(`localTranslation.${key}`, { language, percent: percent ?? 0 }),
-          enabled: state.phase === 'needed' || state.phase === 'error',
-          percent,
-        },
+        model: modelStatus(state, `${sourceLabel.value} → ${option.label}`),
       }
     }),
   ])
@@ -57,15 +79,30 @@ export function useRuntimeLanguageMenu() {
   const menuLabel = computed(() => t('Login.language'))
 
   watch([open, selected], ([visible]) => {
-    if (visible) machineLanguageOptions.forEach(option => runtime.inspect(option.value))
+    if (!visible) return
+    machineLanguageOptions.forEach(option => runtime.inspect(option.value))
+    if (selected.value === base.value && base.value !== DEFAULT_LANGUAGE) runtime.inspectSupplements(base.value)
   })
 
-  function select(value: string): void {
+  async function select(value: string): Promise<void> {
     const native = builtInLanguageOptions.find(option => option.value === value)
     if (!native) {
-      if (runtime.select(value)) open.value = false
+      if (runtime.select(value)) {
+        selection++
+        pendingLocale.value = undefined
+        open.value = false
+      }
       return
     }
+    const request = ++selection
+    const preparing = runtime.prepareBuiltIn(native.value)
+    if (preparing) {
+      pendingLocale.value = native.value
+      await preparing
+      // 另一次语言选择或菜单卸载应使旧下载的切换请求失效。
+      if (request !== selection) return
+    }
+    pendingLocale.value = undefined
     runtime.select()
     open.value = false
     if (native.value === systemStore.language && native.value === base.value) return
@@ -76,5 +113,7 @@ export function useRuntimeLanguageMenu() {
     window.location.reload()
   }
 
-  return { open, options, selected, currentLabel, menuLabel, select, prepare: runtime.prepare }
+  return {
+    open, options, selected, currentLabel, menuLabel, select, prepare: runtime.prepare,
+  }
 }

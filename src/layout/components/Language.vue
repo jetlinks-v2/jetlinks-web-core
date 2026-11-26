@@ -9,6 +9,7 @@
       class="language-switch"
       type="text"
       translate="no"
+      data-no-translate
       :aria-label="`${menuLabel}: ${currentLabel}`"
       :aria-expanded="open"
       @keydown.esc.stop="open = false"
@@ -18,19 +19,20 @@
     </a-button>
 
     <template #content>
-      <div class="language-switch__menu" translate="no" @keydown.esc.stop="open = false">
+      <div class="language-switch__menu" translate="no" data-no-translate @keydown.esc.stop="open = false">
         <div v-for="item in options" :key="item.value" class="language-switch__row">
           <a-button
             class="language-switch__option"
             type="text"
             :disabled="item.disabled"
             :aria-current="selected === item.value ? 'true' : undefined"
-            @click="select(item.value)"
+            @click.stop="select(item.value)"
           >
             <span>{{ item.label }}</span>
           </a-button>
-          <a-tooltip v-if="item.model" :title="item.model.label">
-            <span class="language-switch__model">
+          <a-tooltip v-if="item.model">
+            <template #title><span data-no-translate>{{ item.model.label }}</span></template>
+            <span class="language-switch__model" :role="item.model.enabled ? undefined : 'status'">
               <a-button
                 class="language-switch__model-button"
                 size="small"

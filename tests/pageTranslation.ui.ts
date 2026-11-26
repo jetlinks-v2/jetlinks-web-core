@@ -17,7 +17,10 @@ const i18n = createRuntimeI18n({
   'en.json': { default: { ...en, 'test.heading': 'Device management' } },
   'ja.json': { default: { ...ja, 'test.heading': '機器管理', 'test.count': '{count}件' } },
 })
-const state = reactive({ text: '旧设备文本', modal: false, login: false, mixed: false, exclude: false })
+const state = reactive({
+  text: '旧设备文本', review: '复判目标：车辆违停检测。图片中未见任何车辆。',
+  modal: false, login: false, mixed: false, exclude: false, foreign: false,
+})
 const componentLocales = { zh: zhCN, en: enUS, ja: jaJP }
 const nativeLocale = builtInLanguage(i18n.global.locale.value) ?? 'zh'
 const menuTitles = { zh: '接入组件', en: 'Access components', ja: '接続コンポーネント' }
@@ -32,6 +35,14 @@ const App = defineComponent({
         h('main', [
           h('h1', { id: 'heading' }, i18n.global.t('test.heading')),
           h('nav', { id: 'access-menu' }, menuTitles[nativeLocale]),
+          h('p', { id: 'resource-statistic' }, '功耗分布'),
+          h('strong', { id: 'review', title: state.review }, state.review),
+          h('div', { 'data-no-translate': '' }, h('span', { id: 'gateway', title: '测试网关' }, '测试网关')),
+          state.foreign ? h('div', [
+            h('p', { id: 'foreign-en' }, 'The gateway is offline.'),
+            h('p', { id: 'hinted-zh', 'data-translation-source': 'zh' }, '管理'),
+            h('p', { id: 'hinted-ja', 'data-translation-source': 'ja' }, '管理'),
+          ]) : null,
           h('p', { id: 'dynamic' }, state.text),
           h('input', { id: 'input', value: '机房输入值', placeholder: '搜索设备' }),
           h('select', { id: 'select' }, [h('option', '表单原值')]),

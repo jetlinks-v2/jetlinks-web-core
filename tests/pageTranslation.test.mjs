@@ -236,6 +236,27 @@ test('source detection respects the starting locale and its mixed text', () => {
   assert.ok(machineLanguageOptions.some(option => option.value === 'ko' && option.label === '한국어'))
 })
 
+test('built-in page translation covers unmarked text and respects dictionaries and language hints', () => {
+  const catalog = new PageSourceCatalog({
+    zh: { same: '管理', label: '离线' },
+    ja: { same: '管理', label: '監視', count: '{count}件' },
+    en: { label: 'Offline', welcome: 'Welcome, {name}!' },
+  })
+  assert.equal(catalog.supplementSource('复判目标：车辆违停检测。', 'en'), 'zh')
+  assert.equal(catalog.supplementSource('復判結果を表示しました', 'en'), 'ja')
+  assert.equal(catalog.supplementSource('The gateway is offline.', 'ja'), 'en')
+  assert.equal(catalog.supplementSource('Offline', 'zh'), 'en')
+  assert.equal(catalog.supplementSource('12件', 'en'), 'ja')
+  assert.equal(catalog.supplementSource('Welcome, 设备!', 'en'), undefined)
+  assert.equal(catalog.supplementSource('管理', 'en'), 'zh')
+  assert.equal(catalog.supplementSource('地域名称', 'en'), 'zh')
+  assert.equal(catalog.supplementSource('Gateway summary', 'ja'), 'en')
+  assert.equal(catalog.supplementSource('管理', 'en', 'ja-JP'), 'ja')
+  assert.equal(catalog.supplementSource('管理', 'en', 'zh-CN'), 'zh')
+  assert.equal(catalog.supplementSource('監視', 'zh', 'zh-TW'), 'zh-Hant')
+  assert.equal(catalog.supplementSource('Gateway', 'en', 'en-US'), undefined)
+})
+
 test('legacy machine preference is checked from the saved built-in language', async t => {
   const inspections = []
   const storage = { getItem: () => 'ko' }

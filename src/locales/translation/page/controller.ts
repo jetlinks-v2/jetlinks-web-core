@@ -1,11 +1,15 @@
+import { pairKey, type LanguagePair } from '../models'
 import { displayAttributes, excludedElement, readSlot, visibleElement, writeSlot, type DisplayAttribute, type TextSlot } from './dom'
 import { excludedText, usableTranslation } from './source'
 
 interface PageTranslationOptions {
   root: HTMLElement
-  isSourceText: (text: string, hint?: string) => boolean
-  translate: (text: string, signal: AbortSignal) => Promise<string | undefined>
+  route: (text: string, hint?: string) => readonly LanguagePair[] | undefined
+  isReady: (route: readonly LanguagePair[]) => boolean
+  translate: (route: readonly LanguagePair[], text: string, signal: AbortSignal) => Promise<string | undefined>
 }
+
+type TranslationSlot = TextSlot & { route?: readonly LanguagePair[] }
 
 const MAX_TRACKED = 5000
 const MAX_ORIGINAL_CHARACTERS = 1_000_000
@@ -13,9 +17,9 @@ const MAX_ACTIVE = 4
 
 /** 分片处理可见的文本节点和展示属性，不替换节点或回写 Vue/业务数据。 */
 export class PageTranslationController {
-  private readonly slots = new Set<TextSlot>()
-  private readonly byNode = new WeakMap<Node, Map<string, TextSlot>>()
-  private readonly byElement = new Map<Element, Set<TextSlot>>()
+  private readonly slots = new Set<TranslationSlot>()
+  private readonly byNode = new WeakMap<Node, Map<string, TranslationSlot>>()
+  private readonly byElement = new Map<Element, Set<TranslationSlot>>()
   private readonly visible = new Set<Element>()
   private readonly roots = new Set<Node>()
   private readonly walkers: TreeWalker[] = []
@@ -72,6 +76,11 @@ export class PageTranslationController {
     this.cache.clear()
   }
 
+  /** 模型就绪时继续处理尚未翻译的可见文本。 */
+  refresh(): void {
+    this.schedule()
+  }
+
   private schedule(): void {
     if (this.stopped || this.timer) return
     this.timer = setTimeout(() => {
@@ -125,9 +134,9 @@ export class PageTranslationController {
     }
   }
 
-  private track(next: TextSlot): void {
+  private track(next: TranslationSlot): void {
     const key = next.attribute ?? 'text'
-    const records = this.byNode.get(next.node) ?? new Map<string, TextSlot>()
+    const records = this.byNode.get(next.node) ?? new Map<string, TranslationSlot>()
     const existing = records.get(key)
     next.hint = next.element.closest('[data-translation-source]')?.getAttribute('data-translation-source') || undefined
     if (existing) {
@@ -187,23 +196,27 @@ export class PageTranslationController {
     }
   }
 
-  private translate(slot: TextSlot): void {
+  private translate(slot: TranslationSlot): void {
     const text = slot.original.trim()
-    if (!this.options.isSourceText(text, slot.hint)) {
+    const route = slot.route ??= this.options.route(text, slot.hint)
+    if (!route?.length) {
       slot.attempted = true
       return
     }
-    if (this.inFlight.has(text)) return
+    if (!this.options.isReady(route)) return
+    // 相同的汉字可能按不同语种处理。正文和标题只在语言路径也相同时共享译文。
+    const key = JSON.stringify([route.map(pairKey), text])
+    if (this.inFlight.has(key)) return
     slot.attempted = true
-    const cached = this.cache.get(text)
+    const cached = this.cache.get(key)
     if (cached !== undefined) {
       this.apply(slot, cached)
       return
     }
     const controller = new AbortController()
     slot.controller = controller
-    this.inFlight.add(text)
-    void this.options.translate(text, controller.signal).then(result => {
+    this.inFlight.add(key)
+    void this.options.translate(route, text, controller.signal).then(result => {
       if (this.stopped || slot.controller !== controller || controller.signal.aborted
         || readSlot(slot) !== slot.written || !this.options.root.contains(slot.node)) return
       if (!this.visible.has(slot.element) || !visibleElement(slot.element)) {
@@ -211,11 +224,12 @@ export class PageTranslationController {
         return
       }
       if (result !== undefined && usableTranslation(text, result)) {
-        this.remember(text, result)
+        this.remember(key, result)
         this.apply(slot, result)
       }
+      if (result === undefined && !this.options.isReady(route)) slot.attempted = false
     }, () => { /* 保留原文；同批其它内容可以继续翻译。 */ }).finally(() => {
-      this.inFlight.delete(text)
+      this.inFlight.delete(key)
       if (slot.controller === controller) slot.controller = undefined
       this.schedule()
     })

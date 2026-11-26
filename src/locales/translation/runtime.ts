@@ -9,6 +9,7 @@ export const translationLanguageKey = 'jetlinks.page-translation.language'
 const CHECKING: ModelState = { phase: 'checking' }
 const READY: ModelState = { phase: 'ready' }
 const MAX_CACHED_TEXTS = 512
+const downloadsAutomatically = (language: string) => language === 'en' || language === 'ja'
 
 function defaultStorage(): Storage | undefined {
   try { return globalThis.localStorage } catch { return undefined }
@@ -39,8 +40,12 @@ export function createTranslationRuntime(
   let ownedApi: TranslatorApi | undefined
   const getApi = api ?? (() => ownedApi ??= browserTranslator() ?? createLocalTranslator())
   const states = shallowReactive(new Map<string, ModelState>())
+  const supplements = shallowReactive(new Map<string, LanguagePair>())
+  const readyModels = shallowRef(0)
   const models = new TranslationModels((pair, state) => {
-    states.set(pairKey(pair), state)
+    const key = pairKey(pair)
+    if (state.phase === 'ready' && states.get(key)?.phase !== 'ready') readyModels.value++
+    states.set(key, state)
   }, getApi)
 
   const pairs = computed(() => path.value.slice(1).map((targetLanguage, index) => ({
@@ -63,7 +68,7 @@ export function createTranslationRuntime(
   function state(target: string): ModelState {
     if (target === language.value) return READY
     const pair = optionPair(target)
-    return pair ? states.get(pairKey(pair)) ?? CHECKING : CHECKING
+    return pair ? pairState(pair) : CHECKING
   }
 
   function inspect(target: string): void {
@@ -87,6 +92,78 @@ export function createTranslationRuntime(
       else storage?.removeItem(translationLanguageKey)
     } catch { /* 仍允许当前页面切换。 */ }
     return true
+  }
+
+  function pairState(pair: LanguagePair): ModelState {
+    return states.get(pairKey(pair)) ?? CHECKING
+  }
+
+  function supplementModels(target: BuiltInLanguage) {
+    return [...supplements.values()].filter(pair => pair.targetLanguage === target)
+      .map(pair => ({ pair, state: pairState(pair) }))
+  }
+
+  async function inspectSupplement(pair: LanguagePair, refresh = false) {
+    const { phase } = await models.inspect(pair, refresh)
+    if (phase === 'needed' && downloadsAutomatically(pair.targetLanguage) && getApi()?.downloadWithoutActivation) {
+      void models.prepare(pair)
+    }
+  }
+
+  /** 仅在发现可见的异语种文案时检查模型，下载就绪后再处理该文案。 */
+  function requireSupplement(pair: LanguagePair): boolean {
+    const key = pairKey(pair)
+    if (!supplements.has(key)) {
+      supplements.set(key, pair)
+      void inspectSupplement(pair)
+    }
+    return pairState(pair).phase === 'ready'
+  }
+
+  function inspectSupplements(target: BuiltInLanguage): void {
+    for (const { pair } of supplementModels(target)) void inspectSupplement(pair, true)
+  }
+
+  function prepareSupplement(pair: LanguagePair): Promise<boolean> | undefined {
+    const { phase } = pairState(pair)
+    if (phase === 'needed' || phase === 'error') return models.prepare(pair)
+  }
+
+  /** 恢复已保存的语种后，复用页面的真实点击准备已发现的缺失语言对。 */
+  function preparePendingSupplements(): void {
+    if (!downloadsAutomatically(base) || getApi()?.downloadWithoutActivation) return
+    const missing = supplementModels(base).filter(({ state }) => state.phase === 'needed')
+    const next = missing.find(({ pair }) => pair.sourceLanguage === DEFAULT_LANGUAGE) ?? missing[0]
+    if (next) void models.prepare(next.pair)
+  }
+
+  /** 首次选择英日语时在点击中启动 Chrome 下载，刷新之前等准备结束。 */
+  function prepareBuiltIn(target: BuiltInLanguage) {
+    if (!downloadsAutomatically(target)) return
+    const translator = getApi()
+    if (!translator) return
+    const current = supplementModels(base)
+    if (translator.downloadWithoutActivation) {
+      if (target !== base) return
+      const retryable = current.filter(({ state }) => state.phase !== 'ready' && state.phase !== 'unsupported')
+      if (retryable.length) return Promise.all(retryable.map(async ({ pair }) => {
+        await models.inspect(pair, true)
+        return prepareSupplement(pair)
+      }))
+      return
+    }
+
+    // Chrome 会消耗该次点击的激活。优先准备当前页面实际用过的原文语种。
+    const visibleSources = current.filter(({ state }) => state.phase === 'ready').map(({ pair }) => pair.sourceLanguage)
+    const sources = new Set([...visibleSources, base, ...current.map(({ pair }) => pair.sourceLanguage)])
+    for (const sourceLanguage of sources) {
+      if (sourceLanguage === target) continue
+      const pair = { sourceLanguage, targetLanguage: target }
+      const { phase } = pairState(pair)
+      if (phase === 'ready' || phase === 'unsupported') continue
+      supplements.set(pairKey(pair), pair)
+      return models.prepare(pair)
+    }
   }
 
   /** 翻译下一段时优先复用已显示的前一段译文，新增文案或刷新后按同一路径生成。 */
@@ -115,6 +192,8 @@ export function createTranslationRuntime(
 
   return {
     language, activePairs, state, inspect, prepare, select, translate,
+    readyModels, supplementModels, requireSupplement, inspectSupplements,
+    preparePendingSupplements, prepareBuiltIn,
     resume: () => pairs.value.forEach(pair => void models.inspect(pair, true)),
     dispose: () => {
       translations.clear()

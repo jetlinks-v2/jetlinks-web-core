@@ -48,7 +48,9 @@ export function createLocalTranslator(): TranslatorApi | undefined {
   }
 
   const installedOnSite = () => {
-    packCheck ??= fetch(new URL('pack.json', packUrl), { mode: 'same-origin', redirect: 'error', signal: AbortSignal.timeout(6000) })
+    packCheck ??= fetch(new URL('pack.json', packUrl), {
+      mode: 'same-origin', cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(6000),
+    })
       .then(async response => response.ok && (await response.json())?.version === localPackVersion)
       .catch(() => false)
       .then(installed => {
@@ -124,18 +126,20 @@ export function createLocalTranslator(): TranslatorApi | undefined {
   async function availability(pair: LanguagePair) {
     if (!supportsLocalPair(pair)) return 'unavailable'
     if (!needsNeuralModel(pair) || await cacheReady()) return 'available'
-    return await installedOnSite() ? 'downloadable' : 'unavailable'
+    // 缺失的清单可能由站点以 HTML 响应，仍应提示模型资产不可用。
+    return await installedOnSite() ? 'downloadable' : 'model-unavailable'
   }
 
   return {
     availability,
+    downloadWithoutActivation: true,
     prepareTimeout: 15 * 60_000,
     translateTimeout: 60_000,
     async create({ sourceLanguage, targetLanguage, signal, monitor }): Promise<TranslatorInstance> {
       const pair = { sourceLanguage, targetLanguage }
       if (!supportsLocalPair(pair)) throw new DOMException('Unsupported local translation pair', 'NotSupportedError')
       if (needsNeuralModel(pair) && !await cacheReady()) {
-        // 仅用户主动点击下载时读取站点上的模型文件。
+        // 下载由准备流程启动，普通翻译只使用已缓存的模型。
         if (!monitor) throw new DOMException('Local translation pack is unavailable', 'InvalidStateError')
         const events = new EventTarget()
         monitor(events)

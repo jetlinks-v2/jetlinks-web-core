@@ -3,10 +3,10 @@ export interface LanguagePair {
   targetLanguage: string
 }
 
-export type ModelState = { phase: 'checking' | 'needed' | 'ready' | 'unsupported' | 'error' }
+export type ModelState = { phase: 'checking' | 'needed' | 'ready' | 'unsupported' | 'modelUnavailable' | 'error' }
   | { phase: 'downloading'; percent?: number }
 
-type NativeAvailability = 'unavailable' | 'downloadable' | 'downloading' | 'available'
+type TranslatorAvailability = 'unavailable' | 'model-unavailable' | 'downloadable' | 'downloading' | 'available'
 
 export interface TranslatorInstance {
   translate(text: string, options: { signal: AbortSignal }): Promise<string>
@@ -14,10 +14,11 @@ export interface TranslatorInstance {
 }
 
 export interface TranslatorApi {
+  downloadWithoutActivation?: boolean
   prepareTimeout?: number
   translateTimeout?: number
   dispose?(): void
-  availability(pair: LanguagePair): Promise<NativeAvailability>
+  availability(pair: LanguagePair): Promise<TranslatorAvailability>
   create(options: LanguagePair & {
     signal: AbortSignal
     monitor?: (target: EventTarget) => void
@@ -72,15 +73,16 @@ export class TranslationModels {
     const version = entry.version
     entry.inspection = Promise.resolve().then(() => api.availability(pair)).then(value => {
       if (!this.current(entry, version)) return entry.state ?? CHECKING
-      const phase = value === 'unavailable' ? 'unsupported' : entry.state?.phase === 'error' ? 'error'
-        : value === 'available' ? 'ready' : 'needed'
+      if (value === 'unavailable') return this.update(entry, UNSUPPORTED)
+      if (value === 'model-unavailable') return this.update(entry, { phase: 'modelUnavailable' })
+      const phase = value === 'available' ? 'ready' : entry.state?.phase === 'error' ? 'error' : 'needed'
       return this.update(entry, { phase })
     }, () => this.current(entry, version) ? this.update(entry, { phase: 'error' }) : entry.state ?? CHECKING)
       .finally(() => { entry.inspection = undefined })
     return entry.inspection
   }
 
-  /** 必须在真实点击中直接调用，不把 create 推迟到下载队列、watch 或 await 后。 */
+  /** Chrome 缺包时须在真实点击中直接调用。本地模型也可按需准备。 */
   prepare(pair: LanguagePair): Promise<boolean> {
     if (this.disposed || pair.sourceLanguage === pair.targetLanguage) return Promise.resolve(false)
     return this.open(this.entry(pair), true).then(Boolean)
