@@ -6,7 +6,7 @@
     :overlay-style="{ paddingInline: 'var(--space-3, 12px)' }"
   >
     <template #content>
-      <div class="document-help__content" :style="contentStyle" @click.stop @keydown.stop @keyup.stop @keydown.esc="open = false">
+      <div ref="content" class="document-help__content" :style="contentStyle" @click.stop @keydown.stop @keyup.stop @keydown.esc="open = false">
         <div v-if="$slots.content" class="document-help__body"><slot name="content" :openDocument="openDocument" :close="close" /></div>
         <div v-else-if="configuredPoint" class="document-help__body" aria-live="polite">
           <MarkdownPreview :content="configured.content.value" />
@@ -20,6 +20,7 @@
       </div>
     </template>
     <a-button
+      ref="trigger"
       :type="$slots.default ? 'link' : 'text'" size="small" class="document-help__trigger" :class="{ 'document-help__trigger--custom': $slots.default }"
       :aria-label="t('components.DocumentHelp.help')" :aria-expanded="open"
       @click.stop @keydown.stop @keyup.stop @keydown.esc="open = false"
@@ -33,7 +34,7 @@
 import { computed, provide, useSlots } from 'vue'
 import type { PopoverProps } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
-import { closeDocumentHelpKey, useDocumentHelp } from '@jetlinks-web-core/hooks/useDocumentHelp'
+import { closeDocumentHelpKey, useDocumentHelp, useDocumentHelpArrow } from '@jetlinks-web-core/hooks/useDocumentHelp'
 import { useConfiguredDocumentHelp } from '@jetlinks-web-core/hooks/useConfiguredDocumentHelp'
 import MarkdownPreview from './MarkdownPreview.vue'
 
@@ -50,6 +51,7 @@ const props = withDefaults(defineProps<{
 const { t } = useI18n()
 const slots = useSlots()
 const { open, openHelp, openDocument, close } = useDocumentHelp(() => props.document)
+const { trigger, content } = useDocumentHelpArrow(open)
 provide(closeDocumentHelpKey, close)
 const configuredPoint = computed(() => props.code && props.helpKey ? { code: props.code, key: props.helpKey } : undefined)
 const configured = useConfiguredDocumentHelp(open, () => slots.content ? undefined : configuredPoint.value)
@@ -95,6 +97,23 @@ const contentStyle = computed(() => {
 </style>
 
 <style lang="less">
+.document-help-popover {
+  &[class*='-placement-top'] .ant-popover-arrow,
+  &[class*='-placement-bottom'] .ant-popover-arrow {
+    left: clamp(0%, var(--help-arrow-x, 50%), 100%);
+    right: auto;
+  }
+  &[class*='-placement-left'] .ant-popover-arrow,
+  &[class*='-placement-right'] .ant-popover-arrow {
+    top: clamp(0%, var(--help-arrow-y, 50%), 100%);
+    bottom: auto;
+  }
+  &[class*='-placement-top'] .ant-popover-arrow { transform: translate(-50%, 100%) rotate(180deg); }
+  &[class*='-placement-bottom'] .ant-popover-arrow { transform: translate(-50%, -100%); }
+  &[class*='-placement-left'] .ant-popover-arrow { transform: translate(100%, -50%) rotate(90deg); }
+  &[class*='-placement-right'] .ant-popover-arrow { transform: translate(-100%, -50%) rotate(-90deg); }
+}
+
 // The popover is teleported. Scope the card surface to Markdown help and its previews.
 .document-help-popover:has(.document-help-article) {
   .ant-popover-inner {
