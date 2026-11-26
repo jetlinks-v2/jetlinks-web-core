@@ -57,8 +57,8 @@
         </a-tab-pane>
         <a-tab-pane key="layouts" tab="分区布局" style="height:100%">
           <div class="fixture-layouts">
-            <div class="fixture-layout-choice"><a-segmented v-model:value="layoutKind" aria-label="分区组件示例" :options="[{value:'adaptive',label:'自适应分区'},{value:'columns',label:'带头部分栏'}]" /><code>{{ layoutKind === 'adaptive' ? 'ResponsiveSplitter' : 'EqualHeightColumns' }}</code></div>
-            <KeepAlive><component :is="layoutKind === 'adaptive' ? SplitterPreview : ColumnsPreview" /></KeepAlive>
+            <div class="fixture-layout-choice"><a-segmented v-model:value="layoutKind" aria-label="分区组件示例" :options="[{value:'adaptive',label:'自适应分区'},{value:'columns',label:'带头部分栏'},{value:'legacy',label:'正文自带头部'}]" /><code>{{ layoutKind === 'adaptive' ? 'ResponsiveSplitter' : 'EqualHeightColumns' }}</code></div>
+            <KeepAlive><component :is="layoutKind === 'adaptive' ? SplitterPreview : layoutKind === 'columns' ? ColumnsPreview : LegacyColumnsPreview" /></KeepAlive>
           </div>
         </a-tab-pane>
         <a-tab-pane key="monitoring" tab="分区数据列表" style="height:100%"><MonitoringPreview /></a-tab-pane>
@@ -71,6 +71,7 @@ import { computed, defineAsyncComponent, reactive, ref } from 'vue'
 import SelectOption from '../../src/components/SelectOption/index.vue'
 import SplitterPreview from './SplitterPreview.vue'
 import ColumnsPreview from './ColumnsPreview.vue'
+import LegacyColumnsPreview from './LegacyColumnsPreview.vue'
 const MonitoringPreview = defineAsyncComponent(() => import('./MonitoringPreview.vue'))
 import PageHeader from '../../src/components/PageHeader/index.vue'
 import ContentPanel from '../../src/components/ContentPanel/index.vue'

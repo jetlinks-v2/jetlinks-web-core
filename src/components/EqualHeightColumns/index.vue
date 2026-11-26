@@ -11,7 +11,7 @@
     :style="[attrs.style as StyleValue, rootStyle()]"
   >
     <div v-if="showLeft" ref="leftPaneRef" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
-      <header v-if="hasLeftHeader() || (collapsible && !hasToolbar())" class="equal-height-columns__header" :style="{ minHeight: `${headerHeight}px` }">
+      <header v-if="hasLeftHeader()" class="equal-height-columns__header" :style="{ minHeight: `${headerHeight}px` }">
         <div ref="leftHeaderContent" class="equal-height-columns__row-content">
         <PanelCollapseButton v-if="collapsible && usesLeftToggle()" ref="toggleRef" class="equal-height-columns__header-toggle"
           :collapsed="isCollapsed" :label="toggleText" :aria-controls="controlledIds()" @toggle="toggleCollapse" />
@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts" name="EqualHeightColumns">
-import { computed, nextTick, ref, useAttrs, useId, useSlots, watch, watchEffect, type CSSProperties, type StyleValue } from 'vue'
+import { computed, nextTick, onBeforeUpdate, ref, useAttrs, useId, useSlots, watch, watchEffect, type CSSProperties, type StyleValue } from 'vue'
 import { useElementSize } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import PanelResizeHandle from '../PanelResizeHandle/index.vue'
@@ -67,6 +67,7 @@ const slots = useSlots()
 const hasToolbar = () => !!slots['right-header']
 const hasLeftHeader = () => !!slots['left-header']
 const usesLeftToggle = () => !hasToolbar()
+const hasCollapseHost = ref(hasLeftHeader() || hasToolbar())
 const bodyId = `column-body-${useId()}`
 const headerId = `${bodyId}-header`
 const controlledIds = () => hasLeftHeader() ? `${bodyId} ${headerId}` : bodyId
@@ -117,9 +118,21 @@ const emit = defineEmits<{
   (event: 'resize', width: number): void
 }>()
 
-const { isCollapsed, toggleRef, toggleCollapse } = useColumnCollapse(props, leftPaneRef, collapsed => {
+const { isCollapsed, toggleRef, toggleCollapse } = useColumnCollapse({
+  get collapsed() { return props.collapsed },
+  get collapsible() { return props.collapsible && hasCollapseHost.value },
+}, leftPaneRef, collapsed => {
   emit('update:collapsed', collapsed)
   emit('collapse-change', collapsed)
+})
+
+// 插槽键不响应式；更新前同步能力，避免回退模式留下无法恢复的隐藏正文。
+onBeforeUpdate(() => {
+  const next = hasLeftHeader() || hasToolbar()
+  const toggle = toggleRef.value?.$el
+  const returnFocus = !next && toggle?.contains(toggle.ownerDocument.activeElement)
+  hasCollapseHost.value = next
+  if (returnFocus) void nextTick(() => rightPaneRef.value?.focus({ preventScroll: true }))
 })
 
 const { width: measuredLeftWidth } = useElementSize(computed(() => props.resizable ? leftPaneRef.value : undefined))
