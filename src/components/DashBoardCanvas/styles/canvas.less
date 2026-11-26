@@ -123,6 +123,15 @@
     scrollbar-gutter: stable;
   }
 
+  &.dashboard-card-layout--page {
+    height: auto;
+    overflow: visible;
+    .dashboard-card-content {
+      height: auto;
+      overflow: visible;
+      scrollbar-gutter: auto;
+    }
+  }
 }
 
 :deep(.vue-grid-item),

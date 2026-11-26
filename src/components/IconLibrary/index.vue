@@ -1,9 +1,14 @@
 ﻿<template>
   <div
     class="container"
+    role="button"
+    tabindex="0"
+    :aria-label="label"
     @click.stop="onClick"
     @mousedown.stop
     @mouseup.stop
+    @keydown.enter.stop.prevent="onClick"
+    @keydown.space.stop.prevent="onClick"
   >
     <div
       v-if="_type"
@@ -29,6 +34,7 @@
 <script setup lang="ts">
 import SelectModal from './SelectModal.vue'
 const props = defineProps({
+  label: String,
   type: {
     type: String,
     default: ''

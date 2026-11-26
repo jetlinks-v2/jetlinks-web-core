@@ -43,3 +43,20 @@
 - 颜色使用 `color:<颜色>[:标签]`，图片使用 URL 或 `img:<URL>`；普通文本及未知图标名继续显示缩写。
 - 在 `jetlinks-web-core/` 下执行 `node --test tests/iconValue.test.mjs`：6 项回归通过，覆盖格式分类、真实图标 SVG 渲染、编辑器裸图标回显与选择后输出 `font:` 值、默认颜色和标签回显以及自定义颜色插槽。
 - `iconValue.ts` 定向严格类型检查通过：`pnpm exec tsc --target ES2022 --module ESNext --moduleResolution Bundler --lib ES2022,DOM --strict --skipLibCheck --noEmit --types node src/components/IconValue/iconValue.ts`。显式限定 Node 类型，避免工作区隐式加载缺失的 `uts` 类型。
+
+#### 对象类型图标
+
+`ObjectTypeIcon` 和 `getObjectTypeIcon(typeId)` 以权威类型 ID 解析统一的 Ant Outlined 图标，未知类型使用中性对象图标。设备、产品、设备分组、空间、地区、用户、组织、岗位、角色、告警发生和通知尝试使用同一份 `objectTypeIcons.ts`；不按展示名称或业务状态猜类型。
+
+~~~vue
+<script setup lang="ts">
+import ObjectTypeIcon from '@jetlinks-web-core/components/IconValue/ObjectTypeIcon.vue'
+import { getObjectTypeIcon } from '@jetlinks-web-core/components/IconValue/objectTypeIcons'
+</script>
+<template>
+  <ObjectTypeIcon type-id="device" :size="24" />
+  <AIcon :type="getObjectTypeIcon('org')" />
+</template>
+~~~
+
+以上为公开的按需入口，避免仅展示类型时引入图标编辑器和上传依赖；根 components 亦具名导出。`size` 默认继承上下文字号，颜色继承正文/选中态。调用方提供类型名称或可访问标签，状态徽标、实例图片、设备子分类与视图呈现独立，不覆盖全平台的类型默认图标。已有 IconValue 字符串继续通过 `formatIconValueFont` 适配，不增加存储协议。

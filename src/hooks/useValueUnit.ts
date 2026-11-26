@@ -30,12 +30,17 @@ export function createValueUnitRegistry(request: DataCapabilityRequest) {
 }
 const registries = new WeakMap<DataCapabilityRequest, ReturnType<typeof createValueUnitRegistry>>()
 
-/** Resolve declared unit IDs using the platform registry, without changing the measured value. */
-export function useValueUnit(unit: MaybeRefOrGetter<string | undefined>) {
+/** 同一宿主共用单位登记表，供多字段元数据投影使用。 */
+export function useValueUnits() {
   const request = useDataCapabilityRequest() ?? getDataCapabilityRequest()
   let registry = registries.get(request)
   if (!registry) { registry = createValueUnitRegistry(request); registries.set(request, registry) }
-  const units = registry
+  return registry
+}
+
+/** Resolve declared unit IDs using the platform registry, without changing the measured value. */
+export function useValueUnit(unit: MaybeRefOrGetter<string | undefined>) {
+  const units = useValueUnits()
   watch(() => toValue(unit), value => { if (value) void units.load() }, { immediate: true })
   return computed(() => { const value = toValue(unit); return value ? units.format(value) : undefined })
 }

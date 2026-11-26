@@ -1,54 +1,90 @@
-
 <template>
-  <div class="viewport" ref="viewport" @scroll="handleScroll">
+  <div
+    class="viewport"
+    ref="viewport"
+    @scroll="handleScroll"
+  >
     <!-- 占位容器，高度为所有项总高度 -->
-    <div class="phantom" :style="{ height: totalHeight + 'px' }"></div>
+    <div
+      class="phantom"
+      :style="{ height: totalHeight + 'px' }"
+    ></div>
     <!-- 实际渲染的可见项 -->
-    <div class="list" :style="{ transform: `translateY(${offset}px)` }">
+    <div
+      class="list"
+      :style="{ transform: `translateY(${offset}px)` }"
+    >
       <div
-          v-for="item in visibleData"
-          :key="item.id || item.key"
-          class="list-item"
-          :style="{ height: itemHeight + 'px' }"
+        v-for="item in visibleData"
+        :key="keyOf(item)"
+        class="list-item"
+        :style="{ height: itemHeight + (isExpanded(item) ? expandedHeight : 0) + 'px' }"
       >
-        <slot name="renderItem" v-bind="item"></slot>
+        <slot
+          name="renderItem"
+          v-bind="item"
+        ></slot>
+        <div
+          v-if="isExpanded(item)"
+          :ref="setExpansionElement"
+          class="list-expansion"
+        >
+          <slot
+            name="expandedItem"
+            v-bind="item"
+          ></slot>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, shallowRef, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useResizeObserver } from '@vueuse/core'
+import { virtualRange, virtualRowOffset } from './range'
 
 const props = defineProps({
   data: { type: Array, required: true },
-  itemHeight: { type: Number, default: 50 }
+  itemHeight: { type: Number, default: 50 },
+  expandedKey: { type: [String, Number], default: undefined }
 })
 const emit = defineEmits(['reachBottom', 'horizontalScroll'])
 
 const viewport = ref(null)
-const startIndex = ref(0)
-const offset = ref(0)
+const scrollTop = ref(0)
+const expandedKey = ref(props.expandedKey)
+const expandedHeight = ref(0)
+const expansion = shallowRef()
+const keyOf = (item) => item.id ?? item.key
+const expandedIndex = computed(() =>
+  expandedKey.value == null ? -1 : props.data.findIndex((item) => keyOf(item) === expandedKey.value)
+)
+const isExpanded = (item) => expandedKey.value != null && keyOf(item) === expandedKey.value
+const setExpansionElement = (element) => {
+  expansion.value = element || undefined
+}
 const hasEmittedBottom = ref(false)
 const bottomThreshold = 20
 const viewportHeight = ref(0)
 const previousScrollLeft = ref(0) // 记录上一次的横向滚动位置
 
 // 计算总高度
-const totalHeight = computed(() => props.data.length * props.itemHeight)
-
-// 计算可见项数量
-const visibleCount = computed(() => {
-  return Math.ceil(viewportHeight.value / props.itemHeight) || 10
-})
+const range = computed(() =>
+  virtualRange(
+    props.data.length,
+    props.itemHeight,
+    scrollTop.value,
+    viewportHeight.value,
+    expandedIndex.value,
+    expandedHeight.value
+  )
+)
+const totalHeight = computed(() => range.value.total)
+const offset = computed(() => range.value.offset)
 
 // 计算可见数据
-const visibleData = computed(() => {
-  return props.data.slice(
-      startIndex.value,
-      Math.min(startIndex.value + visibleCount.value, props.data.length)
-  )
-})
+const visibleData = computed(() => props.data.slice(range.value.start, range.value.end))
 
 // 更新视口高度
 const updateViewportHeight = () => {
@@ -63,9 +99,7 @@ const handleScroll = () => {
   if (!element) return
 
   // 纵向滚动处理
-  const scrollTop = element.scrollTop
-  startIndex.value = Math.floor(scrollTop / props.itemHeight)
-  offset.value = scrollTop - (scrollTop % props.itemHeight)
+  scrollTop.value = element.scrollTop
 
   const reachedBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - bottomThreshold
   if (reachedBottom && !hasEmittedBottom.value) {
@@ -83,6 +117,47 @@ const handleScroll = () => {
   }
 }
 
+// Hosts can retain the reading position across detail views without accessing the internal viewport.
+function scrollTo(top) {
+  if (!viewport.value) return
+  viewport.value.scrollTop = top
+  handleScroll()
+}
+defineExpose({
+  getScrollTop: () => viewport.value?.scrollTop ?? 0,
+  scrollTo
+})
+
+// Keep the first visible summary anchored when an expansion above it changes size or closes.
+function preserveAnchor(change) {
+  const { start, offset: before } = range.value
+  const within = scrollTop.value - before
+  change()
+  nextTick(() =>
+    scrollTo(
+      virtualRowOffset(start, props.itemHeight, expandedIndex.value, expandedHeight.value) +
+        (start === expandedIndex.value ? within : Math.min(within, props.itemHeight - 1))
+    )
+  )
+}
+watch(
+  () => props.expandedKey,
+  (key) =>
+    preserveAnchor(() => {
+      expandedKey.value = key
+      expandedHeight.value = 0
+    })
+)
+useResizeObserver(expansion, (entries) => {
+  if (entries[0]?.target !== expansion.value) return
+  const height = Math.ceil(entries[0]?.contentRect.height || 0)
+  if (height > 0 && height !== expandedHeight.value)
+    preserveAnchor(() => {
+      expandedHeight.value = height
+    })
+})
+useResizeObserver(viewport, updateViewportHeight)
+
 // 窗口大小变化处理（使用防抖优化性能）
 let resizeTimer = null
 const handleResize = () => {
@@ -94,10 +169,13 @@ const handleResize = () => {
   }, 100)
 }
 
-watch(() => props.data.length, () => {
-  // 数据列表变化时允许再次触发底部事件
-  hasEmittedBottom.value = false
-})
+watch(
+  () => props.data.length,
+  () => {
+    // 数据列表变化时允许再次触发底部事件
+    hasEmittedBottom.value = false
+  }
+)
 
 onMounted(() => {
   // 初始化容器高度
@@ -124,7 +202,7 @@ onBeforeUnmount(() => {
   width: 100%;
   position: relative;
   overflow-y: auto;
-  &:not(:last-child){
+  &:not(:last-child) {
     border-bottom: 1px solid var(--bg-hover);
   }
 }
@@ -139,4 +217,5 @@ onBeforeUnmount(() => {
 .list-item {
   box-sizing: border-box;
   width: 100%;
-}</style>
+}
+</style>

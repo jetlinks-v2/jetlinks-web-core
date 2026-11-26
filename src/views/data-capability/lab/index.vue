@@ -1,5 +1,6 @@
 <template>
   <div class="data-capability-lab">
+    <ObjectCapabilityLab />
     <a-card title="数据能力测试" :bordered="false">
       <template #extra>
         <a-space>
@@ -183,6 +184,7 @@
 import CodeBlock from '../../../components/CodeBlock/index.vue'
 import MonacoEditor from '../../../components/MonacoEditor/monacoEditor.vue'
 import { useDataCapabilityLab } from './useDataCapabilityLab'
+import ObjectCapabilityLab from './ObjectCapabilityLab.vue'
 
 const jsonEditorOptions = {
   folding: true,

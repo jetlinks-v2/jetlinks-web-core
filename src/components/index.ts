@@ -243,7 +243,7 @@ export { DeviceSessionViewer } from './RuntimeDiagnostics'
 export type { DeviceSessionInfo, DeviceSessionConnection, DeviceSessionDeviceOption } from './RuntimeDiagnostics'
 export type { MBeanDescriptor, MBeanInvocation, MBeanRenderer, MBeanRendererContext, MBeanInvocationOutcome, MBeanQueryId, MBeanQuerySnapshot } from './RuntimeDiagnostics'
 export type { SvgIconType } from './SvgIcon/icons'
-export { createAssetOwnershipField, toAssetOwnershipFilterTerm } from './AssetOwnershipCondition'
+export { createAssetOwnershipField, toAssetOwnershipFilterTerm, resolveAssetDimensionFilter, onAssetDimensionFiltersChange, AssetDimensionPicker } from './AssetOwnershipCondition'
 export type {
     AssetOwnershipOptions, AssetOwnershipTerm, AssetOwnershipSelection, AssetOwnershipDisplay,
     AssetDimensionFilter, AssetDimensionSelector, AssetDimensionOperator, AssetDimensionOption,
@@ -309,3 +309,9 @@ export { default as Splitter } from './Splitter/index.vue'
 export { default as ResponsiveSplitter } from './Splitter/ResponsiveSplitter.vue'
 export { default as SplitterPane } from './SplitterPane/index.vue'
 export { useResponsivePanel } from './Splitter/useResponsivePanel'
+
+export { default as ObjectTypeIcon } from './IconValue/ObjectTypeIcon.vue'
+export { getObjectTypeIcon, objectTypeIcons } from './IconValue/objectTypeIcons'
+export { RelationSelector } from './RelationSelector'
+export type { RelationSelectorOptions, RelationSelectorOrigin, ObjectSpec, VariableObjectSpec, RelationSpec } from './RelationSelector'
+export * from './ObjectOverview'

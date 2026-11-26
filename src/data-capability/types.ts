@@ -735,6 +735,16 @@ export interface DynamicDataSourceProvider {
   resolve(capabilityId: string, context: CapabilityContext): Promise<DataSourceDefinition | undefined>
 }
 
+/** Dynamic actions use the same ownership and runtime lifetime as dynamic reads. */
+export interface DynamicOperationProvider {
+  namespace: string
+  discover(context: CapabilityContext): Promise<{
+    operations: OperationDefinition[]
+    diagnostics?: CapabilityDirectoryDiagnostic[]
+  }>
+  resolve(capabilityId: string, context: CapabilityContext): Promise<OperationDefinition | undefined>
+}
+
 export interface DataCapabilityProvider {
   id: string
   owner: CapabilityOwner
@@ -742,6 +752,7 @@ export interface DataCapabilityProvider {
   capabilityIds?: readonly string[]
   order?: number
   dynamicSources?: DynamicDataSourceProvider
+  dynamicOperations?: DynamicOperationProvider
   load?(): Promise<DataCapabilityProviderLoadedResult> | DataCapabilityProviderLoadedResult
   /** Must be idempotent because unregister may be followed by one serialized late-load cleanup pass. */
   dispose?(): void | Promise<void>
@@ -756,6 +767,7 @@ export type DataCapabilityProviderLoader = () =>
 export interface DataCapabilityProviderManifestEntry {
   /** Exclusive namespace for dynamically resolved source IDs, without a trailing dot. */
   dynamicSourceNamespace?: string
+  dynamicOperationNamespace?: string
   capabilityIds: readonly string[]
   loader: DataCapabilityProviderLoader
   timeout?: number

@@ -1,0 +1,209 @@
+.binding-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+.binding-actions:not(.binding-actions--compact) {
+  max-width: 60%;
+}
+.binding-actions--compact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20px 20px;
+  align-items: center;
+  gap: 4px;
+  width: 112px;
+  flex: none;
+}
+.binding-actions--compact .permission-summary,
+.binding-actions--compact .owner,
+.binding-actions--compact .binding-role {
+  grid-column: 1;
+  grid-row: 1;
+}
+.binding-actions--compact .permission-summary {
+  justify-content: flex-start;
+  padding-inline: 2px;
+  border: 0;
+}
+.binding-actions--compact .binding-undo {
+  grid-column: 2;
+  grid-row: 1;
+  width: 20px;
+}
+.binding-actions--compact .target-actions,
+.binding-actions--compact .target-actions-placeholder {
+  grid-column: 3;
+  grid-row: 1;
+  width: 20px;
+}
+.binding-actions--compact .permission-summary-item {
+  flex: none;
+  margin: 0;
+}
+.binding-actions--compact .permission-summary-label {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+  overflow: visible;
+}
+.permission-summary-more {
+  flex: none;
+  color: var(--ink-3);
+  font-size: 10px;
+}
+.permission-summary {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.permission-summary-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.permission-summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-inline-end: 8px;
+  vertical-align: middle;
+}
+.permission-summary-item:last-child {
+  margin-inline-end: 0;
+}
+.permission-summary-item > :deep(.anticon) {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.owner {
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 18px;
+}
+.binding-role {
+  flex: none;
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.binding-undo {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--ink-3);
+}
+.permission-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding-inline: 4px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.permission-summary > :deep(.anticon) {
+  flex: none;
+  margin-inline: 0;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.target-actions,
+.target-actions-placeholder {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+.target-actions {
+  padding: 0;
+  color: var(--ink-3);
+  opacity: 0;
+}
+.binding-actions:hover .target-actions,
+.binding-actions:focus-within .target-actions,
+.target-actions[aria-expanded='true'] {
+  opacity: 1;
+}
+.target-permissions {
+  width: min(224px, calc(100vw - 64px));
+}
+.permission-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 10px;
+  color: var(--ink-3);
+}
+.permission-heading > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-1);
+  font-size: 13px;
+  font-weight: 500;
+}
+.target-permissions :deep(.ant-checkbox-group) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(240px, 40vh);
+  overflow-y: auto;
+}
+.permission-option {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-size: 13px;
+  line-height: 20px;
+}
+.permission-option:hover {
+  background: var(--bg-hover);
+}
+.permission-option--checked,
+.permission-option--checked:hover {
+  background: var(--accent-soft);
+}
+.permission-option :deep(.ant-checkbox + span) {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+.permission-option-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.permission-option-label > :deep(.anticon) {
+  flex: none;
+  color: var(--ink-3);
+  font-size: 15px;
+}
+.permission-option-label > span:last-child {
+  overflow-wrap: anywhere;
+}
+.permission-hint {
+  margin: 10px 0 0;
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 16px;
+}
+@media (hover: none) {
+  .target-actions {
+    opacity: 1;
+  }
+}

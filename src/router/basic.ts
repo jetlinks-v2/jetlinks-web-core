@@ -156,6 +156,16 @@ export const DATA_CAPABILITY_LAB_ROUTE: RouteRecordRaw | undefined = isDataCapab
     }
   : undefined
 
+/** 独立开发验证入口，不挂业务菜单，也不进入生产包路由。 */
+export const RELATION_SELECTOR_LAB_ROUTE: RouteRecordRaw | undefined = import.meta.env.DEV
+  ? {
+      path: '/relation-selector/lab',
+      name: 'RelationSelectorLab',
+      component: () => import('@jetlinks-web-core/views/relation-selector/lab/index.vue'),
+      meta: { title: '关系选择器', hideInMenu: true, skipMenuFetch: true, security: RouteSecurityLevel.AUTHENTICATED },
+    }
+  : undefined
+
 export const Demo: RouteRecordRaw = {
   path: '/demo',
   name: 'Demo',

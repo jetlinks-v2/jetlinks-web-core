@@ -13,6 +13,8 @@
 
 ## 自动发现
 
+默认 `scrollMode="canvas"` 由画布承载滚动；嵌入连续阅读页面时设为 `page`，画布按网格自然高度参与页面布局，纵向外边距也计入文档流。第三方网格向子项暴露初始参数快照，因此仅在行高、列数、边距变化时重建网格，避免切换视图后容器和卡片采用不同边距；内容、布局坐标与窗口宽度变化不重建。
+
 采用 **共享懒加载来源 → 每处按范围取组件 → 生成 catalog → 画布渲染**。复用 `discovery` 的来源整理、加载缓存和 catalog 装配；同目录的 `dashboard-sources.ts` 作为可选宿主目录适配器，保持独立导入，通过 Vite 原生 `import.meta.glob` 发现以下目录：
 
 - `ui/modules/*/visDashboard/*/manifest.json` 与同组的 `*/index.ts`
