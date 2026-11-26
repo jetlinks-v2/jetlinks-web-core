@@ -1,11 +1,11 @@
 <template>
-  <div ref="workspaceRef" class="responsive-splitter" :class="{ 'is-compact': compact, 'is-vertical': orientation === 'vertical' }">
-    <PanelResizeHandle v-if="compact" ref="edgeRef" class="responsive-splitter__edge" :style="{ margin: 0, width: '100%', height: '100%' }"
+  <div ref="workspaceRef" class="responsive-splitter" :data-flush="gutter === 0 || undefined" :class="{ 'is-compact': compact, 'is-vertical': orientation === 'vertical' }">
+    <PanelResizeHandle v-if="compact" ref="edgeRef" class="responsive-splitter__edge" :style="{ margin: 0, width: gutter === 0 && orientation === 'horizontal' ? (coarse ? 24 : 12) + 'px' : '100%', height: gutter === 0 && orientation === 'vertical' ? (coarse ? 24 : 12) + 'px' : '100%' }"
       :orientation="orientation" side="left" :container="workspaceRef" :model-value="0" :limits="{ min: 0, max: drawerExtent, initial: 0, contentMin: 0 }"
       collapsed :inert="overlayOpen || undefined" :aria-controls="startId" :aria-label="t('components.Splitter.dragToExpand')"
       @expand="setCollapsed(false)" @drag="drag($event, drawerExtent)" />
     <Splitter :collapsed="inlineCollapsed" :size="preferredSize" :resizable="resizable && !compact" :collapse-on-drag="collapseOnDrag"
-      :orientation="orientation" :default-size="defaultSize" :min="min" :max="max" :end-min="endMin" :resize-label="resizeLabel" :inert="drawerShown || undefined"
+      :orientation="orientation" :default-size="defaultSize" :min="min" :max="max" :end-min="endMin" :gutter="gutter" :resize-label="resizeLabel" :inert="drawerShown || undefined"
       class="responsive-splitter__layout" @update:collapsed="setCollapsed" @update:size="rememberSize">
       <template #start><div ref="inlineTarget" class="responsive-splitter__target" /></template>
       <template #end><slot name="end" :collapsed="visibleCollapsed" :toggle="toggle" :compact="compact" :overlay-open="overlayOpen" :start-id="startId" /></template>
@@ -37,13 +37,14 @@ const props = withDefaults(defineProps<{
   defaultSize?: number | string
   min: number
   endMin: number
+  gutter?: number
   max?: number
   resizable?: boolean
   collapseOnDrag?: boolean
   collapsed?: boolean
   resizeLabel?: string
   panelTitle?: string
-}>(), { orientation: 'horizontal', defaultSize: '30%', max: Infinity, resizable: true, collapseOnDrag: false, collapsed: undefined })
+}>(), { orientation: 'horizontal', defaultSize: '30%', max: Infinity, gutter: 12, resizable: true, collapseOnDrag: false, collapsed: undefined })
 const emit = defineEmits<{
   (event: 'update:collapsed', value: boolean): void
   (event: 'update:size' | 'resize', value: number): void
@@ -134,4 +135,7 @@ defineExpose({ toggle, close, collapsed: visibleCollapsed, compact, startId })
   .responsive-splitter.is-compact.is-vertical { grid-template-rows:24px minmax(0,1fr); }
   .responsive-splitter__heading :deep(.ant-btn) { min-width:44px; height:44px; }
 }
+.responsive-splitter[data-flush].is-compact { grid-template:minmax(0,1fr) / minmax(0,1fr); }
+.responsive-splitter[data-flush].is-compact > .responsive-splitter__layout { grid-area:1/1/2/2; }
+.responsive-splitter[data-flush].is-compact > .responsive-splitter__edge { justify-self:start; align-self:start; z-index:2; }
 </style>

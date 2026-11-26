@@ -847,3 +847,20 @@ test('resizable columns retain width and input through collapse, reset to their 
     assert.equal(state.document.activeElement, toggle(), 'explicit toggle actions retain focus after the icon changes')
   } finally { state.app.unmount() }
 })
+
+test('zero gutter keeps the seam joined and the keyboard recovery handle through collapse', async t => {
+  const state = mountSplitter({ gutter: 0, size: 240, min: 160, endMin: 240, collapseOnDrag: true })
+  t.after(() => state.app.unmount()); await flush()
+  const field = state.field('start')
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /\) 0px minmax/)
+  assert.equal(state.root.children[0].props['data-flush'], true)
+  state.press('ArrowRight'); await flush()
+  assert.equal(state.requests.at(-1), 256)
+  state.field('toggle').props.onClick(); await flush()
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /minmax\(0, 0px\) 0px minmax/)
+  assert.ok(state.separator())
+  state.press('Enter'); await flush()
+  assert.equal(state.collapses.at(-1), false)
+  assert.equal(state.field('start'), field)
+  assert.equal(state.mounts(), 1)
+})
