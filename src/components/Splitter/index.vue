@@ -1,10 +1,10 @@
 <template>
-  <div ref="rootRef" class="splitter" :class="{ 'splitter--vertical': orientation === 'vertical', 'splitter--collapsed': isCollapsed, 'splitter--motion': collapseMotion, 'splitter--collapse-preview': collapsePreview, 'splitter--restore-preview': restorePreview, 'splitter--restoring': restoreSize !== undefined }" :style="tracks" @transitionend="finishMotion">
+  <div ref="rootRef" class="splitter" :data-flush="gutter === 0 || undefined" :class="{ 'splitter--vertical': orientation === 'vertical', 'splitter--collapsed': isCollapsed, 'splitter--motion': collapseMotion, 'splitter--collapse-preview': collapsePreview, 'splitter--restore-preview': restorePreview, 'splitter--restoring': restoreSize !== undefined }" :style="tracks" @transitionend="finishMotion">
     <div :id="startId" ref="startRef" class="splitter__pane splitter__pane--start"
       :inert="startHidden ? true : undefined" :aria-hidden="startHidden ? true : undefined">
       <div class="splitter__content" :style="contentStyle"><slot name="start" /></div>
     </div>
-    <PanelResizeHandle v-if="resizable && (!isCollapsed || collapseOnDrag) && !measuring && gutterSize > 0" ref="handleRef" side="left"
+    <PanelResizeHandle v-if="resizable && (!isCollapsed || collapseOnDrag) && !measuring && containerSize > endMin" ref="handleRef" side="left"
       :model-value="restoreSize ?? (isCollapsed ? 0 : handleSize)" :orientation="orientation" :limits="handleLimits" :collapsed="isCollapsed"
       :aria-label="isCollapsed ? t('components.Splitter.dragToExpand') : resizeLabel" :aria-controls="startId" :inert="collapseMotion || undefined" :aria-valuetext="previewLabel"
       @update:model-value="resize" @drag="drag" @expand="setCollapsed(false)" />
@@ -22,6 +22,7 @@ import { useElementSize, useMediaQuery } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import PanelResizeHandle from '../PanelResizeHandle/index.vue'
 import type { PanelResizeDragEvent } from '../PanelResizeHandle/types'
+import { providePaneRows } from '../SplitterPane/usePaneRows'
 
 defineOptions({ name: 'Splitter' })
 const props = withDefaults(defineProps<{
@@ -34,12 +35,14 @@ const props = withDefaults(defineProps<{
   min?: number
   max?: number
   endMin?: number
+  /** 面板之间的布局留缝；0 用于连续结构线，拖拽命中区域仍为 12px。 */
+  gutter?: number
   resizable?: boolean
   collapseOnDrag?: boolean
   collapsed?: boolean
   resizeLabel?: string
 }>(), {
-  orientation: 'horizontal', defaultSize: '30%', min: 0, max: Infinity, endMin: 0,
+  orientation: 'horizontal', defaultSize: '30%', min: 0, max: Infinity, endMin: 0, gutter: 0,
   resizable: true, collapsed: undefined, collapseOnDrag: false,
 })
 const emit = defineEmits<{
@@ -77,15 +80,17 @@ const { width, height } = useElementSize(startRef, { width: 0, height: 0 }, { bo
 const { width: containerWidth, height: containerHeight } = useElementSize(rootRef)
 const measuredSize = computed(() => props.orientation === 'vertical' ? height.value : width.value)
 const containerSize = computed(() => props.orientation === 'vertical' ? containerHeight.value : containerWidth.value)
-const gutterSize = computed(() => props.resizable ? Math.min(12, Math.max(0, containerSize.value - props.endMin)) : 0)
+const gutterSize = computed(() => props.resizable ? Math.min(Math.max(0, props.gutter), Math.max(0, containerSize.value - props.endMin)) : 0)
 const startHidden = computed(() => isCollapsed.value || collapseMotion.value || (containerSize.value > 0 && measuredSize.value === 0))
+providePaneRows(() => props.orientation === 'horizontal' && !startHidden.value)
 const limits = computed(() => {
   const available = Math.max(0, containerSize.value - props.endMin - gutterSize.value)
   const min = Math.min(props.min, available)
   return { min, max: Math.max(min, Math.min(props.max, available)), contentMin: props.endMin, initial: initialSize.value }
 })
-const handleSize = computed(() => currentSize.value ?? Math.max(limits.value.min,
-  Math.min(limits.value.max, initialSize.value ?? measuredSize.value)))
+// Temporary layout constraints change the visible size, not the remembered user preference.
+const handleSize = computed(() => Math.max(limits.value.min,
+  Math.min(limits.value.max, currentSize.value ?? initialSize.value ?? measuredSize.value)))
 const handleLimits = computed(() => isCollapsed.value ? { ...limits.value, min: 0 } : limits.value)
 const tracks = computed<CSSProperties>(() => {
   const value = currentSize.value ?? props.defaultSize
@@ -228,5 +233,9 @@ watch(() => props.collapseOnDrag, enabled => { if (!enabled) dragPreview.value =
 .splitter--collapsed.splitter--vertical > .splitter__collapse-shadow { grid-area:3 / 1 / 4 / 2; align-self:start; justify-self:stretch; box-shadow:inset 0 4px 4px -4px var(--splitter-edge-shadow) }
 .splitter > .panel-resize-handle { width:100%; margin-left:0 }
 .splitter--vertical > .panel-resize-handle { height:100%; margin-top:0 }
+.splitter[data-flush] > .panel-resize-handle { width:12px; justify-self:center }
+.splitter[data-flush].splitter--collapsed > .panel-resize-handle { justify-self:start }
+.splitter[data-flush].splitter--vertical > .panel-resize-handle { width:100%; height:12px; align-self:center }
+.splitter[data-flush].splitter--collapsed.splitter--vertical > .panel-resize-handle { align-self:start }
 @media(prefers-reduced-motion:reduce) { .splitter--motion,.splitter__collapse-shadow { transition:none } }
 </style>

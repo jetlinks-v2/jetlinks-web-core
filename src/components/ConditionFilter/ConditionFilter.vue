@@ -2748,11 +2748,15 @@ onUnmounted(() => {
 <style scoped lang="less">
 .condition-filter {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 
   &__shell {
     display: flex;
     align-items: flex-start;
     width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     min-height: 2.1rem;
     padding: 0.175rem 0.625rem;
     background: var(--color-jet-bg-container);
@@ -2777,6 +2781,9 @@ onUnmounted(() => {
     align-items: center;
     gap: 0.375rem 0.25rem;
     min-width: 0;
+    max-height: var(--condition-filter-max-height, 7.5rem);
+    overflow: auto;
+    overscroll-behavior: contain;
   }
 
   &__term {
@@ -2790,6 +2797,7 @@ onUnmounted(() => {
 
   &__term-main {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-1);
     min-width: 0;
@@ -2913,7 +2921,7 @@ onUnmounted(() => {
   &__tail {
     display: inline-flex;
     flex: 1 1 7.5rem;
-    min-width: 7.5rem;
+    min-width: min(100%, 7.5rem);
     align-items: center;
     min-height: 1.625rem;
     gap: 0.375rem;
@@ -2947,7 +2955,7 @@ onUnmounted(() => {
   }
 
   &__text-input--tail {
-    min-width: 7.5rem;
+    min-width: 0;
   }
 
   &__placeholder {
@@ -2961,7 +2969,7 @@ onUnmounted(() => {
     align-items: center;
     flex: 0 0 auto;
     gap: 0.375rem;
-    align-self: stretch;
+    align-self: flex-start;
     margin-left: var(--space-2);
     padding-left: 0.125rem;
   }

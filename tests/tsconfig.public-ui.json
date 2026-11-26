@@ -1,8 +1,18 @@
 {
   "extends": "./tsconfig.workspace-panels.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "baseUrl": "..",
+    "paths": {
+      "@jetlinks-web-core/locales": ["tests/public-ui/locale.ts"],
+      "@jetlinks-web-core/*": ["src/*"]
+    }
+  },
   "include": [
     "./public-ui/**/*.vue",
     "./public-ui/**/*.ts",
+    "../src/auto-imports.d.ts",
     "./workspace-panels/globals.d.ts",
     "./workspace-panels/icon.d.ts",
     "../src/components/PlatformSettings/PlatformTextSetting.vue"

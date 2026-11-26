@@ -50,7 +50,7 @@ function mountColumns(mode = 'default', extra = {}, accept = true) {
   let measures = 0
   const boundaries = {
     'vue-i18n': { useI18n: () => ({ t: key => key }) },
-    '@vueuse/core': { useElementSize: () => ({ width: measures++ === 0 ? paneWidth : containerWidth }), useElementVisibility: () => ref(true) },
+    '@vueuse/core': { useElementSize: () => ({ width: measures++ === 0 ? paneWidth : containerWidth, height: ref(0) }), useElementVisibility: () => ref(true) },
   }
   const Handle = createDashboardLoader(boundaries)('components/PanelResizeHandle/index.vue').default
   const CollapseButton = createDashboardLoader(boundaries)('components/PanelCollapseButton/index.vue').default
@@ -77,9 +77,67 @@ function mountColumns(mode = 'default', extra = {}, accept = true) {
   return { ...state, app, props, requests, changes, resizes, paneWidth, containerWidth, draft, headerDraft, mode: currentMode, mounts: () => mounts,
     buttons: () => walk(state.root, node => node.type === 'button'),
     field: label => walk(state.root, node => node.props['aria-label'] === label)[0],
-    body: () => { const id = walk(state.root, node => node.type === 'button')[0]?.props['aria-controls']?.split(' ')[0]; return walk(state.root, node => node.props.id === id)[0] },
+    body: () => walk(state.root, node => hasClass(node, 'equal-height-columns__body'))[0],
   }
 }
+
+test('legacy columns keep their layout spacing unless the host explicitly requests a joined seam', async t => {
+  const state = mountColumns(); t.after(() => state.app.unmount()); await flush()
+  const gap = () => state.root.children[0].props.style['--equal-height-columns-gap']
+  assert.equal(gap(), 'var(--space-8)')
+  state.props.gap = 0; await flush()
+  assert.equal(gap(), '0px')
+  state.props.collapsed = true; await flush()
+  assert.equal(gap(), '0px')
+  state.props.collapsed = false; await flush()
+  assert.equal(gap(), '0px')
+})
+
+test('body-only columns stay visible without a disclosure, header or extra spacing', async t => {
+  const state = mountColumns('default', { collapsed: true, gap: 16, leftWidth: '1fr' })
+  t.after(() => state.app.unmount()); await flush()
+  const root = state.root.children[0], input = state.field('left')
+  input.focus()
+  state.draft.value = '兼容草稿'; await flush()
+  assert.equal(state.buttons().length, 0)
+  assert.equal(walk(root, node => node.type === 'header').length, 0)
+  assert.equal(root.props.style['--equal-height-columns-left-width'], '1fr')
+  assert.equal(root.props.style['--equal-height-columns-gap'], '16px')
+  assert.equal(state.body().props.inert, undefined)
+  assert.equal(state.body().style.display, undefined)
+  state.props.collapsed = false; await flush()
+  assert.equal(state.document.activeElement, input)
+  assert.equal(state.field('left'), input)
+  assert.equal(input.props.value, '兼容草稿')
+  state.props.collapsible = false; await flush()
+  assert.equal(state.buttons().length, 0)
+  assert.equal(root.props.style['--equal-height-columns-gap'], '16px')
+  assert.equal(root.props.style['--equal-height-columns-left-width'], '1fr')
+  assert.equal(state.props.collapsed, false)
+  assert.deepEqual(state.requests, [])
+  assert.deepEqual(state.changes, [])
+})
+
+test('changing header availability preserves controlled preference and returns focus to visible content', async t => {
+  const state = mountColumns('default', { collapsed: true })
+  t.after(() => state.app.unmount()); await flush()
+  const body = state.body(), field = state.field('left')
+  field.focus()
+  state.mode.value = 'toolbar'; await flush()
+  assert.equal(body.props.inert, true)
+  assert.equal(state.document.activeElement, state.buttons()[0])
+  state.mode.value = 'default'; await flush()
+  assert.equal(state.buttons().length, 0)
+  assert.equal(body.props.inert, undefined)
+  assert.ok(hasClass(state.document.activeElement, 'equal-height-columns__pane--right'))
+  assert.equal(state.field('left'), field)
+  assert.equal(state.props.collapsed, true)
+  state.mode.value = 'left'; await flush()
+  assert.equal(state.buttons()[0].props['aria-expanded'], false)
+  assert.equal(state.mounts(), 1)
+  assert.deepEqual(state.requests, [])
+  assert.deepEqual(state.changes, [])
+})
 
 test('panel collapse button only requests changes and follows host state, names and control relation', async () => {
   const CollapseButton = createDashboardLoader({ 'vue-i18n': { useI18n: () => ({ t: key => key }) } })('components/PanelCollapseButton/index.vue').default
@@ -113,25 +171,26 @@ test('dynamic toolbar/default/left/both slots preserve content and update the un
     state.draft.value = '切换布局仍保留的草稿'
     for (const mode of ['default', 'left', 'both', 'toolbar', 'default']) {
       state.mode.value = mode; await flush()
-      assert.equal(state.buttons().length, 1)
+      assert.equal(state.buttons().length, mode === 'default' ? 0 : 1)
       assert.equal(state.body(), body)
       assert.equal(state.field('left'), left); assert.equal(state.field('right'), right)
       assert.equal(left.props.value, '切换布局仍保留的草稿'); assert.equal(state.mounts(), 1)
       assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__toolbar')).length, ['toolbar', 'both'].includes(mode) ? 1 : 0)
-      assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__header')).length, mode === 'toolbar' ? 0 : 1)
+      assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__header')).length, ['left', 'both'].includes(mode) ? 1 : 0)
       assert.equal(state.root.children[0].children.filter(node => node.type === 'div').length, 2, 'the layout contains only its two panes')
+      if (mode === 'default') { assert.equal(body.props.inert, undefined); continue }
       const button = state.buttons()[0]
-      assert.ok(hasClass(button.parent.parent, ['toolbar', 'both'].includes(mode) ? 'equal-height-columns__pane--right' : 'equal-height-columns__pane--left'), 'a real main toolbar owns the entry even when the left header has search')
+      assert.ok(hasClass(button.parent.parent.parent, ['toolbar', 'both'].includes(mode) ? 'equal-height-columns__pane--right' : 'equal-height-columns__pane--left'), 'a real main toolbar owns the entry even when the left header has search')
       if (mode === 'both') assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__header'))[0].contains(button), false)
       state.buttons()[0].props.onClick(); await flush()
       const style = state.root.children[0].props.style
-      assert.equal(style['--equal-height-columns-left-width'], ['toolbar', 'both'].includes(mode) ? '0px' : 'var(--equal-height-columns-collapsed-width)')
+      assert.equal(style['--equal-height-columns-left-width'], mode === 'left' ? 'var(--equal-height-columns-collapsed-width)' : '0px')
       state.buttons()[0].props.onClick(); await flush()
     }
   } finally { state.app.unmount() }
 })
 
-for (const mode of ['default', 'toolbar', 'left', 'both']) {
+for (const mode of ['toolbar', 'left', 'both']) {
   test(`${mode}: unique disclosure retains its instance, input and control relation`, async () => {
     const state = mountColumns(mode)
     try {
@@ -185,13 +244,13 @@ test('columns forward updated accessible names and titles without caching useAtt
 })
 
 test('controlled acceptance, structural visibility and disabled collapse retain the host preference', async () => {
-  const state = mountColumns('default', { collapsed: false })
+  const state = mountColumns('toolbar', { collapsed: false })
   try {
     state.buttons()[0].props.onClick(); await flush()
     assert.equal(state.props.collapsed, true)
     state.props.collapsible = false; await flush()
     assert.equal(state.buttons().length, 0)
-    assert.equal(walk(state.root, node => node.type === 'header').length, 0, 'non-collapsible fallback adds no empty header')
+    assert.equal(walk(state.root, node => hasClass(node, 'equal-height-columns__header')).length, 0, 'a main toolbar does not add an empty left header')
     assert.equal(state.field('left').parent.props.inert, undefined)
     assert.equal(state.props.collapsed, true)
     state.props.collapsible = true; await flush()
@@ -207,7 +266,7 @@ test('controlled acceptance, structural visibility and disabled collapse retain 
 })
 
 test('collapse relocates hidden header/body focus without stealing main or toolbar focus', async () => {
-  for (const mode of ['default', 'toolbar', 'left', 'both']) {
+  for (const mode of ['toolbar', 'left', 'both']) {
     const state = mountColumns(mode, { collapsed: false })
     try {
       for (const label of ['left', 'left-search'].filter(label => state.field(label))) {
@@ -667,7 +726,7 @@ test('reopening follows pointer Y and a matching final extent does not wait for 
 })
 
 test('the gutter has its own budget and yields space to the end pane in a tight container', async t => {
-  const state = mountSplitter({ min: 160, endMin: 240 }); t.after(() => state.app.unmount())
+  const state = mountSplitter({ min: 160, endMin: 240, gutter: 12 }); t.after(() => state.app.unmount())
   state.containerWidth.value = 390; await flush()
   state.press('End'); await flush()
   assert.equal(state.separator().props['aria-valuenow'], 138)
@@ -678,6 +737,23 @@ test('the gutter has its own budget and yields space to the end pane in a tight 
   state.containerWidth.value = 200; await flush()
   assert.equal(state.separator(), undefined)
   assert.match(state.root.children[0].props.style.gridTemplateColumns, /\) 0px minmax/)
+})
+
+test('the default layout keeps the seam joined and the keyboard recovery handle through collapse', async t => {
+  const state = mountSplitter({ size: 240, min: 160, endMin: 240, collapseOnDrag: true })
+  t.after(() => state.app.unmount()); await flush()
+  const field = state.field('start')
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /\) 0px minmax/)
+  assert.equal(state.root.children[0].props['data-flush'], true)
+  state.press('ArrowRight'); await flush()
+  assert.equal(state.requests.at(-1), 256)
+  state.field('toggle').props.onClick(); await flush()
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /minmax\(0, 0px\) 0px minmax/)
+  assert.ok(state.separator())
+  state.press('Enter'); await flush()
+  assert.equal(state.collapses.at(-1), false)
+  assert.equal(state.field('start'), field)
+  assert.equal(state.mounts(), 1)
 })
 
 test('reopen settling restores focus lost to inert but does not steal a subsequent focus change', async t => {
@@ -738,6 +814,21 @@ test('Splitter retains local size, content instances and drafts across collapse 
   } finally { state.app.unmount() }
 })
 
+test('temporary container constraints preserve the confirmed Splitter size and content', async t => {
+  const state = mountSplitter({ min: 160, max: 480, endMin: 360 })
+  t.after(() => state.app.unmount())
+  const field = state.field('start'), handle = state.separator()
+  handle.props.onPointerdown(state.pointer(240)); handle.props.onPointermove(state.pointer(320)); handle.props.onPointerup(state.pointer(320)); await flush()
+  assert.equal(state.separator().props['aria-valuenow'], 320)
+  state.containerWidth.value = 600; await flush()
+  assert.equal(state.separator().props['aria-valuenow'], 240)
+  assert.deepEqual(state.requests, [320], 'automatic clamping is not a new user preference')
+  state.containerWidth.value = 1000; await flush()
+  assert.equal(state.separator().props['aria-valuenow'], 320)
+  assert.equal(state.field('start'), field)
+  assert.deepEqual(state.requests, [320])
+})
+
 test('vertical Splitter uses pointer Y and up/down keys, and yields its minimum when the host cannot fit both panes', async () => {
   const state = mountSplitter({ orientation: 'vertical', min: 100, max: 400, endMin: 180 })
   try {
@@ -749,7 +840,7 @@ test('vertical Splitter uses pointer Y and up/down keys, and yields its minimum 
     state.press('ArrowUp'); await flush(); assert.equal(state.separator().props['aria-valuenow'], 240)
     assert.match(state.root.children[0].props.style.gridTemplateRows, /240px/)
     state.containerHeight.value = 220; await flush()
-    assert.equal(state.separator().props['aria-valuenow'], 28); assert.equal(state.separator().props['aria-valuemin'], 28)
+    assert.equal(state.separator().props['aria-valuenow'], 40); assert.equal(state.separator().props['aria-valuemin'], 40)
     state.separator().focus(); state.props.resizable = false; await flush()
     assert.equal(state.separator(), undefined); assert.equal(state.document.activeElement, state.field('end').parent)
   } finally { state.app.unmount() }
@@ -846,4 +937,21 @@ test('resizable columns retain width and input through collapse, reset to their 
     toggle().props.onClick(); await flush()
     assert.equal(state.document.activeElement, toggle(), 'explicit toggle actions retain focus after the icon changes')
   } finally { state.app.unmount() }
+})
+
+test('zero gutter keeps the seam joined and the keyboard recovery handle through collapse', async t => {
+  const state = mountSplitter({ gutter: 0, size: 240, min: 160, endMin: 240, collapseOnDrag: true })
+  t.after(() => state.app.unmount()); await flush()
+  const field = state.field('start')
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /\) 0px minmax/)
+  assert.equal(state.root.children[0].props['data-flush'], true)
+  state.press('ArrowRight'); await flush()
+  assert.equal(state.requests.at(-1), 256)
+  state.field('toggle').props.onClick(); await flush()
+  assert.match(state.root.children[0].props.style.gridTemplateColumns, /minmax\(0, 0px\) 0px minmax/)
+  assert.ok(state.separator())
+  state.press('Enter'); await flush()
+  assert.equal(state.collapses.at(-1), false)
+  assert.equal(state.field('start'), field)
+  assert.equal(state.mounts(), 1)
 })
