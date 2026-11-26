@@ -57,7 +57,8 @@ const { width, height } = useElementSize(workspaceRef)
 const coarse = useMediaQuery('(pointer: coarse)')
 const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 const extent = computed(() => props.orientation === 'vertical' ? height.value : width.value)
-const compact = computed(() => extent.value > 0 && extent.value < props.min + props.endMin + (coarse.value ? 24 : 12))
+const compact = computed(() => extent.value > 0 && extent.value < props.min + props.endMin +
+  Math.max(props.resizable ? Math.max(0, props.gutter) : 0, coarse.value ? 24 : 12))
 const localPreference = ref(props.collapsed ?? false)
 const preference = computed({ get: () => props.collapsed ?? localPreference.value, set: value => {
   if (props.collapsed === undefined) localPreference.value = value
