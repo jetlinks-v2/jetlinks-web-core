@@ -109,6 +109,12 @@ export async function countDevices(query: Query, signal: AbortSignal) {
   }
   return counts
 }
+export async function countGroups(terms: ConditionFilterTerm[], signal: AbortSignal): Promise<Record<string, number>> {
+  await pause(2800, signal)
+  const result: Record<string, number> = Object.fromEntries(groups.map(group => [group.id, 0]))
+  for (const item of select({ group: 'all', terms })) { result.all++; result[item.group]++ }
+  return result
+}
 export async function queryDetails(ids: string[], signal: AbortSignal): Promise<Record<string, DeviceDetail>> {
   await pause(1050, signal)
   return Object.fromEntries(ids.map(id => {

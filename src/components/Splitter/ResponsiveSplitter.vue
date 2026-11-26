@@ -7,7 +7,10 @@
     <Splitter :collapsed="inlineCollapsed" :size="preferredSize" :resizable="resizable && !compact" :collapse-on-drag="collapseOnDrag"
       :orientation="orientation" :default-size="defaultSize" :min="min" :max="max" :end-min="endMin" :gutter="gutter" :resize-label="resizeLabel" :inert="drawerShown || undefined"
       class="responsive-splitter__layout" @update:collapsed="setCollapsed" @update:size="rememberSize">
-      <template #start><div ref="inlineTarget" class="responsive-splitter__target" /></template>
+      <template #start>
+        <div ref="inlineTarget" class="responsive-splitter__target" />
+        <Teleport v-if="navigationTarget" :to="navigationTarget"><div :id="startId" class="responsive-splitter__content"><slot name="start" :close="close" :compact="compact" /></div></Teleport>
+      </template>
       <template #end><slot name="end" :collapsed="visibleCollapsed" :toggle="toggle" :compact="compact" :overlay-open="overlayOpen" :start-id="startId" /></template>
     </Splitter>
     <Drawer :open="drawerShown" :mask="overlayOpen" force-render :destroy-on-close="false" :get-container="false" :autofocus="false"
@@ -19,7 +22,6 @@
         <div ref="drawerTarget" class="responsive-splitter__target" />
       </div>
     </Drawer>
-    <Teleport v-if="navigationTarget" :to="navigationTarget"><div :id="startId" class="responsive-splitter__content"><slot name="start" :close="close" :compact="compact" /></div></Teleport>
   </div>
 </template>
 <script setup lang="ts">
@@ -57,7 +59,8 @@ const { width, height } = useElementSize(workspaceRef)
 const coarse = useMediaQuery('(pointer: coarse)')
 const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 const extent = computed(() => props.orientation === 'vertical' ? height.value : width.value)
-const compact = computed(() => extent.value > 0 && extent.value < props.min + props.endMin + (coarse.value ? 24 : 12))
+const compact = computed(() => extent.value > 0 && extent.value < props.min + props.endMin +
+  Math.max(props.resizable ? Math.max(0, props.gutter) : 0, coarse.value ? 24 : 12))
 const localPreference = ref(props.collapsed ?? false)
 const preference = computed({ get: () => props.collapsed ?? localPreference.value, set: value => {
   if (props.collapsed === undefined) localPreference.value = value

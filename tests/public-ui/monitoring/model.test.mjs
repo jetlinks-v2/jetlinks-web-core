@@ -27,6 +27,7 @@ test('list arrives before its independent count; switching scope discards old wo
     await until(() => !list.countLoading.value)
     assert.equal(list.total.value, 12)
     assert.deepEqual(list.counts.value, { total: 12, normal: 9, attention: 2, offline: 1 })
+    assert.deepEqual(list.groupCounts.value, { all: 48, power: 12, cooling: 12, air: 12, environment: 12 })
     await list.loadMore()
     assert.equal(list.ended.value, true)
     await until(() => Object.keys(list.details.value).length === 12)
@@ -57,12 +58,14 @@ test('status badges share the filter model, replace status without losing other 
   try {
     await until(() => !list.countLoading.value)
     const distribution = list.counts.value
+    const groupDistribution = list.groupCounts.value
     list.chooseDistribution('attention'); list.applyTerms(list.terms.value)
     await until(() => !list.loading.value)
     assert.deepEqual(list.rows.value.map(point => point.status).sort(), ['high', 'low'])
     assert.equal(list.activeDistribution.value, 'attention')
     assert.equal(list.counts.value, distribution)
     assert.equal(list.countLoading.value, false)
+    assert.equal(list.groupCounts.value, groupDistribution)
     list.chooseDistribution('normal'); list.applyTerms(list.terms.value)
     await until(() => !list.loading.value)
     assert.equal(list.terms.value.length, 1)
@@ -76,6 +79,7 @@ test('status badges share the filter model, replace status without losing other 
     await until(() => !list.loading.value && !list.countLoading.value)
     assert.equal(list.rows.value[0].name, '回水温度')
     assert.deepEqual(list.counts.value, { total: 1, normal: 0, attention: 1, offline: 0 })
+    assert.deepEqual(list.groupCounts.value, { all: 1, power: 0, cooling: 1, air: 0, environment: 0 })
     list.chooseDistribution('attention')
     assert.equal(list.activeDistribution.value, 'total')
     assert.equal(list.terms.value.length, 1)

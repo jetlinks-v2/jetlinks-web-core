@@ -1,5 +1,5 @@
 import { computed, onScopeDispose, ref } from 'vue'
-import { countDevices, groups, queryDetails, queryNoPaging, type Device, type DeviceDetail, type DeviceCounts, type Query } from './data.ts'
+import { countDevices, countGroups, groups, queryDetails, queryNoPaging, type Device, type DeviceDetail, type DeviceCounts, type Query } from './data.ts'
 import type { ConditionFilterTerm, ConditionExpressionNode } from '../../../src/components/ConditionFilter/types'
 
 function isStatusCondition(term: ConditionFilterTerm): boolean {
@@ -16,6 +16,7 @@ export function useDeviceList() {
   const group = ref('cooling'), terms = ref<ConditionFilterTerm[]>([])
   const rows = ref<Device[]>([]), details = ref<Record<string, DeviceDetail>>({})
   const counts = ref<DeviceCounts>(), countLoading = ref(false), countError = ref(false)
+  const groupCounts = ref<Record<string, number>>(), groupCountLoading = ref(false), groupCountError = ref(false)
   const total = computed(() => counts.value?.total)
   const loading = ref(false), pendingSlots = ref(0), ended = ref(false), error = ref('')
   const detailErrors = ref<string[]>([]), revision = ref(0)
@@ -29,8 +30,22 @@ export function useDeviceList() {
       : values.length === 1 && ['normal', 'offline'].includes(values[0]) ? values[0] as 'normal' | 'offline' : undefined
   })
   let owner = new AbortController(), countOwner = new AbortController(), query: Query, countQuery: Query
-  let appliedTerms: ConditionFilterTerm[] = [], countIdentity = ''
+  let appliedTerms: ConditionFilterTerm[] = [], countIdentity = '', groupCountIdentity = ''
+  let groupCountOwner = new AbortController(), groupCountTerms: ConditionFilterTerm[] = []
   let detailQueue = Promise.resolve()
+
+  async function loadGroupCounts() {
+    const scope = groupCountOwner, snapshot = groupCountTerms
+    groupCountLoading.value = true; groupCountError.value = false
+    try {
+      const result = await countGroups(snapshot, scope.signal)
+      if (scope === groupCountOwner && !scope.signal.aborted) groupCounts.value = result
+    } catch {
+      if (scope === groupCountOwner && !scope.signal.aborted) groupCountError.value = true
+    } finally {
+      if (scope === groupCountOwner) groupCountLoading.value = false
+    }
+  }
 
   async function loadCount() {
     const scope = countOwner, snapshot = countQuery
@@ -82,6 +97,12 @@ export function useDeviceList() {
     loading.value = false; ended.value = false; revision.value++
     const nextCountQuery = { ...query, terms: splitStatus(query.terms).base }
     const identity = JSON.stringify(nextCountQuery)
+    const groupIdentity = JSON.stringify(nextCountQuery.terms)
+    if (groupIdentity !== groupCountIdentity) {
+      groupCountOwner.abort(); groupCountOwner = new AbortController(); groupCountIdentity = groupIdentity
+      groupCountTerms = nextCountQuery.terms; groupCounts.value = undefined
+      void loadGroupCounts()
+    }
     if (identity !== countIdentity) {
       countOwner.abort(); countOwner = new AbortController(); countIdentity = identity
       countQuery = nextCountQuery; counts.value = undefined
@@ -100,8 +121,9 @@ export function useDeviceList() {
     terms.value = next
   }
   function chooseGroup(value: string) { group.value = value; reload() }
-  onScopeDispose(() => { owner.abort(); countOwner.abort() })
+  onScopeDispose(() => { owner.abort(); countOwner.abort(); groupCountOwner.abort() })
   reload()
   return { group, terms, groupName, rows, details, total, counts, countLoading, countError, loading, pendingSlots,
+    groupCounts, groupCountLoading, groupCountError, loadGroupCounts,
     ended, error, detailErrors, revision, activeDistribution, applyTerms, chooseDistribution, reload, chooseGroup, loadMore, loadCount, loadDetails }
 }

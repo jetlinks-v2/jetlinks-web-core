@@ -17,6 +17,8 @@
     "../src/components/PanelResizeHandle/**/*.ts",
     "../src/components/PanelCollapseButton/**/*.vue",
     "../src/components/Splitter/**/*.vue",
+    "../src/components/SplitterPane/**/*.vue",
+    "../src/components/SplitterPane/**/*.ts",
     "./workspace-panels/**/*.vue",
     "./workspace-panels/**/*.ts"
   ]
