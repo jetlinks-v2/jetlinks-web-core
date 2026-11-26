@@ -4,9 +4,11 @@
 
 ## 与内容表面组合
 
+`Splitter` 与 `ResponsiveSplitter` 默认 `gutter=0`，让左右头部的横线与中间分割线直接相接。视觉接缝不占布局宽度，仍保留居中的 12px 拖拽／键盘命中区；宿主在面板内容内部留白，避免紧贴分界放置输入或按钮。需要独立留缝时显式设置 `gutter`。折叠和窄容器保留恢复命中区与可见入口，不在业务页额外补线。
+
 `Splitter` / `ResponsiveSplitter` 负责分区、尺寸和收放，外层表面沿用 [ContentPanel 的连续工作区组合](../ContentPanel/README.md#连续分区工作区)。同一工作区只保留一个背景和外框，分区根不重复设置 border、圆角或外圈 padding；留白放在 `start` / `end` 内容内部。共享头部的结构线接到外沿，分割线从头部下沿贯穿正文；输入与内容卡片的边框保持独立。
 
-宿主约束高度后，布局作为 `flex: 1; min-height: 0` 的正文填满，避免固定示例高度导致短屏溢出或长屏分割线悬空。独立左右头部继续使用 `EqualHeightColumns`；视觉统一不改变调宽、折叠、焦点和响应式状态的 owner。
+宿主约束高度后，布局作为 `flex: 1; min-height: 0` 的正文填满，避免固定示例高度导致短屏溢出或长屏分割线悬空。头部、工具栏和正文优先组合 [SplitterPane](../SplitterPane/README.md)，左右同层轨道自动对齐并提供内容留白与滚动；已有 CSS 双列可继续使用 `EqualHeightColumns`。视觉统一不改变调宽、折叠、焦点和响应式状态的 owner。
 
 平台双面板布局，参考 [Ant Design Splitter](https://ant.design/components/splitter-cn/) 的分割条交互，使用 Vue 和平台 token 实现；不是 Ant Design Vue 官方组件。从 core 组件入口具名导入 `Splitter`，不做全局注册。
 
@@ -31,6 +33,7 @@
 | `defaultSize` | 未调整时的 CSS 长度或百分比，数字按 px | `30%` |
 | `min` / `max` | 起始面板尺寸边界，单位 px | `0` / 无上限 |
 | `endMin` | 末端面板预留尺寸，单位 px | `0` |
+| `gutter` | 两区之间的布局留缝，单位 px；不等于拖动命中宽度 | `0` |
 | `resizable` | 显示分割条，允许拖动、键盘及点击调节 | `true` |
 | `collapseOnDrag` | 继续拖过最小尺寸后预览折叠，松手确认；宿主需保留展开入口 | `false` |
 | `collapsed` / `v-model:collapsed` | 起始面板折叠状态；省略时由 `end` 插槽的 `toggle` 管理 | `false` |
@@ -44,7 +47,7 @@
 
 启用 `collapseOnDrag` 后，请求尺寸小于有效最小尺寸的一半时，以面板内缘两端渐隐的柔和阴影表达收拢意图；拖动期间保持合法最小尺寸，不跳到 0。回拖到最小尺寸的 60% 时撤销意图，避免临界往返时反复闪烁。松手才请求折叠，并保留拖动前的展开尺寸；辅助技术保留“松开收起”提示。
 
-允许调宽时，分隔器占用独立的 12px 拖拽槽；空间不足时优先保证末端内容区，拖拽槽和起始区随可用空间收紧。折叠后隐藏整条分割线，继续复用分割条的同款细握柄：hover 时浅灰，键盘聚焦或拖动时使用主题色，触屏保持可见，不额外绘制箭头或胶囊底座。普通 hover 和键盘聚焦不显示投影；只有拖动达到确认阈值时显示窄幅贴边投影：收拢预览向起始面板内部，展开预览反向投向主区边缘，两端渐隐和模糊参数保持一致。投影限制在边缘 6px 范围，不形成宽灰带、不截获输入；确认收起 / 展开时立即隐藏，避免换边淡出造成闪烁。握柄与命中区留在槽内。点击或 Enter / Space 恢复之前保留的尺寸；展开后 Enter / Space 恢复默认尺寸。
+默认接缝不占布局宽度；显式 `gutter` 时才预留布局槽，空间不足时优先保证末端内容区，布局槽和起始区随可用空间收紧。折叠后隐藏整条分割线，继续复用分割条的同款细握柄：hover 时浅灰，键盘聚焦或拖动时使用主题色，触屏保持可见，不额外绘制箭头或胶囊底座。普通 hover 和键盘聚焦不显示投影；只有拖动达到确认阈值时显示窄幅贴边投影：收拢预览向起始面板内部，展开预览反向投向主区边缘，两端渐隐和模糊参数保持一致。投影限制在边缘 6px 范围，不形成宽灰带、不截获输入；确认收起 / 展开时立即隐藏，避免换边淡出造成闪烁。命中区覆盖接缝内侧，宿主需保留必要的内容留白。点击或 Enter / Space 恢复之前保留的尺寸；展开后 Enter / Space 恢复默认尺寸。
 
 向右拖动可揭开左区，上下布局则向下拖动。展开预览可以小于最小尺寸，内容保持至少最小尺寸并裁切，预览期间不发布尺寸 / 折叠状态。展开和收拢复用同一确认阈值与回拖缓冲，仅方向相反：拉过有效最小尺寸的 50% 才显示展开投影，回拉至 40% 时撤销；辅助技术提示“松开展开”。松手按当前意图确认，展开后应用合法尺寸。尚未进入或已撤销意图、Esc、指针取消或捕获丢失均返回折叠状态，保留原尺寸和草稿。键盘增大及双击复位也可以展开；工具栏展开按钮继续恢复之前保留的尺寸。
 
@@ -52,7 +55,7 @@
 
 阈值依据参考 [VS Code SplitView 的半最小尺寸吸附](https://github.com/microsoft/vscode/blob/main/src/vs/base/browser/ui/splitview/splitview.ts) 与 [react-resizable-panels 的默认中点阈值](https://github.com/bvaughn/react-resizable-panels/blob/main/README.md#panel)，折叠过渡参考 [Ant Design Splitter](https://ant.design/components/splitter/)。保留拖动约束、以提示预览意图并在释放时确认，是本组件沿既有提交契约的组合选择。
 
-独立占位参考 [Split.js 的 gutter 布局](https://github.com/nathancahill/split/tree/master/packages/splitjs#gutteralign-default-center)；完全折叠后保留拖动入口的依据见 [react-resizable-panels 折叠示例](https://react-resizable-panels.vercel.app/examples/collapsible-panels)。本组件沿用现有分割把手的 12px 命中宽度，并将其计入布局预算，避免覆盖业务内容。
+独立占位参考 [Split.js 的 gutter 布局](https://github.com/nathancahill/split/tree/master/packages/splitjs#gutteralign-default-center)；完全折叠后保留拖动入口的依据见 [react-resizable-panels 折叠示例](https://react-resizable-panels.vercel.app/examples/collapsible-panels)。本组件沿用现有分割把手的 12px 命中宽度；默认由面板内侧留白提供操作空间，显式 gutter 才计入布局预算。
 
 折叠握柄借鉴 [Apple Sheets](https://developer.apple.com/design/human-interface-guidelines/sheets) 用抓手提示可拖动、[Apple Sidebars](https://developer.apple.com/design/human-interface-guidelines/sidebars) 保留恢复入口的原则；此处沿用平台分割条的视觉语言，并非 iOS 原生侧栏样式。
 

@@ -7,7 +7,10 @@
     <Splitter :collapsed="inlineCollapsed" :size="preferredSize" :resizable="resizable && !compact" :collapse-on-drag="collapseOnDrag"
       :orientation="orientation" :default-size="defaultSize" :min="min" :max="max" :end-min="endMin" :gutter="gutter" :resize-label="resizeLabel" :inert="drawerShown || undefined"
       class="responsive-splitter__layout" @update:collapsed="setCollapsed" @update:size="rememberSize">
-      <template #start><div ref="inlineTarget" class="responsive-splitter__target" /></template>
+      <template #start>
+        <div ref="inlineTarget" class="responsive-splitter__target" />
+        <Teleport v-if="navigationTarget" :to="navigationTarget"><div :id="startId" class="responsive-splitter__content"><slot name="start" :close="close" :compact="compact" /></div></Teleport>
+      </template>
       <template #end><slot name="end" :collapsed="visibleCollapsed" :toggle="toggle" :compact="compact" :overlay-open="overlayOpen" :start-id="startId" /></template>
     </Splitter>
     <Drawer :open="drawerShown" :mask="overlayOpen" force-render :destroy-on-close="false" :get-container="false" :autofocus="false"
@@ -19,7 +22,6 @@
         <div ref="drawerTarget" class="responsive-splitter__target" />
       </div>
     </Drawer>
-    <Teleport v-if="navigationTarget" :to="navigationTarget"><div :id="startId" class="responsive-splitter__content"><slot name="start" :close="close" :compact="compact" /></div></Teleport>
   </div>
 </template>
 <script setup lang="ts">
@@ -44,7 +46,7 @@ const props = withDefaults(defineProps<{
   collapsed?: boolean
   resizeLabel?: string
   panelTitle?: string
-}>(), { orientation: 'horizontal', defaultSize: '30%', max: Infinity, gutter: 12, resizable: true, collapseOnDrag: false, collapsed: undefined })
+}>(), { orientation: 'horizontal', defaultSize: '30%', max: Infinity, gutter: 0, resizable: true, collapseOnDrag: false, collapsed: undefined })
 const emit = defineEmits<{
   (event: 'update:collapsed', value: boolean): void
   (event: 'update:size' | 'resize', value: number): void

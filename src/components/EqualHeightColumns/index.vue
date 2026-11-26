@@ -11,12 +11,17 @@
     :style="[attrs.style as StyleValue, rootStyle()]"
   >
     <div v-if="showLeft" ref="leftPaneRef" class="equal-height-columns__pane equal-height-columns__pane--left" :style="leftStyle">
-      <header v-if="hasLeftHeader() || (collapsible && !hasToolbar())" class="equal-height-columns__header">
+      <header v-if="hasLeftHeader() || (collapsible && !hasToolbar())" class="equal-height-columns__header" :style="{ minHeight: `${headerHeight}px` }">
+        <div ref="leftHeaderContent" class="equal-height-columns__row-content">
         <PanelCollapseButton v-if="collapsible && usesLeftToggle()" ref="toggleRef" class="equal-height-columns__header-toggle"
           :collapsed="isCollapsed" :label="toggleText" :aria-controls="controlledIds()" @toggle="toggleCollapse" />
         <div v-if="hasLeftHeader()" v-show="!isCollapsed" :id="headerId" class="equal-height-columns__header-content"
           :inert="isCollapsed ? true : undefined" :aria-hidden="isCollapsed ? true : undefined"><slot name="left-header" /></div>
+        </div>
       </header>
+      <div v-if="$slots['left-toolbar'] || $slots['right-toolbar']" v-show="!isCollapsed" class="equal-height-columns__tools" :style="{ minHeight: `${toolbarHeight}px` }">
+        <div v-if="$slots['left-toolbar']" ref="leftToolbarContent" class="equal-height-columns__row-content"><slot name="left-toolbar" /></div>
+      </div>
       <div v-show="!isCollapsed" :id="bodyId" class="equal-height-columns__body"
         :inert="isCollapsed ? true : undefined" :aria-hidden="isCollapsed ? true : undefined"><slot name="left" /></div>
     </div>
@@ -25,11 +30,16 @@
       :model-value="resizedWidth ?? measuredLeftWidth" :container="rootRef" :limits="panelLimits"
       :aria-label="$t('components.EqualHeightColumns.resize')" :aria-controls="controlledIds()" @update:model-value="resizeLeft" />
     <div ref="rightPaneRef" class="equal-height-columns__pane equal-height-columns__pane--right" :style="rightStyle" tabindex="-1">
-      <header v-if="hasToolbar()" class="equal-height-columns__toolbar">
+      <header v-if="hasToolbar()" class="equal-height-columns__toolbar" :style="{ minHeight: `${headerHeight}px` }">
+        <div ref="rightHeaderContent" class="equal-height-columns__row-content">
         <PanelCollapseButton v-if="showLeft && collapsible && !usesLeftToggle()" ref="toggleRef" class="equal-height-columns__header-toggle"
           :collapsed="isCollapsed" :label="toggleText" :aria-controls="controlledIds()" @toggle="toggleCollapse" />
         <div class="equal-height-columns__toolbar-content"><slot name="right-header" /></div>
+        </div>
       </header>
+      <div v-if="$slots['left-toolbar'] || $slots['right-toolbar']" class="equal-height-columns__tools" :style="{ minHeight: `${toolbarHeight}px` }">
+        <div v-if="$slots['right-toolbar']" ref="rightToolbarContent" class="equal-height-columns__row-content"><slot name="right-toolbar" /></div>
+      </div>
       <div class="equal-height-columns__main"><slot name="right" /></div>
     </div>
   </div>
@@ -42,6 +52,7 @@ import { useI18n } from 'vue-i18n'
 import PanelResizeHandle from '../PanelResizeHandle/index.vue'
 import PanelCollapseButton from '../PanelCollapseButton/index.vue'
 import { useColumnCollapse } from './useColumnCollapse'
+import { providePaneRows, usePaneRow } from '../SplitterPane/usePaneRows'
 
 type SizeValue = number | string
 
@@ -83,6 +94,8 @@ const props = withDefaults(
     /** 允许拖动分割线调整左列宽度；默认保留既有 CSS 轨道布局。 */
     resizable?: boolean
     resizeLimits?: { min?: number; max?: number; contentMin?: number }
+    /** 正文内边距，默认 0 兼容已有自行留白的内容。 */
+    padding?: SizeValue
   }>(),
   {
     height: '100%',
@@ -94,6 +107,7 @@ const props = withDefaults(
     collapsed: undefined,
     showLeft: true,
     resizable: false,
+    padding: 0,
   }
 )
 
@@ -109,6 +123,13 @@ const { isCollapsed, toggleRef, toggleCollapse } = useColumnCollapse(props, left
 })
 
 const { width: measuredLeftWidth } = useElementSize(computed(() => props.resizable ? leftPaneRef.value : undefined))
+const rows = providePaneRows(() => props.showLeft && !isCollapsed.value)
+const leftHeaderContent = ref<HTMLElement>(), rightHeaderContent = ref<HTMLElement>()
+const leftToolbarContent = ref<HTMLElement>(), rightToolbarContent = ref<HTMLElement>()
+const headerHeight = usePaneRow('header', leftHeaderContent, rows)
+usePaneRow('header', rightHeaderContent, rows)
+const toolbarHeight = usePaneRow('toolbar', leftToolbarContent, rows)
+usePaneRow('toolbar', rightToolbarContent, rows)
 watchEffect(() => {
   if (resizedWidth.value === undefined && !isCollapsed.value && measuredLeftWidth.value > 0) initialWidth.value = measuredLeftWidth.value
 })
@@ -144,6 +165,7 @@ const toGridTrack = (value: SizeValue, collapsed = false) => {
 
 const rootStyle = (): Record<string, string> => ({
   '--equal-height-columns-height': toCssValue(props.height),
+  '--equal-height-columns-padding': toCssValue(props.padding),
   // 左侧入口保留自身顶行宽度；只有右工具栏入口时左列才完全归零。
   '--equal-height-columns-gap': isCollapsed.value ? '0px' : toCssValue(props.gap),
   '--equal-height-columns-align': props.align,

@@ -22,6 +22,7 @@ import { useElementSize, useMediaQuery } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import PanelResizeHandle from '../PanelResizeHandle/index.vue'
 import type { PanelResizeDragEvent } from '../PanelResizeHandle/types'
+import { providePaneRows } from '../SplitterPane/usePaneRows'
 
 defineOptions({ name: 'Splitter' })
 const props = withDefaults(defineProps<{
@@ -41,7 +42,7 @@ const props = withDefaults(defineProps<{
   collapsed?: boolean
   resizeLabel?: string
 }>(), {
-  orientation: 'horizontal', defaultSize: '30%', min: 0, max: Infinity, endMin: 0, gutter: 12,
+  orientation: 'horizontal', defaultSize: '30%', min: 0, max: Infinity, endMin: 0, gutter: 0,
   resizable: true, collapsed: undefined, collapseOnDrag: false,
 })
 const emit = defineEmits<{
@@ -81,6 +82,7 @@ const measuredSize = computed(() => props.orientation === 'vertical' ? height.va
 const containerSize = computed(() => props.orientation === 'vertical' ? containerHeight.value : containerWidth.value)
 const gutterSize = computed(() => props.resizable ? Math.min(Math.max(0, props.gutter), Math.max(0, containerSize.value - props.endMin)) : 0)
 const startHidden = computed(() => isCollapsed.value || collapseMotion.value || (containerSize.value > 0 && measuredSize.value === 0))
+providePaneRows(() => props.orientation === 'horizontal' && !startHidden.value)
 const limits = computed(() => {
   const available = Math.max(0, containerSize.value - props.endMin - gutterSize.value)
   const min = Math.min(props.min, available)
