@@ -9,13 +9,15 @@ import i18n from '@jetlinks-web-core/locales'
 import microApp from '@micro-zoe/micro-app'
 import { collectCoreRouteOverrides } from './globModules'
 import { resolveCoreRoutes } from './coreRoutes'
-import { RouteSecurityLevel } from './types'
+import { RouteSecurityLevel, usesShareSession } from './types'
 import { DefaultApplicationEntryError } from './default-entry'
-import { toValue } from 'vue'
+import { shallowRef, toValue } from 'vue'
+import { isSubApp } from '@jetlinks-web-core/utils/consts'
 import {
   addFallbackRoute,
   bootstrapSession,
   ensureMenuRoutes,
+  ensureSystemBulletinSubscription,
   resetRouteStartupState,
   resetSessionStores
 } from './startup'
@@ -47,8 +49,8 @@ import {
   type LoginNavigationReason,
 } from './login-navigation'
 import { completeLoginNavigation, requestLoginNavigation } from './login-transition'
+import { FORBIDDEN_PATH, NO_MENU_REASON, forbiddenLocation } from './forbidden'
 
-const FORBIDDEN_PATH = '/403'
 const NOT_FOUND_PATH = '/404'
 const PROJECT_RUNTIME_ROOT_PATH = '/'
 const PROJECT_TENANT_ROUTE_PREFIXES = ['/console', '/account']
@@ -118,6 +120,9 @@ function isPublicRoute(to: RouteLocationNormalized): boolean {
  * 检查是否跳过菜单权限检查
  */
 function shouldSkipMenuFetch(to: RouteLocationNormalized): boolean {
+  // 模块可以覆盖个人中心路径；命名路由仍须遵循无菜单拦截。
+  if (to.name === 'account/center') return false
+
   // 精确匹配
   if (menuFilterPaths.includes(to.path)) {
     return true
@@ -141,8 +146,7 @@ const handleApplicationStartupError = (
   if (!(error instanceof ApplicationEntryUnavailableError)) {
     onlyMessage(i18n.global.t('components.BusinessApplicationSwitcher.loadFailed'), 'error')
   }
-  if (isForbiddenRoute(to)) next()
-  else next({ path: FORBIDDEN_PATH, query: to.query, replace: true })
+  next(forbiddenLocation(to.query))
   return true
 }
 
@@ -242,12 +246,10 @@ const getRoutesByServer = async (
       return
     }
 
-    // 应用无业务路由时，个人中心可用不代表模块预注册的业务页也已授权。
-    if (getApplicationRuntimeEntry().type === 'application' && to.name !== 'account/center'
-      && to.path !== NOT_FOUND_PATH && !shouldSkipMenuFetch(to) && !isPublicRoute(to)
-      && (to.meta.security ?? RouteSecurityLevel.AUTHORIZED) === RouteSecurityLevel.AUTHORIZED
-      && !useMenuStore().hasRouteMenu()) {
-      next({ path: FORBIDDEN_PATH, query: to.query, replace: true })
+    if (to.path !== NOT_FOUND_PATH && !shouldSkipMenuFetch(to) && !isPublicRoute(to)
+      && (to.name === 'account/center' || (to.meta.security ?? RouteSecurityLevel.AUTHORIZED) === RouteSecurityLevel.AUTHORIZED)
+      && useMenuStore().hasNoAccessibleMenu) {
+      next(forbiddenLocation(to.query, true))
       return
     }
 
@@ -259,8 +261,49 @@ const getRoutesByServer = async (
   }
 }
 
+/** 只在带无菜单原因的错误页冷启动时复核。普通 403 不再触发曾失败的应用准入。 */
+const enterNoMenuResult = async (to: RouteLocationNormalized, next: NavigationGuardNext) => {
+  const menu = useMenuStore()
+  try {
+    if (!menu.initialized) {
+      await bootstrapSession(false)
+      await ensureMenuRoutes(router, false)
+    }
+    if (menu.firstMenuPath) {
+      const { reason, ...query } = to.query
+      next({ path: menu.firstMenuPath, query, replace: true })
+    } else if (menu.hasNoAccessibleMenu) {
+      next()
+    } else {
+      next(forbiddenLocation(to.query))
+    }
+  } catch (error) {
+    console.error('[Router] 无菜单状态复核失败:', error)
+    next(forbiddenLocation(to.query))
+  }
+}
+
+// 每份独立文档只承载一种会话。跨身份导航先让路由提交正确的历史记录，再整页加载。
+let documentIsShare: boolean | undefined
+export const changingSessionDocument = shallowRef(false)
+const needsSessionDocument = (to: RouteLocationNormalized) =>
+  !isSubApp && documentIsShare !== undefined && usesShareSession(to.meta) !== documentIsShare
+
 // ============ 全局守卫 ============
 router.beforeEach((to, from, next) => {
+  documentIsShare ??= usesShareSession(to.meta)
+  if (needsSessionDocument(to)) {
+    // 目标组件不会在旧文档挂载；新文档冷启动时正常执行授权、菜单和账号初始化。
+    next()
+    return
+  }
+  // 分享授权和公开播放不继承应用 Scope，也无需装载浏览器当前账号的用户和菜单。
+  if (usesShareSession(to.meta)) {
+    useRouteLoadingStore().finish()
+    next()
+    return
+  }
+
   const entry = getApplicationRuntimeEntry()
   const locationScope = getRouteQueryParam(window.location, APPLICATION_SCOPE_QUERY_KEY)
   const navigationScope = entry.applicationId
@@ -299,7 +342,8 @@ router.beforeEach((to, from, next) => {
   }
 
   const token = getToken()
-  if (token && entry.type === 'application' && isForbiddenRoute(to)) {
+  if (token && isForbiddenRoute(to)) {
+    if (to.query.reason === NO_MENU_REASON) return enterNoMenuResult(to, next)
     next()
     return
   }
@@ -335,13 +379,13 @@ router.beforeEach((to, from, next) => {
             return
           }
 
+          if (!isPublicRoute(to)) void ensureSystemBulletinSubscription(token)
           getRoutesByServer(to, next)
         })
         .catch(error => {
           console.error('[Router] 初始化会话失败:', error)
           if (error instanceof DefaultApplicationEntryError) {
-            if (isForbiddenRoute(to)) next()
-            else next({ path: FORBIDDEN_PATH, query: to.query, replace: true })
+            next(forbiddenLocation(to.query))
             return
           }
           if (handleApplicationStartupError(error, to, next)) return
@@ -362,6 +406,11 @@ router.beforeEach((to, from, next) => {
 })
 
 router.afterEach((to, _from, failure) => {
+  if (!failure && needsSessionDocument(to)) {
+    changingSessionDocument.value = true
+    window.location.reload()
+    return
+  }
   if (!failure && to.name === 'Login') {
     completeLoginNavigation()
   }

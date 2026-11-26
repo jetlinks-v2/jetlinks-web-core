@@ -148,9 +148,35 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 通知设置接收方式
 
-Owning module 为 `runtime-ui/jetlinks-web-core`，入口为 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}`。渠道或消息模板未配置时，表头统一显示“去绑定”，空单元格及不完整配置的提示同步使用该文案，中、英、日资源保持一致；移除原不可用通知文案及管理员变体。不增加无权限按钮的禁用或提示逻辑，沿用现有菜单导航；邮箱、手机号与企业微信接收账号绑定继续使用原流程。钉钉工作通知已有业务渠道但缺少接收账号时，表头“去绑定”和勾选未订阅项均在当前页面跳转到「消息渠道 → 钉钉」并定位对应配置，不弹窗、不新开浏览器标签。缺少渠道或业务模板时仍定位相应配置页，钉钉同样使用页内跳转。浏览器返回通知设置后重新加载绑定状态，不自动订阅。
+个人中心的钉钉列只订阅**工作通知**。`account/center/components/Subscribe/useNotificationSettings.ts` 按每条业务消息的 `channelConfiguration.notifierId` 识别 `dingTalkMessage`；表头汇总可用工作通知的本人绑定，不能用表头的姓名代替某一行的绑定。只有业务通道已启用、有模板、支持订阅，且本人存在同一通知器的 `dingTalk_dingTalkMessage` 成员对应时才能新增订阅。识别为群机器人的配置不参与订阅或配置跳转。
 
-可用渠道及订阅选择仍以 `/notify/channel/all` 和个人订阅接口为准。`src/api/account/notificationSubscription.ts#getNotificationNotifierConfigs_api` 通过现有 `/notifier/config/_query/no-paging` 只查询 `id/type/provider`，用于区分渠道和模板缺失，不读取通知器凭据或替代订阅数据。渠道缺失进入 `system/MessageNotification/Channels`，渠道已配置但模板缺失进入 `system/MessageNotification/Templates`，通过 `channel=type:provider` 定位对应页面。钉钉/微信个人接收使用工作通知，群机器人/服务号不能冒充；已有业务绑定优先使用真实通知器提供商。渠道查询失败保留重试反馈，不按空配置跳转，也不阻断已加载订阅的保存。
+普通账号查询通知器管理列表遇到 `403` 时，使用已授权业务通道和同一通知器的本人对应判断，无需额外管理权限。新增前重新读取成员对应；读取失败可重试，不保存。仅成员解绑时仍可取消原订阅。保存只增删本行业务通道 ID，保留其他渠道和原订阅配置，不迁移历史数据。「去配置」定位 `dingTalk:dingTalkMessage`。
+
+验证：core 下执行 `node --test src/views/account/center/*.test.mjs tests/loginNavigation.test.mjs`，161 项通过。隔离 Chrome 使用实际订阅组件和 Ant Design 复选框，分别验证管理查询成功和返回 403 时的勾选、刷新回显、解绑后取消、再刷新，以及其他消息行和渠道不受影响。`node --max-old-space-size=8192 ../node_modules/vite/bin/vite.js build --outDir <临时目录> -- --module-name authentication-manager-ui,notify-manager-ui` 定向生产构建通过。工作区无独立 lint 脚本，`git diff --check` 通过；`node --max-old-space-size=8192 ../node_modules/vue-tsc/bin/vue-tsc.js --noEmit --pretty false -p tsconfig.json` 修改前后均有 511 项既有诊断，输出一致。未修改真实账号订阅或试发消息，真实投递未验收。
+
+系统公告（`SystemBulletin`）由运行时路由守卫为登录账号初始化站内信绑定，通知设置矩阵隐藏该主题。实现入口为 `src/router/index.ts` 和 `src/router/startup.ts`。
+
+会话就绪后先通过 `GET /notify/channel/all` 检查当前账号可用的公告主题及站内信，再按主题查询 `POST /notifications/subscriptions/_query`。缺少站内信时使用 `PATCH /notifications/subscribe` 补绑，补绑保留已有订阅 ID、其他接收渠道及状态。同一会话合并重复导航的检查，退出时取消旧会话请求，失败后可随下一次登录态导航重试。
+
+本地 9200 的通知设置已确认系统公告行隐藏。core 下执行 `node --test tests/loginNavigation.test.mjs src/views/account/center/personalCenterFlows.test.mjs src/views/account/center/notificationSettingsView.test.mjs` 通过 98 项，使用真实路由与隔离 HTTP 响应验证默认保存、已有绑定、重复导航、重试和换号。实际新账号首次保存及投递仍待联调。扩展运行 `node --test tests/applicationLoading.test.mjs` 的 3 项失败与修改前一致。
+
+运行时宿主执行 `pnpm build` 通过，包含 visualization player。core 下执行 `node --max_old_space_size=8192 ../node_modules/vue-tsc/bin/vue-tsc.js --noEmit --pretty false -p tsconfig.json` 仍报告与改动前相同的 511 项诊断。工作区无独立 lint 脚本，差异空白检查通过。
+
+个人中心的订阅矩阵在 `account/center/components/Subscribe/useNotificationSettings.ts` 按主题标识隐藏场景联动（`scene`），场景告警（`alarm-other`）可在矩阵中配置。场景执行通知可在消息中心查看。
+
+本地 9201 页面刷新、个人中心及场景通知相关的 82 项定向测试、运行时独立生产构建均验证通过。在 `runtime-ui/` 执行 `pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json`，修改前后均报告相同的 511 项既有诊断。运行时工作区未配置独立 lint 脚本。
+
+通知设置表头由 `runtime-ui/jetlinks-web-core` 的 `account/center/components/Subscribe/{index.vue,useNotificationSettings.ts}` 维护。配置缺失时，无配置动作权限的账号显示「需管理员开启」，有权限的账号可从「去配置」定位渠道或消息模板。配置可用后，邮件、语音和短信回显当前账号的实际邮箱或手机号。钉钉工作通知和企业微信按渠道关联的通知器 ID 和绑定类型回显成员，缺少对应时提示管理员尚未对应账号。表格中的可用和禁用复选框均移除悬浮提示，保留可访问名称。
+
+邮件、语音、短信的业务通道已配置，且当前账号可编辑基本信息、尚未填写对应联系方式时，表头在未绑定提示右侧显示「去绑定」。点击后由 `account/center/useCenter.ts#openAccountInfo` 切换到基本信息并打开原有弹窗。邮件打开邮箱绑定，语音和短信共用手机号设置。
+
+表头从 `/notify/channel/all` 读取已授权业务通道，复用 `/user/third-party/me` 获取当前账号的对应关系。`src/api/account/notificationSubscription.ts#getNotificationNotifierConfigs_api` 通过现有接口仅读取 `id/type/provider`，用于识别工作通知与群机器人以及定位配置。通知器列表权限不足时，表头仍使用已授权业务通道和本人对应关系。实际请求失败时沿用重试反馈。渠道缺失进入 `system/MessageNotification/Channels`，模板缺失进入 `system/MessageNotification/Templates`，通过 `channel=type:provider` 定位配置页。
+
+本地 9200 验证了未配置、钉钉和企业微信未对应的表头，以及 24 个复选框的提示移除。core 下执行 `node --test src/views/account/center/*.test.mjs tests/loginNavigation.test.mjs`，148 项全部通过。普通账号权限、已绑定联系方式和成员回显用隔离响应验证。中英日资源及差异空白检查通过。core 定向生产构建 `node --max_old_space_size=12288 ../node_modules/vite/bin/vite.js build --outDir /tmp/jetlinks-notification-header-build -- --module-name authentication-manager-ui` 通过。工作区无独立 lint 脚本，上述 core 类型检查仍有相同的 511 项既有诊断。
+
+本地 9201 已验证「去绑定」在未绑定邮箱的右侧，点击后切换到基本信息并打开邮箱绑定弹窗。当前环境未启用邮箱验证码，语音和短信的业务通道尚未配置，两个手机号入口及打开后的页签和弹窗状态使用隔离数据验证。core 下执行 `node --test src/views/account/center/*.test.mjs tests/loginNavigation.test.mjs` 已通过 149 项。`node --max_old_space_size=8192 ../node_modules/vue-tsc/bin/vue-tsc.js --noEmit --pretty false -p tsconfig.json` 修改前后均报告相同的 511 项既有诊断。工作区无独立 lint 脚本，`git diff --check` 通过。
+
+core 下执行 `node --max_old_space_size=8192 ../node_modules/vite/bin/vite.js build --outDir <临时目录> -- --module-name authentication-manager-ui,notify-manager-ui` 定向生产构建通过，产物清单包含个人中心和通知设置。全量构建在模块转换阶段长时间无新日志，定向构建验证完成后停止了该次运行。全量验证可在 `runtime-ui/` 执行 `pnpm build`。
 
 其他接收方式的渠道和模板配置入口继续通过公共 `src/hooks/useNotificationConfigNavigation.ts` 使用独立标签及返回刷新。模板入口仅有一个待配置业务时携带真实记录 ID，多业务或多资产范围时进入模板目录选择；继续传递 `topicProvider/channelProvider`。不修改后端接口、订阅保存契约、通知发送、通知模块或运营端 `ui/`，不新增单元格按钮。模板接收页及迁移边界见 [通知模块说明](../../../modules/notify-manager-ui/README.md)。
 
@@ -160,11 +186,28 @@ Owning module 为 `runtime-ui/jetlinks-web-core`，入口为 `account/center/com
 
 钉钉页内跳转验证（2026-11-21）：上述定向测试 66/66 通过。Chrome 使用真实 Vue Router 和隔离数据验证表头与勾选均在同一浏览器标签定位 `channel=dingTalk:dingTalkMessage` 和对应 `configId`；浏览器后退后显示更新的绑定状态，未自动订阅。未使用真实账号修改成员对应。运行时生产构建通过；上述 core 类型检查修改前后均有相同的 511 项既有诊断。无独立 lint 脚本，差异空白检查通过。
 
+### 个人告警订阅的菜单权限
+
+运行时个人中心在进入或刷新通知设置时，依据当前账号的有效菜单和现有可用渠道展示告警类型。
+
+| 菜单 | 菜单 code | 订阅类型 |
+| --- | --- | --- |
+| 物联告警 | `iot-user/device/alarm` | 设备告警 `alarm-device`、设备告警解除 `alarm-device-relieve` |
+| 视觉告警 | `machine-vision/VisualAlarm` | 合规告警 `aiComplianceAlarm`、安全告警 `aiSecurityAlarm` |
+
+1. `account/center/components/Subscribe/useNotificationSettings.ts` 复用 `src/store/menu.ts#requestMenus` 与 `src/api/system/menu.ts#readOwnMenuTree` 读取授权菜单，按已授予的菜单 code 筛选矩阵。应用视图中的菜单仅决定当前显示，停用前复核该账号在同一项目内的完整菜单授权。
+2. 菜单与本人订阅查询均成功，并确认账号和项目仍匹配后，按订阅 ID 调用现有 `src/api/account/notificationSubscription.ts#changeSubscriptionState_api`，使用 `PUT /notifications/subscription/{id}/_disabled` 停用明确缺少对应菜单且仍启用的记录。
+3. 停用成功后同步本地状态，保留订阅记录和原渠道选项。菜单重新授予后可显示该类型，用户可主动重新勾选。查询失败时待重新确认授权，停用失败沿用页面的重试入口。
+
+core 下执行 `node --test src/views/account/center/*.test.mjs tests/loginNavigation.test.mjs`，155 项全部通过。使用隔离响应验证四种菜单组合、授权查询失败、仅停用相关的启用订阅、项目与账号切换、其他授权来源仍保有菜单、失败重试及恢复菜单后的停用状态。停用接口封装验证了订阅 ID 编码、请求地址和取消信号。
+
+定向生产构建通过，产物清单中的通知设置分块包含两组告警菜单规则。构建命令为 `node --max_old_space_size=8192 ../node_modules/vite/bin/vite.js build --outDir <临时目录> -- --module-name authentication-manager-ui,notify-manager-ui`。运行 `node --max_old_space_size=8192 ../node_modules/vue-tsc/bin/vue-tsc.js --noEmit --pretty false -p tsconfig.json` 的结果前后均为相同的 511 项既有诊断。工作区无独立 lint 脚本，差异空白检查通过。
+
 ### 公共组件与交互契约
 
 - 基本信息中的角色和组织使用首项标签及剩余数量保持单行，鼠标移入或点击可在弹层中查看完整列表；长名称在摘要中省略，弹层内完整展示并限制高度。实现位于 `account/center/components/BasicInfo.vue`；页面交互待用户验收。
 - 姓名使用公共 `InputEditable` 的图标入口：鼠标悬停或键盘聚焦时显示编辑图标，点击后进入输入框；Enter 或失焦保存、Esc 取消，异步保存失败保留输入。资料和头像通过 `PUT /user/detail` 保存；头像复用 `ImageUpload` 的 `value/update:value` 与 `cropperProps`，执行 1:1 裁剪；鼠标悬停或键盘聚焦时在头像中央显示更换图标。
-- 登录方式使用 Ant 列表和按钮。手机号、邮箱资料不等于已验证登录身份；只有 `/user/identity/_me` 返回身份时才显示已验证。联系方式的列表、弹窗说明和通知接收提示统一经 `contactPresentation.ts` 脱敏，修改弹窗不预填旧值，用户主动输入的新值用于验证与保存。`ContactDialog/useContactDialog.ts` 组合资料与验证逻辑，共用一个联系方式字段和一组底部操作；验证码只用于发起验证的原始地址，验证或保存失败不关闭弹窗。身份确认成功后资料保存失败，当前个人中心页内按账号保留待保存的新值；关闭重开弹窗后重新输入同一个值可补存资料，不重复消费验证码，保存成功或账号切换即清除，不写入浏览器存储。旧身份管理保留在既有账号资料页，绑定弹窗不再叠加独立身份管理表单。
+- 登录方式使用 Ant 列表和按钮。手机号、邮箱资料不等于已验证登录身份；只有 `/user/identity/_me` 返回身份时才显示已验证。基本信息列表和联系弹窗说明经 `contactPresentation.ts` 脱敏，通知设置表头显示当前账号的实际接收地址。修改弹窗由用户输入要验证和保存的新值。`ContactDialog/useContactDialog.ts` 组合资料与验证逻辑，共用一个联系方式字段和一组底部操作；验证码只用于发起验证的原始地址，验证或保存失败不关闭弹窗。身份确认成功后资料保存失败，当前个人中心页内按账号保留待保存的新值；关闭重开弹窗后重新输入同一个值可补存资料，不重复消费验证码，保存成功或账号切换即清除，不写入浏览器存储。旧身份管理保留在既有账号资料页，绑定弹窗不再叠加独立身份管理表单。
 - 第三方账号由 `useSsoBindings.ts` 加载，`BindThirdAccount/SsoAuthorization.vue` 承接授权弹层。扫码绑定后读回真实状态；卸载时清理订阅和监听。配置链接遵循当前用户菜单权限，缺失状态和时间不推断补齐。
 - 登录配置入口按 `useBasicLayoutVariant` 区分：运营端显示“系统管理 › 应用管理”并跳转 `system/Apply`，项目/应用端显示“开放与集成 › 单点登录”并跳转 `system/ThirdPartyLogin`；无对应菜单权限时仅显示说明文字，中、英、日资源同步。
 - 密码弹窗复用公共表单与页脚，`EditPassword/usePasswordValidation.ts` 区分当前密码校验失败与请求失败；强度和实际提交仍由现有服务端契约决定。

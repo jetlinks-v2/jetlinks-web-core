@@ -2,6 +2,7 @@
   <JPagination
     v-if="total > 0"
     :class="{ 'core-pagination--unknown-total': !totalKnown }"
+    v-bind="{ ...$attrs, ...paginationAppearance }"
     :page-index="current - 1"
     :page-size="pageSize"
     :total="total"
@@ -19,6 +20,10 @@
 /// <reference path="./j-pagination.d.ts" />
 import JPagination from '@jetlinks-web/components/es/ProTable/Pagination.js'
 
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, paginationAppearance } from './defaults'
+
+defineOptions({ inheritAttrs: false })
+
 const props = withDefaults(defineProps<{
   current?: number
   pageSize?: number
@@ -30,8 +35,8 @@ const props = withDefaults(defineProps<{
   size?: 'default' | 'small'
   disabled?: boolean
 }>(), {
-  current: 1, pageSize: 12, total: 0, totalKnown: true,
-  pageSizeOptions: () => ['12', '24', '48', '96'], showSizeChanger: true,
+  current: 1, pageSize: DEFAULT_PAGE_SIZE, total: 0, totalKnown: true,
+  pageSizeOptions: () => [...PAGE_SIZE_OPTIONS], showSizeChanger: true,
 })
 const emit = defineEmits<{
   'update:current': [page: number]
@@ -49,6 +54,17 @@ function changePage(page: number, size: number) {
 </script>
 
 <style scoped>
+.jtable-pagination {
+  flex: none;
+  min-width: 0;
+}
+.jtable-pagination :deep(.ant-pagination) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
 .core-pagination--unknown-total :deep(.ant-pagination-total-text) {
   display: none;
 }

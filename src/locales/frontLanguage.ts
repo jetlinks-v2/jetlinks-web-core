@@ -7,11 +7,14 @@ const dateLocales = { zh: 'zh-cn', en: 'en', ja: 'ja' }
 // Accept-Language 缓存的是实际请求语言；单独记录手动偏好，避免把自动回退当作用户选择。
 const preferenceKey = 'jetlinks-front-language-preference'
 
-export const createFrontLanguageState = (supportsPolicy: () => boolean) => {
+export type FrontLanguageSource = 'public' | 'session' | 'save'
+
+export const createFrontLanguageState = (supportsPolicy: (source: FrontLanguageSource) => boolean) => {
   const storage = window.localStorage
   const cached = storage.getItem(langKey)
   const language = ref<FrontLanguage>(isFrontLanguage(cached) ? cached : 'zh')
   const configured = ref<FrontLanguage[]>()
+  const hasFrontLanguagePolicy = computed(() => !!configured.value?.length)
   const available = computed(() => configured.value?.length ? configured.value : defaultFrontLanguages)
   const languageOptions = computed(() => available.value.map(value => ({ value, label: frontLanguageLabels[value] })))
   const languageLabel = computed(() => frontLanguageLabels[language.value])
@@ -25,8 +28,8 @@ export const createFrontLanguageState = (supportsPolicy: () => boolean) => {
     storage.setItem(ruleEditorKey, value)
   }
 
-  const applyFrontLanguages = (value: unknown, source: 'read' | 'save' = 'read') => {
-    if (!supportsPolicy()) return
+  const applyFrontLanguages = (value: unknown, source: FrontLanguageSource) => {
+    if (!supportsPolicy(source)) return
     const languages = parseFrontLanguages(value)
     const previous = configured.value
     // 保存后回读同一列表时，不用浏览器语言重新覆盖刚切换的语言。
@@ -66,13 +69,13 @@ export const createFrontLanguageState = (supportsPolicy: () => boolean) => {
 
   const selectLanguage = (value: unknown) => {
     if (!isFrontLanguage(value) || !available.value.includes(value)) return
-    if (supportsPolicy() && storage.getItem(preferenceKey) !== null) {
+    if ((configured.value?.length || supportsPolicy('public')) && storage.getItem(preferenceKey) !== null) {
       storage.setItem(preferenceKey, value)
     }
-    if (value === language.value) return
+    if (value === language.value && value === i18n.global.locale.value) return
     syncLanguage(value)
     window.location.reload()
   }
 
-  return { language, languageOptions, languageLabel, applyFrontLanguages, selectLanguage }
+  return { language, languageOptions, languageLabel, hasFrontLanguagePolicy, applyFrontLanguages, selectLanguage }
 }

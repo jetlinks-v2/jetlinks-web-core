@@ -35,6 +35,45 @@
 
 验证：Vue SFC 编译、新增错误处理的定向严格类型检查、三种语言资源、样式门禁与差异空白检查通过；在 Chromium 中使用实际错误处理代码、Vue、vue-i18n 和 Ant Design Vue，验证单按钮、并发错误去重、非资源错误忽略、关闭限制、真实整页刷新与卸载清理通过。生产构建在加载 Vite 配置时因当前环境缺少 `vite-plugin-mkcert` 中止，尚未验证完整应用构建及线上发布后的真实资源失效场景。当前无独立 lint 脚本；补齐依赖后，在 `ui/` 重跑 `pnpm build`，并在生产预览中模拟旧 JS/CSS 404 验证完整路由恢复。隔离验证脚本、截图及构建日志位于 `/tmp/jetlinks-resource-dialog.7t5BBH/`。
 
+## 浏览器本地页面翻译
+
+运行时顶栏提供使用现有 i18n JSON 的中、英、日。额外语种由 `locales/translation/languages.ts` 的 `machineLanguages` 声明，当前清单为空。浏览器保存过韩语或繁体中文偏好时，页面继续使用已选的内置语种。接口请求的 `Accept-Language` 和规则编辑器的 `editor-language` 同样使用内置语种。
+
+平台配置了 `front.languages` 时，顶栏按配置顺序提供内置语种。配置保存后，`locales/frontLanguage.ts` 同步内置词库和请求语种，页面翻译随当前词库切换。清空配置后恢复默认的中、英、日选项。
+
+`locales/translation/runtime.ts` 按语言对维护准备状态。语言菜单用加粗标识当前语种，其他机翻选项按当前方向显示下载、进度、就绪或重试。点击目标语言名才切换界面。页面刷新后按保存的语种顺序恢复已就绪的翻译阶段。某一步缺包或不支持时显示上一可用语种。浏览器只持久化语种顺序和模型文件，业务文本和译文留在内存中。连续机翻可能累积误差。
+
+`locales/translation/page/usePageTranslation.ts` 增量处理菜单、表头、列表、按钮、提示和弹层中可见的源语言文本。`store/menu.ts` 提供当前内置词库下的已知菜单文案，使日文标题和子菜单能够直接翻译。混合文案可用 `data-translation-source="ja"` 等标记实际语种。表单值、编号、编辑器、iframe、Canvas 和 `translate="no"` / `data-no-translate` 区域保留原内容。平台设置预览和布局中的品牌标题，以及用户菜单与个人中心的名称或头像文字，使用 `data-no-translate` 保留原文。
+
+### 英语和日语整页翻译
+
+英语和日语使用各自的 i18n 词库，并通过 `locales/translation/page/usePageTranslation.ts` 和额外语种共用整页扫描范围。菜单、表格、卡片、弹窗中的可见正文和 `title` 等展示属性都参与翻译。已是目标语种的文字直接显示。元素及其 DOM 后代可用 `data-no-translate` 保留原文。选择默认中文时直接使用中文词库和接口原文，页面翻译在中文模式下停用。
+
+- `locales/translation/page/source.ts` 优先使用 `data-translation-source`、词库和字形识别原文。未标记的汉字文案以系统默认中文作为回退，已识别的日文、英文等内容使用实际源语种。
+- Chrome 由 `layout/hooks/useRuntimeLanguageMenu.ts` 复用选择英语或日语的点击，优先准备当前页面所需的语言对。每次有效点击可启动一个缺失语言对的下载，准备结束后刷新切换。其他缺失语言对复用后续正常点击准备。Firefox 在英语或日语界面首次需要翻译时，从站点准备共享模型。菜单把下载进度和状态显示在对应语言右侧，与额外语种的下载按钮对齐。
+- 下载失败时使用目标语种词库和接口原文。模型就绪后，当前及后续进入视口的正文和提示会翻译到所选语种。选回中文时恢复中文词库和页面原文。
+
+### 模型部署
+
+- Chrome 138+ 使用 [Translator API](https://developer.chrome.google.cn/docs/ai/translator-api?hl=zh-cn) 管理语言包，按浏览器报告的方向开放翻译。首次准备依赖 Chrome 的语言包下载服务。
+- Firefox 使用 `locales/translation/local/` 的 Web Worker、Transformers.js 和 ONNX Runtime Web 在本地推理。首次准备从站点下载量化模型和 WASM（约 662 MB），存入浏览器 Cache Storage。英语、日语和韩语等方向共用权重，简体到繁体中文直接使用 OpenCC。模型下载后刷新可复用缓存。清除站点数据后可重新下载。
+- Firefox 尚未缓存模型且站点无法提供模型清单时，语言菜单提示站点模型暂不可用。新检出或本地模型目录被清理后，可重新执行准备命令，再打开语言菜单检查下载状态。
+- 在 `runtime-ui` 更新 core 子模块引用时一并更新 `pnpm-lock.yaml`，记录新增的 Transformers.js 和 OpenCC 依赖。安装依赖后，执行 `pnpm -F jetlinks-web-core prepare:translation-model` 初始化 Firefox 模型。准备脚本按固定版本下载并校验权重，将资产放入 `jetlinks-web-core/public/local-translation/`。正式部署时再执行 `pnpm build`，静态资产随 Vite 产物部署到同一站点。准备机器可设置 `TRANSLATION_MODEL_ORIGIN` 指向兼容的模型镜像。内网客户通过部署站点获取文件，页面文本只在客户浏览器内处理。浏览器需要 HTTPS 或本机 `localhost` 安全上下文。
+
+### 验证
+
+模型准备脚本已验证能校验已有模型并生成清单。
+
+在 `runtime-ui/jetlinks-web-core` 执行 `node --test tests/menuLocale.test.mjs tests/pageTranslation.test.mjs` 验证翻译逻辑及旧语种偏好回退。`pnpm test:page-translation-browser` 使用可控 Chrome API 验证英日自动下载、下载失败后切换和重试、复判正文和标题、仪表盘文本、动态弹层、跳过标记及中文原文展示。连续翻译与额外语种菜单用例在测试构建中启用韩语和繁体中文。浏览器测试使用 Playwright，可用 `PAGE_TRANSLATION_PLAYWRIGHT_MODULE` 指向已安装的模块。
+
+合并 `2.20` 后，上述翻译用例与 `tests/platformSettings.test.mjs`、`tests/frontLanguage.test.mjs` 共有 66 项通过。后者另有 3 项依赖当前工作区缺少的 `saas-manager-ui`，补齐模块后可重跑。Chrome 回归覆盖保存平台语言后的菜单排序、额外语种暂停和恢复，以及当前语言被移除后即时切换词库并重新补译。Firefox 使用真实模型复测通过。
+
+在独立 Chrome 158 配置中验证 `zh → en` 和 `zh → ja` 的原生模型准备均达到 100%，刷新后可翻译复判正文和悬浮标题。在运行中的资源仪表盘验证英文界面和列表滚入视口后自动翻译。
+
+准备模型后执行 `pnpm test:page-translation-browser --firefox`，在 Firefox 159 验证英日首次翻译自动准备、复判正文和标题、本地模型复用和切回中文。真实模型通过日文 → 韩语 → 繁体中文的切换验证。阻断页面刷新后的模型下载请求仍能恢复译文。
+
+合并 `2.20` 后在 `runtime-ui` 执行 `pnpm build --outDir <临时目录>` 通过，产物含翻译 Worker 及完整的 7 个模型和运行时文件。全量 `pnpm exec vue-tsc --noEmit --pretty false -p tsconfig.json` 仍报告 511 条诊断，翻译和语言配置逻辑无诊断。工作区无独立 lint 命令，差异空白检查通过。
+
 ## 顶部用户菜单
 
 运行时 `layout/components/LayoutSidebarUser.vue` 使用 264px（16.5rem）紧凑纵向下拉：顶部摘要按姓名、账号、角色三行排列，首个角色及多角色 `+N` 提示在账号下方并与账号左对齐；无角色时不渲染角色行。姓名使用摘要内容列宽度，`style/layout.less` 的 `layout-sidebar-user__roles-row` 使用主题间距。`layout-sidebar-user__role-name` 允许角色名换行，由公共 `j-ellipsis` 将超长角色名限制为一行并显示省略号，悬停可查看完整名称。数量标签保留独立空间，多角色列表复用 Tooltip。保留菜单入口及角色权限逻辑，运营端 `ui/` 不在本次范围内。

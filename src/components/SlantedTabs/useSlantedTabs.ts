@@ -39,7 +39,7 @@ export function useSlantedTabs(props: SlantedTabsProps, emit: SelectionEmitter) 
 
   /** 方向键循环跳过禁用项，Home/End 到首尾，并将焦点页签滚入可见区域。 */
   const onKeydown = (event: KeyboardEvent, key: SlantedTabKey) => {
-    if (props.state.loading || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    if (props.keyboard === false || props.state.loading || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
     const enabled = props.options.filter(option => !option.disabled)
     if (!enabled.length) return
     event.preventDefault()
@@ -55,5 +55,10 @@ export function useSlantedTabs(props: SlantedTabsProps, emit: SelectionEmitter) 
     button?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }
 
-  return { selectedKey, visitedKeys, select, onKeydown, tabId, panelId }
+  /** 鼠标模式不将焦点留在页签上，避免打开开发者工具后出现焦点框和按键切换。 */
+  const onTabMousedown = (event: MouseEvent) => {
+    if (props.keyboard === false) event.preventDefault()
+  }
+
+  return { selectedKey, visitedKeys, select, onTabMousedown, onKeydown, tabId, panelId }
 }

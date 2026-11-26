@@ -10,7 +10,7 @@ import { transformSync } from 'esbuild'
 import { createPinia, defineStore } from 'pinia'
 import * as vue from 'vue'
 import { compileScript, parse } from 'vue/compiler-sfc'
-import { createI18n } from 'vue-i18n'
+import { createI18n, useI18n } from 'vue-i18n'
 
 const core = resolve(import.meta.dirname, '../src')
 const saas = resolve(core, '../../modules/saas-manager-ui')
@@ -43,7 +43,7 @@ const flatten = root => [root, ...root.children.flatMap(flatten)]
 const text = root => [root.text, ...root.children.map(text)].join('')
 const flush = async () => { await setImmediate(); await vue.nextTick() }
 
-function fixture({ browser = 'zh-CN', cache = new Map(), project = false, application = false, micro = false } = {}) {
+function fixture({ browser = 'zh-CN', cache = new Map(), project = false, application = false, micro = false, token = '' } = {}) {
   const storage = {
     getItem: key => cache.get(key) ?? null,
     setItem: (key, value) => cache.set(key, String(value)),
@@ -74,16 +74,21 @@ function fixture({ browser = 'zh-CN', cache = new Map(), project = false, applic
   const pinia = createPinia()
   const pass = () => undefined
   const css = () => ({ style: 'light', color: '', token: {} })
+  const themeCalls = { user: 0, applied: [], persisted: [] }
   const dependencies = {
-    vue, pinia: { defineStore: (name, setup) => () => defineStore(name, setup)(pinia) },
-    dayjs, '@jetlinks-web/core': { request }, '@jetlinks-web/utils': { getToken: pass },
+    vue, 'vue-i18n': { useI18n }, pinia: { defineStore: (name, setup) => () => defineStore(name, setup)(pinia) },
+    dayjs, '@jetlinks-web/core': { request }, '@jetlinks-web/utils': { getToken: () => token },
     '@jetlinks-web-core/locales': i18n,
     '@jetlinks-web-core/utils/consts': { langKey, ruleEditorKey, isSubApp: micro },
-    '@jetlinks-web-core/api/system/calendar': {}, '@jetlinks-web-core/api/account/theme': {},
+    '@jetlinks-web-core/api/system/calendar': {}, '@jetlinks-web-core/api/account/theme': {
+      getThemeStyle_api: async () => { themeCalls.user++; return { success: true, result: { content: 'dark' } } },
+    },
     '@jetlinks-web-core/utils/theme-color': { applyThemeColor: pass, getInitialThemeColor: pass, persistThemeColor: pass },
     '@jetlinks-web-core/utils/theme-style': {
-      applyThemeStyle: pass, getInitialThemeStyleConfig: css, getThemeStyleInitialColor: pass,
-      getThemeStylePrimaryColor: pass, normalizeThemeStyle: () => 'light', persistThemeStyle: css,
+      applyThemeStyle: style => { themeCalls.applied.push(style); return { ...css(), style } },
+      getInitialThemeStyleConfig: css, getThemeStyleInitialColor: pass,
+      getThemeStylePrimaryColor: pass, normalizeThemeStyle: style => style || 'light',
+      persistThemeStyle: style => { themeCalls.persisted.push(style); return { ...css(), style } },
     },
     '@jetlinks-web-core/utils/public-asset': { resolvePublicAssetUrl: value => value },
     '@jetlinks-web-core/utils/login-background': { resolveLoginBackground: () => ({}) },
@@ -92,6 +97,7 @@ function fixture({ browser = 'zh-CN', cache = new Map(), project = false, applic
     './businessApplicationContext': { useBusinessApplicationContext: () => ({}) },
     './module-override': { withModuleStoreOverride: store => store },
     './index': i18n,
+    './local/provider': { createLocalTranslator: () => undefined },
     './components/Login.vue': { render: () => vue.h('login-form') },
     './components/LoginPageLayout.vue': { setup: (_, { slots }) => () => vue.h('login-shell', [slots.brand?.(), slots.actions?.(), slots.default?.()]) },
   }
@@ -122,9 +128,13 @@ function fixture({ browser = 'zh-CN', cache = new Map(), project = false, applic
     const root = element('root')
     const Component = load(filename).default
     const app = renderer.createApp(Component)
-    for (const name of ['a-button', 'a-popover', 'AIcon', 'a-menu-item', 'a-menu', 'a-dropdown']) {
+    for (const name of ['a-popover', 'a-tooltip', 'AIcon', 'a-menu-item', 'a-menu', 'a-dropdown']) {
       app.component(name, { setup: (_, { slots }) => () => vue.h(name, [slots.default?.(), slots.content?.(), slots.overlay?.()]) })
     }
+    app.component('a-button', {
+      setup: (_, { attrs, slots }) => () => vue.h(attrs.class === 'language-switch__option' ? 'button' : 'a-button', slots.default?.()),
+    })
+    app.use(i18n)
     app.mount(root)
     t.after(() => app.unmount())
     return {
@@ -132,8 +142,28 @@ function fixture({ browser = 'zh-CN', cache = new Map(), project = false, applic
       options: () => flatten(root).filter(node => node.tag === 'button' || node.tag === 'a-menu-item').map(text),
     }
   }
-  return { store, storage, i18n, requests, mount, reloads: () => reloads, respond: handler => { loadFront = handler }, load }
+  return { store, storage, i18n, requests, mount, themeCalls, reloads: () => reloads, respond: handler => { loadFront = handler }, load }
 }
+
+test('shared configuration preserves account preferences while account mode still loads them', async () => {
+  const cache = new Map([[langKey, 'zh']])
+  const f = fixture({ cache, token: 'account-fixture' })
+  await f.store.queryInfo(async () => ({ success: true, result: [
+    { scope: 'front', properties: { title: 'Share', headerTheme: 'dark', languages: ['ja'] } },
+    { scope: 'amap', properties: { apiKey: 'share-map' } },
+  ] }))
+  assert.equal(f.store.systemInfo.amap.apiKey, 'share-map')
+  assert.equal(f.themeCalls.user, 0)
+  assert.deepEqual(f.themeCalls.persisted, [])
+  assert.equal(f.themeCalls.applied.at(-1), 'dark')
+  assert.equal(cache.get(langKey), 'zh')
+  assert.equal(f.i18n.global.locale.value, 'zh')
+
+  await f.store.queryInfo()
+  assert.equal(f.themeCalls.user, 1)
+  assert.equal(f.themeCalls.persisted.length, 1)
+  assert.equal(f.store.systemInfo.front.title, 'Existing title')
+})
 
 for (const [label, filename] of [
   ['core', resolve(core, 'views/login/index.vue')],
@@ -279,8 +309,47 @@ test('a successful project language save chooses the first allowed language and 
   assert.equal(f.store.language, 'en')
 })
 
-test('application and micro-app stores ignore the front language policy', async () => {
-  for (const context of [{ application: true }, { micro: true }]) {
+test('the authenticated application menu follows project languages and remembers an allowed switch', async t => {
+  const cache = new Map([[langKey, 'zh']])
+  const context = { application: true, cache, token: 'application-session' }
+  const f = fixture(context)
+  const page = f.mount(t, resolve(core, 'layout/components/Language.vue'))
+  await f.store.queryInfo()
+  await vue.nextTick()
+  assert.deepEqual(page.options(), ['日本語', 'English'])
+  assert.equal(f.store.languageLabel, '日本語')
+  assert.equal(f.i18n.global.locale.value, 'ja')
+  assert.equal(cache.get(langKey), 'ja')
+  f.store.selectLanguage('zh')
+  assert.equal(f.reloads(), 0)
+  f.store.selectLanguage('en')
+  assert.equal(f.reloads(), 1)
+
+  const reopened = fixture(context)
+  await reopened.store.queryInfo()
+  assert.equal(reopened.store.language, 'en')
+  reopened.respond(async () => ({ languages: [] }))
+  await reopened.store.queryInfo()
+  assert.deepEqual(reopened.store.languageOptions.map(option => option.label), defaults)
+})
+
+test('application public and shared config reads do not apply or replace account languages', async () => {
+  const f = fixture({ application: true, token: 'application-session' })
+  await f.store.querySingleInfo('front')
+  assert.deepEqual(f.store.languageOptions.map(option => option.label), defaults)
+  assert.equal(f.storage.getItem(langKey), null)
+
+  await f.store.queryInfo()
+  const shared = async () => ({ success: true, result: [{ scope: 'front', properties: { languages: ['zh'] } }] })
+  await f.store.queryInfo(shared)
+  f.respond(async () => ({ languages: ['zh'] }))
+  await f.store.querySingleInfo('front')
+  assert.deepEqual(f.store.languageOptions.map(option => option.label), ['日本語', 'English'])
+  assert.equal(f.storage.getItem(langKey), 'ja')
+})
+
+test('unauthenticated applications and embedded micro-apps keep their existing language options', async () => {
+  for (const context of [{ application: true }, { micro: true, token: 'host-session' }, { application: true, micro: true, token: 'host-session' }]) {
     const f = fixture(context)
     await f.store.queryInfo()
     assert.deepEqual(f.store.languageOptions.map(option => option.label), defaults)

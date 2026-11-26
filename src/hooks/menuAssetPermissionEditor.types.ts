@@ -105,6 +105,8 @@ export interface MenuAssetPermissionEditorContext {
   ownerGroups: ComputedRef<MenuOwnerGroup[]>
   /** 显式分组即使只有一组也显示名称，普通 owner 分组保留原来的单组隐藏行为。 */
   showMenuGroups?: ComputedRef<boolean>
+  /** 按部署固定范围的入口只展示该范围的单选项。 */
+  fixedScopeAsRadio?: boolean
   visibleAssets: ComputedRef<VisibleAssetPermission[]>
   batchAssetOptions: ComputedRef<Array<{ label: string; value: string }>>
   batchAssetValue: ComputedRef<string | undefined>
@@ -123,6 +125,6 @@ export interface MenuAssetPermissionEditorContext {
   isProtectedMenu: (menu: MenuPermissionNode) => boolean
   isProtectedButton: (menu: MenuPermissionNode, button: MenuPermissionButton) => boolean
   getSnapshot: () => MenuAssetPermissionSnapshot
-  /** 存在已选但无法授予固定范围的资产时，不生成可提交载荷。 */
+  /** 部署固定范围无需目录复核；依赖可授权目录的入口若无合法范围则不生成载荷。 */
   getGrantSnapshot: (currentFixedGrantable?: GrantableAssetType[]) => MenuAssetPermissionSnapshot | undefined
 }

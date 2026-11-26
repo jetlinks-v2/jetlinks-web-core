@@ -64,13 +64,13 @@ export const getCoreRouteOverrideMenus = (context?: RouteHideInMenuContext) => {
   return [...overrideMenuMap.values()]
 }
 
-export const getFirstMenuPath = (routes: RouteRecordRaw[], pagesOnly: boolean) => {
+export const getFirstMenuPath = (routes: RouteRecordRaw[]) => {
   const findPath = (items: RouteRecordRaw[]): string | undefined => {
     for (const item of items) {
-      if (item.path === '/' || (pagesOnly && item.meta?.hideInMenu)) continue
+      if (item.path === '/' || item.meta?.hideInMenu) continue
       const childPath = item.children?.length ? findPath(item.children) : undefined
       if (childPath) return childPath
-      if (!item.redirect && item.meta?.hideInMenu !== true && item.path && (!pagesOnly || hasMenuPageComponent(item))) {
+      if (!item.redirect && item.path && hasMenuPageComponent(item)) {
         return item.path
       }
     }

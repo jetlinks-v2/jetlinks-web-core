@@ -36,7 +36,7 @@ const unauthorized = config => new axios.AxiosError('Unauthorized', 'ERR_BAD_REQ
 })
 
 // 执行生产 router、退出 API、存储和 Axios 拦截器；仅隔离无关模块、浏览器与网络。
-const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `http://localhost:9201/${projectCode}/#/overview` } = {}) => {
+const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `http://localhost:9201/${projectCode}/#/overview`, realStartup = false, subApp = false } = {}) => {
   let location
   const navigations = []
   const tokensAtNavigation = []
@@ -59,6 +59,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const sessionStorage = memoryStorage()
   const window = {
     localStorage: storage, sessionStorage,
+    microApp: subApp ? { getGlobalData: () => ({}) } : undefined,
     get location() { return location },
     history: { state: { preserved: true }, replaceState(_state, _title, value) { setLocation(value) } },
   }
@@ -75,6 +76,10 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   })
   let router
   let resets = 0
+  let bootstraps = 0
+  let routeLoadingFinishes = 0
+  const user = { userInfo: { id: 'user-1' }, isSubAccount: false }
+  const menu = { initialized: true, hasRouteMenu: () => true }
   const environmentConfig = { VITE_APP_ENVIRONMENT: environment, VITE_APP_RUNTIME_SCOPE: scope, BASE_URL: base }
   const dependencies = {
     vue: Vue, pinia: Pinia, axios, 'lodash-es': { isFunction, isObject },
@@ -93,7 +98,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     '@micro-zoe/micro-app': { router: { setBaseAppRouter() {} } },
     'ant-design-vue': { notification: { error() {} } },
     '@jetlinks-web-core/views/verify/index.vue': {},
-    '@jetlinks-web-core/utils/consts': { isSubApp: false, langKey: 'lang' },
+    '@jetlinks-web-core/utils/consts': { isSubApp: subApp, langKey: 'lang', PersonalToken: { value: 'share-fixture' }, PersonalUrlKey: 'personal-token' },
     '@jetlinks-web-core/utils/request-context': {
       getRequestTenantDomain: flag => flag === false ? '' : projectCode,
       getBaseApi: () => '/api', isFromCloud: () => false, stripEdgeRequestHeaders() {},
@@ -102,9 +107,16 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
     '@jetlinks-web-core/utils/ai-client-tool-request': { isAiClientToolSilentRequest: () => false },
     '@jetlinks-web-core/utils/module-registry': {},
     '@jetlinks-web-core/utils/json/collector': {},
-    '@jetlinks-web-core/store/route-loading': { useRouteLoadingStore: () => ({ start() {}, finish() {}, finishNavigation() {}, reset() {} }) },
-    '@jetlinks-web-core/store/user': { useUserStore: () => ({ isSubAccount: false }) },
-    '@jetlinks-web-core/store/menu': { useMenuStore: () => ({ hasRouteMenu: () => true }) },
+    '@jetlinks-web-core/store/route-loading': { useRouteLoadingStore: () => ({ start() {}, finish() { routeLoadingFinishes++ }, finishNavigation() {}, reset() {} }) },
+    '@jetlinks-web-core/store/user': { useUserStore: () => user },
+    '@jetlinks-web-core/store/menu': { useMenuStore: () => menu },
+    '@jetlinks-web-core/store': {
+      useUserStore: () => user,
+      useSystemStore: () => ({ language: 'zh', isSessionInitializedFor: () => true }),
+      useApplication: () => ({ appList: [] }),
+      useMenuStore: () => menu,
+    },
+    '@jetlinks-web-core/layout/components/noticeListHandler': {},
   }
   const cache = new Map()
   const stubs = {
@@ -114,14 +126,24 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
         routes: [
           { name: 'Login', path: '/login', component: {} },
           { name: 'Overview', path: '/overview', component: {} },
+          { name: 'ShareAuthorize', path: '/share/authorize', component: {}, meta: { security: 'public', shareSession: true } },
+          { name: 'PublicRelease', path: '/visualization/release/:releaseId?', component: {}, meta: { security: 'public', shareSession: true } },
+          { name: 'ReleaseMenu', path: '/visualization/release-page/:releaseId', component: {} },
         ], tokenFilterPaths: ['/login'], menuFilterPaths: [], registry: [],
       }),
     },
-    [resolve(root, 'src/router/default-entry.ts')]: { DefaultApplicationEntryError: class extends Error {} },
-    [resolve(root, 'src/router/startup.ts')]: {
-      resetSessionStores: () => { resets++ }, resetRouteStartupState() {},
-      bootstrapSession: async () => false, ensureMenuRoutes: async () => false,
+    [resolve(root, 'src/router/default-entry.ts')]: {
+      DefaultApplicationEntryError: class extends Error {},
+      enterDefaultApplication: async () => false,
+      initializeBusinessApplicationEntry: async () => undefined,
     },
+    ...(!realStartup ? {
+      [resolve(root, 'src/router/startup.ts')]: {
+        resetSessionStores: () => { resets++ }, resetRouteStartupState() {},
+        bootstrapSession: async () => { bootstraps++; return false }, ensureMenuRoutes: async () => false,
+        ensureSystemBulletinSubscription() {},
+      },
+    } : {}),
   }
   const evaluate = (filename, source = readFileSync(filename, 'utf8')) => {
     if (cache.has(filename)) return cache.get(filename)
@@ -142,7 +164,14 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const utils = evaluate(join(dirname(require.resolve('@jetlinks-web/utils/package.json')), 'src/storage.ts'))
   dependencies['@jetlinks-web/utils'] = { ...utils, randomString: () => Math.random().toString(36), onlyMessage() {} }
   const core = evaluate(join(dirname(require.resolve('@jetlinks-web/core/package.json')), 'src/axios.ts'))
-  dependencies['@jetlinks-web/core'] = { ...core, ndJson: { create() {} } }
+  const socketCalls = []
+  const wsClient = {
+    setOptions() {},
+    initWebSocket: url => socketCalls.push(['init', url]),
+    connect: () => socketCalls.push(['connect']),
+    disconnect: () => socketCalls.push(['disconnect']),
+  }
+  dependencies['@jetlinks-web/core'] = { ...core, wsClient, ndJson: { create() {} } }
   const navigation = load('router/index')
   dependencies['@jetlinks-web-core/router'] = navigation
   const packageApi = load('package')
@@ -153,11 +182,175 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   const client = core.getInstance()
   client.defaults.adapter = async config => success(config)
   return {
-    load, storage, window, client, api, verify, packageApi, navigation, navigations, tokensAtNavigation, reloads, utils, pinia, router,
+    load, storage, window, client, api, verify, packageApi, navigation, navigations, tokensAtNavigation, reloads, utils, pinia, router, user, socketCalls,
     get resets() { return resets },
+    get bootstraps() { return bootstraps },
+    get routeLoadingFinishes() { return routeLoadingFinishes },
     setLocation,
   }
 }
+
+test('an account document commits the share URL then reloads without switching the live socket', async t => {
+  const f = fixture(t)
+  f.utils.setToken('account-fixture')
+  await f.router.push('/overview?first=1')
+  assert.equal(f.bootstraps, 1)
+  await f.router.push('/share/authorize')
+  assert.equal(f.router.currentRoute.value.path, '/share/authorize')
+  assert.equal(f.navigation.changingSessionDocument.value, true)
+  assert.equal(f.reloads.length, 1)
+  assert.deepEqual(f.socketCalls, [])
+})
+
+test('cold share and share-to-share skip account startup; back to a menu requires a new document', async t => {
+  const f = fixture(t)
+  f.utils.setToken('account-fixture')
+  await f.router.push('/share/authorize')
+  await f.router.push('/visualization/release/123')
+  assert.equal(f.routeLoadingFinishes, 2)
+  assert.equal(f.bootstraps, 0)
+  assert.equal(f.reloads.length, 0)
+  await f.router.replace('/visualization/release-page/123')
+  assert.equal(f.router.currentRoute.value.path, '/visualization/release-page/123')
+  assert.equal(f.reloads.length, 1)
+  assert.equal(f.bootstraps, 0)
+  assert.equal(f.navigation.changingSessionDocument.value, true)
+})
+
+test('embedded share navigation leaves the host socket and document under host control', async t => {
+  const f = fixture(t, { subApp: true })
+  f.utils.setToken('account-fixture')
+  await f.router.push('/overview?first=1')
+  f.packageApi.initPackages({ accountOnly: true })
+  await f.router.push('/share/authorize')
+  await f.router.push('/visualization/release/123')
+  await f.router.push('/overview')
+  assert.equal(f.bootstraps, 2)
+  assert.equal(f.reloads.length, 0)
+  assert.equal(f.navigation.changingSessionDocument.value, false)
+  assert.deepEqual(f.socketCalls, [])
+})
+
+const bulletinTopic = {
+  id: 'bulletin-config',
+  provider: 'SystemBulletin',
+  name: '系统公告',
+  channels: [{ id: 'inside-mail', channelProvider: 'inside-mail' }],
+}
+
+for (const configured of [false, true]) {
+  test(configured ? '已绑定系统公告的账号只查询，不重复保存' : '没有可用系统公告配置时不查询个人订阅', async t => {
+    const f = fixture(t, { realStartup: true })
+    const requests = []
+    f.client.defaults.adapter = async config => {
+      requests.push(config.url)
+      return success(config, config.url === '/notify/channel/all'
+        ? (configured ? [bulletinTopic] : [{ ...bulletinTopic, channels: [] }])
+        : { data: [{ topicProvider: 'SystemBulletin', notifyChannels: ['inside-mail'] }] })
+    }
+
+    await f.router.push('/overview?entry=anonymous')
+    assert.deepEqual(requests, [])
+    f.utils.setToken('bulletin-token')
+    await f.router.push('/overview?entry=authenticated')
+    await delay(0)
+
+    assert.deepEqual(requests, configured
+      ? ['/notify/channel/all', '/notifications/subscriptions/_query']
+      : ['/notify/channel/all'])
+  })
+}
+
+test('登录后的路由守卫依次查配置和绑定，默认只添加站内信且合并并发导航', async t => {
+  const f = fixture(t, { realStartup: true })
+  const pendingCatalogue = deferred()
+  const requests = []
+  f.utils.setToken('bulletin-token')
+  f.client.defaults.adapter = async config => {
+    const body = config.data ? JSON.parse(config.data) : undefined
+    requests.push({ url: config.url, body })
+    if (config.url === '/notify/channel/all') {
+      await pendingCatalogue.promise
+      return success(config, [bulletinTopic])
+    }
+    return success(config, { data: [] })
+  }
+
+  await f.router.push('/overview?navigation=1')
+  await f.router.push('/overview?navigation=2')
+  assert.deepEqual(requests.map(request => request.url), ['/notify/channel/all'])
+  pendingCatalogue.resolve()
+  await delay(0)
+  await f.router.push('/overview?navigation=3')
+  assert.deepEqual(requests, [
+    { url: '/notify/channel/all', body: undefined },
+    { url: '/notifications/subscriptions/_query', body: { paging: false, terms: [{ column: 'topicProvider', termType: 'eq', value: 'SystemBulletin' }] } },
+    { url: '/notifications/subscribe', body: {
+      topicProvider: 'SystemBulletin', providerId: bulletinTopic.id, subscribeName: bulletinTopic.name,
+      locale: 'zh', state: 'enabled', notifyChannels: ['inside-mail'],
+    } },
+  ])
+})
+
+test('默认站内信补绑保留已有订阅，保存失败可在下一次导航重试', async t => {
+  const f = fixture(t, { realStartup: true })
+  const saves = []
+  const subscription = {
+    id: 'current-subscription', topicProvider: 'SystemBulletin', providerId: bulletinTopic.id,
+    subscribeName: '已有订阅', topicConfig: { type: 'notice' }, state: { value: 'disabled' },
+    locale: 'en', notifyChannels: ['email-channel'],
+  }
+  f.utils.setToken('bulletin-token')
+  f.client.defaults.adapter = async config => {
+    if (config.url === '/notify/channel/all') return success(config, [bulletinTopic])
+    if (config.url === '/notifications/subscriptions/_query') return success(config, { data: [subscription] })
+    saves.push(JSON.parse(config.data))
+    return saves.length === 1
+      ? { ...success(config), data: { status: 500, success: false } }
+      : success(config)
+  }
+
+  await f.router.push('/overview?navigation=1')
+  await delay(0)
+  await f.router.push('/overview?navigation=2')
+  await delay(0)
+  const expected = { ...subscription, state: 'disabled', notifyChannels: ['email-channel', 'inside-mail'] }
+  assert.deepEqual(saves, [expected, expected])
+})
+
+test('换号后废弃前一账号的在途订阅查询', async t => {
+  const f = fixture(t, { realStartup: true })
+  const pendingQuery = deferred()
+  let oldSignal
+  const savedFor = []
+  f.utils.setToken('old-bulletin-token')
+  f.client.defaults.adapter = async config => {
+    if (config.url === '/notify/channel/all') return success(config, [bulletinTopic])
+    const token = config.headers.get(tokenKey)
+    if (config.url === '/notifications/subscriptions/_query') {
+      if (token === 'old-bulletin-token') {
+        oldSignal = config.signal
+        await pendingQuery.promise
+      }
+      return success(config, { data: [] })
+    }
+    savedFor.push(token)
+    return success(config)
+  }
+
+  await f.router.push('/overview?account=old')
+  await delay(0)
+  assert.ok(oldSignal)
+  f.utils.removeToken()
+  await f.router.push('/overview?account=anonymous')
+  assert.equal(oldSignal.aborted, true)
+  f.user.userInfo = { id: 'user-2' }
+  f.utils.setToken('new-bulletin-token')
+  await f.router.push('/overview?account=new')
+  pendingQuery.resolve()
+  await delay(0)
+  assert.deepEqual(savedFor, ['new-bulletin-token'])
+})
 
 for (const entry of ['platform', 'project']) {
   test(`the ${entry} user menu returns to login without a reset request when the current token is missing`, async t => {

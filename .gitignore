@@ -27,6 +27,7 @@ apps
 *.sw?
 .history
 public/three
+/public/local-translation/
 
 # 忽略所有 java 目录中的内容
 java/**

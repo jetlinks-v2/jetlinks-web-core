@@ -19,6 +19,7 @@ import type {
 } from './menuAssetPermissionEditor.types'
 
 interface EditorOptions {
+  notificationScopeMode?: 'grantable' | 'deployment'
   defaultSupportIds?: string[]
   protectedMenuCode?: string
   protectedButtonId?: string
@@ -66,6 +67,10 @@ export const getMenuPermissionAssetTypes = (menu: MenuPermissionNode): string[] 
 export const isFixedNotificationAsset = (assetType: string) =>
   assetType === 'notifyConfig' || assetType === 'notifyTemplate'
 
+/** 订阅配置仅随全局角色的部署范围固定，应用角色与模板仍沿用原有策略。 */
+export const isDeploymentFixedNotificationAsset = (assetType: string) =>
+  isFixedNotificationAsset(assetType) || assetType === 'notifySubscriberProvider'
+
 const flatten = (menus: MenuPermissionNode[] = []) => {
   const result: MenuPermissionNode[] = []
   const visit = (items: MenuPermissionNode[]) => items.forEach(item => {
@@ -88,6 +93,8 @@ export const getFixedNotificationMenuAccesses = (snapshot: MenuAssetPermissionSn
 export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuAssetPermissionEditorContext => {
   const defaultSupportIds = options.defaultSupportIds || ['creator']
   const fixedScope = isPrivateDeployment() ? 'all' : 'tenant'
+  const useDeploymentScope = options.notificationScopeMode === 'deployment'
+  const isFixedScopeAsset = useDeploymentScope ? isDeploymentFixedNotificationAsset : isFixedNotificationAsset
   const protectedButtonId = options.protectedButtonId || 'view'
   const menuTree = ref<MenuPermissionNode[]>([])
   const buttonBatchValues = ref<string[]>([])
@@ -251,7 +258,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
 
   const ensureVisibleDrafts = () => {
     visibleAssetIds().forEach(assetType => {
-      if (!isFixedNotificationAsset(assetType) && !assetDrafts.has(assetType)) {
+      if (!isFixedScopeAsset(assetType) && !assetDrafts.has(assetType)) {
         const supportId = getDefaultSupport(assetType)
         if (supportId) assetDrafts.set(assetType, supportId)
       }
@@ -359,7 +366,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     return Array.from(groups.entries()).map(([key, menus]) => ({ key, label: key, menus }))
   })
 
-  const selectedSupportOf = (assetType: string) => isFixedNotificationAsset(assetType)
+  const selectedSupportOf = (assetType: string) => isFixedScopeAsset(assetType)
     ? fixedSupports.value.get(assetType)?.supportId
     : assetDrafts.get(assetType)
 
@@ -367,7 +374,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     const definition = assetDefinitions.get(assetType)
     const name = assetNames.get(assetType) || definition?.name || definition?.menuName || assetType
     const selectedSupportId = selectedSupportOf(assetType)
-    if (isFixedNotificationAsset(assetType)) {
+    if (isFixedScopeAsset(assetType)) {
       const support = fixedSupports.value.get(assetType)
       const history = fixedHistory.value.get(assetType)
       const previousScopeLabels = history?.size && (history.size !== 1 || !history.has(selectedSupportId || ''))
@@ -407,7 +414,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   })
 
   const setAssetAccess = (assetType: string, supportId?: string) => {
-    if (supportId && !isFixedNotificationAsset(assetType)) assetDrafts.set(assetType, supportId)
+    if (supportId && !isFixedScopeAsset(assetType)) assetDrafts.set(assetType, supportId)
   }
 
   const applyAssetBatch = (supportId?: string) => {
@@ -530,21 +537,20 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
   const initializeFixedScopes = (input: MenuAssetPermissionResetOptions) => {
     const source = new Map<string, Map<string, GrantableAssetSupport>>()
     const history = new Map<string, Map<string, string>>()
-    const types = new Set<string>()
+    const sourceMenus = flatten(input.menus)
     // AssetsHolder 的现行「全部数据」标识是 ignore；兼容目录实际返回的 all。
     const matchingIds = fixedScope === 'all' ? ['ignore', 'all'] : ['tenant', 'tenant_member']
     const recordHistory = (assetType: string, access: unknown) => {
       const id = supportIdOf(access)
-      if (!id || !isFixedNotificationAsset(assetType)) return
+      if (!id || !isFixedScopeAsset(assetType)) return
       const labels = history.get(assetType) || new Map<string, string>()
       // 仅回显旧值，不从旧策略反推新授权的候选。
       labels.set(id, supportNameOf(source.get(assetType)?.get(id) || access))
       history.set(assetType, labels)
     }
 
-    getFixedNotificationMenus(input.menus).forEach(menu => {
-      getMenuPermissionAssetTypes(menu).filter(isFixedNotificationAsset).forEach(assetType => {
-        types.add(assetType)
+    sourceMenus.forEach(menu => {
+      getMenuPermissionAssetTypes(menu).filter(isFixedScopeAsset).forEach(assetType => {
         const supports = source.get(assetType) || new Map<string, GrantableAssetSupport>()
         ;(menu.assetAccesses || []).forEach(access => {
           const type = valueOf(access.assetType)
@@ -562,21 +568,21 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
       const accesses = policy.accesses?.length ? policy.accesses : [policy]
       accesses.forEach(access => recordHistory(policy.assetType, access))
     })
-    const sourceById = new Map(flatten(input.menus).map(menu => [menu.id, menu]))
-    flatten(input.grantedMenus ?? input.menus).forEach(menu => {
+    const sourceById = input.grantedMenus ? new Map(sourceMenus.map(menu => [menu.id, menu])) : undefined
+    const grantedMenus = input.grantedMenus ? flatten(input.grantedMenus) : sourceMenus
+    grantedMenus.forEach(menu => {
       if (menu.granted === false) return
       ;(menu.assetAccesses || []).filter(access => access.granted === true).forEach(access => {
         const type = valueOf(access.assetType)
-        const linked = sourceById.get(menu.id) ?? menu
+        const linked = sourceById?.get(menu.id) ?? menu
         ;(type ? [type] : getMenuPermissionAssetTypes(linked)).forEach(assetType => recordHistory(assetType, access))
       })
     })
 
     // 候选只取合并回显前的菜单及服务端可授权目录；存量 all 不能让新授权获得 all。
-    const allowed = input.fixedAssetGrantable ?? input.grantableAssets
+    const allowed = useDeploymentScope ? undefined : (input.fixedAssetGrantable ?? input.grantableAssets)
     const fixed = new Map<string, GrantableAssetSupport>()
-    types.forEach(assetType => {
-      const menuSupports = source.get(assetType)!
+    source.forEach((menuSupports, assetType) => {
       const candidates = allowed === undefined ? [...menuSupports.values()] :
         (allowed.find(asset => asset.assetType === assetType)?.accesses || [])
           .filter(access => !menuSupports.size || menuSupports.get(access.supportId)?.disabled === false)
@@ -586,6 +592,10 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
         if (!matchingIds.includes(id)) continue
         const match = candidates.find(access => access.supportId === id && !access.disabled)
         if (match) { fixed.set(assetType, match); break }
+      }
+      // 全局角色允许升级旧菜单；没有匹配候选时按部署补齐，保存结果由服务端裁决。
+      if (useDeploymentScope && !fixed.has(assetType)) {
+        fixed.set(assetType, { supportId: matchingIds[0] })
       }
     })
     fixedHistory.value = history
@@ -678,7 +688,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     for (const { assetType, fixedScope, selectedSupportId } of visibleAssets.value) {
       if (!fixedScope) continue
       if (!selectedSupportId) return undefined
-      if (currentFixedGrantable && !currentFixedGrantable.find(type => type.assetType === assetType)
+      if (!useDeploymentScope && currentFixedGrantable && !currentFixedGrantable.find(type => type.assetType === assetType)
         ?.accesses.some(access => access.supportId === selectedSupportId && !access.disabled)) return undefined
     }
     return getSnapshot()
@@ -688,6 +698,7 @@ export const useMenuAssetPermissionEditor = (options: EditorOptions = {}): MenuA
     menuTree,
     flatMenus,
     ownerGroups,
+    fixedScopeAsRadio: useDeploymentScope,
     showMenuGroups: computed(() => menuGroups.value !== undefined),
     visibleAssets,
     batchAssetOptions,

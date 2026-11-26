@@ -12,7 +12,7 @@
         :aria-label="$t('components.LayoutSidebarUser.accountCenter')"
       >
         <a-avatar :size="36" :src="avatar" class="layout-sidebar-user__avatar">
-          <template #icon><span>{{ avatarText }}</span></template>
+          <template #icon><span data-no-translate>{{ avatarText }}</span></template>
         </a-avatar>
       </a-button>
 
@@ -20,11 +20,11 @@
         <div class="layout-sidebar-user__menu">
           <div class="layout-sidebar-user__summary">
             <a-avatar :size="48" :src="avatar" class="layout-sidebar-user__avatar layout-sidebar-user__summary-avatar">
-              <template #icon><span>{{ avatarText }}</span></template>
+              <template #icon><span data-no-translate>{{ avatarText }}</span></template>
             </a-avatar>
             <div class="layout-sidebar-user__summary-content">
               <div class="layout-sidebar-user__title-row">
-                <span class="layout-sidebar-user__name" :title="displayName">{{ displayName }}</span>
+                <span class="layout-sidebar-user__name" :title="displayName" data-no-translate>{{ displayName }}</span>
               </div>
               <div class="layout-sidebar-user__account-row">
                 <span class="layout-sidebar-user__account" :title="`${$t('AccountInfo.basicUsername')}：${account}`">

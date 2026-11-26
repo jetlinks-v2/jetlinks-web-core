@@ -29,6 +29,7 @@ const options: SlantedTabOption[] = [
 | `options` | `SlantedTabOption[]` | `key` 唯一，支持字符串/数字；`label`、可选 `count`、`disabled`。0 正常显示，省略数量则隐藏。 |
 | `activeKey` | `string \| number` | 支持 `v-model:activeKey`；不传时组件内部维护选择。 |
 | `preserveDisabledActive` | `boolean` | 默认 `false`。开启后保留当前被禁用项的选中态，仍禁止用户选择禁用项；适用于活动状态必须与外部内容一致的受控导航。 |
+| `keyboard` | `boolean` | 默认 `true`。设为 `false` 时关闭自定义键盘导航和页签标题焦点框，不主动聚焦页签；保留鼠标选择、溢出菜单和横向滚动。设备详情页使用此模式。 |
 | `state` | `SlantedTabsState` | 可选 `loading`、`error`、`emptyText`，状态优先级为加载、错误、空选项、内容。 |
 | `update:activeKey` / `change` | `(key) => void` | 仅有效的新选择触发；加载时禁止切换。 |
 
