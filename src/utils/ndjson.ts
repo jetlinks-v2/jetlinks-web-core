@@ -1,9 +1,11 @@
 import { createNdJson } from '@jetlinks-web/core'
+import type { NdJsonOptions } from '@jetlinks-web/core'
 import { getRequestBaseApi, getRequestHeaders } from './request-context'
 import { langKey } from './consts'
 
 /** 长连接与普通请求共用项目、应用、认证和语言上下文；取消沿用平台 reader。 */
-export const createRuntimeNdJson = (onRequest?: () => void) => createNdJson({
+export const createRuntimeNdJson = (onRequest?: () => void, options?: Pick<NdJsonOptions, 'deserializer' | 'validateResponse' | 'handleResponse'>) => createNdJson({
+  ...options,
   langKey,
   handleRequest(config) {
     const headers = new Headers(config.headers)

@@ -8,6 +8,7 @@
 | --- | --- | --- | --- |
 | `data` | 列表数据 | `unknown[]` | 必填 |
 | `itemHeight` | 单项高度 | `number` | 50 |
+| `endPadding` | 列表末尾的可滚动留白；用于将最后一行滚动到可展开位置，不新增数据行 | `number` | 0 |
 | `expandedKey` | 可选的展开项 `id` / `key`，最多一项 | `string \| number` | 无 |
 
 #### 插槽

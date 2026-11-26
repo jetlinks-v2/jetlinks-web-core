@@ -7,7 +7,7 @@
     <!-- 占位容器，高度为所有项总高度 -->
     <div
       class="phantom"
-      :style="{ height: totalHeight + 'px' }"
+      :style="{ height: totalHeight + Math.max(0, endPadding) + 'px' }"
     ></div>
     <!-- 实际渲染的可见项 -->
     <div
@@ -47,6 +47,7 @@ import { virtualRange, virtualRowOffset } from './range'
 const props = defineProps({
   data: { type: Array, required: true },
   itemHeight: { type: Number, default: 50 },
+  endPadding: { type: Number, default: 0 },
   expandedKey: { type: [String, Number], default: undefined }
 })
 const emit = defineEmits(['reachBottom', 'horizontalScroll'])
