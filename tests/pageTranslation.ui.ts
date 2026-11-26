@@ -22,7 +22,7 @@ const systemStore = reactive(createFrontLanguageState(() => true))
 export const useFixtureSystemStore = () => systemStore
 const state = reactive({
   text: '旧设备文本', review: '复判目标：车辆违停检测。图片中未见任何车辆。',
-  modal: false, login: false, mixed: false, exclude: false, foreign: false,
+  modal: false, login: false, mixed: false, exclude: false, foreign: false, translateRegion: false,
 })
 const componentLocales = { zh: zhCN, en: enUS, ja: jaJP }
 const nativeLocale = computed(() => builtInLanguage(i18n.global.locale.value) ?? 'zh')
@@ -39,7 +39,12 @@ const App = defineComponent({
     return () => h(ConfigProvider, { locale: componentLocales[nativeLocale.value] }, {
       default: () => [
         h('header', { style: 'display:flex;justify-content:flex-end' }, state.login ? [] : [h(Language)]),
-        h('main', [
+        h('span', { id: 'unmarked-region', title: '区域外设备' }, '区域外设备'),
+        h('div', { 'data-translate': state.translateRegion ? '' : undefined }, [
+          h('strong', { id: 'marked-region', title: '区域状态' }, '区域状态'),
+          h('span', { 'data-no-translate': '' }, h('span', { id: 'excluded-region', 'data-translate': '' }, '保护区域')),
+        ]),
+        h('main', { 'data-translate': '' }, [
           h('h1', { id: 'heading' }, i18n.global.t('test.heading')),
           h('nav', { id: 'access-menu' }, menuTitles[nativeLocale.value]),
           h('p', { id: 'resource-statistic' }, '功耗分布'),
@@ -64,7 +69,9 @@ const App = defineComponent({
           h(Pagination, { id: 'pagination', total: 50 }),
           h('p', { id: 'offscreen', style: 'margin-top:1300px' }, '离屏内容'),
         ]),
-        state.modal ? h(Teleport, { to: 'body' }, h('div', { id: 'modal', style: 'position:fixed;left:16px;top:210px' }, '设备详情')) : null,
+        state.modal ? h(Teleport, { to: 'body' }, h('div', {
+          id: 'modal', 'data-translate': '', style: 'position:fixed;left:16px;top:210px',
+        }, '设备详情')) : null,
       ],
     })
   },

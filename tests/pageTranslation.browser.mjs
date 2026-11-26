@@ -485,6 +485,20 @@ try {
         await page.waitForFunction(() => window.translationCalls.inspections.some(call => call.sourceLanguage === 'zh' && call.targetLanguage === 'en'))
         await heading.click()
         await waitReview(`zh → en: ${reviewText}`)
+        await revealHeading()
+        await waitText('#marked-region', '区域状态')
+        const setRegion = async (enabled, expected) => {
+          await page.evaluate(value => { window.fixtureState.translateRegion = value }, enabled)
+          await waitText('#marked-region', expected)
+          await page.waitForFunction(text => document.querySelector('#marked-region')?.title === text, expected)
+        }
+        await setRegion(true, 'zh → en: 区域状态')
+        await setRegion(false, '区域状态')
+        await waitText('#unmarked-region', '区域外设备')
+        assert.equal(await page.locator('#unmarked-region').getAttribute('title'), '区域外设备')
+        await waitText('#excluded-region', '保护区域')
+        assert.ok(await page.evaluate(() => window.translationCalls.translates
+          .every(call => !['区域外设备', '保护区域'].includes(call.text))))
         const nextReview = '网关离线，无法完成复判。'
         await page.evaluate(text => { Object.assign(window.fixtureState, { review: text, foreign: true, modal: true }) }, nextReview)
         await waitReview(`zh → en: ${nextReview}`)

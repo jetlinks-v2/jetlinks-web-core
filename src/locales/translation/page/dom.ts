@@ -21,6 +21,11 @@ export function excludedElement(element: Element): boolean {
   return !!element.closest(excludedSelector)
 }
 
+/** 显式标记作用于整棵子树，排除规则优先。 */
+export function translatableElement(element: Element): boolean {
+  return !!element.closest('[data-translate]') && !excludedElement(element)
+}
+
 export function readSlot(slot: TextSlot): string {
   return slot.attribute ? slot.node.getAttribute(slot.attribute) ?? '' : slot.node.data
 }
@@ -33,7 +38,7 @@ export function writeSlot(slot: TextSlot, value: string): void {
 
 /** IntersectionObserver 回调与 DOM 更新可交错，提交译文前还需校验当前布局。 */
 export function visibleElement(element: Element): boolean {
-  if (!element.isConnected || excludedElement(element)) return false
+  if (!element.isConnected || !translatableElement(element)) return false
   const rect = element.getBoundingClientRect()
   if (!rect.width || !rect.height || rect.bottom <= 0 || rect.top >= innerHeight || rect.right <= 0 || rect.left >= innerWidth) return false
   const { display, visibility } = getComputedStyle(element)

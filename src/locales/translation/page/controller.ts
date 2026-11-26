@@ -1,5 +1,5 @@
 import { pairKey, type LanguagePair } from '../models'
-import { displayAttributes, excludedElement, readSlot, visibleElement, writeSlot, type DisplayAttribute, type TextSlot } from './dom'
+import { displayAttributes, excludedElement, readSlot, translatableElement, visibleElement, writeSlot, type DisplayAttribute, type TextSlot } from './dom'
 import { excludedText, usableTranslation } from './source'
 
 interface PageTranslationOptions {
@@ -53,7 +53,7 @@ export class PageTranslationController {
     this.mutations.observe(options.root, {
       subtree: true, childList: true, characterData: true, attributes: true,
       attributeFilter: [...displayAttributes, 'class', 'style', 'hidden', 'translate', 'contenteditable',
-        'data-no-translate', 'data-translation-source', 'role'],
+        'data-translate', 'data-no-translate', 'data-translation-source', 'role'],
     })
     this.roots.add(options.root)
     this.schedule()
@@ -93,11 +93,12 @@ export class PageTranslationController {
   private scan(): void {
     const { root } = this.options
     for (const slot of this.slots) {
-      if (!root.contains(slot.node) || excludedElement(slot.element)) this.remove(slot)
+      if (!root.contains(slot.node) || !translatableElement(slot.element)) this.remove(slot)
     }
     for (const node of this.roots) {
       if (!root.contains(node)) continue
       this.inspect(node)
+      // 未标记的容器仍可能有标记后代，仅剪去明确排除的子树。
       if (node instanceof Element && !excludedElement(node)) {
         this.walkers.push(document.createTreeWalker(node, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
           acceptNode: child => child instanceof Element && excludedElement(child) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
@@ -119,10 +120,10 @@ export class PageTranslationController {
     if (node instanceof Text) {
       const element = node.parentElement
       // 不碰原生选项文本：未声明 value 的 option 会从文字推导提交值。
-      if (element && !element.closest('input,textarea,select,option') && !excludedElement(element)) {
+      if (element && translatableElement(element) && !element.closest('input,textarea,select,option')) {
         this.track({ node, element, original: node.data, written: node.data, attempted: false })
       }
-    } else if (node instanceof Element && !excludedElement(node)) {
+    } else if (node instanceof Element && translatableElement(node)) {
       for (const attribute of displayAttributes) {
         const value = node.getAttribute(attribute)
         if (value !== null) this.track({ node, element: node, attribute, original: value, written: value, attempted: false })
