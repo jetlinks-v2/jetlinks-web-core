@@ -1,6 +1,7 @@
 import i18n from "@jetlinks-web-core/locales";
+import type { AgentPagePointDeclaration } from '@jetlinks-web-core/types/agent-page-point';
 
-export const agentData = [
+export const agentData: AgentPagePointDeclaration[] = [
   {
     clientType: 'pagePoint',
     clientId: 'visualizationComponentGenerator',

@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { AgentPagePointDeclaration } from './agent-page-point'
 import type { RouteMeta, RouteRecordRaw } from 'vue-router'
 import type { DataCapabilityProviderManifest } from '../data-capability/types'
 import type { ContentPanelOverrides } from './content-panel'
@@ -46,6 +47,8 @@ export type ModuleConfig = {
 }
 
 export interface ModuleDefinition {
+  /** 声明模块的 AI 页面功能点，由宿主增量同步；调用时读取当前语言文案。 */
+  getAgentPagePoints?: () => AgentPagePointDeclaration[]
   priority?: number
   filter?: boolean
   register?: () => void
