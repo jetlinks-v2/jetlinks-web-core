@@ -1,0 +1,16 @@
+{
+  "version": "m2m100-9c374f0-ort-3.8.1",
+  "repository": "Xenova/m2m100_418M",
+  "revision": "9c374f0b7aca709787cea97b047bfbbd1559d177",
+  "runtimeFiles": [
+    { "path": "ort-wasm-simd-threaded.jsep.wasm", "size": 21596019 }
+  ],
+  "modelFiles": [
+    { "path": "config.json", "size": 908, "sha256": "1dbdf77ddc7809acd4c54ccf0eab46f840b40174afb1b6f6de8787244e832938" },
+    { "path": "generation_config.json", "size": 233, "sha256": "722210dd0bee7bef4e8e7f9a8574d8c56a2dfff723d73f390ce67892740b9009" },
+    { "path": "tokenizer.json", "size": 7988527, "sha256": "03d9e111731c2d71f39a2c2a88499743e4c251385d07f0384b4349a23ba54363" },
+    { "path": "tokenizer_config.json", "size": 1813, "sha256": "bacfd4b9da25a61e01f17abe660465f616c9a1a3f5e23ab9ad3326c3788f2d9f" },
+    { "path": "onnx/encoder_model_quantized.onnx", "size": 287856370, "sha256": "13a94e354a9140764eb81102d77d3ec6952d796e6f113c651eeb3c3443da0386" },
+    { "path": "onnx/decoder_model_merged_quantized.onnx", "size": 344128178, "sha256": "007654bcabb6cea6fd3bde34ce933137b431330b3755781145d7b6906270b45a" }
+  ]
+}

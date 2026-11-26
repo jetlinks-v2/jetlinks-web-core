@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, watch } from 'vue'
 import App from './App.vue'
 import router from '@jetlinks-web-core/router'
 import pinia from '@jetlinks-web-core/store'
@@ -22,7 +22,9 @@ import { consumeApplicationAccessBootstrap } from '@jetlinks-web-core/utils/appl
 import { setToken } from '@jetlinks-web/utils'
 import { consumeLogoutLoginEntry } from '@jetlinks-web-core/router/login-session'
 
-dayjs.locale(i18n.global.locale.value === 'ja' ? 'ja' : 'zh-cn')
+watch(i18n.global.locale, locale => {
+  dayjs.locale(locale === 'ja' ? 'ja' : 'zh-cn')
+}, { immediate: true })
 
 // 先消费退出参数，避免路由、验证码请求或应用入口恢复上一账号的凭证。
 consumeLogoutLoginEntry(clearVerifyCache)

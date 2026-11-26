@@ -10,7 +10,7 @@ import { transformSync } from 'esbuild'
 import { createPinia, defineStore } from 'pinia'
 import * as vue from 'vue'
 import { compileScript, parse } from 'vue/compiler-sfc'
-import { createI18n } from 'vue-i18n'
+import { createI18n, useI18n } from 'vue-i18n'
 
 const core = resolve(import.meta.dirname, '../src')
 const saas = resolve(core, '../../modules/saas-manager-ui')
@@ -76,7 +76,7 @@ function fixture({ browser = 'zh-CN', cache = new Map(), project = false, applic
   const css = () => ({ style: 'light', color: '', token: {} })
   const themeCalls = { user: 0, applied: [], persisted: [] }
   const dependencies = {
-    vue, pinia: { defineStore: (name, setup) => () => defineStore(name, setup)(pinia) },
+    vue, 'vue-i18n': { useI18n }, pinia: { defineStore: (name, setup) => () => defineStore(name, setup)(pinia) },
     dayjs, '@jetlinks-web/core': { request }, '@jetlinks-web/utils': { getToken: () => token },
     '@jetlinks-web-core/locales': i18n,
     '@jetlinks-web-core/utils/consts': { langKey, ruleEditorKey, isSubApp: micro },
@@ -97,6 +97,7 @@ function fixture({ browser = 'zh-CN', cache = new Map(), project = false, applic
     './businessApplicationContext': { useBusinessApplicationContext: () => ({}) },
     './module-override': { withModuleStoreOverride: store => store },
     './index': i18n,
+    './local/provider': { createLocalTranslator: () => undefined },
     './components/Login.vue': { render: () => vue.h('login-form') },
     './components/LoginPageLayout.vue': { setup: (_, { slots }) => () => vue.h('login-shell', [slots.brand?.(), slots.actions?.(), slots.default?.()]) },
   }
@@ -127,9 +128,13 @@ function fixture({ browser = 'zh-CN', cache = new Map(), project = false, applic
     const root = element('root')
     const Component = load(filename).default
     const app = renderer.createApp(Component)
-    for (const name of ['a-button', 'a-popover', 'AIcon', 'a-menu-item', 'a-menu', 'a-dropdown']) {
+    for (const name of ['a-popover', 'a-tooltip', 'AIcon', 'a-menu-item', 'a-menu', 'a-dropdown']) {
       app.component(name, { setup: (_, { slots }) => () => vue.h(name, [slots.default?.(), slots.content?.(), slots.overlay?.()]) })
     }
+    app.component('a-button', {
+      setup: (_, { attrs, slots }) => () => vue.h(attrs.class === 'language-switch__option' ? 'button' : 'a-button', slots.default?.()),
+    })
+    app.use(i18n)
     app.mount(root)
     t.after(() => app.unmount())
     return {

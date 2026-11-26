@@ -13,6 +13,8 @@ import { getOwnMenuThree, readOwnMenuTree } from '@jetlinks-web-core/api/system/
 import { getGlobModules } from '@jetlinks-web-core/router/globModules'
 import { getExtraRouters } from '@jetlinks-web-core/router/extraMenu'
 import i18n from '@jetlinks-web-core/locales'
+import { getMenuSourceTexts } from '@jetlinks-web-core/utils/menuLocale'
+import { builtInLanguage, DEFAULT_LANGUAGE } from '@jetlinks-web-core/locales/translation/languages'
 import { getProjectIdFromLocation } from '@jetlinks-web-core/utils/project-runtime'
 import {
   resolveMenuApplicationScope,
@@ -164,7 +166,6 @@ export const useMenuStore = defineStore('menu', () => {
     const rawMenus = ref<ProjectMenuItem[]>([])
     const projectId = ref()
 
-
   const runtime = createMenuStoreRuntime({
     getAsyncRoutes: getGlobModules,
     resolveExtraMenus: () => getExtraRouters(),
@@ -311,6 +312,11 @@ export const useMenuStore = defineStore('menu', () => {
     runtime.init()
   }
 
+  const menuSourceTexts = computed(() => getMenuSourceTexts(
+    runtime.siderMenus.value, builtInLanguage(i18n.global.locale.value) ?? DEFAULT_LANGUAGE,
+  ))
+  const isMenuSourceText = (text: string) => menuSourceTexts.value.has(text)
+
   /** 保留路由的异步结果，调用方可处理页面加载失败或导航取消。 */
   const jumpPage = (
     name: string,
@@ -329,6 +335,7 @@ export const useMenuStore = defineStore('menu', () => {
   return {
     menu: runtime.menu,
     siderMenus: runtime.siderMenus,
+    isMenuSourceText,
     menusMap: runtime.menusMap,
     loading: runtime.loading,
     initialized: runtime.initialized,

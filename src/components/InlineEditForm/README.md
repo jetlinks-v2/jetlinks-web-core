@@ -24,7 +24,7 @@
 
 密码使用 `editor: 'password'`、空的 `initialValue` 与 `secretSet`，只展示固定掩码。`value` 只能传编辑草稿，不能传已保存明文；密码留空不提交。凭据保留、掩码过滤和有效载荷合并仍由宿主负责。
 
-`editor` 插槽仅用于 `custom` 字段，接收 `field/value/update/commit/cancel/blur/disabled/loading`；内部编辑器必须使用 `update` 回传，遵循 `disabled`，不能隐式请求或改写数据。复杂值以独立副本编辑；将 `blur` 绑定到复合编辑器根节点的 `focusout`，离开区域后整体提交。使用弹窗 / 浮层的编辑器应绑定自身完成事件到 `commit`，避免打开弹窗时误判为离开。`display` 插槽可按字段扩展只读内容；不要在插槽中泄露凭据。
+`editor` 插槽仅用于 `custom` 字段，接收 `field/inputId/value/update/commit/cancel/blur/disabled/loading`。将 `inputId` 绑定到实际输入控件以关联标签。内部编辑器必须使用 `update` 回传，遵循 `disabled`，不能隐式请求或改写数据。复杂值以独立副本编辑；将 `blur` 绑定到复合编辑器根节点的 `focusout`，离开区域后整体提交。使用弹窗 / 浮层的编辑器应绑定自身完成事件到 `commit`，避免打开弹窗时误判为离开。`display` 插槽可按字段扩展只读内容；不要在插槽中泄露凭据。
 
 ## 接入示例
 

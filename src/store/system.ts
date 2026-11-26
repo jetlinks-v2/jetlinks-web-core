@@ -118,7 +118,7 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
   // 业务应用只采用登录后按项目身份读取的配置，不能用登录页的公共配置覆盖项目语言。
   const supportsFrontLanguagePolicy = (source: FrontLanguageSource = 'public') =>
     !isSubApp && (!isApplicationRuntime() || (source === 'session' && !!getToken()))
-  const { language, languageOptions, languageLabel, selectLanguage, applyFrontLanguages } =
+  const { language, languageOptions, languageLabel, hasFrontLanguagePolicy, selectLanguage, applyFrontLanguages } =
     createFrontLanguageState(supportsFrontLanguagePolicy)
   const applySavedFrontLanguages = (value: unknown) => applyFrontLanguages(value, 'save')
   const sessionInitializedUserKey = ref('')
@@ -306,6 +306,7 @@ export const createSystemStore = (source: SystemConfigSource) => defineStore('sy
     language,
     languageOptions,
     languageLabel,
+    hasFrontLanguagePolicy,
     selectLanguage,
     supportsFrontLanguagePolicy,
     applySavedFrontLanguages,

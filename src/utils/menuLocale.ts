@@ -1,5 +1,7 @@
+import type { RouteMeta, RouteRecordRaw } from 'vue-router'
 import i18n from '@jetlinks-web-core/locales'
 import { USER_CENTER_MENU_DATA } from '../views/init-home/data/baseMenu'
+import type { BuiltInLanguage } from '../locales/translation/languages'
 
 type MenuLocaleItem = {
   code?: string
@@ -11,6 +13,10 @@ type MenuLocaleItem = {
 }
 
 type MenuTextField = 'name' | 'describe'
+type MenuSourceLabels = { title?: string; desc?: string }
+
+const menuSourceLabels = Symbol('menuSourceLabels')
+const chineseLocales = ['zh', 'zh_CN', 'zh-CN', 'zh-Hans']
 
 const asRecord = (value: unknown): Record<string, unknown> | undefined => (
   value && typeof value === 'object' && !Array.isArray(value)
@@ -66,6 +72,43 @@ export const createMenuLocaleResolver = (definitions: unknown[], getLocale: () =
     const key = identity(item, field)
     return (!ambiguous.has(key) && defaults.get(key)) || localized || original
   }
+}
+
+const chineseText = (value: unknown): string | undefined => {
+  const messages = asRecord(value)
+  for (const locale of chineseLocales) {
+    const text = messages?.[locale]
+    if (typeof text === 'string' && text.trim()) return text
+  }
+}
+
+/** 保留菜单的中文名称，用于识别未本地化的菜单文案。 */
+export const retainMenuSourceLabels = (meta: RouteMeta | undefined, item: MenuLocaleItem): RouteMeta => {
+  const title = chineseText(item.i18nMessages?.name) || chineseText(item.i18nMessages) || item.name
+  const desc = chineseText(item.i18nMessages?.describe) || item.describe
+  const labels: MenuSourceLabels = {}
+  if (title?.trim()) labels.title = title
+  if (desc?.trim()) labels.desc = desc
+  return { ...meta, [menuSourceLabels]: labels }
+}
+
+/** 从当前展示菜单提取已本地化的文本，补足词库里没有的服务端菜单名。 */
+export const getMenuSourceTexts = (menus: RouteRecordRaw[], language: BuiltInLanguage) => {
+  const sourceTexts = new Set<string>()
+  const visit = (menu: RouteRecordRaw) => {
+    const labels = menu.meta?.[menuSourceLabels] as MenuSourceLabels | undefined
+    if (labels) {
+      for (const key of ['title', 'desc'] as const) {
+        const text = menu.meta?.[key]
+        if (typeof text === 'string' && text.trim() && (language === 'zh' ? text === labels[key] : text !== labels[key])) {
+          sourceTexts.add(text.trim())
+        }
+      }
+    }
+    menu.children?.forEach(visit)
+  }
+  menus.forEach(visit)
+  return sourceTexts
 }
 
 const baseMenus = import.meta.glob('../../../modules/**/baseMenu.json', { eager: true, import: 'default' })
