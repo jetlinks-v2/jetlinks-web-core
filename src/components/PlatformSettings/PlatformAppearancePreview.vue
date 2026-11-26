@@ -9,7 +9,7 @@
         <div class="preview-window-controls" aria-hidden="true"><i /><i /><i /></div>
         <div class="preview-tab">
           <a-button class="preview-tab__icon" type="text" size="small" :disabled="hidden.includes('ico')" :class="mark('ico')" :aria-label="t('PlatformSettings.icon')" @click="emit('locate', 'ico')"><img :src="assets.ico" alt="" /></a-button>
-          <a-button class="preview-tab__title" type="text" size="small" :class="mark('title')" :title="model.title || t('PlatformSettings.defaultName')" @click="emit('locate', 'title')">{{ model.title || t('PlatformSettings.defaultName') }}</a-button>
+          <a-button class="preview-tab__title" type="text" size="small" :class="mark('title')" :title="model.title || t('PlatformSettings.defaultName')" @click="emit('locate', 'title')" data-no-translate>{{ model.title || t('PlatformSettings.defaultName') }}</a-button>
           <AIcon class="preview-tab__close" type="CloseOutlined" aria-hidden="true" />
         </div>
         <span class="preview-new-tab" aria-hidden="true"><AIcon type="PlusOutlined" /></span>

@@ -5,7 +5,7 @@
         <a-button type="text" class="preview-logo" :class="mark('logo')" :aria-label="t('PlatformSettings.logo')" @click="emit('locate', 'logo')">
           <img :src="assets.logo" alt="" class="login-brand__logo" />
         </a-button>
-        <a-button type="text" class="login-brand__title preview-title" :class="mark('title')" @click="emit('locate', 'title')">{{ model.title || t('PlatformSettings.defaultName') }}</a-button>
+        <a-button type="text" class="login-brand__title preview-title" :class="mark('title')" @click="emit('locate', 'title')" data-no-translate>{{ model.title || t('PlatformSettings.defaultName') }}</a-button>
       </template>
       <template #actions><div inert><LoginHeaderActions /></div></template>
       <section class="login-workspace" inert>

@@ -24,7 +24,7 @@
         <div class="project-layout__brand" :style="logoWidth">
           <div v-if="!state.collapsed" class="project-layout__brand-main">
             <img class="project-layout__brand-logo" :src="layout.logo" alt="" />
-            <span class="project-layout__brand-title">{{ layout.title }}</span>
+            <span class="project-layout__brand-title" data-no-translate>{{ layout.title }}</span>
           </div>
           <a-button
             class="project-layout__brand-collapse"
