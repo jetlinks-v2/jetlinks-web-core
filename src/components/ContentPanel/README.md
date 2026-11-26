@@ -42,6 +42,37 @@
 
 页面中需要承载一组内容时，优先使用此组件；只有需要图标标题栏、指标或实体摘要语义时才使用 `SectionCard` 或 `CardBox` 的专用变体。
 
+## 连续分区工作区
+
+Tabs、共享工具栏和分区正文属于同一个工作区时，由最外层 `ContentPanel` 提供一次背景、圆角及所需外框。使用已有 `padding=0` 让结构线接到表面内沿；标题、搜索和正文分别在各自内容区保留内边距。普通阅读／表单内容继续使用默认留白。
+
+```vue
+<ContentPanel fill :padding="0" class="workbench">
+  <header class="workbench__header">任务工作台</header>
+  <ResponsiveSplitter class="workbench__body" :min="160" :end-min="320" panel-title="任务列表">
+    <template #start><nav class="workbench__content">任务列表</nav></template>
+    <template #end="{ collapsed, toggle, startId }">
+      <section class="workbench__content">
+        <PanelCollapseButton :collapsed="collapsed" :aria-controls="startId"
+          :label="collapsed ? '展开任务列表' : '收起任务列表'" @toggle="toggle" />
+        任务详情
+      </section>
+    </template>
+  </ResponsiveSplitter>
+</ContentPanel>
+```
+
+```css
+.workbench { overflow: hidden; border: 1px solid var(--line); }
+.workbench__header { flex: none; padding: var(--space-4); border-bottom: 1px solid var(--line); }
+.workbench__body { flex: 1; min-height: 0; }
+.workbench__content { padding: var(--space-4); }
+```
+
+宿主先提供确定的可用高度；`fill` 沿父级 flex 列容器填满。外框描边按表面需要选择，分区组件不重复添加圆角框；共享头部的底线横贯表面，分割线从其下沿连接到底边。布局根不留额外 padding，也不通过负 margin 或对子组件内部样式的覆盖实现贴边。
+
+已有壳层面板时，由所属模块的 `getContentPanelOverrides()` 声明 `{ padding: 0 }`，页面直接提供工具栏和分区布局，省略上例的 `ContentPanel`。输入、按钮和内容卡片仍保留独立边框。带独立左右头部的布局沿用 `EqualHeightColumns`；两种组合见 `tests/public-ui/README.md`。
+
 ## 布局壳层中的统一包裹
 
 **项目布局**（`ProjectLayoutPage` → `BasicLayoutShell`）会用 `ContentPanel` 包裹路由内容，页面代码不需要自己包裹：

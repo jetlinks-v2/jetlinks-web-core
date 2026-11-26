@@ -60,10 +60,11 @@ const filteredTasks = computed(() => tasks.filter(item => item.name.includes(sea
 const activeTask = computed(() => tasks.find(item => item.id === selected.value) ?? tasks[0])
 </script>
 <style scoped>
-.splitter-example__heading { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap; margin-bottom:var(--space-4); }
+.splitter-example { display:flex; flex:1; flex-direction:column; min-width:0; min-height:0; }
+.splitter-example__heading { display:flex; flex:none; align-items:center; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap; padding:var(--space-3) var(--space-4); border-bottom:1px solid var(--line); }
 .splitter-example__title { display:flex; align-items:center; gap:var(--space-2); min-width:0; }
 .splitter-example__heading h2 { margin:0; font-size:var(--fs-16); }
-.splitter-example__workspace { height:420px; border:1px solid var(--line); border-radius:var(--r-2); }
+.splitter-example__workspace { flex:1; min-height:0; }
 .splitter-example__navigation { height:100%; overflow:auto; padding:var(--space-3); }
 .splitter-example__navigation :deep(.ant-list-item) { padding:var(--space-1) 0; border:0; }
 .splitter-example__item.ant-btn { width:100%; height:auto; display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3); text-align:start; }

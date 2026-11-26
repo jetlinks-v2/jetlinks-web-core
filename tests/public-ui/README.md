@@ -4,6 +4,8 @@
 
 示例按字段与选择、单字段保存、整表保存、首次录入、多语言、异步与失败、分区布局分组。页签切换保留各自草稿；顶部可限制内容最大宽度，窄屏仍随可用空间收缩。分区布局分别展示 `ResponsiveSplitter` 的自适应抽屉和 `EqualHeightColumns` 的头部、调宽与手动折叠，分类搜索与详情使用固定且对应的资料；详情头与键值字段复用 `DetailHeader`、`KvGrid`。
 
+整个示例由一个 `ContentPanel` 提供表面和外框，宽度选项约束该工作区。Tabs 和布局工具栏的结构线贯通外沿；两种分区填满剩余正文，分割线连接头部下沿与底边，面板内容自己保留留白。阅读和表单场景仍在内容内部留白并正常滚动，不给分区再套圆角框或固定高度。公开组合契约见 `src/components/ContentPanel/README.md` 和 `src/components/Splitter/README.md`。
+
 从仓库根目录运行：
 
 ```sh
