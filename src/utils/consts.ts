@@ -1,5 +1,6 @@
 export const USER_CENTER_MENU_CODE = 'account-center'
 export const USER_CENTER_MENU_BUTTON_CODE = 'user-center-passwd-update'
+export const USER_CENTER_PERSONAL_TOKEN_ADD_BUTTON_CODE = 'personal-token-add'
 export const messageSubscribe  = 'message-subscribe'
 
 export const ACCESS_AI_AGENT_CODE = 'access-ai-agent-code'

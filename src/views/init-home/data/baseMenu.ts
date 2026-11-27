@@ -1,7 +1,8 @@
 import {
     ACCESS_AI_AGENT_CODE,
     USER_CENTER_MENU_BUTTON_CODE,
-    USER_CENTER_MENU_CODE
+    USER_CENTER_MENU_CODE,
+    USER_CENTER_PERSONAL_TOKEN_ADD_BUTTON_CODE
 } from '@jetlinks-web-core/utils/consts'
 
 export const ACCESS_AI_AGENT_CODE_DATA = {
@@ -88,6 +89,18 @@ export const USER_CENTER_MENU_DATA = {
             ]
         },
 
+        {
+            id: USER_CENTER_PERSONAL_TOKEN_ADD_BUTTON_CODE,
+            name: '新建令牌',
+            i18nMessages: {
+                zh_CN: '新建令牌',
+                en_US: 'Create Token',
+                en: 'Create Token',
+                ja: 'トークンを作成',
+                ja_JP: 'トークンを作成'
+            },
+            permissions: []
+        },
         {
             id: 'application',
             name: '应用',

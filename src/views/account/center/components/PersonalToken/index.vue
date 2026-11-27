@@ -4,7 +4,7 @@ import TokenDialog from './components/TokenDialog.vue'
 import TokenDetails from './components/TokenDetails.vue'
 import TokenCard from './components/TokenCard.vue'
 import { usePersonalToken } from './usePersonalToken'
-import {PersonalKey} from "@jetlinks-web-core/utils/consts";
+import { PersonalKey, USER_CENTER_MENU_CODE, USER_CENTER_PERSONAL_TOKEN_ADD_BUTTON_CODE } from '@jetlinks-web-core/utils/consts'
 const {
   tokenList, tokenGroups, deleting, deleteError, dialogVisible, dialogMode, selectedToken, loading, loadError, reload,
   handleAdd, handleView, handleEdit, handleRegenerate, handleDelete, handleDialogOk,
@@ -34,7 +34,14 @@ const expanded = ref<string[]>([])
     <section class="personal-token__group">
       <div class="personal-token__section-heading">
         <h2>{{ $t('PersonalToken.myTokens') }}</h2>
-        <a-button type="primary" @click="handleAdd"><template #icon><AIcon type="PlusOutlined" /></template>{{ $t('PersonalToken.empty.create') }}</a-button>
+        <j-permission-button
+          type="primary"
+          :has-permission="`${USER_CENTER_MENU_CODE}:${USER_CENTER_PERSONAL_TOKEN_ADD_BUTTON_CODE}`"
+          @click="handleAdd"
+        >
+          <template #icon><AIcon type="PlusOutlined" /></template>
+          {{ $t('PersonalToken.empty.create') }}
+        </j-permission-button>
       </div>
       <a-spin v-if="loading" class="personal-token__loading" />
       <a-list v-else-if="tokenGroups.active.length" :data-source="tokenGroups.active" bordered class="personal-token__list">

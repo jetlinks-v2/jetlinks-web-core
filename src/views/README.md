@@ -205,6 +205,8 @@ core 下执行 `node --test src/views/account/center/*.test.mjs tests/loginNavig
 
 ### 公共组件与交互契约
 
+- 新建令牌按钮权限：`init-home/data/baseMenu.ts` 的个人中心菜单包含「新建令牌」按钮，`account/center/components/PersonalToken/index.vue` 复用 `j-permission-button` 按 `account-center:personal-token-add` 控制可用性，权限标识集中在 `utils/consts.ts`；无权限时禁用并提示。存量环境需更新个人中心菜单并为角色分配该按钮权限。本次仅调整前端按钮授权，后端接口与授权规则沿用原契约。
+- 此按钮验证：实际页面脚本与模板编译通过；隔离列表服务，组合真实权限按钮、权限 hook 和 `useAuthStore` 验证未授权、仅修改密码权限时禁用，授予新建令牌权限时可用。在 core 下执行 `node --test src/views/account/center/personalCenterFlows.test.mjs src/views/account/center/components/PersonalToken/permissions.test.mjs src/views/account/center/components/PersonalToken/useTokenDialog.test.mjs`，99 项通过；差异空白检查通过。全量 `pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json` 在 `runtime-ui/` 执行有 511 项诊断，本次修改文件无诊断，全量类型检查未通过；修复诊断后需重跑。无独立 lint 脚本；未运行完整生产构建（待执行 `pnpm build`）或真实登录页面验收，部署后需复验存量菜单更新及角色授权。
 - 基本信息中的角色和组织使用首项标签及剩余数量保持单行，鼠标移入或点击可在弹层中查看完整列表；长名称在摘要中省略，弹层内完整展示并限制高度。实现位于 `account/center/components/BasicInfo.vue`；页面交互待用户验收。
 - 姓名使用公共 `InputEditable` 的图标入口：鼠标悬停或键盘聚焦时显示编辑图标，点击后进入输入框；Enter 或失焦保存、Esc 取消，异步保存失败保留输入。资料和头像通过 `PUT /user/detail` 保存；头像复用 `ImageUpload` 的 `value/update:value` 与 `cropperProps`，执行 1:1 裁剪；鼠标悬停或键盘聚焦时在头像中央显示更换图标。
 - 登录方式使用 Ant 列表和按钮。手机号、邮箱资料不等于已验证登录身份；只有 `/user/identity/_me` 返回身份时才显示已验证。基本信息列表和联系弹窗说明经 `contactPresentation.ts` 脱敏，通知设置表头显示当前账号的实际接收地址。修改弹窗由用户输入要验证和保存的新值。`ContactDialog/useContactDialog.ts` 组合资料与验证逻辑，共用一个联系方式字段和一组底部操作；验证码只用于发起验证的原始地址，验证或保存失败不关闭弹窗。身份确认成功后资料保存失败，当前个人中心页内按账号保留待保存的新值；关闭重开弹窗后重新输入同一个值可补存资料，不重复消费验证码，保存成功或账号切换即清除，不写入浏览器存储。旧身份管理保留在既有账号资料页，绑定弹窗不再叠加独立身份管理表单。
