@@ -30,6 +30,7 @@
     <div class="compareSave" v-if="eventChange">
       <j-permission-button
         type="primary"
+        has-permission="system/Calendar:add"
         @click="saveCalendar"
         :disabled="selectable"
       >{{ $t('FullCalendar.index.397640-5') }}</j-permission-button
