@@ -114,18 +114,40 @@ test('unsaved indicators track changed drafts, disappear at the baseline and res
   }
 })
 
-test('unsaved indicators remain through pending and failed saves and disappear only after acceptance', async t => {
+test('automatic save feedback distinguishes pending, failed and acknowledged writes', async t => {
   let finish
   const view = mount(InputEditable, { save: () => new Promise(resolve => { finish = resolve }) }); t.after(() => view.app.unmount())
   const indicator = () => view.find(node => node.props['aria-label'] === 'Editable.unsaved')
   await view.start(); await view.update('待保存')
   const first = view.input().props.onPressEnter({ isComposing: false }); await flush()
-  assert.ok(indicator()); assert.equal(view.input().props.disabled, true)
+  assert.ok(view.find(node => node.props['aria-label'] === 'Editable.saving'))
+  assert.equal(indicator(), undefined); assert.equal(view.input().props.disabled, true)
   finish(false); await first; await flush()
   assert.ok(indicator()); assert.deepEqual(view.values, [])
   const retry = view.input().props.onPressEnter({ isComposing: false }); await flush()
+  assert.ok(view.find(node => node.props['aria-label'] === 'Editable.saving'))
   finish(true); await retry; await flush()
   assert.equal(indicator(), undefined); assert.deepEqual(view.values, ['待保存'])
+  assert.ok(view.find(node => node.props['aria-label'] === 'Editable.saved'))
+  assert.equal(view.input(), undefined)
+})
+
+test('saved feedback resets on a new edit and is not claimed for unchanged or local-only submissions', async t => {
+  const view = mount(InputEditable, { save: async () => true }); t.after(() => view.app.unmount())
+  const status = () => view.find(node => String(node.props.class || '').split(' ').includes('input-editable__status'))
+  await view.start(); await view.update('已确认')
+  await view.input().props.onPressEnter({ isComposing: false }); await flush()
+  assert.equal(status().props['aria-label'], 'Editable.saved')
+  await view.start(); assert.equal(status(), undefined)
+  await view.input().props.onPressEnter({ isComposing: false }); await flush()
+  assert.equal(status(), undefined)
+  await view.start(); await view.update('取消本次修改')
+  view.input().props.onKeydown(keyEvent('Escape')); await flush()
+  assert.equal(status(), undefined)
+  const local = mount(InputEditable); t.after(() => local.app.unmount())
+  await local.start(); await local.update('本地草稿')
+  await local.input().props.onPressEnter({ isComposing: false }); await flush()
+  assert.equal(local.find(node => node.props['aria-label'] === 'Editable.saved'), undefined)
 })
 
 test('multiline input preserves paragraphs, ignores blur and plain Enter, and commits on Ctrl/Cmd+Enter', async t => {
