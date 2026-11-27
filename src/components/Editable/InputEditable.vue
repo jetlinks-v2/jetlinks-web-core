@@ -134,7 +134,7 @@ onBeforeUnmount(() => { ++generation })
 </script>
 
 <style scoped>
-.input-editable { --input-editable-height:32px; position:relative; display:inline-grid; grid-template-columns:minmax(0,auto) 24px; grid-template-rows:var(--input-editable-height); align-items:center; column-gap:var(--space-2,8px); min-width:0; max-width:min(100%,var(--inline-edit-max-width,100%)); font:inherit; vertical-align:middle }
+.input-editable { --input-editable-height:32px; position:relative; display:inline-grid; grid-template-columns:minmax(0,auto) 24px; grid-template-rows:var(--input-editable-height); align-items:center; column-gap:var(--space-2,8px); width:fit-content; min-width:0; max-width:min(100%,var(--inline-edit-max-width,100%)); font:inherit; vertical-align:middle }
 .input-editable--small { --input-editable-height:24px }
 .input-editable--large { --input-editable-height:40px }
 .input-editable--text:not(.input-editable--has-action) { grid-template-columns:minmax(0,auto) }
