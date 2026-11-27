@@ -93,6 +93,7 @@ import ContentPanel from './ContentPanel/index.vue'
 import { TableActions, TableActionsItem } from './TableActions'
 import BasisSection from './BasisSection/index.vue'
 import AutoTree from './AutoTree'
+import PermissionButton from './PermissionButton'
 
 export default {
     install(app: App) {
@@ -189,6 +190,7 @@ export default {
           .component('TableActionsItem', TableActionsItem)
           .component('BasisSection', BasisSection)
           .component('AutoTree', AutoTree)
+          .component('JPermissionButton', PermissionButton)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
@@ -231,7 +233,7 @@ export {
     TableActionsItem,
     BasisSection
 }
-export { AutoTree }
+export { AutoTree, PermissionButton }
 export { InlineEditForm } from './InlineEditForm'
 export type { InlineEditFieldDefinition, InlineEditGroup, InlineEditMessages, InlineEditResult, InlineEditSubmit } from './InlineEditForm'
 export type { AutoTreeProps, AutoTreeInstance } from './AutoTree'
