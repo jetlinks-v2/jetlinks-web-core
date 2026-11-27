@@ -10,7 +10,7 @@
     </div>
     <a-button v-if="projection?.skipped && !compact" type="text" size="small" class="expression-math-toggle" :aria-expanded="expanded" @click="expanded=!expanded"><AIcon type="EllipsisOutlined" />{{ t(expanded ? 'hideUnusedBranches' : 'unusedBranches',{count:projection.skipped}) }}</a-button>
     <a-tooltip :open="!!hint" :title="hint?.title" :trigger="[]" placement="top" :get-popup-container="popupContainer" :overlay-style="{pointerEvents:'none'}" :overlay-inner-style="{whiteSpace:'pre-line',overflowWrap:'anywhere',fontSize:'12px',lineHeight:'20px'}">
-      <span class="expression-math-hint-anchor" :style="hint?.style" aria-hidden="true" />
+      <span class="expression-math-hint-anchor" :style="hintStyle" aria-hidden="true" />
     </a-tooltip>
   </span>
   <slot v-else />
@@ -28,7 +28,7 @@ const props=withDefaults(defineProps<{node:ExpressionNode;context:ExpressionEdit
 const {t}=useI18n({useScope:'local',messages:editorMessages})
 const expanded=ref(false),element=ref<HTMLElement>()
 const projection=computed(()=>{try{return expressionMath(props.node,props.context,t,props.facts,true,{showSkipped:expanded.value || props.compact,substitute:props.substitute,compact:props.compact})}catch{return undefined}})
-const {markup,hint,inspect,hideHint,popupContainer}=useMathMarkup(projection,element)
+const {markup,hint,hintStyle,inspect,hideHint,popupContainer}=useMathMarkup(projection,element)
 </script>
 <style src="./math-semantic.css" />
 <style>

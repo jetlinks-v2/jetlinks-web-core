@@ -2,13 +2,15 @@ import { onMounted, onScopeDispose, shallowRef, watch, type Ref } from 'vue'
 import type { expressionMath } from './math'
 
 type Projection=Pick<ReturnType<typeof expressionMath>,'latex'|'macros'> & Partial<Pick<ReturnType<typeof expressionMath>,'inspections'>>
+type HintStyle={left:string;top:string;width:string;height:string}
 let renderer:Promise<typeof import('mathlive')>|undefined
 
 /** 复用 MathLive 静态排版；无编辑器实例、求值器或远程资源，刷新只替换排版。 */
 export function useMathMarkup(projection:Ref<Projection|undefined>,element?:Ref<HTMLElement|undefined>) {
   const markup=shallowRef('')
   const engine=shallowRef<typeof import('mathlive')>()
-  const hint=shallowRef<{title:string;style:{left:string;top:string;width:string;height:string}}>()
+  const hint=shallowRef<{title:string;style:HintStyle}>()
+  const hintStyle=shallowRef<HintStyle>()
   let pending:ReturnType<typeof setTimeout>|undefined,target:HTMLElement|undefined
   function hideHint() {clearTimeout(pending);pending=undefined;target=undefined;hint.value=undefined}
   function inspect(event:Event,immediate=false) {
@@ -22,7 +24,8 @@ export function useMathMarkup(projection:Ref<Projection|undefined>,element?:Ref<
       pending=undefined
       if(target !== anchor || !element?.value)return
       const origin=element.value.getBoundingClientRect(),bounds=anchor.getBoundingClientRect()
-      hint.value={title:item.title,style:{left:`${bounds.left-origin.left}px`,top:`${bounds.top-origin.top}px`,width:`${bounds.width}px`,height:`${bounds.height}px`}}
+      hintStyle.value={left:`${bounds.left-origin.left}px`,top:`${bounds.top-origin.top}px`,width:`${bounds.width}px`,height:`${bounds.height}px`}
+      hint.value={title:item.title,style:hintStyle.value}
     }
     if(immediate)show();else pending=setTimeout(show,100)
   }
@@ -49,5 +52,5 @@ export function useMathMarkup(projection:Ref<Projection|undefined>,element?:Ref<
       engine.value=await renderer
     }catch { /* 排版不可用时保留原公式文本。 */ }
   })
-  return {markup,hint,inspect,hideHint,popupContainer}
+  return {markup,hint,hintStyle,inspect,hideHint,popupContainer}
 }
