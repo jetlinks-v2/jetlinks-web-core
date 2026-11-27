@@ -99,6 +99,35 @@ test('InputEditable keeps a draft while focus moves into its action and commits 
 
 const keyEvent = (key, extra = {}) => ({ key, preventDefault() {}, stopPropagation() {}, ...extra })
 
+test('unsaved indicators track changed drafts, disappear at the baseline and reset on cancellation', async t => {
+  for (const textarea of [false, true]) {
+    const view = mount(InputEditable, { textarea }); t.after(() => view.app.unmount())
+    const indicator = () => view.find(node => node.props['aria-label'] === 'Editable.unsaved')
+    assert.equal(indicator(), undefined)
+    await view.start(); assert.equal(indicator(), undefined)
+    await view.update('已修改'); assert.ok(indicator())
+    assert.equal(indicator().props.title, 'Editable.unsaved')
+    await view.update('原名称'); assert.equal(indicator(), undefined)
+    await view.update('取消草稿'); assert.ok(indicator())
+    view.input().props.onKeydown(keyEvent('Escape')); await flush()
+    assert.equal(indicator(), undefined); assert.deepEqual(view.values, [])
+  }
+})
+
+test('unsaved indicators remain through pending and failed saves and disappear only after acceptance', async t => {
+  let finish
+  const view = mount(InputEditable, { save: () => new Promise(resolve => { finish = resolve }) }); t.after(() => view.app.unmount())
+  const indicator = () => view.find(node => node.props['aria-label'] === 'Editable.unsaved')
+  await view.start(); await view.update('待保存')
+  const first = view.input().props.onPressEnter({ isComposing: false }); await flush()
+  assert.ok(indicator()); assert.equal(view.input().props.disabled, true)
+  finish(false); await first; await flush()
+  assert.ok(indicator()); assert.deepEqual(view.values, [])
+  const retry = view.input().props.onPressEnter({ isComposing: false }); await flush()
+  finish(true); await retry; await flush()
+  assert.equal(indicator(), undefined); assert.deepEqual(view.values, ['待保存'])
+})
+
 test('multiline input preserves paragraphs, ignores blur and plain Enter, and commits on Ctrl/Cmd+Enter', async t => {
   for (const modifier of ['ctrlKey', 'metaKey']) {
     const view = mount(InputEditable, { textarea: true, value: '第一段\n第二段' }); t.after(() => view.app.unmount())

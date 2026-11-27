@@ -2328,6 +2328,7 @@
   "Editable.save": "保存",
   "Editable.cancel": "取消",
   "Editable.saveFailed": "保存失败，请重试",
+  "Editable.unsaved": "已修改，尚未保存",
   "DetailMetaItem.copyTooltip": "点击复制：{id}",
   "app.resourceLoadError.title": "请刷新页面",
   "app.resourceLoadError.content": "页面资源加载失败，可能是系统已更新。请刷新页面后继续操作。\n注意：刷新会清除尚未保存的内容！",

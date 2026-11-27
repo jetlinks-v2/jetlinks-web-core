@@ -1,5 +1,5 @@
 <template>
-  <span ref="rootRef" class="input-editable" :class="[`input-editable--${size}`, { 'input-editable--text': trigger === 'text', 'input-editable--has-action': !!$slots.action, 'input-editable--multiline': textarea }]" :style="textStyle" @focusout="blur">
+  <span ref="rootRef" class="input-editable" :class="[`input-editable--${size}`, { 'input-editable--text': trigger === 'text', 'input-editable--has-action': !!$slots.action, 'input-editable--multiline': textarea, 'input-editable--dirty': isDirty }]" :style="textStyle" @focusout="blur">
     <span class="input-editable__value" :class="{ 'is-editing': isEdit }" :aria-hidden="isEdit || undefined">
       <button v-if="textarea" ref="triggerRef" type="button" class="input-editable__text inline-edit-trigger" :disabled="disabled || isEdit || submitting" :aria-label="label" @click="startEdit"><span class="input-editable__paragraph">{{ _value || placeholder || $t('comm.table.empty') }}</span></button>
         <button v-else ref="triggerRef" type="button" class="input-editable__text inline-edit-trigger" :disabled="disabled || isEdit || submitting" :aria-label="label" @click="startEdit">
@@ -10,6 +10,7 @@
       <a-textarea v-if="textarea" ref="inputRef" v-model:value="_value" :bordered="false" :maxlength="maxLength" :placeholder="placeholder" :disabled="disabled || submitting" :status="currentError ? 'error' : undefined" :aria-label="label" @keydown="keydown" />
       <a-input v-else ref="inputRef" v-model:value="_value" :bordered="false" :size="size" :maxLength="maxLength"
         @press-enter="!$event.isComposing && submit()" @keydown="keydown" :disabled="disabled || submitting" :status="currentError ? 'error' : undefined" :aria-label="label" />
+      <span v-if="isDirty" class="input-editable__dirty" role="img" :aria-label="$t('Editable.unsaved')" :title="$t('Editable.unsaved')" @mousedown.prevent><AIcon type="EditOutlined" aria-hidden="true" /></span>
     </span>
     <span v-if="$slots.action" class="input-editable__action"><slot name="action" :value="_value" :editing="isEdit" :cancel="() => cancel(false)" /></span>
     <a-button v-else-if="trigger === 'icon'" class="input-editable__action" :class="{ 'input-editable__action--hidden': disabled || isEdit }" type="link"
@@ -45,6 +46,7 @@ const emit = defineEmits<{ (event: 'update:value' | 'change', value: string): vo
 defineSlots<{ action?: (scope: { value: string; editing: boolean; cancel: () => void }) => unknown }>()
 const _value = ref('')
 const isEdit = ref(false)
+const isDirty = computed(() => isEdit.value && _value.value !== props.value)
 const submitting = ref(false)
 const failure = ref('')
 const currentError = computed(() => props.error || failure.value)
@@ -140,9 +142,12 @@ onBeforeUnmount(() => { ++generation })
 .input-editable--text:not(.input-editable--has-action) { grid-template-columns:minmax(0,auto) }
 .input-editable__value { display:flex; align-items:center; min-width:0; height:100%; overflow:hidden; white-space:pre }
 .input-editable__value.is-editing { visibility:hidden }
+.input-editable--dirty:not(.input-editable--multiline) .input-editable__value::after { content:''; flex:0 0 20px }
+.input-editable__dirty { position:absolute; inset-inline-end:4px; top:0; display:inline-flex; align-items:center; height:var(--input-editable-height); color:var(--jet-theme-primary); font-size:12px }
 .input-editable__control { position:absolute; inset:0 32px auto 0; height:var(--input-editable-height); max-width:calc(100% - 32px) }
 .input-editable--text:not(.input-editable--has-action) .input-editable__control { right:0; max-width:100% }
 .input-editable :deep(.ant-input) { min-width:0; width:100%; height:100%; font:inherit; padding:0; border:0; border-radius:0; box-shadow:none }
+.input-editable--dirty :deep(.ant-input) { padding-inline-end:20px }
 .input-editable__text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0; border:0; background:transparent; font:inherit; color:inherit; text-align:start; cursor:pointer }
 .input-editable__text:disabled { cursor:default }
 .input-editable__text:focus-visible { outline:2px solid var(--jet-theme-primary); outline-offset:3px }

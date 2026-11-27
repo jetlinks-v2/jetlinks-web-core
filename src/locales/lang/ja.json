@@ -25,6 +25,7 @@
   "Editable.save": "保存",
   "Editable.cancel": "キャンセル",
   "Editable.saveFailed": "保存できませんでした。再度お試しください。",
+  "Editable.unsaved": "変更はまだ保存されていません",
   "I18n.cancel": "キャンセル",
   "I18n.confirm": "確定",
   "I18n.fallback": "空欄の場合は「{value}」を使用",
