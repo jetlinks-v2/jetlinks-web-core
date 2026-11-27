@@ -13,7 +13,7 @@
       </template>
       <template #end><slot name="end" :collapsed="visibleCollapsed" :toggle="toggle" :compact="compact" :overlay-open="overlayOpen" :start-id="startId" /></template>
     </Splitter>
-    <Drawer :open="drawerShown" :mask="overlayOpen" force-render :destroy-on-close="false" :get-container="false" :autofocus="false"
+    <Drawer :open="drawerShown" :mask="overlayOpen" :style="{ borderRadius: 0 }" force-render :destroy-on-close="false" :get-container="false" :autofocus="false"
       :placement="orientation === 'vertical' ? 'top' : 'left'" :width="orientation === 'horizontal' ? drawerExtent : undefined" :height="orientation === 'vertical' ? drawerExtent : undefined"
       :content-wrapper-style="drawerStyle" :root-style="{ position: 'absolute' }" :body-style="{ padding: 0, minHeight: 0 }"
       :closable="false" @close="close()">
@@ -73,6 +73,7 @@ const localSize = ref<number>()
 const preferredSize = computed(() => props.size ?? localSize.value)
 const drawerExtent = computed(() => Math.min(Math.max(0, extent.value - 44), Math.max(props.min, preferredSize.value ?? 0, props.orientation === 'vertical' ? 240 : 280)))
 const drawerStyle = computed<CSSProperties>(() => ({
+  borderRadius: 0,
   ...(props.orientation === 'vertical' ? { height: `${drawerExtent.value}px` } : { width: `${drawerExtent.value}px` }),
   transform: overlayOpen.value ? undefined : `${props.orientation === 'vertical' ? 'translateY' : 'translateX'}(${(revealSize.value ?? 0) - drawerExtent.value}px)`,
   transition: revealSize.value !== undefined || !overlayOpen.value || reducedMotion.value ? 'none' : undefined,

@@ -67,6 +67,8 @@
 
 `start` 插槽提供 `{ compact, close }`，选择内容后可调用 `close(target?)` 将焦点交给下一任务；`end` 提供 `{ collapsed, toggle, compact, overlayOpen, startId }`，供宿主放置可见恢复入口。外部工具栏也可通过组件 ref 读取 `collapsed/startId` 并调用 `toggle()`。它不自动生成业务工具栏。
 
+窄容器中的临时抽屉属于工作区内部覆盖侧栏：包装层和内容层均使用直角，随工作区裁切，圆角由最外层内容表面统一拥有。通过 Drawer 的公开样式入口设置，不修改普通业务抽屉的全局圆角。
+
 窄容器保留独立边缘恢复槽，鼠标12px、粗指针24px。点击或向内拖动可打开同一内容实例的临时抽屉，拖动中直接跟随指针、松手过半确认、回拉至40%撤销；短拖、Esc、捕获丢失与布局切换可取消。列表区域正常滚动，不绑定全页边缘手势；触屏工具栏与关闭动作保持44px。关闭和选择不修改宽布局偏好，变宽只恢复被自动隐藏的面板及其尺寸。抽屉预览不覆盖业务内容的输入命中区，内容通过 Teleport 转移，不重建表单或列表。
 
 从 core 根入口具名导入 `useResponsivePanel(preference, compact)`，可与 `Splitter` 或 `EqualHeightColumns` 组合。`preference` 是宿主持有的可写折叠偏好 ref（或 writable computed）；`compact` 是只读的空间不足条件。容器尺寸由宿主测量，断点按内容所需空间选择，不在公共组件内硬编码设备宽度。
