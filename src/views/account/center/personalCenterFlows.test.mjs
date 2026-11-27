@@ -629,16 +629,42 @@ test('工作通知配置和本人绑定查询失败均不使用旧数据提交�
   assert.equal(hook.matrixCells(row.provider, dingType)[0].checked, true)
 })
 
-test('企业微信仍在当前页弹窗绑定，不跳转钉钉渠道', async t => {
+test('企业微信缺少本人对应时禁用订阅，绑定刷新后可订阅，解绑后仍可取消', async t => {
   const wechat = { id: 'wechat', name: '企业微信', channelProvider: 'notifier-weixin', channelConfiguration: { notifierId: 'weixin-notifier', templateId: 'work-template' } }
+  let bindings = []
   const { hook, ctx } = await mount(t, 'useNotificationSettings', [], {
     __menus: ['system/MessageNotification/Channels'], getAllNotice: () => [{ ...row, channels: [wechat] }],
+    getIsBindThird: () => bindings,
   })
+  const cell = () => hook.matrixCells(row.provider, wechat.channelProvider)[0]
   assert.equal(hook.receiverStatus(wechat.channelProvider), 'PersonalCenter.notificationWeComMemberMissing')
   assert.equal(hook.channelHeaderAction(wechat.channelProvider), undefined)
+  assert.equal(cell().unavailable, 'PersonalCenter.notificationWeComMemberMissing')
   await hook.toggleMatrixChannel(row.provider, wechat, true)
-  assert.equal(hook.pendingBinding.value.channel.id, wechat.id)
+  assert.equal(hook.pendingBinding.value, undefined)
   assert.equal(ctx.calls.some(call => ['openChannel', 'jumpPage', 'save_api'].includes(call.method)), false)
+
+  bindings = [{ type: 'weixin_corpMessage', provider: 'weixin-notifier', thirdPartyUserId: 'member' }]
+  await hook.loadRecipients()
+  assert.equal(cell().unavailable, '')
+  // 勾选前绑定已撤销时，重新读取后禁用，不能按缓存保存或开启扫码弹窗。
+  bindings = []
+  await hook.toggleMatrixChannel(row.provider, wechat, true)
+  assert.equal(cell().unavailable, 'PersonalCenter.notificationWeComMemberMissing')
+  assert.equal(hook.pendingBinding.value, undefined)
+  assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
+
+  bindings = [{ type: 'weixin_corpMessage', provider: 'weixin-notifier', thirdPartyUserId: 'member' }]
+  await hook.loadRecipients()
+  await hook.toggleMatrixChannel(row.provider, wechat, true)
+  assert.equal(cell().checked, true)
+  bindings = []
+  await hook.loadRecipients()
+  assert.equal(cell().unavailable, '')
+  await hook.toggleMatrixChannel(row.provider, wechat, false)
+  assert.equal(cell().checked, false)
+  assert.equal(cell().unavailable, 'PersonalCenter.notificationWeComMemberMissing')
+  assert.equal(ctx.calls.filter(call => call.method === 'save_api').length, 2)
 })
 
 test('通知接收账号查询失败不冒充未绑定，重试成功后允许继续操作', async t => {
@@ -654,6 +680,7 @@ test('通知接收账号查询失败不冒充未绑定，重试成功后允许�
   })
   assert.equal(hook.recipientsFailed.value, true)
   assert.equal(hook.receiverStatus('notifier-weixin'), 'PersonalCenter.notificationReceiverUnavailable')
+  assert.equal(hook.matrixCells(row.provider, wechat.channelProvider)[0].unavailable, 'PersonalCenter.notificationReceiverUnavailable')
   await hook.toggle(configured, wechat, true)
   assert.equal(hook.pendingBinding.value, undefined)
   assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
@@ -661,6 +688,17 @@ test('通知接收账号查询失败不冒充未绑定，重试成功后允许�
   assert.equal(await hook.loadRecipients(), true)
   assert.equal(hook.recipientsFailed.value, false)
   assert.equal(hook.receiverStatus('notifier-weixin'), '企业微信接收账号')
+  assert.equal(hook.matrixCells(row.provider, wechat.channelProvider)[0].unavailable, '')
+  const pending = deferred()
+  const request = ctx.request
+  ctx.request = async (method, args) => method === 'getIsBindThird' ? pending.promise : request(method, args)
+  const refreshing = hook.loadRecipients()
+  assert.equal(hook.matrixCells(row.provider, wechat.channelProvider)[0].unavailable, 'PersonalCenter.notificationReceiverUnavailable')
+  await hook.toggleMatrixChannel(row.provider, wechat, true)
+  assert.equal(ctx.calls.some(call => call.method === 'save_api'), false)
+  pending.resolve({ success: true, result: [{ type: 'weixin_corpMessage', provider: 'wechat-notifier', thirdPartyUserId: 'member-1' }] })
+  await refreshing
+  assert.equal(hook.matrixCells(row.provider, wechat.channelProvider)[0].unavailable, '')
 })
 
 test('无配置权限的账号用已授权通道显示配置和成员对应状态', async t => {
@@ -687,6 +725,8 @@ test('无配置权限的账号用已授权通道显示配置和成员对应状�
   assert.equal(ctx.calls.some(call => ['openChannel', 'openTemplate'].includes(call.method)), false)
   assert.equal(hook.receiverStatus('notifier-dingTalk'), 'PersonalCenter.notificationDingTalkMemberMissing')
   assert.equal(hook.receiverStatus('notifier-weixin'), 'PersonalCenter.notificationWeComMemberMissing')
+  assert.equal(hook.matrixCells(row.provider, 'notifier-dingTalk')[0].unavailable, 'PersonalCenter.notificationDingTalkMemberMissing')
+  assert.equal(hook.matrixCells(row.provider, 'notifier-weixin')[0].unavailable, 'PersonalCenter.notificationWeComMemberMissing')
 
   bindings = [...bindings,
     { type: 'dingTalk_dingTalkMessage', provider: 'ding-config', providerName: '钉钉成员', thirdPartyUserId: 'ding-user' },
@@ -695,6 +735,8 @@ test('无配置权限的账号用已授权通道显示配置和成员对应状�
   await hook.loadRecipients()
   assert.equal(hook.receiverStatus('notifier-dingTalk'), '钉钉成员')
   assert.equal(hook.receiverStatus('notifier-weixin'), '企微成员')
+  assert.equal(hook.matrixCells(row.provider, 'notifier-dingTalk')[0].unavailable, '')
+  assert.equal(hook.matrixCells(row.provider, 'notifier-weixin')[0].unavailable, '')
 })
 
 test('停用或缺少通知器配置的渠道不发起保存或无效绑定', async t => {
