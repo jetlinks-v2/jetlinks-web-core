@@ -2,6 +2,10 @@
 
 运行时 `/system/Basis` 与 `/init-home` 共用的配置区块。提供平台名称、Logo、页签图标、登录背景、备案信息、高德地图和接口基础地址；不承载 SaaS 域名开通流程。
 
+登录背景免裁剪：`PlatformImageSetting.vue` 的背景分支复用 `FileUpload` 与 `uploadByRequest` 直接上传原文件，保留 JPG / PNG、4 MB 限制、宽幅缩略图、上传忙碌状态与 `front.background` 草稿保存链路；Logo 仍使用裁剪，ICO 沿用原文件上传。范围为本组件的基础配置与初始化入口，不改运营端或后端接口。
+
+免裁剪验证：core 中 `node --test tests/platformSettings.test.mjs tests/inlineEditForm.test.mjs` 的 46 项通过，包含 Vue / 样式编译。实际设置组件、`FileUpload` 和上传工具配合模拟文件服务确认原文件字节及文件名不变、JPG / PNG 与 4 MB 校验、忙碌锁定、成功只更新草稿、失败保留原图，以及 ICO、Logo 裁剪分支与只读入口。core 中执行 `node --max_old_space_size=8192 ../node_modules/vite/bin/vite.js build --outDir /tmp/jetlinks-basis-background-build -- --module-name authentication-manager-ui` 通过（25.36 秒），保留既有构建警告。在 runtime-ui 中执行 `node node_modules/vue-tsc/bin/vue-tsc.js --noEmit --pretty false -p jetlinks-web-core/tsconfig.json`，前后均为相同的 511 条既有诊断，修改组件无诊断；全量类型检查仍未通过，工作区无独立 lint 脚本。差异空白检查通过；真实浏览器布局、文件服务上传及保存后刷新回显仍待登录环境验收。
+
 ## 平台可选语言
 
 平台初始化和「基础配置 → 平台外观」共用可选语言多选。列表按选择顺序保存到 `front.languages`；已有手动偏好和浏览器语言都不匹配时，使用列表首项。移除后重新选择可调整顺序；清空恢复中、英、日，不配置也可初始化。初始化随整页提交，日常随平台外观保存，草稿不改变当前语言。

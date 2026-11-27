@@ -1,9 +1,20 @@
 <template>
   <div class="setting-image" :class="{ 'setting-image--background': kind === 'background' }">
-    <FileUpload v-if="kind === 'ico' && !disabled" :size="1" :disabled="busy || imageBusy" accept=".ico,image/x-icon,image/vnd.microsoft.icon" :multiple="false" :max-count="1" :before-upload="checkIcon" @upload-change="iconChanged">
+    <FileUpload
+      v-if="kind !== 'logo' && !disabled"
+      :size="kind === 'ico' ? 1 : 4"
+      :types="kind === 'background' ? ['image/jpeg', 'image/png'] : []"
+      :disabled="busy || imageBusy"
+      :accept="kind === 'ico' ? '.ico,image/x-icon,image/vnd.microsoft.icon' : 'image/jpeg,image/png'"
+      :multiple="false"
+      :max-count="1"
+      :before-upload="kind === 'ico' ? checkIcon : undefined"
+      :custom-request="kind === 'background' ? uploadByRequest : undefined"
+      @upload-change="fileChanged"
+    >
       <PlatformImageTrigger v-bind="triggerProps" :loading="fileUploading" :style="imageStyle" />
     </FileUpload>
-    <ImageUpload v-else-if="!disabled" :value="value" :size="4" :disabled="busy || imageBusy" :style="imageStyle" :border-style="{ border: 'none' }" :cropper-props="{ fixed: true, fixedNumber: kind === 'background' ? [16, 9] : [1, 1] }" @update:value="uploaded" @crop-visible-change="cropOpen = $event" @crop-interact-busy="processing = $event">
+    <ImageUpload v-else-if="!disabled" :value="value" :size="4" :disabled="busy || imageBusy" :style="imageStyle" :border-style="{ border: 'none' }" :cropper-props="{ fixed: true, fixedNumber: [1, 1] }" @update:value="uploaded" @crop-visible-change="cropOpen = $event" @crop-interact-busy="processing = $event">
       <template #content="{ loading }">
         <PlatformImageTrigger v-bind="triggerProps" :loading="loading || processing" :style="imageStyle" />
       </template>
@@ -19,6 +30,7 @@ import { useI18n } from 'vue-i18n'
 import { Upload, type UploadChangeParam, type UploadProps } from 'ant-design-vue'
 import FileUpload from '../Upload/File/index.vue'
 import ImageUpload from '../Upload/Image/ImageUpload.vue'
+import { uploadByRequest } from '../Upload/utils'
 import PlatformImageTrigger from './PlatformImageTrigger.vue'
 import type { PlatformSettingsMode, PlatformSettingsSubmit } from './types'
 const props = defineProps<{ kind: 'logo' | 'ico' | 'background'; value: string; src: string; mode: PlatformSettingsMode; busy?: boolean; disabled?: boolean; submit: PlatformSettingsSubmit }>()
@@ -46,7 +58,7 @@ async function uploaded(value: string) {
   const result = await props.submit(patch)
   failed.value = !result.ok
 }
-function iconChanged(event: UploadChangeParam) {
+function fileChanged(event: UploadChangeParam) {
   fileUploading.value = event.file.status === 'uploading'
   if (event.file.status === 'done') {
     const response = event.file.response as { success?: boolean; result?: { accessUrl?: string } } | undefined
@@ -60,8 +72,9 @@ function iconChanged(event: UploadChangeParam) {
 .setting-image > img { width: 2rem; height: 2rem; object-fit: contain; border-radius: var(--r-2); }
 .setting-image :deep(.ant-upload-select) { margin: 0 !important; padding: 0; width: auto !important; height: auto !important; border: 0 !important; background: transparent; }
 .setting-image--background { flex-direction: column; flex-wrap: nowrap; align-items: stretch; align-self: stretch; width: 100%; min-height: 5.0625rem; }
-.setting-image--background :deep(.upload-image-warp) { position: relative; flex: 1; min-height: 5.0625rem; height: auto; }
-.setting-image--background :deep(.upload-image-border) { position: absolute; inset: 0; }
+.setting-image--background :deep(.upload-file-container) { position: relative; flex: 1; min-height: 5.0625rem; }
+.setting-image--background :deep(.upload-file-container > .ant-upload-wrapper) { position: absolute; inset: 0; }
+.setting-image--background :deep(.ant-upload-list) { display: none; }
 .setting-image--background :deep(.ant-upload-select) { width: 100% !important; height: 100% !important; }
 .setting-image--background :deep(.platform-image-trigger img) { object-fit: cover; }
 .setting-image > img.setting-image__background { flex: 1; width: 100%; height: 0; min-height: 5.0625rem; object-fit: cover; }
