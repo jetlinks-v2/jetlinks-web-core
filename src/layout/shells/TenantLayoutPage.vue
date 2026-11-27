@@ -12,8 +12,8 @@ import { computed, h, type VNode } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { Menu } from 'ant-design-vue'
 import { AIcon } from '@jetlinks-web/components'
-import i18n from '@jetlinks-web-core/locales'
 import { useBasicLayoutControllerContext } from '../hooks/basicLayoutContext'
+import { getMenuTitle } from '../utils/projectMenuRender'
 import BasicLayoutShell from './BasicLayoutShell.vue'
 
 defineOptions({ name: 'TenantLayoutPage' })
@@ -33,9 +33,6 @@ const MENU_COLUMN_KIND_ATTR = 'data-tenant-menu-column'
 const { config } = useBasicLayoutControllerContext()
 
 const getMenuKey = (item: TenantMenuRouteRecord) => String(item.key || item.path)
-const getMenuTitle = (item: TenantMenuRouteRecord) => String(
-  i18n.global.t(String(item.meta?.title || item.name || item.path)),
-)
 const topLevelMenuItems = computed(() => new Set(
   config.value.menuData as TenantMenuRouteRecord[],
 ))

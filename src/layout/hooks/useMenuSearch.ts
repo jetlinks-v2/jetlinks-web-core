@@ -1,5 +1,4 @@
 import type { RouteRecordRaw } from 'vue-router'
-import i18n from '@jetlinks-web-core/locales'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useMenuStore } from '@/store'
 
@@ -33,7 +32,7 @@ export const useMenuSearch = () => {
     menus.forEach((menu) => {
       const meta = menu.meta || {}
       const key = String(menu.name || menu.path)
-      const title = meta.title ? String(i18n.global.t(String(meta.title))) : ''
+      const title = String(meta.title || '')
       const visible = meta.hideInMenu !== true && !!title
       if (visible) {
         result.push({

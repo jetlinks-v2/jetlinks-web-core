@@ -34,6 +34,7 @@ function createLoader(stubs = {}) {
 
 const runtimeStubs = {
   './project-storage': {}, './request-context': {}, './deployment': {},
+  './consts': { isSubApp: false },
   '@jetlinks-web-core/locales': { default: { global: { t: key => key } }, __esModule: true },
 }
 const menuTree = () => [{ path: '/a', name: 'a', children: [
@@ -45,7 +46,7 @@ const menuTree = () => [{ path: '/a', name: 'a', children: [
   { path: '/b/users', name: 'users', children: [{ path: '/b/users/list', name: 'user-list' }] },
 ] }]
 
-function harness(t, { variant = 'project', menus = menuTree(), path = '/a/list/second' } = {}) {
+function harness(t, { variant = 'project', menus = menuTree(), path = '/a/list/second', narrow = vue.ref(false) } = {}) {
   const scope = vue.effectScope()
   t.after(() => { scope.stop(); delete globalThis.window })
   let globalAgentCalls = 0
@@ -56,7 +57,7 @@ function harness(t, { variant = 'project', menus = menuTree(), path = '/a/list/s
   const load = createLoader({
     ...runtimeStubs,
     'vue-router': { useRoute: () => route, useRouter: () => ({ push: target => { pushes.push(target); return Promise.resolve() } }) },
-    '@vueuse/core': { useWindowScroll: () => ({ y: vue.ref(0) }) },
+    '@vueuse/core': { useMediaQuery: () => narrow, useWindowScroll: () => ({ y: vue.ref(0) }) },
     pinia: { storeToRefs: vue.toRefs },
     '@jetlinks-web-core/hooks': { useResponsiveLayoutDimensions: () => ({ layoutConfig: vue.ref({}) }) },
     '@jetlinks-web-core/store/menu': { useMenuStore: () => store },
@@ -176,11 +177,13 @@ test('deep link opens ancestors only; repeated primary selection keeps page and 
 })
 
 test('query changes, equivalent menu refresh and width correction preserve manual collapse', async t => {
-  const { controller: c, route, store } = harness(t)
+  const narrow = vue.ref(true)
+  const { controller: c, route, store } = harness(t, { narrow })
   c.handleOpenKeysChange([])
   route.query = { page: '2' }
   store.siderMenus = menuTree()
   c.state.collapsed = true
+  narrow.value = false
   await vue.nextTick()
   assert.deepEqual(c.state.openKeys, [])
   assert.equal(c.state.collapsed, false)
@@ -231,6 +234,19 @@ test('disabled and coming-soon children are skipped', t => {
   c.handlePrimaryMenuClick({ key: '/b/disabled' })
   c.handlePrimaryMenuClick({ key: '/b/soon' })
   assert.deepEqual(pushes, ['/b/users/list'])
+})
+
+test('menu items and groups display the resolved menu title without another translation lookup', () => {
+  const load = createLoader({
+    '@jetlinks-web-core/locales': { global: { t: assert.fail } },
+  })
+  const { createLayoutMenuItemRenderer, renderPrimaryMenuGroup } = load(resolve(src, 'layout/utils/projectMenuRender.ts'))
+  const item = { path: '/project/overview', name: 'project/Overview', meta: { title: '概览' } }
+  const node = createLayoutMenuItemRenderer(() => {})({ item })
+  const link = node.children.default()
+  const anchor = link.children.default({ href: item.path })
+  assert.equal(anchor.children[0].children, '概览')
+  assert.equal(renderPrimaryMenuGroup({ item, children: [] }).children.title(), '概览')
 })
 
 test('renderer routes once and retains query, modified clicks, links and disabled badges', async () => {
