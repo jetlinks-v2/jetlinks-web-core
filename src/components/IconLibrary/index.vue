@@ -1,8 +1,10 @@
 ﻿<template>
   <div
     class="container"
+    :class="{ 'container--small': size === 'small', 'container--disabled': disabled || saving }"
     role="button"
-    tabindex="0"
+    :tabindex="disabled || saving ? -1 : 0"
+    :aria-disabled="disabled || saving || undefined"
     :aria-label="label"
     @click.stop="onClick"
     @mousedown.stop
@@ -26,15 +28,23 @@
   <SelectModal
     v-if="visible"
     :zIndex="props.zIndex"
+    :value="type"
+    :loading="saving"
+    :error="error"
     @close="setVisible(false)"
     @save="onChange"
   />
 </template>
 
 <script setup lang="ts">
+import { ref, watch, type PropType } from 'vue'
+import { useI18n } from 'vue-i18n'
 import SelectModal from './SelectModal.vue'
 const props = defineProps({
   label: String,
+  size: { type: String as PropType<'default' | 'small'>, default: 'default' },
+  disabled: Boolean,
+  save: Function as PropType<(value: string) => boolean | Promise<boolean>>,
   type: {
     type: String,
     default: ''
@@ -49,21 +59,35 @@ const emits = defineEmits(['change', 'update:type', 'visibleChange'])
 
 const _type = ref()
 const visible = ref(false)
+const saving = ref(false)
+const error = ref('')
+const { t } = useI18n()
 
 const setVisible = (value: boolean) => {
+  if (!value && saving.value) return
   visible.value = value
   emits('visibleChange', value)
 }
 
 const onClick = () => {
+  if (props.disabled || saving.value) return
+  error.value = ''
   setVisible(true)
 }
 
-const onChange = (val: string) => {
-  _type.value = val
-  emits('update:type', val)
-  emits('change', val)
-  setVisible(false)
+const onChange = async (val: string) => {
+  if (props.disabled || saving.value) return
+  saving.value = true
+  error.value = ''
+  try {
+    if (props.save && !await props.save(val)) { error.value = t('Editable.saveFailed'); return }
+    _type.value = val
+    emits('update:type', val)
+    emits('change', val)
+    saving.value = false
+    setVisible(false)
+  } catch { error.value = t('Editable.saveFailed') }
+  finally { saving.value = false }
 }
 
 watch(
@@ -98,4 +122,8 @@ watch(
 .container .no-icon {
   color: color-mix(in srgb, var(--ink-1) 47%, transparent);
   font-size: var(--fs-22);
-}</style>
+}
+.container--small { width:32px; height:32px; border-style:solid; }
+.container--small .icon-display, .container--small .no-icon { font-size:16px; }
+.container--disabled { cursor:default; opacity:.5; }
+</style>

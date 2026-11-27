@@ -4,6 +4,11 @@
     :title="$t('components.IconLibrary.title')"
     :width="900"
     centered
+    :confirm-loading="loading"
+    :cancel-button-props="{ disabled: loading }"
+    :mask-closable="!loading"
+    :closable="!loading"
+    :keyboard="!loading"
     @cancel="emits('close')"
     @ok="confirm"
   >
@@ -13,8 +18,10 @@
       @mousedown.stop
       @mouseup.stop
     >
+      <a-alert v-if="error" type="error" :message="error" show-icon />
       <div class="toolbar">
         <a-input-search
+          :disabled="loading"
           v-model:value="searchText"
           :placeholder="$t('components.IconLibrary.searchPlaceholder')"
           style="width: 18.75rem"
@@ -38,15 +45,17 @@
           :tab="category.label"
         >
           <div class="icon-grid">
-            <div
+            <button
               v-for="icon in getFilteredCategory(category.key)"
               :key="icon.value"
+              type="button"
+              :disabled="loading"
               :class="['icon-item', { active: selected === icon.value }]"
               @click="selectIcon(icon)"
             >
               <AIcon :type="icon.value" />
               <div class="icon-name">{{ icon.name }}</div>
-            </div>
+            </button>
           </div>
         </a-tab-pane>
       </a-tabs>
@@ -61,13 +70,14 @@ import { categories } from './fields'
 import { useIconfontSymbols } from './useIconfontSymbols'
 
 type IconOption = { name: string; value: string }
+const props = withDefaults(defineProps<{ value?: string; loading?: boolean; error?: string }>(), { value: '', loading: false, error: '' })
 
 const { t: $t } = useI18n()
 const emits = defineEmits(['save', 'close'])
 const activeCategory = ref('all')
 const theme = ref<'Outlined' | 'Filled' | 'TwoTone'>('Outlined')
 const searchText = ref('')
-const selected = ref('')
+const selected = ref(props.value)
 const iconfontSymbols = useIconfontSymbols()
 
 // 在生成选项时确定最终值，所有分类的预览、选中态、复制和保存都消费同一个值。
@@ -99,6 +109,7 @@ const getFilteredCategory = (category: string): IconOption[] => {
 }
 
 const selectIcon = (icon: IconOption) => {
+  if (props.loading) return
   selected.value = icon.value
   copyToClipboard(icon.value)
 }
@@ -124,7 +135,7 @@ const copyToClipboard = async (text: string) => {
 }
 
 const confirm = () => {
-  if (selected.value) emits('save', selected.value)
+  if (!props.loading && selected.value) emits('save', selected.value)
 }
 </script>
 
@@ -148,6 +159,9 @@ const confirm = () => {
   padding: 0.5rem 0;
 }
 .icon-selector .icon-grid .icon-item {
+  background:transparent;
+  font:inherit;
+  color:inherit;
   display: flex;
   flex-direction: column;
   align-items: center;

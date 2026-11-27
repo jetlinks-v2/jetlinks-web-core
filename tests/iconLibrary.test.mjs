@@ -28,7 +28,7 @@ test('IconLibrary uses the loaded SVG symbols throughout the selection lifecycle
   const fixture = `
     import { createApp, defineComponent, h, reactive } from 'vue'
     import { createI18n } from 'vue-i18n'
-    import { Modal, Tabs, Input, Tag } from 'ant-design-vue'
+    import { Modal, Tabs, Input, Tag, Alert } from 'ant-design-vue'
     import AIcon from '@jetlinks-web/components/es/Icon/index.js'
     import ConfigProvider from '@jetlinks-web/components/es/ConfigProvider/index.js'
     import IconLibrary from './src/components/IconLibrary/index.vue'
@@ -55,6 +55,7 @@ test('IconLibrary uses the loaded SVG symbols throughout the selection lifecycle
     app.component('ATabPane', Tabs.TabPane)
     app.component('AInputSearch', Input.Search)
     app.component('ATag', Tag)
+    app.component('AAlert', Alert)
     app.component('AIcon', AIcon)
     app.mount('#app')
   `
@@ -76,8 +77,7 @@ test('IconLibrary uses the loaded SVG symbols throughout the selection lifecycle
           assert.deepEqual(result.errors, [])
           styles.push(result.code)
         }
-        const autoImports = path.endsWith('/IconLibrary/index.vue') ? "import { ref, watch } from 'vue'\n" : ''
-        return { contents: autoImports + compileScript(descriptor, { id: 'icon-library-test', inlineTemplate: true }).content, loader: 'ts' }
+        return { contents: compileScript(descriptor, { id: 'icon-library-test', inlineTemplate: true }).content, loader: 'ts' }
       })
     } }]
   })

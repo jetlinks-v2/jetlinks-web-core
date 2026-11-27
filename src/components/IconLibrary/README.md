@@ -52,3 +52,9 @@ pnpm -F jetlinks-web-core build -- --module-name saas-manager-ui
 ```
 
 上述检查通过：浏览器使用真实组件、`AIcon`、`ConfigProvider` 和当前 iconfont 脚本，覆盖 9 个场景（含父测试共 10 项），400 个当前图标均有可渲染图形；覆盖异步加载、预加载、去重、增删、ID 变化、大小写搜索、自定义前缀、“全部”分类保存、剪贴板、Ant Design 图标、多语言和反复开关后的监听释放，浏览器无运行错误。定向严格类型检查与样式检查通过；SaaS 模块生产构建通过，保留输出选项 `input`、CSS 注释、混合导入及分块体积告警。工作区无独立 lint 脚本；未执行全量类型检查与全工作区构建。已登录服务管理页的人工复验可通过 `pnpm dev` 打开 `/operation/base/Service` 后选择图标完成，后端数据与其他前端工作区不在本次范围内。
+
+## 紧凑展示与异步保存
+
+`size="small"` 提供 32px 的紧凑入口，默认仍为原有 70px 表单控件。`disabled` 禁止打开和提交，`label` 为入口提供可访问名称。
+
+可选 `save(value): boolean | Promise<boolean>` 在接受图标前持久化。提交期间锁定选择和关闭；返回 `false` 或抛错时保留选择并显示错误，允许重试。仅成功后发出 `update:type`、`change` 并关闭；未传 `save` 时保持原有本地赋值行为。
