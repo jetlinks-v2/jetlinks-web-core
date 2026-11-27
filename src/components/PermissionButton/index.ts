@@ -2,11 +2,11 @@ import { defineComponent, h, toRefs, type App, type PropType } from 'vue'
 import { Button, Tooltip } from 'ant-design-vue'
 import { buttonProps } from 'ant-design-vue/es/button/buttonTypes'
 import { omit } from 'lodash-es'
-import { PermissionButton as BasePermissionButton } from '@jetlinks-web/components'
+import type { PermissionTooltipConfig } from './tooltipPlacement'
 import {
-  useNoPermissionTooltip,
-  type NoPermissionTooltipConfig,
-} from './useNoPermissionTooltip'
+  usePermissionButton,
+  type PermissionPopConfirmConfig,
+} from './usePermissionButton'
 
 const PERMISSION_BUTTON_PROP_KEYS = [
   'popConfirm',
@@ -16,22 +16,12 @@ const PERMISSION_BUTTON_PROP_KEYS = [
   'popConfirmBefore',
 ] as const
 
-const EXCLUDED_TOOLTIP_KEYS = [
-  'title',
-  'open',
-  'visible',
-  'disabled',
-  'placement',
-  'align',
-  'onOpenChange',
-] as const
-
 const definedProps = {
   tooltip: {
-    type: Object as PropType<NoPermissionTooltipConfig>,
+    type: Object as PropType<PermissionTooltipConfig | null>,
   },
   popConfirm: {
-    type: Object as PropType<Record<string, unknown>>,
+    type: Object as PropType<PermissionPopConfirmConfig | null>,
   },
   hasPermission: {
     type: [String, Array, Boolean] as PropType<string | string[] | boolean>,
@@ -41,7 +31,7 @@ const definedProps = {
     type: String,
   },
   popConfirmBefore: {
-    type: Function as PropType<(...args: any[]) => any>,
+    type: Function as PropType<(...args: any[]) => unknown>,
   },
   ...omit(buttonProps(), 'icon'),
 }
@@ -57,8 +47,8 @@ const pickDefinedProps = (source: Record<string, unknown>) => {
 }
 
 /**
- * Global JPermissionButton override that preserves @jetlinks-web/components behavior when permitted
- * and constrains no-permission hover tooltips within the viewport when disabled.
+ * Self-contained JPermissionButton component with permission gating,
+ * secondary confirmation dialog, and viewport-safe tooltip positioning.
  */
 const PermissionButton = defineComponent({
   name: 'JPermissionButton',
@@ -68,57 +58,48 @@ const PermissionButton = defineComponent({
     const propsRef = toRefs(props)
     const {
       hasAccess,
-      resolvedTitle,
-      placement,
-      align,
+      isDisabled,
+      hasTooltip,
+      tooltipProps,
       setTriggerRef,
-      handleOpenChange,
-    } = useNoPermissionTooltip({
+      handleConfirmClick,
+    } = usePermissionButton({
       hasPermission: propsRef.hasPermission,
+      disabled: propsRef.disabled,
       tooltip: propsRef.tooltip,
       noPermissionTitle: propsRef.noPermissionTitle,
+      popConfirm: propsRef.popConfirm,
+      popConfirmBefore: propsRef.popConfirmBefore,
     })
 
     return () => {
-      if (hasAccess.value) {
-        const forwardProps = {
-          ...pickDefinedProps(props as Record<string, unknown>),
-          ...attrs,
-        }
-        return h(BasePermissionButton, forwardProps, slots)
-      }
-
-      const buttonNodeProps = {
-        ...pickDefinedProps(
-          omit(props as Record<string, unknown>, [...PERMISSION_BUTTON_PROP_KEYS, 'onClick']),
-        ),
-        ...omit(attrs, ['onClick']),
-        disabled: true,
+      const buttonNodeProps: Record<string, unknown> = {
+        ...pickDefinedProps(omit(props as Record<string, unknown>, [...PERMISSION_BUTTON_PROP_KEYS])),
+        ...attrs,
+        disabled: isDisabled.value,
         ref: setTriggerRef,
       }
 
-      const button = !slots.button
+      if (!hasAccess.value || isDisabled.value) {
+        delete buttonNodeProps.onClick
+      } else if (props.popConfirm) {
+        buttonNodeProps.onClick = handleConfirmClick
+      }
+
+      const buttonNode = !slots.button
         ? h(Button, buttonNodeProps, {
             default: () => slots.default?.(),
             icon: () => slots.icon?.(),
           })
         : slots.button()
 
-      const safeTooltipProps = omit(props.tooltip || {}, [...EXCLUDED_TOOLTIP_KEYS])
+      if (hasTooltip.value) {
+        return h(Tooltip, tooltipProps.value, {
+          default: () => buttonNode,
+        })
+      }
 
-      return h(
-        Tooltip,
-        {
-          ...safeTooltipProps,
-          title: resolvedTitle.value,
-          placement: placement.value,
-          align: align.value,
-          onOpenChange: handleOpenChange,
-        },
-        {
-          default: () => button,
-        },
-      )
+      return buttonNode
     }
   },
 })
