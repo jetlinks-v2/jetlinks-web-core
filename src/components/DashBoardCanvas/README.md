@@ -11,6 +11,36 @@
 网格使用容器尺寸观察同步宽度，侧栏、滚动条变化无需触发窗口 resize；相同宽度不重复提交，尺寸变化不重建业务组件或改写个人坐标。KeepAlive 缓存画布重新激活时，在绘制前恢复当前容器宽度，避免从隐藏期间的零宽度过渡。
 首次布局完成前关闭卡片位移动画，收到网格 `layout-ready` 后提交最终几何样式并恢复动画，避免从默认宽度滑动到实际位置；正常拖动与缩放仍保留动画。
 
+## 页面编辑权限接入计划（待确认）
+
+目标：`/overview`、`/resources/dashboard`、`/alarms/dashboard`、`/infrastructure/dashboard` 和设备详情概览，仅允许拥有当前页面「编辑」按钮权限的用户拖拽、缩放卡片。任务涉及 core 与三个业务模块，按 L 级先确认计划，再实施。
+
+方案：在画布目录的 `composables` 中抽离 `useDashboardPermission`，复用运行时 auth store，按父组件传入的 `pageCode` 精确判断 `${pageCode}:update`。`DashBoardCanvas` 增加可选 `pageCode`，将权限结果与调用方的 `editable` / `layoutEditable` 开关取交集，统一用于交互入口及状态写入。未接入 `pageCode` 的其他调用方继续遵循原有显式开关；明确传入空 code 时拒绝编辑。相比各页面重复调用权限判断，组件内统一接线可避免拖拽入口与写入门禁遗漏；不从画布内部猜测路由归属。
+
+影响范围与 owning module：
+
+| 页面 | 页面 code | owning module / 实现入口 |
+| --- | --- | --- |
+| 概览（SaaS / 私有化） | `project/Overview` | `modules/authentication-manager-ui/views/project/Overview/` |
+| 资源仪表盘 | `resources/Dashboard` | `modules/authentication-manager-ui/views/resources/Dashboard/` |
+| 告警仪表盘 | `rule-engine/DashBoard` | `modules/rule-engine-manager-ui/views/DashBoard/` |
+| 基础设施仪表盘 | `link/DashBoard` | `modules/device-manager-ui/views/link/DashBoard/` |
+| 设备详情概览 | 父页面按现有 `getIotDeviceListMenuCode` 解析入口 code | `modules/device-manager-ui/views/device/list/components/IotDeviceDefaultDetailContent.vue`、`device-detail/IotDeviceOverviewTab.vue` |
+| 公共权限与交互 | 接收页面 code | `jetlinks-web-core/src/components/DashBoardCanvas/` |
+
+实施步骤：
+
+1. 在前三个 owning module 的 `baseMenu.json` 中，为四个概览/仪表盘菜单补充 `id=update`、名称为「编辑」的按钮及现有语种文案。设备详情复用设备入口已有的编辑按钮。先核验各部署与入口的真实菜单定义，避免只给菜单容器加权限。
+2. 新增公共 hook 并接入画布，使拖拽条、网格移动/缩放及布局提交使用同一个响应式权限结果；授权尚未加载或被撤销时禁止编辑，权限授予后可恢复交互。
+3. 父页面显式传入 code，覆盖两种部署的概览与三个仪表盘；设备详情额外叠加现有 `deviceUpdatePermission`，保留设备提供方的附加编辑限制。旧设备菜单的可见性兼容不能替代本次布局编辑按钮授权。
+4. 集中验证后，在本说明及相关页面原始文档回填落点与验证结果；同步仓库 `docs/plans/README.md` 的跨模块入口索引。
+
+明确不做：不修改运营端 `ui/`、后端接口或资源动作；不增加页面上的编辑模式切换按钮，不开放组件增删/配置，不调整节点诊断等其他画布调用方，不自动修改真实角色授权。个人布局保留原有 key、格式与账号/项目隔离。
+
+风险与接入约束：菜单初始化 `jetlinks-web-core/src/views/init-home/Menu/index.vue` 会清除 `permissions` 为空的按钮，需为新按钮关联适当的现有查询资源并验证其初始化结果；个人布局仅存本地，不因此授予后端 `save` 权限。存量部署需同步菜单定义、配置新按钮授权并刷新会话后验收。两个目标模块的 `baseMenu.json` 已有其他未提交修改，实施时仅补充本次目标条目。
+
+验证：新增覆盖精确 code 匹配、无权限、迟加载/撤销授权、设备入口差异的定向回归；验证无权限时无拖拽/缩放入口且不提交布局，有权限时布局可调整和保存。复跑现有画布布局/缩放回归，执行相关类型检查与运行时构建，并记录实际 lint 脚本可用性；以可控权限挂载真实画布检查交互，真实受限角色的菜单同步与授权另行记录。当前只完成代码及菜单链路调查，尚未实施或运行验证。
+
 ## 自动发现
 
 采用 **共享懒加载来源 → 每处按范围取组件 → 生成 catalog → 画布渲染**。复用 `discovery` 的来源整理、加载缓存和 catalog 装配；同目录的 `dashboard-sources.ts` 作为可选宿主目录适配器，保持独立导入，通过 Vite 原生 `import.meta.glob` 发现以下目录：
