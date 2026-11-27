@@ -78,9 +78,15 @@
                 <div class="basic-form-label">{{ $t('AccountInfo.password') }}</div>
                 <div class="basic-form-control">
                   <a-input value="******" disabled style="max-width: 22.5rem" />
-                  <a-button type="link" size="small" class="basic-info-password-edit" @click="openPasswordDialog">
+                  <j-permission-button
+                    type="link"
+                    size="small"
+                    class="basic-info-password-edit"
+                    :has-permission="`${USER_CENTER_MENU_CODE}:${USER_CENTER_MENU_BUTTON_CODE}`"
+                    @click="openPasswordDialog"
+                  >
                     {{ $t('AccountInfo.editPassword') }}
-                  </a-button>
+                  </j-permission-button>
                 </div>
                 <div class="basic-form-desc">{{ $t('AccountInfo.passwordDesc') }}</div>
               </div>
@@ -278,6 +284,7 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@jetlinks-web-core/store'
+import { USER_CENTER_MENU_CODE, USER_CENTER_MENU_BUTTON_CODE } from '@jetlinks-web-core/utils/consts'
 import {
   getSelfIdentities_api,
   getIdentityProviders_api,

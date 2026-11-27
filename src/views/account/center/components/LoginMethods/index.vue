@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
+import { USER_CENTER_MENU_CODE, USER_CENTER_MENU_BUTTON_CODE } from '@jetlinks-web-core/utils/consts'
 import type { AccountCardProfile, AccountEditTarget } from '../../types'
 import LoginMethodRow from './LoginMethodRow.vue'
 import SsoAuthorization from '../BindThirdAccount/SsoAuthorization.vue'
@@ -32,9 +33,15 @@ const { entries, loading, failed, unbinding, load, canBindSso, bind, unbind, bin
               <template #settings><a-typography-link @click="emit('notification-settings')">{{ $t('PersonalCenter.notifications') }}</a-typography-link></template>
             </i18n-t>
           </template>
-          <a-button v-if="entry.kind === 'password'" size="small" :aria-label="$t('AccountInfo.editPassword')" @click="emit('password')">
+          <j-permission-button
+            v-if="entry.kind === 'password'"
+            size="small"
+            :has-permission="`${USER_CENTER_MENU_CODE}:${USER_CENTER_MENU_BUTTON_CODE}`"
+            :aria-label="$t('AccountInfo.editPassword')"
+            @click="emit('password')"
+          >
             {{ $t('PersonalCenter.edit') }}
-          </a-button>
+          </j-permission-button>
           <a-button
             v-else-if="entry.kind === 'mobile' || entry.kind === 'email'"
             size="small"
