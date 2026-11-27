@@ -47,7 +47,7 @@
 
 `I18nTextEditable` 复用上述输入与样式，短译名在就近面板编辑，手机使用底部面板；共享 `I18nTextDialog` 同样适配手机。一次编辑期间保持打开时的容器类型，尺寸切换不重建编辑器或丢失草稿，关闭后再次打开才采用新尺寸对应的容器。语言选项和顶部语言菜单共用 `src/locales/languages.ts`；从文字输入进入多语言面板时接续未提交草稿，确认后统一发出值与翻译变更，取消或关闭不提交。缺失翻译仅以回退文案提示，不复制为已填写译文；保存保留未展示语言及其他字段的数据。`I18nTextField` 继续使用独立弹窗，适合表单和长文本。
 
-`InputEditable` 和 `I18nTextEditable` 的 `textarea` 默认关闭；开启后按段落阅读，编辑保持内容区宽度及原有字体，高度随内容增长至 `--inline-edit-max-height`（默认 16rem）后内部滚动。`InputEditable` 的确认、取消和失败反馈使用字段旁的浮层，不参与字段与邻居的布局；调用方 class、style 和事件仍传入原字段根元素。Enter 换行，Ctrl / Cmd + Enter 或就近的保存按钮提交，Esc / 取消恢复基线，普通失焦保留草稿。多语言编辑仍共享同一会话，切换语言不提交。
+`InputEditable` 和 `I18nTextEditable` 的 `textarea` 默认关闭；开启后按段落阅读，编辑保持内容区宽度及原有字体，高度随内容增长至 `--inline-edit-max-height`（默认 16rem）后内部滚动。Enter 换行，Ctrl / Cmd + Enter 或就近的保存按钮提交，Esc / 取消恢复基线，普通失焦保留草稿。多语言编辑仍共享同一会话，切换语言不提交。
 
 ## 按场景选择提交边界
 

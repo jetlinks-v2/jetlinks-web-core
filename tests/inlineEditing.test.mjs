@@ -79,7 +79,7 @@ function mount(component, extra = {}, slots = {}, validate = async () => {}) {
   const input = () => find(node => ['input', 'textarea'].includes(node.type))
   const start = async () => { find(node => (node.type === 'button' || node.props.role === 'button') && node.props.onClick)?.props.onClick(); await flush() }
   const update = async value => { input().props['onUpdate:value'](value); await flush() }
-  const open = async () => { find(node => node.props['data-popover'] && node.props.onOpenChange).props.onOpenChange(true); await flush() }
+  const open = async () => { find(node => node.props['data-popover']).props.onOpenChange(true); await flush() }
   const pressButton = async key => { find(node => node.type === 'button' && node.children.some(child => child.text === key)).props.onClick(); await flush() }
   return { app, root, props, values, changes, translations, focusCalls, find, input, start, update, open, pressButton }
 }

@@ -1,17 +1,5 @@
 <template>
   <span ref="rootRef" class="input-editable" :class="[`input-editable--${size}`, { 'input-editable--text': trigger === 'text', 'input-editable--has-action': !!$slots.action, 'input-editable--multiline': textarea }]" :style="textStyle" @focusout="blur">
-  <a-popover v-if="textarea" :open="isEdit" :trigger="[]" placement="bottomRight">
-    <template #content>
-      <div ref="actionsRef" @keydown.esc.stop.prevent="cancel()">
-        <a-typography-text v-if="currentError" class="input-editable__error" type="danger" role="alert">{{ currentError }}</a-typography-text>
-        <div class="input-editable__footer">
-          <a-button size="small" :disabled="submitting" @click="cancel()">{{ $t('Editable.cancel') }}</a-button>
-          <a-button type="primary" size="small" :loading="submitting" :disabled="disabled" @click="submit()">{{ $t('Editable.save') }}</a-button>
-        </div>
-      </div>
-    </template>
-    <span class="input-editable__popup-anchor" aria-hidden="true" />
-  </a-popover>
     <span class="input-editable__value" :class="{ 'is-editing': isEdit }" :aria-hidden="isEdit || undefined">
       <button v-if="textarea" ref="triggerRef" type="button" class="input-editable__text inline-edit-trigger" :disabled="disabled || isEdit || submitting" :aria-label="label" @click="startEdit"><span class="input-editable__paragraph">{{ _value || placeholder || $t('comm.table.empty') }}</span></button>
         <button v-else ref="triggerRef" type="button" class="input-editable__text inline-edit-trigger" :disabled="disabled || isEdit || submitting" :aria-label="label" @click="startEdit">
@@ -28,7 +16,11 @@
       :disabled="disabled || isEdit" :tabindex="disabled || isEdit ? -1 : 0" :aria-label="label || $t('Editable.edit')" @click="startEdit" size="small">
       <AIcon type="EditOutlined" />
     </a-button>
-    <a-typography-text v-if="!textarea && isEdit && currentError" class="input-editable__error" type="danger" role="alert">{{ currentError }}</a-typography-text>
+    <a-typography-text v-if="isEdit && currentError" class="input-editable__error" type="danger" role="alert">{{ currentError }}</a-typography-text>
+    <span v-if="textarea && isEdit" class="input-editable__footer">
+      <a-button size="small" :disabled="submitting" @click="cancel()">{{ $t('Editable.cancel') }}</a-button>
+      <a-button type="primary" size="small" :loading="submitting" :disabled="disabled" @click="submit()">{{ $t('Editable.save') }}</a-button>
+    </span>
   </span>
 </template>
 
@@ -58,7 +50,6 @@ const failure = ref('')
 const currentError = computed(() => props.error || failure.value)
 const { t } = useI18n()
 const rootRef = ref<HTMLElement>()
-const actionsRef = ref<HTMLElement>()
 const inputRef = ref<{ focus(options?: FocusOptions): void }>()
 const triggerRef = ref<HTMLButtonElement>()
 let generation = 0
@@ -67,7 +58,7 @@ function restoreFocus() {
   void nextTick(() => {
     const target = triggerRef.value
     const document = target?.ownerDocument
-    if (target && (!document || document.activeElement === document.body || rootRef.value?.contains(document.activeElement) || actionsRef.value?.contains(document.activeElement))) target.focus({ preventScroll: true })
+    if (target && (!document || document.activeElement === document.body || rootRef.value?.contains(document.activeElement))) target.focus({ preventScroll: true })
   })
 }
 
@@ -145,7 +136,6 @@ onBeforeUnmount(() => { ++generation })
 <style scoped>
 .input-editable { --input-editable-height:32px; position:relative; display:inline-grid; grid-template-columns:minmax(0,auto) 24px; grid-template-rows:var(--input-editable-height); align-items:center; column-gap:var(--space-2,8px); min-width:0; max-width:min(100%,var(--inline-edit-max-width,100%)); font:inherit; vertical-align:middle }
 .input-editable--small { --input-editable-height:24px }
-.input-editable__popup-anchor { position:absolute; inset:0; pointer-events:none }
 .input-editable--large { --input-editable-height:40px }
 .input-editable--text:not(.input-editable--has-action) { grid-template-columns:minmax(0,auto) }
 .input-editable__value { display:flex; align-items:center; min-width:0; height:100%; overflow:hidden; white-space:pre }
@@ -167,7 +157,7 @@ onBeforeUnmount(() => { ++generation })
 .input-editable--multiline .input-editable__control { position:relative; inset:auto; grid-area:1/1; width:100%; max-width:100%; height:auto; min-height:0; align-self:stretch; overflow:hidden }
 .input-editable--multiline :deep(textarea.ant-input) { position:absolute; inset:0; display:block; height:100%; line-height:inherit; resize:none; overflow:auto }
 .input-editable--multiline .input-editable__action { grid-column:2; grid-row:1 }
-.input-editable__footer { display:flex; justify-content:flex-end; gap:var(--space-2,8px) }
+.input-editable__footer { grid-column:1 / -1; display:flex; justify-content:flex-end; gap:var(--space-2,8px); padding-top:var(--space-2,8px) }
 @media (pointer:coarse) {
   .input-editable { --input-editable-height:44px; grid-template-columns:minmax(0,auto) 44px; }
   .input-editable--text:not(.input-editable--has-action) { grid-template-columns:minmax(0,auto); }
