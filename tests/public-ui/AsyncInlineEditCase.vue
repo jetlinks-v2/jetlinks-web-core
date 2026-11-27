@@ -3,7 +3,7 @@
     <h2>等待、失败与重试</h2>
     <p>修改点位别名后按 Enter 或离开字段发起模拟请求；等待期间锁定编辑。点击“返回模拟结果”结束请求，失败时保留输入。</p>
     <a-radio-group v-model:value="outcome" :disabled="!!finish" aria-label="别名模拟响应" :options="[{ label:'成功',value:'success' },{ label:'返回失败',value:'rejected' },{ label:'抛出异常',value:'thrown' }]" />
-    <div class="async-case__field"><span>点位别名</span><InputEditable v-model:value="alias" label="编辑点位别名" :save="save" /></div>
+    <div class="async-case__field"><span>点位别名</span><InputEditable v-model:value="alias" label="编辑点位别名" :save="save" save-feedback /></div>
     <a-button :disabled="!finish" @click="finish?.()">返回模拟结果</a-button>
     <p role="status">{{ finish ? '模拟请求等待返回，编辑已锁定。' : `模拟请求 ${attempts} 次，成功 ${accepted} 次；已接受值：${alias}` }}</p>
     <div class="async-case__field"><span>处理说明草稿（仅本页）</span><InputEditable v-model:value="notes" label="处理说明草稿" trigger="text" textarea /></div>

@@ -43,7 +43,8 @@ const props = withDefaults(defineProps<{
   error?: string
   /** 返回 false 保留编辑态，由调用方提供字段错误。 */
   save?: (value: string) => boolean | Promise<boolean>
-}>(), { value: '', disabled: false, textarea: false, textStyle: () => ({}), size: 'middle', trigger: 'icon', error: '' })
+  saveFeedback?: boolean
+}>(), { value: '', disabled: false, textarea: false, textStyle: () => ({}), size: 'middle', trigger: 'icon', error: '', saveFeedback: false })
 const emit = defineEmits<{ (event: 'update:value' | 'change', value: string): void }>()
 defineSlots<{ action?: (scope: { value: string; editing: boolean; cancel: () => void }) => unknown }>()
 const _value = ref('')
@@ -54,12 +55,19 @@ const saved = ref(false)
 const failure = ref('')
 const currentError = computed(() => props.error || failure.value)
 const { t } = useI18n()
-const feedback = computed(() => submitting.value ? 'saving' : saved.value ? 'saved' : isDirty.value ? 'unsaved' : '')
+const feedback = computed(() => !props.saveFeedback ? '' : submitting.value ? 'saving' : saved.value ? 'saved' : isDirty.value ? 'unsaved' : '')
 const feedbackText = computed(() => feedback.value ? t(`Editable.${feedback.value}`) : '')
 const rootRef = ref<HTMLElement>()
 const inputRef = ref<{ focus(options?: FocusOptions): void }>()
 const triggerRef = ref<HTMLButtonElement>()
 let generation = 0
+let savedTimer: ReturnType<typeof setTimeout> | undefined
+
+function clearSavedFeedback() {
+  if (savedTimer !== undefined) clearTimeout(savedTimer)
+  savedTimer = undefined
+  saved.value = false
+}
 
 function restoreFocus() {
   void nextTick(() => {
@@ -73,7 +81,7 @@ async function startEdit() {
   if (props.disabled || submitting.value || isEdit.value) return
   const version = ++generation
   failure.value = ''
-  saved.value = false
+  clearSavedFeedback()
   _value.value = props.value
   isEdit.value = true
   await nextTick()
@@ -87,17 +95,24 @@ async function submit(returnFocus = true) {
   const version = ++generation
   submitting.value = true
   failure.value = ''
+  const minimumFeedback = props.saveFeedback && props.save
+    ? new Promise<void>(resolve => setTimeout(resolve, 500)) : undefined
   try {
     // Enter 随后可能触发失焦，提交期间只接受首次操作。
     const accepted = props.save ? await props.save(value) : true
+    if (minimumFeedback) await minimumFeedback
     if (version !== generation) return
     if (!accepted) { failure.value = t('Editable.saveFailed'); return }
-    saved.value = !!props.save
+    if (props.saveFeedback && props.save) {
+      saved.value = true
+      savedTimer = setTimeout(clearSavedFeedback, 2000)
+    }
     isEdit.value = false
     emit('update:value', value)
     emit('change', value)
     if (returnFocus) restoreFocus()
   } catch {
+    if (minimumFeedback) await minimumFeedback
     if (version === generation) failure.value = t('Editable.saveFailed')
   } finally {
     if (version === generation) { ++generation; submitting.value = false }
@@ -119,7 +134,7 @@ function cancel(returnFocus = true) {
   _value.value = props.value
   isEdit.value = false
   failure.value = ''
-  saved.value = false
+  clearSavedFeedback()
   if (returnFocus) restoreFocus()
 }
 
@@ -139,8 +154,9 @@ function keydown(event: KeyboardEvent) {
 
 watch(() => props.value, value => { _value.value = value }, { immediate: true })
 watch(() => props.disabled, disabled => { if (disabled) cancel(false) })
+watch(() => props.saveFeedback, enabled => { if (!enabled) clearSavedFeedback() })
 watch(_value, () => { failure.value = '' })
-onBeforeUnmount(() => { ++generation })
+onBeforeUnmount(() => { ++generation; clearSavedFeedback() })
 </script>
 
 <style scoped>
@@ -152,8 +168,9 @@ onBeforeUnmount(() => { ++generation })
 .input-editable__value.is-editing { visibility:hidden }
 .input-editable--has-feedback:not(.input-editable--multiline) .input-editable__value::after { content:''; flex:0 0 20px }
 .input-editable__status { grid-area:1/1; justify-self:end; align-self:start; z-index:1; display:inline-flex; align-items:center; height:var(--input-editable-height); margin-inline-end:4px; color:var(--jet-theme-primary); font-size:12px }
-.input-editable__status--saved { color:var(--success,var(--jet-theme-success)); animation:input-editable-saved .22s ease-out }
+.input-editable__status--saved { color:var(--success,var(--jet-theme-success)); animation:input-editable-saved .22s ease-out, input-editable-saved-hide .2s ease-in 1.8s forwards }
 @keyframes input-editable-saved { from { opacity:0; transform:scale(.6) } 70% { opacity:1; transform:scale(1.15) } to { opacity:1; transform:scale(1) } }
+@keyframes input-editable-saved-hide { to { opacity:0 } }
 @media (prefers-reduced-motion:reduce) { .input-editable__status--saved,.input-editable__status :deep(.anticon-spin) { animation:none } }
 .input-editable__control { position:absolute; inset:0 32px auto 0; height:var(--input-editable-height); max-width:calc(100% - 32px) }
 .input-editable--text:not(.input-editable--has-action) .input-editable__control { right:0; max-width:100% }
