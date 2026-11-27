@@ -355,12 +355,13 @@ export function useNotificationSettings() {
     return ''
   }
 
-  /** 绑定只限制新增工作通知；成员解绑后仍可取消原订阅。 */
+  /** 钉钉和企业微信均需本人成员对应；解绑后仍可取消原订阅。 */
   function subscriptionUnavailable(channel: DeliveryChannel, enabling: boolean) {
     const reason = channelUnavailable(channel)
-    if (reason || channel.channelProvider !== dingTalk) return reason
+    const work = workNotifications[channel.channelProvider]
+    if (reason || !work) return reason
     if (recipientsLoading.value || recipientsFailed.value) return t('PersonalCenter.notificationReceiverUnavailable')
-    return enabling && !receiverFor(channel) ? t('PersonalCenter.notificationDingTalkMemberMissing') : ''
+    return enabling && !receiverFor(channel) ? t(work.missing) : ''
   }
 
   function unavailableType(type: string) {
@@ -559,7 +560,7 @@ export function useNotificationSettings() {
       saving.value = ''
       if (!loaded || disposed || user.userInfo?.id !== userId) return
     }
-    if (channel.channelProvider === dingTalk || receiverFor(channel)) return save(row, channel, true)
+    if (workNotifications[channel.channelProvider] || receiverFor(channel)) return save(row, channel, true)
     pendingBinding.value = { provider: row, channel }
   }
 

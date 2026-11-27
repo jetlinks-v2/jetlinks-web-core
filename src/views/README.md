@@ -148,6 +148,10 @@ SaaS 自定义域名由 `saas-runtime-ui` 追加到 `system/basis:basic` 的 `ba
 
 ### 通知设置接收方式
 
+运行时前端 `runtime-ui/jetlinks-web-core` 的钉钉、企业微信复选框统一通过 `account/center/components/Subscribe/useNotificationSettings.ts#subscriptionUnavailable` 校验接收账号。缺少同一通知器、同一绑定类型的本人成员对应，或对应关系加载中、查询失败时禁用新增订阅；绑定并刷新后恢复可选。勾选时重读账号，已解绑则不保存、不弹出扫码绑定；已有订阅仍允许取消。表头配置入口、其他渠道和后端接口保持原行为，运营端不变。
+
+成员对应禁用校验验证：core 下执行 `node --test src/views/account/center/personalCenterFlows.test.mjs src/views/account/center/notificationSettingsView.test.mjs`，78 项通过，覆盖缺少绑定、通知器/类型不匹配、加载中、失败重试、解绑竞态、绑定后订阅及取消。9201 真实页面确认「设备告警解除」「设备告警」两行的钉钉、微信共 4 个复选框均禁用，未修改真实订阅。`node --max-old-space-size=12288 ../node_modules/vite/bin/vite.js build --outDir /tmp/jetlinks-notification-recipient-build -- --module-name authentication-manager-ui` 定向生产构建通过，保留已有分块等告警；在 `runtime-ui/` 执行 `pnpm exec vue-tsc --noEmit --pretty false -p jetlinks-web-core/tsconfig.json`，修改前后均为相同的 511 项既有诊断，无新增。工作区无独立 lint 脚本，`git diff --check` 通过；真实消息投递未验收。
+
 个人中心的钉钉列只订阅**工作通知**。`account/center/components/Subscribe/useNotificationSettings.ts` 按每条业务消息的 `channelConfiguration.notifierId` 识别 `dingTalkMessage`；表头汇总可用工作通知的本人绑定，不能用表头的姓名代替某一行的绑定。只有业务通道已启用、有模板、支持订阅，且本人存在同一通知器的 `dingTalk_dingTalkMessage` 成员对应时才能新增订阅。识别为群机器人的配置不参与订阅或配置跳转。
 
 普通账号查询通知器管理列表遇到 `403` 时，使用已授权业务通道和同一通知器的本人对应判断，无需额外管理权限。新增前重新读取成员对应；读取失败可重试，不保存。仅成员解绑时仍可取消原订阅。保存只增删本行业务通道 ID，保留其他渠道和原订阅配置，不迁移历史数据。「去配置」定位 `dingTalk:dingTalkMessage`。
