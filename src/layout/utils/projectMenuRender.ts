@@ -23,9 +23,8 @@ type MenuItemRenderContext = {
   icon?: VNode
 }
 
-const getMenuTitle = (item: ProjectMenuRouteRecord) => String(
-  i18n.global.t(String(item.meta?.title || item.name || item.path)),
-)
+// 菜单组装时已解析当前语言的标题，渲染时直接使用。
+export const getMenuTitle = (item: ProjectMenuRouteRecord) => String(item.meta?.title || item.name || item.path)
 
 export const renderPrimaryMenuGroup = ({ item, children }: SubMenuRenderContext) => h(
   Menu.ItemGroup,
