@@ -12,6 +12,8 @@ interface ContentFitOptions {
 /** 根据未缩放的布局尺寸调整字号，保留原生坐标；完整查看方式由宿主提供。 */
 export function useContentFit(options: ContentFitOptions) {
   const fontSize = ref(toValue(options.maxSize))
+  const overflowing = ref(false)
+  const preferredWidth = ref(0)
   let observer: ResizeObserver | undefined, frame: number | undefined, disposed = false
   let fonts: FontFaceSet | undefined
   function measure() {
@@ -25,11 +27,13 @@ export function useContentFit(options: ContentFitOptions) {
     const natural = Math.max(content.scrollWidth, content.offsetWidth || 0) - padding
     if (natural <= 0) return
     const base = toValue(options.maxSize)
+    preferredWidth.value = Math.ceil(natural * base / current + padding + 2)
     const height = options.axis !== undefined && options.axis !== 'width' && viewport.clientHeight ? Math.max(content.scrollHeight,content.offsetHeight || 0) : 0
     const ratio = Math.min(options.axis === 'height' ? Infinity : Math.max(0, viewport.clientWidth - padding - 2) / natural,
       height ? Math.max(0,viewport.clientHeight - 2) / height : Infinity)
     const next = Math.round(Math.max(toValue(options.minSize), Math.min(base,
       current * ratio)) * 10) / 10
+    overflowing.value = next / current > ratio + 0.001
     if (Math.abs(fontSize.value - next) > 0.1) fontSize.value = next
   }
   // ResizeObserver、内容更新及字体加载合并到同一布局帧，不创建轮询或额外渲染实例。
@@ -54,5 +58,5 @@ export function useContentFit(options: ContentFitOptions) {
     fonts?.removeEventListener('loadingdone', refresh)
     if (frame !== undefined) cancelAnimationFrame(frame)
   })
-  return { fontSize, refresh }
+  return { fontSize, overflowing, preferredWidth, refresh }
 }
