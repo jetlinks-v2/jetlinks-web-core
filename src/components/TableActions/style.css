@@ -24,12 +24,27 @@
   display: flex;
   flex-direction: column;
   min-width: 136px;
+  max-width: calc(100vw - 32px);
 }
 
 .table-actions__item--more {
   min-height: 32px;
   padding: var(--space-1, 4px) var(--space-2, 8px);
   border-radius: var(--table-actions-radius);
+}
+
+.table-actions__item--more > * { min-width:0; max-width:100%; }
+
+.table-actions__item--more + .table-actions__item--more.table-actions__item--separated {
+  position: relative;
+  margin-block-start: 8px;
+}
+.table-actions__item--more + .table-actions__item--more.table-actions__item--separated::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: -4px;
+  border-block-start: 1px solid var(--table-actions-divider);
 }
 
 .table-actions__item--more:hover,
@@ -39,12 +54,21 @@
 
 .table-actions__item--more .ant-btn-link,
 .table-actions__item--more .ant-btn-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
   width: 100%;
   height: auto;
-  padding-inline: 0;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
   text-align: start;
-  white-space: nowrap;
+  white-space: normal;
 }
+
+.table-actions__item--more .ant-btn .anticon + span { margin-inline-start:0; }
+.table-actions__item--more .ant-btn .anticon { flex:none; font-size:14px; }
 
 /* 由操作行统一提供交互背景，避免按钮悬停层与行背景叠加。 */
 .table-actions__panel .table-actions__item--more .ant-btn:is(.ant-btn-link, .ant-btn-text):not(:disabled):is(:hover, :active, :focus-visible) {

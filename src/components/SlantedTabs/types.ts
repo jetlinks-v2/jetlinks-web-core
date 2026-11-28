@@ -4,7 +4,9 @@ export type SlantedTabKey = string | number
 export interface SlantedTabOption {
   key: SlantedTabKey
   label: string
+  icon?: string
   count?: string | number
+  countLoading?: boolean
   disabled?: boolean
 }
 
@@ -16,6 +18,11 @@ export interface SlantedTabsState {
 }
 
 export interface SlantedTabsProps {
+  /** 按内容宽度填满轨道，长标题保留自然宽度和溢出导航。 */
+  fill?: boolean
+  /** 活动背景连接正文，仅补侧边界；首项直边贴合宿主外框。 */
+  flush?: boolean
+  size?: 'default' | 'small'
   options: SlantedTabOption[]
   activeKey?: SlantedTabKey
   /** 保留当前被禁用项的选中态；仍阻止用户选择禁用项，默认关闭。 */

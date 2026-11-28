@@ -37,18 +37,20 @@ export function deviceSessionElapsed(value: unknown, now: number): number | unde
   return timestamp !== undefined && Number.isFinite(now) && now >= timestamp ? Math.floor((now - timestamp) / 1000) : undefined
 }
 
-export function formatDeviceSessionDuration(value: unknown, now: number, locale = 'en'): string | undefined {
+export function formatDeviceSessionDuration(value: unknown, now: number, locale = 'en', compact = false): string | undefined {
   let remaining = deviceSessionElapsed(value, now)
   if (remaining === undefined) return undefined
   const parts: string[] = []
   const zhUnits = { day: '天', hour: '小时', minute: '分', second: '秒' }
+  const format = (amount: number, unit: keyof typeof zhUnits) => locale.startsWith('zh')
+    ? `${new Intl.NumberFormat(locale).format(amount)}${zhUnits[unit]}`
+    : new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'narrow' }).format(amount)
+  if (compact && remaining < 60) return `<${format(1, 'minute')}`
   for (const [seconds, unit] of [[86400, 'day'], [3600, 'hour'], [60, 'minute'], [1, 'second']] as const) {
     const amount = Math.floor(remaining / seconds)
-    if (amount || unit === 'second' && !parts.length) parts.push(locale.startsWith('zh')
-      ? `${new Intl.NumberFormat(locale).format(amount)}${zhUnits[unit]}`
-      : new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'narrow' }).format(amount))
+    if (amount || unit === 'second' && !parts.length) parts.push(format(amount, unit))
     remaining %= seconds
-    if (parts.length === 3) break
+    if (parts.length === (compact ? 1 : 3)) break
   }
   return parts.join('')
 }

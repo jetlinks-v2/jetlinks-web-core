@@ -50,7 +50,7 @@ const props = defineProps({
   endPadding: { type: Number, default: 0 },
   expandedKey: { type: [String, Number], default: undefined }
 })
-const emit = defineEmits(['reachBottom', 'horizontalScroll'])
+const emit = defineEmits(['reachBottom', 'horizontalScroll', 'rangeChange'])
 
 const viewport = ref(null)
 const scrollTop = ref(0)
@@ -86,6 +86,9 @@ const offset = computed(() => range.value.offset)
 
 // 计算可见数据
 const visibleData = computed(() => props.data.slice(range.value.start, range.value.end))
+watch([() => range.value.start, () => range.value.end, () => props.data], () => {
+  emit('rangeChange', { start: range.value.start, end: range.value.end })
+}, { immediate: true })
 
 // 更新视口高度
 const updateViewportHeight = () => {

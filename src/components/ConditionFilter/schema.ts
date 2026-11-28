@@ -1,5 +1,5 @@
 import type { SearchItem } from '../Search/Filter/typing'
-import { isArrayTermType } from '../Search/Filter/setting'
+import { getConditionFilterDefaultTermType, isArrayTermType } from '../Search/Filter/setting'
 import type { ConditionFieldSchema } from './types'
 
 /**
@@ -11,12 +11,18 @@ export const isConditionFieldArrayTermType = (field: ConditionFieldSchema['searc
 
 const cloneFieldSchema = (field: ConditionFieldSchema): ConditionFieldSchema => {
   const search = field.search
+  // 只收紧主键的默认条件；借用 id 的关联查询仍由业务显式配置操作符。
+  const usePrimaryKeyDefaults = field.dataIndex === 'id' && (!search?.rename || search.rename === 'id')
+    && !search?.termOptions?.length && !search?.termTypeOptions
 
   return {
     ...field,
     search: search
       ? {
           ...search,
+          ...(usePrimaryKeyDefaults ? {
+            termTypeOptions: getConditionFilterDefaultTermType(search.type).filter(type => type !== 'isnull' && type !== 'notnull'),
+          } : {}),
           // 旧 Search 的 format 是日期组件参数；保留显式 componentProps.format 的优先级。
           componentProps: search.componentProps || search.format
             ? { ...(search.format ? { format: search.format } : {}), ...search.componentProps }

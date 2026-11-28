@@ -6,6 +6,8 @@ export interface TableActionsItemProps {
   common?: boolean
   /** 默认点击关闭；开关、内嵌确认等交互应设置为 false。 */
   closeOnClick?: boolean
+  /** 更多面板内另起分组；首项及行内展示不产生分割线。 */
+  separated?: boolean
 }
 
 export interface TableActionsItemSlotScope {

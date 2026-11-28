@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.detail-summary.json",
+  "include": ["../src/components/InlineEditSurface/**/*.vue", "../src/components/InlineEditSurface/**/*.ts"]
+}

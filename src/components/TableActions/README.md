@@ -14,12 +14,17 @@ core 插件全局注册 `TableActions` 和 `TableActionsItem`。`TableActions.It
 
 `TableActions` 无自定义 props，默认插槽仅接收 `TableActionsItem`，可通过 `template`、`v-if`、`v-for` 组合；不穿透业务包装组件寻找子项。
 
+可选`trigger`插槽接收`{ open }`，用于详情等场景提供带文字的真实按钮，按钮须保留可访问名称和`aria-expanded`。公共容器继续管理点击展开、键盘、焦点与浮层，未提供时保持默认省略号按钮。
+
 | 子项属性 | 类型 | 默认值 | 行为 |
 | --- | --- | --- | --- |
 | `common` | `boolean` | `false` | 常用项行内显示，不限制数量 |
 | `closeOnClick` | `boolean` | `true` | 更多面板内点击后关闭；开关等连续交互应设为 false |
+| `separated` | `boolean` | `false` | 更多面板内在本项前分组；首个可见项和行内项不产生分割线 |
 
 子项默认插槽提供 `placement: 'inline' \| 'more'` 和 `close(): void`。原始按钮的事件、权限、危险样式、Tooltip、loading 和确认配置保持由调用方管理。点击关闭不代表业务成功，异步成功后才关闭时设置 `closeOnClick=false`，在成功回调中调用 `close()`。
+
+更多面板中的按钮使用统一14px图标列和文字起点；`separated`仅提供结构线，不改变动作顺序、焦点、权限或确认行为。
 
 两组各自保留声明顺序；循环子项使用稳定的字符串或数字 `key`。常用标记变化会将子项移到另一组，此时内部临时状态可能重建，开关值和异步状态应由调用方维护。条件隐藏应写在 `TableActionsItem` 上，组件不推断其插槽内部是否为空。无权限按钮沿用 `j-permission-button` 的禁用提示，不自动隐藏；没有折叠项时不显示省略号，全部为空时不渲染容器。
 

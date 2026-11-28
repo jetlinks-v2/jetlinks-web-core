@@ -19,6 +19,8 @@ import ConditionEditorPanel from './ConditionEditorPanel.vue'
 import FieldSelectPanel from './FieldSelectPanel.vue'
 import { findOptionPathByValue, normalizeOptionItemsByFields, resolveOptionDisplayFields } from './option-display'
 import { isConditionFieldArrayTermType, resolveConditionFields } from './schema'
+import { buildConditionSummary } from './summary'
+import { useConditionOverflow } from './useConditionOverflow'
 import type {
   ConditionFilterChangePayload,
   ConditionFilterCommonField,
@@ -52,6 +54,10 @@ const fieldBlurLock = ref(false)
 const autoSearchDelay = 260
 
 const props = defineProps({
+  compact: {
+    type: Boolean,
+    default: true,
+  },
   fields: {
     type: Array as PropType<ConditionFilterField[]>,
     default: () => [],
@@ -82,6 +88,7 @@ const props = defineProps({
   },
 })
 
+
 const emit = defineEmits<{
   (e: 'update:modelValue', value: ConditionFilterTerm[]): void
   (e: 'update:where', value: string): void
@@ -105,6 +112,8 @@ const logicCompactLabelMap = computed(() => ({
 
 const termsModel = ref<ConditionFilterTerm[]>([])
 const rootRef = ref<HTMLElement>()
+const contentRef = ref<HTMLElement>()
+const overflowMoreRef = ref<HTMLElement>()
 
 const editorMode = ref<EditorMode>('tail')
 const editingTermKey = ref<string>()
@@ -548,7 +557,7 @@ const isNilValue = (value: any) => {
   return value === undefined || value === null || value === ''
 }
 
-const hasTermValue = (item?: ConditionFilterTerm) => {
+const hasTermValue = (item?: ConditionFilterTerm): boolean => {
   if (isConditionGroup(item)) {
     return Array.isArray(item.terms) && item.terms.some(child => hasTermValue(child))
   }
@@ -1221,6 +1230,29 @@ const getDisplayTerm = (term: ConditionFilterTerm) => {
 }
 
 const getDisplayValueLabel = (term: ConditionFilterTerm) => getValueLabel(getDisplayTerm(term))
+const summarize = (terms: ConditionFilterTerm[]) => buildConditionSummary(terms, {
+  valid: hasTermValue,
+  logic: type => logicCompactLabelMap.value[type === 'or' ? 'or' : 'and'],
+  clause: term => {
+    const symbols: Record<string, string> = { eq: '=', not: '≠', gt: '>', gte: '≥', lt: '<', lte: '≤' }
+    const operator = symbols[term.termType || ''] || (['like', 'nlike'].includes(term.termType || '')
+      ? $t(`components.ConditionFilter.summary.${term.termType}`) : getTermTypeReadableText(term.termType, getTermColumn(term)))
+    const value = getValueLabel(term)
+    return [getFieldLabel(term.column), operator, value].filter(Boolean).join(' ')
+  },
+})
+const summary = computed(() => summarize(termsModel.value))
+const summaryCount = computed(() => payload.value.terms.reduce((count, term) => count + countGroupLeaves(term), 0))
+const { expanded: compactExpanded, showSummary: compactSummary, focused: compactFocused, focusOut: compactFocusOut, finish: finishOverflow } = useConditionOverflow({
+  enabled: () => props.compact, shell: rootRef, content: contentRef, more: overflowMoreRef, label: summary,
+  panelsOpen: () => fieldPanelOpen.value || !!operatorPanelTermKey.value || !!valuePanelTermKey.value,
+})
+function openCompactEditor() { compactFocused.value = true; focusTailInput(false) }
+function finishCompactEditor() {
+  if (editorMode.value === 'value') commitTextValue({ focusTail: false })
+  confirmAutoSearch(); setTailMode(); finishOverflow()
+}
+function onCompactFocusIn(event: FocusEvent) { if (event.target !== overflowMoreRef.value) compactFocused.value = true }
 const hasDisplayTermValue = (term: ConditionFilterTerm) => hasTermValue(getDisplayTerm(term))
 const fieldPanelVisible = computed(() => fieldPanelOpen.value && !valuePanelTermKey.value && !operatorPanelTermKey.value)
 
@@ -2416,9 +2448,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="condition-filter" :class="{ 'condition-filter--disabled': disabled }">
-    <div ref="rootRef" class="condition-filter__shell" @click="onShellClick">
-      <div class="condition-filter__content">
+  <div class="condition-filter" :class="{ 'condition-filter--disabled': disabled, 'condition-filter--compact': compact, 'condition-filter--expanded': compactExpanded, 'condition-filter--summary': compactSummary }">
+    <div ref="rootRef" class="condition-filter__shell" @click="onShellClick" @focusin="onCompactFocusIn" @focusout="compactFocusOut">
+      <div ref="contentRef" class="condition-filter__content">
         <div
           v-for="(term, index) in termsModel"
           :key="getTermKey(term) || `${term.column}-${index}`"
@@ -2439,7 +2471,7 @@ onUnmounted(() => {
               @click.stop
               @keydown="(event) => onTokenKeydown(event, getTermKey(term), 'logic')"
             >
-              <span class="condition-filter__chip-text">{{ logicCompactLabelMap[term.type || 'and'] }}</span>
+              <span class="condition-filter__chip-text">{{ logicCompactLabelMap[term.type === 'or' ? 'or' : 'and'] }}</span>
             </button>
             <template #overlay>
               <div class="condition-filter__dropdown-panel" @mousedown.prevent>
@@ -2722,6 +2754,7 @@ onUnmounted(() => {
         </span>
       </div>
 
+      <button v-if="compactSummary" ref="overflowMoreRef" class="condition-filter__chip condition-filter__overflow-more" type="button" :disabled="disabled" :aria-label="$t('components.ConditionFilter.summary.edit')" :title="summary" @click.stop="openCompactEditor">{{ $t('components.ConditionFilter.summary.count', { count: summaryCount }) }}</button>
       <div v-if="!disabled" class="condition-filter__actions" @click.stop>
         <button
           class="condition-filter__action condition-filter__action--clear"
@@ -2741,15 +2774,36 @@ onUnmounted(() => {
           <AIcon type="SearchOutlined" />
         </button>
       </div>
+      <div v-if="compactExpanded" class="condition-filter__floating-footer"><a-button type="link" size="small" @mousedown.prevent @click.stop="finishCompactEditor">{{ $t('components.ConditionFilter.summary.done') }}</a-button></div>
     </div>
   </div>
 </template>
 
 <style scoped lang="less">
 .condition-filter {
+  --condition-filter-padding-block: 0.175rem;
+  --condition-filter-height: calc(1.625rem + var(--condition-filter-padding-block) * 2 + 2px);
+  flex: 1 1 15rem;
   width: 100%;
   min-width: 0;
   max-width: 100%;
+
+  &--compact { position:relative; height:var(--condition-filter-height); }
+  &--compact:not(&--expanded) &__content { flex-wrap:nowrap; overflow:hidden; }
+  &--compact:not(&--expanded) &__term { flex:none; max-width:none; }
+  &--compact:not(&--expanded) &__term-main { flex-wrap:nowrap; }
+  &--compact:not(&--expanded) &__tail { flex-shrink:0; }
+  &--summary &__content { mask-image:linear-gradient(to right, #000 calc(100% - 12px), transparent); }
+  &--expanded > &__shell { position:absolute; inset:0 0 auto; z-index:1100; display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:8px; box-shadow:var(--jet-theme-box-shadow, 0 6px 20px #0002); }
+  &--expanded &__content { max-height:min(40vh, 240px); }
+  &--expanded &__term { display:grid; grid-template-columns:max-content minmax(0, 1fr); flex:1 0 100%; align-items:start; }
+  &--expanded &__term:first-child &__term-main { grid-column:1 / -1; }
+  &--expanded &__chip--logic { min-width:max-content; max-width:none; white-space:nowrap; }
+  &--expanded &__chip--field, &--expanded &__chip--operator { flex-shrink:0; }
+  &--expanded &__tail { flex-basis:100%; }
+
+  & &__overflow-more { flex:none; margin-inline-start:4px; color:var(--jet-theme-text-secondary); font-size:12px; white-space:nowrap; }
+  &__floating-footer { display:flex; grid-column:1 / -1; justify-content:flex-end; }
 
   &__shell {
     display: flex;
@@ -2757,8 +2811,8 @@ onUnmounted(() => {
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    min-height: 2.1rem;
-    padding: 0.175rem 0.625rem;
+    min-height: var(--condition-filter-height);
+    padding: var(--condition-filter-padding-block) 0.625rem;
     background: var(--color-jet-bg-container);
     border: 1px solid var(--jet-theme-border-color-1);
     border-radius: var(--r-2);
@@ -3068,8 +3122,9 @@ onUnmounted(() => {
 
 @media (max-width: 48rem) {
   .condition-filter {
+    --condition-filter-padding-block: 0.375rem;
     &__shell {
-      padding: 0.375rem 0.5rem;
+      padding-inline: 0.5rem;
     }
 
     &__chip,

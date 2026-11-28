@@ -50,7 +50,7 @@ function onKeydown(event: KeyboardEvent) {
 <style scoped>
 .panel-resize-handle { grid-column:2; grid-row:1; align-self:stretch; justify-self:start; position:relative; width:12px; margin-left:-6px; z-index:2 }
 .panel-resize-handle__separator { height:100%; cursor:col-resize; touch-action:none; user-select:none; outline:none }
-.panel-resize-handle__separator::after { content:''; position:absolute; left:50%; top:0; bottom:0; width:1px; transform:translateX(-50%); background:var(--line) }
+.panel-resize-handle__separator::after { content:''; position:absolute; left:50%; top:0; bottom:0; width:1px; transform:translateX(calc(-50% + var(--panel-resize-line-offset, 0px))); background:var(--line) }
 .panel-resize-handle.is-collapsed .panel-resize-handle__separator::after { display:none }
 .panel-resize-handle__separator::before { content:''; position:absolute; z-index:1; top:50%; left:50%; transform:translate(-50%,-50%); width:2px; height:20px; border-radius:1px; background:var(--ink-3,var(--ink-2)); opacity:0; transition:opacity var(--motion-duration-fast,0.15s) var(--motion-ease-standard,ease) }
 .panel-resize-handle:hover .panel-resize-handle__separator::before,.panel-resize-handle:not(.is-pointer-focused):has(:focus-visible) .panel-resize-handle__separator::before,.panel-resize-handle.is-dragging .panel-resize-handle__separator::before { opacity:1 }
@@ -58,7 +58,7 @@ function onKeydown(event: KeyboardEvent) {
 .panel-resize-handle:not(.is-pointer-focused) .panel-resize-handle__separator:focus-visible::before { box-shadow:0 0 0 1px var(--accent) }
 .panel-resize-handle.is-vertical { grid-column:1; grid-row:2; align-self:start; justify-self:stretch; width:auto; height:12px; margin-left:0; margin-top:-6px }
 .is-vertical .panel-resize-handle__separator { width:100%; cursor:row-resize }
-.is-vertical .panel-resize-handle__separator::after { top:50%; left:0; right:0; bottom:auto; width:auto; height:1px; transform:translateY(-50%) }
+.is-vertical .panel-resize-handle__separator::after { top:50%; left:0; right:0; bottom:auto; width:auto; height:1px; transform:translateY(calc(-50% + var(--panel-resize-line-offset, 0px))) }
 .is-vertical .panel-resize-handle__separator::before { width:20px; height:2px }
 @media (hover:none) { .panel-resize-handle__separator::before { opacity:1 } }
 @media (prefers-reduced-motion:reduce) { .panel-resize-handle__separator::before { transition:none } }

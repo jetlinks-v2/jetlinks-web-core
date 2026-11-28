@@ -9,12 +9,13 @@ export default defineComponent({
   props: {
     common: { type: Boolean, default: false },
     closeOnClick: { type: Boolean, default: true },
+    separated: { type: Boolean, default: false },
   },
   slots: Object as SlotsType<{ default: (scope: TableActionsItemSlotScope) => VNode[] }>,
   setup(props, { slots }) {
     const { scope, onClickCapture } = useTableActionsItem(props)
     return () => h('div', {
-      class: ['table-actions__item', `table-actions__item--${scope.value.placement}`],
+      class: ['table-actions__item', `table-actions__item--${scope.value.placement}`, { 'table-actions__item--separated': props.separated }],
       onClickCapture,
     }, slots.default?.(scope.value))
   },

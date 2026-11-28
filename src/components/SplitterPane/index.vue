@@ -7,6 +7,9 @@
       <div v-if="$slots.toolbar" ref="toolbarContent" class="splitter-pane__row-content"><slot name="toolbar" /></div>
     </div>
     <div ref="body" class="splitter-pane__body" :class="{ 'splitter-pane__body--contained': !scroll }" @scroll="$emit('scroll', $event)"><slot /></div>
+    <footer v-if="$slots.footer || footerHeight" class="splitter-pane__row" :style="{ minHeight: `${footerHeight}px` }">
+      <div v-if="$slots.footer" ref="footerContent" class="splitter-pane__row-content"><slot name="footer" /></div>
+    </footer>
   </section>
 </template>
 <script setup lang="ts">
@@ -19,9 +22,10 @@ withDefaults(defineProps<{
   scroll?: boolean
 }>(), { padding: 'var(--space-4, 16px)', scroll: true })
 defineEmits<{ scroll: [event: Event] }>()
-const headerContent = ref<HTMLElement>(), toolbarContent = ref<HTMLElement>(), body = ref<HTMLElement>()
+const headerContent = ref<HTMLElement>(), toolbarContent = ref<HTMLElement>(), footerContent = ref<HTMLElement>(), body = ref<HTMLElement>()
 const headerHeight = usePaneRow('header', headerContent)
 const toolbarHeight = usePaneRow('toolbar', toolbarContent)
+const footerHeight = usePaneRow('footer', footerContent)
 defineExpose({ body })
 </script>
 <style scoped src="./pane.css" />

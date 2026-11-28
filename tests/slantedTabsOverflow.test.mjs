@@ -18,6 +18,7 @@ globalThis.window = {
 globalThis.getComputedStyle = element => ({
   paddingLeft: `${element.layout.paddingLeft}px`, paddingRight: `${element.layout.paddingRight}px`,
   lineHeight: `${element.layout.lineHeight}px`,
+  getPropertyValue: name => name === '--slanted-tabs-track-width' ? String(element.layout.trackWidth ?? '') : '',
 })
 
 // 执行生产 Hook 和 Vue 调度器；仅用确定性布局、浏览器帧和观察回调替代浏览器边界。
@@ -60,11 +61,11 @@ function wheel(api, delta) {
   return event
 }
 
-function fixture(t, { width = 300, options, activeKey = 'a', echo = true } = {}) {
+function fixture(t, { width = 300, trackWidth, fill = false, options, activeKey = 'a', echo = true } = {}) {
   observers = { resize: [], mutation: [] }
   const observation = observers
-  const props = vue.reactive({ options: options ?? 'abcdef'.split('').map(key => ({ key, label: key })), activeKey, state: {} })
-  const layout = { width, paddingLeft: 0, paddingRight: 0, lineHeight: 20, widths: new Map() }
+  const props = vue.reactive({ fill, options: options ?? 'abcdef'.split('').map(key => ({ key, label: key })), activeKey, state: {} })
+  const layout = { width, trackWidth, paddingLeft: 0, paddingRight: 0, lineHeight: 20, widths: new Map() }
   const events = []
   const scope = vue.effectScope()
   let selection, api, scrollLeft = 0
@@ -94,7 +95,7 @@ function fixture(t, { width = 300, options, activeKey = 'a', echo = true } = {})
   const scroll = {
     layout,
     ownerDocument: document,
-    get clientWidth() { return Math.max(0, layout.width - layout.paddingLeft - layout.paddingRight - (api.hasOverflow.value ? 40 : 0)) },
+    get clientWidth() { return Math.max(0, Math.min(layout.trackWidth ?? Infinity, layout.width - layout.paddingLeft - layout.paddingRight - (api.hasOverflow.value ? 40 : 0))) },
     get scrollWidth() { return totalWidth() },
     get scrollLeft() { return Math.min(scrollLeft, Math.max(0, this.scrollWidth - this.clientWidth)) },
     set scrollLeft(value) { scrollLeft = Math.max(0, Math.min(value, this.scrollWidth - this.clientWidth)) },
@@ -126,6 +127,18 @@ test('initial overflow offers clipped and offscreen tabs, with only a right shad
   assert.deepEqual(f.hidden(), ['c', 'd', 'e', 'f'])
   assert.deepEqual([f.api.canScrollLeft.value, f.api.canScrollRight.value], [false, true])
   assert.deepEqual(f.events, [])
+})
+
+test('a bounded fill track uses its own space rather than the full navigation width', async t => {
+  const f = fixture(t, { width: 1200, trackWidth: 240, fill: true })
+  await settle()
+  assert.equal(f.api.hasOverflow.value, true)
+  assert.deepEqual(f.hidden(), ['c', 'd', 'e', 'f'])
+  f.layout.trackWidth = 600
+  f.resize(1200)
+  await settle()
+  assert.equal(f.api.hasOverflow.value, false)
+  assert.deepEqual(f.hidden(), [])
 })
 
 test('manual middle and end scrolling updates both sides without changing selection', async t => {

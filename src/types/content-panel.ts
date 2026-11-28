@@ -19,6 +19,8 @@ export interface ContentPanelConfig {
   title?: string
   /** `false` 保留面板留白与圆角，但背景透明、去掉模糊与阴影。 */
   background?: boolean
+  /** 连续工作区采用同源细线外框，替代装饰阴影。 */
+  bordered?: boolean
 }
 
 /** 单个页面的覆盖声明：`false` 等价于 `{ enabled: false }`。 */

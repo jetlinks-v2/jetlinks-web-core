@@ -63,6 +63,7 @@
 - 卡片默认遵循内容面板契约：`--panel-radius` 为 16px，`--panel-padding` 和 `--panel-gap` 为 16px，背景为 80% 透明度白色；默认边框使用 `var(--jet-theme-border-color-1)`。特殊卡片可通过 `backgroundOpacity` 显式调整背景透明度。
 - active 使用完整边框、弱背景和 focus ring，不使用单侧彩色线条表达选中状态。
 - 各组件 scoped CSS 只负责编排结构，不定义新的品牌色、字号或阴影体系。
+- `CardSummary` 可通过 `--card-summary-footer-padding` 调整摘要底栏留白，默认仍沿用 `--panel-padding`；紧凑运行列表可设为 `8px 16px`，不改变卡片正文留白和其他页面默认值。
 
 ## CardBox 底部操作
 

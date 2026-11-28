@@ -2530,5 +2530,16 @@
   "PlatformSettings.initialize": "Confirm and initialize",
   "PlatformSettings.initialization": "Finalize initialization",
   "PlatformSettings.basic": "Basic settings",
-  "PersonalCenter.notificationChannelNotConfigured": "This channel is not configured for this type. Contact an administrator."
+  "PersonalCenter.notificationChannelNotConfigured": "This channel is not configured for this type. Contact an administrator.",
+  "components.ConditionFilter.summary.edit": "Edit filters",
+  "components.ConditionFilter.summary.done": "Done",
+  "components.ConditionFilter.summary.count": "… {count} condition | … {count} conditions",
+  "components.ConditionFilter.summary.like": "contains",
+  "components.ConditionFilter.summary.nlike": "excludes",
+  "NavigationTree.search": "Search",
+  "NavigationTree.searchLabel": "Search tree",
+  "NavigationTree.noMatches": "No matching items",
+  "NavigationTree.empty": "No data",
+  "components.DetailHeader.moreInfo": "More information",
+  "components.DetailHeader.editInfo": "Edit basic information"
 }

@@ -2,6 +2,8 @@
 
 固定摘要行高虚拟滚动列表，支持一行原位展开、触底加载和横向滚动通知。展开内容按实际高度测量，不将所有记录挂到 DOM。
 
+支持从 core 根入口具名导入 `VirtualScroll`。宿主可按 `rangeChange` 通知仅为当前渲染记录补齐运行态，不遍历私有 DOM。
+
 #### Props
 
 | 参数 | 说明 | 类型 | 默认值 |
@@ -21,6 +23,7 @@
 | --- | --- | --- |
 | `reachBottom` | 接近底部 | `()` |
 | `horizontalScroll` | 横向滚动 | `(scrollLeft: number)` |
+| `rangeChange` | 当前数据的渲染区间变化，包含末尾预渲染项；`end` 不包含在区间内 | `({ start: number, end: number })` |
 
 #### 实例方法
 

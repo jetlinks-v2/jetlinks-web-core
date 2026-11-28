@@ -2530,5 +2530,16 @@
   "PlatformSettings.initialize": "确认并初始化",
   "PlatformSettings.initialization": "完成初始化",
   "PlatformSettings.basic": "基础配置",
-  "PersonalCenter.notificationChannelNotConfigured": "该类型尚未配置此渠道，请联系管理员"
+  "PersonalCenter.notificationChannelNotConfigured": "该类型尚未配置此渠道，请联系管理员",
+  "components.ConditionFilter.summary.edit": "编辑筛选条件",
+  "components.ConditionFilter.summary.done": "完成",
+  "components.ConditionFilter.summary.count": "… 等 {count} 项条件",
+  "components.ConditionFilter.summary.like": "含",
+  "components.ConditionFilter.summary.nlike": "不含",
+  "NavigationTree.search": "搜索",
+  "NavigationTree.searchLabel": "搜索目录",
+  "NavigationTree.noMatches": "暂无匹配结果",
+  "NavigationTree.empty": "暂无数据",
+  "components.DetailHeader.moreInfo": "更多信息",
+  "components.DetailHeader.editInfo": "编辑基本信息"
 }

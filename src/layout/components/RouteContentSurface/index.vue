@@ -7,6 +7,7 @@
       :title="panel.title ?? ''"
       :padding="resolvedPadding"
       :background="panel.background"
+      :bordered="panel.bordered"
     >
       <PageRouteView />
     </ContentPanel>
@@ -63,14 +64,17 @@ providePageChromeTarget(chromeElement)
 
   /*
    * 贴合式头部（`<PageChrome flush>`，例如 SlantedTabs 充当面板顶栏）：
-   * 闭合与面板的间距，并把面板左上角拉平，复刻"页签与面板连成一体"的既有视觉。
+   * 闭合与面板的间距，并把面板两个上角拉平，让页签基线与内容边界连续。
    * 用 `:has()` 纯 CSS 判断，不引入任何跨路由的组件状态。
    */
   &--panel:has(> .route-content-surface__chrome > .page-chrome--flush) {
     gap: 0;
 
     > .route-content-surface__panel {
+      border: 1px solid var(--line);
+      border-top: 0;
       border-top-left-radius: 0;
+      border-top-right-radius: 0;
     }
   }
 }

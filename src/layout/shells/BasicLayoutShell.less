@@ -95,7 +95,10 @@
 
   // 租户个人中心的面板由业务路由提供，跨过组件 scoped 边界，仅拉平贴合头部下的直属面板。
   > .project-layout__route-content:has(> .route-content-surface__chrome > .page-chrome--flush) > :deep(.content-panel) {
+    border: 1px solid var(--line);
+    border-top: 0;
     border-top-left-radius: 0;
+    border-top-right-radius: 0;
   }
 }
 @media (max-width: 64rem) {

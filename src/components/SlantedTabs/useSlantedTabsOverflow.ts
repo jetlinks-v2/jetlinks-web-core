@@ -55,7 +55,8 @@ export function useSlantedTabsOverflow(
       return
     }
     const style = getComputedStyle(container)
-    const available = container.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0)
+    const trackWidth = props.fill ? parseFloat(style.getPropertyValue('--slanted-tabs-track-width')) : NaN
+    const available = Math.min(container.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0), Number.isFinite(trackWidth) ? trackWidth : Infinity)
     const overflowing = list.scrollWidth > available + edgeTolerance
     if (overflowing !== hasOverflow.value) {
       hasOverflow.value = overflowing

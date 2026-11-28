@@ -10,7 +10,7 @@ import './style.css'
 /** 将常用操作和可交互的更多面板组合为一个表格行操作区。 */
 export default defineComponent({
   name: 'TableActions',
-  slots: Object as SlotsType<{ default: () => VNode[] }>,
+  slots: Object as SlotsType<{ default: () => VNode[]; trigger?: (scope: { open: boolean }) => VNode[] }>,
   setup(_, { slots }) {
     const { t } = useI18n()
     const { token } = theme.useToken()
@@ -23,6 +23,7 @@ export default defineComponent({
       const panelStyle: CSSProperties = {
         '--table-actions-hover': token.value.colorBgTextHover,
         '--table-actions-radius': `${token.value.borderRadiusSM}px`,
+        '--table-actions-divider': token.value.colorSplit,
       }
       return h('div', {
         class: 'table-actions',
@@ -42,13 +43,13 @@ export default defineComponent({
           onOpenChange: setOpen,
         }, {
           default: () => h('span', { ref: trigger, onKeydown: onTriggerKeydown }, [
-            h(Button, {
+            ...(slots.trigger?.({ open: open.value }) ?? [h(Button, {
               type: 'text',
               size: 'small',
               class: 'table-actions__trigger',
               'aria-label': label,
               'aria-expanded': open.value,
-            }, { icon: () => h(EllipsisOutlined) }),
+            }, { icon: () => h(EllipsisOutlined) })]),
           ]),
           content: () => h('div', {
             ref: panel,
