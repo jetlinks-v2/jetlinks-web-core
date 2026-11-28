@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.inline-edit-surface.json",
+  "include": [
+    "../src/components/Editable/InputEditable.vue",
+    "../src/components/Editable/SaveFeedback.vue",
+    "../src/components/Editable/useSaveFeedback.ts",
+    "../src/components/InlineEditSurface/**/*.vue",
+    "../src/components/InlineEditSurface/**/*.ts"
+  ]
+}

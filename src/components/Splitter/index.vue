@@ -5,6 +5,7 @@
       <div class="splitter__content" :style="contentStyle"><slot name="start" /></div>
     </div>
     <PanelResizeHandle v-if="resizable && (!isCollapsed || collapseOnDrag) && !measuring && containerSize > endMin" ref="handleRef" side="left"
+      :style="{ '--panel-resize-line-offset': gutter === 0 ? '0.5px' : '0px' }"
       :model-value="restoreSize ?? (isCollapsed ? 0 : handleSize)" :orientation="orientation" :limits="handleLimits" :collapsed="isCollapsed"
       :aria-label="isCollapsed ? t('components.Splitter.dragToExpand') : resizeLabel" :aria-controls="startId" :inert="collapseMotion || undefined" :aria-valuetext="previewLabel"
       @update:model-value="resize" @drag="drag" @expand="setCollapsed(false)" />

@@ -1,5 +1,9 @@
 # PanelResizeHandle
 
+静止分割线与平台普通容器边框共用 `--line` 的 1px 描边；悬停仅显示中央把手，键盘聚焦和拖动保留主题色反馈。`Splitter`、`ResponsiveSplitter` 与可调宽的 `EqualHeightColumns` 共用此表现，固定双栏的分割线使用同一颜色。
+
+`--panel-resize-line-offset` 只调整细线沿分割方向的绘制位置，默认0；零 gutter 的 Splitter 在该把手根节点传入0.5px，使1px细线从内容边界起绘，消除居中平移造成的半像素虚线。有留缝及独立把手保留原居中规则，拖拽触区和尺寸事件不变。
+
 Grid 工作区的面板分界线，从 core 组件入口具名导出，不做全局注册。父级持有 `v-model` 宽度，传入 `container` 工作区元素和已翻译的 `aria-label`。`side` 表示被调整面板的位置，默认 `right`；左侧面板使用 `left`，相应改变拖动和方向键的增减方向。默认根布局覆盖在第二列起点，其他轨道组合可通过根节点公开的 `class` / `style` 定位；`EqualHeightColumns` 已内置左侧调宽组合。
 
 `limits` 可指定 `min`（默认 320）、`max`（640）、`contentMin`（360）及 `initial`（360）。有效尺寸受当前容器剩余空间约束，并保留调用者声明的 `min`；外部尺寸或约束变化后回写合法值。空间无法同时容纳两区时，宿主负责调整有效最小值或切回单栏。组件不决定断点、不管理折叠、业务草稿或偏好存储。`orientation="vertical"` 调整高度，使用指针 Y 和上 / 下方向键；此时 `side="left"` 表示上区，`right` 表示下区。默认 `horizontal` 调整宽度。新建纯分区布局优先使用已组合它的 [Splitter](../Splitter/README.md)。

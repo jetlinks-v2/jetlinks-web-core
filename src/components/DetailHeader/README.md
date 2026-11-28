@@ -18,6 +18,14 @@
 | --- | --- | --- | --- |
 | `title` | 标题；摘要模式同时用于完整名称提示 | `string` | 必填 |
 | `variant` | 默认头部或透明摘要布局 | `'default' \| 'summary'` | `default` |
+| `compact` | 摘要采用名称/动作与元信息两行；附加内容放入浮层。窄区操作图标化、元信息在本行横向浏览 | `boolean` | `false` |
+| `extraLabel` | 紧凑摘要中附加内容触发按钮的名称，例如设备标签 | `string` | i18n“更多信息” |
+| `extraKind` | 附加内容入口的语义图标，复用 `DetailMetaItem` 图标表 | `DetailMetaKind` | 更多图标 |
+| `metaLabel` | 带身份次行的紧凑摘要中，关联资料入口的名称 | `string` | i18n“更多信息” |
+| `metaTitle` | 收纳浮层的标题；可与简短入口文案区分 | `string` | 沿用metaLabel或i18n“更多信息” |
+| `metaEditable` | 身份布局中显示基本信息编辑图标；宽区位于元信息行，收纳后位于分区标题旁 | `boolean` | `false` |
+| `metaEditDisabled` | 禁用基本信息编辑入口 | `boolean` | `false` |
+| `resourceType` | 名称旁的只读语义图标及完整类型提示，独立于可编辑主图片 | `{ icon: string; label: string }` | 无 |
 | `showBack` | 显示返回按钮 | `boolean` | `false` |
 | `backTitle` | 返回按钮提示 | `string` | i18n 默认文案 |
 
@@ -32,10 +40,29 @@
 | `actions` | 原有页面操作及权限按钮 |
 | `leading` | 摘要模式中的自定义前置内容；上述六类详情的返回入口放在卡片外 |
 | `icon` | 摘要模式的对象图片或缺省图标 |
-| `meta` | 摘要模式的 `DetailMetaItem` 列表，ID/时间/说明同行排列并自动换行；多行说明可弹性伸缩 |
+| `identifier` | 紧凑摘要的身份次行；提供时启用名称/状态/观测与身份/资料的两行布局 |
+| `status` | 身份布局中紧邻名称的状态入口，其余摘要沿用右侧位置 |
+| `observation` | 身份布局中的紧凑观测指标，空间不足时移到次行 |
+| `context` | 身份布局中的只读上下文摘要；宽区在实时指标之后显示，容器不足1100px时收起，完整信息由宿主已有详情入口承载 |
+| `auxiliary` | 身份布局中的附加内容；`inline` 为 true 时显示在窄区资料展开面板中，false 时位于身份次行 |
+| `meta` | 摘要的语义字段；`expanded` 为 true 时位于资料浮层，可显示完整标签/值，false 时为行内摘要 |
 | `extra` | 摘要模式的标签、展开与编辑入口 |
 
 `back` 事件无参数：有监听时交给调用方，未监听时使用 `router.back()`。仅摘要模式渲染 `leading`、`icon`、`meta` 和 `extra`。
+
+`editMeta` 事件无参数：通知宿主打开该分区的编辑能力，不读取业务数据或保存字段，保留原位上下文供取消后回到原入口。权限与异步状态由宿主通过 `metaEditable`、`metaEditDisabled` 控制，未启用的消费者保持原布局。
+
+设备与网关详情显式启用 `compact`，其摘要与导航放在路由既有面板内，区域共用分割线；其余摘要调用方默认布局保留。长元信息仍保留原完整 tooltip、复制和链接；附加内容浮层不复制业务状态，页面继续拥有标签保存与权限。默认摘要与紧凑摘要均使用同一组插槽。
+
+紧凑摘要按业务含义归组，由 `DetailMetaItem groupStart` 标记组间分割，组内字段只留间距。窄区保留32px对象图标供原位编辑，动作区显示图标；自定义标题插槽自行处理文本省略，头部保留其编辑控件和校验反馈。
+
+带 `identifier` 的布局由公共具名网格统一分区：48px主图片对应名称与ID，状态和观测跟随名称，操作位于行末。容器不足820px时，同一组资料实例收进可关闭、支持Escape的浮层，保留字段草稿；640px以下主图片为40px，520px以下观测移到次行，400px以下主图片为32px且ID使用图片轨道余宽。极窄区完整ID由展开资料提供。资料浮层受头部容器宽度约束，宿主应允许浮层溢出并保持摘要高于正文。配合 `DetailMetaItem showLabel` 显示完整标签。`DetailIdentifier` 始终保持字符串值，只发出 `copy` 事件；复制图标为悬停/聚焦显露，触屏常驻，不因显隐改变文本宽度。未提供identifier的调用方继续使用原布局，公共组件不持有业务采样或请求。
+
+未收纳资料时，meta与auxiliary在ID之后连续排列，ID保持既有宽度预算。第一行按身份、观测、上下文与操作建立阅读顺序；context紧随observation，使用共同网格组距，不在剩余空间中居中，也不持有业务采样。字段内部间距保持紧凑，长值在本组内收缩；`data-priority="secondary"`的次要字段在不足1100px时收起，展开资料中仍完整呈现。收纳后的浮层及窄区身份/观测轨道保持原布局。
+
+身份布局的首行由identity-line统一分配宽度：观测和上下文按内容占位，名称在实际空间不足时收缩；不以两个独立可压缩网格列分摊名称和速率。外层网格负责图片、内容、动作，次行字段不参与首行内部宽度分配。520px以下identity-line退为display:contents，沿原具名轨道重排。验收同时检查可见指标是否发生省略与页面是否溢出。
+
+`DetailIdentifier.after`可在ID后提供独立操作，使用原复制图标预留位置，不叠加一份图标宽度；复制仍由ID文字按钮触发，追加操作是其兄弟节点。未提供after时保留原复制图标和行为。更多信息入口以文字和展开箭头表达，窄区使用带完整提示的省略号，保持原24px轨道；弹层标题可通过metaTitle指定，不挤占ID或观测字段。
 
 ```vue
 <ContentPanel fill>
@@ -71,3 +98,7 @@
 设备和认证模块分别生产构建通过；网关单独构建因模块过滤器排除其依赖的认证 `runtimeMonitor` 导出而失败。三个模块联合构建通过：在 runtime 根目录执行 `pnpm -F jetlinks-web-core build --outDir /tmp/jetlinks-detail-summary/build-combined -- --module-name device-manager-ui,edge-master-ui,authentication-manager-ui`。完整页面类型检查仍被依赖文件诊断阻断（例如 core `src/api/account/center.ts` 的 TS2347）；改动页面、hook 与组件未报告类型诊断。可用各模块 `tsconfig.json` 复核全模块类型检查。
 
 独立浏览器访问本地服务会跳转登录页，未使用真实账号执行六个指定 ID 的后端操作；登录后的权限组合、真实数据与凭据清理仍需联调验收。
+
+- 监听 back 时由调用方接管返回；未监听时组件调用 router.back()。
+- actions、description 等插槽用于承载页面级操作和摘要。
+- 标题区与动作区按实际可用空间自然换行，不按浏览器宽度提前堆叠。宽度充足时动作位于标题旁；窄容器保留标题优先级，动作可换行且不会被裁掉。

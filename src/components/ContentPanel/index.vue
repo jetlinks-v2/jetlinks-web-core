@@ -4,6 +4,7 @@
     :class="{
       'content-panel--fill': fill,
       'content-panel--no-background': !background,
+      'content-panel--bordered': bordered,
     }"
     :style="{
       '--content-panel-padding': `${normalizedPadding}px`,
@@ -44,6 +45,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  bordered: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const normalizedPadding = computed(() => Math.max(props.padding, 0))
@@ -73,6 +78,12 @@ const showHeader = computed(() => (
 	backdrop-filter: blur(10px);
   box-shadow: 0px 0px 50px 0px #7794CB1A;
   height: 100%;
+}
+.content-panel--bordered {
+  border: 1px solid var(--line);
+  background: var(--jet-theme-bg-container);
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 /*

@@ -1,7 +1,7 @@
 import { computed, inject, onScopeDispose, provide, shallowReactive, toValue, watchEffect, type InjectionKey, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useElementSize } from '@vueuse/core'
 
-type Row = 'header' | 'toolbar'
+type Row = 'header' | 'toolbar' | 'footer'
 type Entry = { row: Row; height: number }
 const rowsKey: InjectionKey<ReturnType<typeof createPaneRows>> = Symbol('splitter-pane-rows')
 
@@ -10,7 +10,7 @@ function createPaneRows(enabled: MaybeRefOrGetter<boolean>) {
   return {
     entries,
     height: (row: Row) => computed(() => toValue(enabled)
-      ? Math.max(0, ...[...entries.values()].filter(entry => entry.row === row).map(entry => entry.height)) : 0),
+      ? Math.ceil(Math.max(0, ...[...entries.values()].filter(entry => entry.row === row).map(entry => entry.height))) : 0),
   }
 }
 

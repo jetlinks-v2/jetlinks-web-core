@@ -23,7 +23,7 @@ export type ConditionExpression = ConditionExpressionNode[]
 export type ConditionTerm = {
   column?: ConditionClause['column']
   termType?: ConditionClause['termType']
-  terms?: ConditionGroup['terms']
+  terms?: ConditionTerm[]
   value?: ConditionClause['value']
   type?: ConditionLogicType | string
   key?: string

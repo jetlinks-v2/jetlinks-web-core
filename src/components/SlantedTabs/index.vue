@@ -1,9 +1,11 @@
 <template>
-  <div class="slanted-tabs" :aria-busy="state.loading || undefined">
+  <div class="slanted-tabs" :class="{ 'slanted-tabs--small': size === 'small', 'slanted-tabs--flush': flush, 'slanted-tabs--fill': fill }" :aria-busy="state.loading || undefined">
     <DefineTabLabel v-slot="{ option }">
       <slot name="tab" :option="option" :active="option.key === selectedKey">
+        <AIcon v-if="option.icon" class="slanted-tabs__icon" :type="option.icon" aria-hidden="true" />
         <span>{{ option.label }}</span>
-        <span v-if="option.count != null" class="slanted-tabs__count">{{ option.count }}</span>
+        <SkeletonText v-if="option.countLoading" :width="20" :height="16" />
+        <span v-else-if="option.count != null" class="slanted-tabs__count">{{ option.count }}</span>
       </slot>
     </DefineTabLabel>
     <div v-if="options.length" ref="containerRef" class="slanted-tabs__nav" @wheel="onWheel">
@@ -19,24 +21,28 @@
           @scroll="onScroll"
         >
           <div ref="listRef" class="slanted-tabs__list">
-            <button
-              v-for="(option, index) in options"
-              :id="tabId(option.key)"
-              :key="option.key"
-              type="button"
-              role="tab"
-              class="slanted-tabs__tab"
-              :class="{ 'is-active': option.key === selectedKey }"
-              :style="{ '--tab-layer': option.key === selectedKey ? options.length + 1 : options.length - index }"
-              :aria-selected="option.key === selectedKey"
-              :aria-controls="$slots.default ? panelId(option.key) : undefined"
-              :tabindex="option.key === selectedKey ? 0 : -1"
-              :disabled="option.disabled || state.loading"
-              @click="select(option.key)"
-              @keydown="onKeydown($event, option.key)"
-            >
-              <span class="slanted-tabs__label"><TabLabel :option="option" /></span>
-            </button>
+            <div v-for="(option, index) in options" :key="option.key" class="slanted-tabs__item"
+              :style="{ '--tab-layer': option.key === selectedKey ? options.length + 1 : options.length - index }">
+              <button
+                :id="tabId(option.key)"
+                type="button"
+                role="tab"
+                class="slanted-tabs__tab"
+                :class="{ 'is-active': option.key === selectedKey }"
+                :aria-selected="option.key === selectedKey"
+                :aria-controls="$slots.default ? panelId(option.key) : undefined"
+                :tabindex="option.key === selectedKey ? 0 : -1"
+                :disabled="option.disabled || state.loading"
+                @click="select(option.key)"
+                @keydown="onKeydown($event, option.key)"
+              >
+                <svg v-if="option.key === selectedKey" class="slanted-tabs__outline" viewBox="0 0 128 40" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                  <path :d="outlinePath(index === 0)" fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke" />
+                </svg>
+                <span class="slanted-tabs__label"><TabLabel :option="option" /></span>
+              </button>
+            <span v-if="$slots['tab-extra']" class="slanted-tabs__extra"><slot name="tab-extra" :option="option" /></span>
+            </div>
           </div>
         </div>
       </div>
@@ -75,7 +81,7 @@
                 :disabled="option.disabled || state.loading"
                 @click="selectOverflow(option.key)"
               >
-                <span class="slanted-tabs__menu-label"><TabLabel :option="option" /></span>
+                <span class="slanted-tabs__menu-label"><TabLabel :option="option" /><slot name="tab-extra" :option="option" /></span>
               </MenuItem>
             </Menu>
           </div>
@@ -114,6 +120,7 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import { Alert, Button, Dropdown, Empty, Menu, MenuItem, Spin } from 'ant-design-vue'
+import SkeletonText from '../SkeletonText'
 import { EllipsisOutlined } from '@ant-design/icons-vue'
 import { createReusableTemplate } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
@@ -129,6 +136,9 @@ interface SlantedTabsEmits {
 }
 
 const props = defineProps({
+  fill: { type: Boolean, default: false },
+  flush: { type: Boolean, default: false },
+  size: { type: String as PropType<'default' | 'small'>, default: 'default' },
   options: {
     type: Array as PropType<SlantedTabOption[]>,
     default: () => [],
@@ -148,6 +158,16 @@ const props = defineProps({
 })
 
 const emit = defineEmits<SlantedTabsEmits>()
+const outlinePaths = {
+  first: 'M0 40V8A8 8 0 0 1 8 0H113.44A8 8 0 0 1 121.28 6.43L128 40',
+  joined: 'M0 40L6.72 6.43A8 8 0 0 1 14.56 0H113.44A8 8 0 0 1 121.28 6.43L128 40',
+  flushFirst: 'M113.44 0A8 8 0 0 1 121.28 6.43L128 40',
+  flushJoined: 'M0 40L6.72 6.43A8 8 0 0 1 14.56 0M113.44 0A8 8 0 0 1 121.28 6.43L128 40',
+}
+function outlinePath(first: boolean) {
+  if (props.flush) return first ? outlinePaths.flushFirst : outlinePaths.flushJoined
+  return first ? outlinePaths.first : outlinePaths.joined
+}
 const { t } = useI18n()
 const [DefineTabLabel, TabLabel] = createReusableTemplate<{ option: SlantedTabOption }>()
 const { selectedKey, visitedKeys, select, onKeydown, tabId, panelId } = useSlantedTabs(props, emit)

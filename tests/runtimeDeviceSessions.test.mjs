@@ -118,6 +118,15 @@ test('timestamps, elapsed connection time and recent communication use epoch mil
   assert.ok(presentation.formatDeviceSessionTimestamp(now, 'zh')); assert.equal(presentation.formatDeviceSessionDuration(undefined, now), undefined)
 })
 
+test('compact status durations keep one useful unit and never invent unknown or future ages', () => {
+  const now = 1800000000000
+  assert.equal(presentation.formatDeviceSessionDuration(now - 59000, now, 'zh', true), '<1分')
+  assert.equal(presentation.formatDeviceSessionDuration(now - 3665000, now, 'en', true), '1h')
+  assert.equal(presentation.formatDeviceSessionDuration(now - 3665000, now, 'ja', true), '1h')
+  assert.equal(presentation.formatDeviceSessionDuration(now - 93600000, now, 'zh', true), '1天')
+  for (const value of [undefined, 0, now + 1]) assert.equal(presentation.formatDeviceSessionDuration(value, now, 'en', true), undefined)
+})
+
 test('production search form submits trimmed exact IDs and refreshes only the submitted identity; denied and loading actions emit nothing', async () => {
   const h = harness()
   try {

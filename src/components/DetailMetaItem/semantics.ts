@@ -1,7 +1,9 @@
-/** 详情摘要按字段语义选图标；时间点和时长、各类对象 ID 共用同一图标。 */
+/** 详情摘要按字段语义选图标，区分上报、创建与通用时间。 */
 export const detailMetaIcons = {
   id: 'NumberOutlined',
   time: 'ClockCircleOutlined',
+  report: 'HistoryOutlined',
+  created: 'CalendarOutlined',
   product: 'AppstoreOutlined',
   space: 'EnvironmentOutlined',
   group: 'FolderOutlined',
@@ -9,6 +11,8 @@ export const detailMetaIcons = {
   count: 'ClusterOutlined',
   brand: 'BankOutlined',
   model: 'TagOutlined',
+  access: 'ApiOutlined',
+  version: 'DeploymentUnitOutlined',
   tags: 'TagsOutlined',
   description: 'FileTextOutlined',
 } as const

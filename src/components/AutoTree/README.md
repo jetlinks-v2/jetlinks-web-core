@@ -29,6 +29,7 @@ import { AutoTree } from '@jetlinks-web-core/components'
 - 不添加 DOM 包装层，不改祖先样式；`class`、`style`、`aria-*` 保留 Ant Tree 原有的 DOM 落点，原 CSS 选择器继续生效。
 - 未传 `height`（或为 `undefined` / `null`）时，根据当前容器边界、后续同列区块、padding / margin 与可视区域计算正数高度，随相关容器和窗口变化更新。首次测量前使用最小正高度，避免万级节点短暂全量挂载；隐藏时保留最后有效高度，重新显示后补测。
 - 显式 `height` 和 `virtual` 保持 Ant Tree 原语义；`virtual` 未指定时继续继承 ConfigProvider 与 Tree 的默认行为。不新增 `fit`、`variant` 或页面必须填写的尺寸参数。
+- 项目连线树样式支持继承 `--jet-tree-indent-size` 调整层级缩进，默认 `1.5rem`，祖先连线随缩进同步定位，展开控件与行高保持原尺寸。需要完整名称横向滚动时，显式使用 `virtual=false` 的原生滚动，节点内容保留自然宽度、允许内容溢出，由原生树视口承接滚动。当前 Ant 4.x 的虚拟模式不支持按内容自然宽度横向滚动；大规模目录应权衡全量展开的节点渲染成本。
 - 无请求、路由、Store 或持久化副作用。DOM 监听随组件销毁释放，KeepAlive 恢复后重新测量。
 - Ant Design Vue 4.2.6 在 pending `Suspense` 中可能漏绑虚拟列表滚轮。运行时工作区通过 `patches/ant-design-vue@4.2.6.patch` 和 pnpm `patchedDependencies` 将事件绑定改为同步追踪视口 ref 的 post effect；重新安装依赖时自动应用。升级 Ant 后需先运行首次异步挂载与刷新回归，确认上游已修复再移除补丁。
 - DirectoryTree 后续单独验证；`AutoTree.DirectoryTree` 仅保留 Ant 原静态成员，不宣称该成员已增加自动高度。

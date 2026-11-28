@@ -3,6 +3,7 @@
     class="status-tag"
     :class="[
       `status-tag--${status}`,
+      `status-tag--${appearance}`,
       { 'status-tag--borderless': !bordered },
     ]"
   >
@@ -31,6 +32,10 @@ defineProps({
   bordered: {
     type: Boolean,
     default: true,
+  },
+  appearance: {
+    type: String as PropType<'tag' | 'text'>,
+    default: 'tag',
   },
 })
 </script>
@@ -96,4 +101,6 @@ defineProps({
   font-size: 0.875rem;
   line-height: 1;
 }
+.status-tag--text { min-height:22px; padding:0; border:0; border-radius:0; background:transparent; color:color-mix(in srgb, var(--status-tag-color) 60%, var(--jet-theme-text)); font-size:12px; font-weight:400; }
+.status-tag--text::before { content:''; flex:none; width:5px; height:5px; border-radius:50%; background:var(--status-tag-color); }
 </style>

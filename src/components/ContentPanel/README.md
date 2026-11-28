@@ -33,6 +33,7 @@
 | `title`               | `string` | `''` | 可选标题；`#title` 插槽存在时优先使用插槽内容。 |
 | `padding`             | `number` | `16` | 区块内边距，单位为 px；可传入 `0`。       |
 | `background`          | `boolean` | `true` | 为 `false` 时保留留白与圆角，但背景透明、去掉模糊与阴影。 |
+| `bordered`            | `boolean` | `false` | 连续工作区使用1px `var(--line)`外框和正文表面，去掉装饰阴影与模糊；默认样式保持。 |
 | `fill`                | `boolean` | `false` | 为 `true` 时面板转为 flex 列容器（`flex: 1; min-height: 0`）并跳过空的标题区占位，供布局壳层撑满可用高度。 |
 | `title` 插槽            | `slot` | - | 自定义标题内容；标题为 18px、600 字重。    |
 | `titleRightRender` 插槽 | `slot` | - | 自定义标题右侧内容。                  |
@@ -71,7 +72,7 @@ Tabs、共享工具栏和分区正文属于同一个工作区时，由最外层 
 
 宿主先提供确定的可用高度；`fill` 沿父级 flex 列容器填满。外框描边按表面需要选择，分区组件不重复添加圆角框；共享头部的底线横贯表面，分割线从其下沿连接到底边。布局根不留额外 padding，也不通过负 margin 或对子组件内部样式的覆盖实现贴边。
 
-已有壳层面板时，由所属模块的 `getContentPanelOverrides()` 声明 `{ padding: 0 }`，页面直接提供工具栏和分区布局，省略上例的 `ContentPanel`。输入、按钮和内容卡片仍保留独立边框。带独立左右头部的布局沿用 `EqualHeightColumns`；两种组合见 `tests/public-ui/README.md`。
+已有壳层面板时，由所属模块的 `getContentPanelOverrides()` 声明 `{ padding: 0, bordered: true }`，页面直接提供工具栏和分区布局，省略上例的 `ContentPanel`。外框与内部结构线共用`var(--line)`，分区不重复绘制框。输入、按钮和内容卡片仍保留独立边框。带独立左右头部的布局沿用 `EqualHeightColumns`；两种组合见 `tests/public-ui/README.md`。
 
 ## 布局壳层中的统一包裹
 

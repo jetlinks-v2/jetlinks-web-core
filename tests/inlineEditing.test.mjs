@@ -9,7 +9,8 @@ const boundaries = {
   'vue-i18n': { useI18n: () => ({ locale: ref('zh'), t: key => key }) },
   '@vueuse/core': { useElementVisibility: () => ref(false), useMediaQuery: () => ref(false) },
 }
-const InputEditable = createDashboardLoader(boundaries)('components/Editable/InputEditable.vue').default
+const SaveFeedback = createDashboardLoader(boundaries)('components/Editable/SaveFeedback.vue').default
+const InputEditable = createDashboardLoader({ ...boundaries, './SaveFeedback.vue': { default: SaveFeedback, __esModule: true } })('components/Editable/InputEditable.vue').default
 const TranslationInput = defineComponent({ inheritAttrs:false, setup:(_props,{attrs,expose}) => { expose({focus(){}}); return () => h('input',attrs) } })
 const TranslationTextarea = defineComponent({ inheritAttrs:false, setup:(_props,{attrs,expose}) => { expose({focus(){}}); return () => h('textarea',attrs) } })
 const TranslationTab = defineComponent({ setup:(_props,{slots}) => () => h('span',[slots.tab?.(),slots.default?.()]) })
@@ -103,11 +104,15 @@ test('unsaved indicators track changed drafts, disappear at the baseline and res
   for (const textarea of [false, true]) {
     const view = mount(InputEditable, { textarea, saveFeedback: true }); t.after(() => view.app.unmount())
     const indicator = () => view.find(node => node.props['aria-label'] === 'Editable.unsaved')
+    const reserved = () => !!view.find(node => String(node.props.class || '').split(' ').includes('input-editable--has-feedback'))
     assert.equal(indicator(), undefined)
+    assert.equal(reserved(), true)
     await view.start(); assert.equal(indicator(), undefined)
     await view.update('已修改'); assert.ok(indicator())
+    assert.equal(reserved(), true)
     assert.equal(indicator().props.title, 'Editable.unsaved')
     await view.update('原名称'); assert.equal(indicator(), undefined)
+    assert.equal(reserved(), true, 'returning to the baseline hides the indicator without removing its width')
     await view.update('取消草稿'); assert.ok(indicator())
     view.input().props.onKeydown(keyEvent('Escape')); await flush()
     assert.equal(indicator(), undefined); assert.deepEqual(view.values, [])

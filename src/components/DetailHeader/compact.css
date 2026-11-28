@@ -1,0 +1,27 @@
+.cloud-detail-header--compact { gap:12px; }
+.cloud-detail-header--compact .cloud-detail-header__icon { width:40px; height:40px; font-size:22px; }
+.cloud-detail-header--summary.cloud-detail-header--compact .cloud-detail-header__main { grid-template-columns:minmax(0,1fr) auto; gap:6px 16px; }
+.cloud-detail-header--compact .cloud-detail-header__title-main,
+.cloud-detail-header--compact .cloud-detail-header__title-extra { flex-wrap:nowrap; }
+.cloud-detail-header--compact .cloud-detail-header__title { min-width:0; font-size:18px; line-height:32px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cloud-detail-header--compact .cloud-detail-header__title--custom { display:flex; overflow:visible; }
+.cloud-detail-header--compact .cloud-detail-header__title-extra { flex:none; }
+.cloud-detail-header--summary.cloud-detail-header--compact:not(.cloud-detail-header--identified) .cloud-detail-header__actions { grid-column:2; grid-row:1; flex-wrap:nowrap; }
+.cloud-detail-header__secondary { grid-column:1/-1; display:flex; align-items:center; gap:12px; min-width:0; min-height:24px; }
+.cloud-detail-header--compact .cloud-detail-header__meta { flex:1; flex-wrap:nowrap; align-items:center; gap:0; min-width:0; }
+.cloud-detail-header--compact .cloud-detail-header__meta :deep(.detail-meta-item) { flex:0 1 auto; font-size:12px; line-height:24px; }
+.cloud-detail-header--compact .cloud-detail-header__meta :deep(.detail-meta-item + .detail-meta-item) { margin-inline-start:12px; }
+.cloud-detail-header--compact .cloud-detail-header__meta :deep(.detail-meta-item--group-start) { padding-inline-start:12px; border-inline-start:1px solid var(--line); }
+.cloud-detail-header__more-info { flex:none; height:24px; padding-inline:6px; font-size:12px; color:var(--jet-theme-text-secondary); }
+.cloud-detail-header__extra-panel { width:min(480px, calc(100vw - 48px)); }
+@container detail-header (max-width:36rem) {
+  .cloud-detail-header--compact { gap:8px; }
+  .cloud-detail-header--compact .cloud-detail-header__icon { width:32px; height:32px; font-size:20px; }
+  .cloud-detail-header--summary.cloud-detail-header--compact .cloud-detail-header__main { column-gap:12px; }
+  .cloud-detail-header--compact .cloud-detail-header__title-extra :deep(.app-tag) { display:none; }
+  .cloud-detail-header--compact:not(.cloud-detail-header--identified) .cloud-detail-header__actions :deep(.ant-btn) { width:32px; min-width:32px; height:32px; min-height:32px; padding:0; font-size:0; }
+  .cloud-detail-header--compact:not(.cloud-detail-header--identified) .cloud-detail-header__actions :deep(.ant-btn .anticon) { font-size:14px; }
+  .cloud-detail-header--compact:not(.cloud-detail-header--identified) .cloud-detail-header__actions :deep(.ant-btn .anticon + span) { margin-inline-start:0; }
+  .cloud-detail-header--compact:not(.cloud-detail-header--identified) .cloud-detail-header__meta { overflow-x:auto; scrollbar-width:thin; }
+  .cloud-detail-header--compact:not(.cloud-detail-header--identified) .cloud-detail-header__meta :deep(.detail-meta-item) { flex:none; max-width:16rem; }
+}

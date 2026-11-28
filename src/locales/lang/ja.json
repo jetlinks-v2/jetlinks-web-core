@@ -40,7 +40,6 @@
   "I18n.translated": "翻訳あり",
   "I18n.untranslated": "翻訳なし",
   "I18n.fallbackHint": "空欄の場合は既定の文言を使用します",
-  "I18n.cancel": "キャンセル",
   "I18n.apply": "適用",
   "dashboardCanvas.component": "コンポーネント",
   "dashboardCanvas.componentFailed": "{name} の読み込みに失敗しました。もう一度お試しください",
@@ -2476,5 +2475,16 @@
   "PlatformSettings.initFailed": "「{step}」が完了しませんでした。後続の処理を停止しました。確認して再試行してください。",
   "PlatformSettings.initialize": "確認して初期化",
   "PlatformSettings.initialization": "初期化の完了",
-  "PlatformSettings.basic": "基本設定"
+  "PlatformSettings.basic": "基本設定",
+  "components.ConditionFilter.summary.edit": "絞り込み条件を編集",
+  "components.ConditionFilter.summary.done": "完了",
+  "components.ConditionFilter.summary.count": "… 全 {count} 条件",
+  "components.ConditionFilter.summary.like": "含む",
+  "components.ConditionFilter.summary.nlike": "含まない",
+  "NavigationTree.search": "検索",
+  "NavigationTree.searchLabel": "ツリーを検索",
+  "NavigationTree.noMatches": "一致する項目がありません",
+  "NavigationTree.empty": "データがありません",
+  "components.DetailHeader.moreInfo": "詳細情報",
+  "components.DetailHeader.editInfo": "基本情報を編集"
 }

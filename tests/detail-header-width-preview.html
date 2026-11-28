@@ -1,0 +1,59 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Detail header width regression</title></head><body><div id="app"></div>
+<script type="module">
+import { createApp, h, reactive, ref, watch, nextTick } from 'vue'
+import { createI18n } from 'vue-i18n'
+import Antd, { Button } from 'ant-design-vue'
+import * as icons from '@ant-design/icons-vue'
+import Header from '../src/components/DetailHeader/index.vue'
+import Identifier from '../src/components/DetailHeader/Identifier.vue'
+import Meta from '../src/components/DetailMetaItem/index.vue'
+import Editable from '../src/components/Editable/InputEditable.vue'
+import Status from '../src/components/StatusTag/index.vue'
+import Metrics from '../../modules/device-manager-ui/components/device-detail/DeviceConnectionMetrics.vue'
+import Context from '../../modules/device-manager-ui/components/device-detail/DeviceConnectionContext.vue'
+import Actions from '../../modules/device-manager-ui/views/device/list/components/device-detail/DeviceDetailActions.vue'
+import zh from '../../modules/device-manager-ui/locales/lang/zh.json'
+import en from '../../modules/device-manager-ui/locales/lang/en.json'
+import ja from '../../modules/device-manager-ui/locales/lang/ja.json'
+import coreZh from '../src/locales/lang/zh.json'
+import coreEn from '../src/locales/lang/en.json'
+import coreJa from '../src/locales/lang/ja.json'
+import 'ant-design-vue/dist/reset.css'
+import '../src/style/components.less'
+const i18n=createI18n({legacy:false,flatJson:true,locale:'zh',messages:{zh:{...coreZh,...zh},en:{...coreEn,...en},ja:{...coreJa,...ja}}})
+// Reproduces the reported 35.839 B/s and 4 messages/s without requests or business writes.
+const source=reactive({open:false,access:{allowed:true},sessions:[{transport:'MQTT',connections:Array.from({length:6},(_,id)=>({id:String(id),metrics:{lastCommTime:Date.now()}}))}],state:{status:'ready',sampledAt:Date.now()},history:[{sampledAt:1000,connections:[{key:'fixture',receive:'0',send:'0',messages:'0'}]},{sampledAt:1001000,connections:[{key:'fixture',receive:'35839',send:'35839',messages:'4000'}]}],paused:false,requesting:false})
+const App={setup(){
+  const width=ref(979),long=ref(false),result=ref('Checking'),edited=ref(0)
+  function check(){
+    const root=document.querySelector('.cloud-detail-header'),problems=[]
+    if(!root)return
+    for(const el of root.querySelectorAll('.device-connection-metrics__value')) if(el.getBoundingClientRect().width&&el.scrollWidth>el.clientWidth+1)problems.push(`Clipped metric: ${el.textContent}`)
+    const name=root.querySelector('.input-editable__text'),title=root.querySelector('.cloud-detail-header__title-row').getBoundingClientRect(),layout=root.querySelector('.cloud-detail-header__layout'),gap=parseFloat(getComputedStyle(layout).columnGap)||0
+    const parts=['.cloud-detail-header__visual','.cloud-detail-header__title-row','.cloud-detail-header__observation','.cloud-detail-header__context','.cloud-detail-header__actions'].map(selector=>({selector,box:root.querySelector(selector)?.getBoundingClientRect()})).filter(({selector,box})=>box?.width&&(selector.includes('visual')||Math.abs(box.top+box.height/2-title.top-title.height/2)<1))
+    const free=layout.getBoundingClientRect().width-parts.reduce((total,{box})=>total+box.width,0)-Math.max(0,parts.length-1)*gap
+    if(!long.value&&name&&name.scrollWidth>name.clientWidth+1&&free>=name.scrollWidth-name.clientWidth)problems.push('Clipped short name despite available space')
+    const line=root.querySelector('.cloud-detail-header__identity-line')
+    if(line.getBoundingClientRect().width&&line.scrollWidth>line.clientWidth+1)problems.push('Runtime row overflow')
+    if(document.documentElement.scrollWidth>innerWidth)problems.push('Page overflow')
+    result.value=problems.length?problems.join('; '):'PASS: visible metrics complete, no unnecessary name truncation or overflow'
+  }
+  watch([width,long,i18n.global.locale],async()=>{await nextTick();requestAnimationFrame(check)},{immediate:true})
+  return()=>{const lang=i18n.global.locale.value,labels={zh:['树莓派','在线','操作','网关','未配置分组','未绑定空间','设置标签'],en:['Raspberry Pi','Online','Actions','Gateway','No group assigned','No space bound','Set tags'],ja:['ラズベリーパイ','オンライン','操作','ゲートウェイ','グループ未設定','スペース未割当','タグを設定']}[lang],name=long.value?labels[0].repeat(16):labels[0];return h('main',[
+    h('div',{class:'controls'},[
+      h('label',['Language ',h('select',{'aria-label':'Language',value:lang,onChange:e=>i18n.global.locale.value=e.target.value},['zh','en','ja'].map(value=>h('option',{value},value)))]),
+      h('label',['Header width ',h('select',{'aria-label':'Header width',value:width.value,onChange:e=>width.value=Number(e.target.value)},[1300,1101,979,822,610,328,208].map(value=>h('option',{value},value)))]),
+      h('label',[h('input',{type:'checkbox','aria-label':'Long name',checked:long.value,onChange:e=>long.value=e.target.checked}),' Long name']),
+      h('button',{onClick:check},'Check layout')]),
+    h('output',{role:'status'},result.value),h('output',{'data-edit-count':true},`Edit requests: ${edited.value}`),
+    h('section',{class:'surface',style:{width:`${width.value+32}px`,maxWidth:'100%'}},[h(Header,{title:name,variant:'summary',compact:true,metaEditable:true,onEditMeta:()=>edited.value++,resourceType:{icon:'GatewayOutlined',label:labels[3]}},{
+      icon:()=>h(icons.GatewayOutlined),title:()=>h(Editable,{value:name,label:name,trigger:'text',size:'small',disabled:true}),
+      status:()=>[h(Status,{appearance:'text',status:'success',text:labels[1]}),h('span',{style:{fontSize:'12px',whiteSpace:'nowrap'}},'3h')],
+      identifier:()=>h(Identifier,{value:'2076492262481084416'}),observation:()=>h(Metrics,{observation:source}),context:()=>h(Context,{observation:source,status:'online'}),
+      meta:({expanded})=>[h(Meta,{kind:'product',label:'Product',value:labels[3],showLabel:expanded}),h(Meta,{kind:'group',label:'Group',value:labels[4],showLabel:expanded}),h(Meta,{kind:'space',label:'Space',value:labels[5],showLabel:expanded})],
+      auxiliary:()=>h('button',{class:'plain'},labels[6]),actions:()=>h(Actions,{compact:true,editMode:'hidden',name,disabled:false,permissions:{update:true,action:true,delete:true},busyAction:''},{more:()=>h(Button,{type:'text'},{icon:()=>h(icons.DesktopOutlined),default:()=>({zh:'远程访问',en:'Remote access',ja:'リモートアクセス'}[lang])})})})])])}
+}}
+createApp(App).use(Antd).use(i18n).component('AIcon',{props:['type'],setup:p=>()=>h(icons[p.type]||icons.QuestionOutlined)}).mount('#app')
+</script>
+<style>body{margin:0;font-family:Arial,sans-serif;background:#f5f6f8;--space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--r-2:4px;--r-3:6px;--r-6:12px;--fs-12:12px;--fs-14:14px;--fs-18:18px;--jet-theme-text:#1d2129;--jet-theme-text-secondary:#5c6270;--jet-theme-text-description:#8a9099;--jet-theme-primary:#1677ff;--jet-theme-bg-container:#fff;--line:#e5e7eb;--bg:#fff}main{padding:16px}.controls{display:flex;gap:16px;flex-wrap:wrap}output{display:block;margin:16px 0}.surface{box-sizing:border-box;padding:16px;background:white;border-radius:8px}.plain{border:0;background:none;padding:0;white-space:nowrap;height:24px;font-size:12px;color:inherit}</style>
+</body></html>

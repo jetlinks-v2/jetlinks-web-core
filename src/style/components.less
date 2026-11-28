@@ -138,7 +138,11 @@
   }
 
   .ant-tree-indent-unit {
-    width: 1.5rem;
+    width: var(--jet-tree-indent-size, 1.5rem);
+  }
+
+  .ant-tree-indent-unit::before {
+    inset-inline-end: calc(var(--jet-tree-indent-size, 1.5rem) - .75rem);
   }
 
   // 保留 Ant Tree 自身的分支拓扑，只统一为设计稿中的浅灰虚线。
@@ -215,14 +219,6 @@
 
 .pro-table__no-padding {
   padding: 0 !important;
-}
-
-.ant-table {
-  .ant-table-thead {
-    th {
-      background: #F3F5FA !important;
-    }
-  }
 }
 
 .JSearch-warp {
@@ -326,17 +322,23 @@
 }
 
 .ant-segmented {
+  --jet-segmented-control-height: 2rem;
   background: #F9FBFD;
   border: 1px solid var(--jet-theme-border-color-1);
   border-radius: var(--r-1);
   padding: 0;
+  height: var(--jet-segmented-control-height);
+  &.ant-segmented-sm { --jet-segmented-control-height: 1.5rem; }
+  &.ant-segmented-lg { --jet-segmented-control-height: 2.5rem; }
   .ant-segmented-item-selected {
     box-shadow: none;
     color: var(--jet-theme-primary);
   }
-  .ant-segmented-item-label {
-    min-height: 2rem;
-    line-height: 2rem;
+  &, &.ant-segmented-sm, &.ant-segmented-lg {
+    .ant-segmented-item-label {
+      min-height: calc(var(--jet-segmented-control-height) - 2px);
+      line-height: calc(var(--jet-segmented-control-height) - 2px);
+    }
   }
 }
 
@@ -366,6 +368,18 @@
     .ant-modal-title {
       border-bottom: none;
     }
+  }
+}
+
+// 轻量资料维护沿用工作区表面；同一接缝只绘制一次分割线。
+.ant-modal.jl-modal--plain {
+  .ant-modal-header {
+    background: var(--jet-theme-bg-container);
+    border-bottom: 1px solid var(--jet-theme-border-secondary);
+  }
+  .ant-modal-footer {
+    box-shadow: none;
+    border-top: 1px solid var(--jet-theme-border-secondary);
   }
 }
 

@@ -7,12 +7,17 @@
   --slanted-tabs-min-width: 8em;
   --slanted-tabs-overlap: 0.5em;
 }
+.slanted-tabs--small { font-size:12px; --slanted-tabs-height:32px; --slanted-tabs-min-width:88px; --slanted-tabs-overlap:6px; }
+.slanted-tabs--small .slanted-tabs__tab { padding-inline:var(--slanted-tabs-padding-inline, 16px); }
+.slanted-tabs--small .slanted-tabs__label { font-size:inherit; }
+.slanted-tabs__icon { display:inline-flex; flex:none; align-items:center; justify-content:center; width:1em; height:1em; font-size:14px; line-height:1; }
 
 .slanted-tabs__nav {
   display: flex;
   box-sizing: border-box;
   padding: var(--slanted-tabs-nav-padding, 0);
   background: var(--slanted-tabs-background, transparent);
+  box-shadow: inset 0 1px var(--slanted-tabs-top-line-color, transparent), inset 0 -1px var(--slanted-tabs-border-color, transparent);
 }
 
 .slanted-tabs__viewport {
@@ -92,7 +97,7 @@
 
 .slanted-tabs__menu-label {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.5em;
   max-width: min(400px, calc(100vw - 80px));
   white-space: normal;
@@ -109,12 +114,12 @@
   justify-content: center;
   height: var(--slanted-tabs-height);
   min-width: var(--slanted-tabs-min-width);
-  padding: 0 1.5em;
+  padding: 0 var(--slanted-tabs-padding-inline, 1.5em);
   border: 0;
   border-radius: 0;
   background: none;
   color: inherit;
-  font-family: var(--slanted-tabs-font-family, 'Microsoft YaHei', 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+  font-family: var(--slanted-tabs-font-family, inherit);
   font-size: inherit;
   font-weight: 400;
   line-height: 1.5;
@@ -125,6 +130,11 @@
 .slanted-tabs__tab + .slanted-tabs__tab {
   margin-left: calc(-1 * var(--slanted-tabs-overlap));
 }
+
+.slanted-tabs--fill .slanted-tabs__viewport { max-width:var(--slanted-tabs-track-width, none); }
+.slanted-tabs--fill .slanted-tabs__list { min-width:100%; }
+.slanted-tabs--fill .slanted-tabs__item { flex:1 0 auto; }
+.slanted-tabs--fill .slanted-tabs__tab { width:100%; min-width:0; }
 
 /* 单层渐变经 SVG 遮罩裁切，避免拼接接缝；128 × 40 为参考轮廓基准。 */
 .slanted-tabs__tab::before {
@@ -137,14 +147,52 @@
   pointer-events: none;
 }
 
+.slanted-tabs__tab:not(.is-active)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--slanted-tabs-border-color, transparent);
+  -webkit-mask: linear-gradient(#fff, #fff) 0 100% / 100% 1px no-repeat;
+  mask: linear-gradient(#fff, #fff) 0 100% / 100% 1px no-repeat;
+  pointer-events: none;
+}
+
+.slanted-tabs__outline {
+  position:absolute;
+  inset:0.5px;
+  width:calc(100% - 1px);
+  height:calc(100% - 1px);
+  overflow:visible;
+  color:var(--slanted-tabs-border-color, transparent);
+  pointer-events:none;
+}
+
+/* 内部页签的左斜边承接前项右斜边，首项保留与面板对齐的直边。 */
+.slanted-tabs__item + .slanted-tabs__item .slanted-tabs__tab::before {
+  -webkit-mask-image: url('./shape-joined.svg');
+  mask-image: url('./shape-joined.svg');
+}
+
+
 .slanted-tabs__tab.is-active .slanted-tabs__label {
-  color: var(--ink-1, #20242d);
-  font-weight: 500;
-	font-size: var(--fs-16);
+  color: var(--slanted-tabs-active-color, var(--ink-1, #20242d));
 }
 
 .slanted-tabs__tab.is-active::before {
   background: var(--slanted-tabs-active-bg, currentColor);
+}
+
+/* 由宿主外框与导航分割线承担边界，活动背景直接延伸到正文。 */
+.slanted-tabs--flush .slanted-tabs__nav { padding:0; }
+/* 贴边模式由宿主外框提供边界，溢出继续通过“更多”入口访问。 */
+.slanted-tabs--flush .slanted-tabs__viewport::before,
+.slanted-tabs--flush .slanted-tabs__viewport::after { box-shadow:none; }
+.slanted-tabs--flush .slanted-tabs__tab { min-width:0; }
+.slanted-tabs--flush .slanted-tabs__tab::before { top:1px; }
+.slanted-tabs--flush .slanted-tabs__tab:not(.is-active)::after { display:none; }
+.slanted-tabs--flush .slanted-tabs__item:first-child .slanted-tabs__tab::before {
+  -webkit-mask-image:url('./shape-flush.svg');
+  mask-image:url('./shape-flush.svg');
 }
 
 .slanted-tabs__tab:focus-visible {
@@ -157,7 +205,7 @@
   border-radius: calc(2em / 14);
 }
 
-.slanted-tabs__tab:not(:disabled):hover .slanted-tabs__label {
+.slanted-tabs__tab:not(:disabled):not(.is-active):hover .slanted-tabs__label {
   color: var(--ink-1, #20242d);
 }
 
@@ -172,15 +220,22 @@
 .slanted-tabs__label {
   position: relative;
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.5em;
   color: var(--ink-3, #8793a3);
   white-space: nowrap;
-	font-size: var(--fs-14);
+  font-size: 0.875em;
+  font-weight: 500;
 }
 
 .slanted-tabs__count {
+  display:inline-block;
+  min-width:20px;
+  text-align:center;
   font-variant-numeric: tabular-nums;
+  color:var(--jet-theme-text-secondary);
+  font-size:0.857143em;
+  font-weight:400;
 }
 
 .slanted-tabs__panel,

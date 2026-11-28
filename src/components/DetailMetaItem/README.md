@@ -1,6 +1,8 @@
 # DetailMetaItem
 
-详情摘要中的“小图标 + 值”。语义图标集中维护在 `semantics.ts`，字段名称由调用方传入已翻译的 `label`，在图标 Tooltip 和屏幕阅读器文本中保留。组件不访问接口或 Store。
+详情摘要中的“小图标 + 值”。语义图标集中维护在 `semantics.ts`，字段名称由调用方传入已翻译的 `label`，在悬浮提示和屏幕阅读器文本中保留。组件不访问接口或 Store。
+
+接入方式使用`kind="access"`的ApiOutlined，固件/软件版本使用`kind="version"`的DeploymentUnitOutlined；它们与产品分类、型号保持独立语义，值和跳转动作由宿主提供。
 
 | 参数 | 类型 | 用途 |
 | --- | --- | --- |
@@ -8,9 +10,14 @@
 | `label` | `string` | 必填；字段名称和无障碍文本 |
 | `value` | `string \| number` | 默认展示值；保留 `0` 和完整字符串 ID |
 | `tooltip` | `string` | 值的完整提示，例如长空间路径 |
+| `mergedTooltip` | `boolean` | 启用时图标与值共用一个提示；默认关闭 |
+| `groupStart` | `boolean` | 标记一组语义字段的起点；紧凑详情头部在此绘制组间分割线 |
+| `showLabel` | `boolean` | 显示标签并按共同标签轨道对齐，适用于资料网格；默认仍为图标与值 |
 | `multiline` | `boolean` | 标签、说明、编辑框等需要换行时启用 |
 
 默认插槽可以替换值，承载原有复制、链接、说明编辑和反馈。默认值区域省略长文本；多行模式自动换行。
+
+合并模式把图标、间距和值作为一个悬浮区域，以当前语言显示“字段名：完整值”。完整值优先取 `tooltip`，其次取 `value`，两者都没有时只显示字段名。值由默认插槽渲染时通过 `tooltip` 提供完整文本。未启用时仍使用原有的分区提示。
 
 ID 复制提示统一由值区域的一层 Tooltip 承载，使用 `$t('DetailMetaItem.copyTooltip', { id })` 显示“点击复制：完整 ID”。设备、产品、网关、业务应用、开放平台应用和接口分组均遵循此规则：按钮插槽不再嵌套复制 Tooltip；`a-typography-text` 使用 `:copyable="{ text: id, tooltip: false }"` 关闭自身提示，保留复制行为和成功图标。完整 ID 必须使用原始字符串，不截断或转换为数字。
 
@@ -18,18 +25,24 @@ ID 复制提示统一由值区域的一层 Tooltip 承载，使用 `$t('DetailMe
 
 摘要对齐规则：普通文字、ID 复制、行内链接及说明继承相同字体和行高，语义图标对齐首行中心。值插槽中的行内文字/链接按钮移除内边距、边框及内联基线占位，保留链接颜色、焦点及禁用行为；多行说明仍从首行开始对齐。设备标签内的编辑、展开按钮保持原尺寸。
 
+单行资料使用居中交叉轴对齐，使图标跟随值的实际行高；图标盒使用1lh对齐第一行，不以固定em高度对齐不同高度的按钮与文字，并保留1.6em供旧浏览器回退。显式multiline保留顶部对齐，长标签和展开值可换行。图标颜色使用平台已有的text-description变量。
+
 对齐验证：真实组件配合受控数据，在 1920/1280/390/320px 下完成六类头部的 24 组测量，首行图标/值位置一致，同排文字位置偏差小于 0.5px，行内按钮的 padding/border 均为 0；产品链接点击和禁用检查通过。六类详情长字段/缺失字段/窄屏检查及改动文件样式门禁通过。本次仅修改样式，复用前轮类型与构建证据；真实登录页面尚未复验。
 
 | kind | 语义 | 图标 |
 | --- | --- | --- |
 | `id` | 各类对象 ID | `NumberOutlined` |
-| `time` | 创建时间、最后上报、在线时长 | `ClockCircleOutlined` |
+| `time` | 通用时间、时长 | `ClockCircleOutlined` |
+| `report` | 最后上报 | `HistoryOutlined` |
+| `created` | 创建时间 | `CalendarOutlined` |
 | `product` | 所属产品 | `AppstoreOutlined` |
 | `space` | 空间、区域 | `EnvironmentOutlined` |
 | `group` | 业务分组 | `FolderOutlined` |
 | `category` | 分类 | `ApartmentOutlined` |
 | `count` | 设备数量 | `ClusterOutlined` |
 | `brand` / `model` | 品牌 / 型号 | `BankOutlined` / `TagOutlined` |
+| `access` | 接入方式 | `ApiOutlined` |
+| `version` | 固件 / 软件版本 | `DeploymentUnitOutlined` |
 | `tags` / `description` | 标签 / 说明 | `TagsOutlined` / `FileTextOutlined` |
 
 `DetailMetaItem` 已全局注册并从 core components 根入口导出，`DetailMetaKind` 同时公开。复制 ID 时使用原始字符串，将 `a-typography-text` 的显示值包在 `<span>` 中，并通过 `copyable.text` 或 `content` 指定完整 ID，使文字可以省略、复制按钮保持可见。链接权限、禁用条件、请求、失败与重试由业务页面管理。

@@ -1,33 +1,53 @@
 <template>
-  <span class="detail-meta-item" :class="{ 'detail-meta-item--multiline': multiline }" :data-semantic="kind">
-    <a-tooltip :title="label">
-      <span class="detail-meta-item__icon">
-        <AIcon :type="detailMetaIcons[kind]" aria-hidden="true" />
-        <span class="detail-meta-item__label">{{ label }}</span>
-      </span>
-    </a-tooltip>
-    <a-tooltip :title="tooltip">
-      <span class="detail-meta-item__value"><slot>{{ value }}</slot></span>
-    </a-tooltip>
-  </span>
+  <OptionalTooltip :title="mergedTitle">
+    <span v-bind="$attrs" class="detail-meta-item" :class="{ 'detail-meta-item--multiline': multiline, 'detail-meta-item--group-start': groupStart, 'detail-meta-item--labeled': showLabel }" :data-semantic="kind">
+      <OptionalTooltip :title="mergedTooltip ? undefined : label">
+        <span class="detail-meta-item__icon">
+          <AIcon :type="detailMetaIcons[kind]" aria-hidden="true" />
+          <span class="detail-meta-item__label">{{ label }}</span>
+        </span>
+      </OptionalTooltip>
+      <OptionalTooltip :title="mergedTooltip ? undefined : tooltip">
+        <span class="detail-meta-item__value"><slot>{{ value }}</slot></span>
+      </OptionalTooltip>
+    </span>
+  </OptionalTooltip>
 </template>
 
 <script setup lang="ts">
+import { computed, h, resolveComponent, type FunctionalComponent } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { detailMetaIcons, type DetailMetaKind } from './semantics'
 
-defineProps<{
+defineOptions({ inheritAttrs: false })
+
+const props = defineProps<{
   kind: DetailMetaKind
   label: string
   value?: string | number
   tooltip?: string
   multiline?: boolean
+  mergedTooltip?: boolean
+  groupStart?: boolean
+  showLabel?: boolean
 }>()
+
+const { t } = useI18n()
+const mergedTitle = computed(() => {
+  if (!props.mergedTooltip) return undefined
+  const value = props.tooltip || (props.value ?? '')
+  return value === '' ? props.label : t('DetailMetaItem.mergedTooltip', { label: props.label, value })
+})
+
+const OptionalTooltip: FunctionalComponent<{ title?: string }> = ({ title }, { slots }) =>
+  title ? h(resolveComponent('a-tooltip'), { title }, slots) : slots.default?.()[0]
+OptionalTooltip.props = ['title']
 </script>
 
 <style scoped>
 .detail-meta-item {
   display: inline-flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-2);
   min-width: 0;
   max-width: 100%;
@@ -41,7 +61,8 @@ defineProps<{
   flex: none;
   align-items: center;
   height: 1.6em;
-  color: var(--jet-theme-text-tertiary);
+  height: 1lh;
+  color: var(--jet-theme-text-description);
 }
 .detail-meta-item__label {
   position: absolute;
@@ -51,6 +72,11 @@ defineProps<{
   clip-path: inset(50%);
   white-space: nowrap;
 }
+.detail-meta-item--labeled { display:grid; grid-template-columns:minmax(0,72px) minmax(0,1fr); align-items:center; gap:8px; }
+.detail-meta-item--labeled .detail-meta-item__icon { min-width:0; gap:4px; height:auto; min-height:1.6em; }
+.detail-meta-item--labeled .detail-meta-item__icon > .anticon { flex:none; }
+.detail-meta-item--labeled .detail-meta-item__label { position:static; min-width:0; width:auto; height:auto; clip-path:none; white-space:normal; overflow-wrap:anywhere; }
+.detail-meta-item--labeled .detail-meta-item__value { white-space:normal; overflow-wrap:anywhere; }
 .detail-meta-item__value {
   display: block;
   min-width: 0;

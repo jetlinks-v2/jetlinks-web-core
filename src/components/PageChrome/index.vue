@@ -22,7 +22,7 @@ defineOptions({ name: 'PageChrome' })
  */
 defineProps({
   /**
-   * `true` 时头部与面板贴合：壳层闭合两者间距，并把面板左上角拉平。
+   * `true` 时头部与面板贴合：壳层闭合两者间距，并把面板两个上角拉平。
    * 用于 `SlantedTabs` 这类"页签就是面板顶栏"的头部；返回按钮这类独立头部保持默认。
    */
   flush: {
@@ -45,5 +45,13 @@ onMounted(() => {
 .page-chrome {
   min-width: 0;
   flex: 0 0 auto;
+
+  &--flush {
+    /* 让选中页签覆盖正文面板的阴影，保持同色接缝连续。 */
+    position: relative;
+    z-index: 1;
+    --slanted-tabs-border-color: var(--line);
+    --slanted-tabs-active-bg: var(--jet-theme-bg-container);
+  }
 }
 </style>

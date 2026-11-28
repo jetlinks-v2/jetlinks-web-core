@@ -26,12 +26,14 @@ function load(file) {
   return module.exports
 }
 const Header = load(resolve(root, 'DetailHeader/index.vue')).default
+const Identifier = load(resolve(root, 'DetailHeader/Identifier.vue')).default
 const Meta = load(resolve(root, 'DetailMetaItem/index.vue')).default
 const { detailMetaIcons } = load(resolve(root, 'DetailMetaItem/semantics.ts'))
 async function render(component, props, slots) {
   const app = vue.createSSRApp({ render: () => vue.h(component, props, slots) })
   app.component('a-tooltip', { props: ['title'], setup: (_, { slots }) => () => slots.default?.() })
   app.component('a-button', { setup: (_, { slots }) => () => vue.h('button', slots.default?.()) })
+  app.component('a-popover', { setup: (_, { slots }) => () => vue.h('div', [slots.default?.(), slots.content?.()]) })
   app.component('AIcon', { props: ['type'], setup: props => () => vue.h('svg', { 'data-icon': props.type }) })
   return renderToString(app)
 }
@@ -72,6 +74,19 @@ test('metadata keeps long string IDs, zero and accessible field names without gu
   assert.match(slotted, /href="\/product\/1"/)
 })
 
+test('compact summary keeps metadata in its second region and renders extra controls once in the popover', async () => {
+  const html = await render(Header, { title: 'Device', variant: 'summary', compact: true, extraLabel: 'Device tags' }, {
+    meta: () => 'DEVICE_METADATA', extra: () => 'TAG_EDITOR', actions: () => 'DEVICE_ACTIONS',
+  })
+  assert.match(html, /cloud-detail-header--compact/)
+  assert.match(html, /cloud-detail-header__secondary/)
+  assert.match(html, /aria-label="Device tags"/)
+  assert.equal(html.split('TAG_EDITOR').length - 1, 1)
+  assert.match(html, /DEVICE_METADATA/)
+  assert.match(html, /DEVICE_ACTIONS/)
+  assert.doesNotMatch(html, /class="cloud-detail-header__extra"/)
+})
+
 test('all timestamp and duration labels use the same real icon', async () => {
   for (const label of ['创建时间', '最后上报', '在线时长']) {
     const html = await render(Meta, { kind: 'time', label, value: 'value' })
@@ -80,4 +95,49 @@ test('all timestamp and duration labels use the same real icon', async () => {
   }
   const icons = require('@ant-design/icons-vue')
   for (const icon of Object.values(detailMetaIcons)) assert.ok(icons[icon], `${icon} must exist in the installed library`)
+})
+
+test('identified summary keeps identifier, metadata, auxiliary controls and status exactly once', async () => {
+  const html = await render(Header, { title: 'Device', variant: 'summary', compact: true }, {
+    identifier: () => '2096860670194954240', meta: () => 'ALIGNED_FACTS', auxiliary: () => 'TAG_CONTROLS', status: () => 'CONNECTION', actions: () => 'MORE',
+  })
+  assert.match(html, /cloud-detail-header--identified/)
+  for (const text of ['2096860670194954240','ALIGNED_FACTS','TAG_CONTROLS','CONNECTION']) assert.equal(html.split(text).length - 1, 1)
+  const identifier = await render(Identifier, { value: '2096860670194954240' })
+  assert.match(identifier, /2096860670194954240/)
+  assert.match(identifier, /detail-identifier__copy/)
+  const labeled = await render(Meta, { kind: 'product', label: 'Product', value: 'Sensor', showLabel: true })
+  assert.match(labeled, /detail-meta-item--labeled/)
+})
+
+test('identified header exposes one observation region and an accessible semantic type icon', async () => {
+  const html = await render(Header, { title: 'Device', variant: 'summary', compact: true, resourceType: { icon: 'GatewayOutlined', label: 'Edge node' } }, {
+    identifier: () => 'device-id', status: () => 'ONLINE_STATUS', observation: () => 'LIVE_OBSERVATION', context: () => 'CONNECTION_CONTEXT',
+    meta: ({ expanded }) => expanded ? 'EXPANDED_FIELDS' : 'INLINE_FIELDS',
+  })
+  assert.match(html, /aria-label="Edge node"/)
+  assert.match(html, /data-icon="GatewayOutlined"/)
+  assert.equal(html.split('ONLINE_STATUS').length - 1, 1)
+  assert.equal(html.split('LIVE_OBSERVATION').length - 1, 1)
+  assert.equal(html.split('CONNECTION_CONTEXT').length - 1, 1)
+  assert.match(html, /cloud-detail-header__context/)
+  assert.match(html, /INLINE_FIELDS/)
+  assert.doesNotMatch(html, /EXPANDED_FIELDS/)
+})
+
+test('identifier trailing actions are siblings of the copy button', async () => {
+  const html = await render(Identifier, { value:'2096860670194954240' }, { after: () => vue.h('button', { 'aria-label':'Map ID' }, 'Mapping') })
+  assert.match(html, /<\/button>[\s\S]*aria-label="Map ID"/)
+  assert.match(html, /detail-identifier__button/)
+  assert.doesNotMatch(html, /detail-identifier__copy/)
+})
+
+test('basic information editing is opt-in and occupies a single metadata action', async () => {
+  for(const editable of [false,true]) {
+    const html=await render(Header,{title:'Device',variant:'summary',compact:true,metaEditable:editable,metaEditDisabled:true},{identifier:()=> 'device-id',meta:()=> 'FIELDS'})
+    assert.equal(html.includes('cloud-detail-header__facts-edit'),editable)
+    assert.equal((html.match(/data-icon="EditOutlined"/g)||[]).length,editable?1:0)
+    if(editable)assert.match(html,/aria-label="components.DetailHeader.editInfo"/)
+    assert.match(html,/FIELDS/)
+  }
 })

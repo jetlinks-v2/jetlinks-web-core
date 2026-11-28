@@ -4,6 +4,8 @@
 
 从 `@jetlinks-web-core/components` 具名导入，或使用全局注册的 `SlantedTabs`。按需入口为 `@jetlinks-web-core/components/SlantedTabs`。
 
+默认标签统一使用14px图标盒，图标、文字、数量在同一行垂直居中；导航及溢出菜单共用相同呈现。业务页面传入option.icon即可，不需补图标偏移样式；自定义tab插槽仍由调用方负责内部排版。
+
 ```vue
 <template>
   <SlantedTabs v-model:activeKey="activeKey" :options="options" />
@@ -26,7 +28,10 @@ const options: SlantedTabOption[] = [
 
 | 属性 / 事件 | 类型 | 说明 |
 | --- | --- | --- |
-| `options` | `SlantedTabOption[]` | `key` 唯一，支持字符串/数字；`label`、可选 `count`、`disabled`。0 正常显示，省略数量则隐藏。 |
+| `options` | `SlantedTabOption[]` | `key` 唯一，支持字符串/数字；`label`、可选 `icon`、`count`、`countLoading`、`disabled`。默认标签渲染平台语义图标；自定义tab插槽继续由调用方控制。加载中的数量以定宽 SkeletonText 占位；0 正常显示，省略数量则隐藏。 |
+| `size` | `'default' \| 'small'` | 默认尺寸保持既有契约；small使用32px高度、12px文字、14px图标及88px最小宽度，保留相同轮廓和溢出/键盘行为。 |
+| `flush` | `boolean` | 默认false。连续详情使用贴边导航、直边首项，活动背景直接连接正文，仅补充左右侧线；首项左侧复用外框，不画独立顶边和底边。标签按内容及留白定宽。 |
+| `fill` | `boolean` | 默认false。按标签自然宽度填充分配轨道剩余空间；以像素值`--slanted-tabs-track-width`限制轨道，可与相邻分区对齐。导航底线保持整宽，文字不压缩，超出时沿用滚动和更多。 |
 | `activeKey` | `string \| number` | 支持 `v-model:activeKey`；不传时组件内部维护选择。 |
 | `preserveDisabledActive` | `boolean` | 默认 `false`。开启后保留当前被禁用项的选中态，仍禁止用户选择禁用项；适用于活动状态必须与外部内容一致的受控导航。 |
 | `state` | `SlantedTabsState` | 可选 `loading`、`error`、`emptyText`，状态优先级为加载、错误、空选项、内容。 |
@@ -45,7 +50,9 @@ const options: SlantedTabOption[] = [
 可直接通过组件的 `style` 或 CSS 类设置 `color` 和 `font-size`，例如 `style="color: #e6f4ff; font-size: 20px"`：
 
 - `color` 控制默认背景色，默认白色；选中项使用原色，未选中项沿水平方向在 11.72%～75% 之间从 20% 渐变到 60% 不透明度。文字颜色独立，悬停不会改变背景。
-- `font-size` 控制文字及页签尺寸，默认 `1rem`。根字号为 16px 时，普通短标题页签为 128 × 40px、文字与数量间距 8px、相邻页签重叠 8px。选中时文字不放大，切换不会改变几何尺寸。
+- `--slanted-tabs-border-color` 控制活动页签的1px外轮廓和导航整宽底线，默认透明；`PageChrome flush` 使用平台 `--line` 与正文边框、内部结构线保持一致。活动轮廓用内联SVG的1px non-scaling描边，放入按钮内侧0.5px，保持完整线宽，不经遮罩裁切；底部开口连接正文。默认未选项只绘制底部基线，flush的基线仅由导航绘制，避免重复描边。描边不改变页签几何或点击区域。
+- 首项保留直左边对齐面板，后续项使用 `shape-joined.svg` 的对称圆角斜边背景和对应内联轮廓路径。内部交界不再以直边截断前项斜边；填充与开口轮廓配对，保持单一活动轮廓。
+- `font-size` 控制文字及页签尺寸，默认 `1rem`。根字号为16px时，普通短标题页签为128 × 40px、标签14px、计数12px、文字与数量间距7px、相邻页签叠放8px。标签继承产品字体，可用 `--slanted-tabs-font-family` 显式覆盖。选中前后保持同一字号与字重，切换不会改变页签或相邻项的几何尺寸。
 - 页签不再均分容器；长标题会撑宽页签并横向拉伸遮罩。空间不足时导航栏保留横向滚动，通过标准与 WebKit 滚动条样式隐藏滚动条，不为滚动条预留高度，使页签与下方内容连续衔接；支持普通鼠标上下滚轮横移、触控板／触摸横向滚动及方向键、Home/End 导航。精确对照参考图时，使用 16px 字号、默认尺寸和同样的短标题。
 - 轮廓位于 `shape.svg`，根据 128 × 40 PNG 的透明边缘拟合。原图字体未提供，尚不能保证文字栅格及轮廓抗锯齿逐像素一致；原图背景透明度也不同于本次指定的 20%～60% 渐变。
 
@@ -60,9 +67,13 @@ const options: SlantedTabOption[] = [
 }
 ```
 
-`--slanted-tabs-active-bg` 和 `--slanted-tabs-inactive-bg` 均支持纯色或完整 CSS 渐变，显式背景变量优先于 `color`。`--slanted-tabs-background` 仍只控制整个导航栏背景；`--slanted-tabs-panel-bg` 可独立设置内容/反馈区域背景，未指定时沿用选中背景或白色。
+`--slanted-tabs-active-bg` 和 `--slanted-tabs-inactive-bg` 均支持纯色或完整 CSS 渐变，显式背景变量优先于 `color`。`--slanted-tabs-active-color` 控制选中文字和图标颜色，默认沿用正文色，不改变选中前后的几何尺寸。`--slanted-tabs-background` 仍只控制整个导航栏背景；`--slanted-tabs-panel-bg` 可独立设置内容/反馈区域背景，未指定时沿用选中背景或白色。
 
-尺寸仍可通过 `--slanted-tabs-height`、`--slanted-tabs-min-width`、`--slanted-tabs-overlap` 覆盖；固定长度不随字号缩放，单独改变宽高比例会拉伸遮罩。`--slanted-tabs-nav-padding` 控制导航栏内边距，默认 0。`--slanted-tabs-font-family` 控制字体；`--slanted-tabs-font-size` 提供默认字号，行内 `font-size` 可直接覆盖。未指定的空态文案遵循 Ant ConfigProvider 的语言配置，其余文案由调用方国际化后传入。
+`--slanted-tabs-top-line-color` 可启用导航顶部的连续细分割线，默认透明，宿主不再叠加相邻的header底边；`--slanted-tabs-border-color`控制导航底线与活动边界。连续详情使用flush：首项直边贴到左内沿，左边复用宿主外框、仅补右侧线；内部项保留两条斜侧线，不画独立顶边和底边，背景向下连接正文。导航保留浅背景，活动项与正文同色；顶部1px分割线独立完整。
+
+flush的水平结构线仅由导航绘制，未选中项不重复画底线。完整外框由宿主承担，横向滚动后不叠加端部阴影；“更多”菜单、滚轮、触摸和键盘导航保持。默认独立模式继续显示原有溢出阴影。
+
+尺寸仍可通过 `--slanted-tabs-height`、`--slanted-tabs-min-width`、`--slanted-tabs-overlap` 覆盖；固定长度不随字号缩放，单独改变宽高比例会拉伸遮罩。`--slanted-tabs-nav-padding` 控制默认导航栏内边距，默认0，flush保持贴边；`--slanted-tabs-padding-inline`控制标签内部留白，可与宿主正文gutter对齐。`--slanted-tabs-font-family` 控制字体；`--slanted-tabs-font-size` 提供默认字号，行内 `font-size` 可直接覆盖。未指定的空态文案遵循 Ant ConfigProvider 的语言配置，其余文案由调用方国际化后传入。
 
 运行时设备列表分类与设备详情已接入该组件，入口分别为 `modules/device-manager-ui/views/device/list/unified/index.vue` 和 `modules/device-manager-ui/views/device/list/components/IotDeviceDetailView.vue`。
 

@@ -35,6 +35,7 @@ export interface ResolvedContentPanel {
   title?: string
   /** `false` 时保留留白与圆角，但背景透明。 */
   background: boolean
+  bordered?: boolean
 }
 
 const isPanelConfigObject = (value: unknown): value is Exclude<ContentPanelOverride, boolean> => (
@@ -63,6 +64,7 @@ export const normalizeContentPanel = (
     title: typeof declared.title === 'string' ? declared.title : undefined,
     // 面板保留时默认带背景；只有显式 `background: false` 才透明。
     background: declared.background !== false,
+    bordered: declared.bordered === true,
   }
 }
 

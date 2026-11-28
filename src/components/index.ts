@@ -92,6 +92,7 @@ import ContentPanel from './ContentPanel/index.vue'
 import { TableActions, TableActionsItem } from './TableActions'
 import BasisSection from './BasisSection/index.vue'
 import AutoTree from './AutoTree'
+import NavigationTree from './NavigationTree'
 
 export default {
     install(app: App) {
@@ -186,6 +187,7 @@ export default {
           .component('TableActionsItem', TableActionsItem)
           .component('BasisSection', BasisSection)
           .component('AutoTree', AutoTree)
+          .component('NavigationTree', NavigationTree)
 
         Object.entries(FormItemValue as Record<string, Component>).forEach(([key, component]) => {
             app.component(key, component)
@@ -227,6 +229,10 @@ export {
     BasisSection
 }
 export { AutoTree }
+export { NavigationTree }
+export type { NavigationTreeProps, NavigationTreeOptions, NavigationTreeKey, NavigationTreeNode } from './NavigationTree'
+export { InlineEditSurface } from './InlineEditSurface'
+export { default as VirtualTable } from './VirtualTable'
 export { InlineEditForm } from './InlineEditForm'
 export type { InlineEditEditorScope, InlineEditFieldDefinition, InlineEditGroup, InlineEditMessages, InlineEditResult, InlineEditSubmit } from './InlineEditForm'
 export type { AutoTreeProps, AutoTreeInstance } from './AutoTree'
